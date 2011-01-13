@@ -23,7 +23,6 @@
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 #include <linux/mtd/physmap.h>
@@ -53,7 +52,6 @@ static void __init n2100_timer_init(void)
 
 static struct sys_timer n2100_timer = {
 	.init		= n2100_timer_init,
-	.offset		= iop_gettimeoffset,
 };
 
 
@@ -178,7 +176,7 @@ static struct plat_serial8250_port n2100_serial_port[] = {
 		.mapbase	= N2100_UART,
 		.membase	= (char *)N2100_UART,
 		.irq		= 0,
-		.flags		= UPF_SKIP_TEST,
+		.flags		= UPF_SKIP_TEST | UPF_AUTO_IRQ | UPF_SHARE_IRQ,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
 		.uartclk	= 1843200,
@@ -329,8 +327,6 @@ static void __init n2100_init_machine(void)
 
 MACHINE_START(N2100, "Thecus N2100")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.phys_io	= N2100_UART,
-	.io_pg_offst	= ((N2100_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= n2100_map_io,
 	.init_irq	= iop32x_init_irq,

@@ -3,6 +3,7 @@
 #include <linux/stringify.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 static inline int trace_valid_entry(struct trace_entry *entry)
 {
@@ -12,11 +13,9 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_WAKE:
 	case TRACE_STACK:
 	case TRACE_PRINT:
-	case TRACE_SPECIAL:
 	case TRACE_BRANCH:
 	case TRACE_GRAPH_ENT:
 	case TRACE_GRAPH_RET:
-	case TRACE_HW_BRANCHES:
 		return 1;
 	}
 	return 0;
@@ -28,7 +27,7 @@ static int trace_test_buffer_cpu(struct trace_array *tr, int cpu)
 	struct trace_entry *entry;
 	unsigned int loops = 0;
 
-	while ((event = ring_buffer_consume(tr->buffer, cpu, NULL))) {
+	while ((event = ring_buffer_consume(tr->buffer, cpu, NULL, NULL))) {
 		entry = ring_buffer_event_data(event);
 
 		/*
@@ -66,7 +65,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 
 	/* Don't allow flipping of max traces now */
 	local_irq_save(flags);
-	__raw_spin_lock(&ftrace_max_lock);
+	arch_spin_lock(&ftrace_max_lock);
 
 	cnt = ring_buffer_entries(tr->buffer);
 
@@ -84,7 +83,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 			break;
 	}
 	tracing_on();
-	__raw_spin_unlock(&ftrace_max_lock);
+	arch_spin_unlock(&ftrace_max_lock);
 	local_irq_restore(flags);
 
 	if (count)
@@ -254,7 +253,8 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 /* Maximum number of functions to trace before diagnosing a hang */
 #define GRAPH_MAX_FUNC_TEST	100000000
 
-static void __ftrace_dump(bool disable_tracing);
+static void
+__ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode);
 static unsigned int graph_hang_thresh;
 
 /* Wrap the real function entry probe to avoid possible hanging */
@@ -265,7 +265,7 @@ static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
 		ftrace_graph_stop();
 		printk(KERN_WARNING "BUG: Function graph tracer hang!\n");
 		if (ftrace_dump_on_oops)
-			__ftrace_dump(false);
+			__ftrace_dump(false, DUMP_ALL);
 		return 0;
 	}
 
@@ -288,6 +288,7 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	 * to detect and recover from possible hangs
 	 */
 	tracing_reset_online_cpus(tr);
+	set_graph_array(tr);
 	ret = register_ftrace_graph(&trace_graph_return,
 				    &trace_graph_entry_watchdog);
 	if (ret) {
@@ -557,7 +558,7 @@ trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
 static int trace_wakeup_test_thread(void *data)
 {
 	/* Make this a RT thread, doesn't need to be too high */
-	struct sched_param param = { .sched_priority = 5 };
+	static const struct sched_param param = { .sched_priority = 5 };
 	struct completion *x = data;
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
@@ -688,38 +689,6 @@ trace_selftest_startup_sched_switch(struct tracer *trace, struct trace_array *tr
 }
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 
-#ifdef CONFIG_SYSPROF_TRACER
-int
-trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
-{
-	unsigned long count;
-	int ret;
-
-	/* start the tracing */
-	ret = tracer_init(trace, tr);
-	if (ret) {
-		warn_failed_init_tracer(trace, ret);
-		return ret;
-	}
-
-	/* Sleep for a 1/10 of a second */
-	msleep(100);
-	/* stop the tracing. */
-	tracing_stop();
-	/* check the trace buffer */
-	ret = trace_test_buffer(tr, &count);
-	trace->reset(tr);
-	tracing_start();
-
-	if (!ret && !count) {
-		printk(KERN_CONT ".. no entries found ..");
-		ret = -1;
-	}
-
-	return ret;
-}
-#endif /* CONFIG_SYSPROF_TRACER */
-
 #ifdef CONFIG_BRANCH_TRACER
 int
 trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
@@ -752,58 +721,3 @@ trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
-#ifdef CONFIG_HW_BRANCH_TRACER
-int
-trace_selftest_startup_hw_branches(struct tracer *trace,
-				   struct trace_array *tr)
-{
-	struct trace_iterator *iter;
-	struct tracer tracer;
-	unsigned long count;
-	int ret;
-
-	if (!trace->open) {
-		printk(KERN_CONT "missing open function...");
-		return -1;
-	}
-
-	ret = tracer_init(trace, tr);
-	if (ret) {
-		warn_failed_init_tracer(trace, ret);
-		return ret;
-	}
-
-	/*
-	 * The hw-branch tracer needs to collect the trace from the various
-	 * cpu trace buffers - before tracing is stopped.
-	 */
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return -ENOMEM;
-
-	memcpy(&tracer, trace, sizeof(tracer));
-
-	iter->trace = &tracer;
-	iter->tr = tr;
-	iter->pos = -1;
-	mutex_init(&iter->mutex);
-
-	trace->open(iter);
-
-	mutex_destroy(&iter->mutex);
-	kfree(iter);
-
-	tracing_stop();
-
-	ret = trace_test_buffer(tr, &count);
-	trace->reset(tr);
-	tracing_start();
-
-	if (!ret && !count) {
-		printk(KERN_CONT "no entries found..");
-		ret = -1;
-	}
-
-	return ret;
-}
-#endif /* CONFIG_HW_BRANCH_TRACER */

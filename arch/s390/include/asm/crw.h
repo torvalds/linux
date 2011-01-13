@@ -32,6 +32,7 @@ typedef void (*crw_handler_t)(struct crw *, struct crw *, int);
 extern int crw_register_handler(int rsc, crw_handler_t handler);
 extern void crw_unregister_handler(int rsc);
 extern void crw_handle_channel_report(void);
+void crw_wait_for_channel_report(void);
 
 #define NR_RSCS 16
 

@@ -103,7 +103,7 @@ static int vdc_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static struct block_device_operations vdc_fops = {
+static const struct block_device_operations vdc_fops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= vdc_getgeo,
 };
@@ -691,9 +691,8 @@ static int probe_disk(struct vdc_port *port)
 
 	port->disk = g;
 
-	blk_queue_max_hw_segments(q, port->ring_cookies);
-	blk_queue_max_phys_segments(q, port->ring_cookies);
-	blk_queue_max_sectors(q, port->max_xfer_size);
+	blk_queue_max_segments(q, port->ring_cookies);
+	blk_queue_max_hw_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
 	g->first_minor = port->vio.vdev->dev_no << PARTITION_SHIFT;
 	strcpy(g->disk_name, port->disk_name);

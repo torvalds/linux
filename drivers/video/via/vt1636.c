@@ -19,7 +19,37 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
+#include <linux/via_i2c.h>
 #include "global.h"
+
+static const struct IODATA common_init_data[] = {
+/*  Index, Mask, Value */
+	/* Set panel power sequence timing */
+	{0x10, 0xC0, 0x00},
+	/* T1: VDD on - Data on. Each increment is 1 ms. (50ms = 031h) */
+	{0x0B, 0xFF, 0x40},
+	/* T2: Data on - Backlight on. Each increment is 2 ms. (210ms = 068h) */
+	{0x0C, 0xFF, 0x31},
+	/* T3: Backlight off -Data off. Each increment is 2 ms. (210ms = 068h)*/
+	{0x0D, 0xFF, 0x31},
+	/* T4: Data off - VDD off. Each increment is 1 ms. (50ms = 031h) */
+	{0x0E, 0xFF, 0x68},
+	/* T5: VDD off - VDD on. Each increment is 100 ms. (500ms = 04h) */
+	{0x0F, 0xFF, 0x68},
+	/* LVDS output power up */
+	{0x09, 0xA0, 0xA0},
+	/* turn on back light */
+	{0x10, 0x33, 0x13}
+};
+
+/* Index, Mask, Value */
+static const struct IODATA dual_channel_enable_data = {0x08, 0xF0, 0xE0};
+static const struct IODATA single_channel_enable_data = {0x08, 0xF0, 0x00};
+static const struct IODATA dithering_enable_data = {0x0A, 0x70, 0x50};
+static const struct IODATA dithering_disable_data = {0x0A, 0x70, 0x00};
+static const struct IODATA vdd_on_data = {0x10, 0x20, 0x20};
+static const struct IODATA vdd_off_data = {0x10, 0x20, 0x00};
 
 u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information
 	*plvds_setting_info, struct lvds_chip_information *plvds_chip_info,
@@ -27,9 +57,8 @@ u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information
 {
 	u8 data;
 
-	viaparinfo->i2c_stuff.i2c_port = plvds_chip_info->i2c_port;
-	viafb_i2c_readbyte(plvds_chip_info->lvds_chip_slave_addr, index, &data);
-
+	viafb_i2c_readbyte(plvds_chip_info->i2c_port,
+			   plvds_chip_info->lvds_chip_slave_addr, index, &data);
 	return data;
 }
 
@@ -39,14 +68,13 @@ void viafb_gpio_i2c_write_mask_lvds(struct lvds_setting_information
 {
 	int index, data;
 
-	viaparinfo->i2c_stuff.i2c_port = plvds_chip_info->i2c_port;
-
 	index = io_data.Index;
 	data = viafb_gpio_i2c_read_lvds(plvds_setting_info, plvds_chip_info,
 		index);
 	data = (data & (~io_data.Mask)) | io_data.Data;
 
-	viafb_i2c_writebyte(plvds_chip_info->lvds_chip_slave_addr, index, data);
+	viafb_i2c_writebyte(plvds_chip_info->i2c_port,
+			    plvds_chip_info->lvds_chip_slave_addr, index, data);
 }
 
 void viafb_init_lvds_vt1636(struct lvds_setting_information
@@ -55,111 +83,44 @@ void viafb_init_lvds_vt1636(struct lvds_setting_information
 	int reg_num, i;
 
 	/* Common settings: */
-	reg_num = ARRAY_SIZE(COMMON_INIT_TBL_VT1636);
-
-	for (i = 0; i < reg_num; i++) {
+	reg_num = ARRAY_SIZE(common_init_data);
+	for (i = 0; i < reg_num; i++)
 		viafb_gpio_i2c_write_mask_lvds(plvds_setting_info,
-					 plvds_chip_info,
-					 COMMON_INIT_TBL_VT1636[i]);
-	}
+			plvds_chip_info, common_init_data[i]);
 
 	/* Input Data Mode Select */
-	if (plvds_setting_info->device_lcd_dualedge) {
+	if (plvds_setting_info->device_lcd_dualedge)
 		viafb_gpio_i2c_write_mask_lvds(plvds_setting_info,
-					 plvds_chip_info,
-					 DUAL_CHANNEL_ENABLE_TBL_VT1636[0]);
-	} else {
+			plvds_chip_info, dual_channel_enable_data);
+	else
 		viafb_gpio_i2c_write_mask_lvds(plvds_setting_info,
-					 plvds_chip_info,
-					 SINGLE_CHANNEL_ENABLE_TBL_VT1636[0]);
-	}
+			plvds_chip_info, single_channel_enable_data);
 
-	if (plvds_setting_info->LCDDithering) {
+	if (plvds_setting_info->LCDDithering)
 		viafb_gpio_i2c_write_mask_lvds(plvds_setting_info,
-					 plvds_chip_info,
-					 DITHERING_ENABLE_TBL_VT1636[0]);
-	} else {
+			plvds_chip_info, dithering_enable_data);
+	else
 		viafb_gpio_i2c_write_mask_lvds(plvds_setting_info,
-					 plvds_chip_info,
-					 DITHERING_DISABLE_TBL_VT1636[0]);
-	}
+			plvds_chip_info, dithering_disable_data);
 }
 
 void viafb_enable_lvds_vt1636(struct lvds_setting_information
 			*plvds_setting_info,
 			struct lvds_chip_information *plvds_chip_info)
 {
-
 	viafb_gpio_i2c_write_mask_lvds(plvds_setting_info, plvds_chip_info,
-				 VDD_ON_TBL_VT1636[0]);
-
-	/* Pad on: */
-	switch (plvds_chip_info->output_interface) {
-	case INTERFACE_DVP0:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0xC0, 0xC0);
-			break;
-		}
-
-	case INTERFACE_DVP1:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0x30, 0x30);
-			break;
-		}
-
-	case INTERFACE_DFP_LOW:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x03, 0x03);
-			break;
-		}
-
-	case INTERFACE_DFP_HIGH:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x03, 0x0C);
-			break;
-		}
-
-	}
+		vdd_on_data);
 }
 
 void viafb_disable_lvds_vt1636(struct lvds_setting_information
 			 *plvds_setting_info,
 			 struct lvds_chip_information *plvds_chip_info)
 {
-
 	viafb_gpio_i2c_write_mask_lvds(plvds_setting_info, plvds_chip_info,
-				 VDD_OFF_TBL_VT1636[0]);
-
-	/* Pad off: */
-	switch (plvds_chip_info->output_interface) {
-	case INTERFACE_DVP0:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0x00, 0xC0);
-			break;
-		}
-
-	case INTERFACE_DVP1:
-		{
-			viafb_write_reg_mask(SR1E, VIASR, 0x00, 0x30);
-			break;
-		}
-
-	case INTERFACE_DFP_LOW:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x00, 0x03);
-			break;
-		}
-
-	case INTERFACE_DFP_HIGH:
-		{
-			viafb_write_reg_mask(SR2A, VIASR, 0x00, 0x0C);
-			break;
-		}
-
-	}
+		vdd_off_data);
 }
 
-bool viafb_lvds_identify_vt1636(void)
+bool viafb_lvds_identify_vt1636(u8 i2c_adapter)
 {
 	u8 Buffer[2];
 
@@ -167,26 +128,20 @@ bool viafb_lvds_identify_vt1636(void)
 
 	/* Sense VT1636 LVDS Transmiter */
 	viaparinfo->chip_info->lvds_chip_info.lvds_chip_slave_addr =
-	VT1636_LVDS_I2C_ADDR;
+		VT1636_LVDS_I2C_ADDR;
 
 	/* Check vendor ID first: */
-	viafb_i2c_readbyte((u8) viaparinfo->chip_info->lvds_chip_info.
-	lvds_chip_slave_addr,
-		    0x00, &Buffer[0]);
-	viafb_i2c_readbyte((u8) viaparinfo->chip_info->lvds_chip_info.
-		lvds_chip_slave_addr,
-		    0x01, &Buffer[1]);
+	if (viafb_i2c_readbyte(i2c_adapter, VT1636_LVDS_I2C_ADDR,
+					0x00, &Buffer[0]))
+		return false;
+	viafb_i2c_readbyte(i2c_adapter, VT1636_LVDS_I2C_ADDR, 0x01, &Buffer[1]);
 
 	if (!((Buffer[0] == 0x06) && (Buffer[1] == 0x11)))
 		return false;
 
 	/* Check Chip ID: */
-	viafb_i2c_readbyte((u8) viaparinfo->chip_info->lvds_chip_info.
-	lvds_chip_slave_addr,
-		    0x02, &Buffer[0]);
-	viafb_i2c_readbyte((u8) viaparinfo->chip_info->lvds_chip_info.
-		lvds_chip_slave_addr,
-		    0x03, &Buffer[1]);
+	viafb_i2c_readbyte(i2c_adapter, VT1636_LVDS_I2C_ADDR, 0x02, &Buffer[0]);
+	viafb_i2c_readbyte(i2c_adapter, VT1636_LVDS_I2C_ADDR, 0x03, &Buffer[1]);
 	if ((Buffer[0] == 0x45) && (Buffer[1] == 0x33)) {
 		viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
 			VT1636_LVDS;

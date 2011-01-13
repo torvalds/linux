@@ -1,5 +1,6 @@
 /*
- * ov534 gspca driver
+ * ov534-ov772x gspca driver
+ *
  * Copyright (C) 2008 Antonio Ospite <ospite@studenti.unina.it>
  * Copyright (C) 2008 Jim Paris <jim@jtan.com>
  * Copyright (C) 2009 Jean-Francois Moine http://moinejf.free.fr
@@ -7,6 +8,10 @@
  * Based on a prototype written by Mark Ferrell <majortrips@gmail.com>
  * USB protocol reverse engineered by Jim Paris <jim@jtan.com>
  * https://jim.sh/svn/jim/devl/playstation/ps3/eye/test/
+ *
+ * PS3 Eye camera enhanced by Richard Kaswy http://kaswy.free.fr
+ * PS3 Eye camera - brightness, contrast, awb, agc, aec controls
+ *                  added by Max Thrun <bear24rw@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,16 +56,209 @@ struct sd {
 	u16 last_fid;
 	u8 frame_rate;
 
-	u8 sensor;
-#define SENSOR_OV772X 0
-#define SENSOR_OV965X 1
+	u8 brightness;
+	u8 contrast;
+	u8 gain;
+	u8 exposure;
+	u8 agc;
+	u8 awb;
+	u8 aec;
+	s8 sharpness;
+	u8 hflip;
+	u8 vflip;
+	u8 freqfltr;
 };
 
 /* V4L2 controls supported by the driver */
-static struct ctrl sd_ctrls[] = {
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setagc(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getagc(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setawb(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getawb(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setaec(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getaec(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setfreqfltr(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getfreqfltr(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+		struct v4l2_querymenu *menu);
+
+static const struct ctrl sd_ctrls[] = {
+	{	/* 0 */
+		{
+			.id      = V4L2_CID_BRIGHTNESS,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Brightness",
+			.minimum = 0,
+			.maximum = 255,
+			.step    = 1,
+#define BRIGHTNESS_DEF 0
+			.default_value = BRIGHTNESS_DEF,
+		},
+		.set = sd_setbrightness,
+		.get = sd_getbrightness,
+	},
+	{	/* 1 */
+		{
+			.id      = V4L2_CID_CONTRAST,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Contrast",
+			.minimum = 0,
+			.maximum = 255,
+			.step    = 1,
+#define CONTRAST_DEF 32
+			.default_value = CONTRAST_DEF,
+		},
+		.set = sd_setcontrast,
+		.get = sd_getcontrast,
+	},
+	{	/* 2 */
+		{
+			.id      = V4L2_CID_GAIN,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Main Gain",
+			.minimum = 0,
+			.maximum = 63,
+			.step    = 1,
+#define GAIN_DEF 20
+			.default_value = GAIN_DEF,
+		},
+		.set = sd_setgain,
+		.get = sd_getgain,
+	},
+	{	/* 3 */
+		{
+			.id      = V4L2_CID_EXPOSURE,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Exposure",
+			.minimum = 0,
+			.maximum = 255,
+			.step    = 1,
+#define EXPO_DEF 120
+			.default_value = EXPO_DEF,
+		},
+		.set = sd_setexposure,
+		.get = sd_getexposure,
+	},
+	{	/* 4 */
+		{
+			.id      = V4L2_CID_AUTOGAIN,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Auto Gain",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define AGC_DEF 1
+			.default_value = AGC_DEF,
+		},
+		.set = sd_setagc,
+		.get = sd_getagc,
+	},
+#define AWB_IDX 5
+	{	/* 5 */
+		{
+			.id      = V4L2_CID_AUTO_WHITE_BALANCE,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Auto White Balance",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define AWB_DEF 1
+			.default_value = AWB_DEF,
+		},
+		.set = sd_setawb,
+		.get = sd_getawb,
+	},
+	{	/* 6 */
+		{
+			.id      = V4L2_CID_EXPOSURE_AUTO,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Auto Exposure",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define AEC_DEF 1
+			.default_value = AEC_DEF,
+		},
+		.set = sd_setaec,
+		.get = sd_getaec,
+	},
+	{	/* 7 */
+		{
+			.id      = V4L2_CID_SHARPNESS,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Sharpness",
+			.minimum = 0,
+			.maximum = 63,
+			.step    = 1,
+#define SHARPNESS_DEF 0
+			.default_value = SHARPNESS_DEF,
+		},
+		.set = sd_setsharpness,
+		.get = sd_getsharpness,
+	},
+	{	/* 8 */
+		{
+			.id      = V4L2_CID_HFLIP,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "HFlip",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define HFLIP_DEF 0
+			.default_value = HFLIP_DEF,
+		},
+		.set = sd_sethflip,
+		.get = sd_gethflip,
+	},
+	{	/* 9 */
+		{
+			.id      = V4L2_CID_VFLIP,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "VFlip",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define VFLIP_DEF 0
+			.default_value = VFLIP_DEF,
+		},
+		.set = sd_setvflip,
+		.get = sd_getvflip,
+	},
+	{	/* 10 */
+		{
+			.id      = V4L2_CID_POWER_LINE_FREQUENCY,
+			.type    = V4L2_CTRL_TYPE_MENU,
+			.name    = "Light Frequency Filter",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define FREQFLTR_DEF 0
+			.default_value = FREQFLTR_DEF,
+		},
+		.set = sd_setfreqfltr,
+		.get = sd_getfreqfltr,
+	},
 };
 
-static const struct v4l2_pix_format vga_yuyv_mode[] = {
+static const struct v4l2_pix_format ov772x_mode[] = {
+	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	 .bytesperline = 320 * 2,
+	 .sizeimage = 320 * 240 * 2,
+	 .colorspace = V4L2_COLORSPACE_SRGB,
+	 .priv = 1},
 	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
 	 .bytesperline = 640 * 2,
 	 .sizeimage = 640 * 480 * 2,
@@ -68,20 +266,21 @@ static const struct v4l2_pix_format vga_yuyv_mode[] = {
 	 .priv = 0},
 };
 
-static const struct v4l2_pix_format vga_jpeg_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-	 .bytesperline = 320,
-	 .sizeimage = 320 * 240 * 3 / 8 + 590,
-	 .colorspace = V4L2_COLORSPACE_JPEG,
-	 .priv = 1},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-	 .bytesperline = 640,
-	 .sizeimage = 640 * 480 * 3 / 8 + 590,
-	 .colorspace = V4L2_COLORSPACE_JPEG,
-	 .priv = 0},
+static const u8 qvga_rates[] = {125, 100, 75, 60, 50, 40, 30};
+static const u8 vga_rates[] = {60, 50, 40, 30, 15};
+
+static const struct framerates ov772x_framerates[] = {
+	{ /* 320x240 */
+		.rates = qvga_rates,
+		.nrates = ARRAY_SIZE(qvga_rates),
+	},
+	{ /* 640x480 */
+		.rates = vga_rates,
+		.nrates = ARRAY_SIZE(vga_rates),
+	},
 };
 
-static const u8 bridge_init_ov722x[][2] = {
+static const u8 bridge_init[][2] = {
 	{ 0xc2, 0x0c },
 	{ 0x88, 0xf8 },
 	{ 0xc3, 0x69 },
@@ -122,6 +321,7 @@ static const u8 bridge_init_ov722x[][2] = {
 	{ 0x1d, 0x40 },
 	{ 0x1d, 0x02 }, /* payload size 0x0200 * 4 = 2048 bytes */
 	{ 0x1d, 0x00 }, /* payload size */
+
 	{ 0x1d, 0x02 }, /* frame size 0x025800 * 4 = 614400 */
 	{ 0x1d, 0x58 }, /* frame size */
 	{ 0x1d, 0x00 }, /* frame size */
@@ -138,9 +338,19 @@ static const u8 bridge_init_ov722x[][2] = {
 	{ 0xc1, 0x3c },
 	{ 0xc2, 0x0c },
 };
-
-static const u8 sensor_init_ov722x[][2] = {
+static const u8 sensor_init[][2] = {
 	{ 0x12, 0x80 },
+	{ 0x11, 0x01 },
+/*fixme: better have a delay?*/
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
+	{ 0x11, 0x01 },
 	{ 0x11, 0x01 },
 
 	{ 0x3d, 0x03 },
@@ -154,10 +364,10 @@ static const u8 sensor_init_ov722x[][2] = {
 	{ 0x65, 0x20 },
 	{ 0x11, 0x01 },
 	{ 0x42, 0x7f },
-	{ 0x63, 0xe0 },
+	{ 0x63, 0xaa },		/* AWB - was e0 */
 	{ 0x64, 0xff },
 	{ 0x66, 0x00 },
-	{ 0x13, 0xf0 },
+	{ 0x13, 0xf0 },		/* com8 */
 	{ 0x0d, 0x41 },
 	{ 0x0f, 0xc5 },
 	{ 0x14, 0x11 },
@@ -170,7 +380,7 @@ static const u8 sensor_init_ov722x[][2] = {
 	{ 0x2a, 0x00 },
 	{ 0x2b, 0x00 },
 	{ 0x6b, 0xaa },
-	{ 0x13, 0xff },
+	{ 0x13, 0xff },		/* AWB */
 
 	{ 0x90, 0x05 },
 	{ 0x91, 0x01 },
@@ -218,408 +428,51 @@ static const u8 sensor_init_ov722x[][2] = {
 	{ 0x14, 0x41 },
 	{ 0x0e, 0xcd },
 	{ 0xac, 0xbf },
-	{ 0x8e, 0x00 },
+	{ 0x8e, 0x00 },		/* De-noise threshold */
 	{ 0x0c, 0xd0 }
 };
-
-static const u8 bridge_init_ov965x[][2] = {
-	{0x88, 0xf8},
-	{0x89, 0xff},
-	{0x76, 0x03},
-	{0x92, 0x03},
-	{0x95, 0x10},
-	{0xe2, 0x00},
-	{0xe7, 0x3e},
-	{0x8d, 0x1c},
-	{0x8e, 0x00},
-	{0x8f, 0x00},
-	{0x1f, 0x00},
-	{0xc3, 0xf9},
-	{0x89, 0xff},
-	{0x88, 0xf8},
-	{0x76, 0x03},
-	{0x92, 0x01},
-	{0x93, 0x18},
-	{0x1c, 0x0a},
-	{0x1d, 0x48},
+static const u8 bridge_start_vga[][2] = {
+	{0x1c, 0x00},
+	{0x1d, 0x40},
+	{0x1d, 0x02},
+	{0x1d, 0x00},
+	{0x1d, 0x02},
+	{0x1d, 0x58},
+	{0x1d, 0x00},
 	{0xc0, 0x50},
 	{0xc1, 0x3c},
-	{0x34, 0x05},
-	{0xc2, 0x0c},
-	{0xc3, 0xf9},
-	{0x34, 0x05},
-	{0xe7, 0x2e},
-	{0x31, 0xf9},
-	{0x35, 0x02},
-	{0xd9, 0x10},
-	{0x25, 0x42},
-	{0x94, 0x11},
 };
-
-static const u8 sensor_init_ov965x[][2] = {
-	{0x12, 0x80},	/* com7 - SSCB reset */
-	{0x00, 0x00},	/* gain */
-	{0x01, 0x80},	/* blue */
-	{0x02, 0x80},	/* red */
-	{0x03, 0x1b},	/* vref */
-	{0x04, 0x03},	/* com1 - exposure low bits */
-	{0x0b, 0x57},	/* ver */
-	{0x0e, 0x61},	/* com5 */
-	{0x0f, 0x42},	/* com6 */
-	{0x11, 0x00},	/* clkrc */
-	{0x12, 0x02},	/* com7 - 15fps VGA YUYV */
-	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
-	{0x14, 0x28},	/* com9 */
-	{0x16, 0x24},	/* reg16 */
-	{0x17, 0x1d},	/* hstart*/
-	{0x18, 0xbd},	/* hstop */
-	{0x19, 0x01},	/* vstrt */
-	{0x1a, 0x81},	/* vstop*/
-	{0x1e, 0x04},	/* mvfp */
-	{0x24, 0x3c},	/* aew */
-	{0x25, 0x36},	/* aeb */
-	{0x26, 0x71},	/* vpt */
-	{0x27, 0x08},	/* bbias */
-	{0x28, 0x08},	/* gbbias */
-	{0x29, 0x15},	/* gr com */
-	{0x2a, 0x00},	/* exhch */
-	{0x2b, 0x00},	/* exhcl */
-	{0x2c, 0x08},	/* rbias */
-	{0x32, 0xff},	/* href */
-	{0x33, 0x00},	/* chlf */
-	{0x34, 0x3f},	/* aref1 */
-	{0x35, 0x00},	/* aref2 */
-	{0x36, 0xf8},	/* aref3 */
-	{0x38, 0x72},	/* adc2 */
-	{0x39, 0x57},	/* aref4 */
-	{0x3a, 0x80},	/* tslb - yuyv */
-	{0x3b, 0xc4},	/* com11 - night mode 1/4 frame rate */
-	{0x3d, 0x99},	/* com13 */
-	{0x3f, 0xc1},	/* edge */
-	{0x40, 0xc0},	/* com15 */
-	{0x41, 0x40},	/* com16 */
-	{0x42, 0xc0},	/* com17 */
-	{0x43, 0x0a},	/* rsvd */
-	{0x44, 0xf0},
-	{0x45, 0x46},
-	{0x46, 0x62},
-	{0x47, 0x2a},
-	{0x48, 0x3c},
-	{0x4a, 0xfc},
-	{0x4b, 0xfc},
-	{0x4c, 0x7f},
-	{0x4d, 0x7f},
-	{0x4e, 0x7f},
-	{0x4f, 0x98},	/* matrix */
-	{0x50, 0x98},
-	{0x51, 0x00},
-	{0x52, 0x28},
-	{0x53, 0x70},
-	{0x54, 0x98},
-	{0x58, 0x1a},	/* matrix coef sign */
-	{0x59, 0x85},	/* AWB control */
-	{0x5a, 0xa9},
-	{0x5b, 0x64},
-	{0x5c, 0x84},
-	{0x5d, 0x53},
-	{0x5e, 0x0e},
-	{0x5f, 0xf0},	/* AWB blue limit */
-	{0x60, 0xf0},	/* AWB red limit */
-	{0x61, 0xf0},	/* AWB green limit */
-	{0x62, 0x00},	/* lcc1 */
-	{0x63, 0x00},	/* lcc2 */
-	{0x64, 0x02},	/* lcc3 */
-	{0x65, 0x16},	/* lcc4 */
-	{0x66, 0x01},	/* lcc5 */
-	{0x69, 0x02},	/* hv */
-	{0x6b, 0x5a},	/* dbvl */
-	{0x6c, 0x04},
-	{0x6d, 0x55},
-	{0x6e, 0x00},
-	{0x6f, 0x9d},
-	{0x70, 0x21},	/* dnsth */
-	{0x71, 0x78},
-	{0x72, 0x00},	/* poidx */
-	{0x73, 0x01},	/* pckdv */
-	{0x74, 0x3a},	/* xindx */
-	{0x75, 0x35},	/* yindx */
-	{0x76, 0x01},
-	{0x77, 0x02},
-	{0x7a, 0x12},	/* gamma curve */
-	{0x7b, 0x08},
-	{0x7c, 0x16},
-	{0x7d, 0x30},
-	{0x7e, 0x5e},
-	{0x7f, 0x72},
-	{0x80, 0x82},
-	{0x81, 0x8e},
-	{0x82, 0x9a},
-	{0x83, 0xa4},
-	{0x84, 0xac},
-	{0x85, 0xb8},
-	{0x86, 0xc3},
-	{0x87, 0xd6},
-	{0x88, 0xe6},
-	{0x89, 0xf2},
-	{0x8a, 0x03},
-	{0x8c, 0x89},	/* com19 */
-	{0x14, 0x28},	/* com9 */
-	{0x90, 0x7d},
-	{0x91, 0x7b},
-	{0x9d, 0x03},	/* lcc6 */
-	{0x9e, 0x04},	/* lcc7 */
-	{0x9f, 0x7a},
-	{0xa0, 0x79},
-	{0xa1, 0x40},	/* aechm */
-	{0xa4, 0x50},	/* com21 */
-	{0xa5, 0x68},	/* com26 */
-	{0xa6, 0x4a},	/* AWB green */
-	{0xa8, 0xc1},	/* refa8 */
-	{0xa9, 0xef},	/* refa9 */
-	{0xaa, 0x92},
-	{0xab, 0x04},
-	{0xac, 0x80},	/* black level control */
-	{0xad, 0x80},
-	{0xae, 0x80},
-	{0xaf, 0x80},
-	{0xb2, 0xf2},
-	{0xb3, 0x20},
-	{0xb4, 0x20},	/* ctrlb4 */
-	{0xb5, 0x00},
-	{0xb6, 0xaf},
-	{0xbb, 0xae},
-	{0xbc, 0x7f},	/* ADC channel offsets */
-	{0xdb, 0x7f},
-	{0xbe, 0x7f},
-	{0xbf, 0x7f},
-	{0xc0, 0xe2},
-	{0xc1, 0xc0},
-	{0xc2, 0x01},
-	{0xc3, 0x4e},
-	{0xc6, 0x85},
-	{0xc7, 0x80},	/* com24 */
-	{0xc9, 0xe0},
-	{0xca, 0xe8},
-	{0xcb, 0xf0},
-	{0xcc, 0xd8},
-	{0xcd, 0xf1},
-	{0x4f, 0x98},
-	{0x50, 0x98},
-	{0x51, 0x00},
-	{0x52, 0x28},
-	{0x53, 0x70},
-	{0x54, 0x98},
-	{0x58, 0x1a},
-	{0xff, 0x41},	/* read 41, write ff 00 */
-	{0x41, 0x40},	/* com16 */
-	{0xc5, 0x03},	/* 60 Hz banding filter */
-	{0x6a, 0x02},	/* 50 Hz banding filter */
-
-	{0x12, 0x62},	/* com7 - 30fps VGA YUV */
-	{0x36, 0xfa},	/* aref3 */
-	{0x69, 0x0a},	/* hv */
-	{0x8c, 0x89},	/* com22 */
-	{0x14, 0x28},	/* com9 */
-	{0x3e, 0x0c},
-	{0x41, 0x40},	/* com16 */
-	{0x72, 0x00},
-	{0x73, 0x00},
-	{0x74, 0x3a},
-	{0x75, 0x35},
-	{0x76, 0x01},
-	{0xc7, 0x80},
-	{0x03, 0x12},	/* vref */
-	{0x17, 0x16},	/* hstart */
-	{0x18, 0x02},	/* hstop */
-	{0x19, 0x01},	/* vstrt */
-	{0x1a, 0x3d},	/* vstop */
-	{0x32, 0xff},	/* href */
-	{0xc0, 0xaa},
+static const u8 sensor_start_vga[][2] = {
+	{0x12, 0x00},
+	{0x17, 0x26},
+	{0x18, 0xa0},
+	{0x19, 0x07},
+	{0x1a, 0xf0},
+	{0x29, 0xa0},
+	{0x2c, 0xf0},
+	{0x65, 0x20},
 };
-
-static const u8 bridge_init_ov965x_2[][2] = {
-	{0x94, 0xaa},
-	{0xf1, 0x60},
-	{0xe5, 0x04},
-	{0xc0, 0x50},
-	{0xc1, 0x3c},
-	{0x8c, 0x00},
-	{0x8d, 0x1c},
-	{0x34, 0x05},
-
-	{0xc2, 0x0c},
-	{0xc3, 0xf9},
-	{0xda, 0x01},
-	{0x50, 0x00},
-	{0x51, 0xa0},
-	{0x52, 0x3c},
-	{0x53, 0x00},
-	{0x54, 0x00},
-	{0x55, 0x00},	/* brightness */
-	{0x57, 0x00},	/* contrast 2 */
-	{0x5c, 0x00},
-	{0x5a, 0xa0},
-	{0x5b, 0x78},
-	{0x35, 0x02},
-	{0xd9, 0x10},
-	{0x94, 0x11},
+static const u8 bridge_start_qvga[][2] = {
+	{0x1c, 0x00},
+	{0x1d, 0x40},
+	{0x1d, 0x02},
+	{0x1d, 0x00},
+	{0x1d, 0x01},
+	{0x1d, 0x4b},
+	{0x1d, 0x00},
+	{0xc0, 0x28},
+	{0xc1, 0x1e},
 };
-
-static const u8 sensor_init_ov965x_2[][2] = {
-	{0x3b, 0xc4},
-	{0x1e, 0x04},	/* mvfp */
-	{0x13, 0xe0},	/* com8 */
-	{0x00, 0x00},	/* gain */
-	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
-	{0x11, 0x03},	/* clkrc */
-	{0x6b, 0x5a},	/* dblv */
-	{0x6a, 0x05},
-	{0xc5, 0x07},
-	{0xa2, 0x4b},
-	{0xa3, 0x3e},
-	{0x2d, 0x00},
-	{0xff, 0x42},	/* read 42, write ff 00 */
-	{0x42, 0xc0},
-	{0x2d, 0x00},
-	{0xff, 0x42},	/* read 42, write ff 00 */
-	{0x42, 0xc1},
-	{0x3f, 0x01},
-	{0xff, 0x42},	/* read 42, write ff 00 */
-	{0x42, 0xc1},
-	{0x4f, 0x98},
-	{0x50, 0x98},
-	{0x51, 0x00},
-	{0x52, 0x28},
-	{0x53, 0x70},
-	{0x54, 0x98},
-	{0x58, 0x1a},
-	{0xff, 0x41},	/* read 41, write ff 00 */
-	{0x41, 0x40},	/* com16 */
-	{0x56, 0x40},
-	{0x55, 0x8f},
-	{0x10, 0x25},	/* aech - exposure high bits */
-	{0xff, 0x13},	/* read 13, write ff 00 */
-	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
+static const u8 sensor_start_qvga[][2] = {
+	{0x12, 0x40},
+	{0x17, 0x3f},
+	{0x18, 0x50},
+	{0x19, 0x03},
+	{0x1a, 0x78},
+	{0x29, 0x50},
+	{0x2c, 0x78},
+	{0x65, 0x2f},
 };
-
-static const u8 sensor_start_ov965x[][2] = {
-	{0x12, 0x62},	/* com7 - 30fps VGA YUV */
-	{0x36, 0xfa},	/* aref3 */
-	{0x69, 0x0a},	/* hv */
-	{0x8c, 0x89},	/* com22 */
-	{0x14, 0x28},	/* com9 */
-	{0x3e, 0x0c},	/* com14 */
-	{0x41, 0x40},	/* com16 */
-	{0x72, 0x00},
-	{0x73, 0x00},
-	{0x74, 0x3a},
-	{0x75, 0x35},
-	{0x76, 0x01},
-	{0xc7, 0x80},	/* com24 */
-	{0x03, 0x12},	/* vref */
-	{0x17, 0x16},	/* hstart */
-	{0x18, 0x02},	/* hstop */
-	{0x19, 0x01},	/* vstrt */
-	{0x1a, 0x3d},	/* vstop */
-	{0x32, 0xff},	/* href */
-	{0xc0, 0xaa},
-	{}
-};
-
-static const u8 bridge_start_ov965x[][2] = {
-	{0x94, 0xaa},
-	{0xf1, 0x60},
-	{0xe5, 0x04},
-	{0xc0, 0x50},
-	{0xc1, 0x3c},
-	{0x8c, 0x00},
-	{0x8d, 0x1c},
-	{0x34, 0x05},
-	{}
-};
-
-static const u8 bridge_start_ov965x_vga[][2] = {
-	{0xc2, 0x0c},
-	{0xc3, 0xf9},
-	{0xda, 0x01},
-	{0x50, 0x00},
-	{0x51, 0xa0},
-	{0x52, 0x3c},
-	{0x53, 0x00},
-	{0x54, 0x00},
-	{0x55, 0x00},
-	{0x57, 0x00},
-	{0x5c, 0x00},
-	{0x5a, 0xa0},
-	{0x5b, 0x78},
-	{0x35, 0x02},
-	{0xd9, 0x10},
-	{0x94, 0x11},
-	{}
-};
-
-static const u8 bridge_start_ov965x_cif[][2] = {
-	{0xc2, 0x4c},
-	{0xc3, 0xf9},
-	{0xda, 0x00},
-	{0x50, 0x00},
-	{0x51, 0xa0},
-	{0x52, 0x78},
-	{0x53, 0x00},
-	{0x54, 0x00},
-	{0x55, 0x00},
-	{0x57, 0x00},
-	{0x5c, 0x00},
-	{0x5a, 0x50},
-	{0x5b, 0x3c},
-	{0x35, 0x02},
-	{0xd9, 0x10},
-	{0x94, 0x11},
-	{}
-};
-
-static const u8 sensor_start_ov965x_vga[][2] = {
-	{0x3b, 0xc4},	/* com11 - night mode 1/4 frame rate */
-	{0x1e, 0x04},	/* mvfp */
-	{0x13, 0xe0},	/* com8 */
-	{0x00, 0x00},
-	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
-	{0x11, 0x03},	/* clkrc */
-	{0x6b, 0x5a},	/* dblv */
-	{0x6a, 0x05},	/* 50 Hz banding filter */
-	{0xc5, 0x07},	/* 60 Hz banding filter */
-	{0xa2, 0x4b},	/* bd50 */
-	{0xa3, 0x3e},	/* bd60 */
-
-	{0x2d, 0x00},	/* advfl */
-	{}
-};
-
-static const u8 sensor_start_ov965x_cif[][2] = {
-	{0x3b, 0xe4},	/* com11 - night mode 1/4 frame rate */
-	{0x1e, 0x04},	/* mvfp */
-	{0x13, 0xe0},	/* com8 */
-	{0x00, 0x00},
-	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
-	{0x11, 0x01},	/* clkrc */
-	{0x6b, 0x5a},	/* dblv */
-	{0x6a, 0x02},	/* 50 Hz banding filter */
-	{0xc5, 0x03},	/* 60 Hz banding filter */
-	{0xa2, 0x96},	/* bd50 */
-	{0xa3, 0x7d},	/* bd60 */
-
-	{0xff, 0x13},	/* read 13, write ff 00 */
-	{0x13, 0xe7},
-	{0x3a, 0x80},	/* tslb - yuyv */
-	{}
-};
-
-static const u8 sensor_start_ov965x_2[][2] = {
-	{0xff, 0x42},	/* read 42, write ff 00 */
-	{0x42, 0xc1},	/* com17 - 50 Hz filter */
-	{}
-};
-
 
 static void ov534_reg_write(struct gspca_dev *gspca_dev, u16 reg, u8 val)
 {
@@ -634,7 +487,7 @@ static void ov534_reg_write(struct gspca_dev *gspca_dev, u16 reg, u8 val)
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x00, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
 	if (ret < 0)
-		PDEBUG(D_ERR, "write failed");
+		err("write failed %d", ret);
 }
 
 static u8 ov534_reg_read(struct gspca_dev *gspca_dev, u16 reg)
@@ -649,7 +502,7 @@ static u8 ov534_reg_read(struct gspca_dev *gspca_dev, u16 reg)
 			      0x00, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
 	PDEBUG(D_USBI, "reg=0x%04x, data=0x%02x", reg, gspca_dev->usb_buf[0]);
 	if (ret < 0)
-		PDEBUG(D_ERR, "read failed");
+		err("read failed %d", ret);
 	return gspca_dev->usb_buf[0];
 }
 
@@ -711,7 +564,7 @@ static void sccb_reg_write(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_3);
 
 	if (!sccb_check_status(gspca_dev))
-		PDEBUG(D_ERR, "sccb_reg_write failed");
+		err("sccb_reg_write failed");
 }
 
 static u8 sccb_reg_read(struct gspca_dev *gspca_dev, u16 reg)
@@ -719,11 +572,11 @@ static u8 sccb_reg_read(struct gspca_dev *gspca_dev, u16 reg)
 	ov534_reg_write(gspca_dev, OV534_REG_SUBADDR, reg);
 	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_2);
 	if (!sccb_check_status(gspca_dev))
-		PDEBUG(D_ERR, "sccb_reg_read failed 1");
+		err("sccb_reg_read failed 1");
 
 	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_READ_2);
 	if (!sccb_check_status(gspca_dev))
-		PDEBUG(D_ERR, "sccb_reg_read failed 2");
+		err("sccb_reg_read failed 2");
 
 	return ov534_reg_read(gspca_dev, OV534_REG_READ);
 }
@@ -753,40 +606,212 @@ static void sccb_w_array(struct gspca_dev *gspca_dev,
 	}
 }
 
-/* set framerate */
-static void ov534_set_frame_rate(struct gspca_dev *gspca_dev)
+/* ov772x specific controls */
+static void set_frame_rate(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int fr = sd->frame_rate;
+	int i;
+	struct rate_s {
+		u8 fps;
+		u8 r11;
+		u8 r0d;
+		u8 re5;
+	};
+	const struct rate_s *r;
+	static const struct rate_s rate_0[] = {	/* 640x480 */
+		{60, 0x01, 0xc1, 0x04},
+		{50, 0x01, 0x41, 0x02},
+		{40, 0x02, 0xc1, 0x04},
+		{30, 0x04, 0x81, 0x02},
+		{15, 0x03, 0x41, 0x04},
+	};
+	static const struct rate_s rate_1[] = {	/* 320x240 */
+		{125, 0x02, 0x81, 0x02},
+		{100, 0x02, 0xc1, 0x04},
+		{75, 0x03, 0xc1, 0x04},
+		{60, 0x04, 0xc1, 0x04},
+		{50, 0x02, 0x41, 0x04},
+		{40, 0x03, 0x41, 0x04},
+		{30, 0x04, 0x41, 0x04},
+	};
 
-	switch (fr) {
-	case 50:
-		sccb_reg_write(gspca_dev, 0x11, 0x01);
-		sccb_reg_write(gspca_dev, 0x0d, 0x41);
-		ov534_reg_write(gspca_dev, 0xe5, 0x02);
-		break;
-	case 40:
-		sccb_reg_write(gspca_dev, 0x11, 0x02);
-		sccb_reg_write(gspca_dev, 0x0d, 0xc1);
-		ov534_reg_write(gspca_dev, 0xe5, 0x04);
-		break;
-/*	case 30: */
-	default:
-		fr = 30;
-		sccb_reg_write(gspca_dev, 0x11, 0x04);
-		sccb_reg_write(gspca_dev, 0x0d, 0x81);
-		ov534_reg_write(gspca_dev, 0xe5, 0x02);
-		break;
-	case 15:
-		sccb_reg_write(gspca_dev, 0x11, 0x03);
-		sccb_reg_write(gspca_dev, 0x0d, 0x41);
-		ov534_reg_write(gspca_dev, 0xe5, 0x04);
-		break;
+	if (gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv == 0) {
+		r = rate_0;
+		i = ARRAY_SIZE(rate_0);
+	} else {
+		r = rate_1;
+		i = ARRAY_SIZE(rate_1);
+	}
+	while (--i > 0) {
+		if (sd->frame_rate >= r->fps)
+			break;
+		r++;
 	}
 
-	sd->frame_rate = fr;
-	PDEBUG(D_PROBE, "frame_rate: %d", fr);
+	sccb_reg_write(gspca_dev, 0x11, r->r11);
+	sccb_reg_write(gspca_dev, 0x0d, r->r0d);
+	ov534_reg_write(gspca_dev, 0xe5, r->re5);
+
+	PDEBUG(D_PROBE, "frame_rate: %d", r->fps);
 }
+
+static void setbrightness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sccb_reg_write(gspca_dev, 0x9b, sd->brightness);
+}
+
+static void setcontrast(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sccb_reg_write(gspca_dev, 0x9c, sd->contrast);
+}
+
+static void setgain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 val;
+
+	if (sd->agc)
+		return;
+
+	val = sd->gain;
+	switch (val & 0x30) {
+	case 0x00:
+		val &= 0x0f;
+		break;
+	case 0x10:
+		val &= 0x0f;
+		val |= 0x30;
+		break;
+	case 0x20:
+		val &= 0x0f;
+		val |= 0x70;
+		break;
+	default:
+/*	case 0x30: */
+		val &= 0x0f;
+		val |= 0xf0;
+		break;
+	}
+	sccb_reg_write(gspca_dev, 0x00, val);
+}
+
+static void setexposure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 val;
+
+	if (sd->aec)
+		return;
+
+	/* 'val' is one byte and represents half of the exposure value we are
+	 * going to set into registers, a two bytes value:
+	 *
+	 *    MSB: ((u16) val << 1) >> 8   == val >> 7
+	 *    LSB: ((u16) val << 1) & 0xff == val << 1
+	 */
+	val = sd->exposure;
+	sccb_reg_write(gspca_dev, 0x08, val >> 7);
+	sccb_reg_write(gspca_dev, 0x10, val << 1);
+}
+
+static void setagc(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->agc) {
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) | 0x04);
+		sccb_reg_write(gspca_dev, 0x64,
+				sccb_reg_read(gspca_dev, 0x64) | 0x03);
+	} else {
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) & ~0x04);
+		sccb_reg_write(gspca_dev, 0x64,
+				sccb_reg_read(gspca_dev, 0x64) & ~0x03);
+
+		setgain(gspca_dev);
+	}
+}
+
+static void setawb(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->awb) {
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) | 0x02);
+		sccb_reg_write(gspca_dev, 0x63,
+				sccb_reg_read(gspca_dev, 0x63) | 0xc0);
+	} else {
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) & ~0x02);
+		sccb_reg_write(gspca_dev, 0x63,
+				sccb_reg_read(gspca_dev, 0x63) & ~0xc0);
+	}
+}
+
+static void setaec(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->aec)
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) | 0x01);
+	else {
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) & ~0x01);
+		setexposure(gspca_dev);
+	}
+}
+
+static void setsharpness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 val;
+
+	val = sd->sharpness;
+	sccb_reg_write(gspca_dev, 0x91, val);	/* Auto de-noise threshold */
+	sccb_reg_write(gspca_dev, 0x8e, val);	/* De-noise threshold */
+}
+
+static void sethflip(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->hflip == 0)
+		sccb_reg_write(gspca_dev, 0x0c,
+				sccb_reg_read(gspca_dev, 0x0c) | 0x40);
+	else
+		sccb_reg_write(gspca_dev, 0x0c,
+				sccb_reg_read(gspca_dev, 0x0c) & ~0x40);
+}
+
+static void setvflip(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->vflip == 0)
+		sccb_reg_write(gspca_dev, 0x0c,
+				sccb_reg_read(gspca_dev, 0x0c) | 0x80);
+	else
+		sccb_reg_write(gspca_dev, 0x0c,
+				sccb_reg_read(gspca_dev, 0x0c) & ~0x80);
+}
+
+static void setfreqfltr(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->freqfltr == 0)
+		sccb_reg_write(gspca_dev, 0x2b, 0x00);
+	else
+		sccb_reg_write(gspca_dev, 0x2b, 0x9e);
+}
+
 
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
@@ -795,21 +820,33 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 
-	sd->sensor = id->driver_info;
-
 	cam = &gspca_dev->cam;
 
-	if (sd->sensor == SENSOR_OV772X) {
-		cam->cam_mode = vga_yuyv_mode;
-		cam->nmodes = ARRAY_SIZE(vga_yuyv_mode);
+	cam->cam_mode = ov772x_mode;
+	cam->nmodes = ARRAY_SIZE(ov772x_mode);
+	cam->mode_framerates = ov772x_framerates;
 
-		cam->bulk = 1;
-		cam->bulk_size = 16384;
-		cam->bulk_nurbs = 2;
-	} else {		/* ov965x */
-		cam->cam_mode = vga_jpeg_mode;
-		cam->nmodes = ARRAY_SIZE(vga_jpeg_mode);
-	}
+	cam->bulk = 1;
+	cam->bulk_size = 16384;
+	cam->bulk_nurbs = 2;
+
+	sd->frame_rate = 30;
+
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->gain = GAIN_DEF;
+	sd->exposure = EXPO_DEF;
+#if AGC_DEF != 0
+	sd->agc = AGC_DEF;
+#else
+	gspca_dev->ctrl_inac |= (1 << AWB_IDX);
+#endif
+	sd->awb = AWB_DEF;
+	sd->aec = AEC_DEF;
+	sd->sharpness = SHARPNESS_DEF;
+	sd->hflip = HFLIP_DEF;
+	sd->vflip = VFLIP_DEF;
+	sd->freqfltr = FREQFLTR_DEF;
 
 	return 0;
 }
@@ -817,12 +854,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u16 sensor_id;
-	static const u8 sensor_addr[2] = {
-		0x42,			/* 0 SENSOR_OV772X */
-		0x60,			/* 1 SENSOR_OV965X */
-	};
 
 	/* reset bridge */
 	ov534_reg_write(gspca_dev, 0xe7, 0x3a);
@@ -830,8 +862,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	msleep(100);
 
 	/* initialize the sensor address */
-	ov534_reg_write(gspca_dev, OV534_REG_ADDRESS,
-				sensor_addr[sd->sensor]);
+	ov534_reg_write(gspca_dev, OV534_REG_ADDRESS, 0x42);
 
 	/* reset sensor */
 	sccb_reg_write(gspca_dev, 0x12, 0x80);
@@ -845,90 +876,57 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	PDEBUG(D_PROBE, "Sensor ID: %04x", sensor_id);
 
 	/* initialize */
-	switch (sd->sensor) {
-	case SENSOR_OV772X:
-		reg_w_array(gspca_dev, bridge_init_ov722x,
-				ARRAY_SIZE(bridge_init_ov722x));
-		ov534_set_led(gspca_dev, 1);
-		sccb_w_array(gspca_dev, sensor_init_ov722x,
-				ARRAY_SIZE(sensor_init_ov722x));
-		ov534_reg_write(gspca_dev, 0xe0, 0x09);
-		ov534_set_led(gspca_dev, 0);
-		ov534_set_frame_rate(gspca_dev);
-		break;
-	default:
-/*	case SENSOR_OV965X: */
-		reg_w_array(gspca_dev, bridge_init_ov965x,
-				ARRAY_SIZE(bridge_init_ov965x));
-		sccb_w_array(gspca_dev, sensor_init_ov965x,
-				ARRAY_SIZE(sensor_init_ov965x));
-		reg_w_array(gspca_dev, bridge_init_ov965x_2,
-				ARRAY_SIZE(bridge_init_ov965x_2));
-		sccb_w_array(gspca_dev, sensor_init_ov965x_2,
-				ARRAY_SIZE(sensor_init_ov965x_2));
-		ov534_reg_write(gspca_dev, 0xe0, 0x00);
-		ov534_reg_write(gspca_dev, 0xe0, 0x01);
-		ov534_set_led(gspca_dev, 0);
-		ov534_reg_write(gspca_dev, 0xe0, 0x00);
-	}
+	reg_w_array(gspca_dev, bridge_init,
+			ARRAY_SIZE(bridge_init));
+	ov534_set_led(gspca_dev, 1);
+	sccb_w_array(gspca_dev, sensor_init,
+			ARRAY_SIZE(sensor_init));
+	ov534_reg_write(gspca_dev, 0xe0, 0x09);
+	ov534_set_led(gspca_dev, 0);
+	set_frame_rate(gspca_dev);
 
 	return 0;
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int mode;
 
-	switch (sd->sensor) {
-	case SENSOR_OV772X:
-		ov534_set_led(gspca_dev, 1);
-		ov534_reg_write(gspca_dev, 0xe0, 0x00);
-		break;
-	default:
-/*	case SENSOR_OV965X: */
-
-		sccb_w_array(gspca_dev, sensor_start_ov965x,
-				ARRAY_SIZE(sensor_start_ov965x));
-		reg_w_array(gspca_dev, bridge_start_ov965x,
-				ARRAY_SIZE(bridge_start_ov965x));
-		mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
-		if (mode != 0) {	/* 320x240 */
-			reg_w_array(gspca_dev, bridge_start_ov965x_cif,
-					ARRAY_SIZE(bridge_start_ov965x_cif));
-			sccb_w_array(gspca_dev, sensor_start_ov965x_cif,
-					ARRAY_SIZE(sensor_start_ov965x_cif));
-		} else {		/* 640x480 */
-			reg_w_array(gspca_dev, bridge_start_ov965x_vga,
-					ARRAY_SIZE(bridge_start_ov965x_vga));
-			sccb_w_array(gspca_dev, sensor_start_ov965x_vga,
-					ARRAY_SIZE(sensor_start_ov965x_vga));
-		}
-		sccb_w_array(gspca_dev, sensor_start_ov965x_2,
-				ARRAY_SIZE(sensor_start_ov965x_2));
-		ov534_reg_write(gspca_dev, 0xe0, 0x00);
-		ov534_reg_write(gspca_dev, 0xe0, 0x00);
-		ov534_set_led(gspca_dev, 1);
+	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
+	if (mode != 0) {	/* 320x240 */
+		reg_w_array(gspca_dev, bridge_start_qvga,
+				ARRAY_SIZE(bridge_start_qvga));
+		sccb_w_array(gspca_dev, sensor_start_qvga,
+				ARRAY_SIZE(sensor_start_qvga));
+	} else {		/* 640x480 */
+		reg_w_array(gspca_dev, bridge_start_vga,
+				ARRAY_SIZE(bridge_start_vga));
+		sccb_w_array(gspca_dev, sensor_start_vga,
+				ARRAY_SIZE(sensor_start_vga));
 	}
+	set_frame_rate(gspca_dev);
+
+	setagc(gspca_dev);
+	setawb(gspca_dev);
+	setaec(gspca_dev);
+	setgain(gspca_dev);
+	setexposure(gspca_dev);
+	setbrightness(gspca_dev);
+	setcontrast(gspca_dev);
+	setsharpness(gspca_dev);
+	setvflip(gspca_dev);
+	sethflip(gspca_dev);
+	setfreqfltr(gspca_dev);
+
+	ov534_set_led(gspca_dev, 1);
+	ov534_reg_write(gspca_dev, 0xe0, 0x00);
 	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (sd->sensor) {
-	case SENSOR_OV772X:
-		ov534_reg_write(gspca_dev, 0xe0, 0x09);
-		ov534_set_led(gspca_dev, 0);
-		break;
-	default:
-/*	case SENSOR_OV965X: */
-		ov534_reg_write(gspca_dev, 0xe0, 0x01);
-		ov534_set_led(gspca_dev, 0);
-		ov534_reg_write(gspca_dev, 0xe0, 0x00);
-		break;
-	}
+	ov534_reg_write(gspca_dev, 0xe0, 0x09);
+	ov534_set_led(gspca_dev, 0);
 }
 
 /* Values for bmHeaderInfo (Video and Still Image Payload Headers, 2.4.3.3) */
@@ -941,18 +939,16 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 #define UVC_STREAM_EOF	(1 << 1)
 #define UVC_STREAM_FID	(1 << 0)
 
-static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
-			__u8 *data, int len)
+static void sd_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data, int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u32 this_pts;
 	u16 this_fid;
 	int remaining_len = len;
-	int payload_len;
 
-	payload_len = gspca_dev->cam.bulk ? 2048 : 2040;
 	do {
-		len = min(remaining_len, payload_len);
+		len = min(remaining_len, 2048);
 
 		/* Payloads are prefixed with a UVC-style header.  We
 		   consider a frame to start when the FID toggles, or the PTS
@@ -983,32 +979,35 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 		/* If PTS or FID has changed, start a new frame. */
 		if (this_pts != sd->last_pts || this_fid != sd->last_fid) {
 			if (gspca_dev->last_packet_type == INTER_PACKET)
-				frame = gspca_frame_add(gspca_dev,
-							LAST_PACKET, frame,
-							NULL, 0);
+				gspca_frame_add(gspca_dev, LAST_PACKET,
+						NULL, 0);
 			sd->last_pts = this_pts;
 			sd->last_fid = this_fid;
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 					data + 12, len - 12);
 		/* If this packet is marked as EOF, end the frame */
 		} else if (data[1] & UVC_STREAM_EOF) {
 			sd->last_pts = 0;
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-						data + 12, len - 12);
+			if (gspca_dev->image_len + len - 12 !=
+			    gspca_dev->width * gspca_dev->height * 2) {
+				PDEBUG(D_PACK, "wrong sized frame");
+				goto discard;
+			}
+			gspca_frame_add(gspca_dev, LAST_PACKET,
+					data + 12, len - 12);
 		} else {
 
 			/* Add the data from this payload */
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-						data + 12, len - 12);
+			gspca_frame_add(gspca_dev, INTER_PACKET,
+					data + 12, len - 12);
 		}
-
 
 		/* Done this payload */
 		goto scan_next;
 
 discard:
 		/* Discard data until a new frame starts. */
-		gspca_frame_add(gspca_dev, DISCARD_PACKET, frame, NULL, 0);
+		gspca_dev->last_packet_type = DISCARD_PACKET;
 
 scan_next:
 		remaining_len -= len;
@@ -1016,44 +1015,262 @@ scan_next:
 	} while (remaining_len > 0);
 }
 
+/* controls */
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->gain = val;
+	if (gspca_dev->streaming)
+		setgain(gspca_dev);
+	return 0;
+}
+
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->gain;
+	return 0;
+}
+
+static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->exposure = val;
+	if (gspca_dev->streaming)
+		setexposure(gspca_dev);
+	return 0;
+}
+
+static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->exposure;
+	return 0;
+}
+
+static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->brightness = val;
+	if (gspca_dev->streaming)
+		setbrightness(gspca_dev);
+	return 0;
+}
+
+static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->brightness;
+	return 0;
+}
+
+static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->contrast = val;
+	if (gspca_dev->streaming)
+		setcontrast(gspca_dev);
+	return 0;
+}
+
+static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->contrast;
+	return 0;
+}
+
+static int sd_setagc(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->agc = val;
+
+	if (gspca_dev->streaming) {
+
+		/* the auto white balance control works only
+		 * when auto gain is set */
+		if (val)
+			gspca_dev->ctrl_inac &= ~(1 << AWB_IDX);
+		else
+			gspca_dev->ctrl_inac |= (1 << AWB_IDX);
+		setagc(gspca_dev);
+	}
+	return 0;
+}
+
+static int sd_getagc(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->agc;
+	return 0;
+}
+
+static int sd_setawb(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->awb = val;
+	if (gspca_dev->streaming)
+		setawb(gspca_dev);
+	return 0;
+}
+
+static int sd_getawb(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->awb;
+	return 0;
+}
+
+static int sd_setaec(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->aec = val;
+	if (gspca_dev->streaming)
+		setaec(gspca_dev);
+	return 0;
+}
+
+static int sd_getaec(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->aec;
+	return 0;
+}
+
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->sharpness = val;
+	if (gspca_dev->streaming)
+		setsharpness(gspca_dev);
+	return 0;
+}
+
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->sharpness;
+	return 0;
+}
+
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->hflip = val;
+	if (gspca_dev->streaming)
+		sethflip(gspca_dev);
+	return 0;
+}
+
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->hflip;
+	return 0;
+}
+
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->vflip = val;
+	if (gspca_dev->streaming)
+		setvflip(gspca_dev);
+	return 0;
+}
+
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->vflip;
+	return 0;
+}
+
+static int sd_setfreqfltr(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->freqfltr = val;
+	if (gspca_dev->streaming)
+		setfreqfltr(gspca_dev);
+	return 0;
+}
+
+static int sd_getfreqfltr(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->freqfltr;
+	return 0;
+}
+
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+		struct v4l2_querymenu *menu)
+{
+	switch (menu->id) {
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		switch (menu->index) {
+		case 0:         /* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
+			strcpy((char *) menu->name, "Disabled");
+			return 0;
+		case 1:         /* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
+			strcpy((char *) menu->name, "50 Hz");
+			return 0;
+		}
+		break;
+	}
+
+	return -EINVAL;
+}
+
 /* get stream parameters (framerate) */
-static int sd_get_streamparm(struct gspca_dev *gspca_dev,
+static void sd_get_streamparm(struct gspca_dev *gspca_dev,
 			     struct v4l2_streamparm *parm)
 {
 	struct v4l2_captureparm *cp = &parm->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	cp->capability |= V4L2_CAP_TIMEPERFRAME;
 	tpf->numerator = 1;
 	tpf->denominator = sd->frame_rate;
-
-	return 0;
 }
 
 /* set stream parameters (framerate) */
-static int sd_set_streamparm(struct gspca_dev *gspca_dev,
+static void sd_set_streamparm(struct gspca_dev *gspca_dev,
 			     struct v4l2_streamparm *parm)
 {
 	struct v4l2_captureparm *cp = &parm->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	/* Set requested framerate */
 	sd->frame_rate = tpf->denominator / tpf->numerator;
-	ov534_set_frame_rate(gspca_dev);
+	if (gspca_dev->streaming)
+		set_frame_rate(gspca_dev);
 
 	/* Return the actual framerate */
 	tpf->numerator = 1;
 	tpf->denominator = sd->frame_rate;
-
-	return 0;
 }
 
 /* sub-driver description */
@@ -1066,14 +1283,14 @@ static const struct sd_desc sd_desc = {
 	.start    = sd_start,
 	.stopN    = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
+	.querymenu = sd_querymenu,
 	.get_streamparm = sd_get_streamparm,
 	.set_streamparm = sd_set_streamparm,
 };
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x06f8, 0x3003), .driver_info = SENSOR_OV965X},
-	{USB_DEVICE(0x1415, 0x2000), .driver_info = SENSOR_OV772X},
+	{USB_DEVICE(0x1415, 0x2000)},
 	{}
 };
 
@@ -1083,7 +1300,7 @@ MODULE_DEVICE_TABLE(usb, device_table);
 static int sd_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),
-			       THIS_MODULE);
+				THIS_MODULE);
 }
 
 static struct usb_driver sd_driver = {
@@ -1100,18 +1317,12 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

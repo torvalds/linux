@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/nodemask.h>
 #include <linux/spinlock.h>
+#include <linux/seqlock.h>
 #include <asm/atomic.h>
 
 struct super_block;
@@ -27,14 +28,29 @@ struct mnt_namespace;
 #define MNT_NODIRATIME	0x10
 #define MNT_RELATIME	0x20
 #define MNT_READONLY	0x40	/* does the user want this to be r/o? */
-#define MNT_STRICTATIME 0x80
 
 #define MNT_SHRINKABLE	0x100
 #define MNT_WRITE_HOLD	0x200
 
 #define MNT_SHARED	0x1000	/* if the vfsmount is a shared mount */
 #define MNT_UNBINDABLE	0x2000	/* if the vfsmount is a unbindable mount */
-#define MNT_PNODE_MASK	0x3000	/* propagation flag mask */
+/*
+ * MNT_SHARED_MASK is the set of flags that should be cleared when a
+ * mount becomes shared.  Currently, this is only the flag that says a
+ * mount cannot be bind mounted, since this is how we create a mount
+ * that shares events with another mount.  If you add a new MNT_*
+ * flag, consider how it interacts with shared mounts.
+ */
+#define MNT_SHARED_MASK	(MNT_UNBINDABLE)
+#define MNT_PROPAGATION_MASK	(MNT_SHARED | MNT_UNBINDABLE)
+
+
+#define MNT_INTERNAL	0x4000
+
+struct mnt_pcp {
+	int mnt_count;
+	int mnt_writers;
+};
 
 struct vfsmount {
 	struct list_head mnt_hash;
@@ -42,10 +58,21 @@ struct vfsmount {
 	struct dentry *mnt_mountpoint;	/* dentry of mountpoint */
 	struct dentry *mnt_root;	/* root of the mounted tree */
 	struct super_block *mnt_sb;	/* pointer to superblock */
+#ifdef CONFIG_SMP
+	struct mnt_pcp __percpu *mnt_pcp;
+	atomic_t mnt_longrefs;
+#else
+	int mnt_count;
+	int mnt_writers;
+#endif
 	struct list_head mnt_mounts;	/* list of children, anchored here */
 	struct list_head mnt_child;	/* and going through their mnt_child */
 	int mnt_flags;
-	/* 4 bytes hole on 64bits arches */
+	/* 4 bytes hole on 64bits arches without fsnotify */
+#ifdef CONFIG_FSNOTIFY
+	__u32 mnt_fsnotify_mask;
+	struct hlist_head mnt_fsnotify_marks;
+#endif
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
@@ -56,37 +83,10 @@ struct vfsmount {
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 	int mnt_id;			/* mount identifier */
 	int mnt_group_id;		/* peer group identifier */
-	/*
-	 * We put mnt_count & mnt_expiry_mark at the end of struct vfsmount
-	 * to let these frequently modified fields in a separate cache line
-	 * (so that reads of mnt_flags wont ping-pong on SMP machines)
-	 */
-	atomic_t mnt_count;
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	int mnt_pinned;
 	int mnt_ghosts;
-#ifdef CONFIG_SMP
-	int *mnt_writers;
-#else
-	int mnt_writers;
-#endif
 };
-
-static inline int *get_mnt_writers_ptr(struct vfsmount *mnt)
-{
-#ifdef CONFIG_SMP
-	return mnt->mnt_writers;
-#else
-	return &mnt->mnt_writers;
-#endif
-}
-
-static inline struct vfsmount *mntget(struct vfsmount *mnt)
-{
-	if (mnt)
-		atomic_inc(&mnt->mnt_count);
-	return mnt;
-}
 
 struct file; /* forward dec */
 
@@ -94,18 +94,13 @@ extern int mnt_want_write(struct vfsmount *mnt);
 extern int mnt_want_write_file(struct file *file);
 extern int mnt_clone_write(struct vfsmount *mnt);
 extern void mnt_drop_write(struct vfsmount *mnt);
-extern void mntput_no_expire(struct vfsmount *mnt);
+extern void mntput(struct vfsmount *mnt);
+extern struct vfsmount *mntget(struct vfsmount *mnt);
+extern void mntput_long(struct vfsmount *mnt);
+extern struct vfsmount *mntget_long(struct vfsmount *mnt);
 extern void mnt_pin(struct vfsmount *mnt);
 extern void mnt_unpin(struct vfsmount *mnt);
 extern int __mnt_is_readonly(struct vfsmount *mnt);
-
-static inline void mntput(struct vfsmount *mnt)
-{
-	if (mnt) {
-		mnt->mnt_expiry_mark = 0;
-		mntput_no_expire(mnt);
-	}
-}
 
 extern struct vfsmount *do_kern_mount(const char *fstype, int flags,
 				      const char *name, void *data);
@@ -123,7 +118,6 @@ extern int do_add_mount(struct vfsmount *newmnt, struct path *path,
 
 extern void mark_mounts_for_expiry(struct list_head *mounts);
 
-extern spinlock_t vfsmount_lock;
 extern dev_t name_to_dev_t(char *name);
 
 #endif /* _LINUX_MOUNT_H */

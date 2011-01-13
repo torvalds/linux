@@ -61,7 +61,6 @@ struct hda_gspec {
 	struct hda_gnode *cap_vol_node;	/* Node for capture volume */
 	unsigned int cur_cap_src;	/* current capture source */
 	struct hda_input_mux input_mux;
-	char cap_labels[HDA_MAX_NUM_INPUTS][16];
 
 	unsigned int def_amp_in_caps;
 	unsigned int def_amp_out_caps;
@@ -121,11 +120,17 @@ static int add_new_node(struct hda_codec *codec, struct hda_gspec *spec, hda_nid
 	if (node == NULL)
 		return -ENOMEM;
 	node->nid = nid;
-	nconns = snd_hda_get_connections(codec, nid, conn_list,
-					 HDA_MAX_CONNECTIONS);
-	if (nconns < 0) {
-		kfree(node);
-		return nconns;
+	node->wid_caps = get_wcaps(codec, nid);
+	node->type = get_wcaps_type(node->wid_caps);
+	if (node->wid_caps & AC_WCAP_CONN_LIST) {
+		nconns = snd_hda_get_connections(codec, nid, conn_list,
+						 HDA_MAX_CONNECTIONS);
+		if (nconns < 0) {
+			kfree(node);
+			return nconns;
+		}
+	} else {
+		nconns = 0;
 	}
 	if (nconns <= ARRAY_SIZE(node->slist))
 		node->conn_list = node->slist;
@@ -140,8 +145,6 @@ static int add_new_node(struct hda_codec *codec, struct hda_gspec *spec, hda_nid
 	}
 	memcpy(node->conn_list, conn_list, nconns * sizeof(hda_nid_t));
 	node->nconns = nconns;
-	node->wid_caps = get_wcaps(codec, nid);
-	node->type = (node->wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 
 	if (node->type == AC_WID_PIN) {
 		node->pin_caps = snd_hda_query_pin_caps(codec, node->nid);
@@ -502,11 +505,10 @@ static const char *get_input_type(struct hda_gnode *node, unsigned int *pinctl)
  * returns 0 if not found, 1 if found, or a negative error code.
  */
 static int parse_adc_sub_nodes(struct hda_codec *codec, struct hda_gspec *spec,
-			       struct hda_gnode *node)
+			       struct hda_gnode *node, int idx)
 {
 	int i, err;
 	unsigned int pinctl;
-	char *label;
 	const char *type;
 
 	if (node->checked)
@@ -519,7 +521,7 @@ static int parse_adc_sub_nodes(struct hda_codec *codec, struct hda_gspec *spec,
 			child = hda_get_node(spec, node->conn_list[i]);
 			if (! child)
 				continue;
-			err = parse_adc_sub_nodes(codec, spec, child);
+			err = parse_adc_sub_nodes(codec, spec, child, idx);
 			if (err < 0)
 				return err;
 			if (err > 0) {
@@ -560,9 +562,7 @@ static int parse_adc_sub_nodes(struct hda_codec *codec, struct hda_gspec *spec,
 			return 0;
 		type = "Input";
 	}
-	label = spec->cap_labels[spec->input_mux.num_items];
-	strcpy(label, type);
-	spec->input_mux.items[spec->input_mux.num_items].label = label;
+	snd_hda_add_imux_item(&spec->input_mux, type, idx, NULL);
 
 	/* unmute the PIN external input */
 	unmute_input(codec, node, 0); /* index = 0? */
@@ -571,29 +571,6 @@ static int parse_adc_sub_nodes(struct hda_codec *codec, struct hda_gspec *spec,
 				  AC_VERB_SET_PIN_WIDGET_CONTROL, pinctl);
 
 	return 1; /* found */
-}
-
-/* add a capture source element */
-static void add_cap_src(struct hda_gspec *spec, int idx)
-{
-	struct hda_input_mux_item *csrc;
-	char *buf;
-	int num, ocap;
-
-	num = spec->input_mux.num_items;
-	csrc = &spec->input_mux.items[num];
-	buf = spec->cap_labels[num];
-	for (ocap = 0; ocap < num; ocap++) {
-		if (! strcmp(buf, spec->cap_labels[ocap])) {
-			/* same label already exists,
-			 * put the index number to be unique
-			 */
-			sprintf(buf, "%s %d", spec->cap_labels[ocap], num);
-			break;
-		}
-	}
-	csrc->index = idx;
-	spec->input_mux.num_items++;
 }
 
 /*
@@ -620,22 +597,18 @@ static int parse_input_path(struct hda_codec *codec, struct hda_gnode *adc_node)
 	for (i = 0; i < adc_node->nconns; i++) {
 		node = hda_get_node(spec, adc_node->conn_list[i]);
 		if (node && node->type == AC_WID_PIN) {
-			err = parse_adc_sub_nodes(codec, spec, node);
+			err = parse_adc_sub_nodes(codec, spec, node, i);
 			if (err < 0)
 				return err;
-			else if (err > 0)
-				add_cap_src(spec, i);
 		}
 	}
 	/* ... then check the rests, more complicated connections */
 	for (i = 0; i < adc_node->nconns; i++) {
 		node = hda_get_node(spec, adc_node->conn_list[i]);
 		if (node && node->type != AC_WID_PIN) {
-			err = parse_adc_sub_nodes(codec, spec, node);
+			err = parse_adc_sub_nodes(codec, spec, node, i);
 			if (err < 0)
 				return err;
-			else if (err > 0)
-				add_cap_src(spec, i);
 		}
 	}
 
@@ -723,7 +696,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		if (is_loopback)
 			add_input_loopback(codec, node->nid, HDA_INPUT, index);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -733,7 +707,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		if (is_loopback)
 			add_input_loopback(codec, node->nid, HDA_OUTPUT, 0);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -747,7 +722,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 	    (node->amp_in_caps & AC_AMPCAP_NUM_STEPS)) {
 		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, index, HDA_INPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -755,7 +731,8 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		   (node->amp_out_caps & AC_AMPCAP_NUM_STEPS)) {
 		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, 0, HDA_OUTPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 		created = 1;
@@ -853,7 +830,8 @@ static int build_input_controls(struct hda_codec *codec)
 	}
 
 	/* create input MUX if multiple sources are available */
-	err = snd_hda_ctl_add(codec, snd_ctl_new1(&cap_sel, codec));
+	err = snd_hda_ctl_add(codec, spec->adc_node->nid,
+			      snd_ctl_new1(&cap_sel, codec));
 	if (err < 0)
 		return err;
 
@@ -871,7 +849,8 @@ static int build_input_controls(struct hda_codec *codec)
 			HDA_CODEC_VOLUME(name, adc_node->nid,
 					 spec->input_mux.items[i].index,
 					 HDA_INPUT);
-		err = snd_hda_ctl_add(codec, snd_ctl_new1(&knew, codec));
+		err = snd_hda_ctl_add(codec, adc_node->nid,
+					snd_ctl_new1(&knew, codec));
 		if (err < 0)
 			return err;
 	}

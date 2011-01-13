@@ -226,8 +226,6 @@ void hiddev_disconnect(struct hid_device *);
 void hiddev_hid_event(struct hid_device *hid, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value);
 void hiddev_report_event(struct hid_device *hid, struct hid_report *report);
-int __init hiddev_init(void);
-void hiddev_exit(void);
 #else
 static inline int hiddev_connect(struct hid_device *hid,
 		unsigned int force)
@@ -236,8 +234,6 @@ static inline void hiddev_disconnect(struct hid_device *hid) { }
 static inline void hiddev_hid_event(struct hid_device *hid, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value) { }
 static inline void hiddev_report_event(struct hid_device *hid, struct hid_report *report) { }
-static inline int hiddev_init(void) { return 0; }
-static inline void hiddev_exit(void) { }
 #endif
 
 #endif

@@ -17,11 +17,17 @@
  * Switch to grant tables together with xen-fbfront.c.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/input.h>
+#include <linux/slab.h>
+
 #include <asm/xen/hypervisor.h>
+
+#include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/page.h>
 #include <xen/interface/io/fbif.h>
@@ -80,9 +86,8 @@ static irqreturn_t input_handler(int rq, void *dev_id)
 				input_report_key(dev, event->key.keycode,
 						 event->key.pressed);
 			else
-				printk(KERN_WARNING
-				       "xenkbd: unhandled keycode 0x%x\n",
-				       event->key.keycode);
+				pr_warning("unhandled keycode 0x%x\n",
+					   event->key.keycode);
 			break;
 		case XENKBD_TYPE_POS:
 			input_report_abs(dev, ABS_X, event->pos.abs_x);
@@ -272,6 +277,8 @@ static void xenkbd_backend_changed(struct xenbus_device *dev,
 	switch (backend_state) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
+	case XenbusStateReconfiguring:
+	case XenbusStateReconfigured:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 		break;
@@ -286,8 +293,7 @@ InitWait:
 			ret = xenbus_printf(XBT_NIL, info->xbdev->nodename,
 					    "request-abs-pointer", "1");
 			if (ret)
-				printk(KERN_WARNING
-				       "xenkbd: can't request abs-pointer");
+				pr_warning("can't request abs-pointer\n");
 		}
 		xenbus_switch_state(dev, XenbusStateConnected);
 		break;
@@ -318,7 +324,7 @@ InitWait:
 	}
 }
 
-static struct xenbus_device_id xenkbd_ids[] = {
+static const struct xenbus_device_id xenkbd_ids[] = {
 	{ "vkbd" },
 	{ "" }
 };
@@ -335,7 +341,7 @@ static struct xenbus_driver xenkbd_driver = {
 
 static int __init xenkbd_init(void)
 {
-	if (!xen_domain())
+	if (!xen_pv_domain())
 		return -ENODEV;
 
 	/* Nothing to do if running in dom0. */

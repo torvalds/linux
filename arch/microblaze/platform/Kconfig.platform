@@ -53,30 +53,11 @@ config OPT_LIB_FUNCTION
 
 config OPT_LIB_ASM
 	bool "Optimalized lib function ASM"
-	depends on OPT_LIB_FUNCTION
+	depends on OPT_LIB_FUNCTION && (XILINX_MICROBLAZE0_USE_BARREL = 1)
 	default n
 	help
 	  Allows turn on optimalized library function (memcpy and memmove).
 	  Function are written in asm code.
-
-# This is still a bit broken - disabling for now JW 20070504
-config ALLOW_EDIT_AUTO
-	bool "Permit Display/edit of Kconfig.auto platform settings"
-	default n
-	help
-	  Allows the editing of auto-generated platform settings from
-	  the Kconfig.auto file. Obviously this does not change the
-	  underlying hardware, so be very careful if you go editing
-	  these settings.
-
-	  Also, if you enable this, and edit various Kconfig.auto
-	  settings, YOUR CHANGES WILL BE LOST if you then disable it
-	  again. You have been warned!
-
-	  If unsure, say no.
-
-comment "Automatic platform settings from Kconfig.auto"
-	depends on ALLOW_EDIT_AUTO
 
 if PLATFORM_GENERIC=y
 	source "arch/microblaze/platform/generic/Kconfig.auto"

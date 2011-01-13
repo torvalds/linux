@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2400/include/mach/map.h
  *
- * Copyright 2003,2007  Simtec Electronics
+ * Copyright 2003-2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *

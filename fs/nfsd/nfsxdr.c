@@ -1,20 +1,10 @@
 /*
- * linux/fs/nfsd/nfsxdr.c
- *
  * XDR support for nfsd
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/types.h>
-#include <linux/time.h>
-#include <linux/nfs.h>
-#include <linux/vfs.h>
-#include <linux/sunrpc/xdr.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/mm.h>
+#include "xdr.h"
 #include "auth.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR

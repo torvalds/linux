@@ -30,6 +30,7 @@
 #include <linux/crc32.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
+#include <linux/gfp.h>
 
 
 /*
@@ -73,7 +74,7 @@ static void eem_linkcmd(struct usbnet *dev, struct sk_buff *skb)
 		usb_free_urb(urb);
 fail:
 		dev_kfree_skb(skb);
-		devwarn(dev, "link cmd failure\n");
+		netdev_warn(dev->net, "link cmd failure\n");
 		return;
 	}
 }
@@ -121,8 +122,8 @@ static struct sk_buff *eem_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 		int	headroom = skb_headroom(skb);
 		int	tailroom = skb_tailroom(skb);
 
-		if ((tailroom >= ETH_FCS_LEN + padlen)
-				&& (headroom >= EEM_HEAD))
+		if ((tailroom >= ETH_FCS_LEN + padlen) &&
+		    (headroom >= EEM_HEAD))
 			goto done;
 
 		if ((headroom + tailroom)
@@ -212,7 +213,8 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			 * b15:		1 (EEM command)
 			 */
 			if (header & BIT(14)) {
-				devdbg(dev, "reserved command %04x\n", header);
+				netdev_dbg(dev->net, "reserved command %04x\n",
+					   header);
 				continue;
 			}
 
@@ -255,8 +257,9 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			case 1:		/* Echo response */
 			case 5:		/* Tickle */
 			default:	/* reserved */
-				devwarn(dev, "unexpected link command %d\n",
-						bmEEMCmd);
+				netdev_warn(dev->net,
+					    "unexpected link command %d\n",
+					    bmEEMCmd);
 				continue;
 			}
 
@@ -300,26 +303,29 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 					return 0;
 			}
 
-			crc = get_unaligned_le32(skb2->data
-					+ len - ETH_FCS_LEN);
-			skb_trim(skb2, len - ETH_FCS_LEN);
-
 			/*
 			 * The bmCRC helps to denote when the CRC field in
 			 * the Ethernet frame contains a calculated CRC:
 			 *	bmCRC = 1	: CRC is calculated
 			 *	bmCRC = 0	: CRC = 0xDEADBEEF
 			 */
-			if (header & BIT(14))
-				crc2 = ~crc32_le(~0, skb2->data, len);
-			else
+			if (header & BIT(14)) {
+				crc = get_unaligned_le32(skb2->data
+						+ len - ETH_FCS_LEN);
+				crc2 = ~crc32_le(~0, skb2->data, skb2->len
+						- ETH_FCS_LEN);
+			} else {
+				crc = get_unaligned_be32(skb2->data
+						+ len - ETH_FCS_LEN);
 				crc2 = 0xdeadbeef;
+			}
+			skb_trim(skb2, len - ETH_FCS_LEN);
 
 			if (is_last)
 				return crc == crc2;
 
 			if (unlikely(crc != crc2)) {
-				dev->stats.rx_errors++;
+				dev->net->stats.rx_errors++;
 				dev_kfree_skb_any(skb2);
 			} else
 				usbnet_skb_return(dev, skb2);

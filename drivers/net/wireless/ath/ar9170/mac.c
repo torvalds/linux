@@ -35,6 +35,9 @@
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+#include <asm/unaligned.h>
+
 #include "ar9170.h"
 #include "cmd.h"
 
@@ -114,7 +117,7 @@ int ar9170_set_qos(struct ar9170 *ar)
 	ar9170_regwrite(AR9170_MAC_REG_AC1_AC0_TXOP,
 			ar->edcf[0].txop | ar->edcf[1].txop << 16);
 	ar9170_regwrite(AR9170_MAC_REG_AC3_AC2_TXOP,
-			ar->edcf[1].txop | ar->edcf[3].txop << 16);
+			ar->edcf[2].txop | ar->edcf[3].txop << 16);
 
 	ar9170_regwrite_finish();
 
@@ -227,50 +230,39 @@ static int ar9170_set_mac_reg(struct ar9170 *ar, const u32 reg, const u8 *mac)
 
 	ar9170_regwrite_begin(ar);
 
-	ar9170_regwrite(reg,
-			(mac[3] << 24) | (mac[2] << 16) |
-			(mac[1] << 8) | mac[0]);
-
-	ar9170_regwrite(reg + 4, (mac[5] << 8) | mac[4]);
+	ar9170_regwrite(reg, get_unaligned_le32(mac));
+	ar9170_regwrite(reg + 4, get_unaligned_le16(mac + 4));
 
 	ar9170_regwrite_finish();
 
 	return ar9170_regwrite_result();
 }
 
-int ar9170_update_multicast(struct ar9170 *ar)
+int ar9170_update_multicast(struct ar9170 *ar, const u64 mc_hash)
 {
 	int err;
 
 	ar9170_regwrite_begin(ar);
-	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_H,
-		ar->want_mc_hash >> 32);
-	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_L,
-		ar->want_mc_hash);
-
+	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_H, mc_hash >> 32);
+	ar9170_regwrite(AR9170_MAC_REG_GROUP_HASH_TBL_L, mc_hash);
 	ar9170_regwrite_finish();
 	err = ar9170_regwrite_result();
-
 	if (err)
 		return err;
 
-	ar->cur_mc_hash = ar->want_mc_hash;
-
+	ar->cur_mc_hash = mc_hash;
 	return 0;
 }
 
-int ar9170_update_frame_filter(struct ar9170 *ar)
+int ar9170_update_frame_filter(struct ar9170 *ar, const u32 filter)
 {
 	int err;
 
-	err = ar9170_write_reg(ar, AR9170_MAC_REG_FRAMETYPE_FILTER,
-			       ar->want_filter);
-
+	err = ar9170_write_reg(ar, AR9170_MAC_REG_FRAMETYPE_FILTER, filter);
 	if (err)
 		return err;
 
-	ar->cur_filter = ar->want_filter;
-
+	ar->cur_filter = filter;
 	return 0;
 }
 
@@ -319,13 +311,14 @@ static int ar9170_set_promiscouous(struct ar9170 *ar)
 
 int ar9170_set_operating_mode(struct ar9170 *ar)
 {
+	struct ath_common *common = &ar->common;
 	u32 pm_mode = AR9170_MAC_REG_POWERMGT_DEFAULTS;
 	u8 *mac_addr, *bssid;
 	int err;
 
 	if (ar->vif) {
-		mac_addr = ar->mac_addr;
-		bssid = ar->bssid;
+		mac_addr = common->macaddr;
+		bssid = common->curbssid;
 
 		switch (ar->vif->type) {
 		case NL80211_IFTYPE_MESH_POINT:
@@ -391,24 +384,26 @@ int ar9170_set_beacon_timers(struct ar9170 *ar)
 	if (ar->vif) {
 		v |= ar->vif->bss_conf.beacon_int;
 
-		switch (ar->vif->type) {
-		case NL80211_IFTYPE_MESH_POINT:
-		case NL80211_IFTYPE_ADHOC:
-			v |= BIT(25);
+		if (ar->enable_beacon) {
+			switch (ar->vif->type) {
+			case NL80211_IFTYPE_MESH_POINT:
+			case NL80211_IFTYPE_ADHOC:
+				v |= BIT(25);
+				break;
+			case NL80211_IFTYPE_AP:
+				v |= BIT(24);
+				pretbtt = (ar->vif->bss_conf.beacon_int - 6) <<
+					  16;
+				break;
+			default:
 			break;
-		case NL80211_IFTYPE_AP:
-			v |= BIT(24);
-			pretbtt = (ar->vif->bss_conf.beacon_int - 6) << 16;
-			break;
-		default:
-			break;
+			}
 		}
 
 		v |= ar->vif->bss_conf.dtim_period << 16;
 	}
 
 	ar9170_regwrite_begin(ar);
-
 	ar9170_regwrite(AR9170_MAC_REG_PRETBTT, pretbtt);
 	ar9170_regwrite(AR9170_MAC_REG_BCN_PERIOD, v);
 	ar9170_regwrite_finish();

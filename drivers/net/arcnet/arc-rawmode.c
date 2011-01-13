@@ -25,6 +25,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/if_arp.h>
 #include <net/arp.h>
@@ -123,7 +124,6 @@ static void rx(struct net_device *dev, int bufnum,
 	BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
 
 	skb->protocol = cpu_to_be16(ETH_P_ARCNET);
-;
 	netif_rx(skb);
 }
 

@@ -9,6 +9,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/delay.h>
@@ -555,7 +556,7 @@ int pci_iov_init(struct pci_dev *dev)
 {
 	int pos;
 
-	if (!dev->is_pcie)
+	if (!pci_is_pcie(dev))
 		return -ENODEV;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
@@ -595,6 +596,29 @@ int pci_iov_resource_bar(struct pci_dev *dev, int resno,
 
 	return dev->sriov->pos + PCI_SRIOV_BAR +
 		4 * (resno - PCI_IOV_RESOURCES);
+}
+
+/**
+ * pci_sriov_resource_alignment - get resource alignment for VF BAR
+ * @dev: the PCI device
+ * @resno: the resource number
+ *
+ * Returns the alignment of the VF BAR found in the SR-IOV capability.
+ * This is not the same as the resource size which is defined as
+ * the VF BAR size multiplied by the number of VFs.  The alignment
+ * is just the VF BAR size.
+ */
+resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno)
+{
+	struct resource tmp;
+	enum pci_bar_type type;
+	int reg = pci_iov_resource_bar(dev, resno, &type);
+	
+	if (!reg)
+		return 0;
+
+	 __pci_read_base(dev, type, &tmp, reg);
+	return resource_alignment(&tmp);
 }
 
 /**
@@ -682,6 +706,21 @@ irqreturn_t pci_sriov_migration(struct pci_dev *dev)
 	return sriov_migration(dev) ? IRQ_HANDLED : IRQ_NONE;
 }
 EXPORT_SYMBOL_GPL(pci_sriov_migration);
+
+/**
+ * pci_num_vf - return number of VFs associated with a PF device_release_driver
+ * @dev: the PCI device
+ *
+ * Returns number of VFs, or 0 if SR-IOV is not enabled.
+ */
+int pci_num_vf(struct pci_dev *dev)
+{
+	if (!dev || !dev->is_physfn)
+		return 0;
+	else
+		return dev->sriov->nr_virtfn;
+}
+EXPORT_SYMBOL_GPL(pci_num_vf);
 
 static int ats_alloc_one(struct pci_dev *dev, int ps)
 {

@@ -255,6 +255,9 @@ enum osdv2_cdb_field_offset {
 	OSD_CFO_STARTING_BYTE	= OSD_CDB_OFFSET(v2.start_address),
 	OSD_CFO_PARTITION_ID	= OSD_CDB_OFFSET(partition),
 	OSD_CFO_OBJECT_ID	= OSD_CDB_OFFSET(object),
+	OSD_CFO_PERMISSIONS	= sizeof(struct osd_cdb_head) +
+					offsetof(struct osd_capability_head,
+						 permissions_bit_mask),
 };
 
 #endif /* ndef __OSD_SENSE_H__ */

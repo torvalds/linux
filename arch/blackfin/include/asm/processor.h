@@ -1,3 +1,9 @@
+/*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #ifndef __ASM_BFIN_PROCESSOR_H
 #define __ASM_BFIN_PROCESSOR_H
 
@@ -8,7 +14,7 @@
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
 #include <asm/ptrace.h>
-#include <asm/blackfin.h>
+#include <mach/blackfin.h>
 
 static inline unsigned long rdusp(void)
 {
@@ -105,23 +111,16 @@ static inline uint32_t __pure bfin_revid(void)
 	/* Always use CHIPID, to work around ANOMALY_05000234 */
 	uint32_t revid = (bfin_read_CHIPID() & CHIPID_VERSION) >> 28;
 
-#ifdef CONFIG_BF52x
-	/* ANOMALY_05000357
+#ifdef _BOOTROM_GET_DXE_ADDRESS_TWI
+	/*
+	 * ANOMALY_05000364
 	 * Incorrect Revision Number in DSPID Register
 	 */
-	if (revid == 0)
-		switch (bfin_read16(_BOOTROM_GET_DXE_ADDRESS_TWI)) {
-		case 0x0010:
-			revid = 0;
-			break;
-		case 0x2796:
-			revid = 1;
-			break;
-		default:
-			revid = 0xFFFF;
-			break;
-		}
+	if (ANOMALY_05000364 &&
+	    bfin_read16(_BOOTROM_GET_DXE_ADDRESS_TWI) == 0x2796)
+		revid = 1;
 #endif
+
 	return revid;
 }
 
@@ -134,6 +133,8 @@ static inline uint32_t __pure bfin_dspid(void)
 {
 	return bfin_read_DSPID();
 }
+
+#define blackfin_core_id() (bfin_dspid() & 0xff)
 
 static inline uint32_t __pure bfin_compiled_revid(void)
 {

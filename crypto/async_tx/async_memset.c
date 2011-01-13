@@ -35,26 +35,26 @@
  * @val: fill value
  * @offset: offset in pages to start transaction
  * @len: length in bytes
- * @flags: ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
- * @depend_tx: memset depends on the result of this transaction
- * @cb_fn: function to call when the memcpy completes
- * @cb_param: parameter to pass to the callback routine
+ *
+ * honored flags: ASYNC_TX_ACK
  */
 struct dma_async_tx_descriptor *
-async_memset(struct page *dest, int val, unsigned int offset,
-	size_t len, enum async_tx_flags flags,
-	struct dma_async_tx_descriptor *depend_tx,
-	dma_async_tx_callback cb_fn, void *cb_param)
+async_memset(struct page *dest, int val, unsigned int offset, size_t len,
+	     struct async_submit_ctl *submit)
 {
-	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_MEMSET,
+	struct dma_chan *chan = async_tx_find_channel(submit, DMA_MEMSET,
 						      &dest, 1, NULL, 0, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
 
-	if (device) {
+	if (device && is_dma_fill_aligned(device, offset, 0, len)) {
 		dma_addr_t dma_dest;
-		unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
+		unsigned long dma_prep_flags = 0;
 
+		if (submit->cb_fn)
+			dma_prep_flags |= DMA_PREP_INTERRUPT;
+		if (submit->flags & ASYNC_TX_FENCE)
+			dma_prep_flags |= DMA_PREP_FENCE;
 		dma_dest = dma_map_page(device->dev, dest, offset, len,
 					DMA_FROM_DEVICE);
 
@@ -64,37 +64,24 @@ async_memset(struct page *dest, int val, unsigned int offset,
 
 	if (tx) {
 		pr_debug("%s: (async) len: %zu\n", __func__, len);
-		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
+		async_tx_submit(chan, tx, submit);
 	} else { /* run the memset synchronously */
 		void *dest_buf;
 		pr_debug("%s: (sync) len: %zu\n", __func__, len);
 
-		dest_buf = (void *) (((char *) page_address(dest)) + offset);
+		dest_buf = page_address(dest) + offset;
 
 		/* wait for any prerequisite operations */
-		async_tx_quiesce(&depend_tx);
+		async_tx_quiesce(&submit->depend_tx);
 
 		memset(dest_buf, val, len);
 
-		async_tx_sync_epilog(cb_fn, cb_param);
+		async_tx_sync_epilog(submit);
 	}
 
 	return tx;
 }
 EXPORT_SYMBOL_GPL(async_memset);
-
-static int __init async_memset_init(void)
-{
-	return 0;
-}
-
-static void __exit async_memset_exit(void)
-{
-	do { } while (0);
-}
-
-module_init(async_memset_init);
-module_exit(async_memset_exit);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("asynchronous memset api");

@@ -651,6 +651,7 @@ static inline void NCR5380_print_phase(struct Scsi_Host *instance)
  * interrupt or bottom half.
  */
 
+#include <linux/gfp.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
@@ -909,7 +910,7 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
  *
  */
 
-static int NCR5380_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
+static int NCR5380_queue_command_lck(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 {
 	SETUP_HOSTDATA(cmd->device->host);
 	Scsi_Cmnd *tmp;
@@ -1020,6 +1021,8 @@ static int NCR5380_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 		NCR5380_main(NULL);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(NCR5380_queue_command)
 
 /*
  * Function : NCR5380_main (void)
@@ -2826,8 +2829,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 	 */
 
 	local_irq_restore(flags);
-	printk(KERN_INFO "scsi%d: warning : SCSI command probably completed successfully\n"
-	       KERN_INFO "        before abortion\n", HOSTNO);
+	printk(KERN_INFO "scsi%d: warning : SCSI command probably completed successfully before abortion\n", HOSTNO);
 
 	/* Maybe it is sufficient just to release the ST-DMA lock... (if
 	 * possible at all) At least, we should check if the lock could be

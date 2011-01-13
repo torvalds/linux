@@ -9,6 +9,8 @@
 #include <linux/irq.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <asm/leon.h>
+#include <asm/leon_amba.h>
 
 #include "of_device_common.h"
 
@@ -97,6 +99,35 @@ static unsigned long of_bus_sbus_get_flags(const u32 *addr, unsigned long flags)
 	return IORESOURCE_MEM;
 }
 
+ /*
+ * AMBAPP bus specific translator
+ */
+
+static int of_bus_ambapp_match(struct device_node *np)
+{
+	return !strcmp(np->type, "ambapp");
+}
+
+static void of_bus_ambapp_count_cells(struct device_node *child,
+				      int *addrc, int *sizec)
+{
+	if (addrc)
+		*addrc = 1;
+	if (sizec)
+		*sizec = 1;
+}
+
+static int of_bus_ambapp_map(u32 *addr, const u32 *range,
+			     int na, int ns, int pna)
+{
+	return of_bus_default_map(addr, range, na, ns, pna);
+}
+
+static unsigned long of_bus_ambapp_get_flags(const u32 *addr,
+					     unsigned long flags)
+{
+	return IORESOURCE_MEM;
+}
 
 /*
  * Array of bus specific translators
@@ -120,6 +151,15 @@ static struct of_bus of_busses[] = {
 		.count_cells = of_bus_sbus_count_cells,
 		.map = of_bus_default_map,
 		.get_flags = of_bus_sbus_get_flags,
+	},
+	/* AMBA */
+	{
+		.name = "ambapp",
+		.addr_prop_name = "reg",
+		.match = of_bus_ambapp_match,
+		.count_cells = of_bus_ambapp_count_cells,
+		.map = of_bus_ambapp_map,
+		.get_flags = of_bus_ambapp_get_flags,
 	},
 	/* Default */
 	{
@@ -201,10 +241,10 @@ static int __init use_1to1_mapping(struct device_node *pp)
 
 static int of_resource_verbose;
 
-static void __init build_device_resources(struct of_device *op,
+static void __init build_device_resources(struct platform_device *op,
 					  struct device *parent)
 {
-	struct of_device *p_op;
+	struct platform_device *p_op;
 	struct of_bus *bus;
 	int na, ns;
 	int index, num_reg;
@@ -213,11 +253,11 @@ static void __init build_device_resources(struct of_device *op,
 	if (!parent)
 		return;
 
-	p_op = to_of_device(parent);
-	bus = of_match_bus(p_op->node);
-	bus->count_cells(op->node, &na, &ns);
+	p_op = to_platform_device(parent);
+	bus = of_match_bus(p_op->dev.of_node);
+	bus->count_cells(op->dev.of_node, &na, &ns);
 
-	preg = of_get_property(op->node, bus->addr_prop_name, &num_reg);
+	preg = of_get_property(op->dev.of_node, bus->addr_prop_name, &num_reg);
 	if (!preg || num_reg == 0)
 		return;
 
@@ -227,12 +267,14 @@ static void __init build_device_resources(struct of_device *op,
 	/* Conver to num-entries.  */
 	num_reg /= na + ns;
 
+	op->resource = op->archdata.resource;
+	op->num_resources = num_reg;
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
 		const u32 *reg = (preg + (index * ((na + ns) * 4)));
-		struct device_node *dp = op->node;
-		struct device_node *pp = p_op->node;
+		struct device_node *dp = op->dev.of_node;
+		struct device_node *pp = p_op->dev.of_node;
 		struct of_bus *pbus, *dbus;
 		u64 size, result = OF_BAD_ADDR;
 		unsigned long flags;
@@ -281,7 +323,7 @@ static void __init build_device_resources(struct of_device *op,
 
 		if (of_resource_verbose)
 			printk("%s reg[%d] -> %llx\n",
-			       op->node->full_name, index,
+			       op->dev.of_node->full_name, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -289,14 +331,14 @@ static void __init build_device_resources(struct of_device *op,
 			r->end = result + size - 1;
 			r->flags = flags | ((result >> 32ULL) & 0xffUL);
 		}
-		r->name = op->node->name;
+		r->name = op->dev.of_node->name;
 	}
 }
 
-static struct of_device * __init scan_one_device(struct device_node *dp,
+static struct platform_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
-	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
+	struct platform_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	const struct linux_prom_irqs *intr;
 	struct dev_archdata *sd;
 	int len, i;
@@ -305,32 +347,25 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		return NULL;
 
 	sd = &op->dev.archdata;
-	sd->prom_node = dp;
 	sd->op = op;
 
-	op->node = dp;
-
-	op->clock_freq = of_getintprop_default(dp, "clock-frequency",
-					       (25*1000*1000));
-	op->portid = of_getintprop_default(dp, "upa-portid", -1);
-	if (op->portid == -1)
-		op->portid = of_getintprop_default(dp, "portid", -1);
+	op->dev.of_node = dp;
 
 	intr = of_get_property(dp, "intr", &len);
 	if (intr) {
-		op->num_irqs = len / sizeof(struct linux_prom_irqs);
-		for (i = 0; i < op->num_irqs; i++)
-			op->irqs[i] = intr[i].pri;
+		op->archdata.num_irqs = len / sizeof(struct linux_prom_irqs);
+		for (i = 0; i < op->archdata.num_irqs; i++)
+			op->archdata.irqs[i] = intr[i].pri;
 	} else {
 		const unsigned int *irq =
 			of_get_property(dp, "interrupts", &len);
 
 		if (irq) {
-			op->num_irqs = len / sizeof(unsigned int);
-			for (i = 0; i < op->num_irqs; i++)
-				op->irqs[i] = irq[i];
+			op->archdata.num_irqs = len / sizeof(unsigned int);
+			for (i = 0; i < op->archdata.num_irqs; i++)
+				op->archdata.irqs[i] = irq[i];
 		} else {
-			op->num_irqs = 0;
+			op->archdata.num_irqs = 0;
 		}
 	}
 	if (sparc_cpu_model == sun4d) {
@@ -372,8 +407,8 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 			goto build_resources;
 		}
 
-		for (i = 0; i < op->num_irqs; i++) {
-			int this_irq = op->irqs[i];
+		for (i = 0; i < op->archdata.num_irqs; i++) {
+			int this_irq = op->archdata.irqs[i];
 			int sbusl = pil_to_sbus[this_irq];
 
 			if (sbusl)
@@ -381,7 +416,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 					    (sbusl << 2) +
 					    slot);
 
-			op->irqs[i] = this_irq;
+			op->archdata.irqs[i] = this_irq;
 		}
 	}
 
@@ -389,11 +424,11 @@ build_resources:
 	build_device_resources(op, parent);
 
 	op->dev.parent = parent;
-	op->dev.bus = &of_platform_bus_type;
+	op->dev.bus = &platform_bus_type;
 	if (!parent)
 		dev_set_name(&op->dev, "root");
 	else
-		dev_set_name(&op->dev, "%08x", dp->node);
+		dev_set_name(&op->dev, "%08x", dp->phandle);
 
 	if (of_device_register(op)) {
 		printk("%s: Could not register of device.\n",
@@ -408,7 +443,7 @@ build_resources:
 static void __init scan_tree(struct device_node *dp, struct device *parent)
 {
 	while (dp) {
-		struct of_device *op = scan_one_device(dp, parent);
+		struct platform_device *op = scan_one_device(dp, parent);
 
 		if (op)
 			scan_tree(dp->child, &op->dev);
@@ -417,30 +452,19 @@ static void __init scan_tree(struct device_node *dp, struct device *parent)
 	}
 }
 
-static void __init scan_of_devices(void)
+static int __init scan_of_devices(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
-	struct of_device *parent;
+	struct platform_device *parent;
 
 	parent = scan_one_device(root, NULL);
 	if (!parent)
-		return;
+		return 0;
 
 	scan_tree(root->child, &parent->dev);
+	return 0;
 }
-
-static int __init of_bus_driver_init(void)
-{
-	int err;
-
-	err = of_bus_type_init(&of_platform_bus_type, "of");
-	if (!err)
-		scan_of_devices();
-
-	return err;
-}
-
-postcore_initcall(of_bus_driver_init);
+postcore_initcall(scan_of_devices);
 
 static int __init of_debug(char *str)
 {

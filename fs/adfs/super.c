@@ -13,6 +13,8 @@
 #include <linux/parser.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/statfs.h>
 #include "adfs.h"
 #include "dir_f.h"
@@ -238,9 +240,16 @@ static struct inode *adfs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void adfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
+}
+
 static void adfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
+	call_rcu(&inode->i_rcu, adfs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -350,11 +359,15 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct adfs_sb_info *asb;
 	struct inode *root;
 
+	lock_kernel();
+
 	sb->s_flags |= MS_NODIRATIME;
 
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
-	if (!asb)
+	if (!asb) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	sb->s_fs_info = asb;
 
 	/* set default options */
@@ -471,7 +484,8 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		adfs_error(sb, "get root inode failed\n");
 		goto error;
 	} else
-		sb->s_root->d_op = &adfs_dentry_operations;
+		d_set_d_op(sb->s_root, &adfs_dentry_operations);
+	unlock_kernel();
 	return 0;
 
 error_free_bh:
@@ -479,20 +493,20 @@ error_free_bh:
 error:
 	sb->s_fs_info = NULL;
 	kfree(asb);
+	unlock_kernel();
 	return -EINVAL;
 }
 
-static int adfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *adfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, adfs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, adfs_fill_super);
 }
 
 static struct file_system_type adfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "adfs",
-	.get_sb		= adfs_get_sb,
+	.mount		= adfs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

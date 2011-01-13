@@ -1,7 +1,7 @@
 /*
  * sigp.c - handlinge interprocessor communication
  *
- * Copyright IBM Corp. 2008
+ * Copyright IBM Corp. 2008,2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -9,10 +9,12 @@
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
+ *               Christian Ehrhardt <ehrhardt@de.ibm.com>
  */
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/slab.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
 
@@ -107,44 +109,55 @@ unlock:
 	return rc;
 }
 
-static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int store)
+static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
+{
+	struct kvm_s390_interrupt_info *inti;
+
+	inti = kzalloc(sizeof(*inti), GFP_ATOMIC);
+	if (!inti)
+		return -ENOMEM;
+	inti->type = KVM_S390_SIGP_STOP;
+
+	spin_lock_bh(&li->lock);
+	list_add_tail(&inti->list, &li->list);
+	atomic_set(&li->active, 1);
+	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
+	li->action_bits |= action;
+	if (waitqueue_active(&li->wq))
+		wake_up_interruptible(&li->wq);
+	spin_unlock_bh(&li->lock);
+
+	return 0; /* order accepted */
+}
+
+static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	struct kvm_s390_local_interrupt *li;
-	struct kvm_s390_interrupt_info *inti;
 	int rc;
 
 	if (cpu_addr >= KVM_MAX_VCPUS)
 		return 3; /* not operational */
 
-	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
-	if (!inti)
-		return -ENOMEM;
-
-	inti->type = KVM_S390_SIGP_STOP;
-
 	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 	if (li == NULL) {
 		rc = 3; /* not operational */
-		kfree(inti);
 		goto unlock;
 	}
-	spin_lock_bh(&li->lock);
-	list_add_tail(&inti->list, &li->list);
-	atomic_set(&li->active, 1);
-	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
-	if (store)
-		li->action_bits |= ACTION_STORE_ON_STOP;
-	li->action_bits |= ACTION_STOP_ON_STOP;
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
-	spin_unlock_bh(&li->lock);
-	rc = 0; /* order accepted */
+
+	rc = __inject_sigp_stop(li, action);
+
 unlock:
 	spin_unlock(&fi->lock);
 	VCPU_EVENT(vcpu, 4, "sent sigp stop to cpu %x", cpu_addr);
 	return rc;
+}
+
+int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	return __inject_sigp_stop(li, action);
 }
 
 static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
@@ -160,7 +173,7 @@ static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 		rc = 0; /* order accepted */
 		break;
 	default:
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
 	return rc;
 }
@@ -169,17 +182,17 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 			     unsigned long *reg)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
-	struct kvm_s390_local_interrupt *li;
+	struct kvm_s390_local_interrupt *li = NULL;
 	struct kvm_s390_interrupt_info *inti;
 	int rc;
 	u8 tmp;
 
 	/* make sure that the new value is valid memory */
 	address = address & 0x7fffe000u;
-	if ((copy_from_guest(vcpu, &tmp,
-		(u64) (address + vcpu->kvm->arch.guest_origin) , 1)) ||
-	   (copy_from_guest(vcpu, &tmp, (u64) (address +
-			vcpu->kvm->arch.guest_origin + PAGE_SIZE), 1))) {
+	if ((copy_from_user(&tmp, (void __user *)
+		(address + vcpu->arch.sie_block->gmsor) , 1)) ||
+	   (copy_from_user(&tmp, (void __user *)(address +
+			vcpu->arch.sie_block->gmsor + PAGE_SIZE), 1))) {
 		*reg |= SIGP_STAT_INVALID_PARAMETER;
 		return 1; /* invalid parameter */
 	}
@@ -189,9 +202,10 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 		return 2; /* busy */
 
 	spin_lock(&fi->lock);
-	li = fi->local_int[cpu_addr];
+	if (cpu_addr < KVM_MAX_VCPUS)
+		li = fi->local_int[cpu_addr];
 
-	if ((cpu_addr >= KVM_MAX_VCPUS) || (li == NULL)) {
+	if (li == NULL) {
 		rc = 1; /* incorrect state */
 		*reg &= SIGP_STAT_INCORRECT_STATE;
 		kfree(inti);
@@ -261,11 +275,11 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		break;
 	case SIGP_STOP:
 		vcpu->stat.instruction_sigp_stop++;
-		rc = __sigp_stop(vcpu, cpu_addr, 0);
+		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STOP_ON_STOP);
 		break;
 	case SIGP_STOP_STORE_STATUS:
 		vcpu->stat.instruction_sigp_stop++;
-		rc = __sigp_stop(vcpu, cpu_addr, 1);
+		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP);
 		break;
 	case SIGP_SET_ARCH:
 		vcpu->stat.instruction_sigp_arch++;
@@ -280,7 +294,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_restart++;
 		/* user space must know about restart */
 	default:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	if (rc < 0)

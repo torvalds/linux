@@ -32,7 +32,8 @@ Configuration options:
   [0] - I/O port base address
   [1] - IRQ (unused)
   [2] - DMA (unused)
-  [3] - analog output range, set by jumpers on hardware (0 for -10 to 10V bipolar, 1 for 0V to 10V unipolar)
+  [3] - analog output range, set by jumpers on hardware (0 for -10 to 10V
+	bipolar, 1 for 0V to 10V unipolar)
 
 */
 /*
@@ -158,13 +159,13 @@ struct atao_board {
 
 static const struct atao_board atao_boards[] = {
 	{
-	.name = "ai-ao-6",
-	.n_ao_chans = 6,
-		},
+	 .name = "ai-ao-6",
+	 .n_ao_chans = 6,
+	 },
 	{
-	.name = "ai-ao-10",
-	.n_ao_chans = 10,
-		},
+	 .name = "ai-ao-10",
+	 .n_ao_chans = 10,
+	 },
 };
 
 #define thisboard ((struct atao_board *)dev->board_ptr)
@@ -193,22 +194,37 @@ static struct comedi_driver driver_atao = {
 	.num_names = ARRAY_SIZE(atao_boards),
 };
 
-COMEDI_INITCLEANUP(driver_atao);
+static int __init driver_atao_init_module(void)
+{
+	return comedi_driver_register(&driver_atao);
+}
+
+static void __exit driver_atao_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_atao);
+}
+
+module_init(driver_atao_init_module);
+module_exit(driver_atao_cleanup_module);
 
 static void atao_reset(struct comedi_device *dev);
 
 static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			 struct comedi_insn *insn, unsigned int *data);
 static int atao_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int atao_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int atao_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int atao_calib_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int atao_calib_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			 struct comedi_insn *insn, unsigned int *data);
+static int atao_dio_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data);
+static int atao_dio_insn_config(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data);
+static int atao_calib_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data);
+static int atao_calib_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data);
 
 static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -221,7 +237,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		iobase = 0x1c0;
 	ao_unipolar = it->options[3];
 
-	printk("comedi%d: ni_at_ao: 0x%04lx", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: ni_at_ao: 0x%04lx", dev->minor, iobase);
 
 	if (!request_region(iobase, ATAO_SIZE, "ni_at_ao")) {
 		printk(" I/O port conflict\n");
@@ -278,14 +294,14 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	atao_reset(dev);
 
-	printk("\n");
+	printk(KERN_INFO "\n");
 
 	return 0;
 }
 
 static int atao_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: atao: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: atao: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, ATAO_SIZE);
@@ -324,7 +340,7 @@ static void atao_reset(struct comedi_device *dev)
 }
 
 static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			 struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -348,7 +364,7 @@ static int atao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static int atao_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			 struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -359,8 +375,9 @@ static int atao_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-static int atao_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int atao_dio_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -376,8 +393,9 @@ static int atao_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice
 	return 2;
 }
 
-static int atao_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int atao_dio_insn_config(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask, bit;
@@ -401,8 +419,7 @@ static int atao_dio_insn_config(struct comedi_device *dev, struct comedi_subdevi
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
-			(s->
-			io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -421,18 +438,19 @@ static int atao_dio_insn_config(struct comedi_device *dev, struct comedi_subdevi
  * DACs.  It is not explicitly stated in the manual how to access
  * the caldacs, but we can guess.
  */
-static int atao_calib_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int atao_calib_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = 0;	/* XXX */
-	}
 	return insn->n;
 }
 
-static int atao_calib_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int atao_calib_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bitstring, bit;
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -441,14 +459,18 @@ static int atao_calib_insn_write(struct comedi_device *dev, struct comedi_subdev
 
 	for (bit = 1 << (11 - 1); bit; bit >>= 1) {
 		outw(devpriv->cfg2 | ((bit & bitstring) ? SDATA : 0),
-			dev->iobase + ATAO_CFG2);
+		     dev->iobase + ATAO_CFG2);
 		outw(devpriv->cfg2 | SCLK | ((bit & bitstring) ? SDATA : 0),
-			dev->iobase + ATAO_CFG2);
+		     dev->iobase + ATAO_CFG2);
 	}
 	/* strobe the appropriate caldac */
 	outw(devpriv->cfg2 | (((chan >> 3) + 1) << 14),
-		dev->iobase + ATAO_CFG2);
+	     dev->iobase + ATAO_CFG2);
 	outw(devpriv->cfg2, dev->iobase + ATAO_CFG2);
 
 	return insn->n;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

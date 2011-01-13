@@ -48,13 +48,13 @@
 #define KPROBE_HIT_SSDONE	0x00000008
 
 /* Attach to insert probes on any functions which should be ignored*/
-#define __kprobes	__attribute__((__section__(".kprobes.text"))) notrace
+#define __kprobes	__attribute__((__section__(".kprobes.text")))
 #else /* CONFIG_KPROBES */
 typedef int kprobe_opcode_t;
 struct arch_specific_insn {
 	int dummy;
 };
-#define __kprobes	notrace
+#define __kprobes
 #endif /* CONFIG_KPROBES */
 
 struct kprobe;
@@ -122,6 +122,11 @@ struct kprobe {
 /* Kprobe status flags */
 #define KPROBE_FLAG_GONE	1 /* breakpoint has already gone */
 #define KPROBE_FLAG_DISABLED	2 /* probe is temporarily disabled */
+#define KPROBE_FLAG_OPTIMIZED	4 /*
+				   * probe is really optimized.
+				   * NOTE:
+				   * this flag is only for optimized_kprobe.
+				   */
 
 /* Has this kprobe gone ? */
 static inline int kprobe_gone(struct kprobe *p)
@@ -133,6 +138,12 @@ static inline int kprobe_gone(struct kprobe *p)
 static inline int kprobe_disabled(struct kprobe *p)
 {
 	return p->flags & (KPROBE_FLAG_DISABLED | KPROBE_FLAG_GONE);
+}
+
+/* Is this kprobe really running optimized path ? */
+static inline int kprobe_optimized(struct kprobe *p)
+{
+	return p->flags & KPROBE_FLAG_OPTIMIZED;
 }
 /*
  * Special probe type that uses setjmp-longjmp type tricks to resume
@@ -249,6 +260,41 @@ extern kprobe_opcode_t *get_insn_slot(void);
 extern void free_insn_slot(kprobe_opcode_t *slot, int dirty);
 extern void kprobes_inc_nmissed_count(struct kprobe *p);
 
+#ifdef CONFIG_OPTPROBES
+/*
+ * Internal structure for direct jump optimized probe
+ */
+struct optimized_kprobe {
+	struct kprobe kp;
+	struct list_head list;	/* list for optimizing queue */
+	struct arch_optimized_insn optinsn;
+};
+
+/* Architecture dependent functions for direct jump optimization */
+extern int arch_prepared_optinsn(struct arch_optimized_insn *optinsn);
+extern int arch_check_optimized_kprobe(struct optimized_kprobe *op);
+extern int arch_prepare_optimized_kprobe(struct optimized_kprobe *op);
+extern void arch_remove_optimized_kprobe(struct optimized_kprobe *op);
+extern void arch_optimize_kprobes(struct list_head *oplist);
+extern void arch_unoptimize_kprobes(struct list_head *oplist,
+				    struct list_head *done_list);
+extern void arch_unoptimize_kprobe(struct optimized_kprobe *op);
+extern kprobe_opcode_t *get_optinsn_slot(void);
+extern void free_optinsn_slot(kprobe_opcode_t *slot, int dirty);
+extern int arch_within_optimized_kprobe(struct optimized_kprobe *op,
+					unsigned long addr);
+
+extern void opt_pre_handler(struct kprobe *p, struct pt_regs *regs);
+
+#ifdef CONFIG_SYSCTL
+extern int sysctl_kprobes_optimization;
+extern int proc_kprobes_optimization_handler(struct ctl_table *table,
+					     int write, void __user *buffer,
+					     size_t *length, loff_t *ppos);
+#endif
+
+#endif /* CONFIG_OPTPROBES */
+
 /* Get the kprobe at this addr (if any) - called with preemption disabled */
 struct kprobe *get_kprobe(void *addr);
 void kretprobe_hash_lock(struct task_struct *tsk,
@@ -259,12 +305,12 @@ struct hlist_head * kretprobe_inst_table_head(struct task_struct *tsk);
 /* kprobe_running() will just return the current_kprobe on this CPU */
 static inline struct kprobe *kprobe_running(void)
 {
-	return (__get_cpu_var(current_kprobe));
+	return (__this_cpu_read(current_kprobe));
 }
 
 static inline void reset_current_kprobe(void)
 {
-	__get_cpu_var(current_kprobe) = NULL;
+	__this_cpu_write(current_kprobe, NULL);
 }
 
 static inline struct kprobe_ctlblk *get_kprobe_ctlblk(void)
@@ -295,6 +341,8 @@ void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
 
 int disable_kprobe(struct kprobe *kp);
 int enable_kprobe(struct kprobe *kp);
+
+void dump_kprobe(struct kprobe *kp);
 
 #else /* !CONFIG_KPROBES: */
 

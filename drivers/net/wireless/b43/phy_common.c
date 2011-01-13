@@ -50,7 +50,7 @@ int b43_phy_allocate(struct b43_wldev *dev)
 		phy->ops = &b43_phyops_g;
 		break;
 	case B43_PHYTYPE_N:
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 		phy->ops = &b43_phyops_n;
 #endif
 		break;
@@ -231,6 +231,7 @@ void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
 u16 b43_phy_read(struct b43_wldev *dev, u16 reg)
 {
 	assert_mac_suspended(dev);
+	dev->phy.writes_counter = 0;
 	return dev->phy.ops->phy_read(dev, reg);
 }
 
@@ -238,24 +239,50 @@ void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
 	assert_mac_suspended(dev);
 	dev->phy.ops->phy_write(dev, reg, value);
+	if (++dev->phy.writes_counter == B43_MAX_WRITES_IN_ROW) {
+		b43_read16(dev, B43_MMIO_PHY_VER);
+		dev->phy.writes_counter = 0;
+	}
+}
+
+void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg)
+{
+	assert_mac_suspended(dev);
+	dev->phy.ops->phy_write(dev, destreg,
+		dev->phy.ops->phy_read(dev, srcreg));
 }
 
 void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask)
 {
-	b43_phy_write(dev, offset,
-		      b43_phy_read(dev, offset) & mask);
+	if (dev->phy.ops->phy_maskset) {
+		assert_mac_suspended(dev);
+		dev->phy.ops->phy_maskset(dev, offset, mask, 0);
+	} else {
+		b43_phy_write(dev, offset,
+			      b43_phy_read(dev, offset) & mask);
+	}
 }
 
 void b43_phy_set(struct b43_wldev *dev, u16 offset, u16 set)
 {
-	b43_phy_write(dev, offset,
-		      b43_phy_read(dev, offset) | set);
+	if (dev->phy.ops->phy_maskset) {
+		assert_mac_suspended(dev);
+		dev->phy.ops->phy_maskset(dev, offset, 0xFFFF, set);
+	} else {
+		b43_phy_write(dev, offset,
+			      b43_phy_read(dev, offset) | set);
+	}
 }
 
 void b43_phy_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
 {
-	b43_phy_write(dev, offset,
-		      (b43_phy_read(dev, offset) & mask) | set);
+	if (dev->phy.ops->phy_maskset) {
+		assert_mac_suspended(dev);
+		dev->phy.ops->phy_maskset(dev, offset, mask, set);
+	} else {
+		b43_phy_write(dev, offset,
+			      (b43_phy_read(dev, offset) & mask) | set);
+	}
 }
 
 int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
@@ -272,8 +299,10 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	 */
 	channelcookie = new_channel;
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
-		channelcookie |= 0x100;
-	//FIXME set 40Mhz flag if required
+		channelcookie |= B43_SHM_SH_CHAN_5GHZ;
+	/* FIXME: set 40Mhz flag if required */
+	if (0)
+		channelcookie |= B43_SHM_SH_CHAN_40MHZ;
 	savedcookie = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN, channelcookie);
 
@@ -325,7 +354,6 @@ void b43_phy_txpower_adjust_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 }
 
-/* Called with wl->irq_lock locked */
 void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -352,7 +380,7 @@ void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 
 	/* We must adjust the transmission power in hardware.
 	 * Schedule b43_phy_txpower_adjust_work(). */
-	queue_work(dev->wl->hw->workqueue, &dev->wl->txpower_adjust_work);
+	ieee80211_queue_work(dev->wl->hw, &dev->wl->txpower_adjust_work);
 }
 
 int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
@@ -399,4 +427,58 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
 void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on)
 {
 	b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
+}
+
+
+bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type)
+{
+	return (channel_type == NL80211_CHAN_HT40MINUS ||
+		channel_type == NL80211_CHAN_HT40PLUS);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/Cordic */
+struct b43_c32 b43_cordic(int theta)
+{
+	static const u32 arctg[] = {
+		2949120, 1740967, 919879, 466945, 234379, 117304,
+		  58666,   29335,  14668,   7334,   3667,   1833,
+		    917,     458,    229,    115,     57,     29,
+	};
+	u8 i;
+	s32 tmp;
+	s8 signx = 1;
+	u32 angle = 0;
+	struct b43_c32 ret = { .i = 39797, .q = 0, };
+
+	while (theta > (180 << 16))
+		theta -= (360 << 16);
+	while (theta < -(180 << 16))
+		theta += (360 << 16);
+
+	if (theta > (90 << 16)) {
+		theta -= (180 << 16);
+		signx = -1;
+	} else if (theta < -(90 << 16)) {
+		theta += (180 << 16);
+		signx = -1;
+	}
+
+	for (i = 0; i <= 17; i++) {
+		if (theta > angle) {
+			tmp = ret.i - (ret.q >> i);
+			ret.q += ret.i >> i;
+			ret.i = tmp;
+			angle += arctg[i];
+		} else {
+			tmp = ret.i + (ret.q >> i);
+			ret.q -= ret.i >> i;
+			ret.i = tmp;
+			angle -= arctg[i];
+		}
+	}
+
+	ret.i *= signx;
+	ret.q *= signx;
+
+	return ret;
 }

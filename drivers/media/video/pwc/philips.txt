@@ -33,7 +33,7 @@ a lot of extra information, a FAQ, and the binary plugin 'PWCX'. This plugin
 contains decompression routines that allow you to use higher image sizes and
 framerates; in addition the webcam uses less bandwidth on the USB bus (handy
 if you want to run more than 1 camera simultaneously). These routines fall
-under a NDA, and may therefor not be distributed as source; however, its use
+under a NDA, and may therefore not be distributed as source; however, its use
 is completely optional.
 
 You can build this code either into your kernel, or as a module. I recommend

@@ -32,24 +32,10 @@
  *
  */
 
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__TCRC_H__)
 #include "tcrc.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -75,19 +61,19 @@
  * Return Value: Hash value
  *
  */
-BYTE ETHbyGetHashIndexByCrc32 (PBYTE pbyMultiAddr)
+unsigned char ETHbyGetHashIndexByCrc32 (unsigned char *pbyMultiAddr)
 {
     int     ii;
-    BYTE    byTmpHash;
-    BYTE    byHash = 0;
+    unsigned char byTmpHash;
+    unsigned char byHash = 0;
 
     // get the least 6-bits from CRC generator
-    byTmpHash = (BYTE)(CRCdwCrc32(pbyMultiAddr, U_ETHER_ADDR_LEN,
+    byTmpHash = (unsigned char)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
             0xFFFFFFFFL) & 0x3F);
     // reverse most bit to least bit
     for (ii = 0; ii < (sizeof(byTmpHash) * 8); ii++) {
         byHash <<= 1;
-        if (BITbIsBitOn(byTmpHash, 0x01))
+        if (byTmpHash & 0x01)
             byHash |= 1;
         byTmpHash >>= 1;
     }
@@ -107,17 +93,17 @@ BYTE ETHbyGetHashIndexByCrc32 (PBYTE pbyMultiAddr)
  *  Out:
  *      none
  *
- * Return Value: TRUE if ok; FALSE if error.
+ * Return Value: true if ok; false if error.
  *
  */
-BOOL ETHbIsBufferCrc32Ok (PBYTE pbyBuffer, UINT cbFrameLength)
+bool ETHbIsBufferCrc32Ok (unsigned char *pbyBuffer, unsigned int cbFrameLength)
 {
-    DWORD dwCRC;
+    unsigned long dwCRC;
 
     dwCRC = CRCdwGetCrc32(pbyBuffer, cbFrameLength - 4);
-    if (cpu_to_le32(*((PDWORD)(pbyBuffer + cbFrameLength - 4))) != dwCRC) {
-        return FALSE;
+    if (cpu_to_le32(*((unsigned long *)(pbyBuffer + cbFrameLength - 4))) != dwCRC) {
+        return false;
     }
-    return TRUE;
+    return true;
 }
 

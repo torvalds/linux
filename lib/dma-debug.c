@@ -156,8 +156,12 @@ static bool driver_filter(struct device *dev)
 		return true;
 
 	/* driver filter on and initialized */
-	if (current_driver && dev->driver == current_driver)
+	if (current_driver && dev && dev->driver == current_driver)
 		return true;
+
+	/* driver filter on, but we can't filter on a NULL device... */
+	if (!dev)
+		return false;
 
 	if (current_driver || !current_driver_name[0])
 		return false;
@@ -183,17 +187,17 @@ static bool driver_filter(struct device *dev)
 	return ret;
 }
 
-#define err_printk(dev, entry, format, arg...) do {		\
-		error_count += 1;				\
-		if (driver_filter(dev) &&			\
-		    (show_all_errors || show_num_errors > 0)) {	\
-			WARN(1, "%s %s: " format,		\
-			     dev_driver_string(dev),		\
-			     dev_name(dev) , ## arg);		\
-			dump_entry_trace(entry);		\
-		}						\
-		if (!show_all_errors && show_num_errors > 0)	\
-			show_num_errors -= 1;			\
+#define err_printk(dev, entry, format, arg...) do {			\
+		error_count += 1;					\
+		if (driver_filter(dev) &&				\
+		    (show_all_errors || show_num_errors > 0)) {		\
+			WARN(1, "%s %s: " format,			\
+			     dev ? dev_driver_string(dev) : "NULL",	\
+			     dev ? dev_name(dev) : "NULL", ## arg);	\
+			dump_entry_trace(entry);			\
+		}							\
+		if (!show_all_errors && show_num_errors > 0)		\
+			show_num_errors -= 1;				\
 	} while (0);
 
 /*
@@ -255,7 +259,7 @@ static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 		 * times. Without a hardware IOMMU this results in the
 		 * same device addresses being put into the dma-debug
 		 * hash multiple times too. This can result in false
-		 * positives being reported. Therfore we implement a
+		 * positives being reported. Therefore we implement a
 		 * best-fit algorithm here which returns the entry from
 		 * the hash which fits best to the reference value
 		 * instead of the first-fit.
@@ -566,7 +570,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	 * Now parse out the first token and use it as the name for the
 	 * driver to filter for.
 	 */
-	for (i = 0; i < NAME_MAX_LEN; ++i) {
+	for (i = 0; i < NAME_MAX_LEN - 1; ++i) {
 		current_driver_name[i] = buf[i];
 		if (isspace(buf[i]) || buf[i] == ' ' || buf[i] == 0)
 			break;
@@ -583,9 +587,10 @@ out_unlock:
 	return count;
 }
 
-const struct file_operations filter_fops = {
+static const struct file_operations filter_fops = {
 	.read  = filter_read,
 	.write = filter_write,
+	.llseek = default_llseek,
 };
 
 static int dma_debug_fs_init(void)
@@ -666,12 +671,13 @@ static int device_dma_allocations(struct device *dev)
 	return count;
 }
 
-static int dma_debug_device_change(struct notifier_block *nb,
-				    unsigned long action, void *data)
+static int dma_debug_device_change(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
 	int count;
 
+	if (global_disable)
+		return 0;
 
 	switch (action) {
 	case BUS_NOTIFY_UNBOUND_DRIVER:
@@ -692,6 +698,9 @@ static int dma_debug_device_change(struct notifier_block *nb,
 void dma_debug_add_bus(struct bus_type *bus)
 {
 	struct notifier_block *nb;
+
+	if (global_disable)
+		return;
 
 	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
 	if (nb == NULL) {
@@ -716,7 +725,7 @@ void dma_debug_init(u32 num_entries)
 
 	for (i = 0; i < HASH_SIZE; ++i) {
 		INIT_LIST_HEAD(&dma_entry_hash[i].list);
-		dma_entry_hash[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&dma_entry_hash[i].lock);
 	}
 
 	if (dma_debug_fs_init() != 0) {
@@ -815,9 +824,11 @@ static void check_unmap(struct dma_debug_entry *ref)
 		err_printk(ref->dev, entry, "DMA-API: device driver frees "
 			   "DMA memory with different CPU address "
 			   "[device address=0x%016llx] [size=%llu bytes] "
-			   "[cpu alloc address=%p] [cpu free address=%p]",
+			   "[cpu alloc address=0x%016llx] "
+			   "[cpu free address=0x%016llx]",
 			   ref->dev_addr, ref->size,
-			   (void *)entry->paddr, (void *)ref->paddr);
+			   (unsigned long long)entry->paddr,
+			   (unsigned long long)ref->paddr);
 	}
 
 	if (ref->sg_call_ents && ref->type == dma_debug_sg &&
@@ -856,22 +867,21 @@ static void check_for_stack(struct device *dev, void *addr)
 				"stack [addr=%p]\n", addr);
 }
 
-static inline bool overlap(void *addr, u64 size, void *start, void *end)
+static inline bool overlap(void *addr, unsigned long len, void *start, void *end)
 {
-	void *addr2 = (char *)addr + size;
+	unsigned long a1 = (unsigned long)addr;
+	unsigned long b1 = a1 + len;
+	unsigned long a2 = (unsigned long)start;
+	unsigned long b2 = (unsigned long)end;
 
-	return ((addr >= start && addr < end) ||
-		(addr2 >= start && addr2 < end) ||
-		((addr < start) && (addr2 >= end)));
+	return !(b1 <= a2 || a1 >= b2);
 }
 
-static void check_for_illegal_area(struct device *dev, void *addr, u64 size)
+static void check_for_illegal_area(struct device *dev, void *addr, unsigned long len)
 {
-	if (overlap(addr, size, _text, _etext) ||
-	    overlap(addr, size, __start_rodata, __end_rodata))
-		err_printk(dev, NULL, "DMA-API: device driver maps "
-				"memory from kernel text or rodata "
-				"[addr=%p] [size=%llu]\n", addr, size);
+	if (overlap(addr, len, _text, _etext) ||
+	    overlap(addr, len, __start_rodata, __end_rodata))
+		err_printk(dev, NULL, "DMA-API: device driver maps memory from kernel text or rodata [addr=%p] [len=%lu]\n", addr, len);
 }
 
 static void check_sync(struct device *dev,
@@ -904,6 +914,9 @@ static void check_sync(struct device *dev,
 				ref->size);
 	}
 
+	if (entry->direction == DMA_BIDIRECTIONAL)
+		goto out;
+
 	if (ref->direction != entry->direction) {
 		err_printk(dev, entry, "DMA-API: device driver syncs "
 				"DMA memory with different direction "
@@ -913,9 +926,6 @@ static void check_sync(struct device *dev,
 				dir2name[entry->direction],
 				dir2name[ref->direction]);
 	}
-
-	if (entry->direction == DMA_BIDIRECTIONAL)
-		goto out;
 
 	if (to_cpu && !(entry->direction == DMA_FROM_DEVICE) &&
 		      !(ref->direction == DMA_TO_DEVICE))
@@ -939,7 +949,6 @@ static void check_sync(struct device *dev,
 
 out:
 	put_hash_bucket(bucket, &flags);
-
 }
 
 void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
@@ -969,7 +978,8 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 		entry->type = dma_debug_single;
 
 	if (!PageHighMem(page)) {
-		void *addr = ((char *)page_address(page)) + offset;
+		void *addr = page_address(page) + offset;
+
 		check_for_stack(dev, addr);
 		check_for_illegal_area(dev, addr, size);
 	}

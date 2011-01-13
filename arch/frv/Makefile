@@ -23,20 +23,14 @@
 # Copyright (C) 1994 by Hamish Macdonald
 #
 
-CCSPECS	:= $(shell $(CC) -v 2>&1 | grep "^Reading specs from " | head -1 | cut -c20-)
-CCDIR	:= $(strip $(patsubst %/specs,%,$(CCSPECS)))
-CPUCLASS := fr400
-
-# test for cross compiling
-COMPILE_ARCH = $(shell uname -m)
-
 ifdef CONFIG_MMU
 UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
 else
 UTS_SYSNAME = -DUTS_SYSNAME=\"uClinux\"
 endif
 
-ARCHMODFLAGS	+= -G0 -mlong-calls
+KBUILD_AFLAGS_MODULE += -G0 -mlong-calls
+KBUILD_CFLAGS_MODULE += -G0 -mlong-calls
 
 ifdef CONFIG_GPREL_DATA_8
 KBUILD_CFLAGS	+= -G8
@@ -54,7 +48,6 @@ endif
 
 ifdef CONFIG_GC_SECTIONS
 KBUILD_CFLAGS	+= -ffunction-sections -fdata-sections
-LINKFLAGS	+= --gc-sections
 endif
 
 ifndef CONFIG_FRAME_POINTER
@@ -64,16 +57,13 @@ endif
 ifdef CONFIG_CPU_FR451_COMPILE
 KBUILD_CFLAGS	+= -mcpu=fr450
 KBUILD_AFLAGS	+= -mcpu=fr450
-ASFLAGS		+= -mcpu=fr450
 else
 ifdef CONFIG_CPU_FR551_COMPILE
 KBUILD_CFLAGS	+= -mcpu=fr550
 KBUILD_AFLAGS	+= -mcpu=fr550
-ASFLAGS		+= -mcpu=fr550
 else
 KBUILD_CFLAGS	+= -mcpu=fr400
 KBUILD_AFLAGS	+= -mcpu=fr400
-ASFLAGS		+= -mcpu=fr400
 endif
 endif
 
@@ -83,14 +73,12 @@ endif
 KBUILD_CFLAGS	+= -mno-fdpic -mgpr-32 -msoft-float -mno-media
 KBUILD_CFLAGS	+= -ffixed-fcc3 -ffixed-cc3 -ffixed-gr15 -ffixed-icc2
 KBUILD_AFLAGS	+= -mno-fdpic
-ASFLAGS		+= -mno-fdpic
 
 # make sure the .S files get compiled with debug info
 # and disable optimisations that are unhelpful whilst debugging
 ifdef CONFIG_DEBUG_INFO
 #KBUILD_CFLAGS	+= -O1
 KBUILD_AFLAGS	+= -Wa,--gdwarf2
-ASFLAGS		+= -Wa,--gdwarf2
 endif
 
 head-y		:= arch/frv/kernel/head.o arch/frv/kernel/init_task.o
@@ -105,11 +93,5 @@ all: Image
 Image: vmlinux
 	$(Q)$(MAKE) $(build)=arch/frv/boot $@
 
-bootstrap:
-	$(Q)$(MAKEBOOT) bootstrap
-
 archclean:
 	$(Q)$(MAKE) $(clean)=arch/frv/boot
-
-archdep: scripts/mkdep symlinks
-	$(Q)$(MAKE) $(build)=arch/frv/boot dep

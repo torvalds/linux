@@ -109,9 +109,8 @@ extern asmlinkage int  gdbstub_intercept(struct pt_regs *, enum exception_code);
 extern asmlinkage void gdbstub_exception(struct pt_regs *, enum exception_code);
 extern asmlinkage void __gdbstub_bug_trap(void);
 extern asmlinkage void __gdbstub_pause(void);
-extern asmlinkage void start_kernel(void);
 
-#ifndef CONFIG_MN10300_CACHE_DISABLED
+#ifdef CONFIG_MN10300_CACHE_ENABLED
 extern asmlinkage void gdbstub_purge_cache(void);
 #else
 #define gdbstub_purge_cache()	do {} while (0)
@@ -158,25 +157,25 @@ void gdbstub_printk(const char *fmt, ...)
 #ifdef CONFIG_GDBSTUB_DEBUG_ENTRY
 #define gdbstub_entry(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_entry(FMT, ...) ({ 0; })
+#define gdbstub_entry(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_GDBSTUB_DEBUG_PROTOCOL
 #define gdbstub_proto(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_proto(FMT, ...) ({ 0; })
+#define gdbstub_proto(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_GDBSTUB_DEBUG_IO
 #define gdbstub_io(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_io(FMT, ...) ({ 0; })
+#define gdbstub_io(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_GDBSTUB_DEBUG_BREAKPOINT
 #define gdbstub_bkpt(FMT, ...) gdbstub_printk(FMT, ##__VA_ARGS__)
 #else
-#define gdbstub_bkpt(FMT, ...) ({ 0; })
+#define gdbstub_bkpt(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #endif /* !__ASSEMBLY__ */

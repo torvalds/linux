@@ -5,43 +5,6 @@
 
 #define COMMAND_LINE_SIZE 2048
 
-#ifndef __ASSEMBLY__
-
-/*
- * Any setup quirks to be performed?
- */
-struct mpc_cpu;
-struct mpc_bus;
-struct mpc_oemtable;
-
-struct x86_quirks {
-	int (*arch_pre_time_init)(void);
-	int (*arch_time_init)(void);
-	int (*arch_pre_intr_init)(void);
-	int (*arch_intr_init)(void);
-	int (*arch_trap_init)(void);
-	char * (*arch_memory_setup)(void);
-	int (*mach_get_smp_config)(unsigned int early);
-	int (*mach_find_smp_config)(unsigned int reserve);
-
-	int *mpc_record;
-	int (*mpc_apic_id)(struct mpc_cpu *m);
-	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
-	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
-	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
-				unsigned short oemsize);
-	int (*setup_ioapic_ids)(void);
-};
-
-extern void x86_quirk_intr_init(void);
-
-extern void x86_quirk_trap_init(void);
-
-extern void x86_quirk_pre_time_init(void);
-extern void x86_quirk_time_init(void);
-
-#endif /* __ASSEMBLY__ */
-
 #ifdef __i386__
 
 #include <linux/pfn.h>
@@ -61,6 +24,7 @@ extern void x86_quirk_time_init(void);
 
 #ifndef __ASSEMBLY__
 #include <asm/bootparam.h>
+#include <asm/x86_init.h>
 
 /* Interrupt control for vSMPowered x86_64 systems */
 #ifdef CONFIG_X86_64
@@ -73,17 +37,26 @@ void setup_bios_corruption_check(void);
 
 #ifdef CONFIG_X86_VISWS
 extern void visws_early_detect(void);
-extern int is_visws_box(void);
 #else
 static inline void visws_early_detect(void) { }
-static inline int is_visws_box(void) { return 0; }
 #endif
 
-extern struct x86_quirks *x86_quirks;
 extern unsigned long saved_video_mode;
 
-#ifndef CONFIG_PARAVIRT
-#define paravirt_post_allocator_init()	do {} while (0)
+extern void reserve_standard_io_resources(void);
+extern void i386_reserve_resources(void);
+extern void setup_default_timer_irq(void);
+
+#ifdef CONFIG_X86_MRST
+extern void x86_mrst_early_setup(void);
+#else
+static inline void x86_mrst_early_setup(void) { }
+#endif
+
+#ifdef CONFIG_X86_INTEL_CE
+extern void x86_ce4100_early_setup(void);
+#else
+static inline void x86_ce4100_early_setup(void) { }
 #endif
 
 #ifndef _SETUP
@@ -115,7 +88,7 @@ void *extend_brk(size_t size, size_t align);
  * executable.)
  */
 #define RESERVE_BRK(name,sz)						\
-	static void __section(.discard) __used				\
+	static void __section(.discard.text) __used			\
 	__brk_reservation_fn_##name##__(void) {				\
 		asm volatile (						\
 			".pushsection .brk_reservation,\"aw\",@nobits;" \
@@ -125,6 +98,11 @@ void *extend_brk(size_t size, size_t align);
 			" .popsection"					\
 			: : "i" (sz));					\
 	}
+
+/* Helper for reserving space for arrays of things */
+#define RESERVE_BRK_ARRAY(type, name, entries)		\
+	type *name;					\
+	RESERVE_BRK(name, sizeof(type) * entries)
 
 #ifdef __i386__
 

@@ -1301,6 +1301,69 @@ static struct tuner_params tuner_fq1216lme_mk3_params[] = {
 	},
 };
 
+/* ----- TUNER_PARTSNIC_PTI_5NF05 - Partsnic (Daewoo) PTI-5NF05 NTSC ----- */
+
+static struct tuner_range tuner_partsnic_pti_5nf05_ranges[] = {
+	/* The datasheet specified channel ranges and the bandswitch byte */
+	/* The control byte value of 0x8e is just a guess */
+	{ 16 * 133.25 /*MHz*/, 0x8e, 0x01, }, /* Channels    2 -    B */
+	{ 16 * 367.25 /*MHz*/, 0x8e, 0x02, }, /* Channels    C - W+11 */
+	{ 16 * 999.99        , 0x8e, 0x08, }, /* Channels W+12 -   69 */
+};
+
+static struct tuner_params tuner_partsnic_pti_5nf05_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_partsnic_pti_5nf05_ranges,
+		.count  = ARRAY_SIZE(tuner_partsnic_pti_5nf05_ranges),
+		.cb_first_if_lower_freq = 1, /* not specified but safe to do */
+	},
+};
+
+/* --------- TUNER_PHILIPS_CU1216L - DVB-C NIM ------------------------- */
+
+static struct tuner_range tuner_cu1216l_ranges[] = {
+	{ 16 * 160.25 /*MHz*/, 0xce, 0x01 },
+	{ 16 * 444.25 /*MHz*/, 0xce, 0x02 },
+	{ 16 * 999.99        , 0xce, 0x04 },
+};
+
+static struct tuner_params tuner_philips_cu1216l_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_cu1216l_ranges,
+		.count  = ARRAY_SIZE(tuner_cu1216l_ranges),
+		.iffreq = 16 * 36.125, /*MHz*/
+	},
+};
+
+/* ---------------------- TUNER_SONY_BTF_PXN01Z ------------------------ */
+
+static struct tuner_range tuner_sony_btf_pxn01z_ranges[] = {
+	{ 16 * 137.25 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 367.25 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x04, },
+};
+
+static struct tuner_params tuner_sony_btf_pxn01z_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_sony_btf_pxn01z_ranges,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pxn01z_ranges),
+	},
+};
+
+/* ------------ TUNER_PHILIPS_FQ1236_MK5 - Philips NTSC ------------ */
+
+static struct tuner_params tuner_philips_fq1236_mk5_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_fm1236_mk3_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
+		.has_tda9887 = 1, /* TDA9885, no FM radio */
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1752,6 +1815,32 @@ struct tunertype tuners[] = {
 		.name = "Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough",
 		.params = tuner_fq1216lme_mk3_params,
 		.count  = ARRAY_SIZE(tuner_fq1216lme_mk3_params),
+	},
+
+	[TUNER_PARTSNIC_PTI_5NF05] = {
+		.name = "Partsnic (Daewoo) PTI-5NF05",
+		.params = tuner_partsnic_pti_5nf05_params,
+		.count  = ARRAY_SIZE(tuner_partsnic_pti_5nf05_params),
+	},
+	[TUNER_PHILIPS_CU1216L] = {
+		.name = "Philips CU1216L",
+		.params = tuner_philips_cu1216l_params,
+		.count  = ARRAY_SIZE(tuner_philips_cu1216l_params),
+		.stepsize = 62500,
+	},
+	[TUNER_NXP_TDA18271] = {
+		.name   = "NXP TDA18271",
+		/* see tda18271-fe.c for details */
+	},
+	[TUNER_SONY_BTF_PXN01Z] = {
+		.name   = "Sony BTF-Pxn01Z",
+		.params = tuner_sony_btf_pxn01z_params,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pxn01z_params),
+	},
+	[TUNER_PHILIPS_FQ1236_MK5] = { /* NTSC, TDA9885, no FM radio */
+		.name   = "Philips FQ1236 MK5",
+		.params = tuner_philips_fq1236_mk5_params,
+		.count  = ARRAY_SIZE(tuner_philips_fq1236_mk5_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

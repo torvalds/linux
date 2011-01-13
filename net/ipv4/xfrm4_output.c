@@ -86,7 +86,7 @@ static int xfrm4_output_finish(struct sk_buff *skb)
 
 int xfrm4_output(struct sk_buff *skb)
 {
-	return NF_HOOK_COND(PF_INET, NF_INET_POST_ROUTING, skb,
+	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, skb,
 			    NULL, skb_dst(skb)->dev, xfrm4_output_finish,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }

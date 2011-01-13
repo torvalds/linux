@@ -1,6 +1,4 @@
 /*
- *	arch/mips/pci/fixup-sb1250.c
- *
  *	Copyright (C) 2004, 2006  MIPS Technologies, Inc.  All rights reserved.
  *	    Author:	Maciej W. Rozycki <macro@mips.com>
  *

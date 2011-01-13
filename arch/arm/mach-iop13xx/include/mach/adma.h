@@ -150,6 +150,8 @@ static inline int iop_adma_get_max_xor(void)
 	return 16;
 }
 
+#define iop_adma_get_max_pq iop_adma_get_max_xor
+
 static inline u32 iop_chan_get_current_descriptor(struct iop_adma_chan *chan)
 {
 	return __raw_readl(ADMA_ADAR(chan));
@@ -211,13 +213,23 @@ iop_chan_xor_slot_count(size_t len, int src_cnt, int *slots_per_op)
 #define IOP_ADMA_MAX_BYTE_COUNT ADMA_MAX_BYTE_COUNT
 #define IOP_ADMA_ZERO_SUM_MAX_BYTE_COUNT ADMA_MAX_BYTE_COUNT
 #define IOP_ADMA_XOR_MAX_BYTE_COUNT ADMA_MAX_BYTE_COUNT
+#define IOP_ADMA_PQ_MAX_BYTE_COUNT ADMA_MAX_BYTE_COUNT
 #define iop_chan_zero_sum_slot_count(l, s, o) iop_chan_xor_slot_count(l, s, o)
+#define iop_chan_pq_slot_count iop_chan_xor_slot_count
+#define iop_chan_pq_zero_sum_slot_count iop_chan_xor_slot_count
 
 static inline u32 iop_desc_get_dest_addr(struct iop_adma_desc_slot *desc,
 					struct iop_adma_chan *chan)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	return hw_desc->dest_addr;
+}
+
+static inline u32 iop_desc_get_qdest_addr(struct iop_adma_desc_slot *desc,
+					  struct iop_adma_chan *chan)
+{
+	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
+	return hw_desc->q_dest_addr;
 }
 
 static inline u32 iop_desc_get_byte_count(struct iop_adma_desc_slot *desc,
@@ -319,6 +331,58 @@ iop_desc_init_zero_sum(struct iop_adma_desc_slot *desc, int src_cnt,
 	return 1;
 }
 
+static inline void
+iop_desc_init_pq(struct iop_adma_desc_slot *desc, int src_cnt,
+		  unsigned long flags)
+{
+	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
+	union {
+		u32 value;
+		struct iop13xx_adma_desc_ctrl field;
+	} u_desc_ctrl;
+
+	u_desc_ctrl.value = 0;
+	u_desc_ctrl.field.src_select = src_cnt - 1;
+	u_desc_ctrl.field.xfer_dir = 3; /* local to internal bus */
+	u_desc_ctrl.field.pq_xfer_en = 1;
+	u_desc_ctrl.field.p_xfer_dis = !!(flags & DMA_PREP_PQ_DISABLE_P);
+	u_desc_ctrl.field.int_en = flags & DMA_PREP_INTERRUPT;
+	hw_desc->desc_ctrl = u_desc_ctrl.value;
+}
+
+static inline int iop_desc_is_pq(struct iop_adma_desc_slot *desc)
+{
+	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
+	union {
+		u32 value;
+		struct iop13xx_adma_desc_ctrl field;
+	} u_desc_ctrl;
+
+	u_desc_ctrl.value = hw_desc->desc_ctrl;
+	return u_desc_ctrl.field.pq_xfer_en;
+}
+
+static inline void
+iop_desc_init_pq_zero_sum(struct iop_adma_desc_slot *desc, int src_cnt,
+			  unsigned long flags)
+{
+	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
+	union {
+		u32 value;
+		struct iop13xx_adma_desc_ctrl field;
+	} u_desc_ctrl;
+
+	u_desc_ctrl.value = 0;
+	u_desc_ctrl.field.src_select = src_cnt - 1;
+	u_desc_ctrl.field.xfer_dir = 3; /* local to internal bus */
+	u_desc_ctrl.field.zero_result = 1;
+	u_desc_ctrl.field.status_write_back_en = 1;
+	u_desc_ctrl.field.pq_xfer_en = 1;
+	u_desc_ctrl.field.p_xfer_dis = !!(flags & DMA_PREP_PQ_DISABLE_P);
+	u_desc_ctrl.field.int_en = flags & DMA_PREP_INTERRUPT;
+	hw_desc->desc_ctrl = u_desc_ctrl.value;
+}
+
 static inline void iop_desc_set_byte_count(struct iop_adma_desc_slot *desc,
 					struct iop_adma_chan *chan,
 					u32 byte_count)
@@ -351,6 +415,7 @@ iop_desc_set_zero_sum_byte_count(struct iop_adma_desc_slot *desc, u32 len)
 	}
 }
 
+#define iop_desc_set_pq_zero_sum_byte_count iop_desc_set_zero_sum_byte_count
 
 static inline void iop_desc_set_dest_addr(struct iop_adma_desc_slot *desc,
 					struct iop_adma_chan *chan,
@@ -358,6 +423,16 @@ static inline void iop_desc_set_dest_addr(struct iop_adma_desc_slot *desc,
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	hw_desc->dest_addr = addr;
+	hw_desc->upper_dest_addr = 0;
+}
+
+static inline void
+iop_desc_set_pq_addr(struct iop_adma_desc_slot *desc, dma_addr_t *addr)
+{
+	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
+
+	hw_desc->dest_addr = addr[0];
+	hw_desc->q_dest_addr = addr[1];
 	hw_desc->upper_dest_addr = 0;
 }
 
@@ -389,6 +464,29 @@ static inline void iop_desc_set_xor_src_addr(struct iop_adma_desc_slot *desc,
 }
 
 static inline void
+iop_desc_set_pq_src_addr(struct iop_adma_desc_slot *desc, int src_idx,
+			 dma_addr_t addr, unsigned char coef)
+{
+	int slot_cnt = desc->slot_cnt, slots_per_op = desc->slots_per_op;
+	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc, *iter;
+	struct iop13xx_adma_src *src;
+	int i = 0;
+
+	do {
+		iter = iop_hw_desc_slot_idx(hw_desc, i);
+		src = &iter->src[src_idx];
+		src->src_addr = addr;
+		src->pq_upper_src_addr = 0;
+		src->pq_dmlt = coef;
+		slot_cnt -= slots_per_op;
+		if (slot_cnt) {
+			i += slots_per_op;
+			addr += IOP_ADMA_PQ_MAX_BYTE_COUNT;
+		}
+	} while (slot_cnt);
+}
+
+static inline void
 iop_desc_init_interrupt(struct iop_adma_desc_slot *desc,
 	struct iop_adma_chan *chan)
 {
@@ -399,6 +497,15 @@ iop_desc_init_interrupt(struct iop_adma_desc_slot *desc,
 }
 
 #define iop_desc_set_zero_sum_src_addr iop_desc_set_xor_src_addr
+#define iop_desc_set_pq_zero_sum_src_addr iop_desc_set_pq_src_addr
+
+static inline void
+iop_desc_set_pq_zero_sum_addr(struct iop_adma_desc_slot *desc, int pq_idx,
+			      dma_addr_t *src)
+{
+	iop_desc_set_xor_src_addr(desc, pq_idx, src[pq_idx]);
+	iop_desc_set_xor_src_addr(desc, pq_idx+1, src[pq_idx+1]);
+}
 
 static inline void iop_desc_set_next_desc(struct iop_adma_desc_slot *desc,
 					u32 next_desc_addr)
@@ -428,18 +535,20 @@ static inline void iop_desc_set_block_fill_val(struct iop_adma_desc_slot *desc,
 	hw_desc->block_fill_data = val;
 }
 
-static inline int iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
+static inline enum sum_check_flags
+iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	struct iop13xx_adma_desc_ctrl desc_ctrl = hw_desc->desc_ctrl_field;
 	struct iop13xx_adma_byte_count byte_count = hw_desc->byte_count_field;
+	enum sum_check_flags flags;
 
 	BUG_ON(!(byte_count.tx_complete && desc_ctrl.zero_result));
 
-	if (desc_ctrl.pq_xfer_en)
-		return byte_count.zero_result_err_q;
-	else
-		return byte_count.zero_result_err;
+	flags = byte_count.zero_result_err_q << SUM_CHECK_Q;
+	flags |= byte_count.zero_result_err << SUM_CHECK_P;
+
+	return flags;
 }
 
 static inline void iop_chan_append(struct iop_adma_chan *chan)

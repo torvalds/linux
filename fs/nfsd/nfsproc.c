@@ -1,29 +1,14 @@
 /*
- * nfsproc2.c	Process version 2 NFS requests.
- * linux/fs/nfsd/nfs2proc.c
- * 
  * Process version 2 NFS requests.
  *
  * Copyright (C) 1995-1997 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/linkage.h>
-#include <linux/time.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-#include <linux/net.h>
-#include <linux/in.h>
 #include <linux/namei.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
 
-#include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
+#include "cache.h"
+#include "xdr.h"
+#include "vfs.h"
 
 typedef struct svc_rqst	svc_rqst;
 typedef struct svc_buf	svc_buf;
@@ -159,7 +144,7 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 	svc_reserve_auth(rqstp, (19<<2) + argp->count + 4);
 
 	resp->count = argp->count;
-	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh), NULL,
+	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh),
 				  argp->offset,
 			   	  rqstp->rq_vec, argp->vlen,
 				  &resp->count);
@@ -305,7 +290,6 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	 * gospel of sun micro
 	 */
 	if (type != S_IFREG) {
-		int	is_borc = 0;
 		if (type != S_IFBLK && type != S_IFCHR) {
 			rdev = 0;
 		} else if (type == S_IFCHR && !(attr->ia_valid & ATTR_SIZE)) {
@@ -313,7 +297,6 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 			type = S_IFIFO;
 		} else {
 			/* Okay, char or block special */
-			is_borc = 1;
 			if (!rdev)
 				rdev = wanted;
 		}
@@ -758,6 +741,7 @@ nfserrno (int errno)
 		{ nfserr_io, -ETXTBSY },
 		{ nfserr_notsupp, -EOPNOTSUPP },
 		{ nfserr_toosmall, -ETOOSMALL },
+		{ nfserr_serverfault, -ESERVERFAULT },
 	};
 	int	i;
 

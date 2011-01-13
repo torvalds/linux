@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/backlight.h>
+#include <linux/gfp.h>
 
 #include <mach/board.h>
 #include <mach/cpu.h>
@@ -117,6 +118,7 @@ static struct backlight_ops atmel_lcdc_bl_ops = {
 
 static void init_backlight(struct atmel_lcdfb_info *sinfo)
 {
+	struct backlight_properties props;
 	struct backlight_device	*bl;
 
 	sinfo->bl_power = FB_BLANK_UNBLANK;
@@ -124,8 +126,10 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 	if (sinfo->backlight)
 		return;
 
-	bl = backlight_device_register("backlight", &sinfo->pdev->dev,
-			sinfo, &atmel_lcdc_bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 0xff;
+	bl = backlight_device_register("backlight", &sinfo->pdev->dev, sinfo,
+				       &atmel_lcdc_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&sinfo->pdev->dev, "error %ld on backlight register\n",
 				PTR_ERR(bl));
@@ -135,7 +139,6 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 
 	bl->props.power = FB_BLANK_UNBLANK;
 	bl->props.fb_blank = FB_BLANK_UNBLANK;
-	bl->props.max_brightness = 0xff;
 	bl->props.brightness = atmel_bl_get_brightness(bl);
 }
 
@@ -182,7 +185,8 @@ static unsigned long compute_hozval(unsigned long xres, unsigned long lcdcon2)
 {
 	unsigned long value;
 
-	if (!(cpu_is_at91sam9261() || cpu_is_at32ap7000()))
+	if (!(cpu_is_at91sam9261() || cpu_is_at91sam9g10()
+		|| cpu_is_at32ap7000()))
 		return xres;
 
 	value = xres;
@@ -261,6 +265,9 @@ static inline void atmel_lcdfb_free_video_memory(struct atmel_lcdfb_info *sinfo)
 /**
  *	atmel_lcdfb_alloc_video_memory - Allocate framebuffer memory
  *	@sinfo: the frame buffer to allocate memory for
+ * 	
+ * 	This function is called only from the atmel_lcdfb_probe()
+ * 	so no locking by fb_info->mm_lock around smem_len setting is needed.
  */
 static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 {
@@ -480,6 +487,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	unsigned long value;
 	unsigned long clk_value_khz;
 	unsigned long bits_per_line;
+	unsigned long pix_factor = 2;
 
 	might_sleep();
 
@@ -512,20 +520,24 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	/* Now, the LCDC core... */
 
 	/* Set pixel clock */
+	if (cpu_is_at91sam9g45() && !cpu_is_at91sam9g45es())
+		pix_factor = 1;
+
 	clk_value_khz = clk_get_rate(sinfo->lcdc_clk) / 1000;
 
 	value = DIV_ROUND_UP(clk_value_khz, PICOS2KHZ(info->var.pixclock));
 
-	if (value < 2) {
+	if (value < pix_factor) {
 		dev_notice(info->device, "Bypassing pixel clock divider\n");
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1, ATMEL_LCDC_BYPASS);
 	} else {
-		value = (value / 2) - 1;
+		value = (value / pix_factor) - 1;
 		dev_dbg(info->device, "  * programming CLKVAL = 0x%08lx\n",
 				value);
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1,
 				value << ATMEL_LCDC_CLKVAL_OFFSET);
-		info->var.pixclock = KHZ2PICOS(clk_value_khz / (2 * (value + 1)));
+		info->var.pixclock =
+			KHZ2PICOS(clk_value_khz / (pix_factor * (value + 1)));
 		dev_dbg(info->device, "  updated pixclk:     %lu KHz\n",
 					PICOS2KHZ(info->var.pixclock));
 	}
@@ -821,7 +833,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	info->fix = atmel_lcdfb_fix;
 
 	/* Enable LCDC Clocks */
-	if (cpu_is_at91sam9261() || cpu_is_at32ap7000()) {
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()
+	 || cpu_is_at32ap7000()) {
 		sinfo->bus_clk = clk_get(dev, "hck1");
 		if (IS_ERR(sinfo->bus_clk)) {
 			ret = PTR_ERR(sinfo->bus_clk);
@@ -954,7 +967,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	if (sinfo->atmel_lcdfb_power_control)
 		sinfo->atmel_lcdfb_power_control(1);
 
-	dev_info(dev, "fb%d: Atmel LCDC at 0x%08lx (mapped at %p), irq %lu\n",
+	dev_info(dev, "fb%d: Atmel LCDC at 0x%08lx (mapped at %p), irq %d\n",
 		       info->node, info->fix.mmio_start, sinfo->mmio, sinfo->irq_base);
 
 	return 0;

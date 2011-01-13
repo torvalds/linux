@@ -62,10 +62,13 @@ static struct sms_board sms_boards[] = {
 	[SMS1XXX_BOARD_HAUPPAUGE_WINDHAM] = {
 		.name	= "Hauppauge WinTV MiniStick",
 		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_ISDBT_BDA] = "sms1xxx-hcw-55xxx-isdbt-02.fw",
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.rc_codes = RC_MAP_RC5_HAUPPAUGE_NEW,
 		.board_cfg.leds_power = 26,
 		.board_cfg.led0 = 27,
 		.board_cfg.led1 = 28,
+		.board_cfg.ir = 9,
 		.led_power = 26,
 		.led_lo    = 27,
 		.led_hi    = 28,
@@ -97,7 +100,7 @@ static struct sms_board sms_boards[] = {
 	},
 };
 
-struct sms_board *sms_get_board(int id)
+struct sms_board *sms_get_board(unsigned id)
 {
 	BUG_ON(id >= ARRAY_SIZE(sms_boards));
 
@@ -116,99 +119,21 @@ static inline void sms_gpio_assign_11xx_default_led_config(
 
 int sms_board_event(struct smscore_device_t *coredev,
 		enum SMS_BOARD_EVENTS gevent) {
-	int board_id = smscore_get_board_id(coredev);
-	struct sms_board *board = sms_get_board(board_id);
 	struct smscore_gpio_config MyGpioConfig;
 
 	sms_gpio_assign_11xx_default_led_config(&MyGpioConfig);
 
 	switch (gevent) {
 	case BOARD_EVENT_POWER_INIT: /* including hotplug */
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			/* set I/O and turn off all LEDs */
-			smscore_gpio_configure(coredev,
-					board->board_cfg.leds_power,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.leds_power, 0);
-			smscore_gpio_configure(coredev, board->board_cfg.led0,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.led0, 0);
-			smscore_gpio_configure(coredev, board->board_cfg.led1,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			/* set I/O and turn off LNA */
-			smscore_gpio_configure(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					0);
-			break;
-		}
 		break; /* BOARD_EVENT_BIND */
 
 	case BOARD_EVENT_POWER_SUSPEND:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.leds_power, 0);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led0, 0);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					0);
-			break;
-		}
 		break; /* BOARD_EVENT_POWER_SUSPEND */
 
 	case BOARD_EVENT_POWER_RESUME:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.leds_power, 1);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led0, 1);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					1);
-			break;
-		}
 		break; /* BOARD_EVENT_POWER_RESUME */
 
 	case BOARD_EVENT_BIND:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-				board->board_cfg.leds_power, 1);
-			smscore_gpio_set_level(coredev,
-				board->board_cfg.led0, 1);
-			smscore_gpio_set_level(coredev,
-				board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					1);
-			break;
-		}
 		break; /* BOARD_EVENT_BIND */
 
 	case BOARD_EVENT_SCAN_PROG:
@@ -218,20 +143,8 @@ int sms_board_event(struct smscore_device_t *coredev,
 	case BOARD_EVENT_EMERGENCY_WARNING_SIGNAL:
 		break; /* BOARD_EVENT_EMERGENCY_WARNING_SIGNAL */
 	case BOARD_EVENT_FE_LOCK:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-			board->board_cfg.led1, 1);
-			break;
-		}
 		break; /* BOARD_EVENT_FE_LOCK */
 	case BOARD_EVENT_FE_UNLOCK:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		}
 		break; /* BOARD_EVENT_FE_UNLOCK */
 	case BOARD_EVENT_DEMOD_LOCK:
 		break; /* BOARD_EVENT_DEMOD_LOCK */
@@ -248,20 +161,8 @@ int sms_board_event(struct smscore_device_t *coredev,
 	case BOARD_EVENT_RECEPTION_LOST_0:
 		break; /* BOARD_EVENT_RECEPTION_LOST_0 */
 	case BOARD_EVENT_MULTIPLEX_OK:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 1);
-			break;
-		}
 		break; /* BOARD_EVENT_MULTIPLEX_OK */
 	case BOARD_EVENT_MULTIPLEX_ERRORS:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		}
 		break; /* BOARD_EVENT_MULTIPLEX_ERRORS */
 
 	default:
@@ -396,6 +297,8 @@ int sms_board_load_modules(int id)
 	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A:
 	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B:
 	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 		request_module("smsdvb");
 		break;
 	default:

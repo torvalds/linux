@@ -1,9 +1,9 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1271
  *
  * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Kalle Valo <kalle.valo@nokia.com>
+ * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,13 +21,13 @@
  *
  */
 
-#ifndef WL12XX_DEBUGFS_H
-#define WL12XX_DEBUGFS_H
+#ifndef __DEBUGFS_H__
+#define __DEBUGFS_H__
 
 #include "wl12xx.h"
 
-int wl12xx_debugfs_init(struct wl12xx *wl);
-void wl12xx_debugfs_exit(struct wl12xx *wl);
-void wl12xx_debugfs_reset(struct wl12xx *wl);
+int wl1271_debugfs_init(struct wl1271 *wl);
+void wl1271_debugfs_exit(struct wl1271 *wl);
+void wl1271_debugfs_reset(struct wl1271 *wl);
 
-#endif /* WL12XX_DEBUGFS_H */
+#endif /* WL1271_DEBUGFS_H */

@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -29,13 +30,13 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/uaccess.h>
+#include <linux/gfp.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -80,11 +81,8 @@ static ssize_t msr_read(struct file *file, char __user *buf,
 
 	for (; count; count -= 8) {
 		err = rdmsr_safe_on_cpu(cpu, reg, &data[0], &data[1]);
-		if (err) {
-			if (err == -EFAULT) /* Fix idiotic error code */
-				err = -EIO;
+		if (err)
 			break;
-		}
 		if (copy_to_user(tmp, &data, 8)) {
 			err = -EFAULT;
 			break;
@@ -115,11 +113,8 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 			break;
 		}
 		err = wrmsr_safe_on_cpu(cpu, reg, data[0], data[1]);
-		if (err) {
-			if (err == -EFAULT) /* Fix idiotic error code */
-				err = -EIO;
+		if (err)
 			break;
-		}
 		tmp += 2;
 		bytes += 8;
 	}
@@ -127,25 +122,68 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 	return bytes ? bytes : err;
 }
 
+static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
+{
+	u32 __user *uregs = (u32 __user *)arg;
+	u32 regs[8];
+	int cpu = iminor(file->f_path.dentry->d_inode);
+	int err;
+
+	switch (ioc) {
+	case X86_IOC_RDMSR_REGS:
+		if (!(file->f_mode & FMODE_READ)) {
+			err = -EBADF;
+			break;
+		}
+		if (copy_from_user(&regs, uregs, sizeof regs)) {
+			err = -EFAULT;
+			break;
+		}
+		err = rdmsr_safe_regs_on_cpu(cpu, regs);
+		if (err)
+			break;
+		if (copy_to_user(uregs, &regs, sizeof regs))
+			err = -EFAULT;
+		break;
+
+	case X86_IOC_WRMSR_REGS:
+		if (!(file->f_mode & FMODE_WRITE)) {
+			err = -EBADF;
+			break;
+		}
+		if (copy_from_user(&regs, uregs, sizeof regs)) {
+			err = -EFAULT;
+			break;
+		}
+		err = wrmsr_safe_regs_on_cpu(cpu, regs);
+		if (err)
+			break;
+		if (copy_to_user(uregs, &regs, sizeof regs))
+			err = -EFAULT;
+		break;
+
+	default:
+		err = -ENOTTY;
+		break;
+	}
+
+	return err;
+}
+
 static int msr_open(struct inode *inode, struct file *file)
 {
-	unsigned int cpu = iminor(file->f_path.dentry->d_inode);
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	int ret = 0;
+	unsigned int cpu;
+	struct cpuinfo_x86 *c;
 
-	lock_kernel();
 	cpu = iminor(file->f_path.dentry->d_inode);
+	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
+		return -ENXIO;	/* No such CPU */
 
-	if (cpu >= nr_cpu_ids || !cpu_online(cpu)) {
-		ret = -ENXIO;	/* No such CPU */
-		goto out;
-	}
 	c = &cpu_data(cpu);
 	if (!cpu_has(c, X86_FEATURE_MSR))
-		ret = -EIO;	/* MSR not supported */
-out:
-	unlock_kernel();
-	return ret;
+		return -EIO;	/* MSR not supported */
+
+	return 0;
 }
 
 /*
@@ -157,6 +195,8 @@ static const struct file_operations msr_fops = {
 	.read = msr_read,
 	.write = msr_write,
 	.open = msr_open,
+	.unlocked_ioctl = msr_ioctl,
+	.compat_ioctl = msr_ioctl,
 };
 
 static int __cpuinit msr_device_create(int cpu)
@@ -189,14 +229,14 @@ static int __cpuinit msr_class_cpu_callback(struct notifier_block *nfb,
 		msr_device_destroy(cpu);
 		break;
 	}
-	return err ? NOTIFY_BAD : NOTIFY_OK;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block __refdata msr_class_cpu_notifier = {
 	.notifier_call = msr_class_cpu_callback,
 };
 
-static char *msr_nodename(struct device *dev)
+static char *msr_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
 }
@@ -206,7 +246,7 @@ static int __init msr_init(void)
 	int i, err = 0;
 	i = 0;
 
-	if (register_chrdev(MSR_MAJOR, "cpu/msr", &msr_fops)) {
+	if (__register_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr", &msr_fops)) {
 		printk(KERN_ERR "msr: unable to get major %d for msr\n",
 		       MSR_MAJOR);
 		err = -EBUSY;
@@ -217,7 +257,7 @@ static int __init msr_init(void)
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;
 	}
-	msr_class->nodename = msr_nodename;
+	msr_class->devnode = msr_devnode;
 	for_each_online_cpu(i) {
 		err = msr_device_create(i);
 		if (err != 0)
@@ -234,7 +274,7 @@ out_class:
 		msr_device_destroy(i);
 	class_destroy(msr_class);
 out_chrdev:
-	unregister_chrdev(MSR_MAJOR, "cpu/msr");
+	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
 out:
 	return err;
 }
@@ -245,7 +285,7 @@ static void __exit msr_exit(void)
 	for_each_online_cpu(cpu)
 		msr_device_destroy(cpu);
 	class_destroy(msr_class);
-	unregister_chrdev(MSR_MAJOR, "cpu/msr");
+	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
 	unregister_hotcpu_notifier(&msr_class_cpu_notifier);
 }
 

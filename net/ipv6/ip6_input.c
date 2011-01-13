@@ -28,6 +28,7 @@
 #include <linux/in6.h>
 #include <linux/icmpv6.h>
 #include <linux/mroute6.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -63,7 +64,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		kfree_skb(skb);
-		return 0;
+		return NET_RX_DROP;
 	}
 
 	rcu_read_lock();
@@ -133,20 +134,23 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		if (ipv6_parse_hopopts(skb) < 0) {
 			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);
 			rcu_read_unlock();
-			return 0;
+			return NET_RX_DROP;
 		}
 	}
 
 	rcu_read_unlock();
 
-	return NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, dev, NULL,
+	/* Must drop socket now because of tproxy. */
+	skb_orphan(skb);
+
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, skb, dev, NULL,
 		       ip6_rcv_finish);
 err:
 	IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);
 drop:
 	rcu_read_unlock();
 	kfree_skb(skb);
-	return 0;
+	return NET_RX_DROP;
 }
 
 /*
@@ -156,7 +160,7 @@ drop:
 
 static int ip6_input_finish(struct sk_buff *skb)
 {
-	struct inet6_protocol *ipprot;
+	const struct inet6_protocol *ipprot;
 	unsigned int nhoff;
 	int nexthdr, raw;
 	u8 hash;
@@ -213,8 +217,7 @@ resubmit:
 				IP6_INC_STATS_BH(net, idev,
 						 IPSTATS_MIB_INUNKNOWNPROTOS);
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
-					    ICMPV6_UNK_NEXTHDR, nhoff,
-					    skb->dev);
+					    ICMPV6_UNK_NEXTHDR, nhoff);
 			}
 		} else
 			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDELIVERS);
@@ -233,7 +236,7 @@ discard:
 
 int ip6_input(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_INET6, NF_INET_LOCAL_IN, skb, skb->dev, NULL,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_IN, skb, skb->dev, NULL,
 		       ip6_input_finish);
 }
 

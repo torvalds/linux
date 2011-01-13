@@ -23,7 +23,7 @@ struct thread_info {
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.addr_limit	= KERNEL_DS,		\
-	.preempt_count	= 1,			\
+	.preempt_count	= INIT_PREEMPT_COUNT,	\
   	.restart_block	= {			\
 		.fn = do_no_restart_syscall	\
 	}					\
@@ -32,6 +32,11 @@ struct thread_info {
 #define init_thread_info        (init_thread_union.thread_info)
 #define init_stack              (init_thread_union.stack)
 
+/* how to get the thread information struct from C */
+#define current_thread_info()	((struct thread_info *)mfctl(30))
+
+#endif /* !__ASSEMBLY */
+
 /* thread information allocation */
 
 #define THREAD_SIZE_ORDER            2
@@ -39,11 +44,6 @@ struct thread_info {
  * the kernel stack */
 #define THREAD_SIZE             (PAGE_SIZE << THREAD_SIZE_ORDER)
 #define THREAD_SHIFT            (PAGE_SHIFT + THREAD_SIZE_ORDER)
-
-/* how to get the thread information struct from C */
-#define current_thread_info()	((struct thread_info *)mfctl(30))
-
-#endif /* !__ASSEMBLY */
 
 #define PREEMPT_ACTIVE_BIT	28
 #define PREEMPT_ACTIVE		(1 << PREEMPT_ACTIVE_BIT)
@@ -56,9 +56,12 @@ struct thread_info {
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
 #define TIF_POLLING_NRFLAG	3	/* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_32BIT               4       /* 32 bit binary */
-#define TIF_MEMDIE		5
+#define TIF_MEMDIE		5	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	6	/* restore saved signal mask */
 #define TIF_FREEZE		7	/* is freezing for suspend */
+#define TIF_NOTIFY_RESUME	8	/* callback before returning to user */
+#define TIF_SINGLESTEP		9	/* single stepping? */
+#define TIF_BLOCKSTEP		10	/* branch stepping? */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
@@ -67,8 +70,11 @@ struct thread_info {
 #define _TIF_32BIT		(1 << TIF_32BIT)
 #define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
 #define _TIF_FREEZE		(1 << TIF_FREEZE)
+#define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
+#define _TIF_SINGLESTEP		(1 << TIF_SINGLESTEP)
+#define _TIF_BLOCKSTEP		(1 << TIF_BLOCKSTEP)
 
-#define _TIF_USER_WORK_MASK     (_TIF_SIGPENDING | \
+#define _TIF_USER_WORK_MASK     (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | \
                                  _TIF_NEED_RESCHED | _TIF_RESTORE_SIGMASK)
 
 #endif /* __KERNEL__ */

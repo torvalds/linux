@@ -27,7 +27,8 @@ static int add_nondir(struct dentry *dentry, struct inode *inode)
 	return err;
 }
 
-static int sysv_hash(struct dentry *dentry, struct qstr *qstr)
+static int sysv_hash(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
 	/* Truncate the name in place, avoids having to define a compare
 	   function. */
@@ -47,7 +48,7 @@ static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, st
 	struct inode * inode = NULL;
 	ino_t ino;
 
-	dentry->d_op = dir->i_sb->s_root->d_op;
+	d_set_d_op(dentry, dir->i_sb->s_root->d_op);
 	if (dentry->d_name.len > SYSV_NAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 	ino = sysv_inode_by_name(dentry);
@@ -126,7 +127,7 @@ static int sysv_link(struct dentry * old_dentry, struct inode * dir,
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 
 	return add_nondir(dentry, inode);
 }

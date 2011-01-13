@@ -40,6 +40,7 @@
 #include <linux/inetdevice.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <linux/slab.h>
 
 #include <net/dst.h>
 
@@ -362,12 +363,19 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv = container_of(work, struct ipoib_dev_priv,
 						   carrier_on_task);
+	struct ib_port_attr attr;
 
 	/*
 	 * Take rtnl_lock to avoid racing with ipoib_stop() and
 	 * turning the carrier back on while a device is being
 	 * removed.
 	 */
+	if (ib_query_port(priv->ca, priv->port, &attr) ||
+	    attr.state != IB_PORT_ACTIVE) {
+		ipoib_dbg(priv, "Keeping carrier off until IB port is active\n");
+		return;
+	}
+
 	rtnl_lock();
 	netif_carrier_on(priv->dev);
 	rtnl_unlock();
@@ -720,7 +728,9 @@ out:
 			}
 		}
 
+		spin_unlock_irqrestore(&priv->lock, flags);
 		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
+		return;
 	}
 
 unlock:
@@ -758,12 +768,23 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	}
 }
 
+static int ipoib_mcast_addr_is_valid(const u8 *addr, const u8 *broadcast)
+{
+	/* reserved QPN, prefix, scope */
+	if (memcmp(addr, broadcast, 6))
+		return 0;
+	/* signature lower, pkey */
+	if (memcmp(addr + 7, broadcast + 7, 3))
+		return 0;
+	return 1;
+}
+
 void ipoib_mcast_restart_task(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, restart_task);
 	struct net_device *dev = priv->dev;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	struct ipoib_mcast *mcast, *tmcast;
 	LIST_HEAD(remove_list);
 	unsigned long flags;
@@ -788,10 +809,13 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		clear_bit(IPOIB_MCAST_FLAG_FOUND, &mcast->flags);
 
 	/* Mark all of the entries that are found or don't exist */
-	for (mclist = dev->mc_list; mclist; mclist = mclist->next) {
+	netdev_for_each_mc_addr(ha, dev) {
 		union ib_gid mgid;
 
-		memcpy(mgid.raw, mclist->dmi_addr + 4, sizeof mgid);
+		if (!ipoib_mcast_addr_is_valid(ha->addr, dev->broadcast))
+			continue;
+
+		memcpy(mgid.raw, ha->addr + 4, sizeof mgid);
 
 		mcast = __ipoib_mcast_find(dev, &mgid);
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {

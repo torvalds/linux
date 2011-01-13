@@ -6,6 +6,7 @@
  *  file VFS functions
  */
 
+#include <linux/smp_lock.h>
 #include "hpfs_fn.h"
 
 #define BLOCKS(size) (((size) + 511) >> 9)
@@ -18,9 +19,9 @@ static int hpfs_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int hpfs_file_fsync(struct file *file, struct dentry *dentry, int datasync)
+int hpfs_file_fsync(struct file *file, int datasync)
 {
-	/*return file_fsync(file, dentry);*/
+	/*return file_fsync(file, datasync);*/
 	return 0; /* Don't fsync :-) */
 }
 
@@ -96,10 +97,19 @@ static int hpfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+	int ret;
+
 	*pagep = NULL;
-	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
 				hpfs_get_block,
 				&hpfs_i(mapping->host)->mmu_private);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)

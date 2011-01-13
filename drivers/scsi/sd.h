@@ -19,6 +19,7 @@
  */
 #define SD_TIMEOUT		(30 * HZ)
 #define SD_MOD_TIMEOUT		(75 * HZ)
+#define SD_FLUSH_TIMEOUT	(60 * HZ)
 
 /*
  * Number of allowed retries
@@ -37,14 +38,20 @@
  */
 #define SD_LAST_BUGGY_SECTORS	8
 
+enum {
+	SD_EXT_CDB_SIZE = 32,	/* Extended CDB size */
+	SD_MEMPOOL_SIZE = 2,	/* CDB pool size */
+};
+
 struct scsi_disk {
 	struct scsi_driver *driver;	/* always &sd_template */
 	struct scsi_device *device;
 	struct device	dev;
 	struct gendisk	*disk;
-	unsigned int	openers;	/* protected by BKL for now, yuck */
+	atomic_t	openers;
 	sector_t	capacity;	/* size in 512-byte sectors */
 	u32		index;
+	unsigned int	physical_block_size;
 	u8		media_present;
 	u8		write_prot;
 	u8		protection_type;/* Data Integrity Field */
@@ -54,6 +61,11 @@ struct scsi_disk {
 	unsigned	RCD : 1;	/* state of disk RCD bit, unused */
 	unsigned	DPOFUA : 1;	/* state of disk DPOFUA bit */
 	unsigned	first_scan : 1;
+	unsigned	thin_provisioning : 1;
+	unsigned	unmap : 1;
+	unsigned	tpws : 1;
+	unsigned	tpu : 1;
+	unsigned	tpvpd : 1;
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)
 
@@ -100,16 +112,12 @@ struct sd_dif_tuple {
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 
-extern void sd_dif_op(struct scsi_cmnd *, unsigned int, unsigned int, unsigned int);
 extern void sd_dif_config_host(struct scsi_disk *);
 extern int sd_dif_prepare(struct request *rq, sector_t, unsigned int);
 extern void sd_dif_complete(struct scsi_cmnd *, unsigned int);
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
-static inline void sd_dif_op(struct scsi_cmnd *cmd, unsigned int a, unsigned int b, unsigned int c)
-{
-}
 static inline void sd_dif_config_host(struct scsi_disk *disk)
 {
 }

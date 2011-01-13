@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 
@@ -80,6 +81,7 @@ struct asic3 {
 	u16 irq_bothedge[4];
 	struct gpio_chip gpio;
 	struct device *dev;
+	void __iomem *tmio_cnf;
 
 	struct asic3_clk clocks[ARRAY_SIZE(asic3_clk_init)];
 };
@@ -685,19 +687,30 @@ static struct mfd_cell asic3_cell_ds1wm = {
 	.resources     = ds1wm_resources,
 };
 
+static void asic3_mmc_pwr(struct platform_device *pdev, int state)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	tmio_core_mmc_pwr(asic->tmio_cnf, 1 - asic->bus_shift, state);
+}
+
+static void asic3_mmc_clk_div(struct platform_device *pdev, int state)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	tmio_core_mmc_clk_div(asic->tmio_cnf, 1 - asic->bus_shift, state);
+}
+
 static struct tmio_mmc_data asic3_mmc_data = {
-	.hclk = 24576000,
+	.hclk           = 24576000,
+	.set_pwr        = asic3_mmc_pwr,
+	.set_clk_div    = asic3_mmc_clk_div,
 };
 
 static struct resource asic3_mmc_resources[] = {
 	{
 		.start = ASIC3_SD_CTRL_BASE,
 		.end   = ASIC3_SD_CTRL_BASE + 0x3ff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = ASIC3_SD_CONFIG_BASE,
-		.end   = ASIC3_SD_CONFIG_BASE + 0x1ff,
 		.flags = IORESOURCE_MEM,
 	},
 	{
@@ -742,6 +755,10 @@ static int asic3_mmc_enable(struct platform_device *pdev)
 	/* Enable SD card slot 3.3V power supply */
 	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
 			   ASIC3_SDHWCTRL_SDPWR, 1);
+
+	/* ASIC3_SD_CTRL_BASE assumes 32-bit addressing, TMIO is 16-bit */
+	tmio_core_mmc_enable(asic->tmio_cnf, 1 - asic->bus_shift,
+			     ASIC3_SD_CTRL_BASE >> 1);
 
 	return 0;
 }
@@ -797,10 +814,15 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 	asic3_cell_ds1wm.data_size = sizeof(asic3_cell_ds1wm);
 
 	/* MMC */
+	asic->tmio_cnf = ioremap((ASIC3_SD_CONFIG_BASE >> asic->bus_shift) +
+				 mem_sdio->start, 0x400 >> asic->bus_shift);
+	if (!asic->tmio_cnf) {
+		ret = -ENOMEM;
+		dev_dbg(asic->dev, "Couldn't ioremap SD_CONFIG\n");
+		goto out;
+	}
 	asic3_mmc_resources[0].start >>= asic->bus_shift;
 	asic3_mmc_resources[0].end   >>= asic->bus_shift;
-	asic3_mmc_resources[1].start >>= asic->bus_shift;
-	asic3_mmc_resources[1].end   >>= asic->bus_shift;
 
 	asic3_cell_mmc.platform_data = &asic3_cell_mmc;
 	asic3_cell_mmc.data_size = sizeof(asic3_cell_mmc);
@@ -820,7 +842,10 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 
 static void asic3_mfd_remove(struct platform_device *pdev)
 {
+	struct asic3 *asic = platform_get_drvdata(pdev);
+
 	mfd_remove_devices(&pdev->dev);
+	iounmap(asic->tmio_cnf);
 }
 
 /* Core */
@@ -908,7 +933,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int asic3_remove(struct platform_device *pdev)
+static int __devexit asic3_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct asic3 *asic = platform_get_drvdata(pdev);

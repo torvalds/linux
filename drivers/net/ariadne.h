@@ -244,7 +244,7 @@ struct Am79C960 {
 #define DLNKTST		0x0010	/* Disable Link Status */
 #define DAPC		0x0008	/* Disable Automatic Polarity Correction */
 #define MENDECL		0x0004	/* MENDEC Loopback Mode */
-#define LRTTSEL		0x0002	/* Low Receive Treshold/Transmit Mode Select */
+#define LRTTSEL		0x0002	/* Low Receive Threshold/Transmit Mode Select */
 #define PORTSEL1	0x0001	/* Port Select Bits */
 #define PORTSEL2	0x8000	/* Port Select Bits */
 #define INTL		0x4000	/* Internal Loopback */

@@ -87,7 +87,7 @@ struct ext3_inode_info {
 	 * near to their parent directory's inode.
 	 */
 	__u32	i_block_group;
-	__u32	i_state;		/* Dynamic state flags for ext3 */
+	unsigned long	i_state_flags;	/* Dynamic state flags for ext3 */
 
 	/* block reservation info */
 	struct ext3_block_alloc_info *i_block_alloc_info;
@@ -102,10 +102,6 @@ struct ext3_inode_info {
 	 * EAs.
 	 */
 	struct rw_semaphore xattr_sem;
-#endif
-#ifdef CONFIG_EXT3_FS_POSIX_ACL
-	struct posix_acl	*i_acl;
-	struct posix_acl	*i_default_acl;
 #endif
 
 	struct list_head i_orphan;	/* unlinked but open inodes */
@@ -141,6 +137,14 @@ struct ext3_inode_info {
 	 * by other means, so we have truncate_mutex.
 	 */
 	struct mutex truncate_mutex;
+
+	/*
+	 * Transactions that contain inode's metadata needed to complete
+	 * fsync and fdatasync, respectively.
+	 */
+	atomic_t i_sync_tid;
+	atomic_t i_datasync_tid;
+
 	struct inode vfs_inode;
 };
 

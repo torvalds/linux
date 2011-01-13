@@ -50,7 +50,7 @@ static void __init cam60_map_io(void)
 	/* Initialize processor: 10 MHz crystal */
 	at91sam9260_initialize(10000000);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* set serial console to ttyS0 (ie, DBGU) */
@@ -75,7 +75,7 @@ static struct at91_usbh_data __initdata cam60_usbh_data = {
  * SPI devices.
  */
 #if defined(CONFIG_MTD_DATAFLASH)
-static struct mtd_partition __initdata cam60_spi_partitions[] = {
+static struct mtd_partition cam60_spi_partitions[] = {
 	{
 		.name	= "BOOT1",
 		.offset	= 0,
@@ -98,14 +98,14 @@ static struct mtd_partition __initdata cam60_spi_partitions[] = {
 	},
 };
 
-static struct flash_platform_data __initdata cam60_spi_flash_platform_data = {
+static struct flash_platform_data cam60_spi_flash_platform_data = {
 	.name		= "spi_flash",
 	.parts		= cam60_spi_partitions,
 	.nr_parts	= ARRAY_SIZE(cam60_spi_partitions)
 };
 #endif
 
-static struct spi_board_info cam60_spi_devices[] = {
+static struct spi_board_info cam60_spi_devices[] __initdata = {
 #if defined(CONFIG_MTD_DATAFLASH)
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",
@@ -198,8 +198,6 @@ static void __init cam60_board_init(void)
 
 MACHINE_START(CAM60, "KwikByte CAM60")
 	/* Maintainer: KwikByte */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= cam60_map_io,

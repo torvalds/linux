@@ -36,22 +36,10 @@
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
 
-#define TX_TIMEOUT  (2*HZ)
-
 #define TX_Q_LIMIT    32
 struct ifb_private {
 	struct tasklet_struct   ifb_tasklet;
 	int     tasklet_pending;
-	/* mostly debug stats leave in for now */
-	unsigned long   st_task_enter; /* tasklet entered */
-	unsigned long   st_txq_refl_try; /* transmit queue refill attempt */
-	unsigned long   st_rxq_enter; /* receive queue entered */
-	unsigned long   st_rx2tx_tran; /* receive to trasmit transfers */
-	unsigned long   st_rxq_notenter; /*receiveQ not entered, resched */
-	unsigned long   st_rx_frm_egr; /* received from egress path */
-	unsigned long   st_rx_frm_ing; /* received from ingress path */
-	unsigned long   st_rxq_check;
-	unsigned long   st_rxq_rsch;
 	struct sk_buff_head     rq;
 	struct sk_buff_head     tq;
 };
@@ -59,7 +47,7 @@ struct ifb_private {
 static int numifbs = 2;
 
 static void ri_tasklet(unsigned long dev);
-static int ifb_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ifb_open(struct net_device *dev);
 static int ifb_close(struct net_device *dev);
 
@@ -73,24 +61,17 @@ static void ri_tasklet(unsigned long dev)
 	struct sk_buff *skb;
 
 	txq = netdev_get_tx_queue(_dev, 0);
-	dp->st_task_enter++;
 	if ((skb = skb_peek(&dp->tq)) == NULL) {
-		dp->st_txq_refl_try++;
 		if (__netif_tx_trylock(txq)) {
-			dp->st_rxq_enter++;
-			while ((skb = skb_dequeue(&dp->rq)) != NULL) {
-				skb_queue_tail(&dp->tq, skb);
-				dp->st_rx2tx_tran++;
-			}
+			skb_queue_splice_tail_init(&dp->rq, &dp->tq);
 			__netif_tx_unlock(txq);
 		} else {
 			/* reschedule */
-			dp->st_rxq_notenter++;
 			goto resched;
 		}
 	}
 
-	while ((skb = skb_dequeue(&dp->tq)) != NULL) {
+	while ((skb = __skb_dequeue(&dp->tq)) != NULL) {
 		u32 from = G_TC_FROM(skb->tc_verd);
 
 		skb->tc_verd = 0;
@@ -98,33 +79,34 @@ static void ri_tasklet(unsigned long dev)
 		stats->tx_packets++;
 		stats->tx_bytes +=skb->len;
 
-		skb->dev = __dev_get_by_index(&init_net, skb->iif);
+		rcu_read_lock();
+		skb->dev = dev_get_by_index_rcu(&init_net, skb->skb_iif);
 		if (!skb->dev) {
+			rcu_read_unlock();
 			dev_kfree_skb(skb);
 			stats->tx_dropped++;
+			if (skb_queue_len(&dp->tq) != 0)
+				goto resched;
 			break;
 		}
-		skb->iif = _dev->ifindex;
+		rcu_read_unlock();
+		skb->skb_iif = _dev->ifindex;
 
 		if (from & AT_EGRESS) {
-			dp->st_rx_frm_egr++;
 			dev_queue_xmit(skb);
 		} else if (from & AT_INGRESS) {
-			dp->st_rx_frm_ing++;
 			skb_pull(skb, skb->dev->hard_header_len);
-			netif_rx(skb);
+			netif_receive_skb(skb);
 		} else
 			BUG();
 	}
 
 	if (__netif_tx_trylock(txq)) {
-		dp->st_rxq_check++;
 		if ((skb = skb_peek(&dp->rq)) == NULL) {
 			dp->tasklet_pending = 0;
 			if (netif_queue_stopped(_dev))
 				netif_wake_queue(_dev);
 		} else {
-			dp->st_rxq_rsch++;
 			__netif_tx_unlock(txq);
 			goto resched;
 		}
@@ -144,6 +126,10 @@ static const struct net_device_ops ifb_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 };
 
+#define IFB_FEATURES (NETIF_F_NO_CSUM | NETIF_F_SG  | NETIF_F_FRAGLIST	| \
+		      NETIF_F_TSO_ECN | NETIF_F_TSO | NETIF_F_TSO6	| \
+		      NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_TX)
+
 static void ifb_setup(struct net_device *dev)
 {
 	/* Initialize the device structure. */
@@ -154,40 +140,41 @@ static void ifb_setup(struct net_device *dev)
 	ether_setup(dev);
 	dev->tx_queue_len = TX_Q_LIMIT;
 
+	dev->features |= IFB_FEATURES;
+	dev->vlan_features |= IFB_FEATURES;
+
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
 	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 	random_ether_addr(dev->dev_addr);
 }
 
-static int ifb_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ifb_private *dp = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
-	int ret = 0;
 	u32 from = G_TC_FROM(skb->tc_verd);
 
 	stats->rx_packets++;
 	stats->rx_bytes+=skb->len;
 
-	if (!(from & (AT_INGRESS|AT_EGRESS)) || !skb->iif) {
+	if (!(from & (AT_INGRESS|AT_EGRESS)) || !skb->skb_iif) {
 		dev_kfree_skb(skb);
 		stats->rx_dropped++;
-		return ret;
+		return NETDEV_TX_OK;
 	}
 
 	if (skb_queue_len(&dp->rq) >= dev->tx_queue_len) {
 		netif_stop_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
-	skb_queue_tail(&dp->rq, skb);
+	__skb_queue_tail(&dp->rq, skb);
 	if (!dp->tasklet_pending) {
 		dp->tasklet_pending = 1;
 		tasklet_schedule(&dp->ifb_tasklet);
 	}
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 static int ifb_close(struct net_device *dev)
@@ -196,8 +183,8 @@ static int ifb_close(struct net_device *dev)
 
 	tasklet_kill(&dp->ifb_tasklet);
 	netif_stop_queue(dev);
-	skb_queue_purge(&dp->rq);
-	skb_queue_purge(&dp->tq);
+	__skb_queue_purge(&dp->rq);
+	__skb_queue_purge(&dp->tq);
 	return 0;
 }
 
@@ -206,8 +193,8 @@ static int ifb_open(struct net_device *dev)
 	struct ifb_private *dp = netdev_priv(dev);
 
 	tasklet_init(&dp->ifb_tasklet, ri_tasklet, (unsigned long)dev);
-	skb_queue_head_init(&dp->rq);
-	skb_queue_head_init(&dp->tq);
+	__skb_queue_head_init(&dp->rq);
+	__skb_queue_head_init(&dp->tq);
 	netif_start_queue(dev);
 
 	return 0;

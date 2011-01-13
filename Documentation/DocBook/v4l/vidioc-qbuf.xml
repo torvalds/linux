@@ -1,0 +1,184 @@
+<refentry id="vidioc-qbuf">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_QBUF, VIDIOC_DQBUF</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_QBUF</refname>
+    <refname>VIDIOC_DQBUF</refname>
+    <refpurpose>Exchange a buffer with the driver</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_buffer *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_QBUF, VIDIOC_DQBUF</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Applications call the <constant>VIDIOC_QBUF</constant> ioctl
+to enqueue an empty (capturing) or filled (output) buffer in the
+driver's incoming queue. The semantics depend on the selected I/O
+method.</para>
+
+    <para>To enqueue a buffer applications set the <structfield>type</structfield>
+field of a &v4l2-buffer; to the same buffer type as was previously used
+with &v4l2-format; <structfield>type</structfield> and &v4l2-requestbuffers;
+<structfield>type</structfield>. Applications must also set the
+<structfield>index</structfield> field. Valid index numbers range from
+zero to the number of buffers allocated with &VIDIOC-REQBUFS;
+(&v4l2-requestbuffers; <structfield>count</structfield>) minus one. The
+contents of the struct <structname>v4l2_buffer</structname> returned
+by a &VIDIOC-QUERYBUF; ioctl will do as well. When the buffer is
+intended for output (<structfield>type</structfield> is
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant> or
+<constant>V4L2_BUF_TYPE_VBI_OUTPUT</constant>) applications must also
+initialize the <structfield>bytesused</structfield>,
+<structfield>field</structfield> and
+<structfield>timestamp</structfield> fields, see <xref
+linkend="buffer" /> for details.
+Applications must also set <structfield>flags</structfield> to 0. If a driver
+supports capturing from specific video inputs and you want to specify a video
+input, then <structfield>flags</structfield> should be set to
+<constant>V4L2_BUF_FLAG_INPUT</constant> and the field
+<structfield>input</structfield> must be initialized to the desired input.
+The <structfield>reserved</structfield> field must be set to 0.
+</para>
+
+    <para>To enqueue a <link linkend="mmap">memory mapped</link>
+buffer applications set the <structfield>memory</structfield>
+field to <constant>V4L2_MEMORY_MMAP</constant>. When
+<constant>VIDIOC_QBUF</constant> is called with a pointer to this
+structure the driver sets the
+<constant>V4L2_BUF_FLAG_MAPPED</constant> and
+<constant>V4L2_BUF_FLAG_QUEUED</constant> flags and clears the
+<constant>V4L2_BUF_FLAG_DONE</constant> flag in the
+<structfield>flags</structfield> field, or it returns an
+&EINVAL;.</para>
+
+    <para>To enqueue a <link linkend="userp">user pointer</link>
+buffer applications set the <structfield>memory</structfield>
+field to <constant>V4L2_MEMORY_USERPTR</constant>, the
+<structfield>m.userptr</structfield> field to the address of the
+buffer and <structfield>length</structfield> to its size.
+When <constant>VIDIOC_QBUF</constant> is called with a pointer to this
+structure the driver sets the <constant>V4L2_BUF_FLAG_QUEUED</constant>
+flag and clears the <constant>V4L2_BUF_FLAG_MAPPED</constant> and
+<constant>V4L2_BUF_FLAG_DONE</constant> flags in the
+<structfield>flags</structfield> field, or it returns an error code.
+This ioctl locks the memory pages of the buffer in physical memory,
+they cannot be swapped out to disk. Buffers remain locked until
+dequeued, until the &VIDIOC-STREAMOFF; or &VIDIOC-REQBUFS; ioctl is
+called, or until the device is closed.</para>
+
+    <para>Applications call the <constant>VIDIOC_DQBUF</constant>
+ioctl to dequeue a filled (capturing) or displayed (output) buffer
+from the driver's outgoing queue. They just set the
+<structfield>type</structfield>, <structfield>memory</structfield>
+and <structfield>reserved</structfield>
+fields of a &v4l2-buffer; as above, when <constant>VIDIOC_DQBUF</constant>
+is called with a pointer to this structure the driver fills the
+remaining fields or returns an error code. The driver may also set
+<constant>V4L2_BUF_FLAG_ERROR</constant> in the <structfield>flags</structfield>
+field. It indicates a non-critical (recoverable) streaming error. In such case
+the application may continue as normal, but should be aware that data in the
+dequeued buffer might be corrupted.</para>
+
+    <para>By default <constant>VIDIOC_DQBUF</constant> blocks when no
+buffer is in the outgoing queue. When the
+<constant>O_NONBLOCK</constant> flag was given to the &func-open;
+function, <constant>VIDIOC_DQBUF</constant> returns immediately
+with an &EAGAIN; when no buffer is available.</para>
+
+    <para>The <structname>v4l2_buffer</structname> structure is
+specified in <xref linkend="buffer" />.</para>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EAGAIN</errorcode></term>
+	<listitem>
+	  <para>Non-blocking I/O has been selected using
+<constant>O_NONBLOCK</constant> and no buffer was in the outgoing
+queue.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The buffer <structfield>type</structfield> is not
+supported, or the <structfield>index</structfield> is out of bounds,
+or no buffers have been allocated yet, or the
+<structfield>userptr</structfield> or
+<structfield>length</structfield> are invalid.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOMEM</errorcode></term>
+	<listitem>
+	  <para>Not enough physical or virtual memory was available to
+enqueue a user pointer buffer.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EIO</errorcode></term>
+	<listitem>
+	  <para><constant>VIDIOC_DQBUF</constant> failed due to an
+internal error. Can also indicate temporary problems like signal
+loss. Note the driver might dequeue an (empty) buffer despite
+returning an error, or even stop capturing. Reusing such buffer may be unsafe
+though and its details (e.g. <structfield>index</structfield>) may not be
+returned either. It is recommended that drivers indicate recoverable errors
+by setting the <constant>V4L2_BUF_FLAG_ERROR</constant> and returning 0 instead.
+In that case the application should be able to safely reuse the buffer and
+continue streaming.
+	</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

@@ -21,7 +21,6 @@
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
-#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/hugetlb.h>
@@ -109,7 +108,7 @@ static void *nommu_region_list_next(struct seq_file *m, void *v, loff_t *pos)
 	return rb_next((struct rb_node *) v);
 }
 
-static struct seq_operations proc_nommu_region_list_seqop = {
+static const struct seq_operations proc_nommu_region_list_seqop = {
 	.start	= nommu_region_list_start,
 	.next	= nommu_region_list_next,
 	.stop	= nommu_region_list_stop,

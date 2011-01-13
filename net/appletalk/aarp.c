@@ -30,6 +30,7 @@
  */
 
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/datalink.h>
 #include <net/psnap.h>
@@ -599,7 +600,7 @@ int aarp_send_ddp(struct net_device *dev, struct sk_buff *skb,
 
 	/* Non ELAP we cannot do. */
 	if (dev->type != ARPHRD_ETHER)
-		return -1;
+		goto free_it;
 
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_ATALK);
@@ -634,7 +635,7 @@ int aarp_send_ddp(struct net_device *dev, struct sk_buff *skb,
 	if (!a) {
 		/* Whoops slipped... good job it's an unreliable protocol 8) */
 		write_unlock_bh(&aarp_lock);
-		return -1;
+		goto free_it;
 	}
 
 	/* Set up the queue */
@@ -663,15 +664,21 @@ out_unlock:
 	write_unlock_bh(&aarp_lock);
 
 	/* Tell the ddp layer we have taken over for this frame. */
-	return 0;
+	goto sent;
 
 sendit:
 	if (skb->sk)
 		skb->priority = skb->sk->sk_priority;
-	dev_queue_xmit(skb);
+	if (dev_queue_xmit(skb))
+		goto drop;
 sent:
-	return 1;
+	return NET_XMIT_SUCCESS;
+free_it:
+	kfree_skb(skb);
+drop:
+	return NET_XMIT_DROP;
 }
+EXPORT_SYMBOL(aarp_send_ddp);
 
 /*
  *	An entry in the aarp unresolved queue has become resolved. Send
@@ -813,7 +820,7 @@ static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
 				ma = &ifa->address;
 			else { /* We need to make a copy of the entry. */
 				da.s_node = sa.s_node;
-				da.s_net = da.s_net;
+				da.s_net = sa.s_net;
 				ma = &da;
 			}
 

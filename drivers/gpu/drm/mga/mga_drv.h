@@ -164,60 +164,59 @@ extern int mga_dma_reset(struct drm_device *dev, void *data,
 extern int mga_dma_buffers(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 extern int mga_driver_load(struct drm_device *dev, unsigned long flags);
-extern int mga_driver_unload(struct drm_device * dev);
-extern void mga_driver_lastclose(struct drm_device * dev);
-extern int mga_driver_dma_quiescent(struct drm_device * dev);
+extern int mga_driver_unload(struct drm_device *dev);
+extern void mga_driver_lastclose(struct drm_device *dev);
+extern int mga_driver_dma_quiescent(struct drm_device *dev);
 
-extern int mga_do_wait_for_idle(drm_mga_private_t * dev_priv);
+extern int mga_do_wait_for_idle(drm_mga_private_t *dev_priv);
 
-extern void mga_do_dma_flush(drm_mga_private_t * dev_priv);
-extern void mga_do_dma_wrap_start(drm_mga_private_t * dev_priv);
-extern void mga_do_dma_wrap_end(drm_mga_private_t * dev_priv);
+extern void mga_do_dma_flush(drm_mga_private_t *dev_priv);
+extern void mga_do_dma_wrap_start(drm_mga_private_t *dev_priv);
+extern void mga_do_dma_wrap_end(drm_mga_private_t *dev_priv);
 
-extern int mga_freelist_put(struct drm_device * dev, struct drm_buf * buf);
+extern int mga_freelist_put(struct drm_device *dev, struct drm_buf *buf);
 
 				/* mga_warp.c */
-extern unsigned int mga_warp_microcode_size(const drm_mga_private_t * dev_priv);
-extern int mga_warp_install_microcode(drm_mga_private_t * dev_priv);
-extern int mga_warp_init(drm_mga_private_t * dev_priv);
+extern int mga_warp_install_microcode(drm_mga_private_t *dev_priv);
+extern int mga_warp_init(drm_mga_private_t *dev_priv);
 
 				/* mga_irq.c */
 extern int mga_enable_vblank(struct drm_device *dev, int crtc);
 extern void mga_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 mga_get_vblank_counter(struct drm_device *dev, int crtc);
-extern int mga_driver_fence_wait(struct drm_device * dev, unsigned int *sequence);
-extern int mga_driver_vblank_wait(struct drm_device * dev, unsigned int *sequence);
+extern int mga_driver_fence_wait(struct drm_device *dev, unsigned int *sequence);
+extern int mga_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence);
 extern irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS);
-extern void mga_driver_irq_preinstall(struct drm_device * dev);
+extern void mga_driver_irq_preinstall(struct drm_device *dev);
 extern int mga_driver_irq_postinstall(struct drm_device *dev);
-extern void mga_driver_irq_uninstall(struct drm_device * dev);
+extern void mga_driver_irq_uninstall(struct drm_device *dev);
 extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
 
 #define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
 
 #if defined(__linux__) && defined(__alpha__)
-#define MGA_BASE( reg )		((unsigned long)(dev_priv->mmio->handle))
-#define MGA_ADDR( reg )		(MGA_BASE(reg) + reg)
+#define MGA_BASE(reg)		((unsigned long)(dev_priv->mmio->handle))
+#define MGA_ADDR(reg)		(MGA_BASE(reg) + reg)
 
-#define MGA_DEREF( reg )	*(volatile u32 *)MGA_ADDR( reg )
-#define MGA_DEREF8( reg )	*(volatile u8 *)MGA_ADDR( reg )
+#define MGA_DEREF(reg)		(*(volatile u32 *)MGA_ADDR(reg))
+#define MGA_DEREF8(reg)		(*(volatile u8 *)MGA_ADDR(reg))
 
-#define MGA_READ( reg )		(_MGA_READ((u32 *)MGA_ADDR(reg)))
-#define MGA_READ8( reg )	(_MGA_READ((u8 *)MGA_ADDR(reg)))
-#define MGA_WRITE( reg, val )	do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF( reg ) = val; } while (0)
-#define MGA_WRITE8( reg, val )  do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF8( reg ) = val; } while (0)
+#define MGA_READ(reg)		(_MGA_READ((u32 *)MGA_ADDR(reg)))
+#define MGA_READ8(reg)		(_MGA_READ((u8 *)MGA_ADDR(reg)))
+#define MGA_WRITE(reg, val)	do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF(reg) = val; } while (0)
+#define MGA_WRITE8(reg, val)	do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF8(reg) = val; } while (0)
 
-static inline u32 _MGA_READ(u32 * addr)
+static inline u32 _MGA_READ(u32 *addr)
 {
 	DRM_MEMORYBARRIER();
 	return *(volatile u32 *)addr;
 }
 #else
-#define MGA_READ8( reg )	DRM_READ8(dev_priv->mmio, (reg))
-#define MGA_READ( reg )		DRM_READ32(dev_priv->mmio, (reg))
-#define MGA_WRITE8( reg, val )  DRM_WRITE8(dev_priv->mmio, (reg), (val))
-#define MGA_WRITE( reg, val )	DRM_WRITE32(dev_priv->mmio, (reg), (val))
+#define MGA_READ8(reg)		DRM_READ8(dev_priv->mmio, (reg))
+#define MGA_READ(reg)		DRM_READ32(dev_priv->mmio, (reg))
+#define MGA_WRITE8(reg, val)	DRM_WRITE8(dev_priv->mmio, (reg), (val))
+#define MGA_WRITE(reg, val)	DRM_WRITE32(dev_priv->mmio, (reg), (val))
 #endif
 
 #define DWGREG0		0x1c00
@@ -234,40 +233,39 @@ static inline u32 _MGA_READ(u32 * addr)
  * Helper macross...
  */
 
-#define MGA_EMIT_STATE( dev_priv, dirty )				\
+#define MGA_EMIT_STATE(dev_priv, dirty)					\
 do {									\
-	if ( (dirty) & ~MGA_UPLOAD_CLIPRECTS ) {			\
-		if ( dev_priv->chipset >= MGA_CARD_TYPE_G400 ) {	\
-			mga_g400_emit_state( dev_priv );		\
-		} else {						\
-			mga_g200_emit_state( dev_priv );		\
+	if ((dirty) & ~MGA_UPLOAD_CLIPRECTS) {				\
+		if (dev_priv->chipset >= MGA_CARD_TYPE_G400)		\
+			mga_g400_emit_state(dev_priv);			\
+		else							\
+			mga_g200_emit_state(dev_priv);			\
+	}								\
+} while (0)
+
+#define WRAP_TEST_WITH_RETURN(dev_priv)					\
+do {									\
+	if (test_bit(0, &dev_priv->prim.wrapped)) {			\
+		if (mga_is_idle(dev_priv)) {				\
+			mga_do_dma_wrap_end(dev_priv);			\
+		} else if (dev_priv->prim.space <			\
+			   dev_priv->prim.high_mark) {			\
+			if (MGA_DMA_DEBUG)				\
+				DRM_INFO("wrap...\n");			\
+			return -EBUSY;					\
 		}							\
 	}								\
 } while (0)
 
-#define WRAP_TEST_WITH_RETURN( dev_priv )				\
+#define WRAP_WAIT_WITH_RETURN(dev_priv)					\
 do {									\
-	if ( test_bit( 0, &dev_priv->prim.wrapped ) ) {			\
-		if ( mga_is_idle( dev_priv ) ) {			\
-			mga_do_dma_wrap_end( dev_priv );		\
-		} else if ( dev_priv->prim.space <			\
-			    dev_priv->prim.high_mark ) {		\
-			if ( MGA_DMA_DEBUG )				\
-				DRM_INFO( "wrap...\n");		\
-			return -EBUSY;			\
+	if (test_bit(0, &dev_priv->prim.wrapped)) {			\
+		if (mga_do_wait_for_idle(dev_priv) < 0) {		\
+			if (MGA_DMA_DEBUG)				\
+				DRM_INFO("wrap...\n");			\
+			return -EBUSY;					\
 		}							\
-	}								\
-} while (0)
-
-#define WRAP_WAIT_WITH_RETURN( dev_priv )				\
-do {									\
-	if ( test_bit( 0, &dev_priv->prim.wrapped ) ) {			\
-		if ( mga_do_wait_for_idle( dev_priv ) < 0 ) {		\
-			if ( MGA_DMA_DEBUG )				\
-				DRM_INFO( "wrap...\n");		\
-			return -EBUSY;			\
-		}							\
-		mga_do_dma_wrap_end( dev_priv );			\
+		mga_do_dma_wrap_end(dev_priv);				\
 	}								\
 } while (0)
 
@@ -281,12 +279,12 @@ do {									\
 
 #define DMA_BLOCK_SIZE	(5 * sizeof(u32))
 
-#define BEGIN_DMA( n )							\
+#define BEGIN_DMA(n)							\
 do {									\
-	if ( MGA_VERBOSE ) {						\
-		DRM_INFO( "BEGIN_DMA( %d )\n", (n) );		\
-		DRM_INFO( "   space=0x%x req=0x%Zx\n",			\
-			  dev_priv->prim.space, (n) * DMA_BLOCK_SIZE );	\
+	if (MGA_VERBOSE) {						\
+		DRM_INFO("BEGIN_DMA(%d)\n", (n));			\
+		DRM_INFO("   space=0x%x req=0x%Zx\n",			\
+			 dev_priv->prim.space, (n) * DMA_BLOCK_SIZE);	\
 	}								\
 	prim = dev_priv->prim.start;					\
 	write = dev_priv->prim.tail;					\
@@ -294,9 +292,9 @@ do {									\
 
 #define BEGIN_DMA_WRAP()						\
 do {									\
-	if ( MGA_VERBOSE ) {						\
-		DRM_INFO( "BEGIN_DMA()\n" );				\
-		DRM_INFO( "   space=0x%x\n", dev_priv->prim.space );	\
+	if (MGA_VERBOSE) {						\
+		DRM_INFO("BEGIN_DMA()\n");				\
+		DRM_INFO("   space=0x%x\n", dev_priv->prim.space);	\
 	}								\
 	prim = dev_priv->prim.start;					\
 	write = dev_priv->prim.tail;					\
@@ -305,72 +303,68 @@ do {									\
 #define ADVANCE_DMA()							\
 do {									\
 	dev_priv->prim.tail = write;					\
-	if ( MGA_VERBOSE ) {						\
-		DRM_INFO( "ADVANCE_DMA() tail=0x%05x sp=0x%x\n",	\
-			  write, dev_priv->prim.space );		\
-	}								\
+	if (MGA_VERBOSE)						\
+		DRM_INFO("ADVANCE_DMA() tail=0x%05x sp=0x%x\n",		\
+			 write, dev_priv->prim.space);			\
 } while (0)
 
 #define FLUSH_DMA()							\
 do {									\
-	if ( 0 ) {							\
-		DRM_INFO( "\n" );					\
-		DRM_INFO( "   tail=0x%06x head=0x%06lx\n",		\
-			  dev_priv->prim.tail,				\
-			  (unsigned long)(MGA_READ(MGA_PRIMADDRESS) -	\
-					  dev_priv->primary->offset));	\
+	if (0) {							\
+		DRM_INFO("\n");						\
+		DRM_INFO("   tail=0x%06x head=0x%06lx\n",		\
+			 dev_priv->prim.tail,				\
+			 (unsigned long)(MGA_READ(MGA_PRIMADDRESS) -	\
+					 dev_priv->primary->offset));	\
 	}								\
-	if ( !test_bit( 0, &dev_priv->prim.wrapped ) ) {		\
-		if ( dev_priv->prim.space <				\
-		     dev_priv->prim.high_mark ) {			\
-			mga_do_dma_wrap_start( dev_priv );		\
-		} else {						\
-			mga_do_dma_flush( dev_priv );			\
-		}							\
+	if (!test_bit(0, &dev_priv->prim.wrapped)) {			\
+		if (dev_priv->prim.space < dev_priv->prim.high_mark)	\
+			mga_do_dma_wrap_start(dev_priv);		\
+		else							\
+			mga_do_dma_flush(dev_priv);			\
 	}								\
 } while (0)
 
 /* Never use this, always use DMA_BLOCK(...) for primary DMA output.
  */
-#define DMA_WRITE( offset, val )					\
+#define DMA_WRITE(offset, val)						\
 do {									\
-	if ( MGA_VERBOSE ) {						\
-		DRM_INFO( "   DMA_WRITE( 0x%08x ) at 0x%04Zx\n",	\
-			  (u32)(val), write + (offset) * sizeof(u32) );	\
-	}								\
+	if (MGA_VERBOSE)						\
+		DRM_INFO("   DMA_WRITE( 0x%08x ) at 0x%04Zx\n",		\
+			 (u32)(val), write + (offset) * sizeof(u32));	\
 	*(volatile u32 *)(prim + write + (offset) * sizeof(u32)) = val;	\
 } while (0)
 
-#define DMA_BLOCK( reg0, val0, reg1, val1, reg2, val2, reg3, val3 )	\
+#define DMA_BLOCK(reg0, val0, reg1, val1, reg2, val2, reg3, val3)	\
 do {									\
-	DMA_WRITE( 0, ((DMAREG( reg0 ) << 0) |				\
-		       (DMAREG( reg1 ) << 8) |				\
-		       (DMAREG( reg2 ) << 16) |				\
-		       (DMAREG( reg3 ) << 24)) );			\
-	DMA_WRITE( 1, val0 );						\
-	DMA_WRITE( 2, val1 );						\
-	DMA_WRITE( 3, val2 );						\
-	DMA_WRITE( 4, val3 );						\
+	DMA_WRITE(0, ((DMAREG(reg0) << 0) |				\
+		      (DMAREG(reg1) << 8) |				\
+		      (DMAREG(reg2) << 16) |				\
+		      (DMAREG(reg3) << 24)));				\
+	DMA_WRITE(1, val0);						\
+	DMA_WRITE(2, val1);						\
+	DMA_WRITE(3, val2);						\
+	DMA_WRITE(4, val3);						\
 	write += DMA_BLOCK_SIZE;					\
 } while (0)
 
 /* Buffer aging via primary DMA stream head pointer.
  */
 
-#define SET_AGE( age, h, w )						\
+#define SET_AGE(age, h, w)						\
 do {									\
 	(age)->head = h;						\
 	(age)->wrap = w;						\
 } while (0)
 
-#define TEST_AGE( age, h, w )		( (age)->wrap < w ||		\
-					  ( (age)->wrap == w &&		\
-					    (age)->head < h ) )
+#define TEST_AGE(age, h, w)		((age)->wrap < w ||		\
+					 ((age)->wrap == w &&		\
+					  (age)->head < h))
 
-#define AGE_BUFFER( buf_priv )						\
+#define AGE_BUFFER(buf_priv)						\
 do {									\
 	drm_mga_freelist_t *entry = (buf_priv)->list_entry;		\
-	if ( (buf_priv)->dispatched ) {					\
+	if ((buf_priv)->dispatched) {					\
 		entry->age.head = (dev_priv->prim.tail +		\
 				   dev_priv->primary->offset);		\
 		entry->age.wrap = dev_priv->sarea_priv->last_wrap;	\
@@ -682,7 +676,7 @@ do {									\
 
 /* Simple idle test.
  */
-static __inline__ int mga_is_idle(drm_mga_private_t * dev_priv)
+static __inline__ int mga_is_idle(drm_mga_private_t *dev_priv)
 {
 	u32 status = MGA_READ(MGA_STATUS) & MGA_ENGINE_IDLE_MASK;
 	return (status == MGA_ENDPRDMASTS);

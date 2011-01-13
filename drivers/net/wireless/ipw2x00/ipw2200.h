@@ -19,7 +19,7 @@
   file called LICENSE.
 
   Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+  Intel Linux Wireless <ilw@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
@@ -55,7 +55,7 @@
 
 #include <linux/workqueue.h>
 
-#include "ieee80211.h"
+#include "libipw.h"
 
 /* Authentication  and Association States */
 enum connection_manager_assoc_states {
@@ -365,8 +365,8 @@ enum connection_manager_assoc_states {
 /* QoS sturctures */
 struct ipw_qos_info {
 	int qos_enable;
-	struct ieee80211_qos_parameters *def_qos_parm_OFDM;
-	struct ieee80211_qos_parameters *def_qos_parm_CCK;
+	struct libipw_qos_parameters *def_qos_parm_OFDM;
+	struct libipw_qos_parameters *def_qos_parm_CCK;
 	u32 burst_duration_CCK;
 	u32 burst_duration_OFDM;
 	u16 qos_no_ack_mask;
@@ -388,7 +388,7 @@ struct clx2_queue {
 	dma_addr_t dma_addr;		/**< physical addr for BD's */
 	int low_mark;		       /**< low watermark, resume queue if free space more than this */
 	int high_mark;		       /**< high watermark, stop queue if free space less than this */
-} __attribute__ ((packed)); /* XXX */
+} __packed; /* XXX */
 
 struct machdr32 {
 	__le16 frame_ctl;
@@ -399,7 +399,7 @@ struct machdr32 {
 	__le16 seq_ctrl;		// more endians!
 	u8 addr4[MACADRR_BYTE_LEN];
 	__le16 qos_ctrl;
-} __attribute__ ((packed));
+} __packed;
 
 struct machdr30 {
 	__le16 frame_ctl;
@@ -409,7 +409,7 @@ struct machdr30 {
 	u8 addr3[MACADRR_BYTE_LEN];
 	__le16 seq_ctrl;		// more endians!
 	u8 addr4[MACADRR_BYTE_LEN];
-} __attribute__ ((packed));
+} __packed;
 
 struct machdr26 {
 	__le16 frame_ctl;
@@ -419,7 +419,7 @@ struct machdr26 {
 	u8 addr3[MACADRR_BYTE_LEN];
 	__le16 seq_ctrl;		// more endians!
 	__le16 qos_ctrl;
-} __attribute__ ((packed));
+} __packed;
 
 struct machdr24 {
 	__le16 frame_ctl;
@@ -428,20 +428,20 @@ struct machdr24 {
 	u8 addr2[MACADRR_BYTE_LEN];
 	u8 addr3[MACADRR_BYTE_LEN];
 	__le16 seq_ctrl;		// more endians!
-} __attribute__ ((packed));
+} __packed;
 
 // TX TFD with 32 byte MAC Header
 struct tx_tfd_32 {
 	struct machdr32 mchdr;	// 32
 	__le32 uivplaceholder[2];	// 8
-} __attribute__ ((packed));
+} __packed;
 
 // TX TFD with 30 byte MAC Header
 struct tx_tfd_30 {
 	struct machdr30 mchdr;	// 30
 	u8 reserved[2];		// 2
 	__le32 uivplaceholder[2];	// 8
-} __attribute__ ((packed));
+} __packed;
 
 // tx tfd with 26 byte mac header
 struct tx_tfd_26 {
@@ -449,14 +449,14 @@ struct tx_tfd_26 {
 	u8 reserved1[2];	// 2
 	__le32 uivplaceholder[2];	// 8
 	u8 reserved2[4];	// 4
-} __attribute__ ((packed));
+} __packed;
 
 // tx tfd with 24 byte mac header
 struct tx_tfd_24 {
 	struct machdr24 mchdr;	// 24
 	__le32 uivplaceholder[2];	// 8
 	u8 reserved[8];		// 8
-} __attribute__ ((packed));
+} __packed;
 
 #define DCT_WEP_KEY_FIELD_LENGTH 16
 
@@ -465,7 +465,7 @@ struct tfd_command {
 	u8 length;
 	__le16 reserved;
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct tfd_data {
 	/* Header */
@@ -504,14 +504,14 @@ struct tfd_data {
 	__le32 num_chunks;
 	__le32 chunk_ptr[NUM_TFD_CHUNKS];
 	__le16 chunk_len[NUM_TFD_CHUNKS];
-} __attribute__ ((packed));
+} __packed;
 
 struct txrx_control_flags {
 	u8 message_type;
 	u8 rx_seq_num;
 	u8 control_bits;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 #define  TFD_SIZE                           128
 #define  TFD_CMD_IMMEDIATE_PAYLOAD_LENGTH   (TFD_SIZE - sizeof(struct txrx_control_flags))
@@ -523,7 +523,7 @@ struct tfd_frame {
 		struct tfd_command cmd;
 		u8 raw[TFD_CMD_IMMEDIATE_PAYLOAD_LENGTH];
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
 typedef void destructor_func(const void *);
 
@@ -534,7 +534,7 @@ typedef void destructor_func(const void *);
 struct clx2_tx_queue {
 	struct clx2_queue q;
 	struct tfd_frame *bd;
-	struct ieee80211_txb **txb;
+	struct libipw_txb **txb;
 };
 
 /*
@@ -559,7 +559,7 @@ struct rate_histogram {
 		__le32 b[SUP_RATE_11B_MAX_NUM_CHANNELS];
 		__le32 g[SUP_RATE_11G_MAX_NUM_CHANNELS];
 	} failed;
-} __attribute__ ((packed));
+} __packed;
 
 /* statistics command response */
 struct ipw_cmd_stats {
@@ -586,13 +586,13 @@ struct ipw_cmd_stats {
 	__le16 rx_autodetec_no_ofdm;
 	__le16 rx_autodetec_no_barker;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_channel_result {
 	u8 channel_num;
 	struct ipw_cmd_stats stats;
 	u8 uReserved;
-} __attribute__ ((packed));
+} __packed;
 
 #define SCAN_COMPLETED_STATUS_COMPLETE  1
 #define SCAN_COMPLETED_STATUS_ABORTED   2
@@ -602,24 +602,24 @@ struct notif_scan_complete {
 	u8 num_channels;
 	u8 status;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_frag_length {
 	__le16 frag_length;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_beacon_state {
 	__le32 state;
 	__le32 number;
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_tgi_tx_key {
 	u8 key_state;
 	u8 security_type;
 	u8 station_index;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 #define SILENCE_OVER_THRESH (1)
 #define SILENCE_UNDER_THRESH (2)
@@ -631,25 +631,25 @@ struct notif_link_deterioration {
 	struct rate_histogram histogram;
 	u8 silence_notification_type;	/* SILENCE_OVER/UNDER_THRESH */
 	__le16 silence_count;
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_association {
 	u8 state;
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_authenticate {
 	u8 state;
 	struct machdr24 addr;
 	__le16 status;
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_calibration {
 	u8 data[104];
-} __attribute__ ((packed));
+} __packed;
 
 struct notif_noise {
 	__le32 value;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_rx_notification {
 	u8 reserved[8];
@@ -669,7 +669,7 @@ struct ipw_rx_notification {
 		struct notif_noise noise;
 		u8 raw[0];
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_rx_frame {
 	__le32 reserved1;
@@ -692,14 +692,14 @@ struct ipw_rx_frame {
 	u8 rtscts_seen;		// 0x1 RTS seen ; 0x2 CTS seen
 	__le16 length;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_rx_header {
 	u8 message_type;
 	u8 rx_seq_num;
 	u8 control_bits;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_rx_packet {
 	struct ipw_rx_header header;
@@ -707,7 +707,7 @@ struct ipw_rx_packet {
 		struct ipw_rx_frame frame;
 		struct ipw_rx_notification notification;
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
 #define IPW_RX_NOTIFICATION_SIZE sizeof(struct ipw_rx_header) + 12
 #define IPW_RX_FRAME_SIZE        (unsigned int)(sizeof(struct ipw_rx_header) + \
@@ -717,7 +717,7 @@ struct ipw_rx_mem_buffer {
 	dma_addr_t dma_addr;
 	struct sk_buff *skb;
 	struct list_head list;
-};				/* Not transferred over network, so not  __attribute__ ((packed)) */
+};				/* Not transferred over network, so not  __packed */
 
 struct ipw_rx_queue {
 	struct ipw_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
@@ -730,7 +730,7 @@ struct ipw_rx_queue {
 	struct list_head rx_free;	/* Own an SKBs */
 	struct list_head rx_used;	/* No SKB allocated */
 	spinlock_t lock;
-};				/* Not transferred over network, so not  __attribute__ ((packed)) */
+};				/* Not transferred over network, so not  __packed */
 
 struct alive_command_responce {
 	u8 alive_command;
@@ -745,21 +745,21 @@ struct alive_command_responce {
 	__le16 reserved4;
 	u8 time_stamp[5];	/* month, day, year, hours, minutes */
 	u8 ucode_valid;
-} __attribute__ ((packed));
+} __packed;
 
 #define IPW_MAX_RATES 12
 
 struct ipw_rates {
 	u8 num_rates;
 	u8 rates[IPW_MAX_RATES];
-} __attribute__ ((packed));
+} __packed;
 
 struct command_block {
 	unsigned int control;
 	u32 source_addr;
 	u32 dest_addr;
 	unsigned int status;
-} __attribute__ ((packed));
+} __packed;
 
 #define CB_NUMBER_OF_ELEMENTS_SMALL 64
 struct fw_image_desc {
@@ -792,7 +792,7 @@ struct ipw_sys_config {
 	u8 accept_all_mgmt_frames;
 	u8 pass_noise_stats_to_host;
 	u8 reserved3;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_multicast_addr {
 	u8 num_of_multicast_addresses;
@@ -801,7 +801,7 @@ struct ipw_multicast_addr {
 	u8 mac2[6];
 	u8 mac3[6];
 	u8 mac4[6];
-} __attribute__ ((packed));
+} __packed;
 
 #define DCW_WEP_KEY_INDEX_MASK		0x03	/* bits [0:1] */
 #define DCW_WEP_KEY_SEC_TYPE_MASK	0x30	/* bits [4:5] */
@@ -822,7 +822,7 @@ struct ipw_wep_key {
 	u8 key_index;
 	u8 key_size;
 	u8 key[16];
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_tgi_tx_key {
 	u8 key_id;
@@ -831,7 +831,7 @@ struct ipw_tgi_tx_key {
 	u8 flags;
 	u8 key[16];
 	__le32 tx_counter[2];
-} __attribute__ ((packed));
+} __packed;
 
 #define IPW_SCAN_CHANNELS 54
 
@@ -840,7 +840,7 @@ struct ipw_scan_request {
 	__le16 dwell_time;
 	u8 channels_list[IPW_SCAN_CHANNELS];
 	u8 channels_reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 enum {
 	IPW_SCAN_PASSIVE_TILL_FIRST_BEACON_SCAN = 0,
@@ -857,7 +857,7 @@ struct ipw_scan_request_ext {
 	u8 scan_type[IPW_SCAN_CHANNELS / 2];
 	u8 reserved;
 	__le16 dwell_time[IPW_SCAN_TYPES];
-} __attribute__ ((packed));
+} __packed;
 
 static inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
 {
@@ -902,7 +902,7 @@ struct ipw_associate {
 	u8 smr;
 	u8 reserved1;
 	__le16 reserved2;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_supported_rates {
 	u8 ieee_mode;
@@ -910,36 +910,36 @@ struct ipw_supported_rates {
 	u8 purpose;
 	u8 reserved;
 	u8 supported_rates[IPW_MAX_RATES];
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_rts_threshold {
 	__le16 rts_threshold;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_frag_threshold {
 	__le16 frag_threshold;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_retry_limit {
 	u8 short_retry_limit;
 	u8 long_retry_limit;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_dino_config {
 	__le32 dino_config_addr;
 	__le16 dino_config_size;
 	u8 dino_response;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_aironet_info {
 	u8 id;
 	u8 length;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_rx_key {
 	u8 station_index;
@@ -950,25 +950,25 @@ struct ipw_rx_key {
 	u8 station_address[6];
 	u8 key_index;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_country_channel_info {
 	u8 first_channel;
 	u8 no_channels;
 	s8 max_tx_power;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_country_info {
 	u8 id;
 	u8 length;
 	u8 country_str[3];
 	struct ipw_country_channel_info groups[7];
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_channel_tx_power {
 	u8 channel_number;
 	s8 tx_power;
-} __attribute__ ((packed));
+} __packed;
 
 #define SCAN_ASSOCIATED_INTERVAL (HZ)
 #define SCAN_INTERVAL (HZ / 10)
@@ -979,18 +979,18 @@ struct ipw_tx_power {
 	u8 num_channels;
 	u8 ieee_mode;
 	struct ipw_channel_tx_power channels_tx_power[MAX_A_CHANNELS];
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_rsn_capabilities {
 	u8 id;
 	u8 length;
 	__le16 version;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_sensitivity_calib {
 	__le16 beacon_rssi_raw;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * Host command structure.
@@ -1019,7 +1019,7 @@ struct ipw_cmd {	 /* XXX */
    * nParams=(len+3)/4+status_len
    */
 	u32 param[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define STATUS_HCMD_ACTIVE      (1<<0)	/**< host command in progress */
 
@@ -1114,7 +1114,7 @@ struct ipw_event {	 /* XXX */
 	u32 event;
 	u32 time;
 	u32 data;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_fw_error {	 /* XXX */
 	unsigned long jiffies;
@@ -1125,7 +1125,7 @@ struct ipw_fw_error {	 /* XXX */
 	struct ipw_error_elem *elem;
 	struct ipw_event *log;
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef CONFIG_IPW2200_PROMISCUOUS
 
@@ -1144,7 +1144,7 @@ enum ipw_prom_filter {
 struct ipw_priv;
 struct ipw_prom_priv {
 	struct ipw_priv *priv;
-	struct ieee80211_device *ieee;
+	struct libipw_device *ieee;
 	enum ipw_prom_filter filter;
 	int tx_packets;
 	int rx_packets;
@@ -1170,12 +1170,12 @@ struct ipw_rt_hdr {
 	s8 rt_dbmnoise;
 	u8 rt_antenna;	/* antenna number */
 	u8 payload[0];  /* payload... */
-} __attribute__ ((packed));
+} __packed;
 #endif
 
 struct ipw_priv {
 	/* ieee device used by generic ieee processing code */
-	struct ieee80211_device *ieee;
+	struct libipw_device *ieee;
 
 	spinlock_t lock;
 	spinlock_t irq_lock;
@@ -1222,7 +1222,7 @@ struct ipw_priv {
 	u32 roaming_threshold;
 
 	struct ipw_associate assoc_request;
-	struct ieee80211_network *assoc_network;
+	struct libipw_network *assoc_network;
 
 	unsigned long ts_scan_abort;
 	struct ipw_supported_rates rates;
@@ -1957,7 +1957,7 @@ enum {
 struct ipw_fixed_rate {
 	__le16 tx_rates;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 #define IPW_INDIRECT_ADDR_MASK (~0x3ul)
 
@@ -1966,14 +1966,14 @@ struct host_cmd {
 	u8 len;
 	u16 reserved;
 	u32 *param;
-} __attribute__ ((packed));	/* XXX */
+} __packed;	/* XXX */
 
 struct cmdlog_host_cmd {
 	u8 cmd;
 	u8 len;
 	__le16 reserved;
 	char param[124];
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw_cmd_log {
 	unsigned long jiffies;

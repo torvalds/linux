@@ -180,7 +180,7 @@ do_resize:
 		case KEY_LEFT:
 			switch (button) {
 			case -1:
-				button = 1;	/* Indicates "Cancel" button is selected */
+				button = 1;	/* Indicates "Help" button is selected */
 				print_buttons(dialog, height, width, 1);
 				break;
 			case 0:
@@ -204,7 +204,7 @@ do_resize:
 				print_buttons(dialog, height, width, 0);
 				break;
 			case 0:
-				button = 1;	/* Indicates "Cancel" button is selected */
+				button = 1;	/* Indicates "Help" button is selected */
 				print_buttons(dialog, height, width, 1);
 				break;
 			case 1:

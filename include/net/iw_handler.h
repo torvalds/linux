@@ -300,8 +300,7 @@
  * This struct is also my long term insurance. I can add new fields here
  * without breaking the prototype of iw_handler...
  */
-struct iw_request_info
-{
+struct iw_request_info {
 	__u16		cmd;		/* Wireless Extension command */
 	__u16		flags;		/* More to come ;-) */
 };
@@ -321,20 +320,20 @@ typedef int (*iw_handler)(struct net_device *dev, struct iw_request_info *info,
  * shared by all driver instances... Same for the members...
  * This will be linked from net_device in <linux/netdevice.h>
  */
-struct iw_handler_def
-{
+struct iw_handler_def {
+
+	/* Array of handlers for standard ioctls
+	 * We will call dev->wireless_handlers->standard[ioctl - SIOCIWFIRST]
+	 */
+	const iw_handler *	standard;
 	/* Number of handlers defined (more precisely, index of the
 	 * last defined handler + 1) */
 	__u16			num_standard;
+
+#ifdef CONFIG_WEXT_PRIV
 	__u16			num_private;
 	/* Number of private arg description */
 	__u16			num_private_args;
-
-	/* Array of handlers for standard ioctls
-	 * We will call dev->wireless_handlers->standard[ioctl - SIOCSIWCOMMIT]
-	 */
-	const iw_handler *	standard;
-
 	/* Array of handlers for private ioctls
 	 * Will call dev->wireless_handlers->private[ioctl - SIOCIWFIRSTPRIV]
 	 */
@@ -344,6 +343,7 @@ struct iw_handler_def
 	 * can put it in any order you want and should not leave holes...
 	 * We will automatically export that to user space... */
 	const struct iw_priv_args *	private_args;
+#endif
 
 	/* New location of get_wireless_stats, to de-bloat struct net_device.
 	 * The old pointer in struct net_device will be gradually phased
@@ -370,8 +370,7 @@ struct iw_handler_def
 /*
  * Describe how a standard IOCTL looks like.
  */
-struct iw_ioctl_description
-{
+struct iw_ioctl_description {
 	__u8	header_type;		/* NULL, iw_point or other */
 	__u8	token_type;		/* Future */
 	__u16	token_size;		/* Granularity of payload */
@@ -393,8 +392,7 @@ struct iw_ioctl_description
 /*
  * Instance specific spy data, i.e. addresses spied and quality for them.
  */
-struct iw_spy_data
-{
+struct iw_spy_data {
 	/* --- Standard spy support --- */
 	int			spy_number;
 	u_char			spy_address[IW_MAX_SPY][ETH_ALEN];
@@ -416,13 +414,13 @@ struct iw_spy_data
  * data (i.e. valid as long as struct net_device exist, same locking rules).
  */
 /* Forward declaration */
-struct ieee80211_device;
+struct libipw_device;
 /* The struct */
 struct iw_public_data {
 	/* Driver enhanced spy support */
 	struct iw_spy_data *		spy_data;
-	/* Structure managed by the in-kernel IEEE 802.11 layer */
-	struct ieee80211_device *	ieee80211;
+	/* Legacy structure managed by the ipw2x00-specific IEEE 802.11 layer */
+	struct libipw_device *		libipw;
 };
 
 /**************************** PROTOTYPES ****************************/
@@ -443,7 +441,7 @@ extern int dev_get_wireless_info(char * buffer, char **start, off_t offset,
 extern void wireless_send_event(struct net_device *	dev,
 				unsigned int		cmd,
 				union iwreq_data *	wrqu,
-				char *			extra);
+				const char *		extra);
 
 /* We may need a function to send a stream of events to user space.
  * More on that later... */

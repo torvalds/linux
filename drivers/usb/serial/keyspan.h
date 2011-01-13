@@ -9,7 +9,7 @@
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
 
-  See http://misc.nu/hugh/keyspan.html for more information.
+  See http://blemings.org/hugh/keyspan.html for more information.
   
   Code in this driver inspired by and in a number of places taken
   from Brian Warner's original Keyspan-PDA driver.
@@ -36,8 +36,7 @@
 
 /* Function prototypes for Keyspan serial converter */
 static int  keyspan_open		(struct tty_struct *tty,
-					 struct usb_serial_port *port,
-					 struct file *filp);
+					 struct usb_serial_port *port);
 static void keyspan_close		(struct usb_serial_port *port);
 static void keyspan_dtr_rts		(struct usb_serial_port *port, int on);
 static int  keyspan_startup		(struct usb_serial *serial);
@@ -457,7 +456,7 @@ static const struct keyspan_device_details *keyspan_devices[] = {
 	NULL,
 };
 
-static struct usb_device_id keyspan_ids_combined[] = {
+static const struct usb_device_id keyspan_ids_combined[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa18x_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19w_pre_product_id) },
@@ -498,7 +497,7 @@ static struct usb_driver keyspan_driver = {
 };
 
 /* usb_device_id table for the pre-firmware download keyspan devices */
-static struct usb_device_id keyspan_pre_ids[] = {
+static const struct usb_device_id keyspan_pre_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa18x_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19qi_pre_product_id) },
@@ -514,7 +513,7 @@ static struct usb_device_id keyspan_pre_ids[] = {
 	{ } /* Terminating entry */
 };
 
-static struct usb_device_id keyspan_1port_ids[] = {
+static const struct usb_device_id keyspan_1port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa18x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19qi_product_id) },
@@ -525,7 +524,7 @@ static struct usb_device_id keyspan_1port_ids[] = {
 	{ } /* Terminating entry */
 };
 
-static struct usb_device_id keyspan_2port_ids[] = {
+static const struct usb_device_id keyspan_2port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
@@ -533,7 +532,7 @@ static struct usb_device_id keyspan_2port_ids[] = {
 	{ } /* Terminating entry */
 };
 
-static struct usb_device_id keyspan_4port_ids[] = {
+static const struct usb_device_id keyspan_4port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49w_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49wlc_product_id)},
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49wg_product_id)},

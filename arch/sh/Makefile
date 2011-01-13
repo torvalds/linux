@@ -78,6 +78,9 @@ defaultimage-$(CONFIG_SUPERH32)			:= zImage
 defaultimage-$(CONFIG_SH_SH7785LCR)		:= uImage
 defaultimage-$(CONFIG_SH_RSK)			:= uImage
 defaultimage-$(CONFIG_SH_URQUELL)		:= uImage
+defaultimage-$(CONFIG_SH_MIGOR)			:= uImage
+defaultimage-$(CONFIG_SH_AP325RXA)		:= uImage
+defaultimage-$(CONFIG_SH_7724_SOLUTION_ENGINE)	:= uImage
 defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
 defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux
 
@@ -130,18 +133,18 @@ machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
 machdir-$(CONFIG_SH_HP6XX)			+= mach-hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= mach-dreamcast
 machdir-$(CONFIG_SH_SH03)			+= mach-sh03
-machdir-$(CONFIG_SH_SECUREEDGE5410)		+= mach-snapgear
 machdir-$(CONFIG_SH_RTS7751R2D)			+= mach-r2d
-machdir-$(CONFIG_SH_7751_SYSTEMH)		+= mach-systemh
-machdir-$(CONFIG_SH_EDOSK7705)			+= mach-edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= mach-highlander
 machdir-$(CONFIG_SH_MIGOR)			+= mach-migor
+machdir-$(CONFIG_SH_AP325RXA)			+= mach-ap325rxa
+machdir-$(CONFIG_SH_KFR2R09)			+= mach-kfr2r09
+machdir-$(CONFIG_SH_ECOVEC)			+= mach-ecovec24
 machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
+machdir-$(CONFIG_SH_SDK7786)			+= mach-sdk7786
 machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
 machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= mach-microdev
 machdir-$(CONFIG_SH_LANDISK)			+= mach-landisk
-machdir-$(CONFIG_SH_TITAN)			+= mach-titan
 machdir-$(CONFIG_SH_LBOX_RE2)			+= mach-lboxre2
 machdir-$(CONFIG_SH_CAYMAN)			+= mach-cayman
 machdir-$(CONFIG_SH_RSK)			+= mach-rsk
@@ -186,32 +189,46 @@ KBUILD_CFLAGS		+= -pipe $(cflags-y)
 KBUILD_CPPFLAGS		+= $(cflags-y)
 KBUILD_AFLAGS		+= $(cflags-y)
 
+ifeq ($(CONFIG_MCOUNT),y)
+  KBUILD_CFLAGS += -pg
+endif
+
+ifeq ($(CONFIG_DWARF_UNWINDER),y)
+  KBUILD_CFLAGS += -fasynchronous-unwind-tables
+endif
+
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
-PHONY += maketools FORCE
-
-maketools:  include/linux/version.h FORCE
-	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
+BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.lzo \
+	       uImage.srec uImage.bin zImage vmlinux.bin vmlinux.srec \
+	       romImage
+PHONY += $(BOOT_TARGETS)
 
 all: $(KBUILD_IMAGE)
 
-zImage uImage uImage.srec vmlinux.srec: vmlinux
+$(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 compressed: zImage
 
-archprepare: maketools
+archprepare:
+	$(Q)$(MAKE) $(build)=arch/sh/tools include/generated/machtypes.h
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 	$(Q)$(MAKE) $(clean)=arch/sh/kernel/vsyscall
 
 define archhelp
-	@echo '* zImage 	           - Compressed kernel image'
+	@echo '  zImage 	           - Compressed kernel image'
+	@echo '  romImage	           - Compressed ROM image, if supported'
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
-	@echo '  uImage  	           - Create a bootable image for U-Boot'
-	@echo '  uImage.srec  	           - Create an S-record for U-Boot'
+	@echo '  vmlinux.bin	           - Create an uncompressed binary image'
+	@echo '* uImage  	           - Alias to bootable U-Boot image'
+	@echo '  uImage.srec	           - Create an S-record for U-Boot'
+	@echo '  uImage.bin	           - Kernel-only image for U-Boot (bin)'
+	@echo '* uImage.gz	           - Kernel-only image for U-Boot (gzip)'
+	@echo '  uImage.bz2	           - Kernel-only image for U-Boot (bzip2)'
+	@echo '  uImage.lzma	           - Kernel-only image for U-Boot (lzma)'
+	@echo '  uImage.lzo	           - Kernel-only image for U-Boot (lzo)'
 endef
-
-CLEAN_FILES += include/asm-sh/machtypes.h

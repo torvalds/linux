@@ -1,3 +1,8 @@
 if PLAT_PXA
 
+config PXA_SSP
+	tristate
+	help
+	  Enable support for PXA2xx SSP ports
+
 endif

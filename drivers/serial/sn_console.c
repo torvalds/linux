@@ -469,9 +469,9 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 		return;
 	}
 
-	if (port->sc_port.info) {
-		/* The serial_core stuffs are initilized, use them */
-		tty = port->sc_port.info->port.tty;
+	if (port->sc_port.state) {
+		/* The serial_core stuffs are initialized, use them */
+		tty = port->sc_port.state->port.tty;
 	}
 	else {
 		/* Not registered yet - can't pass to tty layer.  */
@@ -492,7 +492,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
                         sysrq_requested = 0;
                         if (ch && time_before(jiffies, sysrq_timeout)) {
                                 spin_unlock_irqrestore(&port->sc_port.lock, flags);
-                                handle_sysrq(ch, NULL);
+                                handle_sysrq(ch);
                                 spin_lock_irqsave(&port->sc_port.lock, flags);
                                 /* ignore actual sysrq command char */
                                 continue;
@@ -550,12 +550,12 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 
 	BUG_ON(!port->sc_is_asynch);
 
-	if (port->sc_port.info) {
-		/* We're initilized, using serial core infrastructure */
-		xmit = &port->sc_port.info->xmit;
+	if (port->sc_port.state) {
+		/* We're initialized, using serial core infrastructure */
+		xmit = &port->sc_port.state->xmit;
 	} else {
 		/* Probably sn_sal_switch_to_asynch has been run but serial core isn't
-		 * initilized yet.  Just return.  Writes are going through
+		 * initialized yet.  Just return.  Writes are going through
 		 * sn_sal_console_write (due to register_console) at this time.
 		 */
 		return;
@@ -927,7 +927,7 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 	/* We can't look at the xmit buffer if we're not registered with serial core
 	 *  yet.  So only do the fancy recovery after registering
 	 */
-	if (!port->sc_port.info) {
+	if (!port->sc_port.state) {
 		/* Not yet registered with serial core - simple case */
 		puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
 		return;
@@ -936,8 +936,8 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 	/* somebody really wants this output, might be an
 	 * oops, kdb, panic, etc.  make sure they get it. */
 	if (spin_is_locked(&port->sc_port.lock)) {
-		int lhead = port->sc_port.info->xmit.head;
-		int ltail = port->sc_port.info->xmit.tail;
+		int lhead = port->sc_port.state->xmit.head;
+		int ltail = port->sc_port.state->xmit.tail;
 		int counter, got_lock = 0;
 
 		/*
@@ -962,13 +962,13 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 				break;
 			} else {
 				/* still locked */
-				if ((lhead != port->sc_port.info->xmit.head)
+				if ((lhead != port->sc_port.state->xmit.head)
 				    || (ltail !=
-					port->sc_port.info->xmit.tail)) {
+					port->sc_port.state->xmit.tail)) {
 					lhead =
-						port->sc_port.info->xmit.head;
+						port->sc_port.state->xmit.head;
 					ltail =
-						port->sc_port.info->xmit.tail;
+						port->sc_port.state->xmit.tail;
 					counter = 0;
 				}
 			}

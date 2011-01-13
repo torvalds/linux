@@ -107,10 +107,8 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 
 	rc = fscanf(in, "%llx %c %499s\n", &s->addr, &stype, str);
 	if (rc != 3) {
-		if (rc != EOF) {
-			/* skip line */
-			fgets(str, 500, in);
-		}
+		if (rc != EOF && fgets(str, 500, in) == NULL)
+			fprintf(stderr, "Read error or end of file.\n");
 		return -1;
 	}
 
@@ -585,7 +583,7 @@ static int prefix_underscores_count(const char *str)
 {
 	const char *tail = str;
 
-	while (*tail != '_')
+	while (*tail == '_')
 		tail++;
 
 	return tail - str;

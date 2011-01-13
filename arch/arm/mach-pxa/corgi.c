@@ -28,7 +28,9 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
+#include <linux/input/matrix_keypad.h>
 #include <video/w100fb.h>
 
 #include <asm/setup.h>
@@ -47,16 +49,14 @@
 #include <mach/irda.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/corgi.h>
-#include <mach/sharpsl.h>
+#include <mach/sharpsl_pm.h>
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
 
 #include "generic.h"
 #include "devices.h"
-#include "sharpsl.h"
 
 static unsigned long corgi_pin_config[] __initdata = {
 	/* Static Memory I/O */
@@ -104,14 +104,43 @@ static unsigned long corgi_pin_config[] __initdata = {
 	GPIO6_MMC_CLK,
 	GPIO8_MMC_CS0,
 
-	/* GPIO */
-	GPIO9_GPIO,	/* CORGI_GPIO_nSD_DETECT */
-	GPIO7_GPIO,	/* CORGI_GPIO_nSD_WP */
-	GPIO33_GPIO,	/* CORGI_GPIO_SD_PWR */
-	GPIO22_GPIO,	/* CORGI_GPIO_IR_ON */
-	GPIO44_GPIO,	/* CORGI_GPIO_HSYNC */
+	/* GPIO Matrix Keypad */
+	GPIO66_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 0 */
+	GPIO67_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 1 */
+	GPIO68_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 2 */
+	GPIO69_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 3 */
+	GPIO70_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 4 */
+	GPIO71_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 5 */
+	GPIO72_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 6 */
+	GPIO73_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 7 */
+	GPIO74_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 8 */
+	GPIO75_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 9 */
+	GPIO76_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 10 */
+	GPIO77_GPIO | MFP_LPM_DRIVE_HIGH,	/* column 11 */
+	GPIO58_GPIO,	/* row 0 */
+	GPIO59_GPIO,	/* row 1 */
+	GPIO60_GPIO,	/* row 2 */
+	GPIO61_GPIO,	/* row 3 */
+	GPIO62_GPIO,	/* row 4 */
+	GPIO63_GPIO,	/* row 5 */
+	GPIO64_GPIO,	/* row 6 */
+	GPIO65_GPIO,	/* row 7 */
 
-	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
+	/* GPIO */
+	GPIO9_GPIO,				/* CORGI_GPIO_nSD_DETECT */
+	GPIO7_GPIO,				/* CORGI_GPIO_nSD_WP */
+	GPIO11_GPIO | WAKEUP_ON_EDGE_BOTH,	/* CORGI_GPIO_MAIN_BAT_{LOW,COVER} */
+	GPIO13_GPIO | MFP_LPM_KEEP_OUTPUT,	/* CORGI_GPIO_LED_ORANGE */
+	GPIO21_GPIO,				/* CORGI_GPIO_ADC_TEMP */
+	GPIO22_GPIO,				/* CORGI_GPIO_IR_ON */
+	GPIO33_GPIO,				/* CORGI_GPIO_SD_PWR */
+	GPIO38_GPIO | MFP_LPM_KEEP_OUTPUT,	/* CORGI_GPIO_CHRG_ON */
+	GPIO43_GPIO | MFP_LPM_KEEP_OUTPUT,	/* CORGI_GPIO_CHRG_UKN */
+	GPIO44_GPIO,				/* CORGI_GPIO_HSYNC */
+
+	GPIO0_GPIO | WAKEUP_ON_EDGE_BOTH,	/* CORGI_GPIO_KEY_INT */
+	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,	/* CORGI_GPIO_AC_IN */
+	GPIO3_GPIO | WAKEUP_ON_EDGE_BOTH,	/* CORGI_GPIO_WAKEUP */
 };
 
 /*
@@ -154,8 +183,6 @@ static struct scoop_pcmcia_config corgi_pcmcia_config = {
 	.devs         = &corgi_pcmcia_scoop[0],
 	.num_devs     = 1,
 };
-
-EXPORT_SYMBOL(corgiscoop_device);
 
 static struct w100_mem_info corgi_fb_mem = {
 	.ext_cntl          = 0x00040003,
@@ -267,9 +294,115 @@ static struct platform_device corgifb_device = {
 /*
  * Corgi Keyboard Device
  */
+#define CORGI_KEY_CALENDER	KEY_F1
+#define CORGI_KEY_ADDRESS	KEY_F2
+#define CORGI_KEY_FN		KEY_F3
+#define CORGI_KEY_CANCEL	KEY_F4
+#define CORGI_KEY_OFF		KEY_SUSPEND
+#define CORGI_KEY_EXOK		KEY_F5
+#define CORGI_KEY_EXCANCEL	KEY_F6
+#define CORGI_KEY_EXJOGDOWN	KEY_F7
+#define CORGI_KEY_EXJOGUP	KEY_F8
+#define CORGI_KEY_JAP1		KEY_LEFTCTRL
+#define CORGI_KEY_JAP2		KEY_LEFTALT
+#define CORGI_KEY_MAIL		KEY_F10
+#define CORGI_KEY_OK		KEY_F11
+#define CORGI_KEY_MENU		KEY_F12
+
+static const uint32_t corgikbd_keymap[] = {
+	KEY(0, 1, KEY_1),
+	KEY(0, 2, KEY_3),
+	KEY(0, 3, KEY_5),
+	KEY(0, 4, KEY_6),
+	KEY(0, 5, KEY_7),
+	KEY(0, 6, KEY_9),
+	KEY(0, 7, KEY_0),
+	KEY(0, 8, KEY_BACKSPACE),
+	KEY(1, 1, KEY_2),
+	KEY(1, 2, KEY_4),
+	KEY(1, 3, KEY_R),
+	KEY(1, 4, KEY_Y),
+	KEY(1, 5, KEY_8),
+	KEY(1, 6, KEY_I),
+	KEY(1, 7, KEY_O),
+	KEY(1, 8, KEY_P),
+	KEY(2, 0, KEY_TAB),
+	KEY(2, 1, KEY_Q),
+	KEY(2, 2, KEY_E),
+	KEY(2, 3, KEY_T),
+	KEY(2, 4, KEY_G),
+	KEY(2, 5, KEY_U),
+	KEY(2, 6, KEY_J),
+	KEY(2, 7, KEY_K),
+	KEY(3, 0, CORGI_KEY_CALENDER),
+	KEY(3, 1, KEY_W),
+	KEY(3, 2, KEY_S),
+	KEY(3, 3, KEY_F),
+	KEY(3, 4, KEY_V),
+	KEY(3, 5, KEY_H),
+	KEY(3, 6, KEY_M),
+	KEY(3, 7, KEY_L),
+	KEY(3, 9, KEY_RIGHTSHIFT),
+	KEY(4, 0, CORGI_KEY_ADDRESS),
+	KEY(4, 1, KEY_A),
+	KEY(4, 2, KEY_D),
+	KEY(4, 3, KEY_C),
+	KEY(4, 4, KEY_B),
+	KEY(4, 5, KEY_N),
+	KEY(4, 6, KEY_DOT),
+	KEY(4, 8, KEY_ENTER),
+	KEY(4, 10, KEY_LEFTSHIFT),
+	KEY(5, 0, CORGI_KEY_MAIL),
+	KEY(5, 1, KEY_Z),
+	KEY(5, 2, KEY_X),
+	KEY(5, 3, KEY_MINUS),
+	KEY(5, 4, KEY_SPACE),
+	KEY(5, 5, KEY_COMMA),
+	KEY(5, 7, KEY_UP),
+	KEY(5, 11, CORGI_KEY_FN),
+	KEY(6, 0, KEY_SYSRQ),
+	KEY(6, 1, CORGI_KEY_JAP1),
+	KEY(6, 2, CORGI_KEY_JAP2),
+	KEY(6, 3, CORGI_KEY_CANCEL),
+	KEY(6, 4, CORGI_KEY_OK),
+	KEY(6, 5, CORGI_KEY_MENU),
+	KEY(6, 6, KEY_LEFT),
+	KEY(6, 7, KEY_DOWN),
+	KEY(6, 8, KEY_RIGHT),
+	KEY(7, 0, CORGI_KEY_OFF),
+	KEY(7, 1, CORGI_KEY_EXOK),
+	KEY(7, 2, CORGI_KEY_EXCANCEL),
+	KEY(7, 3, CORGI_KEY_EXJOGDOWN),
+	KEY(7, 4, CORGI_KEY_EXJOGUP),
+};
+
+static struct matrix_keymap_data corgikbd_keymap_data = {
+	.keymap		= corgikbd_keymap,
+	.keymap_size	= ARRAY_SIZE(corgikbd_keymap),
+};
+
+static const int corgikbd_row_gpios[] =
+		{ 58, 59, 60, 61, 62, 63, 64, 65 };
+static const int corgikbd_col_gpios[] =
+		{ 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77 };
+
+static struct matrix_keypad_platform_data corgikbd_pdata = {
+	.keymap_data		= &corgikbd_keymap_data,
+	.row_gpios		= corgikbd_row_gpios,
+	.col_gpios		= corgikbd_col_gpios,
+	.num_row_gpios		= ARRAY_SIZE(corgikbd_row_gpios),
+	.num_col_gpios		= ARRAY_SIZE(corgikbd_col_gpios),
+	.col_scan_delay_us	= 10,
+	.debounce_ms		= 10,
+	.wakeup			= 1,
+};
+
 static struct platform_device corgikbd_device = {
-	.name		= "corgi-keyboard",
+	.name		= "matrix-keypad",
 	.id		= -1,
+	.dev		= {
+		.platform_data = &corgikbd_pdata,
+	},
 };
 
 /*
@@ -307,111 +440,21 @@ static struct platform_device corgiled_device = {
  * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert/eject.
  */
-static struct pxamci_platform_data corgi_mci_platform_data;
-
-static int corgi_mci_init(struct device *dev, irq_handler_t corgi_detect_int, void *data)
-{
-	int err;
-
-	err = gpio_request(CORGI_GPIO_nSD_DETECT, "nSD_DETECT");
-	if (err)
-		goto err_out;
-
-	err = gpio_request(CORGI_GPIO_nSD_WP, "nSD_WP");
-	if (err)
-		goto err_free_1;
-
-	err = gpio_request(CORGI_GPIO_SD_PWR, "SD_PWR");
-	if (err)
-		goto err_free_2;
-
-	gpio_direction_input(CORGI_GPIO_nSD_DETECT);
-	gpio_direction_input(CORGI_GPIO_nSD_WP);
-	gpio_direction_output(CORGI_GPIO_SD_PWR, 0);
-
-	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
-
-	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING |
-				IRQF_TRIGGER_FALLING,
-				"MMC card detect", data);
-	if (err) {
-		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
-				__func__);
-		goto err_free_3;
-	}
-	return 0;
-
-err_free_3:
-	gpio_free(CORGI_GPIO_SD_PWR);
-err_free_2:
-	gpio_free(CORGI_GPIO_nSD_WP);
-err_free_1:
-	gpio_free(CORGI_GPIO_nSD_DETECT);
-err_out:
-	return err;
-}
-
-static void corgi_mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data* p_d = dev->platform_data;
-
-	gpio_set_value(CORGI_GPIO_SD_PWR, ((1 << vdd) & p_d->ocr_mask));
-}
-
-static int corgi_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(CORGI_GPIO_nSD_WP);
-}
-
-static void corgi_mci_exit(struct device *dev, void *data)
-{
-	free_irq(CORGI_IRQ_GPIO_nSD_DETECT, data);
-	gpio_free(CORGI_GPIO_SD_PWR);
-	gpio_free(CORGI_GPIO_nSD_WP);
-	gpio_free(CORGI_GPIO_nSD_DETECT);
-}
-
 static struct pxamci_platform_data corgi_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= corgi_mci_init,
-	.get_ro		= corgi_mci_get_ro,
-	.setpower 	= corgi_mci_setpower,
-	.exit		= corgi_mci_exit,
+	.detect_delay_ms	= 250,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.gpio_card_detect	= CORGI_GPIO_nSD_DETECT,
+	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
+	.gpio_power		= CORGI_GPIO_SD_PWR,
 };
 
 
 /*
  * Irda
  */
-static void corgi_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(CORGI_GPIO_IR_ON, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
-static int corgi_irda_startup(struct device *dev)
-{
-	int err;
-
-	err = gpio_request(CORGI_GPIO_IR_ON, "IR_ON");
-	if (err)
-		return err;
-
-	gpio_direction_output(CORGI_GPIO_IR_ON, 1);
-	return 0;
-}
-
-static void corgi_irda_shutdown(struct device *dev)
-{
-	gpio_free(CORGI_GPIO_IR_ON);
-}
-
 static struct pxaficp_platform_data corgi_ficp_platform_data = {
+	.gpio_pwdown		= CORGI_GPIO_IR_ON,
 	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-	.transceiver_mode	= corgi_irda_transceiver_mode,
-	.startup		= corgi_irda_startup,
-	.shutdown		= corgi_irda_shutdown,
 };
 
 
@@ -419,6 +462,7 @@ static struct pxaficp_platform_data corgi_ficp_platform_data = {
  * USB Device Controller
  */
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
+	.gpio_vbus		= -1,
 	/* no connect GPIO; corgi can't tell connection status */
 	.gpio_pullup		= CORGI_GPIO_USB_PULLUP,
 };
@@ -633,6 +677,19 @@ static void __init corgi_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(corgi_pin_config));
 
+	/* allow wakeup from various GPIOs */
+	gpio_set_wake(CORGI_GPIO_KEY_INT, 1);
+	gpio_set_wake(CORGI_GPIO_WAKEUP, 1);
+	gpio_set_wake(CORGI_GPIO_AC_IN, 1);
+	gpio_set_wake(CORGI_GPIO_CHRG_FULL, 1);
+
+	if (!machine_is_corgi())
+		gpio_set_wake(CORGI_GPIO_MAIN_BAT_LOW, 1);
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	corgi_init_spi();
 
  	pxa_set_udc_info(&udc_info);
@@ -655,7 +712,6 @@ static void __init fixup_corgi(struct machine_desc *desc,
 	sharpsl_save_param();
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	if (machine_is_corgi())
 		mi->bank[0].size = (32*1024*1024);
 	else
@@ -664,10 +720,8 @@ static void __init fixup_corgi(struct machine_desc *desc,
 
 #ifdef CONFIG_MACH_CORGI
 MACHINE_START(CORGI, "SHARP Corgi")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
@@ -676,10 +730,8 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_SHEPHERD
 MACHINE_START(SHEPHERD, "SHARP Shepherd")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
@@ -688,10 +740,8 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_HUSKY
 MACHINE_START(HUSKY, "SHARP Husky")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,

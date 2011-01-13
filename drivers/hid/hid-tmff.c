@@ -29,6 +29,7 @@
 
 #include <linux/hid.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "hid-ids.h"
@@ -150,28 +151,23 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 			switch (field->usage[0].hid) {
 			case THRUSTMASTER_USAGE_FF:
 				if (field->report_count < 2) {
-					dev_warn(&hid->dev, "ignoring FF field "
-						"with report_count < 2\n");
+					hid_warn(hid, "ignoring FF field with report_count < 2\n");
 					continue;
 				}
 
 				if (field->logical_maximum ==
 						field->logical_minimum) {
-					dev_warn(&hid->dev, "ignoring FF field "
-							"with logical_maximum "
-							"== logical_minimum\n");
+					hid_warn(hid, "ignoring FF field with logical_maximum == logical_minimum\n");
 					continue;
 				}
 
 				if (tmff->report && tmff->report != report) {
-					dev_warn(&hid->dev, "ignoring FF field "
-							"in other report\n");
+					hid_warn(hid, "ignoring FF field in other report\n");
 					continue;
 				}
 
 				if (tmff->ff_field && tmff->ff_field != field) {
-					dev_warn(&hid->dev, "ignoring "
-							"duplicate FF field\n");
+					hid_warn(hid, "ignoring duplicate FF field\n");
 					continue;
 				}
 
@@ -184,16 +180,15 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 				break;
 
 			default:
-				dev_warn(&hid->dev, "ignoring unknown output "
-						"usage %08x\n",
-						field->usage[0].hid);
+				hid_warn(hid, "ignoring unknown output usage %08x\n",
+					 field->usage[0].hid);
 				continue;
 			}
 		}
 	}
 
 	if (!tmff->report) {
-		dev_err(&hid->dev, "can't find FF field in output reports\n");
+		hid_err(hid, "can't find FF field in output reports\n");
 		error = -ENODEV;
 		goto fail;
 	}
@@ -202,8 +197,7 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 	if (error)
 		goto fail;
 
-	dev_info(&hid->dev, "force feedback for ThrustMaster devices by Zinx "
-			"Verituse <zinx@epicsol.org>");
+	hid_info(hid, "force feedback for ThrustMaster devices by Zinx Verituse <zinx@epicsol.org>\n");
 	return 0;
 
 fail:
@@ -223,13 +217,13 @@ static int tm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err;
 	}
 
@@ -243,11 +237,19 @@ err:
 static const struct hid_device_id tm_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb300),
 		.driver_data = (unsigned long)ff_rumble },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb304),
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb304),   /* FireStorm Dual Power 2 (and 3) */
+		.driver_data = (unsigned long)ff_rumble },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb323),   /* Dual Trigger 3-in-1 (PC Mode) */
+		.driver_data = (unsigned long)ff_rumble },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb324),   /* Dual Trigger 3-in-1 (PS3 Mode) */
 		.driver_data = (unsigned long)ff_rumble },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb651),	/* FGT Rumble Force Wheel */
 		.driver_data = (unsigned long)ff_rumble },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb653),	/* RGT Force Feedback CLUTCH Raging Wheel */
+		.driver_data = (unsigned long)ff_joystick },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb654),	/* FGT Force Feedback Wheel */
+		.driver_data = (unsigned long)ff_joystick },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb65a),	/* F430 Force Feedback Wheel */
 		.driver_data = (unsigned long)ff_joystick },
 	{ }
 };
@@ -259,12 +261,12 @@ static struct hid_driver tm_driver = {
 	.probe = tm_probe,
 };
 
-static int tm_init(void)
+static int __init tm_init(void)
 {
 	return hid_register_driver(&tm_driver);
 }
 
-static void tm_exit(void)
+static void __exit tm_exit(void)
 {
 	hid_unregister_driver(&tm_driver);
 }

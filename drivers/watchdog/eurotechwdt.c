@@ -68,7 +68,6 @@ static spinlock_t eurwdt_lock;
 
 /*
  * You must set these - there is no sane way to probe for this board.
- * You can use eurwdt=x,y to set these now.
  */
 
 static int io = 0x3f0;
@@ -238,7 +237,7 @@ static long eurwdt_ioctl(struct file *file,
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options	  = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT
 							| WDIOF_MAGICCLOSE,
 		.firmware_version = 1,

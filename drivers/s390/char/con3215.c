@@ -9,6 +9,7 @@
  *	      Dan Morrison, IBM Corporation <dmorriso@cse.buffalo.edu>
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kdev_t.h>
@@ -361,6 +362,7 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 	int cstat, dstat;
 	int count;
 
+	kstat_cpu(smp_processor_id()).irqs[IOINT_C15]++;
 	raw = dev_get_drvdata(&cdev->dev);
 	req = (struct raw3215_req *) intparm;
 	cstat = irb->scsw.cmd.cstat;
@@ -857,7 +859,6 @@ static struct console con3215 = {
 
 /*
  * 3215 console initialization code called from console_init().
- * NOTE: This is called before kmalloc is available.
  */
 static int __init con3215_init(void)
 {
@@ -1038,22 +1039,6 @@ static void tty3215_flush_buffer(struct tty_struct *tty)
 }
 
 /*
- * Currently we don't have any io controls for 3215 ttys
- */
-static int tty3215_ioctl(struct tty_struct *tty, struct file * file,
-			 unsigned int cmd, unsigned long arg)
-{
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
-
-	switch (cmd) {
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
-
-/*
  * Disable reading from a 3215 tty
  */
 static void tty3215_throttle(struct tty_struct * tty)
@@ -1118,7 +1103,6 @@ static const struct tty_operations tty3215_ops = {
 	.write_room = tty3215_write_room,
 	.chars_in_buffer = tty3215_chars_in_buffer,
 	.flush_buffer = tty3215_flush_buffer,
-	.ioctl = tty3215_ioctl,
 	.throttle = tty3215_throttle,
 	.unthrottle = tty3215_unthrottle,
 	.stop = tty3215_stop,

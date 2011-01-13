@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 #include <linux/timer.h>
 #include <linux/lockdep.h>
+#include <linux/slab.h>
 
 #define journal_oom_retry 1
 
@@ -246,19 +247,8 @@ typedef struct journal_superblock_s
 
 #define J_ASSERT(assert)	BUG_ON(!(assert))
 
-#if defined(CONFIG_BUFFER_DEBUG)
-void buffer_assertion_failure(struct buffer_head *bh);
-#define J_ASSERT_BH(bh, expr)						\
-	do {								\
-		if (!(expr))						\
-			buffer_assertion_failure(bh);			\
-		J_ASSERT(expr);						\
-	} while (0)
-#define J_ASSERT_JH(jh, expr)	J_ASSERT_BH(jh2bh(jh), expr)
-#else
 #define J_ASSERT_BH(bh, expr)	J_ASSERT(expr)
 #define J_ASSERT_JH(jh, expr)	J_ASSERT(expr)
-#endif
 
 #if defined(JBD_PARANOID_IOFAIL)
 #define J_EXPECT(expr, why...)		J_ASSERT(expr)
@@ -437,16 +427,16 @@ struct transaction_s
 	enum {
 		T_RUNNING,
 		T_LOCKED,
-		T_RUNDOWN,
 		T_FLUSH,
 		T_COMMIT,
+		T_COMMIT_RECORD,
 		T_FINISHED
 	}			t_state;
 
 	/*
 	 * Where in the log does this transaction's commit start? [no locking]
 	 */
-	unsigned long		t_log_start;
+	unsigned int		t_log_start;
 
 	/* Number of buffers on the t_buffers list [j_list_lock] */
 	int			t_nr_buffers;
@@ -556,7 +546,7 @@ struct transaction_s
 	 * This transaction is being forced and some process is
 	 * waiting for it to finish.
 	 */
-	int t_synchronous_commit:1;
+	unsigned int t_synchronous_commit:1;
 };
 
 /**
@@ -701,26 +691,26 @@ struct journal_s
 	 * Journal head: identifies the first unused block in the journal.
 	 * [j_state_lock]
 	 */
-	unsigned long		j_head;
+	unsigned int		j_head;
 
 	/*
 	 * Journal tail: identifies the oldest still-used block in the journal.
 	 * [j_state_lock]
 	 */
-	unsigned long		j_tail;
+	unsigned int		j_tail;
 
 	/*
 	 * Journal free: how many free blocks are there in the journal?
 	 * [j_state_lock]
 	 */
-	unsigned long		j_free;
+	unsigned int		j_free;
 
 	/*
 	 * Journal start and end: the block numbers of the first usable block
 	 * and one beyond the last usable block in the journal. [j_state_lock]
 	 */
-	unsigned long		j_first;
-	unsigned long		j_last;
+	unsigned int		j_first;
+	unsigned int		j_last;
 
 	/*
 	 * Device, blocksize and starting block offset for the location where we
@@ -728,7 +718,7 @@ struct journal_s
 	 */
 	struct block_device	*j_dev;
 	int			j_blocksize;
-	unsigned long		j_blk_offset;
+	unsigned int		j_blk_offset;
 
 	/*
 	 * Device which holds the client fs.  For internal journal this will be
@@ -859,7 +849,7 @@ extern void __journal_clean_data_list(transaction_t *transaction);
 
 /* Log buffer allocation */
 extern struct journal_head * journal_get_descriptor_buffer(journal_t *);
-int journal_next_log_block(journal_t *, unsigned long *);
+int journal_next_log_block(journal_t *, unsigned int *);
 
 /* Commit management */
 extern void journal_commit_transaction(journal_t *);
@@ -874,7 +864,7 @@ extern int
 journal_write_metadata_buffer(transaction_t	  *transaction,
 			      struct journal_head  *jh_in,
 			      struct journal_head **jh_out,
-			      unsigned long	   blocknr);
+			      unsigned int blocknr);
 
 /* Transaction locking */
 extern void		__wait_on_journal (journal_t *);
@@ -942,7 +932,7 @@ extern void	   journal_abort      (journal_t *, int);
 extern int	   journal_errno      (journal_t *);
 extern void	   journal_ack_err    (journal_t *);
 extern int	   journal_clear_err  (journal_t *);
-extern int	   journal_bmap(journal_t *, unsigned long, unsigned long *);
+extern int	   journal_bmap(journal_t *, unsigned int, unsigned int *);
 extern int	   journal_force_commit(journal_t *);
 
 /*
@@ -976,14 +966,14 @@ extern int	   journal_init_revoke_caches(void);
 
 extern void	   journal_destroy_revoke(journal_t *);
 extern int	   journal_revoke (handle_t *,
-				unsigned long, struct buffer_head *);
+				unsigned int, struct buffer_head *);
 extern int	   journal_cancel_revoke(handle_t *, struct journal_head *);
 extern void	   journal_write_revoke_records(journal_t *,
 						transaction_t *, int);
 
 /* Recovery revoke support */
-extern int	journal_set_revoke(journal_t *, unsigned long, tid_t);
-extern int	journal_test_revoke(journal_t *, unsigned long, tid_t);
+extern int	journal_set_revoke(journal_t *, unsigned int, tid_t);
+extern int	journal_test_revoke(journal_t *, unsigned int, tid_t);
 extern void	journal_clear_revoke(journal_t *);
 extern void	journal_switch_revoke_table(journal_t *journal);
 
@@ -1001,6 +991,7 @@ int journal_start_commit(journal_t *journal, tid_t *tid);
 int journal_force_commit_nested(journal_t *journal);
 int log_wait_commit(journal_t *journal, tid_t tid);
 int log_do_checkpoint(journal_t *journal);
+int journal_trans_will_send_data_barrier(journal_t *journal, tid_t tid);
 
 void __log_wait_for_space(journal_t *journal);
 extern void	__journal_drop_transaction(journal_t *, transaction_t *);

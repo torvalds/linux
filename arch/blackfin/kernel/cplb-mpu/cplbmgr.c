@@ -1,27 +1,17 @@
 /*
- *               Blackfin CPLB exception handling.
- *               Copyright 2004-2007 Analog Devices Inc.
+ * Blackfin CPLB exception handling for when MPU in on
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Copyright 2008-2009 Analog Devices Inc.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
+
 #include <linux/module.h>
 #include <linux/mm.h>
 
 #include <asm/blackfin.h>
 #include <asm/cacheflush.h>
+#include <asm/cplb.h>
 #include <asm/cplbinit.h>
 #include <asm/mmu_context.h>
 
@@ -41,45 +31,11 @@ int nr_dcplb_miss[NR_CPUS], nr_icplb_miss[NR_CPUS];
 int nr_icplb_supv_miss[NR_CPUS], nr_dcplb_prot[NR_CPUS];
 int nr_cplb_flush[NR_CPUS];
 
-static inline void disable_dcplb(void)
-{
-	unsigned long ctrl;
-	SSYNC();
-	ctrl = bfin_read_DMEM_CONTROL();
-	ctrl &= ~ENDCPLB;
-	bfin_write_DMEM_CONTROL(ctrl);
-	SSYNC();
-}
-
-static inline void enable_dcplb(void)
-{
-	unsigned long ctrl;
-	SSYNC();
-	ctrl = bfin_read_DMEM_CONTROL();
-	ctrl |= ENDCPLB;
-	bfin_write_DMEM_CONTROL(ctrl);
-	SSYNC();
-}
-
-static inline void disable_icplb(void)
-{
-	unsigned long ctrl;
-	SSYNC();
-	ctrl = bfin_read_IMEM_CONTROL();
-	ctrl &= ~ENICPLB;
-	bfin_write_IMEM_CONTROL(ctrl);
-	SSYNC();
-}
-
-static inline void enable_icplb(void)
-{
-	unsigned long ctrl;
-	SSYNC();
-	ctrl = bfin_read_IMEM_CONTROL();
-	ctrl |= ENICPLB;
-	bfin_write_IMEM_CONTROL(ctrl);
-	SSYNC();
-}
+#ifdef CONFIG_EXCPT_IRQ_SYSC_L1
+#define MGR_ATTR __attribute__((l1_text))
+#else
+#define MGR_ATTR
+#endif
 
 /*
  * Given the contents of the status register, return the index of the
@@ -109,7 +65,7 @@ static int icplb_rr_index[NR_CPUS], dcplb_rr_index[NR_CPUS];
 /*
  * Find an ICPLB entry to be evicted and return its index.
  */
-static int evict_one_icplb(unsigned int cpu)
+MGR_ATTR static int evict_one_icplb(unsigned int cpu)
 {
 	int i;
 	for (i = first_switched_icplb; i < MAX_CPLBS; i++)
@@ -124,7 +80,7 @@ static int evict_one_icplb(unsigned int cpu)
 	return i;
 }
 
-static int evict_one_dcplb(unsigned int cpu)
+MGR_ATTR static int evict_one_dcplb(unsigned int cpu)
 {
 	int i;
 	for (i = first_switched_dcplb; i < MAX_CPLBS; i++)
@@ -139,7 +95,7 @@ static int evict_one_dcplb(unsigned int cpu)
 	return i;
 }
 
-static noinline int dcplb_miss(unsigned int cpu)
+MGR_ATTR static noinline int dcplb_miss(unsigned int cpu)
 {
 	unsigned long addr = bfin_read_DCPLB_FAULT_ADDR();
 	int status = bfin_read_DCPLB_STATUS();
@@ -163,11 +119,16 @@ static noinline int dcplb_miss(unsigned int cpu)
 		addr = L2_START;
 		d_data = L2_DMEMORY;
 	} else if (addr >= physical_mem_end) {
-		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE
-		    && (status & FAULT_USERSUPV)) {
-			addr &= ~0x3fffff;
-			d_data &= ~PAGE_SIZE_4KB;
-			d_data |= PAGE_SIZE_4MB;
+		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE) {
+			mask = current_rwx_mask[cpu];
+			if (mask) {
+				int page = (addr - (ASYNC_BANK0_BASE - _ramend)) >> PAGE_SHIFT;
+				int idx = page >> 5;
+				int bit = 1 << (page & 31);
+
+				if (mask[idx] & bit)
+					d_data |= CPLB_USER_RD;
+			}
 		} else if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
 		    && (status & (FAULT_RW | FAULT_USERSUPV)) == FAULT_USERSUPV) {
 			addr &= ~(1 * 1024 * 1024 - 1);
@@ -176,7 +137,9 @@ static noinline int dcplb_miss(unsigned int cpu)
 		} else
 			return CPLB_PROT_VIOL;
 	} else if (addr >= _ramend) {
-	    d_data |= CPLB_USER_RD | CPLB_USER_WR;
+		d_data |= CPLB_USER_RD | CPLB_USER_WR;
+		if (reserved_mem_dcache_on)
+			d_data |= CPLB_L1_CHBL;
 	} else {
 		mask = current_rwx_mask[cpu];
 		if (mask) {
@@ -198,15 +161,15 @@ static noinline int dcplb_miss(unsigned int cpu)
 	dcplb_tbl[cpu][idx].addr = addr;
 	dcplb_tbl[cpu][idx].data = d_data;
 
-	disable_dcplb();
+	_disable_dcplb();
 	bfin_write32(DCPLB_DATA0 + idx * 4, d_data);
 	bfin_write32(DCPLB_ADDR0 + idx * 4, addr);
-	enable_dcplb();
+	_enable_dcplb();
 
 	return 0;
 }
 
-static noinline int icplb_miss(unsigned int cpu)
+MGR_ATTR static noinline int icplb_miss(unsigned int cpu)
 {
 	unsigned long addr = bfin_read_ICPLB_FAULT_ADDR();
 	int status = bfin_read_ICPLB_STATUS();
@@ -253,7 +216,21 @@ static noinline int icplb_miss(unsigned int cpu)
 		addr = L2_START;
 		i_data = L2_IMEMORY;
 	} else if (addr >= physical_mem_end) {
-		if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
+		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE) {
+			if (!(status & FAULT_USERSUPV)) {
+				unsigned long *mask = current_rwx_mask[cpu];
+
+				if (mask) {
+					int page = (addr - (ASYNC_BANK0_BASE - _ramend)) >> PAGE_SHIFT;
+					int idx = page >> 5;
+					int bit = 1 << (page & 31);
+
+					mask += 2 * page_mask_nelts;
+					if (mask[idx] & bit)
+						i_data |= CPLB_USER_RD;
+				}
+			}
+		} else if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
 		    && (status & FAULT_USERSUPV)) {
 			addr &= ~(1 * 1024 * 1024 - 1);
 			i_data &= ~PAGE_SIZE_4KB;
@@ -262,6 +239,8 @@ static noinline int icplb_miss(unsigned int cpu)
 		    return CPLB_PROT_VIOL;
 	} else if (addr >= _ramend) {
 		i_data |= CPLB_USER_RD;
+		if (reserved_mem_icache_on)
+			i_data |= CPLB_L1_CHBL;
 	} else {
 		/*
 		 * Two cases to distinguish - a supervisor access must
@@ -288,15 +267,15 @@ static noinline int icplb_miss(unsigned int cpu)
 	icplb_tbl[cpu][idx].addr = addr;
 	icplb_tbl[cpu][idx].data = i_data;
 
-	disable_icplb();
+	_disable_icplb();
 	bfin_write32(ICPLB_DATA0 + idx * 4, i_data);
 	bfin_write32(ICPLB_ADDR0 + idx * 4, addr);
-	enable_icplb();
+	_enable_icplb();
 
 	return 0;
 }
 
-static noinline int dcplb_protection_fault(unsigned int cpu)
+MGR_ATTR static noinline int dcplb_protection_fault(unsigned int cpu)
 {
 	int status = bfin_read_DCPLB_STATUS();
 
@@ -316,10 +295,10 @@ static noinline int dcplb_protection_fault(unsigned int cpu)
 	return CPLB_PROT_VIOL;
 }
 
-int cplb_hdr(int seqstat, struct pt_regs *regs)
+MGR_ATTR int cplb_hdr(int seqstat, struct pt_regs *regs)
 {
 	int cause = seqstat & 0x3f;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu = raw_smp_processor_id();
 	switch (cause) {
 	case 0x23:
 		return dcplb_protection_fault(cpu);
@@ -339,21 +318,21 @@ void flush_switched_cplbs(unsigned int cpu)
 
 	nr_cplb_flush[cpu]++;
 
-	local_irq_save_hw(flags);
-	disable_icplb();
+	flags = hard_local_irq_save();
+	_disable_icplb();
 	for (i = first_switched_icplb; i < MAX_CPLBS; i++) {
 		icplb_tbl[cpu][i].data = 0;
 		bfin_write32(ICPLB_DATA0 + i * 4, 0);
 	}
-	enable_icplb();
+	_enable_icplb();
 
-	disable_dcplb();
+	_disable_dcplb();
 	for (i = first_switched_dcplb; i < MAX_CPLBS; i++) {
 		dcplb_tbl[cpu][i].data = 0;
 		bfin_write32(DCPLB_DATA0 + i * 4, 0);
 	}
-	enable_dcplb();
-	local_irq_restore_hw(flags);
+	_enable_dcplb();
+	hard_local_irq_restore(flags);
 
 }
 
@@ -369,7 +348,7 @@ void set_mask_dcplbs(unsigned long *masks, unsigned int cpu)
 		return;
 	}
 
-	local_irq_save_hw(flags);
+	flags = hard_local_irq_save();
 	current_rwx_mask[cpu] = masks;
 
 	if (L2_LENGTH && addr >= L2_START && addr < L2_START + L2_LENGTH) {
@@ -385,7 +364,7 @@ void set_mask_dcplbs(unsigned long *masks, unsigned int cpu)
 #endif
 	}
 
-	disable_dcplb();
+	_disable_dcplb();
 	for (i = first_mask_dcplb; i < first_switched_dcplb; i++) {
 		dcplb_tbl[cpu][i].addr = addr;
 		dcplb_tbl[cpu][i].data = d_data;
@@ -393,6 +372,6 @@ void set_mask_dcplbs(unsigned long *masks, unsigned int cpu)
 		bfin_write32(DCPLB_ADDR0 + i * 4, addr);
 		addr += PAGE_SIZE;
 	}
-	enable_dcplb();
-	local_irq_restore_hw(flags);
+	_enable_dcplb();
+	hard_local_irq_restore(flags);
 }

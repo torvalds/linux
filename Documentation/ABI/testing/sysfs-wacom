@@ -1,0 +1,10 @@
+What:		/sys/class/hidraw/hidraw*/device/speed
+Date:		April 2010
+Kernel Version:	2.6.35
+Contact:	linux-bluetooth@vger.kernel.org
+Description:
+		The /sys/class/hidraw/hidraw*/device/speed file controls
+		reporting speed of wacom bluetooth tablet. Reading from
+		this file returns 1 if tablet reports in high speed mode
+		or 0 otherwise. Writing to this file one of these values
+		switches reporting speed.

@@ -18,21 +18,21 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 
-#define CMD_COREB_START		2
-#define CMD_COREB_STOP		3
-#define CMD_COREB_RESET		4
+#define CMD_COREB_START		_IO('b', 0)
+#define CMD_COREB_STOP		_IO('b', 1)
+#define CMD_COREB_RESET		_IO('b', 2)
 
-static int
-coreb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long
+coreb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 
 	switch (cmd) {
 	case CMD_COREB_START:
-		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() & ~0x0020);
+		bfin_write_SYSCR(bfin_read_SYSCR() & ~0x0020);
 		break;
 	case CMD_COREB_STOP:
-		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() | 0x0020);
+		bfin_write_SYSCR(bfin_read_SYSCR() | 0x0020);
 		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | 0x0080);
 		break;
 	case CMD_COREB_RESET:
@@ -48,9 +48,10 @@ coreb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned l
 	return ret;
 }
 
-static struct file_operations coreb_fops = {
-	.owner   = THIS_MODULE,
-	.ioctl   = coreb_ioctl,
+static const struct file_operations coreb_fops = {
+	.owner          = THIS_MODULE,
+	.unlocked_ioctl = coreb_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice coreb_dev = {
@@ -73,3 +74,4 @@ module_exit(bf561_coreb_exit);
 
 MODULE_AUTHOR("Bas Vermeulen <bvermeul@blackstar.xs4all.nl>");
 MODULE_DESCRIPTION("BF561 Core B Support");
+MODULE_LICENSE("GPL");

@@ -9,14 +9,11 @@
  * (at your option) any later version.
  */
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/genalloc.h>
 
 #include <mach/common.h>
-#include <mach/memory.h>
 #include <mach/sram.h>
-
 
 static struct gen_pool *sram_pool;
 
@@ -60,7 +57,7 @@ static int __init sram_init(void)
 	int status = 0;
 
 	if (len) {
-		len = min(len, SRAM_SIZE);
+		len = min_t(unsigned, len, SRAM_SIZE);
 		sram_pool = gen_pool_create(ilog2(SRAM_GRANULARITY), -1);
 		if (!sram_pool)
 			status = -ENOMEM;

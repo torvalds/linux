@@ -1,7 +1,13 @@
+/*
+ * Copyright 2007-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later
+ */
+
 #ifndef _MACH_PORTMUX_H_
 #define _MACH_PORTMUX_H_
 
-#define MAX_RESOURCES 	(MAX_BLACKFIN_GPIOS + GPIO_BANKSIZE)	/* We additionally handle PORTJ */
+#define MAX_RESOURCES	(MAX_BLACKFIN_GPIOS + GPIO_BANKSIZE)	/* We additionally handle PORTJ */
 
 #define P_UART0_TX	(P_DEFINED | P_IDENT(GPIO_PF0) | P_FUNCT(0))
 #define P_UART0_RX	(P_DEFINED | P_IDENT(GPIO_PF1) | P_FUNCT(0))
@@ -31,6 +37,7 @@
 #define P_PPI0_FS1	(P_DEFINED | P_IDENT(GPIO_PF9) | P_FUNCT(1))
 #define P_TACLK0	(P_DEFINED | P_IDENT(GPIO_PF14) | P_FUNCT(1))
 #define P_TMRCLK	(P_DEFINED | P_IDENT(GPIO_PF15) | P_FUNCT(1))
+#define GPIO_DEFAULT_BOOT_SPI_CS GPIO_PF10
 #define P_DEFAULT_BOOT_SPI_CS P_SPI0_SSEL1
 
 #define P_PPI0_D0	(P_DEFINED | P_IDENT(GPIO_PG0) | P_FUNCT(0))
@@ -129,7 +136,6 @@
 	P_MDC, \
 	P_MDIO, 0}
 
-
 #define P_RMII0 {\
 	P_MII0_ETxD0, \
 	P_MII0_ETxD1, \
@@ -142,4 +148,5 @@
 	P_RMII0_CRS_DV, \
 	P_MDC, \
 	P_MDIO, 0}
-#endif			        	/* _MACH_PORTMUX_H_ */
+
+#endif /* _MACH_PORTMUX_H_ */

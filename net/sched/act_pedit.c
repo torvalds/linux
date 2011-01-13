@@ -17,6 +17,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <linux/tc_act/tc_pedit.h>
@@ -34,7 +35,7 @@ static struct tcf_hashinfo pedit_hash_info = {
 };
 
 static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
-	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tcf_pedit) },
+	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tc_pedit) },
 };
 
 static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
@@ -124,16 +125,15 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 {
 	struct tcf_pedit *p = a->priv;
 	int i, munged = 0;
-	u8 *pptr;
+	unsigned int off;
 
-	if (!(skb->tc_verd & TC_OK2MUNGE)) {
-		/* should we set skb->cloned? */
+	if (skb_cloned(skb)) {
 		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
 			return p->tcf_action;
 		}
 	}
 
-	pptr = skb_network_header(skb);
+	off = skb_network_offset(skb);
 
 	spin_lock(&p->tcf_lock);
 
@@ -143,47 +143,51 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 		struct tc_pedit_key *tkey = p->tcfp_keys;
 
 		for (i = p->tcfp_nkeys; i > 0; i--, tkey++) {
-			u32 *ptr;
+			u32 *ptr, _data;
 			int offset = tkey->off;
 
 			if (tkey->offmask) {
-				if (skb->len > tkey->at) {
-					 char *j = pptr + tkey->at;
-					 offset += ((*j & tkey->offmask) >>
-						   tkey->shift);
-				} else {
+				char *d, _d;
+
+				d = skb_header_pointer(skb, off + tkey->at, 1,
+						       &_d);
+				if (!d)
 					goto bad;
-				}
+				offset += (*d & tkey->offmask) >> tkey->shift;
 			}
 
 			if (offset % 4) {
-				printk("offset must be on 32 bit boundaries\n");
+				pr_info("tc filter pedit"
+					" offset must be on 32 bit boundaries\n");
 				goto bad;
 			}
 			if (offset > 0 && offset > skb->len) {
-				printk("offset %d cant exceed pkt length %d\n",
+				pr_info("tc filter pedit"
+					" offset %d cant exceed pkt length %d\n",
 				       offset, skb->len);
 				goto bad;
 			}
 
-			ptr = (u32 *)(pptr+offset);
+			ptr = skb_header_pointer(skb, off + offset, 4, &_data);
+			if (!ptr)
+				goto bad;
 			/* just do it, baby */
 			*ptr = ((*ptr & tkey->mask) ^ tkey->val);
+			if (ptr == &_data)
+				skb_store_bits(skb, off + offset, ptr, 4);
 			munged++;
 		}
 
 		if (munged)
 			skb->tc_verd = SET_TC_MUNGED(skb->tc_verd);
 		goto done;
-	} else {
-		printk("pedit BUG: index %d\n", p->tcf_index);
-	}
+	} else
+		WARN(1, "pedit BUG: index %d\n", p->tcf_index);
 
 bad:
 	p->tcf_qstats.overlimits++;
 done:
-	p->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	p->tcf_bstats.packets++;
+	bstats_update(&p->tcf_bstats, skb);
 	spin_unlock(&p->tcf_lock);
 	return p->tcf_action;
 }

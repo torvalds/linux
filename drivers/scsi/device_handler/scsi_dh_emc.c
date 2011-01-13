@@ -20,6 +20,7 @@
  * along with this program; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dh.h>
@@ -272,7 +273,7 @@ static struct request *get_req(struct scsi_device *sdev, int cmd,
 	int len = 0;
 
 	rq = blk_get_request(sdev->request_queue,
-			(cmd == MODE_SELECT) ? WRITE : READ, GFP_NOIO);
+			(cmd != INQUIRY) ? WRITE : READ, GFP_NOIO);
 	if (!rq) {
 		sdev_printk(KERN_INFO, sdev, "get_req: blk_get_request failed");
 		return NULL;
@@ -284,16 +285,17 @@ static struct request *get_req(struct scsi_device *sdev, int cmd,
 	switch (cmd) {
 	case MODE_SELECT:
 		len = sizeof(short_trespass);
-		rq->cmd_flags |= REQ_RW;
 		rq->cmd[1] = 0x10;
+		rq->cmd[4] = len;
 		break;
 	case MODE_SELECT_10:
 		len = sizeof(long_trespass);
-		rq->cmd_flags |= REQ_RW;
 		rq->cmd[1] = 0x10;
+		rq->cmd[8] = len;
 		break;
 	case INQUIRY:
 		len = CLARIION_BUFFER_SIZE;
+		rq->cmd[4] = len;
 		memset(buffer, 0, len);
 		break;
 	default:
@@ -301,7 +303,6 @@ static struct request *get_req(struct scsi_device *sdev, int cmd,
 		break;
 	}
 
-	rq->cmd[4] = len;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->cmd_flags |= REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
 			 REQ_FAILFAST_DRIVER;
@@ -528,7 +529,8 @@ retry:
 	return err;
 }
 
-static int clariion_activate(struct scsi_device *sdev)
+static int clariion_activate(struct scsi_device *sdev,
+				activate_complete fn, void *data)
 {
 	struct clariion_dh_data *csdev = get_clariion_data(sdev);
 	int result;
@@ -559,6 +561,63 @@ done:
 		    csdev->port, lun_state[csdev->lun_state],
 		    csdev->default_sp + 'A');
 
+	if (fn)
+		fn(data, result);
+	return 0;
+}
+/*
+ * params - parameters in the following format
+ *      "no_of_params\0param1\0param2\0param3\0...\0"
+ *      for example, string for 2 parameters with value 10 and 21
+ *      is specified as "2\010\021\0".
+ */
+static int clariion_set_params(struct scsi_device *sdev, const char *params)
+{
+	struct clariion_dh_data *csdev = get_clariion_data(sdev);
+	unsigned int hr = 0, st = 0, argc;
+	const char *p = params;
+	int result = SCSI_DH_OK;
+
+	if ((sscanf(params, "%u", &argc) != 1) || (argc != 2))
+		return -EINVAL;
+
+	while (*p++)
+		;
+	if ((sscanf(p, "%u", &st) != 1) || (st > 1))
+		return -EINVAL;
+
+	while (*p++)
+		;
+	if ((sscanf(p, "%u", &hr) != 1) || (hr > 1))
+		return -EINVAL;
+
+	if (st)
+		csdev->flags |= CLARIION_SHORT_TRESPASS;
+	else
+		csdev->flags &= ~CLARIION_SHORT_TRESPASS;
+
+	if (hr)
+		csdev->flags |= CLARIION_HONOR_RESERVATIONS;
+	else
+		csdev->flags &= ~CLARIION_HONOR_RESERVATIONS;
+
+	/*
+	 * If this path is owned, we have to send a trespass command
+	 * with the new parameters. If not, simply return. Next trespass
+	 * command would use the parameters.
+	 */
+	if (csdev->lun_state != CLARIION_LUN_OWNED)
+		goto done;
+
+	csdev->lun_state = CLARIION_LUN_UNINITIALIZED;
+	result = send_trespass_cmd(sdev, csdev);
+	if (result != SCSI_DH_OK)
+		goto done;
+
+	/* Update status */
+	result = clariion_send_inquiry(sdev, csdev);
+
+done:
 	return result;
 }
 
@@ -581,11 +640,9 @@ static struct scsi_device_handler clariion_dh = {
 	.check_sense	= clariion_check_sense,
 	.activate	= clariion_activate,
 	.prep_fn	= clariion_prep_fn,
+	.set_params	= clariion_set_params,
 };
 
-/*
- * TODO: need some interface so we can set trespass values
- */
 static int clariion_bus_attach(struct scsi_device *sdev)
 {
 	struct scsi_dh_data *scsi_dh_data;

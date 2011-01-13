@@ -67,6 +67,34 @@
 /* from 0x100 to 0x1ff */
 #define VIA_REG_COLORPAT        0x100
 
+/* defines for VIA 2D registers for vt3353/3409 (M1 engine)*/
+#define VIA_REG_GECMD_M1        0x000
+#define VIA_REG_GEMODE_M1       0x004
+#define VIA_REG_GESTATUS_M1     0x004       /* as same as VIA_REG_GEMODE */
+#define VIA_REG_PITCH_M1        0x008       /* pitch of src and dst */
+#define VIA_REG_DIMENSION_M1    0x00C       /* width and height */
+#define VIA_REG_DSTPOS_M1       0x010
+#define VIA_REG_LINE_XY_M1      0x010
+#define VIA_REG_DSTBASE_M1      0x014
+#define VIA_REG_SRCPOS_M1       0x018
+#define VIA_REG_LINE_K1K2_M1    0x018
+#define VIA_REG_SRCBASE_M1      0x01C
+#define VIA_REG_PATADDR_M1      0x020
+#define VIA_REG_MONOPAT0_M1     0x024
+#define VIA_REG_MONOPAT1_M1     0x028
+#define VIA_REG_OFFSET_M1       0x02C
+#define VIA_REG_LINE_ERROR_M1   0x02C
+#define VIA_REG_CLIPTL_M1       0x040       /* top and left of clipping */
+#define VIA_REG_CLIPBR_M1       0x044       /* bottom and right of clipping */
+#define VIA_REG_KEYCONTROL_M1   0x048       /* color key control */
+#define VIA_REG_FGCOLOR_M1      0x04C
+#define VIA_REG_DSTCOLORKEY_M1  0x04C       /* as same as VIA_REG_FG */
+#define VIA_REG_BGCOLOR_M1      0x050
+#define VIA_REG_SRCCOLORKEY_M1  0x050       /* as same as VIA_REG_BG */
+#define VIA_REG_MONOPATFGC_M1   0x058       /* Add BG color of Pattern. */
+#define VIA_REG_MONOPATBGC_M1   0x05C       /* Add FG color of Pattern. */
+#define VIA_REG_COLORPAT_M1     0x100       /* from 0x100 to 0x1ff */
+
 /* VIA_REG_PITCH(0x38): Pitch Setting */
 #define VIA_PITCH_ENABLE        0x80000000
 
@@ -157,13 +185,27 @@
 /* Virtual Queue is busy */
 #define VIA_VR_QUEUE_BUSY       0x00020000
 
+/* VIA_REG_STATUS(0x400): Engine Status for H5 */
+#define VIA_CMD_RGTR_BUSY_H5   0x00000010  /* Command Regulator is busy */
+#define VIA_2D_ENG_BUSY_H5     0x00000002  /* 2D Engine is busy */
+#define VIA_3D_ENG_BUSY_H5     0x00001FE1  /* 3D Engine is busy */
+#define VIA_VR_QUEUE_BUSY_H5   0x00000004  /* Virtual Queue is busy */
+
+/* VIA_REG_STATUS(0x400): Engine Status for VT3353/3409 */
+#define VIA_CMD_RGTR_BUSY_M1   0x00000010  /* Command Regulator is busy */
+#define VIA_2D_ENG_BUSY_M1     0x00000002  /* 2D Engine is busy */
+#define VIA_3D_ENG_BUSY_M1     0x00001FE1  /* 3D Engine is busy */
+#define VIA_VR_QUEUE_BUSY_M1   0x00000004  /* Virtual Queue is busy */
+
 #define MAXLOOP                 0xFFFFFF
 
-void viafb_init_accel(void);
-void viafb_init_2d_engine(void);
-void set_2d_color_depth(int);
-void viafb_hw_cursor_init(void);
-void viafb_show_hw_cursor(struct fb_info *info, int Status); int
-viafb_wait_engine_idle(void); void viafb_set_2d_color_depth(int bpp);
+#define VIA_BITBLT_COLOR	1
+#define VIA_BITBLT_MONO		2
+#define VIA_BITBLT_FILL		3
+
+int viafb_setup_engine(struct fb_info *info);
+void viafb_reset_engine(struct viafb_par *viapar);
+void viafb_show_hw_cursor(struct fb_info *info, int Status);
+void viafb_wait_engine_idle(struct fb_info *info);
 
 #endif /* __ACCEL_H__ */

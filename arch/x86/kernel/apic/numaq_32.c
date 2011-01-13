@@ -26,6 +26,7 @@
 #include <linux/nodemask.h>
 #include <linux/topology.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
@@ -66,7 +67,6 @@ struct mpc_trans {
 	unsigned short			trans_reserved;
 };
 
-/* x86_quirks member */
 static int				mpc_record;
 
 static struct mpc_trans			*translation_table[MAX_MPC_ENTRY];
@@ -89,7 +89,7 @@ static inline void numaq_register_node(int node, struct sys_cfg_data *scd)
 	node_end_pfn[node] =
 		 MB_TO_PAGES(eq->hi_shrd_mem_start + eq->hi_shrd_mem_size);
 
-	e820_register_active_regions(node, node_start_pfn[node],
+	memblock_x86_register_active_regions(node, node_start_pfn[node],
 						node_end_pfn[node]);
 
 	memory_present(node, node_start_pfn[node], node_end_pfn[node]);
@@ -130,10 +130,9 @@ void __cpuinit numaq_tsc_disable(void)
 	}
 }
 
-static int __init numaq_pre_time_init(void)
+static void __init numaq_tsc_init(void)
 {
 	numaq_tsc_disable();
-	return 0;
 }
 
 static inline int generate_logical_apicid(int quad, int phys_apicid)
@@ -177,6 +176,19 @@ static void mpc_oem_pci_bus(struct mpc_bus *m)
 	quad_local_to_mp_bus_id[quad][local] = m->busid;
 }
 
+/*
+ * Called from mpparse code.
+ * mode = 0: prescan
+ * mode = 1: one mpc entry scanned
+ */
+static void numaq_mpc_record(unsigned int mode)
+{
+	if (!mode)
+		mpc_record = 0;
+	else
+		mpc_record++;
+}
+
 static void __init MP_translation_info(struct mpc_trans *m)
 {
 	printk(KERN_INFO
@@ -206,15 +218,15 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 /*
  * Read/parse the MPC oem tables
  */
-static void __init
- smp_read_mpc_oem(struct mpc_oemtable *oemtable, unsigned short oemsize)
+static void __init smp_read_mpc_oem(struct mpc_table *mpc)
 {
+	struct mpc_oemtable *oemtable = (void *)(long)mpc->oemptr;
 	int count = sizeof(*oemtable);	/* the header size */
 	unsigned char *oemptr = ((unsigned char *)oemtable) + count;
 
 	mpc_record = 0;
 	printk(KERN_INFO
-		"Found an OEM MPC table at %8p - parsing it ... \n", oemtable);
+		"Found an OEM MPC table at %8p - parsing it...\n", oemtable);
 
 	if (memcmp(oemtable->signature, MPC_OEM_SIGNATURE, 4)) {
 		printk(KERN_WARNING
@@ -250,44 +262,24 @@ static void __init
 	}
 }
 
-static int __init numaq_setup_ioapic_ids(void)
-{
-	/* so can skip it */
-	return 1;
-}
-
-static struct x86_quirks numaq_x86_quirks __initdata = {
-	.arch_pre_time_init		= numaq_pre_time_init,
-	.arch_time_init			= NULL,
-	.arch_pre_intr_init		= NULL,
-	.arch_memory_setup		= NULL,
-	.arch_intr_init			= NULL,
-	.arch_trap_init			= NULL,
-	.mach_get_smp_config		= NULL,
-	.mach_find_smp_config		= NULL,
-	.mpc_record			= &mpc_record,
-	.mpc_apic_id			= mpc_apic_id,
-	.mpc_oem_bus_info		= mpc_oem_bus_info,
-	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
-	.smp_read_mpc_oem		= smp_read_mpc_oem,
-	.setup_ioapic_ids		= numaq_setup_ioapic_ids,
-};
-
 static __init void early_check_numaq(void)
 {
-	/*
-	 * Find possible boot-time SMP configuration:
-	 */
-	early_find_smp_config();
-
 	/*
 	 * get boot-time SMP configuration:
 	 */
 	if (smp_found_config)
 		early_get_smp_config();
 
-	if (found_numaq)
-		x86_quirks = &numaq_x86_quirks;
+	if (found_numaq) {
+		x86_init.mpparse.mpc_record = numaq_mpc_record;
+		x86_init.mpparse.setup_ioapic_ids = x86_init_noop;
+		x86_init.mpparse.mpc_apic_id = mpc_apic_id;
+		x86_init.mpparse.smp_read_mpc_oem = smp_read_mpc_oem;
+		x86_init.mpparse.mpc_oem_pci_bus = mpc_oem_pci_bus;
+		x86_init.mpparse.mpc_oem_bus_info = mpc_oem_bus_info;
+		x86_init.timers.tsc_pre_init = numaq_tsc_init;
+		x86_init.pci.init = pci_numaq_init;
+	}
 }
 
 int __init get_memcfg_numaq(void)
@@ -339,10 +331,9 @@ static inline const struct cpumask *numaq_target_cpus(void)
 	return cpu_all_mask;
 }
 
-static inline unsigned long
-numaq_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long numaq_check_apicid_used(physid_mask_t *map, int apicid)
 {
-	return physid_isset(apicid, bitmap);
+	return physid_isset(apicid, *map);
 }
 
 static inline unsigned long numaq_check_apicid_present(int bit)
@@ -376,10 +367,10 @@ static inline int numaq_multi_timer_check(int apic, int irq)
 	return apic != 0 && irq == 0;
 }
 
-static inline physid_mask_t numaq_ioapic_phys_id_map(physid_mask_t phys_map)
+static inline void numaq_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
 	/* We don't have a good way to do this yet - hack */
-	return physids_promote(0xFUL);
+	return physids_promote(0xFUL, retmap);
 }
 
 static inline int numaq_cpu_to_logical_apicid(int cpu)
@@ -407,18 +398,18 @@ static inline int numaq_apicid_to_node(int logical_apicid)
 	return logical_apicid >> 4;
 }
 
-static inline physid_mask_t numaq_apicid_to_cpu_present(int logical_apicid)
+static void numaq_apicid_to_cpu_present(int logical_apicid, physid_mask_t *retmap)
 {
 	int node = numaq_apicid_to_node(logical_apicid);
 	int cpu = __ffs(logical_apicid & 0xf);
 
-	return physid_mask_of_physid(cpu + 4*node);
+	physid_set_mask_of_physid(cpu + 4*node, retmap);
 }
 
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
 void *xquad_portio;
 
-static inline int numaq_check_phys_apicid_present(int boot_cpu_physical_apicid)
+static inline int numaq_check_phys_apicid_present(int phys_apicid)
 {
 	return 1;
 }
@@ -493,7 +484,8 @@ static void numaq_setup_portio_remap(void)
 		(u_long) xquad_portio, (u_long) num_quads*XQUAD_PORTIO_QUAD);
 }
 
-struct apic apic_numaq = {
+/* Use __refdata to keep false positive warning calm.	*/
+struct apic __refdata apic_numaq = {
 
 	.name				= "NUMAQ",
 	.probe				= probe_numaq,

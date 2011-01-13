@@ -5,25 +5,29 @@
 #
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
-		   head_$(BITS).o misc_$(BITS).o piggy.o
+		   vmlinux.bin.bz2 vmlinux.bin.lzma \
+		   vmlinux.bin.lzo \
+		   head_$(BITS).o misc.o piggy.o
 
-OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc_$(BITS).o $(obj)/cache.o
-
-ifdef CONFIG_SH_STANDARD_BIOS
-OBJECTS += $(obj)/../../kernel/sh_bios.o
-endif
+OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc.o $(obj)/cache.o
 
 #
 # IMAGE_OFFSET is the load offset of the compression loader
 #
+ifeq ($(CONFIG_32BIT),y)
+IMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
+		     $$[$(CONFIG_MEMORY_START)  + \
+			$(CONFIG_BOOT_LINK_OFFSET)]')
+else
 IMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
 			$(KERNEL_MEMORY) + \
 			$(CONFIG_BOOT_LINK_OFFSET)]')
+endif
 
 LIBGCC	:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
-ifeq ($(CONFIG_FUNCTION_TRACER),y)
+ifeq ($(CONFIG_MCOUNT),y)
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
 endif
@@ -38,10 +42,20 @@ $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o $(LIBGCC) FORCE
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
+vmlinux.bin.all-y := $(obj)/vmlinux.bin
+
+$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,gzip)
+$(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
+	$(call if_changed,bzip2)
+$(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
+	$(call if_changed,lzma)
+$(obj)/vmlinux.bin.lzo: $(vmlinux.bin.all-y) FORCE
+	$(call if_changed,lzo)
 
 OBJCOPYFLAGS += -R .empty_zero_page
 
-$(obj)/piggy.o: $(obj)/piggy.S $(obj)/vmlinux.bin.gz FORCE
-	$(call if_changed,as_o_S)
+LDFLAGS_piggy.o := -r --format binary --oformat $(ld-bfd) -T
+
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE
+	$(call if_changed,ld)

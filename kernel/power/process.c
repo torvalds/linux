@@ -9,10 +9,13 @@
 #undef DEBUG
 
 #include <linux/interrupt.h>
+#include <linux/oom.h>
 #include <linux/suspend.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/freezer.h>
+#include <linux/delay.h>
+#include <linux/workqueue.h>
 
 /* 
  * Timeout for stopping processes
@@ -33,14 +36,20 @@ static int try_to_freeze_tasks(bool sig_only)
 	struct task_struct *g, *p;
 	unsigned long end_time;
 	unsigned int todo;
+	bool wq_busy = false;
 	struct timeval start, end;
 	u64 elapsed_csecs64;
 	unsigned int elapsed_csecs;
+	bool wakeup = false;
 
 	do_gettimeofday(&start);
 
 	end_time = jiffies + TIMEOUT;
-	do {
+
+	if (!sig_only)
+		freeze_workqueues_begin();
+
+	while (true) {
 		todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
@@ -55,16 +64,38 @@ static int try_to_freeze_tasks(bool sig_only)
 			 * perturb a task in TASK_STOPPED or TASK_TRACED.
 			 * It is "frozen enough".  If the task does wake
 			 * up, it will immediately call try_to_freeze.
+			 *
+			 * Because freeze_task() goes through p's
+			 * scheduler lock after setting TIF_FREEZE, it's
+			 * guaranteed that either we see TASK_RUNNING or
+			 * try_to_stop() after schedule() in ptrace/signal
+			 * stop sees TIF_FREEZE.
 			 */
 			if (!task_is_stopped_or_traced(p) &&
 			    !freezer_should_skip(p))
 				todo++;
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
-		yield();			/* Yield is okay here */
-		if (time_after(jiffies, end_time))
+
+		if (!sig_only) {
+			wq_busy = freeze_workqueues_busy();
+			todo += wq_busy;
+		}
+
+		if (!todo || time_after(jiffies, end_time))
 			break;
-	} while (todo);
+
+		if (pm_wakeup_pending()) {
+			wakeup = true;
+			break;
+		}
+
+		/*
+		 * We need to retry, but first give the freezing tasks some
+		 * time to enter the regrigerator.
+		 */
+		msleep(10);
+	}
 
 	do_gettimeofday(&end);
 	elapsed_csecs64 = timeval_to_ns(&end) - timeval_to_ns(&start);
@@ -78,15 +109,19 @@ static int try_to_freeze_tasks(bool sig_only)
 		 * but it cleans up leftover PF_FREEZE requests.
 		 */
 		printk("\n");
-		printk(KERN_ERR "Freezing of tasks failed after %d.%02d seconds "
-				"(%d tasks refusing to freeze):\n",
-				elapsed_csecs / 100, elapsed_csecs % 100, todo);
-		show_state();
+		printk(KERN_ERR "Freezing of tasks %s after %d.%02d seconds "
+		       "(%d tasks refusing to freeze, wq_busy=%d):\n",
+		       wakeup ? "aborted" : "failed",
+		       elapsed_csecs / 100, elapsed_csecs % 100,
+		       todo - wq_busy, wq_busy);
+
+		thaw_workqueues();
+
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			task_lock(p);
-			if (freezing(p) && !freezer_should_skip(p))
-				printk(KERN_ERR " %s\n", p->comm);
+			if (!wakeup && freezing(p) && !freezer_should_skip(p))
+				sched_show_task(p);
 			cancel_freezing(p);
 			task_unlock(p);
 		} while_each_thread(g, p);
@@ -138,7 +173,7 @@ static void thaw_tasks(bool nosig_only)
 		if (nosig_only && should_send_signal(p))
 			continue;
 
-		if (cgroup_frozen(p))
+		if (cgroup_freezing_or_frozen(p))
 			continue;
 
 		thaw_process(p);
@@ -151,6 +186,7 @@ void thaw_processes(void)
 	oom_killer_enable();
 
 	printk("Restarting tasks ... ");
+	thaw_workqueues();
 	thaw_tasks(true);
 	thaw_tasks(false);
 	schedule();

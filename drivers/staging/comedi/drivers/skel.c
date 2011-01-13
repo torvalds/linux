@@ -39,28 +39,28 @@ Configuration Options:
  * The previous block comment is used to automatically generate
  * documentation in Comedi and Comedilib.  The fields:
  *
- * Driver: the name of the driver
- * Description: a short phrase describing the driver.  Don't list boards.
- * Devices: a full list of the boards that attempt to be supported by
- *   the driver.  Format is "(manufacturer) board name [comedi name]",
- *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the struct comedi_driver structure
- *   below.  If (manufacturer) or [comedi name] is missing, the previous
- *   value is used.
- * Author: you
- * Updated: date when the _documentation_ was last updated.  Use 'date -R'
- *   to get a value for this.
- * Status: a one-word description of the status.  Valid values are:
- *   works - driver works correctly on most boards supported, and
- *     passes comedi_test.
- *   unknown - unknown.  Usually put there by ds.
- *   experimental - may not work in any particular release.  Author
- *     probably wants assistance testing it.
- *   bitrotten - driver has not been update in a long time, probably
- *     doesn't work, and probably is missing support for significant
- *     Comedi interface features.
- *   untested - author probably wrote it "blind", and is believed to
- *     work, but no confirmation.
+ *  Driver: the name of the driver
+ *  Description: a short phrase describing the driver.  Don't list boards.
+ *  Devices: a full list of the boards that attempt to be supported by
+ *    the driver.  Format is "(manufacturer) board name [comedi name]",
+ *    where comedi_name is the name that is used to configure the board.
+ *    See the comment near board_name: in the struct comedi_driver structure
+ *    below.  If (manufacturer) or [comedi name] is missing, the previous
+ *    value is used.
+ *  Author: you
+ *  Updated: date when the _documentation_ was last updated.  Use 'date -R'
+ *    to get a value for this.
+ *  Status: a one-word description of the status.  Valid values are:
+ *    works - driver works correctly on most boards supported, and
+ *      passes comedi_test.
+ *    unknown - unknown.  Usually put there by ds.
+ *    experimental - may not work in any particular release.  Author
+ *      probably wants assistance testing it.
+ *    bitrotten - driver has not been update in a long time, probably
+ *      doesn't work, and probably is missing support for significant
+ *      Comedi interface features.
+ *    untested - author probably wrote it "blind", and is believed to
+ *      work, but no confirmation.
  *
  * These headers should be followed by a blank line, and any comments
  * you wish to say about the driver.  The comment area is the place
@@ -97,17 +97,17 @@ struct skel_board {
 
 static const struct skel_board skel_boards[] = {
 	{
-	.name = "skel-100",
-	.ai_chans = 16,
-	.ai_bits = 12,
-	.have_dio = 1,
-		},
+	 .name = "skel-100",
+	 .ai_chans = 16,
+	 .ai_bits = 12,
+	 .have_dio = 1,
+	 },
 	{
-	.name = "skel-200",
-	.ai_chans = 8,
-	.ai_bits = 16,
-	.have_dio = 0,
-		},
+	 .name = "skel-200",
+	 .ai_chans = 8,
+	 .ai_bits = 16,
+	 .have_dio = 0,
+	 },
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
@@ -116,9 +116,9 @@ static const struct skel_board skel_boards[] = {
  * upstream. */
 #define PCI_VENDOR_ID_SKEL 0xdafe
 static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
-	{PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_SKEL, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
@@ -130,7 +130,8 @@ MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.
+ */
 struct skel_private {
 
 	int data;
@@ -185,17 +186,19 @@ static struct comedi_driver driver_skel = {
 };
 
 static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			 struct comedi_insn *insn, unsigned int *data);
 static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			 struct comedi_insn *insn, unsigned int *data);
 static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int skel_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int skel_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int skel_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
+			 struct comedi_insn *insn, unsigned int *data);
+static int skel_dio_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data);
+static int skel_dio_insn_config(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data);
+static int skel_ai_cmdtest(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_cmd *cmd);
 static int skel_ns_to_timer(unsigned int *ns, int round);
 
 /*
@@ -208,7 +211,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 
-	printk("comedi%d: skel: ", dev->minor);
+	pr_info("comedi%d: skel: ", dev->minor);
 
 /*
  * If you can probe the device to determine what device in a series
@@ -279,7 +282,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	printk("attached\n");
+	pr_info("attached\n");
 
 	return 0;
 }
@@ -294,7 +297,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 static int skel_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: skel: remove\n", dev->minor);
+	pr_info("comedi%d: skel: remove\n", dev->minor);
 
 	return 0;
 }
@@ -304,7 +307,7 @@ static int skel_detach(struct comedi_device *dev)
  * mode.
  */
 static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			 struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i;
 	unsigned int d;
@@ -333,7 +336,7 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (i == TIMEOUT) {
 			/* printk() should be used instead of printk()
 			 * whenever the code can be called from real-time. */
-			printk("timeout\n");
+			pr_info("timeout\n");
 			return -ETIMEDOUT;
 		}
 
@@ -351,8 +354,8 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static int skel_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int skel_ai_cmdtest(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -394,11 +397,12 @@ static int skel_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually compatible
+     */
 
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
+	    cmd->scan_begin_src != TRIG_EXT)
 		err++;
 	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
 		err++;
@@ -478,21 +482,21 @@ static int skel_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		skel_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				 cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		skel_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				 cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->scan_end_arg) {
+		    cmd->scan_begin_arg <
+		    cmd->convert_arg * cmd->scan_end_arg) {
 			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
+			    cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
 	}
@@ -521,12 +525,12 @@ static int skel_ns_to_timer(unsigned int *ns, int round)
 }
 
 static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			 struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	printk("skel_ao_winsn\n");
+	pr_info("skel_ao_winsn\n");
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
@@ -542,7 +546,7 @@ static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			 struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -558,8 +562,9 @@ static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int skel_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int skel_dio_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -583,8 +588,9 @@ static int skel_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice
 	return 2;
 }
 
-static int skel_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int skel_dio_insn_config(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -601,8 +607,7 @@ static int skel_dio_insn_config(struct comedi_device *dev, struct comedi_subdevi
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
-			(s->
-			io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -614,11 +619,59 @@ static int skel_dio_insn_config(struct comedi_device *dev, struct comedi_subdevi
 	return insn->n;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-COMEDI_INITCLEANUP(driver_skel);
-/* If you are writing a PCI driver you should use COMEDI_PCI_INITCLEANUP instead.
-*/
-/* COMEDI_PCI_INITCLEANUP(driver_skel, skel_pci_table) */
+#ifdef CONFIG_COMEDI_PCI
+static int __devinit driver_skel_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_skel.driver_name);
+}
+
+static void __devexit driver_skel_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_skel_pci_driver = {
+	.id_table = skel_pci_table,
+	.probe = &driver_skel_pci_probe,
+	.remove = __devexit_p(&driver_skel_pci_remove)
+};
+
+static int __init driver_skel_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_skel);
+	if (retval < 0)
+		return retval;
+
+	driver_skel_pci_driver.name = (char *)driver_skel.driver_name;
+	return pci_register_driver(&driver_skel_pci_driver);
+}
+
+static void __exit driver_skel_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_skel_pci_driver);
+	comedi_driver_unregister(&driver_skel);
+}
+
+module_init(driver_skel_init_module);
+module_exit(driver_skel_cleanup_module);
+#else
+static int __init driver_skel_init_module(void)
+{
+	return comedi_driver_register(&driver_skel);
+}
+
+static void __exit driver_skel_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_skel);
+}
+
+module_init(driver_skel_init_module);
+module_exit(driver_skel_cleanup_module);
+#endif
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

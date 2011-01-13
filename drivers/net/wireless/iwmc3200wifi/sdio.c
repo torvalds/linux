@@ -63,8 +63,10 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/debugfs.h>
+#include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 
@@ -223,8 +225,6 @@ static int if_sdio_disable(struct iwm_priv *iwm)
 	struct iwm_sdio_priv *hw = iwm_to_if_sdio(iwm);
 	int ret;
 
-	iwm_reset(iwm);
-
 	sdio_claim_host(hw->func);
 	sdio_writeb(hw->func, 0, IWM_SDIO_INTR_ENABLE_ADDR, &ret);
 	if (ret < 0)
@@ -235,6 +235,8 @@ static int if_sdio_disable(struct iwm_priv *iwm)
 	sdio_release_host(hw->func);
 
 	iwm_sdio_rx_free(hw);
+
+	iwm_reset(iwm);
 
 	IWM_DBG_SDIO(iwm, INFO, "IWM SDIO disable\n");
 
@@ -362,23 +364,16 @@ static const struct file_operations iwm_debugfs_sdio_fops = {
 	.owner =	THIS_MODULE,
 	.open =		iwm_debugfs_sdio_open,
 	.read =		iwm_debugfs_sdio_read,
+	.llseek =	default_llseek,
 };
 
-static int if_sdio_debugfs_init(struct iwm_priv *iwm, struct dentry *parent_dir)
+static void if_sdio_debugfs_init(struct iwm_priv *iwm, struct dentry *parent_dir)
 {
-	int result;
 	struct iwm_sdio_priv *hw = iwm_to_if_sdio(iwm);
 
 	hw->cccr_dentry = debugfs_create_file("cccr", 0200,
 					      parent_dir, iwm,
 					      &iwm_debugfs_sdio_fops);
-	result = PTR_ERR(hw->cccr_dentry);
-	if (IS_ERR(hw->cccr_dentry) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create CCCR entry: %d\n", result);
-		return result;
-	}
-
-	return 0;
 }
 
 static void if_sdio_debugfs_exit(struct iwm_priv *iwm)
@@ -398,6 +393,9 @@ static struct iwm_if_ops if_sdio_ops = {
 	.calib_lmac_name = "iwmc3200wifi-calib-sdio.bin",
 	.lmac_name = "iwmc3200wifi-lmac-sdio.bin",
 };
+MODULE_FIRMWARE("iwmc3200wifi-umac-sdio.bin");
+MODULE_FIRMWARE("iwmc3200wifi-calib-sdio.bin");
+MODULE_FIRMWARE("iwmc3200wifi-lmac-sdio.bin");
 
 static int iwm_sdio_probe(struct sdio_func *func,
 			  const struct sdio_device_id *id)
@@ -435,11 +433,7 @@ static int iwm_sdio_probe(struct sdio_func *func,
 	hw = iwm_private(iwm);
 	hw->iwm = iwm;
 
-	ret = iwm_debugfs_init(iwm);
-	if (ret < 0) {
-		IWM_ERR(iwm, "Debugfs registration failed\n");
-		goto if_free;
-	}
+	iwm_debugfs_init(iwm);
 
 	sdio_set_drvdata(func, hw);
 
@@ -468,7 +462,6 @@ static int iwm_sdio_probe(struct sdio_func *func,
 	destroy_workqueue(hw->isr_wq);
  debugfs_exit:
 	iwm_debugfs_exit(iwm);
- if_free:
 	iwm_if_free(iwm);
 	return ret;
 }
@@ -487,12 +480,13 @@ static void iwm_sdio_remove(struct sdio_func *func)
 	sdio_set_drvdata(func, NULL);
 
 	dev_info(dev, "IWM SDIO remove\n");
-
-	return;
 }
 
 static const struct sdio_device_id iwm_sdio_ids[] = {
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL, SDIO_DEVICE_ID_IWM) },
+	/* Global/AGN SKU */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL, 0x1403) },
+	/* BGN SKU */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL, 0x1408) },
 	{ /* end: all zeroes */	},
 };
 MODULE_DEVICE_TABLE(sdio, iwm_sdio_ids);
@@ -506,11 +500,7 @@ static struct sdio_driver iwm_sdio_driver = {
 
 static int __init iwm_sdio_init_module(void)
 {
-	int ret;
-
-	ret = sdio_register_driver(&iwm_sdio_driver);
-
-	return ret;
+	return sdio_register_driver(&iwm_sdio_driver);
 }
 
 static void __exit iwm_sdio_exit_module(void)

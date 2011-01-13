@@ -14,9 +14,8 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
+#include <linux/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/errno.h>
 
 #define VERIFY_READ 0
@@ -29,7 +28,6 @@
  *
  * For historical reasons, these macros are grossly misnamed.
  */
-
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
 #define KERNEL_XDS	MAKE_MM_SEG(0xBFFFFFFF)
@@ -129,42 +127,47 @@ extern int fixup_exception(struct pt_regs *regs);
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct *)(x))
 
-#define __get_user_nocheck(x, ptr, size)	\
-({						\
-	__typeof(*(ptr)) __gu_val;		\
-	unsigned long __gu_addr;		\
-	int __gu_err;				\
-	__gu_addr = (unsigned long) (ptr);	\
-	switch (size) {				\
-	case 1:  __get_user_asm("bu"); break;	\
-	case 2:  __get_user_asm("hu"); break;	\
-	case 4:  __get_user_asm(""  ); break;	\
-	default: __get_user_unknown(); break;	\
-	}					\
-	x = (__typeof__(*(ptr))) __gu_val;	\
-	__gu_err;				\
+#define __get_user_nocheck(x, ptr, size)				\
+({									\
+	unsigned long __gu_addr;					\
+	int __gu_err;							\
+	__gu_addr = (unsigned long) (ptr);				\
+	switch (size) {							\
+	case 1: {							\
+		unsigned char __gu_val;					\
+		__get_user_asm("bu");					\
+		(x) = *(__force __typeof__(*(ptr))*) &__gu_val;		\
+		break;							\
+	}								\
+	case 2: {							\
+		unsigned short __gu_val;				\
+		__get_user_asm("hu");					\
+		(x) = *(__force __typeof__(*(ptr))*) &__gu_val;		\
+		break;							\
+	}								\
+	case 4: {							\
+		unsigned int __gu_val;					\
+		__get_user_asm("");					\
+		(x) = *(__force __typeof__(*(ptr))*) &__gu_val;		\
+		break;							\
+	}								\
+	default:							\
+		__get_user_unknown();					\
+		break;							\
+	}								\
+	__gu_err;							\
 })
 
-#define __get_user_check(x, ptr, size)			\
-({							\
-	__typeof__(*(ptr)) __gu_val;			\
-	unsigned long __gu_addr;			\
-	int __gu_err;					\
-	__gu_addr = (unsigned long) (ptr);		\
-	if (likely(__access_ok(__gu_addr,size))) {	\
-		switch (size) {				\
-		case 1:  __get_user_asm("bu"); break;	\
-		case 2:  __get_user_asm("hu"); break;	\
-		case 4:  __get_user_asm(""  ); break;	\
-		default: __get_user_unknown(); break;	\
-		}					\
-	}						\
-	else {						\
-		__gu_err = -EFAULT;			\
-		__gu_val = 0;				\
-	}						\
-	x = (__typeof__(*(ptr))) __gu_val;		\
-	__gu_err;					\
+#define __get_user_check(x, ptr, size)					\
+({									\
+	int _e;								\
+	if (likely(__access_ok((unsigned long) (ptr), (size))))		\
+		_e = __get_user_nocheck((x), (ptr), (size));		\
+	else {								\
+		_e = -EFAULT;						\
+		(x) = (__typeof__(x))0;					\
+	}								\
+	_e;								\
 })
 
 #define __get_user_asm(INSN)					\
@@ -311,7 +314,7 @@ do {									\
 			"	.previous\n"				\
 			: "=a"(__from), "=a"(__to), "=r"(size), "=&r"(w)\
 			: "0"(__from), "1"(__to), "2"(size)		\
-			: "memory");					\
+			: "cc", "memory");				\
 	}								\
 } while (0)
 
@@ -347,7 +350,7 @@ do {									\
 			"	.previous\n"				\
 			: "=a"(__from), "=a"(__to), "=r"(size), "=&r"(w)\
 			: "0"(__from), "1"(__to), "2"(size)		\
-			: "memory");					\
+			: "cc", "memory");				\
 	}								\
 } while (0)
 
@@ -372,7 +375,7 @@ unsigned long __generic_copy_to_user_nocheck(void *to, const void *from,
 
 
 #if 0
-#error don't use - these macros don't increment to & from pointers
+#error "don't use - these macros don't increment to & from pointers"
 /* Optimize just a little bit when we know the size of the move. */
 #define __constant_copy_user(to, from, size)	\
 do {						\

@@ -81,35 +81,21 @@ struct e1000_adapter;
 
 #include "e1000_hw.h"
 
-#ifdef DBG
-#define E1000_DBG(args...) printk(KERN_DEBUG "e1000: " args)
-#else
-#define E1000_DBG(args...)
-#endif
-
-#define E1000_ERR(args...) printk(KERN_ERR "e1000: " args)
-
-#define PFX "e1000: "
-
-#define DPRINTK(nlevel, klevel, fmt, args...)				\
-do {									\
-	if (NETIF_MSG_##nlevel & adapter->msg_enable)			\
-		printk(KERN_##klevel PFX "%s: %s: " fmt,		\
-		       adapter->netdev->name, __func__, ##args);	\
-} while (0)
-
 #define E1000_MAX_INTR 10
 
 /* TX/RX descriptor defines */
 #define E1000_DEFAULT_TXD                  256
 #define E1000_MAX_TXD                      256
-#define E1000_MIN_TXD                       80
+#define E1000_MIN_TXD                       48
 #define E1000_MAX_82544_TXD               4096
 
 #define E1000_DEFAULT_RXD                  256
 #define E1000_MAX_RXD                      256
-#define E1000_MIN_RXD                       80
+#define E1000_MIN_RXD                       48
 #define E1000_MAX_82544_RXD               4096
+
+#define E1000_MIN_ITR_USECS		10 /* 100000 irq/sec */
+#define E1000_MAX_ITR_USECS		10000 /* 100    irq/sec */
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
@@ -137,7 +123,7 @@ do {									\
 #define E1000_FC_HIGH_DIFF 0x1638  /* High: 5688 bytes below Rx FIFO size */
 #define E1000_FC_LOW_DIFF 0x1640   /* Low:  5696 bytes below Rx FIFO size */
 
-#define E1000_FC_PAUSE_TIME 0x0680 /* 858 usec */
+#define E1000_FC_PAUSE_TIME 0xFFFF /* pause for the max or until send xon */
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
 #define E1000_TX_QUEUE_WAKE	16
@@ -146,7 +132,6 @@ do {									\
 
 #define AUTO_ALL_MODES            0
 #define E1000_EEPROM_82544_APM    0x0004
-#define E1000_EEPROM_ICH8_APME    0x0004
 #define E1000_EEPROM_APME         0x0400
 
 #ifndef E1000_MASTER_SLAVE
@@ -161,9 +146,11 @@ do {									\
 struct e1000_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
+	struct page *page;
 	unsigned long time_stamp;
 	u16 length;
 	u16 next_to_watch;
+	u16 mapped_as_page;
 };
 
 struct e1000_tx_ring {
@@ -202,6 +189,7 @@ struct e1000_rx_ring {
 	unsigned int next_to_clean;
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
+	struct sk_buff *rx_skb_top;
 
 	/* cpu for rx queue */
 	int cpu;
@@ -256,7 +244,6 @@ struct e1000_adapter {
 	/* TX */
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
 	unsigned int restart_queue;
-	unsigned long tx_queue_len;
 	u32 txd_cmd;
 	u32 tx_int_delay;
 	u32 tx_abs_int_delay;
@@ -288,7 +275,6 @@ struct e1000_adapter {
 
 	u64 hw_csum_err;
 	u64 hw_csum_good;
-	u64 rx_hdr_split;
 	u32 alloc_rx_buff_failed;
 	u32 rx_int_delay;
 	u32 rx_abs_int_delay;
@@ -299,7 +285,6 @@ struct e1000_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
 
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;
@@ -312,7 +297,6 @@ struct e1000_adapter {
 	struct e1000_rx_ring test_rx_ring;
 
 	int msg_enable;
-	bool have_msi;
 
 	/* to not mess up cache alignment, always add to the bottom */
 	bool tso_force;
@@ -324,6 +308,11 @@ struct e1000_adapter {
 	/* for ioport free */
 	int bars;
 	int need_ioport;
+
+	bool discarding;
+
+	struct work_struct fifo_stall_task;
+	struct work_struct phy_info_task;
 };
 
 enum e1000_state_t {
@@ -331,6 +320,27 @@ enum e1000_state_t {
 	__E1000_RESETTING,
 	__E1000_DOWN
 };
+
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+extern struct net_device *e1000_get_hw_dev(struct e1000_hw *hw);
+#define e_dbg(format, arg...) \
+	netdev_dbg(e1000_get_hw_dev(hw), format, ## arg)
+#define e_err(msglvl, format, arg...) \
+	netif_err(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_info(msglvl, format, arg...) \
+	netif_info(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_warn(msglvl, format, arg...) \
+	netif_warn(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_notice(msglvl, format, arg...) \
+	netif_notice(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_dev_info(format, arg...) \
+	dev_info(&adapter->pdev->dev, format, ## arg)
+#define e_dev_warn(format, arg...) \
+	dev_warn(&adapter->pdev->dev, format, ## arg)
+#define e_dev_err(format, arg...) \
+	dev_err(&adapter->pdev->dev, format, ## arg)
 
 extern char e1000_driver_name[];
 extern const char e1000_driver_version[];
@@ -345,8 +355,10 @@ extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
 extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
 extern void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
 extern void e1000_update_stats(struct e1000_adapter *adapter);
+extern bool e1000_has_link(struct e1000_adapter *adapter);
 extern void e1000_power_up_phy(struct e1000_adapter *);
 extern void e1000_set_ethtool_ops(struct net_device *netdev);
 extern void e1000_check_options(struct e1000_adapter *adapter);
+extern char *e1000_get_hw_dev_name(struct e1000_hw *hw);
 
 #endif /* _E1000_H_ */

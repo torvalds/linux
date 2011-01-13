@@ -42,6 +42,7 @@
 #define LBS_DEB_SDIO	0x00400000
 #define LBS_DEB_SYSFS	0x00800000
 #define LBS_DEB_SPI	0x01000000
+#define LBS_DEB_CFG80211 0x02000000
 
 extern unsigned int lbs_debug;
 
@@ -86,6 +87,7 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define lbs_deb_sdio(fmt, args...)      LBS_DEB_LL(LBS_DEB_SDIO, " sdio", fmt, ##args)
 #define lbs_deb_sysfs(fmt, args...)     LBS_DEB_LL(LBS_DEB_SYSFS, " sysfs", fmt, ##args)
 #define lbs_deb_spi(fmt, args...)       LBS_DEB_LL(LBS_DEB_SPI, " spi", fmt, ##args)
+#define lbs_deb_cfg80211(fmt, args...)  LBS_DEB_LL(LBS_DEB_CFG80211, " cfg80211", fmt, ##args)
 
 #define lbs_pr_info(format, args...) \
 	printk(KERN_INFO DRV_NAME": " format, ## args)
@@ -170,11 +172,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define MRVDRV_MAX_BSS_DESCRIPTS		16
 #define MRVDRV_MAX_REGION_CODE			6
 
-#define MRVDRV_IGNORE_MULTIPLE_DTIM		0xfffe
-#define MRVDRV_MIN_MULTIPLE_DTIM		1
-#define MRVDRV_MAX_MULTIPLE_DTIM		5
-#define MRVDRV_DEFAULT_MULTIPLE_DTIM		1
-
 #define MRVDRV_DEFAULT_LISTEN_INTERVAL		10
 
 #define	MRVDRV_CHANNELS_PER_SCAN		4
@@ -234,6 +231,8 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 /** Mesh enable bit in FW capability */
 #define MESH_CAPINFO_ENABLE_MASK			(1<<16)
 
+/** FW definition from Marvell v4 */
+#define MRVL_FW_V4					(0x04)
 /** FW definition from Marvell v5 */
 #define MRVL_FW_V5					(0x05)
 /** FW definition from Marvell v10 */
@@ -297,19 +296,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define	BAND_G			(0x02)
 #define ALL_802_11_BANDS	(BAND_B | BAND_G)
 
-/** MACRO DEFINITIONS */
-#define CAL_NF(NF)			((s32)(-(s32)(NF)))
-#define CAL_RSSI(SNR, NF) 		((s32)((s32)(SNR) + CAL_NF(NF)))
-#define SCAN_RSSI(RSSI)			(0x100 - ((u8)(RSSI)))
-
-#define DEFAULT_BCN_AVG_FACTOR		8
-#define DEFAULT_DATA_AVG_FACTOR		8
-#define AVG_SCALE			100
-#define CAL_AVG_SNR_NF(AVG, SNRNF, N)         \
-                        (((AVG) == 0) ? ((u16)(SNRNF) * AVG_SCALE) : \
-                        ((((int)(AVG) * (N -1)) + ((u16)(SNRNF) * \
-                        AVG_SCALE))  / N))
-
 #define MAX_RATES			14
 
 #define	MAX_LEDS			8
@@ -318,7 +304,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 extern const char lbs_driver_version[];
 extern u16 lbs_region_code_to_index[MRVDRV_MAX_REGION_CODE];
 
-extern u8 lbs_bg_rates[MAX_RATES];
 
 /** ENUM definition*/
 /** SNRNF_TYPE */
@@ -392,13 +377,6 @@ enum KEY_INFO_WPA {
 	KEY_INFO_WPA_MCAST = 0x01,
 	KEY_INFO_WPA_UNICAST = 0x02,
 	KEY_INFO_WPA_ENABLED = 0x04
-};
-
-/** mesh_fw_ver */
-enum _mesh_fw_ver {
-	MESH_NONE = 0, /* MESH is not supported */
-	MESH_FW_OLD,   /* MESH is supported in FW V5 */
-	MESH_FW_NEW,   /* MESH is supported in FW V10 and newer */
 };
 
 /* Default values for fwt commands. */

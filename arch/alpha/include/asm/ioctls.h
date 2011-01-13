@@ -80,6 +80,7 @@
 # define TIOCPKT_START		 8
 # define TIOCPKT_NOSTOP		16
 # define TIOCPKT_DOSTOP		32
+# define TIOCPKT_IOCTL		64
 
 
 #define TIOCNOTTY	0x5422
@@ -91,6 +92,8 @@
 #define TIOCGSID	0x5429  /* Return the session ID of FD */
 #define TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
+#define TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get primary device node of /dev/console */
+#define TIOCSIG		_IOW('T',0x36, int)  /* Generate signal on Pty slave */
 
 #define TIOCSERCONFIG	0x5453
 #define TIOCSERGWILD	0x5454
@@ -106,7 +109,5 @@
 
 #define TIOCMIWAIT	0x545C	/* wait for a change on serial input line(s) */
 #define TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
-#define TIOCGHAYESESP	0x545E  /* Get Hayes ESP configuration */
-#define TIOCSHAYESESP	0x545F  /* Set Hayes ESP configuration */
 
 #endif /* _ASM_ALPHA_IOCTLS_H */

@@ -29,62 +29,7 @@
 #include <mach/cpu.h>
 
 #include "generic.h"
-
-#ifdef CONFIG_ARCH_AT91RM9200
-#include <mach/at91rm9200_mc.h>
-
-/*
- * The AT91RM9200 goes into self-refresh mode with this command, and will
- * terminate self-refresh automatically on the next SDRAM access.
- */
-#define sdram_selfrefresh_enable()	at91_sys_write(AT91_SDRAMC_SRR, 1)
-#define sdram_selfrefresh_disable()	do {} while (0)
-
-#elif defined(CONFIG_ARCH_AT91CAP9)
-#include <mach/at91cap9_ddrsdr.h>
-
-static u32 saved_lpr;
-
-static inline void sdram_selfrefresh_enable(void)
-{
-	u32 lpr;
-
-	saved_lpr = at91_sys_read(AT91_DDRSDRC_LPR);
-
-	lpr = saved_lpr & ~AT91_DDRSDRC_LPCB;
-	at91_sys_write(AT91_DDRSDRC_LPR, lpr | AT91_DDRSDRC_LPCB_SELF_REFRESH);
-}
-
-#define sdram_selfrefresh_disable()	at91_sys_write(AT91_DDRSDRC_LPR, saved_lpr)
-
-#else
-#include <mach/at91sam9_sdramc.h>
-
-#ifdef CONFIG_ARCH_AT91SAM9263
-/*
- * FIXME either or both the SDRAM controllers (EB0, EB1) might be in use;
- * handle those cases both here and in the Suspend-To-RAM support.
- */
-#define	AT91_SDRAMC	AT91_SDRAMC0
-#warning Assuming EB1 SDRAM controller is *NOT* used
-#endif
-
-static u32 saved_lpr;
-
-static inline void sdram_selfrefresh_enable(void)
-{
-	u32 lpr;
-
-	saved_lpr = at91_sys_read(AT91_SDRAMC_LPR);
-
-	lpr = saved_lpr & ~AT91_SDRAMC_LPCB;
-	at91_sys_write(AT91_SDRAMC_LPR, lpr | AT91_SDRAMC_LPCB_SELF_REFRESH);
-}
-
-#define sdram_selfrefresh_disable()	at91_sys_write(AT91_SDRAMC_LPR, saved_lpr)
-
-#endif
-
+#include "pm.h"
 
 /*
  * Show the reason for the previous system reset.
@@ -201,7 +146,8 @@ static int at91_pm_verify_clocks(void)
 			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
 			return 0;
 		}
-	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263() || cpu_is_at91sam9g20()) {
+	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()
+			|| cpu_is_at91sam9g20() || cpu_is_at91sam9g10()) {
 		if ((scsr & (AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP)) != 0) {
 			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
 			return 0;
@@ -259,6 +205,7 @@ extern u32 at91_slow_clock_sz;
 
 static int at91_pm_enter(suspend_state_t state)
 {
+	u32 saved_lpr;
 	at91_gpio_suspend();
 	at91_irq_suspend();
 
@@ -311,16 +258,23 @@ static int at91_pm_enter(suspend_state_t state)
 			 * NOTE: the Wait-for-Interrupt instruction needs to be
 			 * in icache so no SDRAM accesses are needed until the
 			 * wakeup IRQ occurs and self-refresh is terminated.
+			 * For ARM 926 based chips, this requirement is weaker
+			 * as at91sam9 can access a RAM in self-refresh mode.
 			 */
-			asm("b 1f; .align 5; 1:");
-			asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
-			sdram_selfrefresh_enable();
-			asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
-			sdram_selfrefresh_disable();
+			asm volatile (	"mov r0, #0\n\t"
+					"b 1f\n\t"
+					".align 5\n\t"
+					"1: mcr p15, 0, r0, c7, c10, 4\n\t"
+					: /* no output */
+					: /* no input */
+					: "r0");
+			saved_lpr = sdram_selfrefresh_enable();
+			wait_for_interrupt_enable();
+			sdram_selfrefresh_disable(saved_lpr);
 			break;
 
 		case PM_SUSPEND_ON:
-			asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
+			cpu_do_idle();
 			break;
 
 		default:

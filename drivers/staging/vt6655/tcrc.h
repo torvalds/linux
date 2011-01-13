@@ -26,16 +26,10 @@
  *
  */
 
-
 #ifndef __TCRC_H__
 #define __TCRC_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -48,22 +42,10 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
-
-DWORD CRCdwCrc32(PBYTE pbyData, UINT cbByte, DWORD dwCrcSeed);
-DWORD CRCdwGetCrc32(PBYTE pbyData, UINT cbByte);
-DWORD CRCdwGetCrc32Ex(PBYTE pbyData, UINT cbByte, DWORD dwPreCRC);
-
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
+unsigned long CRCdwCrc32(unsigned char *pbyData, unsigned int cbByte, unsigned long dwCrcSeed);
+unsigned long CRCdwGetCrc32(unsigned char *pbyData, unsigned int cbByte);
+unsigned long CRCdwGetCrc32Ex(unsigned char *pbyData, unsigned int cbByte, unsigned long dwPreCRC);
 
 #endif // __TCRC_H__
 

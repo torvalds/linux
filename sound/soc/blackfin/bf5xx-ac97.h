@@ -1,5 +1,5 @@
 /*
- * linux/sound/arm/bf5xx-ac97.h
+ * sound/soc/blackfin/bf5xx-ac97.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -49,8 +49,6 @@ struct ac97_frame {
 #define TAG_PCM_SL		0x0100
 #define TAG_PCM_SR		0x0080
 #define TAG_PCM_LFE		0x0040
-
-extern struct snd_soc_dai bfin_ac97_dai;
 
 void bf5xx_pcm_to_ac97(struct ac97_frame *dst, const __u16 *src, \
 		size_t count, unsigned int chan_mask);

@@ -10,8 +10,9 @@
  * and the decompression code from MILO.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 #include <linux/mm.h>
 
 #include <asm/system.h>

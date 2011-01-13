@@ -37,7 +37,6 @@
 
 /* Memory Map for ADSP-BF561 processors */
 
-#ifdef CONFIG_BF561
 #define COREA_L1_CODE_START       0xFFA00000
 #define COREA_L1_DATA_A_START     0xFF800000
 #define COREA_L1_DATA_B_START     0xFF900000
@@ -74,6 +73,28 @@
 #define BFIN_DCACHESIZE	(0*1024)
 #define BFIN_DSUPBANKS	0
 #endif /*CONFIG_BFIN_DCACHE*/
+
+/*
+ * If we are in SMP mode, then the cache settings of Core B will match
+ * the settings of Core A.  If we aren't, then we assume Core B is not
+ * using any cache.  This allows the rest of the kernel to work with
+ * the core in either mode as we are only loading user code into it and
+ * it is the user's problem to make sure they aren't doing something
+ * stupid there.
+ *
+ * Note that we treat the L1 code region as a contiguous blob to make
+ * the rest of the kernel simpler.  Easier to check one region than a
+ * bunch of small ones.  Again, possible misbehavior here is the fault
+ * of the user -- don't try to use memory that doesn't exist.
+ */
+#ifdef CONFIG_SMP
+# define COREB_L1_CODE_LENGTH     L1_CODE_LENGTH
+# define COREB_L1_DATA_A_LENGTH   L1_DATA_A_LENGTH
+# define COREB_L1_DATA_B_LENGTH   L1_DATA_B_LENGTH
+#else
+# define COREB_L1_CODE_LENGTH     0x14000
+# define COREB_L1_DATA_A_LENGTH   0x8000
+# define COREB_L1_DATA_B_LENGTH   0x8000
 #endif
 
 /* Level 2 Memory */
@@ -85,7 +106,7 @@
 #define COREA_L1_SCRATCH_START	0xFFB00000
 #define COREB_L1_SCRATCH_START	0xFF700000
 
-#ifdef __ASSEMBLY__
+#ifdef CONFIG_SMP
 
 /*
  * The following macros both return the address of the PDA for the
@@ -100,8 +121,7 @@
  * is allowed to use the specified Dreg for determining the PDA
  * address to be returned into Preg.
  */
-#ifdef CONFIG_SMP
-#define GET_PDA_SAFE(preg)		\
+# define GET_PDA_SAFE(preg)		\
 	preg.l = lo(DSPID);		\
 	preg.h = hi(DSPID);		\
 	preg = [preg];			\
@@ -137,7 +157,7 @@
 	preg = [preg];			\
 4:
 
-#define GET_PDA(preg, dreg)		\
+# define GET_PDA(preg, dreg)		\
 	preg.l = lo(DSPID);		\
 	preg.h = hi(DSPID);		\
 	dreg = [preg];			\
@@ -148,12 +168,16 @@
 	preg = [preg];			\
 1:					\
 
-#define GET_CPUID(preg, dreg)		\
+# define GET_CPUID(preg, dreg)		\
 	preg.l = lo(DSPID);		\
 	preg.h = hi(DSPID);		\
 	dreg = [preg];			\
 	dreg = ROT dreg BY -1;		\
 	dreg = CC;
+
+# ifndef __ASSEMBLY__
+
+#  include <asm/processor.h>
 
 static inline unsigned long get_l1_scratch_start_cpu(int cpu)
 {
@@ -189,8 +213,7 @@ static inline unsigned long get_l1_data_b_start(void)
 	return get_l1_data_b_start_cpu(blackfin_core_id());
 }
 
+# endif /* __ASSEMBLY__ */
 #endif /* CONFIG_SMP */
-
-#endif /* __ASSEMBLY__ */
 
 #endif

@@ -22,9 +22,7 @@
 #include "blk.h"
 
 static DEFINE_MUTEX(block_class_lock);
-#ifndef CONFIG_SYSFS_DEPRECATED
 struct kobject *block_depr;
-#endif
 
 /* for extended dynamic devt allocation, currently only one major is used */
 #define MAX_EXT_DEVT		(1 << MINORBITS)
@@ -541,13 +539,15 @@ void add_disk(struct gendisk *disk)
 	disk->major = MAJOR(devt);
 	disk->first_minor = MINOR(devt);
 
+	/* Register BDI before referencing it from bdev */ 
+	bdi = &disk->queue->backing_dev_info;
+	bdi_register_dev(bdi, disk_devt(disk));
+
 	blk_register_region(disk_devt(disk), disk->minors, NULL,
 			    exact_match, exact_lock, disk);
 	register_disk(disk);
 	blk_register_queue(disk);
 
-	bdi = &disk->queue->backing_dev_info;
-	bdi_register_dev(bdi, disk_devt(disk));
 	retval = sysfs_create_link(&disk_to_dev(disk)->kobj, &bdi->dev->kobj,
 				   "bdi");
 	WARN_ON(retval);
@@ -596,6 +596,7 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 
 	return disk;
 }
+EXPORT_SYMBOL(get_gendisk);
 
 /**
  * bdget_disk - do bdget() by gendisk and partition number
@@ -641,6 +642,7 @@ void __init printk_all_partitions(void)
 		struct hd_struct *part;
 		char name_buf[BDEVNAME_SIZE];
 		char devt_buf[BDEVT_SIZE];
+		u8 uuid[PARTITION_META_INFO_UUIDLTH * 2 + 1];
 
 		/*
 		 * Don't show empty devices or things that have been
@@ -659,10 +661,14 @@ void __init printk_all_partitions(void)
 		while ((part = disk_part_iter_next(&piter))) {
 			bool is_part0 = part == &disk->part0;
 
-			printk("%s%s %10llu %s", is_part0 ? "" : "  ",
+			uuid[0] = 0;
+			if (part->info)
+				part_unpack_uuid(part->info->uuid, uuid);
+
+			printk("%s%s %10llu %s %s", is_part0 ? "" : "  ",
 			       bdevt_str(part_devt(part), devt_buf),
 			       (unsigned long long)part->nr_sects >> 1,
-			       disk_name(disk, part->partno, name_buf));
+			       disk_name(disk, part->partno, name_buf), uuid);
 			if (is_part0) {
 				if (disk->driverfs_dev != NULL &&
 				    disk->driverfs_dev->driver != NULL)
@@ -802,10 +808,9 @@ static int __init genhd_device_init(void)
 
 	register_blkdev(BLOCK_EXT_MAJOR, "blkext");
 
-#ifndef CONFIG_SYSFS_DEPRECATED
 	/* create top-level block dir */
-	block_depr = kobject_create_and_add("block", NULL);
-#endif
+	if (!sysfs_deprecated)
+		block_depr = kobject_create_and_add("block", NULL);
 	return 0;
 }
 
@@ -861,14 +866,26 @@ static ssize_t disk_alignment_offset_show(struct device *dev,
 	return sprintf(buf, "%d\n", queue_alignment_offset(disk->queue));
 }
 
+static ssize_t disk_discard_alignment_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	return sprintf(buf, "%d\n", queue_discard_alignment(disk->queue));
+}
+
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
 static DEVICE_ATTR(ext_range, S_IRUGO, disk_ext_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
 static DEVICE_ATTR(ro, S_IRUGO, disk_ro_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(alignment_offset, S_IRUGO, disk_alignment_offset_show, NULL);
+static DEVICE_ATTR(discard_alignment, S_IRUGO, disk_discard_alignment_show,
+		   NULL);
 static DEVICE_ATTR(capability, S_IRUGO, disk_capability_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
+static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
 	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
@@ -886,8 +903,10 @@ static struct attribute *disk_attrs[] = {
 	&dev_attr_ro.attr,
 	&dev_attr_size.attr,
 	&dev_attr_alignment_offset.attr,
+	&dev_attr_discard_alignment.attr,
 	&dev_attr_capability.attr,
 	&dev_attr_stat.attr,
+	&dev_attr_inflight.attr,
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	&dev_attr_fail.attr,
 #endif
@@ -901,7 +920,7 @@ static struct attribute_group disk_attr_group = {
 	.attrs = disk_attrs,
 };
 
-static struct attribute_group *disk_attr_groups[] = {
+static const struct attribute_group *disk_attr_groups[] = {
 	&disk_attr_group,
 	NULL
 };
@@ -973,7 +992,6 @@ int disk_expand_part_tbl(struct gendisk *disk, int partno)
 	if (!new_ptbl)
 		return -ENOMEM;
 
-	INIT_RCU_HEAD(&new_ptbl->rcu_head);
 	new_ptbl->len = target;
 
 	for (i = 0; i < len; i++)
@@ -990,18 +1008,19 @@ static void disk_release(struct device *dev)
 	kfree(disk->random);
 	disk_replace_part_tbl(disk, NULL);
 	free_part_stats(&disk->part0);
+	free_part_info(&disk->part0);
 	kfree(disk);
 }
 struct class block_class = {
 	.name		= "block",
 };
 
-static char *block_nodename(struct device *dev)
+static char *block_devnode(struct device *dev, mode_t *mode)
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	if (disk->nodename)
-		return disk->nodename(disk);
+	if (disk->devnode)
+		return disk->devnode(disk, mode);
 	return NULL;
 }
 
@@ -1009,7 +1028,7 @@ static struct device_type disk_type = {
 	.name		= "disk",
 	.groups		= disk_attr_groups,
 	.release	= disk_release,
-	.nodename	= block_nodename,
+	.devnode	= block_devnode,
 };
 
 #ifdef CONFIG_PROC_FS
@@ -1053,7 +1072,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 			   part_stat_read(hd, merges[1]),
 			   (unsigned long long)part_stat_read(hd, sectors[1]),
 			   jiffies_to_msecs(part_stat_read(hd, ticks[1])),
-			   hd->in_flight,
+			   part_in_flight(hd),
 			   jiffies_to_msecs(part_stat_read(hd, io_ticks)),
 			   jiffies_to_msecs(part_stat_read(hd, time_in_queue))
 			);
@@ -1215,6 +1234,16 @@ void put_disk(struct gendisk *disk)
 
 EXPORT_SYMBOL(put_disk);
 
+static void set_disk_ro_uevent(struct gendisk *gd, int ro)
+{
+	char event[] = "DISK_RO=1";
+	char *envp[] = { event, NULL };
+
+	if (!ro)
+		event[8] = '0';
+	kobject_uevent_env(&disk_to_dev(gd)->kobj, KOBJ_CHANGE, envp);
+}
+
 void set_device_ro(struct block_device *bdev, int flag)
 {
 	bdev->bd_part->policy = flag;
@@ -1227,8 +1256,12 @@ void set_disk_ro(struct gendisk *disk, int flag)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 
-	disk_part_iter_init(&piter, disk,
-			    DISK_PITER_INCL_EMPTY | DISK_PITER_INCL_PART0);
+	if (disk->part0.policy != flag) {
+		set_disk_ro_uevent(disk, flag);
+		disk->part0.policy = flag;
+	}
+
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
 		part->policy = flag;
 	disk_part_iter_exit(&piter);

@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <net/iucv/iucv.h>
 #include <asm/cpcmd.h>
 #include <asm/ebcdic.h>
@@ -31,9 +32,9 @@
 
 struct smsg_callback {
 	struct list_head list;
-	char *prefix;
+	const char *prefix;
 	int len;
-	void (*callback)(char *from, char *str);
+	void (*callback)(const char *from, char *str);
 };
 
 MODULE_AUTHOR
@@ -46,6 +47,7 @@ static struct device *smsg_dev;
 
 static DEFINE_SPINLOCK(smsg_list_lock);
 static LIST_HEAD(smsg_list);
+static int iucv_path_connected;
 
 static int smsg_path_pending(struct iucv_path *, u8 ipvmid[8], u8 ipuser[16]);
 static void smsg_message_pending(struct iucv_path *, struct iucv_message *);
@@ -100,8 +102,8 @@ static void smsg_message_pending(struct iucv_path *path,
 	kfree(buffer);
 }
 
-int smsg_register_callback(char *prefix,
-			   void (*callback)(char *from, char *str))
+int smsg_register_callback(const char *prefix,
+			   void (*callback)(const char *from, char *str))
 {
 	struct smsg_callback *cb;
 
@@ -117,8 +119,9 @@ int smsg_register_callback(char *prefix,
 	return 0;
 }
 
-void smsg_unregister_callback(char *prefix,
-			      void (*callback)(char *from, char *str))
+void smsg_unregister_callback(const char *prefix,
+			      void (*callback)(const char *from,
+					       char *str))
 {
 	struct smsg_callback *cb, *tmp;
 
@@ -140,8 +143,10 @@ static int smsg_pm_freeze(struct device *dev)
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "smsg_pm_freeze\n");
 #endif
-	if (smsg_path)
+	if (smsg_path && iucv_path_connected) {
 		iucv_path_sever(smsg_path, NULL);
+		iucv_path_connected = 0;
+	}
 	return 0;
 }
 
@@ -152,18 +157,25 @@ static int smsg_pm_restore_thaw(struct device *dev)
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "smsg_pm_restore_thaw\n");
 #endif
-	if (smsg_path) {
+	if (smsg_path && iucv_path_connected) {
 		memset(smsg_path, 0, sizeof(*smsg_path));
 		smsg_path->msglim = 255;
 		smsg_path->flags = 0;
 		rc = iucv_path_connect(smsg_path, &smsg_handler, "*MSG    ",
 				       NULL, NULL, NULL);
-		printk(KERN_ERR "iucv_path_connect returned with rc %i\n", rc);
+#ifdef CONFIG_PM_DEBUG
+		if (rc)
+			printk(KERN_ERR
+			       "iucv_path_connect returned with rc %i\n", rc);
+#endif
+		if (!rc)
+			iucv_path_connected = 1;
+		cpcmd("SET SMSG IUCV", NULL, 0, NULL);
 	}
 	return 0;
 }
 
-static struct dev_pm_ops smsg_pm_ops = {
+static const struct dev_pm_ops smsg_pm_ops = {
 	.freeze = smsg_pm_freeze,
 	.thaw = smsg_pm_restore_thaw,
 	.restore = smsg_pm_restore_thaw,
@@ -171,7 +183,7 @@ static struct dev_pm_ops smsg_pm_ops = {
 
 static struct device_driver smsg_driver = {
 	.owner = THIS_MODULE,
-	.name = "SMSGIUCV",
+	.name = SMSGIUCV_DRV_NAME,
 	.bus  = &iucv_bus,
 	.pm = &smsg_pm_ops,
 };
@@ -207,6 +219,8 @@ static int __init smsg_init(void)
 			       NULL, NULL, NULL);
 	if (rc)
 		goto out_free_path;
+	else
+		iucv_path_connected = 1;
 	smsg_dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (!smsg_dev) {
 		rc = -ENOMEM;
@@ -219,13 +233,13 @@ static int __init smsg_init(void)
 	smsg_dev->driver = &smsg_driver;
 	rc = device_register(smsg_dev);
 	if (rc)
-		goto out_free_dev;
+		goto out_put;
 
 	cpcmd("SET SMSG IUCV", NULL, 0, NULL);
 	return 0;
 
-out_free_dev:
-	kfree(smsg_dev);
+out_put:
+	put_device(smsg_dev);
 out_free_path:
 	iucv_path_free(smsg_path);
 	smsg_path = NULL;

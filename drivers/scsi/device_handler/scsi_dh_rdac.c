@@ -22,6 +22,8 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dh.h>
+#include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define RDAC_NAME "rdac"
 #define RDAC_RETRY_COUNT 5
@@ -112,6 +114,7 @@ struct c9_inquiry {
 
 #define SUBSYS_ID_LEN	16
 #define SLOT_ID_LEN	2
+#define ARRAY_LABEL_LEN	31
 
 struct c4_inquiry {
 	u8	peripheral_info;
@@ -135,7 +138,15 @@ struct rdac_controller {
 		struct rdac_pg_legacy legacy;
 		struct rdac_pg_expanded expanded;
 	} mode_select;
+	u8	index;
+	u8	array_name[ARRAY_LABEL_LEN];
+	spinlock_t		ms_lock;
+	int			ms_queued;
+	struct work_struct	ms_work;
+	struct scsi_device	*ms_sdev;
+	struct list_head	ms_head;
 };
+
 struct c8_inquiry {
 	u8	peripheral_info;
 	u8	page_code; /* 0xC8 */
@@ -195,8 +206,42 @@ static const char *lun_state[] =
 	"owned (AVT mode)",
 };
 
+struct rdac_queue_data {
+	struct list_head	entry;
+	struct rdac_dh_data	*h;
+	activate_complete	callback_fn;
+	void			*callback_data;
+};
+
 static LIST_HEAD(ctlr_list);
 static DEFINE_SPINLOCK(list_lock);
+static struct workqueue_struct *kmpath_rdacd;
+static void send_mode_select(struct work_struct *work);
+
+/*
+ * module parameter to enable rdac debug logging.
+ * 2 bits for each type of logging, only two types defined for now
+ * Can be enhanced if required at later point
+ */
+static int rdac_logging = 1;
+module_param(rdac_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(rdac_logging, "A bit mask of rdac logging levels, "
+		"Default is 1 - failover logging enabled, "
+		"set it to 0xF to enable all the logs");
+
+#define RDAC_LOG_FAILOVER	0
+#define RDAC_LOG_SENSE		2
+
+#define RDAC_LOG_BITS		2
+
+#define RDAC_LOG_LEVEL(SHIFT)  \
+	((rdac_logging >> (SHIFT)) & ((1 << (RDAC_LOG_BITS)) - 1))
+
+#define RDAC_LOG(SHIFT, sdev, f, arg...) \
+do { \
+	if (unlikely(RDAC_LOG_LEVEL(SHIFT))) \
+		sdev_printk(KERN_INFO, sdev, RDAC_NAME ": " f "\n", ## arg); \
+} while (0);
 
 static inline struct rdac_dh_data *get_rdac_data(struct scsi_device *sdev)
 {
@@ -253,7 +298,6 @@ static struct request *rdac_failover_get(struct scsi_device *sdev,
 		rdac_pg->subpage_code = 0x1;
 		rdac_pg->page_len[0] = 0x01;
 		rdac_pg->page_len[1] = 0x28;
-		rdac_pg->lun_table[h->lun] = 0x81;
 	} else {
 		struct rdac_pg_legacy *rdac_pg;
 
@@ -263,7 +307,6 @@ static struct request *rdac_failover_get(struct scsi_device *sdev,
 		common = &rdac_pg->common;
 		rdac_pg->page_code = RDAC_PAGE_CODE_REDUNDANT_CONTROLLER;
 		rdac_pg->page_len = 0x68;
-		rdac_pg->lun_table[h->lun] = 0x81;
 	}
 	common->rdac_mode[1] = RDAC_MODE_TRANSFER_SPECIFIED_LUNS;
 	common->quiescence_timeout = RDAC_QUIESCENCE_TIME;
@@ -297,13 +340,15 @@ static void release_controller(struct kref *kref)
 	struct rdac_controller *ctlr;
 	ctlr = container_of(kref, struct rdac_controller, kref);
 
+	flush_workqueue(kmpath_rdacd);
 	spin_lock(&list_lock);
 	list_del(&ctlr->node);
 	spin_unlock(&list_lock);
 	kfree(ctlr);
 }
 
-static struct rdac_controller *get_controller(u8 *subsys_id, u8 *slot_id)
+static struct rdac_controller *get_controller(u8 *subsys_id, u8 *slot_id,
+						char *array_name)
 {
 	struct rdac_controller *ctlr, *tmp;
 
@@ -324,8 +369,21 @@ static struct rdac_controller *get_controller(u8 *subsys_id, u8 *slot_id)
 	/* initialize fields of controller */
 	memcpy(ctlr->subsys_id, subsys_id, SUBSYS_ID_LEN);
 	memcpy(ctlr->slot_id, slot_id, SLOT_ID_LEN);
+	memcpy(ctlr->array_name, array_name, ARRAY_LABEL_LEN);
+
+	/* update the controller index */
+	if (slot_id[1] == 0x31)
+		ctlr->index = 0;
+	else
+		ctlr->index = 1;
+
 	kref_init(&ctlr->kref);
 	ctlr->use_ms10 = -1;
+	ctlr->ms_queued = 0;
+	ctlr->ms_sdev = NULL;
+	spin_lock_init(&ctlr->ms_lock);
+	INIT_WORK(&ctlr->ms_work, send_mode_select);
+	INIT_LIST_HEAD(&ctlr->ms_head);
 	list_add(&ctlr->node, &ctlr_list);
 done:
 	spin_unlock(&list_lock);
@@ -363,9 +421,10 @@ done:
 	return err;
 }
 
-static int get_lun(struct scsi_device *sdev, struct rdac_dh_data *h)
+static int get_lun_info(struct scsi_device *sdev, struct rdac_dh_data *h,
+			char *array_name)
 {
-	int err;
+	int err, i;
 	struct c8_inquiry *inqp;
 
 	err = submit_inquiry(sdev, 0xC8, sizeof(struct c8_inquiry), h);
@@ -377,6 +436,11 @@ static int get_lun(struct scsi_device *sdev, struct rdac_dh_data *h)
 		    inqp->page_id[2] != 'i' || inqp->page_id[3] != 'd')
 			return SCSI_DH_NOSYS;
 		h->lun = inqp->lun[7]; /* Uses only the last byte */
+
+		for(i=0; i<ARRAY_LABEL_LEN-1; ++i)
+			*(array_name+i) = inqp->array_user_label[(2*i)+1];
+
+		*(array_name+ARRAY_LABEL_LEN-1) = '\0';
 	}
 	return err;
 }
@@ -410,7 +474,7 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 }
 
 static int initialize_controller(struct scsi_device *sdev,
-				 struct rdac_dh_data *h)
+				 struct rdac_dh_data *h, char *array_name)
 {
 	int err;
 	struct c4_inquiry *inqp;
@@ -418,7 +482,8 @@ static int initialize_controller(struct scsi_device *sdev,
 	err = submit_inquiry(sdev, 0xC4, sizeof(struct c4_inquiry), h);
 	if (err == SCSI_DH_OK) {
 		inqp = &h->inq.c4;
-		h->ctlr = get_controller(inqp->subsys_id, inqp->slot_id);
+		h->ctlr = get_controller(inqp->subsys_id, inqp->slot_id,
+					array_name);
 		if (!h->ctlr)
 			err = SCSI_DH_RES_TEMP_UNAVAIL;
 	}
@@ -446,16 +511,15 @@ static int set_mode_select(struct scsi_device *sdev, struct rdac_dh_data *h)
 }
 
 static int mode_select_handle_sense(struct scsi_device *sdev,
-				    unsigned char *sensebuf)
+					unsigned char *sensebuf)
 {
 	struct scsi_sense_hdr sense_hdr;
 	int err = SCSI_DH_IO, ret;
+	struct rdac_dh_data *h = get_rdac_data(sdev);
 
 	ret = scsi_normalize_sense(sensebuf, SCSI_SENSE_BUFFERSIZE, &sense_hdr);
 	if (!ret)
 		goto done;
-
-	err = SCSI_DH_OK;
 
 	switch (sense_hdr.sense_key) {
 	case NO_SENSE:
@@ -478,20 +542,41 @@ static int mode_select_handle_sense(struct scsi_device *sdev,
 			err = SCSI_DH_RETRY;
 		break;
 	default:
-		sdev_printk(KERN_INFO, sdev,
-			    "MODE_SELECT failed with sense %02x/%02x/%02x.\n",
-			    sense_hdr.sense_key, sense_hdr.asc, sense_hdr.ascq);
+		break;
 	}
+
+	RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
+		"MODE_SELECT returned with sense %02x/%02x/%02x",
+		(char *) h->ctlr->array_name, h->ctlr->index,
+		sense_hdr.sense_key, sense_hdr.asc, sense_hdr.ascq);
 
 done:
 	return err;
 }
 
-static int send_mode_select(struct scsi_device *sdev, struct rdac_dh_data *h)
+static void send_mode_select(struct work_struct *work)
 {
+	struct rdac_controller *ctlr =
+		container_of(work, struct rdac_controller, ms_work);
 	struct request *rq;
+	struct scsi_device *sdev = ctlr->ms_sdev;
+	struct rdac_dh_data *h = get_rdac_data(sdev);
 	struct request_queue *q = sdev->request_queue;
 	int err, retry_cnt = RDAC_RETRY_COUNT;
+	struct rdac_queue_data *tmp, *qdata;
+	LIST_HEAD(list);
+	u8 *lun_table;
+
+	spin_lock(&ctlr->ms_lock);
+	list_splice_init(&ctlr->ms_head, &list);
+	ctlr->ms_queued = 0;
+	ctlr->ms_sdev = NULL;
+	spin_unlock(&ctlr->ms_lock);
+
+	if (ctlr->use_ms10)
+		lun_table = ctlr->mode_select.expanded.lun_table;
+	else
+		lun_table = ctlr->mode_select.legacy.lun_table;
 
 retry:
 	err = SCSI_DH_RES_TEMP_UNAVAIL;
@@ -499,7 +584,13 @@ retry:
 	if (!rq)
 		goto done;
 
-	sdev_printk(KERN_INFO, sdev, "%s MODE_SELECT command.\n",
+	list_for_each_entry(qdata, &list, entry) {
+		lun_table[qdata->h->lun] = 0x81;
+	}
+
+	RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
+		"%s MODE_SELECT command",
+		(char *) h->ctlr->array_name, h->ctlr->index,
 		(retry_cnt == RDAC_RETRY_COUNT) ? "queueing" : "retrying");
 
 	err = blk_execute_rq(q, NULL, rq, 1);
@@ -509,14 +600,53 @@ retry:
 		if (err == SCSI_DH_RETRY && retry_cnt--)
 			goto retry;
 	}
-	if (err == SCSI_DH_OK)
+	if (err == SCSI_DH_OK) {
 		h->state = RDAC_STATE_ACTIVE;
+		RDAC_LOG(RDAC_LOG_FAILOVER, sdev, "array %s, ctlr %d, "
+				"MODE_SELECT completed",
+				(char *) h->ctlr->array_name, h->ctlr->index);
+	}
 
 done:
-	return err;
+	list_for_each_entry_safe(qdata, tmp, &list, entry) {
+		list_del(&qdata->entry);
+		if (err == SCSI_DH_OK)
+			qdata->h->state = RDAC_STATE_ACTIVE;
+		if (qdata->callback_fn)
+			qdata->callback_fn(qdata->callback_data, err);
+		kfree(qdata);
+	}
+	return;
 }
 
-static int rdac_activate(struct scsi_device *sdev)
+static int queue_mode_select(struct scsi_device *sdev,
+				activate_complete fn, void *data)
+{
+	struct rdac_queue_data *qdata;
+	struct rdac_controller *ctlr;
+
+	qdata = kzalloc(sizeof(*qdata), GFP_KERNEL);
+	if (!qdata)
+		return SCSI_DH_RETRY;
+
+	qdata->h = get_rdac_data(sdev);
+	qdata->callback_fn = fn;
+	qdata->callback_data = data;
+
+	ctlr = qdata->h->ctlr;
+	spin_lock(&ctlr->ms_lock);
+	list_add_tail(&qdata->entry, &ctlr->ms_head);
+	if (!ctlr->ms_queued) {
+		ctlr->ms_queued = 1;
+		ctlr->ms_sdev = sdev;
+		queue_work(kmpath_rdacd, &ctlr->ms_work);
+	}
+	spin_unlock(&ctlr->ms_lock);
+	return SCSI_DH_OK;
+}
+
+static int rdac_activate(struct scsi_device *sdev,
+			activate_complete fn, void *data)
 {
 	struct rdac_dh_data *h = get_rdac_data(sdev);
 	int err = SCSI_DH_OK;
@@ -525,21 +655,15 @@ static int rdac_activate(struct scsi_device *sdev)
 	if (err != SCSI_DH_OK)
 		goto done;
 
-	if (!h->ctlr) {
-		err = initialize_controller(sdev, h);
-		if (err != SCSI_DH_OK)
-			goto done;
+	if (h->lun_state == RDAC_LUN_UNOWNED) {
+		err = queue_mode_select(sdev, fn, data);
+		if (err == SCSI_DH_OK)
+			return 0;
 	}
-
-	if (h->ctlr->use_ms10 == -1) {
-		err = set_mode_select(sdev, h);
-		if (err != SCSI_DH_OK)
-			goto done;
-	}
-	if (h->lun_state == RDAC_LUN_UNOWNED)
-		err = send_mode_select(sdev, h);
 done:
-	return err;
+	if (fn)
+		fn(data, err);
+	return 0;
 }
 
 static int rdac_prep_fn(struct scsi_device *sdev, struct request *req)
@@ -559,6 +683,12 @@ static int rdac_check_sense(struct scsi_device *sdev,
 				struct scsi_sense_hdr *sense_hdr)
 {
 	struct rdac_dh_data *h = get_rdac_data(sdev);
+
+	RDAC_LOG(RDAC_LOG_SENSE, sdev, "array %s, ctlr %d, "
+			"I/O returned with sense %02x/%02x/%02x",
+			(char *) h->ctlr->array_name, h->ctlr->index,
+			sense_hdr->sense_key, sense_hdr->asc, sense_hdr->ascq);
+
 	switch (sense_hdr->sense_key) {
 	case NOT_READY:
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x01)
@@ -619,6 +749,8 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"IBM", "1724"},
 	{"IBM", "1726"},
 	{"IBM", "1742"},
+	{"IBM", "1745"},
+	{"IBM", "1746"},
 	{"IBM", "1814"},
 	{"IBM", "1815"},
 	{"IBM", "1818"},
@@ -628,11 +760,21 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"SGI", "IS"},
 	{"STK", "OPENstorage D280"},
 	{"SUN", "CSM200_R"},
+	{"SUN", "LCSM100_I"},
+	{"SUN", "LCSM100_S"},
+	{"SUN", "LCSM100_E"},
 	{"SUN", "LCSM100_F"},
 	{"DELL", "MD3000"},
 	{"DELL", "MD3000i"},
+	{"DELL", "MD32xx"},
+	{"DELL", "MD32xxi"},
+	{"DELL", "MD36xxi"},
 	{"LSI", "INF-01-00"},
 	{"ENGENIO", "INF-01-00"},
+	{"STK", "FLEXLINE 380"},
+	{"SUN", "CSM100_R_FC"},
+	{"SUN", "STK6580_6780"},
+	{"SUN", "SUN_6180"},
 	{NULL, NULL},
 };
 
@@ -656,6 +798,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	struct rdac_dh_data *h;
 	unsigned long flags;
 	int err;
+	char array_name[ARRAY_LABEL_LEN];
 
 	scsi_dh_data = kzalloc(sizeof(struct scsi_device_handler *)
 			       + sizeof(*h) , GFP_KERNEL);
@@ -670,16 +813,24 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	h->lun = UNINITIALIZED_LUN;
 	h->state = RDAC_STATE_ACTIVE;
 
-	err = get_lun(sdev, h);
+	err = get_lun_info(sdev, h, array_name);
+	if (err != SCSI_DH_OK)
+		goto failed;
+
+	err = initialize_controller(sdev, h, array_name);
 	if (err != SCSI_DH_OK)
 		goto failed;
 
 	err = check_ownership(sdev, h);
 	if (err != SCSI_DH_OK)
-		goto failed;
+		goto clean_ctlr;
+
+	err = set_mode_select(sdev, h);
+	if (err != SCSI_DH_OK)
+		goto clean_ctlr;
 
 	if (!try_module_get(THIS_MODULE))
-		goto failed;
+		goto clean_ctlr;
 
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->scsi_dh_data = scsi_dh_data;
@@ -690,6 +841,9 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 		    RDAC_NAME, h->lun, lun_state[(int)h->lun_state]);
 
 	return 0;
+
+clean_ctlr:
+	kref_put(&h->ctlr->kref, release_controller);
 
 failed:
 	kfree(scsi_dh_data);
@@ -724,13 +878,26 @@ static int __init rdac_init(void)
 	int r;
 
 	r = scsi_register_device_handler(&rdac_dh);
-	if (r != 0)
+	if (r != 0) {
 		printk(KERN_ERR "Failed to register scsi device handler.");
+		goto done;
+	}
+
+	/*
+	 * Create workqueue to handle mode selects for rdac
+	 */
+	kmpath_rdacd = create_singlethread_workqueue("kmpath_rdacd");
+	if (!kmpath_rdacd) {
+		scsi_unregister_device_handler(&rdac_dh);
+		printk(KERN_ERR "kmpath_rdacd creation failed.\n");
+	}
+done:
 	return r;
 }
 
 static void __exit rdac_exit(void)
 {
+	destroy_workqueue(kmpath_rdacd);
 	scsi_unregister_device_handler(&rdac_dh);
 }
 

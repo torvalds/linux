@@ -311,6 +311,10 @@ typedef struct
 	__u32		orig_gpr2;
 } s390_compat_regs;
 
+typedef struct
+{
+	__u32		gprs_high[NUM_GPRS];
+} s390_compat_regs_high;
 
 #ifdef __KERNEL__
 
@@ -324,13 +328,63 @@ struct pt_regs
 	psw_t psw;
 	unsigned long gprs[NUM_GPRS];
 	unsigned long orig_gpr2;
-	unsigned short svcnr;
 	unsigned short ilc;
+	unsigned short svcnr;
 };
+
+/*
+ * Program event recording (PER) register set.
+ */
+struct per_regs {
+	unsigned long control;		/* PER control bits */
+	unsigned long start;		/* PER starting address */
+	unsigned long end;		/* PER ending address */
+};
+
+/*
+ * PER event contains information about the cause of the last PER exception.
+ */
+struct per_event {
+	unsigned short cause;		/* PER code, ATMID and AI */
+	unsigned long address;		/* PER address */
+	unsigned char paid;		/* PER access identification */
+};
+
+/*
+ * Simplified per_info structure used to decode the ptrace user space ABI.
+ */
+struct per_struct_kernel {
+	unsigned long cr9;		/* PER control bits */
+	unsigned long cr10;		/* PER starting address */
+	unsigned long cr11;		/* PER ending address */
+	unsigned long bits;		/* Obsolete software bits */
+	unsigned long starting_addr;	/* User specified start address */
+	unsigned long ending_addr;	/* User specified end address */
+	unsigned short perc_atmid;	/* PER trap ATMID */
+	unsigned long address;		/* PER trap instruction address */
+	unsigned char access_id;	/* PER trap access identification */
+};
+
+#define PER_EVENT_MASK			0xE9000000UL
+
+#define PER_EVENT_BRANCH		0x80000000UL
+#define PER_EVENT_IFETCH		0x40000000UL
+#define PER_EVENT_STORE			0x20000000UL
+#define PER_EVENT_STORE_REAL		0x08000000UL
+#define PER_EVENT_NULLIFICATION		0x01000000UL
+
+#define PER_CONTROL_MASK		0x00a00000UL
+
+#define PER_CONTROL_BRANCH_ADDRESS	0x00800000UL
+#define PER_CONTROL_ALTERATION		0x00200000UL
+
 #endif
 
 /*
- * Now for the program event recording (trace) definitions.
+ * Now for the user space program event recording (trace) definitions.
+ * The following structures are used only for the ptrace interface, don't
+ * touch or even look at it if you don't want to modify the user-space
+ * ptrace interface. In particular stay away from it for in-kernel PER.
  */
 typedef struct
 {
@@ -432,6 +486,7 @@ typedef struct
 #define PTRACE_PEEKDATA_AREA	      0x5003
 #define PTRACE_POKETEXT_AREA	      0x5004
 #define PTRACE_POKEDATA_AREA 	      0x5005
+#define PTRACE_GET_LAST_BREAK	      0x5006
 
 /*
  * PT_PROT definition is loosely based on hppa bsd definition in
@@ -476,8 +531,7 @@ struct user_regs_struct
 	 * watchpoints. This is the way intel does it.
 	 */
 	per_struct per_info;
-	unsigned long ieee_instruction_pointer; 
-	/* Used to give failing instruction back to user for ieee exceptions */
+	unsigned long ieee_instruction_pointer;	/* obsolete, always 0 */
 };
 
 #ifdef __KERNEL__
@@ -485,16 +539,24 @@ struct user_regs_struct
  * These are defined as per linux/ptrace.h, which see.
  */
 #define arch_has_single_step()	(1)
-struct task_struct;
-extern void user_enable_single_step(struct task_struct *);
-extern void user_disable_single_step(struct task_struct *);
+extern void show_regs(struct pt_regs * regs);
 
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)
 #define instruction_pointer(regs) ((regs)->psw.addr & PSW_ADDR_INSN)
 #define user_stack_pointer(regs)((regs)->gprs[15])
 #define regs_return_value(regs)((regs)->gprs[2])
 #define profile_pc(regs) instruction_pointer(regs)
-extern void show_regs(struct pt_regs * regs);
+
+int regs_query_register_offset(const char *name);
+const char *regs_query_register_name(unsigned int offset);
+unsigned long regs_get_register(struct pt_regs *regs, unsigned int offset);
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
+
+static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->gprs[15] & PSW_ADDR_INSN;
+}
+
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 

@@ -118,7 +118,7 @@ static int __init rc32434_pcibridge_init(void)
 	if (!((pcicvalue == PCIM_H_EA) ||
 	      (pcicvalue == PCIM_H_IA_FIX) ||
 	      (pcicvalue == PCIM_H_IA_RR))) {
-		pr_err(KERN_ERR "PCI init error!!!\n");
+		pr_err("PCI init error!!!\n");
 		/* Not in Host Mode, return ERROR */
 		return -1;
 	}

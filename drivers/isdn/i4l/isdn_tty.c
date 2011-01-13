@@ -12,7 +12,9 @@
 #undef ISDN_TTY_STAT_DEBUG
 
 #include <linux/isdn.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include "isdn_common.h"
 #include "isdn_tty.h"
 #ifdef CONFIG_ISDN_AUDIO
@@ -26,6 +28,7 @@
 
 /* Prototypes */
 
+static DEFINE_MUTEX(modem_info_mutex);
 static int isdn_tty_edit_at(const char *, int, modem_info *);
 static void isdn_tty_check_esc(const u_char *, u_char, int, int *, u_long *);
 static void isdn_tty_modem_reset_regs(modem_info *, int);
@@ -1352,14 +1355,14 @@ isdn_tty_tiocmget(struct tty_struct *tty, struct file *file)
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
 
-	lock_kernel();
+	mutex_lock(&modem_info_mutex);
 #ifdef ISDN_DEBUG_MODEM_IOCTL
 	printk(KERN_DEBUG "ttyI%d ioctl TIOCMGET\n", info->line);
 #endif
 
 	control = info->mcr;
 	status = info->msr;
-	unlock_kernel();
+	mutex_unlock(&modem_info_mutex);
 	return ((control & UART_MCR_RTS) ? TIOCM_RTS : 0)
 	    | ((control & UART_MCR_DTR) ? TIOCM_DTR : 0)
 	    | ((status & UART_MSR_DCD) ? TIOCM_CAR : 0)
@@ -1383,7 +1386,7 @@ isdn_tty_tiocmset(struct tty_struct *tty, struct file *file,
 	printk(KERN_DEBUG "ttyI%d ioctl TIOCMxxx: %x %x\n", info->line, set, clear);
 #endif
 
-	lock_kernel();
+	mutex_lock(&modem_info_mutex);
 	if (set & TIOCM_RTS)
 		info->mcr |= UART_MCR_RTS;
 	if (set & TIOCM_DTR) {
@@ -1405,7 +1408,7 @@ isdn_tty_tiocmset(struct tty_struct *tty, struct file *file,
 			isdn_tty_modem_hup(info, 1);
 		}
 	}
-	unlock_kernel();
+	mutex_unlock(&modem_info_mutex);
 	return 0;
 }
 
@@ -2634,12 +2637,6 @@ isdn_tty_modem_result(int code, modem_info * info)
 		if ((info->flags & ISDN_ASYNC_CLOSING) || (!info->tty)) {
 			return;
 		}
-#ifdef CONFIG_ISDN_AUDIO
-		if ( !info->vonline )
-			tty_ldisc_flush(info->tty);
-#else
-		tty_ldisc_flush(info->tty);
-#endif
 		if ((info->flags & ISDN_ASYNC_CHECK_CD) &&
 		    (!((info->flags & ISDN_ASYNC_CALLOUT_ACTIVE) &&
 		       (info->flags & ISDN_ASYNC_CALLOUT_NOHUP)))) {
@@ -3519,7 +3516,7 @@ isdn_tty_parse_at(modem_info * info)
 {
 	atemu *m = &info->emu;
 	char *p;
-	char ds[40];
+	char ds[ISDN_MSNLEN];
 
 #ifdef ISDN_DEBUG_AT
 	printk(KERN_DEBUG "AT: '%s'\n", m->mdmcmd);
@@ -3598,7 +3595,7 @@ isdn_tty_parse_at(modem_info * info)
 						break;
 					case '3':
                                                 p++;
-                                                sprintf(ds, "\r\n%d", info->emu.charge);
+                                                snprintf(ds, sizeof(ds), "\r\n%d", info->emu.charge);
                                                 isdn_tty_at_cout(ds, info);
                                                 break;
 					default:;

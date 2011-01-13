@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -165,7 +165,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 				obj_desc->method.method_flags =
 				    AML_METHOD_INTERNAL_ONLY;
-				obj_desc->method.implementation =
+				obj_desc->method.extra.implementation =
 				    acpi_ut_osi_implementation;
 #endif
 				break;
@@ -222,7 +222,7 @@ acpi_status acpi_ns_root_initialize(void)
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unsupported initial type value %X",
+					    "Unsupported initial type value 0x%X",
 					    init_val->type));
 				acpi_ut_remove_reference(obj_desc);
 				obj_desc = NULL;
@@ -338,8 +338,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			 */
 			while (!acpi_ns_opens_scope(prefix_node->type) &&
 			       prefix_node->type != ACPI_TYPE_ANY) {
-				prefix_node =
-				    acpi_ns_get_parent_node(prefix_node);
+				prefix_node = prefix_node->parent;
 			}
 		}
 	}
@@ -419,7 +418,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				/* Backup to the parent node */
 
 				num_carats++;
-				this_node = acpi_ns_get_parent_node(this_node);
+				this_node = this_node->parent;
 				if (!this_node) {
 
 					/* Current scope has no parent scope */
@@ -433,7 +432,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 			if (search_parent_flag == ACPI_NS_NO_UPSEARCH) {
 				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-						  "Search scope is [%4.4s], path has %d carat(s)\n",
+						  "Search scope is [%4.4s], path has %u carat(s)\n",
 						  acpi_ut_get_node_name
 						  (this_node), num_carats));
 			}
@@ -495,7 +494,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			path++;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "Multi Pathname (%d Segments, Flags=%X)\n",
+					  "Multi Pathname (%u Segments, Flags=%X)\n",
 					  num_segments, flags));
 			break;
 

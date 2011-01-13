@@ -19,7 +19,7 @@
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
    * handle tx ring full as per tulip
-   * performace test to tune rx_copybreak
+   * performance test to tune rx_copybreak
 
    Most of my modifications relate to the braindead big-endian
    implementation by Intel.  When the i596 is operating in
@@ -45,7 +45,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -53,6 +52,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -191,7 +191,7 @@ enum commands {
 #define	 RX_SUSPEND	0x0030
 #define	 RX_ABORT	0x0040
 
-#define TX_TIMEOUT	5
+#define TX_TIMEOUT	(HZ/20)
 
 
 struct i596_reg {
@@ -356,7 +356,7 @@ static char init_setup[] =
 	0x7f /*  *multi IA */ };
 
 static int i596_open(struct net_device *dev);
-static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t i596_interrupt(int irq, void *dev_id);
 static int i596_close(struct net_device *dev);
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd);
@@ -525,7 +525,21 @@ static irqreturn_t i596_error(int irq, void *dev_id)
 }
 #endif
 
-static inline void init_rx_bufs(struct net_device *dev)
+static inline void remove_rx_bufs(struct net_device *dev)
+{
+	struct i596_private *lp = dev->ml_priv;
+	struct i596_rbd *rbd;
+	int i;
+
+	for (i = 0, rbd = lp->rbds; i < rx_ring_size; i++, rbd++) {
+		if (rbd->skb == NULL)
+			break;
+		dev_kfree_skb(rbd->skb);
+		rbd->skb = NULL;
+	}
+}
+
+static inline int init_rx_bufs(struct net_device *dev)
 {
 	struct i596_private *lp = dev->ml_priv;
 	int i;
@@ -537,8 +551,11 @@ static inline void init_rx_bufs(struct net_device *dev)
 	for (i = 0, rbd = lp->rbds; i < rx_ring_size; i++, rbd++) {
 		struct sk_buff *skb = dev_alloc_skb(PKT_BUF_SZ);
 
-		if (skb == NULL)
-			panic("82596: alloc_skb() failed");
+		if (skb == NULL) {
+			remove_rx_bufs(dev);
+			return -ENOMEM;
+		}
+
 		skb->dev = dev;
 		rbd->v_next = rbd+1;
 		rbd->b_next = WSWAPrbd(virt_to_bus(rbd+1));
@@ -574,19 +591,8 @@ static inline void init_rx_bufs(struct net_device *dev)
 	rfd->v_next = lp->rfds;
 	rfd->b_next = WSWAPrfd(virt_to_bus(lp->rfds));
 	rfd->cmd = CMD_EOL|CMD_FLEX;
-}
 
-static inline void remove_rx_bufs(struct net_device *dev)
-{
-	struct i596_private *lp = dev->ml_priv;
-	struct i596_rbd *rbd;
-	int i;
-
-	for (i = 0, rbd = lp->rbds; i < rx_ring_size; i++, rbd++) {
-		if (rbd->skb == NULL)
-			break;
-		dev_kfree_skb(rbd->skb);
-	}
+	return 0;
 }
 
 
@@ -1009,19 +1015,34 @@ static int i596_open(struct net_device *dev)
 	}
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
-		if (request_irq(0x56, i596_error, 0, "i82596_error", dev))
-			return -EAGAIN;
+		if (request_irq(0x56, i596_error, 0, "i82596_error", dev)) {
+			res = -EAGAIN;
+			goto err_irq_dev;
+		}
 	}
 #endif
-	init_rx_bufs(dev);
+	res = init_rx_bufs(dev);
+	if (res)
+		goto err_irq_56;
 
 	netif_start_queue(dev);
 
-	/* Initialize the 82596 memory */
 	if (init_i596_mem(dev)) {
 		res = -EAGAIN;
-		free_irq(dev->irq, dev);
+		goto err_queue;
 	}
+
+	return 0;
+
+err_queue:
+	netif_stop_queue(dev);
+	remove_rx_bufs(dev);
+err_irq_56:
+#ifdef ENABLE_MVME16x_NET
+	free_irq(0x56, dev);
+err_irq_dev:
+#endif
+	free_irq(dev->irq, dev);
 
 	return res;
 }
@@ -1050,25 +1071,23 @@ static void i596_tx_timeout (struct net_device *dev)
 		lp->last_restart = dev->stats.tx_packets;
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
-
-static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct i596_private *lp = dev->ml_priv;
 	struct tx_cmd *tx_cmd;
 	struct i596_tbd *tbd;
 	short length = skb->len;
-	dev->trans_start = jiffies;
 
 	DEB(DEB_STARTTX,printk(KERN_DEBUG "%s: i596_start_xmit(%x,%p) called\n",
 				dev->name, skb->len, skb->data));
 
 	if (skb->len < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 	netif_stop_queue(dev);
@@ -1110,7 +1129,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_start_queue(dev);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void print_eth(unsigned char *add, char *str)
@@ -1490,6 +1509,9 @@ static int i596_close(struct net_device *dev)
 	}
 #endif
 
+#ifdef ENABLE_MVME16x_NET
+	free_irq(0x56, dev);
+#endif
 	free_irq(dev->irq, dev);
 	remove_rx_bufs(dev);
 
@@ -1506,7 +1528,7 @@ static void set_multicast_list(struct net_device *dev)
 	int config = 0, cnt;
 
 	DEB(DEB_MULTI,printk(KERN_DEBUG "%s: set multicast list, %d entries, promisc %s, allmulti %s\n",
-		dev->name, dev->mc_count,
+		dev->name, netdev_mc_count(dev),
 		dev->flags & IFF_PROMISC  ? "ON" : "OFF",
 		dev->flags & IFF_ALLMULTI ? "ON" : "OFF"));
 
@@ -1534,7 +1556,7 @@ static void set_multicast_list(struct net_device *dev)
 		i596_add_cmd(dev, &lp->cf_cmd.cmd);
 	}
 
-	cnt = dev->mc_count;
+	cnt = netdev_mc_count(dev);
 	if (cnt > MAX_MC_CNT)
 	{
 		cnt = MAX_MC_CNT;
@@ -1542,8 +1564,8 @@ static void set_multicast_list(struct net_device *dev)
 			dev->name, cnt);
 	}
 
-	if (dev->mc_count > 0) {
-		struct dev_mc_list *dmi;
+	if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
 
@@ -1551,13 +1573,16 @@ static void set_multicast_list(struct net_device *dev)
 			return;
 		cmd = &lp->mc_cmd;
 		cmd->cmd.command = CmdMulticastList;
-		cmd->mc_cnt = dev->mc_count * 6;
+		cmd->mc_cnt = cnt * ETH_ALEN;
 		cp = cmd->mc_addrs;
-		for (dmi = dev->mc_list; cnt && dmi != NULL; dmi = dmi->next, cnt--, cp += 6) {
-			memcpy(cp, dmi->dmi_addr, 6);
+		netdev_for_each_mc_addr(ha, dev) {
+			if (!cnt--)
+				break;
+			memcpy(cp, ha->addr, ETH_ALEN);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,printk(KERN_INFO "%s: Adding address %pM\n",
 						dev->name, cp));
+			cp += ETH_ALEN;
 		}
 		i596_add_cmd(dev, &cmd->cmd);
 	}

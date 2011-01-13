@@ -9,7 +9,6 @@ TODO:
 	- checkpatch.pl clean
 	- sparse clean
 	- port to in-kernel 80211 stack and common rt2x00 infrastructure
-	- remove reading from /etc/ config files
 	- review by the wireless developer community
 
 Please send any patches or complaints about this driver to Greg

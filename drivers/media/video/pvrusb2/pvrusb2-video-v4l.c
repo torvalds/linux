@@ -37,7 +37,6 @@
 #include <media/v4l2-common.h>
 #include <media/saa7115.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 
 struct routing_scheme {
 	const int *def;
@@ -54,6 +53,11 @@ static const int routing_scheme0[] = {
 	[PVR2_CVAL_INPUT_SVIDEO] =  SAA7115_SVIDEO2,
 };
 
+static const struct routing_scheme routing_def0 = {
+	.def = routing_scheme0,
+	.cnt = ARRAY_SIZE(routing_scheme0),
+};
+
 static const int routing_scheme1[] = {
 	[PVR2_CVAL_INPUT_TV] = SAA7115_COMPOSITE4,
 	[PVR2_CVAL_INPUT_RADIO] = SAA7115_COMPOSITE5,
@@ -61,15 +65,14 @@ static const int routing_scheme1[] = {
 	[PVR2_CVAL_INPUT_SVIDEO] =  SAA7115_SVIDEO2, /* or SVIDEO0, it seems */
 };
 
-static const struct routing_scheme routing_schemes[] = {
-	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
-		.def = routing_scheme0,
-		.cnt = ARRAY_SIZE(routing_scheme0),
-	},
-	[PVR2_ROUTING_SCHEME_ONAIR] = {
-		.def = routing_scheme1,
-		.cnt = ARRAY_SIZE(routing_scheme1),
-	},
+static const struct routing_scheme routing_def1 = {
+	.def = routing_scheme1,
+	.cnt = ARRAY_SIZE(routing_scheme1),
+};
+
+static const struct routing_scheme *routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = &routing_def0,
+	[PVR2_ROUTING_SCHEME_ONAIR] = &routing_def1,
 };
 
 void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
@@ -81,12 +84,12 @@ void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_input(%d)",
 			   hdw->input_val);
-		if ((sid < ARRAY_SIZE(routing_schemes)) &&
-		    ((sp = routing_schemes + sid) != NULL) &&
-		    (hdw->input_val >= 0) &&
-		    (hdw->input_val < sp->cnt)) {
-			input = sp->def[hdw->input_val];
-		} else {
+
+		sp = (sid < ARRAY_SIZE(routing_schemes)) ?
+			routing_schemes[sid] : NULL;
+		if ((sp == NULL) ||
+		    (hdw->input_val < 0) ||
+		    (hdw->input_val >= sp->cnt)) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "*** WARNING *** subdev v4l2 set_input:"
 				   " Invalid routing scheme (%u)"
@@ -94,6 +97,7 @@ void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 				   sid, hdw->input_val);
 			return;
 		}
+		input = sp->def[hdw->input_val];
 		sd->ops->video->s_routing(sd, input, 0, 0);
 	}
 }

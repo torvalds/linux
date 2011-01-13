@@ -48,11 +48,13 @@
    before we are allowed to start it running. */
 #define TIME_MSEC_DECODER_WAIT 50
 
+/* This defines a minimum interval that the decoder must be allowed to run
+   before we can safely begin using its streaming output. */
+#define TIME_MSEC_DECODER_STABILIZATION_WAIT 300
+
 /* This defines a minimum interval that the encoder must remain quiet
-   before we are allowed to configure it.  I had this originally set to
-   50msec, but Martin Dauskardt <martin.dauskardt@gmx.de> reports that
-   things work better when it's set to 100msec. */
-#define TIME_MSEC_ENCODER_WAIT 100
+   before we are allowed to configure it. */
+#define TIME_MSEC_ENCODER_WAIT 50
 
 /* This defines the minimum interval that the encoder must successfully run
    before we consider that the encoder has run at least once since its
@@ -85,8 +87,8 @@ MODULE_PARM_DESC(video_std,"specify initial video standard");
 module_param_array(tolerance,    int, NULL, 0444);
 MODULE_PARM_DESC(tolerance,"specify stream error tolerance");
 
-/* US Broadcast channel 7 (175.25 MHz) */
-static int default_tv_freq    = 175250000L;
+/* US Broadcast channel 3 (61.25 MHz), to help with testing */
+static int default_tv_freq    = 61250000L;
 /* 104.3 MHz, a usable FM station for my area */
 static int default_radio_freq = 104300000L;
 
@@ -334,6 +336,7 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
 static void pvr2_hdw_quiescent_timeout(unsigned long);
+static void pvr2_hdw_decoder_stabilization_timeout(unsigned long);
 static void pvr2_hdw_encoder_wait_timeout(unsigned long);
 static void pvr2_hdw_encoder_run_timeout(unsigned long);
 static int pvr2_issue_simple_cmd(struct pvr2_hdw *,u32);
@@ -1447,6 +1450,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	const struct firmware *fw_entry = NULL;
 	void  *fw_ptr;
 	unsigned int pipe;
+	unsigned int fwsize;
 	int ret;
 	u16 address;
 
@@ -1473,9 +1477,21 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	usb_clear_halt(hdw->usb_dev, usb_sndbulkpipe(hdw->usb_dev, 0 & 0x7f));
 
 	pipe = usb_sndctrlpipe(hdw->usb_dev, 0);
+	fwsize = fw_entry->size;
 
-	if (fw_entry->size != 0x2000){
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,"wrong fx2 firmware size");
+	if ((fwsize != 0x2000) &&
+	    (!(hdw->hdw_desc->flag_fx2_16kb && (fwsize == 0x4000)))) {
+		if (hdw->hdw_desc->flag_fx2_16kb) {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "Wrong fx2 firmware size"
+				   " (expected 8192 or 16384, got %u)",
+				   fwsize);
+		} else {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "Wrong fx2 firmware size"
+				   " (expected 8192, got %u)",
+				   fwsize);
+		}
 		release_firmware(fw_entry);
 		return -ENOMEM;
 	}
@@ -1493,7 +1509,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	   chunk. */
 
 	ret = 0;
-	for(address = 0; address < fw_entry->size; address += 0x800) {
+	for (address = 0; address < fwsize; address += 0x800) {
 		memcpy(fw_ptr, fw_entry->data + address, 0x800);
 		ret += usb_control_msg(hdw->usb_dev, pipe, 0xa0, 0x40, address,
 				       0, fw_ptr, 0x800, HZ);
@@ -1509,8 +1525,8 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 
 	trace_firmware("Upload done (%d bytes sent)",ret);
 
-	/* We should have written 8192 bytes */
-	if (ret == 8192) {
+	/* We should have written fwsize bytes */
+	if (ret == fwsize) {
 		hdw->fw1_state = FW1_STATE_RELOAD;
 		return 0;
 	}
@@ -1692,6 +1708,7 @@ static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 stream=%s",
 		   (enablefl ? "on" : "off"));
 	v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_stream, enablefl);
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, audio, s_stream, enablefl);
 	if (hdw->decoder_client_id) {
 		/* We get here if the encoder has been noticed.  Otherwise
 		   we'll issue a warning to the user (which should
@@ -1987,6 +2004,34 @@ static unsigned int pvr2_copy_i2c_addr_list(
 }
 
 
+static void pvr2_hdw_cx25840_vbi_hack(struct pvr2_hdw *hdw)
+{
+	/*
+	  Mike Isely <isely@pobox.com> 19-Nov-2006 - This bit of nuttiness
+	  for cx25840 causes that module to correctly set up its video
+	  scaling.  This is really a problem in the cx25840 module itself,
+	  but we work around it here.  The problem has not been seen in
+	  ivtv because there VBI is supported and set up.  We don't do VBI
+	  here (at least not yet) and thus we never attempted to even set
+	  it up.
+	*/
+	struct v4l2_format fmt;
+	if (hdw->decoder_client_id != PVR2_CLIENT_ID_CX25840) {
+		/* We're not using a cx25840 so don't enable the hack */
+		return;
+	}
+
+	pvr2_trace(PVR2_TRACE_INIT,
+		   "Module ID %u:"
+		   " Executing cx25840 VBI hack",
+		   hdw->decoder_client_id);
+	memset(&fmt, 0, sizeof(fmt));
+	fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
+			     vbi, s_sliced_fmt, &fmt.fmt.sliced);
+}
+
+
 static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 				const struct pvr2_device_client_desc *cd)
 {
@@ -2002,7 +2047,8 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	fname = (mid < ARRAY_SIZE(module_names)) ? module_names[mid] : NULL;
 	if (!fname) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u for device %s has no name",
+			   "Module ID %u for device %s has no name?"
+			   "  The driver might have a configuration problem.",
 			   mid,
 			   hdw->hdw_desc->description);
 		return -EINVAL;
@@ -2030,39 +2076,33 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	if (!i2ccnt) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Module ID %u (%s) for device %s:"
-			   " No i2c addresses",
+			   " No i2c addresses."
+			   "  The driver might have a configuration problem.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EINVAL;
 	}
 
-	/* Note how the 2nd and 3rd arguments are the same for both
-	 * v4l2_i2c_new_subdev() and v4l2_i2c_new_probed_subdev().  Why?
-	 * Well the 2nd argument is the module name to load, while the 3rd
-	 * argument is documented in the framework as being the "chipid" -
-	 * and every other place where I can find examples of this, the
-	 * "chipid" appears to just be the module name again.  So here we
-	 * just do the same thing. */
 	if (i2ccnt == 1) {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
 			   " Setting up with specified i2c address 0x%x",
 			   mid, i2caddr[0]);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-					 fname, fname,
-					 i2caddr[0]);
+					 fname, i2caddr[0], NULL);
 	} else {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
 			   " Setting up with address probe list",
 			   mid);
-		sd = v4l2_i2c_new_probed_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-						fname, fname,
-						i2caddr);
+		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
+					 fname, 0, i2caddr);
 	}
 
 	if (!sd) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u (%s) for device %s failed to load",
+			   "Module ID %u (%s) for device %s failed to load."
+			   "  Possible missing sub-device kernel module or"
+			   " initialization failure within module.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EIO;
 	}
@@ -2078,30 +2118,6 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	/* client-specific setup... */
 	switch (mid) {
 	case PVR2_CLIENT_ID_CX25840:
-		hdw->decoder_client_id = mid;
-		{
-			/*
-			  Mike Isely <isely@pobox.com> 19-Nov-2006 - This
-			  bit of nuttiness for cx25840 causes that module
-			  to correctly set up its video scaling.  This is
-			  really a problem in the cx25840 module itself,
-			  but we work around it here.  The problem has not
-			  been seen in ivtv because there VBI is supported
-			  and set up.  We don't do VBI here (at least not
-			  yet) and thus we never attempted to even set it
-			  up.
-			*/
-			struct v4l2_format fmt;
-			pvr2_trace(PVR2_TRACE_INIT,
-				   "Module ID %u:"
-				   " Executing cx25840 VBI hack",
-				   mid);
-			memset(&fmt, 0, sizeof(fmt));
-			fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
-			v4l2_device_call_all(&hdw->v4l2_dev, mid,
-					     video, s_fmt, &fmt);
-		}
-		break;
 	case PVR2_CLIENT_ID_SAA7115:
 		hdw->decoder_client_id = mid;
 		break;
@@ -2128,7 +2144,10 @@ static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
 	for (idx = 0; idx < ct->cnt; idx++) {
 		if (pvr2_hdw_load_subdev(hdw, &ct->lst[idx]) < 0) okFl = 0;
 	}
-	if (!okFl) pvr2_hdw_render_useless(hdw);
+	if (!okFl) {
+		hdw->flag_modulefail = !0;
+		pvr2_hdw_render_useless(hdw);
+	}
 }
 
 
@@ -2201,6 +2220,8 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		if (!cptr->info->set_value) continue;
 		cptr->info->set_value(cptr,~0,cptr->info->default_value);
 	}
+
+	pvr2_hdw_cx25840_vbi_hack(hdw);
 
 	/* Set up special default values for the television and radio
 	   frequencies here.  It's not really important what these defaults
@@ -2328,6 +2349,20 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 				break;
 			}
 		}
+		if (hdw->flag_modulefail) {
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"***WARNING*** pvrusb2 driver initialization"
+				" failed due to the failure of one or more"
+				" sub-device kernel modules.");
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"You need to resolve the failing condition"
+				" before this driver can function.  There"
+				" should be some earlier messages giving more"
+				" information about the problem.");
+			break;
+		}
 		if (procreload) {
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
@@ -2413,11 +2448,31 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
 		   hdw,hdw_desc->description);
+	pvr2_trace(PVR2_TRACE_INFO, "Hardware description: %s",
+		hdw_desc->description);
+	if (hdw_desc->flag_is_experimental) {
+		pvr2_trace(PVR2_TRACE_INFO, "**********");
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "WARNING: Support for this device (%s) is"
+			   " experimental.", hdw_desc->description);
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Important functionality might not be"
+			   " entirely working.");
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Please consider contacting the driver author to"
+			   " help with further stabilization of the driver.");
+		pvr2_trace(PVR2_TRACE_INFO, "**********");
+	}
 	if (!hdw) goto fail;
 
 	init_timer(&hdw->quiescent_timer);
 	hdw->quiescent_timer.data = (unsigned long)hdw;
 	hdw->quiescent_timer.function = pvr2_hdw_quiescent_timeout;
+
+	init_timer(&hdw->decoder_stabilization_timer);
+	hdw->decoder_stabilization_timer.data = (unsigned long)hdw;
+	hdw->decoder_stabilization_timer.function =
+		pvr2_hdw_decoder_stabilization_timeout;
 
 	init_timer(&hdw->encoder_wait_timer);
 	hdw->encoder_wait_timer.data = (unsigned long)hdw;
@@ -2632,6 +2687,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
  fail:
 	if (hdw) {
 		del_timer_sync(&hdw->quiescent_timer);
+		del_timer_sync(&hdw->decoder_stabilization_timer);
 		del_timer_sync(&hdw->encoder_run_timer);
 		del_timer_sync(&hdw->encoder_wait_timer);
 		if (hdw->workqueue) {
@@ -2699,6 +2755,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		hdw->workqueue = NULL;
 	}
 	del_timer_sync(&hdw->quiescent_timer);
+	del_timer_sync(&hdw->decoder_stabilization_timer);
 	del_timer_sync(&hdw->encoder_run_timer);
 	del_timer_sync(&hdw->encoder_wait_timer);
 	if (hdw->fw_buffer) {
@@ -2954,6 +3011,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 			vs = hdw->std_mask_cur;
 			v4l2_device_call_all(&hdw->v4l2_dev, 0,
 					     core, s_std, vs);
+			pvr2_hdw_cx25840_vbi_hack(hdw);
 		}
 		hdw->tuner_signal_stale = !0;
 		hdw->cropcap_stale = !0;
@@ -3002,14 +3060,14 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 	}
 
 	if (hdw->res_hor_dirty || hdw->res_ver_dirty || hdw->force_dirty) {
-		struct v4l2_format fmt;
+		struct v4l2_mbus_framefmt fmt;
 		memset(&fmt, 0, sizeof(fmt));
-		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		fmt.fmt.pix.width = hdw->res_hor_val;
-		fmt.fmt.pix.height = hdw->res_ver_val;
+		fmt.width = hdw->res_hor_val;
+		fmt.height = hdw->res_ver_val;
+		fmt.code = V4L2_MBUS_FMT_FIXED;
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_size(%dx%d)",
-			   fmt.fmt.pix.width, fmt.fmt.pix.height);
-		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
+			   fmt.width, fmt.height);
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_mbus_fmt, &fmt);
 	}
 
 	if (hdw->srate_dirty || hdw->force_dirty) {
@@ -3473,7 +3531,7 @@ static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
 
 
 void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
-				int prom_flag,
+				int mode,
 				int enable_flag)
 {
 	int ret;
@@ -3496,11 +3554,12 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 			break;
 		}
 
-		hdw->fw_cpu_flag = (prom_flag == 0);
+		hdw->fw_cpu_flag = (mode != 2);
 		if (hdw->fw_cpu_flag) {
+			hdw->fw_size = (mode == 1) ? 0x4000 : 0x2000;
 			pvr2_trace(PVR2_TRACE_FIRMWARE,
-				   "Preparing to suck out CPU firmware");
-			hdw->fw_size = 0x2000;
+				   "Preparing to suck out CPU firmware"
+				   " (size=%u)", hdw->fw_size);
 			hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
 			if (!hdw->fw_buffer) {
 				hdw->fw_size = 0;
@@ -4029,11 +4088,19 @@ void pvr2_hdw_device_reset(struct pvr2_hdw *hdw)
 
 void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 {
-	char da[1];
+	char *da;
 	unsigned int pipe;
 	int ret;
 
 	if (!hdw->usb_dev) return;
+
+	da = kmalloc(16, GFP_KERNEL);
+
+	if (da == NULL) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Unable to allocate memory to control CPU reset");
+		return;
+	}
 
 	pvr2_trace(PVR2_TRACE_INIT,"cpureset_assert(%d)",val);
 
@@ -4048,6 +4115,8 @@ void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 			   "cpureset_assert(%d) error=%d",val,ret);
 		pvr2_hdw_render_useless(hdw);
 	}
+
+	kfree(da);
 }
 
 
@@ -4076,6 +4145,7 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 	if (hdw->decoder_client_id) {
 		v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
 				     core, reset, 0);
+		pvr2_hdw_cx25840_vbi_hack(hdw);
 		return 0;
 	}
 	pvr2_trace(PVR2_TRACE_INIT,
@@ -4407,7 +4477,7 @@ static int state_check_enable_encoder_run(struct pvr2_hdw *hdw)
 
 	switch (hdw->pathway_state) {
 	case PVR2_PATHWAY_ANALOG:
-		if (hdw->state_decoder_run) {
+		if (hdw->state_decoder_run && hdw->state_decoder_ready) {
 			/* In analog mode, if the decoder is running, then
 			   run the encoder. */
 			return !0;
@@ -4474,6 +4544,17 @@ static void pvr2_hdw_quiescent_timeout(unsigned long data)
 }
 
 
+/* Timeout function for decoder stabilization timer. */
+static void pvr2_hdw_decoder_stabilization_timeout(unsigned long data)
+{
+	struct pvr2_hdw *hdw = (struct pvr2_hdw *)data;
+	hdw->state_decoder_ready = !0;
+	trace_stbit("state_decoder_ready", hdw->state_decoder_ready);
+	hdw->state_stale = !0;
+	queue_work(hdw->workqueue, &hdw->workpoll);
+}
+
+
 /* Timeout function for encoder wait timer. */
 static void pvr2_hdw_encoder_wait_timeout(unsigned long data)
 {
@@ -4512,8 +4593,13 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 		}
 		hdw->state_decoder_quiescent = 0;
 		hdw->state_decoder_run = 0;
-		/* paranoia - solve race if timer just completed */
+		/* paranoia - solve race if timer(s) just completed */
 		del_timer_sync(&hdw->quiescent_timer);
+		/* Kill the stabilization timer, in case we're killing the
+		   encoder before the previous stabilization interval has
+		   been properly timed. */
+		del_timer_sync(&hdw->decoder_stabilization_timer);
+		hdw->state_decoder_ready = 0;
 	} else {
 		if (!hdw->state_decoder_quiescent) {
 			if (!timer_pending(&hdw->quiescent_timer)) {
@@ -4551,10 +4637,21 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 		if (hdw->flag_decoder_missed) return 0;
 		if (pvr2_decoder_enable(hdw,!0) < 0) return 0;
 		hdw->state_decoder_quiescent = 0;
+		hdw->state_decoder_ready = 0;
 		hdw->state_decoder_run = !0;
+		if (hdw->decoder_client_id == PVR2_CLIENT_ID_SAA7115) {
+			hdw->decoder_stabilization_timer.expires =
+				jiffies +
+				(HZ * TIME_MSEC_DECODER_STABILIZATION_WAIT /
+				 1000);
+			add_timer(&hdw->decoder_stabilization_timer);
+		} else {
+			hdw->state_decoder_ready = !0;
+		}
 	}
 	trace_stbit("state_decoder_quiescent",hdw->state_decoder_quiescent);
 	trace_stbit("state_decoder_run",hdw->state_decoder_run);
+	trace_stbit("state_decoder_ready", hdw->state_decoder_ready);
 	return !0;
 }
 
@@ -4752,7 +4849,8 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			buf,acnt,
 			"worker:%s%s%s%s%s%s%s",
 			(hdw->state_decoder_run ?
-			 " <decode:run>" :
+			 (hdw->state_decoder_ready ?
+			  "<decode:run>" : " <decode:start>") :
 			 (hdw->state_decoder_quiescent ?
 			  "" : " <decode:stop>")),
 			(hdw->state_decoder_quiescent ?

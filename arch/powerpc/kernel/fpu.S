@@ -23,6 +23,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/ptrace.h>
 
 #ifdef CONFIG_VSX
 #define REST_32FPVSRS(n,c,base)						\
@@ -91,7 +92,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif /* CONFIG_SMP */
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32
-	mfspr	r5,SPRN_SPRG3		/* current task's THREAD (phys) */
+	mfspr	r5,SPRN_SPRG_THREAD		/* current task's THREAD (phys) */
 	lwz	r4,THREAD_FPEXC_MODE(r5)
 	ori	r9,r9,MSR_FP		/* enable FP for current */
 	or	r9,r9,r4
@@ -163,24 +164,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 /*
  * These are used in the alignment trap handler when emulating
  * single-precision loads and stores.
- * We restore and save the fpscr so the task gets the same result
- * and exceptions as if the cpu had performed the load or store.
  */
 
 _GLOBAL(cvt_fd)
-	lfd	0,THREAD_FPSCR(r5)	/* load up fpscr value */
-	MTFSF_L(0)
 	lfs	0,0(r3)
 	stfd	0,0(r4)
-	mffs	0
-	stfd	0,THREAD_FPSCR(r5)	/* save new fpscr value */
 	blr
 
 _GLOBAL(cvt_df)
-	lfd	0,THREAD_FPSCR(r5)	/* load up fpscr value */
-	MTFSF_L(0)
 	lfd	0,0(r3)
 	stfs	0,0(r4)
-	mffs	0
-	stfd	0,THREAD_FPSCR(r5)	/* save new fpscr value */
 	blr

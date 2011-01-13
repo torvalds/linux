@@ -31,6 +31,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <linux/dvb/dmx.h>
 
@@ -53,13 +54,20 @@ enum dmxdev_state {
 	DMXDEV_STATE_TIMEDOUT
 };
 
+struct dmxdev_feed {
+	u16 pid;
+	struct dmx_ts_feed *ts;
+	struct list_head next;
+};
+
 struct dmxdev_filter {
 	union {
 		struct dmx_section_filter *sec;
 	} filter;
 
 	union {
-		struct dmx_ts_feed *ts;
+		/* list of TS and PES feeds (struct dmxdev_feed) */
+		struct list_head ts;
 		struct dmx_section_feed *sec;
 	} feed;
 

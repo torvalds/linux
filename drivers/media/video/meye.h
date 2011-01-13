@@ -31,7 +31,7 @@
 #define _MEYE_PRIV_H_
 
 #define MEYE_DRIVER_MAJORVERSION	 1
-#define MEYE_DRIVER_MINORVERSION	13
+#define MEYE_DRIVER_MINORVERSION	14
 
 #define MEYE_DRIVER_VERSION __stringify(MEYE_DRIVER_MAJORVERSION) "." \
 			    __stringify(MEYE_DRIVER_MINORVERSION)
@@ -289,6 +289,7 @@ struct meye_grab_buffer {
 
 /* Motion Eye device structure */
 struct meye {
+	struct v4l2_device v4l2_dev;	/* Main v4l2_device struct */
 	struct pci_dev *mchip_dev;	/* pci device */
 	u8 mchip_irq;			/* irq */
 	u8 mchip_mode;			/* actual mchip mode: HIC_MODE... */
@@ -303,13 +304,16 @@ struct meye {
 	struct meye_grab_buffer grab_buffer[MEYE_MAX_BUFNBRS];
 	int vma_use_count[MEYE_MAX_BUFNBRS]; /* mmap count */
 	struct mutex lock;		/* mutex for open/mmap... */
-	struct kfifo *grabq;		/* queue for buffers to be grabbed */
+	struct kfifo grabq;		/* queue for buffers to be grabbed */
 	spinlock_t grabq_lock;		/* lock protecting the queue */
-	struct kfifo *doneq;		/* queue for grabbed buffers */
+	struct kfifo doneq;		/* queue for grabbed buffers */
 	spinlock_t doneq_lock;		/* lock protecting the queue */
 	wait_queue_head_t proc_list;	/* wait queue */
-	struct video_device *video_dev;	/* video device parameters */
-	struct video_picture picture;	/* video picture parameters */
+	struct video_device *vdev;	/* video device parameters */
+	u16 brightness;
+	u16 hue;
+	u16 contrast;
+	u16 colour;
 	struct meye_params params;	/* additional parameters */
 	unsigned long in_use;		/* set to 1 if the device is in use */
 #ifdef CONFIG_PM

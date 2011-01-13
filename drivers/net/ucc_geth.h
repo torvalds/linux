@@ -80,16 +80,16 @@ struct ucc_geth {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in succesfull
+				   that where involved in successfull
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */
 	u8 res4[0x2];
 	u32 tmca;		/* Total number of frames that were transmitted
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
 	u32 tbca;		/* Total number of frames transmitted
-				   succesfully that had destination address
+				   successfully that had destination address
 				   field equal to the broadcast address */
 	u32 rxfok;		/* Total number of frames received OK */
 	u32 rxbok;		/* Total number of octets received OK */
@@ -98,15 +98,15 @@ struct ucc_geth {
 				   HW because it includes octets in frames that
 				   never even reach the UCC */
 	u32 rmca;		/* Total number of frames that were received
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
-	u32 rbca;		/* Total number of frames received succesfully
+	u32 rbca;		/* Total number of frames received successfully
 				   that had destination address equal to the
 				   broadcast address */
 	u32 scar;		/* Statistics carry register */
 	u32 scam;		/* Statistics caryy mask register */
 	u8 res5[0x200 - 0x1c4];
-} __attribute__ ((packed));
+} __packed;
 
 /* UCC GETH TEMODR Register */
 #define TEMODER_TX_RMON_STATISTICS_ENABLE       0x0100	/* enable Tx statistics
@@ -420,11 +420,11 @@ struct ucc_geth {
 
 struct ucc_geth_thread_data_tx {
 	u8 res0[104];
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_thread_data_rx {
 	u8 res0[40];
-} __attribute__ ((packed));
+} __packed;
 
 /* Send Queue Queue-Descriptor */
 struct ucc_geth_send_queue_qd {
@@ -432,19 +432,19 @@ struct ucc_geth_send_queue_qd {
 	u8 res0[0x8];
 	u32 last_bd_completed_address;/* initialize to last entry in BD ring */
 	u8 res1[0x30];
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_send_queue_mem_region {
 	struct ucc_geth_send_queue_qd sqqd[NUM_TX_QUEUES];
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_thread_tx_pram {
 	u8 res0[64];
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_thread_rx_pram {
 	u8 res0[128];
-} __attribute__ ((packed));
+} __packed;
 
 #define THREAD_RX_PRAM_ADDITIONAL_FOR_EXTENDED_FILTERING        64
 #define THREAD_RX_PRAM_ADDITIONAL_FOR_EXTENDED_FILTERING_8      64
@@ -484,7 +484,7 @@ struct ucc_geth_scheduler {
 				      /**< weight factor for queues   */
 	u32 minw;		/* temporary variable handled by QE */
 	u8 res1[0x70 - 0x64];
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_tx_firmware_statistics_pram {
 	u32 sicoltx;		/* single collision */
@@ -506,7 +506,7 @@ struct ucc_geth_tx_firmware_statistics_pram {
 				   and 1518 octets */
 	u32 txpktsjumbo;	/* total packets (including bad) between 1024
 				   and MAXLength octets */
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_rx_firmware_statistics_pram {
 	u32 frrxfcser;		/* frames with crc error */
@@ -540,7 +540,7 @@ struct ucc_geth_rx_firmware_statistics_pram {
 				   replaced */
 	u32 insertvlan;		/* total frames that had their VLAN tag
 				   inserted */
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_rx_interrupt_coalescing_entry {
 	u32 interruptcoalescingmaxvalue;	/* interrupt coalescing max
@@ -548,23 +548,23 @@ struct ucc_geth_rx_interrupt_coalescing_entry {
 	u32 interruptcoalescingcounter;	/* interrupt coalescing counter,
 					   initialize to
 					   interruptcoalescingmaxvalue */
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_rx_interrupt_coalescing_table {
 	struct ucc_geth_rx_interrupt_coalescing_entry coalescingentry[NUM_RX_QUEUES];
 				       /**< interrupt coalescing entry */
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_rx_prefetched_bds {
 	struct qe_bd bd[NUM_BDS_IN_PREFETCHED_BDS];	/* prefetched bd */
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_rx_bd_queues_entry {
 	u32 bdbaseptr;		/* BD base pointer */
 	u32 bdptr;		/* BD pointer */
 	u32 externalbdbaseptr;	/* external BD base pointer */
 	u32 externalbdptr;	/* external BD pointer */
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_tx_global_pram {
 	u16 temoder;
@@ -580,13 +580,13 @@ struct ucc_geth_tx_global_pram {
 	u32 tqptr;		/* a base pointer to the Tx Queues Memory
 				   Region */
 	u8 res2[0x80 - 0x74];
-} __attribute__ ((packed));
+} __packed;
 
 /* structure representing Extended Filtering Global Parameters in PRAM */
 struct ucc_geth_exf_global_pram {
 	u32 l2pcdptr;		/* individual address filter, high */
 	u8 res0[0x10 - 0x04];
-} __attribute__ ((packed));
+} __packed;
 
 struct ucc_geth_rx_global_pram {
 	u32 remoder;		/* ethernet mode reg. */
@@ -620,7 +620,7 @@ struct ucc_geth_rx_global_pram {
 	u32 exfGlobalParam;	/* base address for extended filtering global
 				   parameters */
 	u8 res6[0x100 - 0xC4];	/* Initialize to zero */
-} __attribute__ ((packed));
+} __packed;
 
 #define GRACEFUL_STOP_ACKNOWLEDGE_RX            0x01
 
@@ -639,7 +639,7 @@ struct ucc_geth_init_pram {
 	u32 txglobal;		/* tx global */
 	u32 txthread[ENET_INIT_PARAM_MAX_ENTRIES_TX];	/* tx threads */
 	u8 res3[0x1];
-} __attribute__ ((packed));
+} __packed;
 
 #define ENET_INIT_PARAM_RGF_SHIFT               (32 - 4)
 #define ENET_INIT_PARAM_TGF_SHIFT               (32 - 8)
@@ -661,7 +661,7 @@ struct ucc_geth_82xx_enet_address {
 	u16 h;			/* address (MSB) */
 	u16 m;			/* address */
 	u16 l;			/* address (LSB) */
-} __attribute__ ((packed));
+} __packed;
 
 /* structure representing 82xx Address Filtering PRAM */
 struct ucc_geth_82xx_address_filtering_pram {
@@ -672,7 +672,7 @@ struct ucc_geth_82xx_address_filtering_pram {
 	struct ucc_geth_82xx_enet_address __iomem taddr;
 	struct ucc_geth_82xx_enet_address __iomem paddr[NUM_OF_PADDRS];
 	u8 res0[0x40 - 0x38];
-} __attribute__ ((packed));
+} __packed;
 
 /* GETH Tx firmware statistics structure, used when calling
    UCC_GETH_GetStatistics. */
@@ -696,7 +696,7 @@ struct ucc_geth_tx_firmware_statistics {
 				   and 1518 octets */
 	u32 txpktsjumbo;	/* total packets (including bad) between 1024
 				   and MAXLength octets */
-} __attribute__ ((packed));
+} __packed;
 
 /* GETH Rx firmware statistics structure, used when calling
    UCC_GETH_GetStatistics. */
@@ -732,7 +732,7 @@ struct ucc_geth_rx_firmware_statistics {
 				   replaced */
 	u32 insertvlan;		/* total frames that had their VLAN tag
 				   inserted */
-} __attribute__ ((packed));
+} __packed;
 
 /* GETH hardware statistics structure, used when calling
    UCC_GETH_GetStatistics. */
@@ -759,15 +759,15 @@ struct ucc_geth_hardware_statistics {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in succesfull
+				   that where involved in successfull
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */
 	u32 tmca;		/* Total number of frames that were transmitted
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
 	u32 tbca;		/* Total number of frames transmitted
-				   succesfully that had destination address
+				   successfully that had destination address
 				   field equal to the broadcast address */
 	u32 rxfok;		/* Total number of frames received OK */
 	u32 rxbok;		/* Total number of octets received OK */
@@ -776,12 +776,12 @@ struct ucc_geth_hardware_statistics {
 				   HW because it includes octets in frames that
 				   never even reach the UCC */
 	u32 rmca;		/* Total number of frames that were received
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
-	u32 rbca;		/* Total number of frames received succesfully
+	u32 rbca;		/* Total number of frames received successfully
 				   that had destination address equal to the
 				   broadcast address */
-} __attribute__ ((packed));
+} __packed;
 
 /* UCC GETH Tx errors returned via TxConf callback */
 #define TX_ERRORS_DEF      0x0200
@@ -838,13 +838,13 @@ struct ucc_geth_hardware_statistics {
 							   using the maximum is
 							   easier */
 #define UCC_GETH_SEND_QUEUE_QUEUE_DESCRIPTOR_ALIGNMENT	32
-#define UCC_GETH_SCHEDULER_ALIGNMENT		4	/* This is a guess */
+#define UCC_GETH_SCHEDULER_ALIGNMENT		8	/* This is a guess */
 #define UCC_GETH_TX_STATISTICS_ALIGNMENT	4	/* This is a guess */
 #define UCC_GETH_RX_STATISTICS_ALIGNMENT	4	/* This is a guess */
 #define UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT	64
 #define UCC_GETH_RX_BD_QUEUES_ALIGNMENT		8	/* This is a guess */
 #define UCC_GETH_RX_PREFETCHED_BDS_ALIGNMENT	128	/* This is a guess */
-#define UCC_GETH_RX_EXTENDED_FILTERING_GLOBAL_PARAMETERS_ALIGNMENT 4	/* This
+#define UCC_GETH_RX_EXTENDED_FILTERING_GLOBAL_PARAMETERS_ALIGNMENT 8	/* This
 									   is a
 									   guess
 									 */
@@ -899,16 +899,18 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_UTFS_INIT                      512	/* Tx virtual FIFO size
 							 */
 #define UCC_GETH_UTFET_INIT                     256	/* 1/2 utfs */
-#define UCC_GETH_UTFTT_INIT                     128
+#define UCC_GETH_UTFTT_INIT                     256	/* 1/2 utfs
+							   due to errata */
 /* Gigabit Ethernet (1000 Mbps) */
 #define UCC_GETH_URFS_GIGA_INIT                 4096/*2048*/	/* Rx virtual
 								   FIFO size */
 #define UCC_GETH_URFET_GIGA_INIT                2048/*1024*/	/* 1/2 urfs */
 #define UCC_GETH_URFSET_GIGA_INIT               3072/*1536*/	/* 3/4 urfs */
-#define UCC_GETH_UTFS_GIGA_INIT                 8192/*2048*/	/* Tx virtual
+#define UCC_GETH_UTFS_GIGA_INIT                 4096/*2048*/	/* Tx virtual
 								   FIFO size */
-#define UCC_GETH_UTFET_GIGA_INIT                4096/*1024*/	/* 1/2 utfs */
-#define UCC_GETH_UTFTT_GIGA_INIT                0x400/*0x40*/	/* */
+#define UCC_GETH_UTFET_GIGA_INIT                2048/*1024*/	/* 1/2 utfs */
+#define UCC_GETH_UTFTT_GIGA_INIT                4096/*0x40*/	/* Tx virtual
+								   FIFO size */
 
 #define UCC_GETH_REMODER_INIT                   0	/* bits that must be
 							   set */
@@ -1212,6 +1214,8 @@ struct ucc_geth_private {
 	/* index of the first skb which hasn't been transmitted yet. */
 	u16 skb_dirtytx[NUM_TX_QUEUES];
 
+	struct sk_buff_head rx_recycle;
+
 	struct ugeth_mii_info *mii_info;
 	struct phy_device *phydev;
 	phy_interface_t phy_interface;
@@ -1220,6 +1224,7 @@ struct ucc_geth_private {
 	int oldspeed;
 	int oldduplex;
 	int oldlink;
+	int wol_en;
 
 	struct device_node *node;
 };

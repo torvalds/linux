@@ -37,10 +37,12 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/list.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/inetdevice.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -152,6 +154,8 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 	struct iwch_create_cq_resp uresp;
 	struct iwch_create_cq_req ureq;
 	struct iwch_ucontext *ucontext = NULL;
+	static int warned;
+	size_t resplen;
 
 	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
 	rhp = to_iwch_dev(ibdev);
@@ -186,7 +190,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 	entries = roundup_pow_of_two(entries);
 	chp->cq.size_log2 = ilog2(entries);
 
-	if (cxio_create_cq(&rhp->rdev, &chp->cq)) {
+	if (cxio_create_cq(&rhp->rdev, &chp->cq, !ucontext)) {
 		kfree(chp);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -195,7 +199,11 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 	spin_lock_init(&chp->lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
-	insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid);
+	if (insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid)) {
+		cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
+		kfree(chp);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	if (ucontext) {
 		struct iwch_mm_entry *mm;
@@ -211,15 +219,26 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 		uresp.key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
 		spin_unlock(&ucontext->mmap_lock);
-		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
+		mm->key = uresp.key;
+		mm->addr = virt_to_phys(chp->cq.queue);
+		if (udata->outlen < sizeof uresp) {
+			if (!warned++)
+				printk(KERN_WARNING MOD "Warning - "
+				       "downlevel libcxgb3 (non-fatal).\n");
+			mm->len = PAGE_ALIGN((1UL << uresp.size_log2) *
+					     sizeof(struct t3_cqe));
+			resplen = sizeof(struct iwch_create_cq_resp_v0);
+		} else {
+			mm->len = PAGE_ALIGN(((1UL << uresp.size_log2) + 1) *
+					     sizeof(struct t3_cqe));
+			uresp.memsize = mm->len;
+			resplen = sizeof uresp;
+		}
+		if (ib_copy_to_udata(udata, &uresp, resplen)) {
 			kfree(mm);
 			iwch_destroy_cq(&chp->ibcq);
 			return ERR_PTR(-EFAULT);
 		}
-		mm->key = uresp.key;
-		mm->addr = virt_to_phys(chp->cq.queue);
-		mm->len = PAGE_ALIGN((1UL << uresp.size_log2) *
-					     sizeof (struct t3_cqe));
 		insert_mmap(ucontext, mm);
 	}
 	PDBG("created cqid 0x%0x chp %p size 0x%0x, dma_addr 0x%0llx\n",
@@ -750,7 +769,11 @@ static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
 	mhp->attr.stag = stag;
 	mmid = (stag) >> 8;
 	mhp->ibmw.rkey = stag;
-	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+		cxio_deallocate_window(&rhp->rdev, mhp->attr.stag);
+		kfree(mhp);
+		return ERR_PTR(-ENOMEM);
+	}
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmw);
 }
@@ -778,37 +801,43 @@ static struct ib_mr *iwch_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	struct iwch_mr *mhp;
 	u32 mmid;
 	u32 stag = 0;
-	int ret;
+	int ret = 0;
 
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
-		return ERR_PTR(-ENOMEM);
+		goto err;
 
 	mhp->rhp = rhp;
 	ret = iwch_alloc_pbl(mhp, pbl_depth);
-	if (ret) {
-		kfree(mhp);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err1;
 	mhp->attr.pbl_size = pbl_depth;
 	ret = cxio_allocate_stag(&rhp->rdev, &stag, php->pdid,
 				 mhp->attr.pbl_size, mhp->attr.pbl_addr);
-	if (ret) {
-		iwch_free_pbl(mhp);
-		kfree(mhp);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err2;
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.type = TPT_NON_SHARED_MR;
 	mhp->attr.stag = stag;
 	mhp->attr.state = 1;
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
-	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid))
+		goto err3;
+
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmr);
+err3:
+	cxio_dereg_mem(&rhp->rdev, stag, mhp->attr.pbl_size,
+		       mhp->attr.pbl_addr);
+err2:
+	iwch_free_pbl(mhp);
+err1:
+	kfree(mhp);
+err:
+	return ERR_PTR(ret);
 }
 
 static struct ib_fast_reg_page_list *iwch_alloc_fastreg_pbl(
@@ -961,7 +990,13 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	spin_lock_init(&qhp->lock);
 	init_waitqueue_head(&qhp->wait);
 	atomic_set(&qhp->refcnt, 1);
-	insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.qpid);
+
+	if (insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.qpid)) {
+		cxio_destroy_qp(&rhp->rdev, &qhp->wq,
+			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
+		kfree(qhp);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	if (udata) {
 
@@ -1179,11 +1214,14 @@ static int iwch_query_port(struct ib_device *ibdev,
 		props->state = IB_PORT_DOWN;
 	else {
 		inetdev = in_dev_get(netdev);
-		if (inetdev->ifa_list)
-			props->state = IB_PORT_ACTIVE;
-		else
+		if (inetdev) {
+			if (inetdev->ifa_list)
+				props->state = IB_PORT_ACTIVE;
+			else
+				props->state = IB_PORT_INIT;
+			in_dev_put(inetdev);
+		} else
 			props->state = IB_PORT_INIT;
-		in_dev_put(inetdev);
 	}
 
 	props->port_cap_flags =
@@ -1389,6 +1427,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.post_send = iwch_post_send;
 	dev->ibdev.post_recv = iwch_post_receive;
 	dev->ibdev.get_protocol_stats = iwch_get_mib;
+	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)
@@ -1403,7 +1442,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.iwcm->rem_ref = iwch_qp_rem_ref;
 	dev->ibdev.iwcm->get_qp = iwch_get_qp;
 
-	ret = ib_register_device(&dev->ibdev);
+	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)
 		goto bail1;
 
@@ -1418,6 +1457,7 @@ int iwch_register_device(struct iwch_dev *dev)
 bail2:
 	ib_unregister_device(&dev->ibdev);
 bail1:
+	kfree(dev->ibdev.iwcm);
 	return ret;
 }
 
@@ -1430,5 +1470,6 @@ void iwch_unregister_device(struct iwch_dev *dev)
 		device_remove_file(&dev->ibdev.dev,
 				   iwch_class_attributes[i]);
 	ib_unregister_device(&dev->ibdev);
+	kfree(dev->ibdev.iwcm);
 	return;
 }

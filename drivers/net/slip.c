@@ -67,6 +67,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/bitops.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -79,8 +80,10 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
 #include <linux/if_slip.h>
+#include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include "slip.h"
 #ifdef CONFIG_INET
 #include <linux/ip.h>
@@ -268,7 +271,7 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 			memcpy(sl->xbuff, sl->xhead, sl->xleft);
 		} else  {
 			sl->xleft = 0;
-			sl->tx_dropped++;
+			dev->stats.tx_dropped++;
 		}
 	}
 	sl->xhead = sl->xbuff;
@@ -278,7 +281,7 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 			memcpy(sl->rbuff, rbuff, sl->rcount);
 		} else  {
 			sl->rcount = 0;
-			sl->rx_over_errors++;
+			dev->stats.rx_over_errors++;
 			set_bit(SLF_ERROR, &sl->flags);
 		}
 	}
@@ -316,6 +319,7 @@ static inline void sl_unlock(struct slip *sl)
 /* Send one completely decapsulated IP datagram to the IP layer. */
 static void sl_bump(struct slip *sl)
 {
+	struct net_device *dev = sl->dev;
 	struct sk_buff *skb;
 	int count;
 
@@ -326,13 +330,13 @@ static void sl_bump(struct slip *sl)
 		if (c & SL_TYPE_COMPRESSED_TCP) {
 			/* ignore compressed packets when CSLIP is off */
 			if (!(sl->mode & SL_MODE_CSLIP)) {
-				printk(KERN_WARNING "%s: compressed packet ignored\n", sl->dev->name);
+				printk(KERN_WARNING "%s: compressed packet ignored\n", dev->name);
 				return;
 			}
 			/* make sure we've reserved enough space for uncompress
 			   to use */
 			if (count + 80 > sl->buffsize) {
-				sl->rx_over_errors++;
+				dev->stats.rx_over_errors++;
 				return;
 			}
 			count = slhc_uncompress(sl->slcomp, sl->rbuff, count);
@@ -343,7 +347,7 @@ static void sl_bump(struct slip *sl)
 				/* turn on header compression */
 				sl->mode |= SL_MODE_CSLIP;
 				sl->mode &= ~SL_MODE_ADAPTIVE;
-				printk(KERN_INFO "%s: header compression turned on\n", sl->dev->name);
+				printk(KERN_INFO "%s: header compression turned on\n", dev->name);
 			}
 			sl->rbuff[0] &= 0x4f;
 			if (slhc_remember(sl->slcomp, sl->rbuff, count) <= 0)
@@ -352,20 +356,20 @@ static void sl_bump(struct slip *sl)
 	}
 #endif  /* SL_INCLUDE_CSLIP */
 
-	sl->rx_bytes += count;
+	dev->stats.rx_bytes += count;
 
 	skb = dev_alloc_skb(count);
 	if (skb == NULL) {
-		printk(KERN_WARNING "%s: memory squeeze, dropping packet.\n", sl->dev->name);
-		sl->rx_dropped++;
+		printk(KERN_WARNING "%s: memory squeeze, dropping packet.\n", dev->name);
+		dev->stats.rx_dropped++;
 		return;
 	}
-	skb->dev = sl->dev;
+	skb->dev = dev;
 	memcpy(skb_put(skb, count), sl->rbuff, count);
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IP);
 	netif_rx(skb);
-	sl->rx_packets++;
+	dev->stats.rx_packets++;
 }
 
 /* Encapsulate one IP datagram and stuff into a TTY queue. */
@@ -376,7 +380,7 @@ static void sl_encaps(struct slip *sl, unsigned char *icp, int len)
 
 	if (len > sl->mtu) {		/* Sigh, shouldn't occur BUT ... */
 		printk(KERN_WARNING "%s: truncating oversized transmit packet!\n", sl->dev->name);
-		sl->tx_dropped++;
+		sl->dev->stats.tx_dropped++;
 		sl_unlock(sl);
 		return;
 	}
@@ -430,7 +434,7 @@ static void slip_write_wakeup(struct tty_struct *tty)
 	if (sl->xleft <= 0)  {
 		/* Now serial buffer is almost free & we can start
 		 * transmission of another packet */
-		sl->tx_packets++;
+		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		sl_unlock(sl);
 		return;
@@ -455,7 +459,7 @@ static void sl_tx_timeout(struct net_device *dev)
 		 *      14 Oct 1994 Dmitry Gorodchanin.
 		 */
 #ifdef SL_CHECK_TRANSMIT
-		if (time_before(jiffies, dev->trans_start + 20 * HZ))  {
+		if (time_before(jiffies, dev_trans_start(dev) + 20 * HZ))  {
 			/* 20 sec timeout not reached */
 			goto out;
 		}
@@ -474,7 +478,7 @@ out:
 
 
 /* Encapsulate an IP datagram and kick it into a TTY queue. */
-static int
+static netdev_tx_t
 sl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slip *sl = netdev_priv(dev);
@@ -484,21 +488,21 @@ sl_xmit(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock(&sl->lock);
 		printk(KERN_WARNING "%s: xmit call when iface is down\n", dev->name);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (sl->tty == NULL) {
 		spin_unlock(&sl->lock);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	sl_lock(sl);
-	sl->tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 	sl_encaps(sl, skb->data, skb->len);
 	spin_unlock(&sl->lock);
 
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -555,39 +559,39 @@ static int sl_change_mtu(struct net_device *dev, int new_mtu)
 
 /* Netdevice get statistics request */
 
-static struct net_device_stats *
-sl_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *
+sl_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
-	static struct net_device_stats stats;
+	struct net_device_stats *devstats = &dev->stats;
+	unsigned long c_rx_dropped = 0;
+#ifdef SL_INCLUDE_CSLIP
+	unsigned long c_rx_fifo_errors = 0;
+	unsigned long c_tx_fifo_errors = 0;
+	unsigned long c_collisions = 0;
 	struct slip *sl = netdev_priv(dev);
-#ifdef SL_INCLUDE_CSLIP
-	struct slcompress *comp;
-#endif
+	struct slcompress *comp = sl->slcomp;
 
-	memset(&stats, 0, sizeof(struct net_device_stats));
-
-	stats.rx_packets     = sl->rx_packets;
-	stats.tx_packets     = sl->tx_packets;
-	stats.rx_bytes	     = sl->rx_bytes;
-	stats.tx_bytes	     = sl->tx_bytes;
-	stats.rx_dropped     = sl->rx_dropped;
-	stats.tx_dropped     = sl->tx_dropped;
-	stats.tx_errors      = sl->tx_errors;
-	stats.rx_errors      = sl->rx_errors;
-	stats.rx_over_errors = sl->rx_over_errors;
-#ifdef SL_INCLUDE_CSLIP
-	stats.rx_fifo_errors = sl->rx_compressed;
-	stats.tx_fifo_errors = sl->tx_compressed;
-	stats.collisions     = sl->tx_misses;
-	comp = sl->slcomp;
 	if (comp) {
-		stats.rx_fifo_errors += comp->sls_i_compressed;
-		stats.rx_dropped     += comp->sls_i_tossed;
-		stats.tx_fifo_errors += comp->sls_o_compressed;
-		stats.collisions     += comp->sls_o_misses;
+		c_rx_fifo_errors = comp->sls_i_compressed;
+		c_rx_dropped     = comp->sls_i_tossed;
+		c_tx_fifo_errors = comp->sls_o_compressed;
+		c_collisions     = comp->sls_o_misses;
 	}
-#endif /* CONFIG_INET */
-	return (&stats);
+	stats->rx_fifo_errors = sl->rx_compressed + c_rx_fifo_errors;
+	stats->tx_fifo_errors = sl->tx_compressed + c_tx_fifo_errors;
+	stats->collisions     = sl->tx_misses + c_collisions;
+#endif
+	stats->rx_packets     = devstats->rx_packets;
+	stats->tx_packets     = devstats->tx_packets;
+	stats->rx_bytes       = devstats->rx_bytes;
+	stats->tx_bytes       = devstats->tx_bytes;
+	stats->rx_dropped     = devstats->rx_dropped + c_rx_dropped;
+	stats->tx_dropped     = devstats->tx_dropped;
+	stats->tx_errors      = devstats->tx_errors;
+	stats->rx_errors      = devstats->rx_errors;
+	stats->rx_over_errors = devstats->rx_over_errors;
+
+	return stats;
 }
 
 /* Netdevice register callback */
@@ -616,13 +620,21 @@ static void sl_uninit(struct net_device *dev)
 	sl_free_bufs(sl);
 }
 
+/* Hook the destructor so we can free slip devices at the right point in time */
+static void sl_free_netdev(struct net_device *dev)
+{
+	int i = dev->base_addr;
+	free_netdev(dev);
+	slip_devs[i] = NULL;
+}
+
 static const struct net_device_ops sl_netdev_ops = {
 	.ndo_init		= sl_init,
 	.ndo_uninit	  	= sl_uninit,
 	.ndo_open		= sl_open,
 	.ndo_stop		= sl_close,
 	.ndo_start_xmit		= sl_xmit,
-	.ndo_get_stats	        = sl_get_stats,
+	.ndo_get_stats64        = sl_get_stats64,
 	.ndo_change_mtu		= sl_change_mtu,
 	.ndo_tx_timeout		= sl_tx_timeout,
 #ifdef CONFIG_SLIP_SMART
@@ -634,7 +646,7 @@ static const struct net_device_ops sl_netdev_ops = {
 static void sl_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &sl_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->destructor		= sl_free_netdev;
 
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
@@ -670,7 +682,7 @@ static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	while (count--) {
 		if (fp && *fp++) {
 			if (!test_and_set_bit(SLF_ERROR, &sl->flags))
-				sl->rx_errors++;
+				sl->dev->stats.rx_errors++;
 			cp++;
 			continue;
 		}
@@ -712,8 +724,6 @@ static void sl_sync(void)
 static struct slip *sl_alloc(dev_t line)
 {
 	int i;
-	int sel = -1;
-	int score = -1;
 	struct net_device *dev = NULL;
 	struct slip       *sl;
 
@@ -724,55 +734,7 @@ static struct slip *sl_alloc(dev_t line)
 		dev = slip_devs[i];
 		if (dev == NULL)
 			break;
-
-		sl = netdev_priv(dev);
-		if (sl->leased) {
-			if (sl->line != line)
-				continue;
-			if (sl->tty)
-				return NULL;
-
-			/* Clear ESCAPE & ERROR flags */
-			sl->flags &= (1 << SLF_INUSE);
-			return sl;
-		}
-
-		if (sl->tty)
-			continue;
-
-		if (current->pid == sl->pid) {
-			if (sl->line == line && score < 3) {
-				sel = i;
-				score = 3;
-				continue;
-			}
-			if (score < 2) {
-				sel = i;
-				score = 2;
-			}
-			continue;
-		}
-		if (sl->line == line && score < 1) {
-			sel = i;
-			score = 1;
-			continue;
-		}
-		if (score < 0) {
-			sel = i;
-			score = 0;
-		}
 	}
-
-	if (sel >= 0) {
-		i = sel;
-		dev = slip_devs[i];
-		if (score > 1) {
-			sl = netdev_priv(dev);
-			sl->flags &= (1 << SLF_INUSE);
-			return sl;
-		}
-	}
-
 	/* Sorry, too many, all slots in use */
 	if (i >= slip_maxdev)
 		return NULL;
@@ -909,30 +871,13 @@ err_exit:
 }
 
 /*
-
-  FIXME: 1,2 are fixed 3 was never true anyway.
-
-   Let me to blame a bit.
-   1. TTY module calls this funstion on soft interrupt.
-   2. TTY module calls this function WITH MASKED INTERRUPTS!
-   3. TTY module does not notify us about line discipline
-      shutdown,
-
-   Seems, now it is clean. The solution is to consider netdevice and
-   line discipline sides as two independent threads.
-
-   By-product (not desired): sl? does not feel hangups and remains open.
-   It is supposed, that user level program (dip, diald, slattach...)
-   will catch SIGHUP and make the rest of work.
-
-   I see no way to make more with current tty code. --ANK
- */
-
-/*
  * Close down a SLIP channel.
  * This means flushing out any pending queues, and then returning. This
  * call is serialized against other ldisc functions.
+ *
+ * We also use this method fo a hangup event
  */
+
 static void slip_close(struct tty_struct *tty)
 {
 	struct slip *sl = tty->disc_data;
@@ -951,10 +896,16 @@ static void slip_close(struct tty_struct *tty)
 	del_timer_sync(&sl->keepalive_timer);
 	del_timer_sync(&sl->outfill_timer);
 #endif
-
-	/* Count references from TTY module */
+	/* Flush network side */
+	unregister_netdev(sl->dev);
+	/* This will complete via sl_free_netdev */
 }
 
+static int slip_hangup(struct tty_struct *tty)
+{
+	slip_close(tty);
+	return 0;
+}
  /************************************************************************
   *			STANDARD SLIP ENCAPSULATION		  	 *
   ************************************************************************/
@@ -993,7 +944,7 @@ static int slip_esc(unsigned char *s, unsigned char *d, int len)
 		}
 	}
 	*ptr++ = END;
-	return (ptr - d);
+	return ptr - d;
 }
 
 static void slip_unesc(struct slip *sl, unsigned char s)
@@ -1007,8 +958,8 @@ static void slip_unesc(struct slip *sl, unsigned char s)
 			clear_bit(SLF_KEEPTEST, &sl->flags);
 #endif
 
-		if (!test_and_clear_bit(SLF_ERROR, &sl->flags)
-							&& (sl->rcount > 2))
+		if (!test_and_clear_bit(SLF_ERROR, &sl->flags) &&
+		    (sl->rcount > 2))
 			sl_bump(sl);
 		clear_bit(SLF_ESCAPE, &sl->flags);
 		sl->rcount = 0;
@@ -1031,7 +982,7 @@ static void slip_unesc(struct slip *sl, unsigned char s)
 			sl->rbuff[sl->rcount++] = s;
 			return;
 		}
-		sl->rx_over_errors++;
+		sl->dev->stats.rx_over_errors++;
 		set_bit(SLF_ERROR, &sl->flags);
 	}
 }
@@ -1090,8 +1041,8 @@ static void slip_unesc6(struct slip *sl, unsigned char s)
 			clear_bit(SLF_KEEPTEST, &sl->flags);
 #endif
 
-		if (!test_and_clear_bit(SLF_ERROR, &sl->flags)
-							&& (sl->rcount > 2))
+		if (!test_and_clear_bit(SLF_ERROR, &sl->flags) &&
+		    (sl->rcount > 2))
 			sl_bump(sl);
 		sl->rcount = 0;
 		sl->xbits = 0;
@@ -1107,7 +1058,7 @@ static void slip_unesc6(struct slip *sl, unsigned char s)
 					sl->rbuff[sl->rcount++] = c;
 					return;
 				}
-				sl->rx_over_errors++;
+				sl->dev->stats.rx_over_errors++;
 				set_bit(SLF_ERROR, &sl->flags);
 			}
 		}
@@ -1221,6 +1172,27 @@ static int slip_ioctl(struct tty_struct *tty, struct file *file,
 	}
 }
 
+#ifdef CONFIG_COMPAT
+static long slip_compat_ioctl(struct tty_struct *tty, struct file *file,
+					unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case SIOCGIFNAME:
+	case SIOCGIFENCAP:
+	case SIOCSIFENCAP:
+	case SIOCSIFHWADDR:
+	case SIOCSKEEPALIVE:
+	case SIOCGKEEPALIVE:
+	case SIOCSOUTFILL:
+	case SIOCGOUTFILL:
+		return slip_ioctl(tty, file, cmd,
+				  (unsigned long)compat_ptr(arg));
+	}
+
+	return -ENOIOCTLCMD;
+}
+#endif
+
 /* VSV changes start here */
 #ifdef CONFIG_SLIP_SMART
 /* function do_ioctl called from net/core/dev.c
@@ -1298,7 +1270,7 @@ static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	case SIOCGLEASE:
 		*p = sl->leased;
-	};
+	}
 	spin_unlock_bh(&sl->lock);
 	return 0;
 }
@@ -1311,7 +1283,11 @@ static struct tty_ldisc_ops sl_ldisc = {
 	.name 		= "slip",
 	.open 		= slip_open,
 	.close	 	= slip_close,
+	.hangup	 	= slip_hangup,
 	.ioctl		= slip_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= slip_compat_ioctl,
+#endif
 	.receive_buf	= slip_receive_buf,
 	.write_wakeup	= slip_write_wakeup,
 };
@@ -1384,6 +1360,8 @@ static void __exit slip_exit(void)
 		}
 	} while (busy && time_before(jiffies, timeout));
 
+	/* FIXME: hangup is async so we should wait when doing this second
+	   phase */
 
 	for (i = 0; i < slip_maxdev; i++) {
 		dev = slip_devs[i];

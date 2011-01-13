@@ -219,7 +219,7 @@ static inline int read_reg(struct stir_cb *stir, __u16 reg,
 
 static inline int isfir(u32 speed)
 {
-	return (speed == 4000000);
+	return speed == 4000000;
 }
 
 /*
@@ -560,7 +560,8 @@ static int change_speed(struct stir_cb *stir, unsigned speed)
 /*
  * Called from net/core when new frame is available.
  */
-static int stir_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t stir_hard_xmit(struct sk_buff *skb,
+					struct net_device *netdev)
 {
 	struct stir_cb *stir = netdev_priv(netdev);
 
@@ -578,7 +579,7 @@ static int stir_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_kfree_skb(skb);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -611,16 +612,16 @@ static int fifo_txwait(struct stir_cb *stir, int space)
 		pr_debug("fifo status 0x%lx count %lu\n", status, count);
 
 		/* is fifo receiving already, or empty */
-		if (!(status & FIFOCTL_DIR)
-		    || (status & FIFOCTL_EMPTY))
+		if (!(status & FIFOCTL_DIR) ||
+		    (status & FIFOCTL_EMPTY))
 			return 0;
 
 		if (signal_pending(current))
 			return -EINTR;
 
 		/* shutting down? */
-		if (!netif_running(stir->netdev)
-		    || !netif_device_present(stir->netdev))
+		if (!netif_running(stir->netdev) ||
+		    !netif_device_present(stir->netdev))
 			return -ESHUTDOWN;
 
 		/* only waiting for some space */
@@ -775,8 +776,8 @@ static int stir_transmit_thread(void *arg)
 		}
 
 		/* nothing to send? start receiving */
-		if (!stir->receiving 
-		    && irda_device_txqueue_empty(dev)) {
+		if (!stir->receiving &&
+		    irda_device_txqueue_empty(dev)) {
 			/* Wait otherwise chip gets confused. */
 			if (fifo_txwait(stir, -1))
 				break;

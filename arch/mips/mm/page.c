@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
@@ -34,7 +35,7 @@
 #include <asm/sibyte/sb1250_dma.h>
 #endif
 
-#include "uasm.h"
+#include <asm/uasm.h>
 
 /* Registers used in the assembled routines. */
 #define ZERO 0

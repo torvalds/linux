@@ -28,15 +28,7 @@
 struct sigcontext;
 struct sigcontext32;
 
-extern asmlinkage int (*save_fp_context)(struct sigcontext __user *sc);
-extern asmlinkage int (*restore_fp_context)(struct sigcontext __user *sc);
-
-extern asmlinkage int (*save_fp_context32)(struct sigcontext32 __user *sc);
-extern asmlinkage int (*restore_fp_context32)(struct sigcontext32 __user *sc);
-
 extern void fpu_emulator_init_fpu(void);
-extern int fpu_emulator_save_context(struct sigcontext __user *sc);
-extern int fpu_emulator_restore_context(struct sigcontext __user *sc);
 extern void _init_fpu(void);
 extern void _save_fp(struct task_struct *);
 extern void _restore_fp(struct task_struct *);

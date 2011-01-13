@@ -42,7 +42,8 @@ TTY side interfaces:
 open()		-	Called when the line discipline is attached to
 			the terminal. No other call into the line
 			discipline for this tty will occur until it
-			completes successfully. Can sleep.
+			completes successfully. Returning an error will
+			prevent the ldisc from being attached. Can sleep.
 
 close()		-	This is called on a terminal when the line
 			discipline is being unplugged. At the point of
@@ -52,7 +53,7 @@ close()		-	This is called on a terminal when the line
 hangup()	-	Called when the tty line is hung up.
 			The line discipline should cease I/O to the tty.
 			No further calls into the ldisc code will occur.
-			Can sleep.
+			The return value is ignored. Can sleep.
 
 write()		-	A process is writing data through the line
 			discipline.  Multiple write calls are serialized
@@ -83,6 +84,10 @@ ioctl()		-	Called when an ioctl is handed to the tty layer
 			that might be for the ldisc. Multiple ioctl calls
 			may occur in parallel. May sleep. 
 
+compat_ioctl()	-	Called when a 32 bit ioctl is handed to the tty layer
+			that might be for the ldisc. Multiple ioctl calls
+			may occur in parallel. May sleep.
+
 Driver Side Interfaces:
 
 receive_buf()	-	Hand buffers of bytes from the driver to the ldisc
@@ -99,6 +104,10 @@ write_wakeup()	-	May be called at any point between open and close.
 			from the ->write call from the ldisc as the ldisc
 			is permitted to call the driver write method from
 			this function. In such a situation defer it.
+
+dcd_change()	-	Report to the tty line the current DCD pin status
+			changes and the relative timestamp. The timestamp
+			can be NULL.
 
 
 Driver Access

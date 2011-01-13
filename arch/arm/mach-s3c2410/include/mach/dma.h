@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/include/mach/dma.h
  *
- * Copyright (C) 2003,2004,2006 Simtec Electronics
+ * Copyright (C) 2003-2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * Samsung S3C24XX DMA support
@@ -54,7 +54,7 @@ enum dma_ch {
 #define DMACH_LOW_LEVEL	(1<<28)	/* use this to specifiy hardware ch no */
 
 /* we have 4 dma channels */
-#ifndef CONFIG_CPU_S3C2443
+#if !defined(CONFIG_CPU_S3C2443) && !defined(CONFIG_CPU_S3C2416)
 #define S3C_DMA_CHANNELS		(4)
 #else
 #define S3C_DMA_CHANNELS		(6)
@@ -109,6 +109,8 @@ enum s3c2410_dma_loadst {
 #define S3C2410_DMAF_SLOW         (1<<0)   /* slow, so don't worry about
 					    * waiting for reloads */
 #define S3C2410_DMAF_AUTOSTART    (1<<1)   /* auto-start if buffer queued */
+
+#define S3C2410_DMAF_CIRCULAR	(1 << 2)	/* no circular dma support */
 
 /* dma buffer */
 
@@ -193,5 +195,10 @@ struct s3c2410_dma_chan {
 };
 
 typedef unsigned long dma_device_t;
+
+static inline bool s3c_dma_has_circular(void)
+{
+	return false;
+}
 
 #endif /* __ASM_ARCH_DMA_H */

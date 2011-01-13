@@ -53,6 +53,23 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 #define ELF_ET_DYN_BASE         (TASK32_SIZE / 3 * 2)
 
 #include <asm/processor.h>
+
+/*
+ * When this file is selected, we are definitely running a 64bit kernel.
+ * So using the right regs define in asm/reg.h
+ */
+#define WANT_COMPAT_REG_H
+
+/* These MUST be defined before elf.h gets included */
+extern void elf32_core_copy_regs(elf_gregset_t grp, struct pt_regs *regs);
+#define ELF_CORE_COPY_REGS(_dest, _regs) elf32_core_copy_regs(_dest, _regs);
+#define ELF_CORE_COPY_TASK_REGS(_tsk, _dest)				\
+({									\
+	int __res = 1;							\
+	elf32_core_copy_regs(*(_dest), task_pt_regs(_tsk));		\
+	__res;								\
+})
+
 #include <linux/module.h>
 #include <linux/elfcore.h>
 #include <linux/compat.h>
@@ -109,9 +126,6 @@ jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 	value->tv_sec = div_u64_rem(nsec, NSEC_PER_SEC, &rem);
 	value->tv_usec = rem / NSEC_PER_USEC;
 }
-
-#undef ELF_CORE_COPY_REGS
-#define ELF_CORE_COPY_REGS(_dest, _regs) elf32_core_copy_regs(_dest, _regs);
 
 void elf32_core_copy_regs(elf_gregset_t grp, struct pt_regs *regs)
 {

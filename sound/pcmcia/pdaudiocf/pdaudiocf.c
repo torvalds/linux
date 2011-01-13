@@ -131,7 +131,7 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		return err;
 	}
 
-	snd_card_set_dev(card, &handle_to_dev(link));
+	snd_card_set_dev(card, &link->dev);
 
 	pdacf->index = i;
 	card_list[i] = card;
@@ -139,19 +139,12 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	pdacf->p_dev = link;
 	link->priv = pdacf;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.NumPorts1 = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	link->resource[0]->end = 16;
 
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT | IRQ_FORCED_PULSE;
-	// link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
-
-	link->irq.IRQInfo1 = 0 /* | IRQ_LEVEL_ID */;
-	link->irq.Handler = pdacf_interrupt;
-	link->irq.Instance = pdacf;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->conf.ConfigIndex = 1;
-	link->conf.Present = PRESENT_OPTION;
+	link->config_flags = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
+	link->config_index = 1;
+	link->config_regs = PRESENT_OPTION;
 
 	return pdacf_config(link);
 }
@@ -217,29 +210,33 @@ static void snd_pdacf_detach(struct pcmcia_device *link)
  * configuration callback
  */
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int pdacf_config(struct pcmcia_device *link)
 {
 	struct snd_pdacf *pdacf = link->priv;
-	int last_fn, last_ret;
+	int ret;
 
 	snd_printdd(KERN_DEBUG "pdacf_config called\n");
-	link->conf.ConfigIndex = 0x5;
+	link->config_index = 0x5;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
 
-	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
-
-	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
+	ret = pcmcia_request_io(link);
+	if (ret)
 		goto failed;
 
-	link->dev_node = &pdacf->node;
+	ret = pcmcia_request_exclusive_irq(link, pdacf_interrupt);
+	if (ret)
+		goto failed;
+
+	ret = pcmcia_enable_device(link);
+	if (ret)
+		goto failed;
+
+	if (snd_pdacf_assign_resources(pdacf, link->resource[0]->start,
+					link->irq) < 0)
+		goto failed;
+
 	return 0;
 
-cs_failed:
-	cs_error(link, last_fn, last_ret);
 failed:
 	pcmcia_disable_device(link);
 	return -ENODEV;
@@ -290,9 +287,7 @@ MODULE_DEVICE_TABLE(pcmcia, snd_pdacf_ids);
 
 static struct pcmcia_driver pdacf_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "snd-pdaudiocf",
-	},
+	.name		= "snd-pdaudiocf",
 	.probe		= snd_pdacf_probe,
 	.remove		= snd_pdacf_detach,
 	.id_table	= snd_pdacf_ids,

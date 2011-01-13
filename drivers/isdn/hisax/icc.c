@@ -20,6 +20,7 @@
 // #include "arcofi.h"
 #include "isdnl1.h"
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #define DBUSY_TIMER_VALUE 80
 #define ARCOFI_USE 0
@@ -83,8 +84,6 @@ icc_bh(struct work_struct *work)
 		container_of(work, struct IsdnCardState, tqueue);
 	struct PStack *stptr;
 	
-	if (!cs)
-		return;
 	if (test_and_clear_bit(D_CLEARBUSY, &cs->event)) {
 		if (cs->debug)
 			debugl1(cs, "D-Channel Busy cleared");
@@ -470,6 +469,7 @@ ICC_l1hw(struct PStack *st, int pr, void *arg)
 				if (cs->debug & L1_DEB_WARN)
 					debugl1(cs, " l2l1 tx_skb exist this shouldn't happen");
 				skb_queue_tail(&cs->sq, skb);
+				spin_unlock_irqrestore(&cs->lock, flags);
 				break;
 			}
 			if (cs->debug & DEB_DLOG_HEX)

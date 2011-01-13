@@ -290,6 +290,51 @@ static int wm8350_isink_is_enabled(struct regulator_dev *rdev)
 	return -EINVAL;
 }
 
+static int wm8350_isink_enable_time(struct regulator_dev *rdev)
+{
+	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
+	int isink = rdev_get_id(rdev);
+	int reg;
+
+	switch (isink) {
+	case WM8350_ISINK_A:
+		reg = wm8350_reg_read(wm8350, WM8350_CSA_FLASH_CONTROL);
+		break;
+	case WM8350_ISINK_B:
+		reg = wm8350_reg_read(wm8350, WM8350_CSB_FLASH_CONTROL);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (reg & WM8350_CS1_FLASH_MODE) {
+		switch (reg & WM8350_CS1_ON_RAMP_MASK) {
+		case 0:
+			return 0;
+		case 1:
+			return 1950;
+		case 2:
+			return 3910;
+		case 3:
+			return 7800;
+		}
+	} else {
+		switch (reg & WM8350_CS1_ON_RAMP_MASK) {
+		case 0:
+			return 0;
+		case 1:
+			return 250000;
+		case 2:
+			return 500000;
+		case 3:
+			return 1000000;
+		}
+	}
+
+	return -EINVAL;
+}
+
+
 int wm8350_isink_set_flash(struct wm8350 *wm8350, int isink, u16 mode,
 			   u16 trigger, u16 duration, u16 on_ramp, u16 off_ramp,
 			   u16 drive)
@@ -1084,7 +1129,7 @@ static unsigned int wm8350_dcdc_get_mode(struct regulator_dev *rdev)
 			mode = REGULATOR_MODE_NORMAL;
 	} else if (!active && !sleep)
 		mode = REGULATOR_MODE_IDLE;
-	else if (!sleep)
+	else if (sleep)
 		mode = REGULATOR_MODE_STANDBY;
 
 	return mode;
@@ -1221,6 +1266,7 @@ static struct regulator_ops wm8350_isink_ops = {
 	.enable = wm8350_isink_enable,
 	.disable = wm8350_isink_disable,
 	.is_enabled = wm8350_isink_is_enabled,
+	.enable_time = wm8350_isink_enable_time,
 };
 
 static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
@@ -1330,9 +1376,10 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 	 },
 };
 
-static void pmic_uv_handler(struct wm8350 *wm8350, int irq, void *data)
+static irqreturn_t pmic_uv_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
+	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	mutex_lock(&rdev->mutex);
 	if (irq == WM8350_IRQ_CS1 || irq == WM8350_IRQ_CS2)
@@ -1344,6 +1391,8 @@ static void pmic_uv_handler(struct wm8350 *wm8350, int irq, void *data)
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
 					      wm8350);
 	mutex_unlock(&rdev->mutex);
+
+	return IRQ_HANDLED;
 }
 
 static int wm8350_regulator_probe(struct platform_device *pdev)
@@ -1388,15 +1437,13 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 
 	/* register regulator IRQ */
 	ret = wm8350_register_irq(wm8350, wm8350_reg[pdev->id].irq,
-				  pmic_uv_handler, rdev);
+				  pmic_uv_handler, 0, "UV", rdev);
 	if (ret < 0) {
 		regulator_unregister(rdev);
 		dev_err(&pdev->dev, "failed to register regulator %s IRQ\n",
 			wm8350_reg[pdev->id].name);
 		return ret;
 	}
-
-	wm8350_unmask_irq(wm8350, wm8350_reg[pdev->id].irq);
 
 	return 0;
 }
@@ -1406,8 +1453,7 @@ static int wm8350_regulator_remove(struct platform_device *pdev)
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
-	wm8350_mask_irq(wm8350, wm8350_reg[pdev->id].irq);
-	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq);
+	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq, rdev);
 
 	regulator_unregister(rdev);
 
@@ -1419,6 +1465,8 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 {
 	struct platform_device *pdev;
 	int ret;
+	if (reg < 0 || reg >= NUM_WM8350_REGULATORS)
+		return -EINVAL;
 
 	if (wm8350->pmic.pdev[reg])
 		return -EBUSY;
@@ -1447,7 +1495,7 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 	if (ret != 0) {
 		dev_err(wm8350->dev, "Failed to register regulator %d: %d\n",
 			reg, ret);
-		platform_device_del(pdev);
+		platform_device_put(pdev);
 		wm8350->pmic.pdev[reg] = NULL;
 	}
 
@@ -1502,7 +1550,8 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	led->isink_init.consumer_supplies = &led->isink_consumer;
 	led->isink_init.constraints.min_uA = 0;
 	led->isink_init.constraints.max_uA = pdata->max_uA;
-	led->isink_init.constraints.valid_ops_mask = REGULATOR_CHANGE_CURRENT;
+	led->isink_init.constraints.valid_ops_mask
+		= REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS;
 	led->isink_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
 	ret = wm8350_register_regulator(wm8350, isink, &led->isink_init);
 	if (ret != 0) {
@@ -1515,6 +1564,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	led->dcdc_init.num_consumer_supplies = 1;
 	led->dcdc_init.consumer_supplies = &led->dcdc_consumer;
 	led->dcdc_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	led->dcdc_init.constraints.valid_ops_mask =  REGULATOR_CHANGE_STATUS;
 	ret = wm8350_register_regulator(wm8350, dcdc, &led->dcdc_init);
 	if (ret != 0) {
 		platform_device_put(pdev);

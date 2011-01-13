@@ -16,10 +16,10 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/clock.h>
 #include <asm/i2c-sh7760.h>
-#include <asm/io.h>
 
 /* register offsets */
 #define I2CSCR		0x0		/* slave ctrl		*/
@@ -101,12 +101,12 @@ struct cami2c {
 
 static inline void OUT32(struct cami2c *cam, int reg, unsigned long val)
 {
-	ctrl_outl(val, (unsigned long)cam->iobase + reg);
+	__raw_writel(val, (unsigned long)cam->iobase + reg);
 }
 
 static inline unsigned long IN32(struct cami2c *cam, int reg)
 {
-	return ctrl_inl((unsigned long)cam->iobase + reg);
+	return __raw_readl((unsigned long)cam->iobase + reg);
 }
 
 static irqreturn_t sh7760_i2c_irq(int irq, void *ptr)

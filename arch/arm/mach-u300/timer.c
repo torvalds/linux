@@ -9,21 +9,26 @@
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <mach/hardware.h>
 
 /* Generic stuff */
+#include <asm/sched_clock.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include "clock.h"
+/* Be able to sleep for atleast 4 seconds (usually more) */
+#define APPTIMER_MIN_RANGE 4
 
 /*
  * APP side special timer registers
@@ -307,8 +312,6 @@ static struct clock_event_device clockevent_u300_1mhz = {
 	.name           = "GPT1",
 	.rating         = 300, /* Reasonably fast and accurate clock event */
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	/* 22 calculated using the algorithm in arch/mips/kernel/time.c */
-	.shift          = 22,
 	.set_next_event = u300_set_next_event,
 	.set_mode       = u300_set_mode,
 };
@@ -341,10 +344,29 @@ static struct clocksource clocksource_u300_1mhz = {
 	.rating         = 300, /* Reasonably fast and accurate clock source */
 	.read           = u300_get_cycles,
 	.mask           = CLOCKSOURCE_MASK(32), /* 32 bits */
-	/* 22 calculated using the algorithm in arch/mips/kernel/time.c */
-	.shift          = 22,
 	.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+/*
+ * Override the global weak sched_clock symbol with this
+ * local implementation which uses the clocksource to get some
+ * better resolution when scheduling the kernel. We accept that
+ * this wraps around for now, since it is just a relative time
+ * stamp. (Inspired by OMAP implementation.)
+ */
+static DEFINE_CLOCK_DATA(cd);
+
+unsigned long long notrace sched_clock(void)
+{
+	u32 cyc = readl(U300_TIMER_APP_VBASE + U300_TIMER_APP_GPT2CC);
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
+}
+
+static void notrace u300_update_sched_clock(void)
+{
+	u32 cyc = readl(U300_TIMER_APP_VBASE + U300_TIMER_APP_GPT2CC);
+	update_sched_clock(&cd, cyc, (u32)~0);
+}
 
 
 /*
@@ -352,7 +374,17 @@ static struct clocksource clocksource_u300_1mhz = {
  */
 static void __init u300_timer_init(void)
 {
-	u300_enable_timer_clock();
+	struct clk *clk;
+	unsigned long rate;
+
+	/* Clock the interrupt controller */
+	clk = clk_get_sys("apptimer", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
+	rate = clk_get_rate(clk);
+
+	init_sched_clock(&cd, u300_update_sched_clock, 32, rate);
+
 	/*
 	 * Disable the "OS" and "DD" timers - these are designed for Symbian!
 	 * Example usage in cnh1601578 cpu subsystem pd_timer_app.c
@@ -390,15 +422,12 @@ static void __init u300_timer_init(void)
 	writel(U300_TIMER_APP_EGPT2_TIMER_ENABLE,
 		U300_TIMER_APP_VBASE + U300_TIMER_APP_EGPT2);
 
-	/* This is a pure microsecond clock source */
-	clocksource_u300_1mhz.mult =
-		clocksource_khz2mult(1000, clocksource_u300_1mhz.shift);
-	if (clocksource_register(&clocksource_u300_1mhz))
+	if (clocksource_register_hz(&clocksource_u300_1mhz, rate))
 		printk(KERN_ERR "timer: failed to initialize clock "
 		       "source %s\n", clocksource_u300_1mhz.name);
 
-	clockevent_u300_1mhz.mult =
-		div_sc(1000000, NSEC_PER_SEC, clockevent_u300_1mhz.shift);
+	clockevents_calc_mult_shift(&clockevent_u300_1mhz,
+				    rate, APPTIMER_MIN_RANGE);
 	/* 32bit counter, so 32bits delta is max */
 	clockevent_u300_1mhz.max_delta_ns =
 		clockevent_delta2ns(0xffffffff, &clockevent_u300_1mhz);

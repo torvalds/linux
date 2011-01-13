@@ -8,11 +8,11 @@ Please see overview.txt for a description of the terms used in this text.
 1. Consumer Regulator Access (static & dynamic drivers)
 =======================================================
 
-A consumer driver can get access to it's supply regulator by calling :-
+A consumer driver can get access to its supply regulator by calling :-
 
 regulator = regulator_get(dev, "Vcc");
 
-The consumer passes in it's struct device pointer and power supply ID. The core
+The consumer passes in its struct device pointer and power supply ID. The core
 then finds the correct regulator by consulting a machine specific lookup table.
 If the lookup is successful then this call will return a pointer to the struct
 regulator that supplies this consumer.
@@ -34,7 +34,7 @@ usually be called in your device drivers probe() and remove() respectively.
 2. Regulator Output Enable & Disable (static & dynamic drivers)
 ====================================================================
 
-A consumer can enable it's power supply by calling:-
+A consumer can enable its power supply by calling:-
 
 int regulator_enable(regulator);
 
@@ -49,7 +49,7 @@ int regulator_is_enabled(regulator);
 This will return > zero when the regulator is enabled.
 
 
-A consumer can disable it's supply when no longer needed by calling :-
+A consumer can disable its supply when no longer needed by calling :-
 
 int regulator_disable(regulator);
 
@@ -104,7 +104,7 @@ to set the limit to 500mA when supplying power.
 
 Consumers can control their supply current limit by calling :-
 
-int regulator_set_current_limit(regulator, min_uV, max_uV);
+int regulator_set_current_limit(regulator, min_uA, max_uA);
 
 Where min_uA and max_uA are the minimum and maximum acceptable current limit in
 microamps.
@@ -140,7 +140,7 @@ by calling :-
 int regulator_set_optimum_mode(struct regulator *regulator, int load_uA);
 
 This will cause the core to recalculate the total load on the regulator (based
-on all it's consumers) and change operating mode (if necessary and permitted)
+on all its consumers) and change operating mode (if necessary and permitted)
 to best match the current operating load.
 
 The load_uA value can be determined from the consumers datasheet. e.g.most

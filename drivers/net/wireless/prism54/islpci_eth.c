@@ -17,6 +17,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -50,7 +51,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 
 		/* check for holes in the arrays caused by multi fragment frames
 		 * searching for the last fragment of a frame */
-		if (priv->pci_map_tx_address[index] != (dma_addr_t) NULL) {
+		if (priv->pci_map_tx_address[index]) {
 			/* entry is the last fragment of a frame
 			 * free the skb structure and unmap pci memory */
 			skb = priv->data_low_tx[index];
@@ -72,7 +73,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 	}
 }
 
-int
+netdev_tx_t
 islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	islpci_private *priv = netdev_priv(ndev);
@@ -89,7 +90,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	u32 curr_frag;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_transmit \n");
+	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_transmit\n");
 #endif
 
 	/* lock the driver code */
@@ -140,7 +141,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			}
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			DEBUG(SHOW_TRACING, "memmove %p %p %i \n", skb->data,
+			DEBUG(SHOW_TRACING, "memmove %p %p %i\n", skb->data,
 			      src, skb->len);
 #endif
 		} else {
@@ -223,8 +224,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 		priv->data_low_tx_full = 1;
 	}
 
-	/* set the transmission time */
-	ndev->trans_start = jiffies;
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += skb->len;
 
@@ -234,7 +233,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	/* unlock the driver code */
 	spin_unlock_irqrestore(&priv->slock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 
       drop_free:
 	ndev->stats.tx_dropped++;
@@ -319,7 +318,7 @@ islpci_eth_receive(islpci_private *priv)
 	int discard = 0;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_receive \n");
+	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_receive\n");
 #endif
 
 	/* the device has written an Ethernet frame in the data area
@@ -431,7 +430,7 @@ islpci_eth_receive(islpci_private *priv)
 		skb = dev_alloc_skb(MAX_FRAGMENT_SIZE_RX + 2);
 		if (unlikely(skb == NULL)) {
 			/* error allocating an sk_buff structure elements */
-			DEBUG(SHOW_ERROR_MESSAGES, "Error allocating skb \n");
+			DEBUG(SHOW_ERROR_MESSAGES, "Error allocating skb\n");
 			break;
 		}
 		skb_reserve(skb, (4 - (long) skb->data) & 0x03);
@@ -450,7 +449,7 @@ islpci_eth_receive(islpci_private *priv)
 		    pci_map_single(priv->pdev, (void *) skb->data,
 				   MAX_FRAGMENT_SIZE_RX + 2,
 				   PCI_DMA_FROMDEVICE);
-		if (unlikely(priv->pci_map_rx_address[index] == (dma_addr_t) NULL)) {
+		if (unlikely(!priv->pci_map_rx_address[index])) {
 			/* error mapping the buffer to device accessable memory address */
 			DEBUG(SHOW_ERROR_MESSAGES,
 			      "Error mapping DMA address\n");

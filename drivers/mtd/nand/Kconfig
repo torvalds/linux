@@ -1,9 +1,20 @@
-# drivers/mtd/nand/Kconfig
+config MTD_NAND_ECC
+	tristate
+
+config MTD_NAND_ECC_SMC
+	bool "NAND ECC Smart Media byte order"
+	depends on MTD_NAND_ECC
+	default n
+	help
+	  Software ECC according to the Smart Media Specification.
+	  The original Linux implementation had byte 0 and 1 swapped.
+
 
 menuconfig MTD_NAND
 	tristate "NAND Device Support"
 	depends on MTD
 	select MTD_NAND_IDS
+	select MTD_NAND_ECC
 	help
 	  This enables support for accessing all type of NAND flash
 	  devices. For further information see
@@ -20,16 +31,12 @@ config MTD_NAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentally due to device wear or something else.
 
-config MTD_NAND_ECC_SMC
-	bool "NAND ECC Smart Media byte order"
+config MTD_SM_COMMON
+	tristate
 	default n
-	help
-	  Software ECC according to the Smart Media Specification.
-	  The original Linux implementation had byte 0 and 1 swapped.
 
 config MTD_NAND_MUSEUM_IDS
 	bool "Enable chip ids for obsolete ancient NAND devices"
-	depends on MTD_NAND
 	default n
 	help
 	  Enable this option only when your board has first generation
@@ -42,6 +49,24 @@ config MTD_NAND_AUTCPU12
 	help
 	  This enables the driver for the autronix autcpu12 board to
 	  access the SmartMediaCard.
+
+config MTD_NAND_DENALI
+       depends on PCI
+        tristate "Support Denali NAND controller on Intel Moorestown"
+        help
+          Enable the driver for NAND flash on Intel Moorestown, using the
+          Denali NAND controller core.
+ 
+config MTD_NAND_DENALI_SCRATCH_REG_ADDR
+        hex "Denali NAND size scratch register address"
+        default "0xFF108018"
+        depends on MTD_NAND_DENALI
+        help
+          Some platforms place the NAND chip size in a scratch register
+          because (some versions of) the driver aren't able to automatically
+          determine the size of certain chips. Set the address of the
+          scratch register here to enable this feature. On Intel Moorestown
+          boards, the scratch register is at 0xFF108018.
 
 config MTD_NAND_EDB7312
 	tristate "Support for Cirrus Logic EBD7312 evaluation board"
@@ -76,18 +101,41 @@ config MTD_NAND_AMS_DELTA
 
 config MTD_NAND_OMAP2
 	tristate "NAND Flash device on OMAP2 and OMAP3"
-	depends on ARM && MTD_NAND && (ARCH_OMAP2 || ARCH_OMAP3)
+	depends on ARM && (ARCH_OMAP2 || ARCH_OMAP3)
 	help
           Support for NAND flash on Texas Instruments OMAP2 and OMAP3 platforms.
 
-config MTD_NAND_TS7250
-	tristate "NAND Flash device on TS-7250 board"
-	depends on MACH_TS72XX
+config MTD_NAND_OMAP_PREFETCH
+	bool "GPMC prefetch support for NAND Flash device"
+	depends on MTD_NAND_OMAP2
+	default y
 	help
-	  Support for NAND flash on Technologic Systems TS-7250 platform.
+	 The NAND device can be accessed for Read/Write using GPMC PREFETCH engine
+	 to improve the performance.
+
+config MTD_NAND_OMAP_PREFETCH_DMA
+	depends on MTD_NAND_OMAP_PREFETCH
+	bool "DMA mode"
+	default n
+	help
+	 The GPMC PREFETCH engine can be configured eigther in MPU interrupt mode
+	 or in DMA interrupt mode.
+	 Say y for DMA mode or MPU mode will be used
 
 config MTD_NAND_IDS
 	tristate
+
+config MTD_NAND_RICOH
+	tristate "Ricoh xD card reader"
+	default n
+	depends on PCI
+	select MTD_SM_COMMON
+	help
+	  Enable support for Ricoh R5C852 xD card reader
+	  You also need to enable ether
+	  NAND SSFDC (SmartMedia) read only translation layer' or new
+	  expermental, readwrite
+	  'SmartMedia/xD new translation layer'
 
 config MTD_NAND_AU1550
 	tristate "Au1550/1200 NAND support"
@@ -98,7 +146,7 @@ config MTD_NAND_AU1550
 
 config MTD_NAND_BF5XX
 	tristate "Blackfin on-chip NAND Flash Controller driver"
-	depends on (BF54x || BF52x) && MTD_NAND
+	depends on BF54x || BF52x
 	help
 	  This enables the Blackfin on-chip NAND flash controller
 
@@ -186,6 +234,22 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
 
+config MTD_NAND_BCM_UMI
+	tristate "NAND Flash support for BCM Reference Boards"
+	depends on ARCH_BCMRING
+	help
+	  This enables the NAND flash controller on the BCM UMI block.
+
+	  No board specfic support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach.
+
+config MTD_NAND_BCM_UMI_HWCS
+	bool "BCM UMI NAND Hardware CS"
+	depends on MTD_NAND_BCM_UMI
+	help
+	  Enable the use of the BCM UMI block's internal CS using NAND.
+	  This should only be used if you know the external NAND CS can toggle.
+
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -260,14 +324,6 @@ config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
 	depends on ARCH_PXA
 
-config MTD_NAND_BASLER_EXCITE
-	tristate  "Support for NAND Flash on Basler eXcite"
-	depends on BASLER_EXCITE
-	help
-          This enables the driver for the NAND flash device found on the
-          Basler eXcite Smart Camera. If built as a module, the driver
-          will be named excite_nandflash.
-
 config MTD_NAND_CAFE
 	tristate "NAND support for OLPC CAFÉ chip"
 	depends on PCI
@@ -335,38 +391,29 @@ config MTD_NAND_ATMEL_ECC_NONE
 
 	  If unsure, say N
 
-	  endchoice
-
 endchoice
 
 config MTD_NAND_PXA3xx
 	tristate "Support for NAND flash devices on PXA3xx"
-	depends on MTD_NAND && PXA3xx
+	depends on PXA3xx || ARCH_MMP
 	help
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors
 
-config MTD_NAND_PXA3xx_BUILTIN
-	bool "Use builtin definitions for some NAND chips (deprecated)"
-	depends on MTD_NAND_PXA3xx
-	help
-	  This enables builtin definitions for some NAND chips. This
-	  is deprecated in favor of platform specific data.
-
 config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
-	depends on MTD_NAND && MACH_ARMCORE
+	depends on MACH_ARMCORE
 
 config MTD_NAND_PASEMI
 	tristate "NAND support for PA Semi PWRficient"
-	depends on MTD_NAND && PPC_PASEMI
+	depends on PPC_PASEMI
 	help
 	  Enables support for NAND Flash interface on PA Semi PWRficient
 	  based boards
 
 config MTD_NAND_TMIO
 	tristate "NAND Flash device on Toshiba Mobile IO Controller"
-	depends on MTD_NAND && MFD_TMIO
+	depends on MFD_TMIO
 	help
 	  Support for NAND flash connected to a Toshiba Mobile IO
 	  Controller in some PDAs, including the Sharp SL6000x.
@@ -380,7 +427,6 @@ config MTD_NAND_NANDSIM
 
 config MTD_NAND_PLATFORM
 	tristate "Support for generic platform NAND driver"
-	depends on MTD_NAND
 	help
 	  This implements a generic NAND driver for on-SOC platform
 	  devices. You will need to provide platform-specific functions
@@ -388,14 +434,14 @@ config MTD_NAND_PLATFORM
 
 config MTD_ALAUDA
 	tristate "MTD driver for Olympus MAUSB-10 and Fujifilm DPC-R1"
-	depends on MTD_NAND && USB
+	depends on USB
 	help
 	  These two (and possibly other) Alauda-based cardreaders for
 	  SmartMedia and xD allow raw flash access.
 
 config MTD_NAND_ORION
 	tristate "NAND Flash support for Marvell Orion SoC"
-	depends on PLAT_ORION && MTD_NAND
+	depends on PLAT_ORION
 	help
 	  This enables the NAND flash controller on Orion machines.
 
@@ -404,7 +450,8 @@ config MTD_NAND_ORION
 
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
-	depends on MTD_NAND && PPC_OF
+	depends on PPC_OF
+	select FSL_LBC
 	help
 	  Various Freescale chips, including the 8313, include a NAND Flash
 	  Controller Module with built-in hardware ECC capabilities.
@@ -413,25 +460,38 @@ config MTD_NAND_FSL_ELBC
 
 config MTD_NAND_FSL_UPM
 	tristate "Support for NAND on Freescale UPM"
-	depends on MTD_NAND && (PPC_83xx || PPC_85xx)
+	depends on PPC_83xx || PPC_85xx
 	select FSL_LBC
 	help
 	  Enables support for NAND Flash chips wired onto Freescale PowerPC
 	  processor localbus with User-Programmable Machine support.
 
+config MTD_NAND_MPC5121_NFC
+	tristate "MPC5121 built-in NAND Flash Controller support"
+	depends on PPC_MPC512x
+	help
+	  This enables the driver for the NAND flash controller on the
+	  MPC5121 SoC.
+
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
-	depends on ARCH_MX2 || ARCH_MX3
+	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3 || ARCH_MX51
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
 
+config MTD_NAND_NOMADIK
+	tristate "ST Nomadik 8815 NAND support"
+	depends on ARCH_NOMADIK
+	help
+	  Driver for the NAND flash controller on the Nomadik, with ECC.
+
 config MTD_NAND_SH_FLCTL
 	tristate "Support for NAND on Renesas SuperH FLCTL"
-	depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
+	depends on SUPERH || ARCH_SHMOBILE
 	help
 	  Several Renesas SuperH CPU has FLCTL. This option enables support
-	  for NAND Flash using FLCTL. This driver support SH7723.
+	  for NAND Flash using FLCTL.
 
 config MTD_NAND_DAVINCI
         tristate "Support NAND on DaVinci SoC"
@@ -448,8 +508,28 @@ config MTD_NAND_TXX9NDFMC
 
 config MTD_NAND_SOCRATES
 	tristate "Support for NAND on Socrates board"
-	depends on MTD_NAND && SOCRATES
+	depends on SOCRATES
 	help
 	  Enables support for NAND Flash chips wired onto Socrates board.
+
+config MTD_NAND_NUC900
+	tristate "Support for NAND on Nuvoton NUC9xx/w90p910 evaluation boards."
+	depends on ARCH_W90X900 && MTD_PARTITIONS
+	help
+	  This enables the driver for the NAND Flash on evaluation board based
+	  on w90p910 / NUC9xx.
+
+config MTD_NAND_JZ4740
+	tristate "Support for JZ4740 SoC NAND controller"
+	depends on MACH_JZ4740
+	help
+		Enables support for NAND Flash on JZ4740 SoC based boards.
+
+config MTD_NAND_FSMC
+	tristate "Support for NAND on ST Micros FSMC"
+	depends on PLAT_SPEAR || PLAT_NOMADIK || MACH_U300
+	help
+	  Enables support for NAND Flash chips on the ST Microelectronics
+	  Flexible Static Memory Controller (FSMC)
 
 endif # MTD_NAND

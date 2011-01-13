@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <mach/ohci.h>
+#include <mach/pxa3xx-u2d.h>
 
 /*
  * UHC: USB Host Controller (OHCI-like) register definitions
@@ -177,9 +178,13 @@ static inline void pxa27x_setup_hc(struct pxa27x_ohci *ohci,
 
 	if (inf->flags & NO_OC_PROTECTION)
 		uhcrhda |= UHCRHDA_NOCP;
+	else
+		uhcrhda &= ~UHCRHDA_NOCP;
 
 	if (inf->flags & OC_MODE_PERPORT)
 		uhcrhda |= UHCRHDA_OCPM;
+	else
+		uhcrhda &= ~UHCRHDA_OCPM;
 
 	if (inf->power_on_delay) {
 		uhcrhda &= ~UHCRHDA_POTPGT(0xff);
@@ -199,7 +204,7 @@ static inline void pxa27x_reset_hc(struct pxa27x_ohci *ohci)
 	__raw_writel(uhchr & ~UHCHR_FHR, ohci->mmio_base + UHCHR);
 }
 
-#ifdef CONFIG_CPU_PXA27x
+#ifdef CONFIG_PXA27x
 extern void pxa27x_clear_otgph(void);
 #else
 #define pxa27x_clear_otgph()	do {} while (0)
@@ -231,6 +236,9 @@ static int pxa27x_start_hc(struct pxa27x_ohci *ohci, struct device *dev)
 	if (retval < 0)
 		return retval;
 
+	if (cpu_is_pxa3xx())
+		pxa3xx_u2d_start_hc(&ohci_to_hcd(&ohci->ohci)->self);
+
 	uhchr = __raw_readl(ohci->mmio_base + UHCHR) & ~UHCHR_SSE;
 	__raw_writel(uhchr, ohci->mmio_base + UHCHR);
 	__raw_writel(UHCHIE_UPRIE | UHCHIE_RWIE, ohci->mmio_base + UHCHIE);
@@ -246,6 +254,9 @@ static void pxa27x_stop_hc(struct pxa27x_ohci *ohci, struct device *dev)
 	uint32_t uhccoms;
 
 	inf = dev->platform_data;
+
+	if (cpu_is_pxa3xx())
+		pxa3xx_u2d_stop_hc(&ohci_to_hcd(&ohci->ohci)->self);
 
 	if (inf->exit)
 		inf->exit(dev);
@@ -477,38 +488,47 @@ static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef	CONFIG_PM
-static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM
+static int ohci_hcd_pxa27x_drv_suspend(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct pxa27x_ohci *ohci = to_pxa27x_ohci(hcd);
 
 	if (time_before(jiffies, ohci->ohci.next_statechange))
 		msleep(5);
 	ohci->ohci.next_statechange = jiffies;
 
-	pxa27x_stop_hc(ohci, &pdev->dev);
+	pxa27x_stop_hc(ohci, dev);
 	hcd->state = HC_STATE_SUSPENDED;
 
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
+static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct pxa27x_ohci *ohci = to_pxa27x_ohci(hcd);
+	struct pxaohci_platform_data *inf = dev->platform_data;
 	int status;
 
 	if (time_before(jiffies, ohci->ohci.next_statechange))
 		msleep(5);
 	ohci->ohci.next_statechange = jiffies;
 
-	if ((status = pxa27x_start_hc(ohci, &pdev->dev)) < 0)
+	if ((status = pxa27x_start_hc(ohci, dev)) < 0)
 		return status;
+
+	/* Select Power Management Mode */
+	pxa27x_ohci_select_pmm(ohci, inf->port_mode);
 
 	ohci_finish_controller_resume(hcd);
 	return 0;
 }
+
+static const struct dev_pm_ops ohci_hcd_pxa27x_pm_ops = {
+	.suspend	= ohci_hcd_pxa27x_drv_suspend,
+	.resume		= ohci_hcd_pxa27x_drv_resume,
+};
 #endif
 
 /* work with hotplug and coldplug */
@@ -518,13 +538,12 @@ static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
 	.remove		= ohci_hcd_pxa27x_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-#ifdef CONFIG_PM
-	.suspend	= ohci_hcd_pxa27x_drv_suspend,
-	.resume		= ohci_hcd_pxa27x_drv_resume,
-#endif
 	.driver		= {
 		.name	= "pxa27x-ohci",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &ohci_hcd_pxa27x_pm_ops,
+#endif
 	},
 };
 

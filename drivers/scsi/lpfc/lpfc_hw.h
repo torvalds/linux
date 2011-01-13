@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -861,6 +861,65 @@ typedef struct  _RPS_RSP {	/* Structure is in Big Endian format */
 	uint32_t crcCnt;
 } RPS_RSP;
 
+struct RLS {			/* Structure is in Big Endian format */
+	uint32_t rls;
+#define rls_rsvd_SHIFT		24
+#define rls_rsvd_MASK		0x000000ff
+#define rls_rsvd_WORD		rls
+#define rls_did_SHIFT		0
+#define rls_did_MASK		0x00ffffff
+#define rls_did_WORD		rls
+};
+
+struct  RLS_RSP {		/* Structure is in Big Endian format */
+	uint32_t linkFailureCnt;
+	uint32_t lossSyncCnt;
+	uint32_t lossSignalCnt;
+	uint32_t primSeqErrCnt;
+	uint32_t invalidXmitWord;
+	uint32_t crcCnt;
+};
+
+struct RRQ {			/* Structure is in Big Endian format */
+	uint32_t rrq;
+#define rrq_rsvd_SHIFT		24
+#define rrq_rsvd_MASK		0x000000ff
+#define rrq_rsvd_WORD		rrq
+#define rrq_did_SHIFT		0
+#define rrq_did_MASK		0x00ffffff
+#define rrq_did_WORD		rrq
+	uint32_t rrq_exchg;
+#define rrq_oxid_SHIFT		16
+#define rrq_oxid_MASK		0xffff
+#define rrq_oxid_WORD		rrq_exchg
+#define rrq_rxid_SHIFT		0
+#define rrq_rxid_MASK		0xffff
+#define rrq_rxid_WORD		rrq_exchg
+};
+
+
+struct RTV_RSP {		/* Structure is in Big Endian format */
+	uint32_t ratov;
+	uint32_t edtov;
+	uint32_t qtov;
+#define qtov_rsvd0_SHIFT	28
+#define qtov_rsvd0_MASK		0x0000000f
+#define qtov_rsvd0_WORD		qtov		/* reserved */
+#define qtov_edtovres_SHIFT	27
+#define qtov_edtovres_MASK	0x00000001
+#define qtov_edtovres_WORD	qtov		/* E_D_TOV Resolution */
+#define qtov__rsvd1_SHIFT	19
+#define qtov_rsvd1_MASK		0x0000003f
+#define qtov_rsvd1_WORD		qtov		/* reserved */
+#define qtov_rttov_SHIFT	18
+#define qtov_rttov_MASK		0x00000001
+#define qtov_rttov_WORD		qtov		/* R_T_TOV value */
+#define qtov_rsvd2_SHIFT	0
+#define qtov_rsvd2_MASK		0x0003ffff
+#define qtov_rsvd2_WORD		qtov		/* reserved */
+};
+
+
 typedef struct  _RPL {		/* Structure is in Big Endian format */
 	uint32_t maxsize;
 	uint32_t index;
@@ -1124,21 +1183,6 @@ typedef struct {
 /* Number of 4-byte words in an IOCB. */
 #define IOCB_WORD_SZ    8
 
-/* defines for type field in fc header */
-#define FC_ELS_DATA     0x1
-#define FC_LLC_SNAP     0x5
-#define FC_FCP_DATA     0x8
-#define FC_COMMON_TRANSPORT_ULP 0x20
-
-/* defines for rctl field in fc header */
-#define FC_DEV_DATA     0x0
-#define FC_UNSOL_CTL    0x2
-#define FC_SOL_CTL      0x3
-#define FC_UNSOL_DATA   0x4
-#define FC_FCP_CMND     0x6
-#define FC_ELS_REQ      0x22
-#define FC_ELS_RSP      0x23
-
 /* network headers for Dfctl field */
 #define FC_NET_HDR      0x20
 
@@ -1146,7 +1190,10 @@ typedef struct {
 #define PCI_VENDOR_ID_EMULEX        0x10df
 #define PCI_DEVICE_ID_FIREFLY       0x1ae5
 #define PCI_DEVICE_ID_PROTEUS_VF    0xe100
+#define PCI_DEVICE_ID_BALIUS        0xe131
 #define PCI_DEVICE_ID_PROTEUS_PF    0xe180
+#define PCI_DEVICE_ID_LANCER_FC     0xe200
+#define PCI_DEVICE_ID_LANCER_FCOE   0xe260
 #define PCI_DEVICE_ID_SAT_SMB       0xf011
 #define PCI_DEVICE_ID_SAT_MID       0xf015
 #define PCI_DEVICE_ID_RFLY          0xf095
@@ -1163,6 +1210,7 @@ typedef struct {
 #define PCI_DEVICE_ID_SAT           0xf100
 #define PCI_DEVICE_ID_SAT_SCSP      0xf111
 #define PCI_DEVICE_ID_SAT_DCSP      0xf112
+#define PCI_DEVICE_ID_FALCON        0xf180
 #define PCI_DEVICE_ID_SUPERFLY      0xf700
 #define PCI_DEVICE_ID_DRAGONFLY     0xf800
 #define PCI_DEVICE_ID_CENTAUR       0xf900
@@ -1183,6 +1231,7 @@ typedef struct {
 #define PCI_DEVICE_ID_ZEPHYR_DCSP   0xfe12
 #define PCI_VENDOR_ID_SERVERENGINE  0x19a2
 #define PCI_DEVICE_ID_TIGERSHARK    0x0704
+#define PCI_DEVICE_ID_TOMCAT        0x0714
 
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC
@@ -1339,7 +1388,6 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_READ_LNK_STAT   0x12
 #define MBX_REG_LOGIN       0x13
 #define MBX_UNREG_LOGIN     0x14
-#define MBX_READ_LA         0x15
 #define MBX_CLEAR_LA        0x16
 #define MBX_DUMP_MEMORY     0x17
 #define MBX_DUMP_CONTEXT    0x18
@@ -1359,6 +1407,9 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_HEARTBEAT       0x31
 #define MBX_WRITE_VPARMS    0x32
 #define MBX_ASYNCEVT_ENABLE 0x33
+#define MBX_READ_EVENT_LOG_STATUS 0x37
+#define MBX_READ_EVENT_LOG  0x38
+#define MBX_WRITE_EVENT_LOG 0x39
 
 #define MBX_PORT_CAPABILITIES 0x3B
 #define MBX_PORT_IOV_CONTROL 0x3C
@@ -1370,7 +1421,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_READ_SPARM64    0x8D
 #define MBX_READ_RPI64      0x8F
 #define MBX_REG_LOGIN64     0x93
-#define MBX_READ_LA64       0x95
+#define MBX_READ_TOPOLOGY   0x95
 #define MBX_REG_VPI	    0x96
 #define MBX_UNREG_VPI	    0x97
 
@@ -1388,6 +1439,9 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_UNREG_FCFI	    0xA2
 #define MBX_INIT_VFI        0xA3
 #define MBX_INIT_VPI        0xA4
+
+#define MBX_AUTH_PORT       0xF8
+#define MBX_SECURITY_MGMT   0xF9
 
 /* IOCB Commands */
 
@@ -1444,6 +1498,7 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_ABORT_MXRI64_CN     0x8C
 #define CMD_RCV_ELS_REQ64_CX    0x8D
 #define CMD_XMIT_ELS_RSP64_CX   0x95
+#define CMD_XMIT_BLS_RSP64_CX   0x97
 #define CMD_FCP_IWRITE64_CR     0x98
 #define CMD_FCP_IWRITE64_CX     0x99
 #define CMD_FCP_IREAD64_CR      0x9A
@@ -1477,17 +1532,13 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_IOCB_LOGENTRY_CN		0x94
 #define CMD_IOCB_LOGENTRY_ASYNC_CN	0x96
 
-/* Unhandled Data Security SLI Commands */
-#define DSSCMD_IWRITE64_CR 		0xD8
-#define DSSCMD_IWRITE64_CX		0xD9
-#define DSSCMD_IREAD64_CR		0xDA
-#define DSSCMD_IREAD64_CX		0xDB
-#define DSSCMD_INVALIDATE_DEK		0xDC
-#define DSSCMD_SET_KEK			0xDD
-#define DSSCMD_GET_KEK_ID		0xDE
-#define DSSCMD_GEN_XFER			0xDF
+/* Data Security SLI Commands */
+#define DSSCMD_IWRITE64_CR		0xF8
+#define DSSCMD_IWRITE64_CX		0xF9
+#define DSSCMD_IREAD64_CR		0xFA
+#define DSSCMD_IREAD64_CX		0xFB
 
-#define CMD_MAX_IOCB_CMD        0xE6
+#define CMD_MAX_IOCB_CMD        0xFB
 #define CMD_IOCB_MASK           0xff
 
 #define MAX_MSG_DATA            28	/* max msg data in CMD_ADAPTER_MSG
@@ -1514,7 +1565,8 @@ typedef struct {		/* FireFly BIU registers */
 #define MBXERR_DMA_ERROR            15
 #define MBXERR_ERROR                16
 #define MBXERR_LINK_DOWN            0x33
-#define MBX_NOT_FINISHED           255
+#define MBXERR_SEC_NO_PERMISSION    0xF02
+#define MBX_NOT_FINISHED            255
 
 #define MBX_BUSY                   0xffffff /* Attempted cmd to busy Mailbox */
 #define MBX_TIMEOUT                0xfffffe /* time-out expired waiting for */
@@ -1578,94 +1630,82 @@ enum lpfc_protgrp_type {
 };
 
 /* PDE Descriptors */
-#define LPFC_PDE1_DESCRIPTOR		0x81
-#define LPFC_PDE2_DESCRIPTOR		0x82
-#define LPFC_PDE3_DESCRIPTOR		0x83
+#define LPFC_PDE5_DESCRIPTOR		0x85
+#define LPFC_PDE6_DESCRIPTOR		0x86
+#define LPFC_PDE7_DESCRIPTOR		0x87
 
-/* BlockGuard Profiles */
-enum lpfc_bg_prof_codes {
-	LPFC_PROF_INVALID,
-	LPFC_PROF_A1	= 128,	/* Full Protection			      */
-	LPFC_PROF_A2,		/* Disabled Protection Checks:A2~A4           */
-	LPFC_PROF_A3,
-	LPFC_PROF_A4,
-	LPFC_PROF_B1,		/* Embedded DIFs: B1~B3	                      */
-	LPFC_PROF_B2,
-	LPFC_PROF_B3,
-	LPFC_PROF_C1,		/* Separate DIFs: C1~C3                       */
-	LPFC_PROF_C2,
-	LPFC_PROF_C3,
-	LPFC_PROF_D1,		/* Full Protection                            */
-	LPFC_PROF_D2,		/* Partial Protection & Check Disabling       */
-	LPFC_PROF_D3,
-	LPFC_PROF_E1,		/* E1~E4:out - check-only, in - update apptag */
-	LPFC_PROF_E2,
-	LPFC_PROF_E3,
-	LPFC_PROF_E4,
-	LPFC_PROF_F1,		/* Full Translation - F1 Prot Descriptor      */
-				/* F1 Translation BDE                         */
-	LPFC_PROF_ANT1,		/* TCP checksum, DIF inline with data buffers */
-	LPFC_PROF_AST1,		/* TCP checksum, DIF split from data buffer   */
-	LPFC_PROF_ANT2,
-	LPFC_PROF_AST2
+/* BlockGuard Opcodes */
+#define BG_OP_IN_NODIF_OUT_CRC		0x0
+#define	BG_OP_IN_CRC_OUT_NODIF		0x1
+#define	BG_OP_IN_NODIF_OUT_CSUM		0x2
+#define	BG_OP_IN_CSUM_OUT_NODIF		0x3
+#define	BG_OP_IN_CRC_OUT_CRC		0x4
+#define	BG_OP_IN_CSUM_OUT_CSUM		0x5
+#define	BG_OP_IN_CRC_OUT_CSUM		0x6
+#define	BG_OP_IN_CSUM_OUT_CRC		0x7
+
+struct lpfc_pde5 {
+	uint32_t word0;
+#define pde5_type_SHIFT		24
+#define pde5_type_MASK		0x000000ff
+#define pde5_type_WORD		word0
+#define pde5_rsvd0_SHIFT	0
+#define pde5_rsvd0_MASK		0x00ffffff
+#define pde5_rsvd0_WORD		word0
+	uint32_t reftag;	/* Reference Tag Value			*/
+	uint32_t reftagtr;	/* Reference Tag Translation Value 	*/
 };
 
-/* BlockGuard error-control defines */
-#define BG_EC_STOP_ERR			0x00
-#define BG_EC_CONT_ERR			0x01
-#define BG_EC_IGN_UNINIT_STOP_ERR	0x10
-#define BG_EC_IGN_UNINIT_CONT_ERR	0x11
-
-/* PDE (Protection Descriptor Entry) word 0 bit masks and shifts */
-#define PDE_DESC_TYPE_MASK		0xff000000
-#define PDE_DESC_TYPE_SHIFT		24
-#define PDE_BG_PROFILE_MASK		0x00ff0000
-#define PDE_BG_PROFILE_SHIFT		16
-#define PDE_BLOCK_LEN_MASK		0x0000fffc
-#define PDE_BLOCK_LEN_SHIFT		2
-#define PDE_ERR_CTRL_MASK		0x00000003
-#define PDE_ERR_CTRL_SHIFT		0
-/* PDE word 1 bit masks and shifts */
-#define PDE_APPTAG_MASK_MASK		0xffff0000
-#define PDE_APPTAG_MASK_SHIFT		16
-#define PDE_APPTAG_VAL_MASK		0x0000ffff
-#define PDE_APPTAG_VAL_SHIFT		0
-struct lpfc_pde {
-	uint32_t parms;     /* bitfields of descriptor, prof, len, and ec */
-	uint32_t apptag;    /* bitfields of app tag maskand app tag value */
-	uint32_t reftag;    /* reference tag occupying all 32 bits        */
+struct lpfc_pde6 {
+	uint32_t word0;
+#define pde6_type_SHIFT		24
+#define pde6_type_MASK		0x000000ff
+#define pde6_type_WORD		word0
+#define pde6_rsvd0_SHIFT	0
+#define pde6_rsvd0_MASK		0x00ffffff
+#define pde6_rsvd0_WORD		word0
+	uint32_t word1;
+#define pde6_rsvd1_SHIFT	26
+#define pde6_rsvd1_MASK		0x0000003f
+#define pde6_rsvd1_WORD		word1
+#define pde6_na_SHIFT		25
+#define pde6_na_MASK		0x00000001
+#define pde6_na_WORD		word1
+#define pde6_rsvd2_SHIFT	16
+#define pde6_rsvd2_MASK		0x000001FF
+#define pde6_rsvd2_WORD		word1
+#define pde6_apptagtr_SHIFT	0
+#define pde6_apptagtr_MASK	0x0000ffff
+#define pde6_apptagtr_WORD	word1
+	uint32_t word2;
+#define pde6_optx_SHIFT		28
+#define pde6_optx_MASK		0x0000000f
+#define pde6_optx_WORD		word2
+#define pde6_oprx_SHIFT		24
+#define pde6_oprx_MASK		0x0000000f
+#define pde6_oprx_WORD		word2
+#define pde6_nr_SHIFT		23
+#define pde6_nr_MASK		0x00000001
+#define pde6_nr_WORD		word2
+#define pde6_ce_SHIFT		22
+#define pde6_ce_MASK		0x00000001
+#define pde6_ce_WORD		word2
+#define pde6_re_SHIFT		21
+#define pde6_re_MASK		0x00000001
+#define pde6_re_WORD		word2
+#define pde6_ae_SHIFT		20
+#define pde6_ae_MASK		0x00000001
+#define pde6_ae_WORD		word2
+#define pde6_ai_SHIFT		19
+#define pde6_ai_MASK		0x00000001
+#define pde6_ai_WORD		word2
+#define pde6_bs_SHIFT		16
+#define pde6_bs_MASK		0x00000007
+#define pde6_bs_WORD		word2
+#define pde6_apptagval_SHIFT	0
+#define pde6_apptagval_MASK	0x0000ffff
+#define pde6_apptagval_WORD	word2
 };
-
-/* inline function to set fields in parms of PDE */
-static inline void
-lpfc_pde_set_bg_parms(struct lpfc_pde *p, u8 desc, u8 prof, u16 len, u8 ec)
-{
-	uint32_t *wp = &p->parms;
-
-	/* spec indicates that adapter appends two 0's to length field */
-	len = len >> 2;
-
-	*wp &= 0;
-	*wp |= ((desc << PDE_DESC_TYPE_SHIFT) & PDE_DESC_TYPE_MASK);
-	*wp |= ((prof << PDE_BG_PROFILE_SHIFT) & PDE_BG_PROFILE_MASK);
-	*wp |= ((len << PDE_BLOCK_LEN_SHIFT) & PDE_BLOCK_LEN_MASK);
-	*wp |= ((ec << PDE_ERR_CTRL_SHIFT) & PDE_ERR_CTRL_MASK);
-	*wp = le32_to_cpu(*wp);
-}
-
-/* inline function to set apptag and reftag fields of PDE */
-static inline void
-lpfc_pde_set_dif_parms(struct lpfc_pde *p, u16 apptagmask, u16 apptagval,
-		u32 reftag)
-{
-	uint32_t *wp = &p->apptag;
-	*wp &= 0;
-	*wp |= ((apptagmask << PDE_APPTAG_MASK_SHIFT) & PDE_APPTAG_MASK_MASK);
-	*wp |= ((apptagval << PDE_APPTAG_VAL_SHIFT) & PDE_APPTAG_VAL_MASK);
-	*wp = le32_to_cpu(*wp);
-	wp = &p->reftag;
-	*wp = le32_to_cpu(reftag);
-}
 
 
 /* Structure for MB Command LOAD_SM and DOWN_LOAD */
@@ -1757,6 +1797,17 @@ typedef struct {
 	} un;
 } BIU_DIAG_VAR;
 
+/* Structure for MB command READ_EVENT_LOG (0x38) */
+struct READ_EVENT_LOG_VAR {
+	uint32_t word1;
+#define lpfc_event_log_SHIFT	29
+#define lpfc_event_log_MASK	0x00000001
+#define lpfc_event_log_WORD	word1
+#define USE_MAILBOX_RESPONSE	1
+	uint32_t offset;
+	struct ulp_bde64 rcv_bde64;
+};
+
 /* Structure for MB Command INIT_LINK (05) */
 
 typedef struct {
@@ -1791,12 +1842,13 @@ typedef struct {
 #define FLAGS_IMED_ABORT             0x04000	/* Bit 14 */
 
 	uint32_t link_speed;
-#define LINK_SPEED_AUTO 0       /* Auto selection */
-#define LINK_SPEED_1G   1       /* 1 Gigabaud */
-#define LINK_SPEED_2G   2       /* 2 Gigabaud */
-#define LINK_SPEED_4G   4       /* 4 Gigabaud */
-#define LINK_SPEED_8G   8       /* 8 Gigabaud */
-#define LINK_SPEED_10G   16      /* 10 Gigabaud */
+#define LINK_SPEED_AUTO 0x0     /* Auto selection */
+#define LINK_SPEED_1G   0x1     /* 1 Gigabaud */
+#define LINK_SPEED_2G   0x2     /* 2 Gigabaud */
+#define LINK_SPEED_4G   0x4     /* 4 Gigabaud */
+#define LINK_SPEED_8G   0x8     /* 8 Gigabaud */
+#define LINK_SPEED_10G  0x10    /* 10 Gigabaud */
+#define LINK_SPEED_16G  0x11    /* 16 Gigabaud */
 
 } INIT_LINK_VAR;
 
@@ -1967,6 +2019,7 @@ typedef struct {
 #define LMT_4Gb       0x040
 #define LMT_8Gb       0x080
 #define LMT_10Gb      0x100
+#define LMT_16Gb      0x200
 	uint32_t rsvd2;
 	uint32_t rsvd3;
 	uint32_t max_xri;
@@ -2304,19 +2357,19 @@ typedef struct {
 typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rsvd1;
-	uint32_t rsvd2:8;
+	uint32_t rsvd2:7;
+	uint32_t upd:1;
 	uint32_t sid:24;
-	uint32_t rsvd3;
-	uint32_t rsvd4;
+	uint32_t wwn[2];
 	uint32_t rsvd5;
 	uint16_t vfi;
 	uint16_t vpi;
 #else	/*  __LITTLE_ENDIAN */
 	uint32_t rsvd1;
 	uint32_t sid:24;
-	uint32_t rsvd2:8;
-	uint32_t rsvd3;
-	uint32_t rsvd4;
+	uint32_t upd:1;
+	uint32_t rsvd2:7;
+	uint32_t wwn[2];
 	uint32_t rsvd5;
 	uint16_t vpi;
 	uint16_t vfi;
@@ -2326,7 +2379,13 @@ typedef struct {
 /* Structure for MB Command UNREG_VPI (0x97) */
 typedef struct {
 	uint32_t rsvd1;
-	uint32_t rsvd2;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t rsvd2;
+	uint16_t sli4_vpi;
+#else	/*  __LITTLE_ENDIAN */
+	uint16_t sli4_vpi;
+	uint16_t rsvd2;
+#endif
 	uint32_t rsvd3;
 	uint32_t rsvd4;
 	uint32_t rsvd5;
@@ -2356,100 +2415,93 @@ typedef struct {
 #endif
 } UNREG_D_ID_VAR;
 
-/* Structure for MB Command READ_LA (21) */
-/* Structure for MB Command READ_LA64 (0x95) */
-
-typedef struct {
+/* Structure for MB Command READ_TOPOLOGY (0x95) */
+struct lpfc_mbx_read_top {
 	uint32_t eventTag;	/* Event tag */
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t rsvd1:19;
-	uint32_t fa:1;
-	uint32_t mm:1;		/* Menlo Maintenance mode enabled */
-	uint32_t rx:1;
-	uint32_t pb:1;
-	uint32_t il:1;
-	uint32_t attType:8;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t attType:8;
-	uint32_t il:1;
-	uint32_t pb:1;
-	uint32_t rx:1;
-	uint32_t mm:1;
-	uint32_t fa:1;
-	uint32_t rsvd1:19;
-#endif
-
-#define AT_RESERVED    0x00	/* Reserved - attType */
-#define AT_LINK_UP     0x01	/* Link is up */
-#define AT_LINK_DOWN   0x02	/* Link is down */
-
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint8_t granted_AL_PA;
-	uint8_t lipAlPs;
-	uint8_t lipType;
-	uint8_t topology;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint8_t topology;
-	uint8_t lipType;
-	uint8_t lipAlPs;
-	uint8_t granted_AL_PA;
-#endif
-
-#define TOPOLOGY_PT_PT 0x01	/* Topology is pt-pt / pt-fabric */
-#define TOPOLOGY_LOOP  0x02	/* Topology is FC-AL */
-#define TOPOLOGY_LNK_MENLO_MAINTENANCE 0x05 /* maint mode zephtr to menlo */
-
-	union {
-		struct ulp_bde lilpBde; /* This BDE points to a 128 byte buffer
-					   to */
-		/* store the LILP AL_PA position map into */
-		struct ulp_bde64 lilpBde64;
-	} un;
-
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t Dlu:1;
-	uint32_t Dtf:1;
-	uint32_t Drsvd2:14;
-	uint32_t DlnkSpeed:8;
-	uint32_t DnlPort:4;
-	uint32_t Dtx:2;
-	uint32_t Drx:2;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t Drx:2;
-	uint32_t Dtx:2;
-	uint32_t DnlPort:4;
-	uint32_t DlnkSpeed:8;
-	uint32_t Drsvd2:14;
-	uint32_t Dtf:1;
-	uint32_t Dlu:1;
-#endif
-
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t Ulu:1;
-	uint32_t Utf:1;
-	uint32_t Ursvd2:14;
-	uint32_t UlnkSpeed:8;
-	uint32_t UnlPort:4;
-	uint32_t Utx:2;
-	uint32_t Urx:2;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t Urx:2;
-	uint32_t Utx:2;
-	uint32_t UnlPort:4;
-	uint32_t UlnkSpeed:8;
-	uint32_t Ursvd2:14;
-	uint32_t Utf:1;
-	uint32_t Ulu:1;
-#endif
-
-#define LA_UNKNW_LINK  0x0    /* lnkSpeed */
-#define LA_1GHZ_LINK   0x04   /* lnkSpeed */
-#define LA_2GHZ_LINK   0x08   /* lnkSpeed */
-#define LA_4GHZ_LINK   0x10   /* lnkSpeed */
-#define LA_8GHZ_LINK   0x20   /* lnkSpeed */
-#define LA_10GHZ_LINK  0x40   /* lnkSpeed */
-
-} READ_LA_VAR;
+	uint32_t word2;
+#define lpfc_mbx_read_top_fa_SHIFT		12
+#define lpfc_mbx_read_top_fa_MASK		0x00000001
+#define lpfc_mbx_read_top_fa_WORD		word2
+#define lpfc_mbx_read_top_mm_SHIFT		11
+#define lpfc_mbx_read_top_mm_MASK		0x00000001
+#define lpfc_mbx_read_top_mm_WORD		word2
+#define lpfc_mbx_read_top_pb_SHIFT		9
+#define lpfc_mbx_read_top_pb_MASK		0X00000001
+#define lpfc_mbx_read_top_pb_WORD		word2
+#define lpfc_mbx_read_top_il_SHIFT		8
+#define lpfc_mbx_read_top_il_MASK		0x00000001
+#define lpfc_mbx_read_top_il_WORD		word2
+#define lpfc_mbx_read_top_att_type_SHIFT	0
+#define lpfc_mbx_read_top_att_type_MASK		0x000000FF
+#define lpfc_mbx_read_top_att_type_WORD		word2
+#define LPFC_ATT_RESERVED    0x00	/* Reserved - attType */
+#define LPFC_ATT_LINK_UP     0x01	/* Link is up */
+#define LPFC_ATT_LINK_DOWN   0x02	/* Link is down */
+	uint32_t word3;
+#define lpfc_mbx_read_top_alpa_granted_SHIFT	24
+#define lpfc_mbx_read_top_alpa_granted_MASK	0x000000FF
+#define lpfc_mbx_read_top_alpa_granted_WORD	word3
+#define lpfc_mbx_read_top_lip_alps_SHIFT	16
+#define lpfc_mbx_read_top_lip_alps_MASK		0x000000FF
+#define lpfc_mbx_read_top_lip_alps_WORD		word3
+#define lpfc_mbx_read_top_lip_type_SHIFT	8
+#define lpfc_mbx_read_top_lip_type_MASK		0x000000FF
+#define lpfc_mbx_read_top_lip_type_WORD		word3
+#define lpfc_mbx_read_top_topology_SHIFT	0
+#define lpfc_mbx_read_top_topology_MASK		0x000000FF
+#define lpfc_mbx_read_top_topology_WORD		word3
+#define LPFC_TOPOLOGY_PT_PT 0x01	/* Topology is pt-pt / pt-fabric */
+#define LPFC_TOPOLOGY_LOOP  0x02	/* Topology is FC-AL */
+#define LPFC_TOPOLOGY_MM    0x05	/* maint mode zephtr to menlo */
+	/* store the LILP AL_PA position map into */
+	struct ulp_bde64 lilpBde64;
+#define LPFC_ALPA_MAP_SIZE	128
+	uint32_t word7;
+#define lpfc_mbx_read_top_ld_lu_SHIFT		31
+#define lpfc_mbx_read_top_ld_lu_MASK		0x00000001
+#define lpfc_mbx_read_top_ld_lu_WORD		word7
+#define lpfc_mbx_read_top_ld_tf_SHIFT		30
+#define lpfc_mbx_read_top_ld_tf_MASK		0x00000001
+#define lpfc_mbx_read_top_ld_tf_WORD		word7
+#define lpfc_mbx_read_top_ld_link_spd_SHIFT	8
+#define lpfc_mbx_read_top_ld_link_spd_MASK	0x000000FF
+#define lpfc_mbx_read_top_ld_link_spd_WORD	word7
+#define lpfc_mbx_read_top_ld_nl_port_SHIFT	4
+#define lpfc_mbx_read_top_ld_nl_port_MASK	0x0000000F
+#define lpfc_mbx_read_top_ld_nl_port_WORD	word7
+#define lpfc_mbx_read_top_ld_tx_SHIFT		2
+#define lpfc_mbx_read_top_ld_tx_MASK		0x00000003
+#define lpfc_mbx_read_top_ld_tx_WORD		word7
+#define lpfc_mbx_read_top_ld_rx_SHIFT		0
+#define lpfc_mbx_read_top_ld_rx_MASK		0x00000003
+#define lpfc_mbx_read_top_ld_rx_WORD		word7
+	uint32_t word8;
+#define lpfc_mbx_read_top_lu_SHIFT		31
+#define lpfc_mbx_read_top_lu_MASK		0x00000001
+#define lpfc_mbx_read_top_lu_WORD		word8
+#define lpfc_mbx_read_top_tf_SHIFT		30
+#define lpfc_mbx_read_top_tf_MASK		0x00000001
+#define lpfc_mbx_read_top_tf_WORD		word8
+#define lpfc_mbx_read_top_link_spd_SHIFT	8
+#define lpfc_mbx_read_top_link_spd_MASK		0x000000FF
+#define lpfc_mbx_read_top_link_spd_WORD		word8
+#define lpfc_mbx_read_top_nl_port_SHIFT		4
+#define lpfc_mbx_read_top_nl_port_MASK		0x0000000F
+#define lpfc_mbx_read_top_nl_port_WORD		word8
+#define lpfc_mbx_read_top_tx_SHIFT		2
+#define lpfc_mbx_read_top_tx_MASK		0x00000003
+#define lpfc_mbx_read_top_tx_WORD		word8
+#define lpfc_mbx_read_top_rx_SHIFT		0
+#define lpfc_mbx_read_top_rx_MASK		0x00000003
+#define lpfc_mbx_read_top_rx_WORD		word8
+#define LPFC_LINK_SPEED_UNKNOWN	0x0
+#define LPFC_LINK_SPEED_1GHZ	0x04
+#define LPFC_LINK_SPEED_2GHZ	0x08
+#define LPFC_LINK_SPEED_4GHZ	0x10
+#define LPFC_LINK_SPEED_8GHZ	0x20
+#define LPFC_LINK_SPEED_10GHZ	0x40
+#define LPFC_LINK_SPEED_16GHZ	0x80
+};
 
 /* Structure for MB Command CLEAR_LA (22) */
 
@@ -2496,8 +2548,8 @@ typedef struct {
 #define  DMP_VPORT_REGION_SIZE	 0x200
 #define  DMP_MBOX_OFFSET_WORD	 0x5
 
-#define  DMP_REGION_FCOEPARAM	 0x17   /* fcoe param region */
-#define  DMP_FCOEPARAM_RGN_SIZE	 0x400
+#define  DMP_REGION_23		 0x17   /* fcoe param  and port state region */
+#define  DMP_RGN23_SIZE		 0x400
 
 #define  WAKE_UP_PARMS_REGION_ID    4
 #define  WAKE_UP_PARMS_WORD_SIZE   15
@@ -2512,9 +2564,9 @@ struct vport_rec {
 #define VPORT_INFO_REV 0x1
 #define MAX_STATIC_VPORT_COUNT 16
 struct static_vport_info {
-	uint32_t 		signature;
+	uint32_t		signature;
 	uint32_t		rev;
-	struct vport_rec 	vport_list[MAX_STATIC_VPORT_COUNT];
+	struct vport_rec	vport_list[MAX_STATIC_VPORT_COUNT];
 	uint32_t		resvd[66];
 };
 
@@ -2815,11 +2867,15 @@ typedef struct {
 	uint32_t rsvd6;           /* Reserved                             */
 
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t rsvd7      : 16;  /* Reserved                             */
+	uint32_t fips_rev   : 3;   /* FIPS Spec Revision                   */
+	uint32_t fips_level : 4;   /* FIPS Level                           */
+	uint32_t sec_err    : 9;   /* security crypto error                */
 	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
 #else	/*  __LITTLE_ENDIAN */
 	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
-	uint32_t rsvd7      : 16;  /* Reserved                             */
+	uint32_t sec_err    : 9;   /* security crypto error                */
+	uint32_t fips_level : 4;   /* FIPS Level                           */
+	uint32_t fips_rev   : 3;   /* FIPS Spec Revision                   */
 #endif
 
 } CONFIG_PORT_VAR;
@@ -2943,6 +2999,12 @@ typedef struct {
 /* Union of all Mailbox Command types */
 #define MAILBOX_CMD_WSIZE	32
 #define MAILBOX_CMD_SIZE	(MAILBOX_CMD_WSIZE * sizeof(uint32_t))
+/* ext_wsize times 4 bytes should not be greater than max xmit size */
+#define MAILBOX_EXT_WSIZE	512
+#define MAILBOX_EXT_SIZE	(MAILBOX_EXT_WSIZE * sizeof(uint32_t))
+#define MAILBOX_HBA_EXT_OFFSET  0x100
+/* max mbox xmit size is a page size for sysfs IO operations */
+#define MAILBOX_MAX_XMIT_SIZE   PAGE_SIZE
 
 typedef union {
 	uint32_t varWords[MAILBOX_CMD_WSIZE - 1]; /* first word is type/
@@ -2968,7 +3030,6 @@ typedef union {
 	READ_LNK_VAR varRdLnk;		/* cmd = 18 (READ_LNK_STAT)  */
 	REG_LOGIN_VAR varRegLogin;	/* cmd = 19 (REG_LOGIN(64))  */
 	UNREG_LOGIN_VAR varUnregLogin;	/* cmd = 20 (UNREG_LOGIN)    */
-	READ_LA_VAR varReadLA;		/* cmd = 21 (READ_LA(64))    */
 	CLEAR_LA_VAR varClearLA;	/* cmd = 22 (CLEAR_LA)       */
 	DUMP_VAR varDmp;		/* Warm Start DUMP mbx cmd   */
 	UNREG_D_ID_VAR varUnregDID;	/* cmd = 0x23 (UNREG_D_ID)   */
@@ -2978,9 +3039,13 @@ typedef union {
 	struct config_hbq_var varCfgHbq;/* cmd = 0x7c (CONFIG_HBQ)  */
 	struct update_cfg_var varUpdateCfg; /* cmd = 0x1B (UPDATE_CFG)*/
 	CONFIG_PORT_VAR varCfgPort;	/* cmd = 0x88 (CONFIG_PORT)  */
+	struct lpfc_mbx_read_top varReadTop; /* cmd = 0x95 (READ_TOPOLOGY) */
 	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
 	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
 	ASYNCEVT_ENABLE_VAR varCfgAsyncEvent; /*cmd = x33 (CONFIG_ASYNC) */
+	struct READ_EVENT_LOG_VAR varRdEventLog;	/* cmd = 0x38
+							 * (READ_EVENT_LOG)
+							 */
 	struct config_msi_var varCfgMSI;/* cmd = x30 (CONFIG_MSI)     */
 } MAILVARIANTS;
 
@@ -3015,18 +3080,10 @@ struct sli3_pgp {
 	uint32_t hbq_get[16];
 };
 
-struct sli3_inb_pgp {
-	uint32_t ha_copy;
-	uint32_t counter;
-	struct lpfc_pgp port[MAX_RINGS];
-	uint32_t hbq_get[16];
-};
-
 union sli_var {
 	struct sli2_desc	s2;
 	struct sli3_desc	s3;
 	struct sli3_pgp		s3_pgp;
-	struct sli3_inb_pgp	s3_inb_pgp;
 };
 
 typedef struct {
@@ -3133,6 +3190,14 @@ typedef struct {
 #define IOERR_BUFFER_SHORTAGE         0x28
 #define IOERR_DEFAULT                 0x29
 #define IOERR_CNT                     0x2A
+#define IOERR_SLER_FAILURE            0x46
+#define IOERR_SLER_CMD_RCV_FAILURE    0x47
+#define IOERR_SLER_REC_RJT_ERR        0x48
+#define IOERR_SLER_REC_SRR_RETRY_ERR  0x49
+#define IOERR_SLER_SRR_RJT_ERR        0x4A
+#define IOERR_SLER_RRQ_RJT_ERR        0x4C
+#define IOERR_SLER_RRQ_RETRY_ERR      0x4D
+#define IOERR_SLER_ABTS_ERR           0x4E
 
 #define IOERR_DRVR_MASK               0x100
 #define IOERR_SLI_DOWN                0x101  /* ulpStatus  - Driver defined */
@@ -3441,63 +3506,63 @@ struct sli3_bg_fields {
 static inline uint32_t
 lpfc_bgs_get_bidir_bg_prof(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_BIDIR_BG_PROF_MASK) >>
+	return (bgstat & BGS_BIDIR_BG_PROF_MASK) >>
 				BGS_BIDIR_BG_PROF_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_bidir_err_cond(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_BIDIR_ERR_COND_FLAGS_MASK) >>
+	return (bgstat & BGS_BIDIR_ERR_COND_FLAGS_MASK) >>
 				BGS_BIDIR_ERR_COND_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_bg_prof(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_BG_PROFILE_MASK) >>
+	return (bgstat & BGS_BG_PROFILE_MASK) >>
 				BGS_BG_PROFILE_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_invalid_prof(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_INVALID_PROF_MASK) >>
+	return (bgstat & BGS_INVALID_PROF_MASK) >>
 				BGS_INVALID_PROF_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_uninit_dif_block(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_UNINIT_DIF_BLOCK_MASK) >>
+	return (bgstat & BGS_UNINIT_DIF_BLOCK_MASK) >>
 				BGS_UNINIT_DIF_BLOCK_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_hi_water_mark_present(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_HI_WATER_MARK_PRESENT_MASK) >>
+	return (bgstat & BGS_HI_WATER_MARK_PRESENT_MASK) >>
 				BGS_HI_WATER_MARK_PRESENT_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_reftag_err(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_REFTAG_ERR_MASK) >>
+	return (bgstat & BGS_REFTAG_ERR_MASK) >>
 				BGS_REFTAG_ERR_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_apptag_err(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_APPTAG_ERR_MASK) >>
+	return (bgstat & BGS_APPTAG_ERR_MASK) >>
 				BGS_APPTAG_ERR_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_guard_err(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_GUARD_ERR_MASK) >>
+	return (bgstat & BGS_GUARD_ERR_MASK) >>
 				BGS_GUARD_ERR_SHIFT;
 }
 
@@ -3547,7 +3612,7 @@ typedef struct _IOCB {	/* IOCB structure */
 		ASYNCSTAT_FIELDS asyncstat; /* async_status iocb */
 		QUE_XRI64_CX_FIELDS quexri64cx; /* que_xri64_cx fields */
 		struct rcv_seq64 rcvseq64;	/* RCV_SEQ64 and RCV_CONT64 */
-
+		struct sli4_bls_acc bls_acc; /* UNSOL ABTS BLS_ACC params */
 		uint32_t ulpWord[IOCB_WORD_SZ - 2];	/* generic 6 'words' */
 	} un;
 	union {
@@ -3661,7 +3726,8 @@ typedef struct _IOCB {	/* IOCB structure */
 /* Maximum IOCBs that will fit in SLI2 slim */
 #define MAX_SLI2_IOCB    498
 #define MAX_SLIM_IOCB_SIZE (SLI2_SLIM_SIZE - \
-			    (sizeof(MAILBOX_t) + sizeof(PCB_t)))
+			    (sizeof(MAILBOX_t) + sizeof(PCB_t) + \
+			    sizeof(uint32_t) * MAILBOX_EXT_WSIZE))
 
 /* HBQ entries are 4 words each = 4k */
 #define LPFC_TOTAL_HBQ_SIZE (sizeof(struct lpfc_hbq_entry) *  \
@@ -3669,6 +3735,7 @@ typedef struct _IOCB {	/* IOCB structure */
 
 struct lpfc_sli2_slim {
 	MAILBOX_t mbx;
+	uint32_t  mbx_ext_words[MAILBOX_EXT_WSIZE];
 	PCB_t pcb;
 	IOCB_t IOCBs[MAX_SLIM_IOCB_SIZE];
 };

@@ -28,7 +28,7 @@ struct icmp_err {
   unsigned	fatal:1;
 };
 
-extern struct icmp_err icmp_err_convert[];
+extern const struct icmp_err icmp_err_convert[];
 #define ICMP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.icmp_statistics, field)
 #define ICMP_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.icmp_statistics, field)
 #define ICMPMSGOUT_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.icmpmsg_statistics, field+256)
@@ -47,16 +47,5 @@ extern void	icmp_out_count(struct net *net, unsigned char type);
 
 /* Move into dst.h ? */
 extern int 	xrlim_allow(struct dst_entry *dst, int timeout);
-
-struct raw_sock {
-	/* inet_sock has to be the first member */
-	struct inet_sock   inet;
-	struct icmp_filter filter;
-};
-
-static inline struct raw_sock *raw_sk(const struct sock *sk)
-{
-	return (struct raw_sock *)sk;
-}
 
 #endif	/* _ICMP_H */

@@ -20,6 +20,20 @@ struct ftrace_ret_stack {
  * Defined in entry.S
  */
 extern void return_to_handler(void);
+
+
+extern unsigned long return_address(unsigned int);
+
+#define HAVE_ARCH_CALLER_ADDR
+
+#define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
+#define CALLER_ADDR1 return_address(1)
+#define CALLER_ADDR2 return_address(2)
+#define CALLER_ADDR3 return_address(3)
+#define CALLER_ADDR4 return_address(4)
+#define CALLER_ADDR5 return_address(5)
+#define CALLER_ADDR6 return_address(6)
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_PARISC_FTRACE_H */

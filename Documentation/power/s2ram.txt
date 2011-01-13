@@ -49,6 +49,13 @@ machine that doesn't boot) is:
    device (lspci and /sys/devices/pci* is your friend), and see if you can
    fix it, disable it, or trace into its resume function.
 
+   If no device matches the hash (or any matches appear to be false positives),
+   the culprit may be a device from a loadable kernel module that is not loaded
+   until after the hash is checked. You can check the hash against the current
+   devices again after more modules are loaded using sysfs:
+
+	cat /sys/power/pm_trace_dev_match
+
 For example, the above happens to be the VGA device on my EVO, which I
 used to run with "radeonfb" (it's an ATI Radeon mobility). It turns out
 that "radeonfb" simply cannot resume that device - it tries to set the

@@ -20,7 +20,7 @@
 #include <net/netfilter/nf_log.h>
 
 static unsigned int
-ebt_nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ebt_nflog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_nflog_info *info = par->targinfo;
 	struct nf_loginfo li;
@@ -35,14 +35,14 @@ ebt_nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return EBT_CONTINUE;
 }
 
-static bool ebt_nflog_tg_check(const struct xt_tgchk_param *par)
+static int ebt_nflog_tg_check(const struct xt_tgchk_param *par)
 {
 	struct ebt_nflog_info *info = par->targinfo;
 
 	if (info->flags & ~EBT_NFLOG_MASK)
-		return false;
+		return -EINVAL;
 	info->prefix[EBT_NFLOG_PREFIX_SIZE - 1] = '\0';
-	return true;
+	return 0;
 }
 
 static struct xt_target ebt_nflog_tg_reg __read_mostly = {
@@ -51,7 +51,7 @@ static struct xt_target ebt_nflog_tg_reg __read_mostly = {
 	.family     = NFPROTO_BRIDGE,
 	.target     = ebt_nflog_tg,
 	.checkentry = ebt_nflog_tg_check,
-	.targetsize = XT_ALIGN(sizeof(struct ebt_nflog_info)),
+	.targetsize = sizeof(struct ebt_nflog_info),
 	.me         = THIS_MODULE,
 };
 

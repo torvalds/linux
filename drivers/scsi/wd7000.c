@@ -161,7 +161,7 @@
  *
  * 2003/02/12 - Christoph Hellwig <hch@infradead.org>
  *
- * Cleaned up host template defintion
+ * Cleaned up host template definition
  * Removed now obsolete wd7000.h
  */
 
@@ -171,7 +171,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/ioport.h>
 #include <linux/proc_fs.h>
@@ -1083,7 +1082,7 @@ static irqreturn_t wd7000_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int wd7000_queuecommand(struct scsi_cmnd *SCpnt,
+static int wd7000_queuecommand_lck(struct scsi_cmnd *SCpnt,
 		void (*done)(struct scsi_cmnd *))
 {
 	Scb *scb;
@@ -1139,6 +1138,8 @@ static int wd7000_queuecommand(struct scsi_cmnd *SCpnt,
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(wd7000_queuecommand)
 
 static int wd7000_diagnostics(Adapter * host, int code)
 {
@@ -1588,7 +1589,7 @@ static int wd7000_host_reset(struct scsi_cmnd *SCpnt)
 {
 	Adapter *host = (Adapter *) SCpnt->device->host->hostdata;
 
-	spin_unlock_irq(SCpnt->device->host->host_lock);
+	spin_lock_irq(SCpnt->device->host->host_lock);
 
 	if (wd7000_adapter_reset(host) < 0) {
 		spin_unlock_irq(SCpnt->device->host->host_lock);

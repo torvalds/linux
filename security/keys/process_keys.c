@@ -12,11 +12,11 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/keyctl.h>
 #include <linux/fs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/security.h>
 #include <linux/user_namespace.h>
 #include <asm/uaccess.h>
 #include "internal.h"
@@ -207,7 +207,7 @@ static int install_process_keyring(void)
 	ret = install_process_keyring_to_cred(new);
 	if (ret < 0) {
 		abort_creds(new);
-		return ret != -EEXIST ?: 0;
+		return ret != -EEXIST ? ret : 0;
 	}
 
 	return commit_creds(new);
@@ -216,8 +216,7 @@ static int install_process_keyring(void)
 /*
  * install a session keyring directly to a credentials struct
  */
-static int install_session_keyring_to_cred(struct cred *cred,
-					   struct key *keyring)
+int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 {
 	unsigned long flags;
 	struct key *old;
@@ -310,21 +309,18 @@ void key_fsgid_changed(struct task_struct *tsk)
 
 /*****************************************************************************/
 /*
- * search the process keyrings for the first matching key
+ * search only my process keyrings for the first matching key
  * - we use the supplied match function to see if the description (or other
  *   feature of interest) matches
  * - we return -EAGAIN if we didn't find any matching key
  * - we return -ENOKEY if we found only negative matching keys
  */
-key_ref_t search_process_keyrings(struct key_type *type,
-				  const void *description,
-				  key_match_func_t match,
-				  const struct cred *cred)
+key_ref_t search_my_process_keyrings(struct key_type *type,
+				     const void *description,
+				     key_match_func_t match,
+				     const struct cred *cred)
 {
-	struct request_key_auth *rka;
 	key_ref_t key_ref, ret, err;
-
-	might_sleep();
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -425,6 +421,36 @@ key_ref_t search_process_keyrings(struct key_type *type,
 		}
 	}
 
+	/* no key - decide on the error we're going to go for */
+	key_ref = ret ? ret : err;
+
+found:
+	return key_ref;
+}
+
+/*****************************************************************************/
+/*
+ * search the process keyrings for the first matching key
+ * - we use the supplied match function to see if the description (or other
+ *   feature of interest) matches
+ * - we return -EAGAIN if we didn't find any matching key
+ * - we return -ENOKEY if we found only negative matching keys
+ */
+key_ref_t search_process_keyrings(struct key_type *type,
+				  const void *description,
+				  key_match_func_t match,
+				  const struct cred *cred)
+{
+	struct request_key_auth *rka;
+	key_ref_t key_ref, ret = ERR_PTR(-EACCES), err;
+
+	might_sleep();
+
+	key_ref = search_my_process_keyrings(type, description, match, cred);
+	if (!IS_ERR(key_ref))
+		goto found;
+	err = key_ref;
+
 	/* if this process has an instantiation authorisation key, then we also
 	 * search the keyrings of the process mentioned there
 	 * - we don't permit access to request_key auth keys via this method
@@ -447,24 +473,19 @@ key_ref_t search_process_keyrings(struct key_type *type,
 			if (!IS_ERR(key_ref))
 				goto found;
 
-			switch (PTR_ERR(key_ref)) {
-			case -EAGAIN: /* no key */
-				if (ret)
-					break;
-			case -ENOKEY: /* negative key */
-				ret = key_ref;
-				break;
-			default:
-				err = key_ref;
-				break;
-			}
+			ret = key_ref;
 		} else {
 			up_read(&cred->request_key_auth->sem);
 		}
 	}
 
 	/* no key - decide on the error we're going to go for */
-	key_ref = ret ? ret : err;
+	if (err == ERR_PTR(-ENOKEY) || ret == ERR_PTR(-ENOKEY))
+		key_ref = ERR_PTR(-ENOKEY);
+	else if (err == ERR_PTR(-EACCES))
+		key_ref = ret;
+	else
+		key_ref = err;
 
 found:
 	return key_ref;
@@ -475,7 +496,7 @@ found:
 /*
  * see if the key we're looking at is the target key
  */
-static int lookup_user_key_possessed(const struct key *key, const void *target)
+int lookup_user_key_possessed(const struct key *key, const void *target)
 {
 	return key == target;
 
@@ -487,7 +508,7 @@ static int lookup_user_key_possessed(const struct key *key, const void *target)
  * - don't create special keyrings unless so requested
  * - partially constructed keys aren't found unless requested
  */
-key_ref_t lookup_user_key(key_serial_t id, int create, int partial,
+key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
 			  key_perm_t perm)
 {
 	struct request_key_auth *rka;
@@ -503,12 +524,12 @@ try_again:
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
 		if (!cred->thread_keyring) {
-			if (!create)
+			if (!(lflags & KEY_LOOKUP_CREATE))
 				goto error;
 
 			ret = install_thread_keyring();
 			if (ret < 0) {
-				key = ERR_PTR(ret);
+				key_ref = ERR_PTR(ret);
 				goto error;
 			}
 			goto reget_creds;
@@ -521,12 +542,12 @@ try_again:
 
 	case KEY_SPEC_PROCESS_KEYRING:
 		if (!cred->tgcred->process_keyring) {
-			if (!create)
+			if (!(lflags & KEY_LOOKUP_CREATE))
 				goto error;
 
 			ret = install_process_keyring();
 			if (ret < 0) {
-				key = ERR_PTR(ret);
+				key_ref = ERR_PTR(ret);
 				goto error;
 			}
 			goto reget_creds;
@@ -585,7 +606,7 @@ try_again:
 
 	case KEY_SPEC_GROUP_KEYRING:
 		/* group keyrings are not yet supported */
-		key = ERR_PTR(-EINVAL);
+		key_ref = ERR_PTR(-EINVAL);
 		goto error;
 
 	case KEY_SPEC_REQKEY_AUTH_KEY:
@@ -642,7 +663,14 @@ try_again:
 		break;
 	}
 
-	if (!partial) {
+	/* unlink does not use the nominated key in any way, so can skip all
+	 * the permission checks as it is only concerned with the keyring */
+	if (lflags & KEY_LOOKUP_FOR_UNLINK) {
+		ret = 0;
+		goto error;
+	}
+
+	if (!(lflags & KEY_LOOKUP_PARTIAL)) {
 		ret = wait_for_key_construction(key, true);
 		switch (ret) {
 		case -ERESTARTSYS:
@@ -660,7 +688,8 @@ try_again:
 	}
 
 	ret = -EIO;
-	if (!partial && !test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
+	if (!(lflags & KEY_LOOKUP_PARTIAL) &&
+	    !test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 		goto invalid_key;
 
 	/* check the permissions */
@@ -702,7 +731,7 @@ long join_session_keyring(const char *name)
 	/* only permit this if there's a single thread in the thread group -
 	 * this avoids us having to adjust the creds on all threads and risking
 	 * ENOMEM */
-	if (!is_single_threaded(current))
+	if (!current_is_single_threaded())
 		return -EMLINK;
 
 	new = prepare_creds();
@@ -759,4 +788,52 @@ error2:
 error:
 	abort_creds(new);
 	return ret;
+}
+
+/*
+ * Replace a process's session keyring when that process resumes userspace on
+ * behalf of one of its children
+ */
+void key_replace_session_keyring(void)
+{
+	const struct cred *old;
+	struct cred *new;
+
+	if (!current->replacement_session_keyring)
+		return;
+
+	write_lock_irq(&tasklist_lock);
+	new = current->replacement_session_keyring;
+	current->replacement_session_keyring = NULL;
+	write_unlock_irq(&tasklist_lock);
+
+	if (!new)
+		return;
+
+	old = current_cred();
+	new->  uid	= old->  uid;
+	new-> euid	= old-> euid;
+	new-> suid	= old-> suid;
+	new->fsuid	= old->fsuid;
+	new->  gid	= old->  gid;
+	new-> egid	= old-> egid;
+	new-> sgid	= old-> sgid;
+	new->fsgid	= old->fsgid;
+	new->user	= get_uid(old->user);
+	new->group_info	= get_group_info(old->group_info);
+
+	new->securebits	= old->securebits;
+	new->cap_inheritable	= old->cap_inheritable;
+	new->cap_permitted	= old->cap_permitted;
+	new->cap_effective	= old->cap_effective;
+	new->cap_bset		= old->cap_bset;
+
+	new->jit_keyring	= old->jit_keyring;
+	new->thread_keyring	= key_get(old->thread_keyring);
+	new->tgcred->tgid	= old->tgcred->tgid;
+	new->tgcred->process_keyring = key_get(old->tgcred->process_keyring);
+
+	security_transfer_creds(new, old);
+
+	commit_creds(new);
 }

@@ -20,23 +20,22 @@
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
-/* last time the RTC got updated */
-static long last_rtc_update;
-
-/* time for RTC to update itself in ioclks */
-static unsigned long mn10300_rtc_update_period;
-
 /*
- * read the current RTC time
+ * Read the current RTC time
  */
-unsigned long __init get_initial_rtc_time(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	struct rtc_time tm;
 
 	get_rtc_time(&tm);
 
-	return mktime(tm.tm_year, tm.tm_mon, tm.tm_mday,
-		      tm.tm_hour, tm.tm_min, tm.tm_sec);
+	ts->tv_nsec = 0;
+	ts->tv_sec = mktime(tm.tm_year, tm.tm_mon, tm.tm_mday,
+			    tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	/* if rtc is way off in the past, set something reasonable */
+	if (ts->tv_sec < 0)
+		ts->tv_sec = mktime(2009, 1, 1, 12, 0, 0);
 }
 
 /*
@@ -110,24 +109,9 @@ static int set_rtc_mmss(unsigned long nowtime)
 	return retval;
 }
 
-void check_rtc_time(void)
+int update_persistent_clock(struct timespec now)
 {
-	/* the RTC clock just finished ticking over again this second
-	 * - if we have an externally synchronized Linux clock, then update
-	 *   RTC clock accordingly every ~11 minutes. set_rtc_mmss() has to be
-	 *   called as close as possible to 500 ms before the new second starts.
-	 */
-	if ((time_status & STA_UNSYNC) == 0 &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    xtime.tv_nsec / 1000 >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
-	    xtime.tv_nsec / 1000 <= 500000 + ((unsigned) TICK_SIZE) / 2
-	    ) {
-		if (set_rtc_mmss(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else
-			/* do it again in 60s */
-			last_rtc_update = xtime.tv_sec - 600;
-	}
+	return set_rtc_mmss(now.tv_sec);
 }
 
 /*
@@ -135,39 +119,14 @@ void check_rtc_time(void)
  */
 void __init calibrate_clock(void)
 {
-	unsigned long count0, counth, count1;
 	unsigned char status;
 
 	/* make sure the RTC is running and is set to operate in 24hr mode */
 	status = RTSRC;
 	RTCRB |= RTCRB_SET;
 	RTCRB |= RTCRB_TM_24HR;
+	RTCRB &= ~RTCRB_DM_BINARY;
 	RTCRA |= RTCRA_DVR;
 	RTCRA &= ~RTCRA_DVR;
 	RTCRB &= ~RTCRB_SET;
-
-	/* work out the clock speed by counting clock cycles between ends of
-	 * the RTC update cycle - track the RTC through one complete update
-	 * cycle (1 second)
-	 */
-	startup_timestamp_counter();
-
-	while (!(RTCRA & RTCRA_UIP)) {}
-	while ((RTCRA & RTCRA_UIP)) {}
-
-	count0 = TMTSCBC;
-
-	while (!(RTCRA & RTCRA_UIP)) {}
-
-	counth = TMTSCBC;
-
-	while ((RTCRA & RTCRA_UIP)) {}
-
-	count1 = TMTSCBC;
-
-	shutdown_timestamp_counter();
-
-	MN10300_TSCCLK = count0 - count1; /* the timers count down */
-	mn10300_rtc_update_period = counth - count1;
-	MN10300_TSC_PER_HZ = MN10300_TSCCLK / HZ;
 }

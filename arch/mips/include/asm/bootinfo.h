@@ -7,6 +7,7 @@
  * Copyright (C) 1995, 1996 Andreas Busse
  * Copyright (C) 1995, 1996 Stoned Elipot
  * Copyright (C) 1995, 1996 Paul M. Antoine.
+ * Copyright (C) 2009       Zhang Le
  */
 #ifndef _ASM_BOOTINFO_H
 #define _ASM_BOOTINFO_H
@@ -57,7 +58,24 @@
 #define	MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532 	*/
 #define MACH_MIKROTIK_RB532A	1	/* Mikrotik RouterBoard 532A 	*/
 
-#define CL_SIZE			COMMAND_LINE_SIZE
+/*
+ * Valid machtype for Loongson family
+ */
+#define MACH_LOONGSON_UNKNOWN  0
+#define MACH_LEMOTE_FL2E       1
+#define MACH_LEMOTE_FL2F       2
+#define MACH_LEMOTE_ML2F7      3
+#define MACH_LEMOTE_YL2F89     4
+#define MACH_DEXXON_GDIUM2F10  5
+#define MACH_LEMOTE_NAS        6
+#define MACH_LEMOTE_LL2F       7
+#define MACH_LOONGSON_END      8
+
+/*
+ * Valid machtype for group INGENIC
+ */
+#define  MACH_INGENIC_JZ4730	0	/* JZ4730 SOC		*/
+#define  MACH_INGENIC_JZ4740	1	/* JZ4740 SOC		*/
 
 extern char *system_type;
 const char *get_system_type(void);
@@ -95,7 +113,7 @@ extern void free_init_pages(const char *what,
 /*
  * Initial kernel command line, usually setup by prom_init()
  */
-extern char arcs_cmdline[CL_SIZE];
+extern char arcs_cmdline[COMMAND_LINE_SIZE];
 
 /*
  * Registers a0, a1, a3 and a4 as passed to the kernel entry by firmware
@@ -106,5 +124,17 @@ extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
  * Platform memory detection hook called by setup_arch
  */
 extern void plat_mem_setup(void);
+
+#ifdef CONFIG_SWIOTLB
+/*
+ * Optional platform hook to call swiotlb_setup().
+ */
+extern void plat_swiotlb_setup(void);
+
+#else
+
+static inline void plat_swiotlb_setup(void) {}
+
+#endif /* CONFIG_SWIOTLB */
 
 #endif /* _ASM_BOOTINFO_H */

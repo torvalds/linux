@@ -26,50 +26,28 @@
 		.endm
 
 		.macro	load1b,	reg1
-9999:		ldrbt	\reg1, [r0], $1
-		.section __ex_table, "a"
-		.align	3
-		.long	9999b, 6001f
-		.previous
+		ldrusr	\reg1, r0, 1
 		.endm
 
 		.macro	load2b, reg1, reg2
-9999:		ldrbt	\reg1, [r0], $1
-9998:		ldrbt	\reg2, [r0], $1
-		.section __ex_table, "a"
-		.long	9999b, 6001f
-		.long	9998b, 6001f
-		.previous
+		ldrusr	\reg1, r0, 1
+		ldrusr	\reg2, r0, 1
 		.endm
 
 		.macro	load1l, reg1
-9999:		ldrt	\reg1, [r0], $4
-		.section __ex_table, "a"
-		.align	3
-		.long	9999b, 6001f
-		.previous
+		ldrusr	\reg1, r0, 4
 		.endm
 
 		.macro	load2l, reg1, reg2
-9999:		ldrt	\reg1, [r0], $4
-9998:		ldrt	\reg2, [r0], $4
-		.section __ex_table, "a"
-		.long	9999b, 6001f
-		.long	9998b, 6001f
-		.previous
+		ldrusr	\reg1, r0, 4
+		ldrusr	\reg2, r0, 4
 		.endm
 
 		.macro	load4l, reg1, reg2, reg3, reg4
-9999:		ldrt	\reg1, [r0], $4
-9998:		ldrt	\reg2, [r0], $4
-9997:		ldrt	\reg3, [r0], $4
-9996:		ldrt	\reg4, [r0], $4
-		.section __ex_table, "a"
-		.long	9999b, 6001f
-		.long	9998b, 6001f
-		.long	9997b, 6001f
-		.long	9996b, 6001f
-		.previous
+		ldrusr	\reg1, r0, 4
+		ldrusr	\reg2, r0, 4
+		ldrusr	\reg3, r0, 4
+		ldrusr	\reg4, r0, 4
 		.endm
 
 /*
@@ -90,16 +68,16 @@
  * so properly, we would have to add in whatever registers were loaded before
  * the fault, which, with the current asm above is not predictable.
  */
-		.section .fixup,"ax"
+		.pushsection .fixup,"ax"
 		.align	4
-6001:		mov	r4, #-EFAULT
-		ldr	r5, [fp, #4]		@ *err_ptr
+9001:		mov	r4, #-EFAULT
+		ldr	r5, [sp, #8*4]		@ *err_ptr
 		str	r4, [r5]
 		ldmia	sp, {r1, r2}		@ retrieve dst, len
 		add	r2, r2, r1
 		mov	r0, #0			@ zero the buffer
-6002:		teq	r2, r1
+9002:		teq	r2, r1
 		strneb	r0, [r1], #1
-		bne	6002b
+		bne	9002b
 		load_regs
-		.previous
+		.popsection

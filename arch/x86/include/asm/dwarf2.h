@@ -34,6 +34,18 @@
 #define CFI_SIGNAL_FRAME
 #endif
 
+#if defined(CONFIG_AS_CFI_SECTIONS) && defined(__ASSEMBLY__)
+	/*
+	 * Emit CFI data in .debug_frame sections, not .eh_frame sections.
+	 * The latter we currently just discard since we don't do DWARF
+	 * unwinding at runtime.  So only the offline DWARF information is
+	 * useful to anyone.  Note we should not use this directive if this
+	 * file is used in the vDSO assembly, or if vmlinux.lds.S gets
+	 * changed so it doesn't discard .eh_frame.
+	 */
+	.cfi_sections .debug_frame
+#endif
+
 #else
 
 /*
@@ -77,6 +89,16 @@
 	CFI_ADJUST_CFA_OFFSET -8
 	.endm
 
+	.macro pushfq_cfi
+	pushfq
+	CFI_ADJUST_CFA_OFFSET 8
+	.endm
+
+	.macro popfq_cfi
+	popfq
+	CFI_ADJUST_CFA_OFFSET -8
+	.endm
+
 	.macro movq_cfi reg offset=0
 	movq %\reg, \offset(%rsp)
 	CFI_REL_OFFSET \reg, \offset
@@ -87,9 +109,35 @@
 	CFI_RESTORE \reg
 	.endm
 #else /*!CONFIG_X86_64*/
+	.macro pushl_cfi reg
+	pushl \reg
+	CFI_ADJUST_CFA_OFFSET 4
+	.endm
 
-	/* 32bit defenitions are missed yet */
+	.macro popl_cfi reg
+	popl \reg
+	CFI_ADJUST_CFA_OFFSET -4
+	.endm
 
+	.macro pushfl_cfi
+	pushfl
+	CFI_ADJUST_CFA_OFFSET 4
+	.endm
+
+	.macro popfl_cfi
+	popfl
+	CFI_ADJUST_CFA_OFFSET -4
+	.endm
+
+	.macro movl_cfi reg offset=0
+	movl %\reg, \offset(%esp)
+	CFI_REL_OFFSET \reg, \offset
+	.endm
+
+	.macro movl_cfi_restore offset reg
+	movl \offset(%esp), %\reg
+	CFI_RESTORE \reg
+	.endm
 #endif /*!CONFIG_X86_64*/
 #endif /*__ASSEMBLY__*/
 

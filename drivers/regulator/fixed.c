@@ -5,6 +5,9 @@
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
+ * Copyright (c) 2009 Nokia Corporation
+ * Roger Quadros <ext-roger.quadros@nokia.com>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of the
@@ -20,21 +23,56 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/fixed.h>
+#include <linux/gpio.h>
+#include <linux/delay.h>
+#include <linux/slab.h>
 
 struct fixed_voltage_data {
 	struct regulator_desc desc;
 	struct regulator_dev *dev;
 	int microvolts;
+	int gpio;
+	unsigned startup_delay;
+	bool enable_high;
+	bool is_enabled;
 };
 
 static int fixed_voltage_is_enabled(struct regulator_dev *dev)
 {
-	return 1;
+	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
+
+	return data->is_enabled;
 }
 
 static int fixed_voltage_enable(struct regulator_dev *dev)
 {
+	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
+
+	if (gpio_is_valid(data->gpio)) {
+		gpio_set_value_cansleep(data->gpio, data->enable_high);
+		data->is_enabled = true;
+	}
+
 	return 0;
+}
+
+static int fixed_voltage_disable(struct regulator_dev *dev)
+{
+	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
+
+	if (gpio_is_valid(data->gpio)) {
+		gpio_set_value_cansleep(data->gpio, !data->enable_high);
+		data->is_enabled = false;
+	}
+
+	return 0;
+}
+
+static int fixed_voltage_enable_time(struct regulator_dev *dev)
+{
+	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
+
+	return data->startup_delay;
 }
 
 static int fixed_voltage_get_voltage(struct regulator_dev *dev)
@@ -58,11 +96,13 @@ static int fixed_voltage_list_voltage(struct regulator_dev *dev,
 static struct regulator_ops fixed_voltage_ops = {
 	.is_enabled = fixed_voltage_is_enabled,
 	.enable = fixed_voltage_enable,
+	.disable = fixed_voltage_disable,
+	.enable_time = fixed_voltage_enable_time,
 	.get_voltage = fixed_voltage_get_voltage,
 	.list_voltage = fixed_voltage_list_voltage,
 };
 
-static int regulator_fixed_voltage_probe(struct platform_device *pdev)
+static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 {
 	struct fixed_voltage_config *config = pdev->dev.platform_data;
 	struct fixed_voltage_data *drvdata;
@@ -70,12 +110,14 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 
 	drvdata = kzalloc(sizeof(struct fixed_voltage_data), GFP_KERNEL);
 	if (drvdata == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate device data\n");
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	drvdata->desc.name = kstrdup(config->supply_name, GFP_KERNEL);
 	if (drvdata->desc.name == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate supply name\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -85,12 +127,63 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 	drvdata->desc.n_voltages = 1;
 
 	drvdata->microvolts = config->microvolts;
+	drvdata->gpio = config->gpio;
+	drvdata->startup_delay = config->startup_delay;
+
+	if (gpio_is_valid(config->gpio)) {
+		drvdata->enable_high = config->enable_high;
+
+		/* FIXME: Remove below print warning
+		 *
+		 * config->gpio must be set to -EINVAL by platform code if
+		 * GPIO control is not required. However, early adopters
+		 * not requiring GPIO control may forget to initialize
+		 * config->gpio to -EINVAL. This will cause GPIO 0 to be used
+		 * for GPIO control.
+		 *
+		 * This warning will be removed once there are a couple of users
+		 * for this driver.
+		 */
+		if (!config->gpio)
+			dev_warn(&pdev->dev,
+				"using GPIO 0 for regulator enable control\n");
+
+		ret = gpio_request(config->gpio, config->supply_name);
+		if (ret) {
+			dev_err(&pdev->dev,
+			   "Could not obtain regulator enable GPIO %d: %d\n",
+							config->gpio, ret);
+			goto err_name;
+		}
+
+		/* set output direction without changing state
+		 * to prevent glitch
+		 */
+		drvdata->is_enabled = config->enabled_at_boot;
+		ret = drvdata->is_enabled ?
+				config->enable_high : !config->enable_high;
+
+		ret = gpio_direction_output(config->gpio, ret);
+		if (ret) {
+			dev_err(&pdev->dev,
+			   "Could not configure regulator enable GPIO %d direction: %d\n",
+							config->gpio, ret);
+			goto err_gpio;
+		}
+
+	} else {
+		/* Regulator without GPIO control is considered
+		 * always enabled
+		 */
+		drvdata->is_enabled = true;
+	}
 
 	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
 					  config->init_data, drvdata);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
-		goto err_name;
+		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
+		goto err_gpio;
 	}
 
 	platform_set_drvdata(pdev, drvdata);
@@ -100,6 +193,9 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_gpio:
+	if (gpio_is_valid(config->gpio))
+		gpio_free(config->gpio);
 err_name:
 	kfree(drvdata->desc.name);
 err:
@@ -107,11 +203,13 @@ err:
 	return ret;
 }
 
-static int regulator_fixed_voltage_remove(struct platform_device *pdev)
+static int __devexit reg_fixed_voltage_remove(struct platform_device *pdev)
 {
 	struct fixed_voltage_data *drvdata = platform_get_drvdata(pdev);
 
 	regulator_unregister(drvdata->dev);
+	if (gpio_is_valid(drvdata->gpio))
+		gpio_free(drvdata->gpio);
 	kfree(drvdata->desc.name);
 	kfree(drvdata);
 
@@ -119,10 +217,11 @@ static int regulator_fixed_voltage_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver regulator_fixed_voltage_driver = {
-	.probe		= regulator_fixed_voltage_probe,
-	.remove		= regulator_fixed_voltage_remove,
+	.probe		= reg_fixed_voltage_probe,
+	.remove		= __devexit_p(reg_fixed_voltage_remove),
 	.driver		= {
 		.name		= "reg-fixed-voltage",
+		.owner		= THIS_MODULE,
 	},
 };
 

@@ -21,7 +21,9 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
+#include <linux/bitops.h>
 #include <scsi/libfc.h>
+#include <scsi/libfcoe.h>
 #include "fnic_io.h"
 #include "fnic_res.h"
 #include "vnic_dev.h"
@@ -35,7 +37,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.0.0.1121"
+#define DRV_VERSION		"1.4.0.145"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
@@ -48,7 +50,6 @@
 /*
  * Tag bits used for special requests.
  */
-#define BIT(nr)			(1UL << (nr))
 #define FNIC_TAG_ABORT		BIT(30)		/* tag bit indicating abort */
 #define FNIC_TAG_DEV_RST	BIT(29)		/* indicates device reset */
 #define FNIC_TAG_MASK		(BIT(24) - 1)	/* mask for lookup */
@@ -145,6 +146,7 @@ struct mempool;
 /* Per-instance private data structure */
 struct fnic {
 	struct fc_lport *lport;
+	struct fcoe_ctlr ctlr;		/* FIP FCoE controller structure */
 	struct vnic_dev_bar bar0;
 
 	struct msix_entry msix_entry[FNIC_MSIX_INTR_MAX];
@@ -162,23 +164,16 @@ struct fnic {
 	unsigned int wq_count;
 	unsigned int cq_count;
 
-	u32 fcoui_mode:1;		/* use fcoui address*/
 	u32 vlan_hw_insert:1;	        /* let hw insert the tag */
 	u32 in_remove:1;                /* fnic device in removal */
 	u32 stop_rx_link_events:1;      /* stop proc. rx frames, link events */
 
 	struct completion *remove_wait; /* device remove thread blocks */
 
-	struct fc_frame *flogi;
-	struct fc_frame *flogi_resp;
-	u16 flogi_oxid;
-	unsigned long s_id;
 	enum fnic_state state;
 	spinlock_t fnic_lock;
 
 	u16 vlan_id;	                /* VLAN tag including priority */
-	u8 mac_addr[ETH_ALEN];
-	u8 dest_addr[ETH_ALEN];
 	u8 data_src_addr[ETH_ALEN];
 	u64 fcp_input_bytes;		/* internal statistic */
 	u64 fcp_output_bytes;		/* internal statistic */
@@ -205,6 +200,7 @@ struct fnic {
 	struct work_struct link_work;
 	struct work_struct frame_work;
 	struct sk_buff_head frame_queue;
+	struct sk_buff_head tx_queue;
 
 	/* copy work queue cache line section */
 	____cacheline_aligned struct vnic_wq_copy wq_copy[FNIC_WQ_COPY_MAX];
@@ -224,6 +220,11 @@ struct fnic {
 	____cacheline_aligned struct vnic_intr intr[FNIC_MSIX_INTR_MAX];
 };
 
+static inline struct fnic *fnic_from_ctlr(struct fcoe_ctlr *fip)
+{
+	return container_of(fip, struct fnic, ctlr);
+}
+
 extern struct workqueue_struct *fnic_event_queue;
 extern struct device_attribute *fnic_attrs[];
 
@@ -239,9 +240,13 @@ void fnic_handle_link(struct work_struct *work);
 int fnic_rq_cmpl_handler(struct fnic *fnic, int);
 int fnic_alloc_rq_frame(struct vnic_rq *rq);
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf);
-int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp);
+void fnic_flush_tx(struct fnic *);
+void fnic_eth_send(struct fcoe_ctlr *, struct sk_buff *skb);
+void fnic_set_port_id(struct fc_lport *, u32, struct fc_frame *);
+void fnic_update_mac(struct fc_lport *, u8 *new);
+void fnic_update_mac_locked(struct fnic *, u8 *new);
 
-int fnic_queuecommand(struct scsi_cmnd *, void (*done)(struct scsi_cmnd *));
+int fnic_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 int fnic_abort_cmd(struct scsi_cmnd *);
 int fnic_device_reset(struct scsi_cmnd *);
 int fnic_host_reset(struct scsi_cmnd *);
@@ -252,7 +257,7 @@ void fnic_empty_scsi_cleanup(struct fc_lport *);
 void fnic_exch_mgr_reset(struct fc_lport *, u32, u32);
 int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int);
 int fnic_wq_cmpl_handler(struct fnic *fnic, int);
-int fnic_flogi_reg_handler(struct fnic *fnic);
+int fnic_flogi_reg_handler(struct fnic *fnic, u32);
 void fnic_wq_copy_cleanup_handler(struct vnic_wq_copy *wq,
 				  struct fcpio_host_req *desc);
 int fnic_fw_reset_handler(struct fnic *fnic);

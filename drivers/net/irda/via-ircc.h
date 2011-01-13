@@ -238,7 +238,7 @@ static void WriteLPCReg(int iRegNum, unsigned char iVal)
 
 static __u8 ReadReg(unsigned int BaseAddr, int iRegNum)
 {
-	return ((__u8) inb(BaseAddr + iRegNum));
+	return (__u8) inb(BaseAddr + iRegNum);
 }
 
 static void WriteReg(unsigned int BaseAddr, int iRegNum, unsigned char iVal)
@@ -774,7 +774,7 @@ static void SetBaudRate(__u16 iobase, __u32 rate)
 			break;
 		default:
 			break;
-		};
+		}
 	} else if (IsMIROn(iobase)) {
 		value = 0;	// will automatically be fixed in 1.152M
 	} else if (IsFIROn(iobase)) {

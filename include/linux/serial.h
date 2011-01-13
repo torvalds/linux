@@ -122,6 +122,7 @@ struct serial_uart_config {
 
 /* Internal flags used only by kernel */
 #define ASYNCB_INITIALIZED	31 /* Serial port was initialized */
+#define ASYNCB_SUSPENDED	30 /* Serial port is suspended */
 #define ASYNCB_NORMAL_ACTIVE	29 /* Normal device is active */
 #define ASYNCB_BOOT_AUTOCONF	28 /* Autoconfigure port on bootup */
 #define ASYNCB_CLOSING		27 /* Serial port is closing */
@@ -133,6 +134,7 @@ struct serial_uart_config {
 #define ASYNCB_FIRST_KERNEL	22
 
 #define ASYNC_HUP_NOTIFY	(1U << ASYNCB_HUP_NOTIFY)
+#define ASYNC_SUSPENDED		(1U << ASYNCB_SUSPENDED)
 #define ASYNC_FOURPORT		(1U << ASYNCB_FOURPORT)
 #define ASYNC_SAK		(1U << ASYNCB_SAK)
 #define ASYNC_SPLIT_TERMIOS	(1U << ASYNCB_SPLIT_TERMIOS)
@@ -149,7 +151,7 @@ struct serial_uart_config {
 #define ASYNC_BUGGY_UART	(1U << ASYNCB_BUGGY_UART)
 #define ASYNC_AUTOPROBE		(1U << ASYNCB_AUTOPROBE)
 
-#define ASYNC_FLAGS		((1U << ASYNCB_LAST_USER) - 1)
+#define ASYNC_FLAGS		((1U << (ASYNCB_LAST_USER + 1)) - 1)
 #define ASYNC_USR_MASK		(ASYNC_SPD_HI|ASYNC_SPD_VHI| \
 		ASYNC_CALLOUT_NOHUP|ASYNC_SPD_SHI|ASYNC_LOW_LATENCY)
 #define ASYNC_SPD_CUST		(ASYNC_SPD_HI|ASYNC_SPD_VHI)
@@ -208,8 +210,10 @@ struct serial_rs485 {
 #define SER_RS485_ENABLED		(1 << 0)
 #define SER_RS485_RTS_ON_SEND		(1 << 1)
 #define SER_RS485_RTS_AFTER_SEND	(1 << 2)
+#define SER_RS485_RTS_BEFORE_SEND	(1 << 3)
 	__u32	delay_rts_before_send;	/* Milliseconds */
-	__u32	padding[6];		/* Memory is cheap, new structs
+	__u32	delay_rts_after_send;	/* Milliseconds */
+	__u32	padding[5];		/* Memory is cheap, new structs
 					   are a royal PITA .. */
 };
 

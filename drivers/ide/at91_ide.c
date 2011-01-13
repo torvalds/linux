@@ -29,9 +29,7 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
-#include <mach/at91sam9263.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91sam9263_matrix.h>
 
 #define DRV_NAME "at91_ide"
 
@@ -174,11 +172,12 @@ static void at91_ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 	leave_16bit(chipselect, mode);
 }
 
-static void at91_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void at91_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	struct ide_timing *timing;
-	u8 chipselect = drive->hwif->select_data;
+	u8 chipselect = hwif->select_data;
 	int use_iordy = 0;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	pdbg("chipselect %u pio %u\n", chipselect, pio);
 

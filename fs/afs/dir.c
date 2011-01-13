@@ -12,8 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/ctype.h>
 #include <linux/sched.h>
@@ -24,7 +24,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 static int afs_dir_open(struct inode *inode, struct file *file);
 static int afs_readdir(struct file *file, void *dirent, filldir_t filldir);
 static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd);
-static int afs_d_delete(struct dentry *dentry);
+static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_release(struct dentry *dentry);
 static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
 				  loff_t fpos, u64 ino, unsigned dtype);
@@ -190,13 +190,9 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index,
 				     struct key *key)
 {
 	struct page *page;
-	struct file file = {
-		.private_data = key,
-	};
-
 	_enter("{%lu},%lu", dir->i_ino, index);
 
-	page = read_mapping_page(dir->i_mapping, index, &file);
+	page = read_cache_page(dir->i_mapping, index, afs_page_filler, key);
 	if (!IS_ERR(page)) {
 		kmap(page);
 		if (!PageChecked(page))
@@ -482,6 +478,40 @@ static int afs_do_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 /*
+ * Try to auto mount the mountpoint with pseudo directory, if the autocell
+ * operation is setted.
+ */
+static struct inode *afs_try_auto_mntpt(
+	int ret, struct dentry *dentry, struct inode *dir, struct key *key,
+	struct afs_fid *fid)
+{
+	const char *devname = dentry->d_name.name;
+	struct afs_vnode *vnode = AFS_FS_I(dir);
+	struct inode *inode;
+
+	_enter("%d, %p{%s}, {%x:%u}, %p",
+	       ret, dentry, devname, vnode->fid.vid, vnode->fid.vnode, key);
+
+	if (ret != -ENOENT ||
+	    !test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))
+		goto out;
+
+	inode = afs_iget_autocell(dir, devname, strlen(devname), key);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		goto out;
+	}
+
+	*fid = AFS_FS_I(inode)->fid;
+	_leave("= %p", inode);
+	return inode;
+
+out:
+	_leave("= %d", ret);
+	return ERR_PTR(ret);
+}
+
+/*
  * look up an entry in a directory
  */
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
@@ -525,6 +555,13 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 
 	ret = afs_do_lookup(dir, dentry, &fid, key);
 	if (ret < 0) {
+		inode = afs_try_auto_mntpt(ret, dentry, dir, key, &fid);
+		if (!IS_ERR(inode)) {
+			key_put(key);
+			goto success;
+		}
+
+		ret = PTR_ERR(inode);
 		key_put(key);
 		if (ret == -ENOENT) {
 			d_add(dentry, NULL);
@@ -544,7 +581,8 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_CAST(inode);
 	}
 
-	dentry->d_op = &afs_fs_dentry_operations;
+success:
+	d_set_d_op(dentry, &afs_fs_dentry_operations);
 
 	d_add(dentry, inode);
 	_leave(" = 0 { vn=%u u=%u } -> { ino=%lu v=%llu }",
@@ -564,11 +602,14 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct afs_vnode *vnode, *dir;
-	struct afs_fid fid;
+	struct afs_fid uninitialized_var(fid);
 	struct dentry *parent;
 	struct key *key;
 	void *dir_version;
 	int ret;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 
 	vnode = AFS_FS_I(dentry->d_inode);
 
@@ -693,7 +734,7 @@ out_bad:
  * - called from dput() when d_count is going to 0.
  * - return 1 to request dentry be unhashed, 0 otherwise
  */
-static int afs_d_delete(struct dentry *dentry)
+static int afs_d_delete(const struct dentry *dentry)
 {
 	_enter("%s", dentry->d_name.name);
 
@@ -701,8 +742,9 @@ static int afs_d_delete(struct dentry *dentry)
 		goto zap;
 
 	if (dentry->d_inode &&
-	    test_bit(AFS_VNODE_DELETED, &AFS_FS_I(dentry->d_inode)->flags))
-			goto zap;
+	    (test_bit(AFS_VNODE_DELETED,   &AFS_FS_I(dentry->d_inode)->flags) ||
+	     test_bit(AFS_VNODE_PSEUDODIR, &AFS_FS_I(dentry->d_inode)->flags)))
+		goto zap;
 
 	_leave(" = 0 [keep]");
 	return 0;
@@ -1007,7 +1049,7 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	if (ret < 0)
 		goto link_error;
 
-	atomic_inc(&vnode->vfs_inode.i_count);
+	ihold(&vnode->vfs_inode);
 	d_instantiate(dentry, &vnode->vfs_inode);
 	key_put(key);
 	_leave(" = 0");

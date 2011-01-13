@@ -146,7 +146,7 @@
 
 				fpga@2,4000 {
 					compatible = "pika,fpga-sd";
-					reg = <0x00000002 0x00004000 0x00000A00>;
+					reg = <0x00000002 0x00004000 0x00004000>;
 				};
 
 				nor@0,0 {
@@ -261,10 +261,11 @@
 				compatible = "gpio-leds";
 				green {
 					gpios = <&GPIO1 0 0>;
-					default-state = "on";
+					default-state = "keep";
 				};
 				red {
 					gpios = <&GPIO1 1 0>;
+					default-state = "keep";
 				};
 			};
 

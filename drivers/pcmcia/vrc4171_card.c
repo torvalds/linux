@@ -1,7 +1,7 @@
 /*
  * vrc4171_card.c, NEC VRC4171 Card Controller driver for Socket Services.
  *
- * Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ * Copyright (C) 2003-2005  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 #include "i82365.h"
 
 MODULE_DESCRIPTION("NEC VRC4171 Card Controllers driver for Socket Services");
-MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yuasa@linux-mips.org>");
 MODULE_LICENSE("GPL");
 
 #define CARD_MAX_SLOTS		2
@@ -105,6 +105,7 @@ typedef struct vrc4171_socket {
 	char name[24];
 	int csc_irq;
 	int io_irq;
+	spinlock_t lock;
 } vrc4171_socket_t;
 
 static vrc4171_socket_t vrc4171_sockets[CARD_MAX_SLOTS];
@@ -327,7 +328,7 @@ static int pccard_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	slot = sock->sock;
 	socket = &vrc4171_sockets[slot];
 
-	spin_lock_irq(&sock->lock);
+	spin_lock_irq(&socket->lock);
 
 	voltage = set_Vcc_value(state->Vcc);
 	exca_write_byte(slot, CARD_VOLTAGE_SELECT, voltage);
@@ -370,7 +371,7 @@ static int pccard_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		cscint |= I365_CSC_DETECT;
         exca_write_byte(slot, I365_CSCINT, cscint);
 
-	spin_unlock_irq(&sock->lock);
+	spin_unlock_irq(&socket->lock);
 
 	return 0;
 }
@@ -704,24 +705,11 @@ static int __devinit vrc4171_card_setup(char *options)
 
 __setup("vrc4171_card=", vrc4171_card_setup);
 
-static int vrc4171_card_suspend(struct platform_device *dev,
-				     pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
-}
-
-static int vrc4171_card_resume(struct platform_device *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
-
 static struct platform_driver vrc4171_card_driver = {
 	.driver = {
 		.name		= vrc4171_card_name,
 		.owner		= THIS_MODULE,
 	},
-	.suspend	= vrc4171_card_suspend,
-	.resume		= vrc4171_card_resume,
 };
 
 static int __devinit vrc4171_card_init(void)

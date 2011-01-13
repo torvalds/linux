@@ -1,7 +1,4 @@
 /*
- *  arch/mips/emma2rh/markeins/irq.c
- *      This file defines the irq handler for EMMA2RH.
- *
  *  Copyright (C) NEC Electronics Corporation 2004-2006
  *
  *  This file is based on the arch/mips/ddb5xxx/ddb5477/irq.c
@@ -304,7 +301,7 @@ void __init arch_init_irq(void)
 	/* setup cascade interrupts */
 	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_SW_CASCADE, &irq_cascade);
 	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_GPIO_CASCADE, &irq_cascade);
-	setup_irq(CPU_IRQ_BASE + CPU_EMMA2RH_CASCADE, &irq_cascade);
+	setup_irq(MIPS_CPU_IRQ_BASE + 2, &irq_cascade);
 }
 
 asmlinkage void plat_irq_dispatch(void)
@@ -312,13 +309,13 @@ asmlinkage void plat_irq_dispatch(void)
         unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & STATUSF_IP7)
-		do_IRQ(CPU_IRQ_BASE + 7);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 	else if (pending & STATUSF_IP2)
 		emma2rh_irq_dispatch();
 	else if (pending & STATUSF_IP1)
-		do_IRQ(CPU_IRQ_BASE + 1);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 1);
 	else if (pending & STATUSF_IP0)
-		do_IRQ(CPU_IRQ_BASE + 0);
+		do_IRQ(MIPS_CPU_IRQ_BASE + 0);
 	else
 		spurious_interrupt();
 }

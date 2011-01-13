@@ -28,7 +28,8 @@
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/lmb.h>
+#include <linux/slab.h>
+#include <linux/memblock.h>
 
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -476,7 +477,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 
 	ioid = cell_iommu_get_ioid(np);
 
-	window = kmalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
+	window = kzalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
 	BUG_ON(window == NULL);
 
 	window->offset = offset;
@@ -544,7 +545,6 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 {
 	struct iommu_window *window;
 	struct cbe_iommu *iommu;
-	struct dev_archdata *archdata = &dev->archdata;
 
 	/* Current implementation uses the first window available in that
 	 * node's iommu. We -might- do something smarter later though it may
@@ -553,7 +553,7 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	iommu = cell_iommu_for_node(dev_to_node(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
 		printk(KERN_ERR "iommu: missing iommu for %s (node %d)\n",
-		       archdata->of_node ? archdata->of_node->full_name : "?",
+		       dev->of_node ? dev->of_node->full_name : "?",
 		       dev_to_node(dev));
 		return NULL;
 	}
@@ -642,7 +642,7 @@ static int dma_fixed_dma_supported(struct device *dev, u64 mask)
 
 static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);
 
-struct dma_mapping_ops dma_iommu_fixed_ops = {
+struct dma_map_ops dma_iommu_fixed_ops = {
 	.alloc_coherent = dma_fixed_alloc_coherent,
 	.free_coherent  = dma_fixed_free_coherent,
 	.map_sg         = dma_fixed_map_sg,
@@ -657,15 +657,13 @@ static void cell_dma_dev_setup_fixed(struct device *dev);
 
 static void cell_dma_dev_setup(struct device *dev)
 {
-	struct dev_archdata *archdata = &dev->archdata;
-
 	/* Order is important here, these are not mutually exclusive */
 	if (get_dma_ops(dev) == &dma_iommu_fixed_ops)
 		cell_dma_dev_setup_fixed(dev);
 	else if (get_pci_dma_ops() == &dma_iommu_ops)
-		archdata->dma_data = cell_get_iommu_table(dev);
+		set_iommu_table_base(dev, cell_get_iommu_table(dev));
 	else if (get_pci_dma_ops() == &dma_direct_ops)
-		archdata->dma_data = (void *)cell_dma_direct_offset;
+		set_dma_offset(dev, cell_dma_direct_offset);
 	else
 		BUG();
 }
@@ -847,10 +845,10 @@ static int __init cell_iommu_init_disabled(void)
 	/* If we found a DMA window, we check if it's big enough to enclose
 	 * all of physical memory. If not, we force enable IOMMU
 	 */
-	if (np && size < lmb_end_of_DRAM()) {
+	if (np && size < memblock_end_of_DRAM()) {
 		printk(KERN_WARNING "iommu: force-enabled, dma window"
 		       " (%ldMB) smaller than total memory (%lldMB)\n",
-		       size >> 20, lmb_end_of_DRAM() >> 20);
+		       size >> 20, memblock_end_of_DRAM() >> 20);
 		return -ENODEV;
 	}
 
@@ -898,7 +896,7 @@ static u64 cell_iommu_get_fixed_address(struct device *dev)
 	const u32 *ranges = NULL;
 	int i, len, best, naddr, nsize, pna, range_size;
 
-	np = of_node_get(dev->archdata.of_node);
+	np = of_node_get(dev->of_node);
 	while (1) {
 		naddr = of_n_addr_cells(np);
 		nsize = of_n_size_cells(np);
@@ -973,11 +971,10 @@ static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask)
 
 static void cell_dma_dev_setup_fixed(struct device *dev)
 {
-	struct dev_archdata *archdata = &dev->archdata;
 	u64 addr;
 
 	addr = cell_iommu_get_fixed_address(dev) + dma_iommu_fixed_base;
-	archdata->dma_data = (void *)addr;
+	set_dma_offset(dev, addr);
 
 	dev_dbg(dev, "iommu: fixed addr = %llx\n", addr);
 }
@@ -1067,9 +1064,9 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	}
 
 	fbase = _ALIGN_UP(fbase, 1 << IO_SEGMENT_SHIFT);
-	fsize = lmb_phys_mem_size();
+	fsize = memblock_phys_mem_size();
 
-	if ((fbase + fsize) <= 0x800000000)
+	if ((fbase + fsize) <= 0x800000000ul)
 		hbase = 0; /* use the device tree window */
 	else {
 		/* If we're over 32 GB we need to cheat. We can't map all of
@@ -1172,7 +1169,7 @@ static int __init cell_iommu_init(void)
 	 * Note: should we make sure we have the IOMMU actually disabled ?
 	 */
 	if (iommu_is_off ||
-	    (!iommu_force_on && lmb_end_of_DRAM() <= 0x80000000ull))
+	    (!iommu_force_on && memblock_end_of_DRAM() <= 0x80000000ull))
 		if (cell_iommu_init_disabled() == 0)
 			goto bail;
 
@@ -1207,7 +1204,7 @@ static int __init cell_iommu_init(void)
 	/* Register callbacks on OF platform device addition/removal
 	 * to handle linking them to the right DMA operations
 	 */
-	bus_register_notifier(&of_platform_bus_type, &cell_of_bus_notifier);
+	bus_register_notifier(&platform_bus_type, &cell_of_bus_notifier);
 
 	return 0;
 }

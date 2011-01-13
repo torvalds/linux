@@ -5,7 +5,6 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
-#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
@@ -30,18 +29,10 @@
  * plus some generic x86 specific things if generic specifics makes
  * any sense at all.
  */
+static void init_8259A(int auto_eoi);
 
 static int i8259A_auto_eoi;
-DEFINE_SPINLOCK(i8259A_lock);
-static void mask_and_ack_8259A(unsigned int);
-
-struct irq_chip i8259A_chip = {
-	.name		= "XT-PIC",
-	.mask		= disable_8259A_irq,
-	.disable	= disable_8259A_irq,
-	.unmask		= enable_8259A_irq,
-	.mask_ack	= mask_and_ack_8259A,
-};
+DEFINE_RAW_SPINLOCK(i8259A_lock);
 
 /*
  * 8259A PIC functions to handle ISA devices:
@@ -63,56 +54,66 @@ unsigned int cached_irq_mask = 0xffff;
  */
 unsigned long io_apic_irqs;
 
-void disable_8259A_irq(unsigned int irq)
+static void mask_8259A_irq(unsigned int irq)
 {
 	unsigned int mask = 1 << irq;
 	unsigned long flags;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 	cached_irq_mask |= mask;
 	if (irq & 8)
 		outb(cached_slave_mask, PIC_SLAVE_IMR);
 	else
 		outb(cached_master_mask, PIC_MASTER_IMR);
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void enable_8259A_irq(unsigned int irq)
+static void disable_8259A_irq(struct irq_data *data)
+{
+	mask_8259A_irq(data->irq);
+}
+
+static void unmask_8259A_irq(unsigned int irq)
 {
 	unsigned int mask = ~(1 << irq);
 	unsigned long flags;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 	cached_irq_mask &= mask;
 	if (irq & 8)
 		outb(cached_slave_mask, PIC_SLAVE_IMR);
 	else
 		outb(cached_master_mask, PIC_MASTER_IMR);
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-int i8259A_irq_pending(unsigned int irq)
+static void enable_8259A_irq(struct irq_data *data)
+{
+	unmask_8259A_irq(data->irq);
+}
+
+static int i8259A_irq_pending(unsigned int irq)
 {
 	unsigned int mask = 1<<irq;
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 	if (irq < 8)
 		ret = inb(PIC_MASTER_CMD) & mask;
 	else
 		ret = inb(PIC_SLAVE_CMD) & (mask >> 8);
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 
 	return ret;
 }
 
-void make_8259A_irq(unsigned int irq)
+static void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
 	io_apic_irqs &= ~(1<<irq);
 	set_irq_chip_and_handler_name(irq, &i8259A_chip, handle_level_irq,
-				      "XT");
+				      i8259A_chip.name);
 	enable_irq(irq);
 }
 
@@ -145,12 +146,13 @@ static inline int i8259A_irq_real(unsigned int irq)
  * first, _then_ send the EOI, and the order of EOI
  * to the two 8259s is important!
  */
-static void mask_and_ack_8259A(unsigned int irq)
+static void mask_and_ack_8259A(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned int irqmask = 1 << irq;
 	unsigned long flags;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 	/*
 	 * Lightweight spurious IRQ detection. We do not want
 	 * to overdo spurious IRQ handling - it's usually a sign
@@ -183,7 +185,7 @@ handle_real_irq:
 		outb(cached_master_mask, PIC_MASTER_IMR);
 		outb(0x60+irq, PIC_MASTER_CMD);	/* 'Specific EOI to master */
 	}
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 	return;
 
 spurious_8259A_irq:
@@ -217,6 +219,14 @@ spurious_8259A_irq:
 		goto handle_real_irq;
 	}
 }
+
+struct irq_chip i8259A_chip = {
+	.name		= "XT-PIC",
+	.irq_mask	= disable_8259A_irq,
+	.irq_disable	= disable_8259A_irq,
+	.irq_unmask	= enable_8259A_irq,
+	.irq_mask_ack	= mask_and_ack_8259A,
+};
 
 static char irq_trigger[2];
 /**
@@ -271,47 +281,37 @@ static struct sys_device device_i8259A = {
 	.cls	= &i8259_sysdev_class,
 };
 
-static int __init i8259A_init_sysfs(void)
-{
-	int error = sysdev_class_register(&i8259_sysdev_class);
-	if (!error)
-		error = sysdev_register(&device_i8259A);
-	return error;
-}
-
-device_initcall(i8259A_init_sysfs);
-
-void mask_8259A(void)
+static void mask_8259A(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 
 	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
 	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
 
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void unmask_8259A(void)
+static void unmask_8259A(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 
 	outb(cached_master_mask, PIC_MASTER_IMR); /* restore master IRQ mask */
 	outb(cached_slave_mask, PIC_SLAVE_IMR);	  /* restore slave IRQ mask */
 
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void init_8259A(int auto_eoi)
+static void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
 
 	i8259A_auto_eoi = auto_eoi;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 
 	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
 	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
@@ -347,14 +347,69 @@ void init_8259A(int auto_eoi)
 		 * In AEOI mode we just have to mask the interrupt
 		 * when acking.
 		 */
-		i8259A_chip.mask_ack = disable_8259A_irq;
+		i8259A_chip.irq_mask_ack = disable_8259A_irq;
 	else
-		i8259A_chip.mask_ack = mask_and_ack_8259A;
+		i8259A_chip.irq_mask_ack = mask_and_ack_8259A;
 
 	udelay(100);		/* wait for 8259A to initialize */
 
 	outb(cached_master_mask, PIC_MASTER_IMR); /* restore master IRQ mask */
 	outb(cached_slave_mask, PIC_SLAVE_IMR);	  /* restore slave IRQ mask */
 
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 }
+
+/*
+ * make i8259 a driver so that we can select pic functions at run time. the goal
+ * is to make x86 binary compatible among pc compatible and non-pc compatible
+ * platforms, such as x86 MID.
+ */
+
+static void legacy_pic_noop(void) { };
+static void legacy_pic_uint_noop(unsigned int unused) { };
+static void legacy_pic_int_noop(int unused) { };
+static int legacy_pic_irq_pending_noop(unsigned int irq)
+{
+	return 0;
+}
+
+struct legacy_pic null_legacy_pic = {
+	.nr_legacy_irqs = 0,
+	.chip = &dummy_irq_chip,
+	.mask = legacy_pic_uint_noop,
+	.unmask = legacy_pic_uint_noop,
+	.mask_all = legacy_pic_noop,
+	.restore_mask = legacy_pic_noop,
+	.init = legacy_pic_int_noop,
+	.irq_pending = legacy_pic_irq_pending_noop,
+	.make_irq = legacy_pic_uint_noop,
+};
+
+struct legacy_pic default_legacy_pic = {
+	.nr_legacy_irqs = NR_IRQS_LEGACY,
+	.chip  = &i8259A_chip,
+	.mask = mask_8259A_irq,
+	.unmask = unmask_8259A_irq,
+	.mask_all = mask_8259A,
+	.restore_mask = unmask_8259A,
+	.init = init_8259A,
+	.irq_pending = i8259A_irq_pending,
+	.make_irq = make_8259A_irq,
+};
+
+struct legacy_pic *legacy_pic = &default_legacy_pic;
+
+static int __init i8259A_init_sysfs(void)
+{
+	int error;
+
+	if (legacy_pic != &default_legacy_pic)
+		return 0;
+
+	error = sysdev_class_register(&i8259_sysdev_class);
+	if (!error)
+		error = sysdev_register(&device_i8259A);
+	return error;
+}
+
+device_initcall(i8259A_init_sysfs);

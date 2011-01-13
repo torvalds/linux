@@ -98,13 +98,18 @@ static void dbg_hcc_params (struct ehci_hcd *ehci, char *label)
 			HCC_64BIT_ADDR(params) ? " 64 bit addr" : "");
 	} else {
 		ehci_dbg (ehci,
-			"%s hcc_params %04x thresh %d uframes %s%s%s\n",
+			"%s hcc_params %04x thresh %d uframes %s%s%s%s%s%s%s\n",
 			label,
 			params,
 			HCC_ISOC_THRES(params),
 			HCC_PGM_FRAMELISTLEN(params) ? "256/512/1024" : "1024",
 			HCC_CANPARK(params) ? " park" : "",
-			HCC_64BIT_ADDR(params) ? " 64 bit addr" : "");
+			HCC_64BIT_ADDR(params) ? " 64 bit addr" : "",
+			HCC_LPM(params) ? " LPM" : "",
+			HCC_PER_PORT_CHANGE_EVENT(params) ? " ppce" : "",
+			HCC_HW_PREFETCH(params) ? " hw prefetch" : "",
+			HCC_32FRAME_PERIODIC_LIST(params) ?
+				" 32 peridic list" : "");
 	}
 }
 #else
@@ -134,10 +139,11 @@ dbg_qtd (const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
 static void __maybe_unused
 dbg_qh (const char *label, struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
+	struct ehci_qh_hw *hw = qh->hw;
+
 	ehci_dbg (ehci, "%s qh %p n%08x info %x %x qtd %x\n", label,
-		qh, qh->hw_next, qh->hw_info1, qh->hw_info2,
-		qh->hw_current);
-	dbg_qtd ("overlay", ehci, (struct ehci_qtd *) &qh->hw_qtd_next);
+		qh, hw->hw_next, hw->hw_info1, hw->hw_info2, hw->hw_current);
+	dbg_qtd("overlay", ehci, (struct ehci_qtd *) &hw->hw_qtd_next);
 }
 
 static void __maybe_unused
@@ -190,8 +196,9 @@ static int __maybe_unused
 dbg_status_buf (char *buf, unsigned len, const char *label, u32 status)
 {
 	return scnprintf (buf, len,
-		"%s%sstatus %04x%s%s%s%s%s%s%s%s%s%s",
+		"%s%sstatus %04x%s%s%s%s%s%s%s%s%s%s%s",
 		label, label [0] ? " " : "", status,
+		(status & STS_PPCE_MASK) ? " PPCE" : "",
 		(status & STS_ASS) ? " Async" : "",
 		(status & STS_PSS) ? " Periodic" : "",
 		(status & STS_RECL) ? " Recl" : "",
@@ -209,8 +216,9 @@ static int __maybe_unused
 dbg_intr_buf (char *buf, unsigned len, const char *label, u32 enable)
 {
 	return scnprintf (buf, len,
-		"%s%sintrenable %02x%s%s%s%s%s%s",
+		"%s%sintrenable %02x%s%s%s%s%s%s%s",
 		label, label [0] ? " " : "", enable,
+		(enable & STS_PPCE_MASK) ? " PPCE" : "",
 		(enable & STS_IAA) ? " IAA" : "",
 		(enable & STS_FATAL) ? " FATAL" : "",
 		(enable & STS_FLR) ? " FLR" : "",
@@ -227,9 +235,15 @@ static int
 dbg_command_buf (char *buf, unsigned len, const char *label, u32 command)
 {
 	return scnprintf (buf, len,
-		"%s%scommand %06x %s=%d ithresh=%d%s%s%s%s period=%s%s %s",
+		"%s%scommand %07x %s%s%s%s%s%s=%d ithresh=%d%s%s%s%s "
+		"period=%s%s %s",
 		label, label [0] ? " " : "", command,
-		(command & CMD_PARK) ? "park" : "(park)",
+		(command & CMD_HIRD) ? " HIRD" : "",
+		(command & CMD_PPCEE) ? " PPCEE" : "",
+		(command & CMD_FSP) ? " FSP" : "",
+		(command & CMD_ASPE) ? " ASPE" : "",
+		(command & CMD_PSPE) ? " PSPE" : "",
+		(command & CMD_PARK) ? " park" : "(park)",
 		CMD_PARK_CNT (command),
 		(command >> 16) & 0x3f,
 		(command & CMD_LRESET) ? " LReset" : "",
@@ -256,11 +270,22 @@ dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 	}
 
 	return scnprintf (buf, len,
-		"%s%sport %d status %06x%s%s sig=%s%s%s%s%s%s%s%s%s%s",
+		"%s%sport:%d status %06x %d %s%s%s%s%s%s "
+		"sig=%s%s%s%s%s%s%s%s%s%s%s",
 		label, label [0] ? " " : "", port, status,
+		status>>25,/*device address */
+		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_ACK ?
+						" ACK" : "",
+		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_NYET ?
+						" NYET" : "",
+		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_STALL ?
+						" STALL" : "",
+		(status & PORT_SSTS)>>23 == PORTSC_SUSPEND_STS_ERR ?
+						" ERR" : "",
 		(status & PORT_POWER) ? " POWER" : "",
 		(status & PORT_OWNER) ? " OWNER" : "",
 		sig,
+		(status & PORT_LPM) ? " LPM" : "",
 		(status & PORT_RESET) ? " RESET" : "",
 		(status & PORT_SUSPEND) ? " SUSPEND" : "",
 		(status & PORT_RESUME) ? " RESUME" : "",
@@ -329,6 +354,13 @@ static int debug_async_open(struct inode *, struct file *);
 static int debug_periodic_open(struct inode *, struct file *);
 static int debug_registers_open(struct inode *, struct file *);
 static int debug_async_open(struct inode *, struct file *);
+static int debug_lpm_open(struct inode *, struct file *);
+static ssize_t debug_lpm_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos);
+static ssize_t debug_lpm_write(struct file *file, const char __user *buffer,
+			      size_t count, loff_t *ppos);
+static int debug_lpm_close(struct inode *inode, struct file *file);
+
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
 static int debug_close(struct inode *, struct file *);
 
@@ -337,18 +369,29 @@ static const struct file_operations debug_async_fops = {
 	.open		= debug_async_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 static const struct file_operations debug_periodic_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_periodic_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 static const struct file_operations debug_registers_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_registers_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
+};
+static const struct file_operations debug_lpm_fops = {
+	.owner		= THIS_MODULE,
+	.open		= debug_lpm_open,
+	.read		= debug_lpm_read,
+	.write		= debug_lpm_write,
+	.release	= debug_lpm_close,
+	.llseek		= noop_llseek,
 };
 
 static struct dentry *ehci_debug_root;
@@ -400,31 +443,32 @@ static void qh_lines (
 	char			*next = *nextp;
 	char			mark;
 	__le32			list_end = EHCI_LIST_END(ehci);
+	struct ehci_qh_hw	*hw = qh->hw;
 
-	if (qh->hw_qtd_next == list_end)	/* NEC does this */
+	if (hw->hw_qtd_next == list_end)	/* NEC does this */
 		mark = '@';
 	else
-		mark = token_mark(ehci, qh->hw_token);
+		mark = token_mark(ehci, hw->hw_token);
 	if (mark == '/') {	/* qh_alt_next controls qh advance? */
-		if ((qh->hw_alt_next & QTD_MASK(ehci))
-				== ehci->async->hw_alt_next)
+		if ((hw->hw_alt_next & QTD_MASK(ehci))
+				== ehci->async->hw->hw_alt_next)
 			mark = '#';	/* blocked */
-		else if (qh->hw_alt_next == list_end)
+		else if (hw->hw_alt_next == list_end)
 			mark = '.';	/* use hw_qtd_next */
 		/* else alt_next points to some other qtd */
 	}
-	scratch = hc32_to_cpup(ehci, &qh->hw_info1);
-	hw_curr = (mark == '*') ? hc32_to_cpup(ehci, &qh->hw_current) : 0;
+	scratch = hc32_to_cpup(ehci, &hw->hw_info1);
+	hw_curr = (mark == '*') ? hc32_to_cpup(ehci, &hw->hw_current) : 0;
 	temp = scnprintf (next, size,
 			"qh/%p dev%d %cs ep%d %08x %08x (%08x%c %s nak%d)",
 			qh, scratch & 0x007f,
 			speed_char (scratch),
 			(scratch >> 8) & 0x000f,
-			scratch, hc32_to_cpup(ehci, &qh->hw_info2),
-			hc32_to_cpup(ehci, &qh->hw_token), mark,
-			(cpu_to_hc32(ehci, QTD_TOGGLE) & qh->hw_token)
+			scratch, hc32_to_cpup(ehci, &hw->hw_info2),
+			hc32_to_cpup(ehci, &hw->hw_token), mark,
+			(cpu_to_hc32(ehci, QTD_TOGGLE) & hw->hw_token)
 				? "data1" : "data0",
-			(hc32_to_cpup(ehci, &qh->hw_alt_next) >> 1) & 0x0f);
+			(hc32_to_cpup(ehci, &hw->hw_alt_next) >> 1) & 0x0f);
 	size -= temp;
 	next += temp;
 
@@ -435,10 +479,10 @@ static void qh_lines (
 		mark = ' ';
 		if (hw_curr == td->qtd_dma)
 			mark = '*';
-		else if (qh->hw_qtd_next == cpu_to_hc32(ehci, td->qtd_dma))
+		else if (hw->hw_qtd_next == cpu_to_hc32(ehci, td->qtd_dma))
 			mark = '+';
 		else if (QTD_LENGTH (scratch)) {
-			if (td->hw_alt_next == ehci->async->hw_alt_next)
+			if (td->hw_alt_next == ehci->async->hw->hw_alt_next)
 				mark = '#';
 			else if (td->hw_alt_next != list_end)
 				mark = '/';
@@ -550,12 +594,15 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 		next += temp;
 
 		do {
+			struct ehci_qh_hw *hw;
+
 			switch (hc32_to_cpu(ehci, tag)) {
 			case Q_TYPE_QH:
+				hw = p.qh->hw;
 				temp = scnprintf (next, size, " qh%d-%04x/%p",
 						p.qh->period,
 						hc32_to_cpup(ehci,
-								&p.qh->hw_info2)
+							&hw->hw_info2)
 							/* uframe masks */
 							& (QH_CMASK | QH_SMASK),
 						p.qh);
@@ -576,7 +623,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 				/* show more info the first time around */
 				if (temp == seen_count) {
 					u32	scratch = hc32_to_cpup(ehci,
-							&p.qh->hw_info1);
+							&hw->hw_info1);
 					struct ehci_qtd	*qtd;
 					char		*type = "";
 
@@ -609,7 +656,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 				} else
 					temp = 0;
 				if (p.qh) {
-					tag = Q_NEXT_TYPE(ehci, p.qh->hw_next);
+					tag = Q_NEXT_TYPE(ehci, hw->hw_next);
 					p = p.qh->qh_next;
 				}
 				break;
@@ -669,7 +716,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	spin_lock_irqsave (&ehci->lock, flags);
 
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		size = scnprintf (next, size,
 			"bus %s, device %s\n"
 			"%s\n"
@@ -832,7 +879,7 @@ static int fill_buffer(struct debug_buffer *buf)
 	int ret = 0;
 
 	if (!buf->output_buf)
-		buf->output_buf = (char *)vmalloc(buf->alloc_size);
+		buf->output_buf = vmalloc(buf->alloc_size);
 
 	if (!buf->output_buf) {
 		ret = -ENOMEM;
@@ -879,8 +926,7 @@ static int debug_close(struct inode *inode, struct file *file)
 	struct debug_buffer *buf = file->private_data;
 
 	if (buf) {
-		if (buf->output_buf)
-			vfree(buf->output_buf);
+		vfree(buf->output_buf);
 		kfree(buf);
 	}
 
@@ -913,51 +959,127 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
+static int debug_lpm_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static int debug_lpm_close(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static ssize_t debug_lpm_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	/* TODO: show lpm stats */
+	return 0;
+}
+
+static ssize_t debug_lpm_write(struct file *file, const char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct usb_hcd		*hcd;
+	struct ehci_hcd		*ehci;
+	char buf[50];
+	size_t len;
+	u32 temp;
+	unsigned long port;
+	u32 __iomem	*portsc ;
+	u32 params;
+
+	hcd = bus_to_hcd(file->private_data);
+	ehci = hcd_to_ehci(hcd);
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+	if (len > 0 && buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+
+	if (strncmp(buf, "enable", 5) == 0) {
+		if (strict_strtoul(buf + 7, 10, &port))
+			return -EINVAL;
+		params = ehci_readl(ehci, &ehci->caps->hcs_params);
+		if (port > HCS_N_PORTS(params)) {
+			ehci_dbg(ehci, "ERR: LPM on bad port %lu\n", port);
+			return -ENODEV;
+		}
+		portsc = &ehci->regs->port_status[port-1];
+		temp = ehci_readl(ehci, portsc);
+		if (!(temp & PORT_DEV_ADDR)) {
+			ehci_dbg(ehci, "LPM: no device attached\n");
+			return -ENODEV;
+		}
+		temp |= PORT_LPM;
+		ehci_writel(ehci, temp, portsc);
+		printk(KERN_INFO "force enable LPM for port %lu\n", port);
+	} else if (strncmp(buf, "hird=", 5) == 0) {
+		unsigned long hird;
+		if (strict_strtoul(buf + 5, 16, &hird))
+			return -EINVAL;
+		printk(KERN_INFO "setting hird %s %lu\n", buf + 6, hird);
+		temp = ehci_readl(ehci, &ehci->regs->command);
+		temp &= ~CMD_HIRD;
+		temp |= hird << 24;
+		ehci_writel(ehci, temp, &ehci->regs->command);
+	} else if (strncmp(buf, "disable", 7) == 0) {
+		if (strict_strtoul(buf + 8, 10, &port))
+			return -EINVAL;
+		params = ehci_readl(ehci, &ehci->caps->hcs_params);
+		if (port > HCS_N_PORTS(params)) {
+			ehci_dbg(ehci, "ERR: LPM off bad port %lu\n", port);
+			return -ENODEV;
+		}
+		portsc = &ehci->regs->port_status[port-1];
+		temp = ehci_readl(ehci, portsc);
+		if (!(temp & PORT_DEV_ADDR)) {
+			ehci_dbg(ehci, "ERR: no device attached\n");
+			return -ENODEV;
+		}
+		temp &= ~PORT_LPM;
+		ehci_writel(ehci, temp, portsc);
+		printk(KERN_INFO "disabled LPM for port %lu\n", port);
+	} else
+		return -EOPNOTSUPP;
+	return count;
+}
+
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
 	struct usb_bus *bus = &ehci_to_hcd(ehci)->self;
 
 	ehci->debug_dir = debugfs_create_dir(bus->bus_name, ehci_debug_root);
 	if (!ehci->debug_dir)
-		goto dir_error;
+		return;
 
-	ehci->debug_async = debugfs_create_file("async", S_IRUGO,
-						ehci->debug_dir, bus,
-						&debug_async_fops);
-	if (!ehci->debug_async)
-		goto async_error;
+	if (!debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
+						&debug_async_fops))
+		goto file_error;
 
-	ehci->debug_periodic = debugfs_create_file("periodic", S_IRUGO,
-						   ehci->debug_dir, bus,
-						   &debug_periodic_fops);
-	if (!ehci->debug_periodic)
-		goto periodic_error;
+	if (!debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,
+						&debug_periodic_fops))
+		goto file_error;
 
-	ehci->debug_registers = debugfs_create_file("registers", S_IRUGO,
-						    ehci->debug_dir, bus,
-						    &debug_registers_fops);
-	if (!ehci->debug_registers)
-		goto registers_error;
+	if (!debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
+						    &debug_registers_fops))
+		goto file_error;
+
+	if (!debugfs_create_file("lpm", S_IRUGO|S_IWUSR, ehci->debug_dir, bus,
+						    &debug_lpm_fops))
+		goto file_error;
+
 	return;
 
-registers_error:
-	debugfs_remove(ehci->debug_periodic);
-periodic_error:
-	debugfs_remove(ehci->debug_async);
-async_error:
-	debugfs_remove(ehci->debug_dir);
-dir_error:
-	ehci->debug_periodic = NULL;
-	ehci->debug_async = NULL;
-	ehci->debug_dir = NULL;
+file_error:
+	debugfs_remove_recursive(ehci->debug_dir);
 }
 
 static inline void remove_debug_files (struct ehci_hcd *ehci)
 {
-	debugfs_remove(ehci->debug_registers);
-	debugfs_remove(ehci->debug_periodic);
-	debugfs_remove(ehci->debug_async);
-	debugfs_remove(ehci->debug_dir);
+	debugfs_remove_recursive(ehci->debug_dir);
 }
 
 #endif /* STUB_DEBUG_FILES */

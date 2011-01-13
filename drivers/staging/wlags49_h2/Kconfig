@@ -1,0 +1,11 @@
+config WLAGS49_H2
+	tristate "Agere Systems HERMES II Wireless PC Card Model 0110"
+	depends on WLAN && PCMCIA
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	---help---
+	Driver for wireless cards using Agere's HERMES II chipset
+	which are identified with Manufacture ID: 0156,0003
+	The software is a modified version of wl_lkm_722_abg.tar.gz
+	from the Agere Systems website, addapted for Ubuntu 9.04.

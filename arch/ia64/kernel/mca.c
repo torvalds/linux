@@ -85,6 +85,7 @@
 #include <linux/cpumask.h>
 #include <linux/kdebug.h>
 #include <linux/cpu.h>
+#include <linux/gfp.h>
 
 #include <asm/delay.h>
 #include <asm/machvec.h>
@@ -887,6 +888,65 @@ ia64_mca_modify_comm(const struct task_struct *previous_current)
 	memcpy(current->comm, comm, sizeof(current->comm));
 }
 
+static void
+finish_pt_regs(struct pt_regs *regs, struct ia64_sal_os_state *sos,
+		unsigned long *nat)
+{
+	const pal_min_state_area_t *ms = sos->pal_min_state;
+	const u64 *bank;
+
+	/* If ipsr.ic then use pmsa_{iip,ipsr,ifs}, else use
+	 * pmsa_{xip,xpsr,xfs}
+	 */
+	if (ia64_psr(regs)->ic) {
+		regs->cr_iip = ms->pmsa_iip;
+		regs->cr_ipsr = ms->pmsa_ipsr;
+		regs->cr_ifs = ms->pmsa_ifs;
+	} else {
+		regs->cr_iip = ms->pmsa_xip;
+		regs->cr_ipsr = ms->pmsa_xpsr;
+		regs->cr_ifs = ms->pmsa_xfs;
+
+		sos->iip = ms->pmsa_iip;
+		sos->ipsr = ms->pmsa_ipsr;
+		sos->ifs = ms->pmsa_ifs;
+	}
+	regs->pr = ms->pmsa_pr;
+	regs->b0 = ms->pmsa_br0;
+	regs->ar_rsc = ms->pmsa_rsc;
+	copy_reg(&ms->pmsa_gr[1-1], ms->pmsa_nat_bits, &regs->r1, nat);
+	copy_reg(&ms->pmsa_gr[2-1], ms->pmsa_nat_bits, &regs->r2, nat);
+	copy_reg(&ms->pmsa_gr[3-1], ms->pmsa_nat_bits, &regs->r3, nat);
+	copy_reg(&ms->pmsa_gr[8-1], ms->pmsa_nat_bits, &regs->r8, nat);
+	copy_reg(&ms->pmsa_gr[9-1], ms->pmsa_nat_bits, &regs->r9, nat);
+	copy_reg(&ms->pmsa_gr[10-1], ms->pmsa_nat_bits, &regs->r10, nat);
+	copy_reg(&ms->pmsa_gr[11-1], ms->pmsa_nat_bits, &regs->r11, nat);
+	copy_reg(&ms->pmsa_gr[12-1], ms->pmsa_nat_bits, &regs->r12, nat);
+	copy_reg(&ms->pmsa_gr[13-1], ms->pmsa_nat_bits, &regs->r13, nat);
+	copy_reg(&ms->pmsa_gr[14-1], ms->pmsa_nat_bits, &regs->r14, nat);
+	copy_reg(&ms->pmsa_gr[15-1], ms->pmsa_nat_bits, &regs->r15, nat);
+	if (ia64_psr(regs)->bn)
+		bank = ms->pmsa_bank1_gr;
+	else
+		bank = ms->pmsa_bank0_gr;
+	copy_reg(&bank[16-16], ms->pmsa_nat_bits, &regs->r16, nat);
+	copy_reg(&bank[17-16], ms->pmsa_nat_bits, &regs->r17, nat);
+	copy_reg(&bank[18-16], ms->pmsa_nat_bits, &regs->r18, nat);
+	copy_reg(&bank[19-16], ms->pmsa_nat_bits, &regs->r19, nat);
+	copy_reg(&bank[20-16], ms->pmsa_nat_bits, &regs->r20, nat);
+	copy_reg(&bank[21-16], ms->pmsa_nat_bits, &regs->r21, nat);
+	copy_reg(&bank[22-16], ms->pmsa_nat_bits, &regs->r22, nat);
+	copy_reg(&bank[23-16], ms->pmsa_nat_bits, &regs->r23, nat);
+	copy_reg(&bank[24-16], ms->pmsa_nat_bits, &regs->r24, nat);
+	copy_reg(&bank[25-16], ms->pmsa_nat_bits, &regs->r25, nat);
+	copy_reg(&bank[26-16], ms->pmsa_nat_bits, &regs->r26, nat);
+	copy_reg(&bank[27-16], ms->pmsa_nat_bits, &regs->r27, nat);
+	copy_reg(&bank[28-16], ms->pmsa_nat_bits, &regs->r28, nat);
+	copy_reg(&bank[29-16], ms->pmsa_nat_bits, &regs->r29, nat);
+	copy_reg(&bank[30-16], ms->pmsa_nat_bits, &regs->r30, nat);
+	copy_reg(&bank[31-16], ms->pmsa_nat_bits, &regs->r31, nat);
+}
+
 /* On entry to this routine, we are running on the per cpu stack, see
  * mca_asm.h.  The original stack has not been touched by this event.  Some of
  * the original stack's registers will be in the RBS on this stack.  This stack
@@ -921,7 +981,6 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	u64 r12 = ms->pmsa_gr[12-1], r13 = ms->pmsa_gr[13-1];
 	u64 ar_bspstore = regs->ar_bspstore;
 	u64 ar_bsp = regs->ar_bspstore + (loadrs >> 16);
-	const u64 *bank;
 	const char *msg;
 	int cpu = smp_processor_id();
 
@@ -1024,54 +1083,9 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	p = (char *)r12 - sizeof(*regs);
 	old_regs = (struct pt_regs *)p;
 	memcpy(old_regs, regs, sizeof(*regs));
-	/* If ipsr.ic then use pmsa_{iip,ipsr,ifs}, else use
-	 * pmsa_{xip,xpsr,xfs}
-	 */
-	if (ia64_psr(regs)->ic) {
-		old_regs->cr_iip = ms->pmsa_iip;
-		old_regs->cr_ipsr = ms->pmsa_ipsr;
-		old_regs->cr_ifs = ms->pmsa_ifs;
-	} else {
-		old_regs->cr_iip = ms->pmsa_xip;
-		old_regs->cr_ipsr = ms->pmsa_xpsr;
-		old_regs->cr_ifs = ms->pmsa_xfs;
-	}
-	old_regs->pr = ms->pmsa_pr;
-	old_regs->b0 = ms->pmsa_br0;
 	old_regs->loadrs = loadrs;
-	old_regs->ar_rsc = ms->pmsa_rsc;
 	old_unat = old_regs->ar_unat;
-	copy_reg(&ms->pmsa_gr[1-1], ms->pmsa_nat_bits, &old_regs->r1, &old_unat);
-	copy_reg(&ms->pmsa_gr[2-1], ms->pmsa_nat_bits, &old_regs->r2, &old_unat);
-	copy_reg(&ms->pmsa_gr[3-1], ms->pmsa_nat_bits, &old_regs->r3, &old_unat);
-	copy_reg(&ms->pmsa_gr[8-1], ms->pmsa_nat_bits, &old_regs->r8, &old_unat);
-	copy_reg(&ms->pmsa_gr[9-1], ms->pmsa_nat_bits, &old_regs->r9, &old_unat);
-	copy_reg(&ms->pmsa_gr[10-1], ms->pmsa_nat_bits, &old_regs->r10, &old_unat);
-	copy_reg(&ms->pmsa_gr[11-1], ms->pmsa_nat_bits, &old_regs->r11, &old_unat);
-	copy_reg(&ms->pmsa_gr[12-1], ms->pmsa_nat_bits, &old_regs->r12, &old_unat);
-	copy_reg(&ms->pmsa_gr[13-1], ms->pmsa_nat_bits, &old_regs->r13, &old_unat);
-	copy_reg(&ms->pmsa_gr[14-1], ms->pmsa_nat_bits, &old_regs->r14, &old_unat);
-	copy_reg(&ms->pmsa_gr[15-1], ms->pmsa_nat_bits, &old_regs->r15, &old_unat);
-	if (ia64_psr(old_regs)->bn)
-		bank = ms->pmsa_bank1_gr;
-	else
-		bank = ms->pmsa_bank0_gr;
-	copy_reg(&bank[16-16], ms->pmsa_nat_bits, &old_regs->r16, &old_unat);
-	copy_reg(&bank[17-16], ms->pmsa_nat_bits, &old_regs->r17, &old_unat);
-	copy_reg(&bank[18-16], ms->pmsa_nat_bits, &old_regs->r18, &old_unat);
-	copy_reg(&bank[19-16], ms->pmsa_nat_bits, &old_regs->r19, &old_unat);
-	copy_reg(&bank[20-16], ms->pmsa_nat_bits, &old_regs->r20, &old_unat);
-	copy_reg(&bank[21-16], ms->pmsa_nat_bits, &old_regs->r21, &old_unat);
-	copy_reg(&bank[22-16], ms->pmsa_nat_bits, &old_regs->r22, &old_unat);
-	copy_reg(&bank[23-16], ms->pmsa_nat_bits, &old_regs->r23, &old_unat);
-	copy_reg(&bank[24-16], ms->pmsa_nat_bits, &old_regs->r24, &old_unat);
-	copy_reg(&bank[25-16], ms->pmsa_nat_bits, &old_regs->r25, &old_unat);
-	copy_reg(&bank[26-16], ms->pmsa_nat_bits, &old_regs->r26, &old_unat);
-	copy_reg(&bank[27-16], ms->pmsa_nat_bits, &old_regs->r27, &old_unat);
-	copy_reg(&bank[28-16], ms->pmsa_nat_bits, &old_regs->r28, &old_unat);
-	copy_reg(&bank[29-16], ms->pmsa_nat_bits, &old_regs->r29, &old_unat);
-	copy_reg(&bank[30-16], ms->pmsa_nat_bits, &old_regs->r30, &old_unat);
-	copy_reg(&bank[31-16], ms->pmsa_nat_bits, &old_regs->r31, &old_unat);
+	finish_pt_regs(old_regs, sos, &old_unat);
 
 	/* Next stack a struct switch_stack.  mca_asm.S built a partial
 	 * switch_stack, copy it and fill in the blanks using pt_regs and
@@ -1141,6 +1155,8 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 no_mod:
 	mprintk(KERN_INFO "cpu %d, %s %s, original stack not modified\n",
 			smp_processor_id(), type, msg);
+	old_unat = regs->ar_unat;
+	finish_pt_regs(regs, sos, &old_unat);
 	return previous_current;
 }
 
@@ -1210,9 +1226,12 @@ static void mca_insert_tr(u64 iord)
 	unsigned long psr;
 	int cpu = smp_processor_id();
 
+	if (!ia64_idtrs[cpu])
+		return;
+
 	psr = ia64_clear_ic();
 	for (i = IA64_TR_ALLOC_BASE; i < IA64_TR_ALLOC_MAX; i++) {
-		p = &__per_cpu_idtrs[cpu][iord-1][i];
+		p = ia64_idtrs[cpu] + (iord - 1) * IA64_TR_ALLOC_MAX;
 		if (p->pte & 0x1) {
 			old_rr = ia64_get_rr(p->ifa);
 			if (old_rr != p->rr) {
@@ -1682,14 +1701,25 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 
 	if (!sos->monarch) {
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_INIT;
+
+#ifdef CONFIG_KEXEC
+		while (monarch_cpu == -1 && !atomic_read(&kdump_in_progress))
+			udelay(1000);
+#else
 		while (monarch_cpu == -1)
-		       cpu_relax();	/* spin until monarch enters */
+			cpu_relax();	/* spin until monarch enters */
+#endif
 
 		NOTIFY_INIT(DIE_INIT_SLAVE_ENTER, regs, (long)&nd, 1);
 		NOTIFY_INIT(DIE_INIT_SLAVE_PROCESS, regs, (long)&nd, 1);
 
+#ifdef CONFIG_KEXEC
+		while (monarch_cpu != -1 && !atomic_read(&kdump_in_progress))
+			udelay(1000);
+#else
 		while (monarch_cpu != -1)
-		       cpu_relax();	/* spin until monarch leaves */
+			cpu_relax();	/* spin until monarch leaves */
+#endif
 
 		NOTIFY_INIT(DIE_INIT_SLAVE_LEAVE, regs, (long)&nd, 1);
 
@@ -2025,25 +2055,6 @@ ia64_mca_init(void)
 
 	IA64_MCA_DEBUG("%s: registered OS INIT handler with SAL\n", __func__);
 
-	/*
-	 *  Configure the CMCI/P vector and handler. Interrupts for CMC are
-	 *  per-processor, so AP CMC interrupts are setup in smp_callin() (smpboot.c).
-	 */
-	register_percpu_irq(IA64_CMC_VECTOR, &cmci_irqaction);
-	register_percpu_irq(IA64_CMCP_VECTOR, &cmcp_irqaction);
-	ia64_mca_cmc_vector_setup();       /* Setup vector on BSP */
-
-	/* Setup the MCA rendezvous interrupt vector */
-	register_percpu_irq(IA64_MCA_RENDEZ_VECTOR, &mca_rdzv_irqaction);
-
-	/* Setup the MCA wakeup interrupt vector */
-	register_percpu_irq(IA64_MCA_WAKEUP_VECTOR, &mca_wkup_irqaction);
-
-#ifdef CONFIG_ACPI
-	/* Setup the CPEI/P handler */
-	register_percpu_irq(IA64_CPEP_VECTOR, &mca_cpep_irqaction);
-#endif
-
 	/* Initialize the areas set aside by the OS to buffer the
 	 * platform/processor error states for MCA/INIT/CMC
 	 * handling.
@@ -2072,6 +2083,25 @@ ia64_mca_late_init(void)
 {
 	if (!mca_init)
 		return 0;
+
+	/*
+	 *  Configure the CMCI/P vector and handler. Interrupts for CMC are
+	 *  per-processor, so AP CMC interrupts are setup in smp_callin() (smpboot.c).
+	 */
+	register_percpu_irq(IA64_CMC_VECTOR, &cmci_irqaction);
+	register_percpu_irq(IA64_CMCP_VECTOR, &cmcp_irqaction);
+	ia64_mca_cmc_vector_setup();       /* Setup vector on BSP */
+
+	/* Setup the MCA rendezvous interrupt vector */
+	register_percpu_irq(IA64_MCA_RENDEZ_VECTOR, &mca_rdzv_irqaction);
+
+	/* Setup the MCA wakeup interrupt vector */
+	register_percpu_irq(IA64_MCA_WAKEUP_VECTOR, &mca_wkup_irqaction);
+
+#ifdef CONFIG_ACPI
+	/* Setup the CPEI/P handler */
+	register_percpu_irq(IA64_CPEP_VECTOR, &mca_cpep_irqaction);
+#endif
 
 	register_hotcpu_notifier(&mca_cpu_notifier);
 

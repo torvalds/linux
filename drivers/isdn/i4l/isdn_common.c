@@ -14,9 +14,10 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/isdn.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include "isdn_common.h"
 #include "isdn_tty.h"
 #include "isdn_net.h"
@@ -41,6 +42,7 @@ MODULE_LICENSE("GPL");
 
 isdn_dev *dev;
 
+static DEFINE_MUTEX(isdn_mutex);
 static char *isdn_revision = "$Revision: 1.1.2.3 $";
 
 extern char *isdn_net_revision;
@@ -761,7 +763,7 @@ isdn_getnum(char **p)
  * Be aware that this is not an atomic operation when sleep != 0, even though 
  * interrupts are turned off! Well, like that we are currently only called
  * on behalf of a read system call on raw device files (which are documented
- * to be dangerous and for for debugging purpose only). The inode semaphore
+ * to be dangerous and for debugging purpose only). The inode semaphore
  * takes care that this is not called for the same minor device number while
  * we are sleeping, but access is not serialized against simultaneous read()
  * from the corresponding ttyI device. Can other ugly events, like changes
@@ -873,7 +875,7 @@ isdn_readbchan(int di, int channel, u_char * buf, u_char * fp, int len, wait_que
  * Be aware that this is not an atomic operation when sleep != 0, even though
  * interrupts are turned off! Well, like that we are currently only called
  * on behalf of a read system call on raw device files (which are documented
- * to be dangerous and for for debugging purpose only). The inode semaphore
+ * to be dangerous and for debugging purpose only). The inode semaphore
  * takes care that this is not called for the same minor device number while
  * we are sleeping, but access is not serialized against simultaneous read()
  * from the corresponding ttyI device. Can other ugly events, like changes
@@ -1069,7 +1071,7 @@ isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 	int retval;
 	char *p;
 
-	lock_kernel();
+	mutex_lock(&isdn_mutex);
 	if (minor == ISDN_MINOR_STATUS) {
 		if (!file->private_data) {
 			if (file->f_flags & O_NONBLOCK) {
@@ -1162,7 +1164,7 @@ isdn_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 #endif
 	retval = -ENODEV;
  out:
-	unlock_kernel();
+	mutex_unlock(&isdn_mutex);
 	return retval;
 }
 
@@ -1179,7 +1181,7 @@ isdn_write(struct file *file, const char __user *buf, size_t count, loff_t * off
 	if (!dev->drivers)
 		return -ENODEV;
 
-	lock_kernel();
+	mutex_lock(&isdn_mutex);
 	if (minor <= ISDN_MINOR_BMAX) {
 		printk(KERN_WARNING "isdn_write minor %d obsolete!\n", minor);
 		drvidx = isdn_minor2drv(minor);
@@ -1224,7 +1226,7 @@ isdn_write(struct file *file, const char __user *buf, size_t count, loff_t * off
 #endif
 	retval = -ENODEV;
  out:
-	unlock_kernel();
+	mutex_unlock(&isdn_mutex);
 	return retval;
 }
 
@@ -1235,7 +1237,7 @@ isdn_poll(struct file *file, poll_table * wait)
 	unsigned int minor = iminor(file->f_path.dentry->d_inode);
 	int drvidx = isdn_minor2drv(minor - ISDN_MINOR_CTRL);
 
-	lock_kernel();
+	mutex_lock(&isdn_mutex);
 	if (minor == ISDN_MINOR_STATUS) {
 		poll_wait(file, &(dev->info_waitq), wait);
 		/* mask = POLLOUT | POLLWRNORM; */
@@ -1265,15 +1267,15 @@ isdn_poll(struct file *file, poll_table * wait)
 #endif
 	mask = POLLERR;
  out:
-	unlock_kernel();
+	mutex_unlock(&isdn_mutex);
 	return mask;
 }
 
 
 static int
-isdn_ioctl(struct inode *inode, struct file *file, uint cmd, ulong arg)
+isdn_ioctl(struct file *file, uint cmd, ulong arg)
 {
-	uint minor = iminor(inode);
+	uint minor = iminor(file->f_path.dentry->d_inode);
 	isdn_ctrl c;
 	int drvidx;
 	int chidx;
@@ -1347,7 +1349,7 @@ isdn_ioctl(struct inode *inode, struct file *file, uint cmd, ulong arg)
 /*
  * isdn net devices manage lots of configuration variables as linked lists.
  * Those lists must only be manipulated from user space. Some of the ioctl's
- * service routines access user space and are not atomic. Therefor, ioctl's
+ * service routines access user space and are not atomic. Therefore, ioctl's
  * manipulating the lists and ioctl's sleeping while accessing the lists
  * are serialized by means of a semaphore.
  */
@@ -1721,6 +1723,18 @@ isdn_ioctl(struct inode *inode, struct file *file, uint cmd, ulong arg)
 #undef cfg
 }
 
+static long
+isdn_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&isdn_mutex);
+	ret = isdn_ioctl(file, cmd, arg);
+	mutex_unlock(&isdn_mutex);
+
+	return ret;
+}
+
 /*
  * Open the device code.
  */
@@ -1732,7 +1746,7 @@ isdn_open(struct inode *ino, struct file *filep)
 	int chidx;
 	int retval = -ENODEV;
 
-	lock_kernel();
+	mutex_lock(&isdn_mutex);
 	if (minor == ISDN_MINOR_STATUS) {
 		infostruct *p;
 
@@ -1783,7 +1797,7 @@ isdn_open(struct inode *ino, struct file *filep)
 #endif
  out:
 	nonseekable_open(ino, filep);
-	unlock_kernel();
+	mutex_unlock(&isdn_mutex);
 	return retval;
 }
 
@@ -1792,7 +1806,7 @@ isdn_close(struct inode *ino, struct file *filep)
 {
 	uint minor = iminor(ino);
 
-	lock_kernel();
+	mutex_lock(&isdn_mutex);
 	if (minor == ISDN_MINOR_STATUS) {
 		infostruct *p = dev->infochain;
 		infostruct *q = NULL;
@@ -1826,7 +1840,7 @@ isdn_close(struct inode *ino, struct file *filep)
 #endif
 
  out:
-	unlock_kernel();
+	mutex_unlock(&isdn_mutex);
 	return 0;
 }
 
@@ -1837,7 +1851,7 @@ static const struct file_operations isdn_fops =
 	.read		= isdn_read,
 	.write		= isdn_write,
 	.poll		= isdn_poll,
-	.ioctl		= isdn_ioctl,
+	.unlocked_ioctl	= isdn_unlocked_ioctl,
 	.open		= isdn_open,
 	.release	= isdn_close,
 };

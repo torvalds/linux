@@ -152,7 +152,7 @@ static void ps3_chip_eoi(unsigned int virq)
  */
 
 static struct irq_chip ps3_irq_chip = {
-	.typename = "ps3",
+	.name = "ps3",
 	.mask = ps3_chip_mask,
 	.unmask = ps3_chip_unmask,
 	.eoi = ps3_chip_eoi,

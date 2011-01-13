@@ -21,6 +21,7 @@
 #include <linux/percpu.h>
 #include <linux/timer.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
 
@@ -41,7 +42,7 @@ static void send_dm_alert(struct work_struct *unused);
  * netlink alerts
  */
 static int trace_state = TRACE_OFF;
-static spinlock_t trace_state_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(trace_state_lock);
 
 struct per_cpu_dm_data {
 	struct work_struct dm_alert_work;
@@ -52,6 +53,7 @@ struct per_cpu_dm_data {
 
 struct dm_hw_stat_delta {
 	struct net_device *dev;
+	unsigned long last_rx;
 	struct list_head list;
 	struct rcu_head rcu;
 	unsigned long last_drop_val;
@@ -170,27 +172,35 @@ out:
 	return;
 }
 
-static void trace_kfree_skb_hit(struct sk_buff *skb, void *location)
+static void trace_kfree_skb_hit(void *ignore, struct sk_buff *skb, void *location)
 {
 	trace_drop_common(skb, location);
 }
 
-static void trace_napi_poll_hit(struct napi_struct *napi)
+static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi)
 {
 	struct dm_hw_stat_delta *new_stat;
 
 	/*
-	 * Ratelimit our check time to dm_hw_check_delta jiffies
+	 * Don't check napi structures with no associated device
 	 */
-	if (!time_after(jiffies, napi->dev->last_rx + dm_hw_check_delta))
+	if (!napi->dev)
 		return;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(new_stat, &hw_stats_list, list) {
+		/*
+		 * only add a note to our monitor buffer if:
+		 * 1) this is the dev we received on
+		 * 2) its after the last_rx delta
+		 * 3) our rx_dropped count has gone up
+		 */
 		if ((new_stat->dev == napi->dev)  &&
+		    (time_after(jiffies, new_stat->last_rx + dm_hw_check_delta)) &&
 		    (napi->dev->stats.rx_dropped != new_stat->last_drop_val)) {
 			trace_drop_common(NULL, NULL);
 			new_stat->last_drop_val = napi->dev->stats.rx_dropped;
+			new_stat->last_rx = jiffies;
 			break;
 		}
 	}
@@ -213,14 +223,19 @@ static int set_all_monitor_traces(int state)
 
 	spin_lock(&trace_state_lock);
 
+	if (state == trace_state) {
+		rc = -EAGAIN;
+		goto out_unlock;
+	}
+
 	switch (state) {
 	case TRACE_ON:
-		rc |= register_trace_kfree_skb(trace_kfree_skb_hit);
-		rc |= register_trace_napi_poll(trace_napi_poll_hit);
+		rc |= register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+		rc |= register_trace_napi_poll(trace_napi_poll_hit, NULL);
 		break;
 	case TRACE_OFF:
-		rc |= unregister_trace_kfree_skb(trace_kfree_skb_hit);
-		rc |= unregister_trace_napi_poll(trace_napi_poll_hit);
+		rc |= unregister_trace_kfree_skb(trace_kfree_skb_hit, NULL);
+		rc |= unregister_trace_napi_poll(trace_napi_poll_hit, NULL);
 
 		tracepoint_synchronize_unregister();
 
@@ -241,11 +256,12 @@ static int set_all_monitor_traces(int state)
 
 	if (!rc)
 		trace_state = state;
+	else
+		rc = -EINPROGRESS;
 
+out_unlock:
 	spin_unlock(&trace_state_lock);
 
-	if (rc)
-		return -EINPROGRESS;
 	return rc;
 }
 
@@ -286,7 +302,7 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 			goto out;
 
 		new_stat->dev = dev;
-		INIT_RCU_HEAD(&new_stat->rcu);
+		new_stat->last_rx = jiffies;
 		spin_lock(&trace_state_lock);
 		list_add_rcu(&new_stat->list, &hw_stats_list);
 		spin_unlock(&trace_state_lock);
@@ -331,9 +347,9 @@ static struct notifier_block dropmon_net_notifier = {
 
 static int __init init_net_drop_monitor(void)
 {
-	int cpu;
-	int rc, i, ret;
 	struct per_cpu_dm_data *data;
+	int cpu, rc;
+
 	printk(KERN_INFO "Initalizing network drop monitor service\n");
 
 	if (sizeof(void *) > 8) {
@@ -341,21 +357,12 @@ static int __init init_net_drop_monitor(void)
 		return -ENOSPC;
 	}
 
-	if (genl_register_family(&net_drop_monitor_family) < 0) {
+	rc = genl_register_family_with_ops(&net_drop_monitor_family,
+					   dropmon_ops,
+					   ARRAY_SIZE(dropmon_ops));
+	if (rc) {
 		printk(KERN_ERR "Could not create drop monitor netlink family\n");
-		return -EFAULT;
-	}
-
-	rc = -EFAULT;
-
-	for (i = 0; i < ARRAY_SIZE(dropmon_ops); i++) {
-		ret = genl_register_ops(&net_drop_monitor_family,
-					&dropmon_ops[i]);
-		if (ret) {
-			printk(KERN_CRIT "Failed to register operation %d\n",
-				dropmon_ops[i].cmd);
-			goto out_unreg;
-		}
+		return rc;
 	}
 
 	rc = register_netdevice_notifier(&dropmon_net_notifier);

@@ -85,7 +85,7 @@ struct fscache_cookie_def {
 
 	/* get an index key
 	 * - should store the key data in the buffer
-	 * - should return the amount of amount stored
+	 * - should return the amount of data stored
 	 * - not permitted to return an error
 	 * - the netfs data from the cookie being used as the source is
 	 *   presented
@@ -202,6 +202,8 @@ extern int __fscache_write_page(struct fscache_cookie *, struct page *, gfp_t);
 extern void __fscache_uncache_page(struct fscache_cookie *, struct page *);
 extern bool __fscache_check_page_write(struct fscache_cookie *, struct page *);
 extern void __fscache_wait_on_page_write(struct fscache_cookie *, struct page *);
+extern bool __fscache_maybe_release_page(struct fscache_cookie *, struct page *,
+					 gfp_t);
 
 /**
  * fscache_register_netfs - Register a filesystem as desiring caching services
@@ -452,6 +454,7 @@ int fscache_read_or_alloc_page(struct fscache_cookie *cookie,
  * @cookie: The cookie representing the cache object
  * @mapping: The netfs inode mapping to which the pages will be attached
  * @pages: A list of potential netfs pages to be filled
+ * @nr_pages: Number of pages to be read and/or allocated
  * @end_io_func: The callback to invoke when and if each page is filled
  * @context: An arbitrary piece of data to pass on to end_io_func()
  * @gfp: The conditions under which memory allocation should be made
@@ -613,6 +616,31 @@ void fscache_wait_on_page_write(struct fscache_cookie *cookie,
 {
 	if (fscache_cookie_valid(cookie))
 		__fscache_wait_on_page_write(cookie, page);
+}
+
+/**
+ * fscache_maybe_release_page - Consider releasing a page, cancelling a store
+ * @cookie: The cookie representing the cache object
+ * @page: The netfs page that is being cached.
+ * @gfp: The gfp flags passed to releasepage()
+ *
+ * Consider releasing a page for the vmscan algorithm, on behalf of the netfs's
+ * releasepage() call.  A storage request on the page may cancelled if it is
+ * not currently being processed.
+ *
+ * The function returns true if the page no longer has a storage request on it,
+ * and false if a storage request is left in place.  If true is returned, the
+ * page will have been passed to fscache_uncache_page().  If false is returned
+ * the page cannot be freed yet.
+ */
+static inline
+bool fscache_maybe_release_page(struct fscache_cookie *cookie,
+				struct page *page,
+				gfp_t gfp)
+{
+	if (fscache_cookie_valid(cookie) && PageFsCache(page))
+		return __fscache_maybe_release_page(cookie, page, gfp);
+	return false;
 }
 
 #endif /* _LINUX_FSCACHE_H */

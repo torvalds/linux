@@ -375,7 +375,7 @@ static void vbi_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 
 static int vbi_open(struct saa7146_dev *dev, struct file *file)
 {
-	struct saa7146_fh *fh = (struct saa7146_fh *)file->private_data;
+	struct saa7146_fh *fh = file->private_data;
 
 	u32 arbtr_ctrl	= saa7146_read(dev, PCI_BT_V1);
 	int ret = 0;
@@ -412,7 +412,7 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB, // FIXME: does this really work?
 			    sizeof(struct saa7146_buf),
-			    file);
+			    file, NULL);
 
 	init_timer(&fh->vbi_read_timeout);
 	fh->vbi_read_timeout.function = vbi_read_timeout;
@@ -437,7 +437,7 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 
 static void vbi_close(struct saa7146_dev *dev, struct file *file)
 {
-	struct saa7146_fh *fh = (struct saa7146_fh *)file->private_data;
+	struct saa7146_fh *fh = file->private_data;
 	struct saa7146_vv *vv = dev->vv_data;
 	DEB_VBI(("dev:%p, fh:%p\n",dev,fh));
 

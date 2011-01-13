@@ -20,6 +20,8 @@
 #ifndef _FC_GS_H_
 #define	_FC_GS_H_
 
+#include <linux/types.h>
+
 /*
  * Fibre Channel Services - Common Transport.
  * From T11.org FC-GS-2 Rev 5.3 November 1998.
@@ -87,6 +89,7 @@ enum fc_ct_explan {
 	FC_FS_EXP_PNAM =	0x02,	/* port name not registered */
 	FC_FS_EXP_NNAM =	0x03,	/* node name not registered */
 	FC_FS_EXP_COS =		0x04,	/* class of service not registered */
+	FC_FS_EXP_FTNR =	0x07,	/* FC-4 types not registered */
 	/* definitions not complete */
 };
 

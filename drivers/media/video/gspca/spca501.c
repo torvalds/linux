@@ -59,7 +59,7 @@ static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 #define MY_BRIGHTNESS 0
 	{
 	    {
@@ -1636,7 +1636,7 @@ static const __u16 spca501c_arowana_init_data[][3] = {
 	{}
 };
 
-/* Unknow camera from Ori Usbid 0x0000:0x0000 */
+/* Unknown camera from Ori Usbid 0x0000:0x0000 */
 /* Based on snoops from Ori Cohen */
 static const __u16 spca501c_mysterious_open_data[][3] = {
 	{0x02, 0x000f, 0x0005},
@@ -1724,7 +1724,7 @@ static const __u16 spca501c_mysterious_init_data[][3] = {
 	{0x00, 0x0000, 0x0048},
 	{0x00, 0x0000, 0x0049},
 	{0x00, 0x0008, 0x004a},
-/* DSP Registers	 */
+/* DSP Registers	*/
 	{0x01, 0x00a6, 0x0000},
 	{0x01, 0x0028, 0x0001},
 	{0x01, 0x0000, 0x0002},
@@ -1788,7 +1788,7 @@ static const __u16 spca501c_mysterious_init_data[][3] = {
 	{0x05, 0x0022, 0x0004},
 	{0x05, 0x0025, 0x0001},
 	{0x05, 0x0000, 0x0000},
-/* Part 4             */
+/* Part 4 */
 	{0x05, 0x0026, 0x0001},
 	{0x05, 0x0001, 0x0000},
 	{0x05, 0x0027, 0x0001},
@@ -1806,7 +1806,7 @@ static const __u16 spca501c_mysterious_init_data[][3] = {
 	{0x05, 0x0001, 0x0000},
 	{0x05, 0x0027, 0x0001},
 	{0x05, 0x004e, 0x0000},
-/* Part 5        	 */
+/* Part 5 */
 	{0x01, 0x0003, 0x003f},
 	{0x01, 0x0001, 0x0056},
 	{0x01, 0x000f, 0x0008},
@@ -1852,7 +1852,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write: 0x%02x 0x%02x 0x%02x",
 		req, index, value);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -1923,7 +1923,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
-	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+	cam->nmodes = ARRAY_SIZE(vga_mode);
 	sd->subtype = id->driver_info;
 	sd->brightness = sd_ctrls[MY_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[MY_CONTRAST].qctrl.default_value;
@@ -1945,7 +1945,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			goto error;
 		break;
 	case MystFromOriUnknownCamera:
-		/* UnKnow Ori CMOS Camera data */
+		/* Unknown Ori CMOS Camera data */
 		if (write_vector(gspca_dev, spca501c_mysterious_open_data))
 			goto error;
 		break;
@@ -1978,7 +1978,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		write_vector(gspca_dev, spca501c_arowana_open_data);
 		break;
 	case MystFromOriUnknownCamera:
-		/* UnKnow  CMOS Camera data */
+		/* Unknown CMOS Camera data */
 		write_vector(gspca_dev, spca501c_mysterious_init_data);
 		break;
 	default:
@@ -2032,20 +2032,15 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	switch (data[0]) {
 	case 0:				/* start of frame */
-		frame = gspca_frame_add(gspca_dev,
-					LAST_PACKET,
-					frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		data += SPCA501_OFFSET_DATA;
 		len -= SPCA501_OFFSET_DATA;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		return;
 	case 0xff:			/* drop */
 /*		gspca_dev->last_packet_type = DISCARD_PACKET; */
@@ -2053,8 +2048,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 	data++;
 	len--;
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-			data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -2195,17 +2189,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

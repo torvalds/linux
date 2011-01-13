@@ -29,7 +29,7 @@
 #include <linux/poll.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
-#include <linux/marker.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/time.h>
@@ -38,6 +38,7 @@
 #include <asm/uaccess.h>
 
 #include "spufs.h"
+#include "sputrace.h"
 
 #define SPUFS_MMAP_4K (PAGE_SIZE == 0x1000)
 
@@ -147,12 +148,13 @@ static int __fops ## _open(struct inode *inode, struct file *file)	\
 	__simple_attr_check_format(__fmt, 0ull);			\
 	return spufs_attr_open(inode, file, __get, __set, __fmt);	\
 }									\
-static struct file_operations __fops = {				\
+static const struct file_operations __fops = {				\
 	.owner	 = THIS_MODULE,						\
 	.open	 = __fops ## _open,					\
 	.release = spufs_attr_release,					\
 	.read	 = spufs_attr_read,					\
 	.write	 = spufs_attr_write,					\
+	.llseek  = generic_file_llseek,					\
 };
 
 
@@ -309,7 +311,7 @@ static int spufs_mem_mmap_access(struct vm_area_struct *vma,
 	return len;
 }
 
-static struct vm_operations_struct spufs_mem_mmap_vmops = {
+static const struct vm_operations_struct spufs_mem_mmap_vmops = {
 	.fault = spufs_mem_mmap_fault,
 	.access = spufs_mem_mmap_access,
 };
@@ -436,7 +438,7 @@ static int spufs_cntl_mmap_fault(struct vm_area_struct *vma,
 	return spufs_ps_fault(vma, vmf, 0x4000, SPUFS_CNTL_MAP_SIZE);
 }
 
-static struct vm_operations_struct spufs_cntl_mmap_vmops = {
+static const struct vm_operations_struct spufs_cntl_mmap_vmops = {
 	.fault = spufs_cntl_mmap_fault,
 };
 
@@ -520,6 +522,7 @@ static const struct file_operations spufs_cntl_fops = {
 	.release = spufs_cntl_release,
 	.read = simple_attr_read,
 	.write = simple_attr_write,
+	.llseek	= generic_file_llseek,
 	.mmap = spufs_cntl_mmap,
 };
 
@@ -713,6 +716,7 @@ static ssize_t spufs_mbox_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_mbox_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_mbox_read,
+	.llseek	= no_llseek,
 };
 
 static ssize_t spufs_mbox_stat_read(struct file *file, char __user *buf,
@@ -742,6 +746,7 @@ static ssize_t spufs_mbox_stat_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_mbox_stat_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_mbox_stat_read,
+	.llseek = no_llseek,
 };
 
 /* low-level ibox access function */
@@ -862,6 +867,7 @@ static const struct file_operations spufs_ibox_fops = {
 	.read	= spufs_ibox_read,
 	.poll	= spufs_ibox_poll,
 	.fasync	= spufs_ibox_fasync,
+	.llseek = no_llseek,
 };
 
 static ssize_t spufs_ibox_stat_read(struct file *file, char __user *buf,
@@ -889,6 +895,7 @@ static ssize_t spufs_ibox_stat_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_ibox_stat_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_ibox_stat_read,
+	.llseek = no_llseek,
 };
 
 /* low-level mailbox write */
@@ -1010,6 +1017,7 @@ static const struct file_operations spufs_wbox_fops = {
 	.write	= spufs_wbox_write,
 	.poll	= spufs_wbox_poll,
 	.fasync	= spufs_wbox_fasync,
+	.llseek = no_llseek,
 };
 
 static ssize_t spufs_wbox_stat_read(struct file *file, char __user *buf,
@@ -1037,6 +1045,7 @@ static ssize_t spufs_wbox_stat_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_wbox_stat_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_wbox_stat_read,
+	.llseek = no_llseek,
 };
 
 static int spufs_signal1_open(struct inode *inode, struct file *file)
@@ -1143,7 +1152,7 @@ spufs_signal1_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 #endif
 }
 
-static struct vm_operations_struct spufs_signal1_mmap_vmops = {
+static const struct vm_operations_struct spufs_signal1_mmap_vmops = {
 	.fault = spufs_signal1_mmap_fault,
 };
 
@@ -1165,6 +1174,7 @@ static const struct file_operations spufs_signal1_fops = {
 	.read = spufs_signal1_read,
 	.write = spufs_signal1_write,
 	.mmap = spufs_signal1_mmap,
+	.llseek = no_llseek,
 };
 
 static const struct file_operations spufs_signal1_nosched_fops = {
@@ -1172,6 +1182,7 @@ static const struct file_operations spufs_signal1_nosched_fops = {
 	.release = spufs_signal1_release,
 	.write = spufs_signal1_write,
 	.mmap = spufs_signal1_mmap,
+	.llseek = no_llseek,
 };
 
 static int spufs_signal2_open(struct inode *inode, struct file *file)
@@ -1279,7 +1290,7 @@ spufs_signal2_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 #endif
 }
 
-static struct vm_operations_struct spufs_signal2_mmap_vmops = {
+static const struct vm_operations_struct spufs_signal2_mmap_vmops = {
 	.fault = spufs_signal2_mmap_fault,
 };
 
@@ -1304,6 +1315,7 @@ static const struct file_operations spufs_signal2_fops = {
 	.read = spufs_signal2_read,
 	.write = spufs_signal2_write,
 	.mmap = spufs_signal2_mmap,
+	.llseek = no_llseek,
 };
 
 static const struct file_operations spufs_signal2_nosched_fops = {
@@ -1311,6 +1323,7 @@ static const struct file_operations spufs_signal2_nosched_fops = {
 	.release = spufs_signal2_release,
 	.write = spufs_signal2_write,
 	.mmap = spufs_signal2_mmap,
+	.llseek = no_llseek,
 };
 
 /*
@@ -1397,7 +1410,7 @@ spufs_mss_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return spufs_ps_fault(vma, vmf, 0x0000, SPUFS_MSS_MAP_SIZE);
 }
 
-static struct vm_operations_struct spufs_mss_mmap_vmops = {
+static const struct vm_operations_struct spufs_mss_mmap_vmops = {
 	.fault = spufs_mss_mmap_fault,
 };
 
@@ -1450,6 +1463,7 @@ static const struct file_operations spufs_mss_fops = {
 	.open	 = spufs_mss_open,
 	.release = spufs_mss_release,
 	.mmap	 = spufs_mss_mmap,
+	.llseek  = no_llseek,
 };
 
 static int
@@ -1458,7 +1472,7 @@ spufs_psmap_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return spufs_ps_fault(vma, vmf, 0x0000, SPUFS_PS_MAP_SIZE);
 }
 
-static struct vm_operations_struct spufs_psmap_mmap_vmops = {
+static const struct vm_operations_struct spufs_psmap_mmap_vmops = {
 	.fault = spufs_psmap_mmap_fault,
 };
 
@@ -1507,6 +1521,7 @@ static const struct file_operations spufs_psmap_fops = {
 	.open	 = spufs_psmap_open,
 	.release = spufs_psmap_release,
 	.mmap	 = spufs_psmap_mmap,
+	.llseek  = no_llseek,
 };
 
 
@@ -1517,7 +1532,7 @@ spufs_mfc_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return spufs_ps_fault(vma, vmf, 0x3000, SPUFS_MFC_MAP_SIZE);
 }
 
-static struct vm_operations_struct spufs_mfc_mmap_vmops = {
+static const struct vm_operations_struct spufs_mfc_mmap_vmops = {
 	.fault = spufs_mfc_mmap_fault,
 };
 
@@ -1848,8 +1863,7 @@ out:
 	return ret;
 }
 
-static int spufs_mfc_fsync(struct file *file, struct dentry *dentry,
-			   int datasync)
+static int spufs_mfc_fsync(struct file *file, int datasync)
 {
 	return spufs_mfc_flush(file, NULL);
 }
@@ -1871,6 +1885,7 @@ static const struct file_operations spufs_mfc_fops = {
 	.fsync	 = spufs_mfc_fsync,
 	.fasync	 = spufs_mfc_fasync,
 	.mmap	 = spufs_mfc_mmap,
+	.llseek  = no_llseek,
 };
 
 static int spufs_npc_set(void *data, u64 val)
@@ -2246,6 +2261,7 @@ static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_dma_info_fops = {
 	.open = spufs_info_open,
 	.read = spufs_dma_info_read,
+	.llseek = no_llseek,
 };
 
 static ssize_t __spufs_proxydma_info_read(struct spu_context *ctx,
@@ -2299,6 +2315,7 @@ static ssize_t spufs_proxydma_info_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_proxydma_info_fops = {
 	.open = spufs_info_open,
 	.read = spufs_proxydma_info_read,
+	.llseek = no_llseek,
 };
 
 static int spufs_show_tid(struct seq_file *s, void *private)
@@ -2494,7 +2511,7 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
 	int error = 0, cnt = 0;
 
-	if (!buf || len < 0)
+	if (!buf)
 		return -EINVAL;
 
 	error = spu_acquire(ctx);
@@ -2585,6 +2602,7 @@ static const struct file_operations spufs_switch_log_fops = {
 	.read		= spufs_switch_log_read,
 	.poll		= spufs_switch_log_poll,
 	.release	= spufs_switch_log_release,
+	.llseek		= no_llseek,
 };
 
 /**

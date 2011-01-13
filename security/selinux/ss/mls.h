@@ -39,6 +39,8 @@ int mls_context_to_sid(struct policydb *p,
 
 int mls_from_string(char *str, struct context *context, gfp_t gfp_mask);
 
+int mls_range_set(struct context *context, struct mls_range *range);
+
 int mls_convert_context(struct policydb *oldp,
 			struct policydb *newp,
 			struct context *context);

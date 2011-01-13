@@ -46,7 +46,7 @@ better to do. The file is seekable, in that one can do something like the
 following:
 
     dd if=/proc/sequence of=out1 count=1
-    dd if=/proc/sequence skip=1 out=out2 count=1
+    dd if=/proc/sequence skip=1 of=out2 count=1
 
 Then concatenate the output files out1 and out2 and get the right
 result. Yes, it is a thoroughly useless module, but the point is to show
@@ -248,9 +248,7 @@ code, that is done in the initialization code in the usual way:
 	{
 	        struct proc_dir_entry *entry;
 
-	        entry = create_proc_entry("sequence", 0, NULL);
-	        if (entry)
-	                entry->proc_fops = &ct_file_ops;
+	        proc_create("sequence", 0, NULL, &ct_file_ops);
 	        return 0;
 	}
 

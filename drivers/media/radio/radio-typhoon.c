@@ -1,9 +1,6 @@
 /* Typhoon Radio Card driver for radio support
  * (c) 1999 Dr. Henrik Seidel <Henrik.Seidel@gmx.de>
  *
- * Card manufacturer:
- * http://194.18.155.92/idc/prod2.idc?nr=50753&lang=e
- *
  * Notes on the hardware
  *
  * This card has two output sockets, one for speakers and one for line.
@@ -207,6 +204,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct typhoon *dev = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = dev->curfreq;
 	return 0;
@@ -217,6 +216,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct typhoon *dev = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	dev->curfreq = f->frequency;
 	typhoon_setfreq(dev, dev->curfreq);
 	return 0;
@@ -316,7 +317,7 @@ static int vidioc_log_status(struct file *file, void *priv)
 
 static const struct v4l2_file_operations typhoon_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops typhoon_ioctl_ops = {
@@ -343,18 +344,18 @@ static int __init typhoon_init(void)
 
 	strlcpy(v4l2_dev->name, "typhoon", sizeof(v4l2_dev->name));
 	dev->io = io;
-	dev->curfreq = dev->mutefreq = mutefreq;
 
 	if (dev->io == -1) {
 		v4l2_err(v4l2_dev, "You must set an I/O address with io=0x316 or io=0x336\n");
 		return -EINVAL;
 	}
 
-	if (dev->mutefreq < 87000 || dev->mutefreq > 108500) {
+	if (mutefreq < 87000 || mutefreq > 108500) {
 		v4l2_err(v4l2_dev, "You must set a frequency (in kHz) used when muting the card,\n");
 		v4l2_err(v4l2_dev, "e.g. with \"mutefreq=87500\" (87000 <= mutefreq <= 108500)\n");
 		return -EINVAL;
 	}
+	dev->curfreq = dev->mutefreq = mutefreq << 4;
 
 	mutex_init(&dev->lock);
 	if (!request_region(dev->io, 8, "typhoon")) {
@@ -377,17 +378,17 @@ static int __init typhoon_init(void)
 	dev->vdev.ioctl_ops = &typhoon_ioctl_ops;
 	dev->vdev.release = video_device_release_empty;
 	video_set_drvdata(&dev->vdev, dev);
+
+	/* mute card - prevents noisy bootups */
+	typhoon_mute(dev);
+
 	if (video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		v4l2_device_unregister(&dev->v4l2_dev);
 		release_region(dev->io, 8);
 		return -EINVAL;
 	}
 	v4l2_info(v4l2_dev, "port 0x%x.\n", dev->io);
-	v4l2_info(v4l2_dev, "mute frequency is %lu kHz.\n", dev->mutefreq);
-	dev->mutefreq <<= 4;
-
-	/* mute card - prevents noisy bootups */
-	typhoon_mute(dev);
+	v4l2_info(v4l2_dev, "mute frequency is %lu kHz.\n", mutefreq);
 
 	return 0;
 }

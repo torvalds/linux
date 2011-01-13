@@ -52,7 +52,7 @@
 * around the register accesses.  The next higher level represents C-callable
 * prism2 API functions that match the Intersil documentation as closely
 * as is reasonable.  The next higher layer implements common sequences
-* of invokations of the API layer (e.g. write to bap, followed by cmd).
+* of invocations of the API layer (e.g. write to bap, followed by cmd).
 *
 * Common sequences:
 * hfa384x_drvr_xxx	Highest level abstractions provided by the
@@ -62,9 +62,9 @@
 *
 * hfa384x_drvr_xxxconfig  An example of the drvr level abstraction. These
 *			functions are wrappers for the RID get/set
-*			sequence. They 	call copy_[to|from]_bap() and
-*			cmd_access().	These functions operate on the
-*			RIDs and buffers without validation.  The caller
+*			sequence. They call copy_[to|from]_bap() and
+*			cmd_access(). These functions operate on the
+*			RIDs and buffers without validation. The caller
 *			is responsible for that.
 *
 * API wrapper functions:
@@ -118,18 +118,15 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/byteorder/generic.h>
 
-#define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
-
-/*================================================================*/
-/* Project Includes */
+#define SUBMIT_URB(u, f)  usb_submit_urb(u, f)
 
 #include "p80211types.h"
 #include "p80211hdr.h"
@@ -147,7 +144,6 @@ enum cmd_mode {
 	DOWAIT = 0,
 	DOASYNC
 };
-typedef enum cmd_mode CMD_MODE;
 
 #define THROTTLE_JIFFIES	(HZ/8)
 #define URB_ASYNC_UNLINK 0
@@ -160,13 +156,13 @@ static void dbprint_urb(struct urb *urb);
 #endif
 
 static void
-hfa384x_int_rxmonitor(wlandevice_t * wlandev, hfa384x_usb_rxfrm_t * rxfrm);
+hfa384x_int_rxmonitor(wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *rxfrm);
 
 static void hfa384x_usb_defer(struct work_struct *data);
 
-static int submit_rx_urb(hfa384x_t * hw, gfp_t flags);
+static int submit_rx_urb(hfa384x_t *hw, gfp_t flags);
 
-static int submit_tx_urb(hfa384x_t * hw, struct urb *tx_urb, gfp_t flags);
+static int submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, gfp_t flags);
 
 /*---------------------------------------------------*/
 /* Callbacks */
@@ -175,22 +171,22 @@ static void hfa384x_ctlxout_callback(struct urb *urb);
 static void hfa384x_usbin_callback(struct urb *urb);
 
 static void
-hfa384x_usbin_txcompl(wlandevice_t * wlandev, hfa384x_usbin_t * usbin);
+hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t * usbin);
 
-static void hfa384x_usbin_rx(wlandevice_t * wlandev, struct sk_buff *skb);
+static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb);
 
-static void hfa384x_usbin_info(wlandevice_t * wlandev, hfa384x_usbin_t * usbin);
+static void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t * usbin);
 
 static void
-hfa384x_usbout_tx(wlandevice_t * wlandev, hfa384x_usbout_t * usbout);
+hfa384x_usbout_tx(wlandevice_t *wlandev, hfa384x_usbout_t *usbout);
 
-static void hfa384x_usbin_ctlx(hfa384x_t * hw, hfa384x_usbin_t * usbin,
+static void hfa384x_usbin_ctlx(hfa384x_t *hw, hfa384x_usbin_t *usbin,
 			       int urb_status);
 
 /*---------------------------------------------------*/
 /* Functions to support the prism2 usb command queue */
 
-static void hfa384x_usbctlxq_run(hfa384x_t * hw);
+static void hfa384x_usbctlxq_run(hfa384x_t *hw);
 
 static void hfa384x_usbctlx_reqtimerfn(unsigned long data);
 
@@ -202,62 +198,61 @@ static void hfa384x_usbctlx_completion_task(unsigned long data);
 
 static void hfa384x_usbctlx_reaper_task(unsigned long data);
 
-static int hfa384x_usbctlx_submit(hfa384x_t * hw, hfa384x_usbctlx_t * ctlx);
+static int hfa384x_usbctlx_submit(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
 
-static void unlocked_usbctlx_complete(hfa384x_t * hw, hfa384x_usbctlx_t * ctlx);
+static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
 
 struct usbctlx_completor {
 	int (*complete) (struct usbctlx_completor *);
 };
-typedef struct usbctlx_completor usbctlx_completor_t;
 
 static int
-hfa384x_usbctlx_complete_sync(hfa384x_t * hw,
-			      hfa384x_usbctlx_t * ctlx,
-			      usbctlx_completor_t * completor);
+hfa384x_usbctlx_complete_sync(hfa384x_t *hw,
+			      hfa384x_usbctlx_t *ctlx,
+			      struct usbctlx_completor *completor);
 
 static int
-unlocked_usbctlx_cancel_async(hfa384x_t * hw, hfa384x_usbctlx_t * ctlx);
+unlocked_usbctlx_cancel_async(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
 
-static void hfa384x_cb_status(hfa384x_t * hw, const hfa384x_usbctlx_t * ctlx);
+static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx);
 
-static void hfa384x_cb_rrid(hfa384x_t * hw, const hfa384x_usbctlx_t * ctlx);
+static void hfa384x_cb_rrid(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx);
 
 static int
-usbctlx_get_status(const hfa384x_usb_cmdresp_t * cmdresp,
-		   hfa384x_cmdresult_t * result);
+usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
+		   hfa384x_cmdresult_t *result);
 
 static void
-usbctlx_get_rridresult(const hfa384x_usb_rridresp_t * rridresp,
-		       hfa384x_rridresult_t * result);
+usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
+		       hfa384x_rridresult_t *result);
 
 /*---------------------------------------------------*/
 /* Low level req/resp CTLX formatters and submitters */
 static int
-hfa384x_docmd(hfa384x_t * hw,
-	      CMD_MODE mode,
-	      hfa384x_metacmd_t * cmd,
+hfa384x_docmd(hfa384x_t *hw,
+	      enum cmd_mode mode,
+	      hfa384x_metacmd_t *cmd,
 	      ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data);
 
 static int
-hfa384x_dorrid(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dorrid(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 rid,
 	       void *riddata,
 	       unsigned int riddatalen,
 	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data);
 
 static int
-hfa384x_dowrid(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dowrid(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 rid,
 	       void *riddata,
 	       unsigned int riddatalen,
 	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data);
 
 static int
-hfa384x_dormem(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dormem(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 page,
 	       u16 offset,
 	       void *data,
@@ -265,8 +260,8 @@ hfa384x_dormem(hfa384x_t * hw,
 	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data);
 
 static int
-hfa384x_dowmem(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dowmem(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 page,
 	       u16 offset,
 	       void *data,
@@ -334,7 +329,7 @@ void dbprint_urb(struct urb *urb)
 * Call context:
 *	Any
 ----------------------------------------------------------------*/
-static int submit_rx_urb(hfa384x_t * hw, gfp_t memflags)
+static int submit_rx_urb(hfa384x_t *hw, gfp_t memflags)
 {
 	struct sk_buff *skb;
 	int result;
@@ -354,7 +349,8 @@ static int submit_rx_urb(hfa384x_t * hw, gfp_t memflags)
 	hw->rx_urb_skb = skb;
 
 	result = -ENOLINK;
-	if (!hw->wlandev->hwremoved && !test_bit(WORK_RX_HALT, &hw->usb_flags)) {
+	if (!hw->wlandev->hwremoved &&
+			!test_bit(WORK_RX_HALT, &hw->usb_flags)) {
 		result = SUBMIT_URB(&hw->rx_urb, memflags);
 
 		/* Check whether we need to reset the RX pipe */
@@ -395,7 +391,7 @@ done:
 * Call context:
 *	Any
 ----------------------------------------------------------------*/
-static int submit_tx_urb(hfa384x_t * hw, struct urb *tx_urb, gfp_t memflags)
+static int submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, gfp_t memflags)
 {
 	struct net_device *netdev = hw->wlandev->netdev;
 	int result;
@@ -454,7 +450,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
 	if (test_bit(WORK_RX_HALT, &hw->usb_flags)) {
 		int ret;
 
-		usb_kill_urb(&hw->rx_urb);	/* Cannot be holding spinlock! */
+		usb_kill_urb(&hw->rx_urb); /* Cannot be holding spinlock! */
 
 		ret = usb_clear_halt(hw->usb, hw->endp_in);
 		if (ret != 0) {
@@ -515,7 +511,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
 * hfa384x_create
 *
 * Sets up the hfa384x_t data structure for use.  Note this
-* does _not_ intialize the actual hardware, just the data structures
+* does _not_ initialize the actual hardware, just the data structures
 * we use to keep track of its state.
 *
 * Arguments:
@@ -532,7 +528,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-void hfa384x_create(hfa384x_t * hw, struct usb_device *usb)
+void hfa384x_create(hfa384x_t *hw, struct usb_device *usb)
 {
 	memset(hw, 0, sizeof(hfa384x_t));
 	hw->usb = usb;
@@ -608,7 +604,7 @@ void hfa384x_create(hfa384x_t * hw, struct usb_device *usb)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-void hfa384x_destroy(hfa384x_t * hw)
+void hfa384x_destroy(hfa384x_t *hw)
 {
 	struct sk_buff *skb;
 
@@ -630,7 +626,7 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 {
 	hfa384x_usbctlx_t *ctlx;
 
-	ctlx = kmalloc(sizeof(*ctlx), in_interrupt()? GFP_ATOMIC : GFP_KERNEL);
+	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (ctlx != NULL) {
 		memset(ctlx, 0, sizeof(*ctlx));
 		init_completion(&ctlx->done);
@@ -640,8 +636,8 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 }
 
 static int
-usbctlx_get_status(const hfa384x_usb_cmdresp_t * cmdresp,
-		   hfa384x_cmdresult_t * result)
+usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
+		   hfa384x_cmdresult_t *result)
 {
 	result->status = le16_to_cpu(cmdresp->status);
 	result->resp0 = le16_to_cpu(cmdresp->resp0);
@@ -656,8 +652,8 @@ usbctlx_get_status(const hfa384x_usb_cmdresp_t * cmdresp,
 }
 
 static void
-usbctlx_get_rridresult(const hfa384x_usb_rridresp_t * rridresp,
-		       hfa384x_rridresult_t * result)
+usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
+		       hfa384x_rridresult_t *result)
 {
 	result->rid = le16_to_cpu(rridresp->rid);
 	result->riddata = rridresp->data;
@@ -671,26 +667,26 @@ usbctlx_get_rridresult(const hfa384x_usb_rridresp_t * rridresp,
 * when processing a CTLX that returns a hfa384x_cmdresult_t structure.
 ----------------------------------------------------------------*/
 struct usbctlx_cmd_completor {
-	usbctlx_completor_t head;
+	struct usbctlx_completor head;
 
 	const hfa384x_usb_cmdresp_t *cmdresp;
 	hfa384x_cmdresult_t *result;
 };
-typedef struct usbctlx_cmd_completor usbctlx_cmd_completor_t;
 
-static int usbctlx_cmd_completor_fn(usbctlx_completor_t * head)
+static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
 {
-	usbctlx_cmd_completor_t *complete = (usbctlx_cmd_completor_t *) head;
+	struct usbctlx_cmd_completor *complete;
+
+	complete = (struct usbctlx_cmd_completor *) head;
 	return usbctlx_get_status(complete->cmdresp, complete->result);
 }
 
-static inline usbctlx_completor_t *init_cmd_completor(usbctlx_cmd_completor_t *
-						      completor,
-						      const
-						      hfa384x_usb_cmdresp_t *
-						      cmdresp,
-						      hfa384x_cmdresult_t *
-						      result)
+static inline struct usbctlx_completor *init_cmd_completor(
+						struct usbctlx_cmd_completor
+							*completor,
+						const hfa384x_usb_cmdresp_t
+							*cmdresp,
+						hfa384x_cmdresult_t *result)
 {
 	completor->head.complete = usbctlx_cmd_completor_fn;
 	completor->cmdresp = cmdresp;
@@ -704,19 +700,19 @@ static inline usbctlx_completor_t *init_cmd_completor(usbctlx_cmd_completor_t *
 * when processing a CTLX that reads a RID.
 ----------------------------------------------------------------*/
 struct usbctlx_rrid_completor {
-	usbctlx_completor_t head;
+	struct usbctlx_completor head;
 
 	const hfa384x_usb_rridresp_t *rridresp;
 	void *riddata;
 	unsigned int riddatalen;
 };
-typedef struct usbctlx_rrid_completor usbctlx_rrid_completor_t;
 
-static int usbctlx_rrid_completor_fn(usbctlx_completor_t * head)
+static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 {
-	usbctlx_rrid_completor_t *complete = (usbctlx_rrid_completor_t *) head;
+	struct usbctlx_rrid_completor *complete;
 	hfa384x_rridresult_t rridresult;
 
+	complete = (struct usbctlx_rrid_completor *) head;
 	usbctlx_get_rridresult(complete->rridresp, &rridresult);
 
 	/* Validate the length, note body len calculation in bytes */
@@ -732,12 +728,13 @@ static int usbctlx_rrid_completor_fn(usbctlx_completor_t * head)
 	return 0;
 }
 
-static inline usbctlx_completor_t *init_rrid_completor(usbctlx_rrid_completor_t
-						       * completor,
-						       const
-						       hfa384x_usb_rridresp_t *
-						       rridresp, void *riddata,
-						       unsigned int riddatalen)
+static inline struct usbctlx_completor *init_rrid_completor(
+						struct usbctlx_rrid_completor
+							*completor,
+						const hfa384x_usb_rridresp_t
+							*rridresp,
+						void *riddata,
+						unsigned int riddatalen)
 {
 	completor->head.complete = usbctlx_rrid_completor_fn;
 	completor->rridresp = rridresp;
@@ -750,14 +747,14 @@ static inline usbctlx_completor_t *init_rrid_completor(usbctlx_rrid_completor_t
 * Completor object:
 * Interprets the results of a synchronous RID-write
 ----------------------------------------------------------------*/
-typedef usbctlx_cmd_completor_t usbctlx_wrid_completor_t;
+typedef struct usbctlx_cmd_completor usbctlx_wrid_completor_t;
 #define init_wrid_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
 * Completor object:
 * Interprets the results of a synchronous memory-write
 ----------------------------------------------------------------*/
-typedef usbctlx_cmd_completor_t usbctlx_wmem_completor_t;
+typedef struct usbctlx_cmd_completor usbctlx_wmem_completor_t;
 #define init_wmem_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
@@ -765,7 +762,7 @@ typedef usbctlx_cmd_completor_t usbctlx_wmem_completor_t;
 * Interprets the results of a synchronous memory-read
 ----------------------------------------------------------------*/
 struct usbctlx_rmem_completor {
-	usbctlx_completor_t head;
+	struct usbctlx_completor head;
 
 	const hfa384x_usb_rmemresp_t *rmemresp;
 	void *data;
@@ -773,7 +770,7 @@ struct usbctlx_rmem_completor {
 };
 typedef struct usbctlx_rmem_completor usbctlx_rmem_completor_t;
 
-static int usbctlx_rmem_completor_fn(usbctlx_completor_t * head)
+static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 {
 	usbctlx_rmem_completor_t *complete = (usbctlx_rmem_completor_t *) head;
 
@@ -782,11 +779,13 @@ static int usbctlx_rmem_completor_fn(usbctlx_completor_t * head)
 	return 0;
 }
 
-static inline usbctlx_completor_t *init_rmem_completor(usbctlx_rmem_completor_t
-						       * completor,
-						       hfa384x_usb_rmemresp_t
-						       * rmemresp, void *data,
-						       unsigned int len)
+static inline struct usbctlx_completor *init_rmem_completor(
+						usbctlx_rmem_completor_t
+							*completor,
+						hfa384x_usb_rmemresp_t
+							*rmemresp,
+						void *data,
+						unsigned int len)
 {
 	completor->head.complete = usbctlx_rmem_completor_fn;
 	completor->rmemresp = rmemresp;
@@ -816,7 +815,7 @@ static inline usbctlx_completor_t *init_rmem_completor(usbctlx_rmem_completor_t
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_cb_status(hfa384x_t * hw, const hfa384x_usbctlx_t * ctlx)
+static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
 {
 	if (ctlx->usercb != NULL) {
 		hfa384x_cmdresult_t cmdresult;
@@ -853,7 +852,7 @@ static void hfa384x_cb_status(hfa384x_t * hw, const hfa384x_usbctlx_t * ctlx)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_cb_rrid(hfa384x_t * hw, const hfa384x_usbctlx_t * ctlx)
+static void hfa384x_cb_rrid(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
 {
 	if (ctlx->usercb != NULL) {
 		hfa384x_rridresult_t rridresult;
@@ -870,21 +869,21 @@ static void hfa384x_cb_rrid(hfa384x_t * hw, const hfa384x_usbctlx_t * ctlx)
 	}
 }
 
-static inline int hfa384x_docmd_wait(hfa384x_t * hw, hfa384x_metacmd_t * cmd)
+static inline int hfa384x_docmd_wait(hfa384x_t *hw, hfa384x_metacmd_t *cmd)
 {
 	return hfa384x_docmd(hw, DOWAIT, cmd, NULL, NULL, NULL);
 }
 
 static inline int
-hfa384x_docmd_async(hfa384x_t * hw,
-		    hfa384x_metacmd_t * cmd,
+hfa384x_docmd_async(hfa384x_t *hw,
+		    hfa384x_metacmd_t *cmd,
 		    ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	return hfa384x_docmd(hw, DOASYNC, cmd, cmdcb, usercb, usercb_data);
 }
 
 static inline int
-hfa384x_dorrid_wait(hfa384x_t * hw, u16 rid, void *riddata,
+hfa384x_dorrid_wait(hfa384x_t *hw, u16 rid, void *riddata,
 		    unsigned int riddatalen)
 {
 	return hfa384x_dorrid(hw, DOWAIT,
@@ -892,7 +891,7 @@ hfa384x_dorrid_wait(hfa384x_t * hw, u16 rid, void *riddata,
 }
 
 static inline int
-hfa384x_dorrid_async(hfa384x_t * hw,
+hfa384x_dorrid_async(hfa384x_t *hw,
 		     u16 rid, void *riddata, unsigned int riddatalen,
 		     ctlx_cmdcb_t cmdcb,
 		     ctlx_usercb_t usercb, void *usercb_data)
@@ -903,7 +902,7 @@ hfa384x_dorrid_async(hfa384x_t * hw,
 }
 
 static inline int
-hfa384x_dowrid_wait(hfa384x_t * hw, u16 rid, void *riddata,
+hfa384x_dowrid_wait(hfa384x_t *hw, u16 rid, void *riddata,
 		    unsigned int riddatalen)
 {
 	return hfa384x_dowrid(hw, DOWAIT,
@@ -911,7 +910,7 @@ hfa384x_dowrid_wait(hfa384x_t * hw, u16 rid, void *riddata,
 }
 
 static inline int
-hfa384x_dowrid_async(hfa384x_t * hw,
+hfa384x_dowrid_async(hfa384x_t *hw,
 		     u16 rid, void *riddata, unsigned int riddatalen,
 		     ctlx_cmdcb_t cmdcb,
 		     ctlx_usercb_t usercb, void *usercb_data)
@@ -922,7 +921,7 @@ hfa384x_dowrid_async(hfa384x_t * hw,
 }
 
 static inline int
-hfa384x_dormem_wait(hfa384x_t * hw,
+hfa384x_dormem_wait(hfa384x_t *hw,
 		    u16 page, u16 offset, void *data, unsigned int len)
 {
 	return hfa384x_dormem(hw, DOWAIT,
@@ -930,7 +929,7 @@ hfa384x_dormem_wait(hfa384x_t * hw,
 }
 
 static inline int
-hfa384x_dormem_async(hfa384x_t * hw,
+hfa384x_dormem_async(hfa384x_t *hw,
 		     u16 page, u16 offset, void *data, unsigned int len,
 		     ctlx_cmdcb_t cmdcb,
 		     ctlx_usercb_t usercb, void *usercb_data)
@@ -941,7 +940,7 @@ hfa384x_dormem_async(hfa384x_t * hw,
 }
 
 static inline int
-hfa384x_dowmem_wait(hfa384x_t * hw,
+hfa384x_dowmem_wait(hfa384x_t *hw,
 		    u16 page, u16 offset, void *data, unsigned int len)
 {
 	return hfa384x_dowmem(hw, DOWAIT,
@@ -949,7 +948,7 @@ hfa384x_dowmem_wait(hfa384x_t * hw,
 }
 
 static inline int
-hfa384x_dowmem_async(hfa384x_t * hw,
+hfa384x_dowmem_async(hfa384x_t *hw,
 		     u16 page,
 		     u16 offset,
 		     void *data,
@@ -981,7 +980,7 @@ hfa384x_dowmem_async(hfa384x_t * hw,
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_initialize(hfa384x_t * hw)
+int hfa384x_cmd_initialize(hfa384x_t *hw)
 {
 	int result = 0;
 	int i;
@@ -1029,7 +1028,7 @@ int hfa384x_cmd_initialize(hfa384x_t * hw)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_disable(hfa384x_t * hw, u16 macport)
+int hfa384x_cmd_disable(hfa384x_t *hw, u16 macport)
 {
 	int result = 0;
 	hfa384x_metacmd_t cmd;
@@ -1065,7 +1064,7 @@ int hfa384x_cmd_disable(hfa384x_t * hw, u16 macport)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_enable(hfa384x_t * hw, u16 macport)
+int hfa384x_cmd_enable(hfa384x_t *hw, u16 macport)
 {
 	int result = 0;
 	hfa384x_metacmd_t cmd;
@@ -1110,7 +1109,7 @@ int hfa384x_cmd_enable(hfa384x_t * hw, u16 macport)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_monitor(hfa384x_t * hw, u16 enable)
+int hfa384x_cmd_monitor(hfa384x_t *hw, u16 enable)
 {
 	int result = 0;
 	hfa384x_metacmd_t cmd;
@@ -1164,7 +1163,7 @@ int hfa384x_cmd_monitor(hfa384x_t * hw, u16 enable)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_cmd_download(hfa384x_t * hw, u16 mode, u16 lowaddr,
+int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
 			 u16 highaddr, u16 codelen)
 {
 	int result = 0;
@@ -1208,7 +1207,7 @@ int hfa384x_cmd_download(hfa384x_t * hw, u16 mode, u16 lowaddr,
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_corereset(hfa384x_t * hw, int holdtime, int settletime, int genesis)
+int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 {
 	int result = 0;
 
@@ -1229,7 +1228,7 @@ int hfa384x_corereset(hfa384x_t * hw, int holdtime, int settletime, int genesis)
 *
 * Arguments:
 *	hw		device structure
-*	ctlx	 	CTLX ptr
+*	ctlx		CTLX ptr
 *	completor	functor object to decide what to
 *			do with the CTLX's result.
 *
@@ -1245,9 +1244,9 @@ int hfa384x_corereset(hfa384x_t * hw, int holdtime, int settletime, int genesis)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-static int hfa384x_usbctlx_complete_sync(hfa384x_t * hw,
-					 hfa384x_usbctlx_t * ctlx,
-					 usbctlx_completor_t * completor)
+static int hfa384x_usbctlx_complete_sync(hfa384x_t *hw,
+					 hfa384x_usbctlx_t *ctlx,
+					 struct usbctlx_completor *completor)
 {
 	unsigned long flags;
 	int result;
@@ -1361,9 +1360,9 @@ cleanup:
 *	process
 ----------------------------------------------------------------*/
 static int
-hfa384x_docmd(hfa384x_t * hw,
-	      CMD_MODE mode,
-	      hfa384x_metacmd_t * cmd,
+hfa384x_docmd(hfa384x_t *hw,
+	      enum cmd_mode mode,
+	      hfa384x_metacmd_t *cmd,
 	      ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
 {
 	int result;
@@ -1397,7 +1396,7 @@ hfa384x_docmd(hfa384x_t * hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_cmd_completor_t completor;
+		struct usbctlx_cmd_completor completor;
 
 		result =
 		    hfa384x_usbctlx_complete_sync(hw, ctlx,
@@ -1450,8 +1449,8 @@ done:
 *	process (DOWAIT or DOASYNC)
 ----------------------------------------------------------------*/
 static int
-hfa384x_dorrid(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dorrid(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 rid,
 	       void *riddata,
 	       unsigned int riddatalen,
@@ -1484,7 +1483,7 @@ hfa384x_dorrid(hfa384x_t * hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_rrid_completor_t completor;
+		struct usbctlx_rrid_completor completor;
 
 		result =
 		    hfa384x_usbctlx_complete_sync(hw, ctlx,
@@ -1509,7 +1508,7 @@ done:
 *
 * Arguments:
 *	hw		device structure
-*	CMD_MODE	DOWAIT or DOASYNC
+*	enum cmd_mode	DOWAIT or DOASYNC
 *	rid		RID code
 *	riddata		Data portion of RID formatted for MAC
 *	riddatalen	Length of the data portion in bytes
@@ -1531,8 +1530,8 @@ done:
 *	process (DOWAIT or DOASYNC)
 ----------------------------------------------------------------*/
 static int
-hfa384x_dowrid(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dowrid(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 rid,
 	       void *riddata,
 	       unsigned int riddatalen,
@@ -1618,8 +1617,8 @@ done:
 *	process (DOWAIT or DOASYNC)
 ----------------------------------------------------------------*/
 static int
-hfa384x_dormem(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dormem(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 page,
 	       u16 offset,
 	       void *data,
@@ -1709,8 +1708,8 @@ done:
 *	process (DOWAIT or DOASYNC)
 ----------------------------------------------------------------*/
 static int
-hfa384x_dowmem(hfa384x_t * hw,
-	       CMD_MODE mode,
+hfa384x_dowmem(hfa384x_t *hw,
+	       enum cmd_mode mode,
 	       u16 page,
 	       u16 offset,
 	       void *data,
@@ -1783,7 +1782,7 @@ done:
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_commtallies(hfa384x_t * hw)
+int hfa384x_drvr_commtallies(hfa384x_t *hw)
 {
 	hfa384x_metacmd_t cmd;
 
@@ -1819,7 +1818,7 @@ int hfa384x_drvr_commtallies(hfa384x_t * hw)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_disable(hfa384x_t * hw, u16 macport)
+int hfa384x_drvr_disable(hfa384x_t *hw, u16 macport)
 {
 	int result = 0;
 
@@ -1857,7 +1856,7 @@ int hfa384x_drvr_disable(hfa384x_t * hw, u16 macport)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_enable(hfa384x_t * hw, u16 macport)
+int hfa384x_drvr_enable(hfa384x_t *hw, u16 macport)
 {
 	int result = 0;
 
@@ -1894,7 +1893,7 @@ int hfa384x_drvr_enable(hfa384x_t * hw, u16 macport)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_flashdl_enable(hfa384x_t * hw)
+int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 {
 	int result = 0;
 	int i;
@@ -1912,18 +1911,19 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t * hw)
 		return -EINVAL;
 
 	/* Retrieve the buffer loc&size and timeout */
-	if ((result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DOWNLOADBUFFER,
-					     &(hw->bufinfo),
-					     sizeof(hw->bufinfo)))) {
+	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DOWNLOADBUFFER,
+					&(hw->bufinfo), sizeof(hw->bufinfo));
+	if (result)
 		return result;
-	}
+
 	hw->bufinfo.page = le16_to_cpu(hw->bufinfo.page);
 	hw->bufinfo.offset = le16_to_cpu(hw->bufinfo.offset);
 	hw->bufinfo.len = le16_to_cpu(hw->bufinfo.len);
-	if ((result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
-					       &(hw->dltimeout)))) {
+	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
+					  &(hw->dltimeout));
+	if (result)
 		return result;
-	}
+
 	hw->dltimeout = le16_to_cpu(hw->dltimeout);
 
 	pr_debug("flashdl_enable\n");
@@ -1952,7 +1952,7 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t * hw)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_flashdl_disable(hfa384x_t * hw)
+int hfa384x_drvr_flashdl_disable(hfa384x_t *hw)
 {
 	/* Check that we're already in the download state */
 	if (hw->dlstate != HFA384x_DLSTATE_FLASHENABLED)
@@ -1997,7 +1997,7 @@ int hfa384x_drvr_flashdl_disable(hfa384x_t * hw)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_flashdl_write(hfa384x_t * hw, u32 daddr, void *buf, u32 len)
+int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 {
 	int result = 0;
 	u32 dlbufaddr;
@@ -2077,12 +2077,9 @@ int hfa384x_drvr_flashdl_write(hfa384x_t * hw, u32 daddr, void *buf, u32 len)
 			    (j * HFA384x_USB_RWMEM_MAXLEN);
 
 			writepage = HFA384x_ADDR_CMD_MKPAGE(dlbufaddr +
-							    (j *
-							     HFA384x_USB_RWMEM_MAXLEN));
-			writeoffset =
-			    HFA384x_ADDR_CMD_MKOFF(dlbufaddr +
-						   (j *
-						    HFA384x_USB_RWMEM_MAXLEN));
+						(j * HFA384x_USB_RWMEM_MAXLEN));
+			writeoffset = HFA384x_ADDR_CMD_MKOFF(dlbufaddr +
+						(j * HFA384x_USB_RWMEM_MAXLEN));
 
 			writelen = burnlen - (j * HFA384x_USB_RWMEM_MAXLEN);
 			writelen = writelen > HFA384x_USB_RWMEM_MAXLEN ?
@@ -2135,7 +2132,7 @@ exit_proc:
 *	0		success
 *	>0		f/w reported error - f/w status code
 *	<0		driver reported error
-*	-ENODATA 	length mismatch between argument and retrieved
+*	-ENODATA	length mismatch between argument and retrieved
 *			record.
 *
 * Side effects:
@@ -2143,7 +2140,7 @@ exit_proc:
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_getconfig(hfa384x_t * hw, u16 rid, void *buf, u16 len)
+int hfa384x_drvr_getconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len)
 {
 	int result;
 
@@ -2180,7 +2177,7 @@ int hfa384x_drvr_getconfig(hfa384x_t * hw, u16 rid, void *buf, u16 len)
  *       Any
  ----------------------------------------------------------------*/
 int
-hfa384x_drvr_getconfig_async(hfa384x_t * hw,
+hfa384x_drvr_getconfig_async(hfa384x_t *hw,
 			     u16 rid, ctlx_usercb_t usercb, void *usercb_data)
 {
 	return hfa384x_dorrid_async(hw, rid, NULL, 0,
@@ -2211,7 +2208,7 @@ hfa384x_drvr_getconfig_async(hfa384x_t * hw,
  *       process
  ----------------------------------------------------------------*/
 int
-hfa384x_drvr_setconfig_async(hfa384x_t * hw,
+hfa384x_drvr_setconfig_async(hfa384x_t *hw,
 			     u16 rid,
 			     void *buf,
 			     u16 len, ctlx_usercb_t usercb, void *usercb_data)
@@ -2238,7 +2235,7 @@ hfa384x_drvr_setconfig_async(hfa384x_t * hw,
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_ramdl_disable(hfa384x_t * hw)
+int hfa384x_drvr_ramdl_disable(hfa384x_t *hw)
 {
 	/* Check that we're already in the download state */
 	if (hw->dlstate != HFA384x_DLSTATE_RAMENABLED)
@@ -2278,7 +2275,7 @@ int hfa384x_drvr_ramdl_disable(hfa384x_t * hw)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_ramdl_enable(hfa384x_t * hw, u32 exeaddr)
+int hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 {
 	int result = 0;
 	u16 lowaddr;
@@ -2346,7 +2343,7 @@ int hfa384x_drvr_ramdl_enable(hfa384x_t * hw, u32 exeaddr)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_ramdl_write(hfa384x_t * hw, u32 daddr, void *buf, u32 len)
+int hfa384x_drvr_ramdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 {
 	int result = 0;
 	int nwrites;
@@ -2425,7 +2422,7 @@ int hfa384x_drvr_ramdl_write(hfa384x_t * hw, u32 daddr, void *buf, u32 len)
 * Call context:
 *	process or non-card interrupt.
 ----------------------------------------------------------------*/
-int hfa384x_drvr_readpda(hfa384x_t * hw, void *buf, unsigned int len)
+int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 {
 	int result = 0;
 	u16 *pda = buf;
@@ -2453,7 +2450,9 @@ int hfa384x_drvr_readpda(hfa384x_t * hw, void *buf, unsigned int len)
 		currpage = HFA384x_ADDR_CMD_MKPAGE(pdaloc[i].cardaddr);
 		curroffset = HFA384x_ADDR_CMD_MKOFF(pdaloc[i].cardaddr);
 
-		result = hfa384x_dormem_wait(hw, currpage, curroffset, buf, len);	/* units of bytes */
+		/* units of bytes */
+		result = hfa384x_dormem_wait(hw, currpage, curroffset, buf,
+						len);
 
 		if (result) {
 			printk(KERN_WARNING
@@ -2531,7 +2530,7 @@ int hfa384x_drvr_readpda(hfa384x_t * hw, void *buf, unsigned int len)
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_setconfig(hfa384x_t * hw, u16 rid, void *buf, u16 len)
+int hfa384x_drvr_setconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len)
 {
 	return hfa384x_dowrid_wait(hw, rid, buf, len);
 }
@@ -2556,7 +2555,7 @@ int hfa384x_drvr_setconfig(hfa384x_t * hw, u16 rid, void *buf, u16 len)
 *	process
 ----------------------------------------------------------------*/
 
-int hfa384x_drvr_start(hfa384x_t * hw)
+int hfa384x_drvr_start(hfa384x_t *hw)
 {
 	int result, result1, result2;
 	u16 status;
@@ -2613,20 +2612,18 @@ int hfa384x_drvr_start(hfa384x_t * hw)
 	if (result1 != 0) {
 		if (result2 != 0) {
 			printk(KERN_ERR
-			       "cmd_initialize() failed on two attempts, results %d and %d\n",
-			       result1, result2);
+				"cmd_initialize() failed on two attempts, results %d and %d\n",
+				result1, result2);
 			usb_kill_urb(&hw->rx_urb);
 			goto done;
 		} else {
 			pr_debug("First cmd_initialize() failed (result %d),\n",
 				 result1);
-			pr_debug
-			    ("but second attempt succeeded. All should be ok\n");
+			pr_debug("but second attempt succeeded. All should be ok\n");
 		}
 	} else if (result2 != 0) {
-		printk(KERN_WARNING
-		       "First cmd_initialize() succeeded, but second attempt failed (result=%d)\n",
-		       result2);
+		printk(KERN_WARNING "First cmd_initialize() succeeded, but second attempt failed (result=%d)\n",
+			result2);
 		printk(KERN_WARNING
 		       "Most likely the card will be functional\n");
 		goto done;
@@ -2657,7 +2654,7 @@ done:
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-int hfa384x_drvr_stop(hfa384x_t * hw)
+int hfa384x_drvr_stop(hfa384x_t *hw)
 {
 	int result = 0;
 	int i;
@@ -2708,9 +2705,9 @@ int hfa384x_drvr_stop(hfa384x_t * hw)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-int hfa384x_drvr_txframe(hfa384x_t * hw, struct sk_buff *skb,
-			 p80211_hdr_t * p80211_hdr,
-			 p80211_metawep_t * p80211_wep)
+int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
+			 union p80211_hdr *p80211_hdr,
+			 struct p80211_metawep *p80211_wep)
 {
 	int usbpktlen = sizeof(hfa384x_tx_frame_t);
 	int result;
@@ -2755,7 +2752,7 @@ int hfa384x_drvr_txframe(hfa384x_t * hw, struct sk_buff *skb,
 
 	/* copy the header over to the txdesc */
 	memcpy(&(hw->txbuff.txfrm.desc.frame_control), p80211_hdr,
-	       sizeof(p80211_hdr_t));
+	       sizeof(union p80211_hdr));
 
 	/* if we're using host WEP, increase size by IV+ICV */
 	if (p80211_wep->data) {
@@ -2801,18 +2798,20 @@ exit:
 	return result;
 }
 
-void hfa384x_tx_timeout(wlandevice_t * wlandev)
+void hfa384x_tx_timeout(wlandevice_t *wlandev)
 {
 	hfa384x_t *hw = wlandev->priv;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
-	if (!hw->wlandev->hwremoved &&
-	    /* Note the bitwise OR, not the logical OR. */
-	    (!test_and_set_bit(WORK_TX_HALT, &hw->usb_flags) |
-	     !test_and_set_bit(WORK_RX_HALT, &hw->usb_flags))) {
-		schedule_work(&hw->usb_work);
+	if (!hw->wlandev->hwremoved) {
+		int sched;
+
+		sched = !test_and_set_bit(WORK_TX_HALT, &hw->usb_flags);
+		sched |= !test_and_set_bit(WORK_RX_HALT, &hw->usb_flags);
+		if (sched)
+			schedule_work(&hw->usb_work);
 	}
 
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
@@ -2950,8 +2949,8 @@ static void hfa384x_usbctlx_completion_task(unsigned long data)
 * Call context:
 *	Either process or interrupt, but presumably interrupt
 ----------------------------------------------------------------*/
-static int unlocked_usbctlx_cancel_async(hfa384x_t * hw,
-					 hfa384x_usbctlx_t * ctlx)
+static int unlocked_usbctlx_cancel_async(hfa384x_t *hw,
+					 hfa384x_usbctlx_t *ctlx)
 {
 	int ret;
 
@@ -3000,7 +2999,7 @@ static int unlocked_usbctlx_cancel_async(hfa384x_t * hw,
 * Call context:
 *	Either, assume interrupt
 ----------------------------------------------------------------*/
-static void unlocked_usbctlx_complete(hfa384x_t * hw, hfa384x_usbctlx_t * ctlx)
+static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 {
 	/* Timers have been stopped, and ctlx should be in
 	 * a terminal state. Retire it from the "active"
@@ -3038,7 +3037,7 @@ static void unlocked_usbctlx_complete(hfa384x_t * hw, hfa384x_usbctlx_t * ctlx)
 * Call context:
 *	any
 ----------------------------------------------------------------*/
-static void hfa384x_usbctlxq_run(hfa384x_t * hw)
+static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 {
 	unsigned long flags;
 
@@ -3074,9 +3073,9 @@ static void hfa384x_usbctlxq_run(hfa384x_t * hw)
 				  hfa384x_ctlxout_callback, hw);
 		hw->ctlx_urb.transfer_flags |= USB_QUEUE_BULK;
 
-		/* Now submit the URB and update the CTLX's state
-		 */
-		if ((result = SUBMIT_URB(&hw->ctlx_urb, GFP_ATOMIC)) == 0) {
+		/* Now submit the URB and update the CTLX's state */
+		result = SUBMIT_URB(&hw->ctlx_urb, GFP_ATOMIC);
+		if (result == 0) {
 			/* This CTLX is now running on the active queue */
 			head->state = CTLX_REQ_SUBMITTED;
 
@@ -3318,7 +3317,7 @@ exit:
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_ctlx(hfa384x_t * hw, hfa384x_usbin_t * usbin,
+static void hfa384x_usbin_ctlx(hfa384x_t *hw, hfa384x_usbin_t *usbin,
 			       int urb_status)
 {
 	hfa384x_usbctlx_t *ctlx;
@@ -3384,8 +3383,7 @@ retry:
 			 * our request has been acknowledged. Odd,
 			 * but our OUT URB is still alive...
 			 */
-			pr_debug
-			    ("Causality violation: please reboot Universe, or email linux-wlan-devel@lists.linux-wlan.com\n");
+			pr_debug("Causality violation: please reboot Universe\n");
 			ctlx->state = CTLX_RESP_COMPLETE;
 			break;
 
@@ -3439,12 +3437,12 @@ unlock:
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_txcompl(wlandevice_t * wlandev,
-				  hfa384x_usbin_t * usbin)
+static void hfa384x_usbin_txcompl(wlandevice_t *wlandev,
+				  hfa384x_usbin_t *usbin)
 {
 	u16 status;
 
-	status = le16_to_cpu(usbin->type);	/* yeah I know it says type... */
+	status = le16_to_cpu(usbin->type); /* yeah I know it says type... */
 
 	/* Was there an error? */
 	if (HFA384x_TXSTATUS_ISERROR(status))
@@ -3470,12 +3468,12 @@ static void hfa384x_usbin_txcompl(wlandevice_t * wlandev,
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_rx(wlandevice_t * wlandev, struct sk_buff *skb)
+static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 {
 	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *) skb->data;
 	hfa384x_t *hw = wlandev->priv;
 	int hdrlen;
-	p80211_rxmeta_t *rxmeta;
+	struct p80211_rxmeta *rxmeta;
 	u16 data_len;
 	u16 fc;
 
@@ -3573,8 +3571,8 @@ done:
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_int_rxmonitor(wlandevice_t * wlandev,
-				  hfa384x_usb_rxfrm_t * rxfrm)
+static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
+				  hfa384x_usb_rxfrm_t *rxfrm)
 {
 	hfa384x_rx_frame_t *rxdesc = &(rxfrm->desc);
 	unsigned int hdrlen = 0;
@@ -3585,24 +3583,25 @@ static void hfa384x_int_rxmonitor(wlandevice_t * wlandev,
 	struct sk_buff *skb;
 	hfa384x_t *hw = wlandev->priv;
 
-	/* Don't forget the status, time, and data_len fields are in host order */
+	/* Remember the status, time, and data_len fields are in host order */
 	/* Figure out how big the frame is */
 	fc = le16_to_cpu(rxdesc->frame_control);
 	hdrlen = p80211_headerlen(fc);
 	datalen = le16_to_cpu(rxdesc->data_len);
 
 	/* Allocate an ind message+framesize skb */
-	skblen = sizeof(p80211_caphdr_t) + hdrlen + datalen + WLAN_CRC_LEN;
+	skblen = sizeof(struct p80211_caphdr) + hdrlen + datalen + WLAN_CRC_LEN;
 
 	/* sanity check the length */
 	if (skblen >
-	    (sizeof(p80211_caphdr_t) +
+	    (sizeof(struct p80211_caphdr) +
 	     WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN)) {
 		pr_debug("overlen frm: len=%zd\n",
-			 skblen - sizeof(p80211_caphdr_t));
+			 skblen - sizeof(struct p80211_caphdr));
 	}
 
-	if ((skb = dev_alloc_skb(skblen)) == NULL) {
+	skb = dev_alloc_skb(skblen);
+	if (skb == NULL) {
 		printk(KERN_ERR
 		       "alloc_skb failed trying to allocate %d bytes\n",
 		       skblen);
@@ -3612,13 +3611,13 @@ static void hfa384x_int_rxmonitor(wlandevice_t * wlandev,
 	/* only prepend the prism header if in the right mode */
 	if ((wlandev->netdev->type == ARPHRD_IEEE80211_PRISM) &&
 	    (hw->sniffhdr != 0)) {
-		p80211_caphdr_t *caphdr;
+		struct p80211_caphdr *caphdr;
 		/* The NEW header format! */
-		datap = skb_put(skb, sizeof(p80211_caphdr_t));
-		caphdr = (p80211_caphdr_t *) datap;
+		datap = skb_put(skb, sizeof(struct p80211_caphdr));
+		caphdr = (struct p80211_caphdr *) datap;
 
 		caphdr->version = htonl(P80211CAPTURE_VERSION);
-		caphdr->length = htonl(sizeof(p80211_caphdr_t));
+		caphdr->length = htonl(sizeof(struct p80211_caphdr));
 		caphdr->mactime = __cpu_to_be64(rxdesc->time) * 1000;
 		caphdr->hosttime = __cpu_to_be64(jiffies);
 		caphdr->phytype = htonl(4);	/* dss_dot11_b */
@@ -3633,7 +3632,8 @@ static void hfa384x_int_rxmonitor(wlandevice_t * wlandev,
 		caphdr->encoding = htonl(1);	/* cck */
 	}
 
-	/* Copy the 802.11 header to the skb (ctl frames may be less than a full header) */
+	/* Copy the 802.11 header to the skb
+	   (ctl frames may be less than a full header) */
 	datap = skb_put(skb, hdrlen);
 	memcpy(datap, &(rxdesc->frame_control), hdrlen);
 
@@ -3645,7 +3645,8 @@ static void hfa384x_int_rxmonitor(wlandevice_t * wlandev,
 		/* check for unencrypted stuff if WEP bit set. */
 		if (*(datap - hdrlen + 1) & 0x40)	/* wep set */
 			if ((*(datap) == 0xaa) && (*(datap + 1) == 0xaa))
-				*(datap - hdrlen + 1) &= 0xbf;	// clear wep; it's the 802.2 header!
+				/* clear wep; it's the 802.2 header! */
+				*(datap - hdrlen + 1) &= 0xbf;
 	}
 
 	if (hw->sniff_fcs) {
@@ -3677,7 +3678,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t * wlandev,
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbin_info(wlandevice_t * wlandev, hfa384x_usbin_t * usbin)
+static void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 {
 	usbin->infofrm.info.framelen =
 	    le16_to_cpu(usbin->infofrm.info.framelen);
@@ -3847,9 +3848,9 @@ retry:
 		default:
 			/* This is NOT a valid CTLX "success" state! */
 			printk(KERN_ERR
-			       "Illegal CTLX[%d] success state(%s, %d) in OUT URB\n",
-			       le16_to_cpu(ctlx->outbuf.type),
-			       ctlxstr(ctlx->state), urb->status);
+				"Illegal CTLX[%d] success state(%s, %d) in OUT URB\n",
+				le16_to_cpu(ctlx->outbuf.type),
+				ctlxstr(ctlx->state), urb->status);
 			break;
 		}		/* switch */
 	} else {
@@ -3873,9 +3874,9 @@ retry:
 
 delresp:
 	if (delete_resptimer) {
-		if ((timer_ok = del_timer(&hw->resptimer)) != 0) {
+		timer_ok = del_timer(&hw->resptimer);
+		if (timer_ok != 0)
 			hw->resp_timer_done = 1;
-		}
 	}
 
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
@@ -4055,7 +4056,7 @@ static void hfa384x_usb_throttlefn(unsigned long data)
 * Call context:
 *	process or interrupt
 ----------------------------------------------------------------*/
-static int hfa384x_usbctlx_submit(hfa384x_t * hw, hfa384x_usbctlx_t * ctlx)
+static int hfa384x_usbctlx_submit(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 {
 	unsigned long flags;
 	int ret;
@@ -4096,7 +4097,7 @@ static int hfa384x_usbctlx_submit(hfa384x_t * hw, hfa384x_usbctlx_t * ctlx)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static void hfa384x_usbout_tx(wlandevice_t * wlandev, hfa384x_usbout_t * usbout)
+static void hfa384x_usbout_tx(wlandevice_t *wlandev, hfa384x_usbout_t *usbout)
 {
 	prism2sta_ev_alloc(wlandev);
 }

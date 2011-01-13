@@ -54,50 +54,6 @@ struct af9005_device_state {
 	int led_state;
 };
 
-static int af9005_usb_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen,
-			  u8 *rbuf, u16 rlen, int delay_ms)
-{
-	int actlen, ret = -ENOMEM;
-
-	if (wbuf == NULL || wlen == 0)
-		return -EINVAL;
-
-	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
-		return ret;
-
-	deb_xfer(">>> ");
-	debug_dump(wbuf, wlen, deb_xfer);
-
-	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
-						    2), wbuf, wlen,
-			   &actlen, 2000);
-
-	if (ret)
-		err("bulk message failed: %d (%d/%d)", ret, wlen, actlen);
-	else
-		ret = actlen != wlen ? -1 : 0;
-
-	/* an answer is expected, and no error before */
-	if (!ret && rbuf && rlen) {
-		if (delay_ms)
-			msleep(delay_ms);
-
-		ret = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev,
-							    0x01), rbuf,
-				   rlen, &actlen, 2000);
-
-		if (ret)
-			err("recv bulk message failed: %d", ret);
-		else {
-			deb_xfer("<<< ");
-			debug_dump(rbuf, actlen, deb_xfer);
-		}
-	}
-
-	mutex_unlock(&d->usb_mutex);
-	return ret;
-}
-
 static int af9005_generic_read_write(struct dvb_usb_device *d, u16 reg,
 			      int readwrite, int type, u8 * values, int len)
 {
@@ -146,7 +102,7 @@ static int af9005_generic_read_write(struct dvb_usb_device *d, u16 reg,
 		obuf[8] = values[0];
 	obuf[7] = command;
 
-	ret = af9005_usb_generic_rw(d, obuf, 16, ibuf, 17, 0);
+	ret = dvb_usb_generic_rw(d, obuf, 16, ibuf, 17, 0);
 	if (ret)
 		return ret;
 
@@ -534,7 +490,7 @@ int af9005_send_command(struct dvb_usb_device *d, u8 command, u8 * wbuf,
 	buf[6] = wlen;
 	for (i = 0; i < wlen; i++)
 		buf[7 + i] = wbuf[i];
-	ret = af9005_usb_generic_rw(d, buf, wlen + 7, ibuf, rlen + 7, 0);
+	ret = dvb_usb_generic_rw(d, buf, wlen + 7, ibuf, rlen + 7, 0);
 	if (ret)
 		return ret;
 	if (ibuf[2] != 0x27) {
@@ -581,7 +537,7 @@ int af9005_read_eeprom(struct dvb_usb_device *d, u8 address, u8 * values,
 
 	obuf[6] = len;
 	obuf[7] = address;
-	ret = af9005_usb_generic_rw(d, obuf, 16, ibuf, 14, 0);
+	ret = dvb_usb_generic_rw(d, obuf, 16, ibuf, 14, 0);
 	if (ret)
 		return ret;
 	if (ibuf[2] != 0x2b) {
@@ -882,7 +838,7 @@ static int af9005_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 	obuf[2] = 0x40;		/* read remote */
 	obuf[3] = 1;		/* rest of packet length */
 	obuf[4] = st->sequence++;	/* sequence number */
-	ret = af9005_usb_generic_rw(d, obuf, 5, ibuf, 256, 0);
+	ret = dvb_usb_generic_rw(d, obuf, 5, ibuf, 256, 0);
 	if (ret) {
 		err("rc query failed");
 		return ret;
@@ -1069,10 +1025,15 @@ static struct dvb_usb_device_properties af9005_properties = {
 
 	.i2c_algo = &af9005_i2c_algo,
 
-	.rc_interval = 200,
-	.rc_key_map = NULL,
-	.rc_key_map_size = 0,
-	.rc_query = af9005_rc_query,
+	.rc.legacy = {
+		.rc_interval = 200,
+		.rc_map_table = NULL,
+		.rc_map_size = 0,
+		.rc_query = af9005_rc_query,
+	},
+
+	.generic_bulk_ctrl_endpoint          = 2,
+	.generic_bulk_ctrl_endpoint_response = 1,
 
 	.num_device_descs = 3,
 	.devices = {
@@ -1109,14 +1070,14 @@ static int __init af9005_usb_module_init(void)
 		return result;
 	}
 	rc_decode = symbol_request(af9005_rc_decode);
-	rc_keys = symbol_request(af9005_rc_keys);
-	rc_keys_size = symbol_request(af9005_rc_keys_size);
+	rc_keys = symbol_request(rc_map_af9005_table);
+	rc_keys_size = symbol_request(rc_map_af9005_table_size);
 	if (rc_decode == NULL || rc_keys == NULL || rc_keys_size == NULL) {
 		err("af9005_rc_decode function not found, disabling remote");
-		af9005_properties.rc_query = NULL;
+		af9005_properties.rc.legacy.rc_query = NULL;
 	} else {
-		af9005_properties.rc_key_map = rc_keys;
-		af9005_properties.rc_key_map_size = *rc_keys_size;
+		af9005_properties.rc.legacy.rc_map_table = rc_keys;
+		af9005_properties.rc.legacy.rc_map_size = *rc_keys_size;
 	}
 
 	return 0;
@@ -1128,9 +1089,9 @@ static void __exit af9005_usb_module_exit(void)
 	if (rc_decode != NULL)
 		symbol_put(af9005_rc_decode);
 	if (rc_keys != NULL)
-		symbol_put(af9005_rc_keys);
+		symbol_put(rc_map_af9005_table);
 	if (rc_keys_size != NULL)
-		symbol_put(af9005_rc_keys_size);
+		symbol_put(rc_map_af9005_table_size);
 	/* deregister this driver from the USB subsystem */
 	usb_deregister(&af9005_usb_driver);
 }

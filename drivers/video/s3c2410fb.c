@@ -369,7 +369,9 @@ static void s3c2410fb_activate_var(struct fb_info *info)
 	void __iomem *regs = fbi->io;
 	int type = fbi->regs.lcdcon1 & S3C2410_LCDCON1_TFT;
 	struct fb_var_screeninfo *var = &info->var;
-	int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock) / 2;
+	int clkdiv;
+
+	clkdiv = DIV_ROUND_UP(s3c2410fb_calc_pixclk(fbi, var->pixclock), 2);
 
 	dprintk("%s: var->xres  = %d\n", __func__, var->xres);
 	dprintk("%s: var->yres  = %d\n", __func__, var->yres);
@@ -629,7 +631,7 @@ static struct fb_ops s3c2410fb_ops = {
  *	cache.  Once this area is remapped, all virtual memory
  *	access to the video memory should occur at the new region.
  */
-static int __init s3c2410fb_map_video_memory(struct fb_info *info)
+static int __devinit s3c2410fb_map_video_memory(struct fb_info *info)
 {
 	struct s3c2410fb_info *fbi = info->par;
 	dma_addr_t map_dma;
@@ -812,7 +814,7 @@ static inline void s3c2410fb_cpufreq_deregister(struct s3c2410fb_info *info)
 
 static char driver_name[] = "s3c2410fb";
 
-static int __init s3c24xxfb_probe(struct platform_device *pdev,
+static int __devinit s3c24xxfb_probe(struct platform_device *pdev,
 				  enum s3c_drv_type drv_type)
 {
 	struct s3c2410fb_info *info;
@@ -1002,12 +1004,12 @@ dealloc_fb:
 	return ret;
 }
 
-static int __init s3c2410fb_probe(struct platform_device *pdev)
+static int __devinit s3c2410fb_probe(struct platform_device *pdev)
 {
 	return s3c24xxfb_probe(pdev, DRV_S3C2410);
 }
 
-static int __init s3c2412fb_probe(struct platform_device *pdev)
+static int __devinit s3c2412fb_probe(struct platform_device *pdev)
 {
 	return s3c24xxfb_probe(pdev, DRV_S3C2412);
 }
@@ -1016,7 +1018,7 @@ static int __init s3c2412fb_probe(struct platform_device *pdev)
 /*
  *  Cleanup
  */
-static int s3c2410fb_remove(struct platform_device *pdev)
+static int __devexit s3c2410fb_remove(struct platform_device *pdev)
 {
 	struct fb_info *fbinfo = platform_get_drvdata(pdev);
 	struct s3c2410fb_info *info = fbinfo->par;
@@ -1094,7 +1096,7 @@ static int s3c2410fb_resume(struct platform_device *dev)
 
 static struct platform_driver s3c2410fb_driver = {
 	.probe		= s3c2410fb_probe,
-	.remove		= s3c2410fb_remove,
+	.remove		= __devexit_p(s3c2410fb_remove),
 	.suspend	= s3c2410fb_suspend,
 	.resume		= s3c2410fb_resume,
 	.driver		= {
@@ -1105,7 +1107,7 @@ static struct platform_driver s3c2410fb_driver = {
 
 static struct platform_driver s3c2412fb_driver = {
 	.probe		= s3c2412fb_probe,
-	.remove		= s3c2410fb_remove,
+	.remove		= __devexit_p(s3c2410fb_remove),
 	.suspend	= s3c2410fb_suspend,
 	.resume		= s3c2410fb_resume,
 	.driver		= {
@@ -1119,7 +1121,7 @@ int __init s3c2410fb_init(void)
 	int ret = platform_driver_register(&s3c2410fb_driver);
 
 	if (ret == 0)
-		ret = platform_driver_register(&s3c2412fb_driver);;
+		ret = platform_driver_register(&s3c2412fb_driver);
 
 	return ret;
 }

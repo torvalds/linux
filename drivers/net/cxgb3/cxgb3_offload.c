@@ -31,6 +31,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/neighbour.h>
 #include <linux/notifier.h>
 #include <asm/atomic.h>
@@ -59,11 +60,14 @@ static LIST_HEAD(adapter_list);
 static const unsigned int MAX_ATIDS = 64 * 1024;
 static const unsigned int ATID_BASE = 0x10000;
 
+static void cxgb_neigh_update(struct neighbour *neigh);
+static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new);
+
 static inline int offload_activated(struct t3cdev *tdev)
 {
 	const struct adapter *adapter = tdev2adap(tdev);
 
-	return (test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map));
+	return test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map);
 }
 
 /**
@@ -153,14 +157,14 @@ void cxgb3_remove_clients(struct t3cdev *tdev)
 	mutex_unlock(&cxgb3_db_lock);
 }
 
-void cxgb3_err_notify(struct t3cdev *tdev, u32 status, u32 error)
+void cxgb3_event_notify(struct t3cdev *tdev, u32 event, u32 port)
 {
 	struct cxgb3_client *client;
 
 	mutex_lock(&cxgb3_db_lock);
 	list_for_each_entry(client, &client_list, client_list) {
-		if (client->err_handler)
-			client->err_handler(tdev, status, error);
+		if (client->event_handler)
+			client->event_handler(tdev, event, port);
 	}
 	mutex_unlock(&cxgb3_db_lock);
 }
@@ -1014,7 +1018,7 @@ EXPORT_SYMBOL(t3_register_cpl_handler);
 /*
  * T3CDEV's receive method.
  */
-int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
+static int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
 {
 	while (n--) {
 		struct sk_buff *skb = *skbs++;
@@ -1069,7 +1073,7 @@ static int is_offloading(struct net_device *dev)
 	return 0;
 }
 
-void cxgb_neigh_update(struct neighbour *neigh)
+static void cxgb_neigh_update(struct neighbour *neigh)
 {
 	struct net_device *dev = neigh->dev;
 
@@ -1103,7 +1107,7 @@ static void set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 	tdev->send(tdev, skb);
 }
 
-void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
+static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 {
 	struct net_device *olddev, *newdev;
 	struct tid_info *ti;
@@ -1160,12 +1164,10 @@ void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
  */
 void *cxgb_alloc_mem(unsigned long size)
 {
-	void *p = kmalloc(size, GFP_KERNEL);
+	void *p = kzalloc(size, GFP_KERNEL);
 
 	if (!p)
-		p = vmalloc(size);
-	if (p)
-		memset(p, 0, size);
+		p = vzalloc(size);
 	return p;
 }
 
@@ -1252,7 +1254,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	struct mtutab mtutab;
 	unsigned int l2t_capacity;
 
-	t = kcalloc(1, sizeof(*t), GFP_KERNEL);
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (!t)
 		return -ENOMEM;
 

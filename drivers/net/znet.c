@@ -88,6 +88,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -103,8 +104,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 
-/* This include could be elsewhere, since it is not wireless specific */
-#include "wireless/i82593.h"
+#include <linux/i82593.h>
 
 static char version[] __initdata = "znet.c:v1.02 9/23/94 becker@scyld.com\n";
 
@@ -124,7 +124,7 @@ MODULE_LICENSE("GPL");
 #define TX_BUF_SIZE 8192
 #define DMA_BUF_SIZE (RX_BUF_SIZE + 16)	/* 8k + 16 bytes for trailers */
 
-#define TX_TIMEOUT	10
+#define TX_TIMEOUT	(HZ/10)
 
 struct znet_private {
 	int rx_dma, tx_dma;
@@ -156,7 +156,8 @@ struct netidblk {
 };
 
 static int	znet_open(struct net_device *dev);
-static int	znet_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t znet_send_packet(struct sk_buff *skb,
+				    struct net_device *dev);
 static irqreturn_t znet_interrupt(int irq, void *dev_id);
 static void	znet_rx(struct net_device *dev);
 static int	znet_close(struct net_device *dev);
@@ -168,9 +169,8 @@ static void znet_tx_timeout (struct net_device *dev);
 static int znet_request_resources (struct net_device *dev)
 {
 	struct znet_private *znet = netdev_priv(dev);
-	unsigned long flags;
 
-	if (request_irq (dev->irq, &znet_interrupt, 0, "ZNet", dev))
+	if (request_irq (dev->irq, znet_interrupt, 0, "ZNet", dev))
 		goto failed;
 	if (request_dma (znet->rx_dma, "ZNet rx"))
 		goto free_irq;
@@ -186,13 +186,9 @@ static int znet_request_resources (struct net_device *dev)
  free_sia:
 	release_region (znet->sia_base, znet->sia_size);
  free_tx_dma:
-	flags = claim_dma_lock();
 	free_dma (znet->tx_dma);
-	release_dma_lock (flags);
  free_rx_dma:
-	flags = claim_dma_lock();
 	free_dma (znet->rx_dma);
-	release_dma_lock (flags);
  free_irq:
 	free_irq (dev->irq, dev);
  failed:
@@ -202,14 +198,11 @@ static int znet_request_resources (struct net_device *dev)
 static void znet_release_resources (struct net_device *dev)
 {
 	struct znet_private *znet = netdev_priv(dev);
-	unsigned long flags;
 
 	release_region (znet->sia_base, znet->sia_size);
 	release_region (dev->base_addr, znet->io_size);
-	flags = claim_dma_lock();
 	free_dma (znet->tx_dma);
 	free_dma (znet->rx_dma);
-	release_dma_lock (flags);
 	free_irq (dev->irq, dev);
 }
 
@@ -321,7 +314,8 @@ static void znet_set_multicast_list (struct net_device *dev)
 	/* Byte D */
 	cfblk->dummy_1 = 1; 	/* set to 1 */
 	cfblk->tx_ifs_retrig = 3; /* Hmm... Disabled */
-	cfblk->mc_all = (dev->mc_list || (dev->flags&IFF_ALLMULTI));/* multicast all mode */
+	cfblk->mc_all = (!netdev_mc_empty(dev) ||
+			(dev->flags & IFF_ALLMULTI)); /* multicast all mode */
 	cfblk->rcv_mon = 0;	/* Monitor mode disabled */
 	cfblk->frag_acpt = 0;	/* Do not accept fragments */
 	cfblk->tstrttrs = 0;	/* No start transmission threshold */
@@ -534,7 +528,7 @@ static void znet_tx_timeout (struct net_device *dev)
 	netif_wake_queue (dev);
 }
 
-static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	struct znet_private *znet = netdev_priv(dev);
@@ -546,7 +540,7 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 
@@ -593,14 +587,13 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 		}
 		spin_unlock_irqrestore (&znet->lock, flags);
 
-		dev->trans_start = jiffies;
 		netif_start_queue (dev);
 
 		if (znet_debug > 4)
 		  printk(KERN_DEBUG "%s: Transmitter queued, length %d.\n", dev->name, length);
 	}
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The ZNET interrupt handler. */
@@ -705,8 +698,8 @@ static void znet_rx(struct net_device *dev)
 	   the same area of the backwards links we now have.  This allows us to
 	   pass packets to the upper layers in the order they were received --
 	   important for fast-path sequential operations. */
-	 while (znet->rx_start + cur_frame_end_offset != znet->rx_cur
-			&& ++boguscount < 5) {
+	while (znet->rx_start + cur_frame_end_offset != znet->rx_cur &&
+	       ++boguscount < 5) {
 		unsigned short hi_cnt, lo_cnt, hi_status, lo_status;
 		int count, status;
 
@@ -808,7 +801,6 @@ static void znet_rx(struct net_device *dev)
 	/* If any worth-while packets have been received, dev_rint()
 	   has done a mark_bh(INET_BH) for us and will work on them
 	   when we get to the bottom-half routine. */
-	return;
 }
 
 /* The inverse routine to znet_open(). */

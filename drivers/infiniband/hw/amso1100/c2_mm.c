@@ -30,6 +30,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <linux/slab.h>
+
 #include "c2.h"
 #include "c2_vq.h"
 

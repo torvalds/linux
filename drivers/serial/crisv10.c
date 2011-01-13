@@ -1410,11 +1410,12 @@ e100_enable_rs485(struct tty_struct *tty, struct serial_rs485 *r)
 		       CONFIG_ETRAX_RS485_LTC1387_RXEN_PORT_G_BIT, 1);
 #endif
 
-	info->rs485.flags = r->flags;
-	if (r->delay_rts_before_send >= 1000)
+	info->rs485 = *r;
+
+	/* Maximum delay before RTS equal to 1000 */
+	if (info->rs485.delay_rts_before_send >= 1000)
 		info->rs485.delay_rts_before_send = 1000;
-	else
-		info->rs485.delay_rts_before_send = r->delay_rts_before_send;
+
 /*	printk("rts: on send = %i, after = %i, enabled = %i",
 		    info->rs485.rts_on_send,
 		    info->rs485.rts_after_sent,
@@ -3233,9 +3234,9 @@ rs_write(struct tty_struct *tty,
 		e100_disable_rx(info);
 		e100_enable_rx_irq(info);
 #endif
-
-		if (info->rs485.delay_rts_before_send > 0)
-			msleep(info->rs485.delay_rts_before_send);
+		if ((info->rs485.flags & SER_RS485_RTS_BEFORE_SEND) &&
+			(info->rs485.delay_rts_before_send > 0))
+				msleep(info->rs485.delay_rts_before_send);
 	}
 #endif /* CONFIG_ETRAX_RS485 */
 
@@ -3693,6 +3694,11 @@ rs_ioctl(struct tty_struct *tty, struct file * file,
 
 		rs485data.delay_rts_before_send = rs485ctrl.delay_rts_before_send;
 		rs485data.flags = 0;
+		if (rs485data.delay_rts_before_send != 0)
+			rs485data.flags |= SER_RS485_RTS_BEFORE_SEND;
+		else
+			rs485data.flags &= ~(SER_RS485_RTS_BEFORE_SEND);
+
 		if (rs485ctrl.enabled)
 			rs485data.flags |= SER_RS485_ENABLED;
 		else
@@ -3723,6 +3729,17 @@ rs_ioctl(struct tty_struct *tty, struct file * file,
 		return e100_enable_rs485(tty, &rs485data);
 	}
 
+	case TIOCGRS485:
+	{
+		struct serial_rs485 *rs485data =
+			&(((struct e100_serial *)tty->driver_data)->rs485);
+		/* This is the ioctl to get RS485 data from user-space */
+		if (copy_to_user((struct serial_rs485 *) arg,
+					rs485data,
+					sizeof(struct serial_rs485)))
+			return -EFAULT;
+		break;
+	}
 
 	case TIOCSERWRRS485:
 	{
@@ -3923,7 +3940,6 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Check R_DMA_CHx_STATUS bit 0-6=number of available bytes in FIFO
 	 * R_DMA_CHx_HWSW bit 31-16=nbr of bytes left in DMA buffer (0=64k)
 	 */
-	lock_kernel();
 	orig_jiffies = jiffies;
 	while (info->xmit.head != info->xmit.tail || /* More in send queue */
 	       (*info->ostatusadr & 0x007f) ||  /* more in FIFO */
@@ -3940,7 +3956,6 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 			curr_time_usec - info->last_tx_active_usec;
 	}
 	set_current_state(TASK_RUNNING);
-	unlock_kernel();
 }
 
 /*
@@ -3980,7 +3995,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	 */
 	if (tty_hung_up_p(filp) ||
 	    (info->flags & ASYNC_CLOSING)) {
-		wait_event_interruptible(info->close_wait,
+		wait_event_interruptible_tty(info->close_wait,
 			!(info->flags & ASYNC_CLOSING));
 #ifdef SERIAL_DO_RESTART
 		if (info->flags & ASYNC_HUP_NOTIFY)
@@ -4056,7 +4071,9 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 		printk("block_til_ready blocking: ttyS%d, count = %d\n",
 		       info->line, info->count);
 #endif
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&info->open_wait, &wait);
@@ -4138,7 +4155,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	 */
 	if (tty_hung_up_p(filp) ||
 	    (info->flags & ASYNC_CLOSING)) {
-		wait_event_interruptible(info->close_wait,
+		wait_event_interruptible_tty(info->close_wait,
 			!(info->flags & ASYNC_CLOSING));
 #ifdef SERIAL_DO_RESTART
 		return ((info->flags & ASYNC_HUP_NOTIFY) ?
@@ -4515,14 +4532,15 @@ static int __init rs_init(void)
 		/* Set sane defaults */
 		info->rs485.flags &= ~(SER_RS485_RTS_ON_SEND);
 		info->rs485.flags |= SER_RS485_RTS_AFTER_SEND;
+		info->rs485.flags &= ~(SER_RS485_RTS_BEFORE_SEND);
 		info->rs485.delay_rts_before_send = 0;
 		info->rs485.flags &= ~(SER_RS485_ENABLED);
 #endif
 		INIT_WORK(&info->work, do_softint);
 
 		if (info->enabled) {
-			printk(KERN_INFO "%s%d at 0x%x is a builtin UART with DMA\n",
-			       serial_driver->name, info->line, (unsigned int)info->ioport);
+			printk(KERN_INFO "%s%d at %p is a builtin UART with DMA\n",
+			       serial_driver->name, info->line, info->ioport);
 		}
 	}
 #ifdef CONFIG_ETRAX_FAST_TIMER

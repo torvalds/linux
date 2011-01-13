@@ -19,7 +19,10 @@ struct nameidata {
 	struct path	path;
 	struct qstr	last;
 	struct path	root;
+	struct file	*file;
+	struct inode	*inode; /* path.dentry.d_inode */
 	unsigned int	flags;
+	unsigned	seq;
 	int		last_type;
 	unsigned	depth;
 	char *saved_names[MAX_NESTED_LINKS + 1];
@@ -40,15 +43,16 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
  *  - follow links at the end
  *  - require a directory
  *  - ending slashes ok even for nonexistent files
- *  - internal "there are more path compnents" flag
- *  - locked when lookup done with dcache_lock held
+ *  - internal "there are more path components" flag
  *  - dentry cache is untrusted; force a real lookup
  */
-#define LOOKUP_FOLLOW		 1
-#define LOOKUP_DIRECTORY	 2
-#define LOOKUP_CONTINUE		 4
-#define LOOKUP_PARENT		16
-#define LOOKUP_REVAL		64
+#define LOOKUP_FOLLOW		0x0001
+#define LOOKUP_DIRECTORY	0x0002
+#define LOOKUP_CONTINUE		0x0004
+
+#define LOOKUP_PARENT		0x0010
+#define LOOKUP_REVAL		0x0020
+#define LOOKUP_RCU		0x0040
 /*
  * Intent data
  */
@@ -72,11 +76,8 @@ extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 
 extern struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
 		int (*open)(struct inode *, struct file *));
-extern struct file *nameidata_to_filp(struct nameidata *nd, int flags);
-extern void release_open_intent(struct nameidata *);
 
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
-extern struct dentry *lookup_one_noperm(const char *, struct dentry *);
 
 extern int follow_down(struct path *);
 extern int follow_up(struct path *);

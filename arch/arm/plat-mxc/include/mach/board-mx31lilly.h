@@ -22,11 +22,6 @@
 #ifndef __ASM_ARCH_MXC_BOARD_MX31LILLY_H__
 #define __ASM_ARCH_MXC_BOARD_MX31LILLY_H__
 
-/* mandatory for CONFIG_LL_DEBUG */
-
-#define MXC_LL_UART_PADDR	UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR	(AIPI_BASE_ADDR_VIRT + 0x0A000)
-
 #ifndef __ASSEMBLY__
 
 enum mx31lilly_boards {
@@ -36,7 +31,7 @@ enum mx31lilly_boards {
 
 /*
  * This CPU module needs a baseboard to work. After basic initializing
- * its own devices, it calls baseboard's init function.
+ * its own devices, it calls the baseboard's init function.
  */
 
 extern void mx31lilly_db_init(void);

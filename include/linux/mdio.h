@@ -55,6 +55,7 @@
 #define MDIO_PCS_10GBRT_STAT2	33	/* 10GBASE-R/-T PCS status 2 */
 #define MDIO_AN_10GBT_CTRL	32	/* 10GBASE-T auto-negotiation control */
 #define MDIO_AN_10GBT_STAT	33	/* 10GBASE-T auto-negotiation status */
+#define MDIO_AN_EEE_ADV		60	/* EEE advertisement */
 
 /* LASI (Link Alarm Status Interrupt) registers, defined by XENPAK MSA. */
 #define MDIO_PMA_LASI_RXCTRL	0x9000	/* RX_ALARM control */
@@ -235,6 +236,10 @@
 #define MDIO_AN_10GBT_STAT_MS		0x4000	/* Master/slave config */
 #define MDIO_AN_10GBT_STAT_MSFLT	0x8000	/* Master/slave config fault */
 
+/* AN EEE Advertisement register. */
+#define MDIO_AN_EEE_ADV_100TX		0x0002	/* Advertise 100TX EEE cap */
+#define MDIO_AN_EEE_ADV_1000T		0x0004	/* Advertise 1000T EEE cap */
+
 /* LASI RX_ALARM control/status registers. */
 #define MDIO_PMA_LASI_RX_PHYXSLFLT	0x0001	/* PHY XS RX local fault */
 #define MDIO_PMA_LASI_RX_PCSLFLT	0x0008	/* PCS RX local fault */
@@ -304,7 +309,7 @@ static inline __u16 mdio_phy_id_devad(int phy_id)
  */
 struct mdio_if_info {
 	int prtad;
-	u32 __bitwise mmds;
+	u32 mmds;
 	unsigned mode_support;
 
 	struct net_device *dev;

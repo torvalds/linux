@@ -50,54 +50,17 @@ Configuration Options:
   within each minor will be concatenated together in the order given here.
 */
 
-/*
- * The previous block comment is used to automatically generate
- * documentation in Comedi and Comedilib.  The fields:
- *
- * Driver: the name of the driver
- * Description: a short phrase describing the driver.  Don't list boards.
- * Devices: a full list of the boards that attempt to be supported by
- *   the driver.  Format is "(manufacturer) board name [comedi name]",
- *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the struct comedi_driver structure
- *   below.  If (manufacturer) or [comedi name] is missing, the previous
- *   value is used.
- * Author: you
- * Updated: date when the _documentation_ was last updated.  Use 'date -R'
- *   to get a value for this.
- * Status: a one-word description of the status.  Valid values are:
- *   works - driver works correctly on most boards supported, and
- *     passes comedi_test.
- *   unknown - unknown.  Usually put there by ds.
- *   experimental - may not work in any particular release.  Author
- *     probably wants assistance testing it.
- *   bitrotten - driver has not been update in a long time, probably
- *     doesn't work, and probably is missing support for significant
- *     Comedi interface features.
- *   untested - author probably wrote it "blind", and is believed to
- *     work, but no confirmation.
- *
- * These headers should be followed by a blank line, and any comments
- * you wish to say about the driver.  The comment area is the place
- * to put any known bugs, limitations, unsupported features, supported
- * command triggers, whether or not commands are supported on particular
- * subdevices, etc.
- *
- * Somewhere in the comment should be information about configuration
- * options that are used with comedi_config.
- */
-
+#include <linux/string.h>
+#include <linux/slab.h>
+#include "../comedi.h"
 #include "../comedilib.h"
 #include "../comedidev.h"
-#include <linux/string.h>
 
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256
 
 #define MODULE_NAME "comedi_bond"
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 #ifndef STR
 #  define STR1(x) #x
 #  define STR(x) STR1(x)
@@ -132,8 +95,8 @@ struct BondingBoard {
 
 static const struct BondingBoard bondingBoards[] = {
 	{
-		.name =	MODULE_NAME,
-	},
+	 .name = MODULE_NAME,
+	 },
 };
 
 /*
@@ -142,7 +105,7 @@ static const struct BondingBoard bondingBoards[] = {
 #define thisboard ((const struct BondingBoard *)dev->board_ptr)
 
 struct BondedDevice {
-	void *dev;
+	struct comedi_device *dev;
 	unsigned minor;
 	unsigned subdev;
 	unsigned subdev_type;
@@ -176,7 +139,8 @@ struct Private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int bonding_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int bonding_detach(struct comedi_device *dev);
 /** Build Private array of all devices.. */
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it);
@@ -186,10 +150,10 @@ static void doDevUnconfig(struct comedi_device *dev);
 static void *Realloc(const void *ptr, size_t len, size_t old_len);
 
 static struct comedi_driver driver_bonding = {
-      .driver_name =	MODULE_NAME,
-      .module =		THIS_MODULE,
-      .attach =		bonding_attach,
-      .detach =		bonding_detach,
+	.driver_name = MODULE_NAME,
+	.module = THIS_MODULE,
+	.attach = bonding_attach,
+	.detach = bonding_detach,
 	/* It is not necessary to implement the following members if you are
 	 * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -208,15 +172,18 @@ static struct comedi_driver driver_bonding = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      .board_name =	&bondingBoards[0].name,
-      .offset =		sizeof(struct BondingBoard),
-      .num_names =	ARRAY_SIZE(bondingBoards),
+	.board_name = &bondingBoards[0].name,
+	.offset = sizeof(struct BondingBoard),
+	.num_names = ARRAY_SIZE(bondingBoards),
 };
 
-static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data);
-static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data);
+static int bonding_dio_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -224,7 +191,8 @@ static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subd
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int bonding_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 
@@ -293,7 +261,8 @@ static int bonding_detach(struct comedi_device *dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
@@ -317,14 +286,14 @@ static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
 
 		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
 		if (bdev->nchans >= LSAMPL_BITS)
-			subdevMask = (unsigned int) (-1);
+			subdevMask = (unsigned int)(-1);
 
 		writeMask = (data[0] >> num_done) & subdevMask;
 		dataBits = (data[1] >> num_done) & subdevMask;
 
 		/* Read/Write the new digital lines */
 		if (comedi_dio_bitfield(bdev->dev, bdev->subdev, writeMask,
-				&dataBits) != 2)
+					&dataBits) != 2)
 			return -EINVAL;
 
 		/* Make room for the new bits in data[1], the return value */
@@ -340,7 +309,8 @@ static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
 	return insn->n;
 }
 
-static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+static int bonding_dio_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
@@ -366,7 +336,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subd
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
-			(io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		    (io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -397,20 +367,20 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
-	void *devs_opened[COMEDI_NUM_BOARD_MINORS];
+	struct comedi_device *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
 	memset(devs_opened, 0, sizeof(devs_opened));
-	devpriv->name[0] = 0;;
+	devpriv->name[0] = 0;
 	/* Loop through all comedi devices specified on the command-line,
 	   building our device list */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[] = "/dev/comediXXXXXX";
 		int minor = it->options[i];
-		void *d;
+		struct comedi_device *d;
 		int sdev = -1, nchans, tmp;
 		struct BondedDevice *bdev = NULL;
 
-		if (minor < 0 || minor > COMEDI_NUM_BOARD_MINORS) {
+		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
 			return 0;
 		}
@@ -435,7 +405,7 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/* Do DIO, as that's all we support now.. */
 		while ((sdev = comedi_find_subdevice_by_type(d, COMEDI_SUBD_DIO,
-					sdev + 1)) > -1) {
+							     sdev + 1)) > -1) {
 			nchans = comedi_get_n_channels(d, sdev);
 			if (nchans <= 0) {
 				ERROR("comedi_get_n_channels() returned %d "
@@ -465,8 +435,8 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 			/* ergh.. ugly.. we need to realloc :(  */
 			tmp = devpriv->ndevs * sizeof(bdev);
 			devpriv->devs =
-				Realloc(devpriv->devs,
-				++devpriv->ndevs * sizeof(bdev), tmp);
+			    Realloc(devpriv->devs,
+				    ++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
 				ERROR("Could not allocate memory. "
 				      "Out of memory?");
@@ -478,10 +448,9 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 	/** Append dev:subdev to devpriv->name */
 				char buf[20];
 				int left =
-					MAX_BOARD_NAME - strlen(devpriv->name) -
-					1;
+				    MAX_BOARD_NAME - strlen(devpriv->name) - 1;
 				snprintf(buf, sizeof(buf), "%d:%d ", dev->minor,
-					bdev->subdev);
+					 bdev->subdev);
 				buf[sizeof(buf) - 1] = 0;
 				strncat(devpriv->name, buf, left);
 			}

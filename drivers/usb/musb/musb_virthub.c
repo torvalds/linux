@@ -35,7 +35,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/time.h>
@@ -184,8 +183,8 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 
 void musb_root_disconnect(struct musb *musb)
 {
-	musb->port1_status = (1 << USB_PORT_FEAT_POWER)
-			| (1 << USB_PORT_FEAT_C_CONNECTION);
+	musb->port1_status = USB_PORT_STAT_POWER
+			| (USB_PORT_STAT_C_CONNECTION << 16);
 
 	usb_hcd_poll_rh_status(musb_to_hcd(musb));
 	musb->is_active = 0;
@@ -245,7 +244,7 @@ int musb_hub_control(
 
 	spin_lock_irqsave(&musb->lock, flags);
 
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(hcd))) {
 		spin_unlock_irqrestore(&musb->lock, flags);
 		return -ESHUTDOWN;
 	}
@@ -277,7 +276,7 @@ int musb_hub_control(
 			break;
 		case USB_PORT_FEAT_POWER:
 			if (!(is_otg_enabled(musb) && hcd->self.is_b_host))
-				musb_set_vbus(musb, 0);
+				musb_platform_set_vbus(musb, 0);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_ENABLE:

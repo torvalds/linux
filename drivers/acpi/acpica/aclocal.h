@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -184,8 +184,9 @@ struct acpi_namespace_node {
 	u8 flags;		/* Miscellaneous flags */
 	acpi_owner_id owner_id;	/* Node creator */
 	union acpi_name_union name;	/* ACPI Name, always 4 chars per ACPI spec */
+	struct acpi_namespace_node *parent;	/* Parent node */
 	struct acpi_namespace_node *child;	/* First child */
-	struct acpi_namespace_node *peer;	/* Peer. Parent if ANOBJ_END_OF_PEER_LIST set */
+	struct acpi_namespace_node *peer;	/* First peer */
 
 	/*
 	 * The following fields are used by the ASL compiler and disassembler only
@@ -199,7 +200,7 @@ struct acpi_namespace_node {
 
 /* Namespace Node flags */
 
-#define ANOBJ_END_OF_PEER_LIST          0x01	/* End-of-list, Peer field points to parent */
+#define ANOBJ_RESERVED                  0x01	/* Available for use */
 #define ANOBJ_TEMPORARY                 0x02	/* Node is create by a method and is temporary */
 #define ANOBJ_METHOD_ARG                0x04	/* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
@@ -213,12 +214,12 @@ struct acpi_namespace_node {
 #define ANOBJ_IS_BIT_OFFSET             0x40	/* i_aSL only: Reference is a bit offset */
 #define ANOBJ_IS_REFERENCED             0x80	/* i_aSL only: Object was referenced */
 
-/* One internal RSDT for table management */
+/* Internal ACPI table management - master table list */
 
-struct acpi_internal_rsdt {
-	struct acpi_table_desc *tables;
-	u32 count;
-	u32 size;
+struct acpi_table_list {
+	struct acpi_table_desc *tables;	/* Table descriptor array */
+	u32 current_table_count;	/* Tables currently in the array */
+	u32 max_table_count;	/* Max tables array will hold */
 	u8 flags;
 };
 
@@ -369,6 +370,20 @@ union acpi_predefined_info {
 	struct acpi_package_info3 ret_info3;
 };
 
+/* Data block used during object validation */
+
+struct acpi_predefined_data {
+	char *pathname;
+	const union acpi_predefined_info *predefined;
+	union acpi_operand_object *parent_package;
+	u32 flags;
+	u8 node_flags;
+};
+
+/* Defines for Flags field above */
+
+#define ACPI_OBJECT_REPAIRED    1
+
 /*
  * Bitmapped return value types
  * Note: the actual data types must be contiguous, a loop in nspredef.c
@@ -397,6 +412,8 @@ struct acpi_handler_info {
 	acpi_event_handler address;	/* Address of handler, if any */
 	void *context;		/* Context to be passed to handler */
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level (saved) */
+	u8 orig_flags;		/* Original misc info about this GPE */
+	u8 orig_enabled;	/* Set if the GPE was originally enabled */
 };
 
 union acpi_gpe_dispatch_info {
@@ -413,6 +430,7 @@ struct acpi_gpe_event_info {
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
+	u8 runtime_count;	/* References to a run GPE */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -438,7 +456,9 @@ struct acpi_gpe_block_info {
 	struct acpi_gpe_event_info *event_info;	/* One for each GPE */
 	struct acpi_generic_address block_address;	/* Base address of the block */
 	u32 register_count;	/* Number of register pairs in block */
+	u16 gpe_count;		/* Number of individual GPEs in block */
 	u8 block_base_number;	/* Base GPE number for this block */
+	u8 initialized;         /* If set, the GPE block has been initialized */
 };
 
 /* Information about GPE interrupt handlers, one per each interrupt level used for GPEs */
@@ -453,6 +473,9 @@ struct acpi_gpe_xrupt_info {
 struct acpi_gpe_walk_info {
 	struct acpi_namespace_node *gpe_device;
 	struct acpi_gpe_block_info *gpe_block;
+	u16 count;
+	acpi_owner_id owner_id;
+	u8 execute_by_owner_id;
 };
 
 struct acpi_gpe_device_info {
@@ -636,8 +659,7 @@ struct acpi_opcode_info {
 };
 
 union acpi_parse_value {
-	acpi_integer integer;	/* Integer constant (Up to 64 bits) */
-	struct uint64_struct integer64;	/* Structure overlay for 2 32-bit Dwords */
+	u64 integer;		/* Integer constant (Up to 64 bits) */
 	u32 size;		/* bytelist or field size */
 	char *string;		/* NULL terminated string */
 	u8 *buffer;		/* buffer or string */
@@ -833,6 +855,7 @@ struct acpi_bit_register_info {
 	ACPI_BITMASK_POWER_BUTTON_STATUS   | \
 	ACPI_BITMASK_SLEEP_BUTTON_STATUS   | \
 	ACPI_BITMASK_RT_CLOCK_STATUS       | \
+	ACPI_BITMASK_PCIEXP_WAKE_STATUS    | \
 	ACPI_BITMASK_WAKE_STATUS)
 
 #define ACPI_BITMASK_TIMER_ENABLE               0x0001
@@ -885,13 +908,22 @@ struct acpi_bit_register_info {
 #define ACPI_OSI_WIN_XP_SP2             0x05
 #define ACPI_OSI_WINSRV_2003_SP1        0x06
 #define ACPI_OSI_WIN_VISTA              0x07
+#define ACPI_OSI_WINSRV_2008            0x08
+#define ACPI_OSI_WIN_VISTA_SP1          0x09
+#define ACPI_OSI_WIN_VISTA_SP2          0x0A
+#define ACPI_OSI_WIN_7                  0x0B
 
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
 struct acpi_interface_info {
 	char *name;
+	struct acpi_interface_info *next;
+	u8 flags;
 	u8 value;
 };
+
+#define ACPI_OSI_INVALID                0x01
+#define ACPI_OSI_DYNAMIC                0x02
 
 struct acpi_port_info {
 	char *name;
@@ -972,7 +1004,7 @@ struct acpi_port_info {
 struct acpi_db_method_info {
 	acpi_handle main_thread_gate;
 	acpi_handle thread_complete_gate;
-	u32 *threads;
+	acpi_thread_id *threads;
 	u32 num_threads;
 	u32 num_created;
 	u32 num_completed;

@@ -51,7 +51,6 @@ SIGN1(sys32_exit_group, sys_exit_group, %o0)
 SIGN1(sys32_wait4, compat_sys_wait4, %o2)
 SIGN1(sys32_creat, sys_creat, %o1)
 SIGN1(sys32_mknod, sys_mknod, %o1)
-SIGN1(sys32_perfctr, sys_perfctr, %o0)
 SIGN1(sys32_umount, sys_umount, %o1)
 SIGN1(sys32_signal, sys_signal, %o0)
 SIGN1(sys32_access, sys_access, %o1)
@@ -121,7 +120,7 @@ SIGN2(sys32_syslog, sys_syslog, %o0, %o2)
 SIGN1(sys32_umask, sys_umask, %o0)
 SIGN3(sys32_tgkill, sys_tgkill, %o0, %o1, %o2)
 SIGN1(sys32_sendto, sys_sendto, %o0)
-SIGN1(sys32_recvfrom, sys_recvfrom, %o0)
+SIGN1(sys32_recvfrom, compat_sys_recvfrom, %o0)
 SIGN3(sys32_socket, sys_socket, %o0, %o1, %o2)
 SIGN2(sys32_connect, sys_connect, %o0, %o2)
 SIGN2(sys32_bind, sys_bind, %o0, %o2)
@@ -134,10 +133,12 @@ SIGN1(sys32_getpeername, sys_getpeername, %o0)
 SIGN1(sys32_getsockname, sys_getsockname, %o0)
 SIGN2(sys32_ioprio_get, sys_ioprio_get, %o0, %o1)
 SIGN3(sys32_ioprio_set, sys_ioprio_set, %o0, %o1, %o2)
-SIGN2(sys32_splice, sys_splice, %o0, %o1)
+SIGN2(sys32_splice, sys_splice, %o0, %o2)
 SIGN2(sys32_sync_file_range, compat_sync_file_range, %o0, %o5)
 SIGN2(sys32_tee, sys_tee, %o0, %o1)
 SIGN1(sys32_vmsplice, compat_sys_vmsplice, %o0)
+SIGN1(sys32_truncate, sys_truncate, %o1)
+SIGN1(sys32_ftruncate, sys_ftruncate, %o1)
 
 	.globl		sys32_mmap2
 sys32_mmap2:
@@ -328,6 +329,15 @@ do_sys_accept4: /* sys_accept4(int, struct sockaddr *, int *, int) */
 66:	 lduwa		[%o1 + 0x4] %asi, %o1
 	nop
 	nop
+
+	.globl		sys32_fanotify_mark
+sys32_fanotify_mark:
+	sethi		%hi(sys_fanotify_mark), %g1
+	sllx		%o2, 32, %o2
+	or		%o2, %o3, %o2
+	mov		%o4, %o3
+	jmpl		%g1 + %lo(sys_fanotify_mark), %g0
+	 mov		%o5, %o4
 
 	.section	__ex_table,"a"
 	.align		4

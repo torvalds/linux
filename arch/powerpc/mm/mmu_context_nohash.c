@@ -25,10 +25,20 @@
  *     also clear mm->cpu_vm_mask bits when processes are migrated
  */
 
-#undef DEBUG
-#define DEBUG_STEAL_ONLY
-#undef DEBUG_MAP_CONSISTENCY
-/*#define DEBUG_CLAMP_LAST_CONTEXT   15 */
+//#define DEBUG_MAP_CONSISTENCY
+//#define DEBUG_CLAMP_LAST_CONTEXT   31
+//#define DEBUG_HARDER
+
+/* We don't use DEBUG because it tends to be compiled in always nowadays
+ * and this would generate way too much output
+ */
+#ifdef DEBUG_HARDER
+#define pr_hard(args...)	printk(KERN_DEBUG args)
+#define pr_hardcont(args...)	printk(KERN_CONT args)
+#else
+#define pr_hard(args...)	do { } while(0)
+#define pr_hardcont(args...)	do { } while(0)
+#endif
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -37,6 +47,7 @@
 #include <linux/bootmem.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -46,7 +57,7 @@ static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
-static DEFINE_SPINLOCK(context_lock);
+static DEFINE_RAW_SPINLOCK(context_lock);
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -71,7 +82,7 @@ static DEFINE_SPINLOCK(context_lock);
 static unsigned int steal_context_smp(unsigned int id)
 {
 	struct mm_struct *mm;
-	unsigned int cpu, max;
+	unsigned int cpu, max, i;
 
 	max = last_context - first_context;
 
@@ -89,24 +100,31 @@ static unsigned int steal_context_smp(unsigned int id)
 				id = first_context;
 			continue;
 		}
-		pr_debug("[%d] steal context %d from mm @%p\n",
-			 smp_processor_id(), id, mm);
+		pr_hardcont(" | steal %d from 0x%p", id, mm);
 
 		/* Mark this mm has having no context anymore */
 		mm->context.id = MMU_NO_CONTEXT;
 
-		/* Mark it stale on all CPUs that used this mm */
-		for_each_cpu(cpu, mm_cpumask(mm))
-			__set_bit(id, stale_map[cpu]);
+		/* Mark it stale on all CPUs that used this mm. For threaded
+		 * implementations, we set it on all threads on each core
+		 * represented in the mask. A future implementation will use
+		 * a core map instead but this will do for now.
+		 */
+		for_each_cpu(cpu, mm_cpumask(mm)) {
+			for (i = cpu_first_thread_sibling(cpu);
+			     i <= cpu_last_thread_sibling(cpu); i++)
+				__set_bit(id, stale_map[i]);
+			cpu = i - 1;
+		}
 		return id;
 	}
 
 	/* This will happen if you have more CPUs than available contexts,
 	 * all we can do here is wait a bit and try again
 	 */
-	spin_unlock(&context_lock);
+	raw_spin_unlock(&context_lock);
 	cpu_relax();
-	spin_lock(&context_lock);
+	raw_spin_lock(&context_lock);
 
 	/* This will cause the caller to try again */
 	return MMU_NO_CONTEXT;
@@ -126,7 +144,7 @@ static unsigned int steal_context_up(unsigned int id)
 	/* Pick up the victim mm */
 	mm = context_mm[id];
 
-	pr_debug("[%d] steal context %d from mm @%p\n", cpu, id, mm);
+	pr_hardcont(" | steal %d from 0x%p", id, mm);
 
 	/* Flush the TLB for that context */
 	local_flush_tlb_mm(mm);
@@ -173,25 +191,20 @@ static void context_check_map(void) { }
 
 void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
-	unsigned int id, cpu = smp_processor_id();
+	unsigned int i, id, cpu = smp_processor_id();
 	unsigned long *map;
 
 	/* No lockless fast path .. yet */
-	spin_lock(&context_lock);
+	raw_spin_lock(&context_lock);
 
-#ifndef DEBUG_STEAL_ONLY
-	pr_debug("[%d] activating context for mm @%p, active=%d, id=%d\n",
-		 cpu, next, next->context.active, next->context.id);
-#endif
+	pr_hard("[%d] activating context for mm @%p, active=%d, id=%d",
+		cpu, next, next->context.active, next->context.id);
 
 #ifdef CONFIG_SMP
 	/* Mark us active and the previous one not anymore */
 	next->context.active++;
 	if (prev) {
-#ifndef DEBUG_STEAL_ONLY
-		pr_debug(" old context %p active was: %d\n",
-			 prev, prev->context.active);
-#endif
+		pr_hardcont(" (old=0x%p a=%d)", prev, prev->context.active);
 		WARN_ON(prev->context.active < 1);
 		prev->context.active--;
 	}
@@ -201,8 +214,14 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 
 	/* If we already have a valid assigned context, skip all that */
 	id = next->context.id;
-	if (likely(id != MMU_NO_CONTEXT))
+	if (likely(id != MMU_NO_CONTEXT)) {
+#ifdef DEBUG_MAP_CONSISTENCY
+		if (context_mm[id] != next)
+			pr_err("MMU: mm 0x%p has id %d but context_mm[%d] says 0x%p\n",
+			       next, id, id, context_mm[id]);
+#endif
 		goto ctxt_ok;
+	}
 
 	/* We really don't have a context, let's try to acquire one */
 	id = next_context;
@@ -217,6 +236,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 			id = steal_context_smp(id);
 			if (id == MMU_NO_CONTEXT)
 				goto again;
+			goto stolen;
 		}
 #endif /* CONFIG_SMP */
 		id = steal_context_up(id);
@@ -234,11 +254,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	next_context = id + 1;
 	context_mm[id] = next;
 	next->context.id = id;
-
-#ifndef DEBUG_STEAL_ONLY
-	pr_debug("[%d] picked up new id %d, nrf is now %d\n",
-		 cpu, id, nr_free_contexts);
-#endif
+	pr_hardcont(" | new id=%d,nrf=%d", id, nr_free_contexts);
 
 	context_check_map();
  ctxt_ok:
@@ -247,17 +263,23 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	 * local TLB for it and unmark it before we use it
 	 */
 	if (test_bit(id, stale_map[cpu])) {
-		pr_debug("[%d] flushing stale context %d for mm @%p !\n",
-			 cpu, id, next);
+		pr_hardcont(" | stale flush %d [%d..%d]",
+			    id, cpu_first_thread_sibling(cpu),
+			    cpu_last_thread_sibling(cpu));
+
 		local_flush_tlb_mm(next);
 
 		/* XXX This clear should ultimately be part of local_flush_tlb_mm */
-		__clear_bit(id, stale_map[cpu]);
+		for (i = cpu_first_thread_sibling(cpu);
+		     i <= cpu_last_thread_sibling(cpu); i++) {
+			__clear_bit(id, stale_map[i]);
+		}
 	}
 
 	/* Flick the MMU and release lock */
+	pr_hardcont(" -> %d\n", id);
 	set_context(id, next->pgd);
-	spin_unlock(&context_lock);
+	raw_spin_unlock(&context_lock);
 }
 
 /*
@@ -265,6 +287,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
  */
 int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
+	pr_hard("initing context for mm @%p\n", mm);
+
 	mm->context.id = MMU_NO_CONTEXT;
 	mm->context.active = 0;
 
@@ -284,7 +308,7 @@ void destroy_context(struct mm_struct *mm)
 
 	WARN_ON(mm->context.active != 0);
 
-	spin_lock_irqsave(&context_lock, flags);
+	raw_spin_lock_irqsave(&context_lock, flags);
 	id = mm->context.id;
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
@@ -295,7 +319,7 @@ void destroy_context(struct mm_struct *mm)
 		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
-	spin_unlock_irqrestore(&context_lock, flags);
+	raw_spin_unlock_irqrestore(&context_lock, flags);
 }
 
 #ifdef CONFIG_SMP
@@ -304,27 +328,37 @@ static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
 					    unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
-
+#ifdef CONFIG_HOTPLUG_CPU
+	struct task_struct *p;
+#endif
 	/* We don't touch CPU 0 map, it's allocated at aboot and kept
 	 * around forever
 	 */
-	if (cpu == 0)
+	if (cpu == boot_cpuid)
 		return NOTIFY_OK;
 
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		pr_debug("MMU: Allocating stale context map for CPU %d\n", cpu);
+		pr_devel("MMU: Allocating stale context map for CPU %d\n", cpu);
 		stale_map[cpu] = kzalloc(CTX_MAP_SIZE, GFP_KERNEL);
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		pr_debug("MMU: Freeing stale context map for CPU %d\n", cpu);
+		pr_devel("MMU: Freeing stale context map for CPU %d\n", cpu);
 		kfree(stale_map[cpu]);
 		stale_map[cpu] = NULL;
-		break;
-#endif
+
+		/* We also clear the cpu_vm_mask bits of CPUs going away */
+		read_lock(&tasklist_lock);
+		for_each_process(p) {
+			if (p->mm)
+				cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
+		}
+		read_unlock(&tasklist_lock);
+	break;
+#endif /* CONFIG_HOTPLUG_CPU */
 	}
 	return NOTIFY_OK;
 }
@@ -361,10 +395,18 @@ void __init mmu_context_init(void)
 	 * the PID/TID comparison is disabled, so we can use a TID of zero
 	 * to represent all kernel pages as shared among all contexts.
 	 * 	-- Dan
+	 *
+	 * The IBM 47x core supports 16-bit PIDs, thus 65535 contexts. We
+	 * should normally never have to steal though the facility is
+	 * present if needed.
+	 *      -- BenH
 	 */
 	if (mmu_has_feature(MMU_FTR_TYPE_8xx)) {
 		first_context = 0;
 		last_context = 15;
+	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
+		first_context = 1;
+		last_context = 65535;
 	} else {
 		first_context = 1;
 		last_context = 255;
@@ -378,9 +420,11 @@ void __init mmu_context_init(void)
 	 */
 	context_map = alloc_bootmem(CTX_MAP_SIZE);
 	context_mm = alloc_bootmem(sizeof(void *) * (last_context + 1));
+#ifndef CONFIG_SMP
 	stale_map[0] = alloc_bootmem(CTX_MAP_SIZE);
+#else
+	stale_map[boot_cpuid] = alloc_bootmem(CTX_MAP_SIZE);
 
-#ifdef CONFIG_SMP
 	register_cpu_notifier(&mmu_context_cpu_nb);
 #endif
 

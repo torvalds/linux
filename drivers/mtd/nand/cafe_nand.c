@@ -2,7 +2,7 @@
  * Driver for One Laptop Per Child ‘CAFÉ’ controller, aka Marvell 88ALP01
  *
  * The data sheet for this device can be found at:
- *    http://www.marvell.com/products/pcconn/88ALP01.jsp
+ *    http://wiki.laptop.org/go/Datasheets 
  *
  * Copyright © 2006 Red Hat, Inc.
  * Copyright © 2006 David Woodhouse <dwmw2@infradead.org>
@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 #define CAFE_NAND_CTRL1		0x00
@@ -381,7 +382,7 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
  * we need a special oob layout and handling.
  */
 static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       uint8_t *buf)
+			       uint8_t *buf, int page)
 {
 	struct cafe_priv *cafe = mtd->priv;
 
@@ -761,7 +762,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe_readl(cafe, GLOBAL_CTRL), cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
 	/* Scan to find existence of the device */
-	if (nand_scan_ident(mtd, 2)) {
+	if (nand_scan_ident(mtd, 2, NULL)) {
 		err = -ENXIO;
 		goto out_irq;
 	}
@@ -848,7 +849,7 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 	kfree(mtd);
 }
 
-static struct pci_device_id cafe_nand_tbl[] = {
+static const struct pci_device_id cafe_nand_tbl[] = {
 	{ PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_88ALP01_NAND,
 	  PCI_ANY_ID, PCI_ANY_ID },
 	{ }
@@ -903,12 +904,12 @@ static struct pci_driver cafe_nand_pci_driver = {
 	.resume = cafe_nand_resume,
 };
 
-static int cafe_nand_init(void)
+static int __init cafe_nand_init(void)
 {
 	return pci_register_driver(&cafe_nand_pci_driver);
 }
 
-static void cafe_nand_exit(void)
+static void __exit cafe_nand_exit(void)
 {
 	pci_unregister_driver(&cafe_nand_pci_driver);
 }

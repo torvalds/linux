@@ -113,11 +113,9 @@ static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
 #define IUCV_DBF_TEXT_(name, level, text...) \
 	do { \
 		if (iucv_dbf_passes(iucv_dbf_##name, level)) { \
-			char* iucv_dbf_txt_buf = \
-					get_cpu_var(iucv_dbf_txt_buf); \
-			sprintf(iucv_dbf_txt_buf, text); \
-			debug_text_event(iucv_dbf_##name, level, \
-						iucv_dbf_txt_buf); \
+			char* __buf = get_cpu_var(iucv_dbf_txt_buf); \
+			sprintf(__buf, text); \
+			debug_text_event(iucv_dbf_##name, level, __buf); \
 			put_cpu_var(iucv_dbf_txt_buf); \
 		} \
 	} while (0)
@@ -161,7 +159,7 @@ static void netiucv_pm_complete(struct device *);
 static int netiucv_pm_freeze(struct device *);
 static int netiucv_pm_restore_thaw(struct device *);
 
-static struct dev_pm_ops netiucv_pm_ops = {
+static const struct dev_pm_ops netiucv_pm_ops = {
 	.prepare = netiucv_pm_prepare,
 	.complete = netiucv_pm_complete,
 	.freeze = netiucv_pm_freeze,
@@ -676,7 +674,6 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 		 * we must use netif_rx_ni() instead of netif_rx()
 		 */
 		netif_rx_ni(skb);
-		dev->last_rx = jiffies;
 		skb_pull(pskb, header->next);
 		skb_put(pskb, NETIUCV_HDRLEN);
 	}
@@ -742,13 +739,13 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 	if (single_flag) {
 		if ((skb = skb_dequeue(&conn->commit_queue))) {
 			atomic_dec(&skb->users);
-			dev_kfree_skb_any(skb);
 			if (privptr) {
 				privptr->stats.tx_packets++;
 				privptr->stats.tx_bytes +=
 					(skb->len - NETIUCV_HDRLEN
-					 	  - NETIUCV_HDRLEN);
+						  - NETIUCV_HDRLEN);
 			}
+			dev_kfree_skb_any(skb);
 		}
 	}
 	conn->tx_buff->data = conn->tx_buff->head;
@@ -1376,14 +1373,14 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 	if (skb == NULL) {
 		IUCV_DBF_TEXT(data, 2, "netiucv_tx: skb is NULL\n");
 		privptr->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (skb_headroom(skb) < NETIUCV_HDRLEN) {
 		IUCV_DBF_TEXT(data, 2,
 			"netiucv_tx: skb_headroom < NETIUCV_HDRLEN\n");
 		dev_kfree_skb(skb);
 		privptr->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/**
@@ -1395,7 +1392,7 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 		privptr->stats.tx_dropped++;
 		privptr->stats.tx_errors++;
 		privptr->stats.tx_carrier_errors++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (netiucv_test_and_set_busy(dev)) {
@@ -1839,9 +1836,10 @@ static int netiucv_register_device(struct net_device *ndev)
 		return -ENOMEM;
 
 	ret = device_register(dev);
-
-	if (ret)
+	if (ret) {
+		put_device(dev);
 		return ret;
+	}
 	ret = netiucv_add_files(dev);
 	if (ret)
 		goto out_unreg;
@@ -2113,7 +2111,7 @@ static ssize_t remove_write (struct device_driver *drv,
 	IUCV_DBF_TEXT(trace, 3, __func__);
 
         if (count >= IFNAMSIZ)
-                count = IFNAMSIZ - 1;;
+                count = IFNAMSIZ - 1;
 
 	for (i = 0, p = buf; i < count && *p; i++, p++) {
 		if (*p == '\n' || *p == ' ')
@@ -2159,7 +2157,7 @@ static struct attribute_group netiucv_drv_attr_group = {
 	.attrs = netiucv_drv_attrs,
 };
 
-static struct attribute_group *netiucv_drv_attr_groups[] = {
+static const struct attribute_group *netiucv_drv_attr_groups[] = {
 	&netiucv_drv_attr_group,
 	NULL,
 };
@@ -2226,8 +2224,10 @@ static int __init netiucv_init(void)
 	netiucv_dev->release = (void (*)(struct device *))kfree;
 	netiucv_dev->driver = &netiucv_driver;
 	rc = device_register(netiucv_dev);
-	if (rc)
+	if (rc) {
+		put_device(netiucv_dev);
 		goto out_driver;
+	}
 	netiucv_banner();
 	return rc;
 

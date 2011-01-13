@@ -15,7 +15,6 @@
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
-#include "cred-internals.h"
 
 /*
  * Leveraged for setting/resetting capabilities
@@ -29,7 +28,6 @@ EXPORT_SYMBOL(__cap_empty_set);
 EXPORT_SYMBOL(__cap_full_set);
 EXPORT_SYMBOL(__cap_init_eff_set);
 
-#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
 int file_caps_enabled = 1;
 
 static int __init file_caps_disable(char *str)
@@ -38,7 +36,6 @@ static int __init file_caps_disable(char *str)
 	return 1;
 }
 __setup("no_file_caps", file_caps_disable);
-#endif
 
 /*
  * More recent versions of libcap are available from:
@@ -137,7 +134,7 @@ static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 	if (pid && (pid != task_pid_vnr(current))) {
 		struct task_struct *target;
 
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 
 		target = find_task_by_vpid(pid);
 		if (!target)
@@ -145,7 +142,7 @@ static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 		else
 			ret = security_capget(target, pEp, pIp, pPp);
 
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 	} else
 		ret = security_capget(current, pEp, pIp, pPp);
 
@@ -169,8 +166,8 @@ SYSCALL_DEFINE2(capget, cap_user_header_t, header, cap_user_data_t, dataptr)
 	kernel_cap_t pE, pI, pP;
 
 	ret = cap_validate_magic(header, &tocopy);
-	if (ret != 0)
-		return ret;
+	if ((dataptr == NULL) || (ret != 0))
+		return ((dataptr == NULL) && (ret == -EINVAL)) ? 0 : ret;
 
 	if (get_user(pid, &header->pid))
 		return -EFAULT;
@@ -238,7 +235,7 @@ SYSCALL_DEFINE2(capget, cap_user_header_t, header, cap_user_data_t, dataptr)
 SYSCALL_DEFINE2(capset, cap_user_header_t, header, const cap_user_data_t, data)
 {
 	struct __user_cap_data_struct kdata[_KERNEL_CAPABILITY_U32S];
-	unsigned i, tocopy;
+	unsigned i, tocopy, copybytes;
 	kernel_cap_t inheritable, permitted, effective;
 	struct cred *new;
 	int ret;
@@ -255,8 +252,11 @@ SYSCALL_DEFINE2(capset, cap_user_header_t, header, const cap_user_data_t, data)
 	if (pid != 0 && pid != task_pid_vnr(current))
 		return -EPERM;
 
-	if (copy_from_user(&kdata, data,
-			   tocopy * sizeof(struct __user_cap_data_struct)))
+	copybytes = tocopy * sizeof(struct __user_cap_data_struct);
+	if (copybytes > sizeof(kdata))
+		return -EFAULT;
+
+	if (copy_from_user(&kdata, data, copybytes))
 		return -EFAULT;
 
 	for (i = 0; i < tocopy; i++) {

@@ -57,18 +57,12 @@
 #ifndef _P80211META_H
 #define _P80211META_H
 
-/*================================================================*/
-/* Project Includes */
-
-/*================================================================*/
-/* Types */
-
 /*----------------------------------------------------------------*/
 /* The following structure types are used for the metadata */
 /* representation of category list metadata, group list metadata, */
 /* and data item metadata for both Mib and Messages. */
 
-typedef struct p80211meta {
+struct p80211meta {
 	char *name;		/* data item name */
 	u32 did;		/* partial did */
 	u32 flags;		/* set of various flag bits */
@@ -81,16 +75,16 @@ typedef struct p80211meta {
 	p80211_totext_t totextptr;	/* ptr to totext conversion function */
 	p80211_fromtext_t fromtextptr;	/* ptr to totext conversion function */
 	p80211_valid_t validfunptr;	/* ptr to totext conversion function */
-} p80211meta_t;
+};
 
-typedef struct grplistitem {
+struct grplistitem {
 	char *name;
-	p80211meta_t *itemlist;
-} grplistitem_t;
+	struct p80211meta *itemlist;
+};
 
-typedef struct catlistitem {
+struct catlistitem {
 	char *name;
-	grplistitem_t *grplist;
-} catlistitem_t;
+	struct grplistitem *grplist;
+};
 
 #endif /* _P80211META_H */

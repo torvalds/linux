@@ -1,14 +1,11 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "uClinux/h8300 (w/o MMU) Kernel Configuration"
-
 config H8300
 	bool
 	default y
 	select HAVE_IDE
+
+config SYMBOL_PREFIX
+	string
+	default "_"
 
 config MMU
 	bool
@@ -55,10 +52,6 @@ config GENERIC_HARDIRQS
 	default y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config GENERIC_TIME
 	bool
 	default y
 

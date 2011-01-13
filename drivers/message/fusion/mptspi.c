@@ -46,6 +46,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/kdev_t.h>
@@ -208,6 +209,10 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 	target->minSyncFactor = factor;
 	target->maxOffset = offset;
 	target->maxWidth = width;
+
+	spi_min_period(scsi_target(sdev)) = factor;
+	spi_max_offset(scsi_target(sdev)) = offset;
+	spi_max_width(scsi_target(sdev)) = width;
 
 	target->tflags |= MPT_TARGET_FLAGS_VALID_NEGO;
 
@@ -557,6 +562,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	cfg.dir = 0;
 	cfg.pageAddr = starget->id;
+	cfg.timeout = 60;
 
 	if (mpt_config(ioc, &cfg)) {
 		starget_printk(KERN_ERR, starget, MYIOC_s_FMT "mpt_config failed\n", ioc->name);
@@ -774,7 +780,7 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 }
 
 static int
-mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptspi_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	struct _MPT_SCSI_HOST *hd = shost_priv(SCpnt->device->host);
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
@@ -798,6 +804,8 @@ mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	return mptscsih_qcmd(SCpnt,done);
 }
+
+static DEF_SCSI_QCMD(mptspi_qcmd)
 
 static void mptspi_slave_destroy(struct scsi_device *sdev)
 {
@@ -1151,6 +1159,9 @@ mptspi_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
 	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
 
+	if (ioc->bus_type != SPI)
+		return 0;
+
 	if (hd && event ==  MPI_EVENT_INTEGRATED_RAID) {
 		int reason
 			= (le32_to_cpu(pEvReply->Data[0]) & 0x00FF0000) >> 16;
@@ -1282,6 +1293,8 @@ mptspi_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	int rc;
 
 	rc = mptscsih_ioc_reset(ioc, reset_phase);
+	if ((ioc->bus_type != SPI) || (!rc))
+		return rc;
 
 	/* only try to do a renegotiation if we're properly set up
 	 * if we get an ioc fault on bringup, ioc->sh will be NULL */
@@ -1472,28 +1485,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "ScsiLookup @ %p\n",
 		 ioc->name, ioc->ScsiLookup));
 
-	/* Clear the TM flags
-	 */
-	hd->abortSCpnt = NULL;
-
-	/* Clear the pointer used to store
-	 * single-threaded commands, i.e., those
-	 * issued during a bus scan, dv and
-	 * configuration pages.
-	 */
-	hd->cmdPtr = NULL;
-
-	/* Initialize this SCSI Hosts' timers
-	 * To use, set the timer expires field
-	 * and add_timer
-	 */
-	init_timer(&hd->timer);
-	hd->timer.data = (unsigned long) hd;
-	hd->timer.function = mptscsih_timer_expired;
-
 	ioc->spi_data.Saf_Te = mpt_saf_te;
-
-	hd->negoNvram = MPT_SCSICFG_USE_NVRAM;
 	ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		"saf_te %x\n",
 		ioc->name,
@@ -1561,9 +1553,12 @@ mptspi_init(void)
 	if (!mptspi_transport_template)
 		return -ENODEV;
 
-	mptspiDoneCtx = mpt_register(mptscsih_io_done, MPTSPI_DRIVER);
-	mptspiTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSPI_DRIVER);
-	mptspiInternalCtx = mpt_register(mptscsih_scandv_complete, MPTSPI_DRIVER);
+	mptspiDoneCtx = mpt_register(mptscsih_io_done, MPTSPI_DRIVER,
+	    "mptscsih_io_done");
+	mptspiTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSPI_DRIVER,
+	    "mptscsih_taskmgmt_complete");
+	mptspiInternalCtx = mpt_register(mptscsih_scandv_complete,
+	    MPTSPI_DRIVER, "mptscsih_scandv_complete");
 
 	mpt_event_register(mptspiDoneCtx, mptspi_event_process);
 	mpt_reset_register(mptspiDoneCtx, mptspi_ioc_reset);

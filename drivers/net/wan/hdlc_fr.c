@@ -112,7 +112,7 @@ typedef struct {
 	unsigned de:	1;
 	unsigned ea2:	1;
 #endif
-}__attribute__ ((packed)) fr_hdr;
+}__packed fr_hdr;
 
 
 typedef struct pvc_device_struct {
@@ -182,7 +182,7 @@ static inline pvc_device* find_pvc(hdlc_device *hdlc, u16 dlci)
 		if (pvc->dlci == dlci)
 			return pvc;
 		if (pvc->dlci > dlci)
-			return NULL; /* the listed is sorted */
+			return NULL; /* the list is sorted */
 		pvc = pvc->next;
 	}
 
@@ -407,7 +407,7 @@ static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EINVAL;
 }
 
-static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	pvc_device *pvc = dev->ml_priv;
 
@@ -421,7 +421,7 @@ static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 							     GFP_ATOMIC)) {
 						dev->stats.tx_dropped++;
 						dev_kfree_skb(skb);
-						return 0;
+						return NETDEV_TX_OK;
 					}
 				skb_put(skb, pad);
 				memset(skb->data + len, 0, pad);
@@ -435,13 +435,13 @@ static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 				dev->stats.tx_compressed++;
 			skb->dev = pvc->frad;
 			dev_queue_xmit(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	}
 
 	dev->stats.tx_dropped++;
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static inline void fr_log_dlci_active(pvc_device *pvc)
@@ -1214,10 +1214,10 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 		return 0;
 
 	case IF_PROTO_FR:
-		if(!capable(CAP_NET_ADMIN))
+		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		if(dev->flags & IFF_UP)
+		if (dev->flags & IFF_UP)
 			return -EBUSY;
 
 		if (copy_from_user(&new_settings, fr_s, size))
@@ -1263,7 +1263,7 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (dev_to_hdlc(dev)->proto != &proto) /* Different proto */
 			return -EINVAL;
 
-		if(!capable(CAP_NET_ADMIN))
+		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
 		if (copy_from_user(&pvc, ifr->ifr_settings.ifs_ifsu.fr_pvc,

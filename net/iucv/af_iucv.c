@@ -34,7 +34,7 @@
 
 static char iucv_userid[80];
 
-static struct proto_ops iucv_sock_ops;
+static const struct proto_ops iucv_sock_ops;
 
 static struct proto iucv_proto = {
 	.name		= "AF_IUCV",
@@ -59,8 +59,8 @@ do {									\
 	DEFINE_WAIT(__wait);						\
 	long __timeo = timeo;						\
 	ret = 0;							\
+	prepare_to_wait(sk_sleep(sk), &__wait, TASK_INTERRUPTIBLE);	\
 	while (!(condition)) {						\
-		prepare_to_wait(sk->sk_sleep, &__wait, TASK_INTERRUPTIBLE); \
 		if (!__timeo) {						\
 			ret = -EAGAIN;					\
 			break;						\
@@ -76,7 +76,7 @@ do {									\
 		if (ret)						\
 			break;						\
 	}								\
-	finish_wait(sk->sk_sleep, &__wait);				\
+	finish_wait(sk_sleep(sk), &__wait);				\
 } while (0)
 
 #define iucv_sock_wait(sk, condition, timeo)				\
@@ -136,7 +136,6 @@ static void afiucv_pm_complete(struct device *dev)
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "afiucv_pm_complete\n");
 #endif
-	return;
 }
 
 /**
@@ -221,7 +220,7 @@ static int afiucv_pm_restore_thaw(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops afiucv_pm_ops = {
+static const struct dev_pm_ops afiucv_pm_ops = {
 	.prepare = afiucv_pm_prepare,
 	.complete = afiucv_pm_complete,
 	.freeze = afiucv_pm_freeze,
@@ -305,11 +304,14 @@ static inline int iucv_below_msglim(struct sock *sk)
  */
 static void iucv_sock_wake_msglim(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_all(sk->sk_sleep);
+	struct socket_wq *wq;
+
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))
+		wake_up_interruptible_all(&wq->wait);
 	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
-	read_unlock(&sk->sk_callback_lock);
+	rcu_read_unlock();
 }
 
 /* Timers */
@@ -361,10 +363,9 @@ static void iucv_sock_cleanup_listen(struct sock *parent)
 	}
 
 	parent->sk_state = IUCV_CLOSED;
-	sock_set_flag(parent, SOCK_ZAPPED);
 }
 
-/* Kill socket */
+/* Kill socket (only if zapped and orphaned) */
 static void iucv_sock_kill(struct sock *sk)
 {
 	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
@@ -426,17 +427,17 @@ static void iucv_sock_close(struct sock *sk)
 
 		skb_queue_purge(&iucv->send_skb_q);
 		skb_queue_purge(&iucv->backlog_skb_q);
-
-		sock_set_flag(sk, SOCK_ZAPPED);
 		break;
 
 	default:
-		sock_set_flag(sk, SOCK_ZAPPED);
+		/* nothing to do here */
 		break;
 	}
 
+	/* mark socket for deletion by iucv_sock_kill() */
+	sock_set_flag(sk, SOCK_ZAPPED);
+
 	release_sock(sk);
-	iucv_sock_kill(sk);
 }
 
 static void iucv_sock_init(struct sock *sk, struct sock *parent)
@@ -482,7 +483,8 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 }
 
 /* Create an IUCV socket */
-static int iucv_sock_create(struct net *net, struct socket *sock, int protocol)
+static int iucv_sock_create(struct net *net, struct socket *sock, int protocol,
+			    int kern)
 {
 	struct sock *sk;
 
@@ -536,7 +538,7 @@ void iucv_accept_enqueue(struct sock *parent, struct sock *sk)
 	list_add_tail(&iucv_sk(sk)->accept_q, &par->accept_q);
 	spin_unlock_irqrestore(&par->accept_q_lock, flags);
 	iucv_sk(sk)->parent = parent;
-	parent->sk_ack_backlog++;
+	sk_acceptq_added(parent);
 }
 
 void iucv_accept_unlink(struct sock *sk)
@@ -547,7 +549,7 @@ void iucv_accept_unlink(struct sock *sk)
 	spin_lock_irqsave(&par->accept_q_lock, flags);
 	list_del_init(&iucv_sk(sk)->accept_q);
 	spin_unlock_irqrestore(&par->accept_q_lock, flags);
-	iucv_sk(sk)->parent->sk_ack_backlog--;
+	sk_acceptq_removed(iucv_sk(sk)->parent);
 	iucv_sk(sk)->parent = NULL;
 	sock_put(sk);
 }
@@ -569,6 +571,7 @@ struct sock *iucv_accept_dequeue(struct sock *parent, struct socket *newsock)
 
 		if (sk->sk_state == IUCV_CONNECTED ||
 		    sk->sk_state == IUCV_SEVERED ||
+		    sk->sk_state == IUCV_DISCONN ||	/* due to PM restore */
 		    !newsock) {
 			iucv_accept_unlink(sk);
 			if (newsock)
@@ -794,7 +797,7 @@ static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
 	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 	/* Wait for an incoming connection */
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
+	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	while (!(nsk = iucv_accept_dequeue(sk, newsock))) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!timeo) {
@@ -818,7 +821,7 @@ static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
 	}
 
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 
 	if (err)
 		goto done;
@@ -1035,6 +1038,10 @@ out:
 	return err;
 }
 
+/* iucv_fragment_skb() - Fragment a single IUCV message into multiple skb's
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
 {
 	int dataleft, size, copied = 0;
@@ -1069,6 +1076,10 @@ static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
 	return 0;
 }
 
+/* iucv_process_message() - Receive a single outstanding IUCV message
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 				 struct iucv_path *path,
 				 struct iucv_message *msg)
@@ -1119,6 +1130,10 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 		skb_queue_head(&iucv_sk(sk)->backlog_skb_q, skb);
 }
 
+/* iucv_process_message_q() - Process outstanding IUCV messages
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static void iucv_process_message_q(struct sock *sk)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1209,6 +1224,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		kfree_skb(skb);
 
 		/* Queue backlog skbs */
+		spin_lock_bh(&iucv->message_q.lock);
 		rskb = skb_dequeue(&iucv->backlog_skb_q);
 		while (rskb) {
 			if (sock_queue_rcv_skb(sk, rskb)) {
@@ -1220,11 +1236,10 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 			}
 		}
 		if (skb_queue_empty(&iucv->backlog_skb_q)) {
-			spin_lock_bh(&iucv->message_q.lock);
 			if (!list_empty(&iucv->message_q.list))
 				iucv_process_message_q(sk);
-			spin_unlock_bh(&iucv->message_q.lock);
 		}
+		spin_unlock_bh(&iucv->message_q.lock);
 	}
 
 done:
@@ -1256,7 +1271,7 @@ unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	unsigned int mask = 0;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == IUCV_LISTEN)
 		return iucv_accept_poll(sk);
@@ -1374,7 +1389,7 @@ static int iucv_sock_release(struct socket *sock)
 
 /* getsockopt and setsockopt */
 static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1604,7 +1619,7 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 save_message:
 	save_msg = kzalloc(sizeof(struct sock_msg_q), GFP_ATOMIC | GFP_DMA);
 	if (!save_msg)
-		return;
+		goto out_unlock;
 	save_msg->path = path;
 	save_msg->msg = *msg;
 
@@ -1682,7 +1697,7 @@ static void iucv_callback_shutdown(struct iucv_path *path, u8 ipuser[16])
 	bh_unlock_sock(sk);
 }
 
-static struct proto_ops iucv_sock_ops = {
+static const struct proto_ops iucv_sock_ops = {
 	.family		= PF_IUCV,
 	.owner		= THIS_MODULE,
 	.release	= iucv_sock_release,
@@ -1702,7 +1717,7 @@ static struct proto_ops iucv_sock_ops = {
 	.getsockopt	= iucv_sock_getsockopt,
 };
 
-static struct net_proto_family iucv_sock_family_ops = {
+static const struct net_proto_family iucv_sock_family_ops = {
 	.family	= AF_IUCV,
 	.owner	= THIS_MODULE,
 	.create	= iucv_sock_create,

@@ -296,10 +296,9 @@ static struct pci_port_ops dino_port_ops = {
 	.outl	= dino_out32
 };
 
-static void dino_disable_irq(unsigned int irq)
+static void dino_mask_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct dino_device *dino_dev = desc->chip_data;
+	struct dino_device *dino_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 
 	DBG(KERN_WARNING "%s(0x%p, %d)\n", __func__, dino_dev, irq);
@@ -309,10 +308,9 @@ static void dino_disable_irq(unsigned int irq)
 	__raw_writel(dino_dev->imr, dino_dev->hba.base_addr+DINO_IMR);
 }
 
-static void dino_enable_irq(unsigned int irq)
+static void dino_unmask_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct dino_device *dino_dev = desc->chip_data;
+	struct dino_device *dino_dev = get_irq_chip_data(irq);
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 	u32 tmp;
 
@@ -347,20 +345,10 @@ static void dino_enable_irq(unsigned int irq)
 	}
 }
 
-static unsigned int dino_startup_irq(unsigned int irq)
-{
-	dino_enable_irq(irq);
-	return 0;
-}
-
-static struct hw_interrupt_type dino_interrupt_type = {
-	.typename	= "GSC-PCI",
-	.startup	= dino_startup_irq,
-	.shutdown	= dino_disable_irq,
-	.enable		= dino_enable_irq, 
-	.disable	= dino_disable_irq,
-	.ack		= no_ack_irq,
-	.end		= no_end_irq,
+static struct irq_chip dino_interrupt_type = {
+	.name	= "GSC-PCI",
+	.unmask	= dino_unmask_irq,
+	.mask	= dino_mask_irq,
 };
 
 
@@ -391,7 +379,7 @@ ilr_again:
 		int irq = dino_dev->global_irq[local_irq];
 		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
 			__func__, irq, intr_dev, mask);
-		__do_IRQ(irq);
+		generic_handle_irq(irq);
 		mask &= ~(1 << local_irq);
 	} while (mask);
 
@@ -614,7 +602,7 @@ dino_fixup_bus(struct pci_bus *bus)
 			    dev_name(&bus->self->dev), i,
 			    bus->self->resource[i].start,
 			    bus->self->resource[i].end);
-			pci_assign_resource(bus->self, i);
+			WARN_ON(pci_assign_resource(bus->self, i));
 			DBG("DEBUG %s after assign %d [0x%lx,0x%lx]\n",
 			    dev_name(&bus->self->dev), i,
 			    bus->self->resource[i].start,
@@ -1019,22 +1007,22 @@ static int __init dino_probe(struct parisc_device *dev)
 	** It's not used to avoid chicken/egg problems
 	** with configuration accessor functions.
 	*/
-	bus = pci_scan_bus_parented(&dev->dev, dino_current_bus,
-				    &dino_cfg_ops, NULL);
+	dino_dev->hba.hba_bus = bus = pci_scan_bus_parented(&dev->dev,
+			 dino_current_bus, &dino_cfg_ops, NULL);
+
 	if(bus) {
-		pci_bus_add_devices(bus);
 		/* This code *depends* on scanning being single threaded
 		 * if it isn't, this global bus number count will fail
 		 */
 		dino_current_bus = bus->subordinate + 1;
 		pci_bus_assign_resources(bus);
+		pci_bus_add_devices(bus);
 	} else {
-		printk(KERN_ERR "ERROR: failed to scan PCI bus on %s (probably duplicate bus number %d)\n",
+		printk(KERN_ERR "ERROR: failed to scan PCI bus on %s (duplicate bus number %d?)\n",
 		       dev_name(&dev->dev), dino_current_bus);
 		/* increment the bus number in case of duplicates */
 		dino_current_bus++;
 	}
-	dino_dev->hba.hba_bus = bus;
 	return 0;
 }
 

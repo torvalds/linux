@@ -388,6 +388,9 @@ static inline u64 __gpfn_is_io(u64 gpfn)
 #define _vmm_raw_spin_lock(x)	 do {}while(0)
 #define _vmm_raw_spin_unlock(x) do {}while(0)
 #else
+typedef struct {
+	volatile unsigned int lock;
+} vmm_spinlock_t;
 #define _vmm_raw_spin_lock(x)						\
 	do {								\
 		__u32 *ia64_spinlock_ptr = (__u32 *) (x);		\
@@ -405,12 +408,12 @@ static inline u64 __gpfn_is_io(u64 gpfn)
 
 #define _vmm_raw_spin_unlock(x)				\
 	do { barrier();				\
-		((spinlock_t *)x)->raw_lock.lock = 0; } \
+		((vmm_spinlock_t *)x)->lock = 0; } \
 while (0)
 #endif
 
-void vmm_spin_lock(spinlock_t *lock);
-void vmm_spin_unlock(spinlock_t *lock);
+void vmm_spin_lock(vmm_spinlock_t *lock);
+void vmm_spin_unlock(vmm_spinlock_t *lock);
 enum {
 	I_TLB = 1,
 	D_TLB = 2
@@ -686,14 +689,15 @@ static inline int highest_inservice_irq(struct kvm_vcpu *vcpu)
 	return highest_bits((int *)&(VMX(vcpu, insvc[0])));
 }
 
-extern void vcpu_get_fpreg(struct kvm_vcpu *vcpu, u64 reg,
+extern void vcpu_get_fpreg(struct kvm_vcpu *vcpu, unsigned long reg,
 					struct ia64_fpreg *val);
-extern void vcpu_set_fpreg(struct kvm_vcpu *vcpu, u64 reg,
+extern void vcpu_set_fpreg(struct kvm_vcpu *vcpu, unsigned long reg,
 					struct ia64_fpreg *val);
-extern u64 vcpu_get_gr(struct kvm_vcpu *vcpu, u64 reg);
-extern void vcpu_set_gr(struct kvm_vcpu *vcpu, u64 reg, u64 val, int nat);
-extern u64 vcpu_get_psr(struct kvm_vcpu *vcpu);
-extern void vcpu_set_psr(struct kvm_vcpu *vcpu, u64 val);
+extern u64 vcpu_get_gr(struct kvm_vcpu *vcpu, unsigned long reg);
+extern void vcpu_set_gr(struct kvm_vcpu *vcpu, unsigned long reg,
+			u64 val, int nat);
+extern unsigned long vcpu_get_psr(struct kvm_vcpu *vcpu);
+extern void vcpu_set_psr(struct kvm_vcpu *vcpu, unsigned long val);
 extern u64 vcpu_thash(struct kvm_vcpu *vcpu, u64 vadr);
 extern void vcpu_bsw0(struct kvm_vcpu *vcpu);
 extern void thash_vhpt_insert(struct kvm_vcpu *v, u64 pte,

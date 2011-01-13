@@ -161,7 +161,7 @@ static int rr_reinstate_path(struct path_selector *ps, struct dm_path *p)
 }
 
 static struct dm_path *rr_select_path(struct path_selector *ps,
-				   unsigned *repeat_count)
+				      unsigned *repeat_count, size_t nr_bytes)
 {
 	struct selector *s = (struct selector *) ps->context;
 	struct path_info *pi = NULL;

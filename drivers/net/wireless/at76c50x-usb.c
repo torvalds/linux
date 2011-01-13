@@ -7,6 +7,7 @@
  * Copyright (c) 2004 Balint Seeber <n0_5p4m_p13453@hotmail.com>
  * Copyright (c) 2007 Guido Guenther <agx@sigxcpu.org>
  * Copyright (c) 2007 Kalle Valo <kalle.valo@iki.fi>
+ * Copyright (c) 2010 Sebastian Smolorz <sesmo@gmx.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -88,22 +89,19 @@
 #define DBG_DEFAULTS		0
 
 /* Use our own dbg macro */
-#define at76_dbg(bits, format, arg...) \
-	do { \
-		if (at76_debug & (bits))				 \
-			printk(KERN_DEBUG DRIVER_NAME ": " format "\n" , \
-			       ## arg);					 \
-	} while (0)
+#define at76_dbg(bits, format, arg...)					\
+do {									\
+	if (at76_debug & (bits))					\
+		printk(KERN_DEBUG DRIVER_NAME ": " format "\n", ##arg);	\
+} while (0)
 
-#define at76_dbg_dump(bits, buf, len, format, arg...)	\
-	do { \
-		if (at76_debug & (bits)) { \
-			printk(KERN_DEBUG DRIVER_NAME ": " format "\n" , \
-			       ## arg);					 \
-			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,     \
-					     buf, len);			 \
-		}							 \
-	} while (0)
+#define at76_dbg_dump(bits, buf, len, format, arg...)			\
+do {									\
+	if (at76_debug & (bits)) {					\
+		printk(KERN_DEBUG DRIVER_NAME ": " format "\n", ##arg);	\
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len);	\
+	}								\
+} while (0)
 
 static uint at76_debug = DBG_DEFAULTS;
 
@@ -121,6 +119,14 @@ static struct fwentry firmwares[] = {
 	[BOARD_505A] = { "atmel_at76c505a-rfmd2958.bin" },
 	[BOARD_505AMX] = { "atmel_at76c505amx-rfmd.bin" },
 };
+MODULE_FIRMWARE("atmel_at76c503-i3861.bin");
+MODULE_FIRMWARE("atmel_at76c503-i3863.bin");
+MODULE_FIRMWARE("atmel_at76c503-rfmd.bin");
+MODULE_FIRMWARE("atmel_at76c503-rfmd-acc.bin");
+MODULE_FIRMWARE("atmel_at76c505-rfmd.bin");
+MODULE_FIRMWARE("atmel_at76c505-rfmd2958.bin");
+MODULE_FIRMWARE("atmel_at76c505a-rfmd2958.bin");
+MODULE_FIRMWARE("atmel_at76c505amx-rfmd.bin");
 
 #define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
 
@@ -297,7 +303,7 @@ struct dfu_status {
 	unsigned char poll_timeout[3];
 	unsigned char state;
 	unsigned char string;
-} __attribute__((packed));
+} __packed;
 
 static inline int at76_is_intersil(enum board_type board)
 {
@@ -524,20 +530,6 @@ static char *hex2str(void *buf, int len)
 	return ret;
 }
 
-#define MAC2STR_BUFFERS 4
-
-static inline char *mac2str(u8 *mac)
-{
-	static atomic_t a = ATOMIC_INIT(0);
-	static char bufs[MAC2STR_BUFFERS][6 * 3];
-	char *str;
-
-	str = bufs[atomic_inc_return(&a) & (MAC2STR_BUFFERS - 1)];
-	sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	return str;
-}
-
 /* LED trigger */
 static int tx_activity;
 static void at76_ledtrig_tx_timerfunc(unsigned long data);
@@ -663,8 +655,8 @@ static int at76_get_hw_config(struct at76_priv *priv)
 exit:
 	kfree(hwcfg);
 	if (ret < 0)
-		printk(KERN_ERR "%s: cannot get HW Config (error %d)\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy, "cannot get HW Config (error %d)\n",
+			  ret);
 
 	return ret;
 }
@@ -799,8 +791,9 @@ static int at76_wait_completion(struct at76_priv *priv, int cmd)
 	do {
 		status = at76_get_cmd_status(priv->udev, cmd);
 		if (status < 0) {
-			printk(KERN_ERR "%s: at76_get_cmd_status failed: %d\n",
-			       wiphy_name(priv->hw->wiphy), status);
+			wiphy_err(priv->hw->wiphy,
+				  "at76_get_cmd_status failed: %d\n",
+				  status);
 			break;
 		}
 
@@ -815,9 +808,8 @@ static int at76_wait_completion(struct at76_priv *priv, int cmd)
 
 		schedule_timeout_interruptible(HZ / 10);	/* 100 ms */
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR
-			       "%s: completion timeout for command %d\n",
-			       wiphy_name(priv->hw->wiphy), cmd);
+			wiphy_err(priv->hw->wiphy,
+				  "completion timeout for command %d\n", cmd);
 			status = -ETIMEDOUT;
 			break;
 		}
@@ -838,9 +830,9 @@ static int at76_set_mib(struct at76_priv *priv, struct set_mib_buffer *buf)
 
 	ret = at76_wait_completion(priv, CMD_SET_MIB);
 	if (ret != CMD_STATUS_COMPLETE) {
-		printk(KERN_INFO
-		       "%s: set_mib: at76_wait_completion failed "
-		       "with %d\n", wiphy_name(priv->hw->wiphy), ret);
+		wiphy_info(priv->hw->wiphy,
+			   "set_mib: at76_wait_completion failed with %d\n",
+			   ret);
 		ret = -EIO;
 	}
 
@@ -860,8 +852,8 @@ static int at76_set_radio(struct at76_priv *priv, int enable)
 
 	ret = at76_set_card_command(priv->udev, cmd, NULL, 0);
 	if (ret < 0)
-		printk(KERN_ERR "%s: at76_set_card_command(%d) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), cmd, ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_set_card_command(%d) failed: %d\n", cmd, ret);
 	else
 		ret = 1;
 
@@ -881,8 +873,8 @@ static int at76_set_pm_mode(struct at76_priv *priv)
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (pm_mode) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy, "set_mib (pm_mode) failed: %d\n",
+			  ret);
 
 	return ret;
 }
@@ -898,8 +890,8 @@ static int at76_set_preamble(struct at76_priv *priv, u8 type)
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (preamble) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy, "set_mib (preamble) failed: %d\n",
+			  ret);
 
 	return ret;
 }
@@ -915,8 +907,8 @@ static int at76_set_frag(struct at76_priv *priv, u16 size)
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (frag threshold) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "set_mib (frag threshold) failed: %d\n", ret);
 
 	return ret;
 }
@@ -932,8 +924,7 @@ static int at76_set_rts(struct at76_priv *priv, u16 size)
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (rts) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy, "set_mib (rts) failed: %d\n", ret);
 
 	return ret;
 }
@@ -949,8 +940,8 @@ static int at76_set_autorate_fallback(struct at76_priv *priv, int onoff)
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (autorate fallback) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "set_mib (autorate fallback) failed: %d\n", ret);
 
 	return ret;
 }
@@ -968,18 +959,18 @@ static void at76_dump_mib_mac_addr(struct at76_priv *priv)
 	ret = at76_get_mib(priv->udev, MIB_MAC_ADDR, m,
 			   sizeof(struct mib_mac_addr));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (MAC_ADDR) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_get_mib (MAC_ADDR) failed: %d\n", ret);
 		goto exit;
 	}
 
-	at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: mac_addr %s res 0x%x 0x%x",
+	at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: mac_addr %pM res 0x%x 0x%x",
 		 wiphy_name(priv->hw->wiphy),
-		 mac2str(m->mac_addr), m->res[0], m->res[1]);
+		 m->mac_addr, m->res[0], m->res[1]);
 	for (i = 0; i < ARRAY_SIZE(m->group_addr); i++)
-		at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: group addr %d: %s, "
+		at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: group addr %d: %pM, "
 			 "status %d", wiphy_name(priv->hw->wiphy), i,
-			 mac2str(m->group_addr[i]), m->group_addr_status[i]);
+			 m->group_addr[i], m->group_addr_status[i]);
 exit:
 	kfree(m);
 }
@@ -997,8 +988,8 @@ static void at76_dump_mib_mac_wep(struct at76_priv *priv)
 	ret = at76_get_mib(priv->udev, MIB_MAC_WEP, m,
 			   sizeof(struct mib_mac_wep));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (MAC_WEP) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_get_mib (MAC_WEP) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1034,15 +1025,15 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 	ret = at76_get_mib(priv->udev, MIB_MAC_MGMT, m,
 			   sizeof(struct mib_mac_mgmt));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (MAC_MGMT) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_get_mib (MAC_MGMT) failed: %d\n", ret);
 		goto exit;
 	}
 
 	at76_dbg(DBG_MIB, "%s: MIB MAC_MGMT: beacon_period %d CFP_max_duration "
 		 "%d medium_occupancy_limit %d station_id 0x%x ATIM_window %d "
 		 "CFP_mode %d privacy_opt_impl %d DTIM_period %d CFP_period %d "
-		 "current_bssid %s current_essid %s current_bss_type %d "
+		 "current_bssid %pM current_essid %s current_bss_type %d "
 		 "pm_mode %d ibss_change %d res %d "
 		 "multi_domain_capability_implemented %d "
 		 "international_roaming %d country_string %.3s",
@@ -1051,7 +1042,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 		 le16_to_cpu(m->medium_occupancy_limit),
 		 le16_to_cpu(m->station_id), le16_to_cpu(m->ATIM_window),
 		 m->CFP_mode, m->privacy_option_implemented, m->DTIM_period,
-		 m->CFP_period, mac2str(m->current_bssid),
+		 m->CFP_period, m->current_bssid,
 		 hex2str(m->current_essid, IW_ESSID_MAX_SIZE),
 		 m->current_bss_type, m->power_mgmt_mode, m->ibss_change,
 		 m->res, m->multi_domain_capability_implemented,
@@ -1070,8 +1061,8 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 
 	ret = at76_get_mib(priv->udev, MIB_MAC, m, sizeof(struct mib_mac));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (MAC) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_get_mib (MAC) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1080,7 +1071,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 "cwmin %d cwmax %d short_retry_time %d long_retry_time %d "
 		 "scan_type %d scan_channel %d probe_delay %u "
 		 "min_channel_time %d max_channel_time %d listen_int %d "
-		 "desired_ssid %s desired_bssid %s desired_bsstype %d",
+		 "desired_ssid %s desired_bssid %pM desired_bsstype %d",
 		 wiphy_name(priv->hw->wiphy),
 		 le32_to_cpu(m->max_tx_msdu_lifetime),
 		 le32_to_cpu(m->max_rx_lifetime),
@@ -1092,7 +1083,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 le16_to_cpu(m->max_channel_time),
 		 le16_to_cpu(m->listen_interval),
 		 hex2str(m->desired_ssid, IW_ESSID_MAX_SIZE),
-		 mac2str(m->desired_bssid), m->desired_bsstype);
+		 m->desired_bssid, m->desired_bsstype);
 exit:
 	kfree(m);
 }
@@ -1107,8 +1098,8 @@ static void at76_dump_mib_phy(struct at76_priv *priv)
 
 	ret = at76_get_mib(priv->udev, MIB_PHY, m, sizeof(struct mib_phy));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (PHY) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_get_mib (PHY) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1140,8 +1131,8 @@ static void at76_dump_mib_local(struct at76_priv *priv)
 
 	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(struct mib_local));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (LOCAL) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_get_mib (LOCAL) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1166,8 +1157,8 @@ static void at76_dump_mib_mdomain(struct at76_priv *priv)
 	ret = at76_get_mib(priv->udev, MIB_MDOMAIN, m,
 			   sizeof(struct mib_mdomain));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (MDOMAIN) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "at76_get_mib (MDOMAIN) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1194,6 +1185,9 @@ static int at76_start_monitor(struct at76_priv *priv)
 	scan.channel = priv->channel;
 	scan.scan_type = SCAN_TYPE_PASSIVE;
 	scan.international_scan = 0;
+	scan.min_channel_time = cpu_to_le16(priv->scan_min_time);
+	scan.max_channel_time = cpu_to_le16(priv->scan_max_time);
+	scan.probe_delay = cpu_to_le16(0);
 
 	ret = at76_set_card_command(priv->udev, CMD_SCAN, &scan, sizeof(scan));
 	if (ret >= 0)
@@ -1226,7 +1220,6 @@ static void at76_rx_callback(struct urb *urb)
 
 	priv->rx_tasklet.data = (unsigned long)urb;
 	tasklet_schedule(&priv->rx_tasklet);
-	return;
 }
 
 static int at76_submit_rx_urb(struct at76_priv *priv)
@@ -1236,16 +1229,16 @@ static int at76_submit_rx_urb(struct at76_priv *priv)
 	struct sk_buff *skb = priv->rx_skb;
 
 	if (!priv->rx_urb) {
-		printk(KERN_ERR "%s: %s: priv->rx_urb is NULL\n",
-		       wiphy_name(priv->hw->wiphy), __func__);
+		wiphy_err(priv->hw->wiphy, "%s: priv->rx_urb is NULL\n",
+			  __func__);
 		return -EFAULT;
 	}
 
 	if (!skb) {
 		skb = dev_alloc_skb(sizeof(struct at76_rx_buffer));
 		if (!skb) {
-			printk(KERN_ERR "%s: cannot allocate rx skbuff\n",
-			       wiphy_name(priv->hw->wiphy));
+			wiphy_err(priv->hw->wiphy,
+				  "cannot allocate rx skbuff\n");
 			ret = -ENOMEM;
 			goto exit;
 		}
@@ -1264,15 +1257,14 @@ static int at76_submit_rx_urb(struct at76_priv *priv)
 			at76_dbg(DBG_DEVSTART,
 				 "usb_submit_urb returned -ENODEV");
 		else
-			printk(KERN_ERR "%s: rx, usb_submit_urb failed: %d\n",
-			       wiphy_name(priv->hw->wiphy), ret);
+			wiphy_err(priv->hw->wiphy,
+				  "rx, usb_submit_urb failed: %d\n", ret);
 	}
 
 exit:
 	if (ret < 0 && ret != -ENODEV)
-		printk(KERN_ERR "%s: cannot submit rx urb - please unload the "
-		       "driver and/or power cycle the device\n",
-		       wiphy_name(priv->hw->wiphy));
+		wiphy_err(priv->hw->wiphy,
+			  "cannot submit rx urb - please unload the driver and/or power cycle the device\n");
 
 	return ret;
 }
@@ -1441,8 +1433,8 @@ static int at76_startup_device(struct at76_priv *priv)
 	ret = at76_set_card_command(priv->udev, CMD_STARTUP, &priv->card_config,
 				    sizeof(struct at76_card_config));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_set_card_command failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy, "at76_set_card_command failed: %d\n",
+			  ret);
 		return ret;
 	}
 
@@ -1507,8 +1499,8 @@ static void at76_work_set_promisc(struct work_struct *work)
 
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (promiscuous_mode) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy,
+			  "set_mib (promiscuous_mode) failed: %d\n", ret);
 
 	mutex_unlock(&priv->mtx);
 }
@@ -1533,8 +1525,7 @@ static void at76_rx_tasklet(unsigned long param)
 
 	if (priv->device_unplugged) {
 		at76_dbg(DBG_DEVSTART, "device unplugged");
-		if (urb)
-			at76_dbg(DBG_DEVSTART, "urb status %d", urb->status);
+		at76_dbg(DBG_DEVSTART, "urb status %d", urb->status);
 		return;
 	}
 
@@ -1568,7 +1559,8 @@ static void at76_rx_tasklet(unsigned long param)
 
 	at76_dbg(DBG_MAC80211, "calling ieee80211_rx_irqsafe(): %d/%d",
 		 priv->rx_skb->len, priv->rx_skb->data_len);
-	ieee80211_rx_irqsafe(priv->hw, priv->rx_skb, &rx_status);
+	memcpy(IEEE80211_SKB_RXCB(priv->rx_skb), &rx_status, sizeof(rx_status));
+	ieee80211_rx_irqsafe(priv->hw, priv->rx_skb);
 
 	/* Use a new skb for the next receive */
 	priv->rx_skb = NULL;
@@ -1652,6 +1644,58 @@ exit:
 		return NULL;
 }
 
+static int at76_join(struct at76_priv *priv)
+{
+	struct at76_req_join join;
+	int ret;
+
+	memset(&join, 0, sizeof(struct at76_req_join));
+	memcpy(join.essid, priv->essid, priv->essid_size);
+	join.essid_size = priv->essid_size;
+	memcpy(join.bssid, priv->bssid, ETH_ALEN);
+	join.bss_type = INFRASTRUCTURE_MODE;
+	join.channel = priv->channel;
+	join.timeout = cpu_to_le16(2000);
+
+	at76_dbg(DBG_MAC80211, "%s: sending CMD_JOIN", __func__);
+	ret = at76_set_card_command(priv->udev, CMD_JOIN, &join,
+				    sizeof(struct at76_req_join));
+
+	if (ret < 0) {
+		wiphy_err(priv->hw->wiphy, "at76_set_card_command failed: %d\n",
+			  ret);
+		return 0;
+	}
+
+	ret = at76_wait_completion(priv, CMD_JOIN);
+	at76_dbg(DBG_MAC80211, "%s: CMD_JOIN returned: 0x%02x", __func__, ret);
+	if (ret != CMD_STATUS_COMPLETE) {
+		wiphy_err(priv->hw->wiphy, "at76_wait_completion failed: %d\n",
+			  ret);
+		return 0;
+	}
+
+	at76_set_pm_mode(priv);
+
+	return 0;
+}
+
+static void at76_work_join_bssid(struct work_struct *work)
+{
+	struct at76_priv *priv = container_of(work, struct at76_priv,
+					      work_join_bssid);
+
+	if (priv->device_unplugged)
+		return;
+
+	mutex_lock(&priv->mtx);
+
+	if (is_valid_ether_addr(priv->bssid))
+		at76_join(priv);
+
+	mutex_unlock(&priv->mtx);
+}
+
 static void at76_mac80211_tx_callback(struct urb *urb)
 {
 	struct at76_priv *priv = urb->context;
@@ -1689,14 +1733,30 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct at76_priv *priv = hw->priv;
 	struct at76_tx_buffer *tx_buffer = priv->bulk_out_buffer;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	int padding, submit_len, ret;
 
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
 
 	if (priv->tx_urb->status == -EINPROGRESS) {
-		printk(KERN_ERR "%s: %s called while tx urb is pending\n",
-		       wiphy_name(priv->hw->wiphy), __func__);
+		wiphy_err(priv->hw->wiphy,
+			  "%s called while tx urb is pending\n", __func__);
 		return NETDEV_TX_BUSY;
+	}
+
+	/* The following code lines are important when the device is going to
+	 * authenticate with a new bssid. The driver must send CMD_JOIN before
+	 * an authentication frame is transmitted. For this to succeed, the
+	 * correct bssid of the AP must be known. As mac80211 does not inform
+	 * drivers about the bssid prior to the authentication process the
+	 * following workaround is necessary. If the TX frame is an
+	 * authentication frame extract the bssid and send the CMD_JOIN. */
+	if (mgmt->frame_control & cpu_to_le16(IEEE80211_STYPE_AUTH)) {
+		if (compare_ether_addr(priv->bssid, mgmt->bssid)) {
+			memcpy(priv->bssid, mgmt->bssid, ETH_ALEN);
+			ieee80211_queue_work(hw, &priv->work_join_bssid);
+			return NETDEV_TX_BUSY;
+		}
 	}
 
 	ieee80211_stop_queues(hw);
@@ -1728,13 +1788,12 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			  submit_len, at76_mac80211_tx_callback, priv);
 	ret = usb_submit_urb(priv->tx_urb, GFP_ATOMIC);
 	if (ret) {
-		printk(KERN_ERR "%s: error in tx submit urb: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy, "error in tx submit urb: %d\n", ret);
 		if (ret == -EINVAL)
-			printk(KERN_ERR
-			       "%s: -EINVAL: tx urb %p hcpriv %p complete %p\n",
-			       wiphy_name(priv->hw->wiphy), priv->tx_urb,
-			       priv->tx_urb->hcpriv, priv->tx_urb->complete);
+			wiphy_err(priv->hw->wiphy,
+				  "-EINVAL: tx urb %p hcpriv %p complete %p\n",
+				  priv->tx_urb,
+				  priv->tx_urb->hcpriv, priv->tx_urb->complete);
 	}
 
 	return 0;
@@ -1751,8 +1810,8 @@ static int at76_mac80211_start(struct ieee80211_hw *hw)
 
 	ret = at76_submit_rx_urb(priv);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: open: submit_rx_urb failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		wiphy_err(priv->hw->wiphy, "open: submit_rx_urb failed: %d\n",
+			  ret);
 		goto error;
 	}
 
@@ -1772,6 +1831,10 @@ static void at76_mac80211_stop(struct ieee80211_hw *hw)
 
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
 
+	cancel_delayed_work(&priv->dwork_hw_scan);
+	cancel_work_sync(&priv->work_join_bssid);
+	cancel_work_sync(&priv->work_set_promisc);
+
 	mutex_lock(&priv->mtx);
 
 	if (!priv->device_unplugged) {
@@ -1788,7 +1851,7 @@ static void at76_mac80211_stop(struct ieee80211_hw *hw)
 }
 
 static int at76_add_interface(struct ieee80211_hw *hw,
-			      struct ieee80211_if_init_conf *conf)
+			      struct ieee80211_vif *vif)
 {
 	struct at76_priv *priv = hw->priv;
 	int ret = 0;
@@ -1797,7 +1860,7 @@ static int at76_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mtx);
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		priv->iw_mode = IW_MODE_INFRA;
 		break;
@@ -1813,45 +1876,9 @@ exit:
 }
 
 static void at76_remove_interface(struct ieee80211_hw *hw,
-				  struct ieee80211_if_init_conf *conf)
+				  struct ieee80211_vif *vif)
 {
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
-}
-
-static int at76_join(struct at76_priv *priv)
-{
-	struct at76_req_join join;
-	int ret;
-
-	memset(&join, 0, sizeof(struct at76_req_join));
-	memcpy(join.essid, priv->essid, priv->essid_size);
-	join.essid_size = priv->essid_size;
-	memcpy(join.bssid, priv->bssid, ETH_ALEN);
-	join.bss_type = INFRASTRUCTURE_MODE;
-	join.channel = priv->channel;
-	join.timeout = cpu_to_le16(2000);
-
-	at76_dbg(DBG_MAC80211, "%s: sending CMD_JOIN", __func__);
-	ret = at76_set_card_command(priv->udev, CMD_JOIN, &join,
-				    sizeof(struct at76_req_join));
-
-	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_set_card_command failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-		return 0;
-	}
-
-	ret = at76_wait_completion(priv, CMD_JOIN);
-	at76_dbg(DBG_MAC80211, "%s: CMD_JOIN returned: 0x%02x", __func__, ret);
-	if (ret != CMD_STATUS_COMPLETE) {
-		printk(KERN_ERR "%s: at76_wait_completion failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-		return 0;
-	}
-
-	at76_set_pm_mode(priv);
-
-	return 0;
 }
 
 static void at76_dwork_hw_scan(struct work_struct *work)
@@ -1871,8 +1898,8 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 	/* FIXME: add maximum time for scan to complete */
 
 	if (ret != CMD_STATUS_COMPLETE) {
-		queue_delayed_work(priv->hw->workqueue, &priv->dwork_hw_scan,
-				   SCAN_POLL_INTERVAL);
+		ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
+					     SCAN_POLL_INTERVAL);
 		mutex_unlock(&priv->mtx);
 		return;
 	}
@@ -1888,6 +1915,7 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 }
 
 static int at76_hw_scan(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
 			struct cfg80211_scan_request *req)
 {
 	struct at76_priv *priv = hw->priv;
@@ -1933,8 +1961,8 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	queue_delayed_work(priv->hw->workqueue, &priv->dwork_hw_scan,
-			   SCAN_POLL_INTERVAL);
+	ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
+				     SCAN_POLL_INTERVAL);
 
 exit:
 	mutex_unlock(&priv->mtx);
@@ -1946,9 +1974,8 @@ static int at76_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct at76_priv *priv = hw->priv;
 
-	at76_dbg(DBG_MAC80211, "%s(): channel %d radio %d",
-		 __func__, hw->conf.channel->hw_value,
-		 hw->conf.radio_enabled);
+	at76_dbg(DBG_MAC80211, "%s(): channel %d",
+		 __func__, hw->conf.channel->hw_value);
 	at76_dbg_dump(DBG_MAC80211, priv->bssid, ETH_ALEN, "bssid:");
 
 	mutex_lock(&priv->mtx);
@@ -1993,15 +2020,14 @@ static void at76_bss_info_changed(struct ieee80211_hw *hw,
 /* must be atomic */
 static void at76_configure_filter(struct ieee80211_hw *hw,
 				  unsigned int changed_flags,
-				  unsigned int *total_flags, int mc_count,
-				  struct dev_addr_list *mc_list)
+				  unsigned int *total_flags, u64 multicast)
 {
 	struct at76_priv *priv = hw->priv;
 	int flags;
 
 	at76_dbg(DBG_MAC80211, "%s(): changed_flags=0x%08x "
-		 "total_flags=0x%08x mc_count=%d",
-		 __func__, changed_flags, *total_flags, mc_count);
+		 "total_flags=0x%08x",
+		 __func__, changed_flags, *total_flags);
 
 	flags = changed_flags & AT76_SUPPORTED_FILTERS;
 	*total_flags = AT76_SUPPORTED_FILTERS;
@@ -2023,7 +2049,7 @@ static void at76_configure_filter(struct ieee80211_hw *hw,
 	} else
 		return;
 
-	queue_work(hw->workqueue, &priv->work_set_promisc);
+	ieee80211_queue_work(hw, &priv->work_set_promisc);
 }
 
 static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -2034,11 +2060,12 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	int i;
 
-	at76_dbg(DBG_MAC80211, "%s(): cmd %d key->alg %d key->keyidx %d "
+	at76_dbg(DBG_MAC80211, "%s(): cmd %d key->cipher %d key->keyidx %d "
 		 "key->keylen %d",
-		 __func__, cmd, key->alg, key->keyidx, key->keylen);
+		 __func__, cmd, key->cipher, key->keyidx, key->keylen);
 
-	if (key->alg != ALG_WEP)
+	if ((key->cipher != WLAN_CIPHER_SUITE_WEP40) &&
+	    (key->cipher != WLAN_CIPHER_SUITE_WEP104))
 		return -EOPNOTSUPP;
 
 	key->hw_key_idx = key->keyidx;
@@ -2108,6 +2135,7 @@ static struct at76_priv *at76_alloc_new_device(struct usb_device *udev)
 	mutex_init(&priv->mtx);
 	INIT_WORK(&priv->work_set_promisc, at76_work_set_promisc);
 	INIT_WORK(&priv->work_submit_rx, at76_work_submit_rx);
+	INIT_WORK(&priv->work_join_bssid, at76_work_join_bssid);
 	INIT_DELAYED_WORK(&priv->dwork_hw_scan, at76_dwork_hw_scan);
 
 	tasklet_init(&priv->rx_tasklet, at76_rx_tasklet, 0);
@@ -2215,6 +2243,8 @@ static struct ieee80211_supported_band at76_supported_band = {
 static int at76_init_new_device(struct at76_priv *priv,
 				struct usb_interface *interface)
 {
+	struct wiphy *wiphy;
+	size_t len;
 	int ret;
 
 	/* set up the endpoint information */
@@ -2252,6 +2282,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 	priv->device_unplugged = 0;
 
 	/* mac80211 initialisation */
+	wiphy = priv->hw->wiphy;
 	priv->hw->wiphy->max_scan_ssids = 1;
 	priv->hw->wiphy->max_scan_ie_len = 0;
 	priv->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
@@ -2263,6 +2294,13 @@ static int at76_init_new_device(struct at76_priv *priv,
 	SET_IEEE80211_DEV(priv->hw, &interface->dev);
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
+	len = sizeof(wiphy->fw_version);
+	snprintf(wiphy->fw_version, len, "%d.%d.%d-%d",
+		 priv->fw_version.major, priv->fw_version.minor,
+		 priv->fw_version.patch, priv->fw_version.build);
+
+	wiphy->hw_version = priv->board_type;
+
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		printk(KERN_ERR "cannot register mac80211 hw (status %d)!\n",
@@ -2272,14 +2310,12 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	priv->mac80211_registered = 1;
 
-	printk(KERN_INFO "%s: USB %s, MAC %s, firmware %d.%d.%d-%d\n",
-	       wiphy_name(priv->hw->wiphy),
-	       dev_name(&interface->dev), mac2str(priv->mac_addr),
-	       priv->fw_version.major, priv->fw_version.minor,
-	       priv->fw_version.patch, priv->fw_version.build);
-	printk(KERN_INFO "%s: regulatory domain 0x%02x: %s\n",
-	       wiphy_name(priv->hw->wiphy),
-	       priv->regulatory_domain, priv->domain->name);
+	wiphy_info(priv->hw->wiphy, "USB %s, MAC %pM, firmware %d.%d.%d-%d\n",
+		   dev_name(&interface->dev), priv->mac_addr,
+		   priv->fw_version.major, priv->fw_version.minor,
+		   priv->fw_version.patch, priv->fw_version.build);
+	wiphy_info(priv->hw->wiphy, "regulatory domain 0x%02x: %s\n",
+		   priv->regulatory_domain, priv->domain->name);
 
 exit:
 	return ret;
@@ -2294,11 +2330,8 @@ static void at76_delete_device(struct at76_priv *priv)
 
 	tasklet_kill(&priv->rx_tasklet);
 
-	if (priv->mac80211_registered) {
-		cancel_delayed_work(&priv->dwork_hw_scan);
-		flush_workqueue(priv->hw->workqueue);
+	if (priv->mac80211_registered)
 		ieee80211_unregister_hw(priv->hw);
-	}
 
 	if (priv->tx_urb) {
 		usb_kill_urb(priv->tx_urb);
@@ -2444,7 +2477,7 @@ static void at76_disconnect(struct usb_interface *interface)
 	if (!priv)
 		return;
 
-	printk(KERN_INFO "%s: disconnecting\n", wiphy_name(priv->hw->wiphy));
+	wiphy_info(priv->hw->wiphy, "disconnecting\n");
 	at76_delete_device(priv);
 	dev_printk(KERN_INFO, &interface->dev, "disconnected\n");
 }
@@ -2502,5 +2535,6 @@ MODULE_AUTHOR("Balint Seeber <n0_5p4m_p13453@hotmail.com>");
 MODULE_AUTHOR("Pavel Roskin <proski@gnu.org>");
 MODULE_AUTHOR("Guido Guenther <agx@sigxcpu.org>");
 MODULE_AUTHOR("Kalle Valo <kalle.valo@iki.fi>");
+MODULE_AUTHOR("Sebastian Smolorz <sesmo@gmx.net>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

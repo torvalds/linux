@@ -1,7 +1,7 @@
 /*
  *  Driver for TANBAC TB0219 base board.
  *
- *  Copyright (C) 2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2005  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,14 +21,13 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/vr41xx/giu.h>
 #include <asm/vr41xx/tb0219.h>
 
-MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yuasa@linux-mips.org>");
 MODULE_DESCRIPTION("TANBAC TB0219 base board driver");
 MODULE_LICENSE("GPL");
 
@@ -38,7 +37,7 @@ MODULE_PARM_DESC(major, "Major device number");
 
 static void (*old_machine_restart)(char *command);
 static void __iomem *tb0219_base;
-static spinlock_t tb0219_lock;
+static DEFINE_SPINLOCK(tb0219_lock);
 
 #define tb0219_read(offset)		readw(tb0219_base + (offset))
 #define tb0219_write(offset, value)	writew((value), tb0219_base + (offset))
@@ -237,7 +236,6 @@ static int tanbac_tb0219_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor;
 
-	cycle_kernel_lock();
 	minor = iminor(inode);
 	switch (minor) {
 	case 0:
@@ -263,6 +261,7 @@ static const struct file_operations tb0219_fops = {
 	.write		= tanbac_tb0219_write,
 	.open		= tanbac_tb0219_open,
 	.release	= tanbac_tb0219_release,
+	.llseek		= no_llseek,
 };
 
 static void tb0219_restart(char *command)
@@ -305,8 +304,6 @@ static int __devinit tb0219_probe(struct platform_device *dev)
 		release_mem_region(TB0219_START, TB0219_SIZE);
 		return retval;
 	}
-
-	spin_lock_init(&tb0219_lock);
 
 	old_machine_restart = _machine_restart;
 	_machine_restart = tb0219_restart;

@@ -1,7 +1,7 @@
 /*
  * Flash memory access on SA11x0 based devices
  *
- * (C) 2000 Nicolas Pitre <nico@cam.org>
+ * (C) 2000 Nicolas Pitre <nico@fluxnic.net>
  */
 #include <linux/module.h>
 #include <linux/types.h>
@@ -209,8 +209,8 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	}
 	subdev->mtd->owner = THIS_MODULE;
 
-	printk(KERN_INFO "SA1100 flash: CFI device at 0x%08lx, %dMiB, "
-		"%d-bit\n", phys, subdev->mtd->size >> 20,
+	printk(KERN_INFO "SA1100 flash: CFI device at 0x%08lx, %uMiB, %d-bit\n",
+		phys, (unsigned)(subdev->mtd->size >> 20),
 		subdev->map.bankwidth * 8);
 
 	return 0;
@@ -248,7 +248,7 @@ static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *pla
 		plat->exit();
 }
 
-static struct sa_info *__init
+static struct sa_info *__devinit
 sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 {
 	struct sa_info *info;

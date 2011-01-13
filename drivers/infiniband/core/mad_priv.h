@@ -2,6 +2,7 @@
  * Copyright (c) 2004, 2005, Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 Intel Corporation. All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2009 HNR Consulting. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -49,6 +50,8 @@
 /* QP and CQ parameters */
 #define IB_MAD_QP_SEND_SIZE	128
 #define IB_MAD_QP_RECV_SIZE	512
+#define IB_MAD_QP_MIN_SIZE	64
+#define IB_MAD_QP_MAX_SIZE	8192
 #define IB_MAD_SEND_REQ_MAX_SG	2
 #define IB_MAD_RECV_REQ_MAX_SG	1
 

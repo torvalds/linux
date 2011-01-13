@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/filter.h>
 
 /* Read queue size */
 #define TUN_READQ_SIZE	500
@@ -48,6 +49,10 @@
 #define TUNGETIFF      _IOR('T', 210, unsigned int)
 #define TUNGETSNDBUF   _IOR('T', 211, int)
 #define TUNSETSNDBUF   _IOW('T', 212, int)
+#define TUNATTACHFILTER _IOW('T', 213, struct sock_fprog)
+#define TUNDETACHFILTER _IOW('T', 214, struct sock_fprog)
+#define TUNGETVNETHDRSZ _IOR('T', 215, int)
+#define TUNSETVNETHDRSZ _IOW('T', 216, int)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001
@@ -62,6 +67,7 @@
 #define TUN_F_TSO4	0x02	/* I can handle TSO for IPv4 packets */
 #define TUN_F_TSO6	0x04	/* I can handle TSO for IPv6 packets */
 #define TUN_F_TSO_ECN	0x08	/* I can handle TSO with ECN bits. */
+#define TUN_F_UFO	0x10	/* I can handle UFO packets */
 
 /* Protocol info prepended to the packets (when IFF_NO_PI is not set) */
 #define TUN_PKT_STRIP	0x0001
@@ -85,4 +91,18 @@ struct tun_filter {
 	__u8   addr[0][ETH_ALEN];
 };
 
+#ifdef __KERNEL__
+#if defined(CONFIG_TUN) || defined(CONFIG_TUN_MODULE)
+struct socket *tun_get_socket(struct file *);
+#else
+#include <linux/err.h>
+#include <linux/errno.h>
+struct file;
+struct socket;
+static inline struct socket *tun_get_socket(struct file *f)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif /* CONFIG_TUN */
+#endif /* __KERNEL__ */
 #endif /* __IF_TUN_H */

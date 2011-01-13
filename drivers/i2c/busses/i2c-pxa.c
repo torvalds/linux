@@ -12,7 +12,7 @@
  *
  *  History:
  *    Apr 2002: Initial version [CS]
- *    Jun 2002: Properly seperated algo/adap [FB]
+ *    Jun 2002: Properly separated algo/adap [FB]
  *    Jan 2003: Fixed several bugs concerning interrupt handling [Kai-Uwe Bloem]
  *    Jan 2003: added limited signal handling [Kai-Uwe Bloem]
  *    Sep 2004: Major rework to ensure efficient bus handling [RMK]
@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/sched.h>
@@ -33,9 +32,10 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <plat/i2c.h>
 
 /*
@@ -208,18 +208,6 @@ static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
 }
 
 #define show_state(i2c) i2c_pxa_show_state(i2c, __LINE__, __func__)
-#else
-#define i2c_debug	0
-
-#define show_state(i2c) do { } while (0)
-#define decode_ISR(val) do { } while (0)
-#define decode_ICR(val) do { } while (0)
-#endif
-
-#define eedbg(lvl, x...) do { if ((lvl) < 1) { printk(KERN_DEBUG "" x); } } while(0)
-
-static void i2c_pxa_master_complete(struct pxa_i2c *i2c, int ret);
-static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id);
 
 static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 {
@@ -234,6 +222,20 @@ static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 		printk("[%08x:%08x] ", i2c->isrlog[i], i2c->icrlog[i]);
 	printk("\n");
 }
+
+#else /* ifdef DEBUG */
+
+#define i2c_debug	0
+
+#define show_state(i2c) do { } while (0)
+#define decode_ISR(val) do { } while (0)
+#define decode_ICR(val) do { } while (0)
+#define i2c_pxa_scream_blue_murder(i2c, why) do { } while (0)
+
+#endif /* ifdef DEBUG / else */
+
+static void i2c_pxa_master_complete(struct pxa_i2c *i2c, int ret);
+static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id);
 
 static inline int i2c_pxa_is_slavemode(struct pxa_i2c *i2c)
 {
@@ -998,7 +1000,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	struct pxa_i2c *i2c;
 	struct resource *res;
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
-	struct platform_device_id *id = platform_get_device_id(dev);
+	const struct platform_device_id *id = platform_get_device_id(dev);
 	int ret;
 	int irq;
 
@@ -1134,35 +1136,44 @@ static int __exit i2c_pxa_remove(struct platform_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int i2c_pxa_suspend_late(struct platform_device *dev, pm_message_t state)
+static int i2c_pxa_suspend_noirq(struct device *dev)
 {
-	struct pxa_i2c *i2c = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct pxa_i2c *i2c = platform_get_drvdata(pdev);
+
 	clk_disable(i2c->clk);
+
 	return 0;
 }
 
-static int i2c_pxa_resume_early(struct platform_device *dev)
+static int i2c_pxa_resume_noirq(struct device *dev)
 {
-	struct pxa_i2c *i2c = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct pxa_i2c *i2c = platform_get_drvdata(pdev);
 
 	clk_enable(i2c->clk);
 	i2c_pxa_reset(i2c);
 
 	return 0;
 }
+
+static const struct dev_pm_ops i2c_pxa_dev_pm_ops = {
+	.suspend_noirq = i2c_pxa_suspend_noirq,
+	.resume_noirq = i2c_pxa_resume_noirq,
+};
+
+#define I2C_PXA_DEV_PM_OPS (&i2c_pxa_dev_pm_ops)
 #else
-#define i2c_pxa_suspend_late NULL
-#define i2c_pxa_resume_early NULL
+#define I2C_PXA_DEV_PM_OPS NULL
 #endif
 
 static struct platform_driver i2c_pxa_driver = {
 	.probe		= i2c_pxa_probe,
 	.remove		= __exit_p(i2c_pxa_remove),
-	.suspend_late	= i2c_pxa_suspend_late,
-	.resume_early	= i2c_pxa_resume_early,
 	.driver		= {
 		.name	= "pxa2xx-i2c",
 		.owner	= THIS_MODULE,
+		.pm	= I2C_PXA_DEV_PM_OPS,
 	},
 	.id_table	= i2c_pxa_id_table,
 };

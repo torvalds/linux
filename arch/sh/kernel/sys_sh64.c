@@ -23,7 +23,6 @@
 #include <linux/stat.h>
 #include <linux/mman.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/syscalls.h>
 #include <linux/ipc.h>
 #include <asm/uaccess.h>
@@ -34,7 +33,9 @@
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register unsigned long __sc0 __asm__ ("r9") = ((0x13 << 16) | __NR_execve);
 	register unsigned long __sc2 __asm__ ("r2") = (unsigned long) filename;

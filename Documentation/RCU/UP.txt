@@ -2,14 +2,13 @@ RCU on Uniprocessor Systems
 
 
 A common misconception is that, on UP systems, the call_rcu() primitive
-may immediately invoke its function, and that the synchronize_rcu()
-primitive may return immediately.  The basis of this misconception
+may immediately invoke its function.  The basis of this misconception
 is that since there is only one CPU, it should not be necessary to
 wait for anything else to get done, since there are no other CPUs for
 anything else to be happening on.  Although this approach will -sort- -of-
 work a surprising amount of the time, it is a very bad idea in general.
-This document presents three examples that demonstrate exactly how bad an
-idea this is.
+This document presents three examples that demonstrate exactly how bad
+an idea this is.
 
 
 Example 1: softirq Suicide
@@ -82,11 +81,18 @@ Quick Quiz #2: What locking restriction must RCU callbacks respect?
 
 Summary
 
-Permitting call_rcu() to immediately invoke its arguments or permitting
-synchronize_rcu() to immediately return breaks RCU, even on a UP system.
-So do not do it!  Even on a UP system, the RCU infrastructure -must-
-respect grace periods, and -must- invoke callbacks from a known environment
-in which no locks are held.
+Permitting call_rcu() to immediately invoke its arguments breaks RCU,
+even on a UP system.  So do not do it!  Even on a UP system, the RCU
+infrastructure -must- respect grace periods, and -must- invoke callbacks
+from a known environment in which no locks are held.
+
+It -is- safe for synchronize_sched() and synchronize_rcu_bh() to return
+immediately on an UP system.  It is also safe for synchronize_rcu()
+to return immediately on UP systems, except when running preemptable
+RCU.
+
+Quick Quiz #3: Why can't synchronize_rcu() return immediately on
+	UP systems running preemptable RCU?
 
 
 Answer to Quick Quiz #1:
@@ -117,3 +123,13 @@ Answer to Quick Quiz #2:
 	callbacks acquire locks directly.  However, a great many RCU
 	callbacks do acquire locks -indirectly-, for example, via
 	the kfree() primitive.
+
+Answer to Quick Quiz #3:
+	Why can't synchronize_rcu() return immediately on UP systems
+	running preemptable RCU?
+
+	Because some other task might have been preempted in the middle
+	of an RCU read-side critical section.  If synchronize_rcu()
+	simply immediately returned, it would prematurely signal the
+	end of the grace period, which would come as a nasty shock to
+	that other thread when it started running again.

@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/parport.h>
@@ -341,7 +342,6 @@ static int __devinit parport_register (struct pci_dev *dev,
 			dev_dbg(&dev->dev,
 		"PCI parallel port detected: I/O at %#lx(%#lx), IRQ %d\n",
 				io_lo, io_hi, irq);
-			irq = PARPORT_IRQ_NONE;
 		}
 		port = parport_pc_probe_port (io_lo, io_hi, irq,
 			      PARPORT_DMA_NONE, &dev->dev, IRQF_SHARED);

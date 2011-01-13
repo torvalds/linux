@@ -73,7 +73,6 @@ Revision History:
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -113,7 +112,7 @@ MODULE_PARM_DESC(coalesce, "Enable or Disable interrupt coalescing, 1: Enable, 0
 module_param_array(dynamic_ipg, bool, NULL, 0);
 MODULE_PARM_DESC(dynamic_ipg, "Enable or Disable dynamic IPG, 1: Enable, 0: Disable");
 
-static struct pci_device_id amd8111e_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(amd8111e_pci_tbl) = {
 
 	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD8111E_7462,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
@@ -397,7 +396,7 @@ static int amd8111e_set_coalesce(struct net_device * dev, enum coal_mode cmod)
 			event_count = coal_conf->rx_event_count;
 			if( timeout > MAX_TIMEOUT ||
 					event_count > MAX_EVENT_COUNT )
-			return -EINVAL;
+				return -EINVAL;
 
 			timeout = timeout * DELAY_TIMER_CONV;
 			writel(VAL0|STINTEN, mmio+INTEN0);
@@ -410,7 +409,7 @@ static int amd8111e_set_coalesce(struct net_device * dev, enum coal_mode cmod)
 			event_count = coal_conf->tx_event_count;
 			if( timeout > MAX_TIMEOUT ||
 					event_count > MAX_EVENT_COUNT )
-			return -EINVAL;
+				return -EINVAL;
 
 
 			timeout = timeout * DELAY_TIMER_CONV;
@@ -904,18 +903,18 @@ static int amd8111e_read_mib(void __iomem *mmio, u8 MIB_COUNTER)
 }
 
 /*
-This function reads the mib registers and returns the hardware statistics. It  updates previous internal driver statistics with new values.
-*/
-static struct net_device_stats *amd8111e_get_stats(struct net_device * dev)
+ * This function reads the mib registers and returns the hardware statistics.
+ * It updates previous internal driver statistics with new values.
+ */
+static struct net_device_stats *amd8111e_get_stats(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	void __iomem *mmio = lp->mmio;
 	unsigned long flags;
-	/* struct net_device_stats *prev_stats = &lp->prev_stats; */
-	struct net_device_stats* new_stats = &lp->stats;
+	struct net_device_stats *new_stats = &dev->stats;
 
-	if(!lp->opened)
-		return &lp->stats;
+	if (!lp->opened)
+		return new_stats;
 	spin_lock_irqsave (&lp->lock, flags);
 
 	/* stats.rx_packets */
@@ -1176,8 +1175,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 			/* Schedule a polling routine */
 			__napi_schedule(&lp->napi);
 		} else if (intren0 & RINTEN0) {
-			printk("************Driver bug! \
-				interrupt while in poll\n");
+			printk("************Driver bug! interrupt while in poll\n");
 			/* Fix by disable receive interrupts */
 			writel(RINTEN0, mmio + INTEN0);
 		}
@@ -1300,7 +1298,8 @@ static int amd8111e_tx_queue_avail(struct amd8111e_priv* lp )
 This function will queue the transmit packets to the descriptors and will trigger the send operation. It also initializes the transmit descriptors with buffer physical address, byte count, ownership to hardware etc.
 */
 
-static int amd8111e_start_xmit(struct sk_buff *skb, struct net_device * dev)
+static netdev_tx_t amd8111e_start_xmit(struct sk_buff *skb,
+				       struct net_device * dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int tx_index;
@@ -1316,7 +1315,7 @@ static int amd8111e_start_xmit(struct sk_buff *skb, struct net_device * dev)
 	lp->tx_ring[tx_index].tx_flags = 0;
 
 #if AMD8111E_VLAN_TAG_USED
-	if((lp->vlgrp != NULL) && vlan_tx_tag_present(skb)){
+	if (vlan_tx_tag_present(skb)) {
 		lp->tx_ring[tx_index].tag_ctrl_cmd |=
 				cpu_to_le16(TCC_VLAN_INSERT);
 		lp->tx_ring[tx_index].tag_ctrl_info =
@@ -1340,13 +1339,11 @@ static int amd8111e_start_xmit(struct sk_buff *skb, struct net_device * dev)
 	writel( VAL1 | TDMD0, lp->mmio + CMD0);
 	writel( VAL2 | RDMD0,lp->mmio + CMD0);
 
-	dev->trans_start = jiffies;
-
 	if(amd8111e_tx_queue_avail(lp) < 0){
 		netif_stop_queue(dev);
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 /*
 This function returns all the memory mapped registers of the device.
@@ -1377,28 +1374,28 @@ list to the device.
 */
 static void amd8111e_set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list* mc_ptr;
+	struct netdev_hw_addr *ha;
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	u32 mc_filter[2] ;
-	int i,bit_num;
+	int bit_num;
+
 	if(dev->flags & IFF_PROMISC){
 		writel( VAL2 | PROM, lp->mmio + CMD2);
 		return;
 	}
 	else
 		writel( PROM, lp->mmio + CMD2);
-	if(dev->flags & IFF_ALLMULTI || dev->mc_count > MAX_FILTER_SIZE){
+	if (dev->flags & IFF_ALLMULTI ||
+	    netdev_mc_count(dev) > MAX_FILTER_SIZE) {
 		/* get all multicast packet */
 		mc_filter[1] = mc_filter[0] = 0xffffffff;
-		lp->mc_list = dev->mc_list;
 		lp->options |= OPTION_MULTICAST_ENABLE;
 		amd8111e_writeq(*(u64*)mc_filter,lp->mmio + LADRF);
 		return;
 	}
-	if( dev->mc_count == 0 ){
+	if (netdev_mc_empty(dev)) {
 		/* get only own packets */
 		mc_filter[1] = mc_filter[0] = 0;
-		lp->mc_list = NULL;
 		lp->options &= ~OPTION_MULTICAST_ENABLE;
 		amd8111e_writeq(*(u64*)mc_filter,lp->mmio + LADRF);
 		/* disable promiscous mode */
@@ -1407,11 +1404,9 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 	}
 	/* load all the multicast addresses in the logic filter */
 	lp->options |= OPTION_MULTICAST_ENABLE;
-	lp->mc_list = dev->mc_list;
 	mc_filter[1] = mc_filter[0] = 0;
-	for (i = 0, mc_ptr = dev->mc_list; mc_ptr && i < dev->mc_count;
-		     i++, mc_ptr = mc_ptr->next) {
-		bit_num = (ether_crc_le(ETH_ALEN, mc_ptr->dmi_addr) >> 26) & 0x3f;
+	netdev_for_each_mc_addr(ha, dev) {
+		bit_num = (ether_crc_le(ETH_ALEN, ha->addr) >> 26) & 0x3f;
 		mc_filter[bit_num >> 5] |= 1 << (bit_num & 31);
 	}
 	amd8111e_writeq(*(u64*)mc_filter,lp->mmio+ LADRF);
@@ -1523,9 +1518,6 @@ static int amd8111e_ioctl(struct net_device * dev , struct ifreq *ifr, int cmd)
 	int err;
 	u32 mii_regval;
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	switch(cmd) {
 	case SIOCGMIIPHY:
 		data->phy_id = lp->ext_phy_addr;
@@ -1635,8 +1627,13 @@ static int amd8111e_enable_link_change(struct amd8111e_priv* lp)
 	readl(lp->mmio + CMD7);
 	return 0;
 }
-/* This function is called when a packet transmission fails to complete within a  resonable period, on the assumption that an interrupts have been failed or the  interface is locked up. This function will reinitialize the hardware */
 
+/*
+ * This function is called when a packet transmission fails to complete
+ * within a reasonable period, on the assumption that an interrupt have
+ * failed or the interface is locked up. This function will reinitialize
+ * the hardware.
+ */
 static void amd8111e_tx_timeout(struct net_device *dev)
 {
 	struct amd8111e_priv* lp = netdev_priv(dev);

@@ -26,19 +26,16 @@ config EXT4_FS
 
 	  If unsure, say N.
 
-config EXT4DEV_COMPAT
-	bool "Enable ext4dev compatibility"
+config EXT4_USE_FOR_EXT23
+	bool "Use ext4 for ext2/ext3 file systems"
 	depends on EXT4_FS
+	depends on EXT3_FS=n || EXT2_FS=n
+	default y
 	help
-	  Starting with 2.6.28, the name of the ext4 filesystem was
-	  renamed from ext4dev to ext4.  Unfortunately there are some
-	  legacy userspace programs (such as klibc's fstype) have
-	  "ext4dev" hardcoded.
-
-	  To enable backwards compatibility so that systems that are
-	  still expecting to mount ext4 filesystems using ext4dev,
-	  chose Y here.   This feature will go away by 2.6.31, so
-	  please arrange to get your userspace programs fixed!
+	  Allow the ext4 file system driver code to be used for ext2 or
+	  ext3 file system mounts.  This allows users to reduce their
+	  compiled kernel size by using one file system driver for
+	  ext2, ext3, and ext4 file systems.
 
 config EXT4_FS_XATTR
 	bool "Ext4 extended attributes"
@@ -77,3 +74,12 @@ config EXT4_FS_SECURITY
 
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
+
+config EXT4_DEBUG
+	bool "EXT4 debugging support"
+	depends on EXT4_FS
+	help
+	  Enables run-time debugging support for the ext4 filesystem.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  with a command such as "echo 1 > /sys/kernel/debug/ext4/mballoc-debug"

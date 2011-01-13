@@ -12,12 +12,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/mnt_namespace.h>
+#include <linux/gfp.h>
 #include "internal.h"
 
 
@@ -30,12 +29,18 @@ static void afs_mntpt_expiry_timed_out(struct work_struct *work);
 
 const struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
+	.llseek		= noop_llseek,
 };
 
 const struct inode_operations afs_mntpt_inode_operations = {
 	.lookup		= afs_mntpt_lookup,
 	.follow_link	= afs_mntpt_follow_link,
 	.readlink	= page_readlink,
+	.getattr	= afs_getattr,
+};
+
+const struct inode_operations afs_autocell_inode_operations = {
+	.follow_link	= afs_mntpt_follow_link,
 	.getattr	= afs_getattr,
 };
 
@@ -50,9 +55,6 @@ static unsigned long afs_mntpt_expiry_timeout = 10 * 60;
  */
 int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 {
-	struct file file = {
-		.private_data = key,
-	};
 	struct page *page;
 	size_t size;
 	char *buf;
@@ -62,7 +64,8 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
 	/* read the contents of the symlink into the pagecache */
-	page = read_mapping_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0, &file);
+	page = read_cache_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0,
+			       afs_page_filler, key);
 	if (IS_ERR(page)) {
 		ret = PTR_ERR(page);
 		goto out;
@@ -139,51 +142,78 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 {
 	struct afs_super_info *super;
 	struct vfsmount *mnt;
-	struct page *page = NULL;
-	size_t size;
-	char *buf, *devname = NULL, *options = NULL;
+	struct afs_vnode *vnode;
+	struct page *page;
+	char *devname, *options;
+	bool rwpath = false;
 	int ret;
 
 	_enter("{%s}", mntpt->d_name.name);
 
 	BUG_ON(!mntpt->d_inode);
 
-	ret = -EINVAL;
-	size = mntpt->d_inode->i_size;
-	if (size > PAGE_SIZE - 1)
-		goto error;
-
 	ret = -ENOMEM;
 	devname = (char *) get_zeroed_page(GFP_KERNEL);
 	if (!devname)
-		goto error;
+		goto error_no_devname;
 
 	options = (char *) get_zeroed_page(GFP_KERNEL);
 	if (!options)
-		goto error;
+		goto error_no_options;
 
-	/* read the contents of the AFS special symlink */
-	page = read_mapping_page(mntpt->d_inode->i_mapping, 0, NULL);
-	if (IS_ERR(page)) {
-		ret = PTR_ERR(page);
-		goto error;
+	vnode = AFS_FS_I(mntpt->d_inode);
+	if (test_bit(AFS_VNODE_PSEUDODIR, &vnode->flags)) {
+		/* if the directory is a pseudo directory, use the d_name */
+		static const char afs_root_cell[] = ":root.cell.";
+		unsigned size = mntpt->d_name.len;
+
+		ret = -ENOENT;
+		if (size < 2 || size > AFS_MAXCELLNAME)
+			goto error_no_page;
+
+		if (mntpt->d_name.name[0] == '.') {
+			devname[0] = '#';
+			memcpy(devname + 1, mntpt->d_name.name, size - 1);
+			memcpy(devname + size, afs_root_cell,
+			       sizeof(afs_root_cell));
+			rwpath = true;
+		} else {
+			devname[0] = '%';
+			memcpy(devname + 1, mntpt->d_name.name, size);
+			memcpy(devname + size + 1, afs_root_cell,
+			       sizeof(afs_root_cell));
+		}
+	} else {
+		/* read the contents of the AFS special symlink */
+		loff_t size = i_size_read(mntpt->d_inode);
+		char *buf;
+
+		ret = -EINVAL;
+		if (size > PAGE_SIZE - 1)
+			goto error_no_page;
+
+		page = read_mapping_page(mntpt->d_inode->i_mapping, 0, NULL);
+		if (IS_ERR(page)) {
+			ret = PTR_ERR(page);
+			goto error_no_page;
+		}
+
+		ret = -EIO;
+		if (PageError(page))
+			goto error;
+
+		buf = kmap_atomic(page, KM_USER0);
+		memcpy(devname, buf, size);
+		kunmap_atomic(buf, KM_USER0);
+		page_cache_release(page);
+		page = NULL;
 	}
-
-	ret = -EIO;
-	if (PageError(page))
-		goto error;
-
-	buf = kmap_atomic(page, KM_USER0);
-	memcpy(devname, buf, size);
-	kunmap_atomic(buf, KM_USER0);
-	page_cache_release(page);
-	page = NULL;
 
 	/* work out what options we want */
 	super = AFS_FS_S(mntpt->d_sb);
 	memcpy(options, "cell=", 5);
 	strcpy(options + 5, super->volume->cell->name);
-	if (super->volume->type == AFSVL_RWVOL)
+	if (super->volume->type == AFSVL_RWVOL || rwpath)
 		strcat(options, ",rwpath");
 
 	/* try and do the mount */
@@ -197,12 +227,12 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	return mnt;
 
 error:
-	if (page)
-		page_cache_release(page);
-	if (devname)
-		free_page((unsigned long) devname);
-	if (options)
-		free_page((unsigned long) options);
+	page_cache_release(page);
+error_no_page:
+	free_page((unsigned long) options);
+error_no_options:
+	free_page((unsigned long) devname);
+error_no_devname:
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }

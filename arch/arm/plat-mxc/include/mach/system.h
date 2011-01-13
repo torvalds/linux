@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1999 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
- *  Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
+ *  Copyright 2004-2008 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,18 +12,50 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __ASM_ARCH_MXC_SYSTEM_H__
 #define __ASM_ARCH_MXC_SYSTEM_H__
 
+#include <mach/hardware.h>
+#include <mach/common.h>
+
 static inline void arch_idle(void)
 {
-	cpu_do_idle();
+#ifdef CONFIG_ARCH_MXC91231
+	if (cpu_is_mxc91231()) {
+		/* Need this to set DSM low-power mode */
+		mxc91231_prepare_idle();
+	}
+#endif
+	/* fix i.MX31 errata TLSbo65953 and i.MX35 errata ENGcm09472 */
+	if (cpu_is_mx31() || cpu_is_mx35()) {
+		unsigned long reg = 0;
+		__asm__ __volatile__(
+			/* disable I and D cache */
+			"mrc p15, 0, %0, c1, c0, 0\n"
+			"bic %0, %0, #0x00001000\n"
+			"bic %0, %0, #0x00000004\n"
+			"mcr p15, 0, %0, c1, c0, 0\n"
+			/* invalidate I cache */
+			"mov %0, #0\n"
+			"mcr p15, 0, %0, c7, c5, 0\n"
+			/* clear and invalidate D cache */
+			"mov %0, #0\n"
+			"mcr p15, 0, %0, c7, c14, 0\n"
+			/* WFI */
+			"mov %0, #0\n"
+			"mcr p15, 0, %0, c7, c0, 4\n"
+			"nop\n" "nop\n" "nop\n" "nop\n"
+			"nop\n" "nop\n" "nop\n"
+			/* enable I and D cache */
+			"mrc p15, 0, %0, c1, c0, 0\n"
+			"orr %0, %0, #0x00001000\n"
+			"orr %0, %0, #0x00000004\n"
+			"mcr p15, 0, %0, c1, c0, 0\n"
+			: "=r" (reg));
+	} else
+		cpu_do_idle();
 }
 
 void arch_reset(char mode, const char *cmd);

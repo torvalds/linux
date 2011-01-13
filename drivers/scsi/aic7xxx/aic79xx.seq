@@ -217,7 +217,7 @@ BEGIN_CRITICAL;
 scbdma_tohost_done:
 	test	CCSCBCTL, CCARREN jz fill_qoutfifo_dmadone;
 	/*
-	 * An SCB has been succesfully uploaded to the host.
+	 * An SCB has been successfully uploaded to the host.
 	 * If the SCB was uploaded for some reason other than
 	 * bad SCSI status (currently only for underruns), we
 	 * queue the SCB for normal completion.  Otherwise, we
@@ -1281,7 +1281,7 @@ END_CRITICAL;
  * Is it a disconnect message?  Set a flag in the SCB to remind us
  * and await the bus going free.  If this is an untagged transaction
  * store the SCB id for it in our untagged target table for lookup on
- * a reselction.
+ * a reselection.
  */
 mesgin_disconnect:
 	/*

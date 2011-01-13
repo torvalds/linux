@@ -225,7 +225,7 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
  */
 #define pud_alloc_one(mm, address)		NULL
 #define pud_free(mm, x)				do { } while (0)
-#define __pud_free_tlb(tlb, x)			do { } while (0)
+#define __pud_free_tlb(tlb, x, address)		do { } while (0)
 
 /*
  * The "pud_xxx()" functions here are trivial for a folded two-level
@@ -451,17 +451,12 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address) \
-	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE0) + pte_index(address))
-#define pte_offset_map_nested(dir, address) \
-	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE1) + pte_index(address))
-#define pte_unmap(pte) kunmap_atomic(pte, KM_PTE0)
-#define pte_unmap_nested(pte) kunmap_atomic((pte), KM_PTE1)
+	((pte_t *)kmap_atomic(pmd_page(*(dir))) + pte_index(address))
+#define pte_unmap(pte) kunmap_atomic(pte)
 #else
 #define pte_offset_map(dir, address) \
 	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
-#define pte_offset_map_nested(dir, address) pte_offset_map((dir), (address))
 #define pte_unmap(pte) do { } while (0)
-#define pte_unmap_nested(pte) do { } while (0)
 #endif
 
 /*
@@ -505,7 +500,7 @@ static inline int pte_file(pte_t pte)
 /*
  * preload information about a newly instantiated PTE into the SCR0/SCR1 PGE cache
  */
-static inline void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+static inline void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;
 	unsigned long ampr;

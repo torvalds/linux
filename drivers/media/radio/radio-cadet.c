@@ -38,6 +38,7 @@
 #include <linux/videodev2.h>	/* V4L2 API defs		*/
 #include <linux/param.h>
 #include <linux/pnp.h>
+#include <linux/sched.h>
 #include <linux/io.h>		/* outb, outb_p			*/
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -327,11 +328,10 @@ static ssize_t cadet_read(struct file *file, char __user *data, size_t count, lo
 	unsigned char readbuf[RDS_BUFFER];
 	int i = 0;
 
+	mutex_lock(&dev->lock);
 	if (dev->rdsstat == 0) {
-		mutex_lock(&dev->lock);
 		dev->rdsstat = 1;
 		outb(0x80, dev->io);        /* Select RDS fifo */
-		mutex_unlock(&dev->lock);
 		init_timer(&dev->readtimer);
 		dev->readtimer.function = cadet_handler;
 		dev->readtimer.data = (unsigned long)dev;
@@ -339,12 +339,15 @@ static ssize_t cadet_read(struct file *file, char __user *data, size_t count, lo
 		add_timer(&dev->readtimer);
 	}
 	if (dev->rdsin == dev->rdsout) {
+		mutex_unlock(&dev->lock);
 		if (file->f_flags & O_NONBLOCK)
 			return -EWOULDBLOCK;
 		interruptible_sleep_on(&dev->read_queue);
+		mutex_lock(&dev->lock);
 	}
 	while (i < count && dev->rdsin != dev->rdsout)
 		readbuf[i++] = dev->rdsbuf[dev->rdsout++];
+	mutex_unlock(&dev->lock);
 
 	if (copy_to_user(data, readbuf, i))
 		return -EFAULT;
@@ -359,7 +362,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(v->card, "ADS Cadet", sizeof(v->card));
 	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
 	v->version = CADET_VERSION;
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_READWRITE;
+	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+			  V4L2_CAP_READWRITE | V4L2_CAP_RDS_CAPTURE;
 	return 0;
 }
 
@@ -372,7 +376,8 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	switch (v->index) {
 	case 0:
 		strlcpy(v->name, "FM", sizeof(v->name));
-		v->capability = V4L2_TUNER_CAP_STEREO;
+		v->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS |
+			V4L2_TUNER_CAP_RDS_BLOCK_IO;
 		v->rangelow = 1400;     /* 87.5 MHz */
 		v->rangehigh = 1728;    /* 108.0 MHz */
 		v->rxsubchans = cadet_getstereo(dev);
@@ -386,6 +391,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		default:
 			break;
 		}
+		v->rxsubchans |= V4L2_TUNER_SUB_RDS;
 		break;
 	case 1:
 		strlcpy(v->name, "AM", sizeof(v->name));
@@ -521,9 +527,11 @@ static int cadet_open(struct file *file)
 {
 	struct cadet *dev = video_drvdata(file);
 
+	mutex_lock(&dev->lock);
 	dev->users++;
 	if (1 == dev->users)
 		init_waitqueue_head(&dev->read_queue);
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -531,11 +539,13 @@ static int cadet_release(struct file *file)
 {
 	struct cadet *dev = video_drvdata(file);
 
+	mutex_lock(&dev->lock);
 	dev->users--;
 	if (0 == dev->users) {
 		del_timer_sync(&dev->readtimer);
 		dev->rdsstat = 0;
 	}
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -555,7 +565,7 @@ static const struct v4l2_file_operations cadet_fops = {
 	.open		= cadet_open,
 	.release       	= cadet_release,
 	.read		= cadet_read,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 	.poll		= cadet_poll,
 };
 

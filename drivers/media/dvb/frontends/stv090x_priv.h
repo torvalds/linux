@@ -83,7 +83,7 @@
 
 #define STV090x_IQPOWER_THRESHOLD	  30
 #define STV090x_SEARCH_AGC2_TH_CUT20	 700
-#define STV090x_SEARCH_AGC2_TH_CUT30	1200
+#define STV090x_SEARCH_AGC2_TH_CUT30	1400
 
 #define STV090x_SEARCH_AGC2_TH(__ver)	\
 	((__ver <= 0x20) ?		\
@@ -91,6 +91,7 @@
 	STV090x_SEARCH_AGC2_TH_CUT30)
 
 enum stv090x_signal_state {
+	STV090x_NOAGC1,
 	STV090x_NOCARRIER,
 	STV090x_NODATA,
 	STV090x_DATAOK,
@@ -229,11 +230,23 @@ struct stv090x_tab {
 	s32 read;
 };
 
+struct stv090x_internal {
+	struct i2c_adapter 	*i2c_adap;
+	u8			i2c_addr;
+
+	struct mutex		demod_lock; /* Lock access to shared register */
+	struct mutex		tuner_lock; /* Lock access to tuners */
+	s32			mclk; /* Masterclock Divider factor */
+	u32			dev_ver;
+
+	int			num_used;
+};
+
 struct stv090x_state {
 	enum stv090x_device		device;
 	enum stv090x_demodulator	demod;
 	enum stv090x_mode		demod_mode;
-	u32				dev_ver;
+	struct stv090x_internal		*internal;
 
 	struct i2c_adapter		*i2c;
 	const struct stv090x_config	*config;
@@ -255,10 +268,7 @@ struct stv090x_state {
 	u32				frequency;
 	u32				srate;
 
-	s32				mclk; /* Masterclock Divider factor */
 	s32				tuner_bw;
-
-	u32				tuner_refclk;
 
 	s32				search_range;
 

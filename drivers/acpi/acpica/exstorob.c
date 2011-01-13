@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,12 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 	u8 *buffer;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_store_buffer_to_buffer, source_desc);
+
+	/* If Source and Target are the same, just return */
+
+	if (source_desc == target_desc) {
+		return_ACPI_STATUS(AE_OK);
+	}
 
 	/* We know that source_desc is a buffer by now */
 
@@ -160,6 +166,12 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 	u8 *buffer;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_store_string_to_string, source_desc);
+
+	/* If Source and Target are the same, just return */
+
+	if (source_desc == target_desc) {
+		return_ACPI_STATUS(AE_OK);
+	}
 
 	/* We know that source_desc is a string by now */
 

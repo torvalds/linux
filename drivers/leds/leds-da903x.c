@@ -19,6 +19,7 @@
 #include <linux/leds.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/da903x.h>
+#include <linux/slab.h>
 
 #define DA9030_LED1_CONTROL	0x20
 #define DA9030_LED2_CONTROL	0x21

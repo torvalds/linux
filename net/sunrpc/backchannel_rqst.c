@@ -22,6 +22,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <linux/tcp.h>
+#include <linux/slab.h>
 #include <linux/sunrpc/xprt.h>
 
 #ifdef RPC_DEBUG

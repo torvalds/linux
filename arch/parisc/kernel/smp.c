@@ -18,7 +18,6 @@
 */
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/slab.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -60,8 +59,6 @@ static int smp_debug_lvl = 0;
 #define smp_debug(lvl, ...)	do { } while(0)
 #endif /* DEBUG_SMP */
 
-DEFINE_SPINLOCK(smp_lock);
-
 volatile struct task_struct *smp_init_current_idle_task;
 
 /* track which CPU is booting */
@@ -69,7 +66,7 @@ static volatile int cpu_now_booting __cpuinitdata;
 
 static int parisc_max_cpus __cpuinitdata = 1;
 
-DEFINE_PER_CPU(spinlock_t, ipi_lock) = SPIN_LOCK_UNLOCKED;
+static DEFINE_PER_CPU(spinlock_t, ipi_lock);
 
 enum ipi_message_type {
 	IPI_NOP=0,
@@ -438,6 +435,11 @@ void __init smp_prepare_boot_cpu(void)
 */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		spin_lock_init(&per_cpu(ipi_lock, cpu));
+
 	init_cpu_present(cpumask_of(0));
 
 	parisc_max_cpus = max_cpus;

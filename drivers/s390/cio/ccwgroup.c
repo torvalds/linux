@@ -67,6 +67,27 @@ __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
 }
 
 /*
+ * Remove references from ccw devices to ccw group device and from
+ * ccw group device to ccw devices.
+ */
+static void __ccwgroup_remove_cdev_refs(struct ccwgroup_device *gdev)
+{
+	struct ccw_device *cdev;
+	int i;
+
+	for (i = 0; i < gdev->count; i++) {
+		cdev = gdev->cdev[i];
+		if (!cdev)
+			continue;
+		spin_lock_irq(cdev->ccwlock);
+		dev_set_drvdata(&cdev->dev, NULL);
+		spin_unlock_irq(cdev->ccwlock);
+		gdev->cdev[i] = NULL;
+		put_device(&cdev->dev);
+	}
+}
+
+/*
  * Provide an 'ungroup' attribute so the user can remove group devices no
  * longer needed or accidentially created. Saves memory :)
  */
@@ -78,6 +99,7 @@ static void ccwgroup_ungroup_callback(struct device *dev)
 	if (device_is_registered(&gdev->dev)) {
 		__ccwgroup_remove_symlinks(gdev);
 		device_unregister(dev);
+		__ccwgroup_remove_cdev_refs(gdev);
 	}
 	mutex_unlock(&gdev->reg_mutex);
 }
@@ -116,19 +138,7 @@ static DEVICE_ATTR(ungroup, 0200, NULL, ccwgroup_ungroup_store);
 static void
 ccwgroup_release (struct device *dev)
 {
-	struct ccwgroup_device *gdev;
-	int i;
-
-	gdev = to_ccwgroupdev(dev);
-
-	for (i = 0; i < gdev->count; i++) {
-		if (gdev->cdev[i]) {
-			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
-				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
-			put_device(&gdev->cdev[i]->dev);
-		}
-	}
-	kfree(gdev);
+	kfree(to_ccwgroupdev(dev));
 }
 
 static int
@@ -262,11 +272,14 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 			goto error;
 		}
 		/* Don't allow a device to belong to more than one group. */
+		spin_lock_irq(gdev->cdev[i]->ccwlock);
 		if (dev_get_drvdata(&gdev->cdev[i]->dev)) {
+			spin_unlock_irq(gdev->cdev[i]->ccwlock);
 			rc = -EINVAL;
 			goto error;
 		}
 		dev_set_drvdata(&gdev->cdev[i]->dev, gdev);
+		spin_unlock_irq(gdev->cdev[i]->ccwlock);
 	}
 	/* Check for sufficient number of bus ids. */
 	if (i < num_devices && !curr_buf) {
@@ -303,8 +316,10 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 error:
 	for (i = 0; i < num_devices; i++)
 		if (gdev->cdev[i]) {
+			spin_lock_irq(gdev->cdev[i]->ccwlock);
 			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
 				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
+			spin_unlock_irq(gdev->cdev[i]->ccwlock);
 			put_device(&gdev->cdev[i]->dev);
 			gdev->cdev[i] = NULL;
 		}
@@ -560,7 +575,7 @@ static int ccwgroup_pm_restore(struct device *dev)
 	return gdrv->restore ? gdrv->restore(gdev) : 0;
 }
 
-static struct dev_pm_ops ccwgroup_pm_ops = {
+static const struct dev_pm_ops ccwgroup_pm_ops = {
 	.prepare = ccwgroup_pm_prepare,
 	.complete = ccwgroup_pm_complete,
 	.freeze = ccwgroup_pm_freeze,
@@ -632,6 +647,7 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 		mutex_lock(&gdev->reg_mutex);
 		__ccwgroup_remove_symlinks(gdev);
 		device_unregister(dev);
+		__ccwgroup_remove_cdev_refs(gdev);
 		mutex_unlock(&gdev->reg_mutex);
 		put_device(dev);
 	}
@@ -653,25 +669,6 @@ int ccwgroup_probe_ccwdev(struct ccw_device *cdev)
 	return 0;
 }
 
-static struct ccwgroup_device *
-__ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
-{
-	struct ccwgroup_device *gdev;
-
-	gdev = dev_get_drvdata(&cdev->dev);
-	if (gdev) {
-		if (get_device(&gdev->dev)) {
-			mutex_lock(&gdev->reg_mutex);
-			if (device_is_registered(&gdev->dev))
-				return gdev;
-			mutex_unlock(&gdev->reg_mutex);
-			put_device(&gdev->dev);
-		}
-		return NULL;
-	}
-	return NULL;
-}
-
 /**
  * ccwgroup_remove_ccwdev() - remove function for slave devices
  * @cdev: ccw device to be removed
@@ -687,13 +684,25 @@ void ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 	/* Ignore offlining errors, device is gone anyway. */
 	ccw_device_set_offline(cdev);
 	/* If one of its devices is gone, the whole group is done for. */
-	gdev = __ccwgroup_get_gdev_by_cdev(cdev);
-	if (gdev) {
+	spin_lock_irq(cdev->ccwlock);
+	gdev = dev_get_drvdata(&cdev->dev);
+	if (!gdev) {
+		spin_unlock_irq(cdev->ccwlock);
+		return;
+	}
+	/* Get ccwgroup device reference for local processing. */
+	get_device(&gdev->dev);
+	spin_unlock_irq(cdev->ccwlock);
+	/* Unregister group device. */
+	mutex_lock(&gdev->reg_mutex);
+	if (device_is_registered(&gdev->dev)) {
 		__ccwgroup_remove_symlinks(gdev);
 		device_unregister(&gdev->dev);
-		mutex_unlock(&gdev->reg_mutex);
-		put_device(&gdev->dev);
+		__ccwgroup_remove_cdev_refs(gdev);
 	}
+	mutex_unlock(&gdev->reg_mutex);
+	/* Release ccwgroup device reference for local processing. */
+	put_device(&gdev->dev);
 }
 
 MODULE_LICENSE("GPL");

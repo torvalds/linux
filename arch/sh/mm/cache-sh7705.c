@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/threads.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
@@ -47,10 +48,10 @@ static inline void cache_wback_all(void)
 			unsigned long data;
 			int v = SH_CACHE_UPDATED | SH_CACHE_VALID;
 
-			data = ctrl_inl(addr);
+			data = __raw_readl(addr);
 
 			if ((data & v) == v)
-				ctrl_outl(data & ~v, addr);
+				__raw_writel(data & ~v, addr);
 
 		}
 
@@ -63,15 +64,21 @@ static inline void cache_wback_all(void)
  *
  * Called from kernel/module.c:sys_init_module and routine for a.out format.
  */
-void flush_icache_range(unsigned long start, unsigned long end)
+static void sh7705_flush_icache_range(void *args)
 {
+	struct flusher_data *data = args;
+	unsigned long start, end;
+
+	start = data->addr1;
+	end = data->addr2;
+
 	__flush_wback_region((void *)start, end - start);
 }
 
 /*
  * Writeback&Invalidate the D-cache of the page
  */
-static void __uses_jump_to_uncached __flush_dcache_page(unsigned long phys)
+static void __flush_dcache_page(unsigned long phys)
 {
 	unsigned long ways, waysize, addrstart;
 	unsigned long flags;
@@ -108,10 +115,10 @@ static void __uses_jump_to_uncached __flush_dcache_page(unsigned long phys)
 		     addr += current_cpu_data.dcache.linesz) {
 			unsigned long data;
 
-			data = ctrl_inl(addr) & (0x1ffffC00 | SH_CACHE_VALID);
+			data = __raw_readl(addr) & (0x1ffffC00 | SH_CACHE_VALID);
 		        if (data == phys) {
 				data &= ~(SH_CACHE_VALID | SH_CACHE_UPDATED);
-				ctrl_outl(data, addr);
+				__raw_writel(data, addr);
 			}
 		}
 
@@ -126,13 +133,18 @@ static void __uses_jump_to_uncached __flush_dcache_page(unsigned long phys)
  * Write back & invalidate the D-cache of the page.
  * (To avoid "alias" issues)
  */
-void flush_dcache_page(struct page *page)
+static void sh7705_flush_dcache_page(void *arg)
 {
-	if (test_bit(PG_mapped, &page->flags))
-		__flush_dcache_page(PHYSADDR(page_address(page)));
+	struct page *page = arg;
+	struct address_space *mapping = page_mapping(page);
+
+	if (mapping && !mapping_mapped(mapping))
+		clear_bit(PG_dcache_clean, &page->flags);
+	else
+		__flush_dcache_page(__pa(page_address(page)));
 }
 
-void __uses_jump_to_uncached flush_cache_all(void)
+static void sh7705_flush_cache_all(void *args)
 {
 	unsigned long flags;
 
@@ -144,44 +156,16 @@ void __uses_jump_to_uncached flush_cache_all(void)
 	local_irq_restore(flags);
 }
 
-void flush_cache_mm(struct mm_struct *mm)
-{
-	/* Is there any good way? */
-	/* XXX: possibly call flush_cache_range for each vm area */
-	flush_cache_all();
-}
-
-/*
- * Write back and invalidate D-caches.
- *
- * START, END: Virtual Address (U0 address)
- *
- * NOTE: We need to flush the _physical_ page entry.
- * Flushing the cache lines for U0 only isn't enough.
- * We need to flush for P1 too, which may contain aliases.
- */
-void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-		       unsigned long end)
-{
-
-	/*
-	 * We could call flush_cache_page for the pages of these range,
-	 * but it's not efficient (scan the caches all the time...).
-	 *
-	 * We can't use A-bit magic, as there's the case we don't have
-	 * valid entry on TLB.
-	 */
-	flush_cache_all();
-}
-
 /*
  * Write back and invalidate I/D-caches for the page.
  *
  * ADDRESS: Virtual Address (U0 address)
  */
-void flush_cache_page(struct vm_area_struct *vma, unsigned long address,
-		      unsigned long pfn)
+static void sh7705_flush_cache_page(void *args)
 {
+	struct flusher_data *data = args;
+	unsigned long pfn = data->addr2;
+
 	__flush_dcache_page(pfn << PAGE_SHIFT);
 }
 
@@ -193,7 +177,19 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long address,
  * Not entirely sure why this is necessary on SH3 with 32K cache but
  * without it we get occasional "Memory fault" when loading a program.
  */
-void flush_icache_page(struct vm_area_struct *vma, struct page *page)
+static void sh7705_flush_icache_page(void *page)
 {
 	__flush_purge_region(page_address(page), PAGE_SIZE);
+}
+
+void __init sh7705_cache_init(void)
+{
+	local_flush_icache_range	= sh7705_flush_icache_range;
+	local_flush_dcache_page		= sh7705_flush_dcache_page;
+	local_flush_cache_all		= sh7705_flush_cache_all;
+	local_flush_cache_mm		= sh7705_flush_cache_all;
+	local_flush_cache_dup_mm	= sh7705_flush_cache_all;
+	local_flush_cache_range		= sh7705_flush_cache_all;
+	local_flush_cache_page		= sh7705_flush_cache_page;
+	local_flush_icache_page		= sh7705_flush_icache_page;
 }

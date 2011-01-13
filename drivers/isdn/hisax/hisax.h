@@ -959,6 +959,7 @@ struct IsdnCardState {
 	u_long		event;
 	struct work_struct tqueue;
 	struct timer_list dbusytimer;
+	unsigned int	irq_cnt;
 #ifdef ERROR_STATISTIC
 	int		err_crc;
 	int		err_tx;
@@ -1285,7 +1286,9 @@ int jiftime(char *s, long mark);
 
 int HiSax_command(isdn_ctrl * ic);
 int HiSax_writebuf_skb(int id, int chan, int ack, struct sk_buff *skb);
+__attribute__((format(printf, 3, 4)))
 void HiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt, ...);
+__attribute__((format(printf, 3, 0)))
 void VHiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt, va_list args);
 void HiSax_reportcard(int cardnr, int sel);
 int QuickHex(char *txt, u_char * p, int cnt);
@@ -1323,3 +1326,26 @@ void release_tei(struct IsdnCardState *cs);
 char *HiSax_getrev(const char *revision);
 int TeiNew(void);
 void TeiFree(void);
+
+#ifdef CONFIG_PCI
+
+#include <linux/pci.h>
+
+/* adaptation wrapper for old usage
+ * WARNING! This is unfit for use in a PCI hotplug environment,
+ * as the returned PCI device can disappear at any moment in time.
+ * Callers should be converted to use pci_get_device() instead.
+ */
+static inline struct pci_dev *hisax_find_pci_device(unsigned int vendor,
+						    unsigned int device,
+						    struct pci_dev *from)
+{
+	struct pci_dev *pdev;
+
+	pci_dev_get(from);
+	pdev = pci_get_subsys(vendor, device, PCI_ANY_ID, PCI_ANY_ID, from);
+	pci_dev_put(pdev);
+	return pdev;
+}
+
+#endif

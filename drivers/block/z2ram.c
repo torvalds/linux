@@ -33,6 +33,8 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <asm/setup.h>
 #include <asm/amigahw.h>
@@ -55,6 +57,7 @@ extern struct mem_info m68k_memory[NUM_MEMINFO];
 
 #define Z2RAM_CHUNK1024       ( Z2RAM_CHUNKSIZE >> 10 )
 
+static DEFINE_MUTEX(z2ram_mutex);
 static u_long *z2ram_map    = NULL;
 static u_long z2ram_size    = 0;
 static int z2_count         = 0;
@@ -64,7 +67,6 @@ static int current_device   = -1;
 
 static DEFINE_SPINLOCK(z2ram_lock);
 
-static struct block_device_operations z2_fops;
 static struct gendisk *z2ram_gendisk;
 
 static void do_z2_request(struct request_queue *q)
@@ -78,8 +80,10 @@ static void do_z2_request(struct request_queue *q)
 		int err = 0;
 
 		if (start + len > z2ram_size) {
-			printk( KERN_ERR DEVICE_NAME ": bad access: block=%lu, count=%u\n",
-				blk_rq_pos(req), blk_rq_cur_sectors(req));
+			pr_err(DEVICE_NAME ": bad access: block=%llu, "
+			       "count=%u\n",
+			       (unsigned long long)blk_rq_pos(req),
+			       blk_rq_cur_sectors(req));
 			err = -EIO;
 			goto done;
 		}
@@ -153,6 +157,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
     device = MINOR(bdev->bd_dev);
 
+    mutex_lock(&z2ram_mutex);
     if ( current_device != -1 && current_device != device )
     {
 	rc = -EBUSY;
@@ -294,20 +299,25 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 	set_capacity(z2ram_gendisk, z2ram_size >> 9);
     }
 
+    mutex_unlock(&z2ram_mutex);
     return 0;
 
 err_out_kfree:
     kfree(z2ram_map);
 err_out:
+    mutex_unlock(&z2ram_mutex);
     return rc;
 }
 
 static int
 z2_release(struct gendisk *disk, fmode_t mode)
 {
-    if ( current_device == -1 )
-	return 0;     
-
+    mutex_lock(&z2ram_mutex);
+    if ( current_device == -1 ) {
+    	mutex_unlock(&z2ram_mutex);
+    	return 0;
+    }
+    mutex_unlock(&z2ram_mutex);
     /*
      * FIXME: unmap memory
      */
@@ -315,7 +325,7 @@ z2_release(struct gendisk *disk, fmode_t mode)
     return 0;
 }
 
-static struct block_device_operations z2_fops =
+static const struct block_device_operations z2_fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= z2_open,
@@ -374,7 +384,7 @@ err:
 static void __exit z2_exit(void)
 {
     int i, j;
-    blk_unregister_region(MKDEV(Z2RAM_MAJOR, 0), 256);
+    blk_unregister_region(MKDEV(Z2RAM_MAJOR, 0), Z2MINOR_COUNT);
     unregister_blkdev(Z2RAM_MAJOR, DEVICE_NAME);
     del_gendisk(z2ram_gendisk);
     put_disk(z2ram_gendisk);

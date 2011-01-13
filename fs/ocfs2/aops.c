@@ -44,6 +44,7 @@
 #include "suballoc.h"
 #include "super.h"
 #include "symlink.h"
+#include "refcounttree.h"
 
 #include "buffer_head_io.h"
 
@@ -126,8 +127,8 @@ bail:
 	return err;
 }
 
-static int ocfs2_get_block(struct inode *inode, sector_t iblock,
-			   struct buffer_head *bh_result, int create)
+int ocfs2_get_block(struct inode *inode, sector_t iblock,
+		    struct buffer_head *bh_result, int create)
 {
 	int err = 0;
 	unsigned int ext_flags;
@@ -164,7 +165,7 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	 * ocfs2 never allocates in this function - the only time we
 	 * need to use BH_New is when we're extending i_size on a file
 	 * system which doesn't support holes, in which case BH_New
-	 * allows block_prepare_write() to zero.
+	 * allows __block_write_begin() to zero.
 	 *
 	 * If we see this on a sparse file system, then a truncate has
 	 * raced us and removed the cluster. In this case, we clear
@@ -193,15 +194,15 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 			mlog(ML_ERROR, "Size %llu, clusters %u\n", (unsigned long long)i_size_read(inode), OCFS2_I(inode)->ip_clusters);
 			dump_stack();
+			goto bail;
 		}
-
-		past_eof = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
-		mlog(0, "Inode %lu, past_eof = %llu\n", inode->i_ino,
-		     (unsigned long long)past_eof);
-
-		if (create && (iblock >= past_eof))
-			set_buffer_new(bh_result);
 	}
+
+	past_eof = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
+	mlog(0, "Inode %lu, past_eof = %llu\n", inode->i_ino,
+	     (unsigned long long)past_eof);
+	if (create && (iblock >= past_eof))
+		set_buffer_new(bh_result);
 
 bail:
 	if (err < 0)
@@ -406,21 +407,6 @@ static int ocfs2_writepage(struct page *page, struct writeback_control *wbc)
 	return ret;
 }
 
-/*
- * This is called from ocfs2_write_zero_page() which has handled it's
- * own cluster locking and has ensured allocation exists for those
- * blocks to be written.
- */
-int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
-			       unsigned from, unsigned to)
-{
-	int ret;
-
-	ret = block_prepare_write(page, from, to, ocfs2_get_block);
-
-	return ret;
-}
-
 /* Taken from ext3. We don't necessarily need the full blown
  * functionality yet, but IMHO it's better to cut and paste the whole
  * thing so we can avoid introducing our own bugs (and easily pick up
@@ -455,36 +441,6 @@ int walk_page_buffers(	handle_t *handle,
 			ret = err;
 	}
 	return ret;
-}
-
-handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
-							 struct page *page,
-							 unsigned from,
-							 unsigned to)
-{
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	handle_t *handle;
-	int ret = 0;
-
-	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
-	if (IS_ERR(handle)) {
-		ret = -ENOMEM;
-		mlog_errno(ret);
-		goto out;
-	}
-
-	if (ocfs2_should_order_data(inode)) {
-		ret = ocfs2_jbd2_file_inode(handle, inode);
-		if (ret < 0)
-			mlog_errno(ret);
-	}
-out:
-	if (ret) {
-		if (!IS_ERR(handle))
-			ocfs2_commit_trans(osb, handle);
-		handle = ERR_PTR(ret);
-	}
-	return handle;
 }
 
 static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
@@ -545,6 +501,9 @@ bail:
  *
  * called like this: dio->get_blocks(dio->inode, fs_startblk,
  * 					fs_count, map_bh, dio->rw == WRITE);
+ *
+ * Note that we never bother to allocate blocks here, and thus ignore the
+ * create argument.
  */
 static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 				     struct buffer_head *bh_result, int create)
@@ -561,14 +520,6 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 
 	inode_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 
-	/*
-	 * Any write past EOF is not allowed because we'd be extending.
-	 */
-	if (create && (iblock + max_blocks) > inode_blocks) {
-		ret = -EIO;
-		goto bail;
-	}
-
 	/* This figures out the size of the next contiguous block, and
 	 * our logical offset */
 	ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
@@ -580,14 +531,8 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)) && !p_blkno && create) {
-		ocfs2_error(inode->i_sb,
-			    "Inode %llu has a hole at block %llu\n",
-			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
-			    (unsigned long long)iblock);
-		ret = -EROFS;
-		goto bail;
-	}
+	/* We should already CoW the refcounted extent in case of create. */
+	BUG_ON(create && (ext_flags & OCFS2_EXT_REFCOUNTED));
 
 	/*
 	 * get_more_blocks() expects us to describe a hole by clearing
@@ -597,20 +542,8 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	 */
 	if (p_blkno && !(ext_flags & OCFS2_EXT_UNWRITTEN))
 		map_bh(bh_result, inode->i_sb, p_blkno);
-	else {
-		/*
-		 * ocfs2_prepare_inode_for_write() should have caught
-		 * the case where we'd be filling a hole and triggered
-		 * a buffered write instead.
-		 */
-		if (create) {
-			ret = -EIO;
-			mlog_errno(ret);
-			goto bail;
-		}
-
+	else
 		clear_buffer_mapped(bh_result);
-	}
 
 	/* make sure we don't map more than max_blocks blocks here as
 	   that's all the kernel will handle at this point. */
@@ -621,7 +554,7 @@ bail:
 	return ret;
 }
 
-/* 
+/*
  * ocfs2_dio_end_io is called by the dio core when a dio is finished.  We're
  * particularly interested in the aio/dio case.  Like the core uses
  * i_alloc_sem, we use the rw_lock DLM lock to protect io on one node from
@@ -630,7 +563,9 @@ bail:
 static void ocfs2_dio_end_io(struct kiocb *iocb,
 			     loff_t offset,
 			     ssize_t bytes,
-			     void *private)
+			     void *private,
+			     int ret,
+			     bool is_async)
 {
 	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
 	int level;
@@ -638,12 +573,18 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
 
+	if (ocfs2_iocb_is_sem_locked(iocb)) {
+		up_read(&inode->i_alloc_sem);
+		ocfs2_iocb_clear_sem_locked(iocb);
+	}
+
 	ocfs2_iocb_clear_rw_locked(iocb);
 
 	level = ocfs2_iocb_rw_locked_level(iocb);
-	if (!level)
-		up_read(&inode->i_alloc_sem);
 	ocfs2_rw_unlock(inode, level);
+
+	if (is_async)
+		aio_complete(iocb, ret, 0);
 }
 
 /*
@@ -686,11 +627,14 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return 0;
 
-	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
-					    inode->i_sb->s_bdev, iov, offset,
-					    nr_segs, 
-					    ocfs2_direct_IO_get_blocks,
-					    ocfs2_dio_end_io);
+	/* Fallback to buffered I/O if we are appending. */
+	if (i_size_read(inode) <= offset)
+		return 0;
+
+	ret = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
+				   iov, offset, nr_segs,
+				   ocfs2_direct_IO_get_blocks,
+				   ocfs2_dio_end_io, NULL, 0);
 
 	mlog_exit(ret);
 	return ret;
@@ -776,7 +720,7 @@ static int ocfs2_should_read_blk(struct inode *inode, struct page *page,
 }
 
 /*
- * Some of this taken from block_prepare_write(). We already have our
+ * Some of this taken from __block_write_begin(). We already have our
  * mapping by now though, and the entire write will be allocating or
  * it won't, so not much need to use BH_New.
  *
@@ -894,17 +838,16 @@ struct ocfs2_write_cluster_desc {
 	 */
 	unsigned	c_new;
 	unsigned	c_unwritten;
+	unsigned	c_needs_zero;
 };
-
-static inline int ocfs2_should_zero_cluster(struct ocfs2_write_cluster_desc *d)
-{
-	return d->c_new || d->c_unwritten;
-}
 
 struct ocfs2_write_ctxt {
 	/* Logical cluster position / len of write */
 	u32				w_cpos;
 	u32				w_clen;
+
+	/* First cluster allocated in a nonsparse extend */
+	u32				w_first_new_cpos;
 
 	struct ocfs2_write_cluster_desc	w_desc[OCFS2_MAX_CLUSTERS_PER_PAGE];
 
@@ -928,8 +871,8 @@ struct ocfs2_write_ctxt {
 	 * out in so that future reads from that region will get
 	 * zero's.
 	 */
-	struct page			*w_pages[OCFS2_MAX_CTXT_PAGES];
 	unsigned int			w_num_pages;
+	struct page			*w_pages[OCFS2_MAX_CTXT_PAGES];
 	struct page			*w_target_page;
 
 	/*
@@ -983,6 +926,7 @@ static int ocfs2_alloc_write_ctxt(struct ocfs2_write_ctxt **wcp,
 		return -ENOMEM;
 
 	wc->w_cpos = pos >> osb->s_clustersize_bits;
+	wc->w_first_new_cpos = UINT_MAX;
 	cend = (pos + len - 1) >> osb->s_clustersize_bits;
 	wc->w_clen = cend - wc->w_cpos + 1;
 	get_bh(di_bh);
@@ -1148,23 +1092,37 @@ out:
  */
 static int ocfs2_grab_pages_for_write(struct address_space *mapping,
 				      struct ocfs2_write_ctxt *wc,
-				      u32 cpos, loff_t user_pos, int new,
+				      u32 cpos, loff_t user_pos,
+				      unsigned user_len, int new,
 				      struct page *mmap_page)
 {
 	int ret = 0, i;
-	unsigned long start, target_index, index;
+	unsigned long start, target_index, end_index, index;
 	struct inode *inode = mapping->host;
+	loff_t last_byte;
 
 	target_index = user_pos >> PAGE_CACHE_SHIFT;
 
 	/*
 	 * Figure out how many pages we'll be manipulating here. For
 	 * non allocating write, we just change the one
-	 * page. Otherwise, we'll need a whole clusters worth.
+	 * page. Otherwise, we'll need a whole clusters worth.  If we're
+	 * writing past i_size, we only need enough pages to cover the
+	 * last page of the write.
 	 */
 	if (new) {
 		wc->w_num_pages = ocfs2_pages_per_cluster(inode->i_sb);
 		start = ocfs2_align_clusters_to_page_index(inode->i_sb, cpos);
+		/*
+		 * We need the index *past* the last page we could possibly
+		 * touch.  This is the page past the end of the write or
+		 * i_size, whichever is greater.
+		 */
+		last_byte = max(user_pos + user_len, i_size_read(inode));
+		BUG_ON(last_byte < 1);
+		end_index = ((last_byte - 1) >> PAGE_CACHE_SHIFT) + 1;
+		if ((start + wc->w_num_pages) > end_index)
+			wc->w_num_pages = end_index - start;
 	} else {
 		wc->w_num_pages = 1;
 		start = target_index;
@@ -1217,20 +1175,18 @@ out:
  */
 static int ocfs2_write_cluster(struct address_space *mapping,
 			       u32 phys, unsigned int unwritten,
+			       unsigned int should_zero,
 			       struct ocfs2_alloc_context *data_ac,
 			       struct ocfs2_alloc_context *meta_ac,
 			       struct ocfs2_write_ctxt *wc, u32 cpos,
 			       loff_t user_pos, unsigned user_len)
 {
-	int ret, i, new, should_zero = 0;
+	int ret, i, new;
 	u64 v_blkno, p_blkno;
 	struct inode *inode = mapping->host;
 	struct ocfs2_extent_tree et;
 
 	new = phys == 0 ? 1 : 0;
-	if (new || unwritten)
-		should_zero = 1;
-
 	if (new) {
 		u32 tmp_pos;
 
@@ -1260,7 +1216,8 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 			goto out;
 		}
 	} else if (unwritten) {
-		ocfs2_init_dinode_extent_tree(&et, inode, wc->w_di_bh);
+		ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode),
+					      wc->w_di_bh);
 		ret = ocfs2_mark_extent_written(inode, &et,
 						wc->w_handle, cpos, 1, phys,
 						meta_ac, &wc->w_dealloc);
@@ -1301,7 +1258,7 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 		if (tmpret) {
 			mlog_errno(tmpret);
 			if (ret == 0)
-				tmpret = ret;
+				ret = tmpret;
 		}
 	}
 
@@ -1341,7 +1298,9 @@ static int ocfs2_write_cluster_by_desc(struct address_space *mapping,
 			local_len = osb->s_clustersize - cluster_off;
 
 		ret = ocfs2_write_cluster(mapping, desc->c_phys,
-					  desc->c_unwritten, data_ac, meta_ac,
+					  desc->c_unwritten,
+					  desc->c_needs_zero,
+					  data_ac, meta_ac,
 					  wc, desc->c_cpos, pos, local_len);
 		if (ret) {
 			mlog_errno(ret);
@@ -1391,14 +1350,14 @@ static void ocfs2_set_target_boundaries(struct ocfs2_super *osb,
 		 * newly allocated cluster.
 		 */
 		desc = &wc->w_desc[0];
-		if (ocfs2_should_zero_cluster(desc))
+		if (desc->c_needs_zero)
 			ocfs2_figure_cluster_boundaries(osb,
 							desc->c_cpos,
 							&wc->w_target_from,
 							NULL);
 
 		desc = &wc->w_desc[wc->w_clen - 1];
-		if (ocfs2_should_zero_cluster(desc))
+		if (desc->c_needs_zero)
 			ocfs2_figure_cluster_boundaries(osb,
 							desc->c_cpos,
 							NULL,
@@ -1447,6 +1406,9 @@ static int ocfs2_populate_write_desc(struct inode *inode,
 				goto out;
 			}
 
+			/* We should already CoW the refcountd extent. */
+			BUG_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
+
 			/*
 			 * Assume worst case - that we're writing in
 			 * the middle of the extent.
@@ -1466,13 +1428,28 @@ static int ocfs2_populate_write_desc(struct inode *inode,
 			phys++;
 		}
 
+		/*
+		 * If w_first_new_cpos is < UINT_MAX, we have a non-sparse
+		 * file that got extended.  w_first_new_cpos tells us
+		 * where the newly allocated clusters are so we can
+		 * zero them.
+		 */
+		if (desc->c_cpos >= wc->w_first_new_cpos) {
+			BUG_ON(phys == 0);
+			desc->c_needs_zero = 1;
+		}
+
 		desc->c_phys = phys;
 		if (phys == 0) {
 			desc->c_new = 1;
+			desc->c_needs_zero = 1;
 			*clusters_to_alloc = *clusters_to_alloc + 1;
 		}
-		if (ext_flags & OCFS2_EXT_UNWRITTEN)
+
+		if (ext_flags & OCFS2_EXT_UNWRITTEN) {
 			desc->c_unwritten = 1;
+			desc->c_needs_zero = 1;
+		}
 
 		num_clusters--;
 	}
@@ -1512,7 +1489,7 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_di(handle, inode, wc->w_di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), wc->w_di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		ocfs2_commit_trans(osb, handle);
@@ -1618,34 +1595,86 @@ out:
  * write path can treat it as an non-allocating write, which has no
  * special case code for sparse/nonsparse files.
  */
-static int ocfs2_expand_nonsparse_inode(struct inode *inode, loff_t pos,
-					unsigned len,
+static int ocfs2_expand_nonsparse_inode(struct inode *inode,
+					struct buffer_head *di_bh,
+					loff_t pos, unsigned len,
 					struct ocfs2_write_ctxt *wc)
 {
 	int ret;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	loff_t newsize = pos + len;
 
-	if (ocfs2_sparse_alloc(osb))
-		return 0;
+	BUG_ON(ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)));
 
 	if (newsize <= i_size_read(inode))
 		return 0;
 
-	ret = ocfs2_extend_no_holes(inode, newsize, newsize - len);
+	ret = ocfs2_extend_no_holes(inode, di_bh, newsize, pos);
 	if (ret)
 		mlog_errno(ret);
+
+	wc->w_first_new_cpos =
+		ocfs2_clusters_for_bytes(inode->i_sb, i_size_read(inode));
 
 	return ret;
 }
 
-int ocfs2_write_begin_nolock(struct address_space *mapping,
+static int ocfs2_zero_tail(struct inode *inode, struct buffer_head *di_bh,
+			   loff_t pos)
+{
+	int ret = 0;
+
+	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)));
+	if (pos > i_size_read(inode))
+		ret = ocfs2_zero_extend(inode, di_bh, pos);
+
+	return ret;
+}
+
+/*
+ * Try to flush truncate logs if we can free enough clusters from it.
+ * As for return value, "< 0" means error, "0" no space and "1" means
+ * we have freed enough spaces and let the caller try to allocate again.
+ */
+static int ocfs2_try_to_free_truncate_log(struct ocfs2_super *osb,
+					  unsigned int needed)
+{
+	tid_t target;
+	int ret = 0;
+	unsigned int truncated_clusters;
+
+	mutex_lock(&osb->osb_tl_inode->i_mutex);
+	truncated_clusters = osb->truncated_clusters;
+	mutex_unlock(&osb->osb_tl_inode->i_mutex);
+
+	/*
+	 * Check whether we can succeed in allocating if we free
+	 * the truncate log.
+	 */
+	if (truncated_clusters < needed)
+		goto out;
+
+	ret = ocfs2_flush_truncate_log(osb);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (jbd2_journal_start_commit(osb->journal->j_journal, &target)) {
+		jbd2_log_wait_commit(osb->journal->j_journal, target);
+		ret = 1;
+	}
+out:
+	return ret;
+}
+
+int ocfs2_write_begin_nolock(struct file *filp,
+			     struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
 			     struct page **pagep, void **fsdata,
 			     struct buffer_head *di_bh, struct page *mmap_page)
 {
-	int ret, credits = OCFS2_INODE_UPDATE_CREDITS;
-	unsigned int clusters_to_alloc, extents_to_split;
+	int ret, cluster_of_pages, credits = OCFS2_INODE_UPDATE_CREDITS;
+	unsigned int clusters_to_alloc, extents_to_split, clusters_need = 0;
 	struct ocfs2_write_ctxt *wc;
 	struct inode *inode = mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
@@ -1654,7 +1683,9 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	struct ocfs2_alloc_context *meta_ac = NULL;
 	handle_t *handle;
 	struct ocfs2_extent_tree et;
+	int try_free = 1, ret1;
 
+try_again:
 	ret = ocfs2_alloc_write_ctxt(&wc, osb, pos, len, di_bh);
 	if (ret) {
 		mlog_errno(ret);
@@ -1674,10 +1705,28 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		}
 	}
 
-	ret = ocfs2_expand_nonsparse_inode(inode, pos, len, wc);
+	if (ocfs2_sparse_alloc(osb))
+		ret = ocfs2_zero_tail(inode, di_bh, pos);
+	else
+		ret = ocfs2_expand_nonsparse_inode(inode, di_bh, pos, len,
+						   wc);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
+	}
+
+	ret = ocfs2_check_range_for_refcount(inode, pos, len);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	} else if (ret == 1) {
+		clusters_need = wc->w_clen;
+		ret = ocfs2_refcount_cow(inode, filp, di_bh,
+					 wc->w_cpos, wc->w_clen, UINT_MAX);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 	}
 
 	ret = ocfs2_populate_write_desc(inode, wc, &clusters_to_alloc,
@@ -1686,6 +1735,7 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		mlog_errno(ret);
 		goto out;
 	}
+	clusters_need += clusters_to_alloc;
 
 	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
 
@@ -1707,7 +1757,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		     (long long)i_size_read(inode), le32_to_cpu(di->i_clusters),
 		     clusters_to_alloc, extents_to_split);
 
-		ocfs2_init_dinode_extent_tree(&et, inode, wc->w_di_bh);
+		ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode),
+					      wc->w_di_bh);
 		ret = ocfs2_lock_allocators(inode, &et,
 					    clusters_to_alloc, extents_to_split,
 					    &data_ac, &meta_ac);
@@ -1716,14 +1767,28 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 			goto out;
 		}
 
+		if (data_ac)
+			data_ac->ac_resv = &OCFS2_I(inode)->ip_la_data_resv;
+
 		credits = ocfs2_calc_extend_credits(inode->i_sb,
 						    &di->id2.i_list,
 						    clusters_to_alloc);
 
 	}
 
-	ocfs2_set_target_boundaries(osb, wc, pos, len,
-				    clusters_to_alloc + extents_to_split);
+	/*
+	 * We have to zero sparse allocated clusters, unwritten extent clusters,
+	 * and non-sparse clusters we just extended.  For non-sparse writes,
+	 * we know zeros will only be needed in the first and/or last cluster.
+	 */
+	if (clusters_to_alloc || extents_to_split ||
+	    (wc->w_clen && (wc->w_desc[0].c_needs_zero ||
+			    wc->w_desc[wc->w_clen - 1].c_needs_zero)))
+		cluster_of_pages = 1;
+	else
+		cluster_of_pages = 0;
+
+	ocfs2_set_target_boundaries(osb, wc, pos, len, cluster_of_pages);
 
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
@@ -1734,16 +1799,17 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 
 	wc->w_handle = handle;
 
-	if (clusters_to_alloc && vfs_dq_alloc_space_nodirty(inode,
-			ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc))) {
-		ret = -EDQUOT;
-		goto out_commit;
+	if (clusters_to_alloc) {
+		ret = dquot_alloc_space_nodirty(inode,
+			ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc));
+		if (ret)
+			goto out_commit;
 	}
 	/*
 	 * We don't want this to fail in ocfs2_write_end(), so do it
 	 * here.
 	 */
-	ret = ocfs2_journal_access_di(handle, inode, wc->w_di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), wc->w_di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1755,9 +1821,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	 * that we can zero and flush if we error after adding the
 	 * extent.
 	 */
-	ret = ocfs2_grab_pages_for_write(mapping, wc, wc->w_cpos, pos,
-					 clusters_to_alloc + extents_to_split,
-					 mmap_page);
+	ret = ocfs2_grab_pages_for_write(mapping, wc, wc->w_cpos, pos, len,
+					 cluster_of_pages, mmap_page);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_quota;
@@ -1781,7 +1846,7 @@ success:
 	return 0;
 out_quota:
 	if (clusters_to_alloc)
-		vfs_dq_free_space(inode,
+		dquot_free_space(inode,
 			  ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc));
 out_commit:
 	ocfs2_commit_trans(osb, handle);
@@ -1793,6 +1858,22 @@ out:
 		ocfs2_free_alloc_context(data_ac);
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
+
+	if (ret == -ENOSPC && try_free) {
+		/*
+		 * Try to free some truncate log so that we can have enough
+		 * clusters to allocate.
+		 */
+		try_free = 0;
+
+		ret1 = ocfs2_try_to_free_truncate_log(osb, clusters_need);
+		if (ret1 == 1)
+			goto try_again;
+
+		if (ret1 < 0)
+			mlog_errno(ret1);
+	}
+
 	return ret;
 }
 
@@ -1819,7 +1900,7 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = ocfs2_write_begin_nolock(mapping, pos, len, flags, pagep,
+	ret = ocfs2_write_begin_nolock(file, mapping, pos, len, flags, pagep,
 				       fsdata, di_bh, NULL);
 	if (ret) {
 		mlog_errno(ret);
@@ -1968,4 +2049,5 @@ const struct address_space_operations ocfs2_aops = {
 	.releasepage		= ocfs2_releasepage,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate	= block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };

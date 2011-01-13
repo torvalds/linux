@@ -40,9 +40,11 @@ void nfs_inode_return_delegation_noreclaim(struct inode *inode);
 struct inode *nfs_delegation_find_inode(struct nfs_client *clp, const struct nfs_fh *fhandle);
 void nfs_super_return_all_delegations(struct super_block *sb);
 void nfs_expire_all_delegations(struct nfs_client *clp);
+void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags);
 void nfs_expire_unreferenced_delegations(struct nfs_client *clp);
 void nfs_handle_cb_pathdown(struct nfs_client *clp);
-void nfs_client_return_marked_delegations(struct nfs_client *clp);
+int nfs_client_return_marked_delegations(struct nfs_client *clp);
+int nfs_delegations_present(struct nfs_client *clp);
 
 void nfs_delegation_mark_reclaim(struct nfs_client *clp);
 void nfs_delegation_reap_unclaimed(struct nfs_client *clp);
@@ -67,5 +69,11 @@ static inline int nfs_inode_return_delegation(struct inode *inode)
 	return 0;
 }
 #endif
+
+static inline int nfs_have_delegated_attributes(struct inode *inode)
+{
+	return nfs_have_delegation(inode, FMODE_READ) &&
+		!(NFS_I(inode)->cache_validity & NFS_INO_REVAL_FORCED);
+}
 
 #endif

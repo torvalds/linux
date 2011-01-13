@@ -5,6 +5,7 @@
 menuconfig I2C
 	tristate "I2C support"
 	depends on HAS_IOMEM
+	select RT_MUTEXES
 	---help---
 	  I2C (pronounce: I-square-C) is a slow serial bus protocol used in
 	  many micro controller applications and developed by Philips.  SMBus,
@@ -27,6 +28,14 @@ config I2C_BOARDINFO
 	boolean
 	default y
 
+config I2C_COMPAT
+	boolean "Enable compatibility bits for old user-space"
+	default y
+	help
+	  Say Y here if you intend to run lm-sensors 3.1.1 or older, or any
+	  other user-space package which expects i2c adapters to be class
+	  devices. If you don't know, say Y.
+
 config I2C_CHARDEV
 	tristate "I2C device interface"
 	help
@@ -37,6 +46,19 @@ config I2C_CHARDEV
 
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-dev.
+
+config I2C_MUX
+	tristate "I2C bus multiplexing support"
+	depends on EXPERIMENTAL
+	help
+	  Say Y here if you want the I2C core to support the ability to
+	  handle multiplexed I2C bus topologies, by presenting each
+	  multiplexed segment as a I2C adapter.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-mux.
+
+source drivers/i2c/muxes/Kconfig
 
 config I2C_HELPER_AUTO
 	bool "Autoselect pertinent helper modules"
@@ -52,9 +74,18 @@ config I2C_HELPER_AUTO
 
 	  In doubt, say Y.
 
+config I2C_SMBUS
+	tristate "SMBus-specific protocols" if !I2C_HELPER_AUTO
+	help
+	  Say Y here if you want support for SMBus extensions to the I2C
+	  specification. At the moment, the only supported extension is
+	  the SMBus alert protocol.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-smbus.
+
 source drivers/i2c/algos/Kconfig
 source drivers/i2c/busses/Kconfig
-source drivers/i2c/chips/Kconfig
 
 config I2C_DEBUG_CORE
 	bool "I2C Core debugging messages"
@@ -75,14 +106,6 @@ config I2C_DEBUG_BUS
 	bool "I2C Bus debugging messages"
 	help
 	  Say Y here if you want the I2C bus drivers to produce a bunch of
-	  debug messages to the system log.  Select this if you are having
-	  a problem with I2C support and want to see more of what is going
-	  on.
-
-config I2C_DEBUG_CHIP
-	bool "I2C Chip debugging messages"
-	help
-	  Say Y here if you want the I2C chip drivers to produce a bunch of
 	  debug messages to the system log.  Select this if you are having
 	  a problem with I2C support and want to see more of what is going
 	  on.

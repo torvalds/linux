@@ -35,7 +35,7 @@
 struct opera1_state {
 	u32 last_key_pressed;
 };
-struct opera_rc_keys {
+struct rc_map_opera_table {
 	u32 keycode;
 	u32 event;
 };
@@ -138,7 +138,7 @@ static int opera1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 					(msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:0),
 					msg[i].buf,
 					msg[i].len
-					)!= msg[i].len)) {
+					)) != msg[i].len) {
 			break;
 		}
 		if (dvb_usb_opera1_debug & 0x10)
@@ -331,33 +331,33 @@ static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
 	return 0;
 }
 
-static struct dvb_usb_rc_key opera1_rc_keys[] = {
-	{0x5f, 0xa0, KEY_1},
-	{0x51, 0xaf, KEY_2},
-	{0x5d, 0xa2, KEY_3},
-	{0x41, 0xbe, KEY_4},
-	{0x0b, 0xf5, KEY_5},
-	{0x43, 0xbd, KEY_6},
-	{0x47, 0xb8, KEY_7},
-	{0x49, 0xb6, KEY_8},
-	{0x05, 0xfa, KEY_9},
-	{0x45, 0xba, KEY_0},
-	{0x09, 0xf6, KEY_UP},	/*chanup */
-	{0x1b, 0xe5, KEY_DOWN},	/*chandown */
-	{0x5d, 0xa3, KEY_LEFT},	/*voldown */
-	{0x5f, 0xa1, KEY_RIGHT},	/*volup */
-	{0x07, 0xf8, KEY_SPACE},	/*tab */
-	{0x1f, 0xe1, KEY_ENTER},	/*play ok */
-	{0x1b, 0xe4, KEY_Z},	/*zoom */
-	{0x59, 0xa6, KEY_M},	/*mute */
-	{0x5b, 0xa5, KEY_F},	/*tv/f */
-	{0x19, 0xe7, KEY_R},	/*rec */
-	{0x01, 0xfe, KEY_S},	/*Stop */
-	{0x03, 0xfd, KEY_P},	/*pause */
-	{0x03, 0xfc, KEY_W},	/*<- -> */
-	{0x07, 0xf9, KEY_C},	/*capture */
-	{0x47, 0xb9, KEY_Q},	/*exit */
-	{0x43, 0xbc, KEY_O},	/*power */
+static struct rc_map_table rc_map_opera1_table[] = {
+	{0x5fa0, KEY_1},
+	{0x51af, KEY_2},
+	{0x5da2, KEY_3},
+	{0x41be, KEY_4},
+	{0x0bf5, KEY_5},
+	{0x43bd, KEY_6},
+	{0x47b8, KEY_7},
+	{0x49b6, KEY_8},
+	{0x05fa, KEY_9},
+	{0x45ba, KEY_0},
+	{0x09f6, KEY_UP},	/*chanup */
+	{0x1be5, KEY_DOWN},	/*chandown */
+	{0x5da3, KEY_LEFT},	/*voldown */
+	{0x5fa1, KEY_RIGHT},	/*volup */
+	{0x07f8, KEY_SPACE},	/*tab */
+	{0x1fe1, KEY_ENTER},	/*play ok */
+	{0x1be4, KEY_Z},	/*zoom */
+	{0x59a6, KEY_M},	/*mute */
+	{0x5ba5, KEY_F},	/*tv/f */
+	{0x19e7, KEY_R},	/*rec */
+	{0x01fe, KEY_S},	/*Stop */
+	{0x03fd, KEY_P},	/*pause */
+	{0x03fc, KEY_W},	/*<- -> */
+	{0x07f9, KEY_C},	/*capture */
+	{0x47b9, KEY_Q},	/*exit */
+	{0x43bc, KEY_O},	/*power */
 
 };
 
@@ -404,13 +404,12 @@ static int opera1_rc_query(struct dvb_usb_device *dev, u32 * event, int *state)
 
 		send_key = (send_key & 0xffff) | 0x0100;
 
-		for (i = 0; i < ARRAY_SIZE(opera1_rc_keys); i++) {
-			if ((opera1_rc_keys[i].custom * 256 +
-					opera1_rc_keys[i].data) == (send_key & 0xffff)) {
+		for (i = 0; i < ARRAY_SIZE(rc_map_opera1_table); i++) {
+			if (rc5_scan(&rc_map_opera1_table[i]) == (send_key & 0xffff)) {
 				*state = REMOTE_KEY_PRESSED;
-				*event = opera1_rc_keys[i].event;
+				*event = rc_map_opera1_table[i].keycode;
 				opst->last_key_pressed =
-					opera1_rc_keys[i].event;
+					rc_map_opera1_table[i].keycode;
 				break;
 			}
 			opst->last_key_pressed = 0;
@@ -484,9 +483,7 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 		}
 	}
 	kfree(p);
-	if (fw) {
-		release_firmware(fw);
-	}
+	release_firmware(fw);
 	return ret;
 }
 
@@ -499,10 +496,12 @@ static struct dvb_usb_device_properties opera1_properties = {
 	.power_ctrl = opera1_power_ctrl,
 	.i2c_algo = &opera1_i2c_algo,
 
-	.rc_key_map = opera1_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(opera1_rc_keys),
-	.rc_interval = 200,
-	.rc_query = opera1_rc_query,
+	.rc.legacy = {
+		.rc_map_table = rc_map_opera1_table,
+		.rc_map_size = ARRAY_SIZE(rc_map_opera1_table),
+		.rc_interval = 200,
+		.rc_query = opera1_rc_query,
+	},
 	.read_mac_address = opera1_read_mac_address,
 	.generic_bulk_ctrl_endpoint = 0x00,
 	/* parameter for the MPEG2-data transfer */

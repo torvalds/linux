@@ -24,152 +24,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_inode_item.h"
-#include "xfs_itable.h"
-#include "xfs_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr.h"
-#include "xfs_bmap.h"
 #include "xfs_error.h"
-#include "xfs_buf_item.h"
 #include "xfs_rw.h"
-
-/*
- * This is a subroutine for xfs_write() and other writers (xfs_ioctl)
- * which clears the setuid and setgid bits when a file is written.
- */
-int
-xfs_write_clear_setuid(
-	xfs_inode_t	*ip)
-{
-	xfs_mount_t	*mp;
-	xfs_trans_t	*tp;
-	int		error;
-
-	mp = ip->i_mount;
-	tp = xfs_trans_alloc(mp, XFS_TRANS_WRITEID);
-	if ((error = xfs_trans_reserve(tp, 0,
-				      XFS_WRITEID_LOG_RES(mp),
-				      0, 0, 0))) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_ihold(tp, ip);
-	ip->i_d.di_mode &= ~S_ISUID;
-
-	/*
-	 * Note that we don't have to worry about mandatory
-	 * file locking being disabled here because we only
-	 * clear the S_ISGID bit if the Group execute bit is
-	 * on, but if it was on then mandatory locking wouldn't
-	 * have been enabled.
-	 */
-	if (ip->i_d.di_mode & S_IXGRP) {
-		ip->i_d.di_mode &= ~S_ISGID;
-	}
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	return 0;
-}
-
-/*
- * Handle logging requirements of various synchronous types of write.
- */
-int
-xfs_write_sync_logforce(
-	xfs_mount_t	*mp,
-	xfs_inode_t	*ip)
-{
-	int		error = 0;
-
-	/*
-	 * If we're treating this as O_DSYNC and we have not updated the
-	 * size, force the log.
-	 */
-	if (!(mp->m_flags & XFS_MOUNT_OSYNCISOSYNC) &&
-	    !(ip->i_update_size)) {
-		xfs_inode_log_item_t	*iip = ip->i_itemp;
-
-		/*
-		 * If an allocation transaction occurred
-		 * without extending the size, then we have to force
-		 * the log up the proper point to ensure that the
-		 * allocation is permanent.  We can't count on
-		 * the fact that buffered writes lock out direct I/O
-		 * writes - the direct I/O write could have extended
-		 * the size nontransactionally, then finished before
-		 * we started.  xfs_write_file will think that the file
-		 * didn't grow but the update isn't safe unless the
-		 * size change is logged.
-		 *
-		 * Force the log if we've committed a transaction
-		 * against the inode or if someone else has and
-		 * the commit record hasn't gone to disk (e.g.
-		 * the inode is pinned).  This guarantees that
-		 * all changes affecting the inode are permanent
-		 * when we return.
-		 */
-		if (iip && iip->ili_last_lsn) {
-			error = _xfs_log_force(mp, iip->ili_last_lsn,
-					XFS_LOG_FORCE | XFS_LOG_SYNC, NULL);
-		} else if (xfs_ipincount(ip) > 0) {
-			error = _xfs_log_force(mp, (xfs_lsn_t)0,
-					XFS_LOG_FORCE | XFS_LOG_SYNC, NULL);
-		}
-
-	} else {
-		xfs_trans_t	*tp;
-
-		/*
-		 * O_SYNC or O_DSYNC _with_ a size update are handled
-		 * the same way.
-		 *
-		 * If the write was synchronous then we need to make
-		 * sure that the inode modification time is permanent.
-		 * We'll have updated the timestamp above, so here
-		 * we use a synchronous transaction to log the inode.
-		 * It's not fast, but it's necessary.
-		 *
-		 * If this a dsync write and the size got changed
-		 * non-transactionally, then we need to ensure that
-		 * the size change gets logged in a synchronous
-		 * transaction.
-		 */
-		tp = xfs_trans_alloc(mp, XFS_TRANS_WRITE_SYNC);
-		if ((error = xfs_trans_reserve(tp, 0,
-						XFS_SWRITE_LOG_RES(mp),
-						0, 0, 0))) {
-			/* Transaction reserve failed */
-			xfs_trans_cancel(tp, 0);
-		} else {
-			/* Transaction reserve successful */
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
-			xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-			xfs_trans_ihold(tp, ip);
-			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-			xfs_trans_set_sync(tp);
-			error = xfs_trans_commit(tp, 0);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		}
-	}
-
-	return error;
-}
 
 /*
  * Force a shutdown of the filesystem instantly while keeping
@@ -236,90 +96,6 @@ xfs_do_force_shutdown(
 	}
 }
 
-
-/*
- * Called when we want to stop a buffer from getting written or read.
- * We attach the EIO error, muck with its flags, and call biodone
- * so that the proper iodone callbacks get called.
- */
-int
-xfs_bioerror(
-	xfs_buf_t *bp)
-{
-
-#ifdef XFSERRORDEBUG
-	ASSERT(XFS_BUF_ISREAD(bp) || bp->b_iodone);
-#endif
-
-	/*
-	 * No need to wait until the buffer is unpinned.
-	 * We aren't flushing it.
-	 */
-	xfs_buftrace("XFS IOERROR", bp);
-	XFS_BUF_ERROR(bp, EIO);
-	/*
-	 * We're calling biodone, so delete B_DONE flag. Either way
-	 * we have to call the iodone callback, and calling biodone
-	 * probably is the best way since it takes care of
-	 * GRIO as well.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_UNDONE(bp);
-	XFS_BUF_STALE(bp);
-
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-	xfs_biodone(bp);
-
-	return (EIO);
-}
-
-/*
- * Same as xfs_bioerror, except that we are releasing the buffer
- * here ourselves, and avoiding the biodone call.
- * This is meant for userdata errors; metadata bufs come with
- * iodone functions attached, so that we can track down errors.
- */
-int
-xfs_bioerror_relse(
-	xfs_buf_t *bp)
-{
-	int64_t fl;
-
-	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xfs_buf_iodone_callbacks);
-	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xlog_iodone);
-
-	xfs_buftrace("XFS IOERRELSE", bp);
-	fl = XFS_BUF_BFLAGS(bp);
-	/*
-	 * No need to wait until the buffer is unpinned.
-	 * We aren't flushing it.
-	 *
-	 * chunkhold expects B_DONE to be set, whether
-	 * we actually finish the I/O or not. We don't want to
-	 * change that interface.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_DONE(bp);
-	XFS_BUF_STALE(bp);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-	if (!(fl & XFS_B_ASYNC)) {
-		/*
-		 * Mark b_error and B_ERROR _both_.
-		 * Lot's of chunkcache code assumes that.
-		 * There's no reason to mark error for
-		 * ASYNC buffers.
-		 */
-		XFS_BUF_ERROR(bp, EIO);
-		XFS_BUF_FINISH_IOWAIT(bp);
-	} else {
-		xfs_buf_relse(bp);
-	}
-	return (EIO);
-}
-
 /*
  * Prints out an ALERT message about I/O error.
  */
@@ -361,10 +137,10 @@ xfs_read_buf(
 	xfs_buf_t	 *bp;
 	int		 error;
 
-	if (flags)
-		bp = xfs_buf_read_flags(target, blkno, len, flags);
-	else
-		bp = xfs_buf_read(target, blkno, len, flags);
+	if (!flags)
+		flags = XBF_LOCK | XBF_MAPPED;
+
+	bp = xfs_buf_read(target, blkno, len, flags);
 	if (!bp)
 		return XFS_ERROR(EIO);
 	error = XFS_BUF_GETERROR(bp);
@@ -391,32 +167,23 @@ xfs_read_buf(
 }
 
 /*
- * Wrapper around bwrite() so that we can trap
- * write errors, and act accordingly.
+ * helper function to extract extent size hint from inode
  */
-int
-xfs_bwrite(
-	struct xfs_mount *mp,
-	struct xfs_buf	 *bp)
+xfs_extlen_t
+xfs_get_extsz_hint(
+	struct xfs_inode	*ip)
 {
-	int	error;
+	xfs_extlen_t		extsz;
 
-	/*
-	 * XXXsup how does this work for quotas.
-	 */
-	XFS_BUF_SET_BDSTRAT_FUNC(bp, xfs_bdstrat_cb);
-	bp->b_mount = mp;
-	XFS_BUF_WRITE(bp);
-
-	if ((error = XFS_bwrite(bp))) {
-		ASSERT(mp);
-		/*
-		 * Cannot put a buftrace here since if the buffer is not
-		 * B_HOLD then we will brelse() the buffer before returning
-		 * from bwrite and we could be tracing a buffer that has
-		 * been reused.
-		 */
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+	if (unlikely(XFS_IS_REALTIME_INODE(ip))) {
+		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
+				? ip->i_d.di_extsize
+				: ip->i_mount->m_sb.sb_rextsize;
+		ASSERT(extsz);
+	} else {
+		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
+				? ip->i_d.di_extsize : 0;
 	}
-	return (error);
+
+	return extsz;
 }

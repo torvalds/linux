@@ -7,7 +7,8 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 
-#define COMPAT_USER_HZ	100
+#define COMPAT_USER_HZ		100
+#define COMPAT_UTS_MACHINE	"ppc\0\0"
 
 typedef u32		compat_size_t;
 typedef s32		compat_ssize_t;
@@ -133,7 +134,7 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 	return (u32)(unsigned long)uptr;
 }
 
-static inline void __user *compat_alloc_user_space(long len)
+static inline void __user *arch_compat_alloc_user_space(long len)
 {
 	struct pt_regs *regs = current->thread.regs;
 	unsigned long usp = regs->gpr[1];
@@ -142,7 +143,7 @@ static inline void __user *compat_alloc_user_space(long len)
 	 * We cant access below the stack pointer in the 32bit ABI and
 	 * can access 288 bytes in the 64bit ABI
 	 */
-	if (!(test_thread_flag(TIF_32BIT)))
+	if (!is_32bit_task())
 		usp -= 288;
 
 	return (void __user *) (usp - len);
@@ -212,7 +213,7 @@ struct compat_shmid64_ds {
 
 static inline int is_compat_task(void)
 {
-	return test_thread_flag(TIF_32BIT);
+	return is_32bit_task();
 }
 
 #endif /* __KERNEL__ */

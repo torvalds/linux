@@ -17,6 +17,7 @@
 #include <asm/memory.h>
 #include <asm/domain.h>
 #include <asm/system.h>
+#include <asm/unified.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -226,18 +227,18 @@ do {									\
 
 #define __get_user_asm_byte(x,addr,err)				\
 	__asm__ __volatile__(					\
-	"1:	ldrbt	%1,[%2]\n"				\
+	"1:	" T(ldrb) "	%1,[%2],#0\n"			\
 	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
+	"	.pushsection .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
 	"3:	mov	%0, %3\n"				\
 	"	mov	%1, #0\n"				\
 	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
+	"	.popsection\n"					\
+	"	.pushsection __ex_table,\"a\"\n"		\
 	"	.align	3\n"					\
 	"	.long	1b, 3b\n"				\
-	"	.previous"					\
+	"	.popsection"					\
 	: "+r" (err), "=&r" (x)					\
 	: "r" (addr), "i" (-EFAULT)				\
 	: "cc")
@@ -262,18 +263,18 @@ do {									\
 
 #define __get_user_asm_word(x,addr,err)				\
 	__asm__ __volatile__(					\
-	"1:	ldrt	%1,[%2]\n"				\
+	"1:	" T(ldr) "	%1,[%2],#0\n"			\
 	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
+	"	.pushsection .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
 	"3:	mov	%0, %3\n"				\
 	"	mov	%1, #0\n"				\
 	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
+	"	.popsection\n"					\
+	"	.pushsection __ex_table,\"a\"\n"		\
 	"	.align	3\n"					\
 	"	.long	1b, 3b\n"				\
-	"	.previous"					\
+	"	.popsection"					\
 	: "+r" (err), "=&r" (x)					\
 	: "r" (addr), "i" (-EFAULT)				\
 	: "cc")
@@ -307,17 +308,17 @@ do {									\
 
 #define __put_user_asm_byte(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strbt	%1,[%2]\n"				\
+	"1:	" T(strb) "	%1,[%2],#0\n"			\
 	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
+	"	.pushsection .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
 	"3:	mov	%0, %3\n"				\
 	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
+	"	.popsection\n"					\
+	"	.pushsection __ex_table,\"a\"\n"		\
 	"	.align	3\n"					\
 	"	.long	1b, 3b\n"				\
-	"	.previous"					\
+	"	.popsection"					\
 	: "+r" (err)						\
 	: "r" (x), "r" (__pu_addr), "i" (-EFAULT)		\
 	: "cc")
@@ -340,17 +341,17 @@ do {									\
 
 #define __put_user_asm_word(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strt	%1,[%2]\n"				\
+	"1:	" T(str) "	%1,[%2],#0\n"			\
 	"2:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
+	"	.pushsection .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
 	"3:	mov	%0, %3\n"				\
 	"	b	2b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
+	"	.popsection\n"					\
+	"	.pushsection __ex_table,\"a\"\n"		\
 	"	.align	3\n"					\
 	"	.long	1b, 3b\n"				\
-	"	.previous"					\
+	"	.popsection"					\
 	: "+r" (err)						\
 	: "r" (x), "r" (__pu_addr), "i" (-EFAULT)		\
 	: "cc")
@@ -365,19 +366,21 @@ do {									\
 
 #define __put_user_asm_dword(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strt	" __reg_oper1 ", [%1], #4\n"		\
-	"2:	strt	" __reg_oper0 ", [%1]\n"		\
+ ARM(	"1:	" T(str) "	" __reg_oper1 ", [%1], #4\n"	)	\
+ ARM(	"2:	" T(str) "	" __reg_oper0 ", [%1]\n"	)	\
+ THUMB(	"1:	" T(str) "	" __reg_oper1 ", [%1]\n"	)	\
+ THUMB(	"2:	" T(str) "	" __reg_oper0 ", [%1, #4]\n"	)	\
 	"3:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
+	"	.pushsection .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
 	"4:	mov	%0, %3\n"				\
 	"	b	3b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
+	"	.popsection\n"					\
+	"	.pushsection __ex_table,\"a\"\n"		\
 	"	.align	3\n"					\
 	"	.long	1b, 4b\n"				\
 	"	.long	2b, 4b\n"				\
-	"	.previous"					\
+	"	.popsection"					\
 	: "+r" (err), "+r" (__pu_addr)				\
 	: "r" (x), "i" (-EFAULT)				\
 	: "cc")

@@ -13,6 +13,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>
@@ -59,12 +60,6 @@ static struct irqaction timer_irqaction = {
 
 void __init time_init(void)
 {
-	xtime.tv_nsec = 0;
-	xtime.tv_sec = read_persistent_clock();
-
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
-
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	printk("Calibrating CPU frequency ");
 	platform_calibrate_ccount();

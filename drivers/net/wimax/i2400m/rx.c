@@ -144,6 +144,7 @@
  *       i2400m_msg_size_check
  *       wimax_msg
  */
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
@@ -154,34 +155,113 @@
 #define D_SUBMODULE rx
 #include "debug-levels.h"
 
+static int i2400m_rx_reorder_disabled;	/* 0 (rx reorder enabled) by default */
+module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
+MODULE_PARM_DESC(rx_reorder_disabled,
+		 "If true, RX reordering will be disabled.");
+
 struct i2400m_report_hook_args {
 	struct sk_buff *skb_rx;
 	const struct i2400m_l3l4_hdr *l3l4_hdr;
 	size_t size;
+	struct list_head list_node;
 };
 
 
 /*
  * Execute i2400m_report_hook in a workqueue
  *
- * Unpacks arguments from the deferred call, executes it and then
- * drops the references.
+ * Goes over the list of queued reports in i2400m->rx_reports and
+ * processes them.
  *
- * Obvious NOTE: References are needed because we are a separate
- *     thread; otherwise the buffer changes under us because it is
- *     released by the original caller.
+ * NOTE: refcounts on i2400m are not needed because we flush the
+ *     workqueue this runs on (i2400m->work_queue) before destroying
+ *     i2400m.
  */
-static
 void i2400m_report_hook_work(struct work_struct *ws)
 {
-	struct i2400m_work *iw =
-		container_of(ws, struct i2400m_work, ws);
-	struct i2400m_report_hook_args *args = (void *) iw->pl;
-	if (iw->i2400m->ready)
-		i2400m_report_hook(iw->i2400m, args->l3l4_hdr, args->size);
-	kfree_skb(args->skb_rx);
-	i2400m_put(iw->i2400m);
-	kfree(iw);
+	struct i2400m *i2400m = container_of(ws, struct i2400m, rx_report_ws);
+	struct device *dev = i2400m_dev(i2400m);
+	struct i2400m_report_hook_args *args, *args_next;
+	LIST_HEAD(list);
+	unsigned long flags;
+
+	while (1) {
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
+		list_splice_init(&i2400m->rx_reports, &list);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+		if (list_empty(&list))
+			break;
+		else
+			d_printf(1, dev, "processing queued reports\n");
+		list_for_each_entry_safe(args, args_next, &list, list_node) {
+			d_printf(2, dev, "processing queued report %p\n", args);
+			i2400m_report_hook(i2400m, args->l3l4_hdr, args->size);
+			kfree_skb(args->skb_rx);
+			list_del(&args->list_node);
+			kfree(args);
+		}
+	}
+}
+
+
+/*
+ * Flush the list of queued reports
+ */
+static
+void i2400m_report_hook_flush(struct i2400m *i2400m)
+{
+	struct device *dev = i2400m_dev(i2400m);
+	struct i2400m_report_hook_args *args, *args_next;
+	LIST_HEAD(list);
+	unsigned long flags;
+
+	d_printf(1, dev, "flushing queued reports\n");
+	spin_lock_irqsave(&i2400m->rx_lock, flags);
+	list_splice_init(&i2400m->rx_reports, &list);
+	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+	list_for_each_entry_safe(args, args_next, &list, list_node) {
+		d_printf(2, dev, "flushing queued report %p\n", args);
+		kfree_skb(args->skb_rx);
+		list_del(&args->list_node);
+		kfree(args);
+	}
+}
+
+
+/*
+ * Queue a report for later processing
+ *
+ * @i2400m: device descriptor
+ * @skb_rx: skb that contains the payload (for reference counting)
+ * @l3l4_hdr: pointer to the control
+ * @size: size of the message
+ */
+static
+void i2400m_report_hook_queue(struct i2400m *i2400m, struct sk_buff *skb_rx,
+			      const void *l3l4_hdr, size_t size)
+{
+	struct device *dev = i2400m_dev(i2400m);
+	unsigned long flags;
+	struct i2400m_report_hook_args *args;
+
+	args = kzalloc(sizeof(*args), GFP_NOIO);
+	if (args) {
+		args->skb_rx = skb_get(skb_rx);
+		args->l3l4_hdr = l3l4_hdr;
+		args->size = size;
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
+		list_add_tail(&args->list_node, &i2400m->rx_reports);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+		d_printf(2, dev, "queued report %p\n", args);
+		rmb();		/* see i2400m->ready's documentation  */
+		if (likely(i2400m->ready))	/* only send if up */
+			queue_work(i2400m->work_queue, &i2400m->rx_report_ws);
+	} else  {
+		if (printk_ratelimit())
+			dev_err(dev, "%s:%u: Can't allocate %zu B\n",
+				__func__, __LINE__, sizeof(*args));
+	}
 }
 
 
@@ -225,20 +305,18 @@ void i2400m_rx_ctl_ack(struct i2400m *i2400m,
 		d_printf(1, dev, "Huh? waiter for command reply cancelled\n");
 		goto error_waiter_cancelled;
 	}
-	if (ack_skb == NULL) {
+	if (IS_ERR(ack_skb))
 		dev_err(dev, "CMD/GET/SET ack: cannot allocate SKB\n");
-		i2400m->ack_skb = ERR_PTR(-ENOMEM);
-	} else
-		i2400m->ack_skb = ack_skb;
+	i2400m->ack_skb = ack_skb;
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	complete(&i2400m->msg_completion);
 	return;
 
 error_waiter_cancelled:
-	kfree_skb(ack_skb);
+	if (!IS_ERR(ack_skb))
+		kfree_skb(ack_skb);
 error_no_waiter:
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
-	return;
 }
 
 
@@ -295,21 +373,29 @@ void i2400m_rx_ctl(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		 msg_type, size);
 	d_dump(2, dev, l3l4_hdr, size);
 	if (msg_type & I2400M_MT_REPORT_MASK) {
-		/* These hooks have to be ran serialized; as well, the
-		 * handling might force the execution of commands, and
-		 * that might cause reentrancy issues with
-		 * bus-specific subdrivers and workqueues. So we run
-		 * it in a separate workqueue. */
-		struct i2400m_report_hook_args args = {
-			.skb_rx = skb_rx,
-			.l3l4_hdr = l3l4_hdr,
-			.size = size
-		};
-		if (unlikely(i2400m->ready == 0))	/* only send if up */
-			return;
-		skb_get(skb_rx);
-		i2400m_queue_work(i2400m, i2400m_report_hook_work,
-				  GFP_KERNEL, &args, sizeof(args));
+		/*
+		 * Process each report
+		 *
+		 * - has to be ran serialized as well
+		 *
+		 * - the handling might force the execution of
+		 *   commands. That might cause reentrancy issues with
+		 *   bus-specific subdrivers and workqueues, so the we
+		 *   run it in a separate workqueue.
+		 *
+		 * - when the driver is not yet ready to handle them,
+		 *   they are queued and at some point the queue is
+		 *   restarted [NOTE: we can't queue SKBs directly, as
+		 *   this might be a piece of a SKB, not the whole
+		 *   thing, and this is cheaper than cloning the
+		 *   SKB].
+		 *
+		 * Note we don't do refcounting for the device
+		 * structure; this is because before destroying
+		 * 'i2400m', we make sure to flush the
+		 * i2400m->work_queue, so there are no issues.
+		 */
+		i2400m_report_hook_queue(i2400m, skb_rx, l3l4_hdr, size);
 		if (unlikely(i2400m->trace_msg_from_user))
 			wimax_msg(&i2400m->wimax_dev, "echo",
 				  l3l4_hdr, size, GFP_KERNEL);
@@ -363,8 +449,6 @@ void i2400m_rx_trace(struct i2400m *i2400m,
 		 msg_type & I2400M_MT_REPORT_MASK ? "REPORT" : "CMD/SET/GET",
 		 msg_type, size);
 	d_dump(2, dev, l3l4_hdr, size);
-	if (unlikely(i2400m->ready == 0))	/* only send if up */
-		return;
 	result = wimax_msg(wimax_dev, "trace", l3l4_hdr, size, GFP_KERNEL);
 	if (result < 0)
 		dev_err(dev, "error sending trace to userspace: %d\n",
@@ -637,7 +721,6 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 out:
 	d_fnend(4, dev, "(i2400m %p roq %p skb %p sn %u nsn %d) = void\n",
 		i2400m, roq, skb, sn, nsn);
-	return;
 }
 
 
@@ -662,12 +745,12 @@ unsigned __i2400m_roq_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 	unsigned new_nws, nsn_itr;
 
 	new_nws = __i2400m_roq_nsn(roq, sn);
-	if (unlikely(new_nws >= 1024) && d_test(1)) {
-		dev_err(dev, "SW BUG? __update_ws new_nws %u (sn %u ws %u)\n",
-			new_nws, sn, roq->ws);
-		WARN_ON(1);
-		i2400m_roq_log_dump(i2400m, roq);
-	}
+	/*
+	 * For type 2(update_window_start) rx messages, there is no
+	 * need to check if the normalized sequence number is greater 1023.
+	 * Simply insert and deliver all packets to the host up to the
+	 * window start.
+	 */
 	skb_queue_walk_safe(&roq->queue, skb_itr, tmp_itr) {
 		roq_data_itr = (struct i2400m_roq_data *) &skb_itr->cb;
 		nsn_itr = __i2400m_roq_nsn(roq, roq_data_itr->sn);
@@ -717,7 +800,6 @@ void i2400m_roq_reset(struct i2400m *i2400m, struct i2400m_roq *roq)
 	}
 	roq->ws = 0;
 	d_fnend(2, dev, "(i2400m %p roq %p) = void\n", i2400m, roq);
-	return;
 }
 
 
@@ -748,7 +830,7 @@ void i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 		dev_err(dev, "SW BUG? queue nsn %d (lbn %u ws %u)\n",
 			nsn, lbn, roq->ws);
 		i2400m_roq_log_dump(i2400m, roq);
-		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+		i2400m_reset(i2400m, I2400M_RT_WARM);
 	} else {
 		__i2400m_roq_queue(i2400m, roq, skb, lbn, nsn);
 		i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET,
@@ -756,7 +838,6 @@ void i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 	}
 	d_fnend(2, dev, "(i2400m %p roq %p skb %p lbn %u) = void\n",
 		i2400m, roq, skb, lbn);
-	return;
 }
 
 
@@ -782,7 +863,6 @@ void i2400m_roq_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 	i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_WS,
 			     old_ws, len, sn, nsn, roq->ws);
 	d_fnstart(2, dev, "(i2400m %p roq %p sn %u) = void\n", i2400m, roq, sn);
-	return;
 }
 
 
@@ -809,31 +889,50 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 		  i2400m, roq, skb, sn);
 	len = skb_queue_len(&roq->queue);
 	nsn = __i2400m_roq_nsn(roq, sn);
+	/*
+	 * For type 3(queue_update_window_start) rx messages, there is no
+	 * need to check if the normalized sequence number is greater 1023.
+	 * Simply insert and deliver all packets to the host up to the
+	 * window start.
+	 */
 	old_ws = roq->ws;
-	if (unlikely(nsn >= 1024)) {
-		dev_err(dev, "SW BUG? queue_update_ws nsn %u (sn %u ws %u)\n",
-			nsn, sn, roq->ws);
-		i2400m_roq_log_dump(i2400m, roq);
-		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
-	} else {
-		/* if the queue is empty, don't bother as we'd queue
-		 * it and inmediately unqueue it -- just deliver it */
-		if (len == 0) {
-			struct i2400m_roq_data *roq_data;
-			roq_data = (struct i2400m_roq_data *) &skb->cb;
-			i2400m_net_erx(i2400m, skb, roq_data->cs);
-		}
-		else
-			__i2400m_roq_queue(i2400m, roq, skb, sn, nsn);
-		__i2400m_roq_update_ws(i2400m, roq, sn + 1);
-		i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET_WS,
-				   old_ws, len, sn, nsn, roq->ws);
-	}
+	/* If the queue is empty, don't bother as we'd queue
+	 * it and immediately unqueue it -- just deliver it.
+	 */
+	if (len == 0) {
+		struct i2400m_roq_data *roq_data;
+		roq_data = (struct i2400m_roq_data *) &skb->cb;
+		i2400m_net_erx(i2400m, skb, roq_data->cs);
+	} else
+		__i2400m_roq_queue(i2400m, roq, skb, sn, nsn);
+
+	__i2400m_roq_update_ws(i2400m, roq, sn + 1);
+	i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET_WS,
+			   old_ws, len, sn, nsn, roq->ws);
+
 	d_fnend(2, dev, "(i2400m %p roq %p skb %p sn %u) = void\n",
 		i2400m, roq, skb, sn);
-	return;
 }
 
+
+/*
+ * This routine destroys the memory allocated for rx_roq, when no
+ * other thread is accessing it. Access to rx_roq is refcounted by
+ * rx_roq_refcount, hence memory allocated must be destroyed when
+ * rx_roq_refcount becomes zero. This routine gets executed when
+ * rx_roq_refcount becomes zero.
+ */
+static void i2400m_rx_roq_destroy(struct kref *ref)
+{
+	unsigned itr;
+	struct i2400m *i2400m
+			= container_of(ref, struct i2400m, rx_roq_refcount);
+	for (itr = 0; itr < I2400M_RO_CIN + 1; itr++)
+		__skb_queue_purge(&i2400m->rx_roq[itr].queue);
+	kfree(i2400m->rx_roq[0].log);
+	kfree(i2400m->rx_roq);
+	i2400m->rx_roq = NULL;
+}
 
 /*
  * Receive and send up an extended data packet
@@ -888,6 +987,7 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 	unsigned ro_needed, ro_type, ro_cin, ro_sn;
 	struct i2400m_roq *roq;
 	struct i2400m_roq_data *roq_data;
+	unsigned long flags;
 
 	BUILD_BUG_ON(ETH_HLEN > sizeof(*hdr));
 
@@ -926,7 +1026,16 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		ro_cin = (reorder >> I2400M_RO_CIN_SHIFT) & I2400M_RO_CIN;
 		ro_sn = (reorder >> I2400M_RO_SN_SHIFT) & I2400M_RO_SN;
 
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
+		if (i2400m->rx_roq == NULL) {
+			kfree_skb(skb);	/* rx_roq is already destroyed */
+			spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+			goto error;
+		}
 		roq = &i2400m->rx_roq[ro_cin];
+		kref_get(&i2400m->rx_roq_refcount);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+
 		roq_data = (struct i2400m_roq_data *) &skb->cb;
 		roq_data->sn = ro_sn;
 		roq_data->cs = cs;
@@ -953,6 +1062,10 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		default:
 			dev_err(dev, "HW BUG? unknown reorder type %u\n", ro_type);
 		}
+
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
+		kref_put(&i2400m->rx_roq_refcount, i2400m_rx_roq_destroy);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	}
 	else
 		i2400m_net_erx(i2400m, skb, cs);
@@ -960,7 +1073,6 @@ error_skb_clone:
 error:
 	d_fnend(2, dev, "(i2400m %p skb_rx %p single %u payload %p "
 		"size %zu) = void\n", i2400m, skb_rx, single_last, payload, size);
-	return;
 }
 
 
@@ -1114,7 +1226,7 @@ error:
  * device. See the file header for the format. Run all checks on the
  * buffer header, then run over each payload's descriptors, verify
  * their consistency and act on each payload's contents.  If
- * everything is succesful, update the device's statistics.
+ * everything is successful, update the device's statistics.
  *
  * Note: You need to set the skb to contain only the length of the
  * received buffer; for that, use skb_trim(skb, RECEIVED_SIZE).
@@ -1132,16 +1244,16 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	int i, result;
 	struct device *dev = i2400m_dev(i2400m);
 	const struct i2400m_msg_hdr *msg_hdr;
-	size_t pl_itr, pl_size, skb_len;
+	size_t pl_itr, pl_size;
 	unsigned long flags;
-	unsigned num_pls, single_last;
+	unsigned num_pls, single_last, skb_len;
 
 	skb_len = skb->len;
-	d_fnstart(4, dev, "(i2400m %p skb %p [size %zu])\n",
+	d_fnstart(4, dev, "(i2400m %p skb %p [size %u])\n",
 		  i2400m, skb, skb_len);
 	result = -EIO;
 	msg_hdr = (void *) skb->data;
-	result = i2400m_rx_msg_hdr_check(i2400m, msg_hdr, skb->len);
+	result = i2400m_rx_msg_hdr_check(i2400m, msg_hdr, skb_len);
 	if (result < 0)
 		goto error_msg_hdr_check;
 	result = -EIO;
@@ -1149,10 +1261,10 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	pl_itr = sizeof(*msg_hdr) +	/* Check payload descriptor(s) */
 		num_pls * sizeof(msg_hdr->pld[0]);
 	pl_itr = ALIGN(pl_itr, I2400M_PL_ALIGN);
-	if (pl_itr > skb->len) {	/* got all the payload descriptors? */
+	if (pl_itr > skb_len) {	/* got all the payload descriptors? */
 		dev_err(dev, "RX: HW BUG? message too short (%u bytes) for "
 			"%u payload descriptors (%zu each, total %zu)\n",
-			skb->len, num_pls, sizeof(msg_hdr->pld[0]), pl_itr);
+			skb_len, num_pls, sizeof(msg_hdr->pld[0]), pl_itr);
 		goto error_pl_descr_short;
 	}
 	/* Walk each payload payload--check we really got it */
@@ -1160,7 +1272,7 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 		/* work around old gcc warnings */
 		pl_size = i2400m_pld_size(&msg_hdr->pld[i]);
 		result = i2400m_rx_pl_descr_check(i2400m, &msg_hdr->pld[i],
-						  pl_itr, skb->len);
+						  pl_itr, skb_len);
 		if (result < 0)
 			goto error_pl_descr_check;
 		single_last = num_pls == 1 || i == num_pls - 1;
@@ -1178,20 +1290,42 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	if (i < i2400m->rx_pl_min)
 		i2400m->rx_pl_min = i;
 	i2400m->rx_num++;
-	i2400m->rx_size_acc += skb->len;
-	if (skb->len < i2400m->rx_size_min)
-		i2400m->rx_size_min = skb->len;
-	if (skb->len > i2400m->rx_size_max)
-		i2400m->rx_size_max = skb->len;
+	i2400m->rx_size_acc += skb_len;
+	if (skb_len < i2400m->rx_size_min)
+		i2400m->rx_size_min = skb_len;
+	if (skb_len > i2400m->rx_size_max)
+		i2400m->rx_size_max = skb_len;
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 error_pl_descr_check:
 error_pl_descr_short:
 error_msg_hdr_check:
-	d_fnend(4, dev, "(i2400m %p skb %p [size %zu]) = %d\n",
+	d_fnend(4, dev, "(i2400m %p skb %p [size %u]) = %d\n",
 		i2400m, skb, skb_len, result);
 	return result;
 }
 EXPORT_SYMBOL_GPL(i2400m_rx);
+
+
+void i2400m_unknown_barker(struct i2400m *i2400m,
+			   const void *buf, size_t size)
+{
+	struct device *dev = i2400m_dev(i2400m);
+	char prefix[64];
+	const __le32 *barker = buf;
+	dev_err(dev, "RX: HW BUG? unknown barker %08x, "
+		"dropping %zu bytes\n", le32_to_cpu(*barker), size);
+	snprintf(prefix, sizeof(prefix), "%s %s: ",
+		 dev_driver_string(dev), dev_name(dev));
+	if (size > 64) {
+		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
+			       8, 4, buf, 64, 0);
+		printk(KERN_ERR "%s... (only first 64 bytes "
+		       "dumped)\n", prefix);
+	} else
+		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
+			       8, 4, buf, size, 0);
+}
+EXPORT_SYMBOL(i2400m_unknown_barker);
 
 
 /*
@@ -1241,6 +1375,7 @@ int i2400m_rx_setup(struct i2400m *i2400m)
 			__i2400m_roq_init(&i2400m->rx_roq[itr]);
 			i2400m->rx_roq[itr].log = &rd[itr];
 		}
+		kref_init(&i2400m->rx_roq_refcount);
 	}
 	return 0;
 
@@ -1254,11 +1389,13 @@ error_roq_alloc:
 /* Tear down the RX queue and infrastructure */
 void i2400m_rx_release(struct i2400m *i2400m)
 {
+	unsigned long flags;
+
 	if (i2400m->rx_reorder) {
-		unsigned itr;
-		for(itr = 0; itr < I2400M_RO_CIN + 1; itr++)
-			__skb_queue_purge(&i2400m->rx_roq[itr].queue);
-		kfree(i2400m->rx_roq[0].log);
-		kfree(i2400m->rx_roq);
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
+		kref_put(&i2400m->rx_roq_refcount, i2400m_rx_roq_destroy);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	}
+	/* at this point, nothing can be received... */
+	i2400m_report_hook_flush(i2400m);
 }

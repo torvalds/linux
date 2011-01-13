@@ -7,7 +7,7 @@
  * Adapted for booting Linux by Hannu Savolainen 1993
  * based on gzip-1.0.3 
  *
- * Nicolas Pitre <nico@cam.org>, 1999/04/14 :
+ * Nicolas Pitre <nico@fluxnic.net>, 1999/04/14 :
  *   Little mods for all variable to reside either into rodata or bss segments
  *   by marking constant variables with 'const' and initializing all the others
  *   at run-time only.  This allows for the kernel uncompressor to run
@@ -103,6 +103,9 @@
       the two sets of lengths.
  */
 #include <linux/compiler.h>
+#ifdef NO_INFLATE_MALLOC
+#include <linux/slab.h>
+#endif
 
 #ifdef RCSID
 static char rcsid[] = "#Id: inflate.c,v 0.14 1993/06/10 13:27:04 jloup Exp #";

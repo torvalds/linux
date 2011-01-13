@@ -18,6 +18,7 @@
 #endif
 
 #include <asm/ptrace.h>
+#include <asm/domain.h>
 
 /*
  * Endian independent macros for shifting bytes within registers.
@@ -74,23 +75,56 @@
  * Enable and disable interrupts
  */
 #if __LINUX_ARM_ARCH__ >= 6
-	.macro	disable_irq
+	.macro	disable_irq_notrace
 	cpsid	i
 	.endm
 
-	.macro	enable_irq
+	.macro	enable_irq_notrace
 	cpsie	i
 	.endm
 #else
-	.macro	disable_irq
+	.macro	disable_irq_notrace
 	msr	cpsr_c, #PSR_I_BIT | SVC_MODE
 	.endm
 
-	.macro	enable_irq
+	.macro	enable_irq_notrace
 	msr	cpsr_c, #SVC_MODE
 	.endm
 #endif
 
+	.macro asm_trace_hardirqs_off
+#if defined(CONFIG_TRACE_IRQFLAGS)
+	stmdb   sp!, {r0-r3, ip, lr}
+	bl	trace_hardirqs_off
+	ldmia	sp!, {r0-r3, ip, lr}
+#endif
+	.endm
+
+	.macro asm_trace_hardirqs_on_cond, cond
+#if defined(CONFIG_TRACE_IRQFLAGS)
+	/*
+	 * actually the registers should be pushed and pop'd conditionally, but
+	 * after bl the flags are certainly clobbered
+	 */
+	stmdb   sp!, {r0-r3, ip, lr}
+	bl\cond	trace_hardirqs_on
+	ldmia	sp!, {r0-r3, ip, lr}
+#endif
+	.endm
+
+	.macro asm_trace_hardirqs_on
+	asm_trace_hardirqs_on_cond al
+	.endm
+
+	.macro disable_irq
+	disable_irq_notrace
+	asm_trace_hardirqs_off
+	.endm
+
+	.macro enable_irq
+	asm_trace_hardirqs_on
+	enable_irq_notrace
+	.endm
 /*
  * Save the current IRQ state and disable IRQs.  Note that this macro
  * assumes FIQs are enabled, and that the processor is in SVC mode.
@@ -104,26 +138,155 @@
  * Restore interrupt state previously stored in a register.  We don't
  * guarantee that this will preserve the flags.
  */
-	.macro	restore_irqs, oldcpsr
+	.macro	restore_irqs_notrace, oldcpsr
 	msr	cpsr_c, \oldcpsr
+	.endm
+
+	.macro restore_irqs, oldcpsr
+	tst	\oldcpsr, #PSR_I_BIT
+	asm_trace_hardirqs_on_cond eq
+	restore_irqs_notrace \oldcpsr
 	.endm
 
 #define USER(x...)				\
 9999:	x;					\
-	.section __ex_table,"a";		\
+	.pushsection __ex_table,"a";		\
 	.align	3;				\
 	.long	9999b,9001f;			\
-	.previous
+	.popsection
+
+#ifdef CONFIG_SMP
+#define ALT_SMP(instr...)					\
+9998:	instr
+/*
+ * Note: if you get assembler errors from ALT_UP() when building with
+ * CONFIG_THUMB2_KERNEL, you almost certainly need to use
+ * ALT_SMP( W(instr) ... )
+ */
+#define ALT_UP(instr...)					\
+	.pushsection ".alt.smp.init", "a"			;\
+	.long	9998b						;\
+9997:	instr							;\
+	.if . - 9997b != 4					;\
+		.error "ALT_UP() content must assemble to exactly 4 bytes";\
+	.endif							;\
+	.popsection
+#define ALT_UP_B(label)					\
+	.equ	up_b_offset, label - 9998b			;\
+	.pushsection ".alt.smp.init", "a"			;\
+	.long	9998b						;\
+	W(b)	. + up_b_offset					;\
+	.popsection
+#else
+#define ALT_SMP(instr...)
+#define ALT_UP(instr...) instr
+#define ALT_UP_B(label) b label
+#endif
 
 /*
  * SMP data memory barrier
  */
-	.macro	smp_dmb
+	.macro	smp_dmb mode
 #ifdef CONFIG_SMP
 #if __LINUX_ARM_ARCH__ >= 7
-	dmb
+	.ifeqs "\mode","arm"
+	ALT_SMP(dmb)
+	.else
+	ALT_SMP(W(dmb))
+	.endif
 #elif __LINUX_ARM_ARCH__ == 6
-	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+	ALT_SMP(mcr	p15, 0, r0, c7, c10, 5)	@ dmb
+#else
+#error Incompatible SMP platform
 #endif
+	.ifeqs "\mode","arm"
+	ALT_UP(nop)
+	.else
+	ALT_UP(W(nop))
+	.endif
 #endif
+	.endm
+
+#ifdef CONFIG_THUMB2_KERNEL
+	.macro	setmode, mode, reg
+	mov	\reg, #\mode
+	msr	cpsr_c, \reg
+	.endm
+#else
+	.macro	setmode, mode, reg
+	msr	cpsr_c, #\mode
+	.endm
+#endif
+
+/*
+ * STRT/LDRT access macros with ARM and Thumb-2 variants
+ */
+#ifdef CONFIG_THUMB2_KERNEL
+
+	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort, t=T()
+9999:
+	.if	\inc == 1
+	\instr\cond\()b\()\t\().w \reg, [\ptr, #\off]
+	.elseif	\inc == 4
+	\instr\cond\()\t\().w \reg, [\ptr, #\off]
+	.else
+	.error	"Unsupported inc macro argument"
+	.endif
+
+	.pushsection __ex_table,"a"
+	.align	3
+	.long	9999b, \abort
+	.popsection
+	.endm
+
+	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort
+	@ explicit IT instruction needed because of the label
+	@ introduced by the USER macro
+	.ifnc	\cond,al
+	.if	\rept == 1
+	itt	\cond
+	.elseif	\rept == 2
+	ittt	\cond
+	.else
+	.error	"Unsupported rept macro argument"
+	.endif
+	.endif
+
+	@ Slightly optimised to avoid incrementing the pointer twice
+	usraccoff \instr, \reg, \ptr, \inc, 0, \cond, \abort
+	.if	\rept == 2
+	usraccoff \instr, \reg, \ptr, \inc, \inc, \cond, \abort
+	.endif
+
+	add\cond \ptr, #\rept * \inc
+	.endm
+
+#else	/* !CONFIG_THUMB2_KERNEL */
+
+	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort, t=T()
+	.rept	\rept
+9999:
+	.if	\inc == 1
+	\instr\cond\()b\()\t \reg, [\ptr], #\inc
+	.elseif	\inc == 4
+	\instr\cond\()\t \reg, [\ptr], #\inc
+	.else
+	.error	"Unsupported inc macro argument"
+	.endif
+
+	.pushsection __ex_table,"a"
+	.align	3
+	.long	9999b, \abort
+	.popsection
+	.endr
+	.endm
+
+#endif	/* CONFIG_THUMB2_KERNEL */
+
+	.macro	strusr, reg, ptr, inc, cond=al, rept=1, abort=9001f
+	usracc	str, \reg, \ptr, \inc, \cond, \rept, \abort
+	.endm
+
+	.macro	ldrusr, reg, ptr, inc, cond=al, rept=1, abort=9001f
+	usracc	ldr, \reg, \ptr, \inc, \cond, \rept, \abort
 	.endm

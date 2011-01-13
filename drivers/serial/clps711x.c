@@ -93,7 +93,7 @@ static void clps711xuart_enable_ms(struct uart_port *port)
 static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	unsigned int status, ch, flg;
 
 	status = clps_readl(SYSFLG(port));
@@ -147,7 +147,7 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id)
 static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 	int count;
 
 	if (port->x_char) {

@@ -1,7 +1,7 @@
 /*
- * Line6 Linux USB driver - 0.8.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
- * Copyright (C) 2004-2009 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -12,13 +12,19 @@
 #ifndef LINE6_CONTROL_H
 #define LINE6_CONTROL_H
 
-
 /**
    List of PODxt Pro controls.
    See Appendix C of the "PODxt (Pro) Pilot's Handbook" by Line6.
    Comments after the number refer to the PODxt Pro firmware version required
    for this feature.
+
+   Please *don't* reformat this file since "control.c" is created automatically
+   from "control.h", and this process depends on the exact formatting of the
+   code and the comments below!
 */
+
+/* *INDENT-OFF* */
+
 enum {
 	POD_tweak                          =   1,
 	POD_wah_position                   =   4,
@@ -177,11 +183,13 @@ enum {
 	VARIAXMIDI_tone                    =  79,
 };
 
+/* *INDENT-ON* */
 
-extern int pod_create_files(int firmware, int type, struct device *dev);
-extern void pod_remove_files(int firmware, int type, struct device *dev);
-extern int variax_create_files(int firmware, int type, struct device *dev);
-extern void variax_remove_files(int firmware, int type, struct device *dev);
-
+extern int line6_pod_create_files(int firmware, int type, struct device *dev);
+extern void line6_pod_remove_files(int firmware, int type, struct device *dev);
+extern int line6_variax_create_files(int firmware, int type,
+				     struct device *dev);
+extern void line6_variax_remove_files(int firmware, int type,
+				      struct device *dev);
 
 #endif

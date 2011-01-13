@@ -1,4 +1,5 @@
 include include/asm-generic/Kbuild.asm
 
-unifdef-y += bfin_sport.h
-unifdef-y += fixed_code.h
+header-y += bfin_sport.h
+header-y += cachectl.h
+header-y += fixed_code.h

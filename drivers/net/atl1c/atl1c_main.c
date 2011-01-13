@@ -21,11 +21,18 @@
 
 #include "atl1c.h"
 
-#define ATL1C_DRV_VERSION "1.0.0.1-NAPI"
+#define ATL1C_DRV_VERSION "1.0.1.0-NAPI"
 char atl1c_driver_name[] = "atl1c";
 char atl1c_driver_version[] = ATL1C_DRV_VERSION;
 #define PCI_DEVICE_ID_ATTANSIC_L2C      0x1062
 #define PCI_DEVICE_ID_ATTANSIC_L1C      0x1063
+#define PCI_DEVICE_ID_ATHEROS_L2C_B	0x2060 /* AR8152 v1.1 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L2C_B2	0x2062 /* AR8152 v2.0 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L1D	0x1073 /* AR8151 v1.0 Gigabit 1000 */
+#define PCI_DEVICE_ID_ATHEROS_L1D_2_0	0x1083 /* AR8151 v2.0 Gigabit 1000 */
+#define L2CB_V10			0xc0
+#define L2CB_V11			0xc1
+
 /*
  * atl1c_pci_tbl - PCI Device ID Table
  *
@@ -35,9 +42,12 @@ char atl1c_driver_version[] = ATL1C_DRV_VERSION;
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static struct pci_device_id atl1c_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(atl1c_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1C)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L2C)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L2C_B)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L2C_B2)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L1D)},
 	/* required last entry */
 	{ 0 }
 };
@@ -56,6 +66,8 @@ static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup);
 static void atl1c_setup_mac_ctrl(struct atl1c_adapter *adapter);
 static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter, u8 que,
 		   int *work_done, int work_to_do);
+static int atl1c_up(struct atl1c_adapter *adapter);
+static void atl1c_down(struct atl1c_adapter *adapter);
 
 static const u16 atl1c_pay_load_size[] = {
 	128, 256, 512, 1024, 2048, 4096,
@@ -87,7 +99,28 @@ static const u16 atl1c_rrd_addr_lo_regs[AT_MAX_RECEIVE_QUEUE] =
 
 static const u32 atl1c_default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 	NETIF_MSG_LINK | NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP;
+static void atl1c_pcie_patch(struct atl1c_hw *hw)
+{
+	u32 data;
 
+	AT_READ_REG(hw, REG_PCIE_PHYMISC, &data);
+	data |= PCIE_PHYMISC_FORCE_RCV_DET;
+	AT_WRITE_REG(hw, REG_PCIE_PHYMISC, data);
+
+	if (hw->nic_type == athr_l2c_b && hw->revision_id == L2CB_V10) {
+		AT_READ_REG(hw, REG_PCIE_PHYMISC2, &data);
+
+		data &= ~(PCIE_PHYMISC2_SERDES_CDR_MASK <<
+			PCIE_PHYMISC2_SERDES_CDR_SHIFT);
+		data |= 3 << PCIE_PHYMISC2_SERDES_CDR_SHIFT;
+		data &= ~(PCIE_PHYMISC2_SERDES_TH_MASK <<
+			PCIE_PHYMISC2_SERDES_TH_SHIFT);
+		data |= 3 << PCIE_PHYMISC2_SERDES_TH_SHIFT;
+		AT_WRITE_REG(hw, REG_PCIE_PHYMISC2, data);
+	}
+}
+
+/* FIXME: no need any more ? */
 /*
  * atl1c_init_pcie - init PCIE module
  */
@@ -117,6 +150,11 @@ static void atl1c_reset_pcie(struct atl1c_hw *hw, u32 flag)
 	data &= ~PCIE_UC_SERVRITY_FCP;
 	AT_WRITE_REG(hw, REG_PCIE_UC_SEVERITY, data);
 
+	AT_READ_REG(hw, REG_LTSSM_ID_CTRL, &data);
+	data &= ~LTSSM_ID_EN_WRO;
+	AT_WRITE_REG(hw, REG_LTSSM_ID_CTRL, data);
+
+	atl1c_pcie_patch(hw);
 	if (flag & ATL1C_PCIE_L0S_L1_DISABLE)
 		atl1c_disable_l0s_l1(hw);
 	if (flag & ATL1C_PCIE_PHY_RESET)
@@ -125,7 +163,7 @@ static void atl1c_reset_pcie(struct atl1c_hw *hw, u32 flag)
 		AT_WRITE_REG(hw, REG_GPHY_CTRL,
 			GPHY_CTRL_DEFAULT | GPHY_CTRL_EXT_RESET);
 
-	msleep(1);
+	msleep(5);
 }
 
 /*
@@ -149,6 +187,7 @@ static inline void atl1c_irq_disable(struct atl1c_adapter *adapter)
 {
 	atomic_inc(&adapter->irq_sem);
 	AT_WRITE_REG(&adapter->hw, REG_IMR, 0);
+	AT_WRITE_REG(&adapter->hw, REG_ISR, ISR_DIS_INT);
 	AT_WRITE_FLUSH(&adapter->hw);
 	synchronize_irq(adapter->pdev->irq);
 }
@@ -198,25 +237,10 @@ static void atl1c_phy_config(unsigned long data)
 
 void atl1c_reinit_locked(struct atl1c_adapter *adapter)
 {
-
 	WARN_ON(in_interrupt());
 	atl1c_down(adapter);
 	atl1c_up(adapter);
 	clear_bit(__AT_RESETTING, &adapter->flags);
-}
-
-static void atl1c_reset_task(struct work_struct *work)
-{
-	struct atl1c_adapter *adapter;
-	struct net_device *netdev;
-
-	adapter = container_of(work, struct atl1c_adapter, reset_task);
-	netdev = adapter->netdev;
-
-	netif_device_detach(netdev);
-	atl1c_down(adapter);
-	atl1c_up(adapter);
-	netif_device_attach(netdev);
 }
 
 static void atl1c_check_link_status(struct atl1c_adapter *adapter)
@@ -236,15 +260,15 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 
 	if ((phy_data & BMSR_LSTATUS) == 0) {
 		/* link down */
-		if (netif_carrier_ok(netdev)) {
-			hw->hibernate = true;
-			if (atl1c_stop_mac(hw) != 0)
-				if (netif_msg_hw(adapter))
-					dev_warn(&pdev->dev,
-						"stop mac failed\n");
-			atl1c_set_aspm(hw, false);
-		}
+		hw->hibernate = true;
+		if (atl1c_stop_mac(hw) != 0)
+			if (netif_msg_hw(adapter))
+				dev_warn(&pdev->dev, "stop mac failed\n");
+		atl1c_set_aspm(hw, false);
 		netif_carrier_off(netdev);
+		netif_stop_queue(netdev);
+		atl1c_phy_reset(hw);
+		atl1c_phy_init(&adapter->hw);
 	} else {
 		/* Link Up */
 		hw->hibernate = false;
@@ -275,18 +299,6 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 	}
 }
 
-/*
- * atl1c_link_chg_task - deal with link change event Out of interrupt context
- * @netdev: network interface device structure
- */
-static void atl1c_link_chg_task(struct work_struct *work)
-{
-	struct atl1c_adapter *adapter;
-
-	adapter = container_of(work, struct atl1c_adapter, link_chg_task);
-	atl1c_check_link_status(adapter);
-}
-
 static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -311,19 +323,41 @@ static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 			adapter->link_speed = SPEED_0;
 		}
 	}
-	schedule_work(&adapter->link_chg_task);
+
+	adapter->work_event |= ATL1C_WORK_EVENT_LINK_CHANGE;
+	schedule_work(&adapter->common_task);
 }
+
+static void atl1c_common_task(struct work_struct *work)
+{
+	struct atl1c_adapter *adapter;
+	struct net_device *netdev;
+
+	adapter = container_of(work, struct atl1c_adapter, common_task);
+	netdev = adapter->netdev;
+
+	if (adapter->work_event & ATL1C_WORK_EVENT_RESET) {
+		adapter->work_event &= ~ATL1C_WORK_EVENT_RESET;
+		netif_device_detach(netdev);
+		atl1c_down(adapter);
+		atl1c_up(adapter);
+		netif_device_attach(netdev);
+		return;
+	}
+
+	if (adapter->work_event & ATL1C_WORK_EVENT_LINK_CHANGE) {
+		adapter->work_event &= ~ATL1C_WORK_EVENT_LINK_CHANGE;
+		atl1c_check_link_status(adapter);
+	}
+	return;
+}
+
 
 static void atl1c_del_timer(struct atl1c_adapter *adapter)
 {
 	del_timer_sync(&adapter->phy_config_timer);
 }
 
-static void atl1c_cancel_work(struct atl1c_adapter *adapter)
-{
-	cancel_work_sync(&adapter->reset_task);
-	cancel_work_sync(&adapter->link_chg_task);
-}
 
 /*
  * atl1c_tx_timeout - Respond to a Tx Hang
@@ -334,7 +368,8 @@ static void atl1c_tx_timeout(struct net_device *netdev)
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	/* Do the reset outside of interrupt context */
-	schedule_work(&adapter->reset_task);
+	adapter->work_event |= ATL1C_WORK_EVENT_RESET;
+	schedule_work(&adapter->common_task);
 }
 
 /*
@@ -350,7 +385,7 @@ static void atl1c_set_multi(struct net_device *netdev)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	struct atl1c_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 mac_ctrl_data;
 	u32 hash_value;
 
@@ -373,8 +408,8 @@ static void atl1c_set_multi(struct net_device *netdev)
 	AT_WRITE_REG_ARRAY(hw, REG_RX_HASH_TABLE, 1, 0);
 
 	/* comoute mc addresses' hash value ,and put it into hash table */
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
-		hash_value = atl1c_hash_mc_addr(hw, mc_ptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev) {
+		hash_value = atl1c_hash_mc_addr(hw, ha->addr);
 		atl1c_hash_set(hw, hash_value);
 	}
 }
@@ -474,6 +509,13 @@ static int atl1c_change_mtu(struct net_device *netdev, int new_mtu)
 		netdev->mtu = new_mtu;
 		adapter->hw.max_frame_size = new_mtu;
 		atl1c_set_rxbufsize(adapter, netdev);
+		if (new_mtu > MAX_TSO_FRAME_SIZE) {
+			adapter->netdev->features &= ~NETIF_F_TSO;
+			adapter->netdev->features &= ~NETIF_F_TSO6;
+		} else {
+			adapter->netdev->features |= NETIF_F_TSO;
+			adapter->netdev->features |= NETIF_F_TSO6;
+		}
 		atl1c_down(adapter);
 		atl1c_up(adapter);
 		clear_bit(__AT_RESETTING, &adapter->flags);
@@ -534,10 +576,6 @@ static int atl1c_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (atl1c_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
 				    &data->val_out)) {
 			retval = -EIO;
@@ -546,10 +584,6 @@ static int atl1c_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (data->reg_num & ~(0x1F)) {
 			retval = -EFAULT;
 			goto out;
@@ -607,11 +641,21 @@ static void atl1c_set_mac_type(struct atl1c_hw *hw)
 	case PCI_DEVICE_ID_ATTANSIC_L2C:
 		hw->nic_type = athr_l2c;
 		break;
-
 	case PCI_DEVICE_ID_ATTANSIC_L1C:
 		hw->nic_type = athr_l1c;
 		break;
-
+	case PCI_DEVICE_ID_ATHEROS_L2C_B:
+		hw->nic_type = athr_l2c_b;
+		break;
+	case PCI_DEVICE_ID_ATHEROS_L2C_B2:
+		hw->nic_type = athr_l2c_b2;
+		break;
+	case PCI_DEVICE_ID_ATHEROS_L1D:
+		hw->nic_type = athr_l1d;
+		break;
+	case PCI_DEVICE_ID_ATHEROS_L1D_2_0:
+		hw->nic_type = athr_l1d_2;
+		break;
 	default:
 		break;
 	}
@@ -626,19 +670,20 @@ static int atl1c_setup_mac_funcs(struct atl1c_hw *hw)
 	AT_READ_REG(hw, REG_PHY_STATUS, &phy_status_data);
 	AT_READ_REG(hw, REG_LINK_CTRL, &link_ctrl_data);
 
-	hw->ctrl_flags = ATL1C_INTR_CLEAR_ON_READ |
-			 ATL1C_INTR_MODRT_ENABLE  |
-			 ATL1C_RX_IPV6_CHKSUM	  |
+	hw->ctrl_flags = ATL1C_INTR_MODRT_ENABLE  |
 			 ATL1C_TXQ_MODE_ENHANCE;
 	if (link_ctrl_data & LINK_CTRL_L0S_EN)
 		hw->ctrl_flags |= ATL1C_ASPM_L0S_SUPPORT;
 	if (link_ctrl_data & LINK_CTRL_L1_EN)
 		hw->ctrl_flags |= ATL1C_ASPM_L1_SUPPORT;
+	if (link_ctrl_data & LINK_CTRL_EXT_SYNC)
+		hw->ctrl_flags |= ATL1C_LINK_EXT_SYNC;
+	hw->ctrl_flags |= ATL1C_ASPM_CTRL_MON;
 
-	if (hw->nic_type == athr_l1c) {
-		hw->ctrl_flags |= ATL1C_ASPM_CTRL_MON;
-		hw->ctrl_flags |= ATL1C_LINK_CAP_1000M;
-	}
+	if (hw->nic_type == athr_l1c ||
+	    hw->nic_type == athr_l1d ||
+	    hw->nic_type == athr_l1d_2)
+		hw->link_cap_flags |= ATL1C_LINK_CAP_1000M;
 	return 0;
 }
 /*
@@ -653,8 +698,11 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 {
 	struct atl1c_hw *hw   = &adapter->hw;
 	struct pci_dev	*pdev = adapter->pdev;
+	u32 revision;
+
 
 	adapter->wol = 0;
+	device_set_wakeup_enable(&pdev->dev, false);
 	adapter->link_speed = SPEED_0;
 	adapter->link_duplex = FULL_DUPLEX;
 	adapter->num_rx_queues = AT_DEF_RECEIVE_QUEUE;
@@ -665,7 +713,8 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 	hw->device_id = pdev->device;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_id = pdev->subsystem_device;
-
+	AT_READ_REG(hw, PCI_CLASS_REVISION, &revision);
+	hw->revision_id = revision & 0xFF;
 	/* before link up, we assume hibernate is true */
 	hw->hibernate = true;
 	hw->media_type = MEDIA_TYPE_AUTO_SENSOR;
@@ -718,6 +767,35 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 	return 0;
 }
 
+static inline void atl1c_clean_buffer(struct pci_dev *pdev,
+				struct atl1c_buffer *buffer_info, int in_irq)
+{
+	u16 pci_driection;
+	if (buffer_info->flags & ATL1C_BUFFER_FREE)
+		return;
+	if (buffer_info->dma) {
+		if (buffer_info->flags & ATL1C_PCIMAP_FROMDEVICE)
+			pci_driection = PCI_DMA_FROMDEVICE;
+		else
+			pci_driection = PCI_DMA_TODEVICE;
+
+		if (buffer_info->flags & ATL1C_PCIMAP_SINGLE)
+			pci_unmap_single(pdev, buffer_info->dma,
+					buffer_info->length, pci_driection);
+		else if (buffer_info->flags & ATL1C_PCIMAP_PAGE)
+			pci_unmap_page(pdev, buffer_info->dma,
+					buffer_info->length, pci_driection);
+	}
+	if (buffer_info->skb) {
+		if (in_irq)
+			dev_kfree_skb_irq(buffer_info->skb);
+		else
+			dev_kfree_skb(buffer_info->skb);
+	}
+	buffer_info->dma = 0;
+	buffer_info->skb = NULL;
+	ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_FREE);
+}
 /*
  * atl1c_clean_tx_ring - Free Tx-skb
  * @adapter: board private structure
@@ -733,22 +811,12 @@ static void atl1c_clean_tx_ring(struct atl1c_adapter *adapter,
 	ring_count = tpd_ring->count;
 	for (index = 0; index < ring_count; index++) {
 		buffer_info = &tpd_ring->buffer_info[index];
-		if (buffer_info->state == ATL1_BUFFER_FREE)
-			continue;
-		if (buffer_info->dma)
-			pci_unmap_single(pdev, buffer_info->dma,
-					buffer_info->length,
-					PCI_DMA_TODEVICE);
-		if (buffer_info->skb)
-			dev_kfree_skb(buffer_info->skb);
-		buffer_info->dma = 0;
-		buffer_info->skb = NULL;
-		buffer_info->state = ATL1_BUFFER_FREE;
+		atl1c_clean_buffer(pdev, buffer_info, 0);
 	}
 
 	/* Zero out Tx-buffers */
 	memset(tpd_ring->desc, 0, sizeof(struct atl1c_tpd_desc) *
-				ring_count);
+		ring_count);
 	atomic_set(&tpd_ring->next_to_clean, 0);
 	tpd_ring->next_to_use = 0;
 }
@@ -768,16 +836,7 @@ static void atl1c_clean_rx_ring(struct atl1c_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		for (j = 0; j < rfd_ring[i].count; j++) {
 			buffer_info = &rfd_ring[i].buffer_info[j];
-			if (buffer_info->state == ATL1_BUFFER_FREE)
-				continue;
-			if (buffer_info->dma)
-				pci_unmap_single(pdev, buffer_info->dma,
-						buffer_info->length,
-						PCI_DMA_FROMDEVICE);
-			if (buffer_info->skb)
-				dev_kfree_skb(buffer_info->skb);
-			buffer_info->state = ATL1_BUFFER_FREE;
-			buffer_info->skb = NULL;
+			atl1c_clean_buffer(pdev, buffer_info, 0);
 		}
 		/* zero out the descriptor ring */
 		memset(rfd_ring[i].desc, 0, rfd_ring[i].size);
@@ -804,7 +863,8 @@ static void atl1c_init_ring_ptrs(struct atl1c_adapter *adapter)
 		atomic_set(&tpd_ring[i].next_to_clean, 0);
 		buffer_info = tpd_ring[i].buffer_info;
 		for (j = 0; j < tpd_ring->count; j++)
-			buffer_info[i].state = ATL1_BUFFER_FREE;
+			ATL1C_SET_BUFFER_STATE(&buffer_info[i],
+					ATL1C_BUFFER_FREE);
 	}
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		rfd_ring[i].next_to_use = 0;
@@ -813,7 +873,7 @@ static void atl1c_init_ring_ptrs(struct atl1c_adapter *adapter)
 		rrd_ring[i].next_to_clean = 0;
 		for (j = 0; j < rfd_ring[i].count; j++) {
 			buffer_info = &rfd_ring[i].buffer_info[j];
-			buffer_info->state = ATL1_BUFFER_FREE;
+			ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_FREE);
 		}
 	}
 }
@@ -959,6 +1019,7 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 	struct atl1c_cmb *cmb = (struct atl1c_cmb *) &adapter->cmb;
 	struct atl1c_smb *smb = (struct atl1c_smb *) &adapter->smb;
 	int i;
+	u32 data;
 
 	/* TPD */
 	AT_WRITE_REG(hw, REG_TX_BASE_ADDR_HI,
@@ -1002,6 +1063,23 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 			(u32)((smb->dma & AT_DMA_HI_ADDR_MASK) >> 32));
 	AT_WRITE_REG(hw, REG_SMB_BASE_ADDR_LO,
 			(u32)(smb->dma & AT_DMA_LO_ADDR_MASK));
+	if (hw->nic_type == athr_l2c_b) {
+		AT_WRITE_REG(hw, REG_SRAM_RXF_LEN, 0x02a0L);
+		AT_WRITE_REG(hw, REG_SRAM_TXF_LEN, 0x0100L);
+		AT_WRITE_REG(hw, REG_SRAM_RXF_ADDR, 0x029f0000L);
+		AT_WRITE_REG(hw, REG_SRAM_RFD0_INFO, 0x02bf02a0L);
+		AT_WRITE_REG(hw, REG_SRAM_TXF_ADDR, 0x03bf02c0L);
+		AT_WRITE_REG(hw, REG_SRAM_TRD_ADDR, 0x03df03c0L);
+		AT_WRITE_REG(hw, REG_TXF_WATER_MARK, 0);	/* TX watermark, to enter l1 state.*/
+		AT_WRITE_REG(hw, REG_RXD_DMA_CTRL, 0);		/* RXD threshold.*/
+	}
+	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d_2) {
+			/* Power Saving for L2c_B */
+		AT_READ_REG(hw, REG_SERDES_LOCK, &data);
+		data |= SERDES_MAC_CLK_SLOWDOWN;
+		data |= SERDES_PYH_CLK_SLOWDOWN;
+		AT_WRITE_REG(hw, REG_SERDES_LOCK, data);
+	}
 	/* Load all of base address above */
 	AT_WRITE_REG(hw, REG_LOAD_PTR, 1);
 }
@@ -1014,6 +1092,7 @@ static void atl1c_configure_tx(struct atl1c_adapter *adapter)
 	u16 tx_offload_thresh;
 	u32 txq_ctrl_data;
 	u32 extra_size = 0;     /* Jumbo frame threshold in QWORD unit */
+	u32 max_pay_load_data;
 
 	extra_size = ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
 	tx_offload_thresh = MAX_TX_OFFLOAD_THRESH;
@@ -1031,8 +1110,11 @@ static void atl1c_configure_tx(struct atl1c_adapter *adapter)
 			TXQ_NUM_TPD_BURST_SHIFT;
 	if (hw->ctrl_flags & ATL1C_TXQ_MODE_ENHANCE)
 		txq_ctrl_data |= TXQ_CTRL_ENH_MODE;
-	txq_ctrl_data |= (atl1c_pay_load_size[hw->dmar_block] &
+	max_pay_load_data = (atl1c_pay_load_size[hw->dmar_block] &
 			TXQ_TXF_BURST_NUM_MASK) << TXQ_TXF_BURST_NUM_SHIFT;
+	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l2c_b2)
+		max_pay_load_data >>= 1;
+	txq_ctrl_data |= max_pay_load_data;
 
 	AT_WRITE_REG(hw, REG_TXQ_CTRL, txq_ctrl_data);
 }
@@ -1063,7 +1145,7 @@ static void atl1c_configure_rx(struct atl1c_adapter *adapter)
 	rxq_ctrl_data |= (hw->rss_hash_bits & RSS_HASH_BITS_MASK) <<
 			RSS_HASH_BITS_SHIFT;
 	if (hw->ctrl_flags & ATL1C_ASPM_CTRL_MON)
-		rxq_ctrl_data |= (ASPM_THRUPUT_LIMIT_100M &
+		rxq_ctrl_data |= (ASPM_THRUPUT_LIMIT_1M &
 			ASPM_THRUPUT_LIMIT_MASK) << ASPM_THRUPUT_LIMIT_SHIFT;
 
 	AT_WRITE_REG(hw, REG_RXQ_CTRL, rxq_ctrl_data);
@@ -1183,21 +1265,23 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 {
 	struct atl1c_adapter *adapter = (struct atl1c_adapter *)hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
-	int ret;
+	u32 master_ctrl_data = 0;
 
 	AT_WRITE_REG(hw, REG_IMR, 0);
 	AT_WRITE_REG(hw, REG_ISR, ISR_DIS_INT);
 
-	ret = atl1c_stop_mac(hw);
-	if (ret)
-		return ret;
+	atl1c_stop_mac(hw);
 	/*
 	 * Issue Soft Reset to the MAC.  This will reset the chip's
 	 * transmit, receive, DMA.  It will not effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
-	AT_WRITE_REGW(hw, REG_MASTER_CTRL, MASTER_CTRL_SOFT_RST);
+	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
+	master_ctrl_data |= MASTER_CTRL_OOB_DIS_OFF;
+	AT_WRITE_REGW(hw, REG_MASTER_CTRL, ((master_ctrl_data | MASTER_CTRL_SOFT_RST)
+			& 0xFFFF));
+
 	AT_WRITE_FLUSH(hw);
 	msleep(10);
 	/* Wait at least 10ms for All module to be Idle */
@@ -1237,27 +1321,82 @@ static void atl1c_disable_l0s_l1(struct atl1c_hw *hw)
 static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup)
 {
 	u32 pm_ctrl_data;
+	u32 link_ctrl_data;
+	u32 link_l1_timer = 0xF;
 
 	AT_READ_REG(hw, REG_PM_CTRL, &pm_ctrl_data);
+	AT_READ_REG(hw, REG_LINK_CTRL, &link_ctrl_data);
 
 	pm_ctrl_data &= ~PM_CTRL_SERDES_PD_EX_L1;
 	pm_ctrl_data &=  ~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
 			PM_CTRL_L1_ENTRY_TIMER_SHIFT);
+	pm_ctrl_data &= ~(PM_CTRL_LCKDET_TIMER_MASK <<
+			PM_CTRL_LCKDET_TIMER_SHIFT);
+	pm_ctrl_data |= AT_LCKDET_TIMER	<< PM_CTRL_LCKDET_TIMER_SHIFT;
 
+	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d ||
+		hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) {
+		link_ctrl_data &= ~LINK_CTRL_EXT_SYNC;
+		if (!(hw->ctrl_flags & ATL1C_APS_MODE_ENABLE)) {
+			if (hw->nic_type == athr_l2c_b && hw->revision_id == L2CB_V10)
+				link_ctrl_data |= LINK_CTRL_EXT_SYNC;
+		}
+
+		AT_WRITE_REG(hw, REG_LINK_CTRL, link_ctrl_data);
+
+		pm_ctrl_data |= PM_CTRL_RCVR_WT_TIMER;
+		pm_ctrl_data &= ~(PM_CTRL_PM_REQ_TIMER_MASK <<
+			PM_CTRL_PM_REQ_TIMER_SHIFT);
+		pm_ctrl_data |= AT_ASPM_L1_TIMER <<
+			PM_CTRL_PM_REQ_TIMER_SHIFT;
+		pm_ctrl_data &= ~PM_CTRL_SA_DLY_EN;
+		pm_ctrl_data &= ~PM_CTRL_HOTRST;
+		pm_ctrl_data |= 1 << PM_CTRL_L1_ENTRY_TIMER_SHIFT;
+		pm_ctrl_data |= PM_CTRL_SERDES_PD_EX_L1;
+	}
 	pm_ctrl_data |= PM_CTRL_MAC_ASPM_CHK;
-
 	if (linkup) {
-		pm_ctrl_data |= PM_CTRL_SERDES_PLL_L1_EN;
-		pm_ctrl_data &= ~PM_CTRL_CLK_SWH_L1;
+		pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
+		pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
+		if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT)
+			pm_ctrl_data |= PM_CTRL_ASPM_L1_EN;
+		if (hw->ctrl_flags & ATL1C_ASPM_L0S_SUPPORT)
+			pm_ctrl_data |= PM_CTRL_ASPM_L0S_EN;
 
-		pm_ctrl_data |= PM_CTRL_SERDES_BUDS_RX_L1_EN;
-		pm_ctrl_data |= PM_CTRL_SERDES_L1_EN;
+		if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d ||
+			hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) {
+			if (hw->nic_type == athr_l2c_b)
+				if (!(hw->ctrl_flags & ATL1C_APS_MODE_ENABLE))
+					pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
+			pm_ctrl_data &= ~PM_CTRL_SERDES_L1_EN;
+			pm_ctrl_data &= ~PM_CTRL_SERDES_PLL_L1_EN;
+			pm_ctrl_data &= ~PM_CTRL_SERDES_BUDS_RX_L1_EN;
+			pm_ctrl_data |= PM_CTRL_CLK_SWH_L1;
+		if (hw->adapter->link_speed == SPEED_100 ||
+				hw->adapter->link_speed == SPEED_1000) {
+				pm_ctrl_data &=  ~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
+					PM_CTRL_L1_ENTRY_TIMER_SHIFT);
+				if (hw->nic_type == athr_l2c_b)
+					link_l1_timer = 7;
+				else if (hw->nic_type == athr_l2c_b2 ||
+					hw->nic_type == athr_l1d_2)
+					link_l1_timer = 4;
+				pm_ctrl_data |= link_l1_timer <<
+					PM_CTRL_L1_ENTRY_TIMER_SHIFT;
+			}
+		} else {
+			pm_ctrl_data |= PM_CTRL_SERDES_L1_EN;
+			pm_ctrl_data |= PM_CTRL_SERDES_PLL_L1_EN;
+			pm_ctrl_data |= PM_CTRL_SERDES_BUDS_RX_L1_EN;
+			pm_ctrl_data &= ~PM_CTRL_CLK_SWH_L1;
+			pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
+			pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
+
+		}
 	} else {
-		pm_ctrl_data &= ~PM_CTRL_SERDES_BUDS_RX_L1_EN;
 		pm_ctrl_data &= ~PM_CTRL_SERDES_L1_EN;
 		pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
 		pm_ctrl_data &= ~PM_CTRL_SERDES_PLL_L1_EN;
-
 		pm_ctrl_data |= PM_CTRL_CLK_SWH_L1;
 
 		if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT)
@@ -1265,8 +1404,9 @@ static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup)
 		else
 			pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
 	}
-
 	AT_WRITE_REG(hw, REG_PM_CTRL, pm_ctrl_data);
+
+	return;
 }
 
 static void atl1c_setup_mac_ctrl(struct atl1c_adapter *adapter)
@@ -1305,6 +1445,11 @@ static void atl1c_setup_mac_ctrl(struct atl1c_adapter *adapter)
 		mac_ctrl_data |= MAC_CTRL_MC_ALL_EN;
 
 	mac_ctrl_data |= MAC_CTRL_SINGLE_PAUSE_EN;
+	if (hw->nic_type == athr_l1d || hw->nic_type == athr_l2c_b2 ||
+	    hw->nic_type == athr_l1d_2) {
+		mac_ctrl_data |= MAC_CTRL_SPEED_MODE_SW;
+		mac_ctrl_data |= MAC_CTRL_HASH_ALG_CRC32;
+	}
 	AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
 }
 
@@ -1319,6 +1464,7 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	struct atl1c_hw *hw = &adapter->hw;
 	u32 master_ctrl_data = 0;
 	u32 intr_modrt_data;
+	u32 data;
 
 	/* clear interrupt status */
 	AT_WRITE_REG(hw, REG_ISR, 0xFFFFFFFF);
@@ -1328,6 +1474,15 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	 * HW will enable self to assert interrupt event to system after
 	 * waiting x-time for software to notify it accept interrupt.
 	 */
+
+	data = CLK_GATING_EN_ALL;
+	if (hw->ctrl_flags & ATL1C_CLK_GATING_EN) {
+		if (hw->nic_type == athr_l2c_b)
+			data &= ~CLK_GATING_RXMAC_EN;
+	} else
+		data = 0;
+	AT_WRITE_REG(hw, REG_CLK_GATING_CTRL, data);
+
 	AT_WRITE_REG(hw, REG_INT_RETRIG_TIMER,
 		hw->ict & INT_RETRIG_TIMER_MASK);
 
@@ -1346,6 +1501,7 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	if (hw->ctrl_flags & ATL1C_INTR_CLEAR_ON_READ)
 		master_ctrl_data |= MASTER_CTRL_INT_RDCLR;
 
+	master_ctrl_data |= MASTER_CTRL_SA_TIMER_EN;
 	AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
 
 	if (hw->ctrl_flags & ATL1C_CMB_ENABLE) {
@@ -1409,7 +1565,7 @@ static struct net_device_stats *atl1c_get_stats(struct net_device *netdev)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	struct atl1c_hw_stats  *hw_stats = &adapter->hw_stats;
-	struct net_device_stats *net_stats = &adapter->net_stats;
+	struct net_device_stats *net_stats = &netdev->stats;
 
 	atl1c_update_hw_stats(adapter);
 	net_stats->rx_packets = hw_stats->rx_ok;
@@ -1437,7 +1593,7 @@ static struct net_device_stats *atl1c_get_stats(struct net_device *netdev)
 	net_stats->tx_aborted_errors = hw_stats->tx_abort_col;
 	net_stats->tx_window_errors  = hw_stats->tx_late_col;
 
-	return &adapter->net_stats;
+	return net_stats;
 }
 
 static inline void atl1c_clear_phy_int(struct atl1c_adapter *adapter)
@@ -1455,6 +1611,7 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 	struct atl1c_tpd_ring *tpd_ring = (struct atl1c_tpd_ring *)
 				&adapter->tpd_ring[type];
 	struct atl1c_buffer *buffer_info;
+	struct pci_dev *pdev = adapter->pdev;
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 hw_next_to_clean;
 	u16 shift;
@@ -1470,16 +1627,7 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 
 	while (next_to_clean != hw_next_to_clean) {
 		buffer_info = &tpd_ring->buffer_info[next_to_clean];
-		if (buffer_info->state == ATL1_BUFFER_BUSY) {
-			pci_unmap_page(adapter->pdev, buffer_info->dma,
-					buffer_info->length, PCI_DMA_TODEVICE);
-			buffer_info->dma = 0;
-			if (buffer_info->skb) {
-				dev_kfree_skb_irq(buffer_info->skb);
-				buffer_info->skb = NULL;
-			}
-			buffer_info->state = ATL1_BUFFER_FREE;
-		}
+		atl1c_clean_buffer(pdev, buffer_info, 1);
 		if (++next_to_clean == tpd_ring->count)
 			next_to_clean = 0;
 		atomic_set(&tpd_ring->next_to_clean, next_to_clean);
@@ -1542,21 +1690,20 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 					"atl1c hardware error (status = 0x%x)\n",
 					status & ISR_ERROR);
 			/* reset MAC */
-			hw->intr_mask &= ~ISR_ERROR;
-			AT_WRITE_REG(hw, REG_IMR, hw->intr_mask);
-			schedule_work(&adapter->reset_task);
-			break;
+			adapter->work_event |= ATL1C_WORK_EVENT_RESET;
+			schedule_work(&adapter->common_task);
+			return IRQ_HANDLED;
 		}
 
 		if (status & ISR_OVER)
 			if (netif_msg_intr(adapter))
 				dev_warn(&pdev->dev,
-					"TX/RX over flow (status = 0x%x)\n",
+					"TX/RX overflow (status = 0x%x)\n",
 					status & ISR_OVER);
 
 		/* link event */
 		if (status & (ISR_GPHY | ISR_MANUAL)) {
-			adapter->net_stats.tx_carrier_errors++;
+			netdev->stats.tx_carrier_errors++;
 			atl1c_link_chg_event(adapter);
 			break;
 		}
@@ -1575,7 +1722,7 @@ static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 	 * cannot figure out if the packet is fragmented or not,
 	 * so we tell the KERNEL CHECKSUM_NONE
 	 */
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 }
 
 static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, const int ringid)
@@ -1595,7 +1742,7 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, const int ringid
 	buffer_info = &rfd_ring->buffer_info[rfd_next_to_use];
 	next_info = &rfd_ring->buffer_info[next_next];
 
-	while (next_info->state == ATL1_BUFFER_FREE) {
+	while (next_info->flags & ATL1C_BUFFER_FREE) {
 		rfd_desc = ATL1C_RFD_DESC(rfd_ring, rfd_next_to_use);
 
 		skb = dev_alloc_skb(adapter->rx_buffer_len);
@@ -1611,12 +1758,14 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, const int ringid
 		 * the 14 byte MAC header is removed
 		 */
 		vir_addr = skb->data;
-		buffer_info->state = ATL1_BUFFER_BUSY;
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
 		buffer_info->dma = pci_map_single(pdev, vir_addr,
 						buffer_info->length,
 						PCI_DMA_FROMDEVICE);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_FROMDEVICE);
 		rfd_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
 		rfd_next_to_use = next_next;
 		if (++next_next == rfd_ring->count)
@@ -1661,7 +1810,8 @@ static void atl1c_clean_rfd(struct atl1c_rfd_ring *rfd_ring,
 			RRS_RX_RFD_INDEX_MASK;
 	for (i = 0; i < num; i++) {
 		buffer_info[rfd_index].skb = NULL;
-		buffer_info[rfd_index].state = ATL1_BUFFER_FREE;
+		ATL1C_SET_BUFFER_STATE(&buffer_info[rfd_index],
+					ATL1C_BUFFER_FREE);
 		if (++rfd_index == rfd_ring->count)
 			rfd_index = 0;
 	}
@@ -1689,7 +1839,7 @@ static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter, u8 que,
 		if (likely(RRS_RXD_IS_VALID(rrs->word3))) {
 			rfd_num = (rrs->word0 >> RRS_RX_RFD_CNT_SHIFT) &
 				RRS_RX_RFD_CNT_MASK;
-			if (unlikely(rfd_num) != 1)
+			if (unlikely(rfd_num != 1))
 				/* TODO support mul rfd*/
 				if (netif_msg_rx_err(adapter))
 					dev_warn(&pdev->dev,
@@ -1729,7 +1879,6 @@ rrs_checked:
 		atl1c_clean_rfd(rfd_ring, rrs, rfd_num);
 		skb_put(skb, length - ETH_FCS_LEN);
 		skb->protocol = eth_type_trans(skb, netdev);
-		skb->dev = netdev;
 		atl1c_rx_checksum(adapter, skb, rrs);
 		if (unlikely(adapter->vlgrp) && rrs->word3 & RRS_VLAN_INS) {
 			u16 vlan;
@@ -1740,7 +1889,6 @@ rrs_checked:
 		} else
 			netif_receive_skb(skb);
 
-		netdev->last_rx = jiffies;
 		(*work_done)++;
 		count++;
 	}
@@ -1931,7 +2079,7 @@ static int atl1c_tso_csum(struct atl1c_adapter *adapter,
 check_sum:
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		u8 css, cso;
-		cso = skb_transport_offset(skb);
+		cso = skb_checksum_start_offset(skb);
 
 		if (unlikely(cso & 0x1)) {
 			if (netif_msg_tx_err(adapter))
@@ -1976,7 +2124,9 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 		buffer_info->length = map_len;
 		buffer_info->dma = pci_map_single(adapter->pdev,
 					skb->data, hdr_len, PCI_DMA_TODEVICE);
-		buffer_info->state = ATL1_BUFFER_BUSY;
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_TODEVICE);
 		mapped_len += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len = cpu_to_le16(buffer_info->length);
@@ -1990,16 +2140,15 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 		else {
 			use_tpd = atl1c_get_tpd(adapter, type);
 			memcpy(use_tpd, tpd, sizeof(struct atl1c_tpd_desc));
-			use_tpd = atl1c_get_tpd(adapter, type);
-			memcpy(use_tpd, tpd, sizeof(struct atl1c_tpd_desc));
 		}
 		buffer_info = atl1c_get_tx_buffer(adapter, use_tpd);
 		buffer_info->length = buf_len - mapped_len;
 		buffer_info->dma =
 			pci_map_single(adapter->pdev, skb->data + mapped_len,
 					buffer_info->length, PCI_DMA_TODEVICE);
-		buffer_info->state = ATL1_BUFFER_BUSY;
-
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_TODEVICE);
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len  = cpu_to_le16(buffer_info->length);
 	}
@@ -2019,8 +2168,9 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 					frag->page_offset,
 					buffer_info->length,
 					PCI_DMA_TODEVICE);
-		buffer_info->state = ATL1_BUFFER_BUSY;
-
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_PAGE,
+			ATL1C_PCIMAP_TODEVICE);
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len  = cpu_to_le16(buffer_info->length);
 	}
@@ -2055,7 +2205,8 @@ static void atl1c_tx_queue(struct atl1c_adapter *adapter, struct sk_buff *skb,
 	AT_WRITE_REG(&adapter->hw, REG_MB_PRIO_PROD_IDX, prod_data);
 }
 
-static int atl1c_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
+					  struct net_device *netdev)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	unsigned long flags;
@@ -2095,7 +2246,7 @@ static int atl1c_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (unlikely(adapter->vlgrp && vlan_tx_tag_present(skb))) {
+	if (unlikely(vlan_tx_tag_present(skb))) {
 		u16 vlan = vlan_tx_tag_get(skb);
 		__le16 tag;
 
@@ -2145,7 +2296,7 @@ static int atl1c_request_irq(struct atl1c_adapter *adapter)
 
 	if (!adapter->have_msi)
 		flags |= IRQF_SHARED;
-	err = request_irq(adapter->pdev->irq, &atl1c_intr, flags,
+	err = request_irq(adapter->pdev->irq, atl1c_intr, flags,
 			netdev->name, netdev);
 	if (err) {
 		if (netif_msg_ifup(adapter))
@@ -2161,7 +2312,7 @@ static int atl1c_request_irq(struct atl1c_adapter *adapter)
 	return err;
 }
 
-int atl1c_up(struct atl1c_adapter *adapter)
+static int atl1c_up(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	int num;
@@ -2203,13 +2354,12 @@ err_alloc_rx:
 	return err;
 }
 
-void atl1c_down(struct atl1c_adapter *adapter)
+static void atl1c_down(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
 	atl1c_del_timer(adapter);
-	atl1c_cancel_work(adapter);
-
+	adapter->work_event = 0; /* clear all event */
 	/* signal that we're down so the interrupt handler does not
 	 * reschedule our watchdog timer */
 	set_bit(__AT_DOWN, &adapter->flags);
@@ -2217,7 +2367,6 @@ void atl1c_down(struct atl1c_adapter *adapter)
 	napi_disable(&adapter->napi);
 	atl1c_irq_disable(adapter);
 	atl1c_free_irq(adapter);
-	AT_WRITE_REG(&adapter->hw, REG_ISR, ISR_DIS_INT);
 	/* reset MAC to disable all RX/TX */
 	atl1c_reset_mac(&adapter->hw);
 	msleep(1);
@@ -2296,84 +2445,70 @@ static int atl1c_close(struct net_device *netdev)
 	return 0;
 }
 
-static int atl1c_suspend(struct pci_dev *pdev, pm_message_t state)
+static int atl1c_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	struct atl1c_hw *hw = &adapter->hw;
-	u32 ctrl;
-	u32 mac_ctrl_data;
-	u32 master_ctrl_data;
-	u32 wol_ctrl_data;
-	u16 mii_bmsr_data;
-	u16 save_autoneg_advertised;
-	u16 mii_intr_status_data;
+	u32 mac_ctrl_data = 0;
+	u32 master_ctrl_data = 0;
+	u32 wol_ctrl_data = 0;
+	u16 mii_intr_status_data = 0;
 	u32 wufc = adapter->wol;
-	u32 i;
-	int retval = 0;
 
+	atl1c_disable_l0s_l1(hw);
 	if (netif_running(netdev)) {
 		WARN_ON(test_bit(__AT_RESETTING, &adapter->flags));
 		atl1c_down(adapter);
 	}
 	netif_device_detach(netdev);
-	atl1c_disable_l0s_l1(hw);
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
-	if (wufc) {
-		AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
-		master_ctrl_data &= ~MASTER_CTRL_CLK_SEL_DIS;
 
-		/* get link status */
-		atl1c_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
-		atl1c_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
-		save_autoneg_advertised = hw->autoneg_advertised;
-		hw->autoneg_advertised = ADVERTISED_10baseT_Half;
-		if (atl1c_restart_autoneg(hw) != 0)
-			if (netif_msg_link(adapter))
-				dev_warn(&pdev->dev, "phy autoneg failed\n");
-		hw->phy_configured = false; /* re-init PHY when resume */
-		hw->autoneg_advertised = save_autoneg_advertised;
+	if (wufc)
+		if (atl1c_phy_power_saving(hw) != 0)
+			dev_dbg(&pdev->dev, "phy power saving failed");
+
+	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
+	AT_READ_REG(hw, REG_MAC_CTRL, &mac_ctrl_data);
+
+	master_ctrl_data &= ~MASTER_CTRL_CLK_SEL_DIS;
+	mac_ctrl_data &= ~(MAC_CTRL_PRMLEN_MASK << MAC_CTRL_PRMLEN_SHIFT);
+	mac_ctrl_data |= (((u32)adapter->hw.preamble_len &
+			MAC_CTRL_PRMLEN_MASK) <<
+			MAC_CTRL_PRMLEN_SHIFT);
+	mac_ctrl_data &= ~(MAC_CTRL_SPEED_MASK << MAC_CTRL_SPEED_SHIFT);
+	mac_ctrl_data &= ~MAC_CTRL_DUPLX;
+
+	if (wufc) {
+		mac_ctrl_data |= MAC_CTRL_RX_EN;
+		if (adapter->link_speed == SPEED_1000 ||
+			adapter->link_speed == SPEED_0) {
+			mac_ctrl_data |= atl1c_mac_speed_1000 <<
+					MAC_CTRL_SPEED_SHIFT;
+			mac_ctrl_data |= MAC_CTRL_DUPLX;
+		} else
+			mac_ctrl_data |= atl1c_mac_speed_10_100 <<
+					MAC_CTRL_SPEED_SHIFT;
+
+		if (adapter->link_duplex == DUPLEX_FULL)
+			mac_ctrl_data |= MAC_CTRL_DUPLX;
+
 		/* turn on magic packet wol */
 		if (wufc & AT_WUFC_MAG)
-			wol_ctrl_data = WOL_MAGIC_EN | WOL_MAGIC_PME_EN;
+			wol_ctrl_data |= WOL_MAGIC_EN | WOL_MAGIC_PME_EN;
 
 		if (wufc & AT_WUFC_LNKC) {
-			for (i = 0; i < AT_SUSPEND_LINK_TIMEOUT; i++) {
-				msleep(100);
-				atl1c_read_phy_reg(hw, MII_BMSR,
-					(u16 *)&mii_bmsr_data);
-				if (mii_bmsr_data & BMSR_LSTATUS)
-					break;
-			}
-			if ((mii_bmsr_data & BMSR_LSTATUS) == 0)
-				if (netif_msg_link(adapter))
-					dev_warn(&pdev->dev,
-						"%s: Link may change"
-						"when suspend\n",
-						atl1c_driver_name);
 			wol_ctrl_data |=  WOL_LINK_CHG_EN | WOL_LINK_CHG_PME_EN;
 			/* only link up can wake up */
 			if (atl1c_write_phy_reg(hw, MII_IER, IER_LINK_UP) != 0) {
-				if (netif_msg_link(adapter))
-					dev_err(&pdev->dev,
-						"%s: read write phy "
-						"register failed.\n",
-						atl1c_driver_name);
-				goto wol_dis;
+				dev_dbg(&pdev->dev, "%s: read write phy "
+						  "register failed.\n",
+						  atl1c_driver_name);
 			}
 		}
 		/* clear phy interrupt */
 		atl1c_read_phy_reg(hw, MII_ISR, &mii_intr_status_data);
 		/* Config MAC Ctrl register */
-		mac_ctrl_data = MAC_CTRL_RX_EN;
-		/* set to 10/100M halt duplex */
-		mac_ctrl_data |= atl1c_mac_speed_10_100 << MAC_CTRL_SPEED_SHIFT;
-		mac_ctrl_data |= (((u32)adapter->hw.preamble_len &
-				 MAC_CTRL_PRMLEN_MASK) <<
-				 MAC_CTRL_PRMLEN_SHIFT);
-
 		if (adapter->vlgrp)
 			mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
 
@@ -2381,58 +2516,49 @@ static int atl1c_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (wufc & AT_WUFC_MAG)
 			mac_ctrl_data |= MAC_CTRL_BC_EN;
 
-		if (netif_msg_hw(adapter))
-			dev_dbg(&pdev->dev,
-				"%s: suspend MAC=0x%x\n",
-				atl1c_driver_name, mac_ctrl_data);
+		dev_dbg(&pdev->dev,
+			"%s: suspend MAC=0x%x\n",
+			atl1c_driver_name, mac_ctrl_data);
 		AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
 		AT_WRITE_REG(hw, REG_WOL_CTRL, wol_ctrl_data);
 		AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
 
-		/* pcie patch */
-		AT_READ_REG(hw, REG_PCIE_PHYMISC, &ctrl);
-		ctrl |= PCIE_PHYMISC_FORCE_RCV_DET;
-		AT_WRITE_REG(hw, REG_PCIE_PHYMISC, ctrl);
-
-		pci_enable_wake(pdev, pci_choose_state(pdev, state), 1);
-		goto suspend_exit;
+		AT_WRITE_REG(hw, REG_GPHY_CTRL, GPHY_CTRL_DEFAULT |
+			GPHY_CTRL_EXT_RESET);
+	} else {
+		AT_WRITE_REG(hw, REG_GPHY_CTRL, GPHY_CTRL_POWER_SAVING);
+		master_ctrl_data |= MASTER_CTRL_CLK_SEL_DIS;
+		mac_ctrl_data |= atl1c_mac_speed_10_100 << MAC_CTRL_SPEED_SHIFT;
+		mac_ctrl_data |= MAC_CTRL_DUPLX;
+		AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
+		AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
+		AT_WRITE_REG(hw, REG_WOL_CTRL, 0);
+		hw->phy_configured = false; /* re-init PHY when resume */
 	}
-wol_dis:
-
-	/* WOL disabled */
-	AT_WRITE_REG(hw, REG_WOL_CTRL, 0);
-
-	/* pcie patch */
-	AT_READ_REG(hw, REG_PCIE_PHYMISC, &ctrl);
-	ctrl |= PCIE_PHYMISC_FORCE_RCV_DET;
-	AT_WRITE_REG(hw, REG_PCIE_PHYMISC, ctrl);
-
-	atl1c_phy_disable(hw);
-	hw->phy_configured = false; /* re-init PHY when resume */
-
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
-suspend_exit:
-
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
 }
 
-static int atl1c_resume(struct pci_dev *pdev)
+static int atl1c_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-	pci_enable_wake(pdev, PCI_D3cold, 0);
-
 	AT_WRITE_REG(&adapter->hw, REG_WOL_CTRL, 0);
+	atl1c_reset_pcie(&adapter->hw, ATL1C_PCIE_L0S_L1_DISABLE |
+			ATL1C_PCIE_PHY_RESET);
 
 	atl1c_phy_reset(&adapter->hw);
 	atl1c_reset_mac(&adapter->hw);
+	atl1c_phy_init(&adapter->hw);
+
+#if 0
+	AT_READ_REG(&adapter->hw, REG_PM_CTRLSTAT, &pm_data);
+	pm_data &= ~PM_CTRLSTAT_PME_EN;
+	AT_WRITE_REG(&adapter->hw, REG_PM_CTRLSTAT, pm_data);
+#endif
+
 	netif_device_attach(netdev);
 	if (netif_running(netdev))
 		atl1c_up(adapter);
@@ -2442,7 +2568,12 @@ static int atl1c_resume(struct pci_dev *pdev)
 
 static void atl1c_shutdown(struct pci_dev *pdev)
 {
-	atl1c_suspend(pdev, PMSG_SUSPEND);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct atl1c_adapter *adapter = netdev_priv(netdev);
+
+	atl1c_suspend(&pdev->dev);
+	pci_wake_from_d3(pdev, adapter->wol);
+	pci_set_power_state(pdev, PCI_D3hot);
 }
 
 static const struct net_device_ops atl1c_netdev_ops = {
@@ -2602,15 +2733,12 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
 	if (netif_msg_probe(adapter))
-		dev_dbg(&pdev->dev,
-			"mac address : %02x-%02x-%02x-%02x-%02x-%02x\n",
-			adapter->hw.mac_addr[0], adapter->hw.mac_addr[1],
-			adapter->hw.mac_addr[2], adapter->hw.mac_addr[3],
-			adapter->hw.mac_addr[4], adapter->hw.mac_addr[5]);
+		dev_dbg(&pdev->dev, "mac address : %pM\n",
+			adapter->hw.mac_addr);
 
 	atl1c_hw_set_mac_addr(&adapter->hw);
-	INIT_WORK(&adapter->reset_task, atl1c_reset_task);
-	INIT_WORK(&adapter->link_chg_task, atl1c_link_chg_task);
+	INIT_WORK(&adapter->common_task, atl1c_common_task);
+	adapter->work_event = 0;
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "register netdevice failed\n");
@@ -2677,6 +2805,9 @@ static pci_ers_result_t atl1c_io_error_detected(struct pci_dev *pdev,
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (netif_running(netdev))
 		atl1c_down(adapter);
@@ -2746,16 +2877,16 @@ static struct pci_error_handlers atl1c_err_handler = {
 	.resume = atl1c_io_resume,
 };
 
+static SIMPLE_DEV_PM_OPS(atl1c_pm_ops, atl1c_suspend, atl1c_resume);
+
 static struct pci_driver atl1c_driver = {
 	.name     = atl1c_driver_name,
 	.id_table = atl1c_pci_tbl,
 	.probe    = atl1c_probe,
 	.remove   = __devexit_p(atl1c_remove),
-	/* Power Managment Hooks */
-	.suspend  = atl1c_suspend,
-	.resume   = atl1c_resume,
 	.shutdown = atl1c_shutdown,
-	.err_handler = &atl1c_err_handler
+	.err_handler = &atl1c_err_handler,
+	.driver.pm = &atl1c_pm_ops,
 };
 
 /*

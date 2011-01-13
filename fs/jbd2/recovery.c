@@ -20,7 +20,6 @@
 #include <linux/fs.h>
 #include <linux/jbd2.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/crc32.h>
 #endif
 
@@ -286,12 +285,10 @@ int jbd2_journal_recover(journal_t *journal)
 int jbd2_journal_skip_recovery(journal_t *journal)
 {
 	int			err;
-	journal_superblock_t *	sb;
 
 	struct recovery_info	info;
 
 	memset (&info, 0, sizeof(info));
-	sb = journal->j_superblock;
 
 	err = do_one_pass(journal, &info, PASS_SCAN);
 
@@ -300,11 +297,12 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 		++journal->j_transaction_sequence;
 	} else {
 #ifdef CONFIG_JBD2_DEBUG
-		int dropped = info.end_transaction - be32_to_cpu(sb->s_sequence);
-#endif
+		int dropped = info.end_transaction - 
+			be32_to_cpu(journal->j_superblock->s_sequence);
 		jbd_debug(1,
 			  "JBD: ignoring %d transaction%s from the journal.\n",
 			  dropped, (dropped == 1) ? "" : "s");
+#endif
 		journal->j_transaction_sequence = ++info.end_transaction;
 	}
 
@@ -365,11 +363,6 @@ static int do_one_pass(journal_t *journal,
 	int			blocktype;
 	int			tag_bytes = journal_tag_bytes(journal);
 	__u32			crc32_sum = ~0; /* Transactional Checksums */
-
-	/* Precompute the maximum metadata descriptors in a descriptor block */
-	int			MAX_BLOCKS_PER_DESC;
-	MAX_BLOCKS_PER_DESC = ((journal->j_blocksize-sizeof(journal_header_t))
-			       / tag_bytes);
 
 	/*
 	 * First thing is to establish what we expect to find in the log

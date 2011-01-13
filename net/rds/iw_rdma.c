@@ -31,9 +31,9 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "rds.h"
-#include "rdma.h"
 #include "iw.h"
 
 
@@ -157,7 +157,8 @@ static int rds_iw_add_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *
 	return 0;
 }
 
-void rds_iw_remove_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *cm_id)
+static void rds_iw_remove_cm_id(struct rds_iw_device *rds_iwdev,
+				struct rdma_cm_id *cm_id)
 {
 	struct rds_iw_cm_id *i_cm_id;
 
@@ -206,9 +207,9 @@ void rds_iw_add_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *con
 	BUG_ON(list_empty(&ic->iw_node));
 	list_del(&ic->iw_node);
 
-	spin_lock_irq(&rds_iwdev->spinlock);
+	spin_lock(&rds_iwdev->spinlock);
 	list_add_tail(&ic->iw_node, &rds_iwdev->conn_list);
-	spin_unlock_irq(&rds_iwdev->spinlock);
+	spin_unlock(&rds_iwdev->spinlock);
 	spin_unlock_irq(&iw_nodev_conns_lock);
 
 	ic->rds_iwdev = rds_iwdev;
@@ -245,11 +246,8 @@ void __rds_iw_destroy_conns(struct list_head *list, spinlock_t *list_lock)
 	INIT_LIST_HEAD(list);
 	spin_unlock_irq(list_lock);
 
-	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node) {
-		if (ic->conn->c_passive)
-			rds_conn_destroy(ic->conn->c_passive);
+	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node)
 		rds_conn_destroy(ic->conn);
-	}
 }
 
 static void rds_iw_set_scatterlist(struct rds_iw_scatterlist *sg,
@@ -263,17 +261,11 @@ static void rds_iw_set_scatterlist(struct rds_iw_scatterlist *sg,
 }
 
 static u64 *rds_iw_map_scatterlist(struct rds_iw_device *rds_iwdev,
-			struct rds_iw_scatterlist *sg,
-			unsigned int dma_page_shift)
+			struct rds_iw_scatterlist *sg)
 {
 	struct ib_device *dev = rds_iwdev->dev;
 	u64 *dma_pages = NULL;
-	u64 dma_mask;
-	unsigned int dma_page_size;
 	int i, j, ret;
-
-	dma_page_size = 1 << dma_page_shift;
-	dma_mask = dma_page_size - 1;
 
 	WARN_ON(sg->dma_len);
 
@@ -295,18 +287,18 @@ static u64 *rds_iw_map_scatterlist(struct rds_iw_device *rds_iwdev,
 		sg->bytes += dma_len;
 
 		end_addr = dma_addr + dma_len;
-		if (dma_addr & dma_mask) {
+		if (dma_addr & PAGE_MASK) {
 			if (i > 0)
 				goto out_unmap;
-			dma_addr &= ~dma_mask;
+			dma_addr &= ~PAGE_MASK;
 		}
-		if (end_addr & dma_mask) {
+		if (end_addr & PAGE_MASK) {
 			if (i < sg->dma_len - 1)
 				goto out_unmap;
-			end_addr = (end_addr + dma_mask) & ~dma_mask;
+			end_addr = (end_addr + PAGE_MASK) & ~PAGE_MASK;
 		}
 
-		sg->dma_npages += (end_addr - dma_addr) >> dma_page_shift;
+		sg->dma_npages += (end_addr - dma_addr) >> PAGE_SHIFT;
 	}
 
 	/* Now gather the dma addrs into one list */
@@ -325,8 +317,8 @@ static u64 *rds_iw_map_scatterlist(struct rds_iw_device *rds_iwdev,
 		u64 end_addr;
 
 		end_addr = dma_addr + dma_len;
-		dma_addr &= ~dma_mask;
-		for (; dma_addr < end_addr; dma_addr += dma_page_size)
+		dma_addr &= ~PAGE_MASK;
+		for (; dma_addr < end_addr; dma_addr += PAGE_SIZE)
 			dma_pages[j++] = dma_addr;
 		BUG_ON(j > sg->dma_npages);
 	}
@@ -582,8 +574,8 @@ void rds_iw_free_mr(void *trans_private, int invalidate)
 	rds_iw_free_fastreg(pool, ibmr);
 
 	/* If we've pinned too many pages, request a flush */
-	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned
-	 || atomic_read(&pool->dirty_count) >= pool->max_items / 10)
+	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned ||
+	    atomic_read(&pool->dirty_count) >= pool->max_items / 10)
 		queue_work(rds_wq, &pool->flush_worker);
 
 	if (invalidate) {
@@ -727,7 +719,7 @@ static int rds_iw_rdma_build_fastreg(struct rds_iw_mapping *mapping)
 	f_wr.wr.fast_reg.rkey = mapping->m_rkey;
 	f_wr.wr.fast_reg.page_list = ibmr->page_list;
 	f_wr.wr.fast_reg.page_list_len = mapping->m_sg.dma_len;
-	f_wr.wr.fast_reg.page_shift = ibmr->device->page_shift;
+	f_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
 	f_wr.wr.fast_reg.access_flags = IB_ACCESS_LOCAL_WRITE |
 				IB_ACCESS_REMOTE_READ |
 				IB_ACCESS_REMOTE_WRITE;
@@ -780,9 +772,7 @@ static int rds_iw_map_fastreg(struct rds_iw_mr_pool *pool,
 
 	rds_iw_set_scatterlist(&mapping->m_sg, sg, sg_len);
 
-	dma_pages = rds_iw_map_scatterlist(rds_iwdev,
-				&mapping->m_sg,
-				rds_iwdev->page_shift);
+	dma_pages = rds_iw_map_scatterlist(rds_iwdev, &mapping->m_sg);
 	if (IS_ERR(dma_pages)) {
 		ret = PTR_ERR(dma_pages);
 		dma_pages = NULL;

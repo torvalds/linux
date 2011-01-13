@@ -13,22 +13,23 @@
 #include <linux/preempt.h>
 #include <linux/uaccess.h>
 #include <asm/errno.h>
+#include <asm/domain.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
 	__asm__ __volatile__(					\
-	"1:	ldrt	%1, [%2]\n"				\
+	"1:	" T(ldr) "	%1, [%2]\n"			\
 	"	" insn "\n"					\
-	"2:	strt	%0, [%2]\n"				\
+	"2:	" T(str) "	%0, [%2]\n"			\
 	"	mov	%0, #0\n"				\
 	"3:\n"							\
-	"	.section __ex_table,\"a\"\n"			\
+	"	.pushsection __ex_table,\"a\"\n"		\
 	"	.align	3\n"					\
 	"	.long	1b, 4f, 2b, 4f\n"			\
-	"	.previous\n"					\
-	"	.section .fixup,\"ax\"\n"			\
+	"	.popsection\n"					\
+	"	.pushsection .fixup,\"ax\"\n"			\
 	"4:	mov	%0, %4\n"				\
 	"	b	3b\n"					\
-	"	.previous"					\
+	"	.popsection"					\
 	: "=&r" (ret), "=&r" (oldval)				\
 	: "r" (uaddr), "r" (oparg), "Ir" (-EFAULT)		\
 	: "cc", "memory")
@@ -97,18 +98,19 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	pagefault_disable();	/* implies preempt_disable() */
 
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
-	"1:	ldrt	%0, [%3]\n"
+	"1:	" T(ldr) "	%0, [%3]\n"
 	"	teq	%0, %1\n"
-	"2:	streqt	%2, [%3]\n"
+	"	it	eq	@ explicit IT needed for the 2b label\n"
+	"2:	" T(streq) "	%2, [%3]\n"
 	"3:\n"
-	"	.section __ex_table,\"a\"\n"
+	"	.pushsection __ex_table,\"a\"\n"
 	"	.align	3\n"
 	"	.long	1b, 4f, 2b, 4f\n"
-	"	.previous\n"
-	"	.section .fixup,\"ax\"\n"
+	"	.popsection\n"
+	"	.pushsection .fixup,\"ax\"\n"
 	"4:	mov	%0, %4\n"
 	"	b	3b\n"
-	"	.previous"
+	"	.popsection"
 	: "=&r" (val)
 	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
 	: "cc", "memory");

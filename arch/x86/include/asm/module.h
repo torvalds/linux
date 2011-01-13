@@ -1,18 +1,7 @@
 #ifndef _ASM_X86_MODULE_H
 #define _ASM_X86_MODULE_H
 
-/* x86_32/64 are simple */
-struct mod_arch_specific {};
-
-#ifdef CONFIG_X86_32
-# define Elf_Shdr Elf32_Shdr
-# define Elf_Sym Elf32_Sym
-# define Elf_Ehdr Elf32_Ehdr
-#else
-# define Elf_Shdr Elf64_Shdr
-# define Elf_Sym Elf64_Sym
-# define Elf_Ehdr Elf64_Ehdr
-#endif
+#include <asm-generic/module.h>
 
 #ifdef CONFIG_X86_64
 /* X86_64 does not define MODULE_PROC_FAMILY */
@@ -28,6 +17,8 @@ struct mod_arch_specific {};
 #define MODULE_PROC_FAMILY "586MMX "
 #elif defined CONFIG_MCORE2
 #define MODULE_PROC_FAMILY "CORE2 "
+#elif defined CONFIG_MATOM
+#define MODULE_PROC_FAMILY "ATOM "
 #elif defined CONFIG_M686
 #define MODULE_PROC_FAMILY "686 "
 #elif defined CONFIG_MPENTIUMII
@@ -69,12 +60,7 @@ struct mod_arch_specific {};
 #endif
 
 #ifdef CONFIG_X86_32
-# ifdef CONFIG_4KSTACKS
-#  define MODULE_STACKSIZE "4KSTACKS "
-# else
-#  define MODULE_STACKSIZE ""
-# endif
-# define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY MODULE_STACKSIZE
+# define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY
 #endif
 
 #endif /* _ASM_X86_MODULE_H */

@@ -41,6 +41,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/dma-mapping.h>
 
 #include "musb_core.h"
 #include "musb_host.h"
@@ -373,7 +374,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 		musb_save_toggle(qh, is_in, urb);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (urb->error_count)
+		if (status == 0 && urb->error_count)
 			status = -EXDEV;
 		break;
 	}
@@ -605,8 +606,14 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 	musb_writeb(ep->regs, MUSB_RXTYPE, qh->type_reg);
 	musb_writeb(ep->regs, MUSB_RXINTERVAL, qh->intv_reg);
 	/* NOTE: bulk combining rewrites high bits of maxpacket */
-	musb_writew(ep->regs, MUSB_RXMAXP,
-			qh->maxpacket | ((qh->hb_mult - 1) << 11));
+	/* Set RXMAXP with the FIFO size of the endpoint
+	 * to disable double buffer mode.
+	 */
+	if (musb->hwvers < MUSB_HWVERS_2000)
+		musb_writew(ep->regs, MUSB_RXMAXP, ep->max_packet_sz_rx);
+	else
+		musb_writew(ep->regs, MUSB_RXMAXP,
+				qh->maxpacket | ((qh->hb_mult - 1) << 11));
 
 	ep->rx_reinit = 0;
 }
@@ -653,6 +660,12 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 #endif
 
 	qh->segsize = length;
+
+	/*
+	 * Ensure the data reaches to main memory before starting
+	 * DMA transfer
+	 */
+	wmb();
 
 	if (!dma->channel_program(channel, pkt_size, mode,
 			urb->transfer_dma + offset, length)) {
@@ -1107,6 +1120,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	u32			status = 0;
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
+	bool			transfer_pending = false;
 
 	musb_ep_select(mbase, epnum);
 	tx_csr = musb_readw(epio, MUSB_TXCSR);
@@ -1267,7 +1281,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 				offset = d->offset;
 				length = d->length;
 			}
-		} else if (dma) {
+		} else if (dma && urb->transfer_buffer_length == qh->offset) {
 			done = true;
 		} else {
 			/* see if we need to send more data, or ZLP */
@@ -1280,6 +1294,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 			if (!done) {
 				offset = qh->offset;
 				length = urb->transfer_buffer_length - offset;
+				transfer_pending = true;
 			}
 		}
 	}
@@ -1299,10 +1314,13 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		urb->actual_length = qh->offset;
 		musb_advance_schedule(musb, urb, hw_ep, USB_DIR_OUT);
 		return;
-	} else	if (usb_pipeisoc(pipe) && dma) {
+	} else if ((usb_pipeisoc(pipe) || transfer_pending) && dma) {
 		if (musb_tx_dma_program(musb->dma_controller, hw_ep, qh, urb,
-				offset, length))
+				offset, length)) {
+			if (is_cppi_enabled() || tusb_dma_omap())
+				musb_h_tx_dma_start(hw_ep);
 			return;
+		}
 	} else	if (tx_csr & MUSB_TXCSR_DMAENAB) {
 		DBG(1, "not complete, but DMA enabled?\n");
 		return;
@@ -1317,6 +1335,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	 */
 	if (length > qh->maxpacket)
 		length = qh->maxpacket;
+	/* Unmap the buffer so that CPU can use it */
+	unmap_urb_for_dma(musb_to_hcd(musb), urb);
 	musb_write_fifo(hw_ep, length, urb->transfer_buffer + offset);
 	qh->segsize = length;
 
@@ -1639,18 +1659,18 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			c = musb->dma_controller;
 
 			if (usb_pipeisoc(pipe)) {
-				int status = 0;
+				int d_status = 0;
 				struct usb_iso_packet_descriptor *d;
 
 				d = urb->iso_frame_desc + qh->iso_idx;
 
 				if (iso_err) {
-					status = -EILSEQ;
+					d_status = -EILSEQ;
 					urb->error_count++;
 				}
 				if (rx_count > d->length) {
-					if (status == 0) {
-						status = -EOVERFLOW;
+					if (d_status == 0) {
+						d_status = -EOVERFLOW;
 						urb->error_count++;
 					}
 					DBG(2, "** OVERFLOW %d into %d\n",\
@@ -1659,7 +1679,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 					length = d->length;
 				} else
 					length = rx_count;
-				d->status = status;
+				d->status = d_status;
 				buf = urb->transfer_dma + d->offset;
 			} else {
 				length = rx_count;
@@ -1680,7 +1700,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				dma->desired_mode = 1;
 			if (rx_count < hw_ep->max_packet_sz_rx) {
 				length = rx_count;
-				dma->bDesiredMode = 0;
+				dma->desired_mode = 0;
 			} else {
 				length = urb->transfer_buffer_length;
 			}
@@ -1737,6 +1757,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 #endif	/* Mentor DMA */
 
 		if (!dma) {
+			/* Unmap the buffer so that CPU can use it */
+			unmap_urb_for_dma(musb_to_hcd(musb), urb);
 			done = musb_host_packet_rx(musb, urb,
 					epnum, iso_err);
 			DBG(6, "read %spacket\n", done ? "last " : "");
@@ -1768,6 +1790,9 @@ static int musb_schedule(
 	int			best_end, epnum;
 	struct musb_hw_ep	*hw_ep = NULL;
 	struct list_head	*head = NULL;
+	u8			toggle;
+	u8			txtype;
+	struct urb		*urb = next_urb(qh);
 
 	/* use fixed hardware for control and bulk */
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
@@ -1806,6 +1831,27 @@ static int musb_schedule(
 		diff -= (qh->maxpacket * qh->hb_mult);
 
 		if (diff >= 0 && best_diff > diff) {
+
+			/*
+			 * Mentor controller has a bug in that if we schedule
+			 * a BULK Tx transfer on an endpoint that had earlier
+			 * handled ISOC then the BULK transfer has to start on
+			 * a zero toggle.  If the BULK transfer starts on a 1
+			 * toggle then this transfer will fail as the mentor
+			 * controller starts the Bulk transfer on a 0 toggle
+			 * irrespective of the programming of the toggle bits
+			 * in the TXCSR register.  Check for this condition
+			 * while allocating the EP for a Tx Bulk transfer.  If
+			 * so skip this EP.
+			 */
+			hw_ep = musb->endpoints + epnum;
+			toggle = usb_gettoggle(urb->dev, qh->epnum, !is_in);
+			txtype = (musb_readb(hw_ep->regs, MUSB_TXTYPE)
+					>> 4) & 0x3;
+			if (!is_in && (qh->type == USB_ENDPOINT_XFER_BULK) &&
+				toggle && (txtype == USB_ENDPOINT_XFER_ISOC))
+				continue;
+
 			best_diff = diff;
 			best_end = epnum;
 		}
@@ -2009,6 +2055,7 @@ static int musb_urb_enqueue(
 		 * odd, rare, error prone, but legal.
 		 */
 		kfree(qh);
+		qh = NULL;
 		ret = 0;
 	} else
 		ret = musb_schedule(musb, qh,
@@ -2235,13 +2282,30 @@ static void musb_h_stop(struct usb_hcd *hcd)
 static int musb_bus_suspend(struct usb_hcd *hcd)
 {
 	struct musb	*musb = hcd_to_musb(hcd);
+	u8		devctl;
 
-	if (musb->xceiv->state == OTG_STATE_A_SUSPEND)
+	if (!is_host_active(musb))
 		return 0;
 
-	if (is_host_active(musb) && musb->is_active) {
-		WARNING("trying to suspend as %s is_active=%i\n",
-			otg_state_string(musb), musb->is_active);
+	switch (musb->xceiv->state) {
+	case OTG_STATE_A_SUSPEND:
+		return 0;
+	case OTG_STATE_A_WAIT_VRISE:
+		/* ID could be grounded even if there's no device
+		 * on the other end of the cable.  NOTE that the
+		 * A_WAIT_VRISE timers are messy with MUSB...
+		 */
+		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+		if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS)
+			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+		break;
+	default:
+		break;
+	}
+
+	if (musb->is_active) {
+		WARNING("trying to suspend as %s while active\n",
+				otg_state_string(musb));
 		return -EBUSY;
 	} else
 		return 0;

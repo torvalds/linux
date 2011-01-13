@@ -14,6 +14,7 @@
  */
 #include <linux/sched.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
 
 #include <asm/paravirt.h>
@@ -27,6 +28,7 @@
 #include <asm/xen/interface.h>
 #include <asm/xen/hypercall.h>
 
+#include <xen/xen.h>
 #include <xen/page.h>
 #include <xen/events.h>
 
@@ -35,10 +37,10 @@
 
 cpumask_var_t xen_cpu_initialized_map;
 
-static DEFINE_PER_CPU(int, resched_irq);
-static DEFINE_PER_CPU(int, callfunc_irq);
-static DEFINE_PER_CPU(int, callfuncsingle_irq);
-static DEFINE_PER_CPU(int, debug_irq) = -1;
+static DEFINE_PER_CPU(int, xen_resched_irq);
+static DEFINE_PER_CPU(int, xen_callfunc_irq);
+static DEFINE_PER_CPU(int, xen_callfuncsingle_irq);
+static DEFINE_PER_CPU(int, xen_debug_irq) = -1;
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id);
 static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
@@ -73,7 +75,7 @@ static __cpuinit void cpu_bringup(void)
 
 	xen_setup_cpu_clockevents();
 
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	percpu_write(cpu_state, CPU_ONLINE);
 	wmb();
 
@@ -103,7 +105,7 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(resched_irq, cpu) = rc;
+	per_cpu(xen_resched_irq, cpu) = rc;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfunc%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_VECTOR,
@@ -114,7 +116,7 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfunc_irq, cpu) = rc;
+	per_cpu(xen_callfunc_irq, cpu) = rc;
 
 	debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
 	rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu, xen_debug_interrupt,
@@ -122,7 +124,7 @@ static int xen_smp_intr_init(unsigned int cpu)
 				     debug_name, NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(debug_irq, cpu) = rc;
+	per_cpu(xen_debug_irq, cpu) = rc;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfuncsingle%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,
@@ -133,19 +135,20 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfuncsingle_irq, cpu) = rc;
+	per_cpu(xen_callfuncsingle_irq, cpu) = rc;
 
 	return 0;
 
  fail:
-	if (per_cpu(resched_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
-	if (per_cpu(callfunc_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
-	if (per_cpu(debug_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(debug_irq, cpu), NULL);
-	if (per_cpu(callfuncsingle_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfuncsingle_irq, cpu), NULL);
+	if (per_cpu(xen_resched_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
+	if (per_cpu(xen_callfunc_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
+	if (per_cpu(xen_debug_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
+	if (per_cpu(xen_callfuncsingle_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu),
+				       NULL);
 
 	return rc;
 }
@@ -154,11 +157,35 @@ static void __init xen_fill_possible_map(void)
 {
 	int i, rc;
 
+	if (xen_initial_domain())
+		return;
+
 	for (i = 0; i < nr_cpu_ids; i++) {
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
 		if (rc >= 0) {
 			num_processors++;
 			set_cpu_possible(i, true);
+		}
+	}
+}
+
+static void __init xen_filter_cpu_maps(void)
+{
+	int i, rc;
+
+	if (!xen_initial_domain())
+		return;
+
+	num_processors = 0;
+	disabled_cpus = 0;
+	for (i = 0; i < nr_cpu_ids; i++) {
+		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
+		if (rc >= 0) {
+			num_processors++;
+			set_cpu_possible(i, true);
+		} else {
+			set_cpu_possible(i, false);
+			set_cpu_present(i, false);
 		}
 	}
 }
@@ -172,6 +199,7 @@ static void __init xen_smp_prepare_boot_cpu(void)
 	   old memory can be recycled */
 	make_lowmem_page_readwrite(xen_initial_gdt);
 
+	xen_filter_cpu_maps();
 	xen_setup_vcpu_info_placement();
 }
 
@@ -236,6 +264,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->user_regs.ss = __KERNEL_DS;
 #ifdef CONFIG_X86_32
 	ctxt->user_regs.fs = __KERNEL_PERCPU;
+	ctxt->user_regs.gs = __KERNEL_STACK_CANARY;
 #else
 	ctxt->gs_base_kernel = per_cpu_offset(cpu);
 #endif
@@ -294,6 +323,7 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 		(unsigned long)task_stack_page(idle) -
 		KERNEL_STACK_OFFSET + THREAD_SIZE;
 #endif
+	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);
 	xen_init_lock_cpu(cpu);
 
@@ -347,10 +377,10 @@ static void xen_cpu_die(unsigned int cpu)
 		current->state = TASK_UNINTERRUPTIBLE;
 		schedule_timeout(HZ/10);
 	}
-	unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(debug_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(callfuncsingle_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
 	xen_uninit_lock_cpu(cpu);
 	xen_teardown_timer(cpu);
 
@@ -358,7 +388,7 @@ static void xen_cpu_die(unsigned int cpu)
 		alternatives_smp_switch(0);
 }
 
-static void __cpuinit xen_play_dead(void) /* used only with CPU_HOTPLUG */
+static void __cpuinit xen_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
@@ -390,13 +420,15 @@ static void stop_self(void *v)
 	load_cr3(swapper_pg_dir);
 	/* should set up a minimal gdt */
 
+	set_cpu_online(cpu, false);
+
 	HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL);
 	BUG();
 }
 
-static void xen_smp_send_stop(void)
+static void xen_stop_other_cpus(int wait)
 {
-	smp_call_function(stop_self, NULL, 0);
+	smp_call_function(stop_self, NULL, wait);
 }
 
 static void xen_smp_send_reschedule(int cpu)
@@ -464,7 +496,7 @@ static const struct smp_ops xen_smp_ops __initdata = {
 	.cpu_disable = xen_cpu_disable,
 	.play_dead = xen_play_dead,
 
-	.smp_send_stop = xen_smp_send_stop,
+	.stop_other_cpus = xen_stop_other_cpus,
 	.smp_send_reschedule = xen_smp_send_reschedule,
 
 	.send_call_func_ipi = xen_smp_send_call_function_ipi,

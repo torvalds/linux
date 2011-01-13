@@ -31,6 +31,7 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include "ubifs.h"
 
 /*
@@ -1159,8 +1160,8 @@ static struct ubifs_znode *dirty_cow_bottom_up(struct ubifs_info *c,
  *   o exact match, i.e. the found zero-level znode contains key @key, then %1
  *     is returned and slot number of the matched branch is stored in @n;
  *   o not exact match, which means that zero-level znode does not contain
- *     @key, then %0 is returned and slot number of the closed branch is stored
- *     in  @n;
+ *     @key, then %0 is returned and slot number of the closest branch is stored
+ *     in @n;
  *   o @key is so small that it is even less than the lowest key of the
  *     leftmost zero-level node, then %0 is returned and %0 is stored in @n.
  *
@@ -1176,6 +1177,7 @@ int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 	unsigned long time = get_seconds();
 
 	dbg_tnc("search key %s", DBGKEY(key));
+	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
 
 	znode = c->zroot.znode;
 	if (unlikely(!znode)) {
@@ -1433,7 +1435,7 @@ static int maybe_leb_gced(struct ubifs_info *c, int lnum, int gc_seq1)
  * @lnum: LEB number is returned here
  * @offs: offset is returned here
  *
- * This function look up and reads node with key @key. The caller has to make
+ * This function looks up and reads node with key @key. The caller has to make
  * sure the @node buffer is large enough to fit the node. Returns zero in case
  * of success, %-ENOENT if the node was not found, and a negative error code in
  * case of failure. The node location can be returned in @lnum and @offs.
@@ -2965,7 +2967,7 @@ static struct ubifs_znode *right_znode(struct ubifs_info *c,
  *
  * This function searches an indexing node by its first key @key and its
  * address @lnum:@offs. It looks up the indexing tree by pulling all indexing
- * nodes it traverses to TNC. This function is called fro indexing nodes which
+ * nodes it traverses to TNC. This function is called for indexing nodes which
  * were found on the media by scanning, for example when garbage-collecting or
  * when doing in-the-gaps commit. This means that the indexing node which is
  * looked for does not have to have exactly the same leftmost key @key, because
@@ -2986,6 +2988,8 @@ static struct ubifs_znode *lookup_znode(struct ubifs_info *c,
 {
 	struct ubifs_znode *znode, *zn;
 	int n, nn;
+
+	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
 
 	/*
 	 * The arguments have probably been read off flash, so don't assume
@@ -3268,3 +3272,73 @@ out_unlock:
 	mutex_unlock(&c->tnc_mutex);
 	return err;
 }
+
+#ifdef CONFIG_UBIFS_FS_DEBUG
+
+/**
+ * dbg_check_inode_size - check if inode size is correct.
+ * @c: UBIFS file-system description object
+ * @inum: inode number
+ * @size: inode size
+ *
+ * This function makes sure that the inode size (@size) is correct and it does
+ * not have any pages beyond @size. Returns zero if the inode is OK, %-EINVAL
+ * if it has a data page beyond @size, and other negative error code in case of
+ * other errors.
+ */
+int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
+			 loff_t size)
+{
+	int err, n;
+	union ubifs_key from_key, to_key, *key;
+	struct ubifs_znode *znode;
+	unsigned int block;
+
+	if (!S_ISREG(inode->i_mode))
+		return 0;
+	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+		return 0;
+
+	block = (size + UBIFS_BLOCK_SIZE - 1) >> UBIFS_BLOCK_SHIFT;
+	data_key_init(c, &from_key, inode->i_ino, block);
+	highest_data_key(c, &to_key, inode->i_ino);
+
+	mutex_lock(&c->tnc_mutex);
+	err = ubifs_lookup_level0(c, &from_key, &znode, &n);
+	if (err < 0)
+		goto out_unlock;
+
+	if (err) {
+		err = -EINVAL;
+		key = &from_key;
+		goto out_dump;
+	}
+
+	err = tnc_next(c, &znode, &n);
+	if (err == -ENOENT) {
+		err = 0;
+		goto out_unlock;
+	}
+	if (err < 0)
+		goto out_unlock;
+
+	ubifs_assert(err == 0);
+	key = &znode->zbranch[n].key;
+	if (!key_in_range(c, key, &from_key, &to_key))
+		goto out_unlock;
+
+out_dump:
+	block = key_block(c, key);
+	ubifs_err("inode %lu has size %lld, but there are data at offset %lld "
+		  "(data key %s)", (unsigned long)inode->i_ino, size,
+		  ((loff_t)block) << UBIFS_BLOCK_SHIFT, DBGKEY(key));
+	dbg_dump_inode(c, inode);
+	dbg_dump_stack();
+	err = -EINVAL;
+
+out_unlock:
+	mutex_unlock(&c->tnc_mutex);
+	return err;
+}
+
+#endif /* CONFIG_UBIFS_FS_DEBUG */

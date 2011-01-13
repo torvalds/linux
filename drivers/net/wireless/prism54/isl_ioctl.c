@@ -19,9 +19,11 @@
  *
  */
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 
 #include <asm/uaccess.h>
@@ -208,8 +210,6 @@ prism54_update_stats(struct work_struct *work)
 	priv->local_iwstatistics.discard.retries = r.u;
 
 	mutex_unlock(&priv->stats_lock);
-
-	return;
 }
 
 struct iw_statistics *
@@ -1896,7 +1896,7 @@ prism54_get_mac(struct net_device *ndev, struct iw_request_info *info,
 	return 0;
 }
 
-/* Setting policy also clears the MAC acl, even if we don't change the defaut
+/* Setting policy also clears the MAC acl, even if we don't change the default
  * policy
  */
 
@@ -2067,7 +2067,7 @@ send_simple_event(islpci_private *priv, const char *str)
 	memptr = kmalloc(IW_CUSTOM_MAX, GFP_KERNEL);
 	if (!memptr)
 		return;
-	BUG_ON(n > IW_CUSTOM_MAX);
+	BUG_ON(n >= IW_CUSTOM_MAX);
 	wrqu.data.pointer = memptr;
 	wrqu.data.length = n;
 	strcpy(memptr, str);
@@ -2101,7 +2101,7 @@ struct ieee80211_beacon_phdr {
 	u8 timestamp[8];
 	u16 beacon_int;
 	u16 capab_info;
-} __attribute__ ((packed));
+} __packed;
 
 #define WLAN_EID_GENERIC 0xdd
 static u8 wpa_oid[4] = { 0x00, 0x50, 0xf2, 1 };
@@ -2322,7 +2322,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 
 	case DOT11_OID_BEACON:
 		send_formatted_event(priv,
-				     "Received a beacon from an unkown AP",
+				     "Received a beacon from an unknown AP",
 				     mlme, 0);
 		break;
 
@@ -2751,14 +2751,9 @@ prism54_hostapd(struct net_device *ndev, struct iw_point *p)
            p->length > PRISM2_HOSTAPD_MAX_BUF_SIZE || !p->pointer)
                return -EINVAL;
 
-       param = kmalloc(p->length, GFP_KERNEL);
-       if (param == NULL)
-               return -ENOMEM;
-
-       if (copy_from_user(param, p->pointer, p->length)) {
-               kfree(param);
-               return -EFAULT;
-       }
+	param = memdup_user(p->pointer, p->length);
+	if (IS_ERR(param))
+		return PTR_ERR(param);
 
        switch (param->cmd) {
        case PRISM2_SET_ENCRYPTION:
@@ -3239,7 +3234,7 @@ prism54_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	switch (cmd) {
 		case PRISM54_HOSTAPD:
 		if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
+			return -EPERM;
 		ret = prism54_hostapd(ndev, &wrq->u.data);
 		return ret;
 	}

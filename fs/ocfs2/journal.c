@@ -48,6 +48,7 @@
 #include "slot_map.h"
 #include "super.h"
 #include "sysfile.h"
+#include "uptodate.h"
 #include "quota.h"
 
 #include "buffer_head_io.h"
@@ -300,7 +301,6 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 {
 	int status = 0;
 	unsigned int flushed;
-	unsigned long old_id;
 	struct ocfs2_journal *journal = NULL;
 
 	mlog_entry_void();
@@ -325,7 +325,7 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 		goto finally;
 	}
 
-	old_id = ocfs2_inc_trans_id(journal);
+	ocfs2_inc_trans_id(journal);
 
 	flushed = atomic_read(&journal->j_num_trans);
 	atomic_set(&journal->j_num_trans, 0);
@@ -341,9 +341,6 @@ finally:
 	return status;
 }
 
-/* pass it NULL and it will allocate a new handle object for you.  If
- * you pass it a handle however, it may still return error, in which
- * case it has free'd the passed handle for you. */
 handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 {
 	journal_t *journal = osb->journal->j_journal;
@@ -401,9 +398,7 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 }
 
 /*
- * 'nblocks' is what you want to add to the current
- * transaction. extend_trans will either extend the current handle by
- * nblocks, or commit it and start a new one with nblocks credits.
+ * 'nblocks' is what you want to add to the current transaction.
  *
  * This might call jbd2_journal_restart() which will commit dirty buffers
  * and then restart the transaction. Before calling
@@ -421,11 +416,15 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
  */
 int ocfs2_extend_trans(handle_t *handle, int nblocks)
 {
-	int status;
+	int status, old_nblocks;
 
 	BUG_ON(!handle);
-	BUG_ON(!nblocks);
+	BUG_ON(nblocks < 0);
 
+	if (!nblocks)
+		return 0;
+
+	old_nblocks = handle->h_buffer_credits;
 	mlog_entry_void();
 
 	mlog(0, "Trying to extend transaction by %d blocks\n", nblocks);
@@ -444,7 +443,8 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 		mlog(0,
 		     "jbd2_journal_extend failed, trying "
 		     "jbd2_journal_restart\n");
-		status = jbd2_journal_restart(handle, nblocks);
+		status = jbd2_journal_restart(handle,
+					      old_nblocks + nblocks);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -468,7 +468,7 @@ static inline struct ocfs2_triggers *to_ocfs2_trigger(struct jbd2_buffer_trigger
 	return container_of(triggers, struct ocfs2_triggers, ot_triggers);
 }
 
-static void ocfs2_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+static void ocfs2_frozen_trigger(struct jbd2_buffer_trigger_type *triggers,
 				 struct buffer_head *bh,
 				 void *data, size_t size)
 {
@@ -487,7 +487,7 @@ static void ocfs2_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
  * Quota blocks have their own trigger because the struct ocfs2_block_check
  * offset depends on the blocksize.
  */
-static void ocfs2_dq_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+static void ocfs2_dq_frozen_trigger(struct jbd2_buffer_trigger_type *triggers,
 				 struct buffer_head *bh,
 				 void *data, size_t size)
 {
@@ -507,7 +507,7 @@ static void ocfs2_dq_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
  * Directory blocks also have their own trigger because the
  * struct ocfs2_block_check offset depends on the blocksize.
  */
-static void ocfs2_db_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+static void ocfs2_db_frozen_trigger(struct jbd2_buffer_trigger_type *triggers,
 				 struct buffer_head *bh,
 				 void *data, size_t size)
 {
@@ -540,7 +540,7 @@ static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
 
 static struct ocfs2_triggers di_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_dinode, i_check),
@@ -548,15 +548,23 @@ static struct ocfs2_triggers di_triggers = {
 
 static struct ocfs2_triggers eb_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_extent_block, h_check),
 };
 
+static struct ocfs2_triggers rb_triggers = {
+	.ot_triggers = {
+		.t_frozen = ocfs2_frozen_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_refcount_block, rf_check),
+};
+
 static struct ocfs2_triggers gd_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_group_desc, bg_check),
@@ -564,14 +572,14 @@ static struct ocfs2_triggers gd_triggers = {
 
 static struct ocfs2_triggers db_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_db_commit_trigger,
+		.t_frozen = ocfs2_db_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 };
 
 static struct ocfs2_triggers xb_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_xattr_block, xb_check),
@@ -579,14 +587,14 @@ static struct ocfs2_triggers xb_triggers = {
 
 static struct ocfs2_triggers dq_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_dq_commit_trigger,
+		.t_frozen = ocfs2_dq_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 };
 
 static struct ocfs2_triggers dr_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_dx_root_block, dr_check),
@@ -594,21 +602,23 @@ static struct ocfs2_triggers dr_triggers = {
 
 static struct ocfs2_triggers dl_triggers = {
 	.ot_triggers = {
-		.t_commit = ocfs2_commit_trigger,
+		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
 	.ot_offset	= offsetof(struct ocfs2_dx_leaf, dl_check),
 };
 
 static int __ocfs2_journal_access(handle_t *handle,
-				  struct inode *inode,
+				  struct ocfs2_caching_info *ci,
 				  struct buffer_head *bh,
 				  struct ocfs2_triggers *triggers,
 				  int type)
 {
 	int status;
+	struct ocfs2_super *osb =
+		OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
 
-	BUG_ON(!inode);
+	BUG_ON(!ci || !ci->ci_ops);
 	BUG_ON(!handle);
 	BUG_ON(!bh);
 
@@ -627,15 +637,15 @@ static int __ocfs2_journal_access(handle_t *handle,
 		BUG();
 	}
 
-	/* Set the current transaction information on the inode so
+	/* Set the current transaction information on the ci so
 	 * that the locking code knows whether it can drop it's locks
-	 * on this inode or not. We're protected from the commit
+	 * on this ci or not. We're protected from the commit
 	 * thread updating the current transaction id until
 	 * ocfs2_commit_trans() because ocfs2_start_trans() took
 	 * j_trans_barrier for us. */
-	ocfs2_set_inode_lock_trans(OCFS2_SB(inode->i_sb)->journal, inode);
+	ocfs2_set_ci_lock_trans(osb->journal, ci);
 
-	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_lock(ci);
 	switch (type) {
 	case OCFS2_JOURNAL_ACCESS_CREATE:
 	case OCFS2_JOURNAL_ACCESS_WRITE:
@@ -648,11 +658,11 @@ static int __ocfs2_journal_access(handle_t *handle,
 
 	default:
 		status = -EINVAL;
-		mlog(ML_ERROR, "Uknown access type!\n");
+		mlog(ML_ERROR, "Unknown access type!\n");
 	}
-	if (!status && ocfs2_meta_ecc(OCFS2_SB(inode->i_sb)) && triggers)
+	if (!status && ocfs2_meta_ecc(osb) && triggers)
 		jbd2_journal_set_triggers(bh, &triggers->ot_triggers);
-	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_unlock(ci);
 
 	if (status < 0)
 		mlog(ML_ERROR, "Error %d getting %d access to buffer!\n",
@@ -662,70 +672,68 @@ static int __ocfs2_journal_access(handle_t *handle,
 	return status;
 }
 
-int ocfs2_journal_access_di(handle_t *handle, struct inode *inode,
-			       struct buffer_head *bh, int type)
-{
-	return __ocfs2_journal_access(handle, inode, bh, &di_triggers,
-				      type);
-}
-
-int ocfs2_journal_access_eb(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_di(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &eb_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &di_triggers, type);
 }
 
-int ocfs2_journal_access_gd(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_eb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &gd_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &eb_triggers, type);
 }
 
-int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_rb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &db_triggers,
+	return __ocfs2_journal_access(handle, ci, bh, &rb_triggers,
 				      type);
 }
 
-int ocfs2_journal_access_xb(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_gd(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &xb_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &gd_triggers, type);
 }
 
-int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_db(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &dq_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &db_triggers, type);
 }
 
-int ocfs2_journal_access_dr(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_xb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &dr_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &xb_triggers, type);
 }
 
-int ocfs2_journal_access_dl(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dq(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &dl_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &dq_triggers, type);
 }
 
-int ocfs2_journal_access(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dr(handle_t *handle, struct ocfs2_caching_info *ci,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, ci, bh, &dr_triggers, type);
+}
+
+int ocfs2_journal_access_dl(handle_t *handle, struct ocfs2_caching_info *ci,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, ci, bh, &dl_triggers, type);
+}
+
+int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
 			 struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, NULL, type);
+	return __ocfs2_journal_access(handle, ci, bh, NULL, type);
 }
 
-int ocfs2_journal_dirty(handle_t *handle,
-			struct buffer_head *bh)
+void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 {
 	int status;
 
@@ -733,13 +741,9 @@ int ocfs2_journal_dirty(handle_t *handle,
 		   (unsigned long long)bh->b_blocknr);
 
 	status = jbd2_journal_dirty_metadata(handle, bh);
-	if (status < 0)
-		mlog(ML_ERROR, "Could not dirty metadata buffer. "
-		     "(bh->b_blocknr=%llu)\n",
-		     (unsigned long long)bh->b_blocknr);
+	BUG_ON(status);
 
-	mlog_exit(status);
-	return status;
+	mlog_exit_void();
 }
 
 #define OCFS2_DEFAULT_COMMIT_INTERVAL	(HZ * JBD2_DEFAULT_MAX_COMMIT_AGE)
@@ -752,13 +756,13 @@ void ocfs2_set_journal_params(struct ocfs2_super *osb)
 	if (osb->osb_commit_interval)
 		commit_interval = osb->osb_commit_interval;
 
-	spin_lock(&journal->j_state_lock);
+	write_lock(&journal->j_state_lock);
 	journal->j_commit_interval = commit_interval;
 	if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
 		journal->j_flags |= JBD2_BARRIER;
 	else
 		journal->j_flags &= ~JBD2_BARRIER;
-	spin_unlock(&journal->j_state_lock);
+	write_unlock(&journal->j_state_lock);
 }
 
 int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
@@ -898,7 +902,7 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 		ocfs2_bump_recovery_generation(fe);
 
 	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &fe->i_check);
-	status = ocfs2_write_block(osb, bh, journal->j_inode);
+	status = ocfs2_write_block(osb, bh, INODE_CACHE(journal->j_inode));
 	if (status < 0)
 		mlog_errno(status);
 
@@ -1642,7 +1646,7 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 					ocfs2_get_recovery_generation(fe);
 
 	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &fe->i_check);
-	status = ocfs2_write_block(osb, bh, inode);
+	status = ocfs2_write_block(osb, bh, INODE_CACHE(inode));
 	if (status < 0)
 		mlog_errno(status);
 
@@ -1880,12 +1884,21 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 
 	os = &osb->osb_orphan_scan;
 
-	status = ocfs2_orphan_scan_lock(osb, &seqno, DLM_LOCK_EX);
+	mlog(0, "Begin orphan scan\n");
+
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
+		goto out;
+
+	status = ocfs2_orphan_scan_lock(osb, &seqno);
 	if (status < 0) {
 		if (status != -EAGAIN)
 			mlog_errno(status);
 		goto out;
 	}
+
+	/* Do no queue the tasks if the volume is being umounted */
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
+		goto unlock;
 
 	if (os->os_seqno != seqno) {
 		os->os_seqno = seqno;
@@ -1903,8 +1916,9 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 	os->os_count++;
 	os->os_scantime = CURRENT_TIME;
 unlock:
-	ocfs2_orphan_scan_unlock(osb, seqno, DLM_LOCK_EX);
+	ocfs2_orphan_scan_unlock(osb, seqno);
 out:
+	mlog(0, "Orphan scan completed\n");
 	return;
 }
 
@@ -1920,8 +1934,9 @@ void ocfs2_orphan_scan_work(struct work_struct *work)
 
 	mutex_lock(&os->os_lock);
 	ocfs2_queue_orphan_scan(osb);
-	schedule_delayed_work(&os->os_orphan_scan_work,
-			      ocfs2_orphan_scan_timeout());
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_ACTIVE)
+		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
+				      ocfs2_orphan_scan_timeout());
 	mutex_unlock(&os->os_lock);
 }
 
@@ -1930,26 +1945,39 @@ void ocfs2_orphan_scan_stop(struct ocfs2_super *osb)
 	struct ocfs2_orphan_scan *os;
 
 	os = &osb->osb_orphan_scan;
-	mutex_lock(&os->os_lock);
-	cancel_delayed_work(&os->os_orphan_scan_work);
-	mutex_unlock(&os->os_lock);
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_ACTIVE) {
+		atomic_set(&os->os_state, ORPHAN_SCAN_INACTIVE);
+		mutex_lock(&os->os_lock);
+		cancel_delayed_work(&os->os_orphan_scan_work);
+		mutex_unlock(&os->os_lock);
+	}
 }
 
-int ocfs2_orphan_scan_init(struct ocfs2_super *osb)
+void ocfs2_orphan_scan_init(struct ocfs2_super *osb)
 {
 	struct ocfs2_orphan_scan *os;
 
 	os = &osb->osb_orphan_scan;
 	os->os_osb = osb;
 	os->os_count = 0;
-	os->os_scantime = CURRENT_TIME;
+	os->os_seqno = 0;
 	mutex_init(&os->os_lock);
+	INIT_DELAYED_WORK(&os->os_orphan_scan_work, ocfs2_orphan_scan_work);
+}
 
-	INIT_DELAYED_WORK(&os->os_orphan_scan_work,
-			  ocfs2_orphan_scan_work);
-	schedule_delayed_work(&os->os_orphan_scan_work,
-			      ocfs2_orphan_scan_timeout());
-	return 0;
+void ocfs2_orphan_scan_start(struct ocfs2_super *osb)
+{
+	struct ocfs2_orphan_scan *os;
+
+	os = &osb->osb_orphan_scan;
+	os->os_scantime = CURRENT_TIME;
+	if (ocfs2_is_hard_readonly(osb) || ocfs2_mount_local(osb))
+		atomic_set(&os->os_state, ORPHAN_SCAN_INACTIVE);
+	else {
+		atomic_set(&os->os_state, ORPHAN_SCAN_ACTIVE);
+		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
+				   ocfs2_orphan_scan_timeout());
+	}
 }
 
 struct ocfs2_orphan_filldir_priv {
@@ -2003,7 +2031,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 		status = -ENOENT;
 		mlog_errno(status);
 		return status;
-	}	
+	}
 
 	mutex_lock(&orphan_dir_inode->i_mutex);
 	status = ocfs2_inode_lock(orphan_dir_inode, NULL, 0);

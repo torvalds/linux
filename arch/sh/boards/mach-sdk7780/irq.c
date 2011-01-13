@@ -37,9 +37,9 @@ void __init init_sdk7780_IRQ(void)
 {
 	printk(KERN_INFO "Using SDK7780 interrupt controller.\n");
 
-	ctrl_outw(0xFFFF, FPGA_IRQ0MR);
+	__raw_writew(0xFFFF, FPGA_IRQ0MR);
 	/* Setup IRL 0-3 */
-	ctrl_outw(0x0003, FPGA_IMSR);
+	__raw_writew(0x0003, FPGA_IMSR);
 	plat_irq_setup_pins(IRQ_MODE_IRL3210);
 
 	register_intc_controller(&fpga_intc_desc);

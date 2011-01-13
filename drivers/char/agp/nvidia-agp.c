@@ -8,7 +8,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/agp_backend.h>
-#include <linux/gfp.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h>
 #include <linux/jiffies.h>
@@ -225,7 +224,7 @@ static int nvidia_insert_memory(struct agp_memory *mem, off_t pg_start, int type
 	}
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
-			mem->pages[i], mask_type),
+			       page_to_phys(mem->pages[i]), mask_type),
 			agp_bridge->gatt_table+nvidia_private.pg_offset+j);
 	}
 
@@ -311,6 +310,7 @@ static const struct agp_bridge_driver nvidia_driver = {
 	.aperture_sizes		= nvidia_generic_sizes,
 	.size_type		= U8_APER_SIZE,
 	.num_aperture_sizes	= 5,
+	.needs_scratch_page	= true,
 	.configure		= nvidia_configure,
 	.fetch_size		= nvidia_fetch_size,
 	.cleanup		= nvidia_cleanup,

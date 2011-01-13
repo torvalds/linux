@@ -2,6 +2,7 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
@@ -103,9 +104,10 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	jffs2_erase_failed(c, jeb, bad_offset);
 }
 
-void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
+int jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 {
 	struct jffs2_eraseblock *jeb;
+	int work_done = 0;
 
 	mutex_lock(&c->erase_free_sem);
 
@@ -121,6 +123,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			mutex_unlock(&c->erase_free_sem);
 			jffs2_mark_erased_block(c, jeb);
 
+			work_done++;
 			if (!--count) {
 				D1(printk(KERN_DEBUG "Count reached. jffs2_erase_pending_blocks leaving\n"));
 				goto done;
@@ -148,7 +151,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 		}
 
 		/* Be nice */
-		yield();
+		cond_resched();
 		mutex_lock(&c->erase_free_sem);
 		spin_lock(&c->erase_completion_lock);
 	}
@@ -157,6 +160,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 	mutex_unlock(&c->erase_free_sem);
  done:
 	D1(printk(KERN_DEBUG "jffs2_erase_pending_blocks completed\n"));
+	return work_done;
 }
 
 static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
@@ -165,10 +169,11 @@ static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblo
 	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
 	list_move_tail(&jeb->list, &c->erase_complete_list);
+	/* Wake the GC thread to mark them clean */
+	jffs2_garbage_collect_trigger(c);
 	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->erase_free_sem);
-	/* Ensure that kupdated calls us again to mark them clean */
-	jffs2_erase_pending_trigger(c);
+	wake_up(&c->erase_wait);
 }
 
 static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t bad_offset)
@@ -270,19 +275,21 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 	D2({
 		int i=0;
 		struct jffs2_raw_node_ref *this;
-		printk(KERN_DEBUG "After remove_node_refs_from_ino_list: \n" KERN_DEBUG);
+		printk(KERN_DEBUG "After remove_node_refs_from_ino_list: \n");
 
 		this = ic->nodes;
 
+		printk(KERN_DEBUG);
 		while(this) {
-			printk( "0x%08x(%d)->", ref_offset(this), ref_flags(this));
+			printk(KERN_CONT "0x%08x(%d)->",
+			       ref_offset(this), ref_flags(this));
 			if (++i == 5) {
-				printk("\n" KERN_DEBUG);
+				printk(KERN_DEBUG);
 				i=0;
 			}
 			this = this->next_in_ino;
 		}
-		printk("\n");
+		printk(KERN_CONT "\n");
 	});
 
 	switch (ic->class) {
@@ -485,9 +492,9 @@ filebad:
 
 refile:
 	/* Stick it back on the list from whence it came and come back later */
-	jffs2_erase_pending_trigger(c);
 	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
+	jffs2_garbage_collect_trigger(c);
 	list_move(&jeb->list, &c->erase_complete_list);
 	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->erase_free_sem);

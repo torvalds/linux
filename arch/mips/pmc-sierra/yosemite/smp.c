@@ -1,5 +1,6 @@
 #include <linux/linkage.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 
 #include <asm/pmon.h>
 #include <asm/titan_dep.h>
@@ -7,7 +8,7 @@
 
 #define LAUNCHSTACK_SIZE 256
 
-static __cpuinitdata DEFINE_SPINLOCK(launch_lock);
+static __cpuinitdata arch_spinlock_t launch_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 static unsigned long secondary_sp __cpuinitdata;
 static unsigned long secondary_gp __cpuinitdata;
@@ -19,7 +20,7 @@ static void __init prom_smp_bootstrap(void)
 {
 	local_irq_disable();
 
-	while (spin_is_locked(&launch_lock));
+	while (arch_spin_is_locked(&launch_lock));
 
 	__asm__ __volatile__(
 	"	move	$sp, %0		\n"
@@ -36,7 +37,7 @@ static void __init prom_smp_bootstrap(void)
  */
 void __init prom_grab_secondary(void)
 {
-	spin_lock(&launch_lock);
+	arch_spin_lock(&launch_lock);
 
 	pmon_cpustart(1, &prom_smp_bootstrap,
 	              launchstack + LAUNCHSTACK_SIZE, 0);
@@ -96,11 +97,11 @@ static void yos_send_ipi_single(int cpu, unsigned int action)
 	}
 }
 
-static void yos_send_ipi_mask(cpumask_t mask, unsigned int action)
+static void yos_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 {
 	unsigned int i;
 
-	for_each_cpu_mask(i, mask)
+	for_each_cpu(i, mask)
 		yos_send_ipi_single(i, action);
 }
 
@@ -137,7 +138,7 @@ static void __cpuinit yos_boot_secondary(int cpu, struct task_struct *idle)
 	secondary_sp = sp;
 	secondary_gp = gp;
 
-	spin_unlock(&launch_lock);
+	arch_spin_unlock(&launch_lock);
 }
 
 /*

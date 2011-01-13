@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/freezer.h>
@@ -29,9 +30,9 @@
 static int mmc_prep_request(struct request_queue *q, struct request *req)
 {
 	/*
-	 * We only like normal block requests.
+	 * We only like normal block requests and discards.
 	 */
-	if (!blk_fs_request(req)) {
+	if (req->cmd_type != REQ_TYPE_FS && !(req->cmd_flags & REQ_DISCARD)) {
 		blk_dump_rq_flags(req, "MMC bad request");
 		return BLKPREP_KILL;
 	}
@@ -90,9 +91,10 @@ static void mmc_request(struct request_queue *q)
 	struct request *req;
 
 	if (!mq) {
-		printk(KERN_ERR "MMC: killing requests for dead queue\n");
-		while ((req = blk_fetch_request(q)) != NULL)
+		while ((req = blk_fetch_request(q)) != NULL) {
+			req->cmd_flags |= REQ_QUIET;
 			__blk_end_request_all(req, -EIO);
+		}
 		return;
 	}
 
@@ -126,11 +128,25 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	mq->req = NULL;
 
 	blk_queue_prep_rq(mq->queue, mmc_prep_request);
-	blk_queue_ordered(mq->queue, QUEUE_ORDERED_DRAIN, NULL);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, mq->queue);
+	if (mmc_can_erase(card)) {
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mq->queue);
+		mq->queue->limits.max_discard_sectors = UINT_MAX;
+		if (card->erased_byte == 0)
+			mq->queue->limits.discard_zeroes_data = 1;
+		if (!mmc_can_trim(card) && is_power_of_2(card->erase_size)) {
+			mq->queue->limits.discard_granularity =
+							card->erase_size << 9;
+			mq->queue->limits.discard_alignment =
+							card->erase_size << 9;
+		}
+		if (mmc_can_secure_erase_trim(card))
+			queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD,
+						mq->queue);
+	}
 
 #ifdef CONFIG_MMC_BLOCK_BOUNCE
-	if (host->max_hw_segs == 1) {
+	if (host->max_segs == 1) {
 		unsigned int bouncesz;
 
 		bouncesz = MMC_QUEUE_BOUNCESZ;
@@ -153,9 +169,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 		if (mq->bounce_buf) {
 			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
-			blk_queue_max_sectors(mq->queue, bouncesz / 512);
-			blk_queue_max_phys_segments(mq->queue, bouncesz / 512);
-			blk_queue_max_hw_segments(mq->queue, bouncesz / 512);
+			blk_queue_max_hw_sectors(mq->queue, bouncesz / 512);
+			blk_queue_max_segments(mq->queue, bouncesz / 512);
 			blk_queue_max_segment_size(mq->queue, bouncesz);
 
 			mq->sg = kmalloc(sizeof(struct scatterlist),
@@ -179,24 +194,25 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 	if (!mq->bounce_buf) {
 		blk_queue_bounce_limit(mq->queue, limit);
-		blk_queue_max_sectors(mq->queue,
+		blk_queue_max_hw_sectors(mq->queue,
 			min(host->max_blk_count, host->max_req_size / 512));
-		blk_queue_max_phys_segments(mq->queue, host->max_phys_segs);
-		blk_queue_max_hw_segments(mq->queue, host->max_hw_segs);
+		blk_queue_max_segments(mq->queue, host->max_segs);
 		blk_queue_max_segment_size(mq->queue, host->max_seg_size);
 
 		mq->sg = kmalloc(sizeof(struct scatterlist) *
-			host->max_phys_segs, GFP_KERNEL);
+			host->max_segs, GFP_KERNEL);
 		if (!mq->sg) {
 			ret = -ENOMEM;
 			goto cleanup_queue;
 		}
-		sg_init_table(mq->sg, host->max_phys_segs);
+		sg_init_table(mq->sg, host->max_segs);
 	}
 
-	init_MUTEX(&mq->thread_sem);
+	sema_init(&mq->thread_sem, 1);
 
-	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd");
+	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd/%d",
+		host->index);
+
 	if (IS_ERR(mq->thread)) {
 		ret = PTR_ERR(mq->thread);
 		goto free_bounce_sg;
@@ -223,16 +239,17 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
-	/* Mark that we should start throwing out stragglers */
-	spin_lock_irqsave(q->queue_lock, flags);
-	q->queuedata = NULL;
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
 	/* Make sure the queue isn't suspended, as that will deadlock */
 	mmc_queue_resume(mq);
 
 	/* Then terminate our worker thread */
 	kthread_stop(mq->thread);
+
+	/* Empty the queue */
+	spin_lock_irqsave(q->queue_lock, flags);
+	q->queuedata = NULL;
+	blk_start_queue(q);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 
  	if (mq->bounce_sg)
  		kfree(mq->bounce_sg);
@@ -244,8 +261,6 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	if (mq->bounce_buf)
 		kfree(mq->bounce_buf);
 	mq->bounce_buf = NULL;
-
-	blk_cleanup_queue(mq->queue);
 
 	mq->card = NULL;
 }

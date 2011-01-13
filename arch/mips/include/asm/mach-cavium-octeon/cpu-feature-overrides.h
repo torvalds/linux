@@ -31,12 +31,16 @@
 #define cpu_has_cache_cdex_s	0
 #define cpu_has_prefetch	1
 
-/*
- * We should disable LL/SC on non SMP systems as it is faster to
- * disable interrupts for atomic access than a LL/SC.  Unfortunatly we
- * cannot as this breaks asm/futex.h
- */
 #define cpu_has_llsc		1
+/*
+ * We Disable LL/SC on non SMP systems as it is faster to disable
+ * interrupts for atomic access than a LL/SC.
+ */
+#ifdef CONFIG_SMP
+# define kernel_uses_llsc	1
+#else
+# define kernel_uses_llsc	0
+#endif
 #define cpu_has_vtag_icache	1
 #define cpu_has_dc_aliases	0
 #define cpu_has_ic_fills_f_dc	0
@@ -54,21 +58,21 @@
 #define cpu_has_vint		0
 #define cpu_has_veic		0
 #define cpu_hwrena_impl_bits	0xc0000000
-#define ARCH_HAS_READ_CURRENT_TIMER 1
+
+#define kernel_uses_smartmips_rixi (cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
+
 #define ARCH_HAS_IRQ_PER_CPU	1
 #define ARCH_HAS_SPINLOCK_PREFETCH 1
 #define spin_lock_prefetch(x) prefetch(x)
 #define PREFETCH_STRIDE 128
 
-static inline int read_current_timer(unsigned long *result)
-{
-	asm volatile ("rdhwr %0,$31\n"
-#ifndef CONFIG_64BIT
-		      "\tsll %0, 0"
+#ifdef __OCTEON__
+/*
+ * All gcc versions that have OCTEON support define __OCTEON__ and have the
+ *  __builtin_popcount support.
+ */
+#define ARCH_HAS_USABLE_BUILTIN_POPCOUNT 1
 #endif
-		      : "=r" (*result));
-	return 0;
-}
 
 static inline int octeon_has_saa(void)
 {
@@ -76,5 +80,11 @@ static inline int octeon_has_saa(void)
 	asm volatile ("mfc0 %0, $15,0" : "=r" (id));
 	return id >= 0x000d0300;
 }
+
+/*
+ * The last 256MB are reserved for device to device mappings and the
+ * BAR1 hole.
+ */
+#define MAX_DMA32_PFN (((1ULL << 32) - (1ULL << 28)) >> PAGE_SHIFT)
 
 #endif

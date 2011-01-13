@@ -15,13 +15,12 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/reboot.h>
 #include <linux/init_task.h>
@@ -42,9 +41,9 @@
  */
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
-union thread_union init_thread_union
-__attribute__((section(".data.init_task"), aligned(THREAD_SIZE)))
-       = { INIT_THREAD_INFO(init_task) };
+union thread_union init_thread_union __init_task_data
+	__attribute__((aligned(THREAD_SIZE))) =
+		{ INIT_THREAD_INFO(init_task) };
 
 /* initial task structure */
 struct task_struct init_task = INIT_TASK(init_task);
@@ -251,6 +250,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	p->thread.usp = usp;
 	p->thread.ksp = (unsigned long)childstack;
+
+	if (clone_flags & CLONE_SETTLS)
+		task_thread_info(p)->tp_value = regs->d5;
+
 	/*
 	 * Must save the current SFC/DFC value, NOT the value when
 	 * the parent was last descheduled - RGH  10-08-96
@@ -311,21 +314,20 @@ EXPORT_SYMBOL(dump_fpu);
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char __user *name, char __user * __user *argv, char __user * __user *envp)
+asmlinkage int sys_execve(const char __user *name,
+			  const char __user *const __user *argv,
+			  const char __user *const __user *envp)
 {
 	int error;
 	char * filename;
 	struct pt_regs *regs = (struct pt_regs *) &name;
 
-	lock_kernel();
 	filename = getname(name);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
-		goto out;
+		return error;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
-out:
-	unlock_kernel();
 	return error;
 }
 

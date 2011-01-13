@@ -2,8 +2,8 @@
  *  bcu.c, Bus Control Unit routines for the NEC VR4100 series.
  *
  *  Copyright (C) 2002  MontaVista Software Inc.
- *    Author: Yoichi Yuasa <yyuasa@mvista.com, or source@mvista.com>
- *  Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *    Author: Yoichi Yuasa <source@mvista.com>
+ *  Copyright (C) 2003-2005  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,11 +21,11 @@
  */
 /*
  * Changes:
- *  MontaVista Software Inc. <yyuasa@mvista.com> or <source@mvista.com>
+ *  MontaVista Software Inc. <source@mvista.com>
  *  - New creation, NEC VR4122 and VR4131 are supported.
  *  - Added support for NEC VR4111 and VR4121.
  *
- *  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Yoichi Yuasa <yuasa@linux-mips.org>
  *  - Added support for NEC VR4133.
  */
 #include <linux/kernel.h>

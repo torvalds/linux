@@ -36,9 +36,9 @@ verify "$3"
 
 # User may have a custom install script
 
-if [ -x ~/bin/${CROSS_COMPILE}installkernel ]; then exec ~/bin/${CROSS_COMPILE}installkernel "$@"; fi
-if which ${CROSS_COMPILE}installkernel >/dev/null 2>&1; then
-	exec ${CROSS_COMPILE}installkernel "$@"
+if [ -x ~/bin/${INSTALLKERNEL} ]; then exec ~/bin/${INSTALLKERNEL} "$@"; fi
+if which ${INSTALLKERNEL} >/dev/null 2>&1; then
+	exec ${INSTALLKERNEL} "$@"
 fi
 
 # Default install - same as make zlilo

@@ -12,6 +12,9 @@
  *
  */
 
+#include <asm/exception-64s.h>
+#include <asm/ptrace.h>
+
 /*
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code
@@ -20,18 +23,6 @@
  * 0x6000 - 0x6fff : Initial (CPU0) segment table
  * 0x7000 - 0x7fff : FWNMI data area
  * 0x8000 -        : Early init and support code
- */
-
-
-/*
- *   SPRG Usage
- *
- *   Register	Definition
- *
- *   SPRG0	reserved for hypervisor
- *   SPRG1	temp - used to save gpr
- *   SPRG2	temp - used to save gpr
- *   SPRG3	virt addr of paca
  */
 
 /*
@@ -51,34 +42,47 @@ __start_interrupts:
 	. = 0x200
 _machine_check_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13		/* save r13 */
+	DO_KVM	0x200
+	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 	. = 0x300
 	.globl data_access_pSeries
 data_access_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13
+	DO_KVM	0x300
+	mtspr	SPRN_SPRG_SCRATCH0,r13
 BEGIN_FTR_SECTION
-	mtspr	SPRN_SPRG2,r12
-	mfspr	r13,SPRN_DAR
-	mfspr	r12,SPRN_DSISR
-	srdi	r13,r13,60
-	rlwimi	r13,r12,16,0x20
-	mfcr	r12
-	cmpwi	r13,0x2c
+	mfspr	r13,SPRN_SPRG_PACA
+	std	r9,PACA_EXSLB+EX_R9(r13)
+	std	r10,PACA_EXSLB+EX_R10(r13)
+	mfspr	r10,SPRN_DAR
+	mfspr	r9,SPRN_DSISR
+	srdi	r10,r10,60
+	rlwimi	r10,r9,16,0x20
+	mfcr	r9
+	cmpwi	r10,0x2c
 	beq	do_stab_bolted_pSeries
-	mtcrf	0x80,r12
-	mfspr	r12,SPRN_SPRG2
-END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
+	ld	r10,PACA_EXSLB+EX_R10(r13)
+	std	r11,PACA_EXGEN+EX_R11(r13)
+	ld	r11,PACA_EXSLB+EX_R9(r13)
+	std	r12,PACA_EXGEN+EX_R12(r13)
+	mfspr	r12,SPRN_SPRG_SCRATCH0
+	std	r10,PACA_EXGEN+EX_R10(r13)
+	std	r11,PACA_EXGEN+EX_R9(r13)
+	std	r12,PACA_EXGEN+EX_R13(r13)
+	EXCEPTION_PROLOG_PSERIES_1(data_access_common)
+FTR_SECTION_ELSE
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common)
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
 
 	. = 0x380
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13
-	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
+	DO_KVM	0x380
+	mtspr	SPRN_SPRG_SCRATCH0,r13
+	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
@@ -91,7 +95,7 @@ data_access_slb_pSeries:
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG1
+	mfspr	r10,SPRN_SPRG_SCRATCH0
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 #ifndef CONFIG_RELOCATABLE
@@ -115,8 +119,9 @@ data_access_slb_pSeries:
 	.globl instruction_access_slb_pSeries
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13
-	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
+	DO_KVM	0x480
+	mtspr	SPRN_SPRG_SCRATCH0,r13
+	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
@@ -129,7 +134,7 @@ instruction_access_slb_pSeries:
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG1
+	mfspr	r10,SPRN_SPRG_SCRATCH0
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 #ifndef CONFIG_RELOCATABLE
@@ -154,12 +159,13 @@ instruction_access_slb_pSeries:
 	.globl	system_call_pSeries
 system_call_pSeries:
 	HMT_MEDIUM
+	DO_KVM	0xc00
 BEGIN_FTR_SECTION
 	cmpdi	r0,0x1ebe
 	beq-	1f
 END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	mr	r9,r13
-	mfspr	r13,SPRN_SPRG3
+	mfspr	r13,SPRN_SPRG_PACA
 	mfspr	r11,SPRN_SRR0
 	ld	r12,PACAKBASE(r13)
 	ld	r10,PACAKMSR(r13)
@@ -185,13 +191,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	 * prolog code of the PerformanceMonitor one. A little
 	 * trickery is thus necessary
 	 */
+performance_monitor_pSeries_1:
 	. = 0xf00
+	DO_KVM	0xf00
 	b	performance_monitor_pSeries
 
+altivec_unavailable_pSeries_1:
 	. = 0xf20
+	DO_KVM	0xf20
 	b	altivec_unavailable_pSeries
 
+vsx_unavailable_pSeries_1:
 	. = 0xf40
+	DO_KVM	0xf40
 	b	vsx_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
@@ -228,15 +240,17 @@ masked_interrupt:
 	rotldi	r10,r10,16
 	mtspr	SPRN_SRR1,r10
 	ld	r10,PACA_EXGEN+EX_R10(r13)
-	mfspr	r13,SPRN_SPRG1
+	mfspr	r13,SPRN_SPRG_SCRATCH0
 	rfid
 	b	.
 
 	.align	7
 do_stab_bolted_pSeries:
-	mtcrf	0x80,r12
-	mfspr	r12,SPRN_SPRG2
-	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
+	std	r11,PACA_EXSLB+EX_R11(r13)
+	std	r12,PACA_EXSLB+EX_R12(r13)
+	mfspr	r10,SPRN_SPRG_SCRATCH0
+	std	r10,PACA_EXSLB+EX_R13(r13)
+	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted)
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -246,14 +260,14 @@ do_stab_bolted_pSeries:
       .align 7
 system_reset_fwnmi:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13		/* save r13 */
+	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 
 	.globl machine_check_fwnmi
       .align 7
 machine_check_fwnmi:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13		/* save r13 */
+	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 #endif /* CONFIG_PPC_PSERIES */
@@ -268,7 +282,7 @@ slb_miss_user_pseries:
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	std	r11,PACA_EXGEN+EX_R11(r13)
 	std	r12,PACA_EXGEN+EX_R12(r13)
-	mfspr	r10,SPRG1
+	mfspr	r10,SPRG_SCRATCH0
 	ld	r11,PACA_EXSLB+EX_R9(r13)
 	ld	r12,PACA_EXSLB+EX_R3(r13)
 	std	r10,PACA_EXGEN+EX_R13(r13)
@@ -285,6 +299,12 @@ slb_miss_user_pseries:
 	rfid
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
+
+/* KVM's trampoline code needs to be close to the interrupt handlers */
+
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include "../kvm/book3s_rmhandlers.S"
+#endif
 
 	.align	7
 	.globl	__end_interrupts
@@ -722,12 +742,20 @@ _STATIC(do_hash_page)
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
 
-	andis.	r0,r4,0xa450		/* weird error? */
+	andis.	r0,r4,0xa410		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
+	andis.  r0,r4,DSISR_DABRMATCH@h
+	bne-    handle_dabr_fault
+
 BEGIN_FTR_SECTION
 	andis.	r0,r4,0x0020		/* Is it a segment table fault? */
 	bne-	do_ste_alloc		/* If so handle it */
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
+
+	clrrdi	r11,r1,THREAD_SHIFT
+	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
+	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
+	bne	77f			/* then don't call hash_page now */
 
 	/*
 	 * On iSeries, we soft-disable interrupts here, then
@@ -797,13 +825,22 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 	/*
 	 * hash_page couldn't handle it, set soft interrupt enable back
-	 * to what it was before the trap.  Note that .raw_local_irq_restore
+	 * to what it was before the trap.  Note that .arch_local_irq_restore
 	 * handles any interrupts pending at this point.
 	 */
 	ld	r3,SOFTE(r1)
 	TRACE_AND_RESTORE_IRQ_PARTIAL(r3, 11f)
-	bl	.raw_local_irq_restore
+	bl	.arch_local_irq_restore
 	b	11f
+
+/* We have a data breakpoint exception - handle it */
+handle_dabr_fault:
+	bl	.save_nvgprs
+	ld      r4,_DAR(r1)
+	ld      r5,_DSISR(r1)
+	addi    r3,r1,STACK_FRAME_OVERHEAD
+	bl      .do_dabr
+	b       .ret_from_except_lite
 
 /* Here we have a page fault that hash_page can't handle. */
 handle_page_fault:
@@ -831,6 +868,20 @@ handle_page_fault:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r4,_DAR(r1)
 	bl	.low_hash_fault
+	b	.ret_from_except
+
+/*
+ * We come here as a result of a DSI at a point where we don't want
+ * to call hash_page, such as when we are accessing memory (possibly
+ * user memory) inside a PMU interrupt that occurred while interrupts
+ * were soft-disabled.  We want to invoke the exception handler for
+ * the access, or panic if there isn't a handler.
+ */
+77:	bl	.save_nvgprs
+	mr	r4,r3
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	li	r5,SIGSEGV
+	bl	.bad_page_fault
 	b	.ret_from_except
 
 	/* here we have a segment miss */

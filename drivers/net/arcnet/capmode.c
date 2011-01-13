@@ -27,6 +27,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/if_arp.h>
 #include <net/arp.h>
@@ -35,69 +36,6 @@
 #include <linux/arcdevice.h>
 
 #define VERSION "arcnet: cap mode (`c') encapsulation support loaded.\n"
-
-
-static void rx(struct net_device *dev, int bufnum,
-	       struct archdr *pkthdr, int length);
-static int build_header(struct sk_buff *skb,
-			struct net_device *dev,
-			unsigned short type,
-			uint8_t daddr);
-static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
-		      int bufnum);
-static int ack_tx(struct net_device *dev, int acked);
-
-
-static struct ArcProto capmode_proto =
-{
-	'r',
-	XMTU,
-	0,
-       	rx,
-	build_header,
-	prepare_tx,
-	NULL,
-	ack_tx
-};
-
-
-static void arcnet_cap_init(void)
-{
-	int count;
-
-	for (count = 1; count <= 8; count++)
-		if (arc_proto_map[count] == arc_proto_default)
-			arc_proto_map[count] = &capmode_proto;
-
-	/* for cap mode, we only set the bcast proto if there's no better one */
-	if (arc_bcast_proto == arc_proto_default)
-		arc_bcast_proto = &capmode_proto;
-
-	arc_proto_default = &capmode_proto;
-	arc_raw_proto = &capmode_proto;
-}
-
-
-#ifdef MODULE
-
-static int __init capmode_module_init(void)
-{
-	printk(VERSION);
-	arcnet_cap_init();
-	return 0;
-}
-
-static void __exit capmode_module_exit(void)
-{
-	arcnet_unregister_proto(&capmode_proto);
-}
-module_init(capmode_module_init);
-module_exit(capmode_module_exit);
-
-MODULE_LICENSE("GPL");
-#endif				/* MODULE */
-
-
 
 /* packet receiver */
 static void rx(struct net_device *dev, int bufnum,
@@ -149,7 +87,6 @@ static void rx(struct net_device *dev, int bufnum,
 	BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
 
 	skb->protocol = cpu_to_be16(ETH_P_ARCNET);
-;
 	netif_rx(skb);
 }
 
@@ -231,65 +168,107 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	BUGMSG(D_DURING, "prepare_tx: length=%d ofs=%d\n",
 	       length,ofs);
 
-	// Copy the arcnet-header + the protocol byte down:
+	/* Copy the arcnet-header + the protocol byte down: */
 	lp->hw.copy_to_card(dev, bufnum, 0, hard, ARC_HDR_SIZE);
 	lp->hw.copy_to_card(dev, bufnum, ofs, &pkt->soft.cap.proto,
 			    sizeof(pkt->soft.cap.proto));
 
-	// Skip the extra integer we have written into it as a cookie
-	// but write the rest of the message:
+	/* Skip the extra integer we have written into it as a cookie
+	   but write the rest of the message: */
 	lp->hw.copy_to_card(dev, bufnum, ofs+1,
 			    ((unsigned char*)&pkt->soft.cap.mes),length-1);
 
 	lp->lastload_dest = hard->dest;
 
-	return 1;		/* done */
+	return 1;	/* done */
 }
-
 
 static int ack_tx(struct net_device *dev, int acked)
 {
-  struct arcnet_local *lp = netdev_priv(dev);
-  struct sk_buff *ackskb;
-  struct archdr *ackpkt;
-  int length=sizeof(struct arc_cap);
+	struct arcnet_local *lp = netdev_priv(dev);
+	struct sk_buff *ackskb;
+	struct archdr *ackpkt;
+	int length=sizeof(struct arc_cap);
 
-  BUGMSG(D_DURING, "capmode: ack_tx: protocol: %x: result: %d\n",
-	 lp->outgoing.skb->protocol, acked);
+	BUGMSG(D_DURING, "capmode: ack_tx: protocol: %x: result: %d\n",
+		lp->outgoing.skb->protocol, acked);
 
-  BUGLVL(D_SKB) arcnet_dump_skb(dev, lp->outgoing.skb, "ack_tx");
+	BUGLVL(D_SKB) arcnet_dump_skb(dev, lp->outgoing.skb, "ack_tx");
 
-  /* Now alloc a skb to send back up through the layers: */
-  ackskb = alloc_skb(length + ARC_HDR_SIZE , GFP_ATOMIC);
-  if (ackskb == NULL) {
-	  BUGMSG(D_NORMAL, "Memory squeeze, can't acknowledge.\n");
-	  goto free_outskb;
-  }
+	/* Now alloc a skb to send back up through the layers: */
+	ackskb = alloc_skb(length + ARC_HDR_SIZE , GFP_ATOMIC);
+	if (ackskb == NULL) {
+		BUGMSG(D_NORMAL, "Memory squeeze, can't acknowledge.\n");
+		goto free_outskb;
+	}
 
-  skb_put(ackskb, length + ARC_HDR_SIZE );
-  ackskb->dev = dev;
+	skb_put(ackskb, length + ARC_HDR_SIZE );
+	ackskb->dev = dev;
 
-  skb_reset_mac_header(ackskb);
-  ackpkt = (struct archdr *)skb_mac_header(ackskb);
-  /* skb_pull(ackskb, ARC_HDR_SIZE); */
+	skb_reset_mac_header(ackskb);
+	ackpkt = (struct archdr *)skb_mac_header(ackskb);
+	/* skb_pull(ackskb, ARC_HDR_SIZE); */
 
+	skb_copy_from_linear_data(lp->outgoing.skb, ackpkt,
+				  ARC_HDR_SIZE + sizeof(struct arc_cap));
+	ackpkt->soft.cap.proto = 0; /* using protocol 0 for acknowledge */
+	ackpkt->soft.cap.mes.ack=acked;
 
-  skb_copy_from_linear_data(lp->outgoing.skb, ackpkt,
-		ARC_HDR_SIZE + sizeof(struct arc_cap));
-  ackpkt->soft.cap.proto=0; /* using protocol 0 for acknowledge */
-  ackpkt->soft.cap.mes.ack=acked;
+	BUGMSG(D_PROTO, "Ackknowledge for cap packet %x.\n",
+			*((int*)&ackpkt->soft.cap.cookie[0]));
 
-  BUGMSG(D_PROTO, "Ackknowledge for cap packet %x.\n",
-	 *((int*)&ackpkt->soft.cap.cookie[0]));
+	ackskb->protocol = cpu_to_be16(ETH_P_ARCNET);
 
-  ackskb->protocol = cpu_to_be16(ETH_P_ARCNET);
+	BUGLVL(D_SKB) arcnet_dump_skb(dev, ackskb, "ack_tx_recv");
+	netif_rx(ackskb);
 
-  BUGLVL(D_SKB) arcnet_dump_skb(dev, ackskb, "ack_tx_recv");
-  netif_rx(ackskb);
+free_outskb:
+	dev_kfree_skb_irq(lp->outgoing.skb);
+	lp->outgoing.proto = NULL; /* We are always finished when in this protocol */
 
- free_outskb:
-  dev_kfree_skb_irq(lp->outgoing.skb);
-  lp->outgoing.proto = NULL; /* We are always finished when in this protocol */
-
-  return 0;
+	return 0;
 }
+
+static struct ArcProto capmode_proto =
+{
+	'r',
+	XMTU,
+	0,
+	rx,
+	build_header,
+	prepare_tx,
+	NULL,
+	ack_tx
+};
+
+static void arcnet_cap_init(void)
+{
+	int count;
+
+	for (count = 1; count <= 8; count++)
+		if (arc_proto_map[count] == arc_proto_default)
+			arc_proto_map[count] = &capmode_proto;
+
+	/* for cap mode, we only set the bcast proto if there's no better one */
+	if (arc_bcast_proto == arc_proto_default)
+		arc_bcast_proto = &capmode_proto;
+
+	arc_proto_default = &capmode_proto;
+	arc_raw_proto = &capmode_proto;
+}
+
+static int __init capmode_module_init(void)
+{
+	printk(VERSION);
+	arcnet_cap_init();
+	return 0;
+}
+
+static void __exit capmode_module_exit(void)
+{
+	arcnet_unregister_proto(&capmode_proto);
+}
+module_init(capmode_module_init);
+module_exit(capmode_module_exit);
+
+MODULE_LICENSE("GPL");

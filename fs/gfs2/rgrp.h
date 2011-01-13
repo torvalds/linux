@@ -10,6 +10,8 @@
 #ifndef __RGRP_DOT_H__
 #define __RGRP_DOT_H__
 
+#include <linux/slab.h>
+
 struct gfs2_rgrpd;
 struct gfs2_sbd;
 struct gfs2_holder;
@@ -37,22 +39,25 @@ static inline void gfs2_alloc_put(struct gfs2_inode *ip)
 	ip->i_alloc = NULL;
 }
 
-extern int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file,
-				  unsigned int line);
+extern int gfs2_inplace_reserve_i(struct gfs2_inode *ip, int hold_rindex,
+				  char *file, unsigned int line);
 #define gfs2_inplace_reserve(ip) \
-gfs2_inplace_reserve_i((ip), __FILE__, __LINE__)
+	gfs2_inplace_reserve_i((ip), 1, __FILE__, __LINE__)
+#define gfs2_inplace_reserve_ri(ip) \
+	gfs2_inplace_reserve_i((ip), 0, __FILE__, __LINE__)
 
 extern void gfs2_inplace_release(struct gfs2_inode *ip);
 
-extern unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block);
-
+extern int gfs2_ri_update(struct gfs2_inode *ip);
 extern int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n);
-extern u64 gfs2_alloc_di(struct gfs2_inode *ip, u64 *generation);
+extern int gfs2_alloc_di(struct gfs2_inode *ip, u64 *bn, u64 *generation);
 
 extern void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen);
 extern void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen);
 extern void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip);
 extern void gfs2_unlink_di(struct inode *inode);
+extern int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr,
+			       unsigned int type);
 
 struct gfs2_rgrp_list {
 	unsigned int rl_rgrps;

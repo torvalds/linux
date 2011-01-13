@@ -5,7 +5,7 @@
 menuconfig PHYLIB
 	tristate "PHY Device support and infrastructure"
 	depends on !S390
-	depends on NET_ETHERNET
+	depends on NETDEVICES
 	help
 	  Ethernet controllers are usually attached to PHY
 	  devices.  This option provides infrastructure for
@@ -56,10 +56,15 @@ config BROADCOM_PHY
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
 	  and BCM5482 PHYs.
 
+config BCM63XX_PHY
+	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
+	---help---
+	  Currently supports the 6348 and 6358 PHYs.
+
 config ICPLUS_PHY
 	tristate "Drivers for ICPlus PHYs"
 	---help---
-	  Currently supports the IP175C PHY.
+	  Currently supports the IP175C and IP1001 PHYs.
 
 config REALTEK_PHY
 	tristate "Drivers for Realtek PHYs"
@@ -81,6 +86,11 @@ config LSI_ET1011C_PHY
 	tristate "Driver for LSI ET1011C PHY"
 	---help---
 	  Supports the LSI ET1011C PHY.
+
+config MICREL_PHY
+	tristate "Driver for Micrel PHYs"
+	---help---
+	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
 config FIXED_PHY
 	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
@@ -108,5 +118,16 @@ config MDIO_GPIO
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mdio-gpio.
+
+config MDIO_OCTEON
+	tristate "Support for MDIO buses on Octeon SOCs"
+	depends on  CPU_CAVIUM_OCTEON
+	default y
+	help
+
+	  This module provides a driver for the Octeon MDIO busses.
+	  It is required by the Octeon Ethernet device drivers.
+
+	  If in doubt, say Y.
 
 endif # PHYLIB

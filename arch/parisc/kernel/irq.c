@@ -52,7 +52,7 @@ static volatile unsigned long cpu_eiem = 0;
 */
 static DEFINE_PER_CPU(unsigned long, local_ack_eiem) = ~0UL;
 
-static void cpu_disable_irq(unsigned int irq)
+static void cpu_mask_irq(unsigned int irq)
 {
 	unsigned long eirr_bit = EIEM_MASK(irq);
 
@@ -63,7 +63,7 @@ static void cpu_disable_irq(unsigned int irq)
 	 * then gets disabled */
 }
 
-static void cpu_enable_irq(unsigned int irq)
+static void cpu_unmask_irq(unsigned int irq)
 {
 	unsigned long eirr_bit = EIEM_MASK(irq);
 
@@ -74,15 +74,6 @@ static void cpu_enable_irq(unsigned int irq)
 	 * of the interrupt handler */
 	smp_send_all_nop();
 }
-
-static unsigned int cpu_startup_irq(unsigned int irq)
-{
-	cpu_enable_irq(irq);
-	return 0;
-}
-
-void no_ack_irq(unsigned int irq) { }
-void no_end_irq(unsigned int irq) { }
 
 void cpu_ack_irq(unsigned int irq)
 {
@@ -99,7 +90,7 @@ void cpu_ack_irq(unsigned int irq)
 	mtctl(mask, 23);
 }
 
-void cpu_end_irq(unsigned int irq)
+void cpu_eoi_irq(unsigned int irq)
 {
 	unsigned long mask = EIEM_MASK(irq);
 	int cpu = smp_processor_id();
@@ -120,7 +111,7 @@ int cpu_check_affinity(unsigned int irq, const struct cpumask *dest)
 	if (CHECK_IRQ_PER_CPU(irq)) {
 		/* Bad linux design decision.  The mask has already
 		 * been set; we must reset it */
-		cpumask_setall(&irq_desc[irq].affinity);
+		cpumask_setall(irq_desc[irq].affinity);
 		return -EINVAL;
 	}
 
@@ -138,20 +129,18 @@ static int cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 	if (cpu_dest < 0)
 		return -1;
 
-	cpumask_copy(&irq_desc[irq].affinity, dest);
+	cpumask_copy(irq_desc[irq].affinity, dest);
 
 	return 0;
 }
 #endif
 
-static struct hw_interrupt_type cpu_interrupt_type = {
-	.typename	= "CPU",
-	.startup	= cpu_startup_irq,
-	.shutdown	= cpu_disable_irq,
-	.enable		= cpu_enable_irq,
-	.disable	= cpu_disable_irq,
+static struct irq_chip cpu_interrupt_type = {
+	.name		= "CPU",
+	.mask		= cpu_mask_irq,
+	.unmask		= cpu_unmask_irq,
 	.ack		= cpu_ack_irq,
-	.end		= cpu_end_irq,
+	.eoi		= cpu_eoi_irq,
 #ifdef CONFIG_SMP
 	.set_affinity	= cpu_set_affinity_irq,
 #endif
@@ -180,7 +169,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (i < NR_IRQS) {
 		struct irqaction *action;
 
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
@@ -192,7 +181,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif
 
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->name);
 #ifndef PARISC_IRQ_CR16_COUNTS
 		seq_printf(p, "  %s", action->name);
 
@@ -224,7 +213,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
  skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	}
 
 	return 0;
@@ -247,10 +236,11 @@ int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 	if (irq_desc[irq].chip != &cpu_interrupt_type)
 		return -EBUSY;
 
+	/* for iosapic interrupts */
 	if (type) {
-		irq_desc[irq].chip = type;
-		irq_desc[irq].chip_data = data;
-		cpu_interrupt_type.enable(irq);
+		set_irq_chip_and_handler(irq, type, handle_percpu_irq);
+		set_irq_chip_data(irq, data);
+		cpu_unmask_irq(irq);
 	}
 	return 0;
 }
@@ -299,7 +289,7 @@ int txn_alloc_irq(unsigned int bits_wide)
 unsigned long txn_affinity_addr(unsigned int irq, int cpu)
 {
 #ifdef CONFIG_SMP
-	cpumask_copy(&irq_desc[irq].affinity, cpumask_of(cpu));
+	cpumask_copy(irq_desc[irq].affinity, cpumask_of(cpu));
 #endif
 
 	return per_cpu(cpu_data, cpu).txn_addr;
@@ -356,7 +346,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	irq = eirr_to_irq(eirr_val);
 
 #ifdef CONFIG_SMP
-	cpumask_copy(&dest, &irq_desc[irq].affinity);
+	cpumask_copy(&dest, irq_desc[irq].affinity);
 	if (CHECK_IRQ_PER_CPU(irq_desc[irq].status) &&
 	    !cpu_isset(smp_processor_id(), dest)) {
 		int cpu = first_cpu(dest);
@@ -368,7 +358,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 		goto set_out;
 	}
 #endif
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
 
  out:
 	irq_exit();
@@ -398,14 +388,15 @@ static void claim_cpu_irqs(void)
 {
 	int i;
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
-		irq_desc[i].chip = &cpu_interrupt_type;
+		set_irq_chip_and_handler(i, &cpu_interrupt_type,
+					 handle_percpu_irq);
 	}
 
-	irq_desc[TIMER_IRQ].action = &timer_action;
-	irq_desc[TIMER_IRQ].status = IRQ_PER_CPU;
+	set_irq_handler(TIMER_IRQ, handle_percpu_irq);
+	setup_irq(TIMER_IRQ, &timer_action);
 #ifdef CONFIG_SMP
-	irq_desc[IPI_IRQ].action = &ipi_action;
-	irq_desc[IPI_IRQ].status = IRQ_PER_CPU;
+	set_irq_handler(IPI_IRQ, handle_percpu_irq);
+	setup_irq(IPI_IRQ, &ipi_action);
 #endif
 }
 
@@ -424,7 +415,3 @@ void __init init_IRQ(void)
 
 }
 
-void ack_bad_irq(unsigned int irq)
-{
-	printk(KERN_WARNING "unexpected IRQ %d\n", irq);
-}

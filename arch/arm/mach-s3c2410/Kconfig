@@ -1,5 +1,3 @@
-# arch/arm/mach-s3c2410/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -8,10 +6,12 @@ config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
 	select CPU_ARM920T
+	select S3C_GPIO_PULL_UP
 	select S3C2410_CLOCK
 	select S3C2410_GPIO
 	select CPU_LLSERIAL_S3C2410
 	select S3C2410_PM if PM
+	select S3C2410_CPUFREQ if CPU_FREQ_S3C24XX
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -45,6 +45,22 @@ config MACH_BAST_IDE
 	  Internal node for machines with an BAST style IDE
 	  interface
 
+# cpu frequency scaling support
+
+config S3C2410_CPUFREQ
+	bool
+	depends on CPU_FREQ_S3C24XX && CPU_S3C2410
+	select S3C2410_CPUFREQ_UTILS
+	help
+	  CPU Frequency scaling support for S3C2410
+
+config S3C2410_PLLTABLE
+	bool
+	depends on S3C2410_CPUFREQ && CPU_FREQ_S3C24XX_PLL
+	default y
+	help
+	  Select the PLL table for the S3C2410
+
 menu "S3C2410 Machines"
 
 config ARCH_SMDK2410
@@ -60,8 +76,18 @@ config ARCH_H1940
 	select CPU_S3C2410
 	select PM_H1940 if PM
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	select S3C2410_SETUP_TS
 	help
 	  Say Y here if you are using the HP IPAQ H1940
+
+config H1940BT
+        tristate "Control the state of H1940 bluetooth chip"
+        depends on ARCH_H1940
+        select RFKILL
+        help
+          This is a simple driver that is able to control
+          the state of built in bluetooth chip on h1940.
 
 config PM_H1940
 	bool
@@ -71,20 +97,31 @@ config PM_H1940
 config MACH_N30
 	bool "Acer N30 family"
 	select CPU_S3C2410
+	select MACH_N35
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you want suppt for the Acer N30, Acer N35,
 	  Navman PiN570, Yakumo AlphaX or Airis NC05 PDAs.
 
+config MACH_N35
+	bool
+	help
+	  Internal node in order to enable support for Acer N35 if Acer N30 is
+	  selected.
+
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410
+	select S3C2410_IOTIMING if S3C2410_CPUFREQ
 	select PM_SIMTEC if PM
 	select SIMTEC_NOR
 	select MACH_BAST_IDE
 	select S3C24XX_DCLK
 	select ISA
+	select S3C_DEV_HWMON
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
 	  development board (also known as BAST)
@@ -93,6 +130,7 @@ config MACH_OTOM
  	bool "NexVision OTOM Board"
  	select CPU_S3C2410
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
  	  Say Y here if you are using the Nex Vision OTOM board
 
@@ -136,6 +174,7 @@ config MACH_QT2410
 	bool "QT2410"
 	select CPU_S3C2410
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	   Say Y here if you are using the Armzone QT2410
 

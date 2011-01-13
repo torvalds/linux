@@ -8,37 +8,43 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/icmp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
-static struct xfrm_tunnel *tunnel4_handlers;
-static struct xfrm_tunnel *tunnel64_handlers;
+static struct xfrm_tunnel __rcu *tunnel4_handlers __read_mostly;
+static struct xfrm_tunnel __rcu *tunnel64_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel4_mutex);
 
-static inline struct xfrm_tunnel **fam_handlers(unsigned short family)
+static inline struct xfrm_tunnel __rcu **fam_handlers(unsigned short family)
 {
 	return (family == AF_INET) ? &tunnel4_handlers : &tunnel64_handlers;
 }
 
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family)
 {
-	struct xfrm_tunnel **pprev;
+	struct xfrm_tunnel __rcu **pprev;
+	struct xfrm_tunnel *t;
+
 	int ret = -EEXIST;
 	int priority = handler->priority;
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = fam_handlers(family); *pprev; pprev = &(*pprev)->next) {
-		if ((*pprev)->priority > priority)
+	for (pprev = fam_handlers(family);
+	     (t = rcu_dereference_protected(*pprev,
+			lockdep_is_held(&tunnel4_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t->priority > priority)
 			break;
-		if ((*pprev)->priority == priority)
+		if (t->priority == priority)
 			goto err;
 	}
 
 	handler->next = *pprev;
-	*pprev = handler;
+	rcu_assign_pointer(*pprev, handler);
 
 	ret = 0;
 
@@ -47,18 +53,21 @@ err:
 
 	return ret;
 }
-
 EXPORT_SYMBOL(xfrm4_tunnel_register);
 
 int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family)
 {
-	struct xfrm_tunnel **pprev;
+	struct xfrm_tunnel __rcu **pprev;
+	struct xfrm_tunnel *t;
 	int ret = -ENOENT;
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = fam_handlers(family); *pprev; pprev = &(*pprev)->next) {
-		if (*pprev == handler) {
+	for (pprev = fam_handlers(family);
+	     (t = rcu_dereference_protected(*pprev,
+			lockdep_is_held(&tunnel4_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t == handler) {
 			*pprev = handler->next;
 			ret = 0;
 			break;
@@ -71,9 +80,13 @@ int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(xfrm4_tunnel_deregister);
 
+#define for_each_tunnel_rcu(head, handler)		\
+	for (handler = rcu_dereference(head);		\
+	     handler != NULL;				\
+	     handler = rcu_dereference(handler->next))	\
+	
 static int tunnel4_rcv(struct sk_buff *skb)
 {
 	struct xfrm_tunnel *handler;
@@ -81,7 +94,7 @@ static int tunnel4_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto drop;
 
-	for (handler = tunnel4_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel4_handlers, handler)
 		if (!handler->handler(skb))
 			return 0;
 
@@ -100,7 +113,7 @@ static int tunnel64_rcv(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
-	for (handler = tunnel64_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel64_handlers, handler)
 		if (!handler->handler(skb))
 			return 0;
 
@@ -116,7 +129,7 @@ static void tunnel4_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
 
-	for (handler = tunnel4_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel4_handlers, handler)
 		if (!handler->err_handler(skb, info))
 			break;
 }
@@ -126,13 +139,13 @@ static void tunnel64_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
 
-	for (handler = tunnel64_handlers; handler; handler = handler->next)
+	for_each_tunnel_rcu(tunnel64_handlers, handler)
 		if (!handler->err_handler(skb, info))
 			break;
 }
 #endif
 
-static struct net_protocol tunnel4_protocol = {
+static const struct net_protocol tunnel4_protocol = {
 	.handler	=	tunnel4_rcv,
 	.err_handler	=	tunnel4_err,
 	.no_policy	=	1,
@@ -140,7 +153,7 @@ static struct net_protocol tunnel4_protocol = {
 };
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static struct net_protocol tunnel64_protocol = {
+static const struct net_protocol tunnel64_protocol = {
 	.handler	=	tunnel64_rcv,
 	.err_handler	=	tunnel64_err,
 	.no_policy	=	1,

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,48 +91,6 @@ acpi_status acpi_ev_initialize_events(void)
 	}
 
 	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ev_install_fadt_gpes
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Completes initialization of the FADT-defined GPE blocks
- *              (0 and 1). This causes the _PRW methods to be run, so the HW
- *              must be fully initialized at this point, including global lock
- *              support.
- *
- ******************************************************************************/
-
-acpi_status acpi_ev_install_fadt_gpes(void)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(ev_install_fadt_gpes);
-
-	/* Namespace must be locked */
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	/* FADT GPE Block 0 */
-
-	(void)acpi_ev_initialize_gpe_block(acpi_gbl_fadt_gpe_device,
-					   acpi_gbl_gpe_fadt_blocks[0]);
-
-	/* FADT GPE Block 1 */
-
-	(void)acpi_ev_initialize_gpe_block(acpi_gbl_fadt_gpe_device,
-					   acpi_gbl_gpe_fadt_blocks[1]);
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -302,7 +260,7 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 					      ACPI_DISABLE_EVENT);
 
 		ACPI_ERROR((AE_INFO,
-			    "No installed handler for fixed event [%08X]",
+			    "No installed handler for fixed event [0x%08X]",
 			    event));
 
 		return (ACPI_INTERRUPT_NOT_HANDLED);

@@ -24,11 +24,17 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/io.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/gpio.h>
+
+#define FSG_SDA_PIN		12
+#define FSG_SCL_PIN		13
+
+#define FSG_SB_GPIO		4	/* sync button */
+#define FSG_RB_GPIO		9	/* reset button */
+#define FSG_UB_GPIO		10	/* usb button */
 
 static struct flash_platform_data fsg_flash_data = {
 	.map_name		= "cfi_probe",
@@ -264,8 +270,6 @@ static void __init fsg_init(void)
 
 MACHINE_START(FSG, "Freecom FSG-3")
 	/* Maintainer: www.nslu2-linux.org */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,

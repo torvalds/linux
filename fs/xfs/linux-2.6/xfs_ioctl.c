@@ -23,24 +23,15 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_ioctl.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_attr.h"
 #include "xfs_bmap.h"
 #include "xfs_buf_item.h"
@@ -51,12 +42,14 @@
 #include "xfs_quota.h"
 #include "xfs_inode_item.h"
 #include "xfs_export.h"
+#include "xfs_trace.h"
 
 #include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/exportfs.h>
 
 /*
@@ -423,7 +416,7 @@ xfs_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	kbuf = kmalloc(al_hreq.buflen, GFP_KERNEL);
+	kbuf = kzalloc(al_hreq.buflen, GFP_KERNEL);
 	if (!kbuf)
 		goto out_dput;
 
@@ -446,12 +439,12 @@ xfs_attrlist_by_handle(
 int
 xfs_attrmulti_attr_get(
 	struct inode		*inode,
-	char			*name,
-	char			__user *ubuf,
+	unsigned char		*name,
+	unsigned char		__user *ubuf,
 	__uint32_t		*len,
 	__uint32_t		flags)
 {
-	char			*kbuf;
+	unsigned char		*kbuf;
 	int			error = EFAULT;
 
 	if (*len > XATTR_SIZE_MAX)
@@ -475,12 +468,12 @@ xfs_attrmulti_attr_get(
 int
 xfs_attrmulti_attr_set(
 	struct inode		*inode,
-	char			*name,
-	const char		__user *ubuf,
+	unsigned char		*name,
+	const unsigned char	__user *ubuf,
 	__uint32_t		len,
 	__uint32_t		flags)
 {
-	char			*kbuf;
+	unsigned char		*kbuf;
 	int			error = EFAULT;
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -500,7 +493,7 @@ xfs_attrmulti_attr_set(
 int
 xfs_attrmulti_attr_remove(
 	struct inode		*inode,
-	char			*name,
+	unsigned char		*name,
 	__uint32_t		flags)
 {
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -518,12 +511,16 @@ xfs_attrmulti_by_handle(
 	xfs_fsop_attrmulti_handlereq_t am_hreq;
 	struct dentry		*dentry;
 	unsigned int		i, size;
-	char			*attr_name;
+	unsigned char		*attr_name;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -XFS_ERROR(EPERM);
 	if (copy_from_user(&am_hreq, arg, sizeof(xfs_fsop_attrmulti_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
+
+	/* overflow check */
+	if (am_hreq.opcount >= INT_MAX / sizeof(xfs_attr_multiop_t))
+		return -E2BIG;
 
 	dentry = xfs_handlereq_to_dentry(parfilp, &am_hreq.hreq);
 	if (IS_ERR(dentry))
@@ -546,7 +543,7 @@ xfs_attrmulti_by_handle(
 
 	error = 0;
 	for (i = 0; i < am_hreq.opcount; i++) {
-		ops[i].am_error = strncpy_from_user(attr_name,
+		ops[i].am_error = strncpy_from_user((char *)attr_name,
 				ops[i].am_attrname, MAXNAMELEN);
 		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)
 			error = -ERANGE;
@@ -673,10 +670,9 @@ xfs_ioc_bulkstat(
 		error = xfs_bulkstat_single(mp, &inlast,
 						bulkreq.ubuffer, &done);
 	else	/* XFS_IOC_FSBULKSTAT */
-		error = xfs_bulkstat(mp, &inlast, &count,
-			(bulkstat_one_pf)xfs_bulkstat_one, NULL,
-			sizeof(xfs_bstat_t), bulkreq.ubuffer,
-			BULKSTAT_FG_QUICK, &done);
+		error = xfs_bulkstat(mp, &inlast, &count, xfs_bulkstat_one,
+				     sizeof(xfs_bstat_t), bulkreq.ubuffer,
+				     &done);
 
 	if (error)
 		return -error;
@@ -789,10 +785,12 @@ xfs_ioc_fsgetxattr(
 {
 	struct fsxattr		fa;
 
+	memset(&fa, 0, sizeof(struct fsxattr));
+
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	fa.fsx_xflags = xfs_ip2xflags(ip);
 	fa.fsx_extsize = ip->i_d.di_extsize << ip->i_mount->m_sb.sb_blocklog;
-	fa.fsx_projid = ip->i_d.di_projid;
+	fa.fsx_projid = xfs_get_projid(ip);
 
 	if (attr) {
 		if (ip->i_afp) {
@@ -903,12 +901,19 @@ xfs_ioctl_setattr(
 	struct xfs_dquot	*olddquot = NULL;
 	int			code;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_ioctl_setattr(ip);
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return XFS_ERROR(EROFS);
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
+
+	/*
+	 * Disallow 32bit project ids when projid32bit feature is not enabled.
+	 */
+	if ((mask & FSX_PROJID) && (fa->fsx_projid > (__uint16_t)-1) &&
+			!xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
+		return XFS_ERROR(EINVAL);
 
 	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
@@ -956,7 +961,7 @@ xfs_ioctl_setattr(
 	if (mask & FSX_PROJID) {
 		if (XFS_IS_QUOTA_RUNNING(mp) &&
 		    XFS_IS_PQUOTA_ON(mp) &&
-		    ip->i_d.di_projid != fa->fsx_projid) {
+		    xfs_get_projid(ip) != fa->fsx_projid) {
 			ASSERT(tp);
 			code = xfs_qm_vop_chown_reserve(tp, ip, udqp, gdqp,
 						capable(CAP_FOWNER) ?
@@ -1038,8 +1043,7 @@ xfs_ioctl_setattr(
 		}
 	}
 
-	xfs_trans_ijoin(tp, ip, lock_flags);
-	xfs_trans_ihold(tp, ip);
+	xfs_trans_ijoin(tp, ip);
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
@@ -1059,12 +1063,12 @@ xfs_ioctl_setattr(
 		 * Change the ownerships and register quota modifications
 		 * in the transaction.
 		 */
-		if (ip->i_d.di_projid != fa->fsx_projid) {
+		if (xfs_get_projid(ip) != fa->fsx_projid) {
 			if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp)) {
 				olddquot = xfs_qm_vop_chown(tp, ip,
 							&ip->i_gdquot, gdqp);
 			}
-			ip->i_d.di_projid = fa->fsx_projid;
+			xfs_set_projid(ip, fa->fsx_projid);
 
 			/*
 			 * We may have to rev the inode as well as
@@ -1084,8 +1088,8 @@ xfs_ioctl_setattr(
 		xfs_diflags_to_linux(ip);
 	}
 
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	xfs_ichgtime(ip, XFS_ICHGTIME_CHG);
 
 	XFS_STATS_INC(xs_ig_attrchg);
 
@@ -1111,16 +1115,7 @@ xfs_ioctl_setattr(
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 
-	if (code)
-		return code;
-
-	if (DM_EVENT_ENABLED(ip, DM_EVENT_ATTRIBUTE)) {
-		XFS_SEND_NAMESP(mp, DM_EVENT_ATTRIBUTE, ip, DM_RIGHT_NULL,
-				NULL, DM_RIGHT_NULL, NULL, NULL, 0, 0,
-				(mask & FSX_NONBLOCK) ? DM_FLAGS_NDELAY : 0);
-	}
-
-	return 0;
+	return code;
 
  error_return:
 	xfs_qm_dqrele(udqp);
@@ -1296,7 +1291,7 @@ xfs_file_ioctl(
 	if (filp->f_mode & FMODE_NOCMTIME)
 		ioflags |= IO_INVIS;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_file_ioctl(ip);
 
 	switch (cmd) {
 	case XFS_IOC_ALLOCSP:
@@ -1306,7 +1301,8 @@ xfs_file_ioctl(
 	case XFS_IOC_ALLOCSP64:
 	case XFS_IOC_FREESP64:
 	case XFS_IOC_RESVSP64:
-	case XFS_IOC_UNRESVSP64: {
+	case XFS_IOC_UNRESVSP64:
+	case XFS_IOC_ZERO_RANGE: {
 		xfs_flock64_t		bf;
 
 		if (copy_from_user(&bf, arg, sizeof(bf)))
@@ -1429,6 +1425,9 @@ xfs_file_ioctl(
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
+
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
+			return -XFS_ERROR(EROFS);
 
 		if (copy_from_user(&inout, arg, sizeof(inout)))
 			return -XFS_ERROR(EFAULT);

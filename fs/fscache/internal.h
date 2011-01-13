@@ -17,6 +17,7 @@
  * - cache->object_list_lock
  * - object->lock
  * - object->parent->lock
+ * - cookie->stores_lock
  * - fscache_thread_lock
  *
  */
@@ -81,6 +82,14 @@ extern unsigned fscache_defer_lookup;
 extern unsigned fscache_defer_create;
 extern unsigned fscache_debug;
 extern struct kobject *fscache_root;
+extern struct workqueue_struct *fscache_object_wq;
+extern struct workqueue_struct *fscache_op_wq;
+DECLARE_PER_CPU(wait_queue_head_t, fscache_object_cong_wait);
+
+static inline bool fscache_object_congested(void)
+{
+	return workqueue_congested(WORK_CPU_UNBOUND, fscache_object_wq);
+}
 
 extern int fscache_wait_bit(void *);
 extern int fscache_wait_bit_interruptible(void *);
@@ -88,9 +97,22 @@ extern int fscache_wait_bit_interruptible(void *);
 /*
  * object.c
  */
+extern const char fscache_object_states_short[FSCACHE_OBJECT__NSTATES][5];
+
 extern void fscache_withdrawing_object(struct fscache_cache *,
 				       struct fscache_object *);
 extern void fscache_enqueue_object(struct fscache_object *);
+
+/*
+ * object-list.c
+ */
+#ifdef CONFIG_FSCACHE_OBJECT_LIST
+extern const struct file_operations fscache_objlist_fops;
+
+extern void fscache_objlist_add(struct fscache_object *);
+#else
+#define fscache_objlist_add(object) do {} while(0)
+#endif
 
 /*
  * operation.c
@@ -99,6 +121,7 @@ extern int fscache_submit_exclusive_op(struct fscache_object *,
 				       struct fscache_operation *);
 extern int fscache_submit_op(struct fscache_object *,
 			     struct fscache_operation *);
+extern int fscache_cancel_op(struct fscache_operation *);
 extern void fscache_abort_object(struct fscache_object *);
 extern void fscache_start_operations(struct fscache_object *);
 extern void fscache_operation_gc(struct work_struct *);
@@ -127,6 +150,8 @@ extern atomic_t fscache_n_op_enqueue;
 extern atomic_t fscache_n_op_deferred_release;
 extern atomic_t fscache_n_op_release;
 extern atomic_t fscache_n_op_gc;
+extern atomic_t fscache_n_op_cancelled;
+extern atomic_t fscache_n_op_rejected;
 
 extern atomic_t fscache_n_attr_changed;
 extern atomic_t fscache_n_attr_changed_ok;
@@ -138,6 +163,8 @@ extern atomic_t fscache_n_allocs;
 extern atomic_t fscache_n_allocs_ok;
 extern atomic_t fscache_n_allocs_wait;
 extern atomic_t fscache_n_allocs_nobufs;
+extern atomic_t fscache_n_allocs_intr;
+extern atomic_t fscache_n_allocs_object_dead;
 extern atomic_t fscache_n_alloc_ops;
 extern atomic_t fscache_n_alloc_op_waits;
 
@@ -148,6 +175,7 @@ extern atomic_t fscache_n_retrievals_nodata;
 extern atomic_t fscache_n_retrievals_nobufs;
 extern atomic_t fscache_n_retrievals_intr;
 extern atomic_t fscache_n_retrievals_nomem;
+extern atomic_t fscache_n_retrievals_object_dead;
 extern atomic_t fscache_n_retrieval_ops;
 extern atomic_t fscache_n_retrieval_op_waits;
 
@@ -158,6 +186,14 @@ extern atomic_t fscache_n_stores_nobufs;
 extern atomic_t fscache_n_stores_oom;
 extern atomic_t fscache_n_store_ops;
 extern atomic_t fscache_n_store_calls;
+extern atomic_t fscache_n_store_pages;
+extern atomic_t fscache_n_store_radix_deletes;
+extern atomic_t fscache_n_store_pages_over_limit;
+
+extern atomic_t fscache_n_store_vmscan_not_storing;
+extern atomic_t fscache_n_store_vmscan_gone;
+extern atomic_t fscache_n_store_vmscan_busy;
+extern atomic_t fscache_n_store_vmscan_cancelled;
 
 extern atomic_t fscache_n_marks;
 extern atomic_t fscache_n_uncaches;
@@ -176,6 +212,7 @@ extern atomic_t fscache_n_updates_run;
 extern atomic_t fscache_n_relinquishes;
 extern atomic_t fscache_n_relinquishes_null;
 extern atomic_t fscache_n_relinquishes_waitcrt;
+extern atomic_t fscache_n_relinquishes_retire;
 
 extern atomic_t fscache_n_cookie_index;
 extern atomic_t fscache_n_cookie_data;
@@ -186,6 +223,7 @@ extern atomic_t fscache_n_object_no_alloc;
 extern atomic_t fscache_n_object_lookups;
 extern atomic_t fscache_n_object_lookups_negative;
 extern atomic_t fscache_n_object_lookups_positive;
+extern atomic_t fscache_n_object_lookups_timed_out;
 extern atomic_t fscache_n_object_created;
 extern atomic_t fscache_n_object_avail;
 extern atomic_t fscache_n_object_dead;
@@ -195,15 +233,41 @@ extern atomic_t fscache_n_checkaux_okay;
 extern atomic_t fscache_n_checkaux_update;
 extern atomic_t fscache_n_checkaux_obsolete;
 
+extern atomic_t fscache_n_cop_alloc_object;
+extern atomic_t fscache_n_cop_lookup_object;
+extern atomic_t fscache_n_cop_lookup_complete;
+extern atomic_t fscache_n_cop_grab_object;
+extern atomic_t fscache_n_cop_update_object;
+extern atomic_t fscache_n_cop_drop_object;
+extern atomic_t fscache_n_cop_put_object;
+extern atomic_t fscache_n_cop_sync_cache;
+extern atomic_t fscache_n_cop_attr_changed;
+extern atomic_t fscache_n_cop_read_or_alloc_page;
+extern atomic_t fscache_n_cop_read_or_alloc_pages;
+extern atomic_t fscache_n_cop_allocate_page;
+extern atomic_t fscache_n_cop_allocate_pages;
+extern atomic_t fscache_n_cop_write_page;
+extern atomic_t fscache_n_cop_uncache_page;
+extern atomic_t fscache_n_cop_dissociate_pages;
+
 static inline void fscache_stat(atomic_t *stat)
 {
 	atomic_inc(stat);
 }
 
+static inline void fscache_stat_d(atomic_t *stat)
+{
+	atomic_dec(stat);
+}
+
+#define __fscache_stat(stat) (stat)
+
 extern const struct file_operations fscache_stats_fops;
 #else
 
+#define __fscache_stat(stat) (NULL)
 #define fscache_stat(stat) do {} while (0)
+#define fscache_stat_d(stat) do {} while (0)
 #endif
 
 /*
@@ -257,17 +321,11 @@ void fscache_put_context(struct fscache_cookie *cookie, void *context)
 #define dbgprintk(FMT, ...) \
 	printk(KERN_DEBUG "[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
 
-/* make sure we maintain the format strings, even when debugging is disabled */
-static inline __attribute__((format(printf, 1, 2)))
-void _dbprintk(const char *fmt, ...)
-{
-}
-
 #define kenter(FMT, ...) dbgprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) dbgprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
 #define kdebug(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
 
-#define kjournal(FMT, ...) _dbprintk(FMT, ##__VA_ARGS__)
+#define kjournal(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 
 #ifdef __KDEBUG
 #define _enter(FMT, ...) kenter(FMT, ##__VA_ARGS__)
@@ -294,9 +352,9 @@ do {						\
 } while (0)
 
 #else
-#define _enter(FMT, ...) _dbprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
-#define _leave(FMT, ...) _dbprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) _dbprintk(FMT, ##__VA_ARGS__)
+#define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 /*

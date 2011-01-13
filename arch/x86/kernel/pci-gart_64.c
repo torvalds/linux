@@ -16,18 +16,20 @@
 #include <linux/agp_backend.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/topology.h>
 #include <linux/interrupt.h>
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/kdebug.h>
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
 #include <linux/sysdev.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 #include <asm/atomic.h>
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
@@ -37,13 +39,17 @@
 #include <asm/cacheflush.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
+#include <asm/x86_init.h>
+#include <asm/iommu_table.h>
 
 static unsigned long iommu_bus_base;	/* GART remapping area (physical) */
 static unsigned long iommu_size;	/* size of remapping area bytes */
 static unsigned long iommu_pages;	/* .. and in pages */
 
 static u32 *iommu_gatt_base;		/* Remapping table */
+
+static dma_addr_t bad_dma_addr;
 
 /*
  * If this is disabled the IOMMU will use an optimized flushing strategy
@@ -91,7 +97,7 @@ static unsigned long alloc_iommu(struct device *dev, int size,
 
 	base_index = ALIGN(iommu_bus_base & dma_get_seg_boundary(dev),
 			   PAGE_SIZE) >> PAGE_SHIFT;
-	boundary_size = ALIGN((unsigned long long)dma_get_seg_boundary(dev) + 1,
+	boundary_size = ALIGN((u64)dma_get_seg_boundary(dev) + 1,
 			      PAGE_SIZE) >> PAGE_SHIFT;
 
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
@@ -122,7 +128,7 @@ static void free_iommu(unsigned long offset, int size)
 	unsigned long flags;
 
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
-	iommu_area_free(iommu_gart_bitmap, offset, size);
+	bitmap_clear(iommu_gart_bitmap, offset, size);
 	if (offset >= next_bit)
 		next_bit = offset + size;
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
@@ -137,7 +143,7 @@ static void flush_gart(void)
 
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
 	if (need_flush) {
-		k8_flush_garts();
+		amd_flush_garts();
 		need_flush = false;
 	}
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
@@ -190,14 +196,13 @@ static void iommu_full(struct device *dev, size_t size, int dir)
 static inline int
 need_iommu(struct device *dev, unsigned long addr, size_t size)
 {
-	return force_iommu ||
-		!is_buffer_dma_capable(*dev->dma_mask, addr, size);
+	return force_iommu || !dma_capable(dev, addr, size);
 }
 
 static inline int
 nonforced_iommu(struct device *dev, unsigned long addr, size_t size)
 {
-	return !is_buffer_dma_capable(*dev->dma_mask, addr, size);
+	return !dma_capable(dev, addr, size);
 }
 
 /* Map a single continuous physical area into the IOMMU.
@@ -216,7 +221,7 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 		if (panic_on_overflow)
 			panic("dma_map_area overflow %lu bytes\n", size);
 		iommu_full(dev, size, dir);
-		return bad_dma_address;
+		return bad_dma_addr;
 	}
 
 	for (i = 0; i < npages; i++) {
@@ -294,7 +299,7 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 	int i;
 
 #ifdef CONFIG_IOMMU_DEBUG
-	printk(KERN_DEBUG "dma_map_sg overflow\n");
+	pr_debug("dma_map_sg overflow\n");
 #endif
 
 	for_each_sg(sg, s, nents, i) {
@@ -302,7 +307,7 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 
 		if (nonforced_iommu(dev, addr, s->length)) {
 			addr = dma_map_area(dev, addr, s->length, dir, 0);
-			if (addr == bad_dma_address) {
+			if (addr == bad_dma_addr) {
 				if (i > 0)
 					gart_unmap_sg(dev, sg, i, dir, NULL);
 				nents = 0;
@@ -389,12 +394,14 @@ static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	if (!dev)
 		dev = &x86_dma_fallback_dev;
 
-	out = 0;
-	start = 0;
-	start_sg = sgmap = sg;
-	seg_size = 0;
-	max_seg_size = dma_get_max_seg_size(dev);
-	ps = NULL; /* shut up gcc */
+	out		= 0;
+	start		= 0;
+	start_sg	= sg;
+	sgmap		= sg;
+	seg_size	= 0;
+	max_seg_size	= dma_get_max_seg_size(dev);
+	ps		= NULL; /* shut up gcc */
+
 	for_each_sg(sg, s, nents, i) {
 		dma_addr_t addr = sg_phys(s);
 
@@ -417,11 +424,12 @@ static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 						 sgmap, pages, need) < 0)
 					goto error;
 				out++;
-				seg_size = 0;
-				sgmap = sg_next(sgmap);
-				pages = 0;
-				start = i;
-				start_sg = s;
+
+				seg_size	= 0;
+				sgmap		= sg_next(sgmap);
+				pages		= 0;
+				start		= i;
+				start_sg	= s;
 			}
 		}
 
@@ -455,7 +463,7 @@ error:
 
 	iommu_full(dev, pages << PAGE_SHIFT, dir);
 	for_each_sg(sg, s, nents, i)
-		s->dma_address = bad_dma_address;
+		s->dma_address = bad_dma_addr;
 	return 0;
 }
 
@@ -479,7 +487,7 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 				     DMA_BIDIRECTIONAL, align_mask);
 
 		flush_gart();
-		if (paddr != bad_dma_address) {
+		if (paddr != bad_dma_addr) {
 			*dma_addr = paddr;
 			return page_address(page);
 		}
@@ -499,6 +507,11 @@ gart_free_coherent(struct device *dev, size_t size, void *vaddr,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
+static int gart_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return (dma_addr == bad_dma_addr);
+}
+
 static int no_agp;
 
 static __init unsigned long check_iommu_size(unsigned long aper, u64 aper_size)
@@ -515,7 +528,7 @@ static __init unsigned long check_iommu_size(unsigned long aper, u64 aper_size)
 	iommu_size -= round_up(a, PMD_PAGE_SIZE) - a;
 
 	if (iommu_size < 64*1024*1024) {
-		printk(KERN_WARNING
+		pr_warning(
 			"PCI-DMA: Warning: Small IOMMU %luMB."
 			" Consider increasing the AGP aperture in BIOS\n",
 				iommu_size >> 20);
@@ -548,11 +561,17 @@ static void enable_gart_translations(void)
 {
 	int i;
 
-	for (i = 0; i < num_k8_northbridges; i++) {
-		struct pci_dev *dev = k8_northbridges[i];
+	if (!amd_nb_has_feature(AMD_NB_GART))
+		return;
+
+	for (i = 0; i < amd_nb_num(); i++) {
+		struct pci_dev *dev = node_to_amd_nb(i)->misc;
 
 		enable_gart_translation(dev, __pa(agp_gatt_table));
 	}
+
+	/* Flush the GART-TLB to remove stale entries */
+	amd_flush_garts();
 }
 
 /*
@@ -570,28 +589,35 @@ void set_up_gart_resume(u32 aper_order, u32 aper_alloc)
 	aperture_alloc = aper_alloc;
 }
 
+static void gart_fixup_northbridges(struct sys_device *dev)
+{
+	int i;
+
+	if (!fix_up_north_bridges)
+		return;
+
+	if (!amd_nb_has_feature(AMD_NB_GART))
+		return;
+
+	pr_info("PCI-DMA: Restoring GART aperture settings\n");
+
+	for (i = 0; i < amd_nb_num(); i++) {
+		struct pci_dev *dev = node_to_amd_nb(i)->misc;
+
+		/*
+		 * Don't enable translations just yet.  That is the next
+		 * step.  Restore the pre-suspend aperture settings.
+		 */
+		gart_set_size_and_enable(dev, aperture_order);
+		pci_write_config_dword(dev, AMD64_GARTAPERTUREBASE, aperture_alloc >> 25);
+	}
+}
+
 static int gart_resume(struct sys_device *dev)
 {
-	printk(KERN_INFO "PCI-DMA: Resuming GART IOMMU\n");
+	pr_info("PCI-DMA: Resuming GART IOMMU\n");
 
-	if (fix_up_north_bridges) {
-		int i;
-
-		printk(KERN_INFO "PCI-DMA: Restoring GART aperture settings\n");
-
-		for (i = 0; i < num_k8_northbridges; i++) {
-			struct pci_dev *dev = k8_northbridges[i];
-
-			/*
-			 * Don't enable translations just yet.  That is the next
-			 * step.  Restore the pre-suspend aperture settings.
-			 */
-			pci_write_config_dword(dev, AMD64_GARTAPERTURECTL,
-						aperture_order << 1);
-			pci_write_config_dword(dev, AMD64_GARTAPERTUREBASE,
-						aperture_alloc >> 25);
-		}
-	}
+	gart_fixup_northbridges(dev);
 
 	enable_gart_translations();
 
@@ -604,22 +630,21 @@ static int gart_suspend(struct sys_device *dev, pm_message_t state)
 }
 
 static struct sysdev_class gart_sysdev_class = {
-	.name = "gart",
-	.suspend = gart_suspend,
-	.resume = gart_resume,
+	.name		= "gart",
+	.suspend	= gart_suspend,
+	.resume		= gart_resume,
 
 };
 
 static struct sys_device device_gart = {
-	.id	= 0,
-	.cls	= &gart_sysdev_class,
+	.cls		= &gart_sysdev_class,
 };
 
 /*
  * Private Northbridge GATT initialization in case we cannot use the
  * AGP driver for some reason.
  */
-static __init int init_k8_gatt(struct agp_kern_info *info)
+static __init int init_amd_gatt(struct agp_kern_info *info)
 {
 	unsigned aper_size, gatt_size, new_aper_size;
 	unsigned aper_base, new_aper_base;
@@ -627,11 +652,12 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	void *gatt;
 	int i, error;
 
-	printk(KERN_INFO "PCI-DMA: Disabling AGP.\n");
+	pr_info("PCI-DMA: Disabling AGP.\n");
+
 	aper_size = aper_base = info->aper_size = 0;
 	dev = NULL;
-	for (i = 0; i < num_k8_northbridges; i++) {
-		dev = k8_northbridges[i];
+	for (i = 0; i < amd_nb_num(); i++) {
+		dev = node_to_amd_nb(i)->misc;
 		new_aper_base = read_aperture(dev, &new_aper_size);
 		if (!new_aper_base)
 			goto nommu;
@@ -645,6 +671,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	}
 	if (!aper_base)
 		goto nommu;
+
 	info->aper_base = aper_base;
 	info->aper_size = aper_size >> 20;
 
@@ -667,15 +694,15 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 
 	flush_gart();
 
-	printk(KERN_INFO "PCI-DMA: aperture base @ %x size %u KB\n",
+	pr_info("PCI-DMA: aperture base @ %x size %u KB\n",
 	       aper_base, aper_size>>10);
 
 	return 0;
 
  nommu:
 	/* Should not happen anymore */
-	printk(KERN_WARNING "PCI-DMA: More than 4GB of RAM and no IOMMU\n"
-	       KERN_WARNING "falling back to iommu=soft.\n");
+	pr_warning("PCI-DMA: More than 4GB of RAM and no IOMMU\n"
+	       "falling back to iommu=soft.\n");
 	return -1;
 }
 
@@ -686,20 +713,25 @@ static struct dma_map_ops gart_dma_ops = {
 	.unmap_page			= gart_unmap_page,
 	.alloc_coherent			= gart_alloc_coherent,
 	.free_coherent			= gart_free_coherent,
+	.mapping_error			= gart_mapping_error,
 };
 
-void gart_iommu_shutdown(void)
+static void gart_iommu_shutdown(void)
 {
 	struct pci_dev *dev;
 	int i;
 
-	if (no_agp && (dma_ops != &gart_dma_ops))
+	/* don't shutdown it if there is AGP installed */
+	if (!no_agp)
 		return;
 
-	for (i = 0; i < num_k8_northbridges; i++) {
+	if (!amd_nb_has_feature(AMD_NB_GART))
+		return;
+
+	for (i = 0; i < amd_nb_num(); i++) {
 		u32 ctl;
 
-		dev = k8_northbridges[i];
+		dev = node_to_amd_nb(i)->misc;
 		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
 
 		ctl &= ~GARTEN;
@@ -708,7 +740,7 @@ void gart_iommu_shutdown(void)
 	}
 }
 
-void __init gart_iommu_init(void)
+int __init gart_iommu_init(void)
 {
 	struct agp_kern_info info;
 	unsigned long iommu_start;
@@ -717,48 +749,41 @@ void __init gart_iommu_init(void)
 	unsigned long scratch;
 	long i;
 
-	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0)
-		return;
+	if (!amd_nb_has_feature(AMD_NB_GART))
+		return 0;
 
 #ifndef CONFIG_AGP_AMD64
 	no_agp = 1;
 #else
 	/* Makefile puts PCI initialization via subsys_initcall first. */
-	/* Add other K8 AGP bridge drivers here */
+	/* Add other AMD AGP bridge drivers here */
 	no_agp = no_agp ||
 		(agp_amd64_init() < 0) ||
 		(agp_copy_info(agp_bridge, &info) < 0);
 #endif
 
-	if (swiotlb)
-		return;
-
-	/* Did we detect a different HW IOMMU? */
-	if (iommu_detected && !gart_iommu_aperture)
-		return;
-
 	if (no_iommu ||
 	    (!force_iommu && max_pfn <= MAX_DMA32_PFN) ||
 	    !gart_iommu_aperture ||
-	    (no_agp && init_k8_gatt(&info) < 0)) {
+	    (no_agp && init_amd_gatt(&info) < 0)) {
 		if (max_pfn > MAX_DMA32_PFN) {
-			printk(KERN_WARNING "More than 4GB of memory "
-			       "but GART IOMMU not available.\n");
-			printk(KERN_WARNING "falling back to iommu=soft.\n");
+			pr_warning("More than 4GB of memory but GART IOMMU not available.\n");
+			pr_warning("falling back to iommu=soft.\n");
 		}
-		return;
+		return 0;
 	}
 
 	/* need to map that range */
-	aper_size = info.aper_size << 20;
-	aper_base = info.aper_base;
-	end_pfn = (aper_base>>PAGE_SHIFT) + (aper_size>>PAGE_SHIFT);
+	aper_size	= info.aper_size << 20;
+	aper_base	= info.aper_base;
+	end_pfn		= (aper_base>>PAGE_SHIFT) + (aper_size>>PAGE_SHIFT);
+
 	if (end_pfn > max_low_pfn_mapped) {
 		start_pfn = (aper_base>>PAGE_SHIFT);
 		init_memory_mapping(start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT);
 	}
 
-	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
+	pr_info("PCI-DMA: using GART IOMMU.\n");
 	iommu_size = check_iommu_size(info.aper_base, aper_size);
 	iommu_pages = iommu_size >> PAGE_SHIFT;
 
@@ -773,8 +798,7 @@ void __init gart_iommu_init(void)
 
 		ret = dma_debug_resize_entries(iommu_pages);
 		if (ret)
-			printk(KERN_DEBUG
-			       "PCI-DMA: Cannot trace all the entries\n");
+			pr_debug("PCI-DMA: Cannot trace all the entries\n");
 	}
 #endif
 
@@ -782,17 +806,16 @@ void __init gart_iommu_init(void)
 	 * Out of IOMMU space handling.
 	 * Reserve some invalid pages at the beginning of the GART.
 	 */
-	iommu_area_reserve(iommu_gart_bitmap, 0, EMERGENCY_PAGES);
+	bitmap_set(iommu_gart_bitmap, 0, EMERGENCY_PAGES);
 
-	agp_memory_reserved = iommu_size;
-	printk(KERN_INFO
-	       "PCI-DMA: Reserving %luMB of IOMMU area in the AGP aperture\n",
+	pr_info("PCI-DMA: Reserving %luMB of IOMMU area in the AGP aperture\n",
 	       iommu_size >> 20);
 
-	iommu_start = aper_size - iommu_size;
-	iommu_bus_base = info.aper_base + iommu_start;
-	bad_dma_address = iommu_bus_base;
-	iommu_gatt_base = agp_gatt_table + (iommu_start>>PAGE_SHIFT);
+	agp_memory_reserved	= iommu_size;
+	iommu_start		= aper_size - iommu_size;
+	iommu_bus_base		= info.aper_base + iommu_start;
+	bad_dma_addr		= iommu_bus_base;
+	iommu_gatt_base		= agp_gatt_table + (iommu_start>>PAGE_SHIFT);
 
 	/*
 	 * Unmap the IOMMU part of the GART. The alias of the page is
@@ -814,7 +837,7 @@ void __init gart_iommu_init(void)
 	 * the pages as Not-Present:
 	 */
 	wbinvd();
-	
+
 	/*
 	 * Now all caches are flushed and we can safely enable
 	 * GART hardware.  Doing it early leaves the possibility
@@ -838,6 +861,10 @@ void __init gart_iommu_init(void)
 
 	flush_gart();
 	dma_ops = &gart_dma_ops;
+	x86_platform.iommu_shutdown = gart_iommu_shutdown;
+	swiotlb = 0;
+
+	return 0;
 }
 
 void __init gart_parse_options(char *p)
@@ -856,7 +883,7 @@ void __init gart_parse_options(char *p)
 #endif
 	if (isdigit(*p) && get_option(&p, &arg))
 		iommu_size = arg;
-	if (!strncmp(p, "fullflush", 8))
+	if (!strncmp(p, "fullflush", 9))
 		iommu_fullflush = 1;
 	if (!strncmp(p, "nofullflush", 11))
 		iommu_fullflush = 0;
@@ -879,3 +906,4 @@ void __init gart_parse_options(char *p)
 		}
 	}
 }
+IOMMU_INIT_POST(gart_iommu_hole_init);

@@ -69,8 +69,6 @@
  * int node_online(node)		Is some node online?
  * int node_possible(node)		Is some node possible?
  *
- * int any_online_node(mask)		First online node in mask
- *
  * node_set_online(node)		set bit 'node' in node_online_map
  * node_set_offline(node)		clear bit 'node' in node_online_map
  *
@@ -82,6 +80,12 @@
  *    to generate slightly worse code.  So use a simple one-line #define
  *    for node_isset(), instead of wrapping an inline inside a macro, the
  *    way we do the other calls.
+ *
+ * NODEMASK_SCRATCH
+ * When doing above logical AND, OR, XOR, Remap operations the callers tend to
+ * need temporary nodemask_t's on the stack. But if NODES_SHIFT is large,
+ * nodemask_t's consume too much stack space.  NODEMASK_SCRATCH is a helper
+ * for such situations. See below and CPUMASK_ALLOC also.
  */
 
 #include <linux/kernel.h>
@@ -239,14 +243,19 @@ static inline int __next_node(int n, const nodemask_t *srcp)
 	return min_t(int,MAX_NUMNODES,find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
 }
 
+static inline void init_nodemask_of_node(nodemask_t *mask, int node)
+{
+	nodes_clear(*mask);
+	node_set(node, *mask);
+}
+
 #define nodemask_of_node(node)						\
 ({									\
 	typeof(_unused_nodemask_arg_) m;				\
 	if (sizeof(m) == sizeof(unsigned long)) {			\
-		m.bits[0] = 1UL<<(node);				\
+		m.bits[0] = 1UL << (node);				\
 	} else {							\
-		nodes_clear(m);						\
-		node_set((node), m);					\
+		init_nodemask_of_node(&m, (node));			\
 	}								\
 	m;								\
 })
@@ -456,15 +465,6 @@ static inline int num_node_state(enum node_states state)
 #define node_online_map 	node_states[N_ONLINE]
 #define node_possible_map 	node_states[N_POSSIBLE]
 
-#define any_online_node(mask)			\
-({						\
-	int node;				\
-	for_each_node_mask(node, (mask))	\
-		if (node_online(node))		\
-			break;			\
-	node;					\
-})
-
 #define num_online_nodes()	num_node_state(N_ONLINE)
 #define num_possible_nodes()	num_node_state(N_POSSIBLE)
 #define node_online(node)	node_state((node), N_ONLINE)
@@ -472,5 +472,31 @@ static inline int num_node_state(enum node_states state)
 
 #define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
 #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
+
+/*
+ * For nodemask scrach area.
+ * NODEMASK_ALLOC(type, name) allocates an object with a specified type and
+ * name.
+ */
+#if NODES_SHIFT > 8 /* nodemask_t > 256 bytes */
+#define NODEMASK_ALLOC(type, name, gfp_flags)	\
+			type *name = kmalloc(sizeof(*name), gfp_flags)
+#define NODEMASK_FREE(m)			kfree(m)
+#else
+#define NODEMASK_ALLOC(type, name, gfp_flags)	type _##name, *name = &_##name
+#define NODEMASK_FREE(m)			do {} while (0)
+#endif
+
+/* A example struture for using NODEMASK_ALLOC, used in mempolicy. */
+struct nodemask_scratch {
+	nodemask_t	mask1;
+	nodemask_t	mask2;
+};
+
+#define NODEMASK_SCRATCH(x)						\
+			NODEMASK_ALLOC(struct nodemask_scratch, x,	\
+					GFP_KERNEL | __GFP_NORETRY)
+#define NODEMASK_SCRATCH_FREE(x)	NODEMASK_FREE(x)
+
 
 #endif /* __LINUX_NODEMASK_H */

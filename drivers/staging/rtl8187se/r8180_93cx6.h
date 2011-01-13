@@ -28,11 +28,9 @@
 #define	RFCHIPID_MAXIM 4
 #define	RFCHIPID_GCT 5
 #define RFCHIPID_RTL8225 9
-#ifdef CONFIG_RTL8185B
 #define RF_ZEBRA2 11
 #define EPROM_TXPW_BASE 0x05
 #define RF_ZEBRA4 12
-#endif
 #define RFCHIPID_RTL8255 0xa
 #define RF_PARAM 0x19
 #define RF_PARAM_DIGPHY_SHIFT 0
@@ -47,13 +45,10 @@
 
 #define	EPROM_TXPW_OFDM_CH1_2 0x20
 
-//#define	EPROM_TXPW_CH1_2 0x10
-#define  EPROM_TXPW_CH1_2 0x30
-#define	EPROM_TXPW_CH3_4 0x11
-#define	EPROM_TXPW_CH5_6 0x12
-#define	EPROM_TXPW_CH7_8 0x13
-#define	EPROM_TXPW_CH9_10 0x14
-#define	EPROM_TXPW_CH11_12 0x15
-#define	EPROM_TXPW_CH13_14 0x16
+#define	EPROM_TXPW_CH1_2 0x30
 
-u32 eprom_read(struct net_device *dev,u32 addr); //reads a 16 bits word
+#define RTL818X_EEPROM_CMD_READ		(1 << 0)
+#define RTL818X_EEPROM_CMD_WRITE	(1 << 1)
+#define RTL818X_EEPROM_CMD_CK		(1 << 2)
+#define RTL818X_EEPROM_CMD_CS		(1 << 3)
+

@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/chp.h
  *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007,2010
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <asm/chpid.h>
 #include "chsc.h"
 #include "css.h"
@@ -40,15 +41,22 @@ static inline int chp_test_bit(u8 *bitmap, int num)
 
 
 struct channel_path {
+	struct device dev;
 	struct chp_id chpid;
+	struct mutex lock; /* Serialize access to below members. */
 	int state;
 	struct channel_path_desc desc;
 	/* Channel-measurement related stuff: */
 	int cmg;
 	int shared;
 	void *cmg_chars;
-	struct device dev;
 };
+
+/* Return channel_path struct for given chpid. */
+static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
+{
+	return channel_subsystems[chpid.cssid]->chps[chpid.id];
+}
 
 int chp_get_status(struct chp_id chpid);
 u8 chp_get_sch_opm(struct subchannel *sch);

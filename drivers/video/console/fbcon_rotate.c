@@ -9,6 +9,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fb.h>
 #include <linux/vt_kern.h>

@@ -18,7 +18,7 @@ feroceon_copy_user_page(void *kto, const void *kfrom)
 {
 	asm("\
 	stmfd	sp!, {r4-r9, lr}		\n\
-	mov	ip, %0				\n\
+	mov	ip, %2				\n\
 1:	mov	lr, r1				\n\
 	ldmia	r1!, {r2 - r9}			\n\
 	pld	[lr, #32]			\n\
@@ -64,16 +64,17 @@ feroceon_copy_user_page(void *kto, const void *kfrom)
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB\n\
 	ldmfd	sp!, {r4-r9, pc}"
 	:
-	: "I" (PAGE_SIZE));
+	: "r" (kto), "r" (kfrom), "I" (PAGE_SIZE));
 }
 
 void feroceon_copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr)
+	unsigned long vaddr, struct vm_area_struct *vma)
 {
 	void *kto, *kfrom;
 
 	kto = kmap_atomic(to, KM_USER0);
 	kfrom = kmap_atomic(from, KM_USER1);
+	flush_cache_page(vma, vaddr, page_to_pfn(from));
 	feroceon_copy_user_page(kto, kfrom);
 	kunmap_atomic(kfrom, KM_USER1);
 	kunmap_atomic(kto, KM_USER0);

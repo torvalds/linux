@@ -24,7 +24,7 @@
 #include <linux/i2c/tps65010.h>
 
 #include <mach/gpio.h>
-#include <mach/omapfb.h>
+#include "omapfb.h"
 
 #define MODULE_NAME	"omapfb-lcd_h3"
 
@@ -124,12 +124,12 @@ struct platform_driver h3_panel_driver = {
 	},
 };
 
-static int h3_panel_drv_init(void)
+static int __init h3_panel_drv_init(void)
 {
 	return platform_driver_register(&h3_panel_driver);
 }
 
-static void h3_panel_drv_cleanup(void)
+static void __exit h3_panel_drv_cleanup(void)
 {
 	platform_driver_unregister(&h3_panel_driver);
 }

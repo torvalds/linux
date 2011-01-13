@@ -50,6 +50,7 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/device.h>
 
@@ -297,12 +298,10 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	 */
 	if (loopdefault) {
 		loopback_add(cdev, autoresume != 0);
-		if (!gadget_is_sh(gadget))
-			sourcesink_add(cdev, autoresume != 0);
+		sourcesink_add(cdev, autoresume != 0);
 	} else {
 		sourcesink_add(cdev, autoresume != 0);
-		if (!gadget_is_sh(gadget))
-			loopback_add(cdev, autoresume != 0);
+		loopback_add(cdev, autoresume != 0);
 	}
 
 	gcnum = usb_gadget_controller_number(gadget);
@@ -341,7 +340,6 @@ static struct usb_composite_driver zero_driver = {
 	.name		= "zero",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= zero_bind,
 	.unbind		= zero_unbind,
 	.suspend	= zero_suspend,
 	.resume		= zero_resume,
@@ -352,7 +350,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_register(&zero_driver);
+	return usb_composite_probe(&zero_driver, zero_bind);
 }
 module_init(init);
 

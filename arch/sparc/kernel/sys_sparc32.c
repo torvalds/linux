@@ -16,22 +16,14 @@
 #include <linux/signal.h>
 #include <linux/resource.h>
 #include <linux/times.h>
-#include <linux/utsname.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/slab.h>
 #include <linux/uio.h>
 #include <linux/nfs_fs.h>
 #include <linux/quota.h>
 #include <linux/module.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/poll.h>
 #include <linux/personality.h>
 #include <linux/stat.h>
@@ -49,8 +41,8 @@
 #include <linux/security.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/ptrace.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/uaccess.h>
@@ -169,7 +161,7 @@ static int cp_compat_stat64(struct kstat *stat,
 	return err;
 }
 
-asmlinkage long compat_sys_stat64(char __user * filename,
+asmlinkage long compat_sys_stat64(const char __user * filename,
 		struct compat_stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -180,7 +172,7 @@ asmlinkage long compat_sys_stat64(char __user * filename,
 	return error;
 }
 
-asmlinkage long compat_sys_lstat64(char __user * filename,
+asmlinkage long compat_sys_lstat64(const char __user * filename,
 		struct compat_stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -202,7 +194,8 @@ asmlinkage long compat_sys_fstat64(unsigned int fd,
 	return error;
 }
 
-asmlinkage long compat_sys_fstatat64(unsigned int dfd, char __user *filename,
+asmlinkage long compat_sys_fstatat64(unsigned int dfd,
+		const char __user *filename,
 		struct compat_stat64 __user * statbuf, int flag)
 {
 	struct kstat stat;
@@ -568,85 +561,6 @@ asmlinkage long sparc32_open(const char __user *filename,
 			     int flags, int mode)
 {
 	return do_sys_open(AT_FDCWD, filename, flags, mode);
-}
-
-extern unsigned long do_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr);
-                
-asmlinkage unsigned long sys32_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, u32 __new_addr)
-{
-	unsigned long ret = -EINVAL;
-	unsigned long new_addr = __new_addr;
-
-	if (unlikely(sparc_mmap_check(addr, old_len)))
-		goto out;
-	if (unlikely(sparc_mmap_check(new_addr, new_len)))
-		goto out;
-	down_write(&current->mm->mmap_sem);
-	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-	up_write(&current->mm->mmap_sem);
-out:
-	return ret;       
-}
-
-struct __sysctl_args32 {
-	u32 name;
-	int nlen;
-	u32 oldval;
-	u32 oldlenp;
-	u32 newval;
-	u32 newlen;
-	u32 __unused[4];
-};
-
-asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
-{
-#ifndef CONFIG_SYSCTL_SYSCALL
-	return -ENOSYS;
-#else
-	struct __sysctl_args32 tmp;
-	int error;
-	size_t oldlen, __user *oldlenp = NULL;
-	unsigned long addr = (((unsigned long)&args->__unused[0]) + 7UL) & ~7UL;
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	if (tmp.oldval && tmp.oldlenp) {
-		/* Duh, this is ugly and might not work if sysctl_args
-		   is in read-only memory, but do_sysctl does indirectly
-		   a lot of uaccess in both directions and we'd have to
-		   basically copy the whole sysctl.c here, and
-		   glibc's __sysctl uses rw memory for the structure
-		   anyway.  */
-		if (get_user(oldlen, (u32 __user *)(unsigned long)tmp.oldlenp) ||
-		    put_user(oldlen, (size_t __user *)addr))
-			return -EFAULT;
-		oldlenp = (size_t __user *)addr;
-	}
-
-	lock_kernel();
-	error = do_sysctl((int __user *)(unsigned long) tmp.name,
-			  tmp.nlen,
-			  (void __user *)(unsigned long) tmp.oldval,
-			  oldlenp,
-			  (void __user *)(unsigned long) tmp.newval,
-			  tmp.newlen);
-	unlock_kernel();
-	if (oldlenp) {
-		if (!error) {
-			if (get_user(oldlen, (size_t __user *)addr) ||
-			    put_user(oldlen, (u32 __user *)(unsigned long) tmp.oldlenp))
-				error = -EFAULT;
-		}
-		if (copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused)))
-			error = -EFAULT;
-	}
-	return error;
-#endif
 }
 
 long sys32_lookup_dcookie(unsigned long cookie_high,

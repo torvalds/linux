@@ -22,7 +22,6 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/net.h>
@@ -37,9 +36,9 @@
 
 #include <asm/uaccess.h>
 
-static struct pppox_proto *pppox_protos[PX_MAX_PROTO + 1];
+static const struct pppox_proto *pppox_protos[PX_MAX_PROTO + 1];
 
-int register_pppox_proto(int proto_num, struct pppox_proto *pp)
+int register_pppox_proto(int proto_num, const struct pppox_proto *pp)
 {
 	if (proto_num < 0 || proto_num > PX_MAX_PROTO)
 		return -EINVAL;
@@ -104,7 +103,8 @@ int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 EXPORT_SYMBOL(pppox_ioctl);
 
-static int pppox_create(struct net *net, struct socket *sock, int protocol)
+static int pppox_create(struct net *net, struct socket *sock, int protocol,
+			int kern)
 {
 	int rc = -EPROTOTYPE;
 
@@ -125,7 +125,7 @@ out:
 	return rc;
 }
 
-static struct net_proto_family pppox_proto_family = {
+static const struct net_proto_family pppox_proto_family = {
 	.family	= PF_PPPOX,
 	.create	= pppox_create,
 	.owner	= THIS_MODULE,

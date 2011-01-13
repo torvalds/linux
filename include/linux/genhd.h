@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/rcupdate.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -86,21 +87,31 @@ struct disk_stats {
 	unsigned long io_ticks;
 	unsigned long time_in_queue;
 };
-	
+
+#define PARTITION_META_INFO_VOLNAMELTH	64
+#define PARTITION_META_INFO_UUIDLTH	16
+
+struct partition_meta_info {
+	u8 uuid[PARTITION_META_INFO_UUIDLTH];	/* always big endian */
+	u8 volname[PARTITION_META_INFO_VOLNAMELTH];
+};
+
 struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
 	sector_t alignment_offset;
+	unsigned int discard_alignment;
 	struct device __dev;
 	struct kobject *holder_dir;
 	int policy, partno;
+	struct partition_meta_info *info;
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	int make_it_fail;
 #endif
 	unsigned long stamp;
-	int in_flight;
+	int in_flight[2];
 #ifdef	CONFIG_SMP
-	struct disk_stats *dkstats;
+	struct disk_stats __percpu *dkstats;
 #else
 	struct disk_stats dkstats;
 #endif
@@ -108,7 +119,7 @@ struct hd_struct {
 };
 
 #define GENHD_FL_REMOVABLE			1
-#define GENHD_FL_DRIVERFS			2
+/* 2 is unused */
 #define GENHD_FL_MEDIA_CHANGE_NOTIFY		4
 #define GENHD_FL_CD				8
 #define GENHD_FL_UP				16
@@ -128,8 +139,8 @@ struct blk_scsi_cmd_filter {
 struct disk_part_tbl {
 	struct rcu_head rcu_head;
 	int len;
-	struct hd_struct *last_lookup;
-	struct hd_struct *part[];
+	struct hd_struct __rcu *last_lookup;
+	struct hd_struct __rcu *part[];
 };
 
 struct gendisk {
@@ -142,16 +153,16 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
-	char *(*nodename)(struct gendisk *gd);
+	char *(*devnode)(struct gendisk *gd, mode_t *mode);
 	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other
 	 * non-critical accesses use RCU.  Always access through
 	 * helpers.
 	 */
-	struct disk_part_tbl *part_tbl;
+	struct disk_part_tbl __rcu *part_tbl;
 	struct hd_struct part0;
 
-	struct block_device_operations *fops;
+	const struct block_device_operations *fops;
 	struct request_queue *queue;
 	void *private_data;
 
@@ -178,6 +189,30 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 			return dev_to_disk(part_to_dev(part));
 	}
 	return NULL;
+}
+
+static inline void part_pack_uuid(const u8 *uuid_str, u8 *to)
+{
+	int i;
+	for (i = 0; i < 16; ++i) {
+		*to++ = (hex_to_bin(*uuid_str) << 4) |
+			(hex_to_bin(*(uuid_str + 1)));
+		uuid_str += 2;
+		switch (i) {
+		case 3:
+		case 5:
+		case 7:
+		case 9:
+			uuid_str++;
+			continue;
+		}
+	}
+}
+
+static inline char *part_unpack_uuid(const u8 *uuid, char *out)
+{
+	sprintf(out, "%pU", uuid);
+	return out;
 }
 
 static inline int disk_max_parts(struct gendisk *disk)
@@ -255,9 +290,9 @@ extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 #define part_stat_read(part, field)					\
 ({									\
 	typeof((part)->dkstats->field) res = 0;				\
-	int i;								\
-	for_each_possible_cpu(i)					\
-		res += per_cpu_ptr((part)->dkstats, i)->field;		\
+	unsigned int _cpu;						\
+	for_each_possible_cpu(_cpu)					\
+		res += per_cpu_ptr((part)->dkstats, _cpu)->field;	\
 	res;								\
 })
 
@@ -322,18 +357,36 @@ static inline void free_part_stats(struct hd_struct *part)
 #define part_stat_sub(cpu, gendiskp, field, subnd)			\
 	part_stat_add(cpu, gendiskp, field, -subnd)
 
-static inline void part_inc_in_flight(struct hd_struct *part)
+static inline void part_inc_in_flight(struct hd_struct *part, int rw)
 {
-	part->in_flight++;
+	part->in_flight[rw]++;
 	if (part->partno)
-		part_to_disk(part)->part0.in_flight++;
+		part_to_disk(part)->part0.in_flight[rw]++;
 }
 
-static inline void part_dec_in_flight(struct hd_struct *part)
+static inline void part_dec_in_flight(struct hd_struct *part, int rw)
 {
-	part->in_flight--;
+	part->in_flight[rw]--;
 	if (part->partno)
-		part_to_disk(part)->part0.in_flight--;
+		part_to_disk(part)->part0.in_flight[rw]--;
+}
+
+static inline int part_in_flight(struct hd_struct *part)
+{
+	return part->in_flight[0] + part->in_flight[1];
+}
+
+static inline struct partition_meta_info *alloc_part_info(struct gendisk *disk)
+{
+	if (disk)
+		return kzalloc_node(sizeof(struct partition_meta_info),
+				    GFP_KERNEL, disk->node_id);
+	return kzalloc(sizeof(struct partition_meta_info), GFP_KERNEL);
+}
+
+static inline void free_part_info(struct hd_struct *part)
+{
+	kfree(part->info);
 }
 
 /* block/blk-core.c */
@@ -527,7 +580,9 @@ extern int disk_expand_part_tbl(struct gendisk *disk, int target);
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
 extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
 						     int partno, sector_t start,
-						     sector_t len, int flags);
+						     sector_t len, int flags,
+						     struct partition_meta_info
+						       *info);
 extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 
@@ -545,6 +600,8 @@ extern void blk_unregister_region(dev_t devt, unsigned long range);
 extern ssize_t part_size_show(struct device *dev,
 			      struct device_attribute *attr, char *buf);
 extern ssize_t part_stat_show(struct device *dev,
+			      struct device_attribute *attr, char *buf);
+extern ssize_t part_inflight_show(struct device *dev,
 			      struct device_attribute *attr, char *buf);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 extern ssize_t part_fail_show(struct device *dev,

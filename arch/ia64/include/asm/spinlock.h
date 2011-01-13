@@ -17,113 +17,136 @@
 #include <asm/intrinsics.h>
 #include <asm/system.h>
 
-#define __raw_spin_lock_init(x)			((x)->lock = 0)
+#define arch_spin_lock_init(x)			((x)->lock = 0)
 
-#ifdef ASM_SUPPORTED
 /*
- * Try to get the lock.  If we fail to get the lock, make a non-standard call to
- * ia64_spinlock_contention().  We do not use a normal call because that would force all
- * callers of __raw_spin_lock() to be non-leaf routines.  Instead, ia64_spinlock_contention() is
- * carefully coded to touch only those registers that __raw_spin_lock() marks "clobbered".
+ * Ticket locks are conceptually two parts, one indicating the current head of
+ * the queue, and the other indicating the current tail. The lock is acquired
+ * by atomically noting the tail and incrementing it by one (thus adding
+ * ourself to the queue and noting our position), then waiting until the head
+ * becomes equal to the the initial value of the tail.
+ * The pad bits in the middle are used to prevent the next_ticket number
+ * overflowing into the now_serving number.
+ *
+ *   31             17  16    15  14                    0
+ *  +----------------------------------------------------+
+ *  |  now_serving     | padding |   next_ticket         |
+ *  +----------------------------------------------------+
  */
 
-#define IA64_SPINLOCK_CLOBBERS "ar.ccv", "ar.pfs", "p14", "p15", "r27", "r28", "r29", "r30", "b6", "memory"
+#define TICKET_SHIFT	17
+#define TICKET_BITS	15
+#define	TICKET_MASK	((1 << TICKET_BITS) - 1)
 
-static inline void
-__raw_spin_lock_flags (raw_spinlock_t *lock, unsigned long flags)
+static __always_inline void __ticket_spin_lock(arch_spinlock_t *lock)
 {
-	register volatile unsigned int *ptr asm ("r31") = &lock->lock;
+	int	*p = (int *)&lock->lock, ticket, serve;
 
-#if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
-# ifdef CONFIG_ITANIUM
-	/* don't use brl on Itanium... */
-	asm volatile ("{\n\t"
-		      "  mov ar.ccv = r0\n\t"
-		      "  mov r28 = ip\n\t"
-		      "  mov r30 = 1;;\n\t"
-		      "}\n\t"
-		      "cmpxchg4.acq r30 = [%1], r30, ar.ccv\n\t"
-		      "movl r29 = ia64_spinlock_contention_pre3_4;;\n\t"
-		      "cmp4.ne p14, p0 = r30, r0\n\t"
-		      "mov b6 = r29;;\n\t"
-		      "mov r27=%2\n\t"
-		      "(p14) br.cond.spnt.many b6"
-		      : "=r"(ptr) : "r"(ptr), "r" (flags) : IA64_SPINLOCK_CLOBBERS);
-# else
-	asm volatile ("{\n\t"
-		      "  mov ar.ccv = r0\n\t"
-		      "  mov r28 = ip\n\t"
-		      "  mov r30 = 1;;\n\t"
-		      "}\n\t"
-		      "cmpxchg4.acq r30 = [%1], r30, ar.ccv;;\n\t"
-		      "cmp4.ne p14, p0 = r30, r0\n\t"
-		      "mov r27=%2\n\t"
-		      "(p14) brl.cond.spnt.many ia64_spinlock_contention_pre3_4;;"
-		      : "=r"(ptr) : "r"(ptr), "r" (flags) : IA64_SPINLOCK_CLOBBERS);
-# endif /* CONFIG_MCKINLEY */
-#else
-# ifdef CONFIG_ITANIUM
-	/* don't use brl on Itanium... */
-	/* mis-declare, so we get the entry-point, not it's function descriptor: */
-	asm volatile ("mov r30 = 1\n\t"
-		      "mov r27=%2\n\t"
-		      "mov ar.ccv = r0;;\n\t"
-		      "cmpxchg4.acq r30 = [%0], r30, ar.ccv\n\t"
-		      "movl r29 = ia64_spinlock_contention;;\n\t"
-		      "cmp4.ne p14, p0 = r30, r0\n\t"
-		      "mov b6 = r29;;\n\t"
-		      "(p14) br.call.spnt.many b6 = b6"
-		      : "=r"(ptr) : "r"(ptr), "r" (flags) : IA64_SPINLOCK_CLOBBERS);
-# else
-	asm volatile ("mov r30 = 1\n\t"
-		      "mov r27=%2\n\t"
-		      "mov ar.ccv = r0;;\n\t"
-		      "cmpxchg4.acq r30 = [%0], r30, ar.ccv;;\n\t"
-		      "cmp4.ne p14, p0 = r30, r0\n\t"
-		      "(p14) brl.call.spnt.many b6=ia64_spinlock_contention;;"
-		      : "=r"(ptr) : "r"(ptr), "r" (flags) : IA64_SPINLOCK_CLOBBERS);
-# endif /* CONFIG_MCKINLEY */
-#endif
+	ticket = ia64_fetchadd(1, p, acq);
+
+	if (!(((ticket >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
+		return;
+
+	ia64_invala();
+
+	for (;;) {
+		asm volatile ("ld4.c.nc %0=[%1]" : "=r"(serve) : "r"(p) : "memory");
+
+		if (!(((serve >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
+			return;
+		cpu_relax();
+	}
 }
 
-#define __raw_spin_lock(lock) __raw_spin_lock_flags(lock, 0)
+static __always_inline int __ticket_spin_trylock(arch_spinlock_t *lock)
+{
+	int tmp = ACCESS_ONCE(lock->lock);
 
-/* Unlock by doing an ordered store and releasing the cacheline with nta */
-static inline void __raw_spin_unlock(raw_spinlock_t *x) {
-	barrier();
-	asm volatile ("st4.rel.nta [%0] = r0\n\t" :: "r"(x));
+	if (!(((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK))
+		return ia64_cmpxchg(acq, &lock->lock, tmp, tmp + 1, sizeof (tmp)) == tmp;
+	return 0;
 }
 
-#else /* !ASM_SUPPORTED */
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
-# define __raw_spin_lock(x)								\
-do {											\
-	__u32 *ia64_spinlock_ptr = (__u32 *) (x);					\
-	__u64 ia64_spinlock_val;							\
-	ia64_spinlock_val = ia64_cmpxchg4_acq(ia64_spinlock_ptr, 1, 0);			\
-	if (unlikely(ia64_spinlock_val)) {						\
-		do {									\
-			while (*ia64_spinlock_ptr)					\
-				ia64_barrier();						\
-			ia64_spinlock_val = ia64_cmpxchg4_acq(ia64_spinlock_ptr, 1, 0);	\
-		} while (ia64_spinlock_val);						\
-	}										\
-} while (0)
-#define __raw_spin_unlock(x)	do { barrier(); ((raw_spinlock_t *) x)->lock = 0; } while (0)
-#endif /* !ASM_SUPPORTED */
+static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
+{
+	unsigned short	*p = (unsigned short *)&lock->lock + 1, tmp;
 
-#define __raw_spin_is_locked(x)		((x)->lock != 0)
-#define __raw_spin_trylock(x)		(cmpxchg_acq(&(x)->lock, 0, 1) == 0)
-#define __raw_spin_unlock_wait(lock) \
-	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
+	asm volatile ("ld2.bias %0=[%1]" : "=r"(tmp) : "r"(p));
+	ACCESS_ONCE(*p) = (tmp + 2) & ~1;
+}
 
-#define __raw_read_can_lock(rw)		(*(volatile int *)(rw) >= 0)
-#define __raw_write_can_lock(rw)	(*(volatile int *)(rw) == 0)
+static __always_inline void __ticket_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	int	*p = (int *)&lock->lock, ticket;
+
+	ia64_invala();
+
+	for (;;) {
+		asm volatile ("ld4.c.nc %0=[%1]" : "=r"(ticket) : "r"(p) : "memory");
+		if (!(((ticket >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
+			return;
+		cpu_relax();
+	}
+}
+
+static inline int __ticket_spin_is_locked(arch_spinlock_t *lock)
+{
+	long tmp = ACCESS_ONCE(lock->lock);
+
+	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK);
+}
+
+static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
+{
+	long tmp = ACCESS_ONCE(lock->lock);
+
+	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
+}
+
+static inline int arch_spin_is_locked(arch_spinlock_t *lock)
+{
+	return __ticket_spin_is_locked(lock);
+}
+
+static inline int arch_spin_is_contended(arch_spinlock_t *lock)
+{
+	return __ticket_spin_is_contended(lock);
+}
+#define arch_spin_is_contended	arch_spin_is_contended
+
+static __always_inline void arch_spin_lock(arch_spinlock_t *lock)
+{
+	__ticket_spin_lock(lock);
+}
+
+static __always_inline int arch_spin_trylock(arch_spinlock_t *lock)
+{
+	return __ticket_spin_trylock(lock);
+}
+
+static __always_inline void arch_spin_unlock(arch_spinlock_t *lock)
+{
+	__ticket_spin_unlock(lock);
+}
+
+static __always_inline void arch_spin_lock_flags(arch_spinlock_t *lock,
+						  unsigned long flags)
+{
+	arch_spin_lock(lock);
+}
+
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	__ticket_spin_unlock_wait(lock);
+}
+
+#define arch_read_can_lock(rw)		(*(volatile int *)(rw) >= 0)
+#define arch_write_can_lock(rw)	(*(volatile int *)(rw) == 0)
 
 #ifdef ASM_SUPPORTED
 
 static __always_inline void
-__raw_read_lock_flags(raw_rwlock_t *lock, unsigned long flags)
+arch_read_lock_flags(arch_rwlock_t *lock, unsigned long flags)
 {
 	__asm__ __volatile__ (
 		"tbit.nz p6, p0 = %1,%2\n"
@@ -146,15 +169,15 @@ __raw_read_lock_flags(raw_rwlock_t *lock, unsigned long flags)
 		: "p6", "p7", "r2", "memory");
 }
 
-#define __raw_read_lock(lock) __raw_read_lock_flags(lock, 0)
+#define arch_read_lock(lock) arch_read_lock_flags(lock, 0)
 
 #else /* !ASM_SUPPORTED */
 
-#define __raw_read_lock_flags(rw, flags) __raw_read_lock(rw)
+#define arch_read_lock_flags(rw, flags) arch_read_lock(rw)
 
-#define __raw_read_lock(rw)								\
+#define arch_read_lock(rw)								\
 do {											\
-	raw_rwlock_t *__read_lock_ptr = (rw);						\
+	arch_rwlock_t *__read_lock_ptr = (rw);						\
 											\
 	while (unlikely(ia64_fetchadd(1, (int *) __read_lock_ptr, acq) < 0)) {		\
 		ia64_fetchadd(-1, (int *) __read_lock_ptr, rel);			\
@@ -165,16 +188,16 @@ do {											\
 
 #endif /* !ASM_SUPPORTED */
 
-#define __raw_read_unlock(rw)					\
+#define arch_read_unlock(rw)					\
 do {								\
-	raw_rwlock_t *__read_lock_ptr = (rw);			\
+	arch_rwlock_t *__read_lock_ptr = (rw);			\
 	ia64_fetchadd(-1, (int *) __read_lock_ptr, rel);	\
 } while (0)
 
 #ifdef ASM_SUPPORTED
 
 static __always_inline void
-__raw_write_lock_flags(raw_rwlock_t *lock, unsigned long flags)
+arch_write_lock_flags(arch_rwlock_t *lock, unsigned long flags)
 {
 	__asm__ __volatile__ (
 		"tbit.nz p6, p0 = %1, %2\n"
@@ -198,9 +221,9 @@ __raw_write_lock_flags(raw_rwlock_t *lock, unsigned long flags)
 		: "ar.ccv", "p6", "p7", "r2", "r29", "memory");
 }
 
-#define __raw_write_lock(rw) __raw_write_lock_flags(rw, 0)
+#define arch_write_lock(rw) arch_write_lock_flags(rw, 0)
 
-#define __raw_write_trylock(rw)							\
+#define arch_write_trylock(rw)							\
 ({										\
 	register long result;							\
 										\
@@ -212,7 +235,7 @@ __raw_write_lock_flags(raw_rwlock_t *lock, unsigned long flags)
 	(result == 0);								\
 })
 
-static inline void __raw_write_unlock(raw_rwlock_t *x)
+static inline void arch_write_unlock(arch_rwlock_t *x)
 {
 	u8 *y = (u8 *)x;
 	barrier();
@@ -221,9 +244,9 @@ static inline void __raw_write_unlock(raw_rwlock_t *x)
 
 #else /* !ASM_SUPPORTED */
 
-#define __raw_write_lock_flags(l, flags) __raw_write_lock(l)
+#define arch_write_lock_flags(l, flags) arch_write_lock(l)
 
-#define __raw_write_lock(l)								\
+#define arch_write_lock(l)								\
 ({											\
 	__u64 ia64_val, ia64_set_val = ia64_dep_mi(-1, 0, 31, 1);			\
 	__u32 *ia64_write_lock_ptr = (__u32 *) (l);					\
@@ -234,7 +257,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *x)
 	} while (ia64_val);								\
 })
 
-#define __raw_write_trylock(rw)						\
+#define arch_write_trylock(rw)						\
 ({									\
 	__u64 ia64_val;							\
 	__u64 ia64_set_val = ia64_dep_mi(-1, 0, 31,1);			\
@@ -242,7 +265,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *x)
 	(ia64_val == 0);						\
 })
 
-static inline void __raw_write_unlock(raw_rwlock_t *x)
+static inline void arch_write_unlock(arch_rwlock_t *x)
 {
 	barrier();
 	x->write_lock = 0;
@@ -250,10 +273,10 @@ static inline void __raw_write_unlock(raw_rwlock_t *x)
 
 #endif /* !ASM_SUPPORTED */
 
-static inline int __raw_read_trylock(raw_rwlock_t *x)
+static inline int arch_read_trylock(arch_rwlock_t *x)
 {
 	union {
-		raw_rwlock_t lock;
+		arch_rwlock_t lock;
 		__u32 word;
 	} old, new;
 	old.lock = new.lock = *x;
@@ -262,8 +285,8 @@ static inline int __raw_read_trylock(raw_rwlock_t *x)
 	return (u32)ia64_cmpxchg4_acq((__u32 *)(x), new.word, old.word) == old.word;
 }
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /*  _ASM_IA64_SPINLOCK_H */

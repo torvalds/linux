@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -410,14 +411,10 @@ static int pcbit_writecmd(const u_char __user *buf, int len, int driver, int cha
 			return -EINVAL;
 		}
 
-		cbuf = kmalloc(len, GFP_KERNEL);
-		if (!cbuf)
-			return -ENOMEM;
+		cbuf = memdup_user(buf, len);
+		if (IS_ERR(cbuf))
+			return PTR_ERR(cbuf);
 
-		if (copy_from_user(cbuf, buf, len)) {
-			kfree(cbuf);
-			return -EFAULT;
-		}
 		memcpy_toio(dev->sh_mem, cbuf, len);
 		kfree(cbuf);
 		return len;

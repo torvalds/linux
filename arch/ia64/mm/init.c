@@ -22,7 +22,6 @@
 #include <linux/kexec.h>
 
 #include <asm/dma.h>
-#include <asm/ia32.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
 #include <asm/numa.h>
@@ -44,8 +43,8 @@ extern void ia64_tlb_init (void);
 unsigned long MAX_DMA_ADDRESS = PAGE_OFFSET + 0x100000000UL;
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-unsigned long vmalloc_end = VMALLOC_END_INIT;
-EXPORT_SYMBOL(vmalloc_end);
+unsigned long VMALLOC_END = VMALLOC_END_INIT;
+EXPORT_SYMBOL(VMALLOC_END);
 struct page *vmem_map;
 EXPORT_SYMBOL(vmem_map);
 #endif
@@ -91,7 +90,7 @@ dma_mark_clean(void *addr, size_t size)
 inline void
 ia64_set_rbs_bot (void)
 {
-	unsigned long stack_size = current->signal->rlim[RLIMIT_STACK].rlim_max & -16;
+	unsigned long stack_size = rlimit_max(RLIMIT_STACK) & -16;
 
 	if (stack_size > MAX_USER_STACK_SIZE)
 		stack_size = MAX_USER_STACK_SIZE;
@@ -118,6 +117,7 @@ ia64_init_addr_space (void)
 	 */
 	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (vma) {
+		INIT_LIST_HEAD(&vma->anon_vma_chain);
 		vma->vm_mm = current->mm;
 		vma->vm_start = current->thread.rbs_bot & PAGE_MASK;
 		vma->vm_end = vma->vm_start + PAGE_SIZE;
@@ -136,6 +136,7 @@ ia64_init_addr_space (void)
 	if (!(current->personality & MMAP_PAGE_ZERO)) {
 		vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 		if (vma) {
+			INIT_LIST_HEAD(&vma->anon_vma_chain);
 			vma->vm_mm = current->mm;
 			vma->vm_end = PAGE_SIZE;
 			vma->vm_page_prot = __pgprot(pgprot_val(PAGE_READONLY) | _PAGE_MA_NAT);
@@ -617,7 +618,6 @@ mem_init (void)
 	long reserved_pages, codesize, datasize, initsize;
 	pg_data_t *pgdat;
 	int i;
-	static struct kcore_list kcore_mem, kcore_vmem, kcore_kernel;
 
 	BUG_ON(PTRS_PER_PGD * sizeof(pgd_t) != PAGE_SIZE);
 	BUG_ON(PTRS_PER_PMD * sizeof(pmd_t) != PAGE_SIZE);
@@ -639,10 +639,6 @@ mem_init (void)
 
 	high_memory = __va(max_low_pfn * PAGE_SIZE);
 
-	kclist_add(&kcore_mem, __va(0), max_low_pfn * PAGE_SIZE);
-	kclist_add(&kcore_vmem, (void *)VMALLOC_START, VMALLOC_END-VMALLOC_START);
-	kclist_add(&kcore_kernel, _stext, _end - _stext);
-
 	for_each_online_pgdat(pgdat)
 		if (pgdat->bdata->node_bootmem_map)
 			totalram_pages += free_all_bootmem_node(pgdat);
@@ -655,7 +651,7 @@ mem_init (void)
 	initsize =  (unsigned long) __init_end - (unsigned long) __init_begin;
 
 	printk(KERN_INFO "Memory: %luk/%luk available (%luk code, %luk reserved, "
-	       "%luk data, %luk init)\n", (unsigned long) nr_free_pages() << (PAGE_SHIFT - 10),
+	       "%luk data, %luk init)\n", nr_free_pages() << (PAGE_SHIFT - 10),
 	       num_physpages << (PAGE_SHIFT - 10), codesize >> 10,
 	       reserved_pages << (PAGE_SHIFT - 10), datasize >> 10, initsize >> 10);
 
@@ -673,10 +669,6 @@ mem_init (void)
 			fsyscall_table[i] = sys_call_table[i] | 1;
 	}
 	setup_gate();
-
-#ifdef CONFIG_IA32_SUPPORT
-	ia32_mem_init();
-#endif
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

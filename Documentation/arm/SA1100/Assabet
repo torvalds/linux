@@ -2,8 +2,7 @@ The Intel Assabet (SA-1110 evaluation) board
 ============================================
 
 Please see:
-http://developer.intel.com/design/strong/quicklist/eval-plat/sa-1110.htm
-http://developer.intel.com/design/strong/guides/278278.htm
+http://developer.intel.com
 
 Also some notes from John G Dorsey <jd5q@andrew.cmu.edu>:
 http://www.cs.cmu.edu/~wearable/software/assabet.html
@@ -64,7 +63,7 @@ Initial RedBoot configuration
 -----------------------------
 
 The commands used here are explained in The RedBoot User's Guide available
-on-line at http://sources.redhat.com/ecos/docs-latest/redboot/redboot.html.
+on-line at http://sources.redhat.com/ecos/docs.html.
 Please refer to it for explanations.
 
 If you have a CF network card (my Assabet kit contained a CF+ LP-E from
@@ -240,7 +239,7 @@ Then, rebooting the Assabet is just a matter of waiting for the login prompt.
 
 
 Nicolas Pitre
-nico@cam.org
+nico@fluxnic.net
 June 12, 2001
 
 

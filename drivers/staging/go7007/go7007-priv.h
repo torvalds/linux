@@ -21,6 +21,8 @@
  * user-space applications.
  */
 
+#include <media/v4l2-device.h>
+
 struct go7007;
 
 /* IDs to activate board-specific support code */
@@ -132,7 +134,7 @@ struct go7007_buffer {
 
 struct go7007_file {
 	struct go7007 *go;
-	struct semaphore lock;
+	struct mutex lock;
 	int buf_count;
 	struct go7007_buffer *bufs;
 };
@@ -167,10 +169,11 @@ struct go7007 {
 	int channel_number; /* for multi-channel boards like Adlink PCI-MPG24 */
 	char name[64];
 	struct video_device *video_dev;
+	struct v4l2_device v4l2_dev;
 	int ref_count;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
-	struct semaphore hw_lock;
+	struct mutex hw_lock;
 	int streaming;
 	int in_use;
 	int audio_enabled;
@@ -240,7 +243,12 @@ struct go7007 {
 	unsigned short interrupt_data;
 };
 
-/* All of these must be called with the hpi_lock semaphore held! */
+static inline struct go7007 *to_go7007(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct go7007, v4l2_dev);
+}
+
+/* All of these must be called with the hpi_lock mutex held! */
 #define go7007_interface_reset(go) \
 			((go)->hpi_ops->interface_reset(go))
 #define	go7007_write_interrupt(go, x, y) \

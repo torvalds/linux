@@ -189,8 +189,9 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key, long acl_order)
 	if (!permits)
 		goto out_unlock;
 
-	memcpy(permits->permits, xpermits->permits,
-	       count * sizeof(struct afs_permit));
+	if (xpermits)
+		memcpy(permits->permits, xpermits->permits,
+			count * sizeof(struct afs_permit));
 
 	_debug("key %x access %x",
 	       key_serial(key), vnode->status.caller_access);
@@ -284,12 +285,15 @@ static int afs_check_permit(struct afs_vnode *vnode, struct key *key,
  * - AFS ACLs are attached to directories only, and a file is controlled by its
  *   parent directory's ACL
  */
-int afs_permission(struct inode *inode, int mask)
+int afs_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	afs_access_t uninitialized_var(access);
 	struct key *key;
 	int ret;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	_enter("{{%x:%u},%lx},%x,",
 	       vnode->fid.vid, vnode->fid.vnode, vnode->flags, mask);
@@ -346,7 +350,7 @@ int afs_permission(struct inode *inode, int mask)
 	}
 
 	key_put(key);
-	ret = generic_permission(inode, mask, NULL);
+	ret = generic_permission(inode, mask, flags, NULL);
 	_leave(" = %d", ret);
 	return ret;
 

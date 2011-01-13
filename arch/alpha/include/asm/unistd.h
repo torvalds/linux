@@ -247,6 +247,7 @@
 #define __IGNORE_pause
 #define __IGNORE_time
 #define __IGNORE_utime
+#define __IGNORE_umount2
 
 /*
  * Linux-specific system calls begin at 300
@@ -433,10 +434,28 @@
 #define __NR_signalfd			476
 #define __NR_timerfd			477
 #define __NR_eventfd			478
+#define __NR_recvmmsg			479
+#define __NR_fallocate			480
+#define __NR_timerfd_create		481
+#define __NR_timerfd_settime		482
+#define __NR_timerfd_gettime		483
+#define __NR_signalfd4			484
+#define __NR_eventfd2			485
+#define __NR_epoll_create1		486
+#define __NR_dup3			487
+#define __NR_pipe2			488
+#define __NR_inotify_init1		489
+#define __NR_preadv			490
+#define __NR_pwritev			491
+#define __NR_rt_tgsigqueueinfo		492
+#define __NR_perf_event_open		493
+#define __NR_fanotify_init		494
+#define __NR_fanotify_mark		495
+#define __NR_prlimit64			496
 
 #ifdef __KERNEL__
 
-#define NR_SYSCALLS			479
+#define NR_SYSCALLS			497
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -447,6 +466,7 @@
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 
 /* "Conditional" syscalls.  What we want is
 

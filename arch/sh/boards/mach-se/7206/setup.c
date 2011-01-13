@@ -50,15 +50,12 @@ static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
 static struct heartbeat_data heartbeat_data = {
 	.bit_pos	= heartbeat_bit_pos,
 	.nr_bits	= ARRAY_SIZE(heartbeat_bit_pos),
-	.regsize	= 32,
 };
 
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start	= PA_LED,
-		.end	= PA_LED,
-		.flags	= IORESOURCE_MEM,
-	},
+static struct resource heartbeat_resource = {
+	.start	= PA_LED,
+	.end	= PA_LED,
+	.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 };
 
 static struct platform_device heartbeat_device = {
@@ -67,8 +64,8 @@ static struct platform_device heartbeat_device = {
 	.dev	= {
 		.platform_data	= &heartbeat_data,
 	},
-	.num_resources	= ARRAY_SIZE(heartbeat_resources),
-	.resource	= heartbeat_resources,
+	.num_resources	= 1,
+	.resource	= &heartbeat_resource,
 };
 
 static struct platform_device *se7206_devices[] __initdata = {
@@ -82,6 +79,11 @@ static int __init se7206_devices_setup(void)
 }
 __initcall(se7206_devices_setup);
 
+static int se7206_mode_pins(void)
+{
+	return MODE_PIN1 | MODE_PIN2;
+}
+
 /*
  * The Machine Vector
  */
@@ -89,20 +91,6 @@ __initcall(se7206_devices_setup);
 static struct sh_machine_vector mv_se __initmv = {
 	.mv_name		= "SolutionEngine",
 	.mv_nr_irqs		= 256,
-	.mv_inb			= se7206_inb,
-	.mv_inw			= se7206_inw,
-	.mv_outb		= se7206_outb,
-	.mv_outw		= se7206_outw,
-
-	.mv_inb_p		= se7206_inb_p,
-	.mv_inw_p		= se7206_inw,
-	.mv_outb_p		= se7206_outb_p,
-	.mv_outw_p		= se7206_outw,
-
-	.mv_insb		= se7206_insb,
-	.mv_insw		= se7206_insw,
-	.mv_outsb		= se7206_outsb,
-	.mv_outsw		= se7206_outsw,
-
 	.mv_init_irq		= init_se7206_IRQ,
+	.mv_mode_pins		= se7206_mode_pins,
 };

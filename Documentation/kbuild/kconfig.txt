@@ -65,7 +65,7 @@ also use the environment variable KCONFIG_ALLCONFIG as a flag or a
 filename that contains config symbols that the user requires to be
 set to a specific value.  If KCONFIG_ALLCONFIG is used without a
 filename, "make *config" checks for a file named
-"all{yes/mod/no/random}.config" (corresponding to the *config command
+"all{yes/mod/no/def/random}.config" (corresponding to the *config command
 that was used) for symbol values that are to be forced.  If this file
 is not found, it checks for a file named "all.config" to contain forced
 values.
@@ -96,17 +96,23 @@ Environment variables for 'silentoldconfig'
 KCONFIG_NOSILENTUPDATE
 --------------------------------------------------
 If this variable has a non-blank value, it prevents silent kernel
-config udpates (requires explicit updates).
+config updates (requires explicit updates).
 
 KCONFIG_AUTOCONFIG
 --------------------------------------------------
 This environment variable can be set to specify the path & name of the
 "auto.conf" file.  Its default value is "include/config/auto.conf".
 
+KCONFIG_TRISTATE
+--------------------------------------------------
+This environment variable can be set to specify the path & name of the
+"tristate.conf" file.  Its default value is "include/config/tristate.conf".
+
 KCONFIG_AUTOHEADER
 --------------------------------------------------
 This environment variable can be set to specify the path & name of the
-"autoconf.h" (header) file.  Its default value is "include/linux/autoconf.h".
+"autoconf.h" (header) file.
+Its default value is "include/generated/autoconf.h".
 
 
 ======================================================================

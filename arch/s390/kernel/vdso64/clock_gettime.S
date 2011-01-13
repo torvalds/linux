@@ -20,11 +20,11 @@
 __kernel_clock_gettime:
 	.cfi_startproc
 	larl	%r5,_vdso_data
-	cghi	%r2,CLOCK_REALTIME
+	cghi	%r2,__CLOCK_REALTIME
 	je	4f
 	cghi	%r2,-2		/* CLOCK_THREAD_CPUTIME_ID for this thread */
 	je	9f
-	cghi	%r2,CLOCK_MONOTONIC
+	cghi	%r2,__CLOCK_MONOTONIC
 	jne	12f
 
 	/* CLOCK_MONOTONIC */
@@ -36,7 +36,7 @@ __kernel_clock_gettime:
 	stck	48(%r15)			/* Store TOD clock */
 	lg	%r1,48(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
-	mghi	%r1,1000
+	msgf	%r1,__VDSO_NTP_MULT(%r5)	/*  * NTP adjustment */
 	srlg	%r1,%r1,12			/* cyc2ns(clock,cycle_delta) */
 	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */
 	lg	%r0,__VDSO_XTIME_SEC(%r5)
@@ -64,7 +64,7 @@ __kernel_clock_gettime:
 	stck	48(%r15)			/* Store TOD clock */
 	lg	%r1,48(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
-	mghi	%r1,1000
+	msgf	%r1,__VDSO_NTP_MULT(%r5)	/*  * NTP adjustment */
 	srlg	%r1,%r1,12			/* cyc2ns(clock,cycle_delta) */
 	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */
 	lg	%r0,__VDSO_XTIME_SEC(%r5)
@@ -88,10 +88,17 @@ __kernel_clock_gettime:
 	llilh	%r4,0x0100
 	sar	%a4,%r4
 	lghi	%r4,0
+	epsw	%r5,0
 	sacf	512				/* Magic ectg instruction */
 	.insn	ssf,0xc80100000000,__VDSO_ECTG_BASE(4),__VDSO_ECTG_USER(4),4
-	sacf	0
-	sar	%a4,%r2
+	tml	%r5,0x4000
+	jo	11f
+	tml	%r5,0x8000
+	jno	10f
+	sacf	256
+	j	11f
+10:	sacf	0
+11:	sar	%a4,%r2
 	algr	%r1,%r0				/* r1 = cputime as TOD value */
 	mghi	%r1,1000			/* convert to nanoseconds */
 	srlg	%r1,%r1,12			/* r1 = cputime in nanosec */

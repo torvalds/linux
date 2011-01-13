@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include <rdma/ib_umem.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_smi.h>

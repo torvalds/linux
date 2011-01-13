@@ -34,13 +34,13 @@ struct rfmon_header {
 	__le16 unk3;
 	u8 rssi;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct rx_annex_header {
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	struct rfmon_header rfmon;
-} __attribute__ ((packed));
+} __packed;
 
 /* wlan-ng (and hopefully others) AVS header, version one.  Fields in
  * network byte order. */
@@ -64,7 +64,7 @@ struct avs_80211_1_header {
 };
 
 void islpci_eth_cleanup_transmit(islpci_private *, isl38xx_control_block *);
-int islpci_eth_transmit(struct sk_buff *, struct net_device *);
+netdev_tx_t islpci_eth_transmit(struct sk_buff *, struct net_device *);
 int islpci_eth_receive(islpci_private *);
 void islpci_eth_tx_timeout(struct net_device *);
 void islpci_do_reset_and_wake(struct work_struct *);

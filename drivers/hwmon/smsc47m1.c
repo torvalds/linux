@@ -26,6 +26,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
@@ -38,7 +40,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -86,6 +88,7 @@ superio_exit(void)
 #define SUPERIO_REG_ACT		0x30
 #define SUPERIO_REG_BASE	0x60
 #define SUPERIO_REG_DEVID	0x20
+#define SUPERIO_REG_DEVREV	0x21
 
 /* Logical device registers */
 
@@ -135,11 +138,11 @@ struct smsc47m1_data {
 
 struct smsc47m1_sio_data {
 	enum chips type;
+	u8 activate;		/* Remember initial device state */
 };
 
 
-static int smsc47m1_probe(struct platform_device *pdev);
-static int __devexit smsc47m1_remove(struct platform_device *pdev);
+static int __exit smsc47m1_remove(struct platform_device *pdev);
 static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 		int init);
 
@@ -159,8 +162,7 @@ static struct platform_driver smsc47m1_driver = {
 		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
-	.probe		= smsc47m1_probe,
-	.remove		= __devexit_p(smsc47m1_remove),
+	.remove		= __exit_p(smsc47m1_remove),
 };
 
 static ssize_t get_fan(struct device *dev, struct device_attribute
@@ -429,26 +431,35 @@ static int __init smsc47m1_find(unsigned short *addr,
 	 * The LPC47M292 (device id 0x6B) is somewhat compatible, but it
 	 * supports a 3rd fan, and the pin configuration registers are
 	 * unfortunately different.
+	 * The LPC47M233 has the same device id (0x6B) but is not compatible.
+	 * We check the high bit of the device revision register to
+	 * differentiate them.
 	 */
 	switch (val) {
 	case 0x51:
-		pr_info(DRVNAME ": Found SMSC LPC47B27x\n");
+		pr_info("Found SMSC LPC47B27x\n");
 		sio_data->type = smsc47m1;
 		break;
 	case 0x59:
-		pr_info(DRVNAME ": Found SMSC LPC47M10x/LPC47M112/LPC47M13x\n");
+		pr_info("Found SMSC LPC47M10x/LPC47M112/LPC47M13x\n");
 		sio_data->type = smsc47m1;
 		break;
 	case 0x5F:
-		pr_info(DRVNAME ": Found SMSC LPC47M14x\n");
+		pr_info("Found SMSC LPC47M14x\n");
 		sio_data->type = smsc47m1;
 		break;
 	case 0x60:
-		pr_info(DRVNAME ": Found SMSC LPC47M15x/LPC47M192/LPC47M997\n");
+		pr_info("Found SMSC LPC47M15x/LPC47M192/LPC47M997\n");
 		sio_data->type = smsc47m1;
 		break;
 	case 0x6B:
-		pr_info(DRVNAME ": Found SMSC LPC47M292\n");
+		if (superio_inb(SUPERIO_REG_DEVREV) & 0x80) {
+			pr_debug("Found SMSC LPC47M233, unsupported\n");
+			superio_exit();
+			return -ENODEV;
+		}
+
+		pr_info("Found SMSC LPC47M292\n");
 		sio_data->type = smsc47m2;
 		break;
 	default:
@@ -459,24 +470,126 @@ static int __init smsc47m1_find(unsigned short *addr,
 	superio_select();
 	*addr = (superio_inb(SUPERIO_REG_BASE) << 8)
 	      |  superio_inb(SUPERIO_REG_BASE + 1);
-	val = superio_inb(SUPERIO_REG_ACT);
-	if (*addr == 0 || (val & 0x01) == 0) {
-		pr_info(DRVNAME ": Device is disabled, will not use\n");
+	if (*addr == 0) {
+		pr_info("Device address not set, will not use\n");
 		superio_exit();
 		return -ENODEV;
+	}
+
+	/* Enable only if address is set (needed at least on the
+	 * Compaq Presario S4000NX) */
+	sio_data->activate = superio_inb(SUPERIO_REG_ACT);
+	if ((sio_data->activate & 0x01) == 0) {
+		pr_info("Enabling device\n");
+		superio_outb(SUPERIO_REG_ACT, sio_data->activate | 0x01);
 	}
 
 	superio_exit();
 	return 0;
 }
 
-static int __devinit smsc47m1_probe(struct platform_device *pdev)
+/* Restore device to its initial state */
+static void smsc47m1_restore(const struct smsc47m1_sio_data *sio_data)
+{
+	if ((sio_data->activate & 0x01) == 0) {
+		superio_enter();
+		superio_select();
+
+		pr_info("Disabling device\n");
+		superio_outb(SUPERIO_REG_ACT, sio_data->activate);
+
+		superio_exit();
+	}
+}
+
+#define CHECK		1
+#define REQUEST		2
+#define RELEASE		3
+
+/*
+ * This function can be used to:
+ *  - test for resource conflicts with ACPI
+ *  - request the resources
+ *  - release the resources
+ * We only allocate the I/O ports we really need, to minimize the risk of
+ * conflicts with ACPI or with other drivers.
+ */
+static int smsc47m1_handle_resources(unsigned short address, enum chips type,
+				     int action, struct device *dev)
+{
+	static const u8 ports_m1[] = {
+		/* register, region length */
+		0x04, 1,
+		0x33, 4,
+		0x56, 7,
+	};
+
+	static const u8 ports_m2[] = {
+		/* register, region length */
+		0x04, 1,
+		0x09, 1,
+		0x2c, 2,
+		0x35, 4,
+		0x56, 7,
+		0x69, 4,
+	};
+
+	int i, ports_size, err;
+	const u8 *ports;
+
+	switch (type) {
+	case smsc47m1:
+	default:
+		ports = ports_m1;
+		ports_size = ARRAY_SIZE(ports_m1);
+		break;
+	case smsc47m2:
+		ports = ports_m2;
+		ports_size = ARRAY_SIZE(ports_m2);
+		break;
+	}
+
+	for (i = 0; i + 1 < ports_size; i += 2) {
+		unsigned short start = address + ports[i];
+		unsigned short len = ports[i + 1];
+
+		switch (action) {
+		case CHECK:
+			/* Only check for conflicts */
+			err = acpi_check_region(start, len, DRVNAME);
+			if (err)
+				return err;
+			break;
+		case REQUEST:
+			/* Request the resources */
+			if (!request_region(start, len, DRVNAME)) {
+				dev_err(dev, "Region 0x%hx-0x%hx already in "
+					"use!\n", start, start + len);
+
+				/* Undo all requests */
+				for (i -= 2; i >= 0; i -= 2)
+					release_region(address + ports[i],
+						       ports[i + 1]);
+				return -EBUSY;
+			}
+			break;
+		case RELEASE:
+			/* Release the resources */
+			release_region(start, len);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int __init smsc47m1_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct smsc47m1_sio_data *sio_data = dev->platform_data;
 	struct smsc47m1_data *data;
 	struct resource *res;
-	int err = 0;
+	int err;
 	int fan1, fan2, fan3, pwm1, pwm2, pwm3;
 
 	static const char *names[] = {
@@ -485,12 +598,10 @@ static int __devinit smsc47m1_probe(struct platform_device *pdev)
 	};
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, SMSC_EXTENT, DRVNAME)) {
-		dev_err(dev, "Region 0x%lx-0x%lx already in use!\n",
-			(unsigned long)res->start,
-			(unsigned long)res->end);
-		return -EBUSY;
-	}
+	err = smsc47m1_handle_resources(res->start, sio_data->type,
+					REQUEST, dev);
+	if (err < 0)
+		return err;
 
 	if (!(data = kzalloc(sizeof(struct smsc47m1_data), GFP_KERNEL))) {
 		err = -ENOMEM;
@@ -626,11 +737,11 @@ error_free:
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 error_release:
-	release_region(res->start, SMSC_EXTENT);
+	smsc47m1_handle_resources(res->start, sio_data->type, RELEASE, dev);
 	return err;
 }
 
-static int __devexit smsc47m1_remove(struct platform_device *pdev)
+static int __exit smsc47m1_remove(struct platform_device *pdev)
 {
 	struct smsc47m1_data *data = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -639,7 +750,7 @@ static int __devexit smsc47m1_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &smsc47m1_group);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	release_region(res->start, SMSC_EXTENT);
+	smsc47m1_handle_resources(res->start, data->type, RELEASE, &pdev->dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
@@ -706,35 +817,33 @@ static int __init smsc47m1_device_add(unsigned short address,
 	};
 	int err;
 
-	err = acpi_check_resource_conflict(&res);
+	err = smsc47m1_handle_resources(address, sio_data->type, CHECK, NULL);
 	if (err)
 		goto exit;
 
 	pdev = platform_device_alloc(DRVNAME, address);
 	if (!pdev) {
 		err = -ENOMEM;
-		printk(KERN_ERR DRVNAME ": Device allocation failed\n");
+		pr_err("Device allocation failed\n");
 		goto exit;
 	}
 
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Device resource addition failed "
-		       "(%d)\n", err);
+		pr_err("Device resource addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
 	err = platform_device_add_data(pdev, sio_data,
 				       sizeof(struct smsc47m1_sio_data));
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Platform data allocation failed\n");
+		pr_err("Platform data allocation failed\n");
 		goto exit_device_put;
 	}
 
 	err = platform_device_add(pdev);
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Device addition failed (%d)\n",
-		       err);
+		pr_err("Device addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
@@ -755,27 +864,29 @@ static int __init sm_smsc47m1_init(void)
 	if (smsc47m1_find(&address, &sio_data))
 		return -ENODEV;
 
-	err = platform_driver_register(&smsc47m1_driver);
-	if (err)
-		goto exit;
-
 	/* Sets global pdev as a side effect */
 	err = smsc47m1_device_add(address, &sio_data);
 	if (err)
-		goto exit_driver;
+		goto exit;
+
+	err = platform_driver_probe(&smsc47m1_driver, smsc47m1_probe);
+	if (err)
+		goto exit_device;
 
 	return 0;
 
-exit_driver:
-	platform_driver_unregister(&smsc47m1_driver);
+exit_device:
+	platform_device_unregister(pdev);
+	smsc47m1_restore(&sio_data);
 exit:
 	return err;
 }
 
 static void __exit sm_smsc47m1_exit(void)
 {
-	platform_device_unregister(pdev);
 	platform_driver_unregister(&smsc47m1_driver);
+	smsc47m1_restore(pdev->dev.platform_data);
+	platform_device_unregister(pdev);
 }
 
 MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");

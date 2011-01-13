@@ -9,7 +9,6 @@
  * LED driver for the DAC124S085 SPI DAC
  */
 
-#include <linux/gfp.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -148,3 +147,4 @@ module_exit(dac124s085_leds_exit);
 MODULE_AUTHOR("Guennadi Liakhovetski <lg@denx.de>");
 MODULE_DESCRIPTION("DAC124S085 LED driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:dac124s085");

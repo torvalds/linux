@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2.h
@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.11
+ *  mpi2.h Version:  02.00.16
  *
  *  Version History
  *  ---------------
@@ -45,6 +45,24 @@
  *  10-02-08  02.00.10  Bumped MPI2_HEADER_VERSION_UNIT.
  *                      Moved LUN field defines from mpi2_init.h.
  *  01-19-09  02.00.11  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  05-06-09  02.00.12  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      In all request and reply descriptors, replaced VF_ID
+ *                      field with MSIxIndex field.
+ *                      Removed DevHandle field from
+ *                      MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR and made those
+ *                      bytes reserved.
+ *                      Added RAID Accelerator functionality.
+ *  07-30-09  02.00.13  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  10-28-09  02.00.14  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MSI-x index mask and shift for Reply Post Host
+ *                      Index register.
+ *                      Added function code for Host Based Discovery Action.
+ *  02-10-10  02.00.15  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added define for MPI2_FUNCTION_PWR_MGMT_CONTROL.
+ *                      Added defines for product-specific range of message
+ *                      function codes, 0xF0 to 0xFF.
+ *  05-12-10  02.00.16  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added alternative defines for the SGE Direction bit.
  *  --------------------------------------------------------------------------
  */
 
@@ -70,7 +88,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x0B)
+#define MPI2_HEADER_VERSION_UNIT            (0x10)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -224,9 +242,12 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
 #define MPI2_REPLY_FREE_HOST_INDEX_OFFSET       (0x00000048)
 
 /*
- * Offset for the Reply Descriptor Post Queue
+ * Defines for the Reply Descriptor Post Queue
  */
 #define MPI2_REPLY_POST_HOST_INDEX_OFFSET       (0x0000006C)
+#define MPI2_REPLY_POST_HOST_INDEX_MASK         (0x00FFFFFF)
+#define MPI2_RPHI_MSIX_INDEX_MASK               (0xFF000000)
+#define MPI2_RPHI_MSIX_INDEX_SHIFT              (24)
 
 /*
  * Defines for the HCBSize and address
@@ -257,7 +278,7 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
 typedef struct _MPI2_DEFAULT_REQUEST_DESCRIPTOR
 {
     U8              RequestFlags;               /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             SMID;                       /* 0x02 */
     U16             LMID;                       /* 0x04 */
     U16             DescriptorTypeDependent;    /* 0x06 */
@@ -271,6 +292,7 @@ typedef struct _MPI2_DEFAULT_REQUEST_DESCRIPTOR
 #define MPI2_REQ_DESCRIPT_FLAGS_SCSI_TARGET             (0x02)
 #define MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY           (0x06)
 #define MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE            (0x08)
+#define MPI2_REQ_DESCRIPT_FLAGS_RAID_ACCELERATOR        (0x0A)
 
 #define MPI2_REQ_DESCRIPT_FLAGS_IOC_FIFO_MARKER (0x01)
 
@@ -279,7 +301,7 @@ typedef struct _MPI2_DEFAULT_REQUEST_DESCRIPTOR
 typedef struct _MPI2_HIGH_PRIORITY_REQUEST_DESCRIPTOR
 {
     U8              RequestFlags;               /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             SMID;                       /* 0x02 */
     U16             LMID;                       /* 0x04 */
     U16             Reserved1;                  /* 0x06 */
@@ -293,7 +315,7 @@ typedef struct _MPI2_HIGH_PRIORITY_REQUEST_DESCRIPTOR
 typedef struct _MPI2_SCSI_IO_REQUEST_DESCRIPTOR
 {
     U8              RequestFlags;               /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             SMID;                       /* 0x02 */
     U16             LMID;                       /* 0x04 */
     U16             DevHandle;                  /* 0x06 */
@@ -306,7 +328,7 @@ typedef struct _MPI2_SCSI_IO_REQUEST_DESCRIPTOR
 typedef struct _MPI2_SCSI_TARGET_REQUEST_DESCRIPTOR
 {
     U8              RequestFlags;               /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             SMID;                       /* 0x02 */
     U16             LMID;                       /* 0x04 */
     U16             IoIndex;                    /* 0x06 */
@@ -315,14 +337,29 @@ typedef struct _MPI2_SCSI_TARGET_REQUEST_DESCRIPTOR
   Mpi2SCSITargetRequestDescriptor_t,
   MPI2_POINTER pMpi2SCSITargetRequestDescriptor_t;
 
+
+/* RAID Accelerator Request Descriptor */
+typedef struct _MPI2_RAID_ACCEL_REQUEST_DESCRIPTOR {
+    U8              RequestFlags;               /* 0x00 */
+    U8              MSIxIndex;                  /* 0x01 */
+    U16             SMID;                       /* 0x02 */
+    U16             LMID;                       /* 0x04 */
+    U16             Reserved;                   /* 0x06 */
+} MPI2_RAID_ACCEL_REQUEST_DESCRIPTOR,
+  MPI2_POINTER PTR_MPI2_RAID_ACCEL_REQUEST_DESCRIPTOR,
+  Mpi2RAIDAcceleratorRequestDescriptor_t,
+  MPI2_POINTER pMpi2RAIDAcceleratorRequestDescriptor_t;
+
+
 /* union of Request Descriptors */
 typedef union _MPI2_REQUEST_DESCRIPTOR_UNION
 {
-    MPI2_DEFAULT_REQUEST_DESCRIPTOR         Default;
-    MPI2_HIGH_PRIORITY_REQUEST_DESCRIPTOR   HighPriority;
-    MPI2_SCSI_IO_REQUEST_DESCRIPTOR         SCSIIO;
-    MPI2_SCSI_TARGET_REQUEST_DESCRIPTOR     SCSITarget;
-    U64                                     Words;
+    MPI2_DEFAULT_REQUEST_DESCRIPTOR             Default;
+    MPI2_HIGH_PRIORITY_REQUEST_DESCRIPTOR       HighPriority;
+    MPI2_SCSI_IO_REQUEST_DESCRIPTOR             SCSIIO;
+    MPI2_SCSI_TARGET_REQUEST_DESCRIPTOR         SCSITarget;
+    MPI2_RAID_ACCEL_REQUEST_DESCRIPTOR          RAIDAccelerator;
+    U64                                         Words;
 } MPI2_REQUEST_DESCRIPTOR_UNION, MPI2_POINTER PTR_MPI2_REQUEST_DESCRIPTOR_UNION,
   Mpi2RequestDescriptorUnion_t, MPI2_POINTER pMpi2RequestDescriptorUnion_t;
 
@@ -333,19 +370,20 @@ typedef union _MPI2_REQUEST_DESCRIPTOR_UNION
 typedef struct _MPI2_DEFAULT_REPLY_DESCRIPTOR
 {
     U8              ReplyFlags;                 /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             DescriptorTypeDependent1;   /* 0x02 */
     U32             DescriptorTypeDependent2;   /* 0x04 */
 } MPI2_DEFAULT_REPLY_DESCRIPTOR, MPI2_POINTER PTR_MPI2_DEFAULT_REPLY_DESCRIPTOR,
   Mpi2DefaultReplyDescriptor_t, MPI2_POINTER pMpi2DefaultReplyDescriptor_t;
 
 /* defines for the ReplyFlags field */
-#define MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK               (0x0F)
-#define MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS         (0x00)
-#define MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY           (0x01)
-#define MPI2_RPY_DESCRIPT_FLAGS_TARGETASSIST_SUCCESS    (0x02)
-#define MPI2_RPY_DESCRIPT_FLAGS_TARGET_COMMAND_BUFFER   (0x03)
-#define MPI2_RPY_DESCRIPT_FLAGS_UNUSED                  (0x0F)
+#define MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK                   (0x0F)
+#define MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS             (0x00)
+#define MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY               (0x01)
+#define MPI2_RPY_DESCRIPT_FLAGS_TARGETASSIST_SUCCESS        (0x02)
+#define MPI2_RPY_DESCRIPT_FLAGS_TARGET_COMMAND_BUFFER       (0x03)
+#define MPI2_RPY_DESCRIPT_FLAGS_RAID_ACCELERATOR_SUCCESS    (0x05)
+#define MPI2_RPY_DESCRIPT_FLAGS_UNUSED                      (0x0F)
 
 /* values for marking a reply descriptor as unused */
 #define MPI2_RPY_DESCRIPT_UNUSED_WORD0_MARK             (0xFFFFFFFF)
@@ -355,7 +393,7 @@ typedef struct _MPI2_DEFAULT_REPLY_DESCRIPTOR
 typedef struct _MPI2_ADDRESS_REPLY_DESCRIPTOR
 {
     U8              ReplyFlags;                 /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             SMID;                       /* 0x02 */
     U32             ReplyFrameAddress;          /* 0x04 */
 } MPI2_ADDRESS_REPLY_DESCRIPTOR, MPI2_POINTER PTR_MPI2_ADDRESS_REPLY_DESCRIPTOR,
@@ -368,10 +406,10 @@ typedef struct _MPI2_ADDRESS_REPLY_DESCRIPTOR
 typedef struct _MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR
 {
     U8              ReplyFlags;                 /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             SMID;                       /* 0x02 */
     U16             TaskTag;                    /* 0x04 */
-    U16             DevHandle;                  /* 0x06 */
+    U16             Reserved1;                  /* 0x06 */
 } MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR,
   MPI2_POINTER PTR_MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR,
   Mpi2SCSIIOSuccessReplyDescriptor_t,
@@ -382,7 +420,7 @@ typedef struct _MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR
 typedef struct _MPI2_TARGETASSIST_SUCCESS_REPLY_DESCRIPTOR
 {
     U8              ReplyFlags;                 /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U16             SMID;                       /* 0x02 */
     U8              SequenceNumber;             /* 0x04 */
     U8              Reserved1;                  /* 0x05 */
@@ -397,7 +435,7 @@ typedef struct _MPI2_TARGETASSIST_SUCCESS_REPLY_DESCRIPTOR
 typedef struct _MPI2_TARGET_COMMAND_BUFFER_REPLY_DESCRIPTOR
 {
     U8              ReplyFlags;                 /* 0x00 */
-    U8              VF_ID;                      /* 0x01 */
+    U8              MSIxIndex;                  /* 0x01 */
     U8              VP_ID;                      /* 0x02 */
     U8              Flags;                      /* 0x03 */
     U16             InitiatorDevHandle;         /* 0x04 */
@@ -411,15 +449,28 @@ typedef struct _MPI2_TARGET_COMMAND_BUFFER_REPLY_DESCRIPTOR
 #define MPI2_RPY_DESCRIPT_TCB_FLAGS_PHYNUM_MASK     (0x3F)
 
 
+/* RAID Accelerator Success Reply Descriptor */
+typedef struct _MPI2_RAID_ACCELERATOR_SUCCESS_REPLY_DESCRIPTOR {
+    U8              ReplyFlags;                 /* 0x00 */
+    U8              MSIxIndex;                  /* 0x01 */
+    U16             SMID;                       /* 0x02 */
+    U32             Reserved;                   /* 0x04 */
+} MPI2_RAID_ACCELERATOR_SUCCESS_REPLY_DESCRIPTOR,
+  MPI2_POINTER PTR_MPI2_RAID_ACCELERATOR_SUCCESS_REPLY_DESCRIPTOR,
+  Mpi2RAIDAcceleratorSuccessReplyDescriptor_t,
+  MPI2_POINTER pMpi2RAIDAcceleratorSuccessReplyDescriptor_t;
+
+
 /* union of Reply Descriptors */
 typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 {
-    MPI2_DEFAULT_REPLY_DESCRIPTOR               Default;
-    MPI2_ADDRESS_REPLY_DESCRIPTOR               AddressReply;
-    MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR       SCSIIOSuccess;
-    MPI2_TARGETASSIST_SUCCESS_REPLY_DESCRIPTOR  TargetAssistSuccess;
-    MPI2_TARGET_COMMAND_BUFFER_REPLY_DESCRIPTOR TargetCommandBuffer;
-    U64                                         Words;
+    MPI2_DEFAULT_REPLY_DESCRIPTOR                   Default;
+    MPI2_ADDRESS_REPLY_DESCRIPTOR                   AddressReply;
+    MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR           SCSIIOSuccess;
+    MPI2_TARGETASSIST_SUCCESS_REPLY_DESCRIPTOR      TargetAssistSuccess;
+    MPI2_TARGET_COMMAND_BUFFER_REPLY_DESCRIPTOR     TargetCommandBuffer;
+    MPI2_RAID_ACCELERATOR_SUCCESS_REPLY_DESCRIPTOR  RAIDAcceleratorSuccess;
+    U64                                             Words;
 } MPI2_REPLY_DESCRIPTORS_UNION, MPI2_POINTER PTR_MPI2_REPLY_DESCRIPTORS_UNION,
   Mpi2ReplyDescriptorsUnion_t, MPI2_POINTER pMpi2ReplyDescriptorsUnion_t;
 
@@ -428,8 +479,6 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 /*****************************************************************************
 *
 *        Message Functions
-*              0x80 -> 0x8F reserved for private message use per product
-*
 *
 *****************************************************************************/
 
@@ -458,12 +507,21 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_FUNCTION_DIAG_RELEASE                  (0x1E) /* Diagnostic Release */
 #define MPI2_FUNCTION_TARGET_CMD_BUF_BASE_POST      (0x24) /* Target Command Buffer Post Base */
 #define MPI2_FUNCTION_TARGET_CMD_BUF_LIST_POST      (0x25) /* Target Command Buffer Post List */
+#define MPI2_FUNCTION_RAID_ACCELERATOR              (0x2C) /* RAID Accelerator*/
+/* Host Based Discovery Action */
+#define MPI2_FUNCTION_HOST_BASED_DISCOVERY_ACTION   (0x2F)
+/* Power Management Control */
+#define MPI2_FUNCTION_PWR_MGMT_CONTROL              (0x30)
+/* beginning of product-specific range */
+#define MPI2_FUNCTION_MIN_PRODUCT_SPECIFIC          (0xF0)
+/* end of product-specific range */
+#define MPI2_FUNCTION_MAX_PRODUCT_SPECIFIC          (0xFF)
+
 
 
 
 /* Doorbell functions */
 #define MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET        (0x40)
-/* #define MPI2_FUNCTION_IO_UNIT_RESET                 (0x41) */
 #define MPI2_FUNCTION_HANDSHAKE                     (0x42)
 
 
@@ -555,12 +613,17 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 
 #define MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED          (0x00A0)
 
+/****************************************************************************
+*  RAID Accelerator values
+****************************************************************************/
+
+#define MPI2_IOCSTATUS_RAID_ACCEL_ERROR             (0x00B0)
 
 /****************************************************************************
 *  IOCStatus flag to indicate that log info is available
 ****************************************************************************/
 
-#define MPI2_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE  (0x8000)
+#define MPI2_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE      (0x8000)
 
 /****************************************************************************
 *  IOCLogInfo Types
@@ -867,6 +930,9 @@ typedef struct _MPI2_MPI_SGE_UNION
 
 #define MPI2_SGE_FLAGS_IOC_TO_HOST              (0x00)
 #define MPI2_SGE_FLAGS_HOST_TO_IOC              (0x04)
+
+#define MPI2_SGE_FLAGS_DEST                     (MPI2_SGE_FLAGS_IOC_TO_HOST)
+#define MPI2_SGE_FLAGS_SOURCE                   (MPI2_SGE_FLAGS_HOST_TO_IOC)
 
 /* Address Size */
 

@@ -145,4 +145,3 @@ extern void __init init_msc_irqs(unsigned long icubase, unsigned int base, msc_i
 extern void ll_msc_irq(void);
 
 #endif /* __ASM_MIPS_BOARDS_MSC01_IC_H */
-

@@ -320,15 +320,6 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		dif = 0; dix = 1;
 	}
 
-	if (type) {
-		if (dif)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Enabling DIF Type %d protection\n", type);
-		else
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Disabling DIF Type %d protection\n", type);
-	}
-
 	if (!dix)
 		return;
 
@@ -360,62 +351,6 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 }
 
 /*
- * DIF DMA operation magic decoder ring.
- */
-void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsigned int type)
-{
-	int csum_convert, prot_op;
-
-	prot_op = 0;
-
-	/* Convert checksum? */
-	if (scsi_host_get_guard(scmd->device->host) != SHOST_DIX_GUARD_CRC)
-		csum_convert = 1;
-	else
-		csum_convert = 0;
-
-	BUG_ON(dif && (scmd->cmnd[0] == READ_6 || scmd->cmnd[0] == WRITE_6));
-
-	switch (scmd->cmnd[0]) {
-	case READ_6:
-	case READ_10:
-	case READ_12:
-	case READ_16:
-		if (dif && dix)
-			if (csum_convert)
-				prot_op = SCSI_PROT_READ_CONVERT;
-			else
-				prot_op = SCSI_PROT_READ_PASS;
-		else if (dif && !dix)
-			prot_op = SCSI_PROT_READ_STRIP;
-		else if (!dif && dix)
-			prot_op = SCSI_PROT_READ_INSERT;
-
-		break;
-
-	case WRITE_6:
-	case WRITE_10:
-	case WRITE_12:
-	case WRITE_16:
-		if (dif && dix)
-			if (csum_convert)
-				prot_op = SCSI_PROT_WRITE_CONVERT;
-			else
-				prot_op = SCSI_PROT_WRITE_PASS;
-		else if (dif && !dix)
-			prot_op = SCSI_PROT_WRITE_INSERT;
-		else if (!dif && dix)
-			prot_op = SCSI_PROT_WRITE_STRIP;
-
-		break;
-	}
-
-	scsi_set_prot_op(scmd, prot_op);
-	if (dif)
-		scsi_set_prot_type(scmd, type);
-}
-
-/*
  * The virtual start sector is the one that was originally submitted
  * by the block layer.	Due to partitioning, MD/DM cloning, etc. the
  * actual physical start sector is likely to be different.  Remap
@@ -440,20 +375,19 @@ int sd_dif_prepare(struct request *rq, sector_t hw_sector, unsigned int sector_s
 	unsigned int i, j;
 	u32 phys, virt;
 
-	/* Already remapped? */
-	if (rq->cmd_flags & REQ_INTEGRITY)
-		return 0;
-
 	sdkp = rq->bio->bi_bdev->bd_disk->private_data;
 
 	if (sdkp->protection_type == SD_DIF_TYPE3_PROTECTION)
 		return 0;
 
-	rq->cmd_flags |= REQ_INTEGRITY;
 	phys = hw_sector & 0xffffffff;
 
 	__rq_for_each_bio(bio, rq) {
 		struct bio_vec *iv;
+
+		/* Already remapped? */
+		if (bio_flagged(bio, BIO_MAPPED_INTEGRITY))
+			break;
 
 		virt = bio->bi_integrity->bip_sector & 0xffffffff;
 
@@ -473,6 +407,8 @@ int sd_dif_prepare(struct request *rq, sector_t hw_sector, unsigned int sector_s
 
 			kunmap_atomic(sdt, KM_USER0);
 		}
+
+		bio->bi_flags |= BIO_MAPPED_INTEGRITY;
 	}
 
 	return 0;
@@ -483,7 +419,7 @@ error:
 		  __func__, virt, phys, be32_to_cpu(sdt->ref_tag),
 		  be16_to_cpu(sdt->app_tag));
 
-	return -EIO;
+	return -EILSEQ;
 }
 
 /*

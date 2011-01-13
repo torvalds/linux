@@ -6,8 +6,7 @@
 
 #define XT_STATE_UNTRACKED (1 << (IP_CT_NUMBER + 1))
 
-struct xt_state_info
-{
+struct xt_state_info {
 	unsigned int statemask;
 };
 #endif /*_XT_STATE_H*/

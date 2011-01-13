@@ -1,30 +1,30 @@
 /*
-    max6875.c - driver for MAX6874/MAX6875
-
-    Copyright (C) 2005 Ben Gardner <bgardner@wabtec.com>
-
-    Based on eeprom.c
-
-    The MAX6875 has a bank of registers and two banks of EEPROM.
-    Address ranges are defined as follows:
-     * 0x0000 - 0x0046 = configuration registers
-     * 0x8000 - 0x8046 = configuration EEPROM
-     * 0x8100 - 0x82FF = user EEPROM
-
-    This driver makes the user EEPROM available for read.
-
-    The registers & config EEPROM should be accessed via i2c-dev.
-
-    The MAX6875 ignores the lowest address bit, so each chip responds to
-    two addresses - 0x50/0x51 and 0x52/0x53.
-
-    Note that the MAX6875 uses i2c_smbus_write_byte_data() to set the read
-    address, so this driver is destructive if loaded for the wrong EEPROM chip.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; version 2 of the License.
-*/
+ * max6875.c - driver for MAX6874/MAX6875
+ *
+ * Copyright (C) 2005 Ben Gardner <bgardner@wabtec.com>
+ *
+ * Based on eeprom.c
+ *
+ * The MAX6875 has a bank of registers and two banks of EEPROM.
+ * Address ranges are defined as follows:
+ *  * 0x0000 - 0x0046 = configuration registers
+ *  * 0x8000 - 0x8046 = configuration EEPROM
+ *  * 0x8100 - 0x82FF = user EEPROM
+ *
+ * This driver makes the user EEPROM available for read.
+ *
+ * The registers & config EEPROM should be accessed via i2c-dev.
+ *
+ * The MAX6875 ignores the lowest address bit, so each chip responds to
+ * two addresses - 0x50/0x51 and 0x52/0x53.
+ *
+ * Note that the MAX6875 uses i2c_smbus_write_byte_data() to set the read
+ * address, so this driver is destructive if loaded for the wrong EEPROM chip.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -32,12 +32,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-
-/* Do not scan - the MAX6875 access method will write to some EEPROM chips */
-static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(max6875);
 
 /* The MAX6875 can only read/write 16 bytes at a time */
 #define SLICE_SIZE			16
@@ -113,7 +107,7 @@ exit_up:
 	mutex_unlock(&data->update_lock);
 }
 
-static ssize_t max6875_read(struct kobject *kobj,
+static ssize_t max6875_read(struct file *filp, struct kobject *kobj,
 			    struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
@@ -146,30 +140,20 @@ static struct bin_attribute user_eeprom_attr = {
 	.read = max6875_read,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int max6875_detect(struct i2c_client *client, int kind,
-			  struct i2c_board_info *info)
+static int max6875_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	struct max6875_data *data;
+	int err;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_BYTE))
 		return -ENODEV;
 
-	/* Only check even addresses */
+	/* Only bind to even addresses */
 	if (client->addr & 1)
 		return -ENODEV;
-
-	strlcpy(info->type, "max6875", I2C_NAME_SIZE);
-
-	return 0;
-}
-
-static int max6875_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
-{
-	struct max6875_data *data;
-	int err;
 
 	if (!(data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL)))
 		return -ENOMEM;
@@ -222,9 +206,6 @@ static struct i2c_driver max6875_driver = {
 	.probe		= max6875_probe,
 	.remove		= max6875_remove,
 	.id_table	= max6875_id,
-
-	.detect		= max6875_detect,
-	.address_data	= &addr_data,
 };
 
 static int __init max6875_init(void)

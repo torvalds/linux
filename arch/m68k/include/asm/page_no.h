@@ -1,16 +1,11 @@
-#ifndef _M68KNOMMU_PAGE_H
-#define _M68KNOMMU_PAGE_H
-
-/* PAGE_SHIFT determines the page size */
-
-#define PAGE_SHIFT	(12)
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE-1))
-
-#include <asm/setup.h>
+#ifndef _M68K_PAGE_NO_H
+#define _M68K_PAGE_NO_H
 
 #ifndef __ASSEMBLY__
  
+extern unsigned long memory_start;
+extern unsigned long memory_end;
+
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
 #define free_user_page(page, addr)	free_page(addr)
 
@@ -24,38 +19,8 @@
 	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
 #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
 
-/*
- * These are used to make use of C type-checking..
- */
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd[16]; } pmd_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
-typedef struct page *pgtable_t;
-
-#define pte_val(x)	((x).pte)
-#define pmd_val(x)	((&x)->pmd[0])
-#define pgd_val(x)	((x).pgd)
-#define pgprot_val(x)	((x).pgprot)
-
-#define __pte(x)	((pte_t) { (x) } )
-#define __pmd(x)	((pmd_t) { (x) } )
-#define __pgd(x)	((pgd_t) { (x) } )
-#define __pgprot(x)	((pgprot_t) { (x) } )
-
-extern unsigned long memory_start;
-extern unsigned long memory_end;
-
-#endif /* !__ASSEMBLY__ */
-
-#include <asm/page_offset.h>
-
-#define PAGE_OFFSET		(PAGE_OFFSET_RAW)
-
-#ifndef __ASSEMBLY__
-
-#define __pa(vaddr)		virt_to_phys((void *)(vaddr))
-#define __va(paddr)		phys_to_virt((unsigned long)(paddr))
+#define __pa(vaddr)		((unsigned long)(vaddr))
+#define __va(paddr)		((void *)(paddr))
 
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
@@ -72,6 +37,4 @@ extern unsigned long memory_end;
 
 #endif /* __ASSEMBLY__ */
 
-#include <asm-generic/getorder.h>
-
-#endif /* _M68KNOMMU_PAGE_H */
+#endif /* _M68K_PAGE_NO_H */

@@ -9,16 +9,36 @@
 
 #include <linux/threads.h>
 #include <linux/module.h>
+#include <linux/memblock.h>
 
+#include <asm/firmware.h>
 #include <asm/lppaca.h>
 #include <asm/paca.h>
 #include <asm/sections.h>
+#include <asm/pgtable.h>
+#include <asm/iseries/lpar_map.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/kexec.h>
 
 /* This symbol is provided by the linker - let it fill in the paca
  * field correctly */
 extern unsigned long __toc_start;
 
 #ifdef CONFIG_PPC_BOOK3S
+
+/*
+ * We only have to have statically allocated lppaca structs on
+ * legacy iSeries, which supports at most 64 cpus.
+ */
+#ifdef CONFIG_PPC_ISERIES
+#if NR_CPUS < 64
+#define NR_LPPACAS	NR_CPUS
+#else
+#define NR_LPPACAS	64
+#endif
+#else /* not iSeries */
+#define NR_LPPACAS	1
+#endif
 
 /*
  * The structure which the hypervisor knows about - this structure
@@ -30,7 +50,7 @@ extern unsigned long __toc_start;
  * will suffice to ensure that it doesn't cross a page boundary.
  */
 struct lppaca lppaca[] = {
-	[0 ... (NR_CPUS-1)] = {
+	[0 ... (NR_LPPACAS-1)] = {
 		.desc = 0xd397d781,	/* "LpPa" */
 		.size = sizeof(struct lppaca),
 		.dyn_proc_status = 2,
@@ -42,6 +62,54 @@ struct lppaca lppaca[] = {
 		.page_ins = 0,
 	},
 };
+
+static struct lppaca *extra_lppacas;
+static long __initdata lppaca_size;
+
+static void allocate_lppacas(int nr_cpus, unsigned long limit)
+{
+	if (nr_cpus <= NR_LPPACAS)
+		return;
+
+	lppaca_size = PAGE_ALIGN(sizeof(struct lppaca) *
+				 (nr_cpus - NR_LPPACAS));
+	extra_lppacas = __va(memblock_alloc_base(lppaca_size,
+						 PAGE_SIZE, limit));
+}
+
+static struct lppaca *new_lppaca(int cpu)
+{
+	struct lppaca *lp;
+
+	if (cpu < NR_LPPACAS)
+		return &lppaca[cpu];
+
+	lp = extra_lppacas + (cpu - NR_LPPACAS);
+	*lp = lppaca[0];
+
+	return lp;
+}
+
+static void free_lppacas(void)
+{
+	long new_size = 0, nr;
+
+	if (!lppaca_size)
+		return;
+	nr = num_possible_cpus() - NR_LPPACAS;
+	if (nr > 0)
+		new_size = PAGE_ALIGN(nr * sizeof(struct lppaca));
+	if (new_size >= lppaca_size)
+		return;
+
+	memblock_free(__pa(extra_lppacas) + new_size, lppaca_size - new_size);
+	lppaca_size = new_size;
+}
+
+#else
+
+static inline void allocate_lppacas(int nr_cpus, unsigned long limit) { }
+static inline void free_lppacas(void) { }
 
 #endif /* CONFIG_PPC_BOOK3S */
 
@@ -69,35 +137,97 @@ struct slb_shadow slb_shadow[] __cacheline_aligned = {
  * processors.  The processor VPD array needs one entry per physical
  * processor (not thread).
  */
-struct paca_struct paca[NR_CPUS];
+struct paca_struct *paca;
 EXPORT_SYMBOL(paca);
 
-void __init initialise_pacas(void)
-{
-	int cpu;
+struct paca_struct boot_paca;
 
-	/* The TOC register (GPR2) points 32kB into the TOC, so that 64kB
-	 * of the TOC can be addressed using a single machine instruction.
-	 */
+void __init initialise_paca(struct paca_struct *new_paca, int cpu)
+{
+       /* The TOC register (GPR2) points 32kB into the TOC, so that 64kB
+	* of the TOC can be addressed using a single machine instruction.
+	*/
 	unsigned long kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL;
 
-	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		struct paca_struct *new_paca = &paca[cpu];
-
 #ifdef CONFIG_PPC_BOOK3S
-		new_paca->lppaca_ptr = &lppaca[cpu];
+	new_paca->lppaca_ptr = new_lppaca(cpu);
+#else
+	new_paca->kernel_pgd = swapper_pg_dir;
 #endif
-		new_paca->lock_token = 0x8000;
-		new_paca->paca_index = cpu;
-		new_paca->kernel_toc = kernel_toc;
-		new_paca->kernelbase = (unsigned long) _stext;
-		new_paca->kernel_msr = MSR_KERNEL;
-		new_paca->hw_cpu_id = 0xffff;
-		new_paca->__current = &init_task;
+	new_paca->lock_token = 0x8000;
+	new_paca->paca_index = cpu;
+	new_paca->kernel_toc = kernel_toc;
+	new_paca->kernelbase = (unsigned long) _stext;
+	new_paca->kernel_msr = MSR_KERNEL;
+	new_paca->hw_cpu_id = 0xffff;
+	new_paca->kexec_state = KEXEC_STATE_NONE;
+	new_paca->__current = &init_task;
 #ifdef CONFIG_PPC_STD_MMU_64
-		new_paca->slb_shadow_ptr = &slb_shadow[cpu];
+	new_paca->slb_shadow_ptr = &slb_shadow[cpu];
 #endif /* CONFIG_PPC_STD_MMU_64 */
+}
 
-	}
+/* Put the paca pointer into r13 and SPRG_PACA */
+void setup_paca(struct paca_struct *new_paca)
+{
+	local_paca = new_paca;
+	mtspr(SPRN_SPRG_PACA, local_paca);
+#ifdef CONFIG_PPC_BOOK3E
+	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
+#endif
+}
+
+static int __initdata paca_size;
+
+void __init allocate_pacas(void)
+{
+	int nr_cpus, cpu, limit;
+
+	/*
+	 * We can't take SLB misses on the paca, and we want to access them
+	 * in real mode, so allocate them within the RMA and also within
+	 * the first segment. On iSeries they must be within the area mapped
+	 * by the HV, which is HvPagesToMap * HVPAGESIZE bytes.
+	 */
+	limit = min(0x10000000ULL, ppc64_rma_size);
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		limit = min(limit, HvPagesToMap * HVPAGESIZE);
+
+	nr_cpus = NR_CPUS;
+	/* On iSeries we know we can never have more than 64 cpus */
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		nr_cpus = min(64, nr_cpus);
+
+	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpus);
+
+	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
+	memset(paca, 0, paca_size);
+
+	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
+		paca_size, nr_cpus, paca);
+
+	allocate_lppacas(nr_cpus, limit);
+
+	/* Can't use for_each_*_cpu, as they aren't functional yet */
+	for (cpu = 0; cpu < nr_cpus; cpu++)
+		initialise_paca(&paca[cpu], cpu);
+}
+
+void __init free_unused_pacas(void)
+{
+	int new_size;
+
+	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * num_possible_cpus());
+
+	if (new_size >= paca_size)
+		return;
+
+	memblock_free(__pa(paca) + new_size, paca_size - new_size);
+
+	printk(KERN_DEBUG "Freed %u bytes for unused pacas\n",
+		paca_size - new_size);
+
+	paca_size = new_size;
+
+	free_lppacas();
 }

@@ -127,13 +127,10 @@ badge4_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state
 
 static struct pcmcia_low_level badge4_pcmcia_ops = {
 	.owner			= THIS_MODULE,
-	.hw_init		= sa1111_pcmcia_hw_init,
-	.hw_shutdown		= sa1111_pcmcia_hw_shutdown,
-	.socket_state		= sa1111_pcmcia_socket_state,
 	.configure_socket	= badge4_pcmcia_configure_socket,
-
 	.socket_init		= sa1111_pcmcia_socket_init,
-	.socket_suspend		= sa1111_pcmcia_socket_suspend,
+	.first			= 0,
+	.nr			= 2,
 };
 
 int pcmcia_badge4_init(struct device *dev)
@@ -146,7 +143,9 @@ int pcmcia_badge4_init(struct device *dev)
 		       __func__,
 		       badge4_pcmvcc, badge4_pcmvpp, badge4_cfvcc);
 
-		ret = sa11xx_drv_pcmcia_probe(dev, &badge4_pcmcia_ops, 0, 2);
+		sa11xx_drv_pcmcia_ops(&badge4_pcmcia_ops);
+		ret = sa1111_pcmcia_add(dev, &badge4_pcmcia_ops,
+				sa11xx_drv_pcmcia_add_one);
 	}
 
 	return ret;

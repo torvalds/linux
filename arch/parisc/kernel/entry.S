@@ -364,32 +364,6 @@
 	.align		32
 	.endm
 
-	/* The following are simple 32 vs 64 bit instruction
-	 * abstractions for the macros */
-	.macro		EXTR	reg1,start,length,reg2
-#ifdef CONFIG_64BIT
-	extrd,u		\reg1,32+(\start),\length,\reg2
-#else
-	extrw,u		\reg1,\start,\length,\reg2
-#endif
-	.endm
-
-	.macro		DEP	reg1,start,length,reg2
-#ifdef CONFIG_64BIT
-	depd		\reg1,32+(\start),\length,\reg2
-#else
-	depw		\reg1,\start,\length,\reg2
-#endif
-	.endm
-
-	.macro		DEPI	val,start,length,reg
-#ifdef CONFIG_64BIT
-	depdi		\val,32+(\start),\length,\reg
-#else
-	depwi		\val,\start,\length,\reg
-#endif
-	.endm
-
 	/* In LP64, the space contains part of the upper 32 bits of the
 	 * fault.  We have to extract this and place it in the va,
 	 * zeroing the corresponding bits in the space register */
@@ -442,19 +416,19 @@
 	 */
 	.macro		L2_ptep	pmd,pte,index,va,fault
 #if PT_NLEVELS == 3
-	EXTR		\va,31-ASM_PMD_SHIFT,ASM_BITS_PER_PMD,\index
+	extru		\va,31-ASM_PMD_SHIFT,ASM_BITS_PER_PMD,\index
 #else
-	EXTR		\va,31-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
+	extru		\va,31-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
 #endif
-	DEP             %r0,31,PAGE_SHIFT,\pmd  /* clear offset */
+	dep             %r0,31,PAGE_SHIFT,\pmd  /* clear offset */
 	copy		%r0,\pte
 	ldw,s		\index(\pmd),\pmd
 	bb,>=,n		\pmd,_PxD_PRESENT_BIT,\fault
-	DEP		%r0,31,PxD_FLAG_SHIFT,\pmd /* clear flags */
+	dep		%r0,31,PxD_FLAG_SHIFT,\pmd /* clear flags */
 	copy		\pmd,%r9
 	SHLREG		%r9,PxD_VALUE_SHIFT,\pmd
-	EXTR		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
-	DEP		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
+	extru		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
+	dep		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
 	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd
 	LDREG		%r0(\pmd),\pte		/* pmd is now pte */
 	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
@@ -553,7 +527,7 @@
 	 * on most of those machines only handles cache transactions.
 	 */
 	extrd,u,*=	\pte,_PAGE_NO_CACHE_BIT+32,1,%r0
-	depi		1,12,1,\prot
+	depdi		1,12,1,\prot
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
 	convert_for_tlb_insert20 \pte
@@ -605,7 +579,7 @@
 	depdi		0,31,32,\tmp
 #endif
 	copy		\va,\tmp1
-	DEPI		0,31,23,\tmp1
+	depi		0,31,23,\tmp1
 	cmpb,COND(<>),n	\tmp,\tmp1,\fault
 	ldi		(_PAGE_DIRTY|_PAGE_WRITE|_PAGE_READ),\prot
 	depd,z		\prot,8,7,\prot
@@ -948,7 +922,7 @@ intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
 	LDREG	TI_FLAGS(%r1),%r19
-	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r20
+	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK|_TIF_NOTIFY_RESUME), %r20
 	and,COND(<>)	%r19, %r20, %r0
 	b,n	intr_restore	/* skip past if we've nothing to do */
 
@@ -996,13 +970,6 @@ intr_restore:
 	rest_stack
 
 	rfi
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
 	nop
 
 #ifndef CONFIG_PREEMPT
@@ -2047,12 +2014,13 @@ syscall_do_signal:
 	b,n     syscall_check_sig
 
 syscall_restore:
-	/* Are we being ptraced? */
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 
-	ldw	TASK_PTRACE(%r1), %r19
-	bb,<	%r19,31,syscall_restore_rfi
-	nop
+	/* Are we being ptraced? */
+	ldw	TASK_FLAGS(%r1),%r19
+	ldi	(_TIF_SINGLESTEP|_TIF_BLOCKSTEP),%r2
+	and,COND(=)	%r19,%r2,%r0
+	b,n	syscall_restore_rfi
 
 	ldo	TASK_PT_FR31(%r1),%r19		   /* reload fpregs */
 	rest_fp	%r19
@@ -2075,9 +2043,10 @@ syscall_restore:
 	LDREG	TASK_PT_GR31(%r1),%r31	   /* restore syscall rp */
 
 	/* NOTE: We use rsm/ssm pair to make this operation atomic */
+	LDREG   TASK_PT_GR30(%r1),%r1              /* Get user sp */
 	rsm     PSW_SM_I, %r0
-	LDREG   TASK_PT_GR30(%r1),%r30             /* restore user sp */
-	mfsp	%sr3,%r1			   /* Get users space id */
+	copy    %r1,%r30                           /* Restore user sp */
+	mfsp    %sr3,%r1                           /* Get user space id */
 	mtsp    %r1,%sr7                           /* Restore sr7 */
 	ssm     PSW_SM_I, %r0
 
@@ -2113,16 +2082,16 @@ syscall_restore_rfi:
 	ldi	0x0b,%r20			   /* Create new PSW */
 	depi	-1,13,1,%r20			   /* C, Q, D, and I bits */
 
-	/* The values of PA_SINGLESTEP_BIT and PA_BLOCKSTEP_BIT are
-	 * set in include/linux/ptrace.h and converted to PA bitmap
+	/* The values of SINGLESTEP_BIT and BLOCKSTEP_BIT are
+	 * set in thread_info.h and converted to PA bitmap
 	 * numbers in asm-offsets.c */
 
-	/* if ((%r19.PA_SINGLESTEP_BIT)) { %r20.27=1} */
-	extru,=	%r19,PA_SINGLESTEP_BIT,1,%r0
+	/* if ((%r19.SINGLESTEP_BIT)) { %r20.27=1} */
+	extru,=	%r19,TIF_SINGLESTEP_PA_BIT,1,%r0
 	depi	-1,27,1,%r20			   /* R bit */
 
-	/* if ((%r19.PA_BLOCKSTEP_BIT)) { %r20.7=1} */
-	extru,= %r19,PA_BLOCKSTEP_BIT,1,%r0
+	/* if ((%r19.BLOCKSTEP_BIT)) { %r20.7=1} */
+	extru,= %r19,TIF_BLOCKSTEP_PA_BIT,1,%r0
 	depi	-1,7,1,%r20			   /* T bit */
 
 	STREG	%r20,TASK_PT_PSW(%r1)

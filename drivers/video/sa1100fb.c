@@ -66,7 +66,7 @@
  *	- FrameBuffer memory is now allocated at run-time when the
  *	  driver is initialized.    
  *
- * 2000/04/10: Nicolas Pitre <nico@cam.org>
+ * 2000/04/10: Nicolas Pitre <nico@fluxnic.net>
  *	- Big cleanup for dynamic selection of machine type at run time.
  *
  * 2000/07/19: Jamey Hicks <jamey@crl.dec.com>
@@ -1435,7 +1435,7 @@ static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
 	return fbi;
 }
 
-static int __init sa1100fb_probe(struct platform_device *pdev)
+static int __devinit sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
 	int ret, irq;

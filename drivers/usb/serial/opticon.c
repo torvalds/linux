@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
+#include <linux/slab.h>
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/module.h>
@@ -22,7 +23,7 @@
 
 static int debug;
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x065a, 0x0009) },
 	{ },
 };
@@ -55,7 +56,6 @@ static void opticon_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	struct tty_struct *tty;
 	int result;
-	int available_room = 0;
 	int data_length;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -96,13 +96,9 @@ static void opticon_bulk_callback(struct urb *urb)
 			/* real data, send it to the tty layer */
 			tty = tty_port_tty_get(&port->port);
 			if (tty) {
-				available_room = tty_buffer_request_room(tty,
-								data_length);
-				if (available_room) {
-					tty_insert_flip_string(tty, data,
-							       available_room);
-					tty_flip_buffer_push(tty);
-				}
+				tty_insert_flip_string(tty, data + 2,
+						       data_length);
+				tty_flip_buffer_push(tty);
 				tty_kref_put(tty);
 			}
 		} else {
@@ -112,15 +108,15 @@ static void opticon_bulk_callback(struct urb *urb)
 				else
 					priv->rts = true;
 			} else {
-			dev_dbg(&priv->udev->dev,
-				"Unknown data packet received from the device:"
-				" %2x %2x\n",
-				data[0], data[1]);
+				dev_dbg(&priv->udev->dev,
+					"Unknown data packet received from the device:"
+					" %2x %2x\n",
+					data[0], data[1]);
 			}
 		}
 	} else {
 		dev_dbg(&priv->udev->dev,
-			"Improper ammount of data received from the device, "
+			"Improper amount of data received from the device, "
 			"%d bytes", urb->actual_length);
 	}
 
@@ -134,7 +130,7 @@ exit:
 						  priv->bulk_address),
 				  priv->bulk_in_buffer, priv->buffer_size,
 				  opticon_bulk_callback, priv);
-		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev,
 			    "%s - failed resubmitting read urb, error %d\n",
@@ -144,8 +140,7 @@ exit:
 	spin_unlock(&priv->lock);
 }
 
-static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port,
-			struct file *filp)
+static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
@@ -192,6 +187,9 @@ static void opticon_write_bulk_callback(struct urb *urb)
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree(urb->transfer_buffer);
 
+	/* setup packet may be set if we're using it for writing */
+	kfree(urb->setup_packet);
+
 	if (status)
 		dbg("%s - nonzero write bulk status received: %d",
 		    __func__, status);
@@ -218,7 +216,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dbg("%s - write limit hit", __func__);
 		return 0;
 	}
 	priv->outstanding_urbs++;
@@ -242,10 +240,29 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
 
-	usb_fill_bulk_urb(urb, serial->dev,
-			  usb_sndbulkpipe(serial->dev,
-					  port->bulk_out_endpointAddress),
-			  buffer, count, opticon_write_bulk_callback, priv);
+	if (port->bulk_out_endpointAddress) {
+		usb_fill_bulk_urb(urb, serial->dev,
+				  usb_sndbulkpipe(serial->dev,
+						  port->bulk_out_endpointAddress),
+				  buffer, count, opticon_write_bulk_callback, priv);
+	} else {
+		struct usb_ctrlrequest *dr;
+
+		dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
+		if (!dr)
+			return -ENOMEM;
+
+		dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
+		dr->bRequest = 0x01;
+		dr->wValue = 0;
+		dr->wIndex = 0;
+		dr->wLength = cpu_to_le16(count);
+
+		usb_fill_control_urb(urb, serial->dev,
+			usb_sndctrlpipe(serial->dev, 0),
+			(unsigned char *)dr, buffer, count,
+			opticon_write_bulk_callback, priv);
+	}
 
 	/* send it down the pipe */
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -289,7 +306,7 @@ static int opticon_write_room(struct tty_struct *tty)
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT * 2 / 3) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dbg("%s - write limit hit", __func__);
 		return 0;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -315,21 +332,24 @@ static void opticon_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
-	int result;
+	int result, was_throttled;
 
 	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = false;
+	was_throttled = priv->actually_throttled;
 	priv->actually_throttled = false;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	priv->bulk_read_urb->dev = port->serial->dev;
-	result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed submitting read urb, error %d\n",
+	if (was_throttled) {
+		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
+		if (result)
+			dev_err(&port->dev,
+				"%s - failed submitting read urb, error %d\n",
 							__func__, result);
+	}
 }
 
 static int opticon_tiocmget(struct tty_struct *tty, struct file *file)
@@ -499,12 +519,13 @@ static int opticon_resume(struct usb_interface *intf)
 	struct usb_serial_port *port = serial->port[0];
 	int result;
 
-	mutex_lock(&port->mutex);
-	if (port->port.count)
+	mutex_lock(&port->port.mutex);
+	/* This is protected by the port mutex against close/open */
+	if (test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 		result = usb_submit_urb(priv->bulk_read_urb, GFP_NOIO);
 	else
 		result = 0;
-	mutex_unlock(&port->mutex);
+	mutex_unlock(&port->port.mutex);
 	return result;
 }
 

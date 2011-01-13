@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,12 @@ ACPI_MODULE_NAME("evxfregn")
  *
  * DESCRIPTION: Install a handler for all op_regions of a given space_id.
  *
+ * NOTE: This function should only be called after acpi_enable_subsystem has
+ * been called. This is because any _REG methods associated with the Space ID
+ * are executed here, and these methods can only be safely executed after
+ * the default handlers have been installed and the hardware has been
+ * initialized (via acpi_enable_subsystem.)
+ *
  ******************************************************************************/
 acpi_status
 acpi_install_address_space_handler(acpi_handle device,
@@ -89,7 +95,7 @@ acpi_install_address_space_handler(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(device);
+	node = acpi_ns_validate_handle(device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -155,7 +161,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(device);
+	node = acpi_ns_validate_handle(device);
 	if (!node ||
 	    ((node->type != ACPI_TYPE_DEVICE) &&
 	     (node->type != ACPI_TYPE_PROCESSOR) &&

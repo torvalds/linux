@@ -47,106 +47,52 @@
 
 /*================================================================*/
 /* System Includes */
-#include <linux/sort.h>
-#include <linux/firmware.h>
+#include <linux/ihex.h>
+#include <linux/slab.h>
 
 /*================================================================*/
 /* Local Constants */
 
-#define PRISM2_USB_FWFILE	"prism2_ru.hex"
+#define PRISM2_USB_FWFILE	"prism2_ru.fw"
+MODULE_FIRMWARE(PRISM2_USB_FWFILE);
 
 #define S3DATA_MAX		5000
 #define S3PLUG_MAX		200
 #define S3CRC_MAX		200
 #define S3INFO_MAX		50
-#define SREC_LINE_MAX		264
-#define S3LEN_TXTOFFSET		2
-#define S3LEN_TXTLEN		2
-#define S3ADDR_TXTOFFSET	4
-#define S3ADDR_TXTLEN		8
-#define S3DATA_TXTOFFSET	12
-/*S3DATA_TXTLEN			variable, depends on len field */
-/*S3CKSUM_TXTOFFSET		variable, depends on len field */
-#define S3CKSUM_TXTLEN		2
-#define SERNUM_LEN_MAX		12
-
-#define S3PLUG_ITEMCODE_TXTOFFSET	(S3DATA_TXTOFFSET)
-#define S3PLUG_ITEMCODE_TXTLEN		8
-#define S3PLUG_ADDR_TXTOFFSET		(S3DATA_TXTOFFSET+8)
-#define S3PLUG_ADDR_TXTLEN		8
-#define S3PLUG_LEN_TXTOFFSET		(S3DATA_TXTOFFSET+16)
-#define S3PLUG_LEN_TXTLEN		8
-
-#define S3CRC_ADDR_TXTOFFSET		(S3DATA_TXTOFFSET)
-#define S3CRC_ADDR_TXTLEN		8
-#define S3CRC_LEN_TXTOFFSET		(S3DATA_TXTOFFSET+8)
-#define S3CRC_LEN_TXTLEN		8
-#define S3CRC_DOWRITE_TXTOFFSET		(S3DATA_TXTOFFSET+16)
-#define S3CRC_DOWRITE_TXTLEN		8
-
-#define S3INFO_LEN_TXTOFFSET		(S3DATA_TXTOFFSET)
-#define S3INFO_LEN_TXTLEN		4
-#define S3INFO_TYPE_TXTOFFSET		(S3DATA_TXTOFFSET+4)
-#define S3INFO_TYPE_TXTLEN		4
-#define S3INFO_DATA_TXTOFFSET		(S3DATA_TXTOFFSET+8)
-/* S3INFO_DATA_TXTLEN			variable, depends on INFO_LEN field */
 
 #define S3ADDR_PLUG		(0xff000000UL)
 #define S3ADDR_CRC		(0xff100000UL)
 #define S3ADDR_INFO		(0xff200000UL)
-
-#define PDAFILE_LINE_MAX	1024
+#define S3ADDR_START		(0xff400000UL)
 
 #define CHUNKS_MAX		100
 
 #define WRITESIZE_MAX		4096
 
 /*================================================================*/
-/* Local Macros */
-
-#define bswap_16(x) \
-     (__extension__							      \
-      ({ register unsigned short int __v, __x = (x);			      \
-	   __asm__ ("rorw $8, %w0"					      \
-		    : "=r" (__v)					      \
-		    : "0" (__x)						      \
-		    : "cc");						      \
-	 __v; }))
-
-#define bswap_32(x) \
-     (__extension__							      \
-      ({ register unsigned int __v, __x = (x);				      \
-	   __asm__ ("rorw $8, %w0;"					      \
-		    "rorl $16, %0;"					      \
-		    "rorw $8, %w0"					      \
-		    : "=r" (__v)					      \
-		    : "0" (__x)						      \
-		    : "cc");						      \
-	 __v; }))
-
-/*================================================================*/
 /* Local Types */
 
-typedef struct s3datarec {
+struct s3datarec {
 	u32 len;
 	u32 addr;
 	u8 checksum;
 	u8 *data;
-} s3datarec_t;
+};
 
-typedef struct s3plugrec {
+struct s3plugrec {
 	u32 itemcode;
 	u32 addr;
 	u32 len;
-} s3plugrec_t;
+};
 
-typedef struct s3crcrec {
+struct s3crcrec {
 	u32 addr;
 	u32 len;
 	unsigned int dowrite;
-} s3crcrec_t;
+};
 
-typedef struct s3inforec {
+struct s3inforec {
 	u16 len;
 	u16 type;
 	union {
@@ -155,20 +101,20 @@ typedef struct s3inforec {
 		u16 buildseq;
 		hfa384x_compident_t platform;
 	} info;
-} s3inforec_t;
+};
 
-typedef struct pda {
+struct pda {
 	u8 buf[HFA384x_PDA_LEN_MAX];
 	hfa384x_pdrec_t *rec[HFA384x_PDA_RECS_MAX];
 	unsigned int nrec;
-} pda_t;
+};
 
-typedef struct imgchunk {
-	u32 addr;		/* start address */
-	u32 len;		/* in bytes */
-	u16 crc;		/* CRC value (if it falls at a chunk boundary) */
+struct imgchunk {
+	u32 addr;	/* start address */
+	u32 len;	/* in bytes */
+	u16 crc;	/* CRC value (if it falls at a chunk boundary) */
 	u8 *data;
-} imgchunk_t;
+};
 
 /*================================================================*/
 /* Local Static Definitions */
@@ -177,27 +123,27 @@ typedef struct imgchunk {
 /* s-record image processing */
 
 /* Data records */
-unsigned int ns3data = 0;
-s3datarec_t s3data[S3DATA_MAX];
+unsigned int ns3data;
+struct s3datarec s3data[S3DATA_MAX];
 
 /* Plug records */
-unsigned int ns3plug = 0;
-s3plugrec_t s3plug[S3PLUG_MAX];
+unsigned int ns3plug;
+struct s3plugrec s3plug[S3PLUG_MAX];
 
 /* CRC records */
-unsigned int ns3crc = 0;
-s3crcrec_t s3crc[S3CRC_MAX];
+unsigned int ns3crc;
+struct s3crcrec s3crc[S3CRC_MAX];
 
 /* Info records */
-unsigned int ns3info = 0;
-s3inforec_t s3info[S3INFO_MAX];
+unsigned int ns3info;
+struct s3inforec s3info[S3INFO_MAX];
 
 /* S7 record (there _better_ be only one) */
 u32 startaddr;
 
 /* Load image chunks */
 unsigned int nfchunks;
-imgchunk_t fchunk[CHUNKS_MAX];
+struct imgchunk fchunk[CHUNKS_MAX];
 
 /* Note that for the following pdrec_t arrays, the len and code */
 /*   fields are stored in HOST byte order. The mkpdrlist() function */
@@ -205,7 +151,7 @@ imgchunk_t fchunk[CHUNKS_MAX];
 /*----------------------------------------------------------------*/
 /* PDA, built from [card|newfile]+[addfile1+addfile2...] */
 
-pda_t pda;
+struct pda pda;
 hfa384x_compident_t nicid;
 hfa384x_caplevel_t rfid;
 hfa384x_caplevel_t macid;
@@ -214,22 +160,30 @@ hfa384x_caplevel_t priid;
 /*================================================================*/
 /* Local Function Declarations */
 
-int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev);
-int read_srecfile(char *rfptr, int rfsize);
-int mkimage(imgchunk_t * clist, unsigned int *ccnt);
-int read_cardpda(pda_t * pda, wlandevice_t * wlandev);
-int mkpdrlist(pda_t * pda);
-int s3datarec_compare(const void *p1, const void *p2);
-int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
-	      s3plugrec_t * s3plug, unsigned int ns3plug, pda_t * pda);
-int crcimage(imgchunk_t * fchunk, unsigned int nfchunks,
-	     s3crcrec_t * s3crc, unsigned int ns3crc);
-int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
-	       unsigned int nfchunks);
-void free_chunks(imgchunk_t * fchunk, unsigned int *nfchunks);
-void free_srecs(void);
+static int prism2_fwapply(const struct ihex_binrec *rfptr,
+wlandevice_t *wlandev);
 
-int validate_identity(void);
+static int read_fwfile(const struct ihex_binrec *rfptr);
+
+static int mkimage(struct imgchunk *clist, unsigned int *ccnt);
+
+static int read_cardpda(struct pda *pda, wlandevice_t *wlandev);
+
+static int mkpdrlist(struct pda *pda);
+
+static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
+	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda * pda);
+
+static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
+	     struct s3crcrec *s3crc, unsigned int ns3crc);
+
+static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
+	       unsigned int nfchunks);
+static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks);
+
+static void free_srecs(void);
+
+static int validate_identity(void);
 
 /*================================================================*/
 /* Function Definitions */
@@ -247,13 +201,13 @@ int validate_identity(void);
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-int prism2_fwtry(struct usb_device *udev, wlandevice_t * wlandev)
+int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 {
 	const struct firmware *fw_entry = NULL;
 
 	printk(KERN_INFO "prism2_usb: Checking for firmware %s\n",
 	       PRISM2_USB_FWFILE);
-	if (request_firmware(&fw_entry, PRISM2_USB_FWFILE, &udev->dev) != 0) {
+	if (request_ihex_firmware(&fw_entry, PRISM2_USB_FWFILE, &udev->dev) != 0) {
 		printk(KERN_INFO
 		       "prism2_usb: Firmware not available, but not essential\n");
 		printk(KERN_INFO
@@ -261,9 +215,9 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t * wlandev)
 		return 1;
 	}
 
-	printk(KERN_INFO "prism2_usb: %s will be processed, size %d\n",
+	printk(KERN_INFO "prism2_usb: %s will be processed, size %zu\n",
 	       PRISM2_USB_FWFILE, fw_entry->size);
-	prism2_fwapply((char *)fw_entry->data, fw_entry->size, wlandev);
+	prism2_fwapply((const struct ihex_binrec *)fw_entry->data, wlandev);
 
 	release_firmware(fw_entry);
 	return 0;
@@ -276,17 +230,16 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t * wlandev)
 *
 * Arguments:
 *	rfptr	firmware image in kernel memory
-*	rfsize	firmware size in kernel memory
 *	wlandev device
 *
 * Returns:
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
+int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
 {
 	signed int result = 0;
-	p80211msg_dot11req_mibget_t getmsg;
+	struct p80211msg_dot11req_mibget getmsg;
 	p80211itemd_t *item;
 	u32 *data;
 
@@ -311,7 +264,7 @@ int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
 	/* clear the pda and add an initial END record */
 	memset(&pda, 0, sizeof(pda));
 	pda.rec[0] = (hfa384x_pdrec_t *) pda.buf;
-	pda.rec[0]->len = cpu_to_le16(2);	/* len in words *//* len in words */
+	pda.rec[0]->len = cpu_to_le16(2);	/* len in words */
 	pda.rec[0]->code = cpu_to_le16(HFA384x_PDR_END_OF_PDA);
 	pda.nrec = 1;
 
@@ -322,7 +275,7 @@ int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
 	/* Build the PDA we're going to use. */
 	if (read_cardpda(&pda, wlandev)) {
 		printk(KERN_ERR "load_cardpda failed, exiting.\n");
-		return (1);
+		return 1;
 	}
 
 	/* read the card's PRI-SUP */
@@ -344,9 +297,8 @@ int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
 
 	/* DIDmsg_dot11req_mibget */
 	prism2mgmt_mibset_mibget(wlandev, &getmsg);
-	if (getmsg.resultcode.data != P80211ENUM_resultcode_success) {
+	if (getmsg.resultcode.data != P80211ENUM_resultcode_success)
 		printk(KERN_ERR "Couldn't fetch PRI-SUP info\n");
-	}
 
 	/* Already in host order */
 	priid.role = *data++;
@@ -356,24 +308,22 @@ int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
 	priid.top = *data++;
 
 	/* Read the S3 file */
-	result = read_srecfile(rfptr, rfsize);
+	result = read_fwfile(rfptr);
 	if (result) {
 		printk(KERN_ERR "Failed to read the data exiting.\n");
-		return (1);
+		return 1;
 	}
-	/* Sort the S3 data records */
-	sort(s3data, ns3data, sizeof(s3datarec_t), s3datarec_compare, NULL);
 
 	result = validate_identity();
 
 	if (result) {
 		printk(KERN_ERR "Incompatible firmware image.\n");
-		return (1);
+		return 1;
 	}
 
 	if (startaddr == 0x00000000) {
 		printk(KERN_ERR "Can't RAM download a Flash image!\n");
-		return (1);
+		return 1;
 	}
 
 	/* Make the image chunks */
@@ -383,20 +333,20 @@ int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
 	result = plugimage(fchunk, nfchunks, s3plug, ns3plug, &pda);
 	if (result) {
 		printk(KERN_ERR "Failed to plug data.\n");
-		return (1);
+		return 1;
 	}
 
 	/* Insert any CRCs */
 	if (crcimage(fchunk, nfchunks, s3crc, ns3crc)) {
 		printk(KERN_ERR "Failed to insert all CRCs\n");
-		return (1);
+		return 1;
 	}
 
 	/* Write the image */
 	result = writeimage(wlandev, fchunk, nfchunks);
 	if (result) {
 		printk(KERN_ERR "Failed to ramwrite image data.\n");
-		return (1);
+		return 1;
 	}
 
 	/* clear any allocated memory */
@@ -425,8 +375,8 @@ int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int crcimage(imgchunk_t * fchunk, unsigned int nfchunks, s3crcrec_t * s3crc,
-	     unsigned int ns3crc)
+int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
+	     struct s3crcrec *s3crc, unsigned int ns3crc)
 {
 	int result = 0;
 	int i;
@@ -447,15 +397,14 @@ int crcimage(imgchunk_t * fchunk, unsigned int nfchunks, s3crcrec_t * s3crc,
 		for (c = 0; c < nfchunks; c++) {
 			cstart = fchunk[c].addr;
 			cend = fchunk[c].addr + fchunk[c].len;
-			/*  the line below does an address & len match search */
-			/*  unfortunately, I've found that the len fields of */
-			/*  some crc records don't match with the length of */
-			/*  the actual data, so we're not checking right */
-			/*  now */
-			/* if ( crcstart-2 >= cstart && crcend <= cend ) break; */
+			/* the line below does an address & len match search */
+			/* unfortunately, I've found that the len fields of */
+			/* some crc records don't match with the length of */
+			/* the actual data, so we're not checking right now */
+			/* if (crcstart-2 >= cstart && crcend <= cend) break; */
 
 			/* note the -2 below, it's to make sure the chunk has */
-			/*   space for the CRC value */
+			/* space for the CRC value */
 			if (crcstart - 2 >= cstart && crcstart < cend)
 				break;
 		}
@@ -490,16 +439,15 @@ int crcimage(imgchunk_t * fchunk, unsigned int nfchunks, s3crcrec_t * s3crc,
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-void free_chunks(imgchunk_t * fchunk, unsigned int *nfchunks)
+void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 {
 	int i;
 	for (i = 0; i < *nfchunks; i++) {
-		if (fchunk[i].data != NULL) {
+		if (fchunk[i].data != NULL)
 			kfree(fchunk[i].data);
-		}
 	}
 	*nfchunks = 0;
-	memset(fchunk, 0, sizeof(fchunk));
+	memset(fchunk, 0, sizeof(*fchunk));
 
 }
 
@@ -516,10 +464,6 @@ void free_chunks(imgchunk_t * fchunk, unsigned int *nfchunks)
 ----------------------------------------------------------------*/
 void free_srecs(void)
 {
-	int i;
-	for (i = 0; i < ns3data; i++) {
-		kfree(s3data[i].data);
-	}
 	ns3data = 0;
 	memset(s3data, 0, sizeof(s3data));
 	ns3plug = 0;
@@ -545,7 +489,7 @@ void free_srecs(void)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkimage(imgchunk_t * clist, unsigned int *ccnt)
+int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 {
 	int result = 0;
 	int i;
@@ -591,17 +535,12 @@ int mkimage(imgchunk_t * clist, unsigned int *ccnt)
 
 	/* Allocate buffer space for chunks */
 	for (i = 0; i < *ccnt; i++) {
-		clist[i].data = kmalloc(clist[i].len, GFP_KERNEL);
+		clist[i].data = kzalloc(clist[i].len, GFP_KERNEL);
 		if (clist[i].data == NULL) {
 			printk(KERN_ERR
 			       "failed to allocate image space, exitting.\n");
-			return (1);
+			return 1;
 		}
-		memset(clist[i].data, 0, clist[i].len);
-	}
-
-	/* Display chunks */
-	for (i = 0; i < *ccnt; i++) {
 		pr_debug("chunk[%d]: addr=0x%06x len=%d\n",
 			 i, clist[i].addr, clist[i].len);
 	}
@@ -613,15 +552,14 @@ int mkimage(imgchunk_t * clist, unsigned int *ccnt)
 		for (j = 0; j < *ccnt; j++) {
 			cstart = clist[j].addr;
 			cend = cstart + clist[j].len - 1;
-			if (s3start >= cstart && s3end <= cend) {
+			if (s3start >= cstart && s3end <= cend)
 				break;
-			}
 		}
 		if (((unsigned int)j) >= (*ccnt)) {
 			printk(KERN_ERR
 			       "s3rec(a=0x%06x,l=%d), no chunk match, exiting.\n",
 			       s3start, s3data[i].len);
-			return (1);
+			return 1;
 		}
 		coffset = s3start - cstart;
 		memcpy(clist[j].data + coffset, s3data[i].data, s3data[i].len);
@@ -644,7 +582,7 @@ int mkimage(imgchunk_t * clist, unsigned int *ccnt)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkpdrlist(pda_t * pda)
+int mkpdrlist(struct pda *pda)
 {
 	int result = 0;
 	u16 *pda16 = (u16 *) pda->buf;
@@ -654,7 +592,7 @@ int mkpdrlist(pda_t * pda)
 	curroff = 0;
 	while (curroff < (HFA384x_PDA_LEN_MAX / 2) &&
 	       le16_to_cpu(pda16[curroff + 1]) != HFA384x_PDR_END_OF_PDA) {
-		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) & (pda16[curroff]);
+		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
 
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) == HFA384x_PDR_NICID) {
 			memcpy(&nicid, &pda->rec[pda->nrec]->data.nicid,
@@ -691,10 +629,10 @@ int mkpdrlist(pda_t * pda)
 		printk(KERN_ERR
 		       "no end record found or invalid lengths in "
 		       "PDR data, exiting. %x %d\n", curroff, pda->nrec);
-		return (1);
+		return 1;
 	}
 	if (le16_to_cpu(pda16[curroff + 1]) == HFA384x_PDR_END_OF_PDA) {
-		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) & (pda16[curroff]);
+		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
 		(pda->nrec)++;
 	}
 	return result;
@@ -717,8 +655,8 @@ int mkpdrlist(pda_t * pda)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
-	      s3plugrec_t * s3plug, unsigned int ns3plug, pda_t * pda)
+int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
+	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda * pda)
 {
 	int result = 0;
 	int i;			/* plug index */
@@ -736,7 +674,7 @@ int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
 		pstart = s3plug[i].addr;
 		pend = s3plug[i].addr + s3plug[i].len;
 		/* find the matching PDR (or filename) */
-		if (s3plug[i].itemcode != 0xffffffffUL) {	/* not filename */
+		if (s3plug[i].itemcode != 0xffffffffUL) { /* not filename */
 			for (j = 0; j < pda->nrec; j++) {
 				if (s3plug[i].itemcode ==
 				    le16_to_cpu(pda->rec[j]->code))
@@ -745,7 +683,7 @@ int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
 		} else {
 			j = -1;
 		}
-		if (j >= pda->nrec && j != -1) {	/*  if no matching PDR, fail */
+		if (j >= pda->nrec && j != -1) { /*  if no matching PDR, fail */
 			printk(KERN_WARNING
 			       "warning: Failed to find PDR for "
 			       "plugrec 0x%04x.\n", s3plug[i].itemcode);
@@ -825,10 +763,10 @@ int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int read_cardpda(pda_t * pda, wlandevice_t * wlandev)
+int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 {
 	int result = 0;
-	p80211msg_p2req_readpda_t msg;
+	struct p80211msg_p2req_readpda msg;
 
 	/* set up the msg */
 	msg.msgcode = DIDmsg_p2req_readpda;
@@ -856,44 +794,20 @@ int read_cardpda(pda_t * pda, wlandevice_t * wlandev)
 }
 
 /*----------------------------------------------------------------
-* copy_line
+* read_fwfile
 *
-* Copies a line of text, up to \n, \0, or SREC_LINE_MAX, or limit of
-* From array
+* Reads the given fw file which should have been compiled from an srec
+* file. Each record in the fw file will either be a plain data record,
+* a start address record, or other records used for plugging.
 *
-* Arguments:
-*	from	From addr
-*	to	To addr
-*	limit	Addr of last character in From array that can be copied
+* Note that data records are expected to be sorted into
+* ascending address order in the fw file.
 *
-* Returns:
-*	Num characters copied
-----------------------------------------------------------------*/
-int copyline(char *from, char *to, char *limit)
-{
-	int c = 0;
-
-	while ((c < SREC_LINE_MAX - 1) && (from + c <= limit) &&
-	       (from[c] != '\n') && (from[c] != '\0')) {
-		to[c] = from[c];
-		c++;
-	}
-
-	to[c] = '\0';
-	return (c < SREC_LINE_MAX - 1) ? c + 1 : c;
-}
-
-/*----------------------------------------------------------------
-* read_srecfile
+* Note also that the start address record, originally an S7 record in
+* the srec file, is expected in the fw file to be like a data record but
+* with a certain address to make it identiable.
 *
-* Reads the given srecord file and loads the records into the
-* s3xxx arrays.  This function can be called repeatedly (once for
-* each of a set of files), if necessary.  This function performs
-* no validation of the data except for the grossest of S-record
-* line format checks.  Don't forget that these will be DOS files...
-* CR/LF at the end of each line.
-*
-* Here's the SREC format we're dealing with:
+* Here's the SREC format that the fw should have come from:
 * S[37]nnaaaaaaaaddd...dddcc
 *
 *       nn - number of bytes starting with the address field
@@ -902,8 +816,9 @@ int copyline(char *from, char *to, char *limit)
 *       cc - checksum
 *
 * The S7 record's (there should be only one) address value gets
-* saved in startaddr.  It's the start execution address used
-* for RAM downloads.
+* converted to an S3 record with address of 0xff400000, with the
+* start address being stored as a 4 byte data word. That address is
+* the start execution address used for RAM downloads.
 *
 * The S3 records have a collection of subformats indicated by the
 * value of aaaaaaaa:
@@ -923,241 +838,128 @@ int copyline(char *from, char *to, char *limit)
 *                ssssttttdd..dd
 *                s - Size in words (little endian)
 *                t - Info type (little endian), see #defines and
-*                    s3inforec_t for details about types.
+*                    struct s3inforec for details about types.
 *                d - (s - 1) little endian words giving the contents of
 *                    the given info type.
 *
+*   0xff400000 - Start address record, data field format:
+*                aaaaaaaa
+*                a - Address in load image to plug (little endian)
+*
 * Arguments:
-*	rfptr	firmware image (s-record structure) in kernel memory
-*	rfsize	firmware size in kernel memory
+*	record	firmware image (ihex record structure) in kernel memory
 *
 * Returns:
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int read_srecfile(char *rfptr, int rfsize)
+int read_fwfile(const struct ihex_binrec *record)
 {
-	int result = 0;
-	char buf[SREC_LINE_MAX];
-	char tmpbuf[30];
-	s3datarec_t tmprec;
-	int i, c;
-	int line = 0;
-	u16 *tmpinfo;
-	char *endptr = rfptr + rfsize;
+	int		i;
+	int		rcnt = 0;
+	u16		*tmpinfo;
+	u16		*ptr16;
+	u32		*ptr32, len, addr;
 
-	pr_debug("Reading S-record file ...\n");
+	pr_debug("Reading fw file ...\n");
 
-	while ((c = copyline(rfptr, buf, endptr)) >= 12) {
-		rfptr = rfptr + c;
-		line++;
-		if (buf[0] != 'S') {
-			printk(KERN_ERR "%d warning: No initial \'S\'\n", line);
-			return 1;
-		}
-		if (buf[1] == '7') {	/* S7 record, start address */
-			buf[12] = '\0';
-			startaddr = simple_strtoul(buf + 4, NULL, 16);
-			pr_debug("  S7 start addr, line=%d "
-				 " addr=0x%08x\n", line, startaddr);
-			continue;
-		} else if (buf[1] == '3') {
-			/* Ok, it's an S3, parse and put it in the right array */
-			/* Record Length field (we only want datalen) */
-			memcpy(tmpbuf, buf + S3LEN_TXTOFFSET, S3LEN_TXTLEN);
-			tmpbuf[S3LEN_TXTLEN] = '\0';
-			tmprec.len = simple_strtoul(tmpbuf, NULL, 16) - 4 - 1;	/* 4=addr, 1=cksum */
-			/* Address field */
-			memcpy(tmpbuf, buf + S3ADDR_TXTOFFSET, S3ADDR_TXTLEN);
-			tmpbuf[S3ADDR_TXTLEN] = '\0';
-			tmprec.addr = simple_strtoul(tmpbuf, NULL, 16);
-			/* Checksum field */
-			tmprec.checksum =
-			    simple_strtoul(buf + strlen(buf) - 2, NULL, 16);
+	while (record) {
 
-			switch (tmprec.addr) {
-			case S3ADDR_PLUG:
-				memcpy(tmpbuf, buf + S3PLUG_ITEMCODE_TXTOFFSET,
-				       S3PLUG_ITEMCODE_TXTLEN);
-				tmpbuf[S3PLUG_ITEMCODE_TXTLEN] = '\0';
-				s3plug[ns3plug].itemcode =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3plug[ns3plug].itemcode =
-				    bswap_32(s3plug[ns3plug].itemcode);
+		rcnt++;
 
-				memcpy(tmpbuf, buf + S3PLUG_ADDR_TXTOFFSET,
-				       S3PLUG_ADDR_TXTLEN);
-				tmpbuf[S3PLUG_ADDR_TXTLEN] = '\0';
-				s3plug[ns3plug].addr =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3plug[ns3plug].addr =
-				    bswap_32(s3plug[ns3plug].addr);
+		len = be16_to_cpu(record->len);
+		addr = be32_to_cpu(record->addr);
 
-				memcpy(tmpbuf, buf + S3PLUG_LEN_TXTOFFSET,
-				       S3PLUG_LEN_TXTLEN);
-				tmpbuf[S3PLUG_LEN_TXTLEN] = '\0';
-				s3plug[ns3plug].len =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3plug[ns3plug].len =
-				    bswap_32(s3plug[ns3plug].len);
+		/* Point into data for different word lengths */
+		ptr32 = (u32 *) record->data;
+		ptr16 = (u16 *) record->data;
 
-				pr_debug("  S3 plugrec, line=%d "
-					 "itemcode=0x%04x addr=0x%08x len=%d\n",
-					 line,
-					 s3plug[ns3plug].itemcode,
-					 s3plug[ns3plug].addr,
-					 s3plug[ns3plug].len);
+		/* parse what was an S3 srec and put it in the right array */
+		switch (addr) {
+		case S3ADDR_START:
+			startaddr = *ptr32;
+			pr_debug("  S7 start addr, record=%d "
+				      " addr=0x%08x\n",
+				      rcnt,
+				      startaddr);
+			break;
+		case S3ADDR_PLUG:
+			s3plug[ns3plug].itemcode = *ptr32;
+			s3plug[ns3plug].addr = *(ptr32 + 1);
+			s3plug[ns3plug].len = *(ptr32 + 2);
 
-				ns3plug++;
-				if (ns3plug == S3PLUG_MAX) {
-					printk(KERN_ERR
-					       "S3 plugrec limit reached - aborting\n");
-					return 1;
-				}
-				break;
-			case S3ADDR_CRC:
-				memcpy(tmpbuf, buf + S3CRC_ADDR_TXTOFFSET,
-				       S3CRC_ADDR_TXTLEN);
-				tmpbuf[S3CRC_ADDR_TXTLEN] = '\0';
-				s3crc[ns3crc].addr =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3crc[ns3crc].addr =
-				    bswap_32(s3crc[ns3crc].addr);
+			pr_debug("  S3 plugrec, record=%d "
+				      "itemcode=0x%08x addr=0x%08x len=%d\n",
+				      rcnt,
+				      s3plug[ns3plug].itemcode,
+				      s3plug[ns3plug].addr,
+				      s3plug[ns3plug].len);
 
-				memcpy(tmpbuf, buf + S3CRC_LEN_TXTOFFSET,
-				       S3CRC_LEN_TXTLEN);
-				tmpbuf[S3CRC_LEN_TXTLEN] = '\0';
-				s3crc[ns3crc].len =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3crc[ns3crc].len = bswap_32(s3crc[ns3crc].len);
-
-				memcpy(tmpbuf, buf + S3CRC_DOWRITE_TXTOFFSET,
-				       S3CRC_DOWRITE_TXTLEN);
-				tmpbuf[S3CRC_DOWRITE_TXTLEN] = '\0';
-				s3crc[ns3crc].dowrite =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3crc[ns3crc].dowrite =
-				    bswap_32(s3crc[ns3crc].dowrite);
-
-				pr_debug("  S3 crcrec, line=%d "
-					 "addr=0x%08x len=%d write=0x%08x\n",
-					 line,
-					 s3crc[ns3crc].addr,
-					 s3crc[ns3crc].len,
-					 s3crc[ns3crc].dowrite);
-				ns3crc++;
-				if (ns3crc == S3CRC_MAX) {
-					printk(KERN_ERR
-					       "S3 crcrec limit reached - aborting\n");
-					return 1;
-				}
-				break;
-			case S3ADDR_INFO:
-				memcpy(tmpbuf, buf + S3INFO_LEN_TXTOFFSET,
-				       S3INFO_LEN_TXTLEN);
-				tmpbuf[S3INFO_LEN_TXTLEN] = '\0';
-				s3info[ns3info].len =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3info[ns3info].len =
-				    bswap_16(s3info[ns3info].len);
-
-				memcpy(tmpbuf, buf + S3INFO_TYPE_TXTOFFSET,
-				       S3INFO_TYPE_TXTLEN);
-				tmpbuf[S3INFO_TYPE_TXTLEN] = '\0';
-				s3info[ns3info].type =
-				    simple_strtoul(tmpbuf, NULL, 16);
-				s3info[ns3info].type =
-				    bswap_16(s3info[ns3info].type);
-
-				pr_debug("  S3 inforec, line=%d "
-					 "len=0x%04x type=0x%04x\n",
-					 line,
-					 s3info[ns3info].len,
-					 s3info[ns3info].type);
-				if (((s3info[ns3info].len - 1) * sizeof(u16)) >
-				    sizeof(s3info[ns3info].info)) {
-					printk(KERN_ERR
-					       " S3 inforec length too long - aborting\n");
-					return 1;
-				}
-
-				tmpinfo =
-				    (u16 *) & (s3info[ns3info].info.version);
-				for (i = 0; i < s3info[ns3info].len - 1; i++) {
-					memcpy(tmpbuf,
-					       buf + S3INFO_DATA_TXTOFFSET +
-					       (i * 4), 4);
-					tmpbuf[4] = '\0';
-					tmpinfo[i] =
-					    simple_strtoul(tmpbuf, NULL, 16);
-					tmpinfo[i] = bswap_16(tmpinfo[i]);
-				}
-				pr_debug("            info=");
-				for (i = 0; i < s3info[ns3info].len - 1; i++) {
-					pr_debug("%04x ", tmpinfo[i]);
-				}
-				pr_debug("\n");
-
-				ns3info++;
-				if (ns3info == S3INFO_MAX) {
-					printk(KERN_ERR
-					       "S3 inforec limit reached - aborting\n");
-					return 1;
-				}
-				break;
-			default:	/* Data record */
-				s3data[ns3data].addr = tmprec.addr;
-				s3data[ns3data].len = tmprec.len;
-				s3data[ns3data].checksum = tmprec.checksum;
-				s3data[ns3data].data =
-				    kmalloc(tmprec.len, GFP_KERNEL);
-				for (i = 0; i < tmprec.len; i++) {
-					memcpy(tmpbuf,
-					       buf + S3DATA_TXTOFFSET + (i * 2),
-					       2);
-					tmpbuf[2] = '\0';
-					s3data[ns3data].data[i] =
-					    simple_strtoul(tmpbuf, NULL, 16);
-				}
-				ns3data++;
-				if (ns3data == S3DATA_MAX) {
-					printk(KERN_ERR
-					       "S3 datarec limit reached - aborting\n");
-					return 1;
-				}
-				break;
+			ns3plug++;
+			if (ns3plug == S3PLUG_MAX) {
+				printk(KERN_ERR "S3 plugrec limit reached - aborting\n");
+				return 1;
 			}
-		} else {
-			printk(KERN_WARNING
-			       "%d warning: Unknown S-record detected.\n",
-			       line);
-		}
-	}
-	return result;
-}
+			break;
+		case S3ADDR_CRC:
+			s3crc[ns3crc].addr = *ptr32;
+			s3crc[ns3crc].len = *(ptr32 + 1);
+			s3crc[ns3crc].dowrite = *(ptr32 + 2);
 
-/*----------------------------------------------------------------
-* s3datarec_compare
-*
-* Comparison function for sort().
-*
-* Arguments:
-*	p1	ptr to the first item
-*	p2	ptr to the second item
-* Returns:
-*	0	items are equal
-*	<0	p1 < p2
-*	>0	p1 > p2
-----------------------------------------------------------------*/
-int s3datarec_compare(const void *p1, const void *p2)
-{
-	const s3datarec_t *s1 = p1;
-	const s3datarec_t *s2 = p2;
-	if (s1->addr == s2->addr)
-		return 0;
-	if (s1->addr < s2->addr)
-		return -1;
-	return 1;
+			pr_debug("  S3 crcrec, record=%d "
+				      "addr=0x%08x len=%d write=0x%08x\n",
+				      rcnt,
+				      s3crc[ns3crc].addr,
+				      s3crc[ns3crc].len,
+				      s3crc[ns3crc].dowrite);
+			ns3crc++;
+			if (ns3crc == S3CRC_MAX) {
+				printk(KERN_ERR "S3 crcrec limit reached - aborting\n");
+				return 1;
+			}
+			break;
+		case S3ADDR_INFO:
+			s3info[ns3info].len = *ptr16;
+			s3info[ns3info].type = *(ptr16 + 1);
+
+			pr_debug("  S3 inforec, record=%d "
+			      "len=0x%04x type=0x%04x\n",
+				      rcnt,
+				      s3info[ns3info].len,
+				      s3info[ns3info].type);
+			if (((s3info[ns3info].len - 1) * sizeof(u16)) > sizeof(s3info[ns3info].info)) {
+				printk(KERN_ERR " S3 inforec length too long - aborting\n");
+				return 1;
+			}
+
+			tmpinfo = (u16 *)&(s3info[ns3info].info.version);
+			pr_debug("            info=");
+			for (i = 0; i < s3info[ns3info].len - 1; i++) {
+				tmpinfo[i] = *(ptr16 + 2 + i);
+				pr_debug("%04x ", tmpinfo[i]);
+			}
+			pr_debug("\n");
+
+			ns3info++;
+			if (ns3info == S3INFO_MAX) {
+				printk(KERN_ERR "S3 inforec limit reached - aborting\n");
+				return 1;
+			}
+			break;
+		default:	/* Data record */
+			s3data[ns3data].addr = addr;
+			s3data[ns3data].len = len;
+			s3data[ns3data].data = (uint8_t *) record->data;
+			ns3data++;
+			if (ns3data == S3DATA_MAX) {
+				printk(KERN_ERR "S3 datarec limit reached - aborting\n");
+				return 1;
+			}
+			break;
+		}
+		record = ihex_next_binrec(record);
+	}
+	return 0;
 }
 
 /*----------------------------------------------------------------
@@ -1175,13 +977,13 @@ int s3datarec_compare(const void *p1, const void *p2)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
+int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks)
 {
 	int result = 0;
-	p80211msg_p2req_ramdl_state_t rstatemsg;
-	p80211msg_p2req_ramdl_write_t rwritemsg;
-	p80211msg_t *msgp;
+	struct p80211msg_p2req_ramdl_state rstatemsg;
+	struct p80211msg_p2req_ramdl_write rwritemsg;
+	struct p80211msg *msgp;
 	u32 resultcode;
 	int i;
 	int j;
@@ -1227,7 +1029,7 @@ int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
 	rstatemsg.enable.data = P80211ENUM_truth_true;
 	rstatemsg.exeaddr.data = startaddr;
 
-	msgp = (p80211msg_t *) & rstatemsg;
+	msgp = (struct p80211msg *) &rstatemsg;
 	result = prism2mgmt_ramdl_state(wlandev, msgp);
 	if (result) {
 		printk(KERN_ERR
@@ -1249,11 +1051,12 @@ int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
 		nwrites += (fchunk[i].len % WRITESIZE_MAX) ? 1 : 0;
 		curroff = 0;
 		for (j = 0; j < nwrites; j++) {
-			currlen =
-			    (fchunk[i].len - (WRITESIZE_MAX * j)) >
-			    WRITESIZE_MAX ? WRITESIZE_MAX : (fchunk[i].len -
-							     (WRITESIZE_MAX *
-							      j));
+			/* TODO Move this to a separate function */
+			int lenleft = fchunk[i].len - (WRITESIZE_MAX * j);
+			if (fchunk[i].len > WRITESIZE_MAX)
+				currlen = WRITESIZE_MAX;
+			else
+				currlen = lenleft;
 			curroff = j * WRITESIZE_MAX;
 			currdaddr = fchunk[i].addr + curroff;
 			/* Setup the message */
@@ -1267,7 +1070,7 @@ int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
 			    ("Sending xxxdl_write message addr=%06x len=%d.\n",
 			     currdaddr, currlen);
 
-			msgp = (p80211msg_t *) & rwritemsg;
+			msgp = (struct p80211msg *) &rwritemsg;
 			result = prism2mgmt_ramdl_write(wlandev, msgp);
 
 			/* Check the results */
@@ -1294,7 +1097,7 @@ int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
 	rstatemsg.enable.data = P80211ENUM_truth_false;
 	rstatemsg.exeaddr.data = 0;
 
-	msgp = (p80211msg_t *) & rstatemsg;
+	msgp = (struct p80211msg *) &rstatemsg;
 	result = prism2mgmt_ramdl_state(wlandev, msgp);
 	if (result) {
 		printk(KERN_ERR
@@ -1316,6 +1119,7 @@ int validate_identity(void)
 {
 	int i;
 	int result = 1;
+	int trump = 0;
 
 	pr_debug("NIC ID: %#x v%d.%d.%d\n",
 		 nicid.id, nicid.major, nicid.minor, nicid.variant);
@@ -1364,7 +1168,7 @@ int validate_identity(void)
 			/* SEC compat range */
 			if ((s3info[i].info.compat.role == 1) &&
 			    (s3info[i].info.compat.id == 4)) {
-
+				/* FIXME: isn't something missing here? */
 			}
 
 			break;
@@ -1389,8 +1193,7 @@ int validate_identity(void)
 			    (nicid.id != 0x8008))
 				continue;
 
-			if (result != 2)
-				result = 0;
+			trump = 1;
 			break;
 		case 0x8001:
 			pr_debug("name inforec len %d\n", s3info[i].len);
@@ -1400,7 +1203,9 @@ int validate_identity(void)
 			pr_debug("Unknown inforec type %d\n", s3info[i].type);
 		}
 	}
-	// walk through
+	/* walk through */
 
+	if (trump && (result != 2))
+		result = 0;
 	return result;
 }

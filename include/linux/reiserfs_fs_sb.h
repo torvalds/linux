@@ -7,6 +7,8 @@
 #ifdef __KERNEL__
 #include <linux/workqueue.h>
 #include <linux/rwsem.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
 #endif
 
 typedef enum {
@@ -355,6 +357,13 @@ struct reiserfs_sb_info {
 	struct reiserfs_journal *s_journal;	/* pointer to journal information */
 	unsigned short s_mount_state;	/* reiserfs state (valid, invalid) */
 
+	/* Serialize writers access, replace the old bkl */
+	struct mutex lock;
+	/* Owner of the lock (can be recursive) */
+	struct task_struct *lock_owner;
+	/* Depth of the lock, start from -1 like the bkl */
+	int lock_depth;
+
 	/* Comment? -Hans */
 	void (*end_io_handler) (struct buffer_head *, int);
 	hashf_t s_hash_function;	/* pointer to function which is used
@@ -407,6 +416,17 @@ struct reiserfs_sb_info {
 #ifdef CONFIG_QUOTA
 	char *s_qf_names[MAXQUOTAS];
 	int s_jquota_fmt;
+#endif
+#ifdef CONFIG_REISERFS_CHECK
+
+	struct tree_balance *cur_tb;	/*
+					 * Detects whether more than one
+					 * copy of tb exists per superblock
+					 * as a means of checking whether
+					 * do_balance is executing concurrently
+					 * against another tree reader/writer
+					 * on a same mount point.
+					 */
 #endif
 };
 

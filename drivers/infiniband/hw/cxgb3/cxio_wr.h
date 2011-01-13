@@ -327,6 +327,11 @@ enum rdma_init_rtr_types {
 #define V_RTR_TYPE(x)	((x) << S_RTR_TYPE)
 #define G_RTR_TYPE(x)	((((x) >> S_RTR_TYPE)) & M_RTR_TYPE)
 
+#define S_CHAN		4
+#define M_CHAN		0x3
+#define V_CHAN(x)	((x) << S_CHAN)
+#define G_CHAN(x)	((((x) >> S_CHAN)) & M_CHAN)
+
 struct t3_rdma_init_attr {
 	u32 tid;
 	u32 qpid;
@@ -346,6 +351,7 @@ struct t3_rdma_init_attr {
 	u16 flags;
 	u16 rqe_count;
 	u32 irs;
+	u32 chan;
 };
 
 struct t3_rdma_init_wr {
@@ -685,7 +691,7 @@ struct t3_swrq {
 struct t3_wq {
 	union t3_wr *queue;		/* DMA accessable memory */
 	dma_addr_t dma_addr;		/* DMA address for HW */
-	DECLARE_PCI_UNMAP_ADDR(mapping)	/* unmap kruft */
+	DEFINE_DMA_UNMAP_ADDR(mapping); /* unmap kruft */
 	u32 error;			/* 1 once we go to ERROR */
 	u32 qpid;
 	u32 wptr;			/* idx to next available WR slot */
@@ -712,7 +718,7 @@ struct t3_cq {
 	u32 wptr;
 	u32 size_log2;
 	dma_addr_t dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t3_cqe *queue;
 	struct t3_cqe *sw_queue;
 	u32 sw_rptr;
@@ -722,9 +728,40 @@ struct t3_cq {
 #define CQ_VLD_ENTRY(ptr,size_log2,cqe) (Q_GENBIT(ptr,size_log2) == \
 					 CQE_GENBIT(*cqe))
 
+struct t3_cq_status_page {
+	u32 cq_err;
+};
+
+static inline int cxio_cq_in_error(struct t3_cq *cq)
+{
+	return ((struct t3_cq_status_page *)
+		&cq->queue[1 << cq->size_log2])->cq_err;
+}
+
+static inline void cxio_set_cq_in_error(struct t3_cq *cq)
+{
+	((struct t3_cq_status_page *)
+	 &cq->queue[1 << cq->size_log2])->cq_err = 1;
+}
+
 static inline void cxio_set_wq_in_error(struct t3_wq *wq)
 {
-	wq->queue->wq_in_err.err = 1;
+	wq->queue->wq_in_err.err |= 1;
+}
+
+static inline void cxio_disable_wq_db(struct t3_wq *wq)
+{
+	wq->queue->wq_in_err.err |= 2;
+}
+
+static inline void cxio_enable_wq_db(struct t3_wq *wq)
+{
+	wq->queue->wq_in_err.err &= ~2;
+}
+
+static inline int cxio_wq_db_enabled(struct t3_wq *wq)
+{
+	return !(wq->queue->wq_in_err.err & 2);
 }
 
 static inline struct t3_cqe *cxio_next_hw_cqe(struct t3_cq *cq)

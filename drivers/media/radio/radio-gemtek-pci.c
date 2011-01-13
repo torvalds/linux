@@ -48,6 +48,7 @@
 #include <linux/errno.h>
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -181,12 +182,10 @@ static void gemtek_pci_mute(struct gemtek_pci *card)
 
 static void gemtek_pci_unmute(struct gemtek_pci *card)
 {
-	mutex_lock(&card->lock);
 	if (card->mute) {
 		gemtek_pci_setfrequency(card, card->current_frequency);
 		card->mute = false;
 	}
-	mutex_unlock(&card->lock);
 }
 
 static int gemtek_pci_getsignal(struct gemtek_pci *card)
@@ -242,6 +241,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct gemtek_pci *card = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	if (f->frequency < GEMTEK_PCI_RANGE_LOW ||
 	    f->frequency > GEMTEK_PCI_RANGE_HIGH)
 		return -EINVAL;
@@ -255,6 +256,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct gemtek_pci *card = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = card->current_frequency;
 	return 0;
@@ -358,7 +361,7 @@ MODULE_DEVICE_TABLE(pci, gemtek_pci_id);
 
 static const struct v4l2_file_operations gemtek_pci_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops gemtek_pci_ioctl_ops = {
@@ -419,10 +422,10 @@ static int __devinit gemtek_pci_probe(struct pci_dev *pdev, const struct pci_dev
 	card->vdev.release = video_device_release_empty;
 	video_set_drvdata(&card->vdev, card);
 
+	gemtek_pci_mute(card);
+
 	if (video_register_device(&card->vdev, VFL_TYPE_RADIO, nr_radio) < 0)
 		goto err_video;
-
-	gemtek_pci_mute(card);
 
 	v4l2_info(v4l2_dev, "Gemtek PCI Radio (rev. %d) found at 0x%04x-0x%04x.\n",
 		pdev->revision, card->iobase, card->iobase + card->length - 1);

@@ -1,3 +1,13 @@
+/* Geode LX framebuffer driver
+ *
+ * Copyright (C) 2006-2007, Advanced Micro Devices,Inc.
+ * Copyright (c) 2008  Andres Salomon <dilinger@debian.org>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ */
 #ifndef _LXFB_H_
 #define _LXFB_H_
 
@@ -12,6 +22,7 @@
 #define DC_HFILT_COUNT	0x100
 #define DC_VFILT_COUNT	0x100
 #define VP_COEFF_SIZE	0x1000
+#define VP_PAL_COUNT	0x100
 
 #define OUTPUT_CRT   0x01
 #define OUTPUT_PANEL 0x02
@@ -38,7 +49,8 @@ struct lxfb_par {
 	uint64_t vp[VP_REG_COUNT];
 	uint64_t fp[FP_REG_COUNT];
 
-	uint32_t pal[DC_PAL_COUNT];
+	uint32_t dc_pal[DC_PAL_COUNT];
+	uint32_t vp_pal[VP_PAL_COUNT];
 	uint32_t hcoeff[DC_HFILT_COUNT * 2];
 	uint32_t vcoeff[DC_VFILT_COUNT];
 	uint32_t vp_coeff[VP_COEFF_SIZE / 4];
@@ -355,6 +367,8 @@ enum fp_registers {
 	FP_CRC, /* 0x458 */
 };
 
+#define FP_PT2_HSP			(1 << 22)
+#define FP_PT2_VSP			(1 << 23)
 #define FP_PT2_SCRC			(1 << 27)	/* shfclk free */
 
 #define FP_PM_P				(1 << 24)	/* panel power ctl */
@@ -409,7 +423,7 @@ static inline void write_fp(struct lxfb_par *par, int reg, uint32_t val)
 }
 
 
-/* MSRs are defined in asm/geode.h; their bitfields are here */
+/* MSRs are defined in linux/cs5535.h; their bitfields are here */
 
 #define MSR_GLCP_DOTPLL_LOCK		(1 << 25)	/* r/o */
 #define MSR_GLCP_DOTPLL_HALFPIX		(1 << 24)

@@ -8,7 +8,7 @@
  * Copyright (C) 1997 Cobalt Microserver
  * Copyright (C) 1997, 2003 Ralf Baechle
  * Copyright (C) 2001-2003 Liam Davies (ldavies@agile.tv)
- * Copyright (C) 2007 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ * Copyright (C) 2007 Yoichi Yuasa <yuasa@linux-mips.org>
  */
 #ifndef _ASM_COBALT_IRQ_H
 #define _ASM_COBALT_IRQ_H

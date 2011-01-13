@@ -1,43 +1,11 @@
-
 /*
- * File:         include/asm-blackfin/mach-bf561/defBF561.h
- * Based on:
- * Author:
+ * Copyright 2005-2010 Analog Devices Inc.
  *
- * Created:
- * Description:
- * SYSTEM MMR REGISTER AND MEMORY MAP FOR ADSP-BF561
- * Rev:
- *
- * Modified:
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF561_H
 #define _DEF_BF561_H
-/*
-#if !defined(__ADSPBF561__)
-#warning defBF561.h should only be included for BF561 chip.
-#endif
-*/
-/* include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
 
 /*********************************************************************************** */
 /* System MMR Register Map */
@@ -53,32 +21,29 @@
 #define CHIPID                 0xFFC00014       /* Chip ID Register */
 
 /* For MMR's that are reserved on Core B, set up defines to better integrate with other ports */
-#define SWRST                   SICA_SWRST
-#define SYSCR                   SICA_SYSCR
 #define DOUBLE_FAULT            (DOUBLE_FAULT_B|DOUBLE_FAULT_A)
 #define RESET_DOUBLE            (SWRST_DBL_FAULT_B|SWRST_DBL_FAULT_A)
 #define RESET_WDOG              (SWRST_WDT_B|SWRST_WDT_A)
 #define RESET_SOFTWARE          (SWRST_OCCURRED)
 
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
-#define SICA_SWRST              0xFFC00100	/* Software Reset register */
-#define SICA_SYSCR              0xFFC00104	/* System Reset Configuration register */
-#define SICA_RVECT              0xFFC00108	/* SIC Reset Vector Address Register */
-#define SICA_IMASK              0xFFC0010C	/* SIC Interrupt Mask register 0 - hack to fix old tests */
-#define SICA_IMASK0             0xFFC0010C	/* SIC Interrupt Mask register 0 */
-#define SICA_IMASK1             0xFFC00110	/* SIC Interrupt Mask register 1 */
-#define SICA_IAR0               0xFFC00124	/* SIC Interrupt Assignment Register 0 */
-#define SICA_IAR1               0xFFC00128	/* SIC Interrupt Assignment Register 1 */
-#define SICA_IAR2               0xFFC0012C	/* SIC Interrupt Assignment Register 2 */
-#define SICA_IAR3               0xFFC00130	/* SIC Interrupt Assignment Register 3 */
-#define SICA_IAR4               0xFFC00134	/* SIC Interrupt Assignment Register 4 */
-#define SICA_IAR5               0xFFC00138	/* SIC Interrupt Assignment Register 5 */
-#define SICA_IAR6               0xFFC0013C	/* SIC Interrupt Assignment Register 6 */
-#define SICA_IAR7               0xFFC00140	/* SIC Interrupt Assignment Register 7 */
-#define SICA_ISR0               0xFFC00114	/* SIC Interrupt Status register 0 */
-#define SICA_ISR1               0xFFC00118	/* SIC Interrupt Status register 1 */
-#define SICA_IWR0               0xFFC0011C	/* SIC Interrupt Wakeup-Enable register 0 */
-#define SICA_IWR1               0xFFC00120	/* SIC Interrupt Wakeup-Enable register 1 */
+#define SWRST                   0xFFC00100	/* Software Reset register */
+#define SYSCR                   0xFFC00104	/* System Reset Configuration register */
+#define SIC_RVECT               0xFFC00108	/* SIC Reset Vector Address Register */
+#define SIC_IMASK0              0xFFC0010C	/* SIC Interrupt Mask register 0 */
+#define SIC_IMASK1              0xFFC00110	/* SIC Interrupt Mask register 1 */
+#define SIC_IAR0                0xFFC00124	/* SIC Interrupt Assignment Register 0 */
+#define SIC_IAR1                0xFFC00128	/* SIC Interrupt Assignment Register 1 */
+#define SIC_IAR2                0xFFC0012C	/* SIC Interrupt Assignment Register 2 */
+#define SIC_IAR3                0xFFC00130	/* SIC Interrupt Assignment Register 3 */
+#define SIC_IAR4                0xFFC00134	/* SIC Interrupt Assignment Register 4 */
+#define SIC_IAR5                0xFFC00138	/* SIC Interrupt Assignment Register 5 */
+#define SIC_IAR6                0xFFC0013C	/* SIC Interrupt Assignment Register 6 */
+#define SIC_IAR7                0xFFC00140	/* SIC Interrupt Assignment Register 7 */
+#define SIC_ISR0                0xFFC00114	/* SIC Interrupt Status register 0 */
+#define SIC_ISR1                0xFFC00118	/* SIC Interrupt Status register 1 */
+#define SIC_IWR0                0xFFC0011C	/* SIC Interrupt Wakeup-Enable register 0 */
+#define SIC_IWR1                0xFFC00120	/* SIC Interrupt Wakeup-Enable register 1 */
 
 /* System Reset and Interrupt Controller registers for Core B (0xFFC0 1100-0xFFC0 11FF) */
 #define SICB_SWRST              0xFFC01100	/* reserved */
@@ -339,10 +304,10 @@
 #define PPI1_FRAME 					0xFFC01310	/* PPI1 Frame Length register */
 
 /*DMA traffic control registers */
-#define	DMA1_TC_PER  0xFFC01B0C	/* Traffic control periods */
-#define	DMA1_TC_CNT  0xFFC01B10	/* Traffic control current counts */
-#define	DMA2_TC_PER  0xFFC00B0C	/* Traffic control periods */
-#define	DMA2_TC_CNT  0xFFC00B10	/* Traffic control current counts        */
+#define	DMAC0_TC_PER  0xFFC00B0C	/* Traffic control periods */
+#define	DMAC0_TC_CNT  0xFFC00B10	/* Traffic control current counts        */
+#define	DMAC1_TC_PER  0xFFC01B0C	/* Traffic control periods */
+#define	DMAC1_TC_CNT  0xFFC01B10	/* Traffic control current counts */
 
 /* DMA1 Controller registers (0xFFC0 1C00-0xFFC0 1FFF) */
 #define DMA1_0_CONFIG 0xFFC01C08	/* DMA1 Channel 0 Configuration register */
@@ -514,61 +479,61 @@
 #define DMA1_11_PERIPHERAL_MAP 0xFFC01EEC	/* DMA1 Channel 11 Peripheral Map Register */
 
 /* Memory DMA1 Controller registers (0xFFC0 1E80-0xFFC0 1FFF) */
-#define MDMA1_D0_CONFIG 0xFFC01F08	/*MemDMA1 Stream 0 Destination Configuration */
-#define MDMA1_D0_NEXT_DESC_PTR 0xFFC01F00	/*MemDMA1 Stream 0 Destination Next Descriptor Ptr Reg */
-#define MDMA1_D0_START_ADDR 0xFFC01F04	/*MemDMA1 Stream 0 Destination Start Address */
-#define MDMA1_D0_X_COUNT 0xFFC01F10	/*MemDMA1 Stream 0 Destination Inner-Loop Count */
-#define MDMA1_D0_Y_COUNT 0xFFC01F18	/*MemDMA1 Stream 0 Destination Outer-Loop Count */
-#define MDMA1_D0_X_MODIFY 0xFFC01F14	/*MemDMA1 Stream 0 Dest Inner-Loop Address-Increment */
-#define MDMA1_D0_Y_MODIFY 0xFFC01F1C	/*MemDMA1 Stream 0 Dest Outer-Loop Address-Increment */
-#define MDMA1_D0_CURR_DESC_PTR 0xFFC01F20	/*MemDMA1 Stream 0 Dest Current Descriptor Ptr reg */
-#define MDMA1_D0_CURR_ADDR 0xFFC01F24	/*MemDMA1 Stream 0 Destination Current Address */
-#define MDMA1_D0_CURR_X_COUNT 0xFFC01F30	/*MemDMA1 Stream 0 Dest Current Inner-Loop Count */
-#define MDMA1_D0_CURR_Y_COUNT 0xFFC01F38	/*MemDMA1 Stream 0 Dest Current Outer-Loop Count */
-#define MDMA1_D0_IRQ_STATUS 0xFFC01F28	/*MemDMA1 Stream 0 Destination Interrupt/Status */
-#define MDMA1_D0_PERIPHERAL_MAP 0xFFC01F2C	/*MemDMA1 Stream 0 Destination Peripheral Map */
+#define MDMA_D2_CONFIG 0xFFC01F08	/*MemDMA1 Stream 0 Destination Configuration */
+#define MDMA_D2_NEXT_DESC_PTR 0xFFC01F00	/*MemDMA1 Stream 0 Destination Next Descriptor Ptr Reg */
+#define MDMA_D2_START_ADDR 0xFFC01F04	/*MemDMA1 Stream 0 Destination Start Address */
+#define MDMA_D2_X_COUNT 0xFFC01F10	/*MemDMA1 Stream 0 Destination Inner-Loop Count */
+#define MDMA_D2_Y_COUNT 0xFFC01F18	/*MemDMA1 Stream 0 Destination Outer-Loop Count */
+#define MDMA_D2_X_MODIFY 0xFFC01F14	/*MemDMA1 Stream 0 Dest Inner-Loop Address-Increment */
+#define MDMA_D2_Y_MODIFY 0xFFC01F1C	/*MemDMA1 Stream 0 Dest Outer-Loop Address-Increment */
+#define MDMA_D2_CURR_DESC_PTR 0xFFC01F20	/*MemDMA1 Stream 0 Dest Current Descriptor Ptr reg */
+#define MDMA_D2_CURR_ADDR 0xFFC01F24	/*MemDMA1 Stream 0 Destination Current Address */
+#define MDMA_D2_CURR_X_COUNT 0xFFC01F30	/*MemDMA1 Stream 0 Dest Current Inner-Loop Count */
+#define MDMA_D2_CURR_Y_COUNT 0xFFC01F38	/*MemDMA1 Stream 0 Dest Current Outer-Loop Count */
+#define MDMA_D2_IRQ_STATUS 0xFFC01F28	/*MemDMA1 Stream 0 Destination Interrupt/Status */
+#define MDMA_D2_PERIPHERAL_MAP 0xFFC01F2C	/*MemDMA1 Stream 0 Destination Peripheral Map */
 
-#define MDMA1_S0_CONFIG 0xFFC01F48	/*MemDMA1 Stream 0 Source Configuration */
-#define MDMA1_S0_NEXT_DESC_PTR 0xFFC01F40	/*MemDMA1 Stream 0 Source Next Descriptor Ptr Reg */
-#define MDMA1_S0_START_ADDR 0xFFC01F44	/*MemDMA1 Stream 0 Source Start Address */
-#define MDMA1_S0_X_COUNT 0xFFC01F50	/*MemDMA1 Stream 0 Source Inner-Loop Count */
-#define MDMA1_S0_Y_COUNT 0xFFC01F58	/*MemDMA1 Stream 0 Source Outer-Loop Count */
-#define MDMA1_S0_X_MODIFY 0xFFC01F54	/*MemDMA1 Stream 0 Source Inner-Loop Address-Increment */
-#define MDMA1_S0_Y_MODIFY 0xFFC01F5C	/*MemDMA1 Stream 0 Source Outer-Loop Address-Increment */
-#define MDMA1_S0_CURR_DESC_PTR 0xFFC01F60	/*MemDMA1 Stream 0 Source Current Descriptor Ptr reg */
-#define MDMA1_S0_CURR_ADDR 0xFFC01F64	/*MemDMA1 Stream 0 Source Current Address */
-#define MDMA1_S0_CURR_X_COUNT 0xFFC01F70	/*MemDMA1 Stream 0 Source Current Inner-Loop Count */
-#define MDMA1_S0_CURR_Y_COUNT 0xFFC01F78	/*MemDMA1 Stream 0 Source Current Outer-Loop Count */
-#define MDMA1_S0_IRQ_STATUS 0xFFC01F68	/*MemDMA1 Stream 0 Source Interrupt/Status */
-#define MDMA1_S0_PERIPHERAL_MAP 0xFFC01F6C	/*MemDMA1 Stream 0 Source Peripheral Map */
+#define MDMA_S2_CONFIG 0xFFC01F48	/*MemDMA1 Stream 0 Source Configuration */
+#define MDMA_S2_NEXT_DESC_PTR 0xFFC01F40	/*MemDMA1 Stream 0 Source Next Descriptor Ptr Reg */
+#define MDMA_S2_START_ADDR 0xFFC01F44	/*MemDMA1 Stream 0 Source Start Address */
+#define MDMA_S2_X_COUNT 0xFFC01F50	/*MemDMA1 Stream 0 Source Inner-Loop Count */
+#define MDMA_S2_Y_COUNT 0xFFC01F58	/*MemDMA1 Stream 0 Source Outer-Loop Count */
+#define MDMA_S2_X_MODIFY 0xFFC01F54	/*MemDMA1 Stream 0 Source Inner-Loop Address-Increment */
+#define MDMA_S2_Y_MODIFY 0xFFC01F5C	/*MemDMA1 Stream 0 Source Outer-Loop Address-Increment */
+#define MDMA_S2_CURR_DESC_PTR 0xFFC01F60	/*MemDMA1 Stream 0 Source Current Descriptor Ptr reg */
+#define MDMA_S2_CURR_ADDR 0xFFC01F64	/*MemDMA1 Stream 0 Source Current Address */
+#define MDMA_S2_CURR_X_COUNT 0xFFC01F70	/*MemDMA1 Stream 0 Source Current Inner-Loop Count */
+#define MDMA_S2_CURR_Y_COUNT 0xFFC01F78	/*MemDMA1 Stream 0 Source Current Outer-Loop Count */
+#define MDMA_S2_IRQ_STATUS 0xFFC01F68	/*MemDMA1 Stream 0 Source Interrupt/Status */
+#define MDMA_S2_PERIPHERAL_MAP 0xFFC01F6C	/*MemDMA1 Stream 0 Source Peripheral Map */
 
-#define MDMA1_D1_CONFIG 0xFFC01F88	/*MemDMA1 Stream 1 Destination Configuration */
-#define MDMA1_D1_NEXT_DESC_PTR 0xFFC01F80	/*MemDMA1 Stream 1 Destination Next Descriptor Ptr Reg */
-#define MDMA1_D1_START_ADDR 0xFFC01F84	/*MemDMA1 Stream 1 Destination Start Address */
-#define MDMA1_D1_X_COUNT 0xFFC01F90	/*MemDMA1 Stream 1 Destination Inner-Loop Count */
-#define MDMA1_D1_Y_COUNT 0xFFC01F98	/*MemDMA1 Stream 1 Destination Outer-Loop Count */
-#define MDMA1_D1_X_MODIFY 0xFFC01F94	/*MemDMA1 Stream 1 Dest Inner-Loop Address-Increment */
-#define MDMA1_D1_Y_MODIFY 0xFFC01F9C	/*MemDMA1 Stream 1 Dest Outer-Loop Address-Increment */
-#define MDMA1_D1_CURR_DESC_PTR 0xFFC01FA0	/*MemDMA1 Stream 1 Dest Current Descriptor Ptr reg */
-#define MDMA1_D1_CURR_ADDR 0xFFC01FA4	/*MemDMA1 Stream 1 Dest Current Address */
-#define MDMA1_D1_CURR_X_COUNT 0xFFC01FB0	/*MemDMA1 Stream 1 Dest Current Inner-Loop Count */
-#define MDMA1_D1_CURR_Y_COUNT 0xFFC01FB8	/*MemDMA1 Stream 1 Dest Current Outer-Loop Count */
-#define MDMA1_D1_IRQ_STATUS 0xFFC01FA8	/*MemDMA1 Stream 1 Dest Interrupt/Status */
-#define MDMA1_D1_PERIPHERAL_MAP 0xFFC01FAC	/*MemDMA1 Stream 1 Dest Peripheral Map */
+#define MDMA_D3_CONFIG 0xFFC01F88	/*MemDMA1 Stream 1 Destination Configuration */
+#define MDMA_D3_NEXT_DESC_PTR 0xFFC01F80	/*MemDMA1 Stream 1 Destination Next Descriptor Ptr Reg */
+#define MDMA_D3_START_ADDR 0xFFC01F84	/*MemDMA1 Stream 1 Destination Start Address */
+#define MDMA_D3_X_COUNT 0xFFC01F90	/*MemDMA1 Stream 1 Destination Inner-Loop Count */
+#define MDMA_D3_Y_COUNT 0xFFC01F98	/*MemDMA1 Stream 1 Destination Outer-Loop Count */
+#define MDMA_D3_X_MODIFY 0xFFC01F94	/*MemDMA1 Stream 1 Dest Inner-Loop Address-Increment */
+#define MDMA_D3_Y_MODIFY 0xFFC01F9C	/*MemDMA1 Stream 1 Dest Outer-Loop Address-Increment */
+#define MDMA_D3_CURR_DESC_PTR 0xFFC01FA0	/*MemDMA1 Stream 1 Dest Current Descriptor Ptr reg */
+#define MDMA_D3_CURR_ADDR 0xFFC01FA4	/*MemDMA1 Stream 1 Dest Current Address */
+#define MDMA_D3_CURR_X_COUNT 0xFFC01FB0	/*MemDMA1 Stream 1 Dest Current Inner-Loop Count */
+#define MDMA_D3_CURR_Y_COUNT 0xFFC01FB8	/*MemDMA1 Stream 1 Dest Current Outer-Loop Count */
+#define MDMA_D3_IRQ_STATUS 0xFFC01FA8	/*MemDMA1 Stream 1 Dest Interrupt/Status */
+#define MDMA_D3_PERIPHERAL_MAP 0xFFC01FAC	/*MemDMA1 Stream 1 Dest Peripheral Map */
 
-#define MDMA1_S1_CONFIG 0xFFC01FC8	/*MemDMA1 Stream 1 Source Configuration */
-#define MDMA1_S1_NEXT_DESC_PTR 0xFFC01FC0	/*MemDMA1 Stream 1 Source Next Descriptor Ptr Reg */
-#define MDMA1_S1_START_ADDR 0xFFC01FC4	/*MemDMA1 Stream 1 Source Start Address */
-#define MDMA1_S1_X_COUNT 0xFFC01FD0	/*MemDMA1 Stream 1 Source Inner-Loop Count */
-#define MDMA1_S1_Y_COUNT 0xFFC01FD8	/*MemDMA1 Stream 1 Source Outer-Loop Count */
-#define MDMA1_S1_X_MODIFY 0xFFC01FD4	/*MemDMA1 Stream 1 Source Inner-Loop Address-Increment */
-#define MDMA1_S1_Y_MODIFY 0xFFC01FDC	/*MemDMA1 Stream 1 Source Outer-Loop Address-Increment */
-#define MDMA1_S1_CURR_DESC_PTR 0xFFC01FE0	/*MemDMA1 Stream 1 Source Current Descriptor Ptr reg */
-#define MDMA1_S1_CURR_ADDR 0xFFC01FE4	/*MemDMA1 Stream 1 Source Current Address */
-#define MDMA1_S1_CURR_X_COUNT 0xFFC01FF0	/*MemDMA1 Stream 1 Source Current Inner-Loop Count */
-#define MDMA1_S1_CURR_Y_COUNT 0xFFC01FF8	/*MemDMA1 Stream 1 Source Current Outer-Loop Count */
-#define MDMA1_S1_IRQ_STATUS 0xFFC01FE8	/*MemDMA1 Stream 1 Source Interrupt/Status */
-#define MDMA1_S1_PERIPHERAL_MAP 0xFFC01FEC	/*MemDMA1 Stream 1 Source Peripheral Map */
+#define MDMA_S3_CONFIG 0xFFC01FC8	/*MemDMA1 Stream 1 Source Configuration */
+#define MDMA_S3_NEXT_DESC_PTR 0xFFC01FC0	/*MemDMA1 Stream 1 Source Next Descriptor Ptr Reg */
+#define MDMA_S3_START_ADDR 0xFFC01FC4	/*MemDMA1 Stream 1 Source Start Address */
+#define MDMA_S3_X_COUNT 0xFFC01FD0	/*MemDMA1 Stream 1 Source Inner-Loop Count */
+#define MDMA_S3_Y_COUNT 0xFFC01FD8	/*MemDMA1 Stream 1 Source Outer-Loop Count */
+#define MDMA_S3_X_MODIFY 0xFFC01FD4	/*MemDMA1 Stream 1 Source Inner-Loop Address-Increment */
+#define MDMA_S3_Y_MODIFY 0xFFC01FDC	/*MemDMA1 Stream 1 Source Outer-Loop Address-Increment */
+#define MDMA_S3_CURR_DESC_PTR 0xFFC01FE0	/*MemDMA1 Stream 1 Source Current Descriptor Ptr reg */
+#define MDMA_S3_CURR_ADDR 0xFFC01FE4	/*MemDMA1 Stream 1 Source Current Address */
+#define MDMA_S3_CURR_X_COUNT 0xFFC01FF0	/*MemDMA1 Stream 1 Source Current Inner-Loop Count */
+#define MDMA_S3_CURR_Y_COUNT 0xFFC01FF8	/*MemDMA1 Stream 1 Source Current Outer-Loop Count */
+#define MDMA_S3_IRQ_STATUS 0xFFC01FE8	/*MemDMA1 Stream 1 Source Interrupt/Status */
+#define MDMA_S3_PERIPHERAL_MAP 0xFFC01FEC	/*MemDMA1 Stream 1 Source Peripheral Map */
 
 /* DMA2 Controller registers (0xFFC0 0C00-0xFFC0 0DFF) */
 #define DMA2_0_CONFIG 0xFFC00C08	/* DMA2 Channel 0 Configuration register */
@@ -740,117 +705,61 @@
 #define DMA2_11_PERIPHERAL_MAP 0xFFC00EEC	/* DMA2 Channel 11 Peripheral Map Register */
 
 /* Memory DMA2 Controller registers (0xFFC0 0E80-0xFFC0 0FFF) */
-#define MDMA2_D0_CONFIG 0xFFC00F08	/*MemDMA2 Stream 0 Destination Configuration register */
-#define MDMA2_D0_NEXT_DESC_PTR 0xFFC00F00	/*MemDMA2 Stream 0 Destination Next Descriptor Ptr Reg */
-#define MDMA2_D0_START_ADDR 0xFFC00F04	/*MemDMA2 Stream 0 Destination Start Address */
-#define MDMA2_D0_X_COUNT 0xFFC00F10	/*MemDMA2 Stream 0 Dest Inner-Loop Count register */
-#define MDMA2_D0_Y_COUNT 0xFFC00F18	/*MemDMA2 Stream 0 Dest Outer-Loop Count register */
-#define MDMA2_D0_X_MODIFY 0xFFC00F14	/*MemDMA2 Stream 0 Dest Inner-Loop Address-Increment */
-#define MDMA2_D0_Y_MODIFY 0xFFC00F1C	/*MemDMA2 Stream 0 Dest Outer-Loop Address-Increment */
-#define MDMA2_D0_CURR_DESC_PTR 0xFFC00F20	/*MemDMA2 Stream 0 Dest Current Descriptor Ptr reg */
-#define MDMA2_D0_CURR_ADDR 0xFFC00F24	/*MemDMA2 Stream 0 Destination Current Address */
-#define MDMA2_D0_CURR_X_COUNT 0xFFC00F30	/*MemDMA2 Stream 0 Dest Current Inner-Loop Count reg */
-#define MDMA2_D0_CURR_Y_COUNT 0xFFC00F38	/*MemDMA2 Stream 0 Dest Current Outer-Loop Count reg */
-#define MDMA2_D0_IRQ_STATUS 0xFFC00F28	/*MemDMA2 Stream 0 Dest Interrupt/Status Register */
-#define MDMA2_D0_PERIPHERAL_MAP 0xFFC00F2C	/*MemDMA2 Stream 0 Destination Peripheral Map register */
+#define MDMA_D0_CONFIG 0xFFC00F08	/*MemDMA2 Stream 0 Destination Configuration register */
+#define MDMA_D0_NEXT_DESC_PTR 0xFFC00F00	/*MemDMA2 Stream 0 Destination Next Descriptor Ptr Reg */
+#define MDMA_D0_START_ADDR 0xFFC00F04	/*MemDMA2 Stream 0 Destination Start Address */
+#define MDMA_D0_X_COUNT 0xFFC00F10	/*MemDMA2 Stream 0 Dest Inner-Loop Count register */
+#define MDMA_D0_Y_COUNT 0xFFC00F18	/*MemDMA2 Stream 0 Dest Outer-Loop Count register */
+#define MDMA_D0_X_MODIFY 0xFFC00F14	/*MemDMA2 Stream 0 Dest Inner-Loop Address-Increment */
+#define MDMA_D0_Y_MODIFY 0xFFC00F1C	/*MemDMA2 Stream 0 Dest Outer-Loop Address-Increment */
+#define MDMA_D0_CURR_DESC_PTR 0xFFC00F20	/*MemDMA2 Stream 0 Dest Current Descriptor Ptr reg */
+#define MDMA_D0_CURR_ADDR 0xFFC00F24	/*MemDMA2 Stream 0 Destination Current Address */
+#define MDMA_D0_CURR_X_COUNT 0xFFC00F30	/*MemDMA2 Stream 0 Dest Current Inner-Loop Count reg */
+#define MDMA_D0_CURR_Y_COUNT 0xFFC00F38	/*MemDMA2 Stream 0 Dest Current Outer-Loop Count reg */
+#define MDMA_D0_IRQ_STATUS 0xFFC00F28	/*MemDMA2 Stream 0 Dest Interrupt/Status Register */
+#define MDMA_D0_PERIPHERAL_MAP 0xFFC00F2C	/*MemDMA2 Stream 0 Destination Peripheral Map register */
 
-#define MDMA2_S0_CONFIG 0xFFC00F48	/*MemDMA2 Stream 0 Source Configuration register */
-#define MDMA2_S0_NEXT_DESC_PTR 0xFFC00F40	/*MemDMA2 Stream 0 Source Next Descriptor Ptr Reg */
-#define MDMA2_S0_START_ADDR 0xFFC00F44	/*MemDMA2 Stream 0 Source Start Address */
-#define MDMA2_S0_X_COUNT 0xFFC00F50	/*MemDMA2 Stream 0 Source Inner-Loop Count register */
-#define MDMA2_S0_Y_COUNT 0xFFC00F58	/*MemDMA2 Stream 0 Source Outer-Loop Count register */
-#define MDMA2_S0_X_MODIFY 0xFFC00F54	/*MemDMA2 Stream 0 Src Inner-Loop Addr-Increment reg */
-#define MDMA2_S0_Y_MODIFY 0xFFC00F5C	/*MemDMA2 Stream 0 Src Outer-Loop Addr-Increment reg */
-#define MDMA2_S0_CURR_DESC_PTR 0xFFC00F60	/*MemDMA2 Stream 0 Source Current Descriptor Ptr reg */
-#define MDMA2_S0_CURR_ADDR 0xFFC00F64	/*MemDMA2 Stream 0 Source Current Address */
-#define MDMA2_S0_CURR_X_COUNT 0xFFC00F70	/*MemDMA2 Stream 0 Src Current Inner-Loop Count reg */
-#define MDMA2_S0_CURR_Y_COUNT 0xFFC00F78	/*MemDMA2 Stream 0 Src Current Outer-Loop Count reg */
-#define MDMA2_S0_IRQ_STATUS 0xFFC00F68	/*MemDMA2 Stream 0 Source Interrupt/Status Register */
-#define MDMA2_S0_PERIPHERAL_MAP 0xFFC00F6C	/*MemDMA2 Stream 0 Source Peripheral Map register */
+#define MDMA_S0_CONFIG 0xFFC00F48	/*MemDMA2 Stream 0 Source Configuration register */
+#define MDMA_S0_NEXT_DESC_PTR 0xFFC00F40	/*MemDMA2 Stream 0 Source Next Descriptor Ptr Reg */
+#define MDMA_S0_START_ADDR 0xFFC00F44	/*MemDMA2 Stream 0 Source Start Address */
+#define MDMA_S0_X_COUNT 0xFFC00F50	/*MemDMA2 Stream 0 Source Inner-Loop Count register */
+#define MDMA_S0_Y_COUNT 0xFFC00F58	/*MemDMA2 Stream 0 Source Outer-Loop Count register */
+#define MDMA_S0_X_MODIFY 0xFFC00F54	/*MemDMA2 Stream 0 Src Inner-Loop Addr-Increment reg */
+#define MDMA_S0_Y_MODIFY 0xFFC00F5C	/*MemDMA2 Stream 0 Src Outer-Loop Addr-Increment reg */
+#define MDMA_S0_CURR_DESC_PTR 0xFFC00F60	/*MemDMA2 Stream 0 Source Current Descriptor Ptr reg */
+#define MDMA_S0_CURR_ADDR 0xFFC00F64	/*MemDMA2 Stream 0 Source Current Address */
+#define MDMA_S0_CURR_X_COUNT 0xFFC00F70	/*MemDMA2 Stream 0 Src Current Inner-Loop Count reg */
+#define MDMA_S0_CURR_Y_COUNT 0xFFC00F78	/*MemDMA2 Stream 0 Src Current Outer-Loop Count reg */
+#define MDMA_S0_IRQ_STATUS 0xFFC00F68	/*MemDMA2 Stream 0 Source Interrupt/Status Register */
+#define MDMA_S0_PERIPHERAL_MAP 0xFFC00F6C	/*MemDMA2 Stream 0 Source Peripheral Map register */
 
-#define MDMA2_D1_CONFIG 0xFFC00F88	/*MemDMA2 Stream 1 Destination Configuration register */
-#define MDMA2_D1_NEXT_DESC_PTR 0xFFC00F80	/*MemDMA2 Stream 1 Destination Next Descriptor Ptr Reg */
-#define MDMA2_D1_START_ADDR 0xFFC00F84	/*MemDMA2 Stream 1 Destination Start Address */
-#define MDMA2_D1_X_COUNT 0xFFC00F90	/*MemDMA2 Stream 1 Dest Inner-Loop Count register */
-#define MDMA2_D1_Y_COUNT 0xFFC00F98	/*MemDMA2 Stream 1 Dest Outer-Loop Count register */
-#define MDMA2_D1_X_MODIFY 0xFFC00F94	/*MemDMA2 Stream 1 Dest Inner-Loop Address-Increment */
-#define MDMA2_D1_Y_MODIFY 0xFFC00F9C	/*MemDMA2 Stream 1 Dest Outer-Loop Address-Increment */
-#define MDMA2_D1_CURR_DESC_PTR 0xFFC00FA0	/*MemDMA2 Stream 1 Destination Current Descriptor Ptr */
-#define MDMA2_D1_CURR_ADDR 0xFFC00FA4	/*MemDMA2 Stream 1 Destination Current Address reg */
-#define MDMA2_D1_CURR_X_COUNT 0xFFC00FB0	/*MemDMA2 Stream 1 Dest Current Inner-Loop Count reg */
-#define MDMA2_D1_CURR_Y_COUNT 0xFFC00FB8	/*MemDMA2 Stream 1 Dest Current Outer-Loop Count reg */
-#define MDMA2_D1_IRQ_STATUS 0xFFC00FA8	/*MemDMA2 Stream 1 Destination Interrupt/Status Reg */
-#define MDMA2_D1_PERIPHERAL_MAP 0xFFC00FAC	/*MemDMA2 Stream 1 Destination Peripheral Map register */
+#define MDMA_D1_CONFIG 0xFFC00F88	/*MemDMA2 Stream 1 Destination Configuration register */
+#define MDMA_D1_NEXT_DESC_PTR 0xFFC00F80	/*MemDMA2 Stream 1 Destination Next Descriptor Ptr Reg */
+#define MDMA_D1_START_ADDR 0xFFC00F84	/*MemDMA2 Stream 1 Destination Start Address */
+#define MDMA_D1_X_COUNT 0xFFC00F90	/*MemDMA2 Stream 1 Dest Inner-Loop Count register */
+#define MDMA_D1_Y_COUNT 0xFFC00F98	/*MemDMA2 Stream 1 Dest Outer-Loop Count register */
+#define MDMA_D1_X_MODIFY 0xFFC00F94	/*MemDMA2 Stream 1 Dest Inner-Loop Address-Increment */
+#define MDMA_D1_Y_MODIFY 0xFFC00F9C	/*MemDMA2 Stream 1 Dest Outer-Loop Address-Increment */
+#define MDMA_D1_CURR_DESC_PTR 0xFFC00FA0	/*MemDMA2 Stream 1 Destination Current Descriptor Ptr */
+#define MDMA_D1_CURR_ADDR 0xFFC00FA4	/*MemDMA2 Stream 1 Destination Current Address reg */
+#define MDMA_D1_CURR_X_COUNT 0xFFC00FB0	/*MemDMA2 Stream 1 Dest Current Inner-Loop Count reg */
+#define MDMA_D1_CURR_Y_COUNT 0xFFC00FB8	/*MemDMA2 Stream 1 Dest Current Outer-Loop Count reg */
+#define MDMA_D1_IRQ_STATUS 0xFFC00FA8	/*MemDMA2 Stream 1 Destination Interrupt/Status Reg */
+#define MDMA_D1_PERIPHERAL_MAP 0xFFC00FAC	/*MemDMA2 Stream 1 Destination Peripheral Map register */
 
-#define MDMA2_S1_CONFIG 0xFFC00FC8	/*MemDMA2 Stream 1 Source Configuration register */
-#define MDMA2_S1_NEXT_DESC_PTR 0xFFC00FC0	/*MemDMA2 Stream 1 Source Next Descriptor Ptr Reg */
-#define MDMA2_S1_START_ADDR 0xFFC00FC4	/*MemDMA2 Stream 1 Source Start Address */
-#define MDMA2_S1_X_COUNT 0xFFC00FD0	/*MemDMA2 Stream 1 Source Inner-Loop Count register */
-#define MDMA2_S1_Y_COUNT 0xFFC00FD8	/*MemDMA2 Stream 1 Source Outer-Loop Count register */
-#define MDMA2_S1_X_MODIFY 0xFFC00FD4	/*MemDMA2 Stream 1 Src Inner-Loop Address-Increment */
-#define MDMA2_S1_Y_MODIFY 0xFFC00FDC	/*MemDMA2 Stream 1 Source Outer-Loop Address-Increment */
-#define MDMA2_S1_CURR_DESC_PTR 0xFFC00FE0	/*MemDMA2 Stream 1 Source Current Descriptor Ptr reg */
-#define MDMA2_S1_CURR_ADDR 0xFFC00FE4	/*MemDMA2 Stream 1 Source Current Address */
-#define MDMA2_S1_CURR_X_COUNT 0xFFC00FF0	/*MemDMA2 Stream 1 Source Current Inner-Loop Count */
-#define MDMA2_S1_CURR_Y_COUNT 0xFFC00FF8	/*MemDMA2 Stream 1 Source Current Outer-Loop Count */
-#define MDMA2_S1_IRQ_STATUS 0xFFC00FE8	/*MemDMA2 Stream 1 Source Interrupt/Status Register */
-#define MDMA2_S1_PERIPHERAL_MAP 0xFFC00FEC	/*MemDMA2 Stream 1 Source Peripheral Map register */
-
-#define MDMA_D0_NEXT_DESC_PTR MDMA1_D0_NEXT_DESC_PTR
-#define MDMA_D0_START_ADDR MDMA1_D0_START_ADDR
-#define MDMA_D0_CONFIG MDMA1_D0_CONFIG
-#define MDMA_D0_X_COUNT MDMA1_D0_X_COUNT
-#define MDMA_D0_X_MODIFY MDMA1_D0_X_MODIFY
-#define MDMA_D0_Y_COUNT MDMA1_D0_Y_COUNT
-#define MDMA_D0_Y_MODIFY MDMA1_D0_Y_MODIFY
-#define MDMA_D0_CURR_DESC_PTR MDMA1_D0_CURR_DESC_PTR
-#define MDMA_D0_CURR_ADDR MDMA1_D0_CURR_ADDR
-#define MDMA_D0_IRQ_STATUS MDMA1_D0_IRQ_STATUS
-#define MDMA_D0_PERIPHERAL_MAP MDMA1_D0_PERIPHERAL_MAP
-#define MDMA_D0_CURR_X_COUNT MDMA1_D0_CURR_X_COUNT
-#define MDMA_D0_CURR_Y_COUNT MDMA1_D0_CURR_Y_COUNT
-
-#define MDMA_S0_NEXT_DESC_PTR MDMA1_S0_NEXT_DESC_PTR
-#define MDMA_S0_START_ADDR MDMA1_S0_START_ADDR
-#define MDMA_S0_CONFIG MDMA1_S0_CONFIG
-#define MDMA_S0_X_COUNT MDMA1_S0_X_COUNT
-#define MDMA_S0_X_MODIFY MDMA1_S0_X_MODIFY
-#define MDMA_S0_Y_COUNT MDMA1_S0_Y_COUNT
-#define MDMA_S0_Y_MODIFY MDMA1_S0_Y_MODIFY
-#define MDMA_S0_CURR_DESC_PTR MDMA1_S0_CURR_DESC_PTR
-#define MDMA_S0_CURR_ADDR MDMA1_S0_CURR_ADDR
-#define MDMA_S0_IRQ_STATUS MDMA1_S0_IRQ_STATUS
-#define MDMA_S0_PERIPHERAL_MAP MDMA1_S0_PERIPHERAL_MAP
-#define MDMA_S0_CURR_X_COUNT MDMA1_S0_CURR_X_COUNT
-#define MDMA_S0_CURR_Y_COUNT MDMA1_S0_CURR_Y_COUNT
-
-#define MDMA_D1_NEXT_DESC_PTR MDMA1_D1_NEXT_DESC_PTR
-#define MDMA_D1_START_ADDR MDMA1_D1_START_ADDR
-#define MDMA_D1_CONFIG MDMA1_D1_CONFIG
-#define MDMA_D1_X_COUNT MDMA1_D1_X_COUNT
-#define MDMA_D1_X_MODIFY MDMA1_D1_X_MODIFY
-#define MDMA_D1_Y_COUNT MDMA1_D1_Y_COUNT
-#define MDMA_D1_Y_MODIFY MDMA1_D1_Y_MODIFY
-#define MDMA_D1_CURR_DESC_PTR MDMA1_D1_CURR_DESC_PTR
-#define MDMA_D1_CURR_ADDR MDMA1_D1_CURR_ADDR
-#define MDMA_D1_IRQ_STATUS MDMA1_D1_IRQ_STATUS
-#define MDMA_D1_PERIPHERAL_MAP MDMA1_D1_PERIPHERAL_MAP
-#define MDMA_D1_CURR_X_COUNT MDMA1_D1_CURR_X_COUNT
-#define MDMA_D1_CURR_Y_COUNT MDMA1_D1_CURR_Y_COUNT
-
-#define MDMA_S1_NEXT_DESC_PTR MDMA1_S1_NEXT_DESC_PTR
-#define MDMA_S1_START_ADDR MDMA1_S1_START_ADDR
-#define MDMA_S1_CONFIG MDMA1_S1_CONFIG
-#define MDMA_S1_X_COUNT MDMA1_S1_X_COUNT
-#define MDMA_S1_X_MODIFY MDMA1_S1_X_MODIFY
-#define MDMA_S1_Y_COUNT MDMA1_S1_Y_COUNT
-#define MDMA_S1_Y_MODIFY MDMA1_S1_Y_MODIFY
-#define MDMA_S1_CURR_DESC_PTR MDMA1_S1_CURR_DESC_PTR
-#define MDMA_S1_CURR_ADDR MDMA1_S1_CURR_ADDR
-#define MDMA_S1_IRQ_STATUS MDMA1_S1_IRQ_STATUS
-#define MDMA_S1_PERIPHERAL_MAP MDMA1_S1_PERIPHERAL_MAP
-#define MDMA_S1_CURR_X_COUNT MDMA1_S1_CURR_X_COUNT
-#define MDMA_S1_CURR_Y_COUNT MDMA1_S1_CURR_Y_COUNT
+#define MDMA_S1_CONFIG 0xFFC00FC8	/*MemDMA2 Stream 1 Source Configuration register */
+#define MDMA_S1_NEXT_DESC_PTR 0xFFC00FC0	/*MemDMA2 Stream 1 Source Next Descriptor Ptr Reg */
+#define MDMA_S1_START_ADDR 0xFFC00FC4	/*MemDMA2 Stream 1 Source Start Address */
+#define MDMA_S1_X_COUNT 0xFFC00FD0	/*MemDMA2 Stream 1 Source Inner-Loop Count register */
+#define MDMA_S1_Y_COUNT 0xFFC00FD8	/*MemDMA2 Stream 1 Source Outer-Loop Count register */
+#define MDMA_S1_X_MODIFY 0xFFC00FD4	/*MemDMA2 Stream 1 Src Inner-Loop Address-Increment */
+#define MDMA_S1_Y_MODIFY 0xFFC00FDC	/*MemDMA2 Stream 1 Source Outer-Loop Address-Increment */
+#define MDMA_S1_CURR_DESC_PTR 0xFFC00FE0	/*MemDMA2 Stream 1 Source Current Descriptor Ptr reg */
+#define MDMA_S1_CURR_ADDR 0xFFC00FE4	/*MemDMA2 Stream 1 Source Current Address */
+#define MDMA_S1_CURR_X_COUNT 0xFFC00FF0	/*MemDMA2 Stream 1 Source Current Inner-Loop Count */
+#define MDMA_S1_CURR_Y_COUNT 0xFFC00FF8	/*MemDMA2 Stream 1 Source Current Outer-Loop Count */
+#define MDMA_S1_IRQ_STATUS 0xFFC00FE8	/*MemDMA2 Stream 1 Source Interrupt/Status Register */
+#define MDMA_S1_PERIPHERAL_MAP 0xFFC00FEC	/*MemDMA2 Stream 1 Source Peripheral Map register */
 
 /* Internal Memory DMA Registers (0xFFC0_1800 - 0xFFC0_19FF) */
 #define IMDMA_D0_CONFIG 0xFFC01808	/*IMDMA Stream 0 Destination Configuration */
@@ -909,64 +818,10 @@
 /* System MMR Register Bits */
 /******************************************************************************* */
 
-/* ********************* PLL AND RESET MASKS ************************ */
-
-/* PLL_CTL Masks */
-#define PLL_CLKIN              0x00000000	/* Pass CLKIN to PLL */
-#define PLL_CLKIN_DIV2         0x00000001	/* Pass CLKIN/2 to PLL */
-#define PLL_OFF                0x00000002	/* Shut off PLL clocks */
-#define STOPCK_OFF             0x00000008	/* Core clock off */
-#define PDWN                   0x00000020	/* Put the PLL in a Deep Sleep state */
-#define BYPASS                 0x00000100	/* Bypass the PLL */
-
 /* CHIPID Masks */
 #define CHIPID_VERSION         0xF0000000
 #define CHIPID_FAMILY          0x0FFFF000
 #define CHIPID_MANUFACTURE     0x00000FFE
-
-/* VR_CTL Masks																	*/
-#define	FREQ			0x0003	/* Switching Oscillator Frequency For Regulator	*/
-#define	HIBERNATE		0x0000	/* Powerdown/Bypass On-Board Regulation	*/
-#define	FREQ_333		0x0001	/* Switching Frequency Is 333 kHz */
-#define	FREQ_667		0x0002	/* Switching Frequency Is 667 kHz */
-#define	FREQ_1000		0x0003	/* Switching Frequency Is 1 MHz */
-
-#define	GAIN			0x000C	/* Voltage Level Gain	*/
-#define	GAIN_5			0x0000	/* GAIN = 5*/
-#define	GAIN_10			0x0004	/* GAIN = 1*/
-#define	GAIN_20			0x0008	/* GAIN = 2*/
-#define	GAIN_50			0x000C	/* GAIN = 5*/
-
-#define	VLEV			0x00F0	/* Internal Voltage Level */
-#define	VLEV_085 		0x0060	/* VLEV = 0.85 V (-5% - +10% Accuracy) */
-#define	VLEV_090		0x0070	/* VLEV = 0.90 V (-5% - +10% Accuracy) */
-#define	VLEV_095		0x0080	/* VLEV = 0.95 V (-5% - +10% Accuracy) */
-#define	VLEV_100		0x0090	/* VLEV = 1.00 V (-5% - +10% Accuracy) */
-#define	VLEV_105		0x00A0	/* VLEV = 1.05 V (-5% - +10% Accuracy) */
-#define	VLEV_110		0x00B0	/* VLEV = 1.10 V (-5% - +10% Accuracy) */
-#define	VLEV_115		0x00C0	/* VLEV = 1.15 V (-5% - +10% Accuracy) */
-#define	VLEV_120		0x00D0	/* VLEV = 1.20 V (-5% - +10% Accuracy) */
-#define	VLEV_125		0x00E0	/* VLEV = 1.25 V (-5% - +10% Accuracy) */
-#define	VLEV_130		0x00F0	/* VLEV = 1.30 V (-5% - +10% Accuracy) */
-
-#define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate */
-#define	SCKELOW			0x8000	/* Do Not Drive SCKE High During Reset After Hibernate */
-
-/* PLL_DIV Masks */
-#define SCLK_DIV(x)  (x)	/* SCLK = VCO / x */
-
-#define CSEL			0x30		/* Core Select */
-#define SSEL			0xf		/* System Select */
-#define CCLK_DIV1              0x00000000	/* CCLK = VCO / 1 */
-#define CCLK_DIV2              0x00000010	/* CCLK = VCO / 2 */
-#define CCLK_DIV4              0x00000020	/* CCLK = VCO / 4 */
-#define CCLK_DIV8              0x00000030	/* CCLK = VCO / 8 */
-
-/* PLL_STAT Masks																	*/
-#define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
-#define	FULL_ON				0x0002	/* Processor In Full On Mode                                    */
-#define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
-#define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
 /* SICA_SYSCR Masks */
 #define COREB_SRAM_INIT		0x0020
@@ -1009,143 +864,6 @@
 #define IWR_ENABLE(x)	       (1 << (x))	/* Wakeup Enable Peripheral #x */
 #define IWR_DISABLE(x) (0xFFFFFFFF ^ (1 << (x)))	/* Wakeup Disable Peripheral #x */
 
-/* ***************************** UART CONTROLLER MASKS ********************** */
-
-/* UART_LCR Register */
-
-#define DLAB	0x80
-#define SB      0x40
-#define STP      0x20
-#define EPS     0x10
-#define PEN	0x08
-#define STB	0x04
-#define WLS(x)	((x-5) & 0x03)
-
-#define DLAB_P	0x07
-#define SB_P	0x06
-#define STP_P	0x05
-#define EPS_P	0x04
-#define PEN_P	0x03
-#define STB_P	0x02
-#define WLS_P1	0x01
-#define WLS_P0	0x00
-
-/* UART_MCR Register */
-#define LOOP_ENA	0x10
-#define LOOP_ENA_P	0x04
-
-/* UART_LSR Register */
-#define TEMT	0x40
-#define THRE	0x20
-#define BI	0x10
-#define FE	0x08
-#define PE	0x04
-#define OE	0x02
-#define DR	0x01
-
-#define TEMP_P	0x06
-#define THRE_P	0x05
-#define BI_P	0x04
-#define FE_P	0x03
-#define PE_P	0x02
-#define OE_P	0x01
-#define DR_P	0x00
-
-/* UART_IER Register */
-#define ELSI	0x04
-#define ETBEI	0x02
-#define ERBFI	0x01
-
-#define ELSI_P	0x02
-#define ETBEI_P	0x01
-#define ERBFI_P	0x00
-
-/* UART_IIR Register */
-#define STATUS(x)	((x << 1) & 0x06)
-#define NINT		0x01
-#define STATUS_P1	0x02
-#define STATUS_P0	0x01
-#define NINT_P		0x00
-#define IIR_TX_READY    0x02	/* UART_THR empty                               */
-#define IIR_RX_READY    0x04	/* Receive data ready                           */
-#define IIR_LINE_CHANGE 0x06	/* Receive line status                          */
-#define IIR_STATUS	0x06
-
-/* UART_GCTL Register */
-#define FFE	0x20
-#define FPE	0x10
-#define RPOLC	0x08
-#define TPOLC	0x04
-#define IREN	0x02
-#define UCEN	0x01
-
-#define FFE_P	0x05
-#define FPE_P	0x04
-#define RPOLC_P	0x03
-#define TPOLC_P	0x02
-#define IREN_P	0x01
-#define UCEN_P	0x00
-
-/* **********  SERIAL PORT MASKS  ********************** */
-
-/* SPORTx_TCR1 Masks */
-#define TSPEN    0x0001		/* TX enable  */
-#define ITCLK    0x0002		/* Internal TX Clock Select  */
-#define TDTYPE   0x000C		/* TX Data Formatting Select */
-#define TLSBIT   0x0010		/* TX Bit Order */
-#define ITFS     0x0200		/* Internal TX Frame Sync Select  */
-#define TFSR     0x0400		/* TX Frame Sync Required Select  */
-#define DITFS    0x0800		/* Data Independent TX Frame Sync Select  */
-#define LTFS     0x1000		/* Low TX Frame Sync Select  */
-#define LATFS    0x2000		/* Late TX Frame Sync Select  */
-#define TCKFE    0x4000		/* TX Clock Falling Edge Select  */
-
-/* SPORTx_TCR2 Masks */
-#define SLEN	    0x001F	/*TX Word Length  */
-#define TXSE        0x0100	/*TX Secondary Enable */
-#define TSFSE       0x0200	/*TX Stereo Frame Sync Enable */
-#define TRFST       0x0400	/*TX Right-First Data Order  */
-
-/* SPORTx_RCR1 Masks */
-#define RSPEN    0x0001		/* RX enable  */
-#define IRCLK    0x0002		/* Internal RX Clock Select  */
-#define RDTYPE   0x000C		/* RX Data Formatting Select */
-#define RULAW    0x0008		/* u-Law enable  */
-#define RALAW    0x000C		/* A-Law enable  */
-#define RLSBIT   0x0010		/* RX Bit Order */
-#define IRFS     0x0200		/* Internal RX Frame Sync Select  */
-#define RFSR     0x0400		/* RX Frame Sync Required Select  */
-#define LRFS     0x1000		/* Low RX Frame Sync Select  */
-#define LARFS    0x2000		/* Late RX Frame Sync Select  */
-#define RCKFE    0x4000		/* RX Clock Falling Edge Select  */
-
-/* SPORTx_RCR2 Masks */
-#define SLEN	    0x001F	/*RX Word Length  */
-#define RXSE        0x0100	/*RX Secondary Enable */
-#define RSFSE       0x0200	/*RX Stereo Frame Sync Enable */
-#define RRFST       0x0400	/*Right-First Data Order  */
-
-/*SPORTx_STAT Masks */
-#define RXNE		0x0001	/*RX FIFO Not Empty Status */
-#define RUVF	    	0x0002	/*RX Underflow Status */
-#define ROVF		0x0004	/*RX Overflow Status */
-#define TXF		0x0008	/*TX FIFO Full Status */
-#define TUVF         	0x0010	/*TX Underflow Status */
-#define TOVF         	0x0020	/*TX Overflow Status */
-#define TXHRE        	0x0040	/*TX Hold Register Empty */
-
-/*SPORTx_MCMC1 Masks */
-#define SP_WSIZE		0x0000F000	/*Multichannel Window Size Field */
-#define SP_WOFF		0x000003FF	/*Multichannel Window Offset Field */
-
-/*SPORTx_MCMC2 Masks */
-#define MCCRM		0x00000003	/*Multichannel Clock Recovery Mode */
-#define MCDTXPE		0x00000004	/*Multichannel DMA Transmit Packing */
-#define MCDRXPE		0x00000008	/*Multichannel DMA Receive Packing */
-#define MCMEN		0x00000010	/*Multichannel Frame Mode Enable */
-#define FSDR		0x00000080	/*Multichannel Frame Sync to Data Relationship */
-#define MFD		0x0000F000	/*Multichannel Frame Delay    */
-
 /*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 
 /*  PPI_CONTROL Masks         */
@@ -1174,53 +892,6 @@
 #define ERR_NCOR	     0x00008000	/* Error Not Corrected Indicator */
 
 /* **********  DMA CONTROLLER MASKS  *********************8 */
-
-/* DMAx_CONFIG, MDMA_yy_CONFIG, IMDMA_yy_CONFIG Masks */
-#define DMAEN	        0x00000001	/* Channel Enable */
-#define WNR	   	0x00000002	/* Channel Direction (W/R*) */
-#define WDSIZE_8	0x00000000	/* Word Size 8 bits */
-#define WDSIZE_16	0x00000004	/* Word Size 16 bits */
-#define WDSIZE_32	0x00000008	/* Word Size 32 bits */
-#define DMA2D	        0x00000010	/* 2D/1D* Mode */
-#define RESTART         0x00000020	/* Restart */
-#define DI_SEL	        0x00000040	/* Data Interrupt Select */
-#define DI_EN	        0x00000080	/* Data Interrupt Enable */
-#define NDSIZE_0		0x0000	/* Next Descriptor Size = 0 (Stop/Autobuffer)   */
-#define NDSIZE_1		0x0100	/* Next Descriptor Size = 1                                             */
-#define NDSIZE_2		0x0200	/* Next Descriptor Size = 2                                             */
-#define NDSIZE_3		0x0300	/* Next Descriptor Size = 3                                             */
-#define NDSIZE_4		0x0400	/* Next Descriptor Size = 4                                             */
-#define NDSIZE_5		0x0500	/* Next Descriptor Size = 5                                             */
-#define NDSIZE_6		0x0600	/* Next Descriptor Size = 6                                             */
-#define NDSIZE_7		0x0700	/* Next Descriptor Size = 7                                             */
-#define NDSIZE_8		0x0800	/* Next Descriptor Size = 8                                             */
-#define NDSIZE_9		0x0900	/* Next Descriptor Size = 9                                             */
-#define NDSIZE	        0x00000900	/* Next Descriptor Size */
-#define DMAFLOW	        0x00007000	/* Flow Control */
-#define DMAFLOW_STOP		0x0000	/* Stop Mode */
-#define DMAFLOW_AUTO		0x1000	/* Autobuffer Mode */
-#define DMAFLOW_ARRAY		0x4000	/* Descriptor Array Mode */
-#define DMAFLOW_SMALL		0x6000	/* Small Model Descriptor List Mode */
-#define DMAFLOW_LARGE		0x7000	/* Large Model Descriptor List Mode */
-
-#define DMAEN_P	            	0	/* Channel Enable */
-#define WNR_P	            	1	/* Channel Direction (W/R*) */
-#define DMA2D_P	        	4	/* 2D/1D* Mode */
-#define RESTART_P	      	5	/* Restart */
-#define DI_SEL_P	     	6	/* Data Interrupt Select */
-#define DI_EN_P	            	7	/* Data Interrupt Enable */
-
-/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS, IMDMA_yy_IRQ_STATUS Masks */
-
-#define DMA_DONE		0x00000001	/* DMA Done Indicator */
-#define DMA_ERR	        	0x00000002	/* DMA Error Indicator */
-#define DFETCH	            	0x00000004	/* Descriptor Fetch Indicator */
-#define DMA_RUN	            	0x00000008	/* DMA Running Indicator */
-
-#define DMA_DONE_P	    	0	/* DMA Done Indicator */
-#define DMA_ERR_P     		1	/* DMA Error Indicator */
-#define DFETCH_P     		2	/* Descriptor Fetch Indicator */
-#define DMA_RUN_P     		3	/* DMA Running Indicator */
 
 /* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP, IMDMA_yy_PERIPHERAL_MAP Masks */
 
@@ -1418,101 +1089,6 @@
 #define EMU_RUN_P		0x09
 #define ERR_TYP_P0		0x0E
 #define ERR_TYP_P1		0x0F
-
-/*/ ******************   PROGRAMMABLE FLAG MASKS  ********************* */
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks */
-#define PF0         0x0001
-#define PF1         0x0002
-#define PF2         0x0004
-#define PF3         0x0008
-#define PF4         0x0010
-#define PF5         0x0020
-#define PF6         0x0040
-#define PF7         0x0080
-#define PF8         0x0100
-#define PF9         0x0200
-#define PF10        0x0400
-#define PF11        0x0800
-#define PF12        0x1000
-#define PF13        0x2000
-#define PF14        0x4000
-#define PF15        0x8000
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  BIT POSITIONS */
-#define PF0_P         0
-#define PF1_P         1
-#define PF2_P         2
-#define PF3_P         3
-#define PF4_P         4
-#define PF5_P         5
-#define PF6_P         6
-#define PF7_P         7
-#define PF8_P         8
-#define PF9_P         9
-#define PF10_P        10
-#define PF11_P        11
-#define PF12_P        12
-#define PF13_P        13
-#define PF14_P        14
-#define PF15_P        15
-
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  **************** */
-
-/* SPI_CTL Masks */
-#define TIMOD                  0x00000003	/* Transfer initiation mode and interrupt generation */
-#define SZ                     0x00000004	/* Send Zero (=0) or last (=1) word when TDBR empty. */
-#define GM                     0x00000008	/* When RDBR full, get more (=1) data or discard (=0) incoming Data */
-#define PSSE                   0x00000010	/* Enable (=1) Slave-Select input for Master. */
-#define EMISO                  0x00000020	/* Enable (=1) MISO pin as an output. */
-#define SIZE                   0x00000100	/* Word length (0 => 8 bits, 1 => 16 bits) */
-#define LSBF                   0x00000200	/* Data format (0 => MSB sent/received first 1 => LSB sent/received first) */
-#define CPHA                   0x00000400	/* Clock phase (0 => SPICLK starts toggling in middle of xfer, 1 => SPICLK toggles at the beginning of xfer. */
-#define CPOL                   0x00000800	/* Clock polarity (0 => active-high, 1 => active-low) */
-#define MSTR                   0x00001000	/* Configures SPI as master (=1) or slave (=0) */
-#define WOM                    0x00002000	/* Open drain (=1) data output enable (for MOSI and MISO) */
-#define SPE                    0x00004000	/* SPI module enable (=1), disable (=0) */
-
-/* SPI_FLG Masks */
-#define FLS1                   0x00000002	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
-#define FLS2                   0x00000004	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLS3                   0x00000008	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
-#define FLS4                   0x00000010	/* Enables (=1) SPI_FLOUT4 as flag output for SPI Slave-select */
-#define FLS5                   0x00000020	/* Enables (=1) SPI_FLOUT5 as flag output for SPI Slave-select */
-#define FLS6                   0x00000040	/* Enables (=1) SPI_FLOUT6 as flag output for SPI Slave-select */
-#define FLS7                   0x00000080	/* Enables (=1) SPI_FLOUT7 as flag output for SPI Slave-select */
-#define FLG1                   0x00000200	/* Activates (=0) SPI_FLOUT1 as flag output for SPI Slave-select  */
-#define FLG2                   0x00000400	/* Activates (=0) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLG3                   0x00000800	/* Activates (=0) SPI_FLOUT3 as flag output for SPI Slave-select  */
-#define FLG4                   0x00001000	/* Activates (=0) SPI_FLOUT4 as flag output for SPI Slave-select  */
-#define FLG5                   0x00002000	/* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
-#define FLG6                   0x00004000	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
-#define FLG7                   0x00008000	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/* SPI_FLG Bit Positions */
-#define FLS1_P                 0x00000001	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
-#define FLS2_P                 0x00000002	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLS3_P                 0x00000003	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
-#define FLS4_P                 0x00000004	/* Enables (=1) SPI_FLOUT4 as flag output for SPI Slave-select */
-#define FLS5_P                 0x00000005	/* Enables (=1) SPI_FLOUT5 as flag output for SPI Slave-select */
-#define FLS6_P                 0x00000006	/* Enables (=1) SPI_FLOUT6 as flag output for SPI Slave-select */
-#define FLS7_P                 0x00000007	/* Enables (=1) SPI_FLOUT7 as flag output for SPI Slave-select */
-#define FLG1_P                 0x00000009	/* Activates (=0) SPI_FLOUT1 as flag output for SPI Slave-select  */
-#define FLG2_P                 0x0000000A	/* Activates (=0) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLG3_P                 0x0000000B	/* Activates (=0) SPI_FLOUT3 as flag output for SPI Slave-select  */
-#define FLG4_P                 0x0000000C	/* Activates (=0) SPI_FLOUT4 as flag output for SPI Slave-select  */
-#define FLG5_P                 0x0000000D	/* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
-#define FLG6_P                 0x0000000E	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
-#define FLG7_P                 0x0000000F	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/* SPI_STAT Masks */
-#define SPIF                   0x00000001	/* Set (=1) when SPI single-word transfer complete */
-#define MODF                   0x00000002	/* Set (=1) in a master device when some other device tries to become master */
-#define TXE                    0x00000004	/* Set (=1) when transmission occurs with no new data in SPI_TDBR */
-#define TXS                    0x00000008	/* SPI_TDBR Data Buffer Status (0=Empty, 1=Full) */
-#define RBSY                   0x00000010	/* Set (=1) when data is received with RDBR full */
-#define RXS                    0x00000020	/* SPI_RDBR Data Buffer Status (0=Empty, 1=Full)  */
-#define TXCOL                  0x00000040	/* When set (=1), corrupt data may have been transmitted  */
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */
 

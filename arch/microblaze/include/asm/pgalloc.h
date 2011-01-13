@@ -19,6 +19,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/cache.h>
+#include <asm/pgtable.h>
 
 #define PGDIR_ORDER	0
 
@@ -106,26 +107,8 @@ extern inline void free_pgd_slow(pgd_t *pgd)
  */
 #define pmd_alloc_one_fast(mm, address)	({ BUG(); ((pmd_t *)1); })
 #define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
-/* FIXME two definition - look below */
-#define pmd_free(mm, x)			do { } while (0)
-#define pgd_populate(mm, pmd, pte)	BUG()
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-		unsigned long address)
-{
-	pte_t *pte;
-	extern int mem_init_done;
-	extern void *early_get_page(void);
-	if (mem_init_done) {
-		pte = (pte_t *)__get_free_page(GFP_KERNEL |
-					__GFP_REPEAT | __GFP_ZERO);
-	} else {
-		pte = (pte_t *)early_get_page();
-		if (pte)
-			clear_page(pte);
-	}
-	return pte;
-}
+extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm,
 		unsigned long address)
@@ -180,9 +163,10 @@ extern inline void pte_free(struct mm_struct *mm, struct page *ptepage)
 	__free_page(ptepage);
 }
 
-#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
+#define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, (pte))
 
-#define pmd_populate(mm, pmd, pte)	(pmd_val(*(pmd)) = page_address(pte))
+#define pmd_populate(mm, pmd, pte) \
+			(pmd_val(*(pmd)) = (unsigned long)page_address(pte))
 
 #define pmd_populate_kernel(mm, pmd, pte) \
 		(pmd_val(*(pmd)) = (unsigned long) (pte))
@@ -192,14 +176,14 @@ extern inline void pte_free(struct mm_struct *mm, struct page *ptepage)
  * the pgd will always be present..
  */
 #define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
-/*#define pmd_free(mm, x)			do { } while (0)*/
-#define __pmd_free_tlb(tlb, x)		do { } while (0)
+#define pmd_free(mm, x)			do { } while (0)
+#define __pmd_free_tlb(tlb, x, addr)	pmd_free((tlb)->mm, x)
 #define pgd_populate(mm, pmd, pte)	BUG()
 
 extern int do_check_pgt_cache(int, int);
 
 #endif /* CONFIG_MMU */
 
-#define check_pgt_cache()	do {} while (0)
+#define check_pgt_cache()		do { } while (0)
 
 #endif /* _ASM_MICROBLAZE_PGALLOC_H */

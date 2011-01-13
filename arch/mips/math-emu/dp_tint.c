@@ -4,7 +4,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * http://www.algor.co.uk
  *
  * ########################################################################
  *
@@ -69,8 +68,7 @@ int ieee754dp_tint(ieee754dp x)
 			round = 0;
 			sticky = residue != 0;
 			xm = 0;
-		}
-		else {
+		} else {
 			residue = xm << (64 - DP_MBITS + xe);
 			round = (residue >> 63) != 0;
 			sticky = (residue << 1) != 0;

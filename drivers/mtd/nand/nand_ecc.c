@@ -150,20 +150,19 @@ static const char addressbits[256] = {
 };
 
 /**
- * nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
+ * __nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
  *			 block
- * @mtd:	MTD block structure
  * @buf:	input buffer with raw data
+ * @eccsize:	data bytes per ecc step (256 or 512)
  * @code:	output buffer with ECC
  */
-int nand_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
+void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 		       unsigned char *code)
 {
 	int i;
 	const uint32_t *bp = (uint32_t *)buf;
 	/* 256 or 512 bytes/ecc  */
-	const uint32_t eccsize_mult =
-			(((struct nand_chip *)mtd->priv)->ecc.size) >> 8;
+	const uint32_t eccsize_mult = eccsize >> 8;
 	uint32_t cur;		/* current value in buffer */
 	/* rp0..rp15..rp17 are the various accumulated parities (per byte) */
 	uint32_t rp0, rp1, rp2, rp3, rp4, rp5, rp6, rp7;
@@ -412,27 +411,43 @@ int nand_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
 		    (invparity[par & 0x55] << 2) |
 		    (invparity[rp17] << 1) |
 		    (invparity[rp16] << 0);
+}
+EXPORT_SYMBOL(__nand_calculate_ecc);
+
+/**
+ * nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
+ *			 block
+ * @mtd:	MTD block structure
+ * @buf:	input buffer with raw data
+ * @code:	output buffer with ECC
+ */
+int nand_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
+		       unsigned char *code)
+{
+	__nand_calculate_ecc(buf,
+			((struct nand_chip *)mtd->priv)->ecc.size, code);
+
 	return 0;
 }
 EXPORT_SYMBOL(nand_calculate_ecc);
 
 /**
- * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
- * @mtd:	MTD block structure
+ * __nand_correct_data - [NAND Interface] Detect and correct bit error(s)
  * @buf:	raw data read from the chip
  * @read_ecc:	ECC from the chip
  * @calc_ecc:	the ECC calculated from raw data
+ * @eccsize:	data bytes per ecc step (256 or 512)
  *
- * Detect and correct a 1 bit error for 256/512 byte block
+ * Detect and correct a 1 bit error for eccsize byte block
  */
-int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
-		      unsigned char *read_ecc, unsigned char *calc_ecc)
+int __nand_correct_data(unsigned char *buf,
+			unsigned char *read_ecc, unsigned char *calc_ecc,
+			unsigned int eccsize)
 {
 	unsigned char b0, b1, b2, bit_addr;
 	unsigned int byte_addr;
 	/* 256 or 512 bytes/ecc  */
-	const uint32_t eccsize_mult =
-			(((struct nand_chip *)mtd->priv)->ecc.size) >> 8;
+	const uint32_t eccsize_mult = eccsize >> 8;
 
 	/*
 	 * b0 to b2 indicate which bit is faulty (if any)
@@ -475,7 +490,7 @@ int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
 		 *
 		 * The b2 shift is there to get rid of the lowest two bits.
 		 * We could also do addressbits[b2] >> 1 but for the
-		 * performace it does not make any difference
+		 * performance it does not make any difference
 		 */
 		if (eccsize_mult == 1)
 			byte_addr = (addressbits[b1] << 4) + addressbits[b0];
@@ -494,6 +509,23 @@ int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
 
 	printk(KERN_ERR "uncorrectable error : ");
 	return -1;
+}
+EXPORT_SYMBOL(__nand_correct_data);
+
+/**
+ * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
+ * @mtd:	MTD block structure
+ * @buf:	raw data read from the chip
+ * @read_ecc:	ECC from the chip
+ * @calc_ecc:	the ECC calculated from raw data
+ *
+ * Detect and correct a 1 bit error for 256/512 byte block
+ */
+int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
+		      unsigned char *read_ecc, unsigned char *calc_ecc)
+{
+	return __nand_correct_data(buf, read_ecc, calc_ecc,
+				   ((struct nand_chip *)mtd->priv)->ecc.size);
 }
 EXPORT_SYMBOL(nand_correct_data);
 

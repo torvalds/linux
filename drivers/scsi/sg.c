@@ -38,6 +38,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/errno.h>
 #include <linux/mtio.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -48,7 +49,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/blktrace_api.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -101,6 +102,8 @@ static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 
 static int sg_add(struct device *, struct class_interface *);
 static void sg_remove(struct device *, struct class_interface *);
+
+static DEFINE_MUTEX(sg_mutex);
 
 static DEFINE_IDR(sg_index_idr);
 static DEFINE_RWLOCK(sg_index_lock);	/* Also used to lock
@@ -209,14 +212,12 @@ static void sg_put_dev(Sg_device *sdp);
 
 static int sg_allow_access(struct file *filp, unsigned char *cmd)
 {
-	struct sg_fd *sfp = (struct sg_fd *)filp->private_data;
-	struct request_queue *q = sfp->parentdp->device->request_queue;
+	struct sg_fd *sfp = filp->private_data;
 
 	if (sfp->parentdp->device->type == TYPE_SCANNER)
 		return 0;
 
-	return blk_verify_command(&q->cmd_filter,
-				  cmd, filp->f_mode & FMODE_WRITE);
+	return blk_verify_command(cmd, filp->f_mode & FMODE_WRITE);
 }
 
 static int
@@ -230,7 +231,7 @@ sg_open(struct inode *inode, struct file *filp)
 	int res;
 	int retval;
 
-	lock_kernel();
+	mutex_lock(&sg_mutex);
 	nonseekable_open(inode, filp);
 	SCSI_LOG_TIMEOUT(3, printk("sg_open: dev=%d, flags=0x%x\n", dev, flags));
 	sdp = sg_get_dev(dev);
@@ -245,6 +246,10 @@ sg_open(struct inode *inode, struct file *filp)
 	retval = scsi_device_get(sdp->device);
 	if (retval)
 		goto sg_put;
+
+	retval = scsi_autopm_get_device(sdp->device);
+	if (retval)
+		goto sdp_put;
 
 	if (!((flags & O_NONBLOCK) ||
 	      scsi_block_when_processing_errors(sdp->device))) {
@@ -289,8 +294,7 @@ sg_open(struct inode *inode, struct file *filp)
 	if (list_empty(&sdp->sfds)) {	/* no existing opens on this device */
 		sdp->sgdebug = 0;
 		q = sdp->device->request_queue;
-		sdp->sg_tablesize = min(queue_max_hw_segments(q),
-					queue_max_phys_segments(q));
+		sdp->sg_tablesize = queue_max_segments(q);
 	}
 	if ((sfp = sg_add_sfp(sdp, dev)))
 		filp->private_data = sfp;
@@ -304,12 +308,15 @@ sg_open(struct inode *inode, struct file *filp)
 	}
 	retval = 0;
 error_out:
-	if (retval)
+	if (retval) {
+		scsi_autopm_put_device(sdp->device);
+sdp_put:
 		scsi_device_put(sdp->device);
+	}
 sg_put:
 	if (sdp)
 		sg_put_dev(sdp);
-	unlock_kernel();
+	mutex_unlock(&sg_mutex);
 	return retval;
 }
 
@@ -329,6 +336,7 @@ sg_release(struct inode *inode, struct file *filp)
 	sdp->exclude = 0;
 	wake_up_interruptible(&sdp->o_excl_wait);
 
+	scsi_autopm_put_device(sdp->device);
 	kref_put(&sfp->f_ref, sg_remove_sfp);
 	return 0;
 }
@@ -621,7 +629,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 		if (strcmp(current->comm, cmd) && printk_ratelimit()) {
 			printk(KERN_WARNING
 			       "sg_write: data in/out %d/%d bytes for SCSI command 0x%x--"
-			       "guessing data in;\n" KERN_WARNING "   "
+			       "guessing data in;\n   "
 			       "program %s not setting count and/or reply_len properly\n",
 			       old_hdr.reply_len - (int)SZ_SG_HEADER,
 			       input_size, (unsigned int) cmnd[0],
@@ -731,6 +739,8 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		return k;	/* probably out of space --> ENOMEM */
 	}
 	if (sdp->detached) {
+		if (srp->bio)
+			blk_end_request_all(srp->rq, -EIO);
 		sg_finish_rem_req(srp);
 		return -ENODEV;
 	}
@@ -760,8 +770,7 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 }
 
 static int
-sg_ioctl(struct inode *inode, struct file *filp,
-	 unsigned int cmd_in, unsigned long arg)
+sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 {
 	void __user *p = (void __user *)arg;
 	int __user *ip = p;
@@ -1080,6 +1089,18 @@ sg_ioctl(struct inode *inode, struct file *filp,
 	}
 }
 
+static long
+sg_unlocked_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&sg_mutex);
+	ret = sg_ioctl(filp, cmd_in, arg);
+	mutex_unlock(&sg_mutex);
+
+	return ret;
+}
+
 #ifdef CONFIG_COMPAT
 static long sg_compat_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 {
@@ -1187,7 +1208,7 @@ sg_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-static struct vm_operations_struct sg_mmap_vm_ops = {
+static const struct vm_operations_struct sg_mmap_vm_ops = {
 	.fault = sg_vma_fault,
 };
 
@@ -1319,12 +1340,12 @@ static void sg_rq_end_io(struct request *rq, int uptodate)
 	}
 }
 
-static struct file_operations sg_fops = {
+static const struct file_operations sg_fops = {
 	.owner = THIS_MODULE,
 	.read = sg_read,
 	.write = sg_write,
 	.poll = sg_poll,
-	.ioctl = sg_ioctl,
+	.unlocked_ioctl = sg_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = sg_compat_ioctl,
 #endif
@@ -1332,6 +1353,7 @@ static struct file_operations sg_fops = {
 	.mmap = sg_mmap,
 	.release = sg_release,
 	.fasync = sg_fasync,
+	.llseek = no_llseek,
 };
 
 static struct class *sg_sysfs_class;
@@ -1378,8 +1400,7 @@ static Sg_device *sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	sdp->device = scsidp;
 	INIT_LIST_HEAD(&sdp->sfds);
 	init_waitqueue_head(&sdp->o_excl_wait);
-	sdp->sg_tablesize = min(queue_max_hw_segments(q),
-				queue_max_phys_segments(q));
+	sdp->sg_tablesize = queue_max_segments(q);
 	sdp->index = k;
 	kref_init(&sdp->d_ref);
 
@@ -1639,7 +1660,7 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	if (sg_allow_dio && hp->flags & SG_FLAG_DIRECT_IO &&
 	    dxfer_dir != SG_DXFER_UNKNOWN && !iov_count &&
 	    !sfp->parentdp->device->host->unchecked_isa_dma &&
-	    blk_rq_aligned(q, hp->dxferp, dxfer_len))
+	    blk_rq_aligned(q, (unsigned long)hp->dxferp, dxfer_len))
 		md = NULL;
 	else
 		md = &map_data;
@@ -1658,20 +1679,19 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 		md->nr_entries = req_schp->k_use_sg;
 		md->offset = 0;
 		md->null_mapped = hp->dxferp ? 0 : 1;
+		if (dxfer_dir == SG_DXFER_TO_FROM_DEV)
+			md->from_user = 1;
+		else
+			md->from_user = 0;
 	}
 
 	if (iov_count) {
 		int len, size = sizeof(struct sg_iovec) * iov_count;
 		struct iovec *iov;
 
-		iov = kmalloc(size, GFP_ATOMIC);
-		if (!iov)
-			return -ENOMEM;
-
-		if (copy_from_user(iov, hp->dxferp, size)) {
-			kfree(iov);
-			return -EFAULT;
-		}
+		iov = memdup_user(hp->dxferp, size);
+		if (IS_ERR(iov))
+			return PTR_ERR(iov);
 
 		len = iov_length(iov, iov_count);
 		if (hp->dxfer_len < len) {
@@ -1706,17 +1726,17 @@ static int sg_finish_rem_req(Sg_request * srp)
 	Sg_scatter_hold *req_schp = &srp->data;
 
 	SCSI_LOG_TIMEOUT(4, printk("sg_finish_rem_req: res_used=%d\n", (int) srp->res_used));
-	if (srp->res_used)
-		sg_unlink_reserve(sfp, srp);
-	else
-		sg_remove_scat(req_schp);
-
 	if (srp->rq) {
 		if (srp->bio)
 			ret = blk_rq_unmap_user(srp->bio);
 
 		blk_put_request(srp->rq);
 	}
+
+	if (srp->res_used)
+		sg_unlink_reserve(sfp, srp);
+	else
+		sg_remove_scat(req_schp);
 
 	sg_remove_request(sfp, srp);
 
@@ -1809,7 +1829,7 @@ retry:
 	return 0;
 out:
 	for (i = 0; i < k; i++)
-		__free_pages(schp->pages[k], order);
+		__free_pages(schp->pages[i], order);
 
 	if (--order >= 0)
 		goto retry;
@@ -2192,9 +2212,11 @@ static int sg_proc_seq_show_int(struct seq_file *s, void *v);
 static int sg_proc_single_open_adio(struct inode *inode, struct file *file);
 static ssize_t sg_proc_write_adio(struct file *filp, const char __user *buffer,
 			          size_t count, loff_t *off);
-static struct file_operations adio_fops = {
-	/* .owner, .read and .llseek added in sg_proc_init() */
+static const struct file_operations adio_fops = {
+	.owner = THIS_MODULE,
 	.open = sg_proc_single_open_adio,
+	.read = seq_read,
+	.llseek = seq_lseek,
 	.write = sg_proc_write_adio,
 	.release = single_release,
 };
@@ -2202,23 +2224,32 @@ static struct file_operations adio_fops = {
 static int sg_proc_single_open_dressz(struct inode *inode, struct file *file);
 static ssize_t sg_proc_write_dressz(struct file *filp, 
 		const char __user *buffer, size_t count, loff_t *off);
-static struct file_operations dressz_fops = {
+static const struct file_operations dressz_fops = {
+	.owner = THIS_MODULE,
 	.open = sg_proc_single_open_dressz,
+	.read = seq_read,
+	.llseek = seq_lseek,
 	.write = sg_proc_write_dressz,
 	.release = single_release,
 };
 
 static int sg_proc_seq_show_version(struct seq_file *s, void *v);
 static int sg_proc_single_open_version(struct inode *inode, struct file *file);
-static struct file_operations version_fops = {
+static const struct file_operations version_fops = {
+	.owner = THIS_MODULE,
 	.open = sg_proc_single_open_version,
+	.read = seq_read,
+	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static int sg_proc_seq_show_devhdr(struct seq_file *s, void *v);
 static int sg_proc_single_open_devhdr(struct inode *inode, struct file *file);
-static struct file_operations devhdr_fops = {
+static const struct file_operations devhdr_fops = {
+	.owner = THIS_MODULE,
 	.open = sg_proc_single_open_devhdr,
+	.read = seq_read,
+	.llseek = seq_lseek,
 	.release = single_release,
 };
 
@@ -2227,11 +2258,14 @@ static int sg_proc_open_dev(struct inode *inode, struct file *file);
 static void * dev_seq_start(struct seq_file *s, loff_t *pos);
 static void * dev_seq_next(struct seq_file *s, void *v, loff_t *pos);
 static void dev_seq_stop(struct seq_file *s, void *v);
-static struct file_operations dev_fops = {
+static const struct file_operations dev_fops = {
+	.owner = THIS_MODULE,
 	.open = sg_proc_open_dev,
+	.read = seq_read,
+	.llseek = seq_lseek,
 	.release = seq_release,
 };
-static struct seq_operations dev_seq_ops = {
+static const struct seq_operations dev_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,
@@ -2240,11 +2274,14 @@ static struct seq_operations dev_seq_ops = {
 
 static int sg_proc_seq_show_devstrs(struct seq_file *s, void *v);
 static int sg_proc_open_devstrs(struct inode *inode, struct file *file);
-static struct file_operations devstrs_fops = {
+static const struct file_operations devstrs_fops = {
+	.owner = THIS_MODULE,
 	.open = sg_proc_open_devstrs,
+	.read = seq_read,
+	.llseek = seq_lseek,
 	.release = seq_release,
 };
-static struct seq_operations devstrs_seq_ops = {
+static const struct seq_operations devstrs_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,
@@ -2253,11 +2290,14 @@ static struct seq_operations devstrs_seq_ops = {
 
 static int sg_proc_seq_show_debug(struct seq_file *s, void *v);
 static int sg_proc_open_debug(struct inode *inode, struct file *file);
-static struct file_operations debug_fops = {
+static const struct file_operations debug_fops = {
+	.owner = THIS_MODULE,
 	.open = sg_proc_open_debug,
+	.read = seq_read,
+	.llseek = seq_lseek,
 	.release = seq_release,
 };
-static struct seq_operations debug_seq_ops = {
+static const struct seq_operations debug_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,
@@ -2267,7 +2307,7 @@ static struct seq_operations debug_seq_ops = {
 
 struct sg_proc_leaf {
 	const char * name;
-	struct file_operations * fops;
+	const struct file_operations * fops;
 };
 
 static struct sg_proc_leaf sg_proc_leaf_arr[] = {
@@ -2293,9 +2333,6 @@ sg_proc_init(void)
 	for (k = 0; k < num_leaves; ++k) {
 		leaf = &sg_proc_leaf_arr[k];
 		mask = leaf->fops->write ? S_IRUGO | S_IWUSR : S_IRUGO;
-		leaf->fops->owner = THIS_MODULE;
-		leaf->fops->read = seq_read;
-		leaf->fops->llseek = seq_lseek;
 		proc_create(leaf->name, mask, sg_proc_sgp, leaf->fops);
 	}
 	return 0;

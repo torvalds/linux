@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_ioc.h
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.10
+ *  mpi2_ioc.h Version:  02.00.15
  *
  *  Version History
  *  ---------------
@@ -79,6 +79,30 @@
  *                      Added MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE
  *                      define.
  *                      Removed MPI2_EVENT_SAS_DISC_DS_SATA_INIT_FAILURE define.
+ *  05-06-09  02.00.11  Added MPI2_IOCFACTS_CAPABILITY_RAID_ACCELERATOR define.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX define.
+ *                      Added two new reason codes for SAS Device Status Change
+ *                      Event.
+ *                      Added new event: SAS PHY Counter.
+ *  07-30-09  02.00.12  Added GPIO Interrupt event define and structure.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER define.
+ *                      Added new product id family for 2208.
+ *  10-28-09  02.00.13  Added HostMSIxVectors field to MPI2_IOC_INIT_REQUEST.
+ *                      Added MaxMSIxVectors field to MPI2_IOC_FACTS_REPLY.
+ *                      Added MinDevHandle field to MPI2_IOC_FACTS_REPLY.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_HOST_BASED_DISCOVERY.
+ *                      Added MPI2_EVENT_HOST_BASED_DISCOVERY_PHY define.
+ *                      Added MPI2_EVENT_SAS_TOPO_ES_NO_EXPANDER define.
+ *                      Added Host Based Discovery Phy Event data.
+ *                      Added defines for ProductID Product field
+ *                      (MPI2_FW_HEADER_PID_).
+ *                      Modified values for SAS ProductID Family
+ *                      (MPI2_FW_HEADER_PID_FAMILY_).
+ *  02-10-10  02.00.14  Added SAS Quiesce Event structure and defines.
+ *                      Added PowerManagementControl Request structures and
+ *                      defines.
+ *  05-12-10  02.00.15  Marked Task Set Full Event as obsolete.
+ *                      Added MPI2_EVENT_SAS_TOPO_LR_UNSUPPORTED_PHY define.
  *  --------------------------------------------------------------------------
  */
 
@@ -111,8 +135,10 @@ typedef struct _MPI2_IOC_INIT_REQUEST
     U16                     MsgVersion;                     /* 0x0C */
     U16                     HeaderVersion;                  /* 0x0E */
     U32                     Reserved5;                      /* 0x10 */
-    U32                     Reserved6;                      /* 0x14 */
-    U16                     Reserved7;                      /* 0x18 */
+    U16                     Reserved6;                      /* 0x14 */
+    U8                      Reserved7;                      /* 0x16 */
+    U8                      HostMSIxVectors;                /* 0x17 */
+    U16                     Reserved8;                      /* 0x18 */
     U16                     SystemRequestFrameSize;         /* 0x1A */
     U16                     ReplyDescriptorPostQueueDepth;  /* 0x1C */
     U16                     ReplyFreeQueueDepth;            /* 0x1E */
@@ -207,7 +233,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY
     U8                      MaxChainDepth;                  /* 0x14 */
     U8                      WhoInit;                        /* 0x15 */
     U8                      NumberOfPorts;                  /* 0x16 */
-    U8                      Reserved2;                      /* 0x17 */
+    U8                      MaxMSIxVectors;                 /* 0x17 */
     U16                     RequestCredit;                  /* 0x18 */
     U16                     ProductID;                      /* 0x1A */
     U32                     IOCCapabilities;                /* 0x1C */
@@ -225,7 +251,8 @@ typedef struct _MPI2_IOC_FACTS_REPLY
     U8                      MaxVolumes;                     /* 0x37 */
     U16                     MaxDevHandle;                   /* 0x38 */
     U16                     MaxPersistentEntries;           /* 0x3A */
-    U32                     Reserved4;                      /* 0x3C */
+    U16                     MinDevHandle;                   /* 0x3C */
+    U16                     Reserved4;                      /* 0x3E */
 } MPI2_IOC_FACTS_REPLY, MPI2_POINTER PTR_MPI2_IOC_FACTS_REPLY,
   Mpi2IOCFactsReply_t, MPI2_POINTER pMpi2IOCFactsReply_t;
 
@@ -261,12 +288,16 @@ typedef struct _MPI2_IOC_FACTS_REPLY
 /* ProductID field uses MPI2_FW_HEADER_PID_ */
 
 /* IOCCapabilities */
+#define MPI2_IOCFACTS_CAPABILITY_HOST_BASED_DISCOVERY   (0x00010000)
+#define MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX            (0x00008000)
+#define MPI2_IOCFACTS_CAPABILITY_RAID_ACCELERATOR       (0x00004000)
 #define MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY           (0x00002000)
 #define MPI2_IOCFACTS_CAPABILITY_INTEGRATED_RAID        (0x00001000)
 #define MPI2_IOCFACTS_CAPABILITY_TLR                    (0x00000800)
 #define MPI2_IOCFACTS_CAPABILITY_MULTICAST              (0x00000100)
 #define MPI2_IOCFACTS_CAPABILITY_BIDIRECTIONAL_TARGET   (0x00000080)
 #define MPI2_IOCFACTS_CAPABILITY_EEDP                   (0x00000040)
+#define MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER        (0x00000020)
 #define MPI2_IOCFACTS_CAPABILITY_SNAPSHOT_BUFFER        (0x00000010)
 #define MPI2_IOCFACTS_CAPABILITY_DIAG_TRACE_BUFFER      (0x00000008)
 #define MPI2_IOCFACTS_CAPABILITY_TASK_SET_FULL_HANDLING (0x00000004)
@@ -427,7 +458,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY
 #define MPI2_EVENT_STATE_CHANGE                     (0x0002)
 #define MPI2_EVENT_HARD_RESET_RECEIVED              (0x0005)
 #define MPI2_EVENT_EVENT_CHANGE                     (0x000A)
-#define MPI2_EVENT_TASK_SET_FULL                    (0x000E)
+#define MPI2_EVENT_TASK_SET_FULL                    (0x000E) /* obsolete */
 #define MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE         (0x000F)
 #define MPI2_EVENT_IR_OPERATION_STATUS              (0x0014)
 #define MPI2_EVENT_SAS_DISCOVERY                    (0x0016)
@@ -440,6 +471,10 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY
 #define MPI2_EVENT_IR_PHYSICAL_DISK                 (0x001F)
 #define MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST     (0x0020)
 #define MPI2_EVENT_LOG_ENTRY_ADDED                  (0x0021)
+#define MPI2_EVENT_SAS_PHY_COUNTER                  (0x0022)
+#define MPI2_EVENT_GPIO_INTERRUPT                   (0x0023)
+#define MPI2_EVENT_HOST_BASED_DISCOVERY_PHY         (0x0024)
+#define MPI2_EVENT_SAS_QUIESCE                      (0x0025)
 
 
 /* Log Entry Added Event data */
@@ -461,6 +496,16 @@ typedef struct _MPI2_EVENT_DATA_LOG_ENTRY_ADDED
   MPI2_POINTER PTR_MPI2_EVENT_DATA_LOG_ENTRY_ADDED,
   Mpi2EventDataLogEntryAdded_t, MPI2_POINTER pMpi2EventDataLogEntryAdded_t;
 
+/* GPIO Interrupt Event data */
+
+typedef struct _MPI2_EVENT_DATA_GPIO_INTERRUPT {
+    U8          GPIONum;                            /* 0x00 */
+    U8          Reserved1;                          /* 0x01 */
+    U16         Reserved2;                          /* 0x02 */
+} MPI2_EVENT_DATA_GPIO_INTERRUPT,
+  MPI2_POINTER PTR_MPI2_EVENT_DATA_GPIO_INTERRUPT,
+  Mpi2EventDataGpioInterrupt_t, MPI2_POINTER pMpi2EventDataGpioInterrupt_t;
+
 /* Hard Reset Received Event data */
 
 typedef struct _MPI2_EVENT_DATA_HARD_RESET_RECEIVED
@@ -474,6 +519,7 @@ typedef struct _MPI2_EVENT_DATA_HARD_RESET_RECEIVED
   MPI2_POINTER pMpi2EventDataHardResetReceived_t;
 
 /* Task Set Full Event data */
+/*   this event is obsolete */
 
 typedef struct _MPI2_EVENT_DATA_TASK_SET_FULL
 {
@@ -502,17 +548,19 @@ typedef struct _MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
   MPI2_POINTER pMpi2EventDataSasDeviceStatusChange_t;
 
 /* SAS Device Status Change Event data ReasonCode values */
-#define MPI2_EVENT_SAS_DEV_STAT_RC_SMART_DATA               (0x05)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED              (0x07)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET    (0x08)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_TASK_ABORT_INTERNAL      (0x09)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL  (0x0A)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL  (0x0B)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL      (0x0C)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION       (0x0D)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET   (0x0E)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_TASK_ABORT_INTERNAL  (0x0F)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE        (0x10)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_SMART_DATA                           (0x05)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED                          (0x07)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET                (0x08)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_TASK_ABORT_INTERNAL                  (0x09)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL              (0x0A)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL              (0x0B)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL                  (0x0C)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION                   (0x0D)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET               (0x0E)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_TASK_ABORT_INTERNAL              (0x0F)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE                    (0x10)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_EXPANDER_REDUCED_FUNCTIONALITY       (0x11)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_EXPANDER_REDUCED_FUNCTIONALITY   (0x12)
 
 
 /* Integrated RAID Operation Status Event data */
@@ -768,6 +816,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST
   MPI2_POINTER pMpi2EventDataSasTopologyChangeList_t;
 
 /* values for the ExpStatus field */
+#define MPI2_EVENT_SAS_TOPO_ES_NO_EXPANDER                  (0x00)
 #define MPI2_EVENT_SAS_TOPO_ES_ADDED                        (0x01)
 #define MPI2_EVENT_SAS_TOPO_ES_NOT_RESPONDING               (0x02)
 #define MPI2_EVENT_SAS_TOPO_ES_RESPONDING                   (0x03)
@@ -785,6 +834,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST
 #define MPI2_EVENT_SAS_TOPO_LR_SATA_OOB_COMPLETE            (0x03)
 #define MPI2_EVENT_SAS_TOPO_LR_PORT_SELECTOR                (0x04)
 #define MPI2_EVENT_SAS_TOPO_LR_SMP_RESET_IN_PROGRESS        (0x05)
+#define MPI2_EVENT_SAS_TOPO_LR_UNSUPPORTED_PHY              (0x06)
 #define MPI2_EVENT_SAS_TOPO_LR_RATE_1_5                     (0x08)
 #define MPI2_EVENT_SAS_TOPO_LR_RATE_3_0                     (0x09)
 #define MPI2_EVENT_SAS_TOPO_LR_RATE_6_0                     (0x0A)
@@ -820,6 +870,91 @@ typedef struct _MPI2_EVENT_DATA_SAS_ENCL_DEV_STATUS_CHANGE
 /* SAS Enclosure Device Status Change event ReasonCode values */
 #define MPI2_EVENT_SAS_ENCL_RC_ADDED                (0x01)
 #define MPI2_EVENT_SAS_ENCL_RC_NOT_RESPONDING       (0x02)
+
+
+/* SAS PHY Counter Event data */
+
+typedef struct _MPI2_EVENT_DATA_SAS_PHY_COUNTER {
+    U64         TimeStamp;          /* 0x00 */
+    U32         Reserved1;          /* 0x08 */
+    U8          PhyEventCode;       /* 0x0C */
+    U8          PhyNum;             /* 0x0D */
+    U16         Reserved2;          /* 0x0E */
+    U32         PhyEventInfo;       /* 0x10 */
+    U8          CounterType;        /* 0x14 */
+    U8          ThresholdWindow;    /* 0x15 */
+    U8          TimeUnits;          /* 0x16 */
+    U8          Reserved3;          /* 0x17 */
+    U32         EventThreshold;     /* 0x18 */
+    U16         ThresholdFlags;     /* 0x1C */
+    U16         Reserved4;          /* 0x1E */
+} MPI2_EVENT_DATA_SAS_PHY_COUNTER,
+  MPI2_POINTER PTR_MPI2_EVENT_DATA_SAS_PHY_COUNTER,
+  Mpi2EventDataSasPhyCounter_t, MPI2_POINTER pMpi2EventDataSasPhyCounter_t;
+
+/* use MPI2_SASPHY3_EVENT_CODE_ values from mpi2_cnfg.h for the
+ * PhyEventCode field
+ * use MPI2_SASPHY3_COUNTER_TYPE_ values from mpi2_cnfg.h for the
+ * CounterType field
+ * use MPI2_SASPHY3_TIME_UNITS_ values from mpi2_cnfg.h for the
+ * TimeUnits field
+ * use MPI2_SASPHY3_TFLAGS_ values from mpi2_cnfg.h for the
+ * ThresholdFlags field
+ * */
+
+
+/* SAS Quiesce Event data */
+
+typedef struct _MPI2_EVENT_DATA_SAS_QUIESCE {
+    U8                      ReasonCode;                 /* 0x00 */
+    U8                      Reserved1;                  /* 0x01 */
+    U16                     Reserved2;                  /* 0x02 */
+    U32                     Reserved3;                  /* 0x04 */
+} MPI2_EVENT_DATA_SAS_QUIESCE,
+  MPI2_POINTER PTR_MPI2_EVENT_DATA_SAS_QUIESCE,
+  Mpi2EventDataSasQuiesce_t, MPI2_POINTER pMpi2EventDataSasQuiesce_t;
+
+/* SAS Quiesce Event data ReasonCode values */
+#define MPI2_EVENT_SAS_QUIESCE_RC_STARTED                   (0x01)
+#define MPI2_EVENT_SAS_QUIESCE_RC_COMPLETED                 (0x02)
+
+
+/* Host Based Discovery Phy Event data */
+
+typedef struct _MPI2_EVENT_HBD_PHY_SAS {
+    U8          Flags;                      /* 0x00 */
+    U8          NegotiatedLinkRate;         /* 0x01 */
+    U8          PhyNum;                     /* 0x02 */
+    U8          PhysicalPort;               /* 0x03 */
+    U32         Reserved1;                  /* 0x04 */
+    U8          InitialFrame[28];           /* 0x08 */
+} MPI2_EVENT_HBD_PHY_SAS, MPI2_POINTER PTR_MPI2_EVENT_HBD_PHY_SAS,
+  Mpi2EventHbdPhySas_t, MPI2_POINTER pMpi2EventHbdPhySas_t;
+
+/* values for the Flags field */
+#define MPI2_EVENT_HBD_SAS_FLAGS_FRAME_VALID        (0x02)
+#define MPI2_EVENT_HBD_SAS_FLAGS_SATA_FRAME         (0x01)
+
+/* use MPI2_SAS_NEG_LINK_RATE_ defines from mpi2_cnfg.h for
+ * the NegotiatedLinkRate field */
+
+typedef union _MPI2_EVENT_HBD_DESCRIPTOR {
+    MPI2_EVENT_HBD_PHY_SAS      Sas;
+} MPI2_EVENT_HBD_DESCRIPTOR, MPI2_POINTER PTR_MPI2_EVENT_HBD_DESCRIPTOR,
+  Mpi2EventHbdDescriptor_t, MPI2_POINTER pMpi2EventHbdDescriptor_t;
+
+typedef struct _MPI2_EVENT_DATA_HBD_PHY {
+    U8                          DescriptorType;     /* 0x00 */
+    U8                          Reserved1;          /* 0x01 */
+    U16                         Reserved2;          /* 0x02 */
+    U32                         Reserved3;          /* 0x04 */
+    MPI2_EVENT_HBD_DESCRIPTOR   Descriptor;         /* 0x08 */
+} MPI2_EVENT_DATA_HBD_PHY, MPI2_POINTER PTR_MPI2_EVENT_DATA_HBD_PHY,
+  Mpi2EventDataHbdPhy_t, MPI2_POINTER pMpi2EventDataMpi2EventDataHbdPhy_t;
+
+/* values for the DescriptorType field */
+#define MPI2_EVENT_HBD_DT_SAS               (0x01)
+
 
 
 /****************************************************************************
@@ -895,6 +1030,7 @@ typedef struct _MPI2_FW_DOWNLOAD_REQUEST
 #define MPI2_FW_DOWNLOAD_ITYPE_CONFIG_1             (0x07)
 #define MPI2_FW_DOWNLOAD_ITYPE_CONFIG_2             (0x08)
 #define MPI2_FW_DOWNLOAD_ITYPE_MEGARAID             (0x09)
+#define MPI2_FW_DOWNLOAD_ITYPE_COMPLETE             (0x0A)
 #define MPI2_FW_DOWNLOAD_ITYPE_COMMON_BOOT_BLOCK    (0x0B)
 
 /* FWDownload TransactionContext Element */
@@ -1070,12 +1206,16 @@ typedef struct _MPI2_FW_IMAGE_HEADER
 #define MPI2_FW_HEADER_PID_TYPE_MASK            (0xF000)
 #define MPI2_FW_HEADER_PID_TYPE_SAS             (0x2000)
 
-#define MPI2_FW_HEADER_PID_PROD_MASK            (0x0F00)
-#define MPI2_FW_HEADER_PID_PROD_A               (0x0000)
+#define MPI2_FW_HEADER_PID_PROD_MASK                    (0x0F00)
+#define MPI2_FW_HEADER_PID_PROD_A                       (0x0000)
+#define MPI2_FW_HEADER_PID_PROD_TARGET_INITIATOR_SCSI   (0x0200)
+#define MPI2_FW_HEADER_PID_PROD_IR_SCSI                 (0x0700)
+
 
 #define MPI2_FW_HEADER_PID_FAMILY_MASK          (0x00FF)
 /* SAS */
-#define MPI2_FW_HEADER_PID_FAMILY_2108_SAS      (0x0010)
+#define MPI2_FW_HEADER_PID_FAMILY_2108_SAS      (0x0013)
+#define MPI2_FW_HEADER_PID_FAMILY_2208_SAS      (0x0014)
 
 /* use MPI2_IOCFACTS_PROTOCOL_ defines for ProtocolFlags field */
 
@@ -1289,6 +1429,101 @@ typedef struct _MPI2_INIT_IMAGE_FOOTER
 
 /* defines for the ResetVector field */
 #define MPI2_INIT_IMAGE_RESETVECTOR_OFFSET      (0x14)
+
+
+/****************************************************************************
+*  PowerManagementControl message
+****************************************************************************/
+
+/* PowerManagementControl Request message */
+typedef struct _MPI2_PWR_MGMT_CONTROL_REQUEST {
+    U8                      Feature;                    /* 0x00 */
+    U8                      Reserved1;                  /* 0x01 */
+    U8                      ChainOffset;                /* 0x02 */
+    U8                      Function;                   /* 0x03 */
+    U16                     Reserved2;                  /* 0x04 */
+    U8                      Reserved3;                  /* 0x06 */
+    U8                      MsgFlags;                   /* 0x07 */
+    U8                      VP_ID;                      /* 0x08 */
+    U8                      VF_ID;                      /* 0x09 */
+    U16                     Reserved4;                  /* 0x0A */
+    U8                      Parameter1;                 /* 0x0C */
+    U8                      Parameter2;                 /* 0x0D */
+    U8                      Parameter3;                 /* 0x0E */
+    U8                      Parameter4;                 /* 0x0F */
+    U32                     Reserved5;                  /* 0x10 */
+    U32                     Reserved6;                  /* 0x14 */
+} MPI2_PWR_MGMT_CONTROL_REQUEST, MPI2_POINTER PTR_MPI2_PWR_MGMT_CONTROL_REQUEST,
+  Mpi2PwrMgmtControlRequest_t, MPI2_POINTER pMpi2PwrMgmtControlRequest_t;
+
+/* defines for the Feature field */
+#define MPI2_PM_CONTROL_FEATURE_DA_PHY_POWER_COND       (0x01)
+#define MPI2_PM_CONTROL_FEATURE_PORT_WIDTH_MODULATION   (0x02)
+#define MPI2_PM_CONTROL_FEATURE_PCIE_LINK               (0x03)
+#define MPI2_PM_CONTROL_FEATURE_IOC_SPEED               (0x04)
+#define MPI2_PM_CONTROL_FEATURE_MIN_PRODUCT_SPECIFIC    (0x80)
+#define MPI2_PM_CONTROL_FEATURE_MAX_PRODUCT_SPECIFIC    (0xFF)
+
+/* parameter usage for the MPI2_PM_CONTROL_FEATURE_DA_PHY_POWER_COND Feature */
+/* Parameter1 contains a PHY number */
+/* Parameter2 indicates power condition action using these defines */
+#define MPI2_PM_CONTROL_PARAM2_PARTIAL                  (0x01)
+#define MPI2_PM_CONTROL_PARAM2_SLUMBER                  (0x02)
+#define MPI2_PM_CONTROL_PARAM2_EXIT_PWR_MGMT            (0x03)
+/* Parameter3 and Parameter4 are reserved */
+
+/* parameter usage for the MPI2_PM_CONTROL_FEATURE_PORT_WIDTH_MODULATION
+ *  Feature */
+/* Parameter1 contains SAS port width modulation group number */
+/* Parameter2 indicates IOC action using these defines */
+#define MPI2_PM_CONTROL_PARAM2_REQUEST_OWNERSHIP        (0x01)
+#define MPI2_PM_CONTROL_PARAM2_CHANGE_MODULATION        (0x02)
+#define MPI2_PM_CONTROL_PARAM2_RELINQUISH_OWNERSHIP     (0x03)
+/* Parameter3 indicates desired modulation level using these defines */
+#define MPI2_PM_CONTROL_PARAM3_25_PERCENT               (0x00)
+#define MPI2_PM_CONTROL_PARAM3_50_PERCENT               (0x01)
+#define MPI2_PM_CONTROL_PARAM3_75_PERCENT               (0x02)
+#define MPI2_PM_CONTROL_PARAM3_100_PERCENT              (0x03)
+/* Parameter4 is reserved */
+
+/* parameter usage for the MPI2_PM_CONTROL_FEATURE_PCIE_LINK Feature */
+/* Parameter1 indicates desired PCIe link speed using these defines */
+#define MPI2_PM_CONTROL_PARAM1_PCIE_2_5_GBPS            (0x00)
+#define MPI2_PM_CONTROL_PARAM1_PCIE_5_0_GBPS            (0x01)
+#define MPI2_PM_CONTROL_PARAM1_PCIE_8_0_GBPS            (0x02)
+/* Parameter2 indicates desired PCIe link width using these defines */
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X1                 (0x01)
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X2                 (0x02)
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X4                 (0x04)
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X8                 (0x08)
+/* Parameter3 and Parameter4 are reserved */
+
+/* parameter usage for the MPI2_PM_CONTROL_FEATURE_IOC_SPEED Feature */
+/* Parameter1 indicates desired IOC hardware clock speed using these defines */
+#define MPI2_PM_CONTROL_PARAM1_FULL_IOC_SPEED           (0x01)
+#define MPI2_PM_CONTROL_PARAM1_HALF_IOC_SPEED           (0x02)
+#define MPI2_PM_CONTROL_PARAM1_QUARTER_IOC_SPEED        (0x04)
+#define MPI2_PM_CONTROL_PARAM1_EIGHTH_IOC_SPEED         (0x08)
+/* Parameter2, Parameter3, and Parameter4 are reserved */
+
+
+/* PowerManagementControl Reply message */
+typedef struct _MPI2_PWR_MGMT_CONTROL_REPLY {
+    U8                      Feature;                    /* 0x00 */
+    U8                      Reserved1;                  /* 0x01 */
+    U8                      MsgLength;                  /* 0x02 */
+    U8                      Function;                   /* 0x03 */
+    U16                     Reserved2;                  /* 0x04 */
+    U8                      Reserved3;                  /* 0x06 */
+    U8                      MsgFlags;                   /* 0x07 */
+    U8                      VP_ID;                      /* 0x08 */
+    U8                      VF_ID;                      /* 0x09 */
+    U16                     Reserved4;                  /* 0x0A */
+    U16                     Reserved5;                  /* 0x0C */
+    U16                     IOCStatus;                  /* 0x0E */
+    U32                     IOCLogInfo;                 /* 0x10 */
+} MPI2_PWR_MGMT_CONTROL_REPLY, MPI2_POINTER PTR_MPI2_PWR_MGMT_CONTROL_REPLY,
+  Mpi2PwrMgmtControlReply_t, MPI2_POINTER pMpi2PwrMgmtControlReply_t;
 
 
 #endif

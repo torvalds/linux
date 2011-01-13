@@ -380,7 +380,7 @@ static struct snd_kcontrol_new juli_mute_controls[] __devinitdata = {
 	 * inputs) are fed from Xilinx.
 	 *
 	 * I even checked traces on board and coded a support in driver for
-	 * an alternative possiblity - the unused I2S ICE output channels
+	 * an alternative possibility - the unused I2S ICE output channels
 	 * switched to HW-IN/SPDIF-IN and providing the monitoring signal to
 	 * the DAC - to no avail. The I2S outputs seem to be unconnected.
 	 *
@@ -411,25 +411,6 @@ static struct snd_kcontrol_new juli_mute_controls[] __devinitdata = {
 		.private_value = GPIO_DIGIN_MONITOR,
 	},
 };
-
-
-static void ak4358_proc_regs_read(struct snd_info_entry *entry,
-		struct snd_info_buffer *buffer)
-{
-	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
-	int reg, val;
-	for (reg = 0; reg <= 0xf; reg++) {
-		val =  snd_akm4xxx_get(ice->akm, 0, reg);
-		snd_iprintf(buffer, "0x%02x = 0x%02x\n", reg, val);
-	}
-}
-
-static void ak4358_proc_init(struct snd_ice1712 *ice)
-{
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ice->card, "ak4358_codec", &entry))
-		snd_info_set_text_ops(entry, ice, ak4358_proc_regs_read);
-}
 
 static char *slave_vols[] __devinitdata = {
 	PCM_VOLUME,
@@ -496,12 +477,35 @@ static int __devinit juli_add_controls(struct snd_ice1712 *ice)
 	/* only capture SPDIF over AK4114 */
 	err = snd_ak4114_build(spec->ak4114, NULL,
 			ice->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
-
-	ak4358_proc_init(ice);
 	if (err < 0)
 		return err;
 	return 0;
 }
+
+/*
+ * suspend/resume
+ * */
+
+#ifdef CONFIG_PM
+static int juli_resume(struct snd_ice1712 *ice)
+{
+	struct snd_akm4xxx *ak = ice->akm;
+	struct juli_spec *spec = ice->spec;
+	/* akm4358 un-reset, un-mute */
+	snd_akm4xxx_reset(ak, 0);
+	/* reinit ak4114 */
+	snd_ak4114_reinit(spec->ak4114);
+	return 0;
+}
+
+static int juli_suspend(struct snd_ice1712 *ice)
+{
+	struct snd_akm4xxx *ak = ice->akm;
+	/* akm4358 reset and soft-mute */
+	snd_akm4xxx_reset(ak, 1);
+	return 0;
+}
+#endif
 
 /*
  * initialize the chip
@@ -550,13 +554,14 @@ static inline unsigned char juli_set_mclk(struct snd_ice1712 *ice,
 }
 
 /* setting clock to external - SPDIF */
-static void juli_set_spdif_clock(struct snd_ice1712 *ice)
+static int juli_set_spdif_clock(struct snd_ice1712 *ice, int type)
 {
 	unsigned int old;
 	old = ice->gpio.get_data(ice);
 	/* external clock (= 0), multiply 1x, 48kHz */
 	ice->gpio.set_data(ice, (old & ~GPIO_RATE_MASK) | GPIO_MULTI_1X |
 			GPIO_FREQ_48KHZ);
+	return 0;
 }
 
 /* Called when ak4114 detects change in the input SPDIF stream */
@@ -646,6 +651,13 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 	ice->set_spdif_clock = juli_set_spdif_clock;
 
 	ice->spdif.ops.open = juli_spdif_in_open;
+
+#ifdef CONFIG_PM
+	ice->pm_resume = juli_resume;
+	ice->pm_suspend = juli_suspend;
+	ice->pm_suspend_enabled = 1;
+#endif
+
 	return 0;
 }
 

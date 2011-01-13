@@ -37,10 +37,10 @@ extern void cpu_die(void);
 extern void smp_send_debugger_break(int cpu);
 extern void smp_message_recv(int);
 
-DECLARE_PER_CPU(unsigned int, pvr);
+DECLARE_PER_CPU(unsigned int, cpu_pvr);
 
 #ifdef CONFIG_HOTPLUG_CPU
-extern void fixup_irqs(cpumask_t map);
+extern void fixup_irqs(const struct cpumask *map);
 int generic_cpu_disable(void);
 int generic_cpu_enable(unsigned int cpu);
 void generic_cpu_die(unsigned int cpu);
@@ -68,8 +68,19 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 }
 #endif
 
-DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
-DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+DECLARE_PER_CPU(cpumask_var_t, cpu_sibling_map);
+DECLARE_PER_CPU(cpumask_var_t, cpu_core_map);
+
+static inline struct cpumask *cpu_sibling_mask(int cpu)
+{
+	return per_cpu(cpu_sibling_map, cpu);
+}
+
+static inline struct cpumask *cpu_core_mask(int cpu)
+{
+	return per_cpu(cpu_core_map, cpu);
+}
+
 extern int cpu_to_core_id(int cpu);
 
 /* Since OpenPIC has only 4 IPIs, we use slightly different message numbers.
@@ -93,7 +104,6 @@ void smp_init_pSeries(void);
 void smp_init_cell(void);
 void smp_init_celleb(void);
 void smp_setup_cpu_maps(void);
-void smp_setup_cpu_sibling_map(void);
 
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
@@ -146,7 +156,17 @@ extern void smp_generic_take_timebase(void);
 extern struct smp_ops_t *smp_ops;
 
 extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi(cpumask_t mask);
+extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+
+/* Definitions relative to the secondary CPU spin loop
+ * and entry point. Not all of them exist on both 32 and
+ * 64-bit but defining them all here doesn't harm
+ */
+extern void generic_secondary_smp_init(void);
+extern void generic_secondary_thread_init(void);
+extern unsigned long __secondary_hold_spinloop;
+extern unsigned long __secondary_hold_acknowledge;
+extern char __secondary_hold;
 
 #endif /* __ASSEMBLY__ */
 

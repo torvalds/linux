@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/mfd/da903x.h>
+#include <linux/slab.h>
 
 #define DA9030_CHIP_ID		0x00
 #define DA9030_EVENT_A		0x01
@@ -469,13 +470,19 @@ static int __devinit da903x_add_subdevs(struct da903x_chip *chip,
 		subdev = &pdata->subdevs[i];
 
 		pdev = platform_device_alloc(subdev->name, subdev->id);
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto failed;
+		}
 
 		pdev->dev.parent = chip->dev;
 		pdev->dev.platform_data = subdev->platform_data;
 
 		ret = platform_device_add(pdev);
-		if (ret)
+		if (ret) {
+			platform_device_put(pdev);
 			goto failed;
+		}
 	}
 	return 0;
 
@@ -533,7 +540,6 @@ static int __devinit da903x_probe(struct i2c_client *client,
 out_free_irq:
 	free_irq(client->irq, chip);
 out_free_chip:
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return ret;
 }

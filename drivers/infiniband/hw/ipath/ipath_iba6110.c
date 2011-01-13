@@ -381,7 +381,7 @@ static const ipath_err_t infinipath_hwe_htclnkbbyte1crcerr =
 #define IPATH_GPIO_SCL \
 	(1ULL << (_IPATH_GPIO_SCL_NUM+INFINIPATH_EXTC_GPIOOE_SHIFT))
 
-/* keep the code below somewhat more readonable; not used elsewhere */
+/* keep the code below somewhat more readable; not used elsewhere */
 #define _IPATH_HTLINK0_CRCBITS (infinipath_hwe_htclnkabyte0crcerr |	\
 				infinipath_hwe_htclnkabyte1crcerr)
 #define _IPATH_HTLINK1_CRCBITS (infinipath_hwe_htclnkbbyte0crcerr |	\
@@ -809,7 +809,7 @@ static int ipath_setup_ht_reset(struct ipath_devdata *dd)
  * errors.  We only bother to do this at load time, because it's OK if
  * it happened before we were loaded (first time after boot/reset),
  * but any time after that, it's fatal anyway.  Also need to not check
- * for for upper byte errors if we are in 8 bit mode, so figure out
+ * for upper byte errors if we are in 8 bit mode, so figure out
  * our width.  For now, at least, also complain if it's 8 bit.
  */
 static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
@@ -1474,7 +1474,7 @@ static void ipath_ht_quiet_serdes(struct ipath_devdata *dd)
 /**
  * ipath_pe_put_tid - write a TID in chip
  * @dd: the infinipath device
- * @tidptr: pointer to the expected TID (in chip) to udpate
+ * @tidptr: pointer to the expected TID (in chip) to update
  * @tidtype: RCVHQ_RCV_TYPE_EAGER (1) for eager, RCVHQ_RCV_TYPE_EXPECTED (0) for expected
  * @pa: physical address of in memory buffer; ipath_tidinvalid if freeing
  *

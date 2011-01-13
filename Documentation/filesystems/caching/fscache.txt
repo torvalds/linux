@@ -235,6 +235,7 @@ proc files.
 		neg=N	Number of negative lookups made
 		pos=N	Number of positive lookups made
 		crt=N	Number of objects created by lookup
+		tmo=N	Number of lookups timed out and requeued
 	Updates	n=N	Number of update cookie requests seen
 		nul=N	Number of upd reqs given a NULL parent
 		run=N	Number of upd reqs granted CPU time
@@ -250,8 +251,10 @@ proc files.
 		ok=N	Number of successful alloc reqs
 		wt=N	Number of alloc reqs that waited on lookup completion
 		nbf=N	Number of alloc reqs rejected -ENOBUFS
+		int=N	Number of alloc reqs aborted -ERESTARTSYS
 		ops=N	Number of alloc reqs submitted
 		owt=N	Number of alloc reqs waited for CPU time
+		abt=N	Number of alloc reqs aborted due to object death
 	Retrvls	n=N	Number of retrieval (read) requests seen
 		ok=N	Number of successful retr reqs
 		wt=N	Number of retr reqs that waited on lookup completion
@@ -261,6 +264,7 @@ proc files.
 		oom=N	Number of retr reqs failed -ENOMEM
 		ops=N	Number of retr reqs submitted
 		owt=N	Number of retr reqs waited for CPU time
+		abt=N	Number of retr reqs aborted due to object death
 	Stores	n=N	Number of storage (write) requests seen
 		ok=N	Number of successful store reqs
 		agn=N	Number of store reqs on a page already pending storage
@@ -268,12 +272,37 @@ proc files.
 		oom=N	Number of store reqs failed -ENOMEM
 		ops=N	Number of store reqs submitted
 		run=N	Number of store reqs granted CPU time
+		pgs=N	Number of pages given store req processing time
+		rxd=N	Number of store reqs deleted from tracking tree
+		olm=N	Number of store reqs over store limit
+	VmScan	nos=N	Number of release reqs against pages with no pending store
+		gon=N	Number of release reqs against pages stored by time lock granted
+		bsy=N	Number of release reqs ignored due to in-progress store
+		can=N	Number of page stores cancelled due to release req
 	Ops	pend=N	Number of times async ops added to pending queues
 		run=N	Number of times async ops given CPU time
 		enq=N	Number of times async ops queued for processing
+		can=N	Number of async ops cancelled
+		rej=N	Number of async ops rejected due to object lookup/create failure
 		dfr=N	Number of async ops queued for deferred release
 		rel=N	Number of async ops released
 		gc=N	Number of deferred-release async ops garbage collected
+	CacheOp	alo=N	Number of in-progress alloc_object() cache ops
+		luo=N	Number of in-progress lookup_object() cache ops
+		luc=N	Number of in-progress lookup_complete() cache ops
+		gro=N	Number of in-progress grab_object() cache ops
+		upo=N	Number of in-progress update_object() cache ops
+		dro=N	Number of in-progress drop_object() cache ops
+		pto=N	Number of in-progress put_object() cache ops
+		syn=N	Number of in-progress sync_cache() cache ops
+		atc=N	Number of in-progress attr_changed() cache ops
+		rap=N	Number of in-progress read_or_alloc_page() cache ops
+		ras=N	Number of in-progress read_or_alloc_pages() cache ops
+		alp=N	Number of in-progress allocate_page() cache ops
+		als=N	Number of in-progress allocate_pages() cache ops
+		wrp=N	Number of in-progress write_page() cache ops
+		ucp=N	Number of in-progress uncache_page() cache ops
+		dsp=N	Number of in-progress dissociate_pages() cache ops
 
 
  (*) /proc/fs/fscache/histogram
@@ -297,6 +326,87 @@ proc files.
      Each row shows the number of events that took a particular range of times.
      Each step is 1 jiffy in size.  The JIFS column indicates the particular
      jiffy range covered, and the SECS field the equivalent number of seconds.
+
+
+===========
+OBJECT LIST
+===========
+
+If CONFIG_FSCACHE_OBJECT_LIST is enabled, the FS-Cache facility will maintain a
+list of all the objects currently allocated and allow them to be viewed
+through:
+
+	/proc/fs/fscache/objects
+
+This will look something like:
+
+	[root@andromeda ~]# head /proc/fs/fscache/objects
+	OBJECT   PARENT   STAT CHLDN OPS OOP IPR EX READS EM EV F S | NETFS_COOKIE_DEF TY FL NETFS_DATA       OBJECT_KEY, AUX_DATA
+	======== ======== ==== ===== === === === == ===== == == = = | ================ == == ================ ================
+	   17e4b        2 ACTV     0   0   0   0  0     0 7b  4 0 0 | NFS.fh           DT  0 ffff88001dd82820 010006017edcf8bbc93b43298fdfbe71e50b57b13a172c0117f38472, e567634700000000000000000000000063f2404a000000000000000000000000c9030000000000000000000063f2404a
+	   1693a        2 ACTV     0   0   0   0  0     0 7b  4 0 0 | NFS.fh           DT  0 ffff88002db23380 010006017edcf8bbc93b43298fdfbe71e50b57b1e0162c01a2df0ea6, 420ebc4a000000000000000000000000420ebc4a0000000000000000000000000e1801000000000000000000420ebc4a
+
+where the first set of columns before the '|' describe the object:
+
+	COLUMN	DESCRIPTION
+	=======	===============================================================
+	OBJECT	Object debugging ID (appears as OBJ%x in some debug messages)
+	PARENT	Debugging ID of parent object
+	STAT	Object state
+	CHLDN	Number of child objects of this object
+	OPS	Number of outstanding operations on this object
+	OOP	Number of outstanding child object management operations
+	IPR
+	EX	Number of outstanding exclusive operations
+	READS	Number of outstanding read operations
+	EM	Object's event mask
+	EV	Events raised on this object
+	F	Object flags
+	S	Object work item busy state mask (1:pending 2:running)
+
+and the second set of columns describe the object's cookie, if present:
+
+	COLUMN		DESCRIPTION
+	===============	=======================================================
+	NETFS_COOKIE_DEF Name of netfs cookie definition
+	TY		Cookie type (IX - index, DT - data, hex - special)
+	FL		Cookie flags
+	NETFS_DATA	Netfs private data stored in the cookie
+	OBJECT_KEY	Object key	} 1 column, with separating comma
+	AUX_DATA	Object aux data	} presence may be configured
+
+The data shown may be filtered by attaching the a key to an appropriate keyring
+before viewing the file.  Something like:
+
+		keyctl add user fscache:objlist <restrictions> @s
+
+where <restrictions> are a selection of the following letters:
+
+	K	Show hexdump of object key (don't show if not given)
+	A	Show hexdump of object aux data (don't show if not given)
+
+and the following paired letters:
+
+	C	Show objects that have a cookie
+	c	Show objects that don't have a cookie
+	B	Show objects that are busy
+	b	Show objects that aren't busy
+	W	Show objects that have pending writes
+	w	Show objects that don't have pending writes
+	R	Show objects that have outstanding reads
+	r	Show objects that don't have outstanding reads
+	S	Show objects that have work queued
+	s	Show objects that don't have work queued
+
+If neither side of a letter pair is given, then both are implied.  For example:
+
+	keyctl add user fscache:objlist KB @s
+
+shows objects that are busy, and lists their object keys, but does not dump
+their auxiliary data.  It also implies "CcWwRrSs", but as 'B' is given, 'b' is
+not implied.
+
+By default all objects and all fields will be shown.
 
 
 =========

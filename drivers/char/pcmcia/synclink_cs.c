@@ -70,8 +70,6 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -220,7 +218,6 @@ typedef struct _mgslpc_info {
 
 	/* PCMCIA support */
 	struct pcmcia_device	*p_dev;
-	dev_node_t	      node;
 	int		      stop;
 
 	/* SPPP/Cisco HDLC device parts */
@@ -552,14 +549,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     /* Initialize the struct pcmcia_device structure */
 
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.IRQInfo1   = IRQ_LEVEL_ID;
-    link->irq.Handler = NULL;
-
-    link->conf.Attributes = 0;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-
     ret = mgslpc_config(link);
     if (ret)
 	    return ret;
@@ -572,90 +561,40 @@ static int mgslpc_probe(struct pcmcia_device *link)
 /* Card has been inserted.
  */
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
+static int mgslpc_ioprobe(struct pcmcia_device *p_dev, void *priv_data)
+{
+	return pcmcia_request_io(p_dev);
+}
 
 static int mgslpc_config(struct pcmcia_device *link)
 {
     MGSLPC_INFO *info = link->priv;
-    tuple_t tuple;
-    cisparse_t parse;
-    int last_fn, last_ret;
-    u_char buf[64];
-    cistpl_cftable_entry_t dflt = { 0 };
-    cistpl_cftable_entry_t *cfg;
+    int ret;
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_config(0x%p)\n", link);
 
-    tuple.Attributes = 0;
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
-    /* get CIS configuration entry */
+    ret = pcmcia_loop_config(link, mgslpc_ioprobe, NULL);
+    if (ret != 0)
+	    goto failed;
 
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    link->config_index = 8;
+    link->config_regs = PRESENT_OPTION;
 
-    cfg = &(parse.cftable_entry);
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(&tuple, &parse));
+    ret = pcmcia_request_irq(link, mgslpc_isr);
+    if (ret)
+	    goto failed;
+    ret = pcmcia_enable_device(link);
+    if (ret)
+	    goto failed;
 
-    if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-    if (cfg->index == 0)
-	    goto cs_failed;
-
-    link->conf.ConfigIndex = cfg->index;
-    link->conf.Attributes |= CONF_ENABLE_IRQ;
-
-    /* IO window settings */
-    link->io.NumPorts1 = 0;
-    if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-	    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	    if (!(io->flags & CISTPL_IO_8BIT))
-		    link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	    if (!(io->flags & CISTPL_IO_16BIT))
-		    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	    link->io.BasePort1 = io->win[0].base;
-	    link->io.NumPorts1 = io->win[0].len;
-	    CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
-    }
-
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.ConfigIndex = 8;
-    link->conf.Present = PRESENT_OPTION;
-
-    link->irq.Attributes |= IRQ_HANDLE_PRESENT;
-    link->irq.Handler     = mgslpc_isr;
-    link->irq.Instance    = info;
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
-
-    info->io_base = link->io.BasePort1;
-    info->irq_level = link->irq.AssignedIRQ;
-
-    /* add to linked list of devices */
-    sprintf(info->node.dev_name, "mgslpc0");
-    info->node.major = info->node.minor = 0;
-    link->dev_node = &info->node;
-
-    printk(KERN_INFO "%s: index 0x%02x:",
-	   info->node.dev_name, link->conf.ConfigIndex);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	    printk(", irq %d", link->irq.AssignedIRQ);
-    if (link->io.NumPorts1)
-	    printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		   link->io.BasePort1+link->io.NumPorts1-1);
-    printk("\n");
+    info->io_base = link->resource[0]->start;
+    info->irq_level = link->irq;
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
+failed:
     mgslpc_release((u_long)link);
     return -ENODEV;
 }
@@ -2252,6 +2191,32 @@ static int mgslpc_break(struct tty_struct *tty, int break_state)
 	return 0;
 }
 
+static int mgslpc_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
+	struct mgsl_icount cnow;	/* kernel counter temps */
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->lock,flags);
+	cnow = info->icount;
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
+}
+
 /* Service an IOCTL request
  *
  * Arguments:
@@ -2267,11 +2232,7 @@ static int mgslpc_ioctl(struct tty_struct *tty, struct file * file,
 			unsigned int cmd, unsigned long arg)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
-	int error;
-	struct mgsl_icount cnow;	/* kernel counter temps */
-	struct serial_icounter_struct __user *p_cuser;	/* user space */
 	void __user *argp = (void __user *)arg;
-	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgslpc_ioctl %s cmd=%08X\n", __FILE__,__LINE__,
@@ -2281,7 +2242,7 @@ static int mgslpc_ioctl(struct tty_struct *tty, struct file * file,
 		return -ENODEV;
 
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
+	    (cmd != TIOCMIWAIT)) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 		    return -EIO;
 	}
@@ -2311,34 +2272,6 @@ static int mgslpc_ioctl(struct tty_struct *tty, struct file * file,
 		return wait_events(info, argp);
 	case TIOCMIWAIT:
 		return modem_input_wait(info,(int)arg);
-	case TIOCGICOUNT:
-		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
-		spin_unlock_irqrestore(&info->lock,flags);
-		p_cuser = argp;
-		PUT_USER(error,cnow.cts, &p_cuser->cts);
-		if (error) return error;
-		PUT_USER(error,cnow.dsr, &p_cuser->dsr);
-		if (error) return error;
-		PUT_USER(error,cnow.rng, &p_cuser->rng);
-		if (error) return error;
-		PUT_USER(error,cnow.dcd, &p_cuser->dcd);
-		if (error) return error;
-		PUT_USER(error,cnow.rx, &p_cuser->rx);
-		if (error) return error;
-		PUT_USER(error,cnow.tx, &p_cuser->tx);
-		if (error) return error;
-		PUT_USER(error,cnow.frame, &p_cuser->frame);
-		if (error) return error;
-		PUT_USER(error,cnow.overrun, &p_cuser->overrun);
-		if (error) return error;
-		PUT_USER(error,cnow.parity, &p_cuser->parity);
-		if (error) return error;
-		PUT_USER(error,cnow.brk, &p_cuser->brk);
-		if (error) return error;
-		PUT_USER(error,cnow.buf_overrun, &p_cuser->buf_overrun);
-		if (error) return error;
-		return 0;
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -2834,9 +2767,7 @@ MODULE_DEVICE_TABLE(pcmcia, mgslpc_ids);
 
 static struct pcmcia_driver mgslpc_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "synclink_cs",
-	},
+	.name		= "synclink_cs",
 	.probe		= mgslpc_probe,
 	.remove		= mgslpc_detach,
 	.id_table	= mgslpc_ids,
@@ -2865,14 +2796,13 @@ static const struct tty_operations mgslpc_ops = {
 	.hangup = mgslpc_hangup,
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
+	.get_icount = mgslpc_get_icount,
 	.proc_fops = &mgslpc_proc_fops,
 };
 
 static void synclink_cs_cleanup(void)
 {
 	int rc;
-
-	printk("Unloading %s: version %s\n", driver_name, driver_version);
 
 	while(mgslpc_device_list)
 		mgslpc_remove_device(mgslpc_device_list);
@@ -2895,8 +2825,6 @@ static int __init synclink_cs_init(void)
 	    mgslpc_get_text_ptr();
 	    BREAKPOINT();
     }
-
-    printk("%s %s\n", driver_name, driver_version);
 
     if ((rc = pcmcia_register_driver(&mgslpc_driver)) < 0)
 	    return rc;
@@ -4005,10 +3933,9 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
  *
  * skb  socket buffer containing HDLC frame
  * dev  pointer to network device structure
- *
- * returns 0 if success, otherwise error code
  */
-static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hdlcdev_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	MGSLPC_INFO *info = dev_to_port(dev);
 	unsigned long flags;
@@ -4043,7 +3970,7 @@ static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /**
@@ -4164,6 +4091,8 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
+
+	memset(&new_line, 0, size);
 
 	switch(ifr->ifr_settings.type) {
 	case IF_GET_IFACE: /* return current sync_serial_settings */

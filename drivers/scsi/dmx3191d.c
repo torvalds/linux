@@ -31,7 +31,7 @@
 #include <scsi/scsi_host.h>
 
 /*
- * Defintions for the generic 5380 driver.
+ * Definitions for the generic 5380 driver.
  */
 #define AUTOSENSE
 

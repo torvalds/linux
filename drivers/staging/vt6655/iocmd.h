@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1996, 2003 VIA Networking, Inc. All rights reserved.
+ * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,18 +29,10 @@
 #ifndef __IOCMD_H__
 #define __IOCMD_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
-#if !defined(DEF)
-#define DEF
-#endif
-
-//typedef int BOOL;
 //typedef uint32_t u32;
 //typedef uint16_t u16;
 //typedef uint8_t u8;
@@ -73,12 +66,12 @@ typedef enum tagWMAC_CMD {
     WLAN_CMD_SET_HOST_WEP,
     WLAN_CMD_SET_WPA,
     WLAN_CMD_GET_NODE_CNT,
-     WLAN_CMD_ZONETYPE_SET,
+    WLAN_CMD_ZONETYPE_SET,
     WLAN_CMD_GET_NODE_LIST
 
-} WMAC_CMD, DEF* PWMAC_CMD;
+} WMAC_CMD, *PWMAC_CMD;
 
-	typedef enum tagWZONETYPE {
+typedef enum tagWZONETYPE {
   ZoneType_USA=0,
   ZoneType_Japan=1,
   ZoneType_Europe=2
@@ -106,18 +99,16 @@ typedef enum tagWMAC_CMD {
 #define WEP_104BIT_LEN         13
 #define WEP_232BIT_LEN         16
 
-
 // Ioctl interface structure
 // Command structure
 //
 #pragma pack(1)
 typedef struct tagSCmdRequest {
-	U8 	    name[16];
+	u8	    name[16];
 	void	*data;
-	U16	    wResult;
-	U16     wCmdCode;
+	u16	    wResult;
+	u16     wCmdCode;
 } SCmdRequest, *PSCmdRequest;
-
 
 //
 // Scan
@@ -125,7 +116,7 @@ typedef struct tagSCmdRequest {
 
 typedef struct tagSCmdScan {
 
-    U8	    ssid[SSID_MAXLEN + 2];
+	u8 ssid[SSID_MAXLEN + 2];
 
 } SCmdScan, *PSCmdScan;
 
@@ -136,18 +127,22 @@ typedef struct tagSCmdScan {
 
 typedef struct tagSCmdBSSJoin {
 
-    U16	    wBSSType;
-    U16     wBBPType;
-    U8	    ssid[SSID_MAXLEN + 2];
-    U32	    uChannel;
-    BOOL    bPSEnable;
-    BOOL    bShareKeyAuth;
+    u16	    wBSSType;
+    u16     wBBPType;
+    u8	    ssid[SSID_MAXLEN + 2];
+    u32	    uChannel;
+    bool bPSEnable;
+    bool bShareKeyAuth;
 
 } SCmdBSSJoin, *PSCmdBSSJoin;
 
+//
+// Zonetype Setting
+//
+
 typedef struct tagSCmdZoneTypeSet {
 
- BOOL       bWrite;
+ bool bWrite;
  WZONETYPE  ZoneType;
 
 } SCmdZoneTypeSet, *PSCmdZoneTypeSet;
@@ -155,34 +150,33 @@ typedef struct tagSCmdZoneTypeSet {
 #ifdef WPA_SM_Transtatus
 typedef struct tagSWPAResult {
          char	ifname[100];
-         U8		proto;
-         U8   key_mgmt;
-         U8   eap_type;
-         BOOL authenticated;
+         u8 proto;
+         u8 key_mgmt;
+         u8 eap_type;
+         bool authenticated;
 } SWPAResult, *PSWPAResult;
 #endif
 
-
 typedef struct tagSCmdStartAP {
 
-    U16	    wBSSType;
-    U16     wBBPType;
-    U8	    ssid[SSID_MAXLEN + 2];
-    U32 	uChannel;
-    U32     uBeaconInt;
-    BOOL    bShareKeyAuth;
-    U8      byBasicRate;
+    u16	    wBSSType;
+    u16     wBBPType;
+    u8	    ssid[SSID_MAXLEN + 2];
+    u32	    uChannel;
+    u32     uBeaconInt;
+    bool bShareKeyAuth;
+    u8      byBasicRate;
 
 } SCmdStartAP, *PSCmdStartAP;
 
 
 typedef struct tagSCmdSetWEP {
 
-    BOOL    bEnableWep;
-    U8      byKeyIndex;
-    U8      abyWepKey[WEP_NKEYS][WEP_KEYMAXLEN];
-    BOOL    bWepKeyAvailable[WEP_NKEYS];
-    U32     auWepKeyLength[WEP_NKEYS];
+    bool bEnableWep;
+    u8      byKeyIndex;
+    u8      abyWepKey[WEP_NKEYS][WEP_KEYMAXLEN];
+    bool bWepKeyAvailable[WEP_NKEYS];
+    u32     auWepKeyLength[WEP_NKEYS];
 
 } SCmdSetWEP, *PSCmdSetWEP;
 
@@ -190,39 +184,39 @@ typedef struct tagSCmdSetWEP {
 
 typedef struct tagSBSSIDItem {
 
-	U32	    uChannel;
-    U8      abyBSSID[BSSID_LEN];
-    U8      abySSID[SSID_MAXLEN + 1];
+	u32	    uChannel;
+    u8      abyBSSID[BSSID_LEN];
+    u8      abySSID[SSID_MAXLEN + 1];
     //2006-1116-01,<Modify> by NomadZhao
-    //U16	    wBeaconInterval;
-    //U16	    wCapInfo;
-    //U8      byNetType;
-    U8      byNetType;
-    U16	    wBeaconInterval;
-    U16	    wCapInfo;        // for address of byNetType at align 4
+    //u16	    wBeaconInterval;
+    //u16	    wCapInfo;
+    //u8      byNetType;
+    u8      byNetType;
+    u16	    wBeaconInterval;
+    u16	    wCapInfo;        // for address of byNetType at align 4
 
-    BOOL    bWEPOn;
-    U32     uRSSI;
+    bool bWEPOn;
+    u32     uRSSI;
 
 } SBSSIDItem;
 
 
 typedef struct tagSBSSIDList {
 
-	U32		    uItem;
+	u32		    uItem;
 	SBSSIDItem	sBSSIDList[0];
 } SBSSIDList, *PSBSSIDList;
 
 
 typedef struct tagSCmdLinkStatus {
 
-    BOOL    bLink;
-	U16	    wBSSType;
-	U8      byState;
-    U8      abyBSSID[BSSID_LEN];
-    U8      abySSID[SSID_MAXLEN + 2];
-    U32     uChannel;
-    U32     uLinkRate;
+    bool bLink;
+	u16   wBSSType;
+	u8      byState;
+    u8      abyBSSID[BSSID_LEN];
+    u8      abySSID[SSID_MAXLEN + 2];
+    u32     uChannel;
+    u32     uLinkRate;
 
 } SCmdLinkStatus, *PSCmdLinkStatus;
 
@@ -230,19 +224,19 @@ typedef struct tagSCmdLinkStatus {
 // 802.11 counter
 //
 typedef struct tagSDot11MIBCount {
-    U32 TransmittedFragmentCount;
-    U32 MulticastTransmittedFrameCount;
-    U32 FailedCount;
-    U32 RetryCount;
-    U32 MultipleRetryCount;
-    U32 RTSSuccessCount;
-    U32 RTSFailureCount;
-    U32 ACKFailureCount;
-    U32 FrameDuplicateCount;
-    U32 ReceivedFragmentCount;
-    U32 MulticastReceivedFrameCount;
-    U32 FCSErrorCount;
-} SDot11MIBCount, DEF* PSDot11MIBCount;
+	u32 TransmittedFragmentCount;
+	u32 MulticastTransmittedFrameCount;
+	u32 FailedCount;
+	u32 RetryCount;
+	u32 MultipleRetryCount;
+	u32 RTSSuccessCount;
+	u32 RTSFailureCount;
+	u32 ACKFailureCount;
+	u32 FrameDuplicateCount;
+	u32 ReceivedFragmentCount;
+	u32 MulticastReceivedFrameCount;
+	u32 FCSErrorCount;
+} SDot11MIBCount, *PSDot11MIBCount;
 
 
 
@@ -253,129 +247,129 @@ typedef struct tagSStatMIBCount {
     //
     // ISR status count
     //
-    U32   dwIsrTx0OK;
-    U32   dwIsrTx1OK;
-    U32   dwIsrBeaconTxOK;
-    U32   dwIsrRxOK;
-    U32   dwIsrTBTTInt;
-    U32   dwIsrSTIMERInt;
-    U32   dwIsrUnrecoverableError;
-    U32   dwIsrSoftInterrupt;
-    U32   dwIsrRxNoBuf;
+	u32   dwIsrTx0OK;
+	u32   dwIsrTx1OK;
+	u32   dwIsrBeaconTxOK;
+	u32   dwIsrRxOK;
+	u32   dwIsrTBTTInt;
+	u32   dwIsrSTIMERInt;
+	u32   dwIsrUnrecoverableError;
+	u32   dwIsrSoftInterrupt;
+	u32   dwIsrRxNoBuf;
     /////////////////////////////////////
 
-    U32   dwIsrUnknown;               // unknown interrupt count
+	u32   dwIsrUnknown;               // unknown interrupt count
 
     // RSR status count
     //
-    U32   dwRsrFrmAlgnErr;
-    U32   dwRsrErr;
-    U32   dwRsrCRCErr;
-    U32   dwRsrCRCOk;
-    U32   dwRsrBSSIDOk;
-    U32   dwRsrADDROk;
-    U32   dwRsrICVOk;
-    U32   dwNewRsrShortPreamble;
-    U32   dwRsrLong;
-    U32   dwRsrRunt;
+	u32   dwRsrFrmAlgnErr;
+	u32   dwRsrErr;
+	u32   dwRsrCRCErr;
+	u32   dwRsrCRCOk;
+	u32   dwRsrBSSIDOk;
+	u32   dwRsrADDROk;
+	u32   dwRsrICVOk;
+	u32   dwNewRsrShortPreamble;
+	u32   dwRsrLong;
+	u32   dwRsrRunt;
 
-    U32   dwRsrRxControl;
-    U32   dwRsrRxData;
-    U32   dwRsrRxManage;
+	u32   dwRsrRxControl;
+	u32   dwRsrRxData;
+	u32   dwRsrRxManage;
 
-    U32   dwRsrRxPacket;
-    U32   dwRsrRxOctet;
-    U32   dwRsrBroadcast;
-    U32   dwRsrMulticast;
-    U32   dwRsrDirected;
+	u32   dwRsrRxPacket;
+	u32   dwRsrRxOctet;
+	u32   dwRsrBroadcast;
+	u32   dwRsrMulticast;
+	u32   dwRsrDirected;
     // 64-bit OID
-    U32   ullRsrOK;
+	u32   ullRsrOK;
 
     // for some optional OIDs (64 bits) and DMI support
-    U32   ullRxBroadcastBytes;
-    U32   ullRxMulticastBytes;
-    U32   ullRxDirectedBytes;
-    U32   ullRxBroadcastFrames;
-    U32   ullRxMulticastFrames;
-    U32   ullRxDirectedFrames;
+	u32   ullRxBroadcastBytes;
+	u32   ullRxMulticastBytes;
+	u32   ullRxDirectedBytes;
+	u32   ullRxBroadcastFrames;
+	u32   ullRxMulticastFrames;
+	u32   ullRxDirectedFrames;
 
-    U32   dwRsrRxFragment;
-    U32   dwRsrRxFrmLen64;
-    U32   dwRsrRxFrmLen65_127;
-    U32   dwRsrRxFrmLen128_255;
-    U32   dwRsrRxFrmLen256_511;
-    U32   dwRsrRxFrmLen512_1023;
-    U32   dwRsrRxFrmLen1024_1518;
+	u32   dwRsrRxFragment;
+	u32   dwRsrRxFrmLen64;
+	u32   dwRsrRxFrmLen65_127;
+	u32   dwRsrRxFrmLen128_255;
+	u32   dwRsrRxFrmLen256_511;
+	u32   dwRsrRxFrmLen512_1023;
+	u32   dwRsrRxFrmLen1024_1518;
 
     // TSR0,1 status count
     //
-    U32   dwTsrTotalRetry[2];        // total collision retry count
-    U32   dwTsrOnceRetry[2];         // this packet only occur one collision
-    U32   dwTsrMoreThanOnceRetry[2]; // this packet occur more than one collision
-    U32   dwTsrRetry[2];             // this packet has ever occur collision,
+	u32   dwTsrTotalRetry[2];        // total collision retry count
+	u32   dwTsrOnceRetry[2];         // this packet only occur one collision
+	u32   dwTsrMoreThanOnceRetry[2]; // this packet occur more than one collision
+	u32   dwTsrRetry[2];             // this packet has ever occur collision,
                                        // that is (dwTsrOnceCollision0 + dwTsrMoreThanOnceCollision0)
-    U32   dwTsrACKData[2];
-    U32   dwTsrErr[2];
-    U32   dwAllTsrOK[2];
-    U32   dwTsrRetryTimeout[2];
-    U32   dwTsrTransmitTimeout[2];
+	u32   dwTsrACKData[2];
+	u32   dwTsrErr[2];
+	u32   dwAllTsrOK[2];
+	u32   dwTsrRetryTimeout[2];
+	u32   dwTsrTransmitTimeout[2];
 
-    U32   dwTsrTxPacket[2];
-    U32   dwTsrTxOctet[2];
-    U32   dwTsrBroadcast[2];
-    U32   dwTsrMulticast[2];
-    U32   dwTsrDirected[2];
+	u32   dwTsrTxPacket[2];
+	u32   dwTsrTxOctet[2];
+	u32   dwTsrBroadcast[2];
+	u32   dwTsrMulticast[2];
+	u32   dwTsrDirected[2];
 
     // RD/TD count
-    U32   dwCntRxFrmLength;
-    U32   dwCntTxBufLength;
+	u32   dwCntRxFrmLength;
+	u32   dwCntTxBufLength;
 
-    U8    abyCntRxPattern[16];
-    U8    abyCntTxPattern[16];
+	u8    abyCntRxPattern[16];
+	u8    abyCntTxPattern[16];
 
     // Software check....
-    U32   dwCntRxDataErr;             // rx buffer data software compare CRC err count
-    U32   dwCntDecryptErr;            // rx buffer data software compare CRC err count
-    U32   dwCntRxICVErr;              // rx buffer data software compare CRC err count
-    U32    idxRxErrorDesc;             // index for rx data error RD
+	u32   dwCntRxDataErr;             // rx buffer data software compare CRC err count
+	u32   dwCntDecryptErr;            // rx buffer data software compare CRC err count
+	u32   dwCntRxICVErr;              // rx buffer data software compare CRC err count
+	u32    idxRxErrorDesc;             // index for rx data error RD
 
     // 64-bit OID
-    U32   ullTsrOK[2];
+	u32   ullTsrOK[2];
 
     // for some optional OIDs (64 bits) and DMI support
-    U32   ullTxBroadcastFrames[2];
-    U32   ullTxMulticastFrames[2];
-    U32   ullTxDirectedFrames[2];
-    U32   ullTxBroadcastBytes[2];
-    U32   ullTxMulticastBytes[2];
-    U32   ullTxDirectedBytes[2];
-} SStatMIBCount, DEF* PSStatMIBCount;
+	u32   ullTxBroadcastFrames[2];
+	u32   ullTxMulticastFrames[2];
+	u32   ullTxDirectedFrames[2];
+	u32   ullTxBroadcastBytes[2];
+	u32   ullTxMulticastBytes[2];
+	u32   ullTxDirectedBytes[2];
+} SStatMIBCount, *PSStatMIBCount;
 
 
 typedef struct tagSNodeItem {
     // STA info
-    U16            wAID;
-    U8             abyMACAddr[6];
-    U16            wTxDataRate;
-    U16            wInActiveCount;
-    U16            wEnQueueCnt;
-    U16            wFlags;
-    BOOL           bPWBitOn;
-    U8             byKeyIndex;
-    U16            wWepKeyLength;
-    U8            abyWepKey[WEP_KEYMAXLEN];
+    u16            wAID;
+    u8             abyMACAddr[6];
+    u16            wTxDataRate;
+    u16            wInActiveCount;
+    u16            wEnQueueCnt;
+    u16            wFlags;
+    bool bPWBitOn;
+    u8             byKeyIndex;
+    u16            wWepKeyLength;
+    u8            abyWepKey[WEP_KEYMAXLEN];
     // Auto rate fallback vars
-    BOOL           bIsInFallback;
-    U32            uTxFailures;
-    U32            uTxAttempts;
-    U16            wFailureRatio;
+    bool bIsInFallback;
+    u32            uTxFailures;
+    u32            uTxAttempts;
+    u16            wFailureRatio;
 
 } SNodeItem;
 
 
 typedef struct tagSNodeList {
 
-	U32		    uItem;
+	u32		    uItem;
 	SNodeItem	sNodeList[0];
 
 } SNodeList, *PSNodeList;
@@ -384,7 +378,7 @@ typedef struct tagSNodeList {
 
 typedef struct tagSCmdValue {
 
-    U32     dwValue;
+	u32 dwValue;
 
 } SCmdValue,  *PSCmdValue;
 
@@ -419,46 +413,46 @@ enum {
 
 
 struct viawget_hostapd_param {
-	U32 cmd;
-	U8 sta_addr[6];
+	u32 cmd;
+	u8 sta_addr[6];
 	union {
 		struct {
-			U16 aid;
-			U16 capability;
-			U8 tx_supp_rates;
+			u16 aid;
+			u16 capability;
+			u8 tx_supp_rates;
 		} add_sta;
 		struct {
-			U32 inactive_sec;
+			u32 inactive_sec;
 		} get_info_sta;
 		struct {
-			U8 alg;
-			U32 flags;
-			U32 err;
-			U8 idx;
-			U8 seq[8];
-			U16 key_len;
-			U8 key[0];
+			u8 alg;
+			u32 flags;
+			u32 err;
+			u8 idx;
+			u8 seq[8];
+			u16 key_len;
+			u8 key[0];
 		} crypt;
 		struct {
-			U32 flags_and;
-			U32 flags_or;
+			u32 flags_and;
+			u32 flags_or;
 		} set_flags_sta;
 		struct {
-			U16 rid;
-			U16 len;
-			U8 data[0];
+			u16 rid;
+			u16 len;
+			u8 data[0];
 		} rid;
 		struct {
-			U8 len;
-			U8 data[0];
+			u8 len;
+			u8 data[0];
 		} generic_elem;
 		struct {
-			U16 cmd;
-			U16 reason_code;
+			u16 cmd;
+			u16 reason_code;
 		} mlme;
 		struct {
-			U8 ssid_len;
-			U8 ssid[32];
+			u8 ssid_len;
+			u8 ssid[32];
 		} scan_req;
 	} u;
 };

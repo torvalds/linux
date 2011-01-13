@@ -36,6 +36,24 @@ static inline int lcs_dbf_passes(debug_info_t *dbf_grp, int level)
 #define CARD_FROM_DEV(cdev) \
 	(struct lcs_card *) dev_get_drvdata( \
 		&((struct ccwgroup_device *)dev_get_drvdata(&cdev->dev))->dev);
+
+/**
+ * Enum for classifying detected devices.
+ */
+enum lcs_channel_types {
+	/* Device is not a channel  */
+	lcs_channel_type_none,
+
+	/* Device is a 2216 channel */
+	lcs_channel_type_parallel,
+
+	/* Device is a 2216 channel */
+	lcs_channel_type_2216,
+
+	/* Device is a OSA2 card */
+	lcs_channel_type_osa2
+};
+
 /**
  * CCW commands used in this driver
  */

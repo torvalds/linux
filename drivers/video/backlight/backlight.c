@@ -13,6 +13,7 @@
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/fb.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
@@ -38,7 +39,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 	mutex_lock(&bd->ops_lock);
 	if (bd->ops)
 		if (!bd->ops->check_fb ||
-		    bd->ops->check_fb(evdata->info)) {
+		    bd->ops->check_fb(bd, evdata->info)) {
 			bd->props.fb_blank = *(int *)evdata->data;
 			if (bd->props.fb_blank == FB_BLANK_UNBLANK)
 				bd->props.state &= ~BL_CORE_FBBLANK;
@@ -72,6 +73,27 @@ static inline void backlight_unregister_fb(struct backlight_device *bd)
 {
 }
 #endif /* CONFIG_FB */
+
+static void backlight_generate_event(struct backlight_device *bd,
+				     enum backlight_update_reason reason)
+{
+	char *envp[2];
+
+	switch (reason) {
+	case BACKLIGHT_UPDATE_SYSFS:
+		envp[0] = "SOURCE=sysfs";
+		break;
+	case BACKLIGHT_UPDATE_HOTKEY:
+		envp[0] = "SOURCE=hotkey";
+		break;
+	default:
+		envp[0] = "SOURCE=unknown";
+		break;
+	}
+	envp[1] = NULL;
+	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
+	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
+}
 
 static ssize_t backlight_show_power(struct device *dev,
 		struct device_attribute *attr,char *buf)
@@ -142,6 +164,8 @@ static ssize_t backlight_store_brightness(struct device *dev,
 	}
 	mutex_unlock(&bd->ops_lock);
 
+	backlight_generate_event(bd, BACKLIGHT_UPDATE_SYSFS);
+
 	return rc;
 }
 
@@ -173,12 +197,12 @@ static int backlight_suspend(struct device *dev, pm_message_t state)
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
-	if (bd->ops->options & BL_CORE_SUSPENDRESUME) {
-		mutex_lock(&bd->ops_lock);
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops && bd->ops->options & BL_CORE_SUSPENDRESUME) {
 		bd->props.state |= BL_CORE_SUSPENDED;
 		backlight_update_status(bd);
-		mutex_unlock(&bd->ops_lock);
 	}
+	mutex_unlock(&bd->ops_lock);
 
 	return 0;
 }
@@ -187,12 +211,12 @@ static int backlight_resume(struct device *dev)
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
-	if (bd->ops->options & BL_CORE_SUSPENDRESUME) {
-		mutex_lock(&bd->ops_lock);
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops && bd->ops->options & BL_CORE_SUSPENDRESUME) {
 		bd->props.state &= ~BL_CORE_SUSPENDED;
 		backlight_update_status(bd);
-		mutex_unlock(&bd->ops_lock);
 	}
+	mutex_unlock(&bd->ops_lock);
 
 	return 0;
 }
@@ -214,6 +238,25 @@ static struct device_attribute bl_device_attributes[] = {
 };
 
 /**
+ * backlight_force_update - tell the backlight subsystem that hardware state
+ *   has changed
+ * @bd: the backlight device to update
+ *
+ * Updates the internal state of the backlight in response to a hardware event,
+ * and generate a uevent to notify userspace
+ */
+void backlight_force_update(struct backlight_device *bd,
+			    enum backlight_update_reason reason)
+{
+	mutex_lock(&bd->ops_lock);
+	if (bd->ops && bd->ops->get_brightness)
+		bd->props.brightness = bd->ops->get_brightness(bd);
+	mutex_unlock(&bd->ops_lock);
+	backlight_generate_event(bd, reason);
+}
+EXPORT_SYMBOL(backlight_force_update);
+
+/**
  * backlight_device_register - create and register a new object of
  *   backlight_device class.
  * @name: the name of the new object(must be the same as the name of the
@@ -227,7 +270,8 @@ static struct device_attribute bl_device_attributes[] = {
  * ERR_PTR() or a pointer to the newly allocated device.
  */
 struct backlight_device *backlight_device_register(const char *name,
-		struct device *parent, void *devdata, struct backlight_ops *ops)
+	struct device *parent, void *devdata, const struct backlight_ops *ops,
+	const struct backlight_properties *props)
 {
 	struct backlight_device *new_bd;
 	int rc;
@@ -246,6 +290,11 @@ struct backlight_device *backlight_device_register(const char *name,
 	new_bd->dev.release = bl_device_release;
 	dev_set_name(&new_bd->dev, name);
 	dev_set_drvdata(&new_bd->dev, devdata);
+
+	/* Set default properties */
+	if (props)
+		memcpy(&new_bd->props, props,
+		       sizeof(struct backlight_properties));
 
 	rc = device_register(&new_bd->dev);
 	if (rc) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -36,10 +36,5 @@ union vnic_rss_cpu {
 	} cpu[32];
 	u64 raw[32];
 };
-
-void vnic_set_rss_key(union vnic_rss_key *rss_key, u8 *key);
-void vnic_set_rss_cpu(union vnic_rss_cpu *rss_cpu, u8 *cpu);
-void vnic_get_rss_key(union vnic_rss_key *rss_key, u8 *key);
-void vnic_get_rss_cpu(union vnic_rss_cpu *rss_cpu, u8 *cpu);
 
 #endif /* _VNIC_RSS_H_ */

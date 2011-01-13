@@ -25,8 +25,8 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/mutex.h>
+#include <linux/jiffies.h>
 
 #include <asm/hardware/dec21285.h>
 #include <asm/io.h>
@@ -40,6 +40,7 @@
 
 #define	NWFLASH_VERSION "6.4"
 
+static DEFINE_MUTEX(flash_mutex);
 static void kick_open(void);
 static int get_flash_id(void);
 static int erase_block(int nBlock);
@@ -93,8 +94,9 @@ static int get_flash_id(void)
 	return c2;
 }
 
-static int flash_ioctl(struct inode *inodep, struct file *filep, unsigned int cmd, unsigned long arg)
+static long flash_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
+	mutex_lock(&flash_mutex);
 	switch (cmd) {
 	case CMD_WRITE_DISABLE:
 		gbWriteBase64Enable = 0;
@@ -112,8 +114,10 @@ static int flash_ioctl(struct inode *inodep, struct file *filep, unsigned int cm
 	default:
 		gbWriteBase64Enable = 0;
 		gbWriteEnable = 0;
+		mutex_unlock(&flash_mutex);
 		return -EINVAL;
 	}
+	mutex_unlock(&flash_mutex);
 	return 0;
 }
 
@@ -278,7 +282,7 @@ static loff_t flash_llseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	lock_kernel();
+	mutex_lock(&flash_mutex);
 	if (flashdebug)
 		printk(KERN_DEBUG "flash_llseek: offset=0x%X, orig=0x%X.\n",
 		       (unsigned int) offset, orig);
@@ -313,7 +317,7 @@ static loff_t flash_llseek(struct file *file, loff_t offset, int orig)
 	default:
 		ret = -EINVAL;
 	}
-	unlock_kernel();
+	mutex_unlock(&flash_mutex);
 	return ret;
 }
 
@@ -630,7 +634,7 @@ static const struct file_operations flash_fops =
 	.llseek		= flash_llseek,
 	.read		= flash_read,
 	.write		= flash_write,
-	.ioctl		= flash_ioctl,
+	.unlocked_ioctl	= flash_ioctl,
 };
 
 static struct miscdevice flash_miscdev =

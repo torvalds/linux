@@ -27,7 +27,7 @@ static struct pcmcia_irqs irqs[] = {
 
 static int cerf_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->irq = CERF_IRQ_GPIO_CF_IRQ;
+	skt->socket.pci_irq = CERF_IRQ_GPIO_CF_IRQ;
 
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
@@ -97,7 +97,7 @@ static struct pcmcia_low_level cerf_pcmcia_ops = {
 	.socket_suspend		= cerf_pcmcia_socket_suspend,
 };
 
-int __init pcmcia_cerf_init(struct device *dev)
+int __devinit pcmcia_cerf_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

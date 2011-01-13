@@ -310,8 +310,8 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 
 static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct device_node *dp = pbm->op->node;
-	struct of_device *op;
+	struct device_node *dp = pbm->op->dev.of_node;
+	struct platform_device *op;
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
 	int err;
@@ -329,7 +329,7 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 	 * 2: CE ERR
 	 * 3: POWER FAIL
 	 */
-	if (op->num_irqs < 4)
+	if (op->archdata.num_irqs < 4)
 		return;
 
 	/* We clear the error bits in the appropriate AFSR before
@@ -341,7 +341,7 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 		    SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE),
 		   base + SABRE_UE_AFSR);
 
-	err = request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
+	err = request_irq(op->archdata.irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Couldn't register UE, err=%d.\n",
 		       pbm->name, err);
@@ -351,11 +351,11 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 		   base + SABRE_CE_AFSR);
 
 
-	err = request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
+	err = request_irq(op->archdata.irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Couldn't register CE, err=%d.\n",
 		       pbm->name, err);
-	err = request_irq(op->irqs[0], psycho_pcierr_intr, 0,
+	err = request_irq(op->archdata.irqs[0], psycho_pcierr_intr, 0,
 			  "SABRE_PCIERR", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Couldn't register PCIERR, err=%d.\n",
@@ -443,7 +443,7 @@ static void __devinit sabre_scan_bus(struct pci_pbm_info *pbm,
 }
 
 static void __devinit sabre_pbm_init(struct pci_pbm_info *pbm,
-				     struct of_device *op)
+				     struct platform_device *op)
 {
 	psycho_pbm_init_common(pbm, op, "SABRE", PBM_CHIP_TYPE_SABRE);
 	pbm->pci_afsr = pbm->controller_regs + SABRE_PIOAFSR;
@@ -452,11 +452,11 @@ static void __devinit sabre_pbm_init(struct pci_pbm_info *pbm,
 	sabre_scan_bus(pbm, &op->dev);
 }
 
-static int __devinit sabre_probe(struct of_device *op,
+static int __devinit sabre_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *pr_regs;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;
 	u32 upa_portid, dma_mask;
 	struct iommu *iommu;
@@ -596,14 +596,17 @@ static struct of_device_id __initdata sabre_match[] = {
 };
 
 static struct of_platform_driver sabre_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= sabre_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = sabre_match,
+	},
 	.probe		= sabre_probe,
 };
 
 static int __init sabre_init(void)
 {
-	return of_register_driver(&sabre_driver, &of_bus_type);
+	return of_register_platform_driver(&sabre_driver);
 }
 
 subsys_initcall(sabre_init);

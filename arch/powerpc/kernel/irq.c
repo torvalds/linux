@@ -53,7 +53,8 @@
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
-#include <linux/perf_counter.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -65,14 +66,21 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
+#include <asm/dbell.h>
+#include <asm/smp.h>
+
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/firmware.h>
 #include <asm/lv1call.h>
 #endif
+#define CREATE_TRACE_POINTS
+#include <asm/trace.h>
+
+DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
+EXPORT_PER_CPU_SYMBOL(irq_stat);
 
 int __irq_offset_value;
-static int ppc_spurious_interrupts;
 
 #ifdef CONFIG_PPC32
 EXPORT_SYMBOL(__irq_offset_value);
@@ -85,7 +93,10 @@ extern int tau_interrupts(int);
 #endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
+
+#ifndef CONFIG_SPARSE_IRQ
 EXPORT_SYMBOL(irq_desc);
+#endif
 
 int distribute_irqs = 1;
 
@@ -105,7 +116,7 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
-notrace void raw_local_irq_restore(unsigned long en)
+notrace void arch_local_irq_restore(unsigned long en)
 {
 	/*
 	 * get_paca()->soft_enabled = en;
@@ -138,11 +149,6 @@ notrace void raw_local_irq_restore(unsigned long en)
 	}
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
-	if (test_perf_counter_pending()) {
-		clear_perf_counter_pending();
-		perf_counter_do_pending();
-	}
-
 	/*
 	 * if (get_paca()->hard_enabled) return;
 	 * But again we need to take care that gcc gets hard_enabled directly
@@ -152,14 +158,28 @@ notrace void raw_local_irq_restore(unsigned long en)
 	if (get_hard_enabled())
 		return;
 
+#if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
+	/* Check for pending doorbell interrupts and resend to ourself */
+	doorbell_check_self();
+#endif
+
 	/*
 	 * Need to hard-enable interrupts here.  Since currently disabled,
 	 * no need to take further asm precautions against preemption; but
 	 * use local_paca instead of get_paca() to avoid preemption checking.
 	 */
 	local_paca->hard_enabled = en;
+
+#ifndef CONFIG_BOOKE
+	/* On server, re-trigger the decrementer if it went negative since
+	 * some processors only trigger on edge transitions of the sign bit.
+	 *
+	 * BookE has a level sensitive decrementer (latches in TSR) so we
+	 * don't need that
+	 */
 	if ((int)mfspr(SPRN_DEC) < 0)
 		mtspr(SPRN_DEC, 1);
+#endif /* CONFIG_BOOKE */
 
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
@@ -172,83 +192,146 @@ notrace void raw_local_irq_restore(unsigned long en)
 
 	__hard_irq_enable();
 }
-EXPORT_SYMBOL(raw_local_irq_restore);
+EXPORT_SYMBOL(arch_local_irq_restore);
 #endif /* CONFIG_PPC64 */
 
-int show_interrupts(struct seq_file *p, void *v)
+static int show_other_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *)v, j;
-	struct irqaction *action;
-	struct irq_desc *desc;
-	unsigned long flags;
+	int j;
 
-	if (i == 0) {
-		seq_puts(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ", j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		desc = get_irq_desc(i);
-		spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
-		if (!action || !action->handler)
-			goto skip;
-		seq_printf(p, "%3d: ", i);
-#ifdef CONFIG_SMP
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#else
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#endif /* CONFIG_SMP */
-		if (desc->chip)
-			seq_printf(p, " %s ", desc->chip->typename);
-		else
-			seq_puts(p, "  None      ");
-		seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
-		seq_printf(p, "    %s", action->name);
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-		seq_putc(p, '\n');
-skip:
-		spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == NR_IRQS) {
 #if defined(CONFIG_PPC32) && defined(CONFIG_TAU_INT)
-		if (tau_initialized){
-			seq_puts(p, "TAU: ");
-			for_each_online_cpu(j)
-				seq_printf(p, "%10u ", tau_interrupts(j));
-			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
-		}
-#endif /* CONFIG_PPC32 && CONFIG_TAU_INT*/
-		seq_printf(p, "BAD: %10u\n", ppc_spurious_interrupts);
+	if (tau_initialized) {
+		seq_printf(p, "%*s: ", prec, "TAU");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", tau_interrupts(j));
+		seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
 	}
+#endif /* CONFIG_PPC32 && CONFIG_TAU_INT */
+
+	seq_printf(p, "%*s: ", prec, "LOC");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs);
+        seq_printf(p, "  Local timer interrupts\n");
+
+	seq_printf(p, "%*s: ", prec, "SPU");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).spurious_irqs);
+	seq_printf(p, "  Spurious interrupts\n");
+
+	seq_printf(p, "%*s: ", prec, "CNT");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).pmu_irqs);
+	seq_printf(p, "  Performance monitoring interrupts\n");
+
+	seq_printf(p, "%*s: ", prec, "MCE");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
+	seq_printf(p, "  Machine check exceptions\n");
+
 	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-void fixup_irqs(cpumask_t map)
+int show_interrupts(struct seq_file *p, void *v)
 {
+	unsigned long flags, any_count = 0;
+	int i = *(loff_t *) v, j, prec;
+	struct irqaction *action;
+	struct irq_desc *desc;
+
+	if (i > nr_irqs)
+		return 0;
+
+	for (prec = 3, j = 1000; prec < 10 && j <= nr_irqs; ++prec)
+		j *= 10;
+
+	if (i == nr_irqs)
+		return show_other_interrupts(p, prec);
+
+	/* print header */
+	if (i == 0) {
+		seq_printf(p, "%*s", prec + 8, "");
+		for_each_online_cpu(j)
+			seq_printf(p, "CPU%-8d", j);
+		seq_putc(p, '\n');
+	}
+
+	desc = irq_to_desc(i);
+	if (!desc)
+		return 0;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	for_each_online_cpu(j)
+		any_count |= kstat_irqs_cpu(i, j);
+	action = desc->action;
+	if (!action && !any_count)
+		goto out;
+
+	seq_printf(p, "%*d: ", prec, i);
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
+
+	if (desc->chip)
+		seq_printf(p, "  %-16s", desc->chip->name);
+	else
+		seq_printf(p, "  %-16s", "None");
+	seq_printf(p, " %-8s", (desc->status & IRQ_LEVEL) ? "Level" : "Edge");
+
+	if (action) {
+		seq_printf(p, "     %s", action->name);
+		while ((action = action->next) != NULL)
+			seq_printf(p, ", %s", action->name);
+	}
+
+	seq_putc(p, '\n');
+out:
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	return 0;
+}
+
+/*
+ * /proc/stat helpers
+ */
+u64 arch_irq_stat_cpu(unsigned int cpu)
+{
+	u64 sum = per_cpu(irq_stat, cpu).timer_irqs;
+
+	sum += per_cpu(irq_stat, cpu).pmu_irqs;
+	sum += per_cpu(irq_stat, cpu).mce_exceptions;
+	sum += per_cpu(irq_stat, cpu).spurious_irqs;
+
+	return sum;
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+void fixup_irqs(const struct cpumask *map)
+{
+	struct irq_desc *desc;
 	unsigned int irq;
 	static int warned;
+	cpumask_var_t mask;
+
+	alloc_cpumask_var(&mask, GFP_KERNEL);
 
 	for_each_irq(irq) {
-		cpumask_t mask;
-
-		if (irq_desc[irq].status & IRQ_PER_CPU)
+		desc = irq_to_desc(irq);
+		if (!desc)
 			continue;
 
-		cpumask_and(&mask, irq_desc[irq].affinity, &map);
-		if (any_online_cpu(mask) == NR_CPUS) {
+		if (desc->status & IRQ_PER_CPU)
+			continue;
+
+		cpumask_and(mask, desc->affinity, map);
+		if (cpumask_any(mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
-			mask = map;
+			cpumask_copy(mask, map);
 		}
-		if (irq_desc[irq].chip->set_affinity)
-			irq_desc[irq].chip->set_affinity(irq, &mask);
-		else if (irq_desc[irq].action && !(warned++))
+		if (desc->chip->set_affinity)
+			desc->chip->set_affinity(irq, mask);
+		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
+
+	free_cpumask_var(mask);
 
 	local_irq_enable();
 	mdelay(1);
@@ -256,7 +339,6 @@ void fixup_irqs(cpumask_t map)
 }
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 static inline void handle_one_irq(unsigned int irq)
 {
 	struct thread_info *curtp, *irqtp;
@@ -273,7 +355,7 @@ static inline void handle_one_irq(unsigned int irq)
 		return;
 	}
 
-	desc = irq_desc + irq;
+	desc = irq_to_desc(irq);
 	saved_sp_limit = current->thread.ksp_limit;
 
 	irqtp->task = curtp->task;
@@ -297,12 +379,6 @@ static inline void handle_one_irq(unsigned int irq)
 	if (irqtp->flags)
 		set_bits(irqtp->flags, &curtp->flags);
 }
-#else
-static inline void handle_one_irq(unsigned int irq)
-{
-	generic_handle_irq(irq);
-}
-#endif
 
 static inline void check_stack_overflow(void)
 {
@@ -325,6 +401,8 @@ void do_IRQ(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned int irq;
 
+	trace_irq_entry(regs);
+
 	irq_enter();
 
 	check_stack_overflow();
@@ -334,8 +412,7 @@ void do_IRQ(struct pt_regs *regs)
 	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE)
 		handle_one_irq(irq);
 	else if (irq != NO_IRQ_IGNORE)
-		/* That's not SMP safe ... but who cares ? */
-		ppc_spurious_interrupts++;
+		__get_cpu_var(irq_stat).spurious_irqs++;
 
 	irq_exit();
 	set_irq_regs(old_regs);
@@ -348,6 +425,8 @@ void do_IRQ(struct pt_regs *regs)
 		timer_interrupt(regs);
 	}
 #endif
+
+	trace_irq_exit(regs);
 }
 
 void __init init_IRQ(void)
@@ -368,22 +447,23 @@ struct thread_info *mcheckirq_ctx[NR_CPUS] __read_mostly;
 void exc_lvl_ctx_init(void)
 {
 	struct thread_info *tp;
-	int i;
+	int i, hw_cpu;
 
 	for_each_possible_cpu(i) {
-		memset((void *)critirq_ctx[i], 0, THREAD_SIZE);
-		tp = critirq_ctx[i];
+		hw_cpu = get_hard_smp_processor_id(i);
+		memset((void *)critirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = critirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = 0;
 
 #ifdef CONFIG_BOOKE
-		memset((void *)dbgirq_ctx[i], 0, THREAD_SIZE);
-		tp = dbgirq_ctx[i];
+		memset((void *)dbgirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = dbgirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = 0;
 
-		memset((void *)mcheckirq_ctx[i], 0, THREAD_SIZE);
-		tp = mcheckirq_ctx[i];
+		memset((void *)mcheckirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = mcheckirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = HARDIRQ_OFFSET;
 #endif
@@ -391,7 +471,6 @@ void exc_lvl_ctx_init(void)
 }
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
 struct thread_info *hardirq_ctx[NR_CPUS] __read_mostly;
 
@@ -428,10 +507,6 @@ static inline void do_softirq_onstack(void)
 	irqtp->task = NULL;
 }
 
-#else
-#define do_softirq_onstack()	__do_softirq()
-#endif /* CONFIG_IRQSTACKS */
-
 void do_softirq(void)
 {
 	unsigned long flags;
@@ -453,7 +528,7 @@ void do_softirq(void)
  */
 
 static LIST_HEAD(irq_hosts);
-static DEFINE_SPINLOCK(irq_big_lock);
+static DEFINE_RAW_SPINLOCK(irq_big_lock);
 static unsigned int revmap_trees_allocated;
 static DEFINE_MUTEX(revmap_trees_mutex);
 struct irq_map_entry irq_map[NR_IRQS];
@@ -499,28 +574,30 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	if (host->ops->match == NULL)
 		host->ops->match = default_irq_host_match;
 
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 
 	/* If it's a legacy controller, check for duplicates and
 	 * mark it as allocated (we use irq 0 host pointer for that
 	 */
 	if (revmap_type == IRQ_HOST_MAP_LEGACY) {
 		if (irq_map[0].host != NULL) {
-			spin_unlock_irqrestore(&irq_big_lock, flags);
+			raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 			/* If we are early boot, we can't free the structure,
 			 * too bad...
 			 * this will be fixed once slab is made available early
 			 * instead of the current cruft
 			 */
-			if (mem_init_done)
+			if (mem_init_done) {
+				of_node_put(host->of_node);
 				kfree(host);
+			}
 			return NULL;
 		}
 		irq_map[0].host = host;
 	}
 
 	list_add(&host->link, &irq_hosts);
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 
 	/* Additional setups per revmap type */
 	switch(revmap_type) {
@@ -535,7 +612,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			smp_wmb();
 
 			/* Clear norequest flags */
-			get_irq_desc(i)->status &= ~IRQ_NOREQUEST;
+			irq_to_desc(i)->status &= ~IRQ_NOREQUEST;
 
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
@@ -571,13 +648,13 @@ struct irq_host *irq_find_host(struct device_node *node)
 	 * the absence of a device node. This isn't a problem so far
 	 * yet though...
 	 */
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 	list_for_each_entry(h, &irq_hosts, link)
 		if (h->ops->match(h, node)) {
 			found = h;
 			break;
 		}
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 	return found;
 }
 EXPORT_SYMBOL_GPL(irq_find_host);
@@ -601,8 +678,16 @@ void irq_set_virq_count(unsigned int count)
 static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 			    irq_hw_number_t hwirq)
 {
+	struct irq_desc *desc;
+
+	desc = irq_to_desc_alloc_node(virq, 0);
+	if (!desc) {
+		pr_debug("irq: -> allocating desc failed\n");
+		goto error;
+	}
+
 	/* Clear IRQ_NOREQUEST flag */
-	get_irq_desc(virq)->status &= ~IRQ_NOREQUEST;
+	desc->status &= ~IRQ_NOREQUEST;
 
 	/* map it */
 	smp_wmb();
@@ -611,11 +696,14 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 
 	if (host->ops->map(host, virq, hwirq)) {
 		pr_debug("irq: -> mapping failed, freeing\n");
-		irq_free_virt(virq, 1);
-		return -1;
+		goto error;
 	}
 
 	return 0;
+
+error:
+	irq_free_virt(virq, 1);
+	return -1;
 }
 
 unsigned int irq_create_direct_mapping(struct irq_host *host)
@@ -699,7 +787,7 @@ unsigned int irq_create_mapping(struct irq_host *host,
 EXPORT_SYMBOL_GPL(irq_create_mapping);
 
 unsigned int irq_create_of_mapping(struct device_node *controller,
-				   u32 *intspec, unsigned int intsize)
+				   const u32 *intspec, unsigned int intsize)
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;
@@ -732,23 +820,11 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 
 	/* Set type if specified and different than the current one */
 	if (type != IRQ_TYPE_NONE &&
-	    type != (get_irq_desc(virq)->status & IRQF_TRIGGER_MASK))
+	    type != (irq_to_desc(virq)->status & IRQF_TRIGGER_MASK))
 		set_irq_type(virq, type);
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
-
-unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
-{
-	struct of_irq oirq;
-
-	if (of_irq_map_one(dev, index, &oirq))
-		return NO_IRQ;
-
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
-}
-EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
 void irq_dispose_mapping(unsigned int virq)
 {
@@ -804,7 +880,7 @@ void irq_dispose_mapping(unsigned int virq)
 	irq_map[virq].hwirq = host->inval_irq;
 
 	/* Set some flags */
-	get_irq_desc(virq)->status |= IRQ_NOREQUEST;
+	irq_to_desc(virq)->status |= IRQ_NOREQUEST;
 
 	/* Free it */
 	irq_free_virt(virq, 1);
@@ -935,7 +1011,7 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 	if (count == 0 || count > (irq_virq_count - NUM_ISA_INTERRUPTS))
 		return NO_IRQ;
 
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 
 	/* Use hint for 1 interrupt if any */
 	if (count == 1 && hint >= NUM_ISA_INTERRUPTS &&
@@ -959,7 +1035,7 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 		}
 	}
 	if (found == NO_IRQ) {
-		spin_unlock_irqrestore(&irq_big_lock, flags);
+		raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 		return NO_IRQ;
 	}
  hint_found:
@@ -968,7 +1044,7 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 		smp_wmb();
 		irq_map[i].host = host;
 	}
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 	return found;
 }
 
@@ -980,7 +1056,7 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 	WARN_ON (virq < NUM_ISA_INTERRUPTS);
 	WARN_ON (count == 0 || (virq + count) > irq_virq_count);
 
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 	for (i = virq; i < (virq + count); i++) {
 		struct irq_host *host;
 
@@ -993,15 +1069,27 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 		smp_wmb();
 		irq_map[i].host = NULL;
 	}
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 }
 
-void irq_early_init(void)
+int arch_early_irq_init(void)
 {
-	unsigned int i;
+	struct irq_desc *desc;
+	int i;
 
-	for (i = 0; i < NR_IRQS; i++)
-		get_irq_desc(i)->status |= IRQ_NOREQUEST;
+	for (i = 0; i < NR_IRQS; i++) {
+		desc = irq_to_desc(i);
+		if (desc)
+			desc->status |= IRQ_NOREQUEST;
+	}
+
+	return 0;
+}
+
+int arch_init_chip_data(struct irq_desc *desc, int node)
+{
+	desc->status |= IRQ_NOREQUEST;
+	return 0;
 }
 
 /* We need to create the radix trees late */
@@ -1057,22 +1145,25 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	unsigned long flags;
 	struct irq_desc *desc;
 	const char *p;
-	char none[] = "none";
+	static const char none[] = "none";
 	int i;
 
 	seq_printf(m, "%-5s  %-7s  %-15s  %s\n", "virq", "hwirq",
 		      "chip name", "host name");
 
-	for (i = 1; i < NR_IRQS; i++) {
-		desc = get_irq_desc(i);
-		spin_lock_irqsave(&desc->lock, flags);
+	for (i = 1; i < nr_irqs; i++) {
+		desc = irq_to_desc(i);
+		if (!desc)
+			continue;
+
+		raw_spin_lock_irqsave(&desc->lock, flags);
 
 		if (desc->action && desc->action->handler) {
 			seq_printf(m, "%5d  ", i);
 			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
 
-			if (desc->chip && desc->chip->typename)
-				p = desc->chip->typename;
+			if (desc->chip && desc->chip->name)
+				p = desc->chip->name;
 			else
 				p = none;
 			seq_printf(m, "%-15s  ", p);
@@ -1084,7 +1175,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "%s\n", p);
 		}
 
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
 	return 0;

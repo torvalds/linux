@@ -26,6 +26,12 @@ disabled, and more (ftrace allows for tracer plugins, which
 means that the list of tracers can always grow).
 
 
+Implementation Details
+----------------------
+
+See ftrace-design.txt for details for arch porters and such.
+
+
 The File System
 ---------------
 
@@ -85,26 +91,19 @@ of ftrace. Here is a list of some of the key files:
 	This file holds the output of the trace in a human
 	readable format (described below).
 
-  latency_trace:
-
-	This file shows the same trace but the information
-	is organized more to display possible latencies
-	in the system (described below).
-
   trace_pipe:
 
 	The output is the same as the "trace" file but this
 	file is meant to be streamed with live tracing.
-	Reads from this file will block until new data
-	is retrieved. Unlike the "trace" and "latency_trace"
-	files, this file is a consumer. This means reading
-	from this file causes sequential reads to display
-	more current data. Once data is read from this
-	file, it is consumed, and will not be read
-	again with a sequential read. The "trace" and
-	"latency_trace" files are static, and if the
-	tracer is not adding more data, they will display
-	the same information every time they are read.
+	Reads from this file will block until new data is
+	retrieved.  Unlike the "trace" file, this file is a
+	consumer. This means reading from this file causes
+	sequential reads to display more current data. Once
+	data is read from this file, it is consumed, and
+	will not be read again with a sequential read. The
+	"trace" file is static, and if the tracer is not
+	adding more data,they will display the same
+	information every time they are read.
 
   trace_options:
 
@@ -117,10 +116,10 @@ of ftrace. Here is a list of some of the key files:
 	Some of the tracers record the max latency.
 	For example, the time interrupts are disabled.
 	This time is saved in this file. The max trace
-	will also be stored, and displayed by either
-	"trace" or "latency_trace".  A new max trace will
-	only be recorded if the latency is greater than
-	the value in this file. (in microseconds)
+	will also be stored, and displayed by "trace".
+	A new max trace will only be recorded if the
+	latency is greater than the value in this
+	file. (in microseconds)
 
   buffer_size_kb:
 
@@ -134,7 +133,7 @@ of ftrace. Here is a list of some of the key files:
 	than requested, the rest of the page will be used,
 	making the actual allocation bigger than requested.
 	( Note, the size may not be a multiple of the page size
-	  due to buffer managment overhead. )
+	  due to buffer management overhead. )
 
 	This can only be updated when the current_tracer
 	is set to "nop".
@@ -155,6 +154,9 @@ of ftrace. Here is a list of some of the key files:
 	has a side effect of enabling or disabling specific functions
 	to be traced. Echoing names of functions into this file
 	will limit the trace to only those functions.
+
+	This interface also allows for commands to be used. See the
+	"Filter commands" section for more details.
 
   set_ftrace_notrace:
 
@@ -210,7 +212,7 @@ Here is the list of current tracers that may be configured.
 	the trace with the longest max latency.
 	See tracing_max_latency. When a new max is recorded,
 	it replaces the old trace. It is best to view this
-	trace via the latency_trace file.
+	trace with the latency-format option enabled.
 
   "preemptoff"
 
@@ -307,8 +309,8 @@ the lowest priority thread (pid 0).
 Latency trace format
 --------------------
 
-For traces that display latency times, the latency_trace file
-gives somewhat more information to see why a latency happened.
+When the latency-format option is enabled, the trace file gives
+somewhat more information to see why a latency happened.
 Here is a typical trace.
 
 # tracer: irqsoff
@@ -380,9 +382,10 @@ explains which is which.
 
 The above is mostly meaningful for kernel developers.
 
-  time: This differs from the trace file output. The trace file output
-	includes an absolute timestamp. The timestamp used by the
-	latency_trace file is relative to the start of the trace.
+  time: When the latency-format option is enabled, the trace file
+	output includes a timestamp relative to the start of the
+	trace. This differs from the output when latency-format
+	is disabled, which includes an absolute timestamp.
 
   delay: This is just to help catch your eye a bit better. And
 	 needs to be fixed to be only relative to the same CPU.
@@ -440,7 +443,8 @@ Here are the available options:
   sym-addr:
    bash-4000  [01]  1477.606694: simple_strtoul <c0339346>
 
-  verbose - This deals with the latency_trace file.
+  verbose - This deals with the trace file when the
+            latency-format option is enabled.
 
     bash  4000 1 0 00000000 00010a95 [58127d26] 1720.415ms \
     (+0.000ms): simple_strtoul (strict_strtoul)
@@ -472,7 +476,7 @@ Here are the available options:
 		the app is no longer running
 
 		The lookup is performed when you read
-		trace,trace_pipe,latency_trace. Example:
+		trace,trace_pipe. Example:
 
 		a.out-1623  [000] 40874.465068: /root/a.out[+0x480] <-/root/a.out[+0
 x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
@@ -481,6 +485,11 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 	       every scheduling event. Will add overhead if
 	       there's a lot of tasks running at once.
 
+  latency-format - This option changes the trace. When
+                   it is enabled, the trace displays
+                   additional information about the
+                   latencies, as described in "Latency
+                   trace format".
 
 sched_switch
 ------------
@@ -596,12 +605,13 @@ To reset the maximum, echo 0 into tracing_max_latency. Here is
 an example:
 
  # echo irqsoff > current_tracer
+ # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
  # echo 1 > tracing_enabled
  # ls -ltr
  [...]
  # echo 0 > tracing_enabled
- # cat latency_trace
+ # cat trace
 # tracer: irqsoff
 #
 irqsoff latency trace v1.1.5 on 2.6.26
@@ -703,12 +713,13 @@ which preemption was disabled. The control of preemptoff tracer
 is much like the irqsoff tracer.
 
  # echo preemptoff > current_tracer
+ # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
  # echo 1 > tracing_enabled
  # ls -ltr
  [...]
  # echo 0 > tracing_enabled
- # cat latency_trace
+ # cat trace
 # tracer: preemptoff
 #
 preemptoff latency trace v1.1.5 on 2.6.26-rc8
@@ -850,12 +861,13 @@ Again, using this trace is much like the irqsoff and preemptoff
 tracers.
 
  # echo preemptirqsoff > current_tracer
+ # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
  # echo 1 > tracing_enabled
  # ls -ltr
  [...]
  # echo 0 > tracing_enabled
- # cat latency_trace
+ # cat trace
 # tracer: preemptirqsoff
 #
 preemptirqsoff latency trace v1.1.5 on 2.6.26-rc8
@@ -1012,11 +1024,12 @@ Instead of performing an 'ls', we will run 'sleep 1' under
 'chrt' which changes the priority of the task.
 
  # echo wakeup > current_tracer
+ # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
  # echo 1 > tracing_enabled
  # chrt -f 5 sleep 1
  # echo 0 > tracing_enabled
- # cat latency_trace
+ # cat trace
 # tracer: wakeup
 #
 wakeup latency trace v1.1.5 on 2.6.26-rc8
@@ -1221,6 +1234,7 @@ something like this simple program:
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -1255,6 +1269,7 @@ const char *find_debugfs(void)
                return NULL;
        }
 
+       strcat(debugfs, "/tracing/");
        debugfs_found = 1;
 
        return debugfs;
@@ -1325,12 +1340,14 @@ ftrace_dump_on_oops must be set. To set ftrace_dump_on_oops, one
 can either use the sysctl function or set it via the proc system
 interface.
 
-  sysctl kernel.ftrace_dump_on_oops=1
+  sysctl kernel.ftrace_dump_on_oops=n
 
 or
 
-  echo 1 > /proc/sys/kernel/ftrace_dump_on_oops
+  echo n > /proc/sys/kernel/ftrace_dump_on_oops
 
+If n = 1, ftrace will dump buffers of all CPUs, if n = 2 ftrace will
+only dump the buffer of the CPU that triggered the oops.
 
 Here's an example of such a dump after a null pointer
 dereference in a kernel module:
@@ -1576,7 +1593,7 @@ module author does not need to worry about it.
 
 When tracing is enabled, kstop_machine is called to prevent
 races with the CPUS executing code being modified (which can
-cause the CPU to do undesireable things), and the nops are
+cause the CPU to do undesirable things), and the nops are
 patched back to calls. But this time, they do not call mcount
 (which is just a function stub). They now call into the ftrace
 infrastructure.
@@ -1613,7 +1630,7 @@ If I am only interested in sys_nanosleep and hrtimer_interrupt:
 
  # echo sys_nanosleep hrtimer_interrupt \
 		> set_ftrace_filter
- # echo ftrace > current_tracer
+ # echo function > current_tracer
  # echo 1 > tracing_enabled
  # usleep 1
  # echo 0 > tracing_enabled
@@ -1808,6 +1825,47 @@ Now if you want to go back to trace all functions you can clear
 this special filter via:
 
  echo > set_graph_function
+
+
+Filter commands
+---------------
+
+A few commands are supported by the set_ftrace_filter interface.
+Trace commands have the following format:
+
+<function>:<command>:<parameter>
+
+The following commands are supported:
+
+- mod
+  This command enables function filtering per module. The
+  parameter defines the module. For example, if only the write*
+  functions in the ext3 module are desired, run:
+
+   echo 'write*:mod:ext3' > set_ftrace_filter
+
+  This command interacts with the filter in the same way as
+  filtering based on function names. Thus, adding more functions
+  in a different module is accomplished by appending (>>) to the
+  filter file. Remove specific module functions by prepending
+  '!':
+
+   echo '!writeback*:mod:ext3' >> set_ftrace_filter
+
+- traceon/traceoff
+  These commands turn tracing on and off when the specified
+  functions are hit. The parameter determines how many times the
+  tracing system is turned on and off. If unspecified, there is
+  no limit. For example, to disable tracing when a schedule bug
+  is hit the first 5 times, run:
+
+   echo '__schedule_bug:traceoff:5' > set_ftrace_filter
+
+  These commands are cumulative whether or not they are appended
+  to set_ftrace_filter. To remove a command, prepend it by '!'
+  and drop the parameter:
+
+   echo '!__schedule_bug:traceoff' > set_ftrace_filter
 
 
 trace_pipe

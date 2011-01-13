@@ -409,7 +409,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 static void carm_remove_one (struct pci_dev *pdev);
 static int carm_bdev_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
-static struct pci_device_id carm_pci_tbl[] = {
+static const struct pci_device_id carm_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x8000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, },
 	{ PCI_VENDOR_ID_PROMISE, 0x8002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, },
 	{ }	/* terminate list */
@@ -423,7 +423,7 @@ static struct pci_driver carm_driver = {
 	.remove		= carm_remove_one,
 };
 
-static struct block_device_operations carm_bd_ops = {
+static const struct block_device_operations carm_bd_ops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= carm_bdev_getgeo,
 };
@@ -1518,8 +1518,7 @@ static int carm_init_disks(struct carm_host *host)
 			break;
 		}
 		disk->queue = q;
-		blk_queue_max_hw_segments(q, CARM_MAX_REQ_SG);
-		blk_queue_max_phys_segments(q, CARM_MAX_REQ_SG);
+		blk_queue_max_segments(q, CARM_MAX_REQ_SG);
 		blk_queue_segment_boundary(q, CARM_SG_BOUNDARY);
 
 		q->queuedata = port;
@@ -1564,15 +1563,13 @@ static int carm_init_shm(struct carm_host *host)
 
 static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static unsigned int printed_version;
 	struct carm_host *host;
 	unsigned int pci_dac;
 	int rc;
 	struct request_queue *q;
 	unsigned int i;
 
-	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+	printk_once(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)

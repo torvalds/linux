@@ -19,35 +19,68 @@
 #ifndef RC_H
 #define RC_H
 
+#include "hw.h"
+
 struct ath_softc;
 
 #define ATH_RATE_MAX     30
-#define RATE_TABLE_SIZE  64
+#define RATE_TABLE_SIZE  72
 #define MAX_TX_RATE_PHY  48
 
-/* VALID_ALL - valid for 20/40/Legacy,
- * VALID - Legacy only,
- * VALID_20 - HT 20 only,
- * VALID_40 - HT 40 only */
 
-#define INVALID    0x0
-#define VALID      0x1
-#define VALID_20   0x2
-#define VALID_40   0x4
-#define VALID_2040 (VALID_20|VALID_40)
-#define VALID_ALL  (VALID_2040|VALID)
+#define RC_INVALID	0x0000
+#define RC_LEGACY	0x0001
+#define RC_SS		0x0002
+#define RC_DS		0x0004
+#define RC_TS		0x0008
+#define RC_HT_20	0x0010
+#define RC_HT_40	0x0020
+
+#define RC_STREAM_MASK	0xe
+#define RC_DS_OR_LATER(f)	((((f) & RC_STREAM_MASK) == RC_DS) || \
+				(((f) & RC_STREAM_MASK) == (RC_DS | RC_TS)))
+#define RC_TS_ONLY(f)		(((f) & RC_STREAM_MASK) == RC_TS)
+#define RC_SS_OR_LEGACY(f)	((f) & (RC_SS | RC_LEGACY))
+
+#define RC_HT_2040		(RC_HT_20 | RC_HT_40)
+#define RC_ALL_STREAM		(RC_SS | RC_DS | RC_TS)
+#define RC_L_SD			(RC_LEGACY | RC_SS | RC_DS)
+#define RC_L_SDT		(RC_LEGACY | RC_SS | RC_DS | RC_TS)
+#define RC_HT_S_20		(RC_HT_20 | RC_SS)
+#define RC_HT_D_20		(RC_HT_20 | RC_DS)
+#define RC_HT_T_20		(RC_HT_20 | RC_TS)
+#define RC_HT_S_40		(RC_HT_40 | RC_SS)
+#define RC_HT_D_40		(RC_HT_40 | RC_DS)
+#define RC_HT_T_40		(RC_HT_40 | RC_TS)
+
+#define RC_HT_SD_20		(RC_HT_20 | RC_SS | RC_DS)
+#define RC_HT_DT_20		(RC_HT_20 | RC_DS | RC_TS)
+#define RC_HT_SD_40		(RC_HT_40 | RC_SS | RC_DS)
+#define RC_HT_DT_40		(RC_HT_40 | RC_DS | RC_TS)
+
+#define RC_HT_SD_2040		(RC_HT_2040 | RC_SS | RC_DS)
+#define RC_HT_SDT_2040		(RC_HT_2040 | RC_SS | RC_DS | RC_TS)
+
+#define RC_HT_SDT_20		(RC_HT_20 | RC_SS | RC_DS | RC_TS)
+#define RC_HT_SDT_40		(RC_HT_40 | RC_SS | RC_DS | RC_TS)
+
+#define RC_ALL			(RC_LEGACY | RC_HT_2040 | RC_ALL_STREAM)
 
 enum {
 	WLAN_RC_PHY_OFDM,
 	WLAN_RC_PHY_CCK,
 	WLAN_RC_PHY_HT_20_SS,
 	WLAN_RC_PHY_HT_20_DS,
+	WLAN_RC_PHY_HT_20_TS,
 	WLAN_RC_PHY_HT_40_SS,
 	WLAN_RC_PHY_HT_40_DS,
+	WLAN_RC_PHY_HT_40_TS,
 	WLAN_RC_PHY_HT_20_SS_HGI,
 	WLAN_RC_PHY_HT_20_DS_HGI,
+	WLAN_RC_PHY_HT_20_TS_HGI,
 	WLAN_RC_PHY_HT_40_SS_HGI,
 	WLAN_RC_PHY_HT_40_DS_HGI,
+	WLAN_RC_PHY_HT_40_TS_HGI,
 	WLAN_RC_PHY_MAX
 };
 
@@ -55,79 +88,87 @@ enum {
 				|| (_phy == WLAN_RC_PHY_HT_40_DS)	\
 				|| (_phy == WLAN_RC_PHY_HT_20_DS_HGI)	\
 				|| (_phy == WLAN_RC_PHY_HT_40_DS_HGI))
+#define WLAN_RC_PHY_TS(_phy)   ((_phy == WLAN_RC_PHY_HT_20_TS)		\
+				|| (_phy == WLAN_RC_PHY_HT_40_TS)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_TS_HGI)	\
+				|| (_phy == WLAN_RC_PHY_HT_40_TS_HGI))
+#define WLAN_RC_PHY_20(_phy)   ((_phy == WLAN_RC_PHY_HT_20_SS)		\
+				|| (_phy == WLAN_RC_PHY_HT_20_DS)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_TS)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_SS_HGI)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_DS_HGI)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_TS_HGI))
 #define WLAN_RC_PHY_40(_phy)   ((_phy == WLAN_RC_PHY_HT_40_SS)		\
 				|| (_phy == WLAN_RC_PHY_HT_40_DS)	\
+				|| (_phy == WLAN_RC_PHY_HT_40_TS)	\
 				|| (_phy == WLAN_RC_PHY_HT_40_SS_HGI)	\
-				|| (_phy == WLAN_RC_PHY_HT_40_DS_HGI))
+				|| (_phy == WLAN_RC_PHY_HT_40_DS_HGI)	\
+				|| (_phy == WLAN_RC_PHY_HT_40_TS_HGI))
 #define WLAN_RC_PHY_SGI(_phy)  ((_phy == WLAN_RC_PHY_HT_20_SS_HGI)      \
 				|| (_phy == WLAN_RC_PHY_HT_20_DS_HGI)   \
+				|| (_phy == WLAN_RC_PHY_HT_20_TS_HGI)   \
 				|| (_phy == WLAN_RC_PHY_HT_40_SS_HGI)   \
-				|| (_phy == WLAN_RC_PHY_HT_40_DS_HGI))
+				|| (_phy == WLAN_RC_PHY_HT_40_DS_HGI)   \
+				|| (_phy == WLAN_RC_PHY_HT_40_TS_HGI))
 
 #define WLAN_RC_PHY_HT(_phy)    (_phy >= WLAN_RC_PHY_HT_20_SS)
 
 #define WLAN_RC_CAP_MODE(capflag) (((capflag & WLAN_RC_HT_FLAG) ?	\
-		(capflag & WLAN_RC_40_FLAG) ? VALID_40 : VALID_20 : VALID))
+	((capflag & WLAN_RC_40_FLAG) ? RC_HT_40 : RC_HT_20) : RC_LEGACY))
+
+#define WLAN_RC_CAP_STREAM(capflag) (((capflag & WLAN_RC_TS_FLAG) ?	\
+	(RC_TS) : ((capflag & WLAN_RC_DS_FLAG) ? RC_DS : RC_SS)))
 
 /* Return TRUE if flag supports HT20 && client supports HT20 or
  * return TRUE if flag supports HT40 && client supports HT40.
  * This is used becos some rates overlap between HT20/HT40.
  */
 #define WLAN_RC_PHY_HT_VALID(flag, capflag)			\
-	(((flag & VALID_20) && !(capflag & WLAN_RC_40_FLAG)) || \
-	 ((flag & VALID_40) && (capflag & WLAN_RC_40_FLAG)))
+	(((flag & RC_HT_20) && !(capflag & WLAN_RC_40_FLAG)) || \
+	 ((flag & RC_HT_40) && (capflag & WLAN_RC_40_FLAG)))
 
 #define WLAN_RC_DS_FLAG         (0x01)
-#define WLAN_RC_40_FLAG         (0x02)
-#define WLAN_RC_SGI_FLAG        (0x04)
-#define WLAN_RC_HT_FLAG         (0x08)
+#define WLAN_RC_TS_FLAG         (0x02)
+#define WLAN_RC_40_FLAG         (0x04)
+#define WLAN_RC_SGI_FLAG        (0x08)
+#define WLAN_RC_HT_FLAG         (0x10)
 
 /**
  * struct ath_rate_table - Rate Control table
- * @valid: valid for use in rate control
- * @valid_single_stream: valid for use in rate control for
- * 	single stream operation
- * @phy: CCK/OFDM
+ * @rate_cnt: total number of rates for the given wireless mode
+ * @mcs_start: MCS rate index offset
+ * @rate_flags: Rate Control flags
+ * @phy: CCK/OFDM/HT20/HT40
  * @ratekbps: rate in Kbits per second
  * @user_ratekbps: user rate in Kbits per second
  * @ratecode: rate that goes into HW descriptors
- * @short_preamble: Mask for enabling short preamble in ratecode for CCK
  * @dot11rate: value that goes into supported
  * 	rates info element of MLME
  * @ctrl_rate: Index of next lower basic rate, used for duration computation
- * @max_4ms_framelen: maximum frame length(bytes) for tx duration
+ * @cw40index: Index of rates having 40MHz channel width
+ * @sgi_index: Index of rates having Short Guard Interval
+ * @ht_index: high throughput rates having 40MHz channel width and
+ * 	Short Guard Interval
  * @probe_interval: interval for rate control to probe for other rates
- * @rssi_reduce_interval: interval for rate control to reduce rssi
  * @initial_ratemax: initial ratemax value
  */
 struct ath_rate_table {
 	int rate_cnt;
+	int mcs_start;
 	struct {
-		int valid;
-		int valid_single_stream;
+		u16 rate_flags;
 		u8 phy;
 		u32 ratekbps;
 		u32 user_ratekbps;
 		u8 ratecode;
-		u8 short_preamble;
 		u8 dot11rate;
 		u8 ctrl_rate;
-		int8_t rssi_ack_validmin;
-		int8_t rssi_ack_deltamin;
-		u8 base_index;
 		u8 cw40index;
 		u8 sgi_index;
 		u8 ht_index;
-		u32 max_4ms_framelen;
 	} info[RATE_TABLE_SIZE];
 	u32 probe_interval;
-	u32 rssi_reduce_interval;
 	u8 initial_ratemax;
-};
-
-struct ath_tx_ratectrl_state {
-	int8_t rssi_thres;	/* required rssi for this rate (dB) */
-	u8 per;			/* recent estimate of packet error rate (%) */
 };
 
 struct ath_rateset {
@@ -135,39 +176,30 @@ struct ath_rateset {
 	u8 rs_rates[ATH_RATE_MAX];
 };
 
+struct ath_rc_stats {
+	u32 success;
+	u32 retries;
+	u32 xretries;
+	u8 per;
+};
+
 /**
  * struct ath_rate_priv - Rate Control priv data
  * @state: RC state
- * @rssi_last: last ACK rssi
- * @rssi_last_lookup: last ACK rssi used for lookup
- * @rssi_last_prev: previous last ACK rssi
- * @rssi_last_prev2: 2nd previous last ACK rssi
- * @rssi_sum_cnt: count of rssi_sum for averaging
- * @rssi_sum_rate: rate that we are averaging
- * @rssi_sum: running sum of rssi for averaging
  * @probe_rate: rate we are probing at
- * @rssi_time: msec timestamp for last ack rssi
- * @rssi_down_time: msec timestamp for last down step
  * @probe_time: msec timestamp for last probe
  * @hw_maxretry_pktcnt: num of packets since we got HW max retry error
  * @max_valid_rate: maximum number of valid rate
  * @per_down_time: msec timestamp for last PER down step
  * @valid_phy_ratecnt: valid rate count
  * @rate_max_phy: phy index for the max rate
+ * @per: PER for every valid rate in %
  * @probe_interval: interval for ratectrl to probe for other rates
- * @prev_data_rix: rate idx of last data frame
  * @ht_cap: HT capabilities
  * @neg_rates: Negotatied rates
  * @neg_ht_rates: Negotiated HT rates
  */
 struct ath_rate_priv {
-	int8_t rssi_last;
-	int8_t rssi_last_lookup;
-	int8_t rssi_last_prev;
-	int8_t rssi_last_prev2;
-	int32_t rssi_sum_cnt;
-	int32_t rssi_sum_rate;
-	int32_t rssi_sum;
 	u8 rate_table_size;
 	u8 probe_rate;
 	u8 hw_maxretry_pktcnt;
@@ -177,40 +209,36 @@ struct ath_rate_priv {
 	u8 valid_phy_ratecnt[WLAN_RC_PHY_MAX];
 	u8 valid_phy_rateidx[WLAN_RC_PHY_MAX][RATE_TABLE_SIZE];
 	u8 rate_max_phy;
-	u32 rssi_time;
-	u32 rssi_down_time;
+	u8 per[RATE_TABLE_SIZE];
 	u32 probe_time;
 	u32 per_down_time;
 	u32 probe_interval;
-	u32 prev_data_rix;
-	u32 tx_triglevel_max;
-	struct ath_tx_ratectrl_state state[RATE_TABLE_SIZE];
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
-	struct ath_rate_softc *asc;
+	const struct ath_rate_table *rate_table;
+
+	struct dentry *debugfs_rcstats;
+	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 };
 
 enum ath9k_internal_frame_type {
-	ATH9K_NOT_INTERNAL,
-	ATH9K_INT_PAUSE,
-	ATH9K_INT_UNPAUSE
+	ATH9K_IFT_NOT_INTERNAL,
+	ATH9K_IFT_PAUSE,
+	ATH9K_IFT_UNPAUSE
 };
 
-struct ath_tx_info_priv {
-	struct ath_wiphy *aphy;
-	struct ath_tx_status tx;
-	int n_frames;
-	int n_bad_frames;
-	bool update_rc;
-	enum ath9k_internal_frame_type frame_type;
-};
-
-#define ATH_TX_INFO_PRIV(tx_info) \
-	((struct ath_tx_info_priv *)((tx_info)->rate_driver_data[0]))
-
-void ath_rate_attach(struct ath_softc *sc);
-u8 ath_rate_findrateix(struct ath_softc *sc, u8 dot11_rate);
+#ifdef CONFIG_ATH9K_RATE_CONTROL
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
+#else
+static inline int ath_rate_control_register(void)
+{
+	return 0;
+}
+
+static inline void ath_rate_control_unregister(void)
+{
+}
+#endif
 
 #endif /* RC_H */

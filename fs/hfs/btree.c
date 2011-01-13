@@ -9,6 +9,7 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/log2.h>
 
 #include "btree.h"
@@ -26,7 +27,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	if (!tree)
 		return NULL;
 
-	init_MUTEX(&tree->tree_lock);
+	mutex_init(&tree->tree_lock);
 	spin_lock_init(&tree->hash_lock);
 	/* Set the correct compare function */
 	tree->sb = sb;
@@ -57,6 +58,11 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	}
 	}
 	unlock_new_inode(tree->inode);
+
+	if (!HFS_I(tree->inode)->first_blocks) {
+		printk(KERN_ERR "hfs: invalid btree extent records (0 size).\n");
+		goto free_inode;
+	}
 
 	mapping = tree->inode->i_mapping;
 	page = read_mapping_page(mapping, 0, NULL);

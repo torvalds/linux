@@ -48,7 +48,6 @@ static void set_impl_params(struct qdio_irq *irq_ptr,
 	if (!irq_ptr)
 		return;
 
-	WARN_ON((unsigned long)&irq_ptr->qib & 0xff);
 	irq_ptr->qib.pfmt = qib_param_field_format;
 	if (qib_param_field)
 		memcpy(irq_ptr->qib.parm, qib_param_field,
@@ -82,14 +81,12 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 		q = kmem_cache_alloc(qdio_q_cache, GFP_KERNEL);
 		if (!q)
 			return -ENOMEM;
-		WARN_ON((unsigned long)q & 0xff);
 
 		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
 		if (!q->slib) {
 			kmem_cache_free(qdio_q_cache, q);
 			return -ENOMEM;
 		}
-		WARN_ON((unsigned long)q->slib & 0x7ff);
 		irq_ptr_qs[i] = q;
 	}
 	return 0;
@@ -109,10 +106,12 @@ int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs, int nr_output_qs
 static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
 			      qdio_handler_t *handler, int i)
 {
-	/* must be cleared by every qdio_establish */
-	memset(q, 0, ((char *)&q->slib) - ((char *)q));
-	memset(q->slib, 0, PAGE_SIZE);
+	struct slib *slib = q->slib;
 
+	/* queue must be cleared for qdio_establish */
+	memset(q, 0, sizeof(*q));
+	memset(slib, 0, PAGE_SIZE);
+	q->slib = slib;
 	q->irq_ptr = irq_ptr;
 	q->mask = 1 << (31 - i);
 	q->nr = i;
@@ -131,7 +130,7 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	/* fill in sbal */
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++) {
 		q->sbal[j] = *sbals_array++;
-		WARN_ON((unsigned long)q->sbal[j] & 0xff);
+		BUG_ON((unsigned long)q->sbal[j] & 0xff);
 	}
 
 	/* fill in slib */
@@ -147,11 +146,6 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	/* fill in sl */
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
 		q->sl->element[j].sbal = (unsigned long)q->sbal[j];
-
-	DBF_EVENT("sl-slsb-sbal");
-	DBF_HEX(q->sl, sizeof(void *));
-	DBF_HEX(&q->slsb, sizeof(void *));
-	DBF_HEX(q->sbal, sizeof(void *));
 }
 
 static void setup_queues(struct qdio_irq *irq_ptr,
@@ -167,6 +161,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_queues_misc(q, irq_ptr, qdio_init->input_handler, i);
 
 		q->is_input_q = 1;
+		q->u.in.queue_start_poll = qdio_init->queue_start_poll;
 		setup_storage_lists(q, irq_ptr, input_sbal_array, i);
 		input_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
@@ -183,6 +178,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_queues_misc(q, irq_ptr, qdio_init->output_handler, i);
 
 		q->is_input_q = 0;
+		q->u.out.scan_threshold = qdio_init->scan_threshold;
 		setup_storage_lists(q, irq_ptr, output_sbal_array, i);
 		output_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
@@ -201,14 +197,10 @@ static void process_ac_flags(struct qdio_irq *irq_ptr, unsigned char qdioac)
 		irq_ptr->siga_flag.output = 1;
 	if (qdioac & AC1_SIGA_SYNC_NEEDED)
 		irq_ptr->siga_flag.sync = 1;
-	if (qdioac & AC1_AUTOMATIC_SYNC_ON_THININT)
-		irq_ptr->siga_flag.no_sync_ti = 1;
-	if (qdioac & AC1_AUTOMATIC_SYNC_ON_OUT_PCI)
-		irq_ptr->siga_flag.no_sync_out_pci = 1;
-
-	if (irq_ptr->siga_flag.no_sync_out_pci &&
-	    irq_ptr->siga_flag.no_sync_ti)
-		irq_ptr->siga_flag.no_sync_out_ti = 1;
+	if (!(qdioac & AC1_AUTOMATIC_SYNC_ON_THININT))
+		irq_ptr->siga_flag.sync_after_ai = 1;
+	if (!(qdioac & AC1_AUTOMATIC_SYNC_ON_OUT_PCI))
+		irq_ptr->siga_flag.sync_out_after_pci = 1;
 }
 
 static void check_and_setup_qebsm(struct qdio_irq *irq_ptr,
@@ -341,10 +333,10 @@ static void __qdio_allocate_fill_qdr(struct qdio_irq *irq_ptr,
 	irq_ptr->qdr->qdf0[i + nr].slsba =
 		(unsigned long)&irq_ptr_qs[i]->slsb.val[0];
 
-	irq_ptr->qdr->qdf0[i + nr].akey = PAGE_DEFAULT_KEY;
-	irq_ptr->qdr->qdf0[i + nr].bkey = PAGE_DEFAULT_KEY;
-	irq_ptr->qdr->qdf0[i + nr].ckey = PAGE_DEFAULT_KEY;
-	irq_ptr->qdr->qdf0[i + nr].dkey = PAGE_DEFAULT_KEY;
+	irq_ptr->qdr->qdf0[i + nr].akey = PAGE_DEFAULT_KEY >> 4;
+	irq_ptr->qdr->qdf0[i + nr].bkey = PAGE_DEFAULT_KEY >> 4;
+	irq_ptr->qdr->qdf0[i + nr].ckey = PAGE_DEFAULT_KEY >> 4;
+	irq_ptr->qdr->qdf0[i + nr].dkey = PAGE_DEFAULT_KEY >> 4;
 }
 
 static void setup_qdr(struct qdio_irq *irq_ptr,
@@ -358,7 +350,7 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 	irq_ptr->qdr->iqdsz = sizeof(struct qdesfmt0) / 4; /* size in words */
 	irq_ptr->qdr->oqdsz = sizeof(struct qdesfmt0) / 4;
 	irq_ptr->qdr->qiba = (unsigned long)&irq_ptr->qib;
-	irq_ptr->qdr->qkey = PAGE_DEFAULT_KEY;
+	irq_ptr->qdr->qkey = PAGE_DEFAULT_KEY >> 4;
 
 	for (i = 0; i < qdio_init->no_input_qs; i++)
 		__qdio_allocate_fill_qdr(irq_ptr, irq_ptr->input_qs, i, 0);
@@ -373,6 +365,8 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 {
 	if (qebsm_possible())
 		irq_ptr->qib.rflags |= QIB_RFLAGS_ENABLE_QEBSM;
+
+	irq_ptr->qib.rflags |= init_data->qib_rflags;
 
 	irq_ptr->qib.qfmt = init_data->q_format;
 	if (init_data->no_input_qs)
@@ -390,7 +384,15 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	struct qdio_irq *irq_ptr = init_data->cdev->private->qdio_data;
 	int rc;
 
-	memset(irq_ptr, 0, ((char *)&irq_ptr->qdr) - ((char *)irq_ptr));
+	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
+	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
+	memset(&irq_ptr->ccw, 0, sizeof(irq_ptr->ccw));
+	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
+	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
+
+	irq_ptr->debugfs_dev = irq_ptr->debugfs_perf = NULL;
+	irq_ptr->sch_token = irq_ptr->state = irq_ptr->perf_stat_enabled = 0;
+
 	/* wipes qib.ac, required by ar7063 */
 	memset(irq_ptr->qdr, 0, sizeof(struct qdr));
 
@@ -446,7 +448,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 	char s[80];
 
 	snprintf(s, 80, "qdio: %s %s on SC %x using "
-		 "AI:%d QEBSM:%d PCI:%d TDD:%d SIGA:%s%s%s%s%s%s\n",
+		 "AI:%d QEBSM:%d PCI:%d TDD:%d SIGA:%s%s%s%s%s\n",
 		 dev_name(&cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),
@@ -458,9 +460,8 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 		 (irq_ptr->siga_flag.input) ? "R" : " ",
 		 (irq_ptr->siga_flag.output) ? "W" : " ",
 		 (irq_ptr->siga_flag.sync) ? "S" : " ",
-		 (!irq_ptr->siga_flag.no_sync_ti) ? "A" : " ",
-		 (!irq_ptr->siga_flag.no_sync_out_ti) ? "O" : " ",
-		 (!irq_ptr->siga_flag.no_sync_out_pci) ? "P" : " ");
+		 (irq_ptr->siga_flag.sync_after_ai) ? "A" : " ",
+		 (irq_ptr->siga_flag.sync_out_after_pci) ? "P" : " ");
 	printk(KERN_INFO "%s", s);
 }
 

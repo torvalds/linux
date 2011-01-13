@@ -23,12 +23,10 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
-#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 #include <linux/elf.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/moduleloader.h>
 #include <linux/interrupt.h>
@@ -57,7 +55,7 @@ static struct chan_waitqueues {
 } channel_wqs[RTLX_CHANNELS];
 
 static struct vpe_notifications notify;
-static int sp_stopping = 0;
+static int sp_stopping;
 
 extern void *vpe_get_shared(int index);
 
@@ -72,8 +70,9 @@ static void rtlx_dispatch(void)
 */
 static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
 {
+	unsigned int vpeflags;
+	unsigned long flags;
 	int i;
-	unsigned int flags, vpeflags;
 
 	/* Ought not to be strictly necessary for SMTC builds */
 	local_irq_save(flags);
@@ -392,20 +391,12 @@ out:
 
 static int file_open(struct inode *inode, struct file *filp)
 {
-	int minor = iminor(inode);
-	int err;
-
-	lock_kernel();
-	err = rtlx_open(minor, (filp->f_flags & O_NONBLOCK) ? 0 : 1);
-	unlock_kernel();
-	return err;
+	return rtlx_open(iminor(inode), (filp->f_flags & O_NONBLOCK) ? 0 : 1);
 }
 
 static int file_release(struct inode *inode, struct file *filp)
 {
-	int minor = iminor(inode);
-
-	return rtlx_release(minor);
+	return rtlx_release(iminor(inode));
 }
 
 static unsigned int file_poll(struct file *file, poll_table * wait)
@@ -477,7 +468,8 @@ static const struct file_operations rtlx_fops = {
 	.release = file_release,
 	.write =   file_write,
 	.read =    file_read,
-	.poll =    file_poll
+	.poll =    file_poll,
+	.llseek =  noop_llseek,
 };
 
 static struct irqaction rtlx_irq = {

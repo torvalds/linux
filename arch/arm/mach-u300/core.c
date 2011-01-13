@@ -3,7 +3,7 @@
  * arch/arm/mach-u300/core.c
  *
  *
- * Copyright (C) 2007-2009 ST-Ericsson AB
+ * Copyright (C) 2007-2010 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
  * Core platform support, IRQ handling and device definitions.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -19,6 +19,10 @@
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/fsmc.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -27,11 +31,15 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/coh901318.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
+#include <mach/dma_channels.h>
 
 #include "clock.h"
 #include "mmc.h"
+#include "spi.h"
+#include "i2c.h"
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The
@@ -279,6 +287,13 @@ static struct resource rtc_resources[] = {
  */
 static struct resource fsmc_resources[] = {
 	{
+		.name  = "nand_data",
+		.start = U300_NAND_CS0_PHYS_BASE,
+		.end   = U300_NAND_CS0_PHYS_BASE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name  = "fsmc_regs",
 		.start = U300_NAND_IF_PHYS_BASE,
 		.end   = U300_NAND_IF_PHYS_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
@@ -354,7 +369,7 @@ static struct resource ave_resources[] = {
 	/*
 	 * The AVE3e requires two regions of 256MB that it considers
 	 * "invisible". The hardware will not be able to access these
-	 * adresses, so they should never point to system RAM.
+	 * addresses, so they should never point to system RAM.
 	 */
 	{
 		.name  = "AVE3e Reserved 0",
@@ -370,22 +385,1033 @@ static struct resource ave_resources[] = {
 	},
 };
 
+static struct resource dma_resource[] = {
+	{
+		.start = U300_DMAC_BASE,
+		.end = U300_DMAC_BASE + PAGE_SIZE - 1,
+		.flags =  IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_U300_DMA,
+		.end = IRQ_U300_DMA,
+		.flags =  IORESOURCE_IRQ,
+	}
+};
+
+#ifdef CONFIG_MACH_U300_BS335
+/* points out all dma slave channels.
+ * Syntax is [A1, B1, A2, B2, .... ,-1,-1]
+ * Select all channels from A to B, end of list is marked with -1,-1
+ */
+static int dma_slave_channels[] = {
+	U300_DMA_MSL_TX_0, U300_DMA_SPI_RX,
+	U300_DMA_UART1_TX, U300_DMA_UART1_RX, -1, -1};
+
+/* points out all dma memcpy channels. */
+static int dma_memcpy_channels[] = {
+	U300_DMA_GENERAL_PURPOSE_0, U300_DMA_GENERAL_PURPOSE_8, -1, -1};
+
+#else /* CONFIG_MACH_U300_BS335 */
+
+static int dma_slave_channels[] = {U300_DMA_MSL_TX_0, U300_DMA_SPI_RX, -1, -1};
+static int dma_memcpy_channels[] = {
+	U300_DMA_GENERAL_PURPOSE_0, U300_DMA_GENERAL_PURPOSE_10, -1, -1};
+
+#endif
+
+/** register dma for memory access
+ *
+ * active  1 means dma intends to access memory
+ *         0 means dma wont access memory
+ */
+static void coh901318_access_memory_state(struct device *dev, bool active)
+{
+}
+
+#define flags_memcpy_config (COH901318_CX_CFG_CH_DISABLE | \
+			COH901318_CX_CFG_RM_MEMORY_TO_MEMORY | \
+			COH901318_CX_CFG_LCR_DISABLE | \
+			COH901318_CX_CFG_TC_IRQ_ENABLE | \
+			COH901318_CX_CFG_BE_IRQ_ENABLE)
+#define flags_memcpy_lli_chained (COH901318_CX_CTRL_TC_ENABLE | \
+			COH901318_CX_CTRL_BURST_COUNT_32_BYTES | \
+			COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS | \
+			COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE | \
+			COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS | \
+			COH901318_CX_CTRL_DST_ADDR_INC_ENABLE | \
+			COH901318_CX_CTRL_MASTER_MODE_M1RW | \
+			COH901318_CX_CTRL_TCP_DISABLE | \
+			COH901318_CX_CTRL_TC_IRQ_DISABLE | \
+			COH901318_CX_CTRL_HSP_DISABLE | \
+			COH901318_CX_CTRL_HSS_DISABLE | \
+			COH901318_CX_CTRL_DDMA_LEGACY | \
+			COH901318_CX_CTRL_PRDD_SOURCE)
+#define flags_memcpy_lli (COH901318_CX_CTRL_TC_ENABLE | \
+			COH901318_CX_CTRL_BURST_COUNT_32_BYTES | \
+			COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS | \
+			COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE | \
+			COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS | \
+			COH901318_CX_CTRL_DST_ADDR_INC_ENABLE | \
+			COH901318_CX_CTRL_MASTER_MODE_M1RW | \
+			COH901318_CX_CTRL_TCP_DISABLE | \
+			COH901318_CX_CTRL_TC_IRQ_DISABLE | \
+			COH901318_CX_CTRL_HSP_DISABLE | \
+			COH901318_CX_CTRL_HSS_DISABLE | \
+			COH901318_CX_CTRL_DDMA_LEGACY | \
+			COH901318_CX_CTRL_PRDD_SOURCE)
+#define flags_memcpy_lli_last (COH901318_CX_CTRL_TC_ENABLE | \
+			COH901318_CX_CTRL_BURST_COUNT_32_BYTES | \
+			COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS | \
+			COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE | \
+			COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS | \
+			COH901318_CX_CTRL_DST_ADDR_INC_ENABLE | \
+			COH901318_CX_CTRL_MASTER_MODE_M1RW | \
+			COH901318_CX_CTRL_TCP_DISABLE | \
+			COH901318_CX_CTRL_TC_IRQ_ENABLE | \
+			COH901318_CX_CTRL_HSP_DISABLE | \
+			COH901318_CX_CTRL_HSS_DISABLE | \
+			COH901318_CX_CTRL_DDMA_LEGACY | \
+			COH901318_CX_CTRL_PRDD_SOURCE)
+
+const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
+	{
+		.number = U300_DMA_MSL_TX_0,
+		.name = "MSL TX 0",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 0 * 0x40 + 0x20,
+	},
+	{
+		.number = U300_DMA_MSL_TX_1,
+		.name = "MSL TX 1",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 1 * 0x40 + 0x20,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+	},
+	{
+		.number = U300_DMA_MSL_TX_2,
+		.name = "MSL TX 2",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 2 * 0x40 + 0x20,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.desc_nbr_max = 10,
+	},
+	{
+		.number = U300_DMA_MSL_TX_3,
+		.name = "MSL TX 3",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 3 * 0x40 + 0x20,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+	},
+	{
+		.number = U300_DMA_MSL_TX_4,
+		.name = "MSL TX 4",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 4 * 0x40 + 0x20,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1R_M2W |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+	},
+	{
+		.number = U300_DMA_MSL_TX_5,
+		.name = "MSL TX 5",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 5 * 0x40 + 0x20,
+	},
+	{
+		.number = U300_DMA_MSL_TX_6,
+		.name = "MSL TX 6",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 6 * 0x40 + 0x20,
+	},
+	{
+		.number = U300_DMA_MSL_RX_0,
+		.name = "MSL RX 0",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 0 * 0x40 + 0x220,
+	},
+	{
+		.number = U300_DMA_MSL_RX_1,
+		.name = "MSL RX 1",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 1 * 0x40 + 0x220,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli = 0,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+	},
+	{
+		.number = U300_DMA_MSL_RX_2,
+		.name = "MSL RX 2",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 2 * 0x40 + 0x220,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+	},
+	{
+		.number = U300_DMA_MSL_RX_3,
+		.name = "MSL RX 3",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 3 * 0x40 + 0x220,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+	},
+	{
+		.number = U300_DMA_MSL_RX_4,
+		.name = "MSL RX 4",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 4 * 0x40 + 0x220,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+	},
+	{
+		.number = U300_DMA_MSL_RX_5,
+		.name = "MSL RX 5",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 5 * 0x40 + 0x220,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M2R_M1W |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_DEMAND_DMA1 |
+				COH901318_CX_CTRL_PRDD_DEST,
+	},
+	{
+		.number = U300_DMA_MSL_RX_6,
+		.name = "MSL RX 6",
+		.priority_high = 0,
+		.dev_addr = U300_MSL_BASE + 6 * 0x40 + 0x220,
+	},
+	{
+		.number = U300_DMA_MMCSD_RX_TX,
+		.name = "MMCSD RX TX",
+		.priority_high = 0,
+		.dev_addr =  U300_MMCSD_BASE + 0x080,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+
+	},
+	{
+		.number = U300_DMA_MSPRO_TX,
+		.name = "MSPRO TX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_MSPRO_RX,
+		.name = "MSPRO RX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_UART0_TX,
+		.name = "UART0 TX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_UART0_RX,
+		.name = "UART0 RX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_APEX_TX,
+		.name = "APEX TX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_APEX_RX,
+		.name = "APEX RX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_PCM_I2S0_TX,
+		.name = "PCM I2S0 TX",
+		.priority_high = 1,
+		.dev_addr = U300_PCM_I2S0_BASE + 0x14,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+	},
+	{
+		.number = U300_DMA_PCM_I2S0_RX,
+		.name = "PCM I2S0 RX",
+		.priority_high = 1,
+		.dev_addr = U300_PCM_I2S0_BASE + 0x10,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_DEST,
+	},
+	{
+		.number = U300_DMA_PCM_I2S1_TX,
+		.name = "PCM I2S1 TX",
+		.priority_high = 1,
+		.dev_addr =  U300_PCM_I2S1_BASE + 0x14,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_SOURCE,
+	},
+	{
+		.number = U300_DMA_PCM_I2S1_RX,
+		.name = "PCM I2S1 RX",
+		.priority_high = 1,
+		.dev_addr = U300_PCM_I2S1_BASE + 0x10,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_DEST,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_BURST_COUNT_16_BYTES |
+				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_SRC_ADDR_INC_DISABLE |
+				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
+				COH901318_CX_CTRL_DST_ADDR_INC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY |
+				COH901318_CX_CTRL_PRDD_DEST,
+	},
+	{
+		.number = U300_DMA_XGAM_CDI,
+		.name = "XGAM CDI",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_XGAM_PDI,
+		.name = "XGAM PDI",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_SPI_TX,
+		.name = "SPI TX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_SPI_RX,
+		.name = "SPI RX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_0,
+		.name = "GENERAL 00",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_1,
+		.name = "GENERAL 01",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_2,
+		.name = "GENERAL 02",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_3,
+		.name = "GENERAL 03",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_4,
+		.name = "GENERAL 04",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_5,
+		.name = "GENERAL 05",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_6,
+		.name = "GENERAL 06",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_7,
+		.name = "GENERAL 07",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_8,
+		.name = "GENERAL 08",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+#ifdef CONFIG_MACH_U300_BS335
+	{
+		.number = U300_DMA_UART1_TX,
+		.name = "UART1 TX",
+		.priority_high = 0,
+	},
+	{
+		.number = U300_DMA_UART1_RX,
+		.name = "UART1 RX",
+		.priority_high = 0,
+	}
+#else
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_9,
+		.name = "GENERAL 09",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	},
+	{
+		.number = U300_DMA_GENERAL_PURPOSE_10,
+		.name = "GENERAL 10",
+		.priority_high = 0,
+
+		.param.config = flags_memcpy_config,
+		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
+		.param.ctrl_lli = flags_memcpy_lli,
+		.param.ctrl_lli_last = flags_memcpy_lli_last,
+	}
+#endif
+};
+
+
+static struct coh901318_platform coh901318_platform = {
+	.chans_slave = dma_slave_channels,
+	.chans_memcpy = dma_memcpy_channels,
+	.access_memory_state = coh901318_access_memory_state,
+	.chan_conf = chan_config,
+	.max_channels = U300_DMA_CHANNELS,
+};
+
 static struct platform_device wdog_device = {
-	.name = "wdog",
+	.name = "coh901327_wdog",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(wdog_resources),
 	.resource = wdog_resources,
 };
 
 static struct platform_device i2c0_device = {
-	.name = "stddci2c",
+	.name = "stu300",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(i2c0_resources),
 	.resource = i2c0_resources,
 };
 
 static struct platform_device i2c1_device = {
-	.name = "stddci2c",
+	.name = "stu300",
 	.id = 1,
 	.num_resources = ARRAY_SIZE(i2c1_resources),
 	.resource = i2c1_resources,
@@ -406,17 +1432,45 @@ static struct platform_device keypad_device = {
 };
 
 static struct platform_device rtc_device = {
-	.name = "rtc0",
+	.name = "rtc-coh901331",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(rtc_resources),
 	.resource = rtc_resources,
 };
 
-static struct platform_device fsmc_device = {
-	.name = "nandif",
+static struct mtd_partition u300_partitions[] = {
+	{
+		.name = "bootrecords",
+		.offset = 0,
+		.size = SZ_128K,
+	},
+	{
+		.name = "free",
+		.offset = SZ_128K,
+		.size = 8064 * SZ_1K,
+	},
+	{
+		.name = "platform",
+		.offset = 8192 * SZ_1K,
+		.size = 253952 * SZ_1K,
+	},
+};
+
+static struct fsmc_nand_platform_data nand_platform_data = {
+	.partitions = u300_partitions,
+	.nr_partitions = ARRAY_SIZE(u300_partitions),
+	.options = NAND_SKIP_BBTSCAN,
+	.width = FSMC_NAND_BW8,
+};
+
+static struct platform_device nand_device = {
+	.name = "fsmc-nand",
 	.id = -1,
-	.num_resources = ARRAY_SIZE(fsmc_resources),
 	.resource = fsmc_resources,
+	.num_resources = ARRAY_SIZE(fsmc_resources),
+	.dev = {
+		.platform_data = &nand_platform_data,
+	},
 };
 
 static struct platform_device ave_device = {
@@ -426,17 +1480,29 @@ static struct platform_device ave_device = {
 	.resource = ave_resources,
 };
 
+static struct platform_device dma_device = {
+	.name		= "coh901318",
+	.id		= -1,
+	.resource	= dma_resource,
+	.num_resources  = ARRAY_SIZE(dma_resource),
+	.dev = {
+		.platform_data = &coh901318_platform,
+		.coherent_dma_mask = ~0,
+	},
+};
+
 /*
  * Notice that AMBA devices are initialized before platform devices.
  *
  */
 static struct platform_device *platform_devs[] __initdata = {
+	&dma_device,
 	&i2c0_device,
 	&i2c1_device,
 	&keypad_device,
 	&rtc_device,
 	&gpio_device,
-	&fsmc_device,
+	&nand_device,
 	&wdog_device,
 	&ave_device
 };
@@ -450,13 +1516,21 @@ static struct platform_device *platform_devs[] __initdata = {
 void __init u300_init_irq(void)
 {
 	u32 mask[2] = {0, 0};
+	struct clk *clk;
 	int i;
+
+	/* initialize clocking early, we want to clock the INTCON */
+	u300_clock_init();
+
+	/* Clock the interrupt controller */
+	clk = clk_get_sys("intcon", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
 
 	for (i = 0; i < NR_IRQS; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
-	u300_enable_intcon_clock();
-	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], 0);
-	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], 0);
+	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
+	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
 }
 
 
@@ -510,7 +1584,7 @@ static struct db_chip db_chips[] __initdata = {
 	}
 };
 
-static void u300_init_check_chip(void)
+static void __init u300_init_check_chip(void)
 {
 
 	u16 val;
@@ -534,13 +1608,6 @@ static void u300_init_check_chip(void)
 	printk(KERN_INFO "Initializing U300 system on %s baseband chip " \
 	       "(chip ID 0x%04x)\n", chipname, val);
 
-#ifdef CONFIG_MACH_U300_BS26
-	if ((val & 0xFF00U) != 0xc800) {
-		printk(KERN_ERR "Platform configured for BS25/BS26 " \
-		       "with DB3150 but %s detected, expect problems!",
-		       chipname);
-	}
-#endif
 #ifdef CONFIG_MACH_U300_BS330
 	if ((val & 0xFF00U) != 0xd800) {
 		printk(KERN_ERR "Platform configured for BS330 " \
@@ -569,7 +1636,7 @@ static void u300_init_check_chip(void)
 /*
  * Some devices and their resources require reserved physical memory from
  * the end of the available RAM. This function traverses the list of devices
- * and assigns actual adresses to these.
+ * and assigns actual addresses to these.
  */
 static void __init u300_assign_physmem(void)
 {
@@ -611,16 +1678,22 @@ void __init u300_init_devices(void)
 	/* Wait for the PLL208 to lock if not locked in yet */
 	while (!(readw(U300_SYSCON_VBASE + U300_SYSCON_CSR) &
 		 U300_SYSCON_CSR_PLL208_LOCK_IND));
+	/* Initialize SPI device with some board specifics */
+	u300_spi_init(&pl022_device);
 
 	/* Register the AMBA devices in the AMBA bus abstraction layer */
-	u300_clock_primecells();
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-	u300_unclock_primecells();
 
 	u300_assign_physmem();
+
+	/* Register subdevices on the I2C buses */
+	u300_i2c_register_board_devices();
+
+	/* Register subdevices on the SPI bus */
+	u300_spi_register_board_devices();
 
 	/* Register the platform devices */
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));

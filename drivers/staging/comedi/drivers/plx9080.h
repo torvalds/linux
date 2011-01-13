@@ -13,7 +13,7 @@
  *
  ********************************************************************
  *
- * Copyright (C) 1999 RG Studio s.c., http://www.rgstudio.com.pl/
+ * Copyright (C) 1999 RG Studio s.c.
  * Written by Krzysztof Halasa <khc@rgstudio.com.pl>
  *
  * Portions (C) SBE Inc., used by permission.
@@ -380,9 +380,9 @@ enum bigend_bits {
 #define MBX_ADDR_SPACE_360 0x80	/* wanXL100s/200/400 */
 #define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360-1)
 
-static inline int plx9080_abort_dma(void *iobase, unsigned int channel)
+static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 {
-	void *dma_cs_addr;
+	void __iomem *dma_cs_addr;
 	uint8_t dma_status;
 	const int timeout = 10000;
 	unsigned int i;
@@ -404,8 +404,8 @@ static inline int plx9080_abort_dma(void *iobase, unsigned int channel)
 	}
 	if (i == timeout) {
 		printk
-			("plx9080: cancel() timed out waiting for dma %i done clear\n",
-			channel);
+		    ("plx9080: cancel() timed out waiting for dma %i done clear\n",
+		     channel);
 		return -ETIMEDOUT;
 	}
 	/*  disable and abort channel */
@@ -418,8 +418,8 @@ static inline int plx9080_abort_dma(void *iobase, unsigned int channel)
 	}
 	if (i == timeout) {
 		printk
-			("plx9080: cancel() timed out waiting for dma %i done set\n",
-			channel);
+		    ("plx9080: cancel() timed out waiting for dma %i done set\n",
+		     channel);
 		return -ETIMEDOUT;
 	}
 

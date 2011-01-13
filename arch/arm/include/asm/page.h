@@ -12,7 +12,7 @@
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT		12
-#define PAGE_SIZE		(1UL << PAGE_SHIFT)
+#define PAGE_SIZE		(_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
 #ifndef __ASSEMBLY__
@@ -117,11 +117,12 @@
 #endif
 
 struct page;
+struct vm_area_struct;
 
 struct cpu_user_fns {
 	void (*cpu_clear_user_highpage)(struct page *page, unsigned long vaddr);
 	void (*cpu_copy_user_highpage)(struct page *to, struct page *from,
-			unsigned long vaddr);
+			unsigned long vaddr, struct vm_area_struct *vma);
 };
 
 #ifdef MULTI_USER
@@ -137,7 +138,7 @@ extern struct cpu_user_fns cpu_user;
 
 extern void __cpu_clear_user_highpage(struct page *page, unsigned long vaddr);
 extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
-			unsigned long vaddr);
+			unsigned long vaddr, struct vm_area_struct *vma);
 #endif
 
 #define clear_user_highpage(page,vaddr)		\
@@ -145,10 +146,12 @@ extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
 
 #define __HAVE_ARCH_COPY_USER_HIGHPAGE
 #define copy_user_highpage(to,from,vaddr,vma)	\
-	__cpu_copy_user_highpage(to, from, vaddr)
+	__cpu_copy_user_highpage(to, from, vaddr, vma)
 
 #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, const void *from);
+
+typedef unsigned long pteval_t;
 
 #undef STRICT_MM_TYPECHECKS
 
@@ -156,7 +159,7 @@ extern void copy_page(void *to, const void *from);
 /*
  * These are used to make use of C type-checking..
  */
-typedef struct { unsigned long pte; } pte_t;
+typedef struct { pteval_t pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pgd[2]; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
@@ -174,7 +177,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /*
  * .. while these make it easier on the compiler
  */
-typedef unsigned long pte_t;
+typedef pteval_t pte_t;
 typedef unsigned long pmd_t;
 typedef unsigned long pgd_t[2];
 typedef unsigned long pgprot_t;
@@ -193,6 +196,10 @@ typedef unsigned long pgprot_t;
 #endif /* CONFIG_MMU */
 
 typedef struct page *pgtable_t;
+
+#ifndef CONFIG_SPARSEMEM
+extern int pfn_valid(unsigned long);
+#endif
 
 #include <asm/memory.h>
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -403,7 +403,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 		/* Get 1 byte from the AML stream */
 
 		opcode = AML_BYTE_OP;
-		arg->common.value.integer = (acpi_integer) * aml;
+		arg->common.value.integer = (u64) *aml;
 		length = 1;
 		break;
 
@@ -460,7 +460,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid ArgType %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType 0x%X", arg_type));
 		return_VOID;
 	}
 
@@ -742,7 +742,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid ArgType: %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType: 0x%X", arg_type));
 		status = AE_AML_OPERAND_TYPE;
 		break;
 	}

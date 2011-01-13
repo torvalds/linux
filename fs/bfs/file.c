@@ -11,7 +11,6 @@
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/smp_lock.h>
 #include "bfs.h"
 
 #undef DEBUG
@@ -71,7 +70,6 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	struct super_block *sb = inode->i_sb;
 	struct bfs_sb_info *info = BFS_SB(sb);
 	struct bfs_inode_info *bi = BFS_I(inode);
-	struct buffer_head *sbh = info->si_sbh;
 
 	phys = bi->i_sblock + block;
 	if (!create) {
@@ -113,7 +111,6 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 		info->si_freeb -= phys - bi->i_eblock;
 		info->si_lf_eblk = bi->i_eblock = phys;
 		mark_inode_dirty(inode);
-		mark_buffer_dirty(sbh);
 		err = 0;
 		goto out;
 	}
@@ -148,7 +145,6 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	 */
 	info->si_freeb -= bi->i_eblock - bi->i_sblock + 1 - inode->i_blocks;
 	mark_inode_dirty(inode);
-	mark_buffer_dirty(sbh);
 	map_bh(bh_result, sb, phys);
 out:
 	mutex_unlock(&info->bfs_lock);
@@ -169,9 +165,17 @@ static int bfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags,
-					pagep, fsdata, bfs_get_block);
+	int ret;
+
+	ret = block_write_begin(mapping, pos, len, flags, pagep,
+				bfs_get_block);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t bfs_bmap(struct address_space *mapping, sector_t block)

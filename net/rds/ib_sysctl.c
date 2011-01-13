@@ -49,76 +49,67 @@ unsigned long rds_ib_sysctl_max_unsig_wrs = 16;
 static unsigned long rds_ib_sysctl_max_unsig_wr_min = 1;
 static unsigned long rds_ib_sysctl_max_unsig_wr_max = 64;
 
-unsigned long rds_ib_sysctl_max_unsig_bytes = (16 << 20);
-static unsigned long rds_ib_sysctl_max_unsig_bytes_min = 1;
-static unsigned long rds_ib_sysctl_max_unsig_bytes_max = ~0UL;
+/*
+ * This sysctl does nothing.
+ *
+ * Backwards compatibility with RDS 3.0 wire protocol
+ * disables initial FC credit exchange.
+ * If it's ever possible to drop 3.0 support,
+ * setting this to 1 and moving init/refill of send/recv
+ * rings from ib_cm_connect_complete() back into ib_setup_qp()
+ * will cause credits to be added before protocol negotiation.
+ */
+unsigned int rds_ib_sysctl_flow_control = 0;
 
-unsigned int rds_ib_sysctl_flow_control = 1;
-
-ctl_table rds_ib_sysctl_table[] = {
+static ctl_table rds_ib_sysctl_table[] = {
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_send_wr",
 		.data		= &rds_ib_sysctl_max_send_wr,
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
-		.proc_handler   = &proc_doulongvec_minmax,
+		.proc_handler   = proc_doulongvec_minmax,
 		.extra1		= &rds_ib_sysctl_max_wr_min,
 		.extra2		= &rds_ib_sysctl_max_wr_max,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_recv_wr",
 		.data		= &rds_ib_sysctl_max_recv_wr,
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
-		.proc_handler   = &proc_doulongvec_minmax,
+		.proc_handler   = proc_doulongvec_minmax,
 		.extra1		= &rds_ib_sysctl_max_wr_min,
 		.extra2		= &rds_ib_sysctl_max_wr_max,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_unsignaled_wr",
 		.data		= &rds_ib_sysctl_max_unsig_wrs,
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
-		.proc_handler   = &proc_doulongvec_minmax,
+		.proc_handler   = proc_doulongvec_minmax,
 		.extra1		= &rds_ib_sysctl_max_unsig_wr_min,
 		.extra2		= &rds_ib_sysctl_max_unsig_wr_max,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
-		.procname       = "max_unsignaled_bytes",
-		.data		= &rds_ib_sysctl_max_unsig_bytes,
-		.maxlen         = sizeof(unsigned long),
-		.mode           = 0644,
-		.proc_handler   = &proc_doulongvec_minmax,
-		.extra1		= &rds_ib_sysctl_max_unsig_bytes_min,
-		.extra2		= &rds_ib_sysctl_max_unsig_bytes_max,
-	},
-	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_recv_allocation",
 		.data		= &rds_ib_sysctl_max_recv_allocation,
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
-		.proc_handler   = &proc_doulongvec_minmax,
+		.proc_handler   = proc_doulongvec_minmax,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "flow_control",
 		.data		= &rds_ib_sysctl_flow_control,
 		.maxlen		= sizeof(rds_ib_sysctl_flow_control),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
-	{ .ctl_name = 0}
+	{ }
 };
 
 static struct ctl_path rds_ib_sysctl_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "rds", .ctl_name = CTL_UNNUMBERED, },
-	{ .procname = "ib", .ctl_name = CTL_UNNUMBERED, },
+	{ .procname = "net", },
+	{ .procname = "rds", },
+	{ .procname = "ib", },
 	{ }
 };
 
@@ -128,10 +119,10 @@ void rds_ib_sysctl_exit(void)
 		unregister_sysctl_table(rds_ib_sysctl_hdr);
 }
 
-int __init rds_ib_sysctl_init(void)
+int rds_ib_sysctl_init(void)
 {
 	rds_ib_sysctl_hdr = register_sysctl_paths(rds_ib_sysctl_path, rds_ib_sysctl_table);
-	if (rds_ib_sysctl_hdr == NULL)
+	if (!rds_ib_sysctl_hdr)
 		return -ENOMEM;
 	return 0;
 }

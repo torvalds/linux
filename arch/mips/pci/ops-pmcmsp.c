@@ -206,7 +206,7 @@ static void pci_proc_init(void)
 }
 #endif /* CONFIG_PROC_FS && PCI_COUNTERS */
 
-DEFINE_SPINLOCK(bpci_lock);
+static DEFINE_SPINLOCK(bpci_lock);
 
 /*****************************************************************************
  *
@@ -385,6 +385,7 @@ int msp_pcibios_config_access(unsigned char access_type,
 	unsigned long intr;
 	unsigned long value;
 	static char pciirqflag;
+	int ret;
 #if defined(CONFIG_PMC_MSP7120_GW) || defined(CONFIG_PMC_MSP7120_EVAL)
 	unsigned int	vpe_status;
 #endif
@@ -402,11 +403,13 @@ int msp_pcibios_config_access(unsigned char access_type,
 	 * allocation assigns an interrupt handler to the interrupt.
 	 */
 	if (pciirqflag == 0) {
-		request_irq(MSP_INT_PCI,/* Hardcoded internal MSP7120 wiring */
+		ret = request_irq(MSP_INT_PCI,/* Hardcoded internal MSP7120 wiring */
 				bpci_interrupt,
 				IRQF_SHARED | IRQF_DISABLED,
 				"PMC MSP PCI Host",
 				preg);
+		if (ret != 0)
+			return ret;
 		pciirqflag = ~0;
 	}
 
@@ -941,6 +944,7 @@ static struct pci_controller msp_pci_controller = {
 	.pci_ops	= &msp_pci_ops,
 	.mem_resource	= &pci_mem_resource,
 	.mem_offset	= 0,
+	.io_map_base	= MSP_PCI_IOSPACE_BASE,
 	.io_resource	= &pci_io_resource,
 	.io_offset	= 0
 };

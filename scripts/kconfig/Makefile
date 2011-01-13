@@ -2,12 +2,13 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config
+PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config \
+	localmodconfig localyesconfig
 
 ifdef KBUILD_KCONFIG
 Kconfig := $(KBUILD_KCONFIG)
 else
-Kconfig := arch/$(SRCARCH)/Kconfig
+Kconfig := Kconfig
 endif
 
 xconfig: $(obj)/qconf
@@ -20,13 +21,56 @@ menuconfig: $(obj)/mconf
 	$< $(Kconfig)
 
 config: $(obj)/conf
+	$< --oldaskconfig $(Kconfig)
+
+nconfig: $(obj)/nconf
 	$< $(Kconfig)
 
 oldconfig: $(obj)/conf
-	$< -o $(Kconfig)
+	$< --$@ $(Kconfig)
 
 silentoldconfig: $(obj)/conf
-	$< -s $(Kconfig)
+	$(Q)mkdir -p include/generated
+	$< --$@ $(Kconfig)
+
+# if no path is given, then use src directory to find file
+ifdef LSMOD
+LSMOD_F := $(LSMOD)
+ifeq ($(findstring /,$(LSMOD)),)
+  LSMOD_F := $(objtree)/$(LSMOD)
+endif
+endif
+
+localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
+	$(Q)mkdir -p include/generated
+	$(Q)perl $< $(srctree) $(Kconfig) $(LSMOD_F) > .tmp.config
+	$(Q)if [ -f .config ]; then 					\
+			cmp -s .tmp.config .config ||			\
+			(mv -f .config .config.old.1;			\
+			 mv -f .tmp.config .config;			\
+			 $(obj)/conf --silentoldconfig $(Kconfig);	\
+			 mv -f .config.old.1 .config.old)		\
+	else								\
+			mv -f .tmp.config .config;			\
+			$(obj)/conf --silentoldconfig $(Kconfig);	\
+	fi
+	$(Q)rm -f .tmp.config
+
+localyesconfig: $(obj)/streamline_config.pl $(obj)/conf
+	$(Q)mkdir -p include/generated
+	$(Q)perl $< $(srctree) $(Kconfig) $(LSMOD_F) > .tmp.config
+	$(Q)sed -i s/=m/=y/ .tmp.config
+	$(Q)if [ -f .config ]; then					\
+			cmp -s .tmp.config .config ||			\
+			(mv -f .config .config.old.1;			\
+			 mv -f .tmp.config .config;			\
+			 $(obj)/conf --silentoldconfig $(Kconfig);	\
+			 mv -f .config.old.1 .config.old)		\
+	else								\
+			mv -f .tmp.config .config;			\
+			$(obj)/conf --silentoldconfig $(Kconfig);	\
+	fi
+	$(Q)rm -f .tmp.config
 
 # Create new linux.pot file
 # Adjust charset to UTF-8 in .po file to accept UTF-8 in Kconfig files
@@ -51,59 +95,64 @@ update-po-config: $(obj)/kxgettext $(obj)/gconf.glade.h
 	$(Q)rm -f arch/um/Kconfig.arch
 	$(Q)rm -f $(obj)/config.pot
 
-PHONY += randconfig allyesconfig allnoconfig allmodconfig defconfig
+PHONY += allnoconfig allyesconfig allmodconfig alldefconfig randconfig
 
-randconfig: $(obj)/conf
-	$< -r $(Kconfig)
+allnoconfig allyesconfig allmodconfig alldefconfig randconfig: $(obj)/conf
+	$< --$@ $(Kconfig)
 
-allyesconfig: $(obj)/conf
-	$< -y $(Kconfig)
+PHONY += listnewconfig oldnoconfig savedefconfig defconfig
 
-allnoconfig: $(obj)/conf
-	$< -n $(Kconfig)
+listnewconfig oldnoconfig: $(obj)/conf
+	$< --$@ $(Kconfig)
 
-allmodconfig: $(obj)/conf
-	$< -m $(Kconfig)
+savedefconfig: $(obj)/conf
+	$< --$@=defconfig $(Kconfig)
 
 defconfig: $(obj)/conf
 ifeq ($(KBUILD_DEFCONFIG),)
-	$< -d $(Kconfig)
+	$< --defconfig $(Kconfig)
 else
 	@echo "*** Default configuration is based on '$(KBUILD_DEFCONFIG)'"
-	$(Q)$< -D arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG) $(Kconfig)
+	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG) $(Kconfig)
 endif
 
 %_defconfig: $(obj)/conf
-	$(Q)$< -D arch/$(SRCARCH)/configs/$@ $(Kconfig)
+	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
 
 # Help text used by make help
 help:
 	@echo  '  config	  - Update current config utilising a line-oriented program'
+	@echo  '  nconfig         - Update current config utilising a ncurses menu based program'
 	@echo  '  menuconfig	  - Update current config utilising a menu based program'
 	@echo  '  xconfig	  - Update current config utilising a QT based front-end'
 	@echo  '  gconfig	  - Update current config utilising a GTK based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
+	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
+	@echo  '  localyesconfig  - Update current config converting local mods to core'
 	@echo  '  silentoldconfig - Same as oldconfig, but quietly, additionally update deps'
-	@echo  '  randconfig	  - New config with random answer to all options'
-	@echo  '  defconfig	  - New config with default answer to all options'
-	@echo  '  allmodconfig	  - New config selecting modules when possible'
-	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
+	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
+	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
+	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
+	@echo  '  allmodconfig	  - New config selecting modules when possible'
+	@echo  '  alldefconfig    - New config with all symbols set to default'
+	@echo  '  randconfig	  - New config with random answer to all options'
+	@echo  '  listnewconfig   - List new options'
+	@echo  '  oldnoconfig     - Same as silentoldconfig but set new symbols to n (unset)'
 
 # lxdialog stuff
 check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
 
 # Use recursively expanded variables so we do not call gcc unless
 # we really need to do so. (Do not call gcc as part of make mrproper)
-HOST_EXTRACFLAGS = $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags)
-HOST_LOADLIBES   = $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags $(HOSTCC))
-
-HOST_EXTRACFLAGS += -DLOCALE
-
+HOST_EXTRACFLAGS += $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags) \
+                    -DLOCALE
 
 # ===========================================================================
 # Shared Makefile for the various kconfig executables:
 # conf:	  Used for defconfig, oldconfig and related targets
+# nconf:  Used for the nconfig target.
+#         Utilizes ncurses
 # mconf:  Used for the menuconfig target
 #         Utilizes the lxdialog package
 # qconf:  Used for the xconfig target
@@ -116,10 +165,15 @@ lxdialog := lxdialog/checklist.o lxdialog/util.o lxdialog/inputbox.o
 lxdialog += lxdialog/textbox.o lxdialog/yesno.o lxdialog/menubox.o
 
 conf-objs	:= conf.o  zconf.tab.o
-mconf-objs	:= mconf.o zconf.tab.o $(lxdialog)
+mconf-objs     := mconf.o zconf.tab.o $(lxdialog)
+nconf-objs     := nconf.o zconf.tab.o nconf.gui.o
 kxgettext-objs	:= kxgettext.o zconf.tab.o
 
 hostprogs-y := conf qconf gconf kxgettext
+
+ifeq ($(MAKECMDGOALS),nconfig)
+	hostprogs-y += nconf
+endif
 
 ifeq ($(MAKECMDGOALS),menuconfig)
 	hostprogs-y += mconf
@@ -144,14 +198,14 @@ endif
 
 clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck \
 		   .tmp_gtkcheck zconf.tab.c lex.zconf.c zconf.hash.c gconf.glade.h
-clean-files     += mconf qconf gconf
+clean-files     += mconf qconf gconf nconf
 clean-files     += config.pot linux.pot
 
 # Check that we have the required ncurses stuff installed for lxdialog (menuconfig)
 PHONY += $(obj)/dochecklxdialog
 $(addprefix $(obj)/,$(lxdialog)): $(obj)/dochecklxdialog
 $(obj)/dochecklxdialog:
-	$(Q)$(CONFIG_SHELL) $(check-lxdialog) -check $(HOSTCC) $(HOST_EXTRACFLAGS) $(HOST_LOADLIBES)
+	$(Q)$(CONFIG_SHELL) $(check-lxdialog) -check $(HOSTCC) $(HOST_EXTRACFLAGS) $(HOSTLOADLIBES_mconf)
 
 always := dochecklxdialog
 
@@ -165,10 +219,13 @@ HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 HOSTLOADLIBES_qconf	= $(KC_QT_LIBS) -ldl
 HOSTCXXFLAGS_qconf.o	= $(KC_QT_CFLAGS) -D LKC_DIRECT_LINK
 
-HOSTLOADLIBES_gconf	= `pkg-config --libs gtk+-2.0 gmodule-2.0 libglade-2.0`
+HOSTLOADLIBES_gconf	= `pkg-config --libs gtk+-2.0 gmodule-2.0 libglade-2.0` -ldl
 HOSTCFLAGS_gconf.o	= `pkg-config --cflags gtk+-2.0 gmodule-2.0 libglade-2.0` \
                           -D LKC_DIRECT_LINK
 
+HOSTLOADLIBES_mconf   = $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags $(HOSTCC))
+
+HOSTLOADLIBES_nconf	= -lmenu -lpanel -lncurses
 $(obj)/qconf.o: $(obj)/.tmp_qtcheck
 
 ifeq ($(qconf-target),1)
@@ -178,40 +235,48 @@ $(obj)/.tmp_qtcheck: $(src)/Makefile
 # QT needs some extra effort...
 $(obj)/.tmp_qtcheck:
 	@set -e; echo "  CHECK   qt"; dir=""; pkg=""; \
-	pkg-config --exists qt 2> /dev/null && pkg=qt; \
-	pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
-	if [ -n "$$pkg" ]; then \
-	  cflags="\$$(shell pkg-config $$pkg --cflags)"; \
-	  libs="\$$(shell pkg-config $$pkg --libs)"; \
-	  moc="\$$(shell pkg-config $$pkg --variable=prefix)/bin/moc"; \
-	  dir="$$(pkg-config $$pkg --variable=prefix)"; \
+	if ! pkg-config --exists QtCore 2> /dev/null; then \
+	    echo "* Unable to find the QT4 tool qmake. Trying to use QT3"; \
+	    pkg-config --exists qt 2> /dev/null && pkg=qt; \
+	    pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
+	    if [ -n "$$pkg" ]; then \
+	      cflags="\$$(shell pkg-config $$pkg --cflags)"; \
+	      libs="\$$(shell pkg-config $$pkg --libs)"; \
+	      moc="\$$(shell pkg-config $$pkg --variable=prefix)/bin/moc"; \
+	      dir="$$(pkg-config $$pkg --variable=prefix)"; \
+	    else \
+	      for d in $$QTDIR /usr/share/qt* /usr/lib/qt*; do \
+	        if [ -f $$d/include/qconfig.h ]; then dir=$$d; break; fi; \
+	      done; \
+	      if [ -z "$$dir" ]; then \
+	        echo "*"; \
+	        echo "* Unable to find any QT installation. Please make sure that"; \
+	        echo "* the QT4 or QT3 development package is correctly installed and"; \
+	        echo "* either qmake can be found or install pkg-config or set"; \
+	        echo "* the QTDIR environment variable to the correct location."; \
+	        echo "*"; \
+	        false; \
+	      fi; \
+	      libpath=$$dir/lib; lib=qt; osdir=""; \
+	      $(HOSTCXX) -print-multi-os-directory > /dev/null 2>&1 && \
+	        osdir=x$$($(HOSTCXX) -print-multi-os-directory); \
+	      test -d $$libpath/$$osdir && libpath=$$libpath/$$osdir; \
+	      test -f $$libpath/libqt-mt.so && lib=qt-mt; \
+	      cflags="-I$$dir/include"; \
+	      libs="-L$$libpath -Wl,-rpath,$$libpath -l$$lib"; \
+	      moc="$$dir/bin/moc"; \
+	    fi; \
+	    if [ ! -x $$dir/bin/moc -a -x /usr/bin/moc ]; then \
+	      echo "*"; \
+	      echo "* Unable to find $$dir/bin/moc, using /usr/bin/moc instead."; \
+	      echo "*"; \
+	      moc="/usr/bin/moc"; \
+	    fi; \
 	else \
-	  for d in $$QTDIR /usr/share/qt* /usr/lib/qt*; do \
-	    if [ -f $$d/include/qconfig.h ]; then dir=$$d; break; fi; \
-	  done; \
-	  if [ -z "$$dir" ]; then \
-	    echo "*"; \
-	    echo "* Unable to find the QT3 installation. Please make sure that"; \
-	    echo "* the QT3 development package is correctly installed and"; \
-	    echo "* either install pkg-config or set the QTDIR environment"; \
-	    echo "* variable to the correct location."; \
-	    echo "*"; \
-	    false; \
-	  fi; \
-	  libpath=$$dir/lib; lib=qt; osdir=""; \
-	  $(HOSTCXX) -print-multi-os-directory > /dev/null 2>&1 && \
-	    osdir=x$$($(HOSTCXX) -print-multi-os-directory); \
-	  test -d $$libpath/$$osdir && libpath=$$libpath/$$osdir; \
-	  test -f $$libpath/libqt-mt.so && lib=qt-mt; \
-	  cflags="-I$$dir/include"; \
-	  libs="-L$$libpath -Wl,-rpath,$$libpath -l$$lib"; \
-	  moc="$$dir/bin/moc"; \
-	fi; \
-	if [ ! -x $$dir/bin/moc -a -x /usr/bin/moc ]; then \
-	  echo "*"; \
-	  echo "* Unable to find $$dir/bin/moc, using /usr/bin/moc instead."; \
-	  echo "*"; \
-	  moc="/usr/bin/moc"; \
+	  cflags="\$$(shell pkg-config QtCore QtGui Qt3Support --cflags)"; \
+	  libs="\$$(shell pkg-config QtCore QtGui Qt3Support --libs)"; \
+	  binpath="\$$(shell pkg-config QtCore --variable=prefix)"; \
+	  moc="$$binpath/bin/moc"; \
 	fi; \
 	echo "KC_QT_CFLAGS=$$cflags" > $@; \
 	echo "KC_QT_LIBS=$$libs" >> $@; \

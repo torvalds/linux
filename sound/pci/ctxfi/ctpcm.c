@@ -17,6 +17,7 @@
 
 #include "ctpcm.h"
 #include "cttimer.h"
+#include <linux/slab.h>
 #include <sound/pcm.h>
 
 /* Hardware descriptions for playback */
@@ -97,7 +98,7 @@ static void ct_atc_pcm_interrupt(struct ct_atc_pcm *atc_pcm)
 {
 	struct ct_atc_pcm *apcm = atc_pcm;
 
-	if (NULL == apcm->substream)
+	if (!apcm->substream)
 		return;
 
 	snd_pcm_period_elapsed(apcm->substream);
@@ -123,13 +124,11 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 	int err;
 
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
-	if (NULL == apcm)
+	if (!apcm)
 		return -ENOMEM;
 
 	apcm->substream = substream;
 	apcm->interrupt = ct_atc_pcm_interrupt;
-	runtime->private_data = apcm;
-	runtime->private_free = ct_atc_pcm_free_substream;
 	if (IEC958 == substream->pcm->device) {
 		runtime->hw = ct_spdif_passthru_playback_hw;
 		atc->spdif_out_passthru(atc, 1);
@@ -154,8 +153,12 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 	}
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
-	if (!apcm->timer)
+	if (!apcm->timer) {
+		kfree(apcm);
 		return -ENOMEM;
+	}
+	runtime->private_data = apcm;
+	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
 }
@@ -271,14 +274,12 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 	int err;
 
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
-	if (NULL == apcm)
+	if (!apcm)
 		return -ENOMEM;
 
 	apcm->started = 0;
 	apcm->substream = substream;
 	apcm->interrupt = ct_atc_pcm_interrupt;
-	runtime->private_data = apcm;
-	runtime->private_free = ct_atc_pcm_free_substream;
 	runtime->hw = ct_pcm_capture_hw;
 	runtime->hw.rate_max = atc->rsr * atc->msr;
 
@@ -297,8 +298,12 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 	}
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
-	if (!apcm->timer)
+	if (!apcm->timer) {
+		kfree(apcm);
 		return -ENOMEM;
+	}
+	runtime->private_data = apcm;
+	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
 }
@@ -421,6 +426,10 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 			snd_dma_pci_data(atc->pci), 128*1024, 128*1024);
+
+#ifdef CONFIG_PM
+	atc->pcms[device] = pcm;
+#endif
 
 	return 0;
 }

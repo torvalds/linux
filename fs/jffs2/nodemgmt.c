@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/compiler.h>
 #include <linux/sched.h> /* For cond_resched() */
@@ -117,9 +116,21 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 
 			ret = jffs2_garbage_collect_pass(c);
 
-			if (ret == -EAGAIN)
-				jffs2_erase_pending_blocks(c, 1);
-			else if (ret)
+			if (ret == -EAGAIN) {
+				spin_lock(&c->erase_completion_lock);
+				if (c->nr_erasing_blocks &&
+				    list_empty(&c->erase_pending_list) &&
+				    list_empty(&c->erase_complete_list)) {
+					DECLARE_WAITQUEUE(wait, current);
+					set_current_state(TASK_UNINTERRUPTIBLE);
+					add_wait_queue(&c->erase_wait, &wait);
+					D1(printk(KERN_DEBUG "%s waiting for erase to complete\n", __func__));
+					spin_unlock(&c->erase_completion_lock);
+
+					schedule();
+				} else
+					spin_unlock(&c->erase_completion_lock);
+			} else if (ret)
 				return ret;
 
 			cond_resched();
@@ -218,7 +229,7 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 			ejeb = list_entry(c->erasable_list.next, struct jffs2_eraseblock, list);
 			list_move_tail(&ejeb->list, &c->erase_pending_list);
 			c->nr_erasing_blocks++;
-			jffs2_erase_pending_trigger(c);
+			jffs2_garbage_collect_trigger(c);
 			D1(printk(KERN_DEBUG "jffs2_find_nextblock: Triggering erase of erasable block at 0x%08x\n",
 				  ejeb->offset));
 		}
@@ -470,7 +481,9 @@ struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
 void jffs2_complete_reservation(struct jffs2_sb_info *c)
 {
 	D1(printk(KERN_DEBUG "jffs2_complete_reservation()\n"));
+	spin_lock(&c->erase_completion_lock);
 	jffs2_garbage_collect_trigger(c);
+	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->alloc_sem);
 }
 
@@ -612,7 +625,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 				D1(printk(KERN_DEBUG "...and adding to erase_pending_list\n"));
 				list_add_tail(&jeb->list, &c->erase_pending_list);
 				c->nr_erasing_blocks++;
-				jffs2_erase_pending_trigger(c);
+				jffs2_garbage_collect_trigger(c);
 			} else {
 				/* Sometimes, however, we leave it elsewhere so it doesn't get
 				   immediately reused, and we spread the load a bit. */
@@ -732,6 +745,10 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 	uint32_t dirty;
 	int nr_very_dirty = 0;
 	struct jffs2_eraseblock *jeb;
+
+	if (!list_empty(&c->erase_complete_list) ||
+	    !list_empty(&c->erase_pending_list))
+		return 1;
 
 	if (c->unchecked_size) {
 		D1(printk(KERN_DEBUG "jffs2_thread_should_wake(): unchecked_size %d, checked_ino #%d\n",

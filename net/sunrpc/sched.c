@@ -16,15 +16,15 @@
 #include <linux/slab.h>
 #include <linux/mempool.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
 #include <linux/sunrpc/clnt.h>
 
+#include "sunrpc.h"
+
 #ifdef RPC_DEBUG
 #define RPCDBG_FACILITY		RPCDBG_SCHED
-#define RPC_TASK_MAGIC_ID	0xf00baa
 #endif
 
 /*
@@ -209,6 +209,7 @@ void rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qnam
 {
 	__rpc_init_priority_wait_queue(queue, qname, RPC_NR_PRIORITY);
 }
+EXPORT_SYMBOL_GPL(rpc_init_priority_wait_queue);
 
 void rpc_init_wait_queue(struct rpc_wait_queue *queue, const char *qname)
 {
@@ -235,7 +236,6 @@ static void rpc_task_set_debuginfo(struct rpc_task *task)
 {
 	static atomic_t rpc_pid;
 
-	task->tk_magic = RPC_TASK_MAGIC_ID;
 	task->tk_pid = atomic_inc_return(&rpc_pid);
 }
 #else
@@ -246,17 +246,8 @@ static inline void rpc_task_set_debuginfo(struct rpc_task *task)
 
 static void rpc_set_active(struct rpc_task *task)
 {
-	struct rpc_clnt *clnt;
-	if (test_and_set_bit(RPC_TASK_ACTIVE, &task->tk_runstate) != 0)
-		return;
 	rpc_task_set_debuginfo(task);
-	/* Add to global list of all tasks */
-	clnt = task->tk_client;
-	if (clnt != NULL) {
-		spin_lock(&clnt->cl_lock);
-		list_add_tail(&task->tk_task, &clnt->cl_tasks);
-		spin_unlock(&clnt->cl_lock);
-	}
+	set_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
 }
 
 /*
@@ -319,11 +310,6 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 	dprintk("RPC: %5u sleep_on(queue \"%s\" time %lu)\n",
 			task->tk_pid, rpc_qname(q), jiffies);
 
-	if (!RPC_IS_ASYNC(task) && !RPC_IS_ACTIVATED(task)) {
-		printk(KERN_ERR "RPC: Inactive synchronous task put to sleep!\n");
-		return;
-	}
-
 	__rpc_add_wait_queue(q, task);
 
 	BUG_ON(task->tk_callback != NULL);
@@ -334,8 +320,8 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 				rpc_action action)
 {
-	/* Mark the task as being activated if so needed */
-	rpc_set_active(task);
+	/* We shouldn't ever put an inactive task to sleep */
+	BUG_ON(!RPC_IS_ACTIVATED(task));
 
 	/*
 	 * Protect the queue operations.
@@ -358,9 +344,6 @@ static void __rpc_do_wake_up_task(struct rpc_wait_queue *queue, struct rpc_task 
 	dprintk("RPC: %5u __rpc_wake_up_task (now %lu)\n",
 			task->tk_pid, jiffies);
 
-#ifdef RPC_DEBUG
-	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);
-#endif
 	/* Has the task been executed yet? If not, we cannot wake it up! */
 	if (!RPC_IS_ACTIVATED(task)) {
 		printk(KERN_ERR "RPC: Inactive task (%p) being woken up!\n", task);
@@ -384,6 +367,20 @@ static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct r
 }
 
 /*
+ * Tests whether rpc queue is empty
+ */
+int rpc_queue_empty(struct rpc_wait_queue *queue)
+{
+	int res;
+
+	spin_lock_bh(&queue->lock);
+	res = queue->qlen;
+	spin_unlock_bh(&queue->lock);
+	return res == 0;
+}
+EXPORT_SYMBOL_GPL(rpc_queue_empty);
+
+/*
  * Wake up a task on a specific queue
  */
 void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task)
@@ -393,14 +390,6 @@ void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task
 	spin_unlock_bh(&queue->lock);
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up_queued_task);
-
-/*
- * Wake up the specified task
- */
-static void rpc_wake_up_task(struct rpc_task *task)
-{
-	rpc_wake_up_queued_task(task->tk_waitqueue, task);
-}
 
 /*
  * Wake up the next task on a priority queue.
@@ -589,7 +578,15 @@ void rpc_exit_task(struct rpc_task *task)
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(rpc_exit_task);
+
+void rpc_exit(struct rpc_task *task, int status)
+{
+	task->tk_status = status;
+	task->tk_action = rpc_exit_task;
+	if (RPC_IS_QUEUED(task))
+		rpc_wake_up_queued_task(task->tk_waitqueue, task);
+}
+EXPORT_SYMBOL_GPL(rpc_exit);
 
 void rpc_release_calldata(const struct rpc_call_ops *ops, void *calldata)
 {
@@ -679,7 +676,6 @@ static void __rpc_execute(struct rpc_task *task)
 			dprintk("RPC: %5u got signal\n", task->tk_pid);
 			task->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(task, -ERESTARTSYS);
-			rpc_wake_up_task(task);
 		}
 		rpc_set_running(task);
 		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
@@ -703,19 +699,15 @@ static void __rpc_execute(struct rpc_task *task)
 void rpc_execute(struct rpc_task *task)
 {
 	rpc_set_active(task);
-	rpc_set_running(task);
-	__rpc_execute(task);
+	rpc_make_runnable(task);
+	if (!RPC_IS_ASYNC(task))
+		__rpc_execute(task);
 }
 
 static void rpc_async_schedule(struct work_struct *work)
 {
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
 }
-
-struct rpc_buffer {
-	size_t	len;
-	char	data[];
-};
 
 /**
  * rpc_malloc - allocate an RPC buffer
@@ -802,28 +794,11 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 	/* Initialize workqueue for async tasks */
 	task->tk_workqueue = task_setup_data->workqueue;
 
-	task->tk_client = task_setup_data->rpc_client;
-	if (task->tk_client != NULL) {
-		kref_get(&task->tk_client->cl_kref);
-		if (task->tk_client->cl_softrtry)
-			task->tk_flags |= RPC_TASK_SOFT;
-	}
-
 	if (task->tk_ops->rpc_call_prepare != NULL)
 		task->tk_action = rpc_prepare_task;
 
-	if (task_setup_data->rpc_message != NULL) {
-		task->tk_msg.rpc_proc = task_setup_data->rpc_message->rpc_proc;
-		task->tk_msg.rpc_argp = task_setup_data->rpc_message->rpc_argp;
-		task->tk_msg.rpc_resp = task_setup_data->rpc_message->rpc_resp;
-		/* Bind the user cred */
-		rpcauth_bindcred(task, task_setup_data->rpc_message->rpc_cred, task_setup_data->flags);
-		if (task->tk_action == NULL)
-			rpc_call_start(task);
-	}
-
 	/* starting timestamp */
-	task->tk_start = jiffies;
+	task->tk_start = ktime_get();
 
 	dprintk("RPC:       new task initialized, procpid %u\n",
 				task_pid_nr(current));
@@ -845,16 +820,23 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 
 	if (task == NULL) {
 		task = rpc_alloc_task();
-		if (task == NULL)
-			goto out;
+		if (task == NULL) {
+			rpc_release_calldata(setup_data->callback_ops,
+					setup_data->callback_data);
+			return ERR_PTR(-ENOMEM);
+		}
 		flags = RPC_TASK_DYNAMIC;
 	}
 
 	rpc_init_task(task, setup_data);
+	if (task->tk_status < 0) {
+		int err = task->tk_status;
+		rpc_put_task(task);
+		return ERR_PTR(err);
+	}
 
 	task->tk_flags |= flags;
 	dprintk("RPC:       allocated task %p\n", task);
-out:
 	return task;
 }
 
@@ -883,11 +865,8 @@ void rpc_put_task(struct rpc_task *task)
 	if (task->tk_rqstp)
 		xprt_release(task);
 	if (task->tk_msg.rpc_cred)
-		rpcauth_unbindcred(task);
-	if (task->tk_client) {
-		rpc_release_client(task->tk_client);
-		task->tk_client = NULL;
-	}
+		put_rpccred(task->tk_msg.rpc_cred);
+	rpc_task_release_client(task);
 	if (task->tk_workqueue != NULL) {
 		INIT_WORK(&task->u.tk_work, rpc_async_release);
 		queue_work(task->tk_workqueue, &task->u.tk_work);
@@ -898,57 +877,15 @@ EXPORT_SYMBOL_GPL(rpc_put_task);
 
 static void rpc_release_task(struct rpc_task *task)
 {
-#ifdef RPC_DEBUG
-	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);
-#endif
 	dprintk("RPC: %5u release task\n", task->tk_pid);
 
-	if (!list_empty(&task->tk_task)) {
-		struct rpc_clnt *clnt = task->tk_client;
-		/* Remove from client task list */
-		spin_lock(&clnt->cl_lock);
-		list_del(&task->tk_task);
-		spin_unlock(&clnt->cl_lock);
-	}
 	BUG_ON (RPC_IS_QUEUED(task));
 
-#ifdef RPC_DEBUG
-	task->tk_magic = 0;
-#endif
 	/* Wake up anyone who is waiting for task completion */
 	rpc_mark_complete_task(task);
 
 	rpc_put_task(task);
 }
-
-/*
- * Kill all tasks for the given client.
- * XXX: kill their descendants as well?
- */
-void rpc_killall_tasks(struct rpc_clnt *clnt)
-{
-	struct rpc_task	*rovr;
-
-
-	if (list_empty(&clnt->cl_tasks))
-		return;
-	dprintk("RPC:       killing all tasks for client %p\n", clnt);
-	/*
-	 * Spin lock all_tasks to prevent changes...
-	 */
-	spin_lock(&clnt->cl_lock);
-	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task) {
-		if (! RPC_IS_ACTIVATED(rovr))
-			continue;
-		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
-			rovr->tk_flags |= RPC_TASK_KILLED;
-			rpc_exit(rovr, -EIO);
-			rpc_wake_up_task(rovr);
-		}
-	}
-	spin_unlock(&clnt->cl_lock);
-}
-EXPORT_SYMBOL_GPL(rpc_killall_tasks);
 
 int rpciod_up(void)
 {
@@ -971,7 +908,7 @@ static int rpciod_start(void)
 	 * Create the rpciod thread and wait for it to start.
 	 */
 	dprintk("RPC:       creating workqueue rpciod\n");
-	wq = create_workqueue("rpciod");
+	wq = alloc_workqueue("rpciod", WQ_RESCUER, 0);
 	rpciod_workqueue = wq;
 	return rpciod_workqueue != NULL;
 }

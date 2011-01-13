@@ -141,7 +141,7 @@ static int dataflash_waitready(struct spi_device *spi)
  */
 static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	struct dataflash	*priv = (struct dataflash *)mtd->priv;
+	struct dataflash	*priv = mtd->priv;
 	struct spi_device	*spi = priv->spi;
 	struct spi_transfer	x = { .tx_dma = 0, };
 	struct spi_message	msg;
@@ -231,7 +231,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			       size_t *retlen, u_char *buf)
 {
-	struct dataflash	*priv = (struct dataflash *)mtd->priv;
+	struct dataflash	*priv = mtd->priv;
 	struct spi_transfer	x[2] = { { .tx_dma = 0, }, };
 	struct spi_message	msg;
 	unsigned int		addr;
@@ -304,7 +304,7 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 				size_t * retlen, const u_char * buf)
 {
-	struct dataflash	*priv = (struct dataflash *)mtd->priv;
+	struct dataflash	*priv = mtd->priv;
 	struct spi_device	*spi = priv->spi;
 	struct spi_transfer	x[2] = { { .tx_dma = 0, }, };
 	struct spi_message	msg;
@@ -401,7 +401,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		(void) dataflash_waitready(priv->spi);
 
 
-#ifdef CONFIG_MTD_DATAFLASH_VERIFY_WRITE
+#ifdef CONFIG_MTD_DATAFLASH_WRITE_VERIFY
 
 		/* (3) Compare to Buffer1 */
 		addr = pageaddr << priv->page_offset;
@@ -430,7 +430,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		} else
 			status = 0;
 
-#endif	/* CONFIG_MTD_DATAFLASH_VERIFY_WRITE */
+#endif	/* CONFIG_MTD_DATAFLASH_WRITE_VERIFY */
 
 		remaining = remaining - writelen;
 		pageaddr++;
@@ -515,7 +515,7 @@ static ssize_t otp_read(struct spi_device *spi, unsigned base,
 static int dataflash_read_fact_otp(struct mtd_info *mtd,
 		loff_t from, size_t len, size_t *retlen, u_char *buf)
 {
-	struct dataflash	*priv = (struct dataflash *)mtd->priv;
+	struct dataflash	*priv = mtd->priv;
 	int			status;
 
 	/* 64 bytes, from 0..63 ... start at 64 on-chip */
@@ -532,7 +532,7 @@ static int dataflash_read_fact_otp(struct mtd_info *mtd,
 static int dataflash_read_user_otp(struct mtd_info *mtd,
 		loff_t from, size_t len, size_t *retlen, u_char *buf)
 {
-	struct dataflash	*priv = (struct dataflash *)mtd->priv;
+	struct dataflash	*priv = mtd->priv;
 	int			status;
 
 	/* 64 bytes, from 0..63 ... start at 0 on-chip */
@@ -553,7 +553,7 @@ static int dataflash_write_user_otp(struct mtd_info *mtd,
 	const size_t		l = 4 + 64;
 	uint8_t			*scratch;
 	struct spi_transfer	t;
-	struct dataflash	*priv = (struct dataflash *)mtd->priv;
+	struct dataflash	*priv = mtd->priv;
 	int			status;
 
 	if (len > 64)
@@ -636,6 +636,7 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	struct mtd_info			*device;
 	struct flash_platform_data	*pdata = spi->dev.platform_data;
 	char				*otp_tag = "";
+	int				err = 0;
 
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv)
@@ -693,13 +694,23 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 
 		if (nr_parts > 0) {
 			priv->partitioned = 1;
-			return add_mtd_partitions(device, parts, nr_parts);
+			err = add_mtd_partitions(device, parts, nr_parts);
+			goto out;
 		}
 	} else if (pdata && pdata->nr_parts)
 		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
 				pdata->nr_parts, device->name);
 
-	return add_mtd_device(device) == 1 ? -ENODEV : 0;
+	if (add_mtd_device(device) == 1)
+		err = -ENODEV;
+
+out:
+	if (!err)
+		return 0;
+
+	dev_set_drvdata(&spi->dev, NULL);
+	kfree(priv);
+	return err;
 }
 
 static inline int __devinit
@@ -932,8 +943,10 @@ static int __devexit dataflash_remove(struct spi_device *spi)
 		status = del_mtd_partitions(&flash->mtd);
 	else
 		status = del_mtd_device(&flash->mtd);
-	if (status == 0)
+	if (status == 0) {
+		dev_set_drvdata(&spi->dev, NULL);
 		kfree(flash);
+	}
 	return status;
 }
 
@@ -966,3 +979,4 @@ module_exit(dataflash_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrew Victor, David Brownell");
 MODULE_DESCRIPTION("MTD DataFlash driver");
+MODULE_ALIAS("spi:mtd_dataflash");

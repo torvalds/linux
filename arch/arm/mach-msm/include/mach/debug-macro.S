@@ -14,15 +14,15 @@
  *
  */
 
+
+
 #include <mach/hardware.h>
 #include <mach/msm_iomap.h>
 
-	.macro	addruart,rx
-	@ see if the MMU is enabled and select appropriate base address
-	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1
-	ldreq	\rx, =MSM_UART1_PHYS
-	movne	\rx, #0
+#if defined(CONFIG_HAS_MSM_DEBUG_UART_PHYS) && !defined(CONFIG_MSM_DEBUG_UART_NONE)
+	.macro	addruart, rp, rv
+	ldr	\rp, =MSM_DEBUG_UART_PHYS
+	ldr	\rv, =MSM_DEBUG_UART_BASE
 	.endm
 
 	.macro	senduart,rd,rx
@@ -32,13 +32,22 @@
 
 	.macro	waituart,rd,rx
 	@ wait for TX_READY
-	teq	\rx, #0
-	bne	2f
-1:	ldr	\rd, [\rx, #0x08]
+1001:	ldr	\rd, [\rx, #0x08]
 	tst	\rd, #0x04
-	beq	1b
-2:
+	beq	1001b
 	.endm
+#else
+	.macro  addruart, rp, rv
+	mov	\rv, #0xff000000
+	orr	\rv, \rv, #0x00f00000
+	.endm
+
+	.macro	senduart,rd,rx
+	.endm
+
+	.macro	waituart,rd,rx
+	.endm
+#endif
 
 	.macro	busyuart,rd,rx
 	.endm

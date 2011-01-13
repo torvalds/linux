@@ -84,6 +84,16 @@ Description:
 		from this part of the device tree.
 		Depends on CONFIG_HOTPLUG.
 
+What:		/sys/bus/pci/devices/.../reset
+Date:		July 2009
+Contact:	Michael S. Tsirkin <mst@redhat.com>
+Description:
+		Some devices allow an individual function to be reset
+		without affecting other functions in the same device.
+		For devices that have this support, a file named reset
+		will be present in sysfs.  Writing 1 to this file
+		will perform reset.
+
 What:		/sys/bus/pci/devices/.../vpd
 Date:		February 2008
 Contact:	Ben Hutchings <bhutchings@solarflare.com>
@@ -129,3 +139,30 @@ Contact:	linux-pci@vger.kernel.org
 Description:
 		This symbolic link points to the PCI hotplug controller driver
 		module that manages the hotplug slot.
+
+What:		/sys/bus/pci/devices/.../label
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given name(SMBIOS type 41 string) of the PCI device.
+		The attribute will be created only if the firmware
+		has given a name to the PCI device.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned name of the PCI device.
+
+What:		/sys/bus/pci/devices/.../index
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given instance(SMBIOS type 41 device type instance)
+		of the PCI device. The attribute will be created
+		only if the firmware has given a device type instance
+		to the PCI device.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned device type instance of the PCI
+		device that can help in understanding the firmware
+		intended order of the PCI device.

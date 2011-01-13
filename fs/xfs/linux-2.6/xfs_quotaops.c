@@ -16,13 +16,12 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
-#include "xfs_dmapi.h"
 #include "xfs_sb.h"
 #include "xfs_inum.h"
+#include "xfs_log.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_quota.h"
-#include "xfs_log.h"
 #include "xfs_trans.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
@@ -41,20 +40,6 @@ xfs_quota_type(int type)
 	default:
 		return XFS_DQ_PROJ;
 	}
-}
-
-STATIC int
-xfs_fs_quota_sync(
-	struct super_block	*sb,
-	int			type)
-{
-	struct xfs_mount	*mp = XFS_M(sb);
-
-	if (sb->s_flags & MS_RDONLY)
-		return -EROFS;
-	if (!XFS_IS_QUOTA_RUNNING(mp))
-		return -ENOSYS;
-	return -xfs_sync_data(mp, 0);
 }
 
 STATIC int
@@ -80,20 +65,18 @@ xfs_fs_set_xstate(
 
 	if (sb->s_flags & MS_RDONLY)
 		return -EROFS;
-	if (!XFS_IS_QUOTA_RUNNING(mp))
+	if (op != Q_XQUOTARM && !XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
-	if (uflags & XFS_QUOTA_UDQ_ACCT)
+	if (uflags & FS_QUOTA_UDQ_ACCT)
 		flags |= XFS_UQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_PDQ_ACCT)
+	if (uflags & FS_QUOTA_PDQ_ACCT)
 		flags |= XFS_PQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_GDQ_ACCT)
+	if (uflags & FS_QUOTA_GDQ_ACCT)
 		flags |= XFS_GQUOTA_ACCT;
-	if (uflags & XFS_QUOTA_UDQ_ENFD)
+	if (uflags & FS_QUOTA_UDQ_ENFD)
 		flags |= XFS_UQUOTA_ENFD;
-	if (uflags & (XFS_QUOTA_PDQ_ENFD|XFS_QUOTA_GDQ_ENFD))
+	if (uflags & (FS_QUOTA_PDQ_ENFD|FS_QUOTA_GDQ_ENFD))
 		flags |= XFS_OQUOTA_ENFD;
 
 	switch (op) {
@@ -113,7 +96,7 @@ xfs_fs_set_xstate(
 }
 
 STATIC int
-xfs_fs_get_xquota(
+xfs_fs_get_dqblk(
 	struct super_block	*sb,
 	int			type,
 	qid_t			id,
@@ -130,7 +113,7 @@ xfs_fs_get_xquota(
 }
 
 STATIC int
-xfs_fs_set_xquota(
+xfs_fs_set_dqblk(
 	struct super_block	*sb,
 	int			type,
 	qid_t			id,
@@ -144,16 +127,13 @@ xfs_fs_set_xquota(
 		return -ENOSYS;
 	if (!XFS_IS_QUOTA_ON(mp))
 		return -ESRCH;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	return -xfs_qm_scall_setqlim(mp, id, xfs_quota_type(type), fdq);
 }
 
-struct quotactl_ops xfs_quotactl_operations = {
-	.quota_sync		= xfs_fs_quota_sync,
+const struct quotactl_ops xfs_quotactl_operations = {
 	.get_xstate		= xfs_fs_get_xstate,
 	.set_xstate		= xfs_fs_set_xstate,
-	.get_xquota		= xfs_fs_get_xquota,
-	.set_xquota		= xfs_fs_set_xquota,
+	.get_dqblk		= xfs_fs_get_dqblk,
+	.set_dqblk		= xfs_fs_set_dqblk,
 };

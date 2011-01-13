@@ -11,6 +11,8 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
+#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/nand.h>
 #include <linux/i2c.h>
@@ -18,8 +20,6 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/spi_gpio.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/ov772x.h>
@@ -27,7 +27,7 @@
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
-#include <asm/sh_keysc.h>
+#include <asm/suspend.h>
 #include <mach/migor.h>
 #include <cpu/sh7722.h>
 
@@ -97,6 +97,9 @@ static struct platform_device sh_keysc_device = {
 	.resource       = sh_keysc_resources,
 	.dev	= {
 		.platform_data	= &sh_keysc_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_KEYSC,
 	},
 };
 
@@ -178,7 +181,7 @@ static int migor_nand_flash_ready(struct mtd_info *mtd)
 	return gpio_get_value(GPIO_PTA1); /* NAND_RBn */
 }
 
-struct platform_nand_data migor_nand_flash_data = {
+static struct platform_nand_data migor_nand_flash_data = {
 	.chip = {
 		.nr_chips = 1,
 		.partitions = migor_nand_flash_partitions,
@@ -210,51 +213,55 @@ static struct platform_device migor_nand_flash_device = {
 	}
 };
 
+const static struct fb_videomode migor_lcd_modes[] = {
+	{
+#if defined(CONFIG_SH_MIGOR_RTA_WVGA)
+		.name = "LB070WV1",
+		.xres = 800,
+		.yres = 480,
+		.left_margin = 64,
+		.right_margin = 16,
+		.hsync_len = 120,
+		.sync = 0,
+#elif defined(CONFIG_SH_MIGOR_QVGA)
+		.name = "PH240320T",
+		.xres = 320,
+		.yres = 240,
+		.left_margin = 0,
+		.right_margin = 16,
+		.hsync_len = 8,
+		.sync = FB_SYNC_HOR_HIGH_ACT,
+#endif
+		.upper_margin = 1,
+		.lower_margin = 17,
+		.vsync_len = 2,
+	},
+};
+
 static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
-#ifdef CONFIG_SH_MIGOR_RTA_WVGA
+#if defined(CONFIG_SH_MIGOR_RTA_WVGA)
 	.clock_source = LCDC_CLK_BUS,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
 		.bpp = 16,
 		.interface_type = RGB16,
 		.clock_divider = 2,
-		.lcd_cfg = {
-			.name = "LB070WV1",
-			.xres = 800,
-			.yres = 480,
-			.left_margin = 64,
-			.right_margin = 16,
-			.hsync_len = 120,
-			.upper_margin = 1,
-			.lower_margin = 17,
-			.vsync_len = 2,
-			.sync = 0,
-		},
+		.lcd_cfg = migor_lcd_modes,
+		.num_cfg = ARRAY_SIZE(migor_lcd_modes),
 		.lcd_size_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
 		},
 	}
-#endif
-#ifdef CONFIG_SH_MIGOR_QVGA
+#elif defined(CONFIG_SH_MIGOR_QVGA)
 	.clock_source = LCDC_CLK_PERIPHERAL,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
 		.bpp = 16,
 		.interface_type = SYS16A,
 		.clock_divider = 10,
-		.lcd_cfg = {
-			.name = "PH240320T",
-			.xres = 320,
-			.yres = 240,
-			.left_margin = 0,
-			.right_margin = 16,
-			.hsync_len = 8,
-			.upper_margin = 1,
-			.lower_margin = 17,
-			.vsync_len = 2,
-			.sync = FB_SYNC_HOR_HIGH_ACT,
-		},
+		.lcd_cfg = migor_lcd_modes,
+		.num_cfg = ARRAY_SIZE(migor_lcd_modes),
 		.lcd_size_cfg = { /* 2.4 inch */
 			.width = 49,
 			.height = 37,
@@ -276,7 +283,7 @@ static struct resource migor_lcdc_resources[] = {
 	[0] = {
 		.name	= "LCDC",
 		.start	= 0xfe940000, /* P4-only space */
-		.end	= 0xfe941fff,
+		.end	= 0xfe942fff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -291,6 +298,9 @@ static struct platform_device migor_lcdc_device = {
 	.resource	= migor_lcdc_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_lcdc_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
@@ -379,19 +389,38 @@ static struct platform_device migor_ceu_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU,
+	},
 };
 
-struct spi_gpio_platform_data sdcard_cn9_platform_data = {
-	.sck = GPIO_PTD0,
-	.mosi = GPIO_PTD1,
-	.miso = GPIO_PTD2,
-	.num_chipselect = 1,
+static struct resource sdhi_cn9_resources[] = {
+	[0] = {
+		.name	= "SDHI",
+		.start	= 0x04ce0000,
+		.end	= 0x04ce01ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 100,
+		.flags  = IORESOURCE_IRQ,
+	},
 };
 
-static struct platform_device sdcard_cn9_device = {
-	.name		= "spi_gpio",
-	.dev	= {
-		.platform_data	= &sdcard_cn9_platform_data,
+static struct sh_mobile_sdhi_info sh7724_sdhi_data = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
+};
+
+static struct platform_device sdhi_cn9_device = {
+	.name		= "sh_mobile_sdhi",
+	.num_resources	= ARRAY_SIZE(sdhi_cn9_resources),
+	.resource	= sdhi_cn9_resources,
+	.dev = {
+		.platform_data	= &sh7724_sdhi_data,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI,
 	},
 };
 
@@ -402,6 +431,9 @@ static struct i2c_board_info migor_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("migor_ts", 0x51),
 		.irq = 38, /* IRQ6 */
+	},
+	{
+		I2C_BOARD_INFO("wm8978", 0x1a),
 	},
 };
 
@@ -415,24 +447,26 @@ static struct i2c_board_info migor_i2c_camera[] = {
 };
 
 static struct ov772x_camera_info ov7725_info = {
-	.buswidth	= SOCAM_DATAWIDTH_8,
-	.link = {
-		.power		= ov7725_power,
-		.board_info	= &migor_i2c_camera[0],
-		.i2c_adapter_id	= 0,
-		.module_name	= "ov772x",
-	},
+	.flags		= OV772X_FLAG_8BIT,
+};
+
+static struct soc_camera_link ov7725_link = {
+	.power		= ov7725_power,
+	.board_info	= &migor_i2c_camera[0],
+	.i2c_adapter_id	= 0,
+	.priv		= &ov7725_info,
 };
 
 static struct tw9910_video_info tw9910_info = {
 	.buswidth	= SOCAM_DATAWIDTH_8,
 	.mpout		= TW9910_MPO_FIELD,
-	.link = {
-		.power		= tw9910_power,
-		.board_info	= &migor_i2c_camera[1],
-		.i2c_adapter_id	= 0,
-		.module_name	= "tw9910",
-	}
+};
+
+static struct soc_camera_link tw9910_link = {
+	.power		= tw9910_power,
+	.board_info	= &migor_i2c_camera[1],
+	.i2c_adapter_id	= 0,
+	.priv		= &tw9910_info,
 };
 
 static struct platform_device migor_camera[] = {
@@ -440,13 +474,13 @@ static struct platform_device migor_camera[] = {
 		.name	= "soc-camera-pdrv",
 		.id	= 0,
 		.dev	= {
-			.platform_data = &ov7725_info.link,
+			.platform_data = &ov7725_link,
 		},
 	}, {
 		.name	= "soc-camera-pdrv",
 		.id	= 1,
 		.dev	= {
-			.platform_data = &tw9910_info.link,
+			.platform_data = &tw9910_link,
 		},
 	},
 };
@@ -458,45 +492,34 @@ static struct platform_device *migor_devices[] __initdata = {
 	&migor_ceu_device,
 	&migor_nor_flash_device,
 	&migor_nand_flash_device,
-	&sdcard_cn9_device,
+	&sdhi_cn9_device,
 	&migor_camera[0],
 	&migor_camera[1],
 };
 
-static struct spi_board_info migor_spi_devices[] = {
-	{
-		.modalias = "mmc_spi",
-		.max_speed_hz = 5000000,
-		.chip_select = 0,
-		.controller_data = (void *) GPIO_PTD5,
-	},
-};
+extern char migor_sdram_enter_start;
+extern char migor_sdram_enter_end;
+extern char migor_sdram_leave_start;
+extern char migor_sdram_leave_end;
 
 static int __init migor_devices_setup(void)
 {
-
-#ifdef CONFIG_PM
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&migor_sdram_enter_start,
+					&migor_sdram_enter_end,
+					&migor_sdram_leave_start,
+					&migor_sdram_leave_end);
 	/* Let D11 LED show STATUS0 */
 	gpio_request(GPIO_FN_STATUS0, NULL);
 
 	/* Lit D12 LED show PDSTATUS */
 	gpio_request(GPIO_FN_PDSTATUS, NULL);
-#else
-	/* Lit D11 LED */
-	gpio_request(GPIO_PTJ7, NULL);
-	gpio_direction_output(GPIO_PTJ7, 1);
-	gpio_export(GPIO_PTJ7, 0);
-
-	/* Lit D12 LED */
-	gpio_request(GPIO_PTJ5, NULL);
-	gpio_direction_output(GPIO_PTJ5, 1);
-	gpio_export(GPIO_PTJ5, 0);
-#endif
 
 	/* SMC91C111 - Enable IRQ0, Setup CS4 for 16-bit fast access */
 	gpio_request(GPIO_FN_IRQ0, NULL);
-	ctrl_outl(0x00003400, BSC_CS4BCR);
-	ctrl_outl(0x00110080, BSC_CS4WCR);
+	__raw_writel(0x00003400, BSC_CS4BCR);
+	__raw_writel(0x00110080, BSC_CS4WCR);
 
 	/* KEYSC */
 	gpio_request(GPIO_FN_KEYOUT0, NULL);
@@ -512,9 +535,19 @@ static int __init migor_devices_setup(void)
 
 	/* NAND Flash */
 	gpio_request(GPIO_FN_CS6A_CE2B, NULL);
-	ctrl_outl((ctrl_inl(BSC_CS6ABCR) & ~0x0600) | 0x0200, BSC_CS6ABCR);
+	__raw_writel((__raw_readl(BSC_CS6ABCR) & ~0x0600) | 0x0200, BSC_CS6ABCR);
 	gpio_request(GPIO_PTA1, NULL);
 	gpio_direction_input(GPIO_PTA1);
+
+	/* SDHI */
+	gpio_request(GPIO_FN_SDHICD, NULL);
+	gpio_request(GPIO_FN_SDHIWP, NULL);
+	gpio_request(GPIO_FN_SDHID3, NULL);
+	gpio_request(GPIO_FN_SDHID2, NULL);
+	gpio_request(GPIO_FN_SDHID1, NULL);
+	gpio_request(GPIO_FN_SDHID0, NULL);
+	gpio_request(GPIO_FN_SDHICMD, NULL);
+	gpio_request(GPIO_FN_SDHICLK, NULL);
 
 	/* Touch Panel */
 	gpio_request(GPIO_FN_IRQ6, NULL);
@@ -596,19 +629,29 @@ static int __init migor_devices_setup(void)
 #else
 	gpio_direction_output(GPIO_PTT0, 1);
 #endif
-	ctrl_outw(ctrl_inw(PORT_MSELCRB) | 0x2000, PORT_MSELCRB); /* D15->D8 */
+	__raw_writew(__raw_readw(PORT_MSELCRB) | 0x2000, PORT_MSELCRB); /* D15->D8 */
 
 	platform_resource_setup_memory(&migor_ceu_device, "ceu", 4 << 20);
+
+	/* SIU: Port B */
+	gpio_request(GPIO_FN_SIUBOLR, NULL);
+	gpio_request(GPIO_FN_SIUBOBT, NULL);
+	gpio_request(GPIO_FN_SIUBISLD, NULL);
+	gpio_request(GPIO_FN_SIUBOSLD, NULL);
+	gpio_request(GPIO_FN_SIUMCKB, NULL);
+
+	/*
+	 * The original driver sets SIUB OLR/OBT, ILR/IBT, and SIUA OLR/OBT to
+	 * output. Need only SIUB, set to output for master mode (table 34.2)
+	 */
+	__raw_writew(__raw_readw(PORT_MSELCRA) | 1, PORT_MSELCRA);
 
 	i2c_register_board_info(0, migor_i2c_devices,
 				ARRAY_SIZE(migor_i2c_devices));
 
-	spi_register_board_info(migor_spi_devices,
-				ARRAY_SIZE(migor_spi_devices));
-
 	return platform_add_devices(migor_devices, ARRAY_SIZE(migor_devices));
 }
-__initcall(migor_devices_setup);
+arch_initcall(migor_devices_setup);
 
 /* Return the board specific boot mode pin configuration */
 static int migor_mode_pins(void)

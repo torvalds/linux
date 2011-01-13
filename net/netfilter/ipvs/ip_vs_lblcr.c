@@ -37,11 +37,16 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/jiffies.h>
+#include <linux/list.h>
+#include <linux/slab.h>
 
 /* for sysctl */
 #include <linux/fs.h>
@@ -82,25 +87,25 @@ static int sysctl_ip_vs_lblcr_expiration = 24*60*60*HZ;
 /*
  *      IPVS destination set structure and operations
  */
-struct ip_vs_dest_list {
-	struct ip_vs_dest_list  *next;          /* list link */
+struct ip_vs_dest_set_elem {
+	struct list_head	list;          /* list link */
 	struct ip_vs_dest       *dest;          /* destination server */
 };
 
 struct ip_vs_dest_set {
 	atomic_t                size;           /* set size */
 	unsigned long           lastmod;        /* last modified time */
-	struct ip_vs_dest_list  *list;          /* destination list */
+	struct list_head	list;           /* destination list */
 	rwlock_t	        lock;           /* lock for this list */
 };
 
 
-static struct ip_vs_dest_list *
+static struct ip_vs_dest_set_elem *
 ip_vs_dest_set_insert(struct ip_vs_dest_set *set, struct ip_vs_dest *dest)
 {
-	struct ip_vs_dest_list *e;
+	struct ip_vs_dest_set_elem *e;
 
-	for (e=set->list; e!=NULL; e=e->next) {
+	list_for_each_entry(e, &set->list, list) {
 		if (e->dest == dest)
 			/* already existed */
 			return NULL;
@@ -108,16 +113,14 @@ ip_vs_dest_set_insert(struct ip_vs_dest_set *set, struct ip_vs_dest *dest)
 
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
 	if (e == NULL) {
-		IP_VS_ERR("ip_vs_dest_set_insert(): no memory\n");
+		pr_err("%s(): no memory\n", __func__);
 		return NULL;
 	}
 
 	atomic_inc(&dest->refcnt);
 	e->dest = dest;
 
-	/* link it to the list */
-	e->next = set->list;
-	set->list = e;
+	list_add(&e->list, &set->list);
 	atomic_inc(&set->size);
 
 	set->lastmod = jiffies;
@@ -127,34 +130,33 @@ ip_vs_dest_set_insert(struct ip_vs_dest_set *set, struct ip_vs_dest *dest)
 static void
 ip_vs_dest_set_erase(struct ip_vs_dest_set *set, struct ip_vs_dest *dest)
 {
-	struct ip_vs_dest_list *e, **ep;
+	struct ip_vs_dest_set_elem *e;
 
-	for (ep=&set->list, e=*ep; e!=NULL; e=*ep) {
+	list_for_each_entry(e, &set->list, list) {
 		if (e->dest == dest) {
 			/* HIT */
-			*ep = e->next;
 			atomic_dec(&set->size);
 			set->lastmod = jiffies;
 			atomic_dec(&e->dest->refcnt);
+			list_del(&e->list);
 			kfree(e);
 			break;
 		}
-		ep = &e->next;
 	}
 }
 
 static void ip_vs_dest_set_eraseall(struct ip_vs_dest_set *set)
 {
-	struct ip_vs_dest_list *e, **ep;
+	struct ip_vs_dest_set_elem *e, *ep;
 
 	write_lock(&set->lock);
-	for (ep=&set->list, e=*ep; e!=NULL; e=*ep) {
-		*ep = e->next;
+	list_for_each_entry_safe(e, ep, &set->list, list) {
 		/*
 		 * We don't kfree dest because it is refered either
 		 * by its service or by the trash dest list.
 		 */
 		atomic_dec(&e->dest->refcnt);
+		list_del(&e->list);
 		kfree(e);
 	}
 	write_unlock(&set->lock);
@@ -163,7 +165,7 @@ static void ip_vs_dest_set_eraseall(struct ip_vs_dest_set *set)
 /* get weighted least-connection node in the destination set */
 static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 {
-	register struct ip_vs_dest_list *e;
+	register struct ip_vs_dest_set_elem *e;
 	struct ip_vs_dest *dest, *least;
 	int loh, doh;
 
@@ -171,7 +173,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 		return NULL;
 
 	/* select the first destination server, whose weight > 0 */
-	for (e=set->list; e!=NULL; e=e->next) {
+	list_for_each_entry(e, &set->list, list) {
 		least = e->dest;
 		if (least->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;
@@ -187,7 +189,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 
 	/* find the destination with the weighted least load */
   nextstage:
-	for (e=e->next; e!=NULL; e=e->next) {
+	list_for_each_entry(e, &set->list, list) {
 		dest = e->dest;
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;
@@ -202,8 +204,9 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 		}
 	}
 
-	IP_VS_DBG_BUF(6, "ip_vs_dest_set_min: server %s:%d "
+	IP_VS_DBG_BUF(6, "%s(): server %s:%d "
 		      "activeconns %d refcnt %d weight %d overhead %d\n",
+		      __func__,
 		      IP_VS_DBG_ADDR(least->af, &least->addr),
 		      ntohs(least->port),
 		      atomic_read(&least->activeconns),
@@ -216,7 +219,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 /* get weighted most-connection node in the destination set */
 static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 {
-	register struct ip_vs_dest_list *e;
+	register struct ip_vs_dest_set_elem *e;
 	struct ip_vs_dest *dest, *most;
 	int moh, doh;
 
@@ -224,7 +227,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 		return NULL;
 
 	/* select the first destination server, whose weight > 0 */
-	for (e=set->list; e!=NULL; e=e->next) {
+	list_for_each_entry(e, &set->list, list) {
 		most = e->dest;
 		if (atomic_read(&most->weight) > 0) {
 			moh = atomic_read(&most->activeconns) * 50
@@ -236,7 +239,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 
 	/* find the destination with the weighted most load */
   nextstage:
-	for (e=e->next; e!=NULL; e=e->next) {
+	list_for_each_entry(e, &set->list, list) {
 		dest = e->dest;
 		doh = atomic_read(&dest->activeconns) * 50
 			+ atomic_read(&dest->inactconns);
@@ -249,8 +252,9 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 		}
 	}
 
-	IP_VS_DBG_BUF(6, "ip_vs_dest_set_max: server %s:%d "
+	IP_VS_DBG_BUF(6, "%s(): server %s:%d "
 		      "activeconns %d refcnt %d weight %d overhead %d\n",
+		      __func__,
 		      IP_VS_DBG_ADDR(most->af, &most->addr), ntohs(most->port),
 		      atomic_read(&most->activeconns),
 		      atomic_read(&most->refcnt),
@@ -297,7 +301,7 @@ static ctl_table vs_vars_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table_header * sysctl_header;
@@ -374,7 +378,7 @@ ip_vs_lblcr_new(struct ip_vs_lblcr_table *tbl, const union nf_inet_addr *daddr,
 	if (!en) {
 		en = kmalloc(sizeof(*en), GFP_ATOMIC);
 		if (!en) {
-			IP_VS_ERR("ip_vs_lblcr_new(): no memory\n");
+			pr_err("%s(): no memory\n", __func__);
 			return NULL;
 		}
 
@@ -382,9 +386,9 @@ ip_vs_lblcr_new(struct ip_vs_lblcr_table *tbl, const union nf_inet_addr *daddr,
 		ip_vs_addr_copy(dest->af, &en->addr, daddr);
 		en->lastuse = jiffies;
 
-		/* initilize its dest set */
+		/* initialize its dest set */
 		atomic_set(&(en->set.size), 0);
-		en->set.list = NULL;
+		INIT_LIST_HEAD(&en->set.list);
 		rwlock_init(&en->set.lock);
 
 		ip_vs_lblcr_hash(tbl, en);
@@ -508,7 +512,7 @@ static int ip_vs_lblcr_init_svc(struct ip_vs_service *svc)
 	 */
 	tbl = kmalloc(sizeof(*tbl), GFP_ATOMIC);
 	if (tbl == NULL) {
-		IP_VS_ERR("ip_vs_lblcr_init_svc(): no memory\n");
+		pr_err("%s(): no memory\n", __func__);
 		return -ENOMEM;
 	}
 	svc->sched_data = tbl;
@@ -654,7 +658,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 
-	IP_VS_DBG(6, "ip_vs_lblcr_schedule(): Scheduling...\n");
+	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
 	/* First look in our cache */
 	read_lock(&svc->sched_lock);

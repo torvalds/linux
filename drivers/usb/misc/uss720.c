@@ -3,7 +3,7 @@
 /*
  *	uss720.c  --  USS720 USB Parport Cable.
  *
- *	Copyright (C) 1999, 2005
+ *	Copyright (C) 1999, 2005, 2010
  *	    Thomas Sailer (t.sailer@alumni.ethz.ch)
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -49,6 +49,7 @@
 #include <linux/delay.h>
 #include <linux/completion.h>
 #include <linux/kref.h>
+#include <linux/slab.h>
 
 /*
  * Version Information
@@ -770,11 +771,13 @@ static void uss720_disconnect(struct usb_interface *intf)
 }
 
 /* table of cables that work through this driver */
-static struct usb_device_id uss720_table [] = {
+static const struct usb_device_id uss720_table[] = {
 	{ USB_DEVICE(0x047e, 0x1001) },
 	{ USB_DEVICE(0x0557, 0x2001) },
 	{ USB_DEVICE(0x0729, 0x1284) },
 	{ USB_DEVICE(0x1293, 0x0002) },
+	{ USB_DEVICE(0x1293, 0x0002) },
+	{ USB_DEVICE(0x050d, 0x0002) },
 	{ }						/* Terminating entry */
 };
 

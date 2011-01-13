@@ -81,11 +81,6 @@ struct irq_chip h8300irq_chip = {
 	.end		= h8300_end_irq,
 };
 
-void ack_bad_irq(unsigned int irq)
-{
-	printk("unexpected IRQ trap at vector %02x\n", irq);
-}
-
 #if defined(CONFIG_RAMKERNEL)
 static unsigned long __init *get_vector_address(void)
 {
@@ -191,7 +186,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_puts(p, "           CPU0");
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto unlock;
@@ -205,7 +200,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			seq_printf(p, ", %s", action->name);
 		seq_putc(p, '\n');
 unlock:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	}
 	return 0;
 }

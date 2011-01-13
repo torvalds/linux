@@ -14,10 +14,10 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 
-#ifdef CONFIG_MMU
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
 EXPORT_SYMBOL(shm_align_mask);
 
+#ifdef CONFIG_MMU
 /*
  * To avoid cache aliases, we map the shared page with same color.
  */
@@ -54,7 +54,8 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		/* We do not accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
-		if ((flags & MAP_SHARED) && (addr & shm_align_mask))
+		if ((flags & MAP_SHARED) &&
+		    ((addr - (pgoff << PAGE_SHIFT)) & shm_align_mask))
 			return -EINVAL;
 		return addr;
 	}

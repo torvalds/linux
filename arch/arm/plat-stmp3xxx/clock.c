@@ -25,9 +25,9 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/clkdev.h>
 
 #include <asm/mach-types.h>
-#include <asm/clkdev.h>
 #include <mach/platform.h>
 #include <mach/regs-clkctrl.h>
 
@@ -1126,9 +1126,8 @@ static int __init clk_init(void)
 			if (ops && ops->set_parent)
 				ops->set_parent(cl->clk, cl->clk->parent);
 		}
-
-		clkdev_add(cl);
 	}
+	clkdev_add_table(onchip_clks, ARRAY_SIZE(onchip_clks));
 	return 0;
 }
 

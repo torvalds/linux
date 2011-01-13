@@ -26,17 +26,12 @@
  *
  */
 
-
 #ifndef __WPACTL_H__
 #define __WPACTL_H__
 
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#if !defined(__IOWPA_H__)
 #include "iowpa.h"
-#endif
 #endif
 
 /*---------------------  Export Definitions -------------------------*/
@@ -59,7 +54,7 @@ typedef enum { KEY_MGMT_802_1X, KEY_MGMT_CCKM,KEY_MGMT_PSK, KEY_MGMT_NONE,
 
 
 
-typedef ULONGLONG   NDIS_802_11_KEY_RSC;
+typedef unsigned long long   NDIS_802_11_KEY_RSC;
 
 /*---------------------  Export Classes  ----------------------------*/
 
@@ -67,21 +62,9 @@ typedef ULONGLONG   NDIS_802_11_KEY_RSC;
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 int wpa_set_wpadev(PSDevice pDevice, int val);
 int wpa_ioctl(PSDevice pDevice, struct iw_point *p);
-int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
+int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel);
 
 #endif // __WPACL_H__
 

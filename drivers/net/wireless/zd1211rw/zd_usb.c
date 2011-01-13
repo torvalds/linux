@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
@@ -36,57 +37,63 @@
 
 static struct usb_device_id usb_ids[] = {
 	/* ZD1211 */
+	{ USB_DEVICE(0x0105, 0x145f), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3401), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3402), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3407), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3409), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x079b, 0x004a), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x07b8, 0x6001), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0ace, 0x1211), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0ace, 0xa211), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x07b8, 0x6001), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x126f, 0xa006), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x6891, 0xa727), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0b05, 0x170c), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0b3b, 0x1630), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0b3b, 0x5630), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0df6, 0x9071), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0df6, 0x9075), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x157e, 0x300b), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x079b, 0x004a), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x1740, 0x2000), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x157e, 0x3204), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0586, 0x3402), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0b3b, 0x5630), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0b05, 0x170c), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x1435, 0x0711), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0586, 0x3409), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0b3b, 0x1630), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0586, 0x3401), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x14ea, 0xab13), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x13b1, 0x001e), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0586, 0x3407), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x126f, 0xa006), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x129b, 0x1666), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x13b1, 0x001e), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x1435, 0x0711), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x14ea, 0xab10), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x14ea, 0xab13), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x157e, 0x300a), .driver_info = DEVICE_ZD1211 },
-	{ USB_DEVICE(0x0105, 0x145f), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x157e, 0x300b), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x157e, 0x3204), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x1740, 0x2000), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x6891, 0xa727), .driver_info = DEVICE_ZD1211 },
 	/* ZD1211B */
-	{ USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0ace, 0xb215), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x079b, 0x0062), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x1582, 0x6003), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x050d, 0x705c), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x083a, 0xe503), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x083a, 0xe506), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x083a, 0x4505), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0053, 0x5301), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0409, 0x0248), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0411, 0x00da), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0471, 0x1236), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x13b1, 0x0024), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0471, 0x1237), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x050d, 0x705c), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x054c, 0x0257), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0586, 0x340a), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0586, 0x340f), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0b05, 0x171b), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0586, 0x3410), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0baf, 0x0121), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0586, 0x3412), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0586, 0x3413), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0053, 0x5301), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0411, 0x00da), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x2019, 0x5303), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x129b, 0x1667), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0cde, 0x001a), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0586, 0x340a), .driver_info = DEVICE_ZD1211B },
-	{ USB_DEVICE(0x0471, 0x1237), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x079b, 0x0062), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x07b8, 0x6001), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x07fa, 0x1196), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x083a, 0x4505), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x083a, 0xe501), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x083a, 0xe503), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x083a, 0xe506), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0ace, 0xb215), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0b05, 0x171b), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0baf, 0x0121), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x0cde, 0x001a), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0df6, 0x0036), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x129b, 0x1667), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x13b1, 0x0024), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x1582, 0x6003), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x2019, 0x5303), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x2019, 0xed01), .driver_info = DEVICE_ZD1211B },
 	/* "Driverless" devices that need ejecting */
 	{ USB_DEVICE(0x0ace, 0x2011), .driver_info = DEVICE_INSTALLER },
 	{ USB_DEVICE(0x0ace, 0x20ff), .driver_info = DEVICE_INSTALLER },
@@ -315,6 +322,13 @@ error:
 	return r;
 }
 
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "ur");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "ur");
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "ub");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "ub");
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "uphr");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "uphr");
+
 /* Read data from device address space using "firmware interface" which does
  * not require firmware to be loaded. */
 int zd_usb_read_fw(struct zd_usb *usb, zd_addr_t addr, u8 *data, u16 len)
@@ -416,7 +430,7 @@ static void int_urb_complete(struct urb *urb)
 		handle_regs_int(urb);
 		break;
 	case USB_INT_ID_RETRY_FAILED:
-		zd_mac_tx_failed(zd_usb_to_hw(urb->context));
+		zd_mac_tx_failed(urb);
 		break;
 	default:
 		dev_dbg_f(urb_dev(urb), "error: urb %p unknown id %x\n", urb,
@@ -550,6 +564,8 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 
 	if (length < sizeof(struct rx_length_info)) {
 		/* It's not a complete packet anyhow. */
+		printk("%s: invalid, small RX packet : %d\n",
+		       __func__, length);
 		return;
 	}
 	length_info = (struct rx_length_info *)
@@ -650,15 +666,15 @@ static struct urb *alloc_rx_urb(struct zd_usb *usb)
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return NULL;
-	buffer = usb_buffer_alloc(udev, USB_MAX_RX_SIZE, GFP_KERNEL,
-		                  &urb->transfer_dma);
+	buffer = usb_alloc_coherent(udev, USB_MAX_RX_SIZE, GFP_KERNEL,
+				    &urb->transfer_dma);
 	if (!buffer) {
 		usb_free_urb(urb);
 		return NULL;
 	}
 
 	usb_fill_bulk_urb(urb, udev, usb_rcvbulkpipe(udev, EP_DATA_IN),
-		          buffer, USB_MAX_RX_SIZE,
+			  buffer, USB_MAX_RX_SIZE,
 			  rx_urb_complete, usb);
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -669,8 +685,8 @@ static void free_rx_urb(struct urb *urb)
 {
 	if (!urb)
 		return;
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-		        urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	usb_free_urb(urb);
 }
 
@@ -830,7 +846,7 @@ out:
  * @usb: a &struct zd_usb pointer
  * @urb: URB to be freed
  *
- * Frees the the transmission URB, which means to put it on the free URB
+ * Frees the transmission URB, which means to put it on the free URB
  * list.
  */
 static void free_tx_urb(struct zd_usb *usb, struct urb *urb)
@@ -1066,11 +1082,15 @@ static int eject_installer(struct usb_interface *intf)
 	int r;
 
 	/* Find bulk out endpoint */
-	endpoint = &iface_desc->endpoint[1].desc;
-	if ((endpoint->bEndpointAddress & USB_TYPE_MASK) == USB_DIR_OUT &&
-	    usb_endpoint_xfer_bulk(endpoint)) {
-		bulk_out_ep = endpoint->bEndpointAddress;
-	} else {
+	for (r = 1; r >= 0; r--) {
+		endpoint = &iface_desc->endpoint[r].desc;
+		if (usb_endpoint_dir_out(endpoint) &&
+		    usb_endpoint_xfer_bulk(endpoint)) {
+			bulk_out_ep = endpoint->bEndpointAddress;
+			break;
+		}
+	}
+	if (r == -1) {
 		dev_err(&udev->dev,
 			"zd1211rw: Could not find bulk out endpoint\n");
 		return -ENODEV;

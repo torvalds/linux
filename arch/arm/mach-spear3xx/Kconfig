@@ -1,0 +1,33 @@
+#
+# SPEAr3XX Machine configuration file
+#
+
+if ARCH_SPEAR3XX
+
+choice
+	prompt "SPEAr3XX Family"
+	default MACH_SPEAR300
+
+config MACH_SPEAR300
+	bool "SPEAr300"
+	help
+	  Supports ST SPEAr300 Machine
+
+config MACH_SPEAR310
+	bool "SPEAr310"
+	help
+	  Supports ST SPEAr310 Machine
+
+config MACH_SPEAR320
+	bool "SPEAr320"
+	help
+	  Supports ST SPEAr320 Machine
+
+endchoice
+
+# Adding SPEAr3XX machine specific configuration files
+source "arch/arm/mach-spear3xx/Kconfig300"
+source "arch/arm/mach-spear3xx/Kconfig310"
+source "arch/arm/mach-spear3xx/Kconfig320"
+
+endif #ARCH_SPEAR3XX

@@ -158,15 +158,12 @@ module_exit(arcnet_exit);
 void arcnet_dump_skb(struct net_device *dev,
 		     struct sk_buff *skb, char *desc)
 {
-	int i;
+	char hdr[32];
 
-	printk(KERN_DEBUG "%6s: skb dump (%s) follows:", dev->name, desc);
-	for (i = 0; i < skb->len; i++) {
-		if (i % 16 == 0)
-			printk("\n" KERN_DEBUG "[%04X] ", i);
-		printk("%02X ", ((u_char *) skb->data)[i]);
-	}
-	printk("\n");
+	/* dump the packet */
+	snprintf(hdr, sizeof(hdr), "%6s:%s skb->data:", dev->name, desc);
+	print_hex_dump(KERN_DEBUG, hdr, DUMP_PREFIX_OFFSET,
+		       16, 1, skb->data, skb->len, true);
 }
 
 EXPORT_SYMBOL(arcnet_dump_skb);
@@ -184,6 +181,7 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 	int i, length;
 	unsigned long flags = 0;
 	static uint8_t buf[512];
+	char hdr[32];
 
 	/* hw.copy_from_card expects IRQ context so take the IRQ lock
 	   to keep it single threaded */
@@ -197,14 +195,10 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 	/* if the offset[0] byte is nonzero, this is a 256-byte packet */
 	length = (buf[2] ? 256 : 512);
 
-	printk(KERN_DEBUG "%6s: packet dump (%s) follows:", dev->name, desc);
-	for (i = 0; i < length; i++) {
-		if (i % 16 == 0)
-			printk("\n" KERN_DEBUG "[%04X] ", i);
-		printk("%02X ", buf[i]);
-	}
-	printk("\n");
-
+	/* dump the packet */
+	snprintf(hdr, sizeof(hdr), "%6s:%s packet dump:", dev->name, desc);
+	print_hex_dump(KERN_DEBUG, hdr, DUMP_PREFIX_OFFSET,
+		       16, 1, buf, length, true);
 }
 
 #else
@@ -307,8 +301,8 @@ static int choose_mtu(void)
 
 	/* choose the smallest MTU of all available encaps */
 	for (count = 0; count < 256; count++) {
-		if (arc_proto_map[count] != &arc_proto_null
-		    && arc_proto_map[count]->mtu < mtu) {
+		if (arc_proto_map[count] != &arc_proto_null &&
+		    arc_proto_map[count]->mtu < mtu) {
 			mtu = arc_proto_map[count]->mtu;
 		}
 	}
@@ -597,7 +591,8 @@ static int arcnet_rebuild_header(struct sk_buff *skb)
 
 
 /* Called by the kernel in order to transmit a packet. */
-int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct archdr *pkt;
@@ -659,7 +654,6 @@ int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 			}
 		}
 		retval = NETDEV_TX_OK;
-		dev->trans_start = jiffies;
 		lp->next_tx = txbuf;
 	} else {
 		retval = NETDEV_TX_BUSY;
@@ -958,13 +952,13 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				 *    > RECON_THRESHOLD/min;
 				 * then print a warning message.
 				 */
-				if (!lp->network_down
-				    && (lp->last_recon - lp->first_recon) <= HZ * 60
-				  && lp->num_recons >= RECON_THRESHOLD) {
+				if (!lp->network_down &&
+				    (lp->last_recon - lp->first_recon) <= HZ * 60 &&
+				    lp->num_recons >= RECON_THRESHOLD) {
 					lp->network_down = 1;
 					BUGMSG(D_NORMAL, "many reconfigurations detected: cabling problem?\n");
-				} else if (!lp->network_down
-					   && lp->last_recon - lp->first_recon > HZ * 60) {
+				} else if (!lp->network_down &&
+					   lp->last_recon - lp->first_recon > HZ * 60) {
 					/* reset counters if we've gone for over a minute. */
 					lp->first_recon = lp->last_recon;
 					lp->num_recons = 1;

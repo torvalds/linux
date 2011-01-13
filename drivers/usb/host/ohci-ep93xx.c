@@ -188,7 +188,6 @@ static int ohci_hcd_ep93xx_drv_resume(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	int status;
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);

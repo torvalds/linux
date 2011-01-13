@@ -41,9 +41,9 @@ static inline int selinux_xfrm_enabled(void)
 }
 
 int selinux_xfrm_sock_rcv_skb(u32 sid, struct sk_buff *skb,
-			struct avc_audit_data *ad);
+			struct common_audit_data *ad);
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
-			struct avc_audit_data *ad, u8 proto);
+			struct common_audit_data *ad, u8 proto);
 int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
 
 static inline void selinux_xfrm_notify_policyload(void)
@@ -57,13 +57,13 @@ static inline int selinux_xfrm_enabled(void)
 }
 
 static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
-			struct avc_audit_data *ad)
+			struct common_audit_data *ad)
 {
 	return 0;
 }
 
 static inline int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
-			struct avc_audit_data *ad, u8 proto)
+			struct common_audit_data *ad, u8 proto)
 {
 	return 0;
 }

@@ -12,7 +12,6 @@
 #include <linux/capability.h>
 #include <linux/time.h>
 #include <linux/compat.h>
-#include <linux/smp_lock.h>
 #include <linux/mount.h>
 #include <linux/file.h>
 #include <asm/uaccess.h>
@@ -92,6 +91,15 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			migrate = 1;
 			flags &= ~EXT4_EXTENTS_FL;
 		}
+
+		if (flags & EXT4_EOFBLOCKS_FL) {
+			/* we don't support adding EOFBLOCKS flag */
+			if (!(oldflags & EXT4_EOFBLOCKS_FL)) {
+				err = -EOPNOTSUPP;
+				goto flags_out;
+			}
+		} else if (oldflags & EXT4_EOFBLOCKS_FL)
+			ext4_truncate(inode);
 
 		handle = ext4_journal_start(inode, 1);
 		if (IS_ERR(handle)) {
@@ -192,7 +200,7 @@ setversion_out:
 	case EXT4_IOC_GROUP_EXTEND: {
 		ext4_fsblk_t n_blocks_count;
 		struct super_block *sb = inode->i_sb;
-		int err, err2;
+		int err, err2=0;
 
 		if (!capable(CAP_SYS_RESOURCE))
 			return -EPERM;
@@ -205,9 +213,11 @@ setversion_out:
 			return err;
 
 		err = ext4_group_extend(sb, EXT4_SB(sb)->s_es, n_blocks_count);
-		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
-		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		if (EXT4_SB(sb)->s_journal) {
+			jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
+			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+			jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		}
 		if (err == 0)
 			err = err2;
 		mnt_drop_write(filp->f_path.mnt);
@@ -220,39 +230,46 @@ setversion_out:
 		struct file *donor_filp;
 		int err;
 
+		if (!(filp->f_mode & FMODE_READ) ||
+		    !(filp->f_mode & FMODE_WRITE))
+			return -EBADF;
+
 		if (copy_from_user(&me,
 			(struct move_extent __user *)arg, sizeof(me)))
 			return -EFAULT;
+		me.moved_len = 0;
 
 		donor_filp = fget(me.donor_fd);
 		if (!donor_filp)
 			return -EBADF;
 
-		if (!capable(CAP_DAC_OVERRIDE)) {
-			if ((current->real_cred->fsuid != inode->i_uid) ||
-				!(inode->i_mode & S_IRUSR) ||
-				!(donor_filp->f_dentry->d_inode->i_mode &
-				S_IRUSR)) {
-				fput(donor_filp);
-				return -EACCES;
-			}
+		if (!(donor_filp->f_mode & FMODE_WRITE)) {
+			err = -EBADF;
+			goto mext_out;
 		}
+
+		err = mnt_want_write(filp->f_path.mnt);
+		if (err)
+			goto mext_out;
 
 		err = ext4_move_extents(filp, donor_filp, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
-		fput(donor_filp);
+		mnt_drop_write(filp->f_path.mnt);
+		if (me.moved_len > 0)
+			file_remove_suid(donor_filp);
 
-		if (!err)
-			if (copy_to_user((struct move_extent *)arg,
-				&me, sizeof(me)))
-				return -EFAULT;
+		if (copy_to_user((struct move_extent __user *)arg,
+				 &me, sizeof(me)))
+			err = -EFAULT;
+mext_out:
+		fput(donor_filp);
 		return err;
 	}
 
 	case EXT4_IOC_GROUP_ADD: {
 		struct ext4_new_group_data input;
 		struct super_block *sb = inode->i_sb;
-		int err, err2;
+		int err, err2=0;
 
 		if (!capable(CAP_SYS_RESOURCE))
 			return -EPERM;
@@ -266,9 +283,11 @@ setversion_out:
 			return err;
 
 		err = ext4_group_add(sb, &input);
-		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
-		err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
-		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		if (EXT4_SB(sb)->s_journal) {
+			jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
+			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+			jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		}
 		if (err == 0)
 			err = err2;
 		mnt_drop_write(filp->f_path.mnt);
@@ -310,6 +329,30 @@ setversion_out:
 		err = ext4_alloc_da_blocks(inode);
 		mnt_drop_write(filp->f_path.mnt);
 		return err;
+	}
+
+	case FITRIM:
+	{
+		struct super_block *sb = inode->i_sb;
+		struct fstrim_range range;
+		int ret = 0;
+
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		if (copy_from_user(&range, (struct fstrim_range *)arg,
+		    sizeof(range)))
+			return -EFAULT;
+
+		ret = ext4_trim_fs(sb, &range);
+		if (ret < 0)
+			return ret;
+
+		if (copy_to_user((struct fstrim_range *)arg, &range,
+		    sizeof(range)))
+			return -EFAULT;
+
+		return 0;
 	}
 
 	default:
@@ -354,7 +397,30 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC32_SETRSVSZ:
 		cmd = EXT4_IOC_SETRSVSZ;
 		break;
-	case EXT4_IOC_GROUP_ADD:
+	case EXT4_IOC32_GROUP_ADD: {
+		struct compat_ext4_new_group_input __user *uinput;
+		struct ext4_new_group_input input;
+		mm_segment_t old_fs;
+		int err;
+
+		uinput = compat_ptr(arg);
+		err = get_user(input.group, &uinput->group);
+		err |= get_user(input.block_bitmap, &uinput->block_bitmap);
+		err |= get_user(input.inode_bitmap, &uinput->inode_bitmap);
+		err |= get_user(input.inode_table, &uinput->inode_table);
+		err |= get_user(input.blocks_count, &uinput->blocks_count);
+		err |= get_user(input.reserved_blocks,
+				&uinput->reserved_blocks);
+		if (err)
+			return -EFAULT;
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		err = ext4_ioctl(file, EXT4_IOC_GROUP_ADD,
+				 (unsigned long) &input);
+		set_fs(old_fs);
+		return err;
+	}
+	case EXT4_IOC_MOVE_EXT:
 		break;
 	default:
 		return -ENOIOCTLCMD;

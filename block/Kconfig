@@ -48,9 +48,9 @@ config LBDAF
 	  If unsure, say Y.
 
 config BLK_DEV_BSG
-	bool "Block layer SG support v4 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	---help---
+	bool "Block layer SG support v4"
+	default y
+	help
 	  Saying Y here will enable generic SG (SCSI generic) v4 support
 	  for any block device.
 
@@ -60,7 +60,10 @@ config BLK_DEV_BSG
 	  protocols (e.g. Task Management Functions and SMP in Serial
 	  Attached SCSI).
 
-	  If unsure, say N.
+	  This option is required by recent UDEV versions to properly
+	  access device serial numbers, etc.
+
+	  If unsure, say Y.
 
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"
@@ -73,6 +76,18 @@ config BLK_DEV_INTEGRITY
 	Say yes here if you have a storage device that provides the
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
+
+config BLK_DEV_THROTTLING
+	bool "Block layer bio throttling support"
+	depends on BLK_CGROUP=y && EXPERIMENTAL
+	default n
+	---help---
+	Block layer bio throttling support. It can be used to limit
+	the IO rate to a device. IO rate policies are per cgroup and
+	one needs to mount and use blkio cgroup controller for creating
+	cgroups and specifying per device IO rate policies.
+
+	See Documentation/cgroups/blkio-controller.txt for more information.
 
 endif # BLOCK
 

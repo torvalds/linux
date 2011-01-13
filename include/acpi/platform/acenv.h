@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -193,6 +193,12 @@
 #define ACPI_MUTEX_TYPE             ACPI_BINARY_SEMAPHORE
 #endif
 
+/* "inline" keywords - configurable since inline is not standardized */
+
+#ifndef ACPI_INLINE
+#define ACPI_INLINE
+#endif
+
 /*
  * Debugger threading model
  * Use single threaded if the entire subsystem is contained in an application
@@ -311,8 +317,8 @@ typedef char *va_list;
 #define ACPI_MEMCMP(s1,s2,n)    acpi_ut_memcmp((const char *)(s1), (const char *)(s2), (acpi_size)(n))
 #define ACPI_MEMCPY(d,s,n)      (void) acpi_ut_memcpy ((d), (s), (acpi_size)(n))
 #define ACPI_MEMSET(d,v,n)      (void) acpi_ut_memset ((d), (v), (acpi_size)(n))
-#define ACPI_TOUPPER            acpi_ut_to_upper
-#define ACPI_TOLOWER            acpi_ut_to_lower
+#define ACPI_TOUPPER(c)         acpi_ut_to_upper ((int) (c))
+#define ACPI_TOLOWER(c)         acpi_ut_to_lower ((int) (c))
 
 #endif				/* ACPI_USE_SYSTEM_CLIBRARY */
 

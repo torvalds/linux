@@ -26,13 +26,15 @@
 
 /* Auxiliary data to use in generating the audit record. */
 struct common_audit_data {
-	char    type;
-#define LSM_AUDIT_DATA_FS      1
-#define LSM_AUDIT_DATA_NET     2
-#define LSM_AUDIT_DATA_CAP     3
-#define LSM_AUDIT_DATA_IPC     4
-#define LSM_AUDIT_DATA_TASK    5
-#define LSM_AUDIT_DATA_KEY     6
+	char type;
+#define LSM_AUDIT_DATA_FS	1
+#define LSM_AUDIT_DATA_NET	2
+#define LSM_AUDIT_DATA_CAP	3
+#define LSM_AUDIT_DATA_IPC	4
+#define LSM_AUDIT_DATA_TASK	5
+#define LSM_AUDIT_DATA_KEY	6
+#define LSM_AUDIT_DATA_NONE	7
+#define LSM_AUDIT_DATA_KMOD	8
 	struct task_struct *tsk;
 	union 	{
 		struct {
@@ -65,17 +67,21 @@ struct common_audit_data {
 			char *key_desc;
 		} key_struct;
 #endif
+		char *kmod_name;
 	} u;
-	const char *function;
 	/* this union contains LSM specific data */
 	union {
+#ifdef CONFIG_SECURITY_SMACK
 		/* SMACK data */
 		struct smack_audit_data {
+			const char *function;
 			char *subject;
 			char *object;
 			char *request;
 			int result;
 		} smack_audit_data;
+#endif
+#ifdef CONFIG_SECURITY_SELINUX
 		/* SELinux data */
 		struct {
 			u32 ssid;
@@ -83,10 +89,44 @@ struct common_audit_data {
 			u16 tclass;
 			u32 requested;
 			u32 audited;
+			u32 denied;
+			/*
+			 * auditdeny is a bit tricky and unintuitive.  See the
+			 * comments in avc.c for it's meaning and usage.
+			 */
+			u32 auditdeny;
 			struct av_decision *avd;
 			int result;
 		} selinux_audit_data;
-	} lsm_priv;
+#endif
+#ifdef CONFIG_SECURITY_APPARMOR
+		struct {
+			int error;
+			int op;
+			int type;
+			void *profile;
+			const char *name;
+			const char *info;
+			union {
+				void *target;
+				struct {
+					long pos;
+					void *target;
+				} iface;
+				struct {
+					int rlim;
+					unsigned long max;
+				} rlim;
+				struct {
+					const char *target;
+					u32 request;
+					u32 denied;
+					uid_t ouid;
+				} fs;
+			};
+		} apparmor_audit_data;
+#endif
+	};
 	/* these callback will be implemented by a specific LSM */
 	void (*lsm_pre_audit)(struct audit_buffer *, void *);
 	void (*lsm_post_audit)(struct audit_buffer *, void *);
@@ -104,7 +144,7 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 /* Initialize an LSM audit data structure. */
 #define COMMON_AUDIT_DATA_INIT(_d, _t) \
 	{ memset((_d), 0, sizeof(struct common_audit_data)); \
-	 (_d)->type = LSM_AUDIT_DATA_##_t; (_d)->function = __func__; }
+	 (_d)->type = LSM_AUDIT_DATA_##_t; }
 
 void common_lsm_audit(struct common_audit_data *a);
 

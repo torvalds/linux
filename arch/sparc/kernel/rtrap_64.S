@@ -34,79 +34,9 @@ __handle_preemption:
 __handle_user_windows:
 		call			fault_in_user_windows
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
-		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		/* Redo sched+sig checks */
-		ldx			[%g6 + TI_FLAGS], %l0
-		andcc			%l0, _TIF_NEED_RESCHED, %g0
+		ba,pt			%xcc, __handle_preemption_continue
+		 wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 
-		be,pt			%xcc, 1f
-		 nop
-		call			schedule
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
-		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		ldx			[%g6 + TI_FLAGS], %l0
-
-1:		andcc			%l0, _TIF_DO_NOTIFY_RESUME_MASK, %g0
-		be,pt			%xcc, __handle_user_windows_continue
-		 nop
-		mov			%l5, %o1
-		add			%sp, PTREGS_OFF, %o0
-		mov			%l0, %o2
-
-		call			do_notify_resume
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
-		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		/* Signal delivery can modify pt_regs tstate, so we must
-		 * reload it.
-		 */
-		ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
-		sethi			%hi(0xf << 20), %l4
-		and			%l1, %l4, %l4
-		ba,pt			%xcc, __handle_user_windows_continue
-
-		 andn			%l1, %l4, %l1
-__handle_perfctrs:
-		call			update_perfctrs
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
-		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		ldub			[%g6 + TI_WSAVED], %o2
-		brz,pt			%o2, 1f
-		 nop
-		/* Redo userwin+sched+sig checks */
-		call			fault_in_user_windows
-
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
-		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		ldx			[%g6 + TI_FLAGS], %l0
-		andcc			%l0, _TIF_NEED_RESCHED, %g0
-		be,pt			%xcc, 1f
-
-		 nop
-		call			schedule
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
-		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		ldx			[%g6 + TI_FLAGS], %l0
-1:		andcc			%l0, _TIF_DO_NOTIFY_RESUME_MASK, %g0
-
-		be,pt			%xcc, __handle_perfctrs_continue
-		 sethi			%hi(TSTATE_PEF), %o0
-		mov			%l5, %o1
-		add			%sp, PTREGS_OFF, %o0
-		mov			%l0, %o2
-		call			do_notify_resume
-
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
-		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		/* Signal delivery can modify pt_regs tstate, so we must
-		 * reload it.
-		 */
-		ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
-		sethi			%hi(0xf << 20), %l4
-		and			%l1, %l4, %l4
-		andn			%l1, %l4, %l1
-		ba,pt			%xcc, __handle_perfctrs_continue
-
-		 sethi			%hi(TSTATE_PEF), %o0
 __handle_userfpu:
 		rd			%fprs, %l5
 		andcc			%l5, FPRS_FEF, %g0
@@ -129,7 +59,7 @@ __handle_signal:
 		ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 		sethi			%hi(0xf << 20), %l4
 		and			%l1, %l4, %l4
-		ba,pt			%xcc, __handle_signal_continue
+		ba,pt			%xcc, __handle_preemption_continue
 		 andn			%l1, %l4, %l1
 
 		/* When returning from a NMI (%pil==15) interrupt we want to
@@ -149,11 +79,11 @@ rtrap_nmi:	ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 rtrap_irq:
 rtrap:
 #ifndef CONFIG_SMP
-		sethi			%hi(per_cpu____cpu_data), %l0
-		lduw			[%l0 + %lo(per_cpu____cpu_data)], %l1
+		sethi			%hi(__cpu_data), %l0
+		lduw			[%l0 + %lo(__cpu_data)], %l1
 #else
-		sethi			%hi(per_cpu____cpu_data), %l0
-		or			%l0, %lo(per_cpu____cpu_data), %l0
+		sethi			%hi(__cpu_data), %l0
+		or			%l0, %lo(__cpu_data), %l0
 		lduw			[%l0 + %g5], %l1
 #endif
 		cmp			%l1, 0
@@ -172,7 +102,17 @@ rtrap_xcall:
 		 nop
 		call			trace_hardirqs_on
 		 nop
-		wrpr			%l4, %pil
+		/* Do not actually set the %pil here.  We will do that
+		 * below after we clear PSTATE_IE in the %pstate register.
+		 * If we re-enable interrupts here, we can recurse down
+		 * the hardirq stack potentially endlessly, causing a
+		 * stack overflow.
+		 *
+		 * It is tempting to put this test and trace_hardirqs_on
+		 * call at the 'rt_continue' label, but that will not work
+		 * as that path hits unconditionally and we do not want to
+		 * execute this in NMI return paths, for example.
+		 */
 #endif
 rtrap_no_irq_enable:
 		andcc			%l1, TSTATE_PRIV, %l3
@@ -191,9 +131,9 @@ rtrap_no_irq_enable:
 		 * take until the next local IRQ before the signal/resched
 		 * event would be handled.
 		 *
-		 * This also means that if we have to deal with performance
-		 * counters or user windows, we have to redo all of these
-		 * sched+signal checks with IRQs disabled.
+		 * This also means that if we have to deal with user
+		 * windows, we have to redo all of these sched+signal checks
+		 * with IRQs disabled.
 		 */
 to_user:	wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 		wrpr			0, %pil
@@ -209,17 +149,11 @@ __handle_preemption_continue:
 		bne,pn			%xcc, __handle_preemption
 		 andcc			%l0, _TIF_DO_NOTIFY_RESUME_MASK, %g0
 		bne,pn			%xcc, __handle_signal
-__handle_signal_continue:
 		 ldub			[%g6 + TI_WSAVED], %o2
 		brnz,pn			%o2, __handle_user_windows
 		 nop
-__handle_user_windows_continue:
-		ldx			[%g6 + TI_FLAGS], %l5
-		andcc			%l5, _TIF_PERFCTR, %g0
 		sethi			%hi(TSTATE_PEF), %o0
-		bne,pn			%xcc, __handle_perfctrs
-__handle_perfctrs_continue:
-		 andcc			%l1, %o0, %g0
+		andcc			%l1, %o0, %g0
 
 		/* This fpdepth clear is necessary for non-syscall rtraps only */
 user_nowork:

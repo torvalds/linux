@@ -58,7 +58,7 @@
 #endif
 
 /* table of devices that work with this driver */
-static struct usb_device_id usb_alphatrack_table[] = {
+static const struct usb_device_id usb_alphatrack_table[] = {
 	{USB_DEVICE(VENDOR_ID, PRODUCT_ID)},
 	{}			/* Terminating entry */
 };
@@ -89,7 +89,7 @@ static int debug = ALPHATRACK_DEBUG;
 
 /* Use our own dbg macro */
 #define dbg_info(dev, format, arg...) do \
-    { if (debug) dev_info(dev , format , ## arg); } while (0)
+	{ if (debug) dev_info(dev , format , ## arg); } while (0)
 
 #define alphatrack_ocmd_info(dev, cmd, format, arg...)
 
@@ -134,7 +134,7 @@ MODULE_PARM_DESC(min_interrupt_out_interval,
 /* Structure to hold all of our device specific stuff */
 
 struct usb_alphatrack {
-	struct semaphore sem;	/* locks this structure */
+	struct mutex mtx;	/* locks this structure */
 	struct usb_interface *intf;	/* save off the usb interface pointer */
 	int open_count;		/* number of times this port has been opened */
 
@@ -238,7 +238,7 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 	if (urb->actual_length != INPUT_CMD_SIZE) {
 		dev_warn(&dev->intf->dev,
 			 "Urb length was %d bytes!!"
-			 "Do something intelligent \n", urb->actual_length);
+			 "Do something intelligent\n", urb->actual_length);
 	} else {
 		alphatrack_ocmd_info(&dev->intf->dev,
 				     &(*dev->ring_buffer)[dev->ring_tail].cmd,
@@ -347,7 +347,7 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 	}
 
 	/* lock this device */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto unlock_disconnect_exit;
 	}
@@ -390,7 +390,7 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 	file->private_data = dev;
 
 unlock_exit:
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 unlock_disconnect_exit:
 	mutex_unlock(&disconnect_mutex);
@@ -413,7 +413,7 @@ static int usb_alphatrack_release(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -425,7 +425,7 @@ static int usb_alphatrack_release(struct inode *inode, struct file *file)
 
 	if (dev->intf == NULL) {
 		/* the device was unplugged before the file was released */
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 		/* unlock here as usb_alphatrack_delete frees dev */
 		usb_alphatrack_delete(dev);
 		retval = -ENODEV;
@@ -441,7 +441,7 @@ static int usb_alphatrack_release(struct inode *inode, struct file *file)
 	dev->open_count = 0;
 
 unlock_exit:
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 exit:
 	return retval;
@@ -486,7 +486,7 @@ static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer,
 		goto exit;
 
 	/* lock this object */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -532,7 +532,7 @@ static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer,
 
 unlock_exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 exit:
 	return retval;
@@ -556,7 +556,7 @@ static ssize_t usb_alphatrack_write(struct file *file,
 		goto exit;
 
 	/* lock this object */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -599,7 +599,7 @@ static ssize_t usb_alphatrack_write(struct file *file,
 	}
 
 	if (dev->interrupt_out_endpoint == NULL) {
-		err("Endpoint should not be be null! \n");
+		err("Endpoint should not be be null!\n");
 		goto unlock_exit;
 	}
 
@@ -627,7 +627,7 @@ static ssize_t usb_alphatrack_write(struct file *file,
 
 unlock_exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 exit:
 	return retval;
@@ -641,6 +641,7 @@ static const struct file_operations usb_alphatrack_fops = {
 	.open = usb_alphatrack_open,
 	.release = usb_alphatrack_release,
 	.poll = usb_alphatrack_poll,
+	.llseek = no_llseek,
 };
 
 /*
@@ -671,14 +672,14 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	int true_size;
 	int retval = -ENOMEM;
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&intf->dev, "Out of memory\n");
 		goto exit;
 	}
-	init_MUTEX(&dev->sem);
+	mutex_init(&dev->mtx);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
@@ -768,10 +769,10 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	}
 
 	dev->write_buffer =
-	    kmalloc(sizeof(struct alphatrack_ocmd) * true_size, GFP_KERNEL);
+	    kmalloc(true_size * sizeof(struct alphatrack_ocmd), GFP_KERNEL);
 
 	if (!dev->write_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate write_buffer \n");
+		dev_err(&intf->dev, "Couldn't allocate write_buffer\n");
 		goto error;
 	}
 
@@ -835,7 +836,7 @@ static void usb_alphatrack_disconnect(struct usb_interface *intf)
 	dev = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
 
-	down(&dev->sem);
+	mutex_lock(&dev->mtx);
 
 	minor = intf->minor;
 
@@ -844,11 +845,11 @@ static void usb_alphatrack_disconnect(struct usb_interface *intf)
 
 	/* if the device is not opened, then we clean up right now */
 	if (!dev->open_count) {
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 		usb_alphatrack_delete(dev);
 	} else {
 		dev->intf = NULL;
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 	}
 
 	atomic_set(&dev->writes_pending, 0);

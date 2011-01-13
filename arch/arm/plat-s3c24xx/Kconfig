@@ -1,5 +1,3 @@
-# arch/arm/plat-s3c24xx/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -10,10 +8,34 @@ config PLAT_S3C24XX
 	default y
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
+	select S3C_DEV_NAND
+	select S3C_GPIO_CFG_S3C24XX
 	help
 	  Base platform code for any Samsung S3C24XX device
 
 if PLAT_S3C24XX
+
+# low-level serial option nodes
+
+config CPU_LLSERIAL_S3C2410_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
+
+config CPU_LLSERIAL_S3C2440_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
+
+config CPU_LLSERIAL_S3C2410
+	bool
+	help
+	  Selected if there is an S3C2410 (or register compatible) serial
+	  low-level implementation needed
+
+config CPU_LLSERIAL_S3C2440
+	bool
+	help
+	  Selected if there is an S3C2440 (or register compatible) serial
+	  low-level implementation needed
 
 # code that is shared between a number of the s3c24xx implementations
 
@@ -23,16 +45,16 @@ config S3C2410_CLOCK
 	  Clock code for the S3C2410, and similar processors which
 	  is currently includes the S3C2410, S3C2440, S3C2442.
 
+config S3C2443_CLOCK
+	bool
+	help
+	  Clock code for the S3C2443 and similar processors, which includes
+	  the S3C2416 and S3C2450.
+
 config S3C24XX_DCLK
 	bool
 	help
 	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
-
-config CPU_S3C244X
-	bool
-	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
-	help
-	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
 
 config S3C24XX_PWM
 	bool "PWM device support"
@@ -41,13 +63,13 @@ config S3C24XX_PWM
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system.
 
-
 # gpio configurations
 
 config S3C24XX_GPIO_EXTRA
 	int
 	default 128 if S3C24XX_GPIO_EXTRA128
 	default 64 if S3C24XX_GPIO_EXTRA64
+	default 16 if ARCH_H1940
 	default 0
 
 config S3C24XX_GPIO_EXTRA64
@@ -84,13 +106,6 @@ config S3C2410_DMA_DEBUG
 	  Enable debugging output for the DMA code. This option sends info
 	  to the kernel log, at priority KERN_DEBUG.
 
-config S3C24XX_ADC
-	bool "ADC common driver support"
-	help
-	  Core support for the ADC block found in the S3C24XX SoC systems
-	  for drivers such as the touchscreen and hwmon to use to share
-	  this resource.
-
 # SPI default pin configuration code
 
 config S3C24XX_SPI_BUS0_GPE11_GPE12_GPE13
@@ -105,11 +120,54 @@ config S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7
 	  SPI GPIO configuration code for BUS 1 when connected to
 	  GPG5, GPG6 and GPG7.
 
+config S3C24XX_SPI_BUS1_GPD8_GPD9_GPD10
+	bool
+	help
+	  SPI GPIO configuration code for BUS 1 when connected to
+	  GPD8, GPD9 and GPD10.
+
 # common code for s3c24xx based machines, such as the SMDKs.
+
+# cpu frequency items common between s3c2410 and s3c2440/s3c2442
+
+config S3C2410_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Internal node to select io timing code that is common to the s3c2410
+	  and s3c2440/s3c2442 cpu frequency support.
+
+config S3C2410_CPUFREQ_UTILS
+	bool
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Internal node to select timing code that is common to the s3c2410
+	  and s3c2440/s3c244 cpu frequency support.
+
+# cpu frequency support common to s3c2412, s3c2413 and s3c2442
+
+config S3C2412_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX && (CPU_S3C2412 || CPU_S3C2443)
+	help
+	  Intel node to select io timing code that is common to the s3c2412
+	  and the s3c2443.
 
 config MACH_SMDK
 	bool
 	help
 	  Common machine code for SMDK2410 and SMDK2440
+
+config S3C24XX_SIMTEC_AUDIO
+	bool
+	depends on (ARCH_BAST || MACH_VR1000 || MACH_OSIRIS || MACH_ANUBIS)
+	default y
+	help
+	  Add audio devices for common Simtec S3C24XX boards
+
+config S3C2410_SETUP_TS
+	bool
+	help
+	  Compile in platform device definition for Samsung TouchScreen.
 
 endif

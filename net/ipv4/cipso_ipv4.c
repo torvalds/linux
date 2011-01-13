@@ -9,7 +9,7 @@
  *
  * The CIPSO draft specification can be found in the kernel's Documentation
  * directory as well as the following URL:
- *   http://netlabel.sourceforge.net/files/draft-ietf-cipso-ipsecurity-01.txt
+ *   http://tools.ietf.org/id/draft-ietf-cipso-ipsecurity-01.txt
  * The FIPS-188 specification can be found at the following URL:
  *   http://www.itl.nist.gov/fipspubs/fip188.htm
  *
@@ -44,6 +44,7 @@
 #include <linux/string.h>
 #include <linux/jhash.h>
 #include <linux/audit.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -289,8 +290,6 @@ void cipso_v4_cache_invalidate(void)
 		cipso_v4_cache[iter].size = 0;
 		spin_unlock_bh(&cipso_v4_cache[iter].lock);
 	}
-
-	return;
 }
 
 /**
@@ -2017,7 +2016,7 @@ req_setattr_failure:
  * values on failure.
  *
  */
-int cipso_v4_delopt(struct ip_options **opt_ptr)
+static int cipso_v4_delopt(struct ip_options **opt_ptr)
 {
 	int hdr_delta = 0;
 	struct ip_options *opt = *opt_ptr;

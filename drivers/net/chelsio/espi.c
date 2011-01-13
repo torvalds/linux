@@ -76,7 +76,7 @@ static int tricn_write(adapter_t *adapter, int bundle_addr, int module_addr,
 	} while (busy && --attempts);
 
 	if (busy)
-		CH_ERR("%s: TRICN write timed out\n", adapter->name);
+		pr_err("%s: TRICN write timed out\n", adapter->name);
 
 	return busy;
 }
@@ -86,7 +86,7 @@ static int tricn_init(adapter_t *adapter)
 	int i, sme = 1;
 
 	if (!(readl(adapter->regs + A_ESPI_RX_RESET)  & F_RX_CLK_STATUS)) {
-		CH_ERR("%s: ESPI clock not ready\n", adapter->name);
+		pr_err("%s: ESPI clock not ready\n", adapter->name);
 		return -1;
 	}
 

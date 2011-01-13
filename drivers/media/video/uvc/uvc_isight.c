@@ -4,7 +4,7 @@
  *	Copyright (C) 2006-2007
  *		Ivan N. Zlatev <contact@i-nz.net>
  *	Copyright (C) 2008-2009
- *		Laurent Pinchart <laurent.pinchart@skynet.be>
+ *		Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 	return 0;
 }
 
-void uvc_video_decode_isight(struct urb *urb, struct uvc_video_device *video,
+void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf)
 {
 	int ret, i;
@@ -120,7 +120,7 @@ void uvc_video_decode_isight(struct urb *urb, struct uvc_video_device *video,
 		 * processes the data of the first payload of the new frame.
 		 */
 		do {
-			ret = isight_decode(&video->queue, buf,
+			ret = isight_decode(&stream->queue, buf,
 					urb->transfer_buffer +
 					urb->iso_frame_desc[i].offset,
 					urb->iso_frame_desc[i].actual_length);
@@ -130,7 +130,8 @@ void uvc_video_decode_isight(struct urb *urb, struct uvc_video_device *video,
 
 			if (buf->state == UVC_BUF_STATE_DONE ||
 			    buf->state == UVC_BUF_STATE_ERROR)
-				buf = uvc_queue_next_buffer(&video->queue, buf);
+				buf = uvc_queue_next_buffer(&stream->queue,
+							buf);
 		} while (ret == -EAGAIN);
 	}
 }

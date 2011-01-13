@@ -153,6 +153,14 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 		 * through switch.
 		 */
 		return -1;
+
+	case CVMX_BOARD_TYPE_CUST_WSX16:
+		if (ipd_port >= 0 && ipd_port <= 3)
+			return ipd_port;
+		else if (ipd_port >= 16 && ipd_port <= 19)
+			return ipd_port - 16 + 4;
+		else
+			return -1;
 	}
 
 	/* Some unknown board. Somebody forgot to update this function... */
@@ -684,23 +692,4 @@ int __cvmx_helper_board_hardware_enable(int interface)
 		}
 	}
 	return 0;
-}
-
-cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
-{
-	switch (cvmx_sysinfo_get()->board_type) {
-	case CVMX_BOARD_TYPE_BBGW_REF:
-		return USB_CLOCK_TYPE_CRYSTAL_12;
-	}
-	return USB_CLOCK_TYPE_REF_48;
-}
-
-int __cvmx_helper_board_usb_get_num_ports(int supported_ports)
-{
-	switch (cvmx_sysinfo_get()->board_type) {
-	case CVMX_BOARD_TYPE_NIC_XLE_4G:
-		return 0;
-	}
-
-	return supported_ports;
 }

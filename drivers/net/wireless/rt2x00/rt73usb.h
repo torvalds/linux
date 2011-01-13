@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -37,7 +37,7 @@
 
 /*
  * Signal information.
- * Defaul offset is required for RSSI <-> dBm conversion.
+ * Default offset is required for RSSI <-> dBm conversion.
  */
 #define DEFAULT_RSSI_OFFSET		120
 
@@ -108,13 +108,13 @@ struct hw_key_entry {
 	u8 key[16];
 	u8 tx_mic[8];
 	u8 rx_mic[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct hw_pairwise_ta_entry {
 	u8 address[6];
 	u8 cipher;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Since NULL frame won't be that long (256 byte),
@@ -142,6 +142,8 @@ struct hw_pairwise_ta_entry {
  * MAC_CSR0: ASIC revision number.
  */
 #define MAC_CSR0			0x3000
+#define MAC_CSR0_REVISION		FIELD32(0x0000000f)
+#define MAC_CSR0_CHIPSET		FIELD32(0x000ffff0)
 
 /*
  * MAC_CSR1: System control register.
@@ -320,7 +322,7 @@ struct hw_pairwise_ta_entry {
  * DROP_VERSION_ERROR: Drop version error frame.
  * DROP_MULTICAST: Drop multicast frames.
  * DROP_BORADCAST: Drop broadcast frames.
- * ROP_ACK_CTS: Drop received ACK and CTS.
+ * DROP_ACK_CTS: Drop received ACK and CTS.
  */
 #define TXRX_CSR0			0x3040
 #define TXRX_CSR0_RX_ACK_TIMEOUT	FIELD32(0x000001ff)
@@ -687,10 +689,10 @@ struct hw_pairwise_ta_entry {
 
 /*
  * AIFSN_CSR: AIFSN for each EDCA AC.
- * AIFSN0: For AC_BK.
- * AIFSN1: For AC_BE.
- * AIFSN2: For AC_VI.
- * AIFSN3: For AC_VO.
+ * AIFSN0: For AC_VO.
+ * AIFSN1: For AC_VI.
+ * AIFSN2: For AC_BE.
+ * AIFSN3: For AC_BK.
  */
 #define AIFSN_CSR			0x0400
 #define AIFSN_CSR_AIFSN0		FIELD32(0x0000000f)
@@ -700,10 +702,10 @@ struct hw_pairwise_ta_entry {
 
 /*
  * CWMIN_CSR: CWmin for each EDCA AC.
- * CWMIN0: For AC_BK.
- * CWMIN1: For AC_BE.
- * CWMIN2: For AC_VI.
- * CWMIN3: For AC_VO.
+ * CWMIN0: For AC_VO.
+ * CWMIN1: For AC_VI.
+ * CWMIN2: For AC_BE.
+ * CWMIN3: For AC_BK.
  */
 #define CWMIN_CSR			0x0404
 #define CWMIN_CSR_CWMIN0		FIELD32(0x0000000f)
@@ -713,10 +715,10 @@ struct hw_pairwise_ta_entry {
 
 /*
  * CWMAX_CSR: CWmax for each EDCA AC.
- * CWMAX0: For AC_BK.
- * CWMAX1: For AC_BE.
- * CWMAX2: For AC_VI.
- * CWMAX3: For AC_VO.
+ * CWMAX0: For AC_VO.
+ * CWMAX1: For AC_VI.
+ * CWMAX2: For AC_BE.
+ * CWMAX3: For AC_BK.
  */
 #define CWMAX_CSR			0x0408
 #define CWMAX_CSR_CWMAX0		FIELD32(0x0000000f)
@@ -725,18 +727,18 @@ struct hw_pairwise_ta_entry {
 #define CWMAX_CSR_CWMAX3		FIELD32(0x0000f000)
 
 /*
- * AC_TXOP_CSR0: AC_BK/AC_BE TXOP register.
- * AC0_TX_OP: For AC_BK, in unit of 32us.
- * AC1_TX_OP: For AC_BE, in unit of 32us.
+ * AC_TXOP_CSR0: AC_VO/AC_VI TXOP register.
+ * AC0_TX_OP: For AC_VO, in unit of 32us.
+ * AC1_TX_OP: For AC_VI, in unit of 32us.
  */
 #define AC_TXOP_CSR0			0x040c
 #define AC_TXOP_CSR0_AC0_TX_OP		FIELD32(0x0000ffff)
 #define AC_TXOP_CSR0_AC1_TX_OP		FIELD32(0xffff0000)
 
 /*
- * AC_TXOP_CSR1: AC_VO/AC_VI TXOP register.
- * AC2_TX_OP: For AC_VI, in unit of 32us.
- * AC3_TX_OP: For AC_VO, in unit of 32us.
+ * AC_TXOP_CSR1: AC_BE/AC_BK TXOP register.
+ * AC2_TX_OP: For AC_BE, in unit of 32us.
+ * AC3_TX_OP: For AC_BK, in unit of 32us.
  */
 #define AC_TXOP_CSR1			0x0410
 #define AC_TXOP_CSR1_AC2_TX_OP		FIELD32(0x0000ffff)
@@ -809,7 +811,7 @@ struct hw_pairwise_ta_entry {
 
 /*
  * EEPROM antenna.
- * ANTENNA_NUM: Number of antenna's.
+ * ANTENNA_NUM: Number of antennas.
  * TX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * RX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * FRAME_TYPE: 0: DPDT , 1: SPDT , noted this bit is valid for g only.
@@ -1058,7 +1060,7 @@ struct hw_pairwise_ta_entry {
 #define RXD_W5_RESERVED			FIELD32(0xffffffff)
 
 /*
- * Macro's for converting txpower from EEPROM to mac80211 value
+ * Macros for converting txpower from EEPROM to mac80211 value
  * and from mac80211 value to register value.
  */
 #define MIN_TXPOWER	0

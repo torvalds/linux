@@ -159,100 +159,82 @@
 #define CH7017_BANG_LIMIT_CONTROL	0x7f
 
 struct ch7017_priv {
-	uint8_t save_hapi;
-	uint8_t save_vali;
-	uint8_t save_valo;
-	uint8_t save_ailo;
-	uint8_t save_lvds_pll_vco;
-	uint8_t save_feedback_div;
-	uint8_t save_lvds_control_2;
-	uint8_t save_outputs_enable;
-	uint8_t save_lvds_power_down;
-	uint8_t save_power_management;
+	uint8_t dummy;
 };
 
 static void ch7017_dump_regs(struct intel_dvo_device *dvo);
 static void ch7017_dpms(struct intel_dvo_device *dvo, int mode);
 
-static bool ch7017_read(struct intel_dvo_device *dvo, int addr, uint8_t *val)
+static bool ch7017_read(struct intel_dvo_device *dvo, u8 addr, u8 *val)
 {
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
-	u8 out_buf[2];
-	u8 in_buf[2];
-
 	struct i2c_msg msgs[] = {
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = 0,
 			.len = 1,
-			.buf = out_buf,
+			.buf = &addr,
 		},
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD,
 			.len = 1,
-			.buf = in_buf,
+			.buf = val,
 		}
 	};
-
-	out_buf[0] = addr;
-	out_buf[1] = 0;
-
-	if (i2c_transfer(&i2cbus->adapter, msgs, 2) == 2) {
-		*val= in_buf[0];
-		return true;
-	};
-
-	return false;
+	return i2c_transfer(dvo->i2c_bus, msgs, 2) == 2;
 }
 
-static bool ch7017_write(struct intel_dvo_device *dvo, int addr, uint8_t val)
+static bool ch7017_write(struct intel_dvo_device *dvo, u8 addr, u8 val)
 {
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
-	uint8_t out_buf[2];
+	uint8_t buf[2] = { addr, val };
 	struct i2c_msg msg = {
-		.addr = i2cbus->slave_addr,
+		.addr = dvo->slave_addr,
 		.flags = 0,
 		.len = 2,
-		.buf = out_buf,
+		.buf = buf,
 	};
-
-	out_buf[0] = addr;
-	out_buf[1] = val;
-
-	if (i2c_transfer(&i2cbus->adapter, &msg, 1) == 1)
-		return true;
-
-	return false;
+	return i2c_transfer(dvo->i2c_bus, &msg, 1) == 1;
 }
 
 /** Probes for a CH7017 on the given bus and slave address. */
 static bool ch7017_init(struct intel_dvo_device *dvo,
-			struct intel_i2c_chan *i2cbus)
+			struct i2c_adapter *adapter)
 {
 	struct ch7017_priv *priv;
-	uint8_t val;
+	const char *str;
+	u8 val;
 
 	priv = kzalloc(sizeof(struct ch7017_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return false;
 
-	dvo->i2c_bus = i2cbus;
-	dvo->i2c_bus->slave_addr = dvo->slave_addr;
+	dvo->i2c_bus = adapter;
 	dvo->dev_priv = priv;
 
 	if (!ch7017_read(dvo, CH7017_DEVICE_ID, &val))
 		goto fail;
 
-	if (val != CH7017_DEVICE_ID_VALUE &&
-	    val != CH7018_DEVICE_ID_VALUE &&
-	    val != CH7019_DEVICE_ID_VALUE) {
-		DRM_DEBUG("ch701x not detected, got %d: from %s Slave %d.\n",
-			  val, i2cbus->adapter.name,i2cbus->slave_addr);
+	switch (val) {
+	case CH7017_DEVICE_ID_VALUE:
+		str = "ch7017";
+		break;
+	case CH7018_DEVICE_ID_VALUE:
+		str = "ch7018";
+		break;
+	case CH7019_DEVICE_ID_VALUE:
+		str = "ch7019";
+		break;
+	default:
+		DRM_DEBUG_KMS("ch701x not detected, got %d: from %s "
+			      "slave %d.\n",
+			      val, adapter->name,dvo->slave_addr);
 		goto fail;
 	}
 
+	DRM_DEBUG_KMS("%s detected on %s, addr %d\n",
+		      str, adapter->name, dvo->slave_addr);
 	return true;
+
 fail:
 	kfree(priv);
 	return false;
@@ -260,7 +242,7 @@ fail:
 
 static enum drm_connector_status ch7017_detect(struct intel_dvo_device *dvo)
 {
-	return connector_status_unknown;
+	return connector_status_connected;
 }
 
 static enum drm_mode_status ch7017_mode_valid(struct intel_dvo_device *dvo,
@@ -282,7 +264,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 	uint8_t horizontal_active_pixel_output, vertical_active_line_output;
 	uint8_t active_input_line_output;
 
-	DRM_DEBUG("Registers before mode setting\n");
+	DRM_DEBUG_KMS("Registers before mode setting\n");
 	ch7017_dump_regs(dvo);
 
 	/* LVDS PLL settings from page 75 of 7017-7017ds.pdf*/
@@ -344,7 +326,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 	/* Turn the LVDS back on with new settings. */
 	ch7017_write(dvo, CH7017_LVDS_POWER_DOWN, lvds_power_down);
 
-	DRM_DEBUG("Registers after mode setting\n");
+	DRM_DEBUG_KMS("Registers after mode setting\n");
 	ch7017_dump_regs(dvo);
 }
 
@@ -374,7 +356,7 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, int mode)
 	}
 
 	/* XXX: Should actually wait for update power status somehow */
-	udelay(20000);
+	msleep(20);
 }
 
 static void ch7017_dump_regs(struct intel_dvo_device *dvo)
@@ -384,7 +366,7 @@ static void ch7017_dump_regs(struct intel_dvo_device *dvo)
 #define DUMP(reg)					\
 do {							\
 	ch7017_read(dvo, reg, &val);			\
-	DRM_DEBUG(#reg ": %02x\n", val);		\
+	DRM_DEBUG_KMS(#reg ": %02x\n", val);		\
 } while (0)
 
 	DUMP(CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT);
@@ -396,39 +378,6 @@ do {							\
 	DUMP(CH7017_LVDS_CONTROL_2);
 	DUMP(CH7017_OUTPUTS_ENABLE);
 	DUMP(CH7017_LVDS_POWER_DOWN);
-}
-
-static void ch7017_save(struct intel_dvo_device *dvo)
-{
-	struct ch7017_priv *priv = dvo->dev_priv;
-
-	ch7017_read(dvo, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT, &priv->save_hapi);
-	ch7017_read(dvo, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT, &priv->save_valo);
-	ch7017_read(dvo, CH7017_ACTIVE_INPUT_LINE_OUTPUT, &priv->save_ailo);
-	ch7017_read(dvo, CH7017_LVDS_PLL_VCO_CONTROL, &priv->save_lvds_pll_vco);
-	ch7017_read(dvo, CH7017_LVDS_PLL_FEEDBACK_DIV, &priv->save_feedback_div);
-	ch7017_read(dvo, CH7017_LVDS_CONTROL_2, &priv->save_lvds_control_2);
-	ch7017_read(dvo, CH7017_OUTPUTS_ENABLE, &priv->save_outputs_enable);
-	ch7017_read(dvo, CH7017_LVDS_POWER_DOWN, &priv->save_lvds_power_down);
-	ch7017_read(dvo, CH7017_POWER_MANAGEMENT, &priv->save_power_management);
-}
-
-static void ch7017_restore(struct intel_dvo_device *dvo)
-{
-	struct ch7017_priv *priv = dvo->dev_priv;
-
-	/* Power down before changing mode */
-	ch7017_dpms(dvo, DRM_MODE_DPMS_OFF);
-
-	ch7017_write(dvo, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT, priv->save_hapi);
-	ch7017_write(dvo, CH7017_VERTICAL_ACTIVE_LINE_OUTPUT, priv->save_valo);
-	ch7017_write(dvo, CH7017_ACTIVE_INPUT_LINE_OUTPUT, priv->save_ailo);
-	ch7017_write(dvo, CH7017_LVDS_PLL_VCO_CONTROL, priv->save_lvds_pll_vco);
-	ch7017_write(dvo, CH7017_LVDS_PLL_FEEDBACK_DIV, priv->save_feedback_div);
-	ch7017_write(dvo, CH7017_LVDS_CONTROL_2, priv->save_lvds_control_2);
-	ch7017_write(dvo, CH7017_OUTPUTS_ENABLE, priv->save_outputs_enable);
-	ch7017_write(dvo, CH7017_LVDS_POWER_DOWN, priv->save_lvds_power_down);
-	ch7017_write(dvo, CH7017_POWER_MANAGEMENT, priv->save_power_management);
 }
 
 static void ch7017_destroy(struct intel_dvo_device *dvo)
@@ -448,7 +397,5 @@ struct intel_dvo_dev_ops ch7017_ops = {
 	.mode_set = ch7017_mode_set,
 	.dpms = ch7017_dpms,
 	.dump_regs = ch7017_dump_regs,
-	.save = ch7017_save,
-	.restore = ch7017_restore,
 	.destroy = ch7017_destroy,
 };

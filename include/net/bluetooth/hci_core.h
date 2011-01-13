@@ -1,6 +1,6 @@
-/* 
+/*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (C) 2000-2001 Qualcomm Incorporated
+   Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -12,13 +12,13 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
@@ -44,15 +44,15 @@ struct inquiry_data {
 };
 
 struct inquiry_entry {
-	struct inquiry_entry 	*next;
+	struct inquiry_entry	*next;
 	__u32			timestamp;
 	struct inquiry_data	data;
 };
 
 struct inquiry_cache {
-	spinlock_t 		lock;
+	spinlock_t		lock;
 	__u32			timestamp;
-	struct inquiry_entry 	*list;
+	struct inquiry_entry	*list;
 };
 
 struct hci_conn_hash {
@@ -62,6 +62,11 @@ struct hci_conn_hash {
 	unsigned int     sco_num;
 };
 
+struct bdaddr_list {
+	struct list_head list;
+	bdaddr_t bdaddr;
+};
+#define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
 	spinlock_t	lock;
@@ -70,7 +75,8 @@ struct hci_dev {
 	char		name[8];
 	unsigned long	flags;
 	__u16		id;
-	__u8		type;
+	__u8		bus;
+	__u8		dev_type;
 	bdaddr_t	bdaddr;
 	__u8		dev_name[248];
 	__u8		dev_class[3];
@@ -106,6 +112,8 @@ struct hci_dev {
 	unsigned long	acl_last_tx;
 	unsigned long	sco_last_tx;
 
+	struct workqueue_struct	*workqueue;
+
 	struct tasklet_struct	cmd_task;
 	struct tasklet_struct	rx_task;
 	struct tasklet_struct	tx_task;
@@ -115,15 +123,17 @@ struct hci_dev {
 	struct sk_buff_head	cmd_q;
 
 	struct sk_buff		*sent_cmd;
-	struct sk_buff		*reassembly[3];
+	struct sk_buff		*reassembly[NUM_REASSEMBLY];
 
-	struct semaphore	req_lock;
+	struct mutex		req_lock;
 	wait_queue_head_t	req_wait_q;
 	__u32			req_status;
 	__u32			req_result;
+	__u16			req_last_cmd;
 
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
+	struct list_head	blacklist;
 
 	struct hci_dev_stats	stat;
 
@@ -132,14 +142,16 @@ struct hci_dev {
 	void			*driver_data;
 	void			*core_data;
 
-	atomic_t 		promisc;
+	atomic_t		promisc;
+
+	struct dentry		*debugfs;
 
 	struct device		*parent;
 	struct device		dev;
 
 	struct rfkill		*rfkill;
 
-	struct module 		*owner;
+	struct module		*owner;
 
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
@@ -187,6 +199,7 @@ struct hci_conn {
 	struct work_struct work_del;
 
 	struct device	dev;
+	atomic_t	devref;
 
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
@@ -203,8 +216,8 @@ extern rwlock_t hci_dev_list_lock;
 extern rwlock_t hci_cb_list_lock;
 
 /* ----- Inquiry cache ----- */
-#define INQUIRY_CACHE_AGE_MAX   (HZ*30)   // 30 seconds
-#define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   // 60 seconds
+#define INQUIRY_CACHE_AGE_MAX   (HZ*30)   /* 30 seconds */
+#define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   /* 60 seconds */
 
 #define inquiry_cache_lock(c)		spin_lock(&c->lock)
 #define inquiry_cache_unlock(c)		spin_unlock(&c->lock)
@@ -221,7 +234,7 @@ static inline void inquiry_cache_init(struct hci_dev *hdev)
 static inline int inquiry_cache_empty(struct hci_dev *hdev)
 {
 	struct inquiry_cache *c = &hdev->inq_cache;
-	return (c->list == NULL);
+	return c->list == NULL;
 }
 
 static inline long inquiry_cache_age(struct hci_dev *hdev)
@@ -244,6 +257,7 @@ enum {
 	HCI_CONN_ENCRYPT_PEND,
 	HCI_CONN_RSWITCH_PEND,
 	HCI_CONN_MODE_CHANGE_PEND,
+	HCI_CONN_SCO_SETUP_PEND,
 };
 
 static inline void hci_conn_hash_init(struct hci_dev *hdev)
@@ -324,6 +338,7 @@ void hci_acl_connect(struct hci_conn *conn);
 void hci_acl_disconn(struct hci_conn *conn, __u8 reason);
 void hci_add_sco(struct hci_conn *conn, __u16 handle);
 void hci_setup_sync(struct hci_conn *conn, __u16 handle);
+void hci_sco_setup(struct hci_conn *conn, __u8 status);
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);
 int hci_conn_del(struct hci_conn *conn);
@@ -338,6 +353,9 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
 void hci_conn_enter_active_mode(struct hci_conn *conn);
 void hci_conn_enter_sniff_mode(struct hci_conn *conn);
+
+void hci_conn_hold_device(struct hci_conn *conn);
+void hci_conn_put_device(struct hci_conn *conn);
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
@@ -363,22 +381,6 @@ static inline void hci_conn_put(struct hci_conn *conn)
 	}
 }
 
-/* ----- HCI tasks ----- */
-static inline void hci_sched_cmd(struct hci_dev *hdev)
-{
-	tasklet_schedule(&hdev->cmd_task);
-}
-
-static inline void hci_sched_rx(struct hci_dev *hdev)
-{
-	tasklet_schedule(&hdev->rx_task);
-}
-
-static inline void hci_sched_tx(struct hci_dev *hdev)
-{
-	tasklet_schedule(&hdev->tx_task);
-}
-
 /* ----- HCI Devices ----- */
 static inline void __hci_dev_put(struct hci_dev *d)
 {
@@ -387,7 +389,7 @@ static inline void __hci_dev_put(struct hci_dev *d)
 }
 
 static inline void hci_dev_put(struct hci_dev *d)
-{ 
+{
 	__hci_dev_put(d);
 	module_put(d->owner);
 }
@@ -431,31 +433,14 @@ int hci_get_conn_info(struct hci_dev *hdev, void __user *arg);
 int hci_get_auth_info(struct hci_dev *hdev, void __user *arg);
 int hci_inquiry(void __user *arg);
 
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int hci_blacklist_clear(struct hci_dev *hdev);
+
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 
-/* Receive frame from HCI drivers */
-static inline int hci_recv_frame(struct sk_buff *skb)
-{
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	if (!hdev || (!test_bit(HCI_UP, &hdev->flags) 
-			&& !test_bit(HCI_INIT, &hdev->flags))) {
-		kfree_skb(skb);
-		return -ENXIO;
-	}
-
-	/* Incomming skb */
-	bt_cb(skb)->incoming = 1;
-
-	/* Time stamp */
-	__net_timestamp(skb);
-
-	/* Queue frame for rx task */
-	skb_queue_tail(&hdev->rx_q, skb);
-	hci_sched_rx(hdev);
-	return 0;
-}
-
+int hci_recv_frame(struct sk_buff *skb);
 int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count);
+int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count);
 
 int hci_register_sysfs(struct hci_dev *hdev);
 void hci_unregister_sysfs(struct hci_dev *hdev);
@@ -666,8 +651,8 @@ int hci_register_notifier(struct notifier_block *nb);
 int hci_unregister_notifier(struct notifier_block *nb);
 
 int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param);
-int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
-int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb);
+void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
+void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb);
 
 void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
 
@@ -675,6 +660,11 @@ void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data);
 
 /* ----- HCI Sockets ----- */
 void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
+
+/* Management interface */
+int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
+int mgmt_index_added(u16 index);
+int mgmt_index_removed(u16 index);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
@@ -684,6 +674,7 @@ struct hci_pinfo {
 	struct hci_dev    *hdev;
 	struct hci_filter filter;
 	__u32             cmsg_mask;
+	unsigned short   channel;
 };
 
 /* HCI security filter */
@@ -700,9 +691,9 @@ struct hci_sec_filter {
 #define HCI_REQ_PEND	  1
 #define HCI_REQ_CANCELED  2
 
-#define hci_req_lock(d)		down(&d->req_lock)
-#define hci_req_unlock(d)	up(&d->req_lock)
+#define hci_req_lock(d)		mutex_lock(&d->req_lock)
+#define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
 
-void hci_req_complete(struct hci_dev *hdev, int result);
+void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result);
 
 #endif /* __HCI_CORE_H */

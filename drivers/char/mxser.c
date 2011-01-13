@@ -33,12 +33,12 @@
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
-#include <linux/gfp.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -47,7 +47,7 @@
 
 #include "mxser.h"
 
-#define	MXSER_VERSION	"2.0.4"		/* 1.12 */
+#define	MXSER_VERSION	"2.0.5"		/* 1.14 */
 #define	MXSERMAJOR	 174
 
 #define MXSER_BOARDS		4	/* Max. boards */
@@ -68,6 +68,7 @@
 #define PCI_DEVICE_ID_POS104UL	0x1044
 #define PCI_DEVICE_ID_CB108	0x1080
 #define PCI_DEVICE_ID_CP102UF	0x1023
+#define PCI_DEVICE_ID_CP112UL	0x1120
 #define PCI_DEVICE_ID_CB114	0x1142
 #define PCI_DEVICE_ID_CP114UL	0x1143
 #define PCI_DEVICE_ID_CB134I	0x1341
@@ -138,7 +139,8 @@ static const struct mxser_cardinfo mxser_cards[] = {
 	{ "CP-138U series",	8, },
 	{ "POS-104UL series",	4, },
 	{ "CP-114UL series",	4, },
-/*30*/	{ "CP-102UF series",	2, }
+/*30*/	{ "CP-102UF series",	2, },
+	{ "CP-112UL series",	2, },
 };
 
 /* driver_data correspond to the lines in the structure above
@@ -169,6 +171,7 @@ static struct pci_device_id mxser_pcibrds[] = {
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_POS104UL),	.driver_data = 28 },
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_CP114UL),	.driver_data = 29 },
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_CP102UF),	.driver_data = 30 },
+	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_CP112UL),	.driver_data = 31 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
@@ -257,7 +260,6 @@ struct mxser_port {
 	struct mxser_mon mon_data;
 
 	spinlock_t slock;
-	wait_queue_head_t delta_msr_wait;
 };
 
 struct mxser_board {
@@ -301,6 +303,7 @@ static void mxser_enable_must_enchance_mode(unsigned long baseio)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
+#ifdef	CONFIG_PCI
 static void mxser_disable_must_enchance_mode(unsigned long baseio)
 {
 	u8 oldlcr;
@@ -315,6 +318,7 @@ static void mxser_disable_must_enchance_mode(unsigned long baseio)
 	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
+#endif
 
 static void mxser_set_must_xon1_value(unsigned long baseio, u8 value)
 {
@@ -386,6 +390,7 @@ static void mxser_set_must_enum_value(unsigned long baseio, u8 value)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
+#ifdef CONFIG_PCI
 static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
 {
 	u8 oldlcr;
@@ -402,6 +407,7 @@ static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
 	*pId = inb(baseio + MOXA_MUST_HWID_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
+#endif
 
 static void SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(unsigned long baseio)
 {
@@ -817,7 +823,7 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 	if (status & UART_MSR_DCTS)
 		port->icount.cts++;
 	port->mon_data.modem_status = status;
-	wake_up_interruptible(&port->delta_msr_wait);
+	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	if ((port->port.flags & ASYNC_CHECK_CD) && (status & UART_MSR_DDCD)) {
 		if (status & UART_MSR_DCD)
@@ -853,9 +859,9 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 	}
 }
 
-static int mxser_startup(struct tty_struct *tty)
+static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct mxser_port *info = tty->driver_data;
+	struct mxser_port *info = container_of(port, struct mxser_port, port);
 	unsigned long page;
 	unsigned long flags;
 
@@ -865,22 +871,13 @@ static int mxser_startup(struct tty_struct *tty)
 
 	spin_lock_irqsave(&info->slock, flags);
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
-		free_page(page);
-		spin_unlock_irqrestore(&info->slock, flags);
-		return 0;
-	}
-
 	if (!info->ioaddr || !info->type) {
 		set_bit(TTY_IO_ERROR, &tty->flags);
 		free_page(page);
 		spin_unlock_irqrestore(&info->slock, flags);
 		return 0;
 	}
-	if (info->port.xmit_buf)
-		free_page(page);
-	else
-		info->port.xmit_buf = (unsigned char *) page;
+	info->port.xmit_buf = (unsigned char *) page;
 
 	/*
 	 * Clear the FIFO buffers and disable them
@@ -902,8 +899,7 @@ static int mxser_startup(struct tty_struct *tty)
 	if (inb(info->ioaddr + UART_LSR) == 0xff) {
 		spin_unlock_irqrestore(&info->slock, flags);
 		if (capable(CAP_SYS_ADMIN)) {
-			if (tty)
-				set_bit(TTY_IO_ERROR, &tty->flags);
+			set_bit(TTY_IO_ERROR, &tty->flags);
 			return 0;
 		} else
 			return -ENODEV;
@@ -948,23 +944,18 @@ static int mxser_startup(struct tty_struct *tty)
 	 * and set the speed of the serial port
 	 */
 	mxser_change_speed(tty, NULL);
-	info->port.flags |= ASYNC_INITIALIZED;
 	spin_unlock_irqrestore(&info->slock, flags);
 
 	return 0;
 }
 
 /*
- * This routine will shutdown a serial port; interrupts maybe disabled, and
- * DTR is dropped if the hangup on close termio flag is on.
+ * This routine will shutdown a serial port
  */
-static void mxser_shutdown(struct tty_struct *tty)
+static void mxser_shutdown_port(struct tty_port *port)
 {
-	struct mxser_port *info = tty->driver_data;
+	struct mxser_port *info = container_of(port, struct mxser_port, port);
 	unsigned long flags;
-
-	if (!(info->port.flags & ASYNC_INITIALIZED))
-		return;
 
 	spin_lock_irqsave(&info->slock, flags);
 
@@ -972,10 +963,10 @@ static void mxser_shutdown(struct tty_struct *tty)
 	 * clear delta_msr_wait queue to avoid mem leaks: we may free the irq
 	 * here so the queue might never be waken up
 	 */
-	wake_up_interruptible(&info->delta_msr_wait);
+	wake_up_interruptible(&info->port.delta_msr_wait);
 
 	/*
-	 * Free the IRQ, if necessary
+	 * Free the xmit buffer, if necessary
 	 */
 	if (info->port.xmit_buf) {
 		free_page((unsigned long) info->port.xmit_buf);
@@ -984,10 +975,6 @@ static void mxser_shutdown(struct tty_struct *tty)
 
 	info->IER = 0;
 	outb(0x00, info->ioaddr + UART_IER);
-
-	if (tty->termios->c_cflag & HUPCL)
-		info->MCR &= ~(UART_MCR_DTR | UART_MCR_RTS);
-	outb(info->MCR, info->ioaddr + UART_MCR);
 
 	/* clear Rx/Tx FIFO's */
 	if (info->board->chip_flag)
@@ -1001,9 +988,6 @@ static void mxser_shutdown(struct tty_struct *tty)
 	/* read data port to reset things */
 	(void) inb(info->ioaddr + UART_RX);
 
-	set_bit(TTY_IO_ERROR, &tty->flags);
-
-	info->port.flags &= ~ASYNC_INITIALIZED;
 
 	if (info->board->chip_flag)
 		SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(info->ioaddr);
@@ -1020,8 +1004,7 @@ static void mxser_shutdown(struct tty_struct *tty)
 static int mxser_open(struct tty_struct *tty, struct file *filp)
 {
 	struct mxser_port *info;
-	unsigned long flags;
-	int retval, line;
+	int line;
 
 	line = tty->index;
 	if (line == MXSER_PORTS)
@@ -1033,24 +1016,7 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 
 	tty->driver_data = info;
-	tty_port_tty_set(&info->port, tty);
-	/*
-	 * Start up serial port
-	 */
-	spin_lock_irqsave(&info->port.lock, flags);
-	info->port.count++;
-	spin_unlock_irqrestore(&info->port.lock, flags);
-	retval = mxser_startup(tty);
-	if (retval)
-		return retval;
-
-	retval = tty_port_block_til_ready(&info->port, tty, filp);
-	if (retval)
-		return retval;
-
-	/* unmark here for very high baud rate (ex. 921600 bps) used */
-	tty->low_latency = 1;
-	return 0;
+	return tty_port_open(&info->port, tty, filp);
 }
 
 static void mxser_flush_buffer(struct tty_struct *tty)
@@ -1074,6 +1040,34 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 }
 
 
+static void mxser_close_port(struct tty_port *port)
+{
+	struct mxser_port *info = container_of(port, struct mxser_port, port);
+	unsigned long timeout;
+	/*
+	 * At this point we stop accepting input.  To do this, we
+	 * disable the receive line status interrupts, and tell the
+	 * interrupt driver to stop checking the data ready bit in the
+	 * line status register.
+	 */
+	info->IER &= ~UART_IER_RLSI;
+	if (info->board->chip_flag)
+		info->IER &= ~MOXA_MUST_RECV_ISR;
+
+	outb(info->IER, info->ioaddr + UART_IER);
+	/*
+	 * Before we drop DTR, make sure the UART transmitter
+	 * has completely drained; this is especially
+	 * important if there is a transmit FIFO!
+	 */
+	timeout = jiffies + HZ;
+	while (!(inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT)) {
+		schedule_timeout_interruptible(5);
+		if (time_after(jiffies, timeout))
+			break;
+	}
+}
+
 /*
  * This routine is called when the serial port gets closed.  First, we
  * wait for the last remaining data to be sent.  Then, we unlink its
@@ -1085,51 +1079,16 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	struct mxser_port *info = tty->driver_data;
 	struct tty_port *port = &info->port;
 
-	unsigned long timeout;
-
-	if (tty->index == MXSER_PORTS)
+	if (tty->index == MXSER_PORTS || info == NULL)
 		return;
-	if (!info)
-		return;
-
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
-
-	/*
-	 * Save the termios structure, since this port may have
-	 * separate termios for callout and dialin.
-	 *
-	 * FIXME: Can this go ?
-	 */
-	if (info->port.flags & ASYNC_NORMAL_ACTIVE)
-		info->normal_termios = *tty->termios;
-	/*
-	 * At this point we stop accepting input.  To do this, we
-	 * disable the receive line status interrupts, and tell the
-	 * interrupt driver to stop checking the data ready bit in the
-	 * line status register.
-	 */
-	info->IER &= ~UART_IER_RLSI;
-	if (info->board->chip_flag)
-		info->IER &= ~MOXA_MUST_RECV_ISR;
-
-	if (info->port.flags & ASYNC_INITIALIZED) {
-		outb(info->IER, info->ioaddr + UART_IER);
-		/*
-		 * Before we drop DTR, make sure the UART transmitter
-		 * has completely drained; this is especially
-		 * important if there is a transmit FIFO!
-		 */
-		timeout = jiffies + HZ;
-		while (!(inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT)) {
-			schedule_timeout_interruptible(5);
-			if (time_after(jiffies, timeout))
-				break;
-		}
-	}
-	mxser_shutdown(tty);
+	mutex_lock(&port->mutex);
+	mxser_close_port(port);
 	mxser_flush_buffer(tty);
-
+	mxser_shutdown_port(port);
+	clear_bit(ASYNCB_INITIALIZED, &port->flags);
+	mutex_unlock(&port->mutex);
 	/* Right now the tty_port set is done outside of the close_end helper
 	   as we don't yet have everyone using refcounts */	
 	tty_port_close_end(port, tty);
@@ -1273,6 +1232,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		struct serial_struct __user *new_info)
 {
 	struct mxser_port *info = tty->driver_data;
+	struct tty_port *port = &info->port;
 	struct serial_struct new_serial;
 	speed_t baud;
 	unsigned long sl_flags;
@@ -1288,7 +1248,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 			new_serial.port != info->ioaddr)
 		return -EINVAL;
 
-	flags = info->port.flags & ASYNC_SPD_MASK;
+	flags = port->flags & ASYNC_SPD_MASK;
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((new_serial.baud_base != info->baud_base) ||
@@ -1302,16 +1262,17 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		 * OK, past this point, all the error checking has been done.
 		 * At this point, we start making changes.....
 		 */
-		info->port.flags = ((info->port.flags & ~ASYNC_FLAGS) |
+		port->flags = ((port->flags & ~ASYNC_FLAGS) |
 				(new_serial.flags & ASYNC_FLAGS));
-		info->port.close_delay = new_serial.close_delay * HZ / 100;
-		info->port.closing_wait = new_serial.closing_wait * HZ / 100;
-		tty->low_latency = (info->port.flags & ASYNC_LOW_LATENCY)
-								? 1 : 0;
-		if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
+		port->close_delay = new_serial.close_delay * HZ / 100;
+		port->closing_wait = new_serial.closing_wait * HZ / 100;
+		tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
 				(new_serial.baud_base != info->baud_base ||
 				new_serial.custom_divisor !=
 				info->custom_divisor)) {
+			if (new_serial.custom_divisor == 0)
+				return -EINVAL;
 			baud = new_serial.baud_base / new_serial.custom_divisor;
 			tty_encode_baud_rate(tty, baud, baud);
 		}
@@ -1321,15 +1282,17 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 
 	process_txrx_fifo(info);
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
-		if (flags != (info->port.flags & ASYNC_SPD_MASK)) {
+	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+		if (flags != (port->flags & ASYNC_SPD_MASK)) {
 			spin_lock_irqsave(&info->slock, sl_flags);
 			mxser_change_speed(tty, NULL);
 			spin_unlock_irqrestore(&info->slock, sl_flags);
 		}
-	} else
-		retval = mxser_startup(tty);
-
+	} else {
+		retval = mxser_activate(port, tty);
+		if (retval == 0)
+			set_bit(ASYNCB_INITIALIZED, &port->flags);
+	}
 	return retval;
 }
 
@@ -1518,7 +1481,8 @@ static int __init mxser_read_register(int port, unsigned short *regs)
 
 static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 {
-	struct mxser_port *port;
+	struct mxser_port *ip;
+	struct tty_port *port;
 	struct tty_struct *tty;
 	int result, status;
 	unsigned int i, j;
@@ -1534,38 +1498,39 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 	case MOXA_CHKPORTENABLE:
 		result = 0;
-		lock_kernel();
 		for (i = 0; i < MXSER_BOARDS; i++)
 			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++)
 				if (mxser_boards[i].ports[j].ioaddr)
 					result |= (1 << i);
-		unlock_kernel();
 		return put_user(result, (unsigned long __user *)argp);
 	case MOXA_GETDATACOUNT:
-		lock_kernel();
+		/* The receive side is locked by port->slock but it isn't
+		   clear that an exact snapshot is worth copying here */
 		if (copy_to_user(argp, &mxvar_log, sizeof(mxvar_log)))
 			ret = -EFAULT;
-		unlock_kernel();
 		return ret;
 	case MOXA_GETMSTATUS: {
 		struct mxser_mstatus ms, __user *msu = argp;
-		lock_kernel();
 		for (i = 0; i < MXSER_BOARDS; i++)
 			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++) {
-				port = &mxser_boards[i].ports[j];
+				ip = &mxser_boards[i].ports[j];
+				port = &ip->port;
 				memset(&ms, 0, sizeof(ms));
 
-				if (!port->ioaddr)
+				mutex_lock(&port->mutex);
+				if (!ip->ioaddr)
 					goto copy;
 				
-				tty = tty_port_tty_get(&port->port);
+				tty = tty_port_tty_get(port);
 
 				if (!tty || !tty->termios)
-					ms.cflag = port->normal_termios.c_cflag;
+					ms.cflag = ip->normal_termios.c_cflag;
 				else
 					ms.cflag = tty->termios->c_cflag;
 				tty_kref_put(tty);
-				status = inb(port->ioaddr + UART_MSR);
+				spin_lock_irq(&ip->slock);
+				status = inb(ip->ioaddr + UART_MSR);
+				spin_unlock_irq(&ip->slock);
 				if (status & UART_MSR_DCD)
 					ms.dcd = 1;
 				if (status & UART_MSR_DSR)
@@ -1573,13 +1538,11 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				if (status & UART_MSR_CTS)
 					ms.cts = 1;
 			copy:
-				if (copy_to_user(msu, &ms, sizeof(ms))) {
-					unlock_kernel();
+				mutex_unlock(&port->mutex);
+				if (copy_to_user(msu, &ms, sizeof(ms)))
 					return -EFAULT;
-				}
 				msu++;
 			}
-		unlock_kernel();
 		return 0;
 	}
 	case MOXA_ASPP_MON_EXT: {
@@ -1591,41 +1554,48 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 		if (!me)
 			return -ENOMEM;
 
-		lock_kernel();
 		for (i = 0, p = 0; i < MXSER_BOARDS; i++) {
 			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++, p++) {
 				if (p >= ARRAY_SIZE(me->rx_cnt)) {
 					i = MXSER_BOARDS;
 					break;
 				}
-				port = &mxser_boards[i].ports[j];
-				if (!port->ioaddr)
-					continue;
+				ip = &mxser_boards[i].ports[j];
+				port = &ip->port;
 
-				status = mxser_get_msr(port->ioaddr, 0, p);
+				mutex_lock(&port->mutex);
+				if (!ip->ioaddr) {
+					mutex_unlock(&port->mutex);
+					continue;
+				}
+
+				spin_lock_irq(&ip->slock);
+				status = mxser_get_msr(ip->ioaddr, 0, p);
 
 				if (status & UART_MSR_TERI)
-					port->icount.rng++;
+					ip->icount.rng++;
 				if (status & UART_MSR_DDSR)
-					port->icount.dsr++;
+					ip->icount.dsr++;
 				if (status & UART_MSR_DDCD)
-					port->icount.dcd++;
+					ip->icount.dcd++;
 				if (status & UART_MSR_DCTS)
-					port->icount.cts++;
+					ip->icount.cts++;
 
-				port->mon_data.modem_status = status;
-				me->rx_cnt[p] = port->mon_data.rxcnt;
-				me->tx_cnt[p] = port->mon_data.txcnt;
-				me->up_rxcnt[p] = port->mon_data.up_rxcnt;
-				me->up_txcnt[p] = port->mon_data.up_txcnt;
+				ip->mon_data.modem_status = status;
+				me->rx_cnt[p] = ip->mon_data.rxcnt;
+				me->tx_cnt[p] = ip->mon_data.txcnt;
+				me->up_rxcnt[p] = ip->mon_data.up_rxcnt;
+				me->up_txcnt[p] = ip->mon_data.up_txcnt;
 				me->modem_status[p] =
-					port->mon_data.modem_status;
-				tty = tty_port_tty_get(&port->port);
+					ip->mon_data.modem_status;
+				spin_unlock_irq(&ip->slock);
+
+				tty = tty_port_tty_get(&ip->port);
 
 				if (!tty || !tty->termios) {
-					cflag = port->normal_termios.c_cflag;
-					iflag = port->normal_termios.c_iflag;
-					me->baudrate[p] = tty_termios_baud_rate(&port->normal_termios);
+					cflag = ip->normal_termios.c_cflag;
+					iflag = ip->normal_termios.c_iflag;
+					me->baudrate[p] = tty_termios_baud_rate(&ip->normal_termios);
 				} else {
 					cflag = tty->termios->c_cflag;
 					iflag = tty->termios->c_iflag;
@@ -1644,16 +1614,15 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				if (iflag & (IXON | IXOFF))
 					me->flowctrl[p] |= 0x0C;
 
-				if (port->type == PORT_16550A)
+				if (ip->type == PORT_16550A)
 					me->fifo[p] = 1;
 
-				opmode = inb(port->opmode_ioaddr) >>
-						((p % 4) * 2);
+				opmode = inb(ip->opmode_ioaddr)>>((p % 4) * 2);
 				opmode &= OP_MODE_MASK;
 				me->iftype[p] = opmode;
+				mutex_unlock(&port->mutex);
 			}
 		}
-		unlock_kernel();
 		if (copy_to_user(argp, me, sizeof(*me)))
 			ret = -EFAULT;
 		kfree(me);
@@ -1690,6 +1659,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
 	struct mxser_port *info = tty->driver_data;
+	struct tty_port *port = &info->port;
 	struct async_icount cnow;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
@@ -1714,40 +1684,40 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 					opmode != RS422_MODE &&
 					opmode != RS485_4WIRE_MODE)
 				return -EFAULT;
-			lock_kernel();
 			mask = ModeMask[p];
 			shiftbit = p * 2;
+			spin_lock_irq(&info->slock);
 			val = inb(info->opmode_ioaddr);
 			val &= mask;
 			val |= (opmode << shiftbit);
 			outb(val, info->opmode_ioaddr);
-			unlock_kernel();
+			spin_unlock_irq(&info->slock);
 		} else {
-			lock_kernel();
 			shiftbit = p * 2;
+			spin_lock_irq(&info->slock);
 			opmode = inb(info->opmode_ioaddr) >> shiftbit;
+			spin_unlock_irq(&info->slock);
 			opmode &= OP_MODE_MASK;
-			unlock_kernel();
 			if (put_user(opmode, (int __user *)argp))
 				return -EFAULT;
 		}
 		return 0;
 	}
 
-	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT && cmd != TIOCGICOUNT &&
+	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT &&
 			test_bit(TTY_IO_ERROR, &tty->flags))
 		return -EIO;
 
 	switch (cmd) {
 	case TIOCGSERIAL:
-		lock_kernel();
+		mutex_lock(&port->mutex);
 		retval = mxser_get_serial_info(tty, argp);
-		unlock_kernel();
+		mutex_unlock(&port->mutex);
 		return retval;
 	case TIOCSSERIAL:
-		lock_kernel();
+		mutex_lock(&port->mutex);
 		retval = mxser_set_serial_info(tty, argp);
-		unlock_kernel();
+		mutex_unlock(&port->mutex);
 		return retval;
 	case TIOCSERGETLSR:	/* Get line status register */
 		return  mxser_get_lsr_info(info, argp);
@@ -1762,62 +1732,38 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		cnow = info->icount;	/* note the counters on entry */
 		spin_unlock_irqrestore(&info->slock, flags);
 
-		return wait_event_interruptible(info->delta_msr_wait,
+		return wait_event_interruptible(info->port.delta_msr_wait,
 				mxser_cflags_changed(info, arg, &cnow));
-	/*
-	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-	 * Return: write counters to the user passed counter struct
-	 * NB: both 1->0 and 0->1 transitions are counted except for
-	 *     RI where only 0->1 is counted.
-	 */
-	case TIOCGICOUNT: {
-		struct serial_icounter_struct icnt = { 0 };
-		spin_lock_irqsave(&info->slock, flags);
-		cnow = info->icount;
-		spin_unlock_irqrestore(&info->slock, flags);
-
-		icnt.frame = cnow.frame;
-		icnt.brk = cnow.brk;
-		icnt.overrun = cnow.overrun;
-		icnt.buf_overrun = cnow.buf_overrun;
-		icnt.parity = cnow.parity;
-		icnt.rx = cnow.rx;
-		icnt.tx = cnow.tx;
-		icnt.cts = cnow.cts;
-		icnt.dsr = cnow.dsr;
-		icnt.rng = cnow.rng;
-		icnt.dcd = cnow.dcd;
-
-		return copy_to_user(argp, &icnt, sizeof(icnt)) ? -EFAULT : 0;
-	}
 	case MOXA_HighSpeedOn:
 		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
 	case MOXA_SDS_RSTICOUNTER:
-		lock_kernel();
+		spin_lock_irq(&info->slock);
 		info->mon_data.rxcnt = 0;
 		info->mon_data.txcnt = 0;
-		unlock_kernel();
+		spin_unlock_irq(&info->slock);
 		return 0;
 
 	case MOXA_ASPP_OQUEUE:{
 		int len, lsr;
 
-		lock_kernel();
 		len = mxser_chars_in_buffer(tty);
-		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT;
+		spin_lock_irq(&info->slock);
+		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_THRE;
+		spin_unlock_irq(&info->slock);
 		len += (lsr ? 0 : 1);
-		unlock_kernel();
 
 		return put_user(len, (int __user *)argp);
 	}
 	case MOXA_ASPP_MON: {
 		int mcr, status;
 
-		lock_kernel();
+		spin_lock_irq(&info->slock);
 		status = mxser_get_msr(info->ioaddr, 1, tty->index);
 		mxser_check_modem_status(tty, info, status);
 
 		mcr = inb(info->ioaddr + UART_MCR);
+		spin_unlock_irq(&info->slock);
+
 		if (mcr & MOXA_MUST_MCR_XON_FLAG)
 			info->mon_data.hold_reason &= ~NPPI_NOTIFY_XOFFHOLD;
 		else
@@ -1832,7 +1778,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 			info->mon_data.hold_reason |= NPPI_NOTIFY_CTSHOLD;
 		else
 			info->mon_data.hold_reason &= ~NPPI_NOTIFY_CTSHOLD;
-		unlock_kernel();
+
 		if (copy_to_user(argp, &info->mon_data,
 				sizeof(struct mxser_mon)))
 			return -EFAULT;
@@ -1857,6 +1803,39 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	default:
 		return -ENOIOCTLCMD;
 	}
+	return 0;
+}
+
+	/*
+	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+	 * Return: write counters to the user passed counter struct
+	 * NB: both 1->0 and 0->1 transitions are counted except for
+	 *     RI where only 0->1 is counted.
+	 */
+
+static int mxser_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount)
+
+{
+	struct mxser_port *info = tty->driver_data;
+	struct async_icount cnow;
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->slock, flags);
+	cnow = info->icount;
+	spin_unlock_irqrestore(&info->slock, flags);
+
+	icount->frame = cnow.frame;
+	icount->brk = cnow.brk;
+	icount->overrun = cnow.overrun;
+	icount->buf_overrun = cnow.buf_overrun;
+	icount->parity = cnow.parity;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
 	return 0;
 }
 
@@ -1991,6 +1970,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned long orig_jiffies, char_time;
+	unsigned long flags;
 	int lsr;
 
 	if (info->type == PORT_UNKNOWN)
@@ -2030,19 +2010,21 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 		timeout, char_time);
 	printk("jiff=%lu...", jiffies);
 #endif
-	lock_kernel();
+	spin_lock_irqsave(&info->slock, flags);
 	while (!((lsr = inb(info->ioaddr + UART_LSR)) & UART_LSR_TEMT)) {
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 		printk("lsr = %d (jiff=%lu)...", lsr, jiffies);
 #endif
+		spin_unlock_irqrestore(&info->slock, flags);
 		schedule_timeout_interruptible(char_time);
+		spin_lock_irqsave(&info->slock, flags);
 		if (signal_pending(current))
 			break;
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
 			break;
 	}
+	spin_unlock_irqrestore(&info->slock, flags);
 	set_current_state(TASK_RUNNING);
-	unlock_kernel();
 
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
@@ -2057,7 +2039,6 @@ static void mxser_hangup(struct tty_struct *tty)
 	struct mxser_port *info = tty->driver_data;
 
 	mxser_flush_buffer(tty);
-	mxser_shutdown(tty);
 	tty_port_hangup(&info->port);
 }
 
@@ -2223,7 +2204,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	port->mon_data.up_txcnt += (cnt - port->xmit_cnt);
 	port->icount.tx += (cnt - port->xmit_cnt);
 
-	if (port->xmit_cnt < WAKEUP_CHARS && tty)
+	if (port->xmit_cnt < WAKEUP_CHARS)
 		tty_wakeup(tty);
 
 	if (port->xmit_cnt <= 0) {
@@ -2356,31 +2337,25 @@ static const struct tty_operations mxser_ops = {
 	.wait_until_sent = mxser_wait_until_sent,
 	.tiocmget = mxser_tiocmget,
 	.tiocmset = mxser_tiocmset,
+	.get_icount = mxser_get_icount,
 };
 
 struct tty_port_operations mxser_port_ops = {
 	.carrier_raised = mxser_carrier_raised,
 	.dtr_rts = mxser_dtr_rts,
+	.activate = mxser_activate,
+	.shutdown = mxser_shutdown_port,
 };
 
 /*
  * The MOXA Smartio/Industio serial driver boot-time initialization code!
  */
 
-static void mxser_release_res(struct mxser_board *brd, struct pci_dev *pdev,
-		unsigned int irq)
+static void mxser_release_ISA_res(struct mxser_board *brd)
 {
-	if (irq)
-		free_irq(brd->irq, brd);
-	if (pdev != NULL) {	/* PCI */
-#ifdef CONFIG_PCI
-		pci_release_region(pdev, 2);
-		pci_release_region(pdev, 3);
-#endif
-	} else {
-		release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
-		release_region(brd->vector, 1);
-	}
+	free_irq(brd->irq, brd);
+	release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
+	release_region(brd->vector, 1);
 }
 
 static int __devinit mxser_initbrd(struct mxser_board *brd,
@@ -2414,7 +2389,6 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
 		info->normal_termios = mxvar_sdriver->init_termios;
-		init_waitqueue_head(&info->delta_msr_wait);
 		memset(&info->mon_data, 0, sizeof(struct mxser_mon));
 		info->err_shadow = 0;
 		spin_lock_init(&info->slock);
@@ -2426,13 +2400,11 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 
 	retval = request_irq(brd->irq, mxser_interrupt, IRQF_SHARED, "mxser",
 			brd);
-	if (retval) {
+	if (retval)
 		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
 			"conflict with another device.\n",
 			brd->info->name, brd->irq);
-		/* We hold resources, we need to release them. */
-		mxser_release_res(brd, pdev, 0);
-	}
+
 	return retval;
 }
 
@@ -2584,7 +2556,7 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 	ioaddress = pci_resource_start(pdev, 2);
 	retval = pci_request_region(pdev, 2, "mxser(IO)");
 	if (retval)
-		goto err;
+		goto err_dis;
 
 	brd->info = &mxser_cards[ent->driver_data];
 	for (i = 0; i < brd->info->nports; i++)
@@ -2594,7 +2566,7 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 	ioaddress = pci_resource_start(pdev, 3);
 	retval = pci_request_region(pdev, 3, "mxser(vector)");
 	if (retval)
-		goto err_relio;
+		goto err_zero;
 	brd->vector = ioaddress;
 
 	/* irq */
@@ -2637,7 +2609,7 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 	/* mxser_initbrd will hook ISR. */
 	retval = mxser_initbrd(brd, pdev);
 	if (retval)
-		goto err_null;
+		goto err_rel3;
 
 	for (i = 0; i < brd->info->nports; i++)
 		tty_register_device(mxvar_sdriver, brd->idx + i, &pdev->dev);
@@ -2645,10 +2617,13 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, brd);
 
 	return 0;
-err_relio:
-	pci_release_region(pdev, 2);
-err_null:
+err_rel3:
+	pci_release_region(pdev, 3);
+err_zero:
 	brd->info = NULL;
+	pci_release_region(pdev, 2);
+err_dis:
+	pci_disable_device(pdev);
 err:
 	return retval;
 #else
@@ -2658,14 +2633,19 @@ err:
 
 static void __devexit mxser_remove(struct pci_dev *pdev)
 {
+#ifdef CONFIG_PCI
 	struct mxser_board *brd = pci_get_drvdata(pdev);
 	unsigned int i;
 
 	for (i = 0; i < brd->info->nports; i++)
 		tty_unregister_device(mxvar_sdriver, brd->idx + i);
 
-	mxser_release_res(brd, pdev, 1);
+	free_irq(pdev->irq, brd);
+	pci_release_region(pdev, 2);
+	pci_release_region(pdev, 3);
+	pci_disable_device(pdev);
 	brd->info = NULL;
+#endif
 }
 
 static struct pci_driver mxser_driver = {
@@ -2770,7 +2750,7 @@ static void __exit mxser_module_exit(void)
 
 	for (i = 0; i < MXSER_BOARDS; i++)
 		if (mxser_boards[i].info != NULL)
-			mxser_release_res(&mxser_boards[i], NULL, 1);
+			mxser_release_ISA_res(&mxser_boards[i]);
 }
 
 module_init(mxser_module_init);

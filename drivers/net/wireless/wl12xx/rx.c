@@ -1,10 +1,9 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1271
  *
- * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Kalle Valo <kalle.valo@nokia.com>
+ * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,187 +21,183 @@
  *
  */
 
-#include <linux/skbuff.h>
-#include <net/mac80211.h>
+#include <linux/gfp.h>
 
 #include "wl12xx.h"
+#include "acx.h"
 #include "reg.h"
-#include "spi.h"
 #include "rx.h"
+#include "io.h"
 
-static void wl12xx_rx_header(struct wl12xx *wl,
-			     struct wl12xx_rx_descriptor *desc)
+static u8 wl1271_rx_get_mem_block(struct wl1271_fw_status *status,
+				  u32 drv_rx_counter)
 {
-	u32 rx_packet_ring_addr;
-
-	rx_packet_ring_addr = wl->data_path->rx_packet_ring_addr;
-	if (wl->rx_current_buffer)
-		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
-
-	wl12xx_spi_mem_read(wl, rx_packet_ring_addr, desc,
-			    sizeof(struct wl12xx_rx_descriptor));
+	return le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
+		RX_MEM_BLOCK_MASK;
 }
 
-static void wl12xx_rx_status(struct wl12xx *wl,
-			     struct wl12xx_rx_descriptor *desc,
+static u32 wl1271_rx_get_buf_size(struct wl1271_fw_status *status,
+				 u32 drv_rx_counter)
+{
+	return (le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
+		RX_BUF_SIZE_MASK) >> RX_BUF_SIZE_SHIFT_DIV;
+}
+
+static void wl1271_rx_status(struct wl1271 *wl,
+			     struct wl1271_rx_descriptor *desc,
 			     struct ieee80211_rx_status *status,
 			     u8 beacon)
 {
+	enum ieee80211_band desc_band;
+
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
-	status->band = IEEE80211_BAND_2GHZ;
-	status->mactime = desc->timestamp;
+	status->band = wl->band;
 
-	/*
-	 * The rx status timestamp is a 32 bits value while the TSF is a
-	 * 64 bits one.
-	 * For IBSS merging, TSF is mandatory, so we have to get it
-	 * somehow, so we ask for ACX_TSF_INFO.
-	 * That could be moved to the get_tsf() hook, but unfortunately,
-	 * this one must be atomic, while our SPI routines can sleep.
-	 */
-	if ((wl->bss_type == BSS_TYPE_IBSS) && beacon) {
-		u64 mactime;
-		int ret;
-		struct wl12xx_command cmd;
-		struct acx_tsf_info *tsf_info;
+	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) == WL1271_RX_DESC_BAND_BG)
+		desc_band = IEEE80211_BAND_2GHZ;
+	else
+		desc_band = IEEE80211_BAND_5GHZ;
 
-		memset(&cmd, 0, sizeof(cmd));
+	status->rate_idx = wl1271_rate_to_idx(desc->rate, desc_band);
 
-		ret = wl12xx_cmd_interrogate(wl, ACX_TSF_INFO,
-					     sizeof(struct acx_tsf_info),
-					     &cmd);
-		if (ret < 0) {
-			wl12xx_warning("ACX_FW_REV interrogate failed");
-			return;
-		}
-
-		tsf_info = (struct acx_tsf_info *)&(cmd.parameters);
-
-		mactime = tsf_info->current_tsf_lsb |
-			(tsf_info->current_tsf_msb << 31);
-
-		status->mactime = mactime;
-	}
+#ifdef CONFIG_WL12XX_HT
+	/* 11n support */
+	if (desc->rate <= CONF_HW_RXTX_RATE_MCS0)
+		status->flag |= RX_FLAG_HT;
+#endif
 
 	status->signal = desc->rssi;
-	status->qual = (desc->rssi - WL12XX_RX_MIN_RSSI) * 100 /
-		(WL12XX_RX_MAX_RSSI - WL12XX_RX_MIN_RSSI);
-	status->qual = min(status->qual, 100);
-	status->qual = max(status->qual, 0);
 
 	/*
-	 * FIXME: guessing that snr needs to be divided by two, otherwise
-	 * the values don't make any sense
+	 * FIXME: In wl1251, the SNR should be divided by two.  In wl1271 we
+	 * need to divide by two for now, but TI has been discussing about
+	 * changing it.  This needs to be rechecked.
 	 */
-	status->noise = desc->rssi - desc->snr / 2;
+	wl->noise = desc->rssi - (desc->snr >> 1);
 
 	status->freq = ieee80211_channel_to_frequency(desc->channel);
 
-	status->flag |= RX_FLAG_TSFT;
-
-	if (desc->flags & RX_DESC_ENCRYPTION_MASK) {
+	if (desc->flags & WL1271_RX_DESC_ENCRYPT_MASK) {
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
 
-		if (likely(!(desc->flags & RX_DESC_DECRYPT_FAIL)))
+		if (likely(!(desc->status & WL1271_RX_DESC_DECRYPT_FAIL)))
 			status->flag |= RX_FLAG_DECRYPTED;
-
-		if (unlikely(desc->flags & RX_DESC_MIC_FAIL))
+		if (unlikely(desc->status & WL1271_RX_DESC_MIC_FAIL))
 			status->flag |= RX_FLAG_MMIC_ERROR;
 	}
-
-	if (unlikely(!(desc->flags & RX_DESC_VALID_FCS)))
-		status->flag |= RX_FLAG_FAILED_FCS_CRC;
-
-
-	/* FIXME: set status->rate_idx */
 }
 
-static void wl12xx_rx_body(struct wl12xx *wl,
-			   struct wl12xx_rx_descriptor *desc)
+static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 {
+	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status status;
-	u8 *rx_buffer, beacon = 0;
-	u16 length, *fc;
-	u32 curr_id, last_id_inc, rx_packet_ring_addr;
+	u16 *fc;
+	u8 *buf;
+	u8 beacon = 0;
 
-	length = WL12XX_RX_ALIGN(desc->length  - PLCP_HEADER_LENGTH);
-	curr_id = (desc->flags & RX_DESC_SEQNUM_MASK) >> RX_DESC_PACKETID_SHIFT;
-	last_id_inc = (wl->rx_last_id + 1) % (RX_MAX_PACKET_ID + 1);
+	/*
+	 * In PLT mode we seem to get frames and mac80211 warns about them,
+	 * workaround this by not retrieving them at all.
+	 */
+	if (unlikely(wl->state == WL1271_STATE_PLT))
+		return -EINVAL;
 
-	if (last_id_inc != curr_id) {
-		wl12xx_warning("curr ID:%d, last ID inc:%d",
-			       curr_id, last_id_inc);
-		wl->rx_last_id = curr_id;
-	} else {
-		wl->rx_last_id = last_id_inc;
-	}
-
-	rx_packet_ring_addr = wl->data_path->rx_packet_ring_addr +
-		sizeof(struct wl12xx_rx_descriptor) + 20;
-	if (wl->rx_current_buffer)
-		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
-
-	skb = dev_alloc_skb(length);
+	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
-		wl12xx_error("Couldn't allocate RX frame");
-		return;
+		wl1271_error("Couldn't allocate RX frame");
+		return -ENOMEM;
 	}
 
-	rx_buffer = skb_put(skb, length);
-	wl12xx_spi_mem_read(wl, rx_packet_ring_addr, rx_buffer, length);
+	buf = skb_put(skb, length);
+	memcpy(buf, data, length);
 
-	/* The actual lenght doesn't include the target's alignment */
-	skb->len = desc->length  - PLCP_HEADER_LENGTH;
+	/* the data read starts with the descriptor */
+	desc = (struct wl1271_rx_descriptor *) buf;
+
+	/* now we pull the descriptor out of the buffer */
+	skb_pull(skb, sizeof(*desc));
 
 	fc = (u16 *)skb->data;
-
 	if ((*fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON)
 		beacon = 1;
 
-	wl12xx_rx_status(wl, desc, &status, beacon);
+	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
-	wl12xx_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
+	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
 		     beacon ? "beacon" : "");
 
-	ieee80211_rx(wl->hw, skb, &status);
+	skb_trim(skb, skb->len - desc->pad_len);
+
+	ieee80211_rx_ni(wl->hw, skb);
+
+	return 0;
 }
 
-static void wl12xx_rx_ack(struct wl12xx *wl)
+void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 {
-	u32 data, addr;
+	struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
+	u32 buf_size;
+	u32 fw_rx_counter  = status->fw_rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
+	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
+	u32 rx_counter;
+	u32 mem_block;
+	u32 pkt_length;
+	u32 pkt_offset;
 
-	if (wl->rx_current_buffer) {
-		addr = ACX_REG_INTERRUPT_TRIG_H;
-		data = INTR_TRIG_RX_PROC1;
-	} else {
-		addr = ACX_REG_INTERRUPT_TRIG;
-		data = INTR_TRIG_RX_PROC0;
+	while (drv_rx_counter != fw_rx_counter) {
+		buf_size = 0;
+		rx_counter = drv_rx_counter;
+		while (rx_counter != fw_rx_counter) {
+			pkt_length = wl1271_rx_get_buf_size(status, rx_counter);
+			if (buf_size + pkt_length > WL1271_AGGR_BUFFER_SIZE)
+				break;
+			buf_size += pkt_length;
+			rx_counter++;
+			rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+		}
+
+		if (buf_size == 0) {
+			wl1271_warning("received empty data");
+			break;
+		}
+
+		/*
+		 * Choose the block we want to read
+		 * For aggregated packets, only the first memory block should
+		 * be retrieved. The FW takes care of the rest.
+		 */
+		mem_block = wl1271_rx_get_mem_block(status, drv_rx_counter);
+		wl->rx_mem_pool_addr.addr = (mem_block << 8) +
+			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
+		wl->rx_mem_pool_addr.addr_extra =
+			wl->rx_mem_pool_addr.addr + 4;
+		wl1271_write(wl, WL1271_SLV_REG_DATA, &wl->rx_mem_pool_addr,
+				sizeof(wl->rx_mem_pool_addr), false);
+
+		/* Read all available packets at once */
+		wl1271_read(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
+				buf_size, true);
+
+		/* Split data into separate packets */
+		pkt_offset = 0;
+		while (pkt_offset < buf_size) {
+			pkt_length = wl1271_rx_get_buf_size(status,
+					drv_rx_counter);
+			/*
+			 * the handle data call can only fail in memory-outage
+			 * conditions, in that case the received frame will just
+			 * be dropped.
+			 */
+			wl1271_rx_handle_data(wl,
+					      wl->aggr_buf + pkt_offset,
+					      pkt_length);
+			wl->rx_counter++;
+			drv_rx_counter++;
+			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+			pkt_offset += pkt_length;
+		}
 	}
-
-	wl12xx_reg_write32(wl, addr, data);
-
-	/* Toggle buffer ring */
-	wl->rx_current_buffer = !wl->rx_current_buffer;
-}
-
-
-void wl12xx_rx(struct wl12xx *wl)
-{
-	struct wl12xx_rx_descriptor rx_desc;
-
-	if (wl->state != WL12XX_STATE_ON)
-		return;
-
-	/* We first read the frame's header */
-	wl12xx_rx_header(wl, &rx_desc);
-
-	/* Now we can read the body */
-	wl12xx_rx_body(wl, &rx_desc);
-
-	/* Finally, we need to ACK the RX */
-	wl12xx_rx_ack(wl);
-
-	return;
+	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS,
+			cpu_to_le32(wl->rx_counter));
 }

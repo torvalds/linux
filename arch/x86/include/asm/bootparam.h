@@ -70,6 +70,14 @@ struct sys_desc_table {
 	__u8  table[14];
 };
 
+/* Gleaned from OFW's set-parameters in cpu/x86/pc/linux.fth */
+struct olpc_ofw_header {
+	__u32 ofw_magic;	/* OFW signature */
+	__u32 ofw_version;
+	__u32 cif_handler;	/* callback into OFW */
+	__u32 irq_desc_table;
+} __attribute__((packed));
+
 struct efi_info {
 	__u32 efi_loader_signature;
 	__u32 efi_systab;
@@ -85,13 +93,15 @@ struct efi_info {
 struct boot_params {
 	struct screen_info screen_info;			/* 0x000 */
 	struct apm_bios_info apm_bios_info;		/* 0x040 */
-	__u8  _pad2[12];				/* 0x054 */
+	__u8  _pad2[4];					/* 0x054 */
+	__u64  tboot_addr;				/* 0x058 */
 	struct ist_info ist_info;			/* 0x060 */
 	__u8  _pad3[16];				/* 0x070 */
 	__u8  hd0_info[16];	/* obsolete! */		/* 0x080 */
 	__u8  hd1_info[16];	/* obsolete! */		/* 0x090 */
 	struct sys_desc_table sys_desc_table;		/* 0x0a0 */
-	__u8  _pad4[144];				/* 0x0b0 */
+	struct olpc_ofw_header olpc_ofw_header;		/* 0x0b0 */
+	__u8  _pad4[128];				/* 0x0c0 */
 	struct edid_info edid_info;			/* 0x140 */
 	struct efi_info efi_info;			/* 0x1c0 */
 	__u32 alt_mem_k;				/* 0x1e0 */
@@ -108,5 +118,16 @@ struct boot_params {
 	struct edd_info eddbuf[EDDMAXNR];		/* 0xd00 */
 	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
+
+enum {
+	X86_SUBARCH_PC = 0,
+	X86_SUBARCH_LGUEST,
+	X86_SUBARCH_XEN,
+	X86_SUBARCH_MRST,
+	X86_SUBARCH_CE4100,
+	X86_NR_SUBARCHS,
+};
+
+
 
 #endif /* _ASM_X86_BOOTPARAM_H */

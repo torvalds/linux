@@ -1,8 +1,9 @@
 #include <linux/sysctl.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/xfrm.h>
 
-static void __xfrm_sysctl_init(struct net *net)
+static void __net_init __xfrm_sysctl_init(struct net *net)
 {
 	net->xfrm.sysctl_aevent_etime = XFRM_AE_ETIME;
 	net->xfrm.sysctl_aevent_rseqth = XFRM_AE_SEQT_SIZE;
@@ -13,28 +14,24 @@ static void __xfrm_sysctl_init(struct net *net)
 #ifdef CONFIG_SYSCTL
 static struct ctl_table xfrm_table[] = {
 	{
-		.ctl_name	= NET_CORE_AEVENT_ETIME,
 		.procname	= "xfrm_aevent_etime",
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= NET_CORE_AEVENT_RSEQTH,
 		.procname	= "xfrm_aevent_rseqth",
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "xfrm_larval_drop",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "xfrm_acq_expires",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
@@ -68,7 +65,7 @@ out_kmemdup:
 	return -ENOMEM;
 }
 
-void xfrm_sysctl_fini(struct net *net)
+void __net_exit xfrm_sysctl_fini(struct net *net)
 {
 	struct ctl_table *table;
 

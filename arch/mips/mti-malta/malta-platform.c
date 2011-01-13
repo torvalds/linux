@@ -25,6 +25,7 @@
 #include <linux/serial_8250.h>
 #include <linux/mc146818rtc.h>
 #include <linux/module.h>
+#include <linux/irq.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>

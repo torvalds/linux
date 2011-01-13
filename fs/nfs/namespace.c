@@ -8,6 +8,7 @@
  */
 
 #include <linux/dcache.h>
+#include <linux/gfp.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/nfs_fs.h>
@@ -48,12 +49,17 @@ char *nfs_path(const char *base,
 	       const struct dentry *dentry,
 	       char *buffer, ssize_t buflen)
 {
-	char *end = buffer+buflen;
+	char *end;
 	int namelen;
+	unsigned seq;
 
+rename_retry:
+	end = buffer+buflen;
 	*--end = '\0';
 	buflen--;
-	spin_lock(&dcache_lock);
+
+	seq = read_seqbegin(&rename_lock);
+	rcu_read_lock();
 	while (!IS_ROOT(dentry) && dentry != droot) {
 		namelen = dentry->d_name.len;
 		buflen -= namelen + 1;
@@ -64,7 +70,9 @@ char *nfs_path(const char *base,
 		*--end = '/';
 		dentry = dentry->d_parent;
 	}
-	spin_unlock(&dcache_lock);
+	rcu_read_unlock();
+	if (read_seqretry(&rename_lock, seq))
+		goto rename_retry;
 	if (*end != '/') {
 		if (--buflen < 0)
 			goto Elong;
@@ -81,7 +89,9 @@ char *nfs_path(const char *base,
 	memcpy(end, base, namelen);
 	return end;
 Elong_unlock:
-	spin_unlock(&dcache_lock);
+	rcu_read_unlock();
+	if (read_seqretry(&rename_lock, seq))
+		goto rename_retry;
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
@@ -104,14 +114,20 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	struct vfsmount *mnt;
 	struct nfs_server *server = NFS_SERVER(dentry->d_inode);
 	struct dentry *parent;
-	struct nfs_fh fh;
-	struct nfs_fattr fattr;
+	struct nfs_fh *fh = NULL;
+	struct nfs_fattr *fattr = NULL;
 	int err;
 
 	dprintk("--> nfs_follow_mountpoint()\n");
 
 	err = -ESTALE;
 	if (IS_ROOT(dentry))
+		goto out_err;
+
+	err = -ENOMEM;
+	fh = nfs_alloc_fhandle();
+	fattr = nfs_alloc_fattr();
+	if (fh == NULL || fattr == NULL)
 		goto out_err;
 
 	dprintk("%s: enter\n", __func__);
@@ -122,16 +138,16 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	parent = dget_parent(nd->path.dentry);
 	err = server->nfs_client->rpc_ops->lookup(parent->d_inode,
 						  &nd->path.dentry->d_name,
-						  &fh, &fattr);
+						  fh, fattr);
 	dput(parent);
 	if (err != 0)
 		goto out_err;
 
-	if (fattr.valid & NFS_ATTR_FATTR_V4_REFERRAL)
+	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
 		mnt = nfs_do_refmount(nd->path.mnt, nd->path.dentry);
 	else
-		mnt = nfs_do_submount(nd->path.mnt, nd->path.dentry, &fh,
-				      &fattr);
+		mnt = nfs_do_submount(nd->path.mnt, nd->path.dentry, fh,
+				      fattr);
 	err = PTR_ERR(mnt);
 	if (IS_ERR(mnt))
 		goto out_err;
@@ -150,6 +166,8 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	nd->path.dentry = dget(mnt->mnt_root);
 	schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
 out:
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fh);
 	dprintk("%s: done, returned %d\n", __func__, err);
 
 	dprintk("<-- nfs_follow_mountpoint() = %d\n", err);

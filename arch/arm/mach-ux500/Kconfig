@@ -1,0 +1,56 @@
+if ARCH_U8500
+
+config UX500_SOC_COMMON
+	bool
+	default y
+	select ARM_GIC
+	select HAS_MTU
+	select NOMADIK_GPIO
+
+menu "Ux500 SoC"
+
+config UX500_SOC_DB5500
+	bool "DB5500"
+
+config UX500_SOC_DB8500
+	bool "DB8500"
+
+endmenu
+
+menu "Ux500 target platform"
+
+config MACH_U8500
+	bool "U8500 Development platform"
+	depends on UX500_SOC_DB8500
+	help
+	  Include support for the mop500 development platform.
+
+config MACH_U5500
+	bool "U5500 Development platform"
+	depends on UX500_SOC_DB5500
+	help
+	  Include support for the U5500 development platform.
+endmenu
+
+config UX500_DEBUG_UART
+	int "Ux500 UART to use for low-level debug"
+	default 2
+	help
+	  Choose the UART on which kernel low-level debug messages should be
+	  output.
+
+config U5500_MODEM_IRQ
+	bool "Modem IRQ support"
+	depends on UX500_SOC_DB5500
+	default y
+	help
+	  Add support for handling IRQ:s from modem side
+
+config U5500_MBOX
+	bool "Mailbox support"
+	depends on U5500_MODEM_IRQ
+	default y
+	help
+	  Add support for U5500 mailbox communication with modem side
+
+endif

@@ -1,3 +1,5 @@
+#include <linux/slab.h>
+
 #include "hostap_80211.h"
 #include "hostap_common.h"
 #include "hostap_wlan.h"
@@ -53,7 +55,8 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 /* hard_start_xmit function for data interfaces (wlan#, wlan#wds#, wlan#sta)
  * Convert Ethernet header into a suitable IEEE 802.11 header depending on
  * device configuration. */
-int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -75,7 +78,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: hostap_data_start_xmit: short skb "
 		       "(len=%d)\n", dev->name, skb->len);
 		kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (local->ddev != dev) {
@@ -89,14 +92,14 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			printk(KERN_DEBUG "%s: prism2_tx: trying to use "
 			       "AP device with Ethernet net dev\n", dev->name);
 			kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	} else {
 		if (local->iw_mode == IW_MODE_REPEAT) {
 			printk(KERN_DEBUG "%s: prism2_tx: trying to use "
 			       "non-WDS link in Repeater mode\n", dev->name);
 			kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		} else if (local->iw_mode == IW_MODE_INFRA &&
 			   (local->wds_type & HOSTAP_WDS_AP_CLIENT) &&
 			   memcmp(skb->data + ETH_ALEN, dev->dev_addr,
@@ -210,13 +213,13 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (skb == NULL) {
 			iface->stats.tx_dropped++;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		if (pskb_expand_head(skb, need_headroom, need_tailroom,
 				     GFP_ATOMIC)) {
 			kfree_skb(skb);
 			iface->stats.tx_dropped++;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	} else if (skb_headroom(skb) < need_headroom) {
 		struct sk_buff *tmp = skb;
@@ -224,13 +227,13 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		kfree_skb(tmp);
 		if (skb == NULL) {
 			iface->stats.tx_dropped++;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	} else {
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (skb == NULL) {
 			iface->stats.tx_dropped++;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -256,12 +259,13 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Send IEEE 802.11 encapsulated frame using the master radio device */
 	skb->dev = local->dev;
 	dev_queue_xmit(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
 /* hard_start_xmit function for hostapd wlan#ap interfaces */
-int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hostap_mgmt_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -276,7 +280,7 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: hostap_mgmt_start_xmit: short skb "
 		       "(len=%d)\n", dev->name, skb->len);
 		kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	iface->stats.tx_packets++;
@@ -301,7 +305,7 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Send IEEE 802.11 encapsulated frame using the master radio device */
 	skb->dev = local->dev;
 	dev_queue_xmit(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -373,11 +377,12 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 /* hard_start_xmit function for master radio interface wifi#.
  * AP processing (TX rate control, power save buffering, etc.).
  * Use hardware TX function to send the frame. */
-int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hostap_master_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	int ret = NETDEV_TX_BUSY;
+	netdev_tx_t ret = NETDEV_TX_BUSY;
 	u16 fc;
 	struct hostap_tx_data tx;
 	ap_tx_ret tx_ret;
@@ -396,7 +401,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: invalid skb->cb magic (0x%08x, "
 		       "expected 0x%08x)\n",
 		       dev->name, meta->magic, HOSTAP_SKB_TX_DATA_MAGIC);
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		iface->stats.tx_dropped++;
 		goto fail;
 	}
@@ -414,7 +419,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len < 24) {
 		printk(KERN_DEBUG "%s: hostap_master_start_xmit: short skb "
 		       "(len=%d)\n", dev->name, skb->len);
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		iface->stats.tx_dropped++;
 		goto fail;
 	}
@@ -441,13 +446,13 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			       dev->name, meta->ethertype);
 			hostap_dump_tx_80211(dev->name, skb);
 
-			ret = 0; /* drop packet */
+			ret = NETDEV_TX_OK; /* drop packet */
 			iface->stats.tx_dropped++;
 			goto fail;
 		}
 		break;
 	case AP_TX_DROP:
-		ret = 0; /* drop packet */
+		ret = NETDEV_TX_OK; /* drop packet */
 		iface->stats.tx_dropped++;
 		goto fail;
 	case AP_TX_RETRY:
@@ -455,7 +460,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	case AP_TX_BUFFERED:
 		/* do not free skb here, it will be freed when the
 		 * buffered frame is sent/timed out */
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		goto tx_exit;
 	}
 
@@ -501,7 +506,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			       "frame (drop_unencrypted=1)\n", dev->name);
 		}
 		iface->stats.tx_dropped++;
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		goto fail;
 	}
 
@@ -510,7 +515,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb == NULL) {
 			printk(KERN_DEBUG "%s: TX - encryption failed\n",
 			       dev->name);
-			ret = 0;
+			ret = NETDEV_TX_OK;
 			goto fail;
 		}
 		meta = (struct hostap_skb_tx_data *) skb->cb;
@@ -519,23 +524,23 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			       "expected 0x%08x) after hostap_tx_encrypt\n",
 			       dev->name, meta->magic,
 			       HOSTAP_SKB_TX_DATA_MAGIC);
-			ret = 0;
+			ret = NETDEV_TX_OK;
 			iface->stats.tx_dropped++;
 			goto fail;
 		}
 	}
 
 	if (local->func->tx == NULL || local->func->tx(skb, dev)) {
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		iface->stats.tx_dropped++;
 	} else {
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		iface->stats.tx_packets++;
 		iface->stats.tx_bytes += skb->len;
 	}
 
  fail:
-	if (!ret && skb)
+	if (ret == NETDEV_TX_OK && skb)
 		dev_kfree_skb(skb);
  tx_exit:
 	if (tx.sta_ptr)

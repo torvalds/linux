@@ -18,6 +18,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/ctype.h>
 #include <linux/quotaops.h>
 #include <linux/exportfs.h>
@@ -84,6 +85,8 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	struct tblock *tblk;
 
 	jfs_info("jfs_create: dip:0x%p name:%s", dip, dentry->d_name.name);
+
+	dquot_initialize(dip);
 
 	/*
 	 * search parent directory for entry/freespace
@@ -214,6 +217,8 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	struct tblock *tblk;
 
 	jfs_info("jfs_mkdir: dip:0x%p name:%s", dip, dentry->d_name.name);
+
+	dquot_initialize(dip);
 
 	/* link count overflow on parent directory ? */
 	if (dip->i_nlink == JFS_LINK_MAX) {
@@ -356,7 +361,8 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	jfs_info("jfs_rmdir: dip:0x%p name:%s", dip, dentry->d_name.name);
 
 	/* Init inode for quota operations. */
-	vfs_dq_init(ip);
+	dquot_initialize(dip);
+	dquot_initialize(ip);
 
 	/* directory must be empty to be removed */
 	if (!dtEmpty(ip)) {
@@ -483,7 +489,8 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 	jfs_info("jfs_unlink: dip:0x%p name:%s", dip, dentry->d_name.name);
 
 	/* Init inode for quota operations. */
-	vfs_dq_init(ip);
+	dquot_initialize(dip);
+	dquot_initialize(ip);
 
 	if ((rc = get_UCSname(&dname, dentry)))
 		goto out;
@@ -805,6 +812,8 @@ static int jfs_link(struct dentry *old_dentry,
 	if (ip->i_nlink == 0)
 		return -ENOENT;
 
+	dquot_initialize(dir);
+
 	tid = txBegin(ip->i_sb, 0);
 
 	mutex_lock_nested(&JFS_IP(dir)->commit_mutex, COMMIT_MUTEX_PARENT);
@@ -831,7 +840,7 @@ static int jfs_link(struct dentry *old_dentry,
 	ip->i_ctime = CURRENT_TIME;
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	mark_inode_dirty(dir);
-	atomic_inc(&ip->i_count);
+	ihold(ip);
 
 	iplist[0] = ip;
 	iplist[1] = dir;
@@ -896,6 +905,8 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 
 	jfs_info("jfs_symlink: dip:0x%p name:%s", dip, name);
 
+	dquot_initialize(dip);
+
 	ssize = strlen(name) + 1;
 
 	/*
@@ -946,7 +957,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	 */
 
 	if (ssize <= IDATASIZE) {
-		ip->i_op = &jfs_symlink_inode_operations;
+		ip->i_op = &jfs_fast_symlink_inode_operations;
 
 		i_fastsymlink = JFS_IP(ip)->i_inline;
 		memcpy(i_fastsymlink, name, ssize);
@@ -968,7 +979,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	else {
 		jfs_info("jfs_symlink: allocate extent ip:0x%p", ip);
 
-		ip->i_op = &page_symlink_inode_operations;
+		ip->i_op = &jfs_symlink_inode_operations;
 		ip->i_mapping->a_ops = &jfs_aops;
 
 		/*
@@ -1087,6 +1098,9 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	jfs_info("jfs_rename: %s %s", old_dentry->d_name.name,
 		 new_dentry->d_name.name);
 
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
+
 	old_ip = old_dentry->d_inode;
 	new_ip = new_dentry->d_inode;
 
@@ -1136,7 +1150,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	} else if (new_ip) {
 		IWRITE_LOCK(new_ip, RDWRLOCK_NORMAL);
 		/* Init inode for quota operations. */
-		vfs_dq_init(new_ip);
+		dquot_initialize(new_ip);
 	}
 
 	/*
@@ -1360,6 +1374,8 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 
 	jfs_info("jfs_mknod: %s", dentry->d_name.name);
 
+	dquot_initialize(dir);
+
 	if ((rc = get_UCSname(&dname, dentry)))
 		goto out;
 
@@ -1450,7 +1466,7 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 	jfs_info("jfs_lookup: name = %s", name);
 
 	if (JFS_SBI(dip->i_sb)->mntflag & JFS_OS2)
-		dentry->d_op = &jfs_ci_dentry_operations;
+		d_set_d_op(dentry, &jfs_ci_dentry_operations);
 
 	if ((name[0] == '.') && (len == 1))
 		inum = dip->i_ino;
@@ -1479,7 +1495,7 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 	dentry = d_splice_alias(ip, dentry);
 
 	if (dentry && (JFS_SBI(dip->i_sb)->mntflag & JFS_OS2))
-		dentry->d_op = &jfs_ci_dentry_operations;
+		d_set_d_op(dentry, &jfs_ci_dentry_operations);
 
 	return dentry;
 }
@@ -1541,9 +1557,9 @@ const struct inode_operations jfs_dir_inode_operations = {
 	.getxattr	= jfs_getxattr,
 	.listxattr	= jfs_listxattr,
 	.removexattr	= jfs_removexattr,
-#ifdef CONFIG_JFS_POSIX_ACL
 	.setattr	= jfs_setattr,
-	.permission	= jfs_permission,
+#ifdef CONFIG_JFS_POSIX_ACL
+	.check_acl	= jfs_check_acl,
 #endif
 };
 
@@ -1558,7 +1574,8 @@ const struct file_operations jfs_dir_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static int jfs_ci_hash(struct dentry *dir, struct qstr *this)
+static int jfs_ci_hash(const struct dentry *dir, const struct inode *inode,
+		struct qstr *this)
 {
 	unsigned long hash;
 	int i;
@@ -1571,32 +1588,63 @@ static int jfs_ci_hash(struct dentry *dir, struct qstr *this)
 	return 0;
 }
 
-static int jfs_ci_compare(struct dentry *dir, struct qstr *a, struct qstr *b)
+static int jfs_ci_compare(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i, result = 1;
 
-	if (a->len != b->len)
+	if (len != name->len)
 		goto out;
-	for (i=0; i < a->len; i++) {
-		if (tolower(a->name[i]) != tolower(b->name[i]))
+	for (i=0; i < len; i++) {
+		if (tolower(str[i]) != tolower(name->name[i]))
 			goto out;
 	}
 	result = 0;
-
-	/*
-	 * We want creates to preserve case.  A negative dentry, a, that
-	 * has a different case than b may cause a new entry to be created
-	 * with the wrong case.  Since we can't tell if a comes from a negative
-	 * dentry, we blindly replace it with b.  This should be harmless if
-	 * a is not a negative dentry.
-	 */
-	memcpy((unsigned char *)a->name, b->name, a->len);
 out:
 	return result;
+}
+
+static int jfs_ci_revalidate(struct dentry *dentry, struct nameidata *nd)
+{
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+	/*
+	 * This is not negative dentry. Always valid.
+	 *
+	 * Note, rename() to existing directory entry will have ->d_inode,
+	 * and will use existing name which isn't specified name by user.
+	 *
+	 * We may be able to drop this positive dentry here. But dropping
+	 * positive dentry isn't good idea. So it's unsupported like
+	 * rename("filename", "FILENAME") for now.
+	 */
+	if (dentry->d_inode)
+		return 1;
+
+	/*
+	 * This may be nfsd (or something), anyway, we can't see the
+	 * intent of this. So, since this can be for creation, drop it.
+	 */
+	if (!nd)
+		return 0;
+
+	/*
+	 * Drop the negative dentry, in order to make sure to use the
+	 * case sensitive name which is specified by user if this is
+	 * for creation.
+	 */
+	if (!(nd->flags & (LOOKUP_CONTINUE | LOOKUP_PARENT))) {
+		if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+			return 0;
+	}
+	return 1;
 }
 
 const struct dentry_operations jfs_ci_dentry_operations =
 {
 	.d_hash = jfs_ci_hash,
 	.d_compare = jfs_ci_compare,
+	.d_revalidate = jfs_ci_revalidate,
 };

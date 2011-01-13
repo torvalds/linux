@@ -1,9 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/SPARC Kernel Configuration"
-
 config 64BIT
 	bool "64-bit kernel" if ARCH = "sparc"
 	default ARCH = "sparc64"
@@ -18,6 +12,8 @@ config 64BIT
 config SPARC
 	bool
 	default y
+	select OF
+	select OF_PROMTREE
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
@@ -25,6 +21,10 @@ config SPARC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
+	select HAVE_IRQ_WORK
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
+	select HAVE_ARCH_JUMP_LABEL
 
 config SPARC32
 	def_bool !64BIT
@@ -33,17 +33,23 @@ config SPARC64
 	def_bool 64BIT
 	select ARCH_SUPPORTS_MSI
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_GRAPH_FP_TEST
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_SYSCALL_TRACEPOINTS
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 
 config ARCH_DEFCONFIG
 	string
@@ -56,13 +62,13 @@ config BITS
 	default 32 if SPARC32
 	default 64 if SPARC64
 
-config GENERIC_TIME
+config ARCH_USES_GETTIMEOFFSET
 	bool
-	default y if SPARC64
+	default y if SPARC32
 
 config GENERIC_CMOS_UPDATE
 	bool
-	default y if SPARC64
+	default y
 
 config GENERIC_CLOCKEVENTS
 	bool
@@ -95,7 +101,10 @@ config AUDIT_ARCH
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y if SPARC64
 
-config HAVE_DYNAMIC_PER_CPU_AREA
+config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	def_bool y if SPARC64
+
+config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	def_bool y if SPARC64
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
@@ -114,6 +123,12 @@ config ZONE_DMA
 	bool
 	default y if SPARC32
 
+config NEED_DMA_MAP_STATE
+	def_bool y
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
 config GENERIC_ISA_DMA
 	bool
 	default y if SPARC32
@@ -124,9 +139,6 @@ config GENERIC_GPIO
 	  Generic GPIO API support
 
 config ARCH_NO_VIRT_TO_BUS
-	def_bool y
-
-config OF
 	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
@@ -211,6 +223,13 @@ config SPARC64_SMP
 	bool
 	default y
 	depends on SPARC64 && SMP
+
+config EARLYFB
+	bool "Support for early boot text console"
+	default y
+	depends on SPARC64
+	help
+	  Say Y here to enable a faster early framebuffer boot console.
 
 choice
 	prompt "Kernel page size" if SPARC64
@@ -436,6 +455,17 @@ config SERIAL_CONSOLE
 	  system console.
 
 	  If unsure, say N.
+
+config SPARC_LEON
+	bool "Sparc Leon processor family"
+	depends on SPARC32
+	---help---
+	  If you say Y here if you are running on a SPARC-LEON processor.
+	  The LEON processor is a synthesizable VHDL model of the
+	  SPARC-v8 standard. LEON is  part of the GRLIB collection of
+	  IP cores that are distributed under GPL. GRLIB can be downloaded
+	  from www.gaisler.com. You can download a sparc-linux cross-compilation
+	  toolchain at www.gaisler.com.
 
 endmenu
 

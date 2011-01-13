@@ -19,6 +19,7 @@ files can be found in mm/swap.c.
 Currently, these files are in /proc/sys/vm:
 
 - block_dump
+- compact_memory
 - dirty_background_bytes
 - dirty_background_ratio
 - dirty_bytes
@@ -26,12 +27,15 @@ Currently, these files are in /proc/sys/vm:
 - dirty_ratio
 - dirty_writeback_centisecs
 - drop_caches
+- extfrag_threshold
 - hugepages_treat_as_movable
 - hugetlb_shm_group
 - laptop_mode
 - legacy_va_layout
 - lowmem_reserve_ratio
 - max_map_count
+- memory_failure_early_kill
+- memory_failure_recovery
 - min_free_kbytes
 - min_slab_ratio
 - min_unmapped_ratio
@@ -53,7 +57,6 @@ Currently, these files are in /proc/sys/vm:
 - vfs_cache_pressure
 - zone_reclaim_mode
 
-
 ==============================================================
 
 block_dump
@@ -63,13 +66,24 @@ information on block I/O debugging is in Documentation/laptops/laptop-mode.txt.
 
 ==============================================================
 
+compact_memory
+
+Available only when CONFIG_COMPACTION is set. When 1 is written to the file,
+all zones are compacted such that free memory is available in contiguous
+blocks where possible. This can be important for example in the allocation of
+huge pages although processes will also directly compact memory as required.
+
+==============================================================
+
 dirty_background_bytes
 
 Contains the amount of dirty memory at which the pdflush background writeback
 daemon will start writeback.
 
-If dirty_background_bytes is written, dirty_background_ratio becomes a function
-of its value (dirty_background_bytes / the amount of dirtyable system memory).
+Note: dirty_background_bytes is the counterpart of dirty_background_ratio. Only
+one of them may be specified at a time. When one sysctl is written it is
+immediately taken into account to evaluate the dirty memory limits and the
+other appears as 0 when read.
 
 ==============================================================
 
@@ -85,8 +99,10 @@ dirty_bytes
 Contains the amount of dirty memory at which a process generating disk writes
 will itself start writeback.
 
-If dirty_bytes is written, dirty_ratio becomes a function of its value
-(dirty_bytes / the amount of dirtyable system memory).
+Note: dirty_bytes is the counterpart of dirty_ratio. Only one of them may be
+specified at a time. When one sysctl is written it is immediately taken into
+account to evaluate the dirty memory limits and the other appears as 0 when
+read.
 
 Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
 value lower than this limit will be ignored and the old configuration will be
@@ -138,6 +154,20 @@ user should run `sync' first.
 
 ==============================================================
 
+extfrag_threshold
+
+This parameter affects whether the kernel will compact memory or direct
+reclaim to satisfy a high-order allocation. /proc/extfrag_index shows what
+the fragmentation index for each order is in each zone in the system. Values
+tending towards 0 imply allocations would fail due to lack of memory,
+values towards 1000 imply failures are due to fragmentation and -1 implies
+that the allocation will succeed as long as watermarks are met.
+
+The kernel will not compact memory in a zone if the
+fragmentation index is <= extfrag_threshold. The default value is 500.
+
+==============================================================
+
 hugepages_treat_as_movable
 
 This parameter is only useful when kernelcore= is specified at boot time to
@@ -170,7 +200,7 @@ controlled by this knob are discussed in Documentation/laptops/laptop-mode.txt.
 
 legacy_va_layout
 
-If non-zero, this sysctl disables the new 32-bit mmap mmap layout - the kernel
+If non-zero, this sysctl disables the new 32-bit mmap layout - the kernel
 will use the legacy (2.4) layout for all processes.
 
 ==============================================================
@@ -275,6 +305,44 @@ e.g., up to one or two maps per allocation.
 
 The default value is 65536.
 
+=============================================================
+
+memory_failure_early_kill:
+
+Control how to kill processes when uncorrected memory error (typically
+a 2bit error in a memory module) is detected in the background by hardware
+that cannot be handled by the kernel. In some cases (like the page
+still having a valid copy on disk) the kernel will handle the failure
+transparently without affecting any applications. But if there is
+no other uptodate copy of the data it will kill to prevent any data
+corruptions from propagating.
+
+1: Kill all processes that have the corrupted and not reloadable page mapped
+as soon as the corruption is detected.  Note this is not supported
+for a few types of pages, like kernel internally allocated data or
+the swap cache, but works for the majority of user pages.
+
+0: Only unmap the corrupted page from all processes and only kill a process
+who tries to access it.
+
+The kill is done using a catchable SIGBUS with BUS_MCEERR_AO, so processes can
+handle this if they want to.
+
+This is only active on architectures/platforms with advanced machine
+check handling and depends on the hardware capabilities.
+
+Applications can override this setting individually with the PR_MCE_KILL prctl
+
+==============================================================
+
+memory_failure_recovery
+
+Enable memory failure recovery (when supported by the platform)
+
+1: Attempt recovery.
+
+0: Always panic on a memory failure.
+
 ==============================================================
 
 min_free_kbytes:
@@ -331,7 +399,7 @@ The default is 1 percent.
 mmap_min_addr
 
 This file indicates the amount of address space  which a user process will
-be restricted from mmaping.  Since kernel null dereference bugs could
+be restricted from mmapping.  Since kernel null dereference bugs could
 accidentally operate based on the information in the first couple of pages
 of memory userspace processes should not be allowed to write to them.  By
 default this value is set to 0 and no protections will be enforced by the
@@ -447,7 +515,7 @@ information may not be desired.
 If this is set to non-zero, this information is shown whenever the
 OOM killer actually kills a memory-hogging task.
 
-The default value is 0.
+The default value is 1 (enabled).
 
 ==============================================================
 
@@ -534,11 +602,14 @@ Because other nodes' memory may be free. This means system total status
 may be not fatal yet.
 
 If this is set to 2, the kernel panics compulsorily even on the
-above-mentioned.
+above-mentioned. Even oom happens under memory cgroup, the whole
+system panics.
 
 The default value is 0.
 1 and 2 are for failover of clustering. Please select either
 according to your policy of failover.
+panic_on_oom=2+kdump gives you very strong tool to investigate
+why oom happens. You can get snapshot.
 
 =============================================================
 
@@ -585,7 +656,9 @@ caching of directory and inode objects.
 At the default value of vfs_cache_pressure=100 the kernel will attempt to
 reclaim dentries and inodes at a "fair" rate with respect to pagecache and
 swapcache reclaim.  Decreasing vfs_cache_pressure causes the kernel to prefer
-to retain dentry and inode caches.  Increasing vfs_cache_pressure beyond 100
+to retain dentry and inode caches. When vfs_cache_pressure=0, the kernel will
+never reclaim dentries and inodes due to memory pressure and this can easily
+lead to out-of-memory conditions. Increasing vfs_cache_pressure beyond 100
 causes the kernel to prefer to reclaim dentries and inodes.
 
 ==============================================================

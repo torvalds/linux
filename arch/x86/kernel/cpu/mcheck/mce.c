@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/poll.h>
@@ -34,6 +35,8 @@
 #include <linux/smp.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/debugfs.h>
+#include <linux/edac_mce.h>
 
 #include <asm/processor.h>
 #include <asm/hw_irq.h>
@@ -45,20 +48,17 @@
 
 #include "mce-internal.h"
 
-/* Handle unconfigured int18 (should never happen) */
-static void unexpected_machine_check(struct pt_regs *regs, long error_code)
-{
-	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n",
-	       smp_processor_id());
-}
+static DEFINE_MUTEX(mce_read_mutex);
 
-/* Call the installed machine check handler for this CPU setup. */
-void (*machine_check_vector)(struct pt_regs *, long error_code) =
-						unexpected_machine_check;
+#define rcu_dereference_check_mce(p) \
+	rcu_dereference_index_check((p), \
+			      rcu_read_lock_sched_held() || \
+			      lockdep_is_held(&mce_read_mutex))
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/mce.h>
 
 int mce_disabled __read_mostly;
-
-#ifdef CONFIG_X86_NEW_MCE
 
 #define MISC_MCELOG_MINOR	227
 
@@ -77,7 +77,6 @@ DEFINE_PER_CPU(unsigned, mce_exception_count);
  */
 static int			tolerant		__read_mostly = 1;
 static int			banks			__read_mostly;
-static u64			*bank			__read_mostly;
 static int			rip_msr			__read_mostly;
 static int			mce_bootlog		__read_mostly = -1;
 static int			monarch_timeout		__read_mostly = -1;
@@ -87,27 +86,42 @@ int				mce_cmci_disabled	__read_mostly;
 int				mce_ignore_ce		__read_mostly;
 int				mce_ser			__read_mostly;
 
+struct mce_bank                *mce_banks		__read_mostly;
+
 /* User mode helper program triggered by machine check event */
 static unsigned long		mce_need_notify;
 static char			mce_helper[128];
 static char			*mce_helper_argv[2] = { mce_helper, NULL };
 
-static unsigned long		dont_init_banks;
-
 static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 static DEFINE_PER_CPU(struct mce, mces_seen);
 static int			cpu_missing;
 
+/*
+ * CPU/chipset specific EDAC code can register a notifier call here to print
+ * MCE errors in a human-readable form.
+ */
+ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
+EXPORT_SYMBOL_GPL(x86_mce_decoder_chain);
+
+static int default_decode_mce(struct notifier_block *nb, unsigned long val,
+			       void *data)
+{
+	pr_emerg(HW_ERR "No human readable MCE decoding support on this CPU type.\n");
+	pr_emerg(HW_ERR "Run the message through 'mcelog --ascii' to decode.\n");
+
+	return NOTIFY_STOP;
+}
+
+static struct notifier_block mce_dec_nb = {
+	.notifier_call = default_decode_mce,
+	.priority      = -1,
+};
 
 /* MCA banks polled by the period polling timer for corrected events */
 DEFINE_PER_CPU(mce_banks_t, mce_poll_banks) = {
 	[0 ... BITS_TO_LONGS(MAX_NR_BANKS)-1] = ~0UL
 };
-
-static inline int skip_bank_init(int i)
-{
-	return i < BITS_PER_LONG && test_bit(i, &dont_init_banks);
-}
 
 static DEFINE_PER_CPU(struct work_struct, mce_work);
 
@@ -147,11 +161,23 @@ void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
 
+	/* Emit the trace record: */
+	trace_mce_record(mce);
+
 	mce->finished = 0;
 	wmb();
 	for (;;) {
-		entry = rcu_dereference(mcelog.next);
+		entry = rcu_dereference_check_mce(mcelog.next);
 		for (;;) {
+			/*
+			 * If edac_mce is enabled, it will check the error type
+			 * and will process it, if it is a known error.
+			 * Otherwise, the error will be sent through mcelog
+			 * interface
+			 */
+			if (edac_mce_parse(mce))
+				return;
+
 			/*
 			 * When the buffer fills up discard new entries.
 			 * Assume that the earlier errors are the more
@@ -185,47 +211,48 @@ void mce_log(struct mce *mce)
 
 static void print_mce(struct mce *m)
 {
-	printk(KERN_EMERG
-	       "CPU %d: Machine Check Exception: %16Lx Bank %d: %016Lx\n",
+	pr_emerg(HW_ERR "CPU %d: Machine Check Exception: %Lx Bank %d: %016Lx\n",
 	       m->extcpu, m->mcgstatus, m->bank, m->status);
+
 	if (m->ip) {
-		printk(KERN_EMERG "RIP%s %02x:<%016Lx> ",
-		       !(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
-		       m->cs, m->ip);
+		pr_emerg(HW_ERR "RIP%s %02x:<%016Lx> ",
+			!(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
+				m->cs, m->ip);
+
 		if (m->cs == __KERNEL_CS)
 			print_symbol("{%s}", m->ip);
-		printk("\n");
+		pr_cont("\n");
 	}
-	printk(KERN_EMERG "TSC %llx ", m->tsc);
+
+	pr_emerg(HW_ERR "TSC %llx ", m->tsc);
 	if (m->addr)
-		printk("ADDR %llx ", m->addr);
+		pr_cont("ADDR %llx ", m->addr);
 	if (m->misc)
-		printk("MISC %llx ", m->misc);
-	printk("\n");
-	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
-			m->cpuvendor, m->cpuid, m->time, m->socketid,
-			m->apicid);
-}
+		pr_cont("MISC %llx ", m->misc);
 
-static void print_mce_head(void)
-{
-	printk(KERN_EMERG "\n" KERN_EMERG "HARDWARE ERROR\n");
-}
+	pr_cont("\n");
+	pr_emerg(HW_ERR "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
+		m->cpuvendor, m->cpuid, m->time, m->socketid, m->apicid);
 
-static void print_mce_tail(void)
-{
-	printk(KERN_EMERG "This is not a software problem!\n"
-	       KERN_EMERG "Run through mcelog --ascii to decode and contact your hardware vendor\n");
+	/*
+	 * Print out human-readable details about the MCE error,
+	 * (if the CPU has an implementation for that)
+	 */
+	atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, m);
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
 
 static atomic_t mce_paniced;
 
+static int fake_panic;
+static atomic_t mce_fake_paniced;
+
 /* Panic in progress. Enable interrupts and wait for final IPI */
 static void wait_for_panic(void)
 {
 	long timeout = PANIC_TIMEOUT*USEC_PER_SEC;
+
 	preempt_disable();
 	local_irq_enable();
 	while (timeout-- > 0)
@@ -237,25 +264,33 @@ static void wait_for_panic(void)
 
 static void mce_panic(char *msg, struct mce *final, char *exp)
 {
-	int i;
+	int i, apei_err = 0;
 
-	/*
-	 * Make sure only one CPU runs in machine check panic
-	 */
-	if (atomic_add_return(1, &mce_paniced) > 1)
-		wait_for_panic();
-	barrier();
+	if (!fake_panic) {
+		/*
+		 * Make sure only one CPU runs in machine check panic
+		 */
+		if (atomic_inc_return(&mce_paniced) > 1)
+			wait_for_panic();
+		barrier();
 
-	bust_spinlocks(1);
-	console_verbose();
-	print_mce_head();
+		bust_spinlocks(1);
+		console_verbose();
+	} else {
+		/* Don't log too much for fake panic */
+		if (atomic_inc_return(&mce_fake_paniced) > 1)
+			return;
+	}
 	/* First print corrected ones that are still unlogged */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
 		struct mce *m = &mcelog.entry[i];
 		if (!(m->status & MCI_STATUS_VAL))
 			continue;
-		if (!(m->status & MCI_STATUS_UC))
+		if (!(m->status & MCI_STATUS_UC)) {
 			print_mce(m);
+			if (!apei_err)
+				apei_err = apei_write_mce(m);
+		}
 	}
 	/* Now print uncorrected but with the final one last */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
@@ -264,33 +299,42 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 			continue;
 		if (!(m->status & MCI_STATUS_UC))
 			continue;
-		if (!final || memcmp(m, final, sizeof(struct mce)))
+		if (!final || memcmp(m, final, sizeof(struct mce))) {
 			print_mce(m);
+			if (!apei_err)
+				apei_err = apei_write_mce(m);
+		}
 	}
-	if (final)
+	if (final) {
 		print_mce(final);
+		if (!apei_err)
+			apei_err = apei_write_mce(final);
+	}
 	if (cpu_missing)
-		printk(KERN_EMERG "Some CPUs didn't answer in synchronization\n");
-	print_mce_tail();
+		pr_emerg(HW_ERR "Some CPUs didn't answer in synchronization\n");
 	if (exp)
-		printk(KERN_EMERG "Machine check: %s\n", exp);
-	if (panic_timeout == 0)
-		panic_timeout = mce_panic_timeout;
-	panic(msg);
+		pr_emerg(HW_ERR "Machine check: %s\n", exp);
+	if (!fake_panic) {
+		if (panic_timeout == 0)
+			panic_timeout = mce_panic_timeout;
+		panic(msg);
+	} else
+		pr_emerg(HW_ERR "Fake kernel panic: %s\n", msg);
 }
 
 /* Support code for software error injection */
 
 static int msr_to_offset(u32 msr)
 {
-	unsigned bank = __get_cpu_var(injectm.bank);
+	unsigned bank = __this_cpu_read(injectm.bank);
+
 	if (msr == rip_msr)
 		return offsetof(struct mce, ip);
-	if (msr == MSR_IA32_MC0_STATUS + bank*4)
+	if (msr == MSR_IA32_MCx_STATUS(bank))
 		return offsetof(struct mce, status);
-	if (msr == MSR_IA32_MC0_ADDR + bank*4)
+	if (msr == MSR_IA32_MCx_ADDR(bank))
 		return offsetof(struct mce, addr);
-	if (msr == MSR_IA32_MC0_MISC + bank*4)
+	if (msr == MSR_IA32_MCx_MISC(bank))
 		return offsetof(struct mce, misc);
 	if (msr == MSR_IA32_MCG_STATUS)
 		return offsetof(struct mce, mcgstatus);
@@ -301,20 +345,33 @@ static int msr_to_offset(u32 msr)
 static u64 mce_rdmsrl(u32 msr)
 {
 	u64 v;
-	if (__get_cpu_var(injectm).finished) {
+
+	if (__this_cpu_read(injectm.finished)) {
 		int offset = msr_to_offset(msr);
+
 		if (offset < 0)
 			return 0;
 		return *(u64 *)((char *)&__get_cpu_var(injectm) + offset);
 	}
-	rdmsrl(msr, v);
+
+	if (rdmsrl_safe(msr, &v)) {
+		WARN_ONCE(1, "mce: Unable to read msr %d!\n", msr);
+		/*
+		 * Return zero in case the access faulted. This should
+		 * not happen normally but can happen if the CPU does
+		 * something weird, or if the code is buggy.
+		 */
+		v = 0;
+	}
+
 	return v;
 }
 
 static void mce_wrmsrl(u32 msr, u64 v)
 {
-	if (__get_cpu_var(injectm).finished) {
+	if (__this_cpu_read(injectm.finished)) {
 		int offset = msr_to_offset(msr);
+
 		if (offset >= 0)
 			*(u64 *)((char *)&__get_cpu_var(injectm) + offset) = v;
 		return;
@@ -411,7 +468,7 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 		m->ip = mce_rdmsrl(rip_msr);
 }
 
-#ifdef CONFIG_X86_LOCAL_APIC 
+#ifdef CONFIG_X86_LOCAL_APIC
 /*
  * Called after interrupts have been reenabled again
  * when a MCE happened during an interrupts off region
@@ -489,13 +546,13 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 	struct mce m;
 	int i;
 
-	__get_cpu_var(mce_poll_count)++;
+	percpu_inc(mce_poll_count);
 
 	mce_setup(&m);
 
 	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
 	for (i = 0; i < banks; i++) {
-		if (!bank[i] || !test_bit(i, *b))
+		if (!mce_banks[i].ctl || !test_bit(i, *b))
 			continue;
 
 		m.misc = 0;
@@ -504,7 +561,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		m.tsc = 0;
 
 		barrier();
-		m.status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
+		m.status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
 		if (!(m.status & MCI_STATUS_VAL))
 			continue;
 
@@ -519,9 +576,9 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 			continue;
 
 		if (m.status & MCI_STATUS_MISCV)
-			m.misc = mce_rdmsrl(MSR_IA32_MC0_MISC + i*4);
+			m.misc = mce_rdmsrl(MSR_IA32_MCx_MISC(i));
 		if (m.status & MCI_STATUS_ADDRV)
-			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
+			m.addr = mce_rdmsrl(MSR_IA32_MCx_ADDR(i));
 
 		if (!(flags & MCP_TIMESTAMP))
 			m.tsc = 0;
@@ -531,13 +588,14 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 */
 		if (!(flags & MCP_DONTLOG) && !mce_dont_log_ce) {
 			mce_log(&m);
+			atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, &m);
 			add_taint(TAINT_MACHINE_CHECK);
 		}
 
 		/*
 		 * Clear state for this bank.
 		 */
-		mce_wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+		mce_wrmsrl(MSR_IA32_MCx_STATUS(i), 0);
 	}
 
 	/*
@@ -558,7 +616,7 @@ static int mce_no_way_out(struct mce *m, char **msg)
 	int i;
 
 	for (i = 0; i < banks; i++) {
-		m->status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
+		m->status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
 		if (mce_severity(m, tolerant, msg) >= MCE_PANIC_SEVERITY)
 			return 1;
 	}
@@ -618,7 +676,7 @@ out:
  * This way we prevent any potential data corruption in a unrecoverable case
  * and also makes sure always all CPU's errors are examined.
  *
- * Also this detects the case of an machine check event coming from outer
+ * Also this detects the case of a machine check event coming from outer
  * space (not detected by any CPUs) In this case some external agent wants
  * us to shut down, so panic too.
  *
@@ -671,7 +729,7 @@ static void mce_reign(void)
 	 * No machine check event found. Must be some external
 	 * source or one CPU is hung. Panic.
 	 */
-	if (!m && tolerant < 3)
+	if (global_worst <= MCE_KEEP_SEVERITY && tolerant < 3)
 		mce_panic("Machine check from unknown source", NULL, NULL);
 
 	/*
@@ -705,7 +763,7 @@ static int mce_start(int *no_way_out)
 	 * global_nwo should be updated before mce_callin
 	 */
 	smp_wmb();
-	order = atomic_add_return(1, &mce_callin);
+	order = atomic_inc_return(&mce_callin);
 
 	/*
 	 * Wait for everyone.
@@ -842,7 +900,7 @@ static void mce_clear_state(unsigned long *toclear)
 
 	for (i = 0; i < banks; i++) {
 		if (test_bit(i, toclear))
-			mce_wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+			mce_wrmsrl(MSR_IA32_MCx_STATUS(i), 0);
 	}
 }
 
@@ -884,7 +942,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	atomic_inc(&mce_entry);
 
-	__get_cpu_var(mce_exception_count)++;
+	percpu_inc(mce_exception_count);
 
 	if (notify_die(DIE_NMI, "machine check", regs, error_code,
 			   18, SIGKILL) == NOTIFY_STOP)
@@ -895,10 +953,10 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	mce_setup(&m);
 
 	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
-	no_way_out = mce_no_way_out(&m, &msg);
-
 	final = &__get_cpu_var(mces_seen);
 	*final = m;
+
+	no_way_out = mce_no_way_out(&m, &msg);
 
 	barrier();
 
@@ -916,14 +974,14 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	order = mce_start(&no_way_out);
 	for (i = 0; i < banks; i++) {
 		__clear_bit(i, toclear);
-		if (!bank[i])
+		if (!mce_banks[i].ctl)
 			continue;
 
 		m.misc = 0;
 		m.addr = 0;
 		m.bank = i;
 
-		m.status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
+		m.status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
 		if ((m.status & MCI_STATUS_VAL) == 0)
 			continue;
 
@@ -964,9 +1022,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 			kill_it = 1;
 
 		if (m.status & MCI_STATUS_MISCV)
-			m.misc = mce_rdmsrl(MSR_IA32_MC0_MISC + i*4);
+			m.misc = mce_rdmsrl(MSR_IA32_MCx_MISC(i));
 		if (m.status & MCI_STATUS_ADDRV)
-			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
+			m.addr = mce_rdmsrl(MSR_IA32_MCx_ADDR(i));
 
 		/*
 		 * Action optional error. Queue address for later processing.
@@ -1091,17 +1149,17 @@ void mce_log_therm_throt_event(__u64 status)
  */
 static int check_interval = 5 * 60; /* 5 minutes */
 
-static DEFINE_PER_CPU(int, next_interval); /* in jiffies */
+static DEFINE_PER_CPU(int, mce_next_interval); /* in jiffies */
 static DEFINE_PER_CPU(struct timer_list, mce_timer);
 
-static void mcheck_timer(unsigned long data)
+static void mce_start_timer(unsigned long data)
 {
 	struct timer_list *t = &per_cpu(mce_timer, data);
 	int *n;
 
 	WARN_ON(smp_processor_id() != data);
 
-	if (mce_available(&current_cpu_data)) {
+	if (mce_available(__this_cpu_ptr(&cpu_info))) {
 		machine_check_poll(MCP_TIMESTAMP,
 				&__get_cpu_var(mce_poll_banks));
 	}
@@ -1110,14 +1168,14 @@ static void mcheck_timer(unsigned long data)
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
 	 * polling interval, otherwise increase the polling interval.
 	 */
-	n = &__get_cpu_var(next_interval);
+	n = &__get_cpu_var(mce_next_interval);
 	if (mce_notify_irq())
 		*n = max(*n/2, HZ/100);
 	else
 		*n = min(*n*2, (int)round_jiffies_relative(check_interval*HZ));
 
 	t->expires = jiffies + *n;
-	add_timer(t);
+	add_timer_on(t, smp_processor_id());
 }
 
 static void mce_do_trigger(struct work_struct *work)
@@ -1151,7 +1209,7 @@ int mce_notify_irq(void)
 			schedule_work(&mce_trigger_work);
 
 		if (__ratelimit(&ratelimit))
-			printk(KERN_INFO "Machine check events logged\n");
+			pr_info(HW_ERR "Machine check events logged\n");
 
 		return 1;
 	}
@@ -1159,10 +1217,26 @@ int mce_notify_irq(void)
 }
 EXPORT_SYMBOL_GPL(mce_notify_irq);
 
+static int __cpuinit __mcheck_cpu_mce_banks_init(void)
+{
+	int i;
+
+	mce_banks = kzalloc(banks * sizeof(struct mce_bank), GFP_KERNEL);
+	if (!mce_banks)
+		return -ENOMEM;
+	for (i = 0; i < banks; i++) {
+		struct mce_bank *b = &mce_banks[i];
+
+		b->ctl = -1ULL;
+		b->init = 1;
+	}
+	return 0;
+}
+
 /*
  * Initialize Machine Checks for a CPU.
  */
-static int mce_cap_init(void)
+static int __cpuinit __mcheck_cpu_cap_init(void)
 {
 	unsigned b;
 	u64 cap;
@@ -1170,7 +1244,8 @@ static int mce_cap_init(void)
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 
 	b = cap & MCG_BANKCNT_MASK;
-	printk(KERN_INFO "mce: CPU supports %d MCE banks\n", b);
+	if (!banks)
+		printk(KERN_INFO "mce: CPU supports %d MCE banks\n", b);
 
 	if (b > MAX_NR_BANKS) {
 		printk(KERN_WARNING
@@ -1182,11 +1257,11 @@ static int mce_cap_init(void)
 	/* Don't support asymmetric configurations today */
 	WARN_ON(banks != 0 && b != banks);
 	banks = b;
-	if (!bank) {
-		bank = kmalloc(banks * sizeof(u64), GFP_KERNEL);
-		if (!bank)
-			return -ENOMEM;
-		memset(bank, 0xff, banks * sizeof(u64));
+	if (!mce_banks) {
+		int err = __mcheck_cpu_mce_banks_init();
+
+		if (err)
+			return err;
 	}
 
 	/* Use accurate RIP reporting if available. */
@@ -1199,7 +1274,7 @@ static int mce_cap_init(void)
 	return 0;
 }
 
-static void mce_init(void)
+static void __mcheck_cpu_init_generic(void)
 {
 	mce_banks_t all_banks;
 	u64 cap;
@@ -1218,16 +1293,23 @@ static void mce_init(void)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 
 	for (i = 0; i < banks; i++) {
-		if (skip_bank_init(i))
+		struct mce_bank *b = &mce_banks[i];
+
+		if (!b->init)
 			continue;
-		wrmsrl(MSR_IA32_MC0_CTL+4*i, bank[i]);
-		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+		wrmsrl(MSR_IA32_MCx_CTL(i), b->ctl);
+		wrmsrl(MSR_IA32_MCx_STATUS(i), 0);
 	}
 }
 
 /* Add per CPU specific workarounds here */
-static void mce_cpu_quirks(struct cpuinfo_x86 *c)
+static int __cpuinit __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 {
+	if (c->x86_vendor == X86_VENDOR_UNKNOWN) {
+		pr_info("MCE: unknown CPU type - not enabling MCE support.\n");
+		return -EOPNOTSUPP;
+	}
+
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
 		if (c->x86 == 15 && banks > 4) {
@@ -1236,7 +1318,7 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 			 * trips off incorrectly with the IOMMU & 3ware
 			 * & Cerberus:
 			 */
-			clear_bit(10, (unsigned long *)&bank[4]);
+			clear_bit(10, (unsigned long *)&mce_banks[4].ctl);
 		}
 		if (c->x86 <= 17 && mce_bootlog < 0) {
 			/*
@@ -1250,7 +1332,7 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		 * by default.
 		 */
 		 if (c->x86 == 6 && banks > 0)
-			bank[0] = 0;
+			mce_banks[0].ctl = 0;
 	}
 
 	if (c->x86_vendor == X86_VENDOR_INTEL) {
@@ -1263,8 +1345,8 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		 * valid event later, merely don't write CTL0.
 		 */
 
-		if (c->x86 == 6 && c->x86_model < 0x1A)
-			__set_bit(0, &dont_init_banks);
+		if (c->x86 == 6 && c->x86_model < 0x1A && banks > 0)
+			mce_banks[0].init = 0;
 
 		/*
 		 * All newer Intel systems support MCE broadcasting. Enable
@@ -1273,14 +1355,23 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		if ((c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xe)) &&
 			monarch_timeout < 0)
 			monarch_timeout = USEC_PER_SEC;
+
+		/*
+		 * There are also broken BIOSes on some Pentium M and
+		 * earlier systems:
+		 */
+		if (c->x86 == 6 && c->x86_model <= 13 && mce_bootlog < 0)
+			mce_bootlog = 0;
 	}
 	if (monarch_timeout < 0)
 		monarch_timeout = 0;
 	if (mce_bootlog != 0)
 		mce_panic_timeout = 30;
+
+	return 0;
 }
 
-static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
+static void __cpuinit __mcheck_cpu_ancient_init(struct cpuinfo_x86 *c)
 {
 	if (c->x86 != 5)
 		return;
@@ -1294,7 +1385,7 @@ static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
 	}
 }
 
-static void mce_cpu_features(struct cpuinfo_x86 *c)
+static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
@@ -1308,10 +1399,12 @@ static void mce_cpu_features(struct cpuinfo_x86 *c)
 	}
 }
 
-static void mce_init_timer(void)
+static void __mcheck_cpu_init_timer(void)
 {
 	struct timer_list *t = &__get_cpu_var(mce_timer);
-	int *n = &__get_cpu_var(next_interval);
+	int *n = &__get_cpu_var(mce_next_interval);
+
+	setup_timer(t, mce_start_timer, smp_processor_id());
 
 	if (mce_ignore_ce)
 		return;
@@ -1319,37 +1412,47 @@ static void mce_init_timer(void)
 	*n = check_interval * HZ;
 	if (!*n)
 		return;
-	setup_timer(t, mcheck_timer, smp_processor_id());
 	t->expires = round_jiffies(jiffies + *n);
-	add_timer(t);
+	add_timer_on(t, smp_processor_id());
 }
+
+/* Handle unconfigured int18 (should never happen) */
+static void unexpected_machine_check(struct pt_regs *regs, long error_code)
+{
+	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n",
+	       smp_processor_id());
+}
+
+/* Call the installed machine check handler for this CPU setup. */
+void (*machine_check_vector)(struct pt_regs *, long error_code) =
+						unexpected_machine_check;
 
 /*
  * Called for each booted CPU to set up machine checks.
  * Must be called with preempt off:
  */
-void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
+void __cpuinit mcheck_cpu_init(struct cpuinfo_x86 *c)
 {
 	if (mce_disabled)
 		return;
 
-	mce_ancient_init(c);
+	__mcheck_cpu_ancient_init(c);
 
 	if (!mce_available(c))
 		return;
 
-	if (mce_cap_init() < 0) {
+	if (__mcheck_cpu_cap_init() < 0 || __mcheck_cpu_apply_quirks(c) < 0) {
 		mce_disabled = 1;
 		return;
 	}
-	mce_cpu_quirks(c);
 
 	machine_check_vector = do_machine_check;
 
-	mce_init();
-	mce_cpu_features(c);
-	mce_init_timer();
+	__mcheck_cpu_init_generic();
+	__mcheck_cpu_init_vendor(c);
+	__mcheck_cpu_init_timer();
 	INIT_WORK(&__get_cpu_var(mce_work), mce_process_work);
+
 }
 
 /*
@@ -1398,7 +1501,42 @@ static void collect_tscs(void *data)
 	rdtscll(cpu_tsc[smp_processor_id()]);
 }
 
-static DEFINE_MUTEX(mce_read_mutex);
+static int mce_apei_read_done;
+
+/* Collect MCE record of previous boot in persistent storage via APEI ERST. */
+static int __mce_read_apei(char __user **ubuf, size_t usize)
+{
+	int rc;
+	u64 record_id;
+	struct mce m;
+
+	if (usize < sizeof(struct mce))
+		return -EINVAL;
+
+	rc = apei_read_mce(&m, &record_id);
+	/* Error or no more MCE record */
+	if (rc <= 0) {
+		mce_apei_read_done = 1;
+		return rc;
+	}
+	rc = -EFAULT;
+	if (copy_to_user(*ubuf, &m, sizeof(struct mce)))
+		return rc;
+	/*
+	 * In fact, we should have cleared the record after that has
+	 * been flushed to the disk or sent to network in
+	 * /sbin/mcelog, but we have no interface to support that now,
+	 * so just clear it to avoid duplication.
+	 */
+	rc = apei_clear_mce(record_id);
+	if (rc) {
+		mce_apei_read_done = 1;
+		return rc;
+	}
+	*ubuf += sizeof(struct mce);
+
+	return 0;
+}
 
 static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			loff_t *off)
@@ -1413,15 +1551,19 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 		return -ENOMEM;
 
 	mutex_lock(&mce_read_mutex);
-	next = rcu_dereference(mcelog.next);
+
+	if (!mce_apei_read_done) {
+		err = __mce_read_apei(&buf, usize);
+		if (err || buf != ubuf)
+			goto out;
+	}
+
+	next = rcu_dereference_check_mce(mcelog.next);
 
 	/* Only supports full reads right now */
-	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce)) {
-		mutex_unlock(&mce_read_mutex);
-		kfree(cpu_tsc);
-
-		return -EINVAL;
-	}
+	err = -EINVAL;
+	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce))
+		goto out;
 
 	err = 0;
 	prev = 0;
@@ -1469,16 +1611,23 @@ timeout:
 			memset(&mcelog.entry[i], 0, sizeof(struct mce));
 		}
 	}
+
+	if (err)
+		err = -EFAULT;
+
+out:
 	mutex_unlock(&mce_read_mutex);
 	kfree(cpu_tsc);
 
-	return err ? -EFAULT : buf - ubuf;
+	return err ? err : buf - ubuf;
 }
 
 static unsigned int mce_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &mce_wait, wait);
-	if (rcu_dereference(mcelog.next))
+	if (rcu_dereference_check_mce(mcelog.next))
+		return POLLIN | POLLRDNORM;
+	if (!mce_apei_read_done && apei_check_mce())
 		return POLLIN | POLLRDNORM;
 	return 0;
 }
@@ -1516,6 +1665,7 @@ struct file_operations mce_chrdev_ops = {
 	.read			= mce_read,
 	.poll			= mce_poll,
 	.unlocked_ioctl		= mce_ioctl,
+	.llseek		= no_llseek,
 };
 EXPORT_SYMBOL_GPL(mce_chrdev_ops);
 
@@ -1538,8 +1688,10 @@ static struct miscdevice mce_log_device = {
  */
 static int __init mcheck_enable(char *str)
 {
-	if (*str == 0)
+	if (*str == 0) {
 		enable_p5_mce();
+		return 1;
+	}
 	if (*str == '=')
 		str++;
 	if (!strcmp(str, "off"))
@@ -1567,6 +1719,15 @@ static int __init mcheck_enable(char *str)
 }
 __setup("mce", mcheck_enable);
 
+int __init mcheck_init(void)
+{
+	atomic_notifier_chain_register(&x86_mce_decoder_chain, &mce_dec_nb);
+
+	mcheck_intel_therm_init();
+
+	return 0;
+}
+
 /*
  * Sysfs support
  */
@@ -1575,25 +1736,27 @@ __setup("mce", mcheck_enable);
  * Disable machine checks on suspend and shutdown. We can't really handle
  * them later.
  */
-static int mce_disable(void)
+static int mce_disable_error_reporting(void)
 {
 	int i;
 
 	for (i = 0; i < banks; i++) {
-		if (!skip_bank_init(i))
-			wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+		struct mce_bank *b = &mce_banks[i];
+
+		if (b->init)
+			wrmsrl(MSR_IA32_MCx_CTL(i), 0);
 	}
 	return 0;
 }
 
 static int mce_suspend(struct sys_device *dev, pm_message_t state)
 {
-	return mce_disable();
+	return mce_disable_error_reporting();
 }
 
 static int mce_shutdown(struct sys_device *dev)
 {
-	return mce_disable();
+	return mce_disable_error_reporting();
 }
 
 /*
@@ -1603,8 +1766,8 @@ static int mce_shutdown(struct sys_device *dev)
  */
 static int mce_resume(struct sys_device *dev)
 {
-	mce_init();
-	mce_cpu_features(&current_cpu_data);
+	__mcheck_cpu_init_generic();
+	__mcheck_cpu_init_vendor(__this_cpu_ptr(&cpu_info));
 
 	return 0;
 }
@@ -1612,10 +1775,10 @@ static int mce_resume(struct sys_device *dev)
 static void mce_cpu_restart(void *data)
 {
 	del_timer_sync(&__get_cpu_var(mce_timer));
-	if (!mce_available(&current_cpu_data))
+	if (!mce_available(__this_cpu_ptr(&cpu_info)))
 		return;
-	mce_init();
-	mce_init_timer();
+	__mcheck_cpu_init_generic();
+	__mcheck_cpu_init_timer();
 }
 
 /* Reinit MCEs after user configuration changes */
@@ -1627,7 +1790,7 @@ static void mce_restart(void)
 /* Toggle features for corrected errors */
 static void mce_disable_ce(void *all)
 {
-	if (!mce_available(&current_cpu_data))
+	if (!mce_available(__this_cpu_ptr(&cpu_info)))
 		return;
 	if (all)
 		del_timer_sync(&__get_cpu_var(mce_timer));
@@ -1636,12 +1799,12 @@ static void mce_disable_ce(void *all)
 
 static void mce_enable_ce(void *all)
 {
-	if (!mce_available(&current_cpu_data))
+	if (!mce_available(__this_cpu_ptr(&cpu_info)))
 		return;
 	cmci_reenable();
 	cmci_recheck();
 	if (all)
-		mce_init_timer();
+		__mcheck_cpu_init_timer();
 }
 
 static struct sysdev_class mce_sysclass = {
@@ -1656,14 +1819,15 @@ DEFINE_PER_CPU(struct sys_device, mce_dev);
 __cpuinitdata
 void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
-static struct sysdev_attribute *bank_attrs;
+static inline struct mce_bank *attr_to_bank(struct sysdev_attribute *attr)
+{
+	return container_of(attr, struct mce_bank, attr);
+}
 
 static ssize_t show_bank(struct sys_device *s, struct sysdev_attribute *attr,
 			 char *buf)
 {
-	u64 b = bank[attr - bank_attrs];
-
-	return sprintf(buf, "%llx\n", b);
+	return sprintf(buf, "%llx\n", attr_to_bank(attr)->ctl);
 }
 
 static ssize_t set_bank(struct sys_device *s, struct sysdev_attribute *attr,
@@ -1674,7 +1838,7 @@ static ssize_t set_bank(struct sys_device *s, struct sysdev_attribute *attr,
 	if (strict_strtoull(buf, 0, &new) < 0)
 		return -EINVAL;
 
-	bank[attr - bank_attrs] = new;
+	attr_to_bank(attr)->ctl = new;
 	mce_restart();
 
 	return size;
@@ -1692,17 +1856,15 @@ static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 				const char *buf, size_t siz)
 {
 	char *p;
-	int len;
 
 	strncpy(mce_helper, buf, sizeof(mce_helper));
 	mce_helper[sizeof(mce_helper)-1] = 0;
-	len = strlen(mce_helper);
 	p = strchr(mce_helper, '\n');
 
-	if (*p)
+	if (p)
 		*p = 0;
 
-	return len;
+	return strlen(mce_helper) + !!p;
 }
 
 static ssize_t set_ignore_ce(struct sys_device *s,
@@ -1818,7 +1980,7 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	}
 	for (j = 0; j < banks; j++) {
 		err = sysdev_create_file(&per_cpu(mce_dev, cpu),
-					&bank_attrs[j]);
+					&mce_banks[j].attr);
 		if (err)
 			goto error2;
 	}
@@ -1827,7 +1989,7 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	return 0;
 error2:
 	while (--j >= 0)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[j]);
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), &mce_banks[j].attr);
 error:
 	while (--i >= 0)
 		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
@@ -1848,41 +2010,46 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
 
 	for (i = 0; i < banks; i++)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[i]);
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), &mce_banks[i].attr);
 
 	sysdev_unregister(&per_cpu(mce_dev, cpu));
 	cpumask_clear_cpu(cpu, mce_dev_initialized);
 }
 
 /* Make sure there are no machine checks on offlined CPUs. */
-static void mce_disable_cpu(void *h)
+static void __cpuinit mce_disable_cpu(void *h)
 {
 	unsigned long action = *(unsigned long *)h;
 	int i;
 
-	if (!mce_available(&current_cpu_data))
+	if (!mce_available(__this_cpu_ptr(&cpu_info)))
 		return;
+
 	if (!(action & CPU_TASKS_FROZEN))
 		cmci_clear();
 	for (i = 0; i < banks; i++) {
-		if (!skip_bank_init(i))
-			wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+		struct mce_bank *b = &mce_banks[i];
+
+		if (b->init)
+			wrmsrl(MSR_IA32_MCx_CTL(i), 0);
 	}
 }
 
-static void mce_reenable_cpu(void *h)
+static void __cpuinit mce_reenable_cpu(void *h)
 {
 	unsigned long action = *(unsigned long *)h;
 	int i;
 
-	if (!mce_available(&current_cpu_data))
+	if (!mce_available(__this_cpu_ptr(&cpu_info)))
 		return;
 
 	if (!(action & CPU_TASKS_FROZEN))
 		cmci_reenable();
 	for (i = 0; i < banks; i++) {
-		if (!skip_bank_init(i))
-			wrmsrl(MSR_IA32_MC0_CTL + i*4, bank[i]);
+		struct mce_bank *b = &mce_banks[i];
+
+		if (b->init)
+			wrmsrl(MSR_IA32_MCx_CTL(i), b->ctl);
 	}
 }
 
@@ -1913,9 +2080,11 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		t->expires = round_jiffies(jiffies +
-						__get_cpu_var(next_interval));
-		add_timer_on(t, cpu);
+		if (!mce_ignore_ce && check_interval) {
+			t->expires = round_jiffies(jiffies +
+					   __get_cpu_var(mce_next_interval));
+			add_timer_on(t, cpu);
+		}
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
 		break;
 	case CPU_POST_DEAD:
@@ -1930,38 +2099,25 @@ static struct notifier_block mce_cpu_notifier __cpuinitdata = {
 	.notifier_call = mce_cpu_callback,
 };
 
-static __init int mce_init_banks(void)
+static __init void mce_init_banks(void)
 {
 	int i;
 
-	bank_attrs = kzalloc(sizeof(struct sysdev_attribute) * banks,
-				GFP_KERNEL);
-	if (!bank_attrs)
-		return -ENOMEM;
-
 	for (i = 0; i < banks; i++) {
-		struct sysdev_attribute *a = &bank_attrs[i];
+		struct mce_bank *b = &mce_banks[i];
+		struct sysdev_attribute *a = &b->attr;
 
-		a->attr.name	= kasprintf(GFP_KERNEL, "bank%d", i);
-		if (!a->attr.name)
-			goto nomem;
+		sysfs_attr_init(&a->attr);
+		a->attr.name	= b->attrname;
+		snprintf(b->attrname, ATTR_LEN, "bank%d", i);
 
 		a->attr.mode	= 0644;
 		a->show		= show_bank;
 		a->store	= set_bank;
 	}
-	return 0;
-
-nomem:
-	while (--i >= 0)
-		kfree(bank_attrs[i].attr.name);
-	kfree(bank_attrs);
-	bank_attrs = NULL;
-
-	return -ENOMEM;
 }
 
-static __init int mce_init_device(void)
+static __init int mcheck_init_device(void)
 {
 	int err;
 	int i = 0;
@@ -1971,9 +2127,7 @@ static __init int mce_init_device(void)
 
 	zalloc_cpumask_var(&mce_dev_initialized, GFP_KERNEL);
 
-	err = mce_init_banks();
-	if (err)
-		return err;
+	mce_init_banks();
 
 	err = sysdev_class_register(&mce_sysclass);
 	if (err)
@@ -1991,52 +2145,7 @@ static __init int mce_init_device(void)
 	return err;
 }
 
-device_initcall(mce_init_device);
-
-#else /* CONFIG_X86_OLD_MCE: */
-
-int nr_mce_banks;
-EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */
-
-/* This has to be run for each processor */
-void mcheck_init(struct cpuinfo_x86 *c)
-{
-	if (mce_disabled)
-		return;
-
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		amd_mcheck_init(c);
-		break;
-
-	case X86_VENDOR_INTEL:
-		if (c->x86 == 5)
-			intel_p5_mcheck_init(c);
-		if (c->x86 == 6)
-			intel_p6_mcheck_init(c);
-		if (c->x86 == 15)
-			intel_p4_mcheck_init(c);
-		break;
-
-	case X86_VENDOR_CENTAUR:
-		if (c->x86 == 5)
-			winchip_mcheck_init(c);
-		break;
-
-	default:
-		break;
-	}
-	printk(KERN_INFO "mce: CPU supports %d MCE banks\n", nr_mce_banks);
-}
-
-static int __init mcheck_enable(char *str)
-{
-	mce_p5_enabled = 1;
-	return 1;
-}
-__setup("mce", mcheck_enable);
-
-#endif /* CONFIG_X86_OLD_MCE */
+device_initcall(mcheck_init_device);
 
 /*
  * Old style boot options parsing. Only for compatibility.
@@ -2047,3 +2156,56 @@ static int __init mcheck_disable(char *str)
 	return 1;
 }
 __setup("nomce", mcheck_disable);
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *mce_get_debugfs_dir(void)
+{
+	static struct dentry *dmce;
+
+	if (!dmce)
+		dmce = debugfs_create_dir("mce", NULL);
+
+	return dmce;
+}
+
+static void mce_reset(void)
+{
+	cpu_missing = 0;
+	atomic_set(&mce_fake_paniced, 0);
+	atomic_set(&mce_executing, 0);
+	atomic_set(&mce_callin, 0);
+	atomic_set(&global_nwo, 0);
+}
+
+static int fake_panic_get(void *data, u64 *val)
+{
+	*val = fake_panic;
+	return 0;
+}
+
+static int fake_panic_set(void *data, u64 val)
+{
+	mce_reset();
+	fake_panic = val;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fake_panic_fops, fake_panic_get,
+			fake_panic_set, "%llu\n");
+
+static int __init mcheck_debugfs_init(void)
+{
+	struct dentry *dmce, *ffake_panic;
+
+	dmce = mce_get_debugfs_dir();
+	if (!dmce)
+		return -ENOMEM;
+	ffake_panic = debugfs_create_file("fake_panic", 0444, dmce, NULL,
+					  &fake_panic_fops);
+	if (!ffake_panic)
+		return -ENOMEM;
+
+	return 0;
+}
+late_initcall(mcheck_debugfs_init);
+#endif

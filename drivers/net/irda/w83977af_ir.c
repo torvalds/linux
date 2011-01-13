@@ -46,10 +46,10 @@
 #include <linux/netdevice.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -65,7 +65,6 @@
 #undef  CONFIG_NETWINDER_TX_DMA_PROBLEMS /* Not needed */
 #define CONFIG_NETWINDER_RX_DMA_PROBLEMS /* Must have this one! */
 #endif
-#undef  CONFIG_USE_INTERNAL_TIMER  /* Just cannot make that timer work */
 #define CONFIG_USE_W977_PNP        /* Currently needed */
 #define PIO_MAX_SPEED       115200 
 
@@ -93,7 +92,8 @@ static int  w83977af_close(struct w83977af_ir *self);
 static int  w83977af_probe(int iobase, int irq, int dma);
 static int  w83977af_dma_receive(struct w83977af_ir *self); 
 static int  w83977af_dma_receive_complete(struct w83977af_ir *self);
-static int  w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t  w83977af_hard_xmit(struct sk_buff *skb,
+					     struct net_device *dev);
 static int  w83977af_pio_write(int iobase, __u8 *buf, int len, int fifo_size);
 static void w83977af_dma_write(struct w83977af_ir *self, int iobase);
 static void w83977af_change_speed(struct w83977af_ir *self, __u32 speed);
@@ -115,7 +115,7 @@ static int __init w83977af_init(void)
 
 	IRDA_DEBUG(0, "%s()\n", __func__ );
 
-	for (i=0; (io[i] < 2000) && (i < ARRAY_SIZE(dev_self)); i++) {
+	for (i=0; i < ARRAY_SIZE(dev_self) && io[i] < 2000; i++) {
 		if (w83977af_open(i, io[i], irq[i], dma[i]) == 0)
 			return 0;
 	}
@@ -490,7 +490,8 @@ static void w83977af_change_speed(struct w83977af_ir *self, __u32 speed)
  *    Sets up a DMA transfer to send the current frame.
  *
  */
-static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t w83977af_hard_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct w83977af_ir *self;
 	__s32 speed;
@@ -514,9 +515,8 @@ static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Check for empty frame */
 		if (!skb->len) {
 			w83977af_change_speed(self, speed); 
-			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		} else
 			self->new_speed = speed;
 	}
@@ -531,25 +531,6 @@ static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		self->tx_buff.len = skb->len;
 		
 		mtt = irda_get_mtt(skb);
-#ifdef CONFIG_USE_INTERNAL_TIMER
-	        if (mtt > 50) {
-			/* Adjust for timer resolution */
-			mtt /= 1000+1;
-
-			/* Setup timer */
-			switch_bank(iobase, SET4);
-			outb(mtt & 0xff, iobase+TMRL);
-			outb((mtt >> 8) & 0x0f, iobase+TMRH);
-			
-			/* Start timer */
-			outb(IR_MSL_EN_TMR, iobase+IR_MSL);
-			self->io.direction = IO_XMIT;
-			
-			/* Enable timer interrupt */
-			switch_bank(iobase, SET0);
-			outb(ICR_ETMRI, iobase+ICR);
-		} else {
-#endif
 			IRDA_DEBUG(4, "%s(%ld), mtt=%d\n", __func__ , jiffies, mtt);
 			if (mtt)
 				udelay(mtt);
@@ -558,9 +539,6 @@ static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 			switch_bank(iobase, SET0);
 	 		outb(ICR_EDMAI, iobase+ICR);
 	     		w83977af_dma_write(self, iobase);
-#ifdef CONFIG_USE_INTERNAL_TIMER
-		}
-#endif
 	} else {
 		self->tx_buff.data = self->tx_buff.head;
 		self->tx_buff.len = async_wrap_skb(skb, self->tx_buff.data, 
@@ -570,13 +548,12 @@ static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		switch_bank(iobase, SET0);
 		outb(ICR_ETXTHI, iobase+ICR);
 	}
-	dev->trans_start = jiffies;
 	dev_kfree_skb(skb);
 
 	/* Restore set register */
 	outb(set, iobase+SSR);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -874,20 +851,7 @@ static int w83977af_dma_receive_complete(struct w83977af_ir *self)
 			/* Check if we have transferred all data to memory */
 			switch_bank(iobase, SET0);
 			if (inb(iobase+USR) & USR_RDR) {
-#ifdef CONFIG_USE_INTERNAL_TIMER
-				/* Put this entry back in fifo */
-				st_fifo->head--;
-				st_fifo->len++;
-				st_fifo->entries[st_fifo->head].status = status;
-				st_fifo->entries[st_fifo->head].len = len;
-				
-				/* Restore set register */
-				outb(set, iobase+SSR);
-			
-				return FALSE; 	/* I'll be back! */
-#else
 				udelay(80); /* Should be enough!? */
-#endif
 			}
 						
 			skb = dev_alloc_skb(len+1);

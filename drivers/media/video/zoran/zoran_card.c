@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include <linux/proc_fs.h>
 #include <linux/i2c.h>
@@ -378,7 +379,6 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC10_old,
 		.name = "DC10(old)",
 		.i2c_decoder = "vpx3220a",
-		.mod_decoder = "vpx3220",
 		.addrs_decoder = vpx3220_addrs,
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
@@ -408,10 +408,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC10_new,
 		.name = "DC10(new)",
 		.i2c_decoder = "saa7110",
-		.mod_decoder = "saa7110",
 		.addrs_decoder = saa7110_addrs,
 		.i2c_encoder = "adv7175",
-		.mod_encoder = "adv7175",
 		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -439,10 +437,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC10plus,
 		.name = "DC10plus",
 		.i2c_decoder = "saa7110",
-		.mod_decoder = "saa7110",
 		.addrs_decoder = saa7110_addrs,
 		.i2c_encoder = "adv7175",
-		.mod_encoder = "adv7175",
 		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -471,10 +467,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC30,
 		.name = "DC30",
 		.i2c_decoder = "vpx3220a",
-		.mod_decoder = "vpx3220",
 		.addrs_decoder = vpx3220_addrs,
 		.i2c_encoder = "adv7175",
-		.mod_encoder = "adv7175",
 		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
@@ -504,10 +498,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = DC30plus,
 		.name = "DC30plus",
 		.i2c_decoder = "vpx3220a",
-		.mod_decoder = "vpx3220",
 		.addrs_decoder = vpx3220_addrs,
 		.i2c_encoder = "adv7175",
-		.mod_encoder = "adv7175",
 		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
@@ -537,10 +529,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = LML33,
 		.name = "LML33",
 		.i2c_decoder = "bt819a",
-		.mod_decoder = "bt819",
 		.addrs_decoder = bt819_addrs,
 		.i2c_encoder = "bt856",
-		.mod_encoder = "bt856",
 		.addrs_encoder = bt856_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -568,10 +558,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = LML33R10,
 		.name = "LML33R10",
 		.i2c_decoder = "saa7114",
-		.mod_decoder = "saa7115",
 		.addrs_decoder = saa7114_addrs,
 		.i2c_encoder = "adv7170",
-		.mod_encoder = "adv7170",
 		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -599,10 +587,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.type = BUZ,
 		.name = "Buz",
 		.i2c_decoder = "saa7111",
-		.mod_decoder = "saa7115",
 		.addrs_decoder = saa7111_addrs,
 		.i2c_encoder = "saa7185",
-		.mod_encoder = "saa7185",
 		.addrs_encoder = saa7185_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -632,10 +618,8 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		/* AverMedia chose not to brand the 6-Eyes. Thus it
 		   can't be autodetected, and requires card=x. */
 		.i2c_decoder = "ks0127",
-		.mod_decoder = "ks0127",
 		.addrs_decoder = ks0127_addrs,
 		.i2c_encoder = "bt866",
-		.mod_encoder = "bt866",
 		.addrs_encoder = bt866_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -732,7 +716,6 @@ zoran_register_i2c (struct zoran *zr)
 	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
 	       sizeof(struct i2c_algo_bit_data));
 	zr->i2c_algo.data = zr;
-	zr->i2c_adapter.id = I2C_HW_B_ZR36067;
 	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
 		sizeof(zr->i2c_adapter.name));
 	i2c_set_adapdata(&zr->i2c_adapter, &zr->v4l2_dev);
@@ -960,7 +943,7 @@ zoran_open_init_params (struct zoran *zr)
 	memset(zr->jpg_settings.jpg_comp.COM_data, 0,
 	       sizeof(zr->jpg_settings.jpg_comp.COM_data));
 	zr->jpg_settings.jpg_comp.jpeg_markers =
-	    JPEG_MARKER_DHT | JPEG_MARKER_DQT;
+	    V4L2_JPEG_MARKER_DHT | V4L2_JPEG_MARKER_DQT;
 	i = zoran_check_jpg_settings(zr, &zr->jpg_settings, 0);
 	if (i)
 		dprintk(1, KERN_ERR "%s: %s internal error\n",
@@ -1169,7 +1152,7 @@ zoran_setup_videocodec (struct zoran *zr,
 	m->type = 0;
 
 	m->flags = CODEC_FLAG_ENCODER | CODEC_FLAG_DECODER;
-	strncpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
+	strlcpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
 	m->data = zr;
 
 	switch (type)
@@ -1244,6 +1227,7 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%u]", zr->id);
 	spin_lock_init(&zr->spinlock);
 	mutex_init(&zr->resource_lock);
+	mutex_init(&zr->other_lock);
 	if (pci_enable_device(pdev))
 		goto zr_unreg;
 	pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION, &zr->revision);
@@ -1358,15 +1342,14 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 		goto zr_free_irq;
 	}
 
-	zr->decoder = v4l2_i2c_new_probed_subdev(&zr->v4l2_dev,
-		&zr->i2c_adapter, zr->card.mod_decoder, zr->card.i2c_decoder,
-		zr->card.addrs_decoder);
+	zr->decoder = v4l2_i2c_new_subdev(&zr->v4l2_dev,
+		&zr->i2c_adapter, zr->card.i2c_decoder,
+		0, zr->card.addrs_decoder);
 
-	if (zr->card.mod_encoder)
-		zr->encoder = v4l2_i2c_new_probed_subdev(&zr->v4l2_dev,
-			&zr->i2c_adapter,
-			zr->card.mod_encoder, zr->card.i2c_encoder,
-			zr->card.addrs_encoder);
+	if (zr->card.i2c_encoder)
+		zr->encoder = v4l2_i2c_new_subdev(&zr->v4l2_dev,
+			&zr->i2c_adapter, zr->card.i2c_encoder,
+			0, zr->card.addrs_encoder);
 
 	dprintk(2,
 		KERN_INFO "%s: Initializing videocodec bus...\n",

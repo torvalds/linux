@@ -29,8 +29,6 @@
 
 #define B43legacy_IRQWAIT_MAX_RETRIES	20
 
-#define B43legacy_RX_MAX_SSI		60 /* best guess at max ssi */
-
 /* MMIO offsets */
 #define B43legacy_MMIO_DMA0_REASON	0x20
 #define B43legacy_MMIO_DMA0_IRQ_MASK	0x24
@@ -374,7 +372,7 @@ struct b43legacy_fw_header {
 	/* Size of the data. For ucode and PCM this is in bytes.
 	 * For IV this is number-of-ivs. */
 	__be32 size;
-} __attribute__((__packed__));
+} __packed;
 
 /* Initial Value file format */
 #define B43legacy_IV_OFFSET_MASK	0x7FFF
@@ -384,8 +382,8 @@ struct b43legacy_iv {
 	union {
 		__be16 d16;
 		__be32 d32;
-	} data __attribute__((__packed__));
-} __attribute__((__packed__));
+	} data __packed;
+} __packed;
 
 #define B43legacy_PHYMODE(phytype)	(1 << (phytype))
 #define B43legacy_PHYMODE_B		B43legacy_PHYMODE	\
@@ -607,6 +605,7 @@ struct b43legacy_wl {
 	u8 nr_devs;
 
 	bool radiotap_enabled;
+	bool radio_enabled;
 
 	/* The beacon we are currently using (AP or IBSS mode).
 	 * This beacon stuff is protected by the irq_lock. */

@@ -2,7 +2,7 @@
  *	Industrial Computer Source PCI-WDT500/501 driver
  *
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
- *						 All Rights Reserved.
+ *						All Rights Reserved.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -60,19 +60,6 @@
 
 #define PFX "wdt_pci: "
 
-/*
- * Until Access I/O gets their application for a PCI vendor ID approved,
- * I don't think that it's appropriate to move these constants into the
- * regular pci_ids.h file. -- JPN 2000/01/18
- */
-
-#ifndef PCI_VENDOR_ID_ACCESSIO
-#define PCI_VENDOR_ID_ACCESSIO 0x494f
-#endif
-#ifndef PCI_DEVICE_ID_WDG_CSM
-#define PCI_DEVICE_ID_WDG_CSM 0x22c0
-#endif
-
 /* We can only use 1 card due to the /dev/watchdog restriction */
 static int dev_count;
 
@@ -80,7 +67,7 @@ static unsigned long open_lock;
 static DEFINE_SPINLOCK(wdtpci_lock);
 static char expect_close;
 
-static int io;
+static resource_size_t io;
 static int irq;
 
 /* Default timeout */
@@ -99,14 +86,16 @@ MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-#ifdef CONFIG_WDT_501_PCI
 /* Support for the Fan Tachometer on the PCI-WDT501 */
 static int tachometer;
-
 module_param(tachometer, int, 0);
 MODULE_PARM_DESC(tachometer,
-	"PCI-WDT501 Fan Tachometer support (0=disable, default=0)");
-#endif /* CONFIG_WDT_501_PCI */
+		"PCI-WDT501 Fan Tachometer support (0=disable, default=0)");
+
+static int type = 500;
+module_param(type, int, 0);
+MODULE_PARM_DESC(type,
+		"PCI-WDT501 Card type (500 or 501 , default=500)");
 
 /*
  *	Programming support
@@ -266,22 +255,21 @@ static int wdtpci_get_status(int *status)
 		*status |= WDIOF_EXTERN1;
 	if (new_status & WDC_SR_ISII1)
 		*status |= WDIOF_EXTERN2;
-#ifdef CONFIG_WDT_501_PCI
-	if (!(new_status & WDC_SR_TGOOD))
-		*status |= WDIOF_OVERHEAT;
-	if (!(new_status & WDC_SR_PSUOVER))
-		*status |= WDIOF_POWEROVER;
-	if (!(new_status & WDC_SR_PSUUNDR))
-		*status |= WDIOF_POWERUNDER;
-	if (tachometer) {
-		if (!(new_status & WDC_SR_FANGOOD))
-			*status |= WDIOF_FANFAULT;
+	if (type == 501) {
+		if (!(new_status & WDC_SR_TGOOD))
+			*status |= WDIOF_OVERHEAT;
+		if (!(new_status & WDC_SR_PSUOVER))
+			*status |= WDIOF_POWEROVER;
+		if (!(new_status & WDC_SR_PSUUNDR))
+			*status |= WDIOF_POWERUNDER;
+		if (tachometer) {
+			if (!(new_status & WDC_SR_FANGOOD))
+				*status |= WDIOF_FANFAULT;
+		}
 	}
-#endif /* CONFIG_WDT_501_PCI */
 	return 0;
 }
 
-#ifdef CONFIG_WDT_501_PCI
 /**
  *	wdtpci_get_temperature:
  *
@@ -300,7 +288,6 @@ static int wdtpci_get_temperature(int *temperature)
 	*temperature = (c * 11 / 15) + 7;
 	return 0;
 }
-#endif /* CONFIG_WDT_501_PCI */
 
 /**
  *	wdtpci_interrupt:
@@ -327,22 +314,22 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 
 	printk(KERN_CRIT PFX "status %d\n", status);
 
-#ifdef CONFIG_WDT_501_PCI
-	if (!(status & WDC_SR_TGOOD)) {
-		u8 alarm = inb(WDT_RT);
-		printk(KERN_CRIT PFX "Overheat alarm.(%d)\n", alarm);
-		udelay(8);
+	if (type == 501) {
+		if (!(status & WDC_SR_TGOOD)) {
+			printk(KERN_CRIT PFX "Overheat alarm.(%d)\n",
+								inb(WDT_RT));
+			udelay(8);
+		}
+		if (!(status & WDC_SR_PSUOVER))
+			printk(KERN_CRIT PFX "PSU over voltage.\n");
+		if (!(status & WDC_SR_PSUUNDR))
+			printk(KERN_CRIT PFX "PSU under voltage.\n");
+		if (tachometer) {
+			if (!(status & WDC_SR_FANGOOD))
+				printk(KERN_CRIT PFX "Possible fan fault.\n");
+		}
 	}
-	if (!(status & WDC_SR_PSUOVER))
-		printk(KERN_CRIT PFX "PSU over voltage.\n");
-	if (!(status & WDC_SR_PSUUNDR))
-		printk(KERN_CRIT PFX "PSU under voltage.\n");
-	if (tachometer) {
-		if (!(status & WDC_SR_FANGOOD))
-			printk(KERN_CRIT PFX "Possible fan fault.\n");
-	}
-#endif /* CONFIG_WDT_501_PCI */
-	if (!(status&WDC_SR_WCCR)) {
+	if (!(status & WDC_SR_WCCR)) {
 #ifdef SOFTWARE_REBOOT
 #ifdef ONLY_TESTING
 		printk(KERN_CRIT PFX "Would Reboot.\n");
@@ -371,12 +358,13 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
  */
 
 static ssize_t wdtpci_write(struct file *file, const char __user *buf,
-					size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
 	if (count) {
 		if (!nowayout) {
 			size_t i;
 
+			/* In case it was set long ago */
 			expect_close = 0;
 
 			for (i = 0; i != count; i++) {
@@ -406,12 +394,12 @@ static ssize_t wdtpci_write(struct file *file, const char __user *buf,
 static long wdtpci_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
 {
-	int new_heartbeat;
-	int status;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
+	int new_heartbeat;
+	int status;
 
-	static struct watchdog_info ident = {
+	struct watchdog_info ident = {
 		.options =		WDIOF_SETTIMEOUT|
 					WDIOF_MAGICCLOSE|
 					WDIOF_KEEPALIVEPING,
@@ -421,11 +409,12 @@ static long wdtpci_ioctl(struct file *file, unsigned int cmd,
 
 	/* Add options according to the card we have */
 	ident.options |= (WDIOF_EXTERN1|WDIOF_EXTERN2);
-#ifdef CONFIG_WDT_501_PCI
-	ident.options |= (WDIOF_OVERHEAT|WDIOF_POWERUNDER|WDIOF_POWEROVER);
-	if (tachometer)
-		ident.options |= WDIOF_FANFAULT;
-#endif /* CONFIG_WDT_501_PCI */
+	if (type == 501) {
+		ident.options |= (WDIOF_OVERHEAT|WDIOF_POWERUNDER|
+							WDIOF_POWEROVER);
+		if (tachometer)
+			ident.options |= WDIOF_FANFAULT;
+	}
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
@@ -503,7 +492,6 @@ static int wdtpci_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_WDT_501_PCI
 /**
  *	wdtpci_temp_read:
  *	@file: file handle to the watchdog board
@@ -554,7 +542,6 @@ static int wdtpci_temp_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
-#endif /* CONFIG_WDT_501_PCI */
 
 /**
  *	notify_sys:
@@ -596,7 +583,6 @@ static struct miscdevice wdtpci_miscdev = {
 	.fops	= &wdtpci_fops,
 };
 
-#ifdef CONFIG_WDT_501_PCI
 static const struct file_operations wdtpci_temp_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -610,7 +596,6 @@ static struct miscdevice temp_miscdev = {
 	.name	= "temperature",
 	.fops	= &wdtpci_temp_fops,
 };
-#endif /* CONFIG_WDT_501_PCI */
 
 /*
  *	The WDT card needs to learn about soft shutdowns in order to
@@ -633,6 +618,11 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
+	if (type != 500 && type != 501) {
+		printk(KERN_ERR PFX "unknown card type '%d'.\n", type);
+		return -ENODEV;
+	}
+
 	if (pci_enable_device(dev)) {
 		printk(KERN_ERR PFX "Not possible to enable PCI Device\n");
 		return -ENODEV;
@@ -644,13 +634,14 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 		goto out_pci;
 	}
 
-	irq = dev->irq;
-	io = pci_resource_start(dev, 2);
-
-	if (request_region(io, 16, "wdt_pci") == NULL) {
-		printk(KERN_ERR PFX "I/O address 0x%04x already in use\n", io);
+	if (pci_request_region(dev, 2, "wdt_pci")) {
+		printk(KERN_ERR PFX "I/O address 0x%llx already in use\n",
+			(unsigned long long)pci_resource_start(dev, 2));
 		goto out_pci;
 	}
+
+	irq = dev->irq;
+	io = pci_resource_start(dev, 2);
 
 	if (request_irq(irq, wdtpci_interrupt, IRQF_DISABLED | IRQF_SHARED,
 			 "wdt_pci", &wdtpci_miscdev)) {
@@ -659,8 +650,8 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 	}
 
 	printk(KERN_INFO
-	 "PCI-WDT500/501 (PCI-WDG-CSM) driver 0.10 at 0x%04x (Interrupt %d)\n",
-								io, irq);
+	 "PCI-WDT500/501 (PCI-WDG-CSM) driver 0.10 at 0x%llx (Interrupt %d)\n",
+					(unsigned long long)io, irq);
 
 	/* Check that the heartbeat value is within its range;
 	   if not reset to the default */
@@ -678,15 +669,15 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 		goto out_irq;
 	}
 
-#ifdef CONFIG_WDT_501_PCI
-	ret = misc_register(&temp_miscdev);
-	if (ret) {
-		printk(KERN_ERR PFX
+	if (type == 501) {
+		ret = misc_register(&temp_miscdev);
+		if (ret) {
+			printk(KERN_ERR PFX
 			"cannot register miscdev on minor=%d (err=%d)\n",
-					TEMP_MINOR, ret);
-		goto out_rbt;
+							TEMP_MINOR, ret);
+			goto out_rbt;
+		}
 	}
-#endif /* CONFIG_WDT_501_PCI */
 
 	ret = misc_register(&wdtpci_miscdev);
 	if (ret) {
@@ -698,25 +689,23 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 
 	printk(KERN_INFO PFX "initialized. heartbeat=%d sec (nowayout=%d)\n",
 		heartbeat, nowayout);
-#ifdef CONFIG_WDT_501_PCI
-	printk(KERN_INFO "wdt: Fan Tachometer is %s\n",
+	if (type == 501)
+		printk(KERN_INFO "wdt: Fan Tachometer is %s\n",
 				(tachometer ? "Enabled" : "Disabled"));
-#endif /* CONFIG_WDT_501_PCI */
 
 	ret = 0;
 out:
 	return ret;
 
 out_misc:
-#ifdef CONFIG_WDT_501_PCI
-	misc_deregister(&temp_miscdev);
+	if (type == 501)
+		misc_deregister(&temp_miscdev);
 out_rbt:
-#endif /* CONFIG_WDT_501_PCI */
 	unregister_reboot_notifier(&wdtpci_notifier);
 out_irq:
 	free_irq(irq, &wdtpci_miscdev);
 out_reg:
-	release_region(io, 16);
+	pci_release_region(dev, 2);
 out_pci:
 	pci_disable_device(dev);
 	goto out;
@@ -728,12 +717,11 @@ static void __devexit wdtpci_remove_one(struct pci_dev *pdev)
 	/* here we assume only one device will ever have
 	 * been picked up and registered by probe function */
 	misc_deregister(&wdtpci_miscdev);
-#ifdef CONFIG_WDT_501_PCI
-	misc_deregister(&temp_miscdev);
-#endif /* CONFIG_WDT_501_PCI */
+	if (type == 501)
+		misc_deregister(&temp_miscdev);
 	unregister_reboot_notifier(&wdtpci_notifier);
 	free_irq(irq, &wdtpci_miscdev);
-	release_region(io, 16);
+	pci_release_region(pdev, 2);
 	pci_disable_device(pdev);
 	dev_count--;
 }
@@ -742,7 +730,7 @@ static void __devexit wdtpci_remove_one(struct pci_dev *pdev)
 static struct pci_device_id wdtpci_pci_tbl[] = {
 	{
 		.vendor	   = PCI_VENDOR_ID_ACCESSIO,
-		.device	   = PCI_DEVICE_ID_WDG_CSM,
+		.device	   = PCI_DEVICE_ID_ACCESSIO_WDG_CSM,
 		.subvendor = PCI_ANY_ID,
 		.subdevice = PCI_ANY_ID,
 	},

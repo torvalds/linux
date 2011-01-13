@@ -2,7 +2,7 @@
  * Generic /dev/nvram driver for architectures providing some
  * "generic" hooks, that is :
  *
- * nvram_read_byte, nvram_write_byte, nvram_sync
+ * nvram_read_byte, nvram_write_byte, nvram_sync, nvram_get_size
  *
  * Note that an additional hook is supported for PowerMac only
  * for getting the nvram "partition" informations
@@ -19,7 +19,7 @@
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/nvram.h>
 #ifdef CONFIG_PPC_PMAC
@@ -28,23 +28,24 @@
 
 #define NVRAM_SIZE	8192
 
+static DEFINE_MUTEX(nvram_mutex);
+static ssize_t nvram_len;
+
 static loff_t nvram_llseek(struct file *file, loff_t offset, int origin)
 {
-	lock_kernel();
 	switch (origin) {
 	case 1:
 		offset += file->f_pos;
 		break;
 	case 2:
-		offset += NVRAM_SIZE;
+		offset += nvram_len;
 		break;
 	}
-	if (offset < 0) {
-		unlock_kernel();
+	if (offset < 0)
 		return -EINVAL;
-	}
+
 	file->f_pos = offset;
-	unlock_kernel();
+
 	return file->f_pos;
 }
 
@@ -56,9 +57,9 @@ static ssize_t read_nvram(struct file *file, char __user *buf,
 
 	if (!access_ok(VERIFY_WRITE, buf, count))
 		return -EFAULT;
-	if (*ppos >= NVRAM_SIZE)
+	if (*ppos >= nvram_len)
 		return 0;
-	for (i = *ppos; count > 0 && i < NVRAM_SIZE; ++i, ++p, --count)
+	for (i = *ppos; count > 0 && i < nvram_len; ++i, ++p, --count)
 		if (__put_user(nvram_read_byte(i), p))
 			return -EFAULT;
 	*ppos = i;
@@ -74,9 +75,9 @@ static ssize_t write_nvram(struct file *file, const char __user *buf,
 
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
-	if (*ppos >= NVRAM_SIZE)
+	if (*ppos >= nvram_len)
 		return 0;
-	for (i = *ppos; count > 0 && i < NVRAM_SIZE; ++i, ++p, --count) {
+	for (i = *ppos; count > 0 && i < nvram_len; ++i, ++p, --count) {
 		if (__get_user(c, p))
 			return -EFAULT;
 		nvram_write_byte(c, i);
@@ -85,8 +86,7 @@ static ssize_t write_nvram(struct file *file, const char __user *buf,
 	return p - buf;
 }
 
-static int nvram_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static int nvram_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	switch(cmd) {
 #ifdef CONFIG_PPC_PMAC
@@ -117,12 +117,23 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+static long nvram_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&nvram_mutex);
+	ret = nvram_ioctl(file, cmd, arg);
+	mutex_unlock(&nvram_mutex);
+
+	return ret;
+}
+
 const struct file_operations nvram_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= nvram_llseek,
 	.read		= read_nvram,
 	.write		= write_nvram,
-	.ioctl		= nvram_ioctl,
+	.unlocked_ioctl	= nvram_unlocked_ioctl,
 };
 
 static struct miscdevice nvram_dev = {
@@ -133,9 +144,20 @@ static struct miscdevice nvram_dev = {
 
 int __init nvram_init(void)
 {
+	int ret = 0;
+
 	printk(KERN_INFO "Generic non-volatile memory driver v%s\n",
 		NVRAM_VERSION);
-	return misc_register(&nvram_dev);
+	ret = misc_register(&nvram_dev);
+	if (ret != 0)
+		goto out;
+
+	nvram_len = nvram_get_size();
+	if (nvram_len < 0)
+		nvram_len = NVRAM_SIZE;
+
+out:
+	return ret;
 }
 
 void __exit nvram_cleanup(void)

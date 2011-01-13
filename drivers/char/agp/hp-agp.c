@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/agp_backend.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 #include <asm/acpi-ext.h>
 
@@ -107,7 +108,7 @@ static int __init hp_zx1_ioc_shared(void)
 	hp->gart_size = HP_ZX1_GART_SIZE;
 	hp->gatt_entries = hp->gart_size / hp->io_page_size;
 
-	hp->io_pdir = gart_to_virt(readq(hp->ioc_regs+HP_ZX1_PDIR_BASE));
+	hp->io_pdir = phys_to_virt(readq(hp->ioc_regs+HP_ZX1_PDIR_BASE));
 	hp->gatt = &hp->io_pdir[HP_ZX1_IOVA_TO_PDIR(hp->gart_base)];
 
 	if (hp->gatt[0] != HP_ZX1_SBA_IOMMU_COOKIE) {
@@ -246,7 +247,7 @@ hp_zx1_configure (void)
 	agp_bridge->mode = readl(hp->lba_regs+hp->lba_cap_offset+PCI_AGP_STATUS);
 
 	if (hp->io_pdir_owner) {
-		writel(virt_to_gart(hp->io_pdir), hp->ioc_regs+HP_ZX1_PDIR_BASE);
+		writel(virt_to_phys(hp->io_pdir), hp->ioc_regs+HP_ZX1_PDIR_BASE);
 		readl(hp->ioc_regs+HP_ZX1_PDIR_BASE);
 		writel(hp->io_tlb_ps, hp->ioc_regs+HP_ZX1_TCNFG);
 		readl(hp->ioc_regs+HP_ZX1_TCNFG);
@@ -394,10 +395,8 @@ hp_zx1_remove_memory (struct agp_memory *mem, off_t pg_start, int type)
 }
 
 static unsigned long
-hp_zx1_mask_memory (struct agp_bridge_data *bridge,
-		    struct page *page, int type)
+hp_zx1_mask_memory (struct agp_bridge_data *bridge, dma_addr_t addr, int type)
 {
-	unsigned long addr = phys_to_gart(page_to_phys(page));
 	return HP_ZX1_PDIR_VALID_BIT | addr;
 }
 
@@ -478,7 +477,6 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 {
 	acpi_handle handle, parent;
 	acpi_status status;
-	struct acpi_buffer buffer;
 	struct acpi_device_info *info;
 	u64 lba_hpa, sba_hpa, length;
 	int match;
@@ -490,13 +488,10 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 	/* Look for an enclosing IOC scope and find its CSR space */
 	handle = obj;
 	do {
-		buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-		status = acpi_get_object_info(handle, &buffer);
-		if (ACPI_SUCCESS(status)) {
+		status = acpi_get_object_info(handle, &info);
+		if (ACPI_SUCCESS(status) && (info->valid & ACPI_VALID_HID)) {
 			/* TBD check _CID also */
-			info = buffer.pointer;
-			info->hardware_id.value[sizeof(info->hardware_id)-1] = '\0';
-			match = (strcmp(info->hardware_id.value, "HWP0001") == 0);
+			match = (strcmp(info->hardware_id.string, "HWP0001") == 0);
 			kfree(info);
 			if (match) {
 				status = hp_acpi_csr_space(handle, &sba_hpa, &length);
@@ -513,6 +508,9 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 		status = acpi_get_parent(handle, &parent);
 		handle = parent;
 	} while (ACPI_SUCCESS(status));
+
+	if (ACPI_FAILURE(status))
+		return AE_OK;	/* found no enclosing IOC */
 
 	if (hp_zx1_setup(sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa))
 		return AE_OK;

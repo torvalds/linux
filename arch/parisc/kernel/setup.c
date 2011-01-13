@@ -1,5 +1,4 @@
-/*    $Id: setup.c,v 1.8 2000/02/02 04:42:38 prumpf Exp $
- *
+/*
  *    Initial setup-routines for HP 9000 based hardware.
  *
  *    Copyright (C) 1991, 1992, 1995  Linus Torvalds

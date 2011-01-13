@@ -42,7 +42,7 @@ struct sd {
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -368,10 +368,6 @@ static const u8 spca505b_init_data[][3] = {
 	{0x08, 0x00, 0x00},
 	{0x08, 0x00, 0x01},
 	{0x08, 0x00, 0x02},
-	{0x00, 0x01, 0x00},
-	{0x00, 0x01, 0x01},
-	{0x00, 0x01, 0x34},
-	{0x00, 0x01, 0x35},
 	{0x06, 0x18, 0x08},
 	{0x06, 0xfc, 0x09},
 	{0x06, 0xfc, 0x0a},
@@ -582,7 +578,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write: 0x%02x,0x%02x:0x%02x, %d",
 		req, index, value, ret);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -689,8 +685,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return ret;
 	}
 	if (ret != 0x0101) {
-		PDEBUG(D_ERR|D_CONF,
-			"After vector read returns 0x%04x should be 0x0101",
+		err("After vector read returns 0x%04x should be 0x0101",
 			ret);
 	}
 
@@ -739,26 +734,22 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	switch (data[0]) {
 	case 0:				/* start of frame */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		data += SPCA50X_OFFSET_DATA;
 		len -= SPCA50X_OFFSET_DATA;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		break;
 	case 0xff:			/* drop */
 		break;
 	default:
 		data += 1;
 		len -= 1;
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 		break;
 	}
 }
@@ -825,18 +816,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

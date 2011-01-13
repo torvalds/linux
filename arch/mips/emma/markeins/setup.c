@@ -1,7 +1,4 @@
 /*
- *  arch/mips/emma2rh/markeins/setup.c
- *      This file is setup for EMMA2RH Mark-eins.
- *
  *  Copyright (C) NEC Electronics Corporation 2004-2006
  *
  *  This file is based on the arch/mips/ddb5xxx/ddb5477/setup.c.
@@ -35,7 +32,7 @@
 
 extern void markeins_led(const char *);
 
-static int bus_frequency = 0;
+static int bus_frequency;
 
 static void markeins_machine_restart(char *command)
 {
@@ -55,7 +52,6 @@ static void markeins_machine_halt(void)
 
 static void markeins_machine_power_off(void)
 {
-	printk("EMMA2RH Mark-eins halted. Please turn off the power.\n");
 	markeins_led("poweroff.");
 	while (1) ;
 }

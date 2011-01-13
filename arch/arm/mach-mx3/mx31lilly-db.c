@@ -18,10 +18,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -36,13 +32,12 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lilly.h>
-#include <mach/mmc.h>
 #include <mach/mx3fb.h>
 #include <mach/ipu.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 /*
@@ -96,7 +91,7 @@ static unsigned int lilly_db_board_pins[] __initdata = {
 };
 
 /* UART */
-static struct imxuart_platform_data uart_pdata __initdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -109,6 +104,9 @@ static int mxc_mmc1_get_ro(struct device *dev)
 
 static int gpio_det, gpio_wp;
 
+#define MMC_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
+
 static int mxc_mmc1_init(struct device *dev,
 			 irq_handler_t detect_irq, void *data)
 {
@@ -116,6 +114,13 @@ static int mxc_mmc1_init(struct device *dev,
 
 	gpio_det = IOMUX_TO_GPIO(MX31_PIN_GPIO1_1);
 	gpio_wp = IOMUX_TO_GPIO(MX31_PIN_LCS0);
+
+	mxc_iomux_set_pad(MX31_PIN_SD1_DATA0, MMC_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SD1_DATA1, MMC_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SD1_DATA2, MMC_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SD1_DATA3, MMC_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SD1_CLK, MMC_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SD1_CMD, MMC_PAD_CFG);
 
 	ret = gpio_request(gpio_det, "MMC detect");
 	if (ret)
@@ -152,7 +157,7 @@ static void mxc_mmc1_exit(struct device *dev, void *data)
 	free_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO1_1), data);
 }
 
-static struct imxmmc_platform_data mmc_pdata = {
+static const struct imxmmc_platform_data mmc_pdata __initconst = {
 	.get_ro	= mxc_mmc1_get_ro,
 	.init	= mxc_mmc1_init,
 	.exit	= mxc_mmc1_exit,
@@ -207,10 +212,10 @@ void __init mx31lilly_db_init(void)
 	mxc_iomux_setup_multiple_pins(lilly_db_board_pins,
 					ARRAY_SIZE(lilly_db_board_pins),
 					"development board pins");
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata);
-	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	imx31_add_imx_uart1(&uart_pdata);
+	imx31_add_imx_uart2(&uart_pdata);
+	imx31_add_mxc_mmc(0, &mmc_pdata);
 	mx31lilly_init_fb();
 }
 

@@ -60,6 +60,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     slots	- Reserve the slot index for the given driver.
 		  This option takes multiple strings.		
 		  See "Module Autoloading Support" section for details.
+    debug	- Specifies the debug message level
+		  (0 = disable debug prints, 1 = normal debug messages,
+		   2 = verbose debug messages)
+		  This option appears only when CONFIG_SND_DEBUG=y.
+		  This option can be dynamically changed via sysfs
+		  /sys/modules/snd/parameters/debug file.
   
   Module snd-pcm-oss
   ------------------
@@ -221,6 +227,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-asihpi
+  -----------------
+
+    Module for AudioScience ASI soundcards
+
+    enable_hpi_hwdep	- enable HPI hwdep for AudioScience soundcard
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-atiixp
   -----------------
 
@@ -283,6 +299,74 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Note: Some ALSA mixer applications don't handle the SPDIF sample rate 
            control correctly. If you have problems regarding this, try
            another ALSA compliant mixer (alsamixer works).
+
+  Module snd-azt1605
+  ------------------
+
+    Module for Aztech Sound Galaxy soundcards based on the Aztech AZT1605
+    chipset.
+
+    port	- port # for BASE (0x220,0x240,0x260,0x280)
+    wss_port	- port # for WSS (0x530,0x604,0xe80,0xf40)
+    irq		- IRQ # for WSS (7,9,10,11)
+    dma1	- DMA # for WSS playback (0,1,3)
+    dma2	- DMA # for WSS capture (0,1), -1 = disabled (default)
+    mpu_port	- port # for MPU-401 UART (0x300,0x330), -1 = disabled (default)
+    mpu_irq	- IRQ # for MPU-401 UART (3,5,7,9), -1 = disabled (default)
+    fm_port	- port # for OPL3 (0x388), -1 = disabled (default)
+
+    This module supports multiple cards. It does not support autoprobe: port,
+    wss_port, irq and dma1 have to be specified. The other values are
+    optional.
+
+    "port" needs to match the BASE ADDRESS jumper on the card (0x220 or 0x240)
+    or the value stored in the card's EEPROM for cards that have an EEPROM and
+    their "CONFIG MODE" jumper set to "EEPROM SETTING". The other values can
+    be choosen freely from the options enumerated above.
+
+    If dma2 is specified and different from dma1, the card will operate in
+    full-duplex mode. When dma1=3, only dma2=0 is valid and the only way to
+    enable capture since only channels 0 and 1 are available for capture.
+
+    Generic settings are "port=0x220 wss_port=0x530 irq=10 dma1=1 dma2=0
+    mpu_port=0x330 mpu_irq=9 fm_port=0x388".
+
+    Whatever IRQ and DMA channels you pick, be sure to reserve them for
+    legacy ISA in your BIOS.
+
+  Module snd-azt2316
+  ------------------
+
+    Module for Aztech Sound Galaxy soundcards based on the Aztech AZT2316
+    chipset.
+
+    port	- port # for BASE (0x220,0x240,0x260,0x280)
+    wss_port	- port # for WSS (0x530,0x604,0xe80,0xf40)
+    irq		- IRQ # for WSS (7,9,10,11)
+    dma1	- DMA # for WSS playback (0,1,3)
+    dma2	- DMA # for WSS capture (0,1), -1 = disabled (default)
+    mpu_port	- port # for MPU-401 UART (0x300,0x330), -1 = disabled (default)
+    mpu_irq	- IRQ # for MPU-401 UART (5,7,9,10), -1 = disabled (default)
+    fm_port	- port # for OPL3 (0x388), -1 = disabled (default)
+
+    This module supports multiple cards. It does not support autoprobe: port,
+    wss_port, irq and dma1 have to be specified. The other values are
+    optional.
+
+    "port" needs to match the BASE ADDRESS jumper on the card (0x220 or 0x240)
+    or the value stored in the card's EEPROM for cards that have an EEPROM and
+    their "CONFIG MODE" jumper set to "EEPROM SETTING". The other values can
+    be choosen freely from the options enumerated above.
+
+    If dma2 is specified and different from dma1, the card will operate in
+    full-duplex mode. When dma1=3, only dma2=0 is valid and the only way to
+    enable capture since only channels 0 and 1 are available for capture.
+
+    Generic settings are "port=0x220 wss_port=0x530 irq=10 dma1=1 dma2=0
+    mpu_port=0x330 mpu_irq=9 fm_port=0x388".
+
+    Whatever IRQ and DMA channels you pick, be sure to reserve them for
+    legacy ISA in your BIOS.
 
   Module snd-aw2
   --------------
@@ -476,6 +560,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     reference_rate	- reference sample rate, 44100 or 48000 (default)
     multiple		- multiple to ref. sample rate, 1 or 2 (default)
+    subsystem		- override the PCI SSID for probing; the value
+			  consists of SSVID << 16 | SSDID.  The default is
+			  zero, which means no override.
 
     This module supports multiple cards.
 
@@ -512,6 +599,26 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for the dummy sound card. This "card" doesn't do any output
     or input, but you may use this module for any application which
     requires a sound card (like RealPlayer).
+
+    pcm_devs       - Number of PCM devices assigned to each card
+                     (default = 1, up to 4)
+    pcm_substreams - Number of PCM substreams assigned to each PCM
+                     (default = 8, up to 128)
+    hrtimer        - Use hrtimer (=1, default) or system timer (=0)
+    fake_buffer    - Fake buffer allocations (default = 1)
+
+    When multiple PCM devices are created, snd-dummy gives different
+    behavior to each PCM device:
+      0 = interleaved with mmap support
+      1 = non-interleaved with mmap support
+      2 = interleaved without mmap 
+      3 = non-interleaved without mmap
+
+    As default, snd-dummy drivers doesn't allocate the real buffers
+    but either ignores read/write or mmap a single dummy page to all
+    buffer pages, in order to save the resouces.  If your apps need
+    the read/ written buffer data to be consistent, pass fake_buffer=0
+    option.
 
     The power-management is supported.
 
@@ -593,28 +700,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     The power-management is supported.
 
-  Module snd-es968
-  ----------------
-
-    Module for sound cards based on ESS ES968 chip (PnP only).
-
-    This module supports multiple cards, PnP and autoprobe.
-    
-    The power-management is supported.
-
   Module snd-es1688
   -----------------
 
     Module for ESS AudioDrive ES-1688 and ES-688 sound cards.
 
-    port	- port # for ES-1688 chip (0x220,0x240,0x260)
-    fm_port	- port # for OPL3 (option; share the same port as default)
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     mpu_port	- port # for MPU-401 port (0x300,0x310,0x320,0x330), -1 = disable (default)
-    irq		- IRQ # for ES-1688 chip (5,7,9,10)
     mpu_irq	- IRQ # for MPU-401 port (5,7,9,10)
+    fm_port	- port # for OPL3 (option; share the same port as default)
+
+    with isapnp=0, the following additional options are available:
+    port	- port # for ES-1688 chip (0x220,0x240,0x260)
+    irq		- IRQ # for ES-1688 chip (5,7,9,10)
     dma8	- DMA # for ES-1688 chip (0,1,3)
 
-    This module supports multiple cards and autoprobe (without MPU-401 port).
+    This module supports multiple cards and autoprobe (without MPU-401 port)
+    and PnP with the ES968 chip.
 
   Module snd-es18xx
   -----------------
@@ -768,6 +870,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     bdl_pos_adj	- Specifies the DMA IRQ timing delay in samples.
 		Passing -1 will make the driver to choose the appropriate
 		value based on the controller chip.
+    patch	- Specifies the early "patch" files to modify the HD-audio
+    		setup before initializing the codecs.  This option is
+		available only when CONFIG_SND_HDA_PATCH_LOADER=y is set.
+		See HD-Audio.txt for details.
+    beep_mode	- Selects the beep registration mode (0=off, 1=on, 2=
+		dynamic registration via mute switch on/off); the default
+		value is set via CONFIG_SND_HDA_INPUT_BEEP_MODE kconfig.
     
     [Single (global) options]
     single_cmd  - Use single immediate commands to communicate with
@@ -1090,6 +1199,21 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple cards, autoprobe and ISA PnP.
 
+  Module snd-jazz16
+  -------------------
+
+    Module for Media Vision Jazz16 chipset. The chipset consists of 3 chips:
+    MVD1216 + MVA416 + MVA514.
+
+    port	- port # for SB DSP chip (0x210,0x220,0x230,0x240,0x250,0x260)
+    irq		- IRQ # for SB DSP chip (3,5,7,9,10,15)
+    dma8	- DMA # for SB DSP chip (1,3)
+    dma16	- DMA # for SB DSP chip (5,7)
+    mpu_port	- MPU-401 port # (0x300,0x310,0x320,0x330)
+    mpu_irq	- MPU-401 irq # (2,3,5,7)
+
+    This module supports multiple cards.
+
   Module snd-korg1212
   -------------------
 
@@ -1229,7 +1353,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     about this driver.  Note that it has been discontinued, but the 
     Voyetra Turtle Beach knowledge base entry for it is still available
     at
-	http://www.turtlebeach.com/site/kb_ftp/790.asp
+	http://www.turtlebeach.com
 
   Module snd-msnd-pinnacle
   ------------------------
@@ -1424,6 +1548,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for internal PC-Speaker.
 
+    nopcm	- Disable PC-Speaker PCM sound. Only beeps remain.
     nforce_wa	- enable NForce chipset workaround. Expect bad sound.
 
     This module supports system beeps, some kind of PCM playback and
@@ -1584,24 +1709,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This card is also known as Audio Excel DSP 16 or Zoltrix AV302.
 
-  Module snd-sgalaxy
-  ------------------
-
-    Module for Aztech Sound Galaxy sound card.
-
-    sbport	- Port # for SB16 interface (0x220,0x240)
-    wssport	- Port # for WSS interface (0x530,0xe80,0xf40,0x604)
-    irq		- IRQ # (7,9,10,11)
-    dma1	- DMA #
-
-    This module supports multiple cards.
-
-    The power-management is supported.
-
   Module snd-sscape
   -----------------
 
-    Module for ENSONIQ SoundScape PnP cards.
+    Module for ENSONIQ SoundScape cards.
 
     port	- Port # (PnP setup)
     wss_port	- WSS Port # (PnP setup)
@@ -1609,10 +1720,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- MPU-401 IRQ # (PnP setup)
     dma		- DMA # (PnP setup)
     dma2	- 2nd DMA # (PnP setup, -1 to disable)
+    joystick	- Enable gameport - 0 = disable (default), 1 = enable
 
-    This module supports multiple cards.  ISA PnP must be enabled.
-    You need sscape_ctl tool in alsa-tools package for loading
-    the microcode.
+    This module supports multiple cards.
+
+    The driver requires the firmware loader support on kernel.
 
   Module snd-sun-amd7930 (on sparc only)
   --------------------------------------
@@ -1756,6 +1868,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-ua101
+  ----------------
+
+    Module for the Edirol UA-101/UA-1000 audio/MIDI interfaces.
+
+    This module supports multiple devices, autoprobe and hotplugging.
+
   Module snd-usb-audio
   --------------------
 
@@ -1888,7 +2007,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   -------------------
 
     Module for sound cards based on the Asus AV100/AV200 chips,
-    i.e., Xonar D1, DX, D2, D2X, HDAV1.3 (Deluxe), Essence ST
+    i.e., Xonar D1, DX, D2, D2X, DS, HDAV1.3 (Deluxe), Essence ST
     (Deluxe) and Essence STX.
 
     This module supports autoprobe and multiple cards.

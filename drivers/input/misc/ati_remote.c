@@ -98,10 +98,12 @@
  * Module and Version Information, Module Parameters
  */
 
-#define ATI_REMOTE_VENDOR_ID	0x0bc7
-#define ATI_REMOTE_PRODUCT_ID	0x004
-#define LOLA_REMOTE_PRODUCT_ID	0x002
-#define MEDION_REMOTE_PRODUCT_ID 0x006
+#define ATI_REMOTE_VENDOR_ID		0x0bc7
+#define LOLA_REMOTE_PRODUCT_ID		0x0002
+#define LOLA2_REMOTE_PRODUCT_ID		0x0003
+#define ATI_REMOTE_PRODUCT_ID		0x0004
+#define NVIDIA_REMOTE_PRODUCT_ID	0x0005
+#define MEDION_REMOTE_PRODUCT_ID	0x0006
 
 #define DRIVER_VERSION	        "2.2.1"
 #define DRIVER_AUTHOR           "Torrey Hoffman <thoffman@arnor.net>"
@@ -142,8 +144,10 @@ MODULE_PARM_DESC(repeat_delay, "Delay before sending repeats, default = 500 msec
 #define err(format, arg...) printk(KERN_ERR format , ## arg)
 
 static struct usb_device_id ati_remote_table[] = {
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID) },
 	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID) },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA2_REMOTE_PRODUCT_ID) },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID) },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID) },
 	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID) },
 	{}	/* Terminating entry */
 };
@@ -620,13 +624,13 @@ static void ati_remote_irq_in(struct urb *urb)
 static int ati_remote_alloc_buffers(struct usb_device *udev,
 				    struct ati_remote *ati_remote)
 {
-	ati_remote->inbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, GFP_ATOMIC,
-					     &ati_remote->inbuf_dma);
+	ati_remote->inbuf = usb_alloc_coherent(udev, DATA_BUFSIZE, GFP_ATOMIC,
+					       &ati_remote->inbuf_dma);
 	if (!ati_remote->inbuf)
 		return -1;
 
-	ati_remote->outbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, GFP_ATOMIC,
-					      &ati_remote->outbuf_dma);
+	ati_remote->outbuf = usb_alloc_coherent(udev, DATA_BUFSIZE, GFP_ATOMIC,
+					        &ati_remote->outbuf_dma);
 	if (!ati_remote->outbuf)
 		return -1;
 
@@ -649,10 +653,10 @@ static void ati_remote_free_buffers(struct ati_remote *ati_remote)
 	usb_free_urb(ati_remote->irq_urb);
 	usb_free_urb(ati_remote->out_urb);
 
-	usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
+	usb_free_coherent(ati_remote->udev, DATA_BUFSIZE,
 		ati_remote->inbuf, ati_remote->inbuf_dma);
 
-	usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
+	usb_free_coherent(ati_remote->udev, DATA_BUFSIZE,
 		ati_remote->outbuf, ati_remote->outbuf_dma);
 }
 
@@ -766,7 +770,7 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 	ati_remote->interface = interface;
 
 	usb_make_path(udev, ati_remote->phys, sizeof(ati_remote->phys));
-	strlcpy(ati_remote->phys, "/input0", sizeof(ati_remote->phys));
+	strlcat(ati_remote->phys, "/input0", sizeof(ati_remote->phys));
 
 	if (udev->manufacturer)
 		strlcpy(ati_remote->name, udev->manufacturer, sizeof(ati_remote->name));

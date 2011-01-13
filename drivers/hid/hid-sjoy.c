@@ -27,6 +27,7 @@
 /* #define DEBUG */
 
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
 #include "hid-ids.h"
@@ -73,26 +74,25 @@ static int sjoyff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(report_list)) {
-		dev_err(&hid->dev, "no output reports found\n");
+		hid_err(hid, "no output reports found\n");
 		return -ENODEV;
 	}
 
 	report_ptr = report_ptr->next;
 
 	if (report_ptr == report_list) {
-		dev_err(&hid->dev, "required output report is "
-				"missing\n");
+		hid_err(hid, "required output report is missing\n");
 		return -ENODEV;
 	}
 
 	report = list_entry(report_ptr, struct hid_report, list);
 	if (report->maxfield < 1) {
-		dev_err(&hid->dev, "no fields in the report\n");
+		hid_err(hid, "no fields in the report\n");
 		return -ENODEV;
 	}
 
 	if (report->field[0]->report_count < 3) {
-		dev_err(&hid->dev, "not enough values in the field\n");
+		hid_err(hid, "not enough values in the field\n");
 		return -ENODEV;
 	}
 
@@ -116,8 +116,7 @@ static int sjoyff_init(struct hid_device *hid)
 	sjoyff->report->field[0]->value[2] = 0x00;
 	usbhid_submit_report(hid, sjoyff->report, USB_DIR_OUT);
 
-	dev_info(&hid->dev,
-		"Force feedback for SmartJoy PLUS PS2/USB adapter\n");
+	hid_info(hid, "Force feedback for SmartJoy PLUS PS2/USB adapter\n");
 
 	return 0;
 }
@@ -134,13 +133,13 @@ static int sjoy_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err;
 	}
 
@@ -163,12 +162,12 @@ static struct hid_driver sjoy_driver = {
 	.probe = sjoy_probe,
 };
 
-static int sjoy_init(void)
+static int __init sjoy_init(void)
 {
 	return hid_register_driver(&sjoy_driver);
 }
 
-static void sjoy_exit(void)
+static void __exit sjoy_exit(void)
 {
 	hid_unregister_driver(&sjoy_driver);
 }

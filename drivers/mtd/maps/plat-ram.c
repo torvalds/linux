@@ -4,7 +4,7 @@
  *	http://www.simtec.co.uk/products/SWLINUX/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Generic platfrom device based RAM map
+ * Generic platform device based RAM map
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -175,7 +175,7 @@ static int platram_probe(struct platform_device *pdev)
 	/* setup map parameters */
 
 	info->map.phys = res->start;
-	info->map.size = (res->end - res->start) + 1;
+	info->map.size = resource_size(res);
 	info->map.name = pdata->mapname != NULL ?
 			(char *)pdata->mapname : (char *)pdev->name;
 	info->map.bankwidth = pdata->bankwidth;

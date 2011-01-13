@@ -156,20 +156,12 @@ static void iommu_table_iobmap_setup(void)
 
 static void pci_dma_bus_setup_pasemi(struct pci_bus *bus)
 {
-	struct device_node *dn;
-
 	pr_debug("pci_dma_bus_setup, bus %p, bus->self %p\n", bus, bus->self);
 
 	if (!iommu_table_iobmap_inited) {
 		iommu_table_iobmap_inited = 1;
 		iommu_table_iobmap_setup();
 	}
-
-	dn = pci_bus_to_OF_node(bus);
-
-	if (dn)
-		PCI_DN(dn)->iommu_table = &iommu_table_iobmap;
-
 }
 
 
@@ -189,11 +181,8 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	}
 #endif
 
-	dev->dev.archdata.dma_data = &iommu_table_iobmap;
+	set_iommu_table_base(&dev->dev, &iommu_table_iobmap);
 }
-
-static void pci_dma_bus_setup_null(struct pci_bus *b) { }
-static void pci_dma_dev_setup_null(struct pci_dev *d) { }
 
 int __init iob_init(struct device_node *dn)
 {
@@ -204,7 +193,7 @@ int __init iob_init(struct device_node *dn)
 	pr_debug(" -> %s\n", __func__);
 
 	/* Allocate a spare page to map all invalid IOTLB pages. */
-	tmp = lmb_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
+	tmp = memblock_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
 	if (!tmp)
 		panic("IOBMAP: Cannot allocate spare page!");
 	/* Empty l1 is marked invalid */
@@ -251,14 +240,8 @@ void __init iommu_init_early_pasemi(void)
 	iommu_off = of_chosen &&
 			of_get_property(of_chosen, "linux,iommu-off", NULL);
 #endif
-	if (iommu_off) {
-		/* Direct I/O, IOMMU off */
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_null;
-		ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_null;
-		set_pci_dma_ops(&dma_direct_ops);
-
+	if (iommu_off)
 		return;
-	}
 
 	iob_init(NULL);
 
@@ -275,7 +258,7 @@ void __init alloc_iobmap_l2(void)
 	return;
 #endif
 	/* For 2G space, 8x64 pages (2^21 bytes) is max total l2 size */
-	iob_l2_base = (u32 *)abs_to_virt(lmb_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
+	iob_l2_base = (u32 *)abs_to_virt(memblock_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
 
 	printk(KERN_INFO "IOBMAP L2 allocated at: %p\n", iob_l2_base);
 }

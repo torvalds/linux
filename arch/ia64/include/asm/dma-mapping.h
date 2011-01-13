@@ -44,7 +44,6 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
 #define get_dma_ops(dev) platform_dma_get_ops(dev)
-#define flush_write_buffers()
 
 #include <asm-generic/dma-mapping-common.h>
 
@@ -69,7 +68,23 @@ dma_set_mask (struct device *dev, u64 mask)
 	return 0;
 }
 
-extern int dma_get_cache_alignment(void);
+static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
+{
+	if (!dev->dma_mask)
+		return 0;
+
+	return addr + size - 1 <= *dev->dma_mask;
+}
+
+static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
+{
+	return paddr;
+}
+
+static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
+{
+	return daddr;
+}
 
 static inline void
 dma_cache_sync (struct device *dev, void *vaddr, size_t size,
@@ -81,7 +96,5 @@ dma_cache_sync (struct device *dev, void *vaddr, size_t size,
 	 */
 	mb();
 }
-
-#define dma_is_consistent(d, h)	(1)	/* all we do is coherent memory... */
 
 #endif /* _ASM_IA64_DMA_MAPPING_H */

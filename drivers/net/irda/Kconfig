@@ -64,6 +64,16 @@ endchoice
 
 comment "Dongle support"
 
+config SH_SIR
+	tristate "SuperH SIR on UART"
+	depends on IRDA && SUPERH && \
+		(CPU_SUBTYPE_SH7722 || CPU_SUBTYPE_SH7723 || \
+		 CPU_SUBTYPE_SH7724)
+	default n
+	help
+	  Say Y here if your want to enable SIR function on SuperH UART
+	  devices.
+
 config DONGLE
 	bool "Serial dongle support"
 	depends on IRTTY_SIR
@@ -386,6 +396,12 @@ config MCS_FIR
 
 	  To compile it as a module, choose M here: the module will be called
 	  mcs7780.
+
+config SH_IRDA
+	tristate "SuperH IrDA driver"
+	depends on IRDA && ARCH_SHMOBILE
+	help
+	  Say Y here if your want to enable SuperH IrDA devices.
 
 endmenu
 

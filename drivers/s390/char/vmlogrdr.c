@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -29,7 +30,6 @@
 #include <linux/kmod.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 
 MODULE_AUTHOR
@@ -96,6 +96,7 @@ static const struct file_operations vmlogrdr_fops = {
 	.open    = vmlogrdr_open,
 	.release = vmlogrdr_release,
 	.read    = vmlogrdr_read,
+	.llseek  = no_llseek,
 };
 
 
@@ -213,7 +214,7 @@ static void vmlogrdr_iucv_message_pending(struct iucv_path *path,
 
 static int vmlogrdr_get_recording_class_AB(void)
 {
-	char cp_command[]="QUERY COMMAND RECORDING ";
+	static const char cp_command[] = "QUERY COMMAND RECORDING ";
 	char cp_response[80];
 	char *tail;
 	int len,i;
@@ -247,27 +248,25 @@ static int vmlogrdr_recording(struct vmlogrdr_priv_t * logptr,
 	char cp_command[80];
 	char cp_response[160];
 	char *onoff, *qid_string;
+	int rc;
 
-	memset(cp_command, 0x00, sizeof(cp_command));
-	memset(cp_response, 0x00, sizeof(cp_response));
-
-        onoff = ((action == 1) ? "ON" : "OFF");
+	onoff = ((action == 1) ? "ON" : "OFF");
 	qid_string = ((recording_class_AB == 1) ? " QID * " : "");
 
-        /*
+	/*
 	 * The recording commands needs to be called with option QID
 	 * for guests that have previlege classes A or B.
 	 * Purging has to be done as separate step, because recording
 	 * can't be switched on as long as records are on the queue.
 	 * Doing both at the same time doesn't work.
 	 */
-
-	if (purge) {
+	if (purge && (action == 1)) {
+		memset(cp_command, 0x00, sizeof(cp_command));
+		memset(cp_response, 0x00, sizeof(cp_response));
 		snprintf(cp_command, sizeof(cp_command),
 			 "RECORDING %s PURGE %s",
 			 logptr->recording_name,
 			 qid_string);
-
 		cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	}
 
@@ -277,19 +276,33 @@ static int vmlogrdr_recording(struct vmlogrdr_priv_t * logptr,
 		logptr->recording_name,
 		onoff,
 		qid_string);
-
 	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	/* The recording command will usually answer with 'Command complete'
 	 * on success, but when the specific service was never connected
 	 * before then there might be an additional informational message
 	 * 'HCPCRC8072I Recording entry not found' before the
-         * 'Command complete'. So I use strstr rather then the strncmp.
+	 * 'Command complete'. So I use strstr rather then the strncmp.
 	 */
 	if (strstr(cp_response,"Command complete"))
-		return 0;
+		rc = 0;
 	else
-		return -EIO;
+		rc = -EIO;
+	/*
+	 * If we turn recording off, we have to purge any remaining records
+	 * afterwards, as a large number of queued records may impact z/VM
+	 * performance.
+	 */
+	if (purge && (action == 0)) {
+		memset(cp_command, 0x00, sizeof(cp_command));
+		memset(cp_response, 0x00, sizeof(cp_response));
+		snprintf(cp_command, sizeof(cp_command),
+			 "RECORDING %s PURGE %s",
+			 logptr->recording_name,
+			 qid_string);
+		cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
+	}
 
+	return rc;
 }
 
 
@@ -312,11 +325,9 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 		return -ENOSYS;
 
 	/* Besure this device hasn't already been opened */
-	lock_kernel();
 	spin_lock_bh(&logptr->priv_lock);
 	if (logptr->dev_in_use)	{
 		spin_unlock_bh(&logptr->priv_lock);
-		unlock_kernel();
 		return -EBUSY;
 	}
 	logptr->dev_in_use = 1;
@@ -360,9 +371,8 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 		   || (logptr->iucv_path_severed));
 	if (logptr->iucv_path_severed)
 		goto out_record;
- 	ret = nonseekable_open(inode, filp);
-	unlock_kernel();
-	return ret;
+	nonseekable_open(inode, filp);
+	return 0;
 
 out_record:
 	if (logptr->autorecording)
@@ -372,7 +382,6 @@ out_path:
 	logptr->path = NULL;
 out_dev:
 	logptr->dev_in_use = 0;
-	unlock_kernel();
 	return -EIO;
 }
 
@@ -640,7 +649,7 @@ static ssize_t vmlogrdr_recording_status_show(struct device_driver *driver,
 					      char *buf)
 {
 
-	char cp_command[] = "QUERY RECORDING ";
+	static const char cp_command[] = "QUERY RECORDING ";
 	int len;
 
 	cpcmd(cp_command, buf, 4096, NULL);
@@ -679,7 +688,7 @@ static int vmlogrdr_pm_prepare(struct device *dev)
 }
 
 
-static struct dev_pm_ops vmlogrdr_pm_ops = {
+static const struct dev_pm_ops vmlogrdr_pm_ops = {
 	.prepare = vmlogrdr_pm_prepare,
 };
 
@@ -765,8 +774,10 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 	} else
 		return -ENOMEM;
 	ret = device_register(dev);
-	if (ret)
+	if (ret) {
+		put_device(dev);
 		return ret;
+	}
 
 	ret = sysfs_create_group(&dev->kobj, &vmlogrdr_attr_group);
 	if (ret) {

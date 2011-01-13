@@ -1,6 +1,6 @@
 /*
  * Linux driver for SSFDC Flash Translation Layer (Read only)
- * (c) 2005 Eptar srl
+ * © 2005 Eptar srl
  * Author: Claudio Lanconelli <lanconelli.claudio@eptar.com>
  *
  * Based on NTFL and MTDBLOCK_RO drivers
@@ -375,7 +375,6 @@ static void ssfdcr_remove_dev(struct mtd_blktrans_dev *dev)
 
 	del_mtd_blktrans_dev(dev);
 	kfree(ssfdc->logic_block_map);
-	kfree(ssfdc);
 }
 
 static int ssfdcr_readsect(struct mtd_blktrans_dev *dev,

@@ -19,11 +19,16 @@ Currently, these files might (depending on your configuration)
 show up in /proc/sys/kernel:
 - acpi_video_flags
 - acct
+- bootloader_type	     [ X86 only ]
+- bootloader_version	     [ X86 only ]
+- callhome		     [ S390 only ]
 - auto_msgmni
 - core_pattern
+- core_pipe_limit
 - core_uses_pid
 - ctrl-alt-del
 - dentry-state
+- dmesg_restrict
 - domainname
 - hostname
 - hotplug
@@ -91,6 +96,50 @@ valid for 30 seconds.
 
 ==============================================================
 
+bootloader_type:
+
+x86 bootloader identification
+
+This gives the bootloader type number as indicated by the bootloader,
+shifted left by 4, and OR'd with the low four bits of the bootloader
+version.  The reason for this encoding is that this used to match the
+type_of_loader field in the kernel header; the encoding is kept for
+backwards compatibility.  That is, if the full bootloader type number
+is 0x15 and the full version number is 0x234, this file will contain
+the value 340 = 0x154.
+
+See the type_of_loader and ext_loader_type fields in
+Documentation/x86/boot.txt for additional information.
+
+==============================================================
+
+bootloader_version:
+
+x86 bootloader version
+
+The complete bootloader version number.  In the example above, this
+file will contain the value 564 = 0x234.
+
+See the type_of_loader and ext_loader_ver fields in
+Documentation/x86/boot.txt for additional information.
+
+==============================================================
+
+callhome:
+
+Controls the kernel's callhome behavior in case of a kernel panic.
+
+The s390 hardware allows an operating system to send a notification
+to a service organization (callhome) in case of an operating system panic.
+
+When the value in this file is 0 (which is the default behavior)
+nothing happens in case of a kernel panic. If this value is set to "1"
+the complete kernel oops message is send to the IBM customer service
+organization in case the mainframe the Linux operating system is running
+on has a service contract with IBM.
+
+==============================================================
+
 core_pattern:
 
 core_pattern is used to specify a core dumpfile pattern name.
@@ -119,6 +168,27 @@ core_pattern is used to specify a core dumpfile pattern name.
 
 ==============================================================
 
+core_pipe_limit:
+
+This sysctl is only applicable when core_pattern is configured to pipe core
+files to a user space helper (when the first character of core_pattern is a '|',
+see above).  When collecting cores via a pipe to an application, it is
+occasionally useful for the collecting application to gather data about the
+crashing process from its /proc/pid directory.  In order to do this safely, the
+kernel must wait for the collecting process to exit, so as not to remove the
+crashing processes proc files prematurely.  This in turn creates the possibility
+that a misbehaving userspace collecting process can block the reaping of a
+crashed process simply by never exiting.  This sysctl defends against that.  It
+defines how many concurrent crashing processes may be piped to user space
+applications in parallel.  If this value is exceeded, then those crashing
+processes above that value are noted via the kernel log and their cores are
+skipped.  0 is a special value, indicating that unlimited processes may be
+captured in parallel, but that no waiting will take place (i.e. the collecting
+process is not guaranteed access to /proc/<crashing pid>/).  This value defaults
+to 0.
+
+==============================================================
+
 core_uses_pid:
 
 The default coredump filename is "core".  By setting
@@ -141,6 +211,19 @@ Note: when a program (like dosemu) has the keyboard in 'raw'
 mode, the ctrl-alt-del is intercepted by the program before it
 ever reaches the kernel tty layer, and it's up to the program
 to decide what to do with it.
+
+==============================================================
+
+dmesg_restrict:
+
+This toggle indicates whether unprivileged users are prevented from using
+dmesg(8) to view messages from the kernel's log buffer.  When
+dmesg_restrict is set to (0) there are no restrictions.  When
+dmesg_restrict is set set to (1), users must have CAP_SYSLOG to use
+dmesg(8).
+
+The kernel config option CONFIG_SECURITY_DMESG_RESTRICT sets the default
+value of dmesg_restrict.
 
 ==============================================================
 
@@ -297,31 +380,43 @@ send before ratelimiting kicks in.
 
 ==============================================================
 
+printk_delay:
+
+Delay each printk message in printk_delay milliseconds
+
+Value from 0 - 10000 is allowed.
+
+==============================================================
+
 randomize-va-space:
 
 This option can be used to select the type of process address
 space randomization that is used in the system, for architectures
 that support this feature.
 
-0 - Turn the process address space randomization off by default.
+0 - Turn the process address space randomization off.  This is the
+    default for architectures that do not support this feature anyways,
+    and kernels that are booted with the "norandmaps" parameter.
 
 1 - Make the addresses of mmap base, stack and VDSO page randomized.
     This, among other things, implies that shared libraries will be
-    loaded to random addresses. Also for PIE-linked binaries, the location
-    of code start is randomized.
+    loaded to random addresses.  Also for PIE-linked binaries, the
+    location of code start is randomized.  This is the default if the
+    CONFIG_COMPAT_BRK option is enabled.
 
-    With heap randomization, the situation is a little bit more
-    complicated.
-    There a few legacy applications out there (such as some ancient
+2 - Additionally enable heap randomization.  This is the default if
+    CONFIG_COMPAT_BRK is disabled.
+
+    There are a few legacy applications out there (such as some ancient
     versions of libc.so.5 from 1996) that assume that brk area starts
-    just after the end of the code+bss. These applications break when
-    start of the brk area is randomized. There are however no known
+    just after the end of the code+bss.  These applications break when
+    start of the brk area is randomized.  There are however no known
     non-legacy applications that would be broken this way, so for most
-    systems it is safe to choose full randomization. However there is
-    a CONFIG_COMPAT_BRK option for systems with ancient and/or broken
-    binaries, that makes heap non-randomized, but keeps all other
-    parts of process address space randomized if randomize_va_space
-    sysctl is turned on.
+    systems it is safe to choose full randomization.
+
+    Systems with ancient and/or broken binaries should be configured
+    with CONFIG_COMPAT_BRK enabled, which excludes the heap from process
+    address space randomization.
 
 ==============================================================
 

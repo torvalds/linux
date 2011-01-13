@@ -43,6 +43,7 @@
 #include <linux/personality.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/kallsyms.h>
@@ -156,7 +157,7 @@ void machine_power_off(void)
 	 * software. The user has to press the button himself. */
 
 	printk(KERN_EMERG "System shut down completed.\n"
-	       KERN_EMERG "Please power this system off now.");
+	       "Please power this system off now.");
 }
 
 void (*pm_power_off)(void) = machine_power_off;
@@ -347,17 +348,22 @@ asmlinkage int sys_execve(struct pt_regs *regs)
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, (char __user * __user *) regs->gr[25],
-		(char __user * __user *) regs->gr[24], regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *) regs->gr[25],
+			  (const char __user *const __user *) regs->gr[24],
+			  regs);
 	putname(filename);
 out:
 
 	return error;
 }
 
-extern int __execve(const char *filename, char *const argv[],
-		char *const envp[], struct task_struct *task);
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+extern int __execve(const char *filename,
+		    const char *const argv[],
+		    const char *const envp[], struct task_struct *task);
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	return __execve(filename, argv, envp, current);
 }

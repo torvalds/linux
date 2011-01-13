@@ -26,12 +26,9 @@ static struct kmem_cache *nfs_page_cachep;
 static inline struct nfs_page *
 nfs_page_alloc(void)
 {
-	struct nfs_page	*p;
-	p = kmem_cache_alloc(nfs_page_cachep, GFP_KERNEL);
-	if (p) {
-		memset(p, 0, sizeof(*p));
+	struct nfs_page	*p = kmem_cache_zalloc(nfs_page_cachep, GFP_KERNEL);
+	if (p)
 		INIT_LIST_HEAD(&p->wb_list);
-	}
 	return p;
 }
 
@@ -60,15 +57,16 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 {
 	struct nfs_page		*req;
 
-	for (;;) {
-		/* try to allocate the request struct */
-		req = nfs_page_alloc();
-		if (req != NULL)
-			break;
+	/* try to allocate the request struct */
+	req = nfs_page_alloc();
+	if (req == NULL)
+		return ERR_PTR(-ENOMEM);
 
-		if (fatal_signal_pending(current))
-			return ERR_PTR(-ERESTARTSYS);
-		yield();
+	/* get lock context early so we can deal with alloc failures */
+	req->wb_lock_context = nfs_get_lock_context(ctx);
+	if (req->wb_lock_context == NULL) {
+		nfs_page_free(req);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* Initialize the request struct. Initially, we assume a
@@ -112,12 +110,10 @@ void nfs_unlock_request(struct nfs_page *req)
  */
 int nfs_set_page_tag_locked(struct nfs_page *req)
 {
-	struct nfs_inode *nfsi = NFS_I(req->wb_context->path.dentry->d_inode);
-
 	if (!nfs_lock_request_dontget(req))
 		return 0;
-	if (req->wb_page != NULL)
-		radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
+	if (test_bit(PG_MAPPED, &req->wb_flags))
+		radix_tree_tag_set(&NFS_I(req->wb_context->path.dentry->d_inode)->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 	return 1;
 }
 
@@ -126,10 +122,10 @@ int nfs_set_page_tag_locked(struct nfs_page *req)
  */
 void nfs_clear_page_tag_locked(struct nfs_page *req)
 {
-	struct inode *inode = req->wb_context->path.dentry->d_inode;
-	struct nfs_inode *nfsi = NFS_I(inode);
+	if (test_bit(PG_MAPPED, &req->wb_flags)) {
+		struct inode *inode = req->wb_context->path.dentry->d_inode;
+		struct nfs_inode *nfsi = NFS_I(inode);
 
-	if (req->wb_page != NULL) {
 		spin_lock(&inode->i_lock);
 		radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 		nfs_unlock_request(req);
@@ -142,15 +138,26 @@ void nfs_clear_page_tag_locked(struct nfs_page *req)
  * nfs_clear_request - Free up all resources allocated to the request
  * @req:
  *
- * Release page resources associated with a write request after it
- * has completed.
+ * Release page and open context resources associated with a read/write
+ * request after it has completed.
  */
 void nfs_clear_request(struct nfs_page *req)
 {
 	struct page *page = req->wb_page;
+	struct nfs_open_context *ctx = req->wb_context;
+	struct nfs_lock_context *l_ctx = req->wb_lock_context;
+
 	if (page != NULL) {
 		page_cache_release(page);
 		req->wb_page = NULL;
+	}
+	if (l_ctx != NULL) {
+		nfs_put_lock_context(l_ctx);
+		req->wb_lock_context = NULL;
+	}
+	if (ctx != NULL) {
+		put_nfs_open_context(ctx);
+		req->wb_context = NULL;
 	}
 }
 
@@ -165,15 +172,20 @@ static void nfs_free_request(struct kref *kref)
 {
 	struct nfs_page *req = container_of(kref, struct nfs_page, wb_kref);
 
-	/* Release struct file or cached credential */
+	/* Release struct file and open context */
 	nfs_clear_request(req);
-	put_nfs_open_context(req->wb_context);
 	nfs_page_free(req);
 }
 
 void nfs_release_request(struct nfs_page *req)
 {
 	kref_put(&req->wb_kref, nfs_free_request);
+}
+
+static int nfs_wait_bit_uninterruptible(void *word)
+{
+	io_schedule();
+	return 0;
 }
 
 /**
@@ -186,14 +198,9 @@ void nfs_release_request(struct nfs_page *req)
 int
 nfs_wait_on_request(struct nfs_page *req)
 {
-	int ret = 0;
-
-	if (!test_bit(PG_BUSY, &req->wb_flags))
-		goto out;
-	ret = out_of_line_wait_on_bit(&req->wb_flags, PG_BUSY,
-			nfs_wait_bit_killable, TASK_KILLABLE);
-out:
-	return ret;
+	return wait_on_bit(&req->wb_flags, PG_BUSY,
+			nfs_wait_bit_uninterruptible,
+			TASK_UNINTERRUPTIBLE);
 }
 
 /**
@@ -237,7 +244,7 @@ static int nfs_can_coalesce_requests(struct nfs_page *prev,
 {
 	if (req->wb_context->cred != prev->wb_context->cred)
 		return 0;
-	if (req->wb_context->lockowner != prev->wb_context->lockowner)
+	if (req->wb_lock_context->lockowner != prev->wb_lock_context->lockowner)
 		return 0;
 	if (req->wb_context->state != prev->wb_context->state)
 		return 0;

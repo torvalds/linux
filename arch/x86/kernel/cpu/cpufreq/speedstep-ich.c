@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/sched.h>
 
 #include "speedstep-lib.h"
@@ -39,7 +38,7 @@ static struct pci_dev *speedstep_chipset_dev;
 
 /* speedstep_processor
  */
-static unsigned int speedstep_processor;
+static enum speedstep_processor speedstep_processor;
 
 static u32 pmbase;
 
@@ -232,28 +231,23 @@ static unsigned int speedstep_detect_chipset(void)
 	return 0;
 }
 
-struct get_freq_data {
-	unsigned int speed;
-	unsigned int processor;
-};
-
-static void get_freq_data(void *_data)
+static void get_freq_data(void *_speed)
 {
-	struct get_freq_data *data = _data;
+	unsigned int *speed = _speed;
 
-	data->speed = speedstep_get_frequency(data->processor);
+	*speed = speedstep_get_frequency(speedstep_processor);
 }
 
 static unsigned int speedstep_get(unsigned int cpu)
 {
-	struct get_freq_data data = { .processor = cpu };
+	unsigned int speed;
 
 	/* You're supposed to ensure CPU is online. */
-	if (smp_call_function_single(cpu, get_freq_data, &data, 1) != 0)
+	if (smp_call_function_single(cpu, get_freq_data, &speed, 1) != 0)
 		BUG();
 
-	dprintk("detected %u kHz as current frequency\n", data.speed);
-	return data.speed;
+	dprintk("detected %u kHz as current frequency\n", speed);
+	return speed;
 }
 
 /**

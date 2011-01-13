@@ -355,7 +355,7 @@ EXPORT_SYMBOL(key_alloc);
  */
 int key_payload_reserve(struct key *key, size_t datalen)
 {
-	int delta = (int) datalen - key->datalen;
+	int delta = (int)datalen - key->datalen;
 	int ret = 0;
 
 	key_check(key);
@@ -398,7 +398,8 @@ static int __key_instantiate_and_link(struct key *key,
 				      const void *data,
 				      size_t datalen,
 				      struct key *keyring,
-				      struct key *authkey)
+				      struct key *authkey,
+				      struct keyring_list **_prealloc)
 {
 	int ret, awaken;
 
@@ -425,7 +426,7 @@ static int __key_instantiate_and_link(struct key *key,
 
 			/* and link it into the destination keyring */
 			if (keyring)
-				ret = __key_link(keyring, key);
+				__key_link(keyring, key, _prealloc);
 
 			/* disable the authorisation key */
 			if (authkey)
@@ -453,15 +454,21 @@ int key_instantiate_and_link(struct key *key,
 			     struct key *keyring,
 			     struct key *authkey)
 {
+	struct keyring_list *prealloc;
 	int ret;
 
-	if (keyring)
-		down_write(&keyring->sem);
+	if (keyring) {
+		ret = __key_link_begin(keyring, key->type, key->description,
+				       &prealloc);
+		if (ret < 0)
+			return ret;
+	}
 
-	ret = __key_instantiate_and_link(key, data, datalen, keyring, authkey);
+	ret = __key_instantiate_and_link(key, data, datalen, keyring, authkey,
+					 &prealloc);
 
 	if (keyring)
-		up_write(&keyring->sem);
+		__key_link_end(keyring, key->type, prealloc);
 
 	return ret;
 
@@ -478,8 +485,9 @@ int key_negate_and_link(struct key *key,
 			struct key *keyring,
 			struct key *authkey)
 {
+	struct keyring_list *prealloc;
 	struct timespec now;
-	int ret, awaken;
+	int ret, awaken, link_ret = 0;
 
 	key_check(key);
 	key_check(keyring);
@@ -488,7 +496,8 @@ int key_negate_and_link(struct key *key,
 	ret = -EBUSY;
 
 	if (keyring)
-		down_write(&keyring->sem);
+		link_ret = __key_link_begin(keyring, key->type,
+					    key->description, &prealloc);
 
 	mutex_lock(&key_construction_mutex);
 
@@ -500,6 +509,7 @@ int key_negate_and_link(struct key *key,
 		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
 		now = current_kernel_time();
 		key->expiry = now.tv_sec + timeout;
+		key_schedule_gc(key->expiry + key_gc_delay);
 
 		if (test_and_clear_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags))
 			awaken = 1;
@@ -507,8 +517,8 @@ int key_negate_and_link(struct key *key,
 		ret = 0;
 
 		/* and link it into the destination keyring */
-		if (keyring)
-			ret = __key_link(keyring, key);
+		if (keyring && link_ret == 0)
+			__key_link(keyring, key, &prealloc);
 
 		/* disable the authorisation key */
 		if (authkey)
@@ -518,13 +528,13 @@ int key_negate_and_link(struct key *key,
 	mutex_unlock(&key_construction_mutex);
 
 	if (keyring)
-		up_write(&keyring->sem);
+		__key_link_end(keyring, key->type, prealloc);
 
 	/* wake up anyone waiting for a key to be constructed */
 	if (awaken)
 		wake_up_bit(&key->flags, KEY_FLAG_USER_CONSTRUCT);
 
-	return ret;
+	return ret == 0 ? link_ret : ret;
 
 } /* end key_negate_and_link() */
 
@@ -642,10 +652,8 @@ struct key *key_lookup(key_serial_t id)
 	goto error;
 
  found:
-	/* pretend it doesn't exist if it's dead */
-	if (atomic_read(&key->usage) == 0 ||
-	    test_bit(KEY_FLAG_DEAD, &key->flags) ||
-	    key->type == &key_type_dead)
+	/* pretend it doesn't exist if it is awaiting deletion */
+	if (atomic_read(&key->usage) == 0)
 		goto not_found;
 
 	/* this races with key_put(), but that doesn't matter since key_put()
@@ -750,6 +758,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 			       key_perm_t perm,
 			       unsigned long flags)
 {
+	struct keyring_list *prealloc;
 	const struct cred *cred = current_cred();
 	struct key_type *ktype;
 	struct key *keyring, *key = NULL;
@@ -776,7 +785,9 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	if (keyring->type != &key_type_keyring)
 		goto error_2;
 
-	down_write(&keyring->sem);
+	ret = __key_link_begin(keyring, ktype, description, &prealloc);
+	if (ret < 0)
+		goto error_2;
 
 	/* if we're going to allocate a new key, we're going to have
 	 * to modify the keyring */
@@ -818,7 +829,8 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 
 	/* instantiate it and link it into the target keyring */
-	ret = __key_instantiate_and_link(key, payload, plen, keyring, NULL);
+	ret = __key_instantiate_and_link(key, payload, plen, keyring, NULL,
+					 &prealloc);
 	if (ret < 0) {
 		key_put(key);
 		key_ref = ERR_PTR(ret);
@@ -828,7 +840,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	key_ref = make_key_ref(key, is_key_possessed(keyring_ref));
 
  error_3:
-	up_write(&keyring->sem);
+	__key_link_end(keyring, ktype, prealloc);
  error_2:
 	key_type_put(ktype);
  error:
@@ -838,7 +850,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	/* we found a matching key, so we're going to try to update it
 	 * - we can drop the locks first as we have the key pinned
 	 */
-	up_write(&keyring->sem);
+	__key_link_end(keyring, ktype, prealloc);
 	key_type_put(ktype);
 
 	key_ref = __key_update(key_ref, payload, plen);
@@ -890,6 +902,9 @@ EXPORT_SYMBOL(key_update);
  */
 void key_revoke(struct key *key)
 {
+	struct timespec now;
+	time_t time;
+
 	key_check(key);
 
 	/* make sure no one's trying to change or use the key when we mark it
@@ -901,6 +916,14 @@ void key_revoke(struct key *key)
 	if (!test_and_set_bit(KEY_FLAG_REVOKED, &key->flags) &&
 	    key->type->revoke)
 		key->type->revoke(key);
+
+	/* set the death time to no more than the expiry time */
+	now = current_kernel_time();
+	time = now.tv_sec;
+	if (key->revoked_at == 0 || key->revoked_at > time) {
+		key->revoked_at = time;
+		key_schedule_gc(key->revoked_at + key_gc_delay);
+	}
 
 	up_write(&key->sem);
 
@@ -958,8 +981,10 @@ void unregister_key_type(struct key_type *ktype)
 	for (_n = rb_first(&key_serial_tree); _n; _n = rb_next(_n)) {
 		key = rb_entry(_n, struct key, serial_node);
 
-		if (key->type == ktype)
+		if (key->type == ktype) {
 			key->type = &key_type_dead;
+			set_bit(KEY_FLAG_DEAD, &key->flags);
+		}
 	}
 
 	spin_unlock(&key_serial_lock);
@@ -983,6 +1008,8 @@ void unregister_key_type(struct key_type *ktype)
 
 	spin_unlock(&key_serial_lock);
 	up_write(&key_types_sem);
+
+	key_schedule_gc(0);
 
 } /* end unregister_key_type() */
 

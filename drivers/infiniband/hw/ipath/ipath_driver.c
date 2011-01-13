@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
@@ -38,6 +39,8 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/bitmap.h>
+#include <linux/slab.h>
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
@@ -129,18 +132,13 @@ static int __devinit ipath_init_one(struct pci_dev *,
 
 /* Only needed for registration, nothing else needs this info */
 #define PCI_VENDOR_ID_PATHSCALE 0x1fc1
-#define PCI_VENDOR_ID_QLOGIC 0x1077
 #define PCI_DEVICE_ID_INFINIPATH_HT 0xd
-#define PCI_DEVICE_ID_INFINIPATH_PE800 0x10
-#define PCI_DEVICE_ID_INFINIPATH_7220 0x7220
 
 /* Number of seconds before our card status check...  */
 #define STATUS_TIMEOUT 60
 
 static const struct pci_device_id ipath_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_HT) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_PE800) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_INFINIPATH_7220) },
 	{ 0, }
 };
 
@@ -392,6 +390,8 @@ done:
 	ipath_enable_armlaunch(dd);
 }
 
+static void cleanup_device(struct ipath_devdata *dd);
+
 static int __devinit ipath_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
@@ -518,30 +518,9 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	/* setup the chip-specific functions, as early as possible. */
 	switch (ent->device) {
 	case PCI_DEVICE_ID_INFINIPATH_HT:
-#ifdef CONFIG_HT_IRQ
 		ipath_init_iba6110_funcs(dd);
 		break;
-#else
-		ipath_dev_err(dd, "QLogic HT device 0x%x cannot work if "
-			      "CONFIG_HT_IRQ is not enabled\n", ent->device);
-		return -ENODEV;
-#endif
-	case PCI_DEVICE_ID_INFINIPATH_PE800:
-#ifdef CONFIG_PCI_MSI
-		ipath_init_iba6120_funcs(dd);
-		break;
-#else
-		ipath_dev_err(dd, "QLogic PCIE device 0x%x cannot work if "
-			      "CONFIG_PCI_MSI is not enabled\n", ent->device);
-		return -ENODEV;
-#endif
-	case PCI_DEVICE_ID_INFINIPATH_7220:
-#ifndef CONFIG_PCI_MSI
-		ipath_dbg("CONFIG_PCI_MSI is not enabled, "
-			  "using INTx for unit %u\n", dd->ipath_unit);
-#endif
-		ipath_init_iba7220_funcs(dd);
-		break;
+
 	default:
 		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
 			      "failing\n", ent->device);
@@ -551,9 +530,8 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	for (j = 0; j < 6; j++) {
 		if (!pdev->resource[j].start)
 			continue;
-		ipath_cdbg(VERBOSE, "BAR %d start %llx, end %llx, len %llx\n",
-			   j, (unsigned long long)pdev->resource[j].start,
-			   (unsigned long long)pdev->resource[j].end,
+		ipath_cdbg(VERBOSE, "BAR %d %pR, len %llx\n",
+			   j, &pdev->resource[j],
 			   (unsigned long long)pci_resource_len(pdev, j));
 	}
 
@@ -639,8 +617,13 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	goto bail;
 
 bail_irqsetup:
-	if (pdev->irq)
-		free_irq(pdev->irq, dd);
+	cleanup_device(dd);
+
+	if (dd->ipath_irq)
+		dd->ipath_f_free_irq(dd);
+
+	if (dd->ipath_f_cleanup)
+		dd->ipath_f_cleanup(dd);
 
 bail_iounmap:
 	iounmap((volatile void __iomem *) dd->ipath_kregbase);
@@ -658,7 +641,7 @@ bail:
 	return ret;
 }
 
-static void __devexit cleanup_device(struct ipath_devdata *dd)
+static void cleanup_device(struct ipath_devdata *dd)
 {
 	int port;
 	struct ipath_portdata **tmp;
@@ -1696,7 +1679,7 @@ void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
 			      unsigned len, int avail)
 {
 	unsigned long flags;
-	unsigned end, cnt = 0, next;
+	unsigned end, cnt = 0;
 
 	/* There are two bits per send buffer (busy and generation) */
 	start *= 2;
@@ -1747,12 +1730,7 @@ void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
 
 	if (dd->ipath_pioupd_thresh) {
 		end = 2 * (dd->ipath_piobcnt2k + dd->ipath_piobcnt4k);
-		next = find_first_bit(dd->ipath_pioavailkernel, end);
-		while (next < end) {
-			cnt++;
-			next = find_next_bit(dd->ipath_pioavailkernel, end,
-					next + 1);
-		}
+		cnt = bitmap_weight(dd->ipath_pioavailkernel, end);
 	}
 	spin_unlock_irqrestore(&ipath_pioavail_lock, flags);
 

@@ -9,6 +9,11 @@ config BFIN527_EZKIT
 	help
 	  BF527-EZKIT-LITE board support.
 
+config BFIN527_EZKIT_V2
+	bool "BF527-EZKIT-V2"
+	help
+	  BF527-EZKIT-LITE V2.1+ board support.
+
 config BFIN527_BLUETECHNIX_CM
 	bool "Bluetechnix CM-BF527"
 	help
@@ -18,5 +23,15 @@ config BFIN526_EZBRD
 	bool "BF526-EZBRD"
 	help
 	  BF526-EZBRD/EZKIT Lite board support.
+
+config BFIN527_AD7160EVAL
+	bool "BF527-AD7160-EVAL"
+	help
+	  BF527-AD7160-EVAL board support.
+
+config BFIN527_TLL6527M
+	bool "The Learning Labs TLL6527M"
+	help
+	  TLL6527M V1.0 platform support
 
 endchoice

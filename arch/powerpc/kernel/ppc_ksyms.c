@@ -96,8 +96,6 @@ EXPORT_SYMBOL(copy_4K_page);
 EXPORT_SYMBOL(isa_io_base);
 EXPORT_SYMBOL(isa_mem_base);
 EXPORT_SYMBOL(pci_dram_offset);
-EXPORT_SYMBOL(pci_alloc_consistent);
-EXPORT_SYMBOL(pci_free_consistent);
 #endif /* CONFIG_PCI */
 
 EXPORT_SYMBOL(start_thread);
@@ -109,6 +107,7 @@ EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
 EXPORT_SYMBOL(giveup_vsx);
+EXPORT_SYMBOL_GPL(__giveup_vsx);
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_SPE
 EXPORT_SYMBOL(giveup_spe);
@@ -162,7 +161,6 @@ EXPORT_SYMBOL(screen_info);
 
 #ifdef CONFIG_PPC32
 EXPORT_SYMBOL(timer_interrupt);
-EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(tb_ticks_per_jiffy);
 EXPORT_SYMBOL(cacheable_memcpy);
 EXPORT_SYMBOL(cacheable_memzero);
@@ -188,3 +186,10 @@ EXPORT_SYMBOL(__mtdcr);
 EXPORT_SYMBOL(__mfdcr);
 #endif
 EXPORT_SYMBOL(empty_zero_page);
+
+#ifdef CONFIG_PPC64
+EXPORT_SYMBOL(__arch_hweight8);
+EXPORT_SYMBOL(__arch_hweight16);
+EXPORT_SYMBOL(__arch_hweight32);
+EXPORT_SYMBOL(__arch_hweight64);
+#endif

@@ -65,7 +65,7 @@ static struct ivtv_card_tuner_i2c ivtv_i2c_tda8290 = {
 
 /********************** card configuration *******************************/
 
-/* Please add new PCI IDs to: http://pci-ids.ucw.cz/iii
+/* Please add new PCI IDs to: http://pci-ids.ucw.cz/ 
    This keeps the PCI ID database up to date. Note that the entries
    must be added under vendor 0x4444 (Conexant) as subsystem IDs.
    New vendor IDs should still be added to the vendor ID list. */
@@ -136,7 +136,8 @@ static const struct ivtv_card ivtv_card_pvr350 = {
 	.hw_audio = IVTV_HW_MSP34XX,
 	.hw_audio_ctrl = IVTV_HW_MSP34XX,
 	.hw_all = IVTV_HW_MSP34XX | IVTV_HW_SAA7115 |
-		  IVTV_HW_SAA7127 | IVTV_HW_TVEEPROM | IVTV_HW_TUNER,
+		  IVTV_HW_SAA7127 | IVTV_HW_TVEEPROM | IVTV_HW_TUNER |
+		  IVTV_HW_I2C_IR_RX_HAUP_EXT | IVTV_HW_I2C_IR_RX_HAUP_INT,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE4 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO0    },
@@ -199,7 +200,9 @@ static const struct ivtv_card ivtv_card_pvr150 = {
 	.hw_audio_ctrl = IVTV_HW_CX25840,
 	.hw_muxer = IVTV_HW_WM8775,
 	.hw_all = IVTV_HW_WM8775 | IVTV_HW_CX25840 |
-		  IVTV_HW_TVEEPROM | IVTV_HW_TUNER,
+		  IVTV_HW_TVEEPROM | IVTV_HW_TUNER |
+		  IVTV_HW_I2C_IR_RX_HAUP_EXT | IVTV_HW_I2C_IR_RX_HAUP_INT |
+		  IVTV_HW_Z8F0811_IR_HAUP,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE7 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO1    },
@@ -402,7 +405,8 @@ static const struct ivtv_card ivtv_card_avc2410 = {
 	.hw_audio_ctrl = IVTV_HW_MSP34XX,
 	.hw_muxer = IVTV_HW_CS53L32A,
 	.hw_all = IVTV_HW_MSP34XX | IVTV_HW_CS53L32A |
-		  IVTV_HW_SAA7115 | IVTV_HW_TUNER,
+		  IVTV_HW_SAA7115 | IVTV_HW_TUNER |
+		  IVTV_HW_I2C_IR_RX_ADAPTEC,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE4 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO0    },
@@ -955,7 +959,8 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
-	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739 |
+		  IVTV_HW_I2C_IR_RX_AVER,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
@@ -965,6 +970,7 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
 	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5 },
 	/* enable line-in */
 	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 },
 	.xceive_pin = 10,
@@ -977,26 +983,27 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 
 /* ------------------------------------------------------------------------- */
 
-/* AVerMedia PVR-150 Plus (M113) card */
+/* AVerMedia PVR-150 Plus / AVerTV M113 cards with a Daewoo/Partsnic Tuner */
 
 static const struct ivtv_card_pci_info ivtv_pci_aver_pvr150[] = {
-	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc035 },
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc034 }, /* NTSC */
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc035 }, /* NTSC FM */
 	{ 0, 0, 0 }
 };
 
 static const struct ivtv_card ivtv_card_aver_pvr150 = {
 	.type = IVTV_CARD_AVER_PVR150PLUS,
-	.name = "AVerMedia PVR-150 Plus",
+	.name = "AVerMedia PVR-150 Plus / AVerTV M113 Partsnic (Daewoo) Tuner",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
 	.hw_muxer = IVTV_HW_GPIO,
-	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER |
+		  IVTV_HW_WM8739 | IVTV_HW_GPIO,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
-		{ IVTV_CARD_INPUT_SVIDEO1,    1,
-		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
 		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE1 },
 	},
 	.audio_inputs = {
@@ -1004,14 +1011,65 @@ static const struct ivtv_card ivtv_card_aver_pvr150 = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
-	.gpio_init = { .direction = 0x0800, .initial_value = 0 },
-	.gpio_audio_input  = { .mask = 0x0800, .tuner = 0, .linein = 0, .radio = 0x0800 },
+	/* The 74HC4052 Dual 4:1 multiplexer is controlled by 2 GPIO lines */
+	.gpio_init = { .direction = 0xc000, .initial_value = 0 },
+	.gpio_audio_input  = { .mask   = 0xc000,
+			       .tuner  = 0x0000,
+			       .linein = 0x4000,
+			       .radio  = 0x8000 },
 	.tuners = {
-		/* This card has a Partsnic PTI-5NF05 tuner */
-		{ .std = V4L2_STD_MN, .tuner = TUNER_TCL_2002N },
+		/* Subsystem ID's 0xc03[45] have a Partsnic PTI-5NF05 tuner */
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PARTSNIC_PTI_5NF05 },
 	},
 	.pci_list = ivtv_pci_aver_pvr150,
+	/* Subsystem ID 0xc035 has a TEA5767(?) FM tuner, 0xc034 does not */
 	.i2c = &ivtv_i2c_radio,
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* AVerMedia UltraTV 1500 MCE (newer non-cx88 version, M113 variant) card */
+
+static const struct ivtv_card_pci_info ivtv_pci_aver_ultra1500mce[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc019 }, /* NTSC */
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc01b }, /* PAL/SECAM */
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_aver_ultra1500mce = {
+	.type = IVTV_CARD_AVER_ULTRA1500MCE,
+	.name = "AVerMedia UltraTV 1500 MCE / AVerTV M113 Philips Tuner",
+	.comment = "For non-NTSC tuners, use the pal= or secam= module options",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_muxer = IVTV_HW_GPIO,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER |
+		  IVTV_HW_WM8739 | IVTV_HW_GPIO,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5,       0 },
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
+	/* The 74HC4052 Dual 4:1 multiplexer is controlled by 2 GPIO lines */
+	.gpio_init = { .direction = 0xc000, .initial_value = 0 },
+	.gpio_audio_input  = { .mask   = 0xc000,
+			       .tuner  = 0x0000,
+			       .linein = 0x4000,
+			       .radio  = 0x8000 },
+	.tuners = {
+		/* The UltraTV 1500 MCE has a Philips FM1236 MK5 TV/FM tuner */
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216MK5 },
+	},
+	.pci_list = ivtv_pci_aver_ultra1500mce,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -1153,6 +1211,53 @@ static const struct ivtv_card ivtv_card_buffalo = {
 	.i2c = &ivtv_i2c_std,
 };
 
+/* ------------------------------------------------------------------------- */
+/* Sony Kikyou */
+
+static const struct ivtv_card_pci_info ivtv_pci_kikyou[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_SONY, 0x813d },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_kikyou = {
+	.type = IVTV_CARD_KIKYOU,
+	.name = "Sony VAIO Giga Pocket (ENX Kikyou)",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_SAA7115,
+	.hw_audio = IVTV_HW_GPIO,
+	.hw_audio_ctrl = IVTV_HW_GPIO,
+	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_TUNER,
+	.video_inputs = {
+	{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE1 },
+	{ IVTV_CARD_INPUT_COMPOSITE1, 1, IVTV_SAA71XX_COMPOSITE1 },
+	{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO1 },
+	},
+	.audio_inputs = {
+	     { IVTV_CARD_INPUT_AUD_TUNER,  IVTV_GPIO_TUNER },
+	     { IVTV_CARD_INPUT_LINE_IN1,   IVTV_GPIO_LINE_IN },
+	     { IVTV_CARD_INPUT_LINE_IN2,   IVTV_GPIO_LINE_IN },
+	},
+	.gpio_init = { .direction = 0x03e1, .initial_value = 0x0320 },
+	.gpio_audio_input = { .mask   = 0x0060,
+			      .tuner  = 0x0020,
+			      .linein = 0x0000,
+			      .radio  = 0x0060 },
+	.gpio_audio_mute  = { .mask = 0x0000,
+			      .mute = 0x0000 }, /* 0x200? Disable for now. */
+	.gpio_audio_mode  = { .mask   = 0x0080,
+			      .mono   = 0x0000,
+			      .stereo = 0x0000, /* SAP */
+			      .lang1  = 0x0080,
+			      .lang2  = 0x0000,
+			      .both   = 0x0080 },
+	.tuners = {
+	     { .std = V4L2_STD_ALL, .tuner = TUNER_SONY_BTF_PXN01Z },
+	},
+	.pci_list = ivtv_pci_kikyou,
+	.i2c = &ivtv_i2c_std,
+};
+
+
 static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_pvr250,
 	&ivtv_card_pvr350,
@@ -1180,6 +1285,8 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_aver_ezmaker,
 	&ivtv_card_aver_m104,
 	&ivtv_card_buffalo,
+	&ivtv_card_aver_ultra1500mce,
+	&ivtv_card_kikyou,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */
@@ -1207,7 +1314,6 @@ int ivtv_get_input(struct ivtv *itv, u16 index, struct v4l2_input *input)
 		"Composite 3"
 	};
 
-	memset(input, 0, sizeof(*input));
 	if (index >= itv->nof_inputs)
 		return -EINVAL;
 	input->index = index;
@@ -1225,7 +1331,6 @@ int ivtv_get_output(struct ivtv *itv, u16 index, struct v4l2_output *output)
 {
 	const struct ivtv_card_output *card_output = itv->card->video_outputs + index;
 
-	memset(output, 0, sizeof(*output));
 	if (index >= itv->card->nof_outputs)
 		return -EINVAL;
 	output->index = index;

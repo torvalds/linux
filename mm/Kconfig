@@ -67,7 +67,7 @@ config DISCONTIGMEM
 
 config SPARSEMEM
 	def_bool y
-	depends on SPARSEMEM_MANUAL
+	depends on (!SELECT_MEMORY_MODEL && ARCH_SPARSEMEM_ENABLE) || SPARSEMEM_MANUAL
 
 config FLATMEM
 	def_bool y
@@ -115,6 +115,10 @@ config SPARSEMEM_EXTREME
 config SPARSEMEM_VMEMMAP_ENABLE
 	bool
 
+config SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+	def_bool y
+	depends on SPARSEMEM && X86_64
+
 config SPARSEMEM_VMEMMAP
 	bool "Sparse Memory virtual memmap"
 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
@@ -124,15 +128,15 @@ config SPARSEMEM_VMEMMAP
 	 pfn_to_page and page_to_pfn operations.  This is the most
 	 efficient option when sufficient kernel resources are available.
 
+config HAVE_MEMBLOCK
+	boolean
+
 # eventually, we can have this option just 'select SPARSEMEM'
 config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
-	depends on HOTPLUG && !(HIBERNATION && !S390) && ARCH_ENABLE_MEMORY_HOTPLUG
-	depends on (IA64 || X86 || PPC64 || SUPERH || S390)
-
-comment "Memory hotplug is currently incompatible with Software Suspend"
-	depends on SPARSEMEM && HOTPLUG && HIBERNATION && !S390
+	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
+	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
 
 config MEMORY_HOTPLUG_SPARSE
 	def_bool y
@@ -153,7 +157,7 @@ config MEMORY_HOTREMOVE
 #
 config PAGEFLAGS_EXTENDED
 	def_bool y
-	depends on 64BIT || SPARSEMEM_VMEMMAP || !NUMA || !SPARSEMEM
+	depends on 64BIT || SPARSEMEM_VMEMMAP || !SPARSEMEM
 
 # Heavily threaded applications may benefit from splitting the mm-wide
 # page_table_lock, so that faults on different parts of the user address
@@ -161,12 +165,23 @@ config PAGEFLAGS_EXTENDED
 # Default to 4 for wider testing, though 8 might be more appropriate.
 # ARM's adjust_pte (unused if VIPT) depends on mm-wide page_table_lock.
 # PA-RISC 7xxx's spinlock_t would enlarge struct page from 32 to 44 bytes.
+# DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC spinlock_t also enlarge struct page.
 #
 config SPLIT_PTLOCK_CPUS
 	int
-	default "4096" if ARM && !CPU_CACHE_VIPT
-	default "4096" if PARISC && !PA20
+	default "999999" if ARM && !CPU_CACHE_VIPT
+	default "999999" if PARISC && !PA20
+	default "999999" if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC
 	default "4"
+
+#
+# support for memory compaction
+config COMPACTION
+	bool "Allow for memory compaction"
+	select MIGRATION
+	depends on EXPERIMENTAL && HUGETLB_PAGE && MMU
+	help
+	  Allows the compaction of memory for the allocation of huge pages.
 
 #
 # support for page migration
@@ -174,12 +189,14 @@ config SPLIT_PTLOCK_CPUS
 config MIGRATION
 	bool "Page migration"
 	def_bool y
-	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
+	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
 	help
 	  Allows the migration of the physical location of pages of processes
-	  while the virtual addresses are not changed. This is useful for
-	  example on NUMA systems to put pages nearer to the processors accessing
-	  the page.
+	  while the virtual addresses are not changed. This is useful in
+	  two situations. The first is on NUMA systems to put pages nearer
+	  to the processors accessing. The second is when allocating huge
+	  pages as migration can relocate pages to satisfy a huge page
+	  allocation instead of reclaiming.
 
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
@@ -196,26 +213,33 @@ config BOUNCE
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if SUPERH || AVR32
+	default "2" if AVR32
 	default "1"
 
 config VIRT_TO_BUS
 	def_bool y
 	depends on !ARCH_NO_VIRT_TO_BUS
 
-config HAVE_MLOCK
-	bool
-	default y if MMU=y
-
-config HAVE_MLOCKED_PAGE_BIT
-	bool
-	default y if HAVE_MLOCK=y
-
 config MMU_NOTIFIER
 	bool
 
+config KSM
+	bool "Enable KSM for page merging"
+	depends on MMU
+	help
+	  Enable Kernel Samepage Merging: KSM periodically scans those areas
+	  of an application's address space that an app has advised may be
+	  mergeable.  When it finds pages of identical content, it replaces
+	  the many instances by a single page with that content, so
+	  saving memory until one or another app needs to modify the content.
+	  Recommended for use with KVM, or with other duplicative applications.
+	  See Documentation/vm/ksm.txt for more information: KSM is inactive
+	  until a program has madvised that an area is MADV_MERGEABLE, and
+	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
+
 config DEFAULT_MMAP_MIN_ADDR
         int "Low address space to protect from user allocation"
+	depends on MMU
         default 4096
         help
 	  This is the portion of low virtual memory which should be protected
@@ -225,13 +249,30 @@ config DEFAULT_MMAP_MIN_ADDR
 	  For most ia64, ppc64 and x86 users with lots of address space
 	  a value of 65536 is reasonable and should cause no problems.
 	  On arm and other archs it should not be higher than 32768.
-	  Programs which use vm86 functionality would either need additional
-	  permissions from either the LSM or the capabilities module or have
-	  this protection disabled.
+	  Programs which use vm86 functionality or have some need to map
+	  this low address space will need CAP_SYS_RAWIO or disable this
+	  protection by setting the value to 0.
 
 	  This value can be changed after boot using the
 	  /proc/sys/vm/mmap_min_addr tunable.
 
+config ARCH_SUPPORTS_MEMORY_FAILURE
+	bool
+
+config MEMORY_FAILURE
+	depends on MMU
+	depends on ARCH_SUPPORTS_MEMORY_FAILURE
+	bool "Enable recovery from hardware memory errors"
+	help
+	  Enables code to recover from some memory failures on systems
+	  with MCA recovery. This allows a system to continue running
+	  even when some of its memory has uncorrected errors. This requires
+	  special hardware support and typically ECC memory.
+
+config HWPOISON_INJECT
+	tristate "HWPoison pages injector"
+	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
+	select PROC_PAGE_MONITOR
 
 config NOMMU_INITIAL_TRIM_EXCESS
 	int "Turn on mmap() excess space trimming before booting"
@@ -260,3 +301,11 @@ config NOMMU_INITIAL_TRIM_EXCESS
 	  of 1 says that all excess pages should be trimmed.
 
 	  See Documentation/nommu-mmap.txt for more information.
+
+#
+# UP and nommu archs use km based percpu allocator
+#
+config NEED_PER_CPU_KM
+	depends on !SMP
+	bool
+	default y

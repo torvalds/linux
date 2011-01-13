@@ -12,7 +12,6 @@
 #include <linux/stat.h>
 #include <linux/time.h>
 #include <linux/string.h>
-#include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/capability.h>
 #include <linux/bitops.h>
@@ -85,9 +84,6 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 				   "bit already cleared for fragment %u", i);
 	}
 	
-	vfs_dq_free_block(inode, count);
-
-	
 	fs32_add(sb, &ucg->cg_cs.cs_nffree, count);
 	uspi->cs_total.cs_nffree += count;
 	fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
@@ -118,10 +114,8 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 	
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	sb->s_dirt = 1;
 	
 	unlock_super (sb);
@@ -195,7 +189,6 @@ do_more:
 		ubh_setblock(UCPI_UBH(ucpi), ucpi->c_freeoff, blkno);
 		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 			ufs_clusteracct (sb, ucpi, blkno, 1);
-		vfs_dq_free_block(inode, uspi->s_fpb);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
 		uspi->cs_total.cs_nbfree++;
@@ -212,10 +205,8 @@ do_more:
 
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 
 	if (overflow) {
 		fragment += count;
@@ -556,10 +547,6 @@ static u64 ufs_add_fragments(struct inode *inode, u64 fragment,
 		fs32_add(sb, &ucg->cg_frsum[fragsize - count], 1);
 	for (i = oldcount; i < newcount; i++)
 		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_freeoff, fragno + i);
-	if (vfs_dq_alloc_block(inode, count)) {
-		*err = -EDQUOT;
-		return 0;
-	}
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nffree, count);
 	fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
@@ -567,10 +554,8 @@ static u64 ufs_add_fragments(struct inode *inode, u64 fragment,
 	
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	sb->s_dirt = 1;
 
 	UFSD("EXIT, fragment %llu\n", (unsigned long long)fragment);
@@ -664,7 +649,6 @@ cg_found:
 		for (i = count; i < uspi->s_fpb; i++)
 			ubh_setbit (UCPI_UBH(ucpi), ucpi->c_freeoff, goal + i);
 		i = uspi->s_fpb - count;
-		vfs_dq_free_block(inode, i);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nffree, i);
 		uspi->cs_total.cs_nffree += i;
@@ -676,10 +660,6 @@ cg_found:
 	result = ufs_bitmap_search (sb, ucpi, goal, allocsize);
 	if (result == INVBLOCK)
 		return 0;
-	if (vfs_dq_alloc_block(inode, count)) {
-		*err = -EDQUOT;
-		return 0;
-	}
 	for (i = 0; i < count; i++)
 		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_freeoff, result + i);
 	
@@ -694,10 +674,8 @@ cg_found:
 succed:
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
-	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
-		ubh_wait_on_buffer (UCPI_UBH(ucpi));
-	}
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		ubh_sync_block(UCPI_UBH(ucpi));
 	sb->s_dirt = 1;
 
 	result += cgno * uspi->s_fpg;
@@ -747,10 +725,6 @@ gotit:
 	ubh_clrblock (UCPI_UBH(ucpi), ucpi->c_freeoff, blkno);
 	if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 		ufs_clusteracct (sb, ucpi, blkno, -1);
-	if (vfs_dq_alloc_block(inode, uspi->s_fpb)) {
-		*err = -EDQUOT;
-		return INVBLOCK;
-	}
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nbfree, 1);
 	uspi->cs_total.cs_nbfree--;

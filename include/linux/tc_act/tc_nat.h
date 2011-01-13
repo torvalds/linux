@@ -6,8 +6,7 @@
 
 #define TCA_ACT_NAT 9
 
-enum
-{
+enum {
 	TCA_NAT_UNSPEC,
 	TCA_NAT_PARMS,
 	TCA_NAT_TM,
@@ -17,8 +16,7 @@ enum
 
 #define TCA_NAT_FLAG_EGRESS 1
 
-struct tc_nat
-{
+struct tc_nat {
 	tc_gen;
 	__be32 old_addr;
 	__be32 new_addr;

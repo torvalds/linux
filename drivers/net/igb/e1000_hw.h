@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/netdevice.h>
 
 #include "e1000_regs.h"
 #include "e1000_defines.h"
@@ -41,28 +42,53 @@ struct e1000_hw;
 #define E1000_DEV_ID_82576_FIBER              0x10E6
 #define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
+#define E1000_DEV_ID_82576_QUAD_COPPER_ET2    0x1526
 #define E1000_DEV_ID_82576_NS                 0x150A
+#define E1000_DEV_ID_82576_NS_SERDES          0x1518
+#define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
+#define E1000_DEV_ID_82580_COPPER             0x150E
+#define E1000_DEV_ID_82580_FIBER              0x150F
+#define E1000_DEV_ID_82580_SERDES             0x1510
+#define E1000_DEV_ID_82580_SGMII              0x1511
+#define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
+#define E1000_DEV_ID_DH89XXCC_SGMII           0x0438
+#define E1000_DEV_ID_DH89XXCC_SERDES          0x043A
+#define E1000_DEV_ID_DH89XXCC_BACKPLANE       0x043C
+#define E1000_DEV_ID_DH89XXCC_SFP             0x0440
+#define E1000_DEV_ID_I350_COPPER              0x1521
+#define E1000_DEV_ID_I350_FIBER               0x1522
+#define E1000_DEV_ID_I350_SERDES              0x1523
+#define E1000_DEV_ID_I350_SGMII               0x1524
 
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
 
+#define E1000_FUNC_0     0
 #define E1000_FUNC_1     1
+#define E1000_FUNC_2     2
+#define E1000_FUNC_3     3
+
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN2   6
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN3   9
 
 enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_82575,
 	e1000_82576,
+	e1000_82580,
+	e1000_i350,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
 enum e1000_media_type {
 	e1000_media_type_unknown = 0,
 	e1000_media_type_copper = 1,
-	e1000_media_type_fiber = 2,
-	e1000_media_type_internal_serdes = 3,
+	e1000_media_type_internal_serdes = 2,
 	e1000_num_media_types
 };
 
@@ -70,7 +96,6 @@ enum e1000_nvm_type {
 	e1000_nvm_unknown = 0,
 	e1000_nvm_none,
 	e1000_nvm_eeprom_spi,
-	e1000_nvm_eeprom_microwire,
 	e1000_nvm_flash_hw,
 	e1000_nvm_flash_sw
 };
@@ -79,8 +104,6 @@ enum e1000_nvm_override {
 	e1000_nvm_override_none = 0,
 	e1000_nvm_override_spi_small,
 	e1000_nvm_override_spi_large,
-	e1000_nvm_override_microwire_small,
-	e1000_nvm_override_microwire_large
 };
 
 enum e1000_phy_type {
@@ -92,6 +115,7 @@ enum e1000_phy_type {
 	e1000_phy_gg82563,
 	e1000_phy_igp_3,
 	e1000_phy_ife,
+	e1000_phy_82580,
 };
 
 enum e1000_bus_type {
@@ -137,7 +161,7 @@ enum e1000_rev_polarity {
 	e1000_rev_polarity_undefined = 0xFF
 };
 
-enum e1000_fc_type {
+enum e1000_fc_mode {
 	e1000_fc_none = 0,
 	e1000_fc_rx_pause,
 	e1000_fc_tx_pause,
@@ -288,6 +312,7 @@ struct e1000_mac_operations {
 
 struct e1000_phy_operations {
 	s32  (*acquire)(struct e1000_hw *);
+	s32  (*check_polarity)(struct e1000_hw *);
 	s32  (*check_reset_block)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
@@ -325,20 +350,18 @@ struct e1000_mac_info {
 
 	enum e1000_mac_type type;
 
-	u32 collision_delta;
 	u32 ledctl_default;
 	u32 ledctl_mode1;
 	u32 ledctl_mode2;
 	u32 mc_filter_type;
-	u32 tx_packet_delta;
 	u32 txcw;
 
-	u16 current_ifs_val;
-	u16 ifs_max_val;
-	u16 ifs_min_val;
-	u16 ifs_ratio;
-	u16 ifs_step_size;
 	u16 mta_reg_count;
+	u16 uta_reg_count;
+
+	/* Maximum size of the MTA register table in all supported adapters */
+	#define MAX_MTA_REG 128
+	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
 	u8  forced_speed_duplex;
@@ -425,8 +448,8 @@ struct e1000_fc_info {
 	u16 pause_time;     /* Flow control pause timer */
 	bool send_xon;      /* Flow control send XON */
 	bool strict_ieee;   /* Strict IEEE mode */
-	enum e1000_fc_type type; /* Type of flow control */
-	enum e1000_fc_type original_type;
+	enum e1000_fc_mode current_mode; /* Type of flow control */
+	enum e1000_fc_mode requested_mode;
 };
 
 struct e1000_mbx_operations {
@@ -459,6 +482,7 @@ struct e1000_mbx_info {
 
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
+	bool global_device_reset;
 };
 
 struct e1000_hw {
@@ -488,12 +512,11 @@ struct e1000_hw {
 	u8  revision_id;
 };
 
-#ifdef DEBUG
-extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
+extern struct net_device *igb_get_hw_dev(struct e1000_hw *hw);
 #define hw_dbg(format, arg...) \
-	printk(KERN_DEBUG "%s: " format, igb_get_hw_dev_name(hw), ##arg)
-#else
-#define hw_dbg(format, arg...)
-#endif
+	netdev_dbg(igb_get_hw_dev(hw), format, ##arg)
 
-#endif
+/* These functions must be implemented by drivers */
+s32  igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+s32  igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+#endif /* _E1000_HW_H_ */

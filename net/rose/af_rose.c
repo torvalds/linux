@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -63,7 +64,7 @@ int sysctl_rose_window_size             = ROSE_DEFAULT_WINDOW_SIZE;
 static HLIST_HEAD(rose_list);
 static DEFINE_SPINLOCK(rose_list_lock);
 
-static struct proto_ops rose_proto_ops;
+static const struct proto_ops rose_proto_ops;
 
 ax25_address rose_callsign;
 
@@ -92,23 +93,21 @@ static void rose_set_lockdep_key(struct net_device *dev)
 /*
  *	Convert a ROSE address into text.
  */
-const char *rose2asc(const rose_address *addr)
+char *rose2asc(char *buf, const rose_address *addr)
 {
-	static char buffer[11];
-
 	if (addr->rose_addr[0] == 0x00 && addr->rose_addr[1] == 0x00 &&
 	    addr->rose_addr[2] == 0x00 && addr->rose_addr[3] == 0x00 &&
 	    addr->rose_addr[4] == 0x00) {
-		strcpy(buffer, "*");
+		strcpy(buf, "*");
 	} else {
-		sprintf(buffer, "%02X%02X%02X%02X%02X", addr->rose_addr[0] & 0xFF,
+		sprintf(buf, "%02X%02X%02X%02X%02X", addr->rose_addr[0] & 0xFF,
 						addr->rose_addr[1] & 0xFF,
 						addr->rose_addr[2] & 0xFF,
 						addr->rose_addr[3] & 0xFF,
 						addr->rose_addr[4] & 0xFF);
 	}
 
-	return buffer;
+	return buf;
 }
 
 /*
@@ -372,7 +371,7 @@ void rose_destroy_socket(struct sock *sk)
  */
 
 static int rose_setsockopt(struct socket *sock, int level, int optname,
-	char __user *optval, int optlen)
+	char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct rose_sock *rose = rose_sk(sk);
@@ -514,12 +513,13 @@ static struct proto rose_proto = {
 	.obj_size = sizeof(struct rose_sock),
 };
 
-static int rose_create(struct net *net, struct socket *sock, int protocol)
+static int rose_create(struct net *net, struct socket *sock, int protocol,
+		       int kern)
 {
 	struct sock *sk;
 	struct rose_sock *rose;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	if (sock->type != SOCK_SEQPACKET || protocol != 0)
@@ -679,7 +679,7 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr_len == sizeof(struct sockaddr_rose) && addr->srose_ndigis > 1)
 		return -EINVAL;
 
-	if (addr->srose_ndigis > ROSE_MAX_DIGIS)
+	if ((unsigned int) addr->srose_ndigis > ROSE_MAX_DIGIS)
 		return -EINVAL;
 
 	if ((dev = rose_dev_get(&addr->srose_addr)) == NULL) {
@@ -739,7 +739,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	if (addr_len == sizeof(struct sockaddr_rose) && addr->srose_ndigis > 1)
 		return -EINVAL;
 
-	if (addr->srose_ndigis > ROSE_MAX_DIGIS)
+	if ((unsigned int) addr->srose_ndigis > ROSE_MAX_DIGIS)
 		return -EINVAL;
 
 	/* Source + Destination digis should not exceed ROSE_MAX_DIGIS */
@@ -845,7 +845,7 @@ rose_try_next_neigh:
 		DEFINE_WAIT(wait);
 
 		for (;;) {
-			prepare_to_wait(sk->sk_sleep, &wait,
+			prepare_to_wait(sk_sleep(sk), &wait,
 					TASK_INTERRUPTIBLE);
 			if (sk->sk_state != TCP_SYN_SENT)
 				break;
@@ -858,7 +858,7 @@ rose_try_next_neigh:
 			err = -ERESTARTSYS;
 			break;
 		}
-		finish_wait(sk->sk_sleep, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 
 		if (err)
 			goto out_release;
@@ -911,7 +911,7 @@ static int rose_accept(struct socket *sock, struct socket *newsock, int flags)
 	 *	hooked into the SABM we saved
 	 */
 	for (;;) {
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		if (skb)
@@ -930,7 +930,7 @@ static int rose_accept(struct socket *sock, struct socket *newsock, int flags)
 		err = -ERESTARTSYS;
 		break;
 	}
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	if (err)
 		goto out_release;
 
@@ -956,6 +956,7 @@ static int rose_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct rose_sock *rose = rose_sk(sk);
 	int n;
 
+	memset(srose, 0, sizeof(*srose));
 	if (peer != 0) {
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -ENOTCONN;
@@ -1404,29 +1405,13 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static void *rose_info_start(struct seq_file *seq, loff_t *pos)
 	__acquires(rose_list_lock)
 {
-	int i;
-	struct sock *s;
-	struct hlist_node *node;
-
 	spin_lock_bh(&rose_list_lock);
-	if (*pos == 0)
-		return SEQ_START_TOKEN;
-
-	i = 1;
-	sk_for_each(s, node, &rose_list) {
-		if (i == *pos)
-			return s;
-		++i;
-	}
-	return NULL;
+	return seq_hlist_start_head(&rose_list, *pos);
 }
 
 static void *rose_info_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	++*pos;
-
-	return (v == SEQ_START_TOKEN) ? sk_head(&rose_list)
-		: sk_next((struct sock *)v);
+	return seq_hlist_next(v, &rose_list, pos);
 }
 
 static void rose_info_stop(struct seq_file *seq, void *v)
@@ -1437,14 +1422,14 @@ static void rose_info_stop(struct seq_file *seq, void *v)
 
 static int rose_info_show(struct seq_file *seq, void *v)
 {
-	char buf[11];
+	char buf[11], rsbuf[11];
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
 			 "dest_addr  dest_call src_addr   src_call  dev   lci neigh st vs vr va   t  t1  t2  t3  hb    idle Snd-Q Rcv-Q inode\n");
 
 	else {
-		struct sock *s = v;
+		struct sock *s = sk_entry(v);
 		struct rose_sock *rose = rose_sk(s);
 		const char *devname, *callsign;
 		const struct net_device *dev = rose->device;
@@ -1455,8 +1440,8 @@ static int rose_info_show(struct seq_file *seq, void *v)
 			devname = dev->name;
 
 		seq_printf(seq, "%-10s %-9s ",
-			rose2asc(&rose->dest_addr),
-			ax2asc(buf, &rose->dest_call));
+			   rose2asc(rsbuf, &rose->dest_addr),
+			   ax2asc(buf, &rose->dest_call));
 
 		if (ax25cmp(&rose->source_call, &null_ax25_address) == 0)
 			callsign = "??????-?";
@@ -1465,7 +1450,7 @@ static int rose_info_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq,
 			   "%-10s %-9s %-5s %3.3X %05d  %d  %d  %d  %d %3lu %3lu %3lu %3lu %3lu %3lu/%03lu %5d %5d %ld\n",
-			rose2asc(&rose->source_addr),
+			rose2asc(rsbuf, &rose->source_addr),
 			callsign,
 			devname,
 			rose->lci & 0x0FFF,
@@ -1510,13 +1495,13 @@ static const struct file_operations rose_info_fops = {
 };
 #endif	/* CONFIG_PROC_FS */
 
-static struct net_proto_family rose_family_ops = {
+static const struct net_proto_family rose_family_ops = {
 	.family		=	PF_ROSE,
 	.create		=	rose_create,
 	.owner		=	THIS_MODULE,
 };
 
-static struct proto_ops rose_proto_ops = {
+static const struct proto_ops rose_proto_ops = {
 	.family		=	PF_ROSE,
 	.owner		=	THIS_MODULE,
 	.release	=	rose_release,

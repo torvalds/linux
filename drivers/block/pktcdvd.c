@@ -48,6 +48,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/compat.h>
 #include <linux/kthread.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
@@ -57,6 +58,7 @@
 #include <linux/miscdevice.h>
 #include <linux/freezer.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi.h>
@@ -83,6 +85,7 @@
 
 #define ZONE(sector, pd) (((sector) + (pd)->offset) & ~((pd)->settings.size - 1))
 
+static DEFINE_MUTEX(pktcdvd_mutex);
 static struct pktcdvd_device *pkt_devs[MAX_WRITERS];
 static struct proc_dir_entry *pkt_proc;
 static int pktdev_major;
@@ -92,7 +95,7 @@ static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
 static mempool_t *psd_pool;
 
 static struct class	*class_pktcdvd = NULL;    /* /sys/class/pktcdvd */
-static struct dentry	*pkt_debugfs_root = NULL; /* /debug/pktcdvd */
+static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
 
 /* forward declaration */
 static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev);
@@ -284,7 +287,7 @@ static ssize_t kobj_pkt_store(struct kobject *kobj,
 	return len;
 }
 
-static struct sysfs_ops kobj_pkt_ops = {
+static const struct sysfs_ops kobj_pkt_ops = {
 	.show = kobj_pkt_show,
 	.store = kobj_pkt_store
 };
@@ -322,7 +325,7 @@ static void pkt_sysfs_dev_remove(struct pktcdvd_device *pd)
 	pkt_kobj_remove(pd->kobj_stat);
 	pkt_kobj_remove(pd->kobj_wqueue);
 	if (class_pktcdvd)
-		device_destroy(class_pktcdvd, pd->pkt_dev);
+		device_unregister(pd->dev);
 }
 
 
@@ -337,7 +340,9 @@ static void class_pktcdvd_release(struct class *cls)
 {
 	kfree(cls);
 }
-static ssize_t class_pktcdvd_show_map(struct class *c, char *data)
+static ssize_t class_pktcdvd_show_map(struct class *c,
+					struct class_attribute *attr,
+					char *data)
 {
 	int n = 0;
 	int idx;
@@ -356,7 +361,9 @@ static ssize_t class_pktcdvd_show_map(struct class *c, char *data)
 	return n;
 }
 
-static ssize_t class_pktcdvd_store_add(struct class *c, const char *buf,
+static ssize_t class_pktcdvd_store_add(struct class *c,
+					struct class_attribute *attr,
+					const char *buf,
 					size_t count)
 {
 	unsigned int major, minor;
@@ -376,7 +383,9 @@ static ssize_t class_pktcdvd_store_add(struct class *c, const char *buf,
 	return -EINVAL;
 }
 
-static ssize_t class_pktcdvd_store_remove(struct class *c, const char *buf,
+static ssize_t class_pktcdvd_store_remove(struct class *c,
+					  struct class_attribute *attr,
+					  const char *buf,
 					size_t count)
 {
 	unsigned int major, minor;
@@ -569,6 +578,7 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
 	}
 
 	spin_lock_init(&pkt->lock);
+	bio_list_init(&pkt->orig_bios);
 
 	for (i = 0; i < frames; i++) {
 		struct bio *bio = pkt_bio_alloc(1);
@@ -721,43 +731,6 @@ static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_node *nod
 }
 
 /*
- * Add a bio to a single linked list defined by its head and tail pointers.
- */
-static void pkt_add_list_last(struct bio *bio, struct bio **list_head, struct bio **list_tail)
-{
-	bio->bi_next = NULL;
-	if (*list_tail) {
-		BUG_ON((*list_head) == NULL);
-		(*list_tail)->bi_next = bio;
-		(*list_tail) = bio;
-	} else {
-		BUG_ON((*list_head) != NULL);
-		(*list_head) = bio;
-		(*list_tail) = bio;
-	}
-}
-
-/*
- * Remove and return the first bio from a single linked list defined by its
- * head and tail pointers.
- */
-static inline struct bio *pkt_get_list_first(struct bio **list_head, struct bio **list_tail)
-{
-	struct bio *bio;
-
-	if (*list_head == NULL)
-		return NULL;
-
-	bio = *list_head;
-	*list_head = bio->bi_next;
-	if (*list_head == NULL)
-		*list_tail = NULL;
-
-	bio->bi_next = NULL;
-	return bio;
-}
-
-/*
  * Send a packet_command to the underlying block device and
  * wait for completion.
  */
@@ -780,7 +753,6 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 
 	rq->timeout = 60*HZ;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->cmd_flags |= REQ_HARDBARRIER;
 	if (cgc->quiet)
 		rq->cmd_flags |= REQ_QUIET;
 
@@ -876,13 +848,10 @@ static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
 static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio)
 {
 	spin_lock(&pd->iosched.lock);
-	if (bio_data_dir(bio) == READ) {
-		pkt_add_list_last(bio, &pd->iosched.read_queue,
-				  &pd->iosched.read_queue_tail);
-	} else {
-		pkt_add_list_last(bio, &pd->iosched.write_queue,
-				  &pd->iosched.write_queue_tail);
-	}
+	if (bio_data_dir(bio) == READ)
+		bio_list_add(&pd->iosched.read_queue, bio);
+	else
+		bio_list_add(&pd->iosched.write_queue, bio);
 	spin_unlock(&pd->iosched.lock);
 
 	atomic_set(&pd->iosched.attention, 1);
@@ -917,8 +886,8 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 		int reads_queued, writes_queued;
 
 		spin_lock(&pd->iosched.lock);
-		reads_queued = (pd->iosched.read_queue != NULL);
-		writes_queued = (pd->iosched.write_queue != NULL);
+		reads_queued = !bio_list_empty(&pd->iosched.read_queue);
+		writes_queued = !bio_list_empty(&pd->iosched.write_queue);
 		spin_unlock(&pd->iosched.lock);
 
 		if (!reads_queued && !writes_queued)
@@ -927,7 +896,7 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 		if (pd->iosched.writing) {
 			int need_write_seek = 1;
 			spin_lock(&pd->iosched.lock);
-			bio = pd->iosched.write_queue;
+			bio = bio_list_peek(&pd->iosched.write_queue);
 			spin_unlock(&pd->iosched.lock);
 			if (bio && (bio->bi_sector == pd->iosched.last_write))
 				need_write_seek = 0;
@@ -950,13 +919,10 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 		}
 
 		spin_lock(&pd->iosched.lock);
-		if (pd->iosched.writing) {
-			bio = pkt_get_list_first(&pd->iosched.write_queue,
-						 &pd->iosched.write_queue_tail);
-		} else {
-			bio = pkt_get_list_first(&pd->iosched.read_queue,
-						 &pd->iosched.read_queue_tail);
-		}
+		if (pd->iosched.writing)
+			bio = bio_list_pop(&pd->iosched.write_queue);
+		else
+			bio = bio_list_pop(&pd->iosched.read_queue);
 		spin_unlock(&pd->iosched.lock);
 
 		if (!bio)
@@ -992,14 +958,14 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 static int pkt_set_segment_merging(struct pktcdvd_device *pd, struct request_queue *q)
 {
 	if ((pd->settings.size << 9) / CD_FRAMESIZE
-	    <= queue_max_phys_segments(q)) {
+	    <= queue_max_segments(q)) {
 		/*
 		 * The cdrom device can handle one segment/frame
 		 */
 		clear_bit(PACKET_MERGE_SEGS, &pd->flags);
 		return 0;
 	} else if ((pd->settings.size << 9) / PAGE_SIZE
-		   <= queue_max_phys_segments(q)) {
+		   <= queue_max_segments(q)) {
 		/*
 		 * We can handle this case at the expense of some extra memory
 		 * copies during write operations
@@ -1114,7 +1080,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	int f;
 	char written[PACKET_MAX_SIZE];
 
-	BUG_ON(!pkt->orig_bios);
+	BUG_ON(bio_list_empty(&pkt->orig_bios));
 
 	atomic_set(&pkt->io_wait, 0);
 	atomic_set(&pkt->io_errors, 0);
@@ -1124,7 +1090,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	 */
 	memset(written, 0, sizeof(written));
 	spin_lock(&pkt->lock);
-	for (bio = pkt->orig_bios; bio; bio = bio->bi_next) {
+	bio_list_for_each(bio, &pkt->orig_bios) {
 		int first_frame = (bio->bi_sector - pkt->sector) / (CD_FRAMESIZE >> 9);
 		int num_frames = bio->bi_size / CD_FRAMESIZE;
 		pd->stats.secs_w += num_frames * (CD_FRAMESIZE >> 9);
@@ -1255,7 +1221,7 @@ static int pkt_start_recovery(struct packet_data *pkt)
 	pkt->bio->bi_flags = 1 << BIO_UPTODATE;
 	pkt->bio->bi_idx = 0;
 
-	BUG_ON(pkt->bio->bi_rw != (1 << BIO_RW));
+	BUG_ON(pkt->bio->bi_rw != REQ_WRITE);
 	BUG_ON(pkt->bio->bi_vcnt != pkt->frames);
 	BUG_ON(pkt->bio->bi_size != pkt->frames * CD_FRAMESIZE);
 	BUG_ON(pkt->bio->bi_end_io != pkt_end_io_packet_write);
@@ -1363,7 +1329,7 @@ try_next_bio:
 			break;
 		pkt_rbtree_erase(pd, node);
 		spin_lock(&pkt->lock);
-		pkt_add_list_last(bio, &pkt->orig_bios, &pkt->orig_bios_tail);
+		bio_list_add(&pkt->orig_bios, bio);
 		pkt->write_size += bio->bi_size / CD_FRAMESIZE;
 		spin_unlock(&pkt->lock);
 	}
@@ -1372,8 +1338,10 @@ try_next_bio:
 	wakeup = (pd->write_congestion_on > 0
 	 		&& pd->bio_queue_size <= pd->write_congestion_off);
 	spin_unlock(&pd->lock);
-	if (wakeup)
-		clear_bdi_congested(&pd->disk->queue->backing_dev_info, WRITE);
+	if (wakeup) {
+		clear_bdi_congested(&pd->disk->queue->backing_dev_info,
+					BLK_RW_ASYNC);
+	}
 
 	pkt->sleep_time = max(PACKET_WAIT_TIME, 1);
 	pkt_set_state(pkt, PACKET_WAITING_STATE);
@@ -1407,7 +1375,7 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	 */
 	frames_write = 0;
 	spin_lock(&pkt->lock);
-	for (bio = pkt->orig_bios; bio; bio = bio->bi_next) {
+	bio_list_for_each(bio, &pkt->orig_bios) {
 		int segment = bio->bi_idx;
 		int src_offs = 0;
 		int first_frame = (bio->bi_sector - pkt->sector) / (CD_FRAMESIZE >> 9);
@@ -1470,20 +1438,14 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 
 static void pkt_finish_packet(struct packet_data *pkt, int uptodate)
 {
-	struct bio *bio, *next;
+	struct bio *bio;
 
 	if (!uptodate)
 		pkt->cache_valid = 0;
 
 	/* Finish all bios corresponding to this packet */
-	bio = pkt->orig_bios;
-	while (bio) {
-		next = bio->bi_next;
-		bio->bi_next = NULL;
+	while ((bio = bio_list_pop(&pkt->orig_bios)))
 		bio_endio(bio, uptodate ? 0 : -EIO);
-		bio = next;
-	}
-	pkt->orig_bios = pkt->orig_bios_tail = NULL;
 }
 
 static void pkt_run_state_machine(struct pktcdvd_device *pd, struct packet_data *pkt)
@@ -2358,7 +2320,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 		 * even if the size is a multiple of the packet size.
 		 */
 		spin_lock_irq(q->queue_lock);
-		blk_queue_max_sectors(q, pd->settings.size);
+		blk_queue_max_hw_sectors(q, pd->settings.size);
 		spin_unlock_irq(q->queue_lock);
 		set_bit(PACKET_WRITABLE, &pd->flags);
 	} else {
@@ -2406,7 +2368,7 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 	pkt_shrink_pktlist(pd);
 }
 
-static struct pktcdvd_device *pkt_find_dev_from_minor(int dev_minor)
+static struct pktcdvd_device *pkt_find_dev_from_minor(unsigned int dev_minor)
 {
 	if (dev_minor >= MAX_WRITERS)
 		return NULL;
@@ -2420,6 +2382,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 
 	VPRINTK(DRIVER_NAME": entering open\n");
 
+	mutex_lock(&pktcdvd_mutex);
 	mutex_lock(&ctl_mutex);
 	pd = pkt_find_dev_from_minor(MINOR(bdev->bd_dev));
 	if (!pd) {
@@ -2447,6 +2410,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	mutex_unlock(&ctl_mutex);
+	mutex_unlock(&pktcdvd_mutex);
 	return 0;
 
 out_dec:
@@ -2454,6 +2418,7 @@ out_dec:
 out:
 	VPRINTK(DRIVER_NAME": failed open (%d)\n", ret);
 	mutex_unlock(&ctl_mutex);
+	mutex_unlock(&pktcdvd_mutex);
 	return ret;
 }
 
@@ -2462,6 +2427,7 @@ static int pkt_close(struct gendisk *disk, fmode_t mode)
 	struct pktcdvd_device *pd = disk->private_data;
 	int ret = 0;
 
+	mutex_lock(&pktcdvd_mutex);
 	mutex_lock(&ctl_mutex);
 	pd->refcnt--;
 	BUG_ON(pd->refcnt < 0);
@@ -2470,6 +2436,7 @@ static int pkt_close(struct gendisk *disk, fmode_t mode)
 		pkt_release_dev(pd, flush);
 	}
 	mutex_unlock(&ctl_mutex);
+	mutex_unlock(&pktcdvd_mutex);
 	return ret;
 }
 
@@ -2565,8 +2532,7 @@ static int pkt_make_request(struct request_queue *q, struct bio *bio)
 			spin_lock(&pkt->lock);
 			if ((pkt->state == PACKET_WAITING_STATE) ||
 			    (pkt->state == PACKET_READ_WAIT_STATE)) {
-				pkt_add_list_last(bio, &pkt->orig_bios,
-						  &pkt->orig_bios_tail);
+				bio_list_add(&pkt->orig_bios, bio);
 				pkt->write_size += bio->bi_size / CD_FRAMESIZE;
 				if ((pkt->write_size >= pkt->frames) &&
 				    (pkt->state == PACKET_WAITING_STATE)) {
@@ -2592,10 +2558,10 @@ static int pkt_make_request(struct request_queue *q, struct bio *bio)
 	spin_lock(&pd->lock);
 	if (pd->write_congestion_on > 0
 	    && pd->bio_queue_size >= pd->write_congestion_on) {
-		set_bdi_congested(&q->backing_dev_info, WRITE);
+		set_bdi_congested(&q->backing_dev_info, BLK_RW_ASYNC);
 		do {
 			spin_unlock(&pd->lock);
-			congestion_wait(WRITE, HZ);
+			congestion_wait(BLK_RW_ASYNC, HZ);
 			spin_lock(&pd->lock);
 		} while(pd->bio_queue_size > pd->write_congestion_off);
 	}
@@ -2660,7 +2626,7 @@ static void pkt_init_queue(struct pktcdvd_device *pd)
 
 	blk_queue_make_request(q, pkt_make_request);
 	blk_queue_logical_block_size(q, CD_FRAMESIZE);
-	blk_queue_max_sectors(q, PACKET_MAX_SECTORS);
+	blk_queue_max_hw_sectors(q, PACKET_MAX_SECTORS);
 	blk_queue_merge_bvec(q, pkt_merge_bvec);
 	q->queuedata = pd;
 }
@@ -2801,10 +2767,12 @@ out_mem:
 static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
 	struct pktcdvd_device *pd = bdev->bd_disk->private_data;
+	int ret;
 
 	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd,
 		MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
 
+	mutex_lock(&pktcdvd_mutex);
 	switch (cmd) {
 	case CDROMEJECT:
 		/*
@@ -2822,14 +2790,16 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return __blkdev_driver_ioctl(pd->bdev, mode, cmd, arg);
+		ret = __blkdev_driver_ioctl(pd->bdev, mode, cmd, arg);
+		break;
 
 	default:
 		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);
-		return -ENOTTY;
+		ret = -ENOTTY;
 	}
+	mutex_unlock(&pktcdvd_mutex);
 
-	return 0;
+	return ret;
 }
 
 static int pkt_media_changed(struct gendisk *disk)
@@ -2847,15 +2817,15 @@ static int pkt_media_changed(struct gendisk *disk)
 	return attached_disk->fops->media_changed(attached_disk);
 }
 
-static struct block_device_operations pktcdvd_ops = {
+static const struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
 	.open =			pkt_open,
 	.release =		pkt_close,
-	.locked_ioctl =		pkt_ioctl,
+	.ioctl =		pkt_ioctl,
 	.media_changed =	pkt_media_changed,
 };
 
-static char *pktcdvd_nodename(struct gendisk *gd)
+static char *pktcdvd_devnode(struct gendisk *gd, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "pktcdvd/%s", gd->disk_name);
 }
@@ -2896,6 +2866,8 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 
 	spin_lock_init(&pd->lock);
 	spin_lock_init(&pd->iosched.lock);
+	bio_list_init(&pd->iosched.read_queue);
+	bio_list_init(&pd->iosched.write_queue);
 	sprintf(pd->name, DRIVER_NAME"%d", idx);
 	init_waitqueue_head(&pd->wqueue);
 	pd->bio_queue = RB_ROOT;
@@ -2912,7 +2884,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	disk->fops = &pktcdvd_ops;
 	disk->flags = GENHD_FL_REMOVABLE;
 	strcpy(disk->disk_name, pd->name);
-	disk->nodename = pktcdvd_nodename;
+	disk->devnode = pktcdvd_devnode;
 	disk->private_data = pd;
 	disk->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!disk->queue)
@@ -3022,7 +2994,7 @@ static void pkt_get_status(struct pkt_ctrl_command *ctrl_cmd)
 	mutex_unlock(&ctl_mutex);
 }
 
-static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long pkt_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct pkt_ctrl_command ctrl_cmd;
@@ -3059,16 +3031,27 @@ static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long pkt_ctl_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return pkt_ctl_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
 
 static const struct file_operations pkt_ctl_fops = {
-	.ioctl	 = pkt_ctl_ioctl,
-	.owner	 = THIS_MODULE,
+	.open		= nonseekable_open,
+	.unlocked_ioctl	= pkt_ctl_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= pkt_ctl_compat_ioctl,
+#endif
+	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice pkt_misc = {
 	.minor 		= MISC_DYNAMIC_MINOR,
 	.name  		= DRIVER_NAME,
-	.name  		= "pktcdvd/control",
+	.nodename	= "pktcdvd/control",
 	.fops  		= &pkt_ctl_fops
 };
 

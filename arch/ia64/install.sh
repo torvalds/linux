@@ -21,8 +21,8 @@
 
 # User may have a custom install script
 
-if [ -x ~/bin/installkernel ]; then exec ~/bin/installkernel "$@"; fi
-if [ -x /sbin/installkernel ]; then exec /sbin/installkernel "$@"; fi
+if [ -x ~/bin/${INSTALLKERNEL} ]; then exec ~/bin/${INSTALLKERNEL} "$@"; fi
+if [ -x /sbin/${INSTALLKERNEL} ]; then exec /sbin/${INSTALLKERNEL} "$@"; fi
 
 # Default install - same as make zlilo
 

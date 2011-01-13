@@ -32,7 +32,6 @@
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
 #include <linux/mm.h>
-#include <linux/version.h>
 #include <linux/rbtree.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -75,9 +74,6 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)
 	    vma->vm_private_data;
 	struct ttm_bo_device *bdev = bo->bdev;
-	unsigned long bus_base;
-	unsigned long bus_offset;
-	unsigned long bus_size;
 	unsigned long page_offset;
 	unsigned long page_last;
 	unsigned long pfn;
@@ -85,9 +81,10 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct page *page;
 	int ret;
 	int i;
-	bool is_iomem;
 	unsigned long address = (unsigned long)vmf->virtual_address;
 	int retval = VM_FAULT_NOPAGE;
+	struct ttm_mem_type_manager *man =
+		&bdev->man[bo->mem.mem_type];
 
 	/*
 	 * Work around locking order reversal in fault / nopfn
@@ -102,32 +99,49 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return VM_FAULT_NOPAGE;
 	}
 
+	if (bdev->driver->fault_reserve_notify) {
+		ret = bdev->driver->fault_reserve_notify(bo);
+		switch (ret) {
+		case 0:
+			break;
+		case -EBUSY:
+			set_need_resched();
+		case -ERESTARTSYS:
+			retval = VM_FAULT_NOPAGE;
+			goto out_unlock;
+		default:
+			retval = VM_FAULT_SIGBUS;
+			goto out_unlock;
+		}
+	}
+
 	/*
 	 * Wait for buffer data in transit, due to a pipelined
 	 * move.
 	 */
 
-	spin_lock(&bo->lock);
+	spin_lock(&bdev->fence_lock);
 	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
 		ret = ttm_bo_wait(bo, false, true, false);
-		spin_unlock(&bo->lock);
+		spin_unlock(&bdev->fence_lock);
 		if (unlikely(ret != 0)) {
-			retval = (ret != -ERESTART) ?
+			retval = (ret != -ERESTARTSYS) ?
 			    VM_FAULT_SIGBUS : VM_FAULT_NOPAGE;
 			goto out_unlock;
 		}
 	} else
-		spin_unlock(&bo->lock);
+		spin_unlock(&bdev->fence_lock);
 
-
-	ret = ttm_bo_pci_offset(bdev, &bo->mem, &bus_base, &bus_offset,
-				&bus_size);
+	ret = ttm_mem_io_lock(man, true);
 	if (unlikely(ret != 0)) {
-		retval = VM_FAULT_SIGBUS;
+		retval = VM_FAULT_NOPAGE;
 		goto out_unlock;
 	}
-
-	is_iomem = (bus_size != 0);
+	ret = ttm_mem_io_reserve_vm(bo);
+	if (unlikely(ret != 0)) {
+		retval = VM_FAULT_SIGBUS;
+		goto out_io_unlock;
+	}
 
 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
 	    bo->vm_node->start - vma->vm_pgoff;
@@ -136,7 +150,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	if (unlikely(page_offset >= bo->num_pages)) {
 		retval = VM_FAULT_SIGBUS;
-		goto out_unlock;
+		goto out_io_unlock;
 	}
 
 	/*
@@ -152,8 +166,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * vma->vm_page_prot when the object changes caching policy, with
 	 * the correct locks held.
 	 */
-
-	if (is_iomem) {
+	if (bo->mem.bus.is_iomem) {
 		vma->vm_page_prot = ttm_io_prot(bo->mem.placement,
 						vma->vm_page_prot);
 	} else {
@@ -169,15 +182,13 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 */
 
 	for (i = 0; i < TTM_BO_VM_NUM_PREFAULT; ++i) {
-
-		if (is_iomem)
-			pfn = ((bus_base + bus_offset) >> PAGE_SHIFT) +
-			    page_offset;
+		if (bo->mem.bus.is_iomem)
+			pfn = ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT) + page_offset;
 		else {
 			page = ttm_tt_get_page(ttm, page_offset);
 			if (unlikely(!page && i == 0)) {
 				retval = VM_FAULT_OOM;
-				goto out_unlock;
+				goto out_io_unlock;
 			} else if (unlikely(!page)) {
 				break;
 			}
@@ -195,15 +206,15 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		else if (unlikely(ret != 0)) {
 			retval =
 			    (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
-			goto out_unlock;
-
+			goto out_io_unlock;
 		}
 
 		address += PAGE_SIZE;
 		if (unlikely(++page_offset >= page_last))
 			break;
 	}
-
+out_io_unlock:
+	ttm_mem_io_unlock(man);
 out_unlock:
 	ttm_bo_unreserve(bo);
 	return retval;
@@ -219,14 +230,13 @@ static void ttm_bo_vm_open(struct vm_area_struct *vma)
 
 static void ttm_bo_vm_close(struct vm_area_struct *vma)
 {
-	struct ttm_buffer_object *bo =
-	    (struct ttm_buffer_object *)vma->vm_private_data;
+	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)vma->vm_private_data;
 
 	ttm_bo_unref(&bo);
 	vma->vm_private_data = NULL;
 }
 
-static struct vm_operations_struct ttm_bo_vm_ops = {
+static const struct vm_operations_struct ttm_bo_vm_ops = {
 	.fault = ttm_bo_vm_fault,
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close
@@ -318,7 +328,7 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		return -EFAULT;
 
 	driver = bo->bdev->driver;
-	if (unlikely(driver->verify_access)) {
+	if (unlikely(!driver->verify_access)) {
 		ret = -EPERM;
 		goto out_unref;
 	}
@@ -328,7 +338,7 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		goto out_unref;
 
 	kmap_offset = dev_offset - bo->vm_node->start;
-	if (unlikely(kmap_offset) >= bo->num_pages) {
+	if (unlikely(kmap_offset >= bo->num_pages)) {
 		ret = -EFBIG;
 		goto out_unref;
 	}
@@ -347,9 +357,6 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 	switch (ret) {
 	case 0:
 		break;
-	case -ERESTART:
-		ret = -EINTR;
-		goto out_unref;
 	case -EBUSY:
 		ret = -EAGAIN;
 		goto out_unref;
@@ -402,7 +409,7 @@ ssize_t ttm_bo_fbdev_io(struct ttm_buffer_object *bo, const char __user *wbuf,
 	bool dummy;
 
 	kmap_offset = (*f_pos >> PAGE_SHIFT);
-	if (unlikely(kmap_offset) >= bo->num_pages)
+	if (unlikely(kmap_offset >= bo->num_pages))
 		return -EFBIG;
 
 	page_offset = *f_pos & ~PAGE_MASK;
@@ -419,8 +426,6 @@ ssize_t ttm_bo_fbdev_io(struct ttm_buffer_object *bo, const char __user *wbuf,
 	switch (ret) {
 	case 0:
 		break;
-	case -ERESTART:
-		return -EINTR;
 	case -EBUSY:
 		return -EAGAIN;
 	default:

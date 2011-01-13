@@ -16,6 +16,7 @@ obj-$(CONFIG_SCLP_TTY) += sclp_tty.o
 obj-$(CONFIG_SCLP_CONSOLE) += sclp_con.o
 obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o
 obj-$(CONFIG_SCLP_CPI) += sclp_cpi.o
+obj-$(CONFIG_SCLP_ASYNC) += sclp_async.o
 
 obj-$(CONFIG_ZVM_WATCHDOG) += vmwatchdog.o
 obj-$(CONFIG_VMLOGRDR) += vmlogrdr.o

@@ -19,6 +19,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include "hisax.h"
 #include "isdnl1.h"
 
@@ -647,8 +648,6 @@ static struct FsmNode L1SFnList[] __initdata =
 	{ST_L1_F8, EV_TIMER_DEACT, l1_timer_deact},
 };
 
-#define L1S_FN_COUNT (sizeof(L1SFnList)/sizeof(struct FsmNode))
-
 #ifdef HISAX_UINTERFACE
 static void
 l1_deact_req_u(struct FsmInst *fi, int event, void *arg)
@@ -706,8 +705,6 @@ static struct FsmNode L1UFnList[] __initdata =
 	{ST_L1_RESET, EV_TIMER_DEACT, l1_timer_deact},
 };
 
-#define L1U_FN_COUNT (sizeof(L1UFnList)/sizeof(struct FsmNode))
-
 #endif
 
 static void
@@ -754,8 +751,6 @@ static struct FsmNode L1BFnList[] __initdata =
 	{ST_L1_WAIT_DEACT, EV_TIMER_DEACT, l1b_timer_deact},
 };
 
-#define L1B_FN_COUNT (sizeof(L1BFnList)/sizeof(struct FsmNode))
-
 int __init 
 Isdnl1New(void)
 {
@@ -765,7 +760,7 @@ Isdnl1New(void)
 	l1fsm_s.event_count = L1_EVENT_COUNT;
 	l1fsm_s.strEvent = strL1Event;
 	l1fsm_s.strState = strL1SState;
-	retval = FsmNew(&l1fsm_s, L1SFnList, L1S_FN_COUNT);
+	retval = FsmNew(&l1fsm_s, L1SFnList, ARRAY_SIZE(L1SFnList));
 	if (retval)
 		return retval;
 
@@ -773,7 +768,7 @@ Isdnl1New(void)
 	l1fsm_b.event_count = L1_EVENT_COUNT;
 	l1fsm_b.strEvent = strL1Event;
 	l1fsm_b.strState = strL1BState;
-	retval = FsmNew(&l1fsm_b, L1BFnList, L1B_FN_COUNT);
+	retval = FsmNew(&l1fsm_b, L1BFnList, ARRAY_SIZE(L1BFnList));
 	if (retval) {
 		FsmFree(&l1fsm_s);
 		return retval;
@@ -783,7 +778,7 @@ Isdnl1New(void)
 	l1fsm_u.event_count = L1_EVENT_COUNT;
 	l1fsm_u.strEvent = strL1Event;
 	l1fsm_u.strState = strL1UState;
-	retval = FsmNew(&l1fsm_u, L1UFnList, L1U_FN_COUNT);
+	retval = FsmNew(&l1fsm_u, L1UFnList, ARRAY_SIZE(L1UFnList));
 	if (retval) {
 		FsmFree(&l1fsm_s);
 		FsmFree(&l1fsm_b);

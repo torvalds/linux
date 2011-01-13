@@ -7,6 +7,9 @@ config BINARY_PRINTF
 
 menu "Library routines"
 
+config RAID6_PQ
+	tristate
+
 config BITREVERSE
 	tristate
 
@@ -117,6 +120,10 @@ config DECOMPRESS_BZIP2
 config DECOMPRESS_LZMA
 	tristate
 
+config DECOMPRESS_LZO
+	select LZO_DECOMPRESS
+	tristate
+
 #
 # Generic allocator support is selected if needed
 #
@@ -156,6 +163,9 @@ config TEXTSEARCH_BM
 config TEXTSEARCH_FSM
 	tristate
 
+config BTREE
+	boolean
+
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM
@@ -173,9 +183,6 @@ config HAS_DMA
 
 config CHECK_SIGNATURE
 	bool
-
-config HAVE_LMB
-	boolean
 
 config CPUMASK_OFFSTACK
 	bool "Force CPU masks off stack" if DEBUG_PER_CPU_MAPS
@@ -199,5 +206,11 @@ config NLATTR
 #
 config GENERIC_ATOMIC64
        bool
+
+config LRU_CACHE
+	tristate
+
+config AVERAGE
+	bool
 
 endmenu

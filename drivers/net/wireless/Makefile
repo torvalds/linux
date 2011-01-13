@@ -5,16 +5,6 @@
 obj-$(CONFIG_IPW2100) += ipw2x00/
 obj-$(CONFIG_IPW2200) += ipw2x00/
 
-obj-$(CONFIG_STRIP) += strip.o
-obj-$(CONFIG_ARLAN) += arlan.o 
-
-arlan-objs := arlan-main.o arlan-proc.o
-
-# Obsolete cards
-obj-$(CONFIG_WAVELAN)		+= wavelan.o
-obj-$(CONFIG_PCMCIA_NETWAVE)	+= netwave_cs.o
-obj-$(CONFIG_PCMCIA_WAVELAN)	+= wavelan_cs.o
-
 obj-$(CONFIG_HERMES)		+= orinoco/
 
 obj-$(CONFIG_AIRO)		+= airo.o
@@ -34,6 +24,7 @@ obj-$(CONFIG_B43LEGACY)		+= b43legacy/
 obj-$(CONFIG_ZD1211RW)		+= zd1211rw/
 obj-$(CONFIG_RTL8180)		+= rtl818x/
 obj-$(CONFIG_RTL8187)		+= rtl818x/
+obj-$(CONFIG_RTL8192CE)		+= rtlwifi/
 
 # 16-bit wireless PCMCIA client drivers
 obj-$(CONFIG_PCMCIA_RAYCS)	+= ray_cs.o
@@ -59,6 +50,8 @@ obj-$(CONFIG_ATH_COMMON)	+= ath/
 
 obj-$(CONFIG_MAC80211_HWSIM)	+= mac80211_hwsim.o
 
+obj-$(CONFIG_WL1251)	+= wl1251/
 obj-$(CONFIG_WL12XX)	+= wl12xx/
+obj-$(CONFIG_WL12XX_PLATFORM_DATA)	+= wl12xx/
 
 obj-$(CONFIG_IWM)	+= iwmc3200wifi/

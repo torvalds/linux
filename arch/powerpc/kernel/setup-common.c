@@ -24,7 +24,6 @@
 #include <linux/seq_file.h>
 #include <linux/ioport.h>
 #include <linux/console.h>
-#include <linux/utsname.h>
 #include <linux/screen_info.h>
 #include <linux/root_dev.h>
 #include <linux/notifier.h>
@@ -34,9 +33,10 @@
 #include <linux/serial_8250.h>
 #include <linux/debugfs.h>
 #include <linux/percpu.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <asm/io.h>
+#include <asm/paca.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/vdso_datapage.h>
@@ -93,6 +93,12 @@ struct screen_info screen_info = {
 	.orig_video_isVGA = 1,
 	.orig_video_points = 16
 };
+
+/* Variables required to store legacy IO irq routing */
+int of_i8042_kbd_irq;
+EXPORT_SYMBOL_GPL(of_i8042_kbd_irq);
+int of_i8042_aux_irq;
+EXPORT_SYMBOL_GPL(of_i8042_aux_irq);
 
 #ifdef __DO_IRQ_CANON
 /* XXX should go elsewhere eventually */
@@ -158,8 +164,40 @@ extern u32 cpu_temp_both(unsigned long cpu);
 #endif /* CONFIG_TAU */
 
 #ifdef CONFIG_SMP
-DEFINE_PER_CPU(unsigned int, pvr);
+DEFINE_PER_CPU(unsigned int, cpu_pvr);
 #endif
+
+static void show_cpuinfo_summary(struct seq_file *m)
+{
+	struct device_node *root;
+	const char *model = NULL;
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC32)
+	unsigned long bogosum = 0;
+	int i;
+	for_each_online_cpu(i)
+		bogosum += loops_per_jiffy;
+	seq_printf(m, "total bogomips\t: %lu.%02lu\n",
+		   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
+#endif /* CONFIG_SMP && CONFIG_PPC32 */
+	seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
+	if (ppc_md.name)
+		seq_printf(m, "platform\t: %s\n", ppc_md.name);
+	root = of_find_node_by_path("/");
+	if (root)
+		model = of_get_property(root, "model", NULL);
+	if (model)
+		seq_printf(m, "model\t\t: %s\n", model);
+	of_node_put(root);
+
+	if (ppc_md.show_cpuinfo != NULL)
+		ppc_md.show_cpuinfo(m);
+
+#ifdef CONFIG_PPC32
+	/* Display the amount of memory */
+	seq_printf(m, "Memory\t\t: %d MB\n",
+		   (unsigned int)(total_memory / (1024 * 1024)));
+#endif
+}
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
@@ -167,39 +205,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned int pvr;
 	unsigned short maj;
 	unsigned short min;
-
-	if (cpu_id == NR_CPUS) {
-		struct device_node *root;
-		const char *model = NULL;
-#if defined(CONFIG_SMP) && defined(CONFIG_PPC32)
-		unsigned long bogosum = 0;
-		int i;
-		for_each_online_cpu(i)
-			bogosum += loops_per_jiffy;
-		seq_printf(m, "total bogomips\t: %lu.%02lu\n",
-			   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
-#endif /* CONFIG_SMP && CONFIG_PPC32 */
-		seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
-		if (ppc_md.name)
-			seq_printf(m, "platform\t: %s\n", ppc_md.name);
-		root = of_find_node_by_path("/");
-		if (root)
-			model = of_get_property(root, "model", NULL);
-		if (model)
-			seq_printf(m, "model\t\t: %s\n", model);
-		of_node_put(root);
-
-		if (ppc_md.show_cpuinfo != NULL)
-			ppc_md.show_cpuinfo(m);
-
-#ifdef CONFIG_PPC32
-		/* Display the amount of memory */
-		seq_printf(m, "Memory\t\t: %d MB\n",
-			   (unsigned int)(total_memory / (1024 * 1024)));
-#endif
-
-		return 0;
-	}
 
 	/* We only show online cpus: disable preempt (overzealous, I
 	 * knew) to prevent cpu going down. */
@@ -210,7 +215,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 #ifdef CONFIG_SMP
-	pvr = per_cpu(pvr, cpu_id);
+	pvr = per_cpu(cpu_pvr, cpu_id);
 #else
 	pvr = mfspr(SPRN_PVR);
 #endif
@@ -308,19 +313,28 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif
 
 	preempt_enable();
+
+	/* If this is the last cpu, print the summary */
+	if (cpumask_next(cpu_id, cpu_online_mask) >= nr_cpu_ids)
+		show_cpuinfo_summary(m);
+
 	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	unsigned long i = *pos;
-
-	return i <= NR_CPUS ? (void *)(i + 1) : NULL;
+	if (*pos == 0)	/* just in case, cpu 0 is not the first */
+		*pos = cpumask_first(cpu_online_mask);
+	else
+		*pos = cpumask_next(*pos - 1, cpu_online_mask);
+	if ((*pos) < nr_cpu_ids)
+		return (void *)(unsigned long)(*pos + 1);
+	return NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	++*pos;
+	(*pos)++;
 	return c_start(m, pos);
 }
 
@@ -328,7 +342,7 @@ static void c_stop(struct seq_file *m, void *v)
 {
 }
 
-struct seq_operations cpuinfo_op = {
+const struct seq_operations cpuinfo_op = {
 	.start =c_start,
 	.next =	c_next,
 	.stop =	c_stop,
@@ -386,14 +400,14 @@ static void __init cpu_init_thread_core_maps(int tpc)
 
 /**
  * setup_cpu_maps - initialize the following cpu maps:
- *                  cpu_possible_map
- *                  cpu_present_map
+ *                  cpu_possible_mask
+ *                  cpu_present_mask
  *
  * Having the possible map set up early allows us to restrict allocations
  * of things like irqstacks to num_possible_cpus() rather than NR_CPUS.
  *
  * We do not initialize the online map here; cpus set their own bits in
- * cpu_online_map as they come up.
+ * cpu_online_mask as they come up.
  *
  * This function is valid only for Open Firmware systems.  finish_device_tree
  * must be called before using this.
@@ -432,9 +446,9 @@ void __init smp_setup_cpu_maps(void)
 		for (j = 0; j < nthreads && cpu < NR_CPUS; j++) {
 			DBG("    thread %d -> cpu %d (hard id %d)\n",
 			    j, cpu, intserv[j]);
-			cpu_set(cpu, cpu_present_map);
+			set_cpu_present(cpu, true);
 			set_hard_smp_processor_id(cpu, intserv[j]);
-			cpu_set(cpu, cpu_possible_map);
+			set_cpu_possible(cpu, true);
 			cpu++;
 		}
 	}
@@ -480,7 +494,7 @@ void __init smp_setup_cpu_maps(void)
 			       maxcpus);
 
 		for (cpu = 0; cpu < maxcpus; cpu++)
-			cpu_set(cpu, cpu_possible_map);
+			set_cpu_possible(cpu, true);
 	out:
 		of_node_put(dn);
 	}
@@ -494,6 +508,8 @@ void __init smp_setup_cpu_maps(void)
 	 * here will have to be reworked
 	 */
 	cpu_init_thread_core_maps(nthreads);
+
+	free_unused_pacas();
 }
 #endif /* CONFIG_SMP */
 
@@ -565,6 +581,15 @@ int check_legacy_ioport(unsigned long base_port)
 			np = of_find_compatible_node(NULL, NULL, "pnpPNP,f03");
 		if (np) {
 			parent = of_get_parent(np);
+
+			of_i8042_kbd_irq = irq_of_parse_and_map(parent, 0);
+			if (!of_i8042_kbd_irq)
+				of_i8042_kbd_irq = 1;
+
+			of_i8042_aux_irq = irq_of_parse_and_map(parent, 1);
+			if (!of_i8042_aux_irq)
+				of_i8042_aux_irq = 12;
+
 			of_node_put(np);
 			np = parent;
 			break;
@@ -661,6 +686,7 @@ late_initcall(check_cache_coherency);
 
 #ifdef CONFIG_DEBUG_FS
 struct dentry *powerpc_debugfs_root;
+EXPORT_SYMBOL(powerpc_debugfs_root);
 
 static int powerpc_debugfs_init(void)
 {
@@ -690,16 +716,9 @@ static struct notifier_block ppc_dflt_plat_bus_notifier = {
 	.priority = INT_MAX,
 };
 
-static struct notifier_block ppc_dflt_of_bus_notifier = {
-	.notifier_call = ppc_dflt_bus_notify,
-	.priority = INT_MAX,
-};
-
 static int __init setup_bus_notifier(void)
 {
 	bus_register_notifier(&platform_bus_type, &ppc_dflt_plat_bus_notifier);
-	bus_register_notifier(&of_platform_bus_type, &ppc_dflt_of_bus_notifier);
-
 	return 0;
 }
 

@@ -77,7 +77,7 @@
 
 static int LMC_PKT_BUF_SZ = 1542;
 
-static struct pci_device_id lmc_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(lmc_pci_tbl) = {
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_FAST,
 	  PCI_VENDOR_ID_LMC, PCI_ANY_ID },
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_FAST,
@@ -89,7 +89,8 @@ MODULE_DEVICE_TABLE(pci, lmc_pci_tbl);
 MODULE_LICENSE("GPL v2");
 
 
-static int lmc_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static int lmc_rx (struct net_device *dev);
 static int lmc_open(struct net_device *dev);
 static int lmc_close(struct net_device *dev);
@@ -926,7 +927,7 @@ static int __devinit lmc_init_one(struct pci_dev *pdev,
         sc->lmc_media = &lmc_t1_media;
         break;
     default:
-	printk(KERN_WARNING "%s: LMC UNKOWN CARD!\n", dev->name);
+	printk(KERN_WARNING "%s: LMC UNKNOWN CARD!\n", dev->name);
         break;
     }
 
@@ -1021,13 +1022,13 @@ static int lmc_open(struct net_device *dev)
 
     if (sc->lmc_ok){
         lmc_trace(dev, "lmc_open lmc_ok out");
-        return (0);
+        return 0;
     }
 
     lmc_softreset (sc);
 
     /* Since we have to use PCI bus, this should work on x86,alpha,ppc */
-    if (request_irq (dev->irq, &lmc_interrupt, IRQF_SHARED, dev->name, dev)){
+    if (request_irq (dev->irq, lmc_interrupt, IRQF_SHARED, dev->name, dev)){
         printk(KERN_WARNING "%s: could not get irq: %d\n", dev->name, dev->irq);
         lmc_trace(dev, "lmc_open irq failed out");
         return -EAGAIN;
@@ -1104,12 +1105,12 @@ static int lmc_open(struct net_device *dev)
     init_timer (&sc->timer);
     sc->timer.expires = jiffies + HZ;
     sc->timer.data = (unsigned long) dev;
-    sc->timer.function = &lmc_watchdog;
+    sc->timer.function = lmc_watchdog;
     add_timer (&sc->timer);
 
     lmc_trace(dev, "lmc_open out");
 
-    return (0);
+    return 0;
 }
 
 /* Total reset to compensate for the AdTran DSU doing bad things
@@ -1423,12 +1424,12 @@ lmc_int_fail_out:
     return IRQ_RETVAL(handled);
 }
 
-static int lmc_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
     lmc_softc_t *sc = dev_to_sc(dev);
     u32 flag;
     int entry;
-    int ret = 0;
     unsigned long flags;
 
     lmc_trace(dev, "lmc_start_xmit in");
@@ -1505,12 +1506,10 @@ static int lmc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* send now! */
     LMC_CSR_WRITE (sc, csr_txpoll, 0);
 
-    dev->trans_start = jiffies;
-
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
 
     lmc_trace(dev, "lmc_start_xmit_out");
-    return ret;
+    return NETDEV_TX_OK;
 }
 
 
@@ -1657,7 +1656,7 @@ static int lmc_rx(struct net_device *dev)
             }
             skb_copy_from_linear_data(skb, skb_put(nsb, len), len);
             
-            nsb->protocol = lmc_proto_type(sc, skb);
+            nsb->protocol = lmc_proto_type(sc, nsb);
             skb_reset_mac_header(nsb);
             /* skb_reset_network_header(nsb); */
             nsb->dev = dev;
@@ -1897,10 +1896,11 @@ static void lmc_softreset (lmc_softc_t * const sc) /*fold00*/
     /*
      * Sets end of ring
      */
-    sc->lmc_rxring[i - 1].length |= 0x02000000; /* Set end of buffers flag */
-    sc->lmc_rxring[i - 1].buffer2 = virt_to_bus (&sc->lmc_rxring[0]); /* Point back to the start */
+    if (i != 0) {
+        sc->lmc_rxring[i - 1].length |= 0x02000000; /* Set end of buffers flag */
+        sc->lmc_rxring[i - 1].buffer2 = virt_to_bus(&sc->lmc_rxring[0]); /* Point back to the start */
+    }
     LMC_CSR_WRITE (sc, csr_rxlist, virt_to_bus (sc->lmc_rxring)); /* write base address */
-
 
     /* Initialize the transmit rings and buffers */
     for (i = 0; i < LMC_TXDESCS; i++)
@@ -2101,7 +2101,7 @@ static void lmc_driver_timeout(struct net_device *dev)
     printk("%s: Xmitter busy|\n", dev->name);
 
     sc->extra_stats.tx_tbusy_calls++;
-    if (jiffies - dev->trans_start < TX_TIMEOUT)
+    if (jiffies - dev_trans_start(dev) < TX_TIMEOUT)
 	    goto bug_out;
 
     /*
@@ -2133,7 +2133,7 @@ static void lmc_driver_timeout(struct net_device *dev)
     sc->lmc_device->stats.tx_errors++;
     sc->extra_stats.tx_ProcTimeout++; /* -baz */
 
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
 
 bug_out:
 

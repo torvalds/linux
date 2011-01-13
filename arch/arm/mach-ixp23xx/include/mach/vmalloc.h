@@ -7,4 +7,4 @@
  * specific static I/O.
  */
 
-#define VMALLOC_END	(0xec000000)
+#define VMALLOC_END	(0xec000000UL)

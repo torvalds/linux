@@ -203,7 +203,7 @@ int pvr2_ctrl_get_valname(struct pvr2_ctrl *cptr,int val,
 	*blen = 0;
 	LOCK_TAKE(cptr->hdw->big_lock); do {
 		if (cptr->info->type == pvr2_ctl_enum) {
-			const char **names;
+			const char * const *names;
 			names = cptr->info->def.type_enum.value_names;
 			if (pvr2_ctrl_range_check(cptr,val) == 0) {
 				if (names[val]) {
@@ -367,7 +367,7 @@ static const char *boolNames[] = {
 
 static int parse_token(const char *ptr,unsigned int len,
 		       int *valptr,
-		       const char **names,unsigned int namecnt)
+		       const char * const *names, unsigned int namecnt)
 {
 	char buf[33];
 	unsigned int slen;
@@ -513,7 +513,7 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 			if (ret >= 0) {
 				ret = pvr2_ctrl_range_check(cptr,*valptr);
 			}
-			if (maskptr) *maskptr = ~0;
+			*maskptr = ~0;
 		} else if (cptr->info->type == pvr2_ctl_bool) {
 			ret = parse_token(ptr,len,valptr,boolNames,
 					  ARRAY_SIZE(boolNames));
@@ -522,7 +522,7 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 			} else if (ret == 0) {
 				*valptr = (*valptr & 1) ? !0 : 0;
 			}
-			if (maskptr) *maskptr = 1;
+			*maskptr = 1;
 		} else if (cptr->info->type == pvr2_ctl_enum) {
 			ret = parse_token(
 				ptr,len,valptr,
@@ -531,7 +531,7 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 			if (ret >= 0) {
 				ret = pvr2_ctrl_range_check(cptr,*valptr);
 			}
-			if (maskptr) *maskptr = ~0;
+			*maskptr = ~0;
 		} else if (cptr->info->type == pvr2_ctl_bitmask) {
 			ret = parse_tlist(
 				ptr,len,maskptr,valptr,
@@ -559,7 +559,7 @@ int pvr2_ctrl_value_to_sym_internal(struct pvr2_ctrl *cptr,
 		*len = scnprintf(buf,maxlen,"%s",val ? "true" : "false");
 		ret = 0;
 	} else if (cptr->info->type == pvr2_ctl_enum) {
-		const char **names;
+		const char * const *names;
 		names = cptr->info->def.type_enum.value_names;
 		if ((val >= 0) &&
 		    (val < cptr->info->def.type_enum.count)) {

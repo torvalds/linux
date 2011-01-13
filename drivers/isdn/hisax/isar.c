@@ -13,6 +13,7 @@
 #include "isar.h"
 #include "isdnl1.h"
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #define DBG_LOADFIRM	0
 #define DUMP_MBOXFRAME	2
@@ -138,7 +139,7 @@ waitrecmsg(struct IsdnCardState *cs, u_char *len,
 	while((!(cs->BC_Read_Reg(cs, 0, ISAR_IRQBIT) & ISAR_IRQSTA)) &&
 		(timeout++ < maxdelay))
 		udelay(1);
-	if (timeout >= maxdelay) {
+	if (timeout > maxdelay) {
 		printk(KERN_WARNING"isar recmsg IRQSTA timeout\n");
 		return(0);
 	}
@@ -188,7 +189,7 @@ ISARVersion(struct IsdnCardState *cs, char *s)
 static int
 isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 {
-	int ret, size, cnt, debug;
+	int cfu_ret, ret, size, cnt, debug;
 	u_char len, nom, noc;
 	u_short sadr, left, *sp;
 	u_char __user *p = buf;
@@ -211,9 +212,10 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 	cs->debug &= ~(L1_DEB_HSCX | L1_DEB_HSCX_FIFO);
 #endif
 	
-	if ((ret = copy_from_user(&size, p, sizeof(int)))) {
-		printk(KERN_ERR"isar_load_firmware copy_from_user ret %d\n", ret);
-		return ret;
+	cfu_ret = copy_from_user(&size, p, sizeof(int));
+	if (cfu_ret) {
+		printk(KERN_ERR"isar_load_firmware copy_from_user ret %d\n", cfu_ret);
+		return -EFAULT;
 	}
 	p += sizeof(int);
 	printk(KERN_DEBUG"isar_load_firmware size: %d\n", size);
@@ -952,7 +954,7 @@ isar_pump_statev_modem(struct BCState *bcs, u_char devt) {
 			break;
 		case PSEV_GSTN_CLR:
 			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "pump stev GSTN CLEAR", devt);
+				debugl1(cs, "pump stev GSTN CLEAR");
 			break;
 		default:
 			if (cs->debug & L1_DEB_HSCX)
@@ -1267,7 +1269,7 @@ isar_int_main(struct IsdnCardState *cs)
 static void
 ftimer_handler(struct BCState *bcs) {
 	if (bcs->cs->debug)
-		debugl1(bcs->cs, "ftimer flags %04x",
+		debugl1(bcs->cs, "ftimer flags %04lx",
 			bcs->Flag);
 	test_and_clear_bit(BC_FLG_FTI_RUN, &bcs->Flag);
 	if (test_and_clear_bit(BC_FLG_LL_CONN, &bcs->Flag)) {
@@ -1426,8 +1428,8 @@ modeisar(struct BCState *bcs, int mode, int bc)
 					&bcs->hw.isar.reg->Flags))
 					bcs->hw.isar.dpath = 1;
 				else {
-					printk(KERN_WARNING"isar modeisar analog funktions only with DP1\n");
-					debugl1(cs, "isar modeisar analog funktions only with DP1");
+					printk(KERN_WARNING"isar modeisar analog functions only with DP1\n");
+					debugl1(cs, "isar modeisar analog functions only with DP1");
 					return(1);
 				}
 				break;
@@ -1747,7 +1749,7 @@ isar_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic) {
 	struct BCState *bcs;
 
 	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "isar_auxcmd cmd/ch %x/%d", ic->command, ic->arg);
+		debugl1(cs, "isar_auxcmd cmd/ch %x/%ld", ic->command, ic->arg);
 	switch (ic->command) {
 		case (ISDN_CMD_FAXCMD):
 			bcs = cs->channel[ic->arg].bcs;

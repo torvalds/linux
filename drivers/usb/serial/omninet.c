@@ -64,8 +64,7 @@ static int debug;
 #define BT_IGNITIONPRO_ID	0x2000
 
 /* function prototypes */
-static int  omninet_open(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *filp);
+static int  omninet_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void omninet_close(struct usb_serial_port *port);
 static void omninet_read_bulk_callback(struct urb *urb);
 static void omninet_write_bulk_callback(struct urb *urb);
@@ -76,7 +75,7 @@ static void omninet_disconnect(struct usb_serial *serial);
 static void omninet_release(struct usb_serial *serial);
 static int omninet_attach(struct usb_serial *serial);
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, ZYXEL_OMNINET_ID) },
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, BT_IGNITIONPRO_ID) },
 	{ }						/* Terminating entry */
@@ -163,8 +162,7 @@ static int omninet_attach(struct usb_serial *serial)
 	return 0;
 }
 
-static int omninet_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial	*serial = port->serial;
 	struct usb_serial_port	*wport;
@@ -220,8 +218,8 @@ static void omninet_read_bulk_callback(struct urb *urb)
 
 	if (debug && header->oh_xxx != 0x30) {
 		if (urb->actual_length) {
-			printk(KERN_DEBUG __FILE__
-					": omninet_read %d: ", header->oh_len);
+			printk(KERN_DEBUG "%s: omninet_read %d: ",
+			       __FILE__, header->oh_len);
 			for (i = 0; i < (header->oh_len +
 						OMNINET_HEADERLEN); i++)
 				printk("%.2x ", data[i]);
@@ -248,8 +246,6 @@ static void omninet_read_bulk_callback(struct urb *urb)
 		dev_err(&port->dev,
 			"%s - failed resubmitting read urb, error %d\n",
 			__func__, result);
-
-	return;
 }
 
 static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -334,7 +330,7 @@ static void omninet_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port 	*port   =  urb->context;
 	int status = urb->status;
 
-	dbg("%s - port %0x\n", __func__, port->number);
+	dbg("%s - port %0x", __func__, port->number);
 
 	port->write_urb_busy = 0;
 	if (status) {

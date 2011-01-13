@@ -47,7 +47,8 @@ Configuration Options:
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
 
-static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int rti802_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int rti802_detach(struct comedi_device *dev);
 static struct comedi_driver driver_rti802 = {
 	.driver_name = "rti802",
@@ -56,7 +57,18 @@ static struct comedi_driver driver_rti802 = {
 	.detach = rti802_detach,
 };
 
-COMEDI_INITCLEANUP(driver_rti802);
+static int __init driver_rti802_init_module(void)
+{
+	return comedi_driver_register(&driver_rti802);
+}
+
+static void __exit driver_rti802_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_rti802);
+}
+
+module_init(driver_rti802_init_module);
+module_exit(driver_rti802_cleanup_module);
 
 struct rti802_private {
 	enum {
@@ -68,8 +80,9 @@ struct rti802_private {
 
 #define devpriv ((struct rti802_private *)dev->private)
 
-static int rti802_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int rti802_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 
@@ -79,8 +92,9 @@ static int rti802_ao_insn_read(struct comedi_device *dev, struct comedi_subdevic
 	return i;
 }
 
-static int rti802_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int rti802_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int i, d;
 	int chan = CR_CHAN(insn->chanspec);
@@ -103,9 +117,9 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, RTI802_SIZE, "rti802")) {
-		printk("I/O port conflict\n");
+		printk(KERN_WARNING "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -113,7 +127,7 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = "rti802";
 
 	if (alloc_subdevices(dev, 1) < 0
-		|| alloc_private(dev, sizeof(struct rti802_private))) {
+	    || alloc_private(dev, sizeof(struct rti802_private))) {
 		return -ENOMEM;
 	}
 
@@ -129,23 +143,25 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	for (i = 0; i < 8; i++) {
 		devpriv->dac_coding[i] = (it->options[3 + 2 * i])
-			? (dac_straight)
-			: (dac_2comp);
+		    ? (dac_straight)
+		    : (dac_2comp);
 		devpriv->range_type_list[i] = (it->options[2 + 2 * i])
-			? &range_unipolar10 : &range_bipolar10;
+		    ? &range_unipolar10 : &range_bipolar10;
 	}
-
-	printk("\n");
 
 	return 0;
 }
 
 static int rti802_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: rti802: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: rti802: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, RTI802_SIZE);
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

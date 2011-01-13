@@ -16,6 +16,8 @@
 #include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
+#include <linux/device.h>
 
 #include <linux/mmc/host.h>
 
@@ -80,18 +82,50 @@ struct sdhci_pci_chip {
 
 static int ricoh_probe(struct sdhci_pci_chip *chip)
 {
-	if (chip->pdev->subsystem_vendor == PCI_VENDOR_ID_IBM)
-		chip->quirks |= SDHCI_QUIRK_CLOCK_BEFORE_RESET;
-
-	if (chip->pdev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)
+	if (chip->pdev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG ||
+	    chip->pdev->subsystem_vendor == PCI_VENDOR_ID_SONY)
 		chip->quirks |= SDHCI_QUIRK_NO_CARD_NO_RESET;
+	return 0;
+}
 
+static int ricoh_mmc_probe_slot(struct sdhci_pci_slot *slot)
+{
+	slot->host->caps =
+		((0x21 << SDHCI_TIMEOUT_CLK_SHIFT)
+			& SDHCI_TIMEOUT_CLK_MASK) |
+
+		((0x21 << SDHCI_CLOCK_BASE_SHIFT)
+			& SDHCI_CLOCK_BASE_MASK) |
+
+		SDHCI_TIMEOUT_CLK_UNIT |
+		SDHCI_CAN_VDD_330 |
+		SDHCI_CAN_DO_SDMA;
+	return 0;
+}
+
+static int ricoh_mmc_resume(struct sdhci_pci_chip *chip)
+{
+	/* Apply a delay to allow controller to settle */
+	/* Otherwise it becomes confused if card state changed
+		during suspend */
+	msleep(500);
 	return 0;
 }
 
 static const struct sdhci_pci_fixes sdhci_ricoh = {
 	.probe		= ricoh_probe,
-	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR,
+	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
+			  SDHCI_QUIRK_FORCE_DMA |
+			  SDHCI_QUIRK_CLOCK_BEFORE_RESET,
+};
+
+static const struct sdhci_pci_fixes sdhci_ricoh_mmc = {
+	.probe_slot	= ricoh_mmc_probe_slot,
+	.resume		= ricoh_mmc_resume,
+	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
+			  SDHCI_QUIRK_CLOCK_BEFORE_RESET |
+			  SDHCI_QUIRK_NO_CARD_NO_RESET |
+			  SDHCI_QUIRK_MISSING_CAPS
 };
 
 static const struct sdhci_pci_fixes sdhci_ene_712 = {
@@ -110,6 +144,105 @@ static const struct sdhci_pci_fixes sdhci_cafe = {
 			  SDHCI_QUIRK_NO_BUSY_IRQ |
 			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 };
+
+/*
+ * ADMA operation is disabled for Moorestown platform due to
+ * hardware bugs.
+ */
+static int mrst_hc_probe(struct sdhci_pci_chip *chip)
+{
+	/*
+	 * slots number is fixed here for MRST as SDIO3/5 are never used and
+	 * have hardware bugs.
+	 */
+	chip->num_slots = 1;
+	return 0;
+}
+
+static const struct sdhci_pci_fixes sdhci_intel_mrst_hc0 = {
+	.quirks		= SDHCI_QUIRK_BROKEN_ADMA | SDHCI_QUIRK_NO_HISPD_BIT,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_mrst_hc1_hc2 = {
+	.quirks		= SDHCI_QUIRK_BROKEN_ADMA | SDHCI_QUIRK_NO_HISPD_BIT,
+	.probe		= mrst_hc_probe,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_mfd_sd = {
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_mfd_emmc_sdio = {
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+};
+
+/* O2Micro extra registers */
+#define O2_SD_LOCK_WP		0xD3
+#define O2_SD_MULTI_VCC3V	0xEE
+#define O2_SD_CLKREQ		0xEC
+#define O2_SD_CAPS		0xE0
+#define O2_SD_ADMA1		0xE2
+#define O2_SD_ADMA2		0xE7
+#define O2_SD_INF_MOD		0xF1
+
+static int o2_probe(struct sdhci_pci_chip *chip)
+{
+	int ret;
+	u8 scratch;
+
+	switch (chip->pdev->device) {
+	case PCI_DEVICE_ID_O2_8220:
+	case PCI_DEVICE_ID_O2_8221:
+	case PCI_DEVICE_ID_O2_8320:
+	case PCI_DEVICE_ID_O2_8321:
+		/* This extra setup is required due to broken ADMA. */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch);
+		if (ret)
+			return ret;
+		scratch &= 0x7f;
+		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch);
+
+		/* Set Multi 3 to VCC3V# */
+		pci_write_config_byte(chip->pdev, O2_SD_MULTI_VCC3V, 0x08);
+
+		/* Disable CLK_REQ# support after media DET */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_CLKREQ, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x20;
+		pci_write_config_byte(chip->pdev, O2_SD_CLKREQ, scratch);
+
+		/* Choose capabilities, enable SDMA.  We have to write 0x01
+		 * to the capabilities register first to unlock it.
+		 */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_CAPS, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x01;
+		pci_write_config_byte(chip->pdev, O2_SD_CAPS, scratch);
+		pci_write_config_byte(chip->pdev, O2_SD_CAPS, 0x73);
+
+		/* Disable ADMA1/2 */
+		pci_write_config_byte(chip->pdev, O2_SD_ADMA1, 0x39);
+		pci_write_config_byte(chip->pdev, O2_SD_ADMA2, 0x08);
+
+		/* Disable the infinite transfer mode */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_INF_MOD, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x08;
+		pci_write_config_byte(chip->pdev, O2_SD_INF_MOD, scratch);
+
+		/* Lock WP */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x80;
+		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch);
+	}
+
+	return 0;
+}
 
 static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 {
@@ -139,6 +272,7 @@ static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 static int jmicron_probe(struct sdhci_pci_chip *chip)
 {
 	int ret;
+	u16 mmcdev = 0;
 
 	if (chip->pdev->revision == 0) {
 		chip->quirks |= SDHCI_QUIRK_32BIT_DMA_ADDR |
@@ -160,12 +294,17 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 	 * 2. The MMC interface has a lower subfunction number
 	 *    than the SD interface.
 	 */
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_SD) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_SD)
+		mmcdev = PCI_DEVICE_ID_JMICRON_JMB38X_MMC;
+	else if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_SD)
+		mmcdev = PCI_DEVICE_ID_JMICRON_JMB388_ESD;
+
+	if (mmcdev) {
 		struct pci_dev *sd_dev;
 
 		sd_dev = NULL;
 		while ((sd_dev = pci_get_device(PCI_VENDOR_ID_JMICRON,
-			PCI_DEVICE_ID_JMICRON_JMB38X_MMC, sd_dev)) != NULL) {
+						mmcdev, sd_dev)) != NULL) {
 			if ((PCI_SLOT(chip->pdev->devfn) ==
 				PCI_SLOT(sd_dev->devfn)) &&
 				(chip->pdev->bus == sd_dev->bus))
@@ -225,12 +364,24 @@ static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 			slot->host->quirks |= SDHCI_QUIRK_BROKEN_ADMA;
 	}
 
+	/* JM388 MMC doesn't support 1.8V while SD supports it */
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
+		slot->host->ocr_avail_sd = MMC_VDD_32_33 | MMC_VDD_33_34 |
+			MMC_VDD_29_30 | MMC_VDD_30_31 |
+			MMC_VDD_165_195; /* allow 1.8V */
+		slot->host->ocr_avail_mmc = MMC_VDD_32_33 | MMC_VDD_33_34 |
+			MMC_VDD_29_30 | MMC_VDD_30_31; /* no 1.8V for MMC */
+	}
+
 	/*
 	 * The secondary interface requires a bit set to get the
 	 * interrupts.
 	 */
-	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
 		jmicron_enable_mmc(slot->host, 1);
+
+	slot->host->mmc->caps |= MMC_CAP_BUS_WIDTH_TEST;
 
 	return 0;
 }
@@ -240,7 +391,8 @@ static void jmicron_remove_slot(struct sdhci_pci_slot *slot, int dead)
 	if (dead)
 		return;
 
-	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
 		jmicron_enable_mmc(slot->host, 0);
 }
 
@@ -248,7 +400,8 @@ static int jmicron_suspend(struct sdhci_pci_chip *chip, pm_message_t state)
 {
 	int i;
 
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
 		for (i = 0;i < chip->num_slots;i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 0);
 	}
@@ -260,7 +413,8 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 {
 	int ret, i;
 
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
 		for (i = 0;i < chip->num_slots;i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 1);
 	}
@@ -274,6 +428,10 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 	return 0;
 }
 
+static const struct sdhci_pci_fixes sdhci_o2 = {
+	.probe		= o2_probe,
+};
+
 static const struct sdhci_pci_fixes sdhci_jmicron = {
 	.probe		= jmicron_probe,
 
@@ -282,6 +440,73 @@ static const struct sdhci_pci_fixes sdhci_jmicron = {
 
 	.suspend	= jmicron_suspend,
 	.resume		= jmicron_resume,
+};
+
+/* SysKonnect CardBus2SDIO extra registers */
+#define SYSKT_CTRL		0x200
+#define SYSKT_RDFIFO_STAT	0x204
+#define SYSKT_WRFIFO_STAT	0x208
+#define SYSKT_POWER_DATA	0x20c
+#define   SYSKT_POWER_330	0xef
+#define   SYSKT_POWER_300	0xf8
+#define   SYSKT_POWER_184	0xcc
+#define SYSKT_POWER_CMD		0x20d
+#define   SYSKT_POWER_START	(1 << 7)
+#define SYSKT_POWER_STATUS	0x20e
+#define   SYSKT_POWER_STATUS_OK	(1 << 0)
+#define SYSKT_BOARD_REV		0x210
+#define SYSKT_CHIP_REV		0x211
+#define SYSKT_CONF_DATA		0x212
+#define   SYSKT_CONF_DATA_1V8	(1 << 2)
+#define   SYSKT_CONF_DATA_2V5	(1 << 1)
+#define   SYSKT_CONF_DATA_3V3	(1 << 0)
+
+static int syskt_probe(struct sdhci_pci_chip *chip)
+{
+	if ((chip->pdev->class & 0x0000FF) == PCI_SDHCI_IFVENDOR) {
+		chip->pdev->class &= ~0x0000FF;
+		chip->pdev->class |= PCI_SDHCI_IFDMA;
+	}
+	return 0;
+}
+
+static int syskt_probe_slot(struct sdhci_pci_slot *slot)
+{
+	int tm, ps;
+
+	u8 board_rev = readb(slot->host->ioaddr + SYSKT_BOARD_REV);
+	u8  chip_rev = readb(slot->host->ioaddr + SYSKT_CHIP_REV);
+	dev_info(&slot->chip->pdev->dev, "SysKonnect CardBus2SDIO, "
+					 "board rev %d.%d, chip rev %d.%d\n",
+					 board_rev >> 4, board_rev & 0xf,
+					 chip_rev >> 4,  chip_rev & 0xf);
+	if (chip_rev >= 0x20)
+		slot->host->quirks |= SDHCI_QUIRK_FORCE_DMA;
+
+	writeb(SYSKT_POWER_330, slot->host->ioaddr + SYSKT_POWER_DATA);
+	writeb(SYSKT_POWER_START, slot->host->ioaddr + SYSKT_POWER_CMD);
+	udelay(50);
+	tm = 10;  /* Wait max 1 ms */
+	do {
+		ps = readw(slot->host->ioaddr + SYSKT_POWER_STATUS);
+		if (ps & SYSKT_POWER_STATUS_OK)
+			break;
+		udelay(100);
+	} while (--tm);
+	if (!tm) {
+		dev_err(&slot->chip->pdev->dev,
+			"power regulator never stabilized");
+		writeb(0, slot->host->ioaddr + SYSKT_POWER_CMD);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static const struct sdhci_pci_fixes sdhci_syskt = {
+	.quirks		= SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER,
+	.probe		= syskt_probe,
+	.probe_slot	= syskt_probe_slot,
 };
 
 static int via_probe(struct sdhci_pci_chip *chip)
@@ -303,6 +528,22 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_ricoh,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_RICOH,
+		.device         = 0x843,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = (kernel_ulong_t)&sdhci_ricoh_mmc,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_RICOH,
+		.device         = 0xe822,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = (kernel_ulong_t)&sdhci_ricoh_mmc,
 	},
 
 	{
@@ -362,11 +603,139 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 	},
 
 	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB388_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB388_ESD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_SYSKONNECT,
+		.device		= 0x8000,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_syskt,
+	},
+
+	{
 		.vendor		= PCI_VENDOR_ID_VIA,
 		.device		= 0x95d0,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_via,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MRST_SD0,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc0,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MRST_SD1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc1_hc2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MRST_SD2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc1_hc2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sd,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_SDIO1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_SDIO2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_EMMC0,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_EMMC1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8120,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8220,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8221,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8320,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8321,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
 	},
 
 	{	/* Generic SD host controller */
@@ -395,7 +764,7 @@ static int sdhci_pci_enable_dma(struct sdhci_host *host)
 
 	if (((pdev->class & 0xFFFF00) == (PCI_CLASS_SYSTEM_SDHCI << 8)) &&
 		((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA) &&
-		(host->flags & SDHCI_USE_DMA)) {
+		(host->flags & SDHCI_USE_SDMA)) {
 		dev_warn(&pdev->dev, "Will use DMA mode even though HW "
 			"doesn't fully claim to support it.\n");
 	}
@@ -425,6 +794,8 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
+	mmc_pm_flag_t slot_pm_flags;
+	mmc_pm_flag_t pm_flags = 0;
 	int i, ret;
 
 	chip = pci_get_drvdata(pdev);
@@ -443,6 +814,12 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 				sdhci_resume_host(chip->slots[i]->host);
 			return ret;
 		}
+
+		slot_pm_flags = slot->host->mmc->pm_flags;
+		if (slot_pm_flags & MMC_PM_WAKE_SDIO_IRQ)
+			sdhci_enable_irq_wakeups(slot->host);
+
+		pm_flags |= slot_pm_flags;
 	}
 
 	if (chip->fixes && chip->fixes->suspend) {
@@ -455,9 +832,17 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 	}
 
 	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (pm_flags & MMC_PM_KEEP_POWER) {
+		if (pm_flags & MMC_PM_WAKE_SDIO_IRQ) {
+			pci_pme_active(pdev, true);
+			pci_enable_wake(pdev, PCI_D3hot, 1);
+		}
+		pci_set_power_state(pdev, PCI_D3hot);
+	} else {
+		pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
+		pci_disable_device(pdev);
+		pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	}
 
 	return 0;
 }
@@ -543,7 +928,7 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 	host = sdhci_alloc_host(&pdev->dev, sizeof(struct sdhci_pci_slot));
 	if (IS_ERR(host)) {
 		dev_err(&pdev->dev, "cannot allocate host\n");
-		return ERR_PTR(PTR_ERR(host));
+		return ERR_CAST(host);
 	}
 
 	slot = sdhci_priv(host);
@@ -576,6 +961,8 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 		if (ret)
 			goto unmap;
 	}
+
+	host->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
 
 	ret = sdhci_add_host(host);
 	if (ret)
@@ -681,6 +1068,8 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 		if (ret)
 			goto free;
 	}
+
+	slots = chip->num_slots;	/* Quirk may have changed this */
 
 	for (i = 0;i < slots;i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar + i);

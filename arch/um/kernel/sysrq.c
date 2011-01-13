@@ -70,8 +70,8 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 		if (kstack_end(stack))
 			break;
 		if (i && ((i % 8) == 0))
-			printk("\n" KERN_INFO "       ");
-		printk("%08lx ", *stack++);
+			printk(KERN_INFO "       ");
+		printk(KERN_CONT "%08lx ", *stack++);
 	}
 
 	show_trace(task, esp);

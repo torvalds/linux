@@ -1,3 +1,7 @@
+/*
+ * arch/arm/mach-ep93xx/include/mach/clkdev.h
+ */
+
 #ifndef __ASM_MACH_CLKDEV_H
 #define __ASM_MACH_CLKDEV_H
 

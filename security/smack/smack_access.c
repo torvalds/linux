@@ -11,6 +11,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include "smack.h"
@@ -66,6 +67,46 @@ static u32 smack_next_secid = 10;
 int log_policy = SMACK_AUDIT_DENIED;
 
 /**
+ * smk_access_entry - look up matching access rule
+ * @subject_label: a pointer to the subject's Smack label
+ * @object_label: a pointer to the object's Smack label
+ *
+ * This function looks up the subject/object pair in the
+ * access rule list and returns pointer to the matching rule if found,
+ * NULL otherwise.
+ *
+ * NOTE:
+ * Even though Smack labels are usually shared on smack_list
+ * labels that come in off the network can't be imported
+ * and added to the list for locking reasons.
+ *
+ * Therefore, it is necessary to check the contents of the labels,
+ * not just the pointer values. Of course, in most cases the labels
+ * will be on the list, so checking the pointers may be a worthwhile
+ * optimization.
+ */
+int smk_access_entry(char *subject_label, char *object_label)
+{
+	u32 may = MAY_NOT;
+	struct smack_rule *srp;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(srp, &smack_rule_list, list) {
+		if (srp->smk_subject == subject_label ||
+		    strcmp(srp->smk_subject, subject_label) == 0) {
+			if (srp->smk_object == object_label ||
+			    strcmp(srp->smk_object, object_label) == 0) {
+				may = srp->smk_access;
+				break;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	return may;
+}
+
+/**
  * smk_access - determine if a subject has a specific access to an object
  * @subject_label: a pointer to the subject's Smack label
  * @object_label: a pointer to the object's Smack label
@@ -89,7 +130,6 @@ int smk_access(char *subject_label, char *object_label, int request,
 	       struct smk_audit_info *a)
 {
 	u32 may = MAY_NOT;
-	struct smack_rule *srp;
 	int rc = 0;
 
 	/*
@@ -143,18 +183,7 @@ int smk_access(char *subject_label, char *object_label, int request,
 	 * access (e.g. read is included in readwrite) it's
 	 * good.
 	 */
-	rcu_read_lock();
-	list_for_each_entry_rcu(srp, &smack_rule_list, list) {
-		if (srp->smk_subject == subject_label ||
-		    strcmp(srp->smk_subject, subject_label) == 0) {
-			if (srp->smk_object == object_label ||
-			    strcmp(srp->smk_object, object_label) == 0) {
-				may = srp->smk_access;
-				break;
-			}
-		}
-	}
-	rcu_read_unlock();
+	may = smk_access_entry(subject_label, object_label);
 	/*
 	 * This is a bit map operation.
 	 */
@@ -184,7 +213,7 @@ out_audit:
 int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
 {
 	int rc;
-	char *sp = current_security();
+	char *sp = smk_of_current();
 
 	rc = smk_access(sp, obj_label, mode, NULL);
 	if (rc == 0)
@@ -195,7 +224,7 @@ int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
 	 * only one that gets privilege and current does not
 	 * have that label.
 	 */
-	if (smack_onlycap != NULL && smack_onlycap != current->cred->security)
+	if (smack_onlycap != NULL && smack_onlycap != sp)
 		goto out_audit;
 
 	if (capable(CAP_MAC_OVERRIDE))
@@ -240,8 +269,9 @@ static inline void smack_str_from_perm(char *string, int access)
 static void smack_log_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
-	struct smack_audit_data *sad = &ad->lsm_priv.smack_audit_data;
-	audit_log_format(ab, "lsm=SMACK fn=%s action=%s", ad->function,
+	struct smack_audit_data *sad = &ad->smack_audit_data;
+	audit_log_format(ab, "lsm=SMACK fn=%s action=%s",
+			 ad->smack_audit_data.function,
 			 sad->result ? "denied" : "granted");
 	audit_log_format(ab, " subject=");
 	audit_log_untrustedstring(ab, sad->subject);
@@ -274,11 +304,11 @@ void smack_log(char *subject_label, char *object_label, int request,
 	if (result == 0 && (log_policy & SMACK_AUDIT_ACCEPT) == 0)
 		return;
 
-	if (a->function == NULL)
-		a->function = "unknown";
+	if (a->smack_audit_data.function == NULL)
+		a->smack_audit_data.function = "unknown";
 
 	/* end preparing the audit data */
-	sad = &a->lsm_priv.smack_audit_data;
+	sad = &a->smack_audit_data;
 	smack_str_from_perm(request_buffer, request);
 	sad->subject = subject_label;
 	sad->object  = object_label;

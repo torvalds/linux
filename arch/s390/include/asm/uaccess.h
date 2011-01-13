@@ -93,6 +93,8 @@ extern struct uaccess_ops uaccess_mvcos;
 extern struct uaccess_ops uaccess_mvcos_switch;
 extern struct uaccess_ops uaccess_pt;
 
+extern int __handle_fault(unsigned long, unsigned long, int);
+
 static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
 {
 	size = uaccess.copy_to_user_small(size, ptr, x);
@@ -263,6 +265,12 @@ __copy_from_user(void *to, const void __user *from, unsigned long n)
 		return uaccess.copy_from_user(n, from, to);
 }
 
+extern void copy_from_user_overflow(void)
+#ifdef CONFIG_DEBUG_STRICT_USER_COPY_CHECKS
+__compiletime_warning("copy_from_user() buffer size is not provably correct")
+#endif
+;
+
 /**
  * copy_from_user: - Copy a block of data from user space.
  * @to:   Destination address, in kernel space.
@@ -282,7 +290,13 @@ __copy_from_user(void *to, const void __user *from, unsigned long n)
 static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
+	unsigned int sz = __compiletime_object_size(to);
+
 	might_fault();
+	if (unlikely(sz != -1 && sz < n)) {
+		copy_from_user_overflow();
+		return n;
+	}
 	if (access_ok(VERIFY_READ, from, n))
 		n = __copy_from_user(to, from, n);
 	else

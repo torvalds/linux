@@ -36,7 +36,9 @@
 #define ADM1031_REG_FAN_DIV(nr)		(0x20 + (nr))
 #define ADM1031_REG_PWM			(0x22)
 #define ADM1031_REG_FAN_MIN(nr)		(0x10 + (nr))
+#define ADM1031_REG_FAN_FILTER		(0x23)
 
+#define ADM1031_REG_TEMP_OFFSET(nr)	(0x0d + (nr))
 #define ADM1031_REG_TEMP_MAX(nr)	(0x14 + 4 * (nr))
 #define ADM1031_REG_TEMP_MIN(nr)	(0x15 + 4 * (nr))
 #define ADM1031_REG_TEMP_CRIT(nr)	(0x16 + 4 * (nr))
@@ -60,11 +62,13 @@
 #define ADM1031_CONF2_TACH2_ENABLE	0x08
 #define ADM1031_CONF2_TEMP_ENABLE(chan)	(0x10 << (chan))
 
+#define ADM1031_UPDATE_RATE_MASK	0x1c
+#define ADM1031_UPDATE_RATE_SHIFT	2
+
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(adm1030, adm1031);
+enum chips { adm1030, adm1031 };
 
 typedef u8 auto_chan_table_t[8][2];
 
@@ -75,6 +79,7 @@ struct adm1031_data {
 	int chip_type;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
+	unsigned int update_interval;	/* In milliseconds */
 	/* The chan_select_table contains the possible configurations for
 	 * auto fan control.
 	 */
@@ -93,6 +98,7 @@ struct adm1031_data {
 	u8 auto_temp_min[3];
 	u8 auto_temp_off[3];
 	u8 auto_temp_max[3];
+	s8 temp_offset[3];
 	s8 temp_min[3];
 	s8 temp_max[3];
 	s8 temp_crit[3];
@@ -100,7 +106,7 @@ struct adm1031_data {
 
 static int adm1031_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm1031_detect(struct i2c_client *client, int kind,
+static int adm1031_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void adm1031_init_client(struct i2c_client *client);
 static int adm1031_remove(struct i2c_client *client);
@@ -123,7 +129,7 @@ static struct i2c_driver adm1031_driver = {
 	.remove		= adm1031_remove,
 	.id_table	= adm1031_id,
 	.detect		= adm1031_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static inline u8 adm1031_read_value(struct i2c_client *client, u8 reg)
@@ -144,6 +150,10 @@ adm1031_write_value(struct i2c_client *client, u8 reg, unsigned int value)
 #define TEMP_FROM_REG(val)		((val) * 1000)
 
 #define TEMP_FROM_REG_EXT(val, ext)	(TEMP_FROM_REG(val) + (ext) * 125)
+
+#define TEMP_OFFSET_TO_REG(val)		(TEMP_TO_REG(val) & 0x8f)
+#define TEMP_OFFSET_FROM_REG(val)	TEMP_FROM_REG((val) < 0 ? \
+						      (val) | 0x70 : (val))
 
 #define FAN_FROM_REG(reg, div)		((reg) ? (11250 * 60) / ((reg) * (div)) : 0)
 
@@ -585,6 +595,14 @@ static ssize_t show_temp(struct device *dev,
 	    (((data->ext_temp[nr] >> ((nr - 1) * 3)) & 7));
 	return sprintf(buf, "%d\n", TEMP_FROM_REG_EXT(data->temp[nr], ext));
 }
+static ssize_t show_temp_offset(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct adm1031_data *data = adm1031_update_device(dev);
+	return sprintf(buf, "%d\n",
+		       TEMP_OFFSET_FROM_REG(data->temp_offset[nr]));
+}
 static ssize_t show_temp_min(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -605,6 +623,24 @@ static ssize_t show_temp_crit(struct device *dev,
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct adm1031_data *data = adm1031_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_crit[nr]));
+}
+static ssize_t set_temp_offset(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adm1031_data *data = i2c_get_clientdata(client);
+	int nr = to_sensor_dev_attr(attr)->index;
+	int val;
+
+	val = simple_strtol(buf, NULL, 10);
+	val = SENSORS_LIMIT(val, -15000, 15000);
+	mutex_lock(&data->update_lock);
+	data->temp_offset[nr] = TEMP_OFFSET_TO_REG(val);
+	adm1031_write_value(client, ADM1031_REG_TEMP_OFFSET(nr),
+			    data->temp_offset[nr]);
+	mutex_unlock(&data->update_lock);
+	return count;
 }
 static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
@@ -661,6 +697,8 @@ static ssize_t set_temp_crit(struct device *dev, struct device_attribute *attr,
 #define temp_reg(offset)						\
 static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO,		\
 		show_temp, NULL, offset - 1);				\
+static SENSOR_DEVICE_ATTR(temp##offset##_offset, S_IRUGO | S_IWUSR,	\
+		show_temp_offset, set_temp_offset, offset - 1);		\
 static SENSOR_DEVICE_ATTR(temp##offset##_min, S_IRUGO | S_IWUSR,	\
 		show_temp_min, set_temp_min, offset - 1);		\
 static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR,	\
@@ -705,6 +743,60 @@ static SENSOR_DEVICE_ATTR(temp3_crit_alarm, S_IRUGO, show_alarm, NULL, 12);
 static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_alarm, NULL, 13);
 static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 14);
 
+/* Update Interval */
+static const unsigned int update_intervals[] = {
+	16000, 8000, 4000, 2000, 1000, 500, 250, 125,
+};
+
+static ssize_t show_update_interval(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adm1031_data *data = i2c_get_clientdata(client);
+
+	return sprintf(buf, "%u\n", data->update_interval);
+}
+
+static ssize_t set_update_interval(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adm1031_data *data = i2c_get_clientdata(client);
+	unsigned long val;
+	int i, err;
+	u8 reg;
+
+	err = strict_strtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	/*
+	 * Find the nearest update interval from the table.
+	 * Use it to determine the matching update rate.
+	 */
+	for (i = 0; i < ARRAY_SIZE(update_intervals) - 1; i++) {
+		if (val >= update_intervals[i])
+			break;
+	}
+	/* if not found, we point to the last entry (lowest update interval) */
+
+	/* set the new update rate while preserving other settings */
+	reg = adm1031_read_value(client, ADM1031_REG_FAN_FILTER);
+	reg &= ~ADM1031_UPDATE_RATE_MASK;
+	reg |= i << ADM1031_UPDATE_RATE_SHIFT;
+	adm1031_write_value(client, ADM1031_REG_FAN_FILTER, reg);
+
+	mutex_lock(&data->update_lock);
+	data->update_interval = update_intervals[i];
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(update_interval, S_IRUGO | S_IWUSR, show_update_interval,
+		   set_update_interval);
+
 static struct attribute *adm1031_attributes[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_div.dev_attr.attr,
@@ -714,6 +806,7 @@ static struct attribute *adm1031_attributes[] = {
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_auto_fan1_channel.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_offset.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
@@ -721,6 +814,7 @@ static struct attribute *adm1031_attributes[] = {
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_offset.dev_attr.attr,
 	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
@@ -739,6 +833,7 @@ static struct attribute *adm1031_attributes[] = {
 
 	&sensor_dev_attr_auto_fan1_min_pwm.dev_attr.attr,
 
+	&dev_attr_update_interval.attr,
 	&dev_attr_alarms.attr,
 
 	NULL
@@ -757,6 +852,7 @@ static struct attribute *adm1031_attributes_opt[] = {
 	&sensor_dev_attr_pwm2.dev_attr.attr,
 	&sensor_dev_attr_auto_fan2_channel.dev_attr.attr,
 	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_offset.dev_attr.attr,
 	&sensor_dev_attr_temp3_min.dev_attr.attr,
 	&sensor_dev_attr_temp3_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp3_max.dev_attr.attr,
@@ -776,35 +872,23 @@ static const struct attribute_group adm1031_group_opt = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm1031_detect(struct i2c_client *client, int kind,
+static int adm1031_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	const char *name = "";
+	const char *name;
+	int id, co;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind < 0) {
-		int id, co;
-		id = i2c_smbus_read_byte_data(client, 0x3d);
-		co = i2c_smbus_read_byte_data(client, 0x3e);
+	id = i2c_smbus_read_byte_data(client, 0x3d);
+	co = i2c_smbus_read_byte_data(client, 0x3e);
 
-		if (!((id == 0x31 || id == 0x30) && co == 0x41))
-			return -ENODEV;
-		kind = (id == 0x30) ? adm1030 : adm1031;
-	}
+	if (!((id == 0x31 || id == 0x30) && co == 0x41))
+		return -ENODEV;
+	name = (id == 0x30) ? "adm1030" : "adm1031";
 
-	if (kind <= 0)
-		kind = adm1031;
-
-	/* Given the detected chip type, set the chip name and the
-	 * auto fan control helper table. */
-	if (kind == adm1030) {
-		name = "adm1030";
-	} else if (kind == adm1031) {
-		name = "adm1031";
-	}
 	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
@@ -876,6 +960,7 @@ static void adm1031_init_client(struct i2c_client *client)
 {
 	unsigned int read_val;
 	unsigned int mask;
+	int i;
 	struct adm1031_data *data = i2c_get_clientdata(client);
 
 	mask = (ADM1031_CONF2_PWM1_ENABLE | ADM1031_CONF2_TACH1_ENABLE);
@@ -895,18 +980,26 @@ static void adm1031_init_client(struct i2c_client *client)
 				ADM1031_CONF1_MONITOR_ENABLE);
 	}
 
+	/* Read the chip's update rate */
+	mask = ADM1031_UPDATE_RATE_MASK;
+	read_val = adm1031_read_value(client, ADM1031_REG_FAN_FILTER);
+	i = (read_val & mask) >> ADM1031_UPDATE_RATE_SHIFT;
+	/* Save it as update interval */
+	data->update_interval = update_intervals[i];
 }
 
 static struct adm1031_data *adm1031_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1031_data *data = i2c_get_clientdata(client);
+	unsigned long next_update;
 	int chan;
 
 	mutex_lock(&data->update_lock);
 
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
-	    || !data->valid) {
+	next_update = data->last_updated
+	  + msecs_to_jiffies(data->update_interval);
+	if (time_after(jiffies, next_update) || !data->valid) {
 
 		dev_dbg(&client->dev, "Starting adm1031 update\n");
 		for (chan = 0;
@@ -937,6 +1030,9 @@ static struct adm1031_data *adm1031_update_device(struct device *dev)
 			}
 			data->temp[chan] = newh;
 
+			data->temp_offset[chan] =
+			    adm1031_read_value(client,
+					       ADM1031_REG_TEMP_OFFSET(chan));
 			data->temp_min[chan] =
 			    adm1031_read_value(client,
 					       ADM1031_REG_TEMP_MIN(chan));

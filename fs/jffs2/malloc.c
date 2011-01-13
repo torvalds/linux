@@ -39,13 +39,13 @@ int __init jffs2_create_slab_caches(void)
 
 	raw_dirent_slab = kmem_cache_create("jffs2_raw_dirent",
 					    sizeof(struct jffs2_raw_dirent),
-					    0, 0, NULL);
+					    0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!raw_dirent_slab)
 		goto err;
 
 	raw_inode_slab = kmem_cache_create("jffs2_raw_inode",
 					   sizeof(struct jffs2_raw_inode),
-					   0, 0, NULL);
+					   0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!raw_inode_slab)
 		goto err;
 

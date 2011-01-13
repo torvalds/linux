@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 
@@ -335,7 +336,7 @@ static int sirdev_is_receiving(struct sir_dev *dev)
 	if (!atomic_read(&dev->enable_rx))
 		return 0;
 
-	return (dev->rx_buff.state != OUTSIDE_FRAME);
+	return dev->rx_buff.state != OUTSIDE_FRAME;
 }
 
 int sirdev_set_dongle(struct sir_dev *dev, IRDA_DONGLE type)
@@ -582,7 +583,8 @@ EXPORT_SYMBOL(sirdev_receive);
 
 /* callbacks from network layer */
 
-static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t sirdev_hard_xmit(struct sk_buff *skb,
+					  struct net_device *ndev)
 {
 	struct sir_dev *dev = netdev_priv(ndev);
 	unsigned long flags;
@@ -590,7 +592,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int err;
 	s32 speed;
 
-	IRDA_ASSERT(dev != NULL, return 0;);
+	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 
 	netif_stop_queue(ndev);
 
@@ -621,7 +623,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 			 */
 
 			dev_kfree_skb_any(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		} else
 			dev->new_speed = speed;
 	}
@@ -653,7 +655,6 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	if (likely(actual > 0)) {
 		dev->tx_skb = skb;
-		ndev->trans_start = jiffies;
 		dev->tx_buff.data += actual;
 		dev->tx_buff.len -= actual;
 	}
@@ -668,7 +669,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* called from network layer with rtnl hold */
@@ -908,7 +909,7 @@ struct sir_dev * sirdev_get_instance(const struct sir_driver *drv, const char *n
 	dev->tx_skb = NULL;
 
 	spin_lock_init(&dev->tx_lock);
-	init_MUTEX(&dev->fsm.sem);
+	sema_init(&dev->fsm.sem, 1);
 
 	dev->drv = drv;
 	dev->netdev = ndev;

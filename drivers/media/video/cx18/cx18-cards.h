@@ -4,7 +4,7 @@
  *  Derived from ivtv-cards.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,13 +22,20 @@
  */
 
 /* hardware flags */
-#define CX18_HW_TUNER		(1 << 0)
-#define CX18_HW_TVEEPROM	(1 << 1)
-#define CX18_HW_CS5345		(1 << 2)
-#define CX18_HW_DVB		(1 << 3)
-#define CX18_HW_418_AV		(1 << 4)
-#define CX18_HW_GPIO_MUX	(1 << 5)
-#define CX18_HW_GPIO_RESET_CTRL	(1 << 6)
+#define CX18_HW_TUNER			(1 << 0)
+#define CX18_HW_TVEEPROM		(1 << 1)
+#define CX18_HW_CS5345			(1 << 2)
+#define CX18_HW_DVB			(1 << 3)
+#define CX18_HW_418_AV			(1 << 4)
+#define CX18_HW_GPIO_MUX		(1 << 5)
+#define CX18_HW_GPIO_RESET_CTRL		(1 << 6)
+#define CX18_HW_Z8F0811_IR_TX_HAUP	(1 << 7)
+#define CX18_HW_Z8F0811_IR_RX_HAUP	(1 << 8)
+#define CX18_HW_Z8F0811_IR_HAUP	(CX18_HW_Z8F0811_IR_RX_HAUP | \
+				 CX18_HW_Z8F0811_IR_TX_HAUP)
+
+#define CX18_HW_IR_ANY (CX18_HW_Z8F0811_IR_RX_HAUP | \
+			CX18_HW_Z8F0811_IR_TX_HAUP)
 
 /* video inputs */
 #define	CX18_CARD_INPUT_VID_TUNER	1
@@ -36,7 +43,7 @@
 #define	CX18_CARD_INPUT_SVIDEO2 	3
 #define	CX18_CARD_INPUT_COMPOSITE1 	4
 #define	CX18_CARD_INPUT_COMPOSITE2 	5
-#define	CX18_CARD_INPUT_COMPOSITE3 	6
+#define	CX18_CARD_INPUT_COMPONENT1 	6
 
 /* audio inputs */
 #define	CX18_CARD_INPUT_AUD_TUNER	1
@@ -55,7 +62,7 @@
 struct cx18_card_video_input {
 	u8  video_type; 	/* video input type */
 	u8  audio_index;	/* index in cx18_card_audio_input array */
-	u16 video_input;	/* hardware video input */
+	u32 video_input;	/* hardware video input */
 };
 
 struct cx18_card_audio_input {

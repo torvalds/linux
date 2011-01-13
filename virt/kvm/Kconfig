@@ -1,0 +1,17 @@
+# KVM common configuration items and defaults
+
+config HAVE_KVM
+       bool
+
+config HAVE_KVM_IRQCHIP
+       bool
+
+config HAVE_KVM_EVENTFD
+       bool
+       select EVENTFD
+
+config KVM_APIC_ARCHITECTURE
+       bool
+
+config KVM_MMIO
+       bool

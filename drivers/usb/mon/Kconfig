@@ -5,11 +5,9 @@
 config USB_MON
 	tristate "USB Monitor"
 	depends on USB
-	default y if USB=y
-	default m if USB=m
 	help
 	  If you select this option, a component which captures the USB traffic
 	  between peripheral-specific drivers and HC drivers will be built.
 	  For more information, see <file:Documentation/usb/usbmon.txt>.
 
-	  If unsure, say Y (if allowed), otherwise M.
+	  If unsure, say Y, if allowed, otherwise M.

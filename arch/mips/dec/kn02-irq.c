@@ -1,6 +1,4 @@
 /*
- *	linux/arch/mips/dec/kn02-irq.c
- *
  *	DECstation 5000/200 (KN02) Control and Status Register
  *	interrupts.
  *

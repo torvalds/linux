@@ -44,7 +44,7 @@ static int mst_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	 * before we enable them as outputs.
 	 */
 
-	skt->irq = (skt->nr == 0) ? MAINSTONE_S0_IRQ : MAINSTONE_S1_IRQ;
+	skt->socket.pci_irq = (skt->nr == 0) ? MAINSTONE_S0_IRQ : MAINSTONE_S1_IRQ;
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 

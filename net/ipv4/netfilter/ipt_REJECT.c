@@ -9,9 +9,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>
@@ -94,10 +95,11 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	}
 
 	tcph->rst	= 1;
-	tcph->check	= tcp_v4_check(sizeof(struct tcphdr),
-				       niph->saddr, niph->daddr,
-				       csum_partial(tcph,
-						    sizeof(struct tcphdr), 0));
+	tcph->check = ~tcp_v4_check(sizeof(struct tcphdr), niph->saddr,
+				    niph->daddr, 0);
+	nskb->ip_summed = CHECKSUM_PARTIAL;
+	nskb->csum_start = (unsigned char *)tcph - nskb->head;
+	nskb->csum_offset = offsetof(struct tcphdr, check);
 
 	addr_type = RTN_UNSPEC;
 	if (hook != NF_INET_FORWARD
@@ -108,13 +110,13 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 		addr_type = RTN_LOCAL;
 
 	/* ip_route_me_harder expects skb->dst to be set */
-	skb_dst_set(nskb, dst_clone(skb_dst(oldskb)));
+	skb_dst_set_noref(nskb, skb_dst(oldskb));
 
+	nskb->protocol = htons(ETH_P_IP);
 	if (ip_route_me_harder(nskb, addr_type))
 		goto free_nskb;
 
-	niph->ttl	= dst_metric(skb_dst(nskb), RTAX_HOPLIMIT);
-	nskb->ip_summed = CHECKSUM_NONE;
+	niph->ttl	= ip4_dst_hoplimit(skb_dst(nskb));
 
 	/* "Never happens" */
 	if (nskb->len > dst_mtu(skb_dst(nskb)))
@@ -135,13 +137,10 @@ static inline void send_unreach(struct sk_buff *skb_in, int code)
 }
 
 static unsigned int
-reject_tg(struct sk_buff *skb, const struct xt_target_param *par)
+reject_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ipt_reject_info *reject = par->targinfo;
 
-	/* WARNING: This code causes reentry within iptables.
-	   This means that the iptables jump stack is now crap.  We
-	   must return an absolute verdict. --RR */
 	switch (reject->with) {
 	case IPT_ICMP_NET_UNREACHABLE:
 		send_unreach(skb, ICMP_NET_UNREACH);
@@ -174,23 +173,23 @@ reject_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return NF_DROP;
 }
 
-static bool reject_tg_check(const struct xt_tgchk_param *par)
+static int reject_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_reject_info *rejinfo = par->targinfo;
 	const struct ipt_entry *e = par->entryinfo;
 
 	if (rejinfo->with == IPT_ICMP_ECHOREPLY) {
-		printk("ipt_REJECT: ECHOREPLY no longer supported.\n");
-		return false;
+		pr_info("ECHOREPLY no longer supported.\n");
+		return -EINVAL;
 	} else if (rejinfo->with == IPT_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
-		if (e->ip.proto != IPPROTO_TCP
-		    || (e->ip.invflags & XT_INV_PROTO)) {
-			printk("ipt_REJECT: TCP_RESET invalid for non-tcp\n");
-			return false;
+		if (e->ip.proto != IPPROTO_TCP ||
+		    (e->ip.invflags & XT_INV_PROTO)) {
+			pr_info("TCP_RESET invalid for non-tcp\n");
+			return -EINVAL;
 		}
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target reject_tg_reg __read_mostly = {

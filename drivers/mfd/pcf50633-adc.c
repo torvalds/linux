@@ -17,6 +17,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
@@ -29,13 +30,13 @@
 struct pcf50633_adc_request {
 	int mux;
 	int avg;
-	int result;
 	void (*callback)(struct pcf50633 *, void *, int);
 	void *callback_param;
+};
 
-	/* Used in case of sync requests */
+struct pcf50633_adc_sync_request {
+	int result;
 	struct completion completion;
-
 };
 
 #define PCF50633_MAX_ADC_FIFO_DEPTH 8
@@ -73,15 +74,10 @@ static void trigger_next_adc_job_if_any(struct pcf50633 *pcf)
 	struct pcf50633_adc *adc = __to_adc(pcf);
 	int head;
 
-	mutex_lock(&adc->queue_mutex);
-
 	head = adc->queue_head;
 
-	if (!adc->queue[head]) {
-		mutex_unlock(&adc->queue_mutex);
+	if (!adc->queue[head])
 		return;
-	}
-	mutex_unlock(&adc->queue_mutex);
 
 	adc_setup(pcf, adc->queue[head]->mux, adc->queue[head]->avg);
 }
@@ -99,23 +95,24 @@ adc_enqueue_request(struct pcf50633 *pcf, struct pcf50633_adc_request *req)
 
 	if (adc->queue[tail]) {
 		mutex_unlock(&adc->queue_mutex);
+		dev_err(pcf->dev, "ADC queue is full, dropping request\n");
 		return -EBUSY;
 	}
 
 	adc->queue[tail] = req;
+	if (head == tail)
+		trigger_next_adc_job_if_any(pcf);
 	adc->queue_tail = (tail + 1) & (PCF50633_MAX_ADC_FIFO_DEPTH - 1);
 
 	mutex_unlock(&adc->queue_mutex);
 
-	trigger_next_adc_job_if_any(pcf);
-
 	return 0;
 }
 
-static void
-pcf50633_adc_sync_read_callback(struct pcf50633 *pcf, void *param, int result)
+static void pcf50633_adc_sync_read_callback(struct pcf50633 *pcf, void *param,
+	int result)
 {
-	struct pcf50633_adc_request *req = param;
+	struct pcf50633_adc_sync_request *req = param;
 
 	req->result = result;
 	complete(&req->completion);
@@ -123,23 +120,19 @@ pcf50633_adc_sync_read_callback(struct pcf50633 *pcf, void *param, int result)
 
 int pcf50633_adc_sync_read(struct pcf50633 *pcf, int mux, int avg)
 {
-	struct pcf50633_adc_request *req;
+	struct pcf50633_adc_sync_request req;
+	int ret;
 
-	/* req is freed when the result is ready, in interrupt handler */
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	init_completion(&req.completion);
 
-	req->mux = mux;
-	req->avg = avg;
-	req->callback =  pcf50633_adc_sync_read_callback;
-	req->callback_param = req;
+	ret = pcf50633_adc_async_read(pcf, mux, avg,
+		pcf50633_adc_sync_read_callback, &req);
+	if (ret)
+		return ret;
 
-	init_completion(&req->completion);
-	adc_enqueue_request(pcf, req);
-	wait_for_completion(&req->completion);
+	wait_for_completion(&req.completion);
 
-	return req->result;
+	return req.result;
 }
 EXPORT_SYMBOL_GPL(pcf50633_adc_sync_read);
 
@@ -159,9 +152,7 @@ int pcf50633_adc_async_read(struct pcf50633 *pcf, int mux, int avg,
 	req->callback = callback;
 	req->callback_param = callback_param;
 
-	adc_enqueue_request(pcf, req);
-
-	return 0;
+	return adc_enqueue_request(pcf, req);
 }
 EXPORT_SYMBOL_GPL(pcf50633_adc_async_read);
 
@@ -184,7 +175,7 @@ static void pcf50633_adc_irq(int irq, void *data)
 	struct pcf50633_adc *adc = data;
 	struct pcf50633 *pcf = adc->pcf;
 	struct pcf50633_adc_request *req;
-	int head;
+	int head, res;
 
 	mutex_lock(&adc->queue_mutex);
 	head = adc->queue_head;
@@ -199,27 +190,27 @@ static void pcf50633_adc_irq(int irq, void *data)
 	adc->queue_head = (head + 1) &
 				      (PCF50633_MAX_ADC_FIFO_DEPTH - 1);
 
+	res = adc_result(pcf);
+	trigger_next_adc_job_if_any(pcf);
+
 	mutex_unlock(&adc->queue_mutex);
 
-	req->callback(pcf, req->callback_param, adc_result(pcf));
+	req->callback(pcf, req->callback_param, res);
 	kfree(req);
-
-	trigger_next_adc_job_if_any(pcf);
 }
 
 static int __devinit pcf50633_adc_probe(struct platform_device *pdev)
 {
-	struct pcf50633_subdev_pdata *pdata = pdev->dev.platform_data;
 	struct pcf50633_adc *adc;
 
 	adc = kzalloc(sizeof(*adc), GFP_KERNEL);
 	if (!adc)
 		return -ENOMEM;
 
-	adc->pcf = pdata->pcf;
+	adc->pcf = dev_to_pcf50633(pdev->dev.parent);
 	platform_set_drvdata(pdev, adc);
 
-	pcf50633_register_irq(pdata->pcf, PCF50633_IRQ_ADCRDY,
+	pcf50633_register_irq(adc->pcf, PCF50633_IRQ_ADCRDY,
 					pcf50633_adc_irq, adc);
 
 	mutex_init(&adc->queue_mutex);

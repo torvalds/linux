@@ -35,6 +35,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>
@@ -62,15 +63,12 @@ static const char mlx4_en_version[] =
  */
 
 
-/* Use a XOR rathern than Toeplitz hash function for RSS */
-MLX4_EN_PARM_INT(rss_xor, 0, "Use XOR hash function for RSS");
-
-/* RSS hash type mask - default to <saddr, daddr, sport, dport> */
-MLX4_EN_PARM_INT(rss_mask, 0xf, "RSS hash type bitmask");
-
-/* Number of LRO sessions per Rx ring (rounded up to a power of two) */
-MLX4_EN_PARM_INT(num_lro, MLX4_EN_MAX_LRO_DESCRIPTORS,
-		 "Number of LRO sessions per ring or disabled (0)");
+/* Enable RSS TCP traffic */
+MLX4_EN_PARM_INT(tcp_rss, 1,
+		 "Enable RSS for incomming TCP traffic or disabled (0)");
+/* Enable RSS UDP traffic */
+MLX4_EN_PARM_INT(udp_rss, 1,
+		 "Enable RSS for incomming UDP traffic or disabled (0)");
 
 /* Priority pausing */
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
@@ -78,14 +76,40 @@ MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
 
+int en_print(const char *level, const struct mlx4_en_priv *priv,
+	     const char *format, ...)
+{
+	va_list args;
+	struct va_format vaf;
+	int i;
+
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+	if (priv->registered)
+		i = printk("%s%s: %s: %pV",
+			   level, DRV_NAME, priv->dev->name, &vaf);
+	else
+		i = printk("%s%s: %s: Port %d: %pV",
+			   level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
+			   priv->port, &vaf);
+	va_end(args);
+
+	return i;
+}
+
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_profile *params = &mdev->profile;
 	int i;
 
-	params->rss_xor = (rss_xor != 0);
-	params->rss_mask = rss_mask & 0x1f;
-	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
+	params->tcp_rss = tcp_rss;
+	params->udp_rss = udp_rss;
+	if (params->udp_rss && !mdev->dev->caps.udp_rss) {
+		mlx4_warn(mdev, "UDP RSS is not supported on this device.\n");
+		params->udp_rss = 0;
+	}
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
 		params->prof[i].rx_pause = 1;
 		params->prof[i].rx_ppp = pfcrx;
@@ -98,6 +122,13 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	}
 
 	return 0;
+}
+
+static void *mlx4_en_get_netdev(struct mlx4_dev *dev, void *ctx, u8 port)
+{
+	struct mlx4_en_dev *endev = ctx;
+
+	return endev->pndev[port];
 }
 
 static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
@@ -151,15 +182,11 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 
 static void *mlx4_en_add(struct mlx4_dev *dev)
 {
-	static int mlx4_en_version_printed;
 	struct mlx4_en_dev *mdev;
 	int i;
 	int err;
 
-	if (!mlx4_en_version_printed) {
-		printk(KERN_INFO "%s", mlx4_en_version);
-		mlx4_en_version_printed++;
-	}
+	printk_once(KERN_INFO "%s", mlx4_en_version);
 
 	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
 	if (!mdev) {
@@ -218,8 +245,9 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
 		mlx4_info(mdev, "Using %d tx rings for port:%d\n",
 			  mdev->profile.prof[i].tx_ring_num, i);
-		mdev->profile.prof[i].rx_ring_num =
-			min_t(int, dev->caps.num_comp_vectors, MAX_RX_RINGS);
+		mdev->profile.prof[i].rx_ring_num = min_t(int,
+			roundup_pow_of_two(dev->caps.num_comp_vectors),
+			MAX_RX_RINGS);
 		mlx4_info(mdev, "Defaulting to %d rx rings for port:%d\n",
 			  mdev->profile.prof[i].rx_ring_num, i);
 	}
@@ -261,9 +289,11 @@ err_free_res:
 }
 
 static struct mlx4_interface mlx4_en_interface = {
-	.add	= mlx4_en_add,
-	.remove	= mlx4_en_remove,
-	.event	= mlx4_en_event,
+	.add		= mlx4_en_add,
+	.remove		= mlx4_en_remove,
+	.event		= mlx4_en_event,
+	.get_dev	= mlx4_en_get_netdev,
+	.protocol	= MLX4_PROTOCOL_EN,
 };
 
 static int __init mlx4_en_init(void)

@@ -18,10 +18,18 @@
 #define SDIO_CLASS_PHS		0x06	/* PHS standard interface */
 #define SDIO_CLASS_WLAN		0x07	/* WLAN interface */
 #define SDIO_CLASS_ATA		0x08	/* Embedded SDIO-ATA std interface */
+#define SDIO_CLASS_BT_AMP	0x09	/* Type-A Bluetooth AMP interface */
 
 /*
  * Vendors and devices.  Sort key: vendor first, device next.
  */
+#define SDIO_VENDOR_ID_INTEL			0x0089
+#define SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX	0x1402
+#define SDIO_DEVICE_ID_INTEL_IWMC3200WIFI	0x1403
+#define SDIO_DEVICE_ID_INTEL_IWMC3200TOP	0x1404
+#define SDIO_DEVICE_ID_INTEL_IWMC3200GPS	0x1405
+#define SDIO_DEVICE_ID_INTEL_IWMC3200BT		0x1406
+#define SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX_2G5	0x1407
 
 #define SDIO_VENDOR_ID_MARVELL			0x02df
 #define SDIO_DEVICE_ID_MARVELL_LIBERTAS		0x9103

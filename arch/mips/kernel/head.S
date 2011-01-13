@@ -188,8 +188,10 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 
 	MTC0		zero, CP0_CONTEXT	# clear context register
 	PTR_LA		$28, init_thread_union
-	PTR_LI		sp, _THREAD_SIZE - 32
+	/* Set the SP after an empty pt_regs.  */
+	PTR_LI		sp, _THREAD_SIZE - 32 - PT_SIZE
 	PTR_ADDU	sp, $28
+	back_to_back_c0_hazard
 	set_saved_sp	sp, t0, t1
 	PTR_SUBU	sp, 4 * SZREG		# init stack pointer
 

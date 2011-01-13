@@ -5,6 +5,7 @@ config SND_TIMER
 config SND_PCM
 	tristate
 	select SND_TIMER
+	select GCD
 
 config SND_HWDEP
 	tristate
@@ -205,5 +206,9 @@ config SND_PCM_XRUN_DEBUG
 
 config SND_VMASTER
 	bool
+
+config SND_DMA_SGBUF
+	def_bool y
+	depends on X86
 
 source "sound/core/seq/Kconfig"

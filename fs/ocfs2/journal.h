@@ -67,11 +67,12 @@ struct ocfs2_journal {
 	struct buffer_head        *j_bh;      /* Journal disk inode block */
 	atomic_t                  j_num_trans; /* Number of transactions
 					        * currently in the system. */
+	spinlock_t                j_lock;
 	unsigned long             j_trans_id;
 	struct rw_semaphore       j_trans_barrier;
 	wait_queue_head_t         j_checkpointed;
 
-	spinlock_t                j_lock;
+	/* both fields protected by j_lock*/
 	struct list_head          j_la_cleanups;
 	struct work_struct        j_recovery_work;
 };
@@ -90,61 +91,72 @@ static inline unsigned long ocfs2_inc_trans_id(struct ocfs2_journal *j)
 	return old_id;
 }
 
-static inline void ocfs2_set_inode_lock_trans(struct ocfs2_journal *journal,
-					      struct inode *inode)
+static inline void ocfs2_set_ci_lock_trans(struct ocfs2_journal *journal,
+					   struct ocfs2_caching_info *ci)
 {
 	spin_lock(&trans_inc_lock);
-	OCFS2_I(inode)->ip_last_trans = journal->j_trans_id;
+	ci->ci_last_trans = journal->j_trans_id;
 	spin_unlock(&trans_inc_lock);
 }
 
 /* Used to figure out whether it's safe to drop a metadata lock on an
- * inode. Returns true if all the inodes changes have been
+ * cached object. Returns true if all the object's changes have been
  * checkpointed to disk. You should be holding the spinlock on the
  * metadata lock while calling this to be sure that nobody can take
  * the lock and put it on another transaction. */
-static inline int ocfs2_inode_fully_checkpointed(struct inode *inode)
+static inline int ocfs2_ci_fully_checkpointed(struct ocfs2_caching_info *ci)
 {
 	int ret;
-	struct ocfs2_journal *journal = OCFS2_SB(inode->i_sb)->journal;
+	struct ocfs2_journal *journal =
+		OCFS2_SB(ocfs2_metadata_cache_get_super(ci))->journal;
 
 	spin_lock(&trans_inc_lock);
-	ret = time_after(journal->j_trans_id, OCFS2_I(inode)->ip_last_trans);
+	ret = time_after(journal->j_trans_id, ci->ci_last_trans);
 	spin_unlock(&trans_inc_lock);
 	return ret;
 }
 
-/* convenience function to check if an inode is still new (has never
- * hit disk) Will do you a favor and set created_trans = 0 when you've
- * been checkpointed.  returns '1' if the inode is still new. */
-static inline int ocfs2_inode_is_new(struct inode *inode)
+/* convenience function to check if an object backed by struct
+ * ocfs2_caching_info  is still new (has never hit disk) Will do you a
+ * favor and set created_trans = 0 when you've
+ * been checkpointed.  returns '1' if the ci is still new. */
+static inline int ocfs2_ci_is_new(struct ocfs2_caching_info *ci)
 {
 	int ret;
+	struct ocfs2_journal *journal =
+		OCFS2_SB(ocfs2_metadata_cache_get_super(ci))->journal;
 
+	spin_lock(&trans_inc_lock);
+	ret = !(time_after(journal->j_trans_id, ci->ci_created_trans));
+	if (!ret)
+		ci->ci_created_trans = 0;
+	spin_unlock(&trans_inc_lock);
+	return ret;
+}
+
+/* Wrapper for inodes so we can check system files */
+static inline int ocfs2_inode_is_new(struct inode *inode)
+{
 	/* System files are never "new" as they're written out by
 	 * mkfs. This helps us early during mount, before we have the
 	 * journal open and j_trans_id could be junk. */
 	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE)
 		return 0;
-	spin_lock(&trans_inc_lock);
-	ret = !(time_after(OCFS2_SB(inode->i_sb)->journal->j_trans_id,
-			   OCFS2_I(inode)->ip_created_trans));
-	if (!ret)
-		OCFS2_I(inode)->ip_created_trans = 0;
-	spin_unlock(&trans_inc_lock);
-	return ret;
+
+	return ocfs2_ci_is_new(INODE_CACHE(inode));
 }
 
-static inline void ocfs2_inode_set_new(struct ocfs2_super *osb,
-				       struct inode *inode)
+static inline void ocfs2_ci_set_new(struct ocfs2_super *osb,
+				    struct ocfs2_caching_info *ci)
 {
 	spin_lock(&trans_inc_lock);
-	OCFS2_I(inode)->ip_created_trans = osb->journal->j_trans_id;
+	ci->ci_created_trans = osb->journal->j_trans_id;
 	spin_unlock(&trans_inc_lock);
 }
 
 /* Exported only for the journal struct init code in super.c. Do not call. */
-int ocfs2_orphan_scan_init(struct ocfs2_super *osb);
+void ocfs2_orphan_scan_init(struct ocfs2_super *osb);
+void ocfs2_orphan_scan_start(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_stop(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_exit(struct ocfs2_super *osb);
 
@@ -199,7 +211,7 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 	if (ocfs2_mount_local(osb))
 		return;
 
-	if (!ocfs2_inode_fully_checkpointed(inode)) {
+	if (!ocfs2_ci_fully_checkpointed(INODE_CACHE(inode))) {
 		/* WARNING: This only kicks off a single
 		 * checkpoint. If someone races you and adds more
 		 * metadata to the journal, you won't know, and will
@@ -209,7 +221,7 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 		ocfs2_start_checkpoint(osb);
 
 		wait_event(osb->journal->j_checkpointed,
-			   ocfs2_inode_fully_checkpointed(inode));
+			   ocfs2_ci_fully_checkpointed(INODE_CACHE(inode)));
 	}
 }
 
@@ -265,31 +277,34 @@ int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 
 
 /* ocfs2_inode */
-int ocfs2_journal_access_di(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_di(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* ocfs2_extent_block */
-int ocfs2_journal_access_eb(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_eb(handle_t *handle, struct ocfs2_caching_info *ci,
+			    struct buffer_head *bh, int type);
+/* ocfs2_refcount_block */
+int ocfs2_journal_access_rb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* ocfs2_group_desc */
-int ocfs2_journal_access_gd(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_gd(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* ocfs2_xattr_block */
-int ocfs2_journal_access_xb(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_xb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* quota blocks */
-int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dq(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* dirblock */
-int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_db(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* ocfs2_dx_root_block */
-int ocfs2_journal_access_dr(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dr(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* ocfs2_dx_leaf */
-int ocfs2_journal_access_dl(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dl(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type);
 /* Anything that has no ecc */
-int ocfs2_journal_access(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
 			 struct buffer_head *bh, int type);
 
 /*
@@ -311,8 +326,7 @@ int ocfs2_journal_access(handle_t *handle, struct inode *inode,
  *	<modify the bh>
  * 	ocfs2_journal_dirty(handle, bh);
  */
-int                  ocfs2_journal_dirty(handle_t *handle,
-					 struct buffer_head *bh);
+void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh);
 
 /*
  *  Credit Macros:
@@ -329,20 +343,27 @@ int                  ocfs2_journal_dirty(handle_t *handle,
 /* extended attribute block update */
 #define OCFS2_XATTR_BLOCK_UPDATE_CREDITS 1
 
-/* global quotafile inode update, data block */
-#define OCFS2_QINFO_WRITE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
+/* Update of a single quota block */
+#define OCFS2_QUOTA_BLOCK_UPDATE_CREDITS 1
 
+/* global quotafile inode update, data block */
+#define OCFS2_QINFO_WRITE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + \
+				   OCFS2_QUOTA_BLOCK_UPDATE_CREDITS)
+
+#define OCFS2_LOCAL_QINFO_WRITE_CREDITS OCFS2_QUOTA_BLOCK_UPDATE_CREDITS
 /*
  * The two writes below can accidentally see global info dirty due
  * to set_info() quotactl so make them prepared for the writes.
  */
 /* quota data block, global info */
 /* Write to local quota file */
-#define OCFS2_QWRITE_CREDITS (OCFS2_QINFO_WRITE_CREDITS + 1)
+#define OCFS2_QWRITE_CREDITS (OCFS2_QINFO_WRITE_CREDITS + \
+			      OCFS2_QUOTA_BLOCK_UPDATE_CREDITS)
 
 /* global quota data block, local quota data block, global quota inode,
  * global quota info */
-#define OCFS2_QSYNC_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 3)
+#define OCFS2_QSYNC_CREDITS (OCFS2_QINFO_WRITE_CREDITS + \
+			     2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS)
 
 static inline int ocfs2_quota_trans_credits(struct super_block *sb)
 {
@@ -354,11 +375,6 @@ static inline int ocfs2_quota_trans_credits(struct super_block *sb)
 		credits += OCFS2_QWRITE_CREDITS;
 	return credits;
 }
-
-/* Number of credits needed for removing quota structure from file */
-int ocfs2_calc_qdel_credits(struct super_block *sb, int type);
-/* Number of credits needed for initialization of new quota structure */
-int ocfs2_calc_qinit_credits(struct super_block *sb, int type);
 
 /* group extend. inode update and last group update. */
 #define OCFS2_GROUP_EXTEND_CREDITS	(OCFS2_INODE_UPDATE_CREDITS + 1)
@@ -474,6 +490,23 @@ static inline int ocfs2_calc_dxi_expand_credits(struct super_block *sb)
 	return credits;
 }
 
+/* inode update, new refcount block and its allocation credits. */
+#define OCFS2_REFCOUNT_TREE_CREATE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1 \
+					    + OCFS2_SUBALLOC_ALLOC)
+
+/* inode and the refcount block update. */
+#define OCFS2_REFCOUNT_TREE_SET_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
+
+/*
+ * inode and the refcount block update.
+ * It doesn't include the credits for sub alloc change.
+ * So if we need to free the bit, OCFS2_SUBALLOC_FREE needs to be added.
+ */
+#define OCFS2_REFCOUNT_TREE_REMOVE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
+
+/* 2 metadata alloc, 2 new blocks and root refcount block */
+#define OCFS2_EXPAND_REFCOUNT_TREE_CREDITS (OCFS2_SUBALLOC_ALLOC * 2 + 3)
+
 /*
  * Please note that the caller must make sure that root_el is the root
  * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
@@ -527,6 +560,18 @@ static inline int ocfs2_calc_group_alloc_credits(struct super_block *sb,
 	   + bitmap blocks affected */
 	blocks = 1 + 1 + 1 + bitmap_blocks;
 	return blocks;
+}
+
+/*
+ * Allocating a discontiguous block group requires the credits from
+ * ocfs2_calc_group_alloc_credits() as well as enough credits to fill
+ * the group descriptor's extent list.  The caller already has started
+ * the transaction with ocfs2_calc_group_alloc_credits().  They extend
+ * it with these credits.
+ */
+static inline int ocfs2_calc_bg_discontig_credits(struct super_block *sb)
+{
+	return ocfs2_extent_recs_per_gd(sb);
 }
 
 static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,

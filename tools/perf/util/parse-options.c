@@ -20,7 +20,8 @@ static int get_arg(struct parse_opt_ctx_t *p, const struct option *opt,
 	if (p->opt) {
 		*arg = p->opt;
 		p->opt = NULL;
-	} else if (p->argc == 1 && (opt->flags & PARSE_OPT_LASTARG_DEFAULT)) {
+	} else if ((opt->flags & PARSE_OPT_LASTARG_DEFAULT) && (p->argc == 1 ||
+		    **(p->argv + 1) == '-')) {
 		*arg = (const char *)opt->defval;
 	} else if (p->argc > 1) {
 		p->argc--;
@@ -48,10 +49,19 @@ static int get_value(struct parse_opt_ctx_t *p,
 				break;
 			/* FALLTHROUGH */
 		case OPTION_BOOLEAN:
+		case OPTION_INCR:
 		case OPTION_BIT:
-		case OPTION_SET_INT:
+		case OPTION_SET_UINT:
 		case OPTION_SET_PTR:
 			return opterror(opt, "takes no value", flags);
+		case OPTION_END:
+		case OPTION_ARGUMENT:
+		case OPTION_GROUP:
+		case OPTION_STRING:
+		case OPTION_INTEGER:
+		case OPTION_UINTEGER:
+		case OPTION_LONG:
+		case OPTION_U64:
 		default:
 			break;
 		}
@@ -66,11 +76,15 @@ static int get_value(struct parse_opt_ctx_t *p,
 		return 0;
 
 	case OPTION_BOOLEAN:
+		*(bool *)opt->value = unset ? false : true;
+		return 0;
+
+	case OPTION_INCR:
 		*(int *)opt->value = unset ? 0 : *(int *)opt->value + 1;
 		return 0;
 
-	case OPTION_SET_INT:
-		*(int *)opt->value = unset ? 0 : opt->defval;
+	case OPTION_SET_UINT:
+		*(unsigned int *)opt->value = unset ? 0 : opt->defval;
 		return 0;
 
 	case OPTION_SET_PTR:
@@ -113,6 +127,22 @@ static int get_value(struct parse_opt_ctx_t *p,
 			return opterror(opt, "expects a numerical value", flags);
 		return 0;
 
+	case OPTION_UINTEGER:
+		if (unset) {
+			*(unsigned int *)opt->value = 0;
+			return 0;
+		}
+		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+			*(unsigned int *)opt->value = opt->defval;
+			return 0;
+		}
+		if (get_arg(p, opt, flags, &arg))
+			return -1;
+		*(unsigned int *)opt->value = strtol(arg, (char **)&s, 10);
+		if (*s)
+			return opterror(opt, "expects a numerical value", flags);
+		return 0;
+
 	case OPTION_LONG:
 		if (unset) {
 			*(long *)opt->value = 0;
@@ -129,6 +159,25 @@ static int get_value(struct parse_opt_ctx_t *p,
 			return opterror(opt, "expects a numerical value", flags);
 		return 0;
 
+	case OPTION_U64:
+		if (unset) {
+			*(u64 *)opt->value = 0;
+			return 0;
+		}
+		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+			*(u64 *)opt->value = opt->defval;
+			return 0;
+		}
+		if (get_arg(p, opt, flags, &arg))
+			return -1;
+		*(u64 *)opt->value = strtoull(arg, (char **)&s, 10);
+		if (*s)
+			return opterror(opt, "expects a numerical value", flags);
+		return 0;
+
+	case OPTION_END:
+	case OPTION_ARGUMENT:
+	case OPTION_GROUP:
 	default:
 		die("should not happen, someone must be hit on the forehead");
 	}
@@ -295,6 +344,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 				return parse_options_usage(usagestr, options);
 			case -2:
 				goto unknown;
+			default:
+				break;
 			}
 			if (ctx->opt)
 				check_typos(arg + 1, options);
@@ -313,6 +364,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 					ctx->argv[0] = strdup(ctx->opt - 1);
 					*(char *)ctx->argv[0] = '-';
 					goto unknown;
+				default:
+					break;
 				}
 			}
 			continue;
@@ -335,6 +388,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 			return parse_options_usage(usagestr, options);
 		case -2:
 			goto unknown;
+		default:
+			break;
 		}
 		continue;
 unknown:
@@ -414,6 +469,9 @@ int usage_with_options_internal(const char * const *usagestr,
 		pos = fprintf(stderr, "    ");
 		if (opts->short_name)
 			pos += fprintf(stderr, "-%c", opts->short_name);
+		else
+			pos += fprintf(stderr, "    ");
+
 		if (opts->long_name && opts->short_name)
 			pos += fprintf(stderr, ", ");
 		if (opts->long_name)
@@ -422,7 +480,10 @@ int usage_with_options_internal(const char * const *usagestr,
 		switch (opts->type) {
 		case OPTION_ARGUMENT:
 			break;
+		case OPTION_LONG:
+		case OPTION_U64:
 		case OPTION_INTEGER:
+		case OPTION_UINTEGER:
 			if (opts->flags & PARSE_OPT_OPTARG)
 				if (opts->long_name)
 					pos += fprintf(stderr, "[=<n>]");
@@ -454,7 +515,14 @@ int usage_with_options_internal(const char * const *usagestr,
 					pos += fprintf(stderr, " ...");
 			}
 			break;
-		default: /* OPTION_{BIT,BOOLEAN,SET_INT,SET_PTR} */
+		default: /* OPTION_{BIT,BOOLEAN,SET_UINT,SET_PTR} */
+		case OPTION_END:
+		case OPTION_GROUP:
+		case OPTION_BIT:
+		case OPTION_BOOLEAN:
+		case OPTION_INCR:
+		case OPTION_SET_UINT:
+		case OPTION_SET_PTR:
 			break;
 		}
 
@@ -474,6 +542,7 @@ int usage_with_options_internal(const char * const *usagestr,
 void usage_with_options(const char * const *usagestr,
 			const struct option *opts)
 {
+	exit_browser(false);
 	usage_with_options_internal(usagestr, opts, 0);
 	exit(129);
 }
@@ -485,7 +554,7 @@ int parse_options_usage(const char * const *usagestr,
 }
 
 
-int parse_opt_verbosity_cb(const struct option *opt, const char *arg,
+int parse_opt_verbosity_cb(const struct option *opt, const char *arg __used,
 			   int unset)
 {
 	int *target = opt->value;

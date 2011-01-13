@@ -39,6 +39,7 @@ typedef struct
 	struct sigcontext32 sc;
 	_sigregs32 sregs;
 	int signo;
+	__u32 gprs_high[NUM_GPRS];
 	__u8 retcode[S390_SYSCALL_SIZE];
 } sigframe32;
 
@@ -48,6 +49,7 @@ typedef struct
 	__u8 retcode[S390_SYSCALL_SIZE];
 	compat_siginfo_t info;
 	struct ucontext32 uc;
+	__u32 gprs_high[NUM_GPRS];
 } rt_sigframe32;
 
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
@@ -344,6 +346,30 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	return 0;
 }
 
+static int save_sigregs_gprs_high(struct pt_regs *regs, __u32 __user *uregs)
+{
+	__u32 gprs_high[NUM_GPRS];
+	int i;
+
+	for (i = 0; i < NUM_GPRS; i++)
+		gprs_high[i] = regs->gprs[i] >> 32;
+
+	return __copy_to_user(uregs, &gprs_high, sizeof(gprs_high));
+}
+
+static int restore_sigregs_gprs_high(struct pt_regs *regs, __u32 __user *uregs)
+{
+	__u32 gprs_high[NUM_GPRS];
+	int err, i;
+
+	err = __copy_from_user(&gprs_high, uregs, sizeof(gprs_high));
+	if (err)
+		return err;
+	for (i = 0; i < NUM_GPRS; i++)
+		*(__u32 *)&regs->gprs[i] = gprs_high[i];
+	return 0;
+}
+
 asmlinkage long sys32_sigreturn(void)
 {
 	struct pt_regs *regs = task_pt_regs(current);
@@ -362,6 +388,8 @@ asmlinkage long sys32_sigreturn(void)
 	spin_unlock_irq(&current->sighand->siglock);
 
 	if (restore_sigregs32(regs, &frame->sregs))
+		goto badframe;
+	if (restore_sigregs_gprs_high(regs, frame->gprs_high))
 		goto badframe;
 
 	return regs->gprs[2];
@@ -393,6 +421,8 @@ asmlinkage long sys32_rt_sigreturn(void)
 	spin_unlock_irq(&current->sighand->siglock);
 
 	if (restore_sigregs32(regs, &frame->uc.uc_mcontext))
+		goto badframe;
+	if (restore_sigregs_gprs_high(regs, frame->gprs_high))
 		goto badframe;
 
 	err = __get_user(ss_sp, &frame->uc.uc_stack.ss_sp);
@@ -474,6 +504,8 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 
 	if (save_sigregs32(regs, &frame->sregs))
 		goto give_sigsegv;
+	if (save_sigregs_gprs_high(regs, frame->gprs_high))
+		goto give_sigsegv;
 	if (__put_user((unsigned long) &frame->sregs, &frame->sc.sregs))
 		goto give_sigsegv;
 
@@ -529,13 +561,14 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 		goto give_sigsegv;
 
 	/* Create the ucontext.  */
-	err |= __put_user(0, &frame->uc.uc_flags);
+	err |= __put_user(UC_EXTENDED, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
 	err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->gprs[15]),
 	                  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
 	err |= save_sigregs32(regs, &frame->uc.uc_mcontext);
+	err |= save_sigregs_gprs_high(regs, frame->gprs_high);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
 		goto give_sigsegv;

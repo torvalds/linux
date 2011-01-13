@@ -23,13 +23,14 @@
  */
 	.text
 
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
 #include <asm/boot.h>
 #include <asm/asm-offsets.h>
 
-	.section ".text.head","ax",@progbits
+	__HEAD
 ENTRY(startup_32)
 	cld
 	/*
@@ -121,6 +122,19 @@ relocated:
 	subl	%edi, %ecx
 	shrl	$2, %ecx
 	rep	stosl
+
+/*
+ * Adjust our own GOT
+ */
+	leal	_got(%ebx), %edx
+	leal	_egot(%ebx), %ecx
+1:
+	cmpl	%ecx, %edx
+	jae	2f
+	addl	%ebx, (%edx)
+	addl	$4, %edx
+	jmp	1b
+2:
 
 /*
  * Do the decompression, and jump to the new kernel..

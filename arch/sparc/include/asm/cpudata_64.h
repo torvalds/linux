@@ -17,7 +17,7 @@ typedef struct {
 	unsigned int	__nmi_count;
 	unsigned long	clock_tick;	/* %tick's per second */
 	unsigned long	__pad;
-	unsigned int	__pad1;
+	unsigned int	irq0_irqs;
 	unsigned int	__pad2;
 
 	/* Dcache line 2, rarely used */

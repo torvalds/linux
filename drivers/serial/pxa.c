@@ -44,6 +44,7 @@
 #include <linux/serial_core.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 struct uart_pxa_port {
 	struct uart_port        port;
@@ -96,7 +97,7 @@ static void serial_pxa_stop_rx(struct uart_port *port)
 
 static inline void receive_chars(struct uart_pxa_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.info->port.tty;
+	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int ch, flag;
 	int max_count = 256;
 
@@ -161,7 +162,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 
 static void transmit_chars(struct uart_pxa_port *up)
 {
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 	int count;
 
 	if (up->port.x_char) {
@@ -220,7 +221,7 @@ static inline void check_modem_status(struct uart_pxa_port *up)
 	if (status & UART_MSR_DCTS)
 		uart_handle_cts_change(&up->port, status & UART_MSR_CTS);
 
-	wake_up_interruptible(&up->port.info->delta_msr_wait);
+	wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 }
 
 /*
@@ -438,6 +439,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
+	unsigned int dll;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -534,10 +536,18 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	else
 		up->mcr &= ~UART_MCR_AFE;
 
-	serial_out(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
+	serial_out(up, UART_LCR, cval | UART_LCR_DLAB);	/* set DLAB */
 	serial_out(up, UART_DLL, quot & 0xff);		/* LS of divisor */
+
+	/*
+	 * work around Errata #75 according to Intel(R) PXA27x Processor Family
+	 * Specification Update (Nov 2005)
+	 */
+	dll = serial_in(up, UART_DLL);
+	WARN_ON(dll != (quot & 0xff));
+
 	serial_out(up, UART_DLM, quot >> 8);		/* MS of divisor */
-	serial_out(up, UART_LCR, cval);		/* reset DLAB */
+	serial_out(up, UART_LCR, cval);			/* reset DLAB */
 	up->lcr = cval;					/* Save LCR */
 	serial_pxa_set_mctrl(&up->port, up->port.mctrl);
 	serial_out(up, UART_FCR, fcr);
@@ -726,9 +736,10 @@ static struct uart_driver serial_pxa_reg = {
 	.cons		= PXA_CONSOLE,
 };
 
-static int serial_pxa_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef CONFIG_PM
+static int serial_pxa_suspend(struct device *dev)
 {
-        struct uart_pxa_port *sport = platform_get_drvdata(dev);
+        struct uart_pxa_port *sport = dev_get_drvdata(dev);
 
         if (sport)
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
@@ -736,15 +747,21 @@ static int serial_pxa_suspend(struct platform_device *dev, pm_message_t state)
         return 0;
 }
 
-static int serial_pxa_resume(struct platform_device *dev)
+static int serial_pxa_resume(struct device *dev)
 {
-        struct uart_pxa_port *sport = platform_get_drvdata(dev);
+        struct uart_pxa_port *sport = dev_get_drvdata(dev);
 
         if (sport)
                 uart_resume_port(&serial_pxa_reg, &sport->port);
 
         return 0;
 }
+
+static const struct dev_pm_ops serial_pxa_pm_ops = {
+	.suspend	= serial_pxa_suspend,
+	.resume		= serial_pxa_resume,
+};
+#endif
 
 static int serial_pxa_probe(struct platform_device *dev)
 {
@@ -825,11 +842,12 @@ static struct platform_driver serial_pxa_driver = {
         .probe          = serial_pxa_probe,
         .remove         = serial_pxa_remove,
 
-	.suspend	= serial_pxa_suspend,
-	.resume		= serial_pxa_resume,
 	.driver		= {
 	        .name	= "pxa2xx-uart",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &serial_pxa_pm_ops,
+#endif
 	},
 };
 

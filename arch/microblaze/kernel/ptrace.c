@@ -27,14 +27,19 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
+#include <linux/elf.h>
+#include <linux/audit.h>
+#include <linux/seccomp.h>
+#include <linux/tracehook.h>
 
 #include <linux/errno.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/asm-offsets.h>
+#include <asm/cacheflush.h>
+#include <asm/io.h>
 
 /* Returns the address where the register at REG_OFFS in P is stashed away. */
 static microblaze_reg_t *reg_save_addr(unsigned reg_offs,
@@ -68,33 +73,13 @@ static microblaze_reg_t *reg_save_addr(unsigned reg_offs,
 	return (microblaze_reg_t *)((char *)regs + reg_offs);
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int rval;
 	unsigned long val = 0;
-	unsigned long copied;
 
 	switch (request) {
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		pr_debug("PEEKTEXT/PEEKDATA at %08lX\n", addr);
-		copied = access_process_vm(child, addr, &val, sizeof(val), 0);
-		rval = -EIO;
-		if (copied != sizeof(val))
-			break;
-		rval = put_user(val, (unsigned long *)data);
-		break;
-
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		pr_debug("POKETEXT/POKEDATA to %08lX\n", addr);
-		rval = 0;
-		if (access_process_vm(child, addr, &data, sizeof(data), 1)
-		    == sizeof(data))
-			break;
-		rval = -EIO;
-		break;
-
 	/* Read/write the word at location ADDR in the registers. */
 	case PTRACE_PEEKUSR:
 	case PTRACE_POKEUSR:
@@ -115,65 +100,94 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			} else {
 				rval = -EIO;
 			}
-		} else if (addr >= 0 && addr < PT_SIZE && (addr & 0x3) == 0) {
+		} else if (addr < PT_SIZE && (addr & 0x3) == 0) {
 			microblaze_reg_t *reg_addr = reg_save_addr(addr, child);
 			if (request == PTRACE_PEEKUSR)
 				val = *reg_addr;
-			else
+			else {
+#if 1
 				*reg_addr = data;
+#else
+				/* MS potential problem on WB system
+				 * Be aware that reg_addr is virtual address
+				 * virt_to_phys conversion is necessary.
+				 * This could be sensible solution.
+				 */
+				u32 paddr = virt_to_phys((u32)reg_addr);
+				invalidate_icache_range(paddr, paddr + 4);
+				*reg_addr = data;
+				flush_dcache_range(paddr, paddr + 4);
+#endif
+			}
 		} else
 			rval = -EIO;
 
 		if (rval == 0 && request == PTRACE_PEEKUSR)
 			rval = put_user(val, (unsigned long *)data);
 		break;
-	/* Continue and stop at next (return from) syscall */
-	case PTRACE_SYSCALL:
-		pr_debug("PTRACE_SYSCALL\n");
-	case PTRACE_SINGLESTEP:
-		pr_debug("PTRACE_SINGLESTEP\n");
-	/* Restart after a signal.  */
-	case PTRACE_CONT:
-		pr_debug("PTRACE_CONT\n");
-		rval = -EIO;
-		if (!valid_signal(data))
-			break;
-
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-		child->exit_code = data;
-		pr_debug("wakeup_process\n");
-		wake_up_process(child);
-		rval = 0;
-		break;
-
-	/*
-	 * make the child exit.  Best I can do is send it a sigkill.
-	 * perhaps it should be put in the status that it wants to
-	 * exit.
-	 */
-	case PTRACE_KILL:
-		pr_debug("PTRACE_KILL\n");
-		rval = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		break;
-
-	case PTRACE_DETACH: /* detach a process that was attached. */
-		pr_debug("PTRACE_DETACH\n");
-		rval = ptrace_detach(child, data);
-		break;
 	default:
-		/* rval = ptrace_request(child, request, addr, data); noMMU */
-		rval = -EIO;
+		rval = ptrace_request(child, request, addr, data);
 	}
 	return rval;
 }
+
+asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
+{
+	long ret = 0;
+
+	secure_computing(regs->r12);
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		/*
+		 * Tracing decided this syscall should not happen.
+		 * We'll return a bogus call number to get an ENOSYS
+		 * error, but leave the original number in regs->regs[0].
+		 */
+		ret = -1L;
+
+	if (unlikely(current->audit_context))
+		audit_syscall_entry(EM_XILINX_MICROBLAZE, regs->r12,
+				    regs->r5, regs->r6,
+				    regs->r7, regs->r8);
+
+	return ret ?: regs->r12;
+}
+
+asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
+{
+	int step;
+
+	if (unlikely(current->audit_context))
+		audit_syscall_exit(AUDITSC_RESULT(regs->r3), regs->r3);
+
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
+}
+
+#if 0
+static asmlinkage void syscall_trace(void)
+{
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+		return;
+	if (!(current->ptrace & PT_PTRACED))
+		return;
+	/* The 0x80 provides a way for the tracing parent to distinguish
+	 between a syscall stop and SIGTRAP delivery */
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
+				? 0x80 : 0));
+	/*
+	 * this isn't the same as continuing with a signal, but it will do
+	 * for normal use. strace only continues with a signal if the
+	 * stopping signal is not SIGTRAP. -brl
+	 */
+	if (current->exit_code) {
+		send_sig(current->exit_code, current, 1);
+		current->exit_code = 0;
+	}
+}
+#endif
 
 void ptrace_disable(struct task_struct *child)
 {

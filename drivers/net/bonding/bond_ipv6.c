@@ -20,11 +20,14 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/if_vlan.h>
 #include <net/ipv6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
+#include <net/netns/generic.h>
 #include "bonding.h"
 
 /*
@@ -34,7 +37,6 @@
 static void bond_glean_dev_ipv6(struct net_device *dev, struct in6_addr *addr)
 {
 	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifa;
 
 	if (!dev)
 		return;
@@ -44,10 +46,12 @@ static void bond_glean_dev_ipv6(struct net_device *dev, struct in6_addr *addr)
 		return;
 
 	read_lock_bh(&idev->lock);
-	ifa = idev->addr_list;
-	if (ifa)
+	if (!list_empty(&idev->addr_list)) {
+		struct inet6_ifaddr *ifa
+			= list_first_entry(&idev->addr_list,
+					   struct inet6_ifaddr, if_list);
 		ipv6_addr_copy(addr, &ifa->addr);
-	else
+	} else
 		ipv6_addr_set(addr, 0, 0, 0, 0);
 
 	read_unlock_bh(&idev->lock);
@@ -73,20 +77,25 @@ static void bond_na_send(struct net_device *slave_dev,
 	addrconf_addr_solict_mult(daddr, &mcaddr);
 
 	pr_debug("ipv6 na on slave %s: dest %pI6, src %pI6\n",
-	       slave_dev->name, &mcaddr, daddr);
+		 slave_dev->name, &mcaddr, daddr);
 
 	skb = ndisc_build_skb(slave_dev, &mcaddr, daddr, &icmp6h, daddr,
 			      ND_OPT_TARGET_LL_ADDR);
 
 	if (!skb) {
-		printk(KERN_ERR DRV_NAME ": NA packet allocation failed\n");
+		pr_err("NA packet allocation failed\n");
 		return;
 	}
 
 	if (vlan_id) {
-		skb = vlan_put_tag(skb, vlan_id);
+		/* The Ethernet header is not present yet, so it is
+		 * too early to insert a VLAN tag.  Force use of an
+		 * out-of-line tag here and let dev_hard_start_xmit()
+		 * insert it if the slave hardware can't.
+		 */
+		skb = __vlan_hwaccel_put_tag(skb, vlan_id);
 		if (!skb) {
-			printk(KERN_ERR DRV_NAME ": failed to insert VLAN tag\n");
+			pr_err("failed to insert VLAN tag\n");
 			return;
 		}
 	}
@@ -108,8 +117,8 @@ void bond_send_unsolicited_na(struct bonding *bond)
 	struct inet6_dev *idev;
 	int is_router;
 
-	pr_debug("bond_send_unsol_na: bond %s slave %s\n", bond->dev->name,
-				slave ? slave->dev->name : "NULL");
+	pr_debug("%s: bond %s slave %s\n", bond->dev->name,
+		 __func__, slave ? slave->dev->name : "NULL");
 
 	if (!slave || !bond->send_unsol_na ||
 	    test_bit(__LINK_STATE_LINKWATCH_PENDING, &slave->dev->state))
@@ -152,11 +161,9 @@ static int bond_inet6addr_event(struct notifier_block *this,
 	struct net_device *vlan_dev, *event_dev = ifa->idev->dev;
 	struct bonding *bond;
 	struct vlan_entry *vlan;
+	struct bond_net *bn = net_generic(dev_net(event_dev), bond_net_id);
 
-	if (dev_net(event_dev) != &init_net)
-		return NOTIFY_DONE;
-
-	list_for_each_entry(bond, &bond_dev_list, bond_list) {
+	list_for_each_entry(bond, &bn->dev_list, bond_list) {
 		if (bond->dev == event_dev) {
 			switch (event) {
 			case NETDEV_UP:
@@ -176,6 +183,8 @@ static int bond_inet6addr_event(struct notifier_block *this,
 		}
 
 		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+			if (!bond->vlgrp)
+				continue;
 			vlan_dev = vlan_group_get_device(bond->vlgrp,
 							 vlan->vlan_id);
 			if (vlan_dev == event_dev) {

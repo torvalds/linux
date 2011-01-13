@@ -80,7 +80,7 @@ Note: PTL can also be used to guarantee that no new clones using the
 mm start up ... this is a loose form of stability on mm_users. For
 example, it is used in copy_mm to protect against a racing tlb_gather_mmu
 single address space optimization, so that the zap_page_range (from
-vmtruncate) does not lose sending ipi's to cloned threads that might 
+truncate) does not lose sending ipi's to cloned threads that might
 be spawned underneath it and go to user mode to drag in pte's into tlbs.
 
 swap_lock

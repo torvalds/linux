@@ -6,10 +6,10 @@
 
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/capability.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -211,8 +211,6 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 #endif /* HAVE_PCI_MMAP */
 	int ret = 0;
 
-	lock_kernel();
-
 	switch (cmd) {
 	case PCIIOC_CONTROLLER:
 		ret = pci_domain_nr(dev->bus);
@@ -241,7 +239,6 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 		break;
 	};
 
-	unlock_kernel();
 	return ret;
 }
 
@@ -259,7 +256,7 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 
 	/* Make sure the caller is mapping a real resource for this device */
 	for (i = 0; i < PCI_ROM_RESOURCE; i++) {
-		if (pci_mmap_fits(dev, i, vma))
+		if (pci_mmap_fits(dev, i, vma,  PCI_MMAP_PROCFS))
 			break;
 	}
 
@@ -305,6 +302,7 @@ static const struct file_operations proc_bus_pci_operations = {
 	.read		= proc_bus_pci_read,
 	.write		= proc_bus_pci_write,
 	.unlocked_ioctl	= proc_bus_pci_ioctl,
+	.compat_ioctl	= proc_bus_pci_ioctl,
 #ifdef HAVE_PCI_MMAP
 	.open		= proc_bus_pci_open,
 	.release	= proc_bus_pci_release,
@@ -430,8 +428,6 @@ int pci_proc_detach_device(struct pci_dev *dev)
 	struct proc_dir_entry *e;
 
 	if ((e = dev->procent)) {
-		if (atomic_read(&e->count) > 1)
-			return -EBUSY;
 		remove_proc_entry(e->name, dev->bus->procdir);
 		dev->procent = NULL;
 	}
@@ -484,9 +480,9 @@ static int __init pci_proc_init(void)
 	proc_create("devices", 0, proc_bus_pci_dir,
 		    &proc_bus_pci_dev_operations);
 	proc_initialized = 1;
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev)
 		pci_proc_attach_device(dev);
-	}
+
 	return 0;
 }
 

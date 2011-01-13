@@ -22,7 +22,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
- * the project's page is at http://www.linuxtv.org/dvb/
+ * the project's page is at http://www.linuxtv.org/ 
  */
 
 #include <linux/kernel.h>
@@ -100,6 +100,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0, /* ignored */
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
 		.index		= 1,
 		.name		= "Television",
@@ -108,6 +109,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0,
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
 		.index		= 2,
 		.name		= "Video",
@@ -116,6 +118,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0,
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
 		.index		= 3,
 		.name		= "Y/C",
@@ -124,6 +127,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0,
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}
 };
 
@@ -490,7 +494,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	if (!av7110->analog_tuner_flags)
 		return 0;
 
-	if (input < 0 || input >= 4)
+	if (input >= 4)
 		return -EINVAL;
 
 	av7110->current_input = input;

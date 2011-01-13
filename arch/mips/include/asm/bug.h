@@ -1,6 +1,7 @@
 #ifndef __ASM_BUG_H
 #define __ASM_BUG_H
 
+#include <linux/compiler.h>
 #include <asm/sgidefs.h>
 
 #ifdef CONFIG_BUG
@@ -10,9 +11,7 @@
 static inline void __noreturn BUG(void)
 {
 	__asm__ __volatile__("break %0" : : "i" (BRK_BUG));
-	/* Fool GCC into thinking the function doesn't return. */
-	while (1)
-		;
+	unreachable();
 }
 
 #define HAVE_ARCH_BUG

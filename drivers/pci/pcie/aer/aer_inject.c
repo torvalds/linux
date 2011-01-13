@@ -1,7 +1,7 @@
 /*
- * PCIE AER software error injection support.
+ * PCIe AER software error injection support.
  *
- * Debuging PCIE AER code is quite difficult because it is hard to
+ * Debuging PCIe AER code is quite difficult because it is hard to
  * trigger various real hardware errors. Software based error
  * injection can fake almost all kinds of errors with the help of a
  * user space helper tool aer-inject, which can be gotten from:
@@ -21,12 +21,13 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/stddef.h>
 #include "aerdrv.h"
 
-struct aer_error_inj
-{
+struct aer_error_inj {
 	u8 bus;
 	u8 dev;
 	u8 fn;
@@ -36,11 +37,12 @@ struct aer_error_inj
 	u32 header_log1;
 	u32 header_log2;
 	u32 header_log3;
+	u16 domain;
 };
 
-struct aer_error
-{
+struct aer_error {
 	struct list_head list;
+	u16 domain;
 	unsigned int bus;
 	unsigned int devfn;
 	int pos_cap_err;
@@ -55,8 +57,7 @@ struct aer_error
 	u32 source_id;
 };
 
-struct pci_bus_ops
-{
+struct pci_bus_ops {
 	struct list_head list;
 	struct pci_bus *bus;
 	struct pci_ops *ops;
@@ -69,22 +70,27 @@ static LIST_HEAD(pci_bus_ops_list);
 /* Protect einjected and pci_bus_ops_list */
 static DEFINE_SPINLOCK(inject_lock);
 
-static void aer_error_init(struct aer_error *err, unsigned int bus,
-			   unsigned int devfn, int pos_cap_err)
+static void aer_error_init(struct aer_error *err, u16 domain,
+			   unsigned int bus, unsigned int devfn,
+			   int pos_cap_err)
 {
 	INIT_LIST_HEAD(&err->list);
+	err->domain = domain;
 	err->bus = bus;
 	err->devfn = devfn;
 	err->pos_cap_err = pos_cap_err;
 }
 
 /* inject_lock must be held before calling */
-static struct aer_error *__find_aer_error(unsigned int bus, unsigned int devfn)
+static struct aer_error *__find_aer_error(u16 domain, unsigned int bus,
+					  unsigned int devfn)
 {
 	struct aer_error *err;
 
 	list_for_each_entry(err, &einjected, list) {
-		if (bus == err->bus && devfn == err->devfn)
+		if (domain == err->domain &&
+		    bus == err->bus &&
+		    devfn == err->devfn)
 			return err;
 	}
 	return NULL;
@@ -93,7 +99,10 @@ static struct aer_error *__find_aer_error(unsigned int bus, unsigned int devfn)
 /* inject_lock must be held before calling */
 static struct aer_error *__find_aer_error_by_dev(struct pci_dev *dev)
 {
-	return __find_aer_error(dev->bus->number, dev->devfn);
+	int domain = pci_domain_nr(dev->bus);
+	if (domain < 0)
+		return NULL;
+	return __find_aer_error((u16)domain, dev->bus->number, dev->devfn);
 }
 
 /* inject_lock must be held before calling */
@@ -150,7 +159,7 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 		target = &err->header_log1;
 		break;
 	case PCI_ERR_HEADER_LOG+8:
-	        target = &err->header_log2;
+		target = &err->header_log2;
 		break;
 	case PCI_ERR_HEADER_LOG+12:
 		target = &err->header_log3;
@@ -159,7 +168,7 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 		target = &err->root_status;
 		rw1cs = 1;
 		break;
-	case PCI_ERR_ROOT_COR_SRC:
+	case PCI_ERR_ROOT_ERR_SRC:
 		target = &err->source_id;
 		break;
 	}
@@ -175,11 +184,15 @@ static int pci_read_aer(struct pci_bus *bus, unsigned int devfn, int where,
 	struct aer_error *err;
 	unsigned long flags;
 	struct pci_ops *ops;
+	int domain;
 
 	spin_lock_irqsave(&inject_lock, flags);
 	if (size != sizeof(u32))
 		goto out;
-	err = __find_aer_error(bus->number, devfn);
+	domain = pci_domain_nr(bus);
+	if (domain < 0)
+		goto out;
+	err = __find_aer_error((u16)domain, bus->number, devfn);
 	if (!err)
 		goto out;
 
@@ -203,11 +216,15 @@ int pci_write_aer(struct pci_bus *bus, unsigned int devfn, int where, int size,
 	unsigned long flags;
 	int rw1cs;
 	struct pci_ops *ops;
+	int domain;
 
 	spin_lock_irqsave(&inject_lock, flags);
 	if (size != sizeof(u32))
 		goto out;
-	err = __find_aer_error(bus->number, devfn);
+	domain = pci_domain_nr(bus);
+	if (domain < 0)
+		goto out;
+	err = __find_aer_error((u16)domain, bus->number, devfn);
 	if (!err)
 		goto out;
 
@@ -258,15 +275,14 @@ static int pci_bus_set_aer_ops(struct pci_bus *bus)
 	bus_ops = NULL;
 out:
 	spin_unlock_irqrestore(&inject_lock, flags);
-	if (bus_ops)
-		kfree(bus_ops);
+	kfree(bus_ops);
 	return 0;
 }
 
 static struct pci_dev *pcie_find_root_port(struct pci_dev *dev)
 {
 	while (1) {
-		if (!dev->is_pcie)
+		if (!pci_is_pcie(dev))
 			break;
 		if (dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
 			return dev;
@@ -306,28 +322,31 @@ static int aer_inject(struct aer_error_inj *einj)
 	unsigned long flags;
 	unsigned int devfn = PCI_DEVFN(einj->dev, einj->fn);
 	int pos_cap_err, rp_pos_cap_err;
-	u32 sever;
+	u32 sever, cor_mask, uncor_mask;
 	int ret = 0;
 
-	dev = pci_get_bus_and_slot(einj->bus, devfn);
+	dev = pci_get_domain_bus_and_slot((int)einj->domain, einj->bus, devfn);
 	if (!dev)
-		return -EINVAL;
+		return -ENODEV;
 	rpdev = pcie_find_root_port(dev);
 	if (!rpdev) {
-		ret = -EINVAL;
+		ret = -ENOTTY;
 		goto out_put;
 	}
 
 	pos_cap_err = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos_cap_err) {
-		ret = -EIO;
+		ret = -ENOTTY;
 		goto out_put;
 	}
 	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_SEVER, &sever);
+	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_COR_MASK, &cor_mask);
+	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_MASK,
+			      &uncor_mask);
 
 	rp_pos_cap_err = pci_find_ext_capability(rpdev, PCI_EXT_CAP_ID_ERR);
 	if (!rp_pos_cap_err) {
-		ret = -EIO;
+		ret = -ENOTTY;
 		goto out_put;
 	}
 
@@ -348,7 +367,8 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (!err) {
 		err = err_alloc;
 		err_alloc = NULL;
-		aer_error_init(err, einj->bus, devfn, pos_cap_err);
+		aer_error_init(err, einj->domain, einj->bus, devfn,
+			       pos_cap_err);
 		list_add(&err->list, &einjected);
 	}
 	err->uncor_status |= einj->uncor_status;
@@ -358,11 +378,27 @@ static int aer_inject(struct aer_error_inj *einj)
 	err->header_log2 = einj->header_log2;
 	err->header_log3 = einj->header_log3;
 
+	if (einj->cor_status && !(einj->cor_status & ~cor_mask)) {
+		ret = -EINVAL;
+		printk(KERN_WARNING "The correctable error(s) is masked "
+				"by device\n");
+		spin_unlock_irqrestore(&inject_lock, flags);
+		goto out_put;
+	}
+	if (einj->uncor_status && !(einj->uncor_status & ~uncor_mask)) {
+		ret = -EINVAL;
+		printk(KERN_WARNING "The uncorrectable error(s) is masked "
+				"by device\n");
+		spin_unlock_irqrestore(&inject_lock, flags);
+		goto out_put;
+	}
+
 	rperr = __find_aer_error_by_dev(rpdev);
 	if (!rperr) {
 		rperr = rperr_alloc;
 		rperr_alloc = NULL;
-		aer_error_init(rperr, rpdev->bus->number, rpdev->devfn,
+		aer_error_init(rperr, pci_domain_nr(rpdev->bus),
+			       rpdev->bus->number, rpdev->devfn,
 			       rp_pos_cap_err);
 		list_add(&rperr->list, &einjected);
 	}
@@ -396,15 +432,19 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (ret)
 		goto out_put;
 
-	if (find_aer_device(rpdev, &edev))
+	if (find_aer_device(rpdev, &edev)) {
+		if (!get_service_data(edev)) {
+			printk(KERN_WARNING "AER service is not initialized\n");
+			ret = -EINVAL;
+			goto out_put;
+		}
 		aer_irq(-1, edev);
+	}
 	else
 		ret = -EINVAL;
 out_put:
-	if (err_alloc)
-		kfree(err_alloc);
-	if (rperr_alloc)
-		kfree(rperr_alloc);
+	kfree(err_alloc);
+	kfree(rperr_alloc);
 	pci_dev_put(dev);
 	return ret;
 }
@@ -417,10 +457,11 @@ static ssize_t aer_inject_write(struct file *filp, const char __user *ubuf,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-
-	if (usize != sizeof(struct aer_error_inj))
+	if (usize < offsetof(struct aer_error_inj, domain) ||
+	    usize > sizeof(einj))
 		return -EINVAL;
 
+	memset(&einj, 0, sizeof(einj));
 	if (copy_from_user(&einj, ubuf, usize))
 		return -EFAULT;
 
@@ -431,6 +472,7 @@ static ssize_t aer_inject_write(struct file *filp, const char __user *ubuf,
 static const struct file_operations aer_inject_fops = {
 	.write = aer_inject_write,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice aer_inject_device = {
@@ -458,8 +500,7 @@ static void __exit aer_inject_exit(void)
 	}
 
 	spin_lock_irqsave(&inject_lock, flags);
-	list_for_each_entry_safe(err, err_next,
-				 &pci_bus_ops_list, list) {
+	list_for_each_entry_safe(err, err_next, &einjected, list) {
 		list_del(&err->list);
 		kfree(err);
 	}
@@ -469,5 +510,5 @@ static void __exit aer_inject_exit(void)
 module_init(aer_inject_init);
 module_exit(aer_inject_exit);
 
-MODULE_DESCRIPTION("PCIE AER software error injector");
+MODULE_DESCRIPTION("PCIe AER software error injector");
 MODULE_LICENSE("GPL");

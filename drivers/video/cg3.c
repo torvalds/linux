@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -347,10 +346,10 @@ static int __devinit cg3_do_default_mode(struct cg3_par *par)
 	return 0;
 }
 
-static int __devinit cg3_probe(struct of_device *op,
+static int __devinit cg3_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct cg3_par *par;
 	int linebytes, err;
@@ -434,7 +433,7 @@ out_err:
 	return err;
 }
 
-static int __devexit cg3_remove(struct of_device *op)
+static int __devexit cg3_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct cg3_par *par = info->par;
@@ -464,8 +463,11 @@ static const struct of_device_id cg3_match[] = {
 MODULE_DEVICE_TABLE(of, cg3_match);
 
 static struct of_platform_driver cg3_driver = {
-	.name		= "cg3",
-	.match_table	= cg3_match,
+	.driver = {
+		.name = "cg3",
+		.owner = THIS_MODULE,
+		.of_match_table = cg3_match,
+	},
 	.probe		= cg3_probe,
 	.remove		= __devexit_p(cg3_remove),
 };
@@ -475,12 +477,12 @@ static int __init cg3_init(void)
 	if (fb_get_options("cg3fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&cg3_driver, &of_bus_type);
+	return of_register_platform_driver(&cg3_driver);
 }
 
 static void __exit cg3_exit(void)
 {
-	of_unregister_driver(&cg3_driver);
+	of_unregister_platform_driver(&cg3_driver);
 }
 
 module_init(cg3_init);

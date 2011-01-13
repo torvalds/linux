@@ -76,14 +76,14 @@ struct pcmda12_board {
 static const struct comedi_lrange pcmda12_ranges = {
 	3,
 	{
-			UNI_RANGE(5), UNI_RANGE(10), BIP_RANGE(5)
-		}
+	 UNI_RANGE(5), UNI_RANGE(10), BIP_RANGE(5)
+	 }
 };
 
 static const struct pcmda12_board pcmda12_boards[] = {
 	{
-	.name = "pcmda12",
-		},
+	 .name = "pcmda12",
+	 },
 };
 
 /*
@@ -97,7 +97,6 @@ struct pcmda12_private {
 	int simultaneous_xfer_mode;
 };
 
-
 #define devpriv ((struct pcmda12_private *)(dev->private))
 
 /*
@@ -106,7 +105,8 @@ struct pcmda12_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcmda12_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcmda12_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int pcmda12_detach(struct comedi_device *dev);
 
 static void zero_chans(struct comedi_device *dev);
@@ -140,9 +140,9 @@ static struct comedi_driver driver = {
 };
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+		    struct comedi_insn *insn, unsigned int *data);
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+		    struct comedi_insn *insn, unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -150,14 +150,16 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcmda12_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pcmda12_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name,
-		iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
+	printk(KERN_INFO
+	       "comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name,
+	       iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
 
 	if (!request_region(iobase, IOSIZE, driver.driver_name)) {
 		printk("I/O port conflict\n");
@@ -176,7 +178,7 @@ static int pcmda12_attach(struct comedi_device *dev, struct comedi_devconfig *it
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(struct pcmda12_private)) < 0) {
-		printk("cannot allocate private data structure\n");
+		printk(KERN_ERR "cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
 
@@ -190,7 +192,7 @@ static int pcmda12_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	 * 96-channel version of the board.
 	 */
 	if (alloc_subdevices(dev, 1) < 0) {
-		printk("cannot allocate subdevice data structures\n");
+		printk(KERN_ERR "cannot allocate subdevice data structures\n");
 		return -ENOMEM;
 	}
 
@@ -206,7 +208,7 @@ static int pcmda12_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	zero_chans(dev);	/* clear out all the registers, basically */
 
-	printk("attached\n");
+	printk(KERN_INFO "attached\n");
 
 	return 1;
 }
@@ -221,7 +223,8 @@ static int pcmda12_attach(struct comedi_device *dev, struct comedi_devconfig *it
  */
 static int pcmda12_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
+	printk(KERN_INFO
+	       "comedi%d: %s: remove\n", dev->minor, driver.driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, IOSIZE);
 	return 0;
@@ -241,7 +244,7 @@ static void zero_chans(struct comedi_device *dev)
 }
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+		    struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -283,7 +286,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
    This is useful for some control applications, I would imagine.
 */
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+		    struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -302,4 +305,19 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver);
+static int __init driver_init_module(void)
+{
+	return comedi_driver_register(&driver);
+}
+
+static void __exit driver_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver);
+}
+
+module_init(driver_init_module);
+module_exit(driver_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

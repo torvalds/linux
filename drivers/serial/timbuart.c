@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 
 #include "timbuart.h"
 
@@ -67,17 +68,27 @@ static void timbuart_start_tx(struct uart_port *port)
 	tasklet_schedule(&uart->tasklet);
 }
 
+static unsigned int timbuart_tx_empty(struct uart_port *port)
+{
+	u32 isr = ioread32(port->membase + TIMBUART_ISR);
+
+	return (isr & TXBE) ? TIOCSER_TEMT : 0;
+}
+
 static void timbuart_flush_buffer(struct uart_port *port)
 {
-	u8 ctl = ioread8(port->membase + TIMBUART_CTRL) | TIMBUART_CTRL_FLSHTX;
+	if (!timbuart_tx_empty(port)) {
+		u8 ctl = ioread8(port->membase + TIMBUART_CTRL) |
+			TIMBUART_CTRL_FLSHTX;
 
-	iowrite8(ctl, port->membase + TIMBUART_CTRL);
-	iowrite32(TXBF, port->membase + TIMBUART_ISR);
+		iowrite8(ctl, port->membase + TIMBUART_CTRL);
+		iowrite32(TXBF, port->membase + TIMBUART_ISR);
+	}
 }
 
 static void timbuart_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 
 	while (ioread32(port->membase + TIMBUART_ISR) & RXDP) {
 		u8 ch = ioread8(port->membase + TIMBUART_RXFIFO);
@@ -86,7 +97,7 @@ static void timbuart_rx_chars(struct uart_port *port)
 	}
 
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(port->info->port.tty);
+	tty_flip_buffer_push(port->state->port.tty);
 	spin_lock(&port->lock);
 
 	dev_dbg(port->dev, "%s - total read %d bytes\n",
@@ -95,7 +106,7 @@ static void timbuart_rx_chars(struct uart_port *port)
 
 static void timbuart_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	while (!(ioread32(port->membase + TIMBUART_ISR) & TXBF) &&
 		!uart_circ_empty(xmit)) {
@@ -118,7 +129,7 @@ static void timbuart_handle_tx_port(struct uart_port *port, u32 isr, u32 *ier)
 {
 	struct timbuart_port *uart =
 		container_of(port, struct timbuart_port, port);
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
 		return;
@@ -194,13 +205,6 @@ void timbuart_tasklet(unsigned long arg)
 	dev_dbg(uart->port.dev, "%s leaving\n", __func__);
 }
 
-static unsigned int timbuart_tx_empty(struct uart_port *port)
-{
-	u32 isr = ioread32(port->membase + TIMBUART_ISR);
-
-	return (isr & TXBE) ? TIOCSER_TEMT : 0;
-}
-
 static unsigned int timbuart_get_mctrl(struct uart_port *port)
 {
 	u8 cts = ioread8(port->membase + TIMBUART_CTRL);
@@ -219,7 +223,7 @@ static void timbuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	if (mctrl & TIOCM_RTS)
 		iowrite8(TIMBUART_CTRL_RTS, port->membase + TIMBUART_CTRL);
 	else
-		iowrite8(TIMBUART_CTRL_RTS, port->membase + TIMBUART_CTRL);
+		iowrite8(0, port->membase + TIMBUART_CTRL);
 }
 
 static void timbuart_mctrl_check(struct uart_port *port, u32 isr, u32 *ier)
@@ -231,7 +235,7 @@ static void timbuart_mctrl_check(struct uart_port *port, u32 isr, u32 *ier)
 		iowrite32(CTS_DELTA, port->membase + TIMBUART_ISR);
 		cts = timbuart_get_mctrl(port);
 		uart_handle_cts_change(port, cts & TIOCM_CTS);
-		wake_up_interruptible(&port->info->delta_msr_wait);
+		wake_up_interruptible(&port->state->port.delta_msr_wait);
 	}
 
 	*ier |= CTS_DELTA;
@@ -419,9 +423,9 @@ static struct uart_driver timbuart_driver = {
 	.nr = 1
 };
 
-static int timbuart_probe(struct platform_device *dev)
+static int __devinit timbuart_probe(struct platform_device *dev)
 {
-	int err;
+	int err, irq;
 	struct timbuart_port *uart;
 	struct resource *iomem;
 
@@ -453,11 +457,12 @@ static int timbuart_probe(struct platform_device *dev)
 	uart->port.mapbase = iomem->start;
 	uart->port.membase = NULL;
 
-	uart->port.irq = platform_get_irq(dev, 0);
-	if (uart->port.irq < 0) {
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
 		err = -EINVAL;
 		goto err_register;
 	}
+	uart->port.irq = irq;
 
 	tasklet_init(&uart->tasklet, timbuart_tasklet, (unsigned long)uart);
 
@@ -484,7 +489,7 @@ err_mem:
 	return err;
 }
 
-static int timbuart_remove(struct platform_device *dev)
+static int __devexit timbuart_remove(struct platform_device *dev)
 {
 	struct timbuart_port *uart = platform_get_drvdata(dev);
 
@@ -502,7 +507,7 @@ static struct platform_driver timbuart_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= timbuart_probe,
-	.remove		= timbuart_remove,
+	.remove		= __devexit_p(timbuart_remove),
 };
 
 /*--------------------------------------------------------------------------*/

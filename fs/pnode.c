@@ -86,7 +86,7 @@ static int do_make_slave(struct vfsmount *mnt)
 
 	/*
 	 * slave 'mnt' to a peer mount that has the
-	 * same root dentry. If none is available than
+	 * same root dentry. If none is available then
 	 * slave it to anything that is available.
 	 */
 	while ((peer_mnt = next_peer(peer_mnt)) != mnt &&
@@ -126,6 +126,9 @@ static int do_make_slave(struct vfsmount *mnt)
 	return 0;
 }
 
+/*
+ * vfsmount lock must be held for write
+ */
 void change_mnt_propagation(struct vfsmount *mnt, int type)
 {
 	if (type == MS_SHARED) {
@@ -147,6 +150,11 @@ void change_mnt_propagation(struct vfsmount *mnt, int type)
  * get the next mount in the propagation tree.
  * @m: the mount seen last
  * @origin: the original mount from where the tree walk initiated
+ *
+ * Note that peer groups form contiguous segments of slave lists.
+ * We rely on that in get_source() to be able to find out if
+ * vfsmount found while iterating with propagation_next() is
+ * a peer of one we'd found earlier.
  */
 static struct vfsmount *propagation_next(struct vfsmount *m,
 					 struct vfsmount *origin)
@@ -186,10 +194,6 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 {
 	struct vfsmount *p_last_src = NULL;
 	struct vfsmount *p_last_dest = NULL;
-	*type = CL_PROPAGATION;
-
-	if (IS_MNT_SHARED(dest))
-		*type |= CL_MAKE_SHARED;
 
 	while (last_dest != dest->mnt_master) {
 		p_last_dest = last_dest;
@@ -202,13 +206,18 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 		do {
 			p_last_dest = next_peer(p_last_dest);
 		} while (IS_MNT_NEW(p_last_dest));
+		/* is that a peer of the earlier? */
+		if (dest == p_last_dest) {
+			*type = CL_MAKE_SHARED;
+			return p_last_src;
+		}
 	}
-
-	if (dest != p_last_dest) {
-		*type |= CL_SLAVE;
-		return last_src;
-	} else
-		return p_last_src;
+	/* slave of the earlier, then */
+	*type = CL_SLAVE;
+	/* beginning of peer group among the slaves? */
+	if (IS_MNT_SHARED(dest))
+		*type |= CL_MAKE_SHARED;
+	return last_src;
 }
 
 /*
@@ -264,12 +273,12 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 		prev_src_mnt  = child;
 	}
 out:
-	spin_lock(&vfsmount_lock);
+	br_write_lock(vfsmount_lock);
 	while (!list_empty(&tmp_list)) {
 		child = list_first_entry(&tmp_list, struct vfsmount, mnt_hash);
 		umount_tree(child, 0, &umount_list);
 	}
-	spin_unlock(&vfsmount_lock);
+	br_write_unlock(vfsmount_lock);
 	release_mounts(&umount_list);
 	return ret;
 }
@@ -279,7 +288,7 @@ out:
  */
 static inline int do_refcount_check(struct vfsmount *mnt, int count)
 {
-	int mycount = atomic_read(&mnt->mnt_count) - mnt->mnt_ghosts;
+	int mycount = mnt_get_count(mnt) - mnt->mnt_ghosts;
 	return (mycount > count);
 }
 
@@ -290,6 +299,8 @@ static inline int do_refcount_check(struct vfsmount *mnt, int count)
  * other mounts its parent propagates to.
  * Check if any of these mounts that **do not have submounts**
  * have more references than 'refcnt'. If so return busy.
+ *
+ * vfsmount lock must be held for write
  */
 int propagate_mount_busy(struct vfsmount *mnt, int refcnt)
 {
@@ -347,6 +358,8 @@ static void __propagate_umount(struct vfsmount *mnt)
  * collect all mounts that receive propagation from the mount in @list,
  * and return these additional mounts in the same list.
  * @list: the list of mounts to be unmounted.
+ *
+ * vfsmount lock must be held for write
  */
 int propagate_umount(struct list_head *list)
 {

@@ -1,37 +1,17 @@
 /*
- * File:         arch/blackfin/mach-bf538/dma.c
- * Based on:
- * Author:
+ * the simple DMA Implementation for Blackfin
  *
- * Created:
- * Description:  This file contains the simple DMA Implementation for Blackfin
+ * Copyright 2008 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2008 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
+
 #include <linux/module.h>
 
 #include <asm/blackfin.h>
 #include <asm/dma.h>
 
-struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS] = {
+struct dma_register * const dma_io_base_addr[MAX_DMA_CHANNELS] = {
 	(struct dma_register *) DMA0_NEXT_DESC_PTR,
 	(struct dma_register *) DMA1_NEXT_DESC_PTR,
 	(struct dma_register *) DMA2_NEXT_DESC_PTR,
@@ -52,14 +32,14 @@ struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS] = {
 	(struct dma_register *) DMA17_NEXT_DESC_PTR,
 	(struct dma_register *) DMA18_NEXT_DESC_PTR,
 	(struct dma_register *) DMA19_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_D0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_S0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_D1_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA0_S1_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_D0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_S0_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_D1_NEXT_DESC_PTR,
-	(struct dma_register *) MDMA1_S1_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D0_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S0_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D1_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S1_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D2_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S2_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_D3_NEXT_DESC_PTR,
+	(struct dma_register *) MDMA_S3_NEXT_DESC_PTR,
 };
 EXPORT_SYMBOL(dma_io_base_addr);
 

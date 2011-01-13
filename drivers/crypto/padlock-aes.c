@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
@@ -64,7 +65,7 @@ struct aes_ctx {
 	u32 *D;
 };
 
-static DEFINE_PER_CPU(struct cword *, last_cword);
+static DEFINE_PER_CPU(struct cword *, paes_last_cword);
 
 /* Tells whether the ACE is capable to generate
    the extended key for a given key_len. */
@@ -152,9 +153,9 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 ok:
 	for_each_online_cpu(cpu)
-		if (&ctx->cword.encrypt == per_cpu(last_cword, cpu) ||
-		    &ctx->cword.decrypt == per_cpu(last_cword, cpu))
-			per_cpu(last_cword, cpu) = NULL;
+		if (&ctx->cword.encrypt == per_cpu(paes_last_cword, cpu) ||
+		    &ctx->cword.decrypt == per_cpu(paes_last_cword, cpu))
+			per_cpu(paes_last_cword, cpu) = NULL;
 
 	return 0;
 }
@@ -166,7 +167,7 @@ static inline void padlock_reset_key(struct cword *cword)
 {
 	int cpu = raw_smp_processor_id();
 
-	if (cword != per_cpu(last_cword, cpu))
+	if (cword != per_cpu(paes_last_cword, cpu))
 #ifndef CONFIG_X86_64
 		asm volatile ("pushfl; popfl");
 #else
@@ -176,7 +177,7 @@ static inline void padlock_reset_key(struct cword *cword)
 
 static inline void padlock_store_cword(struct cword *cword)
 {
-	per_cpu(last_cword, raw_smp_processor_id()) = cword;
+	per_cpu(paes_last_cword, raw_smp_processor_id()) = cword;
 }
 
 /*
@@ -236,7 +237,7 @@ static inline void ecb_crypt(const u8 *in, u8 *out, u32 *key,
 	/* Padlock in ECB mode fetches at least ecb_fetch_bytes of data.
 	 * We could avoid some copying here but it's probably not worth it.
 	 */
-	if (unlikely(((unsigned long)in & PAGE_SIZE) + ecb_fetch_bytes > PAGE_SIZE)) {
+	if (unlikely(((unsigned long)in & ~PAGE_MASK) + ecb_fetch_bytes > PAGE_SIZE)) {
 		ecb_crypt_copy(in, out, key, cword, count);
 		return;
 	}
@@ -248,7 +249,7 @@ static inline u8 *cbc_crypt(const u8 *in, u8 *out, u32 *key,
 			    u8 *iv, struct cword *cword, int count)
 {
 	/* Padlock in CBC mode fetches at least cbc_fetch_bytes of data. */
-	if (unlikely(((unsigned long)in & PAGE_SIZE) + cbc_fetch_bytes > PAGE_SIZE))
+	if (unlikely(((unsigned long)in & ~PAGE_MASK) + cbc_fetch_bytes > PAGE_SIZE))
 		return cbc_crypt_copy(in, out, key, iv, cword, count);
 
 	return rep_xcrypt_cbc(in, out, key, iv, cword, count);
@@ -285,7 +286,7 @@ static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 	if (initial)
 		asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"	/* rep xcryptcbc */
 			      : "+S" (input), "+D" (output), "+a" (iv)
-			      : "d" (control_word), "b" (key), "c" (count));
+			      : "d" (control_word), "b" (key), "c" (initial));
 
 	asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"	/* rep xcryptcbc */
 		      : "+S" (input), "+D" (output), "+a" (iv)

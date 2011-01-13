@@ -1,12 +1,9 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
 config M68K
 	bool
 	default y
 	select HAVE_AOUT
 	select HAVE_IDE
+	select GENERIC_ATOMIC64
 
 config MMU
 	bool
@@ -58,7 +55,8 @@ config HZ
 	int
 	default 100
 
-mainmenu "Linux/68k Kernel Configuration"
+config ARCH_USES_GETTIMEOFFSET
+	def_bool y
 
 source "init/Kconfig"
 
@@ -430,7 +428,7 @@ config PROC_HARDWARE
 
 config ISA
 	bool
-	depends on Q40 || AMIGA_PCMCIA || GG2
+	depends on Q40 || AMIGA_PCMCIA
 	default y
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
@@ -441,7 +439,7 @@ config ISA
 
 config GENERIC_ISA_DMA
 	bool
-	depends on Q40 || AMIGA_PCMCIA || GG2
+	depends on Q40 || AMIGA_PCMCIA
 	default y
 
 config ZONE_DMA
@@ -530,10 +528,6 @@ config GVPIOEXT_PLIP
 	  Say Y to enable doing IP over the parallel port on your GVP
 	  IO-Extender card, N otherwise.
 
-config MAC_SCC
-	tristate "Macintosh serial support"
-	depends on MAC
-
 config MAC_HID
 	bool
 	depends on INPUT_ADBHID
@@ -555,7 +549,7 @@ config HPAPCI
 
 config MVME147_SCC
 	bool "SCC support for MVME147 serial ports"
-	depends on MVME147
+	depends on MVME147 && BROKEN
 	help
 	  This is the driver for the serial ports on the Motorola MVME147
 	  boards.  Everyone using one of these boards should say Y here.
@@ -570,14 +564,14 @@ config SERIAL167
 
 config MVME162_SCC
 	bool "SCC support for MVME162 serial ports"
-	depends on MVME16x
+	depends on MVME16x && BROKEN
 	help
 	  This is the driver for the serial ports on the Motorola MVME162 and
 	  172 boards.  Everyone using one of these boards should say Y here.
 
 config BVME6000_SCC
 	bool "SCC support for BVME6000 serial ports"
-	depends on BVME6000
+	depends on BVME6000 && BROKEN
 	help
 	  This is the driver for the serial ports on the BVME4000 and BVME6000
 	  boards from BVM Ltd.  Everyone using one of these boards should say
@@ -589,7 +583,7 @@ config DN_SERIAL
 
 config SERIAL_CONSOLE
 	bool "Support for serial port console"
-	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
+	depends on (AMIGA || ATARI || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_MIDI=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all

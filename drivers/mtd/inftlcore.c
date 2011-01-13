@@ -1,11 +1,11 @@
 /*
  * inftlcore.c -- Linux driver for Inverse Flash Translation Layer (INFTL)
  *
- * (C) Copyright 2002, Greg Ungerer (gerg@snapgear.com)
+ * Copyright © 2002, Greg Ungerer (gerg@snapgear.com)
  *
  * Based heavily on the nftlcore.c code which is:
- * (c) 1999 Machine Vision Holdings, Inc.
- * Author: David Woodhouse <dwmw2@infradead.org>
+ * Copyright © 1999 Machine Vision Holdings, Inc.
+ * Copyright © 1999 David Woodhouse <dwmw2@infradead.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -139,7 +139,6 @@ static void inftl_remove_dev(struct mtd_blktrans_dev *dev)
 
 	kfree(inftl->PUtable);
 	kfree(inftl->VUtable);
-	kfree(inftl);
 }
 
 /*
@@ -226,7 +225,7 @@ static u16 INFTL_findfreeblock(struct INFTLrecord *inftl, int desperate)
 	if (!desperate && inftl->numfreeEUNs < 2) {
 		DEBUG(MTD_DEBUG_LEVEL1, "INFTL: there are too few free "
 			"EUNs (%d)\n", inftl->numfreeEUNs);
-		return 0xffff;
+		return BLOCK_NIL;
 	}
 
 	/* Scan for a free block */
@@ -281,7 +280,8 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	silly = MAX_LOOPS;
 	while (thisEUN < inftl->nb_blocks) {
 		for (block = 0; block < inftl->EraseSize/SECTORSIZE; block ++) {
-			if ((BlockMap[block] != 0xffff) || BlockDeleted[block])
+			if ((BlockMap[block] != BLOCK_NIL) ||
+			    BlockDeleted[block])
 				continue;
 
 			if (inftl_read_oob(mtd, (thisEUN * inftl->EraseSize)
@@ -525,7 +525,7 @@ static inline u16 INFTL_findwriteunit(struct INFTLrecord *inftl, unsigned block)
 			if (!silly--) {
 				printk(KERN_WARNING "INFTL: infinite loop in "
 					"Virtual Unit Chain 0x%x\n", thisVUC);
-				return 0xffff;
+				return BLOCK_NIL;
 			}
 
 			/* Skip to next block in chain */
@@ -549,7 +549,7 @@ hitused:
 			 * waiting to be picked up. We're going to have to fold
 			 * a chain to make room.
 			 */
-			thisEUN = INFTL_makefreeblock(inftl, 0xffff);
+			thisEUN = INFTL_makefreeblock(inftl, block);
 
 			/*
 			 * Hopefully we free something, lets try again.
@@ -631,7 +631,7 @@ hitused:
 
 	printk(KERN_WARNING "INFTL: error folding to make room for Virtual "
 		"Unit Chain 0x%x\n", thisVUC);
-	return 0xffff;
+	return BLOCK_NIL;
 }
 
 /*

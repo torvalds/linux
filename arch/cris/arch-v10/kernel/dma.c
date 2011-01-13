@@ -24,7 +24,7 @@ int cris_request_dma(unsigned int dmanr, const char * device_id,
 	unsigned long int gens;
 	int fail = -EINVAL;
 
-	if ((dmanr < 0) || (dmanr >= MAX_DMA_CHANNELS)) {
+	if (dmanr >= MAX_DMA_CHANNELS) {
 		printk(KERN_CRIT "cris_request_dma: invalid DMA channel %u\n", dmanr);
 		return -EINVAL;
 	}
@@ -213,7 +213,7 @@ int cris_request_dma(unsigned int dmanr, const char * device_id,
 void cris_free_dma(unsigned int dmanr, const char * device_id)
 {
 	unsigned long flags;
-	if ((dmanr < 0) || (dmanr >= MAX_DMA_CHANNELS)) {
+	if (dmanr >= MAX_DMA_CHANNELS) {
 		printk(KERN_CRIT "cris_free_dma: invalid DMA channel %u\n", dmanr);
 		return;
 	}

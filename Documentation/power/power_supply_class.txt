@@ -76,6 +76,11 @@ STATUS - this attribute represents operating status (charging, full,
 discharging (i.e. powering a load), etc.). This corresponds to
 BATTERY_STATUS_* values, as defined in battery.h.
 
+CHARGE_TYPE - batteries can typically charge at different rates.
+This defines trickle and fast charges.  For batteries that
+are already charged or discharging, 'n/a' can be displayed (or
+'unknown', if the status is not known).
+
 HEALTH - represents health of the battery, values corresponds to
 POWER_SUPPLY_HEALTH_*, defined in battery.h.
 
@@ -108,6 +113,8 @@ relative, time-based measurements.
 ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
 
 CAPACITY - capacity in percents.
+CAPACITY_LEVEL - capacity level. This corresponds to
+POWER_SUPPLY_CAPACITY_LEVEL_*.
 
 TEMP - temperature of the power supply.
 TEMP_AMBIENT - ambient temperature.

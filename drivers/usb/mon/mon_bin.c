@@ -15,7 +15,8 @@
 #include <linux/poll.h>
 #include <linux/compat.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
+#include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -220,9 +221,8 @@ static void mon_free_buff(struct mon_pgmap *map, int npages);
 
 /*
  * This is a "chunked memcpy". It does not manipulate any counters.
- * But it returns the new offset for repeated application.
  */
-unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
+static unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
     unsigned int off, const unsigned char *from, unsigned int length)
 {
 	unsigned int step_len;
@@ -350,12 +350,12 @@ static unsigned int mon_buff_area_alloc_contiguous(struct mon_reader_bin *rp,
 
 /*
  * Return a few (kilo-)bytes to the head of the buffer.
- * This is used if a DMA fetch fails.
+ * This is used if a data fetch fails.
  */
 static void mon_buff_area_shrink(struct mon_reader_bin *rp, unsigned int size)
 {
 
-	size = (size + PKT_ALIGN-1) & ~(PKT_ALIGN-1);
+	/* size &= ~(PKT_ALIGN-1);  -- we're called with aligned size */
 	rp->b_cnt -= size;
 	if (rp->b_in < size)
 		rp->b_in += rp->b_size;
@@ -396,21 +396,66 @@ static inline char mon_bin_get_setup(unsigned char *setupb,
 	return 0;
 }
 
-static char mon_bin_get_data(const struct mon_reader_bin *rp,
-    unsigned int offset, struct urb *urb, unsigned int length)
+static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
+    unsigned int offset, struct urb *urb, unsigned int length,
+    char *flag)
 {
+	int i;
+	struct scatterlist *sg;
+	unsigned int this_len;
 
-	if (urb->dev->bus->uses_dma &&
-	    (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
-		mon_dmapeek_vec(rp, offset, urb->transfer_dma, length);
-		return 0;
+	*flag = 0;
+	if (urb->num_sgs == 0) {
+		if (urb->transfer_buffer == NULL) {
+			*flag = 'Z';
+			return length;
+		}
+		mon_copy_to_buff(rp, offset, urb->transfer_buffer, length);
+		length = 0;
+
+	} else {
+		/* If IOMMU coalescing occurred, we cannot trust sg_page */
+		if (urb->transfer_flags & URB_DMA_SG_COMBINED) {
+			*flag = 'D';
+			return length;
+		}
+
+		/* Copy up to the first non-addressable segment */
+		for_each_sg(urb->sg, sg, urb->num_sgs, i) {
+			if (length == 0 || PageHighMem(sg_page(sg)))
+				break;
+			this_len = min_t(unsigned int, sg->length, length);
+			offset = mon_copy_to_buff(rp, offset, sg_virt(sg),
+					this_len);
+			length -= this_len;
+		}
+		if (i == 0)
+			*flag = 'D';
 	}
 
-	if (urb->transfer_buffer == NULL)
-		return 'Z';
+	return length;
+}
 
-	mon_copy_to_buff(rp, offset, urb->transfer_buffer, length);
-	return 0;
+/*
+ * This is the look-ahead pass in case of 'C Zi', when actual_length cannot
+ * be used to determine the length of the whole contiguous buffer.
+ */
+static unsigned int mon_bin_collate_isodesc(const struct mon_reader_bin *rp,
+    struct urb *urb, unsigned int ndesc)
+{
+	struct usb_iso_packet_descriptor *fp;
+	unsigned int length;
+
+	length = 0;
+	fp = urb->iso_frame_desc;
+	while (ndesc-- != 0) {
+		if (fp->actual_length != 0) {
+			if (fp->offset + fp->actual_length > length)
+				length = fp->offset + fp->actual_length;
+		}
+		fp++;
+	}
+	return length;
 }
 
 static void mon_bin_get_isodesc(const struct mon_reader_bin *rp,
@@ -437,11 +482,12 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
     char ev_type, int status)
 {
 	const struct usb_endpoint_descriptor *epd = &urb->ep->desc;
-	unsigned long flags;
 	struct timeval ts;
+	unsigned long flags;
 	unsigned int urb_length;
 	unsigned int offset;
 	unsigned int length;
+	unsigned int delta;
 	unsigned int ndesc, lendesc;
 	unsigned char dir;
 	struct mon_bin_hdr *ep;
@@ -454,6 +500,10 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	/*
 	 * Find the maximum allowable length, then allocate space.
 	 */
+	urb_length = (ev_type == 'S') ?
+	    urb->transfer_buffer_length : urb->actual_length;
+	length = urb_length;
+
 	if (usb_endpoint_xfer_isoc(epd)) {
 		if (urb->number_of_packets < 0) {
 			ndesc = 0;
@@ -462,14 +512,16 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 		} else {
 			ndesc = urb->number_of_packets;
 		}
+		if (ev_type == 'C' && usb_urb_dir_in(urb))
+			length = mon_bin_collate_isodesc(rp, urb, ndesc);
 	} else {
 		ndesc = 0;
 	}
 	lendesc = ndesc*sizeof(struct mon_bin_isodesc);
 
-	urb_length = (ev_type == 'S') ?
-	    urb->transfer_buffer_length : urb->actual_length;
-	length = urb_length;
+	/* not an issue unless there's a subtle bug in a HCD somewhere */
+	if (length >= urb->transfer_buffer_length)
+		length = urb->transfer_buffer_length;
 
 	if (length >= rp->b_size/5)
 		length = rp->b_size/5;
@@ -544,10 +596,13 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	}
 
 	if (length != 0) {
-		ep->flag_data = mon_bin_get_data(rp, offset, urb, length);
-		if (ep->flag_data != 0) {	/* Yes, it's 0x00, not '0' */
-			ep->len_cap = 0;
-			mon_buff_area_shrink(rp, length);
+		length = mon_bin_get_data(rp, offset, urb, length,
+				&ep->flag_data);
+		if (length > 0) {
+			delta = (ep->len_cap + PKT_ALIGN-1) & ~(PKT_ALIGN-1);
+			ep->len_cap -= length;
+			delta -= (ep->len_cap + PKT_ALIGN-1) & ~(PKT_ALIGN-1);
+			mon_buff_area_shrink(rp, delta);
 		}
 	} else {
 		ep->flag_data = data_tag;
@@ -573,9 +628,12 @@ static void mon_bin_complete(void *data, struct urb *urb, int status)
 static void mon_bin_error(void *data, struct urb *urb, int error)
 {
 	struct mon_reader_bin *rp = data;
+	struct timeval ts;
 	unsigned long flags;
 	unsigned int offset;
 	struct mon_bin_hdr *ep;
+
+	do_gettimeofday(&ts);
 
 	spin_lock_irqsave(&rp->b_lock, flags);
 
@@ -596,6 +654,8 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 	ep->devnum = urb->dev->devnum;
 	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
+	ep->ts_sec = ts.tv_sec;
+	ep->ts_usec = ts.tv_usec;
 	ep->status = error;
 
 	ep->flag_setup = '-';
@@ -613,17 +673,14 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	size_t size;
 	int rc;
 
-	lock_kernel();
 	mutex_lock(&mon_lock);
 	if ((mbus = mon_bus_lookup(iminor(inode))) == NULL) {
 		mutex_unlock(&mon_lock);
-		unlock_kernel();
 		return -ENODEV;
 	}
 	if (mbus != &mon_bus0 && mbus->u_bus == NULL) {
 		printk(KERN_ERR TAG ": consistency error on open\n");
 		mutex_unlock(&mon_lock);
-		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -635,7 +692,6 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	spin_lock_init(&rp->b_lock);
 	init_waitqueue_head(&rp->b_wait);
 	mutex_init(&rp->fetch_lock);
-
 	rp->b_size = BUFF_DFL;
 
 	size = sizeof(struct mon_pgmap) * (rp->b_size/CHUNK_SIZE);
@@ -657,7 +713,6 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 
 	file->private_data = rp;
 	mutex_unlock(&mon_lock);
-	unlock_kernel();
 	return 0;
 
 err_allocbuff:
@@ -666,7 +721,6 @@ err_allocvec:
 	kfree(rp);
 err_alloc:
 	mutex_unlock(&mon_lock);
-	unlock_kernel();
 	return rc;
 }
 
@@ -922,8 +976,7 @@ static int mon_bin_queued(struct mon_reader_bin *rp)
 
 /*
  */
-static int mon_bin_ioctl(struct inode *inode, struct file *file,
-    unsigned int cmd, unsigned long arg)
+static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mon_reader_bin *rp = file->private_data;
 	// struct mon_bus* mbus = rp->r.m_bus;
@@ -978,7 +1031,7 @@ static int mon_bin_ioctl(struct inode *inode, struct file *file,
 
 		mutex_lock(&rp->fetch_lock);
 		spin_lock_irqsave(&rp->b_lock, flags);
-		mon_free_buff(rp->b_vec, size/CHUNK_SIZE);
+		mon_free_buff(rp->b_vec, rp->b_size/CHUNK_SIZE);
 		kfree(rp->b_vec);
 		rp->b_vec  = vec;
 		rp->b_size = size;
@@ -1116,14 +1169,13 @@ static long mon_bin_compat_ioctl(struct file *file,
 		return 0;
 
 	case MON_IOCG_STATS:
-		return mon_bin_ioctl(NULL, file, cmd,
-					    (unsigned long) compat_ptr(arg));
+		return mon_bin_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 
 	case MON_IOCQ_URB_LEN:
 	case MON_IOCQ_RING_SIZE:
 	case MON_IOCT_RING_SIZE:
 	case MON_IOCH_MFLUSH:
-		return mon_bin_ioctl(NULL, file, cmd, arg);
+		return mon_bin_ioctl(file, cmd, arg);
 
 	default:
 		;
@@ -1184,7 +1236,7 @@ static int mon_bin_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct mon_bin_vm_ops = {
+static const struct vm_operations_struct mon_bin_vm_ops = {
 	.open =     mon_bin_vma_open,
 	.close =    mon_bin_vma_close,
 	.fault =    mon_bin_vma_fault,
@@ -1207,7 +1259,7 @@ static const struct file_operations mon_fops_binary = {
 	.read =		mon_bin_read,
 	/* .write =	mon_text_write, */
 	.poll =		mon_bin_poll,
-	.ioctl =	mon_bin_ioctl,
+	.unlocked_ioctl = mon_bin_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl =	mon_bin_compat_ioctl,
 #endif
@@ -1261,7 +1313,7 @@ static int mon_alloc_buff(struct mon_pgmap *map, int npages)
 			return -ENOMEM;
 		}
 		map[n].ptr = (unsigned char *) vaddr;
-		map[n].pg = virt_to_page(vaddr);
+		map[n].pg = virt_to_page((void *) vaddr);
 	}
 	return 0;
 }

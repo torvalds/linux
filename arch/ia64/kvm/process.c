@@ -130,7 +130,7 @@ static void collect_interruption(struct kvm_vcpu *vcpu)
 	if (vdcr & IA64_DCR_PP) {
 		vpsr |= IA64_PSR_PP;
 	} else {
-		vpsr &= ~IA64_PSR_PP;;
+		vpsr &= ~IA64_PSR_PP;
 	}
 
 	vcpu_set_psr(vcpu, vpsr);
@@ -594,11 +594,11 @@ static void set_pal_call_data(struct kvm_vcpu *vcpu)
 		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
 		break;
 	case PAL_BRAND_INFO:
-		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr29 = gr29;
 		p->u.pal_data.gr30 = kvm_trans_pal_call_args(vcpu, gr30);
 		break;
 	default:
-		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr29 = gr29;
 		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
 	}
 	p->u.pal_data.gr28 = gr28;

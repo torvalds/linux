@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -213,7 +213,7 @@ acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
+	status = acpi_ds_execute_arguments(node, node->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	return_ACPI_STATUS(status);
@@ -257,7 +257,7 @@ acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the AML code for the term_arg arguments */
 
-	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
+	status = acpi_ds_execute_arguments(node, node->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
 	return_ACPI_STATUS(status);
@@ -292,7 +292,7 @@ acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc)
 	node = obj_desc->buffer.node;
 	if (!node) {
 		ACPI_ERROR((AE_INFO,
-			    "No pointer back to NS node in buffer obj %p",
+			    "No pointer back to namespace node in buffer object %p",
 			    obj_desc));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -336,7 +336,7 @@ acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 	node = obj_desc->package.node;
 	if (!node) {
 		ACPI_ERROR((AE_INFO,
-			    "No pointer back to NS node in package %p",
+			    "No pointer back to namespace node in package %p",
 			    obj_desc));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -394,9 +394,33 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the argument AML */
 
-	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
+	status = acpi_ds_execute_arguments(node, node->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Validate the region address/length via the host OS */
+
+	status = acpi_os_validate_address(obj_desc->region.space_id,
+					  obj_desc->region.address,
+					  (acpi_size) obj_desc->region.length,
+					  acpi_ut_get_node_name(node));
+
+	if (ACPI_FAILURE(status)) {
+		/*
+		 * Invalid address/length. We will emit an error message and mark
+		 * the region as invalid, so that it will cause an additional error if
+		 * it is ever used. Then return AE_OK.
+		 */
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During address validation of OpRegion [%4.4s]",
+				node->name.ascii));
+		obj_desc->common.flags |= AOPOBJ_INVALID;
+		status = AE_OK;
+	}
+
 	return_ACPI_STATUS(status);
 }
 
@@ -556,7 +580,8 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	default:
 
 		ACPI_ERROR((AE_INFO,
-			    "Unknown field creation opcode %02x", aml_opcode));
+			    "Unknown field creation opcode 0x%02X",
+			    aml_opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -565,7 +590,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	if ((bit_offset + bit_count) > (8 * (u32) buffer_desc->buffer.length)) {
 		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] at %d exceeds Buffer [%4.4s] size %d (bits)",
+			    "Field [%4.4s] at %u exceeds Buffer [%4.4s] size %u (bits)",
 			    acpi_ut_get_node_name(result_desc),
 			    bit_offset + bit_count,
 			    acpi_ut_get_node_name(buffer_desc->buffer.node),
@@ -669,7 +694,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 	status = acpi_ex_resolve_operands(op->common.aml_opcode,
 					  ACPI_WALK_OPERANDS, walk_state);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "(%s) bad operand(s) (%X)",
+		ACPI_ERROR((AE_INFO, "(%s) bad operand(s), status 0x%X",
 			    acpi_ps_get_opcode_name(op->common.aml_opcode),
 			    status));
 
@@ -1437,7 +1462,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown control opcode=%X Op=%p",
+		ACPI_ERROR((AE_INFO, "Unknown control opcode=0x%X Op=%p",
 			    op->common.aml_opcode, op));
 
 		status = AE_AML_BAD_OPCODE;

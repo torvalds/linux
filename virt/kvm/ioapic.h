@@ -41,9 +41,12 @@ struct kvm_ioapic {
 	u32 irr;
 	u32 pad;
 	union kvm_ioapic_redirect_entry redirtbl[IOAPIC_NUM_PINS];
+	unsigned long irq_states[IOAPIC_NUM_PINS];
 	struct kvm_io_device dev;
 	struct kvm *kvm;
 	void (*ack_notifier)(void *opaque, int irq);
+	spinlock_t lock;
+	DECLARE_BITMAP(handled_vectors, 256);
 };
 
 #ifdef DEBUG
@@ -69,8 +72,12 @@ int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2);
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector, int trigger_mode);
 int kvm_ioapic_init(struct kvm *kvm);
+void kvm_ioapic_destroy(struct kvm *kvm);
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);
 void kvm_ioapic_reset(struct kvm_ioapic *ioapic);
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq);
+int kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
+int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
+
 #endif

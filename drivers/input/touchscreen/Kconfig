@@ -11,18 +11,31 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_88PM860X
+	tristate "Marvell 88PM860x touchscreen"
+	depends on MFD_88PM860X
+	help
+	  Say Y here if you have a 88PM860x PMIC and want to enable
+	  support for the built-in touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called 88pm860x-ts.
+
 config TOUCHSCREEN_ADS7846
-	tristate "ADS7846/TSC2046 and ADS7843 based touchscreens"
+	tristate "ADS7846/TSC2046/AD7873 and AD(S)7843 based touchscreens"
 	depends on SPI_MASTER
 	depends on HWMON = n || HWMON
 	help
 	  Say Y here if you have a touchscreen interface using the
-	  ADS7846/TSC2046 or ADS7843 controller, and your board-specific
-	  setup code includes that in its table of SPI devices.
+	  ADS7846/TSC2046/AD7873 or ADS7843/AD7843 controller,
+	  and your board-specific setup code includes that in its
+	  table of SPI devices.
 
 	  If HWMON is selected, and the driver is told the reference voltage
 	  on your board, you will also get hwmon interfaces for the voltage
-	  (and on ads7846/tsc2046, temperature) sensors of this chip.
+	  (and on ads7846/tsc2046/ad7873, temperature) sensors of this chip.
 
 	  If unsure, say N (but it's safe to say "Y").
 
@@ -42,37 +55,36 @@ config TOUCHSCREEN_AD7877
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7877.
 
-config TOUCHSCREEN_AD7879_I2C
-	tristate "AD7879 based touchscreens: AD7879-1 I2C Interface"
-	depends on I2C
-	select TOUCHSCREEN_AD7879
+config TOUCHSCREEN_AD7879
+	tristate "Analog Devices AD7879-1/AD7889-1 touchscreen interface"
 	help
-	  Say Y here if you have a touchscreen interface using the
-	  AD7879-1 controller, and your board-specific initialization
-	  code includes that in its table of I2C devices.
+	  Say Y here if you want to support a touchscreen interface using
+	  the AD7879-1/AD7889-1 controller.
 
-	  If unsure, say N (but it's safe to say "Y").
+	  You should select a bus connection too.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879.
+
+config TOUCHSCREEN_AD7879_I2C
+	tristate "support I2C bus connection"
+	depends on TOUCHSCREEN_AD7879 && I2C
+	help
+	  Say Y here if you have AD7879-1/AD7889-1 hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7879-i2c.
 
 config TOUCHSCREEN_AD7879_SPI
-	tristate "AD7879 based touchscreens: AD7879 SPI Interface"
-	depends on SPI_MASTER && TOUCHSCREEN_AD7879_I2C = n
-	select TOUCHSCREEN_AD7879
+	tristate "support SPI bus connection"
+	depends on TOUCHSCREEN_AD7879 && SPI_MASTER
 	help
-	  Say Y here if you have a touchscreen interface using the
-	  AD7879 controller, and your board-specific initialization
-	  code includes that in its table of SPI devices.
+	  Say Y here if you have AD7879-1/AD7889-1 hooked to a SPI bus.
 
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ad7879.
-
-config TOUCHSCREEN_AD7879
-	tristate
-	default n
+	  module will be called ad7879-spi.
 
 config TOUCHSCREEN_BITSY
 	tristate "Compaq iPAQ H3600 (Bitsy) touchscreen"
@@ -86,22 +98,31 @@ config TOUCHSCREEN_BITSY
 	  To compile this driver as a module, choose M here: the
 	  module will be called h3600_ts_input.
 
-config TOUCHSCREEN_CORGI
-	tristate "SharpSL (Corgi and Spitz series) touchscreen driver (DEPRECATED)"
-	depends on PXA_SHARPSL
-	select CORGI_SSP_DEPRECATED
-	default y
+config TOUCHSCREEN_BU21013
+	tristate "BU21013 based touch panel controllers"
+	depends on I2C
 	help
-	  Say Y here to enable the driver for the touchscreen on the
-	  Sharp SL-C7xx and SL-Cxx00 series of PDAs.
+	  Say Y here if you have a bu21013 touchscreen connected to
+	  your system.
 
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called corgi_ts.
+	  module will be called bu21013_ts.
 
-	  NOTE: this driver is deprecated, try enable SPI and generic
-	  ADS7846-based touchscreen driver.
+config TOUCHSCREEN_CY8CTMG110
+	tristate "cy8ctmg110 touchscreen"
+	depends on I2C
+	depends on GPIOLIB
+
+	help
+	  Say Y here if you have a cy8ctmg110 capacitive touchscreen on
+	  an AAVA device.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cy8ctmg110_ts.
 
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
@@ -110,6 +131,30 @@ config TOUCHSCREEN_DA9034
 	help
 	  Say Y here to enable the support for the touchscreen found
 	  on Dialog Semiconductor DA9034 PMIC.
+
+config TOUCHSCREEN_DYNAPRO
+	tristate "Dynapro serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Dynapro serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dynapro.
+
+config TOUCHSCREEN_HAMPSHIRE
+	tristate "Hampshire serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Hampshire serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hampshire.
 
 config TOUCHSCREEN_EETI
 	tristate "EETI touchscreen panel support"
@@ -132,6 +177,18 @@ config TOUCHSCREEN_FUJITSU
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called fujitsu-ts.
+
+config TOUCHSCREEN_S3C2410
+	tristate "Samsung S3C2410/generic touchscreen input driver"
+	depends on ARCH_S3C2410 || SAMSUNG_DEV_TS
+	select S3C_ADC
+	help
+	  Say Y here if you have the s3c2410 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s3c2410_ts.
 
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
@@ -169,6 +226,27 @@ config TOUCHSCREEN_WACOM_W8001
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom_w8001.
 
+config TOUCHSCREEN_LPC32XX
+	tristate "LPC32XX touchscreen controller"
+	depends on ARCH_LPC32XX
+	help
+	  Say Y here if you have a LPC32XX device and want
+	  to support the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lpc32xx_ts.
+
+config TOUCHSCREEN_MCS5000
+	tristate "MELFAS MCS-5000 touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the MELFAS MCS-5000 touchscreen controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcs5000_ts.
 
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
@@ -193,6 +271,18 @@ config TOUCHSCREEN_INEXIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called inexio.
+
+config TOUCHSCREEN_INTEL_MID
+	tristate "Intel MID platform resistive touchscreen"
+	depends on INTEL_SCU_IPC
+	help
+	  Say Y here if you have a Intel MID based touchscreen in
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called intel_mid_touch.
 
 config TOUCHSCREEN_MK712
 	tristate "ICS MicroClock MK712 touchscreen"
@@ -249,6 +339,18 @@ config TOUCHSCREEN_PENMOUNT
 	  To compile this driver as a module, choose M here: the
 	  module will be called penmount.
 
+config TOUCHSCREEN_QT602240
+	tristate "QT602240 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the AT42QT602240/ATMXT224 I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qt602240_ts.
+
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on SH_MIGOR && I2C
@@ -259,6 +361,15 @@ config TOUCHSCREEN_MIGOR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called migor_ts.
+
+config TOUCHSCREEN_TNETV107X
+	tristate "TI TNETV107X touchscreen support"
+	depends on ARCH_DAVINCI_TNETV107X
+	help
+	  Say Y here if you want to use the TNETV107X touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tnetv107x-ts.
 
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"
@@ -286,7 +397,7 @@ config TOUCHSCREEN_TOUCHWIN
 
 config TOUCHSCREEN_ATMEL_TSADCC
 	tristate "Atmel Touchscreen Interface"
-	depends on ARCH_AT91SAM9RL
+	depends on ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
 	help
 	  Say Y here if you have a 4-wire touchscreen connected to the
           ADC Controller on your Atmel SoC (such as the AT91SAM9RL).
@@ -366,11 +477,11 @@ config TOUCHSCREEN_WM97XX_ATMEL
 	  be called atmel-wm97xx.
 
 config TOUCHSCREEN_WM97XX_MAINSTONE
-	tristate "WM97xx Mainstone accelerated touch"
+	tristate "WM97xx Mainstone/Palm accelerated touch"
 	depends on TOUCHSCREEN_WM97XX && ARCH_PXA
 	help
 	  Say Y here for support for streaming mode with WM97xx touchscreens
-	  on Mainstone systems.
+	  on Mainstone, Palm Tungsten T5, TX and LifeDrive systems.
 
 	  If unsure, say N.
 
@@ -406,12 +517,26 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  - IRTOUCHSYSTEMS/UNITOP
 	  - IdealTEK URTC1000
 	  - GoTop Super_Q2/GogoPen/PenPower tablets
+	  - JASTEC USB Touch Controller/DigiTech DTR-02U
+	  - Zytronic controllers
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbtouchscreen.
+
+config TOUCHSCREEN_MC13783
+	tristate "Freescale MC13783 touchscreen input driver"
+	depends on MFD_MC13783
+	help
+	  Say Y here if you have an Freescale MC13783 PMIC on your
+	  board and want to use its touchscreen
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mc13783_ts.
 
 config TOUCHSCREEN_USB_EGALAX
 	default y
@@ -468,6 +593,31 @@ config TOUCHSCREEN_USB_GOTOP
 	bool "GoTop Super_Q2/GogoPen/PenPower tablet device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
+config TOUCHSCREEN_USB_JASTEC
+	default y
+	bool "JASTEC/DigiTech DTR-02U USB touch controller device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_E2I
+	default y
+	bool "e2i Touchscreen controller (e.g. from Mimo 740)"
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_ZYTRONIC
+	default y
+	bool "Zytronic controller" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_ETT_TC45USB
+	default y
+	bool "ET&T USB series TC4UM/TC5UH touchscreen controler support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_NEXIO
+	default y
+	bool "NEXIO/iNexio device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
 config TOUCHSCREEN_TOUCHIT213
 	tristate "Sahara TouchIT-213 touchscreen"
 	select SERIO
@@ -492,10 +642,55 @@ config TOUCHSCREEN_TSC2007
 
 config TOUCHSCREEN_W90X900
 	tristate "W90P910 touchscreen driver"
+	depends on HAVE_CLK
 	help
 	  Say Y here if you have a W90P910 based touchscreen.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_ts.
+
+config TOUCHSCREEN_PCAP
+	tristate "Motorola PCAP touchscreen"
+	depends on EZX_PCAP
+	help
+	  Say Y here if you have a Motorola EZX telephone and
+	  want to enable support for the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcap_ts.
+
+config TOUCHSCREEN_ST1232
+	tristate "Sitronix ST1232 touchscreen controllers"
+	depends on I2C
+	help
+	  Say Y here if you want to support Sitronix ST1232
+	  touchscreen controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called st1232_ts.
+
+config TOUCHSCREEN_STMPE
+	tristate "STMicroelectronics STMPE touchscreens"
+	depends on MFD_STMPE
+	help
+	  Say Y here if you want support for STMicroelectronics
+	  STMPE touchscreen controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stmpe-ts.
+
+config TOUCHSCREEN_TPS6507X
+	tristate "TPS6507x based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a TPS6507x based touchscreen
+	  controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tps6507x_ts.
 
 endif

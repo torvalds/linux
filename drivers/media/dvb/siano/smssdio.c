@@ -33,6 +33,7 @@
  */
 
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/mmc/card.h>
@@ -46,8 +47,9 @@
 
 #define SMSSDIO_DATA		0x00
 #define SMSSDIO_INT		0x04
+#define SMSSDIO_BLOCK_SIZE	128
 
-static const struct sdio_device_id smssdio_ids[] = {
+static const struct sdio_device_id smssdio_ids[] __devinitconst = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_STELLAR),
 	 .driver_data = SMS1XXX_BOARD_SIANO_STELLAR},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_NOVA_A0),
@@ -77,7 +79,7 @@ struct smssdio_device {
 
 static int smssdio_sendrequest(void *context, void *buffer, size_t size)
 {
-	int ret;
+	int ret = 0;
 	struct smssdio_device *smsdev;
 
 	smsdev = context;
@@ -85,7 +87,8 @@ static int smssdio_sendrequest(void *context, void *buffer, size_t size)
 	sdio_claim_host(smsdev->func);
 
 	while (size >= smsdev->func->cur_blksize) {
-		ret = sdio_write_blocks(smsdev->func, SMSSDIO_DATA, buffer, 1);
+		ret = sdio_memcpy_toio(smsdev->func, SMSSDIO_DATA,
+					buffer, smsdev->func->cur_blksize);
 		if (ret)
 			goto out;
 
@@ -94,8 +97,8 @@ static int smssdio_sendrequest(void *context, void *buffer, size_t size)
 	}
 
 	if (size) {
-		ret = sdio_write_bytes(smsdev->func, SMSSDIO_DATA,
-				       buffer, size);
+		ret = sdio_memcpy_toio(smsdev->func, SMSSDIO_DATA,
+					buffer, size);
 	}
 
 out:
@@ -125,23 +128,23 @@ static void smssdio_interrupt(struct sdio_func *func)
 	 */
 	isr = sdio_readb(func, SMSSDIO_INT, &ret);
 	if (ret) {
-		dev_err(&smsdev->func->dev,
-			"Unable to read interrupt register!\n");
+		sms_err("Unable to read interrupt register!\n");
 		return;
 	}
 
 	if (smsdev->split_cb == NULL) {
 		cb = smscore_getbuffer(smsdev->coredev);
 		if (!cb) {
-			dev_err(&smsdev->func->dev,
-				"Unable to allocate data buffer!\n");
+			sms_err("Unable to allocate data buffer!\n");
 			return;
 		}
 
-		ret = sdio_read_blocks(smsdev->func, cb->p, SMSSDIO_DATA, 1);
+		ret = sdio_memcpy_fromio(smsdev->func,
+					 cb->p,
+					 SMSSDIO_DATA,
+					 SMSSDIO_BLOCK_SIZE);
 		if (ret) {
-			dev_err(&smsdev->func->dev,
-				"Error %d reading initial block!\n", ret);
+			sms_err("Error %d reading initial block!\n", ret);
 			return;
 		}
 
@@ -152,7 +155,10 @@ static void smssdio_interrupt(struct sdio_func *func)
 			return;
 		}
 
-		size = hdr->msgLength - smsdev->func->cur_blksize;
+		if (hdr->msgLength > smsdev->func->cur_blksize)
+			size = hdr->msgLength - smsdev->func->cur_blksize;
+		else
+			size = 0;
 	} else {
 		cb = smsdev->split_cb;
 		hdr = cb->p;
@@ -162,23 +168,24 @@ static void smssdio_interrupt(struct sdio_func *func)
 		smsdev->split_cb = NULL;
 	}
 
-	if (hdr->msgLength > smsdev->func->cur_blksize) {
+	if (size) {
 		void *buffer;
 
-		size = ALIGN(size, 128);
-		buffer = cb->p + hdr->msgLength;
+		buffer = cb->p + (hdr->msgLength - size);
+		size = ALIGN(size, SMSSDIO_BLOCK_SIZE);
 
-		BUG_ON(smsdev->func->cur_blksize != 128);
+		BUG_ON(smsdev->func->cur_blksize != SMSSDIO_BLOCK_SIZE);
 
 		/*
 		 * First attempt to transfer all of it in one go...
 		 */
-		ret = sdio_read_blocks(smsdev->func, buffer,
-				       SMSSDIO_DATA, size / 128);
+		ret = sdio_memcpy_fromio(smsdev->func,
+					 buffer,
+					 SMSSDIO_DATA,
+					 size);
 		if (ret && ret != -EINVAL) {
 			smscore_putbuffer(smsdev->coredev, cb);
-			dev_err(&smsdev->func->dev,
-				"Error %d reading data from card!\n", ret);
+			sms_err("Error %d reading data from card!\n", ret);
 			return;
 		}
 
@@ -191,12 +198,12 @@ static void smssdio_interrupt(struct sdio_func *func)
 		 */
 		if (ret == -EINVAL) {
 			while (size) {
-				ret = sdio_read_blocks(smsdev->func,
-						       buffer, SMSSDIO_DATA, 1);
+				ret = sdio_memcpy_fromio(smsdev->func,
+						  buffer, SMSSDIO_DATA,
+						  smsdev->func->cur_blksize);
 				if (ret) {
 					smscore_putbuffer(smsdev->coredev, cb);
-					dev_err(&smsdev->func->dev,
-						"Error %d reading "
+					sms_err("Error %d reading "
 						"data from card!\n", ret);
 					return;
 				}
@@ -216,7 +223,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 	smscore_onresponse(smsdev->coredev, cb);
 }
 
-static int smssdio_probe(struct sdio_func *func,
+static int __devinit smssdio_probe(struct sdio_func *func,
 			 const struct sdio_device_id *id)
 {
 	int ret;
@@ -269,7 +276,7 @@ static int smssdio_probe(struct sdio_func *func,
 	if (ret)
 		goto release;
 
-	ret = sdio_set_block_size(func, 128);
+	ret = sdio_set_block_size(func, SMSSDIO_BLOCK_SIZE);
 	if (ret)
 		goto disable;
 
@@ -332,7 +339,7 @@ static struct sdio_driver smssdio_driver = {
 /* Module functions                                                */
 /*******************************************************************/
 
-int smssdio_module_init(void)
+static int __init smssdio_module_init(void)
 {
 	int ret = 0;
 
@@ -344,7 +351,7 @@ int smssdio_module_init(void)
 	return ret;
 }
 
-void smssdio_module_exit(void)
+static void __exit smssdio_module_exit(void)
 {
 	sdio_unregister_driver(&smssdio_driver);
 }

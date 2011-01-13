@@ -22,10 +22,10 @@
 #if defined(CONFIG_DEBUG_ICEDCC)
 		@@ debug using ARM EmbeddedICE DCC channel
 
-#if defined(CONFIG_CPU_V6)
-
-		.macro	addruart, rx
+		.macro	addruart, rp, rv
 		.endm
+
+#if defined(CONFIG_CPU_V6)
 
 		.macro	senduart, rd, rx
 		mcr	p14, 0, \rd, c0, c5, 0
@@ -49,10 +49,24 @@
 1002:
 		.endm
 
-#elif defined(CONFIG_CPU_XSCALE)
+#elif defined(CONFIG_CPU_V7)
 
-		.macro	addruart, rx
+		.macro	senduart, rd, rx
+		mcr	p14, 0, \rd, c0, c5, 0
 		.endm
+
+		.macro	busyuart, rd, rx
+busy:		mrc	p14, 0, pc, c0, c1, 0
+		bcs	busy
+		.endm
+
+		.macro	waituart, rd, rx
+wait:		mrc	p14, 0, pc, c0, c1, 0
+		bcs	wait
+
+		.endm
+
+#elif defined(CONFIG_CPU_XSCALE)
 
 		.macro	senduart, rd, rx
 		mcr	p14, 0, \rd, c8, c0, 0
@@ -77,9 +91,6 @@
 		.endm
 
 #else
-
-		.macro	addruart, rx
-		.endm
 
 		.macro	senduart, rd, rx
 		mcr	p14, 0, \rd, c1, c0, 0
@@ -109,6 +120,22 @@
 #else
 #include <mach/debug-macro.S>
 #endif	/* CONFIG_DEBUG_ICEDCC */
+
+#ifdef CONFIG_MMU
+		.macro	addruart_current, rx, tmp1, tmp2
+		addruart	\tmp1, \tmp2
+		mrc		p15, 0, \rx, c1, c0
+		tst		\rx, #1
+		moveq		\rx, \tmp1
+		movne		\rx, \tmp2
+		.endm
+
+#else /* !CONFIG_MMU */
+		.macro	addruart_current, rx, tmp1, tmp2
+		addruart	\rx, \tmp1
+		.endm
+
+#endif /* CONFIG_MMU */
 
 /*
  * Useful debugging routines
@@ -144,7 +171,7 @@ ENDPROC(printhex2)
 		.ltorg
 
 ENTRY(printascii)
-		addruart r3
+		addruart_current r3, r1, r2
 		b	2f
 1:		waituart r2, r3
 		senduart r1, r3
@@ -160,7 +187,7 @@ ENTRY(printascii)
 ENDPROC(printascii)
 
 ENTRY(printch)
-		addruart r3
+		addruart_current r3, r1, r2
 		mov	r1, r0
 		mov	r0, #0
 		b	1b

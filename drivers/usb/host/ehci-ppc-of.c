@@ -79,6 +79,8 @@ static const struct hc_driver ehci_ppc_of_hc_driver = {
 #endif
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
+
+	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
 
@@ -104,9 +106,9 @@ ppc44x_enable_bmt(struct device_node *dn)
 
 
 static int __devinit
-ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
+ehci_hcd_ppc_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct device_node *dn = op->node;
+	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci = NULL;
 	struct resource res;
@@ -132,21 +134,21 @@ ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 	hcd->rsrc_len = res.end - res.start + 1;
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		printk(KERN_ERR __FILE__ ": request_mem_region failed\n");
+		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);
 		rv = -EBUSY;
 		goto err_rmr;
 	}
 
 	irq = irq_of_parse_and_map(dn, 0);
 	if (irq == NO_IRQ) {
-		printk(KERN_ERR __FILE__ ": irq_of_parse_and_map failed\n");
+		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
 		rv = -EBUSY;
 		goto err_irq;
 	}
 
 	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
-		printk(KERN_ERR __FILE__ ": ioremap failed\n");
+		printk(KERN_ERR "%s: ioremap failed\n", __FILE__);
 		rv = -ENOMEM;
 		goto err_ioremap;
 	}
@@ -159,9 +161,9 @@ ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 			ehci->ohci_hcctrl_reg = ioremap(res.start +
 					OHCI_HCCTRL_OFFSET, OHCI_HCCTRL_LEN);
 		else
-			pr_debug(__FILE__ ": no ohci offset in fdt\n");
+			pr_debug("%s: no ohci offset in fdt\n", __FILE__);
 		if (!ehci->ohci_hcctrl_reg) {
-			pr_debug(__FILE__ ": ioremap for ohci hcctrl failed\n");
+			pr_debug("%s: ioremap for ohci hcctrl failed\n", __FILE__);
 		} else {
 			ehci->has_amcc_usb23 = 1;
 		}
@@ -190,17 +192,19 @@ ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 	}
 
 	rv = usb_add_hcd(hcd, irq, 0);
-	if (rv == 0)
-		return 0;
+	if (rv)
+		goto err_ehci;
 
+	return 0;
+
+err_ehci:
+	if (ehci->has_amcc_usb23)
+		iounmap(ehci->ohci_hcctrl_reg);
 	iounmap(hcd->regs);
 err_ioremap:
 	irq_dispose_mapping(irq);
 err_irq:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-
-	if (ehci->has_amcc_usb23)
-		iounmap(ehci->ohci_hcctrl_reg);
 err_rmr:
 	usb_put_hcd(hcd);
 
@@ -208,7 +212,7 @@ err_rmr:
 }
 
 
-static int ehci_hcd_ppc_of_remove(struct of_device *op)
+static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -239,7 +243,7 @@ static int ehci_hcd_ppc_of_remove(struct of_device *op)
 				else
 					release_mem_region(res.start, 0x4);
 			else
-				pr_debug(__FILE__ ": no ohci offset in fdt\n");
+				pr_debug("%s: no ohci offset in fdt\n", __FILE__);
 			of_node_put(np);
 		}
 
@@ -251,7 +255,7 @@ static int ehci_hcd_ppc_of_remove(struct of_device *op)
 }
 
 
-static int ehci_hcd_ppc_of_shutdown(struct of_device *op)
+static int ehci_hcd_ppc_of_shutdown(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 
@@ -262,7 +266,7 @@ static int ehci_hcd_ppc_of_shutdown(struct of_device *op)
 }
 
 
-static struct of_device_id ehci_hcd_ppc_of_match[] = {
+static const struct of_device_id ehci_hcd_ppc_of_match[] = {
 	{
 		.compatible = "usb-ehci",
 	},
@@ -272,13 +276,12 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 
 
 static struct of_platform_driver ehci_hcd_ppc_of_driver = {
-	.name		= "ppc-of-ehci",
-	.match_table	= ehci_hcd_ppc_of_match,
 	.probe		= ehci_hcd_ppc_of_probe,
 	.remove		= ehci_hcd_ppc_of_remove,
 	.shutdown	= ehci_hcd_ppc_of_shutdown,
-	.driver		= {
-		.name	= "ppc-of-ehci",
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = "ppc-of-ehci",
+		.owner = THIS_MODULE,
+		.of_match_table = ehci_hcd_ppc_of_match,
 	},
 };

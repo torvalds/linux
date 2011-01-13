@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003  Richard Curnow (/proc/tlb, bug fixes)
- * Copyright (C) 2003  Paul Mundt
+ * Copyright (C) 2003 - 2009 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -20,6 +20,7 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/perf_event.h>
 #include <linux/interrupt.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -35,7 +36,7 @@ extern void die(const char *,struct pt_regs *,long);
 
 static inline void print_prots(pgprot_t prot)
 {
-	printk("prot is 0x%08lx\n",pgprot_val(prot));
+	printk("prot is 0x%016llx\n",pgprot_val(prot));
 
 	printk("%s %s %s %s %s\n",PPROT(_PAGE_SHARED),PPROT(_PAGE_READ),
 	       PPROT(_PAGE_EXECUTE),PPROT(_PAGE_WRITE),PPROT(_PAGE_USER));
@@ -115,6 +116,8 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	/* Not an IO address, so reenable interrupts */
 	local_irq_enable();
 
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+
 	/*
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
@@ -186,7 +189,6 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-survive:
 	fault = handle_mm_fault(mm, vma, address, writeaccess ? FAULT_FLAG_WRITE : 0);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
@@ -195,10 +197,16 @@ survive:
 			goto do_sigbus;
 		BUG();
 	}
-	if (fault & VM_FAULT_MAJOR)
+
+	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-	else
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+				     regs, address);
+	} else {
 		tsk->min_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+				     regs, address);
+	}
 
 	/* If we get here, the page fault has been handled.  Do the TLB refill
 	   now from the newly-setup PTE, to avoid having to fault again right
@@ -285,22 +293,11 @@ no_context:
  * us unable to handle the page fault gracefully.
  */
 out_of_memory:
-	if (is_global_init(current)) {
-		panic("INIT out of memory\n");
-		yield();
-		goto survive;
-	}
-	printk("fault:Out of memory\n");
 	up_read(&mm->mmap_sem);
-	if (is_global_init(current)) {
-		yield();
-		down_read(&mm->mmap_sem);
-		goto survive;
-	}
-	printk("VM: killing process %s\n", tsk->comm);
-	if (user_mode(regs))
-		do_group_exit(SIGKILL);
-	goto no_context;
+	if (!user_mode(regs))
+		goto no_context;
+	pagefault_out_of_memory();
+	return;
 
 do_sigbus:
 	printk("fault:Do sigbus\n");
@@ -320,22 +317,6 @@ do_sigbus:
 		goto no_context;
 }
 
-void update_mmu_cache(struct vm_area_struct * vma,
-			unsigned long address, pte_t pte)
-{
-	/*
-	 * This appears to get called once for every pte entry that gets
-	 * established => I don't think it's efficient to try refilling the
-	 * TLBs with the pages - some may not get accessed even.  Also, for
-	 * executable pages, it is impossible to determine reliably here which
-	 * TLB they should be mapped into (or both even).
-	 *
-	 * So, just do nothing here and handle faults on demand.  In the
-	 * TLBMISS handling case, the refill is now done anyway after the pte
-	 * has been fixed up, so that deals with most useful cases.
-	 */
-}
-
 void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
 	unsigned long long match, pteh=0, lpage;
@@ -344,7 +325,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	/*
 	 * Sign-extend based on neff.
 	 */
-	lpage = (page & NEFF_SIGN) ? (page | NEFF_MASK) : page;
+	lpage = neff_sign_extend(page);
 	match = (asid << PTEH_ASID_SHIFT) | PTEH_VALID;
 	match |= lpage;
 
@@ -472,4 +453,13 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
         /* FIXME: Optimize this later.. */
         flush_tlb_all();
+}
+
+void __flush_tlb_global(void)
+{
+	flush_tlb_all();
+}
+
+void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+{
 }

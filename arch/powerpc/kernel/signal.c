@@ -11,6 +11,7 @@
 
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <asm/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
@@ -137,20 +138,21 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 			ti->local_flags &= ~_TLF_RESTORE_SIGMASK;
 			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 		}
+		regs->trap = 0;
 		return 0;               /* no signals delivered */
 	}
 
+#ifndef CONFIG_PPC_ADV_DEBUG_REGS
         /*
 	 * Reenable the DABR before delivering the signal to
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (current->thread.dabr) {
+	if (current->thread.dabr)
 		set_dabr(current->thread.dabr);
-#if defined(CONFIG_BOOKE)
-		mtspr(SPRN_DBCR0, current->thread.dbcr0);
 #endif
-	}
+	/* Re-enable the breakpoints for the signal stack */
+	thread_change_pc(current, regs);
 
 	if (is32) {
         	if (ka.sa.sa_flags & SA_SIGINFO)
@@ -163,6 +165,7 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 		ret = handle_rt_signal64(signr, &ka, &info, oldset, regs);
 	}
 
+	regs->trap = 0;
 	if (ret) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked, &current->blocked,

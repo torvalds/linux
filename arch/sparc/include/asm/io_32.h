@@ -8,7 +8,7 @@
 #include <asm/page.h>      /* IO address mapping routines need this */
 #include <asm/system.h>
 
-#define page_to_phys(page)	(((page) - mem_map) << PAGE_SHIFT)
+#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 static inline u32 flip_dword (u32 l)
 {
@@ -208,6 +208,21 @@ _memset_io(volatile void __iomem *dst, int c, __kernel_size_t n)
 #define memset_io(d,c,sz)	_memset_io(d,c,sz)
 
 static inline void
+_sbus_memcpy_fromio(void *dst, const volatile void __iomem *src,
+		    __kernel_size_t n)
+{
+	char *d = dst;
+
+	while (n--) {
+		char tmp = sbus_readb(src);
+		*d++ = tmp;
+		src++;
+	}
+}
+
+#define sbus_memcpy_fromio(d, s, sz)	_sbus_memcpy_fromio(d, s, sz)
+
+static inline void
 _memcpy_fromio(void *dst, const volatile void __iomem *src, __kernel_size_t n)
 {
 	char *d = dst;
@@ -220,6 +235,22 @@ _memcpy_fromio(void *dst, const volatile void __iomem *src, __kernel_size_t n)
 }
 
 #define memcpy_fromio(d,s,sz)	_memcpy_fromio(d,s,sz)
+
+static inline void
+_sbus_memcpy_toio(volatile void __iomem *dst, const void *src,
+		  __kernel_size_t n)
+{
+	const char *s = src;
+	volatile void __iomem *d = dst;
+
+	while (n--) {
+		char tmp = *s++;
+		sbus_writeb(tmp, d);
+		d++;
+	}
+}
+
+#define sbus_memcpy_toio(d, s, sz)	_sbus_memcpy_toio(d, s, sz)
 
 static inline void
 _memcpy_toio(volatile void __iomem *dst, const void *src, __kernel_size_t n)
@@ -249,10 +280,14 @@ extern void iounmap(volatile void __iomem *addr);
 
 #define ioread8(X)			readb(X)
 #define ioread16(X)			readw(X)
+#define ioread16be(X)			__raw_readw(X)
 #define ioread32(X)			readl(X)
+#define ioread32be(X)			__raw_readl(X)
 #define iowrite8(val,X)			writeb(val,X)
 #define iowrite16(val,X)		writew(val,X)
+#define iowrite16be(val,X)		__raw_writew(val,X)
 #define iowrite32(val,X)		writel(val,X)
+#define iowrite32be(val,X)		__raw_writel(val,X)
 
 static inline void ioread8_rep(void __iomem *port, void *buf, unsigned long count)
 {

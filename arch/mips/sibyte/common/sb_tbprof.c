@@ -27,8 +27,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/errno.h>
@@ -45,7 +43,7 @@
 #include <asm/sibyte/sb1250_scd.h>
 #include <asm/sibyte/sb1250_int.h>
 #else
-#error invalid SiByte UART configuation
+#error invalid SiByte UART configuration
 #endif
 
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
@@ -403,36 +401,31 @@ static int sbprof_zbprof_stop(void)
 static int sbprof_tb_open(struct inode *inode, struct file *filp)
 {
 	int minor;
-	int err = 0;
 
-	lock_kernel();
 	minor = iminor(inode);
-	if (minor != 0) {
-		err = -ENODEV;
-		goto out;
-	}
+	if (minor != 0)
+		return -ENODEV;
 
-	if (xchg(&sbp.open, SB_OPENING) != SB_CLOSED) {
-		err = -EBUSY;
-		goto out;
-	}
+	if (xchg(&sbp.open, SB_OPENING) != SB_CLOSED)
+		return -EBUSY;
 
 	memset(&sbp, 0, sizeof(struct sbprof_tb));
 	sbp.sbprof_tbbuf = vmalloc(MAX_TBSAMPLE_BYTES);
 	if (!sbp.sbprof_tbbuf) {
-		err = -ENOMEM;
-		goto out;
+		sbp.open = SB_CLOSED;
+		wmb();
+		return -ENOMEM;
 	}
+
 	memset(sbp.sbprof_tbbuf, 0, MAX_TBSAMPLE_BYTES);
 	init_waitqueue_head(&sbp.tb_sync);
 	init_waitqueue_head(&sbp.tb_read);
 	mutex_init(&sbp.lock);
 
 	sbp.open = SB_OPEN;
+	wmb();
 
-  out:
-	unlock_kernel();
-	return err;
+	return 0;
 }
 
 static int sbprof_tb_release(struct inode *inode, struct file *filp)
@@ -440,7 +433,7 @@ static int sbprof_tb_release(struct inode *inode, struct file *filp)
 	int minor;
 
 	minor = iminor(inode);
-	if (minor != 0 || !sbp.open)
+	if (minor != 0 || sbp.open != SB_CLOSED)
 		return -ENODEV;
 
 	mutex_lock(&sbp.lock);
@@ -449,7 +442,8 @@ static int sbprof_tb_release(struct inode *inode, struct file *filp)
 		sbprof_zbprof_stop();
 
 	vfree(sbp.sbprof_tbbuf);
-	sbp.open = 0;
+	sbp.open = SB_CLOSED;
+	wmb();
 
 	mutex_unlock(&sbp.lock);
 
@@ -551,6 +545,7 @@ static const struct file_operations sbprof_tb_fops = {
 	.unlocked_ioctl	= sbprof_tb_ioctl,
 	.compat_ioctl	= sbprof_tb_ioctl,
 	.mmap		= NULL,
+	.llseek		= default_llseek,
 };
 
 static struct class *tb_class;
@@ -583,7 +578,8 @@ static int __init sbprof_tb_init(void)
 	}
 	tb_dev = dev;
 
-	sbp.open = 0;
+	sbp.open = SB_CLOSED;
+	wmb();
 	tb_period = zbbus_mhz * 10000LL;
 	pr_info(DEVNAME ": initialized - tb_period = %lld\n",
 		(long long) tb_period);

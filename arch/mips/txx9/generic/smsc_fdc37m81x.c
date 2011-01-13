@@ -117,7 +117,7 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 	if (chip_id == SMSC_FDC37M81X_CHIP_ID)
 		smsc_fdc37m81x_config_end();
 	else {
-		printk(KERN_WARNING "%s: unknow chip id 0x%02x\n", __func__,
+		printk(KERN_WARNING "%s: unknown chip id 0x%02x\n", __func__,
 		       chip_id);
 		g_smsc_fdc37m81x_base = 0;
 	}

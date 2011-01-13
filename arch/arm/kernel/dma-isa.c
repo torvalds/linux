@@ -207,8 +207,6 @@ void __init isa_init_dma(void)
 		outb(0x32, 0x4d6);
 		outb(0x33, 0x4d6);
 
-		request_dma(DMA_ISA_CASCADE, "cascade");
-
 		for (i = 0; i < ARRAY_SIZE(dma_resources); i++)
 			request_resource(&ioport_resource, dma_resources + i);
 
@@ -218,5 +216,7 @@ void __init isa_init_dma(void)
 				printk(KERN_ERR "ISADMA%u: unable to register: %d\n",
 					chan, ret);
 		}
+
+		request_dma(DMA_ISA_CASCADE, "cascade");
 	}
 }

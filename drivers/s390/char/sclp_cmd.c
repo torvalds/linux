@@ -84,6 +84,7 @@ static void __init sclp_read_info_early(void)
 		do {
 			memset(sccb, 0, sizeof(*sccb));
 			sccb->header.length = sizeof(*sccb);
+			sccb->header.function_code = 0x80;
 			sccb->header.control_mask[2] = 0x80;
 			rc = sclp_cmd_sync_early(commands[i], sccb);
 		} while (rc == -EBUSY);
@@ -306,6 +307,13 @@ struct assign_storage_sccb {
 	struct sccb_header header;
 	u16 rn;
 } __packed;
+
+int arch_get_memory_phys_device(unsigned long start_pfn)
+{
+	if (!rzm)
+		return 0;
+	return PFN_PHYS(start_pfn) >> ilog2(rzm);
+}
 
 static unsigned long long rn2addr(u16 rn)
 {
@@ -546,7 +554,7 @@ struct read_storage_sccb {
 	u32 entries[0];
 } __packed;
 
-static struct dev_pm_ops sclp_mem_pm_ops = {
+static const struct dev_pm_ops sclp_mem_pm_ops = {
 	.freeze		= sclp_mem_freeze,
 };
 

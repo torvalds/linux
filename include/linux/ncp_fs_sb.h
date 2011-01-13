@@ -12,6 +12,7 @@
 #include <linux/ncp_mount.h>
 #include <linux/net.h>
 #include <linux/mutex.h>
+#include <linux/backing-dev.h>
 
 #ifdef __KERNEL__
 
@@ -61,6 +62,7 @@ struct ncp_server {
 	int ncp_reply_size;
 
 	int root_setuped;
+	struct mutex root_setup_lock;
 
 	/* info for packet signing */
 	int sign_wanted;	/* 1=Server needs signed packets */
@@ -80,13 +82,14 @@ struct ncp_server {
 		size_t	len;
 		void*	data;
 	} priv;
+	struct rw_semaphore auth_rwsem;
 
 	/* nls info: codepage for volume and charset for I/O */
 	struct nls_table *nls_vol;
 	struct nls_table *nls_io;
 
 	/* maximum age in jiffies */
-	int dentry_ttl;
+	atomic_t dentry_ttl;
 
 	/* miscellaneous */
 	unsigned int flags;
@@ -103,13 +106,13 @@ struct ncp_server {
 
 		unsigned int state;		/* STREAM only: receiver state */
 		struct {
-			__u32 magic __attribute__((packed));
-			__u32 len __attribute__((packed));
-			__u16 type __attribute__((packed));
-			__u16 p1 __attribute__((packed));
-			__u16 p2 __attribute__((packed));
-			__u16 p3 __attribute__((packed));
-			__u16 type2 __attribute__((packed));
+			__u32 magic __packed;
+			__u32 len __packed;
+			__u16 type __packed;
+			__u16 p1 __packed;
+			__u16 p2 __packed;
+			__u16 p3 __packed;
+			__u16 type2 __packed;
 		} buf;				/* STREAM only: temporary buffer */
 		unsigned char* ptr;		/* STREAM only: pointer to data */
 		size_t len;			/* STREAM only: length of data to receive */
@@ -127,6 +130,7 @@ struct ncp_server {
 		size_t len;
 		__u8 data[128];
 	} unexpected_packet;
+	struct backing_dev_info bdi;
 };
 
 extern void ncp_tcp_rcv_proc(struct work_struct *work);

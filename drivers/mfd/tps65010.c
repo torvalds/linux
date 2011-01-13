@@ -242,7 +242,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	seq_printf(s, "mask2     %s\n", buf);
 	/* ignore ackint2 */
 
-	(void) schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
+	schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
 
 
 	/* VMAIN voltage, enable lowpower, etc */
@@ -400,7 +400,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 			&& (tps->chgstatus & (TPS_CHG_USB|TPS_CHG_AC)))
 		poll = 1;
 	if (poll)
-		(void) schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
+		schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
 
 	/* also potentially gpio-in rise or fall */
 }
@@ -410,7 +410,7 @@ static void tps65010_work(struct work_struct *work)
 {
 	struct tps65010		*tps;
 
-	tps = container_of(work, struct tps65010, work.work);
+	tps = container_of(to_delayed_work(work), struct tps65010, work);
 	mutex_lock(&tps->lock);
 
 	tps65010_interrupt(tps);
@@ -448,7 +448,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 	disable_irq_nosync(irq);
 	set_bit(FLAG_IRQ_ENABLE, &tps->flags);
-	(void) schedule_work(&tps->work.work);
+	schedule_delayed_work(&tps->work, 0);
 	return IRQ_HANDLED;
 }
 
@@ -527,11 +527,9 @@ static int __exit tps65010_remove(struct i2c_client *client)
 	}
 	if (client->irq > 0)
 		free_irq(client->irq, tps);
-	cancel_delayed_work(&tps->work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&tps->work);
 	debugfs_remove(tps->file);
 	kfree(tps);
-	i2c_set_clientdata(client, NULL);
 	the_tps = NULL;
 	return 0;
 }
@@ -637,7 +635,7 @@ static int tps65010_probe(struct i2c_client *client,
 				tps, DEBUG_FOPS);
 
 	/* optionally register GPIOs */
-	if (board && board->base > 0) {
+	if (board && board->base != 0) {
 		tps->outmask = board->outmask;
 
 		tps->chip.label = client->name;
@@ -721,7 +719,7 @@ int tps65010_set_vbus_draw(unsigned mA)
 			&& test_and_set_bit(
 				FLAG_VBUS_CHANGED, &the_tps->flags)) {
 		/* gadget drivers call this in_irq() */
-		(void) schedule_work(&the_tps->work.work);
+		schedule_delayed_work(&the_tps->work, 0);
 	}
 	local_irq_restore(flags);
 
@@ -963,6 +961,34 @@ int tps65010_config_vregs1(unsigned value)
 	return status;
 }
 EXPORT_SYMBOL(tps65010_config_vregs1);
+
+int tps65010_config_vdcdc2(unsigned value)
+{
+	struct i2c_client *c;
+	int	 status;
+
+	if (!the_tps)
+		return -ENODEV;
+
+	c = the_tps->client;
+	mutex_lock(&the_tps->lock);
+
+	pr_debug("%s: vdcdc2 0x%02x\n", DRIVER_NAME,
+		 i2c_smbus_read_byte_data(c, TPS_VDCDC2));
+
+	status = i2c_smbus_write_byte_data(c, TPS_VDCDC2, value);
+
+	if (status != 0)
+		printk(KERN_ERR "%s: Failed to write vdcdc2 register\n",
+			DRIVER_NAME);
+	else
+		pr_debug("%s: vregs1 0x%02x\n", DRIVER_NAME,
+			 i2c_smbus_read_byte_data(c, TPS_VDCDC2));
+
+	mutex_unlock(&the_tps->lock);
+	return status;
+}
+EXPORT_SYMBOL(tps65010_config_vdcdc2);
 
 /*-------------------------------------------------------------------------*/
 /* tps65013_set_low_pwr parameter:

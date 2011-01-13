@@ -46,7 +46,7 @@ config IP_ADVANCED_ROUTER
 	  rp_filter on use:
 
 	  echo 1 > /proc/sys/net/ipv4/conf/<device>/rp_filter
-	   and
+	   or
 	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 
 	  Note that some distributions enable it in startup scripts.
@@ -84,7 +84,7 @@ config IP_FIB_TRIE
 
 	  An experimental study of compression methods for dynamic tries
 	  Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
-	  http://www.nada.kth.se/~snilsson/public/papers/dyntrie2/
+	  <http://www.csc.kth.se/~snilsson/software/dyntrie2/>
 
 endchoice
 
@@ -166,7 +166,7 @@ config IP_PNP_DHCP
 
 	  If unsure, say Y. Note that if you want to use DHCP, a DHCP server
 	  must be operating on your network.  Read
-	  <file:Documentation/filesystems/nfsroot.txt> for details.
+	  <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
 
 config IP_PNP_BOOTP
 	bool "IP: BOOTP support"
@@ -181,7 +181,7 @@ config IP_PNP_BOOTP
 	  does BOOTP itself, providing all necessary information on the kernel
 	  command line, you can say N here. If unsure, say Y. Note that if you
 	  want to use BOOTP, a BOOTP server must be operating on your network.
-	  Read <file:Documentation/filesystems/nfsroot.txt> for details.
+	  Read <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
 
 config IP_PNP_RARP
 	bool "IP: RARP support"
@@ -194,7 +194,7 @@ config IP_PNP_RARP
 	  older protocol which is being obsoleted by BOOTP and DHCP), say Y
 	  here. Note that if you want to use RARP, a RARP server must be
 	  operating on your network. Read
-	  <file:Documentation/filesystems/nfsroot.txt> for details.
+	  <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
 
 # not yet ready..
 #   bool '    IP: ARP support' CONFIG_IP_PNP_ARP
@@ -215,8 +215,15 @@ config NET_IPIP
 	  be inserted in and removed from the running kernel whenever you
 	  want). Most people won't need this and can say N.
 
+config NET_IPGRE_DEMUX
+	tristate "IP: GRE demultiplexer"
+	help
+	 This is helper module to demultiplex GRE packets on GRE version field criteria.
+	 Required by ip_gre and pptp modules.
+
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
+	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -249,6 +256,20 @@ config IP_MROUTE
 	  capabilities of the various network cards is contained in
 	  <file:Documentation/networking/multicast.txt>. If you haven't heard
 	  about it, you don't need it.
+
+config IP_MROUTE_MULTIPLE_TABLES
+	bool "IP: multicast policy routing"
+	depends on IP_MROUTE && IP_ADVANCED_ROUTER
+	select FIB_RULES
+	help
+	  Normally, a multicast router runs a userspace daemon and decides
+	  what to do with a multicast packet based on the source and
+	  destination addresses. If you say Y here, the multicast router
+	  will also be able to take interfaces and packet marks into
+	  account and run multiple instances of userspace daemons
+	  simultaneously, each one handling a single table.
+
+	  If unsure, say N.
 
 config IP_PIMSM_V1
 	bool "IP: PIM-SM version 1 support"
@@ -289,7 +310,7 @@ config ARPD
 	  If unsure, say N.
 
 config SYN_COOKIES
-	bool "IP: TCP syncookie support (disabled per default)"
+	bool "IP: TCP syncookie support"
 	---help---
 	  Normal TCP/IP networking is open to an attack known as "SYN
 	  flooding". This denial-of-service attack prevents legitimate remote
@@ -314,13 +335,13 @@ config SYN_COOKIES
 	  server is really overloaded. If this happens frequently better turn
 	  them off.
 
-	  If you say Y here, note that SYN cookies aren't enabled by default;
-	  you can enable them by saying Y to "/proc file system support" and
+	  If you say Y here, you can disable SYN cookies at run time by
+	  saying Y to "/proc file system support" and
 	  "Sysctl support" below and executing the command
 
-	  echo 1 >/proc/sys/net/ipv4/tcp_syncookies
+	  echo 0 > /proc/sys/net/ipv4/tcp_syncookies
 
-	  at boot time after the /proc file system has been mounted.
+	  after the /proc file system has been mounted.
 
 	  If unsure, say N.
 
@@ -398,7 +419,7 @@ config INET_XFRM_MODE_BEET
 	  If unsure, say Y.
 
 config INET_LRO
-	bool "Large Receive Offload (ipv4/tcp)"
+	tristate "Large Receive Offload (ipv4/tcp)"
 	default y
 	---help---
 	  Support for Large Receive Offload (ipv4/tcp).
@@ -541,7 +562,7 @@ config TCP_CONG_VENO
 	distinguishing to circumvent the difficult judgment of the packet loss
 	type. TCP Veno cuts down less congestion window in response to random
 	loss packets.
-	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
+	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186> 
 
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"
@@ -587,8 +608,14 @@ choice
 	config DEFAULT_HTCP
 		bool "Htcp" if TCP_CONG_HTCP=y
 
+	config DEFAULT_HYBLA
+		bool "Hybla" if TCP_CONG_HYBLA=y
+
 	config DEFAULT_VEGAS
 		bool "Vegas" if TCP_CONG_VEGAS=y
+
+	config DEFAULT_VENO
+		bool "Veno" if TCP_CONG_VENO=y
 
 	config DEFAULT_WESTWOOD
 		bool "Westwood" if TCP_CONG_WESTWOOD=y
@@ -610,8 +637,10 @@ config DEFAULT_TCP_CONG
 	default "bic" if DEFAULT_BIC
 	default "cubic" if DEFAULT_CUBIC
 	default "htcp" if DEFAULT_HTCP
+	default "hybla" if DEFAULT_HYBLA
 	default "vegas" if DEFAULT_VEGAS
 	default "westwood" if DEFAULT_WESTWOOD
+	default "veno" if DEFAULT_VENO
 	default "reno" if DEFAULT_RENO
 	default "cubic"
 

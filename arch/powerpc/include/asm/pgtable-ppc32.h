@@ -111,6 +111,8 @@ extern int icache_44x_need_flush;
 #include <asm/pte-40x.h>
 #elif defined(CONFIG_44x)
 #include <asm/pte-44x.h>
+#elif defined(CONFIG_FSL_BOOKE) && defined(CONFIG_PTE_64BIT)
+#include <asm/pte-book3e.h>
 #elif defined(CONFIG_FSL_BOOKE)
 #include <asm/pte-fsl-booke.h>
 #elif defined(CONFIG_8xx)
@@ -186,7 +188,7 @@ static inline unsigned long pte_update(pte_t *p,
 #endif /* !PTE_ATOMIC_UPDATES */
 
 #ifdef CONFIG_44x
-	if ((old & _PAGE_USER) && (old & _PAGE_HWEXEC))
+	if ((old & _PAGE_USER) && (old & _PAGE_EXEC))
 		icache_44x_need_flush = 1;
 #endif
 	return old;
@@ -217,7 +219,7 @@ static inline unsigned long long pte_update(pte_t *p,
 #endif /* !PTE_ATOMIC_UPDATES */
 
 #ifdef CONFIG_44x
-	if ((old & _PAGE_USER) && (old & _PAGE_HWEXEC))
+	if ((old & _PAGE_USER) && (old & _PAGE_EXEC))
 		icache_44x_need_flush = 1;
 #endif
 	return old;
@@ -267,8 +269,7 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
 	unsigned long bits = pte_val(entry) &
-		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW |
-		 _PAGE_HWEXEC | _PAGE_EXEC);
+		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
 	pte_update(ptep, 0, bits);
 }
 
@@ -286,7 +287,7 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define pmd_page_vaddr(pmd)	\
 	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 #define pmd_page(pmd)		\
-	(mem_map + (pmd_val(pmd) >> PAGE_SHIFT))
+	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
 #else
 #define pmd_page_vaddr(pmd)	\
 	((unsigned long) (pmd_val(pmd) & PAGE_MASK))
@@ -307,12 +308,8 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define pte_offset_kernel(dir, addr)	\
 	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir, addr)		\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE0) + pte_index(addr))
-#define pte_offset_map_nested(dir, addr)	\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE1) + pte_index(addr))
-
-#define pte_unmap(pte)		kunmap_atomic(pte, KM_PTE0)
-#define pte_unmap_nested(pte)	kunmap_atomic(pte, KM_PTE1)
+	((pte_t *) kmap_atomic(pmd_page(*(dir))) + pte_index(addr))
+#define pte_unmap(pte)		kunmap_atomic(pte)
 
 /*
  * Encode and decode a swap entry.

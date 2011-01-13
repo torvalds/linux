@@ -21,53 +21,75 @@ struct netpoll {
 	__be32 local_ip, remote_ip;
 	u16 local_port, remote_port;
 	u8 remote_mac[ETH_ALEN];
+
+	struct list_head rx; /* rx_np list element */
 };
 
 struct netpoll_info {
 	atomic_t refcnt;
+
 	int rx_flags;
 	spinlock_t rx_lock;
-	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
+	struct list_head rx_np; /* netpolls that registered an rx_hook */
+
 	struct sk_buff_head arp_tx; /* list of arp requests to reply to */
 	struct sk_buff_head txq;
+
 	struct delayed_work tx_work;
+
+	struct netpoll *netpoll;
 };
 
+void netpoll_poll_dev(struct net_device *dev);
 void netpoll_poll(struct netpoll *np);
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len);
 void netpoll_print_options(struct netpoll *np);
 int netpoll_parse_options(struct netpoll *np, char *opt);
+int __netpoll_setup(struct netpoll *np);
 int netpoll_setup(struct netpoll *np);
 int netpoll_trap(void);
 void netpoll_set_trap(int trap);
+void __netpoll_cleanup(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
 int __netpoll_rx(struct sk_buff *skb);
+void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
+			     struct net_device *dev);
+static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
+{
+	netpoll_send_skb_on_dev(np, skb, np->dev);
+}
+
 
 
 #ifdef CONFIG_NETPOLL
-static inline int netpoll_rx(struct sk_buff *skb)
+static inline bool netpoll_rx(struct sk_buff *skb)
 {
-	struct netpoll_info *npinfo = skb->dev->npinfo;
+	struct netpoll_info *npinfo;
 	unsigned long flags;
-	int ret = 0;
+	bool ret = false;
 
-	if (!npinfo || (!npinfo->rx_np && !npinfo->rx_flags))
-		return 0;
+	local_irq_save(flags);
+	npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
-	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
+		goto out;
+
+	spin_lock(&npinfo->rx_lock);
 	/* check rx_flags again with the lock held */
 	if (npinfo->rx_flags && __netpoll_rx(skb))
-		ret = 1;
-	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+		ret = true;
+	spin_unlock(&npinfo->rx_lock);
 
+out:
+	local_irq_restore(flags);
 	return ret;
 }
 
 static inline int netpoll_rx_on(struct sk_buff *skb)
 {
-	struct netpoll_info *npinfo = skb->dev->npinfo;
+	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
-	return npinfo && (npinfo->rx_np || npinfo->rx_flags);
+	return npinfo && (!list_empty(&npinfo->rx_np) || npinfo->rx_flags);
 }
 
 static inline int netpoll_receive_skb(struct sk_buff *skb)
@@ -81,7 +103,6 @@ static inline void *netpoll_poll_lock(struct napi_struct *napi)
 {
 	struct net_device *dev = napi->dev;
 
-	rcu_read_lock(); /* deal with race on ->npinfo */
 	if (dev && dev->npinfo) {
 		spin_lock(&napi->poll_lock);
 		napi->poll_owner = smp_processor_id();
@@ -98,11 +119,15 @@ static inline void netpoll_poll_unlock(void *have)
 		napi->poll_owner = -1;
 		spin_unlock(&napi->poll_lock);
 	}
-	rcu_read_unlock();
+}
+
+static inline int netpoll_tx_running(struct net_device *dev)
+{
+	return irqs_disabled();
 }
 
 #else
-static inline int netpoll_rx(struct sk_buff *skb)
+static inline bool netpoll_rx(struct sk_buff *skb)
 {
 	return 0;
 }
@@ -123,6 +148,10 @@ static inline void netpoll_poll_unlock(void *have)
 }
 static inline void netpoll_netdev_init(struct net_device *dev)
 {
+}
+static inline int netpoll_tx_running(struct net_device *dev)
+{
+	return 0;
 }
 #endif
 

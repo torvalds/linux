@@ -17,15 +17,139 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/kref.h>
 #include <linux/mod_devicetable.h>
+#include <linux/spinlock.h>
+
+#include <asm/byteorder.h>
+
+#ifdef CONFIG_OF
+
+typedef u32 phandle;
+typedef u32 ihandle;
+
+struct property {
+	char	*name;
+	int	length;
+	void	*value;
+	struct property *next;
+	unsigned long _flags;
+	unsigned int unique_id;
+};
+
+#if defined(CONFIG_SPARC)
+struct of_irq_controller;
+#endif
+
+struct device_node {
+	const char *name;
+	const char *type;
+	phandle phandle;
+	char	*full_name;
+
+	struct	property *properties;
+	struct	property *deadprops;	/* removed properties */
+	struct	device_node *parent;
+	struct	device_node *child;
+	struct	device_node *sibling;
+	struct	device_node *next;	/* next device of same type */
+	struct	device_node *allnext;	/* next in list of all nodes */
+	struct	proc_dir_entry *pde;	/* this node's proc directory */
+	struct	kref kref;
+	unsigned long _flags;
+	void	*data;
+#if defined(CONFIG_SPARC)
+	char	*path_component_name;
+	unsigned int unique_id;
+	struct of_irq_controller *irq_trans;
+#endif
+};
+
+/* Pointer for first entry in chain of all nodes. */
+extern struct device_node *allnodes;
+extern struct device_node *of_chosen;
+extern rwlock_t devtree_lock;
+
+static inline bool of_node_is_root(const struct device_node *node)
+{
+	return node && (node->parent == NULL);
+}
+
+static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
+{
+	return test_bit(flag, &n->_flags);
+}
+
+static inline void of_node_set_flag(struct device_node *n, unsigned long flag)
+{
+	set_bit(flag, &n->_flags);
+}
+
+extern struct device_node *of_find_all_nodes(struct device_node *prev);
+
+#if defined(CONFIG_SPARC)
+/* Dummy ref counting routines - to be implemented later */
+static inline struct device_node *of_node_get(struct device_node *node)
+{
+	return node;
+}
+static inline void of_node_put(struct device_node *node)
+{
+}
+
+#else
+extern struct device_node *of_node_get(struct device_node *node);
+extern void of_node_put(struct device_node *node);
+#endif
+
+/*
+ * OF address retreival & translation
+ */
+
+/* Helper to read a big number; size is in cells (not bytes) */
+static inline u64 of_read_number(const __be32 *cell, int size)
+{
+	u64 r = 0;
+	while (size--)
+		r = (r << 32) | be32_to_cpu(*(cell++));
+	return r;
+}
+
+/* Like of_read_number, but we want an unsigned long result */
+static inline unsigned long of_read_ulong(const __be32 *cell, int size)
+{
+	/* toss away upper bits if unsigned long is smaller than u64 */
+	return of_read_number(cell, size);
+}
 
 #include <asm/prom.h>
+
+/* Default #address and #size cells.  Allow arch asm/prom.h to override */
+#if !defined(OF_ROOT_NODE_ADDR_CELLS_DEFAULT)
+#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
+#define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
+#endif
+
+/* Default string compare functions, Allow arch asm/prom.h to override */
+#if !defined(of_compat_cmp)
+#define of_compat_cmp(s1, s2, l)	strcasecmp((s1), (s2))
+#define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
+#define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
+#endif
 
 /* flag descriptions */
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
 #define OF_DETACHED	2 /* node has been detached from the device tree */
 
+#define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
+#define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
+
 #define OF_BAD_ADDR	((u64)-1)
+
+#ifndef of_node_to_nid
+static inline int of_node_to_nid(struct device_node *np) { return -1; }
+#define of_node_to_nid of_node_to_nid
+#endif
 
 extern struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name);
@@ -84,4 +208,19 @@ extern int of_parse_phandles_with_args(struct device_node *np,
 	const char *list_name, const char *cells_name, int index,
 	struct device_node **out_node, const void **out_args);
 
+extern int of_machine_is_compatible(const char *compat);
+
+extern int prom_add_property(struct device_node* np, struct property* prop);
+extern int prom_remove_property(struct device_node *np, struct property *prop);
+extern int prom_update_property(struct device_node *np,
+				struct property *newprop,
+				struct property *oldprop);
+
+#if defined(CONFIG_OF_DYNAMIC)
+/* For updating the device tree at runtime */
+extern void of_attach_node(struct device_node *);
+extern void of_detach_node(struct device_node *);
+#endif
+
+#endif /* CONFIG_OF */
 #endif /* _LINUX_OF_H */

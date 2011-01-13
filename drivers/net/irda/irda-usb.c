@@ -111,7 +111,8 @@ static void irda_usb_init_qos(struct irda_usb_cb *self) ;
 static struct irda_class_desc *irda_usb_find_class_desc(struct usb_interface *intf);
 static void irda_usb_disconnect(struct usb_interface *intf);
 static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self);
-static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t irda_usb_hard_xmit(struct sk_buff *skb,
+					    struct net_device *dev);
 static int irda_usb_open(struct irda_usb_cb *self);
 static void irda_usb_close(struct irda_usb_cb *self);
 static void speed_bulk_callback(struct urb *urb);
@@ -381,7 +382,8 @@ static void speed_bulk_callback(struct urb *urb)
 /*
  * Send an IrDA frame to the USB dongle (for transmission)
  */
-static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t irda_usb_hard_xmit(struct sk_buff *skb,
+					    struct net_device *netdev)
 {
 	struct irda_usb_cb *self = netdev_priv(netdev);
 	struct urb *urb = self->tx_urb;
@@ -534,7 +536,7 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 	spin_unlock_irqrestore(&self->lock, flags);
 	
-	return 0;
+	return NETDEV_TX_OK;
 
 drop:
 	/* Drop silently the skb and exit */
@@ -837,7 +839,7 @@ static void irda_usb_receive(struct urb *urb)
 			/* Usually precursor to a hot-unplug on OHCI. */
 		default:
 			self->netdev->stats.rx_errors++;
-			IRDA_DEBUG(0, "%s(), RX status %d, transfer_flags 0x%04X \n", __func__, urb->status, urb->transfer_flags);
+			IRDA_DEBUG(0, "%s(), RX status %d, transfer_flags 0x%04X\n", __func__, urb->status, urb->transfer_flags);
 			break;
 		}
 		/* If we received an error, we don't want to resubmit the
@@ -850,7 +852,7 @@ static void irda_usb_receive(struct urb *urb)
 		 * hot unplug of the dongle...
 		 * Lowest effective timer is 10ms...
 		 * Jean II */
-		self->rx_defer_timer.function = &irda_usb_rx_defer_expired;
+		self->rx_defer_timer.function = irda_usb_rx_defer_expired;
 		self->rx_defer_timer.data = (unsigned long) urb;
 		mod_timer(&self->rx_defer_timer, jiffies + (10 * HZ / 1000));
 		return;
@@ -1122,11 +1124,11 @@ static int stir421x_patch_device(struct irda_usb_cb *self)
                  * The actual image starts after the "STMP" keyword
                  * so forward to the firmware header tag
                  */
-                for (i = 0; (fw->data[i] != STIR421X_PATCH_END_OF_HDR_TAG)
-			     && (i < fw->size); i++) ;
+                for (i = 0; i < fw->size && fw->data[i] !=
+			     STIR421X_PATCH_END_OF_HDR_TAG; i++) ;
                 /* here we check for the out of buffer case */
-                if ((STIR421X_PATCH_END_OF_HDR_TAG == fw->data[i])
-                    && (i < STIR421X_PATCH_CODE_OFFSET)) {
+                if (i < STIR421X_PATCH_CODE_OFFSET && i < fw->size &&
+				STIR421X_PATCH_END_OF_HDR_TAG == fw->data[i]) {
                         if (!memcmp(fw->data + i + 1, STIR421X_PATCH_STMP_TAG,
                                     sizeof(STIR421X_PATCH_STMP_TAG) - 1)) {
 
@@ -1512,7 +1514,7 @@ static inline int irda_usb_parse_endpoints(struct irda_usb_cb *self, struct usb_
 	IRDA_DEBUG(0, "%s(), And our endpoints are : in=%02X, out=%02X (%d), int=%02X\n",
 		__func__, self->bulk_in_ep, self->bulk_out_ep, self->bulk_out_mtu, self->bulk_int_ep);
 
-	return((self->bulk_in_ep != 0) && (self->bulk_out_ep != 0));
+	return (self->bulk_in_ep != 0) && (self->bulk_out_ep != 0);
 }
 
 #ifdef IU_DUMP_CLASS_DESC
@@ -1649,6 +1651,8 @@ static int irda_usb_probe(struct usb_interface *intf,
 
 	self->rx_urb = kcalloc(self->max_rx_urb, sizeof(struct urb *),
 				GFP_KERNEL);
+	if (!self->rx_urb)
+		goto err_free_net;
 
 	for (i = 0; i < self->max_rx_urb; i++) {
 		self->rx_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
@@ -1781,6 +1785,8 @@ err_out_2:
 err_out_1:
 	for (i = 0; i < self->max_rx_urb; i++)
 		usb_free_urb(self->rx_urb[i]);
+	kfree(self->rx_urb);
+err_free_net:
 	free_netdev(net);
 err_out:
 	return ret;

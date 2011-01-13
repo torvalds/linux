@@ -105,6 +105,7 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
+	ehci_reset(ehci);
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -118,7 +119,6 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 
 	hcd->has_tt = 1;
 
-	ehci_reset(ehci);
 	ehci_port_power(ehci, 0);
 
 	return retval;
@@ -165,6 +165,8 @@ static const struct hc_driver ehci_orion_hc_driver = {
 	.bus_resume = ehci_bus_resume,
 	.relinquish_port = ehci_relinquish_port,
 	.port_handed_over = ehci_port_handed_over,
+
+	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
 static void __init
@@ -220,14 +222,14 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				ehci_orion_hc_driver.description)) {
 		dev_dbg(&pdev->dev, "controller already in use\n");
 		err = -EBUSY;
 		goto err1;
 	}
 
-	regs = ioremap(res->start, res->end - res->start + 1);
+	regs = ioremap(res->start, resource_size(res));
 	if (regs == NULL) {
 		dev_dbg(&pdev->dev, "error mapping memory\n");
 		err = -EFAULT;
@@ -242,7 +244,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	}
 
 	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = res->end - res->start + 1;
+	hcd->rsrc_len = resource_size(res);
 	hcd->regs = regs;
 
 	ehci = hcd_to_ehci(hcd);
@@ -285,7 +287,7 @@ err4:
 err3:
 	iounmap(regs);
 err2:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 err1:
 	dev_err(&pdev->dev, "init %s fail, %d\n",
 		dev_name(&pdev->dev), err);

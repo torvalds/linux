@@ -22,7 +22,7 @@ MODULE_ALIAS("ipt_NFLOG");
 MODULE_ALIAS("ip6t_NFLOG");
 
 static unsigned int
-nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
+nflog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_nflog_info *info = par->targinfo;
 	struct nf_loginfo li;
@@ -37,15 +37,15 @@ nflog_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool nflog_tg_check(const struct xt_tgchk_param *par)
+static int nflog_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_nflog_info *info = par->targinfo;
 
 	if (info->flags & ~XT_NFLOG_MASK)
-		return false;
+		return -EINVAL;
 	if (info->prefix[sizeof(info->prefix) - 1] != '\0')
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
 static struct xt_target nflog_tg_reg __read_mostly = {

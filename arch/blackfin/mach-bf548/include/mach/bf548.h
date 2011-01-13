@@ -1,30 +1,7 @@
 /*
- * File:         include/asm-blackfin/mach-bf548/bf548.h
- * Based on:
- * Author:
+ * Copyright 2007-2009 Analog Devices Inc.
  *
- * Created:
- * Description:  System MMR register and memory map for ADSP-BF548
- *
- * Modified:
- *               Copyright 2004-2007 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef __MACH_BF548_H__
@@ -103,18 +80,6 @@
 #endif
 
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN)
-
-#if defined(CONFIG_BF542M)
-# define CONFIG_BF542
-#elif defined(CONFIG_BF544M)
-# define CONFIG_BF544
-#elif defined(CONFIG_BF547M)
-# define CONFIG_BF547
-#elif defined(CONFIG_BF548M)
-# define CONFIG_BF548
-#elif defined(CONFIG_BF549M)
-# define CONFIG_BF549
-#endif
 
 #if defined(CONFIG_BF542)
 # define CPU   "BF542"

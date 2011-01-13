@@ -11,10 +11,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __ASM_ARCH_MXC_TIMEX_H__
@@ -26,6 +22,12 @@
 #define CLOCK_TICK_RATE		13300000
 #elif defined CONFIG_ARCH_MX3
 #define CLOCK_TICK_RATE		16625000
+#elif defined CONFIG_ARCH_MX25
+#define CLOCK_TICK_RATE		16000000
+#elif defined CONFIG_ARCH_MX5
+#define CLOCK_TICK_RATE		8000000
+#elif defined CONFIG_ARCH_MXC91231
+#define CLOCK_TICK_RATE		13000000
 #endif
 
 #endif				/* __ASM_ARCH_MXC_TIMEX_H__ */

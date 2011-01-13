@@ -20,6 +20,7 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
 #include <linux/sched.h>
@@ -97,9 +98,6 @@ static int ntfs_file_open(struct inode *vi, struct file *filp)
  * the page at all.  For a more detailed explanation see ntfs_truncate() in
  * fs/ntfs/inode.c.
  *
- * @cached_page and @lru_pvec are just optimizations for dealing with multiple
- * pages.
- *
  * Return 0 on success and -errno on error.  In the case that an error is
  * encountered it is possible that the initialized size will already have been
  * incremented some way towards @new_init_size but it is guaranteed that if
@@ -109,8 +107,7 @@ static int ntfs_file_open(struct inode *vi, struct file *filp)
  * Locking: i_mutex on the vfs inode corrseponsind to the ntfs inode @ni must be
  *	    held by the caller.
  */
-static int ntfs_attr_extend_initialized(ntfs_inode *ni, const s64 new_init_size,
-		struct page **cached_page, struct pagevec *lru_pvec)
+static int ntfs_attr_extend_initialized(ntfs_inode *ni, const s64 new_init_size)
 {
 	s64 old_init_size;
 	loff_t old_i_size;
@@ -399,21 +396,16 @@ static inline void ntfs_fault_in_pages_readable_iovec(const struct iovec *iov,
  * @cached_page: allocated but as yet unused page
  * @lru_pvec:	lru-buffering pagevec of caller
  *
- * Obtain @nr_pages locked page cache pages from the mapping @maping and
+ * Obtain @nr_pages locked page cache pages from the mapping @mapping and
  * starting at index @index.
  *
- * If a page is newly created, increment its refcount and add it to the
- * caller's lru-buffering pagevec @lru_pvec.
- *
- * This is the same as mm/filemap.c::__grab_cache_page(), except that @nr_pages
- * are obtained at once instead of just one page and that 0 is returned on
- * success and -errno on error.
+ * If a page is newly created, add it to lru list
  *
  * Note, the page locks are obtained in ascending page index order.
  */
 static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 		pgoff_t index, const unsigned nr_pages, struct page **pages,
-		struct page **cached_page, struct pagevec *lru_pvec)
+		struct page **cached_page)
 {
 	int err, nr;
 
@@ -429,7 +421,7 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 					goto err_out;
 				}
 			}
-			err = add_to_page_cache(*cached_page, mapping, index,
+			err = add_to_page_cache_lru(*cached_page, mapping, index,
 					GFP_KERNEL);
 			if (unlikely(err)) {
 				if (err == -EEXIST)
@@ -437,9 +429,6 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 				goto err_out;
 			}
 			pages[nr] = *cached_page;
-			page_cache_get(*cached_page);
-			if (unlikely(!pagevec_add(lru_pvec, *cached_page)))
-				__pagevec_lru_add_file(lru_pvec);
 			*cached_page = NULL;
 		}
 		index++;
@@ -1281,7 +1270,7 @@ rl_not_mapped_enoent:
 
 /*
  * Copy as much as we can into the pages and return the number of bytes which
- * were sucessfully copied.  If a fault is encountered then clear the pages
+ * were successfully copied.  If a fault is encountered then clear the pages
  * out to (ofs + bytes) and return the number of bytes which were copied.
  */
 static inline size_t ntfs_copy_from_user(struct page **pages,
@@ -1799,7 +1788,6 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 	ssize_t status, written;
 	unsigned nr_pages;
 	int err;
-	struct pagevec lru_pvec;
 
 	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, "
 			"pos 0x%llx, count 0x%lx.",
@@ -1911,7 +1899,6 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 			}
 		}
 	}
-	pagevec_init(&lru_pvec, 0);
 	written = 0;
 	/*
 	 * If the write starts beyond the initialized size, extend it up to the
@@ -1924,8 +1911,7 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 	ll = ni->initialized_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);
 	if (pos > ll) {
-		err = ntfs_attr_extend_initialized(ni, pos, &cached_page,
-				&lru_pvec);
+		err = ntfs_attr_extend_initialized(ni, pos);
 		if (err < 0) {
 			ntfs_error(vol->sb, "Cannot perform write to inode "
 					"0x%lx, attribute type 0x%x, because "
@@ -2011,7 +1997,7 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 			ntfs_fault_in_pages_readable_iovec(iov, iov_ofs, bytes);
 		/* Get and lock @do_pages starting at index @start_idx. */
 		status = __ntfs_grab_cache_pages(mapping, start_idx, do_pages,
-				pages, &cached_page, &lru_pvec);
+				pages, &cached_page);
 		if (unlikely(status))
 			break;
 		/*
@@ -2076,15 +2062,6 @@ err_out:
 	*ppos = pos;
 	if (cached_page)
 		page_cache_release(cached_page);
-	/* For now, when the user asks for O_SYNC, we actually give O_DSYNC. */
-	if (likely(!status)) {
-		if (unlikely((file->f_flags & O_SYNC) || IS_SYNC(vi))) {
-			if (!mapping->a_ops->writepage || !is_sync_kiocb(iocb))
-				status = generic_osync_inode(vi, mapping,
-						OSYNC_METADATA|OSYNC_DATA);
-		}
-  	}
-	pagevec_lru_add_file(&lru_pvec);
 	ntfs_debug("Done.  Returning %s (written 0x%lx, status %li).",
 			written ? "written" : "status", (unsigned long)written,
 			(long)status);
@@ -2145,58 +2122,17 @@ static ssize_t ntfs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	mutex_lock(&inode->i_mutex);
 	ret = ntfs_file_aio_write_nolock(iocb, iov, nr_segs, &iocb->ki_pos);
 	mutex_unlock(&inode->i_mutex);
-	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-		int err = sync_page_range(inode, mapping, pos, ret);
+	if (ret > 0) {
+		int err = generic_write_sync(file, pos, ret);
 		if (err < 0)
 			ret = err;
 	}
 	return ret;
-}
-
-/**
- * ntfs_file_writev -
- *
- * Basically the same as generic_file_writev() except that it ends up calling
- * ntfs_file_aio_write_nolock() instead of __generic_file_aio_write_nolock().
- */
-static ssize_t ntfs_file_writev(struct file *file, const struct iovec *iov,
-		unsigned long nr_segs, loff_t *ppos)
-{
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	mutex_lock(&inode->i_mutex);
-	init_sync_kiocb(&kiocb, file);
-	ret = ntfs_file_aio_write_nolock(&kiocb, iov, nr_segs, ppos);
-	if (ret == -EIOCBQUEUED)
-		ret = wait_on_sync_kiocb(&kiocb);
-	mutex_unlock(&inode->i_mutex);
-	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-		int err = sync_page_range(inode, mapping, *ppos - ret, ret);
-		if (err < 0)
-			ret = err;
-	}
-	return ret;
-}
-
-/**
- * ntfs_file_write - simple wrapper for ntfs_file_writev()
- */
-static ssize_t ntfs_file_write(struct file *file, const char __user *buf,
-		size_t count, loff_t *ppos)
-{
-	struct iovec local_iov = { .iov_base = (void __user *)buf,
-				   .iov_len = count };
-
-	return ntfs_file_writev(file, &local_iov, 1, ppos);
 }
 
 /**
  * ntfs_file_fsync - sync a file to disk
  * @filp:	file to be synced
- * @dentry:	dentry describing the file to sync
  * @datasync:	if non-zero only flush user data and not metadata
  *
  * Data integrity sync of a file to disk.  Used for fsync, fdatasync, and msync
@@ -2212,25 +2148,21 @@ static ssize_t ntfs_file_write(struct file *file, const char __user *buf,
  * Also, if @datasync is true, we do not wait on the inode to be written out
  * but we always wait on the page cache pages to be written out.
  *
- * Note: In the past @filp could be NULL so we ignore it as we don't need it
- * anyway.
- *
  * Locking: Caller must hold i_mutex on the inode.
  *
  * TODO: We should probably also write all attribute/index inodes associated
  * with this inode but since we have no simple way of getting to them we ignore
  * this problem for now.
  */
-static int ntfs_file_fsync(struct file *filp, struct dentry *dentry,
-		int datasync)
+static int ntfs_file_fsync(struct file *filp, int datasync)
 {
-	struct inode *vi = dentry->d_inode;
+	struct inode *vi = filp->f_mapping->host;
 	int err, ret = 0;
 
 	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
 	BUG_ON(S_ISDIR(vi->i_mode));
 	if (!datasync || !NInoNonResident(NTFS_I(vi)))
-		ret = ntfs_write_inode(vi, 1);
+		ret = __ntfs_write_inode(vi, 1);
 	write_inode_now(vi, !datasync);
 	/*
 	 * NOTE: If we were to use mapping->private_list (see ext2 and
@@ -2255,7 +2187,7 @@ const struct file_operations ntfs_file_ops = {
 	.read		= do_sync_read,		 /* Read from file. */
 	.aio_read	= generic_file_aio_read, /* Async read from file. */
 #ifdef NTFS_RW
-	.write		= ntfs_file_write,	 /* Write to file. */
+	.write		= do_sync_write,	 /* Write to file. */
 	.aio_write	= ntfs_file_aio_write,	 /* Async write to file. */
 	/*.release	= ,*/			 /* Last file is closed.  See
 						    fs/ext2/file.c::

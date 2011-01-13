@@ -36,14 +36,10 @@ unsigned int udf_get_last_session(struct super_block *sb)
 	ms_info.addr_format = CDROM_LBA;
 	i = ioctl_by_bdev(bdev, CDROMMULTISESSION, (unsigned long)&ms_info);
 
-#define WE_OBEY_THE_WRITTEN_STANDARDS 1
-
 	if (i == 0) {
 		udf_debug("XA disk: %s, vol_desc_start=%d\n",
 			  (ms_info.xa_flag ? "yes" : "no"), ms_info.addr.lba);
-#if WE_OBEY_THE_WRITTEN_STANDARDS
 		if (ms_info.xa_flag) /* necessary for a valid ms_info.addr */
-#endif
 			vol_desc_start = ms_info.addr.lba;
 	} else {
 		udf_debug("CDROMMULTISESSION not supported: rc=%d\n", i);
@@ -56,7 +52,12 @@ unsigned long udf_get_last_block(struct super_block *sb)
 	struct block_device *bdev = sb->s_bdev;
 	unsigned long lblock = 0;
 
-	if (ioctl_by_bdev(bdev, CDROM_LAST_WRITTEN, (unsigned long) &lblock))
+	/*
+	 * ioctl failed or returned obviously bogus value?
+	 * Try using the device size...
+	 */
+	if (ioctl_by_bdev(bdev, CDROM_LAST_WRITTEN, (unsigned long) &lblock) ||
+	    lblock == 0)
 		lblock = bdev->bd_inode->i_size >> sb->s_blocksize_bits;
 
 	if (lblock)

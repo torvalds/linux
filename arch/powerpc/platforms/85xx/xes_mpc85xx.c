@@ -32,7 +32,6 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
-#include <linux/of_platform.h>
 
 /* A few bit definitions needed for fixups on some boards */
 #define MPC85xx_L2CTL_L2E		0x80000000 /* L2 enable */
@@ -81,8 +80,8 @@ static void xes_mpc85xx_configure_l2(void __iomem *l2_base)
 	printk(KERN_INFO "xes_mpc85xx: Enabling L2 as cache\n");
 
 	ctl = MPC85xx_L2CTL_L2E | MPC85xx_L2CTL_L2I;
-	if (machine_is_compatible("MPC8540") ||
-	    machine_is_compatible("MPC8560"))
+	if (of_machine_is_compatible("MPC8540") ||
+	    of_machine_is_compatible("MPC8560"))
 		/*
 		 * Assume L2 SRAM is used fully for cache, so set
 		 * L2BLKSZ (bits 4:5) to match L2SIZ (bits 2:3).

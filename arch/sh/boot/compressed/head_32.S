@@ -22,7 +22,7 @@ startup:
 	bt	clear_bss
 	sub	r0, r2
 	mov.l	bss_start_addr, r0
-	mov	#0xe0, r1
+	mov	#0xffffffe0, r1
 	and	r1, r0			! align cache line
 	mov.l	text_start_addr, r3
 	mov	r0, r1
@@ -91,13 +91,19 @@ bss_start_addr:
 end_addr:
 	.long	_end
 init_sr:
-	.long	0x400000F0	/* Privileged mode, Bank=0, Block=0, IMASK=0xF */
+	.long	0x500000F0	/* Privileged mode, Bank=0, Block=1, IMASK=0xF */
+kexec_magic:
+	.long	0x400000F0	/* magic used by kexec to parse zImage format */
 init_stack_addr:
 	.long	stack_start
 decompress_kernel_addr:
 	.long	decompress_kernel
 kernel_start_addr:
+#ifdef CONFIG_32BIT
+	.long	___pa(_text+PAGE_SIZE)
+#else
 	.long	_text+PAGE_SIZE
+#endif
 
 	.align	9
 fake_headers_as_bzImage:

@@ -29,6 +29,27 @@ config APM_POWER
 	  Say Y here to enable support APM status emulation using
 	  battery class devices.
 
+config MAX8925_POWER
+	tristate "MAX8925 battery charger support"
+	depends on MFD_MAX8925
+	help
+	  Say Y here to enable support for the battery charger in the Maxim
+	  MAX8925 PMIC.
+
+config WM831X_BACKUP
+	tristate "WM831X backup battery charger support"
+	depends on MFD_WM831X
+	help
+	  Say Y here to enable support for the backup battery charger
+	  in the Wolfson Microelectronics WM831x PMICs.
+
+config WM831X_POWER
+	tristate "WM831X PMU support"
+	depends on MFD_WM831X
+	help
+	  Say Y here to enable support for the power management unit
+	  provided by Wolfson Microelectronics WM831x PMICs.
+
 config WM8350_POWER
         tristate "WM8350 PMU support"
         depends on MFD_WM8350
@@ -36,12 +57,23 @@ config WM8350_POWER
           Say Y here to enable support for the power management unit
 	  provided by the Wolfson Microelectronics WM8350 PMIC.
 
+config TEST_POWER
+	tristate "Test power driver"
+	help
+	  This driver is used for testing. It's safe to say M here.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
-	select W1
-	select W1_SLAVE_DS2760
+	depends on W1 && W1_SLAVE_DS2760
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
+
+config BATTERY_DS2782
+	tristate "DS2782/DS2786 standalone gas-gauge"
+	depends on I2C
+	help
+	  Say Y here to enable support for the DS2782/DS2786 standalone battery
+	  gas-gauge.
 
 config BATTERY_PMU
 	tristate "Apple PMU battery"
@@ -63,17 +95,31 @@ config BATTERY_TOSA
 	  Say Y to enable support for the battery on the Sharp Zaurus
 	  SL-6000 (tosa) models.
 
+config BATTERY_COLLIE
+	tristate "Sharp SL-5500 (collie) battery"
+	depends on SA1100_COLLIE && MCP_UCB1200
+	help
+	  Say Y to enable support for the battery on the Sharp Zaurus
+	  SL-5500 (collie) models.
+
 config BATTERY_WM97XX
 	bool "WM97xx generic battery driver"
 	depends on TOUCHSCREEN_WM97XX=y
 	help
 	  Say Y to enable support for battery measured by WM97xx aux port.
 
+config BATTERY_BQ20Z75
+        tristate "TI BQ20z75 gas gauge"
+        depends on I2C
+        help
+         Say Y to include support for TI BQ20z75 SBS-compliant
+         gas gauge and protection IC.
+
 config BATTERY_BQ27x00
-	tristate "BQ27200 battery driver"
+	tristate "BQ27x00 battery driver"
 	depends on I2C
 	help
-	  Say Y here to enable support for batteries with BQ27200(I2C) chip.
+	  Say Y here to enable support for batteries with BQ27x00 (I2C) chips.
 
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
@@ -82,10 +128,61 @@ config BATTERY_DA9030
 	  Say Y here to enable support for batteries charger integrated into
 	  DA9030 PMIC.
 
+config BATTERY_MAX17040
+	tristate "Maxim MAX17040 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17040 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17040 is configured
+	  to operate with a single lithium cell
+
+config BATTERY_Z2
+	tristate "Z2 battery driver"
+	depends on I2C && MACH_ZIPIT2
+	help
+	  Say Y to include support for the battery on the Zipit Z2.
+
+config BATTERY_S3C_ADC
+	tristate "Battery driver for Samsung ADC based monitoring"
+	depends on S3C_ADC
+	help
+	  Say Y here to enable support for iPAQ h1930/h1940/rx1950 battery
+
 config CHARGER_PCF50633
 	tristate "NXP PCF50633 MBC"
 	depends on MFD_PCF50633
 	help
 	 Say Y to include support for NXP PCF50633 Main Battery Charger.
+
+config BATTERY_JZ4740
+	tristate "Ingenic JZ4740 battery"
+	depends on MACH_JZ4740
+	depends on MFD_JZ4740_ADC
+	help
+	  Say Y to enable support for the battery on Ingenic JZ4740 based
+	  boards.
+
+	  This driver can be build as a module. If so, the module will be
+	  called jz4740-battery.
+
+config BATTERY_INTEL_MID
+	tristate "Battery driver for Intel MID platforms"
+	depends on INTEL_SCU_IPC && SPI
+	help
+	  Say Y here to enable the battery driver on Intel MID
+	  platforms.
+
+config CHARGER_ISP1704
+	tristate "ISP1704 USB Charger Detection"
+	depends on USB_OTG_UTILS
+	help
+	  Say Y to enable support for USB Charger Detection with
+	  ISP1707/ISP1704 USB transceivers.
+
+config CHARGER_TWL4030
+	tristate "OMAP TWL4030 BCI charger driver"
+	depends on TWL4030_CORE
+	help
+	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
 endif # POWER_SUPPLY

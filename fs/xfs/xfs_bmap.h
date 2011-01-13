@@ -28,20 +28,6 @@ struct xfs_trans;
 extern kmem_zone_t	*xfs_bmap_free_item_zone;
 
 /*
- * DELTA: describe a change to the in-core extent list.
- *
- * Internally the use of xed_blockount is somewhat funky.
- * xed_blockcount contains an offset much of the time because this
- * makes merging changes easier.  (xfs_fileoff_t and xfs_filblks_t are
- * the same underlying type).
- */
-typedef struct xfs_extdelta
-{
-	xfs_fileoff_t		xed_startoff;	/* offset of range */
-	xfs_filblks_t		xed_blockcount;	/* blocks in range */
-} xfs_extdelta_t;
-
-/*
  * List of extents to be free "later".
  * The list is kept sorted on xbf_startblock.
  */
@@ -82,18 +68,31 @@ typedef	struct xfs_bmap_free
 #define XFS_BMAPI_DELAY		0x002	/* delayed write operation */
 #define XFS_BMAPI_ENTIRE	0x004	/* return entire extent, not trimmed */
 #define XFS_BMAPI_METADATA	0x008	/* mapping metadata not user data */
-#define XFS_BMAPI_EXACT		0x010	/* allocate only to spec'd bounds */
-#define XFS_BMAPI_ATTRFORK	0x020	/* use attribute fork not data */
-#define XFS_BMAPI_ASYNC		0x040	/* bunmapi xactions can be async */
-#define XFS_BMAPI_RSVBLOCKS	0x080	/* OK to alloc. reserved data blocks */
-#define	XFS_BMAPI_PREALLOC	0x100	/* preallocation op: unwritten space */
-#define	XFS_BMAPI_IGSTATE	0x200	/* Ignore state - */
+#define XFS_BMAPI_ATTRFORK	0x010	/* use attribute fork not data */
+#define XFS_BMAPI_RSVBLOCKS	0x020	/* OK to alloc. reserved data blocks */
+#define	XFS_BMAPI_PREALLOC	0x040	/* preallocation op: unwritten space */
+#define	XFS_BMAPI_IGSTATE	0x080	/* Ignore state - */
 					/* combine contig. space */
-#define	XFS_BMAPI_CONTIG	0x400	/* must allocate only one extent */
-/*	XFS_BMAPI_DIRECT_IO	0x800	*/
-#define XFS_BMAPI_CONVERT	0x1000	/* unwritten extent conversion - */
-					/* need write cache flushing and no */
-					/* additional allocation alignments */
+#define	XFS_BMAPI_CONTIG	0x100	/* must allocate only one extent */
+/*
+ * unwritten extent conversion - this needs write cache flushing and no additional
+ * allocation alignments. When specified with XFS_BMAPI_PREALLOC it converts
+ * from written to unwritten, otherwise convert from unwritten to written.
+ */
+#define XFS_BMAPI_CONVERT	0x200
+
+#define XFS_BMAPI_FLAGS \
+	{ XFS_BMAPI_WRITE,	"WRITE" }, \
+	{ XFS_BMAPI_DELAY,	"DELAY" }, \
+	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
+	{ XFS_BMAPI_METADATA,	"METADATA" }, \
+	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
+	{ XFS_BMAPI_RSVBLOCKS,	"RSVBLOCKS" }, \
+	{ XFS_BMAPI_PREALLOC,	"PREALLOC" }, \
+	{ XFS_BMAPI_IGSTATE,	"IGSTATE" }, \
+	{ XFS_BMAPI_CONTIG,	"CONTIG" }, \
+	{ XFS_BMAPI_CONVERT,	"CONVERT" }
+
 
 static inline int xfs_bmapi_aflag(int w)
 {
@@ -135,36 +134,43 @@ typedef struct xfs_bmalloca {
 	char			conv;	/* overwriting unwritten extents */
 } xfs_bmalloca_t;
 
-#if defined(__KERNEL__) && defined(XFS_BMAP_TRACE)
 /*
- * Trace operations for bmap extent tracing
+ * Flags for xfs_bmap_add_extent*.
  */
-#define	XFS_BMAP_KTRACE_DELETE	1
-#define	XFS_BMAP_KTRACE_INSERT	2
-#define	XFS_BMAP_KTRACE_PRE_UP	3
-#define	XFS_BMAP_KTRACE_POST_UP	4
+#define BMAP_LEFT_CONTIG	(1 << 0)
+#define BMAP_RIGHT_CONTIG	(1 << 1)
+#define BMAP_LEFT_FILLING	(1 << 2)
+#define BMAP_RIGHT_FILLING	(1 << 3)
+#define BMAP_LEFT_DELAY		(1 << 4)
+#define BMAP_RIGHT_DELAY	(1 << 5)
+#define BMAP_LEFT_VALID		(1 << 6)
+#define BMAP_RIGHT_VALID	(1 << 7)
+#define BMAP_ATTRFORK		(1 << 8)
 
-#define	XFS_BMAP_TRACE_SIZE	4096	/* size of global trace buffer */
-#define	XFS_BMAP_KTRACE_SIZE	32	/* size of per-inode trace buffer */
-extern ktrace_t	*xfs_bmap_trace_buf;
+#define XFS_BMAP_EXT_FLAGS \
+	{ BMAP_LEFT_CONTIG,	"LC" }, \
+	{ BMAP_RIGHT_CONTIG,	"RC" }, \
+	{ BMAP_LEFT_FILLING,	"LF" }, \
+	{ BMAP_RIGHT_FILLING,	"RF" }, \
+	{ BMAP_ATTRFORK,	"ATTR" }
 
 /*
  * Add bmap trace insert entries for all the contents of the extent list.
+ *
+ * Quite excessive tracing.  Only do this for debug builds.
  */
+#if defined(__KERNEL) && defined(DEBUG)
 void
 xfs_bmap_trace_exlist(
-	const char		*fname,		/* function name */
 	struct xfs_inode	*ip,		/* incore inode pointer */
 	xfs_extnum_t		cnt,		/* count of entries in list */
-	int			whichfork);	/* data or attr fork */
+	int			whichfork,
+	unsigned long		caller_ip);	/* data or attr fork */
 #define	XFS_BMAP_TRACE_EXLIST(ip,c,w)	\
-	xfs_bmap_trace_exlist(__func__,ip,c,w)
-
-#else	/* __KERNEL__ && XFS_BMAP_TRACE */
-
+	xfs_bmap_trace_exlist(ip,c,w, _THIS_IP_)
+#else
 #define	XFS_BMAP_TRACE_EXLIST(ip,c,w)
-
-#endif	/* __KERNEL__ && XFS_BMAP_TRACE */
+#endif
 
 /*
  * Convert inode from non-attributed to attributed.
@@ -288,9 +294,7 @@ xfs_bmapi(
 	xfs_extlen_t		total,		/* total blocks needed */
 	struct xfs_bmbt_irec	*mval,		/* output: map values */
 	int			*nmap,		/* i/o: mval size/count */
-	xfs_bmap_free_t		*flist,		/* i/o: list extents to free */
-	xfs_extdelta_t		*delta);	/* o: change made to incore
-						   extents */
+	xfs_bmap_free_t		*flist);	/* i/o: list extents to free */
 
 /*
  * Map file blocks to filesystem blocks, simple version.
@@ -324,8 +328,6 @@ xfs_bunmapi(
 	xfs_fsblock_t		*firstblock,	/* first allocated block
 						   controls a.g. for allocs */
 	xfs_bmap_free_t		*flist,		/* i/o: list extents to free */
-	xfs_extdelta_t		*delta,		/* o: change made to incore
-						   extents */
 	int			*done);		/* set if not done yet */
 
 /*
@@ -392,17 +394,11 @@ xfs_bmap_count_blocks(
 	int			whichfork,
 	int			*count);
 
-/*
- * Search the extent records for the entry containing block bno.
- * If bno lies in a hole, point to the next entry.  If bno lies
- * past eof, *eofp will be set, and *prevp will contain the last
- * entry (null if none).  Else, *lastxp will be set to the index
- * of the found entry; *gotp will contain the entry.
- */
-xfs_bmbt_rec_host_t *
-xfs_bmap_search_multi_extents(struct xfs_ifork *, xfs_fileoff_t, int *,
-			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
-
+int
+xfs_bmap_punch_delalloc_range(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		length);
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_BMAP_H__ */

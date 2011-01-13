@@ -19,33 +19,38 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 
+#define MAX_DEV		3
+#define IRQ_LINES	3
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define INTA	6
+#define INTB	7
+#define INTC	5
+
 void __init fsg_pci_preinit(void)
 {
-	set_irq_type(IRQ_FSG_PCI_INTA, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_FSG_PCI_INTB, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_FSG_PCI_INTC, IRQ_TYPE_LEVEL_LOW);
-
+	set_irq_type(IXP4XX_GPIO_IRQ(INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTB), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTC), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
 static int __init fsg_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static int pci_irq_table[FSG_PCI_IRQ_LINES] = {
-		IRQ_FSG_PCI_INTC,
-		IRQ_FSG_PCI_INTB,
-		IRQ_FSG_PCI_INTA,
+	static int pci_irq_table[IRQ_LINES] = {
+		IXP4XX_GPIO_IRQ(INTC),
+		IXP4XX_GPIO_IRQ(INTB),
+		IXP4XX_GPIO_IRQ(INTA),
 	};
 
 	int irq = -1;
-	slot = slot - 11;
+	slot -= 11;
 
-	if (slot >= 1 && slot <= FSG_PCI_MAX_DEV &&
-	    pin >= 1 && pin <= FSG_PCI_IRQ_LINES)
-		irq = pci_irq_table[(slot - 1)];
+	if (slot >= 1 && slot <= MAX_DEV && pin >= 1 && pin <= IRQ_LINES)
+		irq = pci_irq_table[slot - 1];
 	printk(KERN_INFO "%s: Mapped slot %d pin %d to IRQ %d\n",
 	       __func__, slot, pin, irq);
 

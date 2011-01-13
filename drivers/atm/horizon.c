@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -641,7 +642,7 @@ static int make_rate (const hrz_dev * dev, u32 c, rounding r,
 					pre = 1;
 				break;
 			case round_nearest:
-				pre = (br+(c<<div)/2)/(c<<div);
+				pre = DIV_ROUND_CLOSEST(br, c<<div);
 				// but p must be non-zero
 				if (!pre)
 					pre = 1;
@@ -671,7 +672,7 @@ static int make_rate (const hrz_dev * dev, u32 c, rounding r,
 					pre = DIV_ROUND_UP(br, c<<div);
 					break;
 				case round_nearest:
-					pre = (br+(c<<div)/2)/(c<<div);
+					pre = DIV_ROUND_CLOSEST(br, c<<div);
 					break;
 				default: /* round_up */
 					pre = br/(c<<div);
@@ -1644,10 +1645,8 @@ static int hrz_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
     unsigned short d = 0;
     char * s = skb->data;
     if (*s++ == 'D') {
-      for (i = 0; i < 4; ++i) {
-	d = (d<<4) | ((*s <= '9') ? (*s - '0') : (*s - 'a' + 10));
-	++s;
-      }
+	for (i = 0; i < 4; ++i)
+		d = (d << 4) | hex_to_bin(*s++);
       PRINTK (KERN_INFO, "debug bitmap is now %hx", debug = d);
     }
   }
@@ -2590,7 +2589,7 @@ static int hrz_getsockopt (struct atm_vcc * atm_vcc, int level, int optname,
 }
 
 static int hrz_setsockopt (struct atm_vcc * atm_vcc, int level, int optname,
-			   void *optval, int optlen) {
+			   void *optval, unsigned int optlen) {
   hrz_dev * dev = HRZ_DEV(atm_vcc->dev);
   PRINTD (DBG_FLOW|DBG_VCC, "hrz_setsockopt");
   switch (level) {
@@ -2734,7 +2733,8 @@ static int __devinit hrz_probe(struct pci_dev *pci_dev, const struct pci_device_
 	PRINTD(DBG_INFO, "found Madge ATM adapter (hrz) at: IO %x, IRQ %u, MEM %p",
 	       iobase, irq, membase);
 
-	dev->atm_dev = atm_dev_register(DEV_LABEL, &hrz_ops, -1, NULL);
+	dev->atm_dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &hrz_ops, -1,
+					NULL);
 	if (!(dev->atm_dev)) {
 		PRINTD(DBG_ERR, "failed to register Madge ATM adapter");
 		err = -EINVAL;

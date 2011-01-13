@@ -31,7 +31,7 @@ void crunch_task_release(struct thread_info *thread)
 
 static int crunch_enabled(u32 devcfg)
 {
-	return !!(devcfg & EP93XX_SYSCON_DEVICE_CONFIG_CRUNCH_ENABLE);
+	return !!(devcfg & EP93XX_SYSCON_DEVCFG_CPENA);
 }
 
 static int crunch_do(struct notifier_block *self, unsigned long cmd, void *t)
@@ -51,16 +51,21 @@ static int crunch_do(struct notifier_block *self, unsigned long cmd, void *t)
 		 * initialised state information on the first fault.
 		 */
 
-	case THREAD_NOTIFY_RELEASE:
+	case THREAD_NOTIFY_EXIT:
 		crunch_task_release(thread);
 		break;
 
 	case THREAD_NOTIFY_SWITCH:
-		devcfg = __raw_readl(EP93XX_SYSCON_DEVICE_CONFIG);
+		devcfg = __raw_readl(EP93XX_SYSCON_DEVCFG);
 		if (crunch_enabled(devcfg) || crunch_owner == crunch_state) {
-			devcfg ^= EP93XX_SYSCON_DEVICE_CONFIG_CRUNCH_ENABLE;
+			/*
+			 * We don't use ep93xx_syscon_swlocked_write() here
+			 * because we are on the context switch path and
+			 * preemption is already disabled.
+			 */
+			devcfg ^= EP93XX_SYSCON_DEVCFG_CPENA;
 			__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
-			__raw_writel(devcfg, EP93XX_SYSCON_DEVICE_CONFIG);
+			__raw_writel(devcfg, EP93XX_SYSCON_DEVCFG);
 		}
 		break;
 	}

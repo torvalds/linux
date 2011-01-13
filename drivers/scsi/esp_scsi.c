@@ -916,7 +916,7 @@ static void esp_event_queue_full(struct esp *esp, struct esp_cmd_entry *ent)
 	scsi_track_queue_full(dev, lp->num_tagged - 1);
 }
 
-static int esp_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int esp_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	struct scsi_device *dev = cmd->device;
 	struct esp *esp = shost_priv(dev->host);
@@ -940,6 +940,8 @@ static int esp_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(esp_queuecommand)
 
 static int esp_check_gross_error(struct esp *esp)
 {
@@ -1448,9 +1450,6 @@ static void esp_msgin_sdtr(struct esp *esp, struct esp_target_data *tp)
 
 	if (offset > 15)
 		goto do_reject;
-
-	if (esp->flags & ESP_FLAG_DISABLE_SYNC)
-		offset = 0;
 
 	if (offset) {
 		int one_clock;
@@ -2405,12 +2404,6 @@ static int esp_slave_configure(struct scsi_device *dev)
 	struct esp_target_data *tp = &esp->target[dev->id];
 	int goal_tags, queue_depth;
 
-	if (esp->flags & ESP_FLAG_DISABLE_SYNC) {
-		/* Bypass async domain validation */
-		dev->ppr  = 0;
-		dev->sdtr = 0;
-	}
-
 	goal_tags = 0;
 
 	if (dev->tagged_supported) {
@@ -2660,7 +2653,10 @@ static void esp_set_offset(struct scsi_target *target, int offset)
 	struct esp *esp = shost_priv(host);
 	struct esp_target_data *tp = &esp->target[target->id];
 
-	tp->nego_goal_offset = offset;
+	if (esp->flags & ESP_FLAG_DISABLE_SYNC)
+		tp->nego_goal_offset = 0;
+	else
+		tp->nego_goal_offset = offset;
 	tp->flags |= ESP_TGT_CHECK_NEGO;
 }
 

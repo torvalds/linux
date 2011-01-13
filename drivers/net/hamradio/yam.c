@@ -396,7 +396,7 @@ static unsigned char *add_mcs(unsigned char *bits, int bitrate,
 	while (p) {
 		if (p->bitrate == bitrate) {
 			memcpy(p->bits, bits, YAM_FPGA_SIZE);
-			return p->bits;
+			goto out;
 		}
 		p = p->next;
 	}
@@ -411,7 +411,7 @@ static unsigned char *add_mcs(unsigned char *bits, int bitrate,
 	p->bitrate = bitrate;
 	p->next = yam_data;
 	yam_data = p;
-
+ out:
 	release_firmware(fw);
 	return p->bits;
 }
@@ -594,13 +594,14 @@ static void ptt_off(struct net_device *dev)
 	outb(PTT_OFF, MCR(dev->base_addr));
 }
 
-static int yam_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t yam_send_packet(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct yam_port *yp = netdev_priv(dev);
 
 	skb_queue_tail(&yp->send_queue, skb);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void yam_start_tx(struct net_device *dev, struct yam_port *yp)
@@ -1150,8 +1151,7 @@ static int __init yam_init_driver(void)
 		dev = alloc_netdev(sizeof(struct yam_port), name,
 				   yam_setup);
 		if (!dev) {
-			printk(KERN_ERR "yam: cannot allocate net device %s\n",
-			       dev->name);
+			pr_err("yam: cannot allocate net device\n");
 			err = -ENOMEM;
 			goto error;
 		}

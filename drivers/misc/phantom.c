@@ -21,8 +21,10 @@
 #include <linux/poll.h>
 #include <linux/interrupt.h>
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/phantom.h>
-#include <linux/smp_lock.h>
+#include <linux/sched.h>
+#include <linux/mutex.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -36,6 +38,7 @@
 #define PHB_RUNNING		1
 #define PHB_NOT_OH		2
 
+static DEFINE_MUTEX(phantom_mutex);
 static struct class *phantom_class;
 static int phantom_major;
 
@@ -213,17 +216,17 @@ static int phantom_open(struct inode *inode, struct file *file)
 	struct phantom_device *dev = container_of(inode->i_cdev,
 			struct phantom_device, cdev);
 
-	lock_kernel();
+	mutex_lock(&phantom_mutex);
 	nonseekable_open(inode, file);
 
 	if (mutex_lock_interruptible(&dev->open_lock)) {
-		unlock_kernel();
+		mutex_unlock(&phantom_mutex);
 		return -ERESTARTSYS;
 	}
 
 	if (dev->opened) {
 		mutex_unlock(&dev->open_lock);
-		unlock_kernel();
+		mutex_unlock(&phantom_mutex);
 		return -EINVAL;
 	}
 
@@ -234,7 +237,7 @@ static int phantom_open(struct inode *inode, struct file *file)
 	atomic_set(&dev->counter, 0);
 	dev->opened++;
 	mutex_unlock(&dev->open_lock);
-	unlock_kernel();
+	mutex_unlock(&phantom_mutex);
 	return 0;
 }
 
@@ -271,12 +274,13 @@ static unsigned int phantom_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static struct file_operations phantom_file_ops = {
+static const struct file_operations phantom_file_ops = {
 	.open = phantom_open,
 	.release = phantom_release,
 	.unlocked_ioctl = phantom_ioctl,
 	.compat_ioctl = phantom_compat_ioctl,
 	.poll = phantom_poll,
+	.llseek = no_llseek,
 };
 
 static irqreturn_t phantom_isr(int irq, void *data)
@@ -339,8 +343,10 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 	int retval;
 
 	retval = pci_enable_device(pdev);
-	if (retval)
+	if (retval) {
+		dev_err(&pdev->dev, "pci_enable_device failed!\n");
 		goto err;
+	}
 
 	minor = phantom_get_free();
 	if (minor == PHANTOM_MAX_MINORS) {
@@ -352,8 +358,10 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 	phantom_devices[minor] = 1;
 
 	retval = pci_request_regions(pdev, "phantom");
-	if (retval)
+	if (retval) {
+		dev_err(&pdev->dev, "pci_request_regions failed!\n");
 		goto err_null;
+	}
 
 	retval = -ENOMEM;
 	pht = kzalloc(sizeof(*pht), GFP_KERNEL);
@@ -496,12 +504,7 @@ static struct pci_driver phantom_pci_driver = {
 	.resume = phantom_resume
 };
 
-static ssize_t phantom_show_version(struct class *cls, char *buf)
-{
-	return sprintf(buf, PHANTOM_VERSION "\n");
-}
-
-static CLASS_ATTR(version, 0444, phantom_show_version, NULL);
+static CLASS_ATTR_STRING(version, 0444, PHANTOM_VERSION);
 
 static int __init phantom_init(void)
 {
@@ -514,7 +517,7 @@ static int __init phantom_init(void)
 		printk(KERN_ERR "phantom: can't register phantom class\n");
 		goto err;
 	}
-	retval = class_create_file(phantom_class, &class_attr_version);
+	retval = class_create_file(phantom_class, &class_attr_version.attr);
 	if (retval) {
 		printk(KERN_ERR "phantom: can't create sysfs version file\n");
 		goto err_class;
@@ -540,7 +543,7 @@ static int __init phantom_init(void)
 err_unchr:
 	unregister_chrdev_region(dev, PHANTOM_MAX_MINORS);
 err_attr:
-	class_remove_file(phantom_class, &class_attr_version);
+	class_remove_file(phantom_class, &class_attr_version.attr);
 err_class:
 	class_destroy(phantom_class);
 err:
@@ -553,7 +556,7 @@ static void __exit phantom_exit(void)
 
 	unregister_chrdev_region(MKDEV(phantom_major, 0), PHANTOM_MAX_MINORS);
 
-	class_remove_file(phantom_class, &class_attr_version);
+	class_remove_file(phantom_class, &class_attr_version.attr);
 	class_destroy(phantom_class);
 
 	pr_debug("phantom: module successfully removed\n");

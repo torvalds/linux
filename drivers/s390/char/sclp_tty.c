@@ -13,10 +13,10 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/gfp.h>
 #include <asm/uaccess.h>
 
 #include "ctrlchar.h"

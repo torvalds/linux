@@ -99,7 +99,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_wait_done(i2c_adap))
 			return -EIO;
 		if (!i2c_slave_did_ack(i2c_adap))
-			return -EIO;
+			return -ENXIO;
 
 		dprintk(1, "%s() returns 0\n", __func__);
 		return 0;
@@ -120,11 +120,12 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	cx_write(bus->reg_wdata, wdata);
 	cx_write(bus->reg_ctrl, ctrl);
 
-	retval = i2c_wait_done(i2c_adap);
-	if (retval < 0)
-		goto err;
-	if (retval == 0)
+	if (!i2c_wait_done(i2c_adap))
 		goto eio;
+	if (!i2c_slave_did_ack(i2c_adap)) {
+		retval = -ENXIO;
+		goto err;
+	}
 	if (i2c_debug) {
 		printk(" <W %02x %02x", msg->addr << 1, msg->buf[0]);
 		if (!(ctrl & I2C_NOSTOP))
@@ -145,10 +146,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		cx_write(bus->reg_wdata, wdata);
 		cx_write(bus->reg_ctrl, ctrl);
 
-		retval = i2c_wait_done(i2c_adap);
-		if (retval < 0)
-			goto err;
-		if (retval == 0)
+		if (!i2c_wait_done(i2c_adap))
 			goto eio;
 		if (i2c_debug) {
 			dprintk(1, " %02x", msg->buf[cnt]);
@@ -185,7 +183,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_wait_done(i2c_adap))
 			return -EIO;
 		if (!i2c_slave_did_ack(i2c_adap))
-			return -EIO;
+			return -ENXIO;
 
 
 		dprintk(1, "%s() returns 0\n", __func__);
@@ -209,11 +207,12 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		cx_write(bus->reg_addr, msg->addr << 25);
 		cx_write(bus->reg_ctrl, ctrl);
 
-		retval = i2c_wait_done(i2c_adap);
-		if (retval < 0)
-			goto err;
-		if (retval == 0)
+		if (!i2c_wait_done(i2c_adap))
 			goto eio;
+		if (cnt == 0 && !i2c_slave_did_ack(i2c_adap)) {
+			retval = -ENXIO;
+			goto err;
+		}
 		msg->buf[cnt] = cx_read(bus->reg_rdata) & 0xff;
 		if (i2c_debug) {
 			dprintk(1, " %02x", msg->buf[cnt]);
@@ -283,7 +282,6 @@ static struct i2c_algorithm cx23885_i2c_algo_template = {
 static struct i2c_adapter cx23885_i2c_adap_template = {
 	.name              = "cx23885",
 	.owner             = THIS_MODULE,
-	.id                = I2C_HW_B_CX23885,
 	.algo              = &cx23885_i2c_algo_template,
 };
 
@@ -366,7 +364,10 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-		i2c_new_probed_device(&bus->i2c_adap, &info, addr_list);
+		/* Use quick read command for probe, some IR chips don't
+		 * support writes */
+		i2c_new_probed_device(&bus->i2c_adap, &info, addr_list,
+				      i2c_probe_func_quick_read);
 	}
 
 	return bus->i2c_rc;

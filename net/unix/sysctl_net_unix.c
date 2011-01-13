@@ -10,29 +10,29 @@
  */
 
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/sysctl.h>
 
 #include <net/af_unix.h>
 
 static ctl_table unix_table[] = {
 	{
-		.ctl_name	= NET_UNIX_MAX_DGRAM_QLEN,
 		.procname	= "max_dgram_qlen",
 		.data		= &init_net.unx.sysctl_max_dgram_qlen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_path unix_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "unix", .ctl_name = NET_UNIX, },
+	{ .procname = "net", },
+	{ .procname = "unix", },
 	{ },
 };
 
-int unix_sysctl_register(struct net *net)
+int __net_init unix_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 

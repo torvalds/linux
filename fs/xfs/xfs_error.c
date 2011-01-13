@@ -23,12 +23,8 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_utils.h"
@@ -62,6 +58,7 @@ xfs_error_trap(int e)
 int	xfs_etest[XFS_NUM_INJECT_ERROR];
 int64_t	xfs_etest_fsid[XFS_NUM_INJECT_ERROR];
 char *	xfs_etest_fsname[XFS_NUM_INJECT_ERROR];
+int	xfs_error_test_active;
 
 int
 xfs_error_test(int error_tag, int *fsidp, char *expression,
@@ -112,6 +109,7 @@ xfs_errortag_add(int error_tag, xfs_mount_t *mp)
 			len = strlen(mp->m_fsname);
 			xfs_etest_fsname[i] = kmem_alloc(len + 1, KM_SLEEP);
 			strcpy(xfs_etest_fsname[i], mp->m_fsname);
+			xfs_error_test_active++;
 			return 0;
 		}
 	}
@@ -141,6 +139,7 @@ xfs_errortag_clearall(xfs_mount_t *mp, int loud)
 			xfs_etest_fsid[i] = 0LL;
 			kmem_free(xfs_etest_fsname[i]);
 			xfs_etest_fsname[i] = NULL;
+			xfs_error_test_active--;
 		}
 	}
 
@@ -170,7 +169,7 @@ xfs_cmn_err(int panic_tag, int level, xfs_mount_t *mp, char *fmt, ...)
 	va_list ap;
 
 #ifdef DEBUG
-	xfs_panic_mask |= XFS_PTAG_SHUTDOWN_CORRUPT;
+	xfs_panic_mask |= (XFS_PTAG_SHUTDOWN_CORRUPT | XFS_PTAG_LOGRES);
 #endif
 
 	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)
@@ -186,18 +185,18 @@ xfs_cmn_err(int panic_tag, int level, xfs_mount_t *mp, char *fmt, ...)
 
 void
 xfs_error_report(
-	char		*tag,
-	int		level,
-	xfs_mount_t	*mp,
-	char		*fname,
-	int		linenum,
-	inst_t		*ra)
+	const char		*tag,
+	int			level,
+	struct xfs_mount	*mp,
+	const char		*filename,
+	int			linenum,
+	inst_t			*ra)
 {
 	if (level <= xfs_error_level) {
 		xfs_cmn_err(XFS_PTAG_ERROR_REPORT,
 			    CE_ALERT, mp,
 		"XFS internal error %s at line %d of file %s.  Caller 0x%p\n",
-			    tag, linenum, fname, ra);
+			    tag, linenum, filename, ra);
 
 		xfs_stack_trace();
 	}
@@ -205,15 +204,15 @@ xfs_error_report(
 
 void
 xfs_corruption_error(
-	char		*tag,
-	int		level,
-	xfs_mount_t	*mp,
-	void		*p,
-	char		*fname,
-	int		linenum,
-	inst_t		*ra)
+	const char		*tag,
+	int			level,
+	struct xfs_mount	*mp,
+	void			*p,
+	const char		*filename,
+	int			linenum,
+	inst_t			*ra)
 {
 	if (level <= xfs_error_level)
 		xfs_hex_dump(p, 16);
-	xfs_error_report(tag, level, mp, fname, linenum, ra);
+	xfs_error_report(tag, level, mp, filename, linenum, ra);
 }

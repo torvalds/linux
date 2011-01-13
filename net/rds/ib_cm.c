@@ -32,10 +32,41 @@
  */
 #include <linux/kernel.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include "rds.h"
 #include "ib.h"
+
+static char *rds_ib_event_type_strings[] = {
+#define RDS_IB_EVENT_STRING(foo) \
+		[IB_EVENT_##foo] = __stringify(IB_EVENT_##foo)
+	RDS_IB_EVENT_STRING(CQ_ERR),
+	RDS_IB_EVENT_STRING(QP_FATAL),
+	RDS_IB_EVENT_STRING(QP_REQ_ERR),
+	RDS_IB_EVENT_STRING(QP_ACCESS_ERR),
+	RDS_IB_EVENT_STRING(COMM_EST),
+	RDS_IB_EVENT_STRING(SQ_DRAINED),
+	RDS_IB_EVENT_STRING(PATH_MIG),
+	RDS_IB_EVENT_STRING(PATH_MIG_ERR),
+	RDS_IB_EVENT_STRING(DEVICE_FATAL),
+	RDS_IB_EVENT_STRING(PORT_ACTIVE),
+	RDS_IB_EVENT_STRING(PORT_ERR),
+	RDS_IB_EVENT_STRING(LID_CHANGE),
+	RDS_IB_EVENT_STRING(PKEY_CHANGE),
+	RDS_IB_EVENT_STRING(SM_CHANGE),
+	RDS_IB_EVENT_STRING(SRQ_ERR),
+	RDS_IB_EVENT_STRING(SRQ_LIMIT_REACHED),
+	RDS_IB_EVENT_STRING(QP_LAST_WQE_REACHED),
+	RDS_IB_EVENT_STRING(CLIENT_REREGISTER),
+#undef RDS_IB_EVENT_STRING
+};
+
+static char *rds_ib_event_str(enum ib_event_type type)
+{
+	return rds_str_array(rds_ib_event_type_strings,
+			     ARRAY_SIZE(rds_ib_event_type_strings), type);
+};
 
 /*
  * Set the selected protocol version
@@ -94,24 +125,46 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 {
 	const struct rds_ib_connect_private *dp = NULL;
 	struct rds_ib_connection *ic = conn->c_transport_data;
-	struct rds_ib_device *rds_ibdev;
 	struct ib_qp_attr qp_attr;
 	int err;
 
-	if (event->param.conn.private_data_len) {
+	if (event->param.conn.private_data_len >= sizeof(*dp)) {
 		dp = event->param.conn.private_data;
 
-		rds_ib_set_protocol(conn,
+		/* make sure it isn't empty data */
+		if (dp->dp_protocol_major) {
+			rds_ib_set_protocol(conn,
 				RDS_PROTOCOL(dp->dp_protocol_major,
-					dp->dp_protocol_minor));
-		rds_ib_set_flow_control(conn, be32_to_cpu(dp->dp_credit));
+				dp->dp_protocol_minor));
+			rds_ib_set_flow_control(conn, be32_to_cpu(dp->dp_credit));
+		}
 	}
 
-	printk(KERN_NOTICE "RDS/IB: connected to %pI4 version %u.%u%s\n",
-			&conn->c_laddr,
-			RDS_PROTOCOL_MAJOR(conn->c_version),
-			RDS_PROTOCOL_MINOR(conn->c_version),
-			ic->i_flowctl ? ", flow control" : "");
+	if (conn->c_version < RDS_PROTOCOL(3,1)) {
+		printk(KERN_NOTICE "RDS/IB: Connection to %pI4 version %u.%u failed,"
+		       " no longer supported\n",
+		       &conn->c_faddr,
+		       RDS_PROTOCOL_MAJOR(conn->c_version),
+		       RDS_PROTOCOL_MINOR(conn->c_version));
+		rds_conn_destroy(conn);
+		return;
+	} else {
+		printk(KERN_NOTICE "RDS/IB: connected to %pI4 version %u.%u%s\n",
+		       &conn->c_faddr,
+		       RDS_PROTOCOL_MAJOR(conn->c_version),
+		       RDS_PROTOCOL_MINOR(conn->c_version),
+		       ic->i_flowctl ? ", flow control" : "");
+	}
+
+	/*
+	 * Init rings and fill recv. this needs to wait until protocol negotiation
+	 * is complete, since ring layout is different from 3.0 to 3.1.
+	 */
+	rds_ib_send_init_ring(ic);
+	rds_ib_recv_init_ring(ic);
+	/* Post receive buffers - as a side effect, this will update
+	 * the posted credit count. */
+	rds_ib_recv_refill(conn, 1);
 
 	/* Tune RNR behavior */
 	rds_ib_tune_rnr(ic, &qp_attr);
@@ -121,12 +174,11 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	if (err)
 		printk(KERN_NOTICE "ib_modify_qp(IB_QP_STATE, RTS): err=%d\n", err);
 
-	/* update ib_device with this local ipaddr & conn */
-	rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
-	err = rds_ib_update_ipaddr(rds_ibdev, conn->c_laddr);
+	/* update ib_device with this local ipaddr */
+	err = rds_ib_update_ipaddr(ic->rds_ibdev, conn->c_laddr);
 	if (err)
-		printk(KERN_ERR "rds_ib_update_ipaddr failed (%d)\n", err);
-	rds_ib_add_conn(rds_ibdev, conn);
+		printk(KERN_ERR "rds_ib_update_ipaddr failed (%d)\n",
+			err);
 
 	/* If the peer gave us the last packet it saw, process this as if
 	 * we had received a regular ACK. */
@@ -139,18 +191,23 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 			struct rdma_conn_param *conn_param,
 			struct rds_ib_connect_private *dp,
-			u32 protocol_version)
+			u32 protocol_version,
+			u32 max_responder_resources,
+			u32 max_initiator_depth)
 {
+	struct rds_ib_connection *ic = conn->c_transport_data;
+	struct rds_ib_device *rds_ibdev = ic->rds_ibdev;
+
 	memset(conn_param, 0, sizeof(struct rdma_conn_param));
-	/* XXX tune these? */
-	conn_param->responder_resources = 1;
-	conn_param->initiator_depth = 1;
-	conn_param->retry_count = 7;
+
+	conn_param->responder_resources =
+		min_t(u32, rds_ibdev->max_responder_resources, max_responder_resources);
+	conn_param->initiator_depth =
+		min_t(u32, rds_ibdev->max_initiator_depth, max_initiator_depth);
+	conn_param->retry_count = min_t(unsigned int, rds_ib_retry_count, 7);
 	conn_param->rnr_retry_count = 7;
 
 	if (dp) {
-		struct rds_ib_connection *ic = conn->c_transport_data;
-
 		memset(dp, 0, sizeof(*dp));
 		dp->dp_saddr = conn->c_laddr;
 		dp->dp_daddr = conn->c_faddr;
@@ -175,7 +232,8 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 
 static void rds_ib_cq_event_handler(struct ib_event *event, void *data)
 {
-	rdsdebug("event %u data %p\n", event->event, data);
+	rdsdebug("event %u (%s) data %p\n",
+		 event->event, rds_ib_event_str(event->event), data);
 }
 
 static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
@@ -183,16 +241,19 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	struct rds_connection *conn = data;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	rdsdebug("conn %p ic %p event %u\n", conn, ic, event->event);
+	rdsdebug("conn %p ic %p event %u (%s)\n", conn, ic, event->event,
+		 rds_ib_event_str(event->event));
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
 		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		printk(KERN_WARNING "RDS/ib: unhandled QP event %u "
-		       "on connection to %pI4\n", event->event,
-		       &conn->c_faddr);
+		rdsdebug("Fatal QP Event %u (%s) "
+			"- connection %pI4->%pI4, reconnecting\n",
+			event->event, rds_ib_event_str(event->event),
+			&conn->c_laddr, &conn->c_faddr);
+		rds_conn_drop(conn);
 		break;
 	}
 }
@@ -209,18 +270,16 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct rds_ib_device *rds_ibdev;
 	int ret;
 
-	/* rds_ib_add_one creates a rds_ib_device object per IB device,
-	 * and allocates a protection domain, memory range and FMR pool
-	 * for each.  If that fails for any reason, it will not register
-	 * the rds_ibdev at all.
+	/*
+	 * It's normal to see a null device if an incoming connection races
+	 * with device removal, so we don't print a warning.
 	 */
-	rds_ibdev = ib_get_client_data(dev, &rds_ib_client);
-	if (rds_ibdev == NULL) {
-		if (printk_ratelimit())
-			printk(KERN_NOTICE "RDS/IB: No client_data for device %s\n",
-					dev->name);
+	rds_ibdev = rds_ib_get_client_data(dev);
+	if (!rds_ibdev)
 		return -EOPNOTSUPP;
-	}
+
+	/* add the conn now so that connection establishment has the dev */
+	rds_ib_add_conn(rds_ibdev, conn);
 
 	if (rds_ibdev->max_wrs < ic->i_send_ring.w_nr + 1)
 		rds_ib_ring_resize(&ic->i_send_ring, rds_ibdev->max_wrs - 1);
@@ -291,7 +350,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 					   ic->i_send_ring.w_nr *
 						sizeof(struct rds_header),
 					   &ic->i_send_hdrs_dma, GFP_KERNEL);
-	if (ic->i_send_hdrs == NULL) {
+	if (!ic->i_send_hdrs) {
 		ret = -ENOMEM;
 		rdsdebug("ib_dma_alloc_coherent send failed\n");
 		goto out;
@@ -301,7 +360,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 					   ic->i_recv_ring.w_nr *
 						sizeof(struct rds_header),
 					   &ic->i_recv_hdrs_dma, GFP_KERNEL);
-	if (ic->i_recv_hdrs == NULL) {
+	if (!ic->i_recv_hdrs) {
 		ret = -ENOMEM;
 		rdsdebug("ib_dma_alloc_coherent recv failed\n");
 		goto out;
@@ -309,54 +368,66 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 
 	ic->i_ack = ib_dma_alloc_coherent(dev, sizeof(struct rds_header),
 				       &ic->i_ack_dma, GFP_KERNEL);
-	if (ic->i_ack == NULL) {
+	if (!ic->i_ack) {
 		ret = -ENOMEM;
 		rdsdebug("ib_dma_alloc_coherent ack failed\n");
 		goto out;
 	}
 
-	ic->i_sends = vmalloc(ic->i_send_ring.w_nr * sizeof(struct rds_ib_send_work));
-	if (ic->i_sends == NULL) {
+	ic->i_sends = vmalloc_node(ic->i_send_ring.w_nr * sizeof(struct rds_ib_send_work),
+				   ibdev_to_node(dev));
+	if (!ic->i_sends) {
 		ret = -ENOMEM;
 		rdsdebug("send allocation failed\n");
 		goto out;
 	}
-	rds_ib_send_init_ring(ic);
+	memset(ic->i_sends, 0, ic->i_send_ring.w_nr * sizeof(struct rds_ib_send_work));
 
-	ic->i_recvs = vmalloc(ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work));
-	if (ic->i_recvs == NULL) {
+	ic->i_recvs = vmalloc_node(ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work),
+				   ibdev_to_node(dev));
+	if (!ic->i_recvs) {
 		ret = -ENOMEM;
 		rdsdebug("recv allocation failed\n");
 		goto out;
 	}
+	memset(ic->i_recvs, 0, ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work));
 
-	rds_ib_recv_init_ring(ic);
 	rds_ib_recv_init_ack(ic);
-
-	/* Post receive buffers - as a side effect, this will update
-	 * the posted credit count. */
-	rds_ib_recv_refill(conn, GFP_KERNEL, GFP_HIGHUSER, 1);
 
 	rdsdebug("conn %p pd %p mr %p cq %p %p\n", conn, ic->i_pd, ic->i_mr,
 		 ic->i_send_cq, ic->i_recv_cq);
 
 out:
+	rds_ib_dev_put(rds_ibdev);
 	return ret;
 }
 
-static u32 rds_ib_protocol_compatible(const struct rds_ib_connect_private *dp)
+static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event)
 {
+	const struct rds_ib_connect_private *dp = event->param.conn.private_data;
 	u16 common;
 	u32 version = 0;
 
-	/* rdma_cm private data is odd - when there is any private data in the
+	/*
+	 * rdma_cm private data is odd - when there is any private data in the
 	 * request, we will be given a pretty large buffer without telling us the
 	 * original size. The only way to tell the difference is by looking at
 	 * the contents, which are initialized to zero.
 	 * If the protocol version fields aren't set, this is a connection attempt
 	 * from an older version. This could could be 3.0 or 2.0 - we can't tell.
-	 * We really should have changed this for OFED 1.3 :-( */
-	if (dp->dp_protocol_major == 0)
+	 * We really should have changed this for OFED 1.3 :-(
+	 */
+
+	/* Be paranoid. RDS always has privdata */
+	if (!event->param.conn.private_data_len) {
+		printk(KERN_NOTICE "RDS incoming connection has no private data, "
+			"rejecting\n");
+		return 0;
+	}
+
+	/* Even if len is crap *now* I still want to check it. -ASG */
+	if (event->param.conn.private_data_len < sizeof (*dp) ||
+	    dp->dp_protocol_major == 0)
 		return RDS_PROTOCOL_3_0;
 
 	common = be16_to_cpu(dp->dp_protocol_minor_mask) & RDS_IB_SUPPORTED_PROTOCOLS;
@@ -385,10 +456,10 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	struct rds_ib_connection *ic = NULL;
 	struct rdma_conn_param conn_param;
 	u32 version;
-	int err, destroy = 1;
+	int err = 1, destroy = 1;
 
 	/* Check whether the remote protocol version matches ours. */
-	version = rds_ib_protocol_compatible(dp);
+	version = rds_ib_protocol_compatible(event);
 	if (!version)
 		goto out;
 
@@ -424,7 +495,6 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 			/* Wait and see - our connect may still be succeeding */
 			rds_ib_stats_inc(s_ib_connect_raced);
 		}
-		mutex_unlock(&conn->c_cm_lock);
 		goto out;
 	}
 
@@ -454,20 +524,20 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		goto out;
 	}
 
-	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp_rep, version);
+	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp_rep, version,
+		event->param.conn.responder_resources,
+		event->param.conn.initiator_depth);
 
 	/* rdma_accept() calls rdma_reject() internally if it fails */
 	err = rdma_accept(cm_id, &conn_param);
-	mutex_unlock(&conn->c_cm_lock);
-	if (err) {
+	if (err)
 		rds_ib_conn_error(conn, "rdma_accept failed (%d)\n", err);
-		goto out;
-	}
-
-	return 0;
 
 out:
-	rdma_reject(cm_id, NULL, 0);
+	if (conn)
+		mutex_unlock(&conn->c_cm_lock);
+	if (err)
+		rdma_reject(cm_id, NULL, 0);
 	return destroy;
 }
 
@@ -491,8 +561,8 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id)
 		goto out;
 	}
 
-	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp, RDS_PROTOCOL_VERSION);
-
+	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp, RDS_PROTOCOL_VERSION,
+		UINT_MAX, UINT_MAX);
 	ret = rdma_connect(cm_id, &conn_param);
 	if (ret)
 		rds_ib_conn_error(conn, "rdma_connect failed (%d)\n", ret);
@@ -576,9 +646,19 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 				ic->i_cm_id, err);
 		}
 
+		/*
+		 * We want to wait for tx and rx completion to finish
+		 * before we tear down the connection, but we have to be
+		 * careful not to get stuck waiting on a send ring that
+		 * only has unsignaled sends in it.  We've shutdown new
+		 * sends before getting here so by waiting for signaled
+		 * sends to complete we're ensured that there will be no
+		 * more tx processing.
+		 */
 		wait_event(rds_ib_ring_empty_wait,
-			rds_ib_ring_empty(&ic->i_send_ring) &&
-			rds_ib_ring_empty(&ic->i_recv_ring));
+			   rds_ib_ring_empty(&ic->i_recv_ring) &&
+			   (atomic_read(&ic->i_signaled_sends) == 0));
+		tasklet_kill(&ic->i_recv_tasklet);
 
 		if (ic->i_send_hdrs)
 			ib_dma_free_coherent(dev,
@@ -629,9 +709,12 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 	BUG_ON(ic->rds_ibdev);
 
 	/* Clear pending transmit */
-	if (ic->i_rm) {
-		rds_message_put(ic->i_rm);
-		ic->i_rm = NULL;
+	if (ic->i_data_op) {
+		struct rds_message *rm;
+
+		rm = container_of(ic->i_data_op, struct rds_message, data);
+		rds_message_put(rm);
+		ic->i_data_op = NULL;
 	}
 
 	/* Clear the ACK state */
@@ -665,17 +748,27 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 {
 	struct rds_ib_connection *ic;
 	unsigned long flags;
+	int ret;
 
 	/* XXX too lazy? */
 	ic = kzalloc(sizeof(struct rds_ib_connection), GFP_KERNEL);
-	if (ic == NULL)
+	if (!ic)
 		return -ENOMEM;
 
+	ret = rds_ib_recv_alloc_caches(ic);
+	if (ret) {
+		kfree(ic);
+		return ret;
+	}
+
 	INIT_LIST_HEAD(&ic->ib_node);
+	tasklet_init(&ic->i_recv_tasklet, rds_ib_recv_tasklet_fn,
+		     (unsigned long) ic);
 	mutex_init(&ic->i_recv_mutex);
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&ic->i_ack_lock);
 #endif
+	atomic_set(&ic->i_signaled_sends, 0);
 
 	/*
 	 * rds_ib_conn_shutdown() waits for these to be emptied so they
@@ -716,6 +809,8 @@ void rds_ib_conn_free(void *arg)
 	spin_lock_irq(lock_ptr);
 	list_del(&ic->ib_node);
 	spin_unlock_irq(lock_ptr);
+
+	rds_ib_recv_free_caches(ic);
 
 	kfree(ic);
 }

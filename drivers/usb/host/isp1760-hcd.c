@@ -14,12 +14,14 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/mm.h>
 #include <asm/unaligned.h>
+#include <asm/cacheflush.h>
 
-#include "../core/hcd.h"
 #include "isp1760-hcd.h"
 
 static struct kmem_cache *qtd_cachep;
@@ -109,7 +111,7 @@ struct isp1760_qh {
 	u32 ping;
 };
 
-#define ehci_port_speed(priv, portsc) (1 << USB_PORT_FEAT_HIGHSPEED)
+#define ehci_port_speed(priv, portsc) USB_PORT_STAT_HIGH_SPEED
 
 static unsigned int isp1760_readl(__u32 __iomem *regs)
 {
@@ -386,6 +388,10 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 		hwmode |= HW_DACK_POL_HIGH;
 	if (priv->devflags & ISP1760_FLAG_DREQ_POL_HIGH)
 		hwmode |= HW_DREQ_POL_HIGH;
+	if (priv->devflags & ISP1760_FLAG_INTR_POL_HIGH)
+		hwmode |= HW_INTR_HIGH_ACT;
+	if (priv->devflags & ISP1760_FLAG_INTR_EDGE_TRIG)
+		hwmode |= HW_INTR_EDGE_TRIG;
 
 	/*
 	 * We have to set this first in case we're in 16-bit mode.
@@ -476,7 +482,6 @@ static int isp1760_run(struct usb_hcd *hcd)
 	u32 chipid;
 
 	hcd->uses_new_polling = 1;
-	hcd->poll_rh = 0;
 
 	hcd->state = HC_STATE_RUNNING;
 	isp1760_enable_interrupts(hcd);
@@ -707,12 +712,11 @@ static int check_error(struct ptd *ptd)
 	u32 dw3;
 
 	dw3 = le32_to_cpu(ptd->dw3);
-	if (dw3 & DW3_HALT_BIT)
+	if (dw3 & DW3_HALT_BIT) {
 		error = -EPIPE;
 
-	if (dw3 & DW3_ERROR_BIT) {
-		printk(KERN_ERR "error bit is set in DW3\n");
-		error = -EPIPE;
+		if (dw3 & DW3_ERROR_BIT)
+			pr_err("error bit is set in DW3\n");
 	}
 
 	if (dw3 & DW3_QTD_ACTIVE) {
@@ -825,6 +829,7 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	 * almost immediately. With ISP1761, this register requires a delay of
 	 * 195ns between a write and subsequent read (see section 15.1.1.3).
 	 */
+	mmiowb();
 	ndelay(195);
 	skip_map = isp1760_readl(hcd->regs + HC_ATL_PTD_SKIPMAP_REG);
 
@@ -866,6 +871,7 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	 * almost immediately. With ISP1761, this register requires a delay of
 	 * 195ns between a write and subsequent read (see section 15.1.1.3).
 	 */
+	mmiowb();
 	ndelay(195);
 	skip_map = isp1760_readl(hcd->regs + HC_INT_PTD_SKIPMAP_REG);
 
@@ -898,6 +904,14 @@ __acquires(priv->lock)
 	if (!urb->unlinked) {
 		if (status == -EINPROGRESS)
 			status = 0;
+	}
+
+	if (usb_pipein(urb->pipe) && usb_pipetype(urb->pipe) != PIPE_CONTROL) {
+		void *ptr;
+		for (ptr = urb->transfer_buffer;
+		     ptr < urb->transfer_buffer + urb->transfer_buffer_length;
+		     ptr += PAGE_SIZE)
+			flush_dcache_page(virt_to_page(ptr));
 	}
 
 	/* complete() can reenter this HCD */
@@ -1035,12 +1049,12 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		if (!nakcount && (dw3 & DW3_QTD_ACTIVE)) {
 			u32 buffstatus;
 
-			/* XXX
+			/*
 			 * NAKs are handled in HW by the chip. Usually if the
 			 * device is not able to send data fast enough.
-			 * This did not trigger for a long time now.
+			 * This happens mostly on slower hardware.
 			 */
-			printk(KERN_ERR "Reloading ptd %p/%p... qh %p readed: "
+			printk(KERN_NOTICE "Reloading ptd %p/%p... qh %p read: "
 					"%d of %zu done: %08x cur: %08x\n", qtd,
 					urb, qh, PTD_XFERRED_LENGTH(dw3),
 					qtd->length, done_map,
@@ -1437,7 +1451,7 @@ static int isp1760_prepare_enqueue(struct isp1760_hcd *priv, struct urb *urb,
 	epnum = urb->ep->desc.bEndpointAddress;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &priv_to_hcd(priv)->flags)) {
+	if (!HCD_HW_ACCESSIBLE(priv_to_hcd(priv))) {
 		rc = -ESHUTDOWN;
 		goto done;
 	}
@@ -1909,7 +1923,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		 * Even if OWNER is set, so the port is owned by the
 		 * companion controller, khubd needs to be able to clear
 		 * the port-change status bits (especially
-		 * USB_PORT_FEAT_C_CONNECTION).
+		 * USB_PORT_STAT_C_CONNECTION).
 		 */
 
 		switch (wValue) {
@@ -1973,7 +1987,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 
 		/* wPortChange bits */
 		if (temp & PORT_CSC)
-			status |= 1 << USB_PORT_FEAT_C_CONNECTION;
+			status |= USB_PORT_STAT_C_CONNECTION << 16;
 
 
 		/* whoever resumes must GetPortStatus to complete it!! */
@@ -1993,7 +2007,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			/* resume completed? */
 			else if (time_after_eq(jiffies,
 					priv->reset_done)) {
-				status |= 1 << USB_PORT_FEAT_C_SUSPEND;
+				status |= USB_PORT_STAT_C_SUSPEND << 16;
 				priv->reset_done = 0;
 
 				/* stop resume signaling */
@@ -2017,7 +2031,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		if ((temp & PORT_RESET)
 				&& time_after_eq(jiffies,
 					priv->reset_done)) {
-			status |= 1 << USB_PORT_FEAT_C_RESET;
+			status |= USB_PORT_STAT_C_RESET << 16;
 			priv->reset_done = 0;
 
 			/* force reset to complete */
@@ -2048,18 +2062,18 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			printk(KERN_ERR "Warning: PORT_OWNER is set\n");
 
 		if (temp & PORT_CONNECT) {
-			status |= 1 << USB_PORT_FEAT_CONNECTION;
+			status |= USB_PORT_STAT_CONNECTION;
 			/* status may be from integrated TT */
 			status |= ehci_port_speed(priv, temp);
 		}
 		if (temp & PORT_PE)
-			status |= 1 << USB_PORT_FEAT_ENABLE;
+			status |= USB_PORT_STAT_ENABLE;
 		if (temp & (PORT_SUSPEND|PORT_RESUME))
-			status |= 1 << USB_PORT_FEAT_SUSPEND;
+			status |= USB_PORT_STAT_SUSPEND;
 		if (temp & PORT_RESET)
-			status |= 1 << USB_PORT_FEAT_RESET;
+			status |= USB_PORT_STAT_RESET;
 		if (temp & PORT_POWER)
-			status |= 1 << USB_PORT_FEAT_POWER;
+			status |= USB_PORT_STAT_POWER;
 
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
 		break;

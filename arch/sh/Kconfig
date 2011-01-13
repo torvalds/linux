@@ -1,23 +1,29 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/SuperH Kernel Configuration"
-
 config SUPERH
 	def_bool y
 	select EMBEDDED
-	select HAVE_CLK
-	select HAVE_IDE
+	select CLKDEV_LOOKUP
+	select HAVE_IDE if HAS_IOPORT
+	select HAVE_MEMBLOCK
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_IOREMAP_PROT if MMU
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_PERF_COUNTERS
+	select HAVE_DMA_ATTRS
+	select HAVE_IRQ_WORK
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_SPARSE_IRQ
 	select RTC_LIB
 	select GENERIC_ATOMIC64
+	# Support the deprecated APIs until MFD and GPIOLIB catch up.
+	select GENERIC_HARDIRQS_NO_DEPRECATED if !MFD_SUPPORT && !GPIOLIB
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -28,11 +34,19 @@ config SUPERH32
 	def_bool ARCH = "sh"
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_IOREMAP_PROT if MMU && !X2TLB
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
+	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_ARCH_KGDB
+	select HAVE_HW_BREAKPOINT
+	select HAVE_MIXED_BREAKPOINTS_REGS
+	select PERF_EVENTS
 	select ARCH_HIBERNATION_POSSIBLE if MMU
+	select SPARSE_IRQ
 
 config SUPERH64
 	def_bool ARCH = "sh64"
@@ -62,15 +76,6 @@ config GENERIC_FIND_NEXT_BIT
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_HARDIRQS
-	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
-config GENERIC_IRQ_PROBE
-	def_bool y
-
 config IRQ_PER_CPU
 	def_bool y
 
@@ -82,9 +87,6 @@ config GENERIC_CALIBRATE_DELAY
 
 config GENERIC_IOMAP
 	bool
-
-config GENERIC_TIME
-	def_bool y
 
 config GENERIC_CLOCKEVENTS
 	def_bool y
@@ -114,6 +116,9 @@ config SYS_SUPPORTS_APM_EMULATION
 	bool
 	select ARCH_SUSPEND_POSSIBLE
 
+config SYS_SUPPORTS_HUGETLBFS
+	bool
+
 config SYS_SUPPORTS_SMP
 	bool
 
@@ -140,7 +145,6 @@ config LOCKDEP_SUPPORT
 
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
-	depends on !SMP
 
 config ARCH_HAS_ILOG2_U32
 	def_bool n
@@ -157,8 +161,24 @@ config ARCH_HAS_DEFAULT_IDLE
 config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
 
+config NO_IOPORT
+	def_bool !PCI
+	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV
+
 config IO_TRAPPED
 	bool
+
+config DMA_COHERENT
+	bool
+
+config DMA_NONCOHERENT
+	def_bool !DMA_COHERENT
+
+config NEED_DMA_MAP_STATE
+	def_bool DMA_NONCOHERENT
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
 
 source "init/Kconfig"
 
@@ -175,6 +195,7 @@ config CPU_SH2
 config CPU_SH2A
 	bool
 	select CPU_SH2
+	select UNCACHED_MAPPING
 
 config CPU_SH3
 	bool
@@ -188,6 +209,7 @@ config CPU_SH4
 	select CPU_HAS_SR_RB
 	select CPU_HAS_FPU if !CPU_SH4AL_DSP
 	select SYS_SUPPORTS_TMU
+	select SYS_SUPPORTS_HUGETLBFS if MMU
 
 config CPU_SH4A
 	bool
@@ -202,16 +224,27 @@ config CPU_SH5
 	bool
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_TMU
+	select SYS_SUPPORTS_HUGETLBFS if MMU
 
 config CPU_SHX2
 	bool
 
 config CPU_SHX3
 	bool
+	select DMA_COHERENT
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_NUMA
 
 config ARCH_SHMOBILE
 	bool
 	select ARCH_SUSPEND_POSSIBLE
+	select PM
+	select PM_RUNTIME
+
+config CPU_HAS_PMU
+       depends on CPU_SH4 || CPU_SH4A
+       default y
+       bool
 
 if SUPERH32
 
@@ -243,6 +276,7 @@ config CPU_SUBTYPE_SH7203
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_CMT
 	select SYS_SUPPORTS_MTU2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
@@ -314,6 +348,8 @@ config CPU_SUBTYPE_SH7720
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
 
@@ -322,6 +358,7 @@ config CPU_SUBTYPE_SH7721
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7721 if you have a SH3-DSP SH7721 CPU.
 
@@ -376,6 +413,7 @@ config CPU_SUBTYPE_SH7723
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
 
@@ -386,12 +424,22 @@ config CPU_SUBTYPE_SH7724
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
+
+config CPU_SUBTYPE_SH7757
+	bool "Support SH7757 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	help
+	  Select SH7757 if you have a SH4A SH7757 CPU.
 
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
 	select CPU_SH4A
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7763 if you have a SH4A SH7763(R5S77631) CPU.
 
@@ -409,25 +457,24 @@ config CPU_SUBTYPE_SH7785
 	select CPU_SHX2
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7786
 	bool "Support SH7786 processor"
 	select CPU_SH4A
 	select CPU_SHX3
 	select CPU_HAS_PTEAEX
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-	select SYS_SUPPORTS_SMP
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
 	select CPU_SH4A
 	select CPU_SHX3
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-	select SYS_SUPPORTS_SMP
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_REQUIRE_GPIOLIB
 
 # SH4AL-DSP Processor Support
 
@@ -445,6 +492,7 @@ config CPU_SUBTYPE_SH7722
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7366
 	bool "Support SH7366 processor"
@@ -509,14 +557,15 @@ config SH_TIMER_MTU2
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
-	default "27000000" if CPU_SUBTYPE_SH7343
+	depends on SH_CLK_CPG_LEGACY
 	default "31250000" if CPU_SUBTYPE_SH7619
-	default "32000000" if CPU_SUBTYPE_SH7722
-	default "33333333" if CPU_SUBTYPE_SH7770 || CPU_SUBTYPE_SH7723 || \
-			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
-			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
-			      CPU_SUBTYPE_SH7263 || CPU_SUBTYPE_MXG    || \
-			      CPU_SUBTYPE_SH7786 || CPU_SUBTYPE_SH7724
+	default "33333333" if CPU_SUBTYPE_SH7770 || \
+			      CPU_SUBTYPE_SH7760 || \
+			      CPU_SUBTYPE_SH7705 || \
+			      CPU_SUBTYPE_SH7203 || \
+			      CPU_SUBTYPE_SH7206 || \
+			      CPU_SUBTYPE_SH7263 || \
+			      CPU_SUBTYPE_MXG
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
@@ -530,16 +579,8 @@ config SH_CLK_CPG
 
 config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
-	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE
-
-config SH_CLK_MD
-	int "CPU Mode Pin Setting"
-	depends on CPU_SH2
-	default 6 if CPU_SUBTYPE_SH7206
-	default 5 if CPU_SUBTYPE_SH7619
-	default 0
-	help
-	  MD2 - MD0 pin setting.
+	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
+		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
 
 source "kernel/time/Kconfig"
 
@@ -594,7 +635,7 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on SUPERH32 && EXPERIMENTAL
+	depends on SUPERH32 && EXPERIMENTAL && BROKEN_ON_SMP
 	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
@@ -666,6 +707,13 @@ config NR_CPUS
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && HOTPLUG && EXPERIMENTAL
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
 source "kernel/Kconfig.preempt"
 
 config GUSA
@@ -692,17 +740,15 @@ config GUSA_RB
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
 
-config SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	depends on EXPERIMENTAL
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && CPU_HAS_PMU
+	default y
 	help
-	  This enables support for sparse irqs. This is useful in general
-	  as most CPUs have a fairly sparse array of IRQ vectors, which
-	  the irq_desc then maps directly on to. Systems with a high
-	  number of off-chip IRQs will want to treat this as
-	  experimental until they have been independently verified.
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
 
-	  If you don't know what to do here, say N.
+source "drivers/sh/Kconfig"
 
 endmenu
 
@@ -740,23 +786,42 @@ config ENTRY_OFFSET
 	default "0x00010000" if PAGE_SIZE_64KB
 	default "0x00000000"
 
-config UBC_WAKEUP
-	bool "Wakeup UBC on startup"
-	depends on CPU_SH4 && !CPU_SH4A
+config ROMIMAGE_MMCIF
+	bool "Include MMCIF loader in romImage (EXPERIMENTAL)"
+	depends on CPU_SUBTYPE_SH7724 && EXPERIMENTAL
 	help
-	  Selecting this option will wakeup the User Break Controller (UBC) on
-	  startup. Although the UBC is left in an awake state when the processor
-	  comes up, some boot loaders misbehave by putting the UBC to sleep in a
-	  power saving state, which causes issues with things like ptrace().
+	  Say Y here to include experimental MMCIF loading code in
+	  romImage. With this enabled it is possible to write the romImage
+	  kernel image to an MMC card and boot the kernel straight from
+	  the reset vector. At reset the processor Mask ROM will load the
+	  first part of the romImage which in turn loads the rest the kernel
+	  image to RAM using the MMCIF hardware block.
 
-	  If unsure, say N.
+choice
+	prompt "Kernel command line"
+	optional
+	default CMDLINE_OVERWRITE
+	help
+	  Setting this option allows the kernel command line arguments
+	  to be set.
 
-config CMDLINE_BOOL
-	bool "Default bootloader kernel arguments"
+config CMDLINE_OVERWRITE
+	bool "Overwrite bootloader kernel arguments"
+	help
+	  Given string will overwrite any arguments passed in by
+	  a bootloader.
+
+config CMDLINE_EXTEND
+	bool "Extend bootloader kernel arguments"
+	help
+	  Given string will be concatenated with arguments passed in
+	  by a bootloader.
+
+endchoice
 
 config CMDLINE
-	string "Initial kernel command string"
-	depends on CMDLINE_BOOL
+	string "Kernel command line arguments string"
+	depends on CMDLINE_OVERWRITE || CMDLINE_EXTEND
 	default "console=ttySC1,115200"
 
 endmenu
@@ -778,7 +843,17 @@ config MAPLE
 	 Dreamcast with a serial line terminal or a remote network
 	 connection.
 
-source "arch/sh/drivers/pci/Kconfig"
+config PCI
+	bool "PCI support"
+	depends on SYS_SUPPORTS_PCI
+	select PCI_DOMAINS
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. If you have PCI, say Y, otherwise N.
+
+config PCI_DOMAINS
+	bool
 
 source "drivers/pci/pcie/Kconfig"
 
@@ -816,5 +891,21 @@ source "arch/sh/Kconfig.debug"
 source "security/Kconfig"
 
 source "crypto/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	default n
+	---help---
+	  Say Y here to get to see options for using your Linux host to run other
+	  operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if VIRTUALIZATION
+
+source drivers/virtio/Kconfig
+
+endif # VIRTUALIZATION
 
 source "lib/Kconfig"

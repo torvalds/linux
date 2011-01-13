@@ -126,7 +126,7 @@ static int debug;
 #define MODEM_CTRL          0x40
 #define RS232_MODE          0x00
 
-static struct usb_device_id serqt_id_table[] = {
+static const struct usb_device_id serqt_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU100)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU200)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU100)},
@@ -360,18 +360,18 @@ static void qt_read_bulk_callback(struct urb *urb)
 	if (port_paranoia_check(port, __func__) != 0) {
 		dbg("%s - port_paranoia_check, exiting\n", __func__);
 		qt_port->ReadBulkStopped = 1;
-		return;
+		goto exit;
 	}
 
 	if (!serial) {
 		dbg("%s - bad serial pointer, exiting\n", __func__);
-		return;
+		goto exit;
 	}
 	if (qt_port->closePending == 1) {
 		/* Were closing , stop reading */
 		dbg("%s - (qt_port->closepending == 1\n", __func__);
 		qt_port->ReadBulkStopped = 1;
-		return;
+		goto exit;
 	}
 
 	/*
@@ -381,7 +381,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 	 */
 	if (qt_port->RxHolding == 1) {
 		qt_port->ReadBulkStopped = 1;
-		return;
+		goto exit;
 	}
 
 	if (urb->status) {
@@ -389,7 +389,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 
 		dbg("%s - nonzero read bulk status received: %d\n",
 		    __func__, urb->status);
-		return;
+		goto exit;
 	}
 
 	if (tty && RxCount) {
@@ -413,7 +413,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 
 				case 0x01:
 					/* Modem status status change 4th byte must follow */
-					dbg("Modem status status. \n");
+					dbg("Modem status status.\n");
 					if (i > (RxCount - 4)) {
 						dbg("Illegal escape sequences in received data\n");
 						break;
@@ -424,7 +424,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 					flag = 1;
 					break;
 				case 0xff:
-					dbg("No status sequence. \n");
+					dbg("No status sequence.\n");
 
 					if (tty) {
 						ProcessRxChar(tty, port, data[i]);
@@ -463,6 +463,8 @@ static void qt_read_bulk_callback(struct urb *urb)
 	}
 
 	schedule_work(&port->work);
+exit:
+	tty_kref_put(tty);
 }
 
 /*
@@ -736,6 +738,11 @@ static int qt_startup(struct usb_serial *serial)
 		if (!qt_port) {
 			dbg("%s: kmalloc for quatech_port (%d) failed!.",
 			    __func__, i);
+			for (--i; i >= 0; i--) {
+				port = serial->port[i];
+				kfree(usb_get_serial_port_data(port));
+				usb_set_serial_port_data(port, NULL);
+			}
 			return -ENOMEM;
 		}
 		spin_lock_init(&qt_port->lock);
@@ -866,8 +873,8 @@ static void qt_release(struct usb_serial *serial)
 
 }
 
-int qt_open(struct tty_struct *tty,
-	    struct usb_serial_port *port, struct file *filp)
+static int qt_open(struct tty_struct *tty,
+		   struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
 	struct quatech_port *quatech_port;
@@ -922,7 +929,7 @@ int qt_open(struct tty_struct *tty,
 	dbg(__FILE__ "qt_setuart completed.\n");
 
 	/*
-	 * Put this here to make it responsive to stty and defauls set by
+	 * Put this here to make it responsive to stty and defaults set by
 	 * the tty layer
 	 */
 	/* FIXME: is this needed? */
@@ -956,11 +963,11 @@ int qt_open(struct tty_struct *tty,
 
 	}
 
-	dbg("port number is %d \n", port->number);
-	dbg("serial number is %d \n", port->serial->minor);
-	dbg("Bulkin endpoint is %d \n", port->bulk_in_endpointAddress);
-	dbg("BulkOut endpoint is %d \n", port->bulk_out_endpointAddress);
-	dbg("Interrupt endpoint is %d \n", port->interrupt_in_endpointAddress);
+	dbg("port number is %d\n", port->number);
+	dbg("serial number is %d\n", port->serial->minor);
+	dbg("Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
+	dbg("BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
+	dbg("Interrupt endpoint is %d\n", port->interrupt_in_endpointAddress);
 	dbg("port's number in the device is %d\n", quatech_port->port_num);
 	quatech_port->read_urb = port->read_urb;
 
@@ -1041,17 +1048,19 @@ static void qt_block_until_empty(struct tty_struct *tty,
 	}
 }
 
-static void qt_close(struct tty_struct *tty, struct usb_serial_port *port,
-		     struct file *filp)
+static void qt_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct quatech_port *qt_port;
 	struct quatech_port *port0;
+	struct tty_struct *tty;
 	int status;
 	unsigned int index;
 	status = 0;
 
 	dbg("%s - port %d\n", __func__, port->number);
+
+	tty = tty_port_tty_get(&port->port);
 	index = tty->index - serial->minor;
 
 	qt_port = qt_get_port_private(port);
@@ -1066,6 +1075,7 @@ static void qt_close(struct tty_struct *tty, struct usb_serial_port *port,
 	/* wait up to for transmitter to empty */
 	if (serial->dev)
 		qt_block_until_empty(tty, qt_port);
+	tty_kref_put(tty);
 
 	/* Close uart channel */
 	status = qt_close_channel(serial, index);
@@ -1267,7 +1277,7 @@ static void qt_set_termios(struct tty_struct *tty,
 	if (cflag & CSTOPB)
 		new_LCR |= SERIAL_TWO_STOPB;
 	else
-		new_LCR |= SERIAL_TWO_STOPB;
+		new_LCR |= SERIAL_ONE_STOPB;
 
 	dbg("%s - 4\n", __func__);
 
@@ -1460,7 +1470,7 @@ static int qt_tiocmget(struct tty_struct *tty, struct file *file)
 	int retval = -ENODEV;
 	unsigned long flags;
 
-	dbg("In %s \n", __func__);
+	dbg("In %s\n", __func__);
 
 	if (!serial)
 		return -ENODEV;
@@ -1486,14 +1496,14 @@ static int qt_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned long flags;
 	int retval = -ENODEV;
 
-	dbg("In %s \n", __func__);
+	dbg("In %s\n", __func__);
 
 	if (!serial)
 		return -ENODEV;
 
 	spin_lock_irqsave(&qt_port->lock, flags);
 
-	dbg("%s - port %d \n", __func__, port->number);
+	dbg("%s - port %d\n", __func__, port->number);
 	dbg("%s - qt_port->RxHolding = %d\n", __func__, qt_port->RxHolding);
 
 	retval = qt_real_tiocmset(tty, port, file, serial, set);
@@ -1574,9 +1584,9 @@ static int qt_calc_num_ports(struct usb_serial *serial)
 {
 	int num_ports;
 
-	dbg("numberofendpoints: %d \n",
+	dbg("numberofendpoints: %d\n",
 	    (int)serial->interface->cur_altsetting->desc.bNumEndpoints);
-	dbg("numberofendpoints: %d \n",
+	dbg("numberofendpoints: %d\n",
 	    (int)serial->interface->altsetting->desc.bNumEndpoints);
 
 	num_ports =

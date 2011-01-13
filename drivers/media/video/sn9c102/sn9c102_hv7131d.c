@@ -255,7 +255,7 @@ int sn9c102_probe_hv7131d(struct sn9c102_device* cam)
 	if (err || r0 < 0 || r1 < 0)
 		return -EIO;
 
-	if (r0 != 0x00 || r1 != 0x04)
+	if ((r0 != 0x00 && r0 != 0x01) || r1 != 0x04)
 		return -ENODEV;
 
 	sn9c102_attach_sensor(cam, &hv7131d);

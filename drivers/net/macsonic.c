@@ -35,11 +35,11 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
+#include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/nubus.h>
@@ -50,6 +50,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/bitrev.h>
+#include <linux/slab.h>
 
 #include <asm/bootinfo.h>
 #include <asm/system.h>
@@ -62,7 +63,6 @@
 #include <asm/mac_via.h>
 
 static char mac_sonic_string[] = "macsonic";
-static struct platform_device *mac_sonic_device;
 
 #include "sonic.h"
 
@@ -140,21 +140,40 @@ static irqreturn_t macsonic_interrupt(int irq, void *dev_id)
 
 static int macsonic_open(struct net_device* dev)
 {
-	if (request_irq(dev->irq, &sonic_interrupt, IRQ_FLG_FAST, "sonic", dev)) {
-		printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, dev->irq);
-		return -EAGAIN;
+	int retval;
+
+	retval = request_irq(dev->irq, sonic_interrupt, IRQ_FLG_FAST,
+				"sonic", dev);
+	if (retval) {
+		printk(KERN_ERR "%s: unable to get IRQ %d.\n",
+				dev->name, dev->irq);
+		goto err;
 	}
 	/* Under the A/UX interrupt scheme, the onboard SONIC interrupt comes
 	 * in at priority level 3. However, we sometimes get the level 2 inter-
 	 * rupt as well, which must prevent re-entrance of the sonic handler.
 	 */
-	if (dev->irq == IRQ_AUTO_3)
-		if (request_irq(IRQ_NUBUS_9, &macsonic_interrupt, IRQ_FLG_FAST, "sonic", dev)) {
-			printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, IRQ_NUBUS_9);
-			free_irq(dev->irq, dev);
-			return -EAGAIN;
+	if (dev->irq == IRQ_AUTO_3) {
+		retval = request_irq(IRQ_NUBUS_9, macsonic_interrupt,
+					IRQ_FLG_FAST, "sonic", dev);
+		if (retval) {
+			printk(KERN_ERR "%s: unable to get IRQ %d.\n",
+					dev->name, IRQ_NUBUS_9);
+			goto err_irq;
 		}
-	return sonic_open(dev);
+	}
+	retval = sonic_open(dev);
+	if (retval)
+		goto err_irq_nubus;
+	return 0;
+
+err_irq_nubus:
+	if (dev->irq == IRQ_AUTO_3)
+		free_irq(IRQ_NUBUS_9, dev);
+err_irq:
+	free_irq(dev->irq, dev);
+err:
+	return retval;
 }
 
 static int macsonic_close(struct net_device* dev)
@@ -179,7 +198,7 @@ static const struct net_device_ops macsonic_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int __init macsonic_init(struct net_device *dev)
+static int __devinit macsonic_init(struct net_device *dev)
 {
 	struct sonic_local* lp = netdev_priv(dev);
 
@@ -223,72 +242,76 @@ static int __init macsonic_init(struct net_device *dev)
 	return 0;
 }
 
-static int __init mac_onboard_sonic_ethernet_addr(struct net_device *dev)
+#define INVALID_MAC(mac) (memcmp(mac, "\x08\x00\x07", 3) && \
+                          memcmp(mac, "\x00\xA0\x40", 3) && \
+                          memcmp(mac, "\x00\x80\x19", 3) && \
+                          memcmp(mac, "\x00\x05\x02", 3))
+
+static void __devinit mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 	const int prom_addr = ONBOARD_SONIC_PROM_BASE;
-	int i;
+	unsigned short val;
 
-	/* On NuBus boards we can sometimes look in the ROM resources.
-	   No such luck for comm-slot/onboard. */
-	for(i = 0; i < 6; i++)
-		dev->dev_addr[i] = SONIC_READ_PROM(i);
+	/*
+	 * On NuBus boards we can sometimes look in the ROM resources.
+	 * No such luck for comm-slot/onboard.
+	 * On the PowerBook 520, the PROM base address is a mystery.
+	 */
+	if (hwreg_present((void *)prom_addr)) {
+		int i;
 
-	/* Most of the time, the address is bit-reversed.  The NetBSD
-	   source has a rather long and detailed historical account of
-	   why this is so. */
-	if (memcmp(dev->dev_addr, "\x08\x00\x07", 3) &&
-	    memcmp(dev->dev_addr, "\x00\xA0\x40", 3) &&
-	    memcmp(dev->dev_addr, "\x00\x80\x19", 3) &&
-	    memcmp(dev->dev_addr, "\x00\x05\x02", 3))
-		bit_reverse_addr(dev->dev_addr);
-	else
-		return 0;
+		for (i = 0; i < 6; i++)
+			dev->dev_addr[i] = SONIC_READ_PROM(i);
+		if (!INVALID_MAC(dev->dev_addr))
+			return;
 
-	/* If we still have what seems to be a bogus address, we'll
-           look in the CAM.  The top entry should be ours. */
-	/* Danger! This only works if MacOS has already initialized
-           the card... */
-	if (memcmp(dev->dev_addr, "\x08\x00\x07", 3) &&
-	    memcmp(dev->dev_addr, "\x00\xA0\x40", 3) &&
-	    memcmp(dev->dev_addr, "\x00\x80\x19", 3) &&
-	    memcmp(dev->dev_addr, "\x00\x05\x02", 3))
-	{
-		unsigned short val;
-
-		printk(KERN_INFO "macsonic: PROM seems to be wrong, trying CAM entry 15\n");
-
-		SONIC_WRITE(SONIC_CMD, SONIC_CR_RST);
-		SONIC_WRITE(SONIC_CEP, 15);
-
-		val = SONIC_READ(SONIC_CAP2);
-		dev->dev_addr[5] = val >> 8;
-		dev->dev_addr[4] = val & 0xff;
-		val = SONIC_READ(SONIC_CAP1);
-		dev->dev_addr[3] = val >> 8;
-		dev->dev_addr[2] = val & 0xff;
-		val = SONIC_READ(SONIC_CAP0);
-		dev->dev_addr[1] = val >> 8;
-		dev->dev_addr[0] = val & 0xff;
-
-		printk(KERN_INFO "HW Address from CAM 15: %pM\n",
-		       dev->dev_addr);
-	} else return 0;
-
-	if (memcmp(dev->dev_addr, "\x08\x00\x07", 3) &&
-	    memcmp(dev->dev_addr, "\x00\xA0\x40", 3) &&
-	    memcmp(dev->dev_addr, "\x00\x80\x19", 3) &&
-	    memcmp(dev->dev_addr, "\x00\x05\x02", 3))
-	{
 		/*
-		 * Still nonsense ... messed up someplace!
+		 * Most of the time, the address is bit-reversed. The NetBSD
+		 * source has a rather long and detailed historical account of
+		 * why this is so.
 		 */
-		printk(KERN_ERR "macsonic: ERROR (INVALID MAC)\n");
-		return -EIO;
-	} else return 0;
+		bit_reverse_addr(dev->dev_addr);
+		if (!INVALID_MAC(dev->dev_addr))
+			return;
+
+		/*
+		 * If we still have what seems to be a bogus address, we'll
+		 * look in the CAM. The top entry should be ours.
+		 */
+		printk(KERN_WARNING "macsonic: MAC address in PROM seems "
+		                    "to be invalid, trying CAM\n");
+	} else {
+		printk(KERN_WARNING "macsonic: cannot read MAC address from "
+		                    "PROM, trying CAM\n");
+	}
+
+	/* This only works if MacOS has already initialized the card. */
+
+	SONIC_WRITE(SONIC_CMD, SONIC_CR_RST);
+	SONIC_WRITE(SONIC_CEP, 15);
+
+	val = SONIC_READ(SONIC_CAP2);
+	dev->dev_addr[5] = val >> 8;
+	dev->dev_addr[4] = val & 0xff;
+	val = SONIC_READ(SONIC_CAP1);
+	dev->dev_addr[3] = val >> 8;
+	dev->dev_addr[2] = val & 0xff;
+	val = SONIC_READ(SONIC_CAP0);
+	dev->dev_addr[1] = val >> 8;
+	dev->dev_addr[0] = val & 0xff;
+
+	if (!INVALID_MAC(dev->dev_addr))
+		return;
+
+	/* Still nonsense ... messed up someplace! */
+
+	printk(KERN_WARNING "macsonic: MAC address in CAM entry 15 "
+	                    "seems invalid, will use a random MAC\n");
+	random_ether_addr(dev->dev_addr);
 }
 
-static int __init mac_onboard_sonic_probe(struct net_device *dev)
+static int __devinit mac_onboard_sonic_probe(struct net_device *dev)
 {
 	/* Bwahahaha */
 	static int once_is_more_than_enough;
@@ -402,14 +425,13 @@ static int __init mac_onboard_sonic_probe(struct net_device *dev)
 	SONIC_WRITE(SONIC_ISR, 0x7fff);
 
 	/* Now look for the MAC address. */
-	if (mac_onboard_sonic_ethernet_addr(dev) != 0)
-		return -ENODEV;
+	mac_onboard_sonic_ethernet_addr(dev);
 
 	/* Shared init code */
 	return macsonic_init(dev);
 }
 
-static int __init mac_nubus_sonic_ethernet_addr(struct net_device *dev,
+static int __devinit mac_nubus_sonic_ethernet_addr(struct net_device *dev,
 						unsigned long prom_addr,
 						int id)
 {
@@ -424,7 +446,7 @@ static int __init mac_nubus_sonic_ethernet_addr(struct net_device *dev,
 	return 0;
 }
 
-static int __init macsonic_ident(struct nubus_dev *ndev)
+static int __devinit macsonic_ident(struct nubus_dev *ndev)
 {
 	if (ndev->dr_hw == NUBUS_DRHW_ASANTE_LC &&
 	    ndev->dr_sw == NUBUS_DRSW_SONIC_LC)
@@ -449,7 +471,7 @@ static int __init macsonic_ident(struct nubus_dev *ndev)
 	return -1;
 }
 
-static int __init mac_nubus_sonic_probe(struct net_device *dev)
+static int __devinit mac_nubus_sonic_probe(struct net_device *dev)
 {
 	static int slots;
 	struct nubus_dev* ndev = NULL;
@@ -562,7 +584,7 @@ static int __init mac_nubus_sonic_probe(struct net_device *dev)
 	return macsonic_init(dev);
 }
 
-static int __init mac_sonic_probe(struct platform_device *pdev)
+static int __devinit mac_sonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -575,6 +597,7 @@ static int __init mac_sonic_probe(struct platform_device *pdev)
 	lp = netdev_priv(dev);
 	lp->device = &pdev->dev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
+	platform_set_drvdata(pdev, dev);
 
 	/* This will catch fatal stuff like -ENOMEM as well as success */
 	err = mac_onboard_sonic_probe(dev);
@@ -603,6 +626,7 @@ out:
 MODULE_DESCRIPTION("Macintosh SONIC ethernet driver");
 module_param(sonic_debug, int, 0);
 MODULE_PARM_DESC(sonic_debug, "macsonic debug level (1-4)");
+MODULE_ALIAS("platform:macsonic");
 
 #include "sonic.c"
 
@@ -623,44 +647,19 @@ static struct platform_driver mac_sonic_driver = {
 	.probe  = mac_sonic_probe,
 	.remove = __devexit_p(mac_sonic_device_remove),
 	.driver	= {
-		.name = mac_sonic_string,
+		.name	= mac_sonic_string,
+		.owner	= THIS_MODULE,
 	},
 };
 
 static int __init mac_sonic_init_module(void)
 {
-	int err;
-
-	if ((err = platform_driver_register(&mac_sonic_driver))) {
-		printk(KERN_ERR "Driver registration failed\n");
-		return err;
-	}
-
-	mac_sonic_device = platform_device_alloc(mac_sonic_string, 0);
-	if (!mac_sonic_device)
-		goto out_unregister;
-
-	if (platform_device_add(mac_sonic_device)) {
-		platform_device_put(mac_sonic_device);
-		mac_sonic_device = NULL;
-	}
-
-	return 0;
-
-out_unregister:
-	platform_driver_unregister(&mac_sonic_driver);
-
-	return -ENOMEM;
+	return platform_driver_register(&mac_sonic_driver);
 }
 
 static void __exit mac_sonic_cleanup_module(void)
 {
 	platform_driver_unregister(&mac_sonic_driver);
-
-	if (mac_sonic_device) {
-		platform_device_unregister(mac_sonic_device);
-		mac_sonic_device = NULL;
-	}
 }
 
 module_init(mac_sonic_init_module);

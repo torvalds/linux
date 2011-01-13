@@ -13,7 +13,6 @@
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/seq_file.h>
 
 #include <linux/kobject.h>
@@ -21,6 +20,7 @@
 #include <linux/cdev.h>
 #include <linux/mutex.h>
 #include <linux/backing-dev.h>
+#include <linux/tty.h>
 
 #include "internal.h"
 
@@ -32,6 +32,7 @@
  * - no readahead or I/O queue unplugging required
  */
 struct backing_dev_info directly_mappable_cdev_bdi = {
+	.name = "char",
 	.capabilities	= (
 #ifdef CONFIG_MMU
 		/* permit private copies of the data to be taken */
@@ -39,7 +40,9 @@ struct backing_dev_info directly_mappable_cdev_bdi = {
 #endif
 		/* permit direct mmap, for read, write or exec */
 		BDI_CAP_MAP_DIRECT |
-		BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP | BDI_CAP_EXEC_MAP),
+		BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP | BDI_CAP_EXEC_MAP |
+		/* no writeback happens */
+		BDI_CAP_NO_ACCT_AND_WRITEBACK),
 };
 
 static struct kobj_map *cdev_map;
@@ -238,8 +241,10 @@ int alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count,
 }
 
 /**
- * register_chrdev() - Register a major number for character devices.
+ * __register_chrdev() - create and register a cdev occupying a range of minors
  * @major: major device number or 0 for dynamic allocation
+ * @baseminor: first of the requested range of minor numbers
+ * @count: the number of minor numbers required
  * @name: name of this range of devices
  * @fops: file operations associated with this devices
  *
@@ -255,19 +260,16 @@ int alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count,
  * /dev. It only helps to keep track of the different owners of devices. If
  * your module name has only one type of devices it's ok to use e.g. the name
  * of the module here.
- *
- * This function registers a range of 256 minor numbers. The first minor number
- * is 0.
  */
-int register_chrdev(unsigned int major, const char *name,
-		    const struct file_operations *fops)
+int __register_chrdev(unsigned int major, unsigned int baseminor,
+		      unsigned int count, const char *name,
+		      const struct file_operations *fops)
 {
 	struct char_device_struct *cd;
 	struct cdev *cdev;
-	char *s;
 	int err = -ENOMEM;
 
-	cd = __register_chrdev_region(major, 0, 256, name);
+	cd = __register_chrdev_region(major, baseminor, count, name);
 	if (IS_ERR(cd))
 		return PTR_ERR(cd);
 	
@@ -278,10 +280,8 @@ int register_chrdev(unsigned int major, const char *name,
 	cdev->owner = fops->owner;
 	cdev->ops = fops;
 	kobject_set_name(&cdev->kobj, "%s", name);
-	for (s = strchr(kobject_name(&cdev->kobj),'/'); s; s = strchr(s, '/'))
-		*s = '!';
 		
-	err = cdev_add(cdev, MKDEV(cd->major, 0), 256);
+	err = cdev_add(cdev, MKDEV(cd->major, baseminor), count);
 	if (err)
 		goto out;
 
@@ -291,7 +291,7 @@ int register_chrdev(unsigned int major, const char *name,
 out:
 	kobject_put(&cdev->kobj);
 out2:
-	kfree(__unregister_chrdev_region(cd->major, 0, 256));
+	kfree(__unregister_chrdev_region(cd->major, baseminor, count));
 	return err;
 }
 
@@ -317,10 +317,23 @@ void unregister_chrdev_region(dev_t from, unsigned count)
 	}
 }
 
-void unregister_chrdev(unsigned int major, const char *name)
+/**
+ * __unregister_chrdev - unregister and destroy a cdev
+ * @major: major device number
+ * @baseminor: first of the range of minor numbers
+ * @count: the number of minor numbers this cdev is occupying
+ * @name: name of this range of devices
+ *
+ * Unregister and destroy the cdev occupying the region described by
+ * @major, @baseminor and @count.  This function undoes what
+ * __register_chrdev() did.
+ */
+void __unregister_chrdev(unsigned int major, unsigned int baseminor,
+			 unsigned int count, const char *name)
 {
 	struct char_device_struct *cd;
-	cd = __unregister_chrdev_region(major, 0, 256);
+
+	cd = __unregister_chrdev_region(major, baseminor, count);
 	if (cd && cd->cdev)
 		cdev_del(cd->cdev);
 	kfree(cd);
@@ -443,6 +456,7 @@ static void cdev_purge(struct cdev *cdev)
  */
 const struct file_operations def_chr_fops = {
 	.open = chrdev_open,
+	.llseek = noop_llseek,
 };
 
 static struct kobject *exact_match(dev_t dev, int *part, void *data)
@@ -569,6 +583,6 @@ EXPORT_SYMBOL(cdev_alloc);
 EXPORT_SYMBOL(cdev_del);
 EXPORT_SYMBOL(cdev_add);
 EXPORT_SYMBOL(cdev_index);
-EXPORT_SYMBOL(register_chrdev);
-EXPORT_SYMBOL(unregister_chrdev);
+EXPORT_SYMBOL(__register_chrdev);
+EXPORT_SYMBOL(__unregister_chrdev);
 EXPORT_SYMBOL(directly_mappable_cdev_bdi);

@@ -16,10 +16,6 @@
 
 #include <asm/page.h>
 
-#ifndef __ASSEMBLY__
-#include <asm/processor.h>
-#endif
-
 #define PREEMPT_ACTIVE		0x10000000
 
 #ifdef CONFIG_4KSTACKS
@@ -38,10 +34,14 @@
  *   must also be changed
  */
 #ifndef __ASSEMBLY__
+typedef struct {
+	unsigned long	seg;
+} mm_segment_t;
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	struct exec_domain	*exec_domain;	/* execution domain */
+	struct pt_regs		*frame;		/* current exception frame */
 	unsigned long		flags;		/* low level flags */
 	__u32			cpu;		/* current CPU */
 	__s32			preempt_count;	/* 0 => preemptable, <0 => BUG */
@@ -55,6 +55,10 @@ struct thread_info {
 	__u8			supervisor_stack[0];
 };
 
+#define thread_info_to_uregs(ti)					\
+	((struct pt_regs *)						\
+	 ((unsigned long)ti + THREAD_SIZE - sizeof(struct pt_regs)))
+
 #else /* !__ASSEMBLY__ */
 
 #ifndef __ASM_OFFSETS_H__
@@ -65,8 +69,6 @@ struct thread_info {
 
 /*
  * macros/functions for gaining access to the thread information structure
- *
- * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
 #ifndef __ASSEMBLY__
 
@@ -76,7 +78,7 @@ struct thread_info {
 	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
-	.preempt_count	= 1,			\
+	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
 	.restart_block = {			\
 		.fn = do_no_restart_syscall,	\
@@ -102,6 +104,12 @@ struct thread_info *current_thread_info(void)
 	    : "i" (~(THREAD_SIZE - 1))
 	    : "cc");
 	return ti;
+}
+
+static inline __attribute__((const))
+struct pt_regs *current_frame(void)
+{
+	return current_thread_info()->frame;
 }
 
 /* how to get the current stack pointer from C */
@@ -150,7 +158,7 @@ static inline unsigned long current_stack_pointer(void)
 #define TIF_SINGLESTEP		4	/* restore singlestep on return to user mode */
 #define TIF_RESTORE_SIGMASK	5	/* restore signal mask in do_signal() */
 #define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling TIF_NEED_RESCHED */
-#define TIF_MEMDIE		17	/* OOM killer killed process */
+#define TIF_MEMDIE		17	/* is terminating due to OOM killer */
 #define TIF_FREEZE		18	/* freezing for suspend */
 
 #define _TIF_SYSCALL_TRACE	+(1 << TIF_SYSCALL_TRACE)

@@ -962,9 +962,8 @@ struct tda18271_cid_target_map {
 static struct tda18271_cid_target_map tda18271_cid_target[] = {
 	{ .rfmax =  46000, .target = 0x04, .limit =  1800 },
 	{ .rfmax =  52200, .target = 0x0a, .limit =  1500 },
-	{ .rfmax =  79100, .target = 0x01, .limit =  4000 },
+	{ .rfmax =  70100, .target = 0x01, .limit =  4000 },
 	{ .rfmax = 136800, .target = 0x18, .limit =  4000 },
-	{ .rfmax = 156700, .target = 0x18, .limit =  4000 },
 	{ .rfmax = 156700, .target = 0x18, .limit =  4000 },
 	{ .rfmax = 186250, .target = 0x0a, .limit =  4000 },
 	{ .rfmax = 230000, .target = 0x0a, .limit =  4000 },
@@ -979,6 +978,7 @@ static struct tda18271_cid_target_map tda18271_cid_target[] = {
 int tda18271_lookup_cid_target(struct dvb_frontend *fe,
 			       u32 *freq, u8 *cid_target, u16 *count_limit)
 {
+	struct tda18271_priv *priv = fe->tuner_priv;
 	int i = 0;
 
 	while ((tda18271_cid_target[i].rfmax * 1000) < *freq) {

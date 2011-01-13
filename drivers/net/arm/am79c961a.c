@@ -300,8 +300,6 @@ am79c961_open(struct net_device *dev)
 	struct dev_priv *priv = netdev_priv(dev);
 	int ret;
 
-	memset (&priv->stats, 0, sizeof (priv->stats));
-
 	ret = request_irq(dev->irq, am79c961_interrupt, 0, dev->name, dev);
 	if (ret)
 		return ret;
@@ -342,22 +340,13 @@ am79c961_close(struct net_device *dev)
 	return 0;
 }
 
-/*
- * Get the current statistics.
- */
-static struct net_device_stats *am79c961_getstats (struct net_device *dev)
+static void am79c961_mc_hash(char *addr, unsigned short *hash)
 {
-	struct dev_priv *priv = netdev_priv(dev);
-	return &priv->stats;
-}
-
-static void am79c961_mc_hash(struct dev_mc_list *dmi, unsigned short *hash)
-{
-	if (dmi->dmi_addrlen == ETH_ALEN && dmi->dmi_addr[0] & 0x01) {
+	if (addr[0] & 0x01) {
 		int idx, bit;
 		u32 crc;
 
-		crc = ether_crc_le(ETH_ALEN, dmi->dmi_addr);
+		crc = ether_crc_le(ETH_ALEN, addr);
 
 		idx = crc >> 30;
 		bit = (crc >> 26) & 15;
@@ -383,12 +372,12 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 	} else if (dev->flags & IFF_ALLMULTI) {
 		memset(multi_hash, 0xff, sizeof(multi_hash));
 	} else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 
 		memset(multi_hash, 0x00, sizeof(multi_hash));
 
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next)
-			am79c961_mc_hash(dmi, multi_hash);
+		netdev_for_each_mc_addr(ha, dev)
+			am79c961_mc_hash(ha->addr, multi_hash);
 	}
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
@@ -469,7 +458,6 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
 	write_rreg (dev->base_addr, CSR0, CSR0_TDMD|CSR0_IENA);
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&priv->chip_lock, flags);
 
 	/*
@@ -482,7 +470,7 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -511,14 +499,14 @@ am79c961_rx(struct net_device *dev, struct dev_priv *priv)
 
 		if ((status & (RMD_ERR|RMD_STP|RMD_ENP)) != (RMD_STP|RMD_ENP)) {
 			am_writeword (dev, hdraddr + 2, RMD_OWN);
-			priv->stats.rx_errors ++;
+			dev->stats.rx_errors++;
 			if (status & RMD_ERR) {
 				if (status & RMD_FRAM)
-					priv->stats.rx_frame_errors ++;
+					dev->stats.rx_frame_errors++;
 				if (status & RMD_CRC)
-					priv->stats.rx_crc_errors ++;
+					dev->stats.rx_crc_errors++;
 			} else if (status & RMD_STP)
-				priv->stats.rx_length_errors ++;
+				dev->stats.rx_length_errors++;
 			continue;
 		}
 
@@ -532,12 +520,12 @@ am79c961_rx(struct net_device *dev, struct dev_priv *priv)
 			am_writeword(dev, hdraddr + 2, RMD_OWN);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			priv->stats.rx_bytes += len;
-			priv->stats.rx_packets ++;
+			dev->stats.rx_bytes += len;
+			dev->stats.rx_packets++;
 		} else {
 			am_writeword (dev, hdraddr + 2, RMD_OWN);
 			printk (KERN_WARNING "%s: memory squeeze, dropping packet.\n", dev->name);
-			priv->stats.rx_dropped ++;
+			dev->stats.rx_dropped++;
 			break;
 		}
 	} while (1);
@@ -566,7 +554,7 @@ am79c961_tx(struct net_device *dev, struct dev_priv *priv)
 		if (status & TMD_ERR) {
 			u_int status2;
 
-			priv->stats.tx_errors ++;
+			dev->stats.tx_errors++;
 
 			status2 = am_readword (dev, hdraddr + 6);
 
@@ -576,18 +564,18 @@ am79c961_tx(struct net_device *dev, struct dev_priv *priv)
 			am_writeword (dev, hdraddr + 6, 0);
 
 			if (status2 & TST_RTRY)
-				priv->stats.collisions += 16;
+				dev->stats.collisions += 16;
 			if (status2 & TST_LCOL)
-				priv->stats.tx_window_errors ++;
+				dev->stats.tx_window_errors++;
 			if (status2 & TST_LCAR)
-				priv->stats.tx_carrier_errors ++;
+				dev->stats.tx_carrier_errors++;
 			if (status2 & TST_UFLO)
-				priv->stats.tx_fifo_errors ++;
+				dev->stats.tx_fifo_errors++;
 			continue;
 		}
-		priv->stats.tx_packets ++;
+		dev->stats.tx_packets++;
 		len = am_readword (dev, hdraddr + 4);
-		priv->stats.tx_bytes += -len;
+		dev->stats.tx_bytes += -len;
 	} while (priv->txtail != priv->txhead);
 
 	netif_wake_queue(dev);
@@ -617,7 +605,7 @@ am79c961_interrupt(int irq, void *dev_id)
 		}
 		if (status & CSR0_MISS) {
 			handled = 1;
-			priv->stats.rx_dropped ++;
+			dev->stats.rx_dropped++;
 		}
 		if (status & CSR0_CERR) {
 			handled = 1;
@@ -669,7 +657,6 @@ static const struct net_device_ops am79c961_netdev_ops = {
 	.ndo_open		= am79c961_open,
 	.ndo_stop		= am79c961_close,
 	.ndo_start_xmit		= am79c961_sendpacket,
-	.ndo_get_stats		= am79c961_getstats,
 	.ndo_set_multicast_list	= am79c961_setmulticastlist,
 	.ndo_tx_timeout		= am79c961_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -680,7 +667,7 @@ static const struct net_device_ops am79c961_netdev_ops = {
 #endif
 };
 
-static int __init am79c961_probe(struct platform_device *pdev)
+static int __devinit am79c961_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *dev;

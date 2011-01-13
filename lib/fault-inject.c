@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/random.h>
+#include <linux/sched.h>
 #include <linux/stat.h>
 #include <linux/types.h>
 #include <linux/fs.h>

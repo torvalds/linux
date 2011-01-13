@@ -384,7 +384,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 				u16 val[2] = {0, 0};
 				val[0] = mvsd_read(MVSD_FIFO);
 				val[1] = mvsd_read(MVSD_FIFO);
-				memcpy(p, &val, s);
+				memcpy(p, ((void *)&val) + 4 - s, s);
 				s = 0;
 				intr_status = mvsd_read(MVSD_NOR_INTR_STATUS);
 			}
@@ -423,7 +423,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		if (s < 4) {
 			if (s && (intr_status & MVSD_NOR_TX_AVAIL)) {
 				u16 val[2] = {0, 0};
-				memcpy(&val, p, s);
+				memcpy(((void *)&val) + 4 - s, p, s);
 				mvsd_write(MVSD_FIFO, val[0]);
 				mvsd_write(MVSD_FIFO, val[1]);
 				s = 0;
@@ -742,8 +742,7 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	mmc->max_blk_size = 2048;
 	mmc->max_blk_count = 65535;
 
-	mmc->max_hw_segs = 1;
-	mmc->max_phys_segs = 1;
+	mmc->max_segs = 1;
 	mmc->max_seg_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 
@@ -865,7 +864,7 @@ static int mvsd_suspend(struct platform_device *dev, pm_message_t state)
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }

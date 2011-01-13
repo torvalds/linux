@@ -1,7 +1,7 @@
 /*
  * mcount and friends -- ftrace stuff
  *
- * Copyright (C) 2009 Analog Devices Inc.
+ * Copyright (C) 2009-2010 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -10,6 +10,18 @@
 
 .text
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+/* Simple stub so we can boot the kernel until runtime patching has
+ * disabled all calls to this.  Then it'll be unused.
+ */
+ENTRY(__mcount)
+# if ANOMALY_05000371
+	nop; nop; nop; nop;
+# endif
+	rts;
+ENDPROC(__mcount)
+
 /* GCC will have called us before setting up the function prologue, so we
  * can clobber the normal scratch registers, but we need to make sure to
  * save/restore the registers used for argument passing (R0-R2) in case
@@ -17,10 +29,69 @@
  * only one we can blow away.  With pointer registers, we have P0-P2.
  *
  * Upon entry, the RETS will point to the top of the current profiled
- * function.  And since GCC setup the frame for us, the previous function
- * will be waiting there.  mmmm pie.
+ * function.  And since GCC pushed the previous RETS for us, the previous
+ * function will be waiting there.  mmmm pie.
  */
+ENTRY(_ftrace_caller)
+# ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	/* optional micro optimization: return if stopped */
+	p1.l = _function_trace_stop;
+	p1.h = _function_trace_stop;
+	r3 = [p1];
+	cc = r3 == 0;
+	if ! cc jump _ftrace_stub (bp);
+# endif
+
+	/* save first/second/third function arg and the return register */
+	[--sp] = r2;
+	[--sp] = r0;
+	[--sp] = r1;
+	[--sp] = rets;
+
+	/* function_trace_call(unsigned long ip, unsigned long parent_ip):
+	 *  ip: this point was called by ...
+	 *  parent_ip: ... this function
+	 * the ip itself will need adjusting for the mcount call
+	 */
+	r0 = rets;
+	r1 = [sp + 16];	/* skip the 4 local regs on stack */
+	r0 += -MCOUNT_INSN_SIZE;
+
+.globl _ftrace_call
+_ftrace_call:
+	call _ftrace_stub
+
+# ifdef CONFIG_FUNCTION_GRAPH_TRACER
+.globl _ftrace_graph_call
+_ftrace_graph_call:
+	nop;	/* jump _ftrace_graph_caller; */
+# endif
+
+	/* restore state and get out of dodge */
+.Lfinish_trace:
+	rets = [sp++];
+	r1 = [sp++];
+	r0 = [sp++];
+	r2 = [sp++];
+
+.globl _ftrace_stub
+_ftrace_stub:
+	rts;
+ENDPROC(_ftrace_caller)
+
+#else
+
+/* See documentation for _ftrace_caller */
 ENTRY(__mcount)
+# ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	/* optional micro optimization: return if stopped */
+	p1.l = _function_trace_stop;
+	p1.h = _function_trace_stop;
+	r3 = [p1];
+	cc = r3 == 0;
+	if ! cc jump _ftrace_stub (bp);
+# endif
+
 	/* save third function arg early so we can do testing below */
 	[--sp] = r2;
 
@@ -35,7 +106,7 @@ ENTRY(__mcount)
 	cc = r2 == r3;
 	if ! cc jump .Ldo_trace;
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+# ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	/* if the ftrace_graph_return function pointer is not set to
 	 * the ftrace_stub entry, call prepare_ftrace_return().
 	 */
@@ -55,7 +126,7 @@ ENTRY(__mcount)
 	r3 = [p0];
 	cc = r2 == r3;
 	if ! cc jump _ftrace_graph_caller;
-#endif
+# endif
 
 	r2 = [sp++];
 	rts;
@@ -70,14 +141,14 @@ ENTRY(__mcount)
 	/* setup the tracer function */
 	p0 = r3;
 
-	/* tracer(ulong frompc, ulong selfpc):
-	 *  frompc: the pc that did the call to ...
-	 *  selfpc: ... this location
-	 * the selfpc itself will need adjusting for the mcount call
+	/* function_trace_call(unsigned long ip, unsigned long parent_ip):
+	 *  ip: this point was called by ...
+	 *  parent_ip: ... this function
+	 * the ip itself will need adjusting for the mcount call
 	 */
-	r1 = rets;
-	r0 = [fp + 4];
-	r1 += -MCOUNT_INSN_SIZE;
+	r0 = rets;
+	r1 = [sp + 16];	/* skip the 4 local regs on stack */
+	r0 += -MCOUNT_INSN_SIZE;
 
 	/* call the tracer */
 	call (p0);
@@ -94,6 +165,8 @@ _ftrace_stub:
 	rts;
 ENDPROC(__mcount)
 
+#endif
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /* The prepare_ftrace_return() function is similar to the trace function
  * except it takes a pointer to the location of the frompc.  This is so
@@ -101,14 +174,23 @@ ENDPROC(__mcount)
  * purposes.
  */
 ENTRY(_ftrace_graph_caller)
+# ifndef CONFIG_DYNAMIC_FTRACE
 	/* save first/second function arg and the return register */
 	[--sp] = r0;
 	[--sp] = r1;
 	[--sp] = rets;
 
-	r0 = fp;
-	r1 = rets;
-	r0 += 4;
+	/* prepare_ftrace_return(parent, self_addr, frame_pointer) */
+	r0 = sp;	/* unsigned long *parent */
+	r1 = rets;	/* unsigned long self_addr */
+# else
+	r0 = sp;	/* unsigned long *parent */
+	r1 = [sp];	/* unsigned long self_addr */
+# endif
+# ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+	r2 = fp;	/* unsigned long frame_pointer */
+# endif
+	r0 += 16;	/* skip the 4 local regs on stack */
 	r1 += -MCOUNT_INSN_SIZE;
 	call _prepare_ftrace_return;
 
@@ -126,6 +208,9 @@ ENTRY(_return_to_handler)
 	[--sp] = r1;
 
 	/* get original return address */
+# ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+	r0 = fp;	/* Blackfin is sane, so omit this */
+# endif
 	call _ftrace_return_to_handler;
 	rets = r0;
 

@@ -6,6 +6,8 @@
  *  inode VFS functions
  */
 
+#include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include "hpfs_fn.h"
 
 void hpfs_init_inode(struct inode *i)
@@ -45,7 +47,7 @@ void hpfs_read_inode(struct inode *i)
 	struct fnode *fnode;
 	struct super_block *sb = i->i_sb;
 	struct hpfs_inode_info *hpfs_inode = hpfs_i(i);
-	unsigned char *ea;
+	void *ea;
 	int ea_size;
 
 	if (!(fnode = hpfs_map_fnode(sb, i->i_ino, &bh))) {
@@ -111,7 +113,7 @@ void hpfs_read_inode(struct inode *i)
 		}
 	}
 	if (fnode->dirflag) {
-		unsigned n_dnodes, n_subdirs;
+		int n_dnodes, n_subdirs;
 		i->i_mode |= S_IFDIR;
 		i->i_op = &hpfs_dir_iops;
 		i->i_fop = &hpfs_dir_ops;
@@ -275,9 +277,15 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		goto out_unlock;
 
-	error = inode_setattr(inode, attr);
-	if (error)
-		goto out_unlock;
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
 
 	hpfs_write_inode(inode);
 
@@ -294,11 +302,13 @@ void hpfs_write_if_changed(struct inode *inode)
 		hpfs_write_inode(inode);
 }
 
-void hpfs_delete_inode(struct inode *inode)
+void hpfs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	lock_kernel();
-	hpfs_remove_fnode(inode->i_sb, inode->i_ino);
-	unlock_kernel();
-	clear_inode(inode);
+	end_writeback(inode);
+	if (!inode->i_nlink) {
+		lock_kernel();
+		hpfs_remove_fnode(inode->i_sb, inode->i_ino);
+		unlock_kernel();
+	}
 }

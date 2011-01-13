@@ -1,0 +1,190 @@
+/*
+ * Manroland uc101 board Device Tree Source
+ *
+ * Copyright (C) 2009 DENX Software Engineering GmbH
+ * Heiko Schocher <hs@denx.de>
+ * Copyright 2006-2007 Secret Lab Technologies Ltd.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "mpc5200b.dtsi"
+
+/ {
+	model = "manroland,uc101";
+	compatible = "manroland,uc101";
+
+	soc5200@f0000000 {
+		gpt0: timer@600 {	// General Purpose Timer in GPIO mode
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpt1: timer@610 {	// General Purpose Timer in GPIO mode
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpt2: timer@620 {	// General Purpose Timer in GPIO mode
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpt3: timer@630 {	// General Purpose Timer in GPIO mode
+			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			reg = <0x630 0x10>;
+			interrupts = <1 12 0>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpt4: timer@640 {	// General Purpose Timer in GPIO mode
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpt5: timer@650 {	// General Purpose Timer in GPIO mode
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpt6: timer@660 {	// General Purpose Timer in GPIO mode
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		gpt7: timer@670 {	// General Purpose Timer in GPIO mode
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		rtc@800 {
+			status = "disabled";
+		};
+
+		can@900 {
+			status = "disabled";
+		};
+
+		can@980 {
+			status = "disabled";
+		};
+
+		spi@f00 {
+			status = "disabled";
+		};
+
+		usb@1000 {
+			status = "disabled";
+		};
+
+		psc@2000 {	// PSC1
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		psc@2200 {	// PSC2
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		psc@2400 {	// PSC3
+			status = "disabled";
+		};
+
+		psc@2600 {	// PSC4
+			status = "disabled";
+		};
+
+		psc@2800 {	// PSC5
+			status = "disabled";
+		};
+
+		psc@2c00 {	// PSC6
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		ethernet@3000 {
+			phy-handle = <&phy0>;
+		};
+
+		mdio@3000 {
+			phy0: ethernet-phy@0 {
+				compatible = "intel,lxt971";
+				reg = <0>;
+			};
+		};
+
+		i2c@3d00 {
+			status = "disabled";
+		};
+
+		i2c@3d40 {
+			fsl,preserve-clocking;
+			clock-frequency = <400000>;
+
+			hwmon@2c {
+				compatible = "ad,adm9240";
+				reg = <0x2c>;
+			};
+			rtc@51 {
+				compatible = "nxp,pcf8563";
+				reg = <0x51>;
+			};
+		};
+	};
+
+	pci@f0000d00 {
+		status = "disabled";
+	};
+
+	localbus {
+		ranges = <0 0 0xff800000 0x00800000
+			  1 0 0x80000000 0x00800000
+			  3 0 0x80000000 0x00800000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x00800000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			partition@0 {
+				label = "DTS";
+				reg = <0x0 0x00100000>;
+			};
+			partition@100000 {
+				label = "Kernel";
+				reg = <0x100000 0x00200000>;
+			};
+			partition@300000 {
+				label = "RootFS";
+				reg = <0x00300000 0x00200000>;
+			};
+			partition@500000 {
+				label = "user";
+				reg = <0x00500000 0x00200000>;
+			};
+			partition@700000 {
+				label = "U-Boot";
+				reg = <0x00700000 0x00040000>;
+			};
+			partition@740000 {
+				label = "Env";
+				reg = <0x00740000 0x00010000>;
+			};
+			partition@750000 {
+				label = "red. Env";
+				reg = <0x00750000 0x00010000>;
+			};
+			partition@760000 {
+				label = "reserve";
+				reg = <0x00760000 0x000a0000>;
+			};
+		};
+
+	};
+};

@@ -10,6 +10,8 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
+#include <linux/smp.h>
+#include <linux/irq.h>
 
 #include <asm/smtc_ipi.h>
 #include <asm/time.h>
@@ -172,11 +174,12 @@ void smtc_distribute_timer(int vpe)
 	unsigned int mtflags;
 	int cpu;
 	struct clock_event_device *cd;
-	unsigned long nextstamp = 0L;
+	unsigned long nextstamp;
 	unsigned long reference;
 
 
 repeat:
+	nextstamp = 0L;
 	for_each_online_cpu(cpu) {
 	    /*
 	     * Find virtual CPUs within the current VPE who have

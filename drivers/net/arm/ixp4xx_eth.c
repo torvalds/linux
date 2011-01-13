@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <mach/npe.h>
 #include <mach/qmgr.h>
 
@@ -240,7 +241,7 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 
 static spinlock_t mdio_lock;
 static struct eth_regs __iomem *mdio_regs; /* mdio command and status only */
-struct mii_bus *mdio_bus;
+static struct mii_bus *mdio_bus;
 static int ports_open;
 static struct port *npe_port_tab[MAX_NPES];
 static struct dma_pool *dma_pool;
@@ -322,7 +323,7 @@ static int ixp4xx_mdio_write(struct mii_bus *bus, int phy_id, int location,
 	ret = ixp4xx_mdio_cmd(bus, phy_id, location, 1, val);
 	spin_unlock_irqrestore(&mdio_lock, flags);
 #if DEBUG_MDIO
-	printk(KERN_DEBUG "%s #%i: MII read [%i] <- 0x%X, err = %i\n",
+	printk(KERN_DEBUG "%s #%i: MII write [%i] <- 0x%X, err = %i\n",
 	       bus->name, phy_id, location, val, ret);
 #endif
 	return ret;
@@ -707,7 +708,6 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* NPE firmware pads short frames with zeros internally */
 	wmb();
 	queue_put_desc(TX_QUEUE(port->id), tx_desc_phys(port, n), desc);
-	dev->trans_start = jiffies;
 
 	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX
@@ -735,22 +735,36 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 static void eth_set_mcast_list(struct net_device *dev)
 {
 	struct port *port = netdev_priv(dev);
-	struct dev_mc_list *mclist = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	u8 diffs[ETH_ALEN], *addr;
-	int cnt = dev->mc_count, i;
+	int i;
+	static const u8 allmulti[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-	if ((dev->flags & IFF_PROMISC) || !mclist || !cnt) {
+	if (dev->flags & IFF_ALLMULTI) {
+		for (i = 0; i < ETH_ALEN; i++) {
+			__raw_writel(allmulti[i], &port->regs->mcast_addr[i]);
+			__raw_writel(allmulti[i], &port->regs->mcast_mask[i]);
+		}
+		__raw_writel(DEFAULT_RX_CNTRL0 | RX_CNTRL0_ADDR_FLTR_EN,
+			&port->regs->rx_control[0]);
+		return;
+	}
+
+	if ((dev->flags & IFF_PROMISC) || netdev_mc_empty(dev)) {
 		__raw_writel(DEFAULT_RX_CNTRL0 & ~RX_CNTRL0_ADDR_FLTR_EN,
 			     &port->regs->rx_control[0]);
 		return;
 	}
 
 	memset(diffs, 0, ETH_ALEN);
-	addr = mclist->dmi_addr; /* first MAC address */
 
-	while (--cnt && (mclist = mclist->next))
+	addr = NULL;
+	netdev_for_each_mc_addr(ha, dev) {
+		if (!addr)
+			addr = ha->addr; /* first MAC address */
 		for (i = 0; i < ETH_ALEN; i++)
-			diffs[i] |= addr[i] ^ mclist->dmi_addr[i];
+			diffs[i] |= addr[i] ^ ha->addr[i];
+	}
 
 	for (i = 0; i < ETH_ALEN; i++) {
 		__raw_writel(addr[i], &port->regs->mcast_addr[i]);
@@ -768,7 +782,8 @@ static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 	if (!netif_running(dev))
 		return -EINVAL;
-	return phy_mii_ioctl(port->phydev, if_mii(req), cmd);
+
+	return phy_mii_ioctl(port->phydev, req, cmd);
 }
 
 /* ethtool support */
@@ -802,7 +817,7 @@ static int ixp4xx_nway_reset(struct net_device *dev)
 	return phy_start_aneg(port->phydev);
 }
 
-static struct ethtool_ops ixp4xx_ethtool_ops = {
+static const struct ethtool_ops ixp4xx_ethtool_ops = {
 	.get_drvinfo = ixp4xx_get_drvinfo,
 	.get_settings = ixp4xx_get_settings,
 	.set_settings = ixp4xx_set_settings,
@@ -1142,7 +1157,9 @@ static const struct net_device_ops ixp4xx_netdev_ops = {
 	.ndo_start_xmit = eth_xmit,
 	.ndo_set_multicast_list = eth_set_mcast_list,
 	.ndo_do_ioctl = eth_ioctl,
-
+	.ndo_change_mtu = eth_change_mtu,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
 };
 
 static int __devinit eth_init_one(struct platform_device *pdev)
@@ -1212,8 +1229,10 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, "0", plat->phy);
 	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link, 0,
 				   PHY_INTERFACE_MODE_MII);
-	if ((err = IS_ERR(port->phydev)))
+	if (IS_ERR(port->phydev)) {
+		err = PTR_ERR(port->phydev);
 		goto err_free_mem;
+	}
 
 	port->phydev->irq = PHY_POLL;
 

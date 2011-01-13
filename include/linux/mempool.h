@@ -47,20 +47,14 @@ mempool_create_slab_pool(int min_nr, struct kmem_cache *kc)
 }
 
 /*
- * 2 mempool_alloc_t's and a mempool_free_t to kmalloc/kzalloc and kfree
- * the amount of memory specified by pool_data
+ * a mempool_alloc_t and a mempool_free_t to kmalloc and kfree the
+ * amount of memory specified by pool_data
  */
 void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data);
-void *mempool_kzalloc(gfp_t gfp_mask, void *pool_data);
 void mempool_kfree(void *element, void *pool_data);
 static inline mempool_t *mempool_create_kmalloc_pool(int min_nr, size_t size)
 {
 	return mempool_create(min_nr, mempool_kmalloc, mempool_kfree,
-			      (void *) size);
-}
-static inline mempool_t *mempool_create_kzalloc_pool(int min_nr, size_t size)
-{
-	return mempool_create(min_nr, mempool_kzalloc, mempool_kfree,
 			      (void *) size);
 }
 

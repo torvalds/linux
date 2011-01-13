@@ -11,6 +11,7 @@
 #include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/resume-trace.h>
+#include <linux/workqueue.h>
 
 #include "power.h"
 
@@ -42,6 +43,32 @@ int pm_notifier_call_chain(unsigned long val)
 	return (blocking_notifier_call_chain(&pm_chain_head, val, NULL)
 			== NOTIFY_BAD) ? -EINVAL : 0;
 }
+
+/* If set, devices may be suspended and resumed asynchronously. */
+int pm_async_enabled = 1;
+
+static ssize_t pm_async_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", pm_async_enabled);
+}
+
+static ssize_t pm_async_store(struct kobject *kobj, struct kobj_attribute *attr,
+			      const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > 1)
+		return -EINVAL;
+
+	pm_async_enabled = val;
+	return n;
+}
+
+power_attr(pm_async);
 
 #ifdef CONFIG_PM_DEBUG
 int pm_test_level = TEST_NONE;
@@ -177,6 +204,60 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 power_attr(state);
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ * The 'wakeup_count' attribute, along with the functions defined in
+ * drivers/base/power/wakeup.c, provides a means by which wakeup events can be
+ * handled in a non-racy way.
+ *
+ * If a wakeup event occurs when the system is in a sleep state, it simply is
+ * woken up.  In turn, if an event that would wake the system up from a sleep
+ * state occurs when it is undergoing a transition to that sleep state, the
+ * transition should be aborted.  Moreover, if such an event occurs when the
+ * system is in the working state, an attempt to start a transition to the
+ * given sleep state should fail during certain period after the detection of
+ * the event.  Using the 'state' attribute alone is not sufficient to satisfy
+ * these requirements, because a wakeup event may occur exactly when 'state'
+ * is being written to and may be delivered to user space right before it is
+ * frozen, so the event will remain only partially processed until the system is
+ * woken up by another event.  In particular, it won't cause the transition to
+ * a sleep state to be aborted.
+ *
+ * This difficulty may be overcome if user space uses 'wakeup_count' before
+ * writing to 'state'.  It first should read from 'wakeup_count' and store
+ * the read value.  Then, after carrying out its own preparations for the system
+ * transition to a sleep state, it should write the stored value to
+ * 'wakeup_count'.  If that fails, at least one wakeup event has occured since
+ * 'wakeup_count' was read and 'state' should not be written to.  Otherwise, it
+ * is allowed to write to 'state', but the transition will be aborted if there
+ * are any wakeup events detected after 'wakeup_count' was written to.
+ */
+
+static ssize_t wakeup_count_show(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char *buf)
+{
+	unsigned int val;
+
+	return pm_get_wakeup_count(&val) ? sprintf(buf, "%u\n", val) : -EINTR;
+}
+
+static ssize_t wakeup_count_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t n)
+{
+	unsigned int val;
+
+	if (sscanf(buf, "%u", &val) == 1) {
+		if (pm_save_wakeup_count(val))
+			return n;
+	}
+	return -EINVAL;
+}
+
+power_attr(wakeup_count);
+#endif /* CONFIG_PM_SLEEP */
+
 #ifdef CONFIG_PM_TRACE
 int pm_trace_enabled;
 
@@ -200,15 +281,37 @@ pm_trace_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(pm_trace);
+
+static ssize_t pm_trace_dev_match_show(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       char *buf)
+{
+	return show_trace_dev_match(buf, PAGE_SIZE);
+}
+
+static ssize_t
+pm_trace_dev_match_store(struct kobject *kobj, struct kobj_attribute *attr,
+			 const char *buf, size_t n)
+{
+	return -EINVAL;
+}
+
+power_attr(pm_trace_dev_match);
+
 #endif /* CONFIG_PM_TRACE */
 
 static struct attribute * g[] = {
 	&state_attr.attr,
 #ifdef CONFIG_PM_TRACE
 	&pm_trace_attr.attr,
+	&pm_trace_dev_match_attr.attr,
 #endif
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PM_DEBUG)
+#ifdef CONFIG_PM_SLEEP
+	&pm_async_attr.attr,
+	&wakeup_count_attr.attr,
+#ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,
+#endif
 #endif
 	NULL,
 };
@@ -217,8 +320,26 @@ static struct attribute_group attr_group = {
 	.attrs = g,
 };
 
+#ifdef CONFIG_PM_RUNTIME
+struct workqueue_struct *pm_wq;
+EXPORT_SYMBOL_GPL(pm_wq);
+
+static int __init pm_start_workqueue(void)
+{
+	pm_wq = alloc_workqueue("pm", WQ_FREEZEABLE, 0);
+
+	return pm_wq ? 0 : -ENOMEM;
+}
+#else
+static inline int pm_start_workqueue(void) { return 0; }
+#endif
+
 static int __init pm_init(void)
 {
+	int error = pm_start_workqueue();
+	if (error)
+		return error;
+	hibernate_image_size_init();
 	power_kobj = kobject_create_and_add("power", NULL);
 	if (!power_kobj)
 		return -ENOMEM;

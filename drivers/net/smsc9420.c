@@ -26,6 +26,7 @@
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "smsc9420.h"
 
@@ -80,7 +81,7 @@ struct smsc9420_pdata {
 	int last_carrier;
 };
 
-static const struct pci_device_id smsc9420_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(smsc9420_id_table) = {
 	{ PCI_VENDOR_ID_9420, PCI_DEVICE_ID_9420, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };
@@ -244,13 +245,16 @@ static int smsc9420_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (!netif_running(dev) || !pd->phy_dev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(pd->phy_dev, if_mii(ifr), cmd);
+	return phy_mii_ioctl(pd->phy_dev, ifr, cmd);
 }
 
 static int smsc9420_ethtool_get_settings(struct net_device *dev,
 					 struct ethtool_cmd *cmd)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
+
+	if (!pd->phy_dev)
+		return -ENODEV;
 
 	cmd->maxtxpkt = 1;
 	cmd->maxrxpkt = 1;
@@ -261,6 +265,9 @@ static int smsc9420_ethtool_set_settings(struct net_device *dev,
 					 struct ethtool_cmd *cmd)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
+
+	if (!pd->phy_dev)
+		return -ENODEV;
 
 	return phy_ethtool_sset(pd->phy_dev, cmd);
 }
@@ -290,6 +297,10 @@ static void smsc9420_ethtool_set_msglevel(struct net_device *netdev, u32 data)
 static int smsc9420_ethtool_nway_reset(struct net_device *netdev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(netdev);
+
+	if (!pd->phy_dev)
+		return -ENODEV;
+
 	return phy_start_aneg(pd->phy_dev);
 }
 
@@ -311,6 +322,10 @@ smsc9420_ethtool_getregs(struct net_device *dev, struct ethtool_regs *regs,
 	regs->version = smsc9420_reg_read(pd, ID_REV);
 	for (i = 0; i < 0x100; i += (sizeof(u32)))
 		data[j++] = smsc9420_reg_read(pd, i);
+
+	// cannot read phy registers if the net device is down
+	if (!phy_dev)
+		return;
 
 	for (i = 0; i <= 31; i++)
 		data[j++] = smsc9420_mii_read(phy_dev->bus, phy_dev->addr, i);
@@ -817,7 +832,6 @@ static void smsc9420_rx_handoff(struct smsc9420_pdata *pd, const int index,
 	skb->protocol = eth_type_trans(skb, dev);
 
 	netif_receive_skb(skb);
-	dev->last_rx = jiffies;
 }
 
 static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
@@ -968,7 +982,8 @@ static void smsc9420_complete_tx(struct net_device *dev)
 	}
 }
 
-static int smsc9420_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 	dma_addr_t mapping;
@@ -1019,8 +1034,6 @@ static int smsc9420_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	smsc9420_reg_write(pd, TX_POLL_DEMAND, 1);
 	smsc9420_pci_flush_write(pd);
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 
@@ -1048,13 +1061,13 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 		mac_cr &= (~MAC_CR_PRMS_);
 		mac_cr |= MAC_CR_MCPAS_;
 		mac_cr &= (~MAC_CR_HPFILT_);
-	} else if (dev->mc_count > 0) {
-		struct dev_mc_list *mc_list = dev->mc_list;
+	} else if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 		u32 hash_lo = 0, hash_hi = 0;
 
 		smsc_dbg(HW, "Multicast filter enabled");
-		while (mc_list) {
-			u32 bit_num = smsc9420_hash(mc_list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			u32 bit_num = smsc9420_hash(ha->addr);
 			u32 mask = 1 << (bit_num & 0x1F);
 
 			if (bit_num & 0x20)
@@ -1062,7 +1075,6 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 			else
 				hash_lo |= mask;
 
-			mc_list = mc_list->next;
 		}
 		smsc9420_reg_write(pd, HASHH, hash_hi);
 		smsc9420_reg_write(pd, HASHL, hash_lo);
@@ -1161,7 +1173,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 		phydev->phy_id);
 
 	phydev = phy_connect(dev, dev_name(&phydev->dev),
-		&smsc9420_phy_adjust_link, 0, PHY_INTERFACE_MODE_MII);
+		smsc9420_phy_adjust_link, 0, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		pr_err("%s: Could not attach to PHY\n", dev->name);
@@ -1334,7 +1346,7 @@ static int smsc9420_open(struct net_device *dev)
 
 	netif_carrier_off(dev);
 
-	/* disable, mask and acknowlege all interrupts */
+	/* disable, mask and acknowledge all interrupts */
 	spin_lock_irqsave(&pd->int_lock, flags);
 	int_cfg = smsc9420_reg_read(pd, INT_CFG) & (~INT_CFG_IRQ_EN_);
 	smsc9420_reg_write(pd, INT_CFG, int_cfg);

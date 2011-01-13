@@ -2,7 +2,7 @@
 # Makefile for the Linux proc filesystem routines.
 #
 
-obj-$(CONFIG_PROC_FS) += proc.o
+obj-y   += proc.o
 
 proc-y			:= nommu.o task_nommu.o
 proc-$(CONFIG_MMU)	:= mmu.o task_mmu.o
@@ -15,6 +15,7 @@ proc-y	+= devices.o
 proc-y	+= interrupts.o
 proc-y	+= loadavg.o
 proc-y	+= meminfo.o
+proc-y	+= proc_console.o
 proc-y	+= stat.o
 proc-y	+= uptime.o
 proc-y	+= version.o

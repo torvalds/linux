@@ -2,6 +2,7 @@
 #define _RAID5_H
 
 #include <linux/raid/xor.h>
+#include <linux/dmaengine.h>
 
 /*
  *
@@ -175,7 +176,9 @@
  */
 enum check_states {
 	check_state_idle = 0,
-	check_state_run, /* parity check */
+	check_state_run, /* xor parity check */
+	check_state_run_q, /* q-parity check */
+	check_state_run_pq, /* pq dual parity check */
 	check_state_check_result,
 	check_state_compute_run, /* parity repair */
 	check_state_compute_result,
@@ -211,12 +214,20 @@ struct stripe_head {
 	int			disks;		/* disks in stripe */
 	enum check_states	check_state;
 	enum reconstruct_states reconstruct_state;
-	/* stripe_operations
+	/**
+	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
+	 * @target2 - 2nd compute target in the raid6 case
+	 * @zero_sum_result - P and Q verification flags
+	 * @request - async service request flags for raid_run_ops
 	 */
 	struct stripe_operations {
-		int		   target;
-		u32		   zero_sum_result;
+		int 		     target, target2;
+		enum sum_check_flags zero_sum_result;
+		#ifdef CONFIG_MULTICORE_RAID456
+		unsigned long	     request;
+		wait_queue_head_t    wait_for_ops;
+		#endif
 	} ops;
 	struct r5dev {
 		struct bio	req;
@@ -264,6 +275,7 @@ struct r6_state {
 				    * filling
 				    */
 #define R5_Wantdrain	13 /* dev->towrite needs to be drained */
+#define R5_WantFUA	14	/* Write should be FUA */
 /*
  * Write method
  */
@@ -291,6 +303,8 @@ struct r6_state {
 #define	STRIPE_FULL_WRITE	13 /* all blocks are set to be overwritten */
 #define	STRIPE_BIOFILL_RUN	14
 #define	STRIPE_COMPUTE_RUN	15
+#define	STRIPE_OPS_REQ_PENDING	16
+
 /*
  * Operation request flags
  */
@@ -298,7 +312,7 @@ struct r6_state {
 #define STRIPE_OP_COMPUTE_BLK	1
 #define STRIPE_OP_PREXOR	2
 #define STRIPE_OP_BIODRAIN	3
-#define STRIPE_OP_POSTXOR	4
+#define STRIPE_OP_RECONSTRUCT	4
 #define STRIPE_OP_CHECK	5
 
 /*
@@ -375,7 +389,7 @@ struct raid5_private_data {
 	 * two caches.
 	 */
 	int			active_name;
-	char			cache_name[2][20];
+	char			cache_name[2][32];
 	struct kmem_cache		*slab_cache; /* for allocating stripes */
 
 	int			seq_flush, seq_write;
@@ -386,7 +400,23 @@ struct raid5_private_data {
 					    * Cleared when a sync completes.
 					    */
 
-	struct page 		*spare_page; /* Used when checking P/Q in raid6 */
+	struct plug_handle	plug;
+
+	/* per cpu variables */
+	struct raid5_percpu {
+		struct page	*spare_page; /* Used when checking P/Q in raid6 */
+		void		*scribble;   /* space for constructing buffer
+					      * lists and performing address
+					      * conversions
+					      */
+	} __percpu *percpu;
+	size_t			scribble_len; /* size of scribble region must be
+					       * associated with conf to handle
+					       * cpu hotplug while reshaping
+					       */
+#ifdef CONFIG_HOTPLUG_CPU
+	struct notifier_block	cpu_notify;
+#endif
 
 	/*
 	 * Free stripes pool
@@ -462,7 +492,7 @@ static inline int algorithm_valid_raid6(int layout)
 {
 	return (layout >= 0 && layout <= 5)
 		||
-		(layout == 8 || layout == 10)
+		(layout >= 8 && layout <= 10)
 		||
 		(layout >= 16 && layout <= 20);
 }
@@ -471,4 +501,8 @@ static inline int algorithm_is_DDF(int layout)
 {
 	return layout >= 8 && layout <= 10;
 }
+
+extern int md_raid5_congested(mddev_t *mddev, int bits);
+extern void md_raid5_unplug_device(raid5_conf_t *conf);
+extern int raid5_set_cache_size(mddev_t *mddev, int size);
 #endif

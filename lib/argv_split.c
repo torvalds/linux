@@ -4,16 +4,9 @@
 
 #include <linux/kernel.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-
-static const char *skip_sep(const char *cp)
-{
-	while (*cp && isspace(*cp))
-		cp++;
-
-	return cp;
-}
 
 static const char *skip_arg(const char *cp)
 {
@@ -28,7 +21,7 @@ static int count_argc(const char *str)
 	int count = 0;
 
 	while (*str) {
-		str = skip_sep(str);
+		str = skip_spaces(str);
 		if (*str) {
 			count++;
 			str = skip_arg(str);
@@ -82,7 +75,7 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp)
 	argvp = argv;
 
 	while (*str) {
-		str = skip_sep(str);
+		str = skip_spaces(str);
 
 		if (*str) {
 			const char *p = str;

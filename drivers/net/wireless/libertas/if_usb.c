@@ -5,6 +5,7 @@
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #ifdef CONFIG_OLPC
@@ -25,13 +26,25 @@
 
 #define MESSAGE_HEADER_LEN	4
 
-static char *lbs_fw_name = "usb8388.bin";
+static char *lbs_fw_name = NULL;
 module_param_named(fw_name, lbs_fw_name, charp, 0644);
+
+MODULE_FIRMWARE("libertas/usb8388_v9.bin");
+MODULE_FIRMWARE("libertas/usb8388_v5.bin");
+MODULE_FIRMWARE("libertas/usb8388.bin");
+MODULE_FIRMWARE("libertas/usb8682.bin");
+MODULE_FIRMWARE("usb8388.bin");
+
+enum {
+	MODEL_UNKNOWN = 0x0,
+	MODEL_8388 = 0x1,
+	MODEL_8682 = 0x2
+};
 
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
-	{ USB_DEVICE(0x1286, 0x2001) },
-	{ USB_DEVICE(0x05a3, 0x8388) },
+	{ USB_DEVICE(0x1286, 0x2001), .driver_info = MODEL_8388 },
+	{ USB_DEVICE(0x05a3, 0x8388), .driver_info = MODEL_8388 },
 	{}	/* Terminating entry */
 };
 
@@ -63,6 +76,8 @@ static ssize_t if_usb_firmware_set(struct device *dev,
 	struct if_usb_card *cardp = priv->card;
 	int ret;
 
+	BUG_ON(buf == NULL);
+
 	ret = if_usb_prog_firmware(cardp, buf, BOOT_CMD_UPDATE_FW);
 	if (ret == 0)
 		return count;
@@ -87,6 +102,8 @@ static ssize_t if_usb_boot2_set(struct device *dev,
 	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct if_usb_card *cardp = priv->card;
 	int ret;
+
+	BUG_ON(buf == NULL);
 
 	ret = if_usb_prog_firmware(cardp, buf, BOOT_CMD_UPDATE_BOOT2);
 	if (ret == 0)
@@ -130,8 +147,6 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		/* print the failure status number for debug */
 		lbs_pr_info("URB in failure status: %d\n", urb->status);
 	}
-
-	return;
 }
 
 /**
@@ -181,13 +196,14 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 	wake_method.action = cpu_to_le16(CMD_ACT_GET);
 	if (lbs_cmd_with_response(priv, CMD_802_11_FW_WAKE_METHOD, &wake_method)) {
 		lbs_pr_info("Firmware does not seem to support PS mode\n");
+		priv->fwcapinfo &= ~FW_CAPINFO_PS;
 	} else {
 		if (le16_to_cpu(wake_method.method) == CMD_WAKE_METHOD_COMMAND_INT) {
 			lbs_deb_usb("Firmware seems to support PS with wake-via-command\n");
-			priv->ps_supported = 1;
 		} else {
 			/* The versions which boot up this way don't seem to
 			   work even if we set it to the command interrupt */
+			priv->fwcapinfo &= ~FW_CAPINFO_PS;
 			lbs_pr_info("Firmware doesn't wake via command interrupt; disabling PS mode\n");
 		}
 	}
@@ -242,6 +258,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	init_waitqueue_head(&cardp->fw_wq);
 
 	cardp->udev = udev;
+	cardp->model = (uint32_t) id->driver_info;
 	iface_desc = intf->cur_altsetting;
 
 	lbs_deb_usbd(&udev->dev, "bcdUSB = 0x%X bDeviceClass = 0x%X"
@@ -287,10 +304,13 @@ static int if_usb_probe(struct usb_interface *intf,
 	}
 
 	/* Upload firmware */
+	kparam_block_sysfs_write(fw_name);
 	if (__if_usb_prog_firmware(cardp, lbs_fw_name, BOOT_CMD_FW_BY_USB)) {
+		kparam_unblock_sysfs_write(fw_name);
 		lbs_deb_usbd(&udev->dev, "FW upload failed\n");
 		goto err_prog_firmware;
 	}
+	kparam_unblock_sysfs_write(fw_name);
 
 	if (!(priv = lbs_add_card(cardp, &udev->dev)))
 		goto err_prog_firmware;
@@ -299,6 +319,9 @@ static int if_usb_probe(struct usb_interface *intf,
 	cardp->priv->fw_ready = 1;
 
 	priv->hw_host_to_card = if_usb_host_to_card;
+	priv->enter_deep_sleep = NULL;
+	priv->exit_deep_sleep = NULL;
+	priv->reset_deep_sleep_wakeup = NULL;
 #ifdef CONFIG_OLPC
 	if (machine_is_olpc())
 		priv->reset_card = if_usb_reset_olpc_card;
@@ -321,6 +344,13 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	if (device_create_file(&priv->dev->dev, &dev_attr_lbs_flash_boot2))
 		lbs_pr_err("cannot register lbs_flash_boot2 attribute\n");
+
+	/*
+	 * EHS_REMOVE_WAKEUP is not supported on all versions of the firmware.
+	 */
+	priv->wol_criteria = EHS_REMOVE_WAKEUP;
+	if (lbs_host_sleep_cfg(priv, priv->wol_criteria, NULL))
+		priv->ehs_remove_supported = false;
 
 	return 0;
 
@@ -428,7 +458,7 @@ static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 
 static int if_usb_reset_device(struct if_usb_card *cardp)
 {
-	struct cmd_ds_command *cmd = cardp->ep_out_buf + 4;
+	struct cmd_header *cmd = cardp->ep_out_buf + 4;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_USB);
@@ -436,7 +466,7 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 	*(__le32 *)cardp->ep_out_buf = cpu_to_le32(CMD_TYPE_REQUEST);
 
 	cmd->command = cpu_to_le16(CMD_802_11_RESET);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_header));
+	cmd->size = cpu_to_le16(sizeof(cmd));
 	cmd->result = cpu_to_le16(0);
 	cmd->seqnum = cpu_to_le16(0x5a5a);
 	usb_tx_block(cardp, cardp->ep_out_buf, 4 + sizeof(struct cmd_header));
@@ -464,11 +494,12 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
  */
 static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb)
 {
-	int ret = -1;
+	int ret;
 
 	/* check if device is removed */
 	if (cardp->surprise_removed) {
 		lbs_deb_usbd(&cardp->udev->dev, "Device removed\n");
+		ret = -ENODEV;
 		goto tx_ret;
 	}
 
@@ -481,7 +512,6 @@ static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb
 
 	if ((ret = usb_submit_urb(cardp->tx_urb, GFP_ATOMIC))) {
 		lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb failed: %d\n", ret);
-		ret = -1;
 	} else {
 		lbs_deb_usb2(&cardp->udev->dev, "usb_submit_urb success\n");
 		ret = 0;
@@ -507,7 +537,7 @@ static int __if_usb_submit_rx_urb(struct if_usb_card *cardp,
 	/* Fill the receive configuration URB and initialise the Rx call back */
 	usb_fill_bulk_urb(cardp->rx_urb, cardp->udev,
 			  usb_rcvbulkpipe(cardp->udev, cardp->ep_in),
-			  (void *) (skb->tail + (size_t) IPFIELD_ALIGN_OFFSET),
+			  skb->data + IPFIELD_ALIGN_OFFSET,
 			  MRVDRV_ETH_RX_PACKET_BUFFER_SIZE, callbackfn,
 			  cardp);
 
@@ -608,15 +638,13 @@ static void if_usb_receive_fwload(struct urb *urb)
 		return;
 	}
 
-	syncfwheader = kmalloc(sizeof(struct fwsyncheader), GFP_ATOMIC);
+	syncfwheader = kmemdup(skb->data + IPFIELD_ALIGN_OFFSET,
+			       sizeof(struct fwsyncheader), GFP_ATOMIC);
 	if (!syncfwheader) {
 		lbs_deb_usbd(&cardp->udev->dev, "Failure to allocate syncfwheader\n");
 		kfree_skb(skb);
 		return;
 	}
-
-	memcpy(syncfwheader, skb->data + IPFIELD_ALIGN_OFFSET,
-	       sizeof(struct fwsyncheader));
 
 	if (!syncfwheader->cmd) {
 		lbs_deb_usb2(&cardp->udev->dev, "FW received Blk with correct CRC\n");
@@ -644,8 +672,6 @@ static void if_usb_receive_fwload(struct urb *urb)
 	if_usb_submit_rx_urb_fwload(cardp);
 
 	kfree(syncfwheader);
-
-	return;
 }
 
 #define MRVDRV_MIN_PKT_LEN	30
@@ -920,6 +946,38 @@ static int if_usb_prog_firmware(struct if_usb_card *cardp,
 	return ret;
 }
 
+/* table of firmware file names */
+static const struct {
+	u32 model;
+	const char *fwname;
+} fw_table[] = {
+	{ MODEL_8388, "libertas/usb8388_v9.bin" },
+	{ MODEL_8388, "libertas/usb8388_v5.bin" },
+	{ MODEL_8388, "libertas/usb8388.bin" },
+	{ MODEL_8388, "usb8388.bin" },
+	{ MODEL_8682, "libertas/usb8682.bin" }
+};
+
+static int get_fw(struct if_usb_card *cardp, const char *fwname)
+{
+	int i;
+
+	/* Try user-specified firmware first */
+	if (fwname)
+		return request_firmware(&cardp->fw, fwname, &cardp->udev->dev);
+
+	/* Otherwise search for firmware to use */
+	for (i = 0; i < ARRAY_SIZE(fw_table); i++) {
+		if (fw_table[i].model != cardp->model)
+			continue;
+		if (request_firmware(&cardp->fw, fw_table[i].fwname,
+					&cardp->udev->dev) == 0)
+			return 0;
+	}
+
+	return -ENOENT;
+}
+
 static int __if_usb_prog_firmware(struct if_usb_card *cardp,
 					const char *fwname, int cmd)
 {
@@ -929,10 +987,9 @@ static int __if_usb_prog_firmware(struct if_usb_card *cardp,
 
 	lbs_deb_enter(LBS_DEB_USB);
 
-	ret = request_firmware(&cardp->fw, fwname, &cardp->udev->dev);
-	if (ret < 0) {
-		lbs_pr_err("request_firmware() failed with %#x\n", ret);
-		lbs_pr_err("firmware %s not found\n", fwname);
+	ret = get_fw(cardp, fwname);
+	if (ret) {
+		lbs_pr_err("failed to find firmware (%d)\n", ret);
 		goto done;
 	}
 

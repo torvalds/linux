@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/netdevice.h>
 #include <linux/signal.h>
+#include <linux/slab.h>
 #include <net/scm.h>
 #include <net/sock.h>
 #include <linux/ipx.h>
@@ -745,7 +746,6 @@ static int ncp_do_request(struct ncp_server *server, int size,
 		return -EIO;
 	}
 	if (!ncp_conn_valid(server)) {
-		printk(KERN_ERR "ncpfs: Connection invalid!\n");
 		return -EIO;
 	}
 	{

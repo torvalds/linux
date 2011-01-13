@@ -1,24 +1,9 @@
 /*
  * Blackfin CPLB initialization
  *
- *               Copyright 2004-2007 Analog Devices Inc.
+ * Copyright 2007-2009 Analog Devices Inc.
  *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -36,7 +21,7 @@ int first_switched_icplb PDT_ATTR;
 int first_switched_dcplb PDT_ATTR;
 
 struct cplb_boundary dcplb_bounds[9] PDT_ATTR;
-struct cplb_boundary icplb_bounds[7] PDT_ATTR;
+struct cplb_boundary icplb_bounds[9] PDT_ATTR;
 
 int icplb_nr_bounds PDT_ATTR;
 int dcplb_nr_bounds PDT_ATTR;
@@ -71,14 +56,34 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 		i_tbl[i_i++].data = SDRAM_IGENERIC | PAGE_SIZE_4MB;
 	}
 
-	/* Cover L1 memory.  One 4M area for code and data each is enough.  */
-	if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
-		d_tbl[i_d].addr = L1_DATA_A_START;
-		d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
-	}
-	i_tbl[i_i].addr = L1_CODE_START;
-	i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
+#ifdef CONFIG_ROMKERNEL
+	/* Cover kernel XIP flash area */
+	addr = CONFIG_ROM_BASE & ~(4 * 1024 * 1024 - 1);
+	d_tbl[i_d].addr = addr;
+	d_tbl[i_d++].data = SDRAM_DGENERIC | PAGE_SIZE_4MB;
+	i_tbl[i_i].addr = addr;
+	i_tbl[i_i++].data = SDRAM_IGENERIC | PAGE_SIZE_4MB;
+#endif
 
+	/* Cover L1 memory.  One 4M area for code and data each is enough.  */
+	if (cpu == 0) {
+		if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
+			d_tbl[i_d].addr = L1_DATA_A_START;
+			d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+		}
+		i_tbl[i_i].addr = L1_CODE_START;
+		i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
+	}
+#ifdef CONFIG_SMP
+	else {
+		if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
+			d_tbl[i_d].addr = COREB_L1_DATA_A_START;
+			d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+		}
+		i_tbl[i_i].addr = COREB_L1_CODE_START;
+		i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
+	}
+#endif
 	first_switched_dcplb = i_d;
 	first_switched_icplb = i_i;
 
@@ -93,15 +98,25 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 
 void __init generate_cplb_tables_all(void)
 {
+	unsigned long uncached_end;
 	int i_d, i_i;
 
 	i_d = 0;
 	/* Normal RAM, including MTD FS.  */
 #ifdef CONFIG_MTD_UCLINUX
-	dcplb_bounds[i_d].eaddr = memory_mtd_start + mtd_size;
+	uncached_end = memory_mtd_start + mtd_size;
 #else
-	dcplb_bounds[i_d].eaddr = memory_end;
+	uncached_end = memory_end;
 #endif
+	/*
+	 * if DMA uncached is less than 1MB, mark the 1MB chunk as uncached
+	 * so that we don't have to use 4kB pages and cause CPLB thrashing
+	 */
+	if ((DMA_UNCACHED_REGION >= 1 * 1024 * 1024) || !DMA_UNCACHED_REGION ||
+	    ((_ramend - uncached_end) >= 1 * 1024 * 1024))
+		dcplb_bounds[i_d].eaddr = uncached_end;
+	else
+		dcplb_bounds[i_d].eaddr = uncached_end & ~(1 * 1024 * 1024 - 1);
 	dcplb_bounds[i_d++].data = SDRAM_DGENERIC;
 	/* DMA uncached region.  */
 	if (DMA_UNCACHED_REGION) {
@@ -139,31 +154,35 @@ void __init generate_cplb_tables_all(void)
 
 	i_i = 0;
 	/* Normal RAM, including MTD FS.  */
-#ifdef CONFIG_MTD_UCLINUX
-	icplb_bounds[i_i].eaddr = memory_mtd_start + mtd_size;
-#else
-	icplb_bounds[i_i].eaddr = memory_end;
-#endif
+	icplb_bounds[i_i].eaddr = uncached_end;
 	icplb_bounds[i_i++].data = SDRAM_IGENERIC;
-	/* DMA uncached region.  */
-	if (DMA_UNCACHED_REGION) {
-		icplb_bounds[i_i].eaddr = _ramend;
-		icplb_bounds[i_i++].data = 0;
-	}
 	if (_ramend != physical_mem_end) {
+		/* DMA uncached region.  */
+		if (DMA_UNCACHED_REGION) {
+			/* Normally this hole is caught by the async below.  */
+			icplb_bounds[i_i].eaddr = _ramend;
+			icplb_bounds[i_i++].data = 0;
+		}
 		/* Reserved memory.  */
 		icplb_bounds[i_i].eaddr = physical_mem_end;
 		icplb_bounds[i_i++].data = (reserved_mem_icache_on ?
 					    SDRAM_IGENERIC : SDRAM_INON_CHBL);
 	}
+	/* Addressing hole up to the async bank.  */
+	icplb_bounds[i_i].eaddr = ASYNC_BANK0_BASE;
+	icplb_bounds[i_i++].data = 0;
+	/* ASYNC banks.  */
+	icplb_bounds[i_i].eaddr = ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE;
+	icplb_bounds[i_i++].data = SDRAM_EBIU;
 	/* Addressing hole up to BootROM.  */
 	icplb_bounds[i_i].eaddr = BOOT_ROM_START;
 	icplb_bounds[i_i++].data = 0;
 	/* BootROM -- largest one should be less than 1 meg.  */
 	icplb_bounds[i_i].eaddr = BOOT_ROM_START + (1 * 1024 * 1024);
 	icplb_bounds[i_i++].data = SDRAM_IGENERIC;
+
 	if (L2_LENGTH) {
-		/* Addressing hole up to L2 SRAM, including the async bank.  */
+		/* Addressing hole up to L2 SRAM.  */
 		icplb_bounds[i_i].eaddr = L2_START;
 		icplb_bounds[i_i++].data = 0;
 		/* L2 SRAM.  */

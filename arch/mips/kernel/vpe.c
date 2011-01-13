@@ -38,7 +38,6 @@
 #include <linux/vmalloc.h>
 #include <linux/elf.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/moduleloader.h>
 #include <linux/interrupt.h>
@@ -73,8 +72,8 @@ static int major;
 static const int minor = 1;	/* fixed for now  */
 
 #ifdef CONFIG_MIPS_APSP_KSPD
- static struct kspd_notifications kspd_events;
-static int kspd_events_reqd = 0;
+static struct kspd_notifications kspd_events;
+static int kspd_events_reqd;
 #endif
 
 /* grab the likely amount of memory we will need. */
@@ -144,79 +143,79 @@ struct tc {
 };
 
 struct {
-	/* Virtual processing elements */
-	struct list_head vpe_list;
-
-	/* Thread contexts */
-	struct list_head tc_list;
+	spinlock_t vpe_list_lock;
+	struct list_head vpe_list;	/* Virtual processing elements */
+	spinlock_t tc_list_lock;
+	struct list_head tc_list;	/* Thread contexts */
 } vpecontrol = {
-	.vpe_list = LIST_HEAD_INIT(vpecontrol.vpe_list),
-	.tc_list = LIST_HEAD_INIT(vpecontrol.tc_list)
+	.vpe_list_lock	= SPIN_LOCK_UNLOCKED,
+	.vpe_list	= LIST_HEAD_INIT(vpecontrol.vpe_list),
+	.tc_list_lock	= SPIN_LOCK_UNLOCKED,
+	.tc_list	= LIST_HEAD_INIT(vpecontrol.tc_list)
 };
 
 static void release_progmem(void *ptr);
-extern void save_gp_address(unsigned int secbase, unsigned int rel);
 
 /* get the vpe associated with this minor */
-struct vpe *get_vpe(int minor)
+static struct vpe *get_vpe(int minor)
 {
-	struct vpe *v;
+	struct vpe *res, *v;
 
 	if (!cpu_has_mipsmt)
 		return NULL;
 
+	res = NULL;
+	spin_lock(&vpecontrol.vpe_list_lock);
 	list_for_each_entry(v, &vpecontrol.vpe_list, list) {
-		if (v->minor == minor)
-			return v;
+		if (v->minor == minor) {
+			res = v;
+			break;
+		}
 	}
+	spin_unlock(&vpecontrol.vpe_list_lock);
 
-	return NULL;
+	return res;
 }
 
 /* get the vpe associated with this minor */
-struct tc *get_tc(int index)
+static struct tc *get_tc(int index)
 {
-	struct tc *t;
+	struct tc *res, *t;
 
+	res = NULL;
+	spin_lock(&vpecontrol.tc_list_lock);
 	list_for_each_entry(t, &vpecontrol.tc_list, list) {
-		if (t->index == index)
-			return t;
+		if (t->index == index) {
+			res = t;
+			break;
+		}
 	}
-
-	return NULL;
-}
-
-struct tc *get_tc_unused(void)
-{
-	struct tc *t;
-
-	list_for_each_entry(t, &vpecontrol.tc_list, list) {
-		if (t->state == TC_STATE_UNUSED)
-			return t;
-	}
+	spin_unlock(&vpecontrol.tc_list_lock);
 
 	return NULL;
 }
 
 /* allocate a vpe and associate it with this minor (or index) */
-struct vpe *alloc_vpe(int minor)
+static struct vpe *alloc_vpe(int minor)
 {
 	struct vpe *v;
 
-	if ((v = kzalloc(sizeof(struct vpe), GFP_KERNEL)) == NULL) {
+	if ((v = kzalloc(sizeof(struct vpe), GFP_KERNEL)) == NULL)
 		return NULL;
-	}
 
 	INIT_LIST_HEAD(&v->tc);
+	spin_lock(&vpecontrol.vpe_list_lock);
 	list_add_tail(&v->list, &vpecontrol.vpe_list);
+	spin_unlock(&vpecontrol.vpe_list_lock);
 
 	INIT_LIST_HEAD(&v->notify);
 	v->minor = minor;
+
 	return v;
 }
 
 /* allocate a tc. At startup only tc0 is running, all other can be halted. */
-struct tc *alloc_tc(int index)
+static struct tc *alloc_tc(int index)
 {
 	struct tc *tc;
 
@@ -225,14 +224,17 @@ struct tc *alloc_tc(int index)
 
 	INIT_LIST_HEAD(&tc->tc);
 	tc->index = index;
+
+	spin_lock(&vpecontrol.tc_list_lock);
 	list_add_tail(&tc->list, &vpecontrol.tc_list);
+	spin_unlock(&vpecontrol.tc_list_lock);
 
 out:
 	return tc;
 }
 
 /* clean up and free everything */
-void release_vpe(struct vpe *v)
+static void release_vpe(struct vpe *v)
 {
 	list_del(&v->list);
 	if (v->load_addr)
@@ -240,7 +242,7 @@ void release_vpe(struct vpe *v)
 	kfree(v);
 }
 
-void dump_mtregs(void)
+static void __maybe_unused dump_mtregs(void)
 {
 	unsigned long val;
 
@@ -327,7 +329,8 @@ static void layout_sections(struct module *mod, const Elf_Ehdr * hdr,
 			    || (s->sh_flags & masks[m][1])
 			    || s->sh_entsize != ~0UL)
 				continue;
-			s->sh_entsize = get_offset(&mod->core_size, s);
+			s->sh_entsize =
+				get_offset((unsigned long *)&mod->core_size, s);
 		}
 
 		if (m == 0)
@@ -461,16 +464,15 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 {
 	unsigned long insnlo = *location;
 	Elf32_Addr val, vallo;
+	struct mips_hi16 *l, *next;
 
 	/* Sign extend the addend we extract from the lo insn.  */
 	vallo = ((insnlo & 0xffff) ^ 0x8000) - 0x8000;
 
 	if (mips_hi16_list != NULL) {
-		struct mips_hi16 *l;
 
 		l = mips_hi16_list;
 		while (l != NULL) {
-			struct mips_hi16 *next;
 			unsigned long insn;
 
 			/*
@@ -480,7 +482,7 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 				printk(KERN_DEBUG "VPE loader: "
 				       "apply_r_mips_lo16/hi16: \t"
 				       "inconsistent value information\n");
-				return -ENOEXEC;
+				goto out_free;
 			}
 
 			/*
@@ -518,6 +520,16 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 	*location = insnlo;
 
 	return 0;
+
+out_free:
+	while (l != NULL) {
+		next = l->next;
+		kfree(l);
+		l = next;
+	}
+	mips_hi16_list = NULL;
+
+	return -ENOEXEC;
 }
 
 static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
@@ -541,7 +553,7 @@ static char *rstrs[] = {
 	[R_MIPS_PC16] = "MIPS_PC16"
 };
 
-int apply_relocations(Elf32_Shdr *sechdrs,
+static int apply_relocations(Elf32_Shdr *sechdrs,
 		      const char *strtab,
 		      unsigned int symindex,
 		      unsigned int relsec,
@@ -586,7 +598,7 @@ int apply_relocations(Elf32_Shdr *sechdrs,
 	return 0;
 }
 
-void save_gp_address(unsigned int secbase, unsigned int rel)
+static inline void save_gp_address(unsigned int secbase, unsigned int rel)
 {
 	gp_addr = secbase + rel;
 	gp_offs = gp_addr - (secbase & 0xffff0000);
@@ -1051,20 +1063,19 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	enum vpe_state state;
 	struct vpe_notifications *not;
 	struct vpe *v;
-	int ret, err = 0;
+	int ret;
 
-	lock_kernel();
 	if (minor != iminor(inode)) {
 		/* assume only 1 device at the moment. */
-		printk(KERN_WARNING "VPE loader: only vpe1 is supported\n");
-		err = -ENODEV;
-		goto out;
+		pr_warning("VPE loader: only vpe1 is supported\n");
+
+		return -ENODEV;
 	}
 
 	if ((v = get_vpe(tclimit)) == NULL) {
-		printk(KERN_WARNING "VPE loader: unable to get vpe\n");
-		err = -ENODEV;
-		goto out;
+		pr_warning("VPE loader: unable to get vpe\n");
+
+		return -ENODEV;
 	}
 
 	state = xchg(&v->state, VPE_STATE_INUSE);
@@ -1081,6 +1092,10 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 	/* this of-course trashes what was there before... */
 	v->pbuffer = vmalloc(P_SIZE);
+	if (!v->pbuffer) {
+		pr_warning("VPE loader: unable to allocate memory\n");
+		return -ENOMEM;
+	}
 	v->plen = P_SIZE;
 	v->load_addr = NULL;
 	v->len = 0;
@@ -1104,8 +1119,6 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->shared_ptr = NULL;
 	v->__start = 0;
 
-out:
-	unlock_kernel();
 	return 0;
 }
 
@@ -1140,10 +1153,9 @@ static int vpe_release(struct inode *inode, struct file *filp)
 	if (ret < 0)
 		v->shared_ptr = NULL;
 
-	// cleanup any temp buffers
-	if (v->pbuffer)
-		vfree(v->pbuffer);
+	vfree(v->pbuffer);
 	v->plen = 0;
+
 	return ret;
 }
 
@@ -1159,11 +1171,6 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 	v = get_vpe(tclimit);
 	if (v == NULL)
 		return -ENODEV;
-
-	if (v->pbuffer == NULL) {
-		printk(KERN_ERR "VPE loader: no buffer for program\n");
-		return -ENOMEM;
-	}
 
 	if ((count + v->len) > v->plen) {
 		printk(KERN_WARNING
@@ -1183,7 +1190,8 @@ static const struct file_operations vpe_fops = {
 	.owner = THIS_MODULE,
 	.open = vpe_open,
 	.release = vpe_release,
-	.write = vpe_write
+	.write = vpe_write,
+	.llseek = noop_llseek,
 };
 
 /* module wrapper entry points */
@@ -1387,7 +1395,7 @@ static ssize_t store_ntcs(struct device *dev, struct device_attribute *attr,
 	return len;
 
 out_einval:
-	return -EINVAL;;
+	return -EINVAL;
 }
 
 static struct device_attribute vpe_class_attributes[] = {
@@ -1597,14 +1605,14 @@ static void __exit vpe_module_exit(void)
 {
 	struct vpe *v, *n;
 
-	list_for_each_entry_safe(v, n, &vpecontrol.vpe_list, list) {
-		if (v->state != VPE_STATE_UNUSED) {
-			release_vpe(v);
-		}
-	}
-
 	device_del(&vpe_device);
 	unregister_chrdev(major, module_name);
+
+	/* No locking needed here */
+	list_for_each_entry_safe(v, n, &vpecontrol.vpe_list, list) {
+		if (v->state != VPE_STATE_UNUSED)
+			release_vpe(v);
+	}
 }
 
 module_init(vpe_module_init);

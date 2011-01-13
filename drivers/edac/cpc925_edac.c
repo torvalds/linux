@@ -25,6 +25,7 @@
 #include <linux/edac.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 
 #include "edac_core.h"
 #include "edac_module.h"
@@ -817,9 +818,10 @@ static void cpc925_del_edac_devices(void)
 }
 
 /* Convert current back-ground scrub rate into byte/sec bandwith */
-static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
+static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci)
 {
 	struct cpc925_mc_pdata *pdata = mci->pvt_info;
+	int bw;
 	u32 mscr;
 	u8 si;
 
@@ -831,11 +833,11 @@ static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
 	if (((mscr & MSCR_SCRUB_MOD_MASK) != MSCR_BACKGR_SCRUB) ||
 	    (si == 0)) {
 		cpc925_mc_printk(mci, KERN_INFO, "Scrub mode not enabled\n");
-		*bw = 0;
+		bw = 0;
 	} else
-		*bw = CPC925_SCRUB_BLOCK_SIZE * 0xFA67 / si;
+		bw = CPC925_SCRUB_BLOCK_SIZE * 0xFA67 / si;
 
-	return 0;
+	return bw;
 }
 
 /* Return 0 for single channel; 1 for dual channel */
@@ -885,14 +887,14 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 
 	if (!devm_request_mem_region(&pdev->dev,
 				     r->start,
-				     r->end - r->start + 1,
+				     resource_size(r),
 				     pdev->name)) {
 		cpc925_printk(KERN_ERR, "Unable to request mem region\n");
 		res = -EBUSY;
 		goto err1;
 	}
 
-	vbase = devm_ioremap(&pdev->dev, r->start, r->end - r->start + 1);
+	vbase = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!vbase) {
 		cpc925_printk(KERN_ERR, "Unable to ioremap device\n");
 		res = -ENOMEM;
@@ -953,7 +955,7 @@ err3:
 	cpc925_mc_exit(mci);
 	edac_mc_free(mci);
 err2:
-	devm_release_mem_region(&pdev->dev, r->start, r->end-r->start+1);
+	devm_release_mem_region(&pdev->dev, r->start, resource_size(r));
 err1:
 	devres_release_group(&pdev->dev, cpc925_probe);
 out:

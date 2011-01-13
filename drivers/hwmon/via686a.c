@@ -30,6 +30,8 @@
     Warning - only supports a single device.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -42,7 +44,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 
 /* If force_addr is set to anything different from 0, we forcibly enable
@@ -767,7 +769,7 @@ static struct via686a_data *via686a_update_device(struct device *dev)
 	return data;
 }
 
-static struct pci_device_id via686a_pci_ids[] = {
+static const struct pci_device_id via686a_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_4) },
 	{ 0, }
 };
@@ -791,21 +793,19 @@ static int __devinit via686a_device_add(unsigned short address)
 	pdev = platform_device_alloc("via686a", address);
 	if (!pdev) {
 		err = -ENOMEM;
-		printk(KERN_ERR "via686a: Device allocation failed\n");
+		pr_err("Device allocation failed\n");
 		goto exit;
 	}
 
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {
-		printk(KERN_ERR "via686a: Device resource addition failed "
-		       "(%d)\n", err);
+		pr_err("Device resource addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
 	err = platform_device_add(pdev);
 	if (err) {
-		printk(KERN_ERR "via686a: Device addition failed (%d)\n",
-		       err);
+		pr_err("Device addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 

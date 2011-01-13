@@ -46,31 +46,25 @@
  *              -> sdio_disable_func()
  */
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
+#include "commands.h"
 #include "cfg80211.h"
 #include "debug.h"
 
 static int iwm_open(struct net_device *ndev)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
-	int ret = 0;
 
-	if (!test_bit(IWM_RADIO_RFKILL_SW, &iwm->radio))
-		ret = iwm_up(iwm);
-
-	return ret;
+	return iwm_up(iwm);
 }
 
 static int iwm_stop(struct net_device *ndev)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
-	int ret = 0;
 
-	if (!test_bit(IWM_RADIO_RFKILL_SW, &iwm->radio))
-		ret = iwm_down(iwm);
-
-	return ret;
+	return iwm_down(iwm);
 }
 
 /*
@@ -82,6 +76,14 @@ static int iwm_stop(struct net_device *ndev)
  * AC_BK -> queue 0
  */
 static const u16 iwm_1d_to_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
+
+int iwm_tid_to_queue(u16 tid)
+{
+	if (tid > IWM_UMAC_TID_NR - 2)
+		return -EINVAL;
+
+	return iwm_1d_to_queue[tid];
+}
 
 static u16 iwm_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
@@ -106,10 +108,8 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 	int ret = 0;
 
 	wdev = iwm_wdev_alloc(sizeof_bus, dev);
-	if (!wdev) {
-		dev_err(dev, "no memory for wireless device instance\n");
-		return ERR_PTR(-ENOMEM);
-	}
+	if (IS_ERR(wdev))
+		return wdev;
 
 	iwm = wdev_to_iwm(wdev);
 	iwm->bus_ops = if_ops;
@@ -130,12 +130,23 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 	}
 
 	ndev->netdev_ops = &iwm_netdev_ops;
-	ndev->wireless_handlers = &iwm_iw_handler_def;
 	ndev->ieee80211_ptr = wdev;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
 
+	iwm->umac_profile = kmalloc(sizeof(struct iwm_umac_profile),
+				    GFP_KERNEL);
+	if (!iwm->umac_profile) {
+		dev_err(dev, "Couldn't alloc memory for profile\n");
+		goto out_profile;
+	}
+
+	iwm_init_default_profile(iwm, iwm->umac_profile);
+
 	return iwm;
+
+ out_profile:
+	free_netdev(ndev);
 
  out_priv:
 	iwm_priv_deinit(iwm);
@@ -150,9 +161,12 @@ void iwm_if_free(struct iwm_priv *iwm)
 	if (!iwm_to_ndev(iwm))
 		return;
 
+	cancel_delayed_work_sync(&iwm->ct_kill_delay);
 	free_netdev(iwm_to_ndev(iwm));
-	iwm_wdev_free(iwm);
 	iwm_priv_deinit(iwm);
+	kfree(iwm->umac_profile);
+	iwm->umac_profile = NULL;
+	iwm_wdev_free(iwm);
 }
 
 int iwm_if_add(struct iwm_priv *iwm)

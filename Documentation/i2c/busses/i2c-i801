@@ -15,8 +15,13 @@ Supported adapters:
   * Intel 82801I (ICH9)
   * Intel EP80579 (Tolapai)
   * Intel 82801JI (ICH10)
-  * Intel PCH
+  * Intel 5/3400 Series (PCH)
+  * Intel Cougar Point (PCH)
+  * Intel Patsburg (PCH)
    Datasheets: Publicly available at the Intel website
+
+On Intel Patsburg and later chipsets, both the normal host SMBus controller
+and the additional 'Integrated Device Function' controllers are supported.
 
 Authors: 
 	Mark Studebaker <mdsxyz123@yahoo.com>
@@ -26,7 +31,13 @@ Authors:
 Module Parameters
 -----------------
 
-None.
+* disable_features (bit vector)
+Disable selected features normally supported by the device. This makes it
+possible to work around possible driver or hardware bugs if the feature in
+question doesn't work as intended for whatever reason. Bit values:
+  1  disable SMBus PEC
+  2  disable the block buffer
+  8  disable the I2C block read functionality
 
 
 Description

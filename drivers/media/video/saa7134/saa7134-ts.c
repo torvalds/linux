@@ -24,7 +24,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "saa7134-reg.h"
@@ -250,6 +249,19 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 
 	BUG_ON(dev->ts_started);
 
+	/* dma: setup channel 5 (= TS) */
+	saa_writeb(SAA7134_TS_DMA0, (dev->ts.nr_packets - 1) & 0xff);
+	saa_writeb(SAA7134_TS_DMA1,
+		((dev->ts.nr_packets - 1) >> 8) & 0xff);
+	/* TSNOPIT=0, TSCOLAP=0 */
+	saa_writeb(SAA7134_TS_DMA2,
+		(((dev->ts.nr_packets - 1) >> 16) & 0x3f) | 0x00);
+	saa_writel(SAA7134_RS_PITCH(5), TS_PACKET_SIZE);
+	saa_writel(SAA7134_RS_CONTROL(5), SAA7134_RS_CONTROL_BURST_16 |
+					  SAA7134_RS_CONTROL_ME |
+					  (dev->ts.pt_ts.dma >> 12));
+
+	/* reset hardware TS buffers */
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
 	saa_writeb(SAA7134_TS_SERIAL1, 0x03);
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
@@ -262,11 +274,13 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 	switch (saa7134_boards[dev->board].ts_type) {
 	case SAA7134_MPEG_TS_PARALLEL:
 		saa_writeb(SAA7134_TS_SERIAL0, 0x40);
-		saa_writeb(SAA7134_TS_PARALLEL, 0xec);
+		saa_writeb(SAA7134_TS_PARALLEL, 0xec |
+			(saa7134_boards[dev->board].ts_force_val << 4));
 		break;
 	case SAA7134_MPEG_TS_SERIAL:
 		saa_writeb(SAA7134_TS_SERIAL0, 0xd8);
-		saa_writeb(SAA7134_TS_PARALLEL, 0x6c);
+		saa_writeb(SAA7134_TS_PARALLEL, 0x6c |
+			(saa7134_boards[dev->board].ts_force_val << 4));
 		saa_writeb(SAA7134_TS_PARALLEL_SERIAL, 0xbc);
 		saa_writeb(SAA7134_TS_SERIAL1, 0x02);
 		break;

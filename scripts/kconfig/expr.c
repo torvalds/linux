@@ -64,7 +64,7 @@ struct expr *expr_alloc_or(struct expr *e1, struct expr *e2)
 	return e2 ? expr_alloc_two(E_OR, e1, e2) : e1;
 }
 
-struct expr *expr_copy(struct expr *org)
+struct expr *expr_copy(const struct expr *org)
 {
 	struct expr *e;
 
@@ -348,7 +348,7 @@ struct expr *expr_trans_bool(struct expr *e)
 /*
  * e1 || e2 -> ?
  */
-struct expr *expr_join_or(struct expr *e1, struct expr *e2)
+static struct expr *expr_join_or(struct expr *e1, struct expr *e2)
 {
 	struct expr *tmp;
 	struct symbol *sym1, *sym2;
@@ -412,7 +412,7 @@ struct expr *expr_join_or(struct expr *e1, struct expr *e2)
 	return NULL;
 }
 
-struct expr *expr_join_and(struct expr *e1, struct expr *e2)
+static struct expr *expr_join_and(struct expr *e1, struct expr *e2)
 {
 	struct expr *tmp;
 	struct symbol *sym1, *sym2;
@@ -1013,6 +1013,48 @@ int expr_compare_type(enum expr_type t1, enum expr_type t2)
 #endif
 }
 
+static inline struct expr *
+expr_get_leftmost_symbol(const struct expr *e)
+{
+
+	if (e == NULL)
+		return NULL;
+
+	while (e->type != E_SYMBOL)
+		e = e->left.expr;
+
+	return expr_copy(e);
+}
+
+/*
+ * Given expression `e1' and `e2', returns the leaf of the longest
+ * sub-expression of `e1' not containing 'e2.
+ */
+struct expr *expr_simplify_unmet_dep(struct expr *e1, struct expr *e2)
+{
+	struct expr *ret;
+
+	switch (e1->type) {
+	case E_OR:
+		return expr_alloc_and(
+		    expr_simplify_unmet_dep(e1->left.expr, e2),
+		    expr_simplify_unmet_dep(e1->right.expr, e2));
+	case E_AND: {
+		struct expr *e;
+		e = expr_alloc_and(expr_copy(e1), expr_copy(e2));
+		e = expr_eliminate_dups(e);
+		ret = (!expr_eq(e, e1)) ? e1 : NULL;
+		expr_free(e);
+		break;
+		}
+	default:
+		ret = e1;
+		break;
+	}
+
+	return expr_get_leftmost_symbol(ret);
+}
+
 void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken)
 {
 	if (!e) {
@@ -1087,7 +1129,7 @@ void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *
 
 static void expr_print_file_helper(void *data, struct symbol *sym, const char *str)
 {
-	fwrite(str, strlen(str), 1, data);
+	xfwrite(str, strlen(str), 1, data);
 }
 
 void expr_fprint(struct expr *e, FILE *out)
@@ -1097,7 +1139,32 @@ void expr_fprint(struct expr *e, FILE *out)
 
 static void expr_print_gstr_helper(void *data, struct symbol *sym, const char *str)
 {
-	str_append((struct gstr*)data, str);
+	struct gstr *gs = (struct gstr*)data;
+	const char *sym_str = NULL;
+
+	if (sym)
+		sym_str = sym_get_string_value(sym);
+
+	if (gs->max_width) {
+		unsigned extra_length = strlen(str);
+		const char *last_cr = strrchr(gs->s, '\n');
+		unsigned last_line_length;
+
+		if (sym_str)
+			extra_length += 4 + strlen(sym_str);
+
+		if (!last_cr)
+			last_cr = gs->s;
+
+		last_line_length = strlen(gs->s) - (last_cr - gs->s);
+
+		if ((last_line_length + extra_length) > gs->max_width)
+			str_append(gs, "\\\n");
+	}
+
+	str_append(gs, str);
+	if (sym && sym->type != S_UNKNOWN)
+		str_printf(gs, " [=%s]", sym_str);
 }
 
 void expr_gstr_print(struct expr *e, struct gstr *gs)

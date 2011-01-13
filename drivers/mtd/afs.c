@@ -2,7 +2,7 @@
 
     drivers/mtd/afs.c: ARM Flash Layout/Partitioning
 
-    Copyright (C) 2000 ARM Limited
+    Copyright © 2000 ARM Limited
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -239,7 +239,7 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 		parts[idx].offset	= img_ptr;
 		parts[idx].mask_flags	= 0;
 
-		printk("  mtd%d: at 0x%08x, %5dKB, %8u, %s\n",
+		printk("  mtd%d: at 0x%08x, %5lluKiB, %8u, %s\n",
 			idx, img_ptr, parts[idx].size / 1024,
 			iis.imageNumber, str);
 

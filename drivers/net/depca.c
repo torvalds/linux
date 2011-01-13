@@ -237,6 +237,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -516,7 +517,8 @@ struct depca_private {
 ** Public Functions
 */
 static int depca_open(struct net_device *dev);
-static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t depca_start_xmit(struct sk_buff *skb,
+				    struct net_device *dev);
 static irqreturn_t depca_interrupt(int irq, void *dev_id);
 static int depca_close(struct net_device *dev);
 static int depca_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -847,7 +849,7 @@ static int depca_open(struct net_device *dev)
 
 	depca_dbg_open(dev);
 
-	if (request_irq(dev->irq, &depca_interrupt, 0, lp->adapter_name, dev)) {
+	if (request_irq(dev->irq, depca_interrupt, 0, lp->adapter_name, dev)) {
 		printk("depca_open(): Requested IRQ%d is busy\n", dev->irq);
 		status = -EAGAIN;
 	} else {
@@ -919,7 +921,7 @@ static void depca_tx_timeout(struct net_device *dev)
 	STOP_DEPCA;
 	depca_init_ring(dev);
 	LoadCSRs(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 	InitRestartDepca(dev);
 }
@@ -928,7 +930,8 @@ static void depca_tx_timeout(struct net_device *dev)
 /*
 ** Writes a socket buffer to TX descriptor ring and starts transmission
 */
-static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t depca_start_xmit(struct sk_buff *skb,
+				    struct net_device *dev)
 {
 	struct depca_private *lp = netdev_priv(dev);
 	u_long ioaddr = dev->base_addr;
@@ -951,7 +954,6 @@ static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			outw(CSR0, DEPCA_ADDR);
 			outw(INEA | TDMD, DEPCA_DATA);
 
-			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
 		}
 		if (TX_BUFFS_AVAIL)
@@ -1201,8 +1203,6 @@ static void LoadCSRs(struct net_device *dev)
 	outw(ACON, DEPCA_DATA);
 
 	outw(CSR0, DEPCA_ADDR);	/* Point back to CSR0 */
-
-	return;
 }
 
 static int InitRestartDepca(struct net_device *dev)
@@ -1269,7 +1269,7 @@ static void set_multicast_list(struct net_device *dev)
 static void SetMulticastFilter(struct net_device *dev)
 {
 	struct depca_private *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	char *addrs;
 	int i, j, bit, byte;
 	u16 hashcode;
@@ -1284,9 +1284,8 @@ static void SetMulticastFilter(struct net_device *dev)
 			lp->init_block.mcast_table[i] = 0;
 		}
 		/* Add multicast addresses */
-		for (i = 0; i < dev->mc_count; i++) {	/* for each address in the list */
-			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 			if ((*addrs & 0x01) == 1) {	/* multicast address? */
 				crc = ether_crc(ETH_ALEN, addrs);
 				hashcode = (crc & 1);	/* hashcode is 6 LSb of CRC ... */
@@ -1301,8 +1300,6 @@ static void SetMulticastFilter(struct net_device *dev)
 			}
 		}
 	}
-
-	return;
 }
 
 static int __init depca_common_init (u_long ioaddr, struct net_device **devp)
@@ -1490,7 +1487,7 @@ static void __init depca_platform_probe (void)
 		if (!pldev->dev.driver) {
 		/* The driver was not bound to this device, there was
 		 * no hardware at this address. Unregister it, as the
-		 * release fuction will take care of freeing the
+		 * release function will take care of freeing the
 		 * allocated structure */
 
 			depca_io_ports[i].device = NULL;
@@ -1516,7 +1513,7 @@ static enum depca_type __init depca_shmem_probe (ulong *mem_start)
 	return adapter;
 }
 
-static int __init depca_isa_probe (struct platform_device *device)
+static int __devinit depca_isa_probe (struct platform_device *device)
 {
 	struct net_device *dev;
 	struct depca_private *lp;
@@ -1793,7 +1790,7 @@ static int __init get_hw_addr(struct net_device *dev)
 static int load_packet(struct net_device *dev, struct sk_buff *skb)
 {
 	struct depca_private *lp = netdev_priv(dev);
-	int i, entry, end, len, status = 0;
+	int i, entry, end, len, status = NETDEV_TX_OK;
 
 	entry = lp->tx_new;	/* Ring around buffer number. */
 	end = (entry + (skb->len - 1) / TX_BUFF_SZ) & lp->txRingMask;
@@ -1907,8 +1904,6 @@ static void depca_dbg_open(struct net_device *dev)
 		outw(CSR3, DEPCA_ADDR);
 		printk("CSR3: 0x%4.4x\n", inw(DEPCA_DATA));
 	}
-
-	return;
 }
 
 /*
@@ -2066,18 +2061,35 @@ static int depca_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static int __init depca_module_init (void)
 {
-        int err = 0;
+	int err = 0;
 
 #ifdef CONFIG_MCA
-        err = mca_register_driver (&depca_mca_driver);
+	err = mca_register_driver(&depca_mca_driver);
+	if (err)
+		goto err;
 #endif
 #ifdef CONFIG_EISA
-        err |= eisa_driver_register (&depca_eisa_driver);
+	err = eisa_driver_register(&depca_eisa_driver);
+	if (err)
+		goto err_mca;
 #endif
-	err |= platform_driver_register (&depca_isa_driver);
-	depca_platform_probe ();
+	err = platform_driver_register(&depca_isa_driver);
+	if (err)
+		goto err_eisa;
 
-        return err;
+	depca_platform_probe();
+	return 0;
+
+err_eisa:
+#ifdef CONFIG_EISA
+	eisa_driver_unregister(&depca_eisa_driver);
+err_mca:
+#endif
+#ifdef CONFIG_MCA
+	mca_unregister_driver(&depca_mca_driver);
+err:
+#endif
+	return err;
 }
 
 static void __exit depca_module_exit (void)

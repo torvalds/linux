@@ -49,6 +49,7 @@
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/socket.h>
 #include <linux/mqueue.h>
@@ -64,7 +65,6 @@
 #include <linux/binfmts.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
-#include <linux/inotify.h>
 #include <linux/capability.h>
 #include <linux/fs_struct.h>
 
@@ -168,12 +168,12 @@ struct audit_context {
 	int		    in_syscall;	/* 1 if task is in a syscall */
 	enum audit_state    state, current_state;
 	unsigned int	    serial;     /* serial number for record */
-	struct timespec	    ctime;      /* time of syscall entry */
 	int		    major;      /* syscall number */
+	struct timespec	    ctime;      /* time of syscall entry */
 	unsigned long	    argv[4];    /* syscall arguments */
-	int		    return_valid; /* return code is valid */
 	long		    return_code;/* syscall return code */
 	u64		    prio;
+	int		    return_valid; /* return code is valid */
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
 	char *		    filterkey;	/* key for rule that triggered record */
@@ -198,6 +198,7 @@ struct audit_context {
 	char		    target_comm[TASK_COMM_LEN];
 
 	struct audit_tree_refs *trees, *first_trees;
+	struct list_head killed_trees;
 	int tree_count;
 
 	int type;
@@ -240,6 +241,10 @@ struct audit_context {
 			pid_t			pid;
 			struct audit_cap_data	cap;
 		} capset;
+		struct {
+			int			fd;
+			int			flags;
+		} mmap;
 	};
 	int fds[2];
 
@@ -249,7 +254,6 @@ struct audit_context {
 #endif
 };
 
-#define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
 static inline int open_arg(int flags, int mask)
 {
 	int n = ACC_MODE(flags);
@@ -548,9 +552,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_WATCH:
-			if (name && rule->watch->ino != (unsigned long)-1)
-				result = (name->dev == rule->watch->dev &&
-					  name->ino == rule->watch->ino);
+			if (name)
+				result = audit_watch_compare(rule->watch, name->ino, name->dev);
 			break;
 		case AUDIT_DIR:
 			if (ctx)
@@ -853,6 +856,7 @@ static inline struct audit_context *audit_alloc_context(enum audit_state state)
 	if (!(context = kmalloc(sizeof(*context), GFP_KERNEL)))
 		return NULL;
 	audit_zero_context(context, state);
+	INIT_LIST_HEAD(&context->killed_trees);
 	return context;
 }
 
@@ -1024,8 +1028,8 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 {
 	char arg_num_len_buf[12];
 	const char __user *tmp_p = p;
-	/* how many digits are in arg_num? 3 is the length of " a=" */
-	size_t arg_num_len = snprintf(arg_num_len_buf, 12, "%d", arg_num) + 3;
+	/* how many digits are in arg_num? 5 is the length of ' a=""' */
+	size_t arg_num_len = snprintf(arg_num_len_buf, 12, "%d", arg_num) + 5;
 	size_t len, len_left, to_send;
 	size_t max_execve_audit_len = MAX_EXECVE_AUDIT_LEN;
 	unsigned int i, has_cntl = 0, too_long = 0;
@@ -1137,7 +1141,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 		if (has_cntl)
 			audit_log_n_hex(*ab, buf, to_send);
 		else
-			audit_log_format(*ab, "\"%s\"", buf);
+			audit_log_string(*ab, buf);
 
 		p += to_send;
 		len_left -= to_send;
@@ -1305,6 +1309,10 @@ static void show_special(struct audit_context *context, int *call_panic)
 		audit_log_cap(ab, "cap_pp", &context->capset.cap.permitted);
 		audit_log_cap(ab, "cap_pe", &context->capset.cap.effective);
 		break; }
+	case AUDIT_MMAP: {
+		audit_log_format(ab, "fd=%d flags=0x%x", context->mmap.fd,
+				 context->mmap.flags);
+		break; }
 	}
 	audit_log_end(ab);
 }
@@ -1372,11 +1380,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 
 	audit_log_task_info(ab, tsk);
-	if (context->filterkey) {
-		audit_log_format(ab, " key=");
-		audit_log_untrustedstring(ab, context->filterkey);
-	} else
-		audit_log_format(ab, " key=(null)");
+	audit_log_key(ab, context->filterkey);
 	audit_log_end(ab);
 
 	for (aux = context->aux; aux; aux = aux->next) {
@@ -1549,6 +1553,8 @@ void audit_free(struct task_struct *tsk)
 	/* that can happen only if we are called from do_exit() */
 	if (context->in_syscall && context->current_state == AUDIT_RECORD_CONTEXT)
 		audit_log_exit(context, tsk);
+	if (!list_empty(&context->killed_trees))
+		audit_kill_trees(&context->killed_trees);
 
 	audit_free_context(context);
 }
@@ -1692,6 +1698,9 @@ void audit_syscall_exit(int valid, long return_code)
 	context->in_syscall = 0;
 	context->prio = context->state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
 
+	if (!list_empty(&context->killed_trees))
+		audit_kill_trees(&context->killed_trees);
+
 	if (context->previous) {
 		struct audit_context *new_context = context->previous;
 		context->previous  = NULL;
@@ -1723,7 +1732,7 @@ static inline void handle_one(const struct inode *inode)
 	struct audit_tree_refs *p;
 	struct audit_chunk *chunk;
 	int count;
-	if (likely(list_empty(&inode->inotify_watches)))
+	if (likely(hlist_empty(&inode->i_fsnotify_marks)))
 		return;
 	context = current->audit_context;
 	p = context->trees;
@@ -1766,7 +1775,7 @@ retry:
 	seq = read_seqbegin(&rename_lock);
 	for(;;) {
 		struct inode *inode = d->d_inode;
-		if (inode && unlikely(!list_empty(&inode->inotify_watches))) {
+		if (inode && unlikely(!hlist_empty(&inode->i_fsnotify_marks))) {
 			struct audit_chunk *chunk;
 			chunk = audit_tree_lookup(inode);
 			if (chunk) {
@@ -1834,13 +1843,8 @@ void __audit_getname(const char *name)
 	context->names[context->name_count].ino  = (unsigned long)-1;
 	context->names[context->name_count].osid = 0;
 	++context->name_count;
-	if (!context->pwd.dentry) {
-		read_lock(&current->fs->lock);
-		context->pwd = current->fs->pwd;
-		path_get(&current->fs->pwd);
-		read_unlock(&current->fs->lock);
-	}
-
+	if (!context->pwd.dentry)
+		get_fs_pwd(current->fs, &context->pwd);
 }
 
 /* audit_putname - intercept a putname request
@@ -1891,7 +1895,7 @@ static int audit_inc_name_count(struct audit_context *context,
 {
 	if (context->name_count >= AUDIT_NAMES) {
 		if (inode)
-			printk(KERN_DEBUG "name_count maxed, losing inode data: "
+			printk(KERN_DEBUG "audit: name_count maxed, losing inode data: "
 			       "dev=%02x:%02x, inode=%lu\n",
 			       MAJOR(inode->i_sb->s_dev),
 			       MINOR(inode->i_sb->s_dev),
@@ -1986,7 +1990,6 @@ void __audit_inode(const char *name, const struct dentry *dentry)
 
 /**
  * audit_inode_child - collect inode info for created/removed objects
- * @dname: inode's dentry name
  * @dentry: dentry being audited
  * @parent: inode of dentry parent
  *
@@ -1998,13 +2001,14 @@ void __audit_inode(const char *name, const struct dentry *dentry)
  * must be hooked prior, in order to capture the target inode during
  * unsuccessful attempts.
  */
-void __audit_inode_child(const char *dname, const struct dentry *dentry,
+void __audit_inode_child(const struct dentry *dentry,
 			 const struct inode *parent)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
 	const char *found_parent = NULL, *found_child = NULL;
 	const struct inode *inode = dentry->d_inode;
+	const char *dname = dentry->d_name.name;
 	int dirlen = 0;
 
 	if (!context->in_syscall)
@@ -2012,9 +2016,6 @@ void __audit_inode_child(const char *dname, const struct dentry *dentry,
 
 	if (inode)
 		handle_one(inode);
-	/* determine matching parent */
-	if (!dname)
-		goto add_names;
 
 	/* parent is more likely, look for it first */
 	for (idx = 0; idx < context->name_count; idx++) {
@@ -2483,6 +2484,14 @@ void __audit_log_capset(pid_t pid,
 	context->type = AUDIT_CAPSET;
 }
 
+void __audit_mmap_fd(int fd, int flags)
+{
+	struct audit_context *context = current->audit_context;
+	context->mmap.fd = fd;
+	context->mmap.flags = flags;
+	context->type = AUDIT_MMAP;
+}
+
 /**
  * audit_core_dumps - record information about processes that end abnormally
  * @signr: signal value
@@ -2524,4 +2533,12 @@ void audit_core_dumps(long signr)
 	audit_log_untrustedstring(ab, current->comm);
 	audit_log_format(ab, " sig=%ld", signr);
 	audit_log_end(ab);
+}
+
+struct list_head *audit_killed_trees(void)
+{
+	struct audit_context *ctx = current->audit_context;
+	if (likely(!ctx || !ctx->in_syscall))
+		return NULL;
+	return &ctx->killed_trees;
 }

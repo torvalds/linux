@@ -334,10 +334,19 @@
 #define __NR_inotify_init1	328
 #define __NR_preadv		329
 #define __NR_pwritev		330
+#define __NR_rt_tgsigqueueinfo	331
+#define __NR_perf_event_open	332
+#define __NR_get_thread_area	333
+#define __NR_set_thread_area	334
+#define __NR_atomic_cmpxchg_32	335
+#define __NR_atomic_barrier	336
+#define __NR_fanotify_init	337
+#define __NR_fanotify_mark	338
+#define __NR_prlimit64		339
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		331
+#define NR_syscalls		340
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -345,6 +354,7 @@
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
+#define __ARCH_WANT_SYS_IPC
 #define __ARCH_WANT_SYS_PAUSE
 #define __ARCH_WANT_SYS_SGETMASK
 #define __ARCH_WANT_SYS_SIGNAL
@@ -357,10 +367,13 @@
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_NICE
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLD_MMAP
+#define __ARCH_WANT_SYS_OLD_SELECT
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 
 /*
  * "Conditional" syscalls

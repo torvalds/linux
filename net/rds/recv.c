@@ -31,11 +31,11 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/in.h>
 
 #include "rds.h"
-#include "rdma.h"
 
 void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 		  __be32 saddr)
@@ -46,8 +46,9 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 	inc->i_saddr = saddr;
 	inc->i_rdma_cookie = 0;
 }
+EXPORT_SYMBOL_GPL(rds_inc_init);
 
-void rds_inc_addref(struct rds_incoming *inc)
+static void rds_inc_addref(struct rds_incoming *inc)
 {
 	rdsdebug("addref inc %p ref %d\n", inc, atomic_read(&inc->i_refcount));
 	atomic_inc(&inc->i_refcount);
@@ -62,6 +63,7 @@ void rds_inc_put(struct rds_incoming *inc)
 		inc->i_conn->c_trans->inc_free(inc);
 	}
 }
+EXPORT_SYMBOL_GPL(rds_inc_put);
 
 static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 				  struct rds_cong_map *map,
@@ -192,8 +194,8 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 	 * XXX we could spend more on the wire to get more robust failure
 	 * detection, arguably worth it to avoid data corruption.
 	 */
-	if (be64_to_cpu(inc->i_hdr.h_sequence) < conn->c_next_rx_seq
-	 && (inc->i_hdr.h_flags & RDS_FLAG_RETRANSMITTED)) {
+	if (be64_to_cpu(inc->i_hdr.h_sequence) < conn->c_next_rx_seq &&
+	    (inc->i_hdr.h_flags & RDS_FLAG_RETRANSMITTED)) {
 		rds_stats_inc(s_recv_drop_old_seq);
 		goto out;
 	}
@@ -206,7 +208,7 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 	}
 
 	rs = rds_find_bound(daddr, inc->i_hdr.h_dport);
-	if (rs == NULL) {
+	if (!rs) {
 		rds_stats_inc(s_recv_drop_no_sock);
 		goto out;
 	}
@@ -237,6 +239,7 @@ out:
 	if (rs)
 		rds_sock_put(rs);
 }
+EXPORT_SYMBOL_GPL(rds_recv_incoming);
 
 /*
  * be very careful here.  This is being called as the condition in
@@ -246,7 +249,7 @@ static int rds_next_incoming(struct rds_sock *rs, struct rds_incoming **inc)
 {
 	unsigned long flags;
 
-	if (*inc == NULL) {
+	if (!*inc) {
 		read_lock_irqsave(&rs->rs_recv_lock, flags);
 		if (!list_empty(&rs->rs_recv_queue)) {
 			*inc = list_entry(rs->rs_recv_queue.next,
@@ -292,7 +295,7 @@ static int rds_still_queued(struct rds_sock *rs, struct rds_incoming *inc,
 int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 {
 	struct rds_notifier *notifier;
-	struct rds_rdma_notify cmsg;
+	struct rds_rdma_notify cmsg = { 0 }; /* fill holes with zero */
 	unsigned int count = 0, max_messages = ~0U;
 	unsigned long flags;
 	LIST_HEAD(copy);
@@ -329,10 +332,10 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 
 		if (msghdr) {
 			cmsg.user_token = notifier->n_user_token;
-			cmsg.status  = notifier->n_status;
+			cmsg.status = notifier->n_status;
 
 			err = put_cmsg(msghdr, SOL_RDS, RDS_CMSG_RDMA_STATUS,
-					sizeof(cmsg), &cmsg);
+				       sizeof(cmsg), &cmsg);
 			if (err)
 				break;
 		}
@@ -409,27 +412,28 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (msg_flags & MSG_OOB)
 		goto out;
 
-	/* If there are pending notifications, do those - and nothing else */
-	if (!list_empty(&rs->rs_notify_queue)) {
-		ret = rds_notify_queue_get(rs, msg);
-		goto out;
-	}
-
-	if (rs->rs_cong_notify) {
-		ret = rds_notify_cong(rs, msg);
-		goto out;
-	}
-
 	while (1) {
+		/* If there are pending notifications, do those - and nothing else */
+		if (!list_empty(&rs->rs_notify_queue)) {
+			ret = rds_notify_queue_get(rs, msg);
+			break;
+		}
+
+		if (rs->rs_cong_notify) {
+			ret = rds_notify_cong(rs, msg);
+			break;
+		}
+
 		if (!rds_next_incoming(rs, &inc)) {
 			if (nonblock) {
 				ret = -EAGAIN;
 				break;
 			}
 
-			timeo = wait_event_interruptible_timeout(*sk->sk_sleep,
-						rds_next_incoming(rs, &inc),
-						timeo);
+			timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
+					(!list_empty(&rs->rs_notify_queue) ||
+					 rs->rs_cong_notify ||
+					 rds_next_incoming(rs, &inc)), timeo);
 			rdsdebug("recvmsg woke inc %p timeo %ld\n", inc,
 				 timeo);
 			if (timeo > 0 || timeo == MAX_SCHEDULE_TIMEOUT)

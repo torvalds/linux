@@ -8,9 +8,9 @@
 #include <asm/paravirt.h>
 
 static inline void
-default_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
+default_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 {
-	__raw_spin_lock(lock);
+	arch_spin_lock(lock);
 }
 
 struct pv_lock_ops pv_lock_ops = {

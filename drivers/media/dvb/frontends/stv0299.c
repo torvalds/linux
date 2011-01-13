@@ -92,7 +92,7 @@ static int stv0299_writeregI (struct stv0299_state* state, u8 reg, u8 data)
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
-static int stv0299_write(struct dvb_frontend* fe, u8 *buf, int len)
+static int stv0299_write(struct dvb_frontend* fe, const u8 buf[], int len)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 
@@ -667,7 +667,7 @@ struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 	int id;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct stv0299_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct stv0299_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

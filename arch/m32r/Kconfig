@@ -1,16 +1,12 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/M32R Kernel Configuration"
-
 config M32R
 	bool
 	default y
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select INIT_ALL_POSSIBLE
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
 
 config SBUS
 	bool
@@ -40,6 +36,9 @@ config NO_DMA
 config HZ
 	int
 	default 100
+
+config ARCH_USES_GETTIMEOFFSET
+	def_bool y
 
 source "init/Kconfig"
 
@@ -309,7 +308,7 @@ config SMP
 	  Management" code will be disabled if you say Y here.
 
 	  See also the SMP-HOWTO available at
-	  <http://www.linuxdoc.org/docs.html#howto>.
+	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
 	  If you don't know what to do here, say N.
 

@@ -23,7 +23,6 @@
  */
 
 #include <linux/capability.h>
-#include <linux/slab.h>
 #include <linux/msg.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -125,6 +124,7 @@ void msg_init_ns(struct ipc_namespace *ns)
 void msg_exit_ns(struct ipc_namespace *ns)
 {
 	free_ipcs(ns, &msg_ids(ns), freeque);
+	idr_destroy(&ns->ids[IPC_MSG_IDS].ipcs_idr);
 }
 #endif
 
@@ -345,19 +345,19 @@ copy_msqid_to_user(void __user *buf, struct msqid64_ds *in, int version)
 		out.msg_rtime		= in->msg_rtime;
 		out.msg_ctime		= in->msg_ctime;
 
-		if (in->msg_cbytes > USHORT_MAX)
-			out.msg_cbytes	= USHORT_MAX;
+		if (in->msg_cbytes > USHRT_MAX)
+			out.msg_cbytes	= USHRT_MAX;
 		else
 			out.msg_cbytes	= in->msg_cbytes;
 		out.msg_lcbytes		= in->msg_cbytes;
 
-		if (in->msg_qnum > USHORT_MAX)
-			out.msg_qnum	= USHORT_MAX;
+		if (in->msg_qnum > USHRT_MAX)
+			out.msg_qnum	= USHRT_MAX;
 		else
 			out.msg_qnum	= in->msg_qnum;
 
-		if (in->msg_qbytes > USHORT_MAX)
-			out.msg_qbytes	= USHORT_MAX;
+		if (in->msg_qbytes > USHRT_MAX)
+			out.msg_qbytes	= USHRT_MAX;
 		else
 			out.msg_qbytes	= in->msg_qbytes;
 		out.msg_lqbytes		= in->msg_qbytes;
@@ -412,7 +412,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 		       struct msqid_ds __user *buf, int version)
 {
 	struct kern_ipc_perm *ipcp;
-	struct msqid64_ds msqid64;
+	struct msqid64_ds uninitialized_var(msqid64);
 	struct msg_queue *msq;
 	int err;
 

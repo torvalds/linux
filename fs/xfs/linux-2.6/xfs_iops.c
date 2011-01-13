@@ -24,30 +24,22 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
@@ -56,21 +48,25 @@
 #include <linux/security.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
+#include <linux/slab.h>
 
 /*
- * Bring the atime in the XFS inode uptodate.
- * Used before logging the inode to disk or when the Linux inode goes away.
+ * Bring the timestamps in the XFS inode uptodate.
+ *
+ * Used before writing the inode to disk.
  */
 void
-xfs_synchronize_atime(
+xfs_synchronize_times(
 	xfs_inode_t	*ip)
 {
 	struct inode	*inode = VFS_I(ip);
 
-	if (!(inode->i_state & I_CLEAR)) {
-		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
-	}
+	ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
+	ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
+	ip->i_d.di_ctime.t_sec = (__int32_t)inode->i_ctime.tv_sec;
+	ip->i_d.di_ctime.t_nsec = (__int32_t)inode->i_ctime.tv_nsec;
+	ip->i_d.di_mtime.t_sec = (__int32_t)inode->i_mtime.tv_sec;
+	ip->i_d.di_mtime.t_nsec = (__int32_t)inode->i_mtime.tv_nsec;
 }
 
 /*
@@ -84,55 +80,18 @@ xfs_mark_inode_dirty_sync(
 {
 	struct inode	*inode = VFS_I(ip);
 
-	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
 		mark_inode_dirty_sync(inode);
 }
 
-/*
- * Change the requested timestamp in the given inode.
- * We don't lock across timestamp updates, and we don't log them but
- * we do record the fact that there is dirty information in core.
- */
 void
-xfs_ichgtime(
-	xfs_inode_t	*ip,
-	int		flags)
+xfs_mark_inode_dirty(
+	xfs_inode_t	*ip)
 {
 	struct inode	*inode = VFS_I(ip);
-	timespec_t	tv;
-	int		sync_it = 0;
 
-	tv = current_fs_time(inode->i_sb);
-
-	if ((flags & XFS_ICHGTIME_MOD) &&
-	    !timespec_equal(&inode->i_mtime, &tv)) {
-		inode->i_mtime = tv;
-		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
-		sync_it = 1;
-	}
-	if ((flags & XFS_ICHGTIME_CHG) &&
-	    !timespec_equal(&inode->i_ctime, &tv)) {
-		inode->i_ctime = tv;
-		ip->i_d.di_ctime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_ctime.t_nsec = (__int32_t)tv.tv_nsec;
-		sync_it = 1;
-	}
-
-	/*
-	 * We update the i_update_core field _after_ changing
-	 * the timestamps in order to coordinate properly with
-	 * xfs_iflush() so that we don't lose timestamp updates.
-	 * This keeps us from having to hold the inode lock
-	 * while doing this.  We use the SYNCHRONIZE macro to
-	 * ensure that the compiler does not reorder the update
-	 * of i_update_core above the timestamp updates above.
-	 */
-	if (sync_it) {
-		SYNCHRONIZE();
-		ip->i_update_core = 1;
-		xfs_mark_inode_dirty_sync(ip);
-	}
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
+		mark_inode_dirty(inode);
 }
 
 /*
@@ -149,10 +108,10 @@ xfs_init_security(
 	struct xfs_inode *ip = XFS_I(inode);
 	size_t		length;
 	void		*value;
-	char		*name;
+	unsigned char	*name;
 	int		error;
 
-	error = security_inode_init_security(inode, dir, &name,
+	error = security_inode_init_security(inode, dir, (char **)&name,
 					     &value, &length);
 	if (error) {
 		if (error == -EOPNOTSUPP)
@@ -230,7 +189,7 @@ xfs_vn_mknod(
 	}
 
 	xfs_dentry_to_name(&name, dentry);
-	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip, NULL);
+	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
 	if (unlikely(error))
 		goto out_free_acl;
 
@@ -358,7 +317,7 @@ xfs_vn_link(
 	if (unlikely(error))
 		return -error;
 
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	d_instantiate(dentry, inode);
 	return 0;
 }
@@ -403,7 +362,7 @@ xfs_vn_symlink(
 		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
 	xfs_dentry_to_name(&name, dentry);
 
-	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip, NULL);
+	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip);
 	if (unlikely(error))
 		goto out;
 
@@ -485,14 +444,6 @@ xfs_vn_put_link(
 }
 
 STATIC int
-xfs_vn_permission(
-	struct inode		*inode,
-	int			mask)
-{
-	return generic_permission(inode, mask, xfs_check_acl);
-}
-
-STATIC int
 xfs_vn_getattr(
 	struct vfsmount		*mnt,
 	struct dentry		*dentry,
@@ -502,7 +453,7 @@ xfs_vn_getattr(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_getattr(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -515,10 +466,8 @@ xfs_vn_getattr(
 	stat->gid = ip->i_d.di_gid;
 	stat->ino = ip->i_ino;
 	stat->atime = inode->i_atime;
-	stat->mtime.tv_sec = ip->i_d.di_mtime.t_sec;
-	stat->mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
-	stat->ctime.tv_sec = ip->i_d.di_ctime.t_sec;
-	stat->ctime.tv_nsec = ip->i_d.di_ctime.t_nsec;
+	stat->mtime = inode->i_mtime;
+	stat->ctime = inode->i_ctime;
 	stat->blocks =
 		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
 
@@ -556,21 +505,6 @@ xfs_vn_setattr(
 	return -xfs_setattr(XFS_I(dentry->d_inode), iattr, 0);
 }
 
-/*
- * block_truncate_page can return an error, but we can't propagate it
- * at all here. Leave a complaint + stack trace in the syslog because
- * this could be bad. If it is bad, we need to propagate the error further.
- */
-STATIC void
-xfs_vn_truncate(
-	struct inode	*inode)
-{
-	int	error;
-	error = block_truncate_page(inode->i_mapping, inode->i_size,
-							xfs_get_blocks);
-	WARN_ON(error);
-}
-
 STATIC long
 xfs_vn_fallocate(
 	struct inode	*inode,
@@ -593,11 +527,20 @@ xfs_vn_fallocate(
 	bf.l_len = len;
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-	error = xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
-				      0, XFS_ATTR_NOLOCK);
-	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
-	    offset + len > i_size_read(inode))
+
+	/* check the new inode size is valid before allocating */
+	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+	    offset + len > i_size_read(inode)) {
 		new_size = offset + len;
+		error = inode_newsize_ok(inode, new_size);
+		if (error)
+			goto out_unlock;
+	}
+
+	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
+				       0, XFS_ATTR_NOLOCK);
+	if (error)
+		goto out_unlock;
 
 	/* Change file size if needed */
 	if (new_size) {
@@ -605,9 +548,10 @@ xfs_vn_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
+		error = -xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
 	}
 
+out_unlock:
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 out_error:
 	return error;
@@ -680,9 +624,12 @@ xfs_vn_fiemap(
 	else
 		bm.bmv_length = BTOBB(length);
 
-	/* our formatter will tell xfs_getbmap when to stop. */
-	bm.bmv_count = MAXEXTNUM;
-	bm.bmv_iflags = BMV_IF_PREALLOC;
+	/* We add one because in getbmap world count includes the header */
+	bm.bmv_count = !fieinfo->fi_extents_max ? MAXEXTNUM :
+					fieinfo->fi_extents_max + 1;
+	bm.bmv_count = min_t(__s32, bm.bmv_count,
+			     (PAGE_SIZE * 16 / sizeof(struct getbmapx)));
+	bm.bmv_iflags = BMV_IF_PREALLOC | BMV_IF_NO_HOLES;
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR)
 		bm.bmv_iflags |= BMV_IF_ATTRFORK;
 	if (!(fieinfo->fi_flags & FIEMAP_FLAG_SYNC))
@@ -696,8 +643,7 @@ xfs_vn_fiemap(
 }
 
 static const struct inode_operations xfs_inode_operations = {
-	.permission		= xfs_vn_permission,
-	.truncate		= xfs_vn_truncate,
+	.check_acl		= xfs_check_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -724,7 +670,7 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
-	.permission		= xfs_vn_permission,
+	.check_acl		= xfs_check_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -749,7 +695,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
-	.permission		= xfs_vn_permission,
+	.check_acl		= xfs_check_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -762,7 +708,7 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.follow_link		= xfs_vn_follow_link,
 	.put_link		= xfs_vn_put_link,
-	.permission		= xfs_vn_permission,
+	.check_acl		= xfs_check_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -813,8 +759,11 @@ xfs_setup_inode(
 	struct inode		*inode = &ip->i_vnode;
 
 	inode->i_ino = ip->i_ino;
-	inode->i_state = I_NEW|I_LOCK;
-	inode_add_to_lists(ip->i_mount->m_super, inode);
+	inode->i_state = I_NEW;
+
+	inode_sb_list_add(inode);
+	/* make the inode look hashed for the writeback code */
+	hlist_add_fake(&inode->i_hash);
 
 	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;

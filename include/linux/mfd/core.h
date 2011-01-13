@@ -23,6 +23,7 @@
  */
 struct mfd_cell {
 	const char		*name;
+	int			id;
 
 	int			(*enable)(struct platform_device *dev);
 	int			(*disable)(struct platform_device *dev);
@@ -43,6 +44,9 @@ struct mfd_cell {
 	 */
 	int			num_resources;
 	const struct resource	*resources;
+
+	/* don't check for resource conflicts */
+	bool			ignore_resource_conflicts;
 };
 
 extern int mfd_add_devices(struct device *parent, int id,

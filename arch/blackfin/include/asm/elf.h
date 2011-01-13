@@ -1,4 +1,8 @@
-/* Changes made by  LG Soft Oct 2004*/
+/*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef __ASMBFIN_ELF_H
 #define __ASMBFIN_ELF_H
@@ -18,12 +22,15 @@
 #define EF_BFIN_CODE_IN_L2	0x00000040	/* --code-in-l2 */
 #define EF_BFIN_DATA_IN_L2	0x00000080	/* --data-in-l2 */
 
+#if 1	/* core dumps not supported, but linux/elfcore.h needs these */
 typedef unsigned long elf_greg_t;
 
-#define ELF_NGREG 40 /* (sizeof(struct user_regs_struct) / sizeof(elf_greg_t)) */
+#define ELF_NGREG (sizeof(struct pt_regs) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
-typedef struct user_bfinfp_struct elf_fpregset_t;
+typedef struct { } elf_fpregset_t;
+#endif
+
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -51,7 +58,9 @@ do {											\
 	_regs->p2	= _dynamic_addr;				\
 } while(0)
 
-#define USE_ELF_CORE_DUMP
+#if 0
+#define CORE_DUMP_USE_REGSET
+#endif
 #define ELF_FDPIC_CORE_EFLAGS	EF_BFIN_FDPIC
 #define ELF_EXEC_PAGESIZE	4096
 
@@ -110,6 +119,7 @@ do {											\
 #define ELF_CORE_COPY_REGS(pr_reg, regs)	\
         memcpy((char *) &pr_reg, (char *)regs,  \
                sizeof(struct pt_regs));
+#define ELF_CORE_COPY_FPREGS(...) 0	/* Blackfin has no FPU */
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  */

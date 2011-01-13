@@ -46,6 +46,7 @@ struct st_buffer {
 	struct st_request *last_SRpnt;
 	struct st_cmdstatus cmdstat;
 	struct page **reserved_pages;
+	int reserved_page_order;
 	struct page **mapped_pages;
 	struct rq_map_data map_data;
 	unsigned char *b_data;

@@ -188,17 +188,16 @@ static struct fw_device *target_device(struct sbp2_target *tgt)
 /* Impossible login_id, to detect logout attempt before successful login */
 #define INVALID_LOGIN_ID 0x10000
 
-/*
- * Per section 7.4.8 of the SBP-2 spec, a mgt_ORB_timeout value can be
- * provided in the config rom. Most devices do provide a value, which
- * we'll use for login management orbs, but with some sane limits.
- */
-#define SBP2_MIN_LOGIN_ORB_TIMEOUT	5000U	/* Timeout in ms */
-#define SBP2_MAX_LOGIN_ORB_TIMEOUT	40000U	/* Timeout in ms */
-#define SBP2_ORB_TIMEOUT		2000U	/* Timeout in ms */
+#define SBP2_ORB_TIMEOUT		2000U		/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
 #define SBP2_RETRY_LIMIT		0xf		/* 15 retries */
 #define SBP2_CYCLE_LIMIT		(0xc8 << 12)	/* 200 125us cycles */
+
+/*
+ * There is no transport protocol limit to the CDB length,  but we implement
+ * a fixed length only.  16 bytes is enough for disks larger than 2 TB.
+ */
+#define SBP2_MAX_CDB_SIZE		16
 
 /*
  * The default maximum s/g segment size of a FireWire controller is
@@ -312,7 +311,7 @@ struct sbp2_command_orb {
 		struct sbp2_pointer next;
 		struct sbp2_pointer data_descriptor;
 		__be32 misc;
-		u8 command_block[12];
+		u8 command_block[SBP2_MAX_CDB_SIZE];
 	} request;
 	struct scsi_cmnd *cmd;
 	scsi_done_fn_t done;
@@ -348,8 +347,7 @@ static const struct {
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
 		.model			= 0x000000,
-		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
-					  SBP2_WORKAROUND_POWER_CONDITION,
+		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
@@ -412,26 +410,26 @@ static void free_orb(struct kref *kref)
 
 static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 			      int tcode, int destination, int source,
-			      int generation, int speed,
-			      unsigned long long offset,
+			      int generation, unsigned long long offset,
 			      void *payload, size_t length, void *callback_data)
 {
 	struct sbp2_logical_unit *lu = callback_data;
 	struct sbp2_orb *orb;
 	struct sbp2_status status;
-	size_t header_size;
 	unsigned long flags;
 
 	if (tcode != TCODE_WRITE_BLOCK_REQUEST ||
-	    length == 0 || length > sizeof(status)) {
+	    length < 8 || length > sizeof(status)) {
 		fw_send_response(card, request, RCODE_TYPE_ERROR);
 		return;
 	}
 
-	header_size = min(length, 2 * sizeof(u32));
-	fw_memcpy_from_be32(&status, payload, header_size);
-	if (length > header_size)
-		memcpy(status.data, payload + 8, length - header_size);
+	status.status  = be32_to_cpup(payload);
+	status.orb_low = be32_to_cpup(payload + 4);
+	memset(status.data, 0, sizeof(status.data));
+	if (length > 8)
+		memcpy(status.data, payload + 8, length - 8);
+
 	if (STATUS_GET_SOURCE(status) == 2 || STATUS_GET_SOURCE(status) == 3) {
 		fw_notify("non-orb related status write, not handled\n");
 		fw_send_response(card, request, RCODE_COMPLETE);
@@ -450,12 +448,12 @@ static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	if (&orb->link != &lu->orb_list)
+	if (&orb->link != &lu->orb_list) {
 		orb->callback(orb, &status);
-	else
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
+	} else {
 		fw_error("status write for unknown orb\n");
-
-	kref_put(&orb->kref, free_orb);
+	}
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }
@@ -474,20 +472,28 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	 * So this callback only sets the rcode if it hasn't already
 	 * been set and only does the cleanup if the transaction
 	 * failed and we didn't already get a status write.
+	 *
+	 * Here we treat RCODE_CANCELLED like RCODE_COMPLETE because some
+	 * OXUF936QSE firmwares occasionally respond after Split_Timeout and
+	 * complete the ORB just fine.  Note, we also get RCODE_CANCELLED
+	 * from sbp2_cancel_orbs() if fw_cancel_transaction() == 0.
 	 */
 	spin_lock_irqsave(&card->lock, flags);
 
 	if (orb->rcode == -1)
 		orb->rcode = rcode;
-	if (orb->rcode != RCODE_COMPLETE) {
+
+	if (orb->rcode != RCODE_COMPLETE && orb->rcode != RCODE_CANCELLED) {
 		list_del(&orb->link);
 		spin_unlock_irqrestore(&card->lock, flags);
+
 		orb->callback(orb, NULL);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	} else {
 		spin_unlock_irqrestore(&card->lock, flags);
 	}
 
-	kref_put(&orb->kref, free_orb);
+	kref_put(&orb->kref, free_orb); /* transaction callback reference */
 }
 
 static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
@@ -503,14 +509,12 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 	list_add_tail(&orb->link, &lu->orb_list);
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
-	/* Take a ref for the orb list and for the transaction callback. */
-	kref_get(&orb->kref);
-	kref_get(&orb->kref);
+	kref_get(&orb->kref); /* transaction callback reference */
+	kref_get(&orb->kref); /* orb callback reference */
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation, device->max_speed, offset,
-			&orb->pointer, sizeof(orb->pointer),
-			complete_transaction, orb);
+			&orb->pointer, 8, complete_transaction, orb);
 }
 
 static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
@@ -528,11 +532,11 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 
 	list_for_each_entry_safe(orb, next, &list, link) {
 		retval = 0;
-		if (fw_cancel_transaction(device->card, &orb->t) == 0)
-			continue;
+		fw_cancel_transaction(device->card, &orb->t);
 
 		orb->rcode = RCODE_CANCELLED;
 		orb->callback(orb, NULL);
+		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	}
 
 	return retval;
@@ -655,7 +659,7 @@ static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
 			   lu->tgt->node_id, lu->generation, device->max_speed,
 			   lu->command_block_agent_address + SBP2_AGENT_RESET,
-			   &d, sizeof(d));
+			   &d, 4);
 }
 
 static void complete_agent_reset_write_no_wait(struct fw_card *card,
@@ -677,7 +681,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
 			lu->tgt->node_id, lu->generation, device->max_speed,
 			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&d, sizeof(d), complete_agent_reset_write_no_wait, t);
+			&d, 4, complete_agent_reset_write_no_wait, t);
 }
 
 static inline void sbp2_allow_block(struct sbp2_logical_unit *lu)
@@ -821,12 +825,17 @@ static void sbp2_release_target(struct kref *kref)
 	fw_device_put(device);
 }
 
-static struct workqueue_struct *sbp2_wq;
+static void sbp2_target_get(struct sbp2_target *tgt)
+{
+	kref_get(&tgt->kref);
+}
 
 static void sbp2_target_put(struct sbp2_target *tgt)
 {
 	kref_put(&tgt->kref, sbp2_release_target);
 }
+
+static struct workqueue_struct *sbp2_wq;
 
 /*
  * Always get the target's kref when scheduling work on one its units.
@@ -834,7 +843,7 @@ static void sbp2_target_put(struct sbp2_target *tgt)
  */
 static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
 {
-	kref_get(&lu->tgt->kref);
+	sbp2_target_get(lu->tgt);
 	if (!queue_delayed_work(sbp2_wq, &lu->work, delay))
 		sbp2_target_put(lu->tgt);
 }
@@ -862,8 +871,7 @@ static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
 			   lu->tgt->node_id, lu->generation, device->max_speed,
-			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT,
-			   &d, sizeof(d));
+			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT, &d, 4);
 }
 
 static void sbp2_reconnect(struct work_struct *work);
@@ -1010,7 +1018,8 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 	return 0;
 }
 
-static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt, u32 *directory)
+static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt,
+				      const u32 *directory)
 {
 	struct fw_csr_iterator ci;
 	int key, value;
@@ -1023,12 +1032,11 @@ static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt, u32 *directory)
 	return 0;
 }
 
-static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
+static int sbp2_scan_unit_dir(struct sbp2_target *tgt, const u32 *directory,
 			      u32 *model, u32 *firmware_revision)
 {
 	struct fw_csr_iterator ci;
 	int key, value;
-	unsigned int timeout;
 
 	fw_csr_iterator_init(&ci, directory);
 	while (fw_csr_iterator_next(&ci, &key, &value)) {
@@ -1053,17 +1061,7 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 
 		case SBP2_CSR_UNIT_CHARACTERISTICS:
 			/* the timeout value is stored in 500ms units */
-			timeout = ((unsigned int) value >> 8 & 0xff) * 500;
-			timeout = max(timeout, SBP2_MIN_LOGIN_ORB_TIMEOUT);
-			tgt->mgt_orb_timeout =
-				  min(timeout, SBP2_MAX_LOGIN_ORB_TIMEOUT);
-
-			if (timeout > tgt->mgt_orb_timeout)
-				fw_notify("%s: config rom contains %ds "
-					  "management ORB timeout, limiting "
-					  "to %ds\n", tgt->bus_id,
-					  timeout / 1000,
-					  tgt->mgt_orb_timeout / 1000);
+			tgt->mgt_orb_timeout = (value >> 8 & 0xff) * 500;
 			break;
 
 		case SBP2_CSR_LOGICAL_UNIT_NUMBER:
@@ -1079,6 +1077,22 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 		}
 	}
 	return 0;
+}
+
+/*
+ * Per section 7.4.8 of the SBP-2 spec, a mgt_ORB_timeout value can be
+ * provided in the config rom. Most devices do provide a value, which
+ * we'll use for login management orbs, but with some sane limits.
+ */
+static void sbp2_clamp_management_orb_timeout(struct sbp2_target *tgt)
+{
+	unsigned int timeout = tgt->mgt_orb_timeout;
+
+	if (timeout > 40000)
+		fw_notify("%s: %ds mgt_ORB_timeout limited to 40s\n",
+			  tgt->bus_id, timeout / 1000);
+
+	tgt->mgt_orb_timeout = clamp_val(timeout, 5000, 40000);
 }
 
 static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
@@ -1146,6 +1160,8 @@ static int sbp2_probe(struct device *dev)
 	if (fw_device_enable_phys_dma(device) < 0)
 		goto fail_shost_put;
 
+	shost->max_cmd_len = SBP2_MAX_CDB_SIZE;
+
 	if (scsi_add_host(shost, &unit->device) < 0)
 		goto fail_shost_put;
 
@@ -1163,6 +1179,7 @@ static int sbp2_probe(struct device *dev)
 			       &firmware_revision) < 0)
 		goto fail_tgt_put;
 
+	sbp2_clamp_management_orb_timeout(tgt);
 	sbp2_init_workarounds(tgt, model, firmware_revision);
 
 	/*
@@ -1451,7 +1468,7 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 
 /* SCSI stack integration */
 
-static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
+static int sbp2_scsi_queuecommand_lck(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 {
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = target_device(lu->tgt);
@@ -1517,6 +1534,8 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	return retval;
 }
 
+static DEF_SCSI_QCMD(sbp2_scsi_queuecommand)
+
 static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 {
 	struct sbp2_logical_unit *lu = sdev->hostdata;
@@ -1559,7 +1578,7 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 		sdev->start_stop_pwr_cond = 1;
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
-		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
+		blk_queue_max_hw_sectors(sdev->request_queue, 128 * 1024 / 512);
 
 	blk_queue_max_segment_size(sdev->request_queue, SBP2_MAX_SEG_SIZE);
 

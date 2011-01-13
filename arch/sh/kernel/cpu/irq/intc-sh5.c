@@ -76,39 +76,11 @@ int intc_evt_to_irq[(0xE20/0x20)+1] = {
 };
 
 static unsigned long intc_virt;
-
-static unsigned int startup_intc_irq(unsigned int irq);
-static void shutdown_intc_irq(unsigned int irq);
-static void enable_intc_irq(unsigned int irq);
-static void disable_intc_irq(unsigned int irq);
-static void mask_and_ack_intc(unsigned int);
-static void end_intc_irq(unsigned int irq);
-
-static struct irq_chip intc_irq_type = {
-	.typename = "INTC",
-	.startup = startup_intc_irq,
-	.shutdown = shutdown_intc_irq,
-	.enable = enable_intc_irq,
-	.disable = disable_intc_irq,
-	.ack = mask_and_ack_intc,
-	.end = end_intc_irq
-};
-
 static int irlm;		/* IRL mode */
 
-static unsigned int startup_intc_irq(unsigned int irq)
+static void enable_intc_irq(struct irq_data *data)
 {
-	enable_intc_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void shutdown_intc_irq(unsigned int irq)
-{
-	disable_intc_irq(irq);
-}
-
-static void enable_intc_irq(unsigned int irq)
-{
+	unsigned int irq = data->irq;
 	unsigned long reg;
 	unsigned long bitmask;
 
@@ -123,11 +95,12 @@ static void enable_intc_irq(unsigned int irq)
 		bitmask = 1 << (irq - 32);
 	}
 
-	ctrl_outl(bitmask, reg);
+	__raw_writel(bitmask, reg);
 }
 
-static void disable_intc_irq(unsigned int irq)
+static void disable_intc_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned long reg;
 	unsigned long bitmask;
 
@@ -139,18 +112,14 @@ static void disable_intc_irq(unsigned int irq)
 		bitmask = 1 << (irq - 32);
 	}
 
-	ctrl_outl(bitmask, reg);
+	__raw_writel(bitmask, reg);
 }
 
-static void mask_and_ack_intc(unsigned int irq)
-{
-	disable_intc_irq(irq);
-}
-
-static void end_intc_irq(unsigned int irq)
-{
-	enable_intc_irq(irq);
-}
+static struct irq_chip intc_irq_type = {
+	.name = "INTC",
+	.irq_enable = enable_intc_irq,
+	.irq_disable = disable_intc_irq,
+};
 
 void __init plat_irq_setup(void)
 {
@@ -170,11 +139,11 @@ void __init plat_irq_setup(void)
 
 
 	/* Disable all interrupts and set all priorities to 0 to avoid trouble */
-	ctrl_outl(-1, INTC_INTDSB_0);
-	ctrl_outl(-1, INTC_INTDSB_1);
+	__raw_writel(-1, INTC_INTDSB_0);
+	__raw_writel(-1, INTC_INTDSB_1);
 
 	for (reg = INTC_INTPRI_0, i = 0; i < INTC_INTPRI_PREGS; i++, reg += 8)
-		ctrl_outl( NO_PRIORITY, reg);
+		__raw_writel( NO_PRIORITY, reg);
 
 
 #ifdef CONFIG_SH_CAYMAN
@@ -199,7 +168,7 @@ void __init plat_irq_setup(void)
 			reg = INTC_ICR_SET;
 			i = IRQ_IRL0;
 		}
-		ctrl_outl(INTC_ICR_IRLM, reg);
+		__raw_writel(INTC_ICR_IRLM, reg);
 
 		/* Set interrupt priorities according to platform description */
 		for (data = 0, reg = INTC_INTPRI_0; i < NR_INTC_IRQS; i++) {
@@ -207,7 +176,7 @@ void __init plat_irq_setup(void)
 				((i % INTC_INTPRI_PPREG) * 4);
 			if ((i % INTC_INTPRI_PPREG) == (INTC_INTPRI_PPREG - 1)) {
 				/* Upon the 7th, set Priority Register */
-				ctrl_outl(data, reg);
+				__raw_writel(data, reg);
 				data = 0;
 				reg += 8;
 			}

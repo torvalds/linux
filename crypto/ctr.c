@@ -185,7 +185,7 @@ static struct crypto_instance *crypto_ctr_alloc(struct rtattr **tb)
 	alg = crypto_attr_alg(tb[1], CRYPTO_ALG_TYPE_CIPHER,
 				  CRYPTO_ALG_TYPE_MASK);
 	if (IS_ERR(alg))
-		return ERR_PTR(PTR_ERR(alg));
+		return ERR_CAST(alg);
 
 	/* Block size must be >= 4 bytes. */
 	err = -EINVAL;
@@ -218,6 +218,8 @@ static struct crypto_instance *crypto_ctr_alloc(struct rtattr **tb)
 	inst->alg.cra_blkcipher.setkey = crypto_ctr_setkey;
 	inst->alg.cra_blkcipher.encrypt = crypto_ctr_crypt;
 	inst->alg.cra_blkcipher.decrypt = crypto_ctr_crypt;
+
+	inst->alg.cra_blkcipher.geniv = "chainiv";
 
 out:
 	crypto_mod_put(alg);

@@ -6,7 +6,7 @@
  *		IPv4 Forwarding Information Base: policy rules.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- * 		Thomas Graf <tgraf@suug.ch>
+ *		Thomas Graf <tgraf@suug.ch>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -14,7 +14,7 @@
  *		2 of the License, or (at your option) any later version.
  *
  * Fixes:
- * 		Rani Assaf	:	local_rule cannot be deleted
+ *		Rani Assaf	:	local_rule cannot be deleted
  *		Marc Boucher	:	routing by fwmark
  */
 
@@ -32,8 +32,7 @@
 #include <net/ip_fib.h>
 #include <net/fib_rules.h>
 
-struct fib4_rule
-{
+struct fib4_rule {
 	struct fib_rule		common;
 	u8			dst_len;
 	u8			src_len;
@@ -58,6 +57,7 @@ int fib_lookup(struct net *net, struct flowi *flp, struct fib_result *res)
 {
 	struct fib_lookup_arg arg = {
 		.result = res,
+		.flags = FIB_LOOKUP_NOREF,
 	};
 	int err;
 
@@ -91,10 +91,11 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto errout;
 	}
 
-	if ((tbl = fib_get_table(rule->fr_net, rule->table)) == NULL)
+	tbl = fib_get_table(rule->fr_net, rule->table);
+	if (!tbl)
 		goto errout;
 
-	err = tbl->tb_lookup(tbl, flp, (struct fib_result *) arg->result);
+	err = fib_table_lookup(tbl, flp, (struct fib_result *) arg->result, arg->flags);
 	if (err > 0)
 		err = -EAGAIN;
 errout:
@@ -213,7 +214,6 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 {
 	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
 
-	frh->family = AF_INET;
 	frh->dst_len = rule4->dst_len;
 	frh->src_len = rule4->src_len;
 	frh->tos = rule4->tos;
@@ -234,23 +234,6 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-static u32 fib4_rule_default_pref(struct fib_rules_ops *ops)
-{
-	struct list_head *pos;
-	struct fib_rule *rule;
-
-	if (!list_empty(&ops->rules_list)) {
-		pos = ops->rules_list.next;
-		if (pos->next != &ops->rules_list) {
-			rule = list_entry(pos->next, struct fib_rule, list);
-			if (rule->pref)
-				return rule->pref - 1;
-		}
-	}
-
-	return 0;
-}
-
 static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
 {
 	return nla_total_size(4) /* dst */
@@ -263,7 +246,7 @@ static void fib4_rule_flush_cache(struct fib_rules_ops *ops)
 	rt_cache_flush(ops->fro_net, -1);
 }
 
-static struct fib_rules_ops fib4_rules_ops_template = {
+static const struct fib_rules_ops __net_initdata fib4_rules_ops_template = {
 	.family		= AF_INET,
 	.rule_size	= sizeof(struct fib4_rule),
 	.addr_size	= sizeof(u32),
@@ -272,7 +255,7 @@ static struct fib_rules_ops fib4_rules_ops_template = {
 	.configure	= fib4_rule_configure,
 	.compare	= fib4_rule_compare,
 	.fill		= fib4_rule_fill,
-	.default_pref	= fib4_rule_default_pref,
+	.default_pref	= fib_default_rule_pref,
 	.nlmsg_payload	= fib4_rule_nlmsg_payload,
 	.flush_cache	= fib4_rule_flush_cache,
 	.nlgroup	= RTNLGRP_IPV4_RULE,
@@ -284,7 +267,7 @@ static int fib_default_rules_init(struct fib_rules_ops *ops)
 {
 	int err;
 
-	err = fib_default_rule_add(ops, 0, RT_TABLE_LOCAL, FIB_RULE_PERMANENT);
+	err = fib_default_rule_add(ops, 0, RT_TABLE_LOCAL, 0);
 	if (err < 0)
 		return err;
 	err = fib_default_rule_add(ops, 0x7FFE, RT_TABLE_MAIN, 0);
@@ -301,13 +284,9 @@ int __net_init fib4_rules_init(struct net *net)
 	int err;
 	struct fib_rules_ops *ops;
 
-	ops = kmemdup(&fib4_rules_ops_template, sizeof(*ops), GFP_KERNEL);
-	if (ops == NULL)
-		return -ENOMEM;
-	INIT_LIST_HEAD(&ops->rules_list);
-	ops->fro_net = net;
-
-	fib_rules_register(ops);
+	ops = fib_rules_register(&fib4_rules_ops_template, net);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
 
 	err = fib_default_rules_init(ops);
 	if (err < 0)
@@ -318,12 +297,10 @@ int __net_init fib4_rules_init(struct net *net)
 fail:
 	/* also cleans all rules already added */
 	fib_rules_unregister(ops);
-	kfree(ops);
 	return err;
 }
 
 void __net_exit fib4_rules_exit(struct net *net)
 {
 	fib_rules_unregister(net->ipv4.rules_ops);
-	kfree(net->ipv4.rules_ops);
 }

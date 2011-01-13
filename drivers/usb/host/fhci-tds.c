@@ -18,10 +18,11 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/usb.h>
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 #include "fhci.h"
 
 #define DUMMY_BD_BUFFER  0xdeadbeef
@@ -105,34 +106,34 @@ void fhci_ep0_free(struct fhci_usb *usb)
 		if (ep->td_base)
 			cpm_muram_free(cpm_muram_offset(ep->td_base));
 
-		if (ep->conf_frame_Q) {
-			size = cq_howmany(ep->conf_frame_Q);
+		if (kfifo_initialized(&ep->conf_frame_Q)) {
+			size = cq_howmany(&ep->conf_frame_Q);
 			for (; size; size--) {
-				struct packet *pkt = cq_get(ep->conf_frame_Q);
+				struct packet *pkt = cq_get(&ep->conf_frame_Q);
 
 				kfree(pkt);
 			}
-			cq_delete(ep->conf_frame_Q);
+			cq_delete(&ep->conf_frame_Q);
 		}
 
-		if (ep->empty_frame_Q) {
-			size = cq_howmany(ep->empty_frame_Q);
+		if (kfifo_initialized(&ep->empty_frame_Q)) {
+			size = cq_howmany(&ep->empty_frame_Q);
 			for (; size; size--) {
-				struct packet *pkt = cq_get(ep->empty_frame_Q);
+				struct packet *pkt = cq_get(&ep->empty_frame_Q);
 
 				kfree(pkt);
 			}
-			cq_delete(ep->empty_frame_Q);
+			cq_delete(&ep->empty_frame_Q);
 		}
 
-		if (ep->dummy_packets_Q) {
-			size = cq_howmany(ep->dummy_packets_Q);
+		if (kfifo_initialized(&ep->dummy_packets_Q)) {
+			size = cq_howmany(&ep->dummy_packets_Q);
 			for (; size; size--) {
-				u8 *buff = cq_get(ep->dummy_packets_Q);
+				u8 *buff = cq_get(&ep->dummy_packets_Q);
 
 				kfree(buff);
 			}
-			cq_delete(ep->dummy_packets_Q);
+			cq_delete(&ep->dummy_packets_Q);
 		}
 
 		kfree(ep);
@@ -175,10 +176,9 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
 	ep->td_base = cpm_muram_addr(ep_offset);
 
 	/* zero all queue pointers */
-	ep->conf_frame_Q = cq_new(ring_len + 2);
-	ep->empty_frame_Q = cq_new(ring_len + 2);
-	ep->dummy_packets_Q = cq_new(ring_len + 2);
-	if (!ep->conf_frame_Q || !ep->empty_frame_Q || !ep->dummy_packets_Q) {
+	if (cq_new(&ep->conf_frame_Q, ring_len + 2) ||
+	    cq_new(&ep->empty_frame_Q, ring_len + 2) ||
+	    cq_new(&ep->dummy_packets_Q, ring_len + 2)) {
 		err_for = "frame_queues";
 		goto err;
 	}
@@ -199,8 +199,8 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
 			err_for = "buffer";
 			goto err;
 		}
-		cq_put(ep->empty_frame_Q, pkt);
-		cq_put(ep->dummy_packets_Q, buff);
+		cq_put(&ep->empty_frame_Q, pkt);
+		cq_put(&ep->dummy_packets_Q, buff);
 	}
 
 	/* we put the endpoint parameter RAM right behind the TD ring */
@@ -319,7 +319,7 @@ static void fhci_td_transaction_confirm(struct fhci_usb *usb)
 		if ((buf == DUMMY2_BD_BUFFER) && !(td_status & ~TD_W))
 			continue;
 
-		pkt = cq_get(ep->conf_frame_Q);
+		pkt = cq_get(&ep->conf_frame_Q);
 		if (!pkt)
 			fhci_err(usb->fhci, "no frame to confirm\n");
 
@@ -460,9 +460,9 @@ u32 fhci_host_transaction(struct fhci_usb *usb,
 		out_be16(&td->length, pkt->len);
 
 	/* put the frame to the confirmation queue */
-	cq_put(ep->conf_frame_Q, pkt);
+	cq_put(&ep->conf_frame_Q, pkt);
 
-	if (cq_howmany(ep->conf_frame_Q) == 1)
+	if (cq_howmany(&ep->conf_frame_Q) == 1)
 		out_8(&usb->fhci->regs->usb_comm, USB_CMD_STR_FIFO);
 
 	return 0;

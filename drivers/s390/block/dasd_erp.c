@@ -96,11 +96,12 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 		DBF_DEV_EVENT(DBF_DEBUG, device,
                              "default ERP called (%i retries left)",
                              cqr->retries);
-		cqr->lpm    = LPM_ANYPATH;
+		if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))
+			cqr->lpm = device->path_data.opm;
 		cqr->status = DASD_CQR_FILLED;
         } else {
-		dev_err(&device->cdev->dev,
-			"default ERP has run out of retries and failed\n");
+		pr_err("%s: default ERP has run out of retries and failed\n",
+		       dev_name(&device->cdev->dev));
 		cqr->status = DASD_CQR_FAILED;
 		cqr->stopclk = get_clock();
         }
@@ -172,7 +173,7 @@ dasd_log_sense_dbf(struct dasd_ccw_req *cqr, struct irb *irb)
 	device = cqr->startdev;
 	/* dump sense data to s390 debugfeature*/
 	if (device->discipline && device->discipline->dump_sense_dbf)
-		device->discipline->dump_sense_dbf(device, cqr, irb, "log");
+		device->discipline->dump_sense_dbf(device, irb, "log");
 }
 EXPORT_SYMBOL(dasd_log_sense_dbf);
 

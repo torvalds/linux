@@ -38,7 +38,6 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
-#include "eaops.h"
 
 /**
  * gfs2_llseek - seek to a location in a file
@@ -219,6 +218,11 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	if (error)
 		goto out_drop_write;
 
+	error = -EACCES;
+	if (!is_owner_or_cap(inode))
+		goto out;
+
+	error = 0;
 	flags = ip->i_diskflags;
 	new_flags = (flags & ~mask) | (reqflags & mask);
 	if ((new_flags ^ flags) == 0)
@@ -237,7 +241,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	    !capable(CAP_LINUX_IMMUTABLE))
 		goto out;
 	if (!IS_IMMUTABLE(inode)) {
-		error = gfs2_permission(inode, MAY_WRITE);
+		error = gfs2_permission(inode, MAY_WRITE, 0);
 		if (error)
 			goto out;
 	}
@@ -276,8 +280,10 @@ static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	u32 fsflags, gfsflags;
+
 	if (get_user(fsflags, ptr))
 		return -EFAULT;
+
 	gfsflags = fsflags_cvt(fsflags_to_gfs2, fsflags);
 	if (!S_ISDIR(inode->i_mode)) {
 		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
@@ -345,7 +351,6 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long last_index;
 	u64 pos = page->index << PAGE_CACHE_SHIFT;
 	unsigned int data_blocks, ind_blocks, rblocks;
-	int alloc_required = 0;
 	struct gfs2_holder gh;
 	struct gfs2_alloc *al;
 	int ret;
@@ -358,8 +363,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	ret = gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE, &alloc_required);
-	if (ret || !alloc_required)
+	if (!gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE))
 		goto out_unlock;
 	ret = -ENOMEM;
 	al = gfs2_alloc_get(ip);
@@ -378,8 +382,10 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	rblocks = RES_DINODE + ind_blocks;
 	if (gfs2_is_jdata(ip))
 		rblocks += data_blocks ? data_blocks : 1;
-	if (ind_blocks || data_blocks)
+	if (ind_blocks || data_blocks) {
 		rblocks += RES_STATFS + RES_QUOTA;
+		rblocks += gfs2_rg_blocks(al);
+	}
 	ret = gfs2_trans_begin(sdp, rblocks, 0);
 	if (ret)
 		goto out_trans_fail;
@@ -419,7 +425,7 @@ out:
 	return ret;
 }
 
-static struct vm_operations_struct gfs2_vm_ops = {
+static const struct vm_operations_struct gfs2_vm_ops = {
 	.fault = filemap_fault,
 	.page_mkwrite = gfs2_page_mkwrite,
 };
@@ -487,7 +493,7 @@ static int gfs2_open(struct inode *inode, struct file *file)
 			goto fail;
 
 		if (!(file->f_flags & O_LARGEFILE) &&
-		    ip->i_disksize > MAX_NON_LFS) {
+		    i_size_read(inode) > MAX_NON_LFS) {
 			error = -EOVERFLOW;
 			goto fail_gunlock;
 		}
@@ -548,9 +554,9 @@ static int gfs2_close(struct inode *inode, struct file *file)
  * Returns: errno
  */
 
-static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int gfs2_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
 	int ret = 0;
 
@@ -570,6 +576,40 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 	return ret;
 }
 
+/**
+ * gfs2_file_aio_write - Perform a write to a file
+ * @iocb: The io context
+ * @iov: The data to write
+ * @nr_segs: Number of @iov segments
+ * @pos: The file position
+ *
+ * We have to do a lock/unlock here to refresh the inode size for
+ * O_APPEND writes, otherwise we can land up writing at the wrong
+ * offset. There is still a race, but provided the app is using its
+ * own file locking, this will make O_APPEND work as expected.
+ *
+ */
+
+static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+				   unsigned long nr_segs, loff_t pos)
+{
+	struct file *file = iocb->ki_filp;
+
+	if (file->f_flags & O_APPEND) {
+		struct dentry *dentry = file->f_dentry;
+		struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+		struct gfs2_holder gh;
+		int ret;
+
+		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+		if (ret)
+			return ret;
+		gfs2_glock_dq_uninit(&gh);
+	}
+
+	return generic_file_aio_write(iocb, iov, nr_segs, pos);
+}
+
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 
 /**
@@ -581,6 +621,8 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
  * We don't currently have a way to enforce a lease across the whole
  * cluster; until we do, disable leases (by just returning -EINVAL),
  * unless the administrator has requested purely local locking.
+ *
+ * Locking: called under lock_flocks
  *
  * Returns: errno
  */
@@ -607,7 +649,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (!(fl->fl_flags & FL_POSIX))
 		return -ENOLCK;
-	if (__mandatory_lock(&ip->i_inode))
+	if (__mandatory_lock(&ip->i_inode) && fl->fl_type != F_UNLCK)
 		return -ENOLCK;
 
 	if (cmd == F_CANCELLK) {
@@ -712,7 +754,7 @@ const struct file_operations gfs2_file_fops = {
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.write		= do_sync_write,
-	.aio_write	= generic_file_aio_write,
+	.aio_write	= gfs2_file_aio_write,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
@@ -733,6 +775,7 @@ const struct file_operations gfs2_dir_fops = {
 	.fsync		= gfs2_fsync,
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
+	.llseek		= default_llseek,
 };
 
 #endif /* CONFIG_GFS2_FS_LOCKING_DLM */
@@ -742,7 +785,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.write		= do_sync_write,
-	.aio_write	= generic_file_aio_write,
+	.aio_write	= gfs2_file_aio_write,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
@@ -759,5 +802,6 @@ const struct file_operations gfs2_dir_fops_nolock = {
 	.open		= gfs2_open,
 	.release	= gfs2_close,
 	.fsync		= gfs2_fsync,
+	.llseek		= default_llseek,
 };
 

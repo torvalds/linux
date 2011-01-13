@@ -10,6 +10,7 @@
 #include <linux/utsname.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
+#include <linux/slab.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xprtsock.h>
@@ -61,43 +62,6 @@ static inline struct sockaddr *nsm_addr(const struct nsm_handle *nsm)
 	return (struct sockaddr *)&nsm->sm_addr;
 }
 
-static void nsm_display_ipv4_address(const struct sockaddr *sap, char *buf,
-				     const size_t len)
-{
-	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-	snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
-}
-
-static void nsm_display_ipv6_address(const struct sockaddr *sap, char *buf,
-				     const size_t len)
-{
-	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
-
-	if (ipv6_addr_v4mapped(&sin6->sin6_addr))
-		snprintf(buf, len, "%pI4", &sin6->sin6_addr.s6_addr32[3]);
-	else if (sin6->sin6_scope_id != 0)
-		snprintf(buf, len, "%pI6%%%u", &sin6->sin6_addr,
-				sin6->sin6_scope_id);
-	else
-		snprintf(buf, len, "%pI6", &sin6->sin6_addr);
-}
-
-static void nsm_display_address(const struct sockaddr *sap,
-				char *buf, const size_t len)
-{
-	switch (sap->sa_family) {
-	case AF_INET:
-		nsm_display_ipv4_address(sap, buf, len);
-		break;
-	case AF_INET6:
-		nsm_display_ipv6_address(sap, buf, len);
-		break;
-	default:
-		snprintf(buf, len, "unsupported address family");
-		break;
-	}
-}
-
 static struct rpc_clnt *nsm_create(void)
 {
 	struct sockaddr_in sin = {
@@ -105,6 +69,7 @@ static struct rpc_clnt *nsm_create(void)
 		.sin_addr.s_addr	= htonl(INADDR_LOOPBACK),
 	};
 	struct rpc_create_args args = {
+		.net			= &init_net,
 		.protocol		= XPRT_TRANSPORT_UDP,
 		.address		= (struct sockaddr *)&sin,
 		.addrsize		= sizeof(sin),
@@ -246,7 +211,7 @@ static struct nsm_handle *nsm_lookup_addr(const struct sockaddr *sap)
 	struct nsm_handle *nsm;
 
 	list_for_each_entry(nsm, &nsm_handles, sm_link)
-		if (nlm_cmp_addr(nsm_addr(nsm), sap))
+		if (rpc_cmp_addr(nsm_addr(nsm), sap))
 			return nsm;
 	return NULL;
 }
@@ -307,8 +272,11 @@ static struct nsm_handle *nsm_create_handle(const struct sockaddr *sap,
 	memcpy(nsm_addr(new), sap, salen);
 	new->sm_addrlen = salen;
 	nsm_init_private(new);
-	nsm_display_address((const struct sockaddr *)&new->sm_addr,
-				new->sm_addrbuf, sizeof(new->sm_addrbuf));
+
+	if (rpc_ntop(nsm_addr(new), new->sm_addrbuf,
+					sizeof(new->sm_addrbuf)) == 0)
+		(void)snprintf(new->sm_addrbuf, sizeof(new->sm_addrbuf),
+				"unsupported address family");
 	memcpy(new->sm_name, hostname, hostname_len);
 	new->sm_name[hostname_len] = '\0';
 
@@ -383,9 +351,9 @@ retry:
  * nsm_reboot_lookup - match NLMPROC_SM_NOTIFY arguments to an nsm_handle
  * @info: pointer to NLMPROC_SM_NOTIFY arguments
  *
- * Returns a matching nsm_handle if found in the nsm cache; the returned
- * nsm_handle's reference count is bumped and sm_monitored is cleared.
- * Otherwise returns NULL if some error occurred.
+ * Returns a matching nsm_handle if found in the nsm cache. The returned
+ * nsm_handle's reference count is bumped. Otherwise returns NULL if some
+ * error occurred.
  */
 struct nsm_handle *nsm_reboot_lookup(const struct nlm_reboot *info)
 {
@@ -403,12 +371,6 @@ struct nsm_handle *nsm_reboot_lookup(const struct nlm_reboot *info)
 
 	atomic_inc(&cached->sm_count);
 	spin_unlock(&nsm_lock);
-
-	/*
-	 * During subsequent lock activity, force a fresh
-	 * notification to be set up for this host.
-	 */
-	cached->sm_monitored = 0;
 
 	dprintk("lockd: host %s (%s) rebooted, cnt %d\n",
 			cached->sm_name, cached->sm_addrbuf,
@@ -439,26 +401,22 @@ void nsm_release(struct nsm_handle *nsm)
  * Status Monitor wire protocol.
  */
 
-static int encode_nsm_string(struct xdr_stream *xdr, const char *string)
+static void encode_nsm_string(struct xdr_stream *xdr, const char *string)
 {
 	const u32 len = strlen(string);
 	__be32 *p;
 
-	if (unlikely(len > SM_MAXSTRLEN))
-		return -EIO;
-	p = xdr_reserve_space(xdr, sizeof(u32) + len);
-	if (unlikely(p == NULL))
-		return -EIO;
+	BUG_ON(len > SM_MAXSTRLEN);
+	p = xdr_reserve_space(xdr, 4 + len);
 	xdr_encode_opaque(p, string, len);
-	return 0;
 }
 
 /*
  * "mon_name" specifies the host to be monitored.
  */
-static int encode_mon_name(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_mon_name(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
-	return encode_nsm_string(xdr, argp->mon_name);
+	encode_nsm_string(xdr, argp->mon_name);
 }
 
 /*
@@ -467,35 +425,25 @@ static int encode_mon_name(struct xdr_stream *xdr, const struct nsm_args *argp)
  * (via the NLMPROC_SM_NOTIFY call) that the state of host "mon_name"
  * has changed.
  */
-static int encode_my_id(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_my_id(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
-	int status;
 	__be32 *p;
 
-	status = encode_nsm_string(xdr, utsname()->nodename);
-	if (unlikely(status != 0))
-		return status;
-	p = xdr_reserve_space(xdr, 3 * sizeof(u32));
-	if (unlikely(p == NULL))
-		return -EIO;
-	*p++ = htonl(argp->prog);
-	*p++ = htonl(argp->vers);
-	*p++ = htonl(argp->proc);
-	return 0;
+	encode_nsm_string(xdr, utsname()->nodename);
+	p = xdr_reserve_space(xdr, 4 + 4 + 4);
+	*p++ = cpu_to_be32(argp->prog);
+	*p++ = cpu_to_be32(argp->vers);
+	*p = cpu_to_be32(argp->proc);
 }
 
 /*
  * The "mon_id" argument specifies the non-private arguments
  * of an NSMPROC_MON or NSMPROC_UNMON call.
  */
-static int encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
-	int status;
-
-	status = encode_mon_name(xdr, argp);
-	if (unlikely(status != 0))
-		return status;
-	return encode_my_id(xdr, argp);
+	encode_mon_name(xdr, argp);
+	encode_my_id(xdr, argp);
 }
 
 /*
@@ -503,68 +451,56 @@ static int encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
  * by the NSMPROC_MON call. This information will be supplied in the
  * NLMPROC_SM_NOTIFY call.
  */
-static int encode_priv(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_priv(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, SM_PRIV_SIZE);
+	xdr_encode_opaque_fixed(p, argp->priv->data, SM_PRIV_SIZE);
+}
+
+static void nsm_xdr_enc_mon(struct rpc_rqst *req, struct xdr_stream *xdr,
+			    const struct nsm_args *argp)
+{
+	encode_mon_id(xdr, argp);
+	encode_priv(xdr, argp);
+}
+
+static void nsm_xdr_enc_unmon(struct rpc_rqst *req, struct xdr_stream *xdr,
+			      const struct nsm_args *argp)
+{
+	encode_mon_id(xdr, argp);
+}
+
+static int nsm_xdr_dec_stat_res(struct rpc_rqst *rqstp,
+				struct xdr_stream *xdr,
+				struct nsm_res *resp)
+{
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, 4 + 4);
 	if (unlikely(p == NULL))
 		return -EIO;
-	xdr_encode_opaque_fixed(p, argp->priv->data, SM_PRIV_SIZE);
+	resp->status = be32_to_cpup(p++);
+	resp->state = be32_to_cpup(p);
+
+	dprintk("lockd: %s status %d state %d\n",
+		__func__, resp->status, resp->state);
 	return 0;
 }
 
-static int xdr_enc_mon(struct rpc_rqst *req, __be32 *p,
-		       const struct nsm_args *argp)
-{
-	struct xdr_stream xdr;
-	int status;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	status = encode_mon_id(&xdr, argp);
-	if (unlikely(status))
-		return status;
-	return encode_priv(&xdr, argp);
-}
-
-static int xdr_enc_unmon(struct rpc_rqst *req, __be32 *p,
-			 const struct nsm_args *argp)
-{
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	return encode_mon_id(&xdr, argp);
-}
-
-static int xdr_dec_stat_res(struct rpc_rqst *rqstp, __be32 *p,
+static int nsm_xdr_dec_stat(struct rpc_rqst *rqstp,
+			    struct xdr_stream *xdr,
 			    struct nsm_res *resp)
 {
-	struct xdr_stream xdr;
+	__be32 *p;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
-	p = xdr_inline_decode(&xdr, 2 * sizeof(u32));
+	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
 		return -EIO;
-	resp->status = ntohl(*p++);
-	resp->state = ntohl(*p);
+	resp->state = be32_to_cpup(p);
 
-	dprintk("lockd: xdr_dec_stat_res status %d state %d\n",
-			resp->status, resp->state);
-	return 0;
-}
-
-static int xdr_dec_stat(struct rpc_rqst *rqstp, __be32 *p,
-			struct nsm_res *resp)
-{
-	struct xdr_stream xdr;
-
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
-	p = xdr_inline_decode(&xdr, sizeof(u32));
-	if (unlikely(p == NULL))
-		return -EIO;
-	resp->state = ntohl(*p);
-
-	dprintk("lockd: xdr_dec_stat state %d\n", resp->state);
+	dprintk("lockd: %s state %d\n", __func__, resp->state);
 	return 0;
 }
 
@@ -580,8 +516,8 @@ static int xdr_dec_stat(struct rpc_rqst *rqstp, __be32 *p,
 static struct rpc_procinfo	nsm_procedures[] = {
 [NSMPROC_MON] = {
 		.p_proc		= NSMPROC_MON,
-		.p_encode	= (kxdrproc_t)xdr_enc_mon,
-		.p_decode	= (kxdrproc_t)xdr_dec_stat_res,
+		.p_encode	= (kxdreproc_t)nsm_xdr_enc_mon,
+		.p_decode	= (kxdrdproc_t)nsm_xdr_dec_stat_res,
 		.p_arglen	= SM_mon_sz,
 		.p_replen	= SM_monres_sz,
 		.p_statidx	= NSMPROC_MON,
@@ -589,8 +525,8 @@ static struct rpc_procinfo	nsm_procedures[] = {
 	},
 [NSMPROC_UNMON] = {
 		.p_proc		= NSMPROC_UNMON,
-		.p_encode	= (kxdrproc_t)xdr_enc_unmon,
-		.p_decode	= (kxdrproc_t)xdr_dec_stat,
+		.p_encode	= (kxdreproc_t)nsm_xdr_enc_unmon,
+		.p_decode	= (kxdrdproc_t)nsm_xdr_dec_stat,
 		.p_arglen	= SM_mon_id_sz,
 		.p_replen	= SM_unmonres_sz,
 		.p_statidx	= NSMPROC_UNMON,

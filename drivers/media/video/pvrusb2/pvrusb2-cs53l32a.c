@@ -34,7 +34,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 
 struct routing_scheme {
 	const int *def;
@@ -49,11 +48,13 @@ static const int routing_scheme1[] = {
 	[PVR2_CVAL_INPUT_SVIDEO] =  0,
 };
 
-static const struct routing_scheme routing_schemes[] = {
-	[PVR2_ROUTING_SCHEME_ONAIR] = {
-		.def = routing_scheme1,
-		.cnt = ARRAY_SIZE(routing_scheme1),
-	},
+static const struct routing_scheme routing_def1 = {
+	.def = routing_scheme1,
+	.cnt = ARRAY_SIZE(routing_scheme1),
+};
+
+static const struct routing_scheme *routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_ONAIR] = &routing_def1,
 };
 
 
@@ -65,12 +66,11 @@ void pvr2_cs53l32a_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		u32 input;
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_input(%d)",
 			   hdw->input_val);
-		if ((sid < ARRAY_SIZE(routing_schemes)) &&
-		    ((sp = routing_schemes + sid) != NULL) &&
-		    (hdw->input_val >= 0) &&
-		    (hdw->input_val < sp->cnt)) {
-			input = sp->def[hdw->input_val];
-		} else {
+		sp = (sid < ARRAY_SIZE(routing_schemes)) ?
+			routing_schemes[sid] : NULL;
+		if ((sp == NULL) ||
+		    (hdw->input_val < 0) ||
+		    (hdw->input_val >= sp->cnt)) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "*** WARNING *** subdev v4l2 set_input:"
 				   " Invalid routing scheme (%u)"
@@ -78,6 +78,7 @@ void pvr2_cs53l32a_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 				   sid, hdw->input_val);
 			return;
 		}
+		input = sp->def[hdw->input_val];
 		sd->ops->audio->s_routing(sd, input, 0, 0);
 	}
 }

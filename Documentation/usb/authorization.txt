@@ -16,20 +16,20 @@ Usage:
 
 Authorize a device to connect:
 
-$ echo 1 > /sys/usb/devices/DEVICE/authorized
+$ echo 1 > /sys/bus/usb/devices/DEVICE/authorized
 
 Deauthorize a device:
 
-$ echo 0 > /sys/usb/devices/DEVICE/authorized
+$ echo 0 > /sys/bus/usb/devices/DEVICE/authorized
 
 Set new devices connected to hostX to be deauthorized by default (ie:
 lock down):
 
-$ echo 0 > /sys/bus/devices/usbX/authorized_default
+$ echo 0 > /sys/bus/usb/devices/usbX/authorized_default
 
 Remove the lock down:
 
-$ echo 1 > /sys/bus/devices/usbX/authorized_default
+$ echo 1 > /sys/bus/usb/devices/usbX/authorized_default
 
 By default, Wired USB devices are authorized by default to
 connect. Wireless USB hosts deauthorize by default all new connected
@@ -47,7 +47,7 @@ USB port):
 boot up
 rc.local ->
 
- for host in /sys/bus/devices/usb*
+ for host in /sys/bus/usb/devices/usb*
  do
     echo 0 > $host/authorized_default
  done

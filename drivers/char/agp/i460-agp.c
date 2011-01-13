@@ -1,7 +1,7 @@
 /*
  * For documentation on the i460 AGP interface, see Chapter 7 (AGP Subsystem) of
  * the "Intel 460GTX Chipset Software Developer's Manual":
- * http://developer.intel.com/design/itanium/downloads/24870401s.htm
+ * http://www.intel.com/design/archives/itanium/downloads/248704.htm 
  */
 /*
  * 460GX support by Chris Ahna <christopher.j.ahna@intel.com>
@@ -61,7 +61,7 @@
 #define WR_FLUSH_GATT(index)	RD_GATT(index)
 
 static unsigned long i460_mask_memory (struct agp_bridge_data *bridge,
-				       unsigned long addr, int type);
+				       dma_addr_t addr, int type);
 
 static struct {
 	void *gatt;				/* ioremap'd GATT area */
@@ -325,7 +325,7 @@ static int i460_insert_memory_small_io_page (struct agp_memory *mem,
 
 	io_page_size = 1UL << I460_IO_PAGE_SHIFT;
 	for (i = 0, j = io_pg_start; i < mem->page_count; i++) {
-		paddr = phys_to_gart(page_to_phys(mem->pages[i]));
+		paddr = page_to_phys(mem->pages[i]);
 		for (k = 0; k < I460_IOPAGES_PER_KPAGE; k++, j++, paddr += io_page_size)
 			WR_GATT(j, i460_mask_memory(agp_bridge, paddr, mem->type));
 	}
@@ -382,7 +382,7 @@ static int i460_alloc_large_page (struct lp_desc *lp)
 		return -ENOMEM;
 	}
 
-	lp->paddr = phys_to_gart(page_to_phys(lp->page));
+	lp->paddr = page_to_phys(lp->page);
 	lp->refcount = 0;
 	atomic_add(I460_KPAGES_PER_IOPAGE, &agp_bridge->current_memory_agp);
 	return 0;
@@ -546,18 +546,11 @@ static void i460_destroy_page (struct page *page, int flags)
 #endif /* I460_LARGE_IO_PAGES */
 
 static unsigned long i460_mask_memory (struct agp_bridge_data *bridge,
-				       unsigned long addr, int type)
+				       dma_addr_t addr, int type)
 {
 	/* Make sure the returned address is a valid GATT entry */
 	return bridge->driver->masks[0].mask
 		| (((addr & ~((1 << I460_IO_PAGE_SHIFT) - 1)) & 0xfffff000) >> 12);
-}
-
-static unsigned long i460_page_mask_memory(struct agp_bridge_data *bridge,
-					   struct page *page, int type)
-{
-	unsigned long addr = phys_to_gart(page_to_phys(page));
-	return i460_mask_memory(bridge, addr, type);
 }
 
 const struct agp_bridge_driver intel_i460_driver = {
@@ -569,7 +562,7 @@ const struct agp_bridge_driver intel_i460_driver = {
 	.fetch_size		= i460_fetch_size,
 	.cleanup		= i460_cleanup,
 	.tlb_flush		= i460_tlb_flush,
-	.mask_memory		= i460_page_mask_memory,
+	.mask_memory		= i460_mask_memory,
 	.masks			= i460_masks,
 	.agp_enable		= agp_generic_enable,
 	.cache_flush		= global_cache_flush,

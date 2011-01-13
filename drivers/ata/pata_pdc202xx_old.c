@@ -2,7 +2,7 @@
  * pata_pdc202xx_old.c 	- Promise PDC202xx PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
  *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
- *			  (C) 2007,2009 Bartlomiej Zolnierkiewicz
+ *			  (C) 2007,2009,2010 Bartlomiej Zolnierkiewicz
  *
  * Based in part on linux/drivers/ide/pci/pdc202xx_old.c
  *
@@ -33,6 +33,36 @@ static int pdc2026x_cable_detect(struct ata_port *ap)
 	if (cis & (1 << (10 + ap->port_no)))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
+}
+
+static void pdc202xx_exec_command(struct ata_port *ap,
+				  const struct ata_taskfile *tf)
+{
+	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
+
+	iowrite8(tf->command, ap->ioaddr.command_addr);
+	ndelay(400);
+}
+
+static bool pdc202xx_irq_check(struct ata_port *ap)
+{
+	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
+	unsigned long master	= pci_resource_start(pdev, 4);
+	u8 sc1d			= inb(master + 0x1d);
+
+	if (ap->port_no) {
+		/*
+		 * bit 7: error, bit 6: interrupting,
+		 * bit 5: FIFO full, bit 4: FIFO empty
+		 */
+		return sc1d & 0x40;
+	} else	{
+		/*
+		 * bit 3: error, bit 2: interrupting,
+		 * bit 1: FIFO full, bit 0: FIFO empty
+		 */
+		return sc1d & 0x04;
+	}
 }
 
 /**
@@ -240,7 +270,7 @@ static int pdc2026x_port_start(struct ata_port *ap)
 		u8 burst = ioread8(bmdma + 0x1f);
 		iowrite8(burst | 0x01, bmdma + 0x1f);
 	}
-	return ata_sff_port_start(ap);
+	return ata_bmdma_port_start(ap);
 }
 
 /**
@@ -271,6 +301,9 @@ static struct ata_port_operations pdc2024x_port_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= pdc202xx_set_piomode,
 	.set_dmamode		= pdc202xx_set_dmamode,
+
+	.sff_exec_command	= pdc202xx_exec_command,
+	.sff_irq_check		= pdc202xx_irq_check,
 };
 
 static struct ata_port_operations pdc2026x_port_ops = {
@@ -284,6 +317,9 @@ static struct ata_port_operations pdc2026x_port_ops = {
 	.dev_config		= pdc2026x_dev_config,
 
 	.port_start		= pdc2026x_port_start,
+
+	.sff_exec_command	= pdc202xx_exec_command,
+	.sff_irq_check		= pdc202xx_irq_check,
 };
 
 static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
@@ -324,7 +360,7 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 				return -ENODEV;
 		}
 	}
-	return ata_pci_sff_init_one(dev, ppi, &pdc202xx_sht, NULL);
+	return ata_pci_bmdma_init_one(dev, ppi, &pdc202xx_sht, NULL, 0);
 }
 
 static const struct pci_device_id pdc202xx[] = {

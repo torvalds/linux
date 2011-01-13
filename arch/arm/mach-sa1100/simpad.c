@@ -166,9 +166,6 @@ static void __init simpad_map_io(void)
 	PCFR = 0;
 	PSDR = 0;
 
-	sa11x0_set_flash_data(&simpad_flash_data, simpad_flash_resources,
-			      ARRAY_SIZE(simpad_flash_resources));
-	sa11x0_set_mcp_data(&simpad_mcp_data);
 }
 
 static void simpad_power_off(void)
@@ -216,6 +213,10 @@ static int __init simpad_init(void)
 
 	pm_power_off = simpad_power_off;
 
+	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
+			      ARRAY_SIZE(simpad_flash_resources));
+	sa11x0_register_mcp(&simpad_mcp_data);
+
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if(ret)
 		printk(KERN_WARNING "simpad: Unable to register mq200 framebuffer device");
@@ -228,8 +229,6 @@ arch_initcall(simpad_init);
 
 MACHINE_START(SIMPAD, "Simpad")
 	/* Maintainer: Holger Freyther */
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
 	.map_io		= simpad_map_io,
 	.init_irq	= sa1100_init_irq,

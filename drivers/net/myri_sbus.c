@@ -14,7 +14,6 @@ static char version[] =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -26,6 +25,7 @@ static char version[] =
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/firmware.h>
+#include <linux/gfp.h>
 
 #include <net/dst.h>
 #include <net/arp.h>
@@ -692,7 +692,7 @@ static int myri_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	DTX(("tbusy=0, returning 0\n"));
 	netif_start_queue(dev);
 	spin_unlock_irqrestore(&mp->irq_lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* Create the MyriNet MAC header for an arbitrary protocol layer
@@ -716,10 +716,10 @@ static int myri_header(struct sk_buff *skb, struct net_device *dev,
 	pad[0] = MYRI_PAD_LEN;
 	pad[1] = 0xab;
 
-	/* Set the protocol type. For a packet of type ETH_P_802_3 we put the length
-	 * in here instead. It is up to the 802.2 layer to carry protocol information.
+	/* Set the protocol type. For a packet of type ETH_P_802_3/2 we put the
+	 * length in here instead.
 	 */
-	if (type != ETH_P_802_3)
+	if (type != ETH_P_802_3 && type != ETH_P_802_2)
 		eth->h_proto = htons(type);
 	else
 		eth->h_proto = htons(len);
@@ -735,7 +735,7 @@ static int myri_header(struct sk_buff *skb, struct net_device *dev,
 		int i;
 		for (i = 0; i < dev->addr_len; i++)
 			eth->h_dest[i] = 0;
-		return(dev->hard_header_len);
+		return dev->hard_header_len;
 	}
 
 	if (daddr) {
@@ -865,7 +865,7 @@ static inline void determine_reg_space_size(struct myri_eth *mp)
 		printk("myricom: AIEEE weird cpu version %04x assuming pre4.0\n",
 		       mp->eeprom.cpuvers);
 		mp->reg_size = (3 * 128 * 1024) + 4096;
-	};
+	}
 }
 
 #ifdef DEBUG_DETECT
@@ -926,9 +926,9 @@ static const struct net_device_ops myri_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit myri_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit myri_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
 	struct net_device *dev;
 	struct myri_eth *mp;
@@ -1079,12 +1079,12 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 
 	mp->dev = dev;
 	dev->watchdog_timeo = 5*HZ;
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 	dev->netdev_ops = &myri_ops;
 
 	/* Register interrupt handler now. */
 	DET(("Requesting MYRIcom IRQ line.\n"));
-	if (request_irq(dev->irq, &myri_interrupt,
+	if (request_irq(dev->irq, myri_interrupt,
 			IRQF_SHARED, "MyriCOM Ethernet", (void *) dev)) {
 		printk("MyriCOM: Cannot register interrupt handler.\n");
 		goto err;
@@ -1124,7 +1124,7 @@ err:
 	return -ENODEV;
 }
 
-static int __devexit myri_sbus_remove(struct of_device *op)
+static int __devexit myri_sbus_remove(struct platform_device *op)
 {
 	struct myri_eth *mp = dev_get_drvdata(&op->dev);
 	struct net_device *net_dev = mp->dev;
@@ -1161,20 +1161,23 @@ static const struct of_device_id myri_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, myri_sbus_match);
 
 static struct of_platform_driver myri_sbus_driver = {
-	.name		= "myri",
-	.match_table	= myri_sbus_match,
+	.driver = {
+		.name = "myri",
+		.owner = THIS_MODULE,
+		.of_match_table = myri_sbus_match,
+	},
 	.probe		= myri_sbus_probe,
 	.remove		= __devexit_p(myri_sbus_remove),
 };
 
 static int __init myri_sbus_init(void)
 {
-	return of_register_driver(&myri_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&myri_sbus_driver);
 }
 
 static void __exit myri_sbus_exit(void)
 {
-	of_unregister_driver(&myri_sbus_driver);
+	of_unregister_platform_driver(&myri_sbus_driver);
 }
 
 module_init(myri_sbus_init);

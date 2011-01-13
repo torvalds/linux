@@ -51,18 +51,18 @@ struct snd_info_entry_ops {
 		    unsigned short mode, void **file_private_data);
 	int (*release)(struct snd_info_entry *entry,
 		       unsigned short mode, void *file_private_data);
-	long (*read)(struct snd_info_entry *entry, void *file_private_data,
-		     struct file *file, char __user *buf,
-		     unsigned long count, unsigned long pos);
-	long (*write)(struct snd_info_entry *entry, void *file_private_data,
-		      struct file *file, const char __user *buf,
-		      unsigned long count, unsigned long pos);
-	long long (*llseek)(struct snd_info_entry *entry,
-			    void *file_private_data, struct file *file,
-			    long long offset, int orig);
-	unsigned int(*poll)(struct snd_info_entry *entry,
-			    void *file_private_data, struct file *file,
-			    poll_table *wait);
+	ssize_t (*read)(struct snd_info_entry *entry, void *file_private_data,
+			struct file *file, char __user *buf,
+			size_t count, loff_t pos);
+	ssize_t (*write)(struct snd_info_entry *entry, void *file_private_data,
+			 struct file *file, const char __user *buf,
+			 size_t count, loff_t pos);
+	loff_t (*llseek)(struct snd_info_entry *entry,
+			 void *file_private_data, struct file *file,
+			 loff_t offset, int orig);
+	unsigned int (*poll)(struct snd_info_entry *entry,
+			     void *file_private_data, struct file *file,
+			     poll_table *wait);
 	int (*ioctl)(struct snd_info_entry *entry, void *file_private_data,
 		     struct file *file, unsigned int cmd, unsigned long arg);
 	int (*mmap)(struct snd_info_entry *entry, void *file_private_data,
@@ -110,13 +110,13 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer);
 static inline void snd_card_info_read_oss(struct snd_info_buffer *buffer) {}
 #endif
 
-int snd_iprintf(struct snd_info_buffer *buffer, char *fmt, ...) \
+int snd_iprintf(struct snd_info_buffer *buffer, const char *fmt, ...) \
 				__attribute__ ((format (printf, 2, 3)));
 int snd_info_init(void);
 int snd_info_done(void);
 
 int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len);
-char *snd_info_get_str(char *dest, char *src, int len);
+const char *snd_info_get_str(char *dest, const char *src, int len);
 struct snd_info_entry *snd_info_create_module_entry(struct module *module,
 					       const char *name,
 					       struct snd_info_entry *parent);

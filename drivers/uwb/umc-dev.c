@@ -6,6 +6,7 @@
  * This file is released under the GNU GPL v2.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/uwb/umc.h>
 
 static void umc_device_release(struct device *dev)
@@ -53,11 +54,8 @@ int umc_device_register(struct umc_dev *umc)
 
 	err = request_resource(umc->resource.parent, &umc->resource);
 	if (err < 0) {
-		dev_err(&umc->dev, "can't allocate resource range "
-			"%016Lx to %016Lx: %d\n",
-			(unsigned long long)umc->resource.start,
-			(unsigned long long)umc->resource.end,
-			err);
+		dev_err(&umc->dev, "can't allocate resource range %pR: %d\n",
+			&umc->resource, err);
 		goto error_request_resource;
 	}
 

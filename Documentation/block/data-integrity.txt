@@ -50,7 +50,7 @@ encouraged them to allow separation of the data and integrity metadata
 scatter-gather lists.
 
 The controller will interleave the buffers on write and split them on
-read.  This means that the Linux can DMA the data buffers to and from
+read.  This means that Linux can DMA the data buffers to and from
 host memory without changes to the page cache.
 
 Also, the 16-bit CRC checksum mandated by both the SCSI and SATA specs
@@ -66,7 +66,7 @@ software RAID5).
 
 The IP checksum is weaker than the CRC in terms of detecting bit
 errors.  However, the strength is really in the separation of the data
-buffers and the integrity metadata.  These two distinct buffers much
+buffers and the integrity metadata.  These two distinct buffers must
 match up for an I/O to complete.
 
 The separation of the data and integrity metadata buffers as well as

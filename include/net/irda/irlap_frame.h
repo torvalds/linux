@@ -85,7 +85,7 @@ struct discovery_t;
 struct disc_frame {
 	__u8 caddr;          /* Connection address */
 	__u8 control;
-} IRDA_PACK;
+} __packed;
 
 struct xid_frame {
 	__u8  caddr; /* Connection address */
@@ -96,41 +96,41 @@ struct xid_frame {
 	__u8  flags; /* Discovery flags */
 	__u8  slotnr;
 	__u8  version;
-} IRDA_PACK;
+} __packed;
 
 struct test_frame {
 	__u8 caddr;          /* Connection address */
 	__u8 control;
 	__le32 saddr;         /* Source device address */
 	__le32 daddr;         /* Destination device address */
-} IRDA_PACK;
+} __packed;
 
 struct ua_frame {
 	__u8 caddr;
 	__u8 control;
 	__le32 saddr; /* Source device address */
 	__le32 daddr; /* Dest device address */
-} IRDA_PACK;
+} __packed;
 
 struct dm_frame {
 	__u8 caddr;          /* Connection address */
 	__u8 control;
-} IRDA_PACK;
+} __packed;
 
 struct rd_frame {
 	__u8 caddr;          /* Connection address */
 	__u8 control;
-} IRDA_PACK;
+} __packed;
 
 struct rr_frame {
 	__u8 caddr;          /* Connection address */
 	__u8 control;
-} IRDA_PACK;
+} __packed;
 
 struct i_frame {
 	__u8 caddr;
 	__u8 control;
-} IRDA_PACK;
+} __packed;
 
 struct snrm_frame {
 	__u8  caddr;
@@ -138,7 +138,7 @@ struct snrm_frame {
 	__le32 saddr;
 	__le32 daddr;
 	__u8  ncaddr;
-} IRDA_PACK;
+} __packed;
 
 void irlap_queue_xmit(struct irlap_cb *self, struct sk_buff *skb);
 void irlap_send_discovery_xid_frame(struct irlap_cb *, int S, __u8 s, 

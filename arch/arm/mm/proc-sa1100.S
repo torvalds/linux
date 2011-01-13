@@ -45,7 +45,7 @@ ENTRY(cpu_sa1100_proc_init)
 	mcr	p15, 0, r0, c9, c0, 5		@ Allow read-buffer operations from userland
 	mov	pc, lr
 
-	.previous
+	.section .text
 
 /*
  * cpu_sa1100_proc_fin()
@@ -55,16 +55,12 @@ ENTRY(cpu_sa1100_proc_init)
  *  - Clean and turn off caches.
  */
 ENTRY(cpu_sa1100_proc_fin)
-	stmfd	sp!, {lr}
-	mov	ip, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-	msr	cpsr_c, ip
-	bl	v4wb_flush_kern_cache_all
 	mcr	p15, 0, ip, c15, c2, 2		@ Disable clock switching
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldmfd	sp!, {pc}
+	mov	pc, lr
 
 /*
  * cpu_sa1100_reset(loc)
@@ -173,7 +169,7 @@ ENTRY(cpu_sa1100_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__sa1100_setup, #function
 __sa1100_setup:
@@ -214,7 +210,7 @@ sa1100_crval:
 	.type	sa1100_processor_functions, #object
 ENTRY(sa1100_processor_functions)
 	.word	v4_early_abort
-	.word	pabort_noifar
+	.word	legacy_pabort
 	.word	cpu_sa1100_proc_init
 	.word	cpu_sa1100_proc_fin
 	.word	cpu_sa1100_reset

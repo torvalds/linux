@@ -29,8 +29,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/console.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/div64.h>
 
@@ -66,6 +66,7 @@ struct sm501fb_info {
 	struct fb_info		*fb[2];		/* fb info for both heads */
 	struct resource		*fbmem_res;	/* framebuffer resource */
 	struct resource		*regs_res;	/* registers resource */
+	struct resource		*regs2d_res;	/* 2d registers resource */
 	struct sm501_platdata_fb *pdata;	/* our platform data */
 
 	unsigned long		 pm_crt_ctrl;	/* pm: crt ctrl save */
@@ -73,6 +74,7 @@ struct sm501fb_info {
 	int			 irq;
 	int			 swap_endian;	/* set to swap rgb=>bgr */
 	void __iomem		*regs;		/* remapped registers */
+	void __iomem		*regs2d;	/* 2d remapped registers */
 	void __iomem		*fbmem;		/* remapped framebuffer */
 	size_t			 fbmem_len;	/* length of remapped region */
 };
@@ -123,9 +125,9 @@ static inline void sm501fb_sync_regs(struct sm501fb_info *info)
  * This is an attempt to lay out memory for the two framebuffers and
  * everything else
  *
- * |fbmem_res->start	                                       fbmem_res->end|
- * |                                                                         |
- * |fb[0].fix.smem_start    |         |fb[1].fix.smem_start    |     2K      |
+ * |fbmem_res->start					       fbmem_res->end|
+ * |									     |
+ * |fb[0].fix.smem_start    |	      |fb[1].fix.smem_start    |     2K	     |
  * |-> fb[0].fix.smem_len <-| spare   |-> fb[1].fix.smem_len <-|-> cursors <-|
  *
  * The "spare" space is for the 2d engine data
@@ -145,7 +147,7 @@ static inline void sm501fb_sync_regs(struct sm501fb_info *info)
 #define SM501_MEMF_ACCEL		(8)
 
 static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
-			   unsigned int why, size_t size)
+			   unsigned int why, size_t size, u32 smem_len)
 {
 	struct sm501fb_par *par;
 	struct fb_info *fbi;
@@ -172,7 +174,7 @@ static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 		if (ptr > 0)
 			ptr &= ~(PAGE_SIZE - 1);
 
-		if (fbi && ptr < fbi->fix.smem_len)
+		if (fbi && ptr < smem_len)
 			return -ENOMEM;
 
 		break;
@@ -197,7 +199,7 @@ static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 
 	case SM501_MEMF_ACCEL:
 		fbi = inf->fb[HEAD_CRT];
-		ptr = fbi ? fbi->fix.smem_len : 0;
+		ptr = fbi ? smem_len : 0;
 
 		fbi = inf->fb[HEAD_PANEL];
 		if (fbi) {
@@ -409,10 +411,11 @@ static int sm501fb_set_par_common(struct fb_info *info,
 	struct sm501fb_par  *par = info->par;
 	struct sm501fb_info *fbi = par->info;
 	unsigned long pixclock;      /* pixelclock in Hz */
-	unsigned long sm501pixclock; /* pixelclock the 501 can achive in Hz */
+	unsigned long sm501pixclock; /* pixelclock the 501 can achieve in Hz */
 	unsigned int mem_type;
 	unsigned int clock_type;
 	unsigned int head_addr;
+	unsigned int smem_len;
 
 	dev_dbg(fbi->dev, "%s: %dx%d, bpp = %d, virtual %dx%d\n",
 		__func__, var->xres, var->yres, var->bits_per_pixel,
@@ -453,18 +456,20 @@ static int sm501fb_set_par_common(struct fb_info *info,
 
 	/* allocate fb memory within 501 */
 	info->fix.line_length = (var->xres_virtual * var->bits_per_pixel)/8;
-	info->fix.smem_len    = info->fix.line_length * var->yres_virtual;
+	smem_len = info->fix.line_length * var->yres_virtual;
 
 	dev_dbg(fbi->dev, "%s: line length = %u\n", __func__,
 		info->fix.line_length);
 
-	if (sm501_alloc_mem(fbi, &par->screen, mem_type,
-			    info->fix.smem_len)) {
+	if (sm501_alloc_mem(fbi, &par->screen, mem_type, smem_len, smem_len)) {
 		dev_err(fbi->dev, "no memory available\n");
 		return -ENOMEM;
 	}
 
+	mutex_lock(&info->mm_lock);
 	info->fix.smem_start = fbi->fbmem_res->start + par->screen.sm_addr;
+	info->fix.smem_len   = smem_len;
+	mutex_unlock(&info->mm_lock);
 
 	info->screen_base = fbi->fbmem + par->screen.sm_addr;
 	info->screen_size = info->fix.smem_len;
@@ -637,7 +642,8 @@ static int sm501fb_set_par_crt(struct fb_info *info)
 	if ((control & SM501_DC_CRT_CONTROL_SEL) == 0) {
 		/* the head is displaying panel data... */
 
-		sm501_alloc_mem(fbi, &par->screen, SM501_MEMF_CRT, 0);
+		sm501_alloc_mem(fbi, &par->screen, SM501_MEMF_CRT, 0,
+				info->fix.smem_len);
 		goto out_update;
 	}
 
@@ -1242,7 +1248,173 @@ static ssize_t sm501fb_debug_show_pnl(struct device *dev,
 
 static DEVICE_ATTR(fbregs_pnl, 0444, sm501fb_debug_show_pnl, NULL);
 
-/* framebuffer ops */
+/* acceleration operations */
+static int sm501fb_sync(struct fb_info *info)
+{
+	int count = 1000000;
+	struct sm501fb_par  *par = info->par;
+	struct sm501fb_info *fbi = par->info;
+
+	/* wait for the 2d engine to be ready */
+	while ((count > 0) &&
+	       (readl(fbi->regs + SM501_SYSTEM_CONTROL) &
+		SM501_SYSCTRL_2D_ENGINE_STATUS) != 0)
+		count--;
+
+	if (count <= 0) {
+		dev_err(info->dev, "Timeout waiting for 2d engine sync\n");
+		return 1;
+	}
+	return 0;
+}
+
+static void sm501fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+{
+	struct sm501fb_par  *par = info->par;
+	struct sm501fb_info *fbi = par->info;
+	int width = area->width;
+	int height = area->height;
+	int sx = area->sx;
+	int sy = area->sy;
+	int dx = area->dx;
+	int dy = area->dy;
+	unsigned long rtl = 0;
+
+	/* source clip */
+	if ((sx >= info->var.xres_virtual) ||
+	    (sy >= info->var.yres_virtual))
+		/* source Area not within virtual screen, skipping */
+		return;
+	if ((sx + width) >= info->var.xres_virtual)
+		width = info->var.xres_virtual - sx - 1;
+	if ((sy + height) >= info->var.yres_virtual)
+		height = info->var.yres_virtual - sy - 1;
+
+	/* dest clip */
+	if ((dx >= info->var.xres_virtual) ||
+	    (dy >= info->var.yres_virtual))
+		/* Destination Area not within virtual screen, skipping */
+		return;
+	if ((dx + width) >= info->var.xres_virtual)
+		width = info->var.xres_virtual - dx - 1;
+	if ((dy + height) >= info->var.yres_virtual)
+		height = info->var.yres_virtual - dy - 1;
+
+	if ((sx < dx) || (sy < dy)) {
+		rtl = 1 << 27;
+		sx += width - 1;
+		dx += width - 1;
+		sy += height - 1;
+		dy += height - 1;
+	}
+
+	if (sm501fb_sync(info))
+		return;
+
+	/* set the base addresses */
+	writel(par->screen.sm_addr, fbi->regs2d + SM501_2D_SOURCE_BASE);
+	writel(par->screen.sm_addr, fbi->regs2d + SM501_2D_DESTINATION_BASE);
+
+	/* set the window width */
+	writel((info->var.xres << 16) | info->var.xres,
+	       fbi->regs2d + SM501_2D_WINDOW_WIDTH);
+
+	/* set window stride */
+	writel((info->var.xres_virtual << 16) | info->var.xres_virtual,
+	       fbi->regs2d + SM501_2D_PITCH);
+
+	/* set data format */
+	switch (info->var.bits_per_pixel) {
+	case 8:
+		writel(0, fbi->regs2d + SM501_2D_STRETCH);
+		break;
+	case 16:
+		writel(0x00100000, fbi->regs2d + SM501_2D_STRETCH);
+		break;
+	case 32:
+		writel(0x00200000, fbi->regs2d + SM501_2D_STRETCH);
+		break;
+	}
+
+	/* 2d compare mask */
+	writel(0xffffffff, fbi->regs2d + SM501_2D_COLOR_COMPARE_MASK);
+
+	/* 2d mask */
+	writel(0xffffffff, fbi->regs2d + SM501_2D_MASK);
+
+	/* source and destination x y */
+	writel((sx << 16) | sy, fbi->regs2d + SM501_2D_SOURCE);
+	writel((dx << 16) | dy, fbi->regs2d + SM501_2D_DESTINATION);
+
+	/* w/h */
+	writel((width << 16) | height, fbi->regs2d + SM501_2D_DIMENSION);
+
+	/* do area move */
+	writel(0x800000cc | rtl, fbi->regs2d + SM501_2D_CONTROL);
+}
+
+static void sm501fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
+{
+	struct sm501fb_par  *par = info->par;
+	struct sm501fb_info *fbi = par->info;
+	int width = rect->width, height = rect->height;
+
+	if ((rect->dx >= info->var.xres_virtual) ||
+	    (rect->dy >= info->var.yres_virtual))
+		/* Rectangle not within virtual screen, skipping */
+		return;
+	if ((rect->dx + width) >= info->var.xres_virtual)
+		width = info->var.xres_virtual - rect->dx - 1;
+	if ((rect->dy + height) >= info->var.yres_virtual)
+		height = info->var.yres_virtual - rect->dy - 1;
+
+	if (sm501fb_sync(info))
+		return;
+
+	/* set the base addresses */
+	writel(par->screen.sm_addr, fbi->regs2d + SM501_2D_SOURCE_BASE);
+	writel(par->screen.sm_addr, fbi->regs2d + SM501_2D_DESTINATION_BASE);
+
+	/* set the window width */
+	writel((info->var.xres << 16) | info->var.xres,
+	       fbi->regs2d + SM501_2D_WINDOW_WIDTH);
+
+	/* set window stride */
+	writel((info->var.xres_virtual << 16) | info->var.xres_virtual,
+	       fbi->regs2d + SM501_2D_PITCH);
+
+	/* set data format */
+	switch (info->var.bits_per_pixel) {
+	case 8:
+		writel(0, fbi->regs2d + SM501_2D_STRETCH);
+		break;
+	case 16:
+		writel(0x00100000, fbi->regs2d + SM501_2D_STRETCH);
+		break;
+	case 32:
+		writel(0x00200000, fbi->regs2d + SM501_2D_STRETCH);
+		break;
+	}
+
+	/* 2d compare mask */
+	writel(0xffffffff, fbi->regs2d + SM501_2D_COLOR_COMPARE_MASK);
+
+	/* 2d mask */
+	writel(0xffffffff, fbi->regs2d + SM501_2D_MASK);
+
+	/* colour */
+	writel(rect->color, fbi->regs2d + SM501_2D_FOREGROUND);
+
+	/* x y */
+	writel((rect->dx << 16) | rect->dy, fbi->regs2d + SM501_2D_DESTINATION);
+
+	/* w/h */
+	writel((width << 16) | height, fbi->regs2d + SM501_2D_DIMENSION);
+
+	/* do rectangle fill */
+	writel(0x800100cc, fbi->regs2d + SM501_2D_CONTROL);
+}
+
 
 static struct fb_ops sm501fb_ops_crt = {
 	.owner		= THIS_MODULE,
@@ -1252,9 +1424,10 @@ static struct fb_ops sm501fb_ops_crt = {
 	.fb_setcolreg	= sm501fb_setcolreg,
 	.fb_pan_display	= sm501fb_pan_crt,
 	.fb_cursor	= sm501fb_cursor,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
+	.fb_fillrect	= sm501fb_fillrect,
+	.fb_copyarea	= sm501fb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	.fb_sync	= sm501fb_sync,
 };
 
 static struct fb_ops sm501fb_ops_pnl = {
@@ -1265,9 +1438,10 @@ static struct fb_ops sm501fb_ops_pnl = {
 	.fb_blank	= sm501fb_blank_pnl,
 	.fb_setcolreg	= sm501fb_setcolreg,
 	.fb_cursor	= sm501fb_cursor,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
+	.fb_fillrect	= sm501fb_fillrect,
+	.fb_copyarea	= sm501fb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	.fb_sync	= sm501fb_sync,
 };
 
 /* sm501_init_cursor
@@ -1289,7 +1463,8 @@ static int sm501_init_cursor(struct fb_info *fbi, unsigned int reg_base)
 
 	par->cursor_regs = info->regs + reg_base;
 
-	ret = sm501_alloc_mem(info, &par->cursor, SM501_MEMF_CURSOR, 1024);
+	ret = sm501_alloc_mem(info, &par->cursor, SM501_MEMF_CURSOR, 1024,
+			      fbi->fix.smem_len);
 	if (ret < 0)
 		return ret;
 
@@ -1324,7 +1499,8 @@ static int sm501fb_start(struct sm501fb_info *info,
 		dev_warn(dev, "no irq for device\n");
 	}
 
-	/* allocate, reserve and remap resources for registers */
+	/* allocate, reserve and remap resources for display
+	 * controller registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(dev, "no resource definition for registers\n");
@@ -1333,7 +1509,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 	}
 
 	info->regs_res = request_mem_region(res->start,
-					    res->end - res->start,
+					    resource_size(res),
 					    pdev->name);
 
 	if (info->regs_res == NULL) {
@@ -1342,11 +1518,37 @@ static int sm501fb_start(struct sm501fb_info *info,
 		goto err_release;
 	}
 
-	info->regs = ioremap(res->start, (res->end - res->start)+1);
+	info->regs = ioremap(res->start, resource_size(res));
 	if (info->regs == NULL) {
 		dev_err(dev, "cannot remap registers\n");
 		ret = -ENXIO;
 		goto err_regs_res;
+	}
+
+	/* allocate, reserve and remap resources for 2d
+	 * controller registers */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res == NULL) {
+		dev_err(dev, "no resource definition for 2d registers\n");
+		ret = -ENOENT;
+		goto err_regs_map;
+	}
+
+	info->regs2d_res = request_mem_region(res->start,
+					      resource_size(res),
+					      pdev->name);
+
+	if (info->regs2d_res == NULL) {
+		dev_err(dev, "cannot claim registers\n");
+		ret = -ENXIO;
+		goto err_regs_map;
+	}
+
+	info->regs2d = ioremap(res->start, resource_size(res));
+	if (info->regs2d == NULL) {
+		dev_err(dev, "cannot remap registers\n");
+		ret = -ENXIO;
+		goto err_regs2d_res;
 	}
 
 	/* allocate, reserve resources for framebuffer */
@@ -1354,25 +1556,25 @@ static int sm501fb_start(struct sm501fb_info *info,
 	if (res == NULL) {
 		dev_err(dev, "no memory resource defined\n");
 		ret = -ENXIO;
-		goto err_regs_map;
+		goto err_regs2d_map;
 	}
 
 	info->fbmem_res = request_mem_region(res->start,
-					     (res->end - res->start)+1,
+					     resource_size(res),
 					     pdev->name);
 	if (info->fbmem_res == NULL) {
 		dev_err(dev, "cannot claim framebuffer\n");
 		ret = -ENXIO;
-		goto err_regs_map;
+		goto err_regs2d_map;
 	}
 
-	info->fbmem = ioremap(res->start, (res->end - res->start)+1);
+	info->fbmem = ioremap(res->start, resource_size(res));
 	if (info->fbmem == NULL) {
 		dev_err(dev, "cannot remap framebuffer\n");
 		goto err_mem_res;
 	}
 
-	info->fbmem_len = (res->end - res->start)+1;
+	info->fbmem_len = resource_size(res);
 
 	/* clear framebuffer memory - avoids garbage data on unused fb */
 	memset(info->fbmem, 0, info->fbmem_len);
@@ -1384,8 +1586,10 @@ static int sm501fb_start(struct sm501fb_info *info,
 	/* enable display controller */
 	sm501_unit_power(dev->parent, SM501_GATE_DISPLAY, 1);
 
-	/* setup cursors */
+	/* enable 2d controller */
+	sm501_unit_power(dev->parent, SM501_GATE_2D_ENGINE, 1);
 
+	/* setup cursors */
 	sm501_init_cursor(info->fb[HEAD_CRT], SM501_DC_CRT_HWC_ADDR);
 	sm501_init_cursor(info->fb[HEAD_PANEL], SM501_DC_PANEL_HWC_ADDR);
 
@@ -1394,6 +1598,13 @@ static int sm501fb_start(struct sm501fb_info *info,
  err_mem_res:
 	release_resource(info->fbmem_res);
 	kfree(info->fbmem_res);
+
+ err_regs2d_map:
+	iounmap(info->regs2d);
+
+ err_regs2d_res:
+	release_resource(info->regs2d_res);
+	kfree(info->regs2d_res);
 
  err_regs_map:
 	iounmap(info->regs);
@@ -1414,6 +1625,10 @@ static void sm501fb_stop(struct sm501fb_info *info)
 	iounmap(info->fbmem);
 	release_resource(info->fbmem_res);
 	kfree(info->fbmem_res);
+
+	iounmap(info->regs2d);
+	release_resource(info->regs2d_res);
+	kfree(info->regs2d_res);
 
 	iounmap(info->regs);
 	release_resource(info->regs_res);
@@ -1481,7 +1696,8 @@ static int sm501fb_init_fb(struct fb_info *fb,
 		par->ops.fb_cursor = NULL;
 
 	fb->fbops = &par->ops;
-	fb->flags = FBINFO_FLAG_DEFAULT |
+	fb->flags = FBINFO_FLAG_DEFAULT | FBINFO_READS_FAST |
+		FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT |
 		FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
 
 	/* fixed data */
@@ -1534,9 +1750,6 @@ static int sm501fb_init_fb(struct fb_info *fb,
 	ret = (fb->fbops->fb_check_var)(&fb->var, fb);
 	if (ret)
 		dev_err(info->dev, "check_var() failed on initial setup?\n");
-
-	/* ensure we've activated our new configuration */
-	(fb->fbops->fb_set_par)(fb);
 
 	return 0;
 }
@@ -1618,6 +1831,8 @@ static int __devinit sm501fb_start_one(struct sm501fb_info *info,
 
 	if (!fbi)
 		return 0;
+
+	mutex_init(&info->fb[head]->mm_lock);
 
 	ret = sm501fb_init_fb(info->fb[head], head, drvname);
 	if (ret) {

@@ -31,7 +31,6 @@ static inline void vesa_store_mode_params_graphics(void) {}
 
 static int vesa_probe(void)
 {
-#if defined(CONFIG_VIDEO_VESA) || defined(CONFIG_FIRMWARE_EDID)
 	struct biosregs ireg, oreg;
 	u16 mode;
 	addr_t mode_ptr;
@@ -45,12 +44,11 @@ static int vesa_probe(void)
 	ireg.di = (size_t)&vginfo;
 	intcall(0x10, &ireg, &oreg);
 
-	if (ireg.ax != 0x004f ||
+	if (oreg.ax != 0x004f ||
 	    vginfo.signature != VESA_MAGIC ||
 	    vginfo.version < 0x0102)
 		return 0;	/* Not present */
-#endif /* CONFIG_VIDEO_VESA || CONFIG_FIRMWARE_EDID */
-#ifdef CONFIG_VIDEO_VESA
+
 	set_fs(vginfo.video_mode_ptr.seg);
 	mode_ptr = vginfo.video_mode_ptr.off;
 
@@ -70,7 +68,7 @@ static int vesa_probe(void)
 		ireg.di = (size_t)&vminfo;
 		intcall(0x10, &ireg, &oreg);
 
-		if (ireg.ax != 0x004f)
+		if (oreg.ax != 0x004f)
 			continue;
 
 		if ((vminfo.mode_attr & 0x15) == 0x05) {
@@ -102,9 +100,6 @@ static int vesa_probe(void)
 	}
 
 	return nmodes;
-#else
-	return 0;
-#endif /* CONFIG_VIDEO_VESA */
 }
 
 static int vesa_set_mode(struct mode_info *mode)

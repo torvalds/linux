@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/delay.h>
 
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -19,6 +20,7 @@
 
 #include <asm/time.h>
 #include <asm/delay.h>
+#include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>
 
 #include "mpc5200_dma.h"
@@ -34,13 +36,20 @@ static unsigned short psc_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	int status;
 	unsigned int val;
 
+	mutex_lock(&psc_dma->mutex);
+
 	/* Wait for command send status zero = ready */
 	status = spin_event_timeout(!(in_be16(&psc_dma->psc_regs->sr_csr.status) &
 				MPC52xx_PSC_SR_CMDSEND), 100, 0);
 	if (status == 0) {
 		pr_err("timeout on ac97 bus (rdy)\n");
+		mutex_unlock(&psc_dma->mutex);
 		return -ENODEV;
 	}
+
+	/* Force clear the data valid bit */
+	in_be32(&psc_dma->psc_regs->ac97_data);
+
 	/* Send the read */
 	out_be32(&psc_dma->psc_regs->ac97_cmd, (1<<31) | ((reg & 0x7f) << 24));
 
@@ -50,16 +59,19 @@ static unsigned short psc_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	if (status == 0) {
 		pr_err("timeout on ac97 read (val) %x\n",
 				in_be16(&psc_dma->psc_regs->sr_csr.status));
+		mutex_unlock(&psc_dma->mutex);
 		return -ENODEV;
 	}
 	/* Get the data */
 	val = in_be32(&psc_dma->psc_regs->ac97_data);
 	if (((val >> 24) & 0x7f) != reg) {
 		pr_err("reg echo error on ac97 read\n");
+		mutex_unlock(&psc_dma->mutex);
 		return -ENODEV;
 	}
 	val = (val >> 8) & 0xffff;
 
+	mutex_unlock(&psc_dma->mutex);
 	return (unsigned short) val;
 }
 
@@ -68,36 +80,54 @@ static void psc_ac97_write(struct snd_ac97 *ac97,
 {
 	int status;
 
+	mutex_lock(&psc_dma->mutex);
+
 	/* Wait for command status zero = ready */
 	status = spin_event_timeout(!(in_be16(&psc_dma->psc_regs->sr_csr.status) &
 				MPC52xx_PSC_SR_CMDSEND), 100, 0);
 	if (status == 0) {
 		pr_err("timeout on ac97 bus (write)\n");
-		return;
+		goto out;
 	}
 	/* Write data */
 	out_be32(&psc_dma->psc_regs->ac97_cmd,
 			((reg & 0x7f) << 24) | (val << 8));
+
+ out:
+	mutex_unlock(&psc_dma->mutex);
 }
 
 static void psc_ac97_warm_reset(struct snd_ac97 *ac97)
 {
 	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 
+	mutex_lock(&psc_dma->mutex);
+
 	out_be32(&regs->sicr, psc_dma->sicr | MPC52xx_PSC_SICR_AWR);
 	udelay(3);
 	out_be32(&regs->sicr, psc_dma->sicr);
+
+	mutex_unlock(&psc_dma->mutex);
 }
 
 static void psc_ac97_cold_reset(struct snd_ac97 *ac97)
 {
 	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 
-	/* Do a cold reset */
-	out_8(&regs->op1, MPC52xx_PSC_OP_RES);
-	udelay(10);
-	out_8(&regs->op0, MPC52xx_PSC_OP_RES);
-	udelay(50);
+	mutex_lock(&psc_dma->mutex);
+	dev_dbg(psc_dma->dev, "cold reset\n");
+
+	mpc5200_psc_ac97_gpio_reset(psc_dma->id);
+
+	/* Notify the PSC that a reset has occurred */
+	out_be32(&regs->sicr, psc_dma->sicr | MPC52xx_PSC_SICR_ACRB);
+
+	/* Re-enable RX and TX */
+	out_8(&regs->command, MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
+
+	mutex_unlock(&psc_dma->mutex);
+
+	msleep(1);
 	psc_ac97_warm_reset(ac97);
 }
 
@@ -113,7 +143,8 @@ static int psc_ac97_hw_analog_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
+	struct psc_dma_stream *s = to_psc_dma_stream(substream, psc_dma);
 
 	dev_dbg(psc_dma->dev, "%s(substream=%p) p_size=%i p_bytes=%i"
 		" periods=%i buffer_size=%i  buffer_bytes=%i channels=%i"
@@ -124,20 +155,10 @@ static int psc_ac97_hw_analog_params(struct snd_pcm_substream *substream,
 		params_channels(params), params_rate(params),
 		params_format(params));
 
-
-	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		if (params_channels(params) == 1)
-			psc_dma->slots |= 0x00000100;
-		else
-			psc_dma->slots |= 0x00000300;
-	} else {
-		if (params_channels(params) == 1)
-			psc_dma->slots |= 0x01000000;
-		else
-			psc_dma->slots |= 0x03000000;
-	}
-	out_be32(&psc_dma->psc_regs->ac97_slots, psc_dma->slots);
-
+	/* Determine the set of enable bits to turn on */
+	s->ac97_slot_bits = (params_channels(params) == 1) ? 0x100 : 0x300;
+	if (substream->pstr->stream != SNDRV_PCM_STREAM_CAPTURE)
+		s->ac97_slot_bits <<= 16;
 	return 0;
 }
 
@@ -145,7 +166,9 @@ static int psc_ac97_hw_digital_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
+
+	dev_dbg(psc_dma->dev, "%s(substream=%p)\n", __func__, substream);
 
 	if (params_channels(params) == 1)
 		out_be32(&psc_dma->psc_regs->ac97_slots, 0x01000000);
@@ -158,26 +181,34 @@ static int psc_ac97_hw_digital_params(struct snd_pcm_substream *substream,
 static int psc_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 							struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(dai);
+	struct psc_dma_stream *s = to_psc_dma_stream(substream, psc_dma);
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_STOP:
-		if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
-			psc_dma->slots &= 0xFFFF0000;
-		else
-			psc_dma->slots &= 0x0000FFFF;
+	case SNDRV_PCM_TRIGGER_START:
+		dev_dbg(psc_dma->dev, "AC97 START: stream=%i\n",
+			substream->pstr->stream);
 
+		/* Set the slot enable bits */
+		psc_dma->slots |= s->ac97_slot_bits;
+		out_be32(&psc_dma->psc_regs->ac97_slots, psc_dma->slots);
+		break;
+
+	case SNDRV_PCM_TRIGGER_STOP:
+		dev_dbg(psc_dma->dev, "AC97 STOP: stream=%i\n",
+			substream->pstr->stream);
+
+		/* Clear the slot enable bits */
+		psc_dma->slots &= ~(s->ac97_slot_bits);
 		out_be32(&psc_dma->psc_regs->ac97_slots, psc_dma->slots);
 		break;
 	}
 	return 0;
 }
 
-static int psc_ac97_probe(struct platform_device *pdev,
-					struct snd_soc_dai *cpu_dai)
+static int psc_ac97_probe(struct snd_soc_dai *cpu_dai)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
 	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 
 	/* Go */
@@ -204,9 +235,8 @@ static struct snd_soc_dai_ops psc_ac97_digital_ops = {
 	.hw_params	= psc_ac97_hw_digital_params,
 };
 
-struct snd_soc_dai psc_ac97_dai[] = {
+static struct snd_soc_dai_driver psc_ac97_dai[] = {
 {
-	.name   = "AC97",
 	.ac97_control = 1,
 	.probe	= psc_ac97_probe,
 	.playback = {
@@ -224,7 +254,6 @@ struct snd_soc_dai psc_ac97_dai[] = {
 	.ops = &psc_ac97_analog_ops,
 },
 {
-	.name   = "SPDIF",
 	.ac97_control = 1,
 	.playback = {
 		.channels_min   = 1,
@@ -235,7 +264,6 @@ struct snd_soc_dai psc_ac97_dai[] = {
 	},
 	.ops = &psc_ac97_digital_ops,
 } };
-EXPORT_SYMBOL_GPL(psc_ac97_dai);
 
 
 
@@ -244,21 +272,14 @@ EXPORT_SYMBOL_GPL(psc_ac97_dai);
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_ac97_of_probe(struct of_device *op,
+static int __devinit psc_ac97_of_probe(struct platform_device *op,
 				      const struct of_device_id *match)
 {
-	int rc, i;
+	int rc;
 	struct snd_ac97 ac97;
 	struct mpc52xx_psc __iomem *regs;
 
-	rc = mpc5200_audio_dma_create(op);
-	if (rc != 0)
-		return rc;
-
-	for (i = 0; i < ARRAY_SIZE(psc_ac97_dai); i++)
-		psc_ac97_dai[i].dev = &op->dev;
-
-	rc = snd_soc_register_dais(psc_ac97_dai, ARRAY_SIZE(psc_ac97_dai));
+	rc = snd_soc_register_dais(&op->dev, psc_ac97_dai, ARRAY_SIZE(psc_ac97_dai));
 	if (rc != 0) {
 		dev_err(&op->dev, "Failed to register DAI\n");
 		return rc;
@@ -267,9 +288,6 @@ static int __devinit psc_ac97_of_probe(struct of_device *op,
 	psc_dma = dev_get_drvdata(&op->dev);
 	regs = psc_dma->psc_regs;
 	ac97.private_data = psc_dma;
-
-	for (i = 0; i < ARRAY_SIZE(psc_ac97_dai); i++)
-		psc_ac97_dai[i].private_data = psc_dma;
 
 	psc_dma->imr = 0;
 	out_be16(&psc_dma->psc_regs->isr_imr.imr, psc_dma->imr);
@@ -284,9 +302,10 @@ static int __devinit psc_ac97_of_probe(struct of_device *op,
 	return 0;
 }
 
-static int __devexit psc_ac97_of_remove(struct of_device *op)
+static int __devexit psc_ac97_of_remove(struct platform_device *op)
 {
-	return mpc5200_audio_dma_destroy(op);
+	snd_soc_unregister_dais(&op->dev, ARRAY_SIZE(psc_ac97_dai));
+	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -298,12 +317,12 @@ static struct of_device_id psc_ac97_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, psc_ac97_match);
 
 static struct of_platform_driver psc_ac97_driver = {
-	.match_table = psc_ac97_match,
 	.probe = psc_ac97_of_probe,
 	.remove = __devexit_p(psc_ac97_of_remove),
 	.driver = {
 		.name = "mpc5200-psc-ac97",
 		.owner = THIS_MODULE,
+		.of_match_table = psc_ac97_match,
 	},
 };
 

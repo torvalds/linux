@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/gfp.h>
 #include <net/tcp.h>
 
 int sysctl_tcp_max_ssthresh = 0;
@@ -116,7 +117,7 @@ int tcp_set_default_congestion_control(const char *name)
 	spin_lock(&tcp_cong_list_lock);
 	ca = tcp_ca_find(name);
 #ifdef CONFIG_MODULES
-	if (!ca && capable(CAP_SYS_MODULE)) {
+	if (!ca && capable(CAP_NET_ADMIN)) {
 		spin_unlock(&tcp_cong_list_lock);
 
 		request_module("tcp_%s", name);
@@ -195,10 +196,10 @@ void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
 int tcp_set_allowed_congestion_control(char *val)
 {
 	struct tcp_congestion_ops *ca;
-	char *clone, *name;
+	char *saved_clone, *clone, *name;
 	int ret = 0;
 
-	clone = kstrdup(val, GFP_USER);
+	saved_clone = clone = kstrdup(val, GFP_USER);
 	if (!clone)
 		return -ENOMEM;
 
@@ -225,6 +226,7 @@ int tcp_set_allowed_congestion_control(char *val)
 	}
 out:
 	spin_unlock(&tcp_cong_list_lock);
+	kfree(saved_clone);
 
 	return ret;
 }
@@ -246,7 +248,7 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 
 #ifdef CONFIG_MODULES
 	/* not found attempt to autoload module */
-	if (!ca && capable(CAP_SYS_MODULE)) {
+	if (!ca && capable(CAP_NET_ADMIN)) {
 		rcu_read_unlock();
 		request_module("tcp_%s", name);
 		rcu_read_lock();

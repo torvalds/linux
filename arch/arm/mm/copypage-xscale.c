@@ -91,11 +91,11 @@ mc_copy_user_page(void *from, void *to)
 }
 
 void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr)
+	unsigned long vaddr, struct vm_area_struct *vma)
 {
 	void *kto = kmap_atomic(to, KM_USER1);
 
-	if (test_and_clear_bit(PG_dcache_dirty, &from->flags))
+	if (!test_and_set_bit(PG_dcache_clean, &from->flags))
 		__flush_dcache_page(page_mapping(from), from);
 
 	spin_lock(&minicache_lock);

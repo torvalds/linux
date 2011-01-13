@@ -8,49 +8,16 @@
  *	it under the terms of the GNU General Public License version 2 as
  *	published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_iprange.h>
-#include <linux/netfilter_ipv4/ipt_iprange.h>
 
 static bool
-iprange_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
-{
-	const struct ipt_iprange_info *info = par->matchinfo;
-	const struct iphdr *iph = ip_hdr(skb);
-
-	if (info->flags & IPRANGE_SRC) {
-		if ((ntohl(iph->saddr) < ntohl(info->src.min_ip)
-			  || ntohl(iph->saddr) > ntohl(info->src.max_ip))
-			 ^ !!(info->flags & IPRANGE_SRC_INV)) {
-			pr_debug("src IP %pI4 NOT in range %s%pI4-%pI4\n",
-				 &iph->saddr,
-				 info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
-				 &info->src.min_ip,
-				 &info->src.max_ip);
-			return false;
-		}
-	}
-	if (info->flags & IPRANGE_DST) {
-		if ((ntohl(iph->daddr) < ntohl(info->dst.min_ip)
-			  || ntohl(iph->daddr) > ntohl(info->dst.max_ip))
-			 ^ !!(info->flags & IPRANGE_DST_INV)) {
-			pr_debug("dst IP %pI4 NOT in range %s%pI4-%pI4\n",
-				 &iph->daddr,
-				 info->flags & IPRANGE_DST_INV ? "(INV) " : "",
-				 &info->dst.min_ip,
-				 &info->dst.max_ip);
-			return false;
-		}
-	}
-	return true;
-}
-
-static bool
-iprange_mt4(const struct sk_buff *skb, const struct xt_match_param *par)
+iprange_mt4(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_iprange_mtinfo *info = par->matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -101,7 +68,7 @@ iprange_ipv6_sub(const struct in6_addr *a, const struct in6_addr *b)
 }
 
 static bool
-iprange_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
+iprange_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_iprange_mtinfo *info = par->matchinfo;
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -125,14 +92,6 @@ iprange_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 }
 
 static struct xt_match iprange_mt_reg[] __read_mostly = {
-	{
-		.name      = "iprange",
-		.revision  = 0,
-		.family    = NFPROTO_IPV4,
-		.match     = iprange_mt_v0,
-		.matchsize = sizeof(struct ipt_iprange_info),
-		.me        = THIS_MODULE,
-	},
 	{
 		.name      = "iprange",
 		.revision  = 1,
@@ -164,7 +123,8 @@ static void __exit iprange_mt_exit(void)
 module_init(iprange_mt_init);
 module_exit(iprange_mt_exit);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: arbitrary IPv4 range matching");
 MODULE_ALIAS("ipt_iprange");
 MODULE_ALIAS("ip6t_iprange");

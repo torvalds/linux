@@ -15,12 +15,14 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/gfp.h>
 #include <asm/hardware/uengine.h>
 #include <asm/io.h>
 #include "ixp2400_rx.ucode"
 #include "ixp2400_tx.ucode"
 #include "ixpdev_priv.h"
 #include "ixpdev.h"
+#include "pm3386.h"
 
 #define DRV_MODULE_VERSION	"0.2"
 
@@ -41,11 +43,12 @@ static int ixpdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ixpdev_priv *ip = netdev_priv(dev);
 	struct ixpdev_tx_desc *desc;
 	int entry;
+	unsigned long flags;
 
 	if (unlikely(skb->len > PAGE_SIZE)) {
 		/* @@@ Count drops.  */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	entry = tx_pointer;
@@ -61,15 +64,13 @@ static int ixpdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	ixp2000_reg_write(RING_TX_PENDING,
 		TX_BUF_DESC_BASE + (entry * sizeof(struct ixpdev_tx_desc)));
 
-	dev->trans_start = jiffies;
-
-	local_irq_disable();
+	local_irq_save(flags);
 	ip->tx_queue_entries++;
 	if (ip->tx_queue_entries == TX_BUF_COUNT_PER_CHAN)
 		netif_stop_queue(dev);
-	local_irq_enable();
+	local_irq_restore(flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -107,9 +108,8 @@ static int ixpdev_rx(struct net_device *dev, int processed, int budget)
 		if (unlikely(!netif_running(nds[desc->channel])))
 			goto err;
 
-		skb = netdev_alloc_skb(dev, desc->pkt_length + 2);
+		skb = netdev_alloc_skb_ip_align(dev, desc->pkt_length);
 		if (likely(skb != NULL)) {
-			skb_reserve(skb, 2);
 			skb_copy_to_linear_data(skb, buf, desc->pkt_length);
 			skb_put(skb, desc->pkt_length);
 			skb->protocol = eth_type_trans(skb, nds[desc->channel]);
@@ -270,6 +270,15 @@ static int ixpdev_close(struct net_device *dev)
 	return 0;
 }
 
+static struct net_device_stats *ixpdev_get_stats(struct net_device *dev)
+{
+	struct ixpdev_priv *ip = netdev_priv(dev);
+
+	pm3386_get_stats(ip->channel, &(dev->stats));
+
+	return &(dev->stats);
+}
+
 static const struct net_device_ops ixpdev_netdev_ops = {
 	.ndo_open		= ixpdev_open,
 	.ndo_stop		= ixpdev_close,
@@ -277,6 +286,7 @@ static const struct net_device_ops ixpdev_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_get_stats		= ixpdev_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixpdev_poll_controller,
 #endif

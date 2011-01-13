@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: baseband.h
  *
  * Purpose: Implement functions to access baseband
@@ -26,23 +27,12 @@
  *
  */
 
-
 #ifndef __BASEBAND_H__
 #define __BASEBAND_H__
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -106,11 +96,10 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
+
 /*---------------------  Export Types  ------------------------------*/
 
 /*---------------------  Export Macros ------------------------------*/
-
-
 
 #define BBvClearFOE(dwIoBase)                               \
 {                                                           \
@@ -128,71 +117,61 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
-UINT
+unsigned int
 BBuGetFrameTime(
-    IN BYTE byPreambleType,
-    IN BYTE byPktType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+    unsigned char byPreambleType,
+    unsigned char byPktType,
+    unsigned int cbFrameLength,
+    unsigned short wRate
     );
 
-VOID
+void
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
-    OUT PWORD pwPhyLen,
-    OUT PBYTE pbyPhySrv,
-    OUT PBYTE pbyPhySgn
+    PSDevice pDevice,
+    unsigned int cbFrameLength,
+    unsigned short wRate,
+    unsigned char byPacketType,
+    unsigned short *pwPhyLen,
+    unsigned char *pbyPhySrv,
+    unsigned char *pbyPhySgn
     );
 
-BOOL BBbReadEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData);
-BOOL BBbWriteEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byData);
+bool BBbReadEmbeded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData);
+bool BBbWriteEmbeded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData);
 
-VOID BBvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyBBRegs);
+void BBvReadAllRegs(unsigned long dwIoBase, unsigned char *pbyBBRegs);
 void BBvLoopbackOn(PSDevice pDevice);
 void BBvLoopbackOff(PSDevice pDevice);
 void BBvSetShortSlotTime(PSDevice pDevice);
-BOOL BBbIsRegBitsOn(DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits);
-BOOL BBbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits);
-VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
+bool BBbIsRegBitsOn(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
+bool BBbIsRegBitsOff(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
+void BBvSetVGAGainOffset(PSDevice pDevice, unsigned char byData);
 
 // VT3253 Baseband
-BOOL BBbVT3253Init(PSDevice pDevice);
-VOID BBvSoftwareReset(DWORD_PTR dwIoBase);
-VOID BBvPowerSaveModeON(DWORD_PTR dwIoBase);
-VOID BBvPowerSaveModeOFF(DWORD_PTR dwIoBase);
-VOID BBvSetTxAntennaMode(DWORD_PTR dwIoBase, BYTE byAntennaMode);
-VOID BBvSetRxAntennaMode(DWORD_PTR dwIoBase, BYTE byAntennaMode);
-VOID BBvSetDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
-VOID BBvExitDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
+bool BBbVT3253Init(PSDevice pDevice);
+void BBvSoftwareReset(unsigned long dwIoBase);
+void BBvPowerSaveModeON(unsigned long dwIoBase);
+void BBvPowerSaveModeOFF(unsigned long dwIoBase);
+void BBvSetTxAntennaMode(unsigned long dwIoBase, unsigned char byAntennaMode);
+void BBvSetRxAntennaMode(unsigned long dwIoBase, unsigned char byAntennaMode);
+void BBvSetDeepSleep(unsigned long dwIoBase, unsigned char byLocalID);
+void BBvExitDeepSleep(unsigned long dwIoBase, unsigned char byLocalID);
 
 // timer for antenna diversity
-VOID
-TimerSQ3CallBack(
-    IN  HANDLE hDeviceContext
-    );
-VOID
-TimerState1CallBack(
-    IN  HANDLE hDeviceContext
+
+void
+TimerSQ3CallBack (
+    void *hDeviceContext
     );
 
-void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
-VOID
+void
+TimerState1CallBack(
+    void *hDeviceContext
+    );
+
+void BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ3);
+void
 BBvClearAntDivSQ3Value (PSDevice pDevice);
 
-
-#ifdef __cplusplus
-}                /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
 #endif // __BASEBAND_H__
-
-
-

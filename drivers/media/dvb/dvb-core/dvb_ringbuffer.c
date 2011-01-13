@@ -89,6 +89,7 @@ void dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
 	rbuf->pread = rbuf->pwrite;
 	rbuf->error = 0;
 }
+EXPORT_SYMBOL(dvb_ringbuffer_flush);
 
 void dvb_ringbuffer_reset(struct dvb_ringbuffer *rbuf)
 {

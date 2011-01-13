@@ -31,16 +31,15 @@
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 
-#include <media/rds.h>
+#include <media/saa6588.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 
 /* insmod options */
 static unsigned int debug;
 static unsigned int xtal;
-static unsigned int rbds;
+static unsigned int mmbs;
 static unsigned int plvl;
 static unsigned int bufblocks = 100;
 
@@ -48,8 +47,8 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 module_param(xtal, int, 0);
 MODULE_PARM_DESC(xtal, "select oscillator frequency (0..3), default 0");
-module_param(rbds, int, 0);
-MODULE_PARM_DESC(rbds, "select mode, 0=RDS, 1=RBDS, default 0");
+module_param(mmbs, int, 0);
+MODULE_PARM_DESC(mmbs, "enable MMBS mode: 0=off (default), 1=on");
 module_param(plvl, int, 0);
 MODULE_PARM_DESC(plvl, "select pause level (0..3), default 0");
 module_param(bufblocks, int, 0);
@@ -78,6 +77,7 @@ struct saa6588 {
 	unsigned char last_blocknum;
 	wait_queue_head_t read_queue;
 	int data_available_for_read;
+	u8 sync;
 };
 
 static inline struct saa6588 *to_saa6588(struct v4l2_subdev *sd)
@@ -181,7 +181,7 @@ static int block_to_user_buf(struct saa6588 *s, unsigned char __user *user_buf)
 	return 1;
 }
 
-static void read_from_buf(struct saa6588 *s, struct rds_command *a)
+static void read_from_buf(struct saa6588 *s, struct saa6588_command *a)
 {
 	unsigned long flags;
 
@@ -261,13 +261,16 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 	unsigned char tmp;
 
 	/* Although we only need 3 bytes, we have to read at least 6.
-	   SAA6588 returns garbage otherwise */
+	   SAA6588 returns garbage otherwise. */
 	if (6 != i2c_master_recv(client, &tmpbuf[0], 6)) {
 		if (debug > 1)
 			dprintk(PREFIX "read error!\n");
 		return;
 	}
 
+	s->sync = tmpbuf[0] & 0x10;
+	if (!s->sync)
+		return;
 	blocknum = tmpbuf[0] >> 5;
 	if (blocknum == s->last_blocknum) {
 		if (debug > 3)
@@ -286,9 +289,8 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 	   occurred during reception of this block.
 	   Bit 6: Corrected bit. Indicates that an error was
 	   corrected for this data block.
-	   Bits 5-3: Received Offset. Indicates the offset received
-	   by the sync system.
-	   Bits 2-0: Offset Name. Indicates the offset applied to this data.
+	   Bits 5-3: Same as bits 0-2.
+	   Bits 2-0: Block number.
 
 	   SAA6588 byte order is Status-MSB-LSB, so we have to swap the
 	   first and the last of the 3 bytes block.
@@ -298,12 +300,21 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 	tmpbuf[2] = tmpbuf[0];
 	tmpbuf[0] = tmp;
 
+	/* Map 'Invalid block E' to 'Invalid Block' */
+	if (blocknum == 6)
+		blocknum = V4L2_RDS_BLOCK_INVALID;
+	/* And if are not in mmbs mode, then 'Block E' is also mapped
+	   to 'Invalid Block'. As far as I can tell MMBS is discontinued,
+	   and if there is ever a need to support E blocks, then please
+	   contact the linux-media mailinglist. */
+	else if (!mmbs && blocknum == 5)
+		blocknum = V4L2_RDS_BLOCK_INVALID;
 	tmp = blocknum;
 	tmp |= blocknum << 3;	/* Received offset == Offset Name (OK ?) */
 	if ((tmpbuf[2] & 0x03) == 0x03)
-		tmp |= 0x80;	/* uncorrectable error */
+		tmp |= V4L2_RDS_BLOCK_ERROR;	 /* uncorrectable error */
 	else if ((tmpbuf[2] & 0x03) != 0x00)
-		tmp |= 0x40;	/* corrected error */
+		tmp |= V4L2_RDS_BLOCK_CORRECTED; /* corrected error */
 	tmpbuf[2] = tmp;	/* Is this enough ? Should we also check other bits ? */
 
 	spin_lock_irqsave(&s->lock, flags);
@@ -321,14 +332,14 @@ static void saa6588_work(struct work_struct *work)
 	schedule_delayed_work(&s->work, msecs_to_jiffies(20));
 }
 
-static int saa6588_configure(struct saa6588 *s)
+static void saa6588_configure(struct saa6588 *s)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&s->sd);
 	unsigned char buf[3];
 	int rc;
 
 	buf[0] = cSyncRestart;
-	if (rbds)
+	if (mmbs)
 		buf[0] |= cProcessingModeRBDS;
 
 	buf[1] = cFlywheelDefault;
@@ -374,8 +385,6 @@ static int saa6588_configure(struct saa6588 *s)
 	rc = i2c_master_send(client, buf, 3);
 	if (rc != 3)
 		printk(PREFIX "i2c i/o error: rc == %d (should be 3)\n", rc);
-
-	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -383,25 +392,25 @@ static int saa6588_configure(struct saa6588 *s)
 static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct saa6588 *s = to_saa6588(sd);
-	struct rds_command *a = arg;
+	struct saa6588_command *a = arg;
 
 	switch (cmd) {
 		/* --- open() for /dev/radio --- */
-	case RDS_CMD_OPEN:
+	case SAA6588_CMD_OPEN:
 		a->result = 0;	/* return error if chip doesn't work ??? */
 		break;
 		/* --- close() for /dev/radio --- */
-	case RDS_CMD_CLOSE:
+	case SAA6588_CMD_CLOSE:
 		s->data_available_for_read = 1;
 		wake_up_interruptible(&s->read_queue);
 		a->result = 0;
 		break;
 		/* --- read() for /dev/radio --- */
-	case RDS_CMD_READ:
+	case SAA6588_CMD_READ:
 		read_from_buf(s, a);
 		break;
 		/* --- poll() for /dev/radio --- */
-	case RDS_CMD_POLL:
+	case SAA6588_CMD_POLL:
 		a->result = 0;
 		if (s->data_available_for_read) {
 			a->result |= POLLIN | POLLRDNORM;
@@ -413,6 +422,24 @@ static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		/* nothing */
 		return -ENOIOCTLCMD;
 	}
+	return 0;
+}
+
+static int saa6588_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+{
+	struct saa6588 *s = to_saa6588(sd);
+
+	vt->capability |= V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO;
+	if (s->sync)
+		vt->rxsubchans |= V4L2_TUNER_SUB_RDS;
+	return 0;
+}
+
+static int saa6588_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+{
+	struct saa6588 *s = to_saa6588(sd);
+
+	saa6588_configure(s);
 	return 0;
 }
 
@@ -430,8 +457,14 @@ static const struct v4l2_subdev_core_ops saa6588_core_ops = {
 	.ioctl = saa6588_ioctl,
 };
 
+static const struct v4l2_subdev_tuner_ops saa6588_tuner_ops = {
+	.g_tuner = saa6588_g_tuner,
+	.s_tuner = saa6588_s_tuner,
+};
+
 static const struct v4l2_subdev_ops saa6588_ops = {
 	.core = &saa6588_core_ops,
+	.tuner = &saa6588_tuner_ops,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -496,9 +529,25 @@ static const struct i2c_device_id saa6588_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, saa6588_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "saa6588",
-	.probe = saa6588_probe,
-	.remove = saa6588_remove,
-	.id_table = saa6588_id,
+static struct i2c_driver saa6588_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "saa6588",
+	},
+	.probe		= saa6588_probe,
+	.remove		= saa6588_remove,
+	.id_table	= saa6588_id,
 };
+
+static __init int init_saa6588(void)
+{
+	return i2c_add_driver(&saa6588_driver);
+}
+
+static __exit void exit_saa6588(void)
+{
+	i2c_del_driver(&saa6588_driver);
+}
+
+module_init(init_saa6588);
+module_exit(exit_saa6588);

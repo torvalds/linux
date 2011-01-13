@@ -101,7 +101,7 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
 	else if (!oldset)
 		oldset = &current->blocked;
@@ -115,12 +115,12 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 			/*
 			 * If a signal was successfully delivered, the
 			 * saved sigmask is in its frame, and we can
-			 * clear the TIF_RESTORE_SIGMASK flag.
+			 * clear the TS_RESTORE_SIGMASK flag.
 			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
+			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 
-			tracehook_signal_handler(signr, &info, &ka, regs, 0);
+			tracehook_signal_handler(signr, &info, &ka, regs,
+					test_thread_flag(TIF_SINGLESTEP));
 			return 1;
 		}
 	}
@@ -146,8 +146,8 @@ no_signal:
 	}
 
 	/* No signal to deliver -- put the saved sigmask back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 
@@ -176,6 +176,7 @@ sys_sigsuspend(old_sigset_t mask,
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
+		set_restore_sigmask();
 		regs->pc += 4;    /* because sys_sigreturn decrements the pc */
 		if (do_signal(regs, &saveset)) {
 			/* pc now points at signal handler. Need to decrement
@@ -296,7 +297,7 @@ restore_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
 		regs->sr |= SR_FD;
 	}
 
-	err |= __copy_from_user(&current->thread.fpu.hard, &sc->sc_fpregs[0],
+	err |= __copy_from_user(&current->thread.xstate->hardfpu, &sc->sc_fpregs[0],
 				(sizeof(long long) * 32) + (sizeof(int) * 1));
 
 	return err;
@@ -315,13 +316,13 @@ setup_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
 
 	if (current == last_task_used_math) {
 		enable_fpu();
-		save_fpu(current, regs);
+		save_fpu(current);
 		disable_fpu();
 		last_task_used_math = NULL;
 		regs->sr |= SR_FD;
 	}
 
-	err |= __copy_to_user(&sc->sc_fpregs[0], &current->thread.fpu.hard,
+	err |= __copy_to_user(&sc->sc_fpregs[0], &current->thread.xstate->hardfpu,
 			      (sizeof(long long) * 32) + (sizeof(int) * 1));
 	clear_used_math();
 
@@ -561,13 +562,11 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		DEREF_REG_PR = (unsigned long) ka->sa.sa_restorer | 0x1;
-
 		/*
 		 * On SH5 all edited pointers are subject to NEFF
 		 */
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			ka->sa.sa_restorer | 0x1);
 	} else {
 		/*
 		 * Different approach on SH5.
@@ -580,9 +579,8 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		 * . being code, linker turns ShMedia bit on, always
 		 *   dereference index -1.
 		 */
-		DEREF_REG_PR = (unsigned long) frame->retcode | 0x01;
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			frame->retcode | 0x01);
 
 		if (__copy_to_user(frame->retcode,
 			(void *)((unsigned long)sa_default_restorer & (~1)), 16) != 0)
@@ -596,9 +594,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	 * Set up registers for signal handler.
 	 * All edited pointers are subject to NEFF.
 	 */
-	regs->regs[REG_SP] = (unsigned long) frame;
-	regs->regs[REG_SP] = (regs->regs[REG_SP] & NEFF_SIGN) ?
-		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
+	regs->regs[REG_SP] = neff_sign_extend((unsigned long)frame);
 	regs->regs[REG_ARG1] = signal; /* Arg for signal handler */
 
         /* FIXME:
@@ -613,8 +609,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->regs[REG_ARG2] = (unsigned long long)(unsigned long)(signed long)&frame->sc;
 	regs->regs[REG_ARG3] = (unsigned long long)(unsigned long)(signed long)&frame->sc;
 
-	regs->pc = (unsigned long) ka->sa.sa_handler;
-	regs->pc = (regs->pc & NEFF_SIGN) ? (regs->pc | NEFF_MASK) : regs->pc;
+	regs->pc = neff_sign_extend((unsigned long)ka->sa.sa_handler);
 
 	set_fs(USER_DS);
 
@@ -676,13 +671,11 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		DEREF_REG_PR = (unsigned long) ka->sa.sa_restorer | 0x1;
-
 		/*
 		 * On SH5 all edited pointers are subject to NEFF
 		 */
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			ka->sa.sa_restorer | 0x1);
 	} else {
 		/*
 		 * Different approach on SH5.
@@ -695,15 +688,14 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		 * . being code, linker turns ShMedia bit on, always
 		 *   dereference index -1.
 		 */
-
-		DEREF_REG_PR = (unsigned long) frame->retcode | 0x01;
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			frame->retcode | 0x01);
 
 		if (__copy_to_user(frame->retcode,
 			(void *)((unsigned long)sa_default_rt_restorer & (~1)), 16) != 0)
 			goto give_sigsegv;
 
+		/* Cohere the trampoline with the I-cache. */
 		flush_icache_range(DEREF_REG_PR-1, DEREF_REG_PR-1+15);
 	}
 
@@ -711,14 +703,11 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * Set up registers for signal handler.
 	 * All edited pointers are subject to NEFF.
 	 */
-	regs->regs[REG_SP] = (unsigned long) frame;
-	regs->regs[REG_SP] = (regs->regs[REG_SP] & NEFF_SIGN) ?
-		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
+	regs->regs[REG_SP] = neff_sign_extend((unsigned long)frame);
 	regs->regs[REG_ARG1] = signal; /* Arg for signal handler */
 	regs->regs[REG_ARG2] = (unsigned long long)(unsigned long)(signed long)&frame->info;
 	regs->regs[REG_ARG3] = (unsigned long long)(unsigned long)(signed long)&frame->uc.uc_mcontext;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
-	regs->pc = (regs->pc & NEFF_SIGN) ? (regs->pc | NEFF_MASK) : regs->pc;
+	regs->pc = neff_sign_extend((unsigned long)ka->sa.sa_handler);
 
 	set_fs(USER_DS);
 
@@ -772,5 +761,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned long thread_info
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
 	}
 }

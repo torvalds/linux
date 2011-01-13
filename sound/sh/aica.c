@@ -49,6 +49,7 @@ MODULE_AUTHOR("Adrian McMenamin <adrian@mcmen.demon.co.uk>");
 MODULE_DESCRIPTION("Dreamcast AICA sound (pcm) driver");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Yamaha/SEGA, AICA}}");
+MODULE_FIRMWARE("aica_firmware.bin");
 
 /* module parameters */
 #define CARD_NAME "AICA"
@@ -187,7 +188,7 @@ static void spu_reset(void)
 	spu_memset(0, 0, 0x200000 / 4);
 	/* Put ARM7 in endless loop */
 	local_irq_save(flags);
-	ctrl_outl(0xea000002, SPU_MEMORY_BASE);
+	__raw_writel(0xea000002, SPU_MEMORY_BASE);
 	local_irq_restore(flags);
 	spu_enable();
 }

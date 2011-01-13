@@ -34,9 +34,14 @@
 #include "au8522.h"
 #include "tuner-i2c.h"
 
+#define AU8522_ANALOG_MODE 0
+#define AU8522_DIGITAL_MODE 1
+
 struct au8522_state {
 	struct i2c_client *c;
 	struct i2c_adapter *i2c;
+
+	u8 operational_mode;
 
 	/* Used for sharing of the state between analog and digital mode */
 	struct tuner_i2c_props i2c_props;
@@ -62,6 +67,8 @@ struct au8522_state {
 	u32 rev;
 	u8 brightness;
 	u8 contrast;
+	u8 saturation;
+	s16 hue;
 };
 
 /* These are routines shared by both the VSB/QAM demodulator and the analog
@@ -390,7 +397,9 @@ void au8522_release_state(struct au8522_state *state);
 #define AU8522_TVDEC_COMB_HDIF_THR2_REG06AH_CVBS		0x0A
 #define AU8522_TVDEC_COMB_HDIF_THR3_REG06BH_CVBS		0x32
 #define AU8522_TVDEC_COMB_DCDIF_THR1_REG06CH_CVBS		0x34
+#define AU8522_TVDEC_COMB_DCDIF_THR1_REG06CH_SVIDEO		0x2a
 #define AU8522_TVDEC_COMB_DCDIF_THR2_REG06DH_CVBS		0x05
+#define AU8522_TVDEC_COMB_DCDIF_THR2_REG06DH_SVIDEO		0x15
 #define AU8522_TVDEC_COMB_DCDIF_THR3_REG06EH_CVBS		0x6E
 #define AU8522_TVDEC_UV_SEP_THR_REG06FH_CVBS			0x0F
 #define AU8522_TVDEC_COMB_DC_THR1_NTSC_REG070H_CVBS		0x80

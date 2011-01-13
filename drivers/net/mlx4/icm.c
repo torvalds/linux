@@ -31,10 +31,10 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <linux/mlx4/cmd.h>
 
@@ -163,28 +163,30 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 			ret = mlx4_alloc_icm_pages(&chunk->mem[chunk->npages],
 						   cur_order, gfp_mask);
 
-		if (!ret) {
-			++chunk->npages;
+		if (ret) {
+			if (--cur_order < 0)
+				goto fail;
+			else
+				continue;
+		}
 
-			if (coherent)
-				++chunk->nsg;
-			else if (chunk->npages == MLX4_ICM_CHUNK_LEN) {
-				chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
-							chunk->npages,
-							PCI_DMA_BIDIRECTIONAL);
+		++chunk->npages;
 
-				if (chunk->nsg <= 0)
-					goto fail;
+		if (coherent)
+			++chunk->nsg;
+		else if (chunk->npages == MLX4_ICM_CHUNK_LEN) {
+			chunk->nsg = pci_map_sg(dev->pdev, chunk->mem,
+						chunk->npages,
+						PCI_DMA_BIDIRECTIONAL);
 
-				chunk = NULL;
-			}
-
-			npages -= 1 << cur_order;
-		} else {
-			--cur_order;
-			if (cur_order < 0)
+			if (chunk->nsg <= 0)
 				goto fail;
 		}
+
+		if (chunk->npages == MLX4_ICM_CHUNK_LEN)
+			chunk = NULL;
+
+		npages -= 1 << cur_order;
 	}
 
 	if (!coherent && chunk) {
@@ -208,36 +210,10 @@ static int mlx4_MAP_ICM(struct mlx4_dev *dev, struct mlx4_icm *icm, u64 virt)
 	return mlx4_map_cmd(dev, MLX4_CMD_MAP_ICM, icm, virt);
 }
 
-int mlx4_UNMAP_ICM(struct mlx4_dev *dev, u64 virt, u32 page_count)
+static int mlx4_UNMAP_ICM(struct mlx4_dev *dev, u64 virt, u32 page_count)
 {
 	return mlx4_cmd(dev, virt, page_count, 0, MLX4_CMD_UNMAP_ICM,
 			MLX4_CMD_TIME_CLASS_B);
-}
-
-int mlx4_MAP_ICM_page(struct mlx4_dev *dev, u64 dma_addr, u64 virt)
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	__be64 *inbox;
-	int err;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	inbox = mailbox->buf;
-
-	inbox[0] = cpu_to_be64(virt);
-	inbox[1] = cpu_to_be64(dma_addr);
-
-	err = mlx4_cmd(dev, mailbox->dma, 1, 0, MLX4_CMD_MAP_ICM,
-		       MLX4_CMD_TIME_CLASS_B);
-
-	mlx4_free_cmd_mailbox(dev, mailbox);
-
-	if (!err)
-		mlx4_dbg(dev, "Mapped page at %llx to %llx for ICM.\n",
-			  (unsigned long long) dma_addr, (unsigned long long) virt);
-
-	return err;
 }
 
 int mlx4_MAP_ICM_AUX(struct mlx4_dev *dev, struct mlx4_icm *icm)

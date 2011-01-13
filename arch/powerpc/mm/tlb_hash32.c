@@ -71,6 +71,9 @@ void tlb_flush(struct mmu_gather *tlb)
 		 */
 		_tlbia();
 	}
+
+	/* Push out batch of freed page tables */
+	pte_free_finish();
 }
 
 /*
@@ -85,17 +88,6 @@ void tlb_flush(struct mmu_gather *tlb)
  * tlb as far as the linux tables are concerned, flush it too.
  *    -- Cort
  */
-
-/*
- * 750 SMP is a Bad Idea because the 750 doesn't broadcast all
- * the cache operations on the bus.  Hence we need to use an IPI
- * to get the other CPU(s) to invalidate their TLBs.
- */
-#ifdef CONFIG_SMP_750
-#define FINISH_FLUSH	smp_send_tlb_invalidate(0)
-#else
-#define FINISH_FLUSH	do { } while (0)
-#endif
 
 static void flush_range(struct mm_struct *mm, unsigned long start,
 			unsigned long end)
@@ -135,7 +127,6 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	flush_range(&init_mm, start, end);
-	FINISH_FLUSH;
 }
 EXPORT_SYMBOL(flush_tlb_kernel_range);
 
@@ -159,7 +150,6 @@ void flush_tlb_mm(struct mm_struct *mm)
 	 */
 	for (mp = mm->mmap; mp != NULL; mp = mp->vm_next)
 		flush_range(mp->vm_mm, mp->vm_start, mp->vm_end);
-	FINISH_FLUSH;
 }
 EXPORT_SYMBOL(flush_tlb_mm);
 
@@ -176,7 +166,6 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	pmd = pmd_offset(pud_offset(pgd_offset(mm, vmaddr), vmaddr), vmaddr);
 	if (!pmd_none(*pmd))
 		flush_hash_pages(mm->context.id, vmaddr, pmd_val(*pmd), 1);
-	FINISH_FLUSH;
 }
 EXPORT_SYMBOL(flush_tlb_page);
 
@@ -189,6 +178,5 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
 {
 	flush_range(vma->vm_mm, start, end);
-	FINISH_FLUSH;
 }
 EXPORT_SYMBOL(flush_tlb_range);

@@ -4,7 +4,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * http://www.algor.co.uk
  *
  * ########################################################################
  *
@@ -62,8 +61,6 @@ ieee754dp ieee754dp_neg(ieee754dp x)
 		return ieee754dp_nanxcpt(y, "neg");
 	}
 
-	if (ieee754dp_isnan(x))	/* but not infinity */
-		return ieee754dp_nanxcpt(x, "neg", x);
 	return x;
 }
 
@@ -76,15 +73,13 @@ ieee754dp ieee754dp_abs(ieee754dp x)
 	CLEARCX;
 	FLUSHXDP;
 
+	/* Clear sign ALWAYS, irrespective of NaN */
+	DPSIGN(x) = 0;
+
 	if (xc == IEEE754_CLASS_SNAN) {
 		SETCX(IEEE754_INVALID_OPERATION);
-		return ieee754dp_nanxcpt(ieee754dp_indef(), "neg");
+		return ieee754dp_nanxcpt(ieee754dp_indef(), "abs");
 	}
 
-	if (ieee754dp_isnan(x))	/* but not infinity */
-		return ieee754dp_nanxcpt(x, "abs", x);
-
-	/* quick fix up */
-	DPSIGN(x) = 0;
 	return x;
 }

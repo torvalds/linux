@@ -13,13 +13,13 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include "base.h"
 #include "power/power.h"
 
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
-#define to_bus(obj) container_of(obj, struct bus_type_private, subsys.kobj)
 
 /*
  * sysfs bindings for drivers
@@ -70,7 +70,7 @@ static ssize_t drv_attr_store(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-static struct sysfs_ops driver_sysfs_ops = {
+static const struct sysfs_ops driver_sysfs_ops = {
 	.show	= drv_attr_show,
 	.store	= drv_attr_store,
 };
@@ -95,11 +95,11 @@ static ssize_t bus_attr_show(struct kobject *kobj, struct attribute *attr,
 			     char *buf)
 {
 	struct bus_attribute *bus_attr = to_bus_attr(attr);
-	struct bus_type_private *bus_priv = to_bus(kobj);
+	struct subsys_private *subsys_priv = to_subsys_private(kobj);
 	ssize_t ret = 0;
 
 	if (bus_attr->show)
-		ret = bus_attr->show(bus_priv->bus, buf);
+		ret = bus_attr->show(subsys_priv->bus, buf);
 	return ret;
 }
 
@@ -107,15 +107,15 @@ static ssize_t bus_attr_store(struct kobject *kobj, struct attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct bus_attribute *bus_attr = to_bus_attr(attr);
-	struct bus_type_private *bus_priv = to_bus(kobj);
+	struct subsys_private *subsys_priv = to_subsys_private(kobj);
 	ssize_t ret = 0;
 
 	if (bus_attr->store)
-		ret = bus_attr->store(bus_priv->bus, buf, count);
+		ret = bus_attr->store(subsys_priv->bus, buf, count);
 	return ret;
 }
 
-static struct sysfs_ops bus_sysfs_ops = {
+static const struct sysfs_ops bus_sysfs_ops = {
 	.show	= bus_attr_show,
 	.store	= bus_attr_store,
 };
@@ -154,7 +154,7 @@ static int bus_uevent_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static struct kset_uevent_ops bus_uevent_ops = {
+static const struct kset_uevent_ops bus_uevent_ops = {
 	.filter = bus_uevent_filter,
 };
 
@@ -173,10 +173,10 @@ static ssize_t driver_unbind(struct device_driver *drv,
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == drv) {
 		if (dev->parent)	/* Needed for USB */
-			down(&dev->parent->sem);
+			device_lock(dev->parent);
 		device_release_driver(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 		err = count;
 	}
 	put_device(dev);
@@ -200,12 +200,12 @@ static ssize_t driver_bind(struct device_driver *drv,
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == NULL && driver_match_device(drv, dev)) {
 		if (dev->parent)	/* Needed for USB */
-			down(&dev->parent->sem);
-		down(&dev->sem);
+			device_lock(dev->parent);
+		device_lock(dev);
 		err = driver_probe_device(drv, dev);
-		up(&dev->sem);
+		device_unlock(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 
 		if (err > 0) {
 			/* success */
@@ -439,28 +439,13 @@ static void device_remove_attrs(struct bus_type *bus, struct device *dev)
 	}
 }
 
-#ifdef CONFIG_SYSFS_DEPRECATED
-static int make_deprecated_bus_links(struct device *dev)
-{
-	return sysfs_create_link(&dev->kobj,
-				 &dev->bus->p->subsys.kobj, "bus");
-}
-
-static void remove_deprecated_bus_links(struct device *dev)
-{
-	sysfs_remove_link(&dev->kobj, "bus");
-}
-#else
-static inline int make_deprecated_bus_links(struct device *dev) { return 0; }
-static inline void remove_deprecated_bus_links(struct device *dev) { }
-#endif
-
 /**
  * bus_add_device - add device to bus
  * @dev: device being added
  *
+ * - Add device's bus attributes.
+ * - Create links to device's bus.
  * - Add the device to its bus's list of devices.
- * - Create link to device's bus.
  */
 int bus_add_device(struct device *dev)
 {
@@ -480,14 +465,10 @@ int bus_add_device(struct device *dev)
 				&dev->bus->p->subsys.kobj, "subsystem");
 		if (error)
 			goto out_subsys;
-		error = make_deprecated_bus_links(dev);
-		if (error)
-			goto out_deprecated;
+		klist_add_tail(&dev->p->knode_bus, &bus->p->klist_devices);
 	}
 	return 0;
 
-out_deprecated:
-	sysfs_remove_link(&dev->kobj, "subsystem");
 out_subsys:
 	sysfs_remove_link(&bus->p->devices_kset->kobj, dev_name(dev));
 out_id:
@@ -498,24 +479,19 @@ out_put:
 }
 
 /**
- * bus_attach_device - add device to bus
- * @dev: device tried to attach to a driver
+ * bus_probe_device - probe drivers for a new device
+ * @dev: device to probe
  *
- * - Add device to bus's list of devices.
- * - Try to attach to driver.
+ * - Automatically probe for a driver if the bus allows it.
  */
-void bus_attach_device(struct device *dev)
+void bus_probe_device(struct device *dev)
 {
 	struct bus_type *bus = dev->bus;
-	int ret = 0;
+	int ret;
 
-	if (bus) {
-		if (bus->p->drivers_autoprobe)
-			ret = device_attach(dev);
+	if (bus && bus->p->drivers_autoprobe) {
+		ret = device_attach(dev);
 		WARN_ON(ret < 0);
-		if (ret >= 0)
-			klist_add_tail(&dev->p->knode_bus,
-				       &bus->p->klist_devices);
 	}
 }
 
@@ -532,7 +508,6 @@ void bus_remove_device(struct device *dev)
 {
 	if (dev->bus) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
-		remove_deprecated_bus_links(dev);
 		sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 				  dev_name(dev));
 		device_remove_attrs(dev->bus, dev);
@@ -692,19 +667,23 @@ int bus_add_driver(struct device_driver *drv)
 		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
 			__func__, drv->name);
 	}
-	error = add_bind_files(drv);
-	if (error) {
-		/* Ditto */
-		printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
-			__func__, drv->name);
+
+	if (!drv->suppress_bind_attrs) {
+		error = add_bind_files(drv);
+		if (error) {
+			/* Ditto */
+			printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
+				__func__, drv->name);
+		}
 	}
 
 	kobject_uevent(&priv->kobj, KOBJ_ADD);
 	return 0;
+
 out_unregister:
+	kobject_put(&priv->kobj);
 	kfree(drv->p);
 	drv->p = NULL;
-	kobject_put(&priv->kobj);
 out_put_bus:
 	bus_put(bus);
 	return error;
@@ -723,7 +702,8 @@ void bus_remove_driver(struct device_driver *drv)
 	if (!drv->bus)
 		return;
 
-	remove_bind_files(drv);
+	if (!drv->suppress_bind_attrs)
+		remove_bind_files(drv);
 	driver_remove_attrs(drv->bus, drv);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);
@@ -742,10 +722,10 @@ static int __must_check bus_rescan_devices_helper(struct device *dev,
 
 	if (!dev->driver) {
 		if (dev->parent)	/* Needed for USB */
-			down(&dev->parent->sem);
+			device_lock(dev->parent);
 		ret = device_attach(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 	}
 	return ret < 0 ? ret : 0;
 }
@@ -777,10 +757,10 @@ int device_reprobe(struct device *dev)
 {
 	if (dev->driver) {
 		if (dev->parent)        /* Needed for USB */
-			down(&dev->parent->sem);
+			device_lock(dev->parent);
 		device_release_driver(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 	}
 	return bus_rescan_devices_helper(dev, NULL);
 }
@@ -877,9 +857,9 @@ static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
 int bus_register(struct bus_type *bus)
 {
 	int retval;
-	struct bus_type_private *priv;
+	struct subsys_private *priv;
 
-	priv = kzalloc(sizeof(struct bus_type_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct subsys_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -942,8 +922,8 @@ bus_devices_fail:
 	bus_remove_file(bus, &bus_attr_uevent);
 bus_uevent_fail:
 	kset_unregister(&bus->p->subsys);
-	kfree(bus->p);
 out:
+	kfree(bus->p);
 	bus->p = NULL;
 	return retval;
 }

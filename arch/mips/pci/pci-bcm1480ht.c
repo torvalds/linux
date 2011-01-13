@@ -56,7 +56,7 @@ static void *ht_cfg_space;
 #define PCI_BUS_ENABLED	1
 #define PCI_DEVICE_MODE	2
 
-static int bcm1480ht_bus_status = 0;
+static int bcm1480ht_bus_status;
 
 #define PCI_BRIDGE_DEVICE  0
 #define HT_BRIDGE_DEVICE   1

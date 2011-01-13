@@ -15,6 +15,7 @@
 #include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/key.h>
+#include <linux/selinux.h>
 #include <asm/atomic.h>
 
 struct user_struct;
@@ -83,7 +84,7 @@ struct thread_group_cred {
 	atomic_t	usage;
 	pid_t		tgid;			/* thread group process ID */
 	spinlock_t	lock;
-	struct key	*session_keyring;	/* keyring inherited over fork */
+	struct key __rcu *session_keyring;	/* keyring inherited over fork */
 	struct key	*process_keyring;	/* keyring private to this process */
 	struct rcu_head	rcu;			/* RCU deletion hook */
 };
@@ -114,6 +115,13 @@ struct thread_group_cred {
  */
 struct cred {
 	atomic_t	usage;
+#ifdef CONFIG_DEBUG_CREDENTIALS
+	atomic_t	subscribers;	/* number of processes subscribed */
+	void		*put_addr;
+	unsigned	magic;
+#define CRED_MAGIC	0x43736564
+#define CRED_MAGIC_DEAD	0x44656144
+#endif
 	uid_t		uid;		/* real UID of the task */
 	gid_t		gid;		/* real GID of the task */
 	uid_t		suid;		/* saved UID of the task */
@@ -143,10 +151,12 @@ struct cred {
 };
 
 extern void __put_cred(struct cred *);
+extern void exit_creds(struct task_struct *);
 extern int copy_creds(struct task_struct *, unsigned long);
+extern const struct cred *get_task_cred(struct task_struct *);
+extern struct cred *cred_alloc_blank(void);
 extern struct cred *prepare_creds(void);
 extern struct cred *prepare_exec_creds(void);
-extern struct cred *prepare_usermodehelper_creds(void);
 extern int commit_creds(struct cred *);
 extern void abort_creds(struct cred *);
 extern const struct cred *override_creds(const struct cred *);
@@ -157,6 +167,46 @@ extern int set_security_override(struct cred *, u32);
 extern int set_security_override_from_ctx(struct cred *, const char *);
 extern int set_create_files_as(struct cred *, struct inode *);
 extern void __init cred_init(void);
+
+/*
+ * check for validity of credentials
+ */
+#ifdef CONFIG_DEBUG_CREDENTIALS
+extern void __invalid_creds(const struct cred *, const char *, unsigned);
+extern void __validate_process_creds(struct task_struct *,
+				     const char *, unsigned);
+
+extern bool creds_are_invalid(const struct cred *cred);
+
+static inline void __validate_creds(const struct cred *cred,
+				    const char *file, unsigned line)
+{
+	if (unlikely(creds_are_invalid(cred)))
+		__invalid_creds(cred, file, line);
+}
+
+#define validate_creds(cred)				\
+do {							\
+	__validate_creds((cred), __FILE__, __LINE__);	\
+} while(0)
+
+#define validate_process_creds()				\
+do {								\
+	__validate_process_creds(current, __FILE__, __LINE__);	\
+} while(0)
+
+extern void validate_creds_for_do_exit(struct task_struct *);
+#else
+static inline void validate_creds(const struct cred *cred)
+{
+}
+static inline void validate_creds_for_do_exit(struct task_struct *tsk)
+{
+}
+static inline void validate_process_creds(void)
+{
+}
+#endif
 
 /**
  * get_new_cred - Get a reference on a new set of credentials
@@ -186,7 +236,9 @@ static inline struct cred *get_new_cred(struct cred *cred)
  */
 static inline const struct cred *get_cred(const struct cred *cred)
 {
-	return get_new_cred((struct cred *) cred);
+	struct cred *nonconst_cred = (struct cred *) cred;
+	validate_creds(cred);
+	return get_new_cred(nonconst_cred);
 }
 
 /**
@@ -204,7 +256,7 @@ static inline void put_cred(const struct cred *_cred)
 {
 	struct cred *cred = (struct cred *) _cred;
 
-	BUG_ON(atomic_read(&(cred)->usage) <= 0);
+	validate_creds(cred);
 	if (atomic_dec_and_test(&(cred)->usage))
 		__put_cred(cred);
 }
@@ -222,33 +274,18 @@ static inline void put_cred(const struct cred *_cred)
  * @task: The task to query
  *
  * Access the objective credentials of a task.  The caller must hold the RCU
- * readlock.
+ * readlock or the task must be dead and unable to change its own credentials.
  *
- * The caller must make sure task doesn't go away, either by holding a ref on
- * task or by holding tasklist_lock to prevent it from being unlinked.
+ * The result of this function should not be passed directly to get_cred();
+ * rather get_task_cred() should be used instead.
  */
-#define __task_cred(task) \
-	((const struct cred *)(rcu_dereference((task)->real_cred)))
-
-/**
- * get_task_cred - Get another task's objective credentials
- * @task: The task to query
- *
- * Get the objective credentials of a task, pinning them so that they can't go
- * away.  Accessing a task's credentials directly is not permitted.
- *
- * The caller must make sure task doesn't go away, either by holding a ref on
- * task or by holding tasklist_lock to prevent it from being unlinked.
- */
-#define get_task_cred(task)				\
-({							\
-	struct cred *__cred;				\
-	rcu_read_lock();				\
-	__cred = (struct cred *) __task_cred((task));	\
-	get_cred(__cred);				\
-	rcu_read_unlock();				\
-	__cred;						\
-})
+#define __task_cred(task)						\
+	({								\
+		const struct task_struct *__t = (task);			\
+		rcu_dereference_check(__t->real_cred,			\
+				      rcu_read_lock_held() ||		\
+				      task_is_dead(__t));		\
+	})
 
 /**
  * get_current_cred - Get the current task's subjective credentials

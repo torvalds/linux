@@ -6,7 +6,7 @@ config MAC80211
 	select CRYPTO_ARC4
 	select CRYPTO_AES
 	select CRC32
-	select WIRELESS_EXT
+	select AVERAGE
 	---help---
 	  This option enables the hardware independent IEEE 802.11
 	  networking stack.
@@ -14,27 +14,14 @@ config MAC80211
 comment "CFG80211 needs to be enabled for MAC80211"
 	depends on CFG80211=n
 
-config MAC80211_DEFAULT_PS
-	bool "enable powersave by default"
-	depends on MAC80211
-	default y
-	help
-	  This option enables powersave mode by default.
+if MAC80211 != n
 
-	  If this causes your applications to misbehave you should fix your
-	  applications instead -- they need to register their network
-	  latency requirement, see Documentation/power/pm_qos_interface.txt.
-
-config MAC80211_DEFAULT_PS_VALUE
-	int
-	default 1 if MAC80211_DEFAULT_PS
-	default 0
-
-menu "Rate control algorithm selection"
-	depends on MAC80211 != n
+config MAC80211_HAS_RC
+	def_bool n
 
 config MAC80211_RC_PID
 	bool "PID controller based rate control algorithm" if EMBEDDED
+	select MAC80211_HAS_RC
 	---help---
 	  This option enables a TX rate control algorithm for
 	  mac80211 that uses a PID controller to select the TX
@@ -42,12 +29,21 @@ config MAC80211_RC_PID
 
 config MAC80211_RC_MINSTREL
 	bool "Minstrel" if EMBEDDED
+	select MAC80211_HAS_RC
 	default y
 	---help---
 	  This option enables the 'minstrel' TX rate control algorithm
 
+config MAC80211_RC_MINSTREL_HT
+	bool "Minstrel 802.11n support" if EMBEDDED
+	depends on MAC80211_RC_MINSTREL
+	default y
+	---help---
+	  This option enables the 'minstrel_ht' TX rate control algorithm
+
 choice
 	prompt "Default rate control algorithm"
+	depends on MAC80211_HAS_RC
 	default MAC80211_RC_DEFAULT_MINSTREL
 	---help---
 	  This option selects the default rate control algorithm
@@ -74,25 +70,30 @@ endchoice
 
 config MAC80211_RC_DEFAULT
 	string
+	default "minstrel_ht" if MAC80211_RC_DEFAULT_MINSTREL && MAC80211_RC_MINSTREL_HT
 	default "minstrel" if MAC80211_RC_DEFAULT_MINSTREL
 	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""
 
-endmenu
+endif
+
+comment "Some wireless drivers require a rate control algorithm"
+	depends on MAC80211_HAS_RC=n
 
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
 	depends on MAC80211 && EXPERIMENTAL
 	---help---
 	 This options enables support of Draft 802.11s mesh networking.
-	 The implementation is based on Draft 1.08 of the Mesh Networking
-	 amendment. For more information visit http://o11s.org/.
-
+	 The implementation is based on Draft 2.08 of the Mesh Networking
+	 amendment.  However, no compliance with that draft is claimed or even
+	 possible, as drafts leave a number of identifiers to be defined after
+	 ratification.  For more information visit http://o11s.org/.
 
 config MAC80211_LEDS
 	bool "Enable LED triggers"
 	depends on MAC80211
-	select NEW_LEDS
+	depends on LEDS_CLASS
 	select LEDS_TRIGGERS
 	---help---
 	  This option enables a few LED triggers for different
@@ -112,18 +113,6 @@ menuconfig MAC80211_DEBUG_MENU
 	depends on MAC80211
 	---help---
 	  This option collects various mac80211 debug settings.
-
-config MAC80211_DEBUG_PACKET_ALIGNMENT
-	bool "Enable packet alignment debugging"
-	depends on MAC80211_DEBUG_MENU
-	---help---
-	  This option is recommended for driver authors and strongly
-	  discouraged for everybody else, it will trigger a warning
-	  when a driver hands mac80211 a buffer that is aligned in
-	  a way that will cause problems with the IP stack on some
-	  architectures.
-
-	  Say N unless you're writing a mac80211 based driver.
 
 config MAC80211_NOINLINE
 	bool "Do not inline TX/RX handlers"
@@ -211,6 +200,19 @@ config MAC80211_VERBOSE_MPL_DEBUG
 
 	  Do not select this option.
 
+config MAC80211_VERBOSE_MHWMP_DEBUG
+	bool "Verbose mesh HWMP routing debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very
+	  verbose mesh routing (HWMP) debugging messages (when mac80211
+	  is taking part in a mesh network).
+	  It should not be selected on production systems as those
+	  messages are remotely triggerable.
+
+	  Do not select this option.
+
 config MAC80211_DEBUG_COUNTERS
 	bool "Extra statistics for TX/RX debugging"
 	depends on MAC80211_DEBUG_MENU
@@ -221,3 +223,15 @@ config MAC80211_DEBUG_COUNTERS
 	  and show them in debugfs.
 
 	  If unsure, say N.
+
+config MAC80211_DRIVER_API_TRACER
+	bool "Driver API tracer"
+	depends on MAC80211_DEBUG_MENU
+	depends on EVENT_TRACING
+	help
+	  Say Y here to make mac80211 register with the ftrace
+	  framework for the driver API -- you can then see which
+	  driver methods it is calling and which API functions
+	  drivers are calling by looking at the trace.
+
+	  If unsure, say Y.

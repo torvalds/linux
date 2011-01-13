@@ -61,6 +61,8 @@ struct mb862xxfb_par {
 	u32			pseudo_palette[16];
 };
 
+extern void mb862xxfb_init_accel(struct fb_info *info, int xres);
+
 #if defined(CONFIG_FB_MB862XX_LIME) && defined(CONFIG_FB_MB862XX_PCI_GDC)
 #error	"Select Lime GDC or CoralP/Carmine support, but not both together"
 #endif

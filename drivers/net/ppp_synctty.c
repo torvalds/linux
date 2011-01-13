@@ -44,6 +44,8 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/init.h>
+#include <linux/slab.h>
+#include <asm/unaligned.h>
 #include <asm/uaccess.h>
 
 #define PPP_VERSION	"2.4.2"
@@ -96,9 +98,9 @@ static void ppp_sync_flush_output(struct syncppp *ap);
 static void ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 			   char *flags, int count);
 
-static struct ppp_channel_ops sync_ops = {
-	ppp_sync_send,
-	ppp_sync_ioctl
+static const struct ppp_channel_ops sync_ops = {
+	.start_xmit = ppp_sync_send,
+	.ioctl      = ppp_sync_ioctl,
 };
 
 /*
@@ -378,10 +380,7 @@ ppp_sync_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 	return 0;
 }
 
-/*
- * This can now be called from hard interrupt level as well
- * as soft interrupt level or mainline.
- */
+/* May sleep, don't call from interrupt level or with interrupts disabled */
 static void
 ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 		  char *cflags, int count)
@@ -397,6 +396,7 @@ ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 	if (!skb_queue_empty(&ap->rqueue))
 		tasklet_schedule(&ap->tsk);
 	sp_put(ap);
+	tty_unthrottle(tty);
 }
 
 static void
@@ -564,7 +564,7 @@ ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 	int islcp;
 
 	data  = skb->data;
-	proto = (data[0] << 8) + data[1];
+	proto = get_unaligned_be16(data);
 
 	/* LCP packets with codes between 1 (configure-request)
 	 * and 7 (code-reject) must be sent as though no options
@@ -664,8 +664,8 @@ ppp_sync_push(struct syncppp *ap)
 		}
 		/* haven't made any progress */
 		spin_unlock_bh(&ap->xmit_lock);
-		if (!(test_bit(XMIT_WAKEUP, &ap->xmit_flags)
-		      || (!tty_stuffed && ap->tpkt)))
+		if (!(test_bit(XMIT_WAKEUP, &ap->xmit_flags) ||
+		      (!tty_stuffed && ap->tpkt)))
 			break;
 		if (!spin_trylock_bh(&ap->xmit_lock))
 			break;

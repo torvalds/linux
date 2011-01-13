@@ -27,11 +27,13 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rfkill.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include "rfkill.h"
 
@@ -146,20 +148,6 @@ static void rfkill_led_trigger_activate(struct led_classdev *led)
 
 	rfkill_led_trigger_event(rfkill);
 }
-
-const char *rfkill_get_led_trigger_name(struct rfkill *rfkill)
-{
-	return rfkill->led_trigger.name;
-}
-EXPORT_SYMBOL(rfkill_get_led_trigger_name);
-
-void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
-{
-	BUG_ON(!rfkill);
-
-	rfkill->ledtrigname = name;
-}
-EXPORT_SYMBOL(rfkill_set_led_trigger_name);
 
 static int rfkill_led_trigger_register(struct rfkill *rfkill)
 {
@@ -549,6 +537,10 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 	swprev = !!(rfkill->state & RFKILL_BLOCK_SW);
 	hwprev = !!(rfkill->state & RFKILL_BLOCK_HW);
 	__rfkill_set_sw_state(rfkill, sw);
+	if (hw)
+		rfkill->state |= RFKILL_BLOCK_HW;
+	else
+		rfkill->state &= ~RFKILL_BLOCK_HW;
 
 	spin_unlock_irqrestore(&rfkill->lock, flags);
 
@@ -574,6 +566,8 @@ static ssize_t rfkill_name_show(struct device *dev,
 
 static const char *rfkill_get_type_str(enum rfkill_type type)
 {
+	BUILD_BUG_ON(NUM_RFKILL_TYPES != RFKILL_TYPE_FM + 1);
+
 	switch (type) {
 	case RFKILL_TYPE_WLAN:
 		return "wlan";
@@ -585,11 +579,13 @@ static const char *rfkill_get_type_str(enum rfkill_type type)
 		return "wimax";
 	case RFKILL_TYPE_WWAN:
 		return "wwan";
+	case RFKILL_TYPE_GPS:
+		return "gps";
+	case RFKILL_TYPE_FM:
+		return "fm";
 	default:
 		BUG();
 	}
-
-	BUILD_BUG_ON(NUM_RFKILL_TYPES != RFKILL_TYPE_WWAN + 1);
 }
 
 static ssize_t rfkill_type_show(struct device *dev,
@@ -619,6 +615,49 @@ static ssize_t rfkill_persistent_show(struct device *dev,
 	return sprintf(buf, "%d\n", rfkill->persistent);
 }
 
+static ssize_t rfkill_hard_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+
+	return sprintf(buf, "%d\n", (rfkill->state & RFKILL_BLOCK_HW) ? 1 : 0 );
+}
+
+static ssize_t rfkill_soft_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+
+	return sprintf(buf, "%d\n", (rfkill->state & RFKILL_BLOCK_SW) ? 1 : 0 );
+}
+
+static ssize_t rfkill_soft_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+	unsigned long state;
+	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	err = strict_strtoul(buf, 0, &state);
+	if (err)
+		return err;
+
+	if (state > 1 )
+		return -EINVAL;
+
+	mutex_lock(&rfkill_global_mutex);
+	rfkill_set_block(rfkill, state);
+	mutex_unlock(&rfkill_global_mutex);
+
+	return err ?: count;
+}
+
 static u8 user_state_from_blocked(unsigned long state)
 {
 	if (state & RFKILL_BLOCK_HW)
@@ -634,29 +673,34 @@ static ssize_t rfkill_state_show(struct device *dev,
 				 char *buf)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
-	unsigned long flags;
-	u32 state;
 
-	spin_lock_irqsave(&rfkill->lock, flags);
-	state = rfkill->state;
-	spin_unlock_irqrestore(&rfkill->lock, flags);
-
-	return sprintf(buf, "%d\n", user_state_from_blocked(state));
+	return sprintf(buf, "%d\n", user_state_from_blocked(rfkill->state));
 }
 
 static ssize_t rfkill_state_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	/*
-	 * The intention was that userspace can only take control over
-	 * a given device when/if rfkill-input doesn't control it due
-	 * to user_claim. Since user_claim is currently unsupported,
-	 * we never support changing the state from userspace -- this
-	 * can be implemented again later.
-	 */
+	struct rfkill *rfkill = to_rfkill(dev);
+	unsigned long state;
+	int err;
 
-	return -EPERM;
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	err = strict_strtoul(buf, 0, &state);
+	if (err)
+		return err;
+
+	if (state != RFKILL_USER_STATE_SOFT_BLOCKED &&
+	    state != RFKILL_USER_STATE_UNBLOCKED)
+		return -EINVAL;
+
+	mutex_lock(&rfkill_global_mutex);
+	rfkill_set_block(rfkill, state == RFKILL_USER_STATE_SOFT_BLOCKED);
+	mutex_unlock(&rfkill_global_mutex);
+
+	return err ?: count;
 }
 
 static ssize_t rfkill_claim_show(struct device *dev,
@@ -680,6 +724,8 @@ static struct device_attribute rfkill_dev_attrs[] = {
 	__ATTR(persistent, S_IRUGO, rfkill_persistent_show, NULL),
 	__ATTR(state, S_IRUGO|S_IWUSR, rfkill_state_show, rfkill_state_store),
 	__ATTR(claim, S_IRUGO|S_IWUSR, rfkill_claim_show, rfkill_claim_store),
+	__ATTR(soft, S_IRUGO|S_IWUSR, rfkill_soft_show, rfkill_soft_store),
+	__ATTR(hard, S_IRUGO, rfkill_hard_show, NULL),
 	__ATTR_NULL
 };
 
@@ -1076,10 +1122,16 @@ static ssize_t rfkill_fop_write(struct file *file, const char __user *buf,
 	struct rfkill_event ev;
 
 	/* we don't need the 'hard' variable but accept it */
-	if (count < sizeof(ev) - 1)
+	if (count < RFKILL_EVENT_SIZE_V1 - 1)
 		return -EINVAL;
 
-	if (copy_from_user(&ev, buf, sizeof(ev) - 1))
+	/*
+	 * Copy as much data as we can accept into our 'ev' buffer,
+	 * but tell userspace how much we've copied so it can determine
+	 * our API version even in a write() call, if it cares.
+	 */
+	count = min(count, sizeof(ev));
+	if (copy_from_user(&ev, buf, count))
 		return -EFAULT;
 
 	if (ev.op != RFKILL_OP_CHANGE && ev.op != RFKILL_OP_CHANGE_ALL)
@@ -1165,6 +1217,7 @@ static long rfkill_fop_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 static const struct file_operations rfkill_fops = {
+	.owner		= THIS_MODULE,
 	.open		= rfkill_fop_open,
 	.read		= rfkill_fop_read,
 	.write		= rfkill_fop_write,
@@ -1174,6 +1227,7 @@ static const struct file_operations rfkill_fops = {
 	.unlocked_ioctl	= rfkill_fop_ioctl,
 	.compat_ioctl	= rfkill_fop_ioctl,
 #endif
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice rfkill_miscdev = {

@@ -348,6 +348,7 @@ static void ipu_ch_param_set_size(union chan_param_mem *params,
 		break;
 	case IPU_PIX_FMT_BGRA32:
 	case IPU_PIX_FMT_BGR32:
+	case IPU_PIX_FMT_ABGR32:
 		params->ip.bpp	= 0;
 		params->ip.pfs	= 4;
 		params->ip.npb	= 7;
@@ -370,20 +371,6 @@ static void ipu_ch_param_set_size(union chan_param_mem *params,
 		params->ip.ofs0	= 24;		/* Red bit offset */
 		params->ip.ofs1	= 16;		/* Green bit offset */
 		params->ip.ofs2	= 8;		/* Blue bit offset */
-		params->ip.ofs3	= 0;		/* Alpha bit offset */
-		params->ip.wid0	= 7;		/* Red bit width - 1 */
-		params->ip.wid1	= 7;		/* Green bit width - 1 */
-		params->ip.wid2	= 7;		/* Blue bit width - 1 */
-		params->ip.wid3	= 7;		/* Alpha bit width - 1 */
-		break;
-	case IPU_PIX_FMT_ABGR32:
-		params->ip.bpp	= 0;
-		params->ip.pfs	= 4;
-		params->ip.npb	= 7;
-		params->ip.sat	= 2;		/* SAT = 32-bit access */
-		params->ip.ofs0	= 8;		/* Red bit offset */
-		params->ip.ofs1	= 16;		/* Green bit offset */
-		params->ip.ofs2	= 24;		/* Blue bit offset */
 		params->ip.ofs3	= 0;		/* Alpha bit offset */
 		params->ip.wid0	= 7;		/* Red bit width - 1 */
 		params->ip.wid1	= 7;		/* Green bit width - 1 */
@@ -761,12 +748,10 @@ static void ipu_select_buffer(enum ipu_channel channel, int buffer_n)
  * @buffer_n:	buffer number to update.
  *		0 or 1 are the only valid values.
  * @phyaddr:	buffer physical address.
- * @return:	Returns 0 on success or negative error code on failure. This
- *              function will fail if the buffer is set to ready.
  */
 /* Called under spin_lock(_irqsave)(&ichan->lock) */
-static int ipu_update_channel_buffer(struct idmac_channel *ichan,
-				     int buffer_n, dma_addr_t phyaddr)
+static void ipu_update_channel_buffer(struct idmac_channel *ichan,
+				      int buffer_n, dma_addr_t phyaddr)
 {
 	enum ipu_channel channel = ichan->dma_chan.chan_id;
 	uint32_t reg;
@@ -806,8 +791,6 @@ static int ipu_update_channel_buffer(struct idmac_channel *ichan,
 	}
 
 	spin_unlock_irqrestore(&ipu_data.lock, flags);
-
-	return 0;
 }
 
 /* Called under spin_lock_irqsave(&ichan->lock) */
@@ -816,7 +799,6 @@ static int ipu_submit_buffer(struct idmac_channel *ichan,
 {
 	unsigned int chan_id = ichan->dma_chan.chan_id;
 	struct device *dev = &ichan->dma_chan.dev->device;
-	int ret;
 
 	if (async_tx_test_ack(&desc->txd))
 		return -EINTR;
@@ -827,14 +809,7 @@ static int ipu_submit_buffer(struct idmac_channel *ichan,
 	 * could make it conditional on status >= IPU_CHANNEL_ENABLED, but
 	 * doing it again shouldn't hurt either.
 	 */
-	ret = ipu_update_channel_buffer(ichan, buf_idx,
-					sg_dma_address(sg));
-
-	if (ret < 0) {
-		dev_err(dev, "Updating sg %p on channel 0x%x buffer %d failed!\n",
-			sg, chan_id, buf_idx);
-		return ret;
-	}
+	ipu_update_channel_buffer(ichan, buf_idx, sg_dma_address(sg));
 
 	ipu_select_buffer(chan_id, buf_idx);
 	dev_dbg(dev, "Updated sg %p on channel 0x%x buffer %d\n",
@@ -1379,10 +1354,11 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 
 	if (likely(sgnew) &&
 	    ipu_submit_buffer(ichan, descnew, sgnew, ichan->active_buffer) < 0) {
-		callback = desc->txd.callback;
-		callback_param = desc->txd.callback_param;
+		callback = descnew->txd.callback;
+		callback_param = descnew->txd.callback_param;
 		spin_unlock(&ichan->lock);
-		callback(callback_param);
+		if (callback)
+			callback(callback_param);
 		spin_lock(&ichan->lock);
 	}
 
@@ -1496,12 +1472,17 @@ static void idmac_issue_pending(struct dma_chan *chan)
 	 */
 }
 
-static void __idmac_terminate_all(struct dma_chan *chan)
+static int __idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+			   unsigned long arg)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 	struct idmac *idmac = to_idmac(chan->device);
 	unsigned long flags;
 	int i;
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
 
 	ipu_disable_channel(idmac, ichan,
 			    ichan->status >= IPU_CHANNEL_ENABLED);
@@ -1529,17 +1510,23 @@ static void __idmac_terminate_all(struct dma_chan *chan)
 	tasklet_enable(&to_ipu(idmac)->tasklet);
 
 	ichan->status = IPU_CHANNEL_INITIALIZED;
+
+	return 0;
 }
 
-static void idmac_terminate_all(struct dma_chan *chan)
+static int idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+			 unsigned long arg)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
+	int ret;
 
 	mutex_lock(&ichan->chan_mutex);
 
-	__idmac_terminate_all(chan);
+	ret = __idmac_control(chan, cmd, arg);
 
 	mutex_unlock(&ichan->chan_mutex);
+
+	return ret;
 }
 
 #ifdef DEBUG
@@ -1631,7 +1618,7 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 
 	mutex_lock(&ichan->chan_mutex);
 
-	__idmac_terminate_all(chan);
+	__idmac_control(chan, DMA_TERMINATE_ALL, 0);
 
 	if (ichan->status > IPU_CHANNEL_FREE) {
 #ifdef DEBUG
@@ -1661,15 +1648,12 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 	tasklet_schedule(&to_ipu(idmac)->tasklet);
 }
 
-static enum dma_status idmac_is_tx_complete(struct dma_chan *chan,
-		dma_cookie_t cookie, dma_cookie_t *done, dma_cookie_t *used)
+static enum dma_status idmac_tx_status(struct dma_chan *chan,
+		       dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 
-	if (done)
-		*done = ichan->completed;
-	if (used)
-		*used = chan->cookie;
+	dma_set_tx_state(txstate, ichan->completed, chan->cookie, 0);
 	if (cookie != chan->cookie)
 		return DMA_ERROR;
 	return DMA_SUCCESS;
@@ -1688,12 +1672,12 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 	dma->dev				= ipu->dev;
 	dma->device_alloc_chan_resources	= idmac_alloc_chan_resources;
 	dma->device_free_chan_resources		= idmac_free_chan_resources;
-	dma->device_is_tx_complete		= idmac_is_tx_complete;
+	dma->device_tx_status			= idmac_tx_status;
 	dma->device_issue_pending		= idmac_issue_pending;
 
 	/* Compulsory for DMA_SLAVE fields */
 	dma->device_prep_slave_sg		= idmac_prep_slave_sg;
-	dma->device_terminate_all		= idmac_terminate_all;
+	dma->device_control			= idmac_control;
 
 	INIT_LIST_HEAD(&dma->channels);
 	for (i = 0; i < IPU_CHANNELS_NUM; i++) {
@@ -1727,7 +1711,7 @@ static void __exit ipu_idmac_exit(struct ipu *ipu)
 	for (i = 0; i < IPU_CHANNELS_NUM; i++) {
 		struct idmac_channel *ichan = ipu->channel + i;
 
-		idmac_terminate_all(&ichan->dma_chan);
+		idmac_control(&ichan->dma_chan, DMA_TERMINATE_ALL, 0);
 		idmac_prep_slave_sg(&ichan->dma_chan, NULL, 0, DMA_NONE, 0);
 	}
 

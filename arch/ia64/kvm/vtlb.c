@@ -135,7 +135,7 @@ struct thash_data *__vtr_lookup(struct kvm_vcpu *vcpu, u64 va, int type)
 	u64 rid;
 
 	rid = vcpu_get_rr(vcpu, va);
-	rid = rid & RR_RID_MASK;;
+	rid = rid & RR_RID_MASK;
 	if (type == D_TLB) {
 		if (vcpu_quick_region_check(vcpu->arch.dtr_regions, va)) {
 			for (trp = (struct thash_data *)&vcpu->arch.dtrs, i = 0;
@@ -182,7 +182,7 @@ void mark_pages_dirty(struct kvm_vcpu *v, u64 pte, u64 ps)
 {
 	u64 i, dirty_pages = 1;
 	u64 base_gfn = (pte&_PAGE_PPN_MASK) >> PAGE_SHIFT;
-	spinlock_t *lock = __kvm_va(v->arch.dirty_log_lock_pa);
+	vmm_spinlock_t *lock = __kvm_va(v->arch.dirty_log_lock_pa);
 	void *dirty_bitmap = (void *)KVM_MEM_DIRTY_LOG_BASE;
 
 	dirty_pages <<= ps <= PAGE_SHIFT ? 0 : ps - PAGE_SHIFT;
@@ -518,7 +518,7 @@ struct thash_data *vtlb_lookup(struct kvm_vcpu *v, u64 va, int is_data)
 
 	struct thash_cb *hcb = &v->arch.vtlb;
 
-	cch = __vtr_lookup(v, va, is_data);;
+	cch = __vtr_lookup(v, va, is_data);
 	if (cch)
 		return cch;
 

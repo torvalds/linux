@@ -108,7 +108,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 #endif
 
 #ifndef __HAVE_ARCH_PAGE_CLEAR_DIRTY
-#define page_clear_dirty(page)		do { } while (0)
+#define page_clear_dirty(page, mapped)	do { } while (0)
 #endif
 
 #ifndef __HAVE_ARCH_PAGE_TEST_DIRTY
@@ -127,6 +127,14 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 
 #ifndef __HAVE_ARCH_MOVE_PTE
 #define move_pte(pte, prot, old_addr, new_addr)	(pte)
+#endif
+
+#ifndef flush_tlb_fix_spurious_fault
+#define flush_tlb_fix_spurious_fault(vma, address) flush_tlb_page(vma, address)
+#endif
+
+#ifndef pgprot_noncached
+#define pgprot_noncached(prot)	(prot)
 #endif
 
 #ifndef pgprot_writecombine

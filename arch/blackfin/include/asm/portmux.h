@@ -1,6 +1,9 @@
 /*
- * Common header file for blackfin family of processors.
+ * Common header file for Blackfin family of processors
  *
+ * Copyright 2007-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _PORTMUX_H_
@@ -1039,8 +1042,8 @@ void peripheral_free_list(const unsigned short per[]);
 #define P_NOR_CLK P_UNDEF
 #endif
 
-#ifndef  P_TMRCLK
-#define  P_TMRCLK P_UNDEF
+#ifndef P_TMRCLK
+#define P_TMRCLK P_UNDEF
 #endif
 
 #ifndef P_AMC_ARDY_NOR_WAIT

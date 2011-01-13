@@ -72,56 +72,26 @@ void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj)
 	mlx4_bitmap_free_range(bitmap, obj, 1);
 }
 
-static unsigned long find_aligned_range(unsigned long *bitmap,
-					u32 start, u32 nbits,
-					int len, int align)
-{
-	unsigned long end, i;
-
-again:
-	start = ALIGN(start, align);
-
-	while ((start < nbits) && test_bit(start, bitmap))
-		start += align;
-
-	if (start >= nbits)
-		return -1;
-
-	end = start+len;
-	if (end > nbits)
-		return -1;
-
-	for (i = start + 1; i < end; i++) {
-		if (test_bit(i, bitmap)) {
-			start = i + 1;
-			goto again;
-		}
-	}
-
-	return start;
-}
-
 u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
 {
-	u32 obj, i;
+	u32 obj;
 
 	if (likely(cnt == 1 && align == 1))
 		return mlx4_bitmap_alloc(bitmap);
 
 	spin_lock(&bitmap->lock);
 
-	obj = find_aligned_range(bitmap->table, bitmap->last,
-				 bitmap->max, cnt, align);
+	obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max,
+				bitmap->last, cnt, align - 1);
 	if (obj >= bitmap->max) {
 		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
 				& bitmap->mask;
-		obj = find_aligned_range(bitmap->table, 0, bitmap->max,
-					 cnt, align);
+		obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max,
+						0, cnt, align - 1);
 	}
 
 	if (obj < bitmap->max) {
-		for (i = 0; i < cnt; i++)
-			set_bit(obj + i, bitmap->table);
+		bitmap_set(bitmap->table, obj, cnt);
 		if (obj == bitmap->last) {
 			bitmap->last = (obj + cnt);
 			if (bitmap->last >= bitmap->max)
@@ -138,13 +108,10 @@ u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
 
 void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
 {
-	u32 i;
-
 	obj &= bitmap->max + bitmap->reserved_top - 1;
 
 	spin_lock(&bitmap->lock);
-	for (i = 0; i < cnt; i++)
-		clear_bit(obj + i, bitmap->table);
+	bitmap_clear(bitmap->table, obj, cnt);
 	bitmap->last = min(bitmap->last, obj);
 	bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
 			& bitmap->mask;
@@ -154,8 +121,6 @@ void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
 int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 		     u32 reserved_bot, u32 reserved_top)
 {
-	int i;
-
 	/* num must be a power of 2 */
 	if (num != roundup_pow_of_two(num))
 		return -EINVAL;
@@ -171,8 +136,7 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 	if (!bitmap->table)
 		return -ENOMEM;
 
-	for (i = 0; i < reserved_bot; ++i)
-		set_bit(i, bitmap->table);
+	bitmap_set(bitmap->table, 0, reserved_bot);
 
 	return 0;
 }
@@ -214,10 +178,11 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 	} else {
 		int i;
 
+		buf->direct.buf  = NULL;
 		buf->nbufs       = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 		buf->npages      = buf->nbufs;
 		buf->page_shift  = PAGE_SHIFT;
-		buf->page_list   = kzalloc(buf->nbufs * sizeof *buf->page_list,
+		buf->page_list   = kcalloc(buf->nbufs, sizeof(*buf->page_list),
 					   GFP_KERNEL);
 		if (!buf->page_list)
 			return -ENOMEM;
@@ -265,7 +230,7 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 		dma_free_coherent(&dev->pdev->dev, size, buf->direct.buf,
 				  buf->direct.map);
 	else {
-		if (BITS_PER_LONG == 64)
+		if (BITS_PER_LONG == 64 && buf->direct.buf)
 			vunmap(buf->direct.buf);
 
 		for (i = 0; i < buf->nbufs; ++i)

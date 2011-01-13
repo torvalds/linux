@@ -58,7 +58,7 @@ static void transfer(int fd)
 	};
 
 	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
-	if (ret == 1)
+	if (ret < 1)
 		pabort("can't send spi message");
 
 	for (ret = 0; ret < ARRAY_SIZE(tx); ret++) {
@@ -69,7 +69,7 @@ static void transfer(int fd)
 	puts("");
 }
 
-void print_usage(const char *prog)
+static void print_usage(const char *prog)
 {
 	printf("Usage: %s [-DsbdlHOLC3]\n", prog);
 	puts("  -D --device   device to use (default /dev/spidev1.1)\n"
@@ -85,7 +85,7 @@ void print_usage(const char *prog)
 	exit(1);
 }
 
-void parse_opts(int argc, char *argv[])
+static void parse_opts(int argc, char *argv[])
 {
 	while (1) {
 		static const struct option lopts[] = {
@@ -99,11 +99,13 @@ void parse_opts(int argc, char *argv[])
 			{ "lsb",     0, 0, 'L' },
 			{ "cs-high", 0, 0, 'C' },
 			{ "3wire",   0, 0, '3' },
+			{ "no-cs",   0, 0, 'N' },
+			{ "ready",   0, 0, 'R' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3", lopts, NULL);
+		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NR", lopts, NULL);
 
 		if (c == -1)
 			break;
@@ -138,6 +140,12 @@ void parse_opts(int argc, char *argv[])
 			break;
 		case '3':
 			mode |= SPI_3WIRE;
+			break;
+		case 'N':
+			mode |= SPI_NO_CS;
+			break;
+		case 'R':
+			mode |= SPI_READY;
 			break;
 		default:
 			print_usage(argv[0]);

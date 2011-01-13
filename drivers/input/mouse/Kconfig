@@ -30,6 +30,7 @@ config MOUSE_PS2
 		<http://w1.894.telia.com/~u89404340/touchpad/index.html>
 	  and a new version of GPM at:
 		<http://www.geocities.com/dt_or/gpm/gpm.html>
+		<http://xorg.freedesktop.org/archive/individual/driver/>
 	  to take advantage of the advanced features of the touchpad.
 
 	  If unsure, say Y.
@@ -70,7 +71,7 @@ config MOUSE_PS2_SYNAPTICS
 config MOUSE_PS2_LIFEBOOK
 	bool "Fujitsu Lifebook PS/2 mouse protocol extension" if EMBEDDED
 	default y
-	depends on MOUSE_PS2 && X86
+	depends on MOUSE_PS2 && X86 && DMI
 	help
 	  Say Y here if you have a Fujitsu B-series Lifebook PS/2
 	  TouchScreen connected to your system.
@@ -107,6 +108,14 @@ config MOUSE_PS2_ELANTECH
 	  entries. For further information,
 	  see <file:Documentation/input/elantech.txt>.
 
+config MOUSE_PS2_SENTELIC
+	bool "Sentelic Finger Sensing Pad PS/2 protocol extension"
+	depends on MOUSE_PS2
+	help
+	  Say Y here if you have a laptop (such as MSI WIND Netbook)
+	  with Sentelic Finger Sensing Pad touchpad.
+
+	  If unsure, say N.
 
 config MOUSE_PS2_TOUCHKIT
 	bool "eGalax TouchKit PS/2 protocol extension"
@@ -261,14 +270,6 @@ config MOUSE_VSXXXAA
 	  be used on any box capable of RS232 (with some adaptor
 	  described in the source file). This driver also works with the
 	  digitizer (VSXXX-AB) DEC produced.
-
-config MOUSE_HIL
-	tristate "HIL pointers (mice etc)."
-	depends on GSC || HP300
-	select HP_SDC
-	select HIL_MLC
-	help
-	  Say Y here to support HIL pointers.
 
 config MOUSE_GPIO
 	tristate "GPIO mouse"

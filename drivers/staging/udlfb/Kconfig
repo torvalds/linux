@@ -1,8 +1,0 @@
-config FB_UDL
-	tristate "Displaylink USB Framebuffer support"
-	depends on FB && USB
-	---help---
-	  This is an experimental driver for DisplayLink USB devices
-	  that provides a framebuffer device.  A normal framebuffer can
-	  be used with this driver, or xorg can be run on the device
-	  using it.

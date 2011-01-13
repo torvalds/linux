@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -28,13 +28,9 @@
 #ifndef __iwl_power_setting_h__
 #define __iwl_power_setting_h__
 
-#include <net/mac80211.h>
 #include "iwl-commands.h"
 
-struct iwl_priv;
-
-enum {
-	IWL_POWER_MODE_CAM, /* Continuously Aware Mode, always on */
+enum iwl_power_level {
 	IWL_POWER_INDEX_1,
 	IWL_POWER_INDEX_2,
 	IWL_POWER_INDEX_3,
@@ -43,26 +39,18 @@ enum {
 	IWL_POWER_NUM
 };
 
-/* Power management (not Tx power) structures */
-
-struct iwl_power_vec_entry {
-	struct iwl_powertable_cmd cmd;
-	u8 no_dtim;
-};
-
 struct iwl_power_mgr {
-	struct iwl_power_vec_entry pwr_range_0[IWL_POWER_NUM];
-	struct iwl_power_vec_entry pwr_range_1[IWL_POWER_NUM];
-	struct iwl_power_vec_entry pwr_range_2[IWL_POWER_NUM];
-	u32 dtim_period;
-	/* final power level that used to calculate final power command */
-	u8 power_mode;
-	u8 user_power_setting; /* set by user through sysfs */
-	u8 power_disabled; /* set by mac80211's CONF_PS */
+	struct iwl_powertable_cmd sleep_cmd;
+	struct iwl_powertable_cmd sleep_cmd_next;
+	int debug_sleep_level_override;
+	bool pci_pm;
 };
 
+int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
+		       bool force);
 int iwl_power_update_mode(struct iwl_priv *priv, bool force);
-int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode);
 void iwl_power_initialize(struct iwl_priv *priv);
+
+extern bool no_sleep_autoadjust;
 
 #endif  /* __iwl_power_setting_h__ */

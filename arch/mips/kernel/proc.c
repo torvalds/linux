@@ -1,6 +1,4 @@
 /*
- *  linux/arch/mips/kernel/proc.c
- *
  *  Copyright (C) 1995, 1996, 2001  Ralf Baechle
  *  Copyright (C) 2001, 2004  MIPS Technologies, Inc.
  *  Copyright (C) 2004  Maciej W. Rozycki

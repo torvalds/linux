@@ -10,9 +10,11 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <asm/ebcdic.h>
+#include <asm/timex.h>
 #include "hypfs.h"
 
 #define NAME_LEN 8
+#define DBFS_D2FC_HDR_VERSION 0
 
 static char local_guest[] = "        ";
 static char all_guests[] = "*       ";
@@ -76,28 +78,31 @@ static int diag2fc(int size, char* query, void *addr)
 		return -residual_cnt;
 }
 
-static struct diag2fc_data *diag2fc_store(char *query, int *count)
+/*
+ * Allocate buffer for "query" and store diag 2fc at "offset"
+ */
+static void *diag2fc_store(char *query, unsigned int *count, int offset)
 {
+	void *data;
 	int size;
-	struct diag2fc_data *data;
 
 	do {
 		size = diag2fc(0, query, NULL);
 		if (size < 0)
 			return ERR_PTR(-EACCES);
-		data = vmalloc(size);
+		data = vmalloc(size + offset);
 		if (!data)
 			return ERR_PTR(-ENOMEM);
-		if (diag2fc(size, query, data) == 0)
+		if (diag2fc(size, query, data + offset) == 0)
 			break;
 		vfree(data);
 	} while (1);
-	*count = (size / sizeof(*data));
+	*count = (size / sizeof(struct diag2fc_data));
 
 	return data;
 }
 
-static void diag2fc_free(void *data)
+static void diag2fc_free(const void *data)
 {
 	vfree(data);
 }
@@ -124,7 +129,7 @@ static int hpyfs_vm_create_guest(struct super_block *sb,
 	/* guest dir */
 	memcpy(guest_name, data->guest_name, NAME_LEN);
 	EBCASC(guest_name, NAME_LEN);
-	strstrip(guest_name);
+	strim(guest_name);
 	guest_dir = hypfs_mkdir(sb, systems_dir, guest_name);
 	if (IS_ERR(guest_dir))
 		return PTR_ERR(guest_dir);
@@ -168,9 +173,10 @@ int hypfs_vm_create_files(struct super_block *sb, struct dentry *root)
 {
 	struct dentry *dir, *file;
 	struct diag2fc_data *data;
-	int rc, i, count = 0;
+	unsigned int count = 0;
+	int rc, i;
 
-	data = diag2fc_store(guest_query, &count);
+	data = diag2fc_store(guest_query, &count, 0);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
@@ -218,14 +224,60 @@ failed:
 	return rc;
 }
 
+struct dbfs_d2fc_hdr {
+	u64	len;		/* Length of d2fc buffer without header */
+	u16	version;	/* Version of header */
+	char	tod_ext[16];	/* TOD clock for d2fc */
+	u64	count;		/* Number of VM guests in d2fc buffer */
+	char	reserved[30];
+} __attribute__ ((packed));
+
+struct dbfs_d2fc {
+	struct dbfs_d2fc_hdr	hdr;	/* 64 byte header */
+	char			buf[];	/* d2fc buffer */
+} __attribute__ ((packed));
+
+static int dbfs_diag2fc_create(void **data, void **data_free_ptr, size_t *size)
+{
+	struct dbfs_d2fc *d2fc;
+	unsigned int count;
+
+	d2fc = diag2fc_store(guest_query, &count, sizeof(d2fc->hdr));
+	if (IS_ERR(d2fc))
+		return PTR_ERR(d2fc);
+	get_clock_ext(d2fc->hdr.tod_ext);
+	d2fc->hdr.len = count * sizeof(struct diag2fc_data);
+	d2fc->hdr.version = DBFS_D2FC_HDR_VERSION;
+	d2fc->hdr.count = count;
+	memset(&d2fc->hdr.reserved, 0, sizeof(d2fc->hdr.reserved));
+	*data = d2fc;
+	*data_free_ptr = d2fc;
+	*size = d2fc->hdr.len + sizeof(struct dbfs_d2fc_hdr);
+	return 0;
+}
+
+static struct hypfs_dbfs_file dbfs_file_2fc = {
+	.name		= "diag_2fc",
+	.data_create	= dbfs_diag2fc_create,
+	.data_free	= diag2fc_free,
+};
+
 int hypfs_vm_init(void)
 {
+	if (!MACHINE_IS_VM)
+		return 0;
 	if (diag2fc(0, all_guests, NULL) > 0)
 		guest_query = all_guests;
 	else if (diag2fc(0, local_guest, NULL) > 0)
 		guest_query = local_guest;
 	else
 		return -EACCES;
+	return hypfs_dbfs_create_file(&dbfs_file_2fc);
+}
 
-	return 0;
+void hypfs_vm_exit(void)
+{
+	if (!MACHINE_IS_VM)
+		return;
+	hypfs_dbfs_remove_file(&dbfs_file_2fc);
 }

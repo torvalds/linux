@@ -14,7 +14,6 @@
 /*
  * Most if the context management is out of line
  */
-extern void mmu_context_init(void);
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
 
@@ -22,6 +21,16 @@ extern void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next);
 extern void switch_stab(struct task_struct *tsk, struct mm_struct *mm);
 extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
 extern void set_context(unsigned long id, pgd_t *pgd);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+extern int __init_new_context(void);
+extern void __destroy_context(int context_id);
+static inline void mmu_context_init(void) { }
+#else
+extern unsigned long __init_new_context(void);
+extern void __destroy_context(unsigned long context_id);
+extern void mmu_context_init(void);
+#endif
 
 /*
  * switch_mm is the entry point called from the architecture independent
@@ -38,6 +47,10 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	tsk->thread.pgdir = next->pgd;
 #endif /* CONFIG_PPC32 */
 
+	/* 64-bit Book3E keeps track of current PGD in the PACA */
+#ifdef CONFIG_PPC_BOOK3E_64
+	get_paca()->pgd = next->pgd;
+#endif
 	/* Nothing else to do if we aren't actually switching */
 	if (prev == next)
 		return;
@@ -84,6 +97,10 @@ static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 static inline void enter_lazy_tlb(struct mm_struct *mm,
 				  struct task_struct *tsk)
 {
+	/* 64-bit Book3E keeps track of current PGD in the PACA */
+#ifdef CONFIG_PPC_BOOK3E_64
+	get_paca()->pgd = NULL;
+#endif
 }
 
 #endif /* __KERNEL__ */

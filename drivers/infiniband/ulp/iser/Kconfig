@@ -9,4 +9,4 @@ config INFINIBAND_ISER
 
 	  The iSER protocol is defined by IETF.
 	  See <http://www.ietf.org/rfc/rfc5046.txt>
-	  and <http://www.infinibandta.org/members/spec/Annex_iSER.PDF>
+	  and <http://members.infinibandta.org/kwspub/spec/Annex_iSER.PDF>

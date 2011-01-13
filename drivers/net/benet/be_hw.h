@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -32,10 +32,12 @@
 #define MPU_EP_CONTROL 		0
 
 /********** MPU semphore ******************/
-#define MPU_EP_SEMAPHORE_OFFSET 	0xac
-#define EP_SEMAPHORE_POST_STAGE_MASK	0x0000FFFF
-#define EP_SEMAPHORE_POST_ERR_MASK	0x1
-#define EP_SEMAPHORE_POST_ERR_SHIFT	31
+#define MPU_EP_SEMAPHORE_OFFSET		0xac
+#define MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET	0x400
+#define EP_SEMAPHORE_POST_STAGE_MASK		0x0000FFFF
+#define EP_SEMAPHORE_POST_ERR_MASK		0x1
+#define EP_SEMAPHORE_POST_ERR_SHIFT		31
+
 /* MPU semphore POST stage values */
 #define POST_STAGE_AWAITING_HOST_RDY 	0x1 /* FW awaiting goahead from host */
 #define POST_STAGE_HOST_RDY 		0x2 /* Host has given go-ahed to FW */
@@ -51,13 +53,53 @@
  * with the OS.
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
-/* PCI physical function number */
-#define MEMBAR_CTRL_INT_CTRL_PFUNC_MASK  	0x7 	/* bits 26 - 28 */
-#define MEMBAR_CTRL_INT_CTRL_PFUNC_SHIFT	26
+
+/********* Power management (WOL) **********/
+#define PCICFG_PM_CONTROL_OFFSET		0x44
+#define PCICFG_PM_CONTROL_MASK			0x108	/* bits 3 & 8 */
+
+/********* Online Control Registers *******/
+#define PCICFG_ONLINE0				0xB0
+#define PCICFG_ONLINE1				0xB4
+
+/********* UE Status and Mask Registers ***/
+#define PCICFG_UE_STATUS_LOW			0xA0
+#define PCICFG_UE_STATUS_HIGH			0xA4
+#define PCICFG_UE_STATUS_LOW_MASK		0xA8
+#define PCICFG_UE_STATUS_HI_MASK		0xAC
+
+/******** SLI_INTF ***********************/
+#define SLI_INTF_REG_OFFSET			0x58
+#define SLI_INTF_VALID_MASK			0xE0000000
+#define SLI_INTF_VALID				0xC0000000
+#define SLI_INTF_HINT2_MASK			0x1F000000
+#define SLI_INTF_HINT2_SHIFT			24
+#define SLI_INTF_HINT1_MASK			0x00FF0000
+#define SLI_INTF_HINT1_SHIFT			16
+#define SLI_INTF_FAMILY_MASK			0x00000F00
+#define SLI_INTF_FAMILY_SHIFT			8
+#define SLI_INTF_IF_TYPE_MASK			0x0000F000
+#define SLI_INTF_IF_TYPE_SHIFT			12
+#define SLI_INTF_REV_MASK			0x000000F0
+#define SLI_INTF_REV_SHIFT			4
+#define SLI_INTF_FT_MASK			0x00000001
+
+
+/* SLI family */
+#define BE_SLI_FAMILY		0x0
+#define LANCER_A0_SLI_FAMILY	0xA
+
+
+/********* ISR0 Register offset **********/
+#define CEV_ISR0_OFFSET 			0xC18
+#define CEV_ISR_SIZE				4
 
 /********* Event Q door bell *************/
 #define DB_EQ_OFFSET			DB_CQ_OFFSET
 #define DB_EQ_RING_ID_MASK		0x1FF	/* bits 0 - 8 */
+#define DB_EQ_RING_ID_EXT_MASK		0x3e00  /* bits 9-13 */
+#define DB_EQ_RING_ID_EXT_MASK_SHIFT	(2) /* qid bits 9-13 placing at 11-15 */
+
 /* Clear the interrupt for this eq */
 #define DB_EQ_CLR_SHIFT			(9)	/* bit 9 */
 /* Must be 1 */
@@ -70,6 +112,10 @@
 /********* Compl Q door bell *************/
 #define DB_CQ_OFFSET 			0x120
 #define DB_CQ_RING_ID_MASK		0x3FF	/* bits 0 - 9 */
+#define DB_CQ_RING_ID_EXT_MASK		0x7C00	/* bits 10-14 */
+#define DB_CQ_RING_ID_EXT_MASK_SHIFT	(1)	/* qid bits 10-14
+						 placing at 11-15 */
+
 /* Number of event entries processed */
 #define DB_CQ_NUM_POPPED_SHIFT		(16) 	/* bits 16 - 28 */
 /* Rearm bit */
@@ -94,6 +140,70 @@
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT	(16)	/* bits 16 - 29 */
 
+/********** SRIOV VF PCICFG OFFSET ********/
+#define SRIOV_VF_PCICFG_OFFSET		(4096)
+
+/* Flashrom related descriptors */
+#define IMAGE_TYPE_FIRMWARE		160
+#define IMAGE_TYPE_BOOTCODE		224
+#define IMAGE_TYPE_OPTIONROM		32
+
+#define NUM_FLASHDIR_ENTRIES		32
+
+#define IMG_TYPE_ISCSI_ACTIVE		0
+#define IMG_TYPE_REDBOOT		1
+#define IMG_TYPE_BIOS			2
+#define IMG_TYPE_PXE_BIOS		3
+#define IMG_TYPE_FCOE_BIOS		8
+#define IMG_TYPE_ISCSI_BACKUP		9
+#define IMG_TYPE_FCOE_FW_ACTIVE		10
+#define IMG_TYPE_FCOE_FW_BACKUP 	11
+#define IMG_TYPE_NCSI_FW		13
+
+#define FLASHROM_OPER_FLASH		1
+#define FLASHROM_OPER_SAVE		2
+#define FLASHROM_OPER_REPORT		4
+
+#define FLASH_IMAGE_MAX_SIZE_g2            (1310720) /* Max firmware image sz */
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g2       (262144)  /* Max OPTION ROM img sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g2	  (262144)  /* Max Redboot image sz */
+#define FLASH_IMAGE_MAX_SIZE_g3            (2097152) /* Max fw image size */
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g3       (524288)  /* Max OPTION ROM img sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g3	  (1048576)  /* Max Redboot image sz */
+#define FLASH_NCSI_IMAGE_MAX_SIZE_g3       (262144)  /* Max NSCI image sz */
+
+#define FLASH_NCSI_MAGIC		(0x16032009)
+#define FLASH_NCSI_DISABLED		(0)
+#define FLASH_NCSI_ENABLED		(1)
+
+#define FLASH_NCSI_BITFILE_HDR_OFFSET	(0x600000)
+
+/* Offsets for components on Flash. */
+#define FLASH_iSCSI_PRIMARY_IMAGE_START_g2 (1048576)
+#define FLASH_iSCSI_BACKUP_IMAGE_START_g2  (2359296)
+#define FLASH_FCoE_PRIMARY_IMAGE_START_g2  (3670016)
+#define FLASH_FCoE_BACKUP_IMAGE_START_g2   (4980736)
+#define FLASH_iSCSI_BIOS_START_g2          (7340032)
+#define FLASH_PXE_BIOS_START_g2            (7864320)
+#define FLASH_FCoE_BIOS_START_g2           (524288)
+#define FLASH_REDBOOT_START_g2		  (0)
+
+#define FLASH_NCSI_START_g3		   (15990784)
+#define FLASH_iSCSI_PRIMARY_IMAGE_START_g3 (2097152)
+#define FLASH_iSCSI_BACKUP_IMAGE_START_g3  (4194304)
+#define FLASH_FCoE_PRIMARY_IMAGE_START_g3  (6291456)
+#define FLASH_FCoE_BACKUP_IMAGE_START_g3   (8388608)
+#define FLASH_iSCSI_BIOS_START_g3          (12582912)
+#define FLASH_PXE_BIOS_START_g3            (13107200)
+#define FLASH_FCoE_BIOS_START_g3           (13631488)
+#define FLASH_REDBOOT_START_g3             (262144)
+
+/************* Rx Packet Type Encoding **************/
+#define BE_UNICAST_PACKET		0
+#define BE_MULTICAST_PACKET		1
+#define BE_BROADCAST_PACKET		2
+#define BE_RSVD_PACKET			3
+
 /*
  * BE descriptors: host memory data structures whose formats
  * are hardwired in BE silicon.
@@ -102,6 +212,7 @@
 #define EQ_ENTRY_VALID_MASK 		0x1	/* bit 0 */
 #define EQ_ENTRY_RES_ID_MASK 		0xFFFF	/* bits 16 - 31 */
 #define EQ_ENTRY_RES_ID_SHIFT 		16
+
 struct be_eq_entry {
 	u32 evt;
 };
@@ -125,7 +236,7 @@ struct amap_eth_hdr_wrb {
 	u8 event;
 	u8 crc;
 	u8 forward;
-	u8 ipsec;
+	u8 lso6;
 	u8 mgmt;
 	u8 ipcs;
 	u8 udpcs;
@@ -203,7 +314,7 @@ struct amap_eth_rx_compl {
 	u8 numfrags[3];		/* dword 1 */
 	u8 rss_flush;		/* dword 2 */
 	u8 cast_enc[2];		/* dword 2 */
-	u8 qnq;			/* dword 2 */
+	u8 vtm;			/* dword 2 */
 	u8 rss_bank;		/* dword 2 */
 	u8 rsvd1[23];		/* dword 2 */
 	u8 lro_pkt;		/* dword 2 */
@@ -214,4 +325,81 @@ struct amap_eth_rx_compl {
 
 struct be_eth_rx_compl {
 	u32 dw[4];
+};
+
+struct controller_id {
+	u32 vendor;
+	u32 device;
+	u32 subvendor;
+	u32 subdevice;
+};
+
+struct flash_comp {
+	unsigned long offset;
+	int optype;
+	int size;
+};
+
+struct image_hdr {
+	u32 imageid;
+	u32 imageoffset;
+	u32 imagelength;
+	u32 image_checksum;
+	u8 image_version[32];
+};
+struct flash_file_hdr_g2 {
+	u8 sign[32];
+	u32 cksum;
+	u32 antidote;
+	struct controller_id cont_id;
+	u32 file_len;
+	u32 chunk_num;
+	u32 total_chunks;
+	u32 num_imgs;
+	u8 build[24];
+};
+
+struct flash_file_hdr_g3 {
+	u8 sign[52];
+	u8 ufi_version[4];
+	u32 file_len;
+	u32 cksum;
+	u32 antidote;
+	u32 num_imgs;
+	u8 build[24];
+	u8 rsvd[32];
+};
+
+struct flash_section_hdr {
+	u32 format_rev;
+	u32 cksum;
+	u32 antidote;
+	u32 build_no;
+	u8 id_string[64];
+	u32 active_entry_mask;
+	u32 valid_entry_mask;
+	u32 org_content_mask;
+	u32 rsvd0;
+	u32 rsvd1;
+	u32 rsvd2;
+	u32 rsvd3;
+	u32 rsvd4;
+};
+
+struct flash_section_entry {
+	u32 type;
+	u32 offset;
+	u32 pad_size;
+	u32 image_size;
+	u32 cksum;
+	u32 entry_point;
+	u32 rsvd0;
+	u32 rsvd1;
+	u8 ver_data[32];
+};
+
+struct flash_section_info {
+	u8 cookie[32];
+	struct flash_section_hdr fsec_hdr;
+	struct flash_section_entry fsec_entry[32];
 };

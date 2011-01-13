@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ieee80211 subsystem header files.
  *
@@ -42,7 +42,7 @@ struct ieee80211_basic_report {
 	__le64 start_time;
 	__le16 duration;
 	u8 map;
-} __attribute__ ((packed));
+} __packed;
 
 enum {				/* ieee80211_measurement_request.mode */
 	/* Bit 0 is reserved */
@@ -63,13 +63,13 @@ struct ieee80211_measurement_params {
 	u8 channel;
 	__le64 start_time;
 	__le16 duration;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_info_element {
 	u8 id;
 	u8 len;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_measurement_request {
 	struct ieee80211_info_element ie;
@@ -77,7 +77,7 @@ struct ieee80211_measurement_request {
 	u8 mode;
 	u8 type;
 	struct ieee80211_measurement_params params[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_measurement_report {
 	struct ieee80211_info_element ie;
@@ -87,6 +87,6 @@ struct ieee80211_measurement_report {
 	union {
 		struct ieee80211_basic_report basic[0];
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
 #endif

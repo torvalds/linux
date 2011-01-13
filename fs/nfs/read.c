@@ -18,7 +18,6 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
-#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 
@@ -26,6 +25,7 @@
 #include "internal.h"
 #include "iostat.h"
 #include "fscache.h"
+#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
@@ -41,17 +41,16 @@ static mempool_t *nfs_rdata_mempool;
 
 struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 {
-	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_NOFS);
+	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, GFP_KERNEL);
 
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
 		p->npages = pagecount;
-		p->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 		if (pagecount <= ARRAY_SIZE(p->page_array))
 			p->pagevec = p->page_array;
 		else {
-			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_KERNEL);
 			if (!p->pagevec) {
 				mempool_free(p, nfs_rdata_mempool);
 				p = NULL;
@@ -61,17 +60,15 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 	return p;
 }
 
-static void nfs_readdata_free(struct nfs_read_data *p)
+void nfs_readdata_free(struct nfs_read_data *p)
 {
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
 	mempool_free(p, nfs_rdata_mempool);
 }
 
-void nfs_readdata_release(void *data)
+static void nfs_readdata_release(struct nfs_read_data *rdata)
 {
-	struct nfs_read_data *rdata = data;
-
 	put_nfs_open_context(rdata->args.context);
 	nfs_readdata_free(rdata);
 }
@@ -124,6 +121,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
+	pnfs_update_layout(inode, ctx, IOMODE_READ);
 	new = nfs_create_request(ctx, inode, page, 0, len);
 	if (IS_ERR(new)) {
 		unlock_page(page);
@@ -154,7 +152,6 @@ static void nfs_readpage_release(struct nfs_page *req)
 			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
-	nfs_clear_request(req);
 	nfs_release_request(req);
 }
 
@@ -193,6 +190,7 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->args.pages  = data->pagevec;
 	data->args.count  = count;
 	data->args.context = get_nfs_open_context(req->wb_context);
+	data->args.lock_context = req->wb_lock_context;
 
 	data->res.fattr   = &data->fattr;
 	data->res.count   = count;
@@ -359,25 +357,19 @@ static void nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data
 	struct nfs_readres *resp = &data->res;
 
 	if (resp->eof || resp->count == argp->count)
-		goto out;
+		return;
 
 	/* This is a short read! */
 	nfs_inc_stats(data->inode, NFSIOS_SHORTREAD);
 	/* Has the server at least made some progress? */
 	if (resp->count == 0)
-		goto out;
+		return;
 
 	/* Yes, so retry the read at the end of the data */
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;
-	nfs4_restart_rpc(task, NFS_SERVER(data->inode)->nfs_client);
-	return;
-out:
-	nfs4_sequence_free_slot(NFS_SERVER(data->inode)->nfs_client,
-				&data->res.seq_res);
-	return;
-
+	nfs_restart_rpc(task, NFS_SERVER(data->inode)->nfs_client);
 }
 
 /*
@@ -419,7 +411,7 @@ void nfs_read_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
 
-	if (nfs4_setup_sequence(NFS_SERVER(data->inode)->nfs_client,
+	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
 				&data->args.seq_args, &data->res.seq_res,
 				0, task))
 		return;
@@ -633,6 +625,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	if (ret == 0)
 		goto read_complete; /* all pages were read */
 
+	pnfs_update_layout(inode, desc.ctx, IOMODE_READ);
 	if (rsize < PAGE_CACHE_SIZE)
 		nfs_pageio_init(&pgio, inode, nfs_pagein_multi, rsize, 0);
 	else

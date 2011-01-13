@@ -1,6 +1,4 @@
 /*
- *  fs/nfsd/nfs4proc.c
- *
  *  Server-side procedures for NFSv4.
  *
  *  Copyright (c) 2002 The Regents of the University of Michigan.
@@ -34,20 +32,12 @@
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <linux/param.h>
-#include <linux/major.h>
-#include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfs4.h>
-#include <linux/nfsd/state.h>
-#include <linux/nfsd/xdr4.h>
-#include <linux/nfs4_acl.h>
-#include <linux/sunrpc/gss_api.h>
+#include "cache.h"
+#include "xdr4.h"
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
@@ -68,7 +58,6 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		   u32 *bmval, u32 *writable)
 {
 	struct dentry *dentry = cstate->current_fh.fh_dentry;
-	struct svc_export *exp = cstate->current_fh.fh_export;
 
 	/*
 	 * Check about attributes are supported by the NFSv4 server or not.
@@ -80,15 +69,11 @@ check_attr_support(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_attrnotsupp;
 
 	/*
-	 * Check FATTR4_WORD0_ACL & FATTR4_WORD0_FS_LOCATIONS can be supported
+	 * Check FATTR4_WORD0_ACL can be supported
 	 * in current environment or not.
 	 */
 	if (bmval[0] & FATTR4_WORD0_ACL) {
 		if (!IS_POSIXACL(dentry->d_inode))
-			return nfserr_attrnotsupp;
-	}
-	if (bmval[0] & FATTR4_WORD0_FS_LOCATIONS) {
-		if (exp->ex_fslocs.locations == NULL)
 			return nfserr_attrnotsupp;
 	}
 
@@ -123,6 +108,35 @@ nfsd4_check_open_attributes(struct svc_rqst *rqstp,
 	return status;
 }
 
+static int
+is_create_with_attrs(struct nfsd4_open *open)
+{
+	return open->op_create == NFS4_OPEN_CREATE
+		&& (open->op_createmode == NFS4_CREATE_UNCHECKED
+		    || open->op_createmode == NFS4_CREATE_GUARDED
+		    || open->op_createmode == NFS4_CREATE_EXCLUSIVE4_1);
+}
+
+/*
+ * if error occurs when setting the acl, just clear the acl bit
+ * in the returned attr bitmap.
+ */
+static void
+do_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		struct nfs4_acl *acl, u32 *bmval)
+{
+	__be32 status;
+
+	status = nfsd4_set_nfs4_acl(rqstp, fhp, acl);
+	if (status)
+		/*
+		 * We should probably fail the whole open at this point,
+		 * but we've already created the file, so it's too late;
+		 * So this seems the least of evils:
+		 */
+		bmval[0] &= ~FATTR4_WORD0_ACL;
+}
+
 static inline void
 fh_dup2(struct svc_fh *dst, struct svc_fh *src)
 {
@@ -146,7 +160,7 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 		accmode |= NFSD_MAY_READ;
 	if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
 		accmode |= (NFSD_MAY_WRITE | NFSD_MAY_TRUNC);
-	if (open->op_share_deny & NFS4_SHARE_DENY_WRITE)
+	if (open->op_share_deny & NFS4_SHARE_DENY_READ)
 		accmode |= NFSD_MAY_WRITE;
 
 	status = fh_verify(rqstp, current_fh, S_IFREG, accmode);
@@ -205,6 +219,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	}
 	if (status)
 		goto out;
+
+	if (is_create_with_attrs(open) && open->op_acl != NULL)
+		do_set_nfs4_acl(rqstp, &resfh, open->op_acl, open->op_bmval);
 
 	set_change_info(&open->op_cinfo, current_fh);
 	fh_dup2(current_fh, &resfh);
@@ -536,12 +553,17 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_badtype;
 	}
 
-	if (!status) {
-		fh_unlock(&cstate->current_fh);
-		set_change_info(&create->cr_cinfo, &cstate->current_fh);
-		fh_dup2(&cstate->current_fh, &resfh);
-	}
+	if (status)
+		goto out;
 
+	if (create->cr_acl != NULL)
+		do_set_nfs4_acl(rqstp, &resfh, create->cr_acl,
+				create->cr_bmval);
+
+	fh_unlock(&cstate->current_fh);
+	set_change_info(&create->cr_cinfo, &cstate->current_fh);
+	fh_dup2(&cstate->current_fh, &resfh);
+out:
 	fh_put(&resfh);
 	return status;
 }
@@ -947,48 +969,36 @@ static struct nfsd4_operation nfsd4_ops[];
 static const char *nfsd4_op_name(unsigned opnum);
 
 /*
- * This is a replay of a compound for which no cache entry pages
- * were used. Encode the sequence operation, and if cachethis is FALSE
- * encode the uncache rep error on the next operation.
- */
-static __be32
-nfsd4_enc_uncached_replay(struct nfsd4_compoundargs *args,
-			 struct nfsd4_compoundres *resp)
-{
-	struct nfsd4_op *op;
-
-	dprintk("--> %s resp->opcnt %d ce_cachethis %u \n", __func__,
-		resp->opcnt, resp->cstate.slot->sl_cache_entry.ce_cachethis);
-
-	/* Encode the replayed sequence operation */
-	BUG_ON(resp->opcnt != 1);
-	op = &args->ops[resp->opcnt - 1];
-	nfsd4_encode_operation(resp, op);
-
-	/*return nfserr_retry_uncached_rep in next operation. */
-	if (resp->cstate.slot->sl_cache_entry.ce_cachethis == 0) {
-		op = &args->ops[resp->opcnt++];
-		op->status = nfserr_retry_uncached_rep;
-		nfsd4_encode_operation(resp, op);
-	}
-	return op->status;
-}
-
-/*
- * Enforce NFSv4.1 COMPOUND ordering rules.
+ * Enforce NFSv4.1 COMPOUND ordering rules:
  *
- * TODO:
- * - enforce NFS4ERR_NOT_ONLY_OP,
- * - DESTROY_SESSION MUST be the final operation in the COMPOUND request.
+ * Also note, enforced elsewhere:
+ *	- SEQUENCE other than as first op results in
+ *	  NFS4ERR_SEQUENCE_POS. (Enforced in nfsd4_sequence().)
+ *	- BIND_CONN_TO_SESSION must be the only op in its compound
+ *	  (Will be enforced in nfsd4_bind_conn_to_session().)
+ *	- DESTROY_SESSION must be the final operation in a compound, if
+ *	  sessionid's in SEQUENCE and DESTROY_SESSION are the same.
+ *	  (Enforced in nfsd4_destroy_session().)
  */
-static bool nfs41_op_ordering_ok(struct nfsd4_compoundargs *args)
+static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 {
-	if (args->minorversion && args->opcnt > 0) {
-		struct nfsd4_op *op = &args->ops[0];
-		return (op->status == nfserr_op_illegal) ||
-		       (nfsd4_ops[op->opnum].op_flags & ALLOWED_AS_FIRST_OP);
-	}
-	return true;
+	struct nfsd4_op *op = &args->ops[0];
+
+	/* These ordering requirements don't apply to NFSv4.0: */
+	if (args->minorversion == 0)
+		return nfs_ok;
+	/* This is weird, but OK, not our problem: */
+	if (args->opcnt == 0)
+		return nfs_ok;
+	if (op->status == nfserr_op_illegal)
+		return nfs_ok;
+	if (!(nfsd4_ops[op->opnum].op_flags & ALLOWED_AS_FIRST_OP))
+		return nfserr_op_not_in_session;
+	if (op->opnum == OP_SEQUENCE)
+		return nfs_ok;
+	if (args->opcnt != 1)
+		return nfserr_not_only_op;
+	return nfs_ok;
 }
 
 /*
@@ -1018,10 +1028,14 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	resp->rqstp = rqstp;
 	resp->cstate.minorversion = args->minorversion;
 	resp->cstate.replay_owner = NULL;
+	resp->cstate.session = NULL;
 	fh_init(&resp->cstate.current_fh, NFS4_FHSIZE);
 	fh_init(&resp->cstate.save_fh, NFS4_FHSIZE);
-	/* Use the deferral mechanism only for NFSv4.0 compounds */
-	rqstp->rq_usedeferral = (args->minorversion == 0);
+	/*
+	 * Don't use the deferral mechanism for NFSv4; compounds make it
+	 * too hard to avoid non-idempotency problems.
+	 */
+	rqstp->rq_usedeferral = 0;
 
 	/*
 	 * According to RFC3010, this takes precedence over all other errors.
@@ -1030,13 +1044,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	if (args->minorversion > nfsd_supported_minorversion)
 		goto out;
 
-	if (!nfs41_op_ordering_ok(args)) {
+	status = nfs41_check_op_ordering(args);
+	if (status) {
 		op = &args->ops[0];
-		op->status = nfserr_sequence_pos;
+		op->status = status;
 		goto encode_op;
 	}
 
-	status = nfs_ok;
 	while (!status && resp->opcnt < args->opcnt) {
 		op = &args->ops[resp->opcnt++];
 
@@ -1083,13 +1097,10 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			BUG_ON(op->status == nfs_ok);
 
 encode_op:
-		/* Only from SEQUENCE or CREATE_SESSION */
+		/* Only from SEQUENCE */
 		if (resp->cstate.status == nfserr_replay_cache) {
 			dprintk("%s NFS4.1 replay from cache\n", __func__);
-			if (nfsd4_not_cached(resp))
-				status = nfsd4_enc_uncached_replay(args, resp);
-			else
-				status = op->status;
+			status = op->status;
 			goto out;
 		}
 		if (op->status == nfserr_replay_me) {
@@ -1303,6 +1314,11 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_sequence,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_SEQUENCE",
+	},
+	[OP_RECLAIM_COMPLETE] = {
+		.op_func = (nfsd4op_func)nfsd4_reclaim_complete,
+		.op_flags = ALLOWED_WITHOUT_FH,
+		.op_name = "OP_RECLAIM_COMPLETE",
 	},
 };
 

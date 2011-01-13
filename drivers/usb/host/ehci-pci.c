@@ -22,32 +22,15 @@
 #error "This file is PCI bus glue.  CONFIG_PCI must be defined."
 #endif
 
+/* defined here to avoid adding to pci_ids.h for single instance use */
+#define PCI_DEVICE_ID_INTEL_CE4100_USB	0x2e70
+
 /*-------------------------------------------------------------------------*/
 
 /* called after powerup, by probe or system-pm "wakeup" */
 static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 {
-	u32			temp;
 	int			retval;
-
-	/* optional debug port, normally in the first BAR */
-	temp = pci_find_capability(pdev, 0x0a);
-	if (temp) {
-		pci_read_config_dword(pdev, temp, &temp);
-		temp >>= 16;
-		if ((temp & (3 << 13)) == (1 << 13)) {
-			temp &= 0x1fff;
-			ehci->debug = ehci_to_hcd(ehci)->regs + temp;
-			temp = ehci_readl(ehci, &ehci->debug->control);
-			ehci_info(ehci, "debug port %d%s\n",
-				HCS_DEBUG_PORT(ehci->hcs_params),
-				(temp & DBGP_ENABLED)
-					? " IN USE"
-					: "");
-			if (!(temp & DBGP_ENABLED))
-				ehci->debug = NULL;
-		}
-	}
 
 	/* we expect static quirk code to handle the "extended capabilities"
 	 * (currently just BIOS handoff) allowed starting with EHCI 0.96
@@ -59,6 +42,35 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 		ehci_dbg(ehci, "MWI active\n");
 
 	return 0;
+}
+
+static int ehci_quirk_amd_SB800(struct ehci_hcd *ehci)
+{
+	struct pci_dev *amd_smbus_dev;
+	u8 rev = 0;
+
+	amd_smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
+	if (!amd_smbus_dev)
+		return 0;
+
+	pci_read_config_byte(amd_smbus_dev, PCI_REVISION_ID, &rev);
+	if (rev < 0x40) {
+		pci_dev_put(amd_smbus_dev);
+		amd_smbus_dev = NULL;
+		return 0;
+	}
+
+	if (!amd_nb_dev)
+		amd_nb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1510, NULL);
+	if (!amd_nb_dev)
+		ehci_err(ehci, "QUIRK: unable to get AMD NB device\n");
+
+	ehci_info(ehci, "QUIRK: Enable AMD SB800 L1 fix\n");
+
+	pci_dev_put(amd_smbus_dev);
+	amd_smbus_dev = NULL;
+
+	return 1;
 }
 
 /* called during probe() after chip reset completes */
@@ -119,9 +131,25 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
+	if (ehci_quirk_amd_SB800(ehci))
+		ehci->amd_l1_fix = 1;
+
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
+
+	if ((pdev->vendor == PCI_VENDOR_ID_AMD && pdev->device == 0x7808) ||
+	    (pdev->vendor == PCI_VENDOR_ID_ATI && pdev->device == 0x4396)) {
+		/* EHCI controller on AMD SB700/SB800/Hudson-2/3 platforms may
+		 * read/write memory space which does not belong to it when
+		 * there is NULL pointer with T-bit set to 1 in the frame list
+		 * table. To avoid the issue, the frame list link pointer
+		 * should always contain a valid pointer to a inactive qh.
+		 */
+		ehci->use_dummy_qh = 1;
+		ehci_info(ehci, "applying AMD SB700/SB800/Hudson-2/3 EHCI "
+				"dummy qh workaround\n");
+	}
 
 	/* data structure init */
 	retval = ehci_init(hcd);
@@ -129,6 +157,26 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		return retval;
 
 	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_NEC:
+		ehci->need_io_watchdog = 0;
+		break;
+	case PCI_VENDOR_ID_INTEL:
+		ehci->need_io_watchdog = 0;
+		ehci->fs_i_thresh = 1;
+		if (pdev->device == 0x27cc) {
+			ehci->broken_periodic = 1;
+			ehci_info(ehci, "using broken periodic workaround\n");
+		}
+		if (pdev->device == 0x0806 || pdev->device == 0x0811
+				|| pdev->device == 0x0829) {
+			ehci_info(ehci, "disable lpm for langwell/penwell\n");
+			ehci->has_lpm = 0;
+		}
+		if (pdev->device == PCI_DEVICE_ID_INTEL_CE4100_USB) {
+			hcd->has_tt = 1;
+			tdi_reset(ehci);
+		}
+		break;
 	case PCI_VENDOR_ID_TDI:
 		if (pdev->device == PCI_DEVICE_ID_TDI_EHCI) {
 			hcd->has_tt = 1;
@@ -151,6 +199,18 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		case 0x0068:
 			if (pdev->revision < 0xa4)
 				ehci->no_selective_suspend = 1;
+			break;
+
+		/* MCP89 chips on the MacBookAir3,1 give EPROTO when
+		 * fetching device descriptors unless LPM is disabled.
+		 * There are also intermittent problems enumerating
+		 * devices with PPCD enabled.
+		 */
+		case 0x0d9d:
+			ehci_info(ehci, "disable lpm/ppcd for nvidia mcp89");
+			ehci->has_lpm = 0;
+			ehci->has_ppcd = 0;
+			ehci->command &= ~CMD_PPCEE;
 			break;
 		}
 		break;
@@ -190,6 +250,25 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			pci_dev_put(p_smbus);
 		}
 		break;
+	}
+
+	/* optional debug port, normally in the first BAR */
+	temp = pci_find_capability(pdev, 0x0a);
+	if (temp) {
+		pci_read_config_dword(pdev, temp, &temp);
+		temp >>= 16;
+		if ((temp & (3 << 13)) == (1 << 13)) {
+			temp &= 0x1fff;
+			ehci->debug = ehci_to_hcd(ehci)->regs + temp;
+			temp = ehci_readl(ehci, &ehci->debug->control);
+			ehci_info(ehci, "debug port %d%s\n",
+				HCS_DEBUG_PORT(ehci->hcs_params),
+				(temp & DBGP_ENABLED)
+					? " IN USE"
+					: "");
+			if (!(temp & DBGP_ENABLED))
+				ehci->debug = NULL;
+		}
 	}
 
 	ehci_reset(ehci);
@@ -242,7 +321,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	 * System suspend currently expects to be able to suspend the entire
 	 * device tree, device-at-a-time.  If we failed selective suspend
 	 * reports, system suspend would fail; so the root hub code must claim
-	 * success.  That's lying to usbcore, and it matters for for runtime
+	 * success.  That's lying to usbcore, and it matters for runtime
 	 * PM scenarios with selective suspend and remote wakeup...
 	 */
 	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))
@@ -268,7 +347,7 @@ done:
  * Also they depend on separate root hub suspend/resume.
  */
 
-static int ehci_pci_suspend(struct usb_hcd *hcd)
+static int ehci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	unsigned long		flags;
@@ -278,23 +357,15 @@ static int ehci_pci_suspend(struct usb_hcd *hcd)
 		msleep(10);
 
 	/* Root hub was already suspended. Disable irq emission and
-	 * mark HW unaccessible, bail out if RH has been resumed. Use
-	 * the spinlock to properly synchronize with possible pending
-	 * RH suspend or resume activity.
-	 *
-	 * This is still racy as hcd->state is manipulated outside of
-	 * any locks =P But that will be a different fix.
+	 * mark HW unaccessible.  The PM and USB cores make sure that
+	 * the root hub is either suspended or stopped.
 	 */
 	spin_lock_irqsave (&ehci->lock, flags);
-	if (hcd->state != HC_STATE_SUSPENDED) {
-		rc = -EINVAL;
-		goto bail;
-	}
+	ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup);
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
- bail:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
 	// could save FLADJ in case of Vaux power loss
@@ -324,6 +395,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 				!hibernated) {
 		int	mask = INTR_MASK;
 
+		ehci_prepare_ports_for_controller_resume(ehci);
 		if (!hcd->self.root_hub->do_remote_wakeup)
 			mask &= ~STS_PCD;
 		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
@@ -358,6 +430,22 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	return 0;
 }
 #endif
+
+static int ehci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int rc = 0;
+
+	if (!udev->parent) /* udev is root hub itself, impossible */
+		rc = -1;
+	/* we only support lpm device connected to root hub yet */
+	if (ehci->has_lpm && !udev->parent->parent) {
+		rc = ehci_lpm_set_da(ehci, udev->devnum, udev->portnum);
+		if (!rc)
+			rc = ehci_lpm_check(ehci, udev->portnum);
+	}
+	return rc;
+}
 
 static const struct hc_driver ehci_pci_hc_driver = {
 	.description =		hcd_name,
@@ -404,6 +492,13 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	.bus_resume =		ehci_bus_resume,
 	.relinquish_port =	ehci_relinquish_port,
 	.port_handed_over =	ehci_port_handed_over,
+
+	/*
+	 * call back when device connected and addressed
+	 */
+	.update_device =	ehci_update_device,
+
+	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
 /*-------------------------------------------------------------------------*/

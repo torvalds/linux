@@ -10,6 +10,8 @@
  * more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -35,6 +37,8 @@
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("lib80211 crypt: TKIP");
 MODULE_LICENSE("GPL");
+
+#define TKIP_HDR_LEN 8
 
 struct lib80211_tkip_data {
 #define TKIP_KEY_LEN 32
@@ -97,8 +101,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API arc4\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API arc4\n"));
 		priv->tx_tfm_arc4 = NULL;
 		goto fail;
 	}
@@ -106,8 +109,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->tx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 						 CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_michael)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API michael_mic\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API michael_mic\n"));
 		priv->tx_tfm_michael = NULL;
 		goto fail;
 	}
@@ -115,8 +117,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->rx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_arc4)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API arc4\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API arc4\n"));
 		priv->rx_tfm_arc4 = NULL;
 		goto fail;
 	}
@@ -124,8 +125,7 @@ static void *lib80211_tkip_init(int key_idx)
 	priv->rx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 						 CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_michael)) {
-		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
-		       "crypto API michael_mic\n");
+		printk(KERN_DEBUG pr_fmt("could not allocate crypto API michael_mic\n"));
 		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}
@@ -314,13 +314,12 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 			      u8 * rc4key, int keylen, void *priv)
 {
 	struct lib80211_tkip_data *tkey = priv;
-	int len;
 	u8 *pos;
 	struct ieee80211_hdr *hdr;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 
-	if (skb_headroom(skb) < 8 || skb->len < hdr_len)
+	if (skb_headroom(skb) < TKIP_HDR_LEN || skb->len < hdr_len)
 		return -1;
 
 	if (rc4key == NULL || keylen < 16)
@@ -333,9 +332,8 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 	}
 	tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
 
-	len = skb->len - hdr_len;
-	pos = skb_push(skb, 8);
-	memmove(pos, pos + 8, hdr_len);
+	pos = skb_push(skb, TKIP_HDR_LEN);
+	memmove(pos, pos + TKIP_HDR_LEN, hdr_len);
 	pos += hdr_len;
 
 	*pos++ = *rc4key;
@@ -353,7 +351,7 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 		tkey->tx_iv32++;
 	}
 
-	return 8;
+	return TKIP_HDR_LEN;
 }
 
 static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
@@ -384,9 +382,8 @@ static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if ((lib80211_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
 		return -1;
 
-	icv = skb_put(skb, 4);
-
 	crc = ~crc32_le(~0, pos, len);
+	icv = skb_put(skb, 4);
 	icv[0] = crc;
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;
@@ -434,7 +431,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	if (skb->len < hdr_len + 8 + 4)
+	if (skb->len < hdr_len + TKIP_HDR_LEN + 4)
 		return -1;
 
 	pos = skb->data + hdr_len;
@@ -462,7 +459,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	iv16 = (pos[0] << 8) | pos[2];
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
-	pos += 8;
+	pos += TKIP_HDR_LEN;
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
 #ifdef CONFIG_LIB80211_DEBUG
@@ -523,8 +520,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	tkey->rx_iv16_new = iv16;
 
 	/* Remove IV and ICV */
-	memmove(skb->data + 8, skb->data, hdr_len);
-	skb_pull(skb, 8);
+	memmove(skb->data + TKIP_HDR_LEN, skb->data, hdr_len);
+	skb_pull(skb, TKIP_HDR_LEN);
 	skb_trim(skb, skb->len - 4);
 
 	return keyidx;
@@ -537,7 +534,7 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
 	struct scatterlist sg[2];
 
 	if (tfm_michael == NULL) {
-		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
+		pr_warn("%s(): tfm_michael == NULL\n", __func__);
 		return -1;
 	}
 	sg_init_table(sg, 2);
@@ -579,7 +576,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 	}
 
 	if (ieee80211_is_data_qos(hdr11->frame_control)) {
-		hdr[12] = le16_to_cpu(*ieee80211_get_qos_ctl(hdr11))
+		hdr[12] = le16_to_cpu(*((__le16 *)ieee80211_get_qos_ctl(hdr11)))
 			& IEEE80211_QOS_CTL_TID_MASK;
 	} else
 		hdr[12] = 0;		/* priority */
@@ -758,7 +755,6 @@ static struct lib80211_crypto_ops lib80211_crypt_tkip = {
 	.name = "TKIP",
 	.init = lib80211_tkip_init,
 	.deinit = lib80211_tkip_deinit,
-	.build_iv = lib80211_tkip_hdr,
 	.encrypt_mpdu = lib80211_tkip_encrypt,
 	.decrypt_mpdu = lib80211_tkip_decrypt,
 	.encrypt_msdu = lib80211_michael_mic_add,

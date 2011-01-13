@@ -30,6 +30,7 @@ typedef u64 cputime_t;
 typedef u64 cputime64_t;
 
 #define cputime_zero			((cputime_t)0)
+#define cputime_one_jiffy		jiffies_to_cputime(1)
 #define cputime_max			((~((cputime_t)0) >> 1) - 1)
 #define cputime_add(__a, __b)		((__a) +  (__b))
 #define cputime_sub(__a, __b)		((__a) -  (__b))
@@ -55,10 +56,10 @@ typedef u64 cputime64_t;
 #define jiffies64_to_cputime64(__jif)	((__jif) * (NSEC_PER_SEC / HZ))
 
 /*
- * Convert cputime <-> milliseconds
+ * Convert cputime <-> microseconds
  */
-#define cputime_to_msecs(__ct)		((__ct) / NSEC_PER_MSEC)
-#define msecs_to_cputime(__msecs)	((__msecs) * NSEC_PER_MSEC)
+#define cputime_to_usecs(__ct)		((__ct) / NSEC_PER_USEC)
+#define usecs_to_cputime(__usecs)	((__usecs) * NSEC_PER_USEC)
 
 /*
  * Convert cputime <-> seconds

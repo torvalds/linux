@@ -36,7 +36,6 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/paca.h>
-#include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/firmware.h>
@@ -58,8 +57,6 @@
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_t of_spin_map;
-
-extern void generic_secondary_smp_init(unsigned long);
 
 /**
  * smp_startup_cpu() - start the given cpu
@@ -140,31 +137,6 @@ static void __devinit smp_cell_setup_cpu(int cpu)
 	mtspr(SPRN_DABRX, DABRX_KERNEL | DABRX_USER);
 }
 
-static DEFINE_SPINLOCK(timebase_lock);
-static unsigned long timebase = 0;
-
-static void __devinit cell_give_timebase(void)
-{
-	spin_lock(&timebase_lock);
-	rtas_call(rtas_token("freeze-time-base"), 0, 1, NULL);
-	timebase = get_tb();
-	spin_unlock(&timebase_lock);
-
-	while (timebase)
-		barrier();
-	rtas_call(rtas_token("thaw-time-base"), 0, 1, NULL);
-}
-
-static void __devinit cell_take_timebase(void)
-{
-	while (!timebase)
-		barrier();
-	spin_lock(&timebase_lock);
-	set_tb(timebase >> 32, timebase & 0xffffffff);
-	timebase = 0;
-	spin_unlock(&timebase_lock);
-}
-
 static void __devinit smp_cell_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
@@ -224,8 +196,8 @@ void __init smp_init_cell(void)
 
 	/* Non-lpar has additional take/give timebase */
 	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {
-		smp_ops->give_timebase = cell_give_timebase;
-		smp_ops->take_timebase = cell_take_timebase;
+		smp_ops->give_timebase = rtas_give_timebase;
+		smp_ops->take_timebase = rtas_take_timebase;
 	}
 
 	DBG(" <- smp_init_cell()\n");

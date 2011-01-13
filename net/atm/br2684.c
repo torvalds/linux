@@ -6,6 +6,8 @@
  *          Eric Kinzie, 2006-2007, US Naval Research Laboratory
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -15,7 +17,8 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/ip.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
@@ -26,20 +29,14 @@
 
 #include "common.h"
 
-#ifdef SKB_DEBUG
 static void skb_debug(const struct sk_buff *skb)
 {
+#ifdef SKB_DEBUG
 #define NUM2PRINT 50
-	char buf[NUM2PRINT * 3 + 1];	/* 3 chars per byte */
-	int i = 0;
-	for (i = 0; i < skb->len && i < NUM2PRINT; i++) {
-		sprintf(buf + i * 3, "%2.2x ", 0xff & skb->data[i]);
-	}
-	printk(KERN_DEBUG "br2684: skb: %s\n", buf);
-}
-#else
-#define skb_debug(skb)	do {} while (0)
+	print_hex_dump(KERN_DEBUG, "br2684: skb: ", DUMP_OFFSET,
+		       16, 1, skb->data, min(NUM2PRINT, skb->len), true);
 #endif
+}
 
 #define BR2684_ETHERTYPE_LEN	2
 #define BR2684_PAD_LEN		2
@@ -68,8 +65,8 @@ struct br2684_vcc {
 	struct atm_vcc *atmvcc;
 	struct net_device *device;
 	/* keep old push, pop functions for chaining */
-	void (*old_push) (struct atm_vcc * vcc, struct sk_buff * skb);
-	/* void (*old_pop)(struct atm_vcc *vcc, struct sk_buff *skb); */
+	void (*old_push)(struct atm_vcc *vcc, struct sk_buff *skb);
+	void (*old_pop)(struct atm_vcc *vcc, struct sk_buff *skb);
 	enum br2684_encaps encaps;
 	struct list_head brvccs;
 #ifdef CONFIG_ATM_BR2684_IPFILTER
@@ -100,7 +97,7 @@ static LIST_HEAD(br2684_devs);
 
 static inline struct br2684_dev *BRPRIV(const struct net_device *net_dev)
 {
-	return (struct br2684_dev *)netdev_priv(net_dev);
+	return netdev_priv(net_dev);
 }
 
 static inline struct net_device *list_entry_brdev(const struct list_head *le)
@@ -142,6 +139,59 @@ static struct net_device *br2684_find_dev(const struct br2684_if_spec *s)
 	return NULL;
 }
 
+static int atm_dev_event(struct notifier_block *this, unsigned long event,
+		 void *arg)
+{
+	struct atm_dev *atm_dev = arg;
+	struct list_head *lh;
+	struct net_device *net_dev;
+	struct br2684_vcc *brvcc;
+	struct atm_vcc *atm_vcc;
+	unsigned long flags;
+
+	pr_debug("event=%ld dev=%p\n", event, atm_dev);
+
+	read_lock_irqsave(&devs_lock, flags);
+	list_for_each(lh, &br2684_devs) {
+		net_dev = list_entry_brdev(lh);
+
+		list_for_each_entry(brvcc, &BRPRIV(net_dev)->brvccs, brvccs) {
+			atm_vcc = brvcc->atmvcc;
+			if (atm_vcc && brvcc->atmvcc->dev == atm_dev) {
+
+				if (atm_vcc->dev->signal == ATM_PHY_SIG_LOST)
+					netif_carrier_off(net_dev);
+				else
+					netif_carrier_on(net_dev);
+
+			}
+		}
+	}
+	read_unlock_irqrestore(&devs_lock, flags);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block atm_dev_notifier = {
+	.notifier_call = atm_dev_event,
+};
+
+/* chained vcc->pop function.  Check if we should wake the netif_queue */
+static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
+{
+	struct br2684_vcc *brvcc = BR2684_VCC(vcc);
+	struct net_device *net_dev = skb->dev;
+
+	pr_debug("(vcc %p ; net_dev %p )\n", vcc, net_dev);
+	brvcc->old_pop(vcc, skb);
+
+	if (!net_dev)
+		return;
+
+	if (atm_may_send(vcc, 0))
+		netif_wake_queue(net_dev);
+
+}
 /*
  * Send a packet out a particular vcc.  Not to useful right now, but paves
  * the way for multiple vcc's per itf.  Returns true if we can send,
@@ -200,20 +250,19 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct net_device *dev,
 
 	ATM_SKB(skb)->vcc = atmvcc = brvcc->atmvcc;
 	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, atmvcc, atmvcc->dev);
-	if (!atm_may_send(atmvcc, skb->truesize)) {
-		/*
-		 * We free this here for now, because we cannot know in a higher
-		 * layer whether the skb pointer it supplied wasn't freed yet.
-		 * Now, it always is.
-		 */
-		dev_kfree_skb(skb);
-		return 0;
-	}
 	atomic_add(skb->truesize, &sk_atm(atmvcc)->sk_wmem_alloc);
 	ATM_SKB(skb)->atm_options = atmvcc->atm_options;
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 	atmvcc->send(atmvcc, skb);
+
+	if (!atm_may_send(atmvcc, 0)) {
+		netif_stop_queue(brvcc->device);
+		/*check for race with br2684_pop*/
+		if (atm_may_send(atmvcc, 0))
+			netif_start_queue(brvcc->device);
+	}
+
 	return 1;
 }
 
@@ -223,12 +272,13 @@ static inline struct br2684_vcc *pick_outgoing_vcc(const struct sk_buff *skb,
 	return list_empty(&brdev->brvccs) ? NULL : list_entry_brvcc(brdev->brvccs.next);	/* 1 vcc/dev right now */
 }
 
-static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
 
-	pr_debug("br2684_start_xmit, skb_dst(skb)=%p\n", skb_dst(skb));
+	pr_debug("skb_dst(skb)=%p\n", skb_dst(skb));
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {
@@ -238,7 +288,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* netif_stop_queue(dev); */
 		dev_kfree_skb(skb);
 		read_unlock(&devs_lock);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (!br2684_xmit_vcc(skb, dev, brvcc)) {
 		/*
@@ -252,7 +302,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_fifo_errors++;
 	}
 	read_unlock(&devs_lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -284,7 +334,8 @@ static int br2684_setfilt(struct atm_vcc *atmvcc, void __user * arg)
 		struct br2684_dev *brdev;
 		read_lock(&devs_lock);
 		brdev = BRPRIV(br2684_find_dev(&fs.ifspec));
-		if (brdev == NULL || list_empty(&brdev->brvccs) || brdev->brvccs.next != brdev->brvccs.prev)	/* >1 VCC */
+		if (brdev == NULL || list_empty(&brdev->brvccs) ||
+		    brdev->brvccs.next != brdev->brvccs.prev)	/* >1 VCC */
 			brvcc = NULL;
 		else
 			brvcc = list_entry_brvcc(brdev->brvccs.next);
@@ -336,7 +387,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	struct net_device *net_dev = brvcc->device;
 	struct br2684_dev *brdev = BRPRIV(net_dev);
 
-	pr_debug("br2684_push\n");
+	pr_debug("\n");
 
 	if (unlikely(skb == NULL)) {
 		/* skb==NULL means VCC is being destroyed */
@@ -360,29 +411,25 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			__skb_trim(skb, skb->len - 4);
 
 		/* accept packets that have "ipv[46]" in the snap header */
-		if ((skb->len >= (sizeof(llc_oui_ipv4)))
-		    &&
-		    (memcmp
-		     (skb->data, llc_oui_ipv4,
-		      sizeof(llc_oui_ipv4) - BR2684_ETHERTYPE_LEN) == 0)) {
-			if (memcmp
-			    (skb->data + 6, ethertype_ipv6,
-			     sizeof(ethertype_ipv6)) == 0)
+		if ((skb->len >= (sizeof(llc_oui_ipv4))) &&
+		    (memcmp(skb->data, llc_oui_ipv4,
+			    sizeof(llc_oui_ipv4) - BR2684_ETHERTYPE_LEN) == 0)) {
+			if (memcmp(skb->data + 6, ethertype_ipv6,
+				   sizeof(ethertype_ipv6)) == 0)
 				skb->protocol = htons(ETH_P_IPV6);
-			else if (memcmp
-				 (skb->data + 6, ethertype_ipv4,
-				  sizeof(ethertype_ipv4)) == 0)
+			else if (memcmp(skb->data + 6, ethertype_ipv4,
+					sizeof(ethertype_ipv4)) == 0)
 				skb->protocol = htons(ETH_P_IP);
 			else
 				goto error;
 			skb_pull(skb, sizeof(llc_oui_ipv4));
 			skb_reset_network_header(skb);
 			skb->pkt_type = PACKET_HOST;
-			/*
-			 * Let us waste some time for checking the encapsulation.
-			 * Note, that only 7 char is checked so frames with a valid FCS
-			 * are also accepted (but FCS is not checked of course).
-			 */
+		/*
+		 * Let us waste some time for checking the encapsulation.
+		 * Note, that only 7 char is checked so frames with a valid FCS
+		 * are also accepted (but FCS is not checked of course).
+		 */
 		} else if ((skb->len >= sizeof(llc_oui_pid_pad)) &&
 			   (memcmp(skb->data, llc_oui_pid_pad, 7) == 0)) {
 			skb_pull(skb, sizeof(llc_oui_pid_pad));
@@ -436,7 +483,6 @@ error:
 	net_dev->stats.rx_errors++;
 free_skb:
 	dev_kfree_skb(skb);
-	return;
 }
 
 /*
@@ -463,8 +509,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	write_lock_irq(&devs_lock);
 	net_dev = br2684_find_dev(&be.ifspec);
 	if (net_dev == NULL) {
-		printk(KERN_ERR
-		       "br2684: tried to attach to non-existant device\n");
+		pr_err("tried to attach to non-existant device\n");
 		err = -ENXIO;
 		goto error;
 	}
@@ -478,17 +523,16 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 		err = -EEXIST;
 		goto error;
 	}
-	if (be.fcs_in != BR2684_FCSIN_NO || be.fcs_out != BR2684_FCSOUT_NO ||
-	    be.fcs_auto || be.has_vpiid || be.send_padding || (be.encaps !=
-							       BR2684_ENCAPS_VC
-							       && be.encaps !=
-							       BR2684_ENCAPS_LLC)
-	    || be.min_size != 0) {
+	if (be.fcs_in != BR2684_FCSIN_NO ||
+	    be.fcs_out != BR2684_FCSOUT_NO ||
+	    be.fcs_auto || be.has_vpiid || be.send_padding ||
+	    (be.encaps != BR2684_ENCAPS_VC &&
+	     be.encaps != BR2684_ENCAPS_LLC) ||
+	    be.min_size != 0) {
 		err = -EINVAL;
 		goto error;
 	}
-	pr_debug("br2684_regvcc vcc=%p, encaps=%d, brvcc=%p\n", atmvcc,
-		 be.encaps, brvcc);
+	pr_debug("vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps, brvcc);
 	if (list_empty(&brdev->brvccs) && !brdev->mac_was_set) {
 		unsigned char *esi = atmvcc->dev->esi;
 		if (esi[0] | esi[1] | esi[2] | esi[3] | esi[4] | esi[5])
@@ -503,8 +547,10 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	atmvcc->user_back = brvcc;
 	brvcc->encaps = (enum br2684_encaps)be.encaps;
 	brvcc->old_push = atmvcc->push;
+	brvcc->old_pop = atmvcc->pop;
 	barrier();
 	atmvcc->push = br2684_push;
+	atmvcc->pop = br2684_pop;
 
 	__skb_queue_head_init(&queue);
 	rq = &sk_atm(atmvcc)->sk_receive_queue;
@@ -521,9 +567,17 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 
 		br2684_push(atmvcc, skb);
 	}
+
+	/* initialize netdev carrier state */
+	if (atmvcc->dev->signal == ATM_PHY_SIG_LOST)
+		netif_carrier_off(net_dev);
+	else
+		netif_carrier_on(net_dev);
+
 	__module_get(THIS_MODULE);
 	return 0;
-      error:
+
+error:
 	write_unlock_irq(&devs_lock);
 	kfree(brvcc);
 	return err;
@@ -534,6 +588,12 @@ static const struct net_device_ops br2684_netdev_ops = {
 	.ndo_set_mac_address	= br2684_mac_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
+};
+
+static const struct net_device_ops br2684_netdev_ops_routed = {
+	.ndo_start_xmit 	= br2684_start_xmit,
+	.ndo_set_mac_address	= br2684_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu
 };
 
 static void br2684_setup(struct net_device *netdev)
@@ -551,11 +611,10 @@ static void br2684_setup(struct net_device *netdev)
 static void br2684_setup_routed(struct net_device *netdev)
 {
 	struct br2684_dev *brdev = BRPRIV(netdev);
+
 	brdev->net_dev = netdev;
-
 	netdev->hard_header_len = 0;
-
-	netdev->netdev_ops = &br2684_netdev_ops;
+	netdev->netdev_ops = &br2684_netdev_ops_routed;
 	netdev->addr_len = 0;
 	netdev->mtu = 1500;
 	netdev->type = ARPHRD_PPP;
@@ -564,7 +623,7 @@ static void br2684_setup_routed(struct net_device *netdev)
 	INIT_LIST_HEAD(&brdev->brvccs);
 }
 
-static int br2684_create(void __user * arg)
+static int br2684_create(void __user *arg)
 {
 	int err;
 	struct net_device *netdev;
@@ -572,11 +631,10 @@ static int br2684_create(void __user * arg)
 	struct atm_newif_br2684 ni;
 	enum br2684_payload payload;
 
-	pr_debug("br2684_create\n");
+	pr_debug("\n");
 
-	if (copy_from_user(&ni, arg, sizeof ni)) {
+	if (copy_from_user(&ni, arg, sizeof ni))
 		return -EFAULT;
-	}
 
 	if (ni.media & BR2684_FLAG_ROUTED)
 		payload = p_routed;
@@ -584,9 +642,8 @@ static int br2684_create(void __user * arg)
 		payload = p_bridged;
 	ni.media &= 0xffff;	/* strip flags */
 
-	if (ni.media != BR2684_MEDIA_ETHERNET || ni.mtu != 1500) {
+	if (ni.media != BR2684_MEDIA_ETHERNET || ni.mtu != 1500)
 		return -EINVAL;
-	}
 
 	netdev = alloc_netdev(sizeof(struct br2684_dev),
 			      ni.ifname[0] ? ni.ifname : "nas%d",
@@ -601,15 +658,21 @@ static int br2684_create(void __user * arg)
 	/* open, stop, do_ioctl ? */
 	err = register_netdev(netdev);
 	if (err < 0) {
-		printk(KERN_ERR "br2684_create: register_netdev failed\n");
+		pr_err("register_netdev failed\n");
 		free_netdev(netdev);
 		return err;
 	}
 
 	write_lock_irq(&devs_lock);
+
 	brdev->payload = payload;
-	brdev->number = list_empty(&br2684_devs) ? 1 :
-	    BRPRIV(list_entry_brdev(br2684_devs.prev))->number + 1;
+
+	if (list_empty(&br2684_devs)) {
+		/* 1st br2684 device */
+		brdev->number = 1;
+	} else
+		brdev->number = BRPRIV(list_entry_brdev(br2684_devs.prev))->number + 1;
+
 	list_add_tail(&brdev->br2684_devs, &br2684_devs);
 	write_unlock_irq(&devs_lock);
 	return 0;
@@ -745,6 +808,7 @@ static int __init br2684_init(void)
 		return -ENOMEM;
 #endif
 	register_atm_ioctl(&br2684_ioctl_ops);
+	register_atmdevice_notifier(&atm_dev_notifier);
 	return 0;
 }
 
@@ -758,6 +822,9 @@ static void __exit br2684_exit(void)
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("br2684", atm_proc_root);
 #endif
+
+
+	unregister_atmdevice_notifier(&atm_dev_notifier);
 
 	while (!list_empty(&br2684_devs)) {
 		net_dev = list_entry_brdev(br2684_devs.next);

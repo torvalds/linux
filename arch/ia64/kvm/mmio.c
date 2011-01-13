@@ -247,7 +247,8 @@ void emulate_io_inst(struct kvm_vcpu *vcpu, u64 padr, u64 ma)
 		vcpu_get_fpreg(vcpu, inst.M9.f2, &v);
 		/* Write high word. FIXME: this is a kludge!  */
 		v.u.bits[1] &= 0x3ffff;
-		mmio_access(vcpu, padr + 8, &v.u.bits[1], 8, ma, IOREQ_WRITE);
+		mmio_access(vcpu, padr + 8, (u64 *)&v.u.bits[1], 8,
+			    ma, IOREQ_WRITE);
 		data = v.u.bits[0];
 		size = 3;
 	} else if (inst.M10.major == 7 && inst.M10.x6 == 0x3B) {
@@ -265,7 +266,8 @@ void emulate_io_inst(struct kvm_vcpu *vcpu, u64 padr, u64 ma)
 
 		/* Write high word.FIXME: this is a kludge!  */
 		v.u.bits[1] &= 0x3ffff;
-		mmio_access(vcpu, padr + 8, &v.u.bits[1], 8, ma, IOREQ_WRITE);
+		mmio_access(vcpu, padr + 8, (u64 *)&v.u.bits[1],
+			    8, ma, IOREQ_WRITE);
 		data = v.u.bits[0];
 		size = 3;
 	} else if (inst.M10.major == 7 && inst.M10.x6 == 0x31) {
@@ -314,8 +316,8 @@ void emulate_io_inst(struct kvm_vcpu *vcpu, u64 padr, u64 ma)
 		return;
 	} else {
 		inst_type = -1;
-		panic_vm(vcpu, "Unsupported MMIO access instruction! \
-				Bunld[0]=0x%lx, Bundle[1]=0x%lx\n",
+		panic_vm(vcpu, "Unsupported MMIO access instruction! "
+				"Bunld[0]=0x%lx, Bundle[1]=0x%lx\n",
 				bundle.i64[0], bundle.i64[1]);
 	}
 

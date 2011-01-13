@@ -279,7 +279,7 @@ extern struct inode *ntfs_index_iget(struct inode *base_vi, ntfschar *name,
 
 extern struct inode *ntfs_alloc_big_inode(struct super_block *sb);
 extern void ntfs_destroy_big_inode(struct inode *inode);
-extern void ntfs_clear_big_inode(struct inode *vi);
+extern void ntfs_evict_big_inode(struct inode *vi);
 
 extern void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni);
 
@@ -307,12 +307,12 @@ extern void ntfs_truncate_vfs(struct inode *vi);
 
 extern int ntfs_setattr(struct dentry *dentry, struct iattr *attr);
 
-extern int ntfs_write_inode(struct inode *vi, int sync);
+extern int __ntfs_write_inode(struct inode *vi, int sync);
 
 static inline void ntfs_commit_inode(struct inode *vi)
 {
 	if (!is_bad_inode(vi))
-		ntfs_write_inode(vi, 1);
+		__ntfs_write_inode(vi, 1);
 	return;
 }
 

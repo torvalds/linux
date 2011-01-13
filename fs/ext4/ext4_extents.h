@@ -43,8 +43,7 @@
 #define CHECK_BINSEARCH__
 
 /*
- * If EXT_DEBUG is defined you can use the 'extdebug' mount option
- * to get lots of info about what's going on.
+ * Turn on EXT_DEBUG to get lots of info about extents operations.
  */
 #define EXT_DEBUG__
 #ifdef EXT_DEBUG
@@ -120,10 +119,6 @@ struct ext4_ext_path {
  * structure for external API
  */
 
-#define EXT4_EXT_CACHE_NO	0
-#define EXT4_EXT_CACHE_GAP	1
-#define EXT4_EXT_CACHE_EXTENT	2
-
 /*
  * to be called by ext4_ext_walk_space()
  * negative retcode - error
@@ -138,6 +133,7 @@ typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
 #define EXT_BREAK      1
 #define EXT_REPEAT     2
 
+/* Maximum logical block in a file; ext4_extent's ee_block is __le32 */
 #define EXT_MAX_BLOCK	0xffffffff
 
 /*
@@ -197,7 +193,7 @@ static inline unsigned short ext_depth(struct inode *inode)
 static inline void
 ext4_ext_invalidate_cache(struct inode *inode)
 {
-	EXT4_I(inode)->i_cached_extent.ec_type = EXT4_EXT_CACHE_NO;
+	EXT4_I(inode)->i_cached_extent.ec_len = 0;
 }
 
 static inline void ext4_ext_mark_uninitialized(struct ext4_extent *ext)
@@ -220,10 +216,65 @@ static inline int ext4_ext_get_actual_len(struct ext4_extent *ext)
 		(le16_to_cpu(ext->ee_len) - EXT_INIT_MAX_LEN));
 }
 
-extern int ext4_ext_calc_metadata_amount(struct inode *inode, int blocks);
-extern ext4_fsblk_t ext_pblock(struct ext4_extent *ex);
-extern ext4_fsblk_t idx_pblock(struct ext4_extent_idx *);
-extern void ext4_ext_store_pblock(struct ext4_extent *, ext4_fsblk_t);
+static inline void ext4_ext_mark_initialized(struct ext4_extent *ext)
+{
+	ext->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ext));
+}
+
+/*
+ * ext4_ext_pblock:
+ * combine low and high parts of physical block number into ext4_fsblk_t
+ */
+static inline ext4_fsblk_t ext4_ext_pblock(struct ext4_extent *ex)
+{
+	ext4_fsblk_t block;
+
+	block = le32_to_cpu(ex->ee_start_lo);
+	block |= ((ext4_fsblk_t) le16_to_cpu(ex->ee_start_hi) << 31) << 1;
+	return block;
+}
+
+/*
+ * ext4_idx_pblock:
+ * combine low and high parts of a leaf physical block number into ext4_fsblk_t
+ */
+static inline ext4_fsblk_t ext4_idx_pblock(struct ext4_extent_idx *ix)
+{
+	ext4_fsblk_t block;
+
+	block = le32_to_cpu(ix->ei_leaf_lo);
+	block |= ((ext4_fsblk_t) le16_to_cpu(ix->ei_leaf_hi) << 31) << 1;
+	return block;
+}
+
+/*
+ * ext4_ext_store_pblock:
+ * stores a large physical block number into an extent struct,
+ * breaking it into parts
+ */
+static inline void ext4_ext_store_pblock(struct ext4_extent *ex,
+					 ext4_fsblk_t pb)
+{
+	ex->ee_start_lo = cpu_to_le32((unsigned long) (pb & 0xffffffff));
+	ex->ee_start_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) &
+				      0xffff);
+}
+
+/*
+ * ext4_idx_store_pblock:
+ * stores a large physical block number into an index struct,
+ * breaking it into parts
+ */
+static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
+					 ext4_fsblk_t pb)
+{
+	ix->ei_leaf_lo = cpu_to_le32((unsigned long) (pb & 0xffffffff));
+	ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) &
+				     0xffff);
+}
+
+extern int ext4_ext_calc_metadata_amount(struct inode *inode,
+					 ext4_lblk_t lblocks);
 extern int ext4_extent_tree_init(handle_t *, struct inode *);
 extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
 						   int num,
@@ -231,19 +282,9 @@ extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
 extern int ext4_can_extents_be_merged(struct inode *inode,
 				      struct ext4_extent *ex1,
 				      struct ext4_extent *ex2);
-extern int ext4_ext_try_to_merge(struct inode *inode,
-				 struct ext4_ext_path *path,
-				 struct ext4_extent *);
-extern unsigned int ext4_ext_check_overlap(struct inode *, struct ext4_extent *, struct ext4_ext_path *);
-extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *);
-extern int ext4_ext_walk_space(struct inode *, ext4_lblk_t, ext4_lblk_t,
-							ext_prepare_callback, void *);
+extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *, int);
 extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
 							struct ext4_ext_path *);
-extern int ext4_ext_search_left(struct inode *, struct ext4_ext_path *,
-						ext4_lblk_t *, ext4_fsblk_t *);
-extern int ext4_ext_search_right(struct inode *, struct ext4_ext_path *,
-						ext4_lblk_t *, ext4_fsblk_t *);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
 #endif /* _EXT4_EXTENTS */

@@ -1,0 +1,12 @@
+Userspace access to IIO
+
+The sysfs attributes are documented in sysfs-bus-iio.
+
+Udev will create the following entries under /dev by default:
+
+device0:buffer0:access0 - ring access chrdev
+device0:buffer0:event0 - ring event chrdev
+device0:event0 - general event chrdev.
+
+The files, lis3l02dqbuffersimple.c and iio_utils.h in this directory provide an example
+of how to use the ring buffer and event interfaces.

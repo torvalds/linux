@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <signal.h>
 
 #include <linux/genetlink.h>
@@ -116,7 +117,7 @@ error:
 }
 
 
-int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
+static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 	     __u8 genl_cmd, __u16 nla_type,
 	     void *nla_data, int nla_len)
 {
@@ -160,7 +161,7 @@ int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
  * Probe the controller in genetlink to find the family id
  * for the TASKSTATS family
  */
-int get_family_id(int sd)
+static int get_family_id(int sd)
 {
 	struct {
 		struct nlmsghdr n;
@@ -190,7 +191,7 @@ int get_family_id(int sd)
 	return id;
 }
 
-void print_delayacct(struct taskstats *t)
+static void print_delayacct(struct taskstats *t)
 {
 	printf("\n\nCPU   %15s%15s%15s%15s\n"
 	       "      %15llu%15llu%15llu%15llu\n"
@@ -216,7 +217,7 @@ void print_delayacct(struct taskstats *t)
 	       (unsigned long long)t->freepages_delay_total);
 }
 
-void task_context_switch_counts(struct taskstats *t)
+static void task_context_switch_counts(struct taskstats *t)
 {
 	printf("\n\nTask   %15s%15s\n"
 	       "       %15llu%15llu\n",
@@ -224,7 +225,7 @@ void task_context_switch_counts(struct taskstats *t)
 	       (unsigned long long)t->nvcsw, (unsigned long long)t->nivcsw);
 }
 
-void print_cgroupstats(struct cgroupstats *c)
+static void print_cgroupstats(struct cgroupstats *c)
 {
 	printf("sleeping %llu, blocked %llu, running %llu, stopped %llu, "
 		"uninterruptible %llu\n", (unsigned long long)c->nr_sleeping,
@@ -235,7 +236,7 @@ void print_cgroupstats(struct cgroupstats *c)
 }
 
 
-void print_ioacct(struct taskstats *t)
+static void print_ioacct(struct taskstats *t)
 {
 	printf("%s: read=%llu, write=%llu, cancelled_write=%llu\n",
 		t->ac_comm,
@@ -266,11 +267,13 @@ int main(int argc, char *argv[])
 	int containerset = 0;
 	char containerpath[1024];
 	int cfd = 0;
+	int forking = 0;
+	sigset_t sigset;
 
 	struct msgtemplate msg;
 
-	while (1) {
-		c = getopt(argc, argv, "qdiw:r:m:t:p:vlC:");
+	while (!forking) {
+		c = getopt(argc, argv, "qdiw:r:m:t:p:vlC:c:");
 		if (c < 0)
 			break;
 
@@ -318,6 +321,28 @@ int main(int argc, char *argv[])
 			if (!tid)
 				err(1, "Invalid pid\n");
 			cmd_type = TASKSTATS_CMD_ATTR_PID;
+			break;
+		case 'c':
+
+			/* Block SIGCHLD for sigwait() later */
+			if (sigemptyset(&sigset) == -1)
+				err(1, "Failed to empty sigset");
+			if (sigaddset(&sigset, SIGCHLD))
+				err(1, "Failed to set sigchld in sigset");
+			sigprocmask(SIG_BLOCK, &sigset, NULL);
+
+			/* fork/exec a child */
+			tid = fork();
+			if (tid < 0)
+				err(1, "Fork failed\n");
+			if (tid == 0)
+				if (execvp(argv[optind - 1],
+				    &argv[optind - 1]) < 0)
+					exit(-1);
+
+			/* Set the command type and avoid further processing */
+			cmd_type = TASKSTATS_CMD_ATTR_PID;
+			forking = 1;
 			break;
 		case 'v':
 			printf("debug on\n");
@@ -368,6 +393,15 @@ int main(int argc, char *argv[])
 	if (tid && containerset) {
 		fprintf(stderr, "Select either -t or -C, not both\n");
 		goto err;
+	}
+
+	/*
+	 * If we forked a child, wait for it to exit. Cannot use waitpid()
+	 * as all the delicious data would be reaped as part of the wait
+	 */
+	if (tid && forking) {
+		int sig_received;
+		sigwait(&sigset, &sig_received);
 	}
 
 	if (tid) {
@@ -482,6 +516,7 @@ int main(int argc, char *argv[])
 			default:
 				fprintf(stderr, "Unknown nla_type %d\n",
 					na->nla_type);
+			case TASKSTATS_TYPE_NULL:
 				break;
 			}
 			na = (struct nlattr *) (GENLMSG_DATA(&msg) + len);

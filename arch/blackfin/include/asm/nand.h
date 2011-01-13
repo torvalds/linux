@@ -1,26 +1,20 @@
-/* linux/include/asm-blackfin/nand.h
+/*
+ * BF5XX - NAND flash controller platform_device info
  *
- * Copyright (c) 2007 Analog Devices, Inc.
- *	Bryan Wu <bryan.wu@analog.com>
+ * Copyright 2007-2008 Analog Devices, Inc.
  *
- * BF5XX - NAND flash controller platfrom_device info
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Licensed under the GPL-2
  */
 
 /* struct bf5xx_nand_platform
  *
- * define a interface between platfrom board specific code and
+ * define a interface between platform board specific code and
  * bf54x NFC driver.
  *
  * nr_partitions = number of partitions pointed to be partitoons (or zero)
  * partitions	 = mtd partition list
  */
 
-#define NFC_PG_SIZE_256		0
-#define NFC_PG_SIZE_512		1
 #define NFC_PG_SIZE_OFFSET	9
 
 #define NFC_NWIDTH_8		0
@@ -34,7 +28,6 @@
 
 struct bf5xx_nand_platform {
 	/* NAND chip information */
-	unsigned short		page_size;
 	unsigned short		data_width;
 
 	/* RD/WR strobe delay timing information, all times in SCLK cycles */

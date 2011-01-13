@@ -9,6 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/buffer_head.h>
 #include "internal.h"
@@ -114,8 +115,9 @@ nomem_lookup_data:
 
 /*
  * attempt to look up the nominated node in this cache
+ * - return -ETIMEDOUT to be scheduled again
  */
-static void cachefiles_lookup_object(struct fscache_object *_object)
+static int cachefiles_lookup_object(struct fscache_object *_object)
 {
 	struct cachefiles_lookup_data *lookup_data;
 	struct cachefiles_object *parent, *object;
@@ -145,13 +147,15 @@ static void cachefiles_lookup_object(struct fscache_object *_object)
 	    object->fscache.cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX)
 		cachefiles_attr_changed(&object->fscache);
 
-	if (ret < 0) {
-		printk(KERN_WARNING "CacheFiles: Lookup failed error %d\n",
-		       ret);
+	if (ret < 0 && ret != -ETIMEDOUT) {
+		if (ret != -ENOBUFS)
+			printk(KERN_WARNING
+			       "CacheFiles: Lookup failed error %d\n", ret);
 		fscache_object_lookup_error(&object->fscache);
 	}
 
 	_leave(" [%d]", ret);
+	return ret;
 }
 
 /*
@@ -331,6 +335,7 @@ static void cachefiles_put_object(struct fscache_object *_object)
 		}
 
 		cache = object->fscache.cache;
+		fscache_object_destroy(&object->fscache);
 		kmem_cache_free(cachefiles_object_jar, object);
 		fscache_object_destroyed(cache);
 	}
@@ -403,12 +408,26 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 	if (oi_size == ni_size)
 		return 0;
 
-	newattrs.ia_size = ni_size;
-	newattrs.ia_valid = ATTR_SIZE;
-
 	cachefiles_begin_secure(cache, &saved_cred);
 	mutex_lock(&object->backer->d_inode->i_mutex);
+
+	/* if there's an extension to a partial page at the end of the backing
+	 * file, we need to discard the partial page so that we pick up new
+	 * data after it */
+	if (oi_size & ~PAGE_MASK && ni_size > oi_size) {
+		_debug("discard tail %llx", oi_size);
+		newattrs.ia_valid = ATTR_SIZE;
+		newattrs.ia_size = oi_size & PAGE_MASK;
+		ret = notify_change(object->backer, &newattrs);
+		if (ret < 0)
+			goto truncate_failed;
+	}
+
+	newattrs.ia_valid = ATTR_SIZE;
+	newattrs.ia_size = ni_size;
 	ret = notify_change(object->backer, &newattrs);
+
+truncate_failed:
 	mutex_unlock(&object->backer->d_inode->i_mutex);
 	cachefiles_end_secure(cache, saved_cred);
 

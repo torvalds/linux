@@ -246,20 +246,12 @@ static struct pci_controller ssb_pcicore_controller = {
 	.pci_ops	= &ssb_pcicore_pciops,
 	.io_resource	= &ssb_pcicore_io_resource,
 	.mem_resource	= &ssb_pcicore_mem_resource,
-	.mem_offset	= 0x24000000,
 };
-
-static u32 ssb_pcicore_pcibus_iobase = 0x100;
-static u32 ssb_pcicore_pcibus_membase = SSB_PCI_DMA;
 
 /* This function is called when doing a pci_enable_device().
  * We must first check if the device is a device on the PCI-core bridge. */
 int ssb_pcicore_plat_dev_init(struct pci_dev *d)
 {
-	struct resource *res;
-	int pos, size;
-	u32 *base;
-
 	if (d->bus->ops != &ssb_pcicore_pciops) {
 		/* This is not a device on the PCI-core bridge. */
 		return -ENODEV;
@@ -268,27 +260,6 @@ int ssb_pcicore_plat_dev_init(struct pci_dev *d)
 	ssb_printk(KERN_INFO "PCI: Fixing up device %s\n",
 		   pci_name(d));
 
-	/* Fix up resource bases */
-	for (pos = 0; pos < 6; pos++) {
-		res = &d->resource[pos];
-		if (res->flags & IORESOURCE_IO)
-			base = &ssb_pcicore_pcibus_iobase;
-		else
-			base = &ssb_pcicore_pcibus_membase;
-		res->flags |= IORESOURCE_PCI_FIXED;
-		if (res->end) {
-			size = res->end - res->start + 1;
-			if (*base & (size - 1))
-				*base = (*base + size) & ~(size - 1);
-			res->start = *base;
-			res->end = res->start + size - 1;
-			*base += size;
-			pci_write_config_dword(d, PCI_BASE_ADDRESS_0 + (pos << 2), res->start);
-		}
-		/* Fix up PCI bridge BAR0 only */
-		if (d->bus->number == 0 && PCI_SLOT(d->devfn) == 0)
-			break;
-	}
 	/* Fix up interrupt lines */
 	d->irq = ssb_mips_irq(extpci_core->dev) + 2;
 	pci_write_config_byte(d, PCI_INTERRUPT_LINE, d->irq);
@@ -551,13 +522,13 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 	might_sleep_if(pdev->id.coreid != SSB_DEV_PCI);
 
 	/* Enable interrupts for this device. */
-	if (bus->host_pci &&
-	    ((pdev->id.revision >= 6) || (pdev->id.coreid == SSB_DEV_PCIE))) {
+	if ((pdev->id.revision >= 6) || (pdev->id.coreid == SSB_DEV_PCIE)) {
 		u32 coremask;
 
 		/* Calculate the "coremask" for the device. */
 		coremask = (1 << dev->core_index);
 
+		SSB_WARN_ON(bus->bustype != SSB_BUSTYPE_PCI);
 		err = pci_read_config_dword(bus->host_pci, SSB_PCI_IRQMASK, &tmp);
 		if (err)
 			goto out;

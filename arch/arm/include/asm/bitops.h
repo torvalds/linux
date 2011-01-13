@@ -84,7 +84,7 @@ ____atomic_test_and_set_bit(unsigned int bit, volatile unsigned long *p)
 	*p = res | mask;
 	raw_local_irq_restore(flags);
 
-	return res & mask;
+	return (res & mask) != 0;
 }
 
 static inline int
@@ -101,7 +101,7 @@ ____atomic_test_and_clear_bit(unsigned int bit, volatile unsigned long *p)
 	*p = res & ~mask;
 	raw_local_irq_restore(flags);
 
-	return res & mask;
+	return (res & mask) != 0;
 }
 
 static inline int
@@ -118,7 +118,7 @@ ____atomic_test_and_change_bit(unsigned int bit, volatile unsigned long *p)
 	*p = res ^ mask;
 	raw_local_irq_restore(flags);
 
-	return res & mask;
+	return (res & mask) != 0;
 }
 
 #include <asm-generic/bitops/non-atomic.h>

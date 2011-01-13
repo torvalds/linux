@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
@@ -39,6 +40,10 @@
 #include <plat/devs.h>
 #include <plat/clock.h>
 #include <plat/pll.h>
+
+#include <plat/gpio-core.h>
+#include <plat/gpio-cfg.h>
+#include <plat/gpio-cfg-helpers.h>
 
 /* Initial IO mappings */
 
@@ -65,6 +70,9 @@ void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 void __init s3c2410_map_io(void)
 {
+	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_1up;
+	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_1up;
+
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
 }
 
@@ -105,15 +113,31 @@ void __init_or_cpufreq s3c2410_setup_clocks(void)
 	s3c24xx_setup_clocks(fclk, hclk, pclk);
 }
 
+/* fake ARMCLK for use with cpufreq, etc. */
+
+static struct clk s3c2410_armclk = {
+	.name	= "armclk",
+	.parent	= &clk_f,
+	.id	= -1,
+};
+
 void __init s3c2410_init_clocks(int xtal)
 {
 	s3c24xx_register_baseclocks(xtal);
 	s3c2410_setup_clocks();
 	s3c2410_baseclk_add();
+	s3c24xx_register_clock(&s3c2410_armclk);
 }
 
 struct sysdev_class s3c2410_sysclass = {
 	.name = "s3c2410-core",
+};
+
+/* Note, we would have liked to name this s3c2410-core, but we cannot
+ * register two sysdev_class with the same name.
+ */
+struct sysdev_class s3c2410a_sysclass = {
+	.name = "s3c2410a-core",
 };
 
 static struct sys_device s3c2410_sysdev = {
@@ -133,9 +157,22 @@ static int __init s3c2410_core_init(void)
 
 core_initcall(s3c2410_core_init);
 
+static int __init s3c2410a_core_init(void)
+{
+	return sysdev_class_register(&s3c2410a_sysclass);
+}
+
+core_initcall(s3c2410a_core_init);
+
 int __init s3c2410_init(void)
 {
 	printk("S3C2410: Initialising architecture\n");
 
 	return sysdev_register(&s3c2410_sysdev);
+}
+
+int __init s3c2410a_init(void)
+{
+	s3c2410_sysdev.cls = &s3c2410a_sysclass;
+	return s3c2410_init();
 }

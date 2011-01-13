@@ -98,6 +98,7 @@ struct vbios_data {
 #define BDB_SDVO_LVDS_PNP_IDS	 24
 #define BDB_SDVO_LVDS_POWER_SEQ	 25
 #define BDB_TV_OPTIONS		 26
+#define BDB_EDP			 27
 #define BDB_LVDS_OPTIONS	 40
 #define BDB_LVDS_LFP_DATA_PTRS	 41
 #define BDB_LVDS_LFP_DATA	 42
@@ -196,7 +197,8 @@ struct bdb_general_features {
 struct child_device_config {
 	u16 handle;
 	u16 device_type;
-	u8  device_id[10]; /* See DEVICE_TYPE_* above */
+	u8  i2c_speed;
+	u8  rsvd[9];
 	u16 addin_offset;
 	u8  dvo_port; /* See Device_PORT_* above */
 	u8  i2c_pin;
@@ -381,7 +383,92 @@ struct bdb_sdvo_lvds_options {
 } __attribute__((packed));
 
 
-bool intel_init_bios(struct drm_device *dev);
+#define BDB_DRIVER_FEATURE_NO_LVDS		0
+#define BDB_DRIVER_FEATURE_INT_LVDS		1
+#define BDB_DRIVER_FEATURE_SDVO_LVDS		2
+#define BDB_DRIVER_FEATURE_EDP			3
+
+struct bdb_driver_features {
+	u8 boot_dev_algorithm:1;
+	u8 block_display_switch:1;
+	u8 allow_display_switch:1;
+	u8 hotplug_dvo:1;
+	u8 dual_view_zoom:1;
+	u8 int15h_hook:1;
+	u8 sprite_in_clone:1;
+	u8 primary_lfp_id:1;
+
+	u16 boot_mode_x;
+	u16 boot_mode_y;
+	u8 boot_mode_bpp;
+	u8 boot_mode_refresh;
+
+	u16 enable_lfp_primary:1;
+	u16 selective_mode_pruning:1;
+	u16 dual_frequency:1;
+	u16 render_clock_freq:1; /* 0: high freq; 1: low freq */
+	u16 nt_clone_support:1;
+	u16 power_scheme_ui:1; /* 0: CUI; 1: 3rd party */
+	u16 sprite_display_assign:1; /* 0: secondary; 1: primary */
+	u16 cui_aspect_scaling:1;
+	u16 preserve_aspect_ratio:1;
+	u16 sdvo_device_power_down:1;
+	u16 crt_hotplug:1;
+	u16 lvds_config:2;
+	u16 tv_hotplug:1;
+	u16 hdmi_config:2;
+
+	u8 static_display:1;
+	u8 reserved2:7;
+	u16 legacy_crt_max_x;
+	u16 legacy_crt_max_y;
+	u8 legacy_crt_max_refresh;
+
+	u8 hdmi_termination;
+	u8 custom_vbt_version;
+} __attribute__((packed));
+
+#define EDP_18BPP	0
+#define EDP_24BPP	1
+#define EDP_30BPP	2
+#define EDP_RATE_1_62	0
+#define EDP_RATE_2_7	1
+#define EDP_LANE_1	0
+#define EDP_LANE_2	1
+#define EDP_LANE_4	3
+#define EDP_PREEMPHASIS_NONE	0
+#define EDP_PREEMPHASIS_3_5dB	1
+#define EDP_PREEMPHASIS_6dB	2
+#define EDP_PREEMPHASIS_9_5dB	3
+#define EDP_VSWING_0_4V		0
+#define EDP_VSWING_0_6V		1
+#define EDP_VSWING_0_8V		2
+#define EDP_VSWING_1_2V		3
+
+struct edp_power_seq {
+	u16 t3;
+	u16 t7;
+	u16 t9;
+	u16 t10;
+	u16 t12;
+} __attribute__ ((packed));
+
+struct edp_link_params {
+	u8 rate:4;
+	u8 lanes:4;
+	u8 preemphasis:4;
+	u8 vswing:4;
+} __attribute__ ((packed));
+
+struct bdb_edp {
+	struct edp_power_seq power_seqs[16];
+	u32 color_depth;
+	u32 sdrrs_msa_timing_delay;
+	struct edp_link_params link_params[16];
+} __attribute__ ((packed));
+
+void intel_setup_bios(struct drm_device *dev);
+bool intel_parse_bios(struct drm_device *dev);
 
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in
@@ -503,5 +590,22 @@ bool intel_init_bios(struct drm_device *dev);
 #define   SWF14_APM_SUSPEND	0x3
 #define   SWF14_APM_STANDBY	0x1
 #define   SWF14_APM_RESTORE	0x0
+
+/* Add the device class for LFP, TV, HDMI */
+#define	 DEVICE_TYPE_INT_LFP	0x1022
+#define	 DEVICE_TYPE_INT_TV	0x1009
+#define	 DEVICE_TYPE_HDMI	0x60D2
+#define	 DEVICE_TYPE_DP		0x68C6
+#define	 DEVICE_TYPE_eDP	0x78C6
+
+/* define the DVO port for HDMI output type */
+#define		DVO_B		1
+#define		DVO_C		2
+#define		DVO_D		3
+
+/* define the PORT for DP output type */
+#define		PORT_IDPB	7
+#define		PORT_IDPC	8
+#define		PORT_IDPD	9
 
 #endif /* _I830_BIOS_H_ */

@@ -21,6 +21,7 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 
 #include "attrib.h"
@@ -384,13 +385,12 @@ unm_err_out:
  * it is dirty in the inode meta data rather than the data page cache of the
  * inode, and thus there are no data pages that need writing out.  Therefore, a
  * full mark_inode_dirty() is overkill.  A mark_inode_dirty_sync(), on the
- * other hand, is not sufficient, because I_DIRTY_DATASYNC needs to be set to
- * ensure ->write_inode is called from generic_osync_inode() and this needs to
- * happen or the file data would not necessarily hit the device synchronously,
- * even though the vfs inode has the O_SYNC flag set.  Also, I_DIRTY_DATASYNC
- * simply "feels" better than just I_DIRTY_SYNC, since the file data has not
- * actually hit the block device yet, which is not what I_DIRTY_SYNC on its own
- * would suggest.
+ * other hand, is not sufficient, because ->write_inode needs to be called even
+ * in case of fdatasync. This needs to happen or the file data would not
+ * necessarily hit the device synchronously, even though the vfs inode has the
+ * O_SYNC flag set.  Also, I_DIRTY_DATASYNC simply "feels" better than just
+ * I_DIRTY_SYNC, since the file data has not actually hit the block device yet,
+ * which is not what I_DIRTY_SYNC on its own would suggest.
  */
 void __mark_mft_record_dirty(ntfs_inode *ni)
 {

@@ -453,8 +453,7 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 static void digi_write_bulk_callback(struct urb *urb);
 static int digi_write_room(struct tty_struct *tty);
 static int digi_chars_in_buffer(struct tty_struct *tty);
-static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
-	struct file *filp);
+static int digi_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void digi_close(struct usb_serial_port *port);
 static int digi_carrier_raised(struct usb_serial_port *port);
 static void digi_dtr_rts(struct usb_serial_port *port, int on);
@@ -471,18 +470,18 @@ static int digi_read_oob_callback(struct urb *urb);
 
 static int debug;
 
-static struct usb_device_id id_table_combined [] = {
+static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(DIGI_VENDOR_ID, DIGI_2_ID) },
 	{ USB_DEVICE(DIGI_VENDOR_ID, DIGI_4_ID) },
 	{ }						/* Terminating entry */
 };
 
-static struct usb_device_id id_table_2 [] = {
+static const struct usb_device_id id_table_2[] = {
 	{ USB_DEVICE(DIGI_VENDOR_ID, DIGI_2_ID) },
 	{ }						/* Terminating entry */
 };
 
-static struct usb_device_id id_table_4 [] = {
+static const struct usb_device_id id_table_4[] = {
 	{ USB_DEVICE(DIGI_VENDOR_ID, DIGI_4_ID) },
 	{ }						/* Terminating entry */
 };
@@ -610,8 +609,10 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 static void digi_wakeup_write(struct usb_serial_port *port)
 {
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
-	tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
 }
 
 
@@ -899,15 +900,15 @@ static void digi_rx_unthrottle(struct tty_struct *tty)
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
-	/* turn throttle off */
-	priv->dp_throttled = 0;
-	priv->dp_throttle_restart = 0;
-
 	/* restart read chain */
 	if (priv->dp_throttle_restart) {
 		port->read_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	}
+
+	/* turn throttle off */
+	priv->dp_throttled = 0;
+	priv->dp_throttle_restart = 0;
 
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 
@@ -1240,8 +1241,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	/* port and serial sanity check */
 	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
-		dev_err(&port->dev,
-			"%s: port or port->private is NULL, status=%d\n",
+		pr_err("%s: port or port->private is NULL, status=%d\n",
 			__func__, status);
 		return;
 	}
@@ -1263,10 +1263,10 @@ static void digi_write_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	/* try to send any buffered data on this port, if it is open */
+	/* try to send any buffered data on this port */
 	spin_lock(&priv->dp_port_lock);
 	priv->dp_write_urb_in_use = 0;
-	if (port->port.count && priv->dp_out_buf_len > 0) {
+	if (priv->dp_out_buf_len > 0) {
 		*((unsigned char *)(port->write_urb->transfer_buffer))
 			= (unsigned char)DIGI_CMD_SEND_DATA;
 		*((unsigned char *)(port->write_urb->transfer_buffer) + 1)
@@ -1289,7 +1289,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 	schedule_work(&priv->dp_wakeup_work);
 
 	spin_unlock(&priv->dp_port_lock);
-	if (ret)
+	if (ret && ret != -EPERM)
 		dev_err(&port->dev,
 			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
@@ -1347,16 +1347,14 @@ static int digi_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int digi_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int ret;
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	struct ktermios not_termios;
 
-	dbg("digi_open: TOP: port=%d, open_count=%d",
-		priv->dp_port_num, port->port.count);
+	dbg("digi_open: TOP: port=%d", priv->dp_port_num);
 
 	/* be sure the device is started up */
 	if (digi_startup_device(port->serial) != 0)
@@ -1395,8 +1393,7 @@ static void digi_close(struct usb_serial_port *port)
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
 
-	dbg("digi_close: TOP: port=%d, open_count=%d",
-		priv->dp_port_num, port->port.count);
+	dbg("digi_close: TOP: port=%d", priv->dp_port_num);
 
 	mutex_lock(&port->serial->disc_mutex);
 	/* if disconnected, just clear flags */
@@ -1631,7 +1628,7 @@ static void digi_read_bulk_callback(struct urb *urb)
 	/* continue read */
 	urb->dev = port->serial->dev;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret != 0) {
+	if (ret != 0 && ret != -EPERM) {
 		dev_err(&port->dev,
 			"%s: failed resubmitting urb, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
@@ -1660,12 +1657,11 @@ static int digi_read_inb_callback(struct urb *urb)
 	int port_status = ((unsigned char *)urb->transfer_buffer)[2];
 	unsigned char *data = ((unsigned char *)urb->transfer_buffer) + 3;
 	int flag, throttled;
-	int i;
 	int status = urb->status;
 
 	/* do not process callbacks on closed ports */
 	/* but do continue the read chain */
-	if (port->port.count == 0)
+	if (urb->status == -ENOENT)
 		return 0;
 
 	/* short/multiple packet check */
@@ -1688,7 +1684,7 @@ static int digi_read_inb_callback(struct urb *urb)
 		priv->dp_throttle_restart = 1;
 
 	/* receive data */
-	if (opcode == DIGI_CMD_RECEIVE_DATA) {
+	if (tty && opcode == DIGI_CMD_RECEIVE_DATA) {
 		/* get flag from port_status */
 		flag = 0;
 
@@ -1707,17 +1703,9 @@ static int digi_read_inb_callback(struct urb *urb)
 
 		/* data length is len-1 (one byte of len is port_status) */
 		--len;
-
-		len = tty_buffer_request_room(tty, len);
 		if (len > 0) {
-			/* Hot path */
-			if (flag == TTY_NORMAL)
-				tty_insert_flip_string(tty, data, len);
-			else {
-				for (i = 0; i < len; i++)
-					tty_insert_flip_char(tty,
-								data[i], flag);
-			}
+			tty_insert_flip_string_fixed_flag(tty, data, flag,
+									len);
 			tty_flip_buffer_push(tty);
 		}
 	}
@@ -1777,11 +1765,12 @@ static int digi_read_oob_callback(struct urb *urb)
 			return -1;
 
 		tty = tty_port_tty_get(&port->port);
+
 		rts = 0;
-		if (port->port.count)
+		if (tty)
 			rts = tty->termios->c_cflag & CRTSCTS;
 		
-		if (opcode == DIGI_CMD_READ_INPUT_SIGNALS) {
+		if (tty && opcode == DIGI_CMD_READ_INPUT_SIGNALS) {
 			spin_lock(&priv->dp_port_lock);
 			/* convert from digi flags to termiox flags */
 			if (val & DIGI_READ_INPUT_SIGNALS_CTS) {

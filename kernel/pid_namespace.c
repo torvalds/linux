@@ -13,6 +13,7 @@
 #include <linux/syscalls.h>
 #include <linux/err.h>
 #include <linux/acct.h>
+#include <linux/slab.h>
 
 #define BITS_PER_PAGE		(PAGE_SIZE*8)
 
@@ -118,7 +119,7 @@ struct pid_namespace *copy_pid_ns(unsigned long flags, struct pid_namespace *old
 {
 	if (!(flags & CLONE_NEWPID))
 		return get_pid_ns(old_ns);
-	if (flags & CLONE_THREAD)
+	if (flags & (CLONE_THREAD|CLONE_PARENT))
 		return ERR_PTR(-EINVAL);
 	return create_pid_namespace(old_ns);
 }
@@ -161,13 +162,12 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 		rcu_read_lock();
 
 		/*
-		 * Use force_sig() since it clears SIGNAL_UNKILLABLE ensuring
-		 * any nested-container's init processes don't ignore the
-		 * signal
+		 * Any nested-container's init processes won't ignore the
+		 * SEND_SIG_NOINFO signal, see send_signal()->si_fromuser().
 		 */
 		task = pid_task(find_vpid(nr), PIDTYPE_PID);
 		if (task)
-			force_sig(SIGKILL, task);
+			send_sig_info(SIGKILL, SEND_SIG_NOINFO, task);
 
 		rcu_read_unlock();
 

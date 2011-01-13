@@ -47,9 +47,8 @@ static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->chipset = chipset;
 	ret = drm_sman_init(&dev_priv->sman, 2, 12, 8);
-	if (ret) {
+	if (ret)
 		kfree(dev_priv);
-	}
 
 	return ret;
 }
@@ -68,22 +67,20 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_USE_AGP | DRIVER_USE_MTRR,
 	.load = sis_driver_load,
 	.unload = sis_driver_unload,
-	.context_dtor = NULL,
 	.dma_quiescent = sis_idle,
 	.reclaim_buffers = NULL,
 	.reclaim_buffers_idlelocked = sis_reclaim_buffers_locked,
 	.lastclose = sis_lastclose,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = sis_ioctls,
 	.fops = {
 		 .owner = THIS_MODULE,
 		 .open = drm_open,
 		 .release = drm_release,
-		 .ioctl = drm_ioctl,
+		 .unlocked_ioctl = drm_ioctl,
 		 .mmap = drm_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .llseek = noop_llseek,
 	},
 	.pci_driver = {
 		 .name = DRIVER_NAME,

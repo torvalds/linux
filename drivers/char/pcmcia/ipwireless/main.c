@@ -32,7 +32,6 @@
 #include <pcmcia/device_id.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/cs.h>
 
 static struct pcmcia_device_id ipw_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x02f2, 0x0100),
@@ -65,10 +64,7 @@ static void signalled_reboot_work(struct work_struct *work_reboot)
 	struct ipw_dev *ipw = container_of(work_reboot, struct ipw_dev,
 			work_reboot);
 	struct pcmcia_device *link = ipw->link;
-	int ret = pcmcia_reset_card(link->socket);
-
-	if (ret != 0)
-		cs_error(link, ResetCard, ret);
+	pcmcia_reset_card(link->socket);
 }
 
 static void signalled_reboot_callback(void *callback_data)
@@ -79,249 +75,120 @@ static void signalled_reboot_callback(void *callback_data)
 	schedule_work(&ipw->work_reboot);
 }
 
-static int config_ipwireless(struct ipw_dev *ipw)
+static int ipwireless_probe(struct pcmcia_device *p_dev, void *priv_data)
 {
-	struct pcmcia_device *link = ipw->link;
+	struct ipw_dev *ipw = priv_data;
+	struct resource *io_resource;
 	int ret;
-	tuple_t tuple;
-	unsigned short buf[64];
-	cisparse_t parse;
-	unsigned short cor_value;
-	memreq_t memreq_attr_memory;
-	memreq_t memreq_common_memory;
 
-	ipw->is_v2_card = 0;
-
-	tuple.Attributes = 0;
-	tuple.TupleData = (cisdata_t *) buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-
-	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
-
-	ret = pcmcia_get_first_tuple(link, &tuple);
-
-	while (ret == 0) {
-		ret = pcmcia_get_tuple_data(link, &tuple);
-
-		if (ret != 0) {
-			cs_error(link, GetTupleData, ret);
-			goto exit0;
-		}
-		ret = pcmcia_get_next_tuple(link, &tuple);
-	}
-
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-
-	ret = pcmcia_get_first_tuple(link, &tuple);
-
-	if (ret != 0) {
-		cs_error(link, GetFirstTuple, ret);
-		goto exit0;
-	}
-
-	ret = pcmcia_get_tuple_data(link, &tuple);
-
-	if (ret != 0) {
-		cs_error(link, GetTupleData, ret);
-		goto exit0;
-	}
-
-	ret = pcmcia_parse_tuple(&tuple, &parse);
-
-	if (ret != 0) {
-		cs_error(link, ParseTuple, ret);
-		goto exit0;
-	}
-
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
-	link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
-	link->io.IOAddrLines = 16;
-
-	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
 	/* 0x40 causes it to generate level mode interrupts. */
 	/* 0x04 enables IREQ pin. */
-	cor_value = parse.cftable_entry.index | 0x44;
-	link->conf.ConfigIndex = cor_value;
+	p_dev->config_index |= 0x44;
+	p_dev->io_lines = 16;
+	ret = pcmcia_request_io(p_dev);
+	if (ret)
+		return ret;
 
-	/* IRQ and I/O settings */
-	tuple.DesiredTuple = CISTPL_CONFIG;
+	io_resource = request_region(p_dev->resource[0]->start,
+				resource_size(p_dev->resource[0]),
+				IPWIRELESS_PCCARD_NAME);
 
-	ret = pcmcia_get_first_tuple(link, &tuple);
+	p_dev->resource[2]->flags |=
+		WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM | WIN_ENABLE;
 
-	if (ret != 0) {
-		cs_error(link, GetFirstTuple, ret);
-		goto exit0;
-	}
+	ret = pcmcia_request_window(p_dev, p_dev->resource[2], 0);
+	if (ret != 0)
+		goto exit1;
 
-	ret = pcmcia_get_tuple_data(link, &tuple);
+	ret = pcmcia_map_mem_page(p_dev, p_dev->resource[2], p_dev->card_addr);
+	if (ret != 0)
+		goto exit2;
 
-	if (ret != 0) {
-		cs_error(link, GetTupleData, ret);
-		goto exit0;
-	}
+	ipw->is_v2_card = resource_size(p_dev->resource[2]) == 0x100;
 
-	ret = pcmcia_parse_tuple(&tuple, &parse);
-
-	if (ret != 0) {
-		cs_error(link, GetTupleData, ret);
-		goto exit0;
-	}
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.Handler = ipwireless_interrupt;
-	link->irq.Instance = ipw->hardware;
-
-	ret = pcmcia_request_io(link, &link->io);
-
-	if (ret != 0) {
-		cs_error(link, RequestIO, ret);
-		goto exit0;
-	}
-
-	request_region(link->io.BasePort1, link->io.NumPorts1,
+	ipw->attr_memory = ioremap(p_dev->resource[2]->start,
+				resource_size(p_dev->resource[2]));
+	request_mem_region(p_dev->resource[2]->start,
+			resource_size(p_dev->resource[2]),
 			IPWIRELESS_PCCARD_NAME);
 
-	/* memory settings */
+	p_dev->resource[3]->flags |= WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_AM |
+					WIN_ENABLE;
+	p_dev->resource[3]->end = 0; /* this used to be 0x1000 */
+	ret = pcmcia_request_window(p_dev, p_dev->resource[3], 0);
+	if (ret != 0)
+		goto exit2;
 
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+	ret = pcmcia_map_mem_page(p_dev, p_dev->resource[3], 0);
+	if (ret != 0)
+		goto exit3;
 
-	ret = pcmcia_get_first_tuple(link, &tuple);
+	ipw->attr_memory = ioremap(p_dev->resource[3]->start,
+				resource_size(p_dev->resource[3]));
+	request_mem_region(p_dev->resource[3]->start,
+			resource_size(p_dev->resource[3]),
+			IPWIRELESS_PCCARD_NAME);
 
-	if (ret != 0) {
-		cs_error(link, GetFirstTuple, ret);
-		goto exit1;
+	return 0;
+
+exit3:
+exit2:
+	if (ipw->common_memory) {
+		release_mem_region(p_dev->resource[2]->start,
+				resource_size(p_dev->resource[2]));
+		iounmap(ipw->common_memory);
 	}
+exit1:
+	release_resource(io_resource);
+	pcmcia_disable_device(p_dev);
+	return -1;
+}
 
-	ret = pcmcia_get_tuple_data(link, &tuple);
+static int config_ipwireless(struct ipw_dev *ipw)
+{
+	struct pcmcia_device *link = ipw->link;
+	int ret = 0;
 
-	if (ret != 0) {
-		cs_error(link, GetTupleData, ret);
-		goto exit1;
-	}
+	ipw->is_v2_card = 0;
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_AUTO_SET_IOMEM |
+		CONF_ENABLE_IRQ;
 
-	ret = pcmcia_parse_tuple(&tuple, &parse);
-
-	if (ret != 0) {
-		cs_error(link, ParseTuple, ret);
-		goto exit1;
-	}
-
-	if (parse.cftable_entry.mem.nwin > 0) {
-		ipw->request_common_memory.Attributes =
-			WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM | WIN_ENABLE;
-		ipw->request_common_memory.Base =
-			parse.cftable_entry.mem.win[0].host_addr;
-		ipw->request_common_memory.Size = parse.cftable_entry.mem.win[0].len;
-		if (ipw->request_common_memory.Size < 0x1000)
-			ipw->request_common_memory.Size = 0x1000;
-		ipw->request_common_memory.AccessSpeed = 0;
-
-		ret = pcmcia_request_window(&link, &ipw->request_common_memory,
-				&ipw->handle_common_memory);
-
-		if (ret != 0) {
-			cs_error(link, RequestWindow, ret);
-			goto exit1;
-		}
-
-		memreq_common_memory.CardOffset =
-			parse.cftable_entry.mem.win[0].card_addr;
-		memreq_common_memory.Page = 0;
-
-		ret = pcmcia_map_mem_page(ipw->handle_common_memory,
-				&memreq_common_memory);
-
-		if (ret != 0) {
-			cs_error(link, MapMemPage, ret);
-			goto exit1;
-		}
-
-		ipw->is_v2_card =
-			parse.cftable_entry.mem.win[0].len == 0x100;
-
-		ipw->common_memory = ioremap(ipw->request_common_memory.Base,
-				ipw->request_common_memory.Size);
-		request_mem_region(ipw->request_common_memory.Base,
-				ipw->request_common_memory.Size, IPWIRELESS_PCCARD_NAME);
-
-		ipw->request_attr_memory.Attributes =
-			WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_AM | WIN_ENABLE;
-		ipw->request_attr_memory.Base = 0;
-		ipw->request_attr_memory.Size = 0;	/* this used to be 0x1000 */
-		ipw->request_attr_memory.AccessSpeed = 0;
-
-		ret = pcmcia_request_window(&link, &ipw->request_attr_memory,
-				&ipw->handle_attr_memory);
-
-		if (ret != 0) {
-			cs_error(link, RequestWindow, ret);
-			goto exit2;
-		}
-
-		memreq_attr_memory.CardOffset = 0;
-		memreq_attr_memory.Page = 0;
-
-		ret = pcmcia_map_mem_page(ipw->handle_attr_memory,
-				&memreq_attr_memory);
-
-		if (ret != 0) {
-			cs_error(link, MapMemPage, ret);
-			goto exit2;
-		}
-
-		ipw->attr_memory = ioremap(ipw->request_attr_memory.Base,
-				ipw->request_attr_memory.Size);
-		request_mem_region(ipw->request_attr_memory.Base, ipw->request_attr_memory.Size,
-				IPWIRELESS_PCCARD_NAME);
-	}
+	ret = pcmcia_loop_config(link, ipwireless_probe, ipw);
+	if (ret != 0)
+		return ret;
 
 	INIT_WORK(&ipw->work_reboot, signalled_reboot_work);
 
-	ipwireless_init_hardware_v1(ipw->hardware, link->io.BasePort1,
+	ipwireless_init_hardware_v1(ipw->hardware, link->resource[0]->start,
 				    ipw->attr_memory, ipw->common_memory,
 				    ipw->is_v2_card, signalled_reboot_callback,
 				    ipw);
 
-	ret = pcmcia_request_irq(link, &link->irq);
-
-	if (ret != 0) {
-		cs_error(link, RequestIRQ, ret);
-		goto exit3;
-	}
+	ret = pcmcia_request_irq(link, ipwireless_interrupt);
+	if (ret != 0)
+		goto exit;
 
 	printk(KERN_INFO IPWIRELESS_PCCARD_NAME ": Card type %s\n",
 			ipw->is_v2_card ? "V2/V3" : "V1");
 	printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			": I/O ports 0x%04x-0x%04x, irq %d\n",
-			(unsigned int) link->io.BasePort1,
-			(unsigned int) (link->io.BasePort1 +
-				link->io.NumPorts1 - 1),
-			(unsigned int) link->irq.AssignedIRQ);
+		": I/O ports %pR, irq %d\n", link->resource[0],
+			(unsigned int) link->irq);
 	if (ipw->attr_memory && ipw->common_memory)
 		printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			": attr memory 0x%08lx-0x%08lx, common memory 0x%08lx-0x%08lx\n",
-			ipw->request_attr_memory.Base,
-			ipw->request_attr_memory.Base
-			+ ipw->request_attr_memory.Size - 1,
-			ipw->request_common_memory.Base,
-			ipw->request_common_memory.Base
-			+ ipw->request_common_memory.Size - 1);
+			": attr memory %pR, common memory %pR\n",
+			link->resource[3],
+			link->resource[2]);
 
 	ipw->network = ipwireless_network_create(ipw->hardware);
 	if (!ipw->network)
-		goto exit3;
+		goto exit;
 
-	ipw->tty = ipwireless_tty_create(ipw->hardware, ipw->network,
-			ipw->nodes);
+	ipw->tty = ipwireless_tty_create(ipw->hardware, ipw->network);
 	if (!ipw->tty)
-		goto exit3;
+		goto exit;
 
 	ipwireless_init_hardware_v2_v3(ipw->hardware);
 
@@ -329,60 +196,39 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	 * Do the RequestConfiguration last, because it enables interrupts.
 	 * Then we don't get any interrupts before we're ready for them.
 	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
-
-	if (ret != 0) {
-		cs_error(link, RequestConfiguration, ret);
-		goto exit4;
-	}
-
-	link->dev_node = &ipw->nodes[0];
+	ret = pcmcia_enable_device(link);
+	if (ret != 0)
+		goto exit;
 
 	return 0;
 
-exit4:
-	pcmcia_disable_device(link);
-exit3:
-	if (ipw->attr_memory) {
-		release_mem_region(ipw->request_attr_memory.Base,
-				ipw->request_attr_memory.Size);
-		iounmap(ipw->attr_memory);
-		pcmcia_release_window(ipw->handle_attr_memory);
-		pcmcia_disable_device(link);
-	}
-exit2:
+exit:
 	if (ipw->common_memory) {
-		release_mem_region(ipw->request_common_memory.Base,
-				ipw->request_common_memory.Size);
+		release_mem_region(link->resource[2]->start,
+				resource_size(link->resource[2]));
 		iounmap(ipw->common_memory);
-		pcmcia_release_window(ipw->handle_common_memory);
 	}
-exit1:
+	if (ipw->attr_memory) {
+		release_mem_region(link->resource[3]->start,
+				resource_size(link->resource[3]));
+		iounmap(ipw->attr_memory);
+	}
 	pcmcia_disable_device(link);
-exit0:
 	return -1;
 }
 
 static void release_ipwireless(struct ipw_dev *ipw)
 {
-	pcmcia_disable_device(ipw->link);
-
 	if (ipw->common_memory) {
-		release_mem_region(ipw->request_common_memory.Base,
-				ipw->request_common_memory.Size);
+		release_mem_region(ipw->link->resource[2]->start,
+				resource_size(ipw->link->resource[2]));
 		iounmap(ipw->common_memory);
 	}
 	if (ipw->attr_memory) {
-		release_mem_region(ipw->request_attr_memory.Base,
-				ipw->request_attr_memory.Size);
+		release_mem_region(ipw->link->resource[3]->start,
+				resource_size(ipw->link->resource[3]));
 		iounmap(ipw->attr_memory);
 	}
-	if (ipw->common_memory)
-		pcmcia_release_window(ipw->handle_common_memory);
-	if (ipw->attr_memory)
-		pcmcia_release_window(ipw->handle_attr_memory);
-
-	/* Break the link with Card Services */
 	pcmcia_disable_device(ipw->link);
 }
 
@@ -406,10 +252,6 @@ static int ipwireless_attach(struct pcmcia_device *link)
 
 	ipw->link = link;
 	link->priv = ipw;
-	link->irq.Instance = ipw;
-
-	/* Link this device into our device list. */
-	link->dev_node = &ipw->nodes[0];
 
 	ipw->hardware = ipwireless_hardware_create();
 	if (!ipw->hardware) {
@@ -421,7 +263,6 @@ static int ipwireless_attach(struct pcmcia_device *link)
 	ret = config_ipwireless(ipw);
 
 	if (ret != 0) {
-		cs_error(link, RegisterClient, ret);
 		ipwireless_detach(link);
 		return ret;
 	}
@@ -454,7 +295,7 @@ static struct pcmcia_driver me = {
 	.owner		= THIS_MODULE,
 	.probe          = ipwireless_attach,
 	.remove         = ipwireless_detach,
-	.drv = { .name  = IPWIRELESS_PCCARD_NAME },
+	.name		= IPWIRELESS_PCCARD_NAME,
 	.id_table       = ipw_ids
 };
 
@@ -465,9 +306,6 @@ static struct pcmcia_driver me = {
 static int __init init_ipwireless(void)
 {
 	int ret;
-
-	printk(KERN_INFO IPWIRELESS_PCCARD_NAME " "
-	       IPWIRELESS_PCMCIA_VERSION " by " IPWIRELESS_PCMCIA_AUTHOR "\n");
 
 	ret = ipwireless_tty_init();
 	if (ret != 0)
@@ -485,9 +323,6 @@ static int __init init_ipwireless(void)
  */
 static void __exit exit_ipwireless(void)
 {
-	printk(KERN_INFO IPWIRELESS_PCCARD_NAME " "
-			IPWIRELESS_PCMCIA_VERSION " removed\n");
-
 	pcmcia_unregister_driver(&me);
 	ipwireless_tty_release();
 }

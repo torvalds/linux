@@ -48,11 +48,10 @@
 #include "umac.h"
 #include "lmac.h"
 #include "eeprom.h"
+#include "trace.h"
 
 #define IWM_COPYRIGHT "Copyright(c) 2009 Intel Corporation"
 #define IWM_AUTHOR "<ilw@linux.intel.com>"
-
-#define CONFIG_IWM_B0_HW_SUPPORT	1
 
 #define IWM_SRC_LMAC	UMAC_HDI_IN_SOURCE_FHRX
 #define IWM_SRC_UDMA	UMAC_HDI_IN_SOURCE_UDMA
@@ -65,8 +64,10 @@
 
 struct iwm_conf {
 	u32 sdio_ior_timeout;
-	unsigned long init_calib_map;
-	unsigned long periodic_calib_map;
+	unsigned long calib_map;
+	unsigned long expected_calib_map;
+	u8 ct_kill_entry;
+	u8 ct_kill_exit;
 	bool reset_on_fatal_err;
 	bool auto_connect;
 	bool wimax_not_present;
@@ -81,15 +82,11 @@ struct iwm_conf {
 	u32 assoc_timeout;
 	u32 roam_timeout;
 	u32 wireless_mode;
-	u32 coexist_mode;
 
 	u8 ibss_band;
 	u8 ibss_channel;
 
 	u8 mac_addr[ETH_ALEN];
-#ifdef CONFIG_IWM_B0_HW_SUPPORT
-	bool hw_b0;
-#endif
 };
 
 enum {
@@ -134,11 +131,18 @@ struct iwm_notif {
 	unsigned long buf_size;
 };
 
+struct iwm_tid_info {
+	__le16 last_seq_num;
+	bool stopped;
+	struct mutex mutex;
+};
+
 struct iwm_sta_info {
 	u8 addr[ETH_ALEN];
 	bool valid;
 	bool qos;
 	u8 color;
+	struct iwm_tid_info tid_info[IWM_UMAC_TID_NR];
 };
 
 struct iwm_tx_info {
@@ -158,17 +162,15 @@ struct iwm_umac_key_hdr {
 	u8 mac[ETH_ALEN];
 	u8 key_idx;
 	u8 multicast; /* BCast encrypt & BCast decrypt of frames FROM mac */
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_key {
 	struct iwm_umac_key_hdr hdr;
-	u8 in_use;
-	u8 alg;
-	u32 flags;
-	u8 tx_seq[IW_ENCODE_SEQ_MAX_SIZE];
-	u8 rx_seq[IW_ENCODE_SEQ_MAX_SIZE];
-	u8 key_len;
-	u8 key[32];
+	u32 cipher;
+	u8 key[WLAN_MAX_KEY_LEN];
+	u8 seq[IW_ENCODE_SEQ_MAX_SIZE];
+	int key_len;
+	int seq_len;
 };
 
 #define IWM_RX_ID_HASH  0xff
@@ -183,16 +185,15 @@ struct iwm_key {
 #define IWM_STATUS_READY		0
 #define IWM_STATUS_SCANNING		1
 #define IWM_STATUS_SCAN_ABORTING	2
-#define IWM_STATUS_ASSOCIATING		3
+#define IWM_STATUS_SME_CONNECTING	3
 #define IWM_STATUS_ASSOCIATED		4
-
-#define IWM_RADIO_RFKILL_OFF		0
-#define IWM_RADIO_RFKILL_HW		1
-#define IWM_RADIO_RFKILL_SW		2
+#define IWM_STATUS_RESETTING		5
 
 struct iwm_tx_queue {
 	int id;
 	struct sk_buff_head queue;
+	struct sk_buff_head stopped_queue;
+	spinlock_t lock;
 	struct workqueue_struct *wq;
 	struct work_struct worker;
 	u8 concat_buf[IWM_HAL_CONCATENATE_BUF_SIZE];
@@ -223,7 +224,6 @@ struct iwm_priv {
 	struct iwm_conf conf;
 
 	unsigned long status;
-	unsigned long radio;
 
 	struct list_head pending_notif;
 	wait_queue_head_t notif_queue;
@@ -242,6 +242,7 @@ struct iwm_priv {
 	u8 bssid[ETH_ALEN];
 	u8 channel;
 	u16 rate;
+	u32 txpower;
 
 	struct iwm_sta_info sta_table[IWM_STA_TABLE_NUM];
 	struct list_head bss_list;
@@ -268,7 +269,9 @@ struct iwm_priv {
 
 	struct sk_buff_head rx_list;
 	struct list_head rx_tickets;
+	spinlock_t ticket_lock;
 	struct list_head rx_packets[IWM_RX_ID_HASH];
+	spinlock_t packet_lock[IWM_RX_ID_HASH];
 	struct workqueue_struct *rx_wq;
 	struct work_struct rx_worker;
 
@@ -276,20 +279,34 @@ struct iwm_priv {
 	struct iwm_tx_queue txq[IWM_TX_QUEUES];
 
 	struct iwm_key keys[IWM_NUM_KEYS];
-	struct iwm_key *default_key;
+	s8 default_key;
+
+	DECLARE_BITMAP(wifi_ntfy, WIFI_IF_NTFY_MAX);
+	wait_queue_head_t wifi_ntfy_queue;
 
 	wait_queue_head_t mlme_queue;
 
 	struct iw_statistics wstats;
 	struct delayed_work stats_request;
+	struct delayed_work disconnect;
+	struct delayed_work ct_kill_delay;
 
 	struct iwm_debugfs dbg;
 
 	u8 *eeprom;
 	struct timer_list watchdog;
 	struct work_struct reset_worker;
+	struct work_struct auth_retry_worker;
 	struct mutex mutex;
-	struct rfkill *rfkill;
+
+	u8 *req_ie;
+	int req_ie_len;
+	u8 *resp_ie;
+	int resp_ie_len;
+
+	struct iwm_fw_error_hdr *last_fw_err;
+	char umac_version[8];
+	char lmac_version[8];
 
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
@@ -311,8 +328,6 @@ static inline void *iwm_private(struct iwm_priv *iwm)
 #define skb_to_rx_info(s) ((struct iwm_rx_info *)(s->cb))
 #define skb_to_tx_info(s) ((struct iwm_tx_info *)s->cb)
 
-extern const struct iw_handler_def iwm_iw_handler_def;
-
 void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 		   struct iwm_if_ops *if_ops);
 void iwm_if_free(struct iwm_priv *iwm);
@@ -322,6 +337,7 @@ int iwm_mode_to_nl80211_iftype(int mode);
 int iwm_priv_init(struct iwm_priv *iwm);
 void iwm_priv_deinit(struct iwm_priv *iwm);
 void iwm_reset(struct iwm_priv *iwm);
+void iwm_resetting(struct iwm_priv *iwm);
 void iwm_tx_credit_init_pools(struct iwm_priv *iwm,
 			      struct iwm_umac_notif_alive *alive);
 int iwm_tx_credit_alloc(struct iwm_priv *iwm, int id, int nb);
@@ -336,6 +352,7 @@ int iwm_up(struct iwm_priv *iwm);
 int iwm_down(struct iwm_priv *iwm);
 
 /* TX API */
+int iwm_tid_to_queue(u16 tid);
 void iwm_tx_credit_inc(struct iwm_priv *iwm, int id, int total_freed_pages);
 void iwm_tx_worker(struct work_struct *work);
 int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev);

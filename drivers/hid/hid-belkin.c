@@ -56,14 +56,14 @@ static int belkin_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT |
 		((quirks & BELKIN_HIDDEV) ? HID_CONNECT_HIDDEV_FORCE : 0));
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 
@@ -88,12 +88,12 @@ static struct hid_driver belkin_driver = {
 	.probe = belkin_probe,
 };
 
-static int belkin_init(void)
+static int __init belkin_init(void)
 {
 	return hid_register_driver(&belkin_driver);
 }
 
-static void belkin_exit(void)
+static void __exit belkin_exit(void)
 {
 	hid_unregister_driver(&belkin_driver);
 }

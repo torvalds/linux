@@ -263,9 +263,9 @@ static int fast_reg_read_chunks(struct svcxprt_rdma *xprt,
 	frmr->page_list_len = PAGE_ALIGN(byte_count) >> PAGE_SHIFT;
 	for (page_no = 0; page_no < frmr->page_list_len; page_no++) {
 		frmr->page_list->page_list[page_no] =
-			ib_dma_map_single(xprt->sc_cm_id->device,
-					  page_address(rqstp->rq_arg.pages[page_no]),
-					  PAGE_SIZE, DMA_FROM_DEVICE);
+			ib_dma_map_page(xprt->sc_cm_id->device,
+					rqstp->rq_arg.pages[page_no], 0,
+					PAGE_SIZE, DMA_FROM_DEVICE);
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 					 frmr->page_list->page_list[page_no]))
 			goto fatal_err;
@@ -309,17 +309,21 @@ static int rdma_set_ctxt_sge(struct svcxprt_rdma *xprt,
 			     int count)
 {
 	int i;
+	unsigned long off;
 
 	ctxt->count = count;
 	ctxt->direction = DMA_FROM_DEVICE;
 	for (i = 0; i < count; i++) {
 		ctxt->sge[i].length = 0; /* in case map fails */
 		if (!frmr) {
+			BUG_ON(0 == virt_to_page(vec[i].iov_base));
+			off = (unsigned long)vec[i].iov_base & ~PAGE_MASK;
 			ctxt->sge[i].addr =
-				ib_dma_map_single(xprt->sc_cm_id->device,
-						  vec[i].iov_base,
-						  vec[i].iov_len,
-						  DMA_FROM_DEVICE);
+				ib_dma_map_page(xprt->sc_cm_id->device,
+						virt_to_page(vec[i].iov_base),
+						off,
+						vec[i].iov_len,
+						DMA_FROM_DEVICE);
 			if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 						 ctxt->sge[i].addr))
 				return -EINVAL;
@@ -337,10 +341,9 @@ static int rdma_set_ctxt_sge(struct svcxprt_rdma *xprt,
 
 static int rdma_read_max_sge(struct svcxprt_rdma *xprt, int sge_count)
 {
-	if ((RDMA_TRANSPORT_IWARP ==
-	     rdma_node_get_transport(xprt->sc_cm_id->
-				     device->node_type))
-	    && sge_count > 1)
+	if ((rdma_node_get_transport(xprt->sc_cm_id->device->node_type) ==
+	     RDMA_TRANSPORT_IWARP) &&
+	    sge_count > 1)
 		return 1;
 	else
 		return min_t(int, sge_count, xprt->sc_max_sge);
@@ -492,6 +495,7 @@ next_sge:
 			printk(KERN_ERR "svcrdma: Error %d posting RDMA_READ\n",
 			       err);
 			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			svc_rdma_unmap_dma(ctxt);
 			svc_rdma_put_context(ctxt, 0);
 			goto out;
 		}
@@ -567,7 +571,6 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 		ret, rqstp->rq_arg.len,	rqstp->rq_arg.head[0].iov_base,
 		rqstp->rq_arg.head[0].iov_len);
 
-	svc_xprt_received(rqstp->rq_xprt);
 	return ret;
 }
 
@@ -666,7 +669,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		rqstp->rq_arg.head[0].iov_len);
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
-	svc_xprt_received(xprt);
 	return ret;
 
  close_out:
@@ -679,6 +681,5 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	 */
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
 defer:
-	svc_xprt_received(xprt);
 	return 0;
 }

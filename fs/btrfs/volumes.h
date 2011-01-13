@@ -42,9 +42,9 @@ struct btrfs_device {
 	int running_pending;
 	u64 generation;
 
-	int barriers;
 	int writeable;
 	int in_fs_metadata;
+	int missing;
 
 	spinlock_t io_lock;
 
@@ -94,6 +94,7 @@ struct btrfs_fs_devices {
 	u64 num_devices;
 	u64 open_devices;
 	u64 rw_devices;
+	u64 missing_devices;
 	u64 total_rw_bytes;
 	struct block_device *latest_bdev;
 
@@ -181,4 +182,7 @@ int btrfs_balance(struct btrfs_root *dev_root);
 void btrfs_unlock_volumes(void);
 void btrfs_lock_volumes(void);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
+int find_free_dev_extent(struct btrfs_trans_handle *trans,
+			 struct btrfs_device *device, u64 num_bytes,
+			 u64 *start, u64 *max_avail);
 #endif

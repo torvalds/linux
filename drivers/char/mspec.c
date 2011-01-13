@@ -239,7 +239,7 @@ mspec_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return VM_FAULT_NOPAGE;
 }
 
-static struct vm_operations_struct mspec_vm_ops = {
+static const struct vm_operations_struct mspec_vm_ops = {
 	.open = mspec_open,
 	.close = mspec_close,
 	.fault = mspec_fault,
@@ -248,7 +248,7 @@ static struct vm_operations_struct mspec_vm_ops = {
 /*
  * mspec_mmap
  *
- * Called when mmaping the device.  Initializes the vma with a fault handler
+ * Called when mmapping the device.  Initializes the vma with a fault handler
  * and private data structure necessary to allocate, track, and free the
  * underlying pages.
  */
@@ -316,7 +316,8 @@ uncached_mmap(struct file *file, struct vm_area_struct *vma)
 
 static const struct file_operations fetchop_fops = {
 	.owner = THIS_MODULE,
-	.mmap = fetchop_mmap
+	.mmap = fetchop_mmap,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice fetchop_miscdev = {
@@ -327,7 +328,8 @@ static struct miscdevice fetchop_miscdev = {
 
 static const struct file_operations cached_fops = {
 	.owner = THIS_MODULE,
-	.mmap = cached_mmap
+	.mmap = cached_mmap,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice cached_miscdev = {
@@ -338,7 +340,8 @@ static struct miscdevice cached_miscdev = {
 
 static const struct file_operations uncached_fops = {
 	.owner = THIS_MODULE,
-	.mmap = uncached_mmap
+	.mmap = uncached_mmap,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice uncached_miscdev = {

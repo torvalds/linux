@@ -18,7 +18,7 @@
                 to specify the offset instead of the absolute address
 
   NOTE:
-  With slram it's only possible to map a contigous memory region. Therfore
+  With slram it's only possible to map a contiguous memory region. Therefore
   if there's a device mapped somewhere in the region specified slram will
   fail to load (see kernel log if modprobe fails).
 
@@ -303,7 +303,7 @@ __setup("slram=", mtd_slram_setup);
 
 #endif
 
-static int init_slram(void)
+static int __init init_slram(void)
 {
 	char *devname;
 	int i;
@@ -341,7 +341,7 @@ static int init_slram(void)
 #else
 	int count;
 
-	for (count = 0; (map[count]) && (count < SLRAM_MAX_DEVICES_PARAMS);
+	for (count = 0; count < SLRAM_MAX_DEVICES_PARAMS && map[count];
 			count++) {
 	}
 

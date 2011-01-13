@@ -28,8 +28,9 @@ static int my_open(struct inode *inode, struct file *file)
 	return -EPERM;
 }
 
-static struct file_operations mark_ops = {
+static const struct file_operations mark_ops = {
 	.open = my_open,
+	.llseek = noop_llseek,
 };
 
 static int __init sample_init(void)

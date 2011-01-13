@@ -24,10 +24,10 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <mach/mux.h>
+#include <plat/mux.h>
 #include <mach/irqs.h>
-#include <mach/fpga.h>
-#include <mach/usb.h>
+#include <plat/fpga.h>
+#include <plat/usb.h>
 
 
 /* OMAP-1510 OHCI has its own MMU for DMA */
@@ -282,6 +282,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 static void ohci_omap_stop(struct usb_hcd *hcd)
 {
 	dev_dbg(hcd->self.controller, "stopping USB Controller\n");
+	ohci_stop(hcd);
 	omap_ohci_clock_power(0);
 }
 

@@ -52,9 +52,8 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <mach/dma.h>
-#include <mach/usb.h>
-#include <mach/control.h>
+#include <plat/dma.h>
+#include <plat/usb.h>
 
 #include "omap_udc.h"
 
@@ -2098,10 +2097,12 @@ static inline int machine_without_vbus_sense(void)
 		|| machine_is_omap_h4()
 #endif
 		|| machine_is_sx1()
+		|| cpu_is_omap7xx() /* No known omap7xx boards with vbus sense */
 		);
 }
 
-int usb_gadget_register_driver (struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	int		status = -ENODEV;
 	struct omap_ep	*ep;
@@ -2113,8 +2114,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (!driver
 			// FIXME if otg, check:  driver->is_otg
 			|| driver->speed < USB_SPEED_FULL
-			|| !driver->bind
-			|| !driver->setup)
+			|| !bind || !driver->setup)
 		return -EINVAL;
 
 	spin_lock_irqsave(&udc->lock, flags);
@@ -2144,7 +2144,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(1);
 
-	status = driver->bind (&udc->gadget);
+	status = bind(&udc->gadget);
 	if (status) {
 		DBG("bind to %s --> %d\n", driver->driver.name, status);
 		udc->gadget.dev.driver = NULL;
@@ -2185,7 +2185,7 @@ done:
 		omap_udc_enable_clock(0);
 	return status;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 {
@@ -2308,21 +2308,12 @@ static char *trx_mode(unsigned m, int enabled)
 static int proc_otg_show(struct seq_file *s)
 {
 	u32		tmp;
-	u32		trans;
-	char		*ctrl_name;
+	u32		trans = 0;
+	char		*ctrl_name = "(UNKNOWN)";
 
+	/* XXX This needs major revision for OMAP2+ */
 	tmp = omap_readl(OTG_REV);
-	if (cpu_is_omap24xx()) {
-		/*
-		 * REVISIT: Not clear how this works on OMAP2.  trans
-		 * is ANDed to produce bits 7 and 8, which might make
-		 * sense for USB_TRANSCEIVER_CTRL on OMAP1,
-		 * but with CONTROL_DEVCONF, these bits have something to
-		 * do with the frame adjustment counter and McBSP2.
-		 */
-		ctrl_name = "control_devconf";
-		trans = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-	} else {
+	if (cpu_class_is_omap1()) {
 		ctrl_name = "tranceiver_ctrl";
 		trans = omap_readw(USB_TRANSCEIVER_CTRL);
 	}
@@ -2838,6 +2829,16 @@ static int __init omap_udc_probe(struct platform_device *pdev)
 		udelay(100);
 	}
 
+	if (cpu_is_omap7xx()) {
+		dc_clk = clk_get(&pdev->dev, "usb_dc_ck");
+		hhc_clk = clk_get(&pdev->dev, "l3_ocpi_ck");
+		BUG_ON(IS_ERR(dc_clk) || IS_ERR(hhc_clk));
+		/* can't use omap_udc_enable_clock yet */
+		clk_enable(dc_clk);
+		clk_enable(hhc_clk);
+		udelay(100);
+	}
+
 	INFO("OMAP UDC rev %d.%d%s\n",
 		omap_readw(UDC_REV) >> 4, omap_readw(UDC_REV) & 0xf,
 		config->otg ? ", Mini-AB" : "");
@@ -2970,7 +2971,7 @@ known:
 		goto cleanup3;
 	}
 #endif
-	if (cpu_is_omap16xx()) {
+	if (cpu_is_omap16xx() || cpu_is_omap7xx()) {
 		udc->dc_clk = dc_clk;
 		udc->hhc_clk = hhc_clk;
 		clk_disable(hhc_clk);
@@ -3008,7 +3009,7 @@ cleanup0:
 	if (xceiv)
 		otg_put_transceiver(xceiv);
 
-	if (cpu_is_omap16xx() || cpu_is_omap24xx()) {
+	if (cpu_is_omap16xx() || cpu_is_omap24xx() || cpu_is_omap7xx()) {
 		clk_disable(hhc_clk);
 		clk_disable(dc_clk);
 		clk_put(hhc_clk);
@@ -3115,6 +3116,10 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
+	/* Disable DMA for omap7xx -- it doesn't work right. */
+	if (cpu_is_omap7xx())
+		use_dma = 0;
+
 	INFO("%s, version: " DRIVER_VERSION
 #ifdef	USE_ISO
 		" (iso)"

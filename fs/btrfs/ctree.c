@@ -17,6 +17,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -37,6 +38,11 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *src_buf);
 static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path, int level, int slot);
+static int setup_items_for_insert(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root, struct btrfs_path *path,
+			struct btrfs_key *cpu_key, u32 *data_size,
+			u32 total_data, u32 total_size, int nr);
+
 
 struct btrfs_path *btrfs_alloc_path(void)
 {
@@ -194,7 +200,6 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		      struct extent_buffer **cow_ret, u64 new_root_objectid)
 {
 	struct extent_buffer *cow;
-	u32 nritems;
 	int ret = 0;
 	int level;
 	struct btrfs_disk_key disk_key;
@@ -204,7 +209,6 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	WARN_ON(root->ref_cows && trans->transid != root->last_trans);
 
 	level = btrfs_header_level(buf);
-	nritems = btrfs_header_nritems(buf);
 	if (level == 0)
 		btrfs_item_key(buf, &disk_key, 0);
 	else
@@ -274,7 +278,8 @@ int btrfs_block_can_be_shared(struct btrfs_root *root,
 static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root,
 				       struct extent_buffer *buf,
-				       struct extent_buffer *cow)
+				       struct extent_buffer *cow,
+				       int *last_ref)
 {
 	u64 refs;
 	u64 owner;
@@ -360,6 +365,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			BUG_ON(ret);
 		}
 		clean_tree_block(trans, root, buf);
+		*last_ref = 1;
 	}
 	return 0;
 }
@@ -386,6 +392,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	struct btrfs_disk_key disk_key;
 	struct extent_buffer *cow;
 	int level;
+	int last_ref = 0;
 	int unlock_orig = 0;
 	u64 parent_start;
 
@@ -436,7 +443,10 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			    (unsigned long)btrfs_header_fsid(cow),
 			    BTRFS_FSID_SIZE);
 
-	update_ref_for_cow(trans, root, buf, cow);
+	update_ref_for_cow(trans, root, buf, cow, &last_ref);
+
+	if (root->ref_cows)
+		btrfs_reloc_cow_block(trans, root, buf, cow);
 
 	if (buf == root->node) {
 		WARN_ON(parent && parent != buf);
@@ -451,9 +461,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		extent_buffer_get(cow);
 		spin_unlock(&root->node_lock);
 
-		btrfs_free_extent(trans, root, buf->start, buf->len,
-				  parent_start, root->root_key.objectid,
-				  level, 0);
+		btrfs_free_tree_block(trans, root, buf, parent_start,
+				      last_ref);
 		free_extent_buffer(buf);
 		add_root_to_dirty_list(root);
 	} else {
@@ -468,9 +477,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		btrfs_set_node_ptr_generation(parent, parent_slot,
 					      trans->transid);
 		btrfs_mark_buffer_dirty(parent);
-		btrfs_free_extent(trans, root, buf->start, buf->len,
-				  parent_start, root->root_key.objectid,
-				  level, 0);
+		btrfs_free_tree_block(trans, root, buf, parent_start,
+				      last_ref);
 	}
 	if (unlock_orig)
 		btrfs_tree_unlock(buf);
@@ -557,19 +565,7 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 
 	btrfs_disk_key_to_cpu(&k1, disk);
 
-	if (k1.objectid > k2->objectid)
-		return 1;
-	if (k1.objectid < k2->objectid)
-		return -1;
-	if (k1.type > k2->type)
-		return 1;
-	if (k1.type < k2->type)
-		return -1;
-	if (k1.offset > k2->offset)
-		return 1;
-	if (k1.offset < k2->offset)
-		return -1;
-	return 0;
+	return btrfs_comp_cpu_keys(&k1, k2);
 }
 
 /*
@@ -957,6 +953,22 @@ int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 	return bin_search(eb, key, level, slot);
 }
 
+static void root_add_used(struct btrfs_root *root, u32 size)
+{
+	spin_lock(&root->accounting_lock);
+	btrfs_set_root_used(&root->root_item,
+			    btrfs_root_used(&root->root_item) + size);
+	spin_unlock(&root->accounting_lock);
+}
+
+static void root_sub_used(struct btrfs_root *root, u32 size)
+{
+	spin_lock(&root->accounting_lock);
+	btrfs_set_root_used(&root->root_item,
+			    btrfs_root_used(&root->root_item) - size);
+	spin_unlock(&root->accounting_lock);
+}
+
 /* given a node and slot number, this reads the blocks it points to.  The
  * extent buffer is returned with a reference taken (but unlocked).
  * NULL is returned on error.
@@ -994,7 +1006,6 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	int wret;
 	int pslot;
 	int orig_slot = path->slots[level];
-	int err_on_enospc = 0;
 	u64 orig_ptr;
 
 	if (level == 0)
@@ -1027,7 +1038,11 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		btrfs_tree_lock(child);
 		btrfs_set_lock_blocking(child);
 		ret = btrfs_cow_block(trans, root, child, mid, 0, &child);
-		BUG_ON(ret);
+		if (ret) {
+			btrfs_tree_unlock(child);
+			free_extent_buffer(child);
+			goto enospc;
+		}
 
 		spin_lock(&root->node_lock);
 		root->node = child;
@@ -1042,21 +1057,18 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		btrfs_tree_unlock(mid);
 		/* once for the path */
 		free_extent_buffer(mid);
-		ret = btrfs_free_extent(trans, root, mid->start, mid->len,
-					0, root->root_key.objectid, level, 1);
+
+		root_sub_used(root, mid->len);
+		btrfs_free_tree_block(trans, root, mid, 0, 1);
 		/* once for the root ptr */
 		free_extent_buffer(mid);
-		return ret;
+		return 0;
 	}
 	if (btrfs_header_nritems(mid) >
 	    BTRFS_NODEPTRS_PER_BLOCK(root) / 4)
 		return 0;
 
-	if (btrfs_header_nritems(mid) > 2)
-		return 0;
-
-	if (btrfs_header_nritems(mid) < 2)
-		err_on_enospc = 1;
+	btrfs_header_nritems(mid);
 
 	left = read_node_slot(root, parent, pslot - 1);
 	if (left) {
@@ -1087,8 +1099,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		wret = push_node_left(trans, root, left, mid, 1);
 		if (wret < 0)
 			ret = wret;
-		if (btrfs_header_nritems(mid) < 2)
-			err_on_enospc = 1;
+		btrfs_header_nritems(mid);
 	}
 
 	/*
@@ -1099,23 +1110,16 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		if (wret < 0 && wret != -ENOSPC)
 			ret = wret;
 		if (btrfs_header_nritems(right) == 0) {
-			u64 bytenr = right->start;
-			u32 blocksize = right->len;
-
 			clean_tree_block(trans, root, right);
 			btrfs_tree_unlock(right);
-			free_extent_buffer(right);
-			right = NULL;
 			wret = del_ptr(trans, root, path, level + 1, pslot +
 				       1);
 			if (wret)
 				ret = wret;
-			wret = btrfs_free_extent(trans, root, bytenr,
-						 blocksize, 0,
-						 root->root_key.objectid,
-						 level, 0);
-			if (wret)
-				ret = wret;
+			root_sub_used(root, right->len);
+			btrfs_free_tree_block(trans, root, right, 0, 1);
+			free_extent_buffer(right);
+			right = NULL;
 		} else {
 			struct btrfs_disk_key right_key;
 			btrfs_node_key(right, &right_key, 0);
@@ -1147,22 +1151,15 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		BUG_ON(wret == 1);
 	}
 	if (btrfs_header_nritems(mid) == 0) {
-		/* we've managed to empty the middle node, drop it */
-		u64 bytenr = mid->start;
-		u32 blocksize = mid->len;
-
 		clean_tree_block(trans, root, mid);
 		btrfs_tree_unlock(mid);
-		free_extent_buffer(mid);
-		mid = NULL;
 		wret = del_ptr(trans, root, path, level + 1, pslot);
 		if (wret)
 			ret = wret;
-		wret = btrfs_free_extent(trans, root, bytenr, blocksize,
-					 0, root->root_key.objectid,
-					 level, 0);
-		if (wret)
-			ret = wret;
+		root_sub_used(root, mid->len);
+		btrfs_free_tree_block(trans, root, mid, 0, 1);
+		free_extent_buffer(mid);
+		mid = NULL;
 	} else {
 		/* update the parent key to reflect our changes */
 		struct btrfs_disk_key mid_key;
@@ -1222,14 +1219,12 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	int wret;
 	int pslot;
 	int orig_slot = path->slots[level];
-	u64 orig_ptr;
 
 	if (level == 0)
 		return 1;
 
 	mid = path->nodes[level];
 	WARN_ON(btrfs_header_generation(mid) != trans->transid);
-	orig_ptr = btrfs_node_blockptr(mid, orig_slot);
 
 	if (level < BTRFS_MAX_LEVEL - 1)
 		parent = path->nodes[level + 1];
@@ -1575,13 +1570,33 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	blocksize = btrfs_level_size(root, level - 1);
 
 	tmp = btrfs_find_tree_block(root, blocknr, blocksize);
-	if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
-		/*
-		 * we found an up to date block without sleeping, return
-		 * right away
-		 */
-		*eb_ret = tmp;
-		return 0;
+	if (tmp) {
+		if (btrfs_buffer_uptodate(tmp, 0)) {
+			if (btrfs_buffer_uptodate(tmp, gen)) {
+				/*
+				 * we found an up to date block without
+				 * sleeping, return
+				 * right away
+				 */
+				*eb_ret = tmp;
+				return 0;
+			}
+			/* the pages were up to date, but we failed
+			 * the generation number check.  Do a full
+			 * read for the generation number that is correct.
+			 * We must do this without dropping locks so
+			 * we can trust our generation number
+			 */
+			free_extent_buffer(tmp);
+			tmp = read_tree_block(root, blocknr, blocksize, gen);
+			if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
+				*eb_ret = tmp;
+				return 0;
+			}
+			free_extent_buffer(tmp);
+			btrfs_release_path(NULL, p);
+			return -EIO;
+		}
 	}
 
 	/*
@@ -1594,15 +1609,14 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	btrfs_unlock_up_safe(p, level + 1);
 	btrfs_set_path_blocking(p);
 
-	if (tmp)
-		free_extent_buffer(tmp);
+	free_extent_buffer(tmp);
 	if (p->reada)
 		reada_for_search(root, p, level, slot, key->objectid);
 
 	btrfs_release_path(NULL, p);
 
 	ret = -EAGAIN;
-	tmp = read_tree_block(root, blocknr, blocksize, gen);
+	tmp = read_tree_block(root, blocknr, blocksize, 0);
 	if (tmp) {
 		/*
 		 * If the read above didn't mark this buffer up to date,
@@ -1701,6 +1715,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct extent_buffer *b;
 	int slot;
 	int ret;
+	int err;
 	int level;
 	int lowest_unlock = 1;
 	u8 lowest_level = 0;
@@ -1737,8 +1752,6 @@ again:
 			p->locks[level] = 1;
 
 		if (cow) {
-			int wret;
-
 			/*
 			 * if we don't really need to cow this block
 			 * then we don't want to set the path blocking,
@@ -1749,12 +1762,11 @@ again:
 
 			btrfs_set_path_blocking(p);
 
-			wret = btrfs_cow_block(trans, root, b,
-					       p->nodes[level + 1],
-					       p->slots[level + 1], &b);
-			if (wret) {
-				free_extent_buffer(b);
-				ret = wret;
+			err = btrfs_cow_block(trans, root, b,
+					      p->nodes[level + 1],
+					      p->slots[level + 1], &b);
+			if (err) {
+				ret = err;
 				goto done;
 			}
 		}
@@ -1793,41 +1805,45 @@ cow_done:
 		ret = bin_search(b, key, level, &slot);
 
 		if (level != 0) {
-			if (ret && slot > 0)
+			int dec = 0;
+			if (ret && slot > 0) {
+				dec = 1;
 				slot -= 1;
+			}
 			p->slots[level] = slot;
-			ret = setup_nodes_for_search(trans, root, p, b, level,
+			err = setup_nodes_for_search(trans, root, p, b, level,
 						     ins_len);
-			if (ret == -EAGAIN)
+			if (err == -EAGAIN)
 				goto again;
-			else if (ret)
+			if (err) {
+				ret = err;
 				goto done;
+			}
 			b = p->nodes[level];
 			slot = p->slots[level];
 
 			unlock_up(p, level, lowest_unlock);
 
-			/* this is only true while dropping a snapshot */
 			if (level == lowest_level) {
-				ret = 0;
+				if (dec)
+					p->slots[level]++;
 				goto done;
 			}
 
-			ret = read_block_for_search(trans, root, p,
+			err = read_block_for_search(trans, root, p,
 						    &b, level, slot, key);
-			if (ret == -EAGAIN)
+			if (err == -EAGAIN)
 				goto again;
-
-			if (ret == -EIO)
+			if (err) {
+				ret = err;
 				goto done;
+			}
 
 			if (!p->skip_locking) {
-				int lret;
-
 				btrfs_clear_path_blocking(p, NULL);
-				lret = btrfs_try_spin_lock(b);
+				err = btrfs_try_spin_lock(b);
 
-				if (!lret) {
+				if (!err) {
 					btrfs_set_path_blocking(p);
 					btrfs_tree_lock(b);
 					btrfs_clear_path_blocking(p, b);
@@ -1837,16 +1853,14 @@ cow_done:
 			p->slots[level] = slot;
 			if (ins_len > 0 &&
 			    btrfs_leaf_free_space(root, b) < ins_len) {
-				int sret;
-
 				btrfs_set_path_blocking(p);
-				sret = split_leaf(trans, root, key,
-						      p, ins_len, ret == 0);
+				err = split_leaf(trans, root, key,
+						 p, ins_len, ret == 0);
 				btrfs_clear_path_blocking(p, NULL);
 
-				BUG_ON(sret > 0);
-				if (sret) {
-					ret = sret;
+				BUG_ON(err > 0);
+				if (err) {
+					ret = err;
 					goto done;
 				}
 			}
@@ -2087,6 +2101,8 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 
+	root_add_used(root, root->nodesize);
+
 	memset_extent_buffer(c, 0, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_nritems(c, 1);
 	btrfs_set_header_level(c, level);
@@ -2145,6 +2161,7 @@ static int insert_ptr(struct btrfs_trans_handle *trans, struct btrfs_root
 	int nritems;
 
 	BUG_ON(!path->nodes[level]);
+	btrfs_assert_tree_locked(path->nodes[level]);
 	lower = path->nodes[level];
 	nritems = btrfs_header_nritems(lower);
 	BUG_ON(slot > nritems);
@@ -2212,6 +2229,8 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 					&disk_key, level, c->start, 0);
 	if (IS_ERR(split))
 		return PTR_ERR(split);
+
+	root_add_used(root, root->nodesize);
 
 	memset_extent_buffer(split, 0, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_level(split, btrfs_header_level(c));
@@ -2297,12 +2316,17 @@ noinline int btrfs_leaf_free_space(struct btrfs_root *root,
 	return ret;
 }
 
+/*
+ * min slot controls the lowest index we're willing to push to the
+ * right.  We'll push up to and including min_slot, but no lower
+ */
 static noinline int __push_leaf_right(struct btrfs_trans_handle *trans,
 				      struct btrfs_root *root,
 				      struct btrfs_path *path,
 				      int data_size, int empty,
 				      struct extent_buffer *right,
-				      int free_space, u32 left_nritems)
+				      int free_space, u32 left_nritems,
+				      u32 min_slot)
 {
 	struct extent_buffer *left = path->nodes[0];
 	struct extent_buffer *upper = path->nodes[1];
@@ -2320,7 +2344,7 @@ static noinline int __push_leaf_right(struct btrfs_trans_handle *trans,
 	if (empty)
 		nr = 0;
 	else
-		nr = 1;
+		nr = max_t(u32, 1, min_slot);
 
 	if (path->slots[0] >= left_nritems)
 		push_space += data_size;
@@ -2426,6 +2450,9 @@ static noinline int __push_leaf_right(struct btrfs_trans_handle *trans,
 
 	if (left_nritems)
 		btrfs_mark_buffer_dirty(left);
+	else
+		clean_tree_block(trans, root, left);
+
 	btrfs_mark_buffer_dirty(right);
 
 	btrfs_item_key(right, &disk_key, 0);
@@ -2459,10 +2486,14 @@ out_unlock:
  *
  * returns 1 if the push failed because the other node didn't have enough
  * room, 0 if everything worked out and < 0 if there were major errors.
+ *
+ * this will push starting from min_slot to the end of the leaf.  It won't
+ * push any slot lower than min_slot
  */
 static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
-			   *root, struct btrfs_path *path, int data_size,
-			   int empty)
+			   *root, struct btrfs_path *path,
+			   int min_data_size, int data_size,
+			   int empty, u32 min_slot)
 {
 	struct extent_buffer *left = path->nodes[0];
 	struct extent_buffer *right;
@@ -2504,8 +2535,8 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (left_nritems == 0)
 		goto out_unlock;
 
-	return __push_leaf_right(trans, root, path, data_size, empty,
-				right, free_space, left_nritems);
+	return __push_leaf_right(trans, root, path, min_data_size, empty,
+				right, free_space, left_nritems, min_slot);
 out_unlock:
 	btrfs_tree_unlock(right);
 	free_extent_buffer(right);
@@ -2515,16 +2546,20 @@ out_unlock:
 /*
  * push some data in the path leaf to the left, trying to free up at
  * least data_size bytes.  returns zero if the push worked, nonzero otherwise
+ *
+ * max_slot can put a limit on how far into the leaf we'll push items.  The
+ * item at 'max_slot' won't be touched.  Use (u32)-1 to make us do all the
+ * items
  */
 static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct btrfs_path *path, int data_size,
 				     int empty, struct extent_buffer *left,
-				     int free_space, int right_nritems)
+				     int free_space, u32 right_nritems,
+				     u32 max_slot)
 {
 	struct btrfs_disk_key disk_key;
 	struct extent_buffer *right = path->nodes[0];
-	int slot;
 	int i;
 	int push_space = 0;
 	int push_items = 0;
@@ -2536,12 +2571,10 @@ static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 	u32 this_item_size;
 	u32 old_left_item_size;
 
-	slot = path->slots[1];
-
 	if (empty)
-		nr = right_nritems;
+		nr = min(right_nritems, max_slot);
 	else
-		nr = right_nritems - 1;
+		nr = min(right_nritems - 1, max_slot);
 
 	for (i = 0; i < nr; i++) {
 		item = btrfs_item_nr(right, i);
@@ -2671,6 +2704,8 @@ static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(left);
 	if (right_nritems)
 		btrfs_mark_buffer_dirty(right);
+	else
+		clean_tree_block(trans, root, right);
 
 	btrfs_item_key(right, &disk_key, 0);
 	wret = fixup_low_keys(trans, root, path, &disk_key, 1);
@@ -2680,8 +2715,6 @@ static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 	/* then fixup the leaf pointer in the path */
 	if (path->slots[0] < push_items) {
 		path->slots[0] += old_left_nritems;
-		if (btrfs_header_nritems(path->nodes[0]) == 0)
-			clean_tree_block(trans, root, path->nodes[0]);
 		btrfs_tree_unlock(path->nodes[0]);
 		free_extent_buffer(path->nodes[0]);
 		path->nodes[0] = left;
@@ -2702,10 +2735,14 @@ out:
 /*
  * push some data in the path leaf to the left, trying to free up at
  * least data_size bytes.  returns zero if the push worked, nonzero otherwise
+ *
+ * max_slot can put a limit on how far into the leaf we'll push items.  The
+ * item at 'max_slot' won't be touched.  Use (u32)-1 to make us push all the
+ * items
  */
 static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, struct btrfs_path *path, int data_size,
-			  int empty)
+			  *root, struct btrfs_path *path, int min_data_size,
+			  int data_size, int empty, u32 max_slot)
 {
 	struct extent_buffer *right = path->nodes[0];
 	struct extent_buffer *left;
@@ -2751,8 +2788,9 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		goto out;
 	}
 
-	return __push_leaf_left(trans, root, path, data_size,
-			       empty, left, free_space, right_nritems);
+	return __push_leaf_left(trans, root, path, min_data_size,
+			       empty, left, free_space, right_nritems,
+			       max_slot);
 out:
 	btrfs_tree_unlock(left);
 	free_extent_buffer(left);
@@ -2845,6 +2883,64 @@ static noinline int copy_for_split(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * double splits happen when we need to insert a big item in the middle
+ * of a leaf.  A double split can leave us with 3 mostly empty leaves:
+ * leaf: [ slots 0 - N] [ our target ] [ N + 1 - total in leaf ]
+ *          A                 B                 C
+ *
+ * We avoid this by trying to push the items on either side of our target
+ * into the adjacent leaves.  If all goes well we can avoid the double split
+ * completely.
+ */
+static noinline int push_for_double_split(struct btrfs_trans_handle *trans,
+					  struct btrfs_root *root,
+					  struct btrfs_path *path,
+					  int data_size)
+{
+	int ret;
+	int progress = 0;
+	int slot;
+	u32 nritems;
+
+	slot = path->slots[0];
+
+	/*
+	 * try to push all the items after our slot into the
+	 * right leaf
+	 */
+	ret = push_leaf_right(trans, root, path, 1, data_size, 0, slot);
+	if (ret < 0)
+		return ret;
+
+	if (ret == 0)
+		progress++;
+
+	nritems = btrfs_header_nritems(path->nodes[0]);
+	/*
+	 * our goal is to get our slot at the start or end of a leaf.  If
+	 * we've done so we're done
+	 */
+	if (path->slots[0] == 0 || path->slots[0] == nritems)
+		return 0;
+
+	if (btrfs_leaf_free_space(root, path->nodes[0]) >= data_size)
+		return 0;
+
+	/* try to push all the items before our slot into the next leaf */
+	slot = path->slots[0];
+	ret = push_leaf_left(trans, root, path, 1, data_size, 0, slot);
+	if (ret < 0)
+		return ret;
+
+	if (ret == 0)
+		progress++;
+
+	if (progress)
+		return 0;
+	return 1;
+}
+
+/*
  * split the path's leaf in two, making sure there is at least data_size
  * available for the resulting leaf level of the path.
  *
@@ -2866,14 +2962,23 @@ static noinline int split_leaf(struct btrfs_trans_handle *trans,
 	int wret;
 	int split;
 	int num_doubles = 0;
+	int tried_avoid_double = 0;
+
+	l = path->nodes[0];
+	slot = path->slots[0];
+	if (extend && data_size + btrfs_item_size_nr(l, slot) +
+	    sizeof(struct btrfs_item) > BTRFS_LEAF_DATA_SIZE(root))
+		return -EOVERFLOW;
 
 	/* first try to make some room by pushing left and right */
-	if (data_size && ins_key->type != BTRFS_DIR_ITEM_KEY) {
-		wret = push_leaf_right(trans, root, path, data_size, 0);
+	if (data_size) {
+		wret = push_leaf_right(trans, root, path, data_size,
+				       data_size, 0, 0);
 		if (wret < 0)
 			return wret;
 		if (wret) {
-			wret = push_leaf_left(trans, root, path, data_size, 0);
+			wret = push_leaf_left(trans, root, path, data_size,
+					      data_size, 0, (u32)-1);
 			if (wret < 0)
 				return wret;
 		}
@@ -2907,6 +3012,8 @@ again:
 				if (mid != nritems &&
 				    leaf_space_used(l, mid, nritems - mid) +
 				    data_size > BTRFS_LEAF_DATA_SIZE(root)) {
+					if (data_size && !tried_avoid_double)
+						goto push_for_double;
 					split = 2;
 				}
 			}
@@ -2923,6 +3030,8 @@ again:
 				if (mid != nritems &&
 				    leaf_space_used(l, mid, nritems - mid) +
 				    data_size > BTRFS_LEAF_DATA_SIZE(root)) {
+					if (data_size && !tried_avoid_double)
+						goto push_for_double;
 					split = 2 ;
 				}
 			}
@@ -2937,10 +3046,10 @@ again:
 	right = btrfs_alloc_free_block(trans, root, root->leafsize, 0,
 					root->root_key.objectid,
 					&disk_key, 0, l->start, 0);
-	if (IS_ERR(right)) {
-		BUG_ON(1);
+	if (IS_ERR(right))
 		return PTR_ERR(right);
-	}
+
+	root_add_used(root, root->leafsize);
 
 	memset_extent_buffer(right, 0, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_bytenr(right, right->start);
@@ -3003,77 +3112,99 @@ again:
 	}
 
 	return ret;
+
+push_for_double:
+	push_for_double_split(trans, root, path, data_size);
+	tried_avoid_double = 1;
+	if (btrfs_leaf_free_space(root, path->nodes[0]) >= data_size)
+		return 0;
+	goto again;
 }
 
-/*
- * This function splits a single item into two items,
- * giving 'new_key' to the new item and splitting the
- * old one at split_offset (from the start of the item).
- *
- * The path may be released by this operation.  After
- * the split, the path is pointing to the old item.  The
- * new item is going to be in the same node as the old one.
- *
- * Note, the item being split must be smaller enough to live alone on
- * a tree block with room for one extra struct btrfs_item
- *
- * This allows us to split the item in place, keeping a lock on the
- * leaf the entire time.
- */
-int btrfs_split_item(struct btrfs_trans_handle *trans,
-		     struct btrfs_root *root,
-		     struct btrfs_path *path,
-		     struct btrfs_key *new_key,
-		     unsigned long split_offset)
+static noinline int setup_leaf_for_split(struct btrfs_trans_handle *trans,
+					 struct btrfs_root *root,
+					 struct btrfs_path *path, int ins_len)
 {
-	u32 item_size;
+	struct btrfs_key key;
 	struct extent_buffer *leaf;
-	struct btrfs_key orig_key;
-	struct btrfs_item *item;
-	struct btrfs_item *new_item;
-	int ret = 0;
-	int slot;
-	u32 nritems;
-	u32 orig_offset;
-	struct btrfs_disk_key disk_key;
-	char *buf;
+	struct btrfs_file_extent_item *fi;
+	u64 extent_len = 0;
+	u32 item_size;
+	int ret;
 
 	leaf = path->nodes[0];
-	btrfs_item_key_to_cpu(leaf, &orig_key, path->slots[0]);
-	if (btrfs_leaf_free_space(root, leaf) >= sizeof(struct btrfs_item))
-		goto split;
+	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+
+	BUG_ON(key.type != BTRFS_EXTENT_DATA_KEY &&
+	       key.type != BTRFS_EXTENT_CSUM_KEY);
+
+	if (btrfs_leaf_free_space(root, leaf) >= ins_len)
+		return 0;
 
 	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	if (key.type == BTRFS_EXTENT_DATA_KEY) {
+		fi = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
+		extent_len = btrfs_file_extent_num_bytes(leaf, fi);
+	}
 	btrfs_release_path(root, path);
 
-	path->search_for_split = 1;
 	path->keep_locks = 1;
-
-	ret = btrfs_search_slot(trans, root, &orig_key, path, 0, 1);
+	path->search_for_split = 1;
+	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	path->search_for_split = 0;
+	if (ret < 0)
+		goto err;
 
+	ret = -EAGAIN;
+	leaf = path->nodes[0];
 	/* if our item isn't there or got smaller, return now */
-	if (ret != 0 || item_size != btrfs_item_size_nr(path->nodes[0],
-							path->slots[0])) {
-		path->keep_locks = 0;
-		return -EAGAIN;
+	if (ret > 0 || item_size != btrfs_item_size_nr(leaf, path->slots[0]))
+		goto err;
+
+	/* the leaf has  changed, it now has room.  return now */
+	if (btrfs_leaf_free_space(root, path->nodes[0]) >= ins_len)
+		goto err;
+
+	if (key.type == BTRFS_EXTENT_DATA_KEY) {
+		fi = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
+		if (extent_len != btrfs_file_extent_num_bytes(leaf, fi))
+			goto err;
 	}
 
 	btrfs_set_path_blocking(path);
-	ret = split_leaf(trans, root, &orig_key, path,
-			 sizeof(struct btrfs_item), 1);
-	path->keep_locks = 0;
-	BUG_ON(ret);
+	ret = split_leaf(trans, root, &key, path, ins_len, 1);
+	if (ret)
+		goto err;
 
+	path->keep_locks = 0;
 	btrfs_unlock_up_safe(path, 1);
+	return 0;
+err:
+	path->keep_locks = 0;
+	return ret;
+}
+
+static noinline int split_item(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct btrfs_path *path,
+			       struct btrfs_key *new_key,
+			       unsigned long split_offset)
+{
+	struct extent_buffer *leaf;
+	struct btrfs_item *item;
+	struct btrfs_item *new_item;
+	int slot;
+	char *buf;
+	u32 nritems;
+	u32 item_size;
+	u32 orig_offset;
+	struct btrfs_disk_key disk_key;
+
 	leaf = path->nodes[0];
 	BUG_ON(btrfs_leaf_free_space(root, leaf) < sizeof(struct btrfs_item));
 
-split:
-	/*
-	 * make sure any changes to the path from split_leaf leave it
-	 * in a blocking state
-	 */
 	btrfs_set_path_blocking(path);
 
 	item = btrfs_item_nr(leaf, path->slots[0]);
@@ -3081,19 +3212,19 @@ split:
 	item_size = btrfs_item_size(leaf, item);
 
 	buf = kmalloc(item_size, GFP_NOFS);
+	if (!buf)
+		return -ENOMEM;
+
 	read_extent_buffer(leaf, buf, btrfs_item_ptr_offset(leaf,
 			    path->slots[0]), item_size);
+
 	slot = path->slots[0] + 1;
-	leaf = path->nodes[0];
-
 	nritems = btrfs_header_nritems(leaf);
-
 	if (slot != nritems) {
 		/* shift the items */
 		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + 1),
-			      btrfs_item_nr_offset(slot),
-			      (nritems - slot) * sizeof(struct btrfs_item));
-
+				btrfs_item_nr_offset(slot),
+				(nritems - slot) * sizeof(struct btrfs_item));
 	}
 
 	btrfs_cpu_key_to_disk(&disk_key, new_key);
@@ -3121,13 +3252,78 @@ split:
 			    item_size - split_offset);
 	btrfs_mark_buffer_dirty(leaf);
 
-	ret = 0;
-	if (btrfs_leaf_free_space(root, leaf) < 0) {
-		btrfs_print_leaf(root, leaf);
-		BUG();
-	}
+	BUG_ON(btrfs_leaf_free_space(root, leaf) < 0);
 	kfree(buf);
+	return 0;
+}
+
+/*
+ * This function splits a single item into two items,
+ * giving 'new_key' to the new item and splitting the
+ * old one at split_offset (from the start of the item).
+ *
+ * The path may be released by this operation.  After
+ * the split, the path is pointing to the old item.  The
+ * new item is going to be in the same node as the old one.
+ *
+ * Note, the item being split must be smaller enough to live alone on
+ * a tree block with room for one extra struct btrfs_item
+ *
+ * This allows us to split the item in place, keeping a lock on the
+ * leaf the entire time.
+ */
+int btrfs_split_item(struct btrfs_trans_handle *trans,
+		     struct btrfs_root *root,
+		     struct btrfs_path *path,
+		     struct btrfs_key *new_key,
+		     unsigned long split_offset)
+{
+	int ret;
+	ret = setup_leaf_for_split(trans, root, path,
+				   sizeof(struct btrfs_item));
+	if (ret)
+		return ret;
+
+	ret = split_item(trans, root, path, new_key, split_offset);
 	return ret;
+}
+
+/*
+ * This function duplicate a item, giving 'new_key' to the new item.
+ * It guarantees both items live in the same tree leaf and the new item
+ * is contiguous with the original item.
+ *
+ * This allows us to split file extent in place, keeping a lock on the
+ * leaf the entire time.
+ */
+int btrfs_duplicate_item(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root,
+			 struct btrfs_path *path,
+			 struct btrfs_key *new_key)
+{
+	struct extent_buffer *leaf;
+	int ret;
+	u32 item_size;
+
+	leaf = path->nodes[0];
+	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	ret = setup_leaf_for_split(trans, root, path,
+				   item_size + sizeof(struct btrfs_item));
+	if (ret)
+		return ret;
+
+	path->slots[0]++;
+	ret = setup_items_for_insert(trans, root, path, new_key, &item_size,
+				     item_size, item_size +
+				     sizeof(struct btrfs_item), 1);
+	BUG_ON(ret);
+
+	leaf = path->nodes[0];
+	memcpy_extent_buffer(leaf,
+			     btrfs_item_ptr_offset(leaf, path->slots[0]),
+			     btrfs_item_ptr_offset(leaf, path->slots[0] - 1),
+			     item_size);
+	return 0;
 }
 
 /*
@@ -3143,7 +3339,6 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	int slot;
-	int slot_orig;
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
 	u32 nritems;
@@ -3153,7 +3348,6 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 	unsigned int size_diff;
 	int i;
 
-	slot_orig = path->slots[0];
 	leaf = path->nodes[0];
 	slot = path->slots[0];
 
@@ -3258,7 +3452,6 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	int slot;
-	int slot_orig;
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
 	u32 nritems;
@@ -3267,7 +3460,6 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
 	unsigned int old_size;
 	int i;
 
-	slot_orig = path->slots[0];
 	leaf = path->nodes[0];
 
 	nritems = btrfs_header_nritems(leaf);
@@ -3600,7 +3792,6 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 			    struct btrfs_key *cpu_key, u32 *data_size,
 			    int nr)
 {
-	struct extent_buffer *leaf;
 	int ret = 0;
 	int slot;
 	int i;
@@ -3617,7 +3808,6 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 
-	leaf = path->nodes[0];
 	slot = path->slots[0];
 	BUG_ON(slot < 0);
 
@@ -3722,9 +3912,10 @@ static noinline int btrfs_del_leaf(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_unlock_up_safe(path, 0);
 
-	ret = btrfs_free_extent(trans, root, leaf->start, leaf->len,
-				0, root->root_key.objectid, 0, 0);
-	return ret;
+	root_sub_used(root, leaf->len);
+
+	btrfs_free_tree_block(trans, root, leaf, 0, 1);
+	return 0;
 }
 /*
  * delete the item at the leaf level in path.  If that empties
@@ -3791,6 +3982,8 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		if (leaf == root->node) {
 			btrfs_set_header_level(leaf, 0);
 		} else {
+			btrfs_set_path_blocking(path);
+			clean_tree_block(trans, root, leaf);
 			ret = btrfs_del_leaf(trans, root, path, leaf);
 			BUG_ON(ret);
 		}
@@ -3807,7 +4000,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		/* delete the leaf if it is mostly empty */
-		if (used < BTRFS_LEAF_DATA_SIZE(root) / 2) {
+		if (used < BTRFS_LEAF_DATA_SIZE(root) / 3) {
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
@@ -3816,13 +4009,15 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			extent_buffer_get(leaf);
 
 			btrfs_set_path_blocking(path);
-			wret = push_leaf_left(trans, root, path, 1, 1);
+			wret = push_leaf_left(trans, root, path, 1, 1,
+					      1, (u32)-1);
 			if (wret < 0 && wret != -ENOSPC)
 				ret = wret;
 
 			if (path->nodes[0] == leaf &&
 			    btrfs_header_nritems(leaf)) {
-				wret = push_leaf_right(trans, root, path, 1, 1);
+				wret = push_leaf_right(trans, root, path, 1,
+						       1, 1, 0);
 				if (wret < 0 && wret != -ENOSPC)
 					ret = wret;
 			}
@@ -4042,10 +4237,9 @@ out:
  * calling this function.
  */
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
-			struct btrfs_key *key, int lowest_level,
+			struct btrfs_key *key, int level,
 			int cache_only, u64 min_trans)
 {
-	int level = lowest_level;
 	int slot;
 	struct extent_buffer *c;
 
@@ -4058,11 +4252,40 @@ int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 		c = path->nodes[level];
 next:
 		if (slot >= btrfs_header_nritems(c)) {
-			level++;
-			if (level == BTRFS_MAX_LEVEL)
+			int ret;
+			int orig_lowest;
+			struct btrfs_key cur_key;
+			if (level + 1 >= BTRFS_MAX_LEVEL ||
+			    !path->nodes[level + 1])
 				return 1;
-			continue;
+
+			if (path->locks[level + 1]) {
+				level++;
+				continue;
+			}
+
+			slot = btrfs_header_nritems(c) - 1;
+			if (level == 0)
+				btrfs_item_key_to_cpu(c, &cur_key, slot);
+			else
+				btrfs_node_key_to_cpu(c, &cur_key, slot);
+
+			orig_lowest = path->lowest_level;
+			btrfs_release_path(root, path);
+			path->lowest_level = level;
+			ret = btrfs_search_slot(NULL, root, &cur_key, path,
+						0, 0);
+			path->lowest_level = orig_lowest;
+			if (ret < 0)
+				return ret;
+
+			c = path->nodes[level];
+			slot = path->slots[level];
+			if (ret == 0)
+				slot++;
+			goto next;
 		}
+
 		if (level == 0)
 			btrfs_item_key_to_cpu(c, key, slot);
 		else {
@@ -4146,7 +4369,8 @@ again:
 	 * advance the path if there are now more items available.
 	 */
 	if (nritems > 0 && path->slots[0] < nritems - 1) {
-		path->slots[0]++;
+		if (ret == 0)
+			path->slots[0]++;
 		ret = 0;
 		goto done;
 	}
@@ -4278,10 +4502,10 @@ int btrfs_previous_item(struct btrfs_root *root,
 			path->slots[0]--;
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-		if (found_key.type == type)
-			return 0;
 		if (found_key.objectid < min_objectid)
 			break;
+		if (found_key.type == type)
+			return 0;
 		if (found_key.objectid == min_objectid &&
 		    found_key.type < type)
 			break;

@@ -158,7 +158,8 @@ static void set_last_pointer(struct super_block *s, struct dnode *d, dnode_secno
 
 /* Add an entry to dnode and don't care if it grows over 2048 bytes */
 
-struct hpfs_dirent *hpfs_add_de(struct super_block *s, struct dnode *d, unsigned char *name,
+struct hpfs_dirent *hpfs_add_de(struct super_block *s, struct dnode *d,
+				const unsigned char *name,
 				unsigned namelen, secno down_ptr)
 {
 	struct hpfs_dirent *de;
@@ -223,7 +224,7 @@ static void fix_up_ptrs(struct super_block *s, struct dnode *d)
 /* Add an entry to dnode and do dnode splitting if required */
 
 static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
-			     unsigned char *name, unsigned namelen,
+			     const unsigned char *name, unsigned namelen,
 			     struct hpfs_dirent *new_de, dnode_secno down_ptr)
 {
 	struct quad_buffer_head qbh, qbh1, qbh2;
@@ -231,7 +232,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 	dnode_secno adno, rdno;
 	struct hpfs_dirent *de;
 	struct hpfs_dirent nde;
-	char *nname;
+	unsigned char *nname;
 	int h;
 	int pos;
 	struct buffer_head *bh;
@@ -305,7 +306,9 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 		pos++;
 	}
 	copy_de(new_de = &nde, de);
-	memcpy(name = nname, de->name, namelen = de->namelen);
+	memcpy(nname, de->name, de->namelen);
+	name = nname;
+	namelen = de->namelen;
 	for_all_poss(i, hpfs_pos_subst, ((loff_t)dno << 4) | pos, 4);
 	down_ptr = adno;
 	set_last_pointer(i->i_sb, ad, de->down ? de_down_pointer(de) : 0);
@@ -368,7 +371,8 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
  * I hope, now it's finally bug-free.
  */
 
-int hpfs_add_dirent(struct inode *i, unsigned char *name, unsigned namelen,
+int hpfs_add_dirent(struct inode *i,
+		    const unsigned char *name, unsigned namelen,
 		    struct hpfs_dirent *new_de, int cdepth)
 {
 	struct hpfs_inode_info *hpfs_inode = hpfs_i(i);
@@ -897,7 +901,8 @@ struct hpfs_dirent *map_pos_dirent(struct inode *inode, loff_t *posp,
 
 /* Find a dirent in tree */
 
-struct hpfs_dirent *map_dirent(struct inode *inode, dnode_secno dno, char *name, unsigned len,
+struct hpfs_dirent *map_dirent(struct inode *inode, dnode_secno dno,
+			       const unsigned char *name, unsigned len,
 			       dnode_secno *dd, struct quad_buffer_head *qbh)
 {
 	struct dnode *dnode;
@@ -988,8 +993,8 @@ void hpfs_remove_dtree(struct super_block *s, dnode_secno dno)
 struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 				     struct fnode *f, struct quad_buffer_head *qbh)
 {
-	char *name1;
-	char *name2;
+	unsigned char *name1;
+	unsigned char *name2;
 	int name1len, name2len;
 	struct dnode *d;
 	dnode_secno dno, downd;

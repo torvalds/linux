@@ -18,7 +18,8 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/i2c-ocores.h>
-#include <asm/io.h>
+#include <linux/slab.h>
+#include <linux/io.h>
 
 struct ocores_i2c {
 	void __iomem *base;

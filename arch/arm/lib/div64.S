@@ -177,7 +177,9 @@ ENTRY(__do_div64)
 	mov	yh, xh, lsr ip
 	mov	yl, xl, lsr ip
 	rsb	ip, ip, #32
-	orr	yl, yl, xh, lsl ip
+ ARM(	orr	yl, yl, xh, lsl ip	)
+ THUMB(	lsl	xh, xh, ip		)
+ THUMB(	orr	yl, yl, xh		)
 	mov	xh, xl, lsl ip
 	mov	xh, xh, lsr ip
 	mov	pc, lr

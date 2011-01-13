@@ -1,23 +1,31 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux Kernel Configuration"
-
 config ARM
 	bool
 	default y
 	select HAVE_AOUT
+	select HAVE_DMA_API_DEBUG
 	select HAVE_IDE
+	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
-	select HAVE_OPROFILE
+	select GENERIC_ATOMIC64 if (!CPU_32v6K || !AEABI)
+	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_ARCH_KGDB
-	select HAVE_KPROBES if (!XIP_KERNEL)
+	select HAVE_KPROBES if (!XIP_KERNEL && !THUMB2_KERNEL)
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
+	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
+	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
+	select HAVE_FUNCTION_GRAPH_TRACER if (!THUMB2_KERNEL)
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_LZMA
+	select HAVE_IRQ_WORK
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V7))
+	select HAVE_C_RECORDMCOUNT
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -29,14 +37,21 @@ config ARM
 config HAVE_PWM
 	bool
 
+config MIGHT_HAVE_PCI
+	bool
+
 config SYS_SUPPORTS_APM_EMULATION
+	bool
+
+config HAVE_SCHED_CLOCK
 	bool
 
 config GENERIC_GPIO
 	bool
 
-config GENERIC_TIME
+config ARCH_USES_GETTIMEOFFSET
 	bool
+	default n
 
 config GENERIC_CLOCKEVENTS
 	bool
@@ -44,11 +59,14 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	depends on GENERIC_CLOCKEVENTS
-	default y if SMP && !LOCAL_TIMERS
+	default y if SMP
 
-config MMU
+config HAVE_TCM
 	bool
-	default y
+	select GENERIC_ALLOCATOR
+
+config HAVE_PROC_CPU
+	bool
 
 config NO_IOPORT
 	bool
@@ -126,6 +144,16 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 
+config ARCH_HAS_CPUFREQ
+	bool
+	help
+	  Internal node to signify that the ARCH has CPUFREQ support
+	  and that the relevant menu configurations are displayed for
+	  it.
+
+config ARCH_HAS_CPU_IDLE_WAIT
+       def_bool y
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -140,6 +168,9 @@ config ARCH_MAY_HAVE_PC_FDC
 config ZONE_DMA
 	bool
 
+config NEED_DMA_MAP_STATE
+       def_bool y
+
 config GENERIC_ISA_DMA
 	bool
 
@@ -152,27 +183,10 @@ config ARCH_MTD_XIP
 config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
-if OPROFILE
-
-config OPROFILE_ARMV6
-	def_bool y
-	depends on CPU_V6 && !SMP
-	select OPROFILE_ARM11_CORE
-
-config OPROFILE_MPCORE
-	def_bool y
-	depends on CPU_V6 && SMP
-	select OPROFILE_ARM11_CORE
-
-config OPROFILE_ARM11_CORE
+config ARM_L1_CACHE_SHIFT_6
 	bool
-
-config OPROFILE_ARMV7
-	def_bool y
-	depends on CPU_V7 && !SMP
-	bool
-
-endif
+	help
+	  Setting ARM L1 cache line size to 64 Bytes.
 
 config VECTORS_BASE
 	hex
@@ -188,6 +202,17 @@ source "kernel/Kconfig.freezer"
 
 menu "System Type"
 
+config MMU
+	bool "MMU-based Paged Memory Management Support"
+	default y
+	help
+	  Select if you want MMU-based virtualised addressing space
+	  support by paged memory management. If unsure, say 'Y'.
+
+#
+# The "ARM system type" choice list is ordered alphabetically by option
+# text.  Please add new entries in the option alphabetic order.
+#
 choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
@@ -197,26 +222,32 @@ config ARCH_AAEC2000
 	select CPU_ARM920T
 	select ARM_AMBA
 	select HAVE_CLK
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  This enables support for systems based on the Agilent AAEC-2000
 
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select ICST525
+	select ARCH_HAS_CPUFREQ
+	select CLKDEV_LOOKUP
+	select ICST
+	select GENERIC_CLOCKEVENTS
+	select PLAT_VERSATILE
 	help
 	  Support for ARM's Integrator platform.
 
 config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select ICST307
-	select GENERIC_TIME
+	select CLKDEV_LOOKUP
+	select HAVE_SCHED_CLOCK
+	select ICST
 	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select PLAT_VERSATILE
+	select ARM_TIMER_SP804
+	select GPIO_PL061 if GPIOLIB
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -224,34 +255,71 @@ config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
 	select ARM_AMBA
 	select ARM_VIC
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select ICST307
-	select GENERIC_TIME
+	select CLKDEV_LOOKUP
+	select HAVE_SCHED_CLOCK
+	select ICST
 	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select PLAT_VERSATILE
+	select ARM_TIMER_SP804
 	help
 	  This enables support for ARM Ltd Versatile board.
 
+config ARCH_VEXPRESS
+	bool "ARM Ltd. Versatile Express family"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select HAVE_SCHED_CLOCK
+	select ICST
+	select PLAT_VERSATILE
+	help
+	  This enables support for the ARM Ltd Versatile Express boards.
+
 config ARCH_AT91
 	bool "Atmel AT91"
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
 
+config ARCH_BCMRING
+	bool "Broadcom BCMRING"
+	depends on MMU
+	select CPU_V6
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	help
+	  Support for Broadcom's BCMRing platform.
+
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x-based"
 	select CPU_ARM720T
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
+
+config ARCH_CNS3XXX
+	bool "Cavium Networks CNS3XXX family"
+	select CPU_V6
+	select GENERIC_CLOCKEVENTS
+	select ARM_GIC
+	select MIGHT_HAVE_PCI
+	select PCI_DOMAINS if PCI
+	help
+	  Support for Cavium Networks CNS3XXX platform.
 
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select CPU_FA526
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
@@ -260,6 +328,7 @@ config ARCH_EBSA110
 	select CPU_SA110
 	select ISA
 	select NO_IOPORT
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an
@@ -271,11 +340,10 @@ config ARCH_EP93XX
 	select CPU_ARM920T
 	select ARM_AMBA
 	select ARM_VIC
-	select GENERIC_GPIO
-	select HAVE_CLK
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -283,30 +351,33 @@ config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select CPU_SA110
 	select FOOTBRIDGE
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
 config ARCH_MXC
 	bool "Freescale MXC/iMX-based"
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select ARCH_MTD_XIP
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	help
 	  Support for Freescale MXC/iMX-based family of processors
+
+config ARCH_MXS
+	bool "Freescale MXS-based"
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select COMMON_CLKDEV
+	help
+	  Support for Freescale MXS-based family of processors
 
 config ARCH_STMP3XXX
 	bool "Freescale STMP3xxx"
 	select CPU_ARM926T
-	select HAVE_CLK
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select USB_ARCH_HAS_EHCI
 	help
 	  Support for systems based on the Freescale 3xxx CPUs.
@@ -316,7 +387,6 @@ config ARCH_NETX
 	select CPU_ARM926T
 	select ARM_VIC
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	help
 	  This enables support for systems based on the Hilscher NetX Soc
 
@@ -324,6 +394,7 @@ config ARCH_H720X
 	bool "Hynix HMS720x-based"
 	select CPU_ARM720T
 	select ISA_DMA_API
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
@@ -344,7 +415,6 @@ config ARCH_IOP32X
 	select CPU_XSCALE
 	select PLAT_IOP
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
@@ -356,7 +426,6 @@ config ARCH_IOP33X
 	select CPU_XSCALE
 	select PLAT_IOP
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
@@ -366,6 +435,7 @@ config ARCH_IXP23XX
 	depends on MMU
 	select CPU_XSC3
  	select PCI
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for Intel's IXP23xx (XScale) family of processors.
 
@@ -374,6 +444,7 @@ config ARCH_IXP2000
 	depends on MMU
 	select CPU_XSCALE
 	select PCI
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
@@ -382,33 +453,27 @@ config ARCH_IXP4XX
 	depends on MMU
 	select CPU_XSCALE
 	select GENERIC_GPIO
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
+	select MIGHT_HAVE_PCI
 	select DMABOUNCE if PCI
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
-config ARCH_L7200
-	bool "LinkUp-L7200"
-	select CPU_ARM720T
-	select FIQ
+config ARCH_DOVE
+	bool "Marvell Dove"
+	select PCI
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
 	help
-	  Say Y here if you intend to run this kernel on a LinkUp Systems
-	  L7200 Software Development Board which uses an ARM720T processor.
-	  Information on this board can be obtained at:
-
-	  <http://www.linkupsys.com/>
-
-	  If you have any questions or comments about the Linux kernel port
-	  to this board, send e-mail to <sjhill@cotw.com>.
+	  Support for the Marvell Dove SoC 88AP510
 
 config ARCH_KIRKWOOD
 	bool "Marvell Kirkwood"
 	select CPU_FEROCEON
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -418,19 +483,29 @@ config ARCH_KIRKWOOD
 config ARCH_LOKI
 	bool "Marvell Loki (88RC8480)"
 	select CPU_FEROCEON
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
 	  Support for the Marvell Loki (88RC8480) SoC.
 
+config ARCH_LPC32XX
+	bool "NXP LPC32XX"
+	select CPU_ARM926T
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
+	select ARM_AMBA
+	select USB_ARCH_HAS_OHCI
+	select CLKDEV_LOOKUP
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for the NXP LPC32XX family of processors
+
 config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select CPU_FEROCEON
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -442,9 +517,7 @@ config ARCH_ORION5X
 	depends on MMU
 	select CPU_FEROCEON
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -453,24 +526,23 @@ config ARCH_ORION5X
 	  Orion-2 (5281), Orion-1-90 (6183).
 
 config ARCH_MMP
-	bool "Marvell PXA168/910"
+	bool "Marvell PXA168/910/MMP2"
 	depends on MMU
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select GENERIC_TIME
+	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select PLAT_PXA
+	select SPARSE_IRQ
 	help
-	  Support for Marvell's PXA168/910 processor line.
+	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
 	select CPU_ARM922T
-	select GENERIC_GPIO
-        select ARCH_REQUIRE_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
@@ -479,7 +551,6 @@ config ARCH_NS9XXX
 	bool "NetSilicon NS9xxx"
 	select CPU_ARM926T
 	select GENERIC_GPIO
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	help
@@ -492,16 +563,44 @@ config ARCH_W90X900
 	bool "Nuvoton W90X900 CPU"
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
 	help
-		Support for Nuvoton (Winbond logic dept.) ARM9 processor,You
-		can login www.mcuos.com or www.nuvoton.com to know more.
+	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
+	  At present, the w90x900 has been renamed nuc900, regarding
+	  the ARM series product line, you can login the following
+	  link address to know more.
+
+	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
+		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
+
+config ARCH_NUC93X
+	bool "Nuvoton NUC93X CPU"
+	select CPU_ARM926T
+	select CLKDEV_LOOKUP
+	help
+	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
+	  low-power and high performance MPEG-4/JPEG multimedia controller chip.
+
+config ARCH_TEGRA
+	bool "NVIDIA Tegra"
+	select CLKDEV_LOOKUP
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select HAVE_SCHED_CLOCK
+	select ARCH_HAS_BARRIERS if CACHE_L2X0
+	select ARCH_HAS_CPUFREQ
+	help
+	  This enables support for NVIDIA Tegra based systems (Tegra APX,
+	  Tegra 6xx and Tegra 2 series).
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
-	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  This enables support for Philips PNX4008 mobile platform.
 
@@ -509,27 +608,39 @@ config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
-	select GENERIC_GPIO
-	select HAVE_CLK
-	select COMMON_CLKDEV
+	select ARCH_HAS_CPUFREQ
+	select CLKDEV_LOOKUP
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select PLAT_PXA
+	select SPARSE_IRQ
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
 config ARCH_MSM
 	bool "Qualcomm MSM"
-	select CPU_V6
-	select GENERIC_TIME
+	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
 	help
-	  Support for Qualcomm MSM7K based systems.  This runs on the ARM11
-	  apps processor of the MSM7K and depends on a shared memory
-	  interface to the ARM9 modem processor which runs the baseband stack
-	  and controls some vital subsystems (clock and power control, etc).
+	  Support for Qualcomm MSM/QSD based systems.  This runs on the
+	  apps processor of the MSM/QSD and depends on a shared memory
+	  interface to the modem processor which runs the baseband
+	  stack and controls some vital subsystems
+	  (clock and power control, etc).
+
+config ARCH_SHMOBILE
+	bool "Renesas SH-Mobile / R-Mobile"
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select NO_IOPORT
+	select SPARSE_IRQ
+	select MULTI_IRQ_HANDLER
+	help
+	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -541,6 +652,7 @@ config ARCH_RPC
 	select ISA_DMA_API
 	select NO_IOPORT
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -551,30 +663,120 @@ config ARCH_SA1100
 	select ISA
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_MTD_XIP
-	select GENERIC_GPIO
-	select GENERIC_TIME
+	select ARCH_HAS_CPUFREQ
+	select CPU_FREQ
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
+	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
-	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
+	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443, S3C2450"
 	select GENERIC_GPIO
+	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C if I2C
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
 	  the Samsung SMDK2410 development board (and derivatives).
 
+	  Note, the S3C2416 and the S3C2450 are so close that they even share
+	  the same SoC ID code. This means that there is no seperate machine
+	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
+
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
-	select GENERIC_GPIO
+	select PLAT_SAMSUNG
+	select CPU_V6
+	select ARM_VIC
 	select HAVE_CLK
+	select NO_IOPORT
+	select ARCH_USES_GETTIMEOFFSET
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select SAMSUNG_CLKSRC
+	select SAMSUNG_IRQ_VIC_TIMER
+	select SAMSUNG_IRQ_UART
+	select S3C_GPIO_TRACK
+	select S3C_GPIO_PULL_UPDOWN
+	select S3C_GPIO_CFG_S3C24XX
+	select S3C_GPIO_CFG_S3C64XX
+	select S3C_DEV_NAND
+	select USB_ARCH_HAS_OHCI
+	select SAMSUNG_GPIOLIB_4BIT
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
 	  Samsung S3C64XX series based systems
+
+config ARCH_S5P64X0
+	bool "Samsung S5P6440 S5P6450"
+	select CPU_V6
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	help
+	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
+	  SMDK6450.
+
+config ARCH_S5P6442
+	bool "Samsung S5P6442"
+	select CPU_V6
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	help
+	  Samsung S5P6442 CPU based systems
+
+config ARCH_S5PC100
+	bool "Samsung S5PC100"
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	help
+	  Samsung S5PC100 series based systems
+
+config ARCH_S5PV210
+	bool "Samsung S5PV210/S5PC110"
+	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_HAS_CPUFREQ
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	help
+	  Samsung S5PV210/S5PC110 series based systems
+
+config ARCH_S5PV310
+	bool "Samsung S5PV310/S5PC210"
+	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select GENERIC_CLOCKEVENTS
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	help
+	  Samsung S5PV310 series based systems
 
 config ARCH_SHARK
 	bool "Shark"
@@ -583,15 +785,25 @@ config ARCH_SHARK
 	select ISA_DMA
 	select ZONE_DMA
 	select PCI
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
 
+config ARCH_TCC_926
+	bool "Telechips TCC ARM926-based systems"
+	select CPU_ARM926T
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Telechips TCC ARM926-based systems.
+
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
 	select CPU_ARM922T
-	select ARCH_DISCONTIGMEM_ENABLE if !LH7A40X_CONTIGMEM
 	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Say Y here for systems based on one of the Sharp LH7A40X
 	  System on a Chip processors.  These CPUs include an ARM922T
@@ -602,50 +814,99 @@ config ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on MMU
 	select CPU_ARM926T
+	select HAVE_SCHED_CLOCK
+	select HAVE_TCM
 	select ARM_AMBA
 	select ARM_VIC
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	select GENERIC_GPIO
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
+config ARCH_U8500
+	bool "ST-Ericsson U8500 Series"
+	select CPU_V7
+	select ARM_AMBA
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
+	help
+	  Support for ST-Ericsson's Ux500 architecture
+
+config ARCH_NOMADIK
+	bool "STMicroelectronics Nomadik"
+	select ARM_AMBA
+	select ARM_VIC
+	select CPU_ARM926T
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for the Nomadik platform by ST-Ericsson
+
 config ARCH_DAVINCI
 	bool "TI DaVinci"
-	select CPU_ARM926T
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_CLK
 	select ZONE_DMA
 	select HAVE_IDE
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	select GENERIC_ALLOCATOR
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Support for TI's DaVinci platform.
 
 config ARCH_OMAP
 	bool "TI OMAP"
-	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
-	  Support for TI's OMAP platform (OMAP1 and OMAP2).
+	  Support for TI's OMAP platform (OMAP1/2/3/4).
+
+config PLAT_SPEAR
+	bool "ST SPEAr"
+	select ARM_AMBA
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	help
+	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
 endchoice
 
+#
+# This is sorted alphabetically by mach-* pathname.  However, plat-*
+# Kconfigs may be included either alphabetically (according to the
+# plat- suffix) or along side the corresponding mach-* source.
+#
+source "arch/arm/mach-aaec2000/Kconfig"
+
+source "arch/arm/mach-at91/Kconfig"
+
+source "arch/arm/mach-bcmring/Kconfig"
+
 source "arch/arm/mach-clps711x/Kconfig"
+
+source "arch/arm/mach-cns3xxx/Kconfig"
+
+source "arch/arm/mach-davinci/Kconfig"
+
+source "arch/arm/mach-dove/Kconfig"
 
 source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
 source "arch/arm/mach-gemini/Kconfig"
+
+source "arch/arm/mach-h720x/Kconfig"
 
 source "arch/arm/mach-integrator/Kconfig"
 
@@ -661,16 +922,32 @@ source "arch/arm/mach-ixp2000/Kconfig"
 
 source "arch/arm/mach-ixp23xx/Kconfig"
 
+source "arch/arm/mach-kirkwood/Kconfig"
+
+source "arch/arm/mach-ks8695/Kconfig"
+
+source "arch/arm/mach-lh7a40x/Kconfig"
+
 source "arch/arm/mach-loki/Kconfig"
+
+source "arch/arm/mach-lpc32xx/Kconfig"
+
+source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
 
-source "arch/arm/mach-pxa/Kconfig"
-source "arch/arm/plat-pxa/Kconfig"
+source "arch/arm/plat-mxc/Kconfig"
 
-source "arch/arm/mach-mmp/Kconfig"
+source "arch/arm/mach-mxs/Kconfig"
 
-source "arch/arm/mach-sa1100/Kconfig"
+source "arch/arm/mach-netx/Kconfig"
+
+source "arch/arm/mach-nomadik/Kconfig"
+source "arch/arm/plat-nomadik/Kconfig"
+
+source "arch/arm/mach-ns9xxx/Kconfig"
+
+source "arch/arm/mach-nuc93x/Kconfig"
 
 source "arch/arm/plat-omap/Kconfig"
 
@@ -680,53 +957,59 @@ source "arch/arm/mach-omap2/Kconfig"
 
 source "arch/arm/mach-orion5x/Kconfig"
 
-source "arch/arm/mach-kirkwood/Kconfig"
+source "arch/arm/mach-pxa/Kconfig"
+source "arch/arm/plat-pxa/Kconfig"
 
+source "arch/arm/mach-mmp/Kconfig"
+
+source "arch/arm/mach-realview/Kconfig"
+
+source "arch/arm/mach-sa1100/Kconfig"
+
+source "arch/arm/plat-samsung/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
-source "arch/arm/plat-s3c64xx/Kconfig"
-source "arch/arm/plat-s3c/Kconfig"
+source "arch/arm/plat-s5p/Kconfig"
+
+source "arch/arm/plat-spear/Kconfig"
+
+source "arch/arm/plat-tcc/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
 source "arch/arm/mach-s3c2412/Kconfig"
+source "arch/arm/mach-s3c2416/Kconfig"
 source "arch/arm/mach-s3c2440/Kconfig"
-source "arch/arm/mach-s3c2442/Kconfig"
 source "arch/arm/mach-s3c2443/Kconfig"
 endif
 
 if ARCH_S3C64XX
-source "arch/arm/mach-s3c6400/Kconfig"
-source "arch/arm/mach-s3c6410/Kconfig"
+source "arch/arm/mach-s3c64xx/Kconfig"
 endif
+
+source "arch/arm/mach-s5p64x0/Kconfig"
+
+source "arch/arm/mach-s5p6442/Kconfig"
+
+source "arch/arm/mach-s5pc100/Kconfig"
+
+source "arch/arm/mach-s5pv210/Kconfig"
+
+source "arch/arm/mach-s5pv310/Kconfig"
+
+source "arch/arm/mach-shmobile/Kconfig"
 
 source "arch/arm/plat-stmp3xxx/Kconfig"
 
-source "arch/arm/mach-lh7a40x/Kconfig"
+source "arch/arm/mach-tegra/Kconfig"
 
-source "arch/arm/mach-h720x/Kconfig"
+source "arch/arm/mach-u300/Kconfig"
+
+source "arch/arm/mach-ux500/Kconfig"
 
 source "arch/arm/mach-versatile/Kconfig"
 
-source "arch/arm/mach-aaec2000/Kconfig"
-
-source "arch/arm/mach-realview/Kconfig"
-
-source "arch/arm/mach-at91/Kconfig"
-
-source "arch/arm/plat-mxc/Kconfig"
-
-source "arch/arm/mach-netx/Kconfig"
-
-source "arch/arm/mach-ns9xxx/Kconfig"
-
-source "arch/arm/mach-davinci/Kconfig"
-
-source "arch/arm/mach-ks8695/Kconfig"
-
-source "arch/arm/mach-msm/Kconfig"
-
-source "arch/arm/mach-u300/Kconfig"
+source "arch/arm/mach-vexpress/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 
@@ -736,19 +1019,28 @@ config ARCH_ACORN
 
 config PLAT_IOP
 	bool
+	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
 
 config PLAT_ORION
 	bool
+	select HAVE_SCHED_CLOCK
 
 config PLAT_PXA
+	bool
+
+config PLAT_VERSATILE
+	bool
+
+config ARM_TIMER_SP804
 	bool
 
 source arch/arm/mm/Kconfig
 
 config IWMMXT
 	bool "Enable iWMMXt support"
-	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK
-	default y if PXA27x || PXA3xx || ARCH_MMP
+	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4
+	default y if PXA27x || PXA3xx || PXA95x || ARCH_MMP
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
@@ -759,13 +1051,24 @@ config XSCALE_PMU
 	depends on CPU_XSCALE && !XSCALE_PMU_TIMER
 	default y
 
+config CPU_HAS_PMU
+	depends on (CPU_V6 || CPU_V7 || XSCALE_PMU) && \
+		   (!ARCH_OMAP3 || OMAP3_EMU)
+	default y
+	bool
+
+config MULTI_IRQ_HANDLER
+	bool
+	help
+	  Allow each machine to specify it's own IRQ handler at run time.
+
 if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
 
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
-	depends on CPU_V6 && !SMP
+	depends on CPU_V6
 	help
 	  Invalidation of the Instruction Cache operation can
 	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
@@ -813,14 +1116,74 @@ config ARM_ERRATA_460075
 	  ACTLR register. Note that setting specific bits in the ACTLR register
 	  may not be available in non-secure mode.
 
+config ARM_ERRATA_742230
+	bool "ARM errata: DMB operation may be faulty"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742230 Cortex-A9
+	  (r1p0..r2p2) erratum. Under rare circumstances, a DMB instruction
+	  between two write operations may not ensure the correct visibility
+	  ordering of the two writes. This workaround sets a specific bit in
+	  the diagnostic register of the Cortex-A9 which causes the DMB
+	  instruction to behave as a DSB, ensuring the correct behaviour of
+	  the two writes.
+
+config ARM_ERRATA_742231
+	bool "ARM errata: Incorrect hazard handling in the SCU may lead to data corruption"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742231 Cortex-A9
+	  (r2p0..r2p2) erratum. Under certain conditions, specific to the
+	  Cortex-A9 MPCore micro-architecture, two CPUs working in SMP mode,
+	  accessing some data located in the same cache line, may get corrupted
+	  data due to bad handling of the address hazard when the line gets
+	  replaced from one of the CPUs at the same time as another CPU is
+	  accessing it. This workaround sets specific bits in the diagnostic
+	  register of the Cortex-A9 which reduces the linefill issuing
+	  capabilities of the processor.
+
+config PL310_ERRATA_588369
+	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
+	depends on CACHE_L2X0 && ARCH_OMAP4
+	help
+	   The PL310 L2 cache controller implements three types of Clean &
+	   Invalidate maintenance operations: by Physical Address
+	   (offset 0x7F0), by Index/Way (0x7F8) and by Way (0x7FC).
+	   They are architecturally defined to behave as the execution of a
+	   clean operation followed immediately by an invalidate operation,
+	   both performing to the same memory location. This functionality
+	   is not correctly implemented in PL310 as clean lines are not
+	   invalidated as a result of these operations. Note that this errata
+	   uses Texas Instrument's secure monitor api.
+
+config ARM_ERRATA_720789
+	bool "ARM errata: TLBIASIDIS and TLBIMVAIS operations can broadcast a faulty ASID"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 720789 Cortex-A9 (prior to
+	  r2p0) erratum. A faulty ASID can be sent to the other CPUs for the
+	  broadcasted CP15 TLB maintenance operations TLBIASIDIS and TLBIMVAIS.
+	  As a consequence of this erratum, some TLB entries which should be
+	  invalidated are not, resulting in an incoherency in the system page
+	  tables. The workaround changes the TLB flushing routines to invalidate
+	  entries regardless of the ASID.
+
+config ARM_ERRATA_743622
+	bool "ARM errata: Faulty hazard checking in the Store Buffer may lead to data corruption"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 743622 Cortex-A9
+	  (r2p0..r2p2) erratum. Under very rare conditions, a faulty
+	  optimisation in the Cortex-A9 Store Buffer may lead to data
+	  corruption. This workaround sets a specific bit in the diagnostic
+	  register of the Cortex-A9 which disables the Store Buffer
+	  optimisation, preventing the defect from occurring. This has no
+	  visible impact on the overall performance or power consumption of the
+	  processor.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
-
-config FORCE_MAX_ZONEORDER
-	int
-	depends on SA1111
-	default "9"
 
 menu "Bus support"
 
@@ -846,12 +1209,22 @@ config ISA_DMA_API
 	bool
 
 config PCI
-	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695 || MACH_ARMCORE
+	bool "PCI support" if MIGHT_HAVE_PCI
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
 	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
 	  VESA. If you have PCI, say Y, otherwise N.
+
+config PCI_DOMAINS
+	bool
+	depends on PCI
+
+config PCI_NANOENGINE
+	bool "BSE nanoEngine PCI support"
+	depends on SA1100_NANOENGINE
+	help
+	  Enable PCI on the BSE nanoEngine board.
 
 config PCI_SYSCALL
 	def_bool PCI
@@ -880,11 +1253,14 @@ source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP ||\
-		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4)
+	depends on EXPERIMENTAL
 	depends on GENERIC_CLOCKEVENTS
+	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
+		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
+		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
+		 ARCH_MSM_SCORPIONMP || ARCH_SHMOBILE
 	select USE_GENERIC_SMP_HELPERS
-	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_OMAP4)
+	select HAVE_ARM_SCU if !ARCH_MSM_SCORPIONMP
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -898,9 +1274,22 @@ config SMP
 
 	  See also <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
-	  <http://www.linuxdoc.org/docs.html#howto>.
+	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
 	  If you don't know what to do here, say N.
+
+config SMP_ON_UP
+	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on SMP && !XIP
+	default y
+	help
+	  SMP kernels contain instructions which fail on non-SMP processors.
+	  Enabling this option allows the kernel to modify itself to make
+	  these instructions safe.  Disabling it allows about 1K of space
+	  savings.
+
+	  If you don't know what to do here, say Y.
 
 config HAVE_ARM_SCU
 	bool
@@ -911,6 +1300,7 @@ config HAVE_ARM_SCU
 config HAVE_ARM_TWD
 	bool
 	depends on SMP
+	select TICK_ONESHOT
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
@@ -946,42 +1336,47 @@ config NR_CPUS
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
 	depends on SMP && HOTPLUG && EXPERIMENTAL
+	depends on !ARCH_MSM
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
-		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4)
+	depends on SMP
 	default y
-	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_OMAP4)
+	select HAVE_ARM_TWD if !ARCH_MSM_SCORPIONMP
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
 	  accounting to be spread across the timer interval, preventing a
 	  "thundering herd" at every timer tick.
 
-config PREEMPT
-	bool "Preemptible Kernel (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
+source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 128 if ARCH_L7200
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410
+	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
+		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_S5PV310
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
+	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
 	default 100
+
+config THUMB2_KERNEL
+	bool "Compile the kernel in Thumb-2 mode (EXPERIMENTAL)"
+	depends on CPU_V7 && !CPU_V6 && EXPERIMENTAL
+	select AEABI
+	select ARM_ASM_UNIFIED
+	help
+	  By enabling this option, the kernel will be compiled in
+	  Thumb-2 mode. A compiler/assembler that understand the unified
+	  ARM-Thumb syntax is needed.
+
+	  If unsure, say N.
+
+config ARM_ASM_UNIFIED
+	bool
 
 config AEABI
 	bool "Use the ARM EABI to compile the kernel"
@@ -1018,10 +1413,6 @@ config OABI_COMPAT
 config ARCH_HAS_HOLES_MEMORYMODEL
 	bool
 
-# Discontigmem is deprecated
-config ARCH_DISCONTIGMEM_ENABLE
-	bool
-
 config ARCH_SPARSEMEM_ENABLE
 	bool
 
@@ -1029,13 +1420,7 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SELECT_MEMORY_MODEL
-	def_bool ARCH_DISCONTIGMEM_ENABLE && ARCH_SPARSEMEM_ENABLE
-
-config NODES_SHIFT
-	int
-	default "4" if ARCH_LH7A40X
-	default "2"
-	depends on NEED_MULTIPLE_NODES
+	def_bool ARCH_SPARSEMEM_ENABLE
 
 config HIGHMEM
 	bool "High Memory Support (EXPERIMENTAL)"
@@ -1054,7 +1439,45 @@ config HIGHMEM
 
 	  If unsure, say n.
 
+config HIGHPTE
+	bool "Allocate 2nd-level pagetables from highmem"
+	depends on HIGHMEM
+	depends on !OUTER_CACHE
+
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && CPU_HAS_PMU
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
+
+config SPARSE_IRQ
+	def_bool n
+	help
+	  This enables support for sparse irqs. This is useful in general
+	  as most CPUs have a fairly sparse array of IRQ vectors, which
+	  the irq_desc then maps directly on to. Systems with a high
+	  number of off-chip IRQs will want to treat this as
+	  experimental until they have been independently verified.
+
 source "mm/Kconfig"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order" if ARCH_SHMOBILE
+	range 11 64 if ARCH_SHMOBILE
+	default "9" if SA1111
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 config LEDS
 	bool "Timer and CPU usage LEDs"
@@ -1113,6 +1536,7 @@ config ALIGNMENT_TRAP
 	bool
 	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
+	select HAVE_PROC_CPU if PROC_FS
 	help
 	  ARM processors cannot fetch/store information which is not
 	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an
@@ -1137,6 +1561,39 @@ config UACCESS_WITH_MEMCPY
 
 	  However, if the CPU data cache is using a write-allocate mode,
 	  this option is unlikely to provide any performance gain.
+
+config SECCOMP
+	bool
+	prompt "Enable seccomp to safely compute untrusted bytecode"
+	---help---
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of functions, a canary value on
+	  the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+	  This feature requires gcc version 4.2 or above.
+
+config DEPRECATED_PARAM_STRUCT
+	bool "Provide old way to pass kernel parameters"
+	help
+	  This was deprecated in 2001 and announced to live on for 5 years.
+	  Some old boot loaders still use this way.
 
 endmenu
 
@@ -1184,6 +1641,17 @@ config CMDLINE
 	  architectures, you should supply some command-line options at build
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	depends on CMDLINE != ""
+	help
+	  Always use the default kernel command string, even if the boot
+	  loader passes other arguments to the kernel.
+	  This is useful if you cannot or don't want to change the
+	  command-line options your boot loader passes to the kernel.
+
+	  If unsure, say N.
 
 config XIP_KERNEL
 	bool "Kernel Execute-In-Place from ROM"
@@ -1237,23 +1705,48 @@ config ATAGS_PROC
 	  Should the atags used to boot the kernel be exported in an "atags"
 	  file in procfs. Useful with kexec.
 
+config CRASH_DUMP
+	bool "Build kdump crash kernel (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Generate crash dump after being started by kexec. This should
+	  be normally only set in special crash dump kernels which are
+	  loaded in the main kernel with kexec-tools into a specially
+	  reserved region and then later executed after a crash by
+	  kdump/kexec. The crash dump kernel must be compiled to a
+	  memory address not used by the main kernel
+
+	  For more details see Documentation/kdump/kdump.txt
+
+config AUTO_ZRELADDR
+	bool "Auto calculation of the decompressed kernel image address"
+	depends on !ZBOOT_ROM && !ARCH_U300
+	help
+	  ZRELADDR is the physical address where the decompressed kernel
+	  image will be placed. If AUTO_ZRELADDR is selected, the address
+	  will be determined at run-time by masking the current IP with
+	  0xf8000000. This assumes the zImage being placed in the first 128MB
+	  from start of memory.
+
 endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA || ARCH_S3C64XX)
+if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
 
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_MXC && CPU_FREQ
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
+
 config CPU_FREQ_SA1100
 	bool
-	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
-	default y
 
 config CPU_FREQ_SA1110
 	bool
-	depends on CPU_FREQ && (SA1100_ASSABET || SA1100_CERF || SA1100_PT_SYSTEM3)
-	default y
 
 config CPU_FREQ_INTEGRATOR
 	tristate "CPUfreq driver for ARM Integrator CPUs"
@@ -1276,6 +1769,52 @@ config CPU_FREQ_S3C64XX
 	bool "CPUfreq support for Samsung S3C64XX CPUs"
 	depends on CPU_FREQ && CPU_S3C6410
 
+config CPU_FREQ_S3C
+	bool
+	help
+	  Internal configuration node for common cpufreq on Samsung SoC
+
+config CPU_FREQ_S3C24XX
+	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
+	depends on ARCH_S3C2410 && CPU_FREQ && EXPERIMENTAL
+	select CPU_FREQ_S3C
+	help
+	  This enables the CPUfreq driver for the Samsung S3C24XX family
+	  of CPUs.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_S3C24XX_PLL
+	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"
+	depends on CPU_FREQ_S3C24XX && EXPERIMENTAL
+	help
+	  Compile in support for changing the PLL frequency from the
+	  S3C24XX series CPUfreq driver. The PLL takes time to settle
+	  after a frequency change, so by default it is not enabled.
+
+	  This also means that the PLL tables for the selected CPU(s) will
+	  be built which may increase the size of the kernel image.
+
+config CPU_FREQ_S3C24XX_DEBUG
+	bool "Debug CPUfreq Samsung driver core"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_dbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_IODEBUG
+	bool "Debug CPUfreq Samsung driver IO timing"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_DEBUGFS
+	bool "Export debugfs for CPUFreq"
+	depends on CPU_FREQ_S3C24XX && DEBUG_FS
+	help
+	  Export status information via debugfs.
+
 endif
 
 source "drivers/cpuidle/Kconfig"
@@ -1288,7 +1827,7 @@ comment "At least one emulation must be selected"
 
 config FPE_NWFPE
 	bool "NWFPE math emulation"
-	depends on !AEABI || OABI_COMPAT
+	depends on (!AEABI || OABI_COMPAT) && !THUMB2_KERNEL
 	---help---
 	  Say Y to include the NWFPE floating point emulator in the kernel.
 	  This is necessary to run most binaries. Linux does not currently
@@ -1377,107 +1916,7 @@ endmenu
 
 source "net/Kconfig"
 
-menu "Device Drivers"
-
-source "drivers/base/Kconfig"
-
-source "drivers/connector/Kconfig"
-
-if ALIGNMENT_TRAP || !CPU_CP15_MMU
-source "drivers/mtd/Kconfig"
-endif
-
-source "drivers/parport/Kconfig"
-
-source "drivers/pnp/Kconfig"
-
-source "drivers/block/Kconfig"
-
-# misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
-
-source "drivers/misc/Kconfig"
-
-source "drivers/ide/Kconfig"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/ata/Kconfig"
-
-source "drivers/md/Kconfig"
-
-source "drivers/message/fusion/Kconfig"
-
-source "drivers/ieee1394/Kconfig"
-
-source "drivers/message/i2o/Kconfig"
-
-source "drivers/net/Kconfig"
-
-source "drivers/isdn/Kconfig"
-
-# input before char - char/joystick depends on it. As does USB.
-
-source "drivers/input/Kconfig"
-
-source "drivers/char/Kconfig"
-
-source "drivers/i2c/Kconfig"
-
-source "drivers/spi/Kconfig"
-
-source "drivers/gpio/Kconfig"
-
-source "drivers/w1/Kconfig"
-
-source "drivers/power/Kconfig"
-
-source "drivers/hwmon/Kconfig"
-
-source "drivers/thermal/Kconfig"
-
-source "drivers/watchdog/Kconfig"
-
-source "drivers/ssb/Kconfig"
-
-#source "drivers/l3/Kconfig"
-
-source "drivers/mfd/Kconfig"
-
-source "drivers/media/Kconfig"
-
-source "drivers/video/Kconfig"
-
-source "sound/Kconfig"
-
-source "drivers/hid/Kconfig"
-
-source "drivers/usb/Kconfig"
-
-source "drivers/uwb/Kconfig"
-
-source "drivers/mmc/Kconfig"
-
-source "drivers/memstick/Kconfig"
-
-source "drivers/accessibility/Kconfig"
-
-source "drivers/leds/Kconfig"
-
-source "drivers/rtc/Kconfig"
-
-source "drivers/dma/Kconfig"
-
-source "drivers/dca/Kconfig"
-
-source "drivers/auxdisplay/Kconfig"
-
-source "drivers/regulator/Kconfig"
-
-source "drivers/uio/Kconfig"
-
-source "drivers/staging/Kconfig"
-
-endmenu
+source "drivers/Kconfig"
 
 source "fs/Kconfig"
 

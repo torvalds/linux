@@ -36,7 +36,7 @@
 
 #include "drm_pciids.h"
 
-static int mga_driver_device_is_agp(struct drm_device * dev);
+static int mga_driver_device_is_agp(struct drm_device *dev);
 
 static struct pci_device_id pciidlist[] = {
 	mga_PCI_IDS
@@ -60,21 +60,20 @@ static struct drm_driver driver = {
 	.irq_uninstall = mga_driver_irq_uninstall,
 	.irq_handler = mga_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = mga_ioctls,
 	.dma_ioctl = mga_dma_buffers,
 	.fops = {
 		.owner = THIS_MODULE,
 		.open = drm_open,
 		.release = drm_release,
-		.ioctl = drm_ioctl,
+		.unlocked_ioctl = drm_ioctl,
 		.mmap = drm_mmap,
 		.poll = drm_poll,
 		.fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
 		.compat_ioctl = mga_compat_ioctl,
 #endif
+		.llseek = noop_llseek,
 	},
 	.pci_driver = {
 		.name = DRIVER_NAME,
@@ -119,7 +118,7 @@ MODULE_LICENSE("GPL and additional rights");
  * \returns
  * If the device is a PCI G450, zero is returned.  Otherwise 2 is returned.
  */
-static int mga_driver_device_is_agp(struct drm_device * dev)
+static int mga_driver_device_is_agp(struct drm_device *dev)
 {
 	const struct pci_dev *const pdev = dev->pdev;
 

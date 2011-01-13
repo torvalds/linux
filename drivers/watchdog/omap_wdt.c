@@ -38,12 +38,13 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/moduleparam.h>
-#include <linux/clk.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <mach/hardware.h>
-#include <mach/prcm.h>
+#include <plat/prcm.h>
 
 #include "omap_wdt.h"
 
@@ -60,8 +61,6 @@ struct omap_wdt_dev {
 	void __iomem    *base;          /* physical */
 	struct device   *dev;
 	int             omap_wdt_users;
-	struct clk      *ick;
-	struct clk      *fck;
 	struct resource *mem;
 	struct miscdevice omap_wdt_miscdev;
 };
@@ -145,8 +144,7 @@ static int omap_wdt_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(1, (unsigned long *)&(wdev->omap_wdt_users)))
 		return -EBUSY;
 
-	clk_enable(wdev->ick);    /* Enable the interface clock */
-	clk_enable(wdev->fck);    /* Enable the functional clock */
+	pm_runtime_get_sync(wdev->dev);
 
 	/* initialize prescaler */
 	while (__raw_readl(base + OMAP_WATCHDOG_WPS) & 0x01)
@@ -159,6 +157,7 @@ static int omap_wdt_open(struct inode *inode, struct file *file)
 	file->private_data = (void *) wdev;
 
 	omap_wdt_set_timeout(wdev);
+	omap_wdt_ping(wdev); /* trigger loading of new timeout value */
 	omap_wdt_enable(wdev);
 
 	return nonseekable_open(inode, file);
@@ -175,8 +174,7 @@ static int omap_wdt_release(struct inode *inode, struct file *file)
 
 	omap_wdt_disable(wdev);
 
-	clk_disable(wdev->ick);
-	clk_disable(wdev->fck);
+	pm_runtime_put_sync(wdev->dev);
 #else
 	printk(KERN_CRIT "omap_wdt: Unexpected close, not stopping!\n");
 #endif
@@ -256,6 +254,7 @@ static const struct file_operations omap_wdt_fops = {
 	.unlocked_ioctl = omap_wdt_ioctl,
 	.open = omap_wdt_open,
 	.release = omap_wdt_release,
+	.llseek = no_llseek,
 };
 
 static int __devinit omap_wdt_probe(struct platform_device *pdev)
@@ -276,8 +275,7 @@ static int __devinit omap_wdt_probe(struct platform_device *pdev)
 		goto err_busy;
 	}
 
-	mem = request_mem_region(res->start, res->end - res->start + 1,
-				 pdev->name);
+	mem = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!mem) {
 		ret = -EBUSY;
 		goto err_busy;
@@ -291,27 +289,18 @@ static int __devinit omap_wdt_probe(struct platform_device *pdev)
 
 	wdev->omap_wdt_users = 0;
 	wdev->mem = mem;
+	wdev->dev = &pdev->dev;
 
-	wdev->ick = clk_get(&pdev->dev, "ick");
-	if (IS_ERR(wdev->ick)) {
-		ret = PTR_ERR(wdev->ick);
-		wdev->ick = NULL;
-		goto err_clk;
-	}
-	wdev->fck = clk_get(&pdev->dev, "fck");
-	if (IS_ERR(wdev->fck)) {
-		ret = PTR_ERR(wdev->fck);
-		wdev->fck = NULL;
-		goto err_clk;
-	}
-
-	wdev->base = ioremap(res->start, res->end - res->start + 1);
+	wdev->base = ioremap(res->start, resource_size(res));
 	if (!wdev->base) {
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
 
 	platform_set_drvdata(pdev, wdev);
+
+	pm_runtime_enable(wdev->dev);
+	pm_runtime_get_sync(wdev->dev);
 
 	omap_wdt_disable(wdev);
 	omap_wdt_adjust_timeout(timer_margin);
@@ -329,8 +318,7 @@ static int __devinit omap_wdt_probe(struct platform_device *pdev)
 		__raw_readl(wdev->base + OMAP_WATCHDOG_REV) & 0xFF,
 		timer_margin);
 
-	/* autogate OCP interface clock */
-	__raw_writel(0x01, wdev->base + OMAP_WATCHDOG_SYS_CONFIG);
+	pm_runtime_put_sync(wdev->dev);
 
 	omap_wdt_dev = pdev;
 
@@ -342,16 +330,10 @@ err_misc:
 
 err_ioremap:
 	wdev->base = NULL;
-
-err_clk:
-	if (wdev->ick)
-		clk_put(wdev->ick);
-	if (wdev->fck)
-		clk_put(wdev->fck);
 	kfree(wdev);
 
 err_kzalloc:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 err_busy:
 err_get_resource:
@@ -376,11 +358,9 @@ static int __devexit omap_wdt_remove(struct platform_device *pdev)
 		return -ENOENT;
 
 	misc_deregister(&(wdev->omap_wdt_miscdev));
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	platform_set_drvdata(pdev, NULL);
 
-	clk_put(wdev->ick);
-	clk_put(wdev->fck);
 	iounmap(wdev->base);
 
 	kfree(wdev);

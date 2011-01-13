@@ -54,14 +54,11 @@ struct kvm_vqconfig {
  * This is pagesize for historical reasons. */
 #define KVM_S390_VIRTIO_RING_ALIGN	4096
 
-#ifdef __KERNEL__
-/* early virtio console setup */
-#ifdef CONFIG_S390_GUEST
-extern void s390_virtio_console_init(void);
-#else
-static inline void s390_virtio_console_init(void)
-{
-}
-#endif /* CONFIG_VIRTIO_CONSOLE */
-#endif /* __KERNEL__ */
+
+/* These values are supposed to be in ext_params on an interrupt */
+#define VIRTIO_PARAM_MASK		0xff
+#define VIRTIO_PARAM_VRING_INTERRUPT	0x0
+#define VIRTIO_PARAM_CONFIG_CHANGED	0x1
+#define VIRTIO_PARAM_DEV_ADD		0x2
+
 #endif

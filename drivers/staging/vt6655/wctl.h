@@ -26,21 +26,12 @@
  *
  */
 
-
 #ifndef __WCTL_H__
 #define __WCTL_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -105,21 +96,12 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
-BOOL WCTLbIsDuplicate(PSCache pCache, PS802_11Header pMACHeader);
-BOOL WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, UINT cbFrameLength, BOOL bWEP, BOOL bExtIV);
-UINT WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
-UINT WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
+bool WCTLbIsDuplicate(PSCache pCache, PS802_11Header pMACHeader);
+bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader,
+		unsigned int cbFrameLength, bool bWEP, bool bExtIV);
+unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
+unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
 
 #endif // __WCTL_H__
 

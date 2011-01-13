@@ -76,6 +76,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fs.h>
@@ -88,7 +89,6 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>
@@ -173,6 +173,7 @@ struct cosa_data {
  * Character device major number. 117 was allocated for us.
  * The value of 0 means to allocate a first free one.
  */
+static DEFINE_MUTEX(cosa_chardev_mutex);
 static int cosa_major = 117;
 
 /*
@@ -279,7 +280,7 @@ static int cosa_net_attach(struct net_device *dev, unsigned short encoding,
 static int cosa_net_open(struct net_device *d);
 static int cosa_net_close(struct net_device *d);
 static void cosa_net_timeout(struct net_device *d);
-static int cosa_net_tx(struct sk_buff *skb, struct net_device *d);
+static netdev_tx_t cosa_net_tx(struct sk_buff *skb, struct net_device *d);
 static char *cosa_net_setup_rx(struct channel_data *channel, int size);
 static int cosa_net_rx_done(struct channel_data *channel);
 static int cosa_net_tx_done(struct channel_data *channel, int size);
@@ -296,8 +297,8 @@ static ssize_t cosa_write(struct file *file,
 static unsigned int cosa_poll(struct file *file, poll_table *poll);
 static int cosa_open(struct inode *inode, struct file *file);
 static int cosa_release(struct inode *inode, struct file *file);
-static int cosa_chardev_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg);
+static long cosa_chardev_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg);
 #ifdef COSA_FASYNC_WORKING
 static int cosa_fasync(struct inode *inode, struct file *file, int on);
 #endif
@@ -308,7 +309,7 @@ static const struct file_operations cosa_fops = {
 	.read		= cosa_read,
 	.write		= cosa_write,
 	.poll		= cosa_poll,
-	.ioctl		= cosa_chardev_ioctl,
+	.unlocked_ioctl	= cosa_chardev_ioctl,
 	.open		= cosa_open,
 	.release	= cosa_release,
 #ifdef COSA_FASYNC_WORKING
@@ -574,7 +575,7 @@ static int cosa_probe(int base, int irq, int dma)
 
 		/* Initialize the chardev data structures */
 		mutex_init(&chan->rlock);
-		init_MUTEX(&chan->wsem);
+		sema_init(&chan->wsem, 1);
 
 		/* Register the network interface */
 		if (!(chan->netdev = alloc_hdlcdev(chan))) {
@@ -672,7 +673,8 @@ static int cosa_net_open(struct net_device *dev)
 	return 0;
 }
 
-static int cosa_net_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cosa_net_tx(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct channel_data *chan = dev_to_chan(dev);
 
@@ -680,7 +682,7 @@ static int cosa_net_tx(struct sk_buff *skb, struct net_device *dev)
 
 	chan->tx_skb = skb;
 	cosa_start_tx(chan, skb->data, skb->len);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void cosa_net_timeout(struct net_device *dev)
@@ -809,7 +811,7 @@ static ssize_t cosa_read(struct file *file,
 	cosa_enable_rx(chan);
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->rxwaitq, &wait);
-	while(!chan->rx_status) {
+	while (!chan->rx_status) {
 		current->state = TASK_INTERRUPTIBLE;
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
@@ -894,7 +896,7 @@ static ssize_t cosa_write(struct file *file,
 
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->txwaitq, &wait);
-	while(!chan->tx_status) {
+	while (!chan->tx_status) {
 		current->state = TASK_INTERRUPTIBLE;
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
@@ -905,6 +907,7 @@ static ssize_t cosa_write(struct file *file,
 			current->state = TASK_RUNNING;
 			chan->tx_status = 1;
 			spin_unlock_irqrestore(&cosa->lock, flags);
+			up(&chan->wsem);
 			return -ERESTARTSYS;
 		}
 	}
@@ -941,7 +944,7 @@ static int cosa_open(struct inode *inode, struct file *file)
 	int n;
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&cosa_chardev_mutex);
 	if ((n=iminor(file->f_path.dentry->d_inode)>>CARD_MINOR_BITS)
 		>= nr_cards) {
 		ret = -ENODEV;
@@ -973,7 +976,7 @@ static int cosa_open(struct inode *inode, struct file *file)
 	chan->rx_done = chrdev_rx_done;
 	spin_unlock_irqrestore(&cosa->lock, flags);
 out:
-	unlock_kernel();
+	mutex_unlock(&cosa_chardev_mutex);
 	return ret;
 }
 
@@ -1150,7 +1153,7 @@ static int cosa_ioctl_common(struct cosa_data *cosa,
 	struct channel_data *channel, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	switch(cmd) {
+	switch (cmd) {
 	case COSAIORSET:	/* Reset the device */
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
@@ -1202,12 +1205,18 @@ static int cosa_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return hdlc_ioctl(dev, ifr, cmd);
 }
 
-static int cosa_chardev_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static long cosa_chardev_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 	struct channel_data *channel = file->private_data;
-	struct cosa_data *cosa = channel->cosa;
-	return cosa_ioctl_common(cosa, channel, cmd, arg);
+	struct cosa_data *cosa;
+	long ret;
+
+	mutex_lock(&cosa_chardev_mutex);
+	cosa = channel->cosa;
+	ret = cosa_ioctl_common(cosa, channel, cmd, arg);
+	mutex_unlock(&cosa_chardev_mutex);
+	return ret;
 }
 
 
@@ -1695,7 +1704,7 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 			spin_unlock_irqrestore(&cosa->lock, flags);
 			return;
 		}
-		while(1) {
+		while (1) {
 			cosa->txchan++;
 			i++;
 			if (cosa->txchan >= cosa->nchannels)
@@ -2001,7 +2010,7 @@ again:
 static void debug_status_in(struct cosa_data *cosa, int status)
 {
 	char *s;
-	switch(status & SR_CMD_FROM_SRP_MASK) {
+	switch (status & SR_CMD_FROM_SRP_MASK) {
 	case SR_UP_REQUEST:
 		s = "RX_REQ";
 		break;

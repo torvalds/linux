@@ -231,12 +231,12 @@ struct iw_mgmt_info_element {
 		  but sizeof(enum) > sizeof(u8) :-( */
 	u8 len;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct iw_mgmt_essid_pset {
 	struct iw_mgmt_info_element el;
 	u8 			    essid[IW_ESSID_MAX_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * According to 802.11 Wireless Netowors, the definitive guide - O'Reilly
@@ -247,12 +247,12 @@ struct iw_mgmt_essid_pset {
 struct iw_mgmt_data_rset {
 	struct iw_mgmt_info_element el;
 	u8 			    data_rate_labels[IW_DATA_RATE_MAX_LABELS];
-} __attribute__ ((packed));
+} __packed;
 
 struct iw_mgmt_ds_pset {
 	struct iw_mgmt_info_element el;
 	u8 			    chan;
-} __attribute__ ((packed));
+} __packed;
 
 struct iw_mgmt_cf_pset {
 	struct iw_mgmt_info_element el;
@@ -260,12 +260,12 @@ struct iw_mgmt_cf_pset {
 	u8 			    cfp_period;
 	u16 			    cfp_max_duration;
 	u16 			    cfp_dur_remaining;
-} __attribute__ ((packed));
+} __packed;
 
 struct iw_mgmt_ibss_pset {
 	struct iw_mgmt_info_element el;
 	u16 			    atim_window;
-} __attribute__ ((packed));
+} __packed;
 
 struct wl3501_tx_hdr {
 	u16	tx_cnt;
@@ -544,12 +544,12 @@ struct wl3501_80211_tx_plcp_hdr {
 	u8	service;
 	u16	len;
 	u16	crc16;
-} __attribute__ ((packed));
+} __packed;
 
 struct wl3501_80211_tx_hdr {
 	struct wl3501_80211_tx_plcp_hdr	pclp_hdr;
 	struct ieee80211_hdr		mac_hdr;
-} __attribute__ ((packed));
+} __packed;
 
 /*
    Reserve the beginning Tx space for descriptor use.
@@ -610,7 +610,6 @@ struct wl3501_card {
 	struct iw_statistics		wstats;
 	struct iw_spy_data		spy_data;
 	struct iw_public_data		wireless_data;
-	struct dev_node_t		node;
 	struct pcmcia_device		*p_dev;
 };
 #endif

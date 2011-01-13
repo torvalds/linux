@@ -57,5 +57,8 @@ SECTIONS
 		*(.note*)
 	}
 
+	/*
+	 * The ASSERT() sink to . is intentional, for binutils 2.14 compatibility:
+	 */
 	. = ASSERT(_end <= WAKEUP_SIZE, "Wakeup too big!");
 }

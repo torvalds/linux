@@ -13,12 +13,12 @@
 #include <linux/device.h>
 #include <linux/sysfs.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <sound/soc-of-simple.h>
 #include <sound/initval.h>
 
 #include "tlv320aic26.h"
@@ -48,7 +48,7 @@ struct aic26 {
 static unsigned int aic26_reg_read(struct snd_soc_codec *codec,
 				   unsigned int reg)
 {
-	struct aic26 *aic26 = codec->private_data;
+	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache = codec->reg_cache;
 	u16 cmd, value;
 	u8 buffer[2];
@@ -92,7 +92,7 @@ static unsigned int aic26_reg_read_cache(struct snd_soc_codec *codec,
 static int aic26_reg_write(struct snd_soc_codec *codec, unsigned int reg,
 			   unsigned int value)
 {
-	struct aic26 *aic26 = codec->private_data;
+	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache = codec->reg_cache;
 	u16 cmd;
 	u8 buffer[4];
@@ -129,9 +129,8 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct aic26 *aic26 = codec->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 	int fsref, divisor, wlen, pval, jval, dval, qval;
 	u16 reg;
 
@@ -198,7 +197,7 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 static int aic26_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct aic26 *aic26 = codec->private_data;
+	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 	u16 reg = aic26_reg_read_cache(codec, AIC26_REG_DAC_GAIN);
 
 	dev_dbg(&aic26->spi->dev, "aic26_mute(dai=%p, mute=%i)\n",
@@ -217,7 +216,7 @@ static int aic26_set_sysclk(struct snd_soc_dai *codec_dai,
 			    int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic26 *aic26 = codec->private_data;
+	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 
 	dev_dbg(&aic26->spi->dev, "aic26_set_sysclk(dai=%p, clk_id==%i,"
 		" freq=%i, dir=%i)\n",
@@ -234,7 +233,7 @@ static int aic26_set_sysclk(struct snd_soc_dai *codec_dai,
 static int aic26_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic26 *aic26 = codec->private_data;
+	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 
 	dev_dbg(&aic26->spi->dev, "aic26_set_fmt(dai=%p, fmt==%i)\n",
 		codec_dai, fmt);
@@ -277,8 +276,8 @@ static struct snd_soc_dai_ops aic26_dai_ops = {
 	.set_fmt	= aic26_set_fmt,
 };
 
-struct snd_soc_dai aic26_dai = {
-	.name = "tlv320aic26",
+static struct snd_soc_dai_driver aic26_dai = {
+	.name = "tlv320aic26-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -295,7 +294,6 @@ struct snd_soc_dai aic26_dai = {
 	},
 	.ops = &aic26_dai_ops,
 };
-EXPORT_SYMBOL_GPL(aic26_dai);
 
 /* ---------------------------------------------------------------------
  * ALSA controls
@@ -316,72 +314,6 @@ static const struct snd_kcontrol_new aic26_snd_controls[] = {
 	SOC_SINGLE("Keyclick period", AIC26_REG_AUDIO_CTRL2, 4, 0xf, 0),
 	SOC_ENUM("Capture Source", aic26_capture_src_enum),
 };
-
-/* ---------------------------------------------------------------------
- * SoC CODEC portion of driver: probe and release routines
- */
-static int aic26_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	struct aic26 *aic26;
-	int ret, err;
-
-	dev_info(&pdev->dev, "Probing AIC26 SoC CODEC driver\n");
-	dev_dbg(&pdev->dev, "socdev=%p\n", socdev);
-	dev_dbg(&pdev->dev, "codec_data=%p\n", socdev->codec_data);
-
-	/* Fetch the relevant aic26 private data here (it's already been
-	 * stored in the .codec pointer) */
-	aic26 = socdev->codec_data;
-	if (aic26 == NULL) {
-		dev_err(&pdev->dev, "aic26: missing codec pointer\n");
-		return -ENODEV;
-	}
-	codec = &aic26->codec;
-	socdev->card->codec = codec;
-
-	dev_dbg(&pdev->dev, "Registering PCMs, dev=%p, socdev->dev=%p\n",
-		&pdev->dev, socdev->dev);
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "aic26: failed to create pcms\n");
-		return -ENODEV;
-	}
-
-	/* register controls */
-	dev_dbg(&pdev->dev, "Registering controls\n");
-	err = snd_soc_add_controls(codec, aic26_snd_controls,
-			ARRAY_SIZE(aic26_snd_controls));
-	WARN_ON(err < 0);
-
-	/* CODEC is setup, we can register the card now */
-	dev_dbg(&pdev->dev, "Registering card\n");
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "aic26: failed to register card\n");
-		goto card_err;
-	}
-	return 0;
-
- card_err:
-	snd_soc_free_pcms(socdev);
-	return ret;
-}
-
-static int aic26_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	snd_soc_free_pcms(socdev);
-	return 0;
-}
-
-struct snd_soc_codec_device aic26_soc_codec_dev = {
-	.probe = aic26_probe,
-	.remove = aic26_remove,
-};
-EXPORT_SYMBOL_GPL(aic26_soc_codec_dev);
 
 /* ---------------------------------------------------------------------
  * SPI device portion of driver: sysfs files for debugging
@@ -419,13 +351,62 @@ static ssize_t aic26_keyclick_set(struct device *dev,
 static DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
 
 /* ---------------------------------------------------------------------
+ * SoC CODEC portion of driver: probe and release routines
+ */
+static int aic26_probe(struct snd_soc_codec *codec)
+{
+	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
+	int ret, err, i, reg;
+
+	dev_info(codec->dev, "Probing AIC26 SoC CODEC driver\n");
+
+	/* Reset the codec to power on defaults */
+	aic26_reg_write(codec, AIC26_REG_RESET, 0xBB00);
+
+	/* Power up CODEC */
+	aic26_reg_write(codec, AIC26_REG_POWER_CTRL, 0);
+
+	/* Audio Control 3 (master mode, fsref rate) */
+	reg = aic26_reg_read(codec, AIC26_REG_AUDIO_CTRL3);
+	reg &= ~0xf800;
+	reg |= 0x0800; /* set master mode */
+	aic26_reg_write(codec, AIC26_REG_AUDIO_CTRL3, reg);
+
+	/* Fill register cache */
+	for (i = 0; i < ARRAY_SIZE(aic26->reg_cache); i++)
+		aic26_reg_read(codec, i);
+
+	/* Register the sysfs files for debugging */
+	/* Create SysFS files */
+	ret = device_create_file(codec->dev, &dev_attr_keyclick);
+	if (ret)
+		dev_info(codec->dev, "error creating sysfs files\n");
+
+	/* register controls */
+	dev_dbg(codec->dev, "Registering controls\n");
+	err = snd_soc_add_controls(codec, aic26_snd_controls,
+			ARRAY_SIZE(aic26_snd_controls));
+	WARN_ON(err < 0);
+
+	return 0;
+}
+
+static struct snd_soc_codec_driver aic26_soc_codec_dev = {
+	.probe = aic26_probe,
+	.read = aic26_reg_read,
+	.write = aic26_reg_write,
+	.reg_cache_size = AIC26_NUM_REGS,
+	.reg_word_size = sizeof(u16),
+};
+
+/* ---------------------------------------------------------------------
  * SPI device portion of driver: probe and release routines and SPI
  * 				 driver registration.
  */
 static int aic26_spi_probe(struct spi_device *spi)
 {
 	struct aic26 *aic26;
-	int ret, i, reg;
+	int ret;
 
 	dev_dbg(&spi->dev, "probing tlv320aic26 spi device\n");
 
@@ -437,59 +418,13 @@ static int aic26_spi_probe(struct spi_device *spi)
 	/* Initialize the driver data */
 	aic26->spi = spi;
 	dev_set_drvdata(&spi->dev, aic26);
-
-	/* Setup what we can in the codec structure so that the register
-	 * access functions will work as expected.  More will be filled
-	 * out when it is probed by the SoC CODEC part of this driver */
-	aic26->codec.private_data = aic26;
-	aic26->codec.name = "aic26";
-	aic26->codec.owner = THIS_MODULE;
-	aic26->codec.dai = &aic26_dai;
-	aic26->codec.num_dai = 1;
-	aic26->codec.read = aic26_reg_read;
-	aic26->codec.write = aic26_reg_write;
 	aic26->master = 1;
-	mutex_init(&aic26->codec.mutex);
-	INIT_LIST_HEAD(&aic26->codec.dapm_widgets);
-	INIT_LIST_HEAD(&aic26->codec.dapm_paths);
-	aic26->codec.reg_cache_size = AIC26_NUM_REGS;
-	aic26->codec.reg_cache = aic26->reg_cache;
 
-	aic26_dai.dev = &spi->dev;
-	ret = snd_soc_register_dai(&aic26_dai);
-	if (ret != 0) {
-		dev_err(&spi->dev, "Failed to register DAI: %d\n", ret);
+	ret = snd_soc_register_codec(&spi->dev,
+			&aic26_soc_codec_dev, &aic26_dai, 1);
+	if (ret < 0)
 		kfree(aic26);
-		return ret;
-	}
-
-	/* Reset the codec to power on defaults */
-	aic26_reg_write(&aic26->codec, AIC26_REG_RESET, 0xBB00);
-
-	/* Power up CODEC */
-	aic26_reg_write(&aic26->codec, AIC26_REG_POWER_CTRL, 0);
-
-	/* Audio Control 3 (master mode, fsref rate) */
-	reg = aic26_reg_read(&aic26->codec, AIC26_REG_AUDIO_CTRL3);
-	reg &= ~0xf800;
-	reg |= 0x0800; /* set master mode */
-	aic26_reg_write(&aic26->codec, AIC26_REG_AUDIO_CTRL3, reg);
-
-	/* Fill register cache */
-	for (i = 0; i < ARRAY_SIZE(aic26->reg_cache); i++)
-		aic26_reg_read(&aic26->codec, i);
-
-	/* Register the sysfs files for debugging */
-	/* Create SysFS files */
-	ret = device_create_file(&spi->dev, &dev_attr_keyclick);
-	if (ret)
-		dev_info(&spi->dev, "error creating sysfs files\n");
-
-#if defined(CONFIG_SND_SOC_OF_SIMPLE)
-	/* Tell the of_soc helper about this codec */
-	of_snd_soc_register_codec(&aic26_soc_codec_dev, aic26, &aic26_dai,
-				  spi->dev.archdata.of_node);
-#endif
+	return ret;
 
 	dev_dbg(&spi->dev, "SPI device initialized\n");
 	return 0;
@@ -497,17 +432,14 @@ static int aic26_spi_probe(struct spi_device *spi)
 
 static int aic26_spi_remove(struct spi_device *spi)
 {
-	struct aic26 *aic26 = dev_get_drvdata(&spi->dev);
-
-	snd_soc_unregister_dai(&aic26_dai);
-	kfree(aic26);
-
+	snd_soc_unregister_codec(&spi->dev);
+	kfree(spi_get_drvdata(spi));
 	return 0;
 }
 
 static struct spi_driver aic26_spi = {
 	.driver = {
-		.name = "tlv320aic26",
+		.name = "tlv320aic26-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe = aic26_spi_probe,

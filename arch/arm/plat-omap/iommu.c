@@ -1,7 +1,7 @@
 /*
  * omap iommu: tlb and pagetable primitives
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>,
  *		Paul Mundt and Toshihiro Kobayashi
@@ -13,6 +13,7 @@
 
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/clk.h>
@@ -20,9 +21,14 @@
 
 #include <asm/cacheflush.h>
 
-#include <mach/iommu.h>
+#include <plat/iommu.h>
 
 #include "iopgtable.h"
+
+#define for_each_iotlb_cr(obj, n, __i, cr)				\
+	for (__i = 0;							\
+	     (__i < (n)) && (cr = __iotlb_read_cr((obj), __i), true);	\
+	     __i++)
 
 /* accommodate the difference between omap1 and omap2/3 */
 static const struct iommu_functions *arch_iommu;
@@ -171,14 +177,11 @@ static void iotlb_lock_get(struct iommu *obj, struct iotlb_lock *l)
 	l->base = MMU_LOCK_BASE(val);
 	l->vict = MMU_LOCK_VICT(val);
 
-	BUG_ON(l->base != 0); /* Currently no preservation is used */
 }
 
 static void iotlb_lock_set(struct iommu *obj, struct iotlb_lock *l)
 {
 	u32 val;
-
-	BUG_ON(l->base != 0); /* Currently no preservation is used */
 
 	val = (l->base << MMU_LOCK_BASE_SHIFT);
 	val |= (l->vict << MMU_LOCK_VICT_SHIFT);
@@ -213,6 +216,20 @@ static inline ssize_t iotlb_dump_cr(struct iommu *obj, struct cr_regs *cr,
 	return arch_iommu->dump_cr(obj, cr, buf);
 }
 
+/* only used in iotlb iteration for-loop */
+static struct cr_regs __iotlb_read_cr(struct iommu *obj, int n)
+{
+	struct cr_regs cr;
+	struct iotlb_lock l;
+
+	iotlb_lock_get(obj, &l);
+	l.vict = n;
+	iotlb_lock_set(obj, &l);
+	iotlb_read_cr(obj, &cr);
+
+	return cr;
+}
+
 /**
  * load_iotlb_entry - Set an iommu tlb entry
  * @obj:	target iommu
@@ -220,7 +237,6 @@ static inline ssize_t iotlb_dump_cr(struct iommu *obj, struct cr_regs *cr,
  **/
 int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 {
-	int i;
 	int err = 0;
 	struct iotlb_lock l;
 	struct cr_regs *cr;
@@ -230,21 +246,30 @@ int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 
 	clk_enable(obj->clk);
 
-	for (i = 0; i < obj->nr_tlb_entries; i++) {
-		struct cr_regs tmp;
-
-		iotlb_lock_get(obj, &l);
-		l.vict = i;
-		iotlb_lock_set(obj, &l);
-		iotlb_read_cr(obj, &tmp);
-		if (!iotlb_cr_valid(&tmp))
-			break;
-	}
-
-	if (i == obj->nr_tlb_entries) {
-		dev_dbg(obj->dev, "%s: full: no entry\n", __func__);
+	iotlb_lock_get(obj, &l);
+	if (l.base == obj->nr_tlb_entries) {
+		dev_warn(obj->dev, "%s: preserve entries full\n", __func__);
 		err = -EBUSY;
 		goto out;
+	}
+	if (!e->prsvd) {
+		int i;
+		struct cr_regs tmp;
+
+		for_each_iotlb_cr(obj, obj->nr_tlb_entries, i, tmp)
+			if (!iotlb_cr_valid(&tmp))
+				break;
+
+		if (i == obj->nr_tlb_entries) {
+			dev_dbg(obj->dev, "%s: full: no entry\n", __func__);
+			err = -EBUSY;
+			goto out;
+		}
+
+		iotlb_lock_get(obj, &l);
+	} else {
+		l.vict = l.base;
+		iotlb_lock_set(obj, &l);
 	}
 
 	cr = iotlb_alloc_cr(obj, e);
@@ -256,9 +281,11 @@ int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 	iotlb_load_cr(obj, cr);
 	kfree(cr);
 
+	if (e->prsvd)
+		l.base++;
 	/* increment victim for next tlb load */
 	if (++l.vict == obj->nr_tlb_entries)
-		l.vict = 0;
+		l.vict = l.base;
 	iotlb_lock_set(obj, &l);
 out:
 	clk_disable(obj->clk);
@@ -275,20 +302,15 @@ EXPORT_SYMBOL_GPL(load_iotlb_entry);
  **/
 void flush_iotlb_page(struct iommu *obj, u32 da)
 {
-	struct iotlb_lock l;
 	int i;
+	struct cr_regs cr;
 
 	clk_enable(obj->clk);
 
-	for (i = 0; i < obj->nr_tlb_entries; i++) {
-		struct cr_regs cr;
+	for_each_iotlb_cr(obj, obj->nr_tlb_entries, i, cr) {
 		u32 start;
 		size_t bytes;
 
-		iotlb_lock_get(obj, &l);
-		l.vict = i;
-		iotlb_lock_set(obj, &l);
-		iotlb_read_cr(obj, &cr);
 		if (!iotlb_cr_valid(&cr))
 			continue;
 
@@ -298,7 +320,7 @@ void flush_iotlb_page(struct iommu *obj, u32 da)
 		if ((start <= da) && (da < start + bytes)) {
 			dev_dbg(obj->dev, "%s: %08x<=%08x(%x)\n",
 				__func__, start, da, bytes);
-
+			iotlb_load_cr(obj, &cr);
 			iommu_write_reg(obj, 1, MMU_FLUSH_ENTRY);
 		}
 	}
@@ -349,18 +371,33 @@ void flush_iotlb_all(struct iommu *obj)
 }
 EXPORT_SYMBOL_GPL(flush_iotlb_all);
 
+/**
+ * iommu_set_twl - enable/disable table walking logic
+ * @obj:	target iommu
+ * @on:		enable/disable
+ *
+ * Function used to enable/disable TWL. If one wants to work
+ * exclusively with locked TLB entries and receive notifications
+ * for TLB miss then call this function to disable TWL.
+ */
+void iommu_set_twl(struct iommu *obj, bool on)
+{
+	clk_enable(obj->clk);
+	arch_iommu->set_twl(obj, on);
+	clk_disable(obj->clk);
+}
+EXPORT_SYMBOL_GPL(iommu_set_twl);
+
 #if defined(CONFIG_OMAP_IOMMU_DEBUG_MODULE)
 
-ssize_t iommu_dump_ctx(struct iommu *obj, char *buf)
+ssize_t iommu_dump_ctx(struct iommu *obj, char *buf, ssize_t bytes)
 {
-	ssize_t bytes;
-
 	if (!obj || !buf)
 		return -EINVAL;
 
 	clk_enable(obj->clk);
 
-	bytes = arch_iommu->dump_ctx(obj, buf);
+	bytes = arch_iommu->dump_ctx(obj, buf, bytes);
 
 	clk_disable(obj->clk);
 
@@ -368,29 +405,22 @@ ssize_t iommu_dump_ctx(struct iommu *obj, char *buf)
 }
 EXPORT_SYMBOL_GPL(iommu_dump_ctx);
 
-static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs)
+static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs, int num)
 {
 	int i;
-	struct iotlb_lock saved, l;
+	struct iotlb_lock saved;
+	struct cr_regs tmp;
 	struct cr_regs *p = crs;
 
 	clk_enable(obj->clk);
-
 	iotlb_lock_get(obj, &saved);
-	memcpy(&l, &saved, sizeof(saved));
 
-	for (i = 0; i < obj->nr_tlb_entries; i++) {
-		struct cr_regs tmp;
-
-		iotlb_lock_get(obj, &l);
-		l.vict = i;
-		iotlb_lock_set(obj, &l);
-		iotlb_read_cr(obj, &tmp);
+	for_each_iotlb_cr(obj, num, i, tmp) {
 		if (!iotlb_cr_valid(&tmp))
 			continue;
-
 		*p++ = tmp;
 	}
+
 	iotlb_lock_set(obj, &saved);
 	clk_disable(obj->clk);
 
@@ -402,18 +432,21 @@ static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs)
  * @obj:	target iommu
  * @buf:	output buffer
  **/
-size_t dump_tlb_entries(struct iommu *obj, char *buf)
+size_t dump_tlb_entries(struct iommu *obj, char *buf, ssize_t bytes)
 {
-	int i, n;
+	int i, num;
 	struct cr_regs *cr;
 	char *p = buf;
 
-	cr = kcalloc(obj->nr_tlb_entries, sizeof(*cr), GFP_KERNEL);
+	num = bytes / sizeof(*cr);
+	num = min(obj->nr_tlb_entries, num);
+
+	cr = kcalloc(num, sizeof(*cr), GFP_KERNEL);
 	if (!cr)
 		return 0;
 
-	n = __dump_tlb_entries(obj, cr);
-	for (i = 0; i < n; i++)
+	num = __dump_tlb_entries(obj, cr, num);
+	for (i = 0; i < num; i++)
 		p += iotlb_dump_cr(obj, cr + i, p);
 	kfree(cr);
 
@@ -501,6 +534,12 @@ static int iopgd_alloc_section(struct iommu *obj, u32 da, u32 pa, u32 prot)
 {
 	u32 *iopgd = iopgd_offset(obj, da);
 
+	if ((da | pa) & ~IOSECTION_MASK) {
+		dev_err(obj->dev, "%s: %08x:%08x should aligned on %08lx\n",
+			__func__, da, pa, IOSECTION_SIZE);
+		return -EINVAL;
+	}
+
 	*iopgd = (pa & IOSECTION_MASK) | prot | IOPGD_SECTION;
 	flush_iopgd_range(iopgd, iopgd);
 	return 0;
@@ -510,6 +549,12 @@ static int iopgd_alloc_super(struct iommu *obj, u32 da, u32 pa, u32 prot)
 {
 	u32 *iopgd = iopgd_offset(obj, da);
 	int i;
+
+	if ((da | pa) & ~IOSUPER_MASK) {
+		dev_err(obj->dev, "%s: %08x:%08x should aligned on %08lx\n",
+			__func__, da, pa, IOSUPER_SIZE);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < 16; i++)
 		*(iopgd + i) = (pa & IOSUPER_MASK) | prot | IOPGD_SUPER;
@@ -539,6 +584,12 @@ static int iopte_alloc_large(struct iommu *obj, u32 da, u32 pa, u32 prot)
 	u32 *iopgd = iopgd_offset(obj, da);
 	u32 *iopte = iopte_alloc(obj, iopgd, da);
 	int i;
+
+	if ((da | pa) & ~IOLARGE_MASK) {
+		dev_err(obj->dev, "%s: %08x:%08x should aligned on %08lx\n",
+			__func__, da, pa, IOLARGE_SIZE);
+		return -EINVAL;
+	}
 
 	if (IS_ERR(iopte))
 		return PTR_ERR(iopte);
@@ -620,7 +671,7 @@ void iopgtable_lookup_entry(struct iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
 	if (!*iopgd)
 		goto out;
 
-	if (*iopgd & IOPGD_TABLE)
+	if (iopgd_is_table(*iopgd))
 		iopte = iopte_offset(iopgd, da);
 out:
 	*ppgd = iopgd;
@@ -637,7 +688,7 @@ static size_t iopgtable_clear_entry_core(struct iommu *obj, u32 da)
 	if (!*iopgd)
 		return 0;
 
-	if (*iopgd & IOPGD_TABLE) {
+	if (iopgd_is_table(*iopgd)) {
 		int i;
 		u32 *iopte = iopte_offset(iopgd, da);
 
@@ -645,7 +696,7 @@ static size_t iopgtable_clear_entry_core(struct iommu *obj, u32 da)
 		if (*iopte & IOPTE_LARGE) {
 			nent *= 16;
 			/* rewind to the 1st entry */
-			iopte = (u32 *)((u32)iopte & IOLARGE_MASK);
+			iopte = iopte_offset(iopgd, (da & IOLARGE_MASK));
 		}
 		bytes *= nent;
 		memset(iopte, 0, nent * sizeof(*iopte));
@@ -663,10 +714,10 @@ static size_t iopgtable_clear_entry_core(struct iommu *obj, u32 da)
 		nent = 1; /* for the next L1 entry */
 	} else {
 		bytes = IOPGD_SIZE;
-		if (*iopgd & IOPGD_SUPER) {
+		if ((*iopgd & IOPGD_SUPER) == IOPGD_SUPER) {
 			nent *= 16;
 			/* rewind to the 1st entry */
-			iopgd = (u32 *)((u32)iopgd & IOSUPER_MASK);
+			iopgd = iopgd_offset(obj, (da & IOSUPER_MASK));
 		}
 		bytes *= nent;
 	}
@@ -712,7 +763,7 @@ static void iopgtable_clear_entry_all(struct iommu *obj)
 		if (!*iopgd)
 			continue;
 
-		if (*iopgd & IOPGD_TABLE)
+		if (iopgd_is_table(*iopgd))
 			iopte_free(iopte_offset(iopgd, 0));
 
 		*iopgd = 0;
@@ -750,9 +801,11 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	if (!stat)
 		return IRQ_HANDLED;
 
+	iommu_disable(obj);
+
 	iopgd = iopgd_offset(obj, da);
 
-	if (!(*iopgd & IOPGD_TABLE)) {
+	if (!iopgd_is_table(*iopgd)) {
 		dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x\n", __func__,
 			da, iopgd, *iopgd);
 		return IRQ_NONE;
@@ -775,6 +828,28 @@ static int device_match_by_alias(struct device *dev, void *data)
 
 	return strcmp(obj->name, name) == 0;
 }
+
+/**
+ * iommu_set_da_range - Set a valid device address range
+ * @obj:		target iommu
+ * @start		Start of valid range
+ * @end			End of valid range
+ **/
+int iommu_set_da_range(struct iommu *obj, u32 start, u32 end)
+{
+
+	if (!obj)
+		return -EFAULT;
+
+	if (end < start || !PAGE_ALIGN(start | end))
+		return -EINVAL;
+
+	obj->da_start = start;
+	obj->da_end = end;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_set_da_range);
 
 /**
  * iommu_get - Get iommu handler
@@ -826,7 +901,7 @@ EXPORT_SYMBOL_GPL(iommu_get);
  **/
 void iommu_put(struct iommu *obj)
 {
-	if (!obj && IS_ERR(obj))
+	if (!obj || IS_ERR(obj))
 		return;
 
 	mutex_lock(&obj->iommu_lock);
@@ -869,6 +944,8 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 	obj->name = pdata->name;
 	obj->dev = &pdev->dev;
 	obj->ctx = (void *)obj + sizeof(*obj);
+	obj->da_start = pdata->da_start;
+	obj->da_end = pdata->da_end;
 
 	mutex_init(&obj->iommu_lock);
 	mutex_init(&obj->mmap_lock);

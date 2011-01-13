@@ -7,6 +7,7 @@
 #include <linux/shm.h>
 #include <linux/sched.h>
 #include <linux/io.h>
+#include <linux/random.h>
 #include <asm/cputype.h>
 #include <asm/system.h>
 
@@ -54,7 +55,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	 * We enforce the MAP_FIXED case.
 	 */
 	if (flags & MAP_FIXED) {
-		if (aliasing && flags & MAP_SHARED && addr & (SHMLBA - 1))
+		if (aliasing && flags & MAP_SHARED &&
+		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
 			return -EINVAL;
 		return addr;
 	}
@@ -79,6 +81,9 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	        start_addr = addr = TASK_UNMAPPED_BASE;
 	        mm->cached_hole_size = 0;
 	}
+	/* 8 bits of randomness in 20 address space bits */
+	if (current->flags & PF_RANDOMIZE)
+		addr += (get_random_int() % (1 << 8)) << PAGE_SHIFT;
 
 full_search:
 	if (do_align)
@@ -124,7 +129,7 @@ int valid_phys_addr_range(unsigned long addr, size_t size)
 {
 	if (addr < PHYS_OFFSET)
 		return 0;
-	if (addr + size >= __pa(high_memory - 1))
+	if (addr + size > __pa(high_memory - 1) + 1)
 		return 0;
 
 	return 1;
@@ -139,3 +144,25 @@ int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 {
 	return !(pfn + (size >> PAGE_SHIFT) > 0x00100000);
 }
+
+#ifdef CONFIG_STRICT_DEVMEM
+
+#include <linux/ioport.h>
+
+/*
+ * devmem_is_allowed() checks to see if /dev/mem access to a certain
+ * address is valid. The argument is a physical page number.
+ * We mimic x86 here by disallowing access to system RAM as well as
+ * device-exclusive MMIO regions. This effectively disable read()/write()
+ * on /dev/mem.
+ */
+int devmem_is_allowed(unsigned long pfn)
+{
+	if (iomem_is_exclusive(pfn << PAGE_SHIFT))
+		return 0;
+	if (!page_is_ram(pfn))
+		return 1;
+	return 0;
+}
+
+#endif

@@ -37,77 +37,27 @@
 #ifndef	__RTMP_CKIPMIC_H__
 #define	__RTMP_CKIPMIC_H__
 
-typedef	struct	_MIC_CONTEXT	{
+struct rt_mic_context {
 	/* --- MMH context                            */
-	UCHAR		CK[16];				/* the key                                    */
-	UCHAR		coefficient[16];	/* current aes counter mode coefficients      */
-	ULONGLONG	accum;				/* accumulated mic, reduced to u32 in final() */
-	UINT		position;			/* current position (byte offset) in message  */
-	UCHAR		part[4];			/* for conversion of message to u32 for mmh   */
-}	MIC_CONTEXT, *PMIC_CONTEXT;
+	u8 CK[16];		/* the key                                    */
+	u8 coefficient[16];	/* current aes counter mode coefficients      */
+	unsigned long long accum;	/* accumulated mic, reduced to u32 in final() */
+	u32 position;		/* current position (byte offset) in message  */
+	u8 part[4];		/* for conversion of message to u32 for mmh   */
+};
 
-VOID	CKIP_key_permute(
-	OUT	UCHAR	*PK,			/* output permuted key */
-	IN	UCHAR	*CK,			/* input CKIP key */
-	IN	UCHAR	toDsFromDs,		/* input toDs/FromDs bits */
-	IN	UCHAR	*piv);			/* input pointer to IV */
+void xor_128(u8 *a, u8 *b, u8 *out);
 
-VOID	RTMPCkipMicInit(
-	IN	PMIC_CONTEXT		pContext,
-	IN	PUCHAR				CK);
+u8 RTMPCkipSbox(u8 a);
 
-VOID RTMPMicUpdate(
-    IN  PMIC_CONTEXT        pContext,
-    IN  PUCHAR              pOctets,
-    IN  INT                 len);
+void xor_32(u8 *a, u8 *b, u8 *out);
 
-ULONG RTMPMicGetCoefficient(
-    IN  PMIC_CONTEXT         pContext);
+void next_key(u8 *key, int round);
 
-VOID xor_128(
-    IN  PUCHAR              a,
-    IN  PUCHAR              b,
-    OUT PUCHAR              out);
+void byte_sub(u8 *in, u8 *out);
 
-UCHAR RTMPCkipSbox(
-    IN  UCHAR               a);
+void shift_row(u8 *in, u8 *out);
 
-VOID xor_32(
-    IN  PUCHAR              a,
-    IN  PUCHAR              b,
-    OUT PUCHAR              out);
+void mix_column(u8 *in, u8 *out);
 
-VOID next_key(
-    IN  PUCHAR              key,
-    IN  INT                 round);
-
-VOID byte_sub(
-    IN  PUCHAR              in,
-    OUT PUCHAR              out);
-
-VOID shift_row(
-    IN  PUCHAR              in,
-    OUT PUCHAR              out);
-
-VOID mix_column(
-    IN  PUCHAR              in,
-    OUT PUCHAR              out);
-
-VOID RTMPAesEncrypt(
-    IN  PUCHAR              key,
-    IN  PUCHAR              data,
-    IN  PUCHAR              ciphertext);
-
-VOID RTMPMicFinal(
-    IN  PMIC_CONTEXT        pContext,
-    OUT UCHAR               digest[4]);
-
-VOID RTMPCkipInsertCMIC(
-    IN  PRTMP_ADAPTER   pAd,
-    OUT PUCHAR          pMIC,
-    IN  PUCHAR          p80211hdr,
-    IN  PNDIS_PACKET    pPacket,
-    IN  PCIPHER_KEY     pKey,
-    IN  PUCHAR          mic_snap);
-
-#endif //__RTMP_CKIPMIC_H__
+#endif /*__RTMP_CKIPMIC_H__ */

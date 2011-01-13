@@ -225,9 +225,6 @@ void kmemcheck_hide(struct pt_regs *regs)
 
 	BUG_ON(!irqs_disabled());
 
-	if (data->balance == 0)
-		return;
-
 	if (unlikely(data->balance != 1)) {
 		kmemcheck_show_all();
 		kmemcheck_error_save_bug(regs);
@@ -329,6 +326,20 @@ static void kmemcheck_read_strict(struct pt_regs *regs,
 
 	/* Don't warn about it again. */
 	kmemcheck_shadow_set(shadow, size);
+}
+
+bool kmemcheck_is_obj_initialized(unsigned long addr, size_t size)
+{
+	enum kmemcheck_shadow status;
+	void *shadow;
+
+	shadow = kmemcheck_shadow_lookup(addr);
+	if (!shadow)
+		return true;
+
+	status = kmemcheck_shadow_test_all(shadow, size);
+
+	return status == KMEMCHECK_SHADOW_INITIALIZED;
 }
 
 /* Access may cross page boundary */
@@ -619,6 +630,8 @@ bool kmemcheck_fault(struct pt_regs *regs, unsigned long address,
 	pte = kmemcheck_pte_lookup(address);
 	if (!pte)
 		return false;
+
+	WARN_ON_ONCE(in_nmi());
 
 	if (error_code & 2)
 		kmemcheck_access(regs, address, KMEMCHECK_WRITE);

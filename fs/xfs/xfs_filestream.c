@@ -18,13 +18,9 @@
 #include "xfs.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inum.h"
-#include "xfs_dir2.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_ag.h"
-#include "xfs_dmapi.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
@@ -34,6 +30,7 @@
 #include "xfs_utils.h"
 #include "xfs_mru_cache.h"
 #include "xfs_filestream.h"
+#include "xfs_trace.h"
 
 #ifdef XFS_FILESTREAMS_TRACE
 
@@ -126,6 +123,82 @@ typedef struct fstrm_item
 	xfs_inode_t	*pip;	/* Parent directory inode pointer. */
 } fstrm_item_t;
 
+/*
+ * Allocation group filestream associations are tracked with per-ag atomic
+ * counters.  These counters allow _xfs_filestream_pick_ag() to tell whether a
+ * particular AG already has active filestreams associated with it. The mount
+ * point's m_peraglock is used to protect these counters from per-ag array
+ * re-allocation during a growfs operation.  When xfs_growfs_data_private() is
+ * about to reallocate the array, it calls xfs_filestream_flush() with the
+ * m_peraglock held in write mode.
+ *
+ * Since xfs_mru_cache_flush() guarantees that all the free functions for all
+ * the cache elements have finished executing before it returns, it's safe for
+ * the free functions to use the atomic counters without m_peraglock protection.
+ * This allows the implementation of xfs_fstrm_free_func() to be agnostic about
+ * whether it was called with the m_peraglock held in read mode, write mode or
+ * not held at all.  The race condition this addresses is the following:
+ *
+ *  - The work queue scheduler fires and pulls a filestream directory cache
+ *    element off the LRU end of the cache for deletion, then gets pre-empted.
+ *  - A growfs operation grabs the m_peraglock in write mode, flushes all the
+ *    remaining items from the cache and reallocates the mount point's per-ag
+ *    array, resetting all the counters to zero.
+ *  - The work queue thread resumes and calls the free function for the element
+ *    it started cleaning up earlier.  In the process it decrements the
+ *    filestreams counter for an AG that now has no references.
+ *
+ * With a shrinkfs feature, the above scenario could panic the system.
+ *
+ * All other uses of the following macros should be protected by either the
+ * m_peraglock held in read mode, or the cache's internal locking exposed by the
+ * interval between a call to xfs_mru_cache_lookup() and a call to
+ * xfs_mru_cache_done().  In addition, the m_peraglock must be held in read mode
+ * when new elements are added to the cache.
+ *
+ * Combined, these locking rules ensure that no associations will ever exist in
+ * the cache that reference per-ag array elements that have since been
+ * reallocated.
+ */
+static int
+xfs_filestream_peek_ag(
+	xfs_mount_t	*mp,
+	xfs_agnumber_t	agno)
+{
+	struct xfs_perag *pag;
+	int		ret;
+
+	pag = xfs_perag_get(mp, agno);
+	ret = atomic_read(&pag->pagf_fstrms);
+	xfs_perag_put(pag);
+	return ret;
+}
+
+static int
+xfs_filestream_get_ag(
+	xfs_mount_t	*mp,
+	xfs_agnumber_t	agno)
+{
+	struct xfs_perag *pag;
+	int		ret;
+
+	pag = xfs_perag_get(mp, agno);
+	ret = atomic_inc_return(&pag->pagf_fstrms);
+	xfs_perag_put(pag);
+	return ret;
+}
+
+static void
+xfs_filestream_put_ag(
+	xfs_mount_t	*mp,
+	xfs_agnumber_t	agno)
+{
+	struct xfs_perag *pag;
+
+	pag = xfs_perag_get(mp, agno);
+	atomic_dec(&pag->pagf_fstrms);
+	xfs_perag_put(pag);
+}
 
 /*
  * Scan the AGs starting at startag looking for an AG that isn't in use and has
@@ -139,6 +212,7 @@ _xfs_filestream_pick_ag(
 	int		flags,
 	xfs_extlen_t	minlen)
 {
+	int		streams, max_streams;
 	int		err, trylock, nscan;
 	xfs_extlen_t	longest, free, minfree, maxfree = 0;
 	xfs_agnumber_t	ag, max_ag = NULLAGNUMBER;
@@ -154,15 +228,15 @@ _xfs_filestream_pick_ag(
 	trylock = XFS_ALLOC_FLAG_TRYLOCK;
 
 	for (nscan = 0; 1; nscan++) {
-
-		TRACE_AG_SCAN(mp, ag, xfs_filestream_peek_ag(mp, ag));
-
-		pag = mp->m_perag + ag;
+		pag = xfs_perag_get(mp, ag);
+		TRACE_AG_SCAN(mp, ag, atomic_read(&pag->pagf_fstrms));
 
 		if (!pag->pagf_init) {
 			err = xfs_alloc_pagf_init(mp, NULL, ag, trylock);
-			if (err && !trylock)
+			if (err && !trylock) {
+				xfs_perag_put(pag);
 				return err;
+			}
 		}
 
 		/* Might fail sometimes during the 1st pass with trylock set. */
@@ -172,6 +246,7 @@ _xfs_filestream_pick_ag(
 		/* Keep track of the AG with the most free blocks. */
 		if (pag->pagf_freeblks > maxfree) {
 			maxfree = pag->pagf_freeblks;
+			max_streams = atomic_read(&pag->pagf_fstrms);
 			max_ag = ag;
 		}
 
@@ -194,6 +269,8 @@ _xfs_filestream_pick_ag(
 
 			/* Break out, retaining the reference on the AG. */
 			free = pag->pagf_freeblks;
+			streams = atomic_read(&pag->pagf_fstrms);
+			xfs_perag_put(pag);
 			*agp = ag;
 			break;
 		}
@@ -201,6 +278,7 @@ _xfs_filestream_pick_ag(
 		/* Drop the reference on this AG, it's not usable. */
 		xfs_filestream_put_ag(mp, ag);
 next_ag:
+		xfs_perag_put(pag);
 		/* Move to the next AG, wrapping to AG 0 if necessary. */
 		if (++ag >= mp->m_sb.sb_agcount)
 			ag = 0;
@@ -228,6 +306,7 @@ next_ag:
 		if (max_ag != NULLAGNUMBER) {
 			xfs_filestream_get_ag(mp, max_ag);
 			TRACE_AG_PICK1(mp, max_ag, maxfree);
+			streams = max_streams;
 			free = maxfree;
 			*agp = max_ag;
 			break;
@@ -239,16 +318,14 @@ next_ag:
 		return 0;
 	}
 
-	TRACE_AG_PICK2(mp, startag, *agp, xfs_filestream_peek_ag(mp, *agp),
-			free, nscan, flags);
+	TRACE_AG_PICK2(mp, startag, *agp, streams, free, nscan, flags);
 
 	return 0;
 }
 
 /*
  * Set the allocation group number for a file or a directory, updating inode
- * references and per-AG references as appropriate.  Must be called with the
- * m_peraglock held in read mode.
+ * references and per-AG references as appropriate.
  */
 static int
 _xfs_filestream_update_ag(
@@ -350,16 +427,14 @@ xfs_fstrm_free_func(
 {
 	fstrm_item_t	*item  = (fstrm_item_t *)data;
 	xfs_inode_t	*ip = item->ip;
-	int ref;
 
 	ASSERT(ip->i_ino == ino);
 
 	xfs_iflags_clear(ip, XFS_IFILESTREAM);
 
 	/* Drop the reference taken on the AG when the item was added. */
-	ref = xfs_filestream_put_ag(ip->i_mount, item->ag);
+	xfs_filestream_put_ag(ip->i_mount, item->ag);
 
-	ASSERT(ref >= 0);
 	TRACE_FREE(ip->i_mount, ip, item->pip, item->ag,
 		xfs_filestream_peek_ag(ip->i_mount, item->ag));
 
@@ -394,9 +469,7 @@ xfs_filestream_init(void)
 	item_zone = kmem_zone_init(sizeof(fstrm_item_t), "fstrm_item");
 	if (!item_zone)
 		return -ENOMEM;
-#ifdef XFS_FILESTREAMS_TRACE
-	xfs_filestreams_trace_buf = ktrace_alloc(XFS_FSTRM_KTRACE_SIZE, KM_NOFS);
-#endif
+
 	return 0;
 }
 
@@ -407,9 +480,6 @@ xfs_filestream_init(void)
 void
 xfs_filestream_uninit(void)
 {
-#ifdef XFS_FILESTREAMS_TRACE
-	ktrace_free(xfs_filestreams_trace_buf);
-#endif
 	kmem_zone_destroy(item_zone);
 }
 
@@ -452,20 +522,6 @@ xfs_filestream_unmount(
 	xfs_mount_t	*mp)
 {
 	xfs_mru_cache_destroy(mp->m_filestream);
-}
-
-/*
- * If the mount point's m_perag array is going to be reallocated, all
- * outstanding cache entries must be flushed to avoid accessing reference count
- * addresses that have been freed.  The call to xfs_filestream_flush() must be
- * made inside the block that holds the m_peraglock in write mode to do the
- * reallocation.
- */
-void
-xfs_filestream_flush(
-	xfs_mount_t	*mp)
-{
-	xfs_mru_cache_flush(mp->m_filestream);
 }
 
 /*
@@ -530,7 +586,6 @@ xfs_filestream_associate(
 
 	mp = pip->i_mount;
 	cache = mp->m_filestream;
-	down_read(&mp->m_peraglock);
 
 	/*
 	 * We have a problem, Houston.
@@ -547,10 +602,8 @@ xfs_filestream_associate(
 	 *
 	 * So, if we can't get the iolock without sleeping then just give up
 	 */
-	if (!xfs_ilock_nowait(pip, XFS_IOLOCK_EXCL)) {
-		up_read(&mp->m_peraglock);
+	if (!xfs_ilock_nowait(pip, XFS_IOLOCK_EXCL))
 		return 1;
-	}
 
 	/* If the parent directory is already in the cache, use its AG. */
 	item = xfs_mru_cache_lookup(cache, pip->i_ino);
@@ -605,7 +658,6 @@ exit_did_pick:
 
 exit:
 	xfs_iunlock(pip, XFS_IOLOCK_EXCL);
-	up_read(&mp->m_peraglock);
 	return -err;
 }
 
@@ -692,9 +744,15 @@ xfs_filestream_new_ag(
 	 * If the file's parent directory is known, take its iolock in exclusive
 	 * mode to prevent two sibling files from racing each other to migrate
 	 * themselves and their parent to different AGs.
+	 *
+	 * Note that we lock the parent directory iolock inside the child
+	 * iolock here.  That's fine as we never hold both parent and child
+	 * iolock in any other place.  This is different from the ilock,
+	 * which requires locking of the child after the parent for namespace
+	 * operations.
 	 */
 	if (pip)
-		xfs_ilock(pip, XFS_IOLOCK_EXCL);
+		xfs_ilock(pip, XFS_IOLOCK_EXCL | XFS_IOLOCK_PARENT);
 
 	/*
 	 * A new AG needs to be found for the file.  If the file's parent

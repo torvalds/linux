@@ -8,6 +8,8 @@ Supported adapters:
     Datasheet: Only available via NDA from ServerWorks
   * ATI IXP200, IXP300, IXP400, SB600, SB700 and SB800 southbridges
     Datasheet: Not publicly available
+  * AMD Hudson-2
+    Datasheet: Not publicly available
   * Standard Microsystems (SMSC) SLC90E66 (Victory66) southbridge
     Datasheet: Publicly available at the SMSC website http://www.smsc.com
 
@@ -95,4 +97,4 @@ of all affected systems, so the only safe solution was to prevent access to
 the SMBus on all IBM systems (detected using DMI data.)
 
 For additional information, read:
-http://www.lm-sensors.org/browser/lm-sensors/trunk/README.thinkpad
+http://www.lm-sensors.org/browser/lm-sensors/trunk/README

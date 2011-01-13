@@ -29,10 +29,11 @@ extern int	xfs_error_trap(int);
 
 struct xfs_mount;
 
-extern void xfs_error_report(char *tag, int level, struct xfs_mount *mp,
-				char *fname, int linenum, inst_t *ra);
-extern void xfs_corruption_error(char *tag, int level, struct xfs_mount *mp,
-				void *p, char *fname, int linenum, inst_t *ra);
+extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
+			const char *filename, int linenum, inst_t *ra);
+extern void xfs_corruption_error(const char *tag, int level,
+			struct xfs_mount *mp, void *p, const char *filename,
+			int linenum, inst_t *ra);
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)
@@ -126,13 +127,14 @@ extern void xfs_corruption_error(char *tag, int level, struct xfs_mount *mp,
 #define	XFS_RANDOM_BMAPIFORMAT				XFS_RANDOM_DEFAULT
 
 #ifdef DEBUG
+extern int xfs_error_test_active;
 extern int xfs_error_test(int, int *, char *, int, char *, unsigned long);
 
 #define	XFS_NUM_INJECT_ERROR				10
 #define XFS_TEST_ERROR(expr, mp, tag, rf)		\
-	((expr) || \
+	((expr) || (xfs_error_test_active && \
 	 xfs_error_test((tag), (mp)->m_fixedfsid, "expr", __LINE__, __FILE__, \
-			(rf)))
+			(rf))))
 
 extern int xfs_errortag_add(int error_tag, xfs_mount_t *mp);
 extern int xfs_errortag_clearall(xfs_mount_t *mp, int loud);

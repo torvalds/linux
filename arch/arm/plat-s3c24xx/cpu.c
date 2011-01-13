@@ -49,9 +49,8 @@
 #include <plat/s3c2400.h>
 #include <plat/s3c2410.h>
 #include <plat/s3c2412.h>
-#include "s3c244x.h"
-#include <plat/s3c2440.h>
-#include <plat/s3c2442.h>
+#include <plat/s3c2416.h>
+#include <plat/s3c244x.h>
 #include <plat/s3c2443.h>
 
 /* table of supported CPUs */
@@ -59,8 +58,10 @@
 static const char name_s3c2400[]  = "S3C2400";
 static const char name_s3c2410[]  = "S3C2410";
 static const char name_s3c2412[]  = "S3C2412";
+static const char name_s3c2416[]  = "S3C2416/S3C2450";
 static const char name_s3c2440[]  = "S3C2440";
 static const char name_s3c2442[]  = "S3C2442";
+static const char name_s3c2442b[]  = "S3C2442B";
 static const char name_s3c2443[]  = "S3C2443";
 static const char name_s3c2410a[] = "S3C2410A";
 static const char name_s3c2440a[] = "S3C2440A";
@@ -81,13 +82,13 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.map_io		= s3c2410_map_io,
 		.init_clocks	= s3c2410_init_clocks,
 		.init_uarts	= s3c2410_init_uarts,
-		.init		= s3c2410_init,
+		.init		= s3c2410a_init,
 		.name		= name_s3c2410a
 	},
 	{
 		.idcode		= 0x32440000,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c244x_map_io,
+		.map_io		= s3c2440_map_io,
 		.init_clocks	= s3c244x_init_clocks,
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2440_init,
@@ -96,7 +97,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x32440001,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c244x_map_io,
+		.map_io		= s3c2440_map_io,
 		.init_clocks	= s3c244x_init_clocks,
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2440_init,
@@ -105,11 +106,20 @@ static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x32440aaa,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c244x_map_io,
+		.map_io		= s3c2442_map_io,
 		.init_clocks	= s3c244x_init_clocks,
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2442_init,
 		.name		= name_s3c2442
+	},
+	{
+		.idcode		= 0x32440aab,
+		.idmask		= 0xffffffff,
+		.map_io		= s3c2442_map_io,
+		.init_clocks	= s3c244x_init_clocks,
+		.init_uarts	= s3c244x_init_uarts,
+		.init		= s3c2442_init,
+		.name		= name_s3c2442b
 	},
 	{
 		.idcode		= 0x32412001,
@@ -128,6 +138,15 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s3c2412_init_uarts,
 		.init		= s3c2412_init,
 		.name		= name_s3c2412,
+	},
+	{			/* a strange version of the s3c2416 */
+		.idcode		= 0x32450003,
+		.idmask		= 0xffffffff,
+		.map_io		= s3c2416_map_io,
+		.init_clocks	= s3c2416_init_clocks,
+		.init_uarts	= s3c2416_init_uarts,
+		.init		= s3c2416_init,
+		.name		= name_s3c2416,
 	},
 	{
 		.idcode		= 0x32443001,
@@ -162,6 +181,16 @@ static struct map_desc s3c_iodesc[] __initdata = {
 
 static unsigned long s3c24xx_read_idcode_v5(void)
 {
+#if defined(CONFIG_CPU_S3C2416)
+	/* s3c2416 is v5, with S3C24XX_GSTATUS1 instead of S3C2412_GSTATUS1 */
+
+	u32 gs = __raw_readl(S3C24XX_GSTATUS1);
+
+	/* test for s3c2416 or similar device */
+	if ((gs >> 16) == 0x3245)
+		return gs;
+#endif
+
 #if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
 	return __raw_readl(S3C2412_GSTATUS1);
 #else

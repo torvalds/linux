@@ -21,51 +21,23 @@
 * EEPROM access functions and helpers *
 \*************************************/
 
+#include <linux/slab.h>
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
 #include "base.h"
 
-/*
- * Read from eeprom
- */
-static int ath5k_hw_eeprom_read(struct ath5k_hw *ah, u32 offset, u16 *data)
-{
-	u32 status, timeout;
 
-	ATH5K_TRACE(ah->ah_sc);
-	/*
-	 * Initialize EEPROM access
-	 */
-	if (ah->ah_version == AR5K_AR5210) {
-		AR5K_REG_ENABLE_BITS(ah, AR5K_PCICFG, AR5K_PCICFG_EEAE);
-		(void)ath5k_hw_reg_read(ah, AR5K_EEPROM_BASE + (4 * offset));
-	} else {
-		ath5k_hw_reg_write(ah, offset, AR5K_EEPROM_BASE);
-		AR5K_REG_ENABLE_BITS(ah, AR5K_EEPROM_CMD,
-				AR5K_EEPROM_CMD_READ);
-	}
-
-	for (timeout = AR5K_TUNE_REGISTER_TIMEOUT; timeout > 0; timeout--) {
-		status = ath5k_hw_reg_read(ah, AR5K_EEPROM_STATUS);
-		if (status & AR5K_EEPROM_STAT_RDDONE) {
-			if (status & AR5K_EEPROM_STAT_RDERR)
-				return -EIO;
-			*data = (u16)(ath5k_hw_reg_read(ah, AR5K_EEPROM_DATA) &
-					0xffff);
-			return 0;
-		}
-		udelay(15);
-	}
-
-	return -ETIMEDOUT;
-}
+/******************\
+* Helper functions *
+\******************/
 
 /*
  * Translate binary channel representation in EEPROM to frequency
  */
 static u16 ath5k_eeprom_bin2freq(struct ath5k_eeprom_info *ee, u16 bin,
-                                 unsigned int mode)
+							unsigned int mode)
 {
 	u16 val;
 
@@ -88,6 +60,11 @@ static u16 ath5k_eeprom_bin2freq(struct ath5k_eeprom_info *ee, u16 bin,
 	return val;
 }
 
+
+/*********\
+* Parsers *
+\*********/
+
 /*
  * Initialize eeprom & capabilities structs
  */
@@ -97,6 +74,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	int ret;
 	u16 val;
+	u32 cksum, offset, eep_max = AR5K_EEPROM_INFO_MAX;
 
 	/*
 	 * Read values from EEPROM and store them in the capability structure
@@ -111,20 +89,44 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	if (ah->ah_ee_version < AR5K_EEPROM_VERSION_3_0)
 		return 0;
 
-#ifdef notyet
 	/*
 	 * Validate the checksum of the EEPROM date. There are some
 	 * devices with invalid EEPROMs.
 	 */
-	for (cksum = 0, offset = 0; offset < AR5K_EEPROM_INFO_MAX; offset++) {
+	AR5K_EEPROM_READ(AR5K_EEPROM_SIZE_UPPER, val);
+	if (val) {
+		eep_max = (val & AR5K_EEPROM_SIZE_UPPER_MASK) <<
+			   AR5K_EEPROM_SIZE_ENDLOC_SHIFT;
+		AR5K_EEPROM_READ(AR5K_EEPROM_SIZE_LOWER, val);
+		eep_max = (eep_max | val) - AR5K_EEPROM_INFO_BASE;
+
+		/*
+		 * Fail safe check to prevent stupid loops due
+		 * to busted EEPROMs. XXX: This value is likely too
+		 * big still, waiting on a better value.
+		 */
+		if (eep_max > (3 * AR5K_EEPROM_INFO_MAX)) {
+			ATH5K_ERR(ah->ah_sc, "Invalid max custom EEPROM size: "
+				  "%d (0x%04x) max expected: %d (0x%04x)\n",
+				  eep_max, eep_max,
+				  3 * AR5K_EEPROM_INFO_MAX,
+				  3 * AR5K_EEPROM_INFO_MAX);
+			return -EIO;
+		}
+	}
+
+	for (cksum = 0, offset = 0; offset < eep_max; offset++) {
 		AR5K_EEPROM_READ(AR5K_EEPROM_INFO(offset), val);
 		cksum ^= val;
 	}
 	if (cksum != AR5K_EEPROM_INFO_CKSUM) {
-		ATH5K_ERR(ah->ah_sc, "Invalid EEPROM checksum 0x%04x\n", cksum);
+		ATH5K_ERR(ah->ah_sc, "Invalid EEPROM "
+			  "checksum: 0x%04x eep_max: 0x%04x (%s)\n",
+			  cksum, eep_max,
+			  eep_max == AR5K_EEPROM_INFO_MAX ?
+				"default size" : "custom size");
 		return -EIO;
 	}
-#endif
 
 	AR5K_EEPROM_READ_HDR(AR5K_EEPROM_ANT_GAIN(ah->ah_ee_version),
 	    ee_ant_gain);
@@ -166,6 +168,16 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	AR5K_EEPROM_READ(AR5K_EEPROM_RFKILL, val);
 	ee->ee_rfkill_pin = (u8) AR5K_REG_MS(val, AR5K_EEPROM_RFKILL_GPIO_SEL);
 	ee->ee_rfkill_pol = val & AR5K_EEPROM_RFKILL_POLARITY ? true : false;
+
+	/* Check if PCIE_OFFSET points to PCIE_SERDES_SECTION
+	 * and enable serdes programming if needed.
+	 *
+	 * XXX: Serdes values seem to be fixed so
+	 * no need to read them here, we write them
+	 * during ath5k_hw_init */
+	AR5K_EEPROM_READ(AR5K_EEPROM_PCIE_OFFSET, val);
+	ee->ee_serdes = (val == AR5K_EEPROM_PCIE_SERDES_SECTION) ?
+							true : false;
 
 	return 0;
 }
@@ -294,7 +306,8 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	ee->ee_x_gain[mode]		= (val >> 1) & 0xf;
 	ee->ee_xpd[mode]		= val & 0x1;
 
-	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_0)
+	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_0 &&
+	    mode != AR5K_EEPROM_MODE_11B)
 		ee->ee_fixed_bias[mode] = (val >> 13) & 0x1;
 
 	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_3_3) {
@@ -304,6 +317,7 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 		if (mode == AR5K_EEPROM_MODE_11A)
 			ee->ee_xr_power[mode] = val & 0x3f;
 		else {
+			/* b_DB_11[bg] and b_OB_11[bg] */
 			ee->ee_ob[mode][0] = val & 0x7;
 			ee->ee_db[mode][0] = (val >> 3) & 0x7;
 		}
@@ -394,8 +408,8 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 			ee->ee_margin_tx_rx[mode] = (val >> 8) & 0x3f;
 
 		AR5K_EEPROM_READ(o++, val);
-		ee->ee_i_cal[mode] = (val >> 8) & 0x3f;
-		ee->ee_q_cal[mode] = (val >> 3) & 0x1f;
+		ee->ee_i_cal[mode] = (val >> 5) & 0x3f;
+		ee->ee_q_cal[mode] = val & 0x1f;
 
 		if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_2) {
 			AR5K_EEPROM_READ(o++, val);
@@ -404,27 +418,11 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 		break;
 	}
 
-done:
-	/* return new offset */
-	*offset = o;
-
-	return 0;
-}
-
-/*
- * Read turbo mode information on newer EEPROM versions
- */
-static int
-ath5k_eeprom_read_turbo_modes(struct ath5k_hw *ah,
-			      u32 *offset, unsigned int mode)
-{
-	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	u32 o = *offset;
-	u16 val;
-	int ret;
-
+	/*
+	 * Read turbo mode information on newer EEPROM versions
+	 */
 	if (ee->ee_version < AR5K_EEPROM_VERSION_5_0)
-		return 0;
+		goto done;
 
 	switch (mode){
 	case AR5K_EEPROM_MODE_11A:
@@ -458,6 +456,7 @@ ath5k_eeprom_read_turbo_modes(struct ath5k_hw *ah,
 		break;
 	}
 
+done:
 	/* return new offset */
 	*offset = o;
 
@@ -492,10 +491,6 @@ ath5k_eeprom_init_modes(struct ath5k_hw *ah)
 			return ret;
 
 		ret = ath5k_eeprom_read_modes(ah, &offset, mode);
-		if (ret)
-			return ret;
-
-		ret = ath5k_eeprom_read_turbo_modes(ah, &offset, mode);
 		if (ret)
 			return ret;
 	}
@@ -628,6 +623,7 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 	return 0;
 }
 
+
 /*
  * Read power calibration for RF5111 chips
  *
@@ -642,7 +638,7 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
  * (eeprom versions < 4). For RF5111 we have 11 pre-defined PCDAC
  * steps that match with the power values we read from eeprom. On
  * older eeprom versions (< 3.2) these steps are equaly spaced at
- * 10% of the pcdac curve -until the curve reaches it's maximum-
+ * 10% of the pcdac curve -until the curve reaches its maximum-
  * (11 steps from 0 to 100%) but on newer eeprom versions (>= 3.2)
  * these 11 steps are spaced in a different way. This function returns
  * the pcdac steps based on eeprom version and curve min/max so that we
@@ -695,7 +691,7 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 
 		/* Only one curve for RF5111
 		 * find out which one and place
-		 * in in pd_curves.
+		 * in pd_curves.
 		 * Note: ee_x_gain is reversed here */
 		for (idx = 0; idx < AR5K_EEPROM_N_PD_CURVES; idx++) {
 
@@ -1094,7 +1090,7 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
  */
 
 /* For RF2413 power calibration data doesn't start on a fixed location and
- * if a mode is not supported, it's section is missing -not zeroed-.
+ * if a mode is not supported, its section is missing -not zeroed-.
  * So we need to calculate the starting offset for each section by using
  * these two functions */
 
@@ -1495,13 +1491,14 @@ ath5k_eeprom_read_target_rate_pwr_info(struct ath5k_hw *ah, unsigned int mode)
 	return 0;
 }
 
+
 /*
  * Read per channel calibration info from EEPROM
  *
  * This info is used to calibrate the baseband power table. Imagine
  * that for each channel there is a power curve that's hw specific
  * (depends on amplifier etc) and we try to "correct" this curve using
- * offests we pass on to phy chip (baseband -> before amplifier) so that
+ * offsets we pass on to phy chip (baseband -> before amplifier) so that
  * it can use accurate power values when setting tx power (takes amplifier's
  * performance on each channel into account).
  *
@@ -1586,15 +1583,6 @@ ath5k_eeprom_free_pcal_info(struct ath5k_hw *ah, int mode)
 	}
 
 	return 0;
-}
-
-void
-ath5k_eeprom_detach(struct ath5k_hw *ah)
-{
-	u8 mode;
-
-	for (mode = AR5K_EEPROM_MODE_11A; mode <= AR5K_EEPROM_MODE_11G; mode++)
-		ath5k_eeprom_free_pcal_info(ah, mode);
 }
 
 /* Read conformance test limits used for regulatory control */
@@ -1738,6 +1726,44 @@ ath5k_eeprom_read_spur_chans(struct ath5k_hw *ah)
 }
 
 /*
+ * Read the MAC address from eeprom
+ */
+int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
+{
+	u8 mac_d[ETH_ALEN] = {};
+	u32 total, offset;
+	u16 data;
+	int octet, ret;
+
+	ret = ath5k_hw_nvram_read(ah, 0x20, &data);
+	if (ret)
+		return ret;
+
+	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
+		ret = ath5k_hw_nvram_read(ah, offset, &data);
+		if (ret)
+			return ret;
+
+		total += data;
+		mac_d[octet + 1] = data & 0xff;
+		mac_d[octet] = data >> 8;
+		octet += 2;
+	}
+
+	if (!total || total == 3 * 0xffff)
+		return -EINVAL;
+
+	memcpy(mac, mac_d, ETH_ALEN);
+
+	return 0;
+}
+
+
+/***********************\
+* Init/Detach functions *
+\***********************/
+
+/*
  * Initialize eeprom data structure
  */
 int
@@ -1768,35 +1794,27 @@ ath5k_eeprom_init(struct ath5k_hw *ah)
 	return 0;
 }
 
-/*
- * Read the MAC address from eeprom
- */
-int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
+void
+ath5k_eeprom_detach(struct ath5k_hw *ah)
 {
-	u8 mac_d[ETH_ALEN] = {};
-	u32 total, offset;
-	u16 data;
-	int octet, ret;
+	u8 mode;
 
-	ret = ath5k_hw_eeprom_read(ah, 0x20, &data);
-	if (ret)
-		return ret;
+	for (mode = AR5K_EEPROM_MODE_11A; mode <= AR5K_EEPROM_MODE_11G; mode++)
+		ath5k_eeprom_free_pcal_info(ah, mode);
+}
 
-	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
-		ret = ath5k_hw_eeprom_read(ah, offset, &data);
-		if (ret)
-			return ret;
-
-		total += data;
-		mac_d[octet + 1] = data & 0xff;
-		mac_d[octet] = data >> 8;
-		octet += 2;
+int
+ath5k_eeprom_mode_from_channel(struct ieee80211_channel *channel)
+{
+	switch (channel->hw_value & CHANNEL_MODES) {
+	case CHANNEL_A:
+	case CHANNEL_XR:
+		return AR5K_EEPROM_MODE_11A;
+	case CHANNEL_G:
+		return AR5K_EEPROM_MODE_11G;
+	case CHANNEL_B:
+		return AR5K_EEPROM_MODE_11B;
+	default:
+		return -1;
 	}
-
-	if (!total || total == 3 * 0xffff)
-		return -EINVAL;
-
-	memcpy(mac, mac_d, ETH_ALEN);
-
-	return 0;
 }

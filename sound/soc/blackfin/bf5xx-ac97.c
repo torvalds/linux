@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -254,8 +255,7 @@ EXPORT_SYMBOL_GPL(soc_ac97_ops);
 #ifdef CONFIG_PM
 static int bf5xx_ac97_suspend(struct snd_soc_dai *dai)
 {
-	struct sport_device *sport =
-		(struct sport_device *)dai->private_data;
+	struct sport_device *sport = snd_soc_dai_get_drvdata(dai);
 
 	pr_debug("%s : sport %d\n", __func__, dai->id);
 	if (!dai->active)
@@ -270,35 +270,34 @@ static int bf5xx_ac97_suspend(struct snd_soc_dai *dai)
 static int bf5xx_ac97_resume(struct snd_soc_dai *dai)
 {
 	int ret;
-	struct sport_device *sport =
-		(struct sport_device *)dai->private_data;
+	struct sport_device *sport = snd_soc_dai_get_drvdata(dai);
 
 	pr_debug("%s : sport %d\n", __func__, dai->id);
 	if (!dai->active)
 		return 0;
 
-	ret = sport_set_multichannel(sport_handle, 16, 0x1F, 1);
+#if defined(CONFIG_SND_BF5XX_MULTICHAN_SUPPORT)
+	ret = sport_set_multichannel(sport, 16, 0x3FF, 1);
+#else
+	ret = sport_set_multichannel(sport, 16, 0x1F, 1);
+#endif
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	ret = sport_config_rx(sport_handle, IRFS, 0xF, 0, (16*16-1));
+	ret = sport_config_rx(sport, IRFS, 0xF, 0, (16*16-1));
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	ret = sport_config_tx(sport_handle, ITFS, 0xF, 0, (16*16-1));
+	ret = sport_config_tx(sport, ITFS, 0xF, 0, (16*16-1));
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	if (dai->capture.active)
-		sport_rx_start(sport);
-	if (dai->playback.active)
-		sport_tx_start(sport);
 	return 0;
 }
 
@@ -307,8 +306,7 @@ static int bf5xx_ac97_resume(struct snd_soc_dai *dai)
 #define bf5xx_ac97_resume	NULL
 #endif
 
-static int bf5xx_ac97_probe(struct platform_device *pdev,
-			    struct snd_soc_dai *dai)
+static int bf5xx_ac97_probe(struct snd_soc_dai *dai)
 {
 	int ret = 0;
 	cmd_count = (int *)get_zeroed_page(GFP_KERNEL);
@@ -338,7 +336,11 @@ static int bf5xx_ac97_probe(struct platform_device *pdev,
 		goto sport_err;
 	}
 	/*SPORT works in TDM mode to simulate AC97 transfers*/
+#if defined(CONFIG_SND_BF5XX_MULTICHAN_SUPPORT)
+	ret = sport_set_multichannel(sport_handle, 16, 0x3FF, 1);
+#else
 	ret = sport_set_multichannel(sport_handle, 16, 0x1F, 1);
+#endif
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		ret = -EBUSY;
@@ -376,8 +378,7 @@ peripheral_err:
 	return ret;
 }
 
-static void bf5xx_ac97_remove(struct platform_device *pdev,
-			      struct snd_soc_dai *dai)
+static int bf5xx_ac97_remove(struct snd_soc_dai *dai)
 {
 	free_page((unsigned long)cmd_count);
 	cmd_count = NULL;
@@ -385,11 +386,10 @@ static void bf5xx_ac97_remove(struct platform_device *pdev,
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
 	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
 #endif
+	return 0;
 }
 
-struct snd_soc_dai bfin_ac97_dai = {
-	.name = "bf5xx-ac97",
-	.id = 0,
+struct snd_soc_dai_driver bfin_ac97_dai = {
 	.ac97_control = 1,
 	.probe = bf5xx_ac97_probe,
 	.remove = bf5xx_ac97_remove,
@@ -414,17 +414,39 @@ struct snd_soc_dai bfin_ac97_dai = {
 };
 EXPORT_SYMBOL_GPL(bfin_ac97_dai);
 
+static __devinit int asoc_bfin_ac97_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_dai(&pdev->dev, &bfin_ac97_dai);
+}
+
+static int __devexit asoc_bfin_ac97_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dai(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver asoc_bfin_ac97_driver = {
+	.driver = {
+			.name = "bfin-ac97",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = asoc_bfin_ac97_probe,
+	.remove = __devexit_p(asoc_bfin_ac97_remove),
+};
+
 static int __init bfin_ac97_init(void)
 {
-	return snd_soc_register_dai(&bfin_ac97_dai);
+	return platform_driver_register(&asoc_bfin_ac97_driver);
 }
 module_init(bfin_ac97_init);
 
 static void __exit bfin_ac97_exit(void)
 {
-	snd_soc_unregister_dai(&bfin_ac97_dai);
+	platform_driver_unregister(&asoc_bfin_ac97_driver);
 }
 module_exit(bfin_ac97_exit);
+
 
 MODULE_AUTHOR("Roy Huang");
 MODULE_DESCRIPTION("AC97 driver for ADI Blackfin");

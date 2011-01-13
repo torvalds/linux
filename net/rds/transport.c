@@ -37,7 +37,7 @@
 #include "rds.h"
 #include "loop.h"
 
-static LIST_HEAD(rds_transports);
+static struct rds_transport *transports[RDS_TRANS_COUNT];
 static DECLARE_RWSEM(rds_trans_sem);
 
 int rds_trans_register(struct rds_transport *trans)
@@ -46,35 +46,52 @@ int rds_trans_register(struct rds_transport *trans)
 
 	down_write(&rds_trans_sem);
 
-	list_add_tail(&trans->t_item, &rds_transports);
-	printk(KERN_INFO "Registered RDS/%s transport\n", trans->t_name);
+	if (transports[trans->t_type])
+		printk(KERN_ERR "RDS Transport type %d already registered\n",
+			trans->t_type);
+	else {
+		transports[trans->t_type] = trans;
+		printk(KERN_INFO "Registered RDS/%s transport\n", trans->t_name);
+	}
 
 	up_write(&rds_trans_sem);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rds_trans_register);
 
 void rds_trans_unregister(struct rds_transport *trans)
 {
 	down_write(&rds_trans_sem);
 
-	list_del_init(&trans->t_item);
+	transports[trans->t_type] = NULL;
 	printk(KERN_INFO "Unregistered RDS/%s transport\n", trans->t_name);
 
 	up_write(&rds_trans_sem);
 }
+EXPORT_SYMBOL_GPL(rds_trans_unregister);
+
+void rds_trans_put(struct rds_transport *trans)
+{
+	if (trans && trans->t_owner)
+		module_put(trans->t_owner);
+}
 
 struct rds_transport *rds_trans_get_preferred(__be32 addr)
 {
-	struct rds_transport *trans;
 	struct rds_transport *ret = NULL;
+	struct rds_transport *trans;
+	unsigned int i;
 
 	if (IN_LOOPBACK(ntohl(addr)))
 		return &rds_loop_transport;
 
 	down_read(&rds_trans_sem);
-	list_for_each_entry(trans, &rds_transports, t_item) {
-		if (trans->laddr_check(addr) == 0) {
+	for (i = 0; i < RDS_TRANS_COUNT; i++) {
+		trans = transports[i];
+
+		if (trans && (trans->laddr_check(addr) == 0) &&
+		    (!trans->t_owner || try_module_get(trans->t_owner))) {
 			ret = trans;
 			break;
 		}
@@ -97,12 +114,15 @@ unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 	struct rds_transport *trans;
 	unsigned int total = 0;
 	unsigned int part;
+	int i;
 
 	rds_info_iter_unmap(iter);
 	down_read(&rds_trans_sem);
 
-	list_for_each_entry(trans, &rds_transports, t_item) {
-		if (trans->stats_info_copy == NULL)
+	for (i = 0; i < RDS_TRANS_COUNT; i++)
+	{
+		trans = transports[i];
+		if (!trans || !trans->stats_info_copy)
 			continue;
 
 		part = trans->stats_info_copy(iter, avail);

@@ -1,0 +1,7 @@
+What:		/sys/devices/system/node/nodeX
+Date:		October 2002
+Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Description:
+		When CONFIG_NUMA is enabled, this is a directory containing
+		information on node X such as what CPUs are local to the
+		node.

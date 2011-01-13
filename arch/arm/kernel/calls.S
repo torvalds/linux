@@ -81,7 +81,7 @@
 		CALL(sys_ni_syscall)		/* was sys_ssetmask */
 /* 70 */	CALL(sys_setreuid16)
 		CALL(sys_setregid16)
-		CALL(sys_sigsuspend_wrapper)
+		CALL(sys_sigsuspend)
 		CALL(sys_sigpending)
 		CALL(sys_sethostname)
 /* 75 */	CALL(sys_setrlimit)
@@ -91,7 +91,7 @@
 		CALL(sys_settimeofday)
 /* 80 */	CALL(sys_getgroups16)
 		CALL(sys_setgroups16)
-		CALL(OBSOLETE(old_select))	/* used by libc4 */
+		CALL(OBSOLETE(sys_old_select))	/* used by libc4 */
 		CALL(sys_symlink)
 		CALL(sys_ni_syscall)		/* was sys_lstat */
 /* 85 */	CALL(sys_readlink)
@@ -99,7 +99,7 @@
 		CALL(sys_swapon)
 		CALL(sys_reboot)
 		CALL(OBSOLETE(sys_old_readdir))	/* used by libc4 */
-/* 90 */	CALL(OBSOLETE(old_mmap))	/* used by libc4 */
+/* 90 */	CALL(OBSOLETE(sys_old_mmap))	/* used by libc4 */
 		CALL(sys_munmap)
 		CALL(sys_truncate)
 		CALL(sys_ftruncate)
@@ -172,7 +172,7 @@
 /* 160 */	CALL(sys_sched_get_priority_min)
 		CALL(sys_sched_rr_get_interval)
 		CALL(sys_nanosleep)
-		CALL(sys_arm_mremap)
+		CALL(sys_mremap)
 		CALL(sys_setresuid16)
 /* 165 */	CALL(sys_getresuid16)
 		CALL(sys_ni_syscall)		/* vm86 */
@@ -188,7 +188,7 @@
 		CALL(sys_rt_sigpending)
 		CALL(sys_rt_sigtimedwait)
 		CALL(sys_rt_sigqueueinfo)
-		CALL(sys_rt_sigsuspend_wrapper)
+		CALL(sys_rt_sigsuspend)
 /* 180 */	CALL(ABI(sys_pread64, sys_oabi_pread64))
 		CALL(ABI(sys_pwrite64, sys_oabi_pwrite64))
 		CALL(sys_chown16)
@@ -344,8 +344,8 @@
 		CALL(sys_readlinkat)
 		CALL(sys_fchmodat)
 		CALL(sys_faccessat)
-/* 335 */	CALL(sys_ni_syscall)		/* eventually pselect6 */
-		CALL(sys_ni_syscall)		/* eventually ppoll */
+/* 335 */	CALL(sys_pselect6)
+		CALL(sys_ppoll)
 		CALL(sys_unshare)
 		CALL(sys_set_robust_list)
 		CALL(sys_get_robust_list)
@@ -355,7 +355,7 @@
 		CALL(sys_vmsplice)
 		CALL(sys_move_pages)
 /* 345 */	CALL(sys_getcpu)
-		CALL(sys_ni_syscall)		/* eventually epoll_pwait */
+		CALL(sys_epoll_pwait)
 		CALL(sys_kexec_load)
 		CALL(sys_utimensat)
 		CALL(sys_signalfd)
@@ -373,7 +373,12 @@
 		CALL(sys_preadv)
 		CALL(sys_pwritev)
 		CALL(sys_rt_tgsigqueueinfo)
-		CALL(sys_perf_counter_open)
+		CALL(sys_perf_event_open)
+/* 365 */	CALL(sys_recvmmsg)
+		CALL(sys_accept4)
+		CALL(sys_fanotify_init)
+		CALL(sys_fanotify_mark)
+		CALL(sys_prlimit64)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

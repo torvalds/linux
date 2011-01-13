@@ -24,6 +24,8 @@
 #include <asm/delay.h>
 #include <asm/meminit.h>
 #include <asm/processor.h>
+#include <asm/sal.h>
+#include <asm/mca.h>
 
 typedef NORET_TYPE void (*relocate_new_kernel_t)(
 					unsigned long indirection_page,
@@ -85,12 +87,25 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 	void *pal_addr = efi_get_pal_addr();
 	unsigned long code_addr = (unsigned long)page_address(image->control_code_page);
 	int ii;
+	u64 fp, gp;
+	ia64_fptr_t *init_handler = (ia64_fptr_t *)ia64_os_init_on_kdump;
 
 	BUG_ON(!image);
 	if (image->type == KEXEC_TYPE_CRASH) {
 		crash_save_this_cpu();
 		current->thread.ksp = (__u64)info->sw - 16;
+
+		/* Register noop init handler */
+		fp = ia64_tpa(init_handler->fp);
+		gp = ia64_tpa(ia64_getreg(_IA64_REG_GP));
+		ia64_sal_set_vectors(SAL_VECTOR_OS_INIT, fp, gp, 0, fp, gp, 0);
+	} else {
+		/* Unregister init handlers of current kernel */
+		ia64_sal_set_vectors(SAL_VECTOR_OS_INIT, 0, 0, 0, 0, 0, 0);
 	}
+
+	/* Unregister mca handler - No more recovery on current kernel */
+	ia64_sal_set_vectors(SAL_VECTOR_OS_MCA, 0, 0, 0, 0, 0, 0);
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();

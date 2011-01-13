@@ -26,44 +26,50 @@
 #include <asm/mach/map.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/common.h>
+
+static struct omap_board_config_kernel generic_config[] = {
+};
 
 static void __init omap_generic_init_irq(void)
 {
-	omap2_init_common_hw(NULL);
+	omap_board_config = generic_config;
+	omap_board_config_size = ARRAY_SIZE(generic_config);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
 }
 
-static struct omap_uart_config generic_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
-static struct omap_board_config_kernel generic_config[] = {
-	{ OMAP_TAG_UART,	&generic_uart_config },
-};
-
 static void __init omap_generic_init(void)
 {
-	omap_board_config = generic_config;
-	omap_board_config_size = ARRAY_SIZE(generic_config);
 	omap_serial_init();
 }
 
 static void __init omap_generic_map_io(void)
 {
-	omap2_set_globals_242x(); /* should be 242x, 243x, or 343x */
-	omap2_map_common_io();
+	if (cpu_is_omap242x()) {
+		omap2_set_globals_242x();
+		omap242x_map_common_io();
+	} else if (cpu_is_omap243x()) {
+		omap2_set_globals_243x();
+		omap243x_map_common_io();
+	} else if (cpu_is_omap34xx()) {
+		omap2_set_globals_3xxx();
+		omap34xx_map_common_io();
+	} else if (cpu_is_omap44xx()) {
+		omap2_set_globals_443x();
+		omap44xx_map_common_io();
+	}
 }
 
+/* XXX This machine entry name should be updated */
 MACHINE_START(OMAP_GENERIC, "Generic OMAP24xx")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_generic_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_generic_init_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap_timer,

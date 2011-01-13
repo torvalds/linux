@@ -33,6 +33,7 @@
 
 #include <linux/mlx4/cq.h>
 #include <linux/mlx4/qp.h>
+#include <linux/slab.h>
 
 #include "mlx4_ib.h"
 #include "user.h"
@@ -396,10 +397,14 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		cq->resize_buf = NULL;
 		cq->resize_umem = NULL;
 	} else {
+		struct mlx4_ib_cq_buf tmp_buf;
+		int tmp_cqe = 0;
+
 		spin_lock_irq(&cq->lock);
 		if (cq->resize_buf) {
 			mlx4_ib_cq_resize_copy_cqes(cq);
-			mlx4_ib_free_cq_buf(dev, &cq->buf, cq->ibcq.cqe);
+			tmp_buf = cq->buf;
+			tmp_cqe = cq->ibcq.cqe;
 			cq->buf      = cq->resize_buf->buf;
 			cq->ibcq.cqe = cq->resize_buf->cqe;
 
@@ -407,6 +412,9 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 			cq->resize_buf = NULL;
 		}
 		spin_unlock_irq(&cq->lock);
+
+		if (tmp_cqe)
+			mlx4_ib_free_cq_buf(dev, &tmp_buf, tmp_cqe);
 	}
 
 	goto out;
@@ -658,6 +666,14 @@ repoll:
 			break;
 		case MLX4_OPCODE_ATOMIC_FA:
 			wc->opcode    = IB_WC_FETCH_ADD;
+			wc->byte_len  = 8;
+			break;
+		case MLX4_OPCODE_MASKED_ATOMIC_CS:
+			wc->opcode    = IB_WC_MASKED_COMP_SWAP;
+			wc->byte_len  = 8;
+			break;
+		case MLX4_OPCODE_MASKED_ATOMIC_FA:
+			wc->opcode    = IB_WC_MASKED_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
 		case MLX4_OPCODE_BIND_MW:

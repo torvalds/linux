@@ -6,6 +6,7 @@
  * Copyright (C) 2004, 2005 Ralf Baechle
  * Copyright (C) 2005 MIPS Technologies, Inc.
  */
+#include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/oprofile.h>
@@ -14,8 +15,9 @@
 
 #include "op_impl.h"
 
-extern struct op_mips_model op_model_mipsxx_ops __attribute__((weak));
-extern struct op_mips_model op_model_rm9000_ops __attribute__((weak));
+extern struct op_mips_model op_model_mipsxx_ops __weak;
+extern struct op_mips_model op_model_rm9000_ops __weak;
+extern struct op_mips_model op_model_loongson2_ops __weak;
 
 static struct op_mips_model *model;
 
@@ -92,6 +94,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	case CPU_RM9000:
 		lmodel = &op_model_rm9000_ops;
+		break;
+	case CPU_LOONGSON2:
+		lmodel = &op_model_loongson2_ops;
 		break;
 	};
 

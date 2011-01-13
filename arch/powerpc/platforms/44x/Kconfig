@@ -1,3 +1,12 @@
+config PPC_47x
+	bool "Support for 47x variant"
+	depends on 44x
+	default n
+	select MPIC
+	help
+	  This option enables support for the 47x family of processors and is
+	  not currently compatible with other 44x or 46x varients
+
 config BAMBOO
 	bool "Bamboo"
 	depends on 44x
@@ -7,6 +16,16 @@ config BAMBOO
 	select PCI
 	help
 	  This option enables support for the IBM PPC440EP evaluation board.
+
+config BLUESTONE
+	bool "Bluestone"
+	depends on 44x
+	default n
+	select PPC44x_SIMPLE
+	select APM821xx
+	select IBM_NEW_EMAC_RGMII
+	help
+	  This option enables support for the APM APM821xx Evaluation board.
 
 config EBONY
 	bool "Ebony"
@@ -129,6 +148,18 @@ config REDWOOD
 	help
 	  This option enables support for the AMCC PPC460SX Redwood board.
 
+config EIGER
+	bool "Eiger"
+	depends on 44x
+	default n
+	select PPC44x_SIMPLE
+	select 460SX
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	select IBM_NEW_EMAC_RGMII
+	help
+	  This option enables support for the AMCC PPC460SX evaluation board.
+
 config YOSEMITE
 	bool "Yosemite"
 	depends on 44x
@@ -138,6 +169,28 @@ config YOSEMITE
 	select PCI
 	help
 	  This option enables support for the AMCC PPC440EP evaluation board.
+
+config ISS4xx
+	bool "ISS 4xx Simulator"
+	depends on (44x || 40x)
+	default n
+	select 405GP if 40x
+	select 440GP if 44x && !PPC_47x
+	select PPC_FPU
+	select OF_RTC
+	help
+	  This option enables support for the IBM ISS simulation environment
+
+config ICON
+	bool "Icon"
+	depends on 44x
+	default n
+	select PPC44x_SIMPLE
+	select 440SPe
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC PPC440SPe evaluation board.
 
 #config LUAN
 #	bool "Luan"
@@ -248,6 +301,12 @@ config 460SX
 	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
 	select IBM_NEW_EMAC_ZMII
+	select IBM_NEW_EMAC_TAH
+
+config APM821xx
+	bool
+	select PPC_FPU
+	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_TAH
 
 # 44x errata/workaround config symbols, selected by the CPU models above

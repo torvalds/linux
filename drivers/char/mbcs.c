@@ -15,6 +15,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
+#include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -24,7 +25,7 @@
 #include <linux/mm.h>
 #include <linux/uio.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -40,6 +41,7 @@
 #else
 #define DBG(fmt...)
 #endif
+static DEFINE_MUTEX(mbcs_mutex);
 static int mbcs_major;
 
 static LIST_HEAD(soft_list);
@@ -383,19 +385,19 @@ static int mbcs_open(struct inode *ip, struct file *fp)
 	struct mbcs_soft *soft;
 	int minor;
 
-	lock_kernel();
+	mutex_lock(&mbcs_mutex);
 	minor = iminor(ip);
 
 	/* Nothing protects access to this list... */
 	list_for_each_entry(soft, &soft_list, list) {
 		if (soft->nasid == minor) {
 			fp->private_data = soft->cxdev;
-			unlock_kernel();
+			mutex_unlock(&mbcs_mutex);
 			return 0;
 		}
 	}
 
-	unlock_kernel();
+	mutex_unlock(&mbcs_mutex);
 	return -ENODEV;
 }
 
@@ -715,8 +717,8 @@ static ssize_t show_algo(struct device *dev, struct device_attribute *attr, char
 	 */
 	debug0 = *(uint64_t *) soft->debug_addr;
 
-	return sprintf(buf, "0x%lx 0x%lx\n",
-		       (debug0 >> 32), (debug0 & 0xffffffff));
+	return sprintf(buf, "0x%x 0x%x\n",
+		       upper_32_bits(debug0), lower_32_bits(debug0));
 }
 
 static ssize_t store_algo(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)

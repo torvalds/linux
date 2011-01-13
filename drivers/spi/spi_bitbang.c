@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -258,6 +259,10 @@ static void bitbang_work(struct work_struct *work)
 	struct spi_bitbang	*bitbang =
 		container_of(work, struct spi_bitbang, work);
 	unsigned long		flags;
+	int			(*setup_transfer)(struct spi_device *,
+					struct spi_transfer *);
+
+	setup_transfer = bitbang->setup_transfer;
 
 	spin_lock_irqsave(&bitbang->lock, flags);
 	bitbang->busy = 1;
@@ -269,8 +274,7 @@ static void bitbang_work(struct work_struct *work)
 		unsigned		tmp;
 		unsigned		cs_change;
 		int			status;
-		int			(*setup_transfer)(struct spi_device *,
-						struct spi_transfer *);
+		int			do_setup = -1;
 
 		m = container_of(bitbang->queue.next, struct spi_message,
 				queue);
@@ -287,22 +291,24 @@ static void bitbang_work(struct work_struct *work)
 		tmp = 0;
 		cs_change = 1;
 		status = 0;
-		setup_transfer = NULL;
 
 		list_for_each_entry (t, &m->transfers, transfer_list) {
 
-			/* override or restore speed and wordsize */
-			if (t->speed_hz || t->bits_per_word) {
-				setup_transfer = bitbang->setup_transfer;
+			/* override speed or wordsize? */
+			if (t->speed_hz || t->bits_per_word)
+				do_setup = 1;
+
+			/* init (-1) or override (1) transfer params */
+			if (do_setup != 0) {
 				if (!setup_transfer) {
 					status = -ENOPROTOOPT;
 					break;
 				}
-			}
-			if (setup_transfer) {
 				status = setup_transfer(spi, t);
 				if (status < 0)
 					break;
+				if (do_setup == -1)
+					do_setup = 0;
 			}
 
 			/* set up default clock polarity, and activate chip;
@@ -362,10 +368,6 @@ static void bitbang_work(struct work_struct *work)
 
 		m->status = status;
 		m->complete(m->context);
-
-		/* restore speed and wordsize */
-		if (setup_transfer)
-			setup_transfer(spi, NULL);
 
 		/* normally deactivate chipselect ... unless no error and
 		 * cs_change has hinted that the next message will probably

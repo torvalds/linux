@@ -1,8 +1,6 @@
 /*
  * Copyright (C) 2005, 2006
- * Avishay Traeger (avishay@gmail.com) (avishay@il.ibm.com)
- * Copyright (C) 2005, 2006
- * International Business Machines
+ * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
  * Boaz Harrosh <bharrosh@panasas.com>
  *
@@ -422,7 +420,7 @@ int exofs_set_link(struct inode *dir, struct exofs_dir_entry *de,
 	err = exofs_write_begin(NULL, page->mapping, pos, len,
 				AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
 	if (err)
-		EXOFS_ERR("exofs_set_link: exofs_write_begin FAILD => %d\n",
+		EXOFS_ERR("exofs_set_link: exofs_write_begin FAILED => %d\n",
 			  err);
 
 	de->inode_no = cpu_to_le64(inode->i_ino);
@@ -558,7 +556,7 @@ int exofs_delete_entry(struct exofs_dir_entry *dir, struct page *page)
 	err = exofs_write_begin(NULL, page->mapping, pos, to - from, 0,
 							&page, NULL);
 	if (err)
-		EXOFS_ERR("exofs_delete_entry: exofs_write_begin FAILD => %d\n",
+		EXOFS_ERR("exofs_delete_entry: exofs_write_begin FAILED => %d\n",
 			  err);
 	if (pde)
 		pde->rec_len = cpu_to_le16(to - from);
@@ -610,7 +608,7 @@ int exofs_make_empty(struct inode *inode, struct inode *parent)
 	de->inode_no = cpu_to_le64(parent->i_ino);
 	memcpy(de->name, PARENT_DIR, sizeof(PARENT_DIR));
 	exofs_set_de_type(de, inode);
-	kunmap_atomic(page, KM_USER0);
+	kunmap_atomic(kaddr, KM_USER0);
 	err = exofs_commit_chunk(page, 0, chunk_size);
 fail:
 	page_cache_release(page);

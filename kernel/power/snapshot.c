@@ -3,7 +3,7 @@
  *
  * This file provides system snapshot/restore functionality for swsusp.
  *
- * Copyright (C) 1998-2005 Pavel Machek <pavel@suse.cz>
+ * Copyright (C) 1998-2005 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
  *
  * This file is released under the GPLv2.
@@ -26,6 +26,7 @@
 #include <linux/console.h>
 #include <linux/highmem.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -45,7 +46,12 @@ static void swsusp_unset_page_forbidden(struct page *);
  * size will not exceed N bytes, but if that is impossible, it will
  * try to create the smallest image possible.
  */
-unsigned long image_size = 500 * 1024 * 1024;
+unsigned long image_size;
+
+void __init hibernate_image_size_init(void)
+{
+	image_size = ((totalram_pages * 2) / 5) * PAGE_SIZE;
+}
 
 /* List of PBEs needed for restoring the pages that were allocated before
  * the suspend and included in the suspend image, but have also been
@@ -233,7 +239,7 @@ static void *chain_alloc(struct chain_allocator *ca, unsigned int size)
 
 #define BM_END_OF_MAP	(~0UL)
 
-#define BM_BITS_PER_BLOCK	(PAGE_SIZE << 3)
+#define BM_BITS_PER_BLOCK	(PAGE_SIZE * BITS_PER_BYTE)
 
 struct bm_block {
 	struct list_head hook;	/* hook into a list of bitmap blocks */
@@ -275,7 +281,7 @@ static void memory_bm_free(struct memory_bitmap *bm, int clear_nosave_free);
 
 /**
  *	create_bm_block_list - create a list of block bitmap objects
- *	@nr_blocks - number of blocks to allocate
+ *	@pages - number of pages to track
  *	@list - list to put the allocated blocks into
  *	@ca - chain allocator to be used for allocating memory
  */
@@ -619,7 +625,7 @@ __register_nosave_region(unsigned long start_pfn, unsigned long end_pfn,
 		BUG_ON(!region);
 	} else
 		/* This allocation cannot fail */
-		region = alloc_bootmem_low(sizeof(struct nosave_region));
+		region = alloc_bootmem(sizeof(struct nosave_region));
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;
 	list_add_tail(&region->list, &nosave_regions);
@@ -853,7 +859,7 @@ static unsigned int count_highmem_pages(void)
 	struct zone *zone;
 	unsigned int n = 0;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		unsigned long pfn, max_zone_pfn;
 
 		if (!is_highmem(zone))
@@ -916,7 +922,7 @@ static unsigned int count_data_pages(void)
 	unsigned long pfn, max_zone_pfn;
 	unsigned int n = 0;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		if (is_highmem(zone))
 			continue;
 
@@ -978,8 +984,8 @@ static void copy_data_page(unsigned long dst_pfn, unsigned long src_pfn)
 		src = kmap_atomic(s_page, KM_USER0);
 		dst = kmap_atomic(d_page, KM_USER1);
 		do_copy_page(dst, src);
-		kunmap_atomic(src, KM_USER0);
 		kunmap_atomic(dst, KM_USER1);
+		kunmap_atomic(src, KM_USER0);
 	} else {
 		if (PageHighMem(d_page)) {
 			/* Page pointed to by src may contain some kernel
@@ -987,7 +993,7 @@ static void copy_data_page(unsigned long dst_pfn, unsigned long src_pfn)
 			 */
 			safe_copy_page(buffer, s_page);
 			dst = kmap_atomic(d_page, KM_USER0);
-			memcpy(dst, buffer, PAGE_SIZE);
+			copy_page(dst, buffer);
 			kunmap_atomic(dst, KM_USER0);
 		} else {
 			safe_copy_page(page_address(d_page), s_page);
@@ -1010,7 +1016,7 @@ copy_data_pages(struct memory_bitmap *copy_bm, struct memory_bitmap *orig_bm)
 	struct zone *zone;
 	unsigned long pfn;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		unsigned long max_zone_pfn;
 
 		mark_free_pages(zone);
@@ -1033,6 +1039,25 @@ copy_data_pages(struct memory_bitmap *copy_bm, struct memory_bitmap *orig_bm)
 static unsigned int nr_copy_pages;
 /* Number of pages needed for saving the original pfns of the image pages */
 static unsigned int nr_meta_pages;
+/*
+ * Numbers of normal and highmem page frames allocated for hibernation image
+ * before suspending devices.
+ */
+unsigned int alloc_normal, alloc_highmem;
+/*
+ * Memory bitmap used for marking saveable pages (during hibernation) or
+ * hibernation image pages (during restore)
+ */
+static struct memory_bitmap orig_bm;
+/*
+ * Memory bitmap used during hibernation for marking allocated page frames that
+ * will contain copies of saveable pages.  During restore it is initially used
+ * for marking hibernation image pages, but then the set bits from it are
+ * duplicated in @orig_bm and it is released.  On highmem systems it is next
+ * used for marking "safe" highmem pages, but it has to be reinitialized for
+ * this purpose.
+ */
+static struct memory_bitmap copy_bm;
 
 /**
  *	swsusp_free - free pages allocated for the suspend.
@@ -1046,7 +1071,7 @@ void swsusp_free(void)
 	struct zone *zone;
 	unsigned long pfn, max_zone_pfn;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
 			if (pfn_valid(pfn)) {
@@ -1064,74 +1089,333 @@ void swsusp_free(void)
 	nr_meta_pages = 0;
 	restore_pblist = NULL;
 	buffer = NULL;
+	alloc_normal = 0;
+	alloc_highmem = 0;
+}
+
+/* Helper functions used for the shrinking of memory. */
+
+#define GFP_IMAGE	(GFP_KERNEL | __GFP_NOWARN)
+
+/**
+ * preallocate_image_pages - Allocate a number of pages for hibernation image
+ * @nr_pages: Number of page frames to allocate.
+ * @mask: GFP flags to use for the allocation.
+ *
+ * Return value: Number of page frames actually allocated
+ */
+static unsigned long preallocate_image_pages(unsigned long nr_pages, gfp_t mask)
+{
+	unsigned long nr_alloc = 0;
+
+	while (nr_pages > 0) {
+		struct page *page;
+
+		page = alloc_image_page(mask);
+		if (!page)
+			break;
+		memory_bm_set_bit(&copy_bm, page_to_pfn(page));
+		if (PageHighMem(page))
+			alloc_highmem++;
+		else
+			alloc_normal++;
+		nr_pages--;
+		nr_alloc++;
+	}
+
+	return nr_alloc;
+}
+
+static unsigned long preallocate_image_memory(unsigned long nr_pages,
+					      unsigned long avail_normal)
+{
+	unsigned long alloc;
+
+	if (avail_normal <= alloc_normal)
+		return 0;
+
+	alloc = avail_normal - alloc_normal;
+	if (nr_pages < alloc)
+		alloc = nr_pages;
+
+	return preallocate_image_pages(alloc, GFP_IMAGE);
+}
+
+#ifdef CONFIG_HIGHMEM
+static unsigned long preallocate_image_highmem(unsigned long nr_pages)
+{
+	return preallocate_image_pages(nr_pages, GFP_IMAGE | __GFP_HIGHMEM);
 }
 
 /**
- *	swsusp_shrink_memory -  Try to free as much memory as needed
- *
- *	... but do not OOM-kill anyone
- *
- *	Notice: all userland should be stopped before it is called, or
- *	livelock is possible.
+ *  __fraction - Compute (an approximation of) x * (multiplier / base)
  */
-
-#define SHRINK_BITE	10000
-static inline unsigned long __shrink_memory(long tmp)
+static unsigned long __fraction(u64 x, u64 multiplier, u64 base)
 {
-	if (tmp > SHRINK_BITE)
-		tmp = SHRINK_BITE;
-	return shrink_all_memory(tmp);
+	x *= multiplier;
+	do_div(x, base);
+	return (unsigned long)x;
 }
 
-int swsusp_shrink_memory(void)
+static unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
+						unsigned long highmem,
+						unsigned long total)
 {
-	long tmp;
+	unsigned long alloc = __fraction(nr_pages, highmem, total);
+
+	return preallocate_image_pages(alloc, GFP_IMAGE | __GFP_HIGHMEM);
+}
+#else /* CONFIG_HIGHMEM */
+static inline unsigned long preallocate_image_highmem(unsigned long nr_pages)
+{
+	return 0;
+}
+
+static inline unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
+						unsigned long highmem,
+						unsigned long total)
+{
+	return 0;
+}
+#endif /* CONFIG_HIGHMEM */
+
+/**
+ * free_unnecessary_pages - Release preallocated pages not needed for the image
+ */
+static void free_unnecessary_pages(void)
+{
+	unsigned long save, to_free_normal, to_free_highmem;
+
+	save = count_data_pages();
+	if (alloc_normal >= save) {
+		to_free_normal = alloc_normal - save;
+		save = 0;
+	} else {
+		to_free_normal = 0;
+		save -= alloc_normal;
+	}
+	save += count_highmem_pages();
+	if (alloc_highmem >= save) {
+		to_free_highmem = alloc_highmem - save;
+	} else {
+		to_free_highmem = 0;
+		to_free_normal -= save - alloc_highmem;
+	}
+
+	memory_bm_position_reset(&copy_bm);
+
+	while (to_free_normal > 0 || to_free_highmem > 0) {
+		unsigned long pfn = memory_bm_next_pfn(&copy_bm);
+		struct page *page = pfn_to_page(pfn);
+
+		if (PageHighMem(page)) {
+			if (!to_free_highmem)
+				continue;
+			to_free_highmem--;
+			alloc_highmem--;
+		} else {
+			if (!to_free_normal)
+				continue;
+			to_free_normal--;
+			alloc_normal--;
+		}
+		memory_bm_clear_bit(&copy_bm, pfn);
+		swsusp_unset_page_forbidden(page);
+		swsusp_unset_page_free(page);
+		__free_page(page);
+	}
+}
+
+/**
+ * minimum_image_size - Estimate the minimum acceptable size of an image
+ * @saveable: Number of saveable pages in the system.
+ *
+ * We want to avoid attempting to free too much memory too hard, so estimate the
+ * minimum acceptable size of a hibernation image to use as the lower limit for
+ * preallocating memory.
+ *
+ * We assume that the minimum image size should be proportional to
+ *
+ * [number of saveable pages] - [number of pages that can be freed in theory]
+ *
+ * where the second term is the sum of (1) reclaimable slab pages, (2) active
+ * and (3) inactive anonymouns pages, (4) active and (5) inactive file pages,
+ * minus mapped file pages.
+ */
+static unsigned long minimum_image_size(unsigned long saveable)
+{
+	unsigned long size;
+
+	size = global_page_state(NR_SLAB_RECLAIMABLE)
+		+ global_page_state(NR_ACTIVE_ANON)
+		+ global_page_state(NR_INACTIVE_ANON)
+		+ global_page_state(NR_ACTIVE_FILE)
+		+ global_page_state(NR_INACTIVE_FILE)
+		- global_page_state(NR_FILE_MAPPED);
+
+	return saveable <= size ? 0 : saveable - size;
+}
+
+/**
+ * hibernate_preallocate_memory - Preallocate memory for hibernation image
+ *
+ * To create a hibernation image it is necessary to make a copy of every page
+ * frame in use.  We also need a number of page frames to be free during
+ * hibernation for allocations made while saving the image and for device
+ * drivers, in case they need to allocate memory from their hibernation
+ * callbacks (these two numbers are given by PAGES_FOR_IO and SPARE_PAGES,
+ * respectively, both of which are rough estimates).  To make this happen, we
+ * compute the total number of available page frames and allocate at least
+ *
+ * ([page frames total] + PAGES_FOR_IO + [metadata pages]) / 2 + 2 * SPARE_PAGES
+ *
+ * of them, which corresponds to the maximum size of a hibernation image.
+ *
+ * If image_size is set below the number following from the above formula,
+ * the preallocation of memory is continued until the total number of saveable
+ * pages in the system is below the requested image size or the minimum
+ * acceptable image size returned by minimum_image_size(), whichever is greater.
+ */
+int hibernate_preallocate_memory(void)
+{
 	struct zone *zone;
-	unsigned long pages = 0;
-	unsigned int i = 0;
-	char *p = "-\\|/";
+	unsigned long saveable, size, max_size, count, highmem, pages = 0;
+	unsigned long alloc, save_highmem, pages_highmem, avail_normal;
 	struct timeval start, stop;
+	int error;
 
-	printk(KERN_INFO "PM: Shrinking memory...  ");
+	printk(KERN_INFO "PM: Preallocating image memory... ");
 	do_gettimeofday(&start);
-	do {
-		long size, highmem_size;
 
-		highmem_size = count_highmem_pages();
-		size = count_data_pages() + PAGES_FOR_IO + SPARE_PAGES;
-		tmp = size;
-		size += highmem_size;
-		for_each_populated_zone(zone) {
-			tmp += snapshot_additional_pages(zone);
-			if (is_highmem(zone)) {
-				highmem_size -=
-					zone_page_state(zone, NR_FREE_PAGES);
-			} else {
-				tmp -= zone_page_state(zone, NR_FREE_PAGES);
-				tmp += zone->lowmem_reserve[ZONE_NORMAL];
-			}
-		}
+	error = memory_bm_create(&orig_bm, GFP_IMAGE, PG_ANY);
+	if (error)
+		goto err_out;
 
-		if (highmem_size < 0)
-			highmem_size = 0;
+	error = memory_bm_create(&copy_bm, GFP_IMAGE, PG_ANY);
+	if (error)
+		goto err_out;
 
-		tmp += highmem_size;
-		if (tmp > 0) {
-			tmp = __shrink_memory(tmp);
-			if (!tmp)
-				return -ENOMEM;
-			pages += tmp;
-		} else if (size > image_size / PAGE_SIZE) {
-			tmp = __shrink_memory(size - (image_size / PAGE_SIZE));
-			pages += tmp;
-		}
-		printk("\b%c", p[i++%4]);
-	} while (tmp > 0);
+	alloc_normal = 0;
+	alloc_highmem = 0;
+
+	/* Count the number of saveable data pages. */
+	save_highmem = count_highmem_pages();
+	saveable = count_data_pages();
+
+	/*
+	 * Compute the total number of page frames we can use (count) and the
+	 * number of pages needed for image metadata (size).
+	 */
+	count = saveable;
+	saveable += save_highmem;
+	highmem = save_highmem;
+	size = 0;
+	for_each_populated_zone(zone) {
+		size += snapshot_additional_pages(zone);
+		if (is_highmem(zone))
+			highmem += zone_page_state(zone, NR_FREE_PAGES);
+		else
+			count += zone_page_state(zone, NR_FREE_PAGES);
+	}
+	avail_normal = count;
+	count += highmem;
+	count -= totalreserve_pages;
+
+	/* Compute the maximum number of saveable pages to leave in memory. */
+	max_size = (count - (size + PAGES_FOR_IO)) / 2 - 2 * SPARE_PAGES;
+	/* Compute the desired number of image pages specified by image_size. */
+	size = DIV_ROUND_UP(image_size, PAGE_SIZE);
+	if (size > max_size)
+		size = max_size;
+	/*
+	 * If the desired number of image pages is at least as large as the
+	 * current number of saveable pages in memory, allocate page frames for
+	 * the image and we're done.
+	 */
+	if (size >= saveable) {
+		pages = preallocate_image_highmem(save_highmem);
+		pages += preallocate_image_memory(saveable - pages, avail_normal);
+		goto out;
+	}
+
+	/* Estimate the minimum size of the image. */
+	pages = minimum_image_size(saveable);
+	/*
+	 * To avoid excessive pressure on the normal zone, leave room in it to
+	 * accommodate an image of the minimum size (unless it's already too
+	 * small, in which case don't preallocate pages from it at all).
+	 */
+	if (avail_normal > pages)
+		avail_normal -= pages;
+	else
+		avail_normal = 0;
+	if (size < pages)
+		size = min_t(unsigned long, pages, max_size);
+
+	/*
+	 * Let the memory management subsystem know that we're going to need a
+	 * large number of page frames to allocate and make it free some memory.
+	 * NOTE: If this is not done, performance will be hurt badly in some
+	 * test cases.
+	 */
+	shrink_all_memory(saveable - size);
+
+	/*
+	 * The number of saveable pages in memory was too high, so apply some
+	 * pressure to decrease it.  First, make room for the largest possible
+	 * image and fail if that doesn't work.  Next, try to decrease the size
+	 * of the image as much as indicated by 'size' using allocations from
+	 * highmem and non-highmem zones separately.
+	 */
+	pages_highmem = preallocate_image_highmem(highmem / 2);
+	alloc = (count - max_size) - pages_highmem;
+	pages = preallocate_image_memory(alloc, avail_normal);
+	if (pages < alloc) {
+		/* We have exhausted non-highmem pages, try highmem. */
+		alloc -= pages;
+		pages += pages_highmem;
+		pages_highmem = preallocate_image_highmem(alloc);
+		if (pages_highmem < alloc)
+			goto err_out;
+		pages += pages_highmem;
+		/*
+		 * size is the desired number of saveable pages to leave in
+		 * memory, so try to preallocate (all memory - size) pages.
+		 */
+		alloc = (count - pages) - size;
+		pages += preallocate_image_highmem(alloc);
+	} else {
+		/*
+		 * There are approximately max_size saveable pages at this point
+		 * and we want to reduce this number down to size.
+		 */
+		alloc = max_size - size;
+		size = preallocate_highmem_fraction(alloc, highmem, count);
+		pages_highmem += size;
+		alloc -= size;
+		size = preallocate_image_memory(alloc, avail_normal);
+		pages_highmem += preallocate_image_highmem(alloc - size);
+		pages += pages_highmem + size;
+	}
+
+	/*
+	 * We only need as many page frames for the image as there are saveable
+	 * pages in memory, but we have allocated more.  Release the excessive
+	 * ones now.
+	 */
+	free_unnecessary_pages();
+
+ out:
 	do_gettimeofday(&stop);
-	printk("\bdone (%lu pages freed)\n", pages);
-	swsusp_show_speed(&start, &stop, pages, "Freed");
+	printk(KERN_CONT "done (allocated %lu pages)\n", pages);
+	swsusp_show_speed(&start, &stop, pages, "Allocated");
 
 	return 0;
+
+ err_out:
+	printk(KERN_CONT "\n");
+	swsusp_free();
+	return -ENOMEM;
 }
 
 #ifdef CONFIG_HIGHMEM
@@ -1142,7 +1426,7 @@ int swsusp_shrink_memory(void)
 
 static unsigned int count_pages_for_highmem(unsigned int nr_highmem)
 {
-	unsigned int free_highmem = count_free_highmem_pages();
+	unsigned int free_highmem = count_free_highmem_pages() + alloc_highmem;
 
 	if (free_highmem >= nr_highmem)
 		nr_highmem = 0;
@@ -1164,19 +1448,17 @@ count_pages_for_highmem(unsigned int nr_highmem) { return 0; }
 static int enough_free_mem(unsigned int nr_pages, unsigned int nr_highmem)
 {
 	struct zone *zone;
-	unsigned int free = 0, meta = 0;
+	unsigned int free = alloc_normal;
 
-	for_each_zone(zone) {
-		meta += snapshot_additional_pages(zone);
+	for_each_populated_zone(zone)
 		if (!is_highmem(zone))
 			free += zone_page_state(zone, NR_FREE_PAGES);
-	}
 
 	nr_pages += count_pages_for_highmem(nr_highmem);
-	pr_debug("PM: Normal pages needed: %u + %u + %u, available pages: %u\n",
-		nr_pages, PAGES_FOR_IO, meta, free);
+	pr_debug("PM: Normal pages needed: %u + %u, available pages: %u\n",
+		nr_pages, PAGES_FOR_IO, free);
 
-	return free > nr_pages + PAGES_FOR_IO + meta;
+	return free > nr_pages + PAGES_FOR_IO;
 }
 
 #ifdef CONFIG_HIGHMEM
@@ -1198,7 +1480,7 @@ static inline int get_highmem_buffer(int safe_needed)
  */
 
 static inline unsigned int
-alloc_highmem_image_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
+alloc_highmem_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
 {
 	unsigned int to_alloc = count_free_highmem_pages();
 
@@ -1218,7 +1500,7 @@ alloc_highmem_image_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
 static inline int get_highmem_buffer(int safe_needed) { return 0; }
 
 static inline unsigned int
-alloc_highmem_image_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
+alloc_highmem_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
 #endif /* CONFIG_HIGHMEM */
 
 /**
@@ -1237,56 +1519,41 @@ static int
 swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
 		unsigned int nr_pages, unsigned int nr_highmem)
 {
-	int error;
-
-	error = memory_bm_create(orig_bm, GFP_ATOMIC | __GFP_COLD, PG_ANY);
-	if (error)
-		goto Free;
-
-	error = memory_bm_create(copy_bm, GFP_ATOMIC | __GFP_COLD, PG_ANY);
-	if (error)
-		goto Free;
+	int error = 0;
 
 	if (nr_highmem > 0) {
 		error = get_highmem_buffer(PG_ANY);
 		if (error)
-			goto Free;
-
-		nr_pages += alloc_highmem_image_pages(copy_bm, nr_highmem);
+			goto err_out;
+		if (nr_highmem > alloc_highmem) {
+			nr_highmem -= alloc_highmem;
+			nr_pages += alloc_highmem_pages(copy_bm, nr_highmem);
+		}
 	}
-	while (nr_pages-- > 0) {
-		struct page *page = alloc_image_page(GFP_ATOMIC | __GFP_COLD);
+	if (nr_pages > alloc_normal) {
+		nr_pages -= alloc_normal;
+		while (nr_pages-- > 0) {
+			struct page *page;
 
-		if (!page)
-			goto Free;
-
-		memory_bm_set_bit(copy_bm, page_to_pfn(page));
+			page = alloc_image_page(GFP_ATOMIC | __GFP_COLD);
+			if (!page)
+				goto err_out;
+			memory_bm_set_bit(copy_bm, page_to_pfn(page));
+		}
 	}
+
 	return 0;
 
- Free:
+ err_out:
 	swsusp_free();
-	return -ENOMEM;
+	return error;
 }
-
-/* Memory bitmap used for marking saveable pages (during suspend) or the
- * suspend image pages (during resume)
- */
-static struct memory_bitmap orig_bm;
-/* Memory bitmap used on suspend for marking allocated pages that will contain
- * the copies of saveable pages.  During resume it is initially used for
- * marking the suspend image pages, but then its set bits are duplicated in
- * @orig_bm and it is released.  Next, on systems with high memory, it may be
- * used for marking "safe" highmem pages, but it has to be reinitialized for
- * this purpose.
- */
-static struct memory_bitmap copy_bm;
 
 asmlinkage int swsusp_save(void)
 {
 	unsigned int nr_pages, nr_highmem;
 
-	printk(KERN_INFO "PM: Creating hibernation image: \n");
+	printk(KERN_INFO "PM: Creating hibernation image:\n");
 
 	drain_local_pages(NULL);
 	nr_pages = count_data_pages();
@@ -1389,14 +1656,9 @@ pack_pfns(unsigned long *buf, struct memory_bitmap *bm)
  *	snapshot_handle structure.  The structure gets updated and a pointer
  *	to it should be passed to this function every next time.
  *
- *	The @count parameter should contain the number of bytes the caller
- *	wants to read from the snapshot.  It must not be zero.
- *
  *	On success the function returns a positive number.  Then, the caller
  *	is allowed to read up to the returned number of bytes from the memory
- *	location computed by the data_of() macro.  The number returned
- *	may be smaller than @count, but this only happens if the read would
- *	cross a page boundary otherwise.
+ *	location computed by the data_of() macro.
  *
  *	The function returns 0 to indicate the end of data stream condition,
  *	and a negative number is returned on error.  In such cases the
@@ -1404,7 +1666,7 @@ pack_pfns(unsigned long *buf, struct memory_bitmap *bm)
  *	any more.
  */
 
-int snapshot_read_next(struct snapshot_handle *handle, size_t count)
+int snapshot_read_next(struct snapshot_handle *handle)
 {
 	if (handle->cur > nr_meta_pages + nr_copy_pages)
 		return 0;
@@ -1415,7 +1677,7 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 		if (!buffer)
 			return -ENOMEM;
 	}
-	if (!handle->offset) {
+	if (!handle->cur) {
 		int error;
 
 		error = init_header((struct swsusp_info *)buffer);
@@ -1424,42 +1686,30 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 		handle->buffer = buffer;
 		memory_bm_position_reset(&orig_bm);
 		memory_bm_position_reset(&copy_bm);
-	}
-	if (handle->prev < handle->cur) {
-		if (handle->cur <= nr_meta_pages) {
-			memset(buffer, 0, PAGE_SIZE);
-			pack_pfns(buffer, &orig_bm);
-		} else {
-			struct page *page;
-
-			page = pfn_to_page(memory_bm_next_pfn(&copy_bm));
-			if (PageHighMem(page)) {
-				/* Highmem pages are copied to the buffer,
-				 * because we can't return with a kmapped
-				 * highmem page (we may not be called again).
-				 */
-				void *kaddr;
-
-				kaddr = kmap_atomic(page, KM_USER0);
-				memcpy(buffer, kaddr, PAGE_SIZE);
-				kunmap_atomic(kaddr, KM_USER0);
-				handle->buffer = buffer;
-			} else {
-				handle->buffer = page_address(page);
-			}
-		}
-		handle->prev = handle->cur;
-	}
-	handle->buf_offset = handle->cur_offset;
-	if (handle->cur_offset + count >= PAGE_SIZE) {
-		count = PAGE_SIZE - handle->cur_offset;
-		handle->cur_offset = 0;
-		handle->cur++;
+	} else if (handle->cur <= nr_meta_pages) {
+		clear_page(buffer);
+		pack_pfns(buffer, &orig_bm);
 	} else {
-		handle->cur_offset += count;
+		struct page *page;
+
+		page = pfn_to_page(memory_bm_next_pfn(&copy_bm));
+		if (PageHighMem(page)) {
+			/* Highmem pages are copied to the buffer,
+			 * because we can't return with a kmapped
+			 * highmem page (we may not be called again).
+			 */
+			void *kaddr;
+
+			kaddr = kmap_atomic(page, KM_USER0);
+			copy_page(buffer, kaddr);
+			kunmap_atomic(kaddr, KM_USER0);
+			handle->buffer = buffer;
+		} else {
+			handle->buffer = page_address(page);
+		}
 	}
-	handle->offset += count;
-	return count;
+	handle->cur++;
+	return PAGE_SIZE;
 }
 
 /**
@@ -1474,7 +1724,7 @@ static int mark_unsafe_pages(struct memory_bitmap *bm)
 	unsigned long pfn, max_zone_pfn;
 
 	/* Clear page flags */
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
 			if (pfn_valid(pfn))
@@ -1734,7 +1984,7 @@ static void copy_last_highmem_page(void)
 		void *dst;
 
 		dst = kmap_atomic(last_highmem_page, KM_USER0);
-		memcpy(dst, buffer, PAGE_SIZE);
+		copy_page(dst, buffer);
 		kunmap_atomic(dst, KM_USER0);
 		last_highmem_page = NULL;
 	}
@@ -1918,14 +2168,9 @@ static void *get_buffer(struct memory_bitmap *bm, struct chain_allocator *ca)
  *	snapshot_handle structure.  The structure gets updated and a pointer
  *	to it should be passed to this function every next time.
  *
- *	The @count parameter should contain the number of bytes the caller
- *	wants to write to the image.  It must not be zero.
- *
  *	On success the function returns a positive number.  Then, the caller
  *	is allowed to write up to the returned number of bytes to the memory
- *	location computed by the data_of() macro.  The number returned
- *	may be smaller than @count, but this only happens if the write would
- *	cross a page boundary otherwise.
+ *	location computed by the data_of() macro.
  *
  *	The function returns 0 to indicate the "end of file" condition,
  *	and a negative number is returned on error.  In such cases the
@@ -1933,16 +2178,18 @@ static void *get_buffer(struct memory_bitmap *bm, struct chain_allocator *ca)
  *	any more.
  */
 
-int snapshot_write_next(struct snapshot_handle *handle, size_t count)
+int snapshot_write_next(struct snapshot_handle *handle)
 {
 	static struct chain_allocator ca;
 	int error = 0;
 
 	/* Check if we have already loaded the entire image */
-	if (handle->prev && handle->cur > nr_meta_pages + nr_copy_pages)
+	if (handle->cur > 1 && handle->cur > nr_meta_pages + nr_copy_pages)
 		return 0;
 
-	if (handle->offset == 0) {
+	handle->sync_read = 1;
+
+	if (!handle->cur) {
 		if (!buffer)
 			/* This makes the buffer be freed by swsusp_free() */
 			buffer = get_image_page(GFP_ATOMIC, PG_ANY);
@@ -1951,56 +2198,43 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 			return -ENOMEM;
 
 		handle->buffer = buffer;
-	}
-	handle->sync_read = 1;
-	if (handle->prev < handle->cur) {
-		if (handle->prev == 0) {
-			error = load_header(buffer);
+	} else if (handle->cur == 1) {
+		error = load_header(buffer);
+		if (error)
+			return error;
+
+		error = memory_bm_create(&copy_bm, GFP_ATOMIC, PG_ANY);
+		if (error)
+			return error;
+
+	} else if (handle->cur <= nr_meta_pages + 1) {
+		error = unpack_orig_pfns(buffer, &copy_bm);
+		if (error)
+			return error;
+
+		if (handle->cur == nr_meta_pages + 1) {
+			error = prepare_image(&orig_bm, &copy_bm);
 			if (error)
 				return error;
 
-			error = memory_bm_create(&copy_bm, GFP_ATOMIC, PG_ANY);
-			if (error)
-				return error;
-
-		} else if (handle->prev <= nr_meta_pages) {
-			error = unpack_orig_pfns(buffer, &copy_bm);
-			if (error)
-				return error;
-
-			if (handle->prev == nr_meta_pages) {
-				error = prepare_image(&orig_bm, &copy_bm);
-				if (error)
-					return error;
-
-				chain_init(&ca, GFP_ATOMIC, PG_SAFE);
-				memory_bm_position_reset(&orig_bm);
-				restore_pblist = NULL;
-				handle->buffer = get_buffer(&orig_bm, &ca);
-				handle->sync_read = 0;
-				if (IS_ERR(handle->buffer))
-					return PTR_ERR(handle->buffer);
-			}
-		} else {
-			copy_last_highmem_page();
+			chain_init(&ca, GFP_ATOMIC, PG_SAFE);
+			memory_bm_position_reset(&orig_bm);
+			restore_pblist = NULL;
 			handle->buffer = get_buffer(&orig_bm, &ca);
+			handle->sync_read = 0;
 			if (IS_ERR(handle->buffer))
 				return PTR_ERR(handle->buffer);
-			if (handle->buffer != buffer)
-				handle->sync_read = 0;
 		}
-		handle->prev = handle->cur;
-	}
-	handle->buf_offset = handle->cur_offset;
-	if (handle->cur_offset + count >= PAGE_SIZE) {
-		count = PAGE_SIZE - handle->cur_offset;
-		handle->cur_offset = 0;
-		handle->cur++;
 	} else {
-		handle->cur_offset += count;
+		copy_last_highmem_page();
+		handle->buffer = get_buffer(&orig_bm, &ca);
+		if (IS_ERR(handle->buffer))
+			return PTR_ERR(handle->buffer);
+		if (handle->buffer != buffer)
+			handle->sync_read = 0;
 	}
-	handle->offset += count;
-	return count;
+	handle->cur++;
+	return PAGE_SIZE;
 }
 
 /**
@@ -2015,7 +2249,7 @@ void snapshot_write_finalize(struct snapshot_handle *handle)
 {
 	copy_last_highmem_page();
 	/* Free only if we have loaded the image entirely */
-	if (handle->prev && handle->cur > nr_meta_pages + nr_copy_pages) {
+	if (handle->cur > 1 && handle->cur > nr_meta_pages + nr_copy_pages) {
 		memory_bm_free(&orig_bm, PG_UNSAFE_CLEAR);
 		free_highmem_data();
 	}
@@ -2036,11 +2270,11 @@ swap_two_pages_data(struct page *p1, struct page *p2, void *buf)
 
 	kaddr1 = kmap_atomic(p1, KM_USER0);
 	kaddr2 = kmap_atomic(p2, KM_USER1);
-	memcpy(buf, kaddr1, PAGE_SIZE);
-	memcpy(kaddr1, kaddr2, PAGE_SIZE);
-	memcpy(kaddr2, buf, PAGE_SIZE);
-	kunmap_atomic(kaddr1, KM_USER0);
+	copy_page(buf, kaddr1);
+	copy_page(kaddr1, kaddr2);
+	copy_page(kaddr2, buf);
 	kunmap_atomic(kaddr2, KM_USER1);
+	kunmap_atomic(kaddr1, KM_USER0);
 }
 
 /**

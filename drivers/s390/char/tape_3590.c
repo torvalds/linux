@@ -8,9 +8,11 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "tape"
+#define KMSG_COMPONENT "tape_3590"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/bio.h>
 #include <asm/ebcdic.h>
@@ -22,6 +24,8 @@
 #include "tape_std.h"
 #include "tape_3590.h"
 
+static struct workqueue_struct *tape_3590_wq;
+
 /*
  * Pointer to debug area.
  */
@@ -29,7 +33,7 @@ debug_info_t *TAPE_DBF_AREA = NULL;
 EXPORT_SYMBOL(TAPE_DBF_AREA);
 
 /*******************************************************************
- * Error Recovery fuctions:
+ * Error Recovery functions:
  * - Read Opposite:		 implemented
  * - Read Device (buffered) log: BRA
  * - Read Library log:		 BRA
@@ -38,8 +42,6 @@ EXPORT_SYMBOL(TAPE_DBF_AREA);
  * - Special Intercept:		 BRA
  * - Read Alternate:		 implemented
  *******************************************************************/
-
-#define KMSG_COMPONENT "tape"
 
 static const char *tape_3590_msg[TAPE_3590_MAX_MSG] = {
 	[0x00] = "",
@@ -138,7 +140,7 @@ static void int_to_ext_kekl(struct tape3592_kekl *in,
 		out->type_on_tape = TAPE390_KEKL_TYPE_LABEL;
 	memcpy(out->label, in->label, sizeof(in->label));
 	EBCASC(out->label, sizeof(in->label));
-	strstrip(out->label);
+	strim(out->label);
 }
 
 static void int_to_ext_kekl_pair(struct tape3592_kekl_pair *in,
@@ -610,10 +612,10 @@ tape_3590_schedule_work(struct tape_device *device, enum tape_op op)
 
 	INIT_WORK(&p->work, tape_3590_work_handler);
 
-	p->device = tape_get_device_reference(device);
+	p->device = tape_get_device(device);
 	p->op = op;
 
-	schedule_work(&p->work);
+	queue_work(tape_3590_wq, &p->work);
 	return 0;
 }
 
@@ -798,7 +800,7 @@ tape_3590_done(struct tape_device *device, struct tape_request *request)
 }
 
 /*
- * This fuction is called, when error recovery was successfull
+ * This function is called, when error recovery was successful
  */
 static inline int
 tape_3590_erp_succeded(struct tape_device *device, struct tape_request *request)
@@ -809,7 +811,7 @@ tape_3590_erp_succeded(struct tape_device *device, struct tape_request *request)
 }
 
 /*
- * This fuction is called, when error recovery was not successfull
+ * This function is called, when error recovery was not successful
  */
 static inline int
 tape_3590_erp_failed(struct tape_device *device, struct tape_request *request,
@@ -1629,7 +1631,7 @@ fail_kmalloc:
 static void
 tape_3590_cleanup_device(struct tape_device *device)
 {
-	flush_scheduled_work();
+	flush_workqueue(tape_3590_wq);
 	tape_std_unassign(device);
 
 	kfree(device->discdata);
@@ -1733,11 +1735,17 @@ tape_3590_init(void)
 #endif
 
 	DBF_EVENT(3, "3590 init\n");
+
+	tape_3590_wq = alloc_workqueue("tape_3590", 0, 0);
+	if (!tape_3590_wq)
+		return -ENOMEM;
+
 	/* Register driver for 3590 tapes. */
 	rc = ccw_driver_register(&tape_3590_driver);
-	if (rc)
+	if (rc) {
+		destroy_workqueue(tape_3590_wq);
 		DBF_EVENT(3, "3590 init failed\n");
-	else
+	} else
 		DBF_EVENT(3, "3590 registered\n");
 	return rc;
 }
@@ -1746,7 +1754,7 @@ static void
 tape_3590_exit(void)
 {
 	ccw_driver_unregister(&tape_3590_driver);
-
+	destroy_workqueue(tape_3590_wq);
 	debug_unregister(TAPE_DBF_AREA);
 }
 

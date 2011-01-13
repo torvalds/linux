@@ -15,6 +15,7 @@
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/fs.h>
 #include "cifsglob.h"
@@ -43,8 +44,7 @@ static void cifs_dfs_expire_automounts(struct work_struct *work)
 void cifs_dfs_release_automount_timer(void)
 {
 	BUG_ON(!list_empty(&cifs_dfs_automount_list));
-	cancel_delayed_work(&cifs_dfs_automount_task);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&cifs_dfs_automount_task);
 }
 
 /**
@@ -54,8 +54,8 @@ void cifs_dfs_release_automount_timer(void)
  * Extracts sharename form full UNC.
  * i.e. strips from UNC trailing path that is not part of share
  * name and fixup missing '\' in the begining of DFS node refferal
- * if neccessary.
- * Returns pointer to share name on success or NULL on error.
+ * if necessary.
+ * Returns pointer to share name on success or ERR_PTR on error.
  * Caller is responsible for freeing returned string.
  */
 static char *cifs_get_share_name(const char *node_name)
@@ -68,7 +68,7 @@ static char *cifs_get_share_name(const char *node_name)
 	UNC = kmalloc(len+2 /*for term null and additional \ if it's missed */,
 			 GFP_KERNEL);
 	if (!UNC)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* get share name and server name */
 	if (node_name[1] != '\\') {
@@ -84,10 +84,10 @@ static char *cifs_get_share_name(const char *node_name)
 	/* find server name end */
 	pSep = memchr(UNC+2, '\\', len-2);
 	if (!pSep) {
-		cERROR(1, ("%s: no server name end in node name: %s",
-			__func__, node_name));
+		cERROR(1, "%s: no server name end in node name: %s",
+			__func__, node_name);
 		kfree(UNC);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	/* find sharename end */
@@ -133,18 +133,23 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		return ERR_PTR(-EINVAL);
 
 	*devname = cifs_get_share_name(ref->node_name);
+	if (IS_ERR(*devname)) {
+		rc = PTR_ERR(*devname);
+		*devname = NULL;
+		goto compose_mount_options_err;
+	}
+
 	rc = dns_resolve_server_name_to_ip(*devname, &srvIP);
-	if (rc != 0) {
-		cERROR(1, ("%s: Failed to resolve server part of %s to IP: %d",
-			  __func__, *devname, rc));;
+	if (rc < 0) {
+		cERROR(1, "%s: Failed to resolve server part of %s to IP: %d",
+			  __func__, *devname, rc);
 		goto compose_mount_options_err;
 	}
 	/* md_len = strlen(...) + 12 for 'sep+prefixpath='
 	 * assuming that we have 'unc=' and 'ip=' in
 	 * the original sb_mountdata
 	 */
-	md_len = strlen(sb_mountdata) + strlen(srvIP) +
-		strlen(ref->node_name) + 12;
+	md_len = strlen(sb_mountdata) + rc + strlen(ref->node_name) + 12;
 	mountdata = kzalloc(md_len+1, GFP_KERNEL);
 	if (mountdata == NULL) {
 		rc = -ENOMEM;
@@ -210,8 +215,8 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		strcat(mountdata, fullpath + ref->path_consumed);
 	}
 
-	/*cFYI(1,("%s: parent mountdata: %s", __func__,sb_mountdata));*/
-	/*cFYI(1, ("%s: submount mountdata: %s", __func__, mountdata ));*/
+	/*cFYI(1, "%s: parent mountdata: %s", __func__,sb_mountdata);*/
+	/*cFYI(1, "%s: submount mountdata: %s", __func__, mountdata );*/
 
 compose_mount_options_out:
 	kfree(srvIP);
@@ -223,28 +228,22 @@ compose_mount_options_err:
 	goto compose_mount_options_out;
 }
 
-
-static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
-		struct dentry *dentry, const struct dfs_info3_param *ref)
+/**
+ * cifs_dfs_do_refmount - mounts specified path using provided refferal
+ * @cifs_sb:		parent/root superblock
+ * @fullpath:		full path in UNC format
+ * @ref:		server's referral
+ */
+static struct vfsmount *cifs_dfs_do_refmount(struct cifs_sb_info *cifs_sb,
+		const char *fullpath, const struct dfs_info3_param *ref)
 {
-	struct cifs_sb_info *cifs_sb;
 	struct vfsmount *mnt;
 	char *mountdata;
 	char *devname = NULL;
-	char *fullpath;
 
-	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-	/*
-	 * this function gives us a path with a double backslash prefix. We
-	 * require a single backslash for DFS.
-	 */
-	fullpath = build_path_from_dentry(dentry);
-	if (!fullpath)
-		return ERR_PTR(-ENOMEM);
-
+	/* strip first '\' from fullpath */
 	mountdata = cifs_compose_mount_options(cifs_sb->mountdata,
 			fullpath + 1, ref, &devname);
-	kfree(fullpath);
 
 	if (IS_ERR(mountdata))
 		return (struct vfsmount *)mountdata;
@@ -263,7 +262,7 @@ static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
 	int err;
 
 	mntget(newmnt);
-	err = do_add_mount(newmnt, &nd->path, nd->path.mnt->mnt_flags, mntlist);
+	err = do_add_mount(newmnt, &nd->path, nd->path.mnt->mnt_flags | MNT_SHRINKABLE, mntlist);
 	switch (err) {
 	case 0:
 		path_put(&nd->path);
@@ -287,11 +286,11 @@ static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
 
 static void dump_referral(const struct dfs_info3_param *ref)
 {
-	cFYI(1, ("DFS: ref path: %s", ref->path_name));
-	cFYI(1, ("DFS: node path: %s", ref->node_name));
-	cFYI(1, ("DFS: fl: %hd, srv_type: %hd", ref->flags, ref->server_type));
-	cFYI(1, ("DFS: ref_flags: %hd, path_consumed: %hd", ref->ref_flag,
-				ref->path_consumed));
+	cFYI(1, "DFS: ref path: %s", ref->path_name);
+	cFYI(1, "DFS: node path: %s", ref->node_name);
+	cFYI(1, "DFS: fl: %hd, srv_type: %hd", ref->flags, ref->server_type);
+	cFYI(1, "DFS: ref_flags: %hd, path_consumed: %hd", ref->ref_flag,
+				ref->path_consumed);
 }
 
 
@@ -306,22 +305,15 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	int xid, i;
 	int rc = 0;
 	struct vfsmount *mnt = ERR_PTR(-ENOENT);
+	struct tcon_link *tlink;
 
-	cFYI(1, ("in %s", __func__));
+	cFYI(1, "in %s", __func__);
 	BUG_ON(IS_ROOT(dentry));
 
 	xid = GetXid();
 
 	dput(nd->path.dentry);
 	nd->path.dentry = dget(dentry);
-
-	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-	ses = cifs_sb->tcon->ses;
-
-	if (!ses) {
-		rc = -EINVAL;
-		goto out_err;
-	}
 
 	/*
 	 * The MSDFS spec states that paths in DFS referral requests and
@@ -335,9 +327,19 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_err;
 	}
 
-	rc = get_dfs_path(xid, ses , full_path + 1, cifs_sb->local_nls,
+	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		goto out_err;
+	}
+	ses = tlink_tcon(tlink)->ses;
+
+	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
 		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	cifs_put_tlink(tlink);
 
 	for (i = 0; i < num_referrals; i++) {
 		int len;
@@ -345,15 +347,15 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		/* connect to a node */
 		len = strlen(referrals[i].node_name);
 		if (len < 2) {
-			cERROR(1, ("%s: Net Address path too short: %s",
-					__func__, referrals[i].node_name));
+			cERROR(1, "%s: Net Address path too short: %s",
+					__func__, referrals[i].node_name);
 			rc = -EINVAL;
 			goto out_err;
 		}
-		mnt = cifs_dfs_do_refmount(nd->path.mnt,
-				nd->path.dentry, referrals + i);
-		cFYI(1, ("%s: cifs_dfs_do_refmount:%s , mnt:%p", __func__,
-					referrals[i].node_name, mnt));
+		mnt = cifs_dfs_do_refmount(cifs_sb,
+				full_path, referrals + i);
+		cFYI(1, "%s: cifs_dfs_do_refmount:%s , mnt:%p", __func__,
+					referrals[i].node_name, mnt);
 
 		/* complete mount procedure if we accured submount */
 		if (!IS_ERR(mnt))
@@ -365,21 +367,20 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	if (IS_ERR(mnt))
 		goto out_err;
 
-	nd->path.mnt->mnt_flags |= MNT_SHRINKABLE;
 	rc = add_mount_helper(mnt, nd, &cifs_dfs_automount_list);
 
 out:
 	FreeXid(xid);
 	free_dfs_info_array(referrals, num_referrals);
 	kfree(full_path);
-	cFYI(1, ("leaving %s" , __func__));
+	cFYI(1, "leaving %s" , __func__);
 	return ERR_PTR(rc);
 out_err:
 	path_put(&nd->path);
 	goto out;
 }
 
-struct inode_operations cifs_dfs_referral_inode_operations = {
+const struct inode_operations cifs_dfs_referral_inode_operations = {
 	.follow_link = cifs_dfs_follow_mountpoint,
 };
 

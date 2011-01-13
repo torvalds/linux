@@ -28,16 +28,8 @@
 /* Returns TRUE, if the radio is enabled in hardware. */
 bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
 {
-	if (dev->phy.rev >= 3) {
-		if (!(b43_read32(dev, B43_MMIO_RADIO_HWENABLED_HI)
-		      & B43_MMIO_RADIO_HWENABLED_HI_MASK))
-			return 1;
-	} else {
-		if (b43_read16(dev, B43_MMIO_RADIO_HWENABLED_LO)
-		    & B43_MMIO_RADIO_HWENABLED_LO_MASK)
-			return 1;
-	}
-	return 0;
+	return !(b43_read32(dev, B43_MMIO_RADIO_HWENABLED_HI)
+		& B43_MMIO_RADIO_HWENABLED_HI_MASK);
 }
 
 /* The poll callback for the hardware button. */

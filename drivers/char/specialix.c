@@ -93,6 +93,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
+#include <linux/gfp.h>
 
 #include "specialix_io8.h"
 #include "cd1865.h"
@@ -644,8 +645,6 @@ static void sx_receive(struct specialix_board *bp)
 	count = sx_in(bp, CD186x_RDCR);
 	dprintk(SX_DEBUG_RX, "port: %p: count: %d\n", port, count);
 	port->hits[count > 8 ? 9 : count]++;
-
-	tty_buffer_request_room(tty, count);
 
 	while (count--)
 		tty_insert_flip_char(tty, sx_in(bp, CD186x_RDR), TTY_NORMAL);
@@ -1365,7 +1364,9 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 			retval = -ERESTARTSYS;
 			break;
 		}
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 
 	set_current_state(TASK_RUNNING);
@@ -1808,10 +1809,10 @@ static int sx_tiocmset(struct tty_struct *tty, struct file *file,
 		if (clear & TIOCM_DTR)
 			port->MSVR &= ~MSVR_DTR;
 	}
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
 	sx_out(bp, CD186x_MSVR, port->MSVR);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 	func_exit();
 	return 0;
@@ -1832,11 +1833,11 @@ static int sx_send_break(struct tty_struct *tty, int length)
 	port->break_length = SPECIALIX_TPS / HZ * length;
 	port->COR2 |= COR2_ETC;
 	port->IER  |= IER_TXRDY;
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
 	sx_out(bp, CD186x_COR2, port->COR2);
 	sx_out(bp, CD186x_IER, port->IER);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 	sx_wait_CCR(bp);
 	spin_lock_irqsave(&bp->lock, flags);
@@ -1863,8 +1864,7 @@ static int sx_set_serial_info(struct specialix_port *port,
 		return -EFAULT;
 	}
 
-	lock_kernel();
-
+	mutex_lock(&port->port.mutex);
 	change_speed = ((port->port.flags & ASYNC_SPD_MASK) !=
 			(tmp.flags & ASYNC_SPD_MASK));
 	change_speed |= (tmp.custom_divisor != port->custom_divisor);
@@ -1875,7 +1875,7 @@ static int sx_set_serial_info(struct specialix_port *port,
 		    ((tmp.flags & ~ASYNC_USR_MASK) !=
 		     (port->port.flags & ~ASYNC_USR_MASK))) {
 			func_exit();
-			unlock_kernel();
+			mutex_unlock(&port->port.mutex);
 			return -EPERM;
 		}
 		port->port.flags = ((port->port.flags & ~ASYNC_USR_MASK) |
@@ -1892,7 +1892,7 @@ static int sx_set_serial_info(struct specialix_port *port,
 		sx_change_speed(bp, port);
 
 	func_exit();
-	unlock_kernel();
+	mutex_unlock(&port->port.mutex);
 	return 0;
 }
 
@@ -1906,7 +1906,7 @@ static int sx_get_serial_info(struct specialix_port *port,
 	func_enter();
 
 	memset(&tmp, 0, sizeof(tmp));
-	lock_kernel();
+	mutex_lock(&port->port.mutex);
 	tmp.type = PORT_CIRRUS;
 	tmp.line = port - sx_port;
 	tmp.port = bp->base;
@@ -1917,7 +1917,7 @@ static int sx_get_serial_info(struct specialix_port *port,
 	tmp.closing_wait = port->port.closing_wait * HZ/100;
 	tmp.custom_divisor =  port->custom_divisor;
 	tmp.xmit_fifo_size = CD186x_NFIFO;
-	unlock_kernel();
+	mutex_unlock(&port->port.mutex);
 	if (copy_to_user(retinfo, &tmp, sizeof(tmp))) {
 		func_exit();
 		return -EFAULT;
@@ -2022,9 +2022,9 @@ static void sx_unthrottle(struct tty_struct *tty)
 	if (sx_crtscts(tty))
 		port->MSVR |= MSVR_DTR;
 	/* Else clause: see remark in "sx_throttle"... */
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	if (I_IXOFF(tty)) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		sx_wait_CCR(bp);
@@ -2034,9 +2034,9 @@ static void sx_unthrottle(struct tty_struct *tty)
 		sx_wait_CCR(bp);
 		spin_lock_irqsave(&port->lock, flags);
 	}
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_MSVR, port->MSVR);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	func_exit();
@@ -2060,10 +2060,10 @@ static void sx_stop(struct tty_struct *tty)
 
 	spin_lock_irqsave(&port->lock, flags);
 	port->IER &= ~IER_TXRDY;
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 	sx_out(bp, CD186x_CAR, port_No(port));
 	sx_out(bp, CD186x_IER, port->IER);
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	func_exit();
@@ -2088,10 +2088,10 @@ static void sx_start(struct tty_struct *tty)
 	spin_lock_irqsave(&port->lock, flags);
 	if (port->xmit_cnt && port->xmit_buf && !(port->IER & IER_TXRDY)) {
 		port->IER |= IER_TXRDY;
-		spin_lock_irqsave(&bp->lock, flags);
+		spin_lock(&bp->lock);
 		sx_out(bp, CD186x_CAR, port_No(port));
 		sx_out(bp, CD186x_IER, port->IER);
-		spin_unlock_irqrestore(&bp->lock, flags);
+		spin_unlock(&bp->lock);
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -2355,7 +2355,7 @@ static void __exit specialix_exit_module(void)
 	func_exit();
 }
 
-static struct pci_device_id specialx_pci_tbl[] __devinitdata = {
+static struct pci_device_id specialx_pci_tbl[] __devinitdata __used = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_IO8) },
 	{ }
 };

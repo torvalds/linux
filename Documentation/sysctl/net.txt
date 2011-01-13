@@ -84,6 +84,16 @@ netdev_max_backlog
 Maximum number  of  packets,  queued  on  the  INPUT  side, when the interface
 receives packets faster than kernel can process them.
 
+netdev_tstamp_prequeue
+----------------------
+
+If set to 0, RX packet timestamps can be sampled after RPS processing, when
+the target CPU processes packets. It might give some delay on timestamps, but
+permit to distribute the load on several cpus.
+
+If set to 1 (default), timestamps are sampled as soon as possible, before
+queueing.
+
 optmem_max
 ----------
 

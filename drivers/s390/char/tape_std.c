@@ -11,6 +11,9 @@
  *		 Stefan Bader <shbader@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "tape"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/bio.h>
@@ -44,8 +47,8 @@ tape_std_assign_timeout(unsigned long data)
 			device->cdev_id);
 	rc = tape_cancel_io(device, request);
 	if(rc)
-		DBF_EVENT(3, "(%s): Assign timeout: Cancel failed with rc = %i\n",
-			dev_name(&device->cdev->dev), rc);
+		DBF_EVENT(3, "(%08x): Assign timeout: Cancel failed with rc = "
+			  "%i\n", device->cdev_id, rc);
 }
 
 int
@@ -68,7 +71,7 @@ tape_std_assign(struct tape_device *device)
 	 * to another host (actually this shouldn't happen but it does).
 	 * So we set up a timeout for this call.
 	 */
-	init_timer(&timeout);
+	init_timer_on_stack(&timeout);
 	timeout.function = tape_std_assign_timeout;
 	timeout.data     = (unsigned long) request;
 	timeout.expires  = jiffies + 2 * HZ;

@@ -1,5 +1,3 @@
-# arch/arm/mach-s3c2412/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -18,7 +16,8 @@ config CPU_S3C2412
 config CPU_S3C2412_ONLY
 	bool
 	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
-		   !CPU_S3C2440 && !CPU_S3C2442 && !CPU_S3C2443 && CPU_S3C2412
+		   !CPU_S3C2416 && !CPU_S3C2440 && !CPU_S3C2442 && \
+		   !CPU_S3C2443 && CPU_S3C2412
 	default y if CPU_S3C2412
 
 config S3C2412_DMA
@@ -29,9 +28,25 @@ config S3C2412_DMA
 
 config S3C2412_PM
 	bool
+	select S3C2412_PM_SLEEP
 	help
 	  Internal config node to apply S3C2412 power management
 
+config S3C2412_PM_SLEEP
+	bool
+	help
+	  Internal config node to apply sleep for S3C2412 power management.
+	  Can be selected by another SoCs with similar sleep procedure.
+
+# Note, the S3C2412 IOtiming support is in plat-s3c24xx
+
+config S3C2412_CPUFREQ
+	bool
+	depends on CPU_FREQ_S3C24XX && CPU_S3C2412
+	select S3C2412_IOTIMING
+	default y
+	help
+	  CPU Frequency scaling support for S3C2412 and S3C2413 SoC CPUs.
 
 menu "S3C2412 Machines"
 
@@ -39,11 +54,12 @@ config MACH_JIVE
 	bool "Logitech Jive"
 	select CPU_S3C2412
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the Logitech Jive.
 
 config MACH_JIVE_SHOW_BOOTLOADER
-	bool "Allow access to bootloader partitions in MTD"
+	bool "Allow access to bootloader partitions in MTD (EXPERIMENTAL)"
 	depends on MACH_JIVE && EXPERIMENTAL
 
 config MACH_SMDK2413
@@ -52,6 +68,7 @@ config MACH_SMDK2413
 	select MACH_S3C2413
 	select MACH_SMDK
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using an SMDK2413
 
@@ -75,9 +92,8 @@ config MACH_VSTMS
 	bool "VMSTMS"
 	select CPU_S3C2412
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using an VSTMS board
 
-
 endmenu
-

@@ -22,27 +22,22 @@
 #include "ath9k.h"
 
 /* return bus cachesize in 4B word units */
-static void ath_ahb_read_cachesize(struct ath_softc *sc, int *csz)
+static void ath_ahb_read_cachesize(struct ath_common *common, int *csz)
 {
 	*csz = L1_CACHE_BYTES >> 2;
 }
 
-static void ath_ahb_cleanup(struct ath_softc *sc)
+static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
-	iounmap(sc->mem);
-}
-
-static bool ath_ahb_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
-{
-	struct ath_softc *sc = ah->ah_sc;
+	struct ath_softc *sc = (struct ath_softc *)common->priv;
 	struct platform_device *pdev = to_platform_device(sc->dev);
 	struct ath9k_platform_data *pdata;
 
 	pdata = (struct ath9k_platform_data *) pdev->dev.platform_data;
 	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+		ath_err(common,
 			"%s: flash read failed, offset %08x is out of range\n",
-				__func__, off);
+			__func__, off);
 		return false;
 	}
 
@@ -51,9 +46,8 @@ static bool ath_ahb_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 }
 
 static struct ath_bus_ops ath_ahb_bus_ops  = {
+	.ath_bus_type = ATH_AHB,
 	.read_cachesize = ath_ahb_read_cachesize,
-	.cleanup = ath_ahb_cleanup,
-
 	.eeprom_read = ath_ahb_eeprom_read,
 };
 
@@ -67,6 +61,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	int irq;
 	int ret = 0;
 	struct ath_hw *ah;
+	char hw_name[64];
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "no platform data specified\n");
@@ -116,38 +111,32 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
-	sc->bus_ops = &ath_ahb_bus_ops;
 	sc->irq = irq;
 
-	ret = ath_attach(AR5416_AR9100_DEVID, sc);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "failed to attach device, err=%d\n", ret);
-		ret = -ENODEV;
-		goto err_free_hw;
-	}
+	/* Will be cleared in ath9k_start() */
+	sc->sc_flags |= SC_OP_INVALID;
 
 	ret = request_irq(irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
-		dev_err(&pdev->dev, "request_irq failed, err=%d\n", ret);
-		ret = -EIO;
-		goto err_detach;
+		dev_err(&pdev->dev, "request_irq failed\n");
+		goto err_free_hw;
+	}
+
+	ret = ath9k_init_device(AR5416_AR9100_DEVID, sc, 0x0, &ath_ahb_bus_ops);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to initialize device\n");
+		goto err_irq;
 	}
 
 	ah = sc->sc_ah;
-	printk(KERN_INFO
-	       "%s: Atheros AR%s MAC/BB Rev:%x, "
-	       "AR%s RF Rev:%x, mem=0x%lx, irq=%d\n",
-	       wiphy_name(hw->wiphy),
-	       ath_mac_bb_name(ah->hw_version.macVersion),
-	       ah->hw_version.macRev,
-	       ath_rf_name((ah->hw_version.analog5GhzRev & AR_RADIO_SREV_MAJOR)),
-	       ah->hw_version.phyRev,
-	       (unsigned long)mem, irq);
+	ath9k_hw_name(ah, hw_name, sizeof(hw_name));
+	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",
+		   hw_name, (unsigned long)mem, irq);
 
 	return 0;
 
- err_detach:
-	ath_detach(sc);
+ err_irq:
+	free_irq(irq, sc);
  err_free_hw:
 	ieee80211_free_hw(hw);
 	platform_set_drvdata(pdev, NULL);
@@ -164,8 +153,12 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	if (hw) {
 		struct ath_wiphy *aphy = hw->priv;
 		struct ath_softc *sc = aphy->sc;
+		void __iomem *mem = sc->mem;
 
-		ath_cleanup(sc);
+		ath9k_deinit_device(sc);
+		free_irq(sc->irq, sc);
+		ieee80211_free_hw(sc->hw);
+		iounmap(mem);
 		platform_set_drvdata(pdev, NULL);
 	}
 

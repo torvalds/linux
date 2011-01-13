@@ -11,8 +11,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/usb.h>
-#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/bitrev.h>
 #include "st5481.h"
@@ -218,7 +218,10 @@ static void st5481B_mode(struct st5481_bcs *bcs, int mode)
 	if (bcs->mode != L1_MODE_NULL) {
 		// Open the B channel
 		if (bcs->mode != L1_MODE_TRANS) {
-			isdnhdlc_out_init(&b_out->hdlc_state, 0, bcs->mode == L1_MODE_HDLC_56K);
+			u32 features = HDLC_BITREVERSE;
+			if (bcs->mode == L1_MODE_HDLC_56K)
+				features |= HDLC_56KBIT;
+			isdnhdlc_out_init(&b_out->hdlc_state, features);
 		}
 		st5481_usb_pipe_reset(adapter, (bcs->channel+1)*2, NULL, NULL);
 	

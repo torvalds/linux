@@ -1,0 +1,47 @@
+perf-kmem(1)
+============
+
+NAME
+----
+perf-kmem - Tool to trace/measure kernel memory(slab) properties
+
+SYNOPSIS
+--------
+[verse]
+'perf kmem' {record|stat} [<options>]
+
+DESCRIPTION
+-----------
+There are two variants of perf kmem:
+
+  'perf kmem record <command>' to record the kmem events
+  of an arbitrary workload.
+
+  'perf kmem stat' to report kernel memory statistics.
+
+OPTIONS
+-------
+-i <file>::
+--input=<file>::
+	Select the input file (default: perf.data)
+
+--caller::
+	Show per-callsite statistics
+
+--alloc::
+	Show per-allocation statistics
+
+-s <key[,key2...]>::
+--sort=<key[,key2...]>::
+	Sort the output (default: frag,hit,bytes)
+
+-l <num>::
+--line=<num>::
+	Print n lines only
+
+--raw-ip::
+	Print raw ip instead of symbol
+
+SEE ALSO
+--------
+linkperf:perf-record[1]

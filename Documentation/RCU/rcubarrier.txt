@@ -170,6 +170,13 @@ module invokes call_rcu() from timers, you will need to first cancel all
 the timers, and only then invoke rcu_barrier() to wait for any remaining
 RCU callbacks to complete.
 
+Of course, if you module uses call_rcu_bh(), you will need to invoke
+rcu_barrier_bh() before unloading.  Similarly, if your module uses
+call_rcu_sched(), you will need to invoke rcu_barrier_sched() before
+unloading.  If your module uses call_rcu(), call_rcu_bh(), -and-
+call_rcu_sched(), then you will need to invoke each of rcu_barrier(),
+rcu_barrier_bh(), and rcu_barrier_sched().
+
 
 Implementing rcu_barrier()
 

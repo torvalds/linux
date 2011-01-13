@@ -21,6 +21,7 @@
 #include <linux/capability.h>
 #include <linux/bitops.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <asm/system.h>
 #include <asm/string.h>
@@ -1517,7 +1518,7 @@ static int zatm_getsockopt(struct atm_vcc *vcc,int level,int optname,
 
 
 static int zatm_setsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,int optlen)
+    void __user *optval,unsigned int optlen)
 {
 	return -EINVAL;
 }
@@ -1596,7 +1597,7 @@ static int __devinit zatm_init_one(struct pci_dev *pci_dev,
 		goto out;
 	}
 
-	dev = atm_dev_register(DEV_LABEL, &ops, -1, NULL);
+	dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &ops, -1, NULL);
 	if (!dev)
 		goto out_free;
 
@@ -1636,10 +1637,8 @@ out_free:
 MODULE_LICENSE("GPL");
 
 static struct pci_device_id zatm_pci_tbl[] __devinitdata = {
-	{ PCI_VENDOR_ID_ZEITNET, PCI_DEVICE_ID_ZEITNET_1221,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, ZATM_COPPER },
-	{ PCI_VENDOR_ID_ZEITNET, PCI_DEVICE_ID_ZEITNET_1225,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VDEVICE(ZEITNET, PCI_DEVICE_ID_ZEITNET_1221), ZATM_COPPER },
+	{ PCI_VDEVICE(ZEITNET, PCI_DEVICE_ID_ZEITNET_1225), 0 },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, zatm_pci_tbl);

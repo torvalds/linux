@@ -11,11 +11,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
-#include <linux/smp_lock.h>
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>
@@ -640,7 +638,7 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 	 */
 
 	read_lock(&tasklist_lock);
-	if (child->signal) {
+	if (child->sighand) {
 		spin_lock_irq(&child->sighand->siglock);
 		if (child->state == TASK_STOPPED &&
 		    !test_and_set_tsk_thread_flag(child, TIF_RESTORE_RSE)) {
@@ -664,7 +662,7 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 	 * job control stop, so that SIGCONT can be used to wake it up.
 	 */
 	read_lock(&tasklist_lock);
-	if (child->signal) {
+	if (child->sighand) {
 		spin_lock_irq(&child->sighand->siglock);
 		if (child->state == TASK_TRACED &&
 		    (child->signal->flags & SIGNAL_STOP_STOPPED)) {
@@ -1179,7 +1177,8 @@ ptrace_disable (struct task_struct *child)
 }
 
 long
-arch_ptrace (struct task_struct *child, long request, long addr, long data)
+arch_ptrace (struct task_struct *child, long request,
+	     unsigned long addr, unsigned long data)
 {
 	switch (request) {
 	case PTRACE_PEEKTEXT:
@@ -1251,13 +1250,8 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 		long syscall;
 		int arch;
 
-		if (IS_IA32_PROCESS(&regs)) {
-			syscall = regs.r1;
-			arch = AUDIT_ARCH_I386;
-		} else {
-			syscall = regs.r15;
-			arch = AUDIT_ARCH_IA64;
-		}
+		syscall = regs.r15;
+		arch = AUDIT_ARCH_IA64;
 
 		audit_syscall_entry(arch, syscall, arg0, arg1, arg2, arg3);
 	}
@@ -2173,11 +2167,6 @@ static const struct user_regset_view user_ia64_view = {
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *tsk)
 {
-#ifdef CONFIG_IA32_SUPPORT
-	extern const struct user_regset_view user_ia32_view;
-	if (IS_IA32_PROCESS(task_pt_regs(tsk)))
-		return &user_ia32_view;
-#endif
 	return &user_ia64_view;
 }
 

@@ -8,7 +8,6 @@
  * This source code is licensed under the GNU General Public License,
  * Version 2.  See the file COPYING for more details.
  */
-
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
@@ -16,11 +15,14 @@
 #include <linux/numa.h>
 #include <linux/ftrace.h>
 #include <linux/suspend.h>
+#include <linux/memblock.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
+#include <asm/sh_bios.h>
+#include <asm/reboot.h>
 
 typedef void (*relocate_new_kernel_t)(unsigned long indirection_page,
 				      unsigned long reboot_code_buffer,
@@ -28,15 +30,11 @@ typedef void (*relocate_new_kernel_t)(unsigned long indirection_page,
 
 extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
-extern void *gdb_vbr_vector;
 extern void *vbr_base;
 
-void machine_shutdown(void)
+void native_machine_crash_shutdown(struct pt_regs *regs)
 {
-}
-
-void machine_crash_shutdown(struct pt_regs *regs)
-{
+	/* Nothing to do for UP, but definitely broken for SMP.. */
 }
 
 /*
@@ -46,12 +44,6 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 int machine_kexec_prepare(struct kimage *image)
 {
-	/* older versions of kexec-tools are passing
-	 * the zImage entry point as a virtual address.
-	 */
-	if (image->start != PHYSADDR(image->start))
-		return -EINVAL; /* upgrade your kexec-tools */
-
 	return 0;
 }
 
@@ -123,11 +115,7 @@ void machine_kexec(struct kimage *image)
 	kexec_info(image);
 	flush_cache_all();
 
-#if defined(CONFIG_SH_STANDARD_BIOS)
-	asm volatile("ldc %0, vbr" :
-		     : "r" (((unsigned long) gdb_vbr_vector) - 0x100)
-		     : "memory");
-#endif
+	sh_bios_vbr_reload();
 
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
@@ -159,4 +147,64 @@ void arch_crash_save_vmcoreinfo(void)
 	VMCOREINFO_SYMBOL(node_data);
 	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
 #endif
+#ifdef CONFIG_X2TLB
+	VMCOREINFO_CONFIG(X2TLB);
+#endif
+}
+
+void __init reserve_crashkernel(void)
+{
+	unsigned long long crash_size, crash_base;
+	int ret;
+
+	/* this is necessary because of memblock_phys_mem_size() */
+	memblock_analyze();
+
+	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
+			&crash_size, &crash_base);
+	if (ret == 0 && crash_size > 0) {
+		crashk_res.start = crash_base;
+		crashk_res.end = crash_base + crash_size - 1;
+	}
+
+	if (crashk_res.end == crashk_res.start)
+		goto disable;
+
+	crash_size = PAGE_ALIGN(crashk_res.end - crashk_res.start + 1);
+	if (!crashk_res.start) {
+		unsigned long max = memblock_end_of_DRAM() - memory_limit;
+		crashk_res.start = __memblock_alloc_base(crash_size, PAGE_SIZE, max);
+		if (!crashk_res.start) {
+			pr_err("crashkernel allocation failed\n");
+			goto disable;
+		}
+	} else {
+		ret = memblock_reserve(crashk_res.start, crash_size);
+		if (unlikely(ret < 0)) {
+			pr_err("crashkernel reservation failed - "
+			       "memory is in use\n");
+			goto disable;
+		}
+	}
+
+	crashk_res.end = crashk_res.start + crash_size - 1;
+
+	/*
+	 * Crash kernel trumps memory limit
+	 */
+	if ((memblock_end_of_DRAM() - memory_limit) <= crashk_res.end) {
+		memory_limit = 0;
+		pr_info("Disabled memory limit for crashkernel\n");
+	}
+
+	pr_info("Reserving %ldMB of memory at 0x%08lx "
+		"for crashkernel (System RAM: %ldMB)\n",
+		(unsigned long)(crash_size >> 20),
+		(unsigned long)(crashk_res.start),
+		(unsigned long)(memblock_phys_mem_size() >> 20));
+
+	return;
+
+disable:
+	crashk_res.start = crashk_res.end = 0;
 }

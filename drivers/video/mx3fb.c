@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
+#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
@@ -324,8 +325,11 @@ static void sdc_enable_channel(struct mx3fb_info *mx3_fbi)
 	unsigned long flags;
 	dma_cookie_t cookie;
 
-	dev_dbg(mx3fb->dev, "mx3fbi %p, desc %p, sg %p\n", mx3_fbi,
-		to_tx_desc(mx3_fbi->txd), to_tx_desc(mx3_fbi->txd)->sg);
+	if (mx3_fbi->txd)
+		dev_dbg(mx3fb->dev, "mx3fbi %p, desc %p, sg %p\n", mx3_fbi,
+			to_tx_desc(mx3_fbi->txd), to_tx_desc(mx3_fbi->txd)->sg);
+	else
+		dev_dbg(mx3fb->dev, "mx3fbi %p, txd = NULL\n", mx3_fbi);
 
 	/* This enables the channel */
 	if (mx3_fbi->cookie < 0) {
@@ -384,7 +388,8 @@ static void sdc_disable_channel(struct mx3fb_info *mx3_fbi)
 
 	spin_unlock_irqrestore(&mx3fb->lock, flags);
 
-	mx3_fbi->txd->chan->device->device_terminate_all(mx3_fbi->txd->chan);
+	mx3_fbi->txd->chan->device->device_control(mx3_fbi->txd->chan,
+						   DMA_TERMINATE_ALL, 0);
 	mx3_fbi->txd = NULL;
 	mx3_fbi->cookie = -EINVAL;
 }
@@ -646,6 +651,7 @@ static int sdc_set_global_alpha(struct mx3fb_data *mx3fb, bool enable, uint8_t a
 
 static void sdc_set_brightness(struct mx3fb_data *mx3fb, uint8_t value)
 {
+	dev_dbg(mx3fb->dev, "%s: value = %d\n", __func__, value);
 	/* This might be board-specific */
 	mx3fb_write_reg(mx3fb, 0x03000000UL | value << 16, SDC_PWM_CTRL);
 	return;
@@ -669,7 +675,8 @@ static uint32_t bpp_to_pixfmt(int bpp)
 }
 
 static int mx3fb_blank(int blank, struct fb_info *fbi);
-static int mx3fb_map_video_memory(struct fb_info *fbi);
+static int mx3fb_map_video_memory(struct fb_info *fbi, unsigned int mem_len,
+				  bool lock);
 static int mx3fb_unmap_video_memory(struct fb_info *fbi);
 
 /**
@@ -711,12 +718,7 @@ static void mx3fb_dma_done(void *arg)
 	complete(&mx3_fbi->flip_cmpl);
 }
 
-/**
- * mx3fb_set_par() - set framebuffer parameters and change the operating mode.
- * @fbi:	framebuffer information pointer.
- * @return:	0 on success or negative error code on failure.
- */
-static int mx3fb_set_par(struct fb_info *fbi)
+static int __set_par(struct fb_info *fbi, bool lock)
 {
 	u32 mem_len;
 	struct ipu_di_signal_cfg sig_cfg;
@@ -726,10 +728,6 @@ static int mx3fb_set_par(struct fb_info *fbi)
 	struct idmac_channel *ichan = mx3_fbi->idmac_channel;
 	struct idmac_video_param *video = &ichan->params.video;
 	struct scatterlist *sg = mx3_fbi->sg;
-
-	dev_dbg(mx3fb->dev, "%s [%c]\n", __func__, list_empty(&ichan->queue) ? '-' : '+');
-
-	mutex_lock(&mx3_fbi->mutex);
 
 	/* Total cleanup */
 	if (mx3_fbi->txd)
@@ -742,11 +740,8 @@ static int mx3fb_set_par(struct fb_info *fbi)
 		if (fbi->fix.smem_start)
 			mx3fb_unmap_video_memory(fbi);
 
-		fbi->fix.smem_len = mem_len;
-		if (mx3fb_map_video_memory(fbi) < 0) {
-			mutex_unlock(&mx3_fbi->mutex);
+		if (mx3fb_map_video_memory(fbi, mem_len, lock) < 0)
 			return -ENOMEM;
-		}
 	}
 
 	sg_init_table(&sg[0], 1);
@@ -792,7 +787,6 @@ static int mx3fb_set_par(struct fb_info *fbi)
 				   fbi->var.vsync_len,
 				   fbi->var.lower_margin +
 				   fbi->var.vsync_len, sig_cfg) != 0) {
-			mutex_unlock(&mx3_fbi->mutex);
 			dev_err(fbi->device,
 				"mx3fb: Error initializing panel.\n");
 			return -EINVAL;
@@ -811,9 +805,30 @@ static int mx3fb_set_par(struct fb_info *fbi)
 	if (mx3_fbi->blank == FB_BLANK_UNBLANK)
 		sdc_enable_channel(mx3_fbi);
 
+	return 0;
+}
+
+/**
+ * mx3fb_set_par() - set framebuffer parameters and change the operating mode.
+ * @fbi:	framebuffer information pointer.
+ * @return:	0 on success or negative error code on failure.
+ */
+static int mx3fb_set_par(struct fb_info *fbi)
+{
+	struct mx3fb_info *mx3_fbi = fbi->par;
+	struct mx3fb_data *mx3fb = mx3_fbi->mx3fb;
+	struct idmac_channel *ichan = mx3_fbi->idmac_channel;
+	int ret;
+
+	dev_dbg(mx3fb->dev, "%s [%c]\n", __func__, list_empty(&ichan->queue) ? '-' : '+');
+
+	mutex_lock(&mx3_fbi->mutex);
+
+	ret = __set_par(fbi, true);
+
 	mutex_unlock(&mx3_fbi->mutex);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -967,21 +982,11 @@ static int mx3fb_setcolreg(unsigned int regno, unsigned int red,
 	return ret;
 }
 
-/**
- * mx3fb_blank() - blank the display.
- */
-static int mx3fb_blank(int blank, struct fb_info *fbi)
+static void __blank(int blank, struct fb_info *fbi)
 {
 	struct mx3fb_info *mx3_fbi = fbi->par;
 	struct mx3fb_data *mx3fb = mx3_fbi->mx3fb;
 
-	dev_dbg(fbi->device, "%s, blank = %d, base %p, len %u\n", __func__,
-		blank, fbi->screen_base, fbi->fix.smem_len);
-
-	if (mx3_fbi->blank == blank)
-		return 0;
-
-	mutex_lock(&mx3_fbi->mutex);
 	mx3_fbi->blank = blank;
 
 	switch (blank) {
@@ -1000,6 +1005,23 @@ static int mx3fb_blank(int blank, struct fb_info *fbi)
 		sdc_set_brightness(mx3fb, mx3fb->backlight_level);
 		break;
 	}
+}
+
+/**
+ * mx3fb_blank() - blank the display.
+ */
+static int mx3fb_blank(int blank, struct fb_info *fbi)
+{
+	struct mx3fb_info *mx3_fbi = fbi->par;
+
+	dev_dbg(fbi->device, "%s, blank = %d, base %p, len %u\n", __func__,
+		blank, fbi->screen_base, fbi->fix.smem_len);
+
+	if (mx3_fbi->blank == blank)
+		return 0;
+
+	mutex_lock(&mx3_fbi->mutex);
+	__blank(blank, fbi);
 	mutex_unlock(&mx3_fbi->mutex);
 
 	return 0;
@@ -1198,6 +1220,8 @@ static int mx3fb_resume(struct platform_device *pdev)
 /**
  * mx3fb_map_video_memory() - allocates the DRAM memory for the frame buffer.
  * @fbi:	framebuffer information pointer
+ * @mem_len:	length of mapped memory
+ * @lock:	do not lock during initialisation
  * @return:	Error code indicating success or failure
  *
  * This buffer is remapped into a non-cached, non-buffered, memory region to
@@ -1205,23 +1229,29 @@ static int mx3fb_resume(struct platform_device *pdev)
  * area is remapped, all virtual memory access to the video memory should occur
  * at the new region.
  */
-static int mx3fb_map_video_memory(struct fb_info *fbi)
+static int mx3fb_map_video_memory(struct fb_info *fbi, unsigned int mem_len,
+				  bool lock)
 {
 	int retval = 0;
 	dma_addr_t addr;
 
 	fbi->screen_base = dma_alloc_writecombine(fbi->device,
-						  fbi->fix.smem_len,
+						  mem_len,
 						  &addr, GFP_DMA);
 
 	if (!fbi->screen_base) {
 		dev_err(fbi->device, "Cannot allocate %u bytes framebuffer memory\n",
-			fbi->fix.smem_len);
+			mem_len);
 		retval = -EBUSY;
 		goto err0;
 	}
 
+	if (lock)
+		mutex_lock(&fbi->mm_lock);
 	fbi->fix.smem_start = addr;
+	fbi->fix.smem_len = mem_len;
+	if (lock)
+		mutex_unlock(&fbi->mm_lock);
 
 	dev_dbg(fbi->device, "allocated fb @ p=0x%08x, v=0x%p, size=%d.\n",
 		(uint32_t) fbi->fix.smem_start, fbi->screen_base, fbi->fix.smem_len);
@@ -1251,8 +1281,10 @@ static int mx3fb_unmap_video_memory(struct fb_info *fbi)
 			      fbi->screen_base, fbi->fix.smem_start);
 
 	fbi->screen_base = 0;
+	mutex_lock(&fbi->mm_lock);
 	fbi->fix.smem_start = 0;
 	fbi->fix.smem_len = 0;
+	mutex_unlock(&fbi->mm_lock);
 	return 0;
 }
 
@@ -1360,11 +1392,11 @@ static int init_fb_chan(struct mx3fb_data *mx3fb, struct idmac_channel *ichan)
 	init_completion(&mx3fbi->flip_cmpl);
 	disable_irq(ichan->eof_irq);
 	dev_dbg(mx3fb->dev, "disabling irq %d\n", ichan->eof_irq);
-	ret = mx3fb_set_par(fbi);
+	ret = __set_par(fbi, false);
 	if (ret < 0)
 		goto esetpar;
 
-	mx3fb_blank(FB_BLANK_UNBLANK, fbi);
+	__blank(FB_BLANK_UNBLANK, fbi);
 
 	dev_info(dev, "registered, using mode %s\n", fb_mode);
 
@@ -1388,6 +1420,9 @@ static bool chan_filter(struct dma_chan *chan, void *arg)
 	struct dma_chan_request *rq = arg;
 	struct device *dev;
 	struct mx3fb_platform_data *mx3fb_pdata;
+
+	if (!imx_dma_is_ipu(chan))
+		return false;
 
 	if (!rq)
 		return false;
@@ -1439,8 +1474,7 @@ static int mx3fb_probe(struct platform_device *pdev)
 		goto eremap;
 	}
 
-	pr_debug("Remapped %x to %x at %p\n", sdc_reg->start, sdc_reg->end,
-		 mx3fb->reg_base);
+	pr_debug("Remapped %pR at %p\n", sdc_reg, mx3fb->reg_base);
 
 	/* IDMAC interface */
 	dmaengine_get();
@@ -1460,11 +1494,11 @@ static int mx3fb_probe(struct platform_device *pdev)
 		goto ersdc0;
 	}
 
+	mx3fb->backlight_level = 255;
+
 	ret = init_fb_chan(mx3fb, to_idmac_chan(chan));
 	if (ret < 0)
 		goto eisdc0;
-
-	mx3fb->backlight_level = 255;
 
 	return 0;
 

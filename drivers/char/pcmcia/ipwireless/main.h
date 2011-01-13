@@ -21,8 +21,6 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -46,15 +44,10 @@ struct ipw_dev {
 	struct pcmcia_device *link;
 	int is_v2_card;
 
-	window_handle_t handle_attr_memory;
 	void __iomem *attr_memory;
-	win_req_t request_attr_memory;
 
-	window_handle_t handle_common_memory;
 	void __iomem *common_memory;
-	win_req_t request_common_memory;
 
-	dev_node_t nodes[2];
 	/* Reference to attribute memory, containing CIS data */
 	void *attribute_memory;
 

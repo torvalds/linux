@@ -53,16 +53,24 @@
 #define NETUP_CI_CTL		0x04
 #define NETUP_CI_RD		1
 
+#define NETUP_IRQ_DETAM 	0x1
+#define NETUP_IRQ_IRQAM		0x4
 
 static unsigned int ci_dbg;
 module_param(ci_dbg, int, 0644);
 MODULE_PARM_DESC(ci_dbg, "Enable CI debugging");
+
+static unsigned int ci_irq_enable;
+module_param(ci_irq_enable, int, 0644);
+MODULE_PARM_DESC(ci_irq_enable, "Enable IRQ from CAM");
 
 #define ci_dbg_print(args...) \
 	do { \
 		if (ci_dbg) \
 			printk(KERN_DEBUG args); \
 	} while (0)
+
+#define ci_irq_flags() (ci_irq_enable ? NETUP_IRQ_IRQAM : 0)
 
 /* stores all private variables for communication with CI */
 struct netup_ci_state {
@@ -73,9 +81,11 @@ struct netup_ci_state {
 	int status;
 	struct work_struct work;
 	void *priv;
+	u8 current_irq_mode;
+	int current_ci_flag;
+	unsigned long next_status_checked_time;
 };
 
-struct mutex gpio_mutex;/* Two CiMax's uses same GPIO lines */
 
 int netup_read_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 						u8 *buf, int len)
@@ -170,20 +180,23 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 	if (0 != slot)
 		return -EINVAL;
 
-	ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
-							0, &store, 1);
-	if (ret != 0)
-		return ret;
+	if (state->current_ci_flag != flag) {
+		ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
+				0, &store, 1);
+		if (ret != 0)
+			return ret;
 
-	store &= ~0x0c;
-	store |= flag;
+		store &= ~0x0c;
+		store |= flag;
 
-	ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
-							0, &store, 1);
-	if (ret != 0)
-		return ret;
+		ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
+				0, &store, 1);
+		if (ret != 0)
+			return ret;
+	};
+	state->current_ci_flag = flag;
 
-	mutex_lock(&gpio_mutex);
+	mutex_lock(&dev->gpio_lock);
 
 	/* write addr */
 	cx_write(MC417_OEN, NETUP_EN_ALL);
@@ -194,9 +207,9 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 				NETUP_ADHI | (0xff & (addr >> 8)));
 	cx_clear(MC417_RWD, NETUP_ADHI);
 
-	if (read) /* data in */
+	if (read) { /* data in */
 		cx_write(MC417_OEN, NETUP_EN_ALL | NETUP_DATA);
-	else /* data out */
+	} else /* data out */
 		cx_write(MC417_RWD, NETUP_CTRL_OFF | data);
 
 	/* choose chip */
@@ -206,14 +219,14 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 	cx_clear(MC417_RWD, (read) ? NETUP_RD : NETUP_WR);
 	mem = netup_ci_get_mem(dev);
 
-	mutex_unlock(&gpio_mutex);
+	mutex_unlock(&dev->gpio_lock);
 
 	if (!read)
 		if (mem < 0)
 			return -EREMOTEIO;
 
-	ci_dbg_print("%s: %s: addr=[0x%02x], %s=%x\n", __func__,
-			(read) ? "read" : "write", addr,
+	ci_dbg_print("%s: %s: chipaddr=[0x%x] addr=[0x%02x], %s=%x\n", __func__,
+			(read) ? "read" : "write", state->ci_i2c_addr, addr,
 			(flag == NETUP_CI_CTL) ? "ctl" : "mem",
 			(read) ? mem : data);
 
@@ -282,13 +295,38 @@ int netup_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 	return 0;
 }
 
+int netup_ci_set_irq(struct dvb_ca_en50221 *en50221, u8 irq_mode)
+{
+	struct netup_ci_state *state = en50221->data;
+	int ret;
+
+	if (irq_mode == state->current_irq_mode)
+		return 0;
+
+	ci_dbg_print("%s: chipaddr=[0x%x] setting ci IRQ to [0x%x] \n",
+			__func__, state->ci_i2c_addr, irq_mode);
+	ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
+							0x1b, &irq_mode, 1);
+
+	if (ret != 0)
+		return ret;
+
+	state->current_irq_mode = irq_mode;
+
+	return 0;
+}
+
 int netup_ci_slot_ts_ctl(struct dvb_ca_en50221 *en50221, int slot)
 {
 	struct netup_ci_state *state = en50221->data;
-	u8 buf = 0x60;
+	u8 buf;
 
 	if (0 != slot)
 		return -EINVAL;
+
+	netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
+			0, &buf, 1);
+	buf |= 0x60;
 
 	return netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
 							0, &buf, 1);
@@ -302,21 +340,35 @@ static void netup_read_ci_status(struct work_struct *work)
 	u8 buf[33];
 	int ret;
 
-	ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
-							0, &buf[0], 33);
+	/* CAM module IRQ processing. fast operation */
+	dvb_ca_en50221_frda_irq(&state->ca, 0);
 
-	if (ret != 0)
-		return;
+	/* CAM module INSERT/REMOVE processing. slow operation because of i2c
+	 * transfers */
+	if (time_after(jiffies, state->next_status_checked_time)
+			|| !state->status) {
+		ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
+				0, &buf[0], 33);
 
-	ci_dbg_print("%s: Slot Status Addr=[0x%04x], Reg=[0x%02x], data=%02x, "
-		"TS config = %02x\n", __func__, state->ci_i2c_addr, 0, buf[0],
-		buf[32]);
+		state->next_status_checked_time = jiffies
+			+ msecs_to_jiffies(1000);
 
-	if (buf[0] & 1)
-		state->status = DVB_CA_EN50221_POLL_CAM_PRESENT |
-			DVB_CA_EN50221_POLL_CAM_READY;
-	else
-		state->status = 0;
+		if (ret != 0)
+			return;
+
+		ci_dbg_print("%s: Slot Status Addr=[0x%04x], "
+				"Reg=[0x%02x], data=%02x, "
+				"TS config = %02x\n", __func__,
+				state->ci_i2c_addr, 0, buf[0],
+				buf[0]);
+
+
+		if (buf[0] & 1)
+			state->status = DVB_CA_EN50221_POLL_CAM_PRESENT |
+				DVB_CA_EN50221_POLL_CAM_READY;
+		else
+			state->status = 0;
+	}
 }
 
 /* CI irq handler */
@@ -325,16 +377,24 @@ int netup_ci_slot_status(struct cx23885_dev *dev, u32 pci_status)
 	struct cx23885_tsport *port = NULL;
 	struct netup_ci_state *state = NULL;
 
-	if (pci_status & PCI_MSK_GPIO0)
-		port = &dev->ts1;
-	else if (pci_status & PCI_MSK_GPIO1)
-		port = &dev->ts2;
-	else /* who calls ? */
+	ci_dbg_print("%s:\n", __func__);
+
+	if (0 == (pci_status & (PCI_MSK_GPIO0 | PCI_MSK_GPIO1)))
 		return 0;
 
-	state = port->port_priv;
+	if (pci_status & PCI_MSK_GPIO0) {
+		port = &dev->ts1;
+		state = port->port_priv;
+		schedule_work(&state->work);
+		ci_dbg_print("%s: Wakeup CI0\n", __func__);
+	}
 
-	schedule_work(&state->work);
+	if (pci_status & PCI_MSK_GPIO1) {
+		port = &dev->ts2;
+		state = port->port_priv;
+		schedule_work(&state->work);
+		ci_dbg_print("%s: Wakeup CI1\n", __func__);
+	}
 
 	return 1;
 }
@@ -345,6 +405,9 @@ int netup_poll_ci_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open
 
 	if (0 != slot)
 		return -EINVAL;
+
+	netup_ci_set_irq(en50221, open ? (NETUP_IRQ_DETAM | ci_irq_flags())
+			: NETUP_IRQ_DETAM);
 
 	return state->status;
 }
@@ -380,8 +443,8 @@ int netup_ci_init(struct cx23885_tsport *port)
 		0x01, /* power on (use it like store place) */
 		0x00, /* RFU */
 		0x00, /* int status read only */
-		0x01, /* all int unmasked */
-		0x04, /* int config */
+		ci_irq_flags() | NETUP_IRQ_DETAM, /* DETAM, IRQAM unmasked */
+		0x05, /* EXTINT=active-high, INT=push-pull */
 		0x00, /* USCG1 */
 		0x04, /* ack active low */
 		0x00, /* LOCK = 0 */
@@ -403,7 +466,6 @@ int netup_ci_init(struct cx23885_tsport *port)
 	switch (port->nr) {
 	case 1:
 		state->ci_i2c_addr = 0x40;
-		mutex_init(&gpio_mutex);
 		break;
 	case 2:
 		state->ci_i2c_addr = 0x41;
@@ -422,6 +484,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 	state->ca.poll_slot_status = netup_poll_ci_slot_status;
 	state->ca.data = state;
 	state->priv = port;
+	state->current_irq_mode = ci_irq_flags() | NETUP_IRQ_DETAM;
 
 	ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
 						0, &cimax_init[0], 34);
@@ -443,6 +506,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 		goto err;
 
 	INIT_WORK(&state->work, netup_read_ci_status);
+	schedule_work(&state->work);
 
 	ci_dbg_print("%s: CI initialized!\n", __func__);
 

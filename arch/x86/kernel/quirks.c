@@ -344,6 +344,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235,
 			 vt8237_force_enable_hpet);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
 			 vt8237_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_CX700,
+			 vt8237_force_enable_hpet);
 
 static void ati_force_hpet_resume(void)
 {
@@ -491,6 +493,22 @@ void force_hpet_resume(void)
 		break;
 	}
 }
+
+/*
+ * HPET MSI on some boards (ATI SB700/SB800) has side effect on
+ * floppy DMA. Disable HPET MSI on such platforms.
+ * See erratum #27 (Misinterpreted MSI Requests May Result in
+ * Corrupted LPC DMA Data) in AMD Publication #46837,
+ * "SB700 Family Product Errata", Rev. 1.0, March 2010.
+ */
+static void force_disable_hpet_msi(struct pci_dev *unused)
+{
+	hpet_msi_disable = 1;
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
+			 force_disable_hpet_msi);
+
 #endif
 
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
@@ -499,6 +517,7 @@ static void __init quirk_amd_nb_node(struct pci_dev *dev)
 {
 	struct pci_dev *nb_ht;
 	unsigned int devfn;
+	u32 node;
 	u32 val;
 
 	devfn = PCI_DEVFN(PCI_SLOT(dev->devfn), 0);
@@ -507,8 +526,14 @@ static void __init quirk_amd_nb_node(struct pci_dev *dev)
 		return;
 
 	pci_read_config_dword(nb_ht, 0x60, &val);
-	set_dev_node(&dev->dev, val & 7);
-	pci_dev_put(dev);
+	node = val & 7;
+	/*
+	 * Some hardware may return an invalid node ID,
+	 * so check it first:
+	 */
+	if (node_online(node))
+		set_dev_node(&dev->dev, node);
+	pci_dev_put(nb_ht);
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB,

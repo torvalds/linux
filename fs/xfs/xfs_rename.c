@@ -24,12 +24,9 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
@@ -39,6 +36,7 @@
 #include "xfs_utils.h"
 #include "xfs_trans_space.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 
 /*
@@ -115,20 +113,7 @@ xfs_rename(
 	int		spaceres;
 	int		num_inodes;
 
-	xfs_itrace_entry(src_dp);
-	xfs_itrace_entry(target_dp);
-
-	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_RENAME) ||
-	    DM_EVENT_ENABLED(target_dp, DM_EVENT_RENAME)) {
-		error = XFS_SEND_NAMESP(mp, DM_EVENT_RENAME,
-					src_dp, DM_RIGHT_NULL,
-					target_dp, DM_RIGHT_NULL,
-					src_name->name, target_name->name,
-					0, 0, 0);
-		if (error)
-			return error;
-	}
-	/* Return through std_return after this point. */
+	trace_xfs_rename(src_dp, target_dp, src_name, target_name);
 
 	new_parent = (src_dp != target_dp);
 	src_is_directory = ((src_ip->i_d.di_mode & S_IFMT) == S_IFDIR);
@@ -183,26 +168,14 @@ xfs_rename(
 	/*
 	 * Join all the inodes to the transaction. From this point on,
 	 * we can rely on either trans_commit or trans_cancel to unlock
-	 * them.  Note that we need to add a vnode reference to the
-	 * directories since trans_commit & trans_cancel will decrement
-	 * them when they unlock the inodes.  Also, we need to be careful
-	 * not to add an inode to the transaction more than once.
+	 * them.
 	 */
-	IHOLD(src_dp);
-	xfs_trans_ijoin(tp, src_dp, XFS_ILOCK_EXCL);
-
-	if (new_parent) {
-		IHOLD(target_dp);
-		xfs_trans_ijoin(tp, target_dp, XFS_ILOCK_EXCL);
-	}
-
-	IHOLD(src_ip);
-	xfs_trans_ijoin(tp, src_ip, XFS_ILOCK_EXCL);
-
-	if (target_ip) {
-		IHOLD(target_ip);
-		xfs_trans_ijoin(tp, target_ip, XFS_ILOCK_EXCL);
-	}
+	xfs_trans_ijoin_ref(tp, src_dp, XFS_ILOCK_EXCL);
+	if (new_parent)
+		xfs_trans_ijoin_ref(tp, target_dp, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin_ref(tp, src_ip, XFS_ILOCK_EXCL);
+	if (target_ip)
+		xfs_trans_ijoin_ref(tp, target_ip, XFS_ILOCK_EXCL);
 
 	/*
 	 * If we are using project inheritance, we only allow renames
@@ -210,7 +183,7 @@ xfs_rename(
 	 * tree quota mechanism would be circumvented.
 	 */
 	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
-		     (target_dp->i_d.di_projid != src_ip->i_d.di_projid))) {
+		     (xfs_get_projid(target_dp) != xfs_get_projid(src_ip)))) {
 		error = XFS_ERROR(EXDEV);
 		goto error_return;
 	}
@@ -238,7 +211,9 @@ xfs_rename(
 			goto error_return;
 		if (error)
 			goto abort_return;
-		xfs_ichgtime(target_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+
+		xfs_trans_ichgtime(tp, target_dp,
+					XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
 		if (new_parent && src_is_directory) {
 			error = xfs_bumplink(tp, target_dp);
@@ -276,7 +251,9 @@ xfs_rename(
 					&first_block, &free_list, spaceres);
 		if (error)
 			goto abort_return;
-		xfs_ichgtime(target_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+
+		xfs_trans_ichgtime(tp, target_dp,
+					XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
 		/*
 		 * Decrement the link count on the target since the target
@@ -319,7 +296,8 @@ xfs_rename(
 	 * inode isn't really being changed, but old unix file systems did
 	 * it and some incremental backup programs won't work without it.
 	 */
-	xfs_ichgtime(src_ip, XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, src_ip, XFS_ICHGTIME_CHG);
+	xfs_trans_log_inode(tp, src_ip, XFS_ILOG_CORE);
 
 	/*
 	 * Adjust the link count on src_dp.  This is necessary when
@@ -342,7 +320,7 @@ xfs_rename(
 	if (error)
 		goto abort_return;
 
-	xfs_ichgtime(src_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, src_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, src_dp, XFS_ILOG_CORE);
 	if (new_parent)
 		xfs_trans_log_inode(tp, target_dp, XFS_ILOG_CORE);
@@ -368,26 +346,13 @@ xfs_rename(
 	 * trans_commit will unlock src_ip, target_ip & decrement
 	 * the vnode references.
 	 */
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-
-	/* Fall through to std_return with error = 0 or errno from
-	 * xfs_trans_commit	 */
-std_return:
-	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_POSTRENAME) ||
-	    DM_EVENT_ENABLED(target_dp, DM_EVENT_POSTRENAME)) {
-		(void) XFS_SEND_NAMESP (mp, DM_EVENT_POSTRENAME,
-					src_dp, DM_RIGHT_NULL,
-					target_dp, DM_RIGHT_NULL,
-					src_name->name, target_name->name,
-					0, error, 0);
-	}
-	return error;
+	return xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 
  abort_return:
 	cancel_flags |= XFS_TRANS_ABORT;
-	/* FALLTHROUGH */
  error_return:
 	xfs_bmap_cancel(&free_list);
 	xfs_trans_cancel(tp, cancel_flags);
-	goto std_return;
+ std_return:
+	return error;
 }

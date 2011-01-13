@@ -58,6 +58,18 @@ config BT_HCIUART_BCSP
 
 	  Say Y here to compile support for HCI BCSP protocol.
 
+config BT_HCIUART_ATH3K
+	bool "Atheros AR300x serial support"
+	depends on BT_HCIUART
+	help
+	  HCIATH3K (HCI Atheros AR300x) is a serial protocol for
+	  communication between host and Atheros AR300x Bluetooth devices.
+	  This protocol enables AR300x chips to be enabled with
+	  power management support.
+	  Enable this if you have Atheros AR300x serial Bluetooth device.
+
+	  Say Y here to compile support for HCI UART ATH3K protocol.
+
 config BT_HCIUART_LL
 	bool "HCILL protocol support"
 	depends on BT_HCIUART
@@ -170,5 +182,41 @@ config BT_HCIVHCI
 	  Say Y here to compile support for virtual HCI devices into the
 	  kernel or say M to compile it as module (hci_vhci).
 
-endmenu
+config BT_MRVL
+	tristate "Marvell Bluetooth driver support"
+	help
+	  The core driver to support Marvell Bluetooth devices.
 
+	  This driver is required if you want to support
+	  Marvell Bluetooth devices, such as 8688.
+
+	  Say Y here to compile Marvell Bluetooth driver
+	  into the kernel or say M to compile it as module.
+
+config BT_MRVL_SDIO
+	tristate "Marvell BT-over-SDIO driver"
+	depends on BT_MRVL && MMC
+	select FW_LOADER
+	help
+	  The driver for Marvell Bluetooth chipsets with SDIO interface.
+
+	  This driver is required if you want to use Marvell Bluetooth
+	  devices with SDIO interface. Currently only SD8688 chipset is
+	  supported.
+
+	  Say Y here to compile support for Marvell BT-over-SDIO driver
+	  into the kernel or say M to compile it as module.
+
+config BT_ATH3K
+	tristate "Atheros firmware download driver"
+	depends on BT_HCIBTUSB
+	select FW_LOADER
+	help
+	  Bluetooth firmware download driver.
+	  This driver loads the firmware into the Atheros Bluetooth
+	  chipset.
+
+	  Say Y here to compile support for "Atheros firmware download driver"
+	  into the kernel or say M to compile it as module (ath3k).
+
+endmenu

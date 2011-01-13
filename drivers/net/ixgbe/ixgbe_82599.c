@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -31,6 +31,7 @@
 
 #include "ixgbe.h"
 #include "ixgbe_phy.h"
+#include "ixgbe_mbx.h"
 
 #define IXGBE_82599_MAX_TX_QUEUES 128
 #define IXGBE_82599_MAX_RX_QUEUES 128
@@ -38,64 +39,65 @@
 #define IXGBE_82599_MC_TBL_SIZE   128
 #define IXGBE_82599_VFT_TBL_SIZE  128
 
-s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
-                                      ixgbe_link_speed *speed,
-                                      bool *autoneg);
-enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw);
-s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw);
-s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
-                                     ixgbe_link_speed speed, bool autoneg,
-                                     bool autoneg_wait_to_complete);
-s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw);
-s32 ixgbe_check_mac_link_82599(struct ixgbe_hw *hw,
-                               ixgbe_link_speed *speed,
-                               bool *link_up, bool link_up_wait_to_complete);
-s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
-                                     ixgbe_link_speed speed,
-                                     bool autoneg,
-                                     bool autoneg_wait_to_complete);
-static s32 ixgbe_get_copper_link_capabilities_82599(struct ixgbe_hw *hw,
-                                             ixgbe_link_speed *speed,
-                                             bool *autoneg);
-static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw);
-static s32 ixgbe_setup_copper_link_speed_82599(struct ixgbe_hw *hw,
-                                               ixgbe_link_speed speed,
-                                               bool autoneg,
-                                               bool autoneg_wait_to_complete);
-s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw);
-s32 ixgbe_set_vmdq_82599(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-s32 ixgbe_clear_vmdq_82599(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-s32 ixgbe_set_vfta_82599(struct ixgbe_hw *hw, u32 vlan,
-                         u32 vind, bool vlan_on);
-s32 ixgbe_clear_vfta_82599(struct ixgbe_hw *hw);
-s32 ixgbe_init_uta_tables_82599(struct ixgbe_hw *hw);
-s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val);
-s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val);
-s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw);
-u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw);
+static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+						 ixgbe_link_speed speed,
+						 bool autoneg,
+						 bool autoneg_wait_to_complete);
+static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
+                                           ixgbe_link_speed speed,
+                                           bool autoneg,
+                                           bool autoneg_wait_to_complete);
+static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
+				      bool autoneg_wait_to_complete);
+static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
+                               ixgbe_link_speed speed,
+                               bool autoneg,
+                               bool autoneg_wait_to_complete);
+static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
+                                         ixgbe_link_speed speed,
+                                         bool autoneg,
+                                         bool autoneg_wait_to_complete);
 static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
 
-void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
+static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
+
+	/* enable the laser control functions for SFP+ fiber */
+	if (mac->ops.get_media_type(hw) == ixgbe_media_type_fiber) {
+		mac->ops.disable_tx_laser =
+		                       &ixgbe_disable_tx_laser_multispeed_fiber;
+		mac->ops.enable_tx_laser =
+		                        &ixgbe_enable_tx_laser_multispeed_fiber;
+		mac->ops.flap_tx_laser = &ixgbe_flap_tx_laser_multispeed_fiber;
+	} else {
+		mac->ops.disable_tx_laser = NULL;
+		mac->ops.enable_tx_laser = NULL;
+		mac->ops.flap_tx_laser = NULL;
+	}
+
 	if (hw->phy.multispeed_fiber) {
 		/* Set up dual speed SFP+ support */
-		mac->ops.setup_link =
-		          &ixgbe_setup_mac_link_multispeed_fiber;
-		mac->ops.setup_link_speed =
-		          &ixgbe_setup_mac_link_speed_multispeed_fiber;
+		mac->ops.setup_link = &ixgbe_setup_mac_link_multispeed_fiber;
 	} else {
-		mac->ops.setup_link =
-		          &ixgbe_setup_mac_link_82599;
-		mac->ops.setup_link_speed =
-		          &ixgbe_setup_mac_link_speed_82599;
+		if ((mac->ops.get_media_type(hw) ==
+		     ixgbe_media_type_backplane) &&
+		    (hw->phy.smart_speed == ixgbe_smart_speed_auto ||
+		     hw->phy.smart_speed == ixgbe_smart_speed_on))
+			mac->ops.setup_link = &ixgbe_setup_mac_link_smartspeed;
+		else
+			mac->ops.setup_link = &ixgbe_setup_mac_link_82599;
 	}
 }
 
-s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
+static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
+	u32 reg_anlp1 = 0;
+	u32 i = 0;
 	u16 list_offset, data_offset, data_value;
 
 	if (hw->phy.sfp_type != ixgbe_sfp_type_unknown) {
@@ -122,39 +124,38 @@ s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 			IXGBE_WRITE_FLUSH(hw);
 			hw->eeprom.ops.read(hw, ++data_offset, &data_value);
 		}
-		/* Now restart DSP by setting Restart_AN */
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC,
-		    (IXGBE_READ_REG(hw, IXGBE_AUTOC) | IXGBE_AUTOC_AN_RESTART));
 
 		/* Release the semaphore */
 		ixgbe_release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 		/* Delay obtaining semaphore again to allow FW access */
 		msleep(hw->eeprom.semaphore_delay);
+
+		/* Now restart DSP by setting Restart_AN and clearing LMS */
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, ((IXGBE_READ_REG(hw,
+		                IXGBE_AUTOC) & ~IXGBE_AUTOC_LMS_MASK) |
+		                IXGBE_AUTOC_AN_RESTART));
+
+		/* Wait for AN to leave state 0 */
+		for (i = 0; i < 10; i++) {
+			msleep(4);
+			reg_anlp1 = IXGBE_READ_REG(hw, IXGBE_ANLP1);
+			if (reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)
+				break;
+		}
+		if (!(reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)) {
+			hw_dbg(hw, "sfp module setup not complete\n");
+			ret_val = IXGBE_ERR_SFP_SETUP_NOT_COMPLETE;
+			goto setup_sfp_out;
+		}
+
+		/* Restart DSP by setting Restart_AN and return to SFI mode */
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (IXGBE_READ_REG(hw,
+		                IXGBE_AUTOC) | IXGBE_AUTOC_LMS_10G_SERIAL |
+		                IXGBE_AUTOC_AN_RESTART));
 	}
 
 setup_sfp_out:
 	return ret_val;
-}
-
-/**
- *  ixgbe_get_pcie_msix_count_82599 - Gets MSI-X vector count
- *  @hw: pointer to hardware structure
- *
- *  Read PCIe configuration space, and get the MSI-X vector count from
- *  the capabilities table.
- **/
-u32 ixgbe_get_pcie_msix_count_82599(struct ixgbe_hw *hw)
-{
-	struct ixgbe_adapter *adapter = hw->back;
-	u16 msix_count;
-	pci_read_config_word(adapter->pdev, IXGBE_PCIE_MSIX_82599_CAPS,
-	                     &msix_count);
-	msix_count &= IXGBE_PCIE_MSIX_TBL_SZ_MASK;
-
-	/* MSI-X count is zero-based in HW, so increment to give proper value */
-	msix_count++;
-
-	return msix_count;
 }
 
 static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
@@ -168,7 +169,7 @@ static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
 	mac->num_rar_entries = IXGBE_82599_RAR_ENTRIES;
 	mac->max_rx_queues = IXGBE_82599_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_82599_MAX_TX_QUEUES;
-	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_82599(hw);
+	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
 
 	return 0;
 }
@@ -182,7 +183,7 @@ static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
  *  not known.  Perform the SFP init if necessary.
  *
  **/
-s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
+static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 	struct ixgbe_phy_info *phy = &hw->phy;
@@ -197,10 +198,8 @@ s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 	/* If copper media, overwrite with copper function pointers */
 	if (mac->ops.get_media_type(hw) == ixgbe_media_type_copper) {
 		mac->ops.setup_link = &ixgbe_setup_copper_link_82599;
-		mac->ops.setup_link_speed =
-		                     &ixgbe_setup_copper_link_speed_82599;
 		mac->ops.get_link_capabilities =
-		                  &ixgbe_get_copper_link_capabilities_82599;
+			&ixgbe_get_copper_link_capabilities_generic;
 	}
 
 	/* Set necessary function pointers based on phy type */
@@ -209,6 +208,10 @@ s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
 		phy->ops.get_firmware_version =
 		             &ixgbe_get_phy_firmware_version_tnx;
+		break;
+	case ixgbe_phy_aq:
+		phy->ops.get_firmware_version =
+			&ixgbe_get_phy_firmware_version_generic;
 		break;
 	default:
 		break;
@@ -225,12 +228,20 @@ s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
  *
  *  Determines the link capabilities by reading the AUTOC register.
  **/
-s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
-                                      ixgbe_link_speed *speed,
-                                      bool *negotiation)
+static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
+                                             ixgbe_link_speed *speed,
+                                             bool *negotiation)
 {
 	s32 status = 0;
 	u32 autoc = 0;
+
+	/* Determine 1G link capabilities off of SFP+ type */
+	if (hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core0 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core1) {
+		*speed = IXGBE_LINK_SPEED_1GB_FULL;
+		*negotiation = true;
+		goto out;
+	}
 
 	/*
 	 * Determine link capabilities based on the stored value of AUTOC,
@@ -308,61 +319,40 @@ out:
 }
 
 /**
- *  ixgbe_get_copper_link_capabilities_82599 - Determines link capabilities
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @autoneg: boolean auto-negotiation value
- *
- *  Determines the link capabilities by reading the AUTOC register.
- **/
-static s32 ixgbe_get_copper_link_capabilities_82599(struct ixgbe_hw *hw,
-                                                    ixgbe_link_speed *speed,
-                                                    bool *autoneg)
-{
-	s32 status = IXGBE_ERR_LINK_SETUP;
-	u16 speed_ability;
-
-	*speed = 0;
-	*autoneg = true;
-
-	status = hw->phy.ops.read_reg(hw, MDIO_SPEED, MDIO_MMD_PMAPMD,
-	                              &speed_ability);
-
-	if (status == 0) {
-		if (speed_ability & MDIO_SPEED_10G)
-		    *speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (speed_ability & MDIO_PMA_SPEED_1000)
-		    *speed |= IXGBE_LINK_SPEED_1GB_FULL;
-	}
-
-	return status;
-}
-
-/**
  *  ixgbe_get_media_type_82599 - Get media type
  *  @hw: pointer to hardware structure
  *
  *  Returns the media type (fiber, copper, backplane)
  **/
-enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
+static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 {
 	enum ixgbe_media_type media_type;
 
 	/* Detect if there is a copper PHY attached. */
 	if (hw->phy.type == ixgbe_phy_cu_unknown ||
-	    hw->phy.type == ixgbe_phy_tn) {
+	    hw->phy.type == ixgbe_phy_tn ||
+	    hw->phy.type == ixgbe_phy_aq) {
 		media_type = ixgbe_media_type_copper;
 		goto out;
 	}
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_82599_KX4:
+	case IXGBE_DEV_ID_82599_KX4_MEZZ:
+	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
+	case IXGBE_DEV_ID_82599_KR:
+	case IXGBE_DEV_ID_82599_BACKPLANE_FCOE:
 	case IXGBE_DEV_ID_82599_XAUI_LOM:
 		/* Default device ID is mezzanine card KX/KX4 */
 		media_type = ixgbe_media_type_backplane;
 		break;
 	case IXGBE_DEV_ID_82599_SFP:
+	case IXGBE_DEV_ID_82599_SFP_FCOE:
+	case IXGBE_DEV_ID_82599_SFP_EM:
 		media_type = ixgbe_media_type_fiber;
+		break;
+	case IXGBE_DEV_ID_82599_CX4:
+		media_type = ixgbe_media_type_cx4;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;
@@ -373,13 +363,15 @@ out:
 }
 
 /**
- *  ixgbe_setup_mac_link_82599 - Setup MAC link settings
+ *  ixgbe_start_mac_link_82599 - Setup MAC link settings
  *  @hw: pointer to hardware structure
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Configures link settings based on values in the ixgbe_hw struct.
  *  Restarts the link.  Performs autonegotiation if needed.
  **/
-s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw)
+static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
+                               bool autoneg_wait_to_complete)
 {
 	u32 autoc_reg;
 	u32 links_reg;
@@ -392,7 +384,7 @@ s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
 
 	/* Only poll for autoneg to complete if specified to do so */
-	if (hw->phy.autoneg_wait_to_complete) {
+	if (autoneg_wait_to_complete) {
 		if ((autoc_reg & IXGBE_AUTOC_LMS_MASK) ==
 		     IXGBE_AUTOC_LMS_KX4_KX_KR ||
 		    (autoc_reg & IXGBE_AUTOC_LMS_MASK) ==
@@ -419,26 +411,69 @@ s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw)
 	return status;
 }
 
-/**
- *  ixgbe_setup_mac_link_multispeed_fiber - Setup MAC link settings
- *  @hw: pointer to hardware structure
- *
- *  Configures link settings based on values in the ixgbe_hw struct.
- *  Restarts the link for multi-speed fiber at 1G speed, if link
- *  fails at 10G.
- *  Performs autonegotiation if needed.
- **/
-s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw)
+ /**
+  *  ixgbe_disable_tx_laser_multispeed_fiber - Disable Tx laser
+  *  @hw: pointer to hardware structure
+  *
+  *  The base drivers may require better control over SFP+ module
+  *  PHY states.  This includes selectively shutting down the Tx
+  *  laser on the PHY, effectively halting physical link.
+  **/
+static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
-	s32 status = 0;
-	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_82599_AUTONEG;
-	status = ixgbe_setup_mac_link_speed_multispeed_fiber(hw, link_speed,
-	                                                     true, true);
-	return status;
+	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
+
+	/* Disable tx laser; allow 100us to go dark per spec */
+	esdp_reg |= IXGBE_ESDP_SDP3;
+	IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+	IXGBE_WRITE_FLUSH(hw);
+	udelay(100);
 }
 
 /**
- *  ixgbe_setup_mac_link_speed_multispeed_fiber - Set MAC link speed
+ *  ixgbe_enable_tx_laser_multispeed_fiber - Enable Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  The base drivers may require better control over SFP+ module
+ *  PHY states.  This includes selectively turning on the Tx
+ *  laser on the PHY, effectively starting physical link.
+ **/
+static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+{
+	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
+
+	/* Enable tx laser; allow 100ms to light up */
+	esdp_reg &= ~IXGBE_ESDP_SDP3;
+	IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+	IXGBE_WRITE_FLUSH(hw);
+	msleep(100);
+}
+
+/**
+ *  ixgbe_flap_tx_laser_multispeed_fiber - Flap Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  When the driver changes the link speeds that it can support,
+ *  it sets autotry_restart to true to indicate that we need to
+ *  initiate a new autotry session with the link partner.  To do
+ *  so, we set the speed then disable and re-enable the tx laser, to
+ *  alert the link partner that it also needs to restart autotry on its
+ *  end.  This is consistent with true clause 37 autoneg, which also
+ *  involves a loss of signal.
+ **/
+static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+{
+	hw_dbg(hw, "ixgbe_flap_tx_laser_multispeed_fiber\n");
+
+	if (hw->mac.autotry_restart) {
+		ixgbe_disable_tx_laser_multispeed_fiber(hw);
+		ixgbe_enable_tx_laser_multispeed_fiber(hw);
+		hw->mac.autotry_restart = false;
+	}
+}
+
+/**
+ *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
  *  @autoneg: true if autonegotiation enabled
@@ -446,10 +481,10 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw)
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
-s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
-                                                ixgbe_link_speed speed,
-                                                bool autoneg,
-                                                bool autoneg_wait_to_complete)
+s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+                                          ixgbe_link_speed speed,
+                                          bool autoneg,
+                                          bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
 	ixgbe_link_speed phy_link_speed;
@@ -463,25 +498,6 @@ s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
 	/* Mask off requested but non-supported speeds */
 	hw->mac.ops.get_link_capabilities(hw, &phy_link_speed, &negotiation);
 	speed &= phy_link_speed;
-
-	 /* Set autoneg_advertised value based on input link speed */
-	hw->phy.autoneg_advertised = 0;
-
-	if (speed & IXGBE_LINK_SPEED_10GB_FULL)
-		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
-
-	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
-		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
-
-	/*
-	 * When the driver changes the link speeds that it can support,
-	 * it sets autotry_restart to true to indicate that we need to
-	 * initiate a new autotry session with the link partner.  To do
-	 * so, we set the speed then disable and re-enable the tx laser, to
-	 * alert the link partner that it also needs to restart autotry on its
-	 * end.  This is consistent with true clause 37 autoneg, which also
-	 * involves a loss of signal.
-	 */
 
 	/*
 	 * Try each speed one by one, highest priority first.  We do this in
@@ -500,33 +516,27 @@ s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
 		/* Set the module link speed */
 		esdp_reg |= (IXGBE_ESDP_SDP5_DIR | IXGBE_ESDP_SDP5);
 		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+		IXGBE_WRITE_FLUSH(hw);
 
 		/* Allow module to change analog characteristics (1G->10G) */
 		msleep(40);
 
-		status = ixgbe_setup_mac_link_speed_82599(hw,
-		                                     IXGBE_LINK_SPEED_10GB_FULL,
-		                                     autoneg,
-		                                     autoneg_wait_to_complete);
+		status = ixgbe_setup_mac_link_82599(hw,
+		                               IXGBE_LINK_SPEED_10GB_FULL,
+		                               autoneg,
+		                               autoneg_wait_to_complete);
 		if (status != 0)
-			goto out;
+			return status;
 
 		/* Flap the tx laser if it has not already been done */
-		if (hw->mac.autotry_restart) {
-			/* Disable tx laser; allow 100us to go dark per spec */
-			esdp_reg |= IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			udelay(100);
+		hw->mac.ops.flap_tx_laser(hw);
 
-			/* Enable tx laser; allow 2ms to light up per spec */
-			esdp_reg &= ~IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			msleep(2);
+		/*
+		 * Wait for the controller to acquire link.  Per IEEE 802.3ap,
+		 * Section 73.10.2, we may have to wait up to 500ms if KR is
+		 * attempted.  82599 uses the same timing for 10g SFI.
+		 */
 
-			hw->mac.autotry_restart = false;
-		}
-
-		/* The controller may take up to 500ms at 10g to acquire link */
 		for (i = 0; i < 5; i++) {
 			/* Wait for the link partner to also set speed */
 			msleep(100);
@@ -554,31 +564,20 @@ s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
 		esdp_reg &= ~IXGBE_ESDP_SDP5;
 		esdp_reg |= IXGBE_ESDP_SDP5_DIR;
 		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+		IXGBE_WRITE_FLUSH(hw);
 
 		/* Allow module to change analog characteristics (10G->1G) */
 		msleep(40);
 
-		status = ixgbe_setup_mac_link_speed_82599(hw,
+		status = ixgbe_setup_mac_link_82599(hw,
 		                                      IXGBE_LINK_SPEED_1GB_FULL,
 		                                      autoneg,
 		                                      autoneg_wait_to_complete);
 		if (status != 0)
-			goto out;
+			return status;
 
 		/* Flap the tx laser if it has not already been done */
-		if (hw->mac.autotry_restart) {
-			/* Disable tx laser; allow 100us to go dark per spec */
-			esdp_reg |= IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			udelay(100);
-
-			/* Enable tx laser; allow 2ms to light up per spec */
-			esdp_reg &= ~IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			msleep(2);
-
-			hw->mac.autotry_restart = false;
-		}
+		hw->mac.ops.flap_tx_laser(hw);
 
 		/* Wait for the link partner to also set speed */
 		msleep(100);
@@ -595,69 +594,135 @@ s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
 	 * single highest speed that the user requested.
 	 */
 	if (speedcnt > 1)
-		status = ixgbe_setup_mac_link_speed_multispeed_fiber(hw,
-		                                     highest_link_speed,
-		                                     autoneg,
-		                                     autoneg_wait_to_complete);
+		status = ixgbe_setup_mac_link_multispeed_fiber(hw,
+		                                               highest_link_speed,
+		                                               autoneg,
+		                                               autoneg_wait_to_complete);
 
 out:
+	/* Set autoneg_advertised value based on input link speed */
+	hw->phy.autoneg_advertised = 0;
+
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
 	return status;
 }
 
 /**
- *  ixgbe_check_mac_link_82599 - Determine link and speed status
+ *  ixgbe_setup_mac_link_smartspeed - Set MAC link speed using SmartSpeed
  *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @link_up: true when link is up
- *  @link_up_wait_to_complete: bool used to wait for link up or not
+ *  @speed: new link speed
+ *  @autoneg: true if autonegotiation enabled
+ *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
- *  Reads the links register to determine if link is up and the current speed
+ *  Implements the Intel SmartSpeed algorithm.
  **/
-s32 ixgbe_check_mac_link_82599(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-                               bool *link_up, bool link_up_wait_to_complete)
+static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
+				     ixgbe_link_speed speed, bool autoneg,
+				     bool autoneg_wait_to_complete)
 {
-	u32 links_reg;
-	u32 i;
+	s32 status = 0;
+	ixgbe_link_speed link_speed;
+	s32 i, j;
+	bool link_up = false;
+	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	struct ixgbe_adapter *adapter = hw->back;
 
-	links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
-	if (link_up_wait_to_complete) {
-		for (i = 0; i < IXGBE_LINK_UP_TIME; i++) {
-			if (links_reg & IXGBE_LINKS_UP) {
-				*link_up = true;
-				break;
-			} else {
-				*link_up = false;
-			}
-			msleep(100);
-			links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
+	hw_dbg(hw, "ixgbe_setup_mac_link_smartspeed.\n");
+
+	 /* Set autoneg_advertised value based on input link speed */
+	hw->phy.autoneg_advertised = 0;
+
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
+	if (speed & IXGBE_LINK_SPEED_100_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_100_FULL;
+
+	/*
+	 * Implement Intel SmartSpeed algorithm.  SmartSpeed will reduce the
+	 * autoneg advertisement if link is unable to be established at the
+	 * highest negotiated rate.  This can sometimes happen due to integrity
+	 * issues with the physical media connection.
+	 */
+
+	/* First, try to get link with full advertisement */
+	hw->phy.smart_speed_active = false;
+	for (j = 0; j < IXGBE_SMARTSPEED_MAX_RETRIES; j++) {
+		status = ixgbe_setup_mac_link_82599(hw, speed, autoneg,
+						    autoneg_wait_to_complete);
+		if (status)
+			goto out;
+
+		/*
+		 * Wait for the controller to acquire link.  Per IEEE 802.3ap,
+		 * Section 73.10.2, we may have to wait up to 500ms if KR is
+		 * attempted, or 200ms if KX/KX4/BX/BX4 is attempted, per
+		 * Table 9 in the AN MAS.
+		 */
+		for (i = 0; i < 5; i++) {
+			mdelay(100);
+
+			/* If we have link, just jump out */
+			hw->mac.ops.check_link(hw, &link_speed,
+			                       &link_up, false);
+			if (link_up)
+				goto out;
 		}
-	} else {
-		if (links_reg & IXGBE_LINKS_UP)
-			*link_up = true;
-		else
-			*link_up = false;
 	}
 
-	if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
-	    IXGBE_LINKS_SPEED_10G_82599)
-		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-	else if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
-	         IXGBE_LINKS_SPEED_1G_82599)
-		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-	else
-		*speed = IXGBE_LINK_SPEED_100_FULL;
+	/*
+	 * We didn't get link.  If we advertised KR plus one of KX4/KX
+	 * (or BX4/BX), then disable KR and try again.
+	 */
+	if (((autoc_reg & IXGBE_AUTOC_KR_SUPP) == 0) ||
+	    ((autoc_reg & IXGBE_AUTOC_KX4_KX_SUPP_MASK) == 0))
+		goto out;
 
-	/* if link is down, zero out the current_mode */
-	if (*link_up == false) {
-		hw->fc.current_mode = ixgbe_fc_none;
-		hw->fc.fc_was_autonegged = false;
+	/* Turn SmartSpeed on to disable KR support */
+	hw->phy.smart_speed_active = true;
+	status = ixgbe_setup_mac_link_82599(hw, speed, autoneg,
+					    autoneg_wait_to_complete);
+	if (status)
+		goto out;
+
+	/*
+	 * Wait for the controller to acquire link.  600ms will allow for
+	 * the AN link_fail_inhibit_timer as well for multiple cycles of
+	 * parallel detect, both 10g and 1g. This allows for the maximum
+	 * connect attempts as defined in the AN MAS table 73-7.
+	 */
+	for (i = 0; i < 6; i++) {
+		mdelay(100);
+
+		/* If we have link, just jump out */
+		hw->mac.ops.check_link(hw, &link_speed,
+		                       &link_up, false);
+		if (link_up)
+			goto out;
 	}
 
-	return 0;
+	/* We didn't get link.  Turn SmartSpeed back off. */
+	hw->phy.smart_speed_active = false;
+	status = ixgbe_setup_mac_link_82599(hw, speed, autoneg,
+					    autoneg_wait_to_complete);
+
+out:
+	if (link_up && (link_speed == IXGBE_LINK_SPEED_1GB_FULL))
+		e_info(hw, "Smartspeed has downgraded the link speed from "
+		       "the maximum advertised\n");
+	return status;
 }
 
 /**
- *  ixgbe_setup_mac_link_speed_82599 - Set MAC link speed
+ *  ixgbe_setup_mac_link_82599 - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
  *  @autoneg: true if autonegotiation enabled
@@ -665,9 +730,9 @@ s32 ixgbe_check_mac_link_82599(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
-s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
-                                     ixgbe_link_speed speed, bool autoneg,
-                                     bool autoneg_wait_to_complete)
+static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
+                               ixgbe_link_speed speed, bool autoneg,
+                               bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
 	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -705,7 +770,8 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 		if (speed & IXGBE_LINK_SPEED_10GB_FULL)
 			if (orig_autoc & IXGBE_AUTOC_KX4_SUPP)
 				autoc |= IXGBE_AUTOC_KX4_SUPP;
-			if (orig_autoc & IXGBE_AUTOC_KR_SUPP)
+			if ((orig_autoc & IXGBE_AUTOC_KR_SUPP) &&
+			    (hw->phy.smart_speed_active == false))
 				autoc |= IXGBE_AUTOC_KR_SUPP;
 		if (speed & IXGBE_LINK_SPEED_1GB_FULL)
 			autoc |= IXGBE_AUTOC_KX_SUPP;
@@ -767,26 +833,7 @@ out:
 }
 
 /**
- *  ixgbe_setup_copper_link_82599 - Setup copper link settings
- *  @hw: pointer to hardware structure
- *
- *  Restarts the link on PHY and then MAC. Performs autonegotiation if needed.
- **/
-static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw)
-{
-	s32 status;
-
-	/* Restart autonegotiation on PHY */
-	status = hw->phy.ops.setup_link(hw);
-
-	/* Set up MAC */
-	ixgbe_setup_mac_link_82599(hw);
-
-	return status;
-}
-
-/**
- *  ixgbe_setup_copper_link_speed_82599 - Set the PHY autoneg advertised field
+ *  ixgbe_setup_copper_link_82599 - Set the PHY autoneg advertised field
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
  *  @autoneg: true if autonegotiation enabled
@@ -794,10 +841,10 @@ static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw)
  *
  *  Restarts link on PHY and MAC based on settings passed in.
  **/
-static s32 ixgbe_setup_copper_link_speed_82599(struct ixgbe_hw *hw,
-                                               ixgbe_link_speed speed,
-                                               bool autoneg,
-                                               bool autoneg_wait_to_complete)
+static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
+                                         ixgbe_link_speed speed,
+                                         bool autoneg,
+                                         bool autoneg_wait_to_complete)
 {
 	s32 status;
 
@@ -805,7 +852,7 @@ static s32 ixgbe_setup_copper_link_speed_82599(struct ixgbe_hw *hw,
 	status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
 	                                      autoneg_wait_to_complete);
 	/* Set up MAC */
-	ixgbe_setup_mac_link_82599(hw);
+	ixgbe_start_mac_link_82599(hw, autoneg_wait_to_complete);
 
 	return status;
 }
@@ -818,10 +865,10 @@ static s32 ixgbe_setup_copper_link_speed_82599(struct ixgbe_hw *hw,
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
  **/
-s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
+static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 {
 	s32 status = 0;
-	u32 ctrl, ctrl_ext;
+	u32 ctrl;
 	u32 i;
 	u32 autoc;
 	u32 autoc2;
@@ -876,14 +923,8 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
 	}
-	/* Clear PF Reset Done bit so PF/VF Mail Ops can work */
-	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
-	ctrl_ext |= IXGBE_CTRL_EXT_PFRSTD;
-	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
 
 	msleep(50);
-
-
 
 	/*
 	 * Store the original AUTOC/AUTOC2 values if they have not been
@@ -933,235 +974,12 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 		hw->mac.num_rar_entries--;
 	}
 
+	/* Store the alternative WWNN/WWPN prefix */
+	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
+	                               &hw->mac.wwpn_prefix);
+
 reset_hw_out:
 	return status;
-}
-
-/**
- *  ixgbe_clear_vmdq_82599 - Disassociate a VMDq pool index from a rx address
- *  @hw: pointer to hardware struct
- *  @rar: receive address register index to disassociate
- *  @vmdq: VMDq pool index to remove from the rar
- **/
-s32 ixgbe_clear_vmdq_82599(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
-{
-	u32 mpsar_lo, mpsar_hi;
-	u32 rar_entries = hw->mac.num_rar_entries;
-
-	if (rar < rar_entries) {
-		mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-		mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-
-		if (!mpsar_lo && !mpsar_hi)
-			goto done;
-
-		if (vmdq == IXGBE_CLEAR_VMDQ_ALL) {
-			if (mpsar_lo) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-				mpsar_lo = 0;
-			}
-			if (mpsar_hi) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
-				mpsar_hi = 0;
-			}
-		} else if (vmdq < 32) {
-			mpsar_lo &= ~(1 << vmdq);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
-		} else {
-			mpsar_hi &= ~(1 << (vmdq - 32));
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
-		}
-
-		/* was that the last pool using this rar? */
-		if (mpsar_lo == 0 && mpsar_hi == 0 && rar != 0)
-			hw->mac.ops.clear_rar(hw, rar);
-	} else {
-		hw_dbg(hw, "RAR index %d is out of range.\n", rar);
-	}
-
-done:
-	return 0;
-}
-
-/**
- *  ixgbe_set_vmdq_82599 - Associate a VMDq pool index with a rx address
- *  @hw: pointer to hardware struct
- *  @rar: receive address register index to associate with a VMDq index
- *  @vmdq: VMDq pool index
- **/
-s32 ixgbe_set_vmdq_82599(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
-{
-	u32 mpsar;
-	u32 rar_entries = hw->mac.num_rar_entries;
-
-	if (rar < rar_entries) {
-		if (vmdq < 32) {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-			mpsar |= 1 << vmdq;
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
-		} else {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-			mpsar |= 1 << (vmdq - 32);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
-		}
-	} else {
-		hw_dbg(hw, "RAR index %d is out of range.\n", rar);
-	}
-	return 0;
-}
-
-/**
- *  ixgbe_set_vfta_82599 - Set VLAN filter table
- *  @hw: pointer to hardware structure
- *  @vlan: VLAN id to write to VLAN filter
- *  @vind: VMDq output index that maps queue to VLAN id in VFVFB
- *  @vlan_on: boolean flag to turn on/off VLAN in VFVF
- *
- *  Turn on/off specified VLAN in the VLAN filter table.
- **/
-s32 ixgbe_set_vfta_82599(struct ixgbe_hw *hw, u32 vlan, u32 vind,
-                         bool vlan_on)
-{
-	u32 regindex;
-	u32 bitindex;
-	u32 bits;
-	u32 first_empty_slot;
-
-	if (vlan > 4095)
-		return IXGBE_ERR_PARAM;
-
-	/*
-	 * this is a 2 part operation - first the VFTA, then the
-	 * VLVF and VLVFB if vind is set
-	 */
-
-	/* Part 1
-	 * The VFTA is a bitstring made up of 128 32-bit registers
-	 * that enable the particular VLAN id, much like the MTA:
-	 *    bits[11-5]: which register
-	 *    bits[4-0]:  which bit in the register
-	 */
-	regindex = (vlan >> 5) & 0x7F;
-	bitindex = vlan & 0x1F;
-	bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
-	if (vlan_on)
-		bits |= (1 << bitindex);
-	else
-		bits &= ~(1 << bitindex);
-	IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
-
-
-	/* Part 2
-	 * If the vind is set
-	 *   Either vlan_on
-	 *     make sure the vlan is in VLVF
-	 *     set the vind bit in the matching VLVFB
-	 *   Or !vlan_on
-	 *     clear the pool bit and possibly the vind
-	 */
-	if (vind) {
-		/* find the vlanid or the first empty slot */
-		first_empty_slot = 0;
-
-		for (regindex = 1; regindex < IXGBE_VLVF_ENTRIES; regindex++) {
-			bits = IXGBE_READ_REG(hw, IXGBE_VLVF(regindex));
-			if (!bits && !first_empty_slot)
-				first_empty_slot = regindex;
-			else if ((bits & 0x0FFF) == vlan)
-				break;
-		}
-
-		if (regindex >= IXGBE_VLVF_ENTRIES) {
-			if (first_empty_slot)
-				regindex = first_empty_slot;
-			else {
-				hw_dbg(hw, "No space in VLVF.\n");
-				goto out;
-			}
-		}
-
-		if (vlan_on) {
-			/* set the pool bit */
-			if (vind < 32) {
-				bits = IXGBE_READ_REG(hw,
-				                    IXGBE_VLVFB(regindex * 2));
-				bits |= (1 << vind);
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_VLVFB(regindex * 2), bits);
-			} else {
-				bits = IXGBE_READ_REG(hw,
-				              IXGBE_VLVFB((regindex * 2) + 1));
-				bits |= (1 << vind);
-				IXGBE_WRITE_REG(hw,
-				        IXGBE_VLVFB((regindex * 2) + 1), bits);
-			}
-		} else {
-			/* clear the pool bit */
-			if (vind < 32) {
-				bits = IXGBE_READ_REG(hw,
-				     IXGBE_VLVFB(regindex * 2));
-			bits &= ~(1 << vind);
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_VLVFB(regindex * 2), bits);
-				bits |= IXGBE_READ_REG(hw,
-				              IXGBE_VLVFB((regindex * 2) + 1));
-			} else {
-				bits = IXGBE_READ_REG(hw,
-				              IXGBE_VLVFB((regindex * 2) + 1));
-				bits &= ~(1 << vind);
-				IXGBE_WRITE_REG(hw,
-				        IXGBE_VLVFB((regindex * 2) + 1), bits);
-				bits |= IXGBE_READ_REG(hw,
-				                    IXGBE_VLVFB(regindex * 2));
-			}
-		}
-
-		if (bits)
-			IXGBE_WRITE_REG(hw, IXGBE_VLVF(regindex),
-			                (IXGBE_VLVF_VIEN | vlan));
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_VLVF(regindex), 0);
-	}
-
-out:
-	return 0;
-}
-
-/**
- *  ixgbe_clear_vfta_82599 - Clear VLAN filter table
- *  @hw: pointer to hardware structure
- *
- *  Clears the VLAN filer table, and the VMDq index associated with the filter
- **/
-s32 ixgbe_clear_vfta_82599(struct ixgbe_hw *hw)
-{
-	u32 offset;
-
-	for (offset = 0; offset < hw->mac.vft_size; offset++)
-		IXGBE_WRITE_REG(hw, IXGBE_VFTA(offset), 0);
-
-	for (offset = 0; offset < IXGBE_VLVF_ENTRIES; offset++) {
-		IXGBE_WRITE_REG(hw, IXGBE_VLVF(offset), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(offset * 2), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VLVFB((offset * 2) + 1), 0);
-	}
-
-	return 0;
-}
-
-/**
- *  ixgbe_init_uta_tables_82599 - Initialize the Unicast Table Array
- *  @hw: pointer to hardware structure
- **/
-s32 ixgbe_init_uta_tables_82599(struct ixgbe_hw *hw)
-{
-	int i;
-	hw_dbg(hw, " Clearing UTA\n");
-
-	for (i = 0; i < 128; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_UTA(i), 0);
-
-	return 0;
 }
 
 /**
@@ -1185,8 +1003,8 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 		udelay(10);
 	}
 	if (i >= IXGBE_FDIRCMD_CMD_POLL) {
-		hw_dbg(hw ,"Flow Director previous command isn't complete, "
-		       "aborting table re-initialization. \n");
+		hw_dbg(hw, "Flow Director previous command isn't complete, "
+		       "aborting table re-initialization.\n");
 		return IXGBE_ERR_FDIR_REINIT_FAILED;
 	}
 
@@ -1295,13 +1113,10 @@ s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc)
 	/* Move the flexible bytes to use the ethertype - shift 6 words */
 	fdirctrl |= (0x6 << IXGBE_FDIRCTRL_FLEX_SHIFT);
 
-	fdirctrl |= IXGBE_FDIRCTRL_REPORT_STATUS;
 
 	/* Prime the keys for hashing */
-	IXGBE_WRITE_REG(hw, IXGBE_FDIRHKEY,
-	                htonl(IXGBE_ATR_BUCKET_HASH_KEY));
-	IXGBE_WRITE_REG(hw, IXGBE_FDIRSKEY,
-	                htonl(IXGBE_ATR_SIGNATURE_HASH_KEY));
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRHKEY, IXGBE_ATR_BUCKET_HASH_KEY);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRSKEY, IXGBE_ATR_SIGNATURE_HASH_KEY);
 
 	/*
 	 * Poll init-done after we write the register.  Estimated times:
@@ -1362,6 +1177,9 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 	/* Send interrupt when 64 filters are left */
 	fdirctrl |= 4 << IXGBE_FDIRCTRL_FULL_THRESH_SHIFT;
 
+	/* Initialize the drop queue to Rx queue 127 */
+	fdirctrl |= (127 << IXGBE_FDIRCTRL_DROP_Q_SHIFT);
+
 	switch (pballoc) {
 	case IXGBE_FDIR_PBALLOC_64K:
 		/* 2k - 1 perfect filters */
@@ -1388,10 +1206,8 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 	fdirctrl |= (0x6 << IXGBE_FDIRCTRL_FLEX_SHIFT);
 
 	/* Prime the keys for hashing */
-	IXGBE_WRITE_REG(hw, IXGBE_FDIRHKEY,
-	                htonl(IXGBE_ATR_BUCKET_HASH_KEY));
-	IXGBE_WRITE_REG(hw, IXGBE_FDIRSKEY,
-	                htonl(IXGBE_ATR_SIGNATURE_HASH_KEY));
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRHKEY, IXGBE_ATR_BUCKET_HASH_KEY);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRSKEY, IXGBE_ATR_SIGNATURE_HASH_KEY);
 
 	/*
 	 * Poll init-done after we write the register.  Estimated times:
@@ -1430,7 +1246,8 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
  *  @stream: input bitstream to compute the hash on
  *  @key: 32-bit hash key
  **/
-u16 ixgbe_atr_compute_hash_82599(struct ixgbe_atr_input *atr_input, u32 key)
+static u32 ixgbe_atr_compute_hash_82599(union ixgbe_atr_input *atr_input,
+					u32 key)
 {
 	/*
 	 * The algorithm is as follows:
@@ -1450,645 +1267,394 @@ u16 ixgbe_atr_compute_hash_82599(struct ixgbe_atr_input *atr_input, u32 key)
 	 *    To simplify for programming, the algorithm is implemented
 	 *    in software this way:
 	 *
-	 *    Key[31:0], Stream[335:0]
+	 *    key[31:0], hi_hash_dword[31:0], lo_hash_dword[31:0], hash[15:0]
 	 *
-	 *    tmp_key[11 * 32 - 1:0] = 11{Key[31:0] = key concatenated 11 times
-	 *    int_key[350:0] = tmp_key[351:1]
-	 *    int_stream[365:0] = Stream[14:0] | Stream[335:0] | Stream[335:321]
+	 *    for (i = 0; i < 352; i+=32)
+	 *        hi_hash_dword[31:0] ^= Stream[(i+31):i];
 	 *
-	 *    hash[15:0] = 0;
-	 *    for (i = 0; i < 351; i++) {
-	 *        if (int_key[i])
-	 *            hash ^= int_stream[(i + 15):i];
+	 *    lo_hash_dword[15:0]  ^= Stream[15:0];
+	 *    lo_hash_dword[15:0]  ^= hi_hash_dword[31:16];
+	 *    lo_hash_dword[31:16] ^= hi_hash_dword[15:0];
+	 *
+	 *    hi_hash_dword[31:0]  ^= Stream[351:320];
+	 *
+	 *    if(key[0])
+	 *        hash[15:0] ^= Stream[15:0];
+	 *
+	 *    for (i = 0; i < 16; i++) {
+	 *        if (key[i])
+	 *            hash[15:0] ^= lo_hash_dword[(i+15):i];
+	 *        if (key[i + 16])
+	 *            hash[15:0] ^= hi_hash_dword[(i+15):i];
 	 *    }
+	 *
 	 */
+	__be32 common_hash_dword = 0;
+	u32 hi_hash_dword, lo_hash_dword, flow_vm_vlan;
+	u32 hash_result = 0;
+	u8 i;
 
-	union {
-		u64    fill[6];
-		u32    key[11];
-		u8     key_stream[44];
-	} tmp_key;
+	/* record the flow_vm_vlan bits as they are a key part to the hash */
+	flow_vm_vlan = ntohl(atr_input->dword_stream[0]);
 
-	u8   *stream = (u8 *)atr_input;
-	u8   int_key[44];      /* upper-most bit unused */
-	u8   hash_str[46];     /* upper-most 2 bits unused */
-	u16  hash_result = 0;
-	int  i, j, k, h;
+	/* generate common hash dword */
+	for (i = 10; i; i -= 2)
+		common_hash_dword ^= atr_input->dword_stream[i] ^
+				     atr_input->dword_stream[i - 1];
+
+	hi_hash_dword = ntohl(common_hash_dword);
+
+	/* low dword is word swapped version of common */
+	lo_hash_dword = (hi_hash_dword >> 16) | (hi_hash_dword << 16);
+
+	/* apply flow ID/VM pool/VLAN ID bits to hash words */
+	hi_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan >> 16);
+
+	/* Process bits 0 and 16 */
+	if (key & 0x0001) hash_result ^= lo_hash_dword;
+	if (key & 0x00010000) hash_result ^= hi_hash_dword;
 
 	/*
-	 * Initialize the fill member to prevent warnings
-	 * on some compilers
+	 * apply flow ID/VM pool/VLAN ID bits to lo hash dword, we had to
+	 * delay this because bit 0 of the stream should not be processed
+	 * so we do not add the vlan until after bit 0 was processed
 	 */
-	 tmp_key.fill[0] = 0;
+	lo_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan << 16);
 
-	/* First load the temporary key stream */
-	for (i = 0; i < 6; i++) {
-		u64 fillkey = ((u64)key << 32) | key;
-		tmp_key.fill[i] = fillkey;
+
+	/* process the remaining 30 bits in the key 2 bits at a time */
+	for (i = 15; i; i-- ) {
+		if (key & (0x0001 << i)) hash_result ^= lo_hash_dword >> i;
+		if (key & (0x00010000 << i)) hash_result ^= hi_hash_dword >> i;
 	}
 
-	/*
-	 * Set the interim key for the hashing.  Bit 352 is unused, so we must
-	 * shift and compensate when building the key.
-	 */
-
-	int_key[0] = tmp_key.key_stream[0] >> 1;
-	for (i = 1, j = 0; i < 44; i++) {
-		unsigned int this_key = tmp_key.key_stream[j] << 7;
-		j++;
-		int_key[i] = (u8)(this_key | (tmp_key.key_stream[j] >> 1));
-	}
-
-	/*
-	 * Set the interim bit string for the hashing.  Bits 368 and 367 are
-	 * unused, so shift and compensate when building the string.
-	 */
-	hash_str[0] = (stream[40] & 0x7f) >> 1;
-	for (i = 1, j = 40; i < 46; i++) {
-		unsigned int this_str = stream[j] << 7;
-		j++;
-		if (j > 41)
-			j = 0;
-		hash_str[i] = (u8)(this_str | (stream[j] >> 1));
-	}
-
-	/*
-	 * Now compute the hash.  i is the index into hash_str, j is into our
-	 * key stream, k is counting the number of bits, and h interates within
-	 * each byte.
-	 */
-	for (i = 45, j = 43, k = 0; k < 351 && i >= 2 && j >= 0; i--, j--) {
-		for (h = 0; h < 8 && k < 351; h++, k++) {
-			if (int_key[j] & (1 << h)) {
-				/*
-				 * Key bit is set, XOR in the current 16-bit
-				 * string.  Example of processing:
-				 *    h = 0,
-				 *      tmp = (hash_str[i - 2] & 0 << 16) |
-				 *            (hash_str[i - 1] & 0xff << 8) |
-				 *            (hash_str[i] & 0xff >> 0)
-				 *      So tmp = hash_str[15 + k:k], since the
-				 *      i + 2 clause rolls off the 16-bit value
-				 *    h = 7,
-				 *      tmp = (hash_str[i - 2] & 0x7f << 9) |
-				 *            (hash_str[i - 1] & 0xff << 1) |
-				 *            (hash_str[i] & 0x80 >> 7)
-				 */
-				int tmp = (hash_str[i] >> h);
-				tmp |= (hash_str[i - 1] << (8 - h));
-				tmp |= (int)(hash_str[i - 2] & ((1 << h) - 1))
-				             << (16 - h);
-				hash_result ^= (u16)tmp;
-			}
-		}
-	}
-
-	return hash_result;
+	return hash_result & IXGBE_ATR_HASH_MASK;
 }
 
-/**
- *  ixgbe_atr_set_vlan_id_82599 - Sets the VLAN id in the ATR input stream
- *  @input: input stream to modify
- *  @vlan: the VLAN id to load
- **/
-s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input, u16 vlan)
-{
-	input->byte_stream[IXGBE_ATR_VLAN_OFFSET + 1] = vlan >> 8;
-	input->byte_stream[IXGBE_ATR_VLAN_OFFSET] = vlan & 0xff;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_src_ipv4_82599 - Sets the source IPv4 address
- *  @input: input stream to modify
- *  @src_addr: the IP address to load
- **/
-s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input, u32 src_addr)
-{
-	input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET + 3] = src_addr >> 24;
-	input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET + 2] =
-	                                               (src_addr >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET + 1] =
-	                                                (src_addr >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET] = src_addr & 0xff;
-
-	return 0;
-}
+/*
+ * These defines allow us to quickly generate all of the necessary instructions
+ * in the function below by simply calling out IXGBE_COMPUTE_SIG_HASH_ITERATION
+ * for values 0 through 15
+ */
+#define IXGBE_ATR_COMMON_HASH_KEY \
+		(IXGBE_ATR_BUCKET_HASH_KEY & IXGBE_ATR_SIGNATURE_HASH_KEY)
+#define IXGBE_COMPUTE_SIG_HASH_ITERATION(_n) \
+do { \
+	u32 n = (_n); \
+	if (IXGBE_ATR_COMMON_HASH_KEY & (0x01 << n)) \
+		common_hash ^= lo_hash_dword >> n; \
+	else if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << n)) \
+		bucket_hash ^= lo_hash_dword >> n; \
+	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << n)) \
+		sig_hash ^= lo_hash_dword << (16 - n); \
+	if (IXGBE_ATR_COMMON_HASH_KEY & (0x01 << (n + 16))) \
+		common_hash ^= hi_hash_dword >> n; \
+	else if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << (n + 16))) \
+		bucket_hash ^= hi_hash_dword >> n; \
+	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << (n + 16))) \
+		sig_hash ^= hi_hash_dword << (16 - n); \
+} while (0);
 
 /**
- *  ixgbe_atr_set_dst_ipv4_82599 - Sets the destination IPv4 address
- *  @input: input stream to modify
- *  @dst_addr: the IP address to load
- **/
-s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 dst_addr)
-{
-	input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET + 3] = dst_addr >> 24;
-	input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET + 2] =
-	                                               (dst_addr >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET + 1] =
-	                                                (dst_addr >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET] = dst_addr & 0xff;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_src_ipv6_82599 - Sets the source IPv6 address
- *  @input: input stream to modify
- *  @src_addr_1: the first 4 bytes of the IP address to load
- *  @src_addr_2: the second 4 bytes of the IP address to load
- *  @src_addr_3: the third 4 bytes of the IP address to load
- *  @src_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_set_src_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 src_addr_1, u32 src_addr_2,
-                                 u32 src_addr_3, u32 src_addr_4)
-{
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET] = src_addr_4 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 1] =
-	                                               (src_addr_4 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 2] =
-	                                              (src_addr_4 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 3] = src_addr_4 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 4] = src_addr_3 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 5] =
-	                                               (src_addr_3 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 6] =
-	                                              (src_addr_3 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 7] = src_addr_3 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 8] = src_addr_2 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 9] =
-	                                               (src_addr_2 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 10] =
-	                                              (src_addr_2 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 11] = src_addr_2 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 12] = src_addr_1 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 13] =
-	                                               (src_addr_1 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 14] =
-	                                              (src_addr_1 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 15] = src_addr_1 >> 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_dst_ipv6_82599 - Sets the destination IPv6 address
- *  @input: input stream to modify
- *  @dst_addr_1: the first 4 bytes of the IP address to load
- *  @dst_addr_2: the second 4 bytes of the IP address to load
- *  @dst_addr_3: the third 4 bytes of the IP address to load
- *  @dst_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 dst_addr_1, u32 dst_addr_2,
-                                 u32 dst_addr_3, u32 dst_addr_4)
-{
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET] = dst_addr_4 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 1] =
-	                                               (dst_addr_4 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 2] =
-	                                              (dst_addr_4 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 3] = dst_addr_4 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 4] = dst_addr_3 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 5] =
-	                                               (dst_addr_3 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 6] =
-	                                              (dst_addr_3 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 7] = dst_addr_3 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 8] = dst_addr_2 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 9] =
-	                                               (dst_addr_2 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 10] =
-	                                              (dst_addr_2 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 11] = dst_addr_2 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 12] = dst_addr_1 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 13] =
-	                                               (dst_addr_1 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 14] =
-	                                              (dst_addr_1 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 15] = dst_addr_1 >> 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_src_port_82599 - Sets the source port
- *  @input: input stream to modify
- *  @src_port: the source port to load
- **/
-s32 ixgbe_atr_set_src_port_82599(struct ixgbe_atr_input *input, u16 src_port)
-{
-	input->byte_stream[IXGBE_ATR_SRC_PORT_OFFSET + 1] = src_port >> 8;
-	input->byte_stream[IXGBE_ATR_SRC_PORT_OFFSET] = src_port & 0xff;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_dst_port_82599 - Sets the destination port
- *  @input: input stream to modify
- *  @dst_port: the destination port to load
- **/
-s32 ixgbe_atr_set_dst_port_82599(struct ixgbe_atr_input *input, u16 dst_port)
-{
-	input->byte_stream[IXGBE_ATR_DST_PORT_OFFSET + 1] = dst_port >> 8;
-	input->byte_stream[IXGBE_ATR_DST_PORT_OFFSET] = dst_port & 0xff;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_flex_byte_82599 - Sets the flexible bytes
- *  @input: input stream to modify
- *  @flex_bytes: the flexible bytes to load
- **/
-s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input, u16 flex_byte)
-{
-	input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET + 1] = flex_byte >> 8;
-	input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET] = flex_byte & 0xff;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_vm_pool_82599 - Sets the Virtual Machine pool
- *  @input: input stream to modify
- *  @vm_pool: the Virtual Machine pool to load
- **/
-s32 ixgbe_atr_set_vm_pool_82599(struct ixgbe_atr_input *input, u8 vm_pool)
-{
-	input->byte_stream[IXGBE_ATR_VM_POOL_OFFSET] = vm_pool;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_l4type_82599 - Sets the layer 4 packet type
- *  @input: input stream to modify
- *  @l4type: the layer 4 type value to load
- **/
-s32 ixgbe_atr_set_l4type_82599(struct ixgbe_atr_input *input, u8 l4type)
-{
-	input->byte_stream[IXGBE_ATR_L4TYPE_OFFSET] = l4type;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_vlan_id_82599 - Gets the VLAN id from the ATR input stream
- *  @input: input stream to search
- *  @vlan: the VLAN id to load
- **/
-s32 ixgbe_atr_get_vlan_id_82599(struct ixgbe_atr_input *input, u16 *vlan)
-{
-	*vlan = input->byte_stream[IXGBE_ATR_VLAN_OFFSET];
-	*vlan |= input->byte_stream[IXGBE_ATR_VLAN_OFFSET + 1] << 8;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_src_ipv4_82599 - Gets the source IPv4 address
- *  @input: input stream to search
- *  @src_addr: the IP address to load
- **/
-s32 ixgbe_atr_get_src_ipv4_82599(struct ixgbe_atr_input *input, u32 *src_addr)
-{
-	*src_addr = input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET];
-	*src_addr |= input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET + 1] << 8;
-	*src_addr |= input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET + 2] << 16;
-	*src_addr |= input->byte_stream[IXGBE_ATR_SRC_IPV4_OFFSET + 3] << 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_dst_ipv4_82599 - Gets the destination IPv4 address
- *  @input: input stream to search
- *  @dst_addr: the IP address to load
- **/
-s32 ixgbe_atr_get_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 *dst_addr)
-{
-	*dst_addr = input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET];
-	*dst_addr |= input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET + 1] << 8;
-	*dst_addr |= input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET + 2] << 16;
-	*dst_addr |= input->byte_stream[IXGBE_ATR_DST_IPV4_OFFSET + 3] << 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_src_ipv6_82599 - Gets the source IPv6 address
- *  @input: input stream to search
- *  @src_addr_1: the first 4 bytes of the IP address to load
- *  @src_addr_2: the second 4 bytes of the IP address to load
- *  @src_addr_3: the third 4 bytes of the IP address to load
- *  @src_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_get_src_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 *src_addr_1, u32 *src_addr_2,
-                                 u32 *src_addr_3, u32 *src_addr_4)
-{
-	*src_addr_1 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 12];
-	*src_addr_1 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 13] << 8;
-	*src_addr_1 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 14] << 16;
-	*src_addr_1 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 15] << 24;
-
-	*src_addr_2 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 8];
-	*src_addr_2 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 9] << 8;
-	*src_addr_2 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 10] << 16;
-	*src_addr_2 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 11] << 24;
-
-	*src_addr_3 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 4];
-	*src_addr_3 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 5] << 8;
-	*src_addr_3 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 6] << 16;
-	*src_addr_3 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 7] << 24;
-
-	*src_addr_4 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET];
-	*src_addr_4 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 1] << 8;
-	*src_addr_4 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 2] << 16;
-	*src_addr_4 = input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 3] << 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_dst_ipv6_82599 - Gets the destination IPv6 address
- *  @input: input stream to search
- *  @dst_addr_1: the first 4 bytes of the IP address to load
- *  @dst_addr_2: the second 4 bytes of the IP address to load
- *  @dst_addr_3: the third 4 bytes of the IP address to load
- *  @dst_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_get_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 *dst_addr_1, u32 *dst_addr_2,
-                                 u32 *dst_addr_3, u32 *dst_addr_4)
-{
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 12];
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 13] << 8;
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 14] << 16;
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 15] << 24;
-
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 8];
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 9] << 8;
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 10] << 16;
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 11] << 24;
-
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 4];
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 5] << 8;
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 6] << 16;
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 7] << 24;
-
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET];
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 1] << 8;
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 2] << 16;
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 3] << 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_src_port_82599 - Gets the source port
- *  @input: input stream to modify
- *  @src_port: the source port to load
+ *  ixgbe_atr_compute_sig_hash_82599 - Compute the signature hash
+ *  @stream: input bitstream to compute the hash on
  *
- *  Even though the input is given in big-endian, the FDIRPORT registers
- *  expect the ports to be programmed in little-endian.  Hence the need to swap
- *  endianness when retrieving the data.  This can be confusing since the
- *  internal hash engine expects it to be big-endian.
+ *  This function is almost identical to the function above but contains
+ *  several optomizations such as unwinding all of the loops, letting the
+ *  compiler work out all of the conditional ifs since the keys are static
+ *  defines, and computing two keys at once since the hashed dword stream
+ *  will be the same for both keys.
  **/
-s32 ixgbe_atr_get_src_port_82599(struct ixgbe_atr_input *input, u16 *src_port)
+static u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
+					    union ixgbe_atr_hash_dword common)
 {
-	*src_port = input->byte_stream[IXGBE_ATR_SRC_PORT_OFFSET] << 8;
-	*src_port |= input->byte_stream[IXGBE_ATR_SRC_PORT_OFFSET + 1];
+	u32 hi_hash_dword, lo_hash_dword, flow_vm_vlan;
+	u32 sig_hash = 0, bucket_hash = 0, common_hash = 0;
 
-	return 0;
-}
+	/* record the flow_vm_vlan bits as they are a key part to the hash */
+	flow_vm_vlan = ntohl(input.dword);
 
-/**
- *  ixgbe_atr_get_dst_port_82599 - Gets the destination port
- *  @input: input stream to modify
- *  @dst_port: the destination port to load
- *
- *  Even though the input is given in big-endian, the FDIRPORT registers
- *  expect the ports to be programmed in little-endian.  Hence the need to swap
- *  endianness when retrieving the data.  This can be confusing since the
- *  internal hash engine expects it to be big-endian.
- **/
-s32 ixgbe_atr_get_dst_port_82599(struct ixgbe_atr_input *input, u16 *dst_port)
-{
-	*dst_port = input->byte_stream[IXGBE_ATR_DST_PORT_OFFSET] << 8;
-	*dst_port |= input->byte_stream[IXGBE_ATR_DST_PORT_OFFSET + 1];
+	/* generate common hash dword */
+	hi_hash_dword = ntohl(common.dword);
 
-	return 0;
-}
+	/* low dword is word swapped version of common */
+	lo_hash_dword = (hi_hash_dword >> 16) | (hi_hash_dword << 16);
 
-/**
- *  ixgbe_atr_get_flex_byte_82599 - Gets the flexible bytes
- *  @input: input stream to modify
- *  @flex_bytes: the flexible bytes to load
- **/
-s32 ixgbe_atr_get_flex_byte_82599(struct ixgbe_atr_input *input, u16 *flex_byte)
-{
-	*flex_byte = input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET];
-	*flex_byte |= input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET + 1] << 8;
+	/* apply flow ID/VM pool/VLAN ID bits to hash words */
+	hi_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan >> 16);
 
-	return 0;
-}
+	/* Process bits 0 and 16 */
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(0);
 
-/**
- *  ixgbe_atr_get_vm_pool_82599 - Gets the Virtual Machine pool
- *  @input: input stream to modify
- *  @vm_pool: the Virtual Machine pool to load
- **/
-s32 ixgbe_atr_get_vm_pool_82599(struct ixgbe_atr_input *input, u8 *vm_pool)
-{
-	*vm_pool = input->byte_stream[IXGBE_ATR_VM_POOL_OFFSET];
+	/*
+	 * apply flow ID/VM pool/VLAN ID bits to lo hash dword, we had to
+	 * delay this because bit 0 of the stream should not be processed
+	 * so we do not add the vlan until after bit 0 was processed
+	 */
+	lo_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan << 16);
 
-	return 0;
-}
+	/* Process remaining 30 bit of the key */
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(1);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(2);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(3);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(4);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(5);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(6);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(7);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(8);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(9);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(10);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(11);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(12);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(13);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(14);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(15);
 
-/**
- *  ixgbe_atr_get_l4type_82599 - Gets the layer 4 packet type
- *  @input: input stream to modify
- *  @l4type: the layer 4 type value to load
- **/
-s32 ixgbe_atr_get_l4type_82599(struct ixgbe_atr_input *input, u8 *l4type)
-{
-	*l4type = input->byte_stream[IXGBE_ATR_L4TYPE_OFFSET];
+	/* combine common_hash result with signature and bucket hashes */
+	bucket_hash ^= common_hash;
+	bucket_hash &= IXGBE_ATR_HASH_MASK;
 
-	return 0;
+	sig_hash ^= common_hash << 16;
+	sig_hash &= IXGBE_ATR_HASH_MASK << 16;
+
+	/* return completed signature hash */
+	return sig_hash ^ bucket_hash;
 }
 
 /**
  *  ixgbe_atr_add_signature_filter_82599 - Adds a signature hash filter
  *  @hw: pointer to hardware structure
- *  @stream: input bitstream
+ *  @input: unique input dword
+ *  @common: compressed common input dword
  *  @queue: queue index to direct traffic to
  **/
 s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
-                                          struct ixgbe_atr_input *input,
+                                          union ixgbe_atr_hash_dword input,
+                                          union ixgbe_atr_hash_dword common,
                                           u8 queue)
 {
 	u64  fdirhashcmd;
-	u64  fdircmd;
-	u32  fdirhash;
-	u16  bucket_hash, sig_hash;
-	u8   l4type;
+	u32  fdircmd;
 
-	bucket_hash = ixgbe_atr_compute_hash_82599(input,
-	                                           IXGBE_ATR_BUCKET_HASH_KEY);
+	/*
+	 * Get the flow_type in order to program FDIRCMD properly
+	 * lowest 2 bits are FDIRCMD.L4TYPE, third lowest bit is FDIRCMD.IPV6
+	 */
+	switch (input.formatted.flow_type) {
+	case IXGBE_ATR_FLOW_TYPE_TCPV4:
+	case IXGBE_ATR_FLOW_TYPE_UDPV4:
+	case IXGBE_ATR_FLOW_TYPE_SCTPV4:
+	case IXGBE_ATR_FLOW_TYPE_TCPV6:
+	case IXGBE_ATR_FLOW_TYPE_UDPV6:
+	case IXGBE_ATR_FLOW_TYPE_SCTPV6:
+		break;
+	default:
+		hw_dbg(hw, " Error on flow type input\n");
+		return IXGBE_ERR_CONFIG;
+	}
 
-	/* bucket_hash is only 15 bits */
-	bucket_hash &= IXGBE_ATR_HASH_MASK;
-
-	sig_hash = ixgbe_atr_compute_hash_82599(input,
-	                                        IXGBE_ATR_SIGNATURE_HASH_KEY);
-
-	/* Get the l4type in order to program FDIRCMD properly */
-	/* lowest 2 bits are FDIRCMD.L4TYPE, third lowest bit is FDIRCMD.IPV6 */
-	ixgbe_atr_get_l4type_82599(input, &l4type);
+	/* configure FDIRCMD register */
+	fdircmd = IXGBE_FDIRCMD_CMD_ADD_FLOW | IXGBE_FDIRCMD_FILTER_UPDATE |
+	          IXGBE_FDIRCMD_LAST | IXGBE_FDIRCMD_QUEUE_EN;
+	fdircmd |= input.formatted.flow_type << IXGBE_FDIRCMD_FLOW_TYPE_SHIFT;
+	fdircmd |= (u32)queue << IXGBE_FDIRCMD_RX_QUEUE_SHIFT;
 
 	/*
 	 * The lower 32-bits of fdirhashcmd is for FDIRHASH, the upper 32-bits
 	 * is for FDIRCMD.  Then do a 64-bit register write from FDIRHASH.
 	 */
-	fdirhash = sig_hash << IXGBE_FDIRHASH_SIG_SW_INDEX_SHIFT | bucket_hash;
-
-	fdircmd = (IXGBE_FDIRCMD_CMD_ADD_FLOW | IXGBE_FDIRCMD_FILTER_UPDATE |
-	           IXGBE_FDIRCMD_LAST | IXGBE_FDIRCMD_QUEUE_EN);
-
-	switch (l4type & IXGBE_ATR_L4TYPE_MASK) {
-	case IXGBE_ATR_L4TYPE_TCP:
-		fdircmd |= IXGBE_FDIRCMD_L4TYPE_TCP;
-		break;
-	case IXGBE_ATR_L4TYPE_UDP:
-		fdircmd |= IXGBE_FDIRCMD_L4TYPE_UDP;
-		break;
-	case IXGBE_ATR_L4TYPE_SCTP:
-		fdircmd |= IXGBE_FDIRCMD_L4TYPE_SCTP;
-		break;
-	default:
-		hw_dbg(hw, "Error on l4type input\n");
-		return IXGBE_ERR_CONFIG;
-	}
-
-	if (l4type & IXGBE_ATR_L4TYPE_IPV6_MASK)
-		fdircmd |= IXGBE_FDIRCMD_IPV6;
-
-	fdircmd |= ((u64)queue << IXGBE_FDIRCMD_RX_QUEUE_SHIFT);
-	fdirhashcmd = ((fdircmd << 32) | fdirhash);
+	fdirhashcmd = (u64)fdircmd << 32;
+	fdirhashcmd |= ixgbe_atr_compute_sig_hash_82599(input, common);
 
 	IXGBE_WRITE_REG64(hw, IXGBE_FDIRHASH, fdirhashcmd);
+
+	hw_dbg(hw, "Tx Queue=%x hash=%x\n", queue, (u32)fdirhashcmd);
 
 	return 0;
 }
 
 /**
+ *  ixgbe_get_fdirtcpm_82599 - generate a tcp port from atr_input_masks
+ *  @input_mask: mask to be bit swapped
+ *
+ *  The source and destination port masks for flow director are bit swapped
+ *  in that bit 15 effects bit 0, 14 effects 1, 13, 2 etc.  In order to
+ *  generate a correctly swapped value we need to bit swap the mask and that
+ *  is what is accomplished by this function.
+ **/
+static u32 ixgbe_get_fdirtcpm_82599(struct ixgbe_atr_input_masks *input_masks)
+{
+	u32 mask = ntohs(input_masks->dst_port_mask);
+	mask <<= IXGBE_FDIRTCPM_DPORTM_SHIFT;
+	mask |= ntohs(input_masks->src_port_mask);
+	mask = ((mask & 0x55555555) << 1) | ((mask & 0xAAAAAAAA) >> 1);
+	mask = ((mask & 0x33333333) << 2) | ((mask & 0xCCCCCCCC) >> 2);
+	mask = ((mask & 0x0F0F0F0F) << 4) | ((mask & 0xF0F0F0F0) >> 4);
+	return ((mask & 0x00FF00FF) << 8) | ((mask & 0xFF00FF00) >> 8);
+}
+
+/*
+ * These two macros are meant to address the fact that we have registers
+ * that are either all or in part big-endian.  As a result on big-endian
+ * systems we will end up byte swapping the value to little-endian before
+ * it is byte swapped again and written to the hardware in the original
+ * big-endian format.
+ */
+#define IXGBE_STORE_AS_BE32(_value) \
+	(((u32)(_value) >> 24) | (((u32)(_value) & 0x00FF0000) >> 8) | \
+	 (((u32)(_value) & 0x0000FF00) << 8) | ((u32)(_value) << 24))
+
+#define IXGBE_WRITE_REG_BE32(a, reg, value) \
+	IXGBE_WRITE_REG((a), (reg), IXGBE_STORE_AS_BE32(ntohl(value)))
+
+#define IXGBE_STORE_AS_BE16(_value) \
+	(((u16)(_value) >> 8) | ((u16)(_value) << 8))
+
+/**
  *  ixgbe_fdir_add_perfect_filter_82599 - Adds a perfect filter
  *  @hw: pointer to hardware structure
  *  @input: input bitstream
+ *  @input_masks: bitwise masks for relevant fields
+ *  @soft_id: software index into the silicon hash tables for filter storage
  *  @queue: queue index to direct traffic to
  *
  *  Note that the caller to this function must lock before calling, since the
  *  hardware writes must be protected from one another.
  **/
 s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
-                                        struct ixgbe_atr_input *input,
-                                        u16 soft_id,
-                                        u8 queue)
+                                      union ixgbe_atr_input *input,
+                                      struct ixgbe_atr_input_masks *input_masks,
+                                      u16 soft_id, u8 queue)
 {
-	u32 fdircmd = 0;
 	u32 fdirhash;
-	u32 src_ipv4, dst_ipv4;
-	u32 src_ipv6_1, src_ipv6_2, src_ipv6_3, src_ipv6_4;
-	u16 src_port, dst_port, vlan_id, flex_bytes;
-	u16 bucket_hash;
-	u8  l4type;
-
-	/* Get our input values */
-	ixgbe_atr_get_l4type_82599(input, &l4type);
+	u32 fdircmd;
+	u32 fdirport, fdirtcpm;
+	u32 fdirvlan;
+	/* start with VLAN, flex bytes, VM pool, and IPv6 destination masked */
+	u32 fdirm = IXGBE_FDIRM_VLANID | IXGBE_FDIRM_VLANP | IXGBE_FDIRM_FLEX |
+		    IXGBE_FDIRM_POOL | IXGBE_FDIRM_DIPv6;
 
 	/*
-	 * Check l4type formatting, and bail out before we touch the hardware
+	 * Check flow_type formatting, and bail out before we touch the hardware
 	 * if there's a configuration issue
 	 */
-	switch (l4type & IXGBE_ATR_L4TYPE_MASK) {
-	case IXGBE_ATR_L4TYPE_TCP:
-		fdircmd |= IXGBE_FDIRCMD_L4TYPE_TCP;
-		break;
-	case IXGBE_ATR_L4TYPE_UDP:
-		fdircmd |= IXGBE_FDIRCMD_L4TYPE_UDP;
-		break;
-	case IXGBE_ATR_L4TYPE_SCTP:
-		fdircmd |= IXGBE_FDIRCMD_L4TYPE_SCTP;
+	switch (input->formatted.flow_type) {
+	case IXGBE_ATR_FLOW_TYPE_IPV4:
+		/* use the L4 protocol mask for raw IPv4/IPv6 traffic */
+		fdirm |= IXGBE_FDIRM_L4P;
+	case IXGBE_ATR_FLOW_TYPE_SCTPV4:
+		if (input_masks->dst_port_mask || input_masks->src_port_mask) {
+			hw_dbg(hw, " Error on src/dst port mask\n");
+			return IXGBE_ERR_CONFIG;
+		}
+	case IXGBE_ATR_FLOW_TYPE_TCPV4:
+	case IXGBE_ATR_FLOW_TYPE_UDPV4:
 		break;
 	default:
-		hw_dbg(hw, "Error on l4type input\n");
+		hw_dbg(hw, " Error on flow type input\n");
 		return IXGBE_ERR_CONFIG;
 	}
 
-	bucket_hash = ixgbe_atr_compute_hash_82599(input,
-	                                           IXGBE_ATR_BUCKET_HASH_KEY);
+	/*
+	 * Program the relevant mask registers.  If src/dst_port or src/dst_addr
+	 * are zero, then assume a full mask for that field.  Also assume that
+	 * a VLAN of 0 is unspecified, so mask that out as well.  L4type
+	 * cannot be masked out in this implementation.
+	 *
+	 * This also assumes IPv4 only.  IPv6 masking isn't supported at this
+	 * point in time.
+	 */
 
-	/* bucket_hash is only 15 bits */
-	bucket_hash &= IXGBE_ATR_HASH_MASK;
-
-	ixgbe_atr_get_vlan_id_82599(input, &vlan_id);
-	ixgbe_atr_get_src_port_82599(input, &src_port);
-	ixgbe_atr_get_dst_port_82599(input, &dst_port);
-	ixgbe_atr_get_flex_byte_82599(input, &flex_bytes);
-
-	fdirhash = soft_id << IXGBE_FDIRHASH_SIG_SW_INDEX_SHIFT | bucket_hash;
-
-	/* Now figure out if we're IPv4 or IPv6 */
-	if (l4type & IXGBE_ATR_L4TYPE_IPV6_MASK) {
-		/* IPv6 */
-		ixgbe_atr_get_src_ipv6_82599(input, &src_ipv6_1, &src_ipv6_2,
-	                                     &src_ipv6_3, &src_ipv6_4);
-
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIPv6(0), src_ipv6_1);
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIPv6(1), src_ipv6_2);
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIPv6(2), src_ipv6_3);
-		/* The last 4 bytes is the same register as IPv4 */
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRIPSA, src_ipv6_4);
-
-		fdircmd |= IXGBE_FDIRCMD_IPV6;
-		fdircmd |= IXGBE_FDIRCMD_IPv6DMATCH;
-	} else {
-		/* IPv4 */
-		ixgbe_atr_get_src_ipv4_82599(input, &src_ipv4);
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRIPSA, src_ipv4);
-
+	/* Program FDIRM */
+	switch (ntohs(input_masks->vlan_id_mask) & 0xEFFF) {
+	case 0xEFFF:
+		/* Unmask VLAN ID - bit 0 and fall through to unmask prio */
+		fdirm &= ~IXGBE_FDIRM_VLANID;
+	case 0xE000:
+		/* Unmask VLAN prio - bit 1 */
+		fdirm &= ~IXGBE_FDIRM_VLANP;
+		break;
+	case 0x0FFF:
+		/* Unmask VLAN ID - bit 0 */
+		fdirm &= ~IXGBE_FDIRM_VLANID;
+		break;
+	case 0x0000:
+		/* do nothing, vlans already masked */
+		break;
+	default:
+		hw_dbg(hw, " Error on VLAN mask\n");
+		return IXGBE_ERR_CONFIG;
 	}
 
-	ixgbe_atr_get_dst_ipv4_82599(input, &dst_ipv4);
-	IXGBE_WRITE_REG(hw, IXGBE_FDIRIPDA, dst_ipv4);
+	if (input_masks->flex_mask & 0xFFFF) {
+		if ((input_masks->flex_mask & 0xFFFF) != 0xFFFF) {
+			hw_dbg(hw, " Error on flexible byte mask\n");
+			return IXGBE_ERR_CONFIG;
+		}
+		/* Unmask Flex Bytes - bit 4 */
+		fdirm &= ~IXGBE_FDIRM_FLEX;
+	}
 
-	IXGBE_WRITE_REG(hw, IXGBE_FDIRVLAN, (vlan_id |
-	                            (flex_bytes << IXGBE_FDIRVLAN_FLEX_SHIFT)));
-	IXGBE_WRITE_REG(hw, IXGBE_FDIRPORT, (src_port |
-	                       (dst_port << IXGBE_FDIRPORT_DESTINATION_SHIFT)));
+	/* Now mask VM pool and destination IPv6 - bits 5 and 2 */
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRM, fdirm);
 
-	fdircmd |= IXGBE_FDIRCMD_CMD_ADD_FLOW;
-	fdircmd |= IXGBE_FDIRCMD_FILTER_UPDATE;
-	fdircmd |= IXGBE_FDIRCMD_LAST;
-	fdircmd |= IXGBE_FDIRCMD_QUEUE_EN;
-	fdircmd |= queue << IXGBE_FDIRCMD_RX_QUEUE_SHIFT;
+	/* store the TCP/UDP port masks, bit reversed from port layout */
+	fdirtcpm = ixgbe_get_fdirtcpm_82599(input_masks);
+
+	/* write both the same so that UDP and TCP use the same mask */
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM, ~fdirtcpm);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM, ~fdirtcpm);
+
+	/* store source and destination IP masks (big-enian) */
+	IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRSIP4M,
+			     ~input_masks->src_ip_mask[0]);
+	IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRDIP4M,
+			     ~input_masks->dst_ip_mask[0]);
+
+	/* Apply masks to input data */
+	input->formatted.vlan_id &= input_masks->vlan_id_mask;
+	input->formatted.flex_bytes &= input_masks->flex_mask;
+	input->formatted.src_port &= input_masks->src_port_mask;
+	input->formatted.dst_port &= input_masks->dst_port_mask;
+	input->formatted.src_ip[0] &= input_masks->src_ip_mask[0];
+	input->formatted.dst_ip[0] &= input_masks->dst_ip_mask[0];
+
+	/* record vlan (little-endian) and flex_bytes(big-endian) */
+	fdirvlan =
+		IXGBE_STORE_AS_BE16(ntohs(input->formatted.flex_bytes));
+	fdirvlan <<= IXGBE_FDIRVLAN_FLEX_SHIFT;
+	fdirvlan |= ntohs(input->formatted.vlan_id);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRVLAN, fdirvlan);
+
+	/* record source and destination port (little-endian)*/
+	fdirport = ntohs(input->formatted.dst_port);
+	fdirport <<= IXGBE_FDIRPORT_DESTINATION_SHIFT;
+	fdirport |= ntohs(input->formatted.src_port);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRPORT, fdirport);
+
+	/* record the first 32 bits of the destination address (big-endian) */
+	IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRIPDA, input->formatted.dst_ip[0]);
+
+	/* record the source address (big-endian) */
+	IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRIPSA, input->formatted.src_ip[0]);
+
+	/* configure FDIRCMD register */
+	fdircmd = IXGBE_FDIRCMD_CMD_ADD_FLOW | IXGBE_FDIRCMD_FILTER_UPDATE |
+		  IXGBE_FDIRCMD_LAST | IXGBE_FDIRCMD_QUEUE_EN;
+	fdircmd |= input->formatted.flow_type << IXGBE_FDIRCMD_FLOW_TYPE_SHIFT;
+	fdircmd |= (u32)queue << IXGBE_FDIRCMD_RX_QUEUE_SHIFT;
+
+	/* we only want the bucket hash so drop the upper 16 bits */
+	fdirhash = ixgbe_atr_compute_hash_82599(input,
+						IXGBE_ATR_BUCKET_HASH_KEY);
+	fdirhash |= soft_id << IXGBE_FDIRHASH_SIG_SW_INDEX_SHIFT;
 
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRHASH, fdirhash);
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRCMD, fdircmd);
 
 	return 0;
 }
+
 /**
  *  ixgbe_read_analog_reg8_82599 - Reads 8 bit Omer analog register
  *  @hw: pointer to hardware structure
@@ -2097,7 +1663,7 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
  *
  *  Performs read operation to Omer analog register specified.
  **/
-s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val)
+static s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val)
 {
 	u32  core_ctl;
 
@@ -2119,7 +1685,7 @@ s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val)
  *
  *  Performs write operation to Omer analog register specified.
  **/
-s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val)
+static s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val)
 {
 	u32  core_ctl;
 
@@ -2139,7 +1705,7 @@ s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val)
  *  Then performs device-specific:
  *  Clears the rate limiter registers.
  **/
-s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
+static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 {
 	u32 q_num;
 	s32 ret_val;
@@ -2168,7 +1734,7 @@ s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
  *
  *  Determines the physical layer module found on the current adapter.
  **/
-s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
+static s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 	status = ixgbe_identify_phy_generic(hw);
@@ -2183,7 +1749,7 @@ s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
  *
  *  Determines physical layer capabilities of the current configuration.
  **/
-u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
+static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 {
 	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -2193,10 +1759,12 @@ u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
 	u16 ext_ability = 0;
 	u8 comp_codes_10g = 0;
+	u8 comp_codes_1g = 0;
 
 	hw->phy.ops.identify(hw);
 
 	if (hw->phy.type == ixgbe_phy_tn ||
+	    hw->phy.type == ixgbe_phy_aq ||
 	    hw->phy.type == ixgbe_phy_cu_unknown) {
 		hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE, MDIO_MMD_PMAPMD,
 				     &ext_ability);
@@ -2260,20 +1828,28 @@ sfp_check:
 		goto out;
 
 	switch (hw->phy.type) {
-	case ixgbe_phy_tw_tyco:
-	case ixgbe_phy_tw_unknown:
+	case ixgbe_phy_sfp_passive_tyco:
+	case ixgbe_phy_sfp_passive_unknown:
 		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
+		break;
+	case ixgbe_phy_sfp_ftl_active:
+	case ixgbe_phy_sfp_active_unknown:
+		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA;
 		break;
 	case ixgbe_phy_sfp_avago:
 	case ixgbe_phy_sfp_ftl:
 	case ixgbe_phy_sfp_intel:
 	case ixgbe_phy_sfp_unknown:
 		hw->phy.ops.read_i2c_eeprom(hw,
+		      IXGBE_SFF_1GBE_COMP_CODES, &comp_codes_1g);
+		hw->phy.ops.read_i2c_eeprom(hw,
 		      IXGBE_SFF_10GBE_COMP_CODES, &comp_codes_10g);
 		if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
 		else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
+		else if (comp_codes_1g & IXGBE_SFF_1GBASET_CAPABLE)
+			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_T;
 		break;
 	default:
 		break;
@@ -2290,7 +1866,7 @@ out:
  *
  *  Enables the Rx DMA unit for 82599
  **/
-s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
+static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 {
 #define IXGBE_MAX_SECRX_POLL 30
 	int i;
@@ -2335,79 +1911,10 @@ s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
  *  This function will read the EEPROM location for the device capabilities,
  *  and return the word through device_caps.
  **/
-s32 ixgbe_get_device_caps_82599(struct ixgbe_hw *hw, u16 *device_caps)
+static s32 ixgbe_get_device_caps_82599(struct ixgbe_hw *hw, u16 *device_caps)
 {
 	hw->eeprom.ops.read(hw, IXGBE_DEVICE_CAPS, device_caps);
 
-	return 0;
-}
-
-/**
- *  ixgbe_get_san_mac_addr_offset_82599 - SAN MAC address offset for 82599
- *  @hw: pointer to hardware structure
- *  @san_mac_offset: SAN MAC address offset
- *
- *  This function will read the EEPROM location for the SAN MAC address
- *  pointer, and returns the value at that location.  This is used in both
- *  get and set mac_addr routines.
- **/
-s32 ixgbe_get_san_mac_addr_offset_82599(struct ixgbe_hw *hw,
-                                        u16 *san_mac_offset)
-{
-	/*
-	 * First read the EEPROM pointer to see if the MAC addresses are
-	 * available.
-	 */
-	hw->eeprom.ops.read(hw, IXGBE_SAN_MAC_ADDR_PTR, san_mac_offset);
-
-	return 0;
-}
-
-/**
- *  ixgbe_get_san_mac_addr_82599 - SAN MAC address retrieval for 82599
- *  @hw: pointer to hardware structure
- *  @san_mac_addr: SAN MAC address
- *
- *  Reads the SAN MAC address from the EEPROM, if it's available.  This is
- *  per-port, so set_lan_id() must be called before reading the addresses.
- *  set_lan_id() is called by identify_sfp(), but this cannot be relied
- *  upon for non-SFP connections, so we must call it here.
- **/
-s32 ixgbe_get_san_mac_addr_82599(struct ixgbe_hw *hw, u8 *san_mac_addr)
-{
-	u16 san_mac_data, san_mac_offset;
-	u8 i;
-
-	/*
-	 * First read the EEPROM pointer to see if the MAC addresses are
-	 * available.  If they're not, no point in calling set_lan_id() here.
-	 */
-	ixgbe_get_san_mac_addr_offset_82599(hw, &san_mac_offset);
-
-	if ((san_mac_offset == 0) || (san_mac_offset == 0xFFFF)) {
-		/*
-		 * No addresses available in this EEPROM.  It's not an
-		 * error though, so just wipe the local address and return.
-		 */
-		for (i = 0; i < 6; i++)
-			san_mac_addr[i] = 0xFF;
-
-		goto san_mac_addr_out;
-	}
-
-	/* make sure we know which port we need to program */
-	hw->mac.ops.set_lan_id(hw);
-	/* apply the port offset to the address offset */
-	(hw->bus.func) ? (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT1_OFFSET) :
-	                 (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT0_OFFSET);
-	for (i = 0; i < 3; i++) {
-		hw->eeprom.ops.read(hw, san_mac_offset, &san_mac_data);
-		san_mac_addr[i * 2] = (u8)(san_mac_data);
-		san_mac_addr[i * 2 + 1] = (u8)(san_mac_data >> 8);
-		san_mac_offset++;
-	}
-
-san_mac_addr_out:
 	return 0;
 }
 
@@ -2468,16 +1975,16 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_supported_physical_layer = &ixgbe_get_supported_physical_layer_82599,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_82599,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
-	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_82599,
+	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,
 	.get_device_caps        = &ixgbe_get_device_caps_82599,
+	.get_wwn_prefix         = &ixgbe_get_wwn_prefix_generic,
 	.stop_adapter           = &ixgbe_stop_adapter_generic,
 	.get_bus_info           = &ixgbe_get_bus_info_generic,
 	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,
 	.read_analog_reg8       = &ixgbe_read_analog_reg8_82599,
 	.write_analog_reg8      = &ixgbe_write_analog_reg8_82599,
 	.setup_link             = &ixgbe_setup_mac_link_82599,
-	.setup_link_speed       = &ixgbe_setup_mac_link_speed_82599,
-	.check_link             = &ixgbe_check_mac_link_82599,
+	.check_link             = &ixgbe_check_mac_link_generic,
 	.get_link_capabilities  = &ixgbe_get_link_capabilities_82599,
 	.led_on                 = &ixgbe_led_on_generic,
 	.led_off                = &ixgbe_led_off_generic,
@@ -2485,24 +1992,27 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.blink_led_stop         = &ixgbe_blink_led_stop_generic,
 	.set_rar                = &ixgbe_set_rar_generic,
 	.clear_rar              = &ixgbe_clear_rar_generic,
-	.set_vmdq               = &ixgbe_set_vmdq_82599,
-	.clear_vmdq             = &ixgbe_clear_vmdq_82599,
+	.set_vmdq               = &ixgbe_set_vmdq_generic,
+	.clear_vmdq             = &ixgbe_clear_vmdq_generic,
 	.init_rx_addrs          = &ixgbe_init_rx_addrs_generic,
 	.update_uc_addr_list    = &ixgbe_update_uc_addr_list_generic,
 	.update_mc_addr_list    = &ixgbe_update_mc_addr_list_generic,
 	.enable_mc              = &ixgbe_enable_mc_generic,
 	.disable_mc             = &ixgbe_disable_mc_generic,
-	.clear_vfta             = &ixgbe_clear_vfta_82599,
-	.set_vfta               = &ixgbe_set_vfta_82599,
-	.fc_enable               = &ixgbe_fc_enable_generic,
-	.init_uta_tables        = &ixgbe_init_uta_tables_82599,
+	.clear_vfta             = &ixgbe_clear_vfta_generic,
+	.set_vfta               = &ixgbe_set_vfta_generic,
+	.fc_enable              = &ixgbe_fc_enable_generic,
+	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
+	.set_mac_anti_spoofing  = &ixgbe_set_mac_anti_spoofing,
+	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 	.init_params            = &ixgbe_init_eeprom_params_generic,
-	.read                   = &ixgbe_read_eeprom_generic,
+	.read                   = &ixgbe_read_eerd_generic,
 	.write                  = &ixgbe_write_eeprom_generic,
+	.calc_checksum          = &ixgbe_calc_eeprom_checksum_generic,
 	.validate_checksum      = &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum        = &ixgbe_update_eeprom_checksum_generic,
 };
@@ -2510,7 +2020,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 static struct ixgbe_phy_operations phy_ops_82599 = {
 	.identify               = &ixgbe_identify_phy_82599,
 	.identify_sfp           = &ixgbe_identify_sfp_module_generic,
-	.init			= &ixgbe_init_phy_ops_82599,
+	.init			            = &ixgbe_init_phy_ops_82599,
 	.reset                  = &ixgbe_reset_phy_generic,
 	.read_reg               = &ixgbe_read_phy_reg_generic,
 	.write_reg              = &ixgbe_write_phy_reg_generic,
@@ -2520,6 +2030,7 @@ static struct ixgbe_phy_operations phy_ops_82599 = {
 	.write_i2c_byte         = &ixgbe_write_i2c_byte_generic,
 	.read_i2c_eeprom        = &ixgbe_read_i2c_eeprom_generic,
 	.write_i2c_eeprom       = &ixgbe_write_i2c_eeprom_generic,
+	.check_overtemp         = &ixgbe_tn_check_overtemp,
 };
 
 struct ixgbe_info ixgbe_82599_info = {
@@ -2528,4 +2039,5 @@ struct ixgbe_info ixgbe_82599_info = {
 	.mac_ops                = &mac_ops_82599,
 	.eeprom_ops             = &eeprom_ops_82599,
 	.phy_ops                = &phy_ops_82599,
+	.mbx_ops                = &mbx_ops_generic,
 };

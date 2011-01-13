@@ -10,12 +10,13 @@
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  */
 
-#include <asm/lowcore.h>
-#include <asm/uaccess.h>
-#include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
+#include <linux/hrtimer.h>
 #include <linux/signal.h>
+#include <linux/slab.h>
+#include <asm/asm-offsets.h>
+#include <asm/uaccess.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -187,8 +188,8 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		if (rc == -EFAULT)
 			exception = 1;
 
-		rc = put_guest_u64(vcpu, __LC_PFAULT_INTPARM,
-			inti->ext.ext_params2);
+		rc = put_guest_u64(vcpu, __LC_EXT_PARAMS2,
+				   inti->ext.ext_params2);
 		if (rc == -EFAULT)
 			exception = 1;
 		break;
@@ -283,7 +284,7 @@ static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
+static int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
@@ -320,12 +321,6 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	return rc;
 }
 
-int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
-{
-	/* do real check here */
-	return 1;
-}
-
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	return 0;
@@ -348,7 +343,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	if (psw_interrupts_disabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "disabled wait");
 		__unset_cpu_idle(vcpu);
-		return -ENOTSUPP; /* disabled wait */
+		return -EOPNOTSUPP; /* disabled wait */
 	}
 
 	if (psw_extint_disabled(vcpu) ||
@@ -386,7 +381,7 @@ no_timer:
 	}
 	__unset_cpu_idle(vcpu);
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&vcpu->wq, &wait);
+	remove_wait_queue(&vcpu->arch.local_int.wq, &wait);
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
 	spin_unlock(&vcpu->arch.local_int.float_int->lock);
 	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
@@ -484,7 +479,7 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 	if (!inti)
 		return -ENOMEM;
 
-	inti->type = KVM_S390_PROGRAM_INT;;
+	inti->type = KVM_S390_PROGRAM_INT;
 	inti->pgm.code = code;
 
 	VCPU_EVENT(vcpu, 3, "inject: program check %d (from kernel)", code);

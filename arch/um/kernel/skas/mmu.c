@@ -5,6 +5,7 @@
 
 #include "linux/mm.h"
 #include "linux/sched.h"
+#include "linux/slab.h"
 #include "asm/pgalloc.h"
 #include "asm/pgtable.h"
 #include "as-layout.h"
@@ -38,10 +39,10 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	*pte = pte_mkread(*pte);
 	return 0;
 
- out_pmd:
-	pud_free(mm, pud);
  out_pte:
 	pmd_free(mm, pmd);
+ out_pmd:
+	pud_free(mm, pud);
  out:
 	return -ENOMEM;
 }

@@ -33,6 +33,15 @@
 
 #include <asm/hw_irq.h>
 
+#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
+/* this needs a better home */
+DEFINE_SPINLOCK(rtc_lock);
+
+#ifdef CONFIG_RTC_DRV_CMOS_MODULE
+EXPORT_SYMBOL(rtc_lock);
+#endif
+#endif  /* pc-style 'CMOS' RTC support */
+
 #ifdef CONFIG_SMP
 extern void smp_local_timer_interrupt(void);
 #endif
@@ -48,7 +57,7 @@ extern void smp_local_timer_interrupt(void);
 
 static unsigned long latch;
 
-static unsigned long do_gettimeoffset(void)
+u32 arch_gettimeoffset(void)
 {
 	unsigned long  elapsed_time = 0;  /* [us] */
 
@@ -66,7 +75,7 @@ static unsigned long do_gettimeoffset(void)
 		count = 0;
 
 	count = (latch - count) * TICK_SIZE;
-	elapsed_time = (count + latch / 2) / latch;
+	elapsed_time = DIV_ROUND_CLOSEST(count, latch);
 	/* NOTE: LATCH is equal to the "interval" value (= reload count). */
 
 #else /* CONFIG_SMP */
@@ -84,7 +93,7 @@ static unsigned long do_gettimeoffset(void)
 	p_count = count;
 
 	count = (latch - count) * TICK_SIZE;
-	elapsed_time = (count + latch / 2) / latch;
+	elapsed_time = DIV_ROUND_CLOSEST(count, latch);
 	/* NOTE: LATCH is equal to the "interval" value (= reload count). */
 #endif /* CONFIG_SMP */
 #elif defined(CONFIG_CHIP_M32310)
@@ -93,95 +102,8 @@ static unsigned long do_gettimeoffset(void)
 #error no chip configuration
 #endif
 
-	return elapsed_time;
+	return elapsed_time * 1000;
 }
-
-/*
- * This version of gettimeofday has near microsecond resolution.
- */
-void do_gettimeofday(struct timeval *tv)
-{
-	unsigned long seq;
-	unsigned long usec, sec;
-	unsigned long max_ntp_tick = tick_usec - tickadj;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-
-		usec = do_gettimeoffset();
-
-		/*
-		 * If time_adjust is negative then NTP is slowing the clock
-		 * so make sure not to go into next possible interval.
-		 * Better to lose some accuracy than have time go backwards..
-		 */
-		if (unlikely(time_adjust < 0))
-			usec = min(usec, max_ntp_tick);
-
-		sec = xtime.tv_sec;
-		usec += (xtime.tv_nsec / 1000);
-	} while (read_seqretry(&xtime_lock, seq));
-
-	while (usec >= 1000000) {
-		usec -= 1000000;
-		sec++;
-	}
-
-	tv->tv_sec = sec;
-	tv->tv_usec = usec;
-}
-
-EXPORT_SYMBOL(do_gettimeofday);
-
-int do_settimeofday(struct timespec *tv)
-{
-	time_t wtm_sec, sec = tv->tv_sec;
- 	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	write_seqlock_irq(&xtime_lock);
-	/*
-	 * This is revolting. We need to set "xtime" correctly. However, the
-	 * value in this location is the value at the most recent update of
-	 * wall time.  Discover what correction gettimeofday() would have
-	 * made, and then undo it!
-	 */
-	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
-
-	wtm_sec = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-	set_normalized_timespec(&xtime, sec, nsec);
-	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-	ntp_clear();
-	write_sequnlock_irq(&xtime_lock);
-	clock_was_set();
-
-	return 0;
-}
-
-EXPORT_SYMBOL(do_settimeofday);
-
-/*
- * In order to set the CMOS clock precisely, set_rtc_mmss has to be
- * called 500 ms after the second nowtime has started, because when
- * nowtime is written into the registers of the CMOS clock, it will
- * jump to the next second precisely 500 ms later. Check the Motorola
- * MC146818A or Dallas DS12887 data sheet for details.
- *
- * BUG: This routine does not handle hour overflow properly; it just
- *      sets the minutes. Usually you won't notice until after reboot!
- */
-static inline int set_rtc_mmss(unsigned long nowtime)
-{
-	return 0;
-}
-
-/* last time the cmos clock got updated */
-static long last_rtc_update = 0;
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -192,28 +114,12 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 #ifndef CONFIG_SMP
 	profile_tick(CPU_PROFILING);
 #endif
+	/* XXX FIXME. Uh, the xtime_lock should be held here, no? */
 	do_timer(1);
 
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));
 #endif
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 */
-	write_seqlock(&xtime_lock);
-	if (ntp_synced()
-		&& xtime.tv_sec > last_rtc_update + 660
-		&& (xtime.tv_nsec / 1000) >= 500000 - ((unsigned)TICK_SIZE) / 2
-		&& (xtime.tv_nsec / 1000) <= 500000 + ((unsigned)TICK_SIZE) / 2)
-	{
-		if (set_rtc_mmss(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else	/* do it again in 60 s */
-			last_rtc_update = xtime.tv_sec - 600;
-	}
-	write_sequnlock(&xtime_lock);
 	/* As we return to user mode fire off the other CPU schedulers..
 	   this is basically because we don't yet share IRQ's around.
 	   This message is rigged to be safe on the 386 - basically it's
@@ -233,7 +139,7 @@ static struct irqaction irq0 = {
 	.name = "MFT2",
 };
 
-void __init time_init(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	unsigned int epoch, year, mon, day, hour, min, sec;
 
@@ -253,11 +159,13 @@ void __init time_init(void)
 		epoch = 1952;
 	year += epoch;
 
-	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
+	ts->tv_sec = mktime(year, mon, day, hour, min, sec);
+	ts->tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+}
 
+
+void __init time_init(void)
+{
 #if defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_XNUX2) \
 	|| defined(CONFIG_CHIP_VDEC2) || defined(CONFIG_CHIP_M32700) \
 	|| defined(CONFIG_CHIP_OPSP) || defined(CONFIG_CHIP_M32104)
@@ -270,7 +178,7 @@ void __init time_init(void)
 
 		bus_clock = boot_cpu_data.bus_clock;
 		divide = boot_cpu_data.timer_divide;
-		latch = (bus_clock/divide + HZ / 2) / HZ;
+		latch = DIV_ROUND_CLOSEST(bus_clock/divide, HZ);
 
 		printk("Timer start : latch = %ld\n", latch);
 

@@ -93,6 +93,7 @@
 
 struct cs4297a_state;
 
+static DEFINE_MUTEX(swarm_cs4297a_mutex);
 static void stop_dac(struct cs4297a_state *s);
 static void stop_adc(struct cs4297a_state *s);
 static void start_dac(struct cs4297a_state *s);
@@ -109,9 +110,6 @@ static void start_adc(struct cs4297a_state *s);
 // to not underrun the dma buffer as easily.  As default, use 32k (order=3)
 // rather than 64k as some of the games work more responsively.
 // log base 2( buff sz = 32k).
-
-//static unsigned long defaultorder = 3;
-//MODULE_PARM(defaultorder, "i");
 
 //
 // Turn on/off debugging compilation by commenting out "#define CSDEBUG"
@@ -1537,6 +1535,7 @@ static int cs4297a_open_mixdev(struct inode *inode, struct file *file)
 	CS_DBGOUT(CS_FUNCTION | CS_OPEN, 4,
 		  printk(KERN_INFO "cs4297a: cs4297a_open_mixdev()+\n"));
 
+	mutex_lock(&swarm_cs4297a_mutex);
 	list_for_each(entry, &cs4297a_devs)
 	{
 		s = list_entry(entry, struct cs4297a_state, list);
@@ -1547,6 +1546,8 @@ static int cs4297a_open_mixdev(struct inode *inode, struct file *file)
 	{
 		CS_DBGOUT(CS_FUNCTION | CS_OPEN | CS_ERROR, 2,
 			printk(KERN_INFO "cs4297a: cs4297a_open_mixdev()- -ENODEV\n"));
+
+		mutex_unlock(&swarm_cs4297a_mutex);
 		return -ENODEV;
 	}
 	VALIDATE_STATE(s);
@@ -1554,6 +1555,7 @@ static int cs4297a_open_mixdev(struct inode *inode, struct file *file)
 
 	CS_DBGOUT(CS_FUNCTION | CS_OPEN, 4,
 		  printk(KERN_INFO "cs4297a: cs4297a_open_mixdev()- 0\n"));
+	mutex_unlock(&swarm_cs4297a_mutex);
 
 	return nonseekable_open(inode, file);
 }
@@ -1569,11 +1571,15 @@ static int cs4297a_release_mixdev(struct inode *inode, struct file *file)
 }
 
 
-static int cs4297a_ioctl_mixdev(struct inode *inode, struct file *file,
+static int cs4297a_ioctl_mixdev(struct file *file,
 			       unsigned int cmd, unsigned long arg)
 {
-	return mixer_ioctl((struct cs4297a_state *) file->private_data, cmd,
+	int ret;
+	mutex_lock(&swarm_cs4297a_mutex);
+	ret = mixer_ioctl((struct cs4297a_state *) file->private_data, cmd,
 			   arg);
+	mutex_unlock(&swarm_cs4297a_mutex);
+	return ret;
 }
 
 
@@ -1583,7 +1589,7 @@ static int cs4297a_ioctl_mixdev(struct inode *inode, struct file *file,
 static const struct file_operations cs4297a_mixer_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.ioctl		= cs4297a_ioctl_mixdev,
+	.unlocked_ioctl	= cs4297a_ioctl_mixdev,
 	.open		= cs4297a_open_mixdev,
 	.release	= cs4297a_release_mixdev,
 };
@@ -1947,7 +1953,7 @@ static int cs4297a_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 
-static int cs4297a_ioctl(struct inode *inode, struct file *file,
+static int cs4297a_ioctl(struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	struct cs4297a_state *s =
@@ -2340,6 +2346,16 @@ static int cs4297a_ioctl(struct inode *inode, struct file *file,
 	return mixer_ioctl(s, cmd, arg);
 }
 
+static long cs4297a_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
+{
+	int ret;
+
+	mutex_lock(&swarm_cs4297a_mutex);
+	ret = cs4297a_ioctl(file, cmd, arg);
+	mutex_unlock(&swarm_cs4297a_mutex);
+
+	return ret;
+}
 
 static int cs4297a_release(struct inode *inode, struct file *file)
 {
@@ -2372,7 +2388,7 @@ static int cs4297a_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int cs4297a_open(struct inode *inode, struct file *file)
+static int cs4297a_locked_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	struct cs4297a_state *s=NULL;
@@ -2489,6 +2505,16 @@ static int cs4297a_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
+static int cs4297a_open(struct inode *inode, struct file *file)
+{
+	int ret;
+
+	mutex_lock(&swarm_cs4297a_mutex);
+	ret = cs4297a_open(inode, file);
+	mutex_unlock(&swarm_cs4297a_mutex);
+
+	return ret;
+}
 
 // ******************************************************************************************
 //   Wave (audio) file operations struct.
@@ -2499,7 +2525,7 @@ static const struct file_operations cs4297a_audio_fops = {
 	.read		= cs4297a_read,
 	.write		= cs4297a_write,
 	.poll		= cs4297a_poll,
-	.ioctl		= cs4297a_ioctl,
+	.unlocked_ioctl	= cs4297a_unlocked_ioctl,
 	.mmap		= cs4297a_mmap,
 	.open		= cs4297a_open,
 	.release	= cs4297a_release,

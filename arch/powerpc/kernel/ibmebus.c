@@ -42,6 +42,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/of_platform.h>
 #include <asm/ibmebus.h>
 #include <asm/abs_addr.h>
@@ -127,7 +128,7 @@ static int ibmebus_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-static struct dma_mapping_ops ibmebus_dma_ops = {
+static struct dma_map_ops ibmebus_dma_ops = {
 	.alloc_coherent = ibmebus_alloc_coherent,
 	.free_coherent  = ibmebus_free_coherent,
 	.map_sg         = ibmebus_map_sg,
@@ -139,19 +140,19 @@ static struct dma_mapping_ops ibmebus_dma_ops = {
 
 static int ibmebus_match_path(struct device *dev, void *data)
 {
-	struct device_node *dn = to_of_device(dev)->node;
+	struct device_node *dn = to_platform_device(dev)->dev.of_node;
 	return (dn->full_name &&
 		(strcasecmp((char *)data, dn->full_name) == 0));
 }
 
 static int ibmebus_match_node(struct device *dev, void *data)
 {
-	return to_of_device(dev)->node == data;
+	return to_platform_device(dev)->dev.of_node == data;
 }
 
 static int ibmebus_create_device(struct device_node *dn)
 {
-	struct of_device *dev;
+	struct platform_device *dev;
 	int ret;
 
 	dev = of_device_alloc(dn, NULL, &ibmebus_bus_device);
@@ -161,13 +162,10 @@ static int ibmebus_create_device(struct device_node *dn)
 	dev->dev.bus = &ibmebus_bus_type;
 	dev->dev.archdata.dma_ops = &ibmebus_dma_ops;
 
-	ret = of_device_register(dev);
-	if (ret) {
-		of_device_free(dev);
-		return ret;
-	}
-
-	return 0;
+	ret = of_device_add(dev);
+	if (ret)
+		platform_device_put(dev);
+	return ret;
 }
 
 static int ibmebus_create_devices(const struct of_device_id *matches)
@@ -201,7 +199,7 @@ static int ibmebus_create_devices(const struct of_device_id *matches)
 int ibmebus_register_driver(struct of_platform_driver *drv)
 {
 	/* If the driver uses devices that ibmebus doesn't know, add them */
-	ibmebus_create_devices(drv->match_table);
+	ibmebus_create_devices(drv->driver.of_match_table);
 
 	return of_register_driver(drv, &ibmebus_bus_type);
 }
@@ -297,7 +295,7 @@ static ssize_t ibmebus_store_remove(struct bus_type *bus,
 
 	if ((dev = bus_find_device(&ibmebus_bus_type, NULL, path,
 				   ibmebus_match_path))) {
-		of_device_unregister(to_of_device(dev));
+		of_device_unregister(to_platform_device(dev));
 
 		kfree(path);
 		return count;

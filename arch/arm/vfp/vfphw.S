@@ -206,43 +206,59 @@ ENTRY(vfp_save_state)
 	mov	pc, lr
 ENDPROC(vfp_save_state)
 
+	.align
 last_VFP_context_address:
 	.word	last_VFP_context
 
-ENTRY(vfp_get_float)
-	add	pc, pc, r0, lsl #3
+	.macro	tbl_branch, base, tmp, shift
+#ifdef CONFIG_THUMB2_KERNEL
+	adr	\tmp, 1f
+	add	\tmp, \tmp, \base, lsl \shift
+	mov	pc, \tmp
+#else
+	add	pc, pc, \base, lsl \shift
 	mov	r0, r0
+#endif
+1:
+	.endm
+
+ENTRY(vfp_get_float)
+	tbl_branch r0, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	mrc	p10, 0, r0, c\dr, c0, 0	@ fmrs	r0, s0
+1:	mrc	p10, 0, r0, c\dr, c0, 0	@ fmrs	r0, s0
 	mov	pc, lr
-	mrc	p10, 0, r0, c\dr, c0, 4	@ fmrs	r0, s1
+	.org	1b + 8
+1:	mrc	p10, 0, r0, c\dr, c0, 4	@ fmrs	r0, s1
 	mov	pc, lr
+	.org	1b + 8
 	.endr
 ENDPROC(vfp_get_float)
 
 ENTRY(vfp_put_float)
-	add	pc, pc, r1, lsl #3
-	mov	r0, r0
+	tbl_branch r1, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	mcr	p10, 0, r0, c\dr, c0, 0	@ fmsr	r0, s0
+1:	mcr	p10, 0, r0, c\dr, c0, 0	@ fmsr	r0, s0
 	mov	pc, lr
-	mcr	p10, 0, r0, c\dr, c0, 4	@ fmsr	r0, s1
+	.org	1b + 8
+1:	mcr	p10, 0, r0, c\dr, c0, 4	@ fmsr	r0, s1
 	mov	pc, lr
+	.org	1b + 8
 	.endr
 ENDPROC(vfp_put_float)
 
 ENTRY(vfp_get_double)
-	add	pc, pc, r0, lsl #3
-	mov	r0, r0
+	tbl_branch r0, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	fmrrd	r0, r1, d\dr
+1:	fmrrd	r0, r1, d\dr
 	mov	pc, lr
+	.org	1b + 8
 	.endr
 #ifdef CONFIG_VFPv3
 	@ d16 - d31 registers
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	mrrc	p11, 3, r0, r1, c\dr	@ fmrrd	r0, r1, d\dr
+1:	mrrc	p11, 3, r0, r1, c\dr	@ fmrrd	r0, r1, d\dr
 	mov	pc, lr
+	.org	1b + 8
 	.endr
 #endif
 
@@ -253,17 +269,18 @@ ENTRY(vfp_get_double)
 ENDPROC(vfp_get_double)
 
 ENTRY(vfp_put_double)
-	add	pc, pc, r2, lsl #3
-	mov	r0, r0
+	tbl_branch r2, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	fmdrr	d\dr, r0, r1
+1:	fmdrr	d\dr, r0, r1
 	mov	pc, lr
+	.org	1b + 8
 	.endr
 #ifdef CONFIG_VFPv3
 	@ d16 - d31 registers
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	mcrr	p11, 3, r1, r2, c\dr	@ fmdrr	r1, r2, d\dr
+1:	mcrr	p11, 3, r0, r1, c\dr	@ fmdrr	r0, r1, d\dr
 	mov	pc, lr
+	.org	1b + 8
 	.endr
 #endif
 ENDPROC(vfp_put_double)

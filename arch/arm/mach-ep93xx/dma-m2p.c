@@ -28,11 +28,14 @@
  * with this implementation.
  */
 
+#define pr_fmt(fmt) "ep93xx " KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <mach/dma.h>
 #include <mach/hardware.h>
@@ -172,7 +175,7 @@ static irqreturn_t m2p_irq(int irq, void *dev_id)
 
 	switch (m2p_channel_state(ch)) {
 	case STATE_IDLE:
-		pr_crit("m2p_irq: dma interrupt without a dma buffer\n");
+		pr_crit("dma interrupt without a dma buffer\n");
 		BUG();
 		break;
 
@@ -196,7 +199,7 @@ static irqreturn_t m2p_irq(int irq, void *dev_id)
 		break;
 
 	case STATE_NEXT:
-		pr_crit("m2p_irq: dma interrupt while next\n");
+		pr_crit("dma interrupt while next\n");
 		BUG();
 		break;
 	}
@@ -273,7 +276,7 @@ static void channel_disable(struct m2p_channel *ch)
 	v &= ~(M2P_CONTROL_STALL_IRQ_EN | M2P_CONTROL_NFB_IRQ_EN);
 	m2p_set_control(ch, v);
 
-	while (m2p_channel_state(ch) == STATE_ON)
+	while (m2p_channel_state(ch) >= STATE_ON)
 		cpu_relax();
 
 	m2p_set_control(ch, 0x0);

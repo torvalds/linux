@@ -14,7 +14,6 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/kdev_t.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
@@ -35,7 +34,7 @@ static int gio_open(struct inode *inode, struct file *filp)
 	int minor;
 	int ret = -ENOENT;
 
-	lock_kernel();
+	preempt_disable();
 	minor = MINOR(inode->i_rdev);
 	if (minor < DEVCOUNT) {
 		if (openCnt > 0) {
@@ -45,7 +44,7 @@ static int gio_open(struct inode *inode, struct file *filp)
 			ret = 0;
 		}
 	}
-	unlock_kernel();
+	preempt_enable();
 	return ret;
 }
 
@@ -60,8 +59,7 @@ static int gio_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int gio_ioctl(struct inode *inode, struct file *filp,
-			     unsigned int cmd, unsigned long arg)
+static long gio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int data;
 	static unsigned int addr = 0;
@@ -78,39 +76,39 @@ static int gio_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case GIODRV_IOCSGIODATA1:	/* write byte */
-		ctrl_outb((unsigned char)(0x0ff & data), addr);
+		__raw_writeb((unsigned char)(0x0ff & data), addr);
 		break;
 
 	case GIODRV_IOCSGIODATA2:	/* write word */
 		if (addr & 0x01) {
 			return -EFAULT;
 		}
-		ctrl_outw((unsigned short int)(0x0ffff & data), addr);
+		__raw_writew((unsigned short int)(0x0ffff & data), addr);
 		break;
 
 	case GIODRV_IOCSGIODATA4:	/* write long */
 		if (addr & 0x03) {
 			return -EFAULT;
 		}
-		ctrl_outl(data, addr);
+		__raw_writel(data, addr);
 		break;
 
 	case GIODRV_IOCGGIODATA1:	/* read byte */
-		data = ctrl_inb(addr);
+		data = __raw_readb(addr);
 		break;
 
 	case GIODRV_IOCGGIODATA2:	/* read word */
 		if (addr & 0x01) {
 			return -EFAULT;
 		}
-		data = ctrl_inw(addr);
+		data = __raw_readw(addr);
 		break;
 
 	case GIODRV_IOCGGIODATA4:	/* read long */
 		if (addr & 0x03) {
 			return -EFAULT;
 		}
-		data = ctrl_inl(addr);
+		data = __raw_readl(addr);
 		break;
 	default:
 		return -EFAULT;
@@ -129,7 +127,8 @@ static const struct file_operations gio_fops = {
 	.owner = THIS_MODULE,
 	.open = gio_open,	/* open */
 	.release = gio_close,	/* release */
-	.ioctl = gio_ioctl,	/* ioctl */
+	.unlocked_ioctl = gio_ioctl,
+	.llseek = noop_llseek,
 };
 
 static int __init gio_init(void)

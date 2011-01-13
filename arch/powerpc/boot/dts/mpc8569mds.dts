@@ -41,6 +41,8 @@
 			i-cache-line-size = <32>;	// 32 bytes
 			d-cache-size = <0x8000>;		// L1, 32K
 			i-cache-size = <0x8000>;		// L1, 32K
+			sleep = <&pmc 0x00008000	// core
+				 &pmc 0x00004000>;	// timebase
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
@@ -59,6 +61,7 @@
 		reg = <0xe0005000 0x1000>;
 		interrupts = <19 2>;
 		interrupt-parent = <&mpic>;
+		sleep = <&pmc 0x08000000>;
 
 		ranges = <0x0 0x0 0xfe000000 0x02000000
 			  0x1 0x0 0xf8000000 0x00008000
@@ -99,8 +102,18 @@
 		};
 
 		bcsr@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			compatible = "fsl,mpc8569mds-bcsr";
 			reg = <1 0 0x8000>;
+			ranges = <0 1 0 0x8000>;
+
+			bcsr17: gpio-controller@11 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569mds-bcsr-gpio";
+				reg = <0x11 0x1>;
+				gpio-controller;
+			};
 		};
 
 		nand@3,0 {
@@ -148,51 +161,69 @@
 			interrupts = <18 2>;
 		};
 
-		i2c@3000 {
+		i2c-sleep-nexus {
 			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <0>;
-			compatible = "fsl-i2c";
-			reg = <0x3000 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
-			dfsrr;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			sleep = <&pmc 0x00000004>;
+			ranges;
 
-			rtc@68 {
-				compatible = "dallas,ds1374";
-				reg = <0x68>;
+			i2c@3000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <0>;
+				compatible = "fsl-i2c";
+				reg = <0x3000 0x100>;
+				interrupts = <43 2>;
+				interrupt-parent = <&mpic>;
+				dfsrr;
+
+				rtc@68 {
+					compatible = "dallas,ds1374";
+					reg = <0x68>;
+					interrupts = <3 1>;
+					interrupt-parent = <&mpic>;
+				};
+			};
+
+			i2c@3100 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <1>;
+				compatible = "fsl-i2c";
+				reg = <0x3100 0x100>;
+				interrupts = <43 2>;
+				interrupt-parent = <&mpic>;
+				dfsrr;
 			};
 		};
 
-		i2c@3100 {
+		duart-sleep-nexus {
 			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <1>;
-			compatible = "fsl-i2c";
-			reg = <0x3100 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
-			dfsrr;
-		};
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			sleep = <&pmc 0x00000002>;
+			ranges;
 
-		serial0: serial@4500 {
-			cell-index = <0>;
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <0x4500 0x100>;
-			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
-		};
+			serial0: serial@4500 {
+				cell-index = <0>;
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4500 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+				interrupt-parent = <&mpic>;
+			};
 
-		serial1: serial@4600 {
-			cell-index = <1>;
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <0x4600 0x100>;
-			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
+			serial1: serial@4600 {
+				cell-index = <1>;
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4600 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+				interrupt-parent = <&mpic>;
+			};
 		};
 
 		L2: l2-cache-controller@20000 {
@@ -250,9 +281,11 @@
 			reg = <0x2e000 0x1000>;
 			interrupts = <72 0x8>;
 			interrupt-parent = <&mpic>;
+			sleep = <&pmc 0x00200000>;
 			/* Filled in by U-Boot */
 			clock-frequency = <0>;
 			status = "disabled";
+			sdhci,1-bit-only;
 		};
 
 		crypto@30000 {
@@ -265,6 +298,7 @@
 			fsl,channel-fifo-len = <24>;
 			fsl,exec-units-mask = <0xbfe>;
 			fsl,descriptor-types-mask = <0x3ab0ebf>;
+			sleep = <&pmc 0x01000000>;
 		};
 
 		mpic: pic@40000 {
@@ -293,9 +327,18 @@
 		};
 
 		global-utilities@e0000 {
-			compatible = "fsl,mpc8569-guts";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8569-guts", "fsl,mpc8548-guts";
 			reg = <0xe0000 0x1000>;
+			ranges = <0 0xe0000 0x1000>;
 			fsl,has-rstcr;
+
+			pmc: power@70 {
+				compatible = "fsl,mpc8569-pmc",
+					     "fsl,mpc8548-pmc";
+				reg = <0x70 0x20>;
+			};
 		};
 
 		par_io@e0100 {
@@ -311,6 +354,14 @@
 				compatible = "fsl,mpc8569-qe-pario-bank",
 					     "fsl,mpc8323-qe-pario-bank";
 				reg = <0x80 0x18>;
+				gpio-controller;
+			};
+
+			qe_pio_f: gpio-controller@a0 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569-qe-pario-bank",
+					     "fsl,mpc8323-qe-pario-bank";
+				reg = <0xa0 0x18>;
 				gpio-controller;
 			};
 
@@ -403,6 +454,7 @@
 		compatible = "fsl,qe";
 		ranges = <0x0 0xe0080000 0x40000>;
 		reg = <0xe0080000 0x480>;
+		sleep = <&pmc 0x00000800>;
 		brg-frequency = <0>;
 		bus-frequency = <0>;
 		fsl,qe-num-riscs = <4>;
@@ -416,6 +468,16 @@
 			reg = <0x80 0x80>;
 			interrupts = <46 2 46 2>; //high:30 low:30
 			interrupt-parent = <&mpic>;
+		};
+
+		timer@440 {
+			compatible = "fsl,mpc8569-qe-gtm",
+				     "fsl,qe-gtm", "fsl,gtm";
+			reg = <0x440 0x40>;
+			interrupts = <12 13 14 15>;
+			interrupt-parent = <&qeic>;
+			/* Filled in by U-Boot */
+			clock-frequency = <0>;
 		};
 
 		spi@4c0 {
@@ -445,6 +507,23 @@
 			mode = "cpu";
 		};
 
+		usb@6c0 {
+			compatible = "fsl,mpc8569-qe-usb",
+				     "fsl,mpc8323-qe-usb";
+			reg = <0x6c0 0x40 0x8b00 0x100>;
+			interrupts = <11>;
+			interrupt-parent = <&qeic>;
+			fsl,fullspeed-clock = "clk5";
+			fsl,lowspeed-clock = "brg10";
+			gpios = <&qe_pio_f 3 0   /* USBOE */
+				 &qe_pio_f 4 0   /* USBTP */
+				 &qe_pio_f 5 0   /* USBTN */
+				 &qe_pio_f 6 0   /* USBRP */
+				 &qe_pio_f 8 0   /* USBRN */
+				 &bcsr17   1 0   /* SPEED */
+				 &bcsr17   2 0>; /* POWER */
+		};
+
 		enet0: ucc@2000 {
 			device_type = "network";
 			compatible = "ucc_geth";
@@ -456,6 +535,7 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk12";
 			pio-handle = <&pio1>;
+			tbi-handle = <&tbi1>;
 			phy-handle = <&qe_phy0>;
 			phy-connection-type = "rgmii-id";
 		};
@@ -500,6 +580,10 @@
 				reg = <0x6>;
 				device_type = "ethernet-phy";
 			};
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 		mdio@3520 {
 			#address-cells = <1>;
@@ -507,7 +591,7 @@
 			reg = <0x3520 0x18>;
 			compatible = "fsl,ucc-mdio";
 
-			tbi0: tbi-phy@15 {
+			tbi6: tbi-phy@15 {
 			reg = <0x15>;
 			device_type = "tbi-phy";
 			};
@@ -517,7 +601,7 @@
 			#size-cells = <0>;
 			reg = <0x3720 0x38>;
 			compatible = "fsl,ucc-mdio";
-			tbi1: tbi-phy@17 {
+			tbi8: tbi-phy@17 {
 				reg = <0x17>;
 				device_type = "tbi-phy";
 			};
@@ -534,8 +618,20 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk12";
 			pio-handle = <&pio3>;
+			tbi-handle = <&tbi3>;
 			phy-handle = <&qe_phy2>;
 			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@2320 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2320 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi3: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet1: ucc@3000 {
@@ -549,8 +645,20 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk17";
 			pio-handle = <&pio2>;
+			tbi-handle = <&tbi2>;
 			phy-handle = <&qe_phy1>;
 			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@3120 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3120 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet3: ucc@3200 {
@@ -564,8 +672,20 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk17";
 			pio-handle = <&pio4>;
+			tbi-handle = <&tbi4>;
 			phy-handle = <&qe_phy3>;
 			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@3320 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3320 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi4: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet5: ucc@3400 {
@@ -578,7 +698,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock-name = "none";
 			tx-clock-name = "none";
-			tbi-handle = <&tbi0>;
+			tbi-handle = <&tbi6>;
 			phy-handle = <&qe_phy5>;
 			phy-connection-type = "sgmii";
 		};
@@ -593,7 +713,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock-name = "none";
 			tx-clock-name = "none";
-			tbi-handle = <&tbi1>;
+			tbi-handle = <&tbi8>;
 			phy-handle = <&qe_phy7>;
 			phy-connection-type = "sgmii";
 		};
@@ -634,6 +754,7 @@
 		bus-range = <0 255>;
 		ranges = <0x2000000 0x0 0xa0000000 0xa0000000 0x0 0x10000000
 			  0x1000000 0x0 0x00000000 0xe2800000 0x0 0x00800000>;
+		sleep = <&pmc 0x20000000>;
 		clock-frequency = <33333333>;
 		pcie@0 {
 			reg = <0x0 0x0 0x0 0x0 0x0>;
@@ -664,5 +785,6 @@
 			      55 2 /* msg2_tx   */
 			      56 2 /* msg2_rx   */>;
 		interrupt-parent = <&mpic>;
+		sleep = <&pmc 0x00080000>;
 	};
 };

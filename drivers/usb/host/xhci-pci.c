@@ -24,6 +24,10 @@
 
 #include "xhci.h"
 
+/* Device for a quirk */
+#define PCI_VENDOR_ID_FRESCO_LOGIC	0x1b73
+#define PCI_DEVICE_ID_FRESCO_LOGIC_PDK	0x1000
+
 static const char hcd_name[] = "xhci_hcd";
 
 /* called after powerup, by probe or system-pm "wakeup" */
@@ -49,6 +53,9 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval;
+	u32			temp;
+
+	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 2;
 
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
@@ -59,8 +66,21 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	xhci->hcs_params1 = xhci_readl(xhci, &xhci->cap_regs->hcs_params1);
 	xhci->hcs_params2 = xhci_readl(xhci, &xhci->cap_regs->hcs_params2);
 	xhci->hcs_params3 = xhci_readl(xhci, &xhci->cap_regs->hcs_params3);
+	xhci->hcc_params = xhci_readl(xhci, &xhci->cap_regs->hc_capbase);
+	xhci->hci_version = HC_VERSION(xhci->hcc_params);
 	xhci->hcc_params = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
 	xhci_print_registers(xhci);
+
+	/* Look for vendor-specific quirks */
+	if (pdev->vendor == PCI_VENDOR_ID_FRESCO_LOGIC &&
+			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK &&
+			pdev->revision == 0x0) {
+			xhci->quirks |= XHCI_RESET_EP_QUIRK;
+			xhci_dbg(xhci, "QUIRK: Fresco Logic xHC needs configure"
+					" endpoint cmd after reset endpoint\n");
+	}
+	if (pdev->vendor == PCI_VENDOR_ID_NEC)
+		xhci->quirks |= XHCI_NEC_HOST;
 
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);
@@ -73,6 +93,14 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 	xhci_dbg(xhci, "Reset complete\n");
+
+	temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
+	if (HCC_64BIT_ADDR(temp)) {
+		xhci_dbg(xhci, "Enabling 64-bit DMA addresses.\n");
+		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64));
+	} else {
+		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(32));
+	}
 
 	xhci_dbg(xhci, "Calling HCD init\n");
 	/* Initialize HCD and host controller data structures. */
@@ -87,6 +115,30 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	/* Find any debug ports */
 	return xhci_pci_reinit(xhci, pdev);
 }
+
+#ifdef CONFIG_PM
+static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	int	retval = 0;
+
+	if (hcd->state != HC_STATE_SUSPENDED)
+		return -EINVAL;
+
+	retval = xhci_suspend(xhci);
+
+	return retval;
+}
+
+static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
+{
+	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
+	int			retval = 0;
+
+	retval = xhci_resume(xhci, hibernated);
+	return retval;
+}
+#endif /* CONFIG_PM */
 
 static const struct hc_driver xhci_pci_hc_driver = {
 	.description =		hcd_name,
@@ -104,7 +156,10 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	 */
 	.reset =		xhci_pci_setup,
 	.start =		xhci_run,
-	/* suspend and resume implemented later */
+#ifdef CONFIG_PM
+	.pci_suspend =          xhci_pci_suspend,
+	.pci_resume =           xhci_pci_resume,
+#endif
 	.stop =			xhci_stop,
 	.shutdown =		xhci_shutdown,
 
@@ -115,11 +170,16 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	.urb_dequeue =		xhci_urb_dequeue,
 	.alloc_dev =		xhci_alloc_dev,
 	.free_dev =		xhci_free_dev,
+	.alloc_streams =	xhci_alloc_streams,
+	.free_streams =		xhci_free_streams,
 	.add_endpoint =		xhci_add_endpoint,
 	.drop_endpoint =	xhci_drop_endpoint,
+	.endpoint_reset =	xhci_endpoint_reset,
 	.check_bandwidth =	xhci_check_bandwidth,
 	.reset_bandwidth =	xhci_reset_bandwidth,
 	.address_device =	xhci_address_device,
+	.update_hub_device =	xhci_update_hub_device,
+	.reset_device =		xhci_discover_or_reset_device,
 
 	/*
 	 * scheduling support
@@ -129,6 +189,8 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	/* Root hub support */
 	.hub_control =		xhci_hub_control,
 	.hub_status_data =	xhci_hub_status_data,
+	.bus_suspend =		xhci_bus_suspend,
+	.bus_resume =		xhci_bus_resume,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -153,14 +215,19 @@ static struct pci_driver xhci_pci_driver = {
 	/* suspend and resume implemented later */
 
 	.shutdown = 	usb_hcd_pci_shutdown,
+#ifdef CONFIG_PM_SLEEP
+	.driver = {
+		.pm = &usb_hcd_pci_pm_ops
+	},
+#endif
 };
 
-int xhci_register_pci()
+int xhci_register_pci(void)
 {
 	return pci_register_driver(&xhci_pci_driver);
 }
 
-void xhci_unregister_pci()
+void xhci_unregister_pci(void)
 {
 	pci_unregister_driver(&xhci_pci_driver);
 }

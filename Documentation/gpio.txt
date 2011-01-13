@@ -109,17 +109,19 @@ use numbers 2000-2063 to identify GPIOs in a bank of I2C GPIO expanders.
 
 If you want to initialize a structure with an invalid GPIO number, use
 some negative number (perhaps "-EINVAL"); that will never be valid.  To
-test if a number could reference a GPIO, you may use this predicate:
+test if such number from such a structure could reference a GPIO, you
+may use this predicate:
 
 	int gpio_is_valid(int number);
 
 A number that's not valid will be rejected by calls which may request
 or free GPIOs (see below).  Other numbers may also be rejected; for
-example, a number might be valid but unused on a given board.
+example, a number might be valid but temporarily unused on a given board.
 
-Whether a platform supports multiple GPIO controllers is currently a
-platform-specific implementation issue.
-
+Whether a platform supports multiple GPIO controllers is a platform-specific
+implementation issue, as are whether that support can leave "holes" in the space
+of GPIO numbers, and whether new controllers can be added at runtime.  Such issues
+can affect things including whether adjacent GPIO numbers are both valid.
 
 Using GPIOs
 -----------
@@ -158,10 +160,11 @@ and configure pullups/pulldowns appropriately.)
 Spinlock-Safe GPIO access
 -------------------------
 Most GPIO controllers can be accessed with memory read/write instructions.
-That doesn't need to sleep, and can safely be done from inside IRQ handlers.
-(That includes hardirq contexts on RT kernels.)
+Those don't need to sleep, and can safely be done from inside hard
+(nonthreaded) IRQ handlers and similar contexts.
 
-Use these calls to access such GPIOs:
+Use the following calls to access such GPIOs,
+for which gpio_cansleep() will always return false (see below):
 
 	/* GPIO INPUT:  return zero or nonzero */
 	int gpio_get_value(unsigned gpio);
@@ -210,9 +213,31 @@ To access such GPIOs, a different set of accessors is defined:
 	/* GPIO OUTPUT, might sleep */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
 
-Other than the fact that these calls might sleep, and will not be ignored
-for GPIOs that can't be accessed from IRQ handlers, these calls act the
-same as the spinlock-safe calls.
+
+Accessing such GPIOs requires a context which may sleep,  for example
+a threaded IRQ handler, and those accessors must be used instead of
+spinlock-safe accessors without the cansleep() name suffix.
+
+Other than the fact that these accessors might sleep, and will work
+on GPIOs that can't be accessed from hardIRQ handlers, these calls act
+the same as the spinlock-safe calls.
+
+  ** IN ADDITION ** calls to setup and configure such GPIOs must be made
+from contexts which may sleep, since they may need to access the GPIO
+controller chip too:  (These setup calls are usually made from board
+setup or driver probe/teardown code, so this is an easy constraint.)
+
+	gpio_direction_input()
+	gpio_direction_output()
+	gpio_request()
+
+## 	gpio_request_one()
+##	gpio_request_array()
+## 	gpio_free_array()
+
+	gpio_free()
+	gpio_set_debounce()
+
 
 
 Claiming and Releasing GPIOs
@@ -252,6 +277,70 @@ pin setup (e.g. controlling which pin the GPIO uses, pullup/pulldown).
 
 Also note that it's your responsibility to have stopped using a GPIO
 before you free it.
+
+Considering in most cases GPIOs are actually configured right after they
+are claimed, three additional calls are defined:
+
+	/* request a single GPIO, with initial configuration specified by
+	 * 'flags', identical to gpio_request() wrt other arguments and
+	 * return value
+	 */
+	int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
+
+	/* request multiple GPIOs in a single call
+	 */
+	int gpio_request_array(struct gpio *array, size_t num);
+
+	/* release multiple GPIOs in a single call
+	 */
+	void gpio_free_array(struct gpio *array, size_t num);
+
+where 'flags' is currently defined to specify the following properties:
+
+	* GPIOF_DIR_IN		- to configure direction as input
+	* GPIOF_DIR_OUT		- to configure direction as output
+
+	* GPIOF_INIT_LOW	- as output, set initial level to LOW
+	* GPIOF_INIT_HIGH	- as output, set initial level to HIGH
+
+since GPIOF_INIT_* are only valid when configured as output, so group valid
+combinations as:
+
+	* GPIOF_IN		- configure as input
+	* GPIOF_OUT_INIT_LOW	- configured as output, initial level LOW
+	* GPIOF_OUT_INIT_HIGH	- configured as output, initial level HIGH
+
+In the future, these flags can be extended to support more properties such
+as open-drain status.
+
+Further more, to ease the claim/release of multiple GPIOs, 'struct gpio' is
+introduced to encapsulate all three fields as:
+
+	struct gpio {
+		unsigned	gpio;
+		unsigned long	flags;
+		const char	*label;
+	};
+
+A typical example of usage:
+
+	static struct gpio leds_gpios[] = {
+		{ 32, GPIOF_OUT_INIT_HIGH, "Power LED" }, /* default to ON */
+		{ 33, GPIOF_OUT_INIT_LOW,  "Green LED" }, /* default to OFF */
+		{ 34, GPIOF_OUT_INIT_LOW,  "Red LED"   }, /* default to OFF */
+		{ 35, GPIOF_OUT_INIT_LOW,  "Blue LED"  }, /* default to OFF */
+		{ ... },
+	};
+
+	err = gpio_request_one(31, GPIOF_IN, "Reset Button");
+	if (err)
+		...
+
+	err = gpio_request_array(leds_gpios, ARRAY_SIZE(leds_gpios));
+	if (err)
+		...
+
+	gpio_free_array(leds_gpios, ARRAY_SIZE(leds_gpios));
 
 
 GPIOs mapped to IRQs
@@ -380,7 +469,7 @@ rare; use gpiochip_remove() when it is unavoidable.
 
 Most often a gpio_chip is part of an instance-specific structure with state
 not exposed by the GPIO interfaces, such as addressing, power management,
-and more.  Chips such as codecs will have complex non-GPIO state,
+and more.  Chips such as codecs will have complex non-GPIO state.
 
 Any debugfs dump method should normally ignore signals which haven't been
 requested as GPIOs.  They can use gpiochip_is_requested(), which returns
@@ -393,12 +482,16 @@ To support this framework, a platform's Kconfig will "select" either
 ARCH_REQUIRE_GPIOLIB or ARCH_WANT_OPTIONAL_GPIOLIB
 and arrange that its <asm/gpio.h> includes <asm-generic/gpio.h> and defines
 three functions: gpio_get_value(), gpio_set_value(), and gpio_cansleep().
-They may also want to provide a custom value for ARCH_NR_GPIOS.
 
-ARCH_REQUIRE_GPIOLIB means that the gpio-lib code will always get compiled
+It may also provide a custom value for ARCH_NR_GPIOS, so that it better
+reflects the number of GPIOs in actual use on that platform, without
+wasting static table space.  (It should count both built-in/SoC GPIOs and
+also ones on GPIO expanders.
+
+ARCH_REQUIRE_GPIOLIB means that the gpiolib code will always get compiled
 into the kernel on that architecture.
 
-ARCH_WANT_OPTIONAL_GPIOLIB means the gpio-lib code defaults to off and the user
+ARCH_WANT_OPTIONAL_GPIOLIB means the gpiolib code defaults to off and the user
 can enable it and build it into the kernel optionally.
 
 If neither of these options are selected, the platform does not support
@@ -524,7 +617,31 @@ and have the following read/write attributes:
 		is configured as an output, this value may be written;
 		any nonzero value is treated as high.
 
-GPIO controllers have paths like /sys/class/gpio/chipchip42/ (for the
+		If the pin can be configured as interrupt-generating interrupt
+		and if it has been configured to generate interrupts (see the
+		description of "edge"), you can poll(2) on that file and
+		poll(2) will return whenever the interrupt was triggered. If
+		you use poll(2), set the events POLLPRI and POLLERR. If you
+		use select(2), set the file descriptor in exceptfds. After
+		poll(2) returns, either lseek(2) to the beginning of the sysfs
+		file and read the new value or close the file and re-open it
+		to read the value.
+
+	"edge" ... reads as either "none", "rising", "falling", or
+		"both". Write these strings to select the signal edge(s)
+		that will make poll(2) on the "value" file return.
+
+		This file exists only if the pin can be configured as an
+		interrupt generating input pin.
+
+	"active_low" ... reads as either 0 (false) or 1 (true).  Write
+		any nonzero value to invert the value attribute both
+		for reading and writing.  Existing and subsequent
+		poll(2) support configuration via the edge attribute
+		for "rising" and "falling" edges will follow this
+		setting.
+
+GPIO controllers have paths like /sys/class/gpio/gpiochip42/ (for the
 controller implementing GPIOs starting at #42) and have the following
 read-only attributes:
 
@@ -555,6 +672,13 @@ requested using gpio_request():
 	/* reverse gpio_export() */
 	void gpio_unexport();
 
+	/* create a sysfs link to an exported GPIO node */
+	int gpio_export_link(struct device *dev, const char *name,
+		unsigned gpio)
+
+	/* change the polarity of a GPIO node in sysfs */
+	int gpio_sysfs_set_active_low(unsigned gpio, int value);
+
 After a kernel driver requests a GPIO, it may only be made available in
 the sysfs interface by gpio_export().  The driver can control whether the
 signal direction may change.  This helps drivers prevent userspace code
@@ -563,3 +687,14 @@ from accidentally clobbering important system state.
 This explicit exporting can help with debugging (by making some kinds
 of experiments easier), or can provide an always-there interface that's
 suitable for documenting as part of a board support package.
+
+After the GPIO has been exported, gpio_export_link() allows creating
+symlinks from elsewhere in sysfs to the GPIO sysfs node.  Drivers can
+use this to provide the interface under their own device in sysfs with
+a descriptive name.
+
+Drivers can use gpio_sysfs_set_active_low() to hide GPIO line polarity
+differences between boards from user space.  This only affects the
+sysfs interface.  Polarity change can be done both before and after
+gpio_export(), and previously enabled poll(2) support for either
+rising or falling edge will be reconfigured to follow this setting.

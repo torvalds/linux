@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
@@ -20,7 +19,6 @@
 #include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/ipc.h>
 
 #include <asm/setup.h>
@@ -29,215 +27,22 @@
 #include <asm/traps.h>
 #include <asm/page.h>
 #include <asm/unistd.h>
+#include <linux/elf.h>
+#include <asm/tlb.h>
 
-/* common code for old and new mmaps */
-static inline long do_mmap2(
-	unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
-{
-	int error = -EBADF;
-	struct file * file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:
-	return error;
-}
+asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
+			     unsigned long error_code);
 
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags,
 	unsigned long fd, unsigned long pgoff)
 {
-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
-}
-
-/*
- * Perform the select(nd, in, out, ex, tv) and mmap() system
- * calls. Linux/m68k cloned Linux/i386, which didn't use to be able to
- * handle more than 4 system call parameters, so these system calls
- * used a memory block for parameter passing..
- */
-
-struct mmap_arg_struct {
-	unsigned long addr;
-	unsigned long len;
-	unsigned long prot;
-	unsigned long flags;
-	unsigned long fd;
-	unsigned long offset;
-};
-
-asmlinkage int old_mmap(struct mmap_arg_struct __user *arg)
-{
-	struct mmap_arg_struct a;
-	int error = -EFAULT;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-
-	error = -EINVAL;
-	if (a.offset & ~PAGE_MASK)
-		goto out;
-
-	a.flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	error = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset >> PAGE_SHIFT);
-out:
-	return error;
-}
-
-#if 0
-struct mmap_arg_struct64 {
-	__u32 addr;
-	__u32 len;
-	__u32 prot;
-	__u32 flags;
-	__u64 offset; /* 64 bits */
-	__u32 fd;
-};
-
-asmlinkage long sys_mmap64(struct mmap_arg_struct64 *arg)
-{
-	int error = -EFAULT;
-	struct file * file = NULL;
-	struct mmap_arg_struct64 a;
-	unsigned long pgoff;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		return -EFAULT;
-
-	if ((long)a.offset & ~PAGE_MASK)
-		return -EINVAL;
-
-	pgoff = a.offset >> PAGE_SHIFT;
-	if ((a.offset >> PAGE_SHIFT) != pgoff)
-		return -EINVAL;
-
-	if (!(a.flags & MAP_ANONYMOUS)) {
-		error = -EBADF;
-		file = fget(a.fd);
-		if (!file)
-			goto out;
-	}
-	a.flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, a.addr, a.len, a.prot, a.flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-	if (file)
-		fput(file);
-out:
-	return error;
-}
-#endif
-
-struct sel_arg_struct {
-	unsigned long n;
-	fd_set __user *inp, *outp, *exp;
-	struct timeval __user *tvp;
-};
-
-asmlinkage int old_select(struct sel_arg_struct __user *arg)
-{
-	struct sel_arg_struct a;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		return -EFAULT;
-	/* sys_select() does the appropriate kernel locking */
-	return sys_select(a.n, a.inp, a.outp, a.exp, a.tvp);
-}
-
-/*
- * sys_ipc() is the de-multiplexer for the SysV IPC calls..
- *
- * This is really horribly ugly.
- */
-asmlinkage int sys_ipc (uint call, int first, int second,
-			int third, void __user *ptr, long fifth)
-{
-	int version, ret;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	if (call <= SEMCTL)
-		switch (call) {
-		case SEMOP:
-			return sys_semop (first, ptr, second);
-		case SEMGET:
-			return sys_semget (first, second, third);
-		case SEMCTL: {
-			union semun fourth;
-			if (!ptr)
-				return -EINVAL;
-			if (get_user(fourth.__pad, (void __user *__user *) ptr))
-				return -EFAULT;
-			return sys_semctl (first, second, third, fourth);
-			}
-		default:
-			return -ENOSYS;
-		}
-	if (call <= MSGCTL)
-		switch (call) {
-		case MSGSND:
-			return sys_msgsnd (first, ptr, second, third);
-		case MSGRCV:
-			switch (version) {
-			case 0: {
-				struct ipc_kludge tmp;
-				if (!ptr)
-					return -EINVAL;
-				if (copy_from_user (&tmp, ptr, sizeof (tmp)))
-					return -EFAULT;
-				return sys_msgrcv (first, tmp.msgp, second,
-						   tmp.msgtyp, third);
-				}
-			default:
-				return sys_msgrcv (first, ptr,
-						   second, fifth, third);
-			}
-		case MSGGET:
-			return sys_msgget ((key_t) first, second);
-		case MSGCTL:
-			return sys_msgctl (first, second, ptr);
-		default:
-			return -ENOSYS;
-		}
-	if (call <= SHMCTL)
-		switch (call) {
-		case SHMAT:
-			switch (version) {
-			default: {
-				ulong raddr;
-				ret = do_shmat (first, ptr, second, &raddr);
-				if (ret)
-					return ret;
-				return put_user (raddr, (ulong __user *) third);
-			}
-			}
-		case SHMDT:
-			return sys_shmdt (ptr);
-		case SHMGET:
-			return sys_shmget (first, second, third);
-		case SHMCTL:
-			return sys_shmctl (first, second, ptr);
-		default:
-			return -ENOSYS;
-		}
-
-	return -EINVAL;
+	/*
+	 * This is wrong for sun3 - there PAGE_SIZE is 8Kb,
+	 * so we need to shift the argument down by 1; m68k mmap64(3)
+	 * (in libc) expects the last argument of mmap2 in 4Kb units.
+	 */
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
 }
 
 /* Convert virtual (user) address VADDR to physical address PADDR */
@@ -571,7 +376,6 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 	struct vm_area_struct *vma;
 	int ret = -EINVAL;
 
-	lock_kernel();
 	if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
 	    cache & ~FLUSH_CACHE_BOTH)
 		goto out;
@@ -640,7 +444,6 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 	    }
 	}
 out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -653,7 +456,9 @@ asmlinkage int sys_getpagesize(void)
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register long __res asm ("%d0") = __NR_execve;
 	register long __a asm ("%d1") = (long)(filename);
@@ -662,4 +467,80 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 	asm volatile ("trap  #0" : "+d" (__res)
 			: "d" (__a), "d" (__b), "d" (__c));
 	return __res;
+}
+
+asmlinkage unsigned long sys_get_thread_area(void)
+{
+	return current_thread_info()->tp_value;
+}
+
+asmlinkage int sys_set_thread_area(unsigned long tp)
+{
+	current_thread_info()->tp_value = tp;
+	return 0;
+}
+
+/* This syscall gets its arguments in A0 (mem), D2 (oldval) and
+   D1 (newval).  */
+asmlinkage int
+sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
+		      unsigned long __user * mem)
+{
+	/* This was borrowed from ARM's implementation.  */
+	for (;;) {
+		struct mm_struct *mm = current->mm;
+		pgd_t *pgd;
+		pmd_t *pmd;
+		pte_t *pte;
+		spinlock_t *ptl;
+		unsigned long mem_value;
+
+		down_read(&mm->mmap_sem);
+		pgd = pgd_offset(mm, (unsigned long)mem);
+		if (!pgd_present(*pgd))
+			goto bad_access;
+		pmd = pmd_offset(pgd, (unsigned long)mem);
+		if (!pmd_present(*pmd))
+			goto bad_access;
+		pte = pte_offset_map_lock(mm, pmd, (unsigned long)mem, &ptl);
+		if (!pte_present(*pte) || !pte_dirty(*pte)
+		    || !pte_write(*pte)) {
+			pte_unmap_unlock(pte, ptl);
+			goto bad_access;
+		}
+
+		mem_value = *mem;
+		if (mem_value == oldval)
+			*mem = newval;
+
+		pte_unmap_unlock(pte, ptl);
+		up_read(&mm->mmap_sem);
+		return mem_value;
+
+	      bad_access:
+		up_read(&mm->mmap_sem);
+		/* This is not necessarily a bad access, we can get here if
+		   a memory we're trying to write to should be copied-on-write.
+		   Make the kernel do the necessary page stuff, then re-iterate.
+		   Simulate a write access fault to do that.  */
+		{
+			/* The first argument of the function corresponds to
+			   D1, which is the first field of struct pt_regs.  */
+			struct pt_regs *fp = (struct pt_regs *)&newval;
+
+			/* '3' is an RMW flag.  */
+			if (do_page_fault(fp, (unsigned long)mem, 3))
+				/* If the do_page_fault() failed, we don't
+				   have anything meaningful to return.
+				   There should be a SIGSEGV pending for
+				   the process.  */
+				return 0xdeadbeef;
+		}
+	}
+}
+
+asmlinkage int sys_atomic_barrier(void)
+{
+	/* no code needed for uniprocs */
+	return 0;
 }

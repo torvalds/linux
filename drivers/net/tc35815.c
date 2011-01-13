@@ -22,11 +22,7 @@
  * All Rights Reserved.
  */
 
-#ifdef TC35815_NAPI
-#define DRV_VERSION	"1.37-NAPI"
-#else
-#define DRV_VERSION	"1.37"
-#endif
+#define DRV_VERSION	"1.39"
 static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
 
@@ -54,13 +50,6 @@ static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-/* First, a few definitions that the brave might change. */
-
-#define GATHER_TXINT	/* On-Demand Tx Interrupt */
-#define WORKAROUND_LOSTCAR
-#define WORKAROUND_100HALF_PROMISC
-/* #define TC35815_USE_PACKEDBUFFER */
-
 enum tc35815_chiptype {
 	TC35815CF = 0,
 	TC35815_NWU,
@@ -76,7 +65,7 @@ static const struct {
 	{ "TOSHIBA TC35815/TX4939" },
 };
 
-static const struct pci_device_id tc35815_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(tc35815_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815CF), .driver_data = TC35815CF },
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815_NWU), .driver_data = TC35815_NWU },
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815_TX4939), .driver_data = TC35815_TX4939 },
@@ -330,19 +319,13 @@ struct BDesc {
 
 
 /* Some useful constants. */
-#undef NO_CHECK_CARRIER	/* Does not check No-Carrier with TP */
 
-#ifdef NO_CHECK_CARRIER
-#define TX_CTL_CMD	(Tx_EnComp | Tx_EnTxPar | Tx_EnLateColl | \
-	Tx_EnExColl | Tx_EnExDefer | Tx_EnUnder | \
-	Tx_En)	/* maybe  0x7b01 */
-#else
-#define TX_CTL_CMD	(Tx_EnComp | Tx_EnTxPar | Tx_EnLateColl | \
+#define TX_CTL_CMD	(Tx_EnTxPar | Tx_EnLateColl | \
 	Tx_EnExColl | Tx_EnLCarr | Tx_EnExDefer | Tx_EnUnder | \
 	Tx_En)	/* maybe  0x7b01 */
-#endif
+/* Do not use Rx_StripCRC -- it causes trouble on BLEx/FDAEx condition */
 #define RX_CTL_CMD	(Rx_EnGood | Rx_EnRxPar | Rx_EnLongErr | Rx_EnOver \
-	| Rx_EnCRCErr | Rx_EnAlign | Rx_StripCRC | Rx_RxEn) /* maybe 0x6f11 */
+	| Rx_EnCRCErr | Rx_EnAlign | Rx_RxEn) /* maybe 0x6f01 */
 #define INT_EN_CMD  (Int_NRAbtEn | \
 	Int_DmParErrEn | Int_DParDEn | Int_DParErrEn | \
 	Int_SSysErrEn  | Int_RMasAbtEn | Int_RTargAbtEn | \
@@ -360,13 +343,6 @@ struct BDesc {
 #define TX_THRESHOLD_KEEP_LIMIT 10
 
 /* 16 + RX_BUF_NUM * 8 + RX_FD_NUM * 16 + TX_FD_NUM * 32 <= PAGE_SIZE*FD_PAGE_NUM */
-#ifdef TC35815_USE_PACKEDBUFFER
-#define FD_PAGE_NUM 2
-#define RX_BUF_NUM	8	/* >= 2 */
-#define RX_FD_NUM	250	/* >= 32 */
-#define TX_FD_NUM	128
-#define RX_BUF_SIZE	PAGE_SIZE
-#else /* TC35815_USE_PACKEDBUFFER */
 #define FD_PAGE_NUM 4
 #define RX_BUF_NUM	128	/* < 256 */
 #define RX_FD_NUM	256	/* >= 32 */
@@ -380,7 +356,6 @@ struct BDesc {
 #define RX_BUF_SIZE	\
 	L1_CACHE_ALIGN(ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN + NET_IP_ALIGN)
 #endif
-#endif /* TC35815_USE_PACKEDBUFFER */
 #define RX_FD_RESERVE	(2 / 2)	/* max 2 BD per RxFD */
 #define NAPI_WEIGHT	16
 
@@ -427,6 +402,7 @@ struct tc35815_local {
 	 * by this lock as well.
 	 */
 	spinlock_t lock;
+	spinlock_t rx_lock;
 
 	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
@@ -438,11 +414,7 @@ struct tc35815_local {
 	/*
 	 * Transmitting: Batch Mode.
 	 *	1 BD in 1 TxFD.
-	 * Receiving: Packing Mode. (TC35815_USE_PACKEDBUFFER)
-	 *	1 circular FD for Free Buffer List.
-	 *	RX_BUF_NUM BD in Free Buffer FD.
-	 *	One Free Buffer BD has PAGE_SIZE data buffer.
-	 * Or Non-Packing Mode.
+	 * Receiving: Non-Packing Mode.
 	 *	1 circular FD for Free Buffer List.
 	 *	RX_BUF_NUM BD in Free Buffer FD.
 	 *	One Free Buffer BD has ETH_FRAME_LEN data buffer.
@@ -456,21 +428,11 @@ struct tc35815_local {
 	struct RxFD *rfd_limit;
 	struct RxFD *rfd_cur;
 	struct FrFD *fbl_ptr;
-#ifdef TC35815_USE_PACKEDBUFFER
-	unsigned char fbl_curid;
-	void *data_buf[RX_BUF_NUM];		/* packing */
-	dma_addr_t data_buf_dma[RX_BUF_NUM];
-	struct {
-		struct sk_buff *skb;
-		dma_addr_t skb_dma;
-	} tx_skbs[TX_FD_NUM];
-#else
 	unsigned int fbl_count;
 	struct {
 		struct sk_buff *skb;
 		dma_addr_t skb_dma;
 	} tx_skbs[TX_FD_NUM], rx_skbs[RX_BUF_NUM];
-#endif
 	u32 msg_enable;
 	enum tc35815_chiptype chiptype;
 };
@@ -485,51 +447,6 @@ static inline void *fd_bus_to_virt(struct tc35815_local *lp, dma_addr_t bus)
 	return (void *)((u8 *)lp->fd_buf + (bus - lp->fd_buf_dma));
 }
 #endif
-#ifdef TC35815_USE_PACKEDBUFFER
-static inline void *rxbuf_bus_to_virt(struct tc35815_local *lp, dma_addr_t bus)
-{
-	int i;
-	for (i = 0; i < RX_BUF_NUM; i++) {
-		if (bus >= lp->data_buf_dma[i] &&
-		    bus < lp->data_buf_dma[i] + PAGE_SIZE)
-			return (void *)((u8 *)lp->data_buf[i] +
-					(bus - lp->data_buf_dma[i]));
-	}
-	return NULL;
-}
-
-#define TC35815_DMA_SYNC_ONDEMAND
-static void *alloc_rxbuf_page(struct pci_dev *hwdev, dma_addr_t *dma_handle)
-{
-#ifdef TC35815_DMA_SYNC_ONDEMAND
-	void *buf;
-	/* pci_map + pci_dma_sync will be more effective than
-	 * pci_alloc_consistent on some archs. */
-	buf = (void *)__get_free_page(GFP_ATOMIC);
-	if (!buf)
-		return NULL;
-	*dma_handle = pci_map_single(hwdev, buf, PAGE_SIZE,
-				     PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(hwdev, *dma_handle)) {
-		free_page((unsigned long)buf);
-		return NULL;
-	}
-	return buf;
-#else
-	return pci_alloc_consistent(hwdev, PAGE_SIZE, dma_handle);
-#endif
-}
-
-static void free_rxbuf_page(struct pci_dev *hwdev, void *buf, dma_addr_t dma_handle)
-{
-#ifdef TC35815_DMA_SYNC_ONDEMAND
-	pci_unmap_single(hwdev, dma_handle, PAGE_SIZE, PCI_DMA_FROMDEVICE);
-	free_page((unsigned long)buf);
-#else
-	pci_free_consistent(hwdev, PAGE_SIZE, buf, dma_handle);
-#endif
-}
-#else /* TC35815_USE_PACKEDBUFFER */
 static struct sk_buff *alloc_rxbuf_skb(struct net_device *dev,
 				       struct pci_dev *hwdev,
 				       dma_addr_t *dma_handle)
@@ -554,19 +471,14 @@ static void free_rxbuf_skb(struct pci_dev *hwdev, struct sk_buff *skb, dma_addr_
 			 PCI_DMA_FROMDEVICE);
 	dev_kfree_skb_any(skb);
 }
-#endif /* TC35815_USE_PACKEDBUFFER */
 
 /* Index to functions, as function prototypes. */
 
 static int	tc35815_open(struct net_device *dev);
 static int	tc35815_send_packet(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t	tc35815_interrupt(int irq, void *dev_id);
-#ifdef TC35815_NAPI
 static int	tc35815_rx(struct net_device *dev, int limit);
 static int	tc35815_poll(struct napi_struct *napi, int budget);
-#else
-static void	tc35815_rx(struct net_device *dev);
-#endif
 static void	tc35815_txdone(struct net_device *dev);
 static int	tc35815_close(struct net_device *dev);
 static struct	net_device_stats *tc35815_get_stats(struct net_device *dev);
@@ -593,9 +505,10 @@ static int tc_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	struct net_device *dev = bus->priv;
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
-	unsigned long timeout = jiffies + 10;
+	unsigned long timeout = jiffies + HZ;
 
 	tc_writel(MD_CA_Busy | (mii_id << 5) | (regnum & 0x1f), &tr->MD_CA);
+	udelay(12); /* it takes 32 x 400ns at least */
 	while (tc_readl(&tr->MD_CA) & MD_CA_Busy) {
 		if (time_after(jiffies, timeout))
 			return -EIO;
@@ -609,11 +522,12 @@ static int tc_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 val)
 	struct net_device *dev = bus->priv;
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
-	unsigned long timeout = jiffies + 10;
+	unsigned long timeout = jiffies + HZ;
 
 	tc_writel(val, &tr->MD_Data);
 	tc_writel(MD_CA_Busy | MD_CA_Wr | (mii_id << 5) | (regnum & 0x1f),
 		  &tr->MD_CA);
+	udelay(12); /* it takes 32 x 400ns at least */
 	while (tc_readl(&tr->MD_CA) & MD_CA_Busy) {
 		if (time_after(jiffies, timeout))
 			return -EIO;
@@ -651,8 +565,6 @@ static void tc_handle_link_change(struct net_device *dev)
 		 * TX4939 PCFG.SPEEDn bit will be changed on
 		 * NETDEV_CHANGE event.
 		 */
-
-#if !defined(NO_CHECK_CARRIER) && defined(WORKAROUND_LOSTCAR)
 		/*
 		 * WORKAROUND: enable LostCrS only if half duplex
 		 * operation.
@@ -662,7 +574,6 @@ static void tc_handle_link_change(struct net_device *dev)
 		    lp->chiptype != TC35815_TX4939)
 			tc_writel(tc_readl(&tr->Tx_Ctl) | Tx_EnLCarr,
 				  &tr->Tx_Ctl);
-#endif
 
 		lp->speed = phydev->speed;
 		lp->duplex = phydev->duplex;
@@ -671,11 +582,9 @@ static void tc_handle_link_change(struct net_device *dev)
 
 	if (phydev->link != lp->link) {
 		if (phydev->link) {
-#ifdef WORKAROUND_100HALF_PROMISC
 			/* delayed promiscuous enabling */
 			if (dev->flags & IFF_PROMISC)
 				tc35815_set_multicast_list(dev);
-#endif
 		} else {
 			lp->speed = 0;
 			lp->duplex = -1;
@@ -920,15 +829,14 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 	dev->netdev_ops = &tc35815_netdev_ops;
 	dev->ethtool_ops = &tc35815_ethtool_ops;
 	dev->watchdog_timeo = TC35815_TX_TIMEOUT;
-#ifdef TC35815_NAPI
 	netif_napi_add(dev, &lp->napi, tc35815_poll, NAPI_WEIGHT);
-#endif
 
 	dev->irq = pdev->irq;
 	dev->base_addr = (unsigned long)ioaddr;
 
 	INIT_WORK(&lp->restart_work, tc35815_restart_work);
 	spin_lock_init(&lp->lock);
+	spin_lock_init(&lp->rx_lock);
 	lp->pci_dev = pdev;
 	lp->chiptype = ent->driver_data;
 
@@ -1004,25 +912,6 @@ tc35815_init_queues(struct net_device *dev)
 		if (!lp->fd_buf)
 			return -ENOMEM;
 		for (i = 0; i < RX_BUF_NUM; i++) {
-#ifdef TC35815_USE_PACKEDBUFFER
-			lp->data_buf[i] =
-				alloc_rxbuf_page(lp->pci_dev,
-						 &lp->data_buf_dma[i]);
-			if (!lp->data_buf[i]) {
-				while (--i >= 0) {
-					free_rxbuf_page(lp->pci_dev,
-							lp->data_buf[i],
-							lp->data_buf_dma[i]);
-					lp->data_buf[i] = NULL;
-				}
-				pci_free_consistent(lp->pci_dev,
-						    PAGE_SIZE * FD_PAGE_NUM,
-						    lp->fd_buf,
-						    lp->fd_buf_dma);
-				lp->fd_buf = NULL;
-				return -ENOMEM;
-			}
-#else
 			lp->rx_skbs[i].skb =
 				alloc_rxbuf_skb(dev, lp->pci_dev,
 						&lp->rx_skbs[i].skb_dma);
@@ -1040,15 +929,9 @@ tc35815_init_queues(struct net_device *dev)
 				lp->fd_buf = NULL;
 				return -ENOMEM;
 			}
-#endif
 		}
 		printk(KERN_DEBUG "%s: FD buf %p DataBuf",
 		       dev->name, lp->fd_buf);
-#ifdef TC35815_USE_PACKEDBUFFER
-		printk(" DataBuf");
-		for (i = 0; i < RX_BUF_NUM; i++)
-			printk(" %p", lp->data_buf[i]);
-#endif
 		printk("\n");
 	} else {
 		for (i = 0; i < FD_PAGE_NUM; i++)
@@ -1081,7 +964,6 @@ tc35815_init_queues(struct net_device *dev)
 	lp->fbl_ptr = (struct FrFD *)fd_addr;
 	lp->fbl_ptr->fd.FDNext = cpu_to_le32(fd_virt_to_bus(lp, lp->fbl_ptr));
 	lp->fbl_ptr->fd.FDCtl = cpu_to_le32(RX_BUF_NUM | FD_CownsFD);
-#ifndef TC35815_USE_PACKEDBUFFER
 	/*
 	 * move all allocated skbs to head of rx_skbs[] array.
 	 * fbl_count mighe not be RX_BUF_NUM if alloc_rxbuf_skb() in
@@ -1099,11 +981,7 @@ tc35815_init_queues(struct net_device *dev)
 			lp->fbl_count++;
 		}
 	}
-#endif
 	for (i = 0; i < RX_BUF_NUM; i++) {
-#ifdef TC35815_USE_PACKEDBUFFER
-		lp->fbl_ptr->bd[i].BuffData = cpu_to_le32(lp->data_buf_dma[i]);
-#else
 		if (i >= lp->fbl_count) {
 			lp->fbl_ptr->bd[i].BuffData = 0;
 			lp->fbl_ptr->bd[i].BDCtl = 0;
@@ -1111,15 +989,11 @@ tc35815_init_queues(struct net_device *dev)
 		}
 		lp->fbl_ptr->bd[i].BuffData =
 			cpu_to_le32(lp->rx_skbs[i].skb_dma);
-#endif
 		/* BDID is index of FrFD.bd[] */
 		lp->fbl_ptr->bd[i].BDCtl =
 			cpu_to_le32(BD_CownsBD | (i << BD_RxBDID_SHIFT) |
 				    RX_BUF_SIZE);
 	}
-#ifdef TC35815_USE_PACKEDBUFFER
-	lp->fbl_curid = 0;
-#endif
 
 	printk(KERN_DEBUG "%s: TxFD %p RxFD %p FrFD %p\n",
 	       dev->name, lp->tfd_base, lp->rfd_base, lp->fbl_ptr);
@@ -1193,19 +1067,11 @@ tc35815_free_queues(struct net_device *dev)
 	lp->fbl_ptr = NULL;
 
 	for (i = 0; i < RX_BUF_NUM; i++) {
-#ifdef TC35815_USE_PACKEDBUFFER
-		if (lp->data_buf[i]) {
-			free_rxbuf_page(lp->pci_dev,
-					lp->data_buf[i], lp->data_buf_dma[i]);
-			lp->data_buf[i] = NULL;
-		}
-#else
 		if (lp->rx_skbs[i].skb) {
 			free_rxbuf_skb(lp->pci_dev, lp->rx_skbs[i].skb,
 				       lp->rx_skbs[i].skb_dma);
 			lp->rx_skbs[i].skb = NULL;
 		}
-#endif
 	}
 	if (lp->fd_buf) {
 		pci_free_consistent(lp->pci_dev, PAGE_SIZE * FD_PAGE_NUM,
@@ -1251,7 +1117,7 @@ dump_rxfd(struct RxFD *fd)
 	return bd_count;
 }
 
-#if defined(DEBUG) || defined(TC35815_USE_PACKEDBUFFER)
+#ifdef DEBUG
 static void
 dump_frfd(struct FrFD *fd)
 {
@@ -1268,9 +1134,7 @@ dump_frfd(struct FrFD *fd)
 		       le32_to_cpu(fd->bd[i].BDCtl));
 	printk("\n");
 }
-#endif
 
-#ifdef DEBUG
 static void
 panic_queues(struct net_device *dev)
 {
@@ -1303,7 +1167,7 @@ static void print_eth(const u8 *add)
 static int tc35815_tx_full(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
-	return ((lp->tfd_start + 1) % TX_FD_NUM == lp->tfd_end);
+	return (lp->tfd_start + 1) % TX_FD_NUM == lp->tfd_end;
 }
 
 static void tc35815_restart(struct net_device *dev)
@@ -1324,6 +1188,7 @@ static void tc35815_restart(struct net_device *dev)
 			printk(KERN_ERR "%s: BMCR reset failed.\n", dev->name);
 	}
 
+	spin_lock_bh(&lp->rx_lock);
 	spin_lock_irq(&lp->lock);
 	tc35815_chip_reset(dev);
 	tc35815_clear_queues(dev);
@@ -1331,6 +1196,7 @@ static void tc35815_restart(struct net_device *dev)
 	/* Reconfigure CAM again since tc35815_chip_init() initialize it. */
 	tc35815_set_multicast_list(dev);
 	spin_unlock_irq(&lp->lock);
+	spin_unlock_bh(&lp->rx_lock);
 
 	netif_wake_queue(dev);
 }
@@ -1349,11 +1215,14 @@ static void tc35815_schedule_restart(struct net_device *dev)
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
+	unsigned long flags;
 
 	/* disable interrupts */
+	spin_lock_irqsave(&lp->lock, flags);
 	tc_writel(0, &tr->Int_En);
 	tc_writel(tc_readl(&tr->DMA_Ctl) | DMA_IntMask, &tr->DMA_Ctl);
 	schedule_work(&lp->restart_work);
+	spin_unlock_irqrestore(&lp->lock, flags);
 }
 
 static void tc35815_tx_timeout(struct net_device *dev)
@@ -1386,7 +1255,7 @@ tc35815_open(struct net_device *dev)
 	 * This is used if the interrupt line can turned off (shared).
 	 * See 3c503.c for an example of selecting the IRQ at config-time.
 	 */
-	if (request_irq(dev->irq, &tc35815_interrupt, IRQF_SHARED,
+	if (request_irq(dev->irq, tc35815_interrupt, IRQF_SHARED,
 			dev->name, dev))
 		return -EAGAIN;
 
@@ -1397,9 +1266,7 @@ tc35815_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-#ifdef TC35815_NAPI
 	napi_enable(&lp->napi);
-#endif
 
 	/* Reset the hardware here. Don't forget to set the station address. */
 	spin_lock_irq(&lp->lock);
@@ -1475,9 +1342,7 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 			(struct tc35815_regs __iomem *)dev->base_addr;
 		/* Start DMA Transmitter. */
 		txfd->fd.FDNext |= cpu_to_le32(FD_Next_EOL);
-#ifdef GATHER_TXINT
 		txfd->fd.FDCtl |= cpu_to_le32(FD_FrmOpt_IntTx);
-#endif
 		if (netif_msg_tx_queued(lp)) {
 			printk("%s: starting TxFD.\n", dev->name);
 			dump_txfd(txfd);
@@ -1491,8 +1356,6 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 	lp->tfd_start = (lp->tfd_start + 1) % TX_FD_NUM;
-
-	dev->trans_start = jiffies;
 
 	/* If we just used up the very last entry in the
 	 * TX ring on this device, tell the queueing
@@ -1509,7 +1372,7 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 #define FATAL_ERROR_INT \
@@ -1533,15 +1396,9 @@ static void tc35815_fatal_error_interrupt(struct net_device *dev, u32 status)
 	tc35815_schedule_restart(dev);
 }
 
-#ifdef TC35815_NAPI
 static int tc35815_do_interrupt(struct net_device *dev, u32 status, int limit)
-#else
-static int tc35815_do_interrupt(struct net_device *dev, u32 status)
-#endif
 {
 	struct tc35815_local *lp = netdev_priv(dev);
-	struct tc35815_regs __iomem *tr =
-		(struct tc35815_regs __iomem *)dev->base_addr;
 	int ret = -1;
 
 	/* Fatal errors... */
@@ -1551,27 +1408,26 @@ static int tc35815_do_interrupt(struct net_device *dev, u32 status)
 	}
 	/* recoverable errors */
 	if (status & Int_IntFDAEx) {
-		/* disable FDAEx int. (until we make rooms...) */
-		tc_writel(tc_readl(&tr->Int_En) & ~Int_FDAExEn, &tr->Int_En);
-		printk(KERN_WARNING
-		       "%s: Free Descriptor Area Exhausted (%#x).\n",
-		       dev->name, status);
+		if (netif_msg_rx_err(lp))
+			dev_warn(&dev->dev,
+				 "Free Descriptor Area Exhausted (%#x).\n",
+				 status);
 		dev->stats.rx_dropped++;
 		ret = 0;
 	}
 	if (status & Int_IntBLEx) {
-		/* disable BLEx int. (until we make rooms...) */
-		tc_writel(tc_readl(&tr->Int_En) & ~Int_BLExEn, &tr->Int_En);
-		printk(KERN_WARNING
-		       "%s: Buffer List Exhausted (%#x).\n",
-		       dev->name, status);
+		if (netif_msg_rx_err(lp))
+			dev_warn(&dev->dev,
+				 "Buffer List Exhausted (%#x).\n",
+				 status);
 		dev->stats.rx_dropped++;
 		ret = 0;
 	}
 	if (status & Int_IntExBD) {
-		printk(KERN_WARNING
-		       "%s: Excessive Buffer Descriptiors (%#x).\n",
-		       dev->name, status);
+		if (netif_msg_rx_err(lp))
+			dev_warn(&dev->dev,
+				 "Excessive Buffer Descriptiors (%#x).\n",
+				 status);
 		dev->stats.rx_length_errors++;
 		ret = 0;
 	}
@@ -1579,20 +1435,17 @@ static int tc35815_do_interrupt(struct net_device *dev, u32 status)
 	/* normal notification */
 	if (status & Int_IntMacRx) {
 		/* Got a packet(s). */
-#ifdef TC35815_NAPI
 		ret = tc35815_rx(dev, limit);
-#else
-		tc35815_rx(dev);
-		ret = 0;
-#endif
 		lp->lstats.rx_ints++;
 	}
 	if (status & Int_IntMacTx) {
 		/* Transmit complete. */
 		lp->lstats.tx_ints++;
+		spin_lock_irq(&lp->lock);
 		tc35815_txdone(dev);
-		netif_wake_queue(dev);
-		ret = 0;
+		spin_unlock_irq(&lp->lock);
+		if (ret < 0)
+			ret = 0;
 	}
 	return ret;
 }
@@ -1607,7 +1460,6 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
-#ifdef TC35815_NAPI
 	u32 dmactl = tc_readl(&tr->DMA_Ctl);
 
 	if (!(dmactl & DMA_IntMask)) {
@@ -1624,18 +1476,6 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
-#else
-	int handled;
-	u32 status;
-
-	spin_lock(&lp->lock);
-	status = tc_readl(&tr->Int_Src);
-	tc_writel(status, &tr->Int_Src);	/* write to clear */
-	handled = tc35815_do_interrupt(dev, status);
-	(void)tc_readl(&tr->Int_Src);	/* flush */
-	spin_unlock(&lp->lock);
-	return IRQ_RETVAL(handled >= 0);
-#endif /* TC35815_NAPI */
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1648,22 +1488,13 @@ static void tc35815_poll_controller(struct net_device *dev)
 #endif
 
 /* We have a good packet(s), get it/them out of the buffers. */
-#ifdef TC35815_NAPI
 static int
 tc35815_rx(struct net_device *dev, int limit)
-#else
-static void
-tc35815_rx(struct net_device *dev)
-#endif
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 	unsigned int fdctl;
 	int i;
-	int buf_free_count = 0;
-	int fd_free_count = 0;
-#ifdef TC35815_NAPI
 	int received = 0;
-#endif
 
 	while (!((fdctl = le32_to_cpu(lp->rfd_cur->fd.FDCtl)) & FD_CownsFD)) {
 		int status = le32_to_cpu(lp->rfd_cur->fd.FDStat);
@@ -1682,52 +1513,9 @@ tc35815_rx(struct net_device *dev)
 			struct sk_buff *skb;
 			unsigned char *data;
 			int cur_bd;
-#ifdef TC35815_USE_PACKEDBUFFER
-			int offset;
-#endif
 
-#ifdef TC35815_NAPI
 			if (--limit < 0)
 				break;
-#endif
-#ifdef TC35815_USE_PACKEDBUFFER
-			BUG_ON(bd_count > 2);
-			skb = dev_alloc_skb(pkt_len + NET_IP_ALIGN);
-			if (skb == NULL) {
-				printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n",
-				       dev->name);
-				dev->stats.rx_dropped++;
-				break;
-			}
-			skb_reserve(skb, NET_IP_ALIGN);
-
-			data = skb_put(skb, pkt_len);
-
-			/* copy from receive buffer */
-			cur_bd = 0;
-			offset = 0;
-			while (offset < pkt_len && cur_bd < bd_count) {
-				int len = le32_to_cpu(lp->rfd_cur->bd[cur_bd].BDCtl) &
-					BD_BuffLength_MASK;
-				dma_addr_t dma = le32_to_cpu(lp->rfd_cur->bd[cur_bd].BuffData);
-				void *rxbuf = rxbuf_bus_to_virt(lp, dma);
-				if (offset + len > pkt_len)
-					len = pkt_len - offset;
-#ifdef TC35815_DMA_SYNC_ONDEMAND
-				pci_dma_sync_single_for_cpu(lp->pci_dev,
-							    dma, len,
-							    PCI_DMA_FROMDEVICE);
-#endif
-				memcpy(data + offset, rxbuf, len);
-#ifdef TC35815_DMA_SYNC_ONDEMAND
-				pci_dma_sync_single_for_device(lp->pci_dev,
-							       dma, len,
-							       PCI_DMA_FROMDEVICE);
-#endif
-				offset += len;
-				cur_bd++;
-			}
-#else /* TC35815_USE_PACKEDBUFFER */
 			BUG_ON(bd_count > 1);
 			cur_bd = (le32_to_cpu(lp->rfd_cur->bd[0].BDCtl)
 				  & BD_RxBDID_MASK) >> BD_RxBDID_SHIFT;
@@ -1755,22 +1543,18 @@ tc35815_rx(struct net_device *dev)
 				memmove(skb->data, skb->data - NET_IP_ALIGN,
 					pkt_len);
 			data = skb_put(skb, pkt_len);
-#endif /* TC35815_USE_PACKEDBUFFER */
 			if (netif_msg_pktdata(lp))
 				print_eth(data);
 			skb->protocol = eth_type_trans(skb, dev);
-#ifdef TC35815_NAPI
 			netif_receive_skb(skb);
 			received++;
-#else
-			netif_rx(skb);
-#endif
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 		} else {
 			dev->stats.rx_errors++;
-			printk(KERN_DEBUG "%s: Rx error (status %x)\n",
-			       dev->name, status & Rx_Stat_Mask);
+			if (netif_msg_rx_err(lp))
+				dev_info(&dev->dev, "Rx error (status %x)\n",
+					 status & Rx_Stat_Mask);
 			/* WORKAROUND: LongErr and CRCErr means Overflow. */
 			if ((status & Rx_LongErr) && (status & Rx_CRCErr)) {
 				status &= ~(Rx_LongErr|Rx_CRCErr);
@@ -1800,19 +1584,11 @@ tc35815_rx(struct net_device *dev)
 			BUG_ON(id >= RX_BUF_NUM);
 #endif
 			/* free old buffers */
-#ifdef TC35815_USE_PACKEDBUFFER
-			while (lp->fbl_curid != id)
-#else
 			lp->fbl_count--;
 			while (lp->fbl_count < RX_BUF_NUM)
-#endif
 			{
-#ifdef TC35815_USE_PACKEDBUFFER
-				unsigned char curid = lp->fbl_curid;
-#else
 				unsigned char curid =
 					(id + 1 + lp->fbl_count) % RX_BUF_NUM;
-#endif
 				struct BDesc *bd = &lp->fbl_ptr->bd[curid];
 #ifdef DEBUG
 				bdctl = le32_to_cpu(bd->BDCtl);
@@ -1823,7 +1599,6 @@ tc35815_rx(struct net_device *dev)
 				}
 #endif
 				/* pass BD to controller */
-#ifndef TC35815_USE_PACKEDBUFFER
 				if (!lp->rx_skbs[curid].skb) {
 					lp->rx_skbs[curid].skb =
 						alloc_rxbuf_skb(dev,
@@ -1833,22 +1608,11 @@ tc35815_rx(struct net_device *dev)
 						break; /* try on next reception */
 					bd->BuffData = cpu_to_le32(lp->rx_skbs[curid].skb_dma);
 				}
-#endif /* TC35815_USE_PACKEDBUFFER */
 				/* Note: BDLength was modified by chip. */
 				bd->BDCtl = cpu_to_le32(BD_CownsBD |
 							(curid << BD_RxBDID_SHIFT) |
 							RX_BUF_SIZE);
-#ifdef TC35815_USE_PACKEDBUFFER
-				lp->fbl_curid = (curid + 1) % RX_BUF_NUM;
-				if (netif_msg_rx_status(lp)) {
-					printk("%s: Entering new FBD %d\n",
-					       dev->name, lp->fbl_curid);
-					dump_frfd(lp->fbl_ptr);
-				}
-#else
 				lp->fbl_count++;
-#endif
-				buf_free_count++;
 			}
 		}
 
@@ -1870,7 +1634,6 @@ tc35815_rx(struct net_device *dev)
 #endif
 			lp->rfd_cur->fd.FDCtl = cpu_to_le32(FD_CownsFD);
 			lp->rfd_cur++;
-			fd_free_count++;
 		}
 		if (lp->rfd_cur > lp->rfd_limit)
 			lp->rfd_cur = lp->rfd_base;
@@ -1881,23 +1644,9 @@ tc35815_rx(struct net_device *dev)
 #endif
 	}
 
-	/* re-enable BL/FDA Exhaust interrupts. */
-	if (fd_free_count) {
-		struct tc35815_regs __iomem *tr =
-			(struct tc35815_regs __iomem *)dev->base_addr;
-		u32 en, en_old = tc_readl(&tr->Int_En);
-		en = en_old | Int_FDAExEn;
-		if (buf_free_count)
-			en |= Int_BLExEn;
-		if (en != en_old)
-			tc_writel(en, &tr->Int_En);
-	}
-#ifdef TC35815_NAPI
 	return received;
-#endif
 }
 
-#ifdef TC35815_NAPI
 static int tc35815_poll(struct napi_struct *napi, int budget)
 {
 	struct tc35815_local *lp = container_of(napi, struct tc35815_local, napi);
@@ -1907,12 +1656,17 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	int received = 0, handled;
 	u32 status;
 
-	spin_lock(&lp->lock);
+	spin_lock(&lp->rx_lock);
 	status = tc_readl(&tr->Int_Src);
 	do {
-		tc_writel(status, &tr->Int_Src);	/* write to clear */
+		/* BLEx, FDAEx will be cleared later */
+		tc_writel(status & ~(Int_BLEx | Int_FDAEx),
+			  &tr->Int_Src);	/* write to clear */
 
 		handled = tc35815_do_interrupt(dev, status, budget - received);
+		if (status & (Int_BLEx | Int_FDAEx))
+			tc_writel(status & (Int_BLEx | Int_FDAEx),
+				  &tr->Int_Src);
 		if (handled >= 0) {
 			received += handled;
 			if (received >= budget)
@@ -1920,7 +1674,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 		}
 		status = tc_readl(&tr->Int_Src);
 	} while (status);
-	spin_unlock(&lp->lock);
+	spin_unlock(&lp->rx_lock);
 
 	if (received < budget) {
 		napi_complete(napi);
@@ -1929,13 +1683,8 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	}
 	return received;
 }
-#endif
 
-#ifdef NO_CHECK_CARRIER
-#define TX_STA_ERR	(Tx_ExColl|Tx_Under|Tx_Defer|Tx_LateColl|Tx_TxPar|Tx_SQErr)
-#else
 #define TX_STA_ERR	(Tx_ExColl|Tx_Under|Tx_Defer|Tx_NCarr|Tx_LateColl|Tx_TxPar|Tx_SQErr)
-#endif
 
 static void
 tc35815_check_tx_stat(struct net_device *dev, int status)
@@ -1949,16 +1698,12 @@ tc35815_check_tx_stat(struct net_device *dev, int status)
 	if (status & Tx_TxColl_MASK)
 		dev->stats.collisions += status & Tx_TxColl_MASK;
 
-#ifndef NO_CHECK_CARRIER
 	/* TX4939 does not have NCarr */
 	if (lp->chiptype == TC35815_TX4939)
 		status &= ~Tx_NCarr;
-#ifdef WORKAROUND_LOSTCAR
 	/* WORKAROUND: ignore LostCrS in full duplex operation */
 	if (!lp->link || lp->duplex == DUPLEX_FULL)
 		status &= ~Tx_NCarr;
-#endif
-#endif
 
 	if (!(status & TX_STA_ERR)) {
 		/* no error. */
@@ -1988,12 +1733,10 @@ tc35815_check_tx_stat(struct net_device *dev, int status)
 		dev->stats.tx_fifo_errors++;
 		msg = "Excessive Deferral.";
 	}
-#ifndef NO_CHECK_CARRIER
 	if (status & Tx_NCarr) {
 		dev->stats.tx_carrier_errors++;
 		msg = "Lost Carrier Sense.";
 	}
-#endif
 	if (status & Tx_LateColl) {
 		dev->stats.tx_aborted_errors++;
 		msg = "Late Collision.";
@@ -2049,11 +1792,7 @@ tc35815_txdone(struct net_device *dev)
 			pci_unmap_single(lp->pci_dev, lp->tx_skbs[lp->tfd_end].skb_dma, skb->len, PCI_DMA_TODEVICE);
 			lp->tx_skbs[lp->tfd_end].skb = NULL;
 			lp->tx_skbs[lp->tfd_end].skb_dma = 0;
-#ifdef TC35815_NAPI
 			dev_kfree_skb_any(skb);
-#else
-			dev_kfree_skb_irq(skb);
-#endif
 		}
 		txfd->fd.FDSystem = cpu_to_le32(0xffffffff);
 
@@ -2088,9 +1827,7 @@ tc35815_txdone(struct net_device *dev)
 
 				/* start DMA Transmitter again */
 				txhead->fd.FDNext |= cpu_to_le32(FD_Next_EOL);
-#ifdef GATHER_TXINT
 				txhead->fd.FDCtl |= cpu_to_le32(FD_FrmOpt_IntTx);
-#endif
 				if (netif_msg_tx_queued(lp)) {
 					printk("%s: start TxFD on queue.\n",
 					       dev->name);
@@ -2117,9 +1854,7 @@ tc35815_close(struct net_device *dev)
 	struct tc35815_local *lp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-#ifdef TC35815_NAPI
 	napi_disable(&lp->napi);
-#endif
 	if (lp->phy_dev)
 		phy_stop(lp->phy_dev);
 	cancel_work_sync(&lp->restart_work);
@@ -2144,7 +1879,7 @@ static struct net_device_stats *tc35815_get_stats(struct net_device *dev)
 		(struct tc35815_regs __iomem *)dev->base_addr;
 	if (netif_running(dev))
 		/* Update the statistics from the device registers. */
-		dev->stats.rx_missed_errors = tc_readl(&tr->Miss_Cnt);
+		dev->stats.rx_missed_errors += tc_readl(&tr->Miss_Cnt);
 
 	return &dev->stats;
 }
@@ -2203,34 +1938,32 @@ tc35815_set_multicast_list(struct net_device *dev)
 		(struct tc35815_regs __iomem *)dev->base_addr;
 
 	if (dev->flags & IFF_PROMISC) {
-#ifdef WORKAROUND_100HALF_PROMISC
 		/* With some (all?) 100MHalf HUB, controller will hang
 		 * if we enabled promiscuous mode before linkup... */
 		struct tc35815_local *lp = netdev_priv(dev);
 
 		if (!lp->link)
 			return;
-#endif
 		/* Enable promiscuous mode */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc | CAM_StationAcc, &tr->CAM_Ctl);
 	} else if ((dev->flags & IFF_ALLMULTI) ||
-		  dev->mc_count > CAM_ENTRY_MAX - 3) {
+		  netdev_mc_count(dev) > CAM_ENTRY_MAX - 3) {
 		/* CAM 0, 1, 20 are reserved. */
 		/* Disable promiscuous mode, use normal mode. */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc, &tr->CAM_Ctl);
-	} else if (dev->mc_count) {
-		struct dev_mc_list *cur_addr = dev->mc_list;
+	} else if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 		int i;
 		int ena_bits = CAM_Ena_Bit(CAM_ENTRY_SOURCE);
 
 		tc_writel(0, &tr->CAM_Ctl);
 		/* Walk the address list, and load the filter */
-		for (i = 0; i < dev->mc_count; i++, cur_addr = cur_addr->next) {
-			if (!cur_addr)
-				break;
+		i = 0;
+		netdev_for_each_mc_addr(ha, dev) {
 			/* entry 0,1 is reserved. */
-			tc35815_set_cam_entry(dev, i + 2, cur_addr->dmi_addr);
+			tc35815_set_cam_entry(dev, i + 2, ha->addr);
 			ena_bits |= CAM_Ena_Bit(i + 2);
+			i++;
 		}
 		tc_writel(ena_bits, &tr->CAM_Ena);
 		tc_writel(CAM_CompEn | CAM_BroadAcc, &tr->CAM_Ctl);
@@ -2333,7 +2066,7 @@ static int tc35815_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -EINVAL;
 	if (!lp->phy_dev)
 		return -ENODEV;
-	return phy_mii_ioctl(lp->phy_dev, if_mii(rq), cmd);
+	return phy_mii_ioctl(lp->phy_dev, rq, cmd);
 }
 
 static void tc35815_chip_reset(struct net_device *dev)
@@ -2397,11 +2130,6 @@ static void tc35815_chip_init(struct net_device *dev)
 		tc_writel(DMA_BURST_SIZE | DMA_RxAlign_2, &tr->DMA_Ctl);
 	else
 		tc_writel(DMA_BURST_SIZE, &tr->DMA_Ctl);
-#ifdef TC35815_USE_PACKEDBUFFER
-	tc_writel(RxFrag_EnPack | ETH_ZLEN, &tr->RxFragSize);	/* Packing */
-#else
-	tc_writel(ETH_ZLEN, &tr->RxFragSize);
-#endif
 	tc_writel(0, &tr->TxPollCtr);	/* Batch mode */
 	tc_writel(TX_THRESHOLD, &tr->TxThrsh);
 	tc_writel(INT_EN_CMD, &tr->Int_En);
@@ -2419,19 +2147,12 @@ static void tc35815_chip_init(struct net_device *dev)
 	tc_writel(RX_CTL_CMD, &tr->Rx_Ctl);	/* start MAC receiver */
 
 	/* start MAC transmitter */
-#ifndef NO_CHECK_CARRIER
 	/* TX4939 does not have EnLCarr */
 	if (lp->chiptype == TC35815_TX4939)
 		txctl &= ~Tx_EnLCarr;
-#ifdef WORKAROUND_LOSTCAR
 	/* WORKAROUND: ignore LostCrS in full duplex operation */
 	if (!lp->phy_dev || !lp->link || lp->duplex == DUPLEX_FULL)
 		txctl &= ~Tx_EnLCarr;
-#endif
-#endif /* !NO_CHECK_CARRIER */
-#ifdef GATHER_TXINT
-	txctl &= ~Tx_EnComp;	/* disable global tx completion int. */
-#endif
 	tc_writel(txctl, &tr->Tx_Ctl);
 }
 

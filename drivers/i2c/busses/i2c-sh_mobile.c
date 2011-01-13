@@ -28,8 +28,10 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /* Transmit operation:                                                      */
 /*                                                                          */
@@ -117,8 +119,10 @@ struct sh_mobile_i2c_data {
 	struct i2c_adapter adap;
 
 	struct clk *clk;
+	u_int8_t icic;
 	u_int8_t iccl;
 	u_int8_t icch;
+	u_int8_t flags;
 
 	spinlock_t lock;
 	wait_queue_head_t wait;
@@ -127,15 +131,17 @@ struct sh_mobile_i2c_data {
 	int sr;
 };
 
+#define IIC_FLAG_HAS_ICIC67	(1 << 0)
+
 #define NORMAL_SPEED		100000 /* FAST_SPEED 400000 */
 
 /* Register offsets */
-#define ICDR(pd)		(pd->reg + 0x00)
-#define ICCR(pd)		(pd->reg + 0x04)
-#define ICSR(pd)		(pd->reg + 0x08)
-#define ICIC(pd)		(pd->reg + 0x0c)
-#define ICCL(pd)		(pd->reg + 0x10)
-#define ICCH(pd)		(pd->reg + 0x14)
+#define ICDR			0x00
+#define ICCR			0x04
+#define ICSR			0x08
+#define ICIC			0x0c
+#define ICCL			0x10
+#define ICCH			0x14
 
 /* Register bits */
 #define ICCR_ICE		0x80
@@ -153,10 +159,31 @@ struct sh_mobile_i2c_data {
 #define ICSR_WAIT		0x02
 #define ICSR_DTE		0x01
 
+#define ICIC_ICCLB8		0x80
+#define ICIC_ICCHB8		0x40
 #define ICIC_ALE		0x08
 #define ICIC_TACKE		0x04
 #define ICIC_WAITE		0x02
 #define ICIC_DTEE		0x01
+
+static void iic_wr(struct sh_mobile_i2c_data *pd, int offs, unsigned char data)
+{
+	if (offs == ICIC)
+		data |= pd->icic;
+
+	iowrite8(data, pd->reg + offs);
+}
+
+static unsigned char iic_rd(struct sh_mobile_i2c_data *pd, int offs)
+{
+	return ioread8(pd->reg + offs);
+}
+
+static void iic_set_clr(struct sh_mobile_i2c_data *pd, int offs,
+			unsigned char set, unsigned char clr)
+{
+	iic_wr(pd, offs, (iic_rd(pd, offs) | set) & ~clr);
+}
 
 static void activate_ch(struct sh_mobile_i2c_data *pd)
 {
@@ -165,7 +192,8 @@ static void activate_ch(struct sh_mobile_i2c_data *pd)
 	u_int32_t denom;
 	u_int32_t tmp;
 
-	/* Make sure the clock is enabled */
+	/* Wake up device and enable clock */
+	pm_runtime_get_sync(pd->dev);
 	clk_enable(pd->clk);
 
 	/* Get clock rate after clock is enabled */
@@ -184,6 +212,14 @@ static void activate_ch(struct sh_mobile_i2c_data *pd)
 	else
 		pd->iccl = (u_int8_t)(num/denom);
 
+	/* one more bit of ICCL in ICIC */
+	if (pd->flags & IIC_FLAG_HAS_ICIC67) {
+		if ((num/denom) > 0xff)
+			pd->icic |= ICIC_ICCLB8;
+		else
+			pd->icic &= ~ICIC_ICCLB8;
+	}
+
 	/* Calculate the value for icch. From the data sheet:
 	   icch = (p clock / transfer rate) * (H / (L + H)) */
 	num = i2c_clk * 4;
@@ -193,28 +229,37 @@ static void activate_ch(struct sh_mobile_i2c_data *pd)
 	else
 		pd->icch = (u_int8_t)(num/denom);
 
+	/* one more bit of ICCH in ICIC */
+	if (pd->flags & IIC_FLAG_HAS_ICIC67) {
+		if ((num/denom) > 0xff)
+			pd->icic |= ICIC_ICCHB8;
+		else
+			pd->icic &= ~ICIC_ICCHB8;
+	}
+
 	/* Enable channel and configure rx ack */
-	iowrite8(ioread8(ICCR(pd)) | ICCR_ICE, ICCR(pd));
+	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
 
 	/* Mask all interrupts */
-	iowrite8(0, ICIC(pd));
+	iic_wr(pd, ICIC, 0);
 
 	/* Set the clock */
-	iowrite8(pd->iccl, ICCL(pd));
-	iowrite8(pd->icch, ICCH(pd));
+	iic_wr(pd, ICCL, pd->iccl);
+	iic_wr(pd, ICCH, pd->icch);
 }
 
 static void deactivate_ch(struct sh_mobile_i2c_data *pd)
 {
 	/* Clear/disable interrupts */
-	iowrite8(0, ICSR(pd));
-	iowrite8(0, ICIC(pd));
+	iic_wr(pd, ICSR, 0);
+	iic_wr(pd, ICIC, 0);
 
 	/* Disable channel */
-	iowrite8(ioread8(ICCR(pd)) & ~ICCR_ICE, ICCR(pd));
+	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
 
-	/* Disable clock */
+	/* Disable clock and mark device as idle */
 	clk_disable(pd->clk);
+	pm_runtime_put_sync(pd->dev);
 }
 
 static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
@@ -229,35 +274,35 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 
 	switch (op) {
 	case OP_START: /* issue start and trigger DTE interrupt */
-		iowrite8(0x94, ICCR(pd));
+		iic_wr(pd, ICCR, 0x94);
 		break;
 	case OP_TX_FIRST: /* disable DTE interrupt and write data */
-		iowrite8(ICIC_WAITE | ICIC_ALE | ICIC_TACKE, ICIC(pd));
-		iowrite8(data, ICDR(pd));
+		iic_wr(pd, ICIC, ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
+		iic_wr(pd, ICDR, data);
 		break;
 	case OP_TX: /* write data */
-		iowrite8(data, ICDR(pd));
+		iic_wr(pd, ICDR, data);
 		break;
 	case OP_TX_STOP: /* write data and issue a stop afterwards */
-		iowrite8(data, ICDR(pd));
-		iowrite8(0x90, ICCR(pd));
+		iic_wr(pd, ICDR, data);
+		iic_wr(pd, ICCR, 0x90);
 		break;
 	case OP_TX_TO_RX: /* select read mode */
-		iowrite8(0x81, ICCR(pd));
+		iic_wr(pd, ICCR, 0x81);
 		break;
 	case OP_RX: /* just read data */
-		ret = ioread8(ICDR(pd));
+		ret = iic_rd(pd, ICDR);
 		break;
 	case OP_RX_STOP: /* enable DTE interrupt, issue stop */
-		iowrite8(ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE,
-			 ICIC(pd));
-		iowrite8(0xc0, ICCR(pd));
+		iic_wr(pd, ICIC,
+		       ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
+		iic_wr(pd, ICCR, 0xc0);
 		break;
 	case OP_RX_STOP_DATA: /* enable DTE interrupt, read data, issue stop */
-		iowrite8(ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE,
-			 ICIC(pd));
-		ret = ioread8(ICDR(pd));
-		iowrite8(0xc0, ICCR(pd));
+		iic_wr(pd, ICIC,
+		       ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
+		ret = iic_rd(pd, ICDR);
+		iic_wr(pd, ICCR, 0xc0);
 		break;
 	}
 
@@ -363,7 +408,7 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 	unsigned char sr;
 	int wakeup;
 
-	sr = ioread8(ICSR(pd));
+	sr = iic_rd(pd, ICSR);
 	pd->sr |= sr; /* remember state */
 
 	dev_dbg(pd->dev, "i2c_isr 0x%02x 0x%02x %s %d %d!\n", sr, pd->sr,
@@ -372,7 +417,7 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 
 	if (sr & (ICSR_AL | ICSR_TACK)) {
 		/* don't interrupt transaction - continue to issue stop */
-		iowrite8(sr & ~(ICSR_AL | ICSR_TACK), ICSR(pd));
+		iic_wr(pd, ICSR, sr & ~(ICSR_AL | ICSR_TACK));
 		wakeup = 0;
 	} else if (pd->msg->flags & I2C_M_RD)
 		wakeup = sh_mobile_i2c_isr_rx(pd);
@@ -380,7 +425,7 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 		wakeup = sh_mobile_i2c_isr_tx(pd);
 
 	if (sr & ICSR_WAIT) /* TODO: add delay here to support slow acks */
-		iowrite8(sr & ~ICSR_WAIT, ICSR(pd));
+		iic_wr(pd, ICSR, sr & ~ICSR_WAIT);
 
 	if (wakeup) {
 		pd->sr |= SW_DONE;
@@ -398,21 +443,21 @@ static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg)
 	}
 
 	/* Initialize channel registers */
-	iowrite8(ioread8(ICCR(pd)) & ~ICCR_ICE, ICCR(pd));
+	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
 
 	/* Enable channel and configure rx ack */
-	iowrite8(ioread8(ICCR(pd)) | ICCR_ICE, ICCR(pd));
+	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
 
 	/* Set the clock */
-	iowrite8(pd->iccl, ICCL(pd));
-	iowrite8(pd->icch, ICCH(pd));
+	iic_wr(pd, ICCL, pd->iccl);
+	iic_wr(pd, ICCH, pd->icch);
 
 	pd->msg = usr_msg;
 	pd->pos = -1;
 	pd->sr = 0;
 
 	/* Enable all interrupts to begin with */
-	iowrite8(ICIC_WAITE | ICIC_ALE | ICIC_TACKE | ICIC_DTEE, ICIC(pd));
+	iic_wr(pd, ICIC, ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
 	return 0;
 }
 
@@ -447,7 +492,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 
 		retry_count = 1000;
 again:
-		val = ioread8(ICSR(pd));
+		val = iic_rd(pd, ICSR);
 
 		dev_dbg(pd->dev, "val 0x%02x pd->sr 0x%02x\n", val, pd->sr);
 
@@ -493,15 +538,17 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, int hook)
 {
 	struct resource *res;
 	int ret = -ENXIO;
-	int q, m;
-	int k = 0;
-	int n = 0;
+	int n, k = 0;
 
 	while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
 		for (n = res->start; hook && n <= res->end; n++) {
 			if (request_irq(n, sh_mobile_i2c_isr, IRQF_DISABLED,
-					dev_name(&dev->dev), dev))
+					dev_name(&dev->dev), dev)) {
+				for (n--; n >= res->start; n--)
+					free_irq(n, dev);
+
 				goto rollback;
+			}
 		}
 		k++;
 	}
@@ -509,16 +556,17 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, int hook)
 	if (hook)
 		return k > 0 ? 0 : -ENOENT;
 
-	k--;
 	ret = 0;
 
  rollback:
-	for (q = k; k >= 0; k--) {
-		for (m = n; m >= res->start; m--)
-			free_irq(m, dev);
+	k--;
 
-		res = platform_get_resource(dev, IORESOURCE_IRQ, k - 1);
-		m = res->end;
+	while (k >= 0) {
+		res = platform_get_resource(dev, IORESOURCE_IRQ, k);
+		for (n = res->start; n <= res->end; n++)
+			free_irq(n, dev);
+
+		k--;
 	}
 
 	return ret;
@@ -563,7 +611,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		goto err_irq;
 	}
 
-	size = (res->end - res->start) + 1;
+	size = resource_size(res);
 
 	pd->reg = ioremap(res->start, size);
 	if (pd->reg == NULL) {
@@ -571,6 +619,25 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		ret = -ENXIO;
 		goto err_irq;
 	}
+
+	/* The IIC blocks on SH-Mobile ARM processors
+	 * come with two new bits in ICIC.
+	 */
+	if (size > 0x17)
+		pd->flags |= IIC_FLAG_HAS_ICIC67;
+
+	/* Enable Runtime PM for this device.
+	 *
+	 * Also tell the Runtime PM core to ignore children
+	 * for this device since it is valid for us to suspend
+	 * this I2C master driver even though the slave devices
+	 * on the I2C bus may not be suspended.
+	 *
+	 * The state of the I2C hardware bus is unaffected by
+	 * the Runtime PM state.
+	 */
+	pm_suspend_ignore_children(&dev->dev, true);
+	pm_runtime_enable(&dev->dev);
 
 	/* setup the private data */
 	adap = &pd->adap;
@@ -614,14 +681,33 @@ static int sh_mobile_i2c_remove(struct platform_device *dev)
 	iounmap(pd->reg);
 	sh_mobile_i2c_hook_irqs(dev, 0);
 	clk_put(pd->clk);
+	pm_runtime_disable(&dev->dev);
 	kfree(pd);
 	return 0;
 }
+
+static int sh_mobile_i2c_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops sh_mobile_i2c_dev_pm_ops = {
+	.runtime_suspend = sh_mobile_i2c_runtime_nop,
+	.runtime_resume = sh_mobile_i2c_runtime_nop,
+};
 
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
 		.owner		= THIS_MODULE,
+		.pm		= &sh_mobile_i2c_dev_pm_ops,
 	},
 	.probe		= sh_mobile_i2c_probe,
 	.remove		= sh_mobile_i2c_remove,
@@ -637,7 +723,7 @@ static void __exit sh_mobile_i2c_adap_exit(void)
 	platform_driver_unregister(&sh_mobile_i2c_driver);
 }
 
-module_init(sh_mobile_i2c_adap_init);
+subsys_initcall(sh_mobile_i2c_adap_init);
 module_exit(sh_mobile_i2c_adap_exit);
 
 MODULE_DESCRIPTION("SuperH Mobile I2C Bus Controller driver");

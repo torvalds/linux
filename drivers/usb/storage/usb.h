@@ -132,14 +132,14 @@ struct us_data {
 	/* SCSI interfaces */
 	struct scsi_cmnd	*srb;		 /* current srb		*/
 	unsigned int		tag;		 /* current dCBWTag	*/
+	char			scsi_name[32];	 /* scsi_host name	*/
 
 	/* control and bulk communications data */
 	struct urb		*current_urb;	 /* USB requests	 */
 	struct usb_ctrlrequest	*cr;		 /* control requests	 */
 	struct usb_sg_request	current_sg;	 /* scatter-gather req.  */
 	unsigned char		*iobuf;		 /* I/O buffer		 */
-	dma_addr_t		cr_dma;		 /* buffer DMA addresses */
-	dma_addr_t		iobuf_dma;
+	dma_addr_t		iobuf_dma;	 /* buffer DMA addresses */
 	struct task_struct	*ctl_thread;	 /* the control thread   */
 
 	/* mutual exclusion and synchronization structures */

@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include "simple_gpio.h"
 
@@ -90,7 +91,6 @@ static int __init u8_simple_gpiochip_add(struct device_node *np)
 	int ret;
 	struct u8_gpio_chip *u8_gc;
 	struct of_mm_gpio_chip *mm_gc;
-	struct of_gpio_chip *of_gc;
 	struct gpio_chip *gc;
 
 	u8_gc = kzalloc(sizeof(*u8_gc), GFP_KERNEL);
@@ -100,11 +100,9 @@ static int __init u8_simple_gpiochip_add(struct device_node *np)
 	spin_lock_init(&u8_gc->lock);
 
 	mm_gc = &u8_gc->mm_gc;
-	of_gc = &mm_gc->of_gc;
-	gc = &of_gc->gc;
+	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = u8_gpio_save_regs;
-	of_gc->gpio_cells = 2;
 	gc->ngpio = 8;
 	gc->direction_input = u8_gpio_dir_in;
 	gc->direction_output = u8_gpio_dir_out;

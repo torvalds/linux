@@ -92,7 +92,7 @@ Scott Hill shill@gtcocalcomp.com
 /* DATA STRUCTURES */
 
 /* Device table */
-static struct usb_device_id gtco_usbid_table [] = {
+static const struct usb_device_id gtco_usbid_table[] = {
 	{ USB_DEVICE(VENDOR_ID_GTCO, PID_400) },
 	{ USB_DEVICE(VENDOR_ID_GTCO, PID_401) },
 	{ USB_DEVICE(VENDOR_ID_GTCO, PID_1000) },
@@ -850,8 +850,8 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	gtco->usbdev = usb_get_dev(interface_to_usbdev(usbinterface));
 
 	/* Allocate some data for incoming reports */
-	gtco->buffer = usb_buffer_alloc(gtco->usbdev, REPORT_MAX_SIZE,
-					GFP_KERNEL, &gtco->buf_dma);
+	gtco->buffer = usb_alloc_coherent(gtco->usbdev, REPORT_MAX_SIZE,
+					  GFP_KERNEL, &gtco->buf_dma);
 	if (!gtco->buffer) {
 		err("No more memory for us buffers");
 		error = -ENOMEM;
@@ -982,8 +982,8 @@ static int gtco_probe(struct usb_interface *usbinterface,
  err_free_urb:
 	usb_free_urb(gtco->urbinfo);
  err_free_buf:
-	usb_buffer_free(gtco->usbdev, REPORT_MAX_SIZE,
-			gtco->buffer, gtco->buf_dma);
+	usb_free_coherent(gtco->usbdev, REPORT_MAX_SIZE,
+			  gtco->buffer, gtco->buf_dma);
  err_free_devs:
 	input_free_device(input_dev);
 	kfree(gtco);
@@ -1005,8 +1005,8 @@ static void gtco_disconnect(struct usb_interface *interface)
 		input_unregister_device(gtco->inputdevice);
 		usb_kill_urb(gtco->urbinfo);
 		usb_free_urb(gtco->urbinfo);
-		usb_buffer_free(gtco->usbdev, REPORT_MAX_SIZE,
-				gtco->buffer, gtco->buf_dma);
+		usb_free_coherent(gtco->usbdev, REPORT_MAX_SIZE,
+				  gtco->buffer, gtco->buf_dma);
 		kfree(gtco);
 	}
 

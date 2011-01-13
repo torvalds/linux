@@ -6,15 +6,16 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/smp.h>
 #include <linux/highmem.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/quicklist.h>
+#include <linux/rcupdate.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -22,6 +23,67 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
+
+struct rcu_table_freelist {
+	struct rcu_head rcu;
+	struct mm_struct *mm;
+	unsigned int pgt_index;
+	unsigned int crst_index;
+	unsigned long *table[0];
+};
+
+#define RCU_FREELIST_SIZE \
+	((PAGE_SIZE - sizeof(struct rcu_table_freelist)) \
+	  / sizeof(unsigned long))
+
+DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+static DEFINE_PER_CPU(struct rcu_table_freelist *, rcu_table_freelist);
+
+static void __page_table_free(struct mm_struct *mm, unsigned long *table);
+static void __crst_table_free(struct mm_struct *mm, unsigned long *table);
+
+static struct rcu_table_freelist *rcu_table_freelist_get(struct mm_struct *mm)
+{
+	struct rcu_table_freelist **batchp = &__get_cpu_var(rcu_table_freelist);
+	struct rcu_table_freelist *batch = *batchp;
+
+	if (batch)
+		return batch;
+	batch = (struct rcu_table_freelist *) __get_free_page(GFP_ATOMIC);
+	if (batch) {
+		batch->mm = mm;
+		batch->pgt_index = 0;
+		batch->crst_index = RCU_FREELIST_SIZE;
+		*batchp = batch;
+	}
+	return batch;
+}
+
+static void rcu_table_freelist_callback(struct rcu_head *head)
+{
+	struct rcu_table_freelist *batch =
+		container_of(head, struct rcu_table_freelist, rcu);
+
+	while (batch->pgt_index > 0)
+		__page_table_free(batch->mm, batch->table[--batch->pgt_index]);
+	while (batch->crst_index < RCU_FREELIST_SIZE)
+		__crst_table_free(batch->mm, batch->table[batch->crst_index++]);
+	free_page((unsigned long) batch);
+}
+
+void rcu_table_freelist_finish(void)
+{
+	struct rcu_table_freelist *batch = __get_cpu_var(rcu_table_freelist);
+
+	if (!batch)
+		return;
+	call_rcu(&batch->rcu, rcu_table_freelist_callback);
+	__get_cpu_var(rcu_table_freelist) = NULL;
+}
+
+static void smp_sync(void *arg)
+{
+}
 
 #ifndef CONFIG_64BIT
 #define ALLOC_ORDER	1
@@ -78,23 +140,53 @@ unsigned long *crst_table_alloc(struct mm_struct *mm, int noexec)
 		}
 		page->index = page_to_phys(shadow);
 	}
-	spin_lock(&mm->page_table_lock);
+	spin_lock_bh(&mm->context.list_lock);
 	list_add(&page->lru, &mm->context.crst_list);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock_bh(&mm->context.list_lock);
 	return (unsigned long *) page_to_phys(page);
+}
+
+static void __crst_table_free(struct mm_struct *mm, unsigned long *table)
+{
+	unsigned long *shadow = get_shadow_table(table);
+
+	if (shadow)
+		free_pages((unsigned long) shadow, ALLOC_ORDER);
+	free_pages((unsigned long) table, ALLOC_ORDER);
 }
 
 void crst_table_free(struct mm_struct *mm, unsigned long *table)
 {
-	unsigned long *shadow = get_shadow_table(table);
 	struct page *page = virt_to_page(table);
 
-	spin_lock(&mm->page_table_lock);
+	spin_lock_bh(&mm->context.list_lock);
 	list_del(&page->lru);
-	spin_unlock(&mm->page_table_lock);
-	if (shadow)
-		free_pages((unsigned long) shadow, ALLOC_ORDER);
-	free_pages((unsigned long) table, ALLOC_ORDER);
+	spin_unlock_bh(&mm->context.list_lock);
+	__crst_table_free(mm, table);
+}
+
+void crst_table_free_rcu(struct mm_struct *mm, unsigned long *table)
+{
+	struct rcu_table_freelist *batch;
+	struct page *page = virt_to_page(table);
+
+	spin_lock_bh(&mm->context.list_lock);
+	list_del(&page->lru);
+	spin_unlock_bh(&mm->context.list_lock);
+	if (atomic_read(&mm->mm_users) < 2 &&
+	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
+		__crst_table_free(mm, table);
+		return;
+	}
+	batch = rcu_table_freelist_get(mm);
+	if (!batch) {
+		smp_call_function(smp_sync, NULL, 1);
+		__crst_table_free(mm, table);
+		return;
+	}
+	batch->table[--batch->crst_index] = table;
+	if (batch->pgt_index >= batch->crst_index)
+		rcu_table_freelist_finish();
 }
 
 #ifdef CONFIG_64BIT
@@ -108,7 +200,7 @@ repeat:
 	table = crst_table_alloc(mm, mm->context.noexec);
 	if (!table)
 		return -ENOMEM;
-	spin_lock(&mm->page_table_lock);
+	spin_lock_bh(&mm->page_table_lock);
 	if (mm->context.asce_limit < limit) {
 		pgd = (unsigned long *) mm->pgd;
 		if (mm->context.asce_limit <= (1UL << 31)) {
@@ -130,7 +222,7 @@ repeat:
 		mm->task_size = mm->context.asce_limit;
 		table = NULL;
 	}
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock_bh(&mm->page_table_lock);
 	if (table)
 		crst_table_free(mm, table);
 	if (mm->context.asce_limit < limit)
@@ -182,7 +274,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	unsigned long bits;
 
 	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
-	spin_lock(&mm->page_table_lock);
+	spin_lock_bh(&mm->context.list_lock);
 	page = NULL;
 	if (!list_empty(&mm->context.pgtable_list)) {
 		page = list_first_entry(&mm->context.pgtable_list,
@@ -191,7 +283,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 			page = NULL;
 	}
 	if (!page) {
-		spin_unlock(&mm->page_table_lock);
+		spin_unlock_bh(&mm->context.list_lock);
 		page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
 		if (!page)
 			return NULL;
@@ -202,7 +294,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 			clear_table_pgstes(table);
 		else
 			clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
-		spin_lock(&mm->page_table_lock);
+		spin_lock_bh(&mm->context.list_lock);
 		list_add(&page->lru, &mm->context.pgtable_list);
 	}
 	table = (unsigned long *) page_to_phys(page);
@@ -213,8 +305,23 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	page->flags |= bits;
 	if ((page->flags & FRAG_MASK) == ((1UL << TABLES_PER_PAGE) - 1))
 		list_move_tail(&page->lru, &mm->context.pgtable_list);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock_bh(&mm->context.list_lock);
 	return table;
+}
+
+static void __page_table_free(struct mm_struct *mm, unsigned long *table)
+{
+	struct page *page;
+	unsigned long bits;
+
+	bits = ((unsigned long) table) & 15;
+	table = (unsigned long *)(((unsigned long) table) ^ bits);
+	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+	page->flags ^= bits;
+	if (!(page->flags & FRAG_MASK)) {
+		pgtable_page_dtor(page);
+		__free_page(page);
+	}
 }
 
 void page_table_free(struct mm_struct *mm, unsigned long *table)
@@ -225,7 +332,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
 	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-	spin_lock(&mm->page_table_lock);
+	spin_lock_bh(&mm->context.list_lock);
 	page->flags ^= bits;
 	if (page->flags & FRAG_MASK) {
 		/* Page now has some free pgtable fragments. */
@@ -234,18 +341,48 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	} else
 		/* All fragments of the 4K page have been freed. */
 		list_del(&page->lru);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock_bh(&mm->context.list_lock);
 	if (page) {
 		pgtable_page_dtor(page);
 		__free_page(page);
 	}
 }
 
+void page_table_free_rcu(struct mm_struct *mm, unsigned long *table)
+{
+	struct rcu_table_freelist *batch;
+	struct page *page;
+	unsigned long bits;
+
+	if (atomic_read(&mm->mm_users) < 2 &&
+	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
+		page_table_free(mm, table);
+		return;
+	}
+	batch = rcu_table_freelist_get(mm);
+	if (!batch) {
+		smp_call_function(smp_sync, NULL, 1);
+		page_table_free(mm, table);
+		return;
+	}
+	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
+	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
+	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+	spin_lock_bh(&mm->context.list_lock);
+	/* Delayed freeing with rcu prevents reuse of pgtable fragments */
+	list_del_init(&page->lru);
+	spin_unlock_bh(&mm->context.list_lock);
+	table = (unsigned long *)(((unsigned long) table) | bits);
+	batch->table[batch->pgt_index++] = table;
+	if (batch->pgt_index >= batch->crst_index)
+		rcu_table_freelist_finish();
+}
+
 void disable_noexec(struct mm_struct *mm, struct task_struct *tsk)
 {
 	struct page *page;
 
-	spin_lock(&mm->page_table_lock);
+	spin_lock_bh(&mm->context.list_lock);
 	/* Free shadow region and segment tables. */
 	list_for_each_entry(page, &mm->context.crst_list, lru)
 		if (page->index) {
@@ -255,7 +392,7 @@ void disable_noexec(struct mm_struct *mm, struct task_struct *tsk)
 	/* "Free" second halves of page tables. */
 	list_for_each_entry(page, &mm->context.pgtable_list, lru)
 		page->flags &= ~SECOND_HALVES;
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock_bh(&mm->context.list_lock);
 	mm->context.noexec = 0;
 	update_mm(mm, tsk);
 }
@@ -269,7 +406,7 @@ int s390_enable_sie(void)
 	struct mm_struct *mm, *old_mm;
 
 	/* Do we have switched amode? If no, we cannot do sie */
-	if (!switch_amode)
+	if (user_mode == HOME_SPACE_MODE)
 		return -EINVAL;
 
 	/* Do we have pgstes? if yes, we are done */
@@ -279,7 +416,10 @@ int s390_enable_sie(void)
 	/* lets check if we are allowed to replace the mm */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
+#ifdef CONFIG_AIO
+	    !hlist_empty(&tsk->mm->ioctx_list) ||
+#endif
+	    tsk->mm != tsk->active_mm) {
 		task_unlock(tsk);
 		return -EINVAL;
 	}
@@ -295,7 +435,10 @@ int s390_enable_sie(void)
 	/* Now lets check again if something happened */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
+#ifdef CONFIG_AIO
+	    !hlist_empty(&tsk->mm->ioctx_list) ||
+#endif
+	    tsk->mm != tsk->active_mm) {
 		mmput(mm);
 		task_unlock(tsk);
 		return -EINVAL;
@@ -306,6 +449,8 @@ int s390_enable_sie(void)
 	tsk->mm = tsk->active_mm = mm;
 	preempt_disable();
 	update_mm(mm, tsk);
+	atomic_inc(&mm->context.attach_count);
+	atomic_dec(&old_mm->context.attach_count);
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 	preempt_enable();
 	task_unlock(tsk);
@@ -314,21 +459,18 @@ int s390_enable_sie(void)
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-#ifdef CONFIG_HIBERNATION
+#if defined(CONFIG_DEBUG_PAGEALLOC) && defined(CONFIG_HIBERNATION)
 bool kernel_page_present(struct page *page)
 {
 	unsigned long addr;
 	int cc;
 
 	addr = page_to_phys(page);
-	asm("lra %1,0(%1)\n"
-	    "ipm %0\n"
-	    "srl %0,28"
-	    :"=d"(cc),"+a"(addr)::"cc");
+	asm volatile(
+		"	lra	%1,0(%1)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (cc), "+a" (addr) : : "cc");
 	return cc == 0;
 }
-
-#endif /* CONFIG_HIBERNATION */
-#endif /* CONFIG_DEBUG_PAGEALLOC */
-
+#endif /* CONFIG_HIBERNATION && CONFIG_DEBUG_PAGEALLOC */

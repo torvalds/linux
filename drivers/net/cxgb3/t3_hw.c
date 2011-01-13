@@ -34,6 +34,8 @@
 #include "sge_defs.h"
 #include "firmware_exports.h"
 
+static void t3_port_intr_clear(struct adapter *adapter, int idx);
+
 /**
  *	t3_wait_op_done_val - wait until an operation is completed
  *	@adapter: the adapter performing the operation
@@ -679,14 +681,6 @@ int t3_seeprom_wp(struct adapter *adapter, int enable)
 	return t3_seeprom_write(adapter, EEPROM_STAT_ADDR, enable ? 0xc : 0);
 }
 
-/*
- * Convert a character holding a hex digit to a number.
- */
-static unsigned int hex2int(unsigned char c)
-{
-	return isdigit(c) ? c - '0' : toupper(c) - 'A' + 10;
-}
-
 /**
  *	get_vpd_params - read VPD parameters from VPD EEPROM
  *	@adapter: adapter to read
@@ -727,15 +721,15 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 		p->port_type[0] = uses_xaui(adapter) ? 1 : 2;
 		p->port_type[1] = uses_xaui(adapter) ? 6 : 2;
 	} else {
-		p->port_type[0] = hex2int(vpd.port0_data[0]);
-		p->port_type[1] = hex2int(vpd.port1_data[0]);
+		p->port_type[0] = hex_to_bin(vpd.port0_data[0]);
+		p->port_type[1] = hex_to_bin(vpd.port1_data[0]);
 		p->xauicfg[0] = simple_strtoul(vpd.xaui0cfg_data, NULL, 16);
 		p->xauicfg[1] = simple_strtoul(vpd.xaui1cfg_data, NULL, 16);
 	}
 
 	for (i = 0; i < 6; i++)
-		p->eth_base[i] = hex2int(vpd.na_data[2 * i]) * 16 +
-				 hex2int(vpd.na_data[2 * i + 1]);
+		p->eth_base[i] = hex_to_bin(vpd.na_data[2 * i]) * 16 +
+				 hex_to_bin(vpd.na_data[2 * i + 1]);
 	return 0;
 }
 
@@ -848,8 +842,8 @@ static int flash_wait_op(struct adapter *adapter, int attempts, int delay)
  *	(i.e., big-endian), otherwise as 32-bit words in the platform's
  *	natural endianess.
  */
-int t3_read_flash(struct adapter *adapter, unsigned int addr,
-		  unsigned int nwords, u32 *data, int byte_oriented)
+static int t3_read_flash(struct adapter *adapter, unsigned int addr,
+			 unsigned int nwords, u32 *data, int byte_oriented)
 {
 	int ret;
 
@@ -1262,7 +1256,8 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 		lc->fc = fc;
 	}
 
-	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc);
+	t3_os_link_changed(adapter, port_id, link_ok && !pi->link_fault,
+			   speed, duplex, fc);
 }
 
 void t3_link_fault(struct adapter *adapter, int port_id)
@@ -1415,6 +1410,7 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 			fatal++;
 			CH_ALERT(adapter, "%s (0x%x)\n",
 				 acts->msg, status & acts->mask);
+			status &= ~acts->mask;
 		} else if (acts->msg)
 			CH_WARN(adapter, "%s (0x%x)\n",
 				acts->msg, status & acts->mask);
@@ -1432,7 +1428,10 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 		       F_IRPARITYERROR | V_ITPARITYERROR(M_ITPARITYERROR) | \
 		       V_FLPARITYERROR(M_FLPARITYERROR) | F_LODRBPARITYERROR | \
 		       F_HIDRBPARITYERROR | F_LORCQPARITYERROR | \
-		       F_HIRCQPARITYERROR)
+		       F_HIRCQPARITYERROR | F_LOPRIORITYDBFULL | \
+		       F_HIPRIORITYDBFULL | F_LOPRIORITYDBEMPTY | \
+		       F_HIPRIORITYDBEMPTY | F_HIPIODRBDROPERR | \
+		       F_LOPIODRBDROPERR)
 #define MC5_INTR_MASK (F_PARITYERR | F_ACTRGNFULL | F_UNKNOWNCMD | \
 		       F_REQQPARERR | F_DISPQPARERR | F_DELACTEMPTY | \
 		       F_NFASRCHFAIL)
@@ -1563,7 +1562,7 @@ static void tp_intr_handler(struct adapter *adapter)
 		{0}
 	};
 
-	static struct intr_info tp_intr_info_t3c[] = {
+	static const struct intr_info tp_intr_info_t3c[] = {
 		{0x1fffffff, "TP parity error", -1, 1},
 		{F_FLMRXFLSTEMPTY, "TP out of Rx pages", -1, 1},
 		{F_FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1},
@@ -1847,11 +1846,10 @@ static int mac_intr_handler(struct adapter *adap, unsigned int idx)
 		t3_os_link_fault_handler(adap, idx);
 	}
 
-	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
-
 	if (cause & XGM_INTR_FATAL)
 		t3_fatal_err(adap);
 
+	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
 	return cause != 0;
 }
 
@@ -2115,7 +2113,7 @@ void t3_port_intr_disable(struct adapter *adapter, int idx)
  *	Clear port-specific (i.e., MAC and PHY) interrupts for the given
  *	adapter port.
  */
-void t3_port_intr_clear(struct adapter *adapter, int idx)
+static void t3_port_intr_clear(struct adapter *adapter, int idx)
 {
 	struct cphy *phy = &adap2pinfo(adapter, idx)->phy;
 
@@ -2488,98 +2486,6 @@ int t3_sge_cqcntxt_op(struct adapter *adapter, unsigned int id, unsigned int op,
 }
 
 /**
- * 	t3_sge_read_context - read an SGE context
- * 	@type: the context type
- * 	@adapter: the adapter
- * 	@id: the context id
- * 	@data: holds the retrieved context
- *
- * 	Read an SGE egress context.  The caller is responsible for ensuring
- * 	only one context operation occurs at a time.
- */
-static int t3_sge_read_context(unsigned int type, struct adapter *adapter,
-			       unsigned int id, u32 data[4])
-{
-	if (t3_read_reg(adapter, A_SG_CONTEXT_CMD) & F_CONTEXT_CMD_BUSY)
-		return -EBUSY;
-
-	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
-		     V_CONTEXT_CMD_OPCODE(0) | type | V_CONTEXT(id));
-	if (t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY, 0,
-			    SG_CONTEXT_CMD_ATTEMPTS, 1))
-		return -EIO;
-	data[0] = t3_read_reg(adapter, A_SG_CONTEXT_DATA0);
-	data[1] = t3_read_reg(adapter, A_SG_CONTEXT_DATA1);
-	data[2] = t3_read_reg(adapter, A_SG_CONTEXT_DATA2);
-	data[3] = t3_read_reg(adapter, A_SG_CONTEXT_DATA3);
-	return 0;
-}
-
-/**
- * 	t3_sge_read_ecntxt - read an SGE egress context
- * 	@adapter: the adapter
- * 	@id: the context id
- * 	@data: holds the retrieved context
- *
- * 	Read an SGE egress context.  The caller is responsible for ensuring
- * 	only one context operation occurs at a time.
- */
-int t3_sge_read_ecntxt(struct adapter *adapter, unsigned int id, u32 data[4])
-{
-	if (id >= 65536)
-		return -EINVAL;
-	return t3_sge_read_context(F_EGRESS, adapter, id, data);
-}
-
-/**
- * 	t3_sge_read_cq - read an SGE CQ context
- * 	@adapter: the adapter
- * 	@id: the context id
- * 	@data: holds the retrieved context
- *
- * 	Read an SGE CQ context.  The caller is responsible for ensuring
- * 	only one context operation occurs at a time.
- */
-int t3_sge_read_cq(struct adapter *adapter, unsigned int id, u32 data[4])
-{
-	if (id >= 65536)
-		return -EINVAL;
-	return t3_sge_read_context(F_CQ, adapter, id, data);
-}
-
-/**
- * 	t3_sge_read_fl - read an SGE free-list context
- * 	@adapter: the adapter
- * 	@id: the context id
- * 	@data: holds the retrieved context
- *
- * 	Read an SGE free-list context.  The caller is responsible for ensuring
- * 	only one context operation occurs at a time.
- */
-int t3_sge_read_fl(struct adapter *adapter, unsigned int id, u32 data[4])
-{
-	if (id >= SGE_QSETS * 2)
-		return -EINVAL;
-	return t3_sge_read_context(F_FREELIST, adapter, id, data);
-}
-
-/**
- * 	t3_sge_read_rspq - read an SGE response queue context
- * 	@adapter: the adapter
- * 	@id: the context id
- * 	@data: holds the retrieved context
- *
- * 	Read an SGE response queue context.  The caller is responsible for
- * 	ensuring only one context operation occurs at a time.
- */
-int t3_sge_read_rspq(struct adapter *adapter, unsigned int id, u32 data[4])
-{
-	if (id >= SGE_QSETS)
-		return -EINVAL;
-	return t3_sge_read_context(F_RESPONSEQ, adapter, id, data);
-}
-
-/**
  *	t3_config_rss - configure Rx packet steering
  *	@adapter: the adapter
  *	@rss_config: RSS settings (written to TP_RSS_CONFIG)
@@ -2617,42 +2523,6 @@ void t3_config_rss(struct adapter *adapter, unsigned int rss_config,
 		}
 
 	t3_write_reg(adapter, A_TP_RSS_CONFIG, rss_config);
-}
-
-/**
- *	t3_read_rss - read the contents of the RSS tables
- *	@adapter: the adapter
- *	@lkup: holds the contents of the RSS lookup table
- *	@map: holds the contents of the RSS map table
- *
- *	Reads the contents of the receive packet steering tables.
- */
-int t3_read_rss(struct adapter *adapter, u8 * lkup, u16 *map)
-{
-	int i;
-	u32 val;
-
-	if (lkup)
-		for (i = 0; i < RSS_TABLE_SIZE; ++i) {
-			t3_write_reg(adapter, A_TP_RSS_LKP_TABLE,
-				     0xffff0000 | i);
-			val = t3_read_reg(adapter, A_TP_RSS_LKP_TABLE);
-			if (!(val & 0x80000000))
-				return -EAGAIN;
-			*lkup++ = val;
-			*lkup++ = (val >> 8);
-		}
-
-	if (map)
-		for (i = 0; i < RSS_TABLE_SIZE; ++i) {
-			t3_write_reg(adapter, A_TP_RSS_MAP_TABLE,
-				     0xffff0000 | i);
-			val = t3_read_reg(adapter, A_TP_RSS_MAP_TABLE);
-			if (!(val & 0x80000000))
-				return -EAGAIN;
-			*map++ = val;
-		}
-	return 0;
 }
 
 /**
@@ -2872,7 +2742,8 @@ static void tp_set_timers(struct adapter *adap, unsigned int core_clk)
  *
  *	Set the receive coalescing size and PSH bit handling.
  */
-int t3_tp_set_coalescing_size(struct adapter *adap, unsigned int size, int psh)
+static int t3_tp_set_coalescing_size(struct adapter *adap,
+				     unsigned int size, int psh)
 {
 	u32 val;
 
@@ -2902,7 +2773,7 @@ int t3_tp_set_coalescing_size(struct adapter *adap, unsigned int size, int psh)
  *	Set TP's max receive size.  This is the limit that applies when
  *	receive coalescing is disabled.
  */
-void t3_tp_set_max_rxsize(struct adapter *adap, unsigned int size)
+static void t3_tp_set_max_rxsize(struct adapter *adap, unsigned int size)
 {
 	t3_write_reg(adap, A_TP_PARA_REG7,
 		     V_PMMAXXFERLEN0(size) | V_PMMAXXFERLEN1(size));
@@ -3019,48 +2890,6 @@ void t3_load_mtus(struct adapter *adap, unsigned short mtus[NMTUS],
 				     (w << 16) | (beta[w] << 13) | inc);
 		}
 	}
-}
-
-/**
- *	t3_read_hw_mtus - returns the values in the HW MTU table
- *	@adap: the adapter
- *	@mtus: where to store the HW MTU values
- *
- *	Reads the HW MTU table.
- */
-void t3_read_hw_mtus(struct adapter *adap, unsigned short mtus[NMTUS])
-{
-	int i;
-
-	for (i = 0; i < NMTUS; ++i) {
-		unsigned int val;
-
-		t3_write_reg(adap, A_TP_MTU_TABLE, 0xff000000 | i);
-		val = t3_read_reg(adap, A_TP_MTU_TABLE);
-		mtus[i] = val & 0x3fff;
-	}
-}
-
-/**
- *	t3_get_cong_cntl_tab - reads the congestion control table
- *	@adap: the adapter
- *	@incr: where to store the alpha values
- *
- *	Reads the additive increments programmed into the HW congestion
- *	control table.
- */
-void t3_get_cong_cntl_tab(struct adapter *adap,
-			  unsigned short incr[NMTUS][NCCTRL_WIN])
-{
-	unsigned int mtu, w;
-
-	for (mtu = 0; mtu < NMTUS; ++mtu)
-		for (w = 0; w < NCCTRL_WIN; ++w) {
-			t3_write_reg(adap, A_TP_CCTRL_TABLE,
-				     0xffff0000 | (mtu << 5) | w);
-			incr[mtu][w] = t3_read_reg(adap, A_TP_CCTRL_TABLE) &
-				       0x1fff;
-		}
 }
 
 /**
@@ -3225,15 +3054,6 @@ static int tp_init(struct adapter *adap, const struct tp_params *p)
 	if (!busy)
 		t3_write_reg(adap, A_TP_RESET, F_TPRESET);
 	return busy;
-}
-
-int t3_mps_set_active_ports(struct adapter *adap, unsigned int port_mask)
-{
-	if (port_mask & ~((1 << adap->params.nports) - 1))
-		return -EINVAL;
-	t3_set_reg_field(adap, A_MPS_CFG, F_PORT1ACTIVE | F_PORT0ACTIVE,
-			 port_mask << S_PORT0ACTIVE);
-	return 0;
 }
 
 /*
@@ -3465,7 +3285,7 @@ static void config_pcie(struct adapter *adap)
 		{201, 321, 258, 450, 834, 1602}
 	};
 
-	u16 val;
+	u16 val, devid;
 	unsigned int log2_width, pldsize;
 	unsigned int fst_trn_rx, fst_trn_tx, acklat, rpllmt;
 
@@ -3473,6 +3293,17 @@ static void config_pcie(struct adapter *adap)
 			     adap->params.pci.pcie_cap_addr + PCI_EXP_DEVCTL,
 			     &val);
 	pldsize = (val & PCI_EXP_DEVCTL_PAYLOAD) >> 5;
+
+	pci_read_config_word(adap->pdev, 0x2, &devid);
+	if (devid == 0x37) {
+		pci_write_config_word(adap->pdev,
+				      adap->params.pci.pcie_cap_addr +
+				      PCI_EXP_DEVCTL,
+				      val & ~PCI_EXP_DEVCTL_READRQ &
+				      ~PCI_EXP_DEVCTL_PAYLOAD);
+		pldsize = 0;
+	}
+
 	pci_read_config_word(adap->pdev,
 			     adap->params.pci.pcie_cap_addr + PCI_EXP_LNKCTL,
 			     &val);
@@ -3562,6 +3393,7 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
 	chan_init_hw(adapter, adapter->params.chan_map);
 	t3_sge_init(adapter, &adapter->params.sge);
+	t3_set_reg_field(adapter, A_PL_RST, 0, F_FATALPERREN);
 
 	t3_write_reg(adapter, A_T3DBG_GPIO_ACT_LOW, calc_gpio_intr(adapter));
 
@@ -3675,13 +3507,19 @@ static void mc7_prep(struct adapter *adapter, struct mc7 *mc7,
 	mc7->name = name;
 	mc7->offset = base_addr - MC7_PMRX_BASE_ADDR;
 	cfg = t3_read_reg(adapter, mc7->offset + A_MC7_CFG);
-	mc7->size = mc7->size = G_DEN(cfg) == M_DEN ? 0 : mc7_calc_size(cfg);
+	mc7->size = G_DEN(cfg) == M_DEN ? 0 : mc7_calc_size(cfg);
 	mc7->width = G_WIDTH(cfg);
 }
 
-void mac_prep(struct cmac *mac, struct adapter *adapter, int index)
+static void mac_prep(struct cmac *mac, struct adapter *adapter, int index)
 {
+	u16 devid;
+
 	mac->adapter = adapter;
+	pci_read_config_word(adapter->pdev, 0x2, &devid);
+
+	if (devid == 0x37 && !adapter->params.vpd.xauicfg[1])
+		index = 0;
 	mac->offset = (XGMAC0_1_BASE_ADDR - XGMAC0_0_BASE_ADDR) * index;
 	mac->nucast = 1;
 
@@ -3693,7 +3531,8 @@ void mac_prep(struct cmac *mac, struct adapter *adapter, int index)
 	}
 }
 
-void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
+static void early_hw_init(struct adapter *adapter,
+			  const struct adapter_info *ai)
 {
 	u32 val = V_PORTSPEED(is_10G(adapter) ? 3 : 2);
 

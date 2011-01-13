@@ -98,7 +98,7 @@
 #include <linux/major.h>
 #include <linux/wait.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 
@@ -138,6 +138,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+static DEFINE_MUTEX(ip2_mutex);
 static const struct file_operations ip2mem_proc_fops;
 static const struct file_operations ip2_proc_fops;
 
@@ -183,6 +184,8 @@ static void ip2_hangup(PTTY);
 static int  ip2_tiocmget(struct tty_struct *tty, struct file *file);
 static int  ip2_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
+static int ip2_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount);
 
 static void set_irq(int, int);
 static void ip2_interrupt_bh(struct work_struct *work);
@@ -208,6 +211,7 @@ static int DumpFifoBuffer( char __user *, int);
 
 static void ip2_init_board(int, const struct firmware *);
 static unsigned short find_eisa_board(int);
+static int ip2_setup(char *str);
 
 /***************/
 /* Static Data */
@@ -235,6 +239,7 @@ static const struct file_operations ip2_ipl = {
 	.write		= ip2_ipl_write,
 	.unlocked_ioctl	= ip2_ipl_ioctl,
 	.open		= ip2_ipl_open,
+	.llseek		= noop_llseek,
 }; 
 
 static unsigned long irq_counter;
@@ -263,7 +268,7 @@ static int tracewrap;
 /* Macros */
 /**********/
 
-#if defined(MODULE) && defined(IP2DEBUG_OPEN)
+#ifdef IP2DEBUG_OPEN
 #define DBG_CNT(s) printk(KERN_DEBUG "(%s): [%x] ttyc=%d, modc=%x -> %s\n", \
 		    tty->name,(pCh->flags), \
 		    tty->count,/*GET_USE_COUNT(module)*/0,s)
@@ -285,7 +290,10 @@ MODULE_AUTHOR("Doug McNash");
 MODULE_DESCRIPTION("Computone IntelliPort Plus Driver");
 MODULE_LICENSE("GPL");
 
+#define	MAX_CMD_STR	50
+
 static int poll_only;
+static char cmd[MAX_CMD_STR];
 
 static int Eisa_irq;
 static int Eisa_slot;
@@ -309,6 +317,8 @@ module_param_array(io, int, NULL, 0);
 MODULE_PARM_DESC(io, "I/O ports for IntelliPort Cards");
 module_param(poll_only, bool, 0);
 MODULE_PARM_DESC(poll_only, "Do not use card interrupts");
+module_param_string(ip2, cmd, MAX_CMD_STR, 0);
+MODULE_PARM_DESC(ip2, "Contains module parameter passed with 'ip2='");
 
 /* for sysfs class support */
 static struct class *ip2_class;
@@ -448,6 +458,7 @@ static const struct tty_operations ip2_ops = {
 	.hangup          = ip2_hangup,
 	.tiocmget	 = ip2_tiocmget,
 	.tiocmset	 = ip2_tiocmset,
+	.get_icount	 = ip2_get_icount,
 	.proc_fops	 = &ip2_proc_fops,
 };
 
@@ -487,7 +498,6 @@ static const struct firmware *ip2_request_firmware(void)
 	return fw;
 }
 
-#ifndef MODULE
 /******************************************************************************
  *	ip2_setup:
  *		str: kernel command line string
@@ -531,7 +541,6 @@ static int __init ip2_setup(char *str)
 	return 1;
 }
 __setup("ip2=", ip2_setup);
-#endif /* !MODULE */
 
 static int __init ip2_loadmain(void)
 {
@@ -539,13 +548,19 @@ static int __init ip2_loadmain(void)
 	int err = 0;
 	i2eBordStrPtr pB = NULL;
 	int rc = -1;
-	struct pci_dev *pdev = NULL;
 	const struct firmware *fw = NULL;
+	char *str;
+
+	str = cmd;
 
 	if (poll_only) {
 		/* Hard lock the interrupts to zero */
 		irq[0] = irq[1] = irq[2] = irq[3] = poll_only = 0;
 	}
+
+	/* Check module parameter with 'ip2=' has been passed or not */
+	if (!poll_only && (!strncmp(str, "ip2=", 4)))
+		ip2_setup(str);
 
 	ip2trace(ITRC_NO_PORT, ITRC_INIT, ITRC_ENTER, 0);
 
@@ -612,6 +627,7 @@ static int __init ip2_loadmain(void)
 		case PCI:
 #ifdef CONFIG_PCI
 		{
+			struct pci_dev *pdev = NULL;
 			u32 addr;
 			int status;
 
@@ -626,7 +642,7 @@ static int __init ip2_loadmain(void)
 
 			if (pci_enable_device(pdev)) {
 				dev_err(&pdev->dev, "can't enable device\n");
-				break;
+				goto out;
 			}
 			ip2config.type[i] = PCI;
 			ip2config.pci_dev[i] = pci_dev_get(pdev);
@@ -638,6 +654,8 @@ static int __init ip2_loadmain(void)
 				dev_err(&pdev->dev, "I/O address error\n");
 
 			ip2config.irq[i] = pdev->irq;
+out:
+			pci_dev_put(pdev);
 		}
 #else
 			printk(KERN_ERR "IP2: PCI card specified but PCI "
@@ -656,7 +674,6 @@ static int __init ip2_loadmain(void)
 			break;
 		}	/* switch */
 	}	/* for */
-	pci_dev_put(pdev);
 
 	for (i = 0; i < IP2_MAX_BOARDS; ++i) {
 		if (ip2config.addr[i]) {
@@ -1474,7 +1491,9 @@ ip2_open( PTTY tty, struct file *pFile )
 
 	if ( tty_hung_up_p(pFile) || ( pCh->flags & ASYNC_CLOSING )) {
 		if ( pCh->flags & ASYNC_CLOSING ) {
+			tty_unlock();
 			schedule();
+			tty_lock();
 		}
 		if ( tty_hung_up_p(pFile) ) {
 			set_current_state( TASK_RUNNING );
@@ -1536,7 +1555,9 @@ ip2_open( PTTY tty, struct file *pFile )
 			rc = (( pCh->flags & ASYNC_HUP_NOTIFY ) ? -EAGAIN : -ERESTARTSYS);
 			break;
 		}
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	set_current_state( TASK_RUNNING );
 	remove_wait_queue(&pCh->open_wait, &wait);
@@ -1634,7 +1655,7 @@ ip2_close( PTTY tty, struct file *pFile )
 	/* disable DSS reporting */
 	i2QueueCommands(PTYPE_INLINE, pCh, 100, 4,
 				CMD_DCD_NREP, CMD_CTS_NREP, CMD_DSR_NREP, CMD_RI_NREP);
-	if ( !tty || (tty->termios->c_cflag & HUPCL) ) {
+	if (tty->termios->c_cflag & HUPCL) {
 		i2QueueCommands(PTYPE_INLINE, pCh, 100, 2, CMD_RTSDN, CMD_DTRDN);
 		pCh->dataSetOut &= ~(I2_DTR | I2_RTS);
 		i2QueueCommands( PTYPE_INLINE, pCh, 100, 1, CMD_PAUSE(25));
@@ -2112,7 +2133,6 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 	i2ChanStrPtr pCh = DevTable[tty->index];
 	i2eBordStrPtr pB;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
-	struct serial_icounter_struct __user *p_cuser;
 	int rc = 0;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
@@ -2281,34 +2301,6 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 		break;
 
 	/*
-	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-	 * Return: write counters to the user passed counter struct
-	 * NB: both 1->0 and 0->1 transitions are counted except for RI where
-	 * only 0->1 is counted. The controller is quite capable of counting
-	 * both, but this done to preserve compatibility with the standard
-	 * serial driver.
-	 */
-	case TIOCGICOUNT:
-		ip2trace (CHANN, ITRC_IOCTL, 11, 1, rc );
-
-		write_lock_irqsave(&pB->read_fifo_spinlock, flags);
-		cnow = pCh->icount;
-		write_unlock_irqrestore(&pB->read_fifo_spinlock, flags);
-		p_cuser = argp;
-		rc = put_user(cnow.cts, &p_cuser->cts);
-		rc = put_user(cnow.dsr, &p_cuser->dsr);
-		rc = put_user(cnow.rng, &p_cuser->rng);
-		rc = put_user(cnow.dcd, &p_cuser->dcd);
-		rc = put_user(cnow.rx, &p_cuser->rx);
-		rc = put_user(cnow.tx, &p_cuser->tx);
-		rc = put_user(cnow.frame, &p_cuser->frame);
-		rc = put_user(cnow.overrun, &p_cuser->overrun);
-		rc = put_user(cnow.parity, &p_cuser->parity);
-		rc = put_user(cnow.brk, &p_cuser->brk);
-		rc = put_user(cnow.buf_overrun, &p_cuser->buf_overrun);
-		break;
-
-	/*
 	 * The rest are not supported by this driver. By returning -ENOIOCTLCMD they
 	 * will be passed to the line discipline for it to handle.
 	 */
@@ -2330,6 +2322,46 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 	ip2trace (CHANN, ITRC_IOCTL, ITRC_RETURN, 0 );
 
 	return rc;
+}
+
+static int ip2_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount)
+{
+	i2ChanStrPtr pCh = DevTable[tty->index];
+	i2eBordStrPtr pB;
+	struct async_icount cnow;	/* kernel counter temp */
+	unsigned long flags;
+
+	if ( pCh == NULL )
+		return -ENODEV;
+
+	pB = pCh->pMyBord;
+
+	/*
+	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+	 * Return: write counters to the user passed counter struct
+	 * NB: both 1->0 and 0->1 transitions are counted except for RI where
+	 * only 0->1 is counted. The controller is quite capable of counting
+	 * both, but this done to preserve compatibility with the standard
+	 * serial driver.
+	 */
+
+	write_lock_irqsave(&pB->read_fifo_spinlock, flags);
+	cnow = pCh->icount;
+	write_unlock_irqrestore(&pB->read_fifo_spinlock, flags);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+	return 0;
 }
 
 /******************************************************************************/
@@ -2881,7 +2913,7 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 	printk (KERN_DEBUG "IP2IPL: ioctl cmd %d, arg %ld\n", cmd, arg );
 #endif
 
-	lock_kernel();
+	mutex_lock(&ip2_mutex);
 
 	switch ( iplminor ) {
 	case 0:	    // IPL device
@@ -2914,6 +2946,8 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 				if ( pCh )
 				{
 					rc = copy_to_user(argp, pCh, sizeof(i2ChanStr));
+					if (rc)
+						rc = -EFAULT;
 				} else {
 					rc = -ENODEV;
 				}
@@ -2943,7 +2977,7 @@ ip2_ipl_ioctl (struct file *pFile, UINT cmd, ULONG arg )
 		rc = -ENODEV;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&ip2_mutex);
 	return rc;
 }
 
@@ -2964,7 +2998,6 @@ ip2_ipl_open( struct inode *pInode, struct file *pFile )
 #ifdef IP2DEBUG_IPL
 	printk (KERN_DEBUG "IP2IPL: open\n" );
 #endif
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -3191,9 +3224,11 @@ ip2trace (unsigned short pn, unsigned char cat, unsigned char label, unsigned lo
 
 MODULE_LICENSE("GPL");
 
-static struct pci_device_id ip2main_pci_tbl[] __devinitdata = {
+static struct pci_device_id ip2main_pci_tbl[] __devinitdata __used = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTONE, PCI_DEVICE_ID_COMPUTONE_IP2EX) },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, ip2main_pci_tbl);
+
+MODULE_FIRMWARE("intelliport2.bin");

@@ -25,11 +25,9 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
@@ -38,8 +36,8 @@
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
 #include "xfs_dir2_node.h"
-#include "xfs_dir2_trace.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 /*
  * Local function declarations.
@@ -80,7 +78,8 @@ xfs_dir2_block_to_leaf(
 	int			needscan;	/* need to rescan bestfree */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args_b("block_to_leaf", args, dbp);
+	trace_xfs_dir2_block_to_leaf(args);
+
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;
@@ -188,7 +187,8 @@ xfs_dir2_leaf_addname(
 	xfs_trans_t		*tp;		/* transaction pointer */
 	xfs_dir2_db_t		use_block;	/* data block number */
 
-	xfs_dir2_trace_args("leaf_addname", args);
+	trace_xfs_dir2_leaf_addname(args);
+
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
@@ -854,6 +854,7 @@ xfs_dir2_leaf_getdents(
 			 */
 			ra_want = howmany(bufsize + mp->m_dirblksize,
 					  mp->m_sb.sb_blocksize) - 1;
+			ASSERT(ra_want >= 0);
 
 			/*
 			 * If we don't have as many as we want, and we haven't
@@ -872,7 +873,7 @@ xfs_dir2_leaf_getdents(
 					xfs_dir2_byte_to_da(mp,
 						XFS_DIR2_LEAF_OFFSET) - map_off,
 					XFS_BMAPI_METADATA, NULL, 0,
-					&map[map_valid], &nmap, NULL, NULL);
+					&map[map_valid], &nmap, NULL);
 				/*
 				 * Don't know if we should ignore this or
 				 * try to return an error.
@@ -960,7 +961,7 @@ xfs_dir2_leaf_getdents(
 				if (i > ra_current &&
 				    map[ra_index].br_blockcount >=
 				    mp->m_dirblkfsbs) {
-					xfs_baread(mp->m_ddev_targp,
+					xfs_buf_readahead(mp->m_ddev_targp,
 						XFS_FSB_TO_DADDR(mp,
 						   map[ra_index].br_startblock +
 						   ra_offset),
@@ -1078,7 +1079,7 @@ xfs_dir2_leaf_getdents(
 		dep = (xfs_dir2_data_entry_t *)ptr;
 		length = xfs_dir2_data_entsize(dep->namelen);
 
-		if (filldir(dirent, dep->name, dep->namelen,
+		if (filldir(dirent, (char *)dep->name, dep->namelen,
 			    xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff,
 			    be64_to_cpu(dep->inumber), DT_UNKNOWN))
 			break;
@@ -1088,7 +1089,8 @@ xfs_dir2_leaf_getdents(
 		 */
 		ptr += length;
 		curoff += length;
-		bufsize -= length;
+		/* bufsize may have just been a guess; don't go negative */
+		bufsize = bufsize > length ? bufsize - length : 0;
 	}
 
 	/*
@@ -1264,7 +1266,8 @@ xfs_dir2_leaf_lookup(
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args("leaf_lookup", args);
+	trace_xfs_dir2_leaf_lookup(args);
+
 	/*
 	 * Look up name in the leaf block, returning both buffers and index.
 	 */
@@ -1452,7 +1455,8 @@ xfs_dir2_leaf_removename(
 	xfs_dir2_data_off_t	oldbest;	/* old value of best free */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args("leaf_removename", args);
+	trace_xfs_dir2_leaf_removename(args);
+
 	/*
 	 * Lookup the leaf entry, get the leaf and data blocks read in.
 	 */
@@ -1584,7 +1588,8 @@ xfs_dir2_leaf_replace(
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args("leaf_replace", args);
+	trace_xfs_dir2_leaf_replace(args);
+
 	/*
 	 * Look up the entry.
 	 */
@@ -1764,7 +1769,9 @@ xfs_dir2_node_to_leaf(
 	if (state->path.active > 1)
 		return 0;
 	args = state->args;
-	xfs_dir2_trace_args("node_to_leaf", args);
+
+	trace_xfs_dir2_node_to_leaf(args);
+
 	mp = state->mp;
 	dp = args->dp;
 	tp = args->trans;

@@ -146,18 +146,6 @@
 			phy_type = "ulpi";
 			port0;
 		};
-		/* phy type (ULPI, UTMI, UTMI_WIDE, SERIAL) */
-		usb@23000 {
-			device_type = "usb";
-			compatible = "fsl-usb2-dr";
-			reg = <0x23000 0x1000>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupt-parent = <&ipic>;
-			interrupts = <38 0x8>;
-			dr_mode = "otg";
-			phy_type = "ulpi";
-		};
 
 		enet0: ethernet@24000 {
 			#address-cells = <1>;
@@ -277,15 +265,55 @@
 		};
 	};
 
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8349-localbus", "simple-bus";
+		reg = <0xe0005000 0x1000>;
+		interrupts = <77 0x8>;
+		interrupt-parent = <&ipic>;
+		ranges = <0x0 0x0 0xff800000 0x00800000		/* 8MB Flash */
+			  0x1 0x0 0xf8000000 0x00002000		/* 8KB EEPROM */
+			  0x2 0x0 0x10000000 0x04000000		/* 64MB SDRAM */
+			  0x3 0x0 0x10000000 0x04000000>;	/* 64MB SDRAM */
+
+		flash@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "intel,28F640J3A", "cfi-flash";
+			reg = <0x0 0x0 0x800000>;
+			bank-width = <2>;
+			device-width = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+
+			partition@40000 {
+				label = "user";
+				reg = <0x00040000 0x006c0000>;
+			};
+
+			partition@700000 {
+				label = "legacy u-boot";
+				reg = <0x00700000 0x00100000>;
+				read-only;
+			};
+
+		};
+	};
+
 	pci0: pci@e0008500 {
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 
 				/* IDSEL 0x11 */
-				 0x8800 0x0 0x0 0x1 &ipic 20 0x8
-				 0x8800 0x0 0x0 0x2 &ipic 21 0x8
-				 0x8800 0x0 0x0 0x3 &ipic 22 0x8
-				 0x8800 0x0 0x0 0x4 &ipic 23 0x8>;
+				 0x8800 0x0 0x0 0x1 &ipic 48 0x8
+				 0x8800 0x0 0x0 0x2 &ipic 17 0x8
+				 0x8800 0x0 0x0 0x3 &ipic 18 0x8
+				 0x8800 0x0 0x0 0x4 &ipic 19 0x8>;
 
 		interrupt-parent = <&ipic>;
 		interrupts = <0x42 0x8>;

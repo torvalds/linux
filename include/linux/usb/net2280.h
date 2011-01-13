@@ -353,7 +353,7 @@ struct net2280_dma_regs {	/* [11.7] */
 #define     DMA_TRANSACTION_DONE_INTERRUPT                      24
 #define     DMA_ABORT                                           1
 #define     DMA_START                                           0
-	u32		_unused0 [2];
+	u32		_unused0[2];
 	/* offset 0x0190, 0x01b0, 0x01d0, 0x01f0, */
 	u32		dmacount;
 #define     VALID_BIT                                           31
@@ -374,7 +374,7 @@ struct net2280_dep_regs {	/* [11.8] */
 	u32		dep_cfg;
 	/* offset 0x0204, 0x0214, 0x224, 0x234, 0x244 */
 	u32		dep_rsp;
-	u32		_unused [2];
+	u32		_unused[2];
 } __attribute__ ((packed));
 
 /* configurable endpoint registers, BAR0 + 0x0300 ... array of seven structs
@@ -437,7 +437,7 @@ struct net2280_ep_regs {	/* [11.9] */
 	/* offset 0x0310, 0x0330, 0x0350, 0x0370, 0x0390, 0x03b0, 0x03d0 */
 	u32		ep_avail;
 	u32		ep_data;
-	u32		_unused0 [2];
+	u32		_unused0[2];
 } __attribute__ ((packed));
 
 #endif /* __LINUX_USB_NET2280_H */

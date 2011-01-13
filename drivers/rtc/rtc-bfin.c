@@ -1,8 +1,8 @@
 /*
  * Blackfin On-Chip Real Time Clock Driver
- *  Supports BF52[257]/BF53[123]/BF53[467]/BF54[24789]
+ *  Supports BF51x/BF52x/BF53[123]/BF53[467]/BF54x
  *
- * Copyright 2004-2008 Analog Devices Inc.
+ * Copyright 2004-2010 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
@@ -51,6 +51,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <asm/blackfin.h>
 
@@ -182,29 +183,33 @@ static irqreturn_t bfin_rtc_interrupt(int irq, void *dev_id)
 	struct bfin_rtc *rtc = dev_get_drvdata(dev);
 	unsigned long events = 0;
 	bool write_complete = false;
-	u16 rtc_istat, rtc_ictl;
+	u16 rtc_istat, rtc_istat_clear, rtc_ictl, bits;
 
 	dev_dbg_stamp(dev);
 
 	rtc_istat = bfin_read_RTC_ISTAT();
 	rtc_ictl = bfin_read_RTC_ICTL();
+	rtc_istat_clear = 0;
 
-	if (rtc_istat & RTC_ISTAT_WRITE_COMPLETE) {
-		bfin_write_RTC_ISTAT(RTC_ISTAT_WRITE_COMPLETE);
+	bits = RTC_ISTAT_WRITE_COMPLETE;
+	if (rtc_istat & bits) {
+		rtc_istat_clear |= bits;
 		write_complete = true;
 		complete(&bfin_write_complete);
 	}
 
-	if (rtc_ictl & (RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY)) {
-		if (rtc_istat & (RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY)) {
-			bfin_write_RTC_ISTAT(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY);
+	bits = (RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY);
+	if (rtc_ictl & bits) {
+		if (rtc_istat & bits) {
+			rtc_istat_clear |= bits;
 			events |= RTC_AF | RTC_IRQF;
 		}
 	}
 
-	if (rtc_ictl & RTC_ISTAT_SEC) {
-		if (rtc_istat & RTC_ISTAT_SEC) {
-			bfin_write_RTC_ISTAT(RTC_ISTAT_SEC);
+	bits = RTC_ISTAT_SEC;
+	if (rtc_ictl & bits) {
+		if (rtc_istat & bits) {
+			rtc_istat_clear |= bits;
 			events |= RTC_UF | RTC_IRQF;
 		}
 	}
@@ -212,9 +217,10 @@ static irqreturn_t bfin_rtc_interrupt(int irq, void *dev_id)
 	if (events)
 		rtc_update_irq(rtc->rtc_dev, 1, events);
 
-	if (write_complete || events)
+	if (write_complete || events) {
+		bfin_write_RTC_ISTAT(rtc_istat_clear);
 		return IRQ_HANDLED;
-	else
+	} else
 		return IRQ_NONE;
 }
 
@@ -363,7 +369,7 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 	struct bfin_rtc *rtc;
 	struct device *dev = &pdev->dev;
 	int ret = 0;
-	unsigned long timeout;
+	unsigned long timeout = jiffies + HZ;
 
 	dev_dbg_stamp(dev);
 
@@ -374,32 +380,32 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rtc);
 	device_init_wakeup(dev, 1);
 
-	/* Grab the IRQ and init the hardware */
-	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, IRQF_SHARED, pdev->name, dev);
-	if (unlikely(ret))
+	/* Register our RTC with the RTC framework */
+	rtc->rtc_dev = rtc_device_register(pdev->name, dev, &bfin_rtc_ops,
+						THIS_MODULE);
+	if (unlikely(IS_ERR(rtc->rtc_dev))) {
+		ret = PTR_ERR(rtc->rtc_dev);
 		goto err;
+	}
+
+	/* Grab the IRQ and init the hardware */
+	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, 0, pdev->name, dev);
+	if (unlikely(ret))
+		goto err_reg;
 	/* sometimes the bootloader touched things, but the write complete was not
 	 * enabled, so let's just do a quick timeout here since the IRQ will not fire ...
 	 */
-	timeout = jiffies + HZ;
 	while (bfin_read_RTC_ISTAT() & RTC_ISTAT_WRITE_PENDING)
 		if (time_after(jiffies, timeout))
 			break;
 	bfin_rtc_reset(dev, RTC_ISTAT_WRITE_COMPLETE);
 	bfin_write_RTC_SWCNT(0);
 
-	/* Register our RTC with the RTC framework */
-	rtc->rtc_dev = rtc_device_register(pdev->name, dev, &bfin_rtc_ops, THIS_MODULE);
-	if (unlikely(IS_ERR(rtc->rtc_dev))) {
-		ret = PTR_ERR(rtc->rtc_dev);
-		goto err_irq;
-	}
-
 	return 0;
 
- err_irq:
-	free_irq(IRQ_RTC, dev);
- err:
+err_reg:
+	rtc_device_unregister(rtc->rtc_dev);
+err:
 	kfree(rtc);
 	return ret;
 }
@@ -421,21 +427,38 @@ static int __devexit bfin_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	if (device_may_wakeup(&pdev->dev)) {
+	struct device *dev = &pdev->dev;
+
+	dev_dbg_stamp(dev);
+
+	if (device_may_wakeup(dev)) {
 		enable_irq_wake(IRQ_RTC);
-		bfin_rtc_sync_pending(&pdev->dev);
+		bfin_rtc_sync_pending(dev);
 	} else
-		bfin_rtc_int_clear(-1);
+		bfin_rtc_int_clear(0);
 
 	return 0;
 }
 
 static int bfin_rtc_resume(struct platform_device *pdev)
 {
-	if (device_may_wakeup(&pdev->dev))
+	struct device *dev = &pdev->dev;
+
+	dev_dbg_stamp(dev);
+
+	if (device_may_wakeup(dev))
 		disable_irq_wake(IRQ_RTC);
-	else
-		bfin_write_RTC_ISTAT(-1);
+
+	/*
+	 * Since only some of the RTC bits are maintained externally in the
+	 * Vbat domain, we need to wait for the RTC MMRs to be synced into
+	 * the core after waking up.  This happens every RTC 1HZ.  Once that
+	 * has happened, we can go ahead and re-enable the important write
+	 * complete interrupt event.
+	 */
+	while (!(bfin_read_RTC_ISTAT() & RTC_ISTAT_SEC))
+		continue;
+	bfin_rtc_int_set(RTC_ISTAT_WRITE_COMPLETE);
 
 	return 0;
 }

@@ -1,0 +1,35 @@
+config VIDEO_CX25821
+	tristate "Conexant cx25821 support"
+	depends on DVB_CORE && VIDEO_DEV && PCI && I2C
+	depends on BKL # please fix
+	select I2C_ALGOBIT
+	select VIDEO_BTCX
+	select VIDEO_TVEEPROM
+	depends on RC_CORE
+	select VIDEOBUF_DVB
+	select VIDEOBUF_DMA_SG
+	select VIDEO_CX25840
+	select VIDEO_CX2341X
+	---help---
+	  This is a video4linux driver for Conexant 25821 based
+	  TV cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx25821
+
+config VIDEO_CX25821_ALSA
+	tristate "Conexant 25821 DMA audio support"
+	depends on VIDEO_CX25821 && SND && EXPERIMENTAL
+	select SND_PCM
+	---help---
+	  This is a video4linux driver for direct (DMA) audio on
+	  Conexant 25821 based capture cards using ALSA.
+
+	  It only works with boards with function 01 enabled.
+	  To check if your board supports, use lspci -n.
+	  If supported, you should see 14f1:8801 or 14f1:8811
+	  PCI device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx25821-alsa.
+

@@ -62,32 +62,6 @@ enum ring_buffer_type {
 unsigned ring_buffer_event_length(struct ring_buffer_event *event);
 void *ring_buffer_event_data(struct ring_buffer_event *event);
 
-/**
- * ring_buffer_event_time_delta - return the delta timestamp of the event
- * @event: the event to get the delta timestamp of
- *
- * The delta timestamp is the 27 bit timestamp since the last event.
- */
-static inline unsigned
-ring_buffer_event_time_delta(struct ring_buffer_event *event)
-{
-	return event->time_delta;
-}
-
-/*
- * ring_buffer_event_discard can discard any event in the ring buffer.
- *   it is up to the caller to protect against a reader from
- *   consuming it or a writer from wrapping and replacing it.
- *
- * No external protection is needed if this is called before
- * the event is commited. But in that case it would be better to
- * use ring_buffer_discard_commit.
- *
- * Note, if an event that has not been committed is discarded
- * with ring_buffer_event_discard, it must still be committed.
- */
-void ring_buffer_event_discard(struct ring_buffer_event *event);
-
 /*
  * ring_buffer_discard_commit will remove an event that has not
  *   ben committed yet. If this is used, then ring_buffer_unlock_commit
@@ -134,12 +108,16 @@ int ring_buffer_write(struct ring_buffer *buffer,
 		      unsigned long length, void *data);
 
 struct ring_buffer_event *
-ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts);
+ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts,
+		 unsigned long *lost_events);
 struct ring_buffer_event *
-ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts);
+ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts,
+		    unsigned long *lost_events);
 
 struct ring_buffer_iter *
-ring_buffer_read_start(struct ring_buffer *buffer, int cpu);
+ring_buffer_read_prepare(struct ring_buffer *buffer, int cpu);
+void ring_buffer_read_prepare_sync(void);
+void ring_buffer_read_start(struct ring_buffer_iter *iter);
 void ring_buffer_read_finish(struct ring_buffer_iter *iter);
 
 struct ring_buffer_event *
@@ -154,8 +132,17 @@ unsigned long ring_buffer_size(struct ring_buffer *buffer);
 void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu);
 void ring_buffer_reset(struct ring_buffer *buffer);
 
+#ifdef CONFIG_RING_BUFFER_ALLOW_SWAP
 int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 			 struct ring_buffer *buffer_b, int cpu);
+#else
+static inline int
+ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
+		     struct ring_buffer *buffer_b, int cpu)
+{
+	return -ENODEV;
+}
+#endif
 
 int ring_buffer_empty(struct ring_buffer *buffer);
 int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu);
@@ -170,7 +157,6 @@ unsigned long ring_buffer_overruns(struct ring_buffer *buffer);
 unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu);
 unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu);
 unsigned long ring_buffer_commit_overrun_cpu(struct ring_buffer *buffer, int cpu);
-unsigned long ring_buffer_nmi_dropped_cpu(struct ring_buffer *buffer, int cpu);
 
 u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu);
 void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,

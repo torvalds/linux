@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/rio.h>
 #include <linux/rio_drv.h>
+#include <linux/slab.h>
 #include <linux/rio_ids.h>
 
 #include <linux/netdevice.h>
@@ -72,7 +73,7 @@ static int rionet_check = 0;
 static int rionet_capable = 1;
 
 /*
- * This is a fast lookup table for for translating TX
+ * This is a fast lookup table for translating TX
  * Ethernet packets into a destination RIO device. It
  * could be made into a hash table to save memory depending
  * on system trade-offs.
@@ -114,11 +115,6 @@ static int rionet_rx_clean(struct net_device *ndev)
 
 		if (error == NET_RX_DROP) {
 			ndev->stats.rx_dropped++;
-		} else if (error == NET_RX_BAD) {
-			if (netif_msg_rx_err(rnet))
-				printk(KERN_WARNING "%s: bad rx packet\n",
-				       DRV_NAME);
-			ndev->stats.rx_errors++;
 		} else {
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += RIO_MAX_MSG_SIZE;
@@ -208,7 +204,7 @@ static int rionet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	spin_unlock_irqrestore(&rnet->tx_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void rionet_dbell_event(struct rio_mport *mport, void *dev_id, u16 sid, u16 tid,
@@ -388,7 +384,7 @@ static void rionet_remove(struct rio_dev *rdev)
 	free_pages((unsigned long)rionet_active, rdev->net->hport->sys_size ?
 					__ilog2(sizeof(void *)) + 4 : 0);
 	unregister_netdev(ndev);
-	kfree(ndev);
+	free_netdev(ndev);
 
 	list_for_each_entry_safe(peer, tmp, &rionet_peers, node) {
 		list_del(&peer->node);

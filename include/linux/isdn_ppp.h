@@ -157,7 +157,7 @@ typedef struct {
 
 typedef struct {
   int mp_mrru;                        /* unused                             */
-  struct sk_buff_head frags;	/* fragments sl list */
+  struct sk_buff * frags;	/* fragments sl list -- use skb->next */
   long frames;			/* number of frames in the frame list */
   unsigned int seq;		/* last processed packet seq #: any packets
   				 * with smaller seq # will be dropped

@@ -96,13 +96,16 @@ handles that the Linux kernel will allocate. When you get lots
 of error messages about running out of file handles, you might
 want to increase this limit.
 
-The three values in file-nr denote the number of allocated
-file handles, the number of unused file handles and the maximum
-number of file handles. When the allocated file handles come
-close to the maximum, but the number of unused file handles is
-significantly greater than 0, you've encountered a peak in your 
-usage of file handles and you don't need to increase the maximum.
+Historically, the three values in file-nr denoted the number of
+allocated file handles, the number of allocated but unused file
+handles, and the maximum number of file handles. Linux 2.6 always
+reports 0 as the number of free file handles -- this is not an
+error, it just means that the number of allocated file handles
+exactly matches the number of used file handles.
 
+Attempts to allocate more file descriptors than file-max are
+reported with printk, look for "VFS: file-max limit <number>
+reached".
 ==============================================================
 
 nr_open:

@@ -140,29 +140,6 @@ void cb710_dump_regs(struct cb710_chip *chip, unsigned dump);
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>
 
-/**
- * cb710_sg_miter_stop_writing - stop mapping iteration after writing
- * @miter: sg mapping iter to be stopped
- *
- * Description:
- *   Stops mapping iterator @miter.  @miter should have been started
- *   started using sg_miter_start().  A stopped iteration can be
- *   resumed by calling sg_miter_next() on it.  This is useful when
- *   resources (kmap) need to be released during iteration.
- *
- *   This is a convenience wrapper that will be optimized out for arches
- *   that don't need flush_kernel_dcache_page().
- *
- * Context:
- *   IRQ disabled if the SG_MITER_ATOMIC is set.  Don't care otherwise.
- */
-static inline void cb710_sg_miter_stop_writing(struct sg_mapping_iter *miter)
-{
-	if (miter->page)
-		flush_kernel_dcache_page(miter->page);
-	sg_miter_stop(miter);
-}
-
 /*
  * 32-bit PIO mapping sg iterator
  *
@@ -171,12 +148,12 @@ static inline void cb710_sg_miter_stop_writing(struct sg_mapping_iter *miter)
  * without DMA support).
  *
  * Best-case reading (transfer from device):
- *   sg_miter_start();
+ *   sg_miter_start(, SG_MITER_TO_SG);
  *   cb710_sg_dwiter_write_from_io();
- *   cb710_sg_miter_stop_writing();
+ *   sg_miter_stop();
  *
  * Best-case writing (transfer to device):
- *   sg_miter_start();
+ *   sg_miter_start(, SG_MITER_FROM_SG);
  *   cb710_sg_dwiter_read_to_io();
  *   sg_miter_stop();
  */

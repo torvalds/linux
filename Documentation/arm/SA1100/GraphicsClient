@@ -4,7 +4,7 @@ For more details, contact Applied Data Systems or see
 http://www.applieddata.net/products.html
 
 The original Linux support for this product has been provided by 
-Nicolas Pitre <nico@cam.org>. Continued development work by
+Nicolas Pitre <nico@fluxnic.net>. Continued development work by
 Woojung Huh <whuh@applieddata.net>
 
 It's currently possible to mount a root filesystem via NFS providing a
@@ -71,7 +71,7 @@ Supported peripherals:
 - serial ports (ttyS[0-2])
   - ttyS0 is default for serial console
 - Smart I/O (ADC, keypad, digital inputs, etc)
-  See http://www.applieddata.com/developers/linux for IOCTL documentation
+  See http://www.eurotech-inc.com/linux-sbc.asp for IOCTL documentation
   and example user space code. ps/2 keybd is multiplexed through this driver
 
 To do:
@@ -94,5 +94,5 @@ Notes:
   mode, the timing is off so the image is corrupted.  This will be
   fixed soon.
 
-Any contribution can be sent to nico@cam.org and will be greatly welcome!
+Any contribution can be sent to nico@fluxnic.net and will be greatly welcome!
 

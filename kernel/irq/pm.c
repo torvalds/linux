@@ -15,10 +15,10 @@
 /**
  * suspend_device_irqs - disable all currently enabled interrupt lines
  *
- * During system-wide suspend or hibernation device interrupts need to be
- * disabled at the chip level and this function is provided for this purpose.
- * It disables all interrupt lines that are enabled at the moment and sets the
- * IRQ_SUSPENDED flag for them.
+ * During system-wide suspend or hibernation device drivers need to be prevented
+ * from receiving interrupts and this function is provided for this purpose.
+ * It marks all interrupt lines in use, except for the timer ones, as disabled
+ * and sets the IRQ_SUSPENDED flag for each of them.
  */
 void suspend_device_irqs(void)
 {
@@ -28,9 +28,9 @@ void suspend_device_irqs(void)
 	for_each_irq_desc(irq, desc) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		__disable_irq(desc, irq, true);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
 	for_each_irq_desc(irq, desc)
@@ -56,9 +56,9 @@ void resume_device_irqs(void)
 		if (!(desc->status & IRQ_SUSPENDED))
 			continue;
 
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		__enable_irq(desc, irq, true);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 EXPORT_SYMBOL_GPL(resume_device_irqs);

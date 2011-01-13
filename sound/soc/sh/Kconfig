@@ -1,5 +1,5 @@
 menu "SoC Audio support for SuperH"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 
 config SND_SOC_PCM_SH7760
 	tristate "SoC Audio support for Renesas SH7760"
@@ -20,7 +20,18 @@ config SND_SOC_SH4_HAC
 config SND_SOC_SH4_SSI
 	tristate
 
+config SND_SOC_SH4_FSI
+	tristate "SH4 FSI support"
+	help
+	  This option enables FSI sound support
 
+config SND_SOC_SH4_SIU
+	tristate
+	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+	select DMA_ENGINE
+	select DMADEVICES
+	select SH_DMAE
+	select FW_LOADER
 
 ##
 ## Boards
@@ -34,5 +45,36 @@ config SND_SH7760_AC97
 	help
 	  This option enables generic sound support for the first
 	  AC97 unit of the SH7760.
+
+config SND_FSI_AK4642
+	tristate "FSI-AK4642 sound support"
+	depends on SND_SOC_SH4_FSI && I2C_SH_MOBILE
+	select SND_SOC_AK4642
+	help
+	  This option enables generic sound support for the
+	  FSI - AK4642 unit
+
+config SND_FSI_DA7210
+	tristate "FSI-DA7210 sound support"
+	depends on SND_SOC_SH4_FSI && I2C_SH_MOBILE
+	select SND_SOC_DA7210
+	help
+	  This option enables generic sound support for the
+	  FSI - DA7210 unit
+
+config SND_FSI_HDMI
+	tristate "FSI-HDMI sound support"
+	depends on SND_SOC_SH4_FSI && FB_SH_MOBILE_HDMI
+	help
+	  This option enables generic sound support for the
+	  FSI - HDMI unit
+
+config SND_SIU_MIGOR
+	tristate "SIU sound support on Migo-R"
+	depends on SH_MIGOR
+	select SND_SOC_SH4_SIU
+	select SND_SOC_WM8978
+	help
+	  This option enables sound support for the SH7722 Migo-R board
 
 endmenu

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-3945-hw.h) only for hardware-related definitions.
- * Please use iwl-3945-commands.h for uCode API definitions.
+ * Please use iwl-commands.h for uCode API definitions.
  * Please use iwl-3945.h for driver implementation definitions.
  */
 
@@ -71,18 +71,10 @@
 
 #include "iwl-eeprom.h"
 
-/*
- * uCode queue management definitions ...
- * Queue #4 is the command queue for 3945 and 4965.
- */
-#define IWL_CMD_QUEUE_NUM	4
-
-/* Time constants */
-#define SHORT_SLOT_TIME 9
-#define LONG_SLOT_TIME 20
-
 /* RSSI to dBm */
 #define IWL39_RSSI_OFFSET	95
+
+#define IWL_DEFAULT_TX_POWER	0x0F
 
 /*
  * EEPROM related constants, enums, and structures.
@@ -104,7 +96,7 @@ struct iwl3945_eeprom_txpower_sample {
 	u8 gain_index;		/* index into power (gain) setup table ... */
 	s8 power;		/* ... for this pwr level for this chnl group */
 	u16 v_det;		/* PA output voltage */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Mappings of Tx power levels -> nominal radio/DSP gain table indexes.
@@ -125,7 +117,7 @@ struct iwl3945_eeprom_txpower_group {
 	u8 group_channel;	/* "representative" channel # in this band */
 	s16 temperature;	/* h/w temperature at factory calib this band
 				 * (signed) */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Temperature-based Tx-power compensation data, not band-specific.
@@ -139,7 +131,7 @@ struct iwl3945_eeprom_temperature_corr {
 	u32 Tc;
 	u32 Td;
 	u32 Te;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * EEPROM map
@@ -176,7 +168,7 @@ struct iwl3945_eeprom {
  * in EEPROM containing EEPROM_CHANNEL_* usage flags (LSB) and max regulatory
  * txpower (MSB).
  *
- * Entries immediately below are for 20 MHz channel width.  FAT (40 MHz)
+ * Entries immediately below are for 20 MHz channel width.  HT40 (40 MHz)
  * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
  *
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
@@ -223,7 +215,7 @@ struct iwl3945_eeprom {
 /* abs.ofs: 512 */
 	struct iwl3945_eeprom_temperature_corr corrections;  /* abs.ofs: 832 */
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
-} __attribute__ ((packed));
+} __packed;
 
 #define IWL3945_EEPROM_IMG_SIZE 1024
 
@@ -232,10 +224,9 @@ struct iwl3945_eeprom {
 #define PCI_CFG_REV_ID_BIT_BASIC_SKU                (0x40)	/* bit 6    */
 #define PCI_CFG_REV_ID_BIT_RTP                      (0x80)	/* bit 7    */
 
-#define TFD_QUEUE_MIN           0
-#define TFD_QUEUE_MAX           5	/* 4 DATA + 1 CMD */
-
-#define IWL_NUM_SCAN_RATES         (2)
+/* 4 DATA + 1 CMD. There are 2 HCCA queues that are not used. */
+#define IWL39_NUM_QUEUES        5
+#define IWL39_CMD_QUEUE_NUM	4
 
 #define IWL_DEFAULT_TX_RETRY  15
 
@@ -254,12 +245,6 @@ struct iwl3945_eeprom {
 #define TFD_CTL_COUNT_GET(ctl)     ((ctl >> 24) & 7)
 #define TFD_CTL_PAD_SET(n)         (n << 28)
 #define TFD_CTL_PAD_GET(ctl)       (ctl >> 28)
-
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
 
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 3945's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
@@ -280,8 +265,6 @@ struct iwl3945_eeprom {
 /* Size of uCode instruction memory in bootstrap state machine */
 #define IWL39_MAX_BSM_SIZE IWL39_RTC_INST_SIZE
 
-#define IWL39_MAX_NUM_QUEUES	8
-
 static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= IWL39_RTC_DATA_LOWER_BOUND) &&
@@ -292,7 +275,7 @@ static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
  * and &iwl3945_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
 struct iwl3945_shared {
 	__le32 tx_base_ptr[8];
-} __attribute__ ((packed));
+} __packed;
 
 static inline u8 iwl3945_hw_get_rate(__le16 rate_n_flags)
 {

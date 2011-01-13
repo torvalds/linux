@@ -25,7 +25,6 @@ typedef enum {
 	i_link_saved_truncate_mask = 0x0020,
 	i_has_xattr_dir = 0x0040,
 	i_data_log = 0x0080,
-	i_ever_mapped = 0x0100
 } reiserfs_inode_flags;
 
 struct reiserfs_inode_info {
@@ -53,11 +52,8 @@ struct reiserfs_inode_info {
 	 ** flushed */
 	unsigned int i_trans_id;
 	struct reiserfs_journal_list *i_jl;
-	struct mutex i_mmap;
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	struct posix_acl *i_acl_access;
-	struct posix_acl *i_acl_default;
-#endif
+	atomic_t openers;
+	struct mutex tailpack;
 #ifdef CONFIG_REISERFS_FS_XATTR
 	struct rw_semaphore i_xattr_sem;
 #endif

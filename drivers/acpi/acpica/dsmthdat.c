@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,8 +102,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 		walk_state->arguments[i].name.integer |= (i << 24);
 		walk_state->arguments[i].descriptor_type = ACPI_DESC_TYPE_NAMED;
 		walk_state->arguments[i].type = ACPI_TYPE_ANY;
-		walk_state->arguments[i].flags =
-		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_ARG;
+		walk_state->arguments[i].flags = ANOBJ_METHOD_ARG;
 	}
 
 	/* Init the method locals */
@@ -116,8 +115,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 		walk_state->local_variables[i].descriptor_type =
 		    ACPI_DESC_TYPE_NAMED;
 		walk_state->local_variables[i].type = ACPI_TYPE_ANY;
-		walk_state->local_variables[i].flags =
-		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
+		walk_state->local_variables[i].flags = ANOBJ_METHOD_LOCAL;
 	}
 
 	return_VOID;
@@ -146,7 +144,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 
 	for (index = 0; index < ACPI_METHOD_NUM_LOCALS; index++) {
 		if (walk_state->local_variables[index].object) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Local%d=%p\n",
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Local%u=%p\n",
 					  index,
 					  walk_state->local_variables[index].
 					  object));
@@ -162,7 +160,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 
 	for (index = 0; index < ACPI_METHOD_NUM_ARGS; index++) {
 		if (walk_state->arguments[index].object) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Arg%d=%p\n",
+			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Arg%u=%p\n",
 					  index,
 					  walk_state->arguments[index].object));
 
@@ -226,7 +224,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 		index++;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%d args passed to method\n", index));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%u args passed to method\n", index));
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -262,7 +260,7 @@ acpi_ds_method_data_get_node(u8 type,
 
 		if (index > ACPI_METHOD_MAX_LOCAL) {
 			ACPI_ERROR((AE_INFO,
-				    "Local index %d is invalid (max %d)",
+				    "Local index %u is invalid (max %u)",
 				    index, ACPI_METHOD_MAX_LOCAL));
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
@@ -276,7 +274,7 @@ acpi_ds_method_data_get_node(u8 type,
 
 		if (index > ACPI_METHOD_MAX_ARG) {
 			ACPI_ERROR((AE_INFO,
-				    "Arg index %d is invalid (max %d)",
+				    "Arg index %u is invalid (max %u)",
 				    index, ACPI_METHOD_MAX_ARG));
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
@@ -287,7 +285,7 @@ acpi_ds_method_data_get_node(u8 type,
 		break;
 
 	default:
-		ACPI_ERROR((AE_INFO, "Type %d is invalid", type));
+		ACPI_ERROR((AE_INFO, "Type %u is invalid", type));
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
@@ -323,7 +321,7 @@ acpi_ds_method_data_set_value(u8 type,
 	ACPI_FUNCTION_TRACE(ds_method_data_set_value);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "NewObj %p Type %2.2X, Refs=%d [%s]\n", object,
+			  "NewObj %p Type %2.2X, Refs=%u [%s]\n", object,
 			  type, object->common.reference_count,
 			  acpi_ut_get_type_name(object->common.type)));
 
@@ -409,13 +407,11 @@ acpi_ds_method_data_get_value(u8 type,
 		/* If slack enabled, init the local_x/arg_x to an Integer of value zero */
 
 		if (acpi_gbl_enable_interpreter_slack) {
-			object =
-			    acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+			object = acpi_ut_create_integer_object((u64) 0);
 			if (!object) {
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
-			object->integer.value = 0;
 			node->object = object;
 		}
 
@@ -426,23 +422,23 @@ acpi_ds_method_data_get_value(u8 type,
 			case ACPI_REFCLASS_ARG:
 
 				ACPI_ERROR((AE_INFO,
-					    "Uninitialized Arg[%d] at node %p",
+					    "Uninitialized Arg[%u] at node %p",
 					    index, node));
 
 				return_ACPI_STATUS(AE_AML_UNINITIALIZED_ARG);
 
 			case ACPI_REFCLASS_LOCAL:
 
-				ACPI_ERROR((AE_INFO,
-					    "Uninitialized Local[%d] at node %p",
-					    index, node));
-
+				/*
+				 * No error message for this case, will be trapped again later to
+				 * detect and ignore cases of Store(local_x,local_x)
+				 */
 				return_ACPI_STATUS(AE_AML_UNINITIALIZED_LOCAL);
 
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Not a Arg/Local opcode: %X",
+					    "Not a Arg/Local opcode: 0x%X",
 					    type));
 				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}
@@ -545,7 +541,7 @@ acpi_ds_store_object_to_local(u8 type,
 	union acpi_operand_object *new_obj_desc;
 
 	ACPI_FUNCTION_TRACE(ds_store_object_to_local);
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Type=%2.2X Index=%d Obj=%p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Type=%2.2X Index=%u Obj=%p\n",
 			  type, index, obj_desc));
 
 	/* Parameter validation */

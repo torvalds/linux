@@ -9,7 +9,7 @@
  */
 
 #define MCG_BANKCNT_MASK	0xff         /* Number of Banks */
-#define MCG_CTL_P		(1ULL<<8)    /* MCG_CAP register available */
+#define MCG_CTL_P		(1ULL<<8)    /* MCG_CTL register available */
 #define MCG_EXT_P		(1ULL<<9)    /* Extended registers available */
 #define MCG_CMCI_P		(1ULL<<10)   /* CMCI supported */
 #define MCG_EXT_CNT_MASK	0xff0000     /* Number of Extended registers */
@@ -38,6 +38,18 @@
 #define MCM_ADDR_MEM	 3	/* memory address */
 #define MCM_ADDR_GENERIC 7	/* generic */
 
+/* CTL2 register defines */
+#define MCI_CTL2_CMCI_EN		(1ULL << 30)
+#define MCI_CTL2_CMCI_THRESHOLD_MASK	0x7fffULL
+
+#define MCJ_CTX_MASK		3
+#define MCJ_CTX(flags)		((flags) & MCJ_CTX_MASK)
+#define MCJ_CTX_RANDOM		0    /* inject context: random */
+#define MCJ_CTX_PROCESS		1    /* inject context: process */
+#define MCJ_CTX_IRQ		2    /* inject context: IRQ */
+#define MCJ_NMI_BROADCAST	4    /* do NMI broadcasting */
+#define MCJ_EXCEPTION		8    /* raise as exception */
+
 /* Fields are zero when not available */
 struct mce {
 	__u64 status;
@@ -48,8 +60,8 @@ struct mce {
 	__u64 tsc;	/* cpu time stamp counter */
 	__u64 time;	/* wall time_t when error was detected */
 	__u8  cpuvendor;	/* cpu vendor as encoded in system.h */
-	__u8  pad1;
-	__u16 pad2;
+	__u8  inject_flags;	/* software inject flags */
+	__u16  pad;
 	__u32 cpuid;	/* CPUID 1 EAX */
 	__u8  cs;		/* code segment */
 	__u8  bank;	/* machine check bank */
@@ -100,7 +112,10 @@ struct mce_log {
 #define K8_MCE_THRESHOLD_BANK_5    (MCE_THRESHOLD_BASE + 5 * 9)
 #define K8_MCE_THRESHOLD_DRAM_ECC  (MCE_THRESHOLD_BANK_4 + 0)
 
+
 #ifdef __KERNEL__
+
+extern struct atomic_notifier_head x86_mce_decoder_chain;
 
 #include <linux/percpu.h>
 #include <linux/init.h>
@@ -110,16 +125,11 @@ extern int mce_disabled;
 extern int mce_p5_enabled;
 
 #ifdef CONFIG_X86_MCE
-void mcheck_init(struct cpuinfo_x86 *c);
+int mcheck_init(void);
+void mcheck_cpu_init(struct cpuinfo_x86 *c);
 #else
-static inline void mcheck_init(struct cpuinfo_x86 *c) {}
-#endif
-
-#ifdef CONFIG_X86_OLD_MCE
-extern int nr_mce_banks;
-void amd_mcheck_init(struct cpuinfo_x86 *c);
-void intel_p4_mcheck_init(struct cpuinfo_x86 *c);
-void intel_p6_mcheck_init(struct cpuinfo_x86 *c);
+static inline int mcheck_init(void) { return 0; }
+static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE
@@ -132,15 +142,18 @@ static inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
 static inline void enable_p5_mce(void) {}
 #endif
 
+extern void (*x86_mce_decode_callback)(struct mce *m);
+
 void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct sys_device, mce_dev);
 
 /*
- * To support more than 128 would need to escape the predefined
- * Linux defined extended banks first.
+ * Maximum banks number.
+ * This is the limit of the current register layout on
+ * Intel CPUs.
  */
-#define MAX_NR_BANKS (MCE_EXTENDED_BANK - 1)
+#define MAX_NR_BANKS 32
 
 #ifdef CONFIG_X86_MCE_INTEL
 extern int mce_cmci_disabled;
@@ -208,11 +221,24 @@ extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 void intel_init_thermal(struct cpuinfo_x86 *c);
 
-#ifdef CONFIG_X86_NEW_MCE
 void mce_log_therm_throt_event(__u64 status);
+
+/* Interrupt Handler for core thermal thresholds */
+extern int (*platform_thermal_notify)(__u64 msr_val);
+
+#ifdef CONFIG_X86_THERMAL_VECTOR
+extern void mcheck_intel_therm_init(void);
 #else
-static inline void mce_log_therm_throt_event(__u64 status) {}
+static inline void mcheck_intel_therm_init(void) { }
 #endif
+
+/*
+ * Used by APEI to report memory error via /dev/mcelog
+ */
+
+struct cper_sec_mem_err;
+extern void apei_mce_report_mem_error(int corrected,
+				      struct cper_sec_mem_err *mem_err);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */

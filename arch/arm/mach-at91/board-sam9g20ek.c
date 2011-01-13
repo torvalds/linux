@@ -24,7 +24,12 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/at73c213.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <linux/clk.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/consumer.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -42,13 +47,25 @@
 #include "sam9_smc.h"
 #include "generic.h"
 
+/*
+ * board revision encoding
+ * bit 0:
+ * 	0 => 1 sd/mmc slot
+ * 	1 => 2 sd/mmc slots connectors (board from revision C)
+ */
+#define HAVE_2MMC	(1 << 0)
+static int inline ek_have_2mmc(void)
+{
+	return machine_is_at91sam9g20ek_2mmc() || (system_rev & HAVE_2MMC);
+}
+
 
 static void __init ek_map_io(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91sam9260_initialize(18432000);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
@@ -89,7 +106,7 @@ static struct at91_udc_data __initdata ek_udc_data = {
  * SPI devices.
  */
 static struct spi_board_info ek_spi_devices[] = {
-#if !defined(CONFIG_MMC_AT91)
+#if !(defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_AT91))
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",
 		.chip_select	= 1,
@@ -116,6 +133,13 @@ static struct at91_eth_data __initdata ek_macb_data = {
 	.is_rmii	= 1,
 };
 
+static void __init ek_add_device_macb(void)
+{
+	if (ek_have_2mmc())
+		ek_macb_data.phy_irq_pin = AT91_PIN_PB0;
+
+	at91_add_device_eth(&ek_macb_data);
+}
 
 /*
  * NAND flash
@@ -193,13 +217,36 @@ static void __init ek_add_device_nand(void)
 
 /*
  * MCI (SD/MMC)
- * det_pin, wp_pin and vcc_pin are not connected
+ * wp_pin and vcc_pin are not connected
  */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.slot_b		= 1,
-	.wire4		= 1,
-};
+#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
+static struct mci_platform_data __initdata ek_mmc_data = {
+	.slot[1] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PC9,
+	},
 
+};
+#else
+static struct at91_mmc_data __initdata ek_mmc_data = {
+	.slot_b		= 1,	/* Only one slot so use slot B */
+	.wire4		= 1,
+	.det_pin	= AT91_PIN_PC9,
+};
+#endif
+
+static void __init ek_add_device_mmc(void)
+{
+#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
+	if (ek_have_2mmc()) {
+		ek_mmc_data.slot[0].bus_width = 4;
+		ek_mmc_data.slot[0].detect_pin = AT91_PIN_PC2;
+	}
+	at91_add_device_mci(0, &ek_mmc_data);
+#else
+	at91_add_device_mmc(0, &ek_mmc_data);
+#endif
+}
 
 /*
  * LEDs
@@ -218,10 +265,112 @@ static struct gpio_led ek_leds[] = {
 	}
 };
 
-static struct i2c_board_info __initdata ek_i2c_devices[] = {
+static void __init ek_add_device_gpio_leds(void)
+{
+	if (ek_have_2mmc()) {
+		ek_leds[0].gpio = AT91_PIN_PB8;
+		ek_leds[1].gpio = AT91_PIN_PB9;
+	}
+
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+}
+
+/*
+ * GPIO Buttons
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button ek_buttons[] = {
 	{
-		I2C_BOARD_INFO("24c512", 0x50),
+		.gpio		= AT91_PIN_PA30,
+		.code		= BTN_3,
+		.desc		= "Button 3",
+		.active_low	= 1,
+		.wakeup		= 1,
 	},
+	{
+		.gpio		= AT91_PIN_PA31,
+		.code		= BTN_4,
+		.desc		= "Button 4",
+		.active_low	= 1,
+		.wakeup		= 1,
+	}
+};
+
+static struct gpio_keys_platform_data ek_button_data = {
+	.buttons	= ek_buttons,
+	.nbuttons	= ARRAY_SIZE(ek_buttons),
+};
+
+static struct platform_device ek_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_button_data,
+	}
+};
+
+static void __init ek_add_device_buttons(void)
+{
+	at91_set_gpio_input(AT91_PIN_PA30, 1);	/* btn3 */
+	at91_set_deglitch(AT91_PIN_PA30, 1);
+	at91_set_gpio_input(AT91_PIN_PA31, 1);	/* btn4 */
+	at91_set_deglitch(AT91_PIN_PA31, 1);
+
+	platform_device_register(&ek_button_device);
+}
+#else
+static void __init ek_add_device_buttons(void) {}
+#endif
+
+#if defined(CONFIG_REGULATOR_FIXED_VOLTAGE) || defined(CONFIG_REGULATOR_FIXED_VOLTAGE_MODULE)
+static struct regulator_consumer_supply ek_audio_consumer_supplies[] = {
+	REGULATOR_SUPPLY("AVDD", "0-001b"),
+	REGULATOR_SUPPLY("HPVDD", "0-001b"),
+	REGULATOR_SUPPLY("DBVDD", "0-001b"),
+	REGULATOR_SUPPLY("DCVDD", "0-001b"),
+};
+
+static struct regulator_init_data ek_avdd_reg_init_data = {
+	.constraints	= {
+		.name	= "3V3",
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.consumer_supplies = ek_audio_consumer_supplies,
+	.num_consumer_supplies = ARRAY_SIZE(ek_audio_consumer_supplies),
+};
+
+static struct fixed_voltage_config ek_vdd_pdata = {
+	.supply_name	= "board-3V3",
+	.microvolts	= 3300000,
+	.gpio		= -EINVAL,
+	.enabled_at_boot = 0,
+	.init_data	= &ek_avdd_reg_init_data,
+};
+static struct platform_device ek_voltage_regulator = {
+	.name		= "reg-fixed-voltage",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_vdd_pdata,
+	},
+};
+static void __init ek_add_regulators(void)
+{
+	platform_device_register(&ek_voltage_regulator);
+}
+#else
+static void __init ek_add_regulators(void) {}
+#endif
+
+
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+        {
+                I2C_BOARD_INFO("24c512", 0x50)
+        },
+        {
+                I2C_BOARD_INFO("wm8731", 0x1b)
+        },
 };
 
 
@@ -238,13 +387,17 @@ static void __init ek_board_init(void)
 	/* NAND */
 	ek_add_device_nand();
 	/* Ethernet */
-	at91_add_device_eth(&ek_macb_data);
+	ek_add_device_macb();
+	/* Regulators */
+	ek_add_regulators();
 	/* MMC */
-	at91_add_device_mmc(0, &ek_mmc_data);
+	ek_add_device_mmc();
 	/* I2C */
 	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* LEDs */
-	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+	ek_add_device_gpio_leds();
+	/* Push Buttons */
+	ek_add_device_buttons();
 	/* PCK0 provides MCLK to the WM8731 */
 	at91_set_B_periph(AT91_PIN_PC1, 0);
 	/* SSC (for WM8731) */
@@ -253,8 +406,15 @@ static void __init ek_board_init(void)
 
 MACHINE_START(AT91SAM9G20EK, "Atmel AT91SAM9G20-EK")
 	/* Maintainer: Atmel */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
+	.boot_params	= AT91_SDRAM_BASE + 0x100,
+	.timer		= &at91sam926x_timer,
+	.map_io		= ek_map_io,
+	.init_irq	= ek_init_irq,
+	.init_machine	= ek_board_init,
+MACHINE_END
+
+MACHINE_START(AT91SAM9G20EK_2MMC, "Atmel AT91SAM9G20-EK 2 MMC Slot Mod")
+	/* Maintainer: Atmel */
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= ek_map_io,

@@ -46,7 +46,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <mach/gpio.h>
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 
 #define IRQ_BANK(irq) ((irq) >> 5)
 #define IRQ_BIT(irq)  ((irq) & 0x1f)
@@ -137,16 +137,8 @@ static void omap_irq_set_cfg(int irq, int fiq, int priority, int trigger)
 	irq_bank_writel(val, bank, offset);
 }
 
-#ifdef CONFIG_ARCH_OMAP730
-static struct omap_irq_bank omap730_irq_banks[] = {
-	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3f8e22f },
-	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0xfdb9c1f2 },
-	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0x800040f3 },
-};
-#endif
-
-#ifdef CONFIG_ARCH_OMAP850
-static struct omap_irq_bank omap850_irq_banks[] = {
+#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
+static struct omap_irq_bank omap7xx_irq_banks[] = {
 	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3f8e22f },
 	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0xfdb9c1f2 },
 	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0x800040f3 },
@@ -184,32 +176,31 @@ static struct irq_chip omap_irq_chip = {
 
 void __init omap_init_irq(void)
 {
+	extern unsigned int omap_irq_flags;
 	int i, j;
 
-#ifdef CONFIG_ARCH_OMAP730
-	if (cpu_is_omap730()) {
-		irq_banks = omap730_irq_banks;
-		irq_bank_count = ARRAY_SIZE(omap730_irq_banks);
-	}
-#endif
-#ifdef CONFIG_ARCH_OMAP850
-	if (cpu_is_omap850()) {
-		irq_banks = omap850_irq_banks;
-		irq_bank_count = ARRAY_SIZE(omap850_irq_banks);
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+	if (cpu_is_omap7xx()) {
+		omap_irq_flags = INT_7XX_IH2_IRQ;
+		irq_banks = omap7xx_irq_banks;
+		irq_bank_count = ARRAY_SIZE(omap7xx_irq_banks);
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
+		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap1510_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1510_irq_banks);
 	}
 	if (cpu_is_omap310()) {
+		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap310_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap310_irq_banks);
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP16XX)
 	if (cpu_is_omap16xx()) {
+		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap1610_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1610_irq_banks);
 	}
@@ -247,10 +238,8 @@ void __init omap_init_irq(void)
 
 	/* Unmask level 2 handler */
 
-	if (cpu_is_omap730())
-		omap_unmask_irq(INT_730_IH2_IRQ);
-	else if (cpu_is_omap850())
-		omap_unmask_irq(INT_850_IH2_IRQ);
+	if (cpu_is_omap7xx())
+		omap_unmask_irq(INT_7XX_IH2_IRQ);
 	else if (cpu_is_omap15xx())
 		omap_unmask_irq(INT_1510_IH2_IRQ);
 	else if (cpu_is_omap16xx())

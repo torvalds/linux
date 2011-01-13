@@ -34,6 +34,7 @@
 
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 
 static struct b43_lo_calib *b43_find_lo_calib(struct b43_txpower_lo_control *lo,
@@ -477,7 +478,7 @@ static void lo_measure_setup(struct b43_wldev *dev,
 	} else
 		b43_phy_write(dev, B43_PHY_CCK(0x2B), 0x0802);
 	if (phy->rev >= 2)
-		b43_dummy_transmission(dev);
+		b43_dummy_transmission(dev, false, true);
 	b43_gphy_channel_switch(dev, 6, 0);
 	b43_radio_read16(dev, 0x51);	/* dummy read */
 	if (phy->type == B43_PHYTYPE_G)

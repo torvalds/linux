@@ -10,53 +10,52 @@
  * published by the Free Software Foundation.
  *
  */
-
 #include <mach/hardware.h>
 
-#ifdef CONFIG_MACH_MX31ADS
-#include <mach/board-mx31ads.h>
+#ifdef CONFIG_ARCH_MX1
+#define UART_PADDR	MX1_UART1_BASE_ADDR
 #endif
-#ifdef CONFIG_MACH_PCM037
-#include <mach/board-pcm037.h>
+
+#ifdef CONFIG_ARCH_MX25
+#ifdef UART_PADDR
+#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
 #endif
-#ifdef CONFIG_MACH_MX31LITE
-#include <mach/board-mx31lite.h>
+#define UART_PADDR	MX25_UART1_BASE_ADDR
 #endif
-#ifdef CONFIG_MACH_MX27ADS
-#include <mach/board-mx27ads.h>
+
+#ifdef CONFIG_ARCH_MX2
+#ifdef UART_PADDR
+#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
 #endif
-#ifdef CONFIG_MACH_MX21ADS
-#include <mach/board-mx21ads.h>
+#define UART_PADDR	MX2x_UART1_BASE_ADDR
 #endif
-#ifdef CONFIG_MACH_PCM038
-#include <mach/board-pcm038.h>
+
+#ifdef CONFIG_ARCH_MX3
+#ifdef UART_PADDR
+#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
 #endif
-#ifdef CONFIG_MACH_MX31_3DS
-#include <mach/board-mx31pdk.h>
+#define UART_PADDR	MX3x_UART1_BASE_ADDR
 #endif
-#ifdef CONFIG_MACH_QONG
-#include <mach/board-qong.h>
+
+#ifdef CONFIG_ARCH_MX5
+#ifdef UART_PADDR
+#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
 #endif
-#ifdef CONFIG_MACH_PCM043
-#include <mach/board-pcm043.h>
+#define UART_PADDR	MX51_UART1_BASE_ADDR
 #endif
-#ifdef CONFIG_MACH_MX27_3DS
-#include <mach/board-mx27pdk.h>
+
+#ifdef CONFIG_ARCH_MXC91231
+#ifdef UART_PADDR
+#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
 #endif
-#ifdef CONFIG_MACH_ARMADILLO5X0
-#include <mach/board-armadillo5x0.h>
+#define UART_PADDR	MXC91231_UART2_BASE_ADDR
 #endif
-#ifdef CONFIG_MACH_MX35_3DS
-#include <mach/board-mx35pdk.h>
-#endif
-#ifdef CONFIG_MACH_MX27LITE
-#include <mach/board-mx27lite.h>
-#endif
-		.macro	addruart,rx
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		ldreq	\rx, =MXC_LL_UART_PADDR	@ physical
-		ldrne	\rx, =MXC_LL_UART_VADDR	@ virtual
+
+#define UART_VADDR	IMX_IO_ADDRESS(UART_PADDR)
+
+		.macro	addruart, rp, rv
+		ldr	\rp, =UART_PADDR	@ physical
+		ldr	\rv, =UART_VADDR	@ virtual
 		.endm
 
 		.macro	senduart,rd,rx

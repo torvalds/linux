@@ -16,6 +16,7 @@
  */
 
 #include <linux/mISDNif.h>
+#include <linux/slab.h>
 #include "core.h"
 #include "fsm.h"
 #include "layer2.h"
@@ -94,14 +95,20 @@ static void
 l2m_debug(struct FsmInst *fi, char *fmt, ...)
 {
 	struct layer2 *l2 = fi->userdata;
+	struct va_format vaf;
 	va_list va;
 
 	if (!(*debug & DEBUG_L2_FSM))
 		return;
+
 	va_start(va, fmt);
-	printk(KERN_DEBUG "l2 (sapi %d tei %d): ", l2->sapi, l2->tei);
-	vprintk(fmt, va);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &va;
+
+	printk(KERN_DEBUG "l2 (sapi %d tei %d): %pV\n",
+	       l2->sapi, l2->tei, &vaf);
+
 	va_end(va);
 }
 
@@ -1831,8 +1838,6 @@ static struct FsmNode L2FnList[] =
 	{ST_L2_7, EV_L1_DEACTIVATE, l2_persistant_da},
 	{ST_L2_8, EV_L1_DEACTIVATE, l2_persistant_da},
 };
-
-#define L2_FN_COUNT (sizeof(L2FnList)/sizeof(struct FsmNode))
 
 static int
 ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)

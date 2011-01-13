@@ -127,7 +127,7 @@ struct yld_ctl_packet {
  * yld_status struct.
  */
 
-/* LCD, each segment must be driven seperately.
+/* LCD, each segment must be driven separately.
  *
  * Layout:
  *

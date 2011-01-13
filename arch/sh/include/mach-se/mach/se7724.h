@@ -20,6 +20,11 @@
  */
 #include <asm/addrspace.h>
 
+/* SH Eth */
+#define SH_ETH_ADDR	(0xA4600000)
+#define SH_ETH_MAHR	(SH_ETH_ADDR + 0x1C0)
+#define SH_ETH_MALR	(SH_ETH_ADDR + 0x1C8)
+
 #define PA_LED		(0xba203000)	/* 8bit LED */
 #define IRQ_MODE	(0xba200010)
 #define IRQ0_SR		(0xba200014)

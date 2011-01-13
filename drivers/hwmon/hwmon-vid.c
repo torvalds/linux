@@ -22,6 +22,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/hwmon-vid.h>
@@ -38,7 +40,7 @@
  * available at http://developer.intel.com/.
  *
  * AMD Athlon 64 and AMD Opteron Processors, AMD Publication 26094,
- * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/26094.PDF
+ * http://support.amd.com/us/Processor_TechDocs/26094.PDF 
  * Table 74. VID Code Voltages
  * This corresponds to an arbitrary VRM code of 24 in the functions below.
  * These CPU models (K8 revision <= E) have 5 VID pins. See also:
@@ -146,8 +148,8 @@ int vid_from_reg(int val, u8 vrm)
 		return(val > 0x77 ? 0 : (1500000 - (val * 12500) + 500) / 1000);
 	default:		/* report 0 for unknown */
 		if (vrm)
-			printk(KERN_WARNING "hwmon-vid: Requested unsupported "
-			       "VRM version (%u)\n", (unsigned int)vrm);
+			pr_warn("Requested unsupported VRM version (%u)\n",
+				(unsigned int)vrm);
 		return 0;
 	}
 }
@@ -179,8 +181,14 @@ struct vrm_model {
 static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_AMD, 0x6, ANY, ANY, 90},		/* Athlon Duron etc */
 	{X86_VENDOR_AMD, 0xF, 0x3F, ANY, 24},		/* Athlon 64, Opteron */
-	{X86_VENDOR_AMD, 0xF, ANY, ANY, 25},		/* NPT family 0Fh */
+	/* In theory, all NPT family 0Fh processors have 6 VID pins and should
+	   thus use vrm 25, however in practice not all mainboards route the
+	   6th VID pin because it is never needed. So we use the 5 VID pin
+	   variant (vrm 24) for the models which exist today. */
+	{X86_VENDOR_AMD, 0xF, 0x7F, ANY, 24},		/* NPT family 0Fh */
+	{X86_VENDOR_AMD, 0xF, ANY, ANY, 25},		/* future fam. 0Fh */
 	{X86_VENDOR_AMD, 0x10, ANY, ANY, 25},		/* NPT family 10h */
+
 	{X86_VENDOR_INTEL, 0x6, 0x9, ANY, 13},		/* Pentium M (130 nm) */
 	{X86_VENDOR_INTEL, 0x6, 0xB, ANY, 85},		/* Tualatin */
 	{X86_VENDOR_INTEL, 0x6, 0xD, ANY, 13},		/* Pentium M (90 nm) */
@@ -191,12 +199,14 @@ static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_INTEL, 0xF, 0x1, ANY, 90},		/* P4 Willamette */
 	{X86_VENDOR_INTEL, 0xF, 0x2, ANY, 90},		/* P4 Northwood */
 	{X86_VENDOR_INTEL, 0xF, ANY, ANY, 100},		/* Prescott and above assume VRD 10 */
+
 	{X86_VENDOR_CENTAUR, 0x6, 0x7, ANY, 85},	/* Eden ESP/Ezra */
 	{X86_VENDOR_CENTAUR, 0x6, 0x8, 0x7, 85},	/* Ezra T */
 	{X86_VENDOR_CENTAUR, 0x6, 0x9, 0x7, 85},	/* Nemiah */
 	{X86_VENDOR_CENTAUR, 0x6, 0x9, ANY, 17},	/* C3-M, Eden-N */
 	{X86_VENDOR_CENTAUR, 0x6, 0xA, 0x7, 0},		/* No information */
 	{X86_VENDOR_CENTAUR, 0x6, 0xA, ANY, 13},	/* C7, Esther */
+
 	{X86_VENDOR_UNKNOWN, ANY, ANY, ANY, 0}		/* stop here */
 };
 
@@ -238,8 +248,7 @@ u8 vid_which_vrm(void)
 	}
 	vrm_ret = find_vrm(eff_family, eff_model, eff_stepping, c->x86_vendor);
 	if (vrm_ret == 0)
-		printk(KERN_INFO "hwmon-vid: Unknown VRM version of your "
-		       "x86 CPU\n");
+		pr_info("Unknown VRM version of your x86 CPU\n");
 	return vrm_ret;
 }
 
@@ -247,7 +256,7 @@ u8 vid_which_vrm(void)
 #else
 u8 vid_which_vrm(void)
 {
-	printk(KERN_INFO "hwmon-vid: Unknown VRM version of your CPU\n");
+	pr_info("Unknown VRM version of your CPU\n");
 	return 0;
 }
 #endif

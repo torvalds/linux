@@ -18,6 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/bug.h>
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -25,6 +26,7 @@
 #include <linux/firewire.h>
 #include <linux/firewire-cdev.h>
 #include <linux/idr.h>
+#include <linux/irqflags.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -32,8 +34,10 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
-#include <linux/preempt.h>
+#include <linux/sched.h> /* required for linux/wait.h */
+#include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -43,6 +47,13 @@
 #include <asm/system.h>
 
 #include "core.h"
+
+/*
+ * ABI version history is documented in linux/firewire-cdev.h.
+ */
+#define FW_CDEV_KERNEL_VERSION			4
+#define FW_CDEV_VERSION_EVENT_REQUEST2		4
+#define FW_CDEV_VERSION_ALLOCATE_REGION_END	4
 
 struct client {
 	u32 version;
@@ -59,6 +70,9 @@ struct client {
 	u64 iso_closure;
 	struct fw_iso_buffer buffer;
 	unsigned long vm_start;
+
+	struct list_head phy_receiver_link;
+	u64 phy_receiver_closure;
 
 	struct list_head link;
 	struct kref kref;
@@ -104,6 +118,7 @@ struct outbound_transaction_resource {
 
 struct inbound_transaction_resource {
 	struct client_resource resource;
+	struct fw_card *card;
 	struct fw_request *request;
 	void *data;
 	size_t length;
@@ -125,11 +140,25 @@ struct iso_resource {
 	int generation;
 	u64 channels;
 	s32 bandwidth;
+	__be32 transaction_data[2];
 	struct iso_resource_event *e_alloc, *e_dealloc;
 };
 
-static void schedule_iso_resource(struct iso_resource *);
 static void release_iso_resource(struct client *, struct client_resource *);
+
+static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
+{
+	client_get(r->client);
+	if (!schedule_delayed_work(&r->work, delay))
+		client_put(r->client);
+}
+
+static void schedule_if_iso_resource(struct client_resource *resource)
+{
+	if (resource->release == release_iso_resource)
+		schedule_iso_resource(container_of(resource,
+					struct iso_resource, resource), 0);
+}
 
 /*
  * dequeue_event() just kfree()'s the event, so the event has to be
@@ -154,7 +183,10 @@ struct outbound_transaction_event {
 
 struct inbound_transaction_event {
 	struct event event;
-	struct fw_cdev_event_request request;
+	union {
+		struct fw_cdev_event_request request;
+		struct fw_cdev_event_request2 request2;
+	} req;
 };
 
 struct iso_interrupt_event {
@@ -162,9 +194,26 @@ struct iso_interrupt_event {
 	struct fw_cdev_event_iso_interrupt interrupt;
 };
 
+struct iso_interrupt_mc_event {
+	struct event event;
+	struct fw_cdev_event_iso_interrupt_mc interrupt;
+};
+
 struct iso_resource_event {
 	struct event event;
-	struct fw_cdev_event_iso_resource resource;
+	struct fw_cdev_event_iso_resource iso_resource;
+};
+
+struct outbound_phy_packet_event {
+	struct event event;
+	struct client *client;
+	struct fw_packet p;
+	struct fw_cdev_event_phy_packet phy_packet;
+};
+
+struct inbound_phy_packet_event {
+	struct event event;
+	struct fw_cdev_event_phy_packet phy_packet;
 };
 
 static inline void __user *u64_to_uptr(__u64 value)
@@ -202,6 +251,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	idr_init(&client->resource_idr);
 	INIT_LIST_HEAD(&client->event_list);
 	init_waitqueue_head(&client->wait);
+	INIT_LIST_HEAD(&client->phy_receiver_link);
 	kref_init(&client->kref);
 
 	file->private_data = client;
@@ -210,7 +260,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	list_add_tail(&client->link, &device->client_list);
 	mutex_unlock(&device->client_list_mutex);
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static void queue_event(struct client *client, struct event *event,
@@ -292,7 +342,7 @@ static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	event->generation    = client->device->generation;
 	event->node_id       = client->device->node_id;
 	event->local_node_id = card->local_node->node_id;
-	event->bm_node_id    = 0; /* FIXME: We don't track the BM. */
+	event->bm_node_id    = card->bm_node_id;
 	event->irm_node_id   = card->irm_node->node_id;
 	event->root_node_id  = card->root_node->node_id;
 
@@ -312,11 +362,8 @@ static void for_each_client(struct fw_device *device,
 
 static int schedule_reallocations(int id, void *p, void *data)
 {
-	struct client_resource *r = p;
+	schedule_if_iso_resource(p);
 
-	if (r->release == release_iso_resource)
-		schedule_iso_resource(container_of(r,
-					struct iso_resource, resource));
 	return 0;
 }
 
@@ -326,7 +373,7 @@ static void queue_bus_reset_event(struct client *client)
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating bus reset event\n");
+		fw_notify("Out of memory when allocating event\n");
 		return;
 	}
 
@@ -355,39 +402,59 @@ void fw_device_cdev_remove(struct fw_device *device)
 	for_each_client(device, wake_up_client);
 }
 
-static int ioctl_get_info(struct client *client, void *buffer)
+union ioctl_arg {
+	struct fw_cdev_get_info			get_info;
+	struct fw_cdev_send_request		send_request;
+	struct fw_cdev_allocate			allocate;
+	struct fw_cdev_deallocate		deallocate;
+	struct fw_cdev_send_response		send_response;
+	struct fw_cdev_initiate_bus_reset	initiate_bus_reset;
+	struct fw_cdev_add_descriptor		add_descriptor;
+	struct fw_cdev_remove_descriptor	remove_descriptor;
+	struct fw_cdev_create_iso_context	create_iso_context;
+	struct fw_cdev_queue_iso		queue_iso;
+	struct fw_cdev_start_iso		start_iso;
+	struct fw_cdev_stop_iso			stop_iso;
+	struct fw_cdev_get_cycle_timer		get_cycle_timer;
+	struct fw_cdev_allocate_iso_resource	allocate_iso_resource;
+	struct fw_cdev_send_stream_packet	send_stream_packet;
+	struct fw_cdev_get_cycle_timer2		get_cycle_timer2;
+	struct fw_cdev_send_phy_packet		send_phy_packet;
+	struct fw_cdev_receive_phy_packets	receive_phy_packets;
+	struct fw_cdev_set_iso_channels		set_iso_channels;
+};
+
+static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_get_info *get_info = buffer;
+	struct fw_cdev_get_info *a = &arg->get_info;
 	struct fw_cdev_event_bus_reset bus_reset;
 	unsigned long ret = 0;
 
-	client->version = get_info->version;
-	get_info->version = FW_CDEV_VERSION;
-	get_info->card = client->device->card->index;
+	client->version = a->version;
+	a->version = FW_CDEV_KERNEL_VERSION;
+	a->card = client->device->card->index;
 
 	down_read(&fw_device_rwsem);
 
-	if (get_info->rom != 0) {
-		void __user *uptr = u64_to_uptr(get_info->rom);
-		size_t want = get_info->rom_length;
+	if (a->rom != 0) {
+		size_t want = a->rom_length;
 		size_t have = client->device->config_rom_length * 4;
 
-		ret = copy_to_user(uptr, client->device->config_rom,
-				   min(want, have));
+		ret = copy_to_user(u64_to_uptr(a->rom),
+				   client->device->config_rom, min(want, have));
 	}
-	get_info->rom_length = client->device->config_rom_length * 4;
+	a->rom_length = client->device->config_rom_length * 4;
 
 	up_read(&fw_device_rwsem);
 
 	if (ret != 0)
 		return -EFAULT;
 
-	client->bus_reset_closure = get_info->bus_reset_closure;
-	if (get_info->bus_reset != 0) {
-		void __user *uptr = u64_to_uptr(get_info->bus_reset);
-
+	client->bus_reset_closure = a->bus_reset_closure;
+	if (a->bus_reset != 0) {
 		fill_bus_reset_event(&bus_reset, client);
-		if (copy_to_user(uptr, &bus_reset, sizeof(bus_reset)))
+		if (copy_to_user(u64_to_uptr(a->bus_reset),
+				 &bus_reset, sizeof(bus_reset)))
 			return -EFAULT;
 	}
 
@@ -412,9 +479,7 @@ static int add_client_resource(struct client *client,
 				  &resource->handle);
 	if (ret >= 0) {
 		client_get(client);
-		if (resource->release == release_iso_resource)
-			schedule_iso_resource(container_of(resource,
-						struct iso_resource, resource));
+		schedule_if_iso_resource(resource);
 	}
 	spin_unlock_irqrestore(&client->lock, flags);
 
@@ -426,26 +491,26 @@ static int add_client_resource(struct client *client,
 
 static int release_client_resource(struct client *client, u32 handle,
 				   client_resource_release_fn_t release,
-				   struct client_resource **resource)
+				   struct client_resource **return_resource)
 {
-	struct client_resource *r;
+	struct client_resource *resource;
 
 	spin_lock_irq(&client->lock);
 	if (client->in_shutdown)
-		r = NULL;
+		resource = NULL;
 	else
-		r = idr_find(&client->resource_idr, handle);
-	if (r && r->release == release)
+		resource = idr_find(&client->resource_idr, handle);
+	if (resource && resource->release == release)
 		idr_remove(&client->resource_idr, handle);
 	spin_unlock_irq(&client->lock);
 
-	if (!(r && r->release == release))
+	if (!(resource && resource->release == release))
 		return -EINVAL;
 
-	if (resource)
-		*resource = r;
+	if (return_resource)
+		*return_resource = resource;
 	else
-		r->release(client, r);
+		resource->release(client, resource);
 
 	client_put(client);
 
@@ -525,6 +590,10 @@ static int init_request(struct client *client,
 	    (request->length > 4096 || request->length > 512 << speed))
 		return -EIO;
 
+	if (request->tcode == TCODE_WRITE_QUADLET_REQUEST &&
+	    request->length < 4)
+		return -EINVAL;
+
 	e = kmalloc(sizeof(*e) + request->length, GFP_KERNEL);
 	if (e == NULL)
 		return -ENOMEM;
@@ -560,11 +629,9 @@ static int init_request(struct client *client,
 	return ret;
 }
 
-static int ioctl_send_request(struct client *client, void *buffer)
+static int ioctl_send_request(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_send_request *request = buffer;
-
-	switch (request->tcode) {
+	switch (arg->send_request.tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 	case TCODE_WRITE_BLOCK_REQUEST:
 	case TCODE_READ_QUADLET_REQUEST:
@@ -581,8 +648,13 @@ static int ioctl_send_request(struct client *client, void *buffer)
 		return -EINVAL;
 	}
 
-	return init_request(client, request, client->device->node_id,
+	return init_request(client, &arg->send_request, client->device->node_id,
 			    client->device->max_speed);
+}
+
+static inline bool is_fcp_request(struct fw_request *request)
+{
+	return request == NULL;
 }
 
 static void release_request(struct client *client,
@@ -591,51 +663,100 @@ static void release_request(struct client *client,
 	struct inbound_transaction_resource *r = container_of(resource,
 			struct inbound_transaction_resource, resource);
 
-	fw_send_response(client->device->card, r->request,
-			 RCODE_CONFLICT_ERROR);
+	if (is_fcp_request(r->request))
+		kfree(r->data);
+	else
+		fw_send_response(r->card, r->request, RCODE_CONFLICT_ERROR);
+
+	fw_card_put(r->card);
 	kfree(r);
 }
 
 static void handle_request(struct fw_card *card, struct fw_request *request,
 			   int tcode, int destination, int source,
-			   int generation, int speed,
-			   unsigned long long offset,
+			   int generation, unsigned long long offset,
 			   void *payload, size_t length, void *callback_data)
 {
 	struct address_handler_resource *handler = callback_data;
 	struct inbound_transaction_resource *r;
 	struct inbound_transaction_event *e;
+	size_t event_size0;
+	void *fcp_frame = NULL;
 	int ret;
+
+	/* card may be different from handler->client->device->card */
+	fw_card_get(card);
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
-	if (r == NULL || e == NULL)
+	if (r == NULL || e == NULL) {
+		fw_notify("Out of memory when allocating event\n");
 		goto failed;
-
+	}
+	r->card    = card;
 	r->request = request;
 	r->data    = payload;
 	r->length  = length;
+
+	if (is_fcp_request(request)) {
+		/*
+		 * FIXME: Let core-transaction.c manage a
+		 * single reference-counted copy?
+		 */
+		fcp_frame = kmemdup(payload, length, GFP_ATOMIC);
+		if (fcp_frame == NULL)
+			goto failed;
+
+		r->data = fcp_frame;
+	}
 
 	r->resource.release = release_request;
 	ret = add_client_resource(handler->client, &r->resource, GFP_ATOMIC);
 	if (ret < 0)
 		goto failed;
 
-	e->request.type    = FW_CDEV_EVENT_REQUEST;
-	e->request.tcode   = tcode;
-	e->request.offset  = offset;
-	e->request.length  = length;
-	e->request.handle  = r->resource.handle;
-	e->request.closure = handler->closure;
+	if (handler->client->version < FW_CDEV_VERSION_EVENT_REQUEST2) {
+		struct fw_cdev_event_request *req = &e->req.request;
+
+		if (tcode & 0x10)
+			tcode = TCODE_LOCK_REQUEST;
+
+		req->type	= FW_CDEV_EVENT_REQUEST;
+		req->tcode	= tcode;
+		req->offset	= offset;
+		req->length	= length;
+		req->handle	= r->resource.handle;
+		req->closure	= handler->closure;
+		event_size0	= sizeof(*req);
+	} else {
+		struct fw_cdev_event_request2 *req = &e->req.request2;
+
+		req->type	= FW_CDEV_EVENT_REQUEST2;
+		req->tcode	= tcode;
+		req->offset	= offset;
+		req->source_node_id = source;
+		req->destination_node_id = destination;
+		req->card	= card->index;
+		req->generation	= generation;
+		req->length	= length;
+		req->handle	= r->resource.handle;
+		req->closure	= handler->closure;
+		event_size0	= sizeof(*req);
+	}
 
 	queue_event(handler->client, &e->event,
-		    &e->request, sizeof(e->request), payload, length);
+		    &e->req, event_size0, r->data, length);
 	return;
 
  failed:
 	kfree(r);
 	kfree(e);
-	fw_send_response(card, request, RCODE_CONFLICT_ERROR);
+	kfree(fcp_frame);
+
+	if (!is_fcp_request(request))
+		fw_send_response(card, request, RCODE_CONFLICT_ERROR);
+
+	fw_card_put(card);
 }
 
 static void release_address_handler(struct client *client,
@@ -648,9 +769,9 @@ static void release_address_handler(struct client *client,
 	kfree(r);
 }
 
-static int ioctl_allocate(struct client *client, void *buffer)
+static int ioctl_allocate(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_allocate *request = buffer;
+	struct fw_cdev_allocate *a = &arg->allocate;
 	struct address_handler_resource *r;
 	struct fw_address_region region;
 	int ret;
@@ -659,19 +780,24 @@ static int ioctl_allocate(struct client *client, void *buffer)
 	if (r == NULL)
 		return -ENOMEM;
 
-	region.start = request->offset;
-	region.end = request->offset + request->length;
-	r->handler.length = request->length;
+	region.start = a->offset;
+	if (client->version < FW_CDEV_VERSION_ALLOCATE_REGION_END)
+		region.end = a->offset + a->length;
+	else
+		region.end = a->region_end;
+
+	r->handler.length           = a->length;
 	r->handler.address_callback = handle_request;
-	r->handler.callback_data = r;
-	r->closure = request->closure;
-	r->client = client;
+	r->handler.callback_data    = r;
+	r->closure   = a->closure;
+	r->client    = client;
 
 	ret = fw_core_add_address_handler(&r->handler, &region);
 	if (ret < 0) {
 		kfree(r);
 		return ret;
 	}
+	a->offset = r->handler.offset;
 
 	r->resource.release = release_address_handler;
 	ret = add_client_resource(client, &r->resource, GFP_KERNEL);
@@ -679,50 +805,56 @@ static int ioctl_allocate(struct client *client, void *buffer)
 		release_address_handler(client, &r->resource);
 		return ret;
 	}
-	request->handle = r->resource.handle;
+	a->handle = r->resource.handle;
 
 	return 0;
 }
 
-static int ioctl_deallocate(struct client *client, void *buffer)
+static int ioctl_deallocate(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_deallocate *request = buffer;
-
-	return release_client_resource(client, request->handle,
+	return release_client_resource(client, arg->deallocate.handle,
 				       release_address_handler, NULL);
 }
 
-static int ioctl_send_response(struct client *client, void *buffer)
+static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_send_response *request = buffer;
+	struct fw_cdev_send_response *a = &arg->send_response;
 	struct client_resource *resource;
 	struct inbound_transaction_resource *r;
+	int ret = 0;
 
-	if (release_client_resource(client, request->handle,
+	if (release_client_resource(client, a->handle,
 				    release_request, &resource) < 0)
 		return -EINVAL;
 
 	r = container_of(resource, struct inbound_transaction_resource,
 			 resource);
-	if (request->length < r->length)
-		r->length = request->length;
-	if (copy_from_user(r->data, u64_to_uptr(request->data), r->length))
-		return -EFAULT;
+	if (is_fcp_request(r->request))
+		goto out;
 
-	fw_send_response(client->device->card, r->request, request->rcode);
+	if (a->length != fw_get_response_length(r->request)) {
+		ret = -EINVAL;
+		kfree(r->request);
+		goto out;
+	}
+	if (copy_from_user(r->data, u64_to_uptr(a->data), a->length)) {
+		ret = -EFAULT;
+		kfree(r->request);
+		goto out;
+	}
+	fw_send_response(r->card, r->request, a->rcode);
+ out:
+	fw_card_put(r->card);
 	kfree(r);
 
-	return 0;
+	return ret;
 }
 
-static int ioctl_initiate_bus_reset(struct client *client, void *buffer)
+static int ioctl_initiate_bus_reset(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_initiate_bus_reset *request = buffer;
-	int short_reset;
-
-	short_reset = (request->type == FW_CDEV_SHORT_RESET);
-
-	return fw_core_initiate_bus_reset(client->device->card, short_reset);
+	fw_schedule_bus_reset(client->device->card, true,
+			arg->initiate_bus_reset.type == FW_CDEV_SHORT_RESET);
+	return 0;
 }
 
 static void release_descriptor(struct client *client,
@@ -735,9 +867,9 @@ static void release_descriptor(struct client *client,
 	kfree(r);
 }
 
-static int ioctl_add_descriptor(struct client *client, void *buffer)
+static int ioctl_add_descriptor(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_add_descriptor *request = buffer;
+	struct fw_cdev_add_descriptor *a = &arg->add_descriptor;
 	struct descriptor_resource *r;
 	int ret;
 
@@ -745,22 +877,21 @@ static int ioctl_add_descriptor(struct client *client, void *buffer)
 	if (!client->device->is_local)
 		return -ENOSYS;
 
-	if (request->length > 256)
+	if (a->length > 256)
 		return -EINVAL;
 
-	r = kmalloc(sizeof(*r) + request->length * 4, GFP_KERNEL);
+	r = kmalloc(sizeof(*r) + a->length * 4, GFP_KERNEL);
 	if (r == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(r->data,
-			   u64_to_uptr(request->data), request->length * 4)) {
+	if (copy_from_user(r->data, u64_to_uptr(a->data), a->length * 4)) {
 		ret = -EFAULT;
 		goto failed;
 	}
 
-	r->descriptor.length    = request->length;
-	r->descriptor.immediate = request->immediate;
-	r->descriptor.key       = request->key;
+	r->descriptor.length    = a->length;
+	r->descriptor.immediate = a->immediate;
+	r->descriptor.key       = a->key;
 	r->descriptor.data      = r->data;
 
 	ret = fw_core_add_descriptor(&r->descriptor);
@@ -773,7 +904,7 @@ static int ioctl_add_descriptor(struct client *client, void *buffer)
 		fw_core_remove_descriptor(&r->descriptor);
 		goto failed;
 	}
-	request->handle = r->resource.handle;
+	a->handle = r->resource.handle;
 
 	return 0;
  failed:
@@ -782,11 +913,9 @@ static int ioctl_add_descriptor(struct client *client, void *buffer)
 	return ret;
 }
 
-static int ioctl_remove_descriptor(struct client *client, void *buffer)
+static int ioctl_remove_descriptor(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_remove_descriptor *request = buffer;
-
-	return release_client_resource(client, request->handle,
+	return release_client_resource(client, arg->remove_descriptor.handle,
 				       release_descriptor, NULL);
 }
 
@@ -796,10 +925,11 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 	struct client *client = data;
 	struct iso_interrupt_event *e;
 
-	e = kzalloc(sizeof(*e) + header_length, GFP_ATOMIC);
-	if (e == NULL)
+	e = kmalloc(sizeof(*e) + header_length, GFP_ATOMIC);
+	if (e == NULL) {
+		fw_notify("Out of memory when allocating event\n");
 		return;
-
+	}
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
 	e->interrupt.closure   = client->iso_closure;
 	e->interrupt.cycle     = cycle;
@@ -809,51 +939,90 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 		    sizeof(e->interrupt) + header_length, NULL, 0);
 }
 
-static int ioctl_create_iso_context(struct client *client, void *buffer)
+static void iso_mc_callback(struct fw_iso_context *context,
+			    dma_addr_t completed, void *data)
 {
-	struct fw_cdev_create_iso_context *request = buffer;
+	struct client *client = data;
+	struct iso_interrupt_mc_event *e;
+
+	e = kmalloc(sizeof(*e), GFP_ATOMIC);
+	if (e == NULL) {
+		fw_notify("Out of memory when allocating event\n");
+		return;
+	}
+	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL;
+	e->interrupt.closure   = client->iso_closure;
+	e->interrupt.completed = fw_iso_buffer_lookup(&client->buffer,
+						      completed);
+	queue_event(client, &e->event, &e->interrupt,
+		    sizeof(e->interrupt), NULL, 0);
+}
+
+static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_create_iso_context *a = &arg->create_iso_context;
 	struct fw_iso_context *context;
+	fw_iso_callback_t cb;
 
-	/* We only support one context at this time. */
-	if (client->iso_context != NULL)
-		return -EBUSY;
+	BUILD_BUG_ON(FW_CDEV_ISO_CONTEXT_TRANSMIT != FW_ISO_CONTEXT_TRANSMIT ||
+		     FW_CDEV_ISO_CONTEXT_RECEIVE  != FW_ISO_CONTEXT_RECEIVE  ||
+		     FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL !=
+					FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL);
 
-	if (request->channel > 63)
-		return -EINVAL;
-
-	switch (request->type) {
-	case FW_ISO_CONTEXT_RECEIVE:
-		if (request->header_size < 4 || (request->header_size & 3))
+	switch (a->type) {
+	case FW_ISO_CONTEXT_TRANSMIT:
+		if (a->speed > SCODE_3200 || a->channel > 63)
 			return -EINVAL;
 
+		cb = iso_callback;
 		break;
 
-	case FW_ISO_CONTEXT_TRANSMIT:
-		if (request->speed > SCODE_3200)
+	case FW_ISO_CONTEXT_RECEIVE:
+		if (a->header_size < 4 || (a->header_size & 3) ||
+		    a->channel > 63)
 			return -EINVAL;
 
+		cb = iso_callback;
+		break;
+
+	case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+		cb = (fw_iso_callback_t)iso_mc_callback;
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	context =  fw_iso_context_create(client->device->card,
-					 request->type,
-					 request->channel,
-					 request->speed,
-					 request->header_size,
-					 iso_callback, client);
+	context = fw_iso_context_create(client->device->card, a->type,
+			a->channel, a->speed, a->header_size, cb, client);
 	if (IS_ERR(context))
 		return PTR_ERR(context);
 
-	client->iso_closure = request->closure;
-	client->iso_context = context;
-
 	/* We only support one context at this time. */
-	request->handle = 0;
+	spin_lock_irq(&client->lock);
+	if (client->iso_context != NULL) {
+		spin_unlock_irq(&client->lock);
+		fw_iso_context_destroy(context);
+		return -EBUSY;
+	}
+	client->iso_closure = a->closure;
+	client->iso_context = context;
+	spin_unlock_irq(&client->lock);
+
+	a->handle = 0;
 
 	return 0;
+}
+
+static int ioctl_set_iso_channels(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_set_iso_channels *a = &arg->set_iso_channels;
+	struct fw_iso_context *ctx = client->iso_context;
+
+	if (ctx == NULL || a->handle != 0)
+		return -EINVAL;
+
+	return fw_iso_context_set_channels(ctx, &a->channels);
 }
 
 /* Macros for decoding the iso packet control header. */
@@ -864,12 +1033,12 @@ static int ioctl_create_iso_context(struct client *client, void *buffer)
 #define GET_SY(v)		(((v) >> 20) & 0x0f)
 #define GET_HEADER_LENGTH(v)	(((v) >> 24) & 0xff)
 
-static int ioctl_queue_iso(struct client *client, void *buffer)
+static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_queue_iso *request = buffer;
+	struct fw_cdev_queue_iso *a = &arg->queue_iso;
 	struct fw_cdev_iso_packet __user *p, *end, *next;
 	struct fw_iso_context *ctx = client->iso_context;
-	unsigned long payload, buffer_end, header_length;
+	unsigned long payload, buffer_end, transmit_header_bytes = 0;
 	u32 control;
 	int count;
 	struct {
@@ -877,7 +1046,7 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 		u8 header[256];
 	} u;
 
-	if (ctx == NULL || request->handle != 0)
+	if (ctx == NULL || a->handle != 0)
 		return -EINVAL;
 
 	/*
@@ -887,23 +1056,24 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 	 * set them both to 0, which will still let packets with
 	 * payload_length == 0 through.  In other words, if no packets
 	 * use the indirect payload, the iso buffer need not be mapped
-	 * and the request->data pointer is ignored.
+	 * and the a->data pointer is ignored.
 	 */
-
-	payload = (unsigned long)request->data - client->vm_start;
+	payload = (unsigned long)a->data - client->vm_start;
 	buffer_end = client->buffer.page_count << PAGE_SHIFT;
-	if (request->data == 0 || client->buffer.pages == NULL ||
+	if (a->data == 0 || client->buffer.pages == NULL ||
 	    payload >= buffer_end) {
 		payload = 0;
 		buffer_end = 0;
 	}
 
-	p = (struct fw_cdev_iso_packet __user *)u64_to_uptr(request->packets);
+	if (ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL && payload & 3)
+		return -EINVAL;
 
-	if (!access_ok(VERIFY_READ, p, request->size))
+	p = (struct fw_cdev_iso_packet __user *)u64_to_uptr(a->packets);
+	if (!access_ok(VERIFY_READ, p, a->size))
 		return -EFAULT;
 
-	end = (void __user *)p + request->size;
+	end = (void __user *)p + a->size;
 	count = 0;
 	while (p < end) {
 		if (get_user(control, &p->control))
@@ -915,28 +1085,32 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 		u.packet.sy = GET_SY(control);
 		u.packet.header_length = GET_HEADER_LENGTH(control);
 
-		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
-			header_length = u.packet.header_length;
-		} else {
-			/*
-			 * We require that header_length is a multiple of
-			 * the fixed header size, ctx->header_size.
-			 */
-			if (ctx->header_size == 0) {
-				if (u.packet.header_length > 0)
-					return -EINVAL;
-			} else if (u.packet.header_length % ctx->header_size != 0) {
+		switch (ctx->type) {
+		case FW_ISO_CONTEXT_TRANSMIT:
+			if (u.packet.header_length & 3)
 				return -EINVAL;
-			}
-			header_length = 0;
+			transmit_header_bytes = u.packet.header_length;
+			break;
+
+		case FW_ISO_CONTEXT_RECEIVE:
+			if (u.packet.header_length == 0 ||
+			    u.packet.header_length % ctx->header_size != 0)
+				return -EINVAL;
+			break;
+
+		case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+			if (u.packet.payload_length == 0 ||
+			    u.packet.payload_length & 3)
+				return -EINVAL;
+			break;
 		}
 
 		next = (struct fw_cdev_iso_packet __user *)
-			&p->header[header_length / 4];
+			&p->header[transmit_header_bytes / 4];
 		if (next > end)
 			return -EINVAL;
 		if (__copy_from_user
-		    (u.packet.header, p->header, header_length))
+		    (u.packet.header, p->header, transmit_header_bytes))
 			return -EFAULT;
 		if (u.packet.skip && ctx->type == FW_ISO_CONTEXT_TRANSMIT &&
 		    u.packet.header_length + u.packet.payload_length > 0)
@@ -953,61 +1127,85 @@ static int ioctl_queue_iso(struct client *client, void *buffer)
 		count++;
 	}
 
-	request->size    -= uptr_to_u64(p) - request->packets;
-	request->packets  = uptr_to_u64(p);
-	request->data     = client->vm_start + payload;
+	a->size    -= uptr_to_u64(p) - a->packets;
+	a->packets  = uptr_to_u64(p);
+	a->data     = client->vm_start + payload;
 
 	return count;
 }
 
-static int ioctl_start_iso(struct client *client, void *buffer)
+static int ioctl_start_iso(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_start_iso *request = buffer;
+	struct fw_cdev_start_iso *a = &arg->start_iso;
 
-	if (client->iso_context == NULL || request->handle != 0)
+	BUILD_BUG_ON(
+	    FW_CDEV_ISO_CONTEXT_MATCH_TAG0 != FW_ISO_CONTEXT_MATCH_TAG0 ||
+	    FW_CDEV_ISO_CONTEXT_MATCH_TAG1 != FW_ISO_CONTEXT_MATCH_TAG1 ||
+	    FW_CDEV_ISO_CONTEXT_MATCH_TAG2 != FW_ISO_CONTEXT_MATCH_TAG2 ||
+	    FW_CDEV_ISO_CONTEXT_MATCH_TAG3 != FW_ISO_CONTEXT_MATCH_TAG3 ||
+	    FW_CDEV_ISO_CONTEXT_MATCH_ALL_TAGS != FW_ISO_CONTEXT_MATCH_ALL_TAGS);
+
+	if (client->iso_context == NULL || a->handle != 0)
 		return -EINVAL;
 
-	if (client->iso_context->type == FW_ISO_CONTEXT_RECEIVE) {
-		if (request->tags == 0 || request->tags > 15)
-			return -EINVAL;
+	if (client->iso_context->type == FW_ISO_CONTEXT_RECEIVE &&
+	    (a->tags == 0 || a->tags > 15 || a->sync > 15))
+		return -EINVAL;
 
-		if (request->sync > 15)
-			return -EINVAL;
-	}
-
-	return fw_iso_context_start(client->iso_context, request->cycle,
-				    request->sync, request->tags);
+	return fw_iso_context_start(client->iso_context,
+				    a->cycle, a->sync, a->tags);
 }
 
-static int ioctl_stop_iso(struct client *client, void *buffer)
+static int ioctl_stop_iso(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_stop_iso *request = buffer;
+	struct fw_cdev_stop_iso *a = &arg->stop_iso;
 
-	if (client->iso_context == NULL || request->handle != 0)
+	if (client->iso_context == NULL || a->handle != 0)
 		return -EINVAL;
 
 	return fw_iso_context_stop(client->iso_context);
 }
 
-static int ioctl_get_cycle_timer(struct client *client, void *buffer)
+static int ioctl_get_cycle_timer2(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_get_cycle_timer *request = buffer;
+	struct fw_cdev_get_cycle_timer2 *a = &arg->get_cycle_timer2;
 	struct fw_card *card = client->device->card;
-	unsigned long long bus_time;
-	struct timeval tv;
-	unsigned long flags;
+	struct timespec ts = {0, 0};
+	u32 cycle_time;
+	int ret = 0;
 
-	preempt_disable();
-	local_irq_save(flags);
+	local_irq_disable();
 
-	bus_time = card->driver->get_bus_time(card);
-	do_gettimeofday(&tv);
+	cycle_time = card->driver->read_csr(card, CSR_CYCLE_TIME);
 
-	local_irq_restore(flags);
-	preempt_enable();
+	switch (a->clk_id) {
+	case CLOCK_REALTIME:      getnstimeofday(&ts);                   break;
+	case CLOCK_MONOTONIC:     do_posix_clock_monotonic_gettime(&ts); break;
+	case CLOCK_MONOTONIC_RAW: getrawmonotonic(&ts);                  break;
+	default:
+		ret = -EINVAL;
+	}
 
-	request->local_time = tv.tv_sec * 1000000ULL + tv.tv_usec;
-	request->cycle_timer = bus_time & 0xffffffff;
+	local_irq_enable();
+
+	a->tv_sec      = ts.tv_sec;
+	a->tv_nsec     = ts.tv_nsec;
+	a->cycle_timer = cycle_time;
+
+	return ret;
+}
+
+static int ioctl_get_cycle_timer(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_get_cycle_timer *a = &arg->get_cycle_timer;
+	struct fw_cdev_get_cycle_timer2 ct2;
+
+	ct2.clk_id = CLOCK_REALTIME;
+	ioctl_get_cycle_timer2(client, (union ioctl_arg *)&ct2);
+
+	a->local_time = ct2.tv_sec * USEC_PER_SEC + ct2.tv_nsec / NSEC_PER_USEC;
+	a->cycle_timer = ct2.cycle_timer;
+
 	return 0;
 }
 
@@ -1026,8 +1224,7 @@ static void iso_resource_work(struct work_struct *work)
 	/* Allow 1000ms grace period for other reallocations. */
 	if (todo == ISO_RES_ALLOC &&
 	    time_is_after_jiffies(client->device->card->reset_jiffies + HZ)) {
-		if (schedule_delayed_work(&r->work, DIV_ROUND_UP(HZ, 3)))
-			client_get(client);
+		schedule_iso_resource(r, DIV_ROUND_UP(HZ, 3));
 		skip = true;
 	} else {
 		/* We could be called twice within the same generation. */
@@ -1049,7 +1246,8 @@ static void iso_resource_work(struct work_struct *work)
 			r->channels, &channel, &bandwidth,
 			todo == ISO_RES_ALLOC ||
 			todo == ISO_RES_REALLOC ||
-			todo == ISO_RES_ALLOC_ONCE);
+			todo == ISO_RES_ALLOC_ONCE,
+			r->transaction_data);
 	/*
 	 * Is this generation outdated already?  As long as this resource sticks
 	 * in the idr, it will be scheduled again for a newer generation or at
@@ -1094,12 +1292,12 @@ static void iso_resource_work(struct work_struct *work)
 		e = r->e_dealloc;
 		r->e_dealloc = NULL;
 	}
-	e->resource.handle	= r->resource.handle;
-	e->resource.channel	= channel;
-	e->resource.bandwidth	= bandwidth;
+	e->iso_resource.handle    = r->resource.handle;
+	e->iso_resource.channel   = channel;
+	e->iso_resource.bandwidth = bandwidth;
 
 	queue_event(client, &e->event,
-		    &e->resource, sizeof(e->resource), NULL, 0);
+		    &e->iso_resource, sizeof(e->iso_resource), NULL, 0);
 
 	if (free) {
 		cancel_delayed_work(&r->work);
@@ -1111,13 +1309,6 @@ static void iso_resource_work(struct work_struct *work)
 	client_put(client);
 }
 
-static void schedule_iso_resource(struct iso_resource *r)
-{
-	client_get(r->client);
-	if (!schedule_delayed_work(&r->work, 0))
-		client_put(r->client);
-}
-
 static void release_iso_resource(struct client *client,
 				 struct client_resource *resource)
 {
@@ -1126,7 +1317,7 @@ static void release_iso_resource(struct client *client,
 
 	spin_lock_irq(&client->lock);
 	r->todo = ISO_RES_DEALLOC;
-	schedule_iso_resource(r);
+	schedule_iso_resource(r, 0);
 	spin_unlock_irq(&client->lock);
 }
 
@@ -1159,10 +1350,10 @@ static int init_iso_resource(struct client *client,
 	r->e_alloc	= e1;
 	r->e_dealloc	= e2;
 
-	e1->resource.closure	= request->closure;
-	e1->resource.type	= FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED;
-	e2->resource.closure	= request->closure;
-	e2->resource.type	= FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED;
+	e1->iso_resource.closure = request->closure;
+	e1->iso_resource.type    = FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED;
+	e2->iso_resource.closure = request->closure;
+	e2->iso_resource.type    = FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED;
 
 	if (todo == ISO_RES_ALLOC) {
 		r->resource.release = release_iso_resource;
@@ -1172,7 +1363,7 @@ static int init_iso_resource(struct client *client,
 	} else {
 		r->resource.release = NULL;
 		r->resource.handle = -1;
-		schedule_iso_resource(r);
+		schedule_iso_resource(r, 0);
 	}
 	request->handle = r->resource.handle;
 
@@ -1185,33 +1376,32 @@ static int init_iso_resource(struct client *client,
 	return ret;
 }
 
-static int ioctl_allocate_iso_resource(struct client *client, void *buffer)
+static int ioctl_allocate_iso_resource(struct client *client,
+				       union ioctl_arg *arg)
 {
-	struct fw_cdev_allocate_iso_resource *request = buffer;
-
-	return init_iso_resource(client, request, ISO_RES_ALLOC);
+	return init_iso_resource(client,
+			&arg->allocate_iso_resource, ISO_RES_ALLOC);
 }
 
-static int ioctl_deallocate_iso_resource(struct client *client, void *buffer)
+static int ioctl_deallocate_iso_resource(struct client *client,
+					 union ioctl_arg *arg)
 {
-	struct fw_cdev_deallocate *request = buffer;
-
-	return release_client_resource(client, request->handle,
-				       release_iso_resource, NULL);
+	return release_client_resource(client,
+			arg->deallocate.handle, release_iso_resource, NULL);
 }
 
-static int ioctl_allocate_iso_resource_once(struct client *client, void *buffer)
+static int ioctl_allocate_iso_resource_once(struct client *client,
+					    union ioctl_arg *arg)
 {
-	struct fw_cdev_allocate_iso_resource *request = buffer;
-
-	return init_iso_resource(client, request, ISO_RES_ALLOC_ONCE);
+	return init_iso_resource(client,
+			&arg->allocate_iso_resource, ISO_RES_ALLOC_ONCE);
 }
 
-static int ioctl_deallocate_iso_resource_once(struct client *client, void *buffer)
+static int ioctl_deallocate_iso_resource_once(struct client *client,
+					      union ioctl_arg *arg)
 {
-	struct fw_cdev_allocate_iso_resource *request = buffer;
-
-	return init_iso_resource(client, request, ISO_RES_DEALLOC_ONCE);
+	return init_iso_resource(client,
+			&arg->allocate_iso_resource, ISO_RES_DEALLOC_ONCE);
 }
 
 /*
@@ -1219,16 +1409,17 @@ static int ioctl_deallocate_iso_resource_once(struct client *client, void *buffe
  * limited by the device's link speed, the local node's link speed,
  * and all PHY port speeds between the two links.
  */
-static int ioctl_get_speed(struct client *client, void *buffer)
+static int ioctl_get_speed(struct client *client, union ioctl_arg *arg)
 {
 	return client->device->max_speed;
 }
 
-static int ioctl_send_broadcast_request(struct client *client, void *buffer)
+static int ioctl_send_broadcast_request(struct client *client,
+					union ioctl_arg *arg)
 {
-	struct fw_cdev_send_request *request = buffer;
+	struct fw_cdev_send_request *a = &arg->send_request;
 
-	switch (request->tcode) {
+	switch (a->tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 	case TCODE_WRITE_BLOCK_REQUEST:
 		break;
@@ -1237,83 +1428,195 @@ static int ioctl_send_broadcast_request(struct client *client, void *buffer)
 	}
 
 	/* Security policy: Only allow accesses to Units Space. */
-	if (request->offset < CSR_REGISTER_BASE + CSR_CONFIG_ROM_END)
+	if (a->offset < CSR_REGISTER_BASE + CSR_CONFIG_ROM_END)
 		return -EACCES;
 
-	return init_request(client, request, LOCAL_BUS | 0x3f, SCODE_100);
+	return init_request(client, a, LOCAL_BUS | 0x3f, SCODE_100);
 }
 
-static int ioctl_send_stream_packet(struct client *client, void *buffer)
+static int ioctl_send_stream_packet(struct client *client, union ioctl_arg *arg)
 {
-	struct fw_cdev_send_stream_packet *p = buffer;
+	struct fw_cdev_send_stream_packet *a = &arg->send_stream_packet;
 	struct fw_cdev_send_request request;
 	int dest;
 
-	if (p->speed > client->device->card->link_speed ||
-	    p->length > 1024 << p->speed)
+	if (a->speed > client->device->card->link_speed ||
+	    a->length > 1024 << a->speed)
 		return -EIO;
 
-	if (p->tag > 3 || p->channel > 63 || p->sy > 15)
+	if (a->tag > 3 || a->channel > 63 || a->sy > 15)
 		return -EINVAL;
 
-	dest = fw_stream_packet_destination_id(p->tag, p->channel, p->sy);
+	dest = fw_stream_packet_destination_id(a->tag, a->channel, a->sy);
 	request.tcode		= TCODE_STREAM_DATA;
-	request.length		= p->length;
-	request.closure		= p->closure;
-	request.data		= p->data;
-	request.generation	= p->generation;
+	request.length		= a->length;
+	request.closure		= a->closure;
+	request.data		= a->data;
+	request.generation	= a->generation;
 
-	return init_request(client, &request, dest, p->speed);
+	return init_request(client, &request, dest, a->speed);
 }
 
-static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
-	ioctl_get_info,
-	ioctl_send_request,
-	ioctl_allocate,
-	ioctl_deallocate,
-	ioctl_send_response,
-	ioctl_initiate_bus_reset,
-	ioctl_add_descriptor,
-	ioctl_remove_descriptor,
-	ioctl_create_iso_context,
-	ioctl_queue_iso,
-	ioctl_start_iso,
-	ioctl_stop_iso,
-	ioctl_get_cycle_timer,
-	ioctl_allocate_iso_resource,
-	ioctl_deallocate_iso_resource,
-	ioctl_allocate_iso_resource_once,
-	ioctl_deallocate_iso_resource_once,
-	ioctl_get_speed,
-	ioctl_send_broadcast_request,
-	ioctl_send_stream_packet,
+static void outbound_phy_packet_callback(struct fw_packet *packet,
+					 struct fw_card *card, int status)
+{
+	struct outbound_phy_packet_event *e =
+		container_of(packet, struct outbound_phy_packet_event, p);
+
+	switch (status) {
+	/* expected: */
+	case ACK_COMPLETE:	e->phy_packet.rcode = RCODE_COMPLETE;	break;
+	/* should never happen with PHY packets: */
+	case ACK_PENDING:	e->phy_packet.rcode = RCODE_COMPLETE;	break;
+	case ACK_BUSY_X:
+	case ACK_BUSY_A:
+	case ACK_BUSY_B:	e->phy_packet.rcode = RCODE_BUSY;	break;
+	case ACK_DATA_ERROR:	e->phy_packet.rcode = RCODE_DATA_ERROR;	break;
+	case ACK_TYPE_ERROR:	e->phy_packet.rcode = RCODE_TYPE_ERROR;	break;
+	/* stale generation; cancelled; on certain controllers: no ack */
+	default:		e->phy_packet.rcode = status;		break;
+	}
+	e->phy_packet.data[0] = packet->timestamp;
+
+	queue_event(e->client, &e->event, &e->phy_packet,
+		    sizeof(e->phy_packet) + e->phy_packet.length, NULL, 0);
+	client_put(e->client);
+}
+
+static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_send_phy_packet *a = &arg->send_phy_packet;
+	struct fw_card *card = client->device->card;
+	struct outbound_phy_packet_event *e;
+
+	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	if (!client->device->is_local)
+		return -ENOSYS;
+
+	e = kzalloc(sizeof(*e) + 4, GFP_KERNEL);
+	if (e == NULL)
+		return -ENOMEM;
+
+	client_get(client);
+	e->client		= client;
+	e->p.speed		= SCODE_100;
+	e->p.generation		= a->generation;
+	e->p.header[0]		= TCODE_LINK_INTERNAL << 4;
+	e->p.header[1]		= a->data[0];
+	e->p.header[2]		= a->data[1];
+	e->p.header_length	= 12;
+	e->p.callback		= outbound_phy_packet_callback;
+	e->phy_packet.closure	= a->closure;
+	e->phy_packet.type	= FW_CDEV_EVENT_PHY_PACKET_SENT;
+	if (is_ping_packet(a->data))
+			e->phy_packet.length = 4;
+
+	card->driver->send_request(card, &e->p);
+
+	return 0;
+}
+
+static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_receive_phy_packets *a = &arg->receive_phy_packets;
+	struct fw_card *card = client->device->card;
+
+	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	if (!client->device->is_local)
+		return -ENOSYS;
+
+	spin_lock_irq(&card->lock);
+
+	list_move_tail(&client->phy_receiver_link, &card->phy_receiver_list);
+	client->phy_receiver_closure = a->closure;
+
+	spin_unlock_irq(&card->lock);
+
+	return 0;
+}
+
+void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
+{
+	struct client *client;
+	struct inbound_phy_packet_event *e;
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+
+	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
+		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
+		if (e == NULL) {
+			fw_notify("Out of memory when allocating event\n");
+			break;
+		}
+		e->phy_packet.closure	= client->phy_receiver_closure;
+		e->phy_packet.type	= FW_CDEV_EVENT_PHY_PACKET_RECEIVED;
+		e->phy_packet.rcode	= RCODE_COMPLETE;
+		e->phy_packet.length	= 8;
+		e->phy_packet.data[0]	= p->header[1];
+		e->phy_packet.data[1]	= p->header[2];
+		queue_event(client, &e->event,
+			    &e->phy_packet, sizeof(e->phy_packet) + 8, NULL, 0);
+	}
+
+	spin_unlock_irqrestore(&card->lock, flags);
+}
+
+static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
+	[0x00] = ioctl_get_info,
+	[0x01] = ioctl_send_request,
+	[0x02] = ioctl_allocate,
+	[0x03] = ioctl_deallocate,
+	[0x04] = ioctl_send_response,
+	[0x05] = ioctl_initiate_bus_reset,
+	[0x06] = ioctl_add_descriptor,
+	[0x07] = ioctl_remove_descriptor,
+	[0x08] = ioctl_create_iso_context,
+	[0x09] = ioctl_queue_iso,
+	[0x0a] = ioctl_start_iso,
+	[0x0b] = ioctl_stop_iso,
+	[0x0c] = ioctl_get_cycle_timer,
+	[0x0d] = ioctl_allocate_iso_resource,
+	[0x0e] = ioctl_deallocate_iso_resource,
+	[0x0f] = ioctl_allocate_iso_resource_once,
+	[0x10] = ioctl_deallocate_iso_resource_once,
+	[0x11] = ioctl_get_speed,
+	[0x12] = ioctl_send_broadcast_request,
+	[0x13] = ioctl_send_stream_packet,
+	[0x14] = ioctl_get_cycle_timer2,
+	[0x15] = ioctl_send_phy_packet,
+	[0x16] = ioctl_receive_phy_packets,
+	[0x17] = ioctl_set_iso_channels,
 };
 
 static int dispatch_ioctl(struct client *client,
 			  unsigned int cmd, void __user *arg)
 {
-	char buffer[256];
+	union ioctl_arg buffer;
 	int ret;
 
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
+
 	if (_IOC_TYPE(cmd) != '#' ||
-	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers))
+	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers) ||
+	    _IOC_SIZE(cmd) > sizeof(buffer))
 		return -EINVAL;
 
-	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
-		    copy_from_user(buffer, arg, _IOC_SIZE(cmd)))
-			return -EFAULT;
-	}
+	if (_IOC_DIR(cmd) == _IOC_READ)
+		memset(&buffer, 0, _IOC_SIZE(cmd));
 
-	ret = ioctl_handlers[_IOC_NR(cmd)](client, buffer);
+	if (_IOC_DIR(cmd) & _IOC_WRITE)
+		if (copy_from_user(&buffer, arg, _IOC_SIZE(cmd)))
+			return -EFAULT;
+
+	ret = ioctl_handlers[_IOC_NR(cmd)](client, &buffer);
 	if (ret < 0)
 		return ret;
 
-	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
-		    copy_to_user(arg, buffer, _IOC_SIZE(cmd)))
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		if (copy_to_user(arg, &buffer, _IOC_SIZE(cmd)))
 			return -EFAULT;
-	}
 
 	return ret;
 }
@@ -1321,24 +1624,14 @@ static int dispatch_ioctl(struct client *client,
 static long fw_device_op_ioctl(struct file *file,
 			       unsigned int cmd, unsigned long arg)
 {
-	struct client *client = file->private_data;
-
-	if (fw_device_is_shutdown(client->device))
-		return -ENODEV;
-
-	return dispatch_ioctl(client, cmd, (void __user *) arg);
+	return dispatch_ioctl(file->private_data, cmd, (void __user *)arg);
 }
 
 #ifdef CONFIG_COMPAT
 static long fw_device_op_compat_ioctl(struct file *file,
 				      unsigned int cmd, unsigned long arg)
 {
-	struct client *client = file->private_data;
-
-	if (fw_device_is_shutdown(client->device))
-		return -ENODEV;
-
-	return dispatch_ioctl(client, cmd, compat_ptr(arg));
+	return dispatch_ioctl(file->private_data, cmd, compat_ptr(arg));
 }
 #endif
 
@@ -1387,10 +1680,10 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int shutdown_resource(int id, void *p, void *data)
 {
-	struct client_resource *r = p;
+	struct client_resource *resource = p;
 	struct client *client = data;
 
-	r->release(client, r);
+	resource->release(client, resource);
 	client_put(client);
 
 	return 0;
@@ -1399,7 +1692,11 @@ static int shutdown_resource(int id, void *p, void *data)
 static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
-	struct event *e, *next_e;
+	struct event *event, *next_event;
+
+	spin_lock_irq(&client->device->card->lock);
+	list_del(&client->phy_receiver_link);
+	spin_unlock_irq(&client->device->card->lock);
 
 	mutex_lock(&client->device->client_list_mutex);
 	list_del(&client->link);
@@ -1420,8 +1717,8 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	idr_remove_all(&client->resource_idr);
 	idr_destroy(&client->resource_idr);
 
-	list_for_each_entry_safe(e, next_e, &client->event_list, link)
-		kfree(e);
+	list_for_each_entry_safe(event, next_event, &client->event_list, link)
+		kfree(event);
 
 	client_put(client);
 
@@ -1445,13 +1742,13 @@ static unsigned int fw_device_op_poll(struct file *file, poll_table * pt)
 
 const struct file_operations fw_device_ops = {
 	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
 	.open		= fw_device_op_open,
 	.read		= fw_device_op_read,
 	.unlocked_ioctl	= fw_device_op_ioctl,
-	.poll		= fw_device_op_poll,
-	.release	= fw_device_op_release,
 	.mmap		= fw_device_op_mmap,
-
+	.release	= fw_device_op_release,
+	.poll		= fw_device_op_poll,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= fw_device_op_compat_ioctl,
 #endif

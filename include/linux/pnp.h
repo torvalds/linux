@@ -334,6 +334,19 @@ extern struct pnp_protocol pnpbios_protocol;
 #define pnp_device_is_pnpbios(dev) 0
 #endif
 
+#ifdef CONFIG_PNPACPI
+extern struct pnp_protocol pnpacpi_protocol;
+
+static inline struct acpi_device *pnp_acpi_device(struct pnp_dev *dev)
+{
+	if (dev->protocol == &pnpacpi_protocol)
+		return dev->data;
+	return NULL;
+}
+#else
+#define pnp_acpi_device(dev) 0
+#endif
+
 /* status */
 #define PNP_READY		0x0000
 #define PNP_ATTACHED		0x0001
@@ -360,6 +373,7 @@ struct pnp_driver {
 	unsigned int flags;
 	int (*probe) (struct pnp_dev *dev, const struct pnp_device_id *dev_id);
 	void (*remove) (struct pnp_dev *dev);
+	void (*shutdown) (struct pnp_dev *dev);
 	int (*suspend) (struct pnp_dev *dev, pm_message_t state);
 	int (*resume) (struct pnp_dev *dev);
 	struct device_driver driver;
@@ -400,6 +414,7 @@ struct pnp_protocol {
 	int (*disable) (struct pnp_dev *dev);
 
 	/* protocol specific suspend/resume */
+	bool (*can_wakeup) (struct pnp_dev *dev);
 	int (*suspend) (struct pnp_dev * dev, pm_message_t state);
 	int (*resume) (struct pnp_dev * dev);
 

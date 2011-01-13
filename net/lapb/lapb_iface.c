@@ -29,6 +29,7 @@
 #include <linux/inet.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -407,7 +408,7 @@ int lapb_data_indication(struct lapb_cb *lapb, struct sk_buff *skb)
 		return lapb->callbacks.data_indication(lapb->dev, skb);
 
 	kfree_skb(skb);
-	return NET_RX_CN_HIGH; /* For now; must be != NET_RX_DROP */
+	return NET_RX_SUCCESS; /* For now; must be != NET_RX_DROP */
 }
 
 int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)

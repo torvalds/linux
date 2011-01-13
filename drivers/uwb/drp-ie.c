@@ -18,6 +18,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/uwb.h>
 
 #include "uwb-internal.h"

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -31,15 +31,14 @@
 
 enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
 {
-	switch (key->alg) {
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40)
-			return CIPHER_WEP64;
-		else
-			return CIPHER_WEP128;
-	case ALG_TKIP:
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		return CIPHER_WEP64;
+	case WLAN_CIPHER_SUITE_WEP104:
+		return CIPHER_WEP128;
+	case WLAN_CIPHER_SUITE_TKIP:
 		return CIPHER_TKIP;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		return CIPHER_AES;
 	default:
 		return CIPHER_NONE;
@@ -53,8 +52,7 @@ void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 
-	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) ||
-	    !hw_key || entry->skb->do_not_encrypt)
+	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) || !hw_key)
 		return;
 
 	__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
@@ -82,8 +80,7 @@ unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_key_conf *key = tx_info->control.hw_key;
 	unsigned int overhead = 0;
 
-	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) ||
-	    !key || skb->do_not_encrypt)
+	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) || !key)
 		return overhead;
 
 	/*
@@ -97,7 +94,7 @@ unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 		overhead += key->iv_len;
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC)) {
-		if (key->alg == ALG_TKIP)
+		if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 			overhead += 8;
 	}
 
@@ -130,8 +127,9 @@ void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, struct txentry_desc *txdesc)
 
 	/* Pull buffer to correct size */
 	skb_pull(skb, txdesc->iv_len);
+	txdesc->length -= txdesc->iv_len;
 
-	/* IV/EIV data has officially be stripped */
+	/* IV/EIV data has officially been stripped */
 	skbdesc->flags |= SKBDESC_IV_STRIPPED;
 }
 
@@ -156,7 +154,7 @@ void rt2x00crypto_tx_insert_iv(struct sk_buff *skb, unsigned int header_length)
 	skbdesc->flags &= ~SKBDESC_IV_STRIPPED;
 }
 
-void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
+void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 			       unsigned int header_length,
 			       struct rxdone_entry_desc *rxdesc)
 {
@@ -201,7 +199,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 	 * move the header more then iv_len since we must
 	 * make room for the payload move as well.
 	 */
-	if (l2pad) {
+	if (rxdesc->dev_flags & RXDONE_L2PAD) {
 		skb_push(skb, iv_len - align);
 		skb_put(skb, icv_len);
 
@@ -232,7 +230,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 	 * Move payload for alignment purposes. Note that
 	 * this is only needed when no l2 padding is present.
 	 */
-	if (!l2pad) {
+	if (!(rxdesc->dev_flags & RXDONE_L2PAD)) {
 		memmove(skb->data + transfer,
 			skb->data + transfer + align,
 			payload_len);

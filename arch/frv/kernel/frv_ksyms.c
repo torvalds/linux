@@ -67,6 +67,10 @@ EXPORT_SYMBOL(atomic_sub_return);
 EXPORT_SYMBOL(__xchg_32);
 EXPORT_SYMBOL(__cmpxchg_32);
 #endif
+EXPORT_SYMBOL(atomic64_add_return);
+EXPORT_SYMBOL(atomic64_sub_return);
+EXPORT_SYMBOL(__xchg_64);
+EXPORT_SYMBOL(__cmpxchg_64);
 
 EXPORT_SYMBOL(__debug_bug_printk);
 EXPORT_SYMBOL(__delay_loops_MHz);

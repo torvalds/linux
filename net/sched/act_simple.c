@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
@@ -41,14 +42,13 @@ static int tcf_simp(struct sk_buff *skb, struct tc_action *a, struct tcf_result 
 
 	spin_lock(&d->tcf_lock);
 	d->tcf_tm.lastuse = jiffies;
-	d->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	d->tcf_bstats.packets++;
+	bstats_update(&d->tcf_bstats, skb);
 
 	/* print policy string followed by _ then packet count
 	 * Example if this was the 3rd packet and the string was "hello"
 	 * then it would look like "hello_3" (without quotes)
 	 **/
-	printk("simple: %s_%d\n",
+	pr_info("simple: %s_%d\n",
 	       (char *)d->tcfd_defdata, d->tcf_bstats.packets);
 	spin_unlock(&d->tcf_lock);
 	return d->tcf_action;
@@ -72,10 +72,10 @@ static int tcf_simp_release(struct tcf_defact *d, int bind)
 
 static int alloc_defdata(struct tcf_defact *d, char *defdata)
 {
-	d->tcfd_defdata = kstrndup(defdata, SIMP_MAX_DATA, GFP_KERNEL);
+	d->tcfd_defdata = kzalloc(SIMP_MAX_DATA, GFP_KERNEL);
 	if (unlikely(!d->tcfd_defdata))
 		return -ENOMEM;
-
+	strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	return 0;
 }
 
@@ -163,13 +163,14 @@ static inline int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_defact *d = a->priv;
-	struct tc_defact opt;
+	struct tc_defact opt = {
+		.index   = d->tcf_index,
+		.refcnt  = d->tcf_refcnt - ref,
+		.bindcnt = d->tcf_bindcnt - bind,
+		.action  = d->tcf_action,
+	};
 	struct tcf_t t;
 
-	opt.index = d->tcf_index;
-	opt.refcnt = d->tcf_refcnt - ref;
-	opt.bindcnt = d->tcf_bindcnt - bind;
-	opt.action = d->tcf_action;
 	NLA_PUT(skb, TCA_DEF_PARMS, sizeof(opt), &opt);
 	NLA_PUT_STRING(skb, TCA_DEF_DATA, d->tcfd_defdata);
 	t.install = jiffies_to_clock_t(jiffies - d->tcf_tm.install);
@@ -204,7 +205,7 @@ static int __init simp_init_module(void)
 {
 	int ret = tcf_register_action(&act_simp_ops);
 	if (!ret)
-		printk("Simple TC action Loaded\n");
+		pr_info("Simple TC action Loaded\n");
 	return ret;
 }
 

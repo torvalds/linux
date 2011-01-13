@@ -7,7 +7,7 @@ void sun3_leds(unsigned char byte)
 	unsigned char dfc;
 
 	GET_DFC(dfc);
-        SET_DFC(FC_CONTROL);
-	SET_CONTROL_BYTE(AC_LEDS,byte);
+	SET_DFC(FC_CONTROL);
+	SET_CONTROL_BYTE(AC_LEDS, byte);
 	SET_DFC(dfc);
 }

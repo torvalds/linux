@@ -2,22 +2,22 @@
  * is 16 bits, but aligned on a 32 bit PCI boundary
  */
 
-static inline u16 get_u16(volatile const u32 *p)
+static inline u16 get_u16(volatile const u32 * p)
 {
 	return (u16) readl(p);
 }
 
-static inline void set_u16(volatile u32 *p, u16 val)
+static inline void set_u16(volatile u32 * p, u16 val)
 {
 	writel(val, p);
 }
 
-static inline s16 get_s16(volatile const s32 *p)
+static inline s16 get_s16(volatile const s32 * p)
 {
 	return (s16) readl(p);
 }
 
-static inline void set_s16(volatile s32 *p, s16 val)
+static inline void set_s16(volatile s32 * p, s16 val)
 {
 	writel(val, p);
 }
@@ -304,7 +304,7 @@ struct jr3_channel {
 	/* not set a full scale. */
 
 	struct six_axis_array default_FS;	/* offset 0x0068 */
-	s32 reserved3;	/* offset 0x006e */
+	s32 reserved3;		/* offset 0x006e */
 
 	/* Load_envelope_num is the load envelope number that is currently
 	 * in use. This value is set by the user after one of the load
@@ -341,7 +341,7 @@ struct jr3_channel {
 	 */
 
 	struct six_axis_array min_full_scale;	/* offset 0x0070 */
-	s32 reserved4;	/* offset 0x0076 */
+	s32 reserved4;		/* offset 0x0076 */
 
 	/* Transform_num is the transform number that is currently in use.
 	 * This value is set by the JR3 DSP after the user has used command
@@ -354,7 +354,7 @@ struct jr3_channel {
 	/*  min_full_scale (pg. 9) for more details. */
 
 	struct six_axis_array max_full_scale;	/* offset 0x0078 */
-	s32 reserved5;	/* offset 0x007e */
+	s32 reserved5;		/* offset 0x007e */
 
 	/* Peak_address is the address of the data which will be monitored
 	 * by the peak routine. This value is set by the user. The peak
@@ -398,14 +398,14 @@ struct jr3_channel {
 	 * offset # command (pg. 34). It can vary between 0 and 15.
 	 */
 
-	s32 offset_num;	/* offset 0x008e */
+	s32 offset_num;		/* offset 0x008e */
 
 	/* Vect_axes is a bit map showing which of the axes are being used
 	 * in the vector calculations. This value is set by the JR3 DSP
 	 * after the user has executed the set vector axes command (pg. 37).
 	 */
 
-	u32 vect_axes;	/* offset 0x008f */
+	u32 vect_axes;		/* offset 0x008f */
 
 	/* Filter0 is the decoupled, unfiltered data from the JR3 sensor.
 	 * This data has had the offsets removed.
@@ -465,7 +465,7 @@ struct jr3_channel {
 	 */
 
 	s32 near_sat_value;	/* offset 0x00e0 */
-	s32 sat_value;	/* offset 0x00e1 */
+	s32 sat_value;		/* offset 0x00e1 */
 
 	/* Rate_address, rate_divisor & rate_count contain the data used to
 	 * control the calculations of the rates. Rate_address is the
@@ -486,7 +486,7 @@ struct jr3_channel {
 
 	s32 rate_address;	/* offset 0x00e2 */
 	u32 rate_divisor;	/* offset 0x00e3 */
-	u32 rate_count;	/* offset 0x00e4 */
+	u32 rate_count;		/* offset 0x00e4 */
 
 	/* Command_word2 through command_word0 are the locations used to
 	 * send commands to the JR3 DSP. Their usage varies with the command
@@ -543,14 +543,14 @@ struct jr3_channel {
 	 * Issues section on pg. 49 for more details.
 	 */
 
-	u32 count_x;	/* offset 0x00ef */
+	u32 count_x;		/* offset 0x00ef */
 
 	/* Warnings & errors contain the warning and error bits
 	 * respectively. The format of these two words is discussed on page
 	 * 21 under the headings warnings_bits and error_bits.
 	 */
 
-	u32 warnings;	/* offset 0x00f0 */
+	u32 warnings;		/* offset 0x00f0 */
 	u32 errors;		/* offset 0x00f1 */
 
 	/* Threshold_bits is a word containing the bits that are set by the
@@ -565,7 +565,7 @@ struct jr3_channel {
 	 * description for cal_crc_bad (pg. 21) for more information.
 	 */
 
-	s32 last_CRC;	/* offset 0x00f3 */
+	s32 last_CRC;		/* offset 0x00f3 */
 
 	/* EEProm_ver_no contains the version number of the sensor EEProm.
 	 * EEProm version numbers can vary between 0 and 255.
@@ -591,16 +591,16 @@ struct jr3_channel {
 	 * different sensor configurations.
 	 */
 
-	u32 serial_no;	/* offset 0x00f8 */
-	u32 model_no;	/* offset 0x00f9 */
+	u32 serial_no;		/* offset 0x00f8 */
+	u32 model_no;		/* offset 0x00f9 */
 
 	/* Cal_day & cal_year are the sensor calibration date. Day is the
 	 * day of the year, with January 1 being 1, and December 31, being
 	 * 366 for leap years.
 	 */
 
-	s32 cal_day;	/* offset 0x00fa */
-	s32 cal_year;	/* offset 0x00fb */
+	s32 cal_day;		/* offset 0x00fa */
+	s32 cal_year;		/* offset 0x00fb */
 
 	/* Units is an enumerated read only value defining the engineering
 	 * units used in the sensor full scale. The meanings of particular
@@ -627,7 +627,7 @@ struct jr3_channel {
 
 	u32 units;		/* offset 0x00fc */
 	s32 bits;		/* offset 0x00fd */
-	s32 channels;	/* offset 0x00fe */
+	s32 channels;		/* offset 0x00fe */
 
 	/* Thickness specifies the overall thickness of the sensor from
 	 * flange to flange. The engineering units for this value are
@@ -636,7 +636,7 @@ struct jr3_channel {
 	 * transformation from the center of the sensor to either flange.
 	 */
 
-	s32 thickness;	/* offset 0x00ff */
+	s32 thickness;		/* offset 0x00ff */
 
 	/* Load_envelopes is a table containing the load envelope
 	 * descriptions. There are 16 possible load envelope slots in the

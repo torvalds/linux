@@ -51,6 +51,7 @@
 #include <plat/clock.h>
 #include <plat/pm.h>
 #include <plat/pll.h>
+#include <plat/nand-core.h>
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;
@@ -69,6 +70,18 @@ static struct map_desc s3c2412_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
+	{
+		.virtual = (unsigned long)S3C2412_VA_SSMC,
+		.pfn	 = __phys_to_pfn(S3C2412_PA_SSMC),
+		.length	 = SZ_1M,
+		.type	 = MT_DEVICE,
+	},
+	{
+		.virtual = (unsigned long)S3C2412_VA_EBI,
+		.pfn	 = __phys_to_pfn(S3C2412_PA_EBI),
+		.length	 = SZ_1M,
+		.type	 = MT_DEVICE,
+	},
 };
 
 /* uart registration process */
@@ -80,7 +93,7 @@ void __init s3c2412_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	/* rename devices that are s3c2412/s3c2413 specific */
 	s3c_device_sdi.name  = "s3c2412-sdi";
 	s3c_device_lcd.name  = "s3c2412-lcd";
-	s3c_device_nand.name = "s3c2412-nand";
+	s3c_nand_setname("s3c2412-nand");
 
 	/* alter IRQ of SDI controller */
 

@@ -32,6 +32,32 @@ config SND_BFIN_AD73311_SE
 	  Enter the GPIO used to control AD73311's SE pin. Acceptable
 	  values are 0 to 7
 
+config SND_BF5XX_TDM
+	tristate "SoC I2S(TDM mode) Audio for the ADI BF5xx chip"
+	depends on (BLACKFIN && SND_SOC)
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Blackfin SPORT (synchronous serial ports) interface in TDM
+	  mode.
+	  You will also need to select the audio interfaces to support below.
+
+config SND_BF5XX_SOC_AD1836
+	tristate "SoC AD1836 Audio support for BF5xx"
+	depends on SND_BF5XX_TDM
+	select SND_BF5XX_SOC_TDM
+	select SND_SOC_AD1836
+	help
+	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
+
+config SND_BF5XX_SOC_AD193X
+	tristate "SoC AD193X Audio support for Blackfin"
+	depends on SND_BF5XX_TDM
+	select SND_BF5XX_SOC_TDM
+	select SND_SOC_AD193X
+	help
+	  Say Y if you want to add support for AD193X codec on Blackfin.
+	  This driver supports AD1936, AD1937, AD1938 and AD1939.
+
 config SND_BF5XX_AC97
 	tristate "SoC AC97 Audio for the ADI BF5xx chip"
 	depends on BLACKFIN
@@ -62,36 +88,6 @@ config SND_BF5XX_MULTICHAN_SUPPORT
 	  Say y if you want AC97 driver to support up to 5.1 channel audio.
 	  this mode will consume much more memory for DMA.
 
-config SND_BF5XX_SOC_SPORT
-	tristate
-
-config SND_BF5XX_SOC_I2S
-	tristate
-	select SND_BF5XX_SOC_SPORT
-
-config SND_BF5XX_SOC_AC97
-	tristate
-	select AC97_BUS
-	select SND_SOC_AC97_BUS
-	select SND_BF5XX_SOC_SPORT
-
-config SND_BF5XX_SOC_AD1980
-	tristate "SoC AD1980/1 Audio support for BF5xx"
-	depends on SND_BF5XX_AC97
-	select SND_BF5XX_SOC_AC97
-	select SND_SOC_AD1980
-	help
-	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
-
-config SND_BF5XX_SPORT_NUM
-	int "Set a SPORT for Sound chip"
-	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97)
-	range 0 3 if BF54x
-	range 0 1 if !BF54x
-	default 0
-	help
-	  Set the correct SPORT for sound chip.
-
 config SND_BF5XX_HAVE_COLD_RESET
 	bool "BOARD has COLD Reset GPIO"
 	depends on SND_BF5XX_AC97
@@ -107,3 +103,42 @@ config SND_BF5XX_RESET_GPIO_NUM
 	default 0
 	help
 	  Set the correct GPIO for RESET the sound chip.
+
+config SND_BF5XX_SOC_AD1980
+	tristate "SoC AD1980/1 Audio support for BF5xx (Obsolete)"
+	depends on SND_BF5XX_AC97
+	select SND_BF5XX_SOC_AC97
+	select SND_SOC_AD1980
+	help
+	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
+
+	  Warning:
+	  Because Analog Devices Inc. discontinued the ad1980 sound chip since
+	  Sep. 2009, this ad1980 driver is not maintained, tested and supported
+	  by ADI now.
+
+config SND_BF5XX_SOC_SPORT
+	tristate
+
+config SND_BF5XX_SOC_I2S
+	tristate
+	select SND_BF5XX_SOC_SPORT
+
+config SND_BF5XX_SOC_TDM
+	tristate
+	select SND_BF5XX_SOC_SPORT
+
+config SND_BF5XX_SOC_AC97
+	tristate
+	select AC97_BUS
+	select SND_SOC_AC97_BUS
+	select SND_BF5XX_SOC_SPORT
+
+config SND_BF5XX_SPORT_NUM
+	int "Set a SPORT for Sound chip"
+	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97 || SND_BF5XX_TDM)
+	range 0 3 if BF54x
+	range 0 1 if !BF54x
+	default 0
+	help
+	  Set the correct SPORT for sound chip.

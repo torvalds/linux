@@ -22,6 +22,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
+#include <linux/slab.h>
 
 #include "atl1c.h"
 
@@ -37,7 +38,7 @@ static int atl1c_get_settings(struct net_device *netdev,
 			   SUPPORTED_100baseT_Full |
 			   SUPPORTED_Autoneg       |
 			   SUPPORTED_TP);
-	if (hw->ctrl_flags & ATL1C_LINK_CAP_1000M)
+	if (hw->link_cap_flags & ATL1C_LINK_CAP_1000M)
 		ecmd->supported |= SUPPORTED_1000baseT_Full;
 
 	ecmd->advertising = ADVERTISED_TP;
@@ -232,11 +233,11 @@ static void atl1c_get_drvinfo(struct net_device *netdev,
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(drvinfo->driver,  atl1c_driver_name, sizeof(drvinfo->driver));
-	strncpy(drvinfo->version, atl1c_driver_version,
+	strlcpy(drvinfo->driver,  atl1c_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, atl1c_driver_version,
 		sizeof(drvinfo->version));
-	strncpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;
@@ -262,8 +263,6 @@ static void atl1c_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_MAGIC;
 	if (adapter->wol & AT_WUFC_LNKC)
 		wol->wolopts |= WAKE_PHY;
-
-	return;
 }
 
 static int atl1c_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
@@ -281,6 +280,8 @@ static int atl1c_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & WAKE_PHY)
 		adapter->wol |= AT_WUFC_LNKC;
 
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
 	return 0;
 }
 
@@ -292,7 +293,7 @@ static int atl1c_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static struct ethtool_ops atl1c_ethtool_ops = {
+static const struct ethtool_ops atl1c_ethtool_ops = {
 	.get_settings           = atl1c_get_settings,
 	.set_settings           = atl1c_set_settings,
 	.get_drvinfo            = atl1c_get_drvinfo,

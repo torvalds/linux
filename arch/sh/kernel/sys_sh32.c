@@ -9,7 +9,6 @@
 #include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/ipc.h>
@@ -72,7 +71,9 @@ asmlinkage int sys_fadvise64_64_wrapper(int fd, u32 offset0, u32 offset1,
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register long __sc0 __asm__ ("r3") = __NR_execve;
 	register long __sc4 __asm__ ("r4") = (long) filename;

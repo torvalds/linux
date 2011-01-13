@@ -98,7 +98,7 @@ static int saa7146_i2c_msg_cleanup(const struct i2c_msg *m, int num, __le32 *op)
 
 		op_count++;
 
-		/* loop throgh all bytes of message i */
+		/* loop through all bytes of message i */
 		for(j = 0; j < m[i].len; j++) {
 			/* write back all bytes that could have been read */
 			m[i].buf[j] = (le32_to_cpu(op[op_count/3]) >> ((3-(op_count%3))*8));
@@ -391,7 +391,6 @@ static int saa7146_i2c_xfer(struct i2c_adapter* adapter, struct i2c_msg *msg, in
 
 /*****************************************************************************/
 /* i2c-adapter helper functions                                              */
-#include <linux/i2c-id.h>
 
 /* exported algorithm data */
 static struct i2c_algorithm saa7146_algo = {
@@ -414,7 +413,6 @@ int saa7146_i2c_adapter_prepare(struct saa7146_dev *dev, struct i2c_adapter *i2c
 		i2c_adapter->dev.parent    = &dev->pci->dev;
 		i2c_adapter->algo	   = &saa7146_algo;
 		i2c_adapter->algo_data     = NULL;
-		i2c_adapter->id		   = I2C_HW_SAA7146;
 		i2c_adapter->timeout = SAA7146_I2C_TIMEOUT;
 		i2c_adapter->retries = SAA7146_I2C_RETRIES;
 	}

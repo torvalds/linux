@@ -286,17 +286,18 @@ struct atiixp {
 
 /*
  */
-static struct pci_device_id snd_atiixp_ids[] = {
-	{ 0x1002, 0x4341, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB200 */
-	{ 0x1002, 0x4361, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB300 */
-	{ 0x1002, 0x4370, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB400 */
-	{ 0x1002, 0x4382, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB600 */
+static DEFINE_PCI_DEVICE_TABLE(snd_atiixp_ids) = {
+	{ PCI_VDEVICE(ATI, 0x4341), 0 }, /* SB200 */
+	{ PCI_VDEVICE(ATI, 0x4361), 0 }, /* SB300 */
+	{ PCI_VDEVICE(ATI, 0x4370), 0 }, /* SB400 */
+	{ PCI_VDEVICE(ATI, 0x4382), 0 }, /* SB600 */
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
 static struct snd_pci_quirk atiixp_quirks[] __devinitdata = {
+	SND_PCI_QUIRK(0x105b, 0x0c81, "Foxconn RC4107MA-RS2", 0),
 	SND_PCI_QUIRK(0x15bd, 0x3100, "DFI RS482", 0),
 	{ } /* terminator */
 };

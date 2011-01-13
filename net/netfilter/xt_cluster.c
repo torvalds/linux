@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/jhash.h>
@@ -15,14 +16,14 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <linux/netfilter/xt_cluster.h>
 
-static inline u_int32_t nf_ct_orig_ipv4_src(const struct nf_conn *ct)
+static inline u32 nf_ct_orig_ipv4_src(const struct nf_conn *ct)
 {
-	return ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip;
+	return (__force u32)ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip;
 }
 
-static inline const void *nf_ct_orig_ipv6_src(const struct nf_conn *ct)
+static inline const u32 *nf_ct_orig_ipv6_src(const struct nf_conn *ct)
 {
-	return ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip6;
+	return (__force u32 *)ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip6;
 }
 
 static inline u_int32_t
@@ -85,7 +86,7 @@ xt_cluster_is_multicast_addr(const struct sk_buff *skb, u_int8_t family)
 }
 
 static bool
-xt_cluster_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+xt_cluster_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct sk_buff *pskb = (struct sk_buff *)skb;
 	const struct xt_cluster_match_info *info = par->matchinfo;
@@ -119,7 +120,7 @@ xt_cluster_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (ct == NULL)
 		return false;
 
-	if (ct == &nf_conntrack_untracked)
+	if (nf_ct_is_untracked(ct))
 		return false;
 
 	if (ct->master)
@@ -131,22 +132,22 @@ xt_cluster_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	       !!(info->flags & XT_CLUSTER_F_INV);
 }
 
-static bool xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
+static int xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
 {
 	struct xt_cluster_match_info *info = par->matchinfo;
 
 	if (info->total_nodes > XT_CLUSTER_NODES_MAX) {
-		printk(KERN_ERR "xt_cluster: you have exceeded the maximum "
-				"number of cluster nodes (%u > %u)\n",
-				info->total_nodes, XT_CLUSTER_NODES_MAX);
-		return false;
+		pr_info("you have exceeded the maximum "
+			"number of cluster nodes (%u > %u)\n",
+			info->total_nodes, XT_CLUSTER_NODES_MAX);
+		return -EINVAL;
 	}
 	if (info->node_mask >= (1ULL << info->total_nodes)) {
-		printk(KERN_ERR "xt_cluster: this node mask cannot be "
-				"higher than the total number of nodes\n");
-		return false;
+		pr_info("this node mask cannot be "
+			"higher than the total number of nodes\n");
+		return -EDOM;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_match xt_cluster_match __read_mostly = {

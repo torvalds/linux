@@ -33,6 +33,7 @@
 #include "main.h"
 
 #include <linux/bitrev.h>
+#include <linux/slab.h>
 
 
 static const s8 b43_tssi2dbm_g_table[] = {
@@ -333,7 +334,7 @@ static void b43_set_all_gains(struct b43_wldev *dev,
 		b43_phy_maskset(dev, 0x04A1, 0xBFBF, tmp);
 		b43_phy_maskset(dev, 0x04A2, 0xBFBF, tmp);
 	}
-	b43_dummy_transmission(dev);
+	b43_dummy_transmission(dev, false, true);
 }
 
 static void b43_set_original_gains(struct b43_wldev *dev)
@@ -365,7 +366,7 @@ static void b43_set_original_gains(struct b43_wldev *dev)
 	b43_phy_maskset(dev, 0x04A0, 0xBFBF, 0x4040);
 	b43_phy_maskset(dev, 0x04A1, 0xBFBF, 0x4040);
 	b43_phy_maskset(dev, 0x04A2, 0xBFBF, 0x4000);
-	b43_dummy_transmission(dev);
+	b43_dummy_transmission(dev, false, true);
 }
 
 /* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
@@ -971,7 +972,7 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 		b43_phy_maskset(dev, 0x04A2, 0xFFF0, 0x000B);
 
 		if (phy->rev >= 3) {
-			b43_phy_mask(dev, 0x048A, (u16)~0x8000);
+			b43_phy_mask(dev, 0x048A, 0x7FFF);
 			b43_phy_maskset(dev, 0x0415, 0x8000, 0x36D8);
 			b43_phy_maskset(dev, 0x0416, 0x8000, 0x36D8);
 			b43_phy_maskset(dev, 0x0417, 0xFE00, 0x016D);
@@ -1964,7 +1965,7 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 			}
 			b43_set_txpower_g(dev, &bbatt, &rfatt, 0);
 		}
-		b43_dummy_transmission(dev);
+		b43_dummy_transmission(dev, false, true);
 		gphy->cur_idle_tssi = b43_phy_read(dev, B43_PHY_ITSSI);
 		if (B43_DEBUG) {
 			/* Current-Idle-TSSI sanity check. */
@@ -2651,65 +2652,54 @@ static unsigned int b43_gphy_op_get_default_chan(struct b43_wldev *dev)
 static void b43_gphy_op_set_rx_antenna(struct b43_wldev *dev, int antenna)
 {
 	struct b43_phy *phy = &dev->phy;
-	u64 hf;
 	u16 tmp;
 	int autodiv = 0;
 
 	if (antenna == B43_ANTENNA_AUTO0 || antenna == B43_ANTENNA_AUTO1)
 		autodiv = 1;
 
-	hf = b43_hf_read(dev);
-	hf &= ~B43_HF_ANTDIVHELP;
-	b43_hf_write(dev, hf);
+	b43_hf_write(dev, b43_hf_read(dev) & ~B43_HF_ANTDIVHELP);
 
-	tmp = b43_phy_read(dev, B43_PHY_BBANDCFG);
-	tmp &= ~B43_PHY_BBANDCFG_RXANT;
-	tmp |= (autodiv ? B43_ANTENNA_AUTO0 : antenna)
-			<< B43_PHY_BBANDCFG_RXANT_SHIFT;
-	b43_phy_write(dev, B43_PHY_BBANDCFG, tmp);
+	b43_phy_maskset(dev, B43_PHY_BBANDCFG, ~B43_PHY_BBANDCFG_RXANT,
+			(autodiv ? B43_ANTENNA_AUTO1 : antenna) <<
+			B43_PHY_BBANDCFG_RXANT_SHIFT);
 
 	if (autodiv) {
 		tmp = b43_phy_read(dev, B43_PHY_ANTDWELL);
-		if (antenna == B43_ANTENNA_AUTO0)
+		if (antenna == B43_ANTENNA_AUTO1)
 			tmp &= ~B43_PHY_ANTDWELL_AUTODIV1;
 		else
 			tmp |= B43_PHY_ANTDWELL_AUTODIV1;
 		b43_phy_write(dev, B43_PHY_ANTDWELL, tmp);
 	}
+
 	tmp = b43_phy_read(dev, B43_PHY_ANTWRSETT);
 	if (autodiv)
 		tmp |= B43_PHY_ANTWRSETT_ARXDIV;
 	else
 		tmp &= ~B43_PHY_ANTWRSETT_ARXDIV;
 	b43_phy_write(dev, B43_PHY_ANTWRSETT, tmp);
+
+	if (autodiv)
+		b43_phy_set(dev, B43_PHY_ANTWRSETT, B43_PHY_ANTWRSETT_ARXDIV);
+	else {
+		b43_phy_mask(dev, B43_PHY_ANTWRSETT,
+			     B43_PHY_ANTWRSETT_ARXDIV);
+	}
+
 	if (phy->rev >= 2) {
-		tmp = b43_phy_read(dev, B43_PHY_OFDM61);
-		tmp |= B43_PHY_OFDM61_10;
-		b43_phy_write(dev, B43_PHY_OFDM61, tmp);
+		b43_phy_set(dev, B43_PHY_OFDM61, B43_PHY_OFDM61_10);
+		b43_phy_maskset(dev, B43_PHY_DIVSRCHGAINBACK, 0xFF00, 0x15);
 
-		tmp =
-		    b43_phy_read(dev, B43_PHY_DIVSRCHGAINBACK);
-		tmp = (tmp & 0xFF00) | 0x15;
-		b43_phy_write(dev, B43_PHY_DIVSRCHGAINBACK,
-			      tmp);
-
-		if (phy->rev == 2) {
-			b43_phy_write(dev, B43_PHY_ADIVRELATED,
-				      8);
-		} else {
-			tmp =
-			    b43_phy_read(dev,
-					 B43_PHY_ADIVRELATED);
-			tmp = (tmp & 0xFF00) | 8;
-			b43_phy_write(dev, B43_PHY_ADIVRELATED,
-				      tmp);
-		}
+		if (phy->rev == 2)
+			b43_phy_write(dev, B43_PHY_ADIVRELATED, 8);
+		else
+			b43_phy_maskset(dev, B43_PHY_ADIVRELATED, 0xFF00, 8);
 	}
 	if (phy->rev >= 6)
 		b43_phy_write(dev, B43_PHY_OFDM9B, 0xDC);
 
-	hf |= B43_HF_ANTDIVHELP;
-	b43_hf_write(dev, hf);
+	b43_hf_write(dev, b43_hf_read(dev) | B43_HF_ANTDIVHELP);
 }
 
 static int b43_gphy_op_interf_mitigation(struct b43_wldev *dev,
@@ -2834,8 +2824,6 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 
 	b43_mac_suspend(dev);
 
-	spin_lock_irq(&dev->wl->irq_lock);
-
 	/* Calculate the new attenuation values. */
 	bbatt = gphy->bbatt.att;
 	bbatt += gphy->bbatt_delta;
@@ -2874,11 +2862,6 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 	b43_put_attenuation_into_ranges(dev, &bbatt, &rfatt);
 	gphy->rfatt.att = rfatt;
 	gphy->bbatt.att = bbatt;
-
-	/* We drop the lock early, so we can sleep during hardware
-	 * adjustment. Possible races with op_recalc_txpower are harmless,
-	 * as we will be called once again in case we raced. */
-	spin_unlock_irq(&dev->wl->irq_lock);
 
 	if (b43_debug(dev, B43_DBG_XMITPOWER))
 		b43dbg(dev->wl, "Adjusting TX power\n");

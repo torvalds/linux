@@ -38,7 +38,9 @@ ENDPROC(c_backtrace)
 		beq	no_frame		@ we have no stack frames
 
 		tst	r1, #0x10		@ 26 or 32-bit mode?
-		moveq	mask, #0xfc000003	@ mask for 26-bit
+ ARM(		moveq	mask, #0xfc000003	)
+ THUMB(		moveq	mask, #0xfc000000	)
+ THUMB(		orreq	mask, #0x03		)
 		movne	mask, #0		@ mask for 32-bit
 
 1:		stmfd	sp!, {pc}		@ calculate offset of PC stored
@@ -108,13 +110,13 @@ no_frame:	ldmfd	sp!, {r4 - r8, pc}
 ENDPROC(__backtrace)
 ENDPROC(c_backtrace)
 		
-		.section __ex_table,"a"
+		.pushsection __ex_table,"a"
 		.align	3
 		.long	1001b, 1006b
 		.long	1002b, 1006b
 		.long	1003b, 1006b
 		.long	1004b, 1006b
-		.previous
+		.popsection
 
 #define instr r4
 #define reg   r5
@@ -126,7 +128,9 @@ ENDPROC(c_backtrace)
 		mov	reg, #10
 		mov	r7, #0
 1:		mov	r3, #1
-		tst	instr, r3, lsl reg
+ ARM(		tst	instr, r3, lsl reg	)
+ THUMB(		lsl	r3, reg			)
+ THUMB(		tst	instr, r3		)
 		beq	2f
 		add	r7, r7, #1
 		teq	r7, #6

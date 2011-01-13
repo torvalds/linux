@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,10 @@ static acpi_status
 acpi_ps_complete_final_op(struct acpi_walk_state *walk_state,
 			  union acpi_parse_object *op, acpi_status status);
 
+static void
+acpi_ps_link_module_code(union acpi_parse_object *parent_op,
+			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ps_get_aml_opcode
@@ -132,7 +136,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 		/* The opcode is unrecognized. Just skip unknown opcodes */
 
 		ACPI_ERROR((AE_INFO,
-			    "Found unknown opcode %X at AML address %p offset %X, ignoring",
+			    "Found unknown opcode 0x%X at AML address %p offset 0x%X, ignoring",
 			    walk_state->opcode, walk_state->parser_state.aml,
 			    walk_state->aml_offset));
 
@@ -390,6 +394,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 {
 	acpi_status status = AE_OK;
 	union acpi_parse_object *arg = NULL;
+	const struct acpi_opcode_info *op_info;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
@@ -449,13 +454,11 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			INCREMENT_ARG_LIST(walk_state->arg_types);
 		}
 
-		/* Special processing for certain opcodes */
-
-		/* TBD (remove): Temporary mechanism to disable this code if needed */
-
-#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
-
-		if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS1) &&
+		/*
+		 * Handle executable code at "module-level". This refers to
+		 * executable opcodes that appear outside of any control method.
+		 */
+		if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
 		    ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
 			/*
 			 * We want to skip If/Else/While constructs during Pass1 because we
@@ -469,6 +472,26 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			case AML_ELSE_OP:
 			case AML_WHILE_OP:
 
+				/*
+				 * Currently supported module-level opcodes are:
+				 * IF/ELSE/WHILE. These appear to be the most common,
+				 * and easiest to support since they open an AML
+				 * package.
+				 */
+				if (walk_state->pass_number ==
+				    ACPI_IMODE_LOAD_PASS1) {
+					acpi_ps_link_module_code(op->common.
+								 parent,
+								 aml_op_start,
+								 (u32)
+								 (walk_state->
+								 parser_state.
+								 pkg_end -
+								 aml_op_start),
+								 walk_state->
+								 owner_id);
+				}
+
 				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 						  "Pass1: Skipping an If/Else/While body\n"));
 
@@ -480,10 +503,34 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 				break;
 
 			default:
+				/*
+				 * Check for an unsupported executable opcode at module
+				 * level. We must be in PASS1, the parent must be a SCOPE,
+				 * The opcode class must be EXECUTE, and the opcode must
+				 * not be an argument to another opcode.
+				 */
+				if ((walk_state->pass_number ==
+				     ACPI_IMODE_LOAD_PASS1)
+				    && (op->common.parent->common.aml_opcode ==
+					AML_SCOPE_OP)) {
+					op_info =
+					    acpi_ps_get_opcode_info(op->common.
+								    aml_opcode);
+					if ((op_info->class ==
+					     AML_CLASS_EXECUTE) && (!arg)) {
+						ACPI_WARNING((AE_INFO,
+							      "Detected an unsupported executable opcode "
+							      "at module-level: [0x%.4X] at table offset 0x%.4X",
+							      op->common.aml_opcode,
+							      (u32)((aml_op_start - walk_state->parser_state.aml_start)
+								+ sizeof(struct acpi_table_header))));
+					}
+				}
 				break;
 			}
 		}
-#endif
+
+		/* Special processing for certain opcodes */
 
 		switch (op->common.aml_opcode) {
 		case AML_METHOD_OP:
@@ -549,6 +596,82 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 	}
 
 	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ps_link_module_code
+ *
+ * PARAMETERS:  parent_op           - Parent parser op
+ *              aml_start           - Pointer to the AML
+ *              aml_length          - Length of executable AML
+ *              owner_id            - owner_id of module level code
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Wrap the module-level code with a method object and link the
+ *              object to the global list. Note, the mutex field of the method
+ *              object is used to link multiple module-level code objects.
+ *
+ ******************************************************************************/
+
+static void
+acpi_ps_link_module_code(union acpi_parse_object *parent_op,
+			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id)
+{
+	union acpi_operand_object *prev;
+	union acpi_operand_object *next;
+	union acpi_operand_object *method_obj;
+	struct acpi_namespace_node *parent_node;
+
+	/* Get the tail of the list */
+
+	prev = next = acpi_gbl_module_code_list;
+	while (next) {
+		prev = next;
+		next = next->method.mutex;
+	}
+
+	/*
+	 * Insert the module level code into the list. Merge it if it is
+	 * adjacent to the previous element.
+	 */
+	if (!prev ||
+	    ((prev->method.aml_start + prev->method.aml_length) != aml_start)) {
+
+		/* Create, initialize, and link a new temporary method object */
+
+		method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
+		if (!method_obj) {
+			return;
+		}
+
+		if (parent_op->common.node) {
+			parent_node = parent_op->common.node;
+		} else {
+			parent_node = acpi_gbl_root_node;
+		}
+
+		method_obj->method.aml_start = aml_start;
+		method_obj->method.aml_length = aml_length;
+		method_obj->method.owner_id = owner_id;
+		method_obj->method.flags |= AOPOBJ_MODULE_LEVEL;
+
+		/*
+		 * Save the parent node in next_object. This is cheating, but we
+		 * don't want to expand the method object.
+		 */
+		method_obj->method.next_object =
+		    ACPI_CAST_PTR(union acpi_operand_object, parent_node);
+
+		if (!prev) {
+			acpi_gbl_module_code_list = method_obj;
+		} else {
+			prev->method.mutex = method_obj;
+		}
+	} else {
+		prev->method.aml_length += aml_length;
+	}
 }
 
 /*******************************************************************************
@@ -898,7 +1021,6 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					if (status == AE_AML_NO_RETURN_VALUE) {
 						ACPI_EXCEPTION((AE_INFO, status,
 								"Invoked method did not return a value"));
-
 					}
 
 					ACPI_EXCEPTION((AE_INFO, status,

@@ -15,9 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -39,27 +37,11 @@ static struct pci_device_id i82092aa_pci_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, i82092aa_pci_ids);
 
-#ifdef CONFIG_PM
-static int i82092aa_socket_suspend (struct pci_dev *dev, pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
-}
-
-static int i82092aa_socket_resume (struct pci_dev *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
-#endif
-
 static struct pci_driver i82092aa_pci_driver = {
 	.name           = "i82092aa",
 	.id_table       = i82092aa_pci_ids,
 	.probe          = i82092aa_pci_probe,
 	.remove         = __devexit_p(i82092aa_pci_remove),
-#ifdef CONFIG_PM
-	.suspend        = i82092aa_socket_suspend,
-	.resume         = i82092aa_socket_resume,
-#endif
 };
 
 
@@ -133,6 +115,7 @@ static int __devinit i82092aa_pci_probe(struct pci_dev *dev, const struct pci_de
 		sockets[i].socket.map_size = 0x1000;
 		sockets[i].socket.irq_mask = 0;
 		sockets[i].socket.pci_irq  = dev->irq;
+		sockets[i].socket.cb_dev  = dev;
 		sockets[i].socket.owner = THIS_MODULE;
 
 		sockets[i].number = i;

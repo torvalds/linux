@@ -12,8 +12,12 @@
 #define L1_CACHE_SHIFT		6
 #define MAX_COPY_PREFETCH	4
 #elif defined(CONFIG_PPC32)
-#define L1_CACHE_SHIFT		5
 #define MAX_COPY_PREFETCH	4
+#if defined(CONFIG_PPC_47x)
+#define L1_CACHE_SHIFT		7
+#else
+#define L1_CACHE_SHIFT		5
+#endif
 #else /* CONFIG_PPC64 */
 #define L1_CACHE_SHIFT		7
 #endif
@@ -38,7 +42,7 @@ extern struct ppc64_caches ppc64_caches;
 #endif /* __powerpc64__ && ! __ASSEMBLY__ */
 
 #if !defined(__ASSEMBLY__)
-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+#define __read_mostly __attribute__((__section__(".data..read_mostly")))
 #endif
 
 #endif /* __KERNEL__ */

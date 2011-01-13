@@ -807,8 +807,15 @@
 #define __NR_dup3		(__NR_Linux + 312)
 #define __NR_pipe2		(__NR_Linux + 313)
 #define __NR_inotify_init1	(__NR_Linux + 314)
+#define __NR_preadv		(__NR_Linux + 315)
+#define __NR_pwritev		(__NR_Linux + 316)
+#define __NR_rt_tgsigqueueinfo	(__NR_Linux + 317)
+#define __NR_perf_event_open	(__NR_Linux + 318)
+#define __NR_recvmmsg		(__NR_Linux + 319)
+#define __NR_accept4		(__NR_Linux + 320)
+#define __NR_prlimit64		(__NR_Linux + 321)
 
-#define __NR_Linux_syscalls	(__NR_inotify_init1 + 1)
+#define __NR_Linux_syscalls	(__NR_prlimit64 + 1)
 
 
 #define __IGNORE_select		/* newselect */

@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -27,10 +28,6 @@
 #include <sound/initval.h>
 
 #include "wm8510.h"
-
-#define WM8510_VERSION "0.6"
-
-struct snd_soc_codec_device soc_codec_dev_wm8510;
 
 /*
  * wm8510 register cache
@@ -58,55 +55,12 @@ static const u16 wm8510_reg[WM8510_CACHEREGNUM] = {
 #define WM8510_POWER1_BIASEN  0x08
 #define WM8510_POWER1_BUFIOEN 0x10
 
-/*
- * read wm8510 register cache
- */
-static inline unsigned int wm8510_read_reg_cache(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg == WM8510_RESET)
-		return 0;
-	if (reg >= WM8510_CACHEREGNUM)
-		return -1;
-	return cache[reg];
-}
+#define wm8510_reset(c)	snd_soc_write(c, WM8510_RESET, 0)
 
-/*
- * write wm8510 register cache
- */
-static inline void wm8510_write_reg_cache(struct snd_soc_codec *codec,
-	u16 reg, unsigned int value)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg >= WM8510_CACHEREGNUM)
-		return;
-	cache[reg] = value;
-}
-
-/*
- * write to the WM8510 register space
- */
-static int wm8510_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	u8 data[2];
-
-	/* data is
-	 *   D15..D9 WM8510 register offset
-	 *   D8...D0 register data
-	 */
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
-
-	wm8510_write_reg_cache(codec, reg, value);
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
-#define wm8510_reset(c)	wm8510_write(c, WM8510_RESET, 0)
+/* codec private data */
+struct wm8510_priv {
+	enum snd_soc_control_type control_type;
+};
 
 static const char *wm8510_companding[] = { "Off", "NC", "u-law", "A-law" };
 static const char *wm8510_deemp[] = { "None", "32kHz", "44.1kHz", "48kHz" };
@@ -267,7 +221,6 @@ static int wm8510_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -319,35 +272,35 @@ static void pll_factors(unsigned int target, unsigned int source)
 	pll_div.k = K;
 }
 
-static int wm8510_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8510_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 reg;
 
 	if (freq_in == 0 || freq_out == 0) {
 		/* Clock CODEC directly from MCLK */
-		reg = wm8510_read_reg_cache(codec, WM8510_CLOCK);
-		wm8510_write(codec, WM8510_CLOCK, reg & 0x0ff);
+		reg = snd_soc_read(codec, WM8510_CLOCK);
+		snd_soc_write(codec, WM8510_CLOCK, reg & 0x0ff);
 
 		/* Turn off PLL */
-		reg = wm8510_read_reg_cache(codec, WM8510_POWER1);
-		wm8510_write(codec, WM8510_POWER1, reg & 0x1df);
+		reg = snd_soc_read(codec, WM8510_POWER1);
+		snd_soc_write(codec, WM8510_POWER1, reg & 0x1df);
 		return 0;
 	}
 
 	pll_factors(freq_out*4, freq_in);
 
-	wm8510_write(codec, WM8510_PLLN, (pll_div.pre_div << 4) | pll_div.n);
-	wm8510_write(codec, WM8510_PLLK1, pll_div.k >> 18);
-	wm8510_write(codec, WM8510_PLLK2, (pll_div.k >> 9) & 0x1ff);
-	wm8510_write(codec, WM8510_PLLK3, pll_div.k & 0x1ff);
-	reg = wm8510_read_reg_cache(codec, WM8510_POWER1);
-	wm8510_write(codec, WM8510_POWER1, reg | 0x020);
+	snd_soc_write(codec, WM8510_PLLN, (pll_div.pre_div << 4) | pll_div.n);
+	snd_soc_write(codec, WM8510_PLLK1, pll_div.k >> 18);
+	snd_soc_write(codec, WM8510_PLLK2, (pll_div.k >> 9) & 0x1ff);
+	snd_soc_write(codec, WM8510_PLLK3, pll_div.k & 0x1ff);
+	reg = snd_soc_read(codec, WM8510_POWER1);
+	snd_soc_write(codec, WM8510_POWER1, reg | 0x020);
 
 	/* Run CODEC from PLL instead of MCLK */
-	reg = wm8510_read_reg_cache(codec, WM8510_CLOCK);
-	wm8510_write(codec, WM8510_CLOCK, reg | 0x100);
+	reg = snd_soc_read(codec, WM8510_CLOCK);
+	snd_soc_write(codec, WM8510_CLOCK, reg | 0x100);
 
 	return 0;
 }
@@ -363,24 +316,24 @@ static int wm8510_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8510_OPCLKDIV:
-		reg = wm8510_read_reg_cache(codec, WM8510_GPIO) & 0x1cf;
-		wm8510_write(codec, WM8510_GPIO, reg | div);
+		reg = snd_soc_read(codec, WM8510_GPIO) & 0x1cf;
+		snd_soc_write(codec, WM8510_GPIO, reg | div);
 		break;
 	case WM8510_MCLKDIV:
-		reg = wm8510_read_reg_cache(codec, WM8510_CLOCK) & 0x11f;
-		wm8510_write(codec, WM8510_CLOCK, reg | div);
+		reg = snd_soc_read(codec, WM8510_CLOCK) & 0x11f;
+		snd_soc_write(codec, WM8510_CLOCK, reg | div);
 		break;
 	case WM8510_ADCCLK:
-		reg = wm8510_read_reg_cache(codec, WM8510_ADC) & 0x1f7;
-		wm8510_write(codec, WM8510_ADC, reg | div);
+		reg = snd_soc_read(codec, WM8510_ADC) & 0x1f7;
+		snd_soc_write(codec, WM8510_ADC, reg | div);
 		break;
 	case WM8510_DACCLK:
-		reg = wm8510_read_reg_cache(codec, WM8510_DAC) & 0x1f7;
-		wm8510_write(codec, WM8510_DAC, reg | div);
+		reg = snd_soc_read(codec, WM8510_DAC) & 0x1f7;
+		snd_soc_write(codec, WM8510_DAC, reg | div);
 		break;
 	case WM8510_BCLKDIV:
-		reg = wm8510_read_reg_cache(codec, WM8510_CLOCK) & 0x1e3;
-		wm8510_write(codec, WM8510_CLOCK, reg | div);
+		reg = snd_soc_read(codec, WM8510_CLOCK) & 0x1e3;
+		snd_soc_write(codec, WM8510_CLOCK, reg | div);
 		break;
 	default:
 		return -EINVAL;
@@ -394,7 +347,7 @@ static int wm8510_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 iface = 0;
-	u16 clk = wm8510_read_reg_cache(codec, WM8510_CLOCK) & 0x1fe;
+	u16 clk = snd_soc_read(codec, WM8510_CLOCK) & 0x1fe;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -441,8 +394,8 @@ static int wm8510_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	wm8510_write(codec, WM8510_IFACE, iface);
-	wm8510_write(codec, WM8510_CLOCK, clk);
+	snd_soc_write(codec, WM8510_IFACE, iface);
+	snd_soc_write(codec, WM8510_CLOCK, clk);
 	return 0;
 }
 
@@ -451,10 +404,9 @@ static int wm8510_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	u16 iface = wm8510_read_reg_cache(codec, WM8510_IFACE) & 0x19f;
-	u16 adn = wm8510_read_reg_cache(codec, WM8510_ADD) & 0x1f1;
+	struct snd_soc_codec *codec = rtd->codec;
+	u16 iface = snd_soc_read(codec, WM8510_IFACE) & 0x19f;
+	u16 adn = snd_soc_read(codec, WM8510_ADD) & 0x1f1;
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -473,40 +425,40 @@ static int wm8510_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* filter coefficient */
 	switch (params_rate(params)) {
-	case SNDRV_PCM_RATE_8000:
+	case 8000:
 		adn |= 0x5 << 1;
 		break;
-	case SNDRV_PCM_RATE_11025:
+	case 11025:
 		adn |= 0x4 << 1;
 		break;
-	case SNDRV_PCM_RATE_16000:
+	case 16000:
 		adn |= 0x3 << 1;
 		break;
-	case SNDRV_PCM_RATE_22050:
+	case 22050:
 		adn |= 0x2 << 1;
 		break;
-	case SNDRV_PCM_RATE_32000:
+	case 32000:
 		adn |= 0x1 << 1;
 		break;
-	case SNDRV_PCM_RATE_44100:
-	case SNDRV_PCM_RATE_48000:
+	case 44100:
+	case 48000:
 		break;
 	}
 
-	wm8510_write(codec, WM8510_IFACE, iface);
-	wm8510_write(codec, WM8510_ADD, adn);
+	snd_soc_write(codec, WM8510_IFACE, iface);
+	snd_soc_write(codec, WM8510_ADD, adn);
 	return 0;
 }
 
 static int wm8510_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = wm8510_read_reg_cache(codec, WM8510_DAC) & 0xffbf;
+	u16 mute_reg = snd_soc_read(codec, WM8510_DAC) & 0xffbf;
 
 	if (mute)
-		wm8510_write(codec, WM8510_DAC, mute_reg | 0x40);
+		snd_soc_write(codec, WM8510_DAC, mute_reg | 0x40);
 	else
-		wm8510_write(codec, WM8510_DAC, mute_reg);
+		snd_soc_write(codec, WM8510_DAC, mute_reg);
 	return 0;
 }
 
@@ -514,13 +466,13 @@ static int wm8510_mute(struct snd_soc_dai *dai, int mute)
 static int wm8510_set_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
-	u16 power1 = wm8510_read_reg_cache(codec, WM8510_POWER1) & ~0x3;
+	u16 power1 = snd_soc_read(codec, WM8510_POWER1) & ~0x3;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 		power1 |= 0x1;  /* VMID 50k */
-		wm8510_write(codec, WM8510_POWER1, power1);
+		snd_soc_write(codec, WM8510_POWER1, power1);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -528,18 +480,18 @@ static int wm8510_set_bias_level(struct snd_soc_codec *codec,
 
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			/* Initial cap charge at VMID 5k */
-			wm8510_write(codec, WM8510_POWER1, power1 | 0x3);
+			snd_soc_write(codec, WM8510_POWER1, power1 | 0x3);
 			mdelay(100);
 		}
 
 		power1 |= 0x2;  /* VMID 500k */
-		wm8510_write(codec, WM8510_POWER1, power1);
+		snd_soc_write(codec, WM8510_POWER1, power1);
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		wm8510_write(codec, WM8510_POWER1, 0);
-		wm8510_write(codec, WM8510_POWER2, 0);
-		wm8510_write(codec, WM8510_POWER3, 0);
+		snd_soc_write(codec, WM8510_POWER1, 0);
+		snd_soc_write(codec, WM8510_POWER2, 0);
+		snd_soc_write(codec, WM8510_POWER3, 0);
 		break;
 	}
 
@@ -562,8 +514,8 @@ static struct snd_soc_dai_ops wm8510_dai_ops = {
 	.set_pll	= wm8510_set_dai_pll,
 };
 
-struct snd_soc_dai wm8510_dai = {
-	.name = "WM8510 HiFi",
+static struct snd_soc_dai_driver wm8510_dai = {
+	.name = "wm8510-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -577,22 +529,17 @@ struct snd_soc_dai wm8510_dai = {
 		.rates = WM8510_RATES,
 		.formats = WM8510_FORMATS,},
 	.ops = &wm8510_dai_ops,
+	.symmetric_rates = 1,
 };
-EXPORT_SYMBOL_GPL(wm8510_dai);
 
-static int wm8510_suspend(struct platform_device *pdev, pm_message_t state)
+static int wm8510_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
-static int wm8510_resume(struct platform_device *pdev)
+static int wm8510_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
@@ -604,91 +551,113 @@ static int wm8510_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8510_set_bias_level(codec, codec->suspend_bias_level);
+
 	return 0;
 }
 
-/*
- * initialise the WM8510 driver
- * register the mixer and dsp interfaces with the kernel
- */
-static int wm8510_init(struct snd_soc_device *socdev)
+static int wm8510_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret = 0;
+	struct wm8510_priv *wm8510 = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
-	codec->name = "WM8510";
-	codec->owner = THIS_MODULE;
-	codec->read = wm8510_read_reg_cache;
-	codec->write = wm8510_write;
-	codec->set_bias_level = wm8510_set_bias_level;
-	codec->dai = &wm8510_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(wm8510_reg);
-	codec->reg_cache = kmemdup(wm8510_reg, sizeof(wm8510_reg), GFP_KERNEL);
-
-	if (codec->reg_cache == NULL)
-		return -ENOMEM;
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9,  wm8510->control_type);
+	if (ret < 0) {
+		printk(KERN_ERR "wm8510: failed to set cache I/O: %d\n", ret);
+		return ret;
+	}
 
 	wm8510_reset(codec);
 
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8510: failed to create pcms\n");
-		goto pcm_err;
-	}
-
 	/* power on device */
-	codec->bias_level = SND_SOC_BIAS_OFF;
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	snd_soc_add_controls(codec, wm8510_snd_controls,
 				ARRAY_SIZE(wm8510_snd_controls));
 	wm8510_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8510: failed to register card\n");
-		goto card_err;
-	}
-	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-pcm_err:
-	kfree(codec->reg_cache);
 	return ret;
 }
 
-static struct snd_soc_device *wm8510_socdev;
-
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-
-/*
- * WM8510 2 wire address is 0x1a
- */
-
-static int wm8510_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+/* power down chip */
+static int wm8510_remove(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = wm8510_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct wm8510_priv *wm8510 = snd_soc_codec_get_drvdata(codec);
+
+	wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	kfree(wm8510);
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_codec_dev_wm8510 = {
+	.probe =	wm8510_probe,
+	.remove =	wm8510_remove,
+	.suspend =	wm8510_suspend,
+	.resume =	wm8510_resume,
+	.set_bias_level = wm8510_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(wm8510_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default =wm8510_reg,
+};
+
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8510_spi_probe(struct spi_device *spi)
+{
+	struct wm8510_priv *wm8510;
 	int ret;
 
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
+	wm8510 = kzalloc(sizeof(struct wm8510_priv), GFP_KERNEL);
+	if (wm8510 == NULL)
+		return -ENOMEM;
 
-	ret = wm8510_init(socdev);
+	wm8510->control_type = SND_SOC_SPI;
+	spi_set_drvdata(spi, wm8510);
+
+	ret = snd_soc_register_codec(&spi->dev,
+			&soc_codec_dev_wm8510, &wm8510_dai, 1);
 	if (ret < 0)
-		pr_err("failed to initialise WM8510\n");
-
+		kfree(wm8510);
 	return ret;
 }
 
-static int wm8510_i2c_remove(struct i2c_client *client)
+static int __devexit wm8510_spi_remove(struct spi_device *spi)
 {
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	kfree(codec->reg_cache);
+	snd_soc_unregister_codec(&spi->dev);
+	return 0;
+}
+
+static struct spi_driver wm8510_spi_driver = {
+	.driver = {
+		.name	= "wm8510",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8510_spi_probe,
+	.remove		= __devexit_p(wm8510_spi_remove),
+};
+#endif /* CONFIG_SPI_MASTER */
+
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+static __devinit int wm8510_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
+{
+	struct wm8510_priv *wm8510;
+	int ret;
+
+	wm8510 = kzalloc(sizeof(struct wm8510_priv), GFP_KERNEL);
+	if (wm8510 == NULL)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, wm8510);
+	wm8510->control_type = SND_SOC_I2C;
+
+	ret =  snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_wm8510, &wm8510_dai, 1);
+	if (ret < 0)
+		kfree(wm8510);
+	return ret;
+}
+
+static __devexit int wm8510_i2c_remove(struct i2c_client *client)
+{
+	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
 
@@ -700,191 +669,44 @@ MODULE_DEVICE_TABLE(i2c, wm8510_i2c_id);
 
 static struct i2c_driver wm8510_i2c_driver = {
 	.driver = {
-		.name = "WM8510 I2C Codec",
+		.name = "wm8510-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8510_i2c_probe,
-	.remove =   wm8510_i2c_remove,
+	.remove =   __devexit_p(wm8510_i2c_remove),
 	.id_table = wm8510_i2c_id,
 };
-
-static int wm8510_add_i2c_device(struct platform_device *pdev,
-				 const struct wm8510_setup_data *setup)
-{
-	struct i2c_board_info info;
-	struct i2c_adapter *adapter;
-	struct i2c_client *client;
-	int ret;
-
-	ret = i2c_add_driver(&wm8510_i2c_driver);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "can't add i2c driver\n");
-		return ret;
-	}
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = setup->i2c_address;
-	strlcpy(info.type, "wm8510", I2C_NAME_SIZE);
-
-	adapter = i2c_get_adapter(setup->i2c_bus);
-	if (!adapter) {
-		dev_err(&pdev->dev, "can't get i2c adapter %d\n",
-			setup->i2c_bus);
-		goto err_driver;
-	}
-
-	client = i2c_new_device(adapter, &info);
-	i2c_put_adapter(adapter);
-	if (!client) {
-		dev_err(&pdev->dev, "can't add i2c device at 0x%x\n",
-			(unsigned int)info.addr);
-		goto err_driver;
-	}
-
-	return 0;
-
-err_driver:
-	i2c_del_driver(&wm8510_i2c_driver);
-	return -ENODEV;
-}
 #endif
-
-#if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8510_spi_probe(struct spi_device *spi)
-{
-	struct snd_soc_device *socdev = wm8510_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret;
-
-	codec->control_data = spi;
-
-	ret = wm8510_init(socdev);
-	if (ret < 0)
-		dev_err(&spi->dev, "failed to initialise WM8510\n");
-
-	return ret;
-}
-
-static int __devexit wm8510_spi_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
-static struct spi_driver wm8510_spi_driver = {
-	.driver = {
-		.name	= "wm8510",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-	},
-	.probe		= wm8510_spi_probe,
-	.remove		= __devexit_p(wm8510_spi_remove),
-};
-
-static int wm8510_spi_write(struct spi_device *spi, const char *data, int len)
-{
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#endif /* CONFIG_SPI_MASTER */
-
-static int wm8510_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct wm8510_setup_data *setup;
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	pr_info("WM8510 Audio Codec %s", WM8510_VERSION);
-
-	setup = socdev->codec_data;
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-
-	socdev->card->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	wm8510_socdev = socdev;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	if (setup->i2c_address) {
-		codec->hw_write = (hw_write_t)i2c_master_send;
-		ret = wm8510_add_i2c_device(pdev, setup);
-	}
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	if (setup->spi) {
-		codec->hw_write = (hw_write_t)wm8510_spi_write;
-		ret = spi_register_driver(&wm8510_spi_driver);
-		if (ret != 0)
-			printk(KERN_ERR "can't add spi driver");
-	}
-#endif
-
-	if (ret != 0)
-		kfree(codec);
-	return ret;
-}
-
-/* power down chip */
-static int wm8510_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec->control_data)
-		wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_unregister_device(codec->control_data);
-	i2c_del_driver(&wm8510_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8510_spi_driver);
-#endif
-	kfree(codec);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_wm8510 = {
-	.probe = 	wm8510_probe,
-	.remove = 	wm8510_remove,
-	.suspend = 	wm8510_suspend,
-	.resume =	wm8510_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8510);
 
 static int __init wm8510_modinit(void)
 {
-	return snd_soc_register_dai(&wm8510_dai);
+	int ret = 0;
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	ret = i2c_add_driver(&wm8510_i2c_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register WM8510 I2C driver: %d\n",
+		       ret);
+	}
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	ret = spi_register_driver(&wm8510_spi_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register WM8510 SPI driver: %d\n",
+		       ret);
+	}
+#endif
+	return ret;
 }
 module_init(wm8510_modinit);
 
 static void __exit wm8510_exit(void)
 {
-	snd_soc_unregister_dai(&wm8510_dai);
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_del_driver(&wm8510_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8510_spi_driver);
+#endif
 }
 module_exit(wm8510_exit);
 

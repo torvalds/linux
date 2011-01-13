@@ -1,6 +1,6 @@
 /************************************************************************
  * s2io.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2007 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
 
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -64,7 +64,10 @@ enum {
 static int debug_level = ERR_DBG;
 
 /* DEBUG message print. */
-#define DBG_PRINT(dbg_level, args...)  if(!(debug_level<dbg_level)) printk(args)
+#define DBG_PRINT(dbg_level, fmt, args...) do {			\
+	if (dbg_level <= debug_level)				\
+		pr_info(fmt, ##args);				\
+	} while (0)
 
 /* Protocol assist features of the NIC */
 #define L3_CKSUM_OK 0xFFFF
@@ -352,13 +355,12 @@ struct stat_block {
 #define FIFO_OTHER_MAX_NUM			1
 
 
-#define MAX_RX_DESC_1  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 127 )
-#define MAX_RX_DESC_2  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
-#define MAX_RX_DESC_3  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
+#define MAX_RX_DESC_1  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 128)
+#define MAX_RX_DESC_2  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 86)
 #define MAX_TX_DESC    (MAX_AVAILABLE_TXDS)
 
 /* FIFO mappings for all possible number of fifos configured */
-static int fifo_map[][MAX_TX_FIFOS] = {
+static const int fifo_map[][MAX_TX_FIFOS] = {
 	{0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 1, 1, 1, 1},
 	{0, 0, 0, 1, 1, 1, 2, 2},
@@ -369,7 +371,7 @@ static int fifo_map[][MAX_TX_FIFOS] = {
 	{0, 1, 2, 3, 4, 5, 6, 7},
 };
 
-static u16 fifo_selector[MAX_TX_FIFOS] = {0, 1, 3, 3, 7, 7, 7, 7};
+static const u16 fifo_selector[MAX_TX_FIFOS] = {0, 1, 3, 3, 7, 7, 7, 7};
 
 /* Maintains Per FIFO related information. */
 struct tx_fifo_config {
@@ -742,10 +744,6 @@ struct ring_info {
 
 	/* Buffer Address store. */
 	struct buffAdd **ba;
-
-	/* per-Ring statistics */
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
 } ____cacheline_aligned;
 
 /* Fifo specific structure */
@@ -815,12 +813,6 @@ struct mac_info {
 	dma_addr_t stats_mem_phy;	/* Physical address of the stat block */
 	u32 stats_mem_sz;
 	struct stat_block *stats_info;	/* Logical address of the stat block */
-};
-
-/* structure representing the user defined MAC addresses */
-struct usr_addr {
-	char addr[ETH_ALEN];
-	int usage_cnt;
 };
 
 /* Default Tunable parameters of the NIC. */
@@ -895,9 +887,7 @@ struct s2io_nic {
 #define ALL_MULTI   2
 
 #define MAX_ADDRS_SUPPORTED 64
-	u16 usr_addr_count;
 	u16 mc_addr_count;
-	struct usr_addr usr_addrs[256];
 
 	u16 m_cast_flg;
 	u16 all_multi_pos;
@@ -972,7 +962,6 @@ struct s2io_nic {
 
 	unsigned long	clubbed_frms_cnt;
 	unsigned long	sending_both;
-	u8		lro;
 	u16		lro_max_aggr_per_sess;
 	volatile unsigned long state;
 	u64		general_int_mask;

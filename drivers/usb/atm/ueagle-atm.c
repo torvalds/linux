@@ -66,6 +66,8 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
+#include <linux/slab.h>
+#include <linux/kernel.h>
 
 #include <asm/unaligned.h>
 
@@ -93,19 +95,19 @@
 	} while (0)
 
 #define uea_enters(usb_dev) \
-	uea_vdbg(usb_dev, "entering %s\n", __func__)
+	uea_vdbg(usb_dev, "entering %s\n" , __func__)
 
 #define uea_leaves(usb_dev) \
-	uea_vdbg(usb_dev, "leaving  %s\n", __func__)
+	uea_vdbg(usb_dev, "leaving  %s\n" , __func__)
 
-#define uea_err(usb_dev, format,args...) \
-	dev_err(&(usb_dev)->dev ,"[UEAGLE-ATM] " format , ##args)
+#define uea_err(usb_dev, format, args...) \
+	dev_err(&(usb_dev)->dev , "[UEAGLE-ATM] " format , ##args)
 
-#define uea_warn(usb_dev, format,args...) \
-	dev_warn(&(usb_dev)->dev ,"[Ueagle-atm] " format, ##args)
+#define uea_warn(usb_dev, format, args...) \
+	dev_warn(&(usb_dev)->dev , "[Ueagle-atm] " format, ##args)
 
-#define uea_info(usb_dev, format,args...) \
-	dev_info(&(usb_dev)->dev ,"[ueagle-atm] " format, ##args)
+#define uea_info(usb_dev, format, args...) \
+	dev_info(&(usb_dev)->dev , "[ueagle-atm] " format, ##args)
 
 struct intr_pkt;
 
@@ -288,7 +290,7 @@ enum {
 #define IS_ISDN(x) \
 	((x)->annex & ANNEXB)
 
-#define INS_TO_USBDEV(ins) ins->usb_dev
+#define INS_TO_USBDEV(ins) (ins->usb_dev)
 
 #define GET_STATUS(data) \
 	((data >> 8) & 0xf)
@@ -303,7 +305,7 @@ enum {
  * The FW_GET_BYTE() macro is provided only for consistency.
  */
 
-#define FW_GET_BYTE(p)	*((__u8 *) (p))
+#define FW_GET_BYTE(p) (*((__u8 *) (p)))
 
 #define FW_DIR "ueagle-atm/"
 #define UEA_FW_NAME_MAX 30
@@ -314,7 +316,7 @@ enum {
 
 #define ACK_TIMEOUT msecs_to_jiffies(3000)
 
-#define UEA_INTR_IFACE_NO 	0
+#define UEA_INTR_IFACE_NO	0
 #define UEA_US_IFACE_NO		1
 #define UEA_DS_IFACE_NO		2
 
@@ -325,9 +327,9 @@ enum {
 #define UEA_INTR_PIPE		0x04
 #define UEA_ISO_DATA_PIPE	0x08
 
-#define UEA_E1_SET_BLOCK    	0x0001
+#define UEA_E1_SET_BLOCK	0x0001
 #define UEA_E4_SET_BLOCK	0x002c
-#define UEA_SET_MODE     	0x0003
+#define UEA_SET_MODE		0x0003
 #define UEA_SET_2183_DATA	0x0004
 #define UEA_SET_TIMEOUT		0x0011
 
@@ -365,7 +367,7 @@ struct l1_code {
 	u8 string_header[E4_L1_STRING_HEADER];
 	u8 page_number_to_block_index[E4_MAX_PAGE_NUMBER];
 	struct block_index page_header[E4_NO_SWAPPAGE_HEADERS];
-	u8 code [0];
+	u8 code[0];
 } __attribute__ ((packed));
 
 /* structures describing a block within a DSP page */
@@ -427,7 +429,8 @@ struct block_info_e4 {
 #define E4_MODEMREADY  0x1
 
 #define E1_MAKEFUNCTION(t, s) (((t) & 0xf) << 4 | ((s) & 0xf))
-#define E4_MAKEFUNCTION(t, st, s) (((t) & 0xf) << 8 | ((st) & 0xf) << 4 | ((s) & 0xf))
+#define E4_MAKEFUNCTION(t, st, s) (((t) & 0xf) << 8 | \
+	((st) & 0xf) << 4 | ((s) & 0xf))
 
 #define E1_MAKESA(a, b, c, d)						\
 	(((c) & 0xff) << 24 |						\
@@ -472,7 +475,7 @@ struct cmv_e4 {
 	__be16 wFunction;
 	__be16 wOffset;
 	__be16 wAddress;
-	__be32 dwData [6];
+	__be32 dwData[6];
 } __attribute__ ((packed));
 
 /* structures representing swap information */
@@ -533,11 +536,13 @@ struct intr_pkt {
 
 static struct usb_driver uea_driver;
 static DEFINE_MUTEX(uea_mutex);
-static const char *chip_name[] = {"ADI930", "Eagle I", "Eagle II", "Eagle III", "Eagle IV"};
+static const char *chip_name[] = {"ADI930", "Eagle I", "Eagle II", "Eagle III",
+								"Eagle IV"};
 
 static int modem_index;
 static unsigned int debug;
-static unsigned int altsetting[NB_MODEM] = {[0 ... (NB_MODEM - 1)] = FASTEST_ISO_INTF};
+static unsigned int altsetting[NB_MODEM] = {
+				[0 ... (NB_MODEM - 1)] = FASTEST_ISO_INTF};
 static int sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
 static int annex[NB_MODEM];
@@ -554,7 +559,7 @@ MODULE_PARM_DESC(cmv_file,
 		"file name with configuration and management variables");
 module_param_array(annex, uint, NULL, 0644);
 MODULE_PARM_DESC(annex,
-                 "manually set annex a/b (0=auto, 1=annex a, 2=annex b)");
+		"manually set annex a/b (0=auto, 1=annex a, 2=annex b)");
 
 #define uea_wait(sc, cond, timeo) \
 ({ \
@@ -570,6 +575,13 @@ MODULE_PARM_DESC(annex,
 		if (sc->usbatm->atm_dev) \
 			sc->usbatm->atm_dev->type = val; \
 	} while (0)
+
+#define UPDATE_ATM_SIGNAL(val) \
+	do { \
+		if (sc->usbatm->atm_dev) \
+			atm_dev_signal_change(sc->usbatm->atm_dev, val); \
+	} while (0)
+
 
 /* Firmware loading */
 #define LOAD_INTERNAL     0xA0
@@ -601,7 +613,8 @@ static int uea_send_modem_cmd(struct usb_device *usb,
 	return (ret == size) ? 0 : -EIO;
 }
 
-static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *context)
+static void uea_upload_pre_firmware(const struct firmware *fw_entry,
+								void *context)
 {
 	struct usb_device *usb = context;
 	const u8 *pfw;
@@ -667,12 +680,12 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 	else
 		uea_info(usb, "firmware uploaded\n");
 
-	uea_leaves(usb);
-	return;
+	goto err;
 
 err_fw_corrupted:
 	uea_err(usb, "firmware is corrupted\n");
 err:
+	release_firmware(fw_entry);
 	uea_leaves(usb);
 }
 
@@ -705,7 +718,9 @@ static int uea_load_firmware(struct usb_device *usb, unsigned int ver)
 		break;
 	}
 
-	ret = request_firmware_nowait(THIS_MODULE, 1, fw_name, &usb->dev, usb, uea_upload_pre_firmware);
+	ret = request_firmware_nowait(THIS_MODULE, 1, fw_name, &usb->dev,
+					GFP_KERNEL, usb,
+					uea_upload_pre_firmware);
 	if (ret)
 		uea_err(usb, "firmware %s is not available\n", fw_name);
 	else
@@ -874,7 +889,7 @@ static int request_dsp(struct uea_softc *sc)
 	if (ret < 0) {
 		uea_err(INS_TO_USBDEV(sc),
 		       "requesting firmware %s failed with error %d\n",
-		        dsp_name, ret);
+			dsp_name, ret);
 		return ret;
 	}
 
@@ -992,14 +1007,17 @@ static void __uea_load_page_e4(struct uea_softc *sc, u8 pageno, int boot)
 
 		blockidx = &p->page_header[blockno];
 		blocksize = E4_PAGE_BYTES(blockidx->PageSize);
-		blockoffset = sc->dsp_firm->data + le32_to_cpu(blockidx->PageOffset);
+		blockoffset = sc->dsp_firm->data + le32_to_cpu(
+							blockidx->PageOffset);
 
 		bi.dwSize = cpu_to_be32(blocksize);
 		bi.dwAddress = cpu_to_be32(le32_to_cpu(blockidx->PageAddress));
 
 		uea_dbg(INS_TO_USBDEV(sc),
-		       "sending block %u for DSP page %u size %u address %x\n",
-		       blockno, pageno, blocksize, le32_to_cpu(blockidx->PageAddress));
+			"sending block %u for DSP page "
+			"%u size %u address %x\n",
+			blockno, pageno, blocksize,
+			le32_to_cpu(blockidx->PageAddress));
 
 		/* send block info through the IDMA pipe */
 		if (uea_idma_write(sc, &bi, E4_BLOCK_INFO_SIZE))
@@ -1040,7 +1058,8 @@ static void uea_load_page_e4(struct work_struct *work)
 
 	p = (struct l1_code *) sc->dsp_firm->data;
 	if (pageno >= le16_to_cpu(p->page_header[0].PageNumber)) {
-		uea_err(INS_TO_USBDEV(sc), "invalid DSP page %u requested\n", pageno);
+		uea_err(INS_TO_USBDEV(sc), "invalid DSP "
+						"page %u requested\n", pageno);
 		return;
 	}
 
@@ -1057,7 +1076,7 @@ static void uea_load_page_e4(struct work_struct *work)
 			__uea_load_page_e4(sc, i, 1);
 	}
 
-	uea_dbg(INS_TO_USBDEV(sc),"sending start bi\n");
+	uea_dbg(INS_TO_USBDEV(sc) , "sending start bi\n");
 
 	bi.wHdr = cpu_to_be16(UEA_BIHDR);
 	bi.bBootPage = 0;
@@ -1137,8 +1156,10 @@ static int uea_cmv_e1(struct uea_softc *sc,
 	uea_enters(INS_TO_USBDEV(sc));
 	uea_vdbg(INS_TO_USBDEV(sc), "Function : %d-%d, Address : %c%c%c%c, "
 			"offset : 0x%04x, data : 0x%08x\n",
-			E1_FUNCTION_TYPE(function), E1_FUNCTION_SUBTYPE(function),
-			E1_GETSA1(address), E1_GETSA2(address), E1_GETSA3(address),
+			E1_FUNCTION_TYPE(function),
+			E1_FUNCTION_SUBTYPE(function),
+			E1_GETSA1(address), E1_GETSA2(address),
+			E1_GETSA3(address),
 			E1_GETSA4(address), offset, data);
 
 	/* we send a request, but we expect a reply */
@@ -1155,7 +1176,8 @@ static int uea_cmv_e1(struct uea_softc *sc,
 	cmv.wOffsetAddress = cpu_to_le16(offset);
 	put_unaligned_le32(data >> 16 | data << 16, &cmv.dwData);
 
-	ret = uea_request(sc, UEA_E1_SET_BLOCK, UEA_MPTX_START, sizeof(cmv), &cmv);
+	ret = uea_request(sc, UEA_E1_SET_BLOCK, UEA_MPTX_START,
+							sizeof(cmv), &cmv);
 	if (ret < 0)
 		return ret;
 	ret = wait_cmv_ack(sc);
@@ -1189,7 +1211,8 @@ static int uea_cmv_e4(struct uea_softc *sc,
 	cmv.wOffset = cpu_to_be16(offset);
 	cmv.dwData[0] = cpu_to_be32(data);
 
-	ret = uea_request(sc, UEA_E4_SET_BLOCK, UEA_MPTX_START, sizeof(cmv), &cmv);
+	ret = uea_request(sc, UEA_E4_SET_BLOCK, UEA_MPTX_START,
+							sizeof(cmv), &cmv);
 	if (ret < 0)
 		return ret;
 	ret = wait_cmv_ack(sc);
@@ -1206,7 +1229,7 @@ static inline int uea_read_cmv_e1(struct uea_softc *sc,
 		uea_err(INS_TO_USBDEV(sc),
 			"reading cmv failed with error %d\n", ret);
 	else
-	 	*data = sc->data;
+		*data = sc->data;
 
 	return ret;
 }
@@ -1214,13 +1237,14 @@ static inline int uea_read_cmv_e1(struct uea_softc *sc,
 static inline int uea_read_cmv_e4(struct uea_softc *sc,
 		u8 size, u16 group, u16 address, u16 offset, u32 *data)
 {
-	int ret = uea_cmv_e4(sc, E4_MAKEFUNCTION(E4_MEMACCESS, E4_REQUESTREAD, size),
+	int ret = uea_cmv_e4(sc, E4_MAKEFUNCTION(E4_MEMACCESS,
+							E4_REQUESTREAD, size),
 			  group, address, offset, 0);
 	if (ret < 0)
 		uea_err(INS_TO_USBDEV(sc),
 			"reading cmv failed with error %d\n", ret);
 	else {
-	 	*data = sc->data;
+		*data = sc->data;
 		/* size is in 16-bit word quantities */
 		if (size > 2)
 			*(data + 1) = sc->data1;
@@ -1243,7 +1267,8 @@ static inline int uea_write_cmv_e1(struct uea_softc *sc,
 static inline int uea_write_cmv_e4(struct uea_softc *sc,
 		u8 size, u16 group, u16 address, u16 offset, u32 data)
 {
-	int ret = uea_cmv_e4(sc, E4_MAKEFUNCTION(E4_MEMACCESS, E4_REQUESTWRITE, size),
+	int ret = uea_cmv_e4(sc, E4_MAKEFUNCTION(E4_MEMACCESS,
+							E4_REQUESTWRITE, size),
 			  group, address, offset, data);
 	if (ret < 0)
 		uea_err(INS_TO_USBDEV(sc),
@@ -1342,7 +1367,7 @@ static int uea_stat_e1(struct uea_softc *sc)
 	/* always update it as atm layer could not be init when we switch to
 	 * operational state
 	 */
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_FOUND);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
 
 	/* wake up processes waiting for synchronization */
 	wake_up(&sc->sync_q);
@@ -1440,27 +1465,29 @@ static int uea_stat_e4(struct uea_softc *sc)
 		return ret;
 
 	switch (sc->stats.phy.state) {
-		case 0x0:	/* not yet synchronized */
-		case 0x1:
-		case 0x3:
-		case 0x4:
-			uea_dbg(INS_TO_USBDEV(sc), "modem not yet synchronized\n");
-			return 0;
-		case 0x5:	/* initialization */
-		case 0x6:
-		case 0x9:
-		case 0xa:
-			uea_dbg(INS_TO_USBDEV(sc), "modem initializing\n");
-			return 0;
-		case 0x2:	/* fail ... */
-			uea_info(INS_TO_USBDEV(sc), "modem synchronization failed"
-					" (may be try other cmv/dsp)\n");
-			return -EAGAIN;
-		case 0x7: 	/* operational */
-			break;
-		default:
-			uea_warn(INS_TO_USBDEV(sc), "unknown state: %x\n", sc->stats.phy.state);
-			return 0;
+	case 0x0:	/* not yet synchronized */
+	case 0x1:
+	case 0x3:
+	case 0x4:
+		uea_dbg(INS_TO_USBDEV(sc), "modem not yet "
+						"synchronized\n");
+		return 0;
+	case 0x5:	/* initialization */
+	case 0x6:
+	case 0x9:
+	case 0xa:
+		uea_dbg(INS_TO_USBDEV(sc), "modem initializing\n");
+		return 0;
+	case 0x2:	/* fail ... */
+		uea_info(INS_TO_USBDEV(sc), "modem synchronization "
+				"failed (may be try other cmv/dsp)\n");
+		return -EAGAIN;
+	case 0x7:	/* operational */
+		break;
+	default:
+		uea_warn(INS_TO_USBDEV(sc), "unknown state: %x\n",
+						sc->stats.phy.state);
+		return 0;
 	}
 
 	if (data != 7) {
@@ -1479,7 +1506,7 @@ static int uea_stat_e4(struct uea_softc *sc)
 	/* always update it as atm layer could not be init when we switch to
 	 * operational state
 	 */
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_FOUND);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
 
 	/* wake up processes waiting for synchronization */
 	wake_up(&sc->sync_q);
@@ -1500,9 +1527,9 @@ static int uea_stat_e4(struct uea_softc *sc)
 	if (sc->stats.phy.flags) {
 		uea_dbg(INS_TO_USBDEV(sc), "Stat flag = 0x%x\n",
 		       sc->stats.phy.flags);
-		if (sc->stats.phy.flags & 1) //delineation LOSS
+		if (sc->stats.phy.flags & 1) /* delineation LOSS */
 			return -EAGAIN;
-		if (sc->stats.phy.flags & 0x4000) //Reset Flag
+		if (sc->stats.phy.flags & 0x4000) /* Reset Flag */
 			return -EAGAIN;
 		return 0;
 	}
@@ -1550,6 +1577,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	char file_arr[] = "CMVxy.bin";
 	char *file;
 
+	kparam_block_sysfs_write(cmv_file);
 	/* set proper name corresponding modem version and line type */
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
@@ -1568,6 +1596,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	strlcat(cmv_name, file, UEA_FW_NAME_MAX);
 	if (ver == 2)
 		strlcat(cmv_name, ".v2", UEA_FW_NAME_MAX);
+	kparam_unblock_sysfs_write(cmv_file);
 }
 
 static int request_cmvs_old(struct uea_softc *sc,
@@ -1616,7 +1645,8 @@ static int request_cmvs(struct uea_softc *sc,
 	if (ret < 0) {
 		/* if caller can handle old version, try to provide it */
 		if (*ver == 1) {
-			uea_warn(INS_TO_USBDEV(sc), "requesting firmware %s failed, "
+			uea_warn(INS_TO_USBDEV(sc), "requesting "
+							"firmware %s failed, "
 				"try to get older cmvs\n", cmv_name);
 			return request_cmvs_old(sc, cmvs, fw);
 		}
@@ -1630,8 +1660,8 @@ static int request_cmvs(struct uea_softc *sc,
 	data = (u8 *) (*fw)->data;
 	if (size < 4 || strncmp(data, "cmv2", 4) != 0) {
 		if (*ver == 1) {
-			uea_warn(INS_TO_USBDEV(sc), "firmware %s is corrupted, "
-				"try to get older cmvs\n", cmv_name);
+			uea_warn(INS_TO_USBDEV(sc), "firmware %s is corrupted,"
+				" try to get older cmvs\n", cmv_name);
 			release_firmware(*fw);
 			return request_cmvs_old(sc, cmvs, fw);
 		}
@@ -1668,7 +1698,7 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 	int i, ret, len;
 	void *cmvs_ptr;
 	const struct firmware *cmvs_fw;
-	int ver = 1; // we can handle v1 cmv firmware version;
+	int ver = 1; /* we can handle v1 cmv firmware version; */
 
 	/* Enter in R-IDLE (cmv) until instructed otherwise */
 	ret = uea_write_cmv_e1(sc, E1_SA_CNTL, 0, 1);
@@ -1683,7 +1713,7 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 			sc->stats.phy.firmid);
 
 	/* get options */
- 	ret = len = request_cmvs(sc, &cmvs_ptr, &cmvs_fw, &ver);
+	ret = len = request_cmvs(sc, &cmvs_ptr, &cmvs_fw, &ver);
 	if (ret < 0)
 		return ret;
 
@@ -1695,9 +1725,10 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 			"please update your firmware\n");
 
 		for (i = 0; i < len; i++) {
-			ret = uea_write_cmv_e1(sc, get_unaligned_le32(&cmvs_v1[i].address),
-						get_unaligned_le16(&cmvs_v1[i].offset),
-						get_unaligned_le32(&cmvs_v1[i].data));
+			ret = uea_write_cmv_e1(sc,
+				get_unaligned_le32(&cmvs_v1[i].address),
+				get_unaligned_le16(&cmvs_v1[i].offset),
+				get_unaligned_le32(&cmvs_v1[i].data));
 			if (ret < 0)
 				goto out;
 		}
@@ -1705,9 +1736,10 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 		struct uea_cmvs_v2 *cmvs_v2 = cmvs_ptr;
 
 		for (i = 0; i < len; i++) {
-			ret = uea_write_cmv_e1(sc, get_unaligned_le32(&cmvs_v2[i].address),
-						(u16) get_unaligned_le32(&cmvs_v2[i].offset),
-						get_unaligned_le32(&cmvs_v2[i].data));
+			ret = uea_write_cmv_e1(sc,
+				get_unaligned_le32(&cmvs_v2[i].address),
+				(u16) get_unaligned_le32(&cmvs_v2[i].offset),
+				get_unaligned_le32(&cmvs_v2[i].data));
 			if (ret < 0)
 				goto out;
 		}
@@ -1720,7 +1752,8 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 	/* Enter in R-ACT-REQ */
 	ret = uea_write_cmv_e1(sc, E1_SA_CNTL, 0, 2);
 	uea_vdbg(INS_TO_USBDEV(sc), "Entering in R-ACT-REQ state\n");
-	uea_info(INS_TO_USBDEV(sc), "modem started, waiting synchronization...\n");
+	uea_info(INS_TO_USBDEV(sc), "modem started, waiting "
+						"synchronization...\n");
 out:
 	release_firmware(cmvs_fw);
 	return ret;
@@ -1731,7 +1764,7 @@ static int uea_send_cmvs_e4(struct uea_softc *sc)
 	int i, ret, len;
 	void *cmvs_ptr;
 	const struct firmware *cmvs_fw;
-	int ver = 2; // we can only handle v2 cmv firmware version;
+	int ver = 2; /* we can only handle v2 cmv firmware version; */
 
 	/* Enter in R-IDLE (cmv) until instructed otherwise */
 	ret = uea_write_cmv_e4(sc, 1, E4_SA_CNTL, 0, 0, 1);
@@ -1748,7 +1781,7 @@ static int uea_send_cmvs_e4(struct uea_softc *sc)
 
 
 	/* get options */
- 	ret = len = request_cmvs(sc, &cmvs_ptr, &cmvs_fw, &ver);
+	ret = len = request_cmvs(sc, &cmvs_ptr, &cmvs_fw, &ver);
 	if (ret < 0)
 		return ret;
 
@@ -1758,10 +1791,10 @@ static int uea_send_cmvs_e4(struct uea_softc *sc)
 
 		for (i = 0; i < len; i++) {
 			ret = uea_write_cmv_e4(sc, 1,
-						get_unaligned_le32(&cmvs_v2[i].group),
-						get_unaligned_le32(&cmvs_v2[i].address),
-						get_unaligned_le32(&cmvs_v2[i].offset),
-						get_unaligned_le32(&cmvs_v2[i].data));
+				get_unaligned_le32(&cmvs_v2[i].group),
+				get_unaligned_le32(&cmvs_v2[i].address),
+				get_unaligned_le32(&cmvs_v2[i].offset),
+				get_unaligned_le32(&cmvs_v2[i].data));
 			if (ret < 0)
 				goto out;
 		}
@@ -1774,7 +1807,8 @@ static int uea_send_cmvs_e4(struct uea_softc *sc)
 	/* Enter in R-ACT-REQ */
 	ret = uea_write_cmv_e4(sc, 1, E4_SA_CNTL, 0, 0, 2);
 	uea_vdbg(INS_TO_USBDEV(sc), "Entering in R-ACT-REQ state\n");
-	uea_info(INS_TO_USBDEV(sc), "modem started, waiting synchronization...\n");
+	uea_info(INS_TO_USBDEV(sc), "modem started, waiting "
+						"synchronization...\n");
 out:
 	release_firmware(cmvs_fw);
 	return ret;
@@ -1801,7 +1835,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	 * So we will failed to wait Ready CMV.
 	 */
 	sc->cmv_ack = 0;
-	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_LOST);
+	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_LOST);
 
 	/* reset statistics */
 	memset(&sc->stats, 0, sizeof(struct uea_stats));
@@ -1810,7 +1844,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	uea_request(sc, UEA_SET_MODE, UEA_LOOPBACK_ON, 0, NULL);
 	uea_request(sc, UEA_SET_MODE, UEA_BOOT_IDMA, 0, NULL);
 
- 	/* enter reset mode */
+	/* enter reset mode */
 	uea_request(sc, UEA_SET_MODE, UEA_START_RESET, 0, NULL);
 
 	/* original driver use 200ms, but windows driver use 100ms */
@@ -1822,7 +1856,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	uea_request(sc, UEA_SET_MODE, UEA_END_RESET, 0, NULL);
 
 	if (UEA_CHIP_VERSION(sc) != EAGLE_IV) {
- 		/* clear tx and rx mailboxes */
+		/* clear tx and rx mailboxes */
 		uea_request(sc, UEA_SET_2183_DATA, UEA_MPTX_MAILBOX, 2, &zero);
 		uea_request(sc, UEA_SET_2183_DATA, UEA_MPRX_MAILBOX, 2, &zero);
 		uea_request(sc, UEA_SET_2183_DATA, UEA_SWAP_MAILBOX, 2, &zero);
@@ -1833,9 +1867,11 @@ static int uea_start_reset(struct uea_softc *sc)
 		return ret;
 
 	if (UEA_CHIP_VERSION(sc) == EAGLE_IV)
-		sc->cmv_dsc.e4.function = E4_MAKEFUNCTION(E4_ADSLDIRECTIVE, E4_MODEMREADY, 1);
+		sc->cmv_dsc.e4.function = E4_MAKEFUNCTION(E4_ADSLDIRECTIVE,
+							E4_MODEMREADY, 1);
 	else
-		sc->cmv_dsc.e1.function = E1_MAKEFUNCTION(E1_ADSLDIRECTIVE, E1_MODEMREADY);
+		sc->cmv_dsc.e1.function = E1_MAKEFUNCTION(E1_ADSLDIRECTIVE,
+							E1_MODEMREADY);
 
 	/* demask interrupt */
 	sc->booting = 0;
@@ -1935,7 +1971,8 @@ static int load_XILINX_firmware(struct uea_softc *sc)
 	value = 0;
 	ret = uea_send_modem_cmd(sc->usb_dev, 0xe, 1, &value);
 	if (ret < 0)
-		uea_err(sc->usb_dev, "elsa de-assert failed with error %d\n", ret);
+		uea_err(sc->usb_dev, "elsa de-assert failed with error"
+								" %d\n", ret);
 
 err1:
 	release_firmware(fw_entry);
@@ -1958,19 +1995,21 @@ static void uea_dispatch_cmv_e1(struct uea_softc *sc, struct intr_pkt *intr)
 		goto bad1;
 
 	/* FIXME : ADI930 reply wrong preambule (func = 2, sub = 2) to
-	 * the first MEMACESS cmv. Ignore it...
+	 * the first MEMACCESS cmv. Ignore it...
 	 */
 	if (cmv->bFunction != dsc->function) {
 		if (UEA_CHIP_VERSION(sc) == ADI930
 				&& cmv->bFunction ==  E1_MAKEFUNCTION(2, 2)) {
 			cmv->wIndex = cpu_to_le16(dsc->idx);
-			put_unaligned_le32(dsc->address, &cmv->dwSymbolicAddress);
+			put_unaligned_le32(dsc->address,
+						&cmv->dwSymbolicAddress);
 			cmv->wOffsetAddress = cpu_to_le16(dsc->offset);
 		} else
 			goto bad2;
 	}
 
-	if (cmv->bFunction == E1_MAKEFUNCTION(E1_ADSLDIRECTIVE, E1_MODEMREADY)) {
+	if (cmv->bFunction == E1_MAKEFUNCTION(E1_ADSLDIRECTIVE,
+							E1_MODEMREADY)) {
 		wake_up_cmv_ack(sc);
 		uea_leaves(INS_TO_USBDEV(sc));
 		return;
@@ -2019,7 +2058,8 @@ static void uea_dispatch_cmv_e4(struct uea_softc *sc, struct intr_pkt *intr)
 	if (be16_to_cpu(cmv->wFunction) != dsc->function)
 		goto bad2;
 
-	if (be16_to_cpu(cmv->wFunction) == E4_MAKEFUNCTION(E4_ADSLDIRECTIVE, E4_MODEMREADY, 1)) {
+	if (be16_to_cpu(cmv->wFunction) == E4_MAKEFUNCTION(E4_ADSLDIRECTIVE,
+						E4_MODEMREADY, 1)) {
 		wake_up_cmv_ack(sc);
 		uea_leaves(INS_TO_USBDEV(sc));
 		return;
@@ -2046,14 +2086,16 @@ bad2:
 	return;
 }
 
-static void uea_schedule_load_page_e1(struct uea_softc *sc, struct intr_pkt *intr)
+static void uea_schedule_load_page_e1(struct uea_softc *sc,
+						struct intr_pkt *intr)
 {
 	sc->pageno = intr->e1_bSwapPageNo;
 	sc->ovl = intr->e1_bOvl >> 4 | intr->e1_bOvl << 4;
 	queue_work(sc->work_q, &sc->task);
 }
 
-static void uea_schedule_load_page_e4(struct uea_softc *sc, struct intr_pkt *intr)
+static void uea_schedule_load_page_e4(struct uea_softc *sc,
+						struct intr_pkt *intr)
 {
 	sc->pageno = intr->e4_bSwapPageNo;
 	queue_work(sc->work_q, &sc->task);
@@ -2164,8 +2206,11 @@ static int uea_boot(struct uea_softc *sc)
 		goto err1;
 	}
 
-	sc->kthread = kthread_run(uea_kthread, sc, "ueagle-atm");
-	if (sc->kthread == ERR_PTR(-ENOMEM)) {
+	/* Create worker thread, but don't start it here.  Start it after
+	 * all usbatm generic initialization is done.
+	 */
+	sc->kthread = kthread_create(uea_kthread, sc, "ueagle-atm");
+	if (IS_ERR(sc->kthread)) {
 		uea_err(INS_TO_USBDEV(sc), "failed to create thread\n");
 		goto err2;
 	}
@@ -2259,10 +2304,10 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_status, S_IWUGO | S_IRUGO, read_status, reboot);
+static DEVICE_ATTR(stat_status, S_IWUSR | S_IRUGO, read_status, reboot);
 
-static ssize_t read_human_status(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t read_human_status(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	int ret = -ENODEV;
 	int modem_state;
@@ -2287,7 +2332,7 @@ static ssize_t read_human_status(struct device *dev, struct device_attribute *at
 		case 0xa:
 			modem_state = 1;
 			break;
-		case 0x7: 	/* operational */
+		case 0x7:	/* operational */
 			modem_state = 2;
 			break;
 		case 0x2:	/* fail ... */
@@ -2322,7 +2367,7 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_human_status, S_IWUGO | S_IRUGO, read_human_status, NULL);
+static DEVICE_ATTR(stat_human_status, S_IRUGO, read_human_status, NULL);
 
 static ssize_t read_delin(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -2354,27 +2399,27 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_delin, S_IWUGO | S_IRUGO, read_delin, NULL);
+static DEVICE_ATTR(stat_delin, S_IRUGO, read_delin, NULL);
 
-#define UEA_ATTR(name, reset) 					\
+#define UEA_ATTR(name, reset)					\
 								\
-static ssize_t read_##name(struct device *dev, 			\
+static ssize_t read_##name(struct device *dev,			\
 		struct device_attribute *attr, char *buf)	\
-{ 								\
-	int ret = -ENODEV; 					\
-	struct uea_softc *sc; 					\
- 								\
-	mutex_lock(&uea_mutex); 				\
+{								\
+	int ret = -ENODEV;					\
+	struct uea_softc *sc;					\
+								\
+	mutex_lock(&uea_mutex);					\
 	sc = dev_to_uea(dev);					\
-	if (!sc) 						\
-		goto out; 					\
+	if (!sc)						\
+		goto out;					\
 	ret = snprintf(buf, 10, "%08x\n", sc->stats.phy.name);	\
 	if (reset)						\
 		sc->stats.phy.name = 0;				\
-out: 								\
-	mutex_unlock(&uea_mutex); 				\
-	return ret; 						\
-} 								\
+out:								\
+	mutex_unlock(&uea_mutex);				\
+	return ret;						\
+}								\
 								\
 static DEVICE_ATTR(stat_##name, S_IRUGO, read_##name, NULL)
 
@@ -2396,7 +2441,6 @@ UEA_ATTR(firmid, 0);
 
 /* Retrieve the device End System Identifier (MAC) */
 
-#define htoi(x) (isdigit(x) ? x-'0' : toupper(x)-'A'+10)
 static int uea_getesi(struct uea_softc *sc, u_char * esi)
 {
 	unsigned char mac_str[2 * ETH_ALEN + 1];
@@ -2407,7 +2451,8 @@ static int uea_getesi(struct uea_softc *sc, u_char * esi)
 		return 1;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		esi[i] = htoi(mac_str[2 * i]) * 16 + htoi(mac_str[2 * i + 1]);
+		esi[i] = hex_to_bin(mac_str[2 * i]) * 16 +
+			 hex_to_bin(mac_str[2 * i + 1]);
 
 	return 0;
 }
@@ -2525,12 +2570,14 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	else if (sc->driver_info & AUTO_ANNEX_B)
 		sc->annex = ANNEXB;
 	else
-		sc->annex = (le16_to_cpu(sc->usb_dev->descriptor.bcdDevice) & 0x80)?ANNEXB:ANNEXA;
+		sc->annex = (le16_to_cpu
+		(sc->usb_dev->descriptor.bcdDevice) & 0x80) ? ANNEXB : ANNEXA;
 
 	alt = altsetting[sc->modem_index];
 	/* ADI930 don't support iso */
 	if (UEA_CHIP_VERSION(id) != ADI930 && alt > 0) {
-		if (alt <= 8 && usb_set_interface(usb, UEA_DS_IFACE_NO, alt) == 0) {
+		if (alt <= 8 &&
+			usb_set_interface(usb, UEA_DS_IFACE_NO, alt) == 0) {
 			uea_dbg(usb, "set alternate %u for 2 interface\n", alt);
 			uea_info(usb, "using iso mode\n");
 			usbatm->flags |= UDSL_USE_ISOC | UDSL_IGNORE_EILSEQ;
@@ -2580,6 +2627,7 @@ static struct usbatm_driver uea_usbatm_driver = {
 static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
+	int ret;
 
 	uea_enters(usb);
 	uea_info(usb, "ADSL device founded vid (%#X) pid (%#X) Rev (%#X): %s\n",
@@ -2593,7 +2641,19 @@ static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (UEA_IS_PREFIRM(id))
 		return uea_load_firmware(usb, UEA_CHIP_VERSION(id));
 
-	return usbatm_usb_probe(intf, id, &uea_usbatm_driver);
+	ret = usbatm_usb_probe(intf, id, &uea_usbatm_driver);
+	if (ret == 0) {
+		struct usbatm_data *usbatm = usb_get_intfdata(intf);
+		struct uea_softc *sc = usbatm->driver_data;
+
+		/* Ensure carrier is initialized to off as early as possible */
+		UPDATE_ATM_SIGNAL(ATM_PHY_SIG_LOST);
+
+		/* Only start the worker thread when all init is done */
+		wake_up_process(sc->kthread);
+	}
+
+	return ret;
 }
 
 static void uea_disconnect(struct usb_interface *intf)
@@ -2619,40 +2679,74 @@ static void uea_disconnect(struct usb_interface *intf)
  * List of supported VID/PID
  */
 static const struct usb_device_id uea_ids[] = {
-	{USB_DEVICE(ANALOG_VID,	ADI930_PID_PREFIRM),	.driver_info = ADI930 | PREFIRM},
-	{USB_DEVICE(ANALOG_VID,	ADI930_PID_PSTFIRM),	.driver_info = ADI930 | PSTFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_I_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_I_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_II_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_II_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_IIC_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_IIC_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_III_PID_PREFIRM),	.driver_info = EAGLE_III | PREFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_III_PID_PSTFIRM),	.driver_info = EAGLE_III | PSTFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_IV_PID_PREFIRM),	.driver_info = EAGLE_IV | PREFIRM},
-	{USB_DEVICE(ANALOG_VID,	EAGLE_IV_PID_PSTFIRM),	.driver_info = EAGLE_IV | PSTFIRM},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_A_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_A_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_A},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_B_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_B_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_B},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_A_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_A_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM | AUTO_ANNEX_A},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_B_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
-	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_B_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM | AUTO_ANNEX_B},
-	{USB_DEVICE(ELSA_VID,	ELSA_PID_PREFIRM),	.driver_info = ADI930 | PREFIRM},
-	{USB_DEVICE(ELSA_VID,	ELSA_PID_PSTFIRM),	.driver_info = ADI930 | PSTFIRM},
-	{USB_DEVICE(ELSA_VID,	ELSA_PID_A_PREFIRM),	.driver_info = ADI930 | PREFIRM},
-	{USB_DEVICE(ELSA_VID,	ELSA_PID_A_PSTFIRM),	.driver_info = ADI930 | PSTFIRM | AUTO_ANNEX_A},
-	{USB_DEVICE(ELSA_VID,	ELSA_PID_B_PREFIRM),	.driver_info = ADI930 | PREFIRM},
-	{USB_DEVICE(ELSA_VID,	ELSA_PID_B_PSTFIRM),	.driver_info = ADI930 | PSTFIRM | AUTO_ANNEX_B},
-	{USB_DEVICE(USR_VID,	MILLER_A_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	MILLER_A_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM  | AUTO_ANNEX_A},
-	{USB_DEVICE(USR_VID,	MILLER_B_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	MILLER_B_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM  | AUTO_ANNEX_B},
-	{USB_DEVICE(USR_VID,	HEINEKEN_A_PID_PREFIRM),.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	HEINEKEN_A_PID_PSTFIRM),.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_A},
-	{USB_DEVICE(USR_VID,	HEINEKEN_B_PID_PREFIRM),.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	HEINEKEN_B_PID_PSTFIRM),.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_B},
+	{USB_DEVICE(ANALOG_VID,	ADI930_PID_PREFIRM),
+		.driver_info = ADI930 | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	ADI930_PID_PSTFIRM),
+		.driver_info = ADI930 | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_I_PID_PREFIRM),
+		.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_I_PID_PSTFIRM),
+		.driver_info = EAGLE_I | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_II_PID_PREFIRM),
+		.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_II_PID_PSTFIRM),
+		.driver_info = EAGLE_II | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IIC_PID_PREFIRM),
+		.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IIC_PID_PSTFIRM),
+		.driver_info = EAGLE_II | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_III_PID_PREFIRM),
+		.driver_info = EAGLE_III | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_III_PID_PSTFIRM),
+		.driver_info = EAGLE_III | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IV_PID_PREFIRM),
+		.driver_info = EAGLE_IV | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IV_PID_PSTFIRM),
+		.driver_info = EAGLE_IV | PSTFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_A_PID_PREFIRM),
+		.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_A_PID_PSTFIRM),
+		.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_A},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_B_PID_PREFIRM),
+		.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_B_PID_PSTFIRM),
+		.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_B},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_A_PID_PREFIRM),
+		.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_A_PID_PSTFIRM),
+		.driver_info = EAGLE_II | PSTFIRM | AUTO_ANNEX_A},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_B_PID_PREFIRM),
+		.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_B_PID_PSTFIRM),
+		.driver_info = EAGLE_II | PSTFIRM | AUTO_ANNEX_B},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_PREFIRM),
+		.driver_info = ADI930 | PREFIRM},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_PSTFIRM),
+		.driver_info = ADI930 | PSTFIRM},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_A_PREFIRM),
+		.driver_info = ADI930 | PREFIRM},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_A_PSTFIRM),
+		.driver_info = ADI930 | PSTFIRM | AUTO_ANNEX_A},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_B_PREFIRM),
+		.driver_info = ADI930 | PREFIRM},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_B_PSTFIRM),
+		.driver_info = ADI930 | PSTFIRM | AUTO_ANNEX_B},
+	{USB_DEVICE(USR_VID,	MILLER_A_PID_PREFIRM),
+		.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(USR_VID,	MILLER_A_PID_PSTFIRM),
+		.driver_info = EAGLE_I | PSTFIRM  | AUTO_ANNEX_A},
+	{USB_DEVICE(USR_VID,	MILLER_B_PID_PREFIRM),
+		.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(USR_VID,	MILLER_B_PID_PSTFIRM),
+		.driver_info = EAGLE_I | PSTFIRM  | AUTO_ANNEX_B},
+	{USB_DEVICE(USR_VID,	HEINEKEN_A_PID_PREFIRM),
+		.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(USR_VID,	HEINEKEN_A_PID_PSTFIRM),
+		.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_A},
+	{USB_DEVICE(USR_VID,	HEINEKEN_B_PID_PREFIRM),
+		.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(USR_VID,	HEINEKEN_B_PID_PSTFIRM),
+		.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_B},
 	{}
 };
 

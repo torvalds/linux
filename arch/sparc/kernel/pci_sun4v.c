@@ -232,7 +232,8 @@ static void dma_4v_free_coherent(struct device *dev, size_t size, void *cpu,
 
 static dma_addr_t dma_4v_map_page(struct device *dev, struct page *page,
 				  unsigned long offset, size_t sz,
-				  enum dma_data_direction direction)
+				  enum dma_data_direction direction,
+				  struct dma_attrs *attrs)
 {
 	struct iommu *iommu;
 	unsigned long flags, npages, oaddr;
@@ -296,7 +297,8 @@ iommu_map_fail:
 }
 
 static void dma_4v_unmap_page(struct device *dev, dma_addr_t bus_addr,
-			      size_t sz, enum dma_data_direction direction)
+			      size_t sz, enum dma_data_direction direction,
+			      struct dma_attrs *attrs)
 {
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
@@ -336,7 +338,8 @@ static void dma_4v_unmap_page(struct device *dev, dma_addr_t bus_addr,
 }
 
 static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
-			 int nelems, enum dma_data_direction direction)
+			 int nelems, enum dma_data_direction direction,
+			 struct dma_attrs *attrs)
 {
 	struct scatterlist *s, *outs, *segstart;
 	unsigned long flags, handle, prot;
@@ -478,7 +481,8 @@ iommu_map_failed:
 }
 
 static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
-			    int nelems, enum dma_data_direction direction)
+			    int nelems, enum dma_data_direction direction,
+			    struct dma_attrs *attrs)
 {
 	struct pci_pbm_info *pbm;
 	struct scatterlist *sg;
@@ -521,29 +525,13 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-static void dma_4v_sync_single_for_cpu(struct device *dev,
-				       dma_addr_t bus_addr, size_t sz,
-				       enum dma_data_direction direction)
-{
-	/* Nothing to do... */
-}
-
-static void dma_4v_sync_sg_for_cpu(struct device *dev,
-				   struct scatterlist *sglist, int nelems,
-				   enum dma_data_direction direction)
-{
-	/* Nothing to do... */
-}
-
-static const struct dma_ops sun4v_dma_ops = {
+static struct dma_map_ops sun4v_dma_ops = {
 	.alloc_coherent			= dma_4v_alloc_coherent,
 	.free_coherent			= dma_4v_free_coherent,
 	.map_page			= dma_4v_map_page,
 	.unmap_page			= dma_4v_unmap_page,
 	.map_sg				= dma_4v_map_sg,
 	.unmap_sg			= dma_4v_unmap_sg,
-	.sync_single_for_cpu		= dma_4v_sync_single_for_cpu,
-	.sync_sg_for_cpu		= dma_4v_sync_sg_for_cpu,
 };
 
 static void __devinit pci_sun4v_scan_bus(struct pci_pbm_info *pbm,
@@ -552,7 +540,7 @@ static void __devinit pci_sun4v_scan_bus(struct pci_pbm_info *pbm,
 	struct property *prop;
 	struct device_node *dp;
 
-	dp = pbm->op->node;
+	dp = pbm->op->dev.of_node;
 	prop = of_find_property(dp, "66mhz-capable", NULL);
 	pbm->is_66mhz_capable = (prop != NULL);
 	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
@@ -596,7 +584,7 @@ static int __devinit pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	u32 dma_mask, dma_offset;
 	const u32 *vdma;
 
-	vdma = of_get_property(pbm->op->node, "virtual-dma", NULL);
+	vdma = of_get_property(pbm->op->dev.of_node, "virtual-dma", NULL);
 	if (!vdma)
 		vdma = vdma_default;
 
@@ -891,9 +879,9 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 #endif /* !(CONFIG_PCI_MSI) */
 
 static int __devinit pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
-					struct of_device *op, u32 devhandle)
+					struct platform_device *op, u32 devhandle)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	int err;
 
 	pbm->numa_node = of_node_to_nid(dp);
@@ -930,7 +918,7 @@ static int __devinit pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static int __devinit pci_sun4v_probe(struct of_device *op,
+static int __devinit pci_sun4v_probe(struct platform_device *op,
 				     const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *regs;
@@ -941,7 +929,7 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 	u32 devhandle;
 	int i, err;
 
-	dp = op->node;
+	dp = op->dev.of_node;
 
 	if (!hvapi_negotiated++) {
 		err = sun4v_hvapi_register(HV_GRP_PCI,
@@ -1021,14 +1009,17 @@ static struct of_device_id __initdata pci_sun4v_match[] = {
 };
 
 static struct of_platform_driver pci_sun4v_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= pci_sun4v_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = pci_sun4v_match,
+	},
 	.probe		= pci_sun4v_probe,
 };
 
 static int __init pci_sun4v_init(void)
 {
-	return of_register_driver(&pci_sun4v_driver, &of_bus_type);
+	return of_register_platform_driver(&pci_sun4v_driver);
 }
 
 subsys_initcall(pci_sun4v_init);

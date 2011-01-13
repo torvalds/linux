@@ -28,6 +28,7 @@
 #include <linux/page-flags.h>
 #include <linux/mm.h>
 #include "agp.h"
+#include "intel-agp.h"
 
 /*
  * The real differences to the generic AGP code is
@@ -67,7 +68,7 @@ static const struct gatt_mask efficeon_generic_masks[] =
 /* This function does the same thing as mask_memory() for this chipset... */
 static inline unsigned long efficeon_mask_memory(struct page *page)
 {
-	unsigned long addr = phys_to_gart(page_to_phys(page));
+	unsigned long addr = page_to_phys(page);
 	return addr | 0x00000001;
 }
 
@@ -226,7 +227,7 @@ static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
 
 		efficeon_private.l1_table[index] = page;
 
-		value = virt_to_gart((unsigned long *)page) | pati | present | index;
+		value = virt_to_phys((unsigned long *)page) | pati | present | index;
 
 		pci_write_config_dword(agp_bridge->dev,
 			EFFICEON_ATTPAGE, value);
@@ -371,6 +372,17 @@ static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
 	bridge->capndx = cap_ptr;
 
 	/*
+	* If the device has not been properly setup, the following will catch
+	* the problem and should stop the system from crashing.
+	* 20030610 - hamish@zot.org
+	*/
+	if (pci_enable_device(pdev)) {
+		printk(KERN_ERR PFX "Unable to Enable PCI device\n");
+		agp_put_bridge(bridge);
+		return -ENODEV;
+	}
+
+	/*
 	* The following fixes the case where the BIOS has "forgotten" to
 	* provide an address range for the GART.
 	* 20030610 - hamish@zot.org
@@ -382,17 +394,6 @@ static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
 			agp_put_bridge(bridge);
 			return -ENODEV;
 		}
-	}
-
-	/*
-	* If the device has not been properly setup, the following will catch
-	* the problem and should stop the system from crashing.
-	* 20030610 - hamish@zot.org
-	*/
-	if (pci_enable_device(pdev)) {
-		printk(KERN_ERR PFX "Unable to Enable PCI device\n");
-		agp_put_bridge(bridge);
-		return -ENODEV;
 	}
 
 	/* Fill in the mode register */

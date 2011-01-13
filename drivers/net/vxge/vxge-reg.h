@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-reg.h: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O Virtualized
+ * vxge-reg.h: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O Virtualized
  *             Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #ifndef VXGE_REG_H
 #define VXGE_REG_H
@@ -48,6 +48,33 @@
 #define VXGE_HW_TITAN_SRPCIM_REG_SPACES			17
 #define VXGE_HW_TITAN_VPMGMT_REG_SPACES			17
 #define VXGE_HW_TITAN_VPATH_REG_SPACES			17
+
+#define VXGE_HW_FW_API_GET_EPROM_REV			31
+
+#define VXGE_EPROM_IMG_MAJOR(val)		(u32) vxge_bVALn(val, 48, 4)
+#define VXGE_EPROM_IMG_MINOR(val)		(u32) vxge_bVALn(val, 52, 4)
+#define VXGE_EPROM_IMG_FIX(val)			(u32) vxge_bVALn(val, 56, 4)
+#define VXGE_EPROM_IMG_BUILD(val)		(u32) vxge_bVALn(val, 60, 4)
+
+#define VXGE_HW_GET_EPROM_IMAGE_INDEX(val)		vxge_bVALn(val, 16, 8)
+#define VXGE_HW_GET_EPROM_IMAGE_VALID(val)		vxge_bVALn(val, 31, 1)
+#define VXGE_HW_GET_EPROM_IMAGE_TYPE(val)		vxge_bVALn(val, 40, 8)
+#define VXGE_HW_GET_EPROM_IMAGE_REV(val)		vxge_bVALn(val, 48, 16)
+#define VXGE_HW_RTS_ACCESS_STEER_ROM_IMAGE_INDEX(val)	vxge_vBIT(val, 16, 8)
+
+#define VXGE_HW_FW_API_GET_FUNC_MODE			29
+#define VXGE_HW_GET_FUNC_MODE_VAL(val)			(val & 0xFF)
+
+#define VXGE_HW_FW_UPGRADE_MEMO				13
+#define VXGE_HW_FW_UPGRADE_ACTION			16
+#define VXGE_HW_FW_UPGRADE_OFFSET_START			2
+#define VXGE_HW_FW_UPGRADE_OFFSET_SEND			3
+#define VXGE_HW_FW_UPGRADE_OFFSET_COMMIT		4
+#define VXGE_HW_FW_UPGRADE_OFFSET_READ			5
+
+#define VXGE_HW_FW_UPGRADE_BLK_SIZE			16
+#define VXGE_HW_UPGRADE_GET_RET_ERR_CODE(val)		(val & 0xff)
+#define VXGE_HW_UPGRADE_GET_SEC_ERR_CODE(val)		((val >> 8) & 0xff)
 
 #define VXGE_HW_ASIC_MODE_RESERVED				0
 #define VXGE_HW_ASIC_MODE_NO_IOV				1
@@ -165,13 +192,13 @@
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_ETYPE		2
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_PN		3
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_GEN_CFG	5
-#define	VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_SOLO_IT	6
+#define	VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_SOLO_IT		6
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_JHASH_CFG	7
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MASK		8
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_KEY		9
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_QOS		10
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DS		11
-#define	VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT	12
+#define	VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT		12
 #define	VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO		13
 
 #define	VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_DA_MAC_ADDR(bits) \
@@ -437,6 +464,7 @@
 #define VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_BUILD(bits) \
 							vxge_bVALn(bits, 48, 16)
 #define VXGE_HW_RTS_ACCESS_STEER_DATA1_FLASH_VER_BUILD vxge_vBIT(val, 48, 16)
+#define VXGE_HW_RTS_ACCESS_STEER_CTRL_GET_ACTION(bits) vxge_bVALn(bits, 0, 8)
 
 #define	VXGE_HW_SRPCIM_TO_VPATH_ALARM_REG_GET_PPIF_SRPCIM_TO_VPATH_ALARM(bits)\
 							vxge_bVALn(bits, 0, 18)
@@ -1784,7 +1812,7 @@ struct vxge_hw_mrpcim_reg {
 #define	VXGE_HW_XMAC_GEN_ERR_REG_XMACJ_XMAC_FSM_ERR	vxge_mBIT(63)
 /*0x01e18*/	u64	xmac_gen_err_mask;
 /*0x01e20*/	u64	xmac_gen_err_alarm;
-/*0x01e28*/	u64	xmac_link_err_port_reg[2];
+/*0x01e28*/	u64	xmac_link_err_port0_reg;
 #define	VXGE_HW_XMAC_LINK_ERR_PORT_REG_XMACJ_PORT_DOWN	vxge_mBIT(3)
 #define	VXGE_HW_XMAC_LINK_ERR_PORT_REG_XMACJ_PORT_UP	vxge_mBIT(7)
 #define	VXGE_HW_XMAC_LINK_ERR_PORT_REG_XMACJ_PORT_WENT_DOWN	vxge_mBIT(11)
@@ -1798,8 +1826,11 @@ struct vxge_hw_mrpcim_reg {
 #define	VXGE_HW_XMAC_LINK_ERR_PORT_REG_RATEMGMT_LASI_INV	vxge_mBIT(39)
 #define	VXGE_HW_XMAC_LINK_ERR_PORT_REG_XMDIO_MDIO_MGR_ACCESS_COMPLETE \
 								vxge_mBIT(47)
-/*0x01e30*/	u64	xmac_link_err_port_mask[2];
-/*0x01e38*/	u64	xmac_link_err_port_alarm[2];
+/*0x01e30*/	u64	xmac_link_err_port0_mask;
+/*0x01e38*/	u64	xmac_link_err_port0_alarm;
+/*0x01e40*/	u64	xmac_link_err_port1_reg;
+/*0x01e48*/	u64	xmac_link_err_port1_mask;
+/*0x01e50*/	u64	xmac_link_err_port1_alarm;
 /*0x01e58*/	u64	xgxs_gen_err_reg;
 #define	VXGE_HW_XGXS_GEN_ERR_REG_XGXS_XGXS_FSM_ERR	vxge_mBIT(63)
 /*0x01e60*/	u64	xgxs_gen_err_mask;
@@ -3995,6 +4026,7 @@ struct vxge_hw_vpath_reg {
 #define	VXGE_HW_PRC_CFG6_L4_CPC_TRSFR_CODE_EN	vxge_mBIT(9)
 #define VXGE_HW_PRC_CFG6_RXD_CRXDT(val) vxge_vBIT(val, 23, 9)
 #define VXGE_HW_PRC_CFG6_RXD_SPAT(val) vxge_vBIT(val, 36, 9)
+#define VXGE_HW_PRC_CFG6_GET_RXD_SPAT(val)	vxge_bVALn(val, 36, 9)
 /*0x00a78*/	u64	prc_cfg7;
 #define VXGE_HW_PRC_CFG7_SCATTER_MODE(val) vxge_vBIT(val, 6, 2)
 #define	VXGE_HW_PRC_CFG7_SMART_SCAT_EN	vxge_mBIT(11)
@@ -4323,10 +4355,6 @@ struct vxge_hw_vpath_reg {
 /*0x011e0*/	u64	umq_bwr_init_byte;
 #define VXGE_HW_UMQ_BWR_INIT_BYTE_COUNT(val) vxge_vBIT(val, 0, 32)
 /*0x011e8*/	u64	gendma_int;
-#define	VXGE_HW_GENDMA_INT_IMMED_ENABLE	vxge_mBIT(6)
-#define	VXGE_HW_GENDMA_INT_EVENT_ENABLE	vxge_mBIT(7)
-#define VXGE_HW_GENDMA_INT_NUMBER(val) vxge_vBIT(val, 9, 7)
-#define VXGE_HW_GENDMA_INT_BITMAP(val) vxge_vBIT(val, 16, 16)
 /*0x011f0*/	u64	umqdmq_ir_init_notify;
 #define	VXGE_HW_UMQDMQ_IR_INIT_NOTIFY_PULSE	vxge_mBIT(3)
 /*0x011f8*/	u64	dmq_init_notify;

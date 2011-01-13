@@ -45,8 +45,12 @@
 #define DM9000_CHIPR           0x2C
 #define DM9000_SMCR            0x2F
 
+#define DM9000_ETXCSR          0x30
+#define DM9000_TCCR	       0x31
+#define DM9000_RCSR	       0x32
+
 #define CHIPR_DM9000A	       0x19
-#define CHIPR_DM9000B	       0x1B
+#define CHIPR_DM9000B	       0x1A
 
 #define DM9000_MRCMDX          0xF0
 #define DM9000_MRCMD           0xF2
@@ -107,6 +111,13 @@
 #define RSR_CE              (1<<1)
 #define RSR_FOE             (1<<0)
 
+#define WCR_LINKEN		(1 << 5)
+#define WCR_SAMPLEEN		(1 << 4)
+#define WCR_MAGICEN		(1 << 3)
+#define WCR_LINKST		(1 << 2)
+#define WCR_SAMPLEST		(1 << 1)
+#define WCR_MAGICST		(1 << 0)
+
 #define FCTR_HWOT(ot)	(( ot & 0xf ) << 4 )
 #define FCTR_LWOT(ot)	( ot & 0xf )
 
@@ -131,7 +142,21 @@
 
 #define GPCR_GEP_CNTL       (1<<0)
 
+#define TCCR_IP		    (1<<0)
+#define TCCR_TCP	    (1<<1)
+#define TCCR_UDP	    (1<<2)
+
+#define RCSR_UDP_BAD	    (1<<7)
+#define RCSR_TCP_BAD	    (1<<6)
+#define RCSR_IP_BAD	    (1<<5)
+#define RCSR_UDP	    (1<<4)
+#define RCSR_TCP	    (1<<3)
+#define RCSR_IP		    (1<<2)
+#define RCSR_CSUM	    (1<<1)
+#define RCSR_DISCARD	    (1<<0)
+
 #define DM9000_PKT_RDY		0x01	/* Packet ready to receive */
+#define DM9000_PKT_ERR		0x02
 #define DM9000_PKT_MAX		1536	/* Received packet max size */
 
 /* DM9000A / DM9000B definitions */

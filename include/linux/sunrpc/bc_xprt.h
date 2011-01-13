@@ -36,13 +36,44 @@ struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt);
 void xprt_free_bc_request(struct rpc_rqst *req);
 int xprt_setup_backchannel(struct rpc_xprt *, unsigned int min_reqs);
 void xprt_destroy_backchannel(struct rpc_xprt *, int max_reqs);
-void bc_release_request(struct rpc_task *);
 int bc_send(struct rpc_rqst *req);
+
+/*
+ * Determine if a shared backchannel is in use
+ */
+static inline int svc_is_backchannel(const struct svc_rqst *rqstp)
+{
+	if (rqstp->rq_server->sv_bc_xprt)
+		return 1;
+	return 0;
+}
+static inline struct nfs4_sessionid *bc_xprt_sid(struct svc_rqst *rqstp)
+{
+	if (svc_is_backchannel(rqstp))
+		return (struct nfs4_sessionid *)
+			rqstp->rq_server->sv_bc_xprt->xpt_bc_sid;
+	return NULL;
+}
+
 #else /* CONFIG_NFS_V4_1 */
 static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
 					 unsigned int min_reqs)
 {
 	return 0;
+}
+
+static inline int svc_is_backchannel(const struct svc_rqst *rqstp)
+{
+	return 0;
+}
+
+static inline struct nfs4_sessionid *bc_xprt_sid(struct svc_rqst *rqstp)
+{
+	return NULL;
+}
+
+static inline void xprt_free_bc_request(struct rpc_rqst *req)
+{
 }
 #endif /* CONFIG_NFS_V4_1 */
 #endif /* _LINUX_SUNRPC_BC_XPRT_H */

@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
@@ -47,7 +48,6 @@
 #include <net/dn_neigh.h>
 #include <net/dn_route.h>
 
-static u32 dn_neigh_hash(const void *pkey, const struct net_device *dev);
 static int dn_neigh_construct(struct neighbour *);
 static void dn_long_error_report(struct neighbour *, struct sk_buff *);
 static void dn_short_error_report(struct neighbour *, struct sk_buff *);
@@ -59,7 +59,7 @@ static int dn_phase3_output(struct sk_buff *);
 /*
  * For talking to broadcast devices: Ethernet & PPP
  */
-static struct neigh_ops dn_long_ops = {
+static const struct neigh_ops dn_long_ops = {
 	.family =		AF_DECnet,
 	.error_report =		dn_long_error_report,
 	.output =		dn_long_output,
@@ -71,7 +71,7 @@ static struct neigh_ops dn_long_ops = {
 /*
  * For talking to pointopoint and multidrop devices: DDCMP and X.25
  */
-static struct neigh_ops dn_short_ops = {
+static const struct neigh_ops dn_short_ops = {
 	.family =		AF_DECnet,
 	.error_report =		dn_short_error_report,
 	.output =		dn_short_output,
@@ -83,7 +83,7 @@ static struct neigh_ops dn_short_ops = {
 /*
  * For talking to DECnet phase III nodes
  */
-static struct neigh_ops dn_phase3_ops = {
+static const struct neigh_ops dn_phase3_ops = {
 	.family =		AF_DECnet,
 	.error_report =		dn_short_error_report, /* Can use short version here */
 	.output =		dn_phase3_output,
@@ -91,6 +91,13 @@ static struct neigh_ops dn_phase3_ops = {
 	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit
 };
+
+static u32 dn_neigh_hash(const void *pkey,
+			 const struct net_device *dev,
+			 __u32 hash_rnd)
+{
+	return jhash_2words(*(__u16 *)pkey, 0, hash_rnd);
+}
 
 struct neigh_table dn_neigh_table = {
 	.family =			PF_DECnet,
@@ -120,11 +127,6 @@ struct neigh_table dn_neigh_table = {
 	.gc_thresh2 =			512,
 	.gc_thresh3 =			1024,
 };
-
-static u32 dn_neigh_hash(const void *pkey, const struct net_device *dev)
-{
-	return jhash_2words(*(__u16 *)pkey, 0, dn_neigh_table.hash_rnd);
-}
 
 static int dn_neigh_construct(struct neighbour *neigh)
 {
@@ -265,7 +267,8 @@ static int dn_long_output(struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 
-	return NF_HOOK(PF_DECnet, NF_DN_POST_ROUTING, skb, NULL, neigh->dev, dn_neigh_output_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, skb, NULL,
+		       neigh->dev, dn_neigh_output_packet);
 }
 
 static int dn_short_output(struct sk_buff *skb)
@@ -304,7 +307,8 @@ static int dn_short_output(struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 
-	return NF_HOOK(PF_DECnet, NF_DN_POST_ROUTING, skb, NULL, neigh->dev, dn_neigh_output_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, skb, NULL,
+		       neigh->dev, dn_neigh_output_packet);
 }
 
 /*
@@ -346,7 +350,8 @@ static int dn_phase3_output(struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 
-	return NF_HOOK(PF_DECnet, NF_DN_POST_ROUTING, skb, NULL, neigh->dev, dn_neigh_output_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, skb, NULL,
+		       neigh->dev, dn_neigh_output_packet);
 }
 
 /*
@@ -386,7 +391,7 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 		write_lock(&neigh->lock);
 
 		neigh->used = jiffies;
-		dn_db = (struct dn_dev *)neigh->dev->dn_ptr;
+		dn_db = rcu_dereference(neigh->dev->dn_ptr);
 
 		if (!(neigh->nud_state & NUD_PERMANENT)) {
 			neigh->updated = jiffies;

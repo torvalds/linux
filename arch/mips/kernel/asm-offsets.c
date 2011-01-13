@@ -126,7 +126,6 @@ void output_thread_defines(void)
 	       thread.cp0_baduaddr);
 	OFFSET(THREAD_ECODE, task_struct, \
 	       thread.error_code);
-	OFFSET(THREAD_TRAPNO, task_struct, thread.trap_no);
 	OFFSET(THREAD_TRAMP, task_struct, \
 	       thread.irix_trampoline);
 	OFFSET(THREAD_OLDCTX, task_struct, \
@@ -183,19 +182,20 @@ void output_mm_defines(void)
 	OFFSET(MM_PGD, mm_struct, pgd);
 	OFFSET(MM_CONTEXT, mm_struct, context);
 	BLANK();
-	DEFINE(_PAGE_SIZE, PAGE_SIZE);
-	DEFINE(_PAGE_SHIFT, PAGE_SHIFT);
-	BLANK();
 	DEFINE(_PGD_T_SIZE, sizeof(pgd_t));
 	DEFINE(_PMD_T_SIZE, sizeof(pmd_t));
 	DEFINE(_PTE_T_SIZE, sizeof(pte_t));
 	BLANK();
 	DEFINE(_PGD_T_LOG2, PGD_T_LOG2);
+#ifndef __PAGETABLE_PMD_FOLDED
 	DEFINE(_PMD_T_LOG2, PMD_T_LOG2);
+#endif
 	DEFINE(_PTE_T_LOG2, PTE_T_LOG2);
 	BLANK();
 	DEFINE(_PGD_ORDER, PGD_ORDER);
+#ifndef __PAGETABLE_PMD_FOLDED
 	DEFINE(_PMD_ORDER, PMD_ORDER);
+#endif
 	DEFINE(_PTE_ORDER, PTE_ORDER);
 	BLANK();
 	DEFINE(_PMD_SHIFT, PMD_SHIFT);

@@ -28,6 +28,8 @@
 #include <linux/mmc/host.h>
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio.h>
+#include <linux/gfp.h>
 
 #include <asm/sizes.h>
 
@@ -41,6 +43,9 @@
 
 #define NR_SG	1
 #define CLKRT_OFF	(~0)
+
+#define mmc_has_26MHz()		(cpu_is_pxa300() || cpu_is_pxa310() \
+				|| cpu_is_pxa935())
 
 struct pxamci_host {
 	struct mmc_host		*mmc;
@@ -94,14 +99,35 @@ static inline void pxamci_init_ocr(struct pxamci_host *host)
 	}
 }
 
-static inline void pxamci_set_power(struct pxamci_host *host, unsigned int vdd)
+static inline int pxamci_set_power(struct pxamci_host *host,
+				    unsigned char power_mode,
+				    unsigned int vdd)
 {
-#ifdef CONFIG_REGULATOR
-	if (host->vcc)
-		mmc_regulator_set_ocr(host->vcc, vdd);
-#endif
+	int on;
+
+	if (host->vcc) {
+		int ret;
+
+		if (power_mode == MMC_POWER_UP) {
+			ret = mmc_regulator_set_ocr(host->mmc, host->vcc, vdd);
+			if (ret)
+				return ret;
+		} else if (power_mode == MMC_POWER_OFF) {
+			ret = mmc_regulator_set_ocr(host->mmc, host->vcc, 0);
+			if (ret)
+				return ret;
+		}
+	}
+	if (!host->vcc && host->pdata &&
+	    gpio_is_valid(host->pdata->gpio_power)) {
+		on = ((1 << vdd) & host->pdata->ocr_mask);
+		gpio_set_value(host->pdata->gpio_power,
+			       !!on ^ host->pdata->gpio_power_invert);
+	}
 	if (!host->vcc && host->pdata && host->pdata->setpower)
 		host->pdata->setpower(mmc_dev(host->mmc), vdd);
+
+	return 0;
 }
 
 static void pxamci_stop_clock(struct pxamci_host *host)
@@ -168,12 +194,12 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 
 	if (data->flags & MMC_DATA_READ) {
 		host->dma_dir = DMA_FROM_DEVICE;
-		dcmd = DCMD_INCTRGADDR | DCMD_FLOWTRG;
+		dcmd = DCMD_INCTRGADDR | DCMD_FLOWSRC;
 		DRCMR(host->dma_drcmrtx) = 0;
 		DRCMR(host->dma_drcmrrx) = host->dma | DRCMR_MAPVLD;
 	} else {
 		host->dma_dir = DMA_TO_DEVICE;
-		dcmd = DCMD_INCSRCADDR | DCMD_FLOWSRC;
+		dcmd = DCMD_INCSRCADDR | DCMD_FLOWTRG;
 		DRCMR(host->dma_drcmrrx) = 0;
 		DRCMR(host->dma_drcmrtx) = host->dma | DRCMR_MAPVLD;
 	}
@@ -421,6 +447,12 @@ static int pxamci_get_ro(struct mmc_host *mmc)
 {
 	struct pxamci_host *host = mmc_priv(mmc);
 
+	if (host->pdata && gpio_is_valid(host->pdata->gpio_card_ro)) {
+		if (host->pdata->gpio_card_ro_invert)
+			return !gpio_get_value(host->pdata->gpio_card_ro);
+		else
+			return gpio_get_value(host->pdata->gpio_card_ro);
+	}
 	if (host->pdata && host->pdata->get_ro)
 		return !!host->pdata->get_ro(mmc_dev(mmc));
 	/*
@@ -442,7 +474,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			clk_enable(host->clk);
 
 		if (ios->clock == 26000000) {
-			/* to support 26MHz on pxa300/pxa310 */
+			/* to support 26MHz */
 			host->clkrt = 7;
 		} else {
 			/* to handle (19.5MHz, 26MHz) */
@@ -471,9 +503,21 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	if (host->power_mode != ios->power_mode) {
+		int ret;
+
 		host->power_mode = ios->power_mode;
 
-		pxamci_set_power(host, ios->vdd);
+		ret = pxamci_set_power(host, ios->power_mode, ios->vdd);
+		if (ret) {
+			dev_err(mmc_dev(mmc), "unable to set power\n");
+			/*
+			 * The .set_ios() function in the mmc_host_ops
+			 * struct return void, and failing to set the
+			 * power should be rare so we print an error and
+			 * return here.
+			 */
+			return;
+		}
 
 		if (ios->power_mode == MMC_POWER_ON)
 			host->cmdat |= CMDAT_INIT;
@@ -484,8 +528,8 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	else
 		host->cmdat &= ~CMDAT_SD_4DAT;
 
-	pr_debug("PXAMCI: clkrt = %x cmdat = %x\n",
-		 host->clkrt, host->cmdat);
+	dev_dbg(mmc_dev(mmc), "PXAMCI: clkrt = %x cmdat = %x\n",
+		host->clkrt, host->cmdat);
 }
 
 static void pxamci_enable_sdio_irq(struct mmc_host *host, int enable)
@@ -525,7 +569,7 @@ static irqreturn_t pxamci_detect_irq(int irq, void *devid)
 {
 	struct pxamci_host *host = mmc_priv(devid);
 
-	mmc_detect_change(devid, host->pdata->detect_delay);
+	mmc_detect_change(devid, msecs_to_jiffies(host->pdata->detect_delay_ms));
 	return IRQ_HANDLED;
 }
 
@@ -534,7 +578,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct pxamci_host *host = NULL;
 	struct resource *r, *dmarx, *dmatx;
-	int ret, irq;
+	int ret, irq, gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -557,7 +601,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * We can do SG-DMA, but we don't because we never know how much
 	 * data we successfully wrote to the card.
 	 */
-	mmc->max_phys_segs = NR_SG;
+	mmc->max_segs = NR_SG;
 
 	/*
 	 * Our hardware DMA can handle a maximum of one page per SG entry.
@@ -593,8 +637,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * Calculate minimum clock rate, rounding up.
 	 */
 	mmc->f_min = (host->clkrate + 63) / 64;
-	mmc->f_max = (cpu_is_pxa300() || cpu_is_pxa310()) ? 26000000
-							  : host->clkrate;
+	mmc->f_max = (mmc_has_26MHz()) ? 26000000 : host->clkrate;
 
 	pxamci_init_ocr(host);
 
@@ -603,7 +646,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (!cpu_is_pxa25x()) {
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 		host->cmdat |= CMDAT_SDIO_INT_EN;
-		if (cpu_is_pxa300() || cpu_is_pxa310())
+		if (mmc_has_26MHz())
 			mmc->caps |= MMC_CAP_MMC_HIGHSPEED |
 				     MMC_CAP_SD_HIGHSPEED;
 	}
@@ -661,13 +704,63 @@ static int pxamci_probe(struct platform_device *pdev)
 	}
 	host->dma_drcmrtx = dmatx->start;
 
+	if (host->pdata) {
+		gpio_cd = host->pdata->gpio_card_detect;
+		gpio_ro = host->pdata->gpio_card_ro;
+		gpio_power = host->pdata->gpio_power;
+	}
+	if (gpio_is_valid(gpio_power)) {
+		ret = gpio_request(gpio_power, "mmc card power");
+		if (ret) {
+			dev_err(&pdev->dev, "Failed requesting gpio_power %d\n", gpio_power);
+			goto out;
+		}
+		gpio_direction_output(gpio_power,
+				      host->pdata->gpio_power_invert);
+	}
+	if (gpio_is_valid(gpio_ro)) {
+		ret = gpio_request(gpio_ro, "mmc card read only");
+		if (ret) {
+			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n", gpio_ro);
+			goto err_gpio_ro;
+		}
+		gpio_direction_input(gpio_ro);
+	}
+	if (gpio_is_valid(gpio_cd)) {
+		ret = gpio_request(gpio_cd, "mmc card detect");
+		if (ret) {
+			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_cd);
+			goto err_gpio_cd;
+		}
+		gpio_direction_input(gpio_cd);
+
+		ret = request_irq(gpio_to_irq(gpio_cd), pxamci_detect_irq,
+				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				  "mmc card detect", mmc);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request card detect IRQ\n");
+			goto err_request_irq;
+		}
+	}
+
 	if (host->pdata && host->pdata->init)
 		host->pdata->init(&pdev->dev, pxamci_detect_irq, mmc);
+
+	if (gpio_is_valid(gpio_power) && host->pdata->setpower)
+		dev_warn(&pdev->dev, "gpio_power and setpower() both defined\n");
+	if (gpio_is_valid(gpio_ro) && host->pdata->get_ro)
+		dev_warn(&pdev->dev, "gpio_ro and get_ro() both defined\n");
 
 	mmc_add_host(mmc);
 
 	return 0;
 
+err_request_irq:
+	gpio_free(gpio_cd);
+err_gpio_cd:
+	gpio_free(gpio_ro);
+err_gpio_ro:
+	gpio_free(gpio_power);
  out:
 	if (host) {
 		if (host->dma >= 0)
@@ -688,19 +781,33 @@ static int pxamci_probe(struct platform_device *pdev)
 static int pxamci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	int gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
 
 	platform_set_drvdata(pdev, NULL);
 
 	if (mmc) {
 		struct pxamci_host *host = mmc_priv(mmc);
 
+		mmc_remove_host(mmc);
+
+		if (host->pdata) {
+			gpio_cd = host->pdata->gpio_card_detect;
+			gpio_ro = host->pdata->gpio_card_ro;
+			gpio_power = host->pdata->gpio_power;
+		}
+		if (gpio_is_valid(gpio_cd)) {
+			free_irq(gpio_to_irq(gpio_cd), mmc);
+			gpio_free(gpio_cd);
+		}
+		if (gpio_is_valid(gpio_ro))
+			gpio_free(gpio_ro);
+		if (gpio_is_valid(gpio_power))
+			gpio_free(gpio_power);
 		if (host->vcc)
 			regulator_put(host->vcc);
 
 		if (host->pdata && host->pdata->exit)
 			host->pdata->exit(&pdev->dev, mmc);
-
-		mmc_remove_host(mmc);
 
 		pxamci_stop_clock(host);
 		writel(TXFIFO_WR_REQ|RXFIFO_RD_REQ|CLK_IS_OFF|STOP_CMD|
@@ -725,20 +832,20 @@ static int pxamci_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int pxamci_suspend(struct platform_device *dev, pm_message_t state)
+static int pxamci_suspend(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }
 
-static int pxamci_resume(struct platform_device *dev)
+static int pxamci_resume(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (mmc)
@@ -746,19 +853,22 @@ static int pxamci_resume(struct platform_device *dev)
 
 	return ret;
 }
-#else
-#define pxamci_suspend	NULL
-#define pxamci_resume	NULL
+
+static const struct dev_pm_ops pxamci_pm_ops = {
+	.suspend	= pxamci_suspend,
+	.resume		= pxamci_resume,
+};
 #endif
 
 static struct platform_driver pxamci_driver = {
 	.probe		= pxamci_probe,
 	.remove		= pxamci_remove,
-	.suspend	= pxamci_suspend,
-	.resume		= pxamci_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &pxamci_pm_ops,
+#endif
 	},
 };
 

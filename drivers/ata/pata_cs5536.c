@@ -37,10 +37,22 @@
 #include <linux/delay.h>
 #include <linux/libata.h>
 #include <scsi/scsi_host.h>
+
+#ifdef CONFIG_X86_32
 #include <asm/msr.h>
+static int use_msr;
+module_param_named(msr, use_msr, int, 0644);
+MODULE_PARM_DESC(msr, "Force using MSR to configure IDE function (Default: 0)");
+#else
+#undef rdmsr	/* avoid accidental MSR usage on, e.g. x86-64 */
+#undef wrmsr
+#define rdmsr(x, y, z) do { } while (0)
+#define wrmsr(x, y, z) do { } while (0)
+#define use_msr 0
+#endif
 
 #define DRV_NAME	"pata_cs5536"
-#define DRV_VERSION	"0.0.7"
+#define DRV_VERSION	"0.0.8"
 
 enum {
 	CFG			= 0,
@@ -75,8 +87,6 @@ enum {
 	IDE_ETC_NODMA		= 0x03,
 };
 
-static int use_msr;
-
 static const u32 msr_reg[4] = {
 	MSR_IDE_CFG, MSR_IDE_DTC, MSR_IDE_CAST, MSR_IDE_ETC,
 };
@@ -88,7 +98,7 @@ static const u8 pci_reg[4] = {
 static inline int cs5536_read(struct pci_dev *pdev, int reg, u32 *val)
 {
 	if (unlikely(use_msr)) {
-		u32 dummy;
+		u32 dummy __maybe_unused;
 
 		rdmsr(msr_reg[reg], *val, dummy);
 		return 0;
@@ -224,7 +234,7 @@ static struct scsi_host_template cs5536_sht = {
 };
 
 static struct ata_port_operations cs5536_port_ops = {
-	.inherits		= &ata_bmdma_port_ops,
+	.inherits		= &ata_bmdma32_port_ops,
 	.cable_detect		= cs5536_cable_detect,
 	.set_piomode		= cs5536_set_piomode,
 	.set_dmamode		= cs5536_set_dmamode,
@@ -260,7 +270,7 @@ static int cs5536_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	return ata_pci_sff_init_one(dev, ppi, &cs5536_sht, NULL);
+	return ata_pci_bmdma_init_one(dev, ppi, &cs5536_sht, NULL, 0);
 }
 
 static const struct pci_device_id cs5536[] = {
@@ -294,8 +304,6 @@ MODULE_DESCRIPTION("low-level driver for the CS5536 IDE controller");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, cs5536);
 MODULE_VERSION(DRV_VERSION);
-module_param_named(msr, use_msr, int, 0644);
-MODULE_PARM_DESC(msr, "Force using MSR to configure IDE function (Default: 0)");
 
 module_init(cs5536_init);
 module_exit(cs5536_exit);

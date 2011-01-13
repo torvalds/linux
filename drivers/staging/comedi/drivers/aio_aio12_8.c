@@ -2,7 +2,7 @@
 
     comedi/drivers/aio_aio12_8.c
 
-    Driver for Acces I/O Products PC-104 AIO12-8 Analog I/O Board
+    Driver for Access I/O Products PC-104 AIO12-8 Analog I/O Board
     Copyright (C) 2006 C&C Technologies, Inc.
 
     This program is free software; you can redistribute it and/or modify
@@ -23,10 +23,10 @@
 /*
 
 Driver: aio_aio12_8
-Description: Acces I/O Products PC-104 AIO12-8 Analog I/O Board
+Description: Access I/O Products PC-104 AIO12-8 Analog I/O Board
 Author: Pablo Mejia <pablo.mejia@cctechnol.com>
 Devices:
- [Acces I/O] PC-104 AIO12-8
+ [Access I/O] PC-104 AIO12-8
 Status: experimental
 
 Configuration Options:
@@ -77,7 +77,7 @@ struct aio12_8_boardtype {
 
 static const struct aio12_8_boardtype board_types[] = {
 	{
-	.name = "aio_aio12_8"},
+	 .name = "aio_aio12_8"},
 };
 
 #define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
@@ -88,13 +88,14 @@ struct aio12_8_private {
 
 #define devpriv	((struct aio12_8_private *) dev->private)
 
-static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int aio_aio12_8_ai_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	unsigned char control =
-		ADC_MODE_NORMAL |
-		(CR_RANGE(insn->chanspec) << 3) | CR_CHAN(insn->chanspec);
+	    ADC_MODE_NORMAL |
+	    (CR_RANGE(insn->chanspec) << 3) | CR_CHAN(insn->chanspec);
 
 	/* read status to clear EOC latch */
 	inb(dev->iobase + AIO12_8_STATUS);
@@ -107,9 +108,9 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevic
 
 		/*  Wait for conversion to complete */
 		while (timeout &&
-			!(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
+		       !(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
-			printk("timeout %d\n", timeout);
+			printk(KERN_ERR "timeout %d\n", timeout);
 			udelay(1);
 		}
 		if (timeout == 0) {
@@ -122,8 +123,9 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int aio_aio12_8_ao_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int aio_aio12_8_ao_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -133,8 +135,9 @@ static int aio_aio12_8_ao_read(struct comedi_device *dev, struct comedi_subdevic
 	return insn->n;
 }
 
-static int aio_aio12_8_ao_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int aio_aio12_8_ao_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -154,21 +157,22 @@ static int aio_aio12_8_ao_write(struct comedi_device *dev, struct comedi_subdevi
 static const struct comedi_lrange range_aio_aio12_8 = {
 	4,
 	{
-			UNI_RANGE(5),
-			BIP_RANGE(5),
-			UNI_RANGE(10),
-			BIP_RANGE(10),
-		}
+	 UNI_RANGE(5),
+	 BIP_RANGE(5),
+	 UNI_RANGE(10),
+	 BIP_RANGE(10),
+	 }
 };
 
-static int aio_aio12_8_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int aio_aio12_8_attach(struct comedi_device *dev,
+			      struct comedi_devconfig *it)
 {
 	int iobase;
 	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
 	if (!request_region(iobase, 24, "aio_aio12_8")) {
-		printk("I/O port conflict");
+		printk(KERN_ERR "I/O port conflict");
 		return -EIO;
 	}
 
@@ -223,4 +227,19 @@ static struct comedi_driver driver_aio_aio12_8 = {
 	.offset = sizeof(struct aio12_8_boardtype),
 };
 
-COMEDI_INITCLEANUP(driver_aio_aio12_8);
+static int __init driver_aio_aio12_8_init_module(void)
+{
+	return comedi_driver_register(&driver_aio_aio12_8);
+}
+
+static void __exit driver_aio_aio12_8_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_aio_aio12_8);
+}
+
+module_init(driver_aio_aio12_8_init_module);
+module_exit(driver_aio_aio12_8_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

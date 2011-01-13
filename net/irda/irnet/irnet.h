@@ -241,7 +241,6 @@
 #include <linux/module.h>
 
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/skbuff.h>
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
@@ -250,6 +249,7 @@
 #include <linux/poll.h>
 #include <linux/capability.h>
 #include <linux/ctype.h>	/* isspace() */
+#include <linux/string.h>	/* skip_spaces() */
 #include <asm/uaccess.h>
 #include <linux/init.h>
 
@@ -457,6 +457,8 @@ typedef struct irnet_socket
   struct irda_device_info *discoveries;	/* Copy of the discovery log */
   int			disco_index;	/* Last read in the discovery log */
   int			disco_number;	/* Size of the discovery log */
+
+  struct mutex		lock;
 
 } irnet_socket;
 

@@ -25,10 +25,11 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/interrupt.h>
 
-#include <mach/dma.h>
-#include <mach/omapfb.h>
-#include <mach/hwa742.h>
+#include <plat/dma.h>
+#include <plat/hwa742.h>
+#include "omapfb.h"
 
 #define HWA742_REV_CODE_REG       0x0
 #define HWA742_CONFIG_REG         0x2
@@ -131,7 +132,7 @@ struct {
 
 	struct omapfb_device	*fbdev;
 	struct lcd_ctrl_extif	*extif;
-	struct lcd_ctrl		*int_ctrl;
+	const struct lcd_ctrl	*int_ctrl;
 
 	struct clk		*sys_ck;
 } hwa742;

@@ -1007,8 +1007,8 @@ static int sn9c102_stream_interrupt(struct sn9c102_device* cam)
 	else if (cam->stream != STREAM_OFF) {
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "URB timeout reached. The camera is misconfigured. "
-		       "To use it, close and open /dev/video%d again.",
-		    cam->v4ldev->num);
+		       "To use it, close and open %s again.",
+		    video_device_node_name(cam->v4ldev));
 		return -EIO;
 	}
 
@@ -1734,7 +1734,8 @@ static void sn9c102_release_resources(struct kref *kref)
 
 	cam = container_of(kref, struct sn9c102_device, kref);
 
-	DBG(2, "V4L2 device /dev/video%d deregistered", cam->v4ldev->num);
+	DBG(2, "V4L2 device %s deregistered",
+	    video_device_node_name(cam->v4ldev));
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
 	usb_put_dev(cam->usbdev);
@@ -1791,8 +1792,8 @@ static int sn9c102_open(struct file *filp)
 	}
 
 	if (cam->users) {
-		DBG(2, "Device /dev/video%d is already in use",
-		       cam->v4ldev->num);
+		DBG(2, "Device %s is already in use",
+		    video_device_node_name(cam->v4ldev));
 		DBG(3, "Simultaneous opens are not supported");
 		/*
 		   open() must follow the open flags and should block
@@ -1845,7 +1846,7 @@ static int sn9c102_open(struct file *filp)
 	cam->frame_count = 0;
 	sn9c102_empty_framequeues(cam);
 
-	DBG(3, "Video device /dev/video%d is open", cam->v4ldev->num);
+	DBG(3, "Video device %s is open", video_device_node_name(cam->v4ldev));
 
 out:
 	mutex_unlock(&cam->open_mutex);
@@ -1870,7 +1871,7 @@ static int sn9c102_release(struct file *filp)
 	cam->users--;
 	wake_up_interruptible_nr(&cam->wait_open, 1);
 
-	DBG(3, "Video device /dev/video%d closed", cam->v4ldev->num);
+	DBG(3, "Video device %s closed", video_device_node_name(cam->v4ldev));
 
 	kref_put(&cam->kref, sn9c102_release_resources);
 
@@ -1954,8 +1955,10 @@ sn9c102_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 				    (!list_empty(&cam->outqueue)) ||
 				    (cam->state & DEV_DISCONNECTED) ||
 				    (cam->state & DEV_MISCONFIGURED),
-				    cam->module_param.frame_timeout *
-				    1000 * msecs_to_jiffies(1) );
+				    msecs_to_jiffies(
+					cam->module_param.frame_timeout * 1000
+				    )
+				  );
 			if (timeout < 0) {
 				mutex_unlock(&cam->fileop_mutex);
 				return timeout;
@@ -2075,7 +2078,7 @@ static void sn9c102_vm_close(struct vm_area_struct* vma)
 }
 
 
-static struct vm_operations_struct sn9c102_vm_ops = {
+static const struct vm_operations_struct sn9c102_vm_ops = {
 	.open = sn9c102_vm_open,
 	.close = sn9c102_vm_close,
 };
@@ -2186,6 +2189,7 @@ sn9c102_vidioc_enuminput(struct sn9c102_device* cam, void __user * arg)
 	memset(&i, 0, sizeof(i));
 	strcpy(i.name, "Camera");
 	i.type = V4L2_INPUT_TYPE_CAMERA;
+	i.capabilities = V4L2_IN_CAP_STD;
 
 	if (copy_to_user(arg, &i, sizeof(i)))
 		return -EFAULT;
@@ -2292,7 +2296,7 @@ sn9c102_vidioc_s_ctrl(struct sn9c102_device* cam, void __user * arg)
 	if (copy_from_user(&ctrl, arg, sizeof(ctrl)))
 		return -EFAULT;
 
-	for (i = 0; i < ARRAY_SIZE(s->qctrl); i++)
+	for (i = 0; i < ARRAY_SIZE(s->qctrl); i++) {
 		if (ctrl.id == s->qctrl[i].id) {
 			if (s->qctrl[i].flags & V4L2_CTRL_FLAG_DISABLED)
 				return -EINVAL;
@@ -2302,7 +2306,9 @@ sn9c102_vidioc_s_ctrl(struct sn9c102_device* cam, void __user * arg)
 			ctrl.value -= ctrl.value % s->qctrl[i].step;
 			break;
 		}
-
+	}
+	if (i == ARRAY_SIZE(s->qctrl))
+		return -EINVAL;
 	if ((err = s->set_ctrl(cam, &ctrl)))
 		return err;
 
@@ -2431,8 +2437,8 @@ sn9c102_vidioc_s_crop(struct sn9c102_device* cam, void __user * arg)
 	if (err) { /* atomic, no rollback in ioctl() */
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_CROP failed because of hardware problems. To "
-		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->num);
+		       "use the camera, close and open %s again.",
+		    video_device_node_name(cam->v4ldev));
 		return -EIO;
 	}
 
@@ -2444,8 +2450,8 @@ sn9c102_vidioc_s_crop(struct sn9c102_device* cam, void __user * arg)
 	    nbuffers != sn9c102_request_buffers(cam, nbuffers, cam->io)) {
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_CROP failed because of not enough memory. To "
-		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->num);
+		       "use the camera, close and open %s again.",
+		    video_device_node_name(cam->v4ldev));
 		return -ENOMEM;
 	}
 
@@ -2688,8 +2694,8 @@ sn9c102_vidioc_try_s_fmt(struct sn9c102_device* cam, unsigned int cmd,
 	if (err) { /* atomic, no rollback in ioctl() */
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_FMT failed because of hardware problems. To "
-		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->num);
+		       "use the camera, close and open %s again.",
+		    video_device_node_name(cam->v4ldev));
 		return -EIO;
 	}
 
@@ -2700,8 +2706,8 @@ sn9c102_vidioc_try_s_fmt(struct sn9c102_device* cam, unsigned int cmd,
 	    nbuffers != sn9c102_request_buffers(cam, nbuffers, cam->io)) {
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "VIDIOC_S_FMT failed because of not enough memory. To "
-		       "use the camera, close and open /dev/video%d again.",
-		    cam->v4ldev->num);
+		       "use the camera, close and open %s again.",
+		    video_device_node_name(cam->v4ldev));
 		return -ENOMEM;
 	}
 
@@ -2746,9 +2752,9 @@ sn9c102_vidioc_s_jpegcomp(struct sn9c102_device* cam, void __user * arg)
 	err += sn9c102_set_compression(cam, &jc);
 	if (err) { /* atomic, no rollback in ioctl() */
 		cam->state |= DEV_MISCONFIGURED;
-		DBG(1, "VIDIOC_S_JPEGCOMP failed because of hardware "
-		       "problems. To use the camera, close and open "
-		       "/dev/video%d again.", cam->v4ldev->num);
+		DBG(1, "VIDIOC_S_JPEGCOMP failed because of hardware problems. "
+		       "To use the camera, close and open %s again.",
+		    video_device_node_name(cam->v4ldev));
 		return -EIO;
 	}
 
@@ -3233,7 +3239,7 @@ static const struct v4l2_file_operations sn9c102_fops = {
 	.owner = THIS_MODULE,
 	.open = sn9c102_open,
 	.release = sn9c102_release,
-	.ioctl = sn9c102_ioctl,
+	.unlocked_ioctl = sn9c102_ioctl,
 	.read = sn9c102_read,
 	.poll = sn9c102_poll,
 	.mmap = sn9c102_mmap,
@@ -3326,7 +3332,6 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	strcpy(cam->v4ldev->name, "SN9C1xx PC Camera");
 	cam->v4ldev->fops = &sn9c102_fops;
-	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
 	cam->v4ldev->parent = &udev->dev;
 
@@ -3344,7 +3349,8 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		goto fail;
 	}
 
-	DBG(2, "V4L2 device registered as /dev/video%d", cam->v4ldev->num);
+	DBG(2, "V4L2 device registered as %s",
+	    video_device_node_name(cam->v4ldev));
 
 	video_set_drvdata(cam->v4ldev, cam);
 	cam->module_param.force_munmap = force_munmap[dev_nr];
@@ -3396,9 +3402,9 @@ static void sn9c102_usb_disconnect(struct usb_interface* intf)
 	DBG(2, "Disconnecting %s...", cam->v4ldev->name);
 
 	if (cam->users) {
-		DBG(2, "Device /dev/video%d is open! Deregistration and "
-		       "memory deallocation are deferred.",
-		    cam->v4ldev->num);
+		DBG(2, "Device %s is open! Deregistration and memory "
+		       "deallocation are deferred.",
+		    video_device_node_name(cam->v4ldev));
 		cam->state |= DEV_MISCONFIGURED;
 		sn9c102_stop_transfer(cam);
 		cam->state |= DEV_DISCONNECTED;

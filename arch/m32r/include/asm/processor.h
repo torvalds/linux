@@ -140,8 +140,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)  ((tsk)->thread.lr)
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
 
-#define THREAD_SIZE (2*PAGE_SIZE)
-
 #define cpu_relax()	barrier()
 
 #endif /* _ASM_M32R_PROCESSOR_H */

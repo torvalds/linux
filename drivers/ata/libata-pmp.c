@@ -9,7 +9,9 @@
 
 #include <linux/kernel.h>
 #include <linux/libata.h>
+#include <linux/slab.h>
 #include "libata.h"
+#include "libata-transport.h"
 
 const struct ata_port_operations sata_pmp_port_ops = {
 	.inherits		= &sata_port_ops,
@@ -184,6 +186,27 @@ int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val)
 }
 
 /**
+ *	sata_pmp_set_lpm - configure LPM for a PMP link
+ *	@link: PMP link to configure LPM for
+ *	@policy: target LPM policy
+ *	@hints: LPM hints
+ *
+ *	Configure LPM for @link.  This function will contain any PMP
+ *	specific workarounds if necessary.
+ *
+ *	LOCKING:
+ *	EH context.
+ *
+ *	RETURNS:
+ *	0 on success, -errno on failure.
+ */
+int sata_pmp_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
+		     unsigned hints)
+{
+	return sata_link_scr_lpm(link, policy, true);
+}
+
+/**
  *	sata_pmp_read_gscr - read GSCR block of SATA PMP
  *	@dev: PMP device
  *	@gscr: buffer to read GSCR block into
@@ -221,6 +244,8 @@ static const char *sata_pmp_spec_rev_str(const u32 *gscr)
 {
 	u32 rev = gscr[SATA_PMP_GSCR_REV];
 
+	if (rev & (1 << 3))
+		return "1.2";
 	if (rev & (1 << 2))
 		return "1.1";
 	if (rev & (1 << 1))
@@ -228,10 +253,14 @@ static const char *sata_pmp_spec_rev_str(const u32 *gscr)
 	return "<unknown>";
 }
 
+#define PMP_GSCR_SII_POL 129
+
 static int sata_pmp_configure(struct ata_device *dev, int print_info)
 {
 	struct ata_port *ap = dev->link->ap;
 	u32 *gscr = dev->gscr;
+	u16 vendor = sata_pmp_gscr_vendor(gscr);
+	u16 devid = sata_pmp_gscr_devid(gscr);
 	unsigned int err_mask = 0;
 	const char *reason;
 	int nr_ports, rc;
@@ -257,12 +286,34 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 		goto fail;
 	}
 
+	/* Disable sending Early R_OK.
+	 * With "cached read" HDD testing and multiple ports busy on a SATA
+	 * host controller, 3726 PMP will very rarely drop a deferred
+	 * R_OK that was intended for the host. Symptom will be all
+	 * 5 drives under test will timeout, get reset, and recover.
+	 */
+	if (vendor == 0x1095 && devid == 0x3726) {
+		u32 reg;
+
+		err_mask = sata_pmp_read(&ap->link, PMP_GSCR_SII_POL, &reg);
+		if (err_mask) {
+			rc = -EIO;
+			reason = "failed to read Sil3726 Private Register";
+			goto fail;
+		}
+		reg &= ~0x1;
+		err_mask = sata_pmp_write(&ap->link, PMP_GSCR_SII_POL, reg);
+		if (err_mask) {
+			rc = -EIO;
+			reason = "failed to write Sil3726 Private Register";
+			goto fail;
+		}
+	}
+
 	if (print_info) {
 		ata_dev_printk(dev, KERN_INFO, "Port Multiplier %s, "
 			       "0x%04x:0x%04x r%d, %d ports, feat 0x%x/0x%x\n",
-			       sata_pmp_spec_rev_str(gscr),
-			       sata_pmp_gscr_vendor(gscr),
-			       sata_pmp_gscr_devid(gscr),
+			       sata_pmp_spec_rev_str(gscr), vendor, devid,
 			       sata_pmp_gscr_rev(gscr),
 			       nr_ports, gscr[SATA_PMP_GSCR_FEAT_EN],
 			       gscr[SATA_PMP_GSCR_FEAT]);
@@ -283,10 +334,10 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 	return rc;
 }
 
-static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
+static int sata_pmp_init_links (struct ata_port *ap, int nr_ports)
 {
 	struct ata_link *pmp_link = ap->pmp_link;
-	int i;
+	int i, err;
 
 	if (!pmp_link) {
 		pmp_link = kzalloc(sizeof(pmp_link[0]) * SATA_PMP_MAX_PORTS,
@@ -298,6 +349,13 @@ static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
 			ata_link_init(ap, &pmp_link[i], i);
 
 		ap->pmp_link = pmp_link;
+
+		for (i = 0; i < SATA_PMP_MAX_PORTS; i++) {
+			err = ata_tlink_add(&pmp_link[i]);
+			if (err) {
+				goto err_tlink;
+			}
+		}
 	}
 
 	for (i = 0; i < nr_ports; i++) {
@@ -310,6 +368,12 @@ static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
 	}
 
 	return 0;
+  err_tlink:
+	while (--i >= 0)
+		ata_tlink_delete(&pmp_link[i]);
+	kfree(pmp_link);
+	ap->pmp_link = NULL;
+	return err;
 }
 
 static void sata_pmp_quirks(struct ata_port *ap)
@@ -322,6 +386,9 @@ static void sata_pmp_quirks(struct ata_port *ap)
 	if (vendor == 0x1095 && devid == 0x3726) {
 		/* sil3726 quirks */
 		ata_for_each_link(link, ap, EDGE) {
+			/* link reports offline after LPM */
+			link->flags |= ATA_LFLAG_NO_LPM;
+
 			/* Class code report is unreliable and SRST
 			 * times out under certain configurations.
 			 */
@@ -337,6 +404,9 @@ static void sata_pmp_quirks(struct ata_port *ap)
 	} else if (vendor == 0x1095 && devid == 0x4723) {
 		/* sil4723 quirks */
 		ata_for_each_link(link, ap, EDGE) {
+			/* link reports offline after LPM */
+			link->flags |= ATA_LFLAG_NO_LPM;
+
 			/* class code report is unreliable */
 			if (link->pmp < 2)
 				link->flags |= ATA_LFLAG_ASSUME_ATA;
@@ -349,6 +419,9 @@ static void sata_pmp_quirks(struct ata_port *ap)
 	} else if (vendor == 0x1095 && devid == 0x4726) {
 		/* sil4726 quirks */
 		ata_for_each_link(link, ap, EDGE) {
+			/* link reports offline after LPM */
+			link->flags |= ATA_LFLAG_NO_LPM;
+
 			/* Class code report is unreliable and SRST
 			 * times out under certain configurations.
 			 * Config device can be at port 0 or 5 and
@@ -909,14 +982,24 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 	if (rc)
 		goto link_fail;
 
-	/* Connection status might have changed while resetting other
-	 * links, check SATA_PMP_GSCR_ERROR before returning.
-	 */
-
 	/* clear SNotification */
 	rc = sata_scr_read(&ap->link, SCR_NOTIFICATION, &sntf);
 	if (rc == 0)
 		sata_scr_write(&ap->link, SCR_NOTIFICATION, sntf);
+
+	/*
+	 * If LPM is active on any fan-out port, hotplug wouldn't
+	 * work.  Return w/ PHY event notification disabled.
+	 */
+	ata_for_each_link(link, ap, EDGE)
+		if (link->lpm_policy > ATA_LPM_MAX_POWER)
+			return 0;
+
+	/*
+	 * Connection status might have changed while resetting other
+	 * links, enable notification and check SATA_PMP_GSCR_ERROR
+	 * before returning.
+	 */
 
 	/* enable notification */
 	if (pmp_dev->flags & ATA_DFLAG_AN) {

@@ -129,7 +129,7 @@ static struct platform_device *tct_hammer_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
 	&s3c_device_sdi,
@@ -152,8 +152,6 @@ static void __init tct_hammer_init(void)
 }
 
 MACHINE_START(TCT_HAMMER, "TCT_HAMMER")
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= tct_hammer_map_io,
 	.init_irq	= s3c24xx_init_irq,

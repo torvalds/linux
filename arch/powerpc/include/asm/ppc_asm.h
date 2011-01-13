@@ -9,6 +9,7 @@
 #include <asm/asm-compat.h>
 #include <asm/processor.h>
 #include <asm/ppc-opcode.h>
+#include <asm/firmware.h>
 
 #ifndef __ASSEMBLY__
 #error __FILE__ should only be used in assembler files
@@ -26,17 +27,13 @@
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 #define ACCOUNT_CPU_USER_ENTRY(ra, rb)
 #define ACCOUNT_CPU_USER_EXIT(ra, rb)
+#define ACCOUNT_STOLEN_TIME
 #else
 #define ACCOUNT_CPU_USER_ENTRY(ra, rb)					\
 	beq	2f;			/* if from kernel mode */	\
-BEGIN_FTR_SECTION;							\
-	mfspr	ra,SPRN_PURR;		/* get processor util. reg */	\
-END_FTR_SECTION_IFSET(CPU_FTR_PURR);					\
-BEGIN_FTR_SECTION;							\
-	MFTB(ra);			/* or get TB if no PURR */	\
-END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
-	ld	rb,PACA_STARTPURR(r13);					\
-	std	ra,PACA_STARTPURR(r13);					\
+	MFTB(ra);			/* get timebase */		\
+	ld	rb,PACA_STARTTIME_USER(r13);				\
+	std	ra,PACA_STARTTIME(r13);					\
 	subf	rb,rb,ra;		/* subtract start value */	\
 	ld	ra,PACA_USER_TIME(r13);					\
 	add	ra,ra,rb;		/* add on to user time */	\
@@ -44,19 +41,34 @@ END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
 2:
 
 #define ACCOUNT_CPU_USER_EXIT(ra, rb)					\
-BEGIN_FTR_SECTION;							\
-	mfspr	ra,SPRN_PURR;		/* get processor util. reg */	\
-END_FTR_SECTION_IFSET(CPU_FTR_PURR);					\
-BEGIN_FTR_SECTION;							\
-	MFTB(ra);			/* or get TB if no PURR */	\
-END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
-	ld	rb,PACA_STARTPURR(r13);					\
-	std	ra,PACA_STARTPURR(r13);					\
+	MFTB(ra);			/* get timebase */		\
+	ld	rb,PACA_STARTTIME(r13);					\
+	std	ra,PACA_STARTTIME_USER(r13);				\
 	subf	rb,rb,ra;		/* subtract start value */	\
 	ld	ra,PACA_SYSTEM_TIME(r13);				\
-	add	ra,ra,rb;		/* add on to user time */	\
-	std	ra,PACA_SYSTEM_TIME(r13);
-#endif
+	add	ra,ra,rb;		/* add on to system time */	\
+	std	ra,PACA_SYSTEM_TIME(r13)
+
+#ifdef CONFIG_PPC_SPLPAR
+#define ACCOUNT_STOLEN_TIME						\
+BEGIN_FW_FTR_SECTION;							\
+	beq	33f;							\
+	/* from user - see if there are any DTL entries to process */	\
+	ld	r10,PACALPPACAPTR(r13);	/* get ptr to VPA */		\
+	ld	r11,PACA_DTL_RIDX(r13);	/* get log read index */	\
+	ld	r10,LPPACA_DTLIDX(r10);	/* get log write index */	\
+	cmpd	cr1,r11,r10;						\
+	beq+	cr1,33f;						\
+	bl	.accumulate_stolen_time;				\
+33:									\
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
+
+#else  /* CONFIG_PPC_SPLPAR */
+#define ACCOUNT_STOLEN_TIME
+
+#endif /* CONFIG_PPC_SPLPAR */
+
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
 
 /*
  * Macros for storing registers into and loading registers from
@@ -98,13 +110,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
 #define REST_16FPRS(n, base)	REST_8FPRS(n, base); REST_8FPRS(n+8, base)
 #define REST_32FPRS(n, base)	REST_16FPRS(n, base); REST_16FPRS(n+16, base)
 
-#define SAVE_VR(n,b,base)	li b,THREAD_VR0+(16*(n));  stvx n,b,base
+#define SAVE_VR(n,b,base)	li b,THREAD_VR0+(16*(n));  stvx n,base,b
 #define SAVE_2VRS(n,b,base)	SAVE_VR(n,b,base); SAVE_VR(n+1,b,base)
 #define SAVE_4VRS(n,b,base)	SAVE_2VRS(n,b,base); SAVE_2VRS(n+2,b,base)
 #define SAVE_8VRS(n,b,base)	SAVE_4VRS(n,b,base); SAVE_4VRS(n+4,b,base)
 #define SAVE_16VRS(n,b,base)	SAVE_8VRS(n,b,base); SAVE_8VRS(n+8,b,base)
 #define SAVE_32VRS(n,b,base)	SAVE_16VRS(n,b,base); SAVE_16VRS(n+16,b,base)
-#define REST_VR(n,b,base)	li b,THREAD_VR0+(16*(n)); lvx n,b,base
+#define REST_VR(n,b,base)	li b,THREAD_VR0+(16*(n)); lvx n,base,b
 #define REST_2VRS(n,b,base)	REST_VR(n,b,base); REST_VR(n+1,b,base)
 #define REST_4VRS(n,b,base)	REST_2VRS(n,b,base); REST_2VRS(n+2,b,base)
 #define REST_8VRS(n,b,base)	REST_4VRS(n,b,base); REST_4VRS(n+4,b,base)
@@ -112,26 +124,26 @@ END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
 #define REST_32VRS(n,b,base)	REST_16VRS(n,b,base); REST_16VRS(n+16,b,base)
 
 /* Save the lower 32 VSRs in the thread VSR region */
-#define SAVE_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n));  STXVD2X(n,b,base)
+#define SAVE_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n));  STXVD2X(n,base,b)
 #define SAVE_2VSRS(n,b,base)	SAVE_VSR(n,b,base); SAVE_VSR(n+1,b,base)
 #define SAVE_4VSRS(n,b,base)	SAVE_2VSRS(n,b,base); SAVE_2VSRS(n+2,b,base)
 #define SAVE_8VSRS(n,b,base)	SAVE_4VSRS(n,b,base); SAVE_4VSRS(n+4,b,base)
 #define SAVE_16VSRS(n,b,base)	SAVE_8VSRS(n,b,base); SAVE_8VSRS(n+8,b,base)
 #define SAVE_32VSRS(n,b,base)	SAVE_16VSRS(n,b,base); SAVE_16VSRS(n+16,b,base)
-#define REST_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n)); LXVD2X(n,b,base)
+#define REST_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n)); LXVD2X(n,base,b)
 #define REST_2VSRS(n,b,base)	REST_VSR(n,b,base); REST_VSR(n+1,b,base)
 #define REST_4VSRS(n,b,base)	REST_2VSRS(n,b,base); REST_2VSRS(n+2,b,base)
 #define REST_8VSRS(n,b,base)	REST_4VSRS(n,b,base); REST_4VSRS(n+4,b,base)
 #define REST_16VSRS(n,b,base)	REST_8VSRS(n,b,base); REST_8VSRS(n+8,b,base)
 #define REST_32VSRS(n,b,base)	REST_16VSRS(n,b,base); REST_16VSRS(n+16,b,base)
 /* Save the upper 32 VSRs (32-63) in the thread VSX region (0-31) */
-#define SAVE_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n));  STXVD2X(n+32,b,base)
+#define SAVE_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n));  STXVD2X(n+32,base,b)
 #define SAVE_2VSRSU(n,b,base)	SAVE_VSRU(n,b,base); SAVE_VSRU(n+1,b,base)
 #define SAVE_4VSRSU(n,b,base)	SAVE_2VSRSU(n,b,base); SAVE_2VSRSU(n+2,b,base)
 #define SAVE_8VSRSU(n,b,base)	SAVE_4VSRSU(n,b,base); SAVE_4VSRSU(n+4,b,base)
 #define SAVE_16VSRSU(n,b,base)	SAVE_8VSRSU(n,b,base); SAVE_8VSRSU(n+8,b,base)
 #define SAVE_32VSRSU(n,b,base)	SAVE_16VSRSU(n,b,base); SAVE_16VSRSU(n+16,b,base)
-#define REST_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n)); LXVD2X(n+32,b,base)
+#define REST_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n)); LXVD2X(n+32,base,b)
 #define REST_2VSRSU(n,b,base)	REST_VSRU(n,b,base); REST_VSRU(n+1,b,base)
 #define REST_4VSRSU(n,b,base)	REST_2VSRSU(n,b,base); REST_2VSRSU(n+2,b,base)
 #define REST_8VSRSU(n,b,base)	REST_4VSRSU(n,b,base); REST_4VSRSU(n+4,b,base)
@@ -375,8 +387,15 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define PPC440EP_ERR42
 #endif
 
-
-#if defined(CONFIG_BOOKE)
+/*
+ * toreal/fromreal/tophys/tovirt macros. 32-bit BookE makes them
+ * keep the address intact to be compatible with code shared with
+ * 32-bit classic.
+ *
+ * On the other hand, I find it useful to have them behave as expected
+ * by their name (ie always do the addition) on 64-bit BookE
+ */
+#if defined(CONFIG_BOOKE) && !defined(CONFIG_PPC64)
 #define toreal(rd)
 #define fromreal(rd)
 
@@ -426,10 +445,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	.previous
 #endif
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 #define RFI		rfid
 #define MTMSRD(r)	mtmsrd	r
-
 #else
 #define FIX_SRR1(ra, rb)
 #ifndef CONFIG_40x

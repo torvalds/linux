@@ -46,7 +46,7 @@
 ENTRY(buserr)
 	SAVE_ALL
 	moveq	#-1,%d0
-	movel	%d0,%sp@(PT_ORIG_D0)
+	movel	%d0,%sp@(PT_OFF_ORIG_D0)
 	movel	%sp,%sp@- 		/* stack frame pointer argument */
 	jsr	buserr_c
 	addql	#4,%sp
@@ -55,7 +55,7 @@ ENTRY(buserr)
 ENTRY(trap)
 	SAVE_ALL
 	moveq	#-1,%d0
-	movel	%d0,%sp@(PT_ORIG_D0)
+	movel	%d0,%sp@(PT_OFF_ORIG_D0)
 	movel	%sp,%sp@- 		/* stack frame pointer argument */
 	jsr	trap_c
 	addql	#4,%sp
@@ -67,7 +67,7 @@ ENTRY(trap)
 ENTRY(dbginterrupt)
 	SAVE_ALL
 	moveq	#-1,%d0
-	movel	%d0,%sp@(PT_ORIG_D0)
+	movel	%d0,%sp@(PT_OFF_ORIG_D0)
 	movel	%sp,%sp@- 		/* stack frame pointer argument */
 	jsr	dbginterrupt_c
 	addql	#4,%sp
@@ -112,22 +112,6 @@ ENTRY(sys_clone)
 	RESTORE_SWITCH_STACK
 	rts
 
-ENTRY(sys_sigsuspend)
-	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	do_sigsuspend
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
-	rts
-
-ENTRY(sys_rt_sigsuspend)
-	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	do_rt_sigsuspend
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
-	rts
-
 ENTRY(sys_sigreturn)
 	SAVE_SWITCH_STACK
 	jbsr	do_sigreturn
@@ -145,6 +129,6 @@ ENTRY(ret_from_user_signal)
 	trap #0
 
 ENTRY(ret_from_user_rt_signal)
-	move #__NR_rt_sigreturn,%d0
+	movel #__NR_rt_sigreturn,%d0
 	trap #0
 

@@ -119,6 +119,7 @@ const struct file_operations i2400m_rx_stats_fops = {
 	.open =		i2400m_stats_open,
 	.read =		i2400m_rx_stats_read,
 	.write =	i2400m_rx_stats_write,
+	.llseek =	default_llseek,
 };
 
 
@@ -171,6 +172,7 @@ const struct file_operations i2400m_tx_stats_fops = {
 	.open =		i2400m_stats_open,
 	.read =		i2400m_tx_stats_read,
 	.write =	i2400m_tx_stats_write,
+	.llseek =	default_llseek,
 };
 
 
@@ -214,7 +216,7 @@ int debugfs_i2400m_reset_set(void *data, u64 val)
 	case I2400M_RT_WARM:
 	case I2400M_RT_COLD:
 	case I2400M_RT_BUS:
-		result = i2400m->bus_reset(i2400m, rt);
+		result = i2400m_reset(i2400m, rt);
 		if (result >= 0)
 			result = 0;
 	default:

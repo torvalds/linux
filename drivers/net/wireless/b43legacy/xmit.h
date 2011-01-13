@@ -9,8 +9,8 @@
 		union {				\
 			__le32 data;		\
 			__u8 raw[size];		\
-		} __attribute__((__packed__));	\
-	} __attribute__((__packed__))
+		} __packed;	\
+	} __packed
 
 /* struct b43legacy_plcp_hdr4 */
 _b43legacy_declare_plcp_hdr(4);
@@ -39,7 +39,7 @@ struct b43legacy_txhdr_fw3 {
 	struct b43legacy_plcp_hdr6 rts_plcp;	/* RTS PLCP */
 	__u8 rts_frame[18];			/* The RTS frame (if used) */
 	struct b43legacy_plcp_hdr6 plcp;
-} __attribute__((__packed__));
+} __packed;
 
 /* MAC TX control */
 #define B43legacy_TX4_MAC_KEYIDX	0x0FF00000 /* Security key index */
@@ -123,7 +123,7 @@ struct b43legacy_hwtxstatus {
 	__le16 seq;
 	u8 phy_stat;
 	PAD_BYTES(1);
-} __attribute__((__packed__));
+} __packed;
 
 
 /* Receive header for v3 firmware. */
@@ -138,7 +138,7 @@ struct b43legacy_rxhdr_fw3 {
 	__le16 mac_status;	/* MAC RX status */
 	__le16 mac_time;
 	__le16 channel;
-} __attribute__((__packed__));
+} __packed;
 
 
 /* PHY RX Status 0 */

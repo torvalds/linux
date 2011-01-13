@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/string.h>
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -71,10 +71,6 @@
 #define MMCR1_PMC4SEL_SH	1
 #define MMCR1_PMCSEL_SH(n)	(MMCR1_PMC1SEL_SH - (n) * 8)
 #define MMCR1_PMCSEL_MSK	0x7f
-
-/*
- * Bits in MMCRA
- */
 
 /*
  * Layout of constraint bits:
@@ -390,7 +386,7 @@ static int power5_compute_mmcr(u64 event[], int n_ev,
 			       unsigned int hwc[], unsigned long mmcr[])
 {
 	unsigned long mmcr1 = 0;
-	unsigned long mmcra = 0;
+	unsigned long mmcra = MMCRA_SDAR_DCACHE_MISS | MMCRA_SDAR_ERAT_MISS;
 	unsigned int pmc, unit, byte, psel;
 	unsigned int ttm, grp;
 	int i, isbus, bit, grsel;
@@ -618,10 +614,11 @@ static struct power_pmu power5_pmu = {
 
 static int init_power5_pmu(void)
 {
-	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power5"))
+	if (!cur_cpu_spec->oprofile_cpu_type ||
+	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power5"))
 		return -ENODEV;
 
 	return register_power_pmu(&power5_pmu);
 }
 
-arch_initcall(init_power5_pmu);
+early_initcall(init_power5_pmu);

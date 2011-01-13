@@ -32,6 +32,13 @@
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi_cmnd.h>
 
+struct blk_cmd_filter {
+	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
+	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
+};
+
+static struct blk_cmd_filter blk_default_cmd_filter;
+
 /* Command group 3 is reserved and should never be used.  */
 const unsigned char scsi_command_size_tbl[8] =
 {
@@ -105,7 +112,7 @@ static int sg_emulated_host(struct request_queue *q, int __user *p)
 	return put_user(1, p);
 }
 
-void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
+static void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 {
 	/* Basic read-only commands */
 	__set_bit(TEST_UNIT_READY, filter->read_ok);
@@ -187,14 +194,37 @@ void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 	__set_bit(GPCMD_SET_STREAMING, filter->write_ok);
 	__set_bit(GPCMD_SET_READ_AHEAD, filter->write_ok);
 }
-EXPORT_SYMBOL_GPL(blk_set_cmd_filter_defaults);
+
+int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm)
+{
+	struct blk_cmd_filter *filter = &blk_default_cmd_filter;
+
+	/* root can do any command. */
+	if (capable(CAP_SYS_RAWIO))
+		return 0;
+
+	/* if there's no filter set, assume we're filtering everything out */
+	if (!filter)
+		return -EPERM;
+
+	/* Anybody who can open the device can do a read-safe command */
+	if (test_bit(cmd[0], filter->read_ok))
+		return 0;
+
+	/* Write-safe commands require a writable open */
+	if (test_bit(cmd[0], filter->write_ok) && has_write_perm)
+		return 0;
+
+	return -EPERM;
+}
+EXPORT_SYMBOL(blk_verify_command);
 
 static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 			     struct sg_io_hdr *hdr, fmode_t mode)
 {
 	if (copy_from_user(rq->cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE))
+	if (blk_verify_command(rq->cmd, mode & FMODE_WRITE))
 		return -EPERM;
 
 	/*
@@ -291,33 +321,47 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	if (hdr->iovec_count) {
 		const int size = sizeof(struct sg_iovec) * hdr->iovec_count;
 		size_t iov_data_len;
-		struct sg_iovec *iov;
+		struct sg_iovec *sg_iov;
+		struct iovec *iov;
+		int i;
 
-		iov = kmalloc(size, GFP_KERNEL);
-		if (!iov) {
+		sg_iov = kmalloc(size, GFP_KERNEL);
+		if (!sg_iov) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
-		if (copy_from_user(iov, hdr->dxferp, size)) {
-			kfree(iov);
+		if (copy_from_user(sg_iov, hdr->dxferp, size)) {
+			kfree(sg_iov);
 			ret = -EFAULT;
 			goto out;
 		}
 
+		/*
+		 * Sum up the vecs, making sure they don't overflow
+		 */
+		iov = (struct iovec *) sg_iov;
+		iov_data_len = 0;
+		for (i = 0; i < hdr->iovec_count; i++) {
+			if (iov_data_len + iov[i].iov_len < iov_data_len) {
+				kfree(sg_iov);
+				ret = -EINVAL;
+				goto out;
+			}
+			iov_data_len += iov[i].iov_len;
+		}
+
 		/* SG_IO howto says that the shorter of the two wins */
-		iov_data_len = iov_length((struct iovec *)iov,
-					  hdr->iovec_count);
 		if (hdr->dxfer_len < iov_data_len) {
-			hdr->iovec_count = iov_shorten((struct iovec *)iov,
+			hdr->iovec_count = iov_shorten(iov,
 						       hdr->iovec_count,
 						       hdr->dxfer_len);
 			iov_data_len = hdr->dxfer_len;
 		}
 
-		ret = blk_rq_map_user_iov(q, rq, NULL, iov, hdr->iovec_count,
+		ret = blk_rq_map_user_iov(q, rq, NULL, sg_iov, hdr->iovec_count,
 					  iov_data_len, GFP_KERNEL);
-		kfree(iov);
+		kfree(sg_iov);
 	} else if (hdr->dxfer_len)
 		ret = blk_rq_map_user(q, rq, NULL, hdr->dxferp, hdr->dxfer_len,
 				      GFP_KERNEL);
@@ -427,7 +471,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
-	err = blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE);
+	err = blk_verify_command(rq->cmd, mode & FMODE_WRITE);
 	if (err)
 		goto error;
 
@@ -645,5 +689,11 @@ int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mod
 	blk_put_queue(q);
 	return err;
 }
-
 EXPORT_SYMBOL(scsi_cmd_ioctl);
+
+static int __init blk_scsi_ioctl_init(void)
+{
+	blk_set_cmd_filter_defaults(&blk_default_cmd_filter);
+	return 0;
+}
+fs_initcall(blk_scsi_ioctl_init);

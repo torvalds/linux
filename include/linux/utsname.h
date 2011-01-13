@@ -36,7 +36,6 @@ struct new_utsname {
 #include <linux/kref.h>
 #include <linux/nsproxy.h>
 #include <linux/err.h>
-#include <asm/atomic.h>
 
 struct uts_namespace {
 	struct kref kref;

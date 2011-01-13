@@ -45,7 +45,7 @@ struct sd {
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -92,8 +92,7 @@ static const struct v4l2_pix_format sif_mode[] = {
  * Initialization data: this is the first set-up data written to the
  * device (before the open data).
  */
-static const u16 spca508_init_data[][2] =
-{
+static const u16 spca508_init_data[][2] = {
 	{0x0000, 0x870b},
 
 	{0x0020, 0x8112},	/* Video drop enable, ISO streaming disable */
@@ -1276,7 +1275,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write i:0x%04x = 0x%02x",
 		index, value);
 	if (ret < 0)
-		PDEBUG(D_ERR|D_USBO, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -1298,25 +1297,76 @@ static int reg_read(struct gspca_dev *gspca_dev,
 	PDEBUG(D_USBI, "reg read i:%04x --> %02x",
 		index, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		PDEBUG(D_ERR|D_USBI, "reg_read err %d", ret);
+		err("reg_read err %d", ret);
 		return ret;
 	}
 	return gspca_dev->usb_buf[0];
+}
+
+/* send 1 or 2 bytes to the sensor via the Synchronous Serial Interface */
+static int ssi_w(struct gspca_dev *gspca_dev,
+		u16 reg, u16 val)
+{
+	struct usb_device *dev = gspca_dev->dev;
+	int ret, retry;
+
+	ret = reg_write(dev, 0x8802, reg >> 8);
+	if (ret < 0)
+		goto out;
+	ret = reg_write(dev, 0x8801, reg & 0x00ff);
+	if (ret < 0)
+		goto out;
+	if ((reg & 0xff00) == 0x1000) {		/* if 2 bytes */
+		ret = reg_write(dev, 0x8805, val & 0x00ff);
+		if (ret < 0)
+			goto out;
+		val >>= 8;
+	}
+	ret = reg_write(dev, 0x8800, val);
+	if (ret < 0)
+		goto out;
+
+	/* poll until not busy */
+	retry = 10;
+	for (;;) {
+		ret = reg_read(gspca_dev, 0x8803);
+		if (ret < 0)
+			break;
+		if (gspca_dev->usb_buf[0] == 0)
+			break;
+		if (--retry <= 0) {
+			PDEBUG(D_ERR, "ssi_w busy %02x",
+					gspca_dev->usb_buf[0]);
+			ret = -1;
+			break;
+		}
+		msleep(8);
+	}
+
+out:
+	return ret;
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
 			const u16 (*data)[2])
 {
 	struct usb_device *dev = gspca_dev->dev;
-	int ret;
+	int ret = 0;
 
 	while ((*data)[1] != 0) {
-		ret = reg_write(dev, (*data)[1], (*data)[0]);
+		if ((*data)[1] & 0x8000) {
+			if ((*data)[1] == 0xdd00)	/* delay */
+				msleep((*data)[0]);
+			else
+				ret = reg_write(dev, (*data)[1], (*data)[0]);
+		} else {
+			ret = ssi_w(gspca_dev, (*data)[1], (*data)[0]);
+		}
 		if (ret < 0)
-			return ret;
+			break;
 		data++;
 	}
-	return 0;
+	return ret;
 }
 
 /* this function is called at probe time */
@@ -1396,26 +1446,22 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	switch (data[0]) {
 	case 0:				/* start of frame */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		data += SPCA508_OFFSET_DATA;
 		len -= SPCA508_OFFSET_DATA;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		break;
 	case 0xff:			/* drop */
 		break;
 	default:
 		data += 1;
 		len -= 1;
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 		break;
 	}
 }
@@ -1466,7 +1512,6 @@ static const struct sd_desc sd_desc = {
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0130, 0x0130), .driver_info = HamaUSBSightcam},
 	{USB_DEVICE(0x041e, 0x4018), .driver_info = CreativeVista},
-	{USB_DEVICE(0x0461, 0x0815), .driver_info = MicroInnovationIC200},
 	{USB_DEVICE(0x0733, 0x0110), .driver_info = ViewQuestVQ110},
 	{USB_DEVICE(0x0af9, 0x0010), .driver_info = HamaUSBSightcam},
 	{USB_DEVICE(0x0af9, 0x0011), .driver_info = HamaUSBSightcam2},
@@ -1497,18 +1542,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

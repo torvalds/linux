@@ -150,16 +150,17 @@ static void __init himalaya_lcd_init(void)
 
 static void __init himalaya_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 	himalaya_lcd_init();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 
 MACHINE_START(HIMALAYA, "HTC Himalaya")
-	.phys_io = 0x40000000,
-	.io_pg_offst = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params = 0xa0000100,
-	.map_io = pxa_map_io,
+	.map_io = pxa25x_map_io,
 	.init_irq = pxa25x_init_irq,
 	.init_machine = himalaya_init,
 	.timer = &pxa_timer,

@@ -28,7 +28,7 @@
  . Authors
  .	Erik Stahlman		<erik@vt.edu>
  .	Daris A Nevil		<dnevil@snmc.com>
- .	Nicolas Pitre 		<nico@cam.org>
+ .	Nicolas Pitre 		<nico@fluxnic.net>
  .
  ---------------------------------------------------------------------------*/
 #ifndef _SMC91X_H_
@@ -83,71 +83,6 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 	}
 }
 
-#elif defined(CONFIG_BLACKFIN)
-
-#define SMC_IRQ_FLAGS		IRQF_TRIGGER_HIGH
-#define RPC_LSA_DEFAULT		RPC_LED_100_10
-#define RPC_LSB_DEFAULT		RPC_LED_TX_RX
-
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-# if defined(CONFIG_BF561)
-#define SMC_CAN_USE_32BIT	1
-# else
-#define SMC_CAN_USE_32BIT	0
-# endif
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT      	1
-#define SMC_USE_BFIN_DMA	0
-
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-# if SMC_CAN_USE_32BIT
-#define SMC_inl(a, r)		readl((a) + (r))
-#define SMC_outl(v, a, r)	writel(v, (a) + (r))
-#define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
-#define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
-# endif
-
-#elif defined(CONFIG_REDWOOD_5) || defined(CONFIG_REDWOOD_6)
-
-/* We can only do 16-bit reads and writes in the static memory space. */
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-#define SMC_NOWAIT		1
-
-#define SMC_IO_SHIFT		0
-
-#define SMC_inw(a, r)		in_be16((volatile u16 *)((a) + (r)))
-#define SMC_outw(v, a, r)	out_be16((volatile u16 *)((a) + (r)), v)
-#define SMC_insw(a, r, p, l) 						\
-	do {								\
-		unsigned long __port = (a) + (r);			\
-		u16 *__p = (u16 *)(p);					\
-		int __l = (l);						\
-		insw(__port, __p, __l);					\
-		while (__l > 0) {					\
-			*__p = swab16(*__p);				\
-			__p++;						\
-			__l--;						\
-		}							\
-	} while (0)
-#define SMC_outsw(a, r, p, l) 						\
-	do {								\
-		unsigned long __port = (a) + (r);			\
-		u16 *__p = (u16 *)(p);					\
-		int __l = (l);						\
-		while (__l > 0) {					\
-			/* Believe it or not, the swab isn't needed. */	\
-			outw( /* swab16 */ (*__p++), __port);		\
-			__l--;						\
-		}							\
-	} while (0)
-#define SMC_IRQ_FLAGS		(0)
-
 #elif defined(CONFIG_SA1100_PLEB)
 /* We can only do 16-bit reads and writes in the static memory space. */
 #define SMC_CAN_USE_8BIT	1
@@ -186,7 +121,8 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
 #define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
-#elif	defined(CONFIG_MACH_LOGICPD_PXA270)
+#elif	defined(CONFIG_MACH_LOGICPD_PXA270) ||	\
+	defined(CONFIG_MACH_NOMADIK_8815NHK)
 
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1
@@ -233,21 +169,6 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 	}
 }
 
-#elif	defined(CONFIG_ARCH_OMAP)
-
-/* We can only do 16-bit reads and writes in the static memory space. */
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT		1
-
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-#define	SMC_IRQ_FLAGS		(-1)	/* from resource */
-
 #elif	defined(CONFIG_SH_SH4202_MICRODEV)
 
 #define SMC_CAN_USE_8BIT	0
@@ -285,9 +206,9 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define RPC_LSA_DEFAULT		RPC_LED_TX_RX
 #define RPC_LSB_DEFAULT		RPC_LED_100_10
 
-#elif   defined(CONFIG_MACH_LPD79520) \
-     || defined(CONFIG_MACH_LPD7A400) \
-     || defined(CONFIG_MACH_LPD7A404)
+#elif   defined(CONFIG_MACH_LPD79520) ||	\
+	defined(CONFIG_MACH_LPD7A400) ||	\
+	defined(CONFIG_MACH_LPD7A404)
 
 /* The LPD7X_IOBARRIER is necessary to overcome a mismatch between the
  * way that the CPU handles chip selects and the way that the SMC chip
@@ -371,6 +292,48 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
  */
 
 #include <unit/smc91111.h>
+
+#elif defined(CONFIG_ARCH_MSM)
+
+#define SMC_CAN_USE_8BIT	0
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	0
+#define SMC_NOWAIT		1
+
+#define SMC_inw(a, r)		readw((a) + (r))
+#define SMC_outw(v, a, r)	writew(v, (a) + (r))
+#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
+#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
+
+#define SMC_IRQ_FLAGS		IRQF_TRIGGER_HIGH
+
+#elif defined(CONFIG_COLDFIRE)
+
+#define SMC_CAN_USE_8BIT	0
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	0
+#define SMC_NOWAIT		1
+
+static inline void mcf_insw(void *a, unsigned char *p, int l)
+{
+	u16 *wp = (u16 *) p;
+	while (l-- > 0)
+		*wp++ = readw(a);
+}
+
+static inline void mcf_outsw(void *a, unsigned char *p, int l)
+{
+	u16 *wp = (u16 *) p;
+	while (l-- > 0)
+		writew(*wp++, a);
+}
+
+#define SMC_inw(a, r)		_swapw(readw((a) + (r)))
+#define SMC_outw(v, a, r)	writew(_swapw(v), (a) + (r))
+#define SMC_insw(a, r, p, l)	mcf_insw(a + r, p, l)
+#define SMC_outsw(a, r, p, l)	mcf_outsw(a + r, p, l)
+
+#define SMC_IRQ_FLAGS		(IRQF_DISABLED)
 
 #else
 

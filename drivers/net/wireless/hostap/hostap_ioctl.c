@@ -1,6 +1,8 @@
 /* ioctl() (mostly Linux Wireless Extensions) routines for Host AP driver */
 
+#include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <net/lib80211.h>
@@ -1694,7 +1696,7 @@ static int prism2_request_scan(struct net_device *dev)
 		hostap_set_word(dev, HFA384X_RID_CNFROAMINGMODE,
 				HFA384X_ROAMING_FIRMWARE);
 
-	return 0;
+	return ret;
 }
 
 #else /* !PRISM2_NO_STATION_MODES */
@@ -3037,8 +3039,7 @@ static int prism2_ioctl_priv_download(local_info_t *local, struct iw_point *p)
 	    p->length > 1024 || !p->pointer)
 		return -EINVAL;
 
-	param = (struct prism2_download_param *)
-		kmalloc(p->length, GFP_KERNEL);
+	param = kmalloc(p->length, GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 

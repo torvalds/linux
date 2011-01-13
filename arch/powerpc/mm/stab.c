@@ -12,7 +12,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -31,7 +31,7 @@ struct stab_entry {
 
 #define NR_STAB_CACHE_ENTRIES 8
 static DEFINE_PER_CPU(long, stab_cache_ptr);
-static DEFINE_PER_CPU(long, stab_cache[NR_STAB_CACHE_ENTRIES]);
+static DEFINE_PER_CPU(long [NR_STAB_CACHE_ENTRIES], stab_cache);
 
 /*
  * Create a segment table entry for the given esid/vsid pair.
@@ -164,7 +164,7 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 {
 	struct stab_entry *stab = (struct stab_entry *) get_paca()->stab_addr;
 	struct stab_entry *ste;
-	unsigned long offset = __get_cpu_var(stab_cache_ptr);
+	unsigned long offset;
 	unsigned long pc = KSTK_EIP(tsk);
 	unsigned long stack = KSTK_ESP(tsk);
 	unsigned long unmapped_base;
@@ -172,6 +172,15 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 	/* Force previous translations to complete. DRENG */
 	asm volatile("isync" : : : "memory");
 
+	/*
+	 * We need interrupts hard-disabled here, not just soft-disabled,
+	 * so that a PMU interrupt can't occur, which might try to access
+	 * user memory (to get a stack trace) and possible cause an STAB miss
+	 * which would update the stab_cache/stab_cache_ptr per-cpu variables.
+	 */
+	hard_irq_disable();
+
+	offset = __get_cpu_var(stab_cache_ptr);
 	if (offset <= NR_STAB_CACHE_ENTRIES) {
 		int i;
 
@@ -243,7 +252,7 @@ void __init stabs_alloc(void)
 		if (cpu == 0)
 			continue; /* stab for CPU 0 is statically allocated */
 
-		newstab = lmb_alloc_base(HW_PAGE_SIZE, HW_PAGE_SIZE,
+		newstab = memblock_alloc_base(HW_PAGE_SIZE, HW_PAGE_SIZE,
 					 1<<SID_SHIFT);
 		newstab = (unsigned long)__va(newstab);
 

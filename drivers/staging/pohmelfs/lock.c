@@ -17,7 +17,6 @@
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/fsnotify.h>
-#include <linux/slab.h>
 #include <linux/mempool.h>
 
 #include "netfs.h"

@@ -32,24 +32,6 @@ typedef struct
 	u64 *prev_pfs_loc;	/* state for WAR for old spinlock ool code */
 } ia64_backtrace_t;
 
-#if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
-/*
- * Returns non-zero if the PC is in the spinlock contention out-of-line code
- * with non-standard calling sequence (on older compilers).
- */
-static __inline__ int in_old_ool_spinlock_code(unsigned long pc)
-{
-	extern const char ia64_spinlock_contention_pre3_4[] __attribute__ ((weak));
-	extern const char ia64_spinlock_contention_pre3_4_end[] __attribute__ ((weak));
-	unsigned long sc_start = (unsigned long)ia64_spinlock_contention_pre3_4;
-	unsigned long sc_end = (unsigned long)ia64_spinlock_contention_pre3_4_end;
-	return (sc_start && sc_end && pc >= sc_start && pc < sc_end);
-}
-#else
-/* Newer spinlock code does a proper br.call and works fine with the unwinder */
-#define in_old_ool_spinlock_code(pc)	0
-#endif
-
 /* Returns non-zero if the PC is in the Interrupt Vector Table */
 static __inline__ int in_ivt_code(unsigned long pc)
 {
@@ -80,7 +62,7 @@ static __inline__ int next_frame(ia64_backtrace_t *bt)
 	 */
 	if (bt->prev_pfs_loc && bt->regs && bt->frame.pfs_loc == bt->prev_pfs_loc)
 		bt->frame.pfs_loc = &bt->regs->ar_pfs;
-	bt->prev_pfs_loc = (in_old_ool_spinlock_code(bt->frame.ip) ? bt->frame.pfs_loc : NULL);
+	bt->prev_pfs_loc = NULL;
 
 	return unw_unwind(&bt->frame) == 0;
 }

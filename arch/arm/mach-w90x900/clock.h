@@ -10,10 +10,10 @@
  * the Free Software Foundation; either version 2 of the License.
  */
 
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
-void w90x900_clk_enable(struct clk *clk, int enable);
-void clks_register(struct clk_lookup *clks, size_t num);
+void nuc900_clk_enable(struct clk *clk, int enable);
+void nuc900_subclk_enable(struct clk *clk, int enable);
 
 struct clk {
 	unsigned long		cken;
@@ -23,9 +23,16 @@ struct clk {
 
 #define DEFINE_CLK(_name, _ctrlbit)			\
 struct clk clk_##_name = {				\
-		.enable	= w90x900_clk_enable,		\
+		.enable	= nuc900_clk_enable,		\
 		.cken	= (1 << _ctrlbit),		\
 	}
+
+#define DEFINE_SUBCLK(_name, _ctrlbit)			\
+struct clk clk_##_name = {				\
+		.enable	= nuc900_subclk_enable,	\
+		.cken	= (1 << _ctrlbit),		\
+	}
+
 
 #define DEF_CLKLOOK(_clk, _devname, _conname)		\
 	{						\

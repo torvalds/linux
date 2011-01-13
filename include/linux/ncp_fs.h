@@ -184,13 +184,13 @@ struct ncp_entry_info {
 	__u8			file_handle[6];
 };
 
-static inline struct ncp_server *NCP_SBP(struct super_block *sb)
+static inline struct ncp_server *NCP_SBP(const struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
 
 #define NCP_SERVER(inode)	NCP_SBP((inode)->i_sb)
-static inline struct ncp_inode_info *NCP_FINFO(struct inode *inode)
+static inline struct ncp_inode_info *NCP_FINFO(const struct inode *inode)
 {
 	return container_of(inode, struct ncp_inode_info, vfs_inode);
 }
@@ -210,7 +210,7 @@ int ncp_date_dos2unix(__le16 time, __le16 date);
 void ncp_date_unix2dos(int unix_date, __le16 * time, __le16 * date);
 
 /* linux/fs/ncpfs/ioctl.c */
-int ncp_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
+long ncp_ioctl(struct file *, unsigned int, unsigned long);
 long ncp_compat_ioctl(struct file *, unsigned int, unsigned long);
 
 /* linux/fs/ncpfs/sock.c */
@@ -240,34 +240,6 @@ int ncp_mmap(struct file *, struct vm_area_struct *);
 
 /* linux/fs/ncpfs/ncplib_kernel.c */
 int ncp_make_closed(struct inode *);
-
-#define ncp_namespace(i)	(NCP_SERVER(i)->name_space[NCP_FINFO(i)->volNumber])
-
-static inline int ncp_preserve_entry_case(struct inode *i, __u32 nscreator)
-{
-#ifdef CONFIG_NCPFS_SMALLDOS
-	int ns = ncp_namespace(i);
-
-	if ((ns == NW_NS_DOS)
-#ifdef CONFIG_NCPFS_OS2_NS
-		|| ((ns == NW_NS_OS2) && (nscreator == NW_NS_DOS))
-#endif /* CONFIG_NCPFS_OS2_NS */
-				)
-		return 0;
-#endif /* CONFIG_NCPFS_SMALLDOS */
-	return 1;
-}
-
-#define ncp_preserve_case(i)	(ncp_namespace(i) != NW_NS_DOS)
-
-static inline int ncp_case_sensitive(struct inode *i)
-{
-#ifdef CONFIG_NCPFS_NFS_NS
-	return ncp_namespace(i) == NW_NS_NFS;
-#else
-	return 0;
-#endif	/* CONFIG_NCPFS_NFS_NS */
-} 
 
 #endif				/* __KERNEL__ */
 

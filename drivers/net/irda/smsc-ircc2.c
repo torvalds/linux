@@ -48,13 +48,13 @@
 #include <linux/netdevice.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/serial_reg.h>
 #include <linux/dma-mapping.h>
 #include <linux/pnp.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -115,7 +115,7 @@ struct smsc_ircc_subsystem_configuration {
 	unsigned short vendor; /* PCI vendor ID */
 	unsigned short device; /* PCI vendor ID */
 	unsigned short subvendor; /* PCI subsystem vendor ID */
-	unsigned short subdevice; /* PCI sybsystem device ID */
+	unsigned short subdevice; /* PCI subsystem device ID */
 	unsigned short sir_io; /* I/O port for SIR */
 	unsigned short fir_io; /* I/O port for FIR */
 	unsigned char  fir_irq; /* FIR IRQ */
@@ -194,8 +194,10 @@ static int __exit smsc_ircc_close(struct smsc_ircc_cb *self);
 static int  smsc_ircc_dma_receive(struct smsc_ircc_cb *self);
 static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_sir_receive(struct smsc_ircc_cb *self);
-static int  smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev);
-static int  smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t  smsc_ircc_hard_xmit_sir(struct sk_buff *skb,
+						  struct net_device *dev);
+static netdev_tx_t  smsc_ircc_hard_xmit_fir(struct sk_buff *skb,
+						  struct net_device *dev);
 static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs);
 static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed);
@@ -374,7 +376,7 @@ MODULE_DEVICE_TABLE(pnp, smsc_ircc_pnp_table);
 static int pnp_driver_registered;
 
 #ifdef CONFIG_PNP
-static int __init smsc_ircc_pnp_probe(struct pnp_dev *dev,
+static int __devinit smsc_ircc_pnp_probe(struct pnp_dev *dev,
 				      const struct pnp_device_id *dev_id)
 {
 	unsigned int firbase, sirbase;
@@ -486,7 +488,8 @@ static int __init smsc_ircc_init(void)
 	return ret;
 }
 
-static int smsc_ircc_net_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc_ircc_net_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct smsc_ircc_cb *self = netdev_priv(dev);
 
@@ -865,7 +868,7 @@ static void smsc_ircc_timeout(struct net_device *dev)
 	spin_lock_irqsave(&self->lock, flags);
 	smsc_ircc_sir_start(self);
 	smsc_ircc_change_speed(self, self->io.speed);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 	spin_unlock_irqrestore(&self->lock, flags);
 }
@@ -878,7 +881,8 @@ static void smsc_ircc_timeout(struct net_device *dev)
  *    waits until the next transmit interrupt, and continues until the
  *    frame is transmitted.
  */
-static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc_ircc_hard_xmit_sir(struct sk_buff *skb,
+						 struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 	unsigned long flags;
@@ -886,10 +890,10 @@ static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 
 	IRDA_DEBUG(1, "%s\n", __func__);
 
-	IRDA_ASSERT(dev != NULL, return 0;);
+	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 
 	self = netdev_priv(dev);
-	IRDA_ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return NETDEV_TX_OK;);
 
 	netif_stop_queue(dev);
 
@@ -914,7 +918,7 @@ static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 			smsc_ircc_change_speed(self, speed);
 			spin_unlock_irqrestore(&self->lock, flags);
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		self->new_speed = speed;
 	}
@@ -935,7 +939,7 @@ static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1183,16 +1187,17 @@ static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, __u32 speed)
  *    Transmit the frame!
  *
  */
-static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc_ircc_hard_xmit_fir(struct sk_buff *skb,
+						 struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 	unsigned long flags;
 	s32 speed;
 	int mtt;
 
-	IRDA_ASSERT(dev != NULL, return 0;);
+	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 	self = netdev_priv(dev);
-	IRDA_ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return NETDEV_TX_OK;);
 
 	netif_stop_queue(dev);
 
@@ -1210,7 +1215,7 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 			smsc_ircc_change_speed(self, speed);
 			spin_unlock_irqrestore(&self->lock, flags);
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 
 		self->new_speed = speed;
@@ -1242,7 +1247,7 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&self->lock, flags);
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -2046,7 +2051,7 @@ static int smsc_ircc_sir_write(int iobase, int fifo_size, __u8 *buf, int len)
  */
 static int smsc_ircc_is_receiving(struct smsc_ircc_cb *self)
 {
-	return (self->rx_buff.state != OUTSIDE_FRAME);
+	return self->rx_buff.state != OUTSIDE_FRAME;
 }
 
 
@@ -2817,7 +2822,6 @@ static void __init preconfigure_ali_port(struct pci_dev *dev,
 	tmpbyte |= mask;
 	pci_write_config_byte(dev, reg, tmpbyte);
 	IRDA_MESSAGE("Activated ALi 1533 ISA bridge port 0x%04x.\n", port);
-	return;
 }
 
 static int __init preconfigure_through_ali(struct pci_dev *dev,
@@ -2844,9 +2848,7 @@ static int __init smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
 	unsigned short ss_device = 0x0000;
 	int ret = 0;
 
-	dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
-
-	while (dev != NULL) {
+	for_each_pci_dev(dev) {
 		struct smsc_ircc_subsystem_configuration *conf;
 
 		/*
@@ -2895,7 +2897,6 @@ static int __init smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
 					ret = -ENODEV;
 			}
 		}
-		dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
 	}
 
 	return ret;

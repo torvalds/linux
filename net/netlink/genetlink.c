@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -18,19 +19,19 @@
 #include <net/sock.h>
 #include <net/genetlink.h>
 
-struct sock *genl_sock = NULL;
-
 static DEFINE_MUTEX(genl_mutex); /* serialization of message processing */
 
-static inline void genl_lock(void)
+void genl_lock(void)
 {
 	mutex_lock(&genl_mutex);
 }
+EXPORT_SYMBOL(genl_lock);
 
-static inline void genl_unlock(void)
+void genl_unlock(void)
 {
 	mutex_unlock(&genl_mutex);
 }
+EXPORT_SYMBOL(genl_unlock);
 
 #define GENL_FAM_TAB_SIZE	16
 #define GENL_FAM_TAB_MASK	(GENL_FAM_TAB_SIZE - 1)
@@ -99,25 +100,17 @@ static struct genl_ops *genl_get_cmd(u8 cmd, struct genl_family *family)
 */
 static inline u16 genl_generate_id(void)
 {
-	static u16 id_gen_idx;
-	int overflowed = 0;
+	static u16 id_gen_idx = GENL_MIN_ID;
+	int i;
 
-	do {
-		if (id_gen_idx == 0)
+	for (i = 0; i <= GENL_MAX_ID - GENL_MIN_ID; i++) {
+		if (!genl_family_find_byid(id_gen_idx))
+			return id_gen_idx;
+		if (++id_gen_idx > GENL_MAX_ID)
 			id_gen_idx = GENL_MIN_ID;
+	}
 
-		if (++id_gen_idx > GENL_MAX_ID) {
-			if (!overflowed) {
-				overflowed = 1;
-				id_gen_idx = 0;
-				continue;
-			} else
-				return 0;
-		}
-
-	} while (genl_family_find_byid(id_gen_idx));
-
-	return id_gen_idx;
+	return 0;
 }
 
 static struct genl_multicast_group notify_grp;
@@ -138,7 +131,7 @@ int genl_register_mc_group(struct genl_family *family,
 {
 	int id;
 	unsigned long *new_groups;
-	int err;
+	int err = 0;
 
 	BUG_ON(grp->name[0] == '\0');
 
@@ -175,10 +168,34 @@ int genl_register_mc_group(struct genl_family *family,
 		mc_groups_longs++;
 	}
 
-	err = netlink_change_ngroups(genl_sock,
-				     mc_groups_longs * BITS_PER_LONG);
-	if (err)
-		goto out;
+	if (family->netnsok) {
+		struct net *net;
+
+		netlink_table_grab();
+		rcu_read_lock();
+		for_each_net_rcu(net) {
+			err = __netlink_change_ngroups(net->genl_sock,
+					mc_groups_longs * BITS_PER_LONG);
+			if (err) {
+				/*
+				 * No need to roll back, can only fail if
+				 * memory allocation fails and then the
+				 * number of _possible_ groups has been
+				 * increased on some sockets which is ok.
+				 */
+				rcu_read_unlock();
+				netlink_table_ungrab();
+				goto out;
+			}
+		}
+		rcu_read_unlock();
+		netlink_table_ungrab();
+	} else {
+		err = netlink_change_ngroups(init_net.genl_sock,
+					     mc_groups_longs * BITS_PER_LONG);
+		if (err)
+			goto out;
+	}
 
 	grp->id = id;
 	set_bit(id, mc_groups);
@@ -195,8 +212,16 @@ EXPORT_SYMBOL(genl_register_mc_group);
 static void __genl_unregister_mc_group(struct genl_family *family,
 				       struct genl_multicast_group *grp)
 {
+	struct net *net;
 	BUG_ON(grp->family != family);
-	netlink_clear_multicast_users(genl_sock, grp->id);
+
+	netlink_table_grab();
+	rcu_read_lock();
+	for_each_net_rcu(net)
+		__netlink_clear_multicast_users(net->genl_sock, grp->id);
+	rcu_read_unlock();
+	netlink_table_ungrab();
+
 	clear_bit(grp->id, mc_groups);
 	list_del(&grp->list);
 	genl_ctrl_event(CTRL_CMD_DELMCAST_GRP, grp);
@@ -278,6 +303,7 @@ int genl_register_ops(struct genl_family *family, struct genl_ops *ops)
 errout:
 	return err;
 }
+EXPORT_SYMBOL(genl_register_ops);
 
 /**
  * genl_unregister_ops - unregister generic netlink operations
@@ -312,6 +338,7 @@ int genl_unregister_ops(struct genl_family *family, struct genl_ops *ops)
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL(genl_unregister_ops);
 
 /**
  * genl_register_family - register a generic netlink family
@@ -344,11 +371,6 @@ int genl_register_family(struct genl_family *family)
 		goto errout_locked;
 	}
 
-	if (genl_family_find_byid(family->id)) {
-		err = -EEXIST;
-		goto errout_locked;
-	}
-
 	if (family->id == GENL_ID_GENERATE) {
 		u16 newid = genl_generate_id();
 
@@ -358,6 +380,9 @@ int genl_register_family(struct genl_family *family)
 		}
 
 		family->id = newid;
+	} else if (genl_family_find_byid(family->id)) {
+		err = -EEXIST;
+		goto errout_locked;
 	}
 
 	if (family->maxattr) {
@@ -382,6 +407,7 @@ errout_locked:
 errout:
 	return err;
 }
+EXPORT_SYMBOL(genl_register_family);
 
 /**
  * genl_register_family_with_ops - register a generic netlink family
@@ -462,17 +488,23 @@ int genl_unregister_family(struct genl_family *family)
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL(genl_unregister_family);
 
 static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct genl_ops *ops;
 	struct genl_family *family;
+	struct net *net = sock_net(skb->sk);
 	struct genl_info info;
 	struct genlmsghdr *hdr = nlmsg_data(nlh);
 	int hdrlen, err;
 
 	family = genl_family_find_byid(nlh->nlmsg_type);
 	if (family == NULL)
+		return -ENOENT;
+
+	/* this family doesn't exist in this netns */
+	if (!family->netnsok && !net_eq(net, &init_net))
 		return -ENOENT;
 
 	hdrlen = GENL_HDRLEN + family->hdrsize;
@@ -487,12 +519,12 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	    security_netlink_recv(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if ((nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP) {
 		if (ops->dumpit == NULL)
 			return -EOPNOTSUPP;
 
 		genl_unlock();
-		err = netlink_dump_start(genl_sock, skb, nlh,
+		err = netlink_dump_start(net->genl_sock, skb, nlh,
 					 ops->dumpit, ops->done);
 		genl_lock();
 		return err;
@@ -514,8 +546,21 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	info.genlhdr = nlmsg_data(nlh);
 	info.userhdr = nlmsg_data(nlh) + GENL_HDRLEN;
 	info.attrs = family->attrbuf;
+	genl_info_net_set(&info, net);
+	memset(&info.user_ptr, 0, sizeof(info.user_ptr));
 
-	return ops->doit(skb, &info);
+	if (family->pre_doit) {
+		err = family->pre_doit(ops, skb, &info);
+		if (err)
+			return err;
+	}
+
+	err = ops->doit(skb, &info);
+
+	if (family->post_doit)
+		family->post_doit(ops, skb, &info);
+
+	return err;
 }
 
 static void genl_rcv(struct sk_buff *skb)
@@ -534,6 +579,7 @@ static struct genl_family genl_ctrl = {
 	.name = "nlctrl",
 	.version = 0x2,
 	.maxattr = CTRL_ATTR_MAX,
+	.netnsok = true,
 };
 
 static int ctrl_fill_info(struct genl_family *family, u32 pid, u32 seq,
@@ -650,14 +696,15 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 
 	int i, n = 0;
 	struct genl_family *rt;
+	struct net *net = sock_net(skb->sk);
 	int chains_to_skip = cb->args[0];
 	int fams_to_skip = cb->args[1];
 
-	for (i = 0; i < GENL_FAM_TAB_SIZE; i++) {
-		if (i < chains_to_skip)
-			continue;
+	for (i = chains_to_skip; i < GENL_FAM_TAB_SIZE; i++) {
 		n = 0;
 		list_for_each_entry(rt, genl_family_chain(i), family_list) {
+			if (!rt->netnsok && !net_eq(net, &init_net))
+				continue;
 			if (++n < fams_to_skip)
 				continue;
 			if (ctrl_fill_info(rt, NETLINK_CB(cb->skb).pid,
@@ -729,6 +776,7 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[CTRL_ATTR_FAMILY_ID]) {
 		u16 id = nla_get_u16(info->attrs[CTRL_ATTR_FAMILY_ID]);
 		res = genl_family_find_byid(id);
+		err = -ENOENT;
 	}
 
 	if (info->attrs[CTRL_ATTR_FAMILY_NAME]) {
@@ -736,49 +784,61 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 
 		name = nla_data(info->attrs[CTRL_ATTR_FAMILY_NAME]);
 		res = genl_family_find_byname(name);
+		err = -ENOENT;
 	}
 
-	if (res == NULL) {
-		err = -ENOENT;
-		goto errout;
+	if (res == NULL)
+		return err;
+
+	if (!res->netnsok && !net_eq(genl_info_net(info), &init_net)) {
+		/* family doesn't exist here */
+		return -ENOENT;
 	}
 
 	msg = ctrl_build_family_msg(res, info->snd_pid, info->snd_seq,
 				    CTRL_CMD_NEWFAMILY);
-	if (IS_ERR(msg)) {
-		err = PTR_ERR(msg);
-		goto errout;
-	}
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	err = genlmsg_reply(msg, info);
-errout:
-	return err;
+	return genlmsg_reply(msg, info);
 }
 
 static int genl_ctrl_event(int event, void *data)
 {
 	struct sk_buff *msg;
+	struct genl_family *family;
+	struct genl_multicast_group *grp;
 
-	if (genl_sock == NULL)
+	/* genl is still initialising */
+	if (!init_net.genl_sock)
 		return 0;
 
 	switch (event) {
 	case CTRL_CMD_NEWFAMILY:
 	case CTRL_CMD_DELFAMILY:
-		msg = ctrl_build_family_msg(data, 0, 0, event);
-		if (IS_ERR(msg))
-			return PTR_ERR(msg);
-
-		genlmsg_multicast(msg, 0, GENL_ID_CTRL, GFP_KERNEL);
+		family = data;
+		msg = ctrl_build_family_msg(family, 0, 0, event);
 		break;
 	case CTRL_CMD_NEWMCAST_GRP:
 	case CTRL_CMD_DELMCAST_GRP:
+		grp = data;
+		family = grp->family;
 		msg = ctrl_build_mcgrp_msg(data, 0, 0, event);
-		if (IS_ERR(msg))
-			return PTR_ERR(msg);
-
-		genlmsg_multicast(msg, 0, GENL_ID_CTRL, GFP_KERNEL);
 		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
+
+	if (!family->netnsok) {
+		genlmsg_multicast_netns(&init_net, msg, 0,
+					GENL_ID_CTRL, GFP_KERNEL);
+	} else {
+		rcu_read_lock();
+		genlmsg_multicast_allns(msg, 0, GENL_ID_CTRL, GFP_ATOMIC);
+		rcu_read_unlock();
 	}
 
 	return 0;
@@ -795,6 +855,33 @@ static struct genl_multicast_group notify_grp = {
 	.name		= "notify",
 };
 
+static int __net_init genl_pernet_init(struct net *net)
+{
+	/* we'll bump the group number right afterwards */
+	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC, 0,
+					       genl_rcv, &genl_mutex,
+					       THIS_MODULE);
+
+	if (!net->genl_sock && net_eq(net, &init_net))
+		panic("GENL: Cannot initialize generic netlink\n");
+
+	if (!net->genl_sock)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void __net_exit genl_pernet_exit(struct net *net)
+{
+	netlink_kernel_release(net->genl_sock);
+	net->genl_sock = NULL;
+}
+
+static struct pernet_operations genl_pernet_ops = {
+	.init = genl_pernet_init,
+	.exit = genl_pernet_exit,
+};
+
 static int __init genl_init(void)
 {
 	int i, err;
@@ -802,38 +889,60 @@ static int __init genl_init(void)
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++)
 		INIT_LIST_HEAD(&family_ht[i]);
 
-	err = genl_register_family(&genl_ctrl);
+	err = genl_register_family_with_ops(&genl_ctrl, &genl_ctrl_ops, 1);
 	if (err < 0)
-		goto errout;
-
-	err = genl_register_ops(&genl_ctrl, &genl_ctrl_ops);
-	if (err < 0)
-		goto errout_register;
+		goto problem;
 
 	netlink_set_nonroot(NETLINK_GENERIC, NL_NONROOT_RECV);
 
-	/* we'll bump the group number right afterwards */
-	genl_sock = netlink_kernel_create(&init_net, NETLINK_GENERIC, 0,
-					  genl_rcv, &genl_mutex, THIS_MODULE);
-	if (genl_sock == NULL)
-		panic("GENL: Cannot initialize generic netlink\n");
+	err = register_pernet_subsys(&genl_pernet_ops);
+	if (err)
+		goto problem;
 
 	err = genl_register_mc_group(&genl_ctrl, &notify_grp);
 	if (err < 0)
-		goto errout_register;
+		goto problem;
 
 	return 0;
 
-errout_register:
-	genl_unregister_family(&genl_ctrl);
-errout:
+problem:
 	panic("GENL: Cannot register controller: %d\n", err);
 }
 
 subsys_initcall(genl_init);
 
-EXPORT_SYMBOL(genl_sock);
-EXPORT_SYMBOL(genl_register_ops);
-EXPORT_SYMBOL(genl_unregister_ops);
-EXPORT_SYMBOL(genl_register_family);
-EXPORT_SYMBOL(genl_unregister_family);
+static int genlmsg_mcast(struct sk_buff *skb, u32 pid, unsigned long group,
+			 gfp_t flags)
+{
+	struct sk_buff *tmp;
+	struct net *net, *prev = NULL;
+	int err;
+
+	for_each_net_rcu(net) {
+		if (prev) {
+			tmp = skb_clone(skb, flags);
+			if (!tmp) {
+				err = -ENOMEM;
+				goto error;
+			}
+			err = nlmsg_multicast(prev->genl_sock, tmp,
+					      pid, group, flags);
+			if (err)
+				goto error;
+		}
+
+		prev = net;
+	}
+
+	return nlmsg_multicast(prev->genl_sock, skb, pid, group, flags);
+ error:
+	kfree_skb(skb);
+	return err;
+}
+
+int genlmsg_multicast_allns(struct sk_buff *skb, u32 pid, unsigned int group,
+			    gfp_t flags)
+{
+	return genlmsg_mcast(skb, pid, group, flags);
+}
+EXPORT_SYMBOL(genlmsg_multicast_allns);

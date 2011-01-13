@@ -38,7 +38,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* base address register in PCI config space */
 #define SIS96x_BAR 0x04
@@ -245,7 +245,7 @@ static struct i2c_adapter sis96x_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
-static struct pci_device_id sis96x_ids[] = {
+static const struct pci_device_id sis96x_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_SMBUS) },
 	{ 0, }
 };
@@ -280,7 +280,7 @@ static int __devinit sis96x_probe(struct pci_dev *dev,
 
 	retval = acpi_check_resource_conflict(&dev->resource[SIS96x_BAR]);
 	if (retval)
-		return retval;
+		return -ENODEV;
 
 	/* Everything is happy, let's grab the memory and set things up. */
 	if (!request_region(sis96x_smbus_base, SMB_IOSIZE,

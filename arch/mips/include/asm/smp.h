@@ -13,6 +13,7 @@
 
 #include <linux/bitops.h>
 #include <linux/linkage.h>
+#include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 
@@ -40,6 +41,7 @@ extern int __cpu_logical_map[NR_CPUS];
 /* Octeon - Tell another core to flush its icache */
 #define SMP_ICACHE_FLUSH	0x4
 
+extern volatile cpumask_t cpu_callin_map;
 
 extern void asmlinkage smp_bootstrap(void);
 
@@ -55,9 +57,38 @@ static inline void smp_send_reschedule(int cpu)
 	mp_ops->send_ipi_single(cpu, SMP_RESCHEDULE_YOURSELF);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static inline int __cpu_disable(void)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	return mp_ops->cpu_disable();
+}
+
+static inline void __cpu_die(unsigned int cpu)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	mp_ops->cpu_die(cpu);
+}
+
+extern void play_dead(void);
+#endif
+
 extern asmlinkage void smp_call_function_interrupt(void);
 
-extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi(cpumask_t mask);
+static inline void arch_send_call_function_single_ipi(int cpu)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	mp_ops->send_ipi_mask(&cpumask_of_cpu(cpu), SMP_CALL_FUNCTION);
+}
+
+static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
+}
 
 #endif /* __ASM_SMP_H */

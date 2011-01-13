@@ -31,6 +31,9 @@ struct imxmmc_platform_data {
 
 	/* adjust slot voltage */
 	void (*setpower)(struct device *, unsigned int vdd);
+
+	/* enable card detect using DAT3 */
+	int dat3_card_detect;
 };
 
 #endif

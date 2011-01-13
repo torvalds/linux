@@ -1,10 +1,7 @@
-#
-# linux/drivers/mtd/onenand/Kconfig
-#
-
 menuconfig MTD_ONENAND
 	tristate "OneNAND Device Support"
 	depends on MTD
+	select MTD_PARTITIONS
 	help
 	  This enables support for accessing all type of OneNAND flash
 	  devices. For further information see
@@ -23,16 +20,23 @@ config MTD_ONENAND_VERIFY_WRITE
 
 config MTD_ONENAND_GENERIC
 	tristate "OneNAND Flash device via platform device driver"
-	depends on ARM
 	help
 	  Support for OneNAND flash via platform device driver.
 
 config MTD_ONENAND_OMAP2
 	tristate "OneNAND on OMAP2/OMAP3 support"
-	depends on MTD_ONENAND && (ARCH_OMAP2 || ARCH_OMAP3)
+	depends on ARCH_OMAP2 || ARCH_OMAP3
 	help
 	  Support for a OneNAND flash device connected to an OMAP2/OMAP3 CPU
 	  via the GPMC memory controller.
+
+config MTD_ONENAND_SAMSUNG
+        tristate "OneNAND on Samsung SOC controller support"
+        depends on ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5PV310
+        help
+          Support for a OneNAND flash device connected to an Samsung SOC.
+          S3C64XX/S5PC100 use command mapping method.
+          S5PC110/S5PC210 use generic OneNAND method.
 
 config MTD_ONENAND_OTP
 	bool "OneNAND OTP Support"
@@ -66,7 +70,6 @@ config MTD_ONENAND_2X_PROGRAM
 
 config MTD_ONENAND_SIM
 	tristate "OneNAND simulator support"
-	depends on MTD_PARTITIONS
 	help
 	  The simulator may simulate various OneNAND flash chips for the
 	  OneNAND MTD layer.

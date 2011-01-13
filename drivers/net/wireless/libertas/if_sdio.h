@@ -12,10 +12,6 @@
 #ifndef _LBS_IF_SDIO_H
 #define _LBS_IF_SDIO_H
 
-#define IF_SDIO_MODEL_8385	0x04
-#define IF_SDIO_MODEL_8686	0x0b
-#define IF_SDIO_MODEL_8688	0x10
-
 #define IF_SDIO_IOPORT		0x00
 
 #define IF_SDIO_H_INT_MASK	0x04
@@ -51,5 +47,6 @@
 #define IF_SDIO_EVENT           0x80fc
 
 #define IF_SDIO_BLOCK_SIZE	256
-
+#define CONFIGURATION_REG               0x03
+#define HOST_POWER_UP                   (0x1U << 1)
 #endif

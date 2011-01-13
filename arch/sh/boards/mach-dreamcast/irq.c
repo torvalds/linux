@@ -60,8 +60,9 @@
  */
 
 /* Disable the hardware event by masking its bit in its EMR */
-static inline void disable_systemasic_irq(unsigned int irq)
+static inline void disable_systemasic_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	__u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
 	__u32 mask;
 
@@ -71,8 +72,9 @@ static inline void disable_systemasic_irq(unsigned int irq)
 }
 
 /* Enable the hardware event by setting its bit in its EMR */
-static inline void enable_systemasic_irq(unsigned int irq)
+static inline void enable_systemasic_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	__u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
 	__u32 mask;
 
@@ -82,18 +84,19 @@ static inline void enable_systemasic_irq(unsigned int irq)
 }
 
 /* Acknowledge a hardware event by writing its bit back to its ESR */
-static void mask_ack_systemasic_irq(unsigned int irq)
+static void mask_ack_systemasic_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	__u32 esr = ESR_BASE + (LEVEL(irq) << 2);
-	disable_systemasic_irq(irq);
+	disable_systemasic_irq(data);
 	outl((1 << EVENT_BIT(irq)), esr);
 }
 
 struct irq_chip systemasic_int = {
 	.name		= "System ASIC",
-	.mask		= disable_systemasic_irq,
-	.mask_ack	= mask_ack_systemasic_irq,
-	.unmask		= enable_systemasic_irq,
+	.irq_mask	= disable_systemasic_irq,
+	.irq_mask_ack	= mask_ack_systemasic_irq,
+	.irq_unmask	= enable_systemasic_irq,
 };
 
 /*
@@ -134,4 +137,31 @@ int systemasic_irq_demux(int irq)
 
 	/* Not reached */
 	return irq;
+}
+
+void systemasic_irq_init(void)
+{
+	int i, nid = cpu_to_node(boot_cpu_data);
+
+	/* Assign all virtual IRQs to the System ASIC int. handler */
+	for (i = HW_EVENT_IRQ_BASE; i < HW_EVENT_IRQ_MAX; i++) {
+		unsigned int irq;
+
+		irq = create_irq_nr(i, nid);
+		if (unlikely(irq == 0)) {
+			pr_err("%s: failed hooking irq %d for systemasic\n",
+			       __func__, i);
+			return;
+		}
+
+		if (unlikely(irq != i)) {
+			pr_err("%s: got irq %d but wanted %d, bailing.\n",
+			       __func__, irq, i);
+			destroy_irq(irq);
+			return;
+		}
+
+		set_irq_chip_and_handler(i, &systemasic_int,
+					 handle_level_irq);
+	}
 }

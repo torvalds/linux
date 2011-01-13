@@ -221,7 +221,7 @@ restart:
 			goto restart;
 		}
 		if (buffer_locked(bh)) {
-			atomic_inc(&bh->b_count);
+			get_bh(bh);
 			spin_unlock(&journal->j_list_lock);
 			jbd_unlock_bh_state(bh);
 			wait_on_buffer(bh);
@@ -254,7 +254,9 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
 {
 	int i;
 
-	ll_rw_block(SWRITE, *batch_count, bhs);
+	for (i = 0; i < *batch_count; i++)
+		write_dirty_buffer(bhs[i], WRITE);
+
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = bhs[i];
 		clear_buffer_jwrite(bh);
@@ -281,7 +283,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 	int ret = 0;
 
 	if (buffer_locked(bh)) {
-		atomic_inc(&bh->b_count);
+		get_bh(bh);
 		spin_unlock(&journal->j_list_lock);
 		jbd_unlock_bh_state(bh);
 		wait_on_buffer(bh);
@@ -456,7 +458,7 @@ int cleanup_journal_tail(journal_t *journal)
 {
 	transaction_t * transaction;
 	tid_t		first_tid;
-	unsigned long	blocknr, freed;
+	unsigned int	blocknr, freed;
 
 	if (is_journal_aborted(journal))
 		return 1;
@@ -502,8 +504,8 @@ int cleanup_journal_tail(journal_t *journal)
 		freed = freed + journal->j_last - journal->j_first;
 
 	jbd_debug(1,
-		  "Cleaning journal tail from %d to %d (offset %lu), "
-		  "freeing %lu\n",
+		  "Cleaning journal tail from %d to %d (offset %u), "
+		  "freeing %u\n",
 		  journal->j_tail_sequence, first_tid, blocknr, freed);
 
 	journal->j_free += freed;

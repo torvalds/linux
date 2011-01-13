@@ -58,7 +58,7 @@ static DECLARE_INTC_DESC_ACK(intc_desc_irq45, "sh3-irq45",
 void __init plat_irq_setup_pins(int mode)
 {
 	if (mode == IRQ_MODE_IRQ) {
-		ctrl_outw(ctrl_inw(INTC_ICR1) & ~INTC_ICR1_IRQLVL, INTC_ICR1);
+		__raw_writew(__raw_readw(INTC_ICR1) & ~INTC_ICR1_IRQLVL, INTC_ICR1);
 		register_intc_controller(&intc_desc_irq0123);
 		return;
 	}

@@ -50,9 +50,9 @@
 
 static char __init *decode_eisa_sig(unsigned long addr)
 {
-        static char sig_str[EISA_SIG_LEN];
+	static char sig_str[EISA_SIG_LEN] __initdata;
 	u8 sig[4];
-        u16 rev;
+	u16 rev;
 	int i;
 
 	for (i = 0; i < 4; i++) {

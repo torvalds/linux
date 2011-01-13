@@ -125,14 +125,30 @@ struct ib_perf {
 	u8 data[192];
 } __attribute__ ((packed));
 
+/* TC/SL/FL packed into 32 bits, as in ClassPortInfo */
+struct tcslfl {
+	u32 tc:8;
+	u32 sl:4;
+	u32 fl:20;
+} __attribute__ ((packed));
+
+/* IP Version/TC/FL packed into 32 bits, as in GRH */
+struct vertcfl {
+	u32 ver:4;
+	u32 tc:8;
+	u32 fl:20;
+} __attribute__ ((packed));
 
 static int ehca_process_perf(struct ib_device *ibdev, u8 port_num,
+			     struct ib_wc *in_wc, struct ib_grh *in_grh,
 			     struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	struct ib_perf *in_perf = (struct ib_perf *)in_mad;
 	struct ib_perf *out_perf = (struct ib_perf *)out_mad;
 	struct ib_class_port_info *poi =
 		(struct ib_class_port_info *)out_perf->data;
+	struct tcslfl *tcslfl =
+		(struct tcslfl *)&poi->redirect_tcslfl;
 	struct ehca_shca *shca =
 		container_of(ibdev, struct ehca_shca, ib_device);
 	struct ehca_sport *sport = &shca->sport[port_num - 1];
@@ -158,10 +174,29 @@ static int ehca_process_perf(struct ib_device *ibdev, u8 port_num,
 		poi->base_version = 1;
 		poi->class_version = 1;
 		poi->resp_time_value = 18;
-		poi->redirect_lid = sport->saved_attr.lid;
-		poi->redirect_qp = sport->pma_qp_nr;
+
+		/* copy local routing information from WC where applicable */
+		tcslfl->sl         = in_wc->sl;
+		poi->redirect_lid  =
+			sport->saved_attr.lid | in_wc->dlid_path_bits;
+		poi->redirect_qp   = sport->pma_qp_nr;
 		poi->redirect_qkey = IB_QP1_QKEY;
-		poi->redirect_pkey = IB_DEFAULT_PKEY_FULL;
+
+		ehca_query_pkey(ibdev, port_num, in_wc->pkey_index,
+				&poi->redirect_pkey);
+
+		/* if request was globally routed, copy route info */
+		if (in_grh) {
+			struct vertcfl *vertcfl =
+				(struct vertcfl *)&in_grh->version_tclass_flow;
+			memcpy(poi->redirect_gid, in_grh->dgid.raw,
+			       sizeof(poi->redirect_gid));
+			tcslfl->tc        = vertcfl->tc;
+			tcslfl->fl        = vertcfl->fl;
+		} else
+			/* else only fill in default GID */
+			ehca_query_gid(ibdev, port_num, 0,
+				       (union ib_gid *)&poi->redirect_gid);
 
 		ehca_dbg(ibdev, "ehca_pma_lid=%x ehca_pma_qp=%x",
 			 sport->saved_attr.lid, sport->pma_qp_nr);
@@ -183,12 +218,11 @@ perf_reply:
 
 int ehca_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		     struct ib_wc *in_wc, struct ib_grh *in_grh,
-		     struct ib_mad *in_mad,
-		     struct ib_mad *out_mad)
+		     struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	int ret;
 
-	if (!port_num || port_num > ibdev->phys_port_cnt)
+	if (!port_num || port_num > ibdev->phys_port_cnt || !in_wc)
 		return IB_MAD_RESULT_FAILURE;
 
 	/* accept only pma request */
@@ -196,7 +230,8 @@ int ehca_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		return IB_MAD_RESULT_SUCCESS;
 
 	ehca_dbg(ibdev, "port_num=%x src_qp=%x", port_num, in_wc->src_qp);
-	ret = ehca_process_perf(ibdev, port_num, in_mad, out_mad);
+	ret = ehca_process_perf(ibdev, port_num, in_wc, in_grh,
+				in_mad, out_mad);
 
 	return ret;
 }

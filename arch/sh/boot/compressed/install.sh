@@ -23,8 +23,8 @@
 
 # User may have a custom install script
 
-if [ -x /sbin/installkernel ]; then
-  exec /sbin/installkernel "$@"
+if [ -x /sbin/${INSTALLKERNEL} ]; then
+  exec /sbin/${INSTALLKERNEL} "$@"
 fi
 
 if [ "$2" = "zImage" ]; then

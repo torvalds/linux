@@ -1,32 +1,7 @@
 /*
- * file:	include/asm-blackfin/mach-bf518/irq.h
- * based on:	include/asm-blackfin/mach-bf527/irq.h
- * author:	Michael Hennerich (michael.hennerich@analog.com)
+ * Copyright 2008 Analog Devices Inc.
  *
- * created:
- * description:
- *	system mmr register map
- * rev:
- *
- * modified:
- *
- *
- * bugs:         enter bugs at http://blackfin.uclinux.org/
- *
- * this program is free software; you can redistribute it and/or modify
- * it under the terms of the gnu general public license as published by
- * the free software foundation; either version 2, or (at your option)
- * any later version.
- *
- * this program is distributed in the hope that it will be useful,
- * but without any warranty; without even the implied warranty of
- * merchantability or fitness for a particular purpose.  see the
- * gnu general public license for more details.
- *
- * you should have received a copy of the gnu general public license
- * along with this program; see the file copying.
- * if not, write to the free software foundation,
- * 59 temple place - suite 330, boston, ma 02111-1307, usa.
+ * Licensed under the GPL-2 or later
  */
 
 #ifndef _BF518_IRQ_H_
@@ -176,7 +151,17 @@
 
 #define GPIO_IRQ_BASE	IRQ_PF0
 
-#define NR_IRQS     (IRQ_PH15 + 1)
+#define IRQ_MAC_PHYINT		119 /* PHY_INT Interrupt */
+#define IRQ_MAC_MMCINT		120 /* MMC Counter Interrupt */
+#define IRQ_MAC_RXFSINT		121 /* RX Frame-Status Interrupt */
+#define IRQ_MAC_TXFSINT		122 /* TX Frame-Status Interrupt */
+#define IRQ_MAC_WAKEDET		123 /* Wake-Up Interrupt */
+#define IRQ_MAC_RXDMAERR	124 /* RX DMA Direction Error Interrupt */
+#define IRQ_MAC_TXDMAERR	125 /* TX DMA Direction Error Interrupt */
+#define IRQ_MAC_STMDONE		126 /* Station Mgt. Transfer Done Interrupt */
+
+#define NR_MACH_IRQS	(IRQ_MAC_STMDONE + 1)
+#define NR_IRQS		(NR_MACH_IRQS + NR_SPARE_IRQS)
 
 #define IVG7            7
 #define IVG8            8

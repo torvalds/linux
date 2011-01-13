@@ -26,16 +26,15 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/dvb/
+ * the project's page is at http://www.linuxtv.org/ 
  */
 
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/input.h>
 #include <linux/spinlock.h>
-#include <media/ir-common.h>
+#include <media/rc-core.h>
 
 #include "budget.h"
 
@@ -53,6 +52,8 @@
 #include "bsru6.h"
 #include "tda1002x.h"
 #include "tda827x.h"
+
+#define MODULE_NAME "budget_ci"
 
 /*
  * Regarding DEBIADDR_IR:
@@ -80,12 +81,6 @@
 #define SLOTSTATUS_READY	8
 #define SLOTSTATUS_OCCUPIED	(SLOTSTATUS_PRESENT|SLOTSTATUS_RESET|SLOTSTATUS_READY)
 
-/*
- * Milliseconds during which a key is regarded as pressed.
- * If an identical command arrives within this time, the timer will start over.
- */
-#define IR_KEYPRESS_TIMEOUT	250
-
 /* RC5 device wildcard */
 #define IR_DEVICE_ANY		255
 
@@ -100,14 +95,11 @@ MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct budget_ci_ir {
-	struct input_dev *dev;
+	struct rc_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
-	struct timer_list timer_keyup;
 	char name[72]; /* 40 + 32 for (struct saa7146_dev).name */
 	char phys[32];
-	struct ir_input_state state;
 	int rc5_device;
-	u32 last_raw;
 	u32 ir_key;
 	bool have_command;
 };
@@ -122,18 +114,11 @@ struct budget_ci {
 	u8 tuner_pll_address; /* used for philips_tdm1316l configs */
 };
 
-static void msp430_ir_keyup(unsigned long data)
-{
-	struct budget_ci_ir *ir = (struct budget_ci_ir *) data;
-	ir_input_nokey(ir->dev, &ir->state);
-}
-
 static void msp430_ir_interrupt(unsigned long data)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) data;
-	struct input_dev *dev = budget_ci->ir.dev;
+	struct rc_dev *dev = budget_ci->ir.dev;
 	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
-	u32 raw;
 
 	/*
 	 * The msp430 chip can generate two different bytes, command and device
@@ -169,33 +154,24 @@ static void msp430_ir_interrupt(unsigned long data)
 		return;
 	budget_ci->ir.have_command = false;
 
+	/* FIXME: We should generate complete scancodes with device info */
 	if (budget_ci->ir.rc5_device != IR_DEVICE_ANY &&
 	    budget_ci->ir.rc5_device != (command & 0x1f))
 		return;
 
-	/* Is this a repeated key sequence? (same device, command, toggle) */
-	raw = budget_ci->ir.ir_key | (command << 8);
-	if (budget_ci->ir.last_raw != raw || !timer_pending(&budget_ci->ir.timer_keyup)) {
-		ir_input_nokey(dev, &budget_ci->ir.state);
-		ir_input_keydown(dev, &budget_ci->ir.state,
-				 budget_ci->ir.ir_key, raw);
-		budget_ci->ir.last_raw = raw;
-	}
-
-	mod_timer(&budget_ci->ir.timer_keyup, jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT));
+	rc_keydown(dev, budget_ci->ir.ir_key, (command & 0x20) ? 1 : 0);
 }
 
 static int msp430_ir_init(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
-	struct input_dev *input_dev = budget_ci->ir.dev;
+	struct rc_dev *dev;
 	int error;
 
-	budget_ci->ir.dev = input_dev = input_allocate_device();
-	if (!input_dev) {
+	dev = rc_allocate_device();
+	if (!dev) {
 		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
-		error = -ENOMEM;
-		goto out1;
+		return -ENOMEM;
 	}
 
 	snprintf(budget_ci->ir.name, sizeof(budget_ci->ir.name),
@@ -203,19 +179,25 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	snprintf(budget_ci->ir.phys, sizeof(budget_ci->ir.phys),
 		 "pci-%s/ir0", pci_name(saa->pci));
 
-	input_dev->name = budget_ci->ir.name;
-
-	input_dev->phys = budget_ci->ir.phys;
-	input_dev->id.bustype = BUS_PCI;
-	input_dev->id.version = 1;
+	dev->driver_name = MODULE_NAME;
+	dev->input_name = budget_ci->ir.name;
+	dev->input_phys = budget_ci->ir.phys;
+	dev->input_id.bustype = BUS_PCI;
+	dev->input_id.version = 1;
+	dev->scanmask = 0xff;
 	if (saa->pci->subsystem_vendor) {
-		input_dev->id.vendor = saa->pci->subsystem_vendor;
-		input_dev->id.product = saa->pci->subsystem_device;
+		dev->input_id.vendor = saa->pci->subsystem_vendor;
+		dev->input_id.product = saa->pci->subsystem_device;
 	} else {
-		input_dev->id.vendor = saa->pci->vendor;
-		input_dev->id.product = saa->pci->device;
+		dev->input_id.vendor = saa->pci->vendor;
+		dev->input_id.product = saa->pci->device;
 	}
-	input_dev->dev.parent = &saa->pci->dev;
+	dev->dev.parent = &saa->pci->dev;
+
+	if (rc5_device < 0)
+		budget_ci->ir.rc5_device = IR_DEVICE_ANY;
+	else
+		budget_ci->ir.rc5_device = rc5_device;
 
 	/* Select keymap and address */
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
@@ -224,52 +206,32 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1011:
 	case 0x1012:
 		/* The hauppauge keymap is a superset of these remotes */
-		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, ir_codes_hauppauge_new);
+		dev->map_name = RC_MAP_HAUPPAUGE_NEW;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
-		else
-			budget_ci->ir.rc5_device = rc5_device;
 		break;
 	case 0x1010:
 	case 0x1017:
+	case 0x1019:
 	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
-		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, ir_codes_tt_1500);
-
-		if (rc5_device < 0)
-			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
-		else
-			budget_ci->ir.rc5_device = rc5_device;
+		dev->map_name = RC_MAP_TT_1500;
 		break;
 	default:
 		/* unknown remote */
-		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, ir_codes_budget_ci_old);
-
-		if (rc5_device < 0)
-			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
-		else
-			budget_ci->ir.rc5_device = rc5_device;
+		dev->map_name = RC_MAP_BUDGET_CI_OLD;
 		break;
 	}
 
-	/* initialise the key-up timeout handler */
-	init_timer(&budget_ci->ir.timer_keyup);
-	budget_ci->ir.timer_keyup.function = msp430_ir_keyup;
-	budget_ci->ir.timer_keyup.data = (unsigned long) &budget_ci->ir;
-	budget_ci->ir.last_raw = 0xffff; /* An impossible value */
-	error = input_register_device(input_dev);
+	error = rc_register_device(dev);
 	if (error) {
 		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
-		goto out2;
+		rc_free_device(dev);
+		return error;
 	}
 
-	/* note: these must be after input_register_device */
-	input_dev->rep[REP_DELAY] = 400;
-	input_dev->rep[REP_PERIOD] = 250;
+	budget_ci->ir.dev = dev;
 
 	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
 		     (unsigned long) budget_ci);
@@ -278,26 +240,17 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_IRQHI);
 
 	return 0;
-
-out2:
-	input_free_device(input_dev);
-out1:
-	return error;
 }
 
 static void msp430_ir_deinit(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
-	struct input_dev *dev = budget_ci->ir.dev;
 
 	SAA7146_IER_DISABLE(saa, MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
 
-	del_timer_sync(&dev->timer);
-	ir_input_nokey(dev, &budget_ci->ir.state);
-
-	input_unregister_device(dev);
+	rc_unregister_device(budget_ci->ir.dev);
 }
 
 static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int address)
@@ -1248,7 +1201,7 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_3[] = {
 	{ STB0899_TSCFGH        	, 0x0c },
 	{ STB0899_TSCFGM        	, 0x00 },
 	{ STB0899_TSCFGL        	, 0x0c },
-	{ STB0899_TSOUT			, 0x0d }, /* 0x0d for CAM */
+	{ STB0899_TSOUT			, 0x4d }, /* 0x0d for CAM */
 	{ STB0899_RSSYNCDEL     	, 0x00 },
 	{ STB0899_TSINHDELH     	, 0x02 },
 	{ STB0899_TSINHDELM		, 0x00 },

@@ -155,7 +155,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
 static void mts_usb_disconnect(struct usb_interface *intf);
 
-static struct usb_device_id mts_usb_ids [];
+static const struct usb_device_id mts_usb_ids[];
 
 static struct usb_driver mts_usb_driver = {
 	.name =		"microtekX6",
@@ -364,7 +364,7 @@ static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 }
 
 static int
-mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback);
+mts_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *srb);
 
 static void mts_transfer_cleanup( struct urb *transfer );
 static void mts_do_sg(struct urb * transfer);
@@ -398,7 +398,6 @@ void mts_int_submit_urb (struct urb* transfer,
 		context->srb->result = DID_ERROR << 16;
 		mts_transfer_cleanup(transfer);
 	}
-	return;
 }
 
 
@@ -409,7 +408,6 @@ static void mts_transfer_cleanup( struct urb *transfer )
 
 	if ( likely(context->final_callback != NULL) )
 		context->final_callback(context->srb);
-
 }
 
 static void mts_transfer_done( struct urb *transfer )
@@ -420,8 +418,6 @@ static void mts_transfer_done( struct urb *transfer )
 	context->srb->result |= (unsigned)(*context->scsi_status)<<1;
 
 	mts_transfer_cleanup(transfer);
-
-	return;
 }
 
 
@@ -452,8 +448,6 @@ static void mts_data_done( struct urb* transfer )
 	}
 
 	mts_get_status(transfer);
-
-	return;
 }
 
 
@@ -496,8 +490,6 @@ static void mts_command_done( struct urb *transfer )
 			mts_get_status(transfer);
 		}
 	}
-
-	return;
 }
 
 static void mts_do_sg (struct urb* transfer)
@@ -522,7 +514,6 @@ static void mts_do_sg (struct urb* transfer)
 			   sg[context->fragment].length,
 			   context->fragment + 1 == scsi_sg_count(context->srb) ?
 			   mts_data_done : mts_do_sg);
-	return;
 }
 
 static const u8 mts_read_image_sig[] = { 0x28, 00, 00, 00 };
@@ -582,7 +573,7 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 
 
 static int
-mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback)
+mts_scsi_queuecommand_lck(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int err = 0;
@@ -635,6 +626,8 @@ out:
 	return err;
 }
 
+static DEF_SCSI_QCMD(mts_scsi_queuecommand)
+
 static struct scsi_host_template mts_scsi_host_template = {
 	.module			= THIS_MODULE,
 	.name			= "microtekX6",
@@ -653,37 +646,10 @@ static struct scsi_host_template mts_scsi_host_template = {
 	.max_sectors=		256, /* 128 K */
 };
 
-struct vendor_product
-{
-	char* name;
-	enum
-	{
-		mts_sup_unknown=0,
-		mts_sup_alpha,
-		mts_sup_full
-	}
-	support_status;
-} ;
-
-
-/* These are taken from the msmUSB.inf file on the Windows driver CD */
-static const struct vendor_product mts_supported_products[] =
-{
-	{ "Phantom 336CX",	mts_sup_unknown},
-	{ "Phantom 336CX",	mts_sup_unknown},
-	{ "Scanmaker X6",	mts_sup_alpha},
-	{ "Phantom C6",		mts_sup_unknown},
-	{ "Phantom 336CX",	mts_sup_unknown},
-	{ "ScanMaker V6USL",	mts_sup_unknown},
-	{ "ScanMaker V6USL",	mts_sup_unknown},
-	{ "Scanmaker V6UL",	mts_sup_unknown},
-	{ "Scanmaker V6UPL",	mts_sup_alpha},
-};
-
 /* The entries of microtek_table must correspond, line-by-line to
    the entries of mts_supported_products[]. */
 
-static struct usb_device_id mts_usb_ids [] =
+static const struct usb_device_id mts_usb_ids[] =
 {
 	{ USB_DEVICE(0x4ce, 0x0300) },
 	{ USB_DEVICE(0x5da, 0x0094) },
@@ -711,7 +677,6 @@ static int mts_usb_probe(struct usb_interface *intf,
 	int err_retval = -ENOMEM;
 
 	struct mts_desc * new_desc;
-	struct vendor_product const* p;
 	struct usb_device *dev = interface_to_usbdev (intf);
 
 	/* the current altsetting on the interface we're probing */
@@ -725,15 +690,6 @@ static int mts_usb_probe(struct usb_interface *intf,
 		   le16_to_cpu(dev->descriptor.idVendor) );
 
 	MTS_DEBUG_GOT_HERE();
-
-	p = &mts_supported_products[id - mts_usb_ids];
-
-	MTS_DEBUG_GOT_HERE();
-
-	MTS_DEBUG( "found model %s\n", p->name );
-	if ( p->support_status != mts_sup_full )
-		MTS_MESSAGE( "model %s is not known to be fully supported, reports welcome!\n",
-			     p->name );
 
 	/* the current altsetting on the interface we're probing */
 	altsetting = intf->cur_altsetting;

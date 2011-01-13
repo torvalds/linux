@@ -1,13 +1,15 @@
 config VIDEO_EM28XX
 	tristate "Empia EM28xx USB video capture support"
-	depends on VIDEO_DEV && I2C && INPUT
+	depends on VIDEO_DEV && I2C
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	select VIDEO_IR
+	depends on RC_CORE
 	select VIDEOBUF_VMALLOC
 	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TVP5150 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_MSP3400 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_MT9V011 if VIDEO_HELPER_CHIPS_AUTO
+
 	---help---
 	  This is a video4linux driver for Empia 28xx based TV cards.
 
@@ -34,6 +36,8 @@ config VIDEO_EM28XX_DVB
 	depends on VIDEO_EM28XX && DVB_CORE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
+	select DVB_S921 if !DVB_FE_CUSTOMISE
 	select VIDEOBUF_DVB
 	---help---
 	  This adds support for DVB cards based on the

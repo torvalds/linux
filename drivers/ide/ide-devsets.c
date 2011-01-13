@@ -1,5 +1,6 @@
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/ide.h>
 
 DEFINE_MUTEX(ide_setting_mtx);
@@ -105,15 +106,17 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 		return -ENOSYS;
 
 	if (set_pio_mode_abuse(drive->hwif, arg)) {
+		drive->pio_mode = arg + XFER_PIO_0;
+
 		if (arg == 8 || arg == 9) {
 			unsigned long flags;
 
 			/* take lock for IDE_DFLAG_[NO_]UNMASK/[NO_]IO_32BIT */
 			spin_lock_irqsave(&hwif->lock, flags);
-			port_ops->set_pio_mode(drive, arg);
+			port_ops->set_pio_mode(hwif, drive);
 			spin_unlock_irqrestore(&hwif->lock, flags);
 		} else
-			port_ops->set_pio_mode(drive, arg);
+			port_ops->set_pio_mode(hwif, drive);
 	} else {
 		int keep_dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 
@@ -183,6 +186,6 @@ ide_startstop_t ide_do_devset(ide_drive_t *drive, struct request *rq)
 	err = setfunc(drive, *(int *)&rq->cmd[1]);
 	if (err)
 		rq->errors = err;
-	ide_complete_rq(drive, err, ide_rq_bytes(rq));
+	ide_complete_rq(drive, err, blk_rq_bytes(rq));
 	return ide_stopped;
 }

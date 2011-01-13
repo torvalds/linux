@@ -74,9 +74,9 @@ static struct gpio_keys_button mv88f6281gtw_ge_button_pins[] = {
 		.desc		= "SWR Button",
 		.active_low	= 1,
 	}, {
-		.code		= KEY_F1,
+		.code		= KEY_WPS_BUTTON,
 		.gpio		= 46,
-		.desc		= "WPS Button(F1)",
+		.desc		= "WPS Button",
 		.active_low	= 1,
 	},
 };
@@ -155,7 +155,7 @@ static void __init mv88f6281gtw_ge_init(void)
 static int __init mv88f6281gtw_ge_pci_init(void)
 {
 	if (machine_is_mv88f6281gtw_ge())
-		kirkwood_pcie_init();
+		kirkwood_pcie_init(KW_PCIE0);
 
 	return 0;
 }
@@ -163,8 +163,6 @@ subsys_initcall(mv88f6281gtw_ge_pci_init);
 
 MACHINE_START(MV88F6281GTW_GE, "Marvell 88F6281 GTW GE Board")
 	/* Maintainer: Lennert Buytenhek <buytenh@marvell.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= mv88f6281gtw_ge_init,
 	.map_io		= kirkwood_map_io,

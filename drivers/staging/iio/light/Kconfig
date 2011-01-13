@@ -1,0 +1,26 @@
+#
+# Light sensors
+#
+comment "Light sensors"
+
+config SENSORS_TSL2563
+	tristate "TAOS TSL256[0-3] ambient light sensor"
+	depends on I2C
+	help
+	 If you say yes here you get support for the Taos TSL2560,
+	 TSL2561, TSL2562 and TSL2563 ambient light sensors.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called tsl2563.
+
+config SENSORS_ISL29018
+        tristate "ISL 29018 light and proximity sensor"
+        depends on I2C
+        default n
+        help
+         If you say yes here you get support for ambient light sensing and
+         proximity infrared sensing from Intersil ISL29018.
+         This driver will provide the measurements of ambient light intensity
+         in lux, proximity infrared sensing and normal infrared sensing.
+         Data from sensor is accessible via sysfs.
+

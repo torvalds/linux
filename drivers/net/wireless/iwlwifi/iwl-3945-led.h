@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -24,23 +24,9 @@
  *
  *****************************************************************************/
 
-#ifndef IWL3945_LEDS_H
-#define IWL3945_LEDS_H
+#ifndef __iwl_3945_led_h__
+#define __iwl_3945_led_h__
 
-struct iwl_priv;
+extern const struct iwl_led_ops iwl3945_led_ops;
 
-#ifdef CONFIG_IWLWIFI_LEDS
-
-#include "iwl-led.h"
-
-extern int iwl3945_led_register(struct iwl_priv *priv);
-extern void iwl3945_led_unregister(struct iwl_priv *priv);
-extern void iwl3945_led_background(struct iwl_priv *priv);
-
-#else
-static inline int iwl3945_led_register(struct iwl_priv *priv) { return 0; }
-static inline void iwl3945_led_unregister(struct iwl_priv *priv) {}
-static inline void iwl3945_led_background(struct iwl_priv *priv) {}
-
-#endif /* IWLWIFI_LEDS*/
-#endif /* IWL3945_LEDS_H */
+#endif /* __iwl_3945_led_h__ */

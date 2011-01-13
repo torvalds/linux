@@ -1,30 +1,7 @@
 /*
- * File:         include/asm-blackfin/mach-bf527/bf527.h
- * Based on:	include/asm-blackfin/mach-bf537/bf537.h
- * Author:	Michael Hennerich (michael.hennerich@analog.com)
+ * Copyright 2007-2009 Analog Devices Inc.
  *
- * Created:
- * Description:  SYSTEM MMR REGISTER AND MEMORY MAP FOR ADSP-BF527
- *
- * Modified:
- *               Copyright 2004-2007 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef __MACH_BF527_H__
@@ -107,6 +84,126 @@
 #endif
 
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO)
+
+/**************************** Hysteresis Settings ****************************/
+
+#ifdef CONFIG_BFIN_HYSTERESIS_CONTROL
+#ifdef CONFIG_GPIO_HYST_PORTF_0_7
+#define HYST_PORTF_0_7		(1 << 0)
+#else
+#define HYST_PORTF_0_7		(0 << 0)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTF_8_9
+#define HYST_PORTF_8_9		(1 << 2)
+#else
+#define HYST_PORTF_8_9		(0 << 2)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTF_10
+#define HYST_PORTF_10		(1 << 4)
+#else
+#define HYST_PORTF_10		(0 << 4)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTF_11
+#define HYST_PORTF_11		(1 << 6)
+#else
+#define HYST_PORTF_11		(0 << 6)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTF_12_13
+#define HYST_PORTF_12_13	(1 << 8)
+#else
+#define HYST_PORTF_12_13	(0 << 8)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTF_14_15
+#define HYST_PORTF_14_15	(1 << 10)
+#else
+#define HYST_PORTF_14_15	(0 << 10)
+#endif
+
+#define HYST_PORTF_0_15	(HYST_PORTF_0_7 | HYST_PORTF_8_9 | HYST_PORTF_10 | \
+		HYST_PORTF_11 | HYST_PORTF_12_13 | HYST_PORTF_14_15)
+
+#ifdef CONFIG_GPIO_HYST_PORTG_0
+#define HYST_PORTG_0		(1 << 0)
+#else
+#define HYST_PORTG_0		(0 << 0)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTG_1_4
+#define HYST_PORTG_1_4		(1 << 2)
+#else
+#define HYST_PORTG_1_4		(0 << 2)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTG_5_6
+#define HYST_PORTG_5_6		(1 << 4)
+#else
+#define HYST_PORTG_5_6		(0 << 4)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTG_7_8
+#define HYST_PORTG_7_8		(1 << 6)
+#else
+#define HYST_PORTG_7_8		(0 << 6)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTG_9
+#define HYST_PORTG_9		(1 << 8)
+#else
+#define HYST_PORTG_9		(0 << 8)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTG_10
+#define HYST_PORTG_10		(1 << 10)
+#else
+#define HYST_PORTG_10		(0 << 10)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTG_11_13
+#define HYST_PORTG_11_13	(1 << 12)
+#else
+#define HYST_PORTG_11_13	(0 << 12)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTG_14_15
+#define HYST_PORTG_14_15	(1 << 14)
+#else
+#define HYST_PORTG_14_15	(0 << 14)
+#endif
+
+#define HYST_PORTG_0_15	(HYST_PORTG_0 | HYST_PORTG_1_4 | HYST_PORTG_5_6 | \
+		HYST_PORTG_7_8 | HYST_PORTG_9 | HYST_PORTG_10 | \
+		HYST_PORTG_11_13 | HYST_PORTG_14_15)
+
+#ifdef CONFIG_GPIO_HYST_PORTH_0_7
+#define HYST_PORTH_0_7		(1 << 0)
+#else
+#define HYST_PORTH_0_7		(0 << 0)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTH_8
+#define HYST_PORTH_8		(1 << 2)
+#else
+#define HYST_PORTH_8		(0 << 2)
+#endif
+#ifdef CONFIG_GPIO_HYST_PORTH_9_15
+#define HYST_PORTH_9_15		(1 << 4)
+#else
+#define HYST_PORTH_9_15		(0 << 4)
+#endif
+
+#define HYST_PORTH_0_15	(HYST_PORTH_0_7 | HYST_PORTH_8 | HYST_PORTH_9_15)
+
+#ifdef CONFIG_NONEGPIO_HYST_TMR0_FS1_PPICLK
+#define HYST_TMR0_FS1_PPICLK		(1 << 0)
+#else
+#define HYST_TMR0_FS1_PPICLK		(0 << 0)
+#endif
+#ifdef CONFIG_NONEGPIO_HYST_NMI_RST_BMODE
+#define HYST_NMI_RST_BMODE		(1 << 2)
+#else
+#define HYST_NMI_RST_BMODE		(0 << 2)
+#endif
+#ifdef CONFIG_NONEGPIO_HYST_JTAG
+#define HYST_JTAG			(1 << 4)
+#else
+#define HYST_JTAG			(0 << 4)
+#endif
+
+#define HYST_NONEGPIO	(HYST_TMR0_FS1_PPICLK | HYST_NMI_RST_BMODE | HYST_JTAG)
+#define HYST_NONEGPIO_MASK		(0x3F)
+#endif /* CONFIG_BFIN_HYSTERESIS_CONTROL */
 
 #ifdef CONFIG_BF527
 #define CPU "BF527"

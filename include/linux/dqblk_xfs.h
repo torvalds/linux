@@ -49,7 +49,7 @@
 #define FS_DQUOT_VERSION	1	/* fs_disk_quota.d_version */
 typedef struct fs_disk_quota {
 	__s8		d_version;	/* version of this structure */
-	__s8		d_flags;	/* XFS_{USER,PROJ,GROUP}_QUOTA */
+	__s8		d_flags;	/* FS_{USER,PROJ,GROUP}_QUOTA */
 	__u16		d_fieldmask;	/* field specifier */
 	__u32		d_id;		/* user, project, or group ID */
 	__u64		d_blk_hardlimit;/* absolute limit on disk blks */
@@ -110,18 +110,27 @@ typedef struct fs_disk_quota {
 #define FS_DQ_WARNS_MASK	(FS_DQ_BWARNS | FS_DQ_IWARNS | FS_DQ_RTBWARNS)
 
 /*
- * Various flags related to quotactl(2).  Only relevant to XFS filesystems.
+ * Accounting values.  These can only be set for filesystem with
+ * non-transactional quotas that require quotacheck(8) in userspace.
  */
-#define XFS_QUOTA_UDQ_ACCT	(1<<0)  /* user quota accounting */
-#define XFS_QUOTA_UDQ_ENFD	(1<<1)  /* user quota limits enforcement */
-#define XFS_QUOTA_GDQ_ACCT	(1<<2)  /* group quota accounting */
-#define XFS_QUOTA_GDQ_ENFD	(1<<3)  /* group quota limits enforcement */
-#define XFS_QUOTA_PDQ_ACCT	(1<<4)  /* project quota accounting */
-#define XFS_QUOTA_PDQ_ENFD	(1<<5)  /* project quota limits enforcement */
+#define FS_DQ_BCOUNT		(1<<12)
+#define FS_DQ_ICOUNT		(1<<13)
+#define FS_DQ_RTBCOUNT		(1<<14)
+#define FS_DQ_ACCT_MASK		(FS_DQ_BCOUNT | FS_DQ_ICOUNT | FS_DQ_RTBCOUNT)
 
-#define XFS_USER_QUOTA		(1<<0)	/* user quota type */
-#define XFS_PROJ_QUOTA		(1<<1)	/* project quota type */
-#define XFS_GROUP_QUOTA		(1<<2)	/* group quota type */
+/*
+ * Various flags related to quotactl(2).
+ */
+#define FS_QUOTA_UDQ_ACCT	(1<<0)  /* user quota accounting */
+#define FS_QUOTA_UDQ_ENFD	(1<<1)  /* user quota limits enforcement */
+#define FS_QUOTA_GDQ_ACCT	(1<<2)  /* group quota accounting */
+#define FS_QUOTA_GDQ_ENFD	(1<<3)  /* group quota limits enforcement */
+#define FS_QUOTA_PDQ_ACCT	(1<<4)  /* project quota accounting */
+#define FS_QUOTA_PDQ_ENFD	(1<<5)  /* project quota limits enforcement */
+
+#define FS_USER_QUOTA		(1<<0)	/* user quota type */
+#define FS_PROJ_QUOTA		(1<<1)	/* project quota type */
+#define FS_GROUP_QUOTA		(1<<2)	/* group quota type */
 
 /*
  * fs_quota_stat is the struct returned in Q_XGETQSTAT for a given file system.
@@ -142,7 +151,7 @@ typedef struct fs_qfilestat {
 
 typedef struct fs_quota_stat {
 	__s8		qs_version;	/* version number for future changes */
-	__u16		qs_flags;	/* XFS_QUOTA_{U,P,G}DQ_{ACCT,ENFD} */
+	__u16		qs_flags;	/* FS_QUOTA_{U,P,G}DQ_{ACCT,ENFD} */
 	__s8		qs_pad;		/* unused */
 	fs_qfilestat_t	qs_uquota;	/* user quota storage information */
 	fs_qfilestat_t	qs_gquota;	/* group quota storage information */

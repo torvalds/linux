@@ -153,8 +153,8 @@ journal_dev=devnum	When the external journal device's major/minor numbers
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting.  Note that
-                     	if the filesystem was not unmounted cleanly,
+norecovery		Don't load the journal on mounting.  Note that
+noload			if the filesystem was not unmounted cleanly,
                      	skipping the journal replay will lead to the
                      	filesystem containing inconsistencies that can
                      	lead to any number of problems.
@@ -196,7 +196,7 @@ nobarrier		This also requires an IO stack which can support
 			also be used to enable or disable barriers, for
 			consistency with other ext4 mount options.
 
-inode_readahead=n	This tuning parameter controls the maximum
+inode_readahead_blks=n	This tuning parameter controls the maximum
 			number of inode table blocks that ext4's inode
 			table readahead algorithm will pre-read into
 			the buffer cache.  The default value is 32 blocks.
@@ -263,10 +263,18 @@ resuid=n		The user ID which may use the reserved blocks.
 
 sb=n			Use alternate superblock at this location.
 
-quota
-noquota
-grpquota
-usrquota
+quota			These options are ignored by the filesystem. They
+noquota			are used only by quota tools to recognize volumes
+grpquota		where quota should be turned on. See documentation
+usrquota		in the quota-tools package for more details
+			(http://sourceforge.net/projects/linuxquota).
+
+jqfmt=<quota type>	These options tell filesystem details about quota
+usrjquota=<file>	so that quota information can be properly updated
+grpjquota=<file>	during journal replay. They replace the above
+			quota options. See documentation in the quota-tools
+			package for more details
+			(http://sourceforge.net/projects/linuxquota).
 
 bh		(*)	ext4 associates buffer heads to data pages to
 nobh			(a) cache disk block mapping information
@@ -280,9 +288,16 @@ stripe=n		Number of filesystem blocks that mballoc will try
 			to use for allocation size and alignment. For RAID5/6
 			systems this should be the number of data
 			disks *  RAID chunk size in file system blocks.
-delalloc	(*)	Deferring block allocation until write-out time.
-nodelalloc		Disable delayed allocation. Blocks are allocation
-			when data is copied from user to page cache.
+
+delalloc	(*)	Defer block allocation until just before ext4
+			writes out the block(s) in question.  This
+			allows ext4 to better allocation decisions
+			more efficiently.
+nodelalloc		Disable delayed allocation.  Blocks are allocated
+			when the data is copied from userspace to the
+			page cache, either via the write(2) system call
+			or when an mmap'ed page which was previously
+			unallocated is written for the first time.
 
 max_batch_time=usec	Maximum amount of time ext4 should wait for
 			additional filesystem operations to be batch
@@ -337,6 +352,26 @@ noauto_da_alloc		replacing existing files via patterns such as
 			"zero-length" problem that can happen when a
 			system crashes before the delayed allocation
 			blocks are forced to disk.
+
+noinit_itable		Do not initialize any uninitialized inode table
+			blocks in the background.  This feature may be
+			used by installation CD's so that the install
+			process can complete as quickly as possible; the
+			inode table initialization process would then be
+			deferred until the next time the  file system
+			is unmounted.
+
+init_itable=n		The lazy itable init code will wait n times the
+			number of milliseconds it took to zero out the
+			previous block group's inode table.  This
+			minimizes the impact on the systme performance
+			while file system's inode table is being initialized.
+
+discard		Controls whether ext4 should issue discard/TRIM
+nodiscard(*)		commands to the underlying block device when
+			blocks are freed.  This is useful for SSD devices
+			and sparse/thinly-provisioned LUNs, but it is off
+			by default until sufficient testing has been done.
 
 Data Mode
 =========

@@ -133,5 +133,5 @@ Configuration
 Document Author
 ---------------
 
-Ben Dooks, (c) 2004 Simtec Electronics
+Ben Dooks, Copyright 2004 Simtec Electronics
 

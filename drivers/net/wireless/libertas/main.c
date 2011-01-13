@@ -11,17 +11,14 @@
 #include <linux/if_arp.h>
 #include <linux/kthread.h>
 #include <linux/kfifo.h>
-#include <linux/stddef.h>
-#include <linux/ieee80211.h>
-#include <net/iw_handler.h>
+#include <linux/slab.h>
+#include <net/cfg80211.h>
 
 #include "host.h"
 #include "decl.h"
 #include "dev.h"
-#include "wext.h"
+#include "cfg.h"
 #include "debugfs.h"
-#include "scan.h"
-#include "assoc.h"
 #include "cmd.h"
 
 #define DRIVER_RELEASE_VERSION "323.p0"
@@ -43,131 +40,11 @@ module_param_named(libertas_debug, lbs_debug, int, 0644);
 struct cmd_confirm_sleep confirm_sleep;
 
 
-#define LBS_TX_PWR_DEFAULT		20	/*100mW */
-#define LBS_TX_PWR_US_DEFAULT		20	/*100mW */
-#define LBS_TX_PWR_JP_DEFAULT		16	/*50mW */
-#define LBS_TX_PWR_FR_DEFAULT		20	/*100mW */
-#define LBS_TX_PWR_EMEA_DEFAULT	20	/*100mW */
-
-/* Format { channel, frequency (MHz), maxtxpower } */
-/* band: 'B/G', region: USA FCC/Canada IC */
-static struct chan_freq_power channel_freq_power_US_BG[] = {
-	{1, 2412, LBS_TX_PWR_US_DEFAULT},
-	{2, 2417, LBS_TX_PWR_US_DEFAULT},
-	{3, 2422, LBS_TX_PWR_US_DEFAULT},
-	{4, 2427, LBS_TX_PWR_US_DEFAULT},
-	{5, 2432, LBS_TX_PWR_US_DEFAULT},
-	{6, 2437, LBS_TX_PWR_US_DEFAULT},
-	{7, 2442, LBS_TX_PWR_US_DEFAULT},
-	{8, 2447, LBS_TX_PWR_US_DEFAULT},
-	{9, 2452, LBS_TX_PWR_US_DEFAULT},
-	{10, 2457, LBS_TX_PWR_US_DEFAULT},
-	{11, 2462, LBS_TX_PWR_US_DEFAULT}
-};
-
-/* band: 'B/G', region: Europe ETSI */
-static struct chan_freq_power channel_freq_power_EU_BG[] = {
-	{1, 2412, LBS_TX_PWR_EMEA_DEFAULT},
-	{2, 2417, LBS_TX_PWR_EMEA_DEFAULT},
-	{3, 2422, LBS_TX_PWR_EMEA_DEFAULT},
-	{4, 2427, LBS_TX_PWR_EMEA_DEFAULT},
-	{5, 2432, LBS_TX_PWR_EMEA_DEFAULT},
-	{6, 2437, LBS_TX_PWR_EMEA_DEFAULT},
-	{7, 2442, LBS_TX_PWR_EMEA_DEFAULT},
-	{8, 2447, LBS_TX_PWR_EMEA_DEFAULT},
-	{9, 2452, LBS_TX_PWR_EMEA_DEFAULT},
-	{10, 2457, LBS_TX_PWR_EMEA_DEFAULT},
-	{11, 2462, LBS_TX_PWR_EMEA_DEFAULT},
-	{12, 2467, LBS_TX_PWR_EMEA_DEFAULT},
-	{13, 2472, LBS_TX_PWR_EMEA_DEFAULT}
-};
-
-/* band: 'B/G', region: Spain */
-static struct chan_freq_power channel_freq_power_SPN_BG[] = {
-	{10, 2457, LBS_TX_PWR_DEFAULT},
-	{11, 2462, LBS_TX_PWR_DEFAULT}
-};
-
-/* band: 'B/G', region: France */
-static struct chan_freq_power channel_freq_power_FR_BG[] = {
-	{10, 2457, LBS_TX_PWR_FR_DEFAULT},
-	{11, 2462, LBS_TX_PWR_FR_DEFAULT},
-	{12, 2467, LBS_TX_PWR_FR_DEFAULT},
-	{13, 2472, LBS_TX_PWR_FR_DEFAULT}
-};
-
-/* band: 'B/G', region: Japan */
-static struct chan_freq_power channel_freq_power_JPN_BG[] = {
-	{1, 2412, LBS_TX_PWR_JP_DEFAULT},
-	{2, 2417, LBS_TX_PWR_JP_DEFAULT},
-	{3, 2422, LBS_TX_PWR_JP_DEFAULT},
-	{4, 2427, LBS_TX_PWR_JP_DEFAULT},
-	{5, 2432, LBS_TX_PWR_JP_DEFAULT},
-	{6, 2437, LBS_TX_PWR_JP_DEFAULT},
-	{7, 2442, LBS_TX_PWR_JP_DEFAULT},
-	{8, 2447, LBS_TX_PWR_JP_DEFAULT},
-	{9, 2452, LBS_TX_PWR_JP_DEFAULT},
-	{10, 2457, LBS_TX_PWR_JP_DEFAULT},
-	{11, 2462, LBS_TX_PWR_JP_DEFAULT},
-	{12, 2467, LBS_TX_PWR_JP_DEFAULT},
-	{13, 2472, LBS_TX_PWR_JP_DEFAULT},
-	{14, 2484, LBS_TX_PWR_JP_DEFAULT}
-};
-
-/**
- * the structure for channel, frequency and power
- */
-struct region_cfp_table {
-	u8 region;
-	struct chan_freq_power *cfp_BG;
-	int cfp_no_BG;
-};
-
-/**
- * the structure for the mapping between region and CFP
- */
-static struct region_cfp_table region_cfp_table[] = {
-	{0x10,			/*US FCC */
-	 channel_freq_power_US_BG,
-	 ARRAY_SIZE(channel_freq_power_US_BG),
-	 }
-	,
-	{0x20,			/*CANADA IC */
-	 channel_freq_power_US_BG,
-	 ARRAY_SIZE(channel_freq_power_US_BG),
-	 }
-	,
-	{0x30, /*EU*/ channel_freq_power_EU_BG,
-	 ARRAY_SIZE(channel_freq_power_EU_BG),
-	 }
-	,
-	{0x31, /*SPAIN*/ channel_freq_power_SPN_BG,
-	 ARRAY_SIZE(channel_freq_power_SPN_BG),
-	 }
-	,
-	{0x32, /*FRANCE*/ channel_freq_power_FR_BG,
-	 ARRAY_SIZE(channel_freq_power_FR_BG),
-	 }
-	,
-	{0x40, /*JAPAN*/ channel_freq_power_JPN_BG,
-	 ARRAY_SIZE(channel_freq_power_JPN_BG),
-	 }
-	,
-/*Add new region here */
-};
-
 /**
  * the table to keep region code
  */
 u16 lbs_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
     { 0x10, 0x20, 0x30, 0x31, 0x32, 0x40 };
-
-/**
- * 802.11b/g supported bitrates (in 500Kb/s units)
- */
-u8 lbs_bg_rates[MAX_RATES] =
-    { 0x02, 0x04, 0x0b, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c,
-0x00, 0x00 };
 
 /**
  * FW rate table.  FW refers to rates by their index in this table, not by the
@@ -212,240 +89,9 @@ u8 lbs_data_rate_to_fw_index(u32 rate)
 	return 0;
 }
 
-/**
- * Attributes exported through sysfs
- */
 
 /**
- * @brief Get function for sysfs attribute anycast_mask
- */
-static ssize_t lbs_anycast_get(struct device *dev,
-		struct device_attribute *attr, char * buf)
-{
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	struct cmd_ds_mesh_access mesh_access;
-	int ret;
-
-	memset(&mesh_access, 0, sizeof(mesh_access));
-
-	ret = lbs_mesh_access(priv, CMD_ACT_MESH_GET_ANYCAST, &mesh_access);
-	if (ret)
-		return ret;
-
-	return snprintf(buf, 12, "0x%X\n", le32_to_cpu(mesh_access.data[0]));
-}
-
-/**
- * @brief Set function for sysfs attribute anycast_mask
- */
-static ssize_t lbs_anycast_set(struct device *dev,
-		struct device_attribute *attr, const char * buf, size_t count)
-{
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	struct cmd_ds_mesh_access mesh_access;
-	uint32_t datum;
-	int ret;
-
-	memset(&mesh_access, 0, sizeof(mesh_access));
-	sscanf(buf, "%x", &datum);
-	mesh_access.data[0] = cpu_to_le32(datum);
-
-	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_ANYCAST, &mesh_access);
-	if (ret)
-		return ret;
-
-	return strlen(buf);
-}
-
-/**
- * @brief Get function for sysfs attribute prb_rsp_limit
- */
-static ssize_t lbs_prb_rsp_limit_get(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	struct cmd_ds_mesh_access mesh_access;
-	int ret;
-	u32 retry_limit;
-
-	memset(&mesh_access, 0, sizeof(mesh_access));
-	mesh_access.data[0] = cpu_to_le32(CMD_ACT_GET);
-
-	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_GET_PRB_RSP_LIMIT,
-			&mesh_access);
-	if (ret)
-		return ret;
-
-	retry_limit = le32_to_cpu(mesh_access.data[1]);
-	return snprintf(buf, 10, "%d\n", retry_limit);
-}
-
-/**
- * @brief Set function for sysfs attribute prb_rsp_limit
- */
-static ssize_t lbs_prb_rsp_limit_set(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	struct cmd_ds_mesh_access mesh_access;
-	int ret;
-	unsigned long retry_limit;
-
-	memset(&mesh_access, 0, sizeof(mesh_access));
-	mesh_access.data[0] = cpu_to_le32(CMD_ACT_SET);
-
-	if (!strict_strtoul(buf, 10, &retry_limit))
-		return -ENOTSUPP;
-	if (retry_limit > 15)
-		return -ENOTSUPP;
-
-	mesh_access.data[1] = cpu_to_le32(retry_limit);
-
-	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_GET_PRB_RSP_LIMIT,
-			&mesh_access);
-	if (ret)
-		return ret;
-
-	return strlen(buf);
-}
-
-static int lbs_add_rtap(struct lbs_private *priv);
-static void lbs_remove_rtap(struct lbs_private *priv);
-static int lbs_add_mesh(struct lbs_private *priv);
-static void lbs_remove_mesh(struct lbs_private *priv);
-
-
-/**
- * Get function for sysfs attribute rtap
- */
-static ssize_t lbs_rtap_get(struct device *dev,
-		struct device_attribute *attr, char * buf)
-{
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	return snprintf(buf, 5, "0x%X\n", priv->monitormode);
-}
-
-/**
- *  Set function for sysfs attribute rtap
- */
-static ssize_t lbs_rtap_set(struct device *dev,
-		struct device_attribute *attr, const char * buf, size_t count)
-{
-	int monitor_mode;
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-
-	sscanf(buf, "%x", &monitor_mode);
-	if (monitor_mode) {
-		if (priv->monitormode == monitor_mode)
-			return strlen(buf);
-		if (!priv->monitormode) {
-			if (priv->infra_open || priv->mesh_open)
-				return -EBUSY;
-			if (priv->mode == IW_MODE_INFRA)
-				lbs_cmd_80211_deauthenticate(priv,
-							     priv->curbssparams.bssid,
-							     WLAN_REASON_DEAUTH_LEAVING);
-			else if (priv->mode == IW_MODE_ADHOC)
-				lbs_adhoc_stop(priv);
-			lbs_add_rtap(priv);
-		}
-		priv->monitormode = monitor_mode;
-	} else {
-		if (!priv->monitormode)
-			return strlen(buf);
-		priv->monitormode = 0;
-		lbs_remove_rtap(priv);
-
-		if (priv->currenttxskb) {
-			dev_kfree_skb_any(priv->currenttxskb);
-			priv->currenttxskb = NULL;
-		}
-
-		/* Wake queues, command thread, etc. */
-		lbs_host_to_card_done(priv);
-	}
-
-	lbs_prepare_and_send_command(priv,
-			CMD_802_11_MONITOR_MODE, CMD_ACT_SET,
-			CMD_OPTION_WAITFORRSP, 0, &priv->monitormode);
-	return strlen(buf);
-}
-
-/**
- * lbs_rtap attribute to be exported per ethX interface
- * through sysfs (/sys/class/net/ethX/lbs_rtap)
- */
-static DEVICE_ATTR(lbs_rtap, 0644, lbs_rtap_get, lbs_rtap_set );
-
-/**
- * Get function for sysfs attribute mesh
- */
-static ssize_t lbs_mesh_get(struct device *dev,
-		struct device_attribute *attr, char * buf)
-{
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	return snprintf(buf, 5, "0x%X\n", !!priv->mesh_dev);
-}
-
-/**
- *  Set function for sysfs attribute mesh
- */
-static ssize_t lbs_mesh_set(struct device *dev,
-		struct device_attribute *attr, const char * buf, size_t count)
-{
-	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
-	int enable;
-	int ret, action = CMD_ACT_MESH_CONFIG_STOP;
-
-	sscanf(buf, "%x", &enable);
-	enable = !!enable;
-	if (enable == !!priv->mesh_dev)
-		return count;
-	if (enable)
-		action = CMD_ACT_MESH_CONFIG_START;
-	ret = lbs_mesh_config(priv, action, priv->curbssparams.channel);
-	if (ret)
-		return ret;
-
-	if (enable)
-		lbs_add_mesh(priv);
-	else
-		lbs_remove_mesh(priv);
-
-	return count;
-}
-
-/**
- * lbs_mesh attribute to be exported per ethX interface
- * through sysfs (/sys/class/net/ethX/lbs_mesh)
- */
-static DEVICE_ATTR(lbs_mesh, 0644, lbs_mesh_get, lbs_mesh_set);
-
-/**
- * anycast_mask attribute to be exported per mshX interface
- * through sysfs (/sys/class/net/mshX/anycast_mask)
- */
-static DEVICE_ATTR(anycast_mask, 0644, lbs_anycast_get, lbs_anycast_set);
-
-/**
- * prb_rsp_limit attribute to be exported per mshX interface
- * through sysfs (/sys/class/net/mshX/prb_rsp_limit)
- */
-static DEVICE_ATTR(prb_rsp_limit, 0644, lbs_prb_rsp_limit_get,
-		lbs_prb_rsp_limit_set);
-
-static struct attribute *lbs_mesh_sysfs_entries[] = {
-	&dev_attr_anycast_mask.attr,
-	&dev_attr_prb_rsp_limit.attr,
-	NULL,
-};
-
-static struct attribute_group lbs_mesh_attr_group = {
-	.attrs = lbs_mesh_sysfs_entries,
-};
-
-/**
- *  @brief This function opens the ethX or mshX interface
+ *  @brief This function opens the ethX interface
  *
  *  @param dev     A pointer to net_device structure
  *  @return 	   0 or -EBUSY if monitor mode active
@@ -458,59 +104,19 @@ static int lbs_dev_open(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	spin_lock_irq(&priv->driver_lock);
+	priv->stopping = false;
 
-	if (priv->monitormode) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (dev == priv->mesh_dev) {
-		priv->mesh_open = 1;
-		priv->mesh_connect_status = LBS_CONNECTED;
+	if (priv->connect_status == LBS_CONNECTED)
 		netif_carrier_on(dev);
-	} else {
-		priv->infra_open = 1;
-
-		if (priv->connect_status == LBS_CONNECTED)
-			netif_carrier_on(dev);
-		else
-			netif_carrier_off(dev);
-	}
+	else
+		netif_carrier_off(dev);
 
 	if (!priv->tx_pending_len)
 		netif_wake_queue(dev);
- out:
 
 	spin_unlock_irq(&priv->driver_lock);
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
-}
-
-/**
- *  @brief This function closes the mshX interface
- *
- *  @param dev     A pointer to net_device structure
- *  @return 	   0
- */
-static int lbs_mesh_stop(struct net_device *dev)
-{
-	struct lbs_private *priv = dev->ml_priv;
-
-	lbs_deb_enter(LBS_DEB_MESH);
-	spin_lock_irq(&priv->driver_lock);
-
-	priv->mesh_open = 0;
-	priv->mesh_connect_status = LBS_DISCONNECTED;
-
-	netif_stop_queue(dev);
-	netif_carrier_off(dev);
-
-	spin_unlock_irq(&priv->driver_lock);
-
-	schedule_work(&priv->mcast_work);
-
-	lbs_deb_leave(LBS_DEB_MESH);
-	return 0;
 }
 
 /**
@@ -526,11 +132,16 @@ static int lbs_eth_stop(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	spin_lock_irq(&priv->driver_lock);
-	priv->infra_open = 0;
+	priv->stopping = true;
 	netif_stop_queue(dev);
 	spin_unlock_irq(&priv->driver_lock);
 
 	schedule_work(&priv->mcast_work);
+	cancel_delayed_work_sync(&priv->scan_work);
+	if (priv->scan_req) {
+		cfg80211_scan_done(priv->scan_req, false);
+		priv->scan_req = NULL;
+	}
 
 	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
@@ -544,7 +155,7 @@ static void lbs_tx_timeout(struct net_device *dev)
 
 	lbs_pr_err("tx watch dog timeout\n");
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	if (priv->currenttxskb)
 		lbs_send_tx_feedback(priv, 0);
@@ -553,12 +164,7 @@ static void lbs_tx_timeout(struct net_device *dev)
 	   to kick it somehow? */
 	lbs_host_to_card_done(priv);
 
-	/* More often than not, this actually happens because the
-	   firmware has crapped itself -- rather than just a very
-	   busy medium. So send a harmless command, and if/when
-	   _that_ times out, we'll kick it in the head. */
-	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
-				     0, 0, NULL);
+	/* FIXME: reset the card */
 
 	lbs_deb_leave(LBS_DEB_TX);
 }
@@ -574,15 +180,17 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 
 	/* Wake main thread if commands are pending */
-	if (!priv->cur_cmd || priv->tx_pending_len > 0)
-		wake_up_interruptible(&priv->waitq);
+	if (!priv->cur_cmd || priv->tx_pending_len > 0) {
+		if (!priv->wakeup_dev_required)
+			wake_up_interruptible(&priv->waitq);
+	}
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 	lbs_deb_leave(LBS_DEB_THREAD);
 }
 EXPORT_SYMBOL_GPL(lbs_host_to_card_done);
 
-static int lbs_set_mac_address(struct net_device *dev, void *addr)
+int lbs_set_mac_address(struct net_device *dev, void *addr)
 {
 	int ret = 0;
 	struct lbs_private *priv = dev->ml_priv;
@@ -632,28 +240,32 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 			       struct net_device *dev, int nr_addrs)
 {
 	int i = nr_addrs;
-	struct dev_mc_list *mc_list;
+	struct netdev_hw_addr *ha;
+	int cnt;
 
 	if ((dev->flags & (IFF_UP|IFF_MULTICAST)) != (IFF_UP|IFF_MULTICAST))
 		return nr_addrs;
 
 	netif_addr_lock_bh(dev);
-	for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
-		if (mac_in_list(cmd->maclist, nr_addrs, mc_list->dmi_addr)) {
+	cnt = netdev_mc_count(dev);
+	netdev_for_each_mc_addr(ha, dev) {
+		if (mac_in_list(cmd->maclist, nr_addrs, ha->addr)) {
 			lbs_deb_net("mcast address %s:%pM skipped\n", dev->name,
-				    mc_list->dmi_addr);
+				    ha->addr);
+			cnt--;
 			continue;
 		}
 
 		if (i == MRVDRV_MAX_MULTICAST_LIST_SIZE)
 			break;
-		memcpy(&cmd->maclist[6*i], mc_list->dmi_addr, ETH_ALEN);
+		memcpy(&cmd->maclist[6*i], ha->addr, ETH_ALEN);
 		lbs_deb_net("mcast address %s:%pM added to filter\n", dev->name,
-			    mc_list->dmi_addr);
+			    ha->addr);
 		i++;
+		cnt--;
 	}
 	netif_addr_unlock_bh(dev);
-	if (mc_list)
+	if (cnt)
 		return -EOVERFLOW;
 
 	return i;
@@ -716,7 +328,7 @@ static void lbs_set_mcast_worker(struct work_struct *work)
 	lbs_deb_leave(LBS_DEB_NET);
 }
 
-static void lbs_set_multicast_list(struct net_device *dev)
+void lbs_set_multicast_list(struct net_device *dev)
 {
 	struct lbs_private *priv = dev->ml_priv;
 
@@ -770,9 +382,10 @@ static int lbs_thread(void *data)
 			shouldsleep = 0;	/* We have a command response */
 		else if (priv->cur_cmd)
 			shouldsleep = 1;	/* Can't send a command; one already running */
-		else if (!list_empty(&priv->cmdpendingq))
+		else if (!list_empty(&priv->cmdpendingq) &&
+					!(priv->wakeup_dev_required))
 			shouldsleep = 0;	/* We have a command to send */
-		else if (__kfifo_len(priv->event_fifo))
+		else if (kfifo_len(&priv->event_fifo))
 			shouldsleep = 0;	/* We have an event to process */
 		else
 			shouldsleep = 1;	/* No command */
@@ -822,45 +435,40 @@ static int lbs_thread(void *data)
 		}
 		spin_unlock_irq(&priv->driver_lock);
 
-		/* command timeout stuff */
-		if (priv->cmd_timed_out && priv->cur_cmd) {
-			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
-
-			if (++priv->nr_retries > 3) {
-				lbs_pr_info("Excessive timeouts submitting "
-					"command 0x%04x\n",
-					le16_to_cpu(cmdnode->cmdbuf->command));
-				lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
-				priv->nr_retries = 0;
-				if (priv->reset_card)
-					priv->reset_card(priv);
-			} else {
-				priv->cur_cmd = NULL;
-				priv->dnld_sent = DNLD_RES_RECEIVED;
-				lbs_pr_info("requeueing command 0x%04x due "
-					"to timeout (#%d)\n",
-					le16_to_cpu(cmdnode->cmdbuf->command),
-					priv->nr_retries);
-
-				/* Stick it back at the _top_ of the pending queue
-				   for immediate resubmission */
-				list_add(&cmdnode->list, &priv->cmdpendingq);
-			}
-		}
-		priv->cmd_timed_out = 0;
-
 		/* Process hardware events, e.g. card removed, link lost */
 		spin_lock_irq(&priv->driver_lock);
-		while (__kfifo_len(priv->event_fifo)) {
+		while (kfifo_len(&priv->event_fifo)) {
 			u32 event;
 
-			__kfifo_get(priv->event_fifo, (unsigned char *) &event,
-				sizeof(event));
+			if (kfifo_out(&priv->event_fifo,
+				(unsigned char *) &event, sizeof(event)) !=
+				sizeof(event))
+					break;
 			spin_unlock_irq(&priv->driver_lock);
 			lbs_process_event(priv, event);
 			spin_lock_irq(&priv->driver_lock);
 		}
 		spin_unlock_irq(&priv->driver_lock);
+
+		if (priv->wakeup_dev_required) {
+			lbs_deb_thread("Waking up device...\n");
+			/* Wake up device */
+			if (priv->exit_deep_sleep(priv))
+				lbs_deb_thread("Wakeup device failed\n");
+			continue;
+		}
+
+		/* command timeout stuff */
+		if (priv->cmd_timed_out && priv->cur_cmd) {
+			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
+
+			lbs_pr_info("Timeout submitting command 0x%04x\n",
+				le16_to_cpu(cmdnode->cmdbuf->command));
+			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
+			if (priv->reset_card)
+				priv->reset_card(priv);
+		}
+		priv->cmd_timed_out = 0;
 
 		if (!priv->fw_ready)
 			continue;
@@ -894,15 +502,12 @@ static int lbs_thread(void *data)
 		    (priv->psstate == PS_STATE_PRE_SLEEP))
 			continue;
 
+		if (priv->is_deep_sleep)
+			continue;
+
 		/* Execute the next command */
 		if (!priv->dnld_sent && !priv->cur_cmd)
 			lbs_execute_next_command(priv);
-
-		/* Wake-up command waiters which can't sleep in
-		 * lbs_prepare_and_send_command
-		 */
-		if (!list_empty(&priv->cmdpendingq))
-			wake_up_all(&priv->cmd_pending);
 
 		spin_lock_irq(&priv->driver_lock);
 		if (!priv->dnld_sent && priv->tx_pending_len > 0) {
@@ -920,7 +525,7 @@ static int lbs_thread(void *data)
 				if (priv->connect_status == LBS_CONNECTED)
 					netif_wake_queue(priv->dev);
 				if (priv->mesh_dev &&
-				    priv->mesh_connect_status == LBS_CONNECTED)
+				    lbs_mesh_connected(priv))
 					netif_wake_queue(priv->mesh_dev);
 			}
 		}
@@ -928,66 +533,59 @@ static int lbs_thread(void *data)
 	}
 
 	del_timer(&priv->command_timer);
-	wake_up_all(&priv->cmd_pending);
+	del_timer(&priv->auto_deepsleep_timer);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
 }
 
-static int lbs_suspend_callback(struct lbs_private *priv, unsigned long dummy,
-				struct cmd_header *cmd)
-{
-	lbs_deb_enter(LBS_DEB_FW);
-
-	netif_device_detach(priv->dev);
-	if (priv->mesh_dev)
-		netif_device_detach(priv->mesh_dev);
-
-	priv->fw_ready = 0;
-	lbs_deb_leave(LBS_DEB_FW);
-	return 0;
-}
-
 int lbs_suspend(struct lbs_private *priv)
 {
-	struct cmd_header cmd;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_FW);
 
-	if (priv->wol_criteria == 0xffffffff) {
-		lbs_pr_info("Suspend attempt without configuring wake params!\n");
-		return -EINVAL;
+	if (priv->is_deep_sleep) {
+		ret = lbs_set_deep_sleep(priv, 0);
+		if (ret) {
+			lbs_pr_err("deep sleep cancellation failed: %d\n", ret);
+			return ret;
+		}
+		priv->deep_sleep_required = 1;
 	}
 
-	memset(&cmd, 0, sizeof(cmd));
+	ret = lbs_set_host_sleep(priv, 1);
 
-	ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_ACTIVATE, &cmd,
-			sizeof(cmd), lbs_suspend_callback, 0);
-	if (ret)
-		lbs_pr_info("HOST_SLEEP_ACTIVATE failed: %d\n", ret);
+	netif_device_detach(priv->dev);
+	if (priv->mesh_dev)
+		netif_device_detach(priv->mesh_dev);
 
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_suspend);
 
-void lbs_resume(struct lbs_private *priv)
+int lbs_resume(struct lbs_private *priv)
 {
+	int ret;
+
 	lbs_deb_enter(LBS_DEB_FW);
 
-	priv->fw_ready = 1;
-
-	/* Firmware doesn't seem to give us RX packets any more
-	   until we send it some command. Might as well update */
-	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
-				     0, 0, NULL);
+	ret = lbs_set_host_sleep(priv, 0);
 
 	netif_device_attach(priv->dev);
 	if (priv->mesh_dev)
 		netif_device_attach(priv->mesh_dev);
 
-	lbs_deb_leave(LBS_DEB_FW);
+	if (priv->deep_sleep_required) {
+		priv->deep_sleep_required = 0;
+		ret = lbs_set_deep_sleep(priv, 1);
+		if (ret)
+			lbs_pr_err("deep sleep activation failed: %d\n", ret);
+	}
+
+	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_resume);
 
@@ -1019,6 +617,9 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 		priv->txpower_max = maxlevel;
 	}
 
+	/* Send cmd to FW to enable 11D function */
+	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_11D_ENABLE, 1);
+
 	lbs_set_mac_control(priv);
 done:
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
@@ -1029,7 +630,7 @@ done:
  *  This function handles the timeout of command sending.
  *  It will re-send the same command again.
  */
-static void command_timer_fn(unsigned long data)
+static void lbs_cmd_timeout_handler(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
 	unsigned long flags;
@@ -1050,66 +651,97 @@ out:
 	lbs_deb_leave(LBS_DEB_CMD);
 }
 
-static void lbs_sync_channel_worker(struct work_struct *work)
+/**
+ *  This function put the device back to deep sleep mode when timer expires
+ *  and no activity (command, event, data etc.) is detected.
+ */
+static void auto_deepsleep_timer_fn(unsigned long data)
 {
-	struct lbs_private *priv = container_of(work, struct lbs_private,
-		sync_channel);
+	struct lbs_private *priv = (struct lbs_private *)data;
 
-	lbs_deb_enter(LBS_DEB_MAIN);
-	if (lbs_update_channel(priv))
-		lbs_pr_info("Channel synchronization failed.");
-	lbs_deb_leave(LBS_DEB_MAIN);
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (priv->is_activity_detected) {
+		priv->is_activity_detected = 0;
+	} else {
+		if (priv->is_auto_deep_sleep_enabled &&
+		    (!priv->wakeup_dev_required) &&
+		    (priv->connect_status != LBS_CONNECTED)) {
+			struct cmd_header cmd;
+
+			lbs_deb_main("Entering auto deep sleep mode...\n");
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.size = cpu_to_le16(sizeof(cmd));
+			lbs_cmd_async(priv, CMD_802_11_DEEP_SLEEP, &cmd,
+					sizeof(cmd));
+		}
+	}
+	mod_timer(&priv->auto_deepsleep_timer , jiffies +
+				(priv->auto_deep_sleep_timeout * HZ)/1000);
+	lbs_deb_leave(LBS_DEB_CMD);
 }
 
+int lbs_enter_auto_deep_sleep(struct lbs_private *priv)
+{
+	lbs_deb_enter(LBS_DEB_SDIO);
+
+	priv->is_auto_deep_sleep_enabled = 1;
+	if (priv->is_deep_sleep)
+		priv->wakeup_dev_required = 1;
+	mod_timer(&priv->auto_deepsleep_timer ,
+			jiffies + (priv->auto_deep_sleep_timeout * HZ)/1000);
+
+	lbs_deb_leave(LBS_DEB_SDIO);
+	return 0;
+}
+
+int lbs_exit_auto_deep_sleep(struct lbs_private *priv)
+{
+	lbs_deb_enter(LBS_DEB_SDIO);
+
+	priv->is_auto_deep_sleep_enabled = 0;
+	priv->auto_deep_sleep_timeout = 0;
+	del_timer(&priv->auto_deepsleep_timer);
+
+	lbs_deb_leave(LBS_DEB_SDIO);
+	return 0;
+}
 
 static int lbs_init_adapter(struct lbs_private *priv)
 {
-	size_t bufsize;
-	int i, ret = 0;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
-
-	/* Allocate buffer to store the BSSID list */
-	bufsize = MAX_NETWORK_COUNT * sizeof(struct bss_descriptor);
-	priv->networks = kzalloc(bufsize, GFP_KERNEL);
-	if (!priv->networks) {
-		lbs_pr_err("Out of memory allocating beacons\n");
-		ret = -1;
-		goto out;
-	}
-
-	/* Initialize scan result lists */
-	INIT_LIST_HEAD(&priv->network_free_list);
-	INIT_LIST_HEAD(&priv->network_list);
-	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
-		list_add_tail(&priv->networks[i].list,
-			      &priv->network_free_list);
-	}
 
 	memset(priv->current_addr, 0xff, ETH_ALEN);
 
 	priv->connect_status = LBS_DISCONNECTED;
-	priv->mesh_connect_status = LBS_DISCONNECTED;
-	priv->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
-	priv->mode = IW_MODE_INFRA;
-	priv->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
+	priv->channel = DEFAULT_AD_HOC_CHANNEL;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
 	priv->radio_on = 1;
-	priv->enablehwauto = 1;
-	priv->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 	priv->psmode = LBS802_11POWERMODECAM;
 	priv->psstate = PS_STATE_FULL_POWER;
-
+	priv->is_deep_sleep = 0;
+	priv->is_auto_deep_sleep_enabled = 0;
+	priv->deep_sleep_required = 0;
+	priv->wakeup_dev_required = 0;
+	init_waitqueue_head(&priv->ds_awake_q);
+	init_waitqueue_head(&priv->scan_q);
+	priv->authtype_auto = 1;
+	priv->is_host_sleep_configured = 0;
+	priv->is_host_sleep_activated = 0;
+	init_waitqueue_head(&priv->host_sleep_q);
 	mutex_init(&priv->lock);
 
-	setup_timer(&priv->command_timer, command_timer_fn,
+	setup_timer(&priv->command_timer, lbs_cmd_timeout_handler,
 		(unsigned long)priv);
+	setup_timer(&priv->auto_deepsleep_timer, auto_deepsleep_timer_fn,
+			(unsigned long)priv);
 
 	INIT_LIST_HEAD(&priv->cmdfreeq);
 	INIT_LIST_HEAD(&priv->cmdpendingq);
 
 	spin_lock_init(&priv->driver_lock);
-	init_waitqueue_head(&priv->cmd_pending);
 
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {
@@ -1121,10 +753,9 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->resp_len[0] = priv->resp_len[1] = 0;
 
 	/* Create the event FIFO */
-	priv->event_fifo = kfifo_alloc(sizeof(u32) * 16, GFP_KERNEL, NULL);
-	if (IS_ERR(priv->event_fifo)) {
+	ret = kfifo_alloc(&priv->event_fifo, sizeof(u32) * 16, GFP_KERNEL);
+	if (ret) {
 		lbs_pr_err("Out of memory allocating event FIFO buffer\n");
-		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -1139,11 +770,9 @@ static void lbs_free_adapter(struct lbs_private *priv)
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	lbs_free_cmd_buffer(priv);
-	if (priv->event_fifo)
-		kfifo_free(priv->event_fifo);
+	kfifo_free(&priv->event_fifo);
 	del_timer(&priv->command_timer);
-	kfree(priv->networks);
-	priv->networks = NULL;
+	del_timer(&priv->auto_deepsleep_timer);
 
 	lbs_deb_leave(LBS_DEB_MAIN);
 }
@@ -1168,68 +797,76 @@ static const struct net_device_ops lbs_netdev_ops = {
  */
 struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 {
-	struct net_device *dev = NULL;
+	struct net_device *dev;
+	struct wireless_dev *wdev;
 	struct lbs_private *priv = NULL;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	/* Allocate an Ethernet device and register it */
-	dev = alloc_etherdev(sizeof(struct lbs_private));
-	if (!dev) {
-		lbs_pr_err("init ethX device failed\n");
+	wdev = lbs_cfg_alloc(dmdev);
+	if (IS_ERR(wdev)) {
+		lbs_pr_err("cfg80211 init failed\n");
 		goto done;
 	}
-	priv = netdev_priv(dev);
-	dev->ml_priv = priv;
+
+	wdev->iftype = NL80211_IFTYPE_STATION;
+	priv = wdev_priv(wdev);
+	priv->wdev = wdev;
 
 	if (lbs_init_adapter(priv)) {
 		lbs_pr_err("failed to initialize adapter structure.\n");
-		goto err_init_adapter;
+		goto err_wdev;
 	}
 
-	priv->dev = dev;
-	priv->card = card;
-	priv->mesh_open = 0;
-	priv->infra_open = 0;
+	dev = alloc_netdev(0, "wlan%d", ether_setup);
+	if (!dev) {
+		dev_err(dmdev, "no memory for network device instance\n");
+		goto err_adapter;
+	}
 
-	/* Setup the OS Interface to our functions */
+	dev->ieee80211_ptr = wdev;
+	dev->ml_priv = priv;
+	SET_NETDEV_DEV(dev, dmdev);
+	wdev->netdev = dev;
+	priv->dev = dev;
+
  	dev->netdev_ops = &lbs_netdev_ops;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->ethtool_ops = &lbs_ethtool_ops;
-#ifdef	WIRELESS_EXT
-	dev->wireless_handlers = &lbs_handler_def;
-#endif
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
 
-	SET_NETDEV_DEV(dev, dmdev);
+	priv->card = card;
 
-	priv->rtap_net_dev = NULL;
+	strcpy(dev->name, "wlan%d");
 
 	lbs_deb_thread("Starting main thread...\n");
 	init_waitqueue_head(&priv->waitq);
 	priv->main_thread = kthread_run(lbs_thread, dev, "lbs_main");
 	if (IS_ERR(priv->main_thread)) {
 		lbs_deb_thread("Error creating main thread.\n");
-		goto err_init_adapter;
+		goto err_ndev;
 	}
 
 	priv->work_thread = create_singlethread_workqueue("lbs_worker");
-	INIT_DELAYED_WORK(&priv->assoc_work, lbs_association_worker);
-	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
 	INIT_WORK(&priv->mcast_work, lbs_set_mcast_worker);
-	INIT_WORK(&priv->sync_channel, lbs_sync_channel_worker);
 
-	sprintf(priv->mesh_ssid, "mesh");
-	priv->mesh_ssid_len = 4;
-
-	priv->wol_criteria = 0xffffffff;
+	priv->wol_criteria = EHS_REMOVE_WAKEUP;
 	priv->wol_gpio = 0xff;
+	priv->wol_gap = 20;
+	priv->ehs_remove_supported = true;
 
 	goto done;
 
-err_init_adapter:
-	lbs_free_adapter(priv);
+ err_ndev:
 	free_netdev(dev);
+
+ err_adapter:
+	lbs_free_adapter(priv);
+
+ err_wdev:
+	lbs_cfg_free(priv);
+
 	priv = NULL;
 
 done:
@@ -1242,17 +879,14 @@ EXPORT_SYMBOL_GPL(lbs_add_card);
 void lbs_remove_card(struct lbs_private *priv)
 {
 	struct net_device *dev = priv->dev;
-	union iwreq_data wrqu;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	lbs_remove_mesh(priv);
-	lbs_remove_rtap(priv);
+	lbs_scan_deinit(priv);
 
 	dev = priv->dev;
 
-	cancel_delayed_work_sync(&priv->scan_work);
-	cancel_delayed_work_sync(&priv->assoc_work);
 	cancel_work_sync(&priv->mcast_work);
 
 	/* worker thread destruction blocks on the in-flight command which
@@ -1264,25 +898,40 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
 		priv->psmode = LBS802_11POWERMODECAM;
-		lbs_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
+		lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, true);
 	}
 
-	memset(wrqu.ap_addr.sa_data, 0xaa, ETH_ALEN);
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+	if (priv->is_deep_sleep) {
+		priv->is_deep_sleep = 0;
+		wake_up_interruptible(&priv->ds_awake_q);
+	}
+
+	priv->is_host_sleep_configured = 0;
+	priv->is_host_sleep_activated = 0;
+	wake_up_interruptible(&priv->host_sleep_q);
 
 	/* Stop the thread servicing the interrupts */
 	priv->surpriseremoved = 1;
 	kthread_stop(priv->main_thread);
 
 	lbs_free_adapter(priv);
-
-	priv->dev = NULL;
+	lbs_cfg_free(priv);
 	free_netdev(dev);
 
 	lbs_deb_leave(LBS_DEB_MAIN);
 }
 EXPORT_SYMBOL_GPL(lbs_remove_card);
+
+
+int lbs_rtap_supported(struct lbs_private *priv)
+{
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V5)
+		return 1;
+
+	/* newer firmware use a capability mask */
+	return ((MRVL_FW_MAJOR_REV(priv->fwrelease) >= MRVL_FW_V10) &&
+		(priv->fwcapinfo & MESH_CAPINFO_ENABLE_MASK));
+}
 
 
 int lbs_start_card(struct lbs_private *priv)
@@ -1297,63 +946,14 @@ int lbs_start_card(struct lbs_private *priv)
 	if (ret)
 		goto done;
 
-	/* init 802.11d */
-	lbs_init_11d(priv);
-
-	if (register_netdev(dev)) {
-		lbs_pr_err("cannot register ethX device\n");
+	if (lbs_cfg_register(priv)) {
+		lbs_pr_err("cannot register device\n");
 		goto done;
 	}
 
 	lbs_update_channel(priv);
 
-	/* Check mesh FW version and appropriately send the mesh start
-	 * command
-	 */
-	if (priv->mesh_fw_ver == MESH_FW_OLD) {
-		/* Enable mesh, if supported, and work out which TLV it uses.
-		   0x100 + 291 is an unofficial value used in 5.110.20.pXX
-		   0x100 + 37 is the official value used in 5.110.21.pXX
-		   but we check them in that order because 20.pXX doesn't
-		   give an error -- it just silently fails. */
-
-		/* 5.110.20.pXX firmware will fail the command if the channel
-		   doesn't match the existing channel. But only if the TLV
-		   is correct. If the channel is wrong, _BOTH_ versions will
-		   give an error to 0x100+291, and allow 0x100+37 to succeed.
-		   It's just that 5.110.20.pXX will not have done anything
-		   useful */
-
-		priv->mesh_tlv = TLV_TYPE_OLD_MESH_ID;
-		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-				    priv->curbssparams.channel)) {
-			priv->mesh_tlv = TLV_TYPE_MESH_ID;
-			if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-					    priv->curbssparams.channel))
-				priv->mesh_tlv = 0;
-		}
-	} else if (priv->mesh_fw_ver == MESH_FW_NEW) {
-		/* 10.0.0.pXX new firmwares should succeed with TLV
-		 * 0x100+37; Do not invoke command with old TLV.
-		 */
-		priv->mesh_tlv = TLV_TYPE_MESH_ID;
-		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-				    priv->curbssparams.channel))
-			priv->mesh_tlv = 0;
-	}
-	if (priv->mesh_tlv) {
-		lbs_add_mesh(priv);
-
-		if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
-			lbs_pr_err("cannot register lbs_mesh attribute\n");
-
-		/* While rtap isn't related to mesh, only mesh-enabled
-		 * firmware implements the rtap functionality via
-		 * CMD_802_11_MONITOR_MODE.
-		 */
-		if (device_create_file(&dev->dev, &dev_attr_lbs_rtap))
-			lbs_pr_err("cannot register lbs_rtap attribute\n");
-	}
+	lbs_init_mesh(priv);
 
 	lbs_debugfs_init_one(priv, dev);
 
@@ -1384,13 +984,11 @@ void lbs_stop_card(struct lbs_private *priv)
 	netif_carrier_off(dev);
 
 	lbs_debugfs_remove_one(priv);
-	if (priv->mesh_tlv) {
-		device_remove_file(&dev->dev, &dev_attr_lbs_mesh);
-		device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
-	}
+	lbs_deinit_mesh(priv);
 
 	/* Delete the timeout of the currently processing command */
 	del_timer_sync(&priv->command_timer);
+	del_timer_sync(&priv->auto_deepsleep_timer);
 
 	/* Flush pending command nodes */
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -1419,157 +1017,6 @@ out:
 EXPORT_SYMBOL_GPL(lbs_stop_card);
 
 
-static const struct net_device_ops mesh_netdev_ops = {
-	.ndo_open		= lbs_dev_open,
-	.ndo_stop 		= lbs_mesh_stop,
-	.ndo_start_xmit		= lbs_hard_start_xmit,
-	.ndo_set_mac_address	= lbs_set_mac_address,
-	.ndo_set_multicast_list = lbs_set_multicast_list,
-};
-
-/**
- * @brief This function adds mshX interface
- *
- *  @param priv    A pointer to the struct lbs_private structure
- *  @return 	   0 if successful, -X otherwise
- */
-static int lbs_add_mesh(struct lbs_private *priv)
-{
-	struct net_device *mesh_dev = NULL;
-	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_MESH);
-
-	/* Allocate a virtual mesh device */
-	if (!(mesh_dev = alloc_netdev(0, "msh%d", ether_setup))) {
-		lbs_deb_mesh("init mshX device failed\n");
-		ret = -ENOMEM;
-		goto done;
-	}
-	mesh_dev->ml_priv = priv;
-	priv->mesh_dev = mesh_dev;
-
-	mesh_dev->netdev_ops = &mesh_netdev_ops;
-	mesh_dev->ethtool_ops = &lbs_ethtool_ops;
-	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
-			sizeof(priv->dev->dev_addr));
-
-	SET_NETDEV_DEV(priv->mesh_dev, priv->dev->dev.parent);
-
-#ifdef	WIRELESS_EXT
-	mesh_dev->wireless_handlers = (struct iw_handler_def *)&mesh_handler_def;
-#endif
-	mesh_dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
-	/* Register virtual mesh interface */
-	ret = register_netdev(mesh_dev);
-	if (ret) {
-		lbs_pr_err("cannot register mshX virtual interface\n");
-		goto err_free;
-	}
-
-	ret = sysfs_create_group(&(mesh_dev->dev.kobj), &lbs_mesh_attr_group);
-	if (ret)
-		goto err_unregister;
-
-	lbs_persist_config_init(mesh_dev);
-
-	/* Everything successful */
-	ret = 0;
-	goto done;
-
-err_unregister:
-	unregister_netdev(mesh_dev);
-
-err_free:
-	free_netdev(mesh_dev);
-
-done:
-	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
-	return ret;
-}
-
-static void lbs_remove_mesh(struct lbs_private *priv)
-{
-	struct net_device *mesh_dev;
-
-
-	mesh_dev = priv->mesh_dev;
-	if (!mesh_dev)
-		return;
-
-	lbs_deb_enter(LBS_DEB_MESH);
-	netif_stop_queue(mesh_dev);
-	netif_carrier_off(mesh_dev);
-	sysfs_remove_group(&(mesh_dev->dev.kobj), &lbs_mesh_attr_group);
-	lbs_persist_config_remove(mesh_dev);
-	unregister_netdev(mesh_dev);
-	priv->mesh_dev = NULL;
-	free_netdev(mesh_dev);
-	lbs_deb_leave(LBS_DEB_MESH);
-}
-
-/**
- *  @brief This function finds the CFP in
- *  region_cfp_table based on region and band parameter.
- *
- *  @param region  The region code
- *  @param band	   The band
- *  @param cfp_no  A pointer to CFP number
- *  @return 	   A pointer to CFP
- */
-struct chan_freq_power *lbs_get_region_cfp_table(u8 region, int *cfp_no)
-{
-	int i, end;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
-
-	end = ARRAY_SIZE(region_cfp_table);
-
-	for (i = 0; i < end ; i++) {
-		lbs_deb_main("region_cfp_table[i].region=%d\n",
-			region_cfp_table[i].region);
-		if (region_cfp_table[i].region == region) {
-			*cfp_no = region_cfp_table[i].cfp_no_BG;
-			lbs_deb_leave(LBS_DEB_MAIN);
-			return region_cfp_table[i].cfp_BG;
-		}
-	}
-
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret NULL");
-	return NULL;
-}
-
-int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band)
-{
-	int ret = 0;
-	int i = 0;
-
-	struct chan_freq_power *cfp;
-	int cfp_no;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
-
-	memset(priv->region_channel, 0, sizeof(priv->region_channel));
-
-	cfp = lbs_get_region_cfp_table(region, &cfp_no);
-	if (cfp != NULL) {
-		priv->region_channel[i].nrcfp = cfp_no;
-		priv->region_channel[i].CFP = cfp;
-	} else {
-		lbs_deb_main("wrong region code %#x in band B/G\n",
-		       region);
-		ret = -1;
-		goto out;
-	}
-	priv->region_channel[i].valid = 1;
-	priv->region_channel[i].region = region;
-	priv->region_channel[i].band = band;
-	i++;
-out:
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
-	return ret;
-}
-
 void lbs_queue_event(struct lbs_private *priv, u32 event)
 {
 	unsigned long flags;
@@ -1580,7 +1027,7 @@ void lbs_queue_event(struct lbs_private *priv, u32 event)
 	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
 
-	__kfifo_put(priv->event_fifo, (unsigned char *) &event, sizeof(u32));
+	kfifo_in(&priv->event_fifo, (unsigned char *) &event, sizeof(u32));
 
 	wake_up_interruptible(&priv->waitq);
 
@@ -1606,13 +1053,118 @@ void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
 }
 EXPORT_SYMBOL_GPL(lbs_notify_command_response);
 
+/**
+ *  @brief Retrieves two-stage firmware
+ *
+ *  @param dev     	A pointer to device structure
+ *  @param user_helper	User-defined helper firmware file
+ *  @param user_mainfw	User-defined main firmware file
+ *  @param card_model	Bus-specific card model ID used to filter firmware table
+ *                         elements
+ *  @param fw_table	Table of firmware file names and device model numbers
+ *                         terminated by an entry with a NULL helper name
+ *  @param helper	On success, the helper firmware; caller must free
+ *  @param mainfw	On success, the main firmware; caller must free
+ *
+ *  @return		0 on success, non-zero on failure
+ */
+int lbs_get_firmware(struct device *dev, const char *user_helper,
+			const char *user_mainfw, u32 card_model,
+			const struct lbs_fw_table *fw_table,
+			const struct firmware **helper,
+			const struct firmware **mainfw)
+{
+	const struct lbs_fw_table *iter;
+	int ret;
+
+	BUG_ON(helper == NULL);
+	BUG_ON(mainfw == NULL);
+
+	/* Try user-specified firmware first */
+	if (user_helper) {
+		ret = request_firmware(helper, user_helper, dev);
+		if (ret) {
+			lbs_pr_err("couldn't find helper firmware %s",
+					user_helper);
+			goto fail;
+		}
+	}
+	if (user_mainfw) {
+		ret = request_firmware(mainfw, user_mainfw, dev);
+		if (ret) {
+			lbs_pr_err("couldn't find main firmware %s",
+					user_mainfw);
+			goto fail;
+		}
+	}
+
+	if (*helper && *mainfw)
+		return 0;
+
+	/* Otherwise search for firmware to use.  If neither the helper or
+	 * the main firmware were specified by the user, then we need to
+	 * make sure that found helper & main are from the same entry in
+	 * fw_table.
+	 */
+	iter = fw_table;
+	while (iter && iter->helper) {
+		if (iter->model != card_model)
+			goto next;
+
+		if (*helper == NULL) {
+			ret = request_firmware(helper, iter->helper, dev);
+			if (ret)
+				goto next;
+
+			/* If the device has one-stage firmware (ie cf8305) and
+			 * we've got it then we don't need to bother with the
+			 * main firmware.
+			 */
+			if (iter->fwname == NULL)
+				return 0;
+		}
+
+		if (*mainfw == NULL) {
+			ret = request_firmware(mainfw, iter->fwname, dev);
+			if (ret && !user_helper) {
+				/* Clear the helper if it wasn't user-specified
+				 * and the main firmware load failed, to ensure
+				 * we don't have mismatched firmware pairs.
+				 */
+				release_firmware(*helper);
+				*helper = NULL;
+			}
+		}
+
+		if (*helper && *mainfw)
+			return 0;
+
+  next:
+		iter++;
+	}
+
+  fail:
+	/* Failed */
+	if (*helper) {
+		release_firmware(*helper);
+		*helper = NULL;
+	}
+	if (*mainfw) {
+		release_firmware(*mainfw);
+		*mainfw = NULL;
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(lbs_get_firmware);
+
 static int __init lbs_init_module(void)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);
 	memset(&confirm_sleep, 0, sizeof(confirm_sleep));
 	confirm_sleep.hdr.command = cpu_to_le16(CMD_802_11_PS_MODE);
 	confirm_sleep.hdr.size = cpu_to_le16(sizeof(confirm_sleep));
-	confirm_sleep.action = cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
+	confirm_sleep.action = cpu_to_le16(PS_MODE_ACTION_SLEEP_CONFIRMED);
 	lbs_debugfs_init();
 	lbs_deb_leave(LBS_DEB_MAIN);
 	return 0;
@@ -1623,86 +1175,6 @@ static void __exit lbs_exit_module(void)
 	lbs_deb_enter(LBS_DEB_MAIN);
 	lbs_debugfs_remove();
 	lbs_deb_leave(LBS_DEB_MAIN);
-}
-
-/*
- * rtap interface support fuctions
- */
-
-static int lbs_rtap_open(struct net_device *dev)
-{
-	/* Yes, _stop_ the queue. Because we don't support injection */
-	lbs_deb_enter(LBS_DEB_MAIN);
-	netif_carrier_off(dev);
-	netif_stop_queue(dev);
-	lbs_deb_leave(LBS_DEB_LEAVE);
-	return 0;
-}
-
-static int lbs_rtap_stop(struct net_device *dev)
-{
-	lbs_deb_enter(LBS_DEB_MAIN);
-	lbs_deb_leave(LBS_DEB_MAIN);
-	return 0;
-}
-
-static int lbs_rtap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	netif_stop_queue(dev);
-	return NETDEV_TX_BUSY;
-}
-
-static void lbs_remove_rtap(struct lbs_private *priv)
-{
-	lbs_deb_enter(LBS_DEB_MAIN);
-	if (priv->rtap_net_dev == NULL)
-		goto out;
-	unregister_netdev(priv->rtap_net_dev);
-	free_netdev(priv->rtap_net_dev);
-	priv->rtap_net_dev = NULL;
-out:
-	lbs_deb_leave(LBS_DEB_MAIN);
-}
-
-static const struct net_device_ops rtap_netdev_ops = {
-	.ndo_open = lbs_rtap_open,
-	.ndo_stop = lbs_rtap_stop,
-	.ndo_start_xmit = lbs_rtap_hard_start_xmit,
-};
-
-static int lbs_add_rtap(struct lbs_private *priv)
-{
-	int ret = 0;
-	struct net_device *rtap_dev;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
-	if (priv->rtap_net_dev) {
-		ret = -EPERM;
-		goto out;
-	}
-
-	rtap_dev = alloc_netdev(0, "rtap%d", ether_setup);
-	if (rtap_dev == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	memcpy(rtap_dev->dev_addr, priv->current_addr, ETH_ALEN);
-	rtap_dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	rtap_dev->netdev_ops = &rtap_netdev_ops;
-	rtap_dev->ml_priv = priv;
-	SET_NETDEV_DEV(rtap_dev, priv->dev->dev.parent);
-
-	ret = register_netdev(rtap_dev);
-	if (ret) {
-		free_netdev(rtap_dev);
-		goto out;
-	}
-	priv->rtap_net_dev = rtap_dev;
-
-out:
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
-	return ret;
 }
 
 module_init(lbs_init_module);

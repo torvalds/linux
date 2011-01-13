@@ -106,8 +106,8 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 	mlog_entry("(new_clusters=%d, first_new_cluster = %u)\n",
 		   new_clusters, first_new_cluster);
 
-	ret = ocfs2_journal_access_gd(handle, bm_inode, group_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_gd(handle, INODE_CACHE(bm_inode),
+				      group_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -134,14 +134,10 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 		le16_add_cpu(&group->bg_free_bits_count, -1 * backups);
 	}
 
-	ret = ocfs2_journal_dirty(handle, group_bh);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_rollback;
-	}
+	ocfs2_journal_dirty(handle, group_bh);
 
 	/* update the inode accordingly. */
-	ret = ocfs2_journal_access_di(handle, bm_inode, bm_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(bm_inode), bm_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -319,7 +315,8 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
 
 	if (le16_to_cpu(fe->id2.i_chain.cl_cpg) !=
-				 ocfs2_group_bitmap_size(osb->sb) * 8) {
+		ocfs2_group_bitmap_size(osb->sb, 0,
+					osb->s_feature_incompat) * 8) {
 		mlog(ML_ERROR, "The disk is too old and small. "
 		     "Force to do offline resize.");
 		ret = -EINVAL;
@@ -500,7 +497,8 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 	fe = (struct ocfs2_dinode *)main_bm_bh->b_data;
 
 	if (le16_to_cpu(fe->id2.i_chain.cl_cpg) !=
-				 ocfs2_group_bitmap_size(osb->sb) * 8) {
+		ocfs2_group_bitmap_size(osb->sb, 0,
+					osb->s_feature_incompat) * 8) {
 		mlog(ML_ERROR, "The disk is too old and small."
 		     " Force to do offline resize.");
 		ret = -EINVAL;
@@ -514,7 +512,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out_unlock;
 	}
 
-	ocfs2_set_new_buffer_uptodate(inode, group_bh);
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), group_bh);
 
 	ret = ocfs2_verify_group_and_input(main_bm_inode, fe, input, group_bh);
 	if (ret) {
@@ -536,8 +534,8 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 	cl = &fe->id2.i_chain;
 	cr = &cl->cl_recs[input->chain];
 
-	ret = ocfs2_journal_access_gd(handle, main_bm_inode, group_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_gd(handle, INODE_CACHE(main_bm_inode),
+				      group_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -545,15 +543,10 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 
 	group = (struct ocfs2_group_desc *)group_bh->b_data;
 	group->bg_next_group = cr->c_blkno;
+	ocfs2_journal_dirty(handle, group_bh);
 
-	ret = ocfs2_journal_dirty(handle, group_bh);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_commit;
-	}
-
-	ret = ocfs2_journal_access_di(handle, main_bm_inode, main_bm_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(main_bm_inode),
+				      main_bm_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_commit;

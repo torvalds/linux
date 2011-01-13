@@ -7,84 +7,115 @@ menuconfig NEW_LEDS
 	  This is not related to standard keyboard LEDs which are controlled
 	  via the input system.
 
-if NEW_LEDS
-
 config LEDS_CLASS
-	tristate "LED Class Support"
+	bool "LED Class Support"
+	depends on NEW_LEDS
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
+if NEW_LEDS
+
 comment "LED drivers"
+
+config LEDS_88PM860X
+	tristate "LED Support for Marvell 88PM860x PMIC"
+	depends on LEDS_CLASS
+	depends on MFD_88PM860X
+	help
+	  This option enables support for on-chip LED drivers found on Marvell
+	  Semiconductor 88PM8606 PMIC.
 
 config LEDS_ATMEL_PWM
 	tristate "LED Support using Atmel PWM outputs"
-	depends on LEDS_CLASS && ATMEL_PWM
+	depends on LEDS_CLASS
+	depends on ATMEL_PWM
 	help
 	  This option enables support for LEDs driven using outputs
 	  of the dedicated PWM controller found on newer Atmel SOCs.
 
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
-	depends on LEDS_CLASS && SHARP_LOCOMO
+	depends on LEDS_CLASS
+	depends on SHARP_LOCOMO
 	help
 	  This option enables support for the LEDs on Sharp Locomo.
 	  Zaurus models SL-5500 and SL-5600.
 
 config LEDS_MIKROTIK_RB532
 	tristate "LED Support for Mikrotik Routerboard 532"
-	depends on LEDS_CLASS && MIKROTIK_RB532
+	depends on LEDS_CLASS
+	depends on MIKROTIK_RB532
 	help
 	  This option enables support for the so called "User LED" of
 	  Mikrotik's Routerboard 532.
 
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
-	depends on LEDS_CLASS && ARCH_S3C2410
+	depends on LEDS_CLASS
+	depends on ARCH_S3C2410
 	help
 	  This option enables support for LEDs connected to GPIO lines
 	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
 
 config LEDS_AMS_DELTA
 	tristate "LED Support for the Amstrad Delta (E3)"
-	depends on LEDS_CLASS && MACH_AMS_DELTA
+	depends on LEDS_CLASS
+	depends on MACH_AMS_DELTA
 	help
 	  This option enables support for the LEDs on Amstrad Delta (E3).
 
 config LEDS_NET48XX
 	tristate "LED Support for Soekris net48xx series Error LED"
-	depends on LEDS_CLASS && SCx200_GPIO
+	depends on LEDS_CLASS
+	depends on SCx200_GPIO
 	help
 	  This option enables support for the Soekris net4801 and net4826 error
 	  LED.
 
+config LEDS_NET5501
+	tristate "LED Support for Soekris net5501 series Error LED"
+	depends on LEDS_TRIGGERS
+	depends on X86 && LEDS_GPIO_PLATFORM && GPIO_CS5535
+	select LEDS_TRIGGER_DEFAULT_ON
+	default n
+	help
+	  Add support for the Soekris net5501 board (detection, error led
+	  and GPIO).
+
 config LEDS_FSG
 	tristate "LED Support for the Freecom FSG-3"
-	depends on LEDS_CLASS && MACH_FSG
+	depends on LEDS_CLASS
+	depends on MACH_FSG
 	help
 	  This option enables support for the LEDs on the Freecom FSG-3.
 
 config LEDS_WRAP
 	tristate "LED Support for the WRAP series LEDs"
-	depends on LEDS_CLASS && SCx200_GPIO
+	depends on LEDS_CLASS
+	depends on SCx200_GPIO
 	help
 	  This option enables support for the PCEngines WRAP programmable LEDs.
 
 config LEDS_ALIX2
 	tristate "LED Support for ALIX.2 and ALIX.3 series"
-	depends on LEDS_CLASS && X86 && EXPERIMENTAL
+	depends on LEDS_CLASS
+	depends on X86 && !GPIO_CS5535 && !CS5535_GPIO
 	help
 	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
+	  You have to set leds-alix2.force=1 for boards with Award BIOS.
 
 config LEDS_H1940
 	tristate "LED Support for iPAQ H1940 device"
-	depends on LEDS_CLASS && ARCH_H1940
+	depends on LEDS_CLASS
+	depends on ARCH_H1940
 	help
 	  This option enables support for the LEDs on the h1940.
 
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
-	depends on LEDS_CLASS && MIPS_COBALT
+	depends on LEDS_CLASS
+	depends on MIPS_COBALT
 	help
 	  This option enables support for the front LED on Cobalt Qube series
 
@@ -97,7 +128,8 @@ config LEDS_COBALT_RAQ
 
 config LEDS_SUNFIRE
 	tristate "LED support for SunFire servers."
-	depends on LEDS_CLASS && SPARC64
+	depends on LEDS_CLASS
+	depends on SPARC64
 	select LEDS_TRIGGERS
 	help
 	  This option enables support for the Left, Middle, and Right
@@ -105,14 +137,16 @@ config LEDS_SUNFIRE
 
 config LEDS_HP6XX
 	tristate "LED Support for the HP Jornada 6xx"
-	depends on LEDS_CLASS && SH_HP6XX
+	depends on LEDS_CLASS
+	depends on SH_HP6XX
 	help
 	  This option enables LED support for the handheld
 	  HP Jornada 620/660/680/690.
 
 config LEDS_PCA9532
 	tristate "LED driver for PCA9532 dimmer"
-	depends on LEDS_CLASS && I2C && INPUT && EXPERIMENTAL
+	depends on LEDS_CLASS
+	depends on I2C && INPUT && EXPERIMENTAL
 	help
 	  This option enables support for NXP pca9532
 	  LED controller. It is generally only useful
@@ -120,7 +154,8 @@ config LEDS_PCA9532
 
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
-	depends on LEDS_CLASS && GENERIC_GPIO
+	depends on LEDS_CLASS
+	depends on GENERIC_GPIO
 	help
 	  This option enables support for the LEDs connected to GPIO
 	  outputs. To be useful the particular board must have LEDs
@@ -145,19 +180,40 @@ config LEDS_GPIO_OF
 	  of_platform devices.  For instance, LEDs which are listed in a "dts"
 	  file.
 
+config LEDS_LP3944
+	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for LEDs connected to the National
+	  Semiconductor LP3944 Lighting Management Unit (LMU) also known as
+	  Fun Light Chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp3944.
+
 config LEDS_LP5521
-	tristate "LED Support for the LP5521 LEDs"
+	tristate "LED Support for N.S. LP5521 LED driver chip"
 	depends on LEDS_CLASS && I2C
 	help
-	  If you say 'Y' here you get support for the National Semiconductor
-	  LP5521 LED driver used in n8x0 boards.
+	  If you say yes here you get support for the National Semiconductor
+	  LP5521 LED driver. It is 3 channel chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
 
-	  This driver can be built as a module by choosing 'M'. The module
-	  will be called leds-lp5521.
+config LEDS_LP5523
+	tristate "LED Support for N.S. LP5523 LED driver chip"
+	depends on LEDS_CLASS && I2C
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LP5523 LED driver. It is 9 channel chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
 
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
-	depends on LEDS_CLASS && X86 && SERIO_I8042 && DMI
+	depends on LEDS_CLASS
+	depends on X86 && SERIO_I8042 && DMI
 	help
 	  This driver makes the mail LED accessible from userspace
 	  programs through the leds subsystem. This LED have three
@@ -187,54 +243,141 @@ config LEDS_CLEVO_MAIL
 
 config LEDS_PCA955X
 	tristate "LED Support for PCA955x I2C chips"
-	depends on LEDS_CLASS && I2C
+	depends on LEDS_CLASS
+	depends on I2C
 	help
 	  This option enables support for LEDs connected to PCA955x
 	  LED driver chips accessed via the I2C bus.  Supported
 	  devices include PCA9550, PCA9551, PCA9552, and PCA9553.
 
+config LEDS_WM831X_STATUS
+	tristate "LED support for status LEDs on WM831x PMICs"
+	depends on LEDS_CLASS
+	depends on MFD_WM831X
+	help
+	  This option enables support for the status LEDs of the WM831x
+          series of PMICs.
+
 config LEDS_WM8350
 	tristate "LED Support for WM8350 AudioPlus PMIC"
-	depends on LEDS_CLASS && MFD_WM8350
+	depends on LEDS_CLASS
+	depends on MFD_WM8350
 	help
 	  This option enables support for LEDs driven by the Wolfson
 	  Microelectronics WM8350 AudioPlus PMIC.
 
 config LEDS_DA903X
 	tristate "LED Support for DA9030/DA9034 PMIC"
-	depends on LEDS_CLASS && PMIC_DA903X
+	depends on LEDS_CLASS
+	depends on PMIC_DA903X
 	help
 	  This option enables support for on-chip LED drivers found
 	  on Dialog Semiconductor DA9030/DA9034 PMICs.
 
 config LEDS_DAC124S085
 	tristate "LED Support for DAC124S085 SPI DAC"
-	depends on LEDS_CLASS && SPI
+	depends on LEDS_CLASS
+	depends on SPI
 	help
 	  This option enables support for DAC124S085 SPI DAC from NatSemi,
 	  which can be used to control up to four LEDs.
 
 config LEDS_PWM
 	tristate "PWM driven LED Support"
-	depends on LEDS_CLASS && HAVE_PWM
+	depends on LEDS_CLASS
+	depends on HAVE_PWM
 	help
 	  This option enables support for pwm driven LEDs
 
+config LEDS_REGULATOR
+	tristate "REGULATOR driven LED support"
+	depends on LEDS_CLASS
+	depends on REGULATOR
+	help
+	  This option enables support for regulator driven LEDs.
+
 config LEDS_BD2802
 	tristate "LED driver for BD2802 RGB LED"
-	depends on LEDS_CLASS && I2C
+	depends on LEDS_CLASS
+	depends on I2C
 	help
 	  This option enables support for BD2802GU RGB LED driver chips
 	  accessed via the I2C bus.
 
-comment "LED Triggers"
+config LEDS_INTEL_SS4200
+	tristate "LED driver for Intel NAS SS4200 series"
+	depends on LEDS_CLASS
+	depends on PCI && DMI
+	help
+	  This option enables support for the Intel SS4200 series of
+	  Network Attached Storage servers.  You may control the hard
+	  drive or power LEDs on the front panel.  Using this driver
+	  can stop the front LED from blinking after startup.
+
+config LEDS_LT3593
+	tristate "LED driver for LT3593 controllers"
+	depends on LEDS_CLASS
+	depends on GENERIC_GPIO
+	help
+	  This option enables support for LEDs driven by a Linear Technology
+	  LT3593 controller. This controller uses a special one-wire pulse
+	  coding protocol to set the brightness.
+
+config LEDS_ADP5520
+	tristate "LED Support for ADP5520/ADP5501 PMIC"
+	depends on LEDS_CLASS
+	depends on PMIC_ADP5520
+	help
+	  This option enables support for on-chip LED drivers found
+	  on Analog Devices ADP5520/ADP5501 PMICs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called leds-adp5520.
+
+config LEDS_DELL_NETBOOKS
+	tristate "External LED on Dell Business Netbooks"
+	depends on LEDS_CLASS
+	depends on X86 && ACPI_WMI
+	help
+	  This adds support for the Latitude 2100 and similar
+	  notebooks that have an external LED.
+
+config LEDS_MC13783
+	tristate "LED Support for MC13783 PMIC"
+	depends on LEDS_CLASS
+	depends on MFD_MC13783
+	help
+	  This option enable support for on-chip LED drivers found
+	  on Freescale Semiconductor MC13783 PMIC.
+
+config LEDS_NS2
+	tristate "LED support for Network Space v2 GPIO LEDs"
+	depends on LEDS_CLASS
+	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || MACH_NETSPACE_MAX_V2 || D2NET_V2
+	default y
+	help
+	  This option enable support for the dual-GPIO LED found on the
+	  Network Space v2 board (and parents). This include Internet Space v2,
+	  Network Space (Max) v2 and d2 Network v2 boards.
+
+config LEDS_NETXBIG
+	tristate "LED support for Big Network series LEDs"
+	depends on MACH_NET2BIG_V2 || MACH_NET5BIG_V2
+	default y
+	help
+	  This option enable support for LEDs found on the LaCie 2Big
+	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are
+	  controlled through a GPIO extension bus.
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
+	depends on LEDS_CLASS
 	help
 	  This option enables trigger support for the leds class.
 	  These triggers allow kernel events to drive the LEDs and can
 	  be configured via sysfs. If unsure, say Y.
+
+comment "LED Triggers"
 
 config LEDS_TRIGGER_TIMER
 	tristate "LED Timer Trigger"
@@ -249,7 +392,8 @@ config LEDS_TRIGGER_TIMER
 
 config LEDS_TRIGGER_IDE_DISK
 	bool "LED IDE Disk Trigger"
-	depends on LEDS_TRIGGERS && IDE_GD_ATA
+	depends on IDE_GD_ATA
+	depends on LEDS_TRIGGERS
 	help
 	  This allows LEDs to be controlled by IDE disk activity.
 	  If unsure, say Y.

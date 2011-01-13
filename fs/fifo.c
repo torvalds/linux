@@ -10,7 +10,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/pipe_fs_i.h>
@@ -152,4 +151,5 @@ err_nocleanup:
  */
 const struct file_operations def_fifo_fops = {
 	.open		= fifo_open,	/* will set read_ or write_pipefifo_fops */
+	.llseek		= noop_llseek,
 };

@@ -33,6 +33,17 @@
 #define NILFS_CNO_MIN	((__u64)1)
 #define NILFS_CNO_MAX	(~(__u64)0)
 
+struct nilfs_dat_info {
+	struct nilfs_mdt_info mi;
+	struct nilfs_palloc_cache palloc_cache;
+	struct nilfs_shadow_map shadow;
+};
+
+static inline struct nilfs_dat_info *NILFS_DAT_I(struct inode *dat)
+{
+	return (struct nilfs_dat_info *)NILFS_MDT(dat);
+}
+
 static int nilfs_dat_prepare_entry(struct inode *dat,
 				   struct nilfs_palloc_req *req, int create)
 {
@@ -92,7 +103,8 @@ void nilfs_dat_abort_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 	nilfs_palloc_abort_alloc_entry(dat, req);
 }
 
-void nilfs_dat_commit_free(struct inode *dat, struct nilfs_palloc_req *req)
+static void nilfs_dat_commit_free(struct inode *dat,
+				  struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
 	void *kaddr;
@@ -107,12 +119,6 @@ void nilfs_dat_commit_free(struct inode *dat, struct nilfs_palloc_req *req)
 
 	nilfs_dat_commit_entry(dat, req);
 	nilfs_palloc_commit_free_entry(dat, req);
-}
-
-void nilfs_dat_abort_free(struct inode *dat, struct nilfs_palloc_req *req)
-{
-	nilfs_dat_abort_entry(dat, req);
-	nilfs_palloc_abort_free_entry(dat, req);
 }
 
 int nilfs_dat_prepare_start(struct inode *dat, struct nilfs_palloc_req *req)
@@ -134,24 +140,10 @@ void nilfs_dat_commit_start(struct inode *dat, struct nilfs_palloc_req *req,
 	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
 					     req->pr_entry_bh, kaddr);
 	entry->de_start = cpu_to_le64(nilfs_mdt_cno(dat));
-	if (entry->de_blocknr != cpu_to_le64(0) ||
-	    entry->de_end != cpu_to_le64(NILFS_CNO_MAX)) {
-		printk(KERN_CRIT
-		       "%s: vbn = %llu, start = %llu, end = %llu, pbn = %llu\n",
-		       __func__, (unsigned long long)req->pr_entry_nr,
-		       (unsigned long long)le64_to_cpu(entry->de_start),
-		       (unsigned long long)le64_to_cpu(entry->de_end),
-		       (unsigned long long)le64_to_cpu(entry->de_blocknr));
-	}
 	entry->de_blocknr = cpu_to_le64(blocknr);
 	kunmap_atomic(kaddr, KM_USER0);
 
 	nilfs_dat_commit_entry(dat, req);
-}
-
-void nilfs_dat_abort_start(struct inode *dat, struct nilfs_palloc_req *req)
-{
-	nilfs_dat_abort_entry(dat, req);
 }
 
 int nilfs_dat_prepare_end(struct inode *dat, struct nilfs_palloc_req *req)
@@ -231,6 +223,37 @@ void nilfs_dat_abort_end(struct inode *dat, struct nilfs_palloc_req *req)
 	nilfs_dat_abort_entry(dat, req);
 }
 
+int nilfs_dat_prepare_update(struct inode *dat,
+			     struct nilfs_palloc_req *oldreq,
+			     struct nilfs_palloc_req *newreq)
+{
+	int ret;
+
+	ret = nilfs_dat_prepare_end(dat, oldreq);
+	if (!ret) {
+		ret = nilfs_dat_prepare_alloc(dat, newreq);
+		if (ret < 0)
+			nilfs_dat_abort_end(dat, oldreq);
+	}
+	return ret;
+}
+
+void nilfs_dat_commit_update(struct inode *dat,
+			     struct nilfs_palloc_req *oldreq,
+			     struct nilfs_palloc_req *newreq, int dead)
+{
+	nilfs_dat_commit_end(dat, oldreq, dead);
+	nilfs_dat_commit_alloc(dat, newreq);
+}
+
+void nilfs_dat_abort_update(struct inode *dat,
+			    struct nilfs_palloc_req *oldreq,
+			    struct nilfs_palloc_req *newreq)
+{
+	nilfs_dat_abort_end(dat, oldreq);
+	nilfs_dat_abort_alloc(dat, newreq);
+}
+
 /**
  * nilfs_dat_mark_dirty -
  * @dat: DAT file inode
@@ -267,7 +290,7 @@ int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
  * @vblocknrs and @nitems.
  *
  * Return Value: On success, 0 is returned. On error, one of the following
- * nagative error codes is returned.
+ * negative error codes is returned.
  *
  * %-EIO - I/O error.
  *
@@ -306,6 +329,23 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 	ret = nilfs_palloc_get_entry_block(dat, vblocknr, 0, &entry_bh);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * The given disk block number (blocknr) is not yet written to
+	 * the device at this point.
+	 *
+	 * To prevent nilfs_dat_translate() from returning the
+	 * uncommitted block number, this makes a copy of the entry
+	 * buffer and redirects nilfs_dat_translate() to the copy.
+	 */
+	if (!buffer_nilfs_redirected(entry_bh)) {
+		ret = nilfs_mdt_freeze_buffer(dat, entry_bh);
+		if (ret) {
+			brelse(entry_bh);
+			return ret;
+		}
+	}
+
 	kaddr = kmap_atomic(entry_bh->b_page, KM_USER0);
 	entry = nilfs_palloc_block_get_entry(dat, vblocknr, entry_bh, kaddr);
 	if (unlikely(entry->de_blocknr == cpu_to_le64(0))) {
@@ -350,7 +390,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
  */
 int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 {
-	struct buffer_head *entry_bh;
+	struct buffer_head *entry_bh, *bh;
 	struct nilfs_dat_entry *entry;
 	sector_t blocknr;
 	void *kaddr;
@@ -360,6 +400,15 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 	if (ret < 0)
 		return ret;
 
+	if (!nilfs_doing_gc() && buffer_nilfs_redirected(entry_bh)) {
+		bh = nilfs_mdt_get_frozen_buffer(dat, entry_bh);
+		if (bh) {
+			WARN_ON(!buffer_uptodate(bh));
+			brelse(entry_bh);
+			entry_bh = bh;
+		}
+	}
+
 	kaddr = kmap_atomic(entry_bh->b_page, KM_USER0);
 	entry = nilfs_palloc_block_get_entry(dat, vblocknr, entry_bh, kaddr);
 	blocknr = le64_to_cpu(entry->de_blocknr);
@@ -367,8 +416,7 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 		ret = -ENOENT;
 		goto out;
 	}
-	if (blocknrp != NULL)
-		*blocknrp = blocknr;
+	*blocknrp = blocknr;
 
  out:
 	kunmap_atomic(kaddr, KM_USER0);
@@ -413,4 +461,51 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned visz,
 	}
 
 	return nvi;
+}
+
+/**
+ * nilfs_dat_read - read or get dat inode
+ * @sb: super block instance
+ * @entry_size: size of a dat entry
+ * @raw_inode: on-disk dat inode
+ * @inodep: buffer to store the inode
+ */
+int nilfs_dat_read(struct super_block *sb, size_t entry_size,
+		   struct nilfs_inode *raw_inode, struct inode **inodep)
+{
+	static struct lock_class_key dat_lock_key;
+	struct inode *dat;
+	struct nilfs_dat_info *di;
+	int err;
+
+	dat = nilfs_iget_locked(sb, NULL, NILFS_DAT_INO);
+	if (unlikely(!dat))
+		return -ENOMEM;
+	if (!(dat->i_state & I_NEW))
+		goto out;
+
+	err = nilfs_mdt_init(dat, NILFS_MDT_GFP, sizeof(*di));
+	if (err)
+		goto failed;
+
+	err = nilfs_palloc_init_blockgroup(dat, entry_size);
+	if (err)
+		goto failed;
+
+	di = NILFS_DAT_I(dat);
+	lockdep_set_class(&di->mi.mi_sem, &dat_lock_key);
+	nilfs_palloc_setup_cache(dat, &di->palloc_cache);
+	nilfs_mdt_setup_shadow_map(dat, &di->shadow);
+
+	err = nilfs_read_inode_common(dat, raw_inode);
+	if (err)
+		goto failed;
+
+	unlock_new_inode(dat);
+ out:
+	*inodep = dat;
+	return 0;
+ failed:
+	iget_failed(dat);
+	return err;
 }

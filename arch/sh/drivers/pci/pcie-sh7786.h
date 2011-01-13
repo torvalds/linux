@@ -30,46 +30,8 @@
  * for other(Max Payload Size=4096B,PCIIO_SIZE=8M)
  */
 
-/* PCI0-0: PCI I/O space */
-#define SH4A_PCIIO_BASE		0xFD000000	/* PCI I/O for controller 0 */
-#define SH4A_PCIIO_BASE1	0xFD800000	/* PCI I/O for controller 1 (Rev1.14)*/
-#define SH4A_PCIIO_BASE2	0xFC800000	/* PCI I/O for controller 2 (Rev1.171)*/
-
-#define SH4A_PCIIO_SIZE64	0x00010000	/* PLX allows only 64K */
-#define SH4A_PCIIO_SIZE		0x00800000	/* 8M */
-#define SH4A_PCIIO_SIZE2	0x00400000	/* 4M (Rev1.171)*/
-
-/* PCI0-1: PCI memory space 29-bit address */
-#define SH4A_PCIMEM_BASE	0x10000000
-#define SH4A_PCIMEM_SIZE	0x04000000	/* 64M */
-
-/* PCI0-2: PCI memory space 32-bit address */
-#define SH4A_PCIMEM_BASEA	0xC0000000	/*  for controller 0 */
-#define SH4A_PCIMEM_BASEA1	0xA0000000	/*  for controller 1 (Rev1.14)*/
-#define SH4A_PCIMEM_BASEA2	0x80000000	/*  for controller 2 (Rev1.171)*/
-#define SH4A_PCIMEM_SIZEA	0x20000000	/* 512M */
-
 /* PCI0: PCI memory target transfer 32-bit address translation value(Rev1.11T)*/
 #define SH4A_PCIBMSTR_TRANSLATION	0x20000000
-
-#define SH4A_PCI_DEVICE_ID		0x0002
-#define SH4A_PCI_VENDOR_ID		0x1912
-
-// PCI compatible 000-03f
-#define PCI_CMD		0x004
-#define PCI_RID		0x008
-#define PCI_IBAR	0x010
-#define PCI_MBAR0	0x014
-#define PCI_MBAR1	0x018
-
-/* PCI power management/MSI/capablity 040-0ff */
-/* PCIE extended 100-fff */
-
-/* SH7786 device identification */	// Rev1.171
-#define SH4A_PVR		(0xFF000030)
-#define SH4A_PVR_SHX3		(0x10400000)
-#define SH4A_PRR		(0xFF000044)
-#define SH4A_PRR_SH7786		(0x00000400)	// Rev1.171
 
 /*	SPVCR0		*/
 #define	SH4A_PCIEVCR0		(0x000000)	/* R - 0x0000 0000 32 */
@@ -93,8 +55,11 @@
 #define		BITS_ERRRCV	(0)		/* 0 ERRRCV 0 */
 #define		MASK_ERRRCV	(1<<BITS_ERRRCV)
 
+/*	PCIEENBLR	 */
+#define	SH4A_PCIEENBLR		(0x000008)	/* R/W - 0x0000 0001 32 */
+
 /*	PCIEECR		*/
-#define	SH4A_PCIEECR		(0x000008)	/* R/W - 0x0000 0000 32 */
+#define	SH4A_PCIEECR		(0x00000C)	/* R/W - 0x0000 0000 32 */
 #define		BITS_ENBL	(0)	/* 0 ENBL 0 R/W */
 #define		MASK_ENBL	(1<<BITS_ENBL)
 
@@ -151,6 +116,27 @@
 #define		BITS_MDATA	(0)
 #define		MASK_MDATA	(0xffffffff<<BITS_MDATA)
 
+/*	PCIEUNLOCKCR	*/
+#define	SH4A_PCIEUNLOCKCR	(0x000048)	/* R/W - 0x0000 0000 32 */
+
+/*	PCIEIDR		*/
+#define	SH4A_PCIEIDR		(0x000060)	/* R/W - 0x0101 1101 32 */
+
+/*	PCIEDBGCTLR	*/
+#define	SH4A_PCIEDBGCTLR	(0x000100)	/* R/W - 0x0000 0000 32 */
+
+/*	PCIEINTXR	*/
+#define	SH4A_PCIEINTXR		(0x004000)	/* R/W - 0x0000 0000 32 */
+
+/*	PCIERMSGR	*/
+#define	SH4A_PCIERMSGR		(0x004010)	/* R/W - 0x0000 0000 32 */
+
+/*	PCIERSTR	*/
+#define SH4A_PCIERSTR(x)	(0x008000 + ((x) * 0x4)) /* R/W - 0x0000 0000 32 */
+
+/*	PCIESRSTR	 */
+#define SH4A_PCIESRSTR		(0x008040)	/* R/W - 0x0000 0000 32 */
+
 /*	PCIEPHYCTLR	*/
 #define	SH4A_PCIEPHYCTLR	(0x010000)	/* R/W - 0x0000 0000 32 */
 #define		BITS_CKE	(0)
@@ -158,6 +144,9 @@
 
 /*	PCIERMSGIER	*/
 #define	SH4A_PCIERMSGIER	(0x004040)	/* R/W - 0x0000 0000 32 */
+
+/*	PCIEPHYCTLR	*/
+#define SH4A_PCIEPHYCTLR	(0x010000)	/* R/W - 0x0000 0000 32 */
 
 /*	PCIEPHYADRR	*/
 #define	SH4A_PCIEPHYADRR	(0x010004)	/* R/W - 0x0000 0000 32 */
@@ -190,7 +179,7 @@
 #define		MASK_CFINT	(1<<BITS_CFINT)
 
 /*	PCIETSTR	*/
-#define	SH4A_PCIETSTR		(0x020004)	/* R/W R/W 0x0000 0000 32  */
+#define	SH4A_PCIETSTR		(0x020004)	/* R 0x0000 0000 32  */
 
 /*	PCIEINTR	*/
 #define	SH4A_PCIEINTR		(0x020008)	/* R/W R/W 0x0000 0000 32  */
@@ -274,6 +263,9 @@
 #define		BITS_INTPM			(8)
 #define		MASK_INTPM			(1<<BITS_INTPM)
 
+/*	PCIEEH0R	*/
+#define SH4A_PCIEEHR(x)		(0x020010 + ((x) * 0x4)) /* R - 0x0000 0000 32 */
+
 /*	PCIEAIR	 */
 #define	SH4A_PCIEAIR		(SH4A_PCIE_BASE + 0x020010)	/* R/W R/W 0xxxxx xxxx 32 */
 
@@ -282,6 +274,25 @@
 
 /*	 PCIEERRFR	 */								// Rev1.18
 #define	SH4A_PCIEERRFR		(0x020020)		/* R/W R/W 0xxxxx xxxx 32 */	// Rev1.18
+
+/*	PCIEERRFER	*/
+#define SH4A_PCIEERRFER		(0x020024)		/* R/W R/W 0x0000 0000 32 */
+
+/*	PCIEERRFR2	*/
+#define SH4A_PCIEERRFR2		(0x020028)		/* R/W R/W 0x0000 0000 32 */
+
+/*	PCIEMSIR	*/
+#define SH4A_PCIEMSIR		(0x020040)		/* R/W - 0x0000 0000 32 */
+
+/*	PCIEMSIFR	*/
+#define SH4A_PCIEMSIFR		(0x020044)		/* R/W R/W 0x0000 0000 32 */
+
+/*	PCIEPWRCTLR	*/
+#define SH4A_PCIEPWRCTLR	(0x020100)		/* R/W - 0x0000 0000 32 */
+
+/*	PCIEPCCTLR	*/
+#define SH4A_PCIEPCCTLR		(0x020180)		/* R/W - 0x0000 0000 32 */
+
 											// Rev1.18
 /*	PCIELAR0	*/
 #define	SH4A_PCIELAR0		(0x020200)	/* R/W R/W 0x0000 0000 32 */
@@ -350,23 +361,23 @@
 #define	SH4A_PCIECSAR5		(0x0202B4)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIESTCTLR5	(0x0202B8)	/* R/W R/W 0x0000 0000 32 */
 
-/*	PCIEPARL0	*/
-#define	SH4A_PCIEPARL0		(0x020400)	/* R/W R/W 0x0000 0000 32 */
+/*	PCIEPARL	*/
+#define	SH4A_PCIEPARL(x)	(0x020400 + ((x) * 0x20)) /* R/W R/W 0x0000 0000 32 */
 #define		BITS_PAL	(18)
 #define		MASK_PAL	(0x3fff<<BITS_PAL)
 
-/*	PCIEPARH0	*/
-#define	SH4A_PCIEPARH0		(0x020404)	/* R/W R/W 0x0000 0000 32 */
+/*	PCIEPARH	*/
+#define	SH4A_PCIEPARH(x)	(0x020404 + ((x) * 0x20)) /* R/W R/W 0x0000 0000 32 */
 #define		BITS_PAH	(0)
 #define		MASK_PAH	(0xffffffff<<BITS_PAH)
 
-/*	PCIEPAMR0	 */
-#define	SH4A_PCIEPAMR0		(0x020408)	/* R/W R/W 0x0000 0000 32 */
+/*	PCIEPAMR	 */
+#define	SH4A_PCIEPAMR(x)	(0x020408 + ((x) * 0x20)) /* R/W R/W 0x0000 0000 32 */
 #define		BITS_PAM	(18)
 #define		MASK_PAM	(0x3fff<<BITS_PAM)
 
-/*	PCIEPTCTLR0	*/
-#define	SH4A_PCIEPTCTLR0	(0x02040C)	/* R/W R/W 0x0000 0000 32 */
+/*	PCIEPTCTLR	*/
+#define SH4A_PCIEPTCTLR(x)	(0x02040C + ((x) * 0x20))
 #define		BITS_PARE	(31)
 #define		MASK_PARE	(0x1<<BITS_PARE)
 #define		BITS_TC		(20)
@@ -378,26 +389,6 @@
 #define		BITS_SPC	(8)
 #define		MASK_SPC	(0x1<<BITS_SPC)
 
-#define	SH4A_PCIEPARL1		(0x020420)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARH1		(0x020424)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPAMR1		(0x020428)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPTCTLR1	(0x02042C)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARL2		(0x020440)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARH2		(0x020444)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPAMR2		(0x020448)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPTCTLR2	(0x02044C)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARL3		(0x020460)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARH3		(0x020464)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPAMR3		(0x020468)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPTCTLR3	(0x02046C)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARL4		(0x020480)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARH4		(0x020484)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPAMR4		(0x020488)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPTCTLR4	(0x02048C)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARL5		(0x0204A0)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPARH5		(0x0204A4)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPAMR5		(0x0204A8)	/* R/W R/W 0x0000 0000 32 */
-#define	SH4A_PCIEPTCTLR5	(0x0204AC)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMAOR		(0x021000)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMSAR0		(0x021100)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMSAHR0	(0x021104)	/* R/W R/W 0x0000 0000 32 */
@@ -410,6 +401,7 @@
 #define	SH4A_PCIEDMCCR0		(0x021120)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMCC2R0	(0x021124)	/* R/W R/W 0x0000 0000 - */
 #define	SH4A_PCIEDMCCCR0	(0x021128)	/* R/W R/W 0x0000 0000 32 */
+#define SH4A_PCIEDMCHSR0	(0x02112C)	/* R/W - 0x0000 0000 32 */
 #define	SH4A_PCIEDMSAR1		(0x021140)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMSAHR1	(0x021144)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMDAR1		(0x021148)	/* R/W R/W 0x0000 0000 32 */
@@ -421,6 +413,7 @@
 #define	SH4A_PCIEDMCCR1		(0x021160)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMCC2R1	(0x021164)	/* R/W R/W 0x0000 0000 - */
 #define	SH4A_PCIEDMCCCR1	(0x021168)	/* R/W R/W 0x0000 0000 32 */
+#define SH4A_PCIEDMCHSR1	(0x02116C)	/* R/W - 0x0000 0000 32 */
 #define	SH4A_PCIEDMSAR2		(0x021180)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMSAHR2	(0x021184)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMDAR2		(0x021188)	/* R/W R/W 0x0000 0000 32 */
@@ -443,6 +436,7 @@
 #define	SH4A_PCIEDMCCR3		(0x0211E0)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEDMCC2R3	(0x0211E4)	/* R/W R/W 0x0000 0000 -  */
 #define	SH4A_PCIEDMCCCR3	(0x0211E8)	/* R/W R/W 0x0000 0000 32 */
+#define SH4A_PCIEDMCHSR3	(0x0211EC)	/* R/W R/W 0x0000 0000 32 */
 #define	SH4A_PCIEPCICONF0	(0x040000)	/* R R - 8/16/32 */
 #define	SH4A_PCIEPCICONF1	(0x040004)	/* R/W R/W 0x0008 0000 8/16/32 */
 #define	SH4A_PCIEPCICONF2	(0x040008)	/* R/W R/W 0xFF00 0000 8/16/32 */

@@ -1,0 +1,14 @@
+#
+# TI's shared transport line discipline and the protocol
+# drivers (BT, FM and GPS)
+#
+menu "Texas Instruments shared transport line discipline"
+config ST_BT
+	tristate "BlueZ bluetooth driver for ST"
+	depends on BT && RFKILL
+	select TI_ST
+	help
+	  This enables the Bluetooth driver for TI BT/FM/GPS combo devices.
+	  This makes use of shared transport line discipline core driver to
+	  communicate with the BT core of the combo chip.
+endmenu

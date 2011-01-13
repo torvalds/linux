@@ -12,7 +12,6 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
 #include <linux/netdevice.h>
@@ -83,10 +82,13 @@ static void appldata_get_net_sum_data(void *data)
 	rx_dropped = 0;
 	tx_dropped = 0;
 	collisions = 0;
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, dev) {
-		const struct net_device_stats *stats = dev_get_stats(dev);
 
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
+		const struct rtnl_link_stats64 *stats;
+		struct rtnl_link_stats64 temp;
+
+		stats = dev_get_stats(dev, &temp);
 		rx_packets += stats->rx_packets;
 		tx_packets += stats->tx_packets;
 		rx_bytes   += stats->rx_bytes;
@@ -98,7 +100,8 @@ static void appldata_get_net_sum_data(void *data)
 		collisions += stats->collisions;
 		i++;
 	}
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
+
 	net_data->nr_interfaces = i;
 	net_data->rx_packets = rx_packets;
 	net_data->tx_packets = tx_packets;

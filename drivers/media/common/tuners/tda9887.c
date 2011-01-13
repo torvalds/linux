@@ -4,7 +4,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
@@ -463,7 +462,7 @@ static int tda9887_set_insmod(struct dvb_frontend *fe)
 			buf[1] &= ~cQSS;
 	}
 
-	if (adjust >= 0x00 && adjust < 0x20) {
+	if (adjust < 0x20) {
 		buf[2] &= ~cTopMask;
 		buf[2] |= adjust;
 	}

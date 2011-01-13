@@ -21,6 +21,7 @@
  * option) any later version.
  *
  */
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <asm/io.h>
@@ -92,7 +93,7 @@ static inline u32 rgmii_mode_mask(int mode, int input)
 	}
 }
 
-int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
+int __devinit rgmii_attach(struct platform_device *ofdev, int input, int mode)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct rgmii_regs __iomem *p = dev->base;
@@ -102,7 +103,7 @@ int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
 	/* Check if we need to attach to a RGMII */
 	if (input < 0 || !rgmii_valid_mode(mode)) {
 		printk(KERN_ERR "%s: unsupported settings !\n",
-		       ofdev->node->full_name);
+		       ofdev->dev.of_node->full_name);
 		return -ENODEV;
 	}
 
@@ -112,7 +113,7 @@ int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
 	out_be32(&p->fer, in_be32(&p->fer) | rgmii_mode_mask(mode, input));
 
 	printk(KERN_NOTICE "%s: input %d in %s mode\n",
-	       ofdev->node->full_name, input, rgmii_mode_name(mode));
+	       ofdev->dev.of_node->full_name, input, rgmii_mode_name(mode));
 
 	++dev->users;
 
@@ -121,7 +122,7 @@ int __devinit rgmii_attach(struct of_device *ofdev, int input, int mode)
 	return 0;
 }
 
-void rgmii_set_speed(struct of_device *ofdev, int input, int speed)
+void rgmii_set_speed(struct platform_device *ofdev, int input, int speed)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct rgmii_regs __iomem *p = dev->base;
@@ -143,7 +144,7 @@ void rgmii_set_speed(struct of_device *ofdev, int input, int speed)
 	mutex_unlock(&dev->lock);
 }
 
-void rgmii_get_mdio(struct of_device *ofdev, int input)
+void rgmii_get_mdio(struct platform_device *ofdev, int input)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct rgmii_regs __iomem *p = dev->base;
@@ -164,7 +165,7 @@ void rgmii_get_mdio(struct of_device *ofdev, int input)
 	DBG2(dev, " fer = 0x%08x\n", fer);
 }
 
-void rgmii_put_mdio(struct of_device *ofdev, int input)
+void rgmii_put_mdio(struct platform_device *ofdev, int input)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct rgmii_regs __iomem *p = dev->base;
@@ -185,14 +186,15 @@ void rgmii_put_mdio(struct of_device *ofdev, int input)
 	mutex_unlock(&dev->lock);
 }
 
-void rgmii_detach(struct of_device *ofdev, int input)
+void rgmii_detach(struct platform_device *ofdev, int input)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct rgmii_regs __iomem *p = dev->base;
-
-	mutex_lock(&dev->lock);
+	struct rgmii_regs __iomem *p;
 
 	BUG_ON(!dev || dev->users == 0);
+	p = dev->base;
+
+	mutex_lock(&dev->lock);
 
 	RGMII_DBG(dev, "detach(%d)" NL, input);
 
@@ -204,13 +206,13 @@ void rgmii_detach(struct of_device *ofdev, int input)
 	mutex_unlock(&dev->lock);
 }
 
-int rgmii_get_regs_len(struct of_device *ofdev)
+int rgmii_get_regs_len(struct platform_device *ofdev)
 {
 	return sizeof(struct emac_ethtool_regs_subhdr) +
 		sizeof(struct rgmii_regs);
 }
 
-void *rgmii_dump_regs(struct of_device *ofdev, void *buf)
+void *rgmii_dump_regs(struct platform_device *ofdev, void *buf)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct emac_ethtool_regs_subhdr *hdr = buf;
@@ -226,10 +228,10 @@ void *rgmii_dump_regs(struct of_device *ofdev, void *buf)
 }
 
 
-static int __devinit rgmii_probe(struct of_device *ofdev,
+static int __devinit rgmii_probe(struct platform_device *ofdev,
 				 const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct rgmii_instance *dev;
 	struct resource regs;
 	int rc;
@@ -262,11 +264,11 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 	}
 
 	/* Check for RGMII flags */
-	if (of_get_property(ofdev->node, "has-mdio", NULL))
+	if (of_get_property(ofdev->dev.of_node, "has-mdio", NULL))
 		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	/* CAB lacks the right properties, fix this up */
-	if (of_device_is_compatible(ofdev->node, "ibm,rgmii-axon"))
+	if (of_device_is_compatible(ofdev->dev.of_node, "ibm,rgmii-axon"))
 		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	DBG2(dev, " Boot FER = 0x%08x, SSR = 0x%08x\n",
@@ -277,7 +279,7 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 
 	printk(KERN_INFO
 	       "RGMII %s initialized with%s MDIO support\n",
-	       ofdev->node->full_name,
+	       ofdev->dev.of_node->full_name,
 	       (dev->flags & EMAC_RGMII_FLAG_HAS_MDIO) ? "" : "out");
 
 	wmb();
@@ -291,7 +293,7 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 	return rc;
 }
 
-static int __devexit rgmii_remove(struct of_device *ofdev)
+static int __devexit rgmii_remove(struct platform_device *ofdev)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 
@@ -317,9 +319,11 @@ static struct of_device_id rgmii_match[] =
 };
 
 static struct of_platform_driver rgmii_driver = {
-	.name = "emac-rgmii",
-	.match_table = rgmii_match,
-
+	.driver = {
+		.name = "emac-rgmii",
+		.owner = THIS_MODULE,
+		.of_match_table = rgmii_match,
+	},
 	.probe = rgmii_probe,
 	.remove = rgmii_remove,
 };

@@ -94,8 +94,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	ret = qdisc_enqueue(skb, child);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
-		sch->bstats.bytes += qdisc_pkt_len(skb);
-		sch->bstats.packets++;
+		qdisc_bstats_update(sch, skb);
 		sch->q.qlen++;
 	} else if (net_xmit_drop_count(ret)) {
 		q->stats.pdrop++;
@@ -239,6 +238,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.Scell_log	= q->parms.Scell_log,
 	};
 
+	sch->qstats.backlog = q->qdisc->qstats.backlog;
 	opts = nla_nest_start(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
@@ -268,8 +268,6 @@ static int red_dump_class(struct Qdisc *sch, unsigned long cl,
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
-	if (cl != 1)
-		return -ENOENT;
 	tcm->tcm_handle |= TC_H_MIN(1);
 	tcm->tcm_info = q->qdisc->handle;
 	return 0;
@@ -305,18 +303,6 @@ static unsigned long red_get(struct Qdisc *sch, u32 classid)
 
 static void red_put(struct Qdisc *sch, unsigned long arg)
 {
-	return;
-}
-
-static int red_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
-			    struct nlattr **tca, unsigned long *arg)
-{
-	return -ENOSYS;
-}
-
-static int red_delete(struct Qdisc *sch, unsigned long cl)
-{
-	return -ENOSYS;
 }
 
 static void red_walk(struct Qdisc *sch, struct qdisc_walker *walker)
@@ -331,20 +317,12 @@ static void red_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	}
 }
 
-static struct tcf_proto **red_find_tcf(struct Qdisc *sch, unsigned long cl)
-{
-	return NULL;
-}
-
 static const struct Qdisc_class_ops red_class_ops = {
 	.graft		=	red_graft,
 	.leaf		=	red_leaf,
 	.get		=	red_get,
 	.put		=	red_put,
-	.change		=	red_change_class,
-	.delete		=	red_delete,
 	.walk		=	red_walk,
-	.tcf_chain	=	red_find_tcf,
 	.dump		=	red_dump_class,
 };
 

@@ -31,6 +31,8 @@ static struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
 { .name = "Sun 4/200 Series",        .id_machtype = (SM_SUN4 | SM_4_260) },
 { .name = "Sun 4/300 Series",        .id_machtype = (SM_SUN4 | SM_4_330) },
 { .name = "Sun 4/400 Series",        .id_machtype = (SM_SUN4 | SM_4_470) },
+/* Now Leon */
+{ .name = "Leon3 System-on-a-Chip",  .id_machtype = (M_LEON | M_LEON3_SOC) },
 /* Now, Sun4c's */
 { .name = "Sun4c SparcStation 1",    .id_machtype = (SM_SUN4C | SM_4C_SS1) },
 { .name = "Sun4c SparcStation IPC",  .id_machtype = (SM_SUN4C | SM_4C_IPC) },

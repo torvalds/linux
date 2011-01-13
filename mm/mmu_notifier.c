@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * This function can't run concurrently against mmu_notifier_register
@@ -97,6 +98,26 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 	rcu_read_unlock();
 
 	return young;
+}
+
+void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+			       pte_t pte)
+{
+	struct mmu_notifier *mn;
+	struct hlist_node *n;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+		if (mn->ops->change_pte)
+			mn->ops->change_pte(mn, mm, address, pte);
+		/*
+		 * Some drivers don't have change_pte,
+		 * so we must call invalidate_page in that case.
+		 */
+		else if (mn->ops->invalidate_page)
+			mn->ops->invalidate_page(mn, mm, address);
+	}
+	rcu_read_unlock();
 }
 
 void __mmu_notifier_invalidate_page(struct mm_struct *mm,

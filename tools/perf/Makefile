@@ -1,7 +1,18 @@
+ifeq ("$(origin O)", "command line")
+	OUTPUT := $(O)/
+endif
+
 # The default target of this Makefile is...
 all::
 
+ifneq ($(OUTPUT),)
+# check that the output directory actually exists
+OUTDIR := $(shell cd $(OUTPUT) && /bin/pwd)
+$(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
+endif
+
 # Define V=1 to have a more verbose compile.
+# Define V=2 to have an even more verbose compile.
 #
 # Define SNPRINTF_RETURNS_BOGUS if your are on a system which snprintf()
 # or vsnprintf() return -1 instead of number of characters which would
@@ -145,10 +156,16 @@ all::
 # Define NO_EXTERNAL_GREP if you don't want "perf grep" to ever call
 # your external grep (e.g., if your system lacks grep, if its grep is
 # broken, or spawning external process is slower than built-in grep perf has).
+#
+# Define LDFLAGS=-static to build a static binary.
+#
+# Define EXTRA_CFLAGS=-m64 or EXTRA_CFLAGS=-m32 as appropriate for cross-builds.
+#
+# Define NO_DWARF if you do not want debug-info analysis feature at all.
 
-PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
-	@$(SHELL_PATH) util/PERF-VERSION-GEN
--include PERF-VERSION-FILE
+$(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
+	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
+-include $(OUTPUT)PERF-VERSION-FILE
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 uname_M := $(shell sh -c 'uname -m 2>/dev/null || echo not')
@@ -157,16 +174,62 @@ uname_R := $(shell sh -c 'uname -r 2>/dev/null || echo not')
 uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
 uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
 
-# If we're on a 64-bit kernel, use -m64
-ifneq ($(patsubst %64,%,$(uname_M)),$(uname_M))
-  M64 := -m64
+ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
+				  -e s/arm.*/arm/ -e s/sa110/arm/ \
+				  -e s/s390x/s390/ -e s/parisc64/parisc/ \
+				  -e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
+				  -e s/sh[234].*/sh/ )
+
+# Additional ARCH settings for x86
+ifeq ($(ARCH),i386)
+        ARCH := x86
+endif
+ifeq ($(ARCH),x86_64)
+	RAW_ARCH := x86_64
+        ARCH := x86
+	ARCH_CFLAGS := -DARCH_X86_64
+	ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S
 endif
 
 # CFLAGS and LDFLAGS are for the users to override from the command line.
 
-CFLAGS = $(M64) -ggdb3 -Wall -Wstrict-prototypes -Wmissing-declarations -Wmissing-prototypes -std=gnu99 -Wdeclaration-after-statement -Werror -O6
-LDFLAGS = -lpthread -lrt -lelf -lm
-ALL_CFLAGS = $(CFLAGS)
+#
+# Include saner warnings here, which can catch bugs:
+#
+
+EXTRA_WARNINGS := -Wformat
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wformat-security
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wformat-y2k
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wshadow
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Winit-self
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wpacked
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wredundant-decls
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wstack-protector
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wstrict-aliasing=3
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wswitch-default
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wswitch-enum
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wno-system-headers
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wundef
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wvolatile-register-var
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wwrite-strings
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wbad-function-cast
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wmissing-declarations
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wmissing-prototypes
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wnested-externs
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wold-style-definition
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wstrict-prototypes
+EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wdeclaration-after-statement
+
+ifeq ("$(origin DEBUG)", "command line")
+  PERF_DEBUG = $(DEBUG)
+endif
+ifndef PERF_DEBUG
+  CFLAGS_OPTIMIZE = -O6
+endif
+
+CFLAGS = -fno-omit-frame-pointer -ggdb3 -Wall -Wextra -std=gnu99 -Werror $(CFLAGS_OPTIMIZE) -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS) $(EXTRA_CFLAGS)
+EXTLIBS = -lpthread -lrt -lelf -lm
+ALL_CFLAGS = $(CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 ALL_LDFLAGS = $(LDFLAGS)
 STRIP ?= strip
 
@@ -182,7 +245,10 @@ STRIP ?= strip
 # runtime figures out where they are based on the path to the executable.
 # This can help installing the suite in a relocatable way.
 
+# Make the path relative to DESTDIR, not to prefix
+ifndef DESTDIR
 prefix = $(HOME)
+endif
 bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
 mandir = share/man
@@ -199,13 +265,13 @@ sysconfdir = $(prefix)/etc
 ETC_PERFCONFIG = etc/perfconfig
 endif
 lib = lib
-# DESTDIR=
 
 export prefix bindir sharedir sysconfdir
 
-CC = gcc
-AR = ar
+CC = $(CROSS_COMPILE)gcc
+AR = $(CROSS_COMPILE)ar
 RM = rm -f
+MKDIR = mkdir
 TAR = tar
 FIND = find
 INSTALL = install
@@ -216,6 +282,17 @@ PTHREAD_LIBS = -lpthread
 # explicitly what architecture to check for. Fix this up for yours..
 SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 
+ifeq ($(V), 2)
+	QUIET_STDERR = ">/dev/null"
+else
+	QUIET_STDERR = ">/dev/null 2>&1"
+endif
+
+-include feature-tests.mak
+
+ifeq ($(call try-cc,$(SOURCE_HELLO),-Werror -fstack-protector-all),y)
+	CFLAGS := $(CFLAGS) -fstack-protector-all
+endif
 
 
 ### --- END CONFIGURATION SECTION ---
@@ -223,7 +300,7 @@ SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 # Those must not be GNU-specific; they are shared with perl/ which may
 # be built by a different compiler. (Note that this is an artifact now
 # but it still might be nice to keep that distinction.)
-BASIC_CFLAGS =
+BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include
 BASIC_LDFLAGS =
 
 # Guard against environment variables
@@ -237,11 +314,10 @@ SCRIPT_PERL =
 SCRIPT_SH =
 TEST_PROGRAMS =
 
-#
-# No scripts right now:
-#
+SCRIPT_SH += perf-archive.sh
 
-# SCRIPT_SH += perf-am.sh
+grep-libs = $(filter -l%,$(1))
+strip-libs = $(filter-out -l%,$(1))
 
 #
 # No Perl scripts right now:
@@ -261,20 +337,17 @@ PROGRAMS += $(EXTRA_PROGRAMS)
 #
 # Single 'perf' binary right now:
 #
-PROGRAMS += perf
+PROGRAMS += $(OUTPUT)perf
 
 # List built-in command $C whose implementation cmd_$C() is not in
 # builtin-$C.o but is linked in as part of some other command.
 #
-# None right now:
-#
-# BUILT_INS += perf-init $X
 
 # what 'all' will build and 'install' will install, in perfexecdir
 ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS)
 
 # what 'all' will build but not install in perfexecdir
-OTHER_PROGRAMS = perf$X
+OTHER_PROGRAMS = $(OUTPUT)perf$X
 
 # Set paths to tools early so that they can be used for version tests.
 ifndef SHELL_PATH
@@ -286,59 +359,155 @@ endif
 
 export PERL_PATH
 
-LIB_FILE=libperf.a
+LIB_FILE=$(OUTPUT)libperf.a
 
-LIB_H += ../../include/linux/perf_counter.h
+LIB_H += ../../include/linux/perf_event.h
+LIB_H += ../../include/linux/rbtree.h
+LIB_H += ../../include/linux/list.h
+LIB_H += ../../include/linux/hash.h
+LIB_H += ../../include/linux/stringify.h
+LIB_H += util/include/linux/bitmap.h
+LIB_H += util/include/linux/bitops.h
+LIB_H += util/include/linux/compiler.h
+LIB_H += util/include/linux/ctype.h
+LIB_H += util/include/linux/kernel.h
+LIB_H += util/include/linux/list.h
+LIB_H += util/include/linux/module.h
+LIB_H += util/include/linux/poison.h
+LIB_H += util/include/linux/prefetch.h
+LIB_H += util/include/linux/rbtree.h
+LIB_H += util/include/linux/string.h
+LIB_H += util/include/linux/types.h
+LIB_H += util/include/linux/linkage.h
+LIB_H += util/include/asm/asm-offsets.h
+LIB_H += util/include/asm/bug.h
+LIB_H += util/include/asm/byteorder.h
+LIB_H += util/include/asm/hweight.h
+LIB_H += util/include/asm/swab.h
+LIB_H += util/include/asm/system.h
+LIB_H += util/include/asm/uaccess.h
+LIB_H += util/include/dwarf-regs.h
+LIB_H += util/include/asm/dwarf2.h
+LIB_H += util/include/asm/cpufeature.h
 LIB_H += perf.h
-LIB_H += types.h
-LIB_H += util/list.h
-LIB_H += util/rbtree.h
+LIB_H += util/cache.h
+LIB_H += util/callchain.h
+LIB_H += util/build-id.h
+LIB_H += util/debug.h
+LIB_H += util/debugfs.h
+LIB_H += util/event.h
+LIB_H += util/evsel.h
+LIB_H += util/exec_cmd.h
+LIB_H += util/types.h
 LIB_H += util/levenshtein.h
+LIB_H += util/map.h
 LIB_H += util/parse-options.h
 LIB_H += util/parse-events.h
 LIB_H += util/quote.h
 LIB_H += util/util.h
+LIB_H += util/xyarray.h
+LIB_H += util/header.h
 LIB_H += util/help.h
+LIB_H += util/session.h
 LIB_H += util/strbuf.h
-LIB_H += util/string.h
+LIB_H += util/strlist.h
+LIB_H += util/svghelper.h
 LIB_H += util/run-command.h
 LIB_H += util/sigchain.h
 LIB_H += util/symbol.h
 LIB_H += util/color.h
+LIB_H += util/values.h
+LIB_H += util/sort.h
+LIB_H += util/hist.h
+LIB_H += util/thread.h
+LIB_H += util/trace-event.h
+LIB_H += util/probe-finder.h
+LIB_H += util/probe-event.h
+LIB_H += util/pstack.h
+LIB_H += util/cpumap.h
+LIB_H += $(ARCH_INCLUDE)
 
-LIB_OBJS += util/abspath.o
-LIB_OBJS += util/alias.o
-LIB_OBJS += util/config.o
-LIB_OBJS += util/ctype.o
-LIB_OBJS += util/environment.o
-LIB_OBJS += util/exec_cmd.o
-LIB_OBJS += util/help.o
-LIB_OBJS += util/levenshtein.o
-LIB_OBJS += util/parse-options.o
-LIB_OBJS += util/parse-events.o
-LIB_OBJS += util/path.o
-LIB_OBJS += util/rbtree.o
-LIB_OBJS += util/run-command.o
-LIB_OBJS += util/quote.o
-LIB_OBJS += util/strbuf.o
-LIB_OBJS += util/string.o
-LIB_OBJS += util/usage.o
-LIB_OBJS += util/wrapper.o
-LIB_OBJS += util/sigchain.o
-LIB_OBJS += util/symbol.o
-LIB_OBJS += util/color.o
-LIB_OBJS += util/pager.o
+LIB_OBJS += $(OUTPUT)util/abspath.o
+LIB_OBJS += $(OUTPUT)util/alias.o
+LIB_OBJS += $(OUTPUT)util/build-id.o
+LIB_OBJS += $(OUTPUT)util/config.o
+LIB_OBJS += $(OUTPUT)util/ctype.o
+LIB_OBJS += $(OUTPUT)util/debugfs.o
+LIB_OBJS += $(OUTPUT)util/environment.o
+LIB_OBJS += $(OUTPUT)util/event.o
+LIB_OBJS += $(OUTPUT)util/evsel.o
+LIB_OBJS += $(OUTPUT)util/exec_cmd.o
+LIB_OBJS += $(OUTPUT)util/help.o
+LIB_OBJS += $(OUTPUT)util/levenshtein.o
+LIB_OBJS += $(OUTPUT)util/parse-options.o
+LIB_OBJS += $(OUTPUT)util/parse-events.o
+LIB_OBJS += $(OUTPUT)util/path.o
+LIB_OBJS += $(OUTPUT)util/rbtree.o
+LIB_OBJS += $(OUTPUT)util/bitmap.o
+LIB_OBJS += $(OUTPUT)util/hweight.o
+LIB_OBJS += $(OUTPUT)util/run-command.o
+LIB_OBJS += $(OUTPUT)util/quote.o
+LIB_OBJS += $(OUTPUT)util/strbuf.o
+LIB_OBJS += $(OUTPUT)util/string.o
+LIB_OBJS += $(OUTPUT)util/strlist.o
+LIB_OBJS += $(OUTPUT)util/usage.o
+LIB_OBJS += $(OUTPUT)util/wrapper.o
+LIB_OBJS += $(OUTPUT)util/sigchain.o
+LIB_OBJS += $(OUTPUT)util/symbol.o
+LIB_OBJS += $(OUTPUT)util/color.o
+LIB_OBJS += $(OUTPUT)util/pager.o
+LIB_OBJS += $(OUTPUT)util/header.o
+LIB_OBJS += $(OUTPUT)util/callchain.o
+LIB_OBJS += $(OUTPUT)util/values.o
+LIB_OBJS += $(OUTPUT)util/debug.o
+LIB_OBJS += $(OUTPUT)util/map.o
+LIB_OBJS += $(OUTPUT)util/pstack.o
+LIB_OBJS += $(OUTPUT)util/session.o
+LIB_OBJS += $(OUTPUT)util/thread.o
+LIB_OBJS += $(OUTPUT)util/trace-event-parse.o
+LIB_OBJS += $(OUTPUT)util/trace-event-read.o
+LIB_OBJS += $(OUTPUT)util/trace-event-info.o
+LIB_OBJS += $(OUTPUT)util/trace-event-scripting.o
+LIB_OBJS += $(OUTPUT)util/svghelper.o
+LIB_OBJS += $(OUTPUT)util/sort.o
+LIB_OBJS += $(OUTPUT)util/hist.o
+LIB_OBJS += $(OUTPUT)util/probe-event.o
+LIB_OBJS += $(OUTPUT)util/util.o
+LIB_OBJS += $(OUTPUT)util/xyarray.o
+LIB_OBJS += $(OUTPUT)util/cpumap.o
 
-BUILTIN_OBJS += builtin-annotate.o
-BUILTIN_OBJS += builtin-help.o
-BUILTIN_OBJS += builtin-list.o
-BUILTIN_OBJS += builtin-record.o
-BUILTIN_OBJS += builtin-report.o
-BUILTIN_OBJS += builtin-stat.o
-BUILTIN_OBJS += builtin-top.o
+BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
+
+BUILTIN_OBJS += $(OUTPUT)builtin-bench.o
+
+# Benchmark modules
+BUILTIN_OBJS += $(OUTPUT)bench/sched-messaging.o
+BUILTIN_OBJS += $(OUTPUT)bench/sched-pipe.o
+ifeq ($(RAW_ARCH),x86_64)
+BUILTIN_OBJS += $(OUTPUT)bench/mem-memcpy-x86-64-asm.o
+endif
+BUILTIN_OBJS += $(OUTPUT)bench/mem-memcpy.o
+
+BUILTIN_OBJS += $(OUTPUT)builtin-diff.o
+BUILTIN_OBJS += $(OUTPUT)builtin-help.o
+BUILTIN_OBJS += $(OUTPUT)builtin-sched.o
+BUILTIN_OBJS += $(OUTPUT)builtin-buildid-list.o
+BUILTIN_OBJS += $(OUTPUT)builtin-buildid-cache.o
+BUILTIN_OBJS += $(OUTPUT)builtin-list.o
+BUILTIN_OBJS += $(OUTPUT)builtin-record.o
+BUILTIN_OBJS += $(OUTPUT)builtin-report.o
+BUILTIN_OBJS += $(OUTPUT)builtin-stat.o
+BUILTIN_OBJS += $(OUTPUT)builtin-timechart.o
+BUILTIN_OBJS += $(OUTPUT)builtin-top.o
+BUILTIN_OBJS += $(OUTPUT)builtin-script.o
+BUILTIN_OBJS += $(OUTPUT)builtin-probe.o
+BUILTIN_OBJS += $(OUTPUT)builtin-kmem.o
+BUILTIN_OBJS += $(OUTPUT)builtin-lock.o
+BUILTIN_OBJS += $(OUTPUT)builtin-kvm.o
+BUILTIN_OBJS += $(OUTPUT)builtin-test.o
+BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
 
 PERFLIBS = $(LIB_FILE)
-EXTLIBS =
 
 #
 # Platform specific tweaks
@@ -350,6 +519,16 @@ EXTLIBS =
 
 -include config.mak.autogen
 -include config.mak
+
+ifndef NO_DWARF
+FLAGS_DWARF=$(ALL_CFLAGS) -ldw -lelf $(ALL_LDFLAGS) $(EXTLIBS)
+ifneq ($(call try-cc,$(SOURCE_DWARF),$(FLAGS_DWARF)),y)
+	msg := $(warning No libdw.h found or old libdw.h found or elfutils is older than 0.138, disables dwarf support. Please install new elfutils-devel/libdw-dev);
+	NO_DWARF := 1
+endif # Dwarf support
+endif # NO_DWARF
+
+-include arch/$(ARCH)/Makefile
 
 ifeq ($(uname_S),Darwin)
 	ifndef NO_FINK
@@ -367,6 +546,145 @@ ifeq ($(uname_S),Darwin)
 	PTHREAD_LIBS =
 endif
 
+ifneq ($(OUTPUT),)
+	BASIC_CFLAGS += -I$(OUTPUT)
+endif
+
+FLAGS_LIBELF=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS)
+ifneq ($(call try-cc,$(SOURCE_LIBELF),$(FLAGS_LIBELF)),y)
+	FLAGS_GLIBC=$(ALL_CFLAGS) $(ALL_LDFLAGS)
+	ifneq ($(call try-cc,$(SOURCE_GLIBC),$(FLAGS_GLIBC)),y)
+		msg := $(error No gnu/libc-version.h found, please install glibc-dev[el]/glibc-static);
+	else
+		msg := $(error No libelf.h/libelf found, please install libelf-dev/elfutils-libelf-devel);
+	endif
+endif
+
+ifneq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_COMMON)),y)
+	BASIC_CFLAGS += -DLIBELF_NO_MMAP
+endif
+
+ifndef NO_DWARF
+ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)
+	msg := $(warning DWARF register mappings have not been defined for architecture $(ARCH), DWARF support disabled);
+else
+	BASIC_CFLAGS += -DDWARF_SUPPORT
+	EXTLIBS += -lelf -ldw
+	LIB_OBJS += $(OUTPUT)util/probe-finder.o
+endif # PERF_HAVE_DWARF_REGS
+endif # NO_DWARF
+
+ifdef NO_NEWT
+	BASIC_CFLAGS += -DNO_NEWT_SUPPORT
+else
+	FLAGS_NEWT=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -lnewt
+	ifneq ($(call try-cc,$(SOURCE_NEWT),$(FLAGS_NEWT)),y)
+		msg := $(warning newt not found, disables TUI support. Please install newt-devel or libnewt-dev);
+		BASIC_CFLAGS += -DNO_NEWT_SUPPORT
+	else
+		# Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
+		BASIC_CFLAGS += -I/usr/include/slang
+		EXTLIBS += -lnewt -lslang
+		LIB_OBJS += $(OUTPUT)util/ui/setup.o
+		LIB_OBJS += $(OUTPUT)util/ui/browser.o
+		LIB_OBJS += $(OUTPUT)util/ui/browsers/annotate.o
+		LIB_OBJS += $(OUTPUT)util/ui/browsers/hists.o
+		LIB_OBJS += $(OUTPUT)util/ui/browsers/map.o
+		LIB_OBJS += $(OUTPUT)util/ui/helpline.o
+		LIB_OBJS += $(OUTPUT)util/ui/progress.o
+		LIB_OBJS += $(OUTPUT)util/ui/util.o
+		LIB_H += util/ui/browser.h
+		LIB_H += util/ui/browsers/map.h
+		LIB_H += util/ui/helpline.h
+		LIB_H += util/ui/libslang.h
+		LIB_H += util/ui/progress.h
+		LIB_H += util/ui/util.h
+	endif
+endif
+
+ifdef NO_LIBPERL
+	BASIC_CFLAGS += -DNO_LIBPERL
+else
+       PERL_EMBED_LDOPTS = $(shell perl -MExtUtils::Embed -e ldopts 2>/dev/null)
+       PERL_EMBED_LDFLAGS = $(call strip-libs,$(PERL_EMBED_LDOPTS))
+       PERL_EMBED_LIBADD = $(call grep-libs,$(PERL_EMBED_LDOPTS))
+	PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts 2>/dev/null`
+	FLAGS_PERL_EMBED=$(PERL_EMBED_CCOPTS) $(PERL_EMBED_LDOPTS)
+
+	ifneq ($(call try-cc,$(SOURCE_PERL_EMBED),$(FLAGS_PERL_EMBED)),y)
+		BASIC_CFLAGS += -DNO_LIBPERL
+	else
+               ALL_LDFLAGS += $(PERL_EMBED_LDFLAGS)
+               EXTLIBS += $(PERL_EMBED_LIBADD)
+		LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-perl.o
+		LIB_OBJS += $(OUTPUT)scripts/perl/Perf-Trace-Util/Context.o
+	endif
+endif
+
+ifdef NO_LIBPYTHON
+	BASIC_CFLAGS += -DNO_LIBPYTHON
+else
+       PYTHON_EMBED_LDOPTS = $(shell python-config --ldflags 2>/dev/null)
+       PYTHON_EMBED_LDFLAGS = $(call strip-libs,$(PYTHON_EMBED_LDOPTS))
+       PYTHON_EMBED_LIBADD = $(call grep-libs,$(PYTHON_EMBED_LDOPTS))
+	PYTHON_EMBED_CCOPTS = `python-config --cflags 2>/dev/null`
+	FLAGS_PYTHON_EMBED=$(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
+	ifneq ($(call try-cc,$(SOURCE_PYTHON_EMBED),$(FLAGS_PYTHON_EMBED)),y)
+		BASIC_CFLAGS += -DNO_LIBPYTHON
+	else
+               ALL_LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
+               EXTLIBS += $(PYTHON_EMBED_LIBADD)
+		LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-python.o
+		LIB_OBJS += $(OUTPUT)scripts/python/Perf-Trace-Util/Context.o
+	endif
+endif
+
+ifdef NO_DEMANGLE
+	BASIC_CFLAGS += -DNO_DEMANGLE
+else
+        ifdef HAVE_CPLUS_DEMANGLE
+		EXTLIBS += -liberty
+		BASIC_CFLAGS += -DHAVE_CPLUS_DEMANGLE
+        else
+		FLAGS_BFD=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -lbfd
+		has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
+		ifeq ($(has_bfd),y)
+			EXTLIBS += -lbfd
+		else
+			FLAGS_BFD_IBERTY=$(FLAGS_BFD) -liberty
+			has_bfd_iberty := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD_IBERTY))
+			ifeq ($(has_bfd_iberty),y)
+				EXTLIBS += -lbfd -liberty
+			else
+				FLAGS_BFD_IBERTY_Z=$(FLAGS_BFD_IBERTY) -lz
+				has_bfd_iberty_z := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD_IBERTY_Z))
+				ifeq ($(has_bfd_iberty_z),y)
+					EXTLIBS += -lbfd -liberty -lz
+				else
+					FLAGS_CPLUS_DEMANGLE=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -liberty
+					has_cplus_demangle := $(call try-cc,$(SOURCE_CPLUS_DEMANGLE),$(FLAGS_CPLUS_DEMANGLE))
+					ifeq ($(has_cplus_demangle),y)
+						EXTLIBS += -liberty
+						BASIC_CFLAGS += -DHAVE_CPLUS_DEMANGLE
+					else
+						msg := $(warning No bfd.h/libbfd found, install binutils-dev[el]/zlib-static to gain symbol demangling)
+						BASIC_CFLAGS += -DNO_DEMANGLE
+					endif
+				endif
+			endif
+		endif
+	endif
+endif
+
+
+ifdef NO_STRLCPY
+	BASIC_CFLAGS += -DNO_STRLCPY
+else
+	ifneq ($(call try-cc,$(SOURCE_STRLCPY),),y)
+		BASIC_CFLAGS += -DNO_STRLCPY
+	endif
+endif
+
 ifndef CC_LD_DYNPATH
 	ifdef NO_R_TO_GCC_LINKER
 		# Some gcc does not accept and pass -R to the linker to specify
@@ -376,12 +694,6 @@ ifndef CC_LD_DYNPATH
 		CC_LD_DYNPATH = -R
 	endif
 endif
-
-ifdef ZLIB_PATH
-	BASIC_CFLAGS += -I$(ZLIB_PATH)/include
-	EXTLIBS += -L$(ZLIB_PATH)/$(lib) $(CC_LD_DYNPATH)$(ZLIB_PATH)/$(lib)
-endif
-EXTLIBS += -lz
 
 ifdef NEEDS_SOCKET
 	EXTLIBS += -lsocket
@@ -412,53 +724,53 @@ ifdef NO_C99_FORMAT
 endif
 ifdef SNPRINTF_RETURNS_BOGUS
 	COMPAT_CFLAGS += -DSNPRINTF_RETURNS_BOGUS
-	COMPAT_OBJS += compat/snprintf.o
+	COMPAT_OBJS += $(OUTPUT)compat/snprintf.o
 endif
 ifdef FREAD_READS_DIRECTORIES
 	COMPAT_CFLAGS += -DFREAD_READS_DIRECTORIES
-	COMPAT_OBJS += compat/fopen.o
+	COMPAT_OBJS += $(OUTPUT)compat/fopen.o
 endif
 ifdef NO_SYMLINK_HEAD
 	BASIC_CFLAGS += -DNO_SYMLINK_HEAD
 endif
 ifdef NO_STRCASESTR
 	COMPAT_CFLAGS += -DNO_STRCASESTR
-	COMPAT_OBJS += compat/strcasestr.o
+	COMPAT_OBJS += $(OUTPUT)compat/strcasestr.o
 endif
 ifdef NO_STRTOUMAX
 	COMPAT_CFLAGS += -DNO_STRTOUMAX
-	COMPAT_OBJS += compat/strtoumax.o
+	COMPAT_OBJS += $(OUTPUT)compat/strtoumax.o
 endif
 ifdef NO_STRTOULL
 	COMPAT_CFLAGS += -DNO_STRTOULL
 endif
 ifdef NO_SETENV
 	COMPAT_CFLAGS += -DNO_SETENV
-	COMPAT_OBJS += compat/setenv.o
+	COMPAT_OBJS += $(OUTPUT)compat/setenv.o
 endif
 ifdef NO_MKDTEMP
 	COMPAT_CFLAGS += -DNO_MKDTEMP
-	COMPAT_OBJS += compat/mkdtemp.o
+	COMPAT_OBJS += $(OUTPUT)compat/mkdtemp.o
 endif
 ifdef NO_UNSETENV
 	COMPAT_CFLAGS += -DNO_UNSETENV
-	COMPAT_OBJS += compat/unsetenv.o
+	COMPAT_OBJS += $(OUTPUT)compat/unsetenv.o
 endif
 ifdef NO_SYS_SELECT_H
 	BASIC_CFLAGS += -DNO_SYS_SELECT_H
 endif
 ifdef NO_MMAP
 	COMPAT_CFLAGS += -DNO_MMAP
-	COMPAT_OBJS += compat/mmap.o
+	COMPAT_OBJS += $(OUTPUT)compat/mmap.o
 else
 	ifdef USE_WIN32_MMAP
 		COMPAT_CFLAGS += -DUSE_WIN32_MMAP
-		COMPAT_OBJS += compat/win32mmap.o
+		COMPAT_OBJS += $(OUTPUT)compat/win32mmap.o
 	endif
 endif
 ifdef NO_PREAD
 	COMPAT_CFLAGS += -DNO_PREAD
-	COMPAT_OBJS += compat/pread.o
+	COMPAT_OBJS += $(OUTPUT)compat/pread.o
 endif
 ifdef NO_FAST_WORKING_DIRECTORY
 	BASIC_CFLAGS += -DNO_FAST_WORKING_DIRECTORY
@@ -480,10 +792,10 @@ else
 endif
 endif
 ifdef NO_INET_NTOP
-	LIB_OBJS += compat/inet_ntop.o
+	LIB_OBJS += $(OUTPUT)compat/inet_ntop.o
 endif
 ifdef NO_INET_PTON
-	LIB_OBJS += compat/inet_pton.o
+	LIB_OBJS += $(OUTPUT)compat/inet_pton.o
 endif
 
 ifdef NO_ICONV
@@ -500,15 +812,15 @@ endif
 
 ifdef PPC_SHA1
 	SHA1_HEADER = "ppc/sha1.h"
-	LIB_OBJS += ppc/sha1.o ppc/sha1ppc.o
+	LIB_OBJS += $(OUTPUT)ppc/sha1.o ppc/sha1ppc.o
 else
 ifdef ARM_SHA1
 	SHA1_HEADER = "arm/sha1.h"
-	LIB_OBJS += arm/sha1.o arm/sha1_arm.o
+	LIB_OBJS += $(OUTPUT)arm/sha1.o $(OUTPUT)arm/sha1_arm.o
 else
 ifdef MOZILLA_SHA1
 	SHA1_HEADER = "mozilla-sha1/sha1.h"
-	LIB_OBJS += mozilla-sha1/sha1.o
+	LIB_OBJS += $(OUTPUT)mozilla-sha1/sha1.o
 else
 	SHA1_HEADER = <openssl/sha.h>
 	EXTLIBS += $(LIB_4_CRYPTO)
@@ -520,15 +832,15 @@ ifdef NO_PERL_MAKEMAKER
 endif
 ifdef NO_HSTRERROR
 	COMPAT_CFLAGS += -DNO_HSTRERROR
-	COMPAT_OBJS += compat/hstrerror.o
+	COMPAT_OBJS += $(OUTPUT)compat/hstrerror.o
 endif
 ifdef NO_MEMMEM
 	COMPAT_CFLAGS += -DNO_MEMMEM
-	COMPAT_OBJS += compat/memmem.o
+	COMPAT_OBJS += $(OUTPUT)compat/memmem.o
 endif
 ifdef INTERNAL_QSORT
 	COMPAT_CFLAGS += -DINTERNAL_QSORT
-	COMPAT_OBJS += compat/qsort.o
+	COMPAT_OBJS += $(OUTPUT)compat/qsort.o
 endif
 ifdef RUNTIME_PREFIX
 	COMPAT_CFLAGS += -DRUNTIME_PREFIX
@@ -559,6 +871,7 @@ ifndef V
 	QUIET_CC       = @echo '   ' CC $@;
 	QUIET_AR       = @echo '   ' AR $@;
 	QUIET_LINK     = @echo '   ' LINK $@;
+	QUIET_MKDIR    = @echo '   ' MKDIR $@;
 	QUIET_BUILT_IN = @echo '   ' BUILTIN $@;
 	QUIET_GEN      = @echo '   ' GEN $@;
 	QUIET_SUBDIR0  = +@subdir=
@@ -592,13 +905,14 @@ prefix_SQ = $(subst ','\'',$(prefix))
 SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
 PERL_PATH_SQ = $(subst ','\'',$(PERL_PATH))
 
-LIBS = $(PERFLIBS) $(EXTLIBS)
+LIBS = -Wl,--whole-archive $(PERFLIBS) -Wl,--no-whole-archive $(EXTLIBS)
 
 BASIC_CFLAGS += -DSHA1_HEADER='$(SHA1_HEADER_SQ)' \
 	$(COMPAT_CFLAGS)
 LIB_OBJS += $(COMPAT_OBJS)
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
+ALL_CFLAGS += $(ARCH_CFLAGS)
 ALL_LDFLAGS += $(BASIC_LDFLAGS)
 
 export TAR INSTALL DESTDIR SHELL_PATH
@@ -608,7 +922,7 @@ export TAR INSTALL DESTDIR SHELL_PATH
 
 SHELL = $(SHELL_PATH)
 
-all:: shell_compatibility_test $(ALL_PROGRAMS) $(BUILT_INS) $(OTHER_PROGRAMS) PERF-BUILD-OPTIONS
+all:: shell_compatibility_test $(ALL_PROGRAMS) $(BUILT_INS) $(OTHER_PROGRAMS) $(OUTPUT)PERF-BUILD-OPTIONS
 ifneq (,$X)
 	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) perf$X)), test '$p' -ef '$p$X' || $(RM) '$p';)
 endif
@@ -620,45 +934,51 @@ please_set_SHELL_PATH_to_a_more_modern_shell:
 
 shell_compatibility_test: please_set_SHELL_PATH_to_a_more_modern_shell
 
-strip: $(PROGRAMS) perf$X
-	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) perf$X
+strip: $(PROGRAMS) $(OUTPUT)perf$X
+	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) $(OUTPUT)perf$X
 
-perf.o: perf.c common-cmds.h PERF-CFLAGS
+$(OUTPUT)perf.o: perf.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -DPERF_VERSION='"$(PERF_VERSION)"' \
 		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
-		$(ALL_CFLAGS) -c $(filter %.c,$^)
+		$(ALL_CFLAGS) -c $(filter %.c,$^) -o $@
 
-perf$X: perf.o $(BUILTIN_OBJS) $(PERFLIBS)
-	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ perf.o \
-		$(BUILTIN_OBJS) $(ALL_LDFLAGS) $(LIBS)
+$(OUTPUT)perf$X: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS)
+	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) $(OUTPUT)perf.o \
+               $(BUILTIN_OBJS) $(LIBS) -o $@
 
-builtin-help.o: builtin-help.c common-cmds.h PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) \
+$(OUTPUT)builtin-help.o: builtin-help.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) \
 		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
 		'-DPERF_MAN_PATH="$(mandir_SQ)"' \
 		'-DPERF_INFO_PATH="$(infodir_SQ)"' $<
 
-$(BUILT_INS): perf$X
+$(OUTPUT)builtin-timechart.o: builtin-timechart.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) \
+		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
+		'-DPERF_MAN_PATH="$(mandir_SQ)"' \
+		'-DPERF_INFO_PATH="$(infodir_SQ)"' $<
+
+$(BUILT_INS): $(OUTPUT)perf$X
 	$(QUIET_BUILT_IN)$(RM) $@ && \
 	ln perf$X $@ 2>/dev/null || \
 	ln -s perf$X $@ 2>/dev/null || \
 	cp perf$X $@
 
-common-cmds.h: util/generate-cmdlist.sh command-list.txt
+$(OUTPUT)common-cmds.h: util/generate-cmdlist.sh command-list.txt
 
-common-cmds.h: $(wildcard Documentation/perf-*.txt)
-	$(QUIET_GEN)util/generate-cmdlist.sh > $@+ && mv $@+ $@
+$(OUTPUT)common-cmds.h: $(wildcard Documentation/perf-*.txt)
+	$(QUIET_GEN). util/generate-cmdlist.sh > $@+ && mv $@+ $@
 
 $(patsubst %.sh,%,$(SCRIPT_SH)) : % : %.sh
-	$(QUIET_GEN)$(RM) $@ $@+ && \
+	$(QUIET_GEN)$(RM) $(OUTPUT)$@ $(OUTPUT)$@+ && \
 	sed -e '1s|#!.*/sh|#!$(SHELL_PATH_SQ)|' \
 	    -e 's|@SHELL_PATH@|$(SHELL_PATH_SQ)|' \
 	    -e 's|@@PERL@@|$(PERL_PATH_SQ)|g' \
 	    -e 's/@@PERF_VERSION@@/$(PERF_VERSION)/g' \
 	    -e 's/@@NO_CURL@@/$(NO_CURL)/g' \
-	    $@.sh >$@+ && \
-	chmod +x $@+ && \
-	mv $@+ $@
+	    $@.sh > $(OUTPUT)$@+ && \
+	chmod +x $(OUTPUT)$@+ && \
+	mv $(OUTPUT)$@+ $(OUTPUT)$@
 
 configure: configure.ac
 	$(QUIET_GEN)$(RM) $@ $<+ && \
@@ -668,37 +988,72 @@ configure: configure.ac
 	$(RM) $<+
 
 # These can record PERF_VERSION
-perf.o perf.spec \
+$(OUTPUT)perf.o perf.spec \
 	$(patsubst %.sh,%,$(SCRIPT_SH)) \
 	$(patsubst %.perl,%,$(SCRIPT_PERL)) \
-	: PERF-VERSION-FILE
+	: $(OUTPUT)PERF-VERSION-FILE
 
-%.o: %.c PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $<
-%.s: %.c PERF-CFLAGS
+$(OUTPUT)%.o: %.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
+$(OUTPUT)%.s: %.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -S $(ALL_CFLAGS) $<
-%.o: %.S
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $<
+$(OUTPUT)%.o: %.S
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
 
-util/exec_cmd.o: util/exec_cmd.c PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) \
+$(OUTPUT)util/exec_cmd.o: util/exec_cmd.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) \
 		'-DPERF_EXEC_PATH="$(perfexecdir_SQ)"' \
 		'-DBINDIR="$(bindir_relative_SQ)"' \
 		'-DPREFIX="$(prefix_SQ)"' \
 		$<
 
-builtin-init-db.o: builtin-init-db.c PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DDEFAULT_PERF_TEMPLATE_DIR='"$(template_dir_SQ)"' $<
+$(OUTPUT)builtin-init-db.o: builtin-init-db.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DDEFAULT_PERF_TEMPLATE_DIR='"$(template_dir_SQ)"' $<
 
-util/config.o: util/config.c PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+$(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
-perf-%$X: %.o $(PERFLIBS)
+$(OUTPUT)util/ui/browser.o: util/ui/browser.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
+
+$(OUTPUT)util/ui/browsers/annotate.o: util/ui/browsers/annotate.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
+
+$(OUTPUT)util/ui/browsers/hists.o: util/ui/browsers/hists.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
+
+$(OUTPUT)util/ui/browsers/map.o: util/ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
+
+$(OUTPUT)util/rbtree.o: ../../lib/rbtree.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+$(OUTPUT)util/scripting-engines/trace-event-perl.o: util/scripting-engines/trace-event-perl.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow $<
+
+$(OUTPUT)scripts/perl/Perf-Trace-Util/Context.o: scripts/perl/Perf-Trace-Util/Context.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-nested-externs $<
+
+$(OUTPUT)util/scripting-engines/trace-event-python.o: util/scripting-engines/trace-event-python.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow $<
+
+$(OUTPUT)scripts/python/Perf-Trace-Util/Context.o: scripts/python/Perf-Trace-Util/Context.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-nested-externs $<
+
+$(OUTPUT)perf-%$X: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)
 
 $(LIB_OBJS) $(BUILTIN_OBJS): $(LIB_H)
 $(patsubst perf-%$X,%.o,$(PROGRAMS)): $(LIB_H) $(wildcard */*.h)
 builtin-revert.o wt-status.o: wt-status.h
+
+# we compile into subdirectories. if the target directory is not the source directory, they might not exists. So
+# we depend the various files onto their directories.
+DIRECTORY_DEPS = $(LIB_OBJS) $(BUILTIN_OBJS) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
+$(DIRECTORY_DEPS): | $(sort $(dir $(DIRECTORY_DEPS)))
+# In the second step, we make a rule to actually create these directories
+$(sort $(dir $(DIRECTORY_DEPS))):
+	$(QUIET_MKDIR)$(MKDIR) -p $@ 2>/dev/null
 
 $(LIB_FILE): $(LIB_OBJS)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIB_OBJS)
@@ -734,17 +1089,17 @@ cscope:
 TRACK_CFLAGS = $(subst ','\'',$(ALL_CFLAGS)):\
              $(bindir_SQ):$(perfexecdir_SQ):$(template_dir_SQ):$(prefix_SQ)
 
-PERF-CFLAGS: .FORCE-PERF-CFLAGS
+$(OUTPUT)PERF-CFLAGS: .FORCE-PERF-CFLAGS
 	@FLAGS='$(TRACK_CFLAGS)'; \
-	    if test x"$$FLAGS" != x"`cat PERF-CFLAGS 2>/dev/null`" ; then \
+	    if test x"$$FLAGS" != x"`cat $(OUTPUT)PERF-CFLAGS 2>/dev/null`" ; then \
 		echo 1>&2 "    * new build flags or prefix"; \
-		echo "$$FLAGS" >PERF-CFLAGS; \
+		echo "$$FLAGS" >$(OUTPUT)PERF-CFLAGS; \
             fi
 
 # We need to apply sq twice, once to protect from the shell
-# that runs PERF-BUILD-OPTIONS, and then again to protect it
+# that runs $(OUTPUT)PERF-BUILD-OPTIONS, and then again to protect it
 # and the first level quoting from the shell that runs "echo".
-PERF-BUILD-OPTIONS: .FORCE-PERF-BUILD-OPTIONS
+$(OUTPUT)PERF-BUILD-OPTIONS: .FORCE-PERF-BUILD-OPTIONS
 	@echo SHELL_PATH=\''$(subst ','\'',$(SHELL_PATH_SQ))'\' >$@
 	@echo TAR=\''$(subst ','\'',$(subst ','\'',$(TAR)))'\' >>$@
 	@echo NO_CURL=\''$(subst ','\'',$(subst ','\'',$(NO_CURL)))'\' >>$@
@@ -765,7 +1120,7 @@ all:: $(TEST_PROGRAMS)
 
 export NO_SVN_TESTS
 
-check: common-cmds.h
+check: $(OUTPUT)common-cmds.h
 	if sparse; \
 	then \
 		for i in *.c */*.c; \
@@ -799,12 +1154,24 @@ export perfexec_instdir
 
 install: all
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(INSTALL) perf$X '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) $(OUTPUT)perf$X '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'
+	$(INSTALL) $(OUTPUT)perf-archive -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
+	$(INSTALL) scripts/perl/Perf-Trace-Util/lib/Perf/Trace/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'
+	$(INSTALL) scripts/perl/*.pl -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl'
+	$(INSTALL) scripts/perl/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/bin'
+	$(INSTALL) scripts/python/Perf-Trace-Util/lib/Perf/Trace/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'
+	$(INSTALL) scripts/python/*.py -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python'
+	$(INSTALL) scripts/python/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/bin'
+
 ifdef BUILT_INS
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
 	$(INSTALL) $(BUILT_INS) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
 ifneq (,$X)
-	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) perf$X)), $(RM) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/$p';)
+	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) $(OUTPUT)perf$X)), $(RM) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/$p';)
 endif
 endif
 
@@ -885,17 +1252,17 @@ distclean: clean
 #	$(RM) configure
 
 clean:
-	$(RM) *.o */*.o $(LIB_FILE)
+	$(RM) *.o */*.o */*/*.o */*/*/*.o $(LIB_FILE)
 	$(RM) $(ALL_PROGRAMS) $(BUILT_INS) perf$X
 	$(RM) $(TEST_PROGRAMS)
-	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo common-cmds.h TAGS tags cscope*
+	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope*
 	$(RM) -r autom4te.cache
 	$(RM) config.log config.mak.autogen config.mak.append config.status config.cache
 	$(RM) -r $(PERF_TARNAME) .doc-tmp-dir
 	$(RM) $(PERF_TARNAME).tar.gz perf-core_$(PERF_VERSION)-*.tar.gz
 	$(RM) $(htmldocs).tar.gz $(manpages).tar.gz
 	$(MAKE) -C Documentation/ clean
-	$(RM) PERF-VERSION-FILE PERF-CFLAGS PERF-BUILD-OPTIONS
+	$(RM) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS $(OUTPUT)PERF-BUILD-OPTIONS
 
 .PHONY: all install clean strip
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell

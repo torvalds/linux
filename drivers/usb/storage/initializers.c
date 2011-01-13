@@ -102,5 +102,5 @@ int usb_stor_huawei_e220_init(struct us_data *us)
 				      USB_TYPE_STANDARD | USB_RECIP_DEVICE,
 				      0x01, 0x0, NULL, 0x0, 1000);
 	US_DEBUGP("Huawei mode set result is %d\n", result);
-	return (result ? 0 : -ENODEV);
+	return 0;
 }

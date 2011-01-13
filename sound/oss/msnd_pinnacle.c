@@ -35,12 +35,12 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
+#include <linux/gfp.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include "sound_config.h"
@@ -79,6 +79,7 @@
 					 dev.rec_sample_rate /		\
 					 dev.rec_channels)
 
+static DEFINE_MUTEX(msnd_pinnacle_mutex);
 static multisound_dev_t			dev;
 
 #ifndef HAVE_DSPCODEH
@@ -639,21 +640,26 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
-static int dev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int minor = iminor(inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
+	int ret;
 
 	if (cmd == OSS_GETVERSION) {
 		int sound_version = SOUND_VERSION;
 		return put_user(sound_version, (int __user *)arg);
 	}
 
-	if (minor == dev.dsp_minor)
-		return dsp_ioctl(file, cmd, arg);
-	else if (minor == dev.mixer_minor)
-		return mixer_ioctl(cmd, arg);
+	ret = -EINVAL;
 
-	return -EINVAL;
+	mutex_lock(&msnd_pinnacle_mutex);
+	if (minor == dev.dsp_minor)
+		ret = dsp_ioctl(file, cmd, arg);
+	else if (minor == dev.mixer_minor)
+		ret = mixer_ioctl(cmd, arg);
+	mutex_unlock(&msnd_pinnacle_mutex);
+
+	return ret;
 }
 
 static void dsp_write_flush(void)
@@ -756,12 +762,15 @@ static int dev_open(struct inode *inode, struct file *file)
 	int minor = iminor(inode);
 	int err = 0;
 
+	mutex_lock(&msnd_pinnacle_mutex);
 	if (minor == dev.dsp_minor) {
 		if ((file->f_mode & FMODE_WRITE &&
 		     test_bit(F_AUDIO_WRITE_INUSE, &dev.flags)) ||
 		    (file->f_mode & FMODE_READ &&
-		     test_bit(F_AUDIO_READ_INUSE, &dev.flags)))
-			return -EBUSY;
+		     test_bit(F_AUDIO_READ_INUSE, &dev.flags))) {
+			err = -EBUSY;
+			goto out;
+		}
 
 		if ((err = dsp_open(file)) >= 0) {
 			dev.nresets = 0;
@@ -782,7 +791,8 @@ static int dev_open(struct inode *inode, struct file *file)
 		/* nothing */
 	} else
 		err = -EINVAL;
-
+out:
+	mutex_unlock(&msnd_pinnacle_mutex);
 	return err;
 }
 
@@ -791,14 +801,14 @@ static int dev_release(struct inode *inode, struct file *file)
 	int minor = iminor(inode);
 	int err = 0;
 
-	lock_kernel();
+	mutex_lock(&msnd_pinnacle_mutex);
 	if (minor == dev.dsp_minor)
 		err = dsp_release(file);
 	else if (minor == dev.mixer_minor) {
 		/* nothing */
 	} else
 		err = -EINVAL;
-	unlock_kernel();
+	mutex_unlock(&msnd_pinnacle_mutex);
 	return err;
 }
 
@@ -1105,9 +1115,10 @@ static const struct file_operations dev_fileops = {
 	.owner		= THIS_MODULE,
 	.read		= dev_read,
 	.write		= dev_write,
-	.ioctl		= dev_ioctl,
+	.unlocked_ioctl	= dev_ioctl,
 	.open		= dev_open,
 	.release	= dev_release,
+	.llseek		= noop_llseek,
 };
 
 static int reset_dsp(void)
@@ -1391,9 +1402,13 @@ static int __init attach_multisound(void)
 		printk(KERN_ERR LOGNAME ": Couldn't grab IRQ %d\n", dev.irq);
 		return err;
 	}
-	request_region(dev.io, dev.numio, dev.name);
+	if (request_region(dev.io, dev.numio, dev.name) == NULL) {
+		free_irq(dev.irq, &dev);
+		return -EBUSY;
+	}
 
-        if ((err = dsp_full_reset()) < 0) {
+	err = dsp_full_reset();
+	if (err < 0) {
 		release_region(dev.io, dev.numio);
 		free_irq(dev.irq, &dev);
 		return err;

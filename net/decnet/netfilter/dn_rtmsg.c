@@ -14,6 +14,7 @@
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>

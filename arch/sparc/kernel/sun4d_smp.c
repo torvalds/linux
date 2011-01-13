@@ -162,9 +162,6 @@ extern void cpu_panic(void);
  */
  
 extern struct linux_prom_registers smp_penguin_ctable;
-extern unsigned long trapbase_cpu1[];
-extern unsigned long trapbase_cpu2[];
-extern unsigned long trapbase_cpu3[];
 
 void __init smp4d_boot_cpus(void)
 {
@@ -197,7 +194,7 @@ int __cpuinit smp4d_boot_one_cpu(int i)
 			smp_penguin_ctable.reg_size = 0;
 
 			/* whirrr, whirrr, whirrrrrrrrr... */
-			SMP_PRINTK(("Starting CPU %d at %p \n", i, entry));
+			SMP_PRINTK(("Starting CPU %d at %p\n", i, entry));
 			local_flush_cache_all();
 			prom_startcpu(cpu_node,
 				      &smp_penguin_ctable, 0, (char *)entry);
@@ -234,25 +231,6 @@ void __init smp4d_smp_done(void)
 	}
 	*prev = first;
 	local_flush_cache_all();
-
-	/* Free unneeded trap tables */
-	ClearPageReserved(virt_to_page(trapbase_cpu1));
-	init_page_count(virt_to_page(trapbase_cpu1));
-	free_page((unsigned long)trapbase_cpu1);
-	totalram_pages++;
-	num_physpages++;
-
-	ClearPageReserved(virt_to_page(trapbase_cpu2));
-	init_page_count(virt_to_page(trapbase_cpu2));
-	free_page((unsigned long)trapbase_cpu2);
-	totalram_pages++;
-	num_physpages++;
-
-	ClearPageReserved(virt_to_page(trapbase_cpu3));
-	init_page_count(virt_to_page(trapbase_cpu3));
-	free_page((unsigned long)trapbase_cpu3);
-	totalram_pages++;
-	num_physpages++;
 
 	/* Ok, they are spinning and ready to go. */
 	smp_processors_ready = 1;

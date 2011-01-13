@@ -57,7 +57,7 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct hdlc_device *hdlc = dev_to_hdlc(dev);
 
-	if (dev_net(dev) != &init_net) {
+	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(skb);
 		return 0;
 	}
@@ -66,7 +66,7 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 	return hdlc->proto->netif_rx(skb);
 }
 
-int hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 
@@ -102,14 +102,14 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 	unsigned long flags;
 	int on;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (!(dev->priv_flags & IFF_WAN_HDLC))
 		return NOTIFY_DONE; /* not an HDLC device */
 
 	if (event != NETDEV_CHANGE)
-		return NOTIFY_DONE; /* Only interrested in carrier changes */
+		return NOTIFY_DONE; /* Only interested in carrier changes */
 
 	on = netif_carrier_ok(dev);
 

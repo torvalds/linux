@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 #include <linux/module.h>
+#include <linux/perf_event.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -50,7 +51,7 @@ asmlinkage void do_##name(unsigned long error_code, struct pt_regs *regs) \
 	do_unhandled_exception(trapnr, signr, str, __stringify(name), error_code, regs, current); \
 }
 
-spinlock_t die_lock;
+static DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
@@ -433,6 +434,8 @@ static int misaligned_load(struct pt_regs *regs,
 		return error;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, 0, regs, address);
+
 	destreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
 		__u64 buffer;
@@ -509,6 +512,8 @@ static int misaligned_store(struct pt_regs *regs,
 		return error;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, 0, regs, address);
+
 	srcreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
 		__u64 buffer;
@@ -583,6 +588,8 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 		return error;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, address);
+
 	destreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
 		__u64 buffer;
@@ -600,7 +607,7 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 		   indexed by register number. */
 		if (last_task_used_math == current) {
 			enable_fpu();
-			save_fpu(current, regs);
+			save_fpu(current);
 			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;
@@ -611,19 +618,19 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 
 		switch (width_shift) {
 		case 2:
-			current->thread.fpu.hard.fp_regs[destreg] = buflo;
+			current->thread.xstate->hardfpu.fp_regs[destreg] = buflo;
 			break;
 		case 3:
 			if (do_paired_load) {
-				current->thread.fpu.hard.fp_regs[destreg] = buflo;
-				current->thread.fpu.hard.fp_regs[destreg+1] = bufhi;
+				current->thread.xstate->hardfpu.fp_regs[destreg] = buflo;
+				current->thread.xstate->hardfpu.fp_regs[destreg+1] = bufhi;
 			} else {
 #if defined(CONFIG_CPU_LITTLE_ENDIAN)
-				current->thread.fpu.hard.fp_regs[destreg] = bufhi;
-				current->thread.fpu.hard.fp_regs[destreg+1] = buflo;
+				current->thread.xstate->hardfpu.fp_regs[destreg] = bufhi;
+				current->thread.xstate->hardfpu.fp_regs[destreg+1] = buflo;
 #else
-				current->thread.fpu.hard.fp_regs[destreg] = buflo;
-				current->thread.fpu.hard.fp_regs[destreg+1] = bufhi;
+				current->thread.xstate->hardfpu.fp_regs[destreg] = buflo;
+				current->thread.xstate->hardfpu.fp_regs[destreg+1] = bufhi;
 #endif
 			}
 			break;
@@ -658,6 +665,8 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 		return error;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, address);
+
 	srcreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
 		__u64 buffer;
@@ -673,7 +682,7 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 		   indexed by register number. */
 		if (last_task_used_math == current) {
 			enable_fpu();
-			save_fpu(current, regs);
+			save_fpu(current);
 			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;
@@ -681,19 +690,19 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 
 		switch (width_shift) {
 		case 2:
-			buflo = current->thread.fpu.hard.fp_regs[srcreg];
+			buflo = current->thread.xstate->hardfpu.fp_regs[srcreg];
 			break;
 		case 3:
 			if (do_paired_load) {
-				buflo = current->thread.fpu.hard.fp_regs[srcreg];
-				bufhi = current->thread.fpu.hard.fp_regs[srcreg+1];
+				buflo = current->thread.xstate->hardfpu.fp_regs[srcreg];
+				bufhi = current->thread.xstate->hardfpu.fp_regs[srcreg+1];
 			} else {
 #if defined(CONFIG_CPU_LITTLE_ENDIAN)
-				bufhi = current->thread.fpu.hard.fp_regs[srcreg];
-				buflo = current->thread.fpu.hard.fp_regs[srcreg+1];
+				bufhi = current->thread.xstate->hardfpu.fp_regs[srcreg];
+				buflo = current->thread.xstate->hardfpu.fp_regs[srcreg+1];
 #else
-				buflo = current->thread.fpu.hard.fp_regs[srcreg];
-				bufhi = current->thread.fpu.hard.fp_regs[srcreg+1];
+				buflo = current->thread.xstate->hardfpu.fp_regs[srcreg];
+				bufhi = current->thread.xstate->hardfpu.fp_regs[srcreg+1];
 #endif
 			}
 			break;
@@ -877,44 +886,39 @@ static int misaligned_fixup(struct pt_regs *regs)
 
 static ctl_table unaligned_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "kernel_reports",
 		.data		= &kernel_mode_unaligned_fixup_count,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "user_reports",
 		.data		= &user_mode_unaligned_fixup_count,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "user_enable",
 		.data		= &user_mode_unaligned_fixup_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec},
+		.proc_handler	= proc_dointvec},
 	{}
 };
 
 static ctl_table unaligned_root[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "unaligned_fixup",
 		.mode		= 0555,
-		unaligned_table
+		.child		= unaligned_table
 	},
 	{}
 };
 
 static ctl_table sh64_root[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "sh64",
 		.mode		= 0555,
 		.child		= unaligned_root
@@ -948,4 +952,9 @@ asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
 	show_state();
 	/* Clear all DEBUGINT causes */
 	poke_real_address_q(DM_EXP_CAUSE_PHY, 0x0);
+}
+
+void __cpuinit per_cpu_trap_init(void)
+{
+	/* Nothing to do for now, VBR initialization later. */
 }

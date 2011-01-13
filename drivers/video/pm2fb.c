@@ -896,7 +896,7 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 * Pseudocolor:
 	 *    uses offset = 0 && length = DAC register width.
 	 *    var->{color}.offset is 0
-	 *    var->{color}.length contains widht of DAC
+	 *    var->{color}.length contains width of DAC
 	 *    cmap is not used
 	 *    DAC[X] is programmed to (red, green, blue)
 	 * Truecolor:

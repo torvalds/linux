@@ -855,7 +855,7 @@ static void happy_meal_timer(unsigned long data)
 		hp->timer_ticks = 0;
 		hp->timer_state = asleep; /* foo on you */
 		break;
-	};
+	}
 
 	if (restart_timer) {
 		hp->happy_timer.expires = jiffies + ((12 * HZ)/10); /* 1.2 sec. */
@@ -1226,10 +1226,16 @@ static void happy_meal_clean_rings(struct happy_meal *hp)
 			for (frag = 0; frag <= skb_shinfo(skb)->nr_frags; frag++) {
 				txd = &hp->happy_block->happy_meal_txd[i];
 				dma_addr = hme_read_desc32(hp, &txd->tx_addr);
-				dma_unmap_single(hp->dma_dev, dma_addr,
-						 (hme_read_desc32(hp, &txd->tx_flags)
-						  & TXFLAG_SIZE),
-						 DMA_TO_DEVICE);
+				if (!frag)
+					dma_unmap_single(hp->dma_dev, dma_addr,
+							 (hme_read_desc32(hp, &txd->tx_flags)
+							  & TXFLAG_SIZE),
+							 DMA_TO_DEVICE);
+				else
+					dma_unmap_page(hp->dma_dev, dma_addr,
+							 (hme_read_desc32(hp, &txd->tx_flags)
+							  & TXFLAG_SIZE),
+							 DMA_TO_DEVICE);
 
 				if (frag != skb_shinfo(skb)->nr_frags)
 					i++;
@@ -1403,7 +1409,7 @@ force_link:
 	hp->timer_ticks = 0;
 	hp->happy_timer.expires = jiffies + (12 * HZ)/10;  /* 1.2 sec. */
 	hp->happy_timer.data = (unsigned long) hp;
-	hp->happy_timer.function = &happy_meal_timer;
+	hp->happy_timer.function = happy_meal_timer;
 	add_timer(&hp->happy_timer);
 }
 
@@ -1482,7 +1488,7 @@ static int happy_meal_init(struct happy_meal *hp)
 		HMD(("external, disable MII, "));
 		hme_write32(hp, bregs + BMAC_XIFCFG, BIGMAC_XCFG_MIIDISAB);
 		break;
-	};
+	}
 
 	if (happy_meal_tcvr_reset(hp, tregs))
 		return -EAGAIN;
@@ -1510,24 +1516,20 @@ static int happy_meal_init(struct happy_meal *hp)
 
 	HMD(("htable, "));
 	if ((hp->dev->flags & IFF_ALLMULTI) ||
-	    (hp->dev->mc_count > 64)) {
+	    (netdev_mc_count(hp->dev) > 64)) {
 		hme_write32(hp, bregs + BMAC_HTABLE0, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE1, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE2, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE3, 0xffff);
 	} else if ((hp->dev->flags & IFF_PROMISC) == 0) {
 		u16 hash_table[4];
-		struct dev_mc_list *dmi = hp->dev->mc_list;
+		struct netdev_hw_addr *ha;
 		char *addrs;
-		int i;
 		u32 crc;
 
-		for (i = 0; i < 4; i++)
-			hash_table[i] = 0;
-
-		for (i = 0; i < hp->dev->mc_count; i++) {
-			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
+		memset(hash_table, 0, sizeof(hash_table));
+		netdev_for_each_mc_addr(ha, hp->dev) {
+			addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
@@ -1589,7 +1591,7 @@ static int happy_meal_init(struct happy_meal *hp)
 		 */
 #ifdef CONFIG_SBUS
 		if ((hp->happy_flags & HFLAG_PCI) == 0) {
-			struct of_device *op = hp->happy_dev;
+			struct platform_device *op = hp->happy_dev;
 			if (sbus_can_dma_64bit()) {
 				sbus_set_sbus64(&op->dev,
 						hp->happy_bursts);
@@ -1732,7 +1734,7 @@ static void happy_meal_set_initial_advertisement(struct happy_meal *hp)
 	case external:
 		hme_write32(hp, bregs + BMAC_XIFCFG, BIGMAC_XCFG_MIIDISAB);
 		break;
-	};
+	}
 	if (happy_meal_tcvr_reset(hp, tregs))
 		return;
 
@@ -1953,7 +1955,10 @@ static void happy_meal_tx(struct happy_meal *hp)
 			dma_len = hme_read_desc32(hp, &this->tx_flags);
 
 			dma_len &= TXFLAG_SIZE;
-			dma_unmap_single(hp->dma_dev, dma_addr, dma_len, DMA_TO_DEVICE);
+			if (!frag)
+				dma_unmap_single(hp->dma_dev, dma_addr, dma_len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(hp->dma_dev, dma_addr, dma_len, DMA_TO_DEVICE);
 
 			elem = NEXT_TX(elem);
 			this = &txbase[elem];
@@ -2184,7 +2189,7 @@ static int happy_meal_open(struct net_device *dev)
 	 * into a single source which we register handling at probe time.
 	 */
 	if ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO) {
-		if (request_irq(dev->irq, &happy_meal_interrupt,
+		if (request_irq(dev->irq, happy_meal_interrupt,
 				IRQF_SHARED, dev->name, (void *)dev)) {
 			HMD(("EAGAIN\n"));
 			printk(KERN_ERR "happy_meal(SBUS): Can't order irq %d to go.\n",
@@ -2252,7 +2257,8 @@ static void happy_meal_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct happy_meal *hp = netdev_priv(dev);
  	int entry;
@@ -2260,7 +2266,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_flags = TXFLAG_OWN;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const u32 csum_start_off = skb_transport_offset(skb);
+		const u32 csum_start_off = skb_checksum_start_offset(skb);
 		const u32 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		tx_flags = (TXFLAG_OWN | TXFLAG_CSENABLE |
@@ -2335,10 +2341,8 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irq(&hp->happy_lock);
 
-	dev->trans_start = jiffies;
-
 	tx_add_log(hp, TXLOG_ACTION_TXMIT, 0);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static struct net_device_stats *happy_meal_get_stats(struct net_device *dev)
@@ -2356,14 +2360,13 @@ static void happy_meal_set_multicast(struct net_device *dev)
 {
 	struct happy_meal *hp = netdev_priv(dev);
 	void __iomem *bregs = hp->bigmacregs;
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	char *addrs;
-	int i;
 	u32 crc;
 
 	spin_lock_irq(&hp->happy_lock);
 
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		hme_write32(hp, bregs + BMAC_HTABLE0, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE1, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE2, 0xffff);
@@ -2374,12 +2377,9 @@ static void happy_meal_set_multicast(struct net_device *dev)
 	} else {
 		u16 hash_table[4];
 
-		for (i = 0; i < 4; i++)
-			hash_table[i] = 0;
-
-		for (i = 0; i < dev->mc_count; i++) {
-			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
+		memset(hash_table, 0, sizeof(hash_table));
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
@@ -2480,8 +2480,8 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 #ifdef CONFIG_SBUS
 	else {
 		const struct linux_prom_registers *regs;
-		struct of_device *op = hp->happy_dev;
-		regs = of_get_property(op->node, "regs", NULL);
+		struct platform_device *op = hp->happy_dev;
+		regs = of_get_property(op->dev.of_node, "regs", NULL);
 		if (regs)
 			sprintf(info->bus_info, "SBUS:%d",
 				regs->which_io);
@@ -2497,7 +2497,7 @@ static u32 hme_get_link(struct net_device *dev)
 	hp->sw_bmcr = happy_meal_tcvr_read(hp, hp->tcvregs, MII_BMCR);
 	spin_unlock_irq(&hp->happy_lock);
 
-	return (hp->sw_bmsr & BMSR_LSTATUS);
+	return hp->sw_bmsr & BMSR_LSTATUS;
 }
 
 static const struct ethtool_ops hme_ethtool_ops = {
@@ -2515,13 +2515,13 @@ static int hme_version_printed;
  *
  * Return NULL on failure.
  */
-static struct quattro * __devinit quattro_sbus_find(struct of_device *child)
+static struct quattro * __devinit quattro_sbus_find(struct platform_device *child)
 {
 	struct device *parent = child->dev.parent;
-	struct of_device *op;
+	struct platform_device *op;
 	struct quattro *qp;
 
-	op = to_of_device(parent);
+	op = to_platform_device(parent);
 	qp = dev_get_drvdata(&op->dev);
 	if (qp)
 		return qp;
@@ -2551,7 +2551,7 @@ static int __init quattro_sbus_register_irqs(void)
 	struct quattro *qp;
 
 	for (qp = qfe_sbus_list; qp != NULL; qp = qp->next) {
-		struct of_device *op = qp->quattro_dev;
+		struct platform_device *op = qp->quattro_dev;
 		int err, qfe_slot, skip = 0;
 
 		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++) {
@@ -2561,7 +2561,7 @@ static int __init quattro_sbus_register_irqs(void)
 		if (skip)
 			continue;
 
-		err = request_irq(op->irqs[0],
+		err = request_irq(op->archdata.irqs[0],
 				  quattro_sbus_interrupt,
 				  IRQF_SHARED, "Quattro",
 				  qp);
@@ -2580,7 +2580,7 @@ static void quattro_sbus_free_irqs(void)
 	struct quattro *qp;
 
 	for (qp = qfe_sbus_list; qp != NULL; qp = qp->next) {
-		struct of_device *op = qp->quattro_dev;
+		struct platform_device *op = qp->quattro_dev;
 		int qfe_slot, skip = 0;
 
 		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++) {
@@ -2590,7 +2590,7 @@ static void quattro_sbus_free_irqs(void)
 		if (skip)
 			continue;
 
-		free_irq(op->irqs[0], qp);
+		free_irq(op->archdata.irqs[0], qp);
 	}
 }
 #endif /* CONFIG_SBUS */
@@ -2639,16 +2639,16 @@ static const struct net_device_ops hme_netdev_ops = {
 };
 
 #ifdef CONFIG_SBUS
-static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
+static int __devinit happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 {
-	struct device_node *dp = op->node, *sbus_dp;
+	struct device_node *dp = op->dev.of_node, *sbus_dp;
 	struct quattro *qp = NULL;
 	struct happy_meal *hp;
 	struct net_device *dev;
 	int i, qfe_slot = -1;
 	int err = -ENODEV;
 
-	sbus_dp = to_of_device(op->dev.parent)->node;
+	sbus_dp = op->dev.parent->of_node;
 
 	/* We can match PCI devices too, do not accept those here. */
 	if (strcmp(sbus_dp->name, "sbus"))
@@ -2790,7 +2790,7 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	/* Happy Meal can do it all... */
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	/* Hook up SBUS register/descriptor accessors. */
@@ -2808,7 +2808,8 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	happy_meal_set_initial_advertisement(hp);
 	spin_unlock_irq(&hp->happy_lock);
 
-	if (register_netdev(hp->dev)) {
+	err = register_netdev(hp->dev);
+	if (err) {
 		printk(KERN_ERR "happymeal: Cannot register net device, "
 		       "aborting.\n");
 		goto err_out_free_coherent;
@@ -2943,7 +2944,6 @@ static void get_hme_mac_nonsparc(struct pci_dev *pdev, unsigned char *dev_addr)
 	dev_addr[1] = 0x00;
 	dev_addr[2] = 0x20;
 	get_random_bytes(&dev_addr[3], 3);
-	return;
 }
 #endif /* !(CONFIG_SPARC) */
 
@@ -3002,7 +3002,6 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	dev->base_addr = (long) pdev;
 
 	hp = netdev_priv(dev);
-	memset(hp, 0, sizeof(*hp));
 
 	hp->happy_dev = pdev;
 	hp->dma_dev = &pdev->dev;
@@ -3046,9 +3045,9 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		int len;
 
 		if (qfe_slot != -1 &&
-		    (addr = of_get_property(dp,
-					    "local-mac-address", &len)) != NULL
-		    && len == 6) {
+		    (addr = of_get_property(dp, "local-mac-address", &len))
+			!= NULL &&
+		    len == 6) {
 			memcpy(dev->dev_addr, addr, 6);
 		} else {
 			memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
@@ -3132,7 +3131,8 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	happy_meal_set_initial_advertisement(hp);
 	spin_unlock_irq(&hp->happy_lock);
 
-	if (register_netdev(hp->dev)) {
+	err = register_netdev(hp->dev);
+	if (err) {
 		printk(KERN_ERR "happymeal(PCI): Cannot register net device, "
 		       "aborting.\n");
 		goto err_out_iounmap;
@@ -3201,7 +3201,7 @@ static void __devexit happy_meal_pci_remove(struct pci_dev *pdev)
 	dev_set_drvdata(&pdev->dev, NULL);
 }
 
-static struct pci_device_id happymeal_pci_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(happymeal_pci_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_HAPPYMEAL) },
 	{ }			/* Terminating entry */
 };
@@ -3237,9 +3237,9 @@ static void happy_meal_pci_exit(void)
 #endif
 
 #ifdef CONFIG_SBUS
-static int __devinit hme_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit hme_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
 	int is_qfe = (match->data != NULL);
 
@@ -3249,7 +3249,7 @@ static int __devinit hme_sbus_probe(struct of_device *op, const struct of_device
 	return happy_meal_sbus_probe_one(op, is_qfe);
 }
 
-static int __devexit hme_sbus_remove(struct of_device *op)
+static int __devexit hme_sbus_remove(struct platform_device *op)
 {
 	struct happy_meal *hp = dev_get_drvdata(&op->dev);
 	struct net_device *net_dev = hp->dev;
@@ -3293,8 +3293,11 @@ static const struct of_device_id hme_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, hme_sbus_match);
 
 static struct of_platform_driver hme_sbus_driver = {
-	.name		= "hme",
-	.match_table	= hme_sbus_match,
+	.driver = {
+		.name = "hme",
+		.owner = THIS_MODULE,
+		.of_match_table = hme_sbus_match,
+	},
 	.probe		= hme_sbus_probe,
 	.remove		= __devexit_p(hme_sbus_remove),
 };
@@ -3303,7 +3306,7 @@ static int __init happy_meal_sbus_init(void)
 {
 	int err;
 
-	err = of_register_driver(&hme_sbus_driver, &of_bus_type);
+	err = of_register_platform_driver(&hme_sbus_driver);
 	if (!err)
 		err = quattro_sbus_register_irqs();
 
@@ -3312,7 +3315,7 @@ static int __init happy_meal_sbus_init(void)
 
 static void happy_meal_sbus_exit(void)
 {
-	of_unregister_driver(&hme_sbus_driver);
+	of_unregister_platform_driver(&hme_sbus_driver);
 	quattro_sbus_free_irqs();
 
 	while (qfe_sbus_list) {

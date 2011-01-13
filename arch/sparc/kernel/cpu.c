@@ -185,6 +185,17 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 		FPU(-1, NULL)
 	}
 },{
+	0xF,		/* Aeroflex Gaisler */
+	.cpu_info = {
+		CPU(3, "LEON"),
+		CPU(-1, NULL)
+	},
+	.fpu_info = {
+		FPU(2, "GRFPU"),
+		FPU(3, "GRFPU-Lite"),
+		FPU(-1, NULL)
+	}
+},{
 	0x17,
 	.cpu_info = {
 		CPU_PMU(0x10, "TI UltraSparc I   (SpitFire)", "ultra12"),
@@ -312,7 +323,12 @@ void __cpuinit cpu_probe(void)
 
 	psr = get_psr();
 	put_psr(psr | PSR_EF);
+#ifdef CONFIG_SPARC_LEON
+	fpu_vers = 7;
+#else
 	fpu_vers = ((get_fsr() >> 17) & 0x7);
+#endif
+
 	put_psr(psr);
 
 	set_cpu_and_fpu(psr_impl, psr_vers, fpu_vers);
@@ -359,5 +375,5 @@ static int __init cpu_type_probe(void)
 	return 0;
 }
 
-arch_initcall(cpu_type_probe);
+early_initcall(cpu_type_probe);
 #endif

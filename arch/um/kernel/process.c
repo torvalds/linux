@@ -7,13 +7,15 @@
 #include <linux/stddef.h>
 #include <linux/err.h>
 #include <linux/hardirq.h>
-#include <linux/gfp.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/personality.h>
 #include <linux/proc_fs.h>
 #include <linux/ptrace.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
 #include <asm/current.h>
@@ -336,16 +338,19 @@ int get_using_sysemu(void)
 	return atomic_read(&using_sysemu);
 }
 
-static int proc_read_sysemu(char *buf, char **start, off_t offset, int size,int *eof, void *data)
+static int sysemu_proc_show(struct seq_file *m, void *v)
 {
-	if (snprintf(buf, size, "%d\n", get_using_sysemu()) < size)
-		/* No overflow */
-		*eof = 1;
-
-	return strlen(buf);
+	seq_printf(m, "%d\n", get_using_sysemu());
+	return 0;
 }
 
-static int proc_write_sysemu(struct file *file,const char __user *buf, unsigned long count,void *data)
+static int sysemu_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sysemu_proc_show, NULL);
+}
+
+static ssize_t sysemu_proc_write(struct file *file, const char __user *buf,
+				 size_t count, loff_t *pos)
 {
 	char tmp[2];
 
@@ -358,22 +363,28 @@ static int proc_write_sysemu(struct file *file,const char __user *buf, unsigned 
 	return count;
 }
 
+static const struct file_operations sysemu_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= sysemu_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= sysemu_proc_write,
+};
+
 int __init make_proc_sysemu(void)
 {
 	struct proc_dir_entry *ent;
 	if (!sysemu_supported)
 		return 0;
 
-	ent = create_proc_entry("sysemu", 0600, NULL);
+	ent = proc_create("sysemu", 0600, NULL, &sysemu_proc_fops);
 
 	if (ent == NULL)
 	{
 		printk(KERN_WARNING "Failed to register /proc/sysemu\n");
 		return 0;
 	}
-
-	ent->read_proc  = proc_read_sysemu;
-	ent->write_proc = proc_write_sysemu;
 
 	return 0;
 }

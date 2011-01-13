@@ -1,10 +1,10 @@
 #include <linux/capability.h>
 #include <linux/blkdev.h>
+#include <linux/gfp.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
-#include <linux/smp_lock.h>
 #include <linux/blktrace_api.h>
 #include <asm/uaccess.h>
 
@@ -61,7 +61,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 
 			/* all seems OK */
 			part = add_partition(disk, partno, start, length,
-					     ADDPART_FLAG_NONE);
+					     ADDPART_FLAG_NONE, NULL);
 			mutex_unlock(&bdev->bd_mutex);
 			return IS_ERR(part) ? PTR_ERR(part) : 0;
 		case BLKPG_DEL_PARTITION:
@@ -112,21 +112,10 @@ static int blkdev_reread_part(struct block_device *bdev)
 	return res;
 }
 
-static void blk_ioc_discard_endio(struct bio *bio, int err)
-{
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	}
-	complete(bio->bi_private);
-}
-
 static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
-			     uint64_t len)
+			     uint64_t len, int secure)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
-	int ret = 0;
+	unsigned long flags = 0;
 
 	if (start & 511)
 		return -EINVAL;
@@ -135,42 +124,11 @@ static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 	start >>= 9;
 	len >>= 9;
 
-	if (start + len > (bdev->bd_inode->i_size >> 9))
+	if (start + len > (i_size_read(bdev->bd_inode) >> 9))
 		return -EINVAL;
-
-	if (!q->prepare_discard_fn)
-		return -EOPNOTSUPP;
-
-	while (len && !ret) {
-		DECLARE_COMPLETION_ONSTACK(wait);
-		struct bio *bio;
-
-		bio = bio_alloc(GFP_KERNEL, 0);
-
-		bio->bi_end_io = blk_ioc_discard_endio;
-		bio->bi_bdev = bdev;
-		bio->bi_private = &wait;
-		bio->bi_sector = start;
-
-		if (len > queue_max_hw_sectors(q)) {
-			bio->bi_size = queue_max_hw_sectors(q) << 9;
-			len -= queue_max_hw_sectors(q);
-			start += queue_max_hw_sectors(q);
-		} else {
-			bio->bi_size = len << 9;
-			len = 0;
-		}
-		submit_bio(DISCARD_NOBARRIER, bio);
-
-		wait_for_completion(&wait);
-
-		if (bio_flagged(bio, BIO_EOPNOTSUPP))
-			ret = -EOPNOTSUPP;
-		else if (!bio_flagged(bio, BIO_UPTODATE))
-			ret = -EIO;
-		bio_put(bio);
-	}
-	return ret;
+	if (secure)
+		flags |= BLKDEV_DISCARD_SECURE;
+	return blkdev_issue_discard(bdev, start, len, GFP_KERNEL, flags);
 }
 
 static int put_ushort(unsigned long arg, unsigned short val)
@@ -181,6 +139,11 @@ static int put_ushort(unsigned long arg, unsigned short val)
 static int put_int(unsigned long arg, int val)
 {
 	return put_user(val, (int __user *)arg);
+}
+
+static int put_uint(unsigned long arg, unsigned int val)
+{
+	return put_user(val, (unsigned int __user *)arg);
 }
 
 static int put_long(unsigned long arg, long val)
@@ -202,17 +165,9 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned cmd, unsigned long arg)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int ret;
 
 	if (disk->fops->ioctl)
 		return disk->fops->ioctl(bdev, mode, cmd, arg);
-
-	if (disk->fops->locked_ioctl) {
-		lock_kernel();
-		ret = disk->fops->locked_ioctl(bdev, mode, cmd, arg);
-		unlock_kernel();
-		return ret;
-	}
 
 	return -ENOTTY;
 }
@@ -224,8 +179,7 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
 
 /*
- * always keep this in sync with compat_blkdev_ioctl() and
- * compat_blkdev_locked_ioctl()
+ * always keep this in sync with compat_blkdev_ioctl()
  */
 int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			unsigned long arg)
@@ -245,10 +199,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
 
-		lock_kernel();
 		fsync_bdev(bdev);
 		invalidate_bdev(bdev);
-		unlock_kernel();
 		return 0;
 
 	case BLKROSET:
@@ -260,12 +212,11 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			return -EACCES;
 		if (get_user(n, (int __user *)(arg)))
 			return -EFAULT;
-		lock_kernel();
 		set_device_ro(bdev, n);
-		unlock_kernel();
 		return 0;
 
-	case BLKDISCARD: {
+	case BLKDISCARD:
+	case BLKSECDISCARD: {
 		uint64_t range[2];
 
 		if (!(mode & FMODE_WRITE))
@@ -274,7 +225,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		if (copy_from_user(range, (void __user *)arg, sizeof(range)))
 			return -EFAULT;
 
-		return blk_ioctl_discard(bdev, range[0], range[1]);
+		return blk_ioctl_discard(bdev, range[0], range[1],
+					 cmd == BLKSECDISCARD);
 	}
 
 	case HDIO_GETGEO: {
@@ -289,6 +241,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		 * We need to set the startsect first, the driver may
 		 * want to override it.
 		 */
+		memset(&geo, 0, sizeof(geo));
 		geo.start = get_start_sect(bdev);
 		ret = disk->fops->getgeo(bdev, &geo);
 		if (ret)
@@ -308,10 +261,20 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return put_long(arg, (bdi->ra_pages * PAGE_CACHE_SIZE) / 512);
 	case BLKROGET:
 		return put_int(arg, bdev_read_only(bdev) != 0);
-	case BLKBSZGET: /* get the logical block size (cf. BLKSSZGET) */
+	case BLKBSZGET: /* get block device soft block size (cf. BLKSSZGET) */
 		return put_int(arg, block_size(bdev));
-	case BLKSSZGET: /* get block device hardware sector size */
+	case BLKSSZGET: /* get block device logical block size */
 		return put_int(arg, bdev_logical_block_size(bdev));
+	case BLKPBSZGET: /* get block device physical block size */
+		return put_uint(arg, bdev_physical_block_size(bdev));
+	case BLKIOMIN:
+		return put_uint(arg, bdev_io_min(bdev));
+	case BLKIOOPT:
+		return put_uint(arg, bdev_io_opt(bdev));
+	case BLKALIGNOFF:
+		return put_int(arg, bdev_alignment_offset(bdev));
+	case BLKDISCARDZEROES:
+		return put_uint(arg, bdev_discard_zeroes_data(bdev));
 	case BLKSECTGET:
 		return put_ushort(arg, queue_max_sectors(bdev_get_queue(bdev)));
 	case BLKRASET:
@@ -338,29 +301,23 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			bd_release(bdev);
 		return ret;
 	case BLKPG:
-		lock_kernel();
 		ret = blkpg_ioctl(bdev, (struct blkpg_ioctl_arg __user *) arg);
-		unlock_kernel();
 		break;
 	case BLKRRPART:
-		lock_kernel();
 		ret = blkdev_reread_part(bdev);
-		unlock_kernel();
 		break;
 	case BLKGETSIZE:
-		size = bdev->bd_inode->i_size;
+		size = i_size_read(bdev->bd_inode);
 		if ((size >> 9) > ~0UL)
 			return -EFBIG;
 		return put_ulong(arg, size >> 9);
 	case BLKGETSIZE64:
-		return put_u64(arg, bdev->bd_inode->i_size);
+		return put_u64(arg, i_size_read(bdev->bd_inode));
 	case BLKTRACESTART:
 	case BLKTRACESTOP:
 	case BLKTRACESETUP:
 	case BLKTRACETEARDOWN:
-		lock_kernel();
 		ret = blk_trace_ioctl(bdev, cmd, (char __user *) arg);
-		unlock_kernel();
 		break;
 	default:
 		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);

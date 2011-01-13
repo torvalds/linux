@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.23
-                          April 10th, 2009
+                            Version 0.24
+                        December 11th,  2009
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -36,8 +36,6 @@ detailed description):
 	- Bluetooth enable and disable
 	- video output switching, expansion control
 	- ThinkLight on and off
-	- limited docking and undocking
-	- UltraBay eject
 	- CMOS/UCMS control
 	- LED control
 	- ACPI sounds
@@ -201,18 +199,22 @@ kind to allow it (and it often doesn't!).
 
 Not all bits in the mask can be modified.  Not all bits that can be
 modified do anything.  Not all hot keys can be individually controlled
-by the mask.  Some models do not support the mask at all, and in those
-models, hot keys cannot be controlled individually.  The behaviour of
-the mask is, therefore, highly dependent on the ThinkPad model.
+by the mask.  Some models do not support the mask at all.  The behaviour
+of the mask is, therefore, highly dependent on the ThinkPad model.
+
+The driver will filter out any unmasked hotkeys, so even if the firmware
+doesn't allow disabling an specific hotkey, the driver will not report
+events for unmasked hotkeys.
 
 Note that unmasking some keys prevents their default behavior.  For
 example, if Fn+F5 is unmasked, that key will no longer enable/disable
-Bluetooth by itself.
+Bluetooth by itself in firmware.
 
-Note also that not all Fn key combinations are supported through ACPI.
-For example, on the X40, the brightness, volume and "Access IBM" buttons
-do not generate ACPI events even with this driver.  They *can* be used
-through the "ThinkPad Buttons" utility, see http://www.nongnu.org/tpb/
+Note also that not all Fn key combinations are supported through ACPI
+depending on the ThinkPad model and firmware version.  On those
+ThinkPads, it is still possible to support some extra hotkeys by
+polling the "CMOS NVRAM" at least 10 times per second.  The driver
+attempts to enables this functionality automatically when required.
 
 procfs notes:
 
@@ -221,7 +223,7 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 	echo 0xffffffff > /proc/acpi/ibm/hotkey -- enable all hot keys
 	echo 0 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
 	... any other 8-hex-digit mask ...
-	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
+	echo reset > /proc/acpi/ibm/hotkey -- restore the recommended mask
 
 The following commands have been deprecated and will cause the kernel
 to log a warning:
@@ -242,9 +244,13 @@ sysfs notes:
 		Returns 0.
 
 	hotkey_bios_mask:
+		DEPRECATED, DON'T USE, WILL BE REMOVED IN THE FUTURE.
+
 		Returns the hot keys mask when thinkpad-acpi was loaded.
 		Upon module unload, the hot keys mask will be restored
-		to this value.
+		to this value.   This is always 0x80c, because those are
+		the hotkeys that were supported by ancient firmware
+		without mask support.
 
 	hotkey_enable:
 		DEPRECATED, WILL BE REMOVED SOON.
@@ -253,17 +259,10 @@ sysfs notes:
 		1: does nothing
 
 	hotkey_mask:
-		bit mask to enable driver-handling (and depending on
+		bit mask to enable reporting (and depending on
 		the firmware, ACPI event generation) for each hot key
 		(see above).  Returns the current status of the hot keys
 		mask, and allows one to modify it.
-
-		Note: when NVRAM polling is active, the firmware mask
-		will be different from the value returned by
-		hotkey_mask.  The driver will retain enabled bits for
-		hotkeys that are under NVRAM polling even if the
-		firmware refuses them, and will not set these bits on
-		the firmware hot key mask.
 
 	hotkey_all_mask:
 		bit mask that should enable event reporting for all
@@ -277,7 +276,8 @@ sysfs notes:
 		bit mask that should enable event reporting for all
 		supported hot keys, except those which are always
 		handled by the firmware anyway.  Echo it to
-		hotkey_mask above, to use.
+		hotkey_mask above, to use.  This is the default mask
+		used by the driver.
 
 	hotkey_source_mask:
 		bit mask that selects which hot keys will the driver
@@ -285,19 +285,20 @@ sysfs notes:
 		based on the capabilities reported by the ACPI firmware,
 		but it can be overridden at runtime.
 
-		Hot keys whose bits are set in both hotkey_source_mask
-		and also on hotkey_mask are polled for in NVRAM.  Only a
-		few hot keys are available through CMOS NVRAM polling.
+		Hot keys whose bits are set in hotkey_source_mask are
+		polled for in NVRAM, and reported as hotkey events if
+		enabled in hotkey_mask.  Only a few hot keys are
+		available through CMOS NVRAM polling.
 
 		Warning: when in NVRAM mode, the volume up/down/mute
 		keys are synthesized according to changes in the mixer,
-		so you have to use volume up or volume down to unmute,
-		as per the ThinkPad volume mixer user interface.  When
-		in ACPI event mode, volume up/down/mute are reported as
-		separate events, but this behaviour may be corrected in
-		future releases of this driver, in which case the
-		ThinkPad volume mixer user interface semantics will be
-		enforced.
+		which uses a single volume up or volume down hotkey
+		press to unmute, as per the ThinkPad volume mixer user
+		interface.  When in ACPI event mode, volume up/down/mute
+		events are reported by the firmware and can behave
+		differently (and that behaviour changes with firmware
+		version -- not just with firmware models -- as well as
+		OSI(Linux) state).
 
 	hotkey_poll_freq:
 		frequency in Hz for hot key polling. It must be between
@@ -308,7 +309,7 @@ sysfs notes:
 		will cause hot key presses that require NVRAM polling
 		to never be reported.
 
-		Setting hotkey_poll_freq too low will cause repeated
+		Setting hotkey_poll_freq too low may cause repeated
 		pressings of the same hot key to be misreported as a
 		single key press, or to not even be detected at all.
 		The recommended polling frequency is 10Hz.
@@ -396,6 +397,7 @@ ACPI	Scan
 event	code	Key		Notes
 
 0x1001	0x00	FN+F1		-
+
 0x1002	0x01	FN+F2		IBM: battery (rare)
 				Lenovo: Screen lock
 
@@ -403,7 +405,8 @@ event	code	Key		Notes
 				this hot key, even with hot keys
 				disabled or with Fn+F3 masked
 				off
-				IBM: screen lock
+				IBM: screen lock, often turns
+				off the ThinkLight as side-effect
 				Lenovo: battery
 
 0x1004	0x03	FN+F4		Sleep button (ACPI sleep button
@@ -432,7 +435,8 @@ event	code	Key		Notes
 				Do you feel lucky today?
 
 0x1008	0x07	FN+F8		IBM: toggle screen expand
-				Lenovo: configure UltraNav
+				Lenovo: configure UltraNav,
+				or toggle screen expand
 
 0x1009	0x08	FN+F9		-
 	..	..		..
@@ -443,7 +447,7 @@ event	code	Key		Notes
 				either through the ACPI event,
 				or through a hotkey event.
 				The firmware may refuse to
-				generate further FN+F4 key
+				generate further FN+F12 key
 				press events until a S3 or S4
 				ACPI sleep cycle is performed,
 				or some time passes.
@@ -459,6 +463,8 @@ event	code	Key		Notes
 				For Lenovo ThinkPads with a new
 				BIOS, it has to be handled either
 				by the ACPI OSI, or by userspace.
+				The driver does the right thing,
+				never mess with this.
 0x1011	0x10	FN+END		Brightness down.  See brightness
 				up for details.
 
@@ -509,30 +515,59 @@ events for switches:
 SW_RFKILL_ALL	T60 and later hardware rfkill rocker switch
 SW_TABLET_MODE	Tablet ThinkPads HKEY events 0x5009 and 0x500A
 
-Non hot-key ACPI HKEY event map:
+Non hotkey ACPI HKEY event map:
+-------------------------------
+
+Events that are not propagated by the driver, except for legacy
+compatibility purposes when hotkey_report_mode is set to 1:
+
 0x5001		Lid closed
 0x5002		Lid opened
 0x5009		Tablet swivel: switched to tablet mode
 0x500A		Tablet swivel: switched to normal mode
 0x7000		Radio Switch may have changed state
 
-The above events are not propagated by the driver, except for legacy
-compatibility purposes when hotkey_report_mode is set to 1.
+Events that are never propagated by the driver:
 
 0x2304		System is waking up from suspend to undock
 0x2305		System is waking up from suspend to eject bay
 0x2404		System is waking up from hibernation to undock
 0x2405		System is waking up from hibernation to eject bay
+0x5010		Brightness level changed/control event
 
-The above events are never propagated by the driver.
+Events that are propagated by the driver to userspace:
 
+0x2313		ALARM: System is waking up from suspend because
+		the battery is nearly empty
+0x2413		ALARM: System is waking up from hibernation because
+		the battery is nearly empty
 0x3003		Bay ejection (see 0x2x05) complete, can sleep again
+0x3006		Bay hotplug request (hint to power up SATA link when
+		the optical drive tray is ejected)
 0x4003		Undocked (see 0x2x04), can sleep again
 0x500B		Tablet pen inserted into its storage bay
 0x500C		Tablet pen removed from its storage bay
-0x5010		Brightness level changed (newer Lenovo BIOSes)
+0x6011		ALARM: battery is too hot
+0x6012		ALARM: battery is extremely hot
+0x6021		ALARM: a sensor is too hot
+0x6022		ALARM: a sensor is extremely hot
+0x6030		System thermal table changed
 
-The above events are propagated by the driver.
+Battery nearly empty alarms are a last resort attempt to get the
+operating system to hibernate or shutdown cleanly (0x2313), or shutdown
+cleanly (0x2413) before power is lost.  They must be acted upon, as the
+wake up caused by the firmware will have negated most safety nets...
+
+When any of the "too hot" alarms happen, according to Lenovo the user
+should suspend or hibernate the laptop (and in the case of battery
+alarms, unplug the AC adapter) to let it cool down.  These alarms do
+signal that something is wrong, they should never happen on normal
+operating conditions.
+
+The "extremely hot" alarms are emergencies.  According to Lenovo, the
+operating system is to force either an immediate suspend or hibernate
+cycle, or a system shutdown.  Obviously, something is very wrong if this
+happens.
 
 Compatibility notes:
 
@@ -581,44 +616,15 @@ with hotkey_report_mode.
 
 Brightness hotkey notes:
 
-These are the current sane choices for brightness key mapping in
-thinkpad-acpi:
+Don't mess with the brightness hotkeys in a Thinkpad.  If you want
+notifications for OSD, use the sysfs backlight class event support.
 
-For IBM and Lenovo models *without* ACPI backlight control (the ones on
-which thinkpad-acpi will autoload its backlight interface by default,
-and on which ACPI video does not export a backlight interface):
-
-1. Don't enable or map the brightness hotkeys in thinkpad-acpi, as
-   these older firmware versions unfortunately won't respect the hotkey
-   mask for brightness keys anyway, and always reacts to them.  This
-   usually work fine, unless X.org drivers are doing something to block
-   the BIOS.  In that case, use (3) below.  This is the default mode of
-   operation.
-
-2. Enable the hotkeys, but map them to something else that is NOT
-   KEY_BRIGHTNESS_UP/DOWN or any other keycode that would cause
-   userspace to try to change the backlight level, and use that as an
-   on-screen-display hint.
-
-3. IF AND ONLY IF X.org drivers find a way to block the firmware from
-   automatically changing the brightness, enable the hotkeys and map
-   them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN, and feed that to
-   something that calls xbacklight.  thinkpad-acpi will not be able to
-   change brightness in that case either, so you should disable its
-   backlight interface.
-
-For Lenovo models *with* ACPI backlight control:
-
-1. Load up ACPI video and use that.  ACPI video will report ACPI
-   events for brightness change keys.  Do not mess with thinkpad-acpi
-   defaults in this case.  thinkpad-acpi should not have anything to do
-   with backlight events in a scenario where ACPI video is loaded:
-   brightness hotkeys must be disabled, and the backlight interface is
-   to be kept disabled as well.  This is the default mode of operation.
-
-2. Do *NOT* load up ACPI video, enable the hotkeys in thinkpad-acpi,
-   and map them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN.  Process
-   these keys on userspace somehow (e.g. by calling xbacklight).
+The driver will issue KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN events
+automatically for the cases were userspace has to do something to
+implement brightness changes.  When you override these events, you will
+either fail to handle properly the ThinkPads that require explicit
+action to change backlight brightness, or the ThinkPads that require
+that no action be taken to work properly.
 
 
 Bluetooth
@@ -676,6 +682,10 @@ LCD, CRT or DVI (if available). The following commands are available:
 	echo expand_toggle > /proc/acpi/ibm/video
 	echo video_switch > /proc/acpi/ibm/video
 
+NOTE: Access to this feature is restricted to processes owning the
+CAP_SYS_ADMIN capability for safety reasons, as it can interact badly
+enough with some versions of X.org to crash it.
+
 Each video output device can be enabled or disabled individually.
 Reading /proc/acpi/ibm/video shows the status of each device.
 
@@ -727,131 +737,6 @@ is "tpacpi::thinklight".
 Due to limitations in the sysfs LED class, if the status of the ThinkLight
 cannot be read or if it is unknown, thinkpad-acpi will report it as "off".
 It is impossible to know if the status returned through sysfs is valid.
-
-
-Docking / undocking -- /proc/acpi/ibm/dock
-------------------------------------------
-
-Docking and undocking (e.g. with the X4 UltraBase) requires some
-actions to be taken by the operating system to safely make or break
-the electrical connections with the dock.
-
-The docking feature of this driver generates the following ACPI events:
-
-	ibm/dock GDCK 00000003 00000001 -- eject request
-	ibm/dock GDCK 00000003 00000002 -- undocked
-	ibm/dock GDCK 00000000 00000003 -- docked
-
-NOTE: These events will only be generated if the laptop was docked
-when originally booted. This is due to the current lack of support for
-hot plugging of devices in the Linux ACPI framework. If the laptop was
-booted while not in the dock, the following message is shown in the
-logs:
-
-	Mar 17 01:42:34 aero kernel: thinkpad_acpi: dock device not present
-
-In this case, no dock-related events are generated but the dock and
-undock commands described below still work. They can be executed
-manually or triggered by Fn key combinations (see the example acpid
-configuration files included in the driver tarball package available
-on the web site).
-
-When the eject request button on the dock is pressed, the first event
-above is generated. The handler for this event should issue the
-following command:
-
-	echo undock > /proc/acpi/ibm/dock
-
-After the LED on the dock goes off, it is safe to eject the laptop.
-Note: if you pressed this key by mistake, go ahead and eject the
-laptop, then dock it back in. Otherwise, the dock may not function as
-expected.
-
-When the laptop is docked, the third event above is generated. The
-handler for this event should issue the following command to fully
-enable the dock:
-
-	echo dock > /proc/acpi/ibm/dock
-
-The contents of the /proc/acpi/ibm/dock file shows the current status
-of the dock, as provided by the ACPI framework.
-
-The docking support in this driver does not take care of enabling or
-disabling any other devices you may have attached to the dock. For
-example, a CD drive plugged into the UltraBase needs to be disabled or
-enabled separately. See the provided example acpid configuration files
-for how this can be accomplished.
-
-There is no support yet for PCI devices that may be attached to a
-docking station, e.g. in the ThinkPad Dock II. The driver currently
-does not recognize, enable or disable such devices. This means that
-the only docking stations currently supported are the X-series
-UltraBase docks and "dumb" port replicators like the Mini Dock (the
-latter don't need any ACPI support, actually).
-
-
-UltraBay eject -- /proc/acpi/ibm/bay
-------------------------------------
-
-Inserting or ejecting an UltraBay device requires some actions to be
-taken by the operating system to safely make or break the electrical
-connections with the device.
-
-This feature generates the following ACPI events:
-
-	ibm/bay MSTR 00000003 00000000 -- eject request
-	ibm/bay MSTR 00000001 00000000 -- eject lever inserted
-
-NOTE: These events will only be generated if the UltraBay was present
-when the laptop was originally booted (on the X series, the UltraBay
-is in the dock, so it may not be present if the laptop was undocked).
-This is due to the current lack of support for hot plugging of devices
-in the Linux ACPI framework. If the laptop was booted without the
-UltraBay, the following message is shown in the logs:
-
-	Mar 17 01:42:34 aero kernel: thinkpad_acpi: bay device not present
-
-In this case, no bay-related events are generated but the eject
-command described below still works. It can be executed manually or
-triggered by a hot key combination.
-
-Sliding the eject lever generates the first event shown above. The
-handler for this event should take whatever actions are necessary to
-shut down the device in the UltraBay (e.g. call idectl), then issue
-the following command:
-
-	echo eject > /proc/acpi/ibm/bay
-
-After the LED on the UltraBay goes off, it is safe to pull out the
-device.
-
-When the eject lever is inserted, the second event above is
-generated. The handler for this event should take whatever actions are
-necessary to enable the UltraBay device (e.g. call idectl).
-
-The contents of the /proc/acpi/ibm/bay file shows the current status
-of the UltraBay, as provided by the ACPI framework.
-
-EXPERIMENTAL warm eject support on the 600e/x, A22p and A3x (To use
-this feature, you need to supply the experimental=1 parameter when
-loading the module):
-
-These models do not have a button near the UltraBay device to request
-a hot eject but rather require the laptop to be put to sleep
-(suspend-to-ram) before the bay device is ejected or inserted).
-The sequence of steps to eject the device is as follows:
-
-	echo eject > /proc/acpi/ibm/bay
-	put the ThinkPad to sleep
-	remove the drive
-	resume from sleep
-	cat /proc/acpi/ibm/bay should show that the drive was removed
-
-On the A3x, both the UltraBay 2000 and UltraBay Plus devices are
-supported. Use "eject2" instead of "eject" for the second bay.
-
-Note: the UltraBay eject support on the 600e/x, A22p and A3x is
-EXPERIMENTAL and may not work as expected. USE WITH CAUTION!
 
 
 CMOS/UCMS control
@@ -920,7 +805,7 @@ The available commands are:
 	echo '<LED number> off' >/proc/acpi/ibm/led
 	echo '<LED number> blink' >/proc/acpi/ibm/led
 
-The <LED number> range is 0 to 7. The set of LEDs that can be
+The <LED number> range is 0 to 15. The set of LEDs that can be
 controlled varies from model to model. Here is the common ThinkPad
 mapping:
 
@@ -932,6 +817,11 @@ mapping:
 	5 - UltraBase battery slot
 	6 - (unknown)
 	7 - standby
+	8 - dock status 1
+	9 - dock status 2
+	10, 11 - (unknown)
+	12 - thinkvantage
+	13, 14, 15 - (unknown)
 
 All of the above can be turned on and off and can be made to blink.
 
@@ -940,10 +830,12 @@ sysfs notes:
 The ThinkPad LED sysfs interface is described in detail by the LED class
 documentation, in Documentation/leds-class.txt.
 
-The leds are named (in LED ID order, from 0 to 7):
+The LEDs are named (in LED ID order, from 0 to 12):
 "tpacpi::power", "tpacpi:orange:batt", "tpacpi:green:batt",
 "tpacpi::dock_active", "tpacpi::bay_active", "tpacpi::dock_batt",
-"tpacpi::unknown_led", "tpacpi::standby".
+"tpacpi::unknown_led", "tpacpi::standby", "tpacpi::dock_status1",
+"tpacpi::dock_status2", "tpacpi::unknown_led2", "tpacpi::unknown_led3",
+"tpacpi::thinkvantage".
 
 Due to limitations in the sysfs LED class, if the status of the LED
 indicators cannot be read due to an error, thinkpad-acpi will report it as
@@ -957,6 +849,12 @@ These LEDs can blink using hardware acceleration.  To request that a
 ThinkPad indicator LED should blink in hardware accelerated mode, use the
 "timer" trigger, and leave the delay_on and delay_off parameters set to
 zero (to request hardware acceleration autodetection).
+
+LEDs that are known not to exist in a given ThinkPad model are not
+made available through the sysfs interface.  If you have a dock and you
+notice there are LEDs listed for your ThinkPad that do not exist (and
+are not in the dock), or if you notice that there are missing LEDs,
+a report to ibm-acpi-devel@lists.sourceforge.net is appreciated.
 
 
 ACPI sounds -- /proc/acpi/ibm/beep
@@ -1062,70 +960,21 @@ Sysfs notes:
 	subsystem, and follow all of the hwmon guidelines at
 	Documentation/hwmon.
 
+EXPERIMENTAL: Embedded controller register dump
+-----------------------------------------------
 
-EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump
-------------------------------------------------------------------------
+This feature is not included in the thinkpad driver anymore.
+Instead the EC can be accessed through /sys/kernel/debug/ec with
+a userspace tool which can be found here:
+ftp://ftp.suse.com/pub/people/trenn/sources/ec
 
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
-
-This feature dumps the values of 256 embedded controller
-registers. Values which have changed since the last time the registers
-were dumped are marked with a star:
-
-[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump
-EC       +00 +01 +02 +03 +04 +05 +06 +07 +08 +09 +0a +0b +0c +0d +0e +0f
-EC 0x00:  a7  47  87  01  fe  96  00  08  01  00  cb  00  00  00  40  00
-EC 0x10:  00  00  ff  ff  f4  3c  87  09  01  ff  42  01  ff  ff  0d  00
-EC 0x20:  00  00  00  00  00  00  00  00  00  00  00  03  43  00  00  80
-EC 0x30:  01  07  1a  00  30  04  00  00 *85  00  00  10  00  50  00  00
-EC 0x40:  00  00  00  00  00  00  14  01  00  04  00  00  00  00  00  00
-EC 0x50:  00  c0  02  0d  00  01  01  02  02  03  03  03  03 *bc *02 *bc
-EC 0x60: *02 *bc *02  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0x70:  00  00  00  00  00  12  30  40 *24 *26 *2c *27 *20  80 *1f  80
-EC 0x80:  00  00  00  06 *37 *0e  03  00  00  00  0e  07  00  00  00  00
-EC 0x90:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xa0: *ff  09  ff  09  ff  ff *64  00 *00 *00 *a2  41 *ff *ff *e0  00
-EC 0xb0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xc0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xd0:  03  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xe0:  00  00  00  00  00  00  00  00  11  20  49  04  24  06  55  03
-EC 0xf0:  31  55  48  54  35  38  57  57  08  2f  45  73  07  65  6c  1a
-
-This feature can be used to determine the register holding the fan
+Use it to determine the register holding the fan
 speed on some models. To do that, do the following:
-
 	- make sure the battery is fully charged
 	- make sure the fan is running
-	- run 'cat /proc/acpi/ibm/ecdump' several times, once per second or so
+	- use above mentioned tool to read out the EC
 
-The first step makes sure various charging-related values don't
-vary. The second ensures that the fan-related values do vary, since
-the fan speed fluctuates a bit. The third will (hopefully) mark the
-fan register with a star:
-
-[root@x40 ibm-acpi]# cat /proc/acpi/ibm/ecdump
-EC       +00 +01 +02 +03 +04 +05 +06 +07 +08 +09 +0a +0b +0c +0d +0e +0f
-EC 0x00:  a7  47  87  01  fe  96  00  08  01  00  cb  00  00  00  40  00
-EC 0x10:  00  00  ff  ff  f4  3c  87  09  01  ff  42  01  ff  ff  0d  00
-EC 0x20:  00  00  00  00  00  00  00  00  00  00  00  03  43  00  00  80
-EC 0x30:  01  07  1a  00  30  04  00  00  85  00  00  10  00  50  00  00
-EC 0x40:  00  00  00  00  00  00  14  01  00  04  00  00  00  00  00  00
-EC 0x50:  00  c0  02  0d  00  01  01  02  02  03  03  03  03  bc  02  bc
-EC 0x60:  02  bc  02  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0x70:  00  00  00  00  00  12  30  40  24  27  2c  27  21  80  1f  80
-EC 0x80:  00  00  00  06 *be  0d  03  00  00  00  0e  07  00  00  00  00
-EC 0x90:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xa0:  ff  09  ff  09  ff  ff  64  00  00  00  a2  41  ff  ff  e0  00
-EC 0xb0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xc0:  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xd0:  03  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-EC 0xe0:  00  00  00  00  00  00  00  00  11  20  49  04  24  06  55  03
-EC 0xf0:  31  55  48  54  35  38  57  57  08  2f  45  73  07  65  6c  1a
-
-Another set of values that varies often is the temperature
+Often fan and temperature values vary between
 readings. Since temperatures don't change vary fast, you can take
 several quick dumps to eliminate them.
 
@@ -1156,22 +1005,28 @@ may not be distinct.  Later Lenovo models that implement the ACPI
 display backlight brightness control methods have 16 levels, ranging
 from 0 to 15.
 
-There are two interfaces to the firmware for direct brightness control,
-EC and UCMS (or CMOS).  To select which one should be used, use the
-brightness_mode module parameter: brightness_mode=1 selects EC mode,
-brightness_mode=2 selects UCMS mode, brightness_mode=3 selects EC
-mode with NVRAM backing (so that brightness changes are remembered
-across shutdown/reboot).
+For IBM ThinkPads, there are two interfaces to the firmware for direct
+brightness control, EC and UCMS (or CMOS).  To select which one should be
+used, use the brightness_mode module parameter: brightness_mode=1 selects
+EC mode, brightness_mode=2 selects UCMS mode, brightness_mode=3 selects EC
+mode with NVRAM backing (so that brightness changes are remembered across
+shutdown/reboot).
 
 The driver tries to select which interface to use from a table of
 defaults for each ThinkPad model.  If it makes a wrong choice, please
 report this as a bug, so that we can fix it.
+
+Lenovo ThinkPads only support brightness_mode=2 (UCMS).
 
 When display backlight brightness controls are available through the
 standard ACPI interface, it is best to use it instead of this direct
 ThinkPad-specific interface.  The driver will disable its native
 backlight brightness control interface if it detects that the standard
 ACPI interface is available in the ThinkPad.
+
+If you want to use the thinkpad-acpi backlight brightness control
+instead of the generic ACPI video backlight brightness control for some
+reason, you should use the acpi_backlight=vendor kernel parameter.
 
 The brightness_enable module parameter can be used to control whether
 the LCD brightness control feature will be enabled when available.
@@ -1228,25 +1083,103 @@ WARNING:
     its level up and down at every change.
 
 
-Volume control -- /proc/acpi/ibm/volume
----------------------------------------
+Volume control (Console Audio control)
+--------------------------------------
 
-This feature allows volume control on ThinkPad models which don't have
-a hardware volume knob. The available commands are:
+procfs: /proc/acpi/ibm/volume
+ALSA: "ThinkPad Console Audio Control", default ID: "ThinkPadEC"
+
+NOTE: by default, the volume control interface operates in read-only
+mode, as it is supposed to be used for on-screen-display purposes.
+The read/write mode can be enabled through the use of the
+"volume_control=1" module parameter.
+
+NOTE: distros are urged to not enable volume_control by default, this
+should be done by the local admin only.  The ThinkPad UI is for the
+console audio control to be done through the volume keys only, and for
+the desktop environment to just provide on-screen-display feedback.
+Software volume control should be done only in the main AC97/HDA
+mixer.
+
+
+About the ThinkPad Console Audio control:
+
+ThinkPads have a built-in amplifier and muting circuit that drives the
+console headphone and speakers.  This circuit is after the main AC97
+or HDA mixer in the audio path, and under exclusive control of the
+firmware.
+
+ThinkPads have three special hotkeys to interact with the console
+audio control: volume up, volume down and mute.
+
+It is worth noting that the normal way the mute function works (on
+ThinkPads that do not have a "mute LED") is:
+
+1. Press mute to mute.  It will *always* mute, you can press it as
+   many times as you want, and the sound will remain mute.
+
+2. Press either volume key to unmute the ThinkPad (it will _not_
+   change the volume, it will just unmute).
+
+This is a very superior design when compared to the cheap software-only
+mute-toggle solution found on normal consumer laptops:  you can be
+absolutely sure the ThinkPad will not make noise if you press the mute
+button, no matter the previous state.
+
+The IBM ThinkPads, and the earlier Lenovo ThinkPads have variable-gain
+amplifiers driving the speakers and headphone output, and the firmware
+also handles volume control for the headphone and speakers on these
+ThinkPads without any help from the operating system (this volume
+control stage exists after the main AC97 or HDA mixer in the audio
+path).
+
+The newer Lenovo models only have firmware mute control, and depend on
+the main HDA mixer to do volume control (which is done by the operating
+system).  In this case, the volume keys are filtered out for unmute
+key press (there are some firmware bugs in this area) and delivered as
+normal key presses to the operating system (thinkpad-acpi is not
+involved).
+
+
+The ThinkPad-ACPI volume control:
+
+The preferred way to interact with the Console Audio control is the
+ALSA interface.
+
+The legacy procfs interface allows one to read the current state,
+and if volume control is enabled, accepts the following commands:
 
 	echo up   >/proc/acpi/ibm/volume
 	echo down >/proc/acpi/ibm/volume
 	echo mute >/proc/acpi/ibm/volume
+	echo unmute >/proc/acpi/ibm/volume
 	echo 'level <level>' >/proc/acpi/ibm/volume
 
-The <level> number range is 0 to 15 although not all of them may be
-distinct. The unmute the volume after the mute command, use either the
-up or down command (the level command will not unmute the volume).
-The current volume level and mute state is shown in the file.
+The <level> number range is 0 to 14 although not all of them may be
+distinct. To unmute the volume after the mute command, use either the
+up or down command (the level command will not unmute the volume), or
+the unmute command.
 
-The ALSA mixer interface to this feature is still missing, but patches
-to add it exist.  That problem should be addressed in the not so
-distant future.
+You can use the volume_capabilities parameter to tell the driver
+whether your thinkpad has volume control or mute-only control:
+volume_capabilities=1 for mixers with mute and volume control,
+volume_capabilities=2 for mixers with only mute control.
+
+If the driver misdetects the capabilities for your ThinkPad model,
+please report this to ibm-acpi-devel@lists.sourceforge.net, so that we
+can update the driver.
+
+There are two strategies for volume control.  To select which one
+should be used, use the volume_mode module parameter: volume_mode=1
+selects EC mode, and volume_mode=3 selects EC mode with NVRAM backing
+(so that volume/mute changes are remembered across shutdown/reboot).
+
+The driver will operate in volume_mode=3 by default. If that does not
+work well on your ThinkPad model, please report this to
+ibm-acpi-devel@lists.sourceforge.net.
+
+The driver supports the standard ALSA module parameters.  If the ALSA
+mixer is disabled, the driver will disable all volume functionality.
 
 
 Fan control and monitoring: fan speed, fan enable/disable
@@ -1254,7 +1187,7 @@ Fan control and monitoring: fan speed, fan enable/disable
 
 procfs: /proc/acpi/ibm/fan
 sysfs device attributes: (hwmon "thinkpad") fan1_input, pwm1,
-			  pwm1_enable
+			  pwm1_enable, fan2_input
 sysfs hwmon driver attributes: fan_watchdog
 
 NOTE NOTE NOTE: fan control operations are disabled by default for
@@ -1266,6 +1199,9 @@ other fan data that might be available.  The speed is read directly
 from the hardware registers of the embedded controller.  This is known
 to work on later R, T, X and Z series ThinkPads but may show a bogus
 value on other models.
+
+Some Lenovo ThinkPads support a secondary fan.  This fan cannot be
+controlled separately, it shares the main fan control.
 
 Fan levels:
 
@@ -1397,6 +1333,11 @@ hwmon device attribute fan1_input:
 	which can take up to two minutes.  May return rubbish on older
 	ThinkPads.
 
+hwmon device attribute fan2_input:
+	Fan tachometer reading, in RPM, for the secondary fan.
+	Available only on some ThinkPads.  If the secondary fan is
+	not installed, will always read 0.
+
 hwmon driver attribute fan_watchdog:
 	Fan safety watchdog timer interval, in seconds.  Minimum is
 	1 second, maximum is 120 seconds.  0 disables the watchdog.
@@ -1504,6 +1445,7 @@ to enable more than one output class, just add their values.
 	0x0008			HKEY event interface, hotkeys
 	0x0010			Fan control
 	0x0020			Backlight brightness
+	0x0040			Audio mixer/volume control
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
@@ -1555,3 +1497,18 @@ Sysfs interface changelog:
 0x020300:	hotkey enable/disable support removed, attributes
 		hotkey_bios_enabled and hotkey_enable deprecated and
 		marked for removal.
+
+0x020400:	Marker for 16 LEDs support.  Also, LEDs that are known
+		to not exist in a given model are not registered with
+		the LED sysfs class anymore.
+
+0x020500:	Updated hotkey driver, hotkey_mask is always available
+		and it is always able to disable hot keys.  Very old
+		thinkpads are properly supported.  hotkey_bios_mask
+		is deprecated and marked for removal.
+
+0x020600:	Marker for backlight change event support.
+
+0x020700:	Support for mute-only mixers.
+		Volume control in read-only mode by default.
+		Marker for ALSA mixer support.

@@ -32,19 +32,19 @@
 			     "\t.popsection"				\
 			     : : "i" (__FILE__), "i" (__LINE__),	\
 			     "i" (0), "i" (sizeof(struct bug_entry)) ); \
-		for(;;) ;						\
+		unreachable();						\
 	} while(0)
 
 #else
 #define BUG()								\
 	do {								\
 		asm volatile(PARISC_BUG_BREAK_ASM : : );		\
-		for(;;) ;						\
+		unreachable();						\
 	} while(0)
 #endif
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#define __WARN()							\
+#define __WARN_TAINT(taint)						\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
@@ -54,11 +54,11 @@
 			     "\t.org 2b+%c3\n"				\
 			     "\t.popsection"				\
 			     : : "i" (__FILE__), "i" (__LINE__),	\
-			     "i" (BUGFLAG_WARNING),			\
+			     "i" (BUGFLAG_TAINT(taint)), 		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #else
-#define __WARN()							\
+#define __WARN_TAINT(taint)						\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
@@ -67,7 +67,7 @@
 			     "\t.short %c0\n"				\
 			     "\t.org 2b+%c1\n"				\
 			     "\t.popsection"				\
-			     : : "i" (BUGFLAG_WARNING),			\
+			     : : "i" (BUGFLAG_TAINT(taint)),		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #endif

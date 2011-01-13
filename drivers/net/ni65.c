@@ -252,7 +252,8 @@ static void ni65_xmit_intr(struct net_device *dev,int);
 static int  ni65_open(struct net_device *dev);
 static int  ni65_lance_reinit(struct net_device *dev);
 static void ni65_init_lance(struct priv *p,unsigned char*,int,int);
-static int  ni65_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ni65_send_packet(struct sk_buff *skb,
+				    struct net_device *dev);
 static void  ni65_timeout(struct net_device *dev);
 static int  ni65_close(struct net_device *dev);
 static int  ni65_alloc_buffer(struct net_device *dev);
@@ -293,7 +294,7 @@ static void ni65_set_performance(struct priv *p)
 static int ni65_open(struct net_device *dev)
 {
 	struct priv *p = dev->ml_priv;
-	int irqval = request_irq(dev->irq, &ni65_interrupt,0,
+	int irqval = request_irq(dev->irq, ni65_interrupt,0,
                         cards[p->cardno].cardname,dev);
 	if (irqval) {
 		printk(KERN_ERR "%s: unable to get IRQ %d (irqval=%d).\n",
@@ -360,8 +361,8 @@ static int dma;
 struct net_device * __init ni65_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(0);
-	static int ports[] = {0x360,0x300,0x320,0x340, 0};
-	int *port;
+	static const int ports[] = { 0x360, 0x300, 0x320, 0x340, 0 };
+	const int *port;
 	int err = 0;
 
 	if (!dev)
@@ -783,7 +784,7 @@ static void ni65_stop_start(struct net_device *dev,struct priv *p)
 		if(!p->lock)
 			if (p->tmdnum || !p->xmit_queued)
 				netif_wake_queue(dev);
-		dev->trans_start = jiffies;
+		dev->trans_start = jiffies; /* prevent tx timeout */
 	}
 	else
 		writedatareg(CSR0_STRT | csr0);
@@ -848,7 +849,7 @@ static int ni65_lance_reinit(struct net_device *dev)
 
 	 if(dev->flags & IFF_PROMISC)
 		 ni65_init_lance(p,dev->dev_addr,0x00,M_PROM);
-	 else if(dev->mc_count || dev->flags & IFF_ALLMULTI)
+	 else if (netdev_mc_count(dev) || dev->flags & IFF_ALLMULTI)
 		 ni65_init_lance(p,dev->dev_addr,0xff,0x0);
 	 else
 		 ni65_init_lance(p,dev->dev_addr,0x00,0x00);
@@ -1149,7 +1150,7 @@ static void ni65_timeout(struct net_device *dev)
 		printk("%02x ",p->tmdhead[i].u.s.status);
 	printk("\n");
 	ni65_lance_reinit(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -1157,7 +1158,8 @@ static void ni65_timeout(struct net_device *dev)
  *	Send a packet
  */
 
-static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ni65_send_packet(struct sk_buff *skb,
+				    struct net_device *dev)
 {
 	struct priv *p = dev->ml_priv;
 
@@ -1211,12 +1213,11 @@ static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 			netif_wake_queue(dev);
 
 		p->lock = 0;
-		dev->trans_start = jiffies;
 
 		spin_unlock_irqrestore(&p->ring_lock, flags);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void set_multicast_list(struct net_device *dev)

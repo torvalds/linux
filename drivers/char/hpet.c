@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/major.h>
@@ -30,12 +29,14 @@
 #include <linux/bcd.h>
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
+#include <linux/compat.h>
 #include <linux/clocksource.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/current.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
 
@@ -66,6 +67,7 @@
 #define	read_counter(MC)	readl(MC)
 #endif
 
+static DEFINE_MUTEX(hpet_mutex); /* replaces BKL */
 static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 
 /* This clocksource driver currently only works on ia64 */
@@ -78,13 +80,13 @@ static cycle_t read_hpet(struct clocksource *cs)
 }
 
 static struct clocksource clocksource_hpet = {
-        .name           = "hpet",
-        .rating         = 250,
-        .read           = read_hpet,
-        .mask           = CLOCKSOURCE_MASK(64),
-	.mult		= 0, /* to be calculated */
-        .shift          = 10,
-        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
+	.name		= "hpet",
+	.rating		= 250,
+	.read		= read_hpet,
+	.mask		= CLOCKSOURCE_MASK(64),
+	.mult		= 0,		/* to be calculated */
+	.shift		= 10,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 static struct clocksource *hpet_clocksource;
 #endif
@@ -166,9 +168,8 @@ static irqreturn_t hpet_interrupt(int irq, void *data)
 		unsigned long m, t;
 
 		t = devp->hd_ireqfreq;
-		m = read_counter(&devp->hd_hpet->hpet_mc);
-		write_counter(t + m + devp->hd_hpets->hp_delta,
-			      &devp->hd_timer->hpet_compare);
+		m = read_counter(&devp->hd_timer->hpet_compare);
+		write_counter(t + m, &devp->hd_timer->hpet_compare);
 	}
 
 	if (devp->hd_flags & HPET_SHARED_IRQ)
@@ -216,9 +217,7 @@ static void hpet_timer_set_irq(struct hpet_dev *devp)
 	else
 		v &= ~0xffff;
 
-	for (irq = find_first_bit(&v, HPET_MAX_IRQ); irq < HPET_MAX_IRQ;
-		irq = find_next_bit(&v, HPET_MAX_IRQ, 1 + irq)) {
-
+	for_each_set_bit(irq, &v, HPET_MAX_IRQ) {
 		if (irq >= nr_irqs) {
 			irq = HPET_MAX_IRQ;
 			break;
@@ -252,7 +251,7 @@ static int hpet_open(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		return -EINVAL;
 
-	lock_kernel();
+	mutex_lock(&hpet_mutex);
 	spin_lock_irq(&hpet_lock);
 
 	for (devp = NULL, hpetp = hpets; hpetp && !devp; hpetp = hpetp->hp_next)
@@ -266,7 +265,7 @@ static int hpet_open(struct inode *inode, struct file *file)
 
 	if (!devp) {
 		spin_unlock_irq(&hpet_lock);
-		unlock_kernel();
+		mutex_unlock(&hpet_mutex);
 		return -EBUSY;
 	}
 
@@ -274,7 +273,7 @@ static int hpet_open(struct inode *inode, struct file *file)
 	devp->hd_irqdata = 0;
 	devp->hd_flags |= HPET_OPEN;
 	spin_unlock_irq(&hpet_lock);
-	unlock_kernel();
+	mutex_unlock(&hpet_mutex);
 
 	hpet_timer_set_irq(devp);
 
@@ -431,18 +430,6 @@ static int hpet_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hpet_ioctl_common(struct hpet_dev *, int, unsigned long, int);
-
-static int
-hpet_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg)
-{
-	struct hpet_dev *devp;
-
-	devp = file->private_data;
-	return hpet_ioctl_common(devp, cmd, arg, 0);
-}
-
 static int hpet_ioctl_ieon(struct hpet_dev *devp)
 {
 	struct hpet_timer __iomem *timer;
@@ -477,6 +464,21 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	if (irq) {
 		unsigned long irq_flags;
 
+		if (devp->hd_flags & HPET_SHARED_IRQ) {
+			/*
+			 * To prevent the interrupt handler from seeing an
+			 * unwanted interrupt status bit, program the timer
+			 * so that it will not fire in the near future ...
+			 */
+			writel(readl(&timer->hpet_config) & ~Tn_TYPE_CNF_MASK,
+			       &timer->hpet_config);
+			write_counter(read_counter(&hpet->hpet_mc),
+				      &timer->hpet_compare);
+			/* ... and clear any left-over status. */
+			isr = 1 << (devp - devp->hd_hpets->hp_dev);
+			writel(isr, &hpet->hpet_isr);
+		}
+
 		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
 		irq_flags = devp->hd_flags & HPET_SHARED_IRQ
 						? IRQF_SHARED : IRQF_DISABLED;
@@ -504,21 +506,25 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	g = v | Tn_32MODE_CNF_MASK | Tn_INT_ENB_CNF_MASK;
 
 	if (devp->hd_flags & HPET_PERIODIC) {
-		write_counter(t, &timer->hpet_compare);
 		g |= Tn_TYPE_CNF_MASK;
-		v |= Tn_TYPE_CNF_MASK;
-		writeq(v, &timer->hpet_config);
-		v |= Tn_VAL_SET_CNF_MASK;
+		v |= Tn_TYPE_CNF_MASK | Tn_VAL_SET_CNF_MASK;
 		writeq(v, &timer->hpet_config);
 		local_irq_save(flags);
 
-		/* NOTE:  what we modify here is a hidden accumulator
+		/*
+		 * NOTE: First we modify the hidden accumulator
 		 * register supported by periodic-capable comparators.
 		 * We never want to modify the (single) counter; that
-		 * would affect all the comparators.
+		 * would affect all the comparators. The value written
+		 * is the counter value when the first interrupt is due.
 		 */
 		m = read_counter(&hpet->hpet_mc);
 		write_counter(t + m + hpetp->hp_delta, &timer->hpet_compare);
+		/*
+		 * Then we modify the comparator, indicating the period
+		 * for subsequent interrupt.
+		 */
+		write_counter(t, &timer->hpet_compare);
 	} else {
 		local_irq_save(flags);
 		m = read_counter(&hpet->hpet_mc);
@@ -547,7 +553,8 @@ static inline unsigned long hpet_time_div(struct hpets *hpets,
 }
 
 static int
-hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
+hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg,
+		  struct hpet_info *info)
 {
 	struct hpet_timer __iomem *timer;
 	struct hpet __iomem *hpet;
@@ -588,23 +595,14 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 		break;
 	case HPET_INFO:
 		{
-			struct hpet_info info;
-
+			memset(info, 0, sizeof(*info));
 			if (devp->hd_ireqfreq)
-				info.hi_ireqfreq =
+				info->hi_ireqfreq =
 					hpet_time_div(hpetp, devp->hd_ireqfreq);
-			else
-				info.hi_ireqfreq = 0;
-			info.hi_flags =
+			info->hi_flags =
 			    readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK;
-			info.hi_hpet = hpetp->hp_which;
-			info.hi_timer = devp - hpetp->hp_dev;
-			if (kernel)
-				memcpy((void *)arg, &info, sizeof(info));
-			else
-				if (copy_to_user((void __user *)arg, &info,
-						 sizeof(info)))
-					err = -EFAULT;
+			info->hi_hpet = hpetp->hp_which;
+			info->hi_timer = devp - hpetp->hp_dev;
 			break;
 		}
 	case HPET_EPI:
@@ -630,7 +628,7 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 		devp->hd_flags &= ~HPET_PERIODIC;
 		break;
 	case HPET_IRQFREQ:
-		if (!kernel && (arg > hpet_max_freq) &&
+		if ((arg > hpet_max_freq) &&
 		    !capable(CAP_SYS_RESOURCE)) {
 			err = -EACCES;
 			break;
@@ -647,12 +645,63 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 	return err;
 }
 
+static long
+hpet_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct hpet_info info;
+	int err;
+
+	mutex_lock(&hpet_mutex);
+	err = hpet_ioctl_common(file->private_data, cmd, arg, &info);
+	mutex_unlock(&hpet_mutex);
+
+	if ((cmd == HPET_INFO) && !err &&
+	    (copy_to_user((void __user *)arg, &info, sizeof(info))))
+		err = -EFAULT;
+
+	return err;
+}
+
+#ifdef CONFIG_COMPAT
+struct compat_hpet_info {
+	compat_ulong_t hi_ireqfreq;	/* Hz */
+	compat_ulong_t hi_flags;	/* information */
+	unsigned short hi_hpet;
+	unsigned short hi_timer;
+};
+
+static long
+hpet_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct hpet_info info;
+	int err;
+
+	mutex_lock(&hpet_mutex);
+	err = hpet_ioctl_common(file->private_data, cmd, arg, &info);
+	mutex_unlock(&hpet_mutex);
+
+	if ((cmd == HPET_INFO) && !err) {
+		struct compat_hpet_info __user *u = compat_ptr(arg);
+		if (put_user(info.hi_ireqfreq, &u->hi_ireqfreq) ||
+		    put_user(info.hi_flags, &u->hi_flags) ||
+		    put_user(info.hi_hpet, &u->hi_hpet) ||
+		    put_user(info.hi_timer, &u->hi_timer))
+			err = -EFAULT;
+	}
+
+	return err;
+}
+#endif
+
 static const struct file_operations hpet_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.read = hpet_read,
 	.poll = hpet_poll,
-	.ioctl = hpet_ioctl,
+	.unlocked_ioctl = hpet_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = hpet_compat_ioctl,
+#endif
 	.open = hpet_open,
 	.release = hpet_release,
 	.fasync = hpet_fasync,
@@ -672,36 +721,33 @@ static int hpet_is_known(struct hpet_data *hdp)
 
 static ctl_table hpet_table[] = {
 	{
-	 .ctl_name = CTL_UNNUMBERED,
 	 .procname = "max-user-freq",
 	 .data = &hpet_max_freq,
 	 .maxlen = sizeof(int),
 	 .mode = 0644,
-	 .proc_handler = &proc_dointvec,
+	 .proc_handler = proc_dointvec,
 	 },
-	{.ctl_name = 0}
+	{}
 };
 
 static ctl_table hpet_root[] = {
 	{
-	 .ctl_name = CTL_UNNUMBERED,
 	 .procname = "hpet",
 	 .maxlen = 0,
 	 .mode = 0555,
 	 .child = hpet_table,
 	 },
-	{.ctl_name = 0}
+	{}
 };
 
 static ctl_table dev_root[] = {
 	{
-	 .ctl_name = CTL_DEV,
 	 .procname = "dev",
 	 .maxlen = 0,
 	 .mode = 0555,
 	 .child = hpet_root,
 	 },
-	{.ctl_name = 0}
+	{}
 };
 
 static struct ctl_table_header *sysctl_header;
@@ -778,7 +824,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	struct hpets *hpetp;
 	size_t siz;
 	struct hpet __iomem *hpet;
-	static struct hpets *last = NULL;
+	static struct hpets *last;
 	unsigned long period;
 	unsigned long long temp;
 	u32 remainder;
@@ -967,6 +1013,8 @@ static int hpet_acpi_add(struct acpi_device *device)
 		return -ENODEV;
 
 	if (!data.hd_address || !data.hd_nirqs) {
+		if (data.hd_address)
+			iounmap(data.hd_address);
 		printk("%s: no address or irqs in _CRS\n", __func__);
 		return -ENODEV;
 	}

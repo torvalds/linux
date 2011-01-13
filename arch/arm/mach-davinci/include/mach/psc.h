@@ -81,6 +81,24 @@
 #define DM355_LPSC_RTO			12
 #define DM355_LPSC_VPSS_DAC		41
 
+/* DM365 */
+#define DM365_LPSC_TIMER3	5
+#define DM365_LPSC_SPI1		6
+#define DM365_LPSC_MMC_SD1	7
+#define DM365_LPSC_McBSP1	8
+#define DM365_LPSC_PWM3		10
+#define DM365_LPSC_SPI2		11
+#define DM365_LPSC_RTO		12
+#define DM365_LPSC_TIMER4	17
+#define DM365_LPSC_SPI0		22
+#define DM365_LPSC_SPI3		38
+#define DM365_LPSC_SPI4		39
+#define DM365_LPSC_EMAC		40
+#define DM365_LPSC_VOICE_CODEC	44
+#define DM365_LPSC_DAC_CLK	46
+#define DM365_LPSC_VPSSMSTR	47
+#define DM365_LPSC_MJCP		50
+
 /*
  * LPSC Assignments
  */
@@ -118,8 +136,121 @@
 #define DM646X_LPSC_TIMER1         35
 #define DM646X_LPSC_ARM_INTC       45
 
+/* PSC0 defines */
+#define DA8XX_LPSC0_TPCC		0
+#define DA8XX_LPSC0_TPTC0		1
+#define DA8XX_LPSC0_TPTC1		2
+#define DA8XX_LPSC0_EMIF25		3
+#define DA8XX_LPSC0_SPI0		4
+#define DA8XX_LPSC0_MMC_SD		5
+#define DA8XX_LPSC0_AINTC		6
+#define DA8XX_LPSC0_ARM_RAM_ROM		7
+#define DA8XX_LPSC0_SECU_MGR		8
+#define DA8XX_LPSC0_UART0		9
+#define DA8XX_LPSC0_SCR0_SS		10
+#define DA8XX_LPSC0_SCR1_SS		11
+#define DA8XX_LPSC0_SCR2_SS		12
+#define DA8XX_LPSC0_DMAX		13
+#define DA8XX_LPSC0_ARM			14
+#define DA8XX_LPSC0_GEM			15
+
+/* PSC1 defines */
+#define DA850_LPSC1_TPCC1		0
+#define DA8XX_LPSC1_USB20		1
+#define DA8XX_LPSC1_USB11		2
+#define DA8XX_LPSC1_GPIO		3
+#define DA8XX_LPSC1_UHPI		4
+#define DA8XX_LPSC1_CPGMAC		5
+#define DA8XX_LPSC1_EMIF3C		6
+#define DA8XX_LPSC1_McASP0		7
+#define DA830_LPSC1_McASP1		8
+#define DA850_LPSC1_SATA		8
+#define DA830_LPSC1_McASP2		9
+#define DA8XX_LPSC1_SPI1		10
+#define DA8XX_LPSC1_I2C			11
+#define DA8XX_LPSC1_UART1		12
+#define DA8XX_LPSC1_UART2		13
+#define DA8XX_LPSC1_LCDC		16
+#define DA8XX_LPSC1_PWM			17
+#define DA850_LPSC1_MMC_SD1		18
+#define DA8XX_LPSC1_ECAP		20
+#define DA830_LPSC1_EQEP		21
+#define DA850_LPSC1_TPTC2		21
+#define DA8XX_LPSC1_SCR_P0_SS		24
+#define DA8XX_LPSC1_SCR_P1_SS		25
+#define DA8XX_LPSC1_CR_P3_SS		26
+#define DA8XX_LPSC1_L3_CBA_RAM		31
+
+/* TNETV107X LPSC Assignments */
+#define TNETV107X_LPSC_ARM			0
+#define TNETV107X_LPSC_GEM			1
+#define TNETV107X_LPSC_DDR2_PHY			2
+#define TNETV107X_LPSC_TPCC			3
+#define TNETV107X_LPSC_TPTC0			4
+#define TNETV107X_LPSC_TPTC1			5
+#define TNETV107X_LPSC_RAM			6
+#define TNETV107X_LPSC_MBX_LITE			7
+#define TNETV107X_LPSC_LCD			8
+#define TNETV107X_LPSC_ETHSS			9
+#define TNETV107X_LPSC_AEMIF			10
+#define TNETV107X_LPSC_CHIP_CFG			11
+#define TNETV107X_LPSC_TSC			12
+#define TNETV107X_LPSC_ROM			13
+#define TNETV107X_LPSC_UART2			14
+#define TNETV107X_LPSC_PKTSEC			15
+#define TNETV107X_LPSC_SECCTL			16
+#define TNETV107X_LPSC_KEYMGR			17
+#define TNETV107X_LPSC_KEYPAD			18
+#define TNETV107X_LPSC_GPIO			19
+#define TNETV107X_LPSC_MDIO			20
+#define TNETV107X_LPSC_SDIO0			21
+#define TNETV107X_LPSC_UART0			22
+#define TNETV107X_LPSC_UART1			23
+#define TNETV107X_LPSC_TIMER0			24
+#define TNETV107X_LPSC_TIMER1			25
+#define TNETV107X_LPSC_WDT_ARM			26
+#define TNETV107X_LPSC_WDT_DSP			27
+#define TNETV107X_LPSC_SSP			28
+#define TNETV107X_LPSC_TDM0			29
+#define TNETV107X_LPSC_VLYNQ			30
+#define TNETV107X_LPSC_MCDMA			31
+#define TNETV107X_LPSC_USB0			32
+#define TNETV107X_LPSC_TDM1			33
+#define TNETV107X_LPSC_DEBUGSS			34
+#define TNETV107X_LPSC_ETHSS_RGMII		35
+#define TNETV107X_LPSC_SYSTEM			36
+#define TNETV107X_LPSC_IMCOP			37
+#define TNETV107X_LPSC_SPARE			38
+#define TNETV107X_LPSC_SDIO1			39
+#define TNETV107X_LPSC_USB1			40
+#define TNETV107X_LPSC_USBSS			41
+#define TNETV107X_LPSC_DDR2_EMIF1_VRST		42
+#define TNETV107X_LPSC_DDR2_EMIF2_VCTL_RST	43
+#define TNETV107X_LPSC_MAX			44
+
+/* PSC register offsets */
+#define EPCPR		0x070
+#define PTCMD		0x120
+#define PTSTAT		0x128
+#define PDSTAT		0x200
+#define PDCTL1		0x304
+#define MDSTAT		0x800
+#define MDCTL		0xA00
+
+/* PSC module states */
+#define PSC_STATE_SWRSTDISABLE	0
+#define PSC_STATE_SYNCRST	1
+#define PSC_STATE_DISABLE	2
+#define PSC_STATE_ENABLE	3
+
+#define MDSTAT_STATE_MASK 0x1f
+
+#ifndef __ASSEMBLER__
+
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
-		unsigned int id, char enable);
+		unsigned int id, u32 next_state);
+
+#endif
 
 #endif /* __ASM_ARCH_PSC_H */

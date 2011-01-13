@@ -1,9 +1,9 @@
 /*
- *    Support for Legend Silicon DMB-TH demodulator
- *    LGS8913, LGS8GL5
+ *    Support for Legend Silicon GB20600 (a.k.a DMB-TH) demodulator
+ *    LGS8913, LGS8GL5, LGS8G75
  *    experimental support LGS8G42, LGS8G52
  *
- *    Copyright (C) 2007,2008 David T.L. Wong <davidtlwong@gmail.com>
+ *    Copyright (C) 2007-2009 David T.L. Wong <davidtlwong@gmail.com>
  *    Copyright (C) 2008 Sirius International (Hong Kong) Limited
  *    Timothy Lee <timothy.lee@siriushk.com> (for initial work on LGS8GL5)
  *
@@ -24,6 +24,7 @@
  */
 
 #include <asm/div64.h>
+#include <linux/firmware.h>
 
 #include "dvb_frontend.h"
 
@@ -55,17 +56,16 @@ static int lgs8gxx_write_reg(struct lgs8gxx_state *priv, u8 reg, u8 data)
 	struct i2c_msg msg = { .flags = 0, .buf = buf, .len = 2 };
 
 	msg.addr = priv->config->demod_address;
-	if (reg >= 0xC0)
+	if (priv->config->prod != LGS8GXX_PROD_LGS8G75 && reg >= 0xC0)
 		msg.addr += 0x02;
 
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%02X, data=0x%02X\n",
-			__func__, reg, data);
+		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, data);
 
 	ret = i2c_transfer(priv->i2c, &msg, 1);
 
 	if (ret != 1)
-		dprintk(KERN_DEBUG "%s: error reg=0x%x, data=0x%x, ret=%i\n",
+		dprintk("%s: error reg=0x%x, data=0x%x, ret=%i\n",
 			__func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
@@ -84,21 +84,19 @@ static int lgs8gxx_read_reg(struct lgs8gxx_state *priv, u8 reg, u8 *p_data)
 	};
 
 	dev_addr = priv->config->demod_address;
-	if (reg >= 0xC0)
+	if (priv->config->prod != LGS8GXX_PROD_LGS8G75 && reg >= 0xC0)
 		dev_addr += 0x02;
 	msg[1].addr =  msg[0].addr = dev_addr;
 
 	ret = i2c_transfer(priv->i2c, msg, 2);
 	if (ret != 2) {
-		dprintk(KERN_DEBUG "%s: error reg=0x%x, ret=%i\n",
-			__func__, reg, ret);
+		dprintk("%s: error reg=0x%x, ret=%i\n", __func__, reg, ret);
 		return -1;
 	}
 
 	*p_data = b1[0];
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%02X, data=0x%02X\n",
-			__func__, reg, b1[0]);
+		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, b1[0]);
 	return 0;
 }
 
@@ -112,19 +110,36 @@ static int lgs8gxx_soft_reset(struct lgs8gxx_state *priv)
 	return 0;
 }
 
+static int wait_reg_mask(struct lgs8gxx_state *priv, u8 reg, u8 mask,
+	u8 val, u8 delay, u8 tries)
+{
+	u8 t;
+	int i;
+
+	for (i = 0; i < tries; i++) {
+		lgs8gxx_read_reg(priv, reg, &t);
+
+		if ((t & mask) == val)
+			return 0;
+		msleep(delay);
+	}
+
+	return 1;
+}
+
 static int lgs8gxx_set_ad_mode(struct lgs8gxx_state *priv)
 {
 	const struct lgs8gxx_config *config = priv->config;
 	u8 if_conf;
 
-	if_conf = 0x10; /* AGC output on; */
+	if_conf = 0x10; /* AGC output on, RF_AGC output off; */
 
 	if_conf |=
 		((config->ext_adc) ? 0x80 : 0x00) |
 		((config->if_neg_center) ? 0x04 : 0x00) |
 		((config->if_freq == 0) ? 0x08 : 0x00) | /* Baseband */
-		((config->ext_adc && config->adc_signed) ? 0x02 : 0x00) |
-		((config->ext_adc && config->if_neg_edge) ? 0x01 : 0x00);
+		((config->adc_signed) ? 0x02 : 0x00) |
+		((config->if_neg_edge) ? 0x01 : 0x00);
 
 	if (config->ext_adc &&
 		(config->prod == LGS8GXX_PROD_LGS8G52)) {
@@ -146,7 +161,7 @@ static int lgs8gxx_set_if_freq(struct lgs8gxx_state *priv, u32 freq /*in kHz*/)
 
 	val = freq;
 	if (freq != 0) {
-		val *= (u64)1 << 32;
+		val <<= 32;
 		if (if_clk != 0)
 			do_div(val, if_clk);
 		v32 = val & 0xFFFFFFFF;
@@ -157,39 +172,82 @@ static int lgs8gxx_set_if_freq(struct lgs8gxx_state *priv, u32 freq /*in kHz*/)
 	}
 	dprintk("AFC_INIT_FREQ = 0x%08X\n", v32);
 
-	lgs8gxx_write_reg(priv, 0x09, 0xFF & (v32));
-	lgs8gxx_write_reg(priv, 0x0A, 0xFF & (v32 >> 8));
-	lgs8gxx_write_reg(priv, 0x0B, 0xFF & (v32 >> 16));
-	lgs8gxx_write_reg(priv, 0x0C, 0xFF & (v32 >> 24));
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		lgs8gxx_write_reg(priv, 0x08, 0xFF & (v32));
+		lgs8gxx_write_reg(priv, 0x09, 0xFF & (v32 >> 8));
+		lgs8gxx_write_reg(priv, 0x0A, 0xFF & (v32 >> 16));
+		lgs8gxx_write_reg(priv, 0x0B, 0xFF & (v32 >> 24));
+	} else {
+		lgs8gxx_write_reg(priv, 0x09, 0xFF & (v32));
+		lgs8gxx_write_reg(priv, 0x0A, 0xFF & (v32 >> 8));
+		lgs8gxx_write_reg(priv, 0x0B, 0xFF & (v32 >> 16));
+		lgs8gxx_write_reg(priv, 0x0C, 0xFF & (v32 >> 24));
+	}
 
+	return 0;
+}
+
+static int lgs8gxx_get_afc_phase(struct lgs8gxx_state *priv)
+{
+	u64 val;
+	u32 v32 = 0;
+	u8 reg_addr, t;
+	int i;
+
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75)
+		reg_addr = 0x23;
+	else
+		reg_addr = 0x48;
+
+	for (i = 0; i < 4; i++) {
+		lgs8gxx_read_reg(priv, reg_addr, &t);
+		v32 <<= 8;
+		v32 |= t;
+		reg_addr--;
+	}
+
+	val = v32;
+	val *= priv->config->if_clk_freq;
+	val >>= 32;
+	dprintk("AFC = %u kHz\n", (u32)val);
 	return 0;
 }
 
 static int lgs8gxx_set_mode_auto(struct lgs8gxx_state *priv)
 {
 	u8 t;
+	u8 prod = priv->config->prod;
 
-	if (priv->config->prod == LGS8GXX_PROD_LGS8913)
+	if (prod == LGS8GXX_PROD_LGS8913)
 		lgs8gxx_write_reg(priv, 0xC6, 0x01);
 
-	lgs8gxx_read_reg(priv, 0x7E, &t);
-	lgs8gxx_write_reg(priv, 0x7E, t | 0x01);
+	if (prod == LGS8GXX_PROD_LGS8G75) {
+		lgs8gxx_read_reg(priv, 0x0C, &t);
+		t &= (~0x04);
+		lgs8gxx_write_reg(priv, 0x0C, t | 0x80);
+		lgs8gxx_write_reg(priv, 0x39, 0x00);
+		lgs8gxx_write_reg(priv, 0x3D, 0x04);
+	} else if (prod == LGS8GXX_PROD_LGS8913 ||
+		prod == LGS8GXX_PROD_LGS8GL5 ||
+		prod == LGS8GXX_PROD_LGS8G42 ||
+		prod == LGS8GXX_PROD_LGS8G52 ||
+		prod == LGS8GXX_PROD_LGS8G54) {
+		lgs8gxx_read_reg(priv, 0x7E, &t);
+		lgs8gxx_write_reg(priv, 0x7E, t | 0x01);
 
-	/* clear FEC self reset */
-	lgs8gxx_read_reg(priv, 0xC5, &t);
-	lgs8gxx_write_reg(priv, 0xC5, t & 0xE0);
+		/* clear FEC self reset */
+		lgs8gxx_read_reg(priv, 0xC5, &t);
+		lgs8gxx_write_reg(priv, 0xC5, t & 0xE0);
+	}
 
-	if (priv->config->prod == LGS8GXX_PROD_LGS8913) {
+	if (prod == LGS8GXX_PROD_LGS8913) {
 		/* FEC auto detect */
 		lgs8gxx_write_reg(priv, 0xC1, 0x03);
 
 		lgs8gxx_read_reg(priv, 0x7C, &t);
 		t = (t & 0x8C) | 0x03;
 		lgs8gxx_write_reg(priv, 0x7C, t);
-	}
 
-
-	if (priv->config->prod == LGS8GXX_PROD_LGS8913) {
 		/* BER test mode */
 		lgs8gxx_read_reg(priv, 0xC3, &t);
 		t = (t & 0xEF) |  0x10;
@@ -206,6 +264,32 @@ static int lgs8gxx_set_mode_manual(struct lgs8gxx_state *priv)
 {
 	int ret = 0;
 	u8 t;
+
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		u8 t2;
+		lgs8gxx_read_reg(priv, 0x0C, &t);
+		t &= (~0x80);
+		lgs8gxx_write_reg(priv, 0x0C, t);
+
+		lgs8gxx_read_reg(priv, 0x0C, &t);
+		lgs8gxx_read_reg(priv, 0x19, &t2);
+
+		if (((t&0x03) == 0x01) && (t2&0x01)) {
+			lgs8gxx_write_reg(priv, 0x6E, 0x05);
+			lgs8gxx_write_reg(priv, 0x39, 0x02);
+			lgs8gxx_write_reg(priv, 0x39, 0x03);
+			lgs8gxx_write_reg(priv, 0x3D, 0x05);
+			lgs8gxx_write_reg(priv, 0x3E, 0x28);
+			lgs8gxx_write_reg(priv, 0x53, 0x80);
+		} else {
+			lgs8gxx_write_reg(priv, 0x6E, 0x3F);
+			lgs8gxx_write_reg(priv, 0x39, 0x00);
+			lgs8gxx_write_reg(priv, 0x3D, 0x04);
+		}
+
+		lgs8gxx_soft_reset(priv);
+		return 0;
+	}
 
 	/* turn off auto-detect; manual settings */
 	lgs8gxx_write_reg(priv, 0x7E, 0);
@@ -226,11 +310,39 @@ static int lgs8gxx_is_locked(struct lgs8gxx_state *priv, u8 *locked)
 	int ret = 0;
 	u8 t;
 
-	ret = lgs8gxx_read_reg(priv, 0x4B, &t);
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75)
+		ret = lgs8gxx_read_reg(priv, 0x13, &t);
+	else
+		ret = lgs8gxx_read_reg(priv, 0x4B, &t);
 	if (ret != 0)
 		return ret;
 
-	*locked = ((t & 0xC0) == 0xC0) ? 1 : 0;
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75)
+		*locked = ((t & 0x80) == 0x80) ? 1 : 0;
+	else
+		*locked = ((t & 0xC0) == 0xC0) ? 1 : 0;
+	return 0;
+}
+
+/* Wait for Code Acquisition Lock */
+static int lgs8gxx_wait_ca_lock(struct lgs8gxx_state *priv, u8 *locked)
+{
+	int ret = 0;
+	u8 reg, mask, val;
+
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		reg = 0x13;
+		mask = 0x80;
+		val = 0x80;
+	} else {
+		reg = 0x4B;
+		mask = 0xC0;
+		val = 0xC0;
+	}
+
+	ret = wait_reg_mask(priv, reg, mask, val, 50, 40);
+	*locked = (ret == 0) ? 1 : 0;
+
 	return 0;
 }
 
@@ -238,21 +350,30 @@ static int lgs8gxx_is_autodetect_finished(struct lgs8gxx_state *priv,
 					  u8 *finished)
 {
 	int ret = 0;
-	u8 t;
+	u8 reg, mask, val;
 
-	ret = lgs8gxx_read_reg(priv, 0xA4, &t);
-	if (ret != 0)
-		return ret;
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		reg = 0x1f;
+		mask = 0xC0;
+		val = 0x80;
+	} else {
+		reg = 0xA4;
+		mask = 0x03;
+		val = 0x01;
+	}
 
-	*finished = ((t & 0x3) == 0x1) ? 1 : 0;
+	ret = wait_reg_mask(priv, reg, mask, val, 10, 20);
+	*finished = (ret == 0) ? 1 : 0;
 
 	return 0;
 }
 
-static int lgs8gxx_autolock_gi(struct lgs8gxx_state *priv, u8 gi, u8 *locked)
+static int lgs8gxx_autolock_gi(struct lgs8gxx_state *priv, u8 gi, u8 cpn,
+	u8 *locked)
 {
-	int err;
+	int err = 0;
 	u8 ad_fini = 0;
+	u8 t1, t2;
 
 	if (gi == GI_945)
 		dprintk("try GI 945\n");
@@ -260,17 +381,29 @@ static int lgs8gxx_autolock_gi(struct lgs8gxx_state *priv, u8 gi, u8 *locked)
 		dprintk("try GI 595\n");
 	else if (gi == GI_420)
 		dprintk("try GI 420\n");
-	lgs8gxx_write_reg(priv, 0x04, gi);
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		lgs8gxx_read_reg(priv, 0x0C, &t1);
+		lgs8gxx_read_reg(priv, 0x18, &t2);
+		t1 &= ~(GI_MASK);
+		t1 |= gi;
+		t2 &= 0xFE;
+		t2 |= cpn ? 0x01 : 0x00;
+		lgs8gxx_write_reg(priv, 0x0C, t1);
+		lgs8gxx_write_reg(priv, 0x18, t2);
+	} else {
+		lgs8gxx_write_reg(priv, 0x04, gi);
+	}
 	lgs8gxx_soft_reset(priv);
-	msleep(50);
+	err = lgs8gxx_wait_ca_lock(priv, locked);
+	if (err || !(*locked))
+		return err;
 	err = lgs8gxx_is_autodetect_finished(priv, &ad_fini);
 	if (err != 0)
 		return err;
 	if (ad_fini) {
-		err = lgs8gxx_is_locked(priv, locked);
-		if (err != 0)
-			return err;
-	}
+		dprintk("auto detect finished\n");
+	} else
+		*locked = 0;
 
 	return 0;
 }
@@ -285,13 +418,18 @@ static int lgs8gxx_auto_detect(struct lgs8gxx_state *priv,
 	dprintk("%s\n", __func__);
 
 	lgs8gxx_set_mode_auto(priv);
-	/* Guard Interval */
-	lgs8gxx_write_reg(priv, 0x03, 00);
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		lgs8gxx_write_reg(priv, 0x67, 0xAA);
+		lgs8gxx_write_reg(priv, 0x6E, 0x3F);
+	} else {
+		/* Guard Interval */
+		lgs8gxx_write_reg(priv, 0x03, 00);
+	}
 
 	for (i = 0; i < 2; i++) {
 		for (j = 0; j < 2; j++) {
 			tmp_gi = GI_945;
-			err = lgs8gxx_autolock_gi(priv, GI_945, &locked);
+			err = lgs8gxx_autolock_gi(priv, GI_945, j, &locked);
 			if (err)
 				goto out;
 			if (locked)
@@ -299,14 +437,14 @@ static int lgs8gxx_auto_detect(struct lgs8gxx_state *priv,
 		}
 		for (j = 0; j < 2; j++) {
 			tmp_gi = GI_420;
-			err = lgs8gxx_autolock_gi(priv, GI_420, &locked);
+			err = lgs8gxx_autolock_gi(priv, GI_420, j, &locked);
 			if (err)
 				goto out;
 			if (locked)
 				goto locked;
 		}
 		tmp_gi = GI_595;
-		err = lgs8gxx_autolock_gi(priv, GI_595, &locked);
+		err = lgs8gxx_autolock_gi(priv, GI_595, 1, &locked);
 		if (err)
 			goto out;
 		if (locked)
@@ -317,8 +455,13 @@ locked:
 	if ((err == 0) && (locked == 1)) {
 		u8 t;
 
-		lgs8gxx_read_reg(priv, 0xA2, &t);
-		*detected_param = t;
+		if (priv->config->prod != LGS8GXX_PROD_LGS8G75) {
+			lgs8gxx_read_reg(priv, 0xA2, &t);
+			*detected_param = t;
+		} else {
+			lgs8gxx_read_reg(priv, 0x1F, &t);
+			*detected_param = t & 0x3F;
+		}
 
 		if (tmp_gi == GI_945)
 			dprintk("GI 945 locked\n");
@@ -345,18 +488,28 @@ static void lgs8gxx_auto_lock(struct lgs8gxx_state *priv)
 
 	if (err != 0) {
 		dprintk("lgs8gxx_auto_detect failed\n");
-	}
+	} else
+		dprintk("detected param = 0x%02X\n", detected_param);
 
 	/* Apply detected parameters */
 	if (priv->config->prod == LGS8GXX_PROD_LGS8913) {
 		u8 inter_leave_len = detected_param & TIM_MASK ;
-		inter_leave_len = (inter_leave_len == TIM_LONG) ? 0x60 : 0x40;
+		/* Fix 8913 time interleaver detection bug */
+		inter_leave_len = (inter_leave_len == TIM_MIDDLE) ? 0x60 : 0x40;
 		detected_param &= CF_MASK | SC_MASK  | LGS_FEC_MASK;
 		detected_param |= inter_leave_len;
 	}
-	lgs8gxx_write_reg(priv, 0x7D, detected_param);
-	if (priv->config->prod == LGS8GXX_PROD_LGS8913)
-		lgs8gxx_write_reg(priv, 0xC0, detected_param);
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		u8 t;
+		lgs8gxx_read_reg(priv, 0x19, &t);
+		t &= 0x81;
+		t |= detected_param << 1;
+		lgs8gxx_write_reg(priv, 0x19, t);
+	} else {
+		lgs8gxx_write_reg(priv, 0x7D, detected_param);
+		if (priv->config->prod == LGS8GXX_PROD_LGS8913)
+			lgs8gxx_write_reg(priv, 0xC0, detected_param);
+	}
 	/* lgs8gxx_soft_reset(priv); */
 
 	/* Enter manual mode */
@@ -378,9 +531,10 @@ static int lgs8gxx_set_mpeg_mode(struct lgs8gxx_state *priv,
 	u8 serial, u8 clk_pol, u8 clk_gated)
 {
 	int ret = 0;
-	u8 t;
+	u8 t, reg_addr;
 
-	ret = lgs8gxx_read_reg(priv, 0xC2, &t);
+	reg_addr = (priv->config->prod == LGS8GXX_PROD_LGS8G75) ? 0x30 : 0xC2;
+	ret = lgs8gxx_read_reg(priv, reg_addr, &t);
 	if (ret != 0)
 		return ret;
 
@@ -389,13 +543,29 @@ static int lgs8gxx_set_mpeg_mode(struct lgs8gxx_state *priv,
 	t |= clk_pol ? TS_CLK_INVERTED : TS_CLK_NORMAL;
 	t |= clk_gated ? TS_CLK_GATED : TS_CLK_FREERUN;
 
-	ret = lgs8gxx_write_reg(priv, 0xC2, t);
+	ret = lgs8gxx_write_reg(priv, reg_addr, t);
 	if (ret != 0)
 		return ret;
 
 	return 0;
 }
 
+/* A/D input peak-to-peak voltage range */
+static int lgs8g75_set_adc_vpp(struct lgs8gxx_state *priv,
+	u8 sel)
+{
+	u8 r26 = 0x73, r27 = 0x90;
+
+	if (priv->config->prod != LGS8GXX_PROD_LGS8G75)
+		return 0;
+
+	r26 |= (sel & 0x01) << 7;
+	r27 |= (sel & 0x02) >> 1;
+	lgs8gxx_write_reg(priv, 0x26, r26);
+	lgs8gxx_write_reg(priv, 0x27, r27);
+
+	return 0;
+}
 
 /* LGS8913 demod frontend functions */
 
@@ -417,6 +587,39 @@ static int lgs8913_init(struct lgs8gxx_state *priv)
 	return 0;
 }
 
+static int lgs8g75_init_data(struct lgs8gxx_state *priv)
+{
+	const struct firmware *fw;
+	int rc;
+	int i;
+
+	rc = request_firmware(&fw, "lgs8g75.fw", &priv->i2c->dev);
+	if (rc)
+		return rc;
+
+	lgs8gxx_write_reg(priv, 0xC6, 0x40);
+
+	lgs8gxx_write_reg(priv, 0x3D, 0x04);
+	lgs8gxx_write_reg(priv, 0x39, 0x00);
+
+	lgs8gxx_write_reg(priv, 0x3A, 0x00);
+	lgs8gxx_write_reg(priv, 0x38, 0x00);
+	lgs8gxx_write_reg(priv, 0x3B, 0x00);
+	lgs8gxx_write_reg(priv, 0x38, 0x00);
+
+	for (i = 0; i < fw->size; i++) {
+		lgs8gxx_write_reg(priv, 0x38, 0x00);
+		lgs8gxx_write_reg(priv, 0x3A, (u8)(i&0xff));
+		lgs8gxx_write_reg(priv, 0x3B, (u8)(i>>8));
+		lgs8gxx_write_reg(priv, 0x3C, fw->data[i]);
+	}
+
+	lgs8gxx_write_reg(priv, 0x38, 0x00);
+
+	release_firmware(fw);
+	return 0;
+}
+
 static int lgs8gxx_init(struct dvb_frontend *fe)
 {
 	struct lgs8gxx_state *priv =
@@ -429,6 +632,9 @@ static int lgs8gxx_init(struct dvb_frontend *fe)
 	lgs8gxx_read_reg(priv, 0, &data);
 	dprintk("reg 0 = 0x%02X\n", data);
 
+	if (config->prod == LGS8GXX_PROD_LGS8G75)
+		lgs8g75_set_adc_vpp(priv, config->adc_vpp);
+
 	/* Setup MPEG output format */
 	err = lgs8gxx_set_mpeg_mode(priv, config->serial_ts,
 				    config->ts_clk_pol,
@@ -439,8 +645,7 @@ static int lgs8gxx_init(struct dvb_frontend *fe)
 	if (config->prod == LGS8GXX_PROD_LGS8913)
 		lgs8913_init(priv);
 	lgs8gxx_set_if_freq(priv, priv->config->if_freq);
-	if (config->prod != LGS8GXX_PROD_LGS8913)
-		lgs8gxx_set_ad_mode(priv);
+	lgs8gxx_set_ad_mode(priv);
 
 	return 0;
 }
@@ -454,7 +659,7 @@ static void lgs8gxx_release(struct dvb_frontend *fe)
 }
 
 
-static int lgs8gxx_write(struct dvb_frontend *fe, u8 *buf, int len)
+static int lgs8gxx_write(struct dvb_frontend *fe, const u8 buf[], int len)
 {
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 
@@ -489,9 +694,6 @@ static int lgs8gxx_set_fe(struct dvb_frontend *fe,
 static int lgs8gxx_get_fe(struct dvb_frontend *fe,
 			  struct dvb_frontend_parameters *fe_params)
 {
-	struct lgs8gxx_state *priv = fe->demodulator_priv;
-	u8 t;
-
 	dprintk("%s\n", __func__);
 
 	/* TODO: get real readings from device */
@@ -501,29 +703,10 @@ static int lgs8gxx_get_fe(struct dvb_frontend *fe,
 	/* bandwidth */
 	fe_params->u.ofdm.bandwidth = BANDWIDTH_8_MHZ;
 
-
-	lgs8gxx_read_reg(priv, 0x7D, &t);
 	fe_params->u.ofdm.code_rate_HP = FEC_AUTO;
 	fe_params->u.ofdm.code_rate_LP = FEC_AUTO;
 
-	/* constellation */
-	switch (t & SC_MASK) {
-	case SC_QAM64:
-		fe_params->u.ofdm.constellation = QAM_64;
-		break;
-	case SC_QAM32:
-		fe_params->u.ofdm.constellation = QAM_32;
-		break;
-	case SC_QAM16:
-		fe_params->u.ofdm.constellation = QAM_16;
-		break;
-	case SC_QAM4:
-	case SC_QAM4NR:
-		fe_params->u.ofdm.constellation = QPSK;
-		break;
-	default:
-		fe_params->u.ofdm.constellation = QAM_64;
-	}
+	fe_params->u.ofdm.constellation = QAM_AUTO;
 
 	/* transmission mode */
 	fe_params->u.ofdm.transmission_mode = TRANSMISSION_MODE_AUTO;
@@ -552,9 +735,19 @@ static int lgs8gxx_read_status(struct dvb_frontend *fe, fe_status_t *fe_status)
 {
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 	s8 ret;
-	u8 t;
+	u8 t, locked = 0;
 
 	dprintk("%s\n", __func__);
+	*fe_status = 0;
+
+	lgs8gxx_get_afc_phase(priv);
+	lgs8gxx_is_locked(priv, &locked);
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		if (locked)
+			*fe_status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
+				FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+		return 0;
+	}
 
 	ret = lgs8gxx_read_reg(priv, 0x4B, &t);
 	if (ret != 0)
@@ -658,12 +851,33 @@ static int lgs8913_read_signal_strength(struct lgs8gxx_state *priv, u16 *signal)
 	return 0;
 }
 
+static int lgs8g75_read_signal_strength(struct lgs8gxx_state *priv, u16 *signal)
+{
+	u8 t;
+	s16 v = 0;
+
+	dprintk("%s\n", __func__);
+
+	lgs8gxx_read_reg(priv, 0xB1, &t);
+	v |= t;
+	v <<= 8;
+	lgs8gxx_read_reg(priv, 0xB0, &t);
+	v |= t;
+
+	*signal = v;
+	dprintk("%s: signal=0x%02X\n", __func__, *signal);
+
+	return 0;
+}
+
 static int lgs8gxx_read_signal_strength(struct dvb_frontend *fe, u16 *signal)
 {
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 
 	if (priv->config->prod == LGS8GXX_PROD_LGS8913)
 		return lgs8913_read_signal_strength(priv, signal);
+	else if (priv->config->prod == LGS8GXX_PROD_LGS8G75)
+		return lgs8g75_read_signal_strength(priv, signal);
 	else
 		return lgs8gxx_read_signal_agc(priv, signal);
 }
@@ -674,7 +888,10 @@ static int lgs8gxx_read_snr(struct dvb_frontend *fe, u16 *snr)
 	u8 t;
 	*snr = 0;
 
-	lgs8gxx_read_reg(priv, 0x95, &t);
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75)
+		lgs8gxx_read_reg(priv, 0x34, &t);
+	else
+		lgs8gxx_read_reg(priv, 0x95, &t);
 	dprintk("AVG Noise=0x%02X\n", t);
 	*snr = 256 - t;
 	*snr <<= 8;
@@ -690,31 +907,68 @@ static int lgs8gxx_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
+static void packet_counter_start(struct lgs8gxx_state *priv)
+{
+	u8 orig, t;
+
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		lgs8gxx_read_reg(priv, 0x30, &orig);
+		orig &= 0xE7;
+		t = orig | 0x10;
+		lgs8gxx_write_reg(priv, 0x30, t);
+		t = orig | 0x18;
+		lgs8gxx_write_reg(priv, 0x30, t);
+		t = orig | 0x10;
+		lgs8gxx_write_reg(priv, 0x30, t);
+	} else {
+		lgs8gxx_write_reg(priv, 0xC6, 0x01);
+		lgs8gxx_write_reg(priv, 0xC6, 0x41);
+		lgs8gxx_write_reg(priv, 0xC6, 0x01);
+	}
+}
+
+static void packet_counter_stop(struct lgs8gxx_state *priv)
+{
+	u8 t;
+
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		lgs8gxx_read_reg(priv, 0x30, &t);
+		t &= 0xE7;
+		lgs8gxx_write_reg(priv, 0x30, t);
+	} else {
+		lgs8gxx_write_reg(priv, 0xC6, 0x81);
+	}
+}
+
 static int lgs8gxx_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
-	u8 r0, r1, r2, r3;
-	u32 total_cnt, err_cnt;
+	u8 reg_err, reg_total, t;
+	u32 total_cnt = 0, err_cnt = 0;
+	int i;
 
 	dprintk("%s\n", __func__);
 
-	lgs8gxx_write_reg(priv, 0xc6, 0x01);
-	lgs8gxx_write_reg(priv, 0xc6, 0x41);
-	lgs8gxx_write_reg(priv, 0xc6, 0x01);
-
+	packet_counter_start(priv);
 	msleep(200);
+	packet_counter_stop(priv);
 
-	lgs8gxx_write_reg(priv, 0xc6, 0x81);
-	lgs8gxx_read_reg(priv, 0xd0, &r0);
-	lgs8gxx_read_reg(priv, 0xd1, &r1);
-	lgs8gxx_read_reg(priv, 0xd2, &r2);
-	lgs8gxx_read_reg(priv, 0xd3, &r3);
-	total_cnt = (r3 << 24) | (r2 << 16) | (r1 << 8) | (r0);
-	lgs8gxx_read_reg(priv, 0xd4, &r0);
-	lgs8gxx_read_reg(priv, 0xd5, &r1);
-	lgs8gxx_read_reg(priv, 0xd6, &r2);
-	lgs8gxx_read_reg(priv, 0xd7, &r3);
-	err_cnt = (r3 << 24) | (r2 << 16) | (r1 << 8) | (r0);
+	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
+		reg_total = 0x28; reg_err = 0x2C;
+	} else {
+		reg_total = 0xD0; reg_err = 0xD4;
+	}
+
+	for (i = 0; i < 4; i++) {
+		total_cnt <<= 8;
+		lgs8gxx_read_reg(priv, reg_total+3-i, &t);
+		total_cnt |= t;
+	}
+	for (i = 0; i < 4; i++) {
+		err_cnt <<= 8;
+		lgs8gxx_read_reg(priv, reg_err+3-i, &t);
+		err_cnt |= t;
+	}
 	dprintk("error=%d total=%d\n", err_cnt, total_cnt);
 
 	if (total_cnt == 0)
@@ -800,6 +1054,9 @@ struct dvb_frontend *lgs8gxx_attach(const struct lgs8gxx_config *config,
 	memcpy(&priv->frontend.ops, &lgs8gxx_ops,
 	       sizeof(struct dvb_frontend_ops));
 	priv->frontend.demodulator_priv = priv;
+
+	if (config->prod == LGS8GXX_PROD_LGS8G75)
+		lgs8g75_init_data(priv);
 
 	return &priv->frontend;
 

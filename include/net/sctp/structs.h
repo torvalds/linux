@@ -219,9 +219,23 @@ extern struct sctp_globals {
 	/* Flag to idicate if SCTP-AUTH is enabled */
 	int auth_enable;
 
+	/*
+	 * Policy to control SCTP IPv4 address scoping
+	 * 0   - Disable IPv4 address scoping
+	 * 1   - Enable IPv4 address scoping
+	 * 2   - Selectively allow only IPv4 private addresses
+	 * 3   - Selectively allow only IPv4 link local address
+	 */
+	int ipv4_scope_policy;
+
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
         int checksum_disable;
+
+	/* Threshold for rwnd update SACKS.  Receive buffer shifted this many
+	 * bits is an indicator of when to send and window update SACK.
+	 */
+	int rwnd_update_shift;
 } sctp_globals;
 
 #define sctp_rto_initial		(sctp_globals.rto_initial)
@@ -247,16 +261,16 @@ extern struct sctp_globals {
 #define sctp_assoc_hashsize		(sctp_globals.assoc_hashsize)
 #define sctp_assoc_hashtable		(sctp_globals.assoc_hashtable)
 #define sctp_port_hashsize		(sctp_globals.port_hashsize)
-#define sctp_port_rover			(sctp_globals.port_rover)
-#define sctp_port_alloc_lock		(sctp_globals.port_alloc_lock)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
 #define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
+#define sctp_scope_policy		(sctp_globals.ipv4_scope_policy)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_addip_noauth		(sctp_globals.addip_noauth_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 #define sctp_auth_enable		(sctp_globals.auth_enable)
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
+#define sctp_rwnd_upd_shift		(sctp_globals.rwnd_update_shift)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {
@@ -427,7 +441,7 @@ struct sctp_signed_cookie {
 	__u8 signature[SCTP_SECRET_SIZE];
 	__u32 __pad;		/* force sctp_cookie alignment to 64 bits */
 	struct sctp_cookie c;
-} __attribute__((packed));
+} __packed;
 
 /* This is another convenience type to allocate memory for address
  * params for the maximum size and pass such structures around
@@ -472,7 +486,7 @@ typedef struct sctp_sender_hb_info {
 	union sctp_addr daddr;
 	unsigned long sent_at;
 	__u64 hb_nonce;
-} __attribute__((packed)) sctp_sender_hb_info_t;
+} __packed sctp_sender_hb_info_t;
 
 /*
  *  RFC 2960 1.3.2 Sequenced Delivery within Streams
@@ -534,7 +548,7 @@ struct sctp_af {
 					 int level,
 					 int optname,
 					 char __user *optval,
-					 int optlen);
+					 unsigned int optlen);
 	int		(*getsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,
@@ -544,7 +558,7 @@ struct sctp_af {
 					 int level,
 					 int optname,
 					 char __user *optval,
-					 int optlen);
+					 unsigned int optlen);
 	int		(*compat_getsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,
@@ -627,22 +641,21 @@ struct sctp_pf {
 struct sctp_datamsg {
 	/* Chunks waiting to be submitted to lower layer. */
 	struct list_head chunks;
-	/* Chunks that have been transmitted. */
-	struct list_head track;
 	/* Reference counting. */
 	atomic_t refcnt;
 	/* When is this message no longer interesting to the peer? */
 	unsigned long expires_at;
 	/* Did the messenge fail to send? */
 	int send_error;
-	char send_failed;
-	/* Control whether chunks from this message can be abandoned. */
-	char can_abandon;
+	u8 send_failed:1,
+	   can_abandon:1,   /* can chunks from this message can be abandoned. */
+	   can_delay;	    /* should this message be Nagle delayed */
 };
 
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,
 					    struct sctp_sndrcvinfo *,
 					    struct msghdr *, int len);
+void sctp_datamsg_free(struct sctp_datamsg *);
 void sctp_datamsg_put(struct sctp_datamsg *);
 void sctp_chunk_fail(struct sctp_chunk *, int error);
 int sctp_chunk_abandoned(struct sctp_chunk *);
@@ -740,7 +753,6 @@ struct sctp_chunk {
 #define SCTP_NEED_FRTX 0x1
 #define SCTP_DONT_FRTX 0x2
 	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
-		resent:1,		/* Has this chunk ever been resent. */
 		has_tsn:1,		/* Does this chunk have a TSN yet? */
 		has_ssn:1,		/* Does this chunk have a SSN yet? */
 		singleton:1,		/* Only chunk in the packet? */
@@ -761,6 +773,7 @@ int sctp_user_addto_chunk(struct sctp_chunk *chunk, int off, int len,
 			  struct iovec *data);
 void sctp_chunk_free(struct sctp_chunk *);
 void  *sctp_addto_chunk(struct sctp_chunk *, int len, const void *data);
+void  *sctp_addto_chunk_fixed(struct sctp_chunk *, int len, const void *data);
 struct sctp_chunk *sctp_chunkify(struct sk_buff *,
 				 const struct sctp_association *,
 				 struct sock *);
@@ -811,22 +824,12 @@ struct sctp_packet {
 	/* pointer to the auth chunk for this packet */
 	struct sctp_chunk *auth;
 
-	/* This packet contains a COOKIE-ECHO chunk. */
-	__u8 has_cookie_echo;
-
-	/* This packet contains a SACK chunk. */
-	__u8 has_sack;
-
-	/* This packet contains an AUTH chunk */
-	__u8 has_auth;
-
-	/* This packet contains at least 1 DATA chunk */
-	__u8 has_data;
-
-	/* SCTP cannot fragment this packet. So let ip fragment it. */
-	__u8 ipfragok;
-
-	__u8 malloced;
+	u8  has_cookie_echo:1,	/* This packet contains a COOKIE-ECHO chunk. */
+	    has_sack:1,		/* This packet contains a SACK chunk. */
+	    has_auth:1,		/* This packet contains an AUTH chunk */
+	    has_data:1,		/* This packet contains at least 1 DATA chunk */
+	    ipfragok:1,		/* So let ip fragment this packet */
+	    malloced:1;		/* Is it malloced? */
 };
 
 struct sctp_packet *sctp_packet_init(struct sctp_packet *,
@@ -842,7 +845,7 @@ void sctp_packet_free(struct sctp_packet *);
 
 static inline int sctp_packet_empty(struct sctp_packet *packet)
 {
-	return (packet->size == packet->overhead);
+	return packet->size == packet->overhead;
 }
 
 /* This represents a remote transport address.
@@ -871,7 +874,30 @@ struct sctp_transport {
 
 	/* Reference counting. */
 	atomic_t refcnt;
-	int	 dead;
+	__u32	 dead:1,
+		/* RTO-Pending : A flag used to track if one of the DATA
+		 *		chunks sent to this address is currently being
+		 *		used to compute a RTT. If this flag is 0,
+		 *		the next DATA chunk sent to this destination
+		 *		should be used to compute a RTT and this flag
+		 *		should be set. Every time the RTT
+		 *		calculation completes (i.e. the DATA chunk
+		 *		is SACK'd) clear this flag.
+		 */
+		 rto_pending:1,
+
+		/*
+		 * hb_sent : a flag that signals that we have a pending
+		 * heartbeat.
+		 */
+		hb_sent:1,
+
+		/* Is the Path MTU update pending on this tranport */
+		pmtu_pending:1,
+
+		/* Is this structure kfree()able? */
+		malloced:1;
+
 
 	/* This is the peer's IP address and port. */
 	union sctp_addr ipaddr;
@@ -892,7 +918,6 @@ struct sctp_transport {
 	 */
 	/* RTO	       : The current retransmission timeout value.  */
 	unsigned long rto;
-	unsigned long last_rto;
 
 	__u32 rtt;		/* This is the most recent RTT.	 */
 
@@ -901,22 +926,6 @@ struct sctp_transport {
 
 	/* SRTT	       : The current smoothed round trip time.	*/
 	__u32 srtt;
-
-	/* RTO-Pending : A flag used to track if one of the DATA
-	 *		chunks sent to this address is currently being
-	 *		used to compute a RTT. If this flag is 0,
-	 *		the next DATA chunk sent to this destination
-	 *		should be used to compute a RTT and this flag
-	 *		should be set. Every time the RTT
-	 *		calculation completes (i.e. the DATA chunk
-	 *		is SACK'd) clear this flag.
-	 * hb_sent : a flag that signals that we have a pending heartbeat.
-	 */
-	__u8 rto_pending;
-	__u8 hb_sent;
-
-	/* Flag to track the current fast recovery state */
-	__u8 fast_recovery;
 
 	/*
 	 * These are the congestion stats.
@@ -935,19 +944,12 @@ struct sctp_transport {
 	/* Data that has been sent, but not acknowledged. */
 	__u32 flight_size;
 
-	/* TSN marking the fast recovery exit point */
-	__u32 fast_recovery_exit;
+	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
 
 	/* Destination */
 	struct dst_entry *dst;
 	/* Source address. */
 	union sctp_addr saddr;
-
-	/* When was the last time(in jiffies) that a data packet was sent on
-	 * this transport?  This is used to adjust the cwnd when the transport
-	 * becomes inactive.
-	 */
-	unsigned long last_time_used;
 
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval.
@@ -974,9 +976,6 @@ struct sctp_transport {
 	 */
 	__u16 pathmaxrxt;
 
-	/* is the Path MTU update pending on this tranport */
-	__u8 pmtu_pending;
-
 	/* PMTU	      : The current known path MTU.  */
 	__u32 pathmtu;
 
@@ -987,7 +986,7 @@ struct sctp_transport {
 	int init_sent_count;
 
 	/* state       : The current state of this destination,
-	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKOWN.
+	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKNOWN.
 	 */
 	int state;
 
@@ -1007,6 +1006,9 @@ struct sctp_transport {
 	/* Heartbeat timer is per destination. */
 	struct timer_list hb_timer;
 
+	/* Timer to handle ICMP proto unreachable envets */
+	struct timer_list proto_unreach_timer;
+
 	/* Since we're using per-destination retransmission timers
 	 * (see above), we're also using per-destination "transmitted"
 	 * queues.  This probably ought to be a private struct
@@ -1019,8 +1021,6 @@ struct sctp_transport {
 
 	/* This is the list of transports that have chunks to send.  */
 	struct list_head send_ready;
-
-	int malloced; /* Is this structure kfree()able? */
 
 	/* State information saved for SFR_CACC algorithm. The key
 	 * idea in SFR_CACC is to maintain state at the sender on a
@@ -1063,12 +1063,14 @@ void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
 void sctp_transport_pmtu(struct sctp_transport *);
 void sctp_transport_free(struct sctp_transport *);
-void sctp_transport_reset_timers(struct sctp_transport *, int);
+void sctp_transport_reset_timers(struct sctp_transport *);
 void sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
 void sctp_transport_raise_cwnd(struct sctp_transport *, __u32, __u32);
 void sctp_transport_lower_cwnd(struct sctp_transport *, sctp_lower_cwnd_t);
+void sctp_transport_burst_limited(struct sctp_transport *);
+void sctp_transport_burst_reset(struct sctp_transport *);
 unsigned long sctp_transport_timeout(struct sctp_transport *);
 void sctp_transport_reset(struct sctp_transport *);
 void sctp_transport_update_pmtu(struct sctp_transport *, u32);
@@ -1567,13 +1569,13 @@ struct sctp_association {
 		__u32	sack_cnt;
 
 		/* These are capabilities which our peer advertised.  */
-		__u8	ecn_capable;	 /* Can peer do ECN? */
-		__u8	ipv4_address;	 /* Peer understands IPv4 addresses? */
-		__u8	ipv6_address;	 /* Peer understands IPv6 addresses? */
-		__u8	hostname_address;/* Peer understands DNS addresses? */
-		__u8    asconf_capable;  /* Does peer support ADDIP? */
-		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
-		__u8	auth_capable;	 /* Is peer doing SCTP-AUTH? */
+		__u8	ecn_capable:1,	    /* Can peer do ECN? */
+			ipv4_address:1,	    /* Peer understands IPv4 addresses? */
+			ipv6_address:1,	    /* Peer understands IPv6 addresses? */
+			hostname_address:1, /* Peer understands DNS addresses? */
+			asconf_capable:1,   /* Does peer support ADDIP? */
+			prsctp_capable:1,   /* Can peer do PR-SCTP? */
+			auth_capable:1;	    /* Is peer doing SCTP-AUTH? */
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
 
@@ -1715,6 +1717,12 @@ struct sctp_association {
 	/* Highest TSN that is acknowledged by incoming SACKs. */
 	__u32 highest_sacked;
 
+	/* TSN marking the fast recovery exit point */
+	__u32 fast_recovery_exit;
+
+	/* Flag to track the current fast recovery state */
+	__u8 fast_recovery;
+
 	/* The number of unacknowledged data chunks.  Reported through
 	 * the SCTP_STATUS sockopt.
 	 */
@@ -1738,6 +1746,12 @@ struct sctp_association {
 	 */
 	__u32 rwnd_over;
 
+	/* Keeps treack of rwnd pressure.  This happens when we have
+	 * a window, but not recevie buffer (i.e small packets).  This one
+	 * is releases slowly (1 PMTU at a time ).
+	 */
+	__u32 rwnd_press;
+
 	/* This is the sndbuf size in use for the association.
 	 * This corresponds to the sndbuf size for the association,
 	 * as specified in the sk->sndbuf.
@@ -1756,6 +1770,7 @@ struct sctp_association {
 
 	/* The message size at which SCTP fragmentation will occur. */
 	__u32 frag_point;
+	__u32 user_frag;
 
 	/* Counter used to count INIT errors. */
 	int init_err_counter;
@@ -1905,11 +1920,8 @@ struct sctp_association {
 
 	__u16 active_key_id;
 
-	/* Need to send an ECNE Chunk? */
-	char need_ecne;
-
-	/* Is it a temporary association? */
-	char temp;
+	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
+	     temp:1;		/* Is it a temporary association? */
 };
 
 
@@ -1975,7 +1987,7 @@ void sctp_assoc_set_primary(struct sctp_association *,
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,
 				    struct sctp_transport *);
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
-				     gfp_t);
+				     sctp_scope_t, gfp_t);
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
 					 gfp_t gfp);

@@ -53,7 +53,6 @@ static char version[] = "atarilance.c: v1.3 04/04/96 "
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
@@ -117,7 +116,7 @@ MODULE_LICENSE("GPL");
 #define RX_RING_LEN_BITS		(RX_LOG_RING_SIZE << 5)
 #define	RX_RING_MOD_MASK		(RX_RING_SIZE - 1)
 
-#define TX_TIMEOUT	20
+#define TX_TIMEOUT	(HZ/5)
 
 /* The LANCE Rx and Tx ring descriptors. */
 struct lance_rx_head {
@@ -363,7 +362,7 @@ static void *slow_memcpy( void *dst, const void *src, size_t len )
 		*cto++ = *cfrom++;
 		MFPDELAY();
 	}
-	return( dst );
+	return dst;
 }
 
 
@@ -408,7 +407,7 @@ static noinline int __init addr_accessible(volatile void *regp, int wordflag,
 					   int writeflag)
 {
 	int		ret;
-	long	flags;
+	unsigned long	flags;
 	long	*vbr, save_berr;
 
 	local_irq_save(flags);
@@ -450,7 +449,7 @@ static noinline int __init addr_accessible(volatile void *regp, int wordflag,
 	vbr[2] = save_berr;
 	local_irq_restore(flags);
 
-	return( ret );
+	return ret;
 }
 
 static const struct net_device_ops lance_netdev_ops = {
@@ -527,7 +526,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	goto probe_ok;
 
   probe_fail:
-	return( 0 );
+	return 0;
 
   probe_ok:
 	lp = netdev_priv(dev);
@@ -557,7 +556,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 		if (request_irq(IRQ_AUTO_5, lance_interrupt, IRQ_TYPE_PRIO,
 		            "PAM/Riebl-ST Ethernet", dev)) {
 			printk( "Lance: request for irq %d failed\n", IRQ_AUTO_5 );
-			return( 0 );
+			return 0;
 		}
 		dev->irq = (unsigned short)IRQ_AUTO_5;
 	}
@@ -569,12 +568,12 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 		unsigned long irq = atari_register_vme_int();
 		if (!irq) {
 			printk( "Lance: request for VME interrupt failed\n" );
-			return( 0 );
+			return 0;
 		}
 		if (request_irq(irq, lance_interrupt, IRQ_TYPE_PRIO,
 		            "Riebl-VME Ethernet", dev)) {
 			printk( "Lance: request for irq %ld failed\n", irq );
-			return( 0 );
+			return 0;
 		}
 		dev->irq = irq;
 	}
@@ -638,7 +637,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	/* XXX MSch */
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	return( 1 );
+	return 1;
 }
 
 
@@ -663,11 +662,11 @@ static int lance_open( struct net_device *dev )
 	while (--i > 0)
 		if (DREG & CSR0_IDON)
 			break;
-	if (i < 0 || (DREG & CSR0_ERR)) {
+	if (i <= 0 || (DREG & CSR0_ERR)) {
 		DPRINTK( 2, ( "lance_open(): opening %s failed, i=%d, csr0=%04x\n",
 					  dev->name, i, DREG ));
 		DREG = CSR0_STOP;
-		return( -EIO );
+		return -EIO;
 	}
 	DREG = CSR0_IDON;
 	DREG = CSR0_STRT;
@@ -677,7 +676,7 @@ static int lance_open( struct net_device *dev )
 
 	DPRINTK( 2, ( "%s: LANCE is open, csr0 %04x\n", dev->name, DREG ));
 
-	return( 0 );
+	return 0;
 }
 
 
@@ -768,8 +767,8 @@ static void lance_tx_timeout (struct net_device *dev)
 	/* lance_restart, essentially */
 	lance_init_ring(dev);
 	REGA( CSR0 ) = CSR0_INEA | CSR0_INIT | CSR0_STRT;
-	dev->trans_start = jiffies;
-	netif_wake_queue (dev);
+	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_wake_queue(dev);
 }
 
 /* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
@@ -796,7 +795,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	if (len > skb->len) {
 		if (skb_padto(skb, len))
-			return 0;
+			return NETDEV_TX_OK;
 	}
 
 	netif_stop_queue (dev);
@@ -837,7 +836,6 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	/* Trigger an immediate send poll. */
 	DREG = CSR0_INEA | CSR0_TDMD;
-	dev->trans_start = jiffies;
 
 	if ((MEM->tx_head[(entry+1) & TX_RING_MOD_MASK].flag & TMD1_OWN) ==
 		TMD1_OWN_HOST)
@@ -846,7 +844,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 		lp->tx_full = 1;
 	spin_unlock_irqrestore (&lp->devlock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The LANCE interrupt handler. */
@@ -930,8 +928,8 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 			}
 #endif
 
-			if (lp->tx_full && (netif_queue_stopped(dev))
-				&& dirty_tx > lp->cur_tx - TX_RING_SIZE + 2) {
+			if (lp->tx_full && (netif_queue_stopped(dev)) &&
+				dirty_tx > lp->cur_tx - TX_RING_SIZE + 2) {
 				/* The ring is no longer full, clear tbusy. */
 				lp->tx_full = 0;
 				netif_wake_queue (dev);
@@ -1097,7 +1095,7 @@ static void set_multicast_list( struct net_device *dev )
 		REGA( CSR15 ) = 0x8000; /* Set promiscuous mode */
 	} else {
 		short multicast_table[4];
-		int num_addrs = dev->mc_count;
+		int num_addrs = netdev_mc_count(dev);
 		int i;
 		/* We don't use the multicast table, but rely on upper-layer
 		 * filtering. */
@@ -1128,13 +1126,13 @@ static int lance_set_mac_address( struct net_device *dev, void *addr )
 	int i;
 
 	if (lp->cardtype != OLD_RIEBL && lp->cardtype != NEW_RIEBL)
-		return( -EOPNOTSUPP );
+		return -EOPNOTSUPP;
 
 	if (netif_running(dev)) {
 		/* Only possible while card isn't started */
 		DPRINTK( 1, ( "%s: hwaddr can be set only while card isn't open.\n",
 					  dev->name ));
-		return( -EIO );
+		return -EIO;
 	}
 
 	memcpy( dev->dev_addr, saddr->sa_data, dev->addr_len );
@@ -1144,7 +1142,7 @@ static int lance_set_mac_address( struct net_device *dev, void *addr )
 	/* set also the magic for future sessions */
 	*RIEBL_MAGIC_ADDR = RIEBL_MAGIC;
 
-	return( 0 );
+	return 0;
 }
 
 

@@ -41,6 +41,7 @@
 #define MAX_MAX3100 4
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
@@ -184,7 +185,7 @@ static void max3100_timeout(unsigned long data)
 {
 	struct max3100_port *s = (struct max3100_port *)data;
 
-	if (s->port.info) {
+	if (s->port.state) {
 		max3100_dowork(s);
 		mod_timer(&s->timer, jiffies + s->poll_time);
 	}
@@ -261,7 +262,7 @@ static void max3100_work(struct work_struct *w)
 	int rxchars;
 	u16 tx, rx;
 	int conf, cconf, rts, crts;
-	struct circ_buf *xmit = &s->port.info->xmit;
+	struct circ_buf *xmit = &s->port.state->xmit;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -307,8 +308,8 @@ static void max3100_work(struct work_struct *w)
 			}
 		}
 
-		if (rxchars > 16 && s->port.info->port.tty != NULL) {
-			tty_flip_buffer_push(s->port.info->port.tty);
+		if (rxchars > 16 && s->port.state->port.tty != NULL) {
+			tty_flip_buffer_push(s->port.state->port.tty);
 			rxchars = 0;
 		}
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -320,8 +321,8 @@ static void max3100_work(struct work_struct *w)
 		  (!uart_circ_empty(xmit) &&
 		   !uart_tx_stopped(&s->port))));
 
-	if (rxchars > 0 && s->port.info->port.tty != NULL)
-		tty_flip_buffer_push(s->port.info->port.tty);
+	if (rxchars > 0 && s->port.state->port.tty != NULL)
+		tty_flip_buffer_push(s->port.state->port.tty);
 }
 
 static irqreturn_t max3100_irq(int irqno, void *dev_id)
@@ -429,17 +430,14 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 	int baud = 0;
 	unsigned cflag;
 	u32 param_new, param_mask, parity = 0;
-	struct tty_struct *tty = s->port.info->port.tty;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
-	if (!tty)
-		return;
 
 	cflag = termios->c_cflag;
 	param_new = 0;
 	param_mask = 0;
 
-	baud = tty_get_baud_rate(tty);
+	baud = tty_termios_baud_rate(termios);
 	param_new = s->conf & MAX3100_BAUD;
 	switch (baud) {
 	case 300:
@@ -484,7 +482,7 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 	default:
 		baud = s->baud;
 	}
-	tty_encode_baud_rate(tty, baud, baud);
+	tty_termios_encode_baud_rate(termios, baud, baud);
 	s->baud = baud;
 	param_mask |= MAX3100_BAUD;
 
@@ -529,7 +527,7 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 			MAX3100_STATUS_OE;
 
 	/* we are sending char from a workqueue so enable */
-	s->port.info->port.tty->low_latency = 1;
+	s->port.state->port.tty->low_latency = 1;
 
 	if (s->poll_time > 0)
 		del_timer_sync(&s->timer);
@@ -925,3 +923,4 @@ module_exit(max3100_exit);
 MODULE_DESCRIPTION("MAX3100 driver");
 MODULE_AUTHOR("Christian Pellegrin <chripell@evolware.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:max3100");

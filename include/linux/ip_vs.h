@@ -19,6 +19,7 @@
  */
 #define IP_VS_SVC_F_PERSISTENT	0x0001		/* persistent port */
 #define IP_VS_SVC_F_HASHED	0x0002		/* hashed entry */
+#define IP_VS_SVC_F_ONEPACKET	0x0004		/* one-packet scheduling */
 
 /*
  *      Destination Server Flags
@@ -69,6 +70,7 @@
 
 /*
  *      IPVS Connection Flags
+ *      Only flags 0..15 are sent to backup server
  */
 #define IP_VS_CONN_F_FWD_MASK	0x0007		/* mask for the fwd methods */
 #define IP_VS_CONN_F_MASQ	0x0000		/* masquerading/NAT */
@@ -85,10 +87,22 @@
 #define IP_VS_CONN_F_SEQ_MASK	0x0600		/* in/out sequence mask */
 #define IP_VS_CONN_F_NO_CPORT	0x0800		/* no client port set yet */
 #define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, not connection */
+#define IP_VS_CONN_F_ONE_PACKET	0x2000		/* forward only one packet */
+
+/* Flags that are not sent to backup server start from bit 16 */
+#define IP_VS_CONN_F_NFCT	(1 << 16)	/* use netfilter conntrack */
+
+/* Connection flags from destination that can be changed by user space */
+#define IP_VS_CONN_F_DEST_MASK (IP_VS_CONN_F_FWD_MASK | \
+				IP_VS_CONN_F_ONE_PACKET | \
+				IP_VS_CONN_F_NFCT | \
+				0)
 
 #define IP_VS_SCHEDNAME_MAXLEN	16
+#define IP_VS_PENAME_MAXLEN	16
 #define IP_VS_IFNAME_MAXLEN	16
 
+#define IP_VS_PEDATA_MAXLEN     255
 
 /*
  *	The struct ip_vs_service_user and struct ip_vs_dest_user are
@@ -127,8 +141,7 @@ struct ip_vs_dest_user {
 /*
  *	IPVS statistics object (for user space)
  */
-struct ip_vs_stats_user
-{
+struct ip_vs_stats_user {
 	__u32                   conns;          /* connections scheduled */
 	__u32                   inpkts;         /* incoming packets */
 	__u32                   outpkts;        /* outgoing packets */
@@ -323,6 +336,9 @@ enum {
 	IPVS_SVC_ATTR_NETMASK,		/* persistent netmask */
 
 	IPVS_SVC_ATTR_STATS,		/* nested attribute for service stats */
+
+	IPVS_SVC_ATTR_PE_NAME,		/* name of ct retriever */
+
 	__IPVS_SVC_ATTR_MAX,
 };
 

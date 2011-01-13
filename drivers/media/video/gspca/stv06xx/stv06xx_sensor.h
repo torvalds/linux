@@ -32,14 +32,13 @@
 
 #include "stv06xx.h"
 
-#define IS_850(sd)	((sd)->gspca_dev.dev->descriptor.idProduct == 0x850)
-#define IS_870(sd)	((sd)->gspca_dev.dev->descriptor.idProduct == 0x870)
 #define IS_1020(sd)	((sd)->sensor == &stv06xx_sensor_hdcs1020)
 
 extern const struct stv06xx_sensor stv06xx_sensor_vv6410;
 extern const struct stv06xx_sensor stv06xx_sensor_hdcs1x00;
 extern const struct stv06xx_sensor stv06xx_sensor_hdcs1020;
 extern const struct stv06xx_sensor stv06xx_sensor_pb0100;
+extern const struct stv06xx_sensor stv06xx_sensor_st6422;
 
 struct stv06xx_sensor {
 	/* Defines the name of a sensor */
@@ -53,6 +52,10 @@ struct stv06xx_sensor {
 
 	/* length of an i2c word */
 	u8 i2c_len;
+
+	/* Isoc packet size (per mode) */
+	int min_packet_size[4];
+	int max_packet_size[4];
 
 	/* Probes if the sensor is connected */
 	int (*probe)(struct sd *sd);

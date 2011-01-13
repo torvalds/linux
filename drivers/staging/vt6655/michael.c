@@ -26,8 +26,8 @@
  * Date: Sep 4, 2002
  *
  * Functions:
- *      s_dwGetUINT32 - Convert from BYTE[] to DWORD in a portable way
- *      s_vPutUINT32 - Convert from DWORD to BYTE[] in a portable way
+ *      s_dwGetUINT32 - Convert from unsigned char [] to unsigned long in a portable way
+ *      s_vPutUINT32 - Convert from unsigned long to unsigned char [] in a portable way
  *      s_vClear - Reset the state to the empty message.
  *      s_vSetKey - Set the key.
  *      MIC_vInit - Set the key.
@@ -39,15 +39,8 @@
  *
  */
 
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__MICHAEL_H__)
 #include "michael.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -55,29 +48,29 @@
 
 /*---------------------  Static Functions  --------------------------*/
 /*
-static DWORD s_dwGetUINT32(BYTE * p);         // Get DWORD from 4 bytes LSByte first
-static VOID s_vPutUINT32(BYTE* p, DWORD val); // Put DWORD into 4 bytes LSByte first
+static unsigned long s_dwGetUINT32(unsigned char *p);         // Get unsigned long from 4 bytes LSByte first
+static void s_vPutUINT32(unsigned char *p, unsigned long val); // Put unsigned long into 4 bytes LSByte first
 */
-static VOID s_vClear(void);                       // Clear the internal message,
+static void s_vClear(void);                       // Clear the internal message,
                                               // resets the object to the state just after construction.
-static VOID s_vSetKey(DWORD dwK0, DWORD dwK1);
-static VOID s_vAppendByte(BYTE b);            // Add a single byte to the internal message
+static void s_vSetKey(unsigned long dwK0, unsigned long dwK1);
+static void s_vAppendByte(unsigned char b);            // Add a single byte to the internal message
 
 /*---------------------  Export Variables  --------------------------*/
-static DWORD  L, R;           // Current state
+static unsigned long L, R;           // Current state
 
-static DWORD  K0, K1;         // Key
-static DWORD  M;              // Message accumulator (single word)
-static UINT   nBytesInM;      // # bytes in M
+static unsigned long K0, K1;         // Key
+static unsigned long M;              // Message accumulator (single word)
+static unsigned int nBytesInM;      // # bytes in M
 
 /*---------------------  Export Functions  --------------------------*/
 
 /*
-static DWORD s_dwGetUINT32 (BYTE * p)
-// Convert from BYTE[] to DWORD in a portable way
+static unsigned long s_dwGetUINT32 (unsigned char *p)
+// Convert from unsigned char [] to unsigned long in a portable way
 {
-    DWORD res = 0;
-    UINT i;
+    unsigned long res = 0;
+    unsigned int i;
     for(i=0; i<4; i++ )
     {
         res |= (*p++) << (8*i);
@@ -85,19 +78,19 @@ static DWORD s_dwGetUINT32 (BYTE * p)
     return res;
 }
 
-static VOID s_vPutUINT32 (BYTE* p, DWORD val)
-// Convert from DWORD to BYTE[] in a portable way
+static void s_vPutUINT32 (unsigned char *p, unsigned long val)
+// Convert from unsigned long to unsigned char [] in a portable way
 {
-    UINT i;
+    unsigned int i;
     for(i=0; i<4; i++ )
     {
-        *p++ = (BYTE) (val & 0xff);
+        *p++ = (unsigned char) (val & 0xff);
         val >>= 8;
     }
 }
 */
 
-static VOID s_vClear (void)
+static void s_vClear (void)
 {
     // Reset the state to the empty message.
     L = K0;
@@ -106,7 +99,7 @@ static VOID s_vClear (void)
     M = 0;
 }
 
-static VOID s_vSetKey (DWORD dwK0, DWORD dwK1)
+static void s_vSetKey (unsigned long dwK0, unsigned long dwK1)
 {
     // Set the key
     K0 = dwK0;
@@ -115,7 +108,7 @@ static VOID s_vSetKey (DWORD dwK0, DWORD dwK1)
     s_vClear();
 }
 
-static VOID s_vAppendByte (BYTE b)
+static void s_vAppendByte (unsigned char b)
 {
     // Append the byte to our word-sized buffer
     M |= b << (8*nBytesInM);
@@ -138,14 +131,14 @@ static VOID s_vAppendByte (BYTE b)
     }
 }
 
-VOID MIC_vInit (DWORD dwK0, DWORD dwK1)
+void MIC_vInit (unsigned long dwK0, unsigned long dwK1)
 {
     // Set the key
     s_vSetKey(dwK0, dwK1);
 }
 
 
-VOID MIC_vUnInit (void)
+void MIC_vUnInit (void)
 {
     // Wipe the key material
     K0 = 0;
@@ -156,7 +149,7 @@ VOID MIC_vUnInit (void)
     s_vClear();
 }
 
-VOID MIC_vAppend (PBYTE src, UINT nBytes)
+void MIC_vAppend (unsigned char *src, unsigned int nBytes)
 {
     // This is simple
     while (nBytes > 0)
@@ -166,7 +159,7 @@ VOID MIC_vAppend (PBYTE src, UINT nBytes)
     }
 }
 
-VOID MIC_vGetMIC (PDWORD pdwL, PDWORD pdwR)
+void MIC_vGetMIC (unsigned long *pdwL, unsigned long *pdwR)
 {
     // Append the minimum padding
     s_vAppendByte(0x5a);

@@ -17,9 +17,11 @@
 #ifndef EEPROM_H
 #define EEPROM_H
 
-#include <net/cfg80211.h>
+#define AR_EEPROM_MODAL_SPURS   5
 
-#define AH_USE_EEPROM   0x1
+#include "../ath.h"
+#include <net/cfg80211.h>
+#include "ar9003_eeprom.h"
 
 #ifdef __BIG_ENDIAN
 #define AR5416_EEPROM_MAGIC 0x5aa5
@@ -60,7 +62,7 @@
 
 #define SD_NO_CTL               0xE0
 #define NO_CTL                  0xff
-#define CTL_MODE_M              7
+#define CTL_MODE_M              0xf
 #define CTL_11A                 0
 #define CTL_11B                 1
 #define CTL_11G                 2
@@ -92,13 +94,14 @@
  */
 #define AR9285_RDEXT_DEFAULT    0x1F
 
-#define AR_EEPROM_MAC(i)	(0x1d+(i))
 #define ATH9K_POW_SM(_r, _s)	(((_r) & 0x3f) << (_s))
 #define FREQ2FBIN(x, y)		((y) ? ((x) - 2300) : (((x) - 4800) / 5))
 #define ath9k_hw_use_flash(_ah)	(!(_ah->ah_flags & AH_USE_EEPROM))
 
 #define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 #define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
+				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_11_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 
 #define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
@@ -131,6 +134,7 @@
 #define AR5416_EEP_MINOR_VER_17      0x11
 #define AR5416_EEP_MINOR_VER_19      0x13
 #define AR5416_EEP_MINOR_VER_20      0x14
+#define AR5416_EEP_MINOR_VER_21      0x15
 #define AR5416_EEP_MINOR_VER_22      0x16
 
 #define AR5416_NUM_5G_CAL_PIERS         8
@@ -145,13 +149,12 @@
 #define AR5416_NUM_PD_GAINS             4
 #define AR5416_PD_GAINS_IN_MASK         4
 #define AR5416_PD_GAIN_ICEPTS           5
-#define AR5416_EEPROM_MODAL_SPURS       5
-#define AR5416_MAX_RATE_POWER           63
 #define AR5416_NUM_PDADC_VALUES         128
 #define AR5416_BCHAN_UNUSED             0xFF
 #define AR5416_MAX_PWR_RANGE_IN_HALF_DB 64
 #define AR5416_MAX_CHAINS               3
-#define AR5416_PWR_TABLE_OFFSET         -5
+#define AR9300_MAX_CHAINS		3
+#define AR5416_PWR_TABLE_OFFSET_DB     -5
 
 /* Rx gain type values */
 #define AR5416_EEP_RXGAIN_23DB_BACKOFF     0
@@ -170,11 +173,50 @@
 #define AR5416_EEP4K_NUM_CTLS                 12
 #define AR5416_EEP4K_NUM_BAND_EDGES           4
 #define AR5416_EEP4K_NUM_PD_GAINS             2
-#define AR5416_EEP4K_PD_GAINS_IN_MASK         4
-#define AR5416_EEP4K_PD_GAIN_ICEPTS           5
 #define AR5416_EEP4K_MAX_CHAINS               1
 
 #define AR9280_TX_GAIN_TABLE_SIZE 22
+
+#define AR9287_EEP_VER               0xE
+#define AR9287_EEP_VER_MINOR_MASK    0xFFF
+#define AR9287_EEP_MINOR_VER_1       0x1
+#define AR9287_EEP_MINOR_VER_2       0x2
+#define AR9287_EEP_MINOR_VER_3       0x3
+#define AR9287_EEP_MINOR_VER         AR9287_EEP_MINOR_VER_3
+#define AR9287_EEP_MINOR_VER_b       AR9287_EEP_MINOR_VER
+#define AR9287_EEP_NO_BACK_VER       AR9287_EEP_MINOR_VER_1
+
+#define AR9287_EEP_START_LOC            128
+#define AR9287_HTC_EEP_START_LOC        256
+#define AR9287_NUM_2G_CAL_PIERS         3
+#define AR9287_NUM_2G_CCK_TARGET_POWERS 3
+#define AR9287_NUM_2G_20_TARGET_POWERS  3
+#define AR9287_NUM_2G_40_TARGET_POWERS  3
+#define AR9287_NUM_CTLS              	12
+#define AR9287_NUM_BAND_EDGES        	4
+#define AR9287_PD_GAIN_ICEPTS           1
+#define AR9287_EEPMISC_BIG_ENDIAN       0x01
+#define AR9287_EEPMISC_WOW              0x02
+#define AR9287_MAX_CHAINS               2
+#define AR9287_ANT_16S                  32
+
+#define AR9287_DATA_SZ                  32
+
+#define AR9287_PWR_TABLE_OFFSET_DB  -5
+
+#define AR9287_CHECKSUM_LOCATION (AR9287_EEP_START_LOC + 1)
+
+#define CTL_EDGE_TPOWER(_ctl) ((_ctl) & 0x3f)
+#define CTL_EDGE_FLAGS(_ctl) (((_ctl) >> 6) & 0x03)
+
+#define LNA_CTL_BUF_MODE	BIT(0)
+#define LNA_CTL_ISEL_LO		BIT(1)
+#define LNA_CTL_ISEL_HI		BIT(2)
+#define LNA_CTL_BUF_IN		BIT(3)
+#define LNA_CTL_FEM_BAND	BIT(4)
+#define LNA_CTL_LOCAL_BIAS	BIT(5)
+#define LNA_CTL_FORCE_XPA	BIT(6)
+#define LNA_CTL_USE_ANT1	BIT(7)
 
 enum eeprom_param {
 	EEP_NFTHRESH_5,
@@ -194,12 +236,24 @@ enum eeprom_param {
 	EEP_MINOR_REV,
 	EEP_TX_MASK,
 	EEP_RX_MASK,
+	EEP_FSTCLK_5G,
 	EEP_RXGAIN_TYPE,
-	EEP_TXGAIN_TYPE,
 	EEP_OL_PWRCTRL,
+	EEP_TXGAIN_TYPE,
 	EEP_RC_CHAIN_MASK,
 	EEP_DAC_HPWR_5G,
-	EEP_FRAC_N_5G
+	EEP_FRAC_N_5G,
+	EEP_DEV_TYPE,
+	EEP_TEMPSENSE_SLOPE,
+	EEP_TEMPSENSE_SLOPE_PAL_ON,
+	EEP_PWR_TABLE_OFFSET,
+	EEP_DRIVE_STRENGTH,
+	EEP_INTERNAL_REGULATOR,
+	EEP_SWREG,
+	EEP_PAPRD,
+	EEP_MODAL_VER,
+	EEP_ANT_DIV_CTL1,
+	EEP_CHAIN_MASK_REDUCE
 };
 
 enum ar5416_rates {
@@ -236,7 +290,8 @@ struct base_eep_header {
 	u32 binBuildNumber;
 	u8 deviceType;
 	u8 pwdclkind;
-	u8 futureBase_1[2];
+	u8 fastClk5g;
+	u8 divChain;
 	u8 rxGainType;
 	u8 dacHiPwrMode_5G;
 	u8 openLoopPwrCntl;
@@ -244,7 +299,7 @@ struct base_eep_header {
 	u8 txGainType;
 	u8 rcChainMask;
 	u8 desiredScaleCCK;
-	u8 power_table_offset;
+	u8 pwr_table_offset;
 	u8 frac_n_5g;
 	u8 futureBase_3[21];
 } __packed;
@@ -309,15 +364,12 @@ struct modal_eep_header {
 	u8 xatten2Margin[AR5416_MAX_CHAINS];
 	u8 ob_ch1;
 	u8 db_ch1;
-	u8 useAnt1:1,
-	    force_xpaon:1,
-	    local_bias:1,
-	    femBandSelectUsed:1, xlnabufin:1, xlnaisel:2, xlnabufmode:1;
+	u8 lna_ctl;
 	u8 miscBits;
 	u16 xpaBiasLvlFreq[3];
 	u8 futureModal[6];
 
-	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
+	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
 } __packed;
 
 struct calDataPerFreqOpLoop {
@@ -328,46 +380,123 @@ struct calDataPerFreqOpLoop {
 } __packed;
 
 struct modal_eep_4k_header {
-	u32  antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
-	u32  antCtrlCommon;
-	u8   antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   switchSettling;
-	u8   txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   rxTxMarginCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   adcDesiredSize;
-	u8   pgaDesiredSize;
-	u8   xlnaGainCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   txEndToXpaOff;
-	u8   txEndToRxOn;
-	u8   txFrameToXpaOn;
-	u8   thresh62;
-	u8   noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   xpdGain;
-	u8   xpd;
-	u8   iqCalICh[AR5416_EEP4K_MAX_CHAINS];
-	u8   iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   pdGainOverlap;
-	u8   ob_01;
-	u8   db1_01;
-	u8   xpaBiasLvl;
-	u8   txFrameToDataStart;
-	u8   txFrameToPaOn;
-	u8   ht40PowerIncForPdadc;
-	u8   bswAtten[AR5416_EEP4K_MAX_CHAINS];
-	u8   bswMargin[AR5416_EEP4K_MAX_CHAINS];
-	u8   swSettleHt40;
-	u8   xatten2Db[AR5416_EEP4K_MAX_CHAINS];
-	u8   xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
-	u8   db2_01;
-	u8   version;
-	u16  ob_234;
-	u16  db1_234;
-	u16  db2_234;
-	u8   futureModal[4];
-
-	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
+	u32 antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
+	u32 antCtrlCommon;
+	u8 antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 switchSettling;
+	u8 txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 rxTxMarginCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 adcDesiredSize;
+	u8 pgaDesiredSize;
+	u8 xlnaGainCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 txEndToXpaOff;
+	u8 txEndToRxOn;
+	u8 txFrameToXpaOn;
+	u8 thresh62;
+	u8 noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 xpdGain;
+	u8 xpd;
+	u8 iqCalICh[AR5416_EEP4K_MAX_CHAINS];
+	u8 iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 pdGainOverlap;
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 ob_1:4, ob_0:4;
+	u8 db1_1:4, db1_0:4;
+#else
+	u8 ob_0:4, ob_1:4;
+	u8 db1_0:4, db1_1:4;
+#endif
+	u8 xpaBiasLvl;
+	u8 txFrameToDataStart;
+	u8 txFrameToPaOn;
+	u8 ht40PowerIncForPdadc;
+	u8 bswAtten[AR5416_EEP4K_MAX_CHAINS];
+	u8 bswMargin[AR5416_EEP4K_MAX_CHAINS];
+	u8 swSettleHt40;
+	u8 xatten2Db[AR5416_EEP4K_MAX_CHAINS];
+	u8 xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 db2_1:4, db2_0:4;
+#else
+	u8 db2_0:4, db2_1:4;
+#endif
+	u8 version;
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 ob_3:4, ob_2:4;
+	u8 antdiv_ctl1:4, ob_4:4;
+	u8 db1_3:4, db1_2:4;
+	u8 antdiv_ctl2:4, db1_4:4;
+	u8 db2_2:4, db2_3:4;
+	u8 reserved:4, db2_4:4;
+#else
+	u8 ob_2:4, ob_3:4;
+	u8 ob_4:4, antdiv_ctl1:4;
+	u8 db1_2:4, db1_3:4;
+	u8 db1_4:4, antdiv_ctl2:4;
+	u8 db2_2:4, db2_3:4;
+	u8 db2_4:4, reserved:4;
+#endif
+	u8 futureModal[4];
+	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
 } __packed;
 
+struct base_eep_ar9287_header {
+	u16 length;
+	u16 checksum;
+	u16 version;
+	u8 opCapFlags;
+	u8 eepMisc;
+	u16 regDmn[2];
+	u8 macAddr[6];
+	u8 rxMask;
+	u8 txMask;
+	u16 rfSilent;
+	u16 blueToothOptions;
+	u16 deviceCap;
+	u32 binBuildNumber;
+	u8 deviceType;
+	u8 openLoopPwrCntl;
+	int8_t pwrTableOffset;
+	int8_t tempSensSlope;
+	int8_t tempSensSlopePalOn;
+	u8 futureBase[29];
+} __packed;
+
+struct modal_eep_ar9287_header {
+	u32 antCtrlChain[AR9287_MAX_CHAINS];
+	u32 antCtrlCommon;
+	int8_t antennaGainCh[AR9287_MAX_CHAINS];
+	u8 switchSettling;
+	u8 txRxAttenCh[AR9287_MAX_CHAINS];
+	u8 rxTxMarginCh[AR9287_MAX_CHAINS];
+	int8_t adcDesiredSize;
+	u8 txEndToXpaOff;
+	u8 txEndToRxOn;
+	u8 txFrameToXpaOn;
+	u8 thresh62;
+	int8_t noiseFloorThreshCh[AR9287_MAX_CHAINS];
+	u8 xpdGain;
+	u8 xpd;
+	int8_t iqCalICh[AR9287_MAX_CHAINS];
+	int8_t iqCalQCh[AR9287_MAX_CHAINS];
+	u8 pdGainOverlap;
+	u8 xpaBiasLvl;
+	u8 txFrameToDataStart;
+	u8 txFrameToPaOn;
+	u8 ht40PowerIncForPdadc;
+	u8 bswAtten[AR9287_MAX_CHAINS];
+	u8 bswMargin[AR9287_MAX_CHAINS];
+	u8 swSettleHt40;
+	u8 version;
+	u8 db1;
+	u8 db2;
+	u8 ob_cck;
+	u8 ob_psk;
+	u8 ob_qam;
+	u8 ob_pal_off;
+	u8 futureModal[30];
+	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
+} __packed;
 
 struct cal_data_per_freq {
 	u8 pwrPdg[AR5416_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
@@ -375,8 +504,8 @@ struct cal_data_per_freq {
 } __packed;
 
 struct cal_data_per_freq_4k {
-	u8 pwrPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_EEP4K_PD_GAIN_ICEPTS];
-	u8 vpdPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_EEP4K_PD_GAIN_ICEPTS];
+	u8 pwrPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
+	u8 vpdPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
 } __packed;
 
 struct cal_target_power_leg {
@@ -389,18 +518,32 @@ struct cal_target_power_ht {
 	u8 tPow2x[8];
 } __packed;
 
+struct cal_ctl_edges {
+	u8 bChannel;
+	u8 ctl;
+} __packed;
 
-#ifdef __BIG_ENDIAN_BITFIELD
-struct cal_ctl_edges {
-	u8 bChannel;
-	u8 flag:2, tPower:6;
+struct cal_data_op_loop_ar9287 {
+	u8 pwrPdg[2][5];
+	u8 vpdPdg[2][5];
+	u8 pcdac[2][5];
+	u8 empty[2][5];
 } __packed;
-#else
-struct cal_ctl_edges {
-	u8 bChannel;
-	u8 tPower:6, flag:2;
+
+struct cal_data_per_freq_ar9287 {
+	u8 pwrPdg[AR5416_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
+	u8 vpdPdg[AR5416_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
 } __packed;
-#endif
+
+union cal_data_per_freq_ar9287_u {
+	struct cal_data_op_loop_ar9287 calDataOpen;
+	struct cal_data_per_freq_ar9287 calDataClose;
+} __packed;
+
+struct cal_ctl_data_ar9287 {
+	struct cal_ctl_edges
+	ctlEdges[AR9287_MAX_CHAINS][AR9287_NUM_BAND_EDGES];
+} __packed;
 
 struct cal_ctl_data {
 	struct cal_ctl_edges
@@ -461,7 +604,28 @@ struct ar5416_eeprom_4k {
 	u8 padding;
 } __packed;
 
+struct ar9287_eeprom {
+	struct base_eep_ar9287_header baseEepHeader;
+	u8 custData[AR9287_DATA_SZ];
+	struct modal_eep_ar9287_header modalHeader;
+	u8 calFreqPier2G[AR9287_NUM_2G_CAL_PIERS];
+	union cal_data_per_freq_ar9287_u
+	calPierData2G[AR9287_MAX_CHAINS][AR9287_NUM_2G_CAL_PIERS];
+	struct cal_target_power_leg
+	calTargetPowerCck[AR9287_NUM_2G_CCK_TARGET_POWERS];
+	struct cal_target_power_leg
+	calTargetPower2G[AR9287_NUM_2G_20_TARGET_POWERS];
+	struct cal_target_power_ht
+	calTargetPower2GHT20[AR9287_NUM_2G_20_TARGET_POWERS];
+	struct cal_target_power_ht
+	calTargetPower2GHT40[AR9287_NUM_2G_40_TARGET_POWERS];
+	u8 ctlIndex[AR9287_NUM_CTLS];
+	struct cal_ctl_data_ar9287 ctlData[AR9287_NUM_CTLS];
+	u8 padding;
+} __packed;
+
 enum reg_ext_bitmap {
+	REG_EXT_FCC_MIDBAND = 0,
 	REG_EXT_JAPAN_MIDBAND = 1,
 	REG_EXT_FCC_DFS_HT40 = 2,
 	REG_EXT_JAPAN_NONDFS_HT40 = 3,
@@ -477,33 +641,66 @@ struct ath9k_country_entry {
 	u8 iso[3];
 };
 
-enum ath9k_eep_map {
-	EEP_MAP_DEFAULT = 0x0,
-	EEP_MAP_4KBITS,
-	EEP_MAP_MAX
-};
-
 struct eeprom_ops {
 	int (*check_eeprom)(struct ath_hw *hw);
 	u32 (*get_eeprom)(struct ath_hw *hw, enum eeprom_param param);
 	bool (*fill_eeprom)(struct ath_hw *hw);
 	int (*get_eeprom_ver)(struct ath_hw *hw);
 	int (*get_eeprom_rev)(struct ath_hw *hw);
-	u8 (*get_num_ant_config)(struct ath_hw *hw, enum ieee80211_band band);
-	u16 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
-				      struct ath9k_channel *chan);
 	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);
 	void (*set_addac)(struct ath_hw *hw, struct ath9k_channel *chan);
 	void (*set_txpower)(struct ath_hw *hw, struct ath9k_channel *chan,
 			   u16 cfgCtl, u8 twiceAntennaReduction,
-			   u8 twiceMaxRegulatoryPower, u8 powerLimit);
+			   u8 twiceMaxRegulatoryPower, u8 powerLimit,
+			   bool test);
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
 };
+
+void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val);
+void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
+			       u32 shift, u32 val);
+int16_t ath9k_hw_interpolate(u16 target, u16 srcLeft, u16 srcRight,
+			     int16_t targetLeft,
+			     int16_t targetRight);
+bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList, u16 listSize,
+				    u16 *indexL, u16 *indexR);
+bool ath9k_hw_nvram_read(struct ath_common *common, u32 off, u16 *data);
+void ath9k_hw_fill_vpd_table(u8 pwrMin, u8 pwrMax, u8 *pPwrList,
+			     u8 *pVpdList, u16 numIntercepts,
+			     u8 *pRetVpdList);
+void ath9k_hw_get_legacy_target_powers(struct ath_hw *ah,
+				       struct ath9k_channel *chan,
+				       struct cal_target_power_leg *powInfo,
+				       u16 numChannels,
+				       struct cal_target_power_leg *pNewPower,
+				       u16 numRates, bool isExtTarget);
+void ath9k_hw_get_target_powers(struct ath_hw *ah,
+				struct ath9k_channel *chan,
+				struct cal_target_power_ht *powInfo,
+				u16 numChannels,
+				struct cal_target_power_ht *pNewPower,
+				u16 numRates, bool isHt40Target);
+u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
+				bool is2GHz, int num_band_edges);
+void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah);
+int ath9k_hw_eeprom_init(struct ath_hw *ah);
+
+void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
+				struct ath9k_channel *chan,
+				void *pRawDataSet,
+				u8 *bChans, u16 availPiers,
+				u16 tPdGainOverlap,
+				u16 *pPdGainBoundaries, u8 *pPDADCValues,
+				u16 numXpdGains);
 
 #define ar5416_get_ntxchains(_txchainmask)			\
 	(((_txchainmask >> 2) & 1) +                            \
 	 ((_txchainmask >> 1) & 1) + (_txchainmask & 1))
 
-int ath9k_hw_eeprom_attach(struct ath_hw *ah);
+extern const struct eeprom_ops eep_def_ops;
+extern const struct eeprom_ops eep_4k_ops;
+extern const struct eeprom_ops eep_ar9287_ops;
+extern const struct eeprom_ops eep_ar9287_ops;
+extern const struct eeprom_ops eep_ar9300_ops;
 
 #endif /* EEPROM_H */

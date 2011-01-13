@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/lib/lib1funcs.S: Optimized ARM division routines
  *
- * Author: Nicolas Pitre <nico@cam.org>
+ * Author: Nicolas Pitre <nico@fluxnic.net>
  *   - contributed to gcc-3.4 on Sep 30, 2003
  *   - adapted for the Linux kernel on Oct 2, 2003
  */

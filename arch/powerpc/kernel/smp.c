@@ -59,8 +59,8 @@
 
 struct thread_info *secondary_ti;
 
-DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
-DEFINE_PER_CPU(cpumask_t, cpu_core_map) = CPU_MASK_NONE;
+DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
 
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
@@ -68,7 +68,8 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
 
-static volatile unsigned int cpu_callin_map[NR_CPUS];
+/* Can't be static due to PowerMac hackery */
+volatile unsigned int cpu_callin_map[NR_CPUS];
 
 int smt_enabled_at_boot = 1;
 
@@ -188,11 +189,11 @@ void arch_send_call_function_single_ipi(int cpu)
 	smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNCTION);
 }
 
@@ -217,6 +218,9 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 
 static void stop_this_cpu(void *dummy)
 {
+	/* Remove this CPU */
+	set_cpu_online(smp_processor_id(), false);
+
 	local_irq_disable();
 	while (1)
 		;
@@ -231,7 +235,7 @@ struct thread_info *current_set[NR_CPUS];
 
 static void __devinit smp_store_cpu_info(int id)
 {
-	per_cpu(pvr, id) = mfspr(SPRN_PVR);
+	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
 }
 
 static void __init smp_create_idle(unsigned int cpu)
@@ -267,12 +271,23 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	smp_store_cpu_info(boot_cpuid);
 	cpu_callin_map[boot_cpuid] = 1;
 
+	for_each_possible_cpu(cpu) {
+		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map, cpu),
+					GFP_KERNEL, cpu_to_node(cpu));
+		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, cpu),
+					GFP_KERNEL, cpu_to_node(cpu));
+	}
+
+	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
+	cpumask_set_cpu(boot_cpuid, cpu_core_mask(boot_cpuid));
+
 	if (smp_ops)
-		max_cpus = smp_ops->probe();
+		if (smp_ops->probe)
+			max_cpus = smp_ops->probe();
+		else
+			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
- 
-	smp_space_timers(max_cpus);
 
 	for_each_possible_cpu(cpu)
 		if (cpu != boot_cpuid)
@@ -282,10 +297,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 void __devinit smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != boot_cpuid);
-
-	cpu_set(boot_cpuid, cpu_online_map);
-	cpu_set(boot_cpuid, per_cpu(cpu_sibling_map, boot_cpuid));
-	cpu_set(boot_cpuid, per_cpu(cpu_core_map, boot_cpuid));
 #ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
 #endif
@@ -303,10 +314,10 @@ int generic_cpu_disable(void)
 	if (cpu == boot_cpuid)
 		return -EBUSY;
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 #ifdef CONFIG_PPC64
 	vdso_data->processorCount--;
-	fixup_irqs(cpu_online_map);
+	fixup_irqs(cpu_online_mask);
 #endif
 	return 0;
 }
@@ -326,7 +337,7 @@ int generic_cpu_enable(unsigned int cpu)
 		cpu_relax();
 
 #ifdef CONFIG_PPC64
-	fixup_irqs(cpu_online_map);
+	fixup_irqs(cpu_online_mask);
 	/* counter the irq disable in fixup_irqs */
 	local_irq_enable();
 #endif
@@ -357,7 +368,7 @@ void generic_mach_cpu_die(void)
 	smp_wmb();
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	local_irq_enable();
 }
 #endif
@@ -411,17 +422,16 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		 * CPUs can take much longer to come up in the
 		 * hotplug case.  Wait five seconds.
 		 */
-		for (c = 25; c && !cpu_callin_map[cpu]; c--) {
-			msleep(200);
-		}
+		for (c = 5000; c && !cpu_callin_map[cpu]; c--)
+			msleep(1);
 #endif
 
 	if (!cpu_callin_map[cpu]) {
-		printk("Processor %u is stuck.\n", cpu);
+		printk(KERN_ERR "Processor %u is stuck.\n", cpu);
 		return -ENOENT;
 	}
 
-	printk("Processor %u found.\n", cpu);
+	DBG("Processor %u found.\n", cpu);
 
 	if (smp_ops->give_timebase)
 		smp_ops->give_timebase();
@@ -455,6 +465,19 @@ out:
 	of_node_put(np);
 	return id;
 }
+
+/* Helper routines for cpu to core mapping */
+int cpu_core_index_of_thread(int cpu)
+{
+	return cpu >> threads_shift;
+}
+EXPORT_SYMBOL_GPL(cpu_core_index_of_thread);
+
+int cpu_first_thread_of_core(int core)
+{
+	return core << threads_shift;
+}
+EXPORT_SYMBOL_GPL(cpu_first_thread_of_core);
 
 /* Must be called when no change can occur to cpu_present_map,
  * i.e. during cpu online or offline.
@@ -493,32 +516,30 @@ int __devinit start_secondary(void *unused)
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;
 
-	smp_ops->setup_cpu(cpu);
+	if (smp_ops->setup_cpu)
+		smp_ops->setup_cpu(cpu);
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
-
-	if (system_state > SYSTEM_BOOTING)
-		snapshot_timebase();
 
 	secondary_cpu_time_init();
 
 	ipi_call_lock();
 	notify_cpu_starting(cpu);
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	/* Update sibling maps */
-	base = cpu_first_thread_in_core(cpu);
+	base = cpu_first_thread_sibling(cpu);
 	for (i = 0; i < threads_per_core; i++) {
 		if (cpu_is_offline(base + i))
 			continue;
-		cpu_set(cpu, per_cpu(cpu_sibling_map, base + i));
-		cpu_set(base + i, per_cpu(cpu_sibling_map, cpu));
+		cpumask_set_cpu(cpu, cpu_sibling_mask(base + i));
+		cpumask_set_cpu(base + i, cpu_sibling_mask(cpu));
 
 		/* cpu_core_map should be a superset of
 		 * cpu_sibling_map even if we don't have cache
 		 * information, so update the former here, too.
 		 */
-		cpu_set(cpu, per_cpu(cpu_core_map, base +i));
-		cpu_set(base + i, per_cpu(cpu_core_map, cpu));
+		cpumask_set_cpu(cpu, cpu_core_mask(base + i));
+		cpumask_set_cpu(base + i, cpu_core_mask(cpu));
 	}
 	l2_cache = cpu_to_l2cache(cpu);
 	for_each_online_cpu(i) {
@@ -526,8 +547,8 @@ int __devinit start_secondary(void *unused)
 		if (!np)
 			continue;
 		if (np == l2_cache) {
-			cpu_set(cpu, per_cpu(cpu_core_map, i));
-			cpu_set(i, per_cpu(cpu_core_map, cpu));
+			cpumask_set_cpu(cpu, cpu_core_mask(i));
+			cpumask_set_cpu(i, cpu_core_mask(cpu));
 		}
 		of_node_put(np);
 	}
@@ -547,23 +568,33 @@ int setup_profiling_timer(unsigned int multiplier)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	cpumask_t old_mask;
+	cpumask_var_t old_mask;
 
 	/* We want the setup_cpu() here to be called from CPU 0, but our
 	 * init thread may have been "borrowed" by another CPU in the meantime
 	 * se we pin us down to CPU 0 for a short while
 	 */
-	old_mask = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(boot_cpuid));
+	alloc_cpumask_var(&old_mask, GFP_NOWAIT);
+	cpumask_copy(old_mask, &current->cpus_allowed);
+	set_cpus_allowed_ptr(current, cpumask_of(boot_cpuid));
 	
-	if (smp_ops)
+	if (smp_ops && smp_ops->setup_cpu)
 		smp_ops->setup_cpu(boot_cpuid);
 
-	set_cpus_allowed(current, old_mask);
+	set_cpus_allowed_ptr(current, old_mask);
 
-	snapshot_timebases();
+	free_cpumask_var(old_mask);
 
 	dump_numa_cpu_topology();
+}
+
+int arch_sd_sibling_asym_packing(void)
+{
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		return SD_ASYM_PACKING;
+	}
+	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -582,12 +613,12 @@ int __cpu_disable(void)
 		return err;
 
 	/* Update sibling maps */
-	base = cpu_first_thread_in_core(cpu);
+	base = cpu_first_thread_sibling(cpu);
 	for (i = 0; i < threads_per_core; i++) {
-		cpu_clear(cpu, per_cpu(cpu_sibling_map, base + i));
-		cpu_clear(base + i, per_cpu(cpu_sibling_map, cpu));
-		cpu_clear(cpu, per_cpu(cpu_core_map, base +i));
-		cpu_clear(base + i, per_cpu(cpu_core_map, cpu));
+		cpumask_clear_cpu(cpu, cpu_sibling_mask(base + i));
+		cpumask_clear_cpu(base + i, cpu_sibling_mask(cpu));
+		cpumask_clear_cpu(cpu, cpu_core_mask(base + i));
+		cpumask_clear_cpu(base + i, cpu_core_mask(cpu));
 	}
 
 	l2_cache = cpu_to_l2cache(cpu);
@@ -596,8 +627,8 @@ int __cpu_disable(void)
 		if (!np)
 			continue;
 		if (np == l2_cache) {
-			cpu_clear(cpu, per_cpu(cpu_core_map, i));
-			cpu_clear(i, per_cpu(cpu_core_map, cpu));
+			cpumask_clear_cpu(cpu, cpu_core_mask(i));
+			cpumask_clear_cpu(i, cpu_core_mask(cpu));
 		}
 		of_node_put(np);
 	}
@@ -611,5 +642,23 @@ void __cpu_die(unsigned int cpu)
 {
 	if (smp_ops->cpu_die)
 		smp_ops->cpu_die(cpu);
+}
+
+static DEFINE_MUTEX(powerpc_cpu_hotplug_driver_mutex);
+
+void cpu_hotplug_driver_lock()
+{
+	mutex_lock(&powerpc_cpu_hotplug_driver_mutex);
+}
+
+void cpu_hotplug_driver_unlock()
+{
+	mutex_unlock(&powerpc_cpu_hotplug_driver_mutex);
+}
+
+void cpu_die(void)
+{
+	if (ppc_md.cpu_die)
+		ppc_md.cpu_die();
 }
 #endif

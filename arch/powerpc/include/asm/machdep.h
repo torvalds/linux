@@ -27,9 +27,7 @@ struct iommu_table;
 struct rtc_time;
 struct file;
 struct pci_controller;
-#ifdef CONFIG_KEXEC
 struct kimage;
-#endif
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
@@ -72,7 +70,7 @@ struct machdep_calls {
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
 
-	/* special for kexec, to be called in real mode, linar mapping is
+	/* special for kexec, to be called in real mode, linear mapping is
 	 * destroyed as well */
 	void		(*hpte_clear_all)(void);
 
@@ -101,6 +99,9 @@ struct machdep_calls {
 
 	void		(*pci_dma_dev_setup)(struct pci_dev *dev);
 	void		(*pci_dma_bus_setup)(struct pci_bus *bus);
+
+	/* Platform set_dma_mask override */
+	int		(*dma_set_mask)(struct device *dev, u64 dma_mask);
 
 	int		(*probe)(void);
 	void		(*setup_arch)(void); /* Optional, may be NULL */
@@ -209,13 +210,13 @@ struct machdep_calls {
 	/*
 	 * optional PCI "hooks"
 	 */
-	/* Called in indirect_* to avoid touching devices */
-	int (*pci_exclude_device)(struct pci_controller *, unsigned char, unsigned char);
-
 	/* Called at then very end of pcibios_init() */
 	void (*pcibios_after_init)(void);
 
 #endif /* CONFIG_PPC32 */
+
+	/* Called in indirect_* to avoid touching devices */
+	int (*pci_exclude_device)(struct pci_controller *, unsigned char, unsigned char);
 
 	/* Called after PPC generic resource fixup to perform
 	   machine specific fixups */
@@ -266,12 +267,19 @@ struct machdep_calls {
 	void (*suspend_disable_irqs)(void);
 	void (*suspend_enable_irqs)(void);
 #endif
+	int (*suspend_disable_cpu)(void);
+
+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
+	ssize_t (*cpu_probe)(const char *, size_t);
+	ssize_t (*cpu_release)(const char *, size_t);
+#endif
 };
 
 extern void e500_idle(void);
 extern void power4_idle(void);
 extern void power4_cpu_offline_powersave(void);
 extern void ppc6xx_idle(void);
+extern void book3e_idle(void);
 
 /*
  * ppc_md contains a copy of the machine description structure for the
@@ -313,8 +321,6 @@ typedef enum sys_ctrler_kind {
 extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
-
-extern void setup_pci_ptrs(void);
 
 #ifdef CONFIG_SMP
 /* Poor default implementations */
@@ -360,9 +366,6 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 #define machine_device_initcall_sync(mach,fn)	__define_machine_initcall(mach,"6s",fn,6s)
 #define machine_late_initcall(mach,fn)		__define_machine_initcall(mach,"7",fn,7)
 #define machine_late_initcall_sync(mach,fn)	__define_machine_initcall(mach,"7s",fn,7s)
-
-void generic_suspend_disable_irqs(void);
-void generic_suspend_enable_irqs(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MACHDEP_H */

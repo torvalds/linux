@@ -118,7 +118,8 @@ ssize_t i2400ms_bus_bm_cmd_send(struct i2400m *i2400m,
 	if (cmd_size > I2400M_BM_CMD_BUF_SIZE)
 		goto error_too_big;
 
-	memcpy(i2400m->bm_cmd_buf, _cmd, cmd_size);	/* Prep command */
+	if (_cmd != i2400m->bm_cmd_buf)
+		memmove(i2400m->bm_cmd_buf, _cmd, cmd_size);
 	cmd = i2400m->bm_cmd_buf;
 	if (cmd_size_a > cmd_size)			/* Zero pad space */
 		memset(i2400m->bm_cmd_buf + cmd_size, 0, cmd_size_a - cmd_size);
@@ -177,10 +178,6 @@ ssize_t i2400ms_bus_bm_wait_for_ack(struct i2400m *i2400m,
 	d_fnstart(5, dev, "(i2400m %p ack %p size %zu)\n",
 		  i2400m, ack, ack_size);
 
-	spin_lock(&i2400m->rx_lock);
-	i2400ms->bm_ack_size = -EINPROGRESS;
-	spin_unlock(&i2400m->rx_lock);
-
 	result = wait_event_timeout(i2400ms->bm_wfa_wq,
 				    i2400ms->bm_ack_size != -EINPROGRESS,
 				    2 * HZ);
@@ -199,6 +196,10 @@ ssize_t i2400ms_bus_bm_wait_for_ack(struct i2400m *i2400m,
 		size = min(ack_size, i2400ms->bm_ack_size);
 		memcpy(ack, i2400m->bm_ack_buf, size);
 	}
+	/*
+	 * Remember always to clear the bm_ack_size to -EINPROGRESS
+	 * after the RX data is processed
+	 */
 	i2400ms->bm_ack_size = -EINPROGRESS;
 	spin_unlock(&i2400m->rx_lock);
 

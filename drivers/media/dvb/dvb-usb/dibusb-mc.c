@@ -42,6 +42,8 @@ static struct usb_device_id dibusb_dib3000mc_table [] = {
 /* 11 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ARTEC_T14_WARM) },
 /* 12 */	{ USB_DEVICE(USB_VID_LEADTEK,		USB_PID_WINFAST_DTV_DONGLE_COLD) },
 /* 13 */	{ USB_DEVICE(USB_VID_LEADTEK,		USB_PID_WINFAST_DTV_DONGLE_WARM) },
+/* 14 */	{ USB_DEVICE(USB_VID_HUMAX_COEX,	USB_PID_DVB_T_USB_STICK_HIGH_SPEED_COLD) },
+/* 15 */	{ USB_DEVICE(USB_VID_HUMAX_COEX,	USB_PID_DVB_T_USB_STICK_HIGH_SPEED_WARM) },
 			{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mc_table);
@@ -66,7 +68,7 @@ static struct dvb_usb_device_properties dibusb_mc_properties = {
 	/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-				.count = 7,
+				.count = 8,
 				.endpoint = 0x06,
 				.u = {
 					.bulk = {
@@ -79,16 +81,18 @@ static struct dvb_usb_device_properties dibusb_mc_properties = {
 	},
 	.power_ctrl       = dibusb2_0_power_ctrl,
 
-	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 111, /* FIXME */
-	.rc_query         = dibusb_rc_query,
+	.rc.legacy = {
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_map_table     = rc_map_dibusb_table,
+		.rc_map_size      = 111, /* FIXME */
+		.rc_query         = dibusb_rc_query,
+	},
 
 	.i2c_algo         = &dibusb_i2c_algo,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.num_device_descs = 7,
+	.num_device_descs = 8,
 	.devices = {
 		{   "DiBcom USB2.0 DVB-T reference design (MOD3000P)",
 			{ &dibusb_dib3000mc_table[0], NULL },
@@ -118,6 +122,10 @@ static struct dvb_usb_device_properties dibusb_mc_properties = {
 		{   "Leadtek - USB2.0 Winfast DTV dongle",
 			{ &dibusb_dib3000mc_table[12], NULL },
 			{ &dibusb_dib3000mc_table[13], NULL },
+		},
+		{   "Humax/Coex DVB-T USB Stick 2.0 High Speed",
+			{ &dibusb_dib3000mc_table[14], NULL },
+			{ &dibusb_dib3000mc_table[15], NULL },
 		},
 		{ NULL },
 	}

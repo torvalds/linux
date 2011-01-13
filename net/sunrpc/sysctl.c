@@ -56,7 +56,7 @@ rpc_unregister_sysctl(void)
 	}
 }
 
-static int proc_do_xprt(ctl_table *table, int write, struct file *file,
+static int proc_do_xprt(ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char tmpbuf[256];
@@ -71,7 +71,7 @@ static int proc_do_xprt(ctl_table *table, int write, struct file *file,
 }
 
 static int
-proc_dodebug(ctl_table *table, int write, struct file *file,
+proc_dodebug(ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char		tmpbuf[20], c, *s;
@@ -139,46 +139,45 @@ static ctl_table debug_table[] = {
 		.data		= &rpc_debug,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dodebug
+		.proc_handler	= proc_dodebug
 	},
 	{
 		.procname	= "nfs_debug",
 		.data		= &nfs_debug,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dodebug
+		.proc_handler	= proc_dodebug
 	},
 	{
 		.procname	= "nfsd_debug",
 		.data		= &nfsd_debug,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dodebug
+		.proc_handler	= proc_dodebug
 	},
 	{
 		.procname	= "nlm_debug",
 		.data		= &nlm_debug,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dodebug
+		.proc_handler	= proc_dodebug
 	},
 	{
 		.procname	= "transports",
 		.maxlen		= 256,
 		.mode		= 0444,
-		.proc_handler	= &proc_do_xprt,
+		.proc_handler	= proc_do_xprt,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table sunrpc_table[] = {
 	{
-		.ctl_name	= CTL_SUNRPC,
 		.procname	= "sunrpc",
 		.mode		= 0555,
 		.child		= debug_table
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 #endif

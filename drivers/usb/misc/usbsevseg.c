@@ -27,7 +27,7 @@
 #define MAXLEN		6
 
 /* table of devices that work with this driver */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(VENDOR_ID, PRODUCT_ID) },
 	{ },
 };
@@ -38,6 +38,7 @@ static char *display_textmodes[] = {"raw", "hex", "ascii", NULL};
 
 struct usb_sevsegdev {
 	struct usb_device *udev;
+	struct usb_interface *intf;
 
 	u8 powered;
 	u8 mode_msb;
@@ -46,6 +47,9 @@ struct usb_sevsegdev {
 	u8 textmode;
 	u8 text[MAXLEN];
 	u16 textlength;
+
+	u8 shadow_power; /* for PM */
+	u8 has_interface_pm;
 };
 
 /* sysfs_streq can't replace this completely
@@ -65,6 +69,16 @@ static void update_display_powered(struct usb_sevsegdev *mydev)
 {
 	int rc;
 
+	if (mydev->powered && !mydev->has_interface_pm) {
+		rc = usb_autopm_get_interface(mydev->intf);
+		if (rc < 0)
+			return;
+		mydev->has_interface_pm = 1;
+	}
+
+	if (mydev->shadow_power != 1)
+		return;
+
 	rc = usb_control_msg(mydev->udev,
 			usb_sndctrlpipe(mydev->udev, 0),
 			0x12,
@@ -76,11 +90,19 @@ static void update_display_powered(struct usb_sevsegdev *mydev)
 			2000);
 	if (rc < 0)
 		dev_dbg(&mydev->udev->dev, "power retval = %d\n", rc);
+
+	if (!mydev->powered && mydev->has_interface_pm) {
+		usb_autopm_put_interface(mydev->intf);
+		mydev->has_interface_pm = 0;
+	}
 }
 
 static void update_display_mode(struct usb_sevsegdev *mydev)
 {
 	int rc;
+
+	if(mydev->shadow_power != 1)
+		return;
 
 	rc = usb_control_msg(mydev->udev,
 			usb_sndctrlpipe(mydev->udev, 0),
@@ -96,14 +118,17 @@ static void update_display_mode(struct usb_sevsegdev *mydev)
 		dev_dbg(&mydev->udev->dev, "mode retval = %d\n", rc);
 }
 
-static void update_display_visual(struct usb_sevsegdev *mydev)
+static void update_display_visual(struct usb_sevsegdev *mydev, gfp_t mf)
 {
 	int rc;
 	int i;
 	unsigned char *buffer;
 	u8 decimals = 0;
 
-	buffer = kzalloc(MAXLEN, GFP_KERNEL);
+	if(mydev->shadow_power != 1)
+		return;
+
+	buffer = kzalloc(MAXLEN, mf);
 	if (!buffer) {
 		dev_err(&mydev->udev->dev, "out of memory\n");
 		return;
@@ -163,11 +188,11 @@ static ssize_t set_attr_##name(struct device *dev, 		\
 	struct usb_sevsegdev *mydev = usb_get_intfdata(intf);	\
 								\
 	mydev->name = simple_strtoul(buf, NULL, 10);		\
-	update_fcn(mydev); \
+	update_fcn(mydev); 					\
 								\
 	return count;						\
 }								\
-static DEVICE_ATTR(name, S_IWUGO | S_IRUGO, show_attr_##name, set_attr_##name);
+static DEVICE_ATTR(name, S_IRUGO | S_IWUSR, show_attr_##name, set_attr_##name);
 
 static ssize_t show_attr_text(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -194,11 +219,11 @@ static ssize_t set_attr_text(struct device *dev,
 	if (end > 0)
 		memcpy(mydev->text, buf, end);
 
-	update_display_visual(mydev);
+	update_display_visual(mydev, GFP_KERNEL);
 	return count;
 }
 
-static DEVICE_ATTR(text, S_IWUGO | S_IRUGO, show_attr_text, set_attr_text);
+static DEVICE_ATTR(text, S_IRUGO | S_IWUSR, show_attr_text, set_attr_text);
 
 static ssize_t show_attr_decimals(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -242,13 +267,12 @@ static ssize_t set_attr_decimals(struct device *dev,
 		if (buf[i] == '1')
 			mydev->decimals[end-1-i] = 1;
 
-	update_display_visual(mydev);
+	update_display_visual(mydev, GFP_KERNEL);
 
 	return count;
 }
 
-static DEVICE_ATTR(decimals, S_IWUGO | S_IRUGO,
-	show_attr_decimals, set_attr_decimals);
+static DEVICE_ATTR(decimals, S_IRUGO | S_IWUSR, show_attr_decimals, set_attr_decimals);
 
 static ssize_t show_attr_textmode(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -286,7 +310,7 @@ static ssize_t set_attr_textmode(struct device *dev,
 	for (i = 0; display_textmodes[i]; i++) {
 		if (sysfs_streq(display_textmodes[i], buf)) {
 			mydev->textmode = i;
-			update_display_visual(mydev);
+			update_display_visual(mydev, GFP_KERNEL);
 			return count;
 		}
 	}
@@ -294,8 +318,7 @@ static ssize_t set_attr_textmode(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(textmode, S_IWUGO | S_IRUGO,
-	show_attr_textmode, set_attr_textmode);
+static DEVICE_ATTR(textmode, S_IRUGO | S_IWUSR, show_attr_textmode, set_attr_textmode);
 
 
 MYDEV_ATTR_SIMPLE_UNSIGNED(powered, update_display_powered);
@@ -330,7 +353,12 @@ static int sevseg_probe(struct usb_interface *interface,
 	}
 
 	mydev->udev = usb_get_dev(udev);
+	mydev->intf = interface;
 	usb_set_intfdata(interface, mydev);
+
+	/* PM */
+	mydev->shadow_power = 1; /* currently active */
+	mydev->has_interface_pm = 0; /* have not issued autopm_get */
 
 	/*set defaults */
 	mydev->textmode = 0x02; /* ascii mode */
@@ -364,11 +392,49 @@ static void sevseg_disconnect(struct usb_interface *interface)
 	dev_info(&interface->dev, "USB 7 Segment now disconnected\n");
 }
 
+static int sevseg_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct usb_sevsegdev *mydev;
+
+	mydev = usb_get_intfdata(intf);
+	mydev->shadow_power = 0;
+
+	return 0;
+}
+
+static int sevseg_resume(struct usb_interface *intf)
+{
+	struct usb_sevsegdev *mydev;
+
+	mydev = usb_get_intfdata(intf);
+	mydev->shadow_power = 1;
+	update_display_mode(mydev);
+	update_display_visual(mydev, GFP_NOIO);
+
+	return 0;
+}
+
+static int sevseg_reset_resume(struct usb_interface *intf)
+{
+	struct usb_sevsegdev *mydev;
+
+	mydev = usb_get_intfdata(intf);
+	mydev->shadow_power = 1;
+	update_display_mode(mydev);
+	update_display_visual(mydev, GFP_NOIO);
+
+	return 0;
+}
+
 static struct usb_driver sevseg_driver = {
 	.name =		"usbsevseg",
 	.probe =	sevseg_probe,
 	.disconnect =	sevseg_disconnect,
+	.suspend =	sevseg_suspend,
+	.resume =	sevseg_resume,
+	.reset_resume =	sevseg_reset_resume,
 	.id_table =	id_table,
+	.supports_autosuspend = 1,
 };
 
 static int __init usb_sevseg_init(void)

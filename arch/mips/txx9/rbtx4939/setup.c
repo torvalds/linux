@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/interrupt.h>
@@ -512,10 +513,10 @@ static void __init rbtx4939_setup(void)
 	rbtx4939_ebusc_setup();
 	/* always enable ATA0 */
 	txx9_set64(&tx4939_ccfgptr->pcfg, TX4939_PCFG_ATA0MODE);
-	rbtx4939_update_ioc_pen();
 	if (txx9_master_clock == 0)
 		txx9_master_clock = 20000000;
 	tx4939_setup();
+	rbtx4939_update_ioc_pen();
 #ifdef HAVE_RBTX4939_IOSWAB
 	ioswabw = rbtx4939_ioswabw;
 	__mem_ioswabw = rbtx4939_mem_ioswabw;

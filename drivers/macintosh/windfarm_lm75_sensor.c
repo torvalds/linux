@@ -107,13 +107,13 @@ static int wf_lm75_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, lm);
 
 	rc = wf_register_sensor(&lm->sens);
-	if (rc) {
-		i2c_set_clientdata(client, NULL);
+	if (rc)
 		kfree(lm);
-	}
 
 	return rc;
 }
+
+static struct i2c_driver wf_lm75_driver;
 
 static struct i2c_client *wf_lm75_create(struct i2c_adapter *adapter,
 					     u8 addr, int ds1775,
@@ -157,7 +157,7 @@ static struct i2c_client *wf_lm75_create(struct i2c_adapter *adapter,
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&client->detected, &client->driver->clients);
+	list_add_tail(&client->detected, &wf_lm75_driver.clients);
 	return client;
  fail:
 	return NULL;
@@ -214,7 +214,6 @@ static int wf_lm75_remove(struct i2c_client *client)
 	/* release sensor */
 	wf_unregister_sensor(&lm->sens);
 
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 
@@ -237,9 +236,9 @@ static struct i2c_driver wf_lm75_driver = {
 static int __init wf_lm75_sensor_init(void)
 {
 	/* Don't register on old machines that use therm_pm72 for now */
-	if (machine_is_compatible("PowerMac7,2") ||
-	    machine_is_compatible("PowerMac7,3") ||
-	    machine_is_compatible("RackMac3,1"))
+	if (of_machine_is_compatible("PowerMac7,2") ||
+	    of_machine_is_compatible("PowerMac7,3") ||
+	    of_machine_is_compatible("RackMac3,1"))
 		return -ENODEV;
 	return i2c_add_driver(&wf_lm75_driver);
 }

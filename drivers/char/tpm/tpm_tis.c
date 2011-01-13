@@ -22,8 +22,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pnp.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
+#include <linux/acpi.h>
 #include "tpm.h"
 
 #define TPM_HEADER_SIZE 10
@@ -76,6 +78,26 @@ enum tis_defaults {
 
 static LIST_HEAD(tis_chips);
 static DEFINE_SPINLOCK(tis_lock);
+
+#ifdef CONFIG_ACPI
+static int is_itpm(struct pnp_dev *dev)
+{
+	struct acpi_device *acpi = pnp_acpi_device(dev);
+	struct acpi_hardware_id *id;
+
+	list_for_each_entry(id, &acpi->pnp.ids, list) {
+		if (!strcmp("INTC0102", id->id))
+			return 1;
+	}
+
+	return 0;
+}
+#else
+static int is_itpm(struct pnp_dev *dev)
+{
+	return 0;
+}
+#endif
 
 static int check_locality(struct tpm_chip *chip, int l)
 {
@@ -257,6 +279,10 @@ out:
 	return size;
 }
 
+static int itpm;
+module_param(itpm, bool, 0444);
+MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Lenovo laptops)");
+
 /*
  * If interrupts are used (signaled by an irq set in the vendor structure)
  * tpm.c can skip polling for the data to be available as the interrupt is
@@ -293,7 +319,7 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		wait_for_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c,
 			      &chip->vendor.int_queue);
 		status = tpm_tis_status(chip);
-		if ((status & TPM_STS_DATA_EXPECT) == 0) {
+		if (!itpm && (status & TPM_STS_DATA_EXPECT) == 0) {
 			rc = -EIO;
 			goto out_err;
 		}
@@ -450,6 +476,12 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 		goto out_err;
 	}
 
+	/* Default timeouts */
+	chip->vendor.timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+	chip->vendor.timeout_b = msecs_to_jiffies(TIS_LONG_TIMEOUT);
+	chip->vendor.timeout_c = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+	chip->vendor.timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+
 	if (request_locality(chip, 0) != 0) {
 		rc = -ENODEV;
 		goto out_err;
@@ -457,15 +489,16 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 
 	vendor = ioread32(chip->vendor.iobase + TPM_DID_VID(0));
 
-	/* Default timeouts */
-	chip->vendor.timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
-	chip->vendor.timeout_b = msecs_to_jiffies(TIS_LONG_TIMEOUT);
-	chip->vendor.timeout_c = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
-	chip->vendor.timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
-
 	dev_info(dev,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
 		 vendor >> 16, ioread8(chip->vendor.iobase + TPM_RID(0)));
+
+	if (is_itpm(to_pnp_dev(dev)))
+		itpm = 1;
+
+	if (itpm)
+		dev_info(dev, "Intel iTPM workaround enabled\n");
+
 
 	/* Figure out the capabilities */
 	intfcaps =
@@ -589,7 +622,7 @@ out_err:
 	tpm_remove_hardware(chip->dev);
 	return rc;
 }
-
+#ifdef CONFIG_PNP
 static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 				      const struct pnp_device_id *pnp_id)
 {
@@ -614,7 +647,14 @@ static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
 
 static int tpm_tis_pnp_resume(struct pnp_dev *dev)
 {
-	return tpm_pm_resume(&dev->dev);
+	struct tpm_chip *chip = pnp_get_drvdata(dev);
+	int ret;
+
+	ret = tpm_pm_resume(&dev->dev);
+	if (!ret)
+		tpm_continue_selftest(chip);
+
+	return ret;
 }
 
 static struct pnp_device_id tpm_pnp_tbl[] __devinitdata = {
@@ -629,6 +669,7 @@ static struct pnp_device_id tpm_pnp_tbl[] __devinitdata = {
 	{"", 0},		/* User Specified */
 	{"", 0}			/* Terminator */
 };
+MODULE_DEVICE_TABLE(pnp, tpm_pnp_tbl);
 
 static __devexit void tpm_tis_pnp_remove(struct pnp_dev *dev)
 {
@@ -653,7 +694,7 @@ static struct pnp_driver tis_pnp_driver = {
 module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 		    sizeof(tpm_pnp_tbl[TIS_HID_USR_IDX].id), 0444);
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
-
+#endif
 static int tpm_tis_suspend(struct platform_device *dev, pm_message_t msg)
 {
 	return tpm_pm_suspend(&dev->dev, msg);
@@ -680,21 +721,21 @@ MODULE_PARM_DESC(force, "Force device probe rather than using ACPI entry");
 static int __init init_tis(void)
 {
 	int rc;
+#ifdef CONFIG_PNP
+	if (!force)
+		return pnp_register_driver(&tis_pnp_driver);
+#endif
 
-	if (force) {
-		rc = platform_driver_register(&tis_drv);
-		if (rc < 0)
-			return rc;
-		if (IS_ERR(pdev=platform_device_register_simple("tpm_tis", -1, NULL, 0)))
-			return PTR_ERR(pdev);
-		if((rc=tpm_tis_init(&pdev->dev, TIS_MEM_BASE, TIS_MEM_LEN, 0)) != 0) {
-			platform_device_unregister(pdev);
-			platform_driver_unregister(&tis_drv);
-		}
+	rc = platform_driver_register(&tis_drv);
+	if (rc < 0)
 		return rc;
+	if (IS_ERR(pdev=platform_device_register_simple("tpm_tis", -1, NULL, 0)))
+		return PTR_ERR(pdev);
+	if((rc=tpm_tis_init(&pdev->dev, TIS_MEM_BASE, TIS_MEM_LEN, 0)) != 0) {
+		platform_device_unregister(pdev);
+		platform_driver_unregister(&tis_drv);
 	}
-
-	return pnp_register_driver(&tis_pnp_driver);
+	return rc;
 }
 
 static void __exit cleanup_tis(void)
@@ -718,12 +759,14 @@ static void __exit cleanup_tis(void)
 		list_del(&i->list);
 	}
 	spin_unlock(&tis_lock);
-
-	if (force) {
-		platform_device_unregister(pdev);
-		platform_driver_unregister(&tis_drv);
-	} else
+#ifdef CONFIG_PNP
+	if (!force) {
 		pnp_unregister_driver(&tis_pnp_driver);
+		return;
+	}
+#endif
+	platform_device_unregister(pdev);
+	platform_driver_unregister(&tis_drv);
 }
 
 module_init(init_tis);

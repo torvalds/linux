@@ -7,10 +7,10 @@
  * video_detect.c:
  * Provides acpi_is_video_device() for early scanning of ACPI devices in scan.c
  * There a Linux specific (Spec does not provide a HID for video devices) is
- * assinged
+ * assigned
  *
  * After PCI devices are glued with ACPI devices
- * acpi_get_physical_pci_device() can be called to identify ACPI graphics
+ * acpi_get_pci_dev() can be called to identify ACPI graphics
  * devices for which a real graphics card is plugged in
  *
  * Now acpi_video_get_capabilities() can be called to check which
@@ -36,6 +36,9 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/pci.h>
+
+#define PREFIX "ACPI: "
 
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
@@ -56,8 +59,8 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
 				  "support\n"));
 		*cap |= ACPI_VIDEO_BACKLIGHT;
 		if (ACPI_FAILURE(acpi_get_handle(handle, "_BQC", &h_dummy)))
-			printk(KERN_WARNING FW_BUG PREFIX "ACPI brightness "
-					"control misses _BQC function\n");
+			printk(KERN_WARNING FW_BUG PREFIX "No _BQC method, "
+				"cannot determine initial brightness\n");
 		/* We have backlight support, no need to scan further */
 		return AE_CTRL_TERMINATE;
 	}
@@ -80,16 +83,16 @@ long acpi_is_video_device(struct acpi_device *device)
 	if (!device)
 		return 0;
 
-	/* Does this device able to support video switching ? */
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOD", &h_dummy)) &&
+	/* Is this device able to support video switching ? */
+	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOD", &h_dummy)) ||
 	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOS", &h_dummy)))
 		video_caps |= ACPI_VIDEO_OUTPUT_SWITCHING;
 
-	/* Does this device able to retrieve a video ROM ? */
+	/* Is this device able to retrieve a video ROM ? */
 	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_ROM", &h_dummy)))
 		video_caps |= ACPI_VIDEO_ROM_AVAILABLE;
 
-	/* Does this device able to configure which video head to be POSTed ? */
+	/* Is this device able to configure which video head to be POSTed ? */
 	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_VPO", &h_dummy)) &&
 	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_GPD", &h_dummy)) &&
 	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_SPD", &h_dummy)))
@@ -98,7 +101,7 @@ long acpi_is_video_device(struct acpi_device *device)
 	/* Only check for backlight functionality if one of the above hit. */
 	if (video_caps)
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, device->handle,
-				    ACPI_UINT32_MAX, acpi_backlight_cap_match,
+				    ACPI_UINT32_MAX, acpi_backlight_cap_match, NULL,
 				    &video_caps, NULL);
 
 	return video_caps;
@@ -109,7 +112,7 @@ static acpi_status
 find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	long *cap = context;
-	struct device *dev;
+	struct pci_dev *dev;
 	struct acpi_device *acpi_dev;
 
 	const struct acpi_device_id video_ids[] = {
@@ -120,10 +123,10 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 		return AE_OK;
 
 	if (!acpi_match_device_ids(acpi_dev, video_ids)) {
-		dev = acpi_get_physical_pci_device(handle);
+		dev = acpi_get_pci_dev(handle);
 		if (!dev)
 			return AE_OK;
-		put_device(dev);
+		pci_dev_put(dev);
 		*cap |= acpi_is_video_device(acpi_dev);
 	}
 	return AE_OK;
@@ -134,7 +137,7 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
  *
  * if NULL is passed as argument all ACPI devices are enumerated and
  * all graphics capabilities of physically present devices are
- * summerized and returned. This is cached and done only once.
+ * summarized and returned. This is cached and done only once.
  */
 long acpi_video_get_capabilities(acpi_handle graphics_handle)
 {
@@ -148,7 +151,7 @@ long acpi_video_get_capabilities(acpi_handle graphics_handle)
 	if (!graphics_handle) {
 		/* Only do the global walk through all graphics devices once */
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-				    ACPI_UINT32_MAX, find_video,
+				    ACPI_UINT32_MAX, find_video, NULL,
 				    &caps, NULL);
 		/* There might be boot param flags set already... */
 		acpi_video_support |= caps;
@@ -170,7 +173,7 @@ long acpi_video_get_capabilities(acpi_handle graphics_handle)
 			return 0;
 		}
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, graphics_handle,
-				    ACPI_UINT32_MAX, find_video,
+				    ACPI_UINT32_MAX, find_video, NULL,
 				    &caps, NULL);
 	}
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "We have 0x%lX video support %s %s\n",
@@ -247,7 +250,7 @@ static int __init acpi_backlight(char *str)
 				ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR;
 		if (!strcmp("video", str))
 			acpi_video_support |=
-				ACPI_VIDEO_OUTPUT_SWITCHING_FORCE_VIDEO;
+				ACPI_VIDEO_BACKLIGHT_FORCE_VIDEO;
 	}
 	return 1;
 }

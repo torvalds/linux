@@ -23,7 +23,7 @@ static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
  * Initial task structure.
  *
  * We need to make sure that this is properly aligned due to the way process stacks are
- * handled. This is done by having a special ".data.init_task" section...
+ * handled. This is done by having a special ".data..init_task" section...
  */
 #define init_thread_info	init_task_mem.s.thread_info
 
@@ -33,7 +33,8 @@ union {
 		struct thread_info thread_info;
 	} s;
 	unsigned long stack[KERNEL_STACK_SIZE/sizeof (unsigned long)];
-} init_task_mem asm ("init_task") __attribute__((section(".data.init_task"))) = {{
+} init_task_mem asm ("init_task") __init_task_data =
+	{{
 	.task =		INIT_TASK(init_task_mem.s.task),
 	.thread_info =	INIT_THREAD_INFO(init_task_mem.s.task)
 }};

@@ -6,7 +6,7 @@
  * Copyright (C) 2006-2009 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
  * Basic register address definitions in physical memory and
- * some block defintions for core devices like the timer.
+ * some block definitions for core devices like the timer.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
 
@@ -20,11 +20,9 @@
 
 /* NAND Flash CS0 */
 #define U300_NAND_CS0_PHYS_BASE		0x80000000
-#define U300_NAND_CS0_VIRT_BASE		0xff040000
 
 /* NFIF */
 #define U300_NAND_IF_PHYS_BASE		0x9f800000
-#define U300_NAND_IF_VIRT_BASE		0xff030000
 
 /* AHB Peripherals */
 #define U300_AHB_PER_PHYS_BASE		0xa0000000

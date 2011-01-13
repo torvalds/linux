@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -41,26 +42,32 @@
  * better solutions..
  */
 
+#define MAX_SLACK	(100 * NSEC_PER_MSEC)
+
 static long __estimate_accuracy(struct timespec *tv)
 {
 	long slack;
 	int divfactor = 1000;
 
+	if (tv->tv_sec < 0)
+		return 0;
+
 	if (task_nice(current) > 0)
 		divfactor = divfactor / 5;
+
+	if (tv->tv_sec > MAX_SLACK / (NSEC_PER_SEC/divfactor))
+		return MAX_SLACK;
 
 	slack = tv->tv_nsec / divfactor;
 	slack += tv->tv_sec * (NSEC_PER_SEC/divfactor);
 
-	if (slack > 100 * NSEC_PER_MSEC)
-		slack =  100 * NSEC_PER_MSEC;
+	if (slack > MAX_SLACK)
+		return MAX_SLACK;
 
-	if (slack < 0)
-		slack = 0;
 	return slack;
 }
 
-static long estimate_accuracy(struct timespec *tv)
+long select_estimate_accuracy(struct timespec *tv)
 {
 	unsigned long ret;
 	struct timespec now;
@@ -110,6 +117,7 @@ void poll_initwait(struct poll_wqueues *pwq)
 {
 	init_poll_funcptr(&pwq->pt, __pollwait);
 	pwq->polling_task = current;
+	pwq->triggered = 0;
 	pwq->error = 0;
 	pwq->table = NULL;
 	pwq->inline_index = 0;
@@ -409,7 +417,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	}
 
 	if (end_time && !timed_out)
-		slack = estimate_accuracy(end_time);
+		slack = select_estimate_accuracy(end_time);
 
 	retval = 0;
 	for (;;) {
@@ -683,6 +691,23 @@ SYSCALL_DEFINE6(pselect6, int, n, fd_set __user *, inp, fd_set __user *, outp,
 }
 #endif /* HAVE_SET_RESTORE_SIGMASK */
 
+#ifdef __ARCH_WANT_SYS_OLD_SELECT
+struct sel_arg_struct {
+	unsigned long n;
+	fd_set __user *inp, *outp, *exp;
+	struct timeval __user *tvp;
+};
+
+SYSCALL_DEFINE1(old_select, struct sel_arg_struct __user *, arg)
+{
+	struct sel_arg_struct a;
+
+	if (copy_from_user(&a, arg, sizeof(a)))
+		return -EFAULT;
+	return sys_select(a.n, a.inp, a.outp, a.exp, a.tvp);
+}
+#endif
+
 struct poll_list {
 	struct poll_list *next;
 	int len;
@@ -744,7 +769,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	}
 
 	if (end_time && !timed_out)
-		slack = estimate_accuracy(end_time);
+		slack = select_estimate_accuracy(end_time);
 
 	for (;;) {
 		struct poll_list *walk;
@@ -813,7 +838,7 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
  	struct poll_list *walk = head;
  	unsigned long todo = nfds;
 
-	if (nfds > current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
+	if (nfds > rlimit(RLIMIT_NOFILE))
 		return -EINVAL;
 
 	len = min_t(unsigned int, nfds, N_STACK_PPS);

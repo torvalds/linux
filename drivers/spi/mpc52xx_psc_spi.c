@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
@@ -23,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/fsl_devices.h>
+#include <linux/slab.h>
 
 #include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>
@@ -313,11 +315,13 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	struct mpc52xx_psc_fifo __iomem *fifo = mps->fifo;
 	u32 mclken_div;
-	int ret = 0;
+	int ret;
 
 	/* default sysclk is 512MHz */
 	mclken_div = (mps->sysclk ? mps->sysclk : 512000000) / MCLK;
-	mpc52xx_set_psc_clkdiv(psc_id, mclken_div);
+	ret = mpc52xx_set_psc_clkdiv(psc_id, mclken_div);
+	if (ret)
+		return ret;
 
 	/* Reset the PSC into a known state */
 	out_8(&psc->command, MPC52xx_PSC_RST_RX);
@@ -341,7 +345,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 
 	mps->bits_per_word = 8;
 
-	return ret;
+	return 0;
 }
 
 static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
@@ -359,7 +363,7 @@ static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
 }
 
 /* bus_num is used only for the case dev->platform_data == NULL */
-static int __init mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
+static int __devinit mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 				u32 size, unsigned int irq, s16 bus_num)
 {
 	struct fsl_spi_platform_data *pdata = dev->platform_data;
@@ -394,6 +398,7 @@ static int __init mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->setup = mpc52xx_psc_spi_setup;
 	master->transfer = mpc52xx_psc_spi_transfer;
 	master->cleanup = mpc52xx_psc_spi_cleanup;
+	master->dev.of_node = dev->of_node;
 
 	mps->psc = ioremap(regaddr, size);
 	if (!mps->psc) {
@@ -410,8 +415,10 @@ static int __init mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 		goto free_master;
 
 	ret = mpc52xx_psc_spi_port_config(master->bus_num, mps);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "can't configure PSC! Is it capable of SPI?\n");
 		goto free_irq;
+	}
 
 	spin_lock_init(&mps->lock);
 	init_completion(&mps->done);
@@ -443,9 +450,39 @@ free_master:
 	return ret;
 }
 
-static int __exit mpc52xx_psc_spi_do_remove(struct device *dev)
+static int __devinit mpc52xx_psc_spi_of_probe(struct platform_device *op,
+	const struct of_device_id *match)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
+	const u32 *regaddr_p;
+	u64 regaddr64, size64;
+	s16 id = -1;
+
+	regaddr_p = of_get_address(op->dev.of_node, 0, &size64, NULL);
+	if (!regaddr_p) {
+		dev_err(&op->dev, "Invalid PSC address\n");
+		return -EINVAL;
+	}
+	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
+
+	/* get PSC id (1..6, used by port_config) */
+	if (op->dev.platform_data == NULL) {
+		const u32 *psc_nump;
+
+		psc_nump = of_get_property(op->dev.of_node, "cell-index", NULL);
+		if (!psc_nump || *psc_nump > 5) {
+			dev_err(&op->dev, "Invalid cell-index property\n");
+			return -EINVAL;
+		}
+		id = *psc_nump + 1;
+	}
+
+	return mpc52xx_psc_spi_do_probe(&op->dev, (u32)regaddr64, (u32)size64,
+				irq_of_parse_and_map(op->dev.of_node, 0), id);
+}
+
+static int __devexit mpc52xx_psc_spi_of_remove(struct platform_device *op)
+{
+	struct spi_master *master = dev_get_drvdata(&op->dev);
 	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
 
 	flush_workqueue(mps->workqueue);
@@ -458,43 +495,7 @@ static int __exit mpc52xx_psc_spi_do_remove(struct device *dev)
 	return 0;
 }
 
-static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
-	const struct of_device_id *match)
-{
-	const u32 *regaddr_p;
-	u64 regaddr64, size64;
-	s16 id = -1;
-
-	regaddr_p = of_get_address(op->node, 0, &size64, NULL);
-	if (!regaddr_p) {
-		printk(KERN_ERR "Invalid PSC address\n");
-		return -EINVAL;
-	}
-	regaddr64 = of_translate_address(op->node, regaddr_p);
-
-	/* get PSC id (1..6, used by port_config) */
-	if (op->dev.platform_data == NULL) {
-		const u32 *psc_nump;
-
-		psc_nump = of_get_property(op->node, "cell-index", NULL);
-		if (!psc_nump || *psc_nump > 5) {
-			printk(KERN_ERR "mpc52xx_psc_spi: Device node %s has invalid "
-					"cell-index property\n", op->node->full_name);
-			return -EINVAL;
-		}
-		id = *psc_nump + 1;
-	}
-
-	return mpc52xx_psc_spi_do_probe(&op->dev, (u32)regaddr64, (u32)size64,
-					irq_of_parse_and_map(op->node, 0), id);
-}
-
-static int __exit mpc52xx_psc_spi_of_remove(struct of_device *op)
-{
-	return mpc52xx_psc_spi_do_remove(&op->dev);
-}
-
-static struct of_device_id mpc52xx_psc_spi_of_match[] = {
+static const struct of_device_id mpc52xx_psc_spi_of_match[] = {
 	{ .compatible = "fsl,mpc5200-psc-spi", },
 	{ .compatible = "mpc5200-psc-spi", }, /* old */
 	{}
@@ -503,14 +504,12 @@ static struct of_device_id mpc52xx_psc_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_psc_spi_of_match);
 
 static struct of_platform_driver mpc52xx_psc_spi_of_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc52xx-psc-spi",
-	.match_table = mpc52xx_psc_spi_of_match,
 	.probe = mpc52xx_psc_spi_of_probe,
-	.remove = __exit_p(mpc52xx_psc_spi_of_remove),
+	.remove = __devexit_p(mpc52xx_psc_spi_of_remove),
 	.driver = {
 		.name = "mpc52xx-psc-spi",
 		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_psc_spi_of_match,
 	},
 };
 

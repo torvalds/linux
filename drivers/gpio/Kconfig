@@ -1,5 +1,5 @@
 #
-# GPIO infrastructure and expanders
+# platform-neutral GPIO infrastructure and expanders
 #
 
 config ARCH_WANT_OPTIONAL_GPIOLIB
@@ -65,7 +65,21 @@ config GPIO_SYSFS
 
 # put expanders in the right section, in alphabetical order
 
+config GPIO_MAX730X
+	tristate
+
 comment "Memory mapped GPIO expanders:"
+
+config GPIO_BASIC_MMIO
+	tristate "Basic memory-mapped GPIO controllers support"
+	help
+	  Say yes here to support basic memory-mapped GPIO controllers.
+
+config GPIO_IT8761E
+	tristate "IT8761E GPIO support"
+	depends on GPIOLIB
+	help
+	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
@@ -79,7 +93,49 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_VR41XX
+	tristate "NEC VR4100 series General-purpose I/O Uint support"
+	depends on CPU_VR41XX
+	help
+	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
+
+config GPIO_SCH
+	tristate "Intel SCH GPIO"
+	depends on GPIOLIB && PCI
+	select MFD_CORE
+	select LPC_SCH
+	help
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH.
+	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
+	  powered by the core power rail and are turned off during sleep
+	  modes (S3 and higher). The remaining four GPIOs are powered by
+	  the Intel SCH suspend power supply. These GPIOs remain
+	  active during S3. The suspend powered GPIOs can be used to wake the
+	  system from the Suspend-to-RAM state.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sch-gpio.
+
+config GPIO_VX855
+	tristate "VIA VX855/VX875 GPIO"
+	depends on GPIOLIB
+	select MFD_CORE
+	select MFD_VX855
+	help
+	  Support access to the VX855/VX875 GPIO lines through the gpio library.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 comment "I2C GPIO expanders:"
+
+config GPIO_MAX7300
+	tristate "Maxim MAX7300 GPIO expander"
+	depends on I2C
+	select GPIO_MAX730X
+	help
+	  GPIO driver for Maxim MAX7301 I2C-based GPIO expander.
 
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
@@ -100,6 +156,13 @@ config GPIO_MAX732X
 	  Board setup code must specify the model to use, and the start
 	  number for these GPIOs.
 
+config GPIO_MAX732X_IRQ
+	bool "Interrupt controller support for MAX732x"
+	depends on GPIO_MAX732X=y && GENERIC_HARDIRQS
+	help
+	  Say yes here to enable the max732x to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 config GPIO_PCA953X
 	tristate "PCA953x, PCA955x, TCA64xx, and MAX7310 I/O ports"
 	depends on I2C
@@ -117,6 +180,13 @@ config GPIO_PCA953X
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called pca953x.
+
+config GPIO_PCA953X_IRQ
+	bool "Interrupt controller support for PCA953x"
+	depends on GPIO_PCA953X=y
+	help
+	  Say yes here to enable the pca953x to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
 
 config GPIO_PCF857X
 	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
@@ -142,6 +212,31 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+config GPIO_SX150X
+	bool "Semtech SX150x I2C GPIO expander"
+	depends on I2C=y
+	default n
+	help
+	  Say yes here to provide support for Semtech SX150-series I2C
+	  GPIO expanders. Compatible models include:
+
+	  8 bits:  sx1508q
+	  16 bits: sx1509q
+
+config GPIO_STMPE
+	bool "STMPE GPIOs"
+	depends on MFD_STMPE
+	help
+	  This enables support for the GPIOs found on the STMPE I/O
+	  Expanders.
+
+config GPIO_TC3589X
+	bool "TC3589X GPIOs"
+	depends on MFD_TC3589X
+	help
+	  This enables support for the GPIOs found on the TC3589X
+	  I/O Expander.
+
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE
@@ -149,7 +244,64 @@ config GPIO_TWL4030
 	  Say yes here to access the GPIO signals of various multi-function
 	  power management chips from Texas Instruments.
 
+config GPIO_WM831X
+	tristate "WM831x GPIOs"
+	depends on MFD_WM831X
+	help
+	  Say yes here to access the GPIO signals of WM831x power management
+	  chips from Wolfson Microelectronics.
+
+config GPIO_WM8350
+	tristate "WM8350 GPIOs"
+	depends on MFD_WM8350
+	help
+	  Say yes here to access the GPIO signals of WM8350 power management
+	  chips from Wolfson Microelectronics.
+
+config GPIO_WM8994
+	tristate "WM8994 GPIOs"
+	depends on MFD_WM8994
+	help
+	  Say yes here to access the GPIO signals of WM8994 audio hub
+	  CODECs from Wolfson Microelectronics.
+
+config GPIO_ADP5520
+	tristate "GPIO Support for ADP5520 PMIC"
+	depends on PMIC_ADP5520
+	help
+	  This option enables support for on-chip GPIO found
+	  on Analog Devices ADP5520 PMICs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp5520-gpio.
+
+config GPIO_ADP5588
+	tristate "ADP5588 I2C GPIO expander"
+	depends on I2C
+	help
+	  This option enables support for 18 GPIOs found
+	  on Analog Devices ADP5588 GPIO Expanders.
+	  To compile this driver as a module, choose M here: the module will be
+	  called adp5588-gpio.
+
+config GPIO_ADP5588_IRQ
+	bool "Interrupt controller support for ADP5588"
+	depends on GPIO_ADP5588=y
+	help
+	  Say yes here to enable the adp5588 to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 comment "PCI GPIO expanders:"
+
+config GPIO_CS5535
+	tristate "AMD CS5535/CS5536 GPIO support"
+	depends on PCI && !CS5535_GPIO
+	help
+	  The AMD CS5535 and CS5536 southbridges support 28 GPIO pins that
+	  can be used for quite a number of things.  The CS5535/6 is found on
+	  AMD Geode and Lemote Yeeloong devices.
+
+	  If unsure, say N.
 
 config GPIO_BT8XX
 	tristate "BT8XX GPIO abuser"
@@ -167,13 +319,43 @@ config GPIO_BT8XX
 
 	  If unsure, say N.
 
+config GPIO_LANGWELL
+	bool "Intel Langwell/Penwell GPIO support"
+	depends on PCI
+	help
+	  Say Y here to support Intel Langwell/Penwell GPIO.
+
+config GPIO_PCH
+	tristate "PCH GPIO of Intel Topcliff"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) GPIO of Intel Topcliff
+	  which is an IOH(Input/Output Hub) for x86 embedded processor.
+	  This driver can access PCH GPIO device.
+
+config GPIO_TIMBERDALE
+	bool "Support for timberdale GPIO IP"
+	depends on MFD_TIMBERDALE && GPIOLIB && HAS_IOMEM
+	---help---
+	Add support for the GPIO IP in the timberdale FPGA.
+
+config GPIO_RDC321X
+	tristate "RDC R-321x GPIO support"
+	depends on PCI && GPIOLIB
+	select MFD_CORE
+	select MFD_RDC321X
+	help
+	  Support for the RDC R321x SoC GPIOs over southbridge
+	  PCI configuration space.
+
 comment "SPI GPIO expanders:"
 
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"
 	depends on SPI_MASTER
+	select GPIO_MAX730X
 	help
-	  gpio driver for Maxim MAX7301 SPI GPIO expander.
+	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23S08 I/O expander"
@@ -181,5 +363,42 @@ config GPIO_MCP23S08
 	help
 	  SPI driver for Microchip MCP23S08 I/O expander.  This provides
 	  a GPIO interface supporting inputs and outputs.
+
+config GPIO_MC33880
+	tristate "Freescale MC33880 high-side/low-side switch"
+	depends on SPI_MASTER
+	help
+	  SPI driver for Freescale MC33880 high-side/low-side switch.
+	  This provides GPIO interface supporting inputs and outputs.
+
+config GPIO_74X164
+	tristate "74x164 serial-in/parallel-out 8-bits shift register"
+	depends on SPI_MASTER
+	help
+	  Platform driver for 74x164 compatible serial-in/parallel-out
+	  8-outputs shift registers. This driver can be used to provide access
+	  to more gpio outputs.
+
+comment "AC97 GPIO expanders:"
+
+config GPIO_UCB1400
+	bool "Philips UCB1400 GPIO"
+	depends on UCB1400_CORE
+	help
+	  This enables support for the Philips UCB1400 GPIO pins.
+	  The UCB1400 is an AC97 audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ucb1400_gpio.
+
+comment "MODULbus GPIO expanders:"
+
+config GPIO_JANZ_TTL
+	tristate "Janz VMOD-TTL Digital IO Module"
+	depends on MFD_JANZ_CMODIO
+	help
+	  This enables support for the Janz VMOD-TTL Digital IO module.
+	  This driver provides support for driving the pins in output
+	  mode only. Input mode is not supported.
 
 endif

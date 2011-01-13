@@ -6,20 +6,17 @@
  * Copyright (C) 2007 Dmitry Torokhov
  * Copyright 2009 Johannes Berg <johannes@sipsolutions.net>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -32,12 +29,14 @@
 /**
  * enum rfkill_type - type of rfkill switch.
  *
- * @RFKILL_TYPE_ALL: toggles all switches (userspace only)
+ * @RFKILL_TYPE_ALL: toggles all switches (requests only - not a switch type)
  * @RFKILL_TYPE_WLAN: switch is on a 802.11 wireless network device.
  * @RFKILL_TYPE_BLUETOOTH: switch is on a bluetooth device.
  * @RFKILL_TYPE_UWB: switch is on a ultra wideband device.
  * @RFKILL_TYPE_WIMAX: switch is on a WiMAX device.
  * @RFKILL_TYPE_WWAN: switch is on a wireless WAN device.
+ * @RFKILL_TYPE_GPS: switch is on a GPS device.
+ * @RFKILL_TYPE_FM: switch is on a FM radio device.
  * @NUM_RFKILL_TYPES: number of defined rfkill types
  */
 enum rfkill_type {
@@ -47,6 +46,8 @@ enum rfkill_type {
 	RFKILL_TYPE_UWB,
 	RFKILL_TYPE_WIMAX,
 	RFKILL_TYPE_WWAN,
+	RFKILL_TYPE_GPS,
+	RFKILL_TYPE_FM,
 	NUM_RFKILL_TYPES,
 };
 
@@ -80,7 +81,21 @@ struct rfkill_event {
 	__u8  type;
 	__u8  op;
 	__u8  soft, hard;
-} __packed;
+} __attribute__((packed));
+
+/*
+ * We are planning to be backward and forward compatible with changes
+ * to the event struct, by adding new, optional, members at the end.
+ * When reading an event (whether the kernel from userspace or vice
+ * versa) we need to accept anything that's at least as large as the
+ * version 1 event size, but might be able to accept other sizes in
+ * the future.
+ *
+ * One exception is the kernel -- we already have two event sizes in
+ * that we've made the 'hard' member optional since our only option
+ * is to ignore it anyway.
+ */
+#define RFKILL_EVENT_SIZE_V1	8
 
 /* ioctl for turning off rfkill-input (if present) */
 #define RFKILL_IOC_MAGIC	'R'
@@ -99,7 +114,6 @@ enum rfkill_user_states {
 #undef RFKILL_STATE_UNBLOCKED
 #undef RFKILL_STATE_HARD_BLOCKED
 
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -225,7 +239,7 @@ void rfkill_destroy(struct rfkill *rfkill);
  * should be blocked) so that drivers need not keep track of the soft
  * block state -- which they might not be able to.
  */
-bool __must_check rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
+bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
 
 /**
  * rfkill_set_sw_state - Set the internal rfkill software block state
@@ -339,37 +353,6 @@ static inline bool rfkill_blocked(struct rfkill *rfkill)
 	return false;
 }
 #endif /* RFKILL || RFKILL_MODULE */
-
-
-#ifdef CONFIG_RFKILL_LEDS
-/**
- * rfkill_get_led_trigger_name - Get the LED trigger name for the button's LED.
- * This function might return a NULL pointer if registering of the
- * LED trigger failed. Use this as "default_trigger" for the LED.
- */
-const char *rfkill_get_led_trigger_name(struct rfkill *rfkill);
-
-/**
- * rfkill_set_led_trigger_name -- set the LED trigger name
- * @rfkill: rfkill struct
- * @name: LED trigger name
- *
- * This function sets the LED trigger name of the radio LED
- * trigger that rfkill creates. It is optional, but if called
- * must be called before rfkill_register() to be effective.
- */
-void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name);
-#else
-static inline const char *rfkill_get_led_trigger_name(struct rfkill *rfkill)
-{
-	return NULL;
-}
-
-static inline void
-rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
-{
-}
-#endif
 
 #endif /* __KERNEL__ */
 

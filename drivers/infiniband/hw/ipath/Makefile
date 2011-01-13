@@ -1,4 +1,4 @@
-EXTRA_CFLAGS += -DIPATH_IDSTR='"QLogic kernel.org driver"' \
+ccflags-y := -DIPATH_IDSTR='"QLogic kernel.org driver"' \
 	-DIPATH_KERN_TYPE=0
 
 obj-$(CONFIG_INFINIBAND_IPATH) += ib_ipath.o
@@ -29,13 +29,9 @@ ib_ipath-y := \
 	ipath_user_pages.o \
 	ipath_user_sdma.o \
 	ipath_verbs_mcast.o \
-	ipath_verbs.o \
-	ipath_iba7220.o \
-	ipath_sd7220.o \
-	ipath_sd7220_img.o
+	ipath_verbs.o
 
 ib_ipath-$(CONFIG_HT_IRQ) += ipath_iba6110.o
-ib_ipath-$(CONFIG_PCI_MSI) += ipath_iba6120.o
 
 ib_ipath-$(CONFIG_X86_64) += ipath_wc_x86_64.o
 ib_ipath-$(CONFIG_PPC64) += ipath_wc_ppc64.o

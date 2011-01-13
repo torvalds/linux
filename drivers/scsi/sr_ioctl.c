@@ -7,6 +7,7 @@
 #include <linux/blkpg.h>
 #include <linux/cdrom.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
@@ -322,6 +323,15 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 		else
 			return CDS_NO_DISC;
 	}
+
+	/*
+	 * SK/ASC/ASCQ of 2/4/2 means "initialization required"
+	 * Using CD_TRAY_OPEN results in an START_STOP_UNIT to close
+	 * the tray, which resolves the initialization requirement.
+	 */
+	if (scsi_sense_valid(&sshdr) && sshdr.sense_key == NOT_READY
+			&& sshdr.asc == 0x04 && sshdr.ascq == 0x02)
+		return CDS_TRAY_OPEN;
 
 	/*
 	 * 0x04 is format in progress .. but there must be a disc present!

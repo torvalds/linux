@@ -243,7 +243,8 @@ struct sctp_chunk *sctp_make_op_error(const struct sctp_association *,
 				 const struct sctp_chunk *chunk,
 				 __be16 cause_code,
 				 const void *payload,
-				 size_t paylen);
+				 size_t paylen,
+				 size_t reserve_tail);
 
 struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *,
 					      union sctp_addr *,
@@ -278,6 +279,7 @@ int sctp_do_sm(sctp_event_t event_type, sctp_subtype_t subtype,
 /* 2nd level prototypes */
 void sctp_generate_t3_rtx_event(unsigned long peer);
 void sctp_generate_heartbeat_event(unsigned long peer);
+void sctp_generate_proto_unreach_event(unsigned long peer);
 
 void sctp_ootb_pkt_free(struct sctp_packet *);
 
@@ -343,12 +345,12 @@ enum {
 
 static inline int TSN_lt(__u32 s, __u32 t)
 {
-	return (((s) - (t)) & TSN_SIGN_BIT);
+	return ((s) - (t)) & TSN_SIGN_BIT;
 }
 
 static inline int TSN_lte(__u32 s, __u32 t)
 {
-	return (((s) == (t)) || (((s) - (t)) & TSN_SIGN_BIT));
+	return ((s) == (t)) || (((s) - (t)) & TSN_SIGN_BIT);
 }
 
 /* Compare two SSNs */
@@ -367,12 +369,12 @@ enum {
 
 static inline int SSN_lt(__u16 s, __u16 t)
 {
-	return (((s) - (t)) & SSN_SIGN_BIT);
+	return ((s) - (t)) & SSN_SIGN_BIT;
 }
 
 static inline int SSN_lte(__u16 s, __u16 t)
 {
-	return (((s) == (t)) || (((s) - (t)) & SSN_SIGN_BIT));
+	return ((s) == (t)) || (((s) - (t)) & SSN_SIGN_BIT);
 }
 
 /*
@@ -386,7 +388,7 @@ enum {
 
 static inline int ADDIP_SERIAL_gte(__u16 s, __u16 t)
 {
-	return (((s) == (t)) || (((t) - (s)) & ADDIP_SERIAL_SIGN_BIT));
+	return ((s) == (t)) || (((t) - (s)) & ADDIP_SERIAL_SIGN_BIT);
 }
 
 /* Check VTAG of the packet matches the sender's own tag. */
@@ -436,7 +438,7 @@ sctp_vtag_verify_either(const struct sctp_chunk *chunk,
 	 */
         if ((!sctp_test_T_bit(chunk) &&
              (ntohl(chunk->sctp_hdr->vtag) == asoc->c.my_vtag)) ||
-	    (sctp_test_T_bit(chunk) &&
+	    (sctp_test_T_bit(chunk) && asoc->c.peer_vtag &&
 	     (ntohl(chunk->sctp_hdr->vtag) == asoc->c.peer_vtag))) {
                 return 1;
 	}

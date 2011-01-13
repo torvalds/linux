@@ -12,7 +12,6 @@
  * 04-07-1998 by Frank Denis : first step for rmdir/unlink.
  */
 
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include "qnx4.h"
 
@@ -30,7 +29,7 @@ static int qnx4_match(int len, const char *name,
 	int namelen, thislen;
 
 	if (bh == NULL) {
-		printk("qnx4: matching unassigned buffer !\n");
+		printk(KERN_WARNING "qnx4: matching unassigned buffer !\n");
 		return 0;
 	}
 	de = (struct qnx4_inode_entry *) (bh->b_data + *offset);
@@ -66,7 +65,7 @@ static struct buffer_head *qnx4_find_entry(int len, struct inode *dir,
 
 	*res_dir = NULL;
 	if (!dir->i_sb) {
-		printk("qnx4: no superblock on dir.\n");
+		printk(KERN_WARNING "qnx4: no superblock on dir.\n");
 		return NULL;
 	}
 	bh = NULL;
@@ -109,7 +108,6 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, struct nam
 	int len = dentry->d_name.len;
 	struct inode *foundinode = NULL;
 
-	lock_kernel();
 	if (!(bh = qnx4_find_entry(len, dir, name, &de, &ino)))
 		goto out;
 	/* The entry is linked, let's get the real info */
@@ -123,119 +121,12 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, struct nam
 
 	foundinode = qnx4_iget(dir->i_sb, ino);
 	if (IS_ERR(foundinode)) {
-		unlock_kernel();
-		QNX4DEBUG(("qnx4: lookup->iget -> error %ld\n",
+		QNX4DEBUG((KERN_ERR "qnx4: lookup->iget -> error %ld\n",
 			   PTR_ERR(foundinode)));
 		return ERR_CAST(foundinode);
 	}
 out:
-	unlock_kernel();
 	d_add(dentry, foundinode);
 
 	return NULL;
 }
-
-#ifdef CONFIG_QNX4FS_RW
-int qnx4_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
-{
-	QNX4DEBUG(("qnx4: qnx4_create\n"));
-	if (dir == NULL) {
-		return -ENOENT;
-	}
-	return -ENOSPC;
-}
-
-int qnx4_rmdir(struct inode *dir, struct dentry *dentry)
-{
-	struct buffer_head *bh;
-	struct qnx4_inode_entry *de;
-	struct inode *inode;
-	int retval;
-	int ino;
-
-	QNX4DEBUG(("qnx4: qnx4_rmdir [%s]\n", dentry->d_name.name));
-	lock_kernel();
-	bh = qnx4_find_entry(dentry->d_name.len, dir, dentry->d_name.name,
-			     &de, &ino);
-	if (bh == NULL) {
-		unlock_kernel();
-		return -ENOENT;
-	}
-	inode = dentry->d_inode;
-	if (inode->i_ino != ino) {
-		retval = -EIO;
-		goto end_rmdir;
-	}
-#if 0
-	if (!empty_dir(inode)) {
-		retval = -ENOTEMPTY;
-		goto end_rmdir;
-	}
-#endif
-	if (inode->i_nlink != 2) {
-		QNX4DEBUG(("empty directory has nlink!=2 (%d)\n", inode->i_nlink));
-	}
-	QNX4DEBUG(("qnx4: deleting directory\n"));
-	de->di_status = 0;
-	memset(de->di_fname, 0, sizeof de->di_fname);
-	de->di_mode = 0;
-	mark_buffer_dirty_inode(bh, dir);
-	clear_nlink(inode);
-	mark_inode_dirty(inode);
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
-	inode_dec_link_count(dir);
-	retval = 0;
-
-      end_rmdir:
-	brelse(bh);
-
-	unlock_kernel();
-	return retval;
-}
-
-int qnx4_unlink(struct inode *dir, struct dentry *dentry)
-{
-	struct buffer_head *bh;
-	struct qnx4_inode_entry *de;
-	struct inode *inode;
-	int retval;
-	int ino;
-
-	QNX4DEBUG(("qnx4: qnx4_unlink [%s]\n", dentry->d_name.name));
-	lock_kernel();
-	bh = qnx4_find_entry(dentry->d_name.len, dir, dentry->d_name.name,
-			     &de, &ino);
-	if (bh == NULL) {
-		unlock_kernel();
-		return -ENOENT;
-	}
-	inode = dentry->d_inode;
-	if (inode->i_ino != ino) {
-		retval = -EIO;
-		goto end_unlink;
-	}
-	retval = -EPERM;
-	if (!inode->i_nlink) {
-		QNX4DEBUG(("Deleting nonexistent file (%s:%lu), %d\n",
-			   inode->i_sb->s_id,
-			   inode->i_ino, inode->i_nlink));
-		inode->i_nlink = 1;
-	}
-	de->di_status = 0;
-	memset(de->di_fname, 0, sizeof de->di_fname);
-	de->di_mode = 0;
-	mark_buffer_dirty_inode(bh, dir);
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
-	mark_inode_dirty(dir);
-	inode->i_ctime = dir->i_ctime;
-	inode_dec_link_count(inode);
-	retval = 0;
-
-end_unlink:
-	unlock_kernel();
-	brelse(bh);
-
-	return retval;
-}
-#endif

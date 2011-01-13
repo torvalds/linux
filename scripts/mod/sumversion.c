@@ -334,8 +334,6 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		deps_drivers/net/dummy.o := \
 		  drivers/net/dummy.c \
 		    $(wildcard include/config/net/fastroute.h) \
-		  include/linux/config.h \
-		    $(wildcard include/config/h.h) \
 		  include/linux/module.h \
 
 	   Sum all files in the same dir or subdirs.

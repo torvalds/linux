@@ -74,7 +74,6 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -383,8 +382,6 @@ struct netdev_private {
 
 	spinlock_t lock;
 
-	struct net_device_stats stats;
-
 	/* Media monitoring timer. */
 	struct timer_list timer;
 
@@ -433,7 +430,7 @@ static void netdev_timer(unsigned long data);
 static void reset_timer(unsigned long data);
 static void fealnx_tx_timeout(struct net_device *dev);
 static void init_ring(struct net_device *dev);
-static int start_tx(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t intr_handler(int irq, void *dev_instance);
 static int netdev_rx(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
@@ -584,7 +581,8 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	if (np->flags == HAS_MII_XCVR) {
 		int phy, phy_idx = 0;
 
-		for (phy = 1; phy < 32 && phy_idx < 4; phy++) {
+		for (phy = 1; phy < 32 && phy_idx < ARRAY_SIZE(np->phys);
+			       phy++) {
 			int mii_status = mdio_read(dev, phy, 1);
 
 			if (mii_status != 0xffff && mii_status != 0x0000) {
@@ -838,7 +836,7 @@ static int netdev_open(struct net_device *dev)
 
 	iowrite32(0x00000001, ioaddr + BCR);	/* Reset */
 
-	if (request_irq(dev->irq, &intr_handler, IRQF_SHARED, dev->name, dev))
+	if (request_irq(dev->irq, intr_handler, IRQF_SHARED, dev->name, dev))
 		return -EAGAIN;
 
 	for (i = 0; i < 3; i++)
@@ -917,14 +915,14 @@ static int netdev_open(struct net_device *dev)
 	init_timer(&np->timer);
 	np->timer.expires = RUN_AT(3 * HZ);
 	np->timer.data = (unsigned long) dev;
-	np->timer.function = &netdev_timer;
+	np->timer.function = netdev_timer;
 
 	/* timer handler */
 	add_timer(&np->timer);
 
 	init_timer(&np->reset_timer);
 	np->reset_timer.data = (unsigned long) dev;
-	np->reset_timer.function = &reset_timer;
+	np->reset_timer.function = reset_timer;
 	np->reset_timer_armed = 0;
 
 	return 0;
@@ -1209,17 +1207,20 @@ static void fealnx_tx_timeout(struct net_device *dev)
 	unsigned long flags;
 	int i;
 
-	printk(KERN_WARNING "%s: Transmit timed out, status %8.8x,"
-	       " resetting...\n", dev->name, ioread32(ioaddr + ISR));
+	printk(KERN_WARNING
+	       "%s: Transmit timed out, status %8.8x, resetting...\n",
+	       dev->name, ioread32(ioaddr + ISR));
 
 	{
 		printk(KERN_DEBUG "  Rx ring %p: ", np->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
-			printk(" %8.8x", (unsigned int) np->rx_ring[i].status);
-		printk("\n" KERN_DEBUG "  Tx ring %p: ", np->tx_ring);
+			printk(KERN_CONT " %8.8x",
+			       (unsigned int) np->rx_ring[i].status);
+		printk(KERN_CONT "\n");
+		printk(KERN_DEBUG "  Tx ring %p: ", np->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(" %4.4x", np->tx_ring[i].status);
-		printk("\n");
+			printk(KERN_CONT " %4.4x", np->tx_ring[i].status);
+		printk(KERN_CONT "\n");
 	}
 
 	spin_lock_irqsave(&np->lock, flags);
@@ -1230,8 +1231,8 @@ static void fealnx_tx_timeout(struct net_device *dev)
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	dev->trans_start = jiffies;
-	np->stats.tx_errors++;
+	dev->trans_start = jiffies; /* prevent tx timeout */
+	dev->stats.tx_errors++;
 	netif_wake_queue(dev); /* or .._start_.. ?? */
 }
 
@@ -1301,7 +1302,7 @@ static void init_ring(struct net_device *dev)
 }
 
 
-static int start_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	unsigned long flags;
@@ -1371,10 +1372,9 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	++np->really_tx_count;
 	iowrite32(0, np->mem + TXPDR);
-	dev->trans_start = jiffies;
 
 	spin_unlock_irqrestore(&np->lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -1477,10 +1477,11 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 		if (intr_status & CNTOVF) {
 			/* missed pkts */
-			np->stats.rx_missed_errors += ioread32(ioaddr + TALLY) & 0x7fff;
+			dev->stats.rx_missed_errors +=
+				ioread32(ioaddr + TALLY) & 0x7fff;
 
 			/* crc error */
-			np->stats.rx_crc_errors +=
+			dev->stats.rx_crc_errors +=
 			    (ioread32(ioaddr + TALLY) & 0x7fff0000) >> 16;
 		}
 
@@ -1511,30 +1512,30 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 			if (!(np->crvalue & CR_W_ENH)) {
 				if (tx_status & (CSL | LC | EC | UDF | HF)) {
-					np->stats.tx_errors++;
+					dev->stats.tx_errors++;
 					if (tx_status & EC)
-						np->stats.tx_aborted_errors++;
+						dev->stats.tx_aborted_errors++;
 					if (tx_status & CSL)
-						np->stats.tx_carrier_errors++;
+						dev->stats.tx_carrier_errors++;
 					if (tx_status & LC)
-						np->stats.tx_window_errors++;
+						dev->stats.tx_window_errors++;
 					if (tx_status & UDF)
-						np->stats.tx_fifo_errors++;
+						dev->stats.tx_fifo_errors++;
 					if ((tx_status & HF) && np->mii.full_duplex == 0)
-						np->stats.tx_heartbeat_errors++;
+						dev->stats.tx_heartbeat_errors++;
 
 				} else {
-					np->stats.tx_bytes +=
+					dev->stats.tx_bytes +=
 					    ((tx_control & PKTSMask) >> PKTSShift);
 
-					np->stats.collisions +=
+					dev->stats.collisions +=
 					    ((tx_status & NCRMask) >> NCRShift);
-					np->stats.tx_packets++;
+					dev->stats.tx_packets++;
 				}
 			} else {
-				np->stats.tx_bytes +=
+				dev->stats.tx_bytes +=
 				    ((tx_control & PKTSMask) >> PKTSShift);
-				np->stats.tx_packets++;
+				dev->stats.tx_packets++;
 			}
 
 			/* Free the original skb. */
@@ -1562,10 +1563,12 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 			long data;
 
 			data = ioread32(ioaddr + TSR);
-			np->stats.tx_errors += (data & 0xff000000) >> 24;
-			np->stats.tx_aborted_errors += (data & 0xff000000) >> 24;
-			np->stats.tx_window_errors += (data & 0x00ff0000) >> 16;
-			np->stats.collisions += (data & 0x0000ffff);
+			dev->stats.tx_errors += (data & 0xff000000) >> 24;
+			dev->stats.tx_aborted_errors +=
+				(data & 0xff000000) >> 24;
+			dev->stats.tx_window_errors +=
+				(data & 0x00ff0000) >> 16;
+			dev->stats.collisions += (data & 0x0000ffff);
 		}
 
 		if (--boguscnt < 0) {
@@ -1591,10 +1594,11 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 	/* read the tally counters */
 	/* missed pkts */
-	np->stats.rx_missed_errors += ioread32(ioaddr + TALLY) & 0x7fff;
+	dev->stats.rx_missed_errors += ioread32(ioaddr + TALLY) & 0x7fff;
 
 	/* crc error */
-	np->stats.rx_crc_errors += (ioread32(ioaddr + TALLY) & 0x7fff0000) >> 16;
+	dev->stats.rx_crc_errors +=
+		(ioread32(ioaddr + TALLY) & 0x7fff0000) >> 16;
 
 	if (debug)
 		printk(KERN_DEBUG "%s: exiting interrupt, status=%#4.4x.\n",
@@ -1625,21 +1629,21 @@ static int netdev_rx(struct net_device *dev)
 		if (debug)
 			printk(KERN_DEBUG "  netdev_rx() status was %8.8x.\n", rx_status);
 
-		if ((!((rx_status & RXFSD) && (rx_status & RXLSD)))
-		    || (rx_status & ErrorSummary)) {
+		if ((!((rx_status & RXFSD) && (rx_status & RXLSD))) ||
+		    (rx_status & ErrorSummary)) {
 			if (rx_status & ErrorSummary) {	/* there was a fatal error */
 				if (debug)
 					printk(KERN_DEBUG
 					       "%s: Receive error, Rx status %8.8x.\n",
 					       dev->name, rx_status);
 
-				np->stats.rx_errors++;	/* end of a packet. */
+				dev->stats.rx_errors++;	/* end of a packet. */
 				if (rx_status & (LONG | RUNT))
-					np->stats.rx_length_errors++;
+					dev->stats.rx_length_errors++;
 				if (rx_status & RXER)
-					np->stats.rx_frame_errors++;
+					dev->stats.rx_frame_errors++;
 				if (rx_status & CRC)
-					np->stats.rx_crc_errors++;
+					dev->stats.rx_crc_errors++;
 			} else {
 				int need_to_reset = 0;
 				int desno = 0;
@@ -1651,8 +1655,8 @@ static int netdev_rx(struct net_device *dev)
 					cur = np->cur_rx;
 					while (desno <= np->really_rx_count) {
 						++desno;
-						if ((!(cur->status & RXOWN))
-						    && (cur->status & RXLSD))
+						if ((!(cur->status & RXOWN)) &&
+						    (cur->status & RXLSD))
 							break;
 						/* goto next rx descriptor */
 						cur = cur->next_desc_logical;
@@ -1665,7 +1669,7 @@ static int netdev_rx(struct net_device *dev)
 				if (need_to_reset == 0) {
 					int i;
 
-					np->stats.rx_length_errors++;
+					dev->stats.rx_length_errors++;
 
 					/* free all rx descriptors related this long pkt */
 					for (i = 0; i < desno; ++i) {
@@ -1731,8 +1735,8 @@ static int netdev_rx(struct net_device *dev)
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			np->stats.rx_packets++;
-			np->stats.rx_bytes += pkt_len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += pkt_len;
 		}
 
 		np->cur_rx = np->cur_rx->next_desc_logical;
@@ -1752,11 +1756,13 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 
 	/* The chip only need report frame silently dropped. */
 	if (netif_running(dev)) {
-		np->stats.rx_missed_errors += ioread32(ioaddr + TALLY) & 0x7fff;
-		np->stats.rx_crc_errors += (ioread32(ioaddr + TALLY) & 0x7fff0000) >> 16;
+		dev->stats.rx_missed_errors +=
+			ioread32(ioaddr + TALLY) & 0x7fff;
+		dev->stats.rx_crc_errors +=
+			(ioread32(ioaddr + TALLY) & 0x7fff0000) >> 16;
 	}
 
-	return &np->stats;
+	return &dev->stats;
 }
 
 
@@ -1782,20 +1788,18 @@ static void __set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = CR_W_PROM | CR_W_AB | CR_W_AM;
-	} else if ((dev->mc_count > multicast_filter_limit)
-		   || (dev->flags & IFF_ALLMULTI)) {
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
+		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = CR_W_AB | CR_W_AM;
 	} else {
-		struct dev_mc_list *mclist;
-		int i;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-		     i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(ha, dev) {
 			unsigned int bit;
-			bit = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26) ^ 0x3F;
+			bit = (ether_crc(ETH_ALEN, ha->addr) >> 26) ^ 0x3F;
 			mc_filter[bit >> 5] |= (1 << bit);
 		}
 		rx_mode = CR_W_AB | CR_W_AM;
@@ -1937,7 +1941,7 @@ static int netdev_close(struct net_device *dev)
 	return 0;
 }
 
-static struct pci_device_id fealnx_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(fealnx_pci_tbl) = {
 	{0x1516, 0x0800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x1516, 0x0803, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{0x1516, 0x0891, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},

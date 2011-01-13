@@ -8,13 +8,13 @@
 
 DOCBOOKS := z8530book.xml mcabook.xml device-drivers.xml \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
-	    procfs-guide.xml writing_usb_driver.xml networking.xml \
+	    writing_usb_driver.xml networking.xml \
 	    kernel-api.xml filesystems.xml lsm.xml usb.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
-	    mac80211.xml debugobjects.xml sh.xml regulator.xml \
+	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
-	    tracepoint.xml
+	    tracepoint.xml media.xml drm.xml
 
 ###
 # The build process is as follows (targets):
@@ -32,7 +32,7 @@ PS_METHOD	= $(prefer-db2x)
 
 ###
 # The targets that may be used.
-PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs
+PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs xmldoclinks
 
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
@@ -45,11 +45,24 @@ PDF := $(patsubst %.xml, %.pdf, $(BOOKS))
 pdfdocs: $(PDF)
 
 HTML := $(sort $(patsubst %.xml, %.html, $(BOOKS)))
-htmldocs: $(HTML)
+htmldocs: $(HTML) xmldoclinks
 	$(call build_main_index)
+	$(call build_images)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
+
+build_images = mkdir -p $(objtree)/Documentation/DocBook/media/ && \
+	       cp $(srctree)/Documentation/DocBook/dvb/*.png $(srctree)/Documentation/DocBook/v4l/*.gif $(objtree)/Documentation/DocBook/media/
+
+xmldoclinks:
+ifneq ($(objtree),$(srctree))
+	for dep in dvb media-entities.tmpl media-indices.tmpl v4l; do \
+		rm -f $(objtree)/Documentation/DocBook/$$dep \
+		&& ln -s $(srctree)/Documentation/DocBook/$$dep $(objtree)/Documentation/DocBook/ \
+		|| exit; \
+	done
+endif
 
 installmandocs: mandocs
 	mkdir -p /usr/local/man/man9/
@@ -61,7 +74,7 @@ KERNELDOC = $(srctree)/scripts/kernel-doc
 DOCPROC   = $(objtree)/scripts/basic/docproc
 
 XMLTOFLAGS = -m $(srctree)/Documentation/DocBook/stylesheet.xsl
-#XMLTOFLAGS += --skip-validation
+XMLTOFLAGS += --skip-validation
 
 ###
 # DOCPROC is used for two purposes:
@@ -82,7 +95,7 @@ define rule_docproc
         ) > $(dir $@).$(notdir $@).cmd
 endef
 
-%.xml: %.tmpl FORCE
+%.xml: %.tmpl xmldoclinks FORCE
 	$(call if_changed_rule,docproc)
 
 ###
@@ -96,17 +109,6 @@ endif
 ###
 # Changes in kernel-doc force a rebuild of all documentation
 $(BOOKS): $(KERNELDOC)
-
-###
-# procfs guide uses a .c file as example code.
-# This requires an explicit dependency
-C-procfs-example = procfs_example.xml
-C-procfs-example2 = $(addprefix $(obj)/,$(C-procfs-example))
-$(obj)/procfs-guide.xml: $(C-procfs-example2)
-
-# List of programs to build
-##oops, this is a kernel module::hostprogs-y := procfs_example
-obj-m += procfs_example.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -234,7 +236,7 @@ clean-files := $(DOCBOOKS) \
 	$(patsubst %.xml, %.pdf,  $(DOCBOOKS)) \
 	$(patsubst %.xml, %.html, $(DOCBOOKS)) \
 	$(patsubst %.xml, %.9,    $(DOCBOOKS)) \
-	$(C-procfs-example) $(index)
+	$(index)
 
 clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man
 

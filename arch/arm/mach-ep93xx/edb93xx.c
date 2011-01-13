@@ -26,65 +26,51 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/ioport.h>
-#include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/i2c-gpio.h>
+
 #include <mach/hardware.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-static struct physmap_flash_data edb93xx_flash_data;
-
-static struct resource edb93xx_flash_resource = {
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device edb93xx_flash = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &edb93xx_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &edb93xx_flash_resource,
-};
-
-static void __init __edb93xx_register_flash(unsigned int width,
-			resource_size_t start, resource_size_t size)
-{
-	edb93xx_flash_data.width	= width;
-	edb93xx_flash_resource.start	= start;
-	edb93xx_flash_resource.end	= start + size - 1;
-
-	platform_device_register(&edb93xx_flash);
-}
 
 static void __init edb93xx_register_flash(void)
 {
 	if (machine_is_edb9307() || machine_is_edb9312() ||
 	    machine_is_edb9315()) {
-		__edb93xx_register_flash(4, EP93XX_CS6_PHYS_BASE, SZ_32M);
+		ep93xx_register_flash(4, EP93XX_CS6_PHYS_BASE, SZ_32M);
 	} else {
-		__edb93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_16M);
+		ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_16M);
 	}
 }
 
-static struct ep93xx_eth_data edb93xx_eth_data = {
+static struct ep93xx_eth_data __initdata edb93xx_eth_data = {
 	.phy_id		= 1,
 };
 
-static struct i2c_board_info __initdata edb93xxa_i2c_data[] = {
+
+/*************************************************************************
+ * EDB93xx i2c peripheral handling
+ *************************************************************************/
+static struct i2c_gpio_platform_data __initdata edb93xx_i2c_gpio_data = {
+	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
+	.sda_is_open_drain	= 0,
+	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
+	.scl_is_open_drain	= 0,
+	.udelay			= 0,	/* default to 100 kHz */
+	.timeout		= 0,	/* default to 100 ms */
+};
+
+static struct i2c_board_info __initdata edb93xxa_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("isl1208", 0x6f),
 	},
 };
 
-static struct i2c_board_info __initdata edb93xx_i2c_data[] = {
+static struct i2c_board_info __initdata edb93xx_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("ds1337", 0x68),
 	},
@@ -94,14 +80,36 @@ static void __init edb93xx_register_i2c(void)
 {
 	if (machine_is_edb9302a() || machine_is_edb9307a() ||
 	    machine_is_edb9315a()) {
-		ep93xx_register_i2c(edb93xxa_i2c_data,
-				ARRAY_SIZE(edb93xxa_i2c_data));
+		ep93xx_register_i2c(&edb93xx_i2c_gpio_data,
+				    edb93xxa_i2c_board_info,
+				    ARRAY_SIZE(edb93xxa_i2c_board_info));
 	} else if (machine_is_edb9307() || machine_is_edb9312() ||
 		   machine_is_edb9315()) {
-		ep93xx_register_i2c(edb93xx_i2c_data,
-				ARRAY_SIZE(edb93xx_i2c_data));
+		ep93xx_register_i2c(&edb93xx_i2c_gpio_data,
+				    edb93xx_i2c_board_info,
+				    ARRAY_SIZE(edb93xx_i2c_board_info));
 	}
 }
+
+
+/*************************************************************************
+ * EDB93xx pwm
+ *************************************************************************/
+static void __init edb93xx_register_pwm(void)
+{
+	if (machine_is_edb9301() ||
+	    machine_is_edb9302() || machine_is_edb9302a()) {
+		/* EP9301 and EP9302 only have pwm.1 (EGPIO14) */
+		ep93xx_register_pwm(0, 1);
+	} else if (machine_is_edb9307() || machine_is_edb9307a()) {
+		/* EP9307 only has pwm.0 (PWMOUT) */
+		ep93xx_register_pwm(1, 0);
+	} else {
+		/* EP9312 and EP9315 have both */
+		ep93xx_register_pwm(1, 1);
+	}
+}
+
 
 static void __init edb93xx_init_machine(void)
 {
@@ -109,14 +117,13 @@ static void __init edb93xx_init_machine(void)
 	edb93xx_register_flash();
 	ep93xx_register_eth(&edb93xx_eth_data, 1);
 	edb93xx_register_i2c();
+	edb93xx_register_pwm();
 }
 
 
 #ifdef CONFIG_MACH_EDB9301
 MACHINE_START(EDB9301, "Cirrus Logic EDB9301 Evaluation Board")
 	/* Maintainer: H Hartley Sweeten <hsweeten@visionengravers.com> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
@@ -128,8 +135,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_EDB9302
 MACHINE_START(EDB9302, "Cirrus Logic EDB9302 Evaluation Board")
 	/* Maintainer: George Kashperko <george@chas.com.ua> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
@@ -141,8 +146,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_EDB9302A
 MACHINE_START(EDB9302A, "Cirrus Logic EDB9302A Evaluation Board")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE0_PHYS_BASE + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
@@ -154,8 +157,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_EDB9307
 MACHINE_START(EDB9307, "Cirrus Logic EDB9307 Evaluation Board")
 	/* Maintainer: Herbert Valerio Riedel <hvr@gnu.org> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
@@ -167,8 +168,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_EDB9307A
 MACHINE_START(EDB9307A, "Cirrus Logic EDB9307A Evaluation Board")
 	/* Maintainer: H Hartley Sweeten <hsweeten@visionengravers.com> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE0_PHYS_BASE + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
@@ -180,8 +179,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_EDB9312
 MACHINE_START(EDB9312, "Cirrus Logic EDB9312 Evaluation Board")
 	/* Maintainer: Toufeeq Hussain <toufeeq_hussain@infosys.com> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
@@ -193,8 +190,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_EDB9315
 MACHINE_START(EDB9315, "Cirrus Logic EDB9315 Evaluation Board")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
@@ -206,8 +201,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_EDB9315A
 MACHINE_START(EDB9315A, "Cirrus Logic EDB9315A Evaluation Board")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE0_PHYS_BASE + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,

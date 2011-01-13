@@ -250,7 +250,7 @@ struct c2_array {
 struct sp_chunk {
 	struct sp_chunk *next;
 	dma_addr_t dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	u16 head;
 	u16 shared_ptr[0];
 };

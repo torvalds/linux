@@ -2,6 +2,7 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
@@ -214,6 +215,20 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		return ret;
 	}
 
+	/* If there are any blocks which need erasing, erase them now */
+	if (!list_empty(&c->erase_complete_list) ||
+	    !list_empty(&c->erase_pending_list)) {
+		spin_unlock(&c->erase_completion_lock);
+		mutex_unlock(&c->alloc_sem);
+		D1(printk(KERN_DEBUG "jffs2_garbage_collect_pass() erasing pending blocks\n"));
+		if (jffs2_erase_pending_blocks(c, 1))
+			return 0;
+
+		D1(printk(KERN_DEBUG "No progress from erasing blocks; doing GC anyway\n"));
+		spin_lock(&c->erase_completion_lock);
+		mutex_lock(&c->alloc_sem);
+	}
+
 	/* First, work out which block we're garbage-collecting */
 	jeb = c->gcblock;
 
@@ -222,7 +237,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 
 	if (!jeb) {
 		/* Couldn't find a free block. But maybe we can just erase one and make 'progress'? */
-		if (!list_empty(&c->erase_pending_list)) {
+		if (c->nr_erasing_blocks) {
 			spin_unlock(&c->erase_completion_lock);
 			mutex_unlock(&c->alloc_sem);
 			return -EAGAIN;
@@ -435,7 +450,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		list_add_tail(&c->gcblock->list, &c->erase_pending_list);
 		c->gcblock = NULL;
 		c->nr_erasing_blocks++;
-		jffs2_erase_pending_trigger(c);
+		jffs2_garbage_collect_trigger(c);
 	}
 	spin_unlock(&c->erase_completion_lock);
 
@@ -700,7 +715,8 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 	struct jffs2_raw_inode ri;
 	struct jffs2_node_frag *last_frag;
 	union jffs2_device_node dev;
-	char *mdata = NULL, mdatalen = 0;
+	char *mdata = NULL;
+	int mdatalen = 0;
 	uint32_t alloclen, ilen;
 	int ret;
 

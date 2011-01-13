@@ -34,3 +34,6 @@ void cx18_stop_capture(struct cx18_open_id *id, int gop_end);
 void cx18_mute(struct cx18 *cx);
 void cx18_unmute(struct cx18 *cx);
 
+/* Shared with cx18-alsa module */
+int cx18_claim_stream(struct cx18_open_id *id, int type);
+void cx18_release_stream(struct cx18_stream *s);

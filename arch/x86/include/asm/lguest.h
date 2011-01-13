@@ -17,8 +17,7 @@
 /* Pages for switcher itself, then two pages per cpu */
 #define TOTAL_SWITCHER_PAGES (SHARED_SWITCHER_PAGES + 2 * nr_cpu_ids)
 
-/* We map at -4M (-2M when PAE is activated) for ease of mapping
- * into the guest (one PTE page). */
+/* We map at -4M (-2M for PAE) for ease of mapping (one PTE page). */
 #ifdef CONFIG_X86_PAE
 #define SWITCHER_ADDR 0xFFE00000
 #else
@@ -91,8 +90,9 @@ static inline void lguest_set_ts(void)
 }
 
 /* Full 4G segment descriptors, suitable for CS and DS. */
-#define FULL_EXEC_SEGMENT ((struct desc_struct){ { {0x0000ffff, 0x00cf9b00} } })
-#define FULL_SEGMENT ((struct desc_struct){ { {0x0000ffff, 0x00cf9300} } })
+#define FULL_EXEC_SEGMENT \
+	((struct desc_struct)GDT_ENTRY_INIT(0xc09b, 0, 0xfffff))
+#define FULL_SEGMENT ((struct desc_struct)GDT_ENTRY_INIT(0xc093, 0, 0xfffff))
 
 #endif /* __ASSEMBLY__ */
 

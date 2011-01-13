@@ -11,7 +11,7 @@
 #ifndef _ASM_UNIT_SERIAL_H
 #define _ASM_UNIT_SERIAL_H
 
-#include <asm/cpu/cpu-regs.h>
+#include <asm/cpu-regs.h>
 #include <proc/irq.h>
 #include <linux/serial_reg.h>
 
@@ -19,6 +19,11 @@
 #define ASB2305_DEBUG_MCR	__SYSREG(0xA6FB0000 + UART_MCR * 2, u8)
 
 #define SERIAL_IRQ	XIRQ0	/* Dual serial (PC16552)	(Hi) */
+
+/*
+ * The ASB2305 has an 18.432 MHz clock the UART
+ */
+#define BASE_BAUD	(18432000 / 16)
 
 /*
  * dispose of the /dev/ttyS0 serial port

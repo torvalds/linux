@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -200,6 +201,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct maestro *dev = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI)
 		return -EINVAL;
 	mutex_lock(&dev->lock);
@@ -213,6 +216,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct maestro *dev = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	mutex_lock(&dev->lock);
 	f->frequency = BITS2FREQ(radio_bits_get(dev));
@@ -294,7 +299,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static const struct v4l2_file_operations maestro_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops maestro_ioctl_ops = {
@@ -378,22 +383,20 @@ static int __devinit maestro_probe(struct pci_dev *pdev,
 	dev->vdev.release = video_device_release_empty;
 	video_set_drvdata(&dev->vdev, dev);
 
+	if (!radio_power_on(dev)) {
+		retval = -EIO;
+		goto errfr1;
+	}
+
 	retval = video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr);
 	if (retval) {
 		v4l2_err(v4l2_dev, "can't register video device!\n");
 		goto errfr1;
 	}
 
-	if (!radio_power_on(dev)) {
-		retval = -EIO;
-		goto errunr;
-	}
-
 	v4l2_info(v4l2_dev, "version " DRIVER_VERSION "\n");
 
 	return 0;
-errunr:
-	video_unregister_device(&dev->vdev);
 errfr1:
 	v4l2_device_unregister(v4l2_dev);
 errfr:

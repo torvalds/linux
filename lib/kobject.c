@@ -700,7 +700,7 @@ static ssize_t kobj_attr_store(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-struct sysfs_ops kobj_sysfs_ops = {
+const struct sysfs_ops kobj_sysfs_ops = {
 	.show	= kobj_attr_show,
 	.store	= kobj_attr_store,
 };
@@ -746,17 +746,56 @@ void kset_unregister(struct kset *k)
  */
 struct kobject *kset_find_obj(struct kset *kset, const char *name)
 {
+	return kset_find_obj_hinted(kset, name, NULL);
+}
+
+/**
+ * kset_find_obj_hinted - search for object in kset given a predecessor hint.
+ * @kset: kset we're looking in.
+ * @name: object's name.
+ * @hint: hint to possible object's predecessor.
+ *
+ * Check the hint's next object and if it is a match return it directly,
+ * otherwise, fall back to the behavior of kset_find_obj().  Either way
+ * a reference for the returned object is held and the reference on the
+ * hinted object is released.
+ */
+struct kobject *kset_find_obj_hinted(struct kset *kset, const char *name,
+				     struct kobject *hint)
+{
 	struct kobject *k;
 	struct kobject *ret = NULL;
 
 	spin_lock(&kset->list_lock);
+
+	if (!hint)
+		goto slow_search;
+
+	/* end of list detection */
+	if (hint->entry.next == kset->list.next)
+		goto slow_search;
+
+	k = container_of(hint->entry.next, struct kobject, entry);
+	if (!kobject_name(k) || strcmp(kobject_name(k), name))
+		goto slow_search;
+
+	ret = kobject_get(k);
+	goto unlock_exit;
+
+slow_search:
 	list_for_each_entry(k, &kset->list, entry) {
 		if (kobject_name(k) && !strcmp(kobject_name(k), name)) {
 			ret = kobject_get(k);
 			break;
 		}
 	}
+
+unlock_exit:
 	spin_unlock(&kset->list_lock);
+
+	if (hint)
+		kobject_put(hint);
+
 	return ret;
 }
 
@@ -789,7 +828,7 @@ static struct kobj_type kset_ktype = {
  * If the kset was not able to be created, NULL will be returned.
  */
 static struct kset *kset_create(const char *name,
-				struct kset_uevent_ops *uevent_ops,
+				const struct kset_uevent_ops *uevent_ops,
 				struct kobject *parent_kobj)
 {
 	struct kset *kset;
@@ -832,7 +871,7 @@ static struct kset *kset_create(const char *name,
  * If the kset was not able to be created, NULL will be returned.
  */
 struct kset *kset_create_and_add(const char *name,
-				 struct kset_uevent_ops *uevent_ops,
+				 const struct kset_uevent_ops *uevent_ops,
 				 struct kobject *parent_kobj)
 {
 	struct kset *kset;
@@ -849,6 +888,121 @@ struct kset *kset_create_and_add(const char *name,
 	return kset;
 }
 EXPORT_SYMBOL_GPL(kset_create_and_add);
+
+
+static DEFINE_SPINLOCK(kobj_ns_type_lock);
+static const struct kobj_ns_type_operations *kobj_ns_ops_tbl[KOBJ_NS_TYPES];
+
+int kobj_ns_type_register(const struct kobj_ns_type_operations *ops)
+{
+	enum kobj_ns_type type = ops->type;
+	int error;
+
+	spin_lock(&kobj_ns_type_lock);
+
+	error = -EINVAL;
+	if (type >= KOBJ_NS_TYPES)
+		goto out;
+
+	error = -EINVAL;
+	if (type <= KOBJ_NS_TYPE_NONE)
+		goto out;
+
+	error = -EBUSY;
+	if (kobj_ns_ops_tbl[type])
+		goto out;
+
+	error = 0;
+	kobj_ns_ops_tbl[type] = ops;
+
+out:
+	spin_unlock(&kobj_ns_type_lock);
+	return error;
+}
+
+int kobj_ns_type_registered(enum kobj_ns_type type)
+{
+	int registered = 0;
+
+	spin_lock(&kobj_ns_type_lock);
+	if ((type > KOBJ_NS_TYPE_NONE) && (type < KOBJ_NS_TYPES))
+		registered = kobj_ns_ops_tbl[type] != NULL;
+	spin_unlock(&kobj_ns_type_lock);
+
+	return registered;
+}
+
+const struct kobj_ns_type_operations *kobj_child_ns_ops(struct kobject *parent)
+{
+	const struct kobj_ns_type_operations *ops = NULL;
+
+	if (parent && parent->ktype->child_ns_type)
+		ops = parent->ktype->child_ns_type(parent);
+
+	return ops;
+}
+
+const struct kobj_ns_type_operations *kobj_ns_ops(struct kobject *kobj)
+{
+	return kobj_child_ns_ops(kobj->parent);
+}
+
+
+const void *kobj_ns_current(enum kobj_ns_type type)
+{
+	const void *ns = NULL;
+
+	spin_lock(&kobj_ns_type_lock);
+	if ((type > KOBJ_NS_TYPE_NONE) && (type < KOBJ_NS_TYPES) &&
+	    kobj_ns_ops_tbl[type])
+		ns = kobj_ns_ops_tbl[type]->current_ns();
+	spin_unlock(&kobj_ns_type_lock);
+
+	return ns;
+}
+
+const void *kobj_ns_netlink(enum kobj_ns_type type, struct sock *sk)
+{
+	const void *ns = NULL;
+
+	spin_lock(&kobj_ns_type_lock);
+	if ((type > KOBJ_NS_TYPE_NONE) && (type < KOBJ_NS_TYPES) &&
+	    kobj_ns_ops_tbl[type])
+		ns = kobj_ns_ops_tbl[type]->netlink_ns(sk);
+	spin_unlock(&kobj_ns_type_lock);
+
+	return ns;
+}
+
+const void *kobj_ns_initial(enum kobj_ns_type type)
+{
+	const void *ns = NULL;
+
+	spin_lock(&kobj_ns_type_lock);
+	if ((type > KOBJ_NS_TYPE_NONE) && (type < KOBJ_NS_TYPES) &&
+	    kobj_ns_ops_tbl[type])
+		ns = kobj_ns_ops_tbl[type]->initial_ns();
+	spin_unlock(&kobj_ns_type_lock);
+
+	return ns;
+}
+
+/*
+ * kobj_ns_exit - invalidate a namespace tag
+ *
+ * @type: the namespace type (i.e. KOBJ_NS_TYPE_NET)
+ * @ns: the actual namespace being invalidated
+ *
+ * This is called when a tag is no longer valid.  For instance,
+ * when a network namespace exits, it uses this helper to
+ * make sure no sb's sysfs_info points to the now-invalidated
+ * netns.
+ */
+void kobj_ns_exit(enum kobj_ns_type type, const void *ns)
+{
+	sysfs_exit_ns(type, ns);
+}
+
 
 EXPORT_SYMBOL(kobject_get);
 EXPORT_SYMBOL(kobject_put);

@@ -30,7 +30,6 @@
 #include <linux/miscdevice.h>
 #include <linux/utsname.h>
 #include <linux/cpumask.h>
-#include <linux/smp_lock.h>
 #include <linux/nodemask.h>
 #include <linux/smp.h>
 #include <linux/mutex.h>
@@ -629,9 +628,9 @@ static int sn_hwperf_op_cpu(struct sn_hwperf_op_info *op_info)
 		else {
 			/* migrate the task before calling SAL */ 
 			save_allowed = current->cpus_allowed;
-			set_cpus_allowed(current, cpumask_of_cpu(cpu));
+			set_cpus_allowed_ptr(current, cpumask_of(cpu));
 			sn_hwperf_call_sal(op_info);
-			set_cpus_allowed(current, save_allowed);
+			set_cpus_allowed_ptr(current, &save_allowed);
 		}
 	}
 	r = op_info->ret;
@@ -682,8 +681,7 @@ static int sn_hwperf_map_err(int hwperf_err)
 /*
  * ioctl for "sn_hwperf" misc device
  */
-static int
-sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
+static long sn_hwperf_ioctl(struct file *fp, u32 op, unsigned long arg)
 {
 	struct sn_hwperf_ioctl_args a;
 	struct cpuinfo_ia64 *cdata;
@@ -698,8 +696,6 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
 	int v0;
 	int i;
 	int j;
-
-	unlock_kernel();
 
 	/* only user requests are allowed here */
 	if ((op & SN_HWPERF_OP_MASK) < 10) {
@@ -786,17 +782,18 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
 		break;
 
 	case SN_HWPERF_GET_OBJ_NODE:
-		if (a.sz != sizeof(u64) || a.arg < 0) {
+		i = a.arg;
+		if (a.sz != sizeof(u64) || i < 0) {
 			r = -EINVAL;
 			goto error;
 		}
 		if ((r = sn_hwperf_enum_objects(&nobj, &objs)) == 0) {
-			if (a.arg >= nobj) {
+			if (i >= nobj) {
 				r = -EINVAL;
 				vfree(objs);
 				goto error;
 			}
-			if (objs[(i = a.arg)].id != a.arg) {
+			if (objs[i].id != a.arg) {
 				for (i = 0; i < nobj; i++) {
 					if (objs[i].id == a.arg)
 						break;
@@ -858,12 +855,12 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
 error:
 	vfree(p);
 
-	lock_kernel();
 	return r;
 }
 
 static const struct file_operations sn_hwperf_fops = {
-	.ioctl = sn_hwperf_ioctl,
+	.unlocked_ioctl = sn_hwperf_ioctl,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice sn_hwperf_dev = {

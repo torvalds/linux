@@ -14,16 +14,19 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
+#include "hw-ops.h"
 
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 					struct ath9k_tx_queue_info *qi)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_INTERRUPT,
+	ath_dbg(ath9k_hw_common(ah), ATH_DBG_INTERRUPT,
 		"tx ok 0x%x err 0x%x desc 0x%x eol 0x%x urn 0x%x\n",
 		ah->txok_interrupt_mask, ah->txerr_interrupt_mask,
 		ah->txdesc_interrupt_mask, ah->txeol_interrupt_mask,
 		ah->txurn_interrupt_mask);
+
+	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_IMR_S0,
 		  SM(ah->txok_interrupt_mask, AR_IMR_S0_QCU_TXOK)
@@ -31,30 +34,45 @@ static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 	REG_WRITE(ah, AR_IMR_S1,
 		  SM(ah->txerr_interrupt_mask, AR_IMR_S1_QCU_TXERR)
 		  | SM(ah->txeol_interrupt_mask, AR_IMR_S1_QCU_TXEOL));
-	REG_RMW_FIELD(ah, AR_IMR_S2,
-		      AR_IMR_S2_QCU_TXURN, ah->txurn_interrupt_mask);
+
+	ah->imrs2_reg &= ~AR_IMR_S2_QCU_TXURN;
+	ah->imrs2_reg |= (ah->txurn_interrupt_mask & AR_IMR_S2_QCU_TXURN);
+	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
+
+	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q)
 {
 	return REG_READ(ah, AR_QTXDP(q));
 }
+EXPORT_SYMBOL(ath9k_hw_gettxbuf);
 
-bool ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp)
+void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp)
 {
 	REG_WRITE(ah, AR_QTXDP(q), txdp);
-
-	return true;
 }
+EXPORT_SYMBOL(ath9k_hw_puttxbuf);
 
-bool ath9k_hw_txstart(struct ath_hw *ah, u32 q)
+void ath9k_hw_txstart(struct ath_hw *ah, u32 q)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Enable TXE on queue: %u\n", q);
-
+	ath_dbg(ath9k_hw_common(ah), ATH_DBG_QUEUE,
+		"Enable TXE on queue: %u\n", q);
 	REG_WRITE(ah, AR_Q_TXE, 1 << q);
-
-	return true;
 }
+EXPORT_SYMBOL(ath9k_hw_txstart);
+
+void ath9k_hw_cleartxdesc(struct ath_hw *ah, void *ds)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
+	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
+	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
+	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
+	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
+}
+EXPORT_SYMBOL(ath9k_hw_cleartxdesc);
 
 u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q)
 {
@@ -69,22 +87,47 @@ u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q)
 
 	return npend;
 }
+EXPORT_SYMBOL(ath9k_hw_numtxpending);
 
+/**
+ * ath9k_hw_updatetxtriglevel - adjusts the frame trigger level
+ *
+ * @ah: atheros hardware struct
+ * @bIncTrigLevel: whether or not the frame trigger level should be updated
+ *
+ * The frame trigger level specifies the minimum number of bytes,
+ * in units of 64 bytes, that must be DMA'ed into the PCU TX FIFO
+ * before the PCU will initiate sending the frame on the air. This can
+ * mean we initiate transmit before a full frame is on the PCU TX FIFO.
+ * Resets to 0x1 (meaning 64 bytes or a full frame, whichever occurs
+ * first)
+ *
+ * Caution must be taken to ensure to set the frame trigger level based
+ * on the DMA request size. For example if the DMA request size is set to
+ * 128 bytes the trigger level cannot exceed 6 * 64 = 384. This is because
+ * there need to be enough space in the tx FIFO for the requested transfer
+ * size. Hence the tx FIFO will stop with 512 - 128 = 384 bytes. If we set
+ * the threshold to a value beyond 6, then the transmit will hang.
+ *
+ * Current dual   stream devices have a PCU TX FIFO size of 8 KB.
+ * Current single stream devices have a PCU TX FIFO size of 4 KB, however,
+ * there is a hardware issue which forces us to use 2 KB instead so the
+ * frame trigger level must not exceed 2 KB for these chipsets.
+ */
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 {
 	u32 txcfg, curLevel, newLevel;
-	enum ath9k_int omask;
 
-	if (ah->tx_trig_level >= MAX_TX_FIFO_THRESHOLD)
+	if (ah->tx_trig_level >= ah->config.max_txtrig_level)
 		return false;
 
-	omask = ath9k_hw_set_interrupts(ah, ah->mask_reg & ~ATH9K_INT_GLOBAL);
+	ath9k_hw_disable_interrupts(ah);
 
 	txcfg = REG_READ(ah, AR_TXCFG);
 	curLevel = MS(txcfg, AR_FTRIG);
 	newLevel = curLevel;
 	if (bIncTrigLevel) {
-		if (curLevel < MAX_TX_FIFO_THRESHOLD)
+		if (curLevel < ah->config.max_txtrig_level)
 			newLevel++;
 	} else if (curLevel > MIN_TX_FIFO_THRESHOLD)
 		newLevel--;
@@ -92,33 +135,34 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 		REG_WRITE(ah, AR_TXCFG,
 			  (txcfg & ~AR_FTRIG) | SM(newLevel, AR_FTRIG));
 
-	ath9k_hw_set_interrupts(ah, omask);
+	ath9k_hw_enable_interrupts(ah);
 
 	ah->tx_trig_level = newLevel;
 
 	return newLevel != curLevel;
 }
+EXPORT_SYMBOL(ath9k_hw_updatetxtriglevel);
 
 bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 {
 #define ATH9K_TX_STOP_DMA_TIMEOUT	4000    /* usec */
 #define ATH9K_TIME_QUANTUM		100     /* usec */
-
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath9k_tx_queue_info *qi;
 	u32 tsfLow, j, wait;
 	u32 wait_time = ATH9K_TX_STOP_DMA_TIMEOUT / ATH9K_TIME_QUANTUM;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Stopping TX DMA, "
-			"invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Stopping TX DMA, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Stopping TX DMA, "
-			"inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Stopping TX DMA, inactive queue: %u\n", q);
 		return false;
 	}
 
@@ -131,7 +175,7 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 	}
 
 	if (ath9k_hw_numtxpending(ah, q)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
+		ath_dbg(common, ATH_DBG_QUEUE,
 			"%s: Num of pending TX Frames %d on Q %d\n",
 			__func__, ath9k_hw_numtxpending(ah, q), q);
 
@@ -147,9 +191,9 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 			if ((REG_READ(ah, AR_TSF_L32) >> 10) == (tsfLow >> 10))
 				break;
 
-			DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
-				"TSF has moved while trying to set "
-				"quiet time TSF: 0x%08x\n", tsfLow);
+			ath_dbg(common, ATH_DBG_QUEUE,
+				"TSF has moved while trying to set quiet time TSF: 0x%08x\n",
+				tsfLow);
 		}
 
 		REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
@@ -160,9 +204,8 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 		wait = wait_time;
 		while (ath9k_hw_numtxpending(ah, q)) {
 			if ((--wait) == 0) {
-				DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
-					"Failed to stop TX DMA in 100 "
-					"msec after killing last frame\n");
+				ath_err(common,
+					"Failed to stop TX DMA in 100 msec after killing last frame\n");
 				break;
 			}
 			udelay(ATH9K_TIME_QUANTUM);
@@ -177,298 +220,37 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 #undef ATH9K_TX_STOP_DMA_TIMEOUT
 #undef ATH9K_TIME_QUANTUM
 }
-
-bool ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
-			 u32 segLen, bool firstSeg,
-			 bool lastSeg, const struct ath_desc *ds0)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	if (firstSeg) {
-		ads->ds_ctl1 |= segLen | (lastSeg ? 0 : AR_TxMore);
-	} else if (lastSeg) {
-		ads->ds_ctl0 = 0;
-		ads->ds_ctl1 = segLen;
-		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
-		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
-	} else {
-		ads->ds_ctl0 = 0;
-		ads->ds_ctl1 = segLen | AR_TxMore;
-		ads->ds_ctl2 = 0;
-		ads->ds_ctl3 = 0;
-	}
-	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
-	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
-	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
-	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
-	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
-
-	return true;
-}
-
-void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
-	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
-	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
-	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
-	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
-}
-
-int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	if ((ads->ds_txstatus9 & AR_TxDone) == 0)
-		return -EINPROGRESS;
-
-	ds->ds_txstat.ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
-	ds->ds_txstat.ts_tstamp = ads->AR_SendTimestamp;
-	ds->ds_txstat.ts_status = 0;
-	ds->ds_txstat.ts_flags = 0;
-
-	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_XRETRY;
-	if (ads->ds_txstatus1 & AR_Filtered)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_FILT;
-	if (ads->ds_txstatus1 & AR_FIFOUnderrun) {
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_FIFO;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus9 & AR_TxOpExceeded)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_XTXOP;
-	if (ads->ds_txstatus1 & AR_TxTimerExpired)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
-
-	if (ads->ds_txstatus1 & AR_DescCfgErr)
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DESC_CFG_ERR;
-	if (ads->ds_txstatus1 & AR_TxDataUnderrun) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DATA_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus1 & AR_TxDelimUnderrun) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus0 & AR_TxBaStatus) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_BA;
-		ds->ds_txstat.ba_low = ads->AR_BaBitmapLow;
-		ds->ds_txstat.ba_high = ads->AR_BaBitmapHigh;
-	}
-
-	ds->ds_txstat.ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
-	switch (ds->ds_txstat.ts_rateindex) {
-	case 0:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
-		break;
-	case 1:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
-		break;
-	case 2:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
-		break;
-	case 3:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
-		break;
-	}
-
-	ds->ds_txstat.ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
-	ds->ds_txstat.ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
-	ds->ds_txstat.ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
-	ds->ds_txstat.ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
-	ds->ds_txstat.ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
-	ds->ds_txstat.ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
-	ds->ds_txstat.ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
-	ds->ds_txstat.evm0 = ads->AR_TxEVM0;
-	ds->ds_txstat.evm1 = ads->AR_TxEVM1;
-	ds->ds_txstat.evm2 = ads->AR_TxEVM2;
-	ds->ds_txstat.ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
-	ds->ds_txstat.ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
-	ds->ds_txstat.ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
-	ds->ds_txstat.ts_antenna = 0;
-
-	return 0;
-}
-
-void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
-			    u32 pktLen, enum ath9k_pkt_type type, u32 txPower,
-			    u32 keyIx, enum ath9k_key_type keyType, u32 flags)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	txPower += ah->txpower_indexoffset;
-	if (txPower > 63)
-		txPower = 63;
-
-	ads->ds_ctl0 = (pktLen & AR_FrameLen)
-		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
-		| SM(txPower, AR_XmitPower)
-		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
-		| (flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
-		| (flags & ATH9K_TXDESC_INTREQ ? AR_TxIntrReq : 0)
-		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0);
-
-	ads->ds_ctl1 =
-		(keyIx != ATH9K_TXKEYIX_INVALID ? SM(keyIx, AR_DestIdx) : 0)
-		| SM(type, AR_FrameType)
-		| (flags & ATH9K_TXDESC_NOACK ? AR_NoAck : 0)
-		| (flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
-		| (flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
-
-	ads->ds_ctl6 = SM(keyType, AR_EncrType);
-
-	if (AR_SREV_9285(ah)) {
-		ads->ds_ctl8 = 0;
-		ads->ds_ctl9 = 0;
-		ads->ds_ctl10 = 0;
-		ads->ds_ctl11 = 0;
-	}
-}
-
-void ath9k_hw_set11n_ratescenario(struct ath_hw *ah, struct ath_desc *ds,
-				  struct ath_desc *lastds,
-				  u32 durUpdateEn, u32 rtsctsRate,
-				  u32 rtsctsDuration,
-				  struct ath9k_11n_rate_series series[],
-				  u32 nseries, u32 flags)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-	struct ar5416_desc *last_ads = AR5416DESC(lastds);
-	u32 ds_ctl0;
-
-	if (flags & (ATH9K_TXDESC_RTSENA | ATH9K_TXDESC_CTSENA)) {
-		ds_ctl0 = ads->ds_ctl0;
-
-		if (flags & ATH9K_TXDESC_RTSENA) {
-			ds_ctl0 &= ~AR_CTSEnable;
-			ds_ctl0 |= AR_RTSEnable;
-		} else {
-			ds_ctl0 &= ~AR_RTSEnable;
-			ds_ctl0 |= AR_CTSEnable;
-		}
-
-		ads->ds_ctl0 = ds_ctl0;
-	} else {
-		ads->ds_ctl0 =
-			(ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
-	}
-
-	ads->ds_ctl2 = set11nTries(series, 0)
-		| set11nTries(series, 1)
-		| set11nTries(series, 2)
-		| set11nTries(series, 3)
-		| (durUpdateEn ? AR_DurUpdateEna : 0)
-		| SM(0, AR_BurstDur);
-
-	ads->ds_ctl3 = set11nRate(series, 0)
-		| set11nRate(series, 1)
-		| set11nRate(series, 2)
-		| set11nRate(series, 3);
-
-	ads->ds_ctl4 = set11nPktDurRTSCTS(series, 0)
-		| set11nPktDurRTSCTS(series, 1);
-
-	ads->ds_ctl5 = set11nPktDurRTSCTS(series, 2)
-		| set11nPktDurRTSCTS(series, 3);
-
-	ads->ds_ctl7 = set11nRateFlags(series, 0)
-		| set11nRateFlags(series, 1)
-		| set11nRateFlags(series, 2)
-		| set11nRateFlags(series, 3)
-		| SM(rtsctsRate, AR_RTSCTSRate);
-	last_ads->ds_ctl2 = ads->ds_ctl2;
-	last_ads->ds_ctl3 = ads->ds_ctl3;
-}
-
-void ath9k_hw_set11n_aggr_first(struct ath_hw *ah, struct ath_desc *ds,
-				u32 aggrLen)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
-	ads->ds_ctl6 &= ~AR_AggrLen;
-	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
-}
-
-void ath9k_hw_set11n_aggr_middle(struct ath_hw *ah, struct ath_desc *ds,
-				 u32 numDelims)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-	unsigned int ctl6;
-
-	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
-
-	ctl6 = ads->ds_ctl6;
-	ctl6 &= ~AR_PadDelim;
-	ctl6 |= SM(numDelims, AR_PadDelim);
-	ads->ds_ctl6 = ctl6;
-}
-
-void ath9k_hw_set11n_aggr_last(struct ath_hw *ah, struct ath_desc *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl1 |= AR_IsAggr;
-	ads->ds_ctl1 &= ~AR_MoreAggr;
-	ads->ds_ctl6 &= ~AR_PadDelim;
-}
-
-void ath9k_hw_clr11n_aggr(struct ath_hw *ah, struct ath_desc *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl1 &= (~AR_IsAggr & ~AR_MoreAggr);
-}
-
-void ath9k_hw_set11n_burstduration(struct ath_hw *ah, struct ath_desc *ds,
-				   u32 burstDuration)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl2 &= ~AR_BurstDur;
-	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
-}
-
-void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, struct ath_desc *ds,
-				     u32 vmf)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	if (vmf)
-		ads->ds_ctl0 |= AR_VirtMoreFrag;
-	else
-		ads->ds_ctl0 &= ~AR_VirtMoreFrag;
-}
+EXPORT_SYMBOL(ath9k_hw_stoptxdma);
 
 void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs)
 {
 	*txqs &= ah->intr_txqs;
 	ah->intr_txqs &= ~(*txqs);
 }
+EXPORT_SYMBOL(ath9k_hw_gettxintrtxqs);
 
 bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 			    const struct ath9k_tx_queue_info *qinfo)
 {
 	u32 cw;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Set TXQ properties, "
-			"invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Set TXQ properties, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Set TXQ properties, "
-			"inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Set TXQ properties, inactive queue: %u\n", q);
 		return false;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Set queue properties for: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Set queue properties for: %u\n", q);
 
 	qi->tqi_ver = qinfo->tqi_ver;
 	qi->tqi_subtype = qinfo->tqi_subtype;
@@ -517,23 +299,25 @@ bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 
 	return true;
 }
+EXPORT_SYMBOL(ath9k_hw_set_txq_props);
 
 bool ath9k_hw_get_txq_props(struct ath_hw *ah, int q,
 			    struct ath9k_tx_queue_info *qinfo)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Get TXQ properties, "
-			"invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Get TXQ properties, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Get TXQ properties, "
-			"inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Get TXQ properties, inactive queue: %u\n", q);
 		return false;
 	}
 
@@ -554,10 +338,12 @@ bool ath9k_hw_get_txq_props(struct ath_hw *ah, int q,
 
 	return true;
 }
+EXPORT_SYMBOL(ath9k_hw_get_txq_props);
 
 int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 			  const struct ath9k_tx_queue_info *qinfo)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_tx_queue_info *qi;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	int q;
@@ -581,23 +367,20 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 			    ATH9K_TX_QUEUE_INACTIVE)
 				break;
 		if (q == pCap->total_queues) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"No available TX queue\n");
+			ath_err(common, "No available TX queue\n");
 			return -1;
 		}
 		break;
 	default:
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Invalid TX queue type: %u\n",
-			type);
+		ath_err(common, "Invalid TX queue type: %u\n", type);
 		return -1;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Setup TX queue: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Setup TX queue: %u\n", q);
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type != ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-			"TX queue: %u already active\n", q);
+		ath_err(common, "TX queue: %u already active\n", q);
 		return -1;
 	}
 	memset(qi, 0, sizeof(struct ath9k_tx_queue_info));
@@ -620,25 +403,27 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 
 	return q;
 }
+EXPORT_SYMBOL(ath9k_hw_setuptxqueue);
 
 bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Release TXQ, "
-			"invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Release TXQ, invalid queue: %u\n", q);
 		return false;
 	}
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Release TXQ, "
-			"inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Release TXQ, inactive queue: %u\n", q);
 		return false;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Release TX queue: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Release TX queue: %u\n", q);
 
 	qi->tqi_type = ATH9K_TX_QUEUE_INACTIVE;
 	ah->txok_interrupt_mask &= ~(1 << q);
@@ -650,28 +435,30 @@ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 
 	return true;
 }
+EXPORT_SYMBOL(ath9k_hw_releasetxqueue);
 
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_channel *chan = ah->curchan;
 	struct ath9k_tx_queue_info *qi;
 	u32 cwMin, chanCwMin, value;
 
 	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Reset TXQ, "
-			"invalid queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Reset TXQ, invalid queue: %u\n", q);
 		return false;
 	}
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Reset TXQ, "
-			"inactive queue: %u\n", q);
+		ath_dbg(common, ATH_DBG_QUEUE,
+			"Reset TXQ, inactive queue: %u\n", q);
 		return true;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "Reset TX queue: %u\n", q);
+	ath_dbg(common, ATH_DBG_QUEUE, "Reset TX queue: %u\n", q);
 
 	if (qi->tqi_cwmin == ATH9K_TXQ_USEDEFAULT) {
 		if (chan && IS_CHAN_B(chan))
@@ -682,6 +469,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		for (cwMin = 1; cwMin < chanCwMin; cwMin = (cwMin << 1) | 1);
 	} else
 		cwMin = qi->tqi_cwmin;
+
+	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_DLCL_IFS(q),
 		  SM(cwMin, AR_D_LCL_IFS_CWMIN) |
@@ -729,6 +518,9 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  REG_READ(ah, AR_DMISC(q)) |
 			  AR_D_MISC_POST_FR_BKOFF_DIS);
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+
 	if (qi->tqi_qflags & TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE) {
 		REG_WRITE(ah, AR_DMISC(q),
 			  REG_READ(ah, AR_DMISC(q)) |
@@ -736,6 +528,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	}
 	switch (qi->tqi_type) {
 	case ATH9K_TX_QUEUE_BEACON:
+		ENABLE_REGWRITE_BUFFER(ah);
+
 		REG_WRITE(ah, AR_QMISC(q), REG_READ(ah, AR_QMISC(q))
 			  | AR_Q_MISC_FSP_DBA_GATED
 			  | AR_Q_MISC_BEACON_USE
@@ -746,8 +540,24 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			     AR_D_MISC_ARB_LOCKOUT_CNTRL_S)
 			  | AR_D_MISC_BEACON_USE
 			  | AR_D_MISC_POST_FR_BKOFF_DIS);
+
+		REGWRITE_BUFFER_FLUSH(ah);
+
+		/*
+		 * cwmin and cwmax should be 0 for beacon queue
+		 * but not for IBSS as we would create an imbalance
+		 * on beaconing fairness for participating nodes.
+		 */
+		if (AR_SREV_9300_20_OR_LATER(ah) &&
+		    ah->opmode != NL80211_IFTYPE_ADHOC) {
+			REG_WRITE(ah, AR_DLCL_IFS(q), SM(0, AR_D_LCL_IFS_CWMIN)
+				  | SM(0, AR_D_LCL_IFS_CWMAX)
+				  | SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
+		}
 		break;
 	case ATH9K_TX_QUEUE_CAB:
+		ENABLE_REGWRITE_BUFFER(ah);
+
 		REG_WRITE(ah, AR_QMISC(q), REG_READ(ah, AR_QMISC(q))
 			  | AR_Q_MISC_FSP_DBA_GATED
 			  | AR_Q_MISC_CBR_INCR_DIS1
@@ -761,6 +571,9 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		REG_WRITE(ah, AR_DMISC(q), REG_READ(ah, AR_DMISC(q))
 			  | (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
 			     AR_D_MISC_ARB_LOCKOUT_CNTRL_S));
+
+		REGWRITE_BUFFER_FLUSH(ah);
+
 		break;
 	case ATH9K_TX_QUEUE_PSPOLL:
 		REG_WRITE(ah, AR_QMISC(q),
@@ -781,6 +594,9 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			     AR_D_MISC_ARB_LOCKOUT_CNTRL) |
 			  AR_D_MISC_POST_FR_BKOFF_DIS);
 	}
+
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		REG_WRITE(ah, AR_Q_DESC_CRCCHK, AR_Q_DESC_CRCCHK_EN);
 
 	if (qi->tqi_qflags & TXQ_FLAG_TXOKINT_ENABLE)
 		ah->txok_interrupt_mask |= 1 << q;
@@ -806,9 +622,10 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 
 	return true;
 }
+EXPORT_SYMBOL(ath9k_hw_resettxqueue);
 
 int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
-			u32 pa, struct ath_desc *nds, u64 tsf)
+			struct ath_rx_status *rs, u64 tsf)
 {
 	struct ar5416_desc ads;
 	struct ar5416_desc *adsp = AR5416DESC(ds);
@@ -819,76 +636,86 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	ads.u.rx = adsp->u.rx;
 
-	ds->ds_rxstat.rs_status = 0;
-	ds->ds_rxstat.rs_flags = 0;
+	rs->rs_status = 0;
+	rs->rs_flags = 0;
 
-	ds->ds_rxstat.rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
-	ds->ds_rxstat.rs_tstamp = ads.AR_RcvTimestamp;
+	rs->rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
+	rs->rs_tstamp = ads.AR_RcvTimestamp;
 
-	ds->ds_rxstat.rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
-	ds->ds_rxstat.rs_rssi_ctl0 = MS(ads.ds_rxstatus0, AR_RxRSSIAnt00);
-	ds->ds_rxstat.rs_rssi_ctl1 = MS(ads.ds_rxstatus0, AR_RxRSSIAnt01);
-	ds->ds_rxstat.rs_rssi_ctl2 = MS(ads.ds_rxstatus0, AR_RxRSSIAnt02);
-	ds->ds_rxstat.rs_rssi_ext0 = MS(ads.ds_rxstatus4, AR_RxRSSIAnt10);
-	ds->ds_rxstat.rs_rssi_ext1 = MS(ads.ds_rxstatus4, AR_RxRSSIAnt11);
-	ds->ds_rxstat.rs_rssi_ext2 = MS(ads.ds_rxstatus4, AR_RxRSSIAnt12);
+	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr) {
+		rs->rs_rssi = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl0 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl1 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext0 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext1 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext2 = ATH9K_RSSI_BAD;
+	} else {
+		rs->rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
+		rs->rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
+						AR_RxRSSIAnt00);
+		rs->rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
+						AR_RxRSSIAnt01);
+		rs->rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
+						AR_RxRSSIAnt02);
+		rs->rs_rssi_ext0 = MS(ads.ds_rxstatus4,
+						AR_RxRSSIAnt10);
+		rs->rs_rssi_ext1 = MS(ads.ds_rxstatus4,
+						AR_RxRSSIAnt11);
+		rs->rs_rssi_ext2 = MS(ads.ds_rxstatus4,
+						AR_RxRSSIAnt12);
+	}
 	if (ads.ds_rxstatus8 & AR_RxKeyIdxValid)
-		ds->ds_rxstat.rs_keyix = MS(ads.ds_rxstatus8, AR_KeyIdx);
+		rs->rs_keyix = MS(ads.ds_rxstatus8, AR_KeyIdx);
 	else
-		ds->ds_rxstat.rs_keyix = ATH9K_RXKEYIX_INVALID;
+		rs->rs_keyix = ATH9K_RXKEYIX_INVALID;
 
-	ds->ds_rxstat.rs_rate = RXSTATUS_RATE(ah, (&ads));
-	ds->ds_rxstat.rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
+	rs->rs_rate = RXSTATUS_RATE(ah, (&ads));
+	rs->rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
 
-	ds->ds_rxstat.rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
-	ds->ds_rxstat.rs_moreaggr =
+	rs->rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
+	rs->rs_moreaggr =
 		(ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
-	ds->ds_rxstat.rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
-	ds->ds_rxstat.rs_flags =
+	rs->rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
+	rs->rs_flags =
 		(ads.ds_rxstatus3 & AR_GI) ? ATH9K_RX_GI : 0;
-	ds->ds_rxstat.rs_flags |=
+	rs->rs_flags |=
 		(ads.ds_rxstatus3 & AR_2040) ? ATH9K_RX_2040 : 0;
 
 	if (ads.ds_rxstatus8 & AR_PreDelimCRCErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
+		rs->rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DELIM_CRC_POST;
+		rs->rs_flags |= ATH9K_RX_DELIM_CRC_POST;
 	if (ads.ds_rxstatus8 & AR_DecryptBusyErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DECRYPT_BUSY;
+		rs->rs_flags |= ATH9K_RX_DECRYPT_BUSY;
 
 	if ((ads.ds_rxstatus8 & AR_RxFrameOK) == 0) {
 		if (ads.ds_rxstatus8 & AR_CRCErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_CRC;
-		else if (ads.ds_rxstatus8 & AR_PHYErr) {
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_PHY;
+			rs->rs_status |= ATH9K_RXERR_CRC;
+		if (ads.ds_rxstatus8 & AR_PHYErr) {
+			rs->rs_status |= ATH9K_RXERR_PHY;
 			phyerr = MS(ads.ds_rxstatus8, AR_PHYErrCode);
-			ds->ds_rxstat.rs_phyerr = phyerr;
-		} else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_DECRYPT;
-		else if (ads.ds_rxstatus8 & AR_MichaelErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_MIC;
+			rs->rs_phyerr = phyerr;
+		}
+		if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
+			rs->rs_status |= ATH9K_RXERR_DECRYPT;
+		if (ads.ds_rxstatus8 & AR_MichaelErr)
+			rs->rs_status |= ATH9K_RXERR_MIC;
+		if (ads.ds_rxstatus8 & AR_KeyMiss)
+			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL(ath9k_hw_rxprocdesc);
 
-bool ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
-			  u32 size, u32 flags)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-	struct ath9k_hw_capabilities *pCap = &ah->caps;
-
-	ads->ds_ctl1 = size & AR_BufLen;
-	if (flags & ATH9K_RXDESC_INTREQ)
-		ads->ds_ctl1 |= AR_RxIntrReq;
-
-	ads->ds_rxstatus8 &= ~AR_RxDone;
-	if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
-		memset(&(ads->u), 0, sizeof(ads->u));
-
-	return true;
-}
-
+/*
+ * This can stop or re-enables RX.
+ *
+ * If bool is set this will kill any frame which is currently being
+ * transferred between the MAC and baseband and also prevent any new
+ * frames from getting started.
+ */
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 {
 	u32 reg;
@@ -904,8 +731,9 @@ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 				     AR_DIAG_RX_ABORT));
 
 			reg = REG_READ(ah, AR_OBS_BUS_1);
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"RX failed to go idle in 10 ms RXSM=0x%x\n", reg);
+			ath_err(ath9k_hw_common(ah),
+				"RX failed to go idle in 10 ms RXSM=0x%x\n",
+				reg);
 
 			return false;
 		}
@@ -916,38 +744,37 @@ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 
 	return true;
 }
+EXPORT_SYMBOL(ath9k_hw_setrxabort);
 
 void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp)
 {
 	REG_WRITE(ah, AR_RXDP, rxdp);
 }
+EXPORT_SYMBOL(ath9k_hw_putrxbuf);
 
-void ath9k_hw_rxena(struct ath_hw *ah)
-{
-	REG_WRITE(ah, AR_CR, AR_CR_RXE);
-}
-
-void ath9k_hw_startpcureceive(struct ath_hw *ah)
+void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning)
 {
 	ath9k_enable_mib_counters(ah);
 
-	ath9k_ani_reset(ah);
+	ath9k_ani_reset(ah, is_scanning);
 
 	REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 }
+EXPORT_SYMBOL(ath9k_hw_startpcureceive);
 
-void ath9k_hw_stoppcurecv(struct ath_hw *ah)
+void ath9k_hw_abortpcurecv(struct ath_hw *ah)
 {
-	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS);
+	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_ABORT | AR_DIAG_RX_DIS);
 
 	ath9k_hw_disable_mib_counters(ah);
 }
+EXPORT_SYMBOL(ath9k_hw_abortpcurecv);
 
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 {
 #define AH_RX_STOP_DMA_TIMEOUT 10000   /* usec */
 #define AH_RX_TIME_QUANTUM     100     /* usec */
-
+	struct ath_common *common = ath9k_hw_common(ah);
 	int i;
 
 	REG_WRITE(ah, AR_CR, AR_CR_RXD);
@@ -960,9 +787,8 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 	}
 
 	if (i == 0) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-			"DMA failed to stop in %d ms "
-			"AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
+		ath_err(common,
+			"DMA failed to stop in %d ms AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
 			AH_RX_STOP_DMA_TIMEOUT / 1000,
 			REG_READ(ah, AR_CR),
 			REG_READ(ah, AR_DIAG_SW));
@@ -974,3 +800,171 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 #undef AH_RX_TIME_QUANTUM
 #undef AH_RX_STOP_DMA_TIMEOUT
 }
+EXPORT_SYMBOL(ath9k_hw_stopdmarecv);
+
+int ath9k_hw_beaconq_setup(struct ath_hw *ah)
+{
+	struct ath9k_tx_queue_info qi;
+
+	memset(&qi, 0, sizeof(qi));
+	qi.tqi_aifs = 1;
+	qi.tqi_cwmin = 0;
+	qi.tqi_cwmax = 0;
+	/* NB: don't enable any interrupts */
+	return ath9k_hw_setuptxqueue(ah, ATH9K_TX_QUEUE_BEACON, &qi);
+}
+EXPORT_SYMBOL(ath9k_hw_beaconq_setup);
+
+bool ath9k_hw_intrpend(struct ath_hw *ah)
+{
+	u32 host_isr;
+
+	if (AR_SREV_9100(ah))
+		return true;
+
+	host_isr = REG_READ(ah, AR_INTR_ASYNC_CAUSE);
+	if ((host_isr & AR_INTR_MAC_IRQ) && (host_isr != AR_INTR_SPURIOUS))
+		return true;
+
+	host_isr = REG_READ(ah, AR_INTR_SYNC_CAUSE);
+	if ((host_isr & AR_INTR_SYNC_DEFAULT)
+	    && (host_isr != AR_INTR_SPURIOUS))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(ath9k_hw_intrpend);
+
+void ath9k_hw_disable_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	ath_dbg(common, ATH_DBG_INTERRUPT, "disable IER\n");
+	REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
+	(void) REG_READ(ah, AR_IER);
+	if (!AR_SREV_9100(ah)) {
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
+		(void) REG_READ(ah, AR_INTR_ASYNC_ENABLE);
+
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
+		(void) REG_READ(ah, AR_INTR_SYNC_ENABLE);
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_disable_interrupts);
+
+void ath9k_hw_enable_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ah->imask & ATH9K_INT_GLOBAL))
+		return;
+
+	ath_dbg(common, ATH_DBG_INTERRUPT, "enable IER\n");
+	REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
+	if (!AR_SREV_9100(ah)) {
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE,
+			  AR_INTR_MAC_IRQ);
+		REG_WRITE(ah, AR_INTR_ASYNC_MASK, AR_INTR_MAC_IRQ);
+
+
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE,
+			  AR_INTR_SYNC_DEFAULT);
+		REG_WRITE(ah, AR_INTR_SYNC_MASK,
+			  AR_INTR_SYNC_DEFAULT);
+	}
+	ath_dbg(common, ATH_DBG_INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
+		REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
+}
+EXPORT_SYMBOL(ath9k_hw_enable_interrupts);
+
+void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
+{
+	enum ath9k_int omask = ah->imask;
+	u32 mask, mask2;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ints & ATH9K_INT_GLOBAL))
+		ath9k_hw_enable_interrupts(ah);
+
+	ath_dbg(common, ATH_DBG_INTERRUPT, "0x%x => 0x%x\n", omask, ints);
+
+	/* TODO: global int Ref count */
+	mask = ints & ATH9K_INT_COMMON;
+	mask2 = 0;
+
+	if (ints & ATH9K_INT_TX) {
+		if (ah->config.tx_intr_mitigation)
+			mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
+		else {
+			if (ah->txok_interrupt_mask)
+				mask |= AR_IMR_TXOK;
+			if (ah->txdesc_interrupt_mask)
+				mask |= AR_IMR_TXDESC;
+		}
+		if (ah->txerr_interrupt_mask)
+			mask |= AR_IMR_TXERR;
+		if (ah->txeol_interrupt_mask)
+			mask |= AR_IMR_TXEOL;
+	}
+	if (ints & ATH9K_INT_RX) {
+		if (AR_SREV_9300_20_OR_LATER(ah)) {
+			mask |= AR_IMR_RXERR | AR_IMR_RXOK_HP;
+			if (ah->config.rx_intr_mitigation) {
+				mask &= ~AR_IMR_RXOK_LP;
+				mask |=  AR_IMR_RXMINTR | AR_IMR_RXINTM;
+			} else {
+				mask |= AR_IMR_RXOK_LP;
+			}
+		} else {
+			if (ah->config.rx_intr_mitigation)
+				mask |= AR_IMR_RXMINTR | AR_IMR_RXINTM;
+			else
+				mask |= AR_IMR_RXOK | AR_IMR_RXDESC;
+		}
+		if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
+			mask |= AR_IMR_GENTMR;
+	}
+
+	if (ints & (ATH9K_INT_BMISC)) {
+		mask |= AR_IMR_BCNMISC;
+		if (ints & ATH9K_INT_TIM)
+			mask2 |= AR_IMR_S2_TIM;
+		if (ints & ATH9K_INT_DTIM)
+			mask2 |= AR_IMR_S2_DTIM;
+		if (ints & ATH9K_INT_DTIMSYNC)
+			mask2 |= AR_IMR_S2_DTIMSYNC;
+		if (ints & ATH9K_INT_CABEND)
+			mask2 |= AR_IMR_S2_CABEND;
+		if (ints & ATH9K_INT_TSFOOR)
+			mask2 |= AR_IMR_S2_TSFOOR;
+	}
+
+	if (ints & (ATH9K_INT_GTT | ATH9K_INT_CST)) {
+		mask |= AR_IMR_BCNMISC;
+		if (ints & ATH9K_INT_GTT)
+			mask2 |= AR_IMR_S2_GTT;
+		if (ints & ATH9K_INT_CST)
+			mask2 |= AR_IMR_S2_CST;
+	}
+
+	ath_dbg(common, ATH_DBG_INTERRUPT, "new IMR 0x%x\n", mask);
+	REG_WRITE(ah, AR_IMR, mask);
+	ah->imrs2_reg &= ~(AR_IMR_S2_TIM | AR_IMR_S2_DTIM | AR_IMR_S2_DTIMSYNC |
+			   AR_IMR_S2_CABEND | AR_IMR_S2_CABTO |
+			   AR_IMR_S2_TSFOOR | AR_IMR_S2_GTT | AR_IMR_S2_CST);
+	ah->imrs2_reg |= mask2;
+	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
+
+	if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
+		if (ints & ATH9K_INT_TIM_TIMER)
+			REG_SET_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
+		else
+			REG_CLR_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
+	}
+
+	ath9k_hw_enable_interrupts(ah);
+
+	return;
+}
+EXPORT_SYMBOL(ath9k_hw_set_interrupts);

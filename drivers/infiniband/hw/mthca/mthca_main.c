@@ -37,6 +37,7 @@
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/gfp.h>
 
 #include "mthca_dev.h"
 #include "mthca_config_reg.h"
@@ -1116,6 +1117,8 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 	pci_set_drvdata(pdev, mdev);
 	mdev->hca_type = hca_type;
 
+	mdev->active = true;
+
 	return 0;
 
 err_unregister:
@@ -1215,15 +1218,11 @@ int __mthca_restart_one(struct pci_dev *pdev)
 static int __devinit mthca_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
-	static int mthca_version_printed = 0;
 	int ret;
 
 	mutex_lock(&mthca_device_mutex);
 
-	if (!mthca_version_printed) {
-		printk(KERN_INFO "%s", mthca_version);
-		++mthca_version_printed;
-	}
+	printk_once(KERN_INFO "%s", mthca_version);
 
 	if (id->driver_data >= ARRAY_SIZE(mthca_hca_table)) {
 		printk(KERN_ERR PFX "%s has invalid driver data %lx\n",

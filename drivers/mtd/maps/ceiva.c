@@ -9,7 +9,7 @@
  * Based on: sa1100-flash.c, which has the following copyright:
  * Flash memory access on SA11x0 based devices
  *
- * (C) 2000 Nicolas Pitre <nico@cam.org>
+ * (C) 2000 Nicolas Pitre <nico@fluxnic.net>
  *
  */
 
@@ -253,7 +253,7 @@ static void __exit clps_destroy_mtd(struct clps_info *clps, struct mtd_info *mtd
 
 static int __init clps_setup_flash(void)
 {
-	int nr;
+	int nr = 0;
 
 #ifdef CONFIG_ARCH_CEIVA
 	if (machine_is_ceiva()) {

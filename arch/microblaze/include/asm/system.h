@@ -12,6 +12,12 @@
 #include <asm/registers.h>
 #include <asm/setup.h>
 #include <asm/irqflags.h>
+#include <asm/cache.h>
+
+#include <asm-generic/cmpxchg.h>
+#include <asm-generic/cmpxchg-local.h>
+
+#define __ARCH_WANT_INTERRUPTS_ON_CTXSW
 
 struct task_struct;
 struct thread_info;
@@ -39,7 +45,6 @@ extern struct task_struct *_switch_to(struct thread_info *prev,
 #define smp_rmb()		rmb()
 #define smp_wmb()		wmb()
 
-void show_trace(struct task_struct *task, unsigned long *stack);
 void __bad_xchg(volatile void *ptr, int size);
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
@@ -82,10 +87,20 @@ void free_initmem(void);
 extern char *klimit;
 extern void ret_from_fork(void);
 
+extern void *alloc_maybe_bootmem(size_t size, gfp_t mask);
+extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
+
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *of_debugfs_root;
 #endif
 
 #define arch_align_stack(x) (x)
+
+/*
+ * MicroBlaze doesn't handle unaligned accesses in hardware.
+ *
+ * Based on this we force the IP header alignment in network drivers.
+ */
+#define NET_IP_ALIGN	2
 
 #endif /* _ASM_MICROBLAZE_SYSTEM_H */

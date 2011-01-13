@@ -109,7 +109,7 @@ static struct flash_platform_data pleb_flash_data = {
 
 static void __init pleb_init(void)
 {
-	sa11x0_set_flash_data(&pleb_flash_data, pleb_flash_resources,
+	sa11x0_register_mtd(&pleb_flash_data, pleb_flash_resources,
 			      ARRAY_SIZE(pleb_flash_resources));
 
 
@@ -146,8 +146,6 @@ static void __init pleb_map_io(void)
 }
 
 MACHINE_START(PLEB, "PLEB")
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.map_io		= pleb_map_io,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,

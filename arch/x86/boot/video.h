@@ -17,19 +17,8 @@
 
 #include <linux/types.h>
 
-/* Enable autodetection of SVGA adapters and modes. */
-#undef CONFIG_VIDEO_SVGA
-
-/* Enable autodetection of VESA modes */
-#define CONFIG_VIDEO_VESA
-
-/* Retain screen contents when switching modes */
-#define CONFIG_VIDEO_RETAIN
-
-/* Force 400 scan lines for standard modes (hack to fix bad BIOS behaviour */
-#undef CONFIG_VIDEO_400_HACK
-
-/* This code uses an extended set of video mode numbers. These include:
+/*
+ * This code uses an extended set of video mode numbers. These include:
  * Aliases for standard modes
  *      NORMAL_VGA (-1)
  *      EXTENDED_VGA (-2)
@@ -67,13 +56,8 @@
 /* The "recalculate timings" flag */
 #define VIDEO_RECALC 0x8000
 
-/* Define DO_STORE according to CONFIG_VIDEO_RETAIN */
-#ifdef CONFIG_VIDEO_RETAIN
 void store_screen(void);
 #define DO_STORE() store_screen()
-#else
-#define DO_STORE() ((void)0)
-#endif /* CONFIG_VIDEO_RETAIN */
 
 /*
  * Mode table structures

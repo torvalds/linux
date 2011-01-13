@@ -16,6 +16,7 @@
 #include <linux/idr.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "memstick"
 
@@ -339,9 +340,9 @@ static int h_memstick_read_dev_id(struct memstick_dev *card,
 			card->id.type = id_reg.type;
 			card->id.category = id_reg.category;
 			card->id.class = id_reg.class;
+			dev_dbg(&card->dev, "if_mode = %02x\n", id_reg.if_mode);
 		}
 		complete(&card->mrq_complete);
-		dev_dbg(&card->dev, "if_mode = %02x\n", id_reg.if_mode);
 		return -EAGAIN;
 	}
 }

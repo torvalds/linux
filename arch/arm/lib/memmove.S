@@ -74,25 +74,25 @@ ENTRY(memmove)
 		rsb	ip, ip, #32
 		addne	pc, pc, ip		@ C is always clear here
 		b	7f
-6:		nop
-		ldr	r3, [r1, #-4]!
-		ldr	r4, [r1, #-4]!
-		ldr	r5, [r1, #-4]!
-		ldr	r6, [r1, #-4]!
-		ldr	r7, [r1, #-4]!
-		ldr	r8, [r1, #-4]!
-		ldr	lr, [r1, #-4]!
+6:		W(nop)
+		W(ldr)	r3, [r1, #-4]!
+		W(ldr)	r4, [r1, #-4]!
+		W(ldr)	r5, [r1, #-4]!
+		W(ldr)	r6, [r1, #-4]!
+		W(ldr)	r7, [r1, #-4]!
+		W(ldr)	r8, [r1, #-4]!
+		W(ldr)	lr, [r1, #-4]!
 
 		add	pc, pc, ip
 		nop
-		nop
-		str	r3, [r0, #-4]!
-		str	r4, [r0, #-4]!
-		str	r5, [r0, #-4]!
-		str	r6, [r0, #-4]!
-		str	r7, [r0, #-4]!
-		str	r8, [r0, #-4]!
-		str	lr, [r0, #-4]!
+		W(nop)
+		W(str)	r3, [r0, #-4]!
+		W(str)	r4, [r0, #-4]!
+		W(str)	r5, [r0, #-4]!
+		W(str)	r6, [r0, #-4]!
+		W(str)	r7, [r0, #-4]!
+		W(str)	r8, [r0, #-4]!
+		W(str)	lr, [r0, #-4]!
 
 	CALGN(	bcs	2b			)
 

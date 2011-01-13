@@ -135,6 +135,12 @@
 #define FPU_CSR_COND7   0x80000000      /* $fcc7 */
 
 /*
+ * Bits 18 - 20 of the FPU Status Register will be read as 0,
+ * and should be written as zero.
+ */
+#define FPU_CSR_RSVD	0x001c0000
+
+/*
  * X the exception cause indicator
  * E the exception enable
  * S the sticky/flag bit
@@ -161,7 +167,8 @@
 #define FPU_CSR_UDF_S   0x00000008
 #define FPU_CSR_INE_S   0x00000004
 
-/* rounding mode */
+/* Bits 0 and 1 of FPU Status Register specify the rounding mode */
+#define FPU_CSR_RM	0x00000003
 #define FPU_CSR_RN      0x0     /* nearest */
 #define FPU_CSR_RZ      0x1     /* towards zero */
 #define FPU_CSR_RU      0x2     /* towards +Infinity */
@@ -249,6 +256,14 @@
 #define PL_16M		24
 #define PL_64M		26
 #define PL_256M		28
+
+/*
+ * PageGrain bits
+ */
+#define PG_RIE		(_ULCAST_(1) <<  31)
+#define PG_XIE		(_ULCAST_(1) <<  30)
+#define PG_ELPA		(_ULCAST_(1) <<  29)
+#define PG_ESP		(_ULCAST_(1) <<  28)
 
 /*
  * R4x00 interrupt enable / cause bits
@@ -393,6 +408,7 @@
 #define  STATUSB_IP15		7
 #define  STATUSF_IP15		(_ULCAST_(1) <<  7)
 #define ST0_CH			0x00040000
+#define ST0_NMI			0x00080000
 #define ST0_SR			0x00100000
 #define ST0_TS			0x00200000
 #define ST0_BEV			0x00400000
@@ -404,6 +420,16 @@
 #define ST0_CU2			0x40000000
 #define ST0_CU3			0x80000000
 #define ST0_XX			0x80000000	/* MIPS IV naming */
+
+/*
+ * Bitfields and bit numbers in the coprocessor 0 IntCtl register. (MIPSR2)
+ *
+ * Refer to your MIPS R4xx0 manual, chapter 5 for explanation.
+ */
+#define INTCTLB_IPPCI		26
+#define INTCTLF_IPPCI		(_ULCAST_(7) << INTCTLB_IPPCI)
+#define INTCTLB_IPTI		29
+#define INTCTLF_IPTI		(_ULCAST_(7) << INTCTLB_IPTI)
 
 /*
  * Bitfields and bit numbers in the coprocessor 0 cause register.
@@ -434,6 +460,8 @@
 #define  CAUSEF_IV		(_ULCAST_(1)   << 23)
 #define  CAUSEB_CE		28
 #define  CAUSEF_CE		(_ULCAST_(3)   << 28)
+#define  CAUSEB_TI		30
+#define  CAUSEF_TI		(_ULCAST_(1)   << 30)
 #define  CAUSEB_BD		31
 #define  CAUSEF_BD		(_ULCAST_(1)   << 31)
 
@@ -563,6 +591,10 @@
 #define MIPS_CONF3_LPA		(_ULCAST_(1) <<  7)
 #define MIPS_CONF3_DSP		(_ULCAST_(1) << 10)
 #define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
+
+#define MIPS_CONF4_MMUSIZEEXT	(_ULCAST_(255) << 0)
+#define MIPS_CONF4_MMUEXTDEF	(_ULCAST_(3) << 14)
+#define MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT (_ULCAST_(1) << 14)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
@@ -814,6 +846,9 @@ do {									\
 #define read_c0_pagemask()	__read_32bit_c0_register($5, 0)
 #define write_c0_pagemask(val)	__write_32bit_c0_register($5, 0, val)
 
+#define read_c0_pagegrain()	__read_32bit_c0_register($5, 1)
+#define write_c0_pagegrain(val)	__write_32bit_c0_register($5, 1, val)
+
 #define read_c0_wired()		__read_32bit_c0_register($6, 0)
 #define write_c0_wired(val)	__write_32bit_c0_register($6, 0, val)
 
@@ -1005,6 +1040,12 @@ do {									\
 #define read_c0_dtaglo()	__read_32bit_c0_register($28, 2)
 #define write_c0_dtaglo(val)	__write_32bit_c0_register($28, 2, val)
 
+#define read_c0_ddatalo()	__read_32bit_c0_register($28, 3)
+#define write_c0_ddatalo(val)	__write_32bit_c0_register($28, 3, val)
+
+#define read_c0_staglo()	__read_32bit_c0_register($28, 4)
+#define write_c0_staglo(val)	__write_32bit_c0_register($28, 4, val)
+
 #define read_c0_taghi()		__read_32bit_c0_register($29, 0)
 #define write_c0_taghi(val)	__write_32bit_c0_register($29, 0, val)
 
@@ -1046,6 +1087,51 @@ do {									\
 
 #define read_octeon_c0_dcacheerr()	__read_64bit_c0_register($27, 1)
 #define write_octeon_c0_dcacheerr(val)	__write_64bit_c0_register($27, 1, val)
+
+/* BMIPS3300 */
+#define read_c0_brcm_config_0()		__read_32bit_c0_register($22, 0)
+#define write_c0_brcm_config_0(val)	__write_32bit_c0_register($22, 0, val)
+
+#define read_c0_brcm_bus_pll()		__read_32bit_c0_register($22, 4)
+#define write_c0_brcm_bus_pll(val)	__write_32bit_c0_register($22, 4, val)
+
+#define read_c0_brcm_reset()		__read_32bit_c0_register($22, 5)
+#define write_c0_brcm_reset(val)	__write_32bit_c0_register($22, 5, val)
+
+/* BMIPS4380 */
+#define read_c0_brcm_cmt_intr()		__read_32bit_c0_register($22, 1)
+#define write_c0_brcm_cmt_intr(val)	__write_32bit_c0_register($22, 1, val)
+
+#define read_c0_brcm_cmt_ctrl()		__read_32bit_c0_register($22, 2)
+#define write_c0_brcm_cmt_ctrl(val)	__write_32bit_c0_register($22, 2, val)
+
+#define read_c0_brcm_cmt_local()	__read_32bit_c0_register($22, 3)
+#define write_c0_brcm_cmt_local(val)	__write_32bit_c0_register($22, 3, val)
+
+#define read_c0_brcm_config_1()		__read_32bit_c0_register($22, 5)
+#define write_c0_brcm_config_1(val)	__write_32bit_c0_register($22, 5, val)
+
+#define read_c0_brcm_cbr()		__read_32bit_c0_register($22, 6)
+#define write_c0_brcm_cbr(val)		__write_32bit_c0_register($22, 6, val)
+
+/* BMIPS5000 */
+#define read_c0_brcm_config()		__read_32bit_c0_register($22, 0)
+#define write_c0_brcm_config(val)	__write_32bit_c0_register($22, 0, val)
+
+#define read_c0_brcm_mode()		__read_32bit_c0_register($22, 1)
+#define write_c0_brcm_mode(val)		__write_32bit_c0_register($22, 1, val)
+
+#define read_c0_brcm_action()		__read_32bit_c0_register($22, 2)
+#define write_c0_brcm_action(val)	__write_32bit_c0_register($22, 2, val)
+
+#define read_c0_brcm_edsp()		__read_32bit_c0_register($22, 3)
+#define write_c0_brcm_edsp(val)		__write_32bit_c0_register($22, 3, val)
+
+#define read_c0_brcm_bootvec()		__read_32bit_c0_register($22, 4)
+#define write_c0_brcm_bootvec(val)	__write_32bit_c0_register($22, 4, val)
+
+#define read_c0_brcm_sleepcount()	__read_32bit_c0_register($22, 7)
+#define write_c0_brcm_sleepcount(val)	__write_32bit_c0_register($22, 7, val)
 
 /*
  * Macros to access the floating point coprocessor control registers

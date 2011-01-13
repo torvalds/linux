@@ -119,19 +119,7 @@ void ext3_free_inode (handle_t *handle, struct inode * inode)
 	ino = inode->i_ino;
 	ext3_debug ("freeing inode %lu\n", ino);
 
-	/*
-	 * Note: we must free any quota before locking the superblock,
-	 * as writing the quota to disk may need the lock as well.
-	 */
-	vfs_dq_init(inode);
-	ext3_xattr_delete_inode(handle, inode);
-	vfs_dq_free_inode(inode);
-	vfs_dq_drop(inode);
-
 	is_directory = S_ISDIR(inode->i_mode);
-
-	/* Do this BEFORE marking the inode not in use or returning an error */
-	clear_inode (inode);
 
 	es = EXT3_SB(sb)->s_es;
 	if (ino < EXT3_FIRST_INO(sb) || ino > le32_to_cpu(es->s_inodes_count)) {
@@ -538,16 +526,13 @@ got:
 	if (S_ISDIR(mode))
 		percpu_counter_inc(&sbi->s_dirs_counter);
 
-	inode->i_uid = current_fsuid();
-	if (test_opt (sb, GRPID))
+
+	if (test_opt(sb, GRPID)) {
+		inode->i_mode = mode;
+		inode->i_uid = current_fsuid();
 		inode->i_gid = dir->i_gid;
-	else if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
 	} else
-		inode->i_gid = current_fsgid();
-	inode->i_mode = mode;
+		inode_init_owner(inode, dir, mode);
 
 	inode->i_ino = ino;
 	/* This is the optimal IO size (for stat), not the fs block size */
@@ -582,16 +567,23 @@ got:
 	inode->i_generation = sbi->s_next_generation++;
 	spin_unlock(&sbi->s_next_gen_lock);
 
-	ei->i_state = EXT3_STATE_NEW;
-	ei->i_extra_isize =
-		(EXT3_INODE_SIZE(inode->i_sb) > EXT3_GOOD_OLD_INODE_SIZE) ?
-		sizeof(struct ext3_inode) - EXT3_GOOD_OLD_INODE_SIZE : 0;
+	ei->i_state_flags = 0;
+	ext3_set_inode_state(inode, EXT3_STATE_NEW);
+
+	/* See comment in ext3_iget for explanation */
+	if (ino >= EXT3_FIRST_INO(sb) + 1 &&
+	    EXT3_INODE_SIZE(sb) > EXT3_GOOD_OLD_INODE_SIZE) {
+		ei->i_extra_isize =
+			sizeof(struct ext3_inode) - EXT3_GOOD_OLD_INODE_SIZE;
+	} else {
+		ei->i_extra_isize = 0;
+	}
 
 	ret = inode;
-	if (vfs_dq_alloc_inode(inode)) {
-		err = -EDQUOT;
+	dquot_initialize(inode);
+	err = dquot_alloc_inode(inode);
+	if (err)
 		goto fail_drop;
-	}
 
 	err = ext3_init_acl(handle, inode, dir);
 	if (err)
@@ -619,10 +611,10 @@ really_out:
 	return ret;
 
 fail_free_drop:
-	vfs_dq_free_inode(inode);
+	dquot_free_inode(inode);
 
 fail_drop:
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	unlock_new_inode(inode);

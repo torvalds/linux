@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2008 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_raid.h
  *          Title:  MPI Integrated RAID messages and structures
  *  Creation Date:  April 26, 2007
  *
- *    mpi2_raid.h Version:  02.00.03
+ *    mpi2_raid.h Version:  02.00.05
  *
  *  Version History
  *  ---------------
@@ -20,6 +20,9 @@
  *  05-21-08  02.00.03  Added MPI2_RAID_VOL_CREATION_NUM_PHYSDISKS so that
  *                      the PhysDisk array in MPI2_RAID_VOLUME_CREATION_STRUCT
  *                      can be sized by the build environment.
+ *  07-30-09  02.00.04  Added proper define for the Use Default Settings bit of
+ *                      VolumeCreationFlags and marked the old one as obsolete.
+ *  05-12-10  02.00.05  Added MPI2_RAID_VOL_FLAGS_OP_MDC define.
  *  --------------------------------------------------------------------------
  */
 
@@ -217,10 +220,14 @@ typedef struct _MPI2_RAID_VOLUME_CREATION_STRUCT
 /* use MPI2_RAID_VOL_TYPE_ defines from mpi2_cnfg.h for VolumeType */
 
 /* defines for the VolumeCreationFlags field */
+#define MPI2_RAID_VOL_CREATION_DEFAULT_SETTINGS     (0x80000000)
+#define MPI2_RAID_VOL_CREATION_BACKGROUND_INIT      (0x00000004)
+#define MPI2_RAID_VOL_CREATION_LOW_LEVEL_INIT       (0x00000002)
+#define MPI2_RAID_VOL_CREATION_MIGRATE_DATA         (0x00000001)
+/* The following is an obsolete define.
+ * It must be shifted left 24 bits in order to set the proper bit.
+ */
 #define MPI2_RAID_VOL_CREATION_USE_DEFAULT_SETTINGS (0x80)
-#define MPI2_RAID_VOL_CREATION_BACKGROUND_INIT      (0x04)
-#define MPI2_RAID_VOL_CREATION_LOW_LEVEL_INIT       (0x02)
-#define MPI2_RAID_VOL_CREATION_MIGRATE_DATA         (0x01)
 
 
 /* RAID Online Capacity Expansion Structure */
@@ -254,6 +261,7 @@ typedef struct _MPI2_RAID_VOL_INDICATOR
 #define MPI2_RAID_VOL_FLAGS_OP_ONLINE_CAP_EXPANSION (0x00000001)
 #define MPI2_RAID_VOL_FLAGS_OP_CONSISTENCY_CHECK    (0x00000002)
 #define MPI2_RAID_VOL_FLAGS_OP_RESYNC               (0x00000003)
+#define MPI2_RAID_VOL_FLAGS_OP_MDC                  (0x00000004)
 
 
 /* RAID Action Reply ActionData union */

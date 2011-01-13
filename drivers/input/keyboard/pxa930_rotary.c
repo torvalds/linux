@@ -13,6 +13,7 @@
 #include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <mach/pxa930_rotary.h>
 

@@ -9,7 +9,7 @@
  *
  * See RFC2474 for a description of the DSCP field within the IP Header.
 */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -18,7 +18,6 @@
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_DSCP.h>
-#include <linux/netfilter_ipv4/ipt_TOS.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: DSCP/TOS field modification");
@@ -29,7 +28,7 @@ MODULE_ALIAS("ipt_TOS");
 MODULE_ALIAS("ip6t_TOS");
 
 static unsigned int
-dscp_tg(struct sk_buff *skb, const struct xt_target_param *par)
+dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
@@ -46,7 +45,7 @@ dscp_tg(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static unsigned int
-dscp_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+dscp_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
@@ -61,54 +60,19 @@ dscp_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool dscp_tg_check(const struct xt_tgchk_param *par)
+static int dscp_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_DSCP_info *info = par->targinfo;
 
 	if (info->dscp > XT_DSCP_MAX) {
-		printk(KERN_WARNING "DSCP: dscp %x out of range\n", info->dscp);
-		return false;
+		pr_info("dscp %x out of range\n", info->dscp);
+		return -EDOM;
 	}
-	return true;
+	return 0;
 }
 
 static unsigned int
-tos_tg_v0(struct sk_buff *skb, const struct xt_target_param *par)
-{
-	const struct ipt_tos_target_info *info = par->targinfo;
-	struct iphdr *iph = ip_hdr(skb);
-	u_int8_t oldtos;
-
-	if ((iph->tos & IPTOS_TOS_MASK) != info->tos) {
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
-			return NF_DROP;
-
-		iph      = ip_hdr(skb);
-		oldtos   = iph->tos;
-		iph->tos = (iph->tos & IPTOS_PREC_MASK) | info->tos;
-		csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
-	}
-
-	return XT_CONTINUE;
-}
-
-static bool tos_tg_check_v0(const struct xt_tgchk_param *par)
-{
-	const struct ipt_tos_target_info *info = par->targinfo;
-	const uint8_t tos = info->tos;
-
-	if (tos != IPTOS_LOWDELAY && tos != IPTOS_THROUGHPUT &&
-	    tos != IPTOS_RELIABILITY && tos != IPTOS_MINCOST &&
-	    tos != IPTOS_NORMALSVC) {
-		printk(KERN_WARNING "TOS: bad tos value %#x\n", tos);
-		return false;
-	}
-
-	return true;
-}
-
-static unsigned int
-tos_tg(struct sk_buff *skb, const struct xt_target_param *par)
+tos_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tos_target_info *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
@@ -128,7 +92,7 @@ tos_tg(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static unsigned int
-tos_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+tos_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tos_target_info *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -164,16 +128,6 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 		.target		= dscp_tg6,
 		.targetsize	= sizeof(struct xt_DSCP_info),
 		.table		= "mangle",
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "TOS",
-		.revision	= 0,
-		.family		= NFPROTO_IPV4,
-		.table		= "mangle",
-		.target		= tos_tg_v0,
-		.targetsize	= sizeof(struct ipt_tos_target_info),
-		.checkentry	= tos_tg_check_v0,
 		.me		= THIS_MODULE,
 	},
 	{

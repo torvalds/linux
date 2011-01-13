@@ -67,8 +67,6 @@ static void jmr3927_board_init(void);
 
 static void __init jmr3927_mem_setup(void)
 {
-	char *argptr;
-
 	set_io_port_base(JMR3927_PORT_BASE + JMR3927_PCIIO);
 
 	_machine_restart = jmr3927_machine_restart;
@@ -97,11 +95,6 @@ static void __init jmr3927_mem_setup(void)
 	jmr3927_board_init();
 
 	tx3927_sio_init(0, 1 << 1); /* ch1: noCTS */
-#ifdef CONFIG_SERIAL_TXX9_CONSOLE
-	argptr = prom_getcmdline();
-	if (!strstr(argptr, "console="))
-		strcat(argptr, " console=ttyS1,115200");
-#endif
 }
 
 static void __init jmr3927_pci_setup(void)

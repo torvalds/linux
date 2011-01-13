@@ -14,6 +14,10 @@
 #include <linux/mdio.h>
 #include <linux/module.h>
 
+MODULE_DESCRIPTION("Generic support for MDIO-compatible transceivers");
+MODULE_AUTHOR("Copyright 2006-2009 Solarflare Communications Inc.");
+MODULE_LICENSE("GPL");
+
 /**
  * mdio45_probe - probe for an MDIO (clause 45) device
  * @mdio: MDIO interface
@@ -105,13 +109,20 @@ int mdio45_links_ok(const struct mdio_if_info *mdio, u32 mmd_mask)
 		if (mmd_mask & (1 << devad)) {
 			mmd_mask &= ~(1 << devad);
 
-			/* Read twice because link state is latched and a
-			 * read moves the current state into the register */
+			/* Reset the latched status and fault flags */
 			mdio->mdio_read(mdio->dev, mdio->prtad,
 					devad, MDIO_STAT1);
+			if (devad == MDIO_MMD_PMAPMD || devad == MDIO_MMD_PCS ||
+			    devad == MDIO_MMD_PHYXS || devad == MDIO_MMD_DTEXS)
+				mdio->mdio_read(mdio->dev, mdio->prtad,
+						devad, MDIO_STAT2);
+
+			/* Check the current status and fault flags */
 			reg = mdio->mdio_read(mdio->dev, mdio->prtad,
 					      devad, MDIO_STAT1);
-			if (reg < 0 || !(reg & MDIO_STAT1_LSTATUS))
+			if (reg < 0 ||
+			    (reg & (MDIO_STAT1_FAULT | MDIO_STAT1_LSTATUS)) !=
+			    MDIO_STAT1_LSTATUS)
 				return false;
 		}
 	}
@@ -151,6 +162,10 @@ static u32 mdio45_get_an(const struct mdio_if_info *mdio, u16 addr)
 		result |= ADVERTISED_100baseT_Half;
 	if (reg & ADVERTISE_100FULL)
 		result |= ADVERTISED_100baseT_Full;
+	if (reg & ADVERTISE_PAUSE_CAP)
+		result |= ADVERTISED_Pause;
+	if (reg & ADVERTISE_PAUSE_ASYM)
+		result |= ADVERTISED_Asym_Pause;
 	return result;
 }
 
@@ -333,11 +348,9 @@ void mdio45_ethtool_spauseparam_an(const struct mdio_if_info *mdio,
 
 	old_adv = mdio->mdio_read(mdio->dev, mdio->prtad, MDIO_MMD_AN,
 				  MDIO_AN_ADVERTISE);
-	adv = old_adv & ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-	if (ecmd->autoneg)
-		adv |= mii_advertise_flowctrl(
-			(ecmd->rx_pause ? FLOW_CTRL_RX : 0) |
-			(ecmd->tx_pause ? FLOW_CTRL_TX : 0));
+	adv = ((old_adv & ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM)) |
+	       mii_advertise_flowctrl((ecmd->rx_pause ? FLOW_CTRL_RX : 0) |
+				      (ecmd->tx_pause ? FLOW_CTRL_TX : 0)));
 	if (adv != old_adv) {
 		mdio->mdio_write(mdio->dev, mdio->prtad, MDIO_MMD_AN,
 				 MDIO_AN_ADVERTISE, adv);
@@ -369,10 +382,7 @@ int mdio_mii_ioctl(const struct mdio_if_info *mdio,
 		cmd = SIOCGMIIREG;
 		break;
 	case SIOCGMIIREG:
-		break;
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		break;
 	default:
 		return -EOPNOTSUPP;

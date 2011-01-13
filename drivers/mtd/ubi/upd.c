@@ -147,12 +147,15 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 	}
 
 	if (bytes == 0) {
+		err = ubi_wl_flush(ubi);
+		if (err)
+			return err;
+
 		err = clear_update_marker(ubi, vol, 0);
 		if (err)
 			return err;
-		err = ubi_wl_flush(ubi);
-		if (!err)
-			vol->updating = 0;
+		vol->updating = 0;
+		return 0;
 	}
 
 	vol->upd_buf = vmalloc(ubi->leb_size);
@@ -362,16 +365,16 @@ int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 
 	ubi_assert(vol->upd_received <= vol->upd_bytes);
 	if (vol->upd_received == vol->upd_bytes) {
+		err = ubi_wl_flush(ubi);
+		if (err)
+			return err;
 		/* The update is finished, clear the update marker */
 		err = clear_update_marker(ubi, vol, vol->upd_bytes);
 		if (err)
 			return err;
-		err = ubi_wl_flush(ubi);
-		if (err == 0) {
-			vol->updating = 0;
-			err = to_write;
-			vfree(vol->upd_buf);
-		}
+		vol->updating = 0;
+		err = to_write;
+		vfree(vol->upd_buf);
 	}
 
 	return err;

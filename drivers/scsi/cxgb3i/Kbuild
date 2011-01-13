@@ -1,4 +1,0 @@
-EXTRA_CFLAGS += -I$(TOPDIR)/drivers/net/cxgb3
-
-cxgb3i-y := cxgb3i_init.o cxgb3i_iscsi.o cxgb3i_pdu.o cxgb3i_offload.o cxgb3i_ddp.o
-obj-$(CONFIG_SCSI_CXGB3_ISCSI) += cxgb3i.o

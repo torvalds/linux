@@ -1,30 +1,9 @@
 /*
- * File:         arch/blackfin/mach-common/arch_checks.c
- * Based on:
- * Author:	 Robin Getz <rgetz@blackfin.uclinux.org>
+ * Do some checking to make sure things are OK
  *
- * Created:      25Jul07
- * Description:  Do some checking to make sure things are OK
+ * Copyright 2007-2010 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2007 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <asm/fixed_code.h>
@@ -68,13 +47,20 @@
 # error "The kernel load address is too high; keep it below 10meg for safety"
 #endif
 
+#if ANOMALY_05000263 && defined(CONFIG_MPU)
+# error the MPU will not function safely while Anomaly 05000263 applies
+#endif
+
 #if ANOMALY_05000448
 # error You are using a part with anomaly 05000448, this issue causes random memory read/write failures - that means random crashes.
 #endif
 
 /* if 220 exists, can not set External Memory WB and L2 not_cached, either External Memory not_cached and L2 WB */
 #if ANOMALY_05000220 && \
-	((defined(CONFIG_BFIN_EXTMEM_WRITEBACK) && !defined(CONFIG_BFIN_L2_DCACHEABLE)) || \
-	 (!defined(CONFIG_BFIN_EXTMEM_DCACHEABLE) && defined(CONFIG_BFIN_L2_WRITEBACK)))
-# error You are exposing Anomaly 220 in this config, either config L2 as Write Through, or make External Memory WB.
+	(defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK))
+# error "Anomaly 05000220 does not allow you to use Write Back cache with L2 or External Memory"
+#endif
+
+#if ANOMALY_05000491 && !defined(CONFIG_CACHE_FLUSH_L1)
+# error You need IFLUSH in L1 inst while Anomaly 05000491 applies
 #endif

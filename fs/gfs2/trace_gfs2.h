@@ -1,11 +1,10 @@
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM gfs2
+
 #if !defined(_TRACE_GFS2_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_GFS2_H
 
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM gfs2
-#define TRACE_INCLUDE_FILE trace_gfs2
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
@@ -40,7 +39,8 @@
 	{(1UL << GLF_INVALIDATE_IN_PROGRESS),	"i" },		\
 	{(1UL << GLF_REPLY_PENDING),		"r" },		\
 	{(1UL << GLF_INITIAL),			"I" },		\
-	{(1UL << GLF_FROZEN),			"F" })
+	{(1UL << GLF_FROZEN),			"F" },		\
+	{(1UL << GLF_QUEUED),			"q" })
 
 #ifndef NUMPTY
 #define NUMPTY
@@ -403,5 +403,6 @@ TRACE_EVENT(gfs2_block_alloc,
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_gfs2
 #include <trace/define_trace.h>
 

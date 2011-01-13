@@ -7,11 +7,11 @@
  * of the GNU General Public License version 2.
  */
 
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/namei.h>
 #include <linux/crc32.h>
 
 #include "gfs2.h"
@@ -35,14 +35,22 @@
 
 static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *parent = dget_parent(dentry);
-	struct gfs2_sbd *sdp = GFS2_SB(parent->d_inode);
-	struct gfs2_inode *dip = GFS2_I(parent->d_inode);
-	struct inode *inode = dentry->d_inode;
+	struct dentry *parent;
+	struct gfs2_sbd *sdp;
+	struct gfs2_inode *dip;
+	struct inode *inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip = NULL;
 	int error;
 	int had_lock = 0;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	parent = dget_parent(dentry);
+	sdp = GFS2_SB(parent->d_inode);
+	dip = GFS2_I(parent->d_inode);
+	inode = dentry->d_inode;
 
 	if (inode) {
 		if (is_bad_inode(inode))
@@ -50,7 +58,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 		ip = GFS2_I(inode);
 	}
 
-	if (sdp->sd_args.ar_localcaching)
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
 		goto valid;
 
 	had_lock = (gfs2_glock_is_locked_by_me(dip->i_gl) != NULL);
@@ -101,14 +109,33 @@ fail:
 	return 0;
 }
 
-static int gfs2_dhash(struct dentry *dentry, struct qstr *str)
+static int gfs2_dhash(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *str)
 {
 	str->hash = gfs2_disk_hash(str->name, str->len);
+	return 0;
+}
+
+static int gfs2_dentry_delete(const struct dentry *dentry)
+{
+	struct gfs2_inode *ginode;
+
+	if (!dentry->d_inode)
+		return 0;
+
+	ginode = GFS2_I(dentry->d_inode);
+	if (!ginode->i_iopen_gh.gh_gl)
+		return 0;
+
+	if (test_bit(GLF_DEMOTE, &ginode->i_iopen_gh.gh_gl->gl_flags))
+		return 1;
+
 	return 0;
 }
 
 const struct dentry_operations gfs2_dops = {
 	.d_revalidate = gfs2_drevalidate,
 	.d_hash = gfs2_dhash,
+	.d_delete = gfs2_dentry_delete,
 };
 

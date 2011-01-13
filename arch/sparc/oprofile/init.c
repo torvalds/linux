@@ -11,6 +11,7 @@
 #include <linux/oprofile.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/param.h>	/* for HZ */
  
 #ifdef CONFIG_SPARC64
 #include <linux/notifier.h>
@@ -21,7 +22,7 @@
 static int profile_timer_exceptions_notify(struct notifier_block *self,
 					   unsigned long val, void *data)
 {
-	struct die_args *args = (struct die_args *)data;
+	struct die_args *args = data;
 	int ret = NOTIFY_DONE;
 
 	switch (val) {
@@ -57,7 +58,7 @@ static void timer_stop(void)
 
 static int op_nmi_timer_init(struct oprofile_operations *ops)
 {
-	if (!nmi_usable)
+	if (atomic_read(&nmi_active) <= 0)
 		return -ENODEV;
 
 	ops->start = timer_start;

@@ -13,6 +13,7 @@
 #include <asm/sn/sn_sal.h>
 #include "xtalk/hubdev.h"
 #include <linux/acpi.h>
+#include <linux/slab.h>
 
 
 /*
@@ -390,7 +391,7 @@ sn_acpi_get_pcidev_info(struct pci_dev *dev, struct pcidev_info **pcidev_info,
 	pcidev_match.handle = NULL;
 
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, rootbus_handle, ACPI_UINT32_MAX,
-			    find_matching_device, &pcidev_match, NULL);
+			    find_matching_device, NULL, &pcidev_match, NULL);
 
 	if (!pcidev_match.handle) {
 		printk(KERN_ERR

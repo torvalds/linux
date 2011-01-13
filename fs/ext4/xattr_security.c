@@ -7,13 +7,14 @@
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
 
 static size_t
-ext4_xattr_security_list(struct inode *inode, char *list, size_t list_size,
-			 const char *name, size_t name_len)
+ext4_xattr_security_list(struct dentry *dentry, char *list, size_t list_size,
+		const char *name, size_t name_len, int type)
 {
 	const size_t prefix_len = sizeof(XATTR_SECURITY_PREFIX)-1;
 	const size_t total_len = prefix_len + name_len + 1;
@@ -28,23 +29,23 @@ ext4_xattr_security_list(struct inode *inode, char *list, size_t list_size,
 }
 
 static int
-ext4_xattr_security_get(struct inode *inode, const char *name,
-		       void *buffer, size_t size)
+ext4_xattr_security_get(struct dentry *dentry, const char *name,
+		       void *buffer, size_t size, int type)
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_SECURITY, name,
-			      buffer, size);
+	return ext4_xattr_get(dentry->d_inode, EXT4_XATTR_INDEX_SECURITY,
+			      name, buffer, size);
 }
 
 static int
-ext4_xattr_security_set(struct inode *inode, const char *name,
-		       const void *value, size_t size, int flags)
+ext4_xattr_security_set(struct dentry *dentry, const char *name,
+		const void *value, size_t size, int flags, int type)
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_SECURITY, name,
-			      value, size, flags);
+	return ext4_xattr_set(dentry->d_inode, EXT4_XATTR_INDEX_SECURITY,
+			      name, value, size, flags);
 }
 
 int
@@ -68,7 +69,7 @@ ext4_init_security(handle_t *handle, struct inode *inode, struct inode *dir)
 	return err;
 }
 
-struct xattr_handler ext4_xattr_security_handler = {
+const struct xattr_handler ext4_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.list	= ext4_xattr_security_list,
 	.get	= ext4_xattr_security_get,

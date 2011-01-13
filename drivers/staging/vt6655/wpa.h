@@ -31,14 +31,8 @@
 #ifndef __WPA_H__
 #define __WPA_H__
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -63,36 +57,28 @@
 
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
-VOID
+void
 WPA_ClearRSN(
-    IN PKnownBSS        pBSSList
+    PKnownBSS        pBSSList
     );
 
-VOID
+void
 WPA_ParseRSN(
-    IN PKnownBSS        pBSSList,
-    IN PWLAN_IE_RSN_EXT pRSN
+    PKnownBSS        pBSSList,
+    PWLAN_IE_RSN_EXT pRSN
     );
 
-BOOL
+bool
 WPA_SearchRSN(
-    BYTE                byCmd,
-    BYTE                byEncrypt,
-    IN PKnownBSS        pBSSList
+    unsigned char byCmd,
+    unsigned char byEncrypt,
+    PKnownBSS        pBSSList
     );
 
-BOOL
+bool
 WPAb_Is_RSN(
-    IN PWLAN_IE_RSN_EXT pRSN
+    PWLAN_IE_RSN_EXT pRSN
     );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __WPA_H__

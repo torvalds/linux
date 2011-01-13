@@ -3,11 +3,9 @@
 /* This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers. */
 #include <linux/types.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
 #include <linux/if_ether.h>
-
-/* The ID for virtio_net */
-#define VIRTIO_ID_NET	1
 
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM	0	/* Host handles pkts w/ partial csum */
@@ -27,11 +25,11 @@
 #define VIRTIO_NET_F_CTRL_VQ	17	/* Control channel available */
 #define VIRTIO_NET_F_CTRL_RX	18	/* Control channel RX mode support */
 #define VIRTIO_NET_F_CTRL_VLAN	19	/* Control channel VLAN filtering */
+#define VIRTIO_NET_F_CTRL_RX_EXTRA 20	/* Extra RX mode control support */
 
 #define VIRTIO_NET_S_LINK_UP	1	/* Link is up */
 
-struct virtio_net_config
-{
+struct virtio_net_config {
 	/* The config defining mac address (if VIRTIO_NET_F_MAC) */
 	__u8 mac[6];
 	/* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
@@ -40,8 +38,7 @@ struct virtio_net_config
 
 /* This is the first element of the scatter-gather list.  If you don't
  * specify GSO or CSUM features, you can simply ignore the header. */
-struct virtio_net_hdr
-{
+struct virtio_net_hdr {
 #define VIRTIO_NET_HDR_F_NEEDS_CSUM	1	// Use csum_start, csum_offset
 	__u8 flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	// Not a GSO frame
@@ -81,14 +78,19 @@ typedef __u8 virtio_net_ctrl_ack;
 #define VIRTIO_NET_ERR    1
 
 /*
- * Control the RX mode, ie. promisucous and allmulti.  PROMISC and
- * ALLMULTI commands require an "out" sg entry containing a 1 byte
- * state value, zero = disable, non-zero = enable.  These commands
- * are supported with the VIRTIO_NET_F_CTRL_RX feature.
+ * Control the RX mode, ie. promisucous, allmulti, etc...
+ * All commands require an "out" sg entry containing a 1 byte
+ * state value, zero = disable, non-zero = enable.  Commands
+ * 0 and 1 are supported with the VIRTIO_NET_F_CTRL_RX feature.
+ * Commands 2-5 are added with VIRTIO_NET_F_CTRL_RX_EXTRA.
  */
 #define VIRTIO_NET_CTRL_RX    0
  #define VIRTIO_NET_CTRL_RX_PROMISC      0
  #define VIRTIO_NET_CTRL_RX_ALLMULTI     1
+ #define VIRTIO_NET_CTRL_RX_ALLUNI       2
+ #define VIRTIO_NET_CTRL_RX_NOMULTI      3
+ #define VIRTIO_NET_CTRL_RX_NOUNI        4
+ #define VIRTIO_NET_CTRL_RX_NOBCAST      5
 
 /*
  * Control the MAC filter table.

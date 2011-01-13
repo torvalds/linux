@@ -14,7 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/usb.h>
-#include "hcd.h"
+#include <linux/usb/hcd.h>
 
 
 /*

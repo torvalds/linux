@@ -45,13 +45,17 @@ source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
 
-source "drivers/staging/sxg/Kconfig"
-
-source "drivers/staging/me4000/Kconfig"
-
-source "drivers/staging/meilhaus/Kconfig"
-
 source "drivers/staging/go7007/Kconfig"
+
+source "drivers/staging/cx25821/Kconfig"
+
+source "drivers/staging/tm6000/Kconfig"
+
+source "drivers/staging/dabusb/Kconfig"
+
+source "drivers/staging/se401/Kconfig"
+
+source "drivers/staging/usbvideo/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
 
@@ -61,73 +65,117 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/echo/Kconfig"
 
-source "drivers/staging/at76_usb/Kconfig"
-
-source "drivers/staging/poch/Kconfig"
-
-source "drivers/staging/agnx/Kconfig"
-
-source "drivers/staging/otus/Kconfig"
+source "drivers/staging/brcm80211/Kconfig"
 
 source "drivers/staging/rt2860/Kconfig"
 
 source "drivers/staging/rt2870/Kconfig"
 
-source "drivers/staging/rt3070/Kconfig"
-
 source "drivers/staging/comedi/Kconfig"
+
+source "drivers/staging/olpc_dcon/Kconfig"
 
 source "drivers/staging/asus_oled/Kconfig"
 
 source "drivers/staging/panel/Kconfig"
 
-source "drivers/staging/altpciechdma/Kconfig"
-
 source "drivers/staging/rtl8187se/Kconfig"
 
-source "drivers/staging/rtl8192su/Kconfig"
+source "drivers/staging/rtl8192u/Kconfig"
 
-source "drivers/staging/rspiusb/Kconfig"
+source "drivers/staging/rtl8192e/Kconfig"
 
-source "drivers/staging/mimio/Kconfig"
+source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
 
-source "drivers/staging/epl/Kconfig"
-
-source "drivers/staging/android/Kconfig"
-
-source "drivers/staging/dst/Kconfig"
-
 source "drivers/staging/pohmelfs/Kconfig"
 
-source "drivers/staging/stlc45xx/Kconfig"
-
-source "drivers/staging/uc2322/Kconfig"
-
-source "drivers/staging/b3dfg/Kconfig"
+source "drivers/staging/autofs/Kconfig"
 
 source "drivers/staging/phison/Kconfig"
 
-source "drivers/staging/p9auth/Kconfig"
-
-source "drivers/staging/heci/Kconfig"
-
 source "drivers/staging/line6/Kconfig"
 
-source "drivers/gpu/drm/radeon/Kconfig"
+source "drivers/gpu/drm/vmwgfx/Kconfig"
+
+source "drivers/gpu/drm/nouveau/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/serqt_usb2/Kconfig"
 
+source "drivers/staging/spectra/Kconfig"
+
+source "drivers/staging/quatech_usb2/Kconfig"
+
 source "drivers/staging/vt6655/Kconfig"
 
-source "drivers/staging/cpc-usb/Kconfig"
+source "drivers/staging/vt6656/Kconfig"
 
-source "drivers/staging/pata_rdc/Kconfig"
+source "drivers/staging/hv/Kconfig"
 
-source "drivers/staging/udlfb/Kconfig"
+source "drivers/staging/vme/Kconfig"
+
+source "drivers/staging/memrar/Kconfig"
+
+source "drivers/staging/sep/Kconfig"
+
+source "drivers/staging/iio/Kconfig"
+
+source "drivers/staging/zram/Kconfig"
+
+source "drivers/staging/wlags49_h2/Kconfig"
+
+source "drivers/staging/wlags49_h25/Kconfig"
+
+source "drivers/staging/samsung-laptop/Kconfig"
+
+source "drivers/staging/sm7xx/Kconfig"
+
+source "drivers/staging/dt3155v4l/Kconfig"
+
+source "drivers/staging/crystalhd/Kconfig"
+
+source "drivers/staging/cxt1e1/Kconfig"
+
+source "drivers/staging/ti-st/Kconfig"
+
+source "drivers/staging/xgifb/Kconfig"
+
+source "drivers/staging/msm/Kconfig"
+
+source "drivers/staging/lirc/Kconfig"
+
+source "drivers/staging/smbfs/Kconfig"
+
+source "drivers/staging/easycap/Kconfig"
+
+source "drivers/staging/solo6x10/Kconfig"
+
+source "drivers/staging/tidspbridge/Kconfig"
+
+source "drivers/staging/quickstart/Kconfig"
+
+source "drivers/staging/westbridge/Kconfig"
+
+source "drivers/staging/sbe-2t3e3/Kconfig"
+
+source "drivers/staging/ath6kl/Kconfig"
+
+source "drivers/staging/keucr/Kconfig"
+
+source "drivers/staging/bcm/Kconfig"
+
+source "drivers/staging/ft1000/Kconfig"
+
+source "drivers/staging/intel_sst/Kconfig"
+
+source "drivers/staging/speakup/Kconfig"
+
+source "drivers/staging/cptm1217/Kconfig"
+
+source "drivers/staging/ste_rmi4/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

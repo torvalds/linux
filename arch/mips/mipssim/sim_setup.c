@@ -37,7 +37,7 @@
 
 
 static void __init serial_init(void);
-unsigned int _isbonito = 0;
+unsigned int _isbonito;
 
 const char *get_system_type(void)
 {
@@ -49,9 +49,6 @@ void __init plat_mem_setup(void)
 	set_io_port_base(0xbfd00000);
 
 	serial_init();
-
-	pr_info("Linux started...\n");
-
 }
 
 extern struct plat_smp_ops ssmtc_smp_ops;
@@ -60,8 +57,6 @@ void __init prom_init(void)
 {
 	set_io_port_base(0xbfd00000);
 
-	pr_info("\nLINUX started...\n");
-	prom_init_cmdline();
 	prom_meminit();
 
 #ifdef CONFIG_MIPS_MT_SMP

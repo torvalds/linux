@@ -31,11 +31,11 @@
  */
 
 #include <rdma/ib_cm.h>
-#include <rdma/ib_cache.h>
 #include <net/dst.h>
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include "ipoib.h"
@@ -663,7 +663,6 @@ copied:
 	skb_reset_mac_header(skb);
 	skb_pull(skb, IPOIB_ENCAP_LEN);
 
-	dev->last_rx = jiffies;
 	++dev->stats.rx_packets;
 	dev->stats.rx_bytes += skb->len;
 
@@ -710,6 +709,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_cm_tx_buf *tx_req;
 	u64 addr;
+	int rc;
 
 	if (unlikely(skb->len > tx->mtu)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
@@ -741,9 +741,10 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 
 	tx_req->mapping = addr;
 
-	if (unlikely(post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
-			       addr, skb->len))) {
-		ipoib_warn(priv, "post_send failed\n");
+	rc = post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
+		       addr, skb->len);
+	if (unlikely(rc)) {
+		ipoib_warn(priv, "post_send failed, error %d\n", rc);
 		++dev->stats.tx_errors;
 		ib_dma_unmap_single(priv->ca, addr, skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
@@ -754,6 +755,8 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		if (++priv->tx_outstanding == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring 0x%x full, stopping kernel net queue\n",
 				  tx->qp->qp_num);
+			if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
+				ipoib_warn(priv, "request notify on send CQ failed\n");
 			netif_stop_queue(dev);
 		}
 	}
@@ -1376,7 +1379,7 @@ static void ipoib_cm_skb_reap(struct work_struct *work)
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		else if (skb->protocol == htons(ETH_P_IPV6))
-			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, priv->dev);
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 #endif
 		dev_kfree_skb_any(skb);
 
@@ -1477,6 +1480,7 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 
 		if (test_bit(IPOIB_FLAG_CSUM, &priv->flags)) {
 			dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+			priv->dev->features |= NETIF_F_GRO;
 			if (priv->hca_caps & IB_DEVICE_UD_TSO)
 				dev->features |= NETIF_F_TSO;
 		}

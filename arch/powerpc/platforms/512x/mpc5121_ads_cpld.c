@@ -79,7 +79,7 @@ cpld_unmask_irq(unsigned int irq)
 }
 
 static struct irq_chip cpld_pic = {
-	.typename = " CPLD PIC ",
+	.name = "CPLD PIC",
 	.mask = cpld_mask_irq,
 	.ack = cpld_mask_irq,
 	.unmask = cpld_unmask_irq,
@@ -132,7 +132,7 @@ static int
 cpld_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &cpld_pic, handle_level_irq);
 	return 0;
 }

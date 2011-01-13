@@ -44,6 +44,11 @@ struct pep_sock {
 	u8			rx_fc;	/* RX flow control */
 	u8			tx_fc;	/* TX flow control */
 	u8			init_enable;	/* auto-enable at creation */
+	u8			aligned;
+#ifdef CONFIG_PHONET_PIPECTRLR
+	u8			pipe_state;
+	struct sockaddr_pn	remote_pep;
+#endif
 };
 
 static inline struct pep_sock *pep_sk(struct sock *sk)
@@ -76,7 +81,13 @@ static inline struct pnpipehdr *pnp_hdr(struct sk_buff *skb)
 #define MAX_PNPIPE_HEADER (MAX_PHONET_HEADER + 4)
 
 enum {
+	PNS_PIPE_CREATE_REQ = 0x00,
+	PNS_PIPE_CREATE_RESP,
+	PNS_PIPE_REMOVE_REQ,
+	PNS_PIPE_REMOVE_RESP,
+
 	PNS_PIPE_DATA = 0x20,
+	PNS_PIPE_ALIGNED_DATA,
 
 	PNS_PEP_CONNECT_REQ = 0x40,
 	PNS_PEP_CONNECT_RESP,
@@ -138,6 +149,7 @@ enum {
 	PN_PIPE_SB_NEGOTIATED_FC,
 	PN_PIPE_SB_REQUIRED_FC_TX,
 	PN_PIPE_SB_PREFERRED_FC_RX,
+	PN_PIPE_SB_ALIGNED_DATA,
 };
 
 /* Phonet pipe flow control models */
@@ -156,5 +168,22 @@ enum {
 	PEP_IND_BUSY,
 	PEP_IND_READY,
 };
+
+#ifdef CONFIG_PHONET_PIPECTRLR
+#define PNS_PEP_CONNECT_UTID           0x02
+#define PNS_PIPE_CREATED_IND_UTID      0x04
+#define PNS_PIPE_ENABLE_UTID           0x0A
+#define PNS_PIPE_ENABLED_IND_UTID      0x0C
+#define PNS_PIPE_DISABLE_UTID          0x0F
+#define PNS_PIPE_DISABLED_IND_UTID     0x11
+#define PNS_PEP_DISCONNECT_UTID        0x06
+
+/* Used for tracking state of a pipe */
+enum {
+	PIPE_IDLE,
+	PIPE_DISABLED,
+	PIPE_ENABLED,
+};
+#endif /* CONFIG_PHONET_PIPECTRLR */
 
 #endif

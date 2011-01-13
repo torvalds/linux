@@ -11,7 +11,7 @@
 #include <linux/oprofile.h>
 #include <linux/smp.h>
 #include <linux/ptrace.h>
-#include <linux/nmi.h>
+#include <asm/nmi.h>
 #include <asm/msr.h>
 #include <asm/fixmap.h>
 #include <asm/apic.h>
@@ -31,6 +31,8 @@
 #define NUM_ESCRS_HT2 23
 #define NUM_CCCRS_HT2 9
 #define NUM_CONTROLS_HT2 (NUM_ESCRS_HT2 + NUM_CCCRS_HT2)
+
+#define OP_CTR_OVERFLOW			(1ULL<<31)
 
 static unsigned int num_counters = NUM_COUNTERS_NON_HT;
 static unsigned int num_controls = NUM_CONTROLS_NON_HT;
@@ -350,8 +352,6 @@ static struct p4_event_binding p4_events[NUM_EVENTS] = {
 #define ESCR_SET_OS_1(escr, os) ((escr) |= (((os) & 1) << 1))
 #define ESCR_SET_EVENT_SELECT(escr, sel) ((escr) |= (((sel) & 0x3f) << 25))
 #define ESCR_SET_EVENT_MASK(escr, mask) ((escr) |= (((mask) & 0xffff) << 9))
-#define ESCR_READ(escr, high, ev, i) do {rdmsr(ev->bindings[(i)].escr_address, (escr), (high)); } while (0)
-#define ESCR_WRITE(escr, high, ev, i) do {wrmsr(ev->bindings[(i)].escr_address, (escr), (high)); } while (0)
 
 #define CCCR_RESERVED_BITS 0x38030FFF
 #define CCCR_CLEAR(cccr) ((cccr) &= CCCR_RESERVED_BITS)
@@ -361,16 +361,8 @@ static struct p4_event_binding p4_events[NUM_EVENTS] = {
 #define CCCR_SET_PMI_OVF_1(cccr) ((cccr) |= (1<<27))
 #define CCCR_SET_ENABLE(cccr) ((cccr) |= (1<<12))
 #define CCCR_SET_DISABLE(cccr) ((cccr) &= ~(1<<12))
-#define CCCR_READ(low, high, i) do {rdmsr(p4_counters[(i)].cccr_address, (low), (high)); } while (0)
-#define CCCR_WRITE(low, high, i) do {wrmsr(p4_counters[(i)].cccr_address, (low), (high)); } while (0)
 #define CCCR_OVF_P(cccr) ((cccr) & (1U<<31))
 #define CCCR_CLEAR_OVF(cccr) ((cccr) &= (~(1U<<31)))
-
-#define CTRL_IS_RESERVED(msrs, c) (msrs->controls[(c)].addr ? 1 : 0)
-#define CTR_IS_RESERVED(msrs, c) (msrs->counters[(c)].addr ? 1 : 0)
-#define CTR_READ(l, h, i) do {rdmsr(p4_counters[(i)].counter_address, (l), (h)); } while (0)
-#define CTR_WRITE(l, i) do {wrmsr(p4_counters[(i)].counter_address, -(u32)(l), -1); } while (0)
-#define CTR_OVERFLOW_P(ctr) (!((ctr) & 0x80000000))
 
 
 /* this assigns a "stagger" to the current CPU, which is used throughout
@@ -393,20 +385,32 @@ static unsigned int get_stagger(void)
 
 static unsigned long reset_value[NUM_COUNTERS_NON_HT];
 
+static void p4_shutdown(struct op_msrs const * const msrs)
+{
+	int i;
 
-static void p4_fill_in_addresses(struct op_msrs * const msrs)
+	for (i = 0; i < num_counters; ++i) {
+		if (msrs->counters[i].addr)
+			release_perfctr_nmi(msrs->counters[i].addr);
+	}
+	/*
+	 * some of the control registers are specially reserved in
+	 * conjunction with the counter registers (hence the starting offset).
+	 * This saves a few bits.
+	 */
+	for (i = num_counters; i < num_controls; ++i) {
+		if (msrs->controls[i].addr)
+			release_evntsel_nmi(msrs->controls[i].addr);
+	}
+}
+
+static int p4_fill_in_addresses(struct op_msrs * const msrs)
 {
 	unsigned int i;
 	unsigned int addr, cccraddr, stag;
 
 	setup_num_counters();
 	stag = get_stagger();
-
-	/* initialize some registers */
-	for (i = 0; i < num_counters; ++i)
-		msrs->counters[i].addr = 0;
-	for (i = 0; i < num_controls; ++i)
-		msrs->controls[i].addr = 0;
 
 	/* the counter & cccr registers we pay attention to */
 	for (i = 0; i < num_counters; ++i) {
@@ -482,6 +486,18 @@ static void p4_fill_in_addresses(struct op_msrs * const msrs)
 			msrs->controls[i++].addr = MSR_P4_CRU_ESCR5;
 		}
 	}
+
+	for (i = 0; i < num_counters; ++i) {
+		if (!counter_config[i].enabled)
+			continue;
+		if (msrs->controls[i].addr)
+			continue;
+		op_x86_warn_reserved(i);
+		p4_shutdown(msrs);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 
@@ -515,7 +531,7 @@ static void pmc_setup_one_p4_counter(unsigned int ctr)
 		if (ev->bindings[i].virt_counter & counter_bit) {
 
 			/* modify ESCR */
-			ESCR_READ(escr, high, ev, i);
+			rdmsr(ev->bindings[i].escr_address, escr, high);
 			ESCR_CLEAR(escr);
 			if (stag == 0) {
 				ESCR_SET_USR_0(escr, counter_config[ctr].user);
@@ -526,10 +542,11 @@ static void pmc_setup_one_p4_counter(unsigned int ctr)
 			}
 			ESCR_SET_EVENT_SELECT(escr, ev->event_select);
 			ESCR_SET_EVENT_MASK(escr, counter_config[ctr].unit_mask);
-			ESCR_WRITE(escr, high, ev, i);
+			wrmsr(ev->bindings[i].escr_address, escr, high);
 
 			/* modify CCCR */
-			CCCR_READ(cccr, high, VIRT_CTR(stag, ctr));
+			rdmsr(p4_counters[VIRT_CTR(stag, ctr)].cccr_address,
+			      cccr, high);
 			CCCR_CLEAR(cccr);
 			CCCR_SET_REQUIRED_BITS(cccr);
 			CCCR_SET_ESCR_SELECT(cccr, ev->escr_select);
@@ -537,7 +554,8 @@ static void pmc_setup_one_p4_counter(unsigned int ctr)
 				CCCR_SET_PMI_OVF_0(cccr);
 			else
 				CCCR_SET_PMI_OVF_1(cccr);
-			CCCR_WRITE(cccr, high, VIRT_CTR(stag, ctr));
+			wrmsr(p4_counters[VIRT_CTR(stag, ctr)].cccr_address,
+			      cccr, high);
 			return;
 		}
 	}
@@ -548,7 +566,8 @@ static void pmc_setup_one_p4_counter(unsigned int ctr)
 }
 
 
-static void p4_setup_ctrs(struct op_msrs const * const msrs)
+static void p4_setup_ctrs(struct op_x86_model_spec const *model,
+			  struct op_msrs const * const msrs)
 {
 	unsigned int i;
 	unsigned int low, high;
@@ -563,8 +582,8 @@ static void p4_setup_ctrs(struct op_msrs const * const msrs)
 	}
 
 	/* clear the cccrs we will use */
-	for (i = 0 ; i < num_counters ; i++) {
-		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
+	for (i = 0; i < num_counters; i++) {
+		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		rdmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
 		CCCR_CLEAR(low);
@@ -574,17 +593,18 @@ static void p4_setup_ctrs(struct op_msrs const * const msrs)
 
 	/* clear all escrs (including those outside our concern) */
 	for (i = num_counters; i < num_controls; i++) {
-		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
+		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		wrmsr(msrs->controls[i].addr, 0, 0);
 	}
 
 	/* setup all counters */
-	for (i = 0 ; i < num_counters ; ++i) {
-		if ((counter_config[i].enabled) && (CTRL_IS_RESERVED(msrs, i))) {
+	for (i = 0; i < num_counters; ++i) {
+		if (counter_config[i].enabled && msrs->controls[i].addr) {
 			reset_value[i] = counter_config[i].count;
 			pmc_setup_one_p4_counter(i);
-			CTR_WRITE(counter_config[i].count, VIRT_CTR(stag, i));
+			wrmsrl(p4_counters[VIRT_CTR(stag, i)].counter_address,
+			       -(u64)counter_config[i].count);
 		} else {
 			reset_value[i] = 0;
 		}
@@ -624,14 +644,16 @@ static int p4_check_ctrs(struct pt_regs * const regs,
 
 		real = VIRT_CTR(stag, i);
 
-		CCCR_READ(low, high, real);
-		CTR_READ(ctr, high, real);
-		if (CCCR_OVF_P(low) || CTR_OVERFLOW_P(ctr)) {
+		rdmsr(p4_counters[real].cccr_address, low, high);
+		rdmsr(p4_counters[real].counter_address, ctr, high);
+		if (CCCR_OVF_P(low) || !(ctr & OP_CTR_OVERFLOW)) {
 			oprofile_add_sample(regs, i);
-			CTR_WRITE(reset_value[i], real);
+			wrmsrl(p4_counters[real].counter_address,
+			       -(u64)reset_value[i]);
 			CCCR_CLEAR_OVF(low);
-			CCCR_WRITE(low, high, real);
-			CTR_WRITE(reset_value[i], real);
+			wrmsr(p4_counters[real].cccr_address, low, high);
+			wrmsrl(p4_counters[real].counter_address,
+			       -(u64)reset_value[i]);
 		}
 	}
 
@@ -653,9 +675,9 @@ static void p4_start(struct op_msrs const * const msrs)
 	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
-		CCCR_READ(low, high, VIRT_CTR(stag, i));
+		rdmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
 		CCCR_SET_ENABLE(low);
-		CCCR_WRITE(low, high, VIRT_CTR(stag, i));
+		wrmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
 	}
 }
 
@@ -670,34 +692,14 @@ static void p4_stop(struct op_msrs const * const msrs)
 	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
-		CCCR_READ(low, high, VIRT_CTR(stag, i));
+		rdmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
 		CCCR_SET_DISABLE(low);
-		CCCR_WRITE(low, high, VIRT_CTR(stag, i));
+		wrmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
 	}
 }
-
-static void p4_shutdown(struct op_msrs const * const msrs)
-{
-	int i;
-
-	for (i = 0 ; i < num_counters ; ++i) {
-		if (CTR_IS_RESERVED(msrs, i))
-			release_perfctr_nmi(msrs->counters[i].addr);
-	}
-	/*
-	 * some of the control registers are specially reserved in
-	 * conjunction with the counter registers (hence the starting offset).
-	 * This saves a few bits.
-	 */
-	for (i = num_counters ; i < num_controls ; ++i) {
-		if (CTRL_IS_RESERVED(msrs, i))
-			release_evntsel_nmi(msrs->controls[i].addr);
-	}
-}
-
 
 #ifdef CONFIG_SMP
-struct op_x86_model_spec const op_p4_ht2_spec = {
+struct op_x86_model_spec op_p4_ht2_spec = {
 	.num_counters		= NUM_COUNTERS_HT2,
 	.num_controls		= NUM_CONTROLS_HT2,
 	.fill_in_addresses	= &p4_fill_in_addresses,
@@ -709,7 +711,7 @@ struct op_x86_model_spec const op_p4_ht2_spec = {
 };
 #endif
 
-struct op_x86_model_spec const op_p4_spec = {
+struct op_x86_model_spec op_p4_spec = {
 	.num_counters		= NUM_COUNTERS_NON_HT,
 	.num_controls		= NUM_CONTROLS_NON_HT,
 	.fill_in_addresses	= &p4_fill_in_addresses,

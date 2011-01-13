@@ -1,0 +1,104 @@
+<refentry id="vidioc-querybuf">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_QUERYBUF</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_QUERYBUF</refname>
+    <refpurpose>Query the status of a buffer</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_buffer *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_QUERYBUF</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>This ioctl is part of the <link linkend="mmap">memory
+mapping</link> I/O method. It can be used to query the status of a
+buffer at any time after buffers have been allocated with the
+&VIDIOC-REQBUFS; ioctl.</para>
+
+    <para>Applications set the <structfield>type</structfield> field
+    of a &v4l2-buffer; to the same buffer type as was previously used with
+&v4l2-format; <structfield>type</structfield> and &v4l2-requestbuffers;
+<structfield>type</structfield>, and the <structfield>index</structfield>
+    field. Valid index numbers range from zero
+to the number of buffers allocated with &VIDIOC-REQBUFS;
+    (&v4l2-requestbuffers; <structfield>count</structfield>) minus one.
+The <structfield>reserved</structfield> field should to set to 0.
+After calling <constant>VIDIOC_QUERYBUF</constant> with a pointer to
+    this structure drivers return an error code or fill the rest of
+the structure.</para>
+
+    <para>In the <structfield>flags</structfield> field the
+<constant>V4L2_BUF_FLAG_MAPPED</constant>,
+<constant>V4L2_BUF_FLAG_QUEUED</constant> and
+<constant>V4L2_BUF_FLAG_DONE</constant> flags will be valid. The
+<structfield>memory</structfield> field will be set to the current
+I/O method, the <structfield>m.offset</structfield>
+contains the offset of the buffer from the start of the device memory,
+the <structfield>length</structfield> field its size. The driver may
+or may not set the remaining fields and flags, they are meaningless in
+this context.</para>
+
+    <para>The <structname>v4l2_buffer</structname> structure is
+    specified in <xref linkend="buffer" />.</para>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The buffer <structfield>type</structfield> is not
+supported, or the <structfield>index</structfield> is out of bounds.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

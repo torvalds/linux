@@ -26,21 +26,9 @@
  * It is adapted from the Linux Kernel Dump Test Tool by
  * Fernando Luis Vazquez Cao <http://lkdtt.sourceforge.net>
  *
- * Usage :  insmod lkdtm.ko [recur_count={>0}] cpoint_name=<> cpoint_type=<>
- *							[cpoint_count={>0}]
+ * Debugfs support added by Simon Kagstrom <simon.kagstrom@netinsight.net>
  *
- * recur_count : Recursion level for the stack overflow test. Default is 10.
- *
- * cpoint_name : Crash point where the kernel is to be crashed. It can be
- *		 one of INT_HARDWARE_ENTRY, INT_HW_IRQ_EN, INT_TASKLET_ENTRY,
- *		 FS_DEVRW, MEM_SWAPOUT, TIMERADD, SCSI_DISPATCH_CMD,
- *		 IDE_CORE_CP
- *
- * cpoint_type : Indicates the action to be taken on hitting the crash point.
- *		 It can be one of PANIC, BUG, EXCEPTION, LOOP, OVERFLOW
- *
- * cpoint_count : Indicates the number of times the crash point is to be hit
- *		  to trigger an action. The default is 10.
+ * See Documentation/fault-injection/provoke-crashes.txt for instructions
  */
 
 #include <linux/kernel.h>
@@ -52,36 +40,44 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/hrtimer.h>
+#include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
+#include <linux/debugfs.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
 #endif
 
-#define NUM_CPOINTS 8
-#define NUM_CPOINT_TYPES 5
 #define DEFAULT_COUNT 10
 #define REC_NUM_DEFAULT 10
 
 enum cname {
-	INVALID,
-	INT_HARDWARE_ENTRY,
-	INT_HW_IRQ_EN,
-	INT_TASKLET_ENTRY,
-	FS_DEVRW,
-	MEM_SWAPOUT,
-	TIMERADD,
-	SCSI_DISPATCH_CMD,
-	IDE_CORE_CP
+	CN_INVALID,
+	CN_INT_HARDWARE_ENTRY,
+	CN_INT_HW_IRQ_EN,
+	CN_INT_TASKLET_ENTRY,
+	CN_FS_DEVRW,
+	CN_MEM_SWAPOUT,
+	CN_TIMERADD,
+	CN_SCSI_DISPATCH_CMD,
+	CN_IDE_CORE_CP,
+	CN_DIRECT,
 };
 
 enum ctype {
-	NONE,
-	PANIC,
-	BUG,
-	EXCEPTION,
-	LOOP,
-	OVERFLOW
+	CT_NONE,
+	CT_PANIC,
+	CT_BUG,
+	CT_EXCEPTION,
+	CT_LOOP,
+	CT_OVERFLOW,
+	CT_CORRUPT_STACK,
+	CT_UNALIGNED_LOAD_STORE_WRITE,
+	CT_OVERWRITE_ALLOCATION,
+	CT_WRITE_AFTER_FREE,
+	CT_SOFTLOCKUP,
+	CT_HARDLOCKUP,
+	CT_HUNG_TASK,
 };
 
 static char* cp_name[] = {
@@ -92,7 +88,8 @@ static char* cp_name[] = {
 	"MEM_SWAPOUT",
 	"TIMERADD",
 	"SCSI_DISPATCH_CMD",
-	"IDE_CORE_CP"
+	"IDE_CORE_CP",
+	"DIRECT",
 };
 
 static char* cp_type[] = {
@@ -100,7 +97,14 @@ static char* cp_type[] = {
 	"BUG",
 	"EXCEPTION",
 	"LOOP",
-	"OVERFLOW"
+	"OVERFLOW",
+	"CORRUPT_STACK",
+	"UNALIGNED_LOAD_STORE_WRITE",
+	"OVERWRITE_ALLOCATION",
+	"WRITE_AFTER_FREE",
+	"SOFTLOCKUP",
+	"HARDLOCKUP",
+	"HUNG_TASK",
 };
 
 static struct jprobe lkdtm;
@@ -113,16 +117,16 @@ static char* cpoint_type;
 static int cpoint_count = DEFAULT_COUNT;
 static int recur_count = REC_NUM_DEFAULT;
 
-static enum cname cpoint = INVALID;
-static enum ctype cptype = NONE;
+static enum cname cpoint = CN_INVALID;
+static enum ctype cptype = CT_NONE;
 static int count = DEFAULT_COUNT;
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
 				 "default is 10");
-module_param(cpoint_name, charp, 0644);
+module_param(cpoint_name, charp, 0444);
 MODULE_PARM_DESC(cpoint_name, " Crash Point, where kernel is to be crashed");
-module_param(cpoint_type, charp, 0644);
+module_param(cpoint_type, charp, 0444);
 MODULE_PARM_DESC(cpoint_type, " Crash Point Type, action to be taken on "\
 				"hitting the crash point");
 module_param(cpoint_count, int, 0644);
@@ -193,34 +197,66 @@ int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
 }
 #endif
 
+/* Return the crashpoint number or NONE if the name is invalid */
+static enum ctype parse_cp_type(const char *what, size_t count)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cp_type); i++) {
+		if (!strcmp(what, cp_type[i]))
+			return i + 1;
+	}
+
+	return CT_NONE;
+}
+
+static const char *cp_type_to_str(enum ctype type)
+{
+	if (type == CT_NONE || type < 0 || type > ARRAY_SIZE(cp_type))
+		return "None";
+
+	return cp_type[type - 1];
+}
+
+static const char *cp_name_to_str(enum cname name)
+{
+	if (name == CN_INVALID || name < 0 || name > ARRAY_SIZE(cp_name))
+		return "INVALID";
+
+	return cp_name[name - 1];
+}
+
+
 static int lkdtm_parse_commandline(void)
 {
 	int i;
 
-	if (cpoint_name == NULL || cpoint_type == NULL ||
-					cpoint_count < 1 || recur_count < 1)
+	if (cpoint_count < 1 || recur_count < 1)
 		return -EINVAL;
-
-	for (i = 0; i < NUM_CPOINTS; ++i) {
-		if (!strcmp(cpoint_name, cp_name[i])) {
-			cpoint = i + 1;
-			break;
-		}
-	}
-
-	for (i = 0; i < NUM_CPOINT_TYPES; ++i) {
-		if (!strcmp(cpoint_type, cp_type[i])) {
-			cptype = i + 1;
-			break;
-		}
-	}
-
-	if (cpoint == INVALID || cptype == NONE)
-                return -EINVAL;
 
 	count = cpoint_count;
 
-	return 0;
+	/* No special parameters */
+	if (!cpoint_type && !cpoint_name)
+		return 0;
+
+	/* Neither or both of these need to be set */
+	if (!cpoint_type || !cpoint_name)
+		return -EINVAL;
+
+	cptype = parse_cp_type(cpoint_type, strlen(cpoint_type));
+	if (cptype == CT_NONE)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(cp_name); i++) {
+		if (!strcmp(cpoint_name, cp_name[i])) {
+			cpoint = i + 1;
+			return 0;
+		}
+	}
+
+	/* Could not find a valid crash point */
+	return -EINVAL;
 }
 
 static int recursive_loop(int a)
@@ -235,108 +271,410 @@ static int recursive_loop(int a)
         	return recursive_loop(a);
 }
 
-void lkdtm_handler(void)
+static void lkdtm_do_action(enum ctype which)
 {
-	printk(KERN_INFO "lkdtm : Crash point %s of type %s hit\n",
-					 cpoint_name, cpoint_type);
-	--count;
+	switch (which) {
+	case CT_PANIC:
+		panic("dumptest");
+		break;
+	case CT_BUG:
+		BUG();
+		break;
+	case CT_EXCEPTION:
+		*((int *) 0) = 0;
+		break;
+	case CT_LOOP:
+		for (;;)
+			;
+		break;
+	case CT_OVERFLOW:
+		(void) recursive_loop(0);
+		break;
+	case CT_CORRUPT_STACK: {
+		volatile u32 data[8];
+		volatile u32 *p = data;
+
+		p[12] = 0x12345678;
+		break;
+	}
+	case CT_UNALIGNED_LOAD_STORE_WRITE: {
+		static u8 data[5] __attribute__((aligned(4))) = {1, 2,
+				3, 4, 5};
+		u32 *p;
+		u32 val = 0x12345678;
+
+		p = (u32 *)(data + 1);
+		if (*p == 0)
+			val = 0x87654321;
+		*p = val;
+		 break;
+	}
+	case CT_OVERWRITE_ALLOCATION: {
+		size_t len = 1020;
+		u32 *data = kmalloc(len, GFP_KERNEL);
+
+		data[1024 / sizeof(u32)] = 0x12345678;
+		kfree(data);
+		break;
+	}
+	case CT_WRITE_AFTER_FREE: {
+		size_t len = 1024;
+		u32 *data = kmalloc(len, GFP_KERNEL);
+
+		kfree(data);
+		schedule();
+		memset(data, 0x78, len);
+		break;
+	}
+	case CT_SOFTLOCKUP:
+		preempt_disable();
+		for (;;)
+			cpu_relax();
+		break;
+	case CT_HARDLOCKUP:
+		local_irq_disable();
+		for (;;)
+			cpu_relax();
+		break;
+	case CT_HUNG_TASK:
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule();
+		break;
+	case CT_NONE:
+	default:
+		break;
+	}
+
+}
+
+static void lkdtm_handler(void)
+{
+	count--;
+	printk(KERN_INFO "lkdtm: Crash point %s of type %s hit, trigger in %d rounds\n",
+			cp_name_to_str(cpoint), cp_type_to_str(cptype), count);
 
 	if (count == 0) {
-		switch (cptype) {
-		case NONE:
-			break;
-		case PANIC:
-			printk(KERN_INFO "lkdtm : PANIC\n");
-			panic("dumptest");
-			break;
-		case BUG:
-			printk(KERN_INFO "lkdtm : BUG\n");
-			BUG();
-			break;
-		case EXCEPTION:
-			printk(KERN_INFO "lkdtm : EXCEPTION\n");
-			*((int *) 0) = 0;
-			break;
-		case LOOP:
-			printk(KERN_INFO "lkdtm : LOOP\n");
-			for (;;);
-			break;
-		case OVERFLOW:
-			printk(KERN_INFO "lkdtm : OVERFLOW\n");
-			(void) recursive_loop(0);
-			break;
-		default:
-			break;
-		}
+		lkdtm_do_action(cptype);
 		count = cpoint_count;
 	}
 }
 
-static int __init lkdtm_module_init(void)
+static int lkdtm_register_cpoint(enum cname which)
 {
 	int ret;
 
-	if (lkdtm_parse_commandline() == -EINVAL) {
-		printk(KERN_INFO "lkdtm : Invalid command\n");
-		return -EINVAL;
-	}
+	cpoint = CN_INVALID;
+	if (lkdtm.entry != NULL)
+		unregister_jprobe(&lkdtm);
 
-	switch (cpoint) {
-	case INT_HARDWARE_ENTRY:
-		lkdtm.kp.symbol_name = "__do_IRQ";
+	switch (which) {
+	case CN_DIRECT:
+		lkdtm_do_action(cptype);
+		return 0;
+	case CN_INT_HARDWARE_ENTRY:
+		lkdtm.kp.symbol_name = "do_IRQ";
 		lkdtm.entry = (kprobe_opcode_t*) jp_do_irq;
 		break;
-	case INT_HW_IRQ_EN:
+	case CN_INT_HW_IRQ_EN:
 		lkdtm.kp.symbol_name = "handle_IRQ_event";
 		lkdtm.entry = (kprobe_opcode_t*) jp_handle_irq_event;
 		break;
-	case INT_TASKLET_ENTRY:
+	case CN_INT_TASKLET_ENTRY:
 		lkdtm.kp.symbol_name = "tasklet_action";
 		lkdtm.entry = (kprobe_opcode_t*) jp_tasklet_action;
 		break;
-	case FS_DEVRW:
+	case CN_FS_DEVRW:
 		lkdtm.kp.symbol_name = "ll_rw_block";
 		lkdtm.entry = (kprobe_opcode_t*) jp_ll_rw_block;
 		break;
-	case MEM_SWAPOUT:
+	case CN_MEM_SWAPOUT:
 		lkdtm.kp.symbol_name = "shrink_inactive_list";
 		lkdtm.entry = (kprobe_opcode_t*) jp_shrink_inactive_list;
 		break;
-	case TIMERADD:
+	case CN_TIMERADD:
 		lkdtm.kp.symbol_name = "hrtimer_start";
 		lkdtm.entry = (kprobe_opcode_t*) jp_hrtimer_start;
 		break;
-	case SCSI_DISPATCH_CMD:
+	case CN_SCSI_DISPATCH_CMD:
 		lkdtm.kp.symbol_name = "scsi_dispatch_cmd";
 		lkdtm.entry = (kprobe_opcode_t*) jp_scsi_dispatch_cmd;
 		break;
-	case IDE_CORE_CP:
+	case CN_IDE_CORE_CP:
 #ifdef CONFIG_IDE
 		lkdtm.kp.symbol_name = "generic_ide_ioctl";
 		lkdtm.entry = (kprobe_opcode_t*) jp_generic_ide_ioctl;
 #else
-		printk(KERN_INFO "lkdtm : Crash point not available\n");
+		printk(KERN_INFO "lkdtm: Crash point not available\n");
+		return -EINVAL;
 #endif
 		break;
 	default:
-		printk(KERN_INFO "lkdtm : Invalid Crash Point\n");
-		break;
+		printk(KERN_INFO "lkdtm: Invalid Crash Point\n");
+		return -EINVAL;
 	}
 
+	cpoint = which;
 	if ((ret = register_jprobe(&lkdtm)) < 0) {
-                printk(KERN_INFO "lkdtm : Couldn't register jprobe\n");
-                return ret;
+		printk(KERN_INFO "lkdtm: Couldn't register jprobe\n");
+		cpoint = CN_INVALID;
 	}
 
-	printk(KERN_INFO "lkdtm : Crash point %s of type %s registered\n",
-						cpoint_name, cpoint_type);
+	return ret;
+}
+
+static ssize_t do_register_entry(enum cname which, struct file *f,
+		const char __user *user_buf, size_t count, loff_t *off)
+{
+	char *buf;
+	int err;
+
+	if (count >= PAGE_SIZE)
+		return -EINVAL;
+
+	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	if (copy_from_user(buf, user_buf, count)) {
+		free_page((unsigned long) buf);
+		return -EFAULT;
+	}
+	/* NULL-terminate and remove enter */
+	buf[count] = '\0';
+	strim(buf);
+
+	cptype = parse_cp_type(buf, count);
+	free_page((unsigned long) buf);
+
+	if (cptype == CT_NONE)
+		return -EINVAL;
+
+	err = lkdtm_register_cpoint(which);
+	if (err < 0)
+		return err;
+
+	*off += count;
+
+	return count;
+}
+
+/* Generic read callback that just prints out the available crash types */
+static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
+		size_t count, loff_t *off)
+{
+	char *buf;
+	int i, n, out;
+
+	buf = (char *)__get_free_page(GFP_KERNEL);
+
+	n = snprintf(buf, PAGE_SIZE, "Available crash types:\n");
+	for (i = 0; i < ARRAY_SIZE(cp_type); i++)
+		n += snprintf(buf + n, PAGE_SIZE - n, "%s\n", cp_type[i]);
+	buf[n] = '\0';
+
+	out = simple_read_from_buffer(user_buf, count, off,
+				      buf, n);
+	free_page((unsigned long) buf);
+
+	return out;
+}
+
+static int lkdtm_debugfs_open(struct inode *inode, struct file *file)
+{
 	return 0;
+}
+
+
+static ssize_t int_hardware_entry(struct file *f, const char __user *buf,
+		size_t count, loff_t *off)
+{
+	return do_register_entry(CN_INT_HARDWARE_ENTRY, f, buf, count, off);
+}
+
+static ssize_t int_hw_irq_en(struct file *f, const char __user *buf,
+		size_t count, loff_t *off)
+{
+	return do_register_entry(CN_INT_HW_IRQ_EN, f, buf, count, off);
+}
+
+static ssize_t int_tasklet_entry(struct file *f, const char __user *buf,
+		size_t count, loff_t *off)
+{
+	return do_register_entry(CN_INT_TASKLET_ENTRY, f, buf, count, off);
+}
+
+static ssize_t fs_devrw_entry(struct file *f, const char __user *buf,
+		size_t count, loff_t *off)
+{
+	return do_register_entry(CN_FS_DEVRW, f, buf, count, off);
+}
+
+static ssize_t mem_swapout_entry(struct file *f, const char __user *buf,
+		size_t count, loff_t *off)
+{
+	return do_register_entry(CN_MEM_SWAPOUT, f, buf, count, off);
+}
+
+static ssize_t timeradd_entry(struct file *f, const char __user *buf,
+		size_t count, loff_t *off)
+{
+	return do_register_entry(CN_TIMERADD, f, buf, count, off);
+}
+
+static ssize_t scsi_dispatch_cmd_entry(struct file *f,
+		const char __user *buf, size_t count, loff_t *off)
+{
+	return do_register_entry(CN_SCSI_DISPATCH_CMD, f, buf, count, off);
+}
+
+static ssize_t ide_core_cp_entry(struct file *f, const char __user *buf,
+		size_t count, loff_t *off)
+{
+	return do_register_entry(CN_IDE_CORE_CP, f, buf, count, off);
+}
+
+/* Special entry to just crash directly. Available without KPROBEs */
+static ssize_t direct_entry(struct file *f, const char __user *user_buf,
+		size_t count, loff_t *off)
+{
+	enum ctype type;
+	char *buf;
+
+	if (count >= PAGE_SIZE)
+		return -EINVAL;
+	if (count < 1)
+		return -EINVAL;
+
+	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	if (copy_from_user(buf, user_buf, count)) {
+		free_page((unsigned long) buf);
+		return -EFAULT;
+	}
+	/* NULL-terminate and remove enter */
+	buf[count] = '\0';
+	strim(buf);
+
+	type = parse_cp_type(buf, count);
+	free_page((unsigned long) buf);
+	if (type == CT_NONE)
+		return -EINVAL;
+
+	printk(KERN_INFO "lkdtm: Performing direct entry %s\n",
+			cp_type_to_str(type));
+	lkdtm_do_action(type);
+	*off += count;
+
+	return count;
+}
+
+struct crash_entry {
+	const char *name;
+	const struct file_operations fops;
+};
+
+static const struct crash_entry crash_entries[] = {
+	{"DIRECT", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = direct_entry} },
+	{"INT_HARDWARE_ENTRY", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = int_hardware_entry} },
+	{"INT_HW_IRQ_EN", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = int_hw_irq_en} },
+	{"INT_TASKLET_ENTRY", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = int_tasklet_entry} },
+	{"FS_DEVRW", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = fs_devrw_entry} },
+	{"MEM_SWAPOUT", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = mem_swapout_entry} },
+	{"TIMERADD", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = timeradd_entry} },
+	{"SCSI_DISPATCH_CMD", {.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = scsi_dispatch_cmd_entry} },
+	{"IDE_CORE_CP",	{.read = lkdtm_debugfs_read,
+			.llseek = generic_file_llseek,
+			.open = lkdtm_debugfs_open,
+			.write = ide_core_cp_entry} },
+};
+
+static struct dentry *lkdtm_debugfs_root;
+
+static int __init lkdtm_module_init(void)
+{
+	int ret = -EINVAL;
+	int n_debugfs_entries = 1; /* Assume only the direct entry */
+	int i;
+
+	/* Register debugfs interface */
+	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
+	if (!lkdtm_debugfs_root) {
+		printk(KERN_ERR "lkdtm: creating root dir failed\n");
+		return -ENODEV;
+	}
+
+#ifdef CONFIG_KPROBES
+	n_debugfs_entries = ARRAY_SIZE(crash_entries);
+#endif
+
+	for (i = 0; i < n_debugfs_entries; i++) {
+		const struct crash_entry *cur = &crash_entries[i];
+		struct dentry *de;
+
+		de = debugfs_create_file(cur->name, 0644, lkdtm_debugfs_root,
+				NULL, &cur->fops);
+		if (de == NULL) {
+			printk(KERN_ERR "lkdtm: could not create %s\n",
+					cur->name);
+			goto out_err;
+		}
+	}
+
+	if (lkdtm_parse_commandline() == -EINVAL) {
+		printk(KERN_INFO "lkdtm: Invalid command\n");
+		goto out_err;
+	}
+
+	if (cpoint != CN_INVALID && cptype != CT_NONE) {
+		ret = lkdtm_register_cpoint(cpoint);
+		if (ret < 0) {
+			printk(KERN_INFO "lkdtm: Invalid crash point %d\n",
+					cpoint);
+			goto out_err;
+		}
+		printk(KERN_INFO "lkdtm: Crash point %s of type %s registered\n",
+				cpoint_name, cpoint_type);
+	} else {
+		printk(KERN_INFO "lkdtm: No crash points registered, enable through debugfs\n");
+	}
+
+	return 0;
+
+out_err:
+	debugfs_remove_recursive(lkdtm_debugfs_root);
+	return ret;
 }
 
 static void __exit lkdtm_module_exit(void)
 {
-        unregister_jprobe(&lkdtm);
-        printk(KERN_INFO "lkdtm : Crash point unregistered\n");
+	debugfs_remove_recursive(lkdtm_debugfs_root);
+
+	unregister_jprobe(&lkdtm);
+	printk(KERN_INFO "lkdtm: Crash point unregistered\n");
 }
 
 module_init(lkdtm_module_init);

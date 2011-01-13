@@ -28,39 +28,52 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
-/*
- * fc_elsct_send - sends ELS/CT frame
+/**
+ * fc_elsct_send() - Send an ELS or CT frame
+ * @lport:	The local port to send the frame on
+ * @did:	The destination ID for the frame
+ * @fp:		The frame to be sent
+ * @op:		The operational code
+ * @resp:	The callback routine when the response is received
+ * @arg:	The argument to pass to the response callback routine
+ * @timer_msec: The timeout period for the frame (in msecs)
  */
-static struct fc_seq *fc_elsct_send(struct fc_lport *lport,
-				    struct fc_rport *rport,
-				    struct fc_frame *fp,
-				    unsigned int op,
-				    void (*resp)(struct fc_seq *,
-						 struct fc_frame *fp,
-						 void *arg),
-				    void *arg, u32 timer_msec)
+struct fc_seq *fc_elsct_send(struct fc_lport *lport, u32 did,
+			     struct fc_frame *fp, unsigned int op,
+			     void (*resp)(struct fc_seq *,
+					  struct fc_frame *,
+					  void *),
+			     void *arg, u32 timer_msec)
 {
 	enum fc_rctl r_ctl;
-	u32 did = FC_FID_NONE;
 	enum fc_fh_type fh_type;
 	int rc;
 
 	/* ELS requests */
 	if ((op >= ELS_LS_RJT) && (op <= ELS_AUTH_ELS))
-		rc = fc_els_fill(lport, rport, fp, op, &r_ctl, &did, &fh_type);
-	else
+		rc = fc_els_fill(lport, did, fp, op, &r_ctl, &fh_type);
+	else {
 		/* CT requests */
-		rc = fc_ct_fill(lport, fp, op, &r_ctl, &did, &fh_type);
+		rc = fc_ct_fill(lport, did, fp, op, &r_ctl, &fh_type);
+		did = FC_FID_DIR_SERV;
+	}
 
-	if (rc)
+	if (rc) {
+		fc_frame_free(fp);
 		return NULL;
+	}
 
-	fc_fill_fc_hdr(fp, r_ctl, did, fc_host_port_id(lport->host), fh_type,
-		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+	fc_fill_fc_hdr(fp, r_ctl, did, lport->port_id, fh_type,
+		       FC_FCTL_REQ, 0);
 
 	return lport->tt.exch_seq_send(lport, fp, resp, NULL, arg, timer_msec);
 }
+EXPORT_SYMBOL(fc_elsct_send);
 
+/**
+ * fc_elsct_init() - Initialize the ELS/CT layer
+ * @lport: The local port to initialize the ELS/CT layer for
+ */
 int fc_elsct_init(struct fc_lport *lport)
 {
 	if (!lport->tt.elsct_send)
@@ -69,3 +82,70 @@ int fc_elsct_init(struct fc_lport *lport)
 	return 0;
 }
 EXPORT_SYMBOL(fc_elsct_init);
+
+/**
+ * fc_els_resp_type() - Return a string describing the ELS response
+ * @fp: The frame pointer or possible error code
+ */
+const char *fc_els_resp_type(struct fc_frame *fp)
+{
+	const char *msg;
+	struct fc_frame_header *fh;
+	struct fc_ct_hdr *ct;
+
+	if (IS_ERR(fp)) {
+		switch (-PTR_ERR(fp)) {
+		case FC_NO_ERR:
+			msg = "response no error";
+			break;
+		case FC_EX_TIMEOUT:
+			msg = "response timeout";
+			break;
+		case FC_EX_CLOSED:
+			msg = "response closed";
+			break;
+		default:
+			msg = "response unknown error";
+			break;
+		}
+	} else {
+		fh = fc_frame_header_get(fp);
+		switch (fh->fh_type) {
+		case FC_TYPE_ELS:
+			switch (fc_frame_payload_op(fp)) {
+			case ELS_LS_ACC:
+				msg = "accept";
+				break;
+			case ELS_LS_RJT:
+				msg = "reject";
+				break;
+			default:
+				msg = "response unknown ELS";
+				break;
+			}
+			break;
+		case FC_TYPE_CT:
+			ct = fc_frame_payload_get(fp, sizeof(*ct));
+			if (ct) {
+				switch (ntohs(ct->ct_cmd)) {
+				case FC_FS_ACC:
+					msg = "CT accept";
+					break;
+				case FC_FS_RJT:
+					msg = "CT reject";
+					break;
+				default:
+					msg = "response unknown CT";
+					break;
+				}
+			} else {
+				msg = "short CT response";
+			}
+			break;
+		default:
+			msg = "response not ELS or CT";
+			break;
+		}
+	}
+	return msg;
+}

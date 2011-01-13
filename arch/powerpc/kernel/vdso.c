@@ -1,3 +1,4 @@
+
 /*
  *    Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
@@ -21,7 +22,7 @@
 #include <linux/elf.h>
 #include <linux/security.h>
 #include <linux/bootmem.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -49,6 +50,9 @@
 /* Max supported size for symbol names */
 #define MAX_SYMNAME	64
 
+/* The alignment of the vDSO */
+#define VDSO_ALIGNMENT	(1 << 16)
+
 extern char vdso32_start, vdso32_end;
 static void *vdso32_kbase = &vdso32_start;
 static unsigned int vdso32_pages;
@@ -74,7 +78,7 @@ static int vdso_ready;
 static union {
 	struct vdso_data	data;
 	u8			page[PAGE_SIZE];
-} vdso_data_store __attribute__((__section__(".data.page_aligned")));
+} vdso_data_store __page_aligned_data;
 struct vdso_data *vdso_data = &vdso_data_store.data;
 
 /* Format of the patch table */
@@ -155,7 +159,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 {
 	int i;
 
-	if (!vma || test_thread_flag(TIF_32BIT)) {
+	if (!vma || is_32bit_task()) {
 		printk("vDSO32 @ %016lx:\n", (unsigned long)vdso32_kbase);
 		for (i=0; i<vdso32_pages; i++) {
 			struct page *pg = virt_to_page(vdso32_kbase +
@@ -166,7 +170,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 			dump_one_vdso_page(pg, upg);
 		}
 	}
-	if (!vma || !test_thread_flag(TIF_32BIT)) {
+	if (!vma || !is_32bit_task()) {
 		printk("vDSO64 @ %016lx:\n", (unsigned long)vdso64_kbase);
 		for (i=0; i<vdso64_pages; i++) {
 			struct page *pg = virt_to_page(vdso64_kbase +
@@ -196,14 +200,19 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return 0;
 
 #ifdef CONFIG_PPC64
-	if (test_thread_flag(TIF_32BIT)) {
+	if (is_32bit_task()) {
 		vdso_pagelist = vdso32_pagelist;
 		vdso_pages = vdso32_pages;
 		vdso_base = VDSO32_MBASE;
 	} else {
 		vdso_pagelist = vdso64_pagelist;
 		vdso_pages = vdso64_pages;
-		vdso_base = VDSO64_MBASE;
+		/*
+		 * On 64bit we don't have a preferred map address. This
+		 * allows get_unmapped_area to find an area near other mmaps
+		 * and most likely share a SLB entry.
+		 */
+		vdso_base = 0;
 	}
 #else
 	vdso_pagelist = vdso32_pagelist;
@@ -225,14 +234,27 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * pick a base address for the vDSO in process space. We try to put it
 	 * at vdso_base which is the "natural" base for it, but we might fail
 	 * and end up putting it elsewhere.
+	 * Add enough to the size so that the result can be aligned.
 	 */
 	down_write(&mm->mmap_sem);
 	vdso_base = get_unmapped_area(NULL, vdso_base,
-				      vdso_pages << PAGE_SHIFT, 0, 0);
+				      (vdso_pages << PAGE_SHIFT) +
+				      ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
+				      0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
 		rc = vdso_base;
 		goto fail_mmapsem;
 	}
+
+	/* Add required alignment. */
+	vdso_base = ALIGN(vdso_base, VDSO_ALIGNMENT);
+
+	/*
+	 * Put vDSO base into mm struct. We need to do this before calling
+	 * install_special_mapping or the perf counter mmap tracking code
+	 * will fail to recognise it as a vDSO (since arch_vma_name fails).
+	 */
+	current->mm->context.vdso_base = vdso_base;
 
 	/*
 	 * our vma flags don't have VM_WRITE so by default, the process isn't
@@ -254,11 +276,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
 				     VM_ALWAYSDUMP,
 				     vdso_pagelist);
-	if (rc)
+	if (rc) {
+		current->mm->context.vdso_base = 0;
 		goto fail_mmapsem;
-
-	/* Put vDSO base into mm struct */
-	current->mm->context.vdso_base = vdso_base;
+	}
 
 	up_write(&mm->mmap_sem);
 	return 0;
@@ -700,7 +721,7 @@ static int __init vdso_init(void)
 
 #ifdef CONFIG_PPC64
 	/*
-	 * Fill up the "systemcfg" stuff for backward compatiblity
+	 * Fill up the "systemcfg" stuff for backward compatibility
 	 */
 	strcpy((char *)vdso_data->eye_catcher, "SYSTEMCFG:PPC64");
 	vdso_data->version.major = SYSTEMCFG_MAJOR;
@@ -713,7 +734,7 @@ static int __init vdso_init(void)
 	vdso_data->platform = machine_is(iseries) ? 0x200 : 0x100;
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		vdso_data->platform |= 1;
-	vdso_data->physicalMemorySize = lmb_phys_mem_size();
+	vdso_data->physicalMemorySize = memblock_phys_mem_size();
 	vdso_data->dcache_size = ppc64_caches.dsize;
 	vdso_data->dcache_line_size = ppc64_caches.dline_size;
 	vdso_data->icache_size = ppc64_caches.isize;

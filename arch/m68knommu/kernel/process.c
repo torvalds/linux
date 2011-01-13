@@ -19,15 +19,14 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -221,6 +220,10 @@ int copy_thread(unsigned long clone_flags,
 
 	p->thread.usp = usp;
 	p->thread.ksp = (unsigned long)childstack;
+
+	if (clone_flags & CLONE_SETTLS)
+		task_thread_info(p)->tp_value = regs->d5;
+
 	/*
 	 * Must save the current SFC/DFC value, NOT the value when
 	 * the parent was last descheduled - RGH  10-08-96
@@ -290,7 +293,7 @@ void dump(struct pt_regs *fp)
 	unsigned char	*tp;
 	int		i;
 
-	printk(KERN_EMERG "\n" KERN_EMERG "CURRENT PROCESS:\n" KERN_EMERG "\n");
+	printk(KERN_EMERG "\nCURRENT PROCESS:\n\n");
 	printk(KERN_EMERG "COMM=%s PID=%d\n", current->comm, current->pid);
 
 	if (current->mm) {
@@ -301,8 +304,7 @@ void dump(struct pt_regs *fp)
 			(int) current->mm->end_data,
 			(int) current->mm->end_data,
 			(int) current->mm->brk);
-		printk(KERN_EMERG "USER-STACK=%08x KERNEL-STACK=%08x\n"
-			KERN_EMERG "\n",
+		printk(KERN_EMERG "USER-STACK=%08x KERNEL-STACK=%08x\n\n",
 			(int) current->mm->start_stack,
 			(int)(((unsigned long) current) + THREAD_SIZE));
 	}
@@ -313,55 +315,54 @@ void dump(struct pt_regs *fp)
 		fp->d0, fp->d1, fp->d2, fp->d3);
 	printk(KERN_EMERG "d4: %08lx    d5: %08lx    a0: %08lx    a1: %08lx\n",
 		fp->d4, fp->d5, fp->a0, fp->a1);
-	printk(KERN_EMERG "\n" KERN_EMERG "USP: %08x   TRAPFRAME: %08x\n",
-		(unsigned int) rdusp(), (unsigned int) fp);
+	printk(KERN_EMERG "\nUSP: %08x   TRAPFRAME: %p\n",
+		(unsigned int) rdusp(), fp);
 
-	printk(KERN_EMERG "\n" KERN_EMERG "CODE:");
+	printk(KERN_EMERG "\nCODE:");
 	tp = ((unsigned char *) fp->pc) - 0x20;
 	for (sp = (unsigned long *) tp, i = 0; (i < 0x40);  i += 4) {
 		if ((i % 0x10) == 0)
-			printk("\n" KERN_EMERG "%08x: ", (int) (tp + i));
+			printk(KERN_EMERG "%p: ", tp + i);
 		printk("%08x ", (int) *sp++);
 	}
-	printk("\n" KERN_EMERG "\n");
+	printk(KERN_EMERG "\n");
 
 	printk(KERN_EMERG "KERNEL STACK:");
 	tp = ((unsigned char *) fp) - 0x40;
 	for (sp = (unsigned long *) tp, i = 0; (i < 0xc0); i += 4) {
 		if ((i % 0x10) == 0)
-			printk("\n" KERN_EMERG "%08x: ", (int) (tp + i));
+			printk(KERN_EMERG "%p: ", tp + i);
 		printk("%08x ", (int) *sp++);
 	}
-	printk("\n" KERN_EMERG "\n");
+	printk(KERN_EMERG "\n");
 
 	printk(KERN_EMERG "USER STACK:");
 	tp = (unsigned char *) (rdusp() - 0x10);
 	for (sp = (unsigned long *) tp, i = 0; (i < 0x80); i += 4) {
 		if ((i % 0x10) == 0)
-			printk("\n" KERN_EMERG "%08x: ", (int) (tp + i));
+			printk(KERN_EMERG "%p: ", tp + i);
 		printk("%08x ", (int) *sp++);
 	}
-	printk("\n" KERN_EMERG "\n");
+	printk(KERN_EMERG "\n");
 }
 
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char *name, char **argv, char **envp)
+asmlinkage int sys_execve(const char *name,
+			  const char *const *argv,
+			  const char *const *envp)
 {
 	int error;
 	char * filename;
 	struct pt_regs *regs = (struct pt_regs *) &name;
 
-	lock_kernel();
 	filename = getname(name);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
-		goto out;
+		return error;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
-out:
-	unlock_kernel();
 	return error;
 }
 

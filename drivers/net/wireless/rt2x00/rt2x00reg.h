@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -63,7 +63,8 @@ enum led_mode {
 enum tsf_sync {
 	TSF_SYNC_NONE = 0,
 	TSF_SYNC_INFRA = 1,
-	TSF_SYNC_BEACON = 2,
+	TSF_SYNC_ADHOC = 2,
+	TSF_SYNC_AP_NONE = 3,
 };
 
 /*
@@ -82,12 +83,10 @@ enum dev_state {
  */
 	STATE_RADIO_ON,
 	STATE_RADIO_OFF,
-	STATE_RADIO_RX_ON,
-	STATE_RADIO_RX_OFF,
-	STATE_RADIO_RX_ON_LINK,
-	STATE_RADIO_RX_OFF_LINK,
 	STATE_RADIO_IRQ_ON,
 	STATE_RADIO_IRQ_OFF,
+	STATE_RADIO_IRQ_ON_ISR,
+	STATE_RADIO_IRQ_OFF_ISR,
 };
 
 /*
@@ -98,6 +97,16 @@ enum ifs {
 	IFS_SIFS = 1,
 	IFS_NEW_BACKOFF = 2,
 	IFS_NONE = 3,
+};
+
+/*
+ * IFS backoff values for HT devices
+ */
+enum txop {
+	TXOP_HTTXOP = 0,
+	TXOP_PIFS = 1,
+	TXOP_SIFS = 2,
+	TXOP_BACKOFF = 3,
 };
 
 /*
@@ -176,8 +185,8 @@ struct rt2x00_field32 {
 #define is_valid_mask(x)	is_power_of_two(1LU + (x) + low_bit_mask(x))
 
 /*
- * Macro's to find first set bit in a variable.
- * These macro's behaves the same as the __ffs() function with
+ * Macros to find first set bit in a variable.
+ * These macros behave the same as the __ffs() functions but
  * the most important difference that this is done during
  * compile-time rather then run-time.
  */

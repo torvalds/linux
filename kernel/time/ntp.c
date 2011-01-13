@@ -58,10 +58,10 @@ static s64			time_offset;
 static long			time_constant = 2;
 
 /* maximum error (usecs):						*/
-long				time_maxerror = NTP_PHASE_LIMIT;
+static long			time_maxerror = NTP_PHASE_LIMIT;
 
 /* estimated error (usecs):						*/
-long				time_esterror = NTP_PHASE_LIMIT;
+static long			time_esterror = NTP_PHASE_LIMIT;
 
 /* frequency offset (scaled nsecs/secs):				*/
 static s64			time_freq;
@@ -69,7 +69,7 @@ static s64			time_freq;
 /* time at last adjustment (secs):					*/
 static long			time_reftime;
 
-long				time_adjust;
+static long			time_adjust;
 
 /* constant (boot-param configurable) NTP tick adjustment (upscaled)	*/
 static s64			ntp_tick_adj;
@@ -142,17 +142,25 @@ static void ntp_update_offset(long offset)
 	 * Select how the frequency is to be controlled
 	 * and in which mode (PLL or FLL).
 	 */
-	secs = xtime.tv_sec - time_reftime;
+	secs = get_seconds() - time_reftime;
 	if (unlikely(time_status & STA_FREQHOLD))
 		secs = 0;
 
-	time_reftime = xtime.tv_sec;
+	time_reftime = get_seconds();
 
 	offset64    = offset;
-	freq_adj    = (offset64 * secs) <<
-			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant));
+	freq_adj    = ntp_update_offset_fll(offset64, secs);
 
-	freq_adj    += ntp_update_offset_fll(offset64, secs);
+	/*
+	 * Clamp update interval to reduce PLL gain with low
+	 * sampling rate (e.g. intermittent network connection)
+	 * to avoid instability.
+	 */
+	if (unlikely(secs > 1 << (SHIFT_PLL + 1 + time_constant)))
+		secs = 1 << (SHIFT_PLL + 1 + time_constant);
+
+	freq_adj    += (offset64 * secs) <<
+			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant));
 
 	freq_adj    = min(freq_adj + time_freq, MAXFREQ_SCALED);
 
@@ -194,8 +202,7 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 	case TIME_OK:
 		break;
 	case TIME_INS:
-		xtime.tv_sec--;
-		wall_to_monotonic.tv_sec++;
+		timekeeping_leap_insert(-1);
 		time_state = TIME_OOP;
 		printk(KERN_NOTICE
 			"Clock: inserting leap second 23:59:60 UTC\n");
@@ -203,9 +210,8 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 		res = HRTIMER_RESTART;
 		break;
 	case TIME_DEL:
-		xtime.tv_sec++;
+		timekeeping_leap_insert(1);
 		time_tai--;
-		wall_to_monotonic.tv_sec--;
 		time_state = TIME_WAIT;
 		printk(KERN_NOTICE
 			"Clock: deleting leap second 23:59:59 UTC\n");
@@ -219,7 +225,6 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 			time_state = TIME_OK;
 		break;
 	}
-	update_vsyscall(&xtime, clock);
 
 	write_sequnlock(&xtime_lock);
 
@@ -371,7 +376,7 @@ static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 	 * reference time to current time.
 	 */
 	if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
-		time_reftime = xtime.tv_sec;
+		time_reftime = get_seconds();
 
 	/* only set allowed bits */
 	time_status &= STA_RONLY;

@@ -25,6 +25,7 @@
 #include <linux/ioctl.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <asm/io.h>
@@ -35,6 +36,7 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 
+static DEFINE_MUTEX(swim3_mutex);
 static struct request_queue *swim3_queue;
 static struct gendisk *disks[2];
 static struct request *fd_req;
@@ -200,7 +202,7 @@ struct floppy_state {
 	int	ejected;
 	wait_queue_head_t wait;
 	int	wanted;
-	struct device_node*	media_bay; /* NULL when not in bay */
+	struct macio_dev *mdev;
 	char	dbdma_cmd_space[5 * sizeof(struct dbdma_cmd)];
 };
 
@@ -303,14 +305,13 @@ static int swim3_readbit(struct floppy_state *fs, int bit)
 static void do_fd_request(struct request_queue * q)
 {
 	int i;
-	for(i=0;i<floppy_count;i++)
-	{
-#ifdef CONFIG_PMAC_MEDIABAY
-		if (floppy_states[i].media_bay &&
-			check_media_bay(floppy_states[i].media_bay, MB_FD))
+
+	for(i=0; i<floppy_count; i++) {
+		struct floppy_state *fs = &floppy_states[i];
+		if (fs->mdev->media_bay &&
+		    check_media_bay(fs->mdev->media_bay) != MB_FD)
 			continue;
-#endif /* CONFIG_PMAC_MEDIABAY */
-		start_request(&floppy_states[i]);
+		start_request(fs);
 	}
 }
 
@@ -840,7 +841,7 @@ static int fd_eject(struct floppy_state *fs)
 static struct floppy_struct floppy_type =
 	{ 2880,18,2,80,0,0x1B,0x00,0xCF,0x6C,NULL };	/*  7 1.44MB 3.5"   */
 
-static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
+static int floppy_locked_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long param)
 {
 	struct floppy_state *fs = bdev->bd_disk->private_data;
@@ -849,10 +850,9 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 	if ((cmd & 0x80) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-#ifdef CONFIG_PMAC_MEDIABAY
-	if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
+	if (fs->mdev->media_bay &&
+	    check_media_bay(fs->mdev->media_bay) != MB_FD)
 		return -ENXIO;
-#endif
 
 	switch (cmd) {
 	case FDEJECT:
@@ -869,6 +869,18 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 	return -ENOTTY;
 }
 
+static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
+				 unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	mutex_lock(&swim3_mutex);
+	ret = floppy_locked_ioctl(bdev, mode, cmd, param);
+	mutex_unlock(&swim3_mutex);
+
+	return ret;
+}
+
 static int floppy_open(struct block_device *bdev, fmode_t mode)
 {
 	struct floppy_state *fs = bdev->bd_disk->private_data;
@@ -876,10 +888,9 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	int n, err = 0;
 
 	if (fs->ref_count == 0) {
-#ifdef CONFIG_PMAC_MEDIABAY
-		if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
+		if (fs->mdev->media_bay &&
+		    check_media_bay(fs->mdev->media_bay) != MB_FD)
 			return -ENXIO;
-#endif
 		out_8(&sw->setup, S_IBM_DRIVE | S_FCLK_DIV2);
 		out_8(&sw->control_bic, 0xff);
 		out_8(&sw->mode, 0x95);
@@ -939,15 +950,28 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
+static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	mutex_lock(&swim3_mutex);
+	ret = floppy_open(bdev, mode);
+	mutex_unlock(&swim3_mutex);
+
+	return ret;
+}
+
 static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct floppy_state *fs = disk->private_data;
 	struct swim3 __iomem *sw = fs->swim3;
+	mutex_lock(&swim3_mutex);
 	if (fs->ref_count > 0 && --fs->ref_count == 0) {
 		swim3_action(fs, MOTOR_OFF);
 		out_8(&sw->control_bic, 0xff);
 		swim3_select(fs, RELAX);
 	}
+	mutex_unlock(&swim3_mutex);
 	return 0;
 }
 
@@ -963,10 +987,9 @@ static int floppy_revalidate(struct gendisk *disk)
 	struct swim3 __iomem *sw;
 	int ret, n;
 
-#ifdef CONFIG_PMAC_MEDIABAY
-	if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
+	if (fs->mdev->media_bay &&
+	    check_media_bay(fs->mdev->media_bay) != MB_FD)
 		return -ENXIO;
-#endif
 
 	sw = fs->swim3;
 	grab_drive(fs, revalidating, 0);
@@ -998,18 +1021,17 @@ static int floppy_revalidate(struct gendisk *disk)
 	return ret;
 }
 
-static struct block_device_operations floppy_fops = {
-	.open		= floppy_open,
+static const struct block_device_operations floppy_fops = {
+	.open		= floppy_unlocked_open,
 	.release	= floppy_release,
-	.locked_ioctl	= floppy_ioctl,
+	.ioctl		= floppy_ioctl,
 	.media_changed	= floppy_check_change,
 	.revalidate_disk= floppy_revalidate,
 };
 
 static int swim3_add_device(struct macio_dev *mdev, int index)
 {
-	struct device_node *swim = mdev->ofdev.node;
-	struct device_node *mediabay;
+	struct device_node *swim = mdev->ofdev.dev.of_node;
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 
@@ -1036,9 +1058,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	}
 	dev_set_drvdata(&mdev->ofdev.dev, fs);
 
-	mediabay = (strcasecmp(swim->parent->type, "media-bay") == 0) ?
-		swim->parent : NULL;
-	if (mediabay == NULL)
+	if (mdev->media_bay == NULL)
 		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 1);
 	
 	memset(fs, 0, sizeof(*fs));
@@ -1062,13 +1082,13 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 		goto out_release;
 	}
 	fs->swim3_intr = macio_irq(mdev, 0);
-	fs->dma_intr = macio_irq(mdev, 1);;
+	fs->dma_intr = macio_irq(mdev, 1);
 	fs->cur_cyl = -1;
 	fs->cur_sector = -1;
 	fs->secpercyl = 36;
 	fs->secpertrack = 18;
 	fs->total_secs = 2880;
-	fs->media_bay = mediabay;
+	fs->mdev = mdev;
 	init_waitqueue_head(&fs->wait);
 
 	fs->dma_cmd = (struct dbdma_cmd *) DBDMA_ALIGN(fs->dbdma_cmd_space);
@@ -1093,7 +1113,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	init_timer(&fs->timeout);
 
 	printk(KERN_INFO "fd%d: SWIM3 floppy controller %s\n", floppy_count,
-		mediabay ? "in media bay" : "");
+		mdev->media_bay ? "in media bay" : "");
 
 	return 0;
 
@@ -1166,8 +1186,10 @@ static struct of_device_id swim3_match[] =
 
 static struct macio_driver swim3_driver =
 {
-	.name 		= "swim3",
-	.match_table	= swim3_match,
+	.driver = {
+		.name 		= "swim3",
+		.of_match_table	= swim3_match,
+	},
 	.probe		= swim3_attach,
 #if 0
 	.suspend	= swim3_suspend,

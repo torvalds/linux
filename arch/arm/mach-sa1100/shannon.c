@@ -59,8 +59,8 @@ static struct mcp_plat_data shannon_mcp_data = {
 
 static void __init shannon_init(void)
 {
-	sa11x0_set_flash_data(&shannon_flash_data, &shannon_flash_resource, 1);
-	sa11x0_set_mcp_data(&shannon_mcp_data);
+	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);
+	sa11x0_register_mcp(&shannon_mcp_data);
 }
 
 static void __init shannon_map_io(void)
@@ -82,8 +82,6 @@ static void __init shannon_map_io(void)
 }
 
 MACHINE_START(SHANNON, "Shannon (AKA: Tuxscreen)")
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
 	.map_io		= shannon_map_io,
 	.init_irq	= sa1100_init_irq,

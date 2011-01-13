@@ -42,8 +42,8 @@ static void increment_scan_progress(struct comedi_subdevice *subd,
 }
 
 /* Writes an array of data points to comedi's buffer */
-unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd, void *data,
-				       unsigned int num_bytes)
+unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd,
+				       void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = subd->async;
 	unsigned int retval;
@@ -53,7 +53,7 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd, void *data
 
 	retval = comedi_buf_write_alloc(async, num_bytes);
 	if (retval != num_bytes) {
-		printk("comedi: buffer overrun\n");
+		printk(KERN_WARNING "comedi: buffer overrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
 	}
@@ -67,8 +67,8 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd, void *data
 }
 EXPORT_SYMBOL(cfc_write_array_to_buffer);
 
-unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd, void *data,
-					unsigned int num_bytes)
+unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
+					void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = subd->async;
 
@@ -85,7 +85,8 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd, void *dat
 }
 EXPORT_SYMBOL(cfc_read_array_from_buffer);
 
-unsigned int cfc_handle_events(struct comedi_device *dev, struct comedi_subdevice *subd)
+unsigned int cfc_handle_events(struct comedi_device *dev,
+			       struct comedi_subdevice *subd)
 {
 	unsigned int events = subd->async->events;
 

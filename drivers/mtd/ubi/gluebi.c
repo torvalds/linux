@@ -31,6 +31,7 @@
 
 #include <linux/err.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/math64.h>
 #include <linux/module.h>
@@ -332,6 +333,7 @@ static int gluebi_create(struct ubi_device_info *di,
 	}
 
 	gluebi->vol_id = vi->vol_id;
+	gluebi->ubi_num = vi->ubi_num;
 	mtd->type = MTD_UBIVOLUME;
 	if (!di->ro_mode)
 		mtd->flags = MTD_WRITEABLE;

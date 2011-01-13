@@ -1,0 +1,22 @@
+perf-archive(1)
+===============
+
+NAME
+----
+perf-archive - Create archive with object files with build-ids found in perf.data file
+
+SYNOPSIS
+--------
+[verse]
+'perf archive' [file]
+
+DESCRIPTION
+-----------
+This command runs runs perf-buildid-list --with-hits, and collects the files
+with the buildids found so that analisys of perf.data contents can be possible
+on another machine.
+
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-buildid-list[1], linkperf:perf-report[1]

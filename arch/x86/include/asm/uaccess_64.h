@@ -8,6 +8,8 @@
 #include <linux/errno.h>
 #include <linux/prefetch.h>
 #include <linux/lockdep.h>
+#include <asm/alternative.h>
+#include <asm/cpufeature.h>
 #include <asm/page.h>
 
 /*
@@ -16,14 +18,55 @@
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
 __must_check unsigned long
-copy_user_generic(void *to, const void *from, unsigned len);
+copy_user_generic_string(void *to, const void *from, unsigned len);
+__must_check unsigned long
+copy_user_generic_unrolled(void *to, const void *from, unsigned len);
+
+static __always_inline __must_check unsigned long
+copy_user_generic(void *to, const void *from, unsigned len)
+{
+	unsigned ret;
+
+	alternative_call(copy_user_generic_unrolled,
+			 copy_user_generic_string,
+			 X86_FEATURE_REP_GOOD,
+			 ASM_OUTPUT2("=a" (ret), "=D" (to), "=S" (from),
+				     "=d" (len)),
+			 "1" (to), "2" (from), "3" (len)
+			 : "memory", "rcx", "r8", "r9", "r10", "r11");
+	return ret;
+}
 
 __must_check unsigned long
-copy_to_user(void __user *to, const void *from, unsigned len);
+_copy_to_user(void __user *to, const void *from, unsigned len);
 __must_check unsigned long
-copy_from_user(void *to, const void __user *from, unsigned len);
+_copy_from_user(void *to, const void __user *from, unsigned len);
 __must_check unsigned long
 copy_in_user(void __user *to, const void __user *from, unsigned len);
+
+static inline unsigned long __must_check copy_from_user(void *to,
+					  const void __user *from,
+					  unsigned long n)
+{
+	int sz = __compiletime_object_size(to);
+
+	might_fault();
+	if (likely(sz == -1 || sz >= n))
+		n = _copy_from_user(to, from, n);
+#ifdef CONFIG_DEBUG_VM
+	else
+		WARN(1, "Buffer overflow detected!\n");
+#endif
+	return n;
+}
+
+static __always_inline __must_check
+int copy_to_user(void __user *dst, const void *src, unsigned size)
+{
+	might_fault();
+
+	return _copy_to_user(dst, src, size);
+}
 
 static __always_inline __must_check
 int __copy_from_user(void *dst, const void __user *src, unsigned size)
@@ -88,11 +131,11 @@ int __copy_to_user(void __user *dst, const void *src, unsigned size)
 			      ret, "l", "k", "ir", 4);
 		return ret;
 	case 8:__put_user_asm(*(u64 *)src, (u64 __user *)dst,
-			      ret, "q", "", "ir", 8);
+			      ret, "q", "", "er", 8);
 		return ret;
 	case 10:
 		__put_user_asm(*(u64 *)src, (u64 __user *)dst,
-			       ret, "q", "", "ir", 10);
+			       ret, "q", "", "er", 10);
 		if (unlikely(ret))
 			return ret;
 		asm("":::"memory");
@@ -101,12 +144,12 @@ int __copy_to_user(void __user *dst, const void *src, unsigned size)
 		return ret;
 	case 16:
 		__put_user_asm(*(u64 *)src, (u64 __user *)dst,
-			       ret, "q", "", "ir", 16);
+			       ret, "q", "", "er", 16);
 		if (unlikely(ret))
 			return ret;
 		asm("":::"memory");
 		__put_user_asm(1[(u64 *)src], 1 + (u64 __user *)dst,
-			       ret, "q", "", "ir", 8);
+			       ret, "q", "", "er", 8);
 		return ret;
 	default:
 		return copy_user_generic((__force void *)dst, src, size);
@@ -157,7 +200,7 @@ int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 			       ret, "q", "", "=r", 8);
 		if (likely(!ret))
 			__put_user_asm(tmp, (u64 __user *)dst,
-				       ret, "q", "", "ir", 8);
+				       ret, "q", "", "er", 8);
 		return ret;
 	}
 	default:
@@ -176,8 +219,11 @@ __must_check long strlen_user(const char __user *str);
 __must_check unsigned long clear_user(void __user *mem, unsigned long len);
 __must_check unsigned long __clear_user(void __user *mem, unsigned long len);
 
-__must_check long __copy_from_user_inatomic(void *dst, const void __user *src,
-					    unsigned size);
+static __must_check __always_inline int
+__copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)
+{
+	return copy_user_generic(dst, (__force const void *)src, size);
+}
 
 static __must_check __always_inline int
 __copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)

@@ -48,9 +48,9 @@ enum fixed_addresses {
 #define FIX_N_COLOURS 8
 	FIX_CMAP_BEGIN,
 #ifdef CONFIG_MIPS_MT_SMTC
-	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS),
+	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS * 2),
 #else
-	FIX_CMAP_END = FIX_CMAP_BEGIN + FIX_N_COLOURS,
+	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * 2),
 #endif
 #ifdef CONFIG_HIGHMEM
 	/* reserved pte's for temporary kernel mappings */
@@ -67,10 +67,14 @@ enum fixed_addresses {
  * the start of the fixmap, and leave one page empty
  * at the top of mem..
  */
+#ifdef CONFIG_BCM63XX
+#define FIXADDR_TOP     ((unsigned long)(long)(int)0xff000000)
+#else
 #if defined(CONFIG_CPU_TX39XX) || defined(CONFIG_CPU_TX49XX)
 #define FIXADDR_TOP	((unsigned long)(long)(int)(0xff000000 - 0x20000))
 #else
 #define FIXADDR_TOP	((unsigned long)(long)(int)0xfffe0000)
+#endif
 #endif
 #define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)

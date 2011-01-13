@@ -56,6 +56,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 
 #define my_VERSION	MPT_LINUX_VERSION_COMMON
 #define MYNAM		"mptlan"
@@ -795,7 +797,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 			IOC_AND_NETDEV_NAMES_s_s(dev),
 			le32_to_cpu(pSimple->FlagsLength)));
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1450,7 +1452,9 @@ static int __init mpt_lan_init (void)
 {
 	show_mptmod_ver(LANAME, LANVER);
 
-	if ((LanCtx = mpt_register(lan_reply, MPTLAN_DRIVER)) <= 0) {
+	LanCtx = mpt_register(lan_reply, MPTLAN_DRIVER,
+				"lan_reply");
+	if (LanCtx <= 0) {
 		printk (KERN_ERR MYNAM ": Failed to register with MPT base driver\n");
 		return -EBUSY;
 	}

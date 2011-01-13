@@ -14,6 +14,8 @@
  * 	$Id: xircom_cb.c,v 1.33 2001/03/19 14:02:07 arjanv Exp $
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -27,7 +29,6 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/ethtool.h>
 #include <linux/bitops.h>
 
 #include <asm/uaccess.h>
@@ -113,7 +114,8 @@ struct xircom_private {
 static int xircom_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void xircom_remove(struct pci_dev *pdev);
 static irqreturn_t xircom_interrupt(int irq, void *dev_instance);
-static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t xircom_start_xmit(struct sk_buff *skb,
+					   struct net_device *dev);
 static int xircom_open(struct net_device *dev);
 static int xircom_close(struct net_device *dev);
 static void xircom_up(struct xircom_private *card);
@@ -143,7 +145,7 @@ static int link_status(struct xircom_private *card);
 
 
 
-static struct pci_device_id xircom_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(xircom_pci_table) = {
 	{0x115D, 0x0003, PCI_ANY_ID, PCI_ANY_ID,},
 	{0,},
 };
@@ -177,19 +179,6 @@ static void print_binary(unsigned int number)
 	printk("%s\n",buffer);
 }
 #endif
-
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	struct xircom_private *private = netdev_priv(dev);
-
-	strcpy(info->driver, "xircom_cb");
-	strcpy(info->bus_info, pci_name(private->pdev));
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo		= netdev_get_drvinfo,
-};
 
 static const struct net_device_ops netdev_ops = {
 	.ndo_open		= xircom_open,
@@ -233,7 +222,7 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	pci_write_config_word (pdev, PCI_STATUS,tmp16);
 
 	if (!request_region(pci_resource_start(pdev, 0), 128, "xircom_cb")) {
-		printk(KERN_ERR "xircom_probe: failed to allocate io-region\n");
+		pr_err("%s: failed to allocate io-region\n", __func__);
 		return -ENODEV;
 	}
 
@@ -244,7 +233,7 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	 */
 	dev = alloc_etherdev(sizeof(struct xircom_private));
 	if (!dev) {
-		printk(KERN_ERR "xircom_probe: failed to allocate etherdev\n");
+		pr_err("%s: failed to allocate etherdev\n", __func__);
 		goto device_fail;
 	}
 	private = netdev_priv(dev);
@@ -252,12 +241,12 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	/* Allocate the send/receive buffers */
 	private->rx_buffer = pci_alloc_consistent(pdev,8192,&private->rx_dma_handle);
 	if (private->rx_buffer == NULL) {
- 		printk(KERN_ERR "xircom_probe: no memory for rx buffer \n");
+		pr_err("%s: no memory for rx buffer\n", __func__);
 		goto rx_buf_fail;
 	}
 	private->tx_buffer = pci_alloc_consistent(pdev,8192,&private->tx_dma_handle);
 	if (private->tx_buffer == NULL) {
-		printk(KERN_ERR "xircom_probe: no memory for tx buffer \n");
+		pr_err("%s: no memory for tx buffer\n", __func__);
 		goto tx_buf_fail;
 	}
 
@@ -276,15 +265,15 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	setup_descriptors(private);
 
 	dev->netdev_ops = &netdev_ops;
-	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 	pci_set_drvdata(pdev, dev);
 
 	if (register_netdev(dev)) {
-		printk(KERN_ERR "xircom_probe: netdevice registration failed.\n");
+		pr_err("%s: netdevice registration failed\n", __func__);
 		goto reg_fail;
 	}
 
-	printk(KERN_INFO "%s: Xircom cardbus revision %i at irq %i \n", dev->name, pdev->revision, pdev->irq);
+	dev_info(&dev->dev, "Xircom cardbus revision %i at irq %i\n",
+		 pdev->revision, pdev->irq);
 	/* start the transmitter to get a heartbeat */
 	/* TODO: send 2 dummy packets here */
 	transceiver_voodoo(private);
@@ -346,8 +335,10 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 
 #ifdef DEBUG
 	print_binary(status);
-	printk("tx status 0x%08x 0x%08x \n",card->tx_buffer[0],card->tx_buffer[4]);
-	printk("rx status 0x%08x 0x%08x \n",card->rx_buffer[0],card->rx_buffer[4]);
+	printk("tx status 0x%08x 0x%08x\n",
+	       card->tx_buffer[0], card->tx_buffer[4]);
+	printk("rx status 0x%08x 0x%08x\n",
+	       card->rx_buffer[0], card->rx_buffer[4]);
 #endif
 	/* Handle shared irq and hotplug */
 	if (status == 0 || status == 0xffffffff) {
@@ -357,9 +348,9 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 
 	if (link_status_changed(card)) {
 		int newlink;
-		printk(KERN_DEBUG "xircom_cb: Link status has changed \n");
+		printk(KERN_DEBUG "xircom_cb: Link status has changed\n");
 		newlink = link_status(card);
-		printk(KERN_INFO  "xircom_cb: Link is %i mbit \n",newlink);
+		dev_info(&dev->dev, "Link is %i mbit\n", newlink);
 		if (newlink)
 			netif_carrier_on(dev);
 		else
@@ -384,7 +375,8 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t xircom_start_xmit(struct sk_buff *skb,
+					   struct net_device *dev)
 {
 	struct xircom_private *card;
 	unsigned long flags;
@@ -434,7 +426,7 @@ static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			card->transmit_used = nextdescriptor;
 			leave("xircom-start_xmit - sent");
 			spin_unlock_irqrestore(&card->lock,flags);
-			return 0;
+			return NETDEV_TX_OK;
 	}
 
 
@@ -455,8 +447,9 @@ static int xircom_open(struct net_device *dev)
 	struct xircom_private *xp = netdev_priv(dev);
 	int retval;
 	enter("xircom_open");
-	printk(KERN_INFO "xircom cardbus adaptor found, registering as %s, using irq %i \n",dev->name,dev->irq);
-	retval = request_irq(dev->irq, &xircom_interrupt, IRQF_SHARED, dev->name, dev);
+	pr_info("xircom cardbus adaptor found, registering as %s, using irq %i\n",
+		dev->name, dev->irq);
+	retval = request_irq(dev->irq, xircom_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval) {
 		leave("xircom_open - No IRQ");
 		return retval;
@@ -768,7 +761,7 @@ static void activate_receiver(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			printk(KERN_ERR "xircom_cb: Receiver failed to deactivate\n");
+			pr_err("Receiver failed to deactivate\n");
 	}
 
 	/* enable the receiver */
@@ -785,7 +778,7 @@ static void activate_receiver(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			printk(KERN_ERR "xircom_cb: Receiver failed to re-activate\n");
+			pr_err("Receiver failed to re-activate\n");
 	}
 
 	leave("activate_receiver");
@@ -816,7 +809,7 @@ static void deactivate_receiver(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			printk(KERN_ERR "xircom_cb: Receiver failed to deactivate\n");
+			pr_err("Receiver failed to deactivate\n");
 	}
 
 
@@ -859,7 +852,7 @@ static void activate_transmitter(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			printk(KERN_ERR "xircom_cb: Transmitter failed to deactivate\n");
+			pr_err("Transmitter failed to deactivate\n");
 	}
 
 	/* enable the transmitter */
@@ -876,7 +869,7 @@ static void activate_transmitter(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			printk(KERN_ERR "xircom_cb: Transmitter failed to re-activate\n");
+			pr_err("Transmitter failed to re-activate\n");
 	}
 
 	leave("activate_transmitter");
@@ -907,7 +900,7 @@ static void deactivate_transmitter(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			printk(KERN_ERR "xircom_cb: Transmitter failed to deactivate\n");
+			pr_err("Transmitter failed to deactivate\n");
 	}
 
 
@@ -1182,7 +1175,7 @@ static void investigate_read_descriptor(struct net_device *dev,struct xircom_pri
 			struct sk_buff *skb;
 
 			if (pkt_len > 1518) {
-				printk(KERN_ERR "xircom_cb: Packet length %i is bogus \n",pkt_len);
+				pr_err("Packet length %i is bogus\n", pkt_len);
 				pkt_len = 1518;
 			}
 
@@ -1220,7 +1213,7 @@ static void investigate_write_descriptor(struct net_device *dev, struct xircom_p
 		status = le32_to_cpu(card->tx_buffer[4*descnr]);
 #if 0
 		if (status & 0x8000) {	/* Major error */
-			printk(KERN_ERR "Major transmit error status %x \n", status);
+			pr_err("Major transmit error status %x\n", status);
 			card->tx_buffer[4*descnr] = 0;
 			netif_wake_queue (dev);
 		}

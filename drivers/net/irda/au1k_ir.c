@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
@@ -37,6 +36,7 @@
 #include <asm/pb1000.h>
 #elif defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100)
 #include <asm/db1x00.h>
+#include <asm/mach-db1x00/bcsr.h>
 #else 
 #error au1k_ir: unsupported board
 #endif
@@ -66,10 +66,6 @@ static char version[] __devinitdata =
     "au1k_ircc:1.2 ppopov@mvista.com\n";
 
 #define RUN_AT(x) (jiffies + (x))
-
-#if defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100)
-static BCSR * const bcsr = (BCSR *)0xAE000000;
-#endif
 
 static DEFINE_SPINLOCK(ir_lock);
 
@@ -205,9 +201,6 @@ static const struct net_device_ops au1k_irda_netdev_ops = {
 	.ndo_start_xmit		= au1k_irda_hard_xmit,
 	.ndo_tx_timeout		= au1k_tx_timeout,
 	.ndo_do_ioctl		= au1k_irda_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
 };
 
 static int au1k_irda_net_init(struct net_device *dev)
@@ -286,9 +279,8 @@ static int au1k_irda_net_init(struct net_device *dev)
 
 #if defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100)
 	/* power on */
-	bcsr->resets &= ~BCSR_RESETS_IRDA_MODE_MASK;
-	bcsr->resets |= BCSR_RESETS_IRDA_MODE_FULL;
-	au_sync();
+	bcsr_mod(BCSR_RESETS, BCSR_RESETS_IRDA_MODE_MASK,
+			      BCSR_RESETS_IRDA_MODE_FULL);
 #endif
 
 	return 0;
@@ -357,13 +349,13 @@ static int au1k_irda_start(struct net_device *dev)
 		return retval;
 	}
 
-	if ((retval = request_irq(AU1000_IRDA_TX_INT, &au1k_irda_interrupt, 
+	if ((retval = request_irq(AU1000_IRDA_TX_INT, au1k_irda_interrupt, 
 					0, dev->name, dev))) {
 		printk(KERN_ERR "%s: unable to get IRQ %d\n", 
 				dev->name, dev->irq);
 		return retval;
 	}
-	if ((retval = request_irq(AU1000_IRDA_RX_INT, &au1k_irda_interrupt, 
+	if ((retval = request_irq(AU1000_IRDA_RX_INT, au1k_irda_interrupt, 
 					0, dev->name, dev))) {
 		free_irq(AU1000_IRDA_TX_INT, dev);
 		printk(KERN_ERR "%s: unable to get IRQ %d\n", 
@@ -502,7 +494,7 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 			aup->newspeed = 0;
 		}
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	ptxd = aup->tx_ring[aup->tx_head];
@@ -554,8 +546,7 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_IR_DESC - 1);
-	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -724,14 +715,14 @@ au1k_irda_set_speed(struct net_device *dev, int speed)
 
 	if (speed == 4000000) {
 #if defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100)
-		bcsr->resets |= BCSR_RESETS_FIR_SEL;
+		bcsr_mod(BCSR_RESETS, 0, BCSR_RESETS_FIR_SEL);
 #else /* Pb1000 and Pb1100 */
 		writel(1<<13, CPLD_AUX1);
 #endif
 	}
 	else {
 #if defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100)
-		bcsr->resets &= ~BCSR_RESETS_FIR_SEL;
+		bcsr_mod(BCSR_RESETS, BCSR_RESETS_FIR_SEL, 0);
 #else /* Pb1000 and Pb1100 */
 		writel(readl(CPLD_AUX1) & ~(1<<13), CPLD_AUX1);
 #endif

@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/kfifo.h>
 #include <scsi/iscsi_proto.h>
 #include <scsi/iscsi_if.h>
 #include <scsi/scsi_transport_iscsi.h>
@@ -88,6 +89,7 @@ enum {
 	ISCSI_TASK_RUNNING,
 	ISCSI_TASK_ABRT_TMF,		/* aborted due to TMF */
 	ISCSI_TASK_ABRT_SESS_RECOV,	/* aborted due to session recovery */
+	ISCSI_TASK_REQUEUE_SCSIQ,	/* qcmd requeueing to scsi-ml */
 };
 
 struct iscsi_r2t_info {
@@ -125,6 +127,10 @@ struct iscsi_task {
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
 	struct iscsi_conn	*conn;		/* used connection    */
 
+	/* data processing tracking */
+	unsigned long		last_xfer;
+	unsigned long		last_timeout;
+	bool			have_checked_conn;
 	/* state set/tested under session->lock */
 	int			state;
 	atomic_t		refcount;
@@ -227,7 +233,7 @@ struct iscsi_conn {
 };
 
 struct iscsi_pool {
-	struct kfifo		*queue;		/* FIFO Queue */
+	struct kfifo		queue;		/* FIFO Queue */
 	void			**pool;		/* Pool of elements */
 	int			max;		/* Max number of elements */
 };
@@ -263,6 +269,7 @@ struct iscsi_session {
 	/* configuration */
 	int			abort_timeout;
 	int			lu_reset_timeout;
+	int			tgt_reset_timeout;
 	int			initial_r2t_en;
 	unsigned		max_r2t;
 	int			imm_data_en;
@@ -299,6 +306,7 @@ struct iscsi_session {
 	int			cmds_max;	/* size of cmds array */
 	struct iscsi_task	**cmds;		/* Original Cmds arr */
 	struct iscsi_pool	cmdpool;	/* PDU's pool */
+	void			*dd_data;	/* LLD private data */
 };
 
 enum {
@@ -328,12 +336,13 @@ struct iscsi_host {
 /*
  * scsi host template
  */
-extern int iscsi_change_queue_depth(struct scsi_device *sdev, int depth);
+extern int iscsi_change_queue_depth(struct scsi_device *sdev, int depth,
+				    int reason);
 extern int iscsi_eh_abort(struct scsi_cmnd *sc);
-extern int iscsi_eh_target_reset(struct scsi_cmnd *sc);
+extern int iscsi_eh_recover_target(struct scsi_cmnd *sc);
+extern int iscsi_eh_session_reset(struct scsi_cmnd *sc);
 extern int iscsi_eh_device_reset(struct scsi_cmnd *sc);
-extern int iscsi_queuecommand(struct scsi_cmnd *sc,
-			      void (*done)(struct scsi_cmnd *));
+extern int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc);
 
 /*
  * iSCSI host helpers.
@@ -359,7 +368,7 @@ extern int iscsi_target_alloc(struct scsi_target *starget);
  */
 extern struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *, struct Scsi_Host *shost,
-		    uint16_t, int, uint32_t, unsigned int);
+		    uint16_t, int, int, uint32_t, unsigned int);
 extern void iscsi_session_teardown(struct iscsi_cls_session *);
 extern void iscsi_session_recovery_timedout(struct iscsi_cls_session *);
 extern int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
@@ -386,6 +395,7 @@ extern void iscsi_session_failure(struct iscsi_session *session,
 extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 				enum iscsi_param param, char *buf);
 extern void iscsi_suspend_tx(struct iscsi_conn *conn);
+extern void iscsi_suspend_queue(struct iscsi_conn *conn);
 extern void iscsi_conn_queue_work(struct iscsi_conn *conn);
 
 #define iscsi_conn_printk(prefix, _c, fmt, a...) \
@@ -410,7 +420,10 @@ extern struct iscsi_task *iscsi_itt_to_ctask(struct iscsi_conn *, itt_t);
 extern struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *, itt_t);
 extern void iscsi_requeue_task(struct iscsi_task *task);
 extern void iscsi_put_task(struct iscsi_task *task);
+extern void __iscsi_put_task(struct iscsi_task *task);
 extern void __iscsi_get_task(struct iscsi_task *task);
+extern void iscsi_complete_scsi_task(struct iscsi_task *task,
+				     uint32_t exp_cmdsn, uint32_t max_cmdsn);
 
 /*
  * generic helpers

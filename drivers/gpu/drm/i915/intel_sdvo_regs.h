@@ -312,7 +312,7 @@ struct intel_sdvo_set_target_input_args {
 # define SDVO_CLOCK_RATE_MULT_4X				(1 << 3)
 
 #define SDVO_CMD_GET_SUPPORTED_TV_FORMATS		0x27
-/** 5 bytes of bit flags for TV formats shared by all TV format functions */
+/** 6 bytes of bit flags for TV formats shared by all TV format functions */
 struct intel_sdvo_tv_format {
     unsigned int ntsc_m:1;
     unsigned int ntsc_j:1;
@@ -596,32 +596,32 @@ struct intel_sdvo_enhancements_reply {
     unsigned int overscan_h:1;
 
     unsigned int overscan_v:1;
-    unsigned int position_h:1;
-    unsigned int position_v:1;
+    unsigned int hpos:1;
+    unsigned int vpos:1;
     unsigned int sharpness:1;
     unsigned int dot_crawl:1;
     unsigned int dither:1;
-    unsigned int max_tv_chroma_filter:1;
-    unsigned int max_tv_luma_filter:1;
+    unsigned int tv_chroma_filter:1;
+    unsigned int tv_luma_filter:1;
 } __attribute__((packed));
 
 /* Picture enhancement limits below are dependent on the current TV format,
  * and thus need to be queried and set after it.
  */
-#define SDVO_CMD_GET_MAX_FLICKER_FITER			0x4d
-#define SDVO_CMD_GET_MAX_ADAPTIVE_FLICKER_FITER		0x7b
-#define SDVO_CMD_GET_MAX_2D_FLICKER_FITER		0x52
+#define SDVO_CMD_GET_MAX_FLICKER_FILTER			0x4d
+#define SDVO_CMD_GET_MAX_FLICKER_FILTER_ADAPTIVE	0x7b
+#define SDVO_CMD_GET_MAX_FLICKER_FILTER_2D		0x52
 #define SDVO_CMD_GET_MAX_SATURATION			0x55
 #define SDVO_CMD_GET_MAX_HUE				0x58
 #define SDVO_CMD_GET_MAX_BRIGHTNESS			0x5b
 #define SDVO_CMD_GET_MAX_CONTRAST			0x5e
 #define SDVO_CMD_GET_MAX_OVERSCAN_H			0x61
 #define SDVO_CMD_GET_MAX_OVERSCAN_V			0x64
-#define SDVO_CMD_GET_MAX_POSITION_H			0x67
-#define SDVO_CMD_GET_MAX_POSITION_V			0x6a
-#define SDVO_CMD_GET_MAX_SHARPNESS_V			0x6d
-#define SDVO_CMD_GET_MAX_TV_CHROMA			0x74
-#define SDVO_CMD_GET_MAX_TV_LUMA			0x77
+#define SDVO_CMD_GET_MAX_HPOS				0x67
+#define SDVO_CMD_GET_MAX_VPOS				0x6a
+#define SDVO_CMD_GET_MAX_SHARPNESS			0x6d
+#define SDVO_CMD_GET_MAX_TV_CHROMA_FILTER		0x74
+#define SDVO_CMD_GET_MAX_TV_LUMA_FILTER			0x77
 struct intel_sdvo_enhancement_limits_reply {
     u16 max_value;
     u16 default_value;
@@ -638,10 +638,10 @@ struct intel_sdvo_enhancement_limits_reply {
 
 #define SDVO_CMD_GET_FLICKER_FILTER			0x4e
 #define SDVO_CMD_SET_FLICKER_FILTER			0x4f
-#define SDVO_CMD_GET_ADAPTIVE_FLICKER_FITER		0x50
-#define SDVO_CMD_SET_ADAPTIVE_FLICKER_FITER		0x51
-#define SDVO_CMD_GET_2D_FLICKER_FITER			0x53
-#define SDVO_CMD_SET_2D_FLICKER_FITER			0x54
+#define SDVO_CMD_GET_FLICKER_FILTER_ADAPTIVE		0x50
+#define SDVO_CMD_SET_FLICKER_FILTER_ADAPTIVE		0x51
+#define SDVO_CMD_GET_FLICKER_FILTER_2D			0x53
+#define SDVO_CMD_SET_FLICKER_FILTER_2D			0x54
 #define SDVO_CMD_GET_SATURATION				0x56
 #define SDVO_CMD_SET_SATURATION				0x57
 #define SDVO_CMD_GET_HUE				0x59
@@ -654,16 +654,16 @@ struct intel_sdvo_enhancement_limits_reply {
 #define SDVO_CMD_SET_OVERSCAN_H				0x63
 #define SDVO_CMD_GET_OVERSCAN_V				0x65
 #define SDVO_CMD_SET_OVERSCAN_V				0x66
-#define SDVO_CMD_GET_POSITION_H				0x68
-#define SDVO_CMD_SET_POSITION_H				0x69
-#define SDVO_CMD_GET_POSITION_V				0x6b
-#define SDVO_CMD_SET_POSITION_V				0x6c
+#define SDVO_CMD_GET_HPOS				0x68
+#define SDVO_CMD_SET_HPOS				0x69
+#define SDVO_CMD_GET_VPOS				0x6b
+#define SDVO_CMD_SET_VPOS				0x6c
 #define SDVO_CMD_GET_SHARPNESS				0x6e
 #define SDVO_CMD_SET_SHARPNESS				0x6f
-#define SDVO_CMD_GET_TV_CHROMA				0x75
-#define SDVO_CMD_SET_TV_CHROMA				0x76
-#define SDVO_CMD_GET_TV_LUMA				0x78
-#define SDVO_CMD_SET_TV_LUMA				0x79
+#define SDVO_CMD_GET_TV_CHROMA_FILTER			0x75
+#define SDVO_CMD_SET_TV_CHROMA_FILTER			0x76
+#define SDVO_CMD_GET_TV_LUMA_FILTER			0x78
+#define SDVO_CMD_SET_TV_LUMA_FILTER			0x79
 struct intel_sdvo_enhancements_arg {
     u16 value;
 }__attribute__((packed));
@@ -715,6 +715,7 @@ struct intel_sdvo_enhancements_arg {
   #define SDVO_HBUF_TX_ONCE	(2 << 6)
   #define SDVO_HBUF_TX_VSYNC	(3 << 6)
 #define SDVO_CMD_GET_AUDIO_TX_INFO	0x9c
+#define SDVO_NEED_TO_STALL  (1 << 7)
 
 struct intel_sdvo_encode{
     u8 dvi_rev;

@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -41,8 +40,6 @@
 #include <net/bluetooth/hci_core.h>
 
 #define VERSION "1.3"
-
-static int minor = MISC_DYNAMIC_MINOR;
 
 struct vhci_data {
 	struct hci_dev *hdev;
@@ -160,7 +157,7 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 		break;
 
 	case HCI_SCODATA_PKT:
-		data->hdev->stat.cmd_tx++;
+		data->hdev->stat.sco_tx++;
 		break;
 	};
 
@@ -219,12 +216,6 @@ static unsigned int vhci_poll(struct file *file, poll_table *wait)
 	return POLLOUT | POLLWRNORM;
 }
 
-static int vhci_ioctl(struct inode *inode, struct file *file,
-					unsigned int cmd, unsigned long arg)
-{
-	return -EINVAL;
-}
-
 static int vhci_open(struct inode *inode, struct file *file)
 {
 	struct vhci_data *data;
@@ -245,7 +236,7 @@ static int vhci_open(struct inode *inode, struct file *file)
 
 	data->hdev = hdev;
 
-	hdev->type = HCI_VIRTUAL;
+	hdev->bus = HCI_VIRTUAL;
 	hdev->driver_data = data;
 
 	hdev->open     = vhci_open_dev;
@@ -285,12 +276,13 @@ static int vhci_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations vhci_fops = {
+	.owner		= THIS_MODULE,
 	.read		= vhci_read,
 	.write		= vhci_write,
 	.poll		= vhci_poll,
-	.ioctl		= vhci_ioctl,
 	.open		= vhci_open,
 	.release	= vhci_release,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice vhci_miscdev= {
@@ -303,18 +295,12 @@ static int __init vhci_init(void)
 {
 	BT_INFO("Virtual HCI driver ver %s", VERSION);
 
-	if (misc_register(&vhci_miscdev) < 0) {
-		BT_ERR("Can't register misc device with minor %d", minor);
-		return -EIO;
-	}
-
-	return 0;
+	return misc_register(&vhci_miscdev);
 }
 
 static void __exit vhci_exit(void)
 {
-	if (misc_deregister(&vhci_miscdev) < 0)
-		BT_ERR("Can't unregister misc device with minor %d", minor);
+	misc_deregister(&vhci_miscdev);
 }
 
 module_init(vhci_init);

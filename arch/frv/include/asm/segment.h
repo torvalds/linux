@@ -21,12 +21,12 @@ typedef struct {
 
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
-#define KERNEL_DS		MAKE_MM_SEG(0xdfffffffUL)
-
 #ifdef CONFIG_MMU
 #define USER_DS			MAKE_MM_SEG(TASK_SIZE - 1)
+#define KERNEL_DS		MAKE_MM_SEG(0xdfffffffUL)
 #else
-#define USER_DS			KERNEL_DS
+#define USER_DS			MAKE_MM_SEG(memory_end)
+#define KERNEL_DS		MAKE_MM_SEG(0xe0000000UL)
 #endif
 
 #define get_ds()		(KERNEL_DS)

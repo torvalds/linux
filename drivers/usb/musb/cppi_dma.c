@@ -7,6 +7,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "musb_core.h"
@@ -321,6 +322,7 @@ cppi_channel_allocate(struct dma_controller *c,
 				index, transmit ? 'T' : 'R', cppi_ch);
 	cppi_ch->hw_ep = ep;
 	cppi_ch->channel.status = MUSB_DMA_STATUS_FREE;
+	cppi_ch->channel.max_len = 0x7fffffff;
 
 	DBG(4, "Allocate CPPI%d %cX\n", index, transmit ? 'T' : 'R');
 	return &cppi_ch->channel;
@@ -1154,8 +1156,11 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 	struct musb_hw_ep	*hw_ep = NULL;
 	u32			rx, tx;
 	int			i, index;
+	unsigned long		uninitialized_var(flags);
 
 	cppi = container_of(musb->dma_controller, struct cppi, controller);
+	if (cppi->irq)
+		spin_lock_irqsave(&musb->lock, flags);
 
 	tibase = musb->ctrl_base;
 
@@ -1188,8 +1193,13 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 
 		bd = tx_ch->head;
 
+		/*
+		 * If Head is null then this could mean that a abort interrupt
+		 * that needs to be acknowledged.
+		 */
 		if (NULL == bd) {
 			DBG(1, "null BD\n");
+			tx_ram->tx_complete = 0;
 			continue;
 		}
 
@@ -1285,6 +1295,9 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 	/* write to CPPI EOI register to re-enable interrupts */
 	musb_writel(tibase, DAVINCI_CPPI_EOI_REG, 0);
 
+	if (cppi->irq)
+		spin_unlock_irqrestore(&musb->lock, flags);
+
 	return IRQ_HANDLED;
 }
 
@@ -1295,7 +1308,7 @@ dma_controller_create(struct musb *musb, void __iomem *mregs)
 	struct cppi		*controller;
 	struct device		*dev = musb->controller;
 	struct platform_device	*pdev = to_platform_device(dev);
-	int			irq = platform_get_irq(pdev, 1);
+	int			irq = platform_get_irq_byname(pdev, "dma");
 
 	controller = kzalloc(sizeof *controller, GFP_KERNEL);
 	if (!controller)
@@ -1406,15 +1419,6 @@ static int cppi_channel_abort(struct dma_channel *channel)
 
 	if (cppi_ch->transmit) {
 		struct cppi_tx_stateram __iomem *tx_ram;
-		int			enabled;
-
-		/* mask interrupts raised to signal teardown complete.  */
-		enabled = musb_readl(tibase, DAVINCI_TXCPPI_INTENAB_REG)
-				& (1 << cppi_ch->index);
-		if (enabled)
-			musb_writel(tibase, DAVINCI_TXCPPI_INTCLR_REG,
-					(1 << cppi_ch->index));
-
 		/* REVISIT put timeouts on these controller handshakes */
 
 		cppi_dump_tx(6, cppi_ch, " (teardown)");
@@ -1429,7 +1433,6 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		do {
 			value = musb_readl(&tx_ram->tx_complete, 0);
 		} while (0xFFFFFFFC != value);
-		musb_writel(&tx_ram->tx_complete, 0, 0xFFFFFFFC);
 
 		/* FIXME clean up the transfer state ... here?
 		 * the completion routine should get called with
@@ -1442,23 +1445,15 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		musb_writew(regs, MUSB_TXCSR, value);
 		musb_writew(regs, MUSB_TXCSR, value);
 
-		/* re-enable interrupt */
-		if (enabled)
-			musb_writel(tibase, DAVINCI_TXCPPI_INTENAB_REG,
-					(1 << cppi_ch->index));
-
-		/* While we scrub the TX state RAM, ensure that we clean
-		 * up any interrupt that's currently asserted:
+		/*
 		 * 1. Write to completion Ptr value 0x1(bit 0 set)
 		 *    (write back mode)
-		 * 2. Write to completion Ptr value 0x0(bit 0 cleared)
-		 *    (compare mode)
-		 * Value written is compared(for bits 31:2) and when
-		 * equal, interrupt is deasserted.
+		 * 2. Wait for abort interrupt and then put the channel in
+		 *    compare mode by writing 1 to the tx_complete register.
 		 */
 		cppi_reset_tx(tx_ram, 1);
-		musb_writel(&tx_ram->tx_complete, 0, 0);
-
+		cppi_ch->head = 0;
+		musb_writel(&tx_ram->tx_complete, 0, 1);
 		cppi_dump_tx(5, cppi_ch, " (done teardown)");
 
 		/* REVISIT tx side _should_ clean up the same way

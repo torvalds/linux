@@ -782,7 +782,7 @@ printk(KERN_INFO "FKS: ess_handle_channel %s irq_mode=%d\n", channel, irq_mode);
 			break;
 
 		default:;
-			/* printk(KERN_WARN "ESS: Unexpected interrupt\n"); */
+			/* printk(KERN_WARNING "ESS: Unexpected interrupt\n"); */
 	}
 }
 
@@ -1721,7 +1721,6 @@ printk (KERN_INFO "FKS: es_rec_set_recmask mask = %x\n", mask);
 				left  = value & 0x000000ff;
 				right = (value & 0x0000ff00) >> 8;
 			} else {				/* Turn it off (3)  */
-				left  = 0;
 				left  = 0;
 				right = 0;
 			}

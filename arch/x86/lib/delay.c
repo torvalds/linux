@@ -55,8 +55,10 @@ static void delay_tsc(unsigned long loops)
 
 	preempt_disable();
 	cpu = smp_processor_id();
+	rdtsc_barrier();
 	rdtscl(bclock);
 	for (;;) {
+		rdtsc_barrier();
 		rdtscl(now);
 		if ((now - bclock) >= loops)
 			break;
@@ -78,6 +80,7 @@ static void delay_tsc(unsigned long loops)
 		if (unlikely(cpu != smp_processor_id())) {
 			loops -= (now - bclock);
 			cpu = smp_processor_id();
+			rdtsc_barrier();
 			rdtscl(bclock);
 		}
 	}
@@ -118,7 +121,7 @@ inline void __const_udelay(unsigned long xloops)
 	asm("mull %%edx"
 		:"=d" (xloops), "=&a" (d0)
 		:"1" (xloops), "0"
-		(cpu_data(raw_smp_processor_id()).loops_per_jiffy * (HZ/4)));
+		(this_cpu_read(cpu_info.loops_per_jiffy) * (HZ/4)));
 
 	__delay(++xloops);
 }

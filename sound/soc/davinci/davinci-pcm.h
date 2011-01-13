@@ -12,18 +12,20 @@
 #ifndef _DAVINCI_PCM_H
 #define _DAVINCI_PCM_H
 
+#include <mach/edma.h>
+#include <mach/asp.h>
+
+
 struct davinci_pcm_dma_params {
-	char *name;		/* stream identifier */
-	int channel;		/* sync dma channel ID */
-	dma_addr_t dma_addr;	/* device physical address for DMA */
-	unsigned int data_type;	/* xfer data type */
+	int channel;			/* sync dma channel ID */
+	unsigned short acnt;
+	dma_addr_t dma_addr;		/* device physical address for DMA */
+	unsigned sram_size;
+	enum dma_event_q asp_chan_q;	/* event queue number for ASP channel */
+	enum dma_event_q ram_chan_q;	/* event queue number for RAM channel */
+	unsigned char data_type;	/* xfer data type */
+	unsigned char convert_mono_stereo;
+	unsigned int fifo_level;
 };
-
-struct evm_snd_platform_data {
-	int tx_dma_ch;
-	int rx_dma_ch;
-};
-
-extern struct snd_soc_platform davinci_soc_platform;
 
 #endif

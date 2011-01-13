@@ -29,23 +29,10 @@ struct net_device;
 struct work_struct;
 
 void set_port_type(struct orinoco_private *priv);
-int __orinoco_program_rids(struct net_device *dev);
+int orinoco_commit(struct orinoco_private *priv);
 void orinoco_reset(struct work_struct *work);
 
-
 /* Information element helpers - find a home for these... */
-static inline u8 *orinoco_get_ie(u8 *data, size_t len,
-				 enum ieee80211_eid eid)
-{
-	u8 *p = data;
-	while ((p + 2) < (data + len)) {
-		if (p[0] == eid)
-			return p;
-		p += p[1] + 2;
-	}
-	return NULL;
-}
-
 #define WPA_OUI_TYPE	"\x00\x50\xF2\x01"
 #define WPA_SELECTOR_LEN 4
 static inline u8 *orinoco_get_wpa_ie(u8 *data, size_t len)

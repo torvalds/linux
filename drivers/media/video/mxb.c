@@ -3,7 +3,7 @@
 
     Copyright (C) 1998-2006 Michael Hunold <michael@mihu.de>
 
-    Visit http://www.mihu.de/linux/saa7146/mxb/
+    Visit http://www.themm.net/~mihu/linux/saa7146/mxb.html 
     for further details about this card.
 
     This program is free software; you can redistribute it and/or modify
@@ -32,7 +32,6 @@
 #include "tea6415c.h"
 #include "tea6420.h"
 
-#define	I2C_SAA5246A  0x11
 #define I2C_SAA7111A  0x24
 #define	I2C_TDA9840   0x42
 #define	I2C_TEA6415C  0x43
@@ -60,10 +59,10 @@ MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 enum { TUNER, AUX1, AUX3, AUX3_YC };
 
 static struct v4l2_input mxb_inputs[MXB_INPUTS] = {
-	{ TUNER,	"Tuner",		V4L2_INPUT_TYPE_TUNER,	1, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0 },
-	{ AUX1,		"AUX1",			V4L2_INPUT_TYPE_CAMERA,	2, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0 },
-	{ AUX3,		"AUX3 Composite",	V4L2_INPUT_TYPE_CAMERA,	4, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0 },
-	{ AUX3_YC,	"AUX3 S-Video",		V4L2_INPUT_TYPE_CAMERA,	4, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0 },
+	{ TUNER,	"Tuner",		V4L2_INPUT_TYPE_TUNER,	1, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
+	{ AUX1,		"AUX1",			V4L2_INPUT_TYPE_CAMERA,	2, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
+	{ AUX3,		"AUX3 Composite",	V4L2_INPUT_TYPE_CAMERA,	4, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
+	{ AUX3_YC,	"AUX3 S-Video",		V4L2_INPUT_TYPE_CAMERA,	4, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
 };
 
 /* this array holds the information, which port of the saa7146 each
@@ -186,21 +185,17 @@ static int mxb_probe(struct saa7146_dev *dev)
 	}
 
 	mxb->saa7111a = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"saa7115", "saa7111", I2C_SAA7111A);
+			"saa7111", I2C_SAA7111A, NULL);
 	mxb->tea6420_1 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tea6420", "tea6420", I2C_TEA6420_1);
+			"tea6420", I2C_TEA6420_1, NULL);
 	mxb->tea6420_2 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tea6420", "tea6420", I2C_TEA6420_2);
+			"tea6420", I2C_TEA6420_2, NULL);
 	mxb->tea6415c = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tea6415c", "tea6415c", I2C_TEA6415C);
+			"tea6415c", I2C_TEA6415C, NULL);
 	mxb->tda9840 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tda9840", "tda9840", I2C_TDA9840);
+			"tda9840", I2C_TDA9840, NULL);
 	mxb->tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tuner", "tuner", I2C_TUNER);
-	if (v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"saa5246a", "saa5246a", I2C_SAA5246A)) {
-		printk(KERN_INFO "mxb: found teletext decoder\n");
-	}
+			"tuner", I2C_TUNER, NULL);
 
 	/* check if all devices are present */
 	if (!mxb->tea6420_1 || !mxb->tea6420_2 || !mxb->tea6415c ||
@@ -294,7 +289,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	/* select tuner-output on saa7111a */
 	i = 0;
 	saa7111a_call(mxb, video, s_routing, SAA7115_COMPOSITE0,
-		SAA7111_FMT_CCIR | SAA7111_VBI_BYPASS, 0);
+		SAA7111_FMT_CCIR, 0);
 
 	/* select a tuner type */
 	tun_setup.mode_mask = T_ANALOG_TV;
@@ -478,7 +473,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 	DEB_EE(("VIDIOC_S_INPUT %d.\n", input));
 
-	if (input < 0 || input >= MXB_INPUTS)
+	if (input >= MXB_INPUTS)
 		return -EINVAL;
 
 	mxb->cur_input = input;
@@ -518,8 +513,8 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 		return err;
 
 	/* switch video in saa7111a */
-	if (saa7111a_call(mxb, video, s_routing, i, 0, 0))
-		printk(KERN_ERR "VIDIOC_S_INPUT: could not address saa7111a #1.\n");
+	if (saa7111a_call(mxb, video, s_routing, i, SAA7111_FMT_CCIR, 0))
+		printk(KERN_ERR "VIDIOC_S_INPUT: could not address saa7111a.\n");
 
 	/* switch the audio-source only if necessary */
 	if (0 == mxb->cur_mute)
@@ -695,14 +690,17 @@ static struct saa7146_ext_vv vv_data;
 /* this function only gets called when the probing was successful */
 static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
 {
-	struct mxb *mxb = (struct mxb *)dev->ext_priv;
+	struct mxb *mxb;
 
 	DEB_EE(("dev:%p\n", dev));
 
-	/* checking for i2c-devices can be omitted here, because we
-	   already did this in "mxb_vl42_probe" */
-
 	saa7146_vv_init(dev, &vv_data);
+	if (mxb_probe(dev)) {
+		saa7146_vv_release(dev);
+		return -1;
+	}
+	mxb = (struct mxb *)dev->ext_priv;
+
 	vv_data.ops.vidioc_queryctrl = vidioc_queryctrl;
 	vv_data.ops.vidioc_g_ctrl = vidioc_g_ctrl;
 	vv_data.ops.vidioc_s_ctrl = vidioc_s_ctrl;
@@ -722,6 +720,7 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.ops.vidioc_default = vidioc_default;
 	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_GRABBER)) {
 		ERR(("cannot register capture v4l2 device. skipping.\n"));
+		saa7146_vv_release(dev);
 		return -1;
 	}
 
@@ -842,7 +841,6 @@ static struct saa7146_extension extension = {
 	.pci_tbl	= &pci_tbl[0],
 	.module		= THIS_MODULE,
 
-	.probe		= mxb_probe,
 	.attach		= mxb_attach,
 	.detach		= mxb_detach,
 

@@ -1,9 +1,9 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1271
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Kalle Valo <kalle.valo@nokia.com>
+ * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,129 +23,156 @@
 
 #include "reg.h"
 #include "ps.h"
-#include "spi.h"
+#include "io.h"
 
-#define WL12XX_WAKEUP_TIMEOUT 2000
+#define WL1271_WAKEUP_TIMEOUT 500
+
+void wl1271_elp_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, elp_work);
+
+	wl1271_debug(DEBUG_PSM, "elp work");
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
+	    (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
+	     !test_bit(WL1271_FLAG_IDLE, &wl->flags)))
+		goto out;
+
+	wl1271_debug(DEBUG_PSM, "chip to elp");
+	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
+	set_bit(WL1271_FLAG_IN_ELP, &wl->flags);
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
+#define ELP_ENTRY_DELAY  5
 
 /* Routines to toggle sleep mode while in ELP */
-void wl12xx_ps_elp_sleep(struct wl12xx *wl)
+void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
-	if (wl->elp || !wl->psm)
-		return;
-
-	wl12xx_debug(DEBUG_PSM, "chip to elp");
-
-	wl12xx_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
-
-	wl->elp = true;
+	if (test_bit(WL1271_FLAG_PSM, &wl->flags) ||
+	    test_bit(WL1271_FLAG_IDLE, &wl->flags)) {
+		cancel_delayed_work(&wl->elp_work);
+		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
+					     msecs_to_jiffies(ELP_ENTRY_DELAY));
+	}
 }
 
-int wl12xx_ps_elp_wakeup(struct wl12xx *wl)
+int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 {
-	unsigned long timeout;
-	u32 elp_reg;
+	DECLARE_COMPLETION_ONSTACK(compl);
+	unsigned long flags;
+	int ret;
+	u32 start_time = jiffies;
+	bool pending = false;
 
-	if (!wl->elp)
+	if (!test_bit(WL1271_FLAG_IN_ELP, &wl->flags))
 		return 0;
 
-	wl12xx_debug(DEBUG_PSM, "waking up chip from elp");
-
-	timeout = jiffies + msecs_to_jiffies(WL12XX_WAKEUP_TIMEOUT);
-
-	wl12xx_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_WAKE_UP);
-
-	elp_reg = wl12xx_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+	wl1271_debug(DEBUG_PSM, "waking up chip from elp");
 
 	/*
-	 * FIXME: we should wait for irq from chip but, as a temporary
-	 * solution to simplify locking, let's poll instead
+	 * The spinlock is required here to synchronize both the work and
+	 * the completion variable in one entity.
 	 */
-	while (!(elp_reg & ELPCTRL_WLAN_READY)) {
-		if (time_after(jiffies, timeout)) {
-			wl12xx_error("elp wakeup timeout");
-			return -ETIMEDOUT;
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	if (work_pending(&wl->irq_work) || chip_awake)
+		pending = true;
+	else
+		wl->elp_compl = &compl;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_WAKE_UP);
+
+	if (!pending) {
+		ret = wait_for_completion_timeout(
+			&compl, msecs_to_jiffies(WL1271_WAKEUP_TIMEOUT));
+		if (ret == 0) {
+			wl1271_error("ELP wakeup timeout!");
+			ieee80211_queue_work(wl->hw, &wl->recovery_work);
+			ret = -ETIMEDOUT;
+			goto err;
+		} else if (ret < 0) {
+			wl1271_error("ELP wakeup completion error.");
+			goto err;
 		}
-		msleep(1);
-		elp_reg = wl12xx_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 	}
 
-	wl12xx_debug(DEBUG_PSM, "wakeup time: %u ms",
-		     jiffies_to_msecs(jiffies) -
-		     (jiffies_to_msecs(timeout) - WL12XX_WAKEUP_TIMEOUT));
+	clear_bit(WL1271_FLAG_IN_ELP, &wl->flags);
 
-	wl->elp = false;
+	wl1271_debug(DEBUG_PSM, "wakeup time: %u ms",
+		     jiffies_to_msecs(jiffies - start_time));
+	goto out;
 
+err:
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	wl->elp_compl = NULL;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+	return ret;
+
+out:
 	return 0;
 }
 
-static int wl12xx_ps_set_elp(struct wl12xx *wl, bool enable)
-{
-	int ret;
-
-	if (enable) {
-		wl12xx_debug(DEBUG_PSM, "sleep auth psm/elp");
-
-		/*
-		 * FIXME: we should PSM_ELP, but because of firmware wakeup
-		 * problems let's use only PSM_PS
-		 */
-		ret = wl12xx_acx_sleep_auth(wl, WL12XX_PSM_PS);
-		if (ret < 0)
-			return ret;
-
-		wl12xx_ps_elp_sleep(wl);
-	} else {
-		wl12xx_debug(DEBUG_PSM, "sleep auth cam");
-
-		/*
-		 * When the target is in ELP, we can only
-		 * access the ELP control register. Thus,
-		 * we have to wake the target up before
-		 * changing the power authorization.
-		 */
-
-		wl12xx_ps_elp_wakeup(wl);
-
-		ret = wl12xx_acx_sleep_auth(wl, WL12XX_PSM_CAM);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
-int wl12xx_ps_set_mode(struct wl12xx *wl, enum acx_ps_mode mode)
+int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
+		       u32 rates, bool send)
 {
 	int ret;
 
 	switch (mode) {
 	case STATION_POWER_SAVE_MODE:
-		wl12xx_debug(DEBUG_PSM, "entering psm");
-		ret = wl12xx_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
+		wl1271_debug(DEBUG_PSM, "entering psm");
+
+		ret = wl1271_acx_wake_up_conditions(wl);
+		if (ret < 0) {
+			wl1271_error("couldn't set wake up conditions");
+			return ret;
+		}
+
+		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE,
+					 rates, send);
 		if (ret < 0)
 			return ret;
 
-		ret = wl12xx_ps_set_elp(wl, true);
-		if (ret < 0)
-			return ret;
-
-		wl->psm = 1;
+		set_bit(WL1271_FLAG_PSM, &wl->flags);
 		break;
 	case STATION_ACTIVE_MODE:
 	default:
-		wl12xx_debug(DEBUG_PSM, "leaving psm");
-		ret = wl12xx_ps_set_elp(wl, false);
+		wl1271_debug(DEBUG_PSM, "leaving psm");
+		ret = wl1271_ps_elp_wakeup(wl, false);
 		if (ret < 0)
 			return ret;
 
-		ret = wl12xx_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
+		/* disable beacon early termination */
+		ret = wl1271_acx_bet_enable(wl, false);
 		if (ret < 0)
 			return ret;
 
-		wl->psm = 0;
+		/* disable beacon filtering */
+		ret = wl1271_acx_beacon_filter_opt(wl, false);
+		if (ret < 0)
+			return ret;
+
+		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE,
+					 rates, send);
+		if (ret < 0)
+			return ret;
+
+		clear_bit(WL1271_FLAG_PSM, &wl->flags);
 		break;
 	}
 
 	return ret;
 }
+
 

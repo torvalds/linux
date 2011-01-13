@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2002, IBM Corp.
  *
- * All rights reserved.          
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,11 +34,18 @@
 #ifndef cpu_to_node
 #define cpu_to_node(cpu)	((void)(cpu),0)
 #endif
+#ifndef set_numa_node
+#define set_numa_node(node)
+#endif
+#ifndef set_cpu_numa_node
+#define set_cpu_numa_node(cpu, node)
+#endif
+#ifndef cpu_to_mem
+#define cpu_to_mem(cpu)		((void)(cpu),0)
+#endif
+
 #ifndef parent_node
 #define parent_node(node)	((void)(node),0)
-#endif
-#ifndef node_to_cpumask
-#define node_to_cpumask(node)	((void)node, cpu_online_map)
 #endif
 #ifndef cpumask_of_node
 #define cpumask_of_node(node)	((void)node, cpu_online_mask)
@@ -55,18 +62,15 @@
 
 #endif	/* CONFIG_NUMA */
 
-/*
- * returns pointer to cpumask for specified node
- * Deprecated: use "const struct cpumask *mask = cpumask_of_node(node)"
- */
-#ifndef node_to_cpumask_ptr
+#if !defined(CONFIG_NUMA) || !defined(CONFIG_HAVE_MEMORYLESS_NODES)
 
-#define	node_to_cpumask_ptr(v, node) 					\
-		cpumask_t _##v = node_to_cpumask(node);			\
-		const cpumask_t *v = &_##v
-
-#define node_to_cpumask_ptr_next(v, node)				\
-			  _##v = node_to_cpumask(node)
+#ifndef set_numa_mem
+#define set_numa_mem(node)
 #endif
+#ifndef set_cpu_numa_mem
+#define set_cpu_numa_mem(cpu, node)
+#endif
+
+#endif	/* !CONFIG_NUMA || !CONFIG_HAVE_MEMORYLESS_NODES */
 
 #endif /* _ASM_GENERIC_TOPOLOGY_H */

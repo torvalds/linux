@@ -34,12 +34,14 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <limits.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -54,6 +56,7 @@ typedef void FILEONLY(char * file);
 FILEONLY *internalfunctions;
 FILEONLY *externalfunctions;
 FILEONLY *symbolsonly;
+FILEONLY *findall;
 
 typedef void FILELINE(char * file, char * line);
 FILELINE * singlefunctions;
@@ -65,13 +68,31 @@ FILELINE * docsection;
 #define KERNELDOCPATH "scripts/"
 #define KERNELDOC     "kernel-doc"
 #define DOCBOOK       "-docbook"
+#define LIST          "-list"
 #define FUNCTION      "-function"
 #define NOFUNCTION    "-nofunction"
 #define NODOCSECTIONS "-no-doc-sections"
 
 static char *srctree, *kernsrctree;
 
-void usage (void)
+static char **all_list = NULL;
+static int all_list_len = 0;
+
+static void consume_symbol(const char *sym)
+{
+	int i;
+
+	for (i = 0; i < all_list_len; i++) {
+		if (!all_list[i])
+			continue;
+		if (strcmp(sym, all_list[i]))
+			continue;
+		all_list[i] = NULL;
+		break;
+	}
+}
+
+static void usage (void)
 {
 	fprintf(stderr, "Usage: docproc {doc|depend} file\n");
 	fprintf(stderr, "Input is read from file.tmpl. Output is sent to stdout\n");
@@ -84,7 +105,7 @@ void usage (void)
 /*
  * Execute kernel-doc with parameters given in svec
  */
-void exec_kernel_doc(char **svec)
+static void exec_kernel_doc(char **svec)
 {
 	pid_t pid;
 	int ret;
@@ -129,7 +150,7 @@ struct symfile
 struct symfile symfilelist[MAXFILES];
 int symfilecnt = 0;
 
-void add_new_symbol(struct symfile *sym, char * symname)
+static void add_new_symbol(struct symfile *sym, char * symname)
 {
 	sym->symbollist =
           realloc(sym->symbollist, (sym->symbolcnt + 1) * sizeof(char *));
@@ -137,14 +158,14 @@ void add_new_symbol(struct symfile *sym, char * symname)
 }
 
 /* Add a filename to the list */
-struct symfile * add_new_file(char * filename)
+static struct symfile * add_new_file(char * filename)
 {
 	symfilelist[symfilecnt++].filename = strdup(filename);
 	return &symfilelist[symfilecnt - 1];
 }
 
 /* Check if file already are present in the list */
-struct symfile * filename_exist(char * filename)
+static struct symfile * filename_exist(char * filename)
 {
 	int i;
 	for (i=0; i < symfilecnt; i++)
@@ -157,20 +178,20 @@ struct symfile * filename_exist(char * filename)
  * List all files referenced within the template file.
  * Files are separated by tabs.
  */
-void adddep(char * file)		   { printf("\t%s", file); }
-void adddep2(char * file, char * line)     { line = line; adddep(file); }
-void noaction(char * line)		   { line = line; }
-void noaction2(char * file, char * line)   { file = file; line = line; }
+static void adddep(char * file)		   { printf("\t%s", file); }
+static void adddep2(char * file, char * line)     { line = line; adddep(file); }
+static void noaction(char * line)		   { line = line; }
+static void noaction2(char * file, char * line)   { file = file; line = line; }
 
 /* Echo the line without further action */
-void printline(char * line)               { printf("%s", line); }
+static void printline(char * line)               { printf("%s", line); }
 
 /*
  * Find all symbols in filename that are exported with EXPORT_SYMBOL &
  * EXPORT_SYMBOL_GPL (& EXPORT_SYMBOL_GPL_FUTURE implicitly).
  * All symbols located are stored in symfilelist.
  */
-void find_export_symbols(char * filename)
+static void find_export_symbols(char * filename)
 {
 	FILE * fp;
 	struct symfile *sym;
@@ -227,7 +248,7 @@ void find_export_symbols(char * filename)
  * intfunc uses -nofunction
  * extfunc uses -function
  */
-void docfunctions(char * filename, char * type)
+static void docfunctions(char * filename, char * type)
 {
 	int i,j;
 	int symcnt = 0;
@@ -248,6 +269,7 @@ void docfunctions(char * filename, char * type)
 		struct symfile * sym = &symfilelist[i];
 		for (j=0; j < sym->symbolcnt; j++) {
 			vec[idx++]     = type;
+			consume_symbol(sym->symbollist[j].name);
 			vec[idx++] = sym->symbollist[j].name;
 		}
 	}
@@ -258,15 +280,15 @@ void docfunctions(char * filename, char * type)
 	fflush(stdout);
 	free(vec);
 }
-void intfunc(char * filename) {	docfunctions(filename, NOFUNCTION); }
-void extfunc(char * filename) { docfunctions(filename, FUNCTION);   }
+static void intfunc(char * filename) {	docfunctions(filename, NOFUNCTION); }
+static void extfunc(char * filename) { docfunctions(filename, FUNCTION);   }
 
 /*
  * Document specific function(s) in a file.
  * Call kernel-doc with the following parameters:
  * kernel-doc -docbook -function function1 [-function function2]
  */
-void singfunc(char * filename, char * line)
+static void singfunc(char * filename, char * line)
 {
 	char *vec[200]; /* Enough for specific functions */
         int i, idx = 0;
@@ -287,6 +309,11 @@ void singfunc(char * filename, char * line)
                         vec[idx++] = &line[i];
                 }
         }
+	for (i = 0; i < idx; i++) {
+        	if (strcmp(vec[i], FUNCTION))
+        		continue;
+		consume_symbol(vec[i + 1]);
+	}
 	vec[idx++] = filename;
 	vec[idx] = NULL;
 	exec_kernel_doc(vec);
@@ -297,7 +324,7 @@ void singfunc(char * filename, char * line)
  * Call kernel-doc with the following parameters:
  * kernel-doc -docbook -function "doc section" filename
  */
-void docsect(char *filename, char *line)
+static void docsect(char *filename, char *line)
 {
 	char *vec[6]; /* kerneldoc -docbook -function "section" file NULL */
 	char *s;
@@ -305,6 +332,13 @@ void docsect(char *filename, char *line)
 	for (s = line; *s; s++)
 		if (*s == '\n')
 			*s = '\0';
+
+	if (asprintf(&s, "DOC: %s", line) < 0) {
+		perror("asprintf");
+		exit(1);
+	}
+	consume_symbol(s);
+	free(s);
 
 	vec[0] = KERNELDOC;
 	vec[1] = DOCBOOK;
@@ -315,6 +349,84 @@ void docsect(char *filename, char *line)
 	exec_kernel_doc(vec);
 }
 
+static void find_all_symbols(char *filename)
+{
+	char *vec[4]; /* kerneldoc -list file NULL */
+	pid_t pid;
+	int ret, i, count, start;
+	char real_filename[PATH_MAX + 1];
+	int pipefd[2];
+	char *data, *str;
+	size_t data_len = 0;
+
+	vec[0] = KERNELDOC;
+	vec[1] = LIST;
+	vec[2] = filename;
+	vec[3] = NULL;
+
+	if (pipe(pipefd)) {
+		perror("pipe");
+		exit(1);
+	}
+
+	switch (pid=fork()) {
+		case -1:
+			perror("fork");
+			exit(1);
+		case  0:
+			close(pipefd[0]);
+			dup2(pipefd[1], 1);
+			memset(real_filename, 0, sizeof(real_filename));
+			strncat(real_filename, kernsrctree, PATH_MAX);
+			strncat(real_filename, "/" KERNELDOCPATH KERNELDOC,
+					PATH_MAX - strlen(real_filename));
+			execvp(real_filename, vec);
+			fprintf(stderr, "exec ");
+			perror(real_filename);
+			exit(1);
+		default:
+			close(pipefd[1]);
+			data = malloc(4096);
+			do {
+				while ((ret = read(pipefd[0],
+						   data + data_len,
+						   4096)) > 0) {
+					data_len += ret;
+					data = realloc(data, data_len + 4096);
+				}
+			} while (ret == -EAGAIN);
+			if (ret != 0) {
+				perror("read");
+				exit(1);
+			}
+			waitpid(pid, &ret ,0);
+	}
+	if (WIFEXITED(ret))
+		exitstatus |= WEXITSTATUS(ret);
+	else
+		exitstatus = 0xff;
+
+	count = 0;
+	/* poor man's strtok, but with counting */
+	for (i = 0; i < data_len; i++) {
+		if (data[i] == '\n') {
+			count++;
+			data[i] = '\0';
+		}
+	}
+	start = all_list_len;
+	all_list_len += count;
+	all_list = realloc(all_list, sizeof(char *) * all_list_len);
+	str = data;
+	for (i = 0; i < data_len && start != all_list_len; i++) {
+		if (data[i] == '\0') {
+			all_list[start] = str;
+			str = data + i + 1;
+			start++;
+		}
+	}
+}
+
 /*
  * Parse file, calling action specific functions for:
  * 1) Lines containing !E
@@ -322,9 +434,10 @@ void docsect(char *filename, char *line)
  * 3) Lines containing !D
  * 4) Lines containing !F
  * 5) Lines containing !P
- * 6) Default lines - lines not matching the above
+ * 6) Lines containing !C
+ * 7) Default lines - lines not matching the above
  */
-void parse_file(FILE *infile)
+static void parse_file(FILE *infile)
 {
 	char line[MAXLINESZ];
 	char * s;
@@ -365,6 +478,12 @@ void parse_file(FILE *infile)
 						s++;
 					docsection(line + 2, s);
 					break;
+				case 'C':
+					while (*s && !isspace(*s)) s++;
+					*s = '\0';
+					if (findall)
+						findall(line+2);
+					break;
 				default:
 					defaultline(line);
 			}
@@ -380,6 +499,7 @@ void parse_file(FILE *infile)
 int main(int argc, char *argv[])
 {
 	FILE * infile;
+	int i;
 
 	srctree = getenv("SRCTREE");
 	if (!srctree)
@@ -415,6 +535,7 @@ int main(int argc, char *argv[])
 		symbolsonly       = find_export_symbols;
 		singlefunctions   = noaction2;
 		docsection        = noaction2;
+		findall           = find_all_symbols;
 		parse_file(infile);
 
 		/* Rewind to start from beginning of file again */
@@ -425,8 +546,16 @@ int main(int argc, char *argv[])
 		symbolsonly       = printline;
 		singlefunctions   = singfunc;
 		docsection        = docsect;
+		findall           = NULL;
 
 		parse_file(infile);
+
+		for (i = 0; i < all_list_len; i++) {
+			if (!all_list[i])
+				continue;
+			fprintf(stderr, "Warning: didn't use docs for %s\n",
+				all_list[i]);
+		}
 	}
 	else if (strcmp("depend", argv[1]) == 0)
 	{
@@ -439,6 +568,7 @@ int main(int argc, char *argv[])
 		symbolsonly       = adddep;
 		singlefunctions   = adddep2;
 		docsection        = adddep2;
+		findall           = adddep;
 		parse_file(infile);
 		printf("\n");
 	}

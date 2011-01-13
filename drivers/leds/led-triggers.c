@@ -21,6 +21,7 @@
 #include <linux/timer.h>
 #include <linux/rwsem.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include "leds.h"
 
 /*
@@ -112,7 +113,7 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trigger)
 		if (led_cdev->trigger->deactivate)
 			led_cdev->trigger->deactivate(led_cdev);
 		led_cdev->trigger = NULL;
-		led_set_brightness(led_cdev, LED_OFF);
+		led_brightness_set(led_cdev, LED_OFF);
 	}
 	if (trigger) {
 		write_lock_irqsave(&trigger->leddev_list_lock, flags);

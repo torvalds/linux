@@ -14,7 +14,7 @@ extern void	rtnl_register(int protocol, int msgtype,
 extern int	rtnl_unregister(int protocol, int msgtype);
 extern void	rtnl_unregister_all(int protocol);
 
-static inline int rtnl_msg_family(struct nlmsghdr *nlh)
+static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
 {
 	if (nlmsg_len(nlh) >= sizeof(struct rtgenmsg))
 		return ((struct rtgenmsg *) nlmsg_data(nlh))->rtgen_family;
@@ -55,13 +55,15 @@ struct rtnl_link_ops {
 	int			(*validate)(struct nlattr *tb[],
 					    struct nlattr *data[]);
 
-	int			(*newlink)(struct net_device *dev,
+	int			(*newlink)(struct net *src_net,
+					   struct net_device *dev,
 					   struct nlattr *tb[],
 					   struct nlattr *data[]);
 	int			(*changelink)(struct net_device *dev,
 					      struct nlattr *tb[],
 					      struct nlattr *data[]);
-	void			(*dellink)(struct net_device *dev);
+	void			(*dellink)(struct net_device *dev,
+					   struct list_head *head);
 
 	size_t			(*get_size)(const struct net_device *dev);
 	int			(*fill_info)(struct sk_buff *skb,
@@ -70,17 +72,57 @@ struct rtnl_link_ops {
 	size_t			(*get_xstats_size)(const struct net_device *dev);
 	int			(*fill_xstats)(struct sk_buff *skb,
 					       const struct net_device *dev);
+	int			(*get_tx_queues)(struct net *net, struct nlattr *tb[],
+						 unsigned int *tx_queues,
+						 unsigned int *real_tx_queues);
 };
 
 extern int	__rtnl_link_register(struct rtnl_link_ops *ops);
 extern void	__rtnl_link_unregister(struct rtnl_link_ops *ops);
-extern void	rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops);
 
 extern int	rtnl_link_register(struct rtnl_link_ops *ops);
 extern void	rtnl_link_unregister(struct rtnl_link_ops *ops);
 
-extern struct net_device *rtnl_create_link(struct net *net, char *ifname,
-		const struct rtnl_link_ops *ops, struct nlattr *tb[]);
+/**
+ * 	struct rtnl_af_ops - rtnetlink address family operations
+ *
+ *	@list: Used internally
+ * 	@family: Address family
+ * 	@fill_link_af: Function to fill IFLA_AF_SPEC with address family
+ * 		       specific netlink attributes.
+ * 	@get_link_af_size: Function to calculate size of address family specific
+ * 			   netlink attributes exlusive the container attribute.
+ *	@validate_link_af: Validate a IFLA_AF_SPEC attribute, must check attr
+ *			   for invalid configuration settings.
+ * 	@set_link_af: Function to parse a IFLA_AF_SPEC attribute and modify
+ *		      net_device accordingly.
+ */
+struct rtnl_af_ops {
+	struct list_head	list;
+	int			family;
+
+	int			(*fill_link_af)(struct sk_buff *skb,
+						const struct net_device *dev);
+	size_t			(*get_link_af_size)(const struct net_device *dev);
+
+	int			(*validate_link_af)(const struct net_device *dev,
+						    const struct nlattr *attr);
+	int			(*set_link_af)(struct net_device *dev,
+					       const struct nlattr *attr);
+};
+
+extern int	__rtnl_af_register(struct rtnl_af_ops *ops);
+extern void	__rtnl_af_unregister(struct rtnl_af_ops *ops);
+
+extern int	rtnl_af_register(struct rtnl_af_ops *ops);
+extern void	rtnl_af_unregister(struct rtnl_af_ops *ops);
+
+
+extern struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[]);
+extern struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
+	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[]);
+extern int rtnl_configure_link(struct net_device *dev,
+			       const struct ifinfomsg *ifm);
 extern const struct nla_policy ifla_policy[IFLA_MAX+1];
 
 #define MODULE_ALIAS_RTNL_LINK(kind) MODULE_ALIAS("rtnl-link-" kind)

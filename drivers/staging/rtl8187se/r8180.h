@@ -41,7 +41,7 @@
 #include <linux/timer.h>
 #include <linux/proc_fs.h>	// Necessary because we use the proc fs
 #include <linux/if_arp.h>
-#include "ieee80211.h"
+#include "ieee80211/ieee80211.h"
 #include <asm/io.h>
 //#include <asm/semaphore.h>
 
@@ -52,30 +52,15 @@
 
 #define DEFAULT_FRAG_THRESHOLD 2342U
 #define MIN_FRAG_THRESHOLD     256U
-//#define	MAX_FRAG_THRESHOLD     2342U
 #define DEFAULT_RTS_THRESHOLD 2342U
 #define MIN_RTS_THRESHOLD 0U
 #define MAX_RTS_THRESHOLD 2342U
 #define DEFAULT_BEACONINTERVAL 0x64U
-#define DEFAULT_BEACON_ESSID "Rtl8180"
 
-#define DEFAULT_SSID ""
 #define DEFAULT_RETRY_RTS 7
 #define DEFAULT_RETRY_DATA 7
-#define PRISM_HDR_SIZE 64
 
-#ifdef CONFIG_RTL8185B
-
-#define MGNT_QUEUE						0
-#define BK_QUEUE						1
-#define BE_QUEUE						2
-#define VI_QUEUE						3
-#define VO_QUEUE						4
-#define HIGH_QUEUE						5
 #define BEACON_QUEUE					6
-
-#define LOW_QUEUE						BE_QUEUE
-#define NORMAL_QUEUE					MGNT_QUEUE
 
 #define aSifsTime 	10
 
@@ -92,21 +77,6 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_AUTO = 0x08,
 } WIRELESS_MODE;
 
-typedef enum _VERSION_8185{
-	// RTL8185
-	VERSION_8185_UNKNOWN,
-	VERSION_8185_C, // C-cut
-	VERSION_8185_D, // D-cut
-	// RTL8185B
-	VERSION_8185B_B, // B-cut
-	VERSION_8185B_D, // D-cut
-	VERSION_8185B_E, // E-cut
-	//RTL8187S-PCIE
-	VERSION_8187S_B, // B-cut
-	VERSION_8187S_C, // C-cut
-	VERSION_8187S_D, // D-cut
-
-}VERSION_8185,*PVERSION_8185;
 typedef struct 	ChnlAccessSetting {
 	u16 SIFS_Timer;
 	u16 DIFS_Timer;
@@ -199,7 +169,6 @@ typedef	union _ThreeWire{
 	u16			longData;
 }ThreeWireReg;
 
-#endif
 
 typedef struct buffer
 {
@@ -357,11 +326,8 @@ typedef struct r8180_priv
 	int irq;
 	struct ieee80211_device *ieee80211;
 
-        short card_8185; /* O: rtl8180, 1:rtl8185 V B/C, 2:rtl8185 V D, 3:rtl8185B */
-	short card_8185_Bversion; /* if TCR reports card V B/C this discriminates */
 	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
 	short enable_gpio0;
-	enum card_type {PCI,MINIPCI,CARDBUS,USB/*rtl8187*/}card_type;
 	short hw_plcp_len;
 	short plcp_preamble_mode; // 0:auto 1:short 2:long
 
@@ -400,7 +366,6 @@ typedef struct r8180_priv
 	short diversity;
 	u8 cs_treshold;
 	short rcr_csense;
-	short rf_chip;
 	u32 key0[4];
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	void (*rf_set_chan)(struct net_device *dev,short ch);
@@ -513,9 +478,6 @@ typedef struct r8180_priv
 	u8 retry_rts;
 	u16 rts;
 
-//add for RF power on power off by lizhaoming 080512
-	u8	 RegThreeWireMode; // See "Three wire mode" defined above, 2006.05.31, by rcnjko.
-
 //by amy for led
 	LED_STRATEGY_8185 LedStrategy;
 //by amy for led
@@ -537,7 +499,7 @@ typedef struct r8180_priv
 	//u32 NumTxOkInPeriod;   //YJ,del,080828
 	u8   TxPollingTimes;
 
-	bool	bApBufOurFrame;// TRUE if AP buffer our unicast data , we will keep eAwake untill receive data or timeout.
+	bool	bApBufOurFrame;// TRUE if AP buffer our unicast data , we will keep eAwake until receive data or timeout.
 	u8	WaitBufDataBcnCount;
 	u8	WaitBufDataTimeOut;
 
@@ -615,7 +577,7 @@ typedef struct r8180_priv
 	u8						RSSI;
 	char					RxPower;
 	 u8 InitialGain;
-	 //For adjust Dig Threshhold during Legacy/Leisure Power Save Mode
+	 //For adjust Dig Threshold during Legacy/Leisure Power Save Mode
 	u32				DozePeriodInPast2Sec;
 	 // Don't access BB/RF under disable PLL situation.
 	u8					InitialGainBackUp;
@@ -659,7 +621,6 @@ typedef struct r8180_priv
 	short ack_tx_to_ieee;
 
 	u8 PowerProfile;
-#ifdef CONFIG_RTL8185B
 	u32 CSMethod;
 	u8 cck_txpwr_base;
 	u8 ofdm_txpwr_base;
@@ -675,7 +636,6 @@ typedef struct r8180_priv
 	u32 IntrMask;
 
 	struct 	ChnlAccessSetting  ChannelAccessSetting;
-#endif
 }r8180_priv;
 
 #define MANAGE_PRIORITY 0
@@ -750,11 +710,7 @@ void rtl8185b_irq_enable(struct net_device *dev);
 void fix_rx_fifo(struct net_device *dev);
 void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 void rtl8180_rate_adapter(struct work_struct * work);
-#else
-void rtl8180_rate_adapter(struct net_device *dev);
-#endif
 //#endif
 bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet, u32 ChangeSource);
 

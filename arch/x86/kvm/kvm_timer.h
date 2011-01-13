@@ -6,13 +6,11 @@ struct kvm_timer {
 	bool reinject;
 	struct kvm_timer_ops *t_ops;
 	struct kvm *kvm;
-	int vcpu_id;
+	struct kvm_vcpu *vcpu;
 };
 
 struct kvm_timer_ops {
-        bool (*is_periodic)(struct kvm_timer *);
+	bool (*is_periodic)(struct kvm_timer *);
 };
 
-
 enum hrtimer_restart kvm_timer_fn(struct hrtimer *data);
-

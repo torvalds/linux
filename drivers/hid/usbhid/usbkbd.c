@@ -24,6 +24,8 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -74,7 +76,6 @@ struct usb_kbd {
 	unsigned char *new;
 	struct usb_ctrlrequest *cr;
 	unsigned char *leds;
-	dma_addr_t cr_dma;
 	dma_addr_t new_dma;
 	dma_addr_t leds_dma;
 };
@@ -105,16 +106,18 @@ static void usb_kbd_irq(struct urb *urb)
 			if (usb_kbd_keycode[kbd->old[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
 			else
-				dev_info(&urb->dev->dev,
-						"Unknown key (scancode %#x) released.\n", kbd->old[i]);
+				hid_info(urb->dev,
+					 "Unknown key (scancode %#x) released.\n",
+					 kbd->old[i]);
 		}
 
 		if (kbd->new[i] > 3 && memscan(kbd->old + 2, kbd->new[i], 6) == kbd->old + 8) {
 			if (usb_kbd_keycode[kbd->new[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
 			else
-				dev_info(&urb->dev->dev,
-						"Unknown key (scancode %#x) released.\n", kbd->new[i]);
+				hid_info(urb->dev,
+					 "Unknown key (scancode %#x) released.\n",
+					 kbd->new[i]);
 		}
 	}
 
@@ -125,9 +128,9 @@ static void usb_kbd_irq(struct urb *urb)
 resubmit:
 	i = usb_submit_urb (urb, GFP_ATOMIC);
 	if (i)
-		err_hid ("can't resubmit intr, %s-%s/input0, status %d",
-				kbd->usbdev->bus->bus_name,
-				kbd->usbdev->devpath, i);
+		hid_err(urb->dev, "can't resubmit intr, %s-%s/input0, status %d",
+			kbd->usbdev->bus->bus_name,
+			kbd->usbdev->devpath, i);
 }
 
 static int usb_kbd_event(struct input_dev *dev, unsigned int type,
@@ -151,7 +154,7 @@ static int usb_kbd_event(struct input_dev *dev, unsigned int type,
 	*(kbd->leds) = kbd->newleds;
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
-		err_hid("usb_submit_urb(leds) failed");
+		pr_err("usb_submit_urb(leds) failed\n");
 
 	return 0;
 }
@@ -161,7 +164,7 @@ static void usb_kbd_led(struct urb *urb)
 	struct usb_kbd *kbd = urb->context;
 
 	if (urb->status)
-		dev_warn(&urb->dev->dev, "led urb status %d received\n",
+		hid_warn(urb->dev, "led urb status %d received\n",
 			 urb->status);
 
 	if (*(kbd->leds) == kbd->newleds)
@@ -170,7 +173,7 @@ static void usb_kbd_led(struct urb *urb)
 	*(kbd->leds) = kbd->newleds;
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
-		err_hid("usb_submit_urb(leds) failed");
+		hid_err(urb->dev, "usb_submit_urb(leds) failed\n");
 }
 
 static int usb_kbd_open(struct input_dev *dev)
@@ -197,11 +200,11 @@ static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)
 		return -1;
 	if (!(kbd->led = usb_alloc_urb(0, GFP_KERNEL)))
 		return -1;
-	if (!(kbd->new = usb_buffer_alloc(dev, 8, GFP_ATOMIC, &kbd->new_dma)))
+	if (!(kbd->new = usb_alloc_coherent(dev, 8, GFP_ATOMIC, &kbd->new_dma)))
 		return -1;
-	if (!(kbd->cr = usb_buffer_alloc(dev, sizeof(struct usb_ctrlrequest), GFP_ATOMIC, &kbd->cr_dma)))
+	if (!(kbd->cr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL)))
 		return -1;
-	if (!(kbd->leds = usb_buffer_alloc(dev, 1, GFP_ATOMIC, &kbd->leds_dma)))
+	if (!(kbd->leds = usb_alloc_coherent(dev, 1, GFP_ATOMIC, &kbd->leds_dma)))
 		return -1;
 
 	return 0;
@@ -211,9 +214,9 @@ static void usb_kbd_free_mem(struct usb_device *dev, struct usb_kbd *kbd)
 {
 	usb_free_urb(kbd->irq);
 	usb_free_urb(kbd->led);
-	usb_buffer_free(dev, 8, kbd->new, kbd->new_dma);
-	usb_buffer_free(dev, sizeof(struct usb_ctrlrequest), kbd->cr, kbd->cr_dma);
-	usb_buffer_free(dev, 1, kbd->leds, kbd->leds_dma);
+	usb_free_coherent(dev, 8, kbd->new, kbd->new_dma);
+	kfree(kbd->cr);
+	usb_free_coherent(dev, 1, kbd->leds, kbd->leds_dma);
 }
 
 static int usb_kbd_probe(struct usb_interface *iface,
@@ -266,7 +269,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 			 le16_to_cpu(dev->descriptor.idProduct));
 
 	usb_make_path(dev, kbd->phys, sizeof(kbd->phys));
-	strlcpy(kbd->phys, "/input0", sizeof(kbd->phys));
+	strlcat(kbd->phys, "/input0", sizeof(kbd->phys));
 
 	input_dev->name = kbd->name;
 	input_dev->phys = kbd->phys;
@@ -304,15 +307,15 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	usb_fill_control_urb(kbd->led, dev, usb_sndctrlpipe(dev, 0),
 			     (void *) kbd->cr, kbd->leds, 1,
 			     usb_kbd_led, kbd);
-	kbd->led->setup_dma = kbd->cr_dma;
 	kbd->led->transfer_dma = kbd->leds_dma;
-	kbd->led->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
+	kbd->led->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	error = input_register_device(kbd->dev);
 	if (error)
 		goto fail2;
 
 	usb_set_intfdata(iface, kbd);
+	device_set_wakeup_enable(&dev->dev, 1);
 	return 0;
 
 fail2:	

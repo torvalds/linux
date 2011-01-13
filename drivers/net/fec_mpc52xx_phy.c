@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 #include <linux/of_mdio.h>
 #include <asm/io.h>
 #include <asm/mpc52xx.h>
@@ -28,15 +29,14 @@ static int mpc52xx_fec_mdio_transfer(struct mii_bus *bus, int phy_id,
 		int reg, u32 value)
 {
 	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
-	struct mpc52xx_fec __iomem *fec;
+	struct mpc52xx_fec __iomem *fec = priv->regs;
 	int tries = 3;
 
 	value |= (phy_id << FEC_MII_DATA_PA_SHIFT) & FEC_MII_DATA_PA_MSK;
 	value |= (reg << FEC_MII_DATA_RA_SHIFT) & FEC_MII_DATA_RA_MSK;
 
-	fec = priv->regs;
 	out_be32(&fec->ievent, FEC_IEVENT_MII);
-	out_be32(&priv->regs->mii_data, value);
+	out_be32(&fec->mii_data, value);
 
 	/* wait for it to finish, this takes about 23 us on lite5200b */
 	while (!(in_be32(&fec->ievent) & FEC_IEVENT_MII) && --tries)
@@ -46,7 +46,7 @@ static int mpc52xx_fec_mdio_transfer(struct mii_bus *bus, int phy_id,
 		return -ETIMEDOUT;
 
 	return value & FEC_MII_DATA_OP_RD ?
-		in_be32(&priv->regs->mii_data) & FEC_MII_DATA_DATAMSK : 0;
+		in_be32(&fec->mii_data) & FEC_MII_DATA_DATAMSK : 0;
 }
 
 static int mpc52xx_fec_mdio_read(struct mii_bus *bus, int phy_id, int reg)
@@ -61,16 +61,15 @@ static int mpc52xx_fec_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 		data | FEC_MII_WRITE_FRAME);
 }
 
-static int mpc52xx_fec_mdio_probe(struct of_device *of,
+static int mpc52xx_fec_mdio_probe(struct platform_device *of,
 		const struct of_device_id *match)
 {
 	struct device *dev = &of->dev;
-	struct device_node *np = of->node;
+	struct device_node *np = of->dev.of_node;
 	struct mii_bus *bus;
 	struct mpc52xx_fec_mdio_priv *priv;
-	struct resource res = {};
+	struct resource res;
 	int err;
-	int i;
 
 	bus = mdiobus_alloc();
 	if (bus == NULL)
@@ -92,7 +91,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 	err = of_address_to_resource(np, 0, &res);
 	if (err)
 		goto out_free;
-	priv->regs = ioremap(res.start, res.end - res.start + 1);
+	priv->regs = ioremap(res.start, resource_size(&res));
 	if (priv->regs == NULL) {
 		err = -ENOMEM;
 		goto out_free;
@@ -106,7 +105,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 
 	/* set MII speed */
 	out_be32(&priv->regs->mii_speed,
-		((mpc5xxx_get_bus_frequency(of->node) >> 20) / 5) << 1);
+		((mpc5xxx_get_bus_frequency(of->dev.of_node) >> 20) / 5) << 1);
 
 	err = of_mdiobus_register(bus, np);
 	if (err)
@@ -117,37 +116,26 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
  out_unmap:
 	iounmap(priv->regs);
  out_free:
-	for (i=0; i<PHY_MAX_ADDR; i++)
-		if (bus->irq[i] != PHY_POLL)
-			irq_dispose_mapping(bus->irq[i]);
-	kfree(bus->irq);
 	kfree(priv);
 	mdiobus_free(bus);
 
 	return err;
 }
 
-static int mpc52xx_fec_mdio_remove(struct of_device *of)
+static int mpc52xx_fec_mdio_remove(struct platform_device *of)
 {
 	struct device *dev = &of->dev;
 	struct mii_bus *bus = dev_get_drvdata(dev);
 	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
-	int i;
 
 	mdiobus_unregister(bus);
 	dev_set_drvdata(dev, NULL);
-
 	iounmap(priv->regs);
-	for (i=0; i<PHY_MAX_ADDR; i++)
-		if (bus->irq[i] != PHY_POLL)
-			irq_dispose_mapping(bus->irq[i]);
 	kfree(priv);
-	kfree(bus->irq);
 	mdiobus_free(bus);
 
 	return 0;
 }
-
 
 static struct of_device_id mpc52xx_fec_mdio_match[] = {
 	{ .compatible = "fsl,mpc5200b-mdio", },
@@ -155,16 +143,19 @@ static struct of_device_id mpc52xx_fec_mdio_match[] = {
 	{ .compatible = "mpc5200b-fec-phy", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mpc52xx_fec_mdio_match);
 
 struct of_platform_driver mpc52xx_fec_mdio_driver = {
-	.name = "mpc5200b-fec-phy",
+	.driver = {
+		.name = "mpc5200b-fec-phy",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_mdio_match,
+	},
 	.probe = mpc52xx_fec_mdio_probe,
 	.remove = mpc52xx_fec_mdio_remove,
-	.match_table = mpc52xx_fec_mdio_match,
 };
 
 /* let fec driver call it, since this has to be registered before it */
 EXPORT_SYMBOL_GPL(mpc52xx_fec_mdio_driver);
-
 
 MODULE_LICENSE("Dual BSD/GPL");

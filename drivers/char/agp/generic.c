@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
@@ -80,13 +81,6 @@ static int agp_get_key(void)
 	return -1;
 }
 
-void agp_flush_chipset(struct agp_bridge_data *bridge)
-{
-	if (bridge->driver->chipset_flush)
-		bridge->driver->chipset_flush(bridge);
-}
-EXPORT_SYMBOL(agp_flush_chipset);
-
 /*
  * Use kmalloc if possible for the page list. Otherwise fall back to
  * vmalloc. This speeds things up and also saves memory for small AGP
@@ -96,20 +90,18 @@ EXPORT_SYMBOL(agp_flush_chipset);
 void agp_alloc_page_array(size_t size, struct agp_memory *mem)
 {
 	mem->pages = NULL;
-	mem->vmalloc_flag = false;
 
 	if (size <= 2*PAGE_SIZE)
-		mem->pages = kmalloc(size, GFP_KERNEL | __GFP_NORETRY);
+		mem->pages = kmalloc(size, GFP_KERNEL | __GFP_NOWARN);
 	if (mem->pages == NULL) {
 		mem->pages = vmalloc(size);
-		mem->vmalloc_flag = true;
 	}
 }
 EXPORT_SYMBOL(agp_alloc_page_array);
 
 void agp_free_page_array(struct agp_memory *mem)
 {
-	if (mem->vmalloc_flag) {
+	if (is_vmalloc_addr(mem->pages)) {
 		vfree(mem->pages);
 	} else {
 		kfree(mem->pages);
@@ -437,6 +429,7 @@ int agp_bind_memory(struct agp_memory *curr, off_t pg_start)
 		curr->bridge->driver->cache_flush();
 		curr->is_flushed = true;
 	}
+
 	ret_val = curr->bridge->driver->insert_memory(curr, pg_start, curr->type);
 
 	if (ret_val != 0)
@@ -487,26 +480,6 @@ int agp_unbind_memory(struct agp_memory *curr)
 }
 EXPORT_SYMBOL(agp_unbind_memory);
 
-/**
- *	agp_rebind_emmory  -  Rewrite the entire GATT, useful on resume
- */
-int agp_rebind_memory(void)
-{
-	struct agp_memory *curr;
-	int ret_val = 0;
-
-	spin_lock(&agp_bridge->mapped_lock);
-	list_for_each_entry(curr, &agp_bridge->mapped_list, mapped_list) {
-		ret_val = curr->bridge->driver->insert_memory(curr,
-							      curr->pg_start,
-							      curr->type);
-		if (ret_val != 0)
-			break;
-	}
-	spin_unlock(&agp_bridge->mapped_lock);
-	return ret_val;
-}
-EXPORT_SYMBOL(agp_rebind_memory);
 
 /* End - Routines for handling swapping of agp_memory into the GATT */
 
@@ -976,10 +949,12 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 
 	bridge->driver->cache_flush();
 #ifdef CONFIG_X86
-	set_memory_uc((unsigned long)table, 1 << page_order);
+	if (set_memory_uc((unsigned long)table, 1 << page_order))
+		printk(KERN_WARNING "Could not set GATT table memory to UC!");
+
 	bridge->gatt_table = (void *)table;
 #else
-	bridge->gatt_table = ioremap_nocache(virt_to_gart(table),
+	bridge->gatt_table = ioremap_nocache(virt_to_phys(table),
 					(PAGE_SIZE * (1 << page_order)));
 	bridge->driver->cache_flush();
 #endif
@@ -992,7 +967,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 
 		return -ENOMEM;
 	}
-	bridge->gatt_bus_addr = virt_to_gart(bridge->gatt_table_real);
+	bridge->gatt_bus_addr = virt_to_phys(bridge->gatt_table_real);
 
 	/* AK: bogus, should encode addresses > 4GB */
 	for (i = 0; i < num_entries; i++) {
@@ -1132,7 +1107,9 @@ int agp_generic_insert_memory(struct agp_memory * mem, off_t pg_start, int type)
 	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-		writel(bridge->driver->mask_memory(bridge, mem->pages[i], mask_type),
+		writel(bridge->driver->mask_memory(bridge,
+						   page_to_phys(mem->pages[i]),
+						   mask_type),
 		       bridge->gatt_table+j);
 	}
 	readl(bridge->gatt_table+j-1);	/* PCI Posting. */
@@ -1202,7 +1179,7 @@ struct agp_memory *agp_generic_alloc_user(size_t page_count, int type)
 		return NULL;
 
 	for (i = 0; i < page_count; i++)
-		new->pages[i] = 0;
+		new->pages[i] = NULL;
 	new->page_count = 0;
 	new->type = type;
 	new->num_scratch_pages = pages;
@@ -1347,9 +1324,8 @@ void global_cache_flush(void)
 EXPORT_SYMBOL(global_cache_flush);
 
 unsigned long agp_generic_mask_memory(struct agp_bridge_data *bridge,
-				      struct page *page, int type)
+				      dma_addr_t addr, int type)
 {
-	unsigned long addr = phys_to_gart(page_to_phys(page));
 	/* memory type is ignored in the generic routine */
 	if (bridge->driver->masks)
 		return addr | bridge->driver->masks[0].mask;

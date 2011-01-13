@@ -450,7 +450,6 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/eisa.h>
 #include <linux/delay.h>
@@ -467,6 +466,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -895,7 +895,8 @@ static struct {
 ** Public Functions
 */
 static int     de4x5_open(struct net_device *dev);
-static int     de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t de4x5_queue_pkt(struct sk_buff *skb,
+					 struct net_device *dev);
 static irqreturn_t de4x5_interrupt(int irq, void *dev_id);
 static int     de4x5_close(struct net_device *dev);
 static struct  net_device_stats *de4x5_get_stats(struct net_device *dev);
@@ -1336,7 +1337,7 @@ de4x5_open(struct net_device *dev)
     }
 
     lp->interrupt = UNMASK_INTERRUPTS;
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
 
     START_DE4X5;
 
@@ -1447,7 +1448,7 @@ de4x5_sw_reset(struct net_device *dev)
 	status = -EIO;
     }
 
-    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
     lp->tx_old = lp->tx_new;
 
     return status;
@@ -1456,18 +1457,16 @@ de4x5_sw_reset(struct net_device *dev)
 /*
 ** Writes a socket buffer address to the next available transmit descriptor.
 */
-static int
+static netdev_tx_t
 de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
     u_long iobase = dev->base_addr;
-    int status = NETDEV_TX_OK;
     u_long flags = 0;
 
     netif_stop_queue(dev);
-    if (!lp->tx_enable) {                   /* Cannot send for now */
+    if (!lp->tx_enable)                   /* Cannot send for now */
 	return NETDEV_TX_LOCKED;
-    }
 
     /*
     ** Clean out the TX ring asynchronously to interrupts - sometimes the
@@ -1507,8 +1506,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
  	    lp->stats.tx_bytes += skb->len;
 	    outl(POLL_DEMAND, DE4X5_TPD);/* Start the TX */
 
-	    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
-	    dev->trans_start = jiffies;
+	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 
 	    if (TX_BUFFS_AVAIL) {
 		netif_start_queue(dev);         /* Another pkt may be queued */
@@ -1521,7 +1519,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 
     lp->cache.lock = 0;
 
-    return status;
+    return NETDEV_TX_OK;
 }
 
 /*
@@ -1659,7 +1657,7 @@ de4x5_rx(struct net_device *dev)
 	    }
 
 	    /* Change buffer ownership for this frame, back to the adapter */
-	    for (;lp->rx_old!=entry;lp->rx_old=(++lp->rx_old)%lp->rxRingSize) {
+	    for (;lp->rx_old!=entry;lp->rx_old=(lp->rx_old + 1)%lp->rxRingSize) {
 		lp->rx_ring[lp->rx_old].status = cpu_to_le32(R_OWN);
 		barrier();
 	    }
@@ -1670,7 +1668,7 @@ de4x5_rx(struct net_device *dev)
 	/*
 	** Update entry information
 	*/
-	lp->rx_new = (++lp->rx_new) % lp->rxRingSize;
+	lp->rx_new = (lp->rx_new + 1) % lp->rxRingSize;
     }
 
     return 0;
@@ -1728,7 +1726,7 @@ de4x5_tx(struct net_device *dev)
 	}
 
 	/* Update all the pointers */
-	lp->tx_old = (++lp->tx_old) % lp->txRingSize;
+	lp->tx_old = (lp->tx_old + 1) % lp->txRingSize;
     }
 
     /* Any resources available? */
@@ -1803,7 +1801,7 @@ de4x5_rx_ovfc(struct net_device *dev)
 
     for (; (s32)le32_to_cpu(lp->rx_ring[lp->rx_new].status)>=0;) {
 	lp->rx_ring[lp->rx_new].status = cpu_to_le32(R_OWN);
-	lp->rx_new = (++lp->rx_new % lp->rxRingSize);
+	lp->rx_new = (lp->rx_new + 1) % lp->rxRingSize;
     }
 
     outl(omr, DE4X5_OMR);
@@ -1885,8 +1883,6 @@ de4x5_local_stats(struct net_device *dev, char *buf, int pkt_len)
     if (lp->pktStats.bins[0] == 0) { /* Reset counters */
         memset((char *)&lp->pktStats, 0, sizeof(lp->pktStats));
     }
-
-    return;
 }
 
 /*
@@ -1936,9 +1932,9 @@ set_multicast_list(struct net_device *dev)
 	    load_packet(dev, lp->setup_frame, TD_IC | PERFECT_F | TD_SET |
 			                                SETUP_FRAME_LEN, (struct sk_buff *)1);
 
-	    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	    outl(POLL_DEMAND, DE4X5_TPD);       /* Start the TX */
-	    dev->trans_start = jiffies;
+	    dev->trans_start = jiffies; /* prevent tx timeout */
 	}
     }
 }
@@ -1952,9 +1948,9 @@ static void
 SetMulticastFilter(struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
-    struct dev_mc_list *dmi=dev->mc_list;
+    struct netdev_hw_addr *ha;
     u_long iobase = dev->base_addr;
-    int i, j, bit, byte;
+    int i, bit, byte;
     u16 hashcode;
     u32 omr, crc;
     char *pa;
@@ -1964,12 +1960,11 @@ SetMulticastFilter(struct net_device *dev)
     omr &= ~(OMR_PR | OMR_PM);
     pa = build_setup_frame(dev, ALL);        /* Build the basic frame */
 
-    if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 14)) {
+    if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 14)) {
 	omr |= OMR_PM;                       /* Pass all multicasts */
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
-	for (i=0;i<dev->mc_count;i++) {      /* for each address in the list */
-	    addrs=dmi->dmi_addr;
-	    dmi=dmi->next;
+	netdev_for_each_mc_addr(ha, dev) {
+	    addrs = ha->addr;
 	    if ((*addrs & 0x01) == 1) {      /* multicast address? */
 		crc = ether_crc_le(ETH_ALEN, addrs);
 		hashcode = crc & HASH_BITS;  /* hashcode is 9 LSb of CRC */
@@ -1985,9 +1980,8 @@ SetMulticastFilter(struct net_device *dev)
 	    }
 	}
     } else {                                 /* Perfect filtering */
-	for (j=0; j<dev->mc_count; j++) {
-	    addrs=dmi->dmi_addr;
-	    dmi=dmi->next;
+	netdev_for_each_mc_addr(ha, dev) {
+	    addrs = ha->addr;
 	    for (i=0; i<ETH_ALEN; i++) {
 		*(pa + (i&1)) = *addrs++;
 		if (i & 0x01) pa += 4;
@@ -1995,8 +1989,6 @@ SetMulticastFilter(struct net_device *dev)
 	}
     }
     outl(omr, DE4X5_OMR);
-
-    return;
 }
 
 #ifdef CONFIG_EISA
@@ -2191,8 +2183,6 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
 	    return;
 	}
     }
-
-    return;
 }
 
 /*
@@ -3129,7 +3119,7 @@ dc2114x_autoconf(struct net_device *dev)
 	  if (lp->media == _100Mb) {
 	      if ((slnk = test_for_100Mb(dev, 6500)) < 0) {
 		  lp->media = SPD_DET;
-		  return  (slnk & ~TIMER_CB);
+		  return slnk & ~TIMER_CB;
 	      }
 	  } else {
 	      if (wait_for_link(dev) < 0) {
@@ -3295,8 +3285,6 @@ de4x5_init_connection(struct net_device *dev)
     outl(POLL_DEMAND, DE4X5_TPD);
 
     netif_wake_queue(dev);
-
-    return;
 }
 
 /*
@@ -3496,7 +3484,7 @@ is_spd_100(struct net_device *dev)
 	spd = ((~gep_rd(dev)) & GEP_SLNK);
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return ((lp->chipset == DC21143)?(~inl(DE4X5_SISR)&SISR_LS100):0);
+	    return (lp->chipset == DC21143) ? (~inl(DE4X5_SISR)&SISR_LS100) : 0;
 
 	spd = (lp->asBitValid & (lp->asPolarity ^ (gep_rd(dev) & lp->asBit))) |
 	          (lp->linkOK & ~lp->asBitValid);
@@ -3514,15 +3502,15 @@ is_100_up(struct net_device *dev)
     if (lp->useMII) {
 	/* Double read for sticky bits & temporary drops */
 	mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS);
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS;
     } else if (!lp->useSROM) {                       /* de500-xa */
-	return ((~gep_rd(dev)) & GEP_SLNK);
+	return (~gep_rd(dev)) & GEP_SLNK;
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return ((lp->chipset == DC21143)?(~inl(DE4X5_SISR)&SISR_LS100):0);
+	    return (lp->chipset == DC21143) ? (~inl(DE4X5_SISR)&SISR_LS100) : 0;
 
-        return ((lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
-		(lp->linkOK & ~lp->asBitValid));
+        return (lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
+		(lp->linkOK & ~lp->asBitValid);
     }
 }
 
@@ -3535,17 +3523,17 @@ is_10_up(struct net_device *dev)
     if (lp->useMII) {
 	/* Double read for sticky bits & temporary drops */
 	mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS);
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS;
     } else if (!lp->useSROM) {                       /* de500-xa */
-	return ((~gep_rd(dev)) & GEP_LNP);
+	return (~gep_rd(dev)) & GEP_LNP;
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return (((lp->chipset & ~0x00ff) == DC2114x) ?
+	    return ((lp->chipset & ~0x00ff) == DC2114x) ?
 		    (~inl(DE4X5_SISR)&SISR_LS10):
-		    0);
+		    0;
 
-	return ((lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
-		(lp->linkOK & ~lp->asBitValid));
+	return	(lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
+		(lp->linkOK & ~lp->asBitValid);
     }
 }
 
@@ -3556,7 +3544,7 @@ is_anc_capable(struct net_device *dev)
     u_long iobase = dev->base_addr;
 
     if (lp->phy[lp->active].id && (!lp->useSROM || lp->useMII)) {
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII));
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
 	return (inl(DE4X5_SISR) & SISR_LPN) >> 12;
     } else {
@@ -3580,7 +3568,7 @@ ping_media(struct net_device *dev, int msec)
 
 	lp->tmp = lp->tx_new;                /* Remember the ring position */
 	load_packet(dev, lp->frame, TD_LS | TD_FS | sizeof(lp->frame), (struct sk_buff *)1);
-	lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+	lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	outl(POLL_DEMAND, DE4X5_TPD);
     }
 
@@ -3668,8 +3656,6 @@ de4x5_free_rx_buffs(struct net_device *dev)
 	lp->rx_ring[i].status = 0;
 	lp->rx_skb[i] = (struct sk_buff *)1;    /* Dummy entry */
     }
-
-    return;
 }
 
 static void
@@ -3712,8 +3698,6 @@ de4x5_save_skbs(struct net_device *dev)
 	lp->cache.save_cnt++;
 	START_DE4X5;
     }
-
-    return;
 }
 
 static void
@@ -3745,8 +3729,6 @@ de4x5_rst_desc_ring(struct net_device *dev)
 	lp->cache.save_cnt--;
 	START_DE4X5;
     }
-
-    return;
 }
 
 static void
@@ -3775,8 +3757,6 @@ de4x5_cache_state(struct net_device *dev, int flag)
 	}
 	break;
     }
-
-    return;
 }
 
 static void
@@ -3849,8 +3829,6 @@ de4x5_setup_intr(struct net_device *dev)
 	outl(sts, DE4X5_STS);
 	ENABLE_IRQs;
     }
-
-    return;
 }
 
 /*
@@ -3883,8 +3861,6 @@ reset_init_sia(struct net_device *dev, s32 csr13, s32 csr14, s32 csr15)
     outl(csr13, DE4X5_SICR);
 
     mdelay(10);
-
-    return;
 }
 
 /*
@@ -3905,8 +3881,6 @@ create_packet(struct net_device *dev, char *frame, int len)
 
     *buf++ = 0;                              /* Packet length (2 bytes) */
     *buf++ = 1;
-
-    return;
 }
 
 /*
@@ -4010,8 +3984,6 @@ DevicePresent(struct net_device *dev, u_long aprom_addr)
 	}
 	de4x5_dbg_srom((struct de4x5_srom *)&lp->srom);
     }
-
-    return;
 }
 
 /*
@@ -4049,8 +4021,6 @@ enet_addr_rst(u_long aprom_addr)
 	    }
 	}
     }
-
-    return;
 }
 
 /*
@@ -4190,8 +4160,6 @@ srom_repair(struct net_device *dev, int card)
 	lp->useSROM = true;
 	break;
     }
-
-    return;
 }
 
 /*
@@ -4265,8 +4233,6 @@ srom_latch(u_int command, u_long addr)
     sendto_srom(command, addr);
     sendto_srom(command | DT_CLK, addr);
     sendto_srom(command, addr);
-
-    return;
 }
 
 static void
@@ -4275,8 +4241,6 @@ srom_command(u_int command, u_long addr)
     srom_latch(command, addr);
     srom_latch(command, addr);
     srom_latch((command & 0x0000ff00) | DT_CS, addr);
-
-    return;
 }
 
 static void
@@ -4291,8 +4255,6 @@ srom_address(u_int command, u_long addr, u_char offset)
     udelay(1);
 
     i = (getfrom_srom(addr) >> 3) & 0x01;
-
-    return;
 }
 
 static short
@@ -4326,8 +4288,6 @@ srom_busy(u_int command, u_long addr)
    }
 
    sendto_srom(command & 0x0000ff00, addr);
-
-   return;
 }
 */
 
@@ -4336,8 +4296,6 @@ sendto_srom(u_int command, u_long addr)
 {
     outl(command, addr);
     udelay(1);
-
-    return;
 }
 
 static int
@@ -4436,8 +4394,6 @@ srom_init(struct net_device *dev)
 	    p += ((*p & BLOCK_LEN) + 1);
 	}
     }
-
-    return;
 }
 
 /*
@@ -4466,8 +4422,6 @@ srom_exec(struct net_device *dev, u_char *p)
 	outl(lp->cache.csr14, DE4X5_STRR);
 	outl(lp->cache.csr13, DE4X5_SICR);
     }
-
-    return;
 }
 
 /*
@@ -4892,8 +4846,6 @@ mii_wr(int data, u_char phyreg, u_char phyaddr, u_long ioaddr)
     mii_ta(MII_STWR, ioaddr);              /* Turn around time - 2 MDC       */
     data = mii_swap(data, 16);             /* Swap data bit ordering         */
     mii_wdata(data, 16, ioaddr);           /* Write data                     */
-
-    return;
 }
 
 static int
@@ -4919,8 +4871,6 @@ mii_wdata(int data, int len, u_long ioaddr)
 	sendto_mii(MII_MWR | MII_WR, data, ioaddr);
 	data >>= 1;
     }
-
-    return;
 }
 
 static void
@@ -4933,8 +4883,6 @@ mii_address(u_char addr, u_long ioaddr)
 	sendto_mii(MII_MWR | MII_WR, addr, ioaddr);
 	addr >>= 1;
     }
-
-    return;
 }
 
 static void
@@ -4946,8 +4894,6 @@ mii_ta(u_long rw, u_long ioaddr)
     } else {
 	getfrom_mii(MII_MRD | MII_RD, ioaddr);        /* Tri-state MDIO */
     }
-
-    return;
 }
 
 static int
@@ -4974,8 +4920,6 @@ sendto_mii(u32 command, int data, u_long ioaddr)
     udelay(1);
     outl(command | MII_MDC | j, ioaddr);
     udelay(1);
-
-    return;
 }
 
 static int
@@ -4986,7 +4930,7 @@ getfrom_mii(u32 command, u_long ioaddr)
     outl(command | MII_MDC, ioaddr);
     udelay(1);
 
-    return ((inl(ioaddr) >> 19) & 1);
+    return (inl(ioaddr) >> 19) & 1;
 }
 
 /*
@@ -5031,8 +4975,8 @@ mii_get_oui(u_char phyaddr, u_long ioaddr)
     a.breg[0]=a.breg[1];
     a.breg[1]=i;
 
-    return ((a.reg<<8)|ret); */                 /* SEEQ and Cypress way */
-/*    return ((r2<<6)|(u_int)(r3>>10)); */      /* NATIONAL and BROADCOM way */
+    return (a.reg<<8)|ret; */                 /* SEEQ and Cypress way */
+/*    return (r2<<6)|(u_int)(r3>>10); */      /* NATIONAL and BROADCOM way */
     return r2;                                  /* (I did it) My way */
 }
 
@@ -5059,7 +5003,7 @@ mii_get_phy(struct net_device *dev)
 	if ((id == 0) || (id == 65535)) continue;  /* Valid ID? */
 	for (j=0; j<limit; j++) {                  /* Search PHY table */
 	    if (id != phy_info[j].id) continue;    /* ID match? */
-	    for (k=0; lp->phy[k].id && (k < DE4X5_MAX_PHY); k++);
+	    for (k=0; k < DE4X5_MAX_PHY && lp->phy[k].id; k++);
 	    if (k < DE4X5_MAX_PHY) {
 		memcpy((char *)&lp->phy[k],
 		       (char *)&phy_info[j], sizeof(struct phy_table));
@@ -5072,7 +5016,7 @@ mii_get_phy(struct net_device *dev)
 	    break;
 	}
 	if ((j == limit) && (i < DE4X5_MAX_MII)) {
-	    for (k=0; lp->phy[k].id && (k < DE4X5_MAX_PHY); k++);
+	    for (k=0; k < DE4X5_MAX_PHY && lp->phy[k].id; k++);
 	    lp->phy[k].addr = i;
 	    lp->phy[k].id = id;
 	    lp->phy[k].spd.reg = GENERIC_REG;      /* ANLPA register         */
@@ -5080,7 +5024,7 @@ mii_get_phy(struct net_device *dev)
 	    lp->phy[k].spd.value = GENERIC_VALUE;  /* TX & T4, H/F Duplex    */
 	    lp->mii_cnt++;
 	    lp->active++;
-	    printk("%s: Using generic MII device control. If the board doesn't operate, \nplease mail the following dump to the author:\n", dev->name);
+	    printk("%s: Using generic MII device control. If the board doesn't operate,\nplease mail the following dump to the author:\n", dev->name);
 	    j = de4x5_debug;
 	    de4x5_debug |= DEBUG_MII;
 	    de4x5_dbg_mii(dev, k);
@@ -5091,7 +5035,7 @@ mii_get_phy(struct net_device *dev)
   purgatory:
     lp->active = 0;
     if (lp->phy[0].id) {                           /* Reset the PHY devices */
-	for (k=0; lp->phy[k].id && (k < DE4X5_MAX_PHY); k++) { /*For each PHY*/
+	for (k=0; k < DE4X5_MAX_PHY && lp->phy[k].id; k++) { /*For each PHY*/
 	    mii_wr(MII_CR_RST, MII_CR, lp->phy[k].addr, DE4X5_MII);
 	    while (mii_rd(MII_CR, lp->phy[k].addr, DE4X5_MII) & MII_CR_RST);
 
@@ -5189,8 +5133,6 @@ gep_wr(s32 data, struct net_device *dev)
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
 	outl((data<<16) | lp->cache.csr15, DE4X5_SIGR);
     }
-
-    return;
 }
 
 static int
@@ -5202,7 +5144,7 @@ gep_rd(struct net_device *dev)
     if (lp->chipset == DC21140) {
 	return inl(DE4X5_GEP);
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
-	return (inl(DE4X5_SIGR) & 0x000fffff);
+	return inl(DE4X5_SIGR) & 0x000fffff;
     }
 
     return 0;
@@ -5250,8 +5192,6 @@ yawn(struct net_device *dev, int state)
 	    break;
 	}
     }
-
-    return;
 }
 
 static void
@@ -5293,8 +5233,6 @@ de4x5_parse_params(struct net_device *dev)
 	}
 	*q = t;
     }
-
-    return;
 }
 
 static void
@@ -5340,12 +5278,10 @@ de4x5_dbg_open(struct net_device *dev)
 	    }
 	}
 	printk("...0x%8.8x\n", le32_to_cpu(lp->tx_ring[i].buf));
-	printk("Ring size: \nRX: %d\nTX: %d\n",
+	printk("Ring size:\nRX: %d\nTX: %d\n",
 	       (short)lp->rxRingSize,
 	       (short)lp->txRingSize);
     }
-
-    return;
 }
 
 static void
@@ -5372,8 +5308,6 @@ de4x5_dbg_mii(struct net_device *dev, int k)
 	    printk("MII 20:  %x\n",mii_rd(0x14,lp->phy[k].addr,DE4X5_MII));
 	}
     }
-
-    return;
 }
 
 static void
@@ -5398,8 +5332,6 @@ de4x5_dbg_media(struct net_device *dev)
 	}
 	lp->c_media = lp->media;
     }
-
-    return;
 }
 
 static void
@@ -5420,8 +5352,6 @@ de4x5_dbg_srom(struct de4x5_srom *p)
 	    printk("%3d %04x\n", i<<1, (u_short)*((u_short *)p+i));
 	}
     }
-
-    return;
 }
 
 static void
@@ -5443,8 +5373,6 @@ de4x5_dbg_rx(struct sk_buff *skb, int len)
 	  printk("\n");
 	}
     }
-
-    return;
 }
 
 /*
@@ -5489,7 +5417,7 @@ de4x5_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	/* Set up the descriptor and give ownership to the card */
 	load_packet(dev, lp->setup_frame, TD_IC | PERFECT_F | TD_SET |
 		                                       SETUP_FRAME_LEN, (struct sk_buff *)1);
-	lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+	lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	outl(POLL_DEMAND, DE4X5_TPD);                /* Start the TX */
 	netif_wake_queue(dev);                      /* Unlock the TX ring */
 	break;
@@ -5546,7 +5474,8 @@ de4x5_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	tmp.lval[6] = inl(DE4X5_STRR); j+=4;
 	tmp.lval[7] = inl(DE4X5_SIGR); j+=4;
 	ioc->len = j;
-	if (copy_to_user(ioc->data, tmp.addr, ioc->len)) return -EFAULT;
+	if (copy_to_user(ioc->data, tmp.lval, ioc->len))
+		return -EFAULT;
 	break;
 
 #define DE4X5_DUMP              0x0f /* Dump the DE4X5 Status */

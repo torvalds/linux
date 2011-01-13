@@ -6,7 +6,7 @@ Supported chips:
     Prefix: 'adm1026'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
     Datasheet: Publicly available at the Analog Devices website
-               http://www.analog.com/en/prod/0,,766_825_ADM1026,00.html
+               http://www.onsemi.com/PowerSolutions/product.do?id=ADM1026
 
 Authors:
         Philip Pokorny <ppokorny@penguincomputing.com> for Penguin Computing

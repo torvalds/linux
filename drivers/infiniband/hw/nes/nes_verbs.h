@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -39,6 +39,10 @@ struct nes_device;
 
 #define NES_MAX_USER_DB_REGIONS  4096
 #define NES_MAX_USER_WQ_REGIONS  4096
+
+#define NES_TERM_SENT            0x01
+#define NES_TERM_RCVD            0x02
+#define NES_TERM_DONE            0x04
 
 struct nes_ucontext {
 	struct ib_ucontext ibucontext;
@@ -119,6 +123,11 @@ struct nes_wq {
 	spinlock_t lock;
 };
 
+struct disconn_work {
+	struct work_struct    work;
+	struct nes_qp         *nesqp;
+};
+
 struct iw_cm_id;
 struct ietf_mpa_frame;
 
@@ -126,20 +135,15 @@ struct nes_qp {
 	struct ib_qp          ibqp;
 	void                  *allocated_buffer;
 	struct iw_cm_id       *cm_id;
-	struct workqueue_struct *wq;
-	struct work_struct    disconn_work;
 	struct nes_cq         *nesscq;
 	struct nes_cq         *nesrcq;
 	struct nes_pd         *nespd;
 	void *cm_node; /* handle of the node this QP is associated with */
 	struct ietf_mpa_frame *ietf_frame;
 	dma_addr_t            ietf_frame_pbase;
-	wait_queue_head_t     state_waitq;
 	struct ib_mr          *lsmm_mr;
-	unsigned long         socket;
 	struct nes_hw_qp      hwqp;
 	struct work_struct    work;
-	struct work_struct    ae_work;
 	enum ib_qp_state      ibqp_state;
 	u32                   iwarp_state;
 	u32                   hte_index;
@@ -155,17 +159,22 @@ struct nes_qp {
 	void	              *pbl_vbase;
 	dma_addr_t            pbl_pbase;
 	struct page           *page;
-	wait_queue_head_t     kick_waitq;
-	u16                   in_disconnect;
+	struct timer_list     terminate_timer;
+	enum ib_event_type    terminate_eventtype;
+	u16                   active_conn:1;
+	u16                   skip_lsmm:1;
+	u16                   user_mode:1;
+	u16                   hte_added:1;
+	u16                   flush_issued:1;
+	u16                   destroyed:1;
+	u16                   sig_all:1;
+	u16                   rsvd:9;
 	u16                   private_data_len;
-	u8                    active_conn;
-	u8                    skip_lsmm;
-	u8                    user_mode;
-	u8                    hte_added;
+	u16                   term_sq_flush_code;
+	u16                   term_rq_flush_code;
 	u8                    hw_iwarp_state;
-	u8                    flush_issued;
 	u8                    hw_tcp_state;
-	u8                    disconn_pending;
-	u8                    destroyed;
+	u8                    term_flags;
+	u8                    sq_kmapped;
 };
 #endif			/* NES_VERBS_H */

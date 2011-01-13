@@ -28,6 +28,12 @@
 #define EDID_LENGTH 128
 #define DDC_ADDR 0x50
 
+#define CEA_EXT	    0x02
+#define VTB_EXT	    0x10
+#define DI_EXT	    0x40
+#define LS_EXT	    0x50
+#define MI_EXT	    0x60
+
 struct est_timings {
 	u8 t1;
 	u8 t2;
@@ -35,11 +41,11 @@ struct est_timings {
 } __attribute__((packed));
 
 /* 00=16:10, 01=4:3, 10=5:4, 11=16:9 */
-#define EDID_TIMING_ASPECT_SHIFT 0
+#define EDID_TIMING_ASPECT_SHIFT 6
 #define EDID_TIMING_ASPECT_MASK  (0x3 << EDID_TIMING_ASPECT_SHIFT)
 
 /* need to add 60 */
-#define EDID_TIMING_VFREQ_SHIFT  2
+#define EDID_TIMING_VFREQ_SHIFT  0
 #define EDID_TIMING_VFREQ_MASK   (0x3f << EDID_TIMING_VFREQ_SHIFT)
 
 struct std_timing {
@@ -47,11 +53,11 @@ struct std_timing {
 	u8 vfreq_aspect;
 } __attribute__((packed));
 
-#define DRM_EDID_PT_HSYNC_POSITIVE (1 << 6)
-#define DRM_EDID_PT_VSYNC_POSITIVE (1 << 5)
+#define DRM_EDID_PT_HSYNC_POSITIVE (1 << 1)
+#define DRM_EDID_PT_VSYNC_POSITIVE (1 << 2)
 #define DRM_EDID_PT_SEPARATE_SYNC  (3 << 3)
-#define DRM_EDID_PT_STEREO         (1 << 2)
-#define DRM_EDID_PT_INTERLACED     (1 << 1)
+#define DRM_EDID_PT_STEREO         (1 << 5)
+#define DRM_EDID_PT_INTERLACED     (1 << 7)
 
 /* If detailed data is pixel timing */
 struct detailed_pixel_timing {
@@ -93,7 +99,7 @@ struct detailed_data_monitor_range {
 } __attribute__((packed));
 
 struct detailed_data_wpindex {
-	u8 white_xy_lo; /* Upper 2 bits each */
+	u8 white_yx_lo; /* Lower 2 bits each */
 	u8 white_x_hi;
 	u8 white_y_hi;
 	u8 gamma; /* need to divide by 100 then add 1 */
@@ -106,6 +112,10 @@ struct detailed_data_color_point {
 	u8 wpindex2[3];
 } __attribute__((packed));
 
+struct cvt_timing {
+	u8 code[3];
+} __attribute__((packed));
+
 struct detailed_non_pixel {
 	u8 pad1;
 	u8 type; /* ff=serial, fe=string, fd=monitor range, fc=monitor name
@@ -116,10 +126,14 @@ struct detailed_non_pixel {
 		struct detailed_data_string str;
 		struct detailed_data_monitor_range range;
 		struct detailed_data_wpindex color;
-		struct std_timing timings[5];
+		struct std_timing timings[6];
+		struct cvt_timing cvt[4];
 	} data;
 } __attribute__((packed));
 
+#define EDID_DETAIL_EST_TIMINGS 0xf7
+#define EDID_DETAIL_CVT_3BYTE 0xf8
+#define EDID_DETAIL_COLOR_MGMT_DATA 0xf9
 #define EDID_DETAIL_STD_MODES 0xfa
 #define EDID_DETAIL_MONITOR_CPDATA 0xfb
 #define EDID_DETAIL_MONITOR_NAME 0xfc
@@ -135,21 +149,21 @@ struct detailed_timing {
 	} data;
 } __attribute__((packed));
 
-#define DRM_EDID_INPUT_SERRATION_VSYNC (1 << 7)
-#define DRM_EDID_INPUT_SYNC_ON_GREEN   (1 << 5)
-#define DRM_EDID_INPUT_COMPOSITE_SYNC  (1 << 4)
+#define DRM_EDID_INPUT_SERRATION_VSYNC (1 << 0)
+#define DRM_EDID_INPUT_SYNC_ON_GREEN   (1 << 1)
+#define DRM_EDID_INPUT_COMPOSITE_SYNC  (1 << 2)
 #define DRM_EDID_INPUT_SEPARATE_SYNCS  (1 << 3)
-#define DRM_EDID_INPUT_BLANK_TO_BLACK  (1 << 2)
-#define DRM_EDID_INPUT_VIDEO_LEVEL     (3 << 1)
-#define DRM_EDID_INPUT_DIGITAL         (1 << 0) /* bits above must be zero if set */
+#define DRM_EDID_INPUT_BLANK_TO_BLACK  (1 << 4)
+#define DRM_EDID_INPUT_VIDEO_LEVEL     (3 << 5)
+#define DRM_EDID_INPUT_DIGITAL         (1 << 7) /* bits below must be zero if set */
 
-#define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 7)
-#define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 6)
-#define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 5)
+#define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0)
+#define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
+#define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 2)
 #define DRM_EDID_FEATURE_DISPLAY_TYPE     (3 << 3) /* 00=mono, 01=rgb, 10=non-rgb, 11=unknown */
-#define DRM_EDID_FEATURE_PM_ACTIVE_OFF    (1 << 2)
-#define DRM_EDID_FEATURE_PM_SUSPEND       (1 << 1)
-#define DRM_EDID_FEATURE_PM_STANDBY       (1 << 0)
+#define DRM_EDID_FEATURE_PM_ACTIVE_OFF    (1 << 5)
+#define DRM_EDID_FEATURE_PM_SUSPEND       (1 << 6)
+#define DRM_EDID_FEATURE_PM_STANDBY       (1 << 7)
 
 struct edid {
 	u8 header[8];

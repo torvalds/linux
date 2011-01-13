@@ -311,11 +311,15 @@
 #define __NR_preadv			1319
 #define __NR_pwritev			1320
 #define __NR_rt_tgsigqueueinfo		1321
+#define __NR_recvmmsg			1322
+#define __NR_fanotify_init		1323
+#define __NR_fanotify_mark		1324
+#define __NR_prlimit64			1325
 
 #ifdef __KERNEL__
 
 
-#define NR_syscalls			298 /* length of syscall table */
+#define NR_syscalls			302 /* length of syscall table */
 
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about
@@ -333,20 +337,6 @@
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-
-#ifdef CONFIG_IA32_SUPPORT
-# define __ARCH_WANT_SYS_FADVISE64
-# define __ARCH_WANT_SYS_GETPGRP
-# define __ARCH_WANT_SYS_LLSEEK
-# define __ARCH_WANT_SYS_NICE
-# define __ARCH_WANT_SYS_OLD_GETRLIMIT
-# define __ARCH_WANT_SYS_OLDUMOUNT
-# define __ARCH_WANT_SYS_PAUSE
-# define __ARCH_WANT_SYS_SIGPENDING
-# define __ARCH_WANT_SYS_SIGPROCMASK
-# define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
-# define __ARCH_WANT_COMPAT_SYS_TIME
-#endif
 
 #if !defined(__ASSEMBLY__) && !defined(ASSEMBLER)
 
@@ -366,8 +356,6 @@ asmlinkage unsigned long sys_mmap2(
 				int fd, long pgoff);
 struct pt_regs;
 struct sigaction;
-long sys_execve(char __user *filename, char __user * __user *argv,
-			   char __user * __user *envp, struct pt_regs *regs);
 asmlinkage long sys_ia64_pipe(void);
 asmlinkage long sys_rt_sigaction(int sig,
 				 const struct sigaction __user *act,

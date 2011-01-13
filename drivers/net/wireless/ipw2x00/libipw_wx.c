@@ -25,21 +25,22 @@
   file called LICENSE.
 
   Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+  Intel Linux Wireless <ilw@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
 
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
 
 #include <net/lib80211.h>
 #include <linux/wireless.h>
 
-#include "ieee80211.h"
+#include "libipw.h"
 
-static const char *ieee80211_modes[] = {
+static const char *libipw_modes[] = {
 	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
 };
 
@@ -54,9 +55,9 @@ static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 }
 
 #define MAX_CUSTOM_LEN 64
-static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
+static char *libipw_translate_scan(struct libipw_device *ieee,
 				      char *start, char *stop,
-				      struct ieee80211_network *network,
+				      struct libipw_network *network,
 				      struct iw_request_info *info)
 {
 	char custom[MAX_CUSTOM_LEN];
@@ -84,7 +85,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11%s",
-		 ieee80211_modes[network->mode]);
+		 libipw_modes[network->mode]);
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_CHAR_LEN);
 
 	/* Add mode */
@@ -102,7 +103,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	/* Add channel and frequency */
 	/* Note : userspace automatically computes channel using iwrange */
 	iwe.cmd = SIOCGIWFREQ;
-	iwe.u.freq.m = ieee80211_channel_to_freq(ieee, network->channel);
+	iwe.u.freq.m = libipw_channel_to_freq(ieee, network->channel);
 	iwe.u.freq.e = 6;
 	iwe.u.freq.i = 0;
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_FREQ_LEN);
@@ -155,7 +156,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED |
 	    IW_QUAL_NOISE_UPDATED;
 
-	if (!(network->stats.mask & IEEE80211_STATMASK_RSSI)) {
+	if (!(network->stats.mask & LIBIPW_STATMASK_RSSI)) {
 		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID |
 		    IW_QUAL_LEVEL_INVALID;
 		iwe.u.qual.qual = 0;
@@ -180,14 +181,14 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 			iwe.u.qual.qual = 0;
 	}
 
-	if (!(network->stats.mask & IEEE80211_STATMASK_NOISE)) {
+	if (!(network->stats.mask & LIBIPW_STATMASK_NOISE)) {
 		iwe.u.qual.updated |= IW_QUAL_NOISE_INVALID;
 		iwe.u.qual.noise = 0;
 	} else {
 		iwe.u.qual.noise = network->stats.noise;
 	}
 
-	if (!(network->stats.mask & IEEE80211_STATMASK_SIGNAL)) {
+	if (!(network->stats.mask & LIBIPW_STATMASK_SIGNAL)) {
 		iwe.u.qual.updated |= IW_QUAL_LEVEL_INVALID;
 		iwe.u.qual.level = 0;
 	} else {
@@ -237,14 +238,14 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Channel flags: ");
 
-	if (ieee80211_get_channel_flags(ieee, network->channel) &
-	    IEEE80211_CH_INVALID) {
+	if (libipw_get_channel_flags(ieee, network->channel) &
+	    LIBIPW_CH_INVALID) {
 		iwe.cmd = IWEVCUSTOM;
 		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), "INVALID ");
 	}
 
-	if (ieee80211_get_channel_flags(ieee, network->channel) &
-	    IEEE80211_CH_RADAR_DETECT) {
+	if (libipw_get_channel_flags(ieee, network->channel) &
+	    LIBIPW_CH_RADAR_DETECT) {
 		iwe.cmd = IWEVCUSTOM;
 		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), "DFS ");
 	}
@@ -259,11 +260,11 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 
 #define SCAN_ITEM_SIZE 128
 
-int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
+int libipw_wx_get_scan(struct libipw_device *ieee,
 			  struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
 {
-	struct ieee80211_network *network;
+	struct libipw_network *network;
 	unsigned long flags;
 	int err = 0;
 
@@ -272,7 +273,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	int i = 0;
 	DECLARE_SSID_BUF(ssid);
 
-	IEEE80211_DEBUG_WX("Getting scan\n");
+	LIBIPW_DEBUG_WX("Getting scan\n");
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -285,10 +286,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 		if (ieee->scan_age == 0 ||
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
-			ev = ieee80211_translate_scan(ieee, ev, stop, network,
+			ev = libipw_translate_scan(ieee, ev, stop, network,
 						      info);
 		else {
-			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
+			LIBIPW_DEBUG_SCAN("Not showing network '%s ("
 					     "%pM)' due to age (%ums).\n",
 					     print_ssid(ssid, network->ssid,
 							 network->ssid_len),
@@ -303,26 +304,26 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	wrqu->data.length = ev - extra;
 	wrqu->data.flags = 0;
 
-	IEEE80211_DEBUG_WX("exit: %d networks returned.\n", i);
+	LIBIPW_DEBUG_WX("exit: %d networks returned.\n", i);
 
 	return err;
 }
 
-int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
+int libipw_wx_set_encode(struct libipw_device *ieee,
 			    struct iw_request_info *info,
 			    union iwreq_data *wrqu, char *keybuf)
 {
 	struct iw_point *erq = &(wrqu->encoding);
 	struct net_device *dev = ieee->dev;
-	struct ieee80211_security sec = {
+	struct libipw_security sec = {
 		.flags = 0
 	};
 	int i, key, key_provided, len;
 	struct lib80211_crypt_data **crypt;
-	int host_crypto = ieee->host_encrypt || ieee->host_decrypt || ieee->host_build_iv;
+	int host_crypto = ieee->host_encrypt || ieee->host_decrypt;
 	DECLARE_SSID_BUF(ssid);
 
-	IEEE80211_DEBUG_WX("SET_ENCODE\n");
+	LIBIPW_DEBUG_WX("SET_ENCODE\n");
 
 	key = erq->flags & IW_ENCODE_INDEX;
 	if (key) {
@@ -335,18 +336,18 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		key = ieee->crypt_info.tx_keyidx;
 	}
 
-	IEEE80211_DEBUG_WX("Key: %d [%s]\n", key, key_provided ?
+	LIBIPW_DEBUG_WX("Key: %d [%s]\n", key, key_provided ?
 			   "provided" : "default");
 
 	crypt = &ieee->crypt_info.crypt[key];
 
 	if (erq->flags & IW_ENCODE_DISABLED) {
 		if (key_provided && *crypt) {
-			IEEE80211_DEBUG_WX("Disabling encryption on key %d.\n",
+			LIBIPW_DEBUG_WX("Disabling encryption on key %d.\n",
 					   key);
 			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 		} else
-			IEEE80211_DEBUG_WX("Disabling encryption.\n");
+			LIBIPW_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all */
@@ -410,16 +411,12 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 
 	/* If a new key was provided, set it up */
 	if (erq->length > 0) {
-#ifdef CONFIG_IEEE80211_DEBUG
-		DECLARE_SSID_BUF(ssid);
-#endif
-
 		len = erq->length <= 5 ? 5 : 13;
 		memcpy(sec.keys[key], keybuf, erq->length);
 		if (len > erq->length)
 			memset(sec.keys[key] + erq->length, 0,
 			       len - erq->length);
-		IEEE80211_DEBUG_WX("Setting key %d to '%s' (%d:%d bytes)\n",
+		LIBIPW_DEBUG_WX("Setting key %d to '%s' (%d:%d bytes)\n",
 				   key, print_ssid(ssid, sec.keys[key], len),
 				   erq->length, len);
 		sec.key_sizes[key] = len;
@@ -438,7 +435,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 						     NULL, (*crypt)->priv);
 			if (len == 0) {
 				/* Set a default key of all 0 */
-				IEEE80211_DEBUG_WX("Setting key %d to all "
+				LIBIPW_DEBUG_WX("Setting key %d to all "
 						   "zero.\n", key);
 				memset(sec.keys[key], 0, 13);
 				(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
@@ -449,7 +446,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		}
 		/* No key data - just set the default TX key index */
 		if (key_provided) {
-			IEEE80211_DEBUG_WX("Setting key %d to default Tx "
+			LIBIPW_DEBUG_WX("Setting key %d to default Tx "
 					   "key.\n", key);
 			ieee->crypt_info.tx_keyidx = key;
 			sec.active_key = key;
@@ -461,7 +458,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		sec.auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN :
 		    WLAN_AUTH_SHARED_KEY;
 		sec.flags |= SEC_AUTH_MODE;
-		IEEE80211_DEBUG_WX("Auth: %s\n",
+		LIBIPW_DEBUG_WX("Auth: %s\n",
 				   sec.auth_mode == WLAN_AUTH_OPEN ?
 				   "OPEN" : "SHARED KEY");
 	}
@@ -490,16 +487,16 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	return 0;
 }
 
-int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
+int libipw_wx_get_encode(struct libipw_device *ieee,
 			    struct iw_request_info *info,
 			    union iwreq_data *wrqu, char *keybuf)
 {
 	struct iw_point *erq = &(wrqu->encoding);
 	int len, key;
 	struct lib80211_crypt_data *crypt;
-	struct ieee80211_security *sec = &ieee->sec;
+	struct libipw_security *sec = &ieee->sec;
 
-	IEEE80211_DEBUG_WX("GET_ENCODE\n");
+	LIBIPW_DEBUG_WX("GET_ENCODE\n");
 
 	key = erq->flags & IW_ENCODE_INDEX;
 	if (key) {
@@ -532,7 +529,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	return 0;
 }
 
-int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
+int libipw_wx_set_encodeext(struct libipw_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
@@ -545,7 +542,7 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 	struct lib80211_crypto_ops *ops;
 	struct lib80211_crypt_data **crypt;
 
-	struct ieee80211_security sec = {
+	struct libipw_security sec = {
 		.flags = 0,
 	};
 
@@ -611,7 +608,7 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 		module = "lib80211_crypt_ccmp";
 		break;
 	default:
-		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -623,7 +620,7 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -653,7 +650,7 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
-		IEEE80211_DEBUG_WX("%s: key setting failed\n", dev->name);
+		LIBIPW_DEBUG_WX("%s: key setting failed\n", dev->name);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -700,20 +697,20 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
-		IEEE80211_DEBUG_WX("%s: reset_port failed\n", dev->name);
+		LIBIPW_DEBUG_WX("%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
 
 	return ret;
 }
 
-int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
+int libipw_wx_get_encodeext(struct libipw_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
 	struct iw_point *encoding = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
-	struct ieee80211_security *sec = &ieee->sec;
+	struct libipw_security *sec = &ieee->sec;
 	int idx, max_key_len;
 
 	max_key_len = encoding->length - sizeof(*ext);
@@ -763,9 +760,9 @@ int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 	return 0;
 }
 
-EXPORT_SYMBOL(ieee80211_wx_set_encodeext);
-EXPORT_SYMBOL(ieee80211_wx_get_encodeext);
+EXPORT_SYMBOL(libipw_wx_set_encodeext);
+EXPORT_SYMBOL(libipw_wx_get_encodeext);
 
-EXPORT_SYMBOL(ieee80211_wx_get_scan);
-EXPORT_SYMBOL(ieee80211_wx_set_encode);
-EXPORT_SYMBOL(ieee80211_wx_get_encode);
+EXPORT_SYMBOL(libipw_wx_get_scan);
+EXPORT_SYMBOL(libipw_wx_set_encode);
+EXPORT_SYMBOL(libipw_wx_get_encode);

@@ -37,8 +37,10 @@
 #include <linux/clockchips.h>
 
 #include <asm/mach/time.h>
-#include <mach/dmtimer.h>
+#include <plat/dmtimer.h>
 #include <asm/localtimer.h>
+
+#include "timer-gp.h"
 
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
@@ -47,6 +49,7 @@ static struct omap_dm_timer *gptimer;
 static struct clock_event_device clockevent_gpt;
 static u8 __initdata gptimer_id = 1;
 static u8 __initdata inited;
+struct omap_dm_timer *gptimer_wakeup;
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
@@ -84,8 +87,6 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_PERIODIC:
 		period = clk_get_rate(omap_dm_timer_get_fclk(gptimer)) / HZ;
 		period -= 1;
-		if (cpu_is_omap44xx())
-			period = 0xff;	/* FIXME: */
 		omap_dm_timer_set_load_start(gptimer, 1, 0xffffffff - period);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -134,6 +135,7 @@ static void __init omap2_gp_clockevent_init(void)
 
 	gptimer = omap_dm_timer_request_specific(gptimer_id);
 	BUG_ON(gptimer == NULL);
+	gptimer_wakeup = gptimer;
 
 #if defined(CONFIG_OMAP_32K_TIMER)
 	src = OMAP_TIMER_SRC_32_KHZ;
@@ -148,9 +150,6 @@ static void __init omap2_gp_clockevent_init(void)
 		     "timer-gp: omap_dm_timer_set_source() failed\n");
 
 	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gptimer));
-	if (cpu_is_omap44xx())
-		/* Assuming 32kHz clk is driving GPT1 */
-		tick_rate = 32768;	/* FIXME: */
 
 	pr_info("OMAP clockevent source: GPTIMER%d at %u Hz\n",
 		gptimer_id, tick_rate);
@@ -196,7 +195,6 @@ static struct clocksource clocksource_gpt = {
 	.rating		= 300,
 	.read		= clocksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 24,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -204,7 +202,7 @@ static struct clocksource clocksource_gpt = {
 static void __init omap2_gp_clocksource_init(void)
 {
 	static struct omap_dm_timer *gpt;
-	u32 tick_rate, tick_period;
+	u32 tick_rate;
 	static char err1[] __initdata = KERN_ERR
 		"%s: failed to request dm-timer\n";
 	static char err2[] __initdata = KERN_ERR
@@ -217,13 +215,10 @@ static void __init omap2_gp_clocksource_init(void)
 
 	omap_dm_timer_set_source(gpt, OMAP_TIMER_SRC_SYS_CLK);
 	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gpt));
-	tick_period = (tick_rate / HZ) - 1;
 
 	omap_dm_timer_set_load_start(gpt, 1, 0);
 
-	clocksource_gpt.mult =
-		clocksource_khz2mult(tick_rate/1000, clocksource_gpt.shift);
-	if (clocksource_register(&clocksource_gpt))
+	if (clocksource_register_hz(&clocksource_gpt, tick_rate))
 		printk(err2, clocksource_gpt.name);
 }
 #endif
@@ -231,7 +226,10 @@ static void __init omap2_gp_clocksource_init(void)
 static void __init omap2_gp_timer_init(void)
 {
 #ifdef CONFIG_LOCAL_TIMERS
-	twd_base = IO_ADDRESS(OMAP44XX_LOCAL_TWD_BASE);
+	if (cpu_is_omap44xx()) {
+		twd_base = ioremap(OMAP44XX_LOCAL_TWD_BASE, SZ_256);
+		BUG_ON(!twd_base);
+	}
 #endif
 	omap_dm_timer_init();
 

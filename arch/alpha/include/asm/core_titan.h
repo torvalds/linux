@@ -2,7 +2,6 @@
 #define __ALPHA_TITAN__H__
 
 #include <linux/types.h>
-#include <linux/pci.h>
 #include <asm/compiler.h>
 
 /*

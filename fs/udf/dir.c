@@ -30,7 +30,6 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 
 #include "udf_i.h"
@@ -45,8 +44,8 @@ static int do_udf_readdir(struct inode *dir, struct file *filp,
 	int block, iblock;
 	loff_t nf_pos = (filp->f_pos - 1) << 2;
 	int flen;
-	char *fname = NULL;
-	char *nameptr;
+	unsigned char *fname = NULL;
+	unsigned char *nameptr;
 	uint16_t liu;
 	uint8_t lfi;
 	loff_t size = udf_ext0_offset(dir) + dir->i_size;
@@ -190,25 +189,22 @@ static int udf_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct inode *dir = filp->f_path.dentry->d_inode;
 	int result;
 
-	lock_kernel();
-
 	if (filp->f_pos == 0) {
 		if (filldir(dirent, ".", 1, filp->f_pos, dir->i_ino, DT_DIR) < 0) {
-			unlock_kernel();
 			return 0;
 		}
 		filp->f_pos++;
 	}
 
 	result = do_udf_readdir(dir, filp, filldir, dirent);
-	unlock_kernel();
  	return result;
 }
 
 /* readdir and lookup functions */
 const struct file_operations udf_dir_operations = {
+	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
 	.readdir		= udf_readdir,
-	.ioctl			= udf_ioctl,
-	.fsync			= simple_fsync,
+	.unlocked_ioctl		= udf_ioctl,
+	.fsync			= generic_file_fsync,
 };

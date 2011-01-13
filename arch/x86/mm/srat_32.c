@@ -25,6 +25,7 @@
  */
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/acpi.h>
 #include <linux/nodemask.h>
@@ -91,6 +92,7 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *cpu_affinity)
 	/* mark this node as "seen" in node bitmap */
 	BMAP_SET(pxm_bitmap, cpu_affinity->proximity_domain_lo);
 
+	/* don't need to check apic_id here, because it is always 8 bits */
 	apicid_to_pxm[cpu_affinity->apic_id] = cpu_affinity->proximity_domain_lo;
 
 	printk(KERN_DEBUG "CPU %02x in proximity domain %02x\n",
@@ -215,7 +217,7 @@ int __init get_memcfg_from_srat(void)
 		goto out_fail;
 
 	if (num_memory_chunks == 0) {
-		printk(KERN_WARNING
+		printk(KERN_DEBUG
 			 "could not find any ACPI SRAT memory areas.\n");
 		goto out_fail;
 	}
@@ -264,9 +266,11 @@ int __init get_memcfg_from_srat(void)
 		if (node_read_chunk(chunk->nid, chunk))
 			continue;
 
-		e820_register_active_regions(chunk->nid, chunk->start_pfn,
+		memblock_x86_register_active_regions(chunk->nid, chunk->start_pfn,
 					     min(chunk->end_pfn, max_pfn));
 	}
+	/* for out of order entries in SRAT */
+	sort_node_map();
 
 	for_each_online_node(nid) {
 		unsigned long start = node_start_pfn[nid];
@@ -277,7 +281,7 @@ int __init get_memcfg_from_srat(void)
 	}
 	return 1;
 out_fail:
-	printk(KERN_ERR "failed to get NUMA memory information from SRAT"
+	printk(KERN_DEBUG "failed to get NUMA memory information from SRAT"
 			" table\n");
 	return 0;
 }

@@ -32,7 +32,6 @@
 #include "the_nilfs.h"
 #include "sb.h"
 #include "bmap.h"
-#include "bmap_union.h"
 
 /*
  * nilfs inode data in memory
@@ -41,7 +40,7 @@ struct nilfs_inode_info {
 	__u32 i_flags;
 	unsigned long  i_state;		/* Dynamic state flags */
 	struct nilfs_bmap *i_bmap;
-	union nilfs_bmap_union i_bmap_union;
+	struct nilfs_bmap i_bmap_data;
 	__u64 i_xattr;	/* sector_t ??? */
 	__u32 i_dir_start_lookup;
 	__u64 i_cno;		/* check point number for GC inode */
@@ -58,12 +57,9 @@ struct nilfs_inode_info {
 	 */
 	struct rw_semaphore xattr_sem;
 #endif
-#ifdef CONFIG_NILFS_POSIX_ACL
-	struct posix_acl *i_acl;
-	struct posix_acl *i_default_acl;
-#endif
 	struct buffer_head *i_bh;	/* i_bh contains a new or dirty
 					   disk inode */
+	struct nilfs_root *i_root;
 	struct inode vfs_inode;
 };
 
@@ -75,9 +71,7 @@ static inline struct nilfs_inode_info *NILFS_I(const struct inode *inode)
 static inline struct nilfs_inode_info *
 NILFS_BMAP_I(const struct nilfs_bmap *bmap)
 {
-	return container_of((union nilfs_bmap_union *)bmap,
-			    struct nilfs_inode_info,
-			    i_bmap_union);
+	return container_of(bmap, struct nilfs_inode_info, i_bmap_data);
 }
 
 static inline struct inode *NILFS_BTNC_I(struct address_space *btnc)
@@ -107,7 +101,14 @@ enum {
 	NILFS_I_INODE_DIRTY,		/* write_inode is requested */
 	NILFS_I_BMAP,			/* has bmap and btnode_cache */
 	NILFS_I_GCINODE,		/* inode for GC, on memory only */
-	NILFS_I_GCDAT,			/* shadow DAT, on memory only */
+};
+
+/*
+ * commit flags for nilfs_commit_super and nilfs_sync_super
+ */
+enum {
+	NILFS_SB_COMMIT = 0,	/* Commit a super block alternately */
+	NILFS_SB_COMMIT_ALL	/* Commit both super blocks */
 };
 
 /*
@@ -189,22 +190,14 @@ static inline int nilfs_doing_construction(void)
 	return nilfs_test_transaction_flag(NILFS_TI_WRITER);
 }
 
-static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
-{
-	return nilfs_doing_gc() ? nilfs->ns_gc_dat : nilfs->ns_dat;
-}
-
 /*
  * function prototype
  */
 #ifdef CONFIG_NILFS_POSIX_ACL
 #error "NILFS: not yet supported POSIX ACL"
-extern int nilfs_permission(struct inode *, int, struct nameidata *);
 extern int nilfs_acl_chmod(struct inode *);
 extern int nilfs_init_acl(struct inode *, struct inode *);
 #else
-#define nilfs_permission   NULL
-
 static inline int nilfs_acl_chmod(struct inode *inode)
 {
 	return 0;
@@ -221,10 +214,10 @@ static inline int nilfs_init_acl(struct inode *inode, struct inode *dir)
 
 /* dir.c */
 extern int nilfs_add_link(struct dentry *, struct inode *);
-extern ino_t nilfs_inode_by_name(struct inode *, struct dentry *);
+extern ino_t nilfs_inode_by_name(struct inode *, const struct qstr *);
 extern int nilfs_make_empty(struct inode *, struct inode *);
 extern struct nilfs_dir_entry *
-nilfs_find_entry(struct inode *, struct dentry *, struct page **);
+nilfs_find_entry(struct inode *, const struct qstr *, struct page **);
 extern int nilfs_delete_entry(struct nilfs_dir_entry *, struct page *);
 extern int nilfs_empty_dir(struct inode *);
 extern struct nilfs_dir_entry *nilfs_dotdot(struct inode *, struct page **);
@@ -232,7 +225,7 @@ extern void nilfs_set_link(struct inode *, struct nilfs_dir_entry *,
 			   struct page *, struct inode *);
 
 /* file.c */
-extern int nilfs_sync_file(struct file *, struct dentry *, int);
+extern int nilfs_sync_file(struct file *, int);
 
 /* ioctl.c */
 long nilfs_ioctl(struct file *, unsigned int, unsigned long);
@@ -246,24 +239,28 @@ extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern void nilfs_set_inode_flags(struct inode *);
 extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
 extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
-extern struct inode *nilfs_iget(struct super_block *, unsigned long);
+struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
+			    unsigned long ino);
+struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
+				unsigned long ino);
+struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
+			 unsigned long ino);
+extern struct inode *nilfs_iget_for_gc(struct super_block *sb,
+				       unsigned long ino, __u64 cno);
 extern void nilfs_update_inode(struct inode *, struct buffer_head *);
 extern void nilfs_truncate(struct inode *);
-extern void nilfs_delete_inode(struct inode *);
+extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
-extern int nilfs_load_inode_block(struct nilfs_sb_info *, struct inode *,
-				  struct buffer_head **);
+int nilfs_permission(struct inode *inode, int mask, unsigned int flags);
+int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
-extern int nilfs_set_file_dirty(struct nilfs_sb_info *, struct inode *,
-				unsigned);
+int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
 extern int nilfs_mark_inode_dirty(struct inode *);
 extern void nilfs_dirty_inode(struct inode *);
-
-/* namei.c */
-extern struct dentry *nilfs_get_parent(struct dentry *);
+int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 __u64 start, __u64 len);
 
 /* super.c */
-extern struct inode *nilfs_alloc_inode_common(struct the_nilfs *);
 extern struct inode *nilfs_alloc_inode(struct super_block *);
 extern void nilfs_destroy_inode(struct inode *);
 extern void nilfs_error(struct super_block *, const char *, const char *, ...)
@@ -274,9 +271,17 @@ extern struct nilfs_super_block *
 nilfs_read_super_block(struct super_block *, u64, int, struct buffer_head **);
 extern int nilfs_store_magic_and_option(struct super_block *,
 					struct nilfs_super_block *, char *);
+extern int nilfs_check_feature_compatibility(struct super_block *,
+					     struct nilfs_super_block *);
+extern void nilfs_set_log_cursor(struct nilfs_super_block *,
+				 struct the_nilfs *);
+extern struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *,
+						      int flip);
 extern int nilfs_commit_super(struct nilfs_sb_info *, int);
-extern int nilfs_attach_checkpoint(struct nilfs_sb_info *, __u64);
-extern void nilfs_detach_checkpoint(struct nilfs_sb_info *);
+extern int nilfs_cleanup_super(struct nilfs_sb_info *);
+int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
+			    struct nilfs_root **root);
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);
 
 /* gcinode.c */
 int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
@@ -284,27 +289,19 @@ int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
 int nilfs_gccache_submit_read_node(struct inode *, sector_t, __u64,
 				   struct buffer_head **);
 int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *);
-int nilfs_init_gccache(struct the_nilfs *);
-void nilfs_destroy_gccache(struct the_nilfs *);
-void nilfs_clear_gcinode(struct inode *);
-struct inode *nilfs_gc_iget(struct the_nilfs *, ino_t, __u64);
-void nilfs_remove_all_gcinode(struct the_nilfs *);
-
-/* gcdat.c */
-int nilfs_init_gcdat_inode(struct the_nilfs *);
-void nilfs_commit_gcdat_inode(struct the_nilfs *);
-void nilfs_clear_gcdat_inode(struct the_nilfs *);
+int nilfs_init_gcinode(struct inode *inode);
+void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs);
 
 /*
  * Inodes and files operations
  */
-extern struct file_operations nilfs_dir_operations;
-extern struct inode_operations nilfs_file_inode_operations;
-extern struct file_operations nilfs_file_operations;
-extern struct address_space_operations nilfs_aops;
-extern struct inode_operations nilfs_dir_inode_operations;
-extern struct inode_operations nilfs_special_inode_operations;
-extern struct inode_operations nilfs_symlink_inode_operations;
+extern const struct file_operations nilfs_dir_operations;
+extern const struct inode_operations nilfs_file_inode_operations;
+extern const struct file_operations nilfs_file_operations;
+extern const struct address_space_operations nilfs_aops;
+extern const struct inode_operations nilfs_dir_inode_operations;
+extern const struct inode_operations nilfs_special_inode_operations;
+extern const struct inode_operations nilfs_symlink_inode_operations;
 
 /*
  * filesystem type

@@ -16,7 +16,7 @@
 # Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
-EXTRA_CFLAGS +=	 -I$(src) -I$(src)/linux-2.6 -funsigned-char
+EXTRA_CFLAGS +=	 -I$(src) -I$(src)/linux-2.6
 
 XFS_LINUX := linux-2.6
 
@@ -25,6 +25,8 @@ ifeq ($(CONFIG_XFS_DEBUG),y)
 endif
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
+
+xfs-y				+= linux-2.6/xfs_trace.o
 
 xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix quota/, \
 				   xfs_dquot.o \
@@ -75,6 +77,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_itable.o \
 				   xfs_dfrag.o \
 				   xfs_log.o \
+				   xfs_log_cil.o \
 				   xfs_log_recover.o \
 				   xfs_mount.o \
 				   xfs_mru_cache.o \
@@ -84,14 +87,11 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_trans_buf.o \
 				   xfs_trans_extfree.o \
 				   xfs_trans_inode.o \
-				   xfs_trans_item.o \
 				   xfs_utils.o \
 				   xfs_vnodeops.o \
-				   xfs_rw.o \
-				   xfs_dmops.o
+				   xfs_rw.o
 
-xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o \
-				   xfs_dir2_trace.o
+xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o
 
 # Objects in linux/
 xfs-y				+= $(addprefix $(XFS_LINUX)/, \
@@ -104,7 +104,6 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_globals.o \
 				   xfs_ioctl.o \
 				   xfs_iops.o \
-				   xfs_lrw.o \
 				   xfs_super.o \
 				   xfs_sync.o \
 				   xfs_xattr.o)
@@ -113,6 +112,3 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 xfs-y				+= $(addprefix support/, \
 				   debug.o \
 				   uuid.o)
-
-xfs-$(CONFIG_XFS_TRACE)		+= support/ktrace.o
-

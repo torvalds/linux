@@ -30,9 +30,7 @@
 #ifndef __AES_H__
 #define __AES_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -43,6 +41,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-BOOL AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize);
+bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned short wFrameSize);
 
 #endif //__AES_H__

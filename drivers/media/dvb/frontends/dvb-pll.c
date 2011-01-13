@@ -18,6 +18,7 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/dvb/frontend.h>
 #include <asm/types.h>
@@ -389,6 +390,77 @@ static struct dvb_pll_desc dvb_pll_samsung_dtos403ih102a = {
 	}
 };
 
+/* Samsung TDTC9251DH0 DVB-T NIM, as used on AirStar 2 */
+static struct dvb_pll_desc dvb_pll_samsung_tdtc9251dh0 = {
+	.name	= "Samsung TDTC9251DH0",
+	.min	=  48000000,
+	.max	= 863000000,
+	.iffreq	=  36166667,
+	.count	= 3,
+	.entries = {
+		{ 157500000, 166667, 0xcc, 0x09 },
+		{ 443000000, 166667, 0xcc, 0x0a },
+		{ 863000000, 166667, 0xcc, 0x08 },
+	}
+};
+
+/* Samsung TBDU18132 DVB-S NIM with TSA5059 PLL, used in SkyStar2 DVB-S 2.3 */
+static struct dvb_pll_desc dvb_pll_samsung_tbdu18132 = {
+	.name = "Samsung TBDU18132",
+	.min	=  950000,
+	.max	= 2150000, /* guesses */
+	.iffreq = 0,
+	.count = 2,
+	.entries = {
+		{ 1550000, 125, 0x84, 0x82 },
+		{ 4095937, 125, 0x84, 0x80 },
+	}
+	/* TSA5059 PLL has a 17 bit divisor rather than the 15 bits supported
+	 * by this driver.  The two extra bits are 0x60 in the third byte.  15
+	 * bits is enough for over 4 GHz, which is enough to cover the range
+	 * of this tuner.  We could use the additional divisor bits by adding
+	 * more entries, e.g.
+	 { 0x0ffff * 125 + 125/2, 125, 0x84 | 0x20, },
+	 { 0x17fff * 125 + 125/2, 125, 0x84 | 0x40, },
+	 { 0x1ffff * 125 + 125/2, 125, 0x84 | 0x60, }, */
+};
+
+/* Samsung TBMU24112 DVB-S NIM with SL1935 zero-IF tuner */
+static struct dvb_pll_desc dvb_pll_samsung_tbmu24112 = {
+	.name = "Samsung TBMU24112",
+	.min	=  950000,
+	.max	= 2150000, /* guesses */
+	.iffreq = 0,
+	.count = 2,
+	.entries = {
+		{ 1500000, 125, 0x84, 0x18 },
+		{ 9999999, 125, 0x84, 0x08 },
+	}
+};
+
+/* Alps TDEE4 DVB-C NIM, used on Cablestar 2 */
+/* byte 4 : 1  *   *   AGD R3  R2  R1  R0
+ * byte 5 : C1 *   RE  RTS BS4 BS3 BS2 BS1
+ * AGD = 1, R3 R2 R1 R0 = 0 1 0 1 => byte 4 = 1**10101 = 0x95
+ * Range(MHz)  C1 *  RE RTS BS4 BS3 BS2 BS1  Byte 5
+ *  47 - 153   0  *  0   0   0   0   0   1   0x01
+ * 153 - 430   0  *  0   0   0   0   1   0   0x02
+ * 430 - 822   0  *  0   0   1   0   0   0   0x08
+ * 822 - 862   1  *  0   0   1   0   0   0   0x88 */
+static struct dvb_pll_desc dvb_pll_alps_tdee4 = {
+	.name = "ALPS TDEE4",
+	.min	=  47000000,
+	.max	= 862000000,
+	.iffreq	=  36125000,
+	.count = 4,
+	.entries = {
+		{ 153000000, 62500, 0x95, 0x01 },
+		{ 430000000, 62500, 0x95, 0x02 },
+		{ 822000000, 62500, 0x95, 0x08 },
+		{ 999999999, 62500, 0x95, 0x88 },
+	}
+};
+
 /* ----------------------------------------------------------- */
 
 static struct dvb_pll_desc *pll_list[] = {
@@ -402,11 +474,15 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_TUA6034]                = &dvb_pll_tua6034,
 	[DVB_PLL_TDA665X]                = &dvb_pll_tda665x,
 	[DVB_PLL_TDED4]                  = &dvb_pll_tded4,
+	[DVB_PLL_TDEE4]                  = &dvb_pll_alps_tdee4,
 	[DVB_PLL_TDHU2]                  = &dvb_pll_tdhu2,
 	[DVB_PLL_SAMSUNG_TBMV]           = &dvb_pll_samsung_tbmv,
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
 	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
 	[DVB_PLL_SAMSUNG_DTOS403IH102A]  = &dvb_pll_samsung_dtos403ih102a,
+	[DVB_PLL_SAMSUNG_TDTC9251DH0]    = &dvb_pll_samsung_tdtc9251dh0,
+	[DVB_PLL_SAMSUNG_TBDU18132]	 = &dvb_pll_samsung_tbdu18132,
+	[DVB_PLL_SAMSUNG_TBMU24112]      = &dvb_pll_samsung_tbmu24112,
 };
 
 /* ----------------------------------------------------------- */

@@ -11,7 +11,9 @@ ip_forward - BOOLEAN
 	for routers)
 
 ip_default_ttl - INTEGER
-	default 64
+	Default value of TTL field (Time To Live) for outgoing (but not
+	forwarded) IP packets. Should be between 1 and 255 inclusive.
+	Default: 64 (as recommended by RFC1700)
 
 ip_no_pmtu_disc - BOOLEAN
 	Disable Path MTU Discovery.
@@ -19,6 +21,15 @@ ip_no_pmtu_disc - BOOLEAN
 
 min_pmtu - INTEGER
 	default 562 - minimum discovered Path MTU
+
+route/max_size - INTEGER
+	Maximum number of routes allowed in the kernel.  Increase
+	this when using large numbers of interfaces and/or routes.
+
+neigh/default/gc_thresh3 - INTEGER
+	Maximum number of neighbor entries allowed.  Increase this
+	when using large numbers of interfaces and when communicating
+	with large numbers of directly-connected peers.
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
@@ -135,6 +146,7 @@ tcp_adv_win_scale - INTEGER
 	Count buffering overhead as bytes/2^tcp_adv_win_scale
 	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
 	if it is <= 0.
+	Possible values are [-31, 31], inclusive.
 	Default: 2
 
 tcp_allowed_congestion_control - STRING
@@ -163,6 +175,14 @@ tcp_congestion_control - STRING
 	connections. The algorithm "reno" is always available, but
 	additional choices may be available based on kernel configuration.
 	Default is set as part of kernel configuration.
+
+tcp_cookie_size - INTEGER
+	Default size of TCP Cookie Transactions (TCPCT) option, that may be
+	overridden on a per socket basis by the TCPCT socket option.
+	Values greater than the maximum (16) are interpreted as the maximum.
+	Values greater than zero and less than the minimum (8) are interpreted
+	as the minimum.  Odd values are interpreted as the next even value.
+	Default: 0 (off).
 
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
@@ -311,9 +331,12 @@ tcp_no_metrics_save - BOOLEAN
 	connections.
 
 tcp_orphan_retries - INTEGER
-	How may times to retry before killing TCP connection, closed
-	by our side. Default value 7 corresponds to ~50sec-16min
-	depending on RTO. If you machine is loaded WEB server,
+	This value influences the timeout of a locally closed TCP connection,
+	when RTO retransmissions remain unacknowledged.
+	See tcp_retries2 for more details.
+
+	The default value is 7.
+	If your machine is a loaded WEB server,
 	you should think about lowering this value, such sockets
 	may consume significant resources. Cf. tcp_max_orphans.
 
@@ -327,16 +350,28 @@ tcp_retrans_collapse - BOOLEAN
 	certain TCP stacks.
 
 tcp_retries1 - INTEGER
-	How many times to retry before deciding that something is wrong
-	and it is necessary to report this suspicion to network layer.
-	Minimal RFC value is 3, it is default, which corresponds
-	to ~3sec-8min depending on RTO.
+	This value influences the time, after which TCP decides, that
+	something is wrong due to unacknowledged RTO retransmissions,
+	and reports this suspicion to the network layer.
+	See tcp_retries2 for more details.
+
+	RFC 1122 recommends at least 3 retransmissions, which is the
+	default.
 
 tcp_retries2 - INTEGER
-	How may times to retry before killing alive TCP connection.
-	RFC1122 says that the limit should be longer than 100 sec.
-	It is too small number.	Default value 15 corresponds to ~13-30min
-	depending on RTO.
+	This value influences the timeout of an alive TCP connection,
+	when RTO retransmissions remain unacknowledged.
+	Given a value of N, a hypothetical TCP connection following
+	exponential backoff with an initial RTO of TCP_RTO_MIN would
+	retransmit N times before killing the connection at the (N+1)th RTO.
+
+	The default value of 15 yields a hypothetical timeout of 924.6
+	seconds and is a lower bound for the effective timeout.
+	TCP will effectively time out at the first RTO which exceeds the
+	hypothetical timeout.
+
+	RFC 1122 recommends at least 100 seconds for the timeout,
+	which corresponds to a value of at least 8.
 
 tcp_rfc1337 - BOOLEAN
 	If set, the TCP stack behaves conforming to RFC1337. If unset,
@@ -464,6 +499,30 @@ tcp_dma_copybreak - INTEGER
 	and CONFIG_NET_DMA is enabled.
 	Default: 4096
 
+tcp_thin_linear_timeouts - BOOLEAN
+	Enable dynamic triggering of linear timeouts for thin streams.
+	If set, a check is performed upon retransmission by timeout to
+	determine if the stream is thin (less than 4 packets in flight).
+	As long as the stream is found to be thin, up to 6 linear
+	timeouts may be performed before exponential backoff mode is
+	initiated. This improves retransmission latency for
+	non-aggressive thin streams, often found to be time-dependent.
+	For more information on thin streams, see
+	Documentation/networking/tcp-thin.txt
+	Default: 0
+
+tcp_thin_dupack - BOOLEAN
+	Enable dynamic triggering of retransmissions after one dupACK
+	for thin streams. If set, a check is performed upon reception
+	of a dupACK to determine if the stream is thin (less than 4
+	packets in flight). As long as the stream is found to be thin,
+	data is retransmitted on the first received dupACK. This
+	improves retransmission latency for non-aggressive thin
+	streams, often found to be time-dependent.
+	For more information on thin streams, see
+	Documentation/networking/tcp-thin.txt
+	Default: 0
+
 UDP variables:
 
 udp_mem - vector of 3 INTEGERs: min, pressure, max
@@ -540,6 +599,37 @@ ip_local_port_range - 2 INTEGERS
 	TCP extensions (timestamps). With tcp_tw_recycle enabled
 	(i.e. by default) range 1024-4999 is enough to issue up to
 	2000 connections per second to systems supporting timestamps.
+
+ip_local_reserved_ports - list of comma separated ranges
+	Specify the ports which are reserved for known third-party
+	applications. These ports will not be used by automatic port
+	assignments (e.g. when calling connect() or bind() with port
+	number 0). Explicit port allocation behavior is unchanged.
+
+	The format used for both input and output is a comma separated
+	list of ranges (e.g. "1,2-4,10-10" for ports 1, 2, 3, 4 and
+	10). Writing to the file will clear all previously reserved
+	ports and update the current list with the one given in the
+	input.
+
+	Note that ip_local_port_range and ip_local_reserved_ports
+	settings are independent and both are considered by the kernel
+	when determining which ports are available for automatic port
+	assignments.
+
+	You can reserve ports which are not in the current
+	ip_local_port_range, e.g.:
+
+	$ cat /proc/sys/net/ipv4/ip_local_port_range
+	32000	61000
+	$ cat /proc/sys/net/ipv4/ip_local_reserved_ports
+	8080,9148
+
+	although this is redundant. However such a setting is useful
+	if later the port range is changed to a value that will
+	include the reserved ports.
+
+	Default: Empty
 
 ip_nonlocal_bind - BOOLEAN
 	If set, allows processes to bind() to non-local IP addresses,
@@ -620,10 +710,28 @@ igmp_max_memberships - INTEGER
 	Change the maximum number of multicast groups we can subscribe to.
 	Default: 20
 
-conf/interface/*  changes special settings per interface (where "interface" is
-		  the name of your network interface)
-conf/all/*	  is special, changes the settings for all interfaces
+	Theoretical maximum value is bounded by having to send a membership
+	report in a single datagram (i.e. the report can't span multiple
+	datagrams, or risk confusing the switch and leaving groups you don't
+	intend to).
 
+	The number of supported groups 'M' is bounded by the number of group
+	report entries you can fit into a single datagram of 65535 bytes.
+
+	M = 65536-sizeof (ip header)/(sizeof(Group record))
+
+	Group records are variable length, with a minimum of 12 bytes.
+	So net.ipv4.igmp_max_memberships should not be set higher than:
+
+	(65536-24) / 12 = 5459
+
+	The value 5459 assumes no IP header options, so in practice
+	this number may be lower.
+
+	conf/interface/*  changes special settings per interface (where
+	"interface" is the name of your network interface)
+
+	conf/all/*	  is special, changes the settings for all interfaces
 
 log_martians - BOOLEAN
 	Log packets with impossible addresses to kernel log.
@@ -669,6 +777,25 @@ proxy_arp - BOOLEAN
 	conf/{all,interface}/proxy_arp is set to TRUE,
 	it will be disabled otherwise
 
+proxy_arp_pvlan - BOOLEAN
+	Private VLAN proxy arp.
+	Basically allow proxy arp replies back to the same interface
+	(from which the ARP request/solicitation was received).
+
+	This is done to support (ethernet) switch features, like RFC
+	3069, where the individual ports are NOT allowed to
+	communicate with each other, but they are allowed to talk to
+	the upstream router.  As described in RFC 3069, it is possible
+	to allow these hosts to communicate through the upstream
+	router by proxy_arp'ing. Don't need to be used together with
+	proxy_arp.
+
+	This technology is known by different names:
+	  In RFC 3069 it is called VLAN Aggregation.
+	  Cisco and Allied Telesyn call it Private VLAN.
+	  Hewlett-Packard call it Source-Port filtering or port-isolation.
+	  Ericsson call it MAC-Forced Forwarding (RFC Draft).
+
 shared_media - BOOLEAN
 	Send(router) or accept(host) RFC1620 shared media redirects.
 	Overrides ip_secure_redirects.
@@ -708,6 +835,12 @@ accept_source_route - BOOLEAN
 	default TRUE (router)
 		FALSE (host)
 
+accept_local - BOOLEAN
+	Accept packets with local source addresses. In combination with
+	suitable routing, this can be used to direct packets between two
+	local interfaces over the wire and have them accepted properly.
+	default FALSE
+
 rp_filter - INTEGER
 	0 - No source validation.
 	1 - Strict mode as defined in RFC3704 Strict Reverse Path
@@ -723,8 +856,8 @@ rp_filter - INTEGER
 	to prevent IP spoofing from DDos attacks. If using asymmetric routing
 	or other complicated routing, then loose mode is recommended.
 
-	conf/all/rp_filter must also be set to non-zero to do source validation
-	on the interface
+	The max value from conf/{all,interface}/rp_filter is used
+	when doing source validation on the {interface}.
 
 	Default value is 0. Note that some distributions enable it
 	in startup scripts.
@@ -800,13 +933,22 @@ arp_ignore - INTEGER
 arp_notify - BOOLEAN
 	Define mode for notification of address and device changes.
 	0 - (default): do nothing
-	1 - Generate gratuitous arp replies when device is brought up
+	1 - Generate gratuitous arp requests when device is brought up
 	    or hardware address changes.
 
 arp_accept - BOOLEAN
-	Define behavior when gratuitous arp replies are received:
-	0 - drop gratuitous arp frames
-	1 - accept gratuitous arp frames
+	Define behavior for gratuitous ARP frames who's IP is not
+	already present in the ARP table:
+	0 - don't create new entries in the ARP table
+	1 - create new entries in the ARP table
+
+	Both replies and requests type gratuitous arp will trigger the
+	ARP table to be updated, if this setting is on.
+
+	If the ARP table already contains the IP address of the
+	gratuitous arp frame, the arp table will be updated regardless
+	if this setting is on or off.
+
 
 app_solicit - INTEGER
 	The maximum number of probes to send to the user space ARP daemon
@@ -902,6 +1044,12 @@ conf/interface/*:
 accept_ra - BOOLEAN
 	Accept Router Advertisements; autoconfigure using them.
 
+	Possible values are:
+		0 Do not accept Router Advertisements.
+		1 Accept Router Advertisements if forwarding is disabled.
+		2 Overrule forwarding behaviour. Accept Router Advertisements
+		  even if forwarding is enabled.
+
 	Functional default: enabled if local forwarding is disabled.
 			    disabled if local forwarding is enabled.
 
@@ -963,7 +1111,12 @@ forwarding - BOOLEAN
 	Note: It is recommended to have the same setting on all
 	interfaces; mixed router/host scenarios are rather uncommon.
 
-	FALSE:
+	Possible values are:
+		0 Forwarding disabled
+		1 Forwarding enabled
+		2 Forwarding enabled (Hybrid Mode)
+
+	FALSE (0):
 
 	By default, Host behaviour is assumed.  This means:
 
@@ -973,18 +1126,24 @@ forwarding - BOOLEAN
 	   Advertisements (and do autoconfiguration).
 	4. If accept_redirects is TRUE (default), accept Redirects.
 
-	TRUE:
+	TRUE (1):
 
 	If local forwarding is enabled, Router behaviour is assumed.
 	This means exactly the reverse from the above:
 
 	1. IsRouter flag is set in Neighbour Advertisements.
 	2. Router Solicitations are not sent.
-	3. Router Advertisements are ignored.
+	3. Router Advertisements are ignored unless accept_ra is 2.
 	4. Redirects are ignored.
 
-	Default: FALSE if global forwarding is disabled (default),
-		 otherwise TRUE.
+	TRUE (2):
+
+	Hybrid mode. Same behaviour as TRUE, except for:
+
+	2. Router Solicitations are being sent when necessary.
+
+	Default: 0 (disabled) if global forwarding is disabled (default),
+		 otherwise 1 (enabled).
 
 hop_limit - INTEGER
 	Default Hop Limit to set.
@@ -1045,10 +1204,10 @@ regen_max_retry - INTEGER
 	Default: 5
 
 max_addresses - INTEGER
-	Number of maximum addresses per interface.  0 disables limitation.
-	It is recommended not set too large value (or 0) because it would
-	be too easy way to crash kernel to allow to create too much of
-	autoconfigured addresses.
+	Maximum number of autoconfigured addresses per interface.  Setting
+	to zero disables the limitation.  It is not recommended to set this
+	value too large (or to zero) because it would be an easy way to
+	crash the kernel by allowing too many addresses to be created.
 	Default: 16
 
 disable_ipv6 - BOOLEAN
@@ -1070,6 +1229,24 @@ accept_dad - INTEGER
 	1: Enable DAD (default)
 	2: Enable DAD, and disable IPv6 operation if MAC-based duplicate
 	   link-local address has been found.
+
+force_tllao - BOOLEAN
+	Enable sending the target link-layer address option even when
+	responding to a unicast neighbor solicitation.
+	Default: FALSE
+
+	Quoting from RFC 2461, section 4.4, Target link-layer address:
+
+	"The option MUST be included for multicast solicitations in order to
+	avoid infinite Neighbor Solicitation "recursion" when the peer node
+	does not have a cache entry to return a Neighbor Advertisements
+	message.  When responding to unicast solicitations, the option can be
+	omitted since the sender of the solicitation has the correct link-
+	layer address; otherwise it would not have be able to send the unicast
+	solicitation in the first place. However, including the link-layer
+	address in this case adds little overhead and eliminates a potential
+	race condition where the sender deletes the cached link-layer address
+	prior to receiving a response to a previous solicitation."
 
 icmp/*:
 ratelimit - INTEGER
@@ -1281,6 +1458,16 @@ sctp_rmem - vector of 3 INTEGERs: min, default, max
 
 sctp_wmem  - vector of 3 INTEGERs: min, default, max
 	See tcp_wmem for a description.
+
+addr_scope_policy - INTEGER
+	Control IPv4 address scoping - draft-stewart-tsvwg-sctp-ipv4-00
+
+	0   - Disable IPv4 address scoping
+	1   - Enable IPv4 address scoping
+	2   - Follow draft but allow IPv4 private addresses
+	3   - Follow draft but allow IPv4 link local addresses
+
+	Default: 1
 
 
 /proc/sys/net/core/*

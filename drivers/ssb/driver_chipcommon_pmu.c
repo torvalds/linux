@@ -28,6 +28,21 @@ static void ssb_chipco_pll_write(struct ssb_chipcommon *cc,
 	chipco_write32(cc, SSB_CHIPCO_PLLCTL_DATA, value);
 }
 
+static void ssb_chipco_regctl_maskset(struct ssb_chipcommon *cc,
+				   u32 offset, u32 mask, u32 set)
+{
+	u32 value;
+
+	chipco_read32(cc, SSB_CHIPCO_REGCTL_ADDR);
+	chipco_write32(cc, SSB_CHIPCO_REGCTL_ADDR, offset);
+	chipco_read32(cc, SSB_CHIPCO_REGCTL_ADDR);
+	value = chipco_read32(cc, SSB_CHIPCO_REGCTL_DATA);
+	value &= mask;
+	value |= set;
+	chipco_write32(cc, SSB_CHIPCO_REGCTL_DATA, value);
+	chipco_read32(cc, SSB_CHIPCO_REGCTL_DATA);
+}
+
 struct pmu0_plltab_entry {
 	u16 freq;	/* Crystal frequency in kHz.*/
 	u8 xf;		/* Crystal frequency value for PMU control */
@@ -317,6 +332,12 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 	case 0x5354:
 		ssb_pmu0_pllinit_r0(cc, crystalfreq);
 		break;
+	case 0x4322:
+		if (cc->pmu.rev == 2) {
+			chipco_write32(cc, SSB_CHIPCO_PLLCTL_ADDR, 0x0000000A);
+			chipco_write32(cc, SSB_CHIPCO_PLLCTL_DATA, 0x380005C0);
+		}
+		break;
 	default:
 		ssb_printk(KERN_ERR PFX
 			   "ERROR: PLL init unknown for device %04X\n",
@@ -402,6 +423,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 
 	switch (bus->chip_id) {
 	case 0x4312:
+	case 0x4322:
 		/* We keep the default settings:
 		 * min_msk = 0xCBB
 		 * max_msk = 0x7FFFF
@@ -480,9 +502,9 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 		chipco_write32(cc, SSB_CHIPCO_PMU_MAXRES_MSK, max_msk);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/SSB/PmuInit */
 void ssb_pmu_init(struct ssb_chipcommon *cc)
 {
-	struct ssb_bus *bus = cc->dev->bus;
 	u32 pmucap;
 
 	if (!(cc->capabilities & SSB_CHIPCO_CAP_PMU))
@@ -494,15 +516,91 @@ void ssb_pmu_init(struct ssb_chipcommon *cc)
 	ssb_dprintk(KERN_DEBUG PFX "Found rev %u PMU (capabilities 0x%08X)\n",
 		    cc->pmu.rev, pmucap);
 
-	if (cc->pmu.rev >= 1) {
-		if ((bus->chip_id == 0x4325) && (bus->chip_rev < 2)) {
-			chipco_mask32(cc, SSB_CHIPCO_PMU_CTL,
-				      ~SSB_CHIPCO_PMU_CTL_NOILPONW);
-		} else {
-			chipco_set32(cc, SSB_CHIPCO_PMU_CTL,
-				     SSB_CHIPCO_PMU_CTL_NOILPONW);
-		}
-	}
+	if (cc->pmu.rev == 1)
+		chipco_mask32(cc, SSB_CHIPCO_PMU_CTL,
+			      ~SSB_CHIPCO_PMU_CTL_NOILPONW);
+	else
+		chipco_set32(cc, SSB_CHIPCO_PMU_CTL,
+			     SSB_CHIPCO_PMU_CTL_NOILPONW);
 	ssb_pmu_pll_init(cc);
 	ssb_pmu_resources_init(cc);
 }
+
+void ssb_pmu_set_ldo_voltage(struct ssb_chipcommon *cc,
+			     enum ssb_pmu_ldo_volt_id id, u32 voltage)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+	u32 addr, shift, mask;
+
+	switch (bus->chip_id) {
+	case 0x4328:
+	case 0x5354:
+		switch (id) {
+		case LDO_VOLT1:
+			addr = 2;
+			shift = 25;
+			mask = 0xF;
+			break;
+		case LDO_VOLT2:
+			addr = 3;
+			shift = 1;
+			mask = 0xF;
+			break;
+		case LDO_VOLT3:
+			addr = 3;
+			shift = 9;
+			mask = 0xF;
+			break;
+		case LDO_PAREF:
+			addr = 3;
+			shift = 17;
+			mask = 0x3F;
+			break;
+		default:
+			SSB_WARN_ON(1);
+			return;
+		}
+		break;
+	case 0x4312:
+		if (SSB_WARN_ON(id != LDO_PAREF))
+			return;
+		addr = 0;
+		shift = 21;
+		mask = 0x3F;
+		break;
+	default:
+		return;
+	}
+
+	ssb_chipco_regctl_maskset(cc, addr, ~(mask << shift),
+				  (voltage & mask) << shift);
+}
+
+void ssb_pmu_set_ldo_paref(struct ssb_chipcommon *cc, bool on)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+	int ldo;
+
+	switch (bus->chip_id) {
+	case 0x4312:
+		ldo = SSB_PMURES_4312_PA_REF_LDO;
+		break;
+	case 0x4328:
+		ldo = SSB_PMURES_4328_PA_REF_LDO;
+		break;
+	case 0x5354:
+		ldo = SSB_PMURES_5354_PA_REF_LDO;
+		break;
+	default:
+		return;
+	}
+
+	if (on)
+		chipco_set32(cc, SSB_CHIPCO_PMU_MINRES_MSK, 1 << ldo);
+	else
+		chipco_mask32(cc, SSB_CHIPCO_PMU_MINRES_MSK, ~(1 << ldo));
+	chipco_read32(cc, SSB_CHIPCO_PMU_MINRES_MSK); //SPEC FIXME found via mmiotrace - dummy read?
+}
+
+EXPORT_SYMBOL(ssb_pmu_set_ldo_voltage);
+EXPORT_SYMBOL(ssb_pmu_set_ldo_paref);

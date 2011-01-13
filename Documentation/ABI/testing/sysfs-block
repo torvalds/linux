@@ -4,7 +4,7 @@ Contact:	Jerome Marchand <jmarchan@redhat.com>
 Description:
 		The /sys/block/<disk>/stat files displays the I/O
 		statistics of disk <disk>. They contain 11 fields:
-		 1 - reads completed succesfully
+		 1 - reads completed successfully
 		 2 - reads merged
 		 3 - sectors read
 		 4 - time spent reading (ms)
@@ -94,28 +94,51 @@ What:		/sys/block/<disk>/queue/physical_block_size
 Date:		May 2009
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
-		This is the smallest unit the storage device can write
-		without resorting to read-modify-write operation.  It is
-		usually the same as the logical block size but may be
-		bigger.  One example is SATA drives with 4KB sectors
-		that expose a 512-byte logical block size to the
-		operating system.
+		This is the smallest unit a physical storage device can
+		write atomically.  It is usually the same as the logical
+		block size but may be bigger.  One example is SATA
+		drives with 4KB sectors that expose a 512-byte logical
+		block size to the operating system.  For stacked block
+		devices the physical_block_size variable contains the
+		maximum physical_block_size of the component devices.
 
 What:		/sys/block/<disk>/queue/minimum_io_size
 Date:		April 2009
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
-		Storage devices may report a preferred minimum I/O size,
-		which is the smallest request the device can perform
-		without incurring a read-modify-write penalty.  For disk
-		drives this is often the physical block size.  For RAID
-		arrays it is often the stripe chunk size.
+		Storage devices may report a granularity or preferred
+		minimum I/O size which is the smallest request the
+		device can perform without incurring a performance
+		penalty.  For disk drives this is often the physical
+		block size.  For RAID arrays it is often the stripe
+		chunk size.  A properly aligned multiple of
+		minimum_io_size is the preferred request size for
+		workloads where a high number of I/O operations is
+		desired.
 
 What:		/sys/block/<disk>/queue/optimal_io_size
 Date:		April 2009
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
 		Storage devices may report an optimal I/O size, which is
-		the device's preferred unit of receiving I/O.  This is
-		rarely reported for disk drives.  For RAID devices it is
-		usually the stripe width or the internal block size.
+		the device's preferred unit for sustained I/O.  This is
+		rarely reported for disk drives.  For RAID arrays it is
+		usually the stripe width or the internal track size.  A
+		properly aligned multiple of optimal_io_size is the
+		preferred request size for workloads where sustained
+		throughput is desired.  If no optimal I/O size is
+		reported this file contains 0.
+
+What:		/sys/block/<disk>/queue/nomerges
+Date:		January 2010
+Contact:
+Description:
+		Standard I/O elevator operations include attempts to
+		merge contiguous I/Os. For known random I/O loads these
+		attempts will always fail and result in extra cycles
+		being spent in the kernel. This allows one to turn off
+		this behavior on one of two ways: When set to 1, complex
+		merge checks are disabled, but the simple one-shot merges
+		with the previous I/O request are enabled. When set to 2,
+		all merge tries are disabled. The default value is 0 -
+		which enables all types of merge tries.

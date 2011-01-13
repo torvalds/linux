@@ -47,6 +47,7 @@
 #include <linux/hdlc.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #define RT_LOCK
@@ -765,7 +766,7 @@ irqreturn_t z8530_interrupt(int irq, void *dev_id)
 
 EXPORT_SYMBOL(z8530_interrupt);
 
-static char reg_init[16]=
+static const u8 reg_init[16]=
 {
 	0,0,0,0,
 	0,0,0,0,
@@ -1205,7 +1206,7 @@ EXPORT_SYMBOL(z8530_sync_txdma_close);
  *	it exists...
  */
  
-static char *z8530_type_name[]={
+static const char *z8530_type_name[]={
 	"Z8530",
 	"Z85C30",
 	"Z85230"
@@ -1727,15 +1728,14 @@ static inline int spans_boundary(struct sk_buff *skb)
  *	point.
  */
 
-int z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb)
+netdev_tx_t z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb)
 {
 	unsigned long flags;
 	
 	netif_stop_queue(c->netdevice);
 	if(c->tx_next_skb)
-	{
-		return 1;
-	}
+		return NETDEV_TX_BUSY;
+
 	
 	/* PC SPECIFIC - DMA limits */
 	
@@ -1767,7 +1767,7 @@ int z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb)
 	z8530_tx_begin(c);
 	spin_unlock_irqrestore(c->lock, flags);
 	
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 EXPORT_SYMBOL(z8530_queue_xmit);

@@ -1,0 +1,59 @@
+Ring buffer support within IIO
+
+This document is intended as a general overview of the functionality
+a ring buffer may supply and how it is specified within IIO.  For more
+specific information on a given ring buffer implementation, see the
+comments in the source code.  Note that the intention is to allow
+some drivers to specify ring buffers choice at probe or runtime, but
+for now the selection is hard coded within a given driver.
+
+A given ring buffer implementation typically embedded a struct
+iio_ring_buffer and it is a pointer to this that is provided to the
+IIO core. Access to the embedding structure is typically done via
+container_of functions.
+
+struct iio_ring_buffer contains 4 function pointers
+(preenable, postenable, predisable, postdisable).
+These are used to perform implementation specific steps on either side
+of the core changing it's current mode to indicate that the ring buffer
+is enabled or disabled (along with enabling triggering etc as appropriate).
+
+Also in struct iio_ring_buffer is a struct iio_ring_access_funcs.
+The function pointers within here are used to allow the core to handle
+as much ring buffer functionality as possible. Note almost all of these
+are optional.
+
+mark_in_use, unmark_in_use
+  Basically indicate that not changes should be made to the ring
+  buffer state that will effect the form of the data being captures
+  (e.g. scan elements or length)
+
+store_to
+  If possible, push data to ring buffer.
+
+read_last
+  If possible get the most recent entry from the buffer (without removal).
+  This provides polling like functionality whilst the ring buffering is in
+  use without a separate read from the device.
+
+rip_lots
+  The primary ring buffer reading function. Note that it may well not return
+  as much data as requested.  The deadoffset is used to indicate that some
+  initial data in the data array is not guaranteed to be valid.
+
+mark_param_changed
+  Used to indicate that something has changed. Used in conjunction with
+request_update
+  If parameters have changed that require reinitialization or configuration of
+  the ring buffer this will trigger it.
+
+get_bytes_per_datum, set_bytes_per_datum
+  Get/set the number of bytes for a complete scan. (All samples + timestamp)
+
+get_length / set_length
+  Get/set the number of sample sets that may be held by the buffer.
+
+is_enabled
+  Query if ring buffer is in use
+enable
+  Start the ring buffer.

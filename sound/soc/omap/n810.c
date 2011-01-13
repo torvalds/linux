@@ -22,6 +22,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -31,7 +32,7 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <linux/gpio.h>
-#include <mach/mcbsp.h>
+#include <plat/mcbsp.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
@@ -96,7 +97,7 @@ static int n810_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 
 	snd_pcm_hw_constraint_minmax(runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
@@ -114,8 +115,8 @@ static int n810_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
 
 	/* Set codec DAI configuration */
@@ -270,8 +271,9 @@ static const struct snd_kcontrol_new aic33_n810_controls[] = {
 		     n810_get_input, n810_set_input),
 };
 
-static int n810_aic33_init(struct snd_soc_codec *codec)
+static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* Not connected */
@@ -306,8 +308,10 @@ static int n810_aic33_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link n810_dai = {
 	.name = "TLV320AIC33",
 	.stream_name = "AIC33",
-	.cpu_dai = &omap_mcbsp_dai[0],
-	.codec_dai = &aic3x_dai,
+	.cpu_dai_name = "omap-mcbsp-dai.1",
+	.platform_name = "omap-pcm-audio",
+	.codec_name = "tlv320aic3x-codec.2-0018",
+	.codec_dai_name = "tlv320aic3x-hifi",
 	.init = n810_aic33_init,
 	.ops = &n810_ops,
 };
@@ -315,24 +319,8 @@ static struct snd_soc_dai_link n810_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_n810 = {
 	.name = "N810",
-	.platform = &omap_soc_platform,
 	.dai_link = &n810_dai,
 	.num_links = 1,
-};
-
-/* Audio private data */
-static struct aic3x_setup_data n810_aic33_setup = {
-	.i2c_bus = 2,
-	.i2c_address = 0x18,
-	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
-	.gpio_func[1] = AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device n810_snd_devdata = {
-	.card = &snd_soc_n810,
-	.codec_dev = &soc_codec_dev_aic3x,
-	.codec_data = &n810_aic33_setup,
 };
 
 static struct platform_device *n810_snd_device;
@@ -349,9 +337,7 @@ static int __init n810_soc_init(void)
 	if (!n810_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(n810_snd_device, &n810_snd_devdata);
-	n810_snd_devdata.dev = &n810_snd_device->dev;
-	*(unsigned int *)n810_dai.cpu_dai->private_data = 1; /* McBSP2 */
+	platform_set_drvdata(n810_snd_device, &snd_soc_n810);
 	err = platform_device_add(n810_snd_device);
 	if (err)
 		goto err1;

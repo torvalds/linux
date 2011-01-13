@@ -257,7 +257,8 @@ void __init iop3xx_atu_setup(void)
 	*IOP3XX_OUMWTVR0 = 0;
 
 	/* Outbound window 1 */
-	*IOP3XX_OMWTVR1 = IOP3XX_PCI_LOWER_MEM_BA + IOP3XX_PCI_MEM_WINDOW_SIZE;
+	*IOP3XX_OMWTVR1 = IOP3XX_PCI_LOWER_MEM_BA +
+			  IOP3XX_PCI_MEM_WINDOW_SIZE / 2;
 	*IOP3XX_OUMWTVR1 = 0;
 
 	/* BAR 3 ( Disabled ) */
@@ -358,7 +359,7 @@ static void __init iop3xx_atu_debug(void)
 	DBG("ATU: IOP3XX_ATUCMD=0x%04x\n", *IOP3XX_ATUCMD);
 	DBG("ATU: IOP3XX_ATUCR=0x%08x\n", *IOP3XX_ATUCR);
 
-	hook_fault_code(16+6, iop3xx_pci_abort, SIGBUS, "imprecise external abort");
+	hook_fault_code(16+6, iop3xx_pci_abort, SIGBUS, 0, "imprecise external abort");
 }
 
 /* for platforms that might be host-bus-adapters */

@@ -12,19 +12,29 @@
 #include <linux/io.h>
 
 #include <asm/tlb.h>
+#include <asm/mach/map.h>
 
-#define BETWEEN(p, st, sz)	((p) >= (st) && (p) < ((st) + (sz)))
-#define XLATE(p, pst, vst)	((void __iomem *)((p) - (pst) + (vst)))
+#include <mach/common.h>
 
 /*
  * Intercept ioremap() requests for addresses in our fixed mapping regions.
  */
 void __iomem *davinci_ioremap(unsigned long p, size_t size, unsigned int type)
 {
-	if (BETWEEN(p, IO_PHYS, IO_SIZE))
-		return XLATE(p, IO_PHYS, IO_VIRT);
+	struct map_desc *desc = davinci_soc_info.io_desc;
+	int desc_num = davinci_soc_info.io_desc_num;
+	int i;
 
-	return __arm_ioremap(p, size, type);
+	for (i = 0; i < desc_num; i++, desc++) {
+		unsigned long iophys = __pfn_to_phys(desc->pfn);
+		unsigned long iosize = desc->length;
+
+		if (p >= iophys && (p + size) <= (iophys + iosize))
+			return __io(desc->virtual + p - iophys);
+	}
+
+	return __arm_ioremap_caller(p, size, type,
+					__builtin_return_address(0));
 }
 EXPORT_SYMBOL(davinci_ioremap);
 

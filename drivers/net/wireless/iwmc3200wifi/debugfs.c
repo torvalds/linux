@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
@@ -47,12 +48,11 @@ static struct {
 
 #define add_dbg_module(dbg, name, id, initlevel) 	\
 do {							\
-	struct dentry *d;				\
 	dbg.dbg_module[id] = (initlevel);		\
-	d = debugfs_create_x8(name, 0600, dbg.dbgdir,	\
-			     &(dbg.dbg_module[id]));	\
-	if (!IS_ERR(d))					\
-		dbg.dbg_module_dentries[id] = d;        \
+	dbg.dbg_module_dentries[id] =			\
+		debugfs_create_x8(name, 0600,		\
+				dbg.dbgdir,		\
+				&(dbg.dbg_module[id]));	\
 } while (0)
 
 static int iwm_debugfs_u32_read(void *data, u64 *val)
@@ -89,7 +89,7 @@ static int iwm_debugfs_dbg_modules_write(void *data, u64 val)
 	for (i = 0; i < __IWM_DM_NR; i++)
 		iwm->dbg.dbg_module[i] = 0;
 
-	for_each_bit(bit, &iwm->dbg.dbg_modules, __IWM_DM_NR)
+	for_each_set_bit(bit, &iwm->dbg.dbg_modules, __IWM_DM_NR)
 		iwm->dbg.dbg_module[bit] = iwm->dbg.dbg_level;
 
 	return 0;
@@ -98,7 +98,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_iwm_dbg_modules,
 			iwm_debugfs_u32_read, iwm_debugfs_dbg_modules_write,
 			"%llu\n");
 
-static int iwm_txrx_open(struct inode *inode, struct file *filp)
+static int iwm_generic_open(struct inode *inode, struct file *filp)
 {
 	filp->private_data = inode->i_private;
 	return 0;
@@ -158,6 +158,29 @@ static ssize_t iwm_debugfs_txq_read(struct file *filp, char __user *buffer,
 		}
 
 		spin_unlock_irqrestore(&txq->queue.lock, flags);
+
+		spin_lock_irqsave(&txq->stopped_queue.lock, flags);
+
+		len += snprintf(buf + len, buf_len - len,
+				"\tStopped Queue len:   %d\n",
+				skb_queue_len(&txq->stopped_queue));
+		for (j = 0; j < skb_queue_len(&txq->stopped_queue); j++) {
+			struct iwm_tx_info *tx_info;
+
+			skb = skb->next;
+			tx_info = skb_to_tx_info(skb);
+
+			len += snprintf(buf + len, buf_len - len,
+					"\tSKB #%d\n", j);
+			len += snprintf(buf + len, buf_len - len,
+					"\t\tsta:   %d\n", tx_info->sta);
+			len += snprintf(buf + len, buf_len - len,
+					"\t\tcolor: %d\n", tx_info->color);
+			len += snprintf(buf + len, buf_len - len,
+					"\t\ttid:   %d\n", tx_info->tid);
+		}
+
+		spin_unlock_irqrestore(&txq->stopped_queue.lock, flags);
 	}
 
 	ret = simple_read_from_buffer(buffer, len, ppos, buf, buf_len);
@@ -242,7 +265,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 					  size_t count, loff_t *ppos)
 {
 	struct iwm_priv *iwm = filp->private_data;
-	struct iwm_rx_ticket_node *ticket, *next;
+	struct iwm_rx_ticket_node *ticket;
 	char *buf;
 	int buf_len = 4096, i;
 	size_t len = 0;
@@ -257,7 +280,8 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry_safe(ticket, next, &iwm->rx_tickets, node) {
+	spin_lock(&iwm->ticket_lock);
+	list_for_each_entry(ticket, &iwm->rx_tickets, node) {
 		len += snprintf(buf + len, buf_len - len, "Ticket #%d\n",
 				ticket->ticket->id);
 		len += snprintf(buf + len, buf_len - len, "\taction: 0x%x\n",
@@ -265,14 +289,17 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 		len += snprintf(buf + len, buf_len - len, "\tflags:  0x%x\n",
 				ticket->ticket->flags);
 	}
+	spin_unlock(&iwm->ticket_lock);
 
 	for (i = 0; i < IWM_RX_ID_HASH; i++) {
-		struct iwm_rx_packet *packet, *nxt;
+		struct iwm_rx_packet *packet;
 		struct list_head *pkt_list = &iwm->rx_packets[i];
+
 		if (!list_empty(pkt_list)) {
 			len += snprintf(buf + len, buf_len - len,
 					"Packet hash #%d\n", i);
-			list_for_each_entry_safe(packet, nxt, pkt_list, node) {
+			spin_lock(&iwm->packet_lock[i]);
+			list_for_each_entry(packet, pkt_list, node) {
 				len += snprintf(buf + len, buf_len - len,
 						"\tPacket id:     %d\n",
 						packet->id);
@@ -280,6 +307,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 						"\tPacket length: %lu\n",
 						packet->pkt_size);
 			}
+			spin_unlock(&iwm->packet_lock[i]);
 		}
 	}
 
@@ -289,108 +317,138 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 	return ret;
 }
 
+static ssize_t iwm_debugfs_fw_err_read(struct file *filp,
+				       char __user *buffer,
+				       size_t count, loff_t *ppos)
+{
+
+	struct iwm_priv *iwm = filp->private_data;
+	char buf[512];
+	int buf_len = 512;
+	size_t len = 0;
+
+	if (*ppos != 0)
+		return 0;
+	if (count < sizeof(buf))
+		return -ENOSPC;
+
+	if (!iwm->last_fw_err)
+		return -ENOMEM;
+
+	if (iwm->last_fw_err->line_num == 0)
+		goto out;
+
+	len += snprintf(buf + len, buf_len - len, "%cMAC FW ERROR:\n",
+	     (le32_to_cpu(iwm->last_fw_err->category) == UMAC_SYS_ERR_CAT_LMAC)
+			? 'L' : 'U');
+	len += snprintf(buf + len, buf_len - len,
+			"\tCategory:    %d\n",
+			le32_to_cpu(iwm->last_fw_err->category));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tStatus:      0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->status));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tPC:          0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->pc));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tblink1:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->blink1));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tblink2:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->blink2));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tilink1:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->ilink1));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tilink2:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->ilink2));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tData1:       0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->data1));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tData2:       0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->data2));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tLine number: %d\n",
+			le32_to_cpu(iwm->last_fw_err->line_num));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tUMAC status: 0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->umac_status));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tLMAC status: 0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->lmac_status));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tSDIO status: 0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->sdio_status));
+
+out:
+
+	return simple_read_from_buffer(buffer, len, ppos, buf, buf_len);
+}
 
 static const struct file_operations iwm_debugfs_txq_fops = {
 	.owner =	THIS_MODULE,
-	.open =		iwm_txrx_open,
+	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_txq_read,
+	.llseek =	default_llseek,
 };
 
 static const struct file_operations iwm_debugfs_tx_credit_fops = {
 	.owner =	THIS_MODULE,
-	.open =		iwm_txrx_open,
+	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_tx_credit_read,
+	.llseek =	default_llseek,
 };
 
 static const struct file_operations iwm_debugfs_rx_ticket_fops = {
 	.owner =	THIS_MODULE,
-	.open =		iwm_txrx_open,
+	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_rx_ticket_read,
+	.llseek =	default_llseek,
 };
 
-int iwm_debugfs_init(struct iwm_priv *iwm)
+static const struct file_operations iwm_debugfs_fw_err_fops = {
+	.owner =	THIS_MODULE,
+	.open =		iwm_generic_open,
+	.read =		iwm_debugfs_fw_err_read,
+	.llseek =	default_llseek,
+};
+
+void iwm_debugfs_init(struct iwm_priv *iwm)
 {
-	int i, result;
-	char devdir[16];
+	int i;
 
 	iwm->dbg.rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	result = PTR_ERR(iwm->dbg.rootdir);
-	if (!result || IS_ERR(iwm->dbg.rootdir)) {
-		if (result == -ENODEV) {
-			IWM_ERR(iwm, "DebugFS (CONFIG_DEBUG_FS) not "
-				"enabled in kernel config\n");
-			result = 0;	/* No debugfs support */
-		}
-		IWM_ERR(iwm, "Couldn't create rootdir: %d\n", result);
-		goto error;
-	}
-
-	snprintf(devdir, sizeof(devdir), "%s", wiphy_name(iwm_to_wiphy(iwm)));
-
-	iwm->dbg.devdir = debugfs_create_dir(devdir, iwm->dbg.rootdir);
-	result = PTR_ERR(iwm->dbg.devdir);
-	if (IS_ERR(iwm->dbg.devdir) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create devdir: %d\n", result);
-		goto error;
-	}
-
+	iwm->dbg.devdir = debugfs_create_dir(wiphy_name(iwm_to_wiphy(iwm)),
+					     iwm->dbg.rootdir);
 	iwm->dbg.dbgdir = debugfs_create_dir("debug", iwm->dbg.devdir);
-	result = PTR_ERR(iwm->dbg.dbgdir);
-	if (IS_ERR(iwm->dbg.dbgdir) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create dbgdir: %d\n", result);
-		goto error;
-	}
-
 	iwm->dbg.rxdir = debugfs_create_dir("rx", iwm->dbg.devdir);
-	result = PTR_ERR(iwm->dbg.rxdir);
-	if (IS_ERR(iwm->dbg.rxdir) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create rx dir: %d\n", result);
-		goto error;
-	}
-
 	iwm->dbg.txdir = debugfs_create_dir("tx", iwm->dbg.devdir);
-	result = PTR_ERR(iwm->dbg.txdir);
-	if (IS_ERR(iwm->dbg.txdir) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create tx dir: %d\n", result);
-		goto error;
-	}
-
 	iwm->dbg.busdir = debugfs_create_dir("bus", iwm->dbg.devdir);
-	result = PTR_ERR(iwm->dbg.busdir);
-	if (IS_ERR(iwm->dbg.busdir) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create bus dir: %d\n", result);
-		goto error;
-	}
-
-	if (iwm->bus_ops->debugfs_init) {
-		result = iwm->bus_ops->debugfs_init(iwm, iwm->dbg.busdir);
-		if (result < 0) {
-			IWM_ERR(iwm, "Couldn't create bus entry: %d\n", result);
-			goto error;
-		}
-	}
-
+	if (iwm->bus_ops->debugfs_init)
+		iwm->bus_ops->debugfs_init(iwm, iwm->dbg.busdir);
 
 	iwm->dbg.dbg_level = IWM_DL_NONE;
 	iwm->dbg.dbg_level_dentry =
 		debugfs_create_file("level", 0200, iwm->dbg.dbgdir, iwm,
 				    &fops_iwm_dbg_level);
-	result = PTR_ERR(iwm->dbg.dbg_level_dentry);
-	if (IS_ERR(iwm->dbg.dbg_level_dentry) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create dbg_level: %d\n", result);
-		goto error;
-	}
-
 
 	iwm->dbg.dbg_modules = IWM_DM_DEFAULT;
 	iwm->dbg.dbg_modules_dentry =
 		debugfs_create_file("modules", 0200, iwm->dbg.dbgdir, iwm,
 				    &fops_iwm_dbg_modules);
-	result = PTR_ERR(iwm->dbg.dbg_modules_dentry);
-	if (IS_ERR(iwm->dbg.dbg_modules_dentry) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create dbg_modules: %d\n", result);
-		goto error;
-	}
 
 	for (i = 0; i < __IWM_DM_NR; i++)
 		add_dbg_module(iwm->dbg, iwm_debug_module[i].name,
@@ -399,34 +457,15 @@ int iwm_debugfs_init(struct iwm_priv *iwm)
 	iwm->dbg.txq_dentry = debugfs_create_file("queues", 0200,
 						  iwm->dbg.txdir, iwm,
 						  &iwm_debugfs_txq_fops);
-	result = PTR_ERR(iwm->dbg.txq_dentry);
-	if (IS_ERR(iwm->dbg.txq_dentry) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create tx queue: %d\n", result);
-		goto error;
-	}
-
 	iwm->dbg.tx_credit_dentry = debugfs_create_file("credits", 0200,
 						   iwm->dbg.txdir, iwm,
 						   &iwm_debugfs_tx_credit_fops);
-	result = PTR_ERR(iwm->dbg.tx_credit_dentry);
-	if (IS_ERR(iwm->dbg.tx_credit_dentry) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create tx credit: %d\n", result);
-		goto error;
-	}
-
 	iwm->dbg.rx_ticket_dentry = debugfs_create_file("tickets", 0200,
 						  iwm->dbg.rxdir, iwm,
 						  &iwm_debugfs_rx_ticket_fops);
-	result = PTR_ERR(iwm->dbg.rx_ticket_dentry);
-	if (IS_ERR(iwm->dbg.rx_ticket_dentry) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create rx ticket: %d\n", result);
-		goto error;
-	}
-
-	return 0;
-
- error:
-	return result;
+	iwm->dbg.fw_err_dentry = debugfs_create_file("last_fw_err", 0200,
+						     iwm->dbg.dbgdir, iwm,
+						     &iwm_debugfs_fw_err_fops);
 }
 
 void iwm_debugfs_exit(struct iwm_priv *iwm)
@@ -441,6 +480,7 @@ void iwm_debugfs_exit(struct iwm_priv *iwm)
 	debugfs_remove(iwm->dbg.txq_dentry);
 	debugfs_remove(iwm->dbg.tx_credit_dentry);
 	debugfs_remove(iwm->dbg.rx_ticket_dentry);
+	debugfs_remove(iwm->dbg.fw_err_dentry);
 	if (iwm->bus_ops->debugfs_exit)
 		iwm->bus_ops->debugfs_exit(iwm);
 

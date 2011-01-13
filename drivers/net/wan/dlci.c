@@ -77,7 +77,7 @@ static int dlci_header(struct sk_buff *skb, struct net_device *dev,
 	dlp = netdev_priv(dev);
 
 	hdr.control = FRAD_I_UI;
-	switch(type)
+	switch (type)
 	{
 		case ETH_P_IP:
 			hdr.IP_NLPID = FRAD_P_IP;
@@ -97,11 +97,11 @@ static int dlci_header(struct sk_buff *skb, struct net_device *dev,
 
 	dest = skb_push(skb, hlen);
 	if (!dest)
-		return(0);
+		return 0;
 
 	memcpy(dest, &hdr, hlen);
 
-	return(hlen);
+	return hlen;
 }
 
 static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
@@ -130,7 +130,7 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.rx_errors++;
 	}
 	else
-		switch(hdr->IP_NLPID)
+		switch (hdr->IP_NLPID)
 		{
 			case FRAD_P_PADDING:
 				if (hdr->NLPID != FRAD_P_SNAP)
@@ -186,45 +186,13 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 }
 
-static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dlci_local *dlp;
-	int					ret;
+	struct dlci_local *dlp = netdev_priv(dev);
 
-	ret = 0;
-
-	if (!skb || !dev)
-		return(0);
-
-	dlp = netdev_priv(dev);
-
-	netif_stop_queue(dev);
-	
-	ret = dlp->slave->netdev_ops->ndo_start_xmit(skb, dlp->slave);
-	switch (ret)
-	{
-		case DLCI_RET_OK:
-			dev->stats.tx_packets++;
-			ret = NETDEV_TX_OK;
-			break;
-			case DLCI_RET_ERR:
-			dev->stats.tx_errors++;
-			ret = NETDEV_TX_OK;
-			break;
-			case DLCI_RET_DROP:
-			dev->stats.tx_dropped++;
-			ret = NETDEV_TX_BUSY;
-			break;
-	}
-	/* Alan Cox recommends always returning 0, and always freeing the packet */
-	/* experience suggest a slightly more conservative approach */
-
-	if (!ret)
-	{
-		dev_kfree_skb(skb);
-		netif_wake_queue(dev);
-	}
-	return(ret);
+	if (skb)
+		dlp->slave->netdev_ops->ndo_start_xmit(skb, dlp->slave);
+	return NETDEV_TX_OK;
 }
 
 static int dlci_config(struct net_device *dev, struct dlci_conf __user *conf, int get)
@@ -240,25 +208,25 @@ static int dlci_config(struct net_device *dev, struct dlci_conf __user *conf, in
 
 	if (!get)
 	{
-		if(copy_from_user(&config, conf, sizeof(struct dlci_conf)))
+		if (copy_from_user(&config, conf, sizeof(struct dlci_conf)))
 			return -EFAULT;
 		if (config.flags & ~DLCI_VALID_FLAGS)
-			return(-EINVAL);
+			return -EINVAL;
 		memcpy(&dlp->config, &config, sizeof(struct dlci_conf));
 		dlp->configured = 1;
 	}
 
 	err = (*flp->dlci_conf)(dlp->slave, dev, get);
 	if (err)
-		return(err);
+		return err;
 
 	if (get)
 	{
-		if(copy_to_user(conf, &dlp->config, sizeof(struct dlci_conf)))
+		if (copy_to_user(conf, &dlp->config, sizeof(struct dlci_conf)))
 			return -EFAULT;
 	}
 
-	return(0);
+	return 0;
 }
 
 static int dlci_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -266,15 +234,15 @@ static int dlci_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct dlci_local *dlp;
 
 	if (!capable(CAP_NET_ADMIN))
-		return(-EPERM);
+		return -EPERM;
 
 	dlp = netdev_priv(dev);
 
-	switch(cmd)
+	switch (cmd)
 	{
 		case DLCI_GET_SLAVE:
 			if (!*(short *)(dev->dev_addr))
-				return(-EINVAL);
+				return -EINVAL;
 
 			strncpy(ifr->ifr_slave, dlp->slave->name, sizeof(ifr->ifr_slave));
 			break;
@@ -282,15 +250,15 @@ static int dlci_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		case DLCI_GET_CONF:
 		case DLCI_SET_CONF:
 			if (!*(short *)(dev->dev_addr))
-				return(-EINVAL);
+				return -EINVAL;
 
-			return(dlci_config(dev, ifr->ifr_data, cmd == DLCI_GET_CONF));
+			return dlci_config(dev, ifr->ifr_data, cmd == DLCI_GET_CONF);
 			break;
 
 		default: 
-			return(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 	}
-	return(0);
+	return 0;
 }
 
 static int dlci_change_mtu(struct net_device *dev, int new_mtu)
@@ -309,15 +277,15 @@ static int dlci_open(struct net_device *dev)
 	dlp = netdev_priv(dev);
 
 	if (!*(short *)(dev->dev_addr))
-		return(-EINVAL);
+		return -EINVAL;
 
 	if (!netif_running(dlp->slave))
-		return(-ENOTCONN);
+		return -ENOTCONN;
 
 	flp = netdev_priv(dlp->slave);
 	err = (*flp->activate)(dlp->slave, dev);
 	if (err)
-		return(err);
+		return err;
 
 	netif_start_queue(dev);
 
@@ -397,14 +365,14 @@ static int dlci_add(struct dlci_add *dlci)
 	list_add(&dlp->list, &dlci_devs);
 	rtnl_unlock();
 
-	return(0);
+	return 0;
 
  err2:
 	rtnl_unlock();
 	free_netdev(master);
  err1:
 	dev_put(slave);
-	return(err);
+	return err;
 }
 
 static int dlci_del(struct dlci_add *dlci)
@@ -417,10 +385,10 @@ static int dlci_del(struct dlci_add *dlci)
 	/* validate slave device */
 	master = __dev_get_by_name(&init_net, dlci->devname);
 	if (!master)
-		return(-ENODEV);
+		return -ENODEV;
 
 	if (netif_running(master)) {
-		return(-EBUSY);
+		return -EBUSY;
 	}
 
 	dlp = netdev_priv(master);
@@ -438,7 +406,7 @@ static int dlci_del(struct dlci_add *dlci)
 	}
 	rtnl_unlock();
 
-	return(err);
+	return err;
 }
 
 static int dlci_ioctl(unsigned int cmd, void __user *arg)
@@ -447,9 +415,9 @@ static int dlci_ioctl(unsigned int cmd, void __user *arg)
 	int err;
 	
 	if (!capable(CAP_NET_ADMIN))
-		return(-EPERM);
+		return -EPERM;
 
-	if(copy_from_user(&add, arg, sizeof(struct dlci_add)))
+	if (copy_from_user(&add, arg, sizeof(struct dlci_add)))
 		return -EFAULT;
 
 	switch (cmd)
@@ -458,7 +426,7 @@ static int dlci_ioctl(unsigned int cmd, void __user *arg)
 			err = dlci_add(&add);
 
 			if (!err)
-				if(copy_to_user(arg, &add, sizeof(struct dlci_add)))
+				if (copy_to_user(arg, &add, sizeof(struct dlci_add)))
 					return -EFAULT;
 			break;
 
@@ -470,7 +438,7 @@ static int dlci_ioctl(unsigned int cmd, void __user *arg)
 			err = -EINVAL;
 	}
 
-	return(err);
+	return err;
 }
 
 static const struct header_ops dlci_header_ops = {

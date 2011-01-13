@@ -1,0 +1,25 @@
+PHY nodes
+
+Required properties:
+
+ - device_type : Should be "ethernet-phy"
+ - interrupts : <a b> where a is the interrupt number and b is a
+   field that represents an encoding of the sense and level
+   information for the interrupt.  This should be encoded based on
+   the information in section 2) depending on the type of interrupt
+   controller you have.
+ - interrupt-parent : the phandle for the interrupt controller that
+   services interrupts for this device.
+ - reg : The ID number for the phy, usually a small integer
+ - linux,phandle :  phandle for this node; likely referenced by an
+   ethernet controller node.
+
+Example:
+
+ethernet-phy@0 {
+	linux,phandle = <2452000>
+	interrupt-parent = <40000>;
+	interrupts = <35 1>;
+	reg = <0>;
+	device_type = "ethernet-phy";
+};

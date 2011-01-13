@@ -27,6 +27,11 @@
  * Any other use of the locks below is probably wrong.
  */
 
+enum backlight_update_reason {
+	BACKLIGHT_UPDATE_HOTKEY,
+	BACKLIGHT_UPDATE_SYSFS,
+};
+
 struct backlight_device;
 struct fb_info;
 
@@ -42,7 +47,7 @@ struct backlight_ops {
 	int (*get_brightness)(struct backlight_device *);
 	/* Check if given framebuffer device is the one bound to this backlight;
 	   return 0 if not, !=0 if it is. If NULL, backlight always matches the fb. */
-	int (*check_fb)(struct fb_info *);
+	int (*check_fb)(struct backlight_device *, struct fb_info *);
 };
 
 /* This structure defines all the properties of a backlight */
@@ -81,7 +86,7 @@ struct backlight_device {
 	   registered this device has been unloaded, and if class_get_devdata()
 	   points to something in the body of that driver, it is also invalid. */
 	struct mutex ops_lock;
-	struct backlight_ops *ops;
+	const struct backlight_ops *ops;
 
 	/* The framebuffer notifier block */
 	struct notifier_block fb_notif;
@@ -98,8 +103,11 @@ static inline void backlight_update_status(struct backlight_device *bd)
 }
 
 extern struct backlight_device *backlight_device_register(const char *name,
-	struct device *dev, void *devdata, struct backlight_ops *ops);
+	struct device *dev, void *devdata, const struct backlight_ops *ops,
+	const struct backlight_properties *props);
 extern void backlight_device_unregister(struct backlight_device *bd);
+extern void backlight_force_update(struct backlight_device *bd,
+				   enum backlight_update_reason reason);
 
 #define to_backlight_device(obj) container_of(obj, struct backlight_device, dev)
 

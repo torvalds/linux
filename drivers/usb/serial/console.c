@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/console.h>
+#include <linux/serial.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
@@ -63,9 +64,9 @@ static int usb_console_setup(struct console *co, char *options)
 	char *s;
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
-	int retval = 0;
+	int retval;
 	struct tty_struct *tty = NULL;
-	struct ktermios *termios = NULL, dummy;
+	struct ktermios dummy;
 
 	dbg("%s", __func__);
 
@@ -116,13 +117,17 @@ static int usb_console_setup(struct console *co, char *options)
 		return -ENODEV;
 	}
 
-	port = serial->port[0];
+	retval = usb_autopm_get_interface(serial->interface);
+	if (retval)
+		goto error_get_interface;
+
+	port = serial->port[co->index - serial->minor];
 	tty_port_tty_set(&port->port, NULL);
 
 	info->port = port;
 
 	++port->port.count;
-	if (port->port.count == 1) {
+	if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags)) {
 		if (serial->type->set_termios) {
 			/*
 			 * allocate a fake tty so the driver can initialize
@@ -136,55 +141,60 @@ static int usb_console_setup(struct console *co, char *options)
 				goto reset_open_count;
 			}
 			kref_init(&tty->kref);
-			termios = kzalloc(sizeof(*termios), GFP_KERNEL);
-			if (!termios) {
+			tty_port_tty_set(&port->port, tty);
+			tty->driver = usb_serial_tty_driver;
+			tty->index = co->index;
+			if (tty_init_termios(tty)) {
 				retval = -ENOMEM;
 				err("no more memory");
 				goto free_tty;
 			}
-			memset(&dummy, 0, sizeof(struct ktermios));
-			tty->termios = termios;
-			tty_port_tty_set(&port->port, tty);
 		}
 
 		/* only call the device specific open if this
 		 * is the first time the port is opened */
 		if (serial->type->open)
-			retval = serial->type->open(NULL, port, NULL);
+			retval = serial->type->open(NULL, port);
 		else
-			retval = usb_serial_generic_open(NULL, port, NULL);
+			retval = usb_serial_generic_open(NULL, port);
 
 		if (retval) {
 			err("could not open USB console port");
-			goto free_termios;
+			goto fail;
 		}
 
 		if (serial->type->set_termios) {
-			termios->c_cflag = cflag;
-			tty_termios_encode_baud_rate(termios, baud, baud);
+			tty->termios->c_cflag = cflag;
+			tty_termios_encode_baud_rate(tty->termios, baud, baud);
+			memset(&dummy, 0, sizeof(struct ktermios));
 			serial->type->set_termios(tty, port, &dummy);
 
 			tty_port_tty_set(&port->port, NULL);
-			kfree(termios);
 			kfree(tty);
 		}
+		set_bit(ASYNCB_INITIALIZED, &port->port.flags);
 	}
-	/* So we know not to kill the hardware on a hangup on this
-	   port. We have also bumped the use count by one so it won't go
-	   idle */
-	port->console = 1;
-	retval = 0;
+	/* Now that any required fake tty operations are completed restore
+	 * the tty port count */
+	--port->port.count;
+	/* The console is special in terms of closing the device so
+	 * indicate this port is now acting as a system console. */
+	port->port.console = 1;
 
-out:
+	mutex_unlock(&serial->disc_mutex);
 	return retval;
-free_termios:
-	kfree(termios);
+
+ fail:
 	tty_port_tty_set(&port->port, NULL);
-free_tty:
+ free_tty:
 	kfree(tty);
-reset_open_count:
+ reset_open_count:
 	port->port.count = 0;
-	goto out;
+	usb_autopm_put_interface(serial->interface);
+ error_get_interface:
+	usb_serial_put(serial);
+	mutex_unlock(&serial->disc_mutex);
+	return retval;
 }
 
 static void usb_console_write(struct console *co,
@@ -204,7 +214,7 @@ static void usb_console_write(struct console *co,
 
 	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
 
-	if (!port->port.count) {
+	if (!port->port.console) {
 		dbg("%s - port not opened", __func__);
 		return;
 	}
@@ -300,8 +310,7 @@ void usb_serial_console_exit(void)
 {
 	if (usbcons_info.port) {
 		unregister_console(&usbcons);
-		if (usbcons_info.port->port.count)
-			usbcons_info.port->port.count--;
+		usbcons_info.port->port.console = 0;
 		usbcons_info.port = NULL;
 	}
 }

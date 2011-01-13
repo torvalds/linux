@@ -30,10 +30,10 @@
 #include <asm/processor.h>
 #include <asm/kexec.h>
 #include <asm/bug.h>
+#include <asm/ptrace.h>
 
 	.text
 
-#ifdef CONFIG_IRQSTACKS
 _GLOBAL(call_do_softirq)
 	mflr	r0
 	stw	r0,4(r1)
@@ -56,7 +56,6 @@ _GLOBAL(call_handle_irq)
 	lwz	r0,4(r1)
 	mtlr	r0
 	blr
-#endif /* CONFIG_IRQSTACKS */
 
 /*
  * This returns the high 64 bits of the product of two 64-bit numbers.
@@ -342,10 +341,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbst's to get to ram */
+#ifndef CONFIG_44x
 	mtctr	r4
 2:	icbi	0,r6
 	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	2b
+#else
+	/* Flash invalidate on 44x because we are passed kmapped addresses and
+	   this doesn't work for userspace pages due to the virtually tagged
+	   icache.  Sigh. */
+	iccci	0, r0
+#endif
 	sync				/* additional sync needed on g4 */
 	isync
 	blr
@@ -434,7 +440,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	0b
 	sync
-#ifndef CONFIG_44x
+#ifdef CONFIG_44x
 	/* We don't flush the icache on 44x. Those have a virtual icache
 	 * and we don't have access to the virtual address here (it's
 	 * not the page vaddr but where it's mapped in user space). The
@@ -442,15 +448,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	 * a change in the address space occurs, before returning to
 	 * user space
 	 */
+BEGIN_MMU_FTR_SECTION
+	blr
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_44x)
+#endif /* CONFIG_44x */
 	mtctr	r4
 1:	icbi	0,r6
 	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	1b
 	sync
 	isync
-#endif /* CONFIG_44x */
 	blr
 
+#ifndef CONFIG_BOOKE
 /*
  * Flush a particular page from the data cache to RAM, identified
  * by its physical address.  We turn off the MMU so we can just use
@@ -483,6 +493,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	mtmsr	r10				/* restore DR */
 	isync
 	blr
+#endif /* CONFIG_BOOKE */
 
 /*
  * Clear pages using the dcbz instruction, which doesn't cause any
@@ -495,15 +506,7 @@ _GLOBAL(clear_pages)
 	li	r0,PAGE_SIZE/L1_CACHE_BYTES
 	slw	r0,r0,r4
 	mtctr	r0
-#ifdef CONFIG_8xx
-	li	r4, 0
-1:	stw	r4, 0(r3)
-	stw	r4, 4(r3)
-	stw	r4, 8(r3)
-	stw	r4, 12(r3)
-#else
 1:	dcbz	0,r3
-#endif
 	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	blr
@@ -528,15 +531,6 @@ _GLOBAL(copy_page)
 	addi	r3,r3,-4
 	addi	r4,r4,-4
 
-#ifdef CONFIG_8xx
-	/* don't use prefetch on 8xx */
-    	li	r0,4096/L1_CACHE_BYTES
-	mtctr	r0
-1:	COPY_16_BYTES
-	bdnz	1b
-	blr
-
-#else	/* not 8xx, we can prefetch */
 	li	r5,4
 
 #if MAX_COPY_PREFETCH > 1
@@ -577,7 +571,6 @@ _GLOBAL(copy_page)
 	li	r0,MAX_COPY_PREFETCH
 	li	r11,4
 	b	2b
-#endif	/* CONFIG_8xx */
 
 /*
  * void atomic_clear_mask(atomic_t mask, atomic_t *addr)
@@ -717,6 +710,22 @@ relocate_new_kernel:
 	/* r4 = reboot_code_buffer */
 	/* r5 = start_address      */
 
+#ifdef CONFIG_FSL_BOOKE
+
+	mr	r29, r3
+	mr	r30, r4
+	mr	r31, r5
+
+#define ENTRY_MAPPING_KEXEC_SETUP
+#include "fsl_booke_entry_mapping.S"
+#undef ENTRY_MAPPING_KEXEC_SETUP
+
+	mr      r3, r29
+	mr      r4, r30
+	mr      r5, r31
+
+	li	r0, 0
+#else
 	li	r0, 0
 
 	/*
@@ -733,6 +742,7 @@ relocate_new_kernel:
 	rfi
 
 1:
+#endif
 	/* from this point address translation is turned off */
 	/* and interrupts are disabled */
 
@@ -800,6 +810,9 @@ relocate_new_kernel:
 	 */
 	isync
 	sync
+
+	mfspr	r3, SPRN_PIR /* current core we are running on */
+	mr	r4, r5 /* load physical address of chunk called */
 
 	/* jump to the entry point, usually the setup routine */
 	mtlr	r5

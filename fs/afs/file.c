@@ -12,10 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
+#include <linux/gfp.h>
 #include "internal.h"
 
 static int afs_readpage(struct file *file, struct page *page);
@@ -121,26 +121,18 @@ static void afs_file_readpage_read_complete(struct page *page,
 #endif
 
 /*
- * AFS read page from file, directory or symlink
+ * read page from file, directory or symlink, given a key to use
  */
-static int afs_readpage(struct file *file, struct page *page)
+int afs_page_filler(void *data, struct page *page)
 {
-	struct afs_vnode *vnode;
-	struct inode *inode;
-	struct key *key;
+	struct inode *inode = page->mapping->host;
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct key *key = data;
 	size_t len;
 	off_t offset;
 	int ret;
 
-	inode = page->mapping->host;
-
-	ASSERT(file != NULL);
-	key = file->private_data;
-	ASSERT(key != NULL);
-
 	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
-
-	vnode = AFS_FS_I(inode);
 
 	BUG_ON(!PageLocked(page));
 
@@ -218,15 +210,45 @@ error:
 }
 
 /*
+ * read page from file, directory or symlink, given a file to nominate the key
+ * to be used
+ */
+static int afs_readpage(struct file *file, struct page *page)
+{
+	struct key *key;
+	int ret;
+
+	if (file) {
+		key = file->private_data;
+		ASSERT(key != NULL);
+		ret = afs_page_filler(key, page);
+	} else {
+		struct inode *inode = page->mapping->host;
+		key = afs_request_key(AFS_FS_S(inode->i_sb)->volume->cell);
+		if (IS_ERR(key)) {
+			ret = PTR_ERR(key);
+		} else {
+			ret = afs_page_filler(key, page);
+			key_put(key);
+		}
+	}
+	return ret;
+}
+
+/*
  * read a set of pages
  */
 static int afs_readpages(struct file *file, struct address_space *mapping,
 			 struct list_head *pages, unsigned nr_pages)
 {
+	struct key *key = file->private_data;
 	struct afs_vnode *vnode;
 	int ret = 0;
 
-	_enter(",{%lu},,%d", mapping->host->i_ino, nr_pages);
+	_enter("{%d},{%lu},,%d",
+	       key_serial(key), mapping->host->i_ino, nr_pages);
+
+	ASSERT(key != NULL);
 
 	vnode = AFS_FS_I(mapping->host);
 	if (vnode->flags & AFS_VNODE_DELETED) {
@@ -267,7 +289,7 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 	}
 
 	/* load the missing pages from the network */
-	ret = read_cache_pages(mapping, pages, (void *) afs_readpage, file);
+	ret = read_cache_pages(mapping, pages, afs_page_filler, key);
 
 	_leave(" = %d [netting]", ret);
 	return ret;
@@ -303,7 +325,6 @@ static void afs_invalidatepage(struct page *page, unsigned long offset)
 			struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
 			fscache_wait_on_page_write(vnode->cache, page);
 			fscache_uncache_page(vnode->cache, page);
-			ClearPageFsCache(page);
 		}
 #endif
 
@@ -337,17 +358,9 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 	/* deny if page is being written to the cache and the caller hasn't
 	 * elected to wait */
 #ifdef CONFIG_AFS_FSCACHE
-	if (PageFsCache(page)) {
-		if (fscache_check_page_write(vnode->cache, page)) {
-			if (!(gfp_flags & __GFP_WAIT)) {
-				_leave(" = F [cache busy]");
-				return 0;
-			}
-			fscache_wait_on_page_write(vnode->cache, page);
-		}
-
-		fscache_uncache_page(vnode->cache, page);
-		ClearPageFsCache(page);
+	if (!fscache_maybe_release_page(vnode->cache, page, gfp_flags)) {
+		_leave(" = F [cache busy]");
+		return 0;
 	}
 #endif
 

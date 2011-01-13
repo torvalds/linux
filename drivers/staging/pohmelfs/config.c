@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 
 #include "netfs.h"
 
@@ -203,18 +204,18 @@ int pohmelfs_copy_crypto(struct pohmelfs_sb *psb)
 	}
 
 	if (g->hash_keysize) {
-		psb->hash_key = kmalloc(g->hash_keysize, GFP_KERNEL);
+		psb->hash_key = kmemdup(g->hash_key, g->hash_keysize,
+					GFP_KERNEL);
 		if (!psb->hash_key)
 			goto err_out_free_cipher_string;
-		memcpy(psb->hash_key, g->hash_key, g->hash_keysize);
 		psb->hash_keysize = g->hash_keysize;
 	}
 
 	if (g->cipher_keysize) {
-		psb->cipher_key = kmalloc(g->cipher_keysize, GFP_KERNEL);
+		psb->cipher_key = kmemdup(g->cipher_key, g->cipher_keysize,
+					  GFP_KERNEL);
 		if (!psb->cipher_key)
 			goto err_out_free_hash;
-		memcpy(psb->cipher_key, g->cipher_key, g->cipher_keysize);
 		psb->cipher_keysize = g->cipher_keysize;
 	}
 
@@ -237,11 +238,10 @@ static int pohmelfs_send_reply(int err, int msg_num, int action, struct cn_msg *
 {
 	struct pohmelfs_cn_ack *ack;
 
-	ack = kmalloc(sizeof(struct pohmelfs_cn_ack), GFP_KERNEL);
+	ack = kzalloc(sizeof(struct pohmelfs_cn_ack), GFP_KERNEL);
 	if (!ack)
 		return -ENOMEM;
 
-	memset(ack, 0, sizeof(struct pohmelfs_cn_ack));
 	memcpy(&ack->msg, msg, sizeof(struct cn_msg));
 
 	if (action == POHMELFS_CTLINFO_ACK)
@@ -284,9 +284,89 @@ static int pohmelfs_cn_disp(struct cn_msg *msg)
 		i += 1;
 	}
 
+ out_unlock:
+	mutex_unlock(&pohmelfs_config_lock);
+	return err;
+}
+
+static int pohmelfs_cn_dump(struct cn_msg *msg)
+{
+	struct pohmelfs_config_group *g;
+	struct pohmelfs_config *c, *tmp;
+	int err = 0, i = 1;
+	int total_msg = 0;
+
+	if (msg->len != sizeof(struct pohmelfs_ctl))
+		return -EBADMSG;
+
+	mutex_lock(&pohmelfs_config_lock);
+
+	list_for_each_entry(g, &pohmelfs_config_list, group_entry)
+		total_msg += g->num_entry;
+	if (total_msg == 0) {
+		if (pohmelfs_send_reply(err, 0, POHMELFS_NOINFO_ACK, msg, NULL))
+			err = -ENOMEM;
+		goto out_unlock;
+	}
+
+	list_for_each_entry(g, &pohmelfs_config_list, group_entry) {
+		list_for_each_entry_safe(c, tmp, &g->config_list,
+					 config_entry) {
+			struct pohmelfs_ctl *sc = &c->state.ctl;
+			if (pohmelfs_send_reply(err, total_msg - i,
+						POHMELFS_CTLINFO_ACK, msg,
+						sc)) {
+				err = -ENOMEM;
+				goto out_unlock;
+			}
+			i += 1;
+		}
+	}
+
 out_unlock:
-        mutex_unlock(&pohmelfs_config_lock);
-        return err;
+	mutex_unlock(&pohmelfs_config_lock);
+	return err;
+}
+
+static int pohmelfs_cn_flush(struct cn_msg *msg)
+{
+	struct pohmelfs_config_group *g;
+	struct pohmelfs_ctl *ctl = (struct pohmelfs_ctl *)msg->data;
+	struct pohmelfs_config *c, *tmp;
+	int err = 0;
+
+	if (msg->len != sizeof(struct pohmelfs_ctl))
+		return -EBADMSG;
+
+	mutex_lock(&pohmelfs_config_lock);
+
+	if (ctl->idx != POHMELFS_NULL_IDX) {
+		g = pohmelfs_find_config_group(ctl->idx);
+
+		if (!g)
+			goto out_unlock;
+
+		list_for_each_entry_safe(c, tmp, &g->config_list, config_entry) {
+			list_del(&c->config_entry);
+			g->num_entry--;
+			kfree(c);
+		}
+	} else {
+		list_for_each_entry(g, &pohmelfs_config_list, group_entry) {
+			list_for_each_entry_safe(c, tmp, &g->config_list,
+						 config_entry) {
+				list_del(&c->config_entry);
+				g->num_entry--;
+				kfree(c);
+			}
+		}
+	}
+
+out_unlock:
+	mutex_unlock(&pohmelfs_config_lock);
+	pohmelfs_cn_dump(msg);
+
+	return err;
 }
 
 static int pohmelfs_modify_config(struct pohmelfs_ctl *old, struct pohmelfs_ctl *new)
@@ -350,7 +430,7 @@ static int pohmelfs_cn_ctl(struct cn_msg *msg, int action)
 
 	list_add_tail(&c->config_entry, &g->config_list);
 
-out_unlock:
+ out_unlock:
 	mutex_unlock(&pohmelfs_config_lock);
 	if (pohmelfs_send_reply(err, 0, POHMELFS_NOINFO_ACK, msg, NULL))
 		err = -ENOMEM;
@@ -372,13 +452,11 @@ static int pohmelfs_crypto_hash_init(struct pohmelfs_config_group *g, struct poh
 	g->hash_strlen = c->strlen;
 	g->hash_keysize = c->keysize;
 
-	g->hash_key = kmalloc(c->keysize, GFP_KERNEL);
+	g->hash_key = kmemdup(key, c->keysize, GFP_KERNEL);
 	if (!g->hash_key) {
 		kfree(g->hash_string);
 		return -ENOMEM;
 	}
-
-	memcpy(g->hash_key, key, c->keysize);
 
 	return 0;
 }
@@ -397,17 +475,14 @@ static int pohmelfs_crypto_cipher_init(struct pohmelfs_config_group *g, struct p
 	g->cipher_strlen = c->strlen;
 	g->cipher_keysize = c->keysize;
 
-	g->cipher_key = kmalloc(c->keysize, GFP_KERNEL);
+	g->cipher_key = kmemdup(key, c->keysize, GFP_KERNEL);
 	if (!g->cipher_key) {
 		kfree(g->cipher_string);
 		return -ENOMEM;
 	}
 
-	memcpy(g->cipher_key, key, c->keysize);
-
 	return 0;
 }
-
 
 static int pohmelfs_cn_crypto(struct cn_msg *msg)
 {
@@ -427,13 +502,13 @@ static int pohmelfs_cn_crypto(struct cn_msg *msg)
 	}
 
 	switch (crypto->type) {
-		case POHMELFS_CRYPTO_HASH:
+	case POHMELFS_CRYPTO_HASH:
 			err = pohmelfs_crypto_hash_init(g, crypto);
 			break;
-		case POHMELFS_CRYPTO_CIPHER:
+	case POHMELFS_CRYPTO_CIPHER:
 			err = pohmelfs_crypto_cipher_init(g, crypto);
 			break;
-		default:
+	default:
 			err = -ENOTSUPP;
 			break;
 	}
@@ -446,24 +521,32 @@ out_unlock:
 	return err;
 }
 
-static void pohmelfs_cn_callback(void *data)
+static void pohmelfs_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
-	struct cn_msg *msg = data;
 	int err;
 
+	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN))
+		return;
+
 	switch (msg->flags) {
-		case POHMELFS_FLAGS_ADD:
-		case POHMELFS_FLAGS_DEL:
-		case POHMELFS_FLAGS_MODIFY:
+	case POHMELFS_FLAGS_ADD:
+	case POHMELFS_FLAGS_DEL:
+	case POHMELFS_FLAGS_MODIFY:
 			err = pohmelfs_cn_ctl(msg, msg->flags);
 			break;
-		case POHMELFS_FLAGS_SHOW:
+	case POHMELFS_FLAGS_FLUSH:
+			err = pohmelfs_cn_flush(msg);
+			break;
+	case POHMELFS_FLAGS_SHOW:
 			err = pohmelfs_cn_disp(msg);
 			break;
-		case POHMELFS_FLAGS_CRYPTO:
+	case POHMELFS_FLAGS_DUMP:
+			err = pohmelfs_cn_dump(msg);
+			break;
+	case POHMELFS_FLAGS_CRYPTO:
 			err = pohmelfs_cn_crypto(msg);
 			break;
-		default:
+	default:
 			err = -ENOSYS;
 			break;
 	}
@@ -498,7 +581,8 @@ int pohmelfs_config_check(struct pohmelfs_config *config, int idx)
 
 int __init pohmelfs_config_init(void)
 {
-	return cn_add_callback(&pohmelfs_cn_id, "pohmelfs", pohmelfs_cn_callback);
+	/* XXX remove (void *) cast when vanilla connector got synced */
+	return cn_add_callback(&pohmelfs_cn_id, "pohmelfs", (void *)pohmelfs_cn_callback);
 }
 
 void pohmelfs_config_exit(void)

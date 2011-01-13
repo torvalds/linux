@@ -645,6 +645,7 @@ __inline__ void NCR5380_print_phase(struct Scsi_Host *instance) { };
  * interrupt or bottom half.
  */
 
+#include <linux/gfp.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
@@ -907,7 +908,7 @@ static int NCR5380_init (struct Scsi_Host *instance, int flags)
  */
 
 /* Only make static if a wrapper function is used */
-static int NCR5380_queue_command(struct scsi_cmnd *cmd,
+static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
 				 void (*done)(struct scsi_cmnd *))
 {
     SETUP_HOSTDATA(cmd->device->host);
@@ -1017,6 +1018,8 @@ static int NCR5380_queue_command(struct scsi_cmnd *cmd,
 	NCR5380_main(NULL);
     return 0;
 }
+
+static DEF_SCSI_QCMD(NCR5380_queue_command)
 
 /*
  * Function : NCR5380_main (void) 
@@ -2021,7 +2024,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		if((count > SUN3_DMA_MINSIZE) && (sun3_dma_setup_done
 						  != cmd))
 		{
-			if(blk_fs_request(cmd->request)) {
+			if (cmd->request->cmd_type == REQ_TYPE_FS) {
 				sun3scsi_dma_setup(d, count,
 						   rq_data_dir(cmd->request));
 				sun3_dma_setup_done = cmd;
@@ -2860,8 +2863,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
  */
 
     local_irq_restore(flags);
-    printk(KERN_INFO "scsi%d: warning : SCSI command probably completed successfully\n"
-           KERN_INFO "        before abortion\n", HOSTNO); 
+    printk(KERN_INFO "scsi%d: warning : SCSI command probably completed successfully before abortion\n", HOSTNO); 
 
     return SCSI_ABORT_NOT_RUNNING;
 }

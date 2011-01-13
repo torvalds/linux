@@ -30,8 +30,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/sysdev.h>
 
 #include <asm/uaccess.h>
@@ -40,50 +38,11 @@
 #include <acpi/processor.h>
 #include <acpi/acpi_drivers.h>
 
+#define PREFIX "ACPI: "
+
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_thermal");
-
-/* --------------------------------------------------------------------------
-                                 Limit Interface
-   -------------------------------------------------------------------------- */
-static int acpi_processor_apply_limit(struct acpi_processor *pr)
-{
-	int result = 0;
-	u16 px = 0;
-	u16 tx = 0;
-
-
-	if (!pr)
-		return -EINVAL;
-
-	if (!pr->flags.limit)
-		return -ENODEV;
-
-	if (pr->flags.throttling) {
-		if (pr->limit.user.tx > tx)
-			tx = pr->limit.user.tx;
-		if (pr->limit.thermal.tx > tx)
-			tx = pr->limit.thermal.tx;
-
-		result = acpi_processor_set_throttling(pr, tx);
-		if (result)
-			goto end;
-	}
-
-	pr->limit.state.px = px;
-	pr->limit.state.tx = tx;
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Processor [%d] limit set to (P%d:T%d)\n", pr->id,
-			  pr->limit.state.px, pr->limit.state.tx));
-
-      end:
-	if (result)
-		printk(KERN_ERR PREFIX "Unable to set limit\n");
-
-	return result;
-}
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -105,36 +64,6 @@ static int cpu_has_cpufreq(unsigned int cpu)
 	if (!acpi_thermal_cpufreq_is_init || cpufreq_get_policy(&policy, cpu))
 		return 0;
 	return 1;
-}
-
-static int acpi_thermal_cpufreq_increase(unsigned int cpu)
-{
-	if (!cpu_has_cpufreq(cpu))
-		return -ENODEV;
-
-	if (per_cpu(cpufreq_thermal_reduction_pctg, cpu) <
-		CPUFREQ_THERMAL_MAX_STEP) {
-		per_cpu(cpufreq_thermal_reduction_pctg, cpu)++;
-		cpufreq_update_policy(cpu);
-		return 0;
-	}
-
-	return -ERANGE;
-}
-
-static int acpi_thermal_cpufreq_decrease(unsigned int cpu)
-{
-	if (!cpu_has_cpufreq(cpu))
-		return -ENODEV;
-
-	if (per_cpu(cpufreq_thermal_reduction_pctg, cpu) >
-		(CPUFREQ_THERMAL_MIN_STEP + 1))
-		per_cpu(cpufreq_thermal_reduction_pctg, cpu)--;
-	else
-		per_cpu(cpufreq_thermal_reduction_pctg, cpu) = 0;
-	cpufreq_update_policy(cpu);
-	/* We reached max freq again and can leave passive mode */
-	return !per_cpu(cpufreq_thermal_reduction_pctg, cpu);
 }
 
 static int acpi_thermal_cpufreq_notifier(struct notifier_block *nb,
@@ -227,123 +156,7 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 	return 0;
 }
 
-static int acpi_thermal_cpufreq_increase(unsigned int cpu)
-{
-	return -ENODEV;
-}
-static int acpi_thermal_cpufreq_decrease(unsigned int cpu)
-{
-	return -ENODEV;
-}
-
 #endif
-
-int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
-{
-	int result = 0;
-	struct acpi_processor *pr = NULL;
-	struct acpi_device *device = NULL;
-	int tx = 0, max_tx_px = 0;
-
-
-	if ((type < ACPI_PROCESSOR_LIMIT_NONE)
-	    || (type > ACPI_PROCESSOR_LIMIT_DECREMENT))
-		return -EINVAL;
-
-	result = acpi_bus_get_device(handle, &device);
-	if (result)
-		return result;
-
-	pr = acpi_driver_data(device);
-	if (!pr)
-		return -ENODEV;
-
-	/* Thermal limits are always relative to the current Px/Tx state. */
-	if (pr->flags.throttling)
-		pr->limit.thermal.tx = pr->throttling.state;
-
-	/*
-	 * Our default policy is to only use throttling at the lowest
-	 * performance state.
-	 */
-
-	tx = pr->limit.thermal.tx;
-
-	switch (type) {
-
-	case ACPI_PROCESSOR_LIMIT_NONE:
-		do {
-			result = acpi_thermal_cpufreq_decrease(pr->id);
-		} while (!result);
-		tx = 0;
-		break;
-
-	case ACPI_PROCESSOR_LIMIT_INCREMENT:
-		/* if going up: P-states first, T-states later */
-
-		result = acpi_thermal_cpufreq_increase(pr->id);
-		if (!result)
-			goto end;
-		else if (result == -ERANGE)
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "At maximum performance state\n"));
-
-		if (pr->flags.throttling) {
-			if (tx == (pr->throttling.state_count - 1))
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-						  "At maximum throttling state\n"));
-			else
-				tx++;
-		}
-		break;
-
-	case ACPI_PROCESSOR_LIMIT_DECREMENT:
-		/* if going down: T-states first, P-states later */
-
-		if (pr->flags.throttling) {
-			if (tx == 0) {
-				max_tx_px = 1;
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-						  "At minimum throttling state\n"));
-			} else {
-				tx--;
-				goto end;
-			}
-		}
-
-		result = acpi_thermal_cpufreq_decrease(pr->id);
-		if (result) {
-			/*
-			 * We only could get -ERANGE, 1 or 0.
-			 * In the first two cases we reached max freq again.
-			 */
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "At minimum performance state\n"));
-			max_tx_px = 1;
-		} else
-			max_tx_px = 0;
-
-		break;
-	}
-
-      end:
-	if (pr->flags.throttling) {
-		pr->limit.thermal.px = 0;
-		pr->limit.thermal.tx = tx;
-
-		result = acpi_processor_apply_limit(pr);
-		if (result)
-			printk(KERN_ERR PREFIX "Unable to set thermal limit\n");
-
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Thermal limit now (P%d:T%d)\n",
-				  pr->limit.thermal.px, pr->limit.thermal.tx));
-	} else
-		result = 0;
-	if (max_tx_px)
-		return 1;
-	else
-		return result;
-}
 
 int acpi_processor_get_limit_info(struct acpi_processor *pr)
 {
@@ -421,12 +234,12 @@ processor_set_cur_state(struct thermal_cooling_device *cdev,
 
 	if (state <= max_pstate) {
 		if (pr->flags.throttling && pr->throttling.state)
-			result = acpi_processor_set_throttling(pr, 0);
+			result = acpi_processor_set_throttling(pr, 0, false);
 		cpufreq_set_cur_state(pr->id, state);
 	} else {
 		cpufreq_set_cur_state(pr->id, max_pstate);
 		result = acpi_processor_set_throttling(pr,
-				state - max_pstate);
+				state - max_pstate, false);
 	}
 	return result;
 }
@@ -435,85 +248,4 @@ struct thermal_cooling_device_ops processor_cooling_ops = {
 	.get_max_state = processor_get_max_state,
 	.get_cur_state = processor_get_cur_state,
 	.set_cur_state = processor_set_cur_state,
-};
-
-/* /proc interface */
-
-static int acpi_processor_limit_seq_show(struct seq_file *seq, void *offset)
-{
-	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
-
-
-	if (!pr)
-		goto end;
-
-	if (!pr->flags.limit) {
-		seq_puts(seq, "<not supported>\n");
-		goto end;
-	}
-
-	seq_printf(seq, "active limit:            P%d:T%d\n"
-		   "user limit:              P%d:T%d\n"
-		   "thermal limit:           P%d:T%d\n",
-		   pr->limit.state.px, pr->limit.state.tx,
-		   pr->limit.user.px, pr->limit.user.tx,
-		   pr->limit.thermal.px, pr->limit.thermal.tx);
-
-      end:
-	return 0;
-}
-
-static int acpi_processor_limit_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_processor_limit_seq_show,
-			   PDE(inode)->data);
-}
-
-static ssize_t acpi_processor_write_limit(struct file * file,
-					  const char __user * buffer,
-					  size_t count, loff_t * data)
-{
-	int result = 0;
-	struct seq_file *m = file->private_data;
-	struct acpi_processor *pr = m->private;
-	char limit_string[25] = { '\0' };
-	int px = 0;
-	int tx = 0;
-
-
-	if (!pr || (count > sizeof(limit_string) - 1)) {
-		return -EINVAL;
-	}
-
-	if (copy_from_user(limit_string, buffer, count)) {
-		return -EFAULT;
-	}
-
-	limit_string[count] = '\0';
-
-	if (sscanf(limit_string, "%d:%d", &px, &tx) != 2) {
-		printk(KERN_ERR PREFIX "Invalid data format\n");
-		return -EINVAL;
-	}
-
-	if (pr->flags.throttling) {
-		if ((tx < 0) || (tx > (pr->throttling.state_count - 1))) {
-			printk(KERN_ERR PREFIX "Invalid tx\n");
-			return -EINVAL;
-		}
-		pr->limit.user.tx = tx;
-	}
-
-	result = acpi_processor_apply_limit(pr);
-
-	return count;
-}
-
-const struct file_operations acpi_processor_limit_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_processor_limit_open_fs,
-	.read = seq_read,
-	.write = acpi_processor_write_limit,
-	.llseek = seq_lseek,
-	.release = single_release,
 };

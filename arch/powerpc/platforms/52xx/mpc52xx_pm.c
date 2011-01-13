@@ -64,10 +64,19 @@ int mpc52xx_pm_prepare(void)
 		{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
 		{}
 	};
+	struct resource res;
 
 	/* map the whole register space */
 	np = of_find_matching_node(NULL, immr_ids);
-	mbar = of_iomap(np, 0);
+
+	if (of_address_to_resource(np, 0, &res)) {
+		pr_err("mpc52xx_pm_prepare(): could not get IMMR address\n");
+		of_node_put(np);
+		return -ENOSYS;
+	}
+
+	mbar = ioremap(res.start, 0xc000); /* we should map whole region including SRAM */
+
 	of_node_put(np);
 	if (!mbar) {
 		pr_err("mpc52xx_pm_prepare(): could not map registers\n");
@@ -161,9 +170,6 @@ int mpc52xx_pm_enter(suspend_state_t state)
 
 	/* restore SRAM */
 	memcpy(sram, saved_sram, sram_size);
-
-	/* restart jiffies */
-	wakeup_decrementer();
 
 	/* reenable interrupts in PIC */
 	out_be32(&intr->main_mask, intr_main_mask);

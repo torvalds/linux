@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/gpio.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/orion_spi.h>
@@ -53,6 +54,11 @@ static void __init rd88f6192_init(void)
 	 */
 	kirkwood_init();
 
+	orion_gpio_set_valid(RD88F6192_GPIO_USB_VBUS, 1);
+	if (gpio_request(RD88F6192_GPIO_USB_VBUS, "USB VBUS") != 0 ||
+	    gpio_direction_output(RD88F6192_GPIO_USB_VBUS, 1) != 0)
+		pr_err("RD-88F6192-NAS: failed to setup USB VBUS GPIO\n");
+
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&rd88f6192_ge00_data);
 	kirkwood_sata_init(&rd88f6192_sata_data);
@@ -65,7 +71,7 @@ static void __init rd88f6192_init(void)
 static int __init rd88f6192_pci_init(void)
 {
 	if (machine_is_rd88f6192_nas())
-		kirkwood_pcie_init();
+		kirkwood_pcie_init(KW_PCIE0);
 
 	return 0;
 }
@@ -73,8 +79,6 @@ subsys_initcall(rd88f6192_pci_init);
 
 MACHINE_START(RD88F6192_NAS, "Marvell RD-88F6192-NAS Development Board")
 	/* Maintainer: Saeed Bishara <saeed@marvell.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f6192_init,
 	.map_io		= kirkwood_map_io,

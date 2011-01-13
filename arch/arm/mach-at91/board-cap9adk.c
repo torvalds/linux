@@ -364,7 +364,7 @@ static struct atmel_lcdfb_info __initdata cap9adk_lcdc_data;
 /*
  * AC97
  */
-static struct atmel_ac97_data cap9adk_ac97_data = {
+static struct ac97c_platform_data cap9adk_ac97_data = {
 //	.reset_pin	= ... not connected
 };
 
@@ -399,8 +399,6 @@ static void __init cap9adk_board_init(void)
 
 MACHINE_START(AT91CAP9ADK, "Atmel AT91CAP9A-DK")
 	/* Maintainer: Stelian Pop <stelian.pop@leadtechdesign.com> */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= cap9adk_map_io,

@@ -42,8 +42,8 @@ int ns_cgroup_clone(struct task_struct *task, struct pid *pid)
  *       (hence either you are in the same cgroup as task, or in an
  *        ancestor cgroup thereof)
  */
-static int ns_can_attach(struct cgroup_subsys *ss,
-		struct cgroup *new_cgroup, struct task_struct *task)
+static int ns_can_attach(struct cgroup_subsys *ss, struct cgroup *new_cgroup,
+			 struct task_struct *task, bool threadgroup)
 {
 	if (current != task) {
 		if (!capable(CAP_SYS_ADMIN))
@@ -55,6 +55,18 @@ static int ns_can_attach(struct cgroup_subsys *ss,
 
 	if (!cgroup_is_descendant(new_cgroup, task))
 		return -EPERM;
+
+	if (threadgroup) {
+		struct task_struct *c;
+		rcu_read_lock();
+		list_for_each_entry_rcu(c, &task->thread_group, thread_group) {
+			if (!cgroup_is_descendant(new_cgroup, c)) {
+				rcu_read_unlock();
+				return -EPERM;
+			}
+		}
+		rcu_read_unlock();
+	}
 
 	return 0;
 }
@@ -73,6 +85,14 @@ static struct cgroup_subsys_state *ns_create(struct cgroup_subsys *ss,
 		return ERR_PTR(-EPERM);
 	if (!cgroup_is_descendant(cgroup, current))
 		return ERR_PTR(-EPERM);
+	if (test_bit(CGRP_CLONE_CHILDREN, &cgroup->flags)) {
+		printk("ns_cgroup can't be created with parent "
+		       "'clone_children' set.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	printk_once("ns_cgroup deprecated: consider using the "
+		    "'clone_children' flag without the ns_cgroup.\n");
 
 	ns_cgroup = kzalloc(sizeof(*ns_cgroup), GFP_KERNEL);
 	if (!ns_cgroup)

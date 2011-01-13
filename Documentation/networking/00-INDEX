@@ -32,6 +32,8 @@ cs89x0.txt
 	- the Crystal LAN (CS8900/20-based) Ethernet ISA adapter driver
 cxacru.txt
 	- Conexant AccessRunner USB ADSL Modem
+cxacru-cf.py
+	- Conexant AccessRunner USB ADSL Modem configuration file parser
 de4x5.txt
 	- the Digital EtherWORKS DE4?? and DE5?? PCI Ethernet driver
 decnet.txt
@@ -60,6 +62,8 @@ framerelay.txt
 	- info on using Frame Relay/Data Link Connection Identifier (DLCI).
 generic_netlink.txt
 	- info on Generic Netlink
+ieee802154.txt
+	- Linux IEEE 802.15.4 implementation, API and drivers
 ip-sysctl.txt
 	- /proc/sys/net/ipv4/* variables
 ip_dynaddr.txt

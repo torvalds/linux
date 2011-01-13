@@ -1,7 +1,7 @@
 #include <asm/lasat/head.h>
 
 	.text
-	.section .text.start, "ax"
+	.section .text..start, "ax"
 	.set noreorder
 	.set mips3
 

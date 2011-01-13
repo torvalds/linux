@@ -77,7 +77,7 @@ __wsum csum_partial(const void *p, int len, __wsum __sum)
 		sum += *buff++;
 
 	if (endMarker > buff)
-		sum += *(const u8 *)buff;	/* add extra byte seperately */
+		sum += *(const u8 *)buff;	/* add extra byte separately */
 
 	BITOFF;
 	return (__force __wsum)sum;

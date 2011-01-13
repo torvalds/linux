@@ -43,7 +43,7 @@
  *
  * EVENTS
  *
- * Events have a type, a subtype, a lenght, some other stuff and the
+ * Events have a type, a subtype, a length, some other stuff and the
  * data blob, which depends on the event. The header is 'struct
  * uwb_event'; for payloads, see 'struct uwbd_evt_*'.
  *
@@ -69,6 +69,7 @@
  * Handler functions are called normally uwbd_evt_handle_*().
  */
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/freezer.h>
 
@@ -187,12 +188,12 @@ int uwbd_event_handle_urc(struct uwb_event *evt)
 	event = le16_to_cpu(evt->notif.rceb->wEvent);
 	context = evt->notif.rceb->bEventContext;
 
-	if (type > ARRAY_SIZE(uwbd_urc_evt_type_handlers))
+	if (type >= ARRAY_SIZE(uwbd_urc_evt_type_handlers))
 		goto out;
 	type_table = &uwbd_urc_evt_type_handlers[type];
 	if (type_table->uwbd_events == NULL)
 		goto out;
-	if (event > type_table->size)
+	if (event >= type_table->size)
 		goto out;
 	handler = type_table->uwbd_events[event].handler;
 	if (handler == NULL)

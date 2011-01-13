@@ -1,6 +1,20 @@
-
-/* Common Flash Interface structures
- * See http://support.intel.com/design/flash/technote/index.htm
+/*
+ * Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org> et al.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *
  */
 
 #ifndef __MTD_CFI_H__
@@ -253,6 +267,7 @@ struct cfi_bri_query {
 #define P_ID_MITSUBISHI_STD     0x0100
 #define P_ID_MITSUBISHI_EXT     0x0101
 #define P_ID_SST_PAGE           0x0102
+#define P_ID_SST_OLD            0x0701
 #define P_ID_INTEL_PERFORMANCE  0x0200
 #define P_ID_INTEL_DATA         0x0210
 #define P_ID_RESERVED           0xffff
@@ -274,6 +289,7 @@ struct cfi_private {
 				  must be of the same type. */
 	int mfr, id;
 	int numchips;
+	map_word sector_erase_cmd;
 	unsigned long chipshift; /* Because they're of the same type */
 	const char *im_name;	 /* inter_module name for cmdset_setup */
 	struct flchip chips[0];  /* per-chip data structure for each chip */
@@ -297,7 +313,7 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,
 	 * and 32bit devices on 16 bit busses
 	 * set the low bit of the alternating bit sequence of the address.
 	 */
-	if (((type * interleave) > bankwidth) && ((uint8_t)cmd_ofs == 0xaa))
+	if (((type * interleave) > bankwidth) && ((cmd_ofs & 0xff) == 0xaa))
 		addr |= (type >> 1)*interleave;
 
 	return  addr;
@@ -515,13 +531,25 @@ struct cfi_fixup {
 	void* param;
 };
 
-#define CFI_MFR_ANY 0xffff
-#define CFI_ID_ANY  0xffff
+#define CFI_MFR_ANY		0xFFFF
+#define CFI_ID_ANY		0xFFFF
+#define CFI_MFR_CONTINUATION	0x007F
 
-#define CFI_MFR_AMD 0x0001
-#define CFI_MFR_ATMEL 0x001F
-#define CFI_MFR_SAMSUNG 0x00EC
-#define CFI_MFR_ST  0x0020 	/* STMicroelectronics */
+#define CFI_MFR_AMD		0x0001
+#define CFI_MFR_ATMEL		0x001F
+#define CFI_MFR_EON		0x001C
+#define CFI_MFR_FUJITSU		0x0004
+#define CFI_MFR_HYUNDAI		0x00AD
+#define CFI_MFR_INTEL		0x0089
+#define CFI_MFR_MACRONIX	0x00C2
+#define CFI_MFR_NEC		0x0010
+#define CFI_MFR_PMC		0x009D
+#define CFI_MFR_SAMSUNG		0x00EC
+#define CFI_MFR_SHARP		0x00B0
+#define CFI_MFR_SST		0x00BF
+#define CFI_MFR_ST		0x0020 /* STMicroelectronics */
+#define CFI_MFR_TOSHIBA		0x0098
+#define CFI_MFR_WINBOND		0x00DA
 
 void cfi_fixup(struct mtd_info *mtd, struct cfi_fixup* fixups);
 

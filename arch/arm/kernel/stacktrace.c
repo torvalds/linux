@@ -21,14 +21,14 @@
  * Note that with framepointer enabled, even the leaf functions have the same
  * prologue and epilogue, therefore we can ignore the LR value in this case.
  */
-int unwind_frame(struct stackframe *frame)
+int notrace unwind_frame(struct stackframe *frame)
 {
 	unsigned long high, low;
 	unsigned long fp = frame->fp;
 
 	/* only go to a higher address on the stack */
 	low = frame->sp;
-	high = ALIGN(low, THREAD_SIZE) + THREAD_SIZE;
+	high = ALIGN(low, THREAD_SIZE);
 
 	/* check current frame pointer is within bounds */
 	if (fp < (low + 12) || fp + 4 >= high)
@@ -43,7 +43,7 @@ int unwind_frame(struct stackframe *frame)
 }
 #endif
 
-void walk_stackframe(struct stackframe *frame,
+void notrace walk_stackframe(struct stackframe *frame,
 		     int (*fn)(struct stackframe *, void *), void *data)
 {
 	while (1) {

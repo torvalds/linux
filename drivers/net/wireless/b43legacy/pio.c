@@ -29,6 +29,7 @@
 #include "xmit.h"
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 
 static void tx_start(struct b43legacy_pioqueue *queue)
@@ -477,7 +478,6 @@ int b43legacy_pio_tx(struct b43legacy_wldev *dev,
 
 	list_move_tail(&packet->list, &queue->txqueue);
 	queue->nr_txfree--;
-	queue->nr_tx_packets++;
 	B43legacy_WARN_ON(queue->nr_txfree >= B43legacy_PIO_MAXTXPACKETS);
 
 	tasklet_schedule(&queue->txtask);
@@ -544,18 +544,6 @@ void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 	 */
 	if (!list_empty(&queue->txqueue))
 		tasklet_schedule(&queue->txtask);
-}
-
-void b43legacy_pio_get_tx_stats(struct b43legacy_wldev *dev,
-				struct ieee80211_tx_queue_stats *stats)
-{
-	struct b43legacy_pio *pio = &dev->pio;
-	struct b43legacy_pioqueue *queue;
-
-	queue = pio->queue1;
-	stats[0].len = B43legacy_PIO_MAXTXPACKETS - queue->nr_txfree;
-	stats[0].limit = B43legacy_PIO_MAXTXPACKETS;
-	stats[0].count = queue->nr_tx_packets;
 }
 
 static void pio_rx_error(struct b43legacy_pioqueue *queue,

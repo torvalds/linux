@@ -83,6 +83,7 @@
  * i2400mu_rx_release()            called from i2400mu_bus_dev_stop()
  */
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include "i2400m-usb.h"
 
@@ -204,7 +205,7 @@ struct sk_buff *i2400mu_rx(struct i2400mu *i2400mu, struct sk_buff *rx_skb)
 		dev_err(dev, "RX: can't get autopm: %d\n", result);
 		do_autopm = 0;
 	}
-	epd = usb_get_epd(i2400mu->usb_iface, I2400MU_EP_BULK_IN);
+	epd = usb_get_epd(i2400mu->usb_iface, i2400mu->endpoint_cfg.bulk_in);
 	usb_pipe = usb_rcvbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 retry:
 	rx_size = skb_end_pointer(rx_skb) - rx_skb->data - rx_skb->len;
@@ -214,7 +215,7 @@ retry:
 	}
 	result = usb_bulk_msg(
 		i2400mu->usb_dev, usb_pipe, rx_skb->data + rx_skb->len,
-		rx_size, &read_size, HZ);
+		rx_size, &read_size, 200);
 	usb_mark_last_busy(i2400mu->usb_dev);
 	switch (result) {
 	case 0:
@@ -222,6 +223,26 @@ retry:
 			goto retry;	/* ZLP, just resubmit */
 		skb_put(rx_skb, read_size);
 		break;
+	case -EPIPE:
+		/*
+		 * Stall -- maybe the device is choking with our
+		 * requests. Clear it and give it some time. If they
+		 * happen to often, it might be another symptom, so we
+		 * reset.
+		 *
+		 * No error handling for usb_clear_halt(0; if it
+		 * works, the retry works; if it fails, this switch
+		 * does the error handling for us.
+		 */
+		if (edc_inc(&i2400mu->urb_edc,
+			    10 * EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {
+			dev_err(dev, "BM-CMD: too many stalls in "
+				"URB; resetting device\n");
+			goto do_reset;
+		}
+		usb_clear_halt(i2400mu->usb_dev, usb_pipe);
+		msleep(10);	/* give the device some time */
+		goto retry;
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
 	case -ENOENT:			/* just ignore it */
@@ -283,6 +304,7 @@ out:
 error_reset:
 	dev_err(dev, "RX: maximum errors in URB exceeded; "
 		"resetting device\n");
+do_reset:
 	usb_queue_reset_device(i2400mu->usb_iface);
 	rx_skb = ERR_PTR(result);
 	goto out;
@@ -316,10 +338,15 @@ int i2400mu_rxd(void *_i2400mu)
 	size_t pending;
 	int rx_size;
 	struct sk_buff *rx_skb;
+	unsigned long flags;
 
 	d_fnstart(4, dev, "(i2400mu %p)\n", i2400mu);
+	spin_lock_irqsave(&i2400m->rx_lock, flags);
+	BUG_ON(i2400mu->rx_kthread != NULL);
+	i2400mu->rx_kthread = current;
+	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	while (1) {
-		d_printf(2, dev, "TX: waiting for messages\n");
+		d_printf(2, dev, "RX: waiting for messages\n");
 		pending = 0;
 		wait_event_interruptible(
 			i2400mu->rx_wq,
@@ -367,6 +394,9 @@ int i2400mu_rxd(void *_i2400mu)
 	}
 	result = 0;
 out:
+	spin_lock_irqsave(&i2400m->rx_lock, flags);
+	i2400mu->rx_kthread = NULL;
+	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	d_fnend(4, dev, "(i2400mu %p) = %d\n", i2400mu, result);
 	return result;
 
@@ -403,18 +433,33 @@ int i2400mu_rx_setup(struct i2400mu *i2400mu)
 	struct i2400m *i2400m = &i2400mu->i2400m;
 	struct device *dev = &i2400mu->usb_iface->dev;
 	struct wimax_dev *wimax_dev = &i2400m->wimax_dev;
+	struct task_struct *kthread;
 
-	i2400mu->rx_kthread = kthread_run(i2400mu_rxd, i2400mu, "%s-rx",
-					  wimax_dev->name);
-	if (IS_ERR(i2400mu->rx_kthread)) {
-		result = PTR_ERR(i2400mu->rx_kthread);
+	kthread = kthread_run(i2400mu_rxd, i2400mu, "%s-rx",
+			      wimax_dev->name);
+	/* the kthread function sets i2400mu->rx_thread */
+	if (IS_ERR(kthread)) {
+		result = PTR_ERR(kthread);
 		dev_err(dev, "RX: cannot start thread: %d\n", result);
 	}
 	return result;
 }
 
+
 void i2400mu_rx_release(struct i2400mu *i2400mu)
 {
-	kthread_stop(i2400mu->rx_kthread);
+	unsigned long flags;
+	struct i2400m *i2400m = &i2400mu->i2400m;
+	struct device *dev = i2400m_dev(i2400m);
+	struct task_struct *kthread;
+
+	spin_lock_irqsave(&i2400m->rx_lock, flags);
+	kthread = i2400mu->rx_kthread;
+	i2400mu->rx_kthread = NULL;
+	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+	if (kthread)
+		kthread_stop(kthread);
+	else
+		d_printf(1, dev, "RX: kthread had already exited\n");
 }
 

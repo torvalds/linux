@@ -11,13 +11,16 @@
 
 #include <linux/module.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 #else
 #include <linux/fs.h>
 #endif
+#include <linux/sched.h>
 #include <linux/isdnif.h>
 #include <net/net_namespace.h>
+#include <linux/mutex.h>
 #include "isdn_divert.h"
 
 
@@ -25,6 +28,7 @@
 /* Variables for interface queue */
 /*********************************/
 ulong if_used = 0;		/* number of interface users */
+static DEFINE_MUTEX(isdn_divert_mutex);
 static struct divert_info *divert_info_head = NULL;	/* head of queue */
 static struct divert_info *divert_info_tail = NULL;	/* pointer to last entry */
 static DEFINE_SPINLOCK(divert_info_lock);/* lock for queue */
@@ -175,9 +179,7 @@ isdn_divert_close(struct inode *ino, struct file *filep)
 /*********/
 /* IOCTL */
 /*********/
-static int
-isdn_divert_ioctl(struct inode *inode, struct file *file,
-		  uint cmd, ulong arg)
+static int isdn_divert_ioctl_unlocked(struct file *file, uint cmd, ulong arg)
 {
 	divert_ioctl dioctl;
 	int i;
@@ -256,6 +258,17 @@ isdn_divert_ioctl(struct inode *inode, struct file *file,
 	return copy_to_user((void __user *)arg, &dioctl, sizeof(dioctl)) ? -EFAULT : 0;
 }				/* isdn_divert_ioctl */
 
+static long isdn_divert_ioctl(struct file *file, uint cmd, ulong arg)
+{
+	long ret;
+
+	mutex_lock(&isdn_divert_mutex);
+	ret = isdn_divert_ioctl_unlocked(file, cmd, arg);
+	mutex_unlock(&isdn_divert_mutex);
+
+	return ret;
+}
+
 static const struct file_operations isdn_fops =
 {
 	.owner          = THIS_MODULE,
@@ -263,7 +276,7 @@ static const struct file_operations isdn_fops =
 	.read           = isdn_divert_read,
 	.write          = isdn_divert_write,
 	.poll           = isdn_divert_poll,
-	.ioctl          = isdn_divert_ioctl,
+	.unlocked_ioctl = isdn_divert_ioctl,
 	.open           = isdn_divert_open,
 	.release        = isdn_divert_close,                                      
 };

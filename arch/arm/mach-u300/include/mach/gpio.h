@@ -258,6 +258,7 @@
 #define PIN_TO_PORT(val) (val >> 3)
 
 /* These can be found in arch/arm/mach-u300/gpio.c */
+extern int gpio_is_valid(int number);
 extern int gpio_request(unsigned gpio, const char *label);
 extern void gpio_free(unsigned gpio);
 extern int gpio_direction_input(unsigned gpio);
@@ -271,6 +272,9 @@ extern void disable_irq_on_gpio_pin(unsigned gpio);
 extern void gpio_pullup(unsigned gpio, int value);
 extern int gpio_get_value(unsigned gpio);
 extern void gpio_set_value(unsigned gpio, int value);
+
+#define gpio_get_value_cansleep gpio_get_value
+#define gpio_set_value_cansleep gpio_set_value
 
 /* wrappers to sleep-enable the previous two functions */
 static inline unsigned gpio_to_irq(unsigned gpio)

@@ -54,8 +54,6 @@ struct thread_info {
 
 /*
  * macros/functions for gaining access to the thread information structure
- *
- * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
 #define INIT_THREAD_INFO(tsk)				\
 {							\
@@ -64,7 +62,7 @@ struct thread_info {
 	.exec_domain	=	&default_exec_domain,	\
 	.flags		=	0,			\
 	.cpu		=	0,			\
-	.preempt_count	=	1,			\
+	.preempt_count	=	INIT_PREEMPT_COUNT,	\
 	.restart_block	= {				\
 		.fn	=	do_no_restart_syscall,	\
 	},						\
@@ -134,7 +132,7 @@ BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
 					 * this quantum (SMP) */
 #define TIF_POLLING_NRFLAG	9	/* true if poll_idle() is polling
 					 * TIF_NEED_RESCHED */
-#define TIF_MEMDIE		10
+#define TIF_MEMDIE		10	/* is terminating due to OOM killer */
 #define TIF_FREEZE		11	/* is freezing for suspend */
 
 /* as above, but as bit values */

@@ -152,8 +152,10 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_LUN, D_DLY};
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
+static DEFINE_MUTEX(pf_mutex);
 static DEFINE_SPINLOCK(pf_spin_lock);
 
 module_param(verbose, bool, 0644);
@@ -262,11 +264,11 @@ static char *pf_buf;		/* buffer for request in progress */
 
 /* kernel glue structures */
 
-static struct block_device_operations pf_fops = {
+static const struct block_device_operations pf_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pf_open,
 	.release	= pf_release,
-	.locked_ioctl	= pf_ioctl,
+	.ioctl		= pf_ioctl,
 	.getgeo		= pf_getgeo,
 	.media_changed	= pf_check_media,
 };
@@ -299,20 +301,26 @@ static void __init pf_init_units(void)
 static int pf_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pf_unit *pf = bdev->bd_disk->private_data;
+	int ret;
 
+	mutex_lock(&pf_mutex);
 	pf_identify(pf);
 
+	ret = -ENODEV;
 	if (pf->media_status == PF_NM)
-		return -ENODEV;
+		goto out;
 
+	ret = -EROFS;
 	if ((pf->media_status == PF_RO) && (mode & FMODE_WRITE))
-		return -EROFS;
+		goto out;
 
+	ret = 0;
 	pf->access++;
 	if (pf->removable)
 		pf_lock(pf, 1);
-
-	return 0;
+out:
+	mutex_unlock(&pf_mutex);
+	return ret;
 }
 
 static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -342,7 +350,10 @@ static int pf_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, u
 
 	if (pf->access != 1)
 		return -EBUSY;
+	mutex_lock(&pf_mutex);
 	pf_eject(pf);
+	mutex_unlock(&pf_mutex);
+
 	return 0;
 }
 
@@ -350,14 +361,18 @@ static int pf_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pf_unit *pf = disk->private_data;
 
-	if (pf->access <= 0)
+	mutex_lock(&pf_mutex);
+	if (pf->access <= 0) {
+		mutex_unlock(&pf_mutex);
 		return -EINVAL;
+	}
 
 	pf->access--;
 
 	if (!pf->access && pf->removable)
 		pf_lock(pf, 0);
 
+	mutex_unlock(&pf_mutex);
 	return 0;
 
 }
@@ -391,11 +406,11 @@ static int pf_wait(struct pf_unit *pf, int go, int stop, char *fun, char *msg)
 	       && (j++ < PF_SPIN))
 		udelay(PF_SPIN_DEL);
 
-	if ((r & (STAT_ERR & stop)) || (j >= PF_SPIN)) {
+	if ((r & (STAT_ERR & stop)) || (j > PF_SPIN)) {
 		s = read_reg(pf, 7);
 		e = read_reg(pf, 1);
 		p = read_reg(pf, 2);
-		if (j >= PF_SPIN)
+		if (j > PF_SPIN)
 			e |= 0x100;
 		if (fun)
 			printk("%s: %s %s: alt=0x%x stat=0x%x err=0x%x"
@@ -956,8 +971,7 @@ static int __init pf_init(void)
 		return -ENOMEM;
 	}
 
-	blk_queue_max_phys_segments(pf_queue, cluster);
-	blk_queue_max_hw_segments(pf_queue, cluster);
+	blk_queue_max_segments(pf_queue, cluster);
 
 	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
 		struct gendisk *disk = pf->disk;

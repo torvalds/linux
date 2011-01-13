@@ -61,7 +61,7 @@ static void __init ek_map_io(void)
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PA13, AT91_PIN_PA14);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* set serial console to ttyS0 (ie, DBGU) */
@@ -93,11 +93,12 @@ static struct resource dm9000_resource[] = {
 		.start	= AT91_PIN_PC11,
 		.end	= AT91_PIN_PC11,
 		.flags	= IORESOURCE_IRQ
+			| IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 
 static struct dm9000_plat_data dm9000_platdata = {
-	.flags		= DM9000_PLATF_16BITONLY,
+	.flags		= DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM,
 };
 
 static struct platform_device dm9000_device = {
@@ -164,17 +165,6 @@ static struct at91_usbh_data __initdata ek_usbh_data = {
 static struct at91_udc_data __initdata ek_udc_data = {
 	.vbus_pin	= AT91_PIN_PB29,
 	.pullup_pin	= 0,		/* pull-up driven by UDC */
-};
-
-
-/*
- * MCI (SD/MMC)
- */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.wire4		= 1,
-//	.det_pin	= ... not connected
-//	.wp_pin		= ... not connected
-//	.vcc_pin	= ... not connected
 };
 
 
@@ -246,6 +236,10 @@ static void __init ek_add_device_nand(void)
 	at91_add_device_nand(&ek_nand_data);
 }
 
+/*
+ * SPI related devices
+ */
+#if defined(CONFIG_SPI_ATMEL) || defined(CONFIG_SPI_ATMEL_MODULE)
 
 /*
  * ADS7846 Touchscreen
@@ -287,7 +281,11 @@ static void __init ek_add_device_ts(void) {}
  */
 static struct at73c213_board_info at73c213_data = {
 	.ssc_id		= 1,
+#if defined(CONFIG_MACH_AT91SAM9261EK)
 	.shortname	= "AT91SAM9261-EK external DAC",
+#else
+	.shortname	= "AT91SAM9G10-EK external DAC",
+#endif
 };
 
 #if defined(CONFIG_SND_AT73C213) || defined(CONFIG_SND_AT73C213_MODULE)
@@ -352,6 +350,19 @@ static struct spi_board_info ek_spi_devices[] = {
 #endif
 };
 
+#else /* CONFIG_SPI_ATMEL_* */
+/* spi0 and mmc/sd share the same PIO pins: cannot be used at the same time */
+
+/*
+ * MCI (SD/MMC)
+ * det_pin, wp_pin and vcc_pin are not connected
+ */
+static struct at91_mmc_data __initdata ek_mmc_data = {
+	.wire4		= 1,
+};
+
+#endif /* CONFIG_SPI_ATMEL_* */
+
 
 /*
  * LCD Controller
@@ -414,6 +425,9 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 	.default_monspecs		= &at91fb_default_stn_monspecs,
 	.atmel_lcdfb_power_control	= at91_lcdc_stn_power_control,
 	.guard_time			= 1,
+#if defined(CONFIG_MACH_AT91SAM9G10EK)
+	.lcd_wiring_mode		= ATMEL_LCDC_WIRING_RGB,
+#endif
 };
 
 #else
@@ -467,6 +481,9 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 	.default_monspecs		= &at91fb_default_tft_monspecs,
 	.atmel_lcdfb_power_control	= at91_lcdc_tft_power_control,
 	.guard_time			= 1,
+#if defined(CONFIG_MACH_AT91SAM9G10EK)
+	.lcd_wiring_mode		= ATMEL_LCDC_WIRING_RGB,
+#endif
 };
 #endif
 
@@ -600,10 +617,12 @@ static void __init ek_board_init(void)
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
+#if defined(CONFIG_MACH_AT91SAM9261EK)
 MACHINE_START(AT91SAM9261EK, "Atmel AT91SAM9261-EK")
+#else
+MACHINE_START(AT91SAM9G10EK, "Atmel AT91SAM9G10-EK")
+#endif
 	/* Maintainer: Atmel */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= ek_map_io,

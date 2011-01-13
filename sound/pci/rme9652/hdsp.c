@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/moduleparam.h>
@@ -585,7 +584,7 @@ static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_d
 }
 
 
-static struct pci_device_id snd_hdsp_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_hdsp_ids) = {
 	{
 		.vendor = PCI_VENDOR_ID_XILINX,
 		.device = PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP,
@@ -3285,7 +3284,7 @@ static int snd_hdsp_create_controls(struct snd_card *card, struct hdsp *hdsp)
 static void
 snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	struct hdsp *hdsp = (struct hdsp *) entry->private_data;
+	struct hdsp *hdsp = entry->private_data;
 	unsigned int status;
 	unsigned int status2;
 	char *pref_sync_ref;
@@ -3294,15 +3293,33 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	char *clock_source;
 	int x;
 
-	if (hdsp_check_for_iobox (hdsp)) {
-		snd_iprintf(buffer, "No I/O box connected.\nPlease connect one and upload firmware.\n");
+	status = hdsp_read(hdsp, HDSP_statusRegister);
+	status2 = hdsp_read(hdsp, HDSP_status2Register);
+
+	snd_iprintf(buffer, "%s (Card #%d)\n", hdsp->card_name,
+		    hdsp->card->number + 1);
+	snd_iprintf(buffer, "Buffers: capture %p playback %p\n",
+		    hdsp->capture_buffer, hdsp->playback_buffer);
+	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
+		    hdsp->irq, hdsp->port, (unsigned long)hdsp->iobase);
+	snd_iprintf(buffer, "Control register: 0x%x\n", hdsp->control_register);
+	snd_iprintf(buffer, "Control2 register: 0x%x\n",
+		    hdsp->control2_register);
+	snd_iprintf(buffer, "Status register: 0x%x\n", status);
+	snd_iprintf(buffer, "Status2 register: 0x%x\n", status2);
+
+	if (hdsp_check_for_iobox(hdsp)) {
+		snd_iprintf(buffer, "No I/O box connected.\n"
+			    "Please connect one and upload firmware.\n");
 		return;
-        }
+	}
 
 	if (hdsp_check_for_firmware(hdsp, 0)) {
 		if (hdsp->state & HDSP_FirmwareCached) {
 			if (snd_hdsp_load_firmware_from_cache(hdsp) != 0) {
-				snd_iprintf(buffer, "Firmware loading from cache failed, please upload manually.\n");
+				snd_iprintf(buffer, "Firmware loading from "
+					    "cache failed, "
+					    "please upload manually.\n");
 				return;
 			}
 		} else {
@@ -3319,18 +3336,6 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 		}
 	}
 
-	status = hdsp_read(hdsp, HDSP_statusRegister);
-	status2 = hdsp_read(hdsp, HDSP_status2Register);
-
-	snd_iprintf(buffer, "%s (Card #%d)\n", hdsp->card_name, hdsp->card->number + 1);
-	snd_iprintf(buffer, "Buffers: capture %p playback %p\n",
-		    hdsp->capture_buffer, hdsp->playback_buffer);
-	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
-		    hdsp->irq, hdsp->port, (unsigned long)hdsp->iobase);
-	snd_iprintf(buffer, "Control register: 0x%x\n", hdsp->control_register);
-	snd_iprintf(buffer, "Control2 register: 0x%x\n", hdsp->control2_register);
-	snd_iprintf(buffer, "Status register: 0x%x\n", status);
-	snd_iprintf(buffer, "Status2 register: 0x%x\n", status2);
 	snd_iprintf(buffer, "FIFO status: %d\n", hdsp_read(hdsp, HDSP_fifoStatus) & 0xff);
 	snd_iprintf(buffer, "MIDI1 Output status: 0x%x\n", hdsp_read(hdsp, HDSP_midiStatusOut0));
 	snd_iprintf(buffer, "MIDI1 Input status: 0x%x\n", hdsp_read(hdsp, HDSP_midiStatusIn0));
@@ -3350,7 +3355,6 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	snd_iprintf(buffer, "Firmware version: %d\n", (status2&HDSP_version0)|(status2&HDSP_version1)<<1|(status2&HDSP_version2)<<2);
 
 	snd_iprintf(buffer, "\n");
-
 
 	switch (hdsp_clock_source(hdsp)) {
 	case HDSP_CLOCK_SOURCE_AUTOSYNC:
@@ -4562,7 +4566,7 @@ static int hdsp_get_peak(struct hdsp *hdsp, struct hdsp_peak_rms __user *peak_rm
 
 static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct hdsp *hdsp = (struct hdsp *)hw->private_data;
+	struct hdsp *hdsp = hw->private_data;
 	void __user *argp = (void __user *)arg;
 	int err;
 
@@ -4605,6 +4609,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		if (err < 0)
 			return err;
 
+		memset(&info, 0, sizeof(info));
 		spin_lock_irqsave(&hdsp->lock, flags);
 		info.pref_sync_ref = (unsigned char)hdsp_pref_sync_ref(hdsp);
 		info.wordclock_sync_check = (unsigned char)hdsp_wc_sync_check(hdsp);
@@ -5151,7 +5156,7 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 
 static void snd_hdsp_card_free(struct snd_card *card)
 {
-	struct hdsp *hdsp = (struct hdsp *) card->private_data;
+	struct hdsp *hdsp = card->private_data;
 
 	if (hdsp)
 		snd_hdsp_free(hdsp);
@@ -5177,7 +5182,7 @@ static int __devinit snd_hdsp_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	hdsp = (struct hdsp *) card->private_data;
+	hdsp = card->private_data;
 	card->private_free = snd_hdsp_card_free;
 	hdsp->dev = dev;
 	hdsp->pci = pci;

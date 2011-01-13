@@ -1,6 +1,7 @@
 /*
  * pata_serverworks.c 	- Serverworks PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
+ *			  (C) 2010 Bartlomiej Zolnierkiewicz
  *
  * based upon
  *
@@ -197,7 +198,7 @@ static unsigned long serverworks_osb4_filter(struct ata_device *adev, unsigned l
 {
 	if (adev->class == ATA_DEV_ATA)
 		mask &= ~ATA_MASK_UDMA;
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 
@@ -217,7 +218,7 @@ static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned lo
 
 	/* Disk, UDMA */
 	if (adev->class != ATA_DEV_ATA)
-		return ata_bmdma_mode_filter(adev, mask);
+		return mask;
 
 	/* Actually do need to check */
 	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
@@ -226,7 +227,7 @@ static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned lo
 		if (!strcmp(p, model_num))
 			mask &= ~(0xE0 << ATA_SHIFT_UDMA);
 	}
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 /**
@@ -253,7 +254,7 @@ static void serverworks_set_piomode(struct ata_port *ap, struct ata_device *adev
 	if (serverworks_is_csb(pdev)) {
 		pci_read_config_word(pdev, 0x4A, &csb5_pio);
 		csb5_pio &= ~(0x0F << devbits);
-		pci_write_config_byte(pdev, 0x4A, csb5_pio | (pio << devbits));
+		pci_write_config_word(pdev, 0x4A, csb5_pio | (pio << devbits));
 	}
 }
 
@@ -327,7 +328,7 @@ static int serverworks_fixup_osb4(struct pci_dev *pdev)
 		pci_dev_put(isa_dev);
 		return 0;
 	}
-	printk(KERN_WARNING "ata_serverworks: Unable to find bridge.\n");
+	printk(KERN_WARNING DRV_NAME ": Unable to find bridge.\n");
 	return -ENODEV;
 }
 
@@ -459,7 +460,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE)
 		ata_pci_bmdma_clear_simplex(pdev);
 
-	return ata_pci_sff_init_one(pdev, ppi, &serverworks_sht, NULL);
+	return ata_pci_bmdma_init_one(pdev, ppi, &serverworks_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

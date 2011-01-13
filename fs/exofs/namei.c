@@ -1,8 +1,6 @@
 /*
  * Copyright (C) 2005, 2006
- * Avishay Traeger (avishay@gmail.com) (avishay@il.ibm.com)
- * Copyright (C) 2005, 2006
- * International Business Machines
+ * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
  * Boaz Harrosh <bharrosh@panasas.com>
  *
@@ -155,7 +153,7 @@ static int exofs_link(struct dentry *old_dentry, struct inode *dir,
 
 	inode->i_ctime = CURRENT_TIME;
 	inode_inc_link_count(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 
 	return exofs_add_nondir(dentry, inode);
 }

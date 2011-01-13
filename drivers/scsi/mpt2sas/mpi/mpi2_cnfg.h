@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_cnfg.h
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.10
+ *    mpi2_cnfg.h Version:  02.00.15
  *
  *  Version History
  *  ---------------
@@ -95,6 +95,36 @@
  *                      Added MPI2_SAS_DEVICE0_ASTATUS_DEVICE_BLOCKED define.
  *                      Added PortGroups, DmaGroup, and ControlGroup fields to
  *                      SAS Device Page 0.
+ *  05-06-09  02.00.11  Added structures and defines for IO Unit Page 5 and IO
+ *                      Unit Page 6.
+ *                      Added expander reduced functionality data to SAS
+ *                      Expander Page 0.
+ *                      Added SAS PHY Page 2 and SAS PHY Page 3.
+ *  07-30-09  02.00.12  Added IO Unit Page 7.
+ *                      Added new device ids.
+ *                      Added SAS IO Unit Page 5.
+ *                      Added partial and slumber power management capable flags
+ *                      to SAS Device Page 0 Flags field.
+ *                      Added PhyInfo defines for power condition.
+ *                      Added Ethernet configuration pages.
+ *  10-28-09  02.00.13  Added MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY.
+ *                      Added SAS PHY Page 4 structure and defines.
+ *  02-10-10  02.00.14  Modified the comments for the configuration page
+ *                      structures that contain an array of data. The host
+ *                      should use the "count" field in the page data (e.g. the
+ *                      NumPhys field) to determine the number of valid elements
+ *                      in the array.
+ *                      Added/modified some MPI2_MFGPAGE_DEVID_SAS defines.
+ *                      Added PowerManagementCapabilities to IO Unit Page 7.
+ *                      Added PortWidthModGroup field to
+ *                      MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_6 and related defines.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_7 and related defines.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_8 and related defines.
+ *  05-12-10  02.00.15  Added MPI2_RAIDVOL0_STATUS_FLAG_VOL_NOT_CONSISTENT
+ *                      define.
+ *                      Added MPI2_PHYSDISK0_INCOMPATIBLE_MEDIA_TYPE define.
+ *                      Added MPI2_SAS_NEG_LINK_RATE_UNSUPPORTED_PHY define.
  *  --------------------------------------------------------------------------
  */
 
@@ -177,6 +207,7 @@ typedef union _MPI2_CONFIG_EXT_PAGE_HEADER_UNION
 #define MPI2_CONFIG_EXTPAGETYPE_RAID_CONFIG         (0x16)
 #define MPI2_CONFIG_EXTPAGETYPE_DRIVER_MAPPING      (0x17)
 #define MPI2_CONFIG_EXTPAGETYPE_SAS_PORT            (0x18)
+#define MPI2_CONFIG_EXTPAGETYPE_ETHERNET            (0x19)
 
 
 /*****************************************************************************
@@ -263,6 +294,14 @@ typedef union _MPI2_CONFIG_EXT_PAGE_HEADER_UNION
 #define MPI2_DPM_PGAD_START_ENTRY_MASK              (0x0000FFFF)
 
 
+/* Ethernet PageAddress format */
+#define MPI2_ETHERNET_PGAD_FORM_MASK                (0xF0000000)
+#define MPI2_ETHERNET_PGAD_FORM_IF_NUM              (0x00000000)
+
+#define MPI2_ETHERNET_PGAD_IF_NUMBER_MASK           (0x000000FF)
+
+
+
 /****************************************************************************
 *   Configuration messages
 ****************************************************************************/
@@ -298,7 +337,7 @@ typedef struct _MPI2_CONFIG_REQUEST
 #define MPI2_CONFIG_ACTION_PAGE_READ_NVRAM          (0x06)
 #define MPI2_CONFIG_ACTION_PAGE_GET_CHANGEABLE      (0x07)
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* Config Reply Message */
@@ -343,6 +382,20 @@ typedef struct _MPI2_CONFIG_REPLY
 #define MPI2_MFGPAGE_DEVID_SAS2108_3                (0x0077)
 #define MPI2_MFGPAGE_DEVID_SAS2116_1                (0x0064)
 #define MPI2_MFGPAGE_DEVID_SAS2116_2                (0x0065)
+
+#define MPI2_MFGPAGE_DEVID_SSS6200                  (0x007E)
+
+#define MPI2_MFGPAGE_DEVID_SAS2208_1                (0x0080)
+#define MPI2_MFGPAGE_DEVID_SAS2208_2                (0x0081)
+#define MPI2_MFGPAGE_DEVID_SAS2208_3                (0x0082)
+#define MPI2_MFGPAGE_DEVID_SAS2208_4                (0x0083)
+#define MPI2_MFGPAGE_DEVID_SAS2208_5                (0x0084)
+#define MPI2_MFGPAGE_DEVID_SAS2208_6                (0x0085)
+#define MPI2_MFGPAGE_DEVID_SAS2308_1                (0x0086)
+#define MPI2_MFGPAGE_DEVID_SAS2308_2                (0x0087)
+#define MPI2_MFGPAGE_DEVID_SAS2308_3                (0x006E)
+
+
 
 
 /* Manufacturing Page 0 */
@@ -508,7 +561,7 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_4
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_MAN_PAGE_5_PHY_ENTRIES
 #define MPI2_MAN_PAGE_5_PHY_ENTRIES         (1)
@@ -586,7 +639,7 @@ typedef struct _MPI2_MANPAGE7_CONNECTOR_INFO
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_MANPAGE7_CONNECTOR_INFO_MAX
 #define MPI2_MANPAGE7_CONNECTOR_INFO_MAX  (1)
@@ -682,7 +735,9 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1
 #define MPI2_IOUNITPAGE1_PAGEVERSION                    (0x04)
 
 /* IO Unit Page 1 Flags defines */
+#define MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY    (0x00000800)
 #define MPI2_IOUNITPAGE1_MASK_SATA_WRITE_CACHE          (0x00000600)
+#define MPI2_IOUNITPAGE1_SATA_WRITE_CACHE_SHIFT         (9)
 #define MPI2_IOUNITPAGE1_ENABLE_SATA_WRITE_CACHE        (0x00000000)
 #define MPI2_IOUNITPAGE1_DISABLE_SATA_WRITE_CACHE       (0x00000200)
 #define MPI2_IOUNITPAGE1_UNCHANGED_SATA_WRITE_CACHE     (0x00000400)
@@ -698,7 +753,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
+ * one and check the value returned for GPIOCount at runtime.
  */
 #ifndef MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX
 #define MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX    (1)
@@ -721,6 +776,123 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_3
 #define MPI2_IOUNITPAGE3_GPIO_FUNCTION_SHIFT            (2)
 #define MPI2_IOUNITPAGE3_GPIO_SETTING_OFF               (0x0000)
 #define MPI2_IOUNITPAGE3_GPIO_SETTING_ON                (0x0001)
+
+
+/* IO Unit Page 5 */
+
+/*
+ * Upper layer code (drivers, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumDmaEngines at runtime.
+ */
+#ifndef MPI2_IOUNITPAGE5_DMAENGINE_ENTRIES
+#define MPI2_IOUNITPAGE5_DMAENGINE_ENTRIES      (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_5 {
+    MPI2_CONFIG_PAGE_HEADER Header;				/* 0x00 */
+    U64                     RaidAcceleratorBufferBaseAddress;  /* 0x04 */
+    U64                     RaidAcceleratorBufferSize;         /* 0x0C */
+    U64                     RaidAcceleratorControlBaseAddress; /* 0x14 */
+    U8                      RAControlSize;                     /* 0x1C */
+    U8                      NumDmaEngines;                     /* 0x1D */
+    U8                      RAMinControlSize;                  /* 0x1E */
+    U8                      RAMaxControlSize;                  /* 0x1F */
+    U32                     Reserved1;                         /* 0x20 */
+    U32                     Reserved2;                         /* 0x24 */
+    U32                     Reserved3;                         /* 0x28 */
+    U32                     DmaEngineCapabilities
+				[MPI2_IOUNITPAGE5_DMAENGINE_ENTRIES]; /* 0x2C */
+} MPI2_CONFIG_PAGE_IO_UNIT_5, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_IO_UNIT_5,
+  Mpi2IOUnitPage5_t, MPI2_POINTER pMpi2IOUnitPage5_t;
+
+#define MPI2_IOUNITPAGE5_PAGEVERSION                    (0x00)
+
+/* defines for IO Unit Page 5 DmaEngineCapabilities field */
+#define MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS      (0xFF00)
+#define MPI2_IOUNITPAGE5_DMA_CAP_SHIFT_MAX_REQUESTS     (16)
+
+#define MPI2_IOUNITPAGE5_DMA_CAP_EEDP                   (0x0008)
+#define MPI2_IOUNITPAGE5_DMA_CAP_PARITY_GENERATION      (0x0004)
+#define MPI2_IOUNITPAGE5_DMA_CAP_HASHING                (0x0002)
+#define MPI2_IOUNITPAGE5_DMA_CAP_ENCRYPTION             (0x0001)
+
+
+/* IO Unit Page 6 */
+
+typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_6 {
+    MPI2_CONFIG_PAGE_HEADER Header;                                 /* 0x00 */
+    U16                     Flags;                                  /* 0x04 */
+    U8                      RAHostControlSize;                      /* 0x06 */
+    U8                      Reserved0;                              /* 0x07 */
+    U64                     RaidAcceleratorHostControlBaseAddress;  /* 0x08 */
+    U32                     Reserved1;                              /* 0x10 */
+    U32                     Reserved2;                              /* 0x14 */
+    U32                     Reserved3;                              /* 0x18 */
+} MPI2_CONFIG_PAGE_IO_UNIT_6, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_IO_UNIT_6,
+  Mpi2IOUnitPage6_t, MPI2_POINTER pMpi2IOUnitPage6_t;
+
+#define MPI2_IOUNITPAGE6_PAGEVERSION                    (0x00)
+
+/* defines for IO Unit Page 6 Flags field */
+#define MPI2_IOUNITPAGE6_FLAGS_ENABLE_RAID_ACCELERATOR  (0x0001)
+
+
+/* IO Unit Page 7 */
+
+typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
+    MPI2_CONFIG_PAGE_HEADER Header;                                 /* 0x00 */
+    U16                     Reserved1;                              /* 0x04 */
+    U8                      PCIeWidth;                              /* 0x06 */
+    U8                      PCIeSpeed;                              /* 0x07 */
+    U32                     ProcessorState;                         /* 0x08 */
+    U32                     PowerManagementCapabilities;            /* 0x0C */
+    U16                     IOCTemperature;                         /* 0x10 */
+    U8                      IOCTemperatureUnits;                    /* 0x12 */
+    U8                      IOCSpeed;                               /* 0x13 */
+    U32                     Reserved3;                              /* 0x14 */
+} MPI2_CONFIG_PAGE_IO_UNIT_7, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_IO_UNIT_7,
+  Mpi2IOUnitPage7_t, MPI2_POINTER pMpi2IOUnitPage7_t;
+
+#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x01)
+
+/* defines for IO Unit Page 7 PCIeWidth field */
+#define MPI2_IOUNITPAGE7_PCIE_WIDTH_X1              (0x01)
+#define MPI2_IOUNITPAGE7_PCIE_WIDTH_X2              (0x02)
+#define MPI2_IOUNITPAGE7_PCIE_WIDTH_X4              (0x04)
+#define MPI2_IOUNITPAGE7_PCIE_WIDTH_X8              (0x08)
+
+/* defines for IO Unit Page 7 PCIeSpeed field */
+#define MPI2_IOUNITPAGE7_PCIE_SPEED_2_5_GBPS        (0x00)
+#define MPI2_IOUNITPAGE7_PCIE_SPEED_5_0_GBPS        (0x01)
+#define MPI2_IOUNITPAGE7_PCIE_SPEED_8_0_GBPS        (0x02)
+
+/* defines for IO Unit Page 7 ProcessorState field */
+#define MPI2_IOUNITPAGE7_PSTATE_MASK_SECOND         (0x0000000F)
+#define MPI2_IOUNITPAGE7_PSTATE_SHIFT_SECOND        (0)
+
+#define MPI2_IOUNITPAGE7_PSTATE_NOT_PRESENT         (0x00)
+#define MPI2_IOUNITPAGE7_PSTATE_DISABLED            (0x01)
+#define MPI2_IOUNITPAGE7_PSTATE_ENABLED             (0x02)
+
+/* defines for IO Unit Page 7 PowerManagementCapabilities field */
+#define MPI2_IOUNITPAGE7_PMCAP_12_5_PCT_IOCSPEED    (0x00000400)
+#define MPI2_IOUNITPAGE7_PMCAP_25_0_PCT_IOCSPEED    (0x00000200)
+#define MPI2_IOUNITPAGE7_PMCAP_50_0_PCT_IOCSPEED    (0x00000100)
+#define MPI2_IOUNITPAGE7_PMCAP_PCIE_WIDTH_CHANGE    (0x00000008)
+#define MPI2_IOUNITPAGE7_PMCAP_PCIE_SPEED_CHANGE    (0x00000004)
+
+
+/* defines for IO Unit Page 7 IOCTemperatureUnits field */
+#define MPI2_IOUNITPAGE7_IOC_TEMP_NOT_PRESENT       (0x00)
+#define MPI2_IOUNITPAGE7_IOC_TEMP_FAHRENHEIT        (0x01)
+#define MPI2_IOUNITPAGE7_IOC_TEMP_CELSIUS           (0x02)
+
+/* defines for IO Unit Page 7 IOCSpeed field */
+#define MPI2_IOUNITPAGE7_IOC_SPEED_FULL             (0x01)
+#define MPI2_IOUNITPAGE7_IOC_SPEED_HALF             (0x02)
+#define MPI2_IOUNITPAGE7_IOC_SPEED_QUARTER          (0x04)
+#define MPI2_IOUNITPAGE7_IOC_SPEED_EIGHTH           (0x08)
+
 
 
 /****************************************************************************
@@ -1053,7 +1225,7 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_3
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_BIOS_PAGE_4_PHY_ENTRIES
 #define MPI2_BIOS_PAGE_4_PHY_ENTRIES        (1)
@@ -1127,7 +1299,7 @@ typedef struct _MPI2_RAIDVOL0_SETTINGS
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
+ * one and check the value returned for NumPhysDisks at runtime.
  */
 #ifndef MPI2_RAID_VOL_PAGE_0_PHYSDISK_MAX
 #define MPI2_RAID_VOL_PAGE_0_PHYSDISK_MAX       (1)
@@ -1184,6 +1356,7 @@ typedef struct _MPI2_CONFIG_PAGE_RAID_VOL_0
 #define MPI2_RAIDVOL0_STATUS_FLAG_CAPACITY_EXPANSION        (0x00040000)
 #define MPI2_RAIDVOL0_STATUS_FLAG_BACKGROUND_INIT           (0x00020000)
 #define MPI2_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS        (0x00010000)
+#define MPI2_RAIDVOL0_STATUS_FLAG_VOL_NOT_CONSISTENT        (0x00000080)
 #define MPI2_RAIDVOL0_STATUS_FLAG_OCE_ALLOWED               (0x00000040)
 #define MPI2_RAIDVOL0_STATUS_FLAG_BGI_COMPLETE              (0x00000020)
 #define MPI2_RAIDVOL0_STATUS_FLAG_1E_OFFSET_MIRROR          (0x00000000)
@@ -1306,11 +1479,15 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_0
 #define MPI2_PHYSDISK0_INCOMPATIBLE_MAX_LBA             (0x03)
 #define MPI2_PHYSDISK0_INCOMPATIBLE_SATA_EXTENDED_CMD   (0x04)
 #define MPI2_PHYSDISK0_INCOMPATIBLE_REMOVEABLE_MEDIA    (0x05)
+#define MPI2_PHYSDISK0_INCOMPATIBLE_MEDIA_TYPE          (0x06)
 #define MPI2_PHYSDISK0_INCOMPATIBLE_UNKNOWN             (0xFF)
 
 /* PhysDiskAttributes defines */
+#define MPI2_PHYSDISK0_ATTRIB_MEDIA_MASK                (0x0C)
 #define MPI2_PHYSDISK0_ATTRIB_SOLID_STATE_DRIVE         (0x08)
 #define MPI2_PHYSDISK0_ATTRIB_HARD_DISK_DRIVE           (0x04)
+
+#define MPI2_PHYSDISK0_ATTRIB_PROTOCOL_MASK             (0x03)
 #define MPI2_PHYSDISK0_ATTRIB_SAS_PROTOCOL              (0x02)
 #define MPI2_PHYSDISK0_ATTRIB_SATA_PROTOCOL             (0x01)
 
@@ -1329,7 +1506,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_0
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength or NumPhysDiskPaths at runtime.
+ * one and check the value returned for NumPhysDiskPaths at runtime.
  */
 #ifndef MPI2_RAID_PHYS_DISK1_PATH_MAX
 #define MPI2_RAID_PHYS_DISK1_PATH_MAX   (1)
@@ -1382,6 +1559,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1
 #define MPI2_SAS_NEG_LINK_RATE_SATA_OOB_COMPLETE        (0x03)
 #define MPI2_SAS_NEG_LINK_RATE_PORT_SELECTOR            (0x04)
 #define MPI2_SAS_NEG_LINK_RATE_SMP_RESET_IN_PROGRESS    (0x05)
+#define MPI2_SAS_NEG_LINK_RATE_UNSUPPORTED_PHY          (0x06)
 #define MPI2_SAS_NEG_LINK_RATE_1_5                      (0x08)
 #define MPI2_SAS_NEG_LINK_RATE_3_0                      (0x09)
 #define MPI2_SAS_NEG_LINK_RATE_6_0                      (0x0A)
@@ -1406,6 +1584,13 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1
 
 /* values for PhyInfo fields */
 #define MPI2_SAS_PHYINFO_PHY_VACANT                     (0x80000000)
+
+#define MPI2_SAS_PHYINFO_PHY_POWER_CONDITION_MASK       (0x18000000)
+#define MPI2_SAS_PHYINFO_SHIFT_PHY_POWER_CONDITION      (27)
+#define MPI2_SAS_PHYINFO_PHY_POWER_ACTIVE               (0x00000000)
+#define MPI2_SAS_PHYINFO_PHY_POWER_PARTIAL              (0x08000000)
+#define MPI2_SAS_PHYINFO_PHY_POWER_SLUMBER              (0x10000000)
+
 #define MPI2_SAS_PHYINFO_CHANGED_REQ_INSIDE_ZPSDS       (0x04000000)
 #define MPI2_SAS_PHYINFO_INSIDE_ZPSDS_PERSISTENT        (0x02000000)
 #define MPI2_SAS_PHYINFO_REQ_INSIDE_ZPSDS               (0x01000000)
@@ -1485,7 +1670,7 @@ typedef struct _MPI2_SAS_IO_UNIT0_PHY_DATA
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_SAS_IOUNIT0_PHY_MAX
 #define MPI2_SAS_IOUNIT0_PHY_MAX        (1)
@@ -1556,7 +1741,7 @@ typedef struct _MPI2_SAS_IO_UNIT1_PHY_DATA
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_SAS_IOUNIT1_PHY_MAX
 #define MPI2_SAS_IOUNIT1_PHY_MAX        (1)
@@ -1618,11 +1803,11 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_1
 /* values for SAS IO Unit Page 1 PortFlags */
 #define MPI2_SASIOUNIT1_PORT_FLAGS_AUTO_PORT_CONFIG                 (0x01)
 
-/* values for SAS IO Unit Page 2 PhyFlags */
+/* values for SAS IO Unit Page 1 PhyFlags */
 #define MPI2_SASIOUNIT1_PHYFLAGS_ZONING_ENABLE                      (0x10)
 #define MPI2_SASIOUNIT1_PHYFLAGS_PHY_DISABLE                        (0x08)
 
-/* values for SAS IO Unit Page 0 MaxMinLinkRate */
+/* values for SAS IO Unit Page 1 MaxMinLinkRate */
 #define MPI2_SASIOUNIT1_MAX_RATE_MASK                               (0xF0)
 #define MPI2_SASIOUNIT1_MAX_RATE_1_5                                (0x80)
 #define MPI2_SASIOUNIT1_MAX_RATE_3_0                                (0x90)
@@ -1647,7 +1832,7 @@ typedef struct _MPI2_SAS_IOUNIT4_SPINUP_GROUP
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * four and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_SAS_IOUNIT4_PHY_MAX
 #define MPI2_SAS_IOUNIT4_PHY_MAX        (4)
@@ -1681,6 +1866,202 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_4
 #define MPI2_SASIOUNIT4_PHY_SPINUP_GROUP_MASK               (0x03)
 
 
+/* SAS IO Unit Page 5 */
+
+typedef struct _MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS {
+    U8          ControlFlags;               /* 0x00 */
+    U8          PortWidthModGroup;          /* 0x01 */
+    U16         InactivityTimerExponent;    /* 0x02 */
+    U8          SATAPartialTimeout;         /* 0x04 */
+    U8          Reserved2;                  /* 0x05 */
+    U8          SATASlumberTimeout;         /* 0x06 */
+    U8          Reserved3;                  /* 0x07 */
+    U8          SASPartialTimeout;          /* 0x08 */
+    U8          Reserved4;                  /* 0x09 */
+    U8          SASSlumberTimeout;          /* 0x0A */
+    U8          Reserved5;                  /* 0x0B */
+} MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS,
+  MPI2_POINTER PTR_MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS,
+  Mpi2SasIOUnit5PhyPmSettings_t, MPI2_POINTER pMpi2SasIOUnit5PhyPmSettings_t;
+
+/* defines for ControlFlags field */
+#define MPI2_SASIOUNIT5_CONTROL_SAS_SLUMBER_ENABLE      (0x08)
+#define MPI2_SASIOUNIT5_CONTROL_SAS_PARTIAL_ENABLE      (0x04)
+#define MPI2_SASIOUNIT5_CONTROL_SATA_SLUMBER_ENABLE     (0x02)
+#define MPI2_SASIOUNIT5_CONTROL_SATA_PARTIAL_ENABLE     (0x01)
+
+/* defines for PortWidthModeGroup field */
+#define MPI2_SASIOUNIT5_PWMG_DISABLE                    (0xFF)
+
+/* defines for InactivityTimerExponent field */
+#define MPI2_SASIOUNIT5_ITE_MASK_SAS_SLUMBER            (0x7000)
+#define MPI2_SASIOUNIT5_ITE_SHIFT_SAS_SLUMBER           (12)
+#define MPI2_SASIOUNIT5_ITE_MASK_SAS_PARTIAL            (0x0700)
+#define MPI2_SASIOUNIT5_ITE_SHIFT_SAS_PARTIAL           (8)
+#define MPI2_SASIOUNIT5_ITE_MASK_SATA_SLUMBER           (0x0070)
+#define MPI2_SASIOUNIT5_ITE_SHIFT_SATA_SLUMBER          (4)
+#define MPI2_SASIOUNIT5_ITE_MASK_SATA_PARTIAL           (0x0007)
+#define MPI2_SASIOUNIT5_ITE_SHIFT_SATA_PARTIAL          (0)
+
+#define MPI2_SASIOUNIT5_ITE_TEN_SECONDS                 (7)
+#define MPI2_SASIOUNIT5_ITE_ONE_SECOND                  (6)
+#define MPI2_SASIOUNIT5_ITE_HUNDRED_MILLISECONDS        (5)
+#define MPI2_SASIOUNIT5_ITE_TEN_MILLISECONDS            (4)
+#define MPI2_SASIOUNIT5_ITE_ONE_MILLISECOND             (3)
+#define MPI2_SASIOUNIT5_ITE_HUNDRED_MICROSECONDS        (2)
+#define MPI2_SASIOUNIT5_ITE_TEN_MICROSECONDS            (1)
+#define MPI2_SASIOUNIT5_ITE_ONE_MICROSECOND             (0)
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumPhys at runtime.
+ */
+#ifndef MPI2_SAS_IOUNIT5_PHY_MAX
+#define MPI2_SAS_IOUNIT5_PHY_MAX        (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_5 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;		/* 0x00 */
+    U8                                  NumPhys;	/* 0x08 */
+    U8                                  Reserved1;	/* 0x09 */
+    U16                                 Reserved2;	/* 0x0A */
+    U32                                 Reserved3;	/* 0x0C */
+    MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS   SASPhyPowerManagementSettings
+					[MPI2_SAS_IOUNIT5_PHY_MAX];  /* 0x10 */
+} MPI2_CONFIG_PAGE_SASIOUNIT_5,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_5,
+  Mpi2SasIOUnitPage5_t, MPI2_POINTER pMpi2SasIOUnitPage5_t;
+
+#define MPI2_SASIOUNITPAGE5_PAGEVERSION     (0x01)
+
+
+/* SAS IO Unit Page 6 */
+
+typedef struct _MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS {
+    U8          CurrentStatus;              /* 0x00 */
+    U8          CurrentModulation;          /* 0x01 */
+    U8          CurrentUtilization;         /* 0x02 */
+    U8          Reserved1;                  /* 0x03 */
+    U32         Reserved2;                  /* 0x04 */
+} MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS,
+  MPI2_POINTER PTR_MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS,
+  Mpi2SasIOUnit6PortWidthModGroupStatus_t,
+  MPI2_POINTER pMpi2SasIOUnit6PortWidthModGroupStatus_t;
+
+/* defines for CurrentStatus field */
+#define MPI2_SASIOUNIT6_STATUS_UNAVAILABLE                      (0x00)
+#define MPI2_SASIOUNIT6_STATUS_UNCONFIGURED                     (0x01)
+#define MPI2_SASIOUNIT6_STATUS_INVALID_CONFIG                   (0x02)
+#define MPI2_SASIOUNIT6_STATUS_LINK_DOWN                        (0x03)
+#define MPI2_SASIOUNIT6_STATUS_OBSERVATION_ONLY                 (0x04)
+#define MPI2_SASIOUNIT6_STATUS_INACTIVE                         (0x05)
+#define MPI2_SASIOUNIT6_STATUS_ACTIVE_IOUNIT                    (0x06)
+#define MPI2_SASIOUNIT6_STATUS_ACTIVE_HOST                      (0x07)
+
+/* defines for CurrentModulation field */
+#define MPI2_SASIOUNIT6_MODULATION_25_PERCENT                   (0x00)
+#define MPI2_SASIOUNIT6_MODULATION_50_PERCENT                   (0x01)
+#define MPI2_SASIOUNIT6_MODULATION_75_PERCENT                   (0x02)
+#define MPI2_SASIOUNIT6_MODULATION_100_PERCENT                  (0x03)
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumGroups at runtime.
+ */
+#ifndef MPI2_SAS_IOUNIT6_GROUP_MAX
+#define MPI2_SAS_IOUNIT6_GROUP_MAX      (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_6 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                     /* 0x00 */
+    U32                                 Reserved1;                  /* 0x08 */
+    U32                                 Reserved2;                  /* 0x0C */
+    U8                                  NumGroups;                  /* 0x10 */
+    U8                                  Reserved3;                  /* 0x11 */
+    U16                                 Reserved4;                  /* 0x12 */
+    MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS
+	PortWidthModulationGroupStatus[MPI2_SAS_IOUNIT6_GROUP_MAX]; /* 0x14 */
+} MPI2_CONFIG_PAGE_SASIOUNIT_6,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_6,
+  Mpi2SasIOUnitPage6_t, MPI2_POINTER pMpi2SasIOUnitPage6_t;
+
+#define MPI2_SASIOUNITPAGE6_PAGEVERSION     (0x00)
+
+
+/* SAS IO Unit Page 7 */
+
+typedef struct _MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS {
+    U8          Flags;                      /* 0x00 */
+    U8          Reserved1;                  /* 0x01 */
+    U16         Reserved2;                  /* 0x02 */
+    U8          Threshold75Pct;             /* 0x04 */
+    U8          Threshold50Pct;             /* 0x05 */
+    U8          Threshold25Pct;             /* 0x06 */
+    U8          Reserved3;                  /* 0x07 */
+} MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS,
+  MPI2_POINTER PTR_MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS,
+  Mpi2SasIOUnit7PortWidthModGroupSettings_t,
+  MPI2_POINTER pMpi2SasIOUnit7PortWidthModGroupSettings_t;
+
+/* defines for Flags field */
+#define MPI2_SASIOUNIT7_FLAGS_ENABLE_PORT_WIDTH_MODULATION  (0x01)
+
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumGroups at runtime.
+ */
+#ifndef MPI2_SAS_IOUNIT7_GROUP_MAX
+#define MPI2_SAS_IOUNIT7_GROUP_MAX      (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_7 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER            Header;             /* 0x00 */
+    U8                                          SamplingInterval;   /* 0x08 */
+    U8                                          WindowLength;       /* 0x09 */
+    U16                                         Reserved1;          /* 0x0A */
+    U32                                         Reserved2;          /* 0x0C */
+    U32                                         Reserved3;          /* 0x10 */
+    U8                                          NumGroups;          /* 0x14 */
+    U8                                          Reserved4;          /* 0x15 */
+    U16                                         Reserved5;          /* 0x16 */
+    MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS
+	PortWidthModulationGroupSettings[MPI2_SAS_IOUNIT7_GROUP_MAX]; /* 0x18 */
+} MPI2_CONFIG_PAGE_SASIOUNIT_7,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_7,
+  Mpi2SasIOUnitPage7_t, MPI2_POINTER pMpi2SasIOUnitPage7_t;
+
+#define MPI2_SASIOUNITPAGE7_PAGEVERSION     (0x00)
+
+
+/* SAS IO Unit Page 8 */
+
+typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_8 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;			/* 0x00 */
+    U32                                 Reserved1;		/* 0x08 */
+    U32                                 PowerManagementCapabilities;/* 0x0C */
+    U32                                 Reserved2;		/* 0x10 */
+} MPI2_CONFIG_PAGE_SASIOUNIT_8,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_8,
+  Mpi2SasIOUnitPage8_t, MPI2_POINTER pMpi2SasIOUnitPage8_t;
+
+#define MPI2_SASIOUNITPAGE8_PAGEVERSION     (0x00)
+
+/* defines for PowerManagementCapabilities field */
+#define MPI2_SASIOUNIT8_PM_HOST_PORT_WIDTH_MOD          (0x000001000)
+#define MPI2_SASIOUNIT8_PM_HOST_SAS_SLUMBER_MODE        (0x000000800)
+#define MPI2_SASIOUNIT8_PM_HOST_SAS_PARTIAL_MODE        (0x000000400)
+#define MPI2_SASIOUNIT8_PM_HOST_SATA_SLUMBER_MODE       (0x000000200)
+#define MPI2_SASIOUNIT8_PM_HOST_SATA_PARTIAL_MODE       (0x000000100)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_PORT_WIDTH_MOD        (0x000000010)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SAS_SLUMBER_MODE      (0x000000008)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SAS_PARTIAL_MODE      (0x000000004)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SATA_SLUMBER_MODE     (0x000000002)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SATA_PARTIAL_MODE     (0x000000001)
+
+
+
+
 /****************************************************************************
 *   SAS Expander Config Pages
 ****************************************************************************/
@@ -1709,10 +2090,14 @@ typedef struct _MPI2_CONFIG_PAGE_EXPANDER_0
     U64                                 ActiveZoneManagerSASAddress;/* 0x2C */
     U16                                 ZoneLockInactivityLimit;    /* 0x34 */
     U16                                 Reserved1;                  /* 0x36 */
+    U8                                  TimeToReducedFunc;          /* 0x38 */
+    U8                                  InitialTimeToReducedFunc;   /* 0x39 */
+    U8                                  MaxReducedFuncTime;         /* 0x3A */
+    U8                                  Reserved2;                  /* 0x3B */
 } MPI2_CONFIG_PAGE_EXPANDER_0, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_EXPANDER_0,
   Mpi2ExpanderPage0_t, MPI2_POINTER pMpi2ExpanderPage0_t;
 
-#define MPI2_SASEXPANDER0_PAGEVERSION       (0x05)
+#define MPI2_SASEXPANDER0_PAGEVERSION       (0x06)
 
 /* values for SAS Expander Page 0 DiscoveryStatus field */
 #define MPI2_SAS_EXPANDER0_DS_MAX_ENCLOSURES_EXCEED         (0x80000000)
@@ -1737,6 +2122,7 @@ typedef struct _MPI2_CONFIG_PAGE_EXPANDER_0
 #define MPI2_SAS_EXPANDER0_DS_LOOP_DETECTED                 (0x00000001)
 
 /* values for SAS Expander Page 0 Flags field */
+#define MPI2_SAS_EXPANDER0_FLAGS_REDUCED_FUNCTIONALITY      (0x2000)
 #define MPI2_SAS_EXPANDER0_FLAGS_ZONE_LOCKED                (0x1000)
 #define MPI2_SAS_EXPANDER0_FLAGS_SUPPORTED_PHYSICAL_PRES    (0x0800)
 #define MPI2_SAS_EXPANDER0_FLAGS_ASSERTED_PHYSICAL_PRES     (0x0400)
@@ -1858,6 +2244,8 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0
 /* see mpi2_sas.h for values for SAS Device Page 0 DeviceInfo values */
 
 /* values for SAS Device Page 0 Flags field */
+#define MPI2_SAS_DEVICE0_FLAGS_SLUMBER_PM_CAPABLE           (0x1000)
+#define MPI2_SAS_DEVICE0_FLAGS_PARTIAL_PM_CAPABLE           (0x0800)
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_ASYNCHRONOUS_NOTIFY     (0x0400)
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_SW_PRESERVE             (0x0200)
 #define MPI2_SAS_DEVICE0_FLAGS_UNSUPPORTED_DEVICE           (0x0100)
@@ -1944,6 +2332,153 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_1
 #define MPI2_SASPHY1_PAGEVERSION            (0x01)
 
 
+/* SAS PHY Page 2 */
+
+typedef struct _MPI2_SASPHY2_PHY_EVENT {
+    U8          PhyEventCode;       /* 0x00 */
+    U8          Reserved1;          /* 0x01 */
+    U16         Reserved2;          /* 0x02 */
+    U32         PhyEventInfo;       /* 0x04 */
+} MPI2_SASPHY2_PHY_EVENT, MPI2_POINTER PTR_MPI2_SASPHY2_PHY_EVENT,
+  Mpi2SasPhy2PhyEvent_t, MPI2_POINTER pMpi2SasPhy2PhyEvent_t;
+
+/* use MPI2_SASPHY3_EVENT_CODE_ for the PhyEventCode field */
+
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumPhyEvents at runtime.
+ */
+#ifndef MPI2_SASPHY2_PHY_EVENT_MAX
+#define MPI2_SASPHY2_PHY_EVENT_MAX      (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_2 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                     /* 0x00 */
+    U32                                 Reserved1;                  /* 0x08 */
+    U8                                  NumPhyEvents;               /* 0x0C */
+    U8                                  Reserved2;                  /* 0x0D */
+    U16                                 Reserved3;                  /* 0x0E */
+    MPI2_SASPHY2_PHY_EVENT              PhyEvent[MPI2_SASPHY2_PHY_EVENT_MAX];
+								/* 0x10 */
+} MPI2_CONFIG_PAGE_SAS_PHY_2, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SAS_PHY_2,
+  Mpi2SasPhyPage2_t, MPI2_POINTER pMpi2SasPhyPage2_t;
+
+#define MPI2_SASPHY2_PAGEVERSION            (0x00)
+
+
+/* SAS PHY Page 3 */
+
+typedef struct _MPI2_SASPHY3_PHY_EVENT_CONFIG {
+    U8          PhyEventCode;       /* 0x00 */
+    U8          Reserved1;          /* 0x01 */
+    U16         Reserved2;          /* 0x02 */
+    U8          CounterType;        /* 0x04 */
+    U8          ThresholdWindow;    /* 0x05 */
+    U8          TimeUnits;          /* 0x06 */
+    U8          Reserved3;          /* 0x07 */
+    U32         EventThreshold;     /* 0x08 */
+    U16         ThresholdFlags;     /* 0x0C */
+    U16         Reserved4;          /* 0x0E */
+} MPI2_SASPHY3_PHY_EVENT_CONFIG, MPI2_POINTER PTR_MPI2_SASPHY3_PHY_EVENT_CONFIG,
+  Mpi2SasPhy3PhyEventConfig_t, MPI2_POINTER pMpi2SasPhy3PhyEventConfig_t;
+
+/* values for PhyEventCode field */
+#define MPI2_SASPHY3_EVENT_CODE_NO_EVENT                    (0x00)
+#define MPI2_SASPHY3_EVENT_CODE_INVALID_DWORD               (0x01)
+#define MPI2_SASPHY3_EVENT_CODE_RUNNING_DISPARITY_ERROR     (0x02)
+#define MPI2_SASPHY3_EVENT_CODE_LOSS_DWORD_SYNC             (0x03)
+#define MPI2_SASPHY3_EVENT_CODE_PHY_RESET_PROBLEM           (0x04)
+#define MPI2_SASPHY3_EVENT_CODE_ELASTICITY_BUF_OVERFLOW     (0x05)
+#define MPI2_SASPHY3_EVENT_CODE_RX_ERROR                    (0x06)
+#define MPI2_SASPHY3_EVENT_CODE_RX_ADDR_FRAME_ERROR         (0x20)
+#define MPI2_SASPHY3_EVENT_CODE_TX_AC_OPEN_REJECT           (0x21)
+#define MPI2_SASPHY3_EVENT_CODE_RX_AC_OPEN_REJECT           (0x22)
+#define MPI2_SASPHY3_EVENT_CODE_TX_RC_OPEN_REJECT           (0x23)
+#define MPI2_SASPHY3_EVENT_CODE_RX_RC_OPEN_REJECT           (0x24)
+#define MPI2_SASPHY3_EVENT_CODE_RX_AIP_PARTIAL_WAITING_ON   (0x25)
+#define MPI2_SASPHY3_EVENT_CODE_RX_AIP_CONNECT_WAITING_ON   (0x26)
+#define MPI2_SASPHY3_EVENT_CODE_TX_BREAK                    (0x27)
+#define MPI2_SASPHY3_EVENT_CODE_RX_BREAK                    (0x28)
+#define MPI2_SASPHY3_EVENT_CODE_BREAK_TIMEOUT               (0x29)
+#define MPI2_SASPHY3_EVENT_CODE_CONNECTION                  (0x2A)
+#define MPI2_SASPHY3_EVENT_CODE_PEAKTX_PATHWAY_BLOCKED      (0x2B)
+#define MPI2_SASPHY3_EVENT_CODE_PEAKTX_ARB_WAIT_TIME        (0x2C)
+#define MPI2_SASPHY3_EVENT_CODE_PEAK_ARB_WAIT_TIME          (0x2D)
+#define MPI2_SASPHY3_EVENT_CODE_PEAK_CONNECT_TIME           (0x2E)
+#define MPI2_SASPHY3_EVENT_CODE_TX_SSP_FRAMES               (0x40)
+#define MPI2_SASPHY3_EVENT_CODE_RX_SSP_FRAMES               (0x41)
+#define MPI2_SASPHY3_EVENT_CODE_TX_SSP_ERROR_FRAMES         (0x42)
+#define MPI2_SASPHY3_EVENT_CODE_RX_SSP_ERROR_FRAMES         (0x43)
+#define MPI2_SASPHY3_EVENT_CODE_TX_CREDIT_BLOCKED           (0x44)
+#define MPI2_SASPHY3_EVENT_CODE_RX_CREDIT_BLOCKED           (0x45)
+#define MPI2_SASPHY3_EVENT_CODE_TX_SATA_FRAMES              (0x50)
+#define MPI2_SASPHY3_EVENT_CODE_RX_SATA_FRAMES              (0x51)
+#define MPI2_SASPHY3_EVENT_CODE_SATA_OVERFLOW               (0x52)
+#define MPI2_SASPHY3_EVENT_CODE_TX_SMP_FRAMES               (0x60)
+#define MPI2_SASPHY3_EVENT_CODE_RX_SMP_FRAMES               (0x61)
+#define MPI2_SASPHY3_EVENT_CODE_RX_SMP_ERROR_FRAMES         (0x63)
+#define MPI2_SASPHY3_EVENT_CODE_HOTPLUG_TIMEOUT             (0xD0)
+#define MPI2_SASPHY3_EVENT_CODE_MISALIGNED_MUX_PRIMITIVE    (0xD1)
+#define MPI2_SASPHY3_EVENT_CODE_RX_AIP                      (0xD2)
+
+/* values for the CounterType field */
+#define MPI2_SASPHY3_COUNTER_TYPE_WRAPPING                  (0x00)
+#define MPI2_SASPHY3_COUNTER_TYPE_SATURATING                (0x01)
+#define MPI2_SASPHY3_COUNTER_TYPE_PEAK_VALUE                (0x02)
+
+/* values for the TimeUnits field */
+#define MPI2_SASPHY3_TIME_UNITS_10_MICROSECONDS             (0x00)
+#define MPI2_SASPHY3_TIME_UNITS_100_MICROSECONDS            (0x01)
+#define MPI2_SASPHY3_TIME_UNITS_1_MILLISECOND               (0x02)
+#define MPI2_SASPHY3_TIME_UNITS_10_MILLISECONDS             (0x03)
+
+/* values for the ThresholdFlags field */
+#define MPI2_SASPHY3_TFLAGS_PHY_RESET                       (0x0002)
+#define MPI2_SASPHY3_TFLAGS_EVENT_NOTIFY                    (0x0001)
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumPhyEvents at runtime.
+ */
+#ifndef MPI2_SASPHY3_PHY_EVENT_MAX
+#define MPI2_SASPHY3_PHY_EVENT_MAX      (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_3 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                     /* 0x00 */
+    U32                                 Reserved1;                  /* 0x08 */
+    U8                                  NumPhyEvents;               /* 0x0C */
+    U8                                  Reserved2;                  /* 0x0D */
+    U16                                 Reserved3;                  /* 0x0E */
+    MPI2_SASPHY3_PHY_EVENT_CONFIG       PhyEventConfig
+					[MPI2_SASPHY3_PHY_EVENT_MAX]; /* 0x10 */
+} MPI2_CONFIG_PAGE_SAS_PHY_3, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SAS_PHY_3,
+  Mpi2SasPhyPage3_t, MPI2_POINTER pMpi2SasPhyPage3_t;
+
+#define MPI2_SASPHY3_PAGEVERSION            (0x00)
+
+
+/* SAS PHY Page 4 */
+
+typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_4 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                     /* 0x00 */
+    U16                                 Reserved1;                  /* 0x08 */
+    U8                                  Reserved2;                  /* 0x0A */
+    U8                                  Flags;                      /* 0x0B */
+    U8                                  InitialFrame[28];           /* 0x0C */
+} MPI2_CONFIG_PAGE_SAS_PHY_4, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SAS_PHY_4,
+  Mpi2SasPhyPage4_t, MPI2_POINTER pMpi2SasPhyPage4_t;
+
+#define MPI2_SASPHY4_PAGEVERSION            (0x00)
+
+/* values for the Flags field */
+#define MPI2_SASPHY4_FLAGS_FRAME_VALID        (0x02)
+#define MPI2_SASPHY4_FLAGS_SATA_FRAME         (0x01)
+
+
+
+
 /****************************************************************************
 *   SAS Port Config Pages
 ****************************************************************************/
@@ -2015,7 +2550,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumLogEntries at runtime.
  */
 #ifndef MPI2_LOG_0_NUM_LOG_ENTRIES
 #define MPI2_LOG_0_NUM_LOG_ENTRIES          (1)
@@ -2065,7 +2600,7 @@ typedef struct _MPI2_CONFIG_PAGE_LOG_0
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumElements at runtime.
  */
 #ifndef MPI2_RAIDCONFIG0_MAX_ELEMENTS
 #define MPI2_RAIDCONFIG0_MAX_ELEMENTS       (1)
@@ -2145,6 +2680,123 @@ typedef struct _MPI2_CONFIG_PAGE_DRIVER_MAPPING_0
 #define MPI2_DRVMAP0_MAPINFO_SLOT_MASK              (0x07F0)
 #define MPI2_DRVMAP0_MAPINFO_SLOT_SHIFT             (4)
 #define MPI2_DRVMAP0_MAPINFO_MISSING_MASK           (0x000F)
+
+
+/****************************************************************************
+*   Ethernet Config Pages
+****************************************************************************/
+
+/* Ethernet Page 0 */
+
+/* IP address (union of IPv4 and IPv6) */
+typedef union _MPI2_ETHERNET_IP_ADDR {
+    U32     IPv4Addr;
+    U32     IPv6Addr[4];
+} MPI2_ETHERNET_IP_ADDR, MPI2_POINTER PTR_MPI2_ETHERNET_IP_ADDR,
+  Mpi2EthernetIpAddr_t, MPI2_POINTER pMpi2EthernetIpAddr_t;
+
+#define MPI2_ETHERNET_HOST_NAME_LENGTH          (32)
+
+typedef struct _MPI2_CONFIG_PAGE_ETHERNET_0 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                 /* 0x00 */
+    U8                                  NumInterfaces;          /* 0x08 */
+    U8                                  Reserved0;              /* 0x09 */
+    U16                                 Reserved1;              /* 0x0A */
+    U32                                 Status;                 /* 0x0C */
+    U8                                  MediaState;             /* 0x10 */
+    U8                                  Reserved2;              /* 0x11 */
+    U16                                 Reserved3;              /* 0x12 */
+    U8                                  MacAddress[6];          /* 0x14 */
+    U8                                  Reserved4;              /* 0x1A */
+    U8                                  Reserved5;              /* 0x1B */
+    MPI2_ETHERNET_IP_ADDR               IpAddress;              /* 0x1C */
+    MPI2_ETHERNET_IP_ADDR               SubnetMask;             /* 0x2C */
+    MPI2_ETHERNET_IP_ADDR               GatewayIpAddress;       /* 0x3C */
+    MPI2_ETHERNET_IP_ADDR               DNS1IpAddress;          /* 0x4C */
+    MPI2_ETHERNET_IP_ADDR               DNS2IpAddress;          /* 0x5C */
+    MPI2_ETHERNET_IP_ADDR               DhcpIpAddress;          /* 0x6C */
+    U8                                  HostName
+				[MPI2_ETHERNET_HOST_NAME_LENGTH];/* 0x7C */
+} MPI2_CONFIG_PAGE_ETHERNET_0, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_ETHERNET_0,
+  Mpi2EthernetPage0_t, MPI2_POINTER pMpi2EthernetPage0_t;
+
+#define MPI2_ETHERNETPAGE0_PAGEVERSION   (0x00)
+
+/* values for Ethernet Page 0 Status field */
+#define MPI2_ETHPG0_STATUS_IPV6_CAPABLE             (0x80000000)
+#define MPI2_ETHPG0_STATUS_IPV4_CAPABLE             (0x40000000)
+#define MPI2_ETHPG0_STATUS_CONSOLE_CONNECTED        (0x20000000)
+#define MPI2_ETHPG0_STATUS_DEFAULT_IF               (0x00000100)
+#define MPI2_ETHPG0_STATUS_FW_DWNLD_ENABLED         (0x00000080)
+#define MPI2_ETHPG0_STATUS_TELNET_ENABLED           (0x00000040)
+#define MPI2_ETHPG0_STATUS_SSH2_ENABLED             (0x00000020)
+#define MPI2_ETHPG0_STATUS_DHCP_CLIENT_ENABLED      (0x00000010)
+#define MPI2_ETHPG0_STATUS_IPV6_ENABLED             (0x00000008)
+#define MPI2_ETHPG0_STATUS_IPV4_ENABLED             (0x00000004)
+#define MPI2_ETHPG0_STATUS_IPV6_ADDRESSES           (0x00000002)
+#define MPI2_ETHPG0_STATUS_ETH_IF_ENABLED           (0x00000001)
+
+/* values for Ethernet Page 0 MediaState field */
+#define MPI2_ETHPG0_MS_DUPLEX_MASK                  (0x80)
+#define MPI2_ETHPG0_MS_HALF_DUPLEX                  (0x00)
+#define MPI2_ETHPG0_MS_FULL_DUPLEX                  (0x80)
+
+#define MPI2_ETHPG0_MS_CONNECT_SPEED_MASK           (0x07)
+#define MPI2_ETHPG0_MS_NOT_CONNECTED                (0x00)
+#define MPI2_ETHPG0_MS_10MBIT                       (0x01)
+#define MPI2_ETHPG0_MS_100MBIT                      (0x02)
+#define MPI2_ETHPG0_MS_1GBIT                        (0x03)
+
+
+/* Ethernet Page 1 */
+
+typedef struct _MPI2_CONFIG_PAGE_ETHERNET_1 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                 /* 0x00 */
+    U32                                 Reserved0;              /* 0x08 */
+    U32                                 Flags;                  /* 0x0C */
+    U8                                  MediaState;             /* 0x10 */
+    U8                                  Reserved1;              /* 0x11 */
+    U16                                 Reserved2;              /* 0x12 */
+    U8                                  MacAddress[6];          /* 0x14 */
+    U8                                  Reserved3;              /* 0x1A */
+    U8                                  Reserved4;              /* 0x1B */
+    MPI2_ETHERNET_IP_ADDR               StaticIpAddress;        /* 0x1C */
+    MPI2_ETHERNET_IP_ADDR               StaticSubnetMask;       /* 0x2C */
+    MPI2_ETHERNET_IP_ADDR               StaticGatewayIpAddress; /* 0x3C */
+    MPI2_ETHERNET_IP_ADDR               StaticDNS1IpAddress;    /* 0x4C */
+    MPI2_ETHERNET_IP_ADDR               StaticDNS2IpAddress;    /* 0x5C */
+    U32                                 Reserved5;              /* 0x6C */
+    U32                                 Reserved6;              /* 0x70 */
+    U32                                 Reserved7;              /* 0x74 */
+    U32                                 Reserved8;              /* 0x78 */
+    U8                                  HostName
+				[MPI2_ETHERNET_HOST_NAME_LENGTH];/* 0x7C */
+} MPI2_CONFIG_PAGE_ETHERNET_1, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_ETHERNET_1,
+  Mpi2EthernetPage1_t, MPI2_POINTER pMpi2EthernetPage1_t;
+
+#define MPI2_ETHERNETPAGE1_PAGEVERSION   (0x00)
+
+/* values for Ethernet Page 1 Flags field */
+#define MPI2_ETHPG1_FLAG_SET_DEFAULT_IF             (0x00000100)
+#define MPI2_ETHPG1_FLAG_ENABLE_FW_DOWNLOAD         (0x00000080)
+#define MPI2_ETHPG1_FLAG_ENABLE_TELNET              (0x00000040)
+#define MPI2_ETHPG1_FLAG_ENABLE_SSH2                (0x00000020)
+#define MPI2_ETHPG1_FLAG_ENABLE_DHCP_CLIENT         (0x00000010)
+#define MPI2_ETHPG1_FLAG_ENABLE_IPV6                (0x00000008)
+#define MPI2_ETHPG1_FLAG_ENABLE_IPV4                (0x00000004)
+#define MPI2_ETHPG1_FLAG_USE_IPV6_ADDRESSES         (0x00000002)
+#define MPI2_ETHPG1_FLAG_ENABLE_ETH_IF              (0x00000001)
+
+/* values for Ethernet Page 1 MediaState field */
+#define MPI2_ETHPG1_MS_DUPLEX_MASK                  (0x80)
+#define MPI2_ETHPG1_MS_HALF_DUPLEX                  (0x00)
+#define MPI2_ETHPG1_MS_FULL_DUPLEX                  (0x80)
+
+#define MPI2_ETHPG1_MS_DATA_RATE_MASK               (0x07)
+#define MPI2_ETHPG1_MS_DATA_RATE_AUTO               (0x00)
+#define MPI2_ETHPG1_MS_DATA_RATE_10MBIT             (0x01)
+#define MPI2_ETHPG1_MS_DATA_RATE_100MBIT            (0x02)
+#define MPI2_ETHPG1_MS_DATA_RATE_1GBIT              (0x03)
 
 
 #endif

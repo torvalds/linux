@@ -19,18 +19,7 @@ config PCI_MSI
 	   by using the 'pci=nomsi' option.  This disables MSI for the
 	   entire system.
 
-	   If you don't know what to do here, say N.
-
-config PCI_LEGACY
-	bool "Enable deprecated pci_find_* API"
-	depends on PCI
-	default y
-	help
-	  Say Y here if you want to include support for the deprecated
-	  pci_find_slot() and pci_find_device() APIs.  Most drivers have
-	  been converted over to using the proper hotplug APIs, so this
-	  option serves to include/exclude only a few drivers that are
-	  still using this API.
+	   If you don't know what to do here, say Y.
 
 config PCI_DEBUG
 	bool "PCI Debugging"
@@ -48,6 +37,27 @@ config PCI_STUB
 	help
 	  Say Y or M here if you want be able to reserve a PCI device
 	  when it is going to be assigned to a guest operating system.
+
+	  When in doubt, say N.
+
+config XEN_PCIDEV_FRONTEND
+        tristate "Xen PCI Frontend"
+        depends on PCI && X86 && XEN
+        select HOTPLUG
+        select PCI_XEN
+        default y
+        help
+          The PCI device frontend driver allows the kernel to import arbitrary
+          PCI devices from a PCI backend to support PCI driver domains.
+
+config XEN_PCIDEV_FE_DEBUG
+        bool "Xen PCI Frontend debugging"
+        depends on XEN_PCIDEV_FRONTEND && PCI_DEBUG
+	help
+	  Say Y here if you want the Xen PCI frontend to produce a bunch of debug
+	  messages to the system log.  Select this if you are having a
+	  problem with Xen PCI frontend support and want to see more of what is
+	  going on.
 
 	  When in doubt, say N.
 
@@ -69,3 +79,10 @@ config PCI_IOV
 	  physical resources.
 
 	  If unsure, say N.
+
+config PCI_IOAPIC
+	bool
+	depends on PCI
+	depends on ACPI
+	depends on HOTPLUG
+	default y

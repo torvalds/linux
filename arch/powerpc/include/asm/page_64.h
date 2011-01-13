@@ -90,7 +90,7 @@ extern unsigned int HPAGE_SHIFT;
 #define HPAGE_SIZE		((1UL) << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-#define HUGE_MAX_HSTATE		3
+#define HUGE_MAX_HSTATE		(MMU_PAGE_COUNT-1)
 
 #endif /* __ASSEMBLY__ */
 
@@ -135,12 +135,22 @@ extern void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 #endif /* __ASSEMBLY__ */
 #else
 #define slice_init()
+#ifdef CONFIG_PPC_STD_MMU_64
 #define get_slice_psize(mm, addr)	((mm)->context.user_psize)
 #define slice_set_user_psize(mm, psize)		\
 do {						\
 	(mm)->context.user_psize = (psize);	\
 	(mm)->context.sllp = SLB_VSID_USER | mmu_psize_defs[(psize)].sllp; \
 } while (0)
+#else /* CONFIG_PPC_STD_MMU_64 */
+#ifdef CONFIG_PPC_64K_PAGES
+#define get_slice_psize(mm, addr)	MMU_PAGE_64K
+#else /* CONFIG_PPC_64K_PAGES */
+#define get_slice_psize(mm, addr)	MMU_PAGE_4K
+#endif /* !CONFIG_PPC_64K_PAGES */
+#define slice_set_user_psize(mm, psize)	do { BUG(); } while(0)
+#endif /* !CONFIG_PPC_STD_MMU_64 */
+
 #define slice_set_range_psize(mm, start, len, psize)	\
 	slice_set_user_psize((mm), (psize))
 #define slice_mm_new_context(mm)	1
@@ -152,16 +162,8 @@ do {						\
 
 #endif /* !CONFIG_HUGETLB_PAGE */
 
-#ifdef MODULE
-#define __page_aligned __attribute__((__aligned__(PAGE_SIZE)))
-#else
-#define __page_aligned \
-	__attribute__((__aligned__(PAGE_SIZE), \
-		__section__(".data.page_aligned")))
-#endif
-
 #define VM_DATA_DEFAULT_FLAGS \
-	(test_thread_flag(TIF_32BIT) ? \
+	(is_32bit_task() ? \
 	 VM_DATA_DEFAULT_FLAGS32 : VM_DATA_DEFAULT_FLAGS64)
 
 /*
@@ -177,7 +179,7 @@ do {						\
 					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #define VM_STACK_DEFAULT_FLAGS \
-	(test_thread_flag(TIF_32BIT) ? \
+	(is_32bit_task() ? \
 	 VM_STACK_DEFAULT_FLAGS32 : VM_STACK_DEFAULT_FLAGS64)
 
 #include <asm-generic/getorder.h>

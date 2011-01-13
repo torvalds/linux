@@ -13,12 +13,15 @@
  * Tracer plugins will chose a default from these clocks.
  */
 #include <linux/spinlock.h>
+#include <linux/irqflags.h>
 #include <linux/hardirq.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/ktime.h>
 #include <linux/trace_clock.h>
+
+#include "trace.h"
 
 /*
  * trace_clock_local(): the simplest and least coherent tracing clock.
@@ -28,7 +31,6 @@
  */
 u64 notrace trace_clock_local(void)
 {
-	unsigned long flags;
 	u64 clock;
 
 	/*
@@ -36,9 +38,9 @@ u64 notrace trace_clock_local(void)
 	 * lockless clock. It is not guaranteed to be coherent across
 	 * CPUs, nor across CPU idle events.
 	 */
-	raw_local_irq_save(flags);
+	preempt_disable_notrace();
 	clock = sched_clock();
-	raw_local_irq_restore(flags);
+	preempt_enable_notrace();
 
 	return clock;
 }
@@ -53,7 +55,7 @@ u64 notrace trace_clock_local(void)
  */
 u64 notrace trace_clock(void)
 {
-	return cpu_clock(raw_smp_processor_id());
+	return local_clock();
 }
 
 
@@ -66,10 +68,14 @@ u64 notrace trace_clock(void)
  * Used by plugins that need globally coherent timestamps.
  */
 
-static u64 prev_trace_clock_time;
-
-static raw_spinlock_t trace_clock_lock ____cacheline_aligned_in_smp =
-	(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+/* keep prev_time and lock in the same cacheline. */
+static struct {
+	u64 prev_time;
+	arch_spinlock_t lock;
+} trace_clock_struct ____cacheline_aligned_in_smp =
+	{
+		.lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED,
+	};
 
 u64 notrace trace_clock_global(void)
 {
@@ -77,7 +83,7 @@ u64 notrace trace_clock_global(void)
 	int this_cpu;
 	u64 now;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 
 	this_cpu = raw_smp_processor_id();
 	now = cpu_clock(this_cpu);
@@ -88,22 +94,22 @@ u64 notrace trace_clock_global(void)
 	if (unlikely(in_nmi()))
 		goto out;
 
-	__raw_spin_lock(&trace_clock_lock);
+	arch_spin_lock(&trace_clock_struct.lock);
 
 	/*
 	 * TODO: if this happens often then maybe we should reset
-	 * my_scd->clock to prev_trace_clock_time+1, to make sure
+	 * my_scd->clock to prev_time+1, to make sure
 	 * we start ticking with the local clock from now on?
 	 */
-	if ((s64)(now - prev_trace_clock_time) < 0)
-		now = prev_trace_clock_time + 1;
+	if ((s64)(now - trace_clock_struct.prev_time) < 0)
+		now = trace_clock_struct.prev_time + 1;
 
-	prev_trace_clock_time = now;
+	trace_clock_struct.prev_time = now;
 
-	__raw_spin_unlock(&trace_clock_lock);
+	arch_spin_unlock(&trace_clock_struct.lock);
 
  out:
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	return now;
 }

@@ -18,8 +18,10 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mmc/host.h>
 #include <linux/delay.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -28,17 +30,16 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/gpmc.h>
-#include <mach/usb.h>
-#include <mach/gpmc-smc91x.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/gpmc.h>
+#include <plat/usb.h>
+#include <plat/gpmc-smc91x.h>
 
-#include "mmc-twl4030.h"
+#include "mux.h"
+#include "hsmmc.h"
 
 #define SDP2430_CS0_BASE	0x04000000
 #define SECONDARY_LCD_GPIO		147
@@ -74,8 +75,7 @@ static struct mtd_partition sdp2430_partitions[] = {
 	}
 };
 
-static struct flash_platform_data sdp2430_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data sdp2430_flash_data = {
 	.width		= 2,
 	.parts		= sdp2430_partitions,
 	.nr_parts	= ARRAY_SIZE(sdp2430_partitions),
@@ -88,7 +88,7 @@ static struct resource sdp2430_flash_resource = {
 };
 
 static struct platform_device sdp2430_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev = {
 		.platform_data	= &sdp2430_flash_data,
@@ -123,11 +123,7 @@ static struct omap_smc91x_platform_data board_smc91x_data = {
 
 static void __init board_smc91x_init(void)
 {
-	if (omap_rev() > OMAP3430_REV_ES1_0)
-		board_smc91x_data.gpio_irq = 6;
-	else
-		board_smc91x_data.gpio_irq = 29;
-
+	omap_mux_init_gpio(149, OMAP_PIN_INPUT);
 	gpmc_smc91x_init(&board_smc91x_data);
 }
 
@@ -139,22 +135,18 @@ static inline void board_smc91x_init(void)
 
 #endif
 
-static void __init omap_2430sdp_init_irq(void)
-{
-	omap2_init_common_hw(NULL);
-	omap_init_irq();
-	omap_gpio_init();
-}
-
-static struct omap_uart_config sdp2430_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
-static struct omap_board_config_kernel sdp2430_config[] = {
-	{OMAP_TAG_UART, &sdp2430_uart_config},
+static struct omap_board_config_kernel sdp2430_config[] __initdata = {
 	{OMAP_TAG_LCD, &sdp2430_lcd_config},
 };
 
+static void __init omap_2430sdp_init_irq(void)
+{
+	omap_board_config = sdp2430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
+	omap_init_irq();
+}
 
 static struct twl4030_gpio_platform_data sdp2430_gpio_data = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
@@ -179,18 +171,27 @@ static struct i2c_board_info __initdata sdp2430_i2c_boardinfo[] = {
 	},
 };
 
+static struct i2c_board_info __initdata sdp2430_i2c1_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("isp1301_omap", 0x2D),
+		.flags = I2C_CLIENT_WAKE,
+		.irq = OMAP_GPIO_IRQ(78),
+	},
+};
+
 static int __init omap2430_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 400, NULL, 0);
+	omap_register_i2c_bus(1, 100, sdp2430_i2c1_boardinfo,
+			ARRAY_SIZE(sdp2430_i2c1_boardinfo));
 	omap_register_i2c_bus(2, 2600, sdp2430_i2c_boardinfo,
 			ARRAY_SIZE(sdp2430_i2c_boardinfo));
 	return 0;
 }
 
-static struct twl4030_hsmmc_info mmc[] __initdata = {
+static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.ext_clock	= 1,
@@ -198,18 +199,43 @@ static struct twl4030_hsmmc_info mmc[] __initdata = {
 	{}	/* Terminator */
 };
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type		= MUSB_INTERFACE_ULPI,
+	.mode			= MUSB_OTG,
+	.power			= 100,
+};
+static struct omap_usb_config sdp2430_usb_config __initdata = {
+	.otg		= 1,
+#ifdef  CONFIG_USB_GADGET_OMAP
+	.hmc_mode	= 0x0,
+#elif   defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+	.hmc_mode	= 0x1,
+#endif
+	.pins[0]	= 3,
+};
+
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#endif
+
 static void __init omap_2430sdp_init(void)
 {
 	int ret;
 
+	omap2430_mux_init(board_mux, OMAP_PACKAGE_ZAC);
+
 	omap2430_i2c_init();
 
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
-	omap_board_config = sdp2430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 	omap_serial_init();
-	twl4030_mmc_init(mmc);
-	usb_musb_init();
+	omap2_hsmmc_init(mmc);
+	omap2_usbfs_init(&sdp2430_usb_config);
+
+	omap_mux_init_signal("usb0hs_stp", OMAP_PULL_ENA | OMAP_PULL_UP);
+	usb_musb_init(&musb_board_data);
+
 	board_smc91x_init();
 
 	/* Turn off secondary LCD backlight */
@@ -221,15 +247,14 @@ static void __init omap_2430sdp_init(void)
 static void __init omap_2430sdp_map_io(void)
 {
 	omap2_set_globals_243x();
-	omap2_map_common_io();
+	omap243x_map_common_io();
 }
 
 MACHINE_START(OMAP_2430SDP, "OMAP2430 sdp2430 board")
 	/* Maintainer: Syed Khasim - Texas Instruments Inc */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_2430sdp_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_2430sdp_init_irq,
 	.init_machine	= omap_2430sdp_init,
 	.timer		= &omap_timer,

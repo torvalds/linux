@@ -53,7 +53,7 @@ static void __init afeb9260_map_io(void)
 	/* Initialize processor: 18.432 MHz crystal */
 	at91sam9260_initialize(18432000);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
@@ -174,6 +174,16 @@ static struct i2c_board_info __initdata afeb9260_i2c_devices[] = {
 	},
 };
 
+/*
+ * IDE (CF True IDE mode)
+ */
+static struct at91_cf_data afeb9260_cf_data = {
+	.chipselect = 4,
+	.irq_pin    = AT91_PIN_PA6,
+	.rst_pin    = AT91_PIN_PA7,
+	.flags      = AT91_CF_TRUE_IDE,
+};
+
 static void __init afeb9260_board_init(void)
 {
 	/* Serial */
@@ -202,12 +212,12 @@ static void __init afeb9260_board_init(void)
 			ARRAY_SIZE(afeb9260_i2c_devices));
 	/* Audio */
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
+	/* IDE */
+	at91_add_device_cf(&afeb9260_cf_data);
 }
 
 MACHINE_START(AFEB9260, "Custom afeb9260 board")
 	/* Maintainer: Sergey Lapin <slapin@ossfans.org> */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
 	.map_io		= afeb9260_map_io,

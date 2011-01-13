@@ -21,6 +21,8 @@
 #define L1_CACHE_DISPARITY	L1_CACHE_NENTRIES * L1_CACHE_BYTES
 #endif
 
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+
 /* data cache purge registers
  * - read from the register to unconditionally purge that cache line
  * - write address & 0xffffff00 to conditionally purge that cache line
@@ -41,14 +43,18 @@
 
 /* instruction cache access registers */
 #define ICACHE_DATA(WAY, ENTRY, OFF) \
-	__SYSREG(0xc8000000 + (WAY) * L1_CACHE_WAYDISP + (ENTRY) * 0x10 + (OFF) * 4, u32)
+	__SYSREG(0xc8000000 + (WAY) * L1_CACHE_WAYDISP + \
+		(ENTRY) * L1_CACHE_BYTES + (OFF) * 4, u32)
 #define ICACHE_TAG(WAY, ENTRY)	 \
-	__SYSREG(0xc8100000 + (WAY) * L1_CACHE_WAYDISP + (ENTRY) * 0x10, u32)
+	__SYSREG(0xc8100000 + (WAY) * L1_CACHE_WAYDISP + \
+		(ENTRY) * L1_CACHE_BYTES, u32)
 
-/* instruction cache access registers */
+/* data cache access registers */
 #define DCACHE_DATA(WAY, ENTRY, OFF) \
-	__SYSREG(0xc8200000 + (WAY) * L1_CACHE_WAYDISP + (ENTRY) * 0x10 + (OFF) * 4, u32)
+	__SYSREG(0xc8200000 + (WAY) * L1_CACHE_WAYDISP + \
+		(ENTRY) * L1_CACHE_BYTES + (OFF) * 4, u32)
 #define DCACHE_TAG(WAY, ENTRY)	 \
-	__SYSREG(0xc8300000 + (WAY) * L1_CACHE_WAYDISP + (ENTRY) * 0x10, u32)
+	__SYSREG(0xc8300000 + (WAY) * L1_CACHE_WAYDISP + \
+		(ENTRY) * L1_CACHE_BYTES, u32)
 
 #endif /* _ASM_CACHE_H */

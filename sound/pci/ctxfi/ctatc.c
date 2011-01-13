@@ -24,6 +24,7 @@
 #include "ctdaio.h"
 #include "cttimer.h"
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
 #include <sound/asoundef.h>
@@ -46,8 +47,6 @@ static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0031, "SB073x", CTSB073X),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_CREATIVE, 0xf000, 0x6000,
 			   "UAA", CTUAA),
-	SND_PCI_QUIRK_VENDOR(PCI_VENDOR_ID_CREATIVE,
-			     "Unknown", CT20K1_UNKNOWN),
 	{ } /* terminator */
 };
 
@@ -67,13 +66,16 @@ static struct snd_pci_quirk __devinitdata subsys_20k2_list[] = {
 };
 
 static const char *ct_subsys_name[NUM_CTCARDS] = {
+	/* 20k1 models */
 	[CTSB055X]	= "SB055x",
 	[CTSB073X]	= "SB073x",
-	[CTSB0760]	= "SB076x",
 	[CTUAA]		= "UAA",
 	[CT20K1_UNKNOWN] = "Unknown",
+	/* 20k2 models */
+	[CTSB0760]	= "SB076x",
 	[CTHENDRIX]	= "Hendrix",
 	[CTSB0880]	= "SB0880",
+	[CT20K2_UNKNOWN] = "Unknown",
 };
 
 static struct {
@@ -135,7 +137,7 @@ static int ct_map_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct snd_pcm_runtime *runtime;
 	struct ct_vm *vm;
 
-	if (NULL == apcm->substream)
+	if (!apcm->substream)
 		return 0;
 
 	runtime = apcm->substream->runtime;
@@ -143,7 +145,7 @@ static int ct_map_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	apcm->vm_block = vm->map(vm, apcm->substream, runtime->dma_bytes);
 
-	if (NULL == apcm->vm_block)
+	if (!apcm->vm_block)
 		return -ENOENT;
 
 	return 0;
@@ -153,7 +155,7 @@ static void ct_unmap_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
 	struct ct_vm *vm;
 
-	if (NULL == apcm->vm_block)
+	if (!apcm->vm_block)
 		return;
 
 	vm = atc->vm;
@@ -165,18 +167,7 @@ static void ct_unmap_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 static unsigned long atc_get_ptp_phys(struct ct_atc *atc, int index)
 {
-	struct ct_vm *vm;
-	void *kvirt_addr;
-	unsigned long phys_addr;
-
-	vm = atc->vm;
-	kvirt_addr = vm->get_ptp_virt(vm, index);
-	if (kvirt_addr == NULL)
-		phys_addr = (~0UL);
-	else
-		phys_addr = virt_to_phys(kvirt_addr);
-
-	return phys_addr;
+	return atc->vm->get_ptp_phys(atc->vm, index);
 }
 
 static unsigned int convert_format(snd_pcm_format_t snd_format)
@@ -230,16 +221,16 @@ atc_get_pitch(unsigned int input_rate, unsigned int output_rate)
 
 static int select_rom(unsigned int pitch)
 {
-	if ((pitch > 0x00428f5c) && (pitch < 0x01b851ec)) {
+	if (pitch > 0x00428f5c && pitch < 0x01b851ec) {
 		/* 0.26 <= pitch <= 1.72 */
 		return 1;
-	} else if ((0x01d66666 == pitch) || (0x01d66667 == pitch)) {
+	} else if (pitch == 0x01d66666 || pitch == 0x01d66667) {
 		/* pitch == 1.8375 */
 		return 2;
-	} else if (0x02000000 == pitch) {
+	} else if (pitch == 0x02000000) {
 		/* pitch == 2 */
 		return 3;
-	} else if ((pitch >= 0x0) && (pitch <= 0x08000000)) {
+	} else if (pitch <= 0x08000000) {
 		/* 0 <= pitch <= 8 */
 		return 0;
 	} else {
@@ -260,13 +251,8 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	int device = apcm->substream->pcm->device;
 	unsigned int pitch;
 
-	if (NULL != apcm->src) {
-		/* Prepared pcm playback */
-		return 0;
-	}
-
 	/* first release old resources */
-	atc->pcm_release_resources(atc, apcm);
+	atc_pcm_release_resources(atc, apcm);
 
 	/* Get SRC resource */
 	desc.multi = apcm->substream->runtime->channels;
@@ -287,7 +273,7 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	/* Get AMIXER resource */
 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
 	apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
-	if (NULL == apcm->amixers) {
+	if (!apcm->amixers) {
 		err = -ENOMEM;
 		goto error1;
 	}
@@ -315,7 +301,7 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 					INIT_VOL, atc->pcm[i+device*2]);
 		mutex_unlock(&atc->atc_mutex);
 		src = src->ops->next_interleave(src);
-		if (NULL == src)
+		if (!src)
 			src = apcm->src;
 	}
 
@@ -338,7 +324,7 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct srcimp *srcimp;
 	int i;
 
-	if (NULL != apcm->srcimps) {
+	if (apcm->srcimps) {
 		for (i = 0; i < apcm->n_srcimp; i++) {
 			srcimp = apcm->srcimps[i];
 			srcimp->ops->unmap(srcimp);
@@ -349,7 +335,7 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		apcm->srcimps = NULL;
 	}
 
-	if (NULL != apcm->srccs) {
+	if (apcm->srccs) {
 		for (i = 0; i < apcm->n_srcc; i++) {
 			src_mgr->put_src(src_mgr, apcm->srccs[i]);
 			apcm->srccs[i] = NULL;
@@ -358,7 +344,7 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		apcm->srccs = NULL;
 	}
 
-	if (NULL != apcm->amixers) {
+	if (apcm->amixers) {
 		for (i = 0; i < apcm->n_amixer; i++) {
 			amixer_mgr->put_amixer(amixer_mgr, apcm->amixers[i]);
 			apcm->amixers[i] = NULL;
@@ -367,17 +353,17 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		apcm->amixers = NULL;
 	}
 
-	if (NULL != apcm->mono) {
+	if (apcm->mono) {
 		sum_mgr->put_sum(sum_mgr, apcm->mono);
 		apcm->mono = NULL;
 	}
 
-	if (NULL != apcm->src) {
+	if (apcm->src) {
 		src_mgr->put_src(src_mgr, apcm->src);
 		apcm->src = NULL;
 	}
 
-	if (NULL != apcm->vm_block) {
+	if (apcm->vm_block) {
 		/* Undo device virtual mem map */
 		ct_unmap_audio_buffer(atc, apcm);
 		apcm->vm_block = NULL;
@@ -423,7 +409,7 @@ static int atc_pcm_stop(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	src->ops->set_state(src, SRC_STATE_OFF);
 	src->ops->commit_write(src);
 
-	if (NULL != apcm->srccs) {
+	if (apcm->srccs) {
 		for (i = 0; i < apcm->n_srcc; i++) {
 			src = apcm->srccs[i];
 			src->ops->set_bm(src, 0);
@@ -548,18 +534,18 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	if (n_srcc) {
 		apcm->srccs = kzalloc(sizeof(void *)*n_srcc, GFP_KERNEL);
-		if (NULL == apcm->srccs)
+		if (!apcm->srccs)
 			return -ENOMEM;
 	}
 	if (n_amixer) {
 		apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
-		if (NULL == apcm->amixers) {
+		if (!apcm->amixers) {
 			err = -ENOMEM;
 			goto error1;
 		}
 	}
 	apcm->srcimps = kzalloc(sizeof(void *)*n_srcimp, GFP_KERNEL);
-	if (NULL == apcm->srcimps) {
+	if (!apcm->srcimps) {
 		err = -ENOMEM;
 		goto error1;
 	}
@@ -660,10 +646,7 @@ static int atc_pcm_capture_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	unsigned int pitch;
 	int mix_base = 0, imp_base = 0;
 
-	if (NULL != apcm->src) {
-		/* Prepared pcm capture */
-		return 0;
-	}
+	atc_pcm_release_resources(atc, apcm);
 
 	/* Get needed resources. */
 	err = atc_pcm_capture_get_resources(atc, apcm);
@@ -825,7 +808,7 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
 	/* Get AMIXER resource */
 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
 	apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
-	if (NULL == apcm->amixers) {
+	if (!apcm->amixers) {
 		err = -ENOMEM;
 		goto error1;
 	}
@@ -866,7 +849,7 @@ spdif_passthru_playback_setup(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct dao *dao = container_of(atc->daios[SPDIFOO], struct dao, daio);
 	unsigned int rate = apcm->substream->runtime->rate;
 	unsigned int status;
-	int err;
+	int err = 0;
 	unsigned char iec958_con_fs;
 
 	switch (rate) {
@@ -907,8 +890,7 @@ spdif_passthru_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	int err;
 	int i;
 
-	if (NULL != apcm->src)
-		return 0;
+	atc_pcm_release_resources(atc, apcm);
 
 	/* Configure SPDIFOO and PLL to passthrough mode;
 	 * determine pll_rate. */
@@ -927,7 +909,7 @@ spdif_passthru_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		amixer = apcm->amixers[i];
 		amixer->ops->setup(amixer, &src->rsc, INIT_VOL, NULL);
 		src = src->ops->next_interleave(src);
-		if (NULL == src)
+		if (!src)
 			src = apcm->src;
 	}
 	/* Connect to SPDIFOO */
@@ -1045,7 +1027,7 @@ static int atc_line_front_unmute(struct ct_atc *atc, unsigned char state)
 
 static int atc_line_surround_unmute(struct ct_atc *atc, unsigned char state)
 {
-	return atc_daio_unmute(atc, state, LINEO4);
+	return atc_daio_unmute(atc, state, LINEO2);
 }
 
 static int atc_line_clfe_unmute(struct ct_atc *atc, unsigned char state)
@@ -1055,7 +1037,7 @@ static int atc_line_clfe_unmute(struct ct_atc *atc, unsigned char state)
 
 static int atc_line_rear_unmute(struct ct_atc *atc, unsigned char state)
 {
-	return atc_daio_unmute(atc, state, LINEO2);
+	return atc_daio_unmute(atc, state, LINEO4);
 }
 
 static int atc_line_in_unmute(struct ct_atc *atc, unsigned char state)
@@ -1115,33 +1097,21 @@ static int atc_spdif_out_passthru(struct ct_atc *atc, unsigned char state)
 	return err;
 }
 
-static int ct_atc_destroy(struct ct_atc *atc)
+static int atc_release_resources(struct ct_atc *atc)
 {
-	struct daio_mgr *daio_mgr;
-	struct dao *dao;
-	struct dai *dai;
-	struct daio *daio;
-	struct sum_mgr *sum_mgr;
-	struct src_mgr *src_mgr;
-	struct srcimp_mgr *srcimp_mgr;
-	struct srcimp *srcimp;
-	struct ct_mixer *mixer;
-	int i = 0;
+	int i;
+	struct daio_mgr *daio_mgr = NULL;
+	struct dao *dao = NULL;
+	struct dai *dai = NULL;
+	struct daio *daio = NULL;
+	struct sum_mgr *sum_mgr = NULL;
+	struct src_mgr *src_mgr = NULL;
+	struct srcimp_mgr *srcimp_mgr = NULL;
+	struct srcimp *srcimp = NULL;
+	struct ct_mixer *mixer = NULL;
 
-	if (NULL == atc)
-		return 0;
-
-	if (atc->timer) {
-		ct_timer_free(atc->timer);
-		atc->timer = NULL;
-	}
-
-	/* Stop hardware and disable all interrupts */
-	if (NULL != atc->hw)
-		((struct hw *)atc->hw)->card_stop(atc->hw);
-
-	/* Destroy internal mixer objects */
-	if (NULL != atc->mixer) {
+	/* disconnect internal mixer objects */
+	if (atc->mixer) {
 		mixer = atc->mixer;
 		mixer->set_input_left(mixer, MIX_LINE_IN, NULL);
 		mixer->set_input_right(mixer, MIX_LINE_IN, NULL);
@@ -1149,10 +1119,9 @@ static int ct_atc_destroy(struct ct_atc *atc)
 		mixer->set_input_right(mixer, MIX_MIC_IN, NULL);
 		mixer->set_input_left(mixer, MIX_SPDIF_IN, NULL);
 		mixer->set_input_right(mixer, MIX_SPDIF_IN, NULL);
-		ct_mixer_destroy(atc->mixer);
 	}
 
-	if (NULL != atc->daios) {
+	if (atc->daios) {
 		daio_mgr = (struct daio_mgr *)atc->rsc_mgrs[DAIO];
 		for (i = 0; i < atc->n_daio; i++) {
 			daio = atc->daios[i];
@@ -1167,25 +1136,28 @@ static int ct_atc_destroy(struct ct_atc *atc)
 			daio_mgr->put_daio(daio_mgr, daio);
 		}
 		kfree(atc->daios);
+		atc->daios = NULL;
 	}
 
-	if (NULL != atc->pcm) {
+	if (atc->pcm) {
 		sum_mgr = atc->rsc_mgrs[SUM];
 		for (i = 0; i < atc->n_pcm; i++)
 			sum_mgr->put_sum(sum_mgr, atc->pcm[i]);
 
 		kfree(atc->pcm);
+		atc->pcm = NULL;
 	}
 
-	if (NULL != atc->srcs) {
+	if (atc->srcs) {
 		src_mgr = atc->rsc_mgrs[SRC];
 		for (i = 0; i < atc->n_src; i++)
 			src_mgr->put_src(src_mgr, atc->srcs[i]);
 
 		kfree(atc->srcs);
+		atc->srcs = NULL;
 	}
 
-	if (NULL != atc->srcimps) {
+	if (atc->srcimps) {
 		srcimp_mgr = atc->rsc_mgrs[SRCIMP];
 		for (i = 0; i < atc->n_srcimp; i++) {
 			srcimp = atc->srcimps[i];
@@ -1193,20 +1165,41 @@ static int ct_atc_destroy(struct ct_atc *atc)
 			srcimp_mgr->put_srcimp(srcimp_mgr, atc->srcimps[i]);
 		}
 		kfree(atc->srcimps);
+		atc->srcimps = NULL;
 	}
 
+	return 0;
+}
+
+static int ct_atc_destroy(struct ct_atc *atc)
+{
+	int i = 0;
+
+	if (!atc)
+		return 0;
+
+	if (atc->timer) {
+		ct_timer_free(atc->timer);
+		atc->timer = NULL;
+	}
+
+	atc_release_resources(atc);
+
+	/* Destroy internal mixer objects */
+	if (atc->mixer)
+		ct_mixer_destroy(atc->mixer);
+
 	for (i = 0; i < NUM_RSCTYP; i++) {
-		if ((NULL != rsc_mgr_funcs[i].destroy) &&
-		    (NULL != atc->rsc_mgrs[i]))
+		if (rsc_mgr_funcs[i].destroy && atc->rsc_mgrs[i])
 			rsc_mgr_funcs[i].destroy(atc->rsc_mgrs[i]);
 
 	}
 
-	if (NULL != atc->hw)
+	if (atc->hw)
 		destroy_hw_obj((struct hw *)atc->hw);
 
 	/* Destroy device virtual memory manager object */
-	if (NULL != atc->vm) {
+	if (atc->vm) {
 		ct_vm_destroy(atc->vm);
 		atc->vm = NULL;
 	}
@@ -1222,10 +1215,11 @@ static int atc_dev_free(struct snd_device *dev)
 	return ct_atc_destroy(atc);
 }
 
-static int __devinit atc_identify_card(struct ct_atc *atc)
+static int __devinit atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 {
 	const struct snd_pci_quirk *p;
 	const struct snd_pci_quirk *list;
+	u16 vendor_id, device_id;
 
 	switch (atc->chip_type) {
 	case ATC20K1:
@@ -1239,15 +1233,32 @@ static int __devinit atc_identify_card(struct ct_atc *atc)
 	default:
 		return -ENOENT;
 	}
-	p = snd_pci_quirk_lookup(atc->pci, list);
-	if (!p)
-		return -ENOENT;
-	atc->model = p->value;
+	if (ssid) {
+		vendor_id = ssid >> 16;
+		device_id = ssid & 0xffff;
+	} else {
+		vendor_id = atc->pci->subsystem_vendor;
+		device_id = atc->pci->subsystem_device;
+	}
+	p = snd_pci_quirk_lookup_id(vendor_id, device_id, list);
+	if (p) {
+		if (p->value < 0) {
+			printk(KERN_ERR "ctxfi: "
+			       "Device %04x:%04x is black-listed\n",
+			       vendor_id, device_id);
+			return -ENOENT;
+		}
+		atc->model = p->value;
+	} else {
+		if (atc->chip_type == ATC20K1)
+			atc->model = CT20K1_UNKNOWN;
+		else
+			atc->model = CT20K2_UNKNOWN;
+	}
 	atc->model_name = ct_subsys_name[atc->model];
 	snd_printd("ctxfi: chip %s model %s (%04x:%04x) is found\n",
 		   atc->chip_name, atc->model_name,
-		   atc->pci->subsystem_vendor,
-		   atc->pci->subsystem_device);
+		   vendor_id, device_id);
 	return 0;
 }
 
@@ -1259,7 +1270,7 @@ int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc)
 	alsa_dev_funcs[MIXER].public_name = atc->chip_name;
 
 	for (i = 0; i < NUM_CTALSADEVS; i++) {
-		if (NULL == alsa_dev_funcs[i].create)
+		if (!alsa_dev_funcs[i].create)
 			continue;
 
 		err = alsa_dev_funcs[i].create(atc, i,
@@ -1296,7 +1307,7 @@ static int __devinit atc_create_hw_devs(struct ct_atc *atc)
 		return err;
 
 	for (i = 0; i < NUM_RSCTYP; i++) {
-		if (NULL == rsc_mgr_funcs[i].create)
+		if (!rsc_mgr_funcs[i].create)
 			continue;
 
 		err = rsc_mgr_funcs[i].create(atc->hw, &atc->rsc_mgrs[i]);
@@ -1310,7 +1321,7 @@ static int __devinit atc_create_hw_devs(struct ct_atc *atc)
 	return 0;
 }
 
-static int __devinit atc_get_resources(struct ct_atc *atc)
+static int atc_get_resources(struct ct_atc *atc)
 {
 	struct daio_desc da_desc = {0};
 	struct daio_mgr *daio_mgr;
@@ -1323,19 +1334,19 @@ static int __devinit atc_get_resources(struct ct_atc *atc)
 	int err, i;
 
 	atc->daios = kzalloc(sizeof(void *)*(DAIONUM), GFP_KERNEL);
-	if (NULL == atc->daios)
+	if (!atc->daios)
 		return -ENOMEM;
 
 	atc->srcs = kzalloc(sizeof(void *)*(2*2), GFP_KERNEL);
-	if (NULL == atc->srcs)
+	if (!atc->srcs)
 		return -ENOMEM;
 
 	atc->srcimps = kzalloc(sizeof(void *)*(2*2), GFP_KERNEL);
-	if (NULL == atc->srcimps)
+	if (!atc->srcimps)
 		return -ENOMEM;
 
 	atc->pcm = kzalloc(sizeof(void *)*(2*4), GFP_KERNEL);
-	if (NULL == atc->pcm)
+	if (!atc->pcm)
 		return -ENOMEM;
 
 	daio_mgr = (struct daio_mgr *)atc->rsc_mgrs[DAIO];
@@ -1407,16 +1418,10 @@ static int __devinit atc_get_resources(struct ct_atc *atc)
 		atc->n_pcm++;
 	}
 
-	err = ct_mixer_create(atc, (struct ct_mixer **)&atc->mixer);
-	if (err) {
-		printk(KERN_ERR "ctxfi: Failed to create mixer obj!!!\n");
-		return err;
-	}
-
 	return 0;
 }
 
-static void __devinit
+static void
 atc_connect_dai(struct src_mgr *src_mgr, struct dai *dai,
 		struct src **srcs, struct srcimp **srcimps)
 {
@@ -1455,7 +1460,7 @@ atc_connect_dai(struct src_mgr *src_mgr, struct dai *dai,
 	src_mgr->commit_write(src_mgr); /* Synchronously enable SRCs */
 }
 
-static void __devinit atc_connect_resources(struct ct_atc *atc)
+static void atc_connect_resources(struct ct_atc *atc)
 {
 	struct dai *dai;
 	struct dao *dao;
@@ -1501,6 +1506,84 @@ static void __devinit atc_connect_resources(struct ct_atc *atc)
 	}
 }
 
+#ifdef CONFIG_PM
+static int atc_suspend(struct ct_atc *atc, pm_message_t state)
+{
+	int i;
+	struct hw *hw = atc->hw;
+
+	snd_power_change_state(atc->card, SNDRV_CTL_POWER_D3hot);
+
+	for (i = FRONT; i < NUM_PCMS; i++) {
+		if (!atc->pcms[i])
+			continue;
+
+		snd_pcm_suspend_all(atc->pcms[i]);
+	}
+
+	atc_release_resources(atc);
+
+	hw->suspend(hw, state);
+
+	return 0;
+}
+
+static int atc_hw_resume(struct ct_atc *atc)
+{
+	struct hw *hw = atc->hw;
+	struct card_conf info = {0};
+
+	/* Re-initialize card hardware. */
+	info.rsr = atc->rsr;
+	info.msr = atc->msr;
+	info.vm_pgt_phys = atc_get_ptp_phys(atc, 0);
+	return hw->resume(hw, &info);
+}
+
+static int atc_resources_resume(struct ct_atc *atc)
+{
+	struct ct_mixer *mixer;
+	int err = 0;
+
+	/* Get resources */
+	err = atc_get_resources(atc);
+	if (err < 0) {
+		atc_release_resources(atc);
+		return err;
+	}
+
+	/* Build topology */
+	atc_connect_resources(atc);
+
+	mixer = atc->mixer;
+	mixer->resume(mixer);
+
+	return 0;
+}
+
+static int atc_resume(struct ct_atc *atc)
+{
+	int err = 0;
+
+	/* Do hardware resume. */
+	err = atc_hw_resume(atc);
+	if (err < 0) {
+		printk(KERN_ERR "ctxfi: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(atc->card);
+		return err;
+	}
+
+	err = atc_resources_resume(atc);
+	if (err < 0)
+		return err;
+
+	snd_power_change_state(atc->card, SNDRV_CTL_POWER_D0);
+
+	return 0;
+}
+#endif
+
 static struct ct_atc atc_preset __devinitdata = {
 	.map_audio_buffer = ct_map_audio_buffer,
 	.unmap_audio_buffer = ct_unmap_audio_buffer,
@@ -1529,6 +1612,10 @@ static struct ct_atc atc_preset __devinitdata = {
 	.spdif_out_set_status = atc_spdif_out_set_status,
 	.spdif_out_passthru = atc_spdif_out_passthru,
 	.have_digit_io_switch = atc_have_digit_io_switch,
+#ifdef CONFIG_PM
+	.suspend = atc_suspend,
+	.resume = atc_resume,
+#endif
 };
 
 /**
@@ -1545,7 +1632,8 @@ static struct ct_atc atc_preset __devinitdata = {
 
 int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 			    unsigned int rsr, unsigned int msr,
-			    int chip_type, struct ct_atc **ratc)
+			    int chip_type, unsigned int ssid,
+			    struct ct_atc **ratc)
 {
 	struct ct_atc *atc;
 	static struct snd_device_ops ops = {
@@ -1556,7 +1644,7 @@ int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	*ratc = NULL;
 
 	atc = kzalloc(sizeof(*atc), GFP_KERNEL);
-	if (NULL == atc)
+	if (!atc)
 		return -ENOMEM;
 
 	/* Set operations */
@@ -1571,14 +1659,14 @@ int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	mutex_init(&atc->atc_mutex);
 
 	/* Find card model */
-	err = atc_identify_card(atc);
+	err = atc_identify_card(atc, ssid);
 	if (err < 0) {
 		printk(KERN_ERR "ctatc: Card not recognised\n");
 		goto error1;
 	}
 
 	/* Set up device virtual memory management object */
-	err = ct_vm_create(&atc->vm);
+	err = ct_vm_create(&atc->vm, pci);
 	if (err < 0)
 		goto error1;
 
@@ -1586,6 +1674,12 @@ int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	err = atc_create_hw_devs(atc);
 	if (err < 0)
 		goto error1;
+
+	err = ct_mixer_create(atc, (struct ct_mixer **)&atc->mixer);
+	if (err) {
+		printk(KERN_ERR "ctxfi: Failed to create mixer obj!!!\n");
+		goto error1;
+	}
 
 	/* Get resources */
 	err = atc_get_resources(atc);

@@ -687,7 +687,7 @@ maintain the driver code.
 Enabling serial NVRAM support enables detection of the serial NVRAM included
 on Symbios and some Symbios compatible host adaptors, and Tekram boards. The 
 serial NVRAM is used by Symbios and Tekram to hold set up parameters for the 
-host adaptor and it's attached drives.
+host adaptor and its attached drives.
 
 The Symbios NVRAM also holds data on the boot order of host adaptors in a
 system with more than one host adaptor.  This information is no longer used

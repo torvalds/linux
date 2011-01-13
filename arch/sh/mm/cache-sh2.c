@@ -16,7 +16,7 @@
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 
-void __flush_wback_region(void *start, int size)
+static void sh2__flush_wback_region(void *start, int size)
 {
 	unsigned long v;
 	unsigned long begin, end;
@@ -28,16 +28,16 @@ void __flush_wback_region(void *start, int size)
 		unsigned long addr = CACHE_OC_ADDRESS_ARRAY | (v & 0x00000ff0);
 		int way;
 		for (way = 0; way < 4; way++) {
-			unsigned long data =  ctrl_inl(addr | (way << 12));
+			unsigned long data =  __raw_readl(addr | (way << 12));
 			if ((data & CACHE_PHYSADDR_MASK) == (v & CACHE_PHYSADDR_MASK)) {
 				data &= ~SH_CACHE_UPDATED;
-				ctrl_outl(data, addr | (way << 12));
+				__raw_writel(data, addr | (way << 12));
 			}
 		}
 	}
 }
 
-void __flush_purge_region(void *start, int size)
+static void sh2__flush_purge_region(void *start, int size)
 {
 	unsigned long v;
 	unsigned long begin, end;
@@ -47,11 +47,11 @@ void __flush_purge_region(void *start, int size)
 		& ~(L1_CACHE_BYTES-1);
 
 	for (v = begin; v < end; v+=L1_CACHE_BYTES)
-		ctrl_outl((v & CACHE_PHYSADDR_MASK),
+		__raw_writel((v & CACHE_PHYSADDR_MASK),
 			  CACHE_OC_ADDRESS_ARRAY | (v & 0x00000ff0) | 0x00000008);
 }
 
-void __flush_invalidate_region(void *start, int size)
+static void sh2__flush_invalidate_region(void *start, int size)
 {
 #ifdef CONFIG_CACHE_WRITEBACK
 	/*
@@ -63,9 +63,9 @@ void __flush_invalidate_region(void *start, int size)
 	local_irq_save(flags);
 	jump_to_uncached();
 
-	ccr = ctrl_inl(CCR);
+	ccr = __raw_readl(CCR);
 	ccr |= CCR_CACHE_INVALIDATE;
-	ctrl_outl(ccr, CCR);
+	__raw_writel(ccr, CCR);
 
 	back_to_cached();
 	local_irq_restore(flags);
@@ -78,7 +78,14 @@ void __flush_invalidate_region(void *start, int size)
 		& ~(L1_CACHE_BYTES-1);
 
 	for (v = begin; v < end; v+=L1_CACHE_BYTES)
-		ctrl_outl((v & CACHE_PHYSADDR_MASK),
+		__raw_writel((v & CACHE_PHYSADDR_MASK),
 			  CACHE_OC_ADDRESS_ARRAY | (v & 0x00000ff0) | 0x00000008);
 #endif
+}
+
+void __init sh2_cache_init(void)
+{
+	__flush_wback_region		= sh2__flush_wback_region;
+	__flush_purge_region		= sh2__flush_purge_region;
+	__flush_invalidate_region	= sh2__flush_invalidate_region;
 }

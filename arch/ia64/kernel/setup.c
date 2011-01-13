@@ -46,7 +46,6 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 
-#include <asm/ia32.h>
 #include <asm/machvec.h>
 #include <asm/mca.h>
 #include <asm/meminit.h>
@@ -74,7 +73,7 @@ unsigned long __per_cpu_offset[NR_CPUS];
 EXPORT_SYMBOL(__per_cpu_offset);
 #endif
 
-DEFINE_PER_CPU(struct cpuinfo_ia64, cpu_info);
+DEFINE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
 DEFINE_PER_CPU(unsigned long, local_per_cpu_offset);
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
@@ -98,12 +97,6 @@ static struct resource bss_resource = {
 };
 
 unsigned long ia64_max_cacheline_size;
-
-int dma_get_cache_alignment(void)
-{
-        return ia64_max_cacheline_size;
-}
-EXPORT_SYMBOL(dma_get_cache_alignment);
 
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
 EXPORT_SYMBOL(ia64_iobase);
@@ -566,19 +559,18 @@ setup_arch (char **cmdline_p)
 	early_acpi_boot_init();
 # ifdef CONFIG_ACPI_NUMA
 	acpi_numa_init();
-#ifdef CONFIG_ACPI_HOTPLUG_CPU
+#  ifdef CONFIG_ACPI_HOTPLUG_CPU
 	prefill_possible_map();
-#endif
+#  endif
 	per_cpu_scan_finalize((cpus_weight(early_cpu_possible_map) == 0 ?
 		32 : cpus_weight(early_cpu_possible_map)),
 		additional_cpus > 0 ? additional_cpus : 0);
 # endif
-#else
-# ifdef CONFIG_SMP
-	smp_build_cpu_map();	/* happens, e.g., with the Ski simulator */
-# endif
 #endif /* CONFIG_APCI_BOOT */
 
+#ifdef CONFIG_SMP
+	smp_build_cpu_map();
+#endif
 	find_memory();
 
 	/* process SAL system table: */
@@ -601,10 +593,6 @@ setup_arch (char **cmdline_p)
 
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
-
-#ifdef CONFIG_ACPI
-	acpi_boot_init();
-#endif
 
 	paravirt_banner();
 	paravirt_arch_setup_console(cmdline_p);
@@ -855,12 +843,6 @@ identify_cpu (struct cpuinfo_ia64 *c)
 	c->unimpl_pa_mask = ~((1L<<63) | ((1L << phys_addr_size) - 1));
 }
 
-void __init
-setup_per_cpu_areas (void)
-{
-	/* start_kernel() requires this... */
-}
-
 /*
  * Do the following calculations:
  *
@@ -974,7 +956,7 @@ cpu_init (void)
 	 * depends on the data returned by identify_cpu().  We break the dependency by
 	 * accessing cpu_data() through the canonical per-CPU address.
 	 */
-	cpu_info = cpu_data + ((char *) &__ia64_per_cpu_var(cpu_info) - __per_cpu_start);
+	cpu_info = cpu_data + ((char *) &__ia64_per_cpu_var(ia64_cpu_info) - __per_cpu_start);
 	identify_cpu(cpu_info);
 
 #ifdef CONFIG_MCKINLEY
@@ -1022,10 +1004,6 @@ cpu_init (void)
 
 	ia64_mmu_init(ia64_imva(cpu_data));
 	ia64_mca_cpu_init(ia64_imva(cpu_data));
-
-#ifdef CONFIG_IA32_SUPPORT
-	ia32_cpu_init();
-#endif
 
 	/* Clear ITC to eliminate sched_clock() overflows in human time.  */
 	ia64_set_itc(0);

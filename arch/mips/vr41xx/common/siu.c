@@ -1,7 +1,7 @@
 /*
  *  NEC VR4100 series SIU platform device.
  *
- *  Copyright (C) 2007-2008  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2007-2008  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/irq.h>
 
 #include <asm/cpu.h>
 #include <asm/vr41xx/siu.h>

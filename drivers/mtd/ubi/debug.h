@@ -55,6 +55,10 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
 void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
+void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
+
+#define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
+		print_hex_dump(l, ps, pt, r, g, b, len, a)
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG
 /* General debugging messages */
@@ -91,6 +95,15 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 #else
 #define dbg_bld(fmt, ...) ({})
 #define UBI_IO_DEBUG 0
+#endif
+
+#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
+int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
+			int offset, int len);
+#else
+#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
+#define ubi_dbg_check_write(ubi, buf, pnum, offset, len) 0
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_DISABLE_BGT
@@ -161,12 +174,16 @@ static inline int ubi_dbg_is_erase_failure(void)
 #define ubi_dbg_dump_sv(sv)              ({})
 #define ubi_dbg_dump_seb(seb, type)      ({})
 #define ubi_dbg_dump_mkvol_req(req)      ({})
+#define ubi_dbg_dump_flash(ubi, pnum, offset, len) ({})
+#define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  ({})
 
 #define UBI_IO_DEBUG               0
 #define DBG_DISABLE_BGT            0
 #define ubi_dbg_is_bitflip()       0
 #define ubi_dbg_is_write_failure() 0
 #define ubi_dbg_is_erase_failure() 0
+#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
+#define ubi_dbg_check_write(ubi, buf, pnum, offset, len) 0
 
 #endif /* !CONFIG_MTD_UBI_DEBUG */
 #endif /* !__UBI_DEBUG_H__ */

@@ -9,7 +9,6 @@
 #include <linux/completion.h>
 #include <linux/ip.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfs_fs.h>
@@ -17,9 +16,7 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/sunrpc/svcauth_gss.h>
-#if defined(CONFIG_NFS_V4_1)
 #include <linux/sunrpc/bc_xprt.h>
-#endif
 
 #include <net/inet_sock.h>
 
@@ -43,21 +40,28 @@ static struct svc_program nfs4_callback_program;
 unsigned int nfs_callback_set_tcpport;
 unsigned short nfs_callback_tcpport;
 unsigned short nfs_callback_tcpport6;
-static const int nfs_set_port_min = 0;
-static const int nfs_set_port_max = 65535;
+#define NFS_CALLBACK_MAXPORTNR (65535U)
 
-static int param_set_port(const char *val, struct kernel_param *kp)
+static int param_set_portnr(const char *val, const struct kernel_param *kp)
 {
-	char *endp;
-	int num = simple_strtol(val, &endp, 0);
-	if (endp == val || *endp || num < nfs_set_port_min || num > nfs_set_port_max)
+	unsigned long num;
+	int ret;
+
+	if (!val)
 		return -EINVAL;
-	*((int *)kp->arg) = num;
+	ret = strict_strtoul(val, 0, &num);
+	if (ret == -EINVAL || num > NFS_CALLBACK_MAXPORTNR)
+		return -EINVAL;
+	*((unsigned int *)kp->arg) = num;
 	return 0;
 }
+static struct kernel_param_ops param_ops_portnr = {
+	.set = param_set_portnr,
+	.get = param_get_uint,
+};
+#define param_check_portnr(name, p) __param_check(name, p, unsigned int);
 
-module_param_call(callback_tcpport, param_set_port, param_get_int,
-		 &nfs_callback_set_tcpport, 0644);
+module_param_named(callback_tcpport, nfs_callback_set_tcpport, portnr, 0644);
 
 /*
  * This is the NFSv4 callback kernel thread.
@@ -70,11 +74,6 @@ nfs4_callback_svc(void *vrqstp)
 
 	set_freezable();
 
-	/*
-	 * FIXME: do we really need to run this under the BKL? If so, please
-	 * add a comment about what it's intended to protect.
-	 */
-	lock_kernel();
 	while (!kthread_should_stop()) {
 		/*
 		 * Listen for a request on the socket
@@ -96,7 +95,6 @@ nfs4_callback_svc(void *vrqstp)
 		preverr = err;
 		svc_process(rqstp);
 	}
-	unlock_kernel();
 	return 0;
 }
 
@@ -108,7 +106,7 @@ nfs4_callback_up(struct svc_serv *serv)
 {
 	int ret;
 
-	ret = svc_create_xprt(serv, "tcp", PF_INET,
+	ret = svc_create_xprt(serv, "tcp", &init_net, PF_INET,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret <= 0)
 		goto out_err;
@@ -116,8 +114,7 @@ nfs4_callback_up(struct svc_serv *serv)
 	dprintk("NFS: Callback listener port = %u (af %u)\n",
 			nfs_callback_tcpport, PF_INET);
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	ret = svc_create_xprt(serv, "tcp", PF_INET6,
+	ret = svc_create_xprt(serv, "tcp", &init_net, PF_INET6,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret > 0) {
 		nfs_callback_tcpport6 = ret;
@@ -127,7 +124,6 @@ nfs4_callback_up(struct svc_serv *serv)
 		ret = 0;
 	else
 		goto out_err;
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
 	return svc_prepare_thread(serv, &serv->sv_pools[0]);
 
@@ -138,6 +134,33 @@ out_err:
 }
 
 #if defined(CONFIG_NFS_V4_1)
+/*
+ *  * CB_SEQUENCE operations will fail until the callback sessionid is set.
+ *   */
+int nfs4_set_callback_sessionid(struct nfs_client *clp)
+{
+	struct svc_serv *serv = clp->cl_rpcclient->cl_xprt->bc_serv;
+	struct nfs4_sessionid *bc_sid;
+
+	if (!serv->sv_bc_xprt)
+		return -EINVAL;
+
+	/* on success freed in xprt_free */
+	bc_sid = kmalloc(sizeof(struct nfs4_sessionid), GFP_KERNEL);
+	if (!bc_sid)
+		return -ENOMEM;
+	memcpy(bc_sid->data, &clp->cl_session->sess_id.data,
+		NFS4_MAX_SESSIONID_LEN);
+	spin_lock_bh(&serv->sv_cb_lock);
+	serv->sv_bc_xprt->xpt_bc_sid = bc_sid;
+	spin_unlock_bh(&serv->sv_cb_lock);
+	dprintk("%s set xpt_bc_sid=%u:%u:%u:%u for sv_bc_xprt %p\n", __func__,
+		((u32 *)bc_sid->data)[0], ((u32 *)bc_sid->data)[1],
+		((u32 *)bc_sid->data)[2], ((u32 *)bc_sid->data)[3],
+		serv->sv_bc_xprt);
+	return 0;
+}
+
 /*
  * The callback service for NFSv4.1 callbacks
  */
@@ -152,11 +175,6 @@ nfs41_callback_svc(void *vrqstp)
 
 	set_freezable();
 
-	/*
-	 * FIXME: do we really need to run this under the BKL? If so, please
-	 * add a comment about what it's intended to protect.
-	 */
-	lock_kernel();
 	while (!kthread_should_stop()) {
 		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_INTERRUPTIBLE);
 		spin_lock_bh(&serv->sv_cb_lock);
@@ -175,7 +193,6 @@ nfs41_callback_svc(void *vrqstp)
 		}
 		finish_wait(&serv->sv_cb_waitq, &wq);
 	}
-	unlock_kernel();
 	return 0;
 }
 
@@ -185,30 +202,38 @@ nfs41_callback_svc(void *vrqstp)
 struct svc_rqst *
 nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 {
-	struct svc_xprt *bc_xprt;
-	struct svc_rqst *rqstp = ERR_PTR(-ENOMEM);
+	struct svc_rqst *rqstp;
+	int ret;
 
-	dprintk("--> %s\n", __func__);
-	/* Create a svc_sock for the service */
-	bc_xprt = svc_sock_create(serv, xprt->prot);
-	if (!bc_xprt)
+	/*
+	 * Create an svc_sock for the back channel service that shares the
+	 * fore channel connection.
+	 * Returns the input port (0) and sets the svc_serv bc_xprt on success
+	 */
+	ret = svc_create_xprt(serv, "tcp-bc", &init_net, PF_INET, 0,
+			      SVC_SOCK_ANONYMOUS);
+	if (ret < 0) {
+		rqstp = ERR_PTR(ret);
 		goto out;
+	}
 
 	/*
 	 * Save the svc_serv in the transport so that it can
 	 * be referenced when the session backchannel is initialized
 	 */
-	serv->bc_xprt = bc_xprt;
 	xprt->bc_serv = serv;
 
 	INIT_LIST_HEAD(&serv->sv_cb_list);
 	spin_lock_init(&serv->sv_cb_lock);
 	init_waitqueue_head(&serv->sv_cb_waitq);
 	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0]);
-	if (IS_ERR(rqstp))
-		svc_sock_destroy(bc_xprt);
+	if (IS_ERR(rqstp)) {
+		svc_xprt_put(serv->sv_bc_xprt);
+		serv->sv_bc_xprt = NULL;
+	}
 out:
-	dprintk("--> %s return %p\n", __func__, rqstp);
+	dprintk("--> %s return %ld\n", __func__,
+		IS_ERR(rqstp) ? PTR_ERR(rqstp) : 0);
 	return rqstp;
 }
 
@@ -240,6 +265,10 @@ static inline int nfs_minorversion_callback_svc_setup(u32 minorversion,
 static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 		struct nfs_callback_data *cb_info)
 {
+}
+int nfs4_set_callback_sessionid(struct nfs_client *clp)
+{
+	return 0;
 }
 #endif /* CONFIG_NFS_V4_1 */
 
@@ -336,6 +365,9 @@ static int check_gss_callback_principal(struct nfs_client *clp,
 	struct rpc_clnt *r = clp->cl_rpcclient;
 	char *p = svc_gss_principal(rqstp);
 
+	/* No RPC_AUTH_GSS on NFSv4.1 back channel yet */
+	if (clp->cl_minorversion != 0)
+		return SVC_DROP;
 	/*
 	 * It might just be a normal user principal, in which case
 	 * userspace won't bother to tell us the name at all.
@@ -353,6 +385,23 @@ static int check_gss_callback_principal(struct nfs_client *clp,
 	return SVC_OK;
 }
 
+/* pg_authenticate method helper */
+static struct nfs_client *nfs_cb_find_client(struct svc_rqst *rqstp)
+{
+	struct nfs4_sessionid *sessionid = bc_xprt_sid(rqstp);
+	int is_cb_compound = rqstp->rq_proc == CB_COMPOUND ? 1 : 0;
+
+	dprintk("--> %s rq_proc %d\n", __func__, rqstp->rq_proc);
+	if (svc_is_backchannel(rqstp))
+		/* Sessionid (usually) set after CB_NULL ping */
+		return nfs4_find_client_sessionid(svc_addr(rqstp), sessionid,
+						  is_cb_compound);
+	else
+		/* No callback identifier in pg_authenticate */
+		return nfs4_find_client_no_ident(svc_addr(rqstp));
+}
+
+/* pg_authenticate method for nfsv4 callback threads. */
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
 	struct nfs_client *clp;
@@ -360,7 +409,7 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 	int ret = SVC_OK;
 
 	/* Don't talk to strangers */
-	clp = nfs_find_client(svc_addr(rqstp), 4);
+	clp = nfs_cb_find_client(rqstp);
 	if (clp == NULL)
 		return SVC_DROP;
 
@@ -389,6 +438,7 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
  */
 static struct svc_version *nfs4_callback_version[] = {
 	[1] = &nfs4_callback_version1,
+	[4] = &nfs4_callback_version4,
 };
 
 static struct svc_stat nfs4_callback_stats;

@@ -45,22 +45,30 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/xen/hypervisor.h>
+
+#include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/page.h>
+
+#include <xen/platform_pci.h>
+#include <xen/hvm.h>
 
 #include "xenbus_comms.h"
 #include "xenbus_probe.h"
 
 
 int xen_store_evtchn;
-EXPORT_SYMBOL(xen_store_evtchn);
+EXPORT_SYMBOL_GPL(xen_store_evtchn);
 
 struct xenstore_domain_interface *xen_store_interface;
+EXPORT_SYMBOL_GPL(xen_store_interface);
+
 static unsigned long xen_store_mfn;
 
 static BLOCKING_NOTIFIER_HEAD(xenstore_chain);
@@ -454,21 +462,21 @@ static ssize_t xendev_show_nodename(struct device *dev,
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->nodename);
 }
-DEVICE_ATTR(nodename, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_nodename, NULL);
+static DEVICE_ATTR(nodename, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_nodename, NULL);
 
 static ssize_t xendev_show_devtype(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->devicetype);
 }
-DEVICE_ATTR(devtype, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_devtype, NULL);
+static DEVICE_ATTR(devtype, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_devtype, NULL);
 
 static ssize_t xendev_show_modalias(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "xen:%s\n", to_xenbus_device(dev)->devicetype);
 }
-DEVICE_ATTR(modalias, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_modalias, NULL);
+static DEVICE_ATTR(modalias, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_modalias, NULL);
 
 int xenbus_probe_node(struct xen_bus_type *bus,
 		      const char *type,
@@ -766,7 +774,7 @@ EXPORT_SYMBOL_GPL(unregister_xenstore_notifier);
 
 void xenbus_probe(struct work_struct *unused)
 {
-	BUG_ON((xenstored_ready <= 0));
+	xenstored_ready = 1;
 
 	/* Enumerate devices in xenstore and watch for changes. */
 	xenbus_probe_devices(&xenbus_frontend);
@@ -776,10 +784,26 @@ void xenbus_probe(struct work_struct *unused)
 	/* Notify others that xenstore is up */
 	blocking_notifier_call_chain(&xenstore_chain, 0, NULL);
 }
+EXPORT_SYMBOL_GPL(xenbus_probe);
 
-static int __init xenbus_probe_init(void)
+static int __init xenbus_probe_initcall(void)
+{
+	if (!xen_domain())
+		return -ENODEV;
+
+	if (xen_initial_domain() || xen_hvm_domain())
+		return 0;
+
+	xenbus_probe(NULL);
+	return 0;
+}
+
+device_initcall(xenbus_probe_initcall);
+
+static int __init xenbus_init(void)
 {
 	int err = 0;
+	unsigned long page = 0;
 
 	DPRINTK("");
 
@@ -800,13 +824,50 @@ static int __init xenbus_probe_init(void)
 	 * Domain0 doesn't have a store_evtchn or store_mfn yet.
 	 */
 	if (xen_initial_domain()) {
-		/* dom0 not yet supported */
+		struct evtchn_alloc_unbound alloc_unbound;
+
+		/* Allocate Xenstore page */
+		page = get_zeroed_page(GFP_KERNEL);
+		if (!page)
+			goto out_error;
+
+		xen_store_mfn = xen_start_info->store_mfn =
+			pfn_to_mfn(virt_to_phys((void *)page) >>
+				   PAGE_SHIFT);
+
+		/* Next allocate a local port which xenstored can bind to */
+		alloc_unbound.dom        = DOMID_SELF;
+		alloc_unbound.remote_dom = 0;
+
+		err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
+						  &alloc_unbound);
+		if (err == -ENOSYS)
+			goto out_error;
+
+		BUG_ON(err);
+		xen_store_evtchn = xen_start_info->store_evtchn =
+			alloc_unbound.port;
+
+		xen_store_interface = mfn_to_virt(xen_store_mfn);
 	} else {
-		xenstored_ready = 1;
-		xen_store_evtchn = xen_start_info->store_evtchn;
-		xen_store_mfn = xen_start_info->store_mfn;
+		if (xen_hvm_domain()) {
+			uint64_t v = 0;
+			err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
+			if (err)
+				goto out_error;
+			xen_store_evtchn = (int)v;
+			err = hvm_get_parameter(HVM_PARAM_STORE_PFN, &v);
+			if (err)
+				goto out_error;
+			xen_store_mfn = (unsigned long)v;
+			xen_store_interface = ioremap(xen_store_mfn << PAGE_SHIFT, PAGE_SIZE);
+		} else {
+			xen_store_evtchn = xen_start_info->store_evtchn;
+			xen_store_mfn = xen_start_info->store_mfn;
+			xen_store_interface = mfn_to_virt(xen_store_mfn);
+			xenstored_ready = 1;
+		}
 	}
-	xen_store_interface = mfn_to_virt(xen_store_mfn);
 
 	/* Initialize the interface to xenstore. */
 	err = xs_init();
@@ -815,9 +876,6 @@ static int __init xenbus_probe_init(void)
 		       "XENBUS: Error initializing xenstore comms: %i\n", err);
 		goto out_unreg_back;
 	}
-
-	if (!xen_initial_domain())
-		xenbus_probe(NULL);
 
 #ifdef CONFIG_XEN_COMPAT_XENFS
 	/*
@@ -836,14 +894,16 @@ static int __init xenbus_probe_init(void)
 	bus_unregister(&xenbus_frontend.bus);
 
   out_error:
+	if (page != 0)
+		free_page(page);
 	return err;
 }
 
-postcore_initcall(xenbus_probe_init);
+postcore_initcall(xenbus_init);
 
 MODULE_LICENSE("GPL");
 
-static int is_disconnected_device(struct device *dev, void *data)
+static int is_device_connecting(struct device *dev, void *data)
 {
 	struct xenbus_device *xendev = to_xenbus_device(dev);
 	struct device_driver *drv = data;
@@ -861,14 +921,15 @@ static int is_disconnected_device(struct device *dev, void *data)
 		return 0;
 
 	xendrv = to_xenbus_driver(dev->driver);
-	return (xendev->state != XenbusStateConnected ||
-		(xendrv->is_ready && !xendrv->is_ready(xendev)));
+	return (xendev->state < XenbusStateConnected ||
+		(xendev->state == XenbusStateConnected &&
+		 xendrv->is_ready && !xendrv->is_ready(xendev)));
 }
 
-static int exists_disconnected_device(struct device_driver *drv)
+static int exists_connecting_device(struct device_driver *drv)
 {
 	return bus_for_each_dev(&xenbus_frontend.bus, NULL, drv,
-				is_disconnected_device);
+				is_device_connecting);
 }
 
 static int print_device_status(struct device *dev, void *data)
@@ -884,10 +945,13 @@ static int print_device_status(struct device *dev, void *data)
 		/* Information only: is this too noisy? */
 		printk(KERN_INFO "XENBUS: Device with no driver: %s\n",
 		       xendev->nodename);
-	} else if (xendev->state != XenbusStateConnected) {
+	} else if (xendev->state < XenbusStateConnected) {
+		enum xenbus_state rstate = XenbusStateUnknown;
+		if (xendev->otherend)
+			rstate = xenbus_read_driver_state(xendev->otherend);
 		printk(KERN_WARNING "XENBUS: Timeout connecting "
-		       "to device: %s (state %d)\n",
-		       xendev->nodename, xendev->state);
+		       "to device: %s (local state %d, remote state %d)\n",
+		       xendev->nodename, xendev->state, rstate);
 	}
 
 	return 0;
@@ -897,7 +961,7 @@ static int print_device_status(struct device *dev, void *data)
 static int ready_to_wait_for_devices;
 
 /*
- * On a 10 second timeout, wait for all devices currently configured.  We need
+ * On a 5-minute timeout, wait for all devices currently configured.  We need
  * to do this to guarantee that the filesystems and / or network devices
  * needed for boot are available, before we can allow the boot to proceed.
  *
@@ -912,17 +976,29 @@ static int ready_to_wait_for_devices;
  */
 static void wait_for_devices(struct xenbus_driver *xendrv)
 {
-	unsigned long timeout = jiffies + 10*HZ;
+	unsigned long start = jiffies;
 	struct device_driver *drv = xendrv ? &xendrv->driver : NULL;
+	unsigned int seconds_waited = 0;
 
 	if (!ready_to_wait_for_devices || !xen_domain())
 		return;
 
-	while (exists_disconnected_device(drv)) {
-		if (time_after(jiffies, timeout))
-			break;
+	while (exists_connecting_device(drv)) {
+		if (time_after(jiffies, start + (seconds_waited+5)*HZ)) {
+			if (!seconds_waited)
+				printk(KERN_WARNING "XENBUS: Waiting for "
+				       "devices to initialise: ");
+			seconds_waited += 5;
+			printk("%us...", 300 - seconds_waited);
+			if (seconds_waited == 300)
+				break;
+		}
+
 		schedule_timeout_interruptible(HZ/10);
 	}
+
+	if (seconds_waited)
+		printk("\n");
 
 	bus_for_each_dev(&xenbus_frontend.bus, NULL, drv,
 			 print_device_status);
@@ -931,6 +1007,9 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
+	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+		return -ENODEV;
+
 	ready_to_wait_for_devices = 1;
 	wait_for_devices(NULL);
 	return 0;

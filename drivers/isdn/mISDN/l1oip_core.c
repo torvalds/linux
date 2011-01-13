@@ -233,6 +233,7 @@ socket process and create a new one.
 #include <linux/inet.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include "core.h"
 #include "l1oip.h"
@@ -477,7 +478,7 @@ l1oip_socket_parse(struct l1oip *hc, struct sockaddr_in *sin, u8 *buf, int len)
 		printk(KERN_DEBUG "%s: received frame, parsing... (%d)\n",
 			__func__, len);
 
-	/* check lenght */
+	/* check length */
 	if (len < 1+1+2) {
 		printk(KERN_WARNING "%s: packet error - length %d below "
 			"4 bytes\n", __func__, len);
@@ -661,7 +662,7 @@ l1oip_socket_thread(void *data)
 	size_t recvbuf_size = 1500;
 	int recvlen;
 	struct socket *socket = NULL;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	/* allocate buffer memory */
 	recvbuf = kmalloc(recvbuf_size, GFP_KERNEL);
@@ -731,10 +732,10 @@ l1oip_socket_thread(void *data)
 	while (!signal_pending(current)) {
 		struct kvec iov = {
 			.iov_base = recvbuf,
-			.iov_len = sizeof(recvbuf),
+			.iov_len = recvbuf_size,
 		};
 		recvlen = kernel_recvmsg(socket, &msg, &iov, 1,
-					 sizeof(recvbuf), 0);
+					 recvbuf_size, 0);
 		if (recvlen > 0) {
 			l1oip_socket_parse(hc, &sin_rx, recvbuf, recvlen);
 		} else {
@@ -971,7 +972,7 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 		if (debug & DEBUG_L1OIP_SOCKET)
 			printk(KERN_DEBUG "%s: got new ip address from user "
 				"space.\n", __func__);
-			l1oip_socket_open(hc);
+		l1oip_socket_open(hc);
 		break;
 	case MISDN_CTRL_UNSETPEER:
 		if (debug & DEBUG_L1OIP_SOCKET)
@@ -1268,6 +1269,8 @@ release_card(struct l1oip *hc)
 	if (timer_pending(&hc->timeout_tl))
 		del_timer(&hc->timeout_tl);
 
+	cancel_work_sync(&hc->workq);
+
 	if (hc->socket_thread)
 		l1oip_socket_close(hc);
 
@@ -1480,7 +1483,7 @@ l1oip_init(void)
 		return -ENOMEM;
 
 	l1oip_cnt = 0;
-	while (type[l1oip_cnt] && l1oip_cnt < MAX_CARDS) {
+	while (l1oip_cnt < MAX_CARDS && type[l1oip_cnt]) {
 		switch (type[l1oip_cnt] & 0xff) {
 		case 1:
 			pri = 0;
@@ -1509,7 +1512,7 @@ l1oip_init(void)
 			printk(KERN_DEBUG "%s: interface %d is %s with %s.\n",
 			    __func__, l1oip_cnt, pri ? "PRI" : "BRI",
 			    bundle ? "bundled IP packet for all B-channels" :
-			    "seperate IP packets for every B-channel");
+			    "separate IP packets for every B-channel");
 
 		hc = kzalloc(sizeof(struct l1oip), GFP_ATOMIC);
 		if (!hc) {

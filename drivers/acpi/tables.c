@@ -213,6 +213,9 @@ acpi_table_parse_entries(char *id,
 	unsigned long table_end;
 	acpi_size tbl_size;
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	if (!handler)
 		return -EINVAL;
 
@@ -276,6 +279,9 @@ int __init acpi_table_parse(char *id, acpi_table_handler handler)
 {
 	struct acpi_table_header *table = NULL;
 	acpi_size tbl_size;
+
+	if (acpi_disabled)
+		return -ENODEV;
 
 	if (!handler)
 		return -EINVAL;

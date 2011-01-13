@@ -11,7 +11,6 @@
 #ifndef _ASM_PGALLOC_H
 #define _ASM_PGALLOC_H
 
-#include <asm/processor.h>
 #include <asm/page.h>
 #include <linux/threads.h>
 #include <linux/mm.h>		/* for struct page */
@@ -51,6 +50,6 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte)
 }
 
 
-#define __pte_free_tlb(tlb, pte) tlb_remove_page((tlb), (pte))
+#define __pte_free_tlb(tlb, pte, addr) tlb_remove_page((tlb), (pte))
 
 #endif /* _ASM_PGALLOC_H */

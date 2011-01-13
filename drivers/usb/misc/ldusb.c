@@ -69,7 +69,7 @@
 #endif
 
 /* table of devices that work with this driver */
-static struct usb_device_id ld_usb_table [] = {
+static const struct usb_device_id ld_usb_table[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_CASSY) },
 	{ USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_POCKETCASSY) },
 	{ USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_MOBILECASSY) },
@@ -412,6 +412,9 @@ static unsigned int ld_usb_poll(struct file *file, poll_table *wait)
 
 	dev = file->private_data;
 
+	if (!dev->intf)
+		return POLLERR | POLLHUP;
+
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 
@@ -610,6 +613,7 @@ static const struct file_operations ld_usb_fops = {
 	.open =		ld_usb_open,
 	.release =	ld_usb_release,
 	.poll =		ld_usb_poll,
+	.llseek =	no_llseek,
 };
 
 /*
@@ -767,6 +771,9 @@ static void ld_usb_disconnect(struct usb_interface *intf)
 		ld_usb_delete(dev);
 	} else {
 		dev->intf = NULL;
+		/* wake up pollers */
+		wake_up_interruptible_all(&dev->read_wait);
+		wake_up_interruptible_all(&dev->write_wait);
 		mutex_unlock(&dev->mutex);
 	}
 
@@ -792,7 +799,7 @@ static int __init ld_usb_init(void)
 	/* register this driver with the USB subsystem */
 	retval = usb_register(&ld_usb_driver);
 	if (retval)
-		err("usb_register failed for the "__FILE__" driver. Error number %d\n", retval);
+		err("usb_register failed for the %s driver. Error number %d\n", __FILE__, retval);
 
 	return retval;
 }

@@ -56,36 +56,36 @@ static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse)
 		/* Logitech extended packet */
 		switch ((packet[1] >> 4) | (packet[0] & 0x30)) {
 
-			case 0x0d: /* Mouse extra info */
+		case 0x0d: /* Mouse extra info */
 
-				input_report_rel(dev, packet[2] & 0x80 ? REL_HWHEEL : REL_WHEEL,
-					(int) (packet[2] & 8) - (int) (packet[2] & 7));
-				input_report_key(dev, BTN_SIDE, (packet[2] >> 4) & 1);
-				input_report_key(dev, BTN_EXTRA, (packet[2] >> 5) & 1);
+			input_report_rel(dev, packet[2] & 0x80 ? REL_HWHEEL : REL_WHEEL,
+				(int) (packet[2] & 8) - (int) (packet[2] & 7));
+			input_report_key(dev, BTN_SIDE, (packet[2] >> 4) & 1);
+			input_report_key(dev, BTN_EXTRA, (packet[2] >> 5) & 1);
 
-				break;
+			break;
 
-			case 0x0e: /* buttons 4, 5, 6, 7, 8, 9, 10 info */
+		case 0x0e: /* buttons 4, 5, 6, 7, 8, 9, 10 info */
 
-				input_report_key(dev, BTN_SIDE, (packet[2]) & 1);
-				input_report_key(dev, BTN_EXTRA, (packet[2] >> 1) & 1);
-				input_report_key(dev, BTN_BACK, (packet[2] >> 3) & 1);
-				input_report_key(dev, BTN_FORWARD, (packet[2] >> 4) & 1);
-				input_report_key(dev, BTN_TASK, (packet[2] >> 2) & 1);
+			input_report_key(dev, BTN_SIDE, (packet[2]) & 1);
+			input_report_key(dev, BTN_EXTRA, (packet[2] >> 1) & 1);
+			input_report_key(dev, BTN_BACK, (packet[2] >> 3) & 1);
+			input_report_key(dev, BTN_FORWARD, (packet[2] >> 4) & 1);
+			input_report_key(dev, BTN_TASK, (packet[2] >> 2) & 1);
 
-				break;
+			break;
 
-			case 0x0f: /* TouchPad extra info */
+		case 0x0f: /* TouchPad extra info */
 
-				input_report_rel(dev, packet[2] & 0x08 ? REL_HWHEEL : REL_WHEEL,
-					(int) ((packet[2] >> 4) & 8) - (int) ((packet[2] >> 4) & 7));
-				packet[0] = packet[2] | 0x08;
-				break;
+			input_report_rel(dev, packet[2] & 0x08 ? REL_HWHEEL : REL_WHEEL,
+				(int) ((packet[2] >> 4) & 8) - (int) ((packet[2] >> 4) & 7));
+			packet[0] = packet[2] | 0x08;
+			break;
 
 #ifdef DEBUG
-			default:
-				printk(KERN_WARNING "psmouse.c: Received PS2++ packet #%x, but don't know how to handle.\n",
-					(packet[1] >> 4) | (packet[0] & 0x30));
+		default:
+			printk(KERN_WARNING "psmouse.c: Received PS2++ packet #%x, but don't know how to handle.\n",
+				(packet[1] >> 4) | (packet[0] & 0x30));
 #endif
 		}
 	} else {
@@ -130,13 +130,10 @@ static int ps2pp_cmd(struct psmouse *psmouse, unsigned char *param, unsigned cha
  * 0 - disabled
  */
 
-static void ps2pp_set_smartscroll(struct psmouse *psmouse, unsigned int smartscroll)
+static void ps2pp_set_smartscroll(struct psmouse *psmouse, bool smartscroll)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[4];
-
-	if (smartscroll > 1)
-		smartscroll = 1;
 
 	ps2pp_cmd(psmouse, param, 0x32);
 
@@ -149,12 +146,14 @@ static void ps2pp_set_smartscroll(struct psmouse *psmouse, unsigned int smartscr
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRES);
 }
 
-static ssize_t ps2pp_attr_show_smartscroll(struct psmouse *psmouse, void *data, char *buf)
+static ssize_t ps2pp_attr_show_smartscroll(struct psmouse *psmouse,
+					   void *data, char *buf)
 {
-	return sprintf(buf, "%d\n", psmouse->smartscroll ? 1 : 0);
+	return sprintf(buf, "%d\n", psmouse->smartscroll);
 }
 
-static ssize_t ps2pp_attr_set_smartscroll(struct psmouse *psmouse, void *data, const char *buf, size_t count)
+static ssize_t ps2pp_attr_set_smartscroll(struct psmouse *psmouse, void *data,
+					  const char *buf, size_t count)
 {
 	unsigned long value;
 
@@ -220,7 +219,7 @@ static const struct ps2pp_info *get_model_info(unsigned char model)
 				PS2PP_WHEEL | PS2PP_SIDE_BTN | PS2PP_TASK_BTN |
 				PS2PP_EXTRA_BTN | PS2PP_NAV_BTN | PS2PP_HWHEEL },
 		{ 72,	PS2PP_KIND_TRACKMAN,	0 },			/* T-CH11: TrackMan Marble */
-		{ 73,	0,			PS2PP_SIDE_BTN },
+		{ 73,	PS2PP_KIND_TRACKMAN,	PS2PP_SIDE_BTN },	/* TrackMan FX */
 		{ 75,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 76,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 79,	PS2PP_KIND_TRACKMAN,	PS2PP_WHEEL },		/* TrackMan with wheel */
@@ -251,7 +250,6 @@ static const struct ps2pp_info *get_model_info(unsigned char model)
 		if (model == ps2pp_list[i].model)
 			return &ps2pp_list[i];
 
-	printk(KERN_WARNING "logips2pp: Detected unknown logitech mouse model %d\n", model);
 	return NULL;
 }
 
@@ -261,56 +259,57 @@ static const struct ps2pp_info *get_model_info(unsigned char model)
 
 static void ps2pp_set_model_properties(struct psmouse *psmouse,
 				       const struct ps2pp_info *model_info,
-				       int using_ps2pp)
+				       bool using_ps2pp)
 {
 	struct input_dev *input_dev = psmouse->dev;
 
 	if (model_info->features & PS2PP_SIDE_BTN)
-		set_bit(BTN_SIDE, input_dev->keybit);
+		__set_bit(BTN_SIDE, input_dev->keybit);
 
 	if (model_info->features & PS2PP_EXTRA_BTN)
-		set_bit(BTN_EXTRA, input_dev->keybit);
+		__set_bit(BTN_EXTRA, input_dev->keybit);
 
 	if (model_info->features & PS2PP_TASK_BTN)
-		set_bit(BTN_TASK, input_dev->keybit);
+		__set_bit(BTN_TASK, input_dev->keybit);
 
 	if (model_info->features & PS2PP_NAV_BTN) {
-		set_bit(BTN_FORWARD, input_dev->keybit);
-		set_bit(BTN_BACK, input_dev->keybit);
+		__set_bit(BTN_FORWARD, input_dev->keybit);
+		__set_bit(BTN_BACK, input_dev->keybit);
 	}
 
 	if (model_info->features & PS2PP_WHEEL)
-		set_bit(REL_WHEEL, input_dev->relbit);
+		__set_bit(REL_WHEEL, input_dev->relbit);
 
 	if (model_info->features & PS2PP_HWHEEL)
-		set_bit(REL_HWHEEL, input_dev->relbit);
+		__set_bit(REL_HWHEEL, input_dev->relbit);
 
 	switch (model_info->kind) {
-		case PS2PP_KIND_WHEEL:
-			psmouse->name = "Wheel Mouse";
-			break;
 
-		case PS2PP_KIND_MX:
-			psmouse->name = "MX Mouse";
-			break;
+	case PS2PP_KIND_WHEEL:
+		psmouse->name = "Wheel Mouse";
+		break;
 
-		case PS2PP_KIND_TP3:
-			psmouse->name = "TouchPad 3";
-			break;
+	case PS2PP_KIND_MX:
+		psmouse->name = "MX Mouse";
+		break;
 
-		case PS2PP_KIND_TRACKMAN:
-			psmouse->name = "TrackMan";
-			break;
+	case PS2PP_KIND_TP3:
+		psmouse->name = "TouchPad 3";
+		break;
 
-		default:
-			/*
-			 * Set name to "Mouse" only when using PS2++,
-			 * otherwise let other protocols define suitable
-			 * name
-			 */
-			if (using_ps2pp)
-				psmouse->name = "Mouse";
-			break;
+	case PS2PP_KIND_TRACKMAN:
+		psmouse->name = "TrackMan";
+		break;
+
+	default:
+		/*
+		 * Set name to "Mouse" only when using PS2++,
+		 * otherwise let other protocols define suitable
+		 * name
+		 */
+		if (using_ps2pp)
+			psmouse->name = "Mouse";
+		break;
 	}
 }
 
@@ -321,13 +320,13 @@ static void ps2pp_set_model_properties(struct psmouse *psmouse,
  * that support it.
  */
 
-int ps2pp_init(struct psmouse *psmouse, int set_properties)
+int ps2pp_init(struct psmouse *psmouse, bool set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[4];
 	unsigned char model, buttons;
 	const struct ps2pp_info *model_info;
-	int use_ps2pp = 0;
+	bool use_ps2pp = false;
 	int error;
 
 	param[0] = 0;
@@ -344,7 +343,8 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 	if (!model || !buttons)
 		return -1;
 
-	if ((model_info = get_model_info(model)) != NULL) {
+	model_info = get_model_info(model);
+	if (model_info) {
 
 /*
  * Do Logitech PS2++ / PS2T++ magic init.
@@ -364,7 +364,7 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 			param[0] = 0;
 			if (!ps2_command(ps2dev, param, 0x13d1) &&
 			    param[0] == 0x06 && param[1] == 0x00 && param[2] == 0x14) {
-				use_ps2pp = 1;
+				use_ps2pp = true;
 			}
 
 		} else {
@@ -376,10 +376,13 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 			if ((param[0] & 0x78) == 0x48 &&
 			    (param[1] & 0xf3) == 0xc2 &&
 			    (param[2] & 0x03) == ((param[1] >> 2) & 3)) {
-				ps2pp_set_smartscroll(psmouse, psmouse->smartscroll);
-				use_ps2pp = 1;
+				ps2pp_set_smartscroll(psmouse, false);
+				use_ps2pp = true;
 			}
 		}
+
+	} else {
+		printk(KERN_WARNING "logips2pp: Detected unknown logitech mouse model %d\n", model);
 	}
 
 	if (set_properties) {
@@ -405,8 +408,8 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 			}
 		}
 
-		if (buttons < 3)
-			clear_bit(BTN_MIDDLE, psmouse->dev->keybit);
+		if (buttons >= 3)
+			__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 
 		if (model_info)
 			ps2pp_set_model_properties(psmouse, model_info, use_ps2pp);

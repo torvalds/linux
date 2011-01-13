@@ -113,6 +113,11 @@ struct tpm_chip {
 
 #define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
 
+static inline void tpm_chip_put(struct tpm_chip *chip)
+{
+	module_put(chip->dev->driver->owner);
+}
+
 static inline int tpm_read_index(int base, int index)
 {
 	outb(index, base);
@@ -224,6 +229,7 @@ struct	tpm_readpubek_params_out {
 	u8	algorithm[4];
 	u8	encscheme[2];
 	u8	sigscheme[2];
+	__be32	paramsize;
 	u8	parameters[12]; /*assuming RSA*/
 	__be32	keysize;
 	u8	modulus[256];

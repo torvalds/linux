@@ -58,9 +58,17 @@ struct rtas_t {
 	unsigned long entry;		/* physical address pointer */
 	unsigned long base;		/* physical address pointer */
 	unsigned long size;
-	spinlock_t lock;
+	arch_spinlock_t lock;
 	struct rtas_args args;
 	struct device_node *dev;	/* virtual address pointer */
+};
+
+struct rtas_suspend_me_data {
+	atomic_t working; /* number of cpus accessing this struct */
+	atomic_t done;
+	int token; /* ibm,suspend-me */
+	atomic_t error;
+	struct completion *complete; /* wait on this until working == 0 */
 };
 
 /* RTAS event classes */
@@ -137,6 +145,9 @@ struct rtas_t {
 #define RTAS_TYPE_PMGM_CONFIG_CHANGE	0x70
 #define RTAS_TYPE_PMGM_SERVICE_PROC	0x71
 
+/* RTAS check-exception vector offset */
+#define RTAS_VECTOR_EXTERNAL_INTERRUPT	0x500
+
 struct rtas_error_log {
 	unsigned long version:8;		/* Architectural version */
 	unsigned long severity:3;		/* Severity level of error */
@@ -174,6 +185,9 @@ extern int rtas_set_indicator(int indicator, int index, int new_value);
 extern int rtas_set_indicator_fast(int indicator, int index, int new_value);
 extern void rtas_progress(char *s, unsigned short hex);
 extern void rtas_initialize(void);
+extern int rtas_suspend_cpu(struct rtas_suspend_me_data *data);
+extern int rtas_suspend_last_cpu(struct rtas_suspend_me_data *data);
+extern int rtas_ibm_suspend_me(struct rtas_args *);
 
 struct rtc_time;
 extern unsigned long rtas_get_boot_time(void);
@@ -244,6 +258,9 @@ static inline u32 rtas_config_addr(int busno, int devfn, int reg)
 	return ((reg & 0xf00) << 20) | ((busno & 0xff) << 16) |
 			(devfn << 8) | (reg & 0xff);
 }
+
+extern void __cpuinit rtas_give_timebase(void);
+extern void __cpuinit rtas_take_timebase(void);
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */

@@ -1,0 +1,19 @@
+#
+# VME configuration.
+#
+
+menuconfig VME_BUS
+	tristate "VME bridge support"
+	depends on PCI
+	---help---
+	  If you say Y here you get support for the VME bridge Framework.
+
+if VME_BUS
+
+source "drivers/staging/vme/bridges/Kconfig"
+
+source "drivers/staging/vme/devices/Kconfig"
+
+source "drivers/staging/vme/boards/Kconfig"
+
+endif # VME

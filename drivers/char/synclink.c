@@ -2030,7 +2030,7 @@ static int mgsl_put_char(struct tty_struct *tty, unsigned char ch)
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_put_char"))
 		return 0;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		return 0;
 
 	spin_lock_irqsave(&info->irq_spinlock, flags);
@@ -2120,7 +2120,7 @@ static int mgsl_write(struct tty_struct * tty,
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_write"))
 		goto cleanup;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		goto cleanup;
 
 	if ( info->params.mode == MGSL_MODE_HDLC ||
@@ -2435,7 +2435,9 @@ static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount __user *
 	if (!user_icount) {
 		memset(&info->icount, 0, sizeof(info->icount));
 	} else {
+		mutex_lock(&info->port.mutex);
 		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		mutex_unlock(&info->port.mutex);
 		if (err)
 			return -EFAULT;
 	}
@@ -2460,7 +2462,9 @@ static int mgsl_get_params(struct mgsl_struct * info, MGSL_PARAMS __user *user_p
 		printk("%s(%d):mgsl_get_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name);
 			
+	mutex_lock(&info->port.mutex);
 	COPY_TO_USER(err,user_params, &info->params, sizeof(MGSL_PARAMS));
+	mutex_unlock(&info->port.mutex);
 	if (err) {
 		if ( debug_level >= DEBUG_LEVEL_INFO )
 			printk( "%s(%d):mgsl_get_params(%s) user buffer copy failed\n",
@@ -2500,11 +2504,13 @@ static int mgsl_set_params(struct mgsl_struct * info, MGSL_PARAMS __user *new_pa
 		return -EFAULT;
 	}
 	
+	mutex_lock(&info->port.mutex);
 	spin_lock_irqsave(&info->irq_spinlock,flags);
 	memcpy(&info->params,&tmp_params,sizeof(MGSL_PARAMS));
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 	
  	mgsl_change_params(info);
+	mutex_unlock(&info->port.mutex);
 	
 	return 0;
 	
@@ -2919,6 +2925,38 @@ static int mgsl_break(struct tty_struct *tty, int break_state)
 	
 }	/* end of mgsl_break() */
 
+/*
+ * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+ * Return: write counters to the user passed counter struct
+ * NB: both 1->0 and 0->1 transitions are counted except for
+ *     RI where only 0->1 is counted.
+ */
+static int msgl_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+
+{
+	struct mgsl_struct * info = tty->driver_data;
+	struct mgsl_icount cnow;	/* kernel counter temps */
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->irq_spinlock,flags);
+	cnow = info->icount;
+	spin_unlock_irqrestore(&info->irq_spinlock,flags);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+	return 0;
+}
+
 /* mgsl_ioctl()	Service an IOCTL request
  * 	
  * Arguments:
@@ -2934,7 +2972,6 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct mgsl_struct * info = tty->driver_data;
-	int ret;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgsl_ioctl %s cmd=%08X\n", __FILE__,__LINE__,
@@ -2944,24 +2981,17 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		return -ENODEV;
 
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
+	    (cmd != TIOCMIWAIT)) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 		    return -EIO;
 	}
 
-	lock_kernel();
-	ret = mgsl_ioctl_common(info, cmd, arg);
-	unlock_kernel();
-	return ret;
+	return mgsl_ioctl_common(info, cmd, arg);
 }
 
 static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigned long arg)
 {
-	int error;
-	struct mgsl_icount cnow;	/* kernel counter temps */
 	void __user *argp = (void __user *)arg;
-	struct serial_icounter_struct __user *p_cuser;	/* user space */
-	unsigned long flags;
 	
 	switch (cmd) {
 		case MGSL_IOCGPARAMS:
@@ -2990,40 +3020,6 @@ static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigne
 		case TIOCMIWAIT:
 			return modem_input_wait(info,(int)arg);
 
-		/* 
-		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-		 * Return: write counters to the user passed counter struct
-		 * NB: both 1->0 and 0->1 transitions are counted except for
-		 *     RI where only 0->1 is counted.
-		 */
-		case TIOCGICOUNT:
-			spin_lock_irqsave(&info->irq_spinlock,flags);
-			cnow = info->icount;
-			spin_unlock_irqrestore(&info->irq_spinlock,flags);
-			p_cuser = argp;
-			PUT_USER(error,cnow.cts, &p_cuser->cts);
-			if (error) return error;
-			PUT_USER(error,cnow.dsr, &p_cuser->dsr);
-			if (error) return error;
-			PUT_USER(error,cnow.rng, &p_cuser->rng);
-			if (error) return error;
-			PUT_USER(error,cnow.dcd, &p_cuser->dcd);
-			if (error) return error;
-			PUT_USER(error,cnow.rx, &p_cuser->rx);
-			if (error) return error;
-			PUT_USER(error,cnow.tx, &p_cuser->tx);
-			if (error) return error;
-			PUT_USER(error,cnow.frame, &p_cuser->frame);
-			if (error) return error;
-			PUT_USER(error,cnow.overrun, &p_cuser->overrun);
-			if (error) return error;
-			PUT_USER(error,cnow.parity, &p_cuser->parity);
-			if (error) return error;
-			PUT_USER(error,cnow.brk, &p_cuser->brk);
-			if (error) return error;
-			PUT_USER(error,cnow.buf_overrun, &p_cuser->buf_overrun);
-			if (error) return error;
-			return 0;
 		default:
 			return -ENOIOCTLCMD;
 	}
@@ -3108,12 +3104,14 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
 
 	if (tty_port_close_start(&info->port, tty, filp) == 0)			 
 		goto cleanup;
-			
+
+	mutex_lock(&info->port.mutex);
  	if (info->port.flags & ASYNC_INITIALIZED)
  		mgsl_wait_until_sent(tty, info->timeout);
 	mgsl_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	shutdown(info);
+	mutex_unlock(&info->port.mutex);
 
 	tty_port_close_end(&info->port, tty);	
 	info->port.tty = NULL;
@@ -3161,7 +3159,6 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: use tight timings here to satisfy the NIST-PCTS.
 	 */ 
 
-	lock_kernel();
 	if ( info->params.data_rate ) {
 	       	char_time = info->timeout/(32 * 5);
 		if (!char_time)
@@ -3191,7 +3188,6 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 				break;
 		}
 	}
-	unlock_kernel();
       
 exit:
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3347,7 +3343,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 			printk("%s(%d):block_til_ready blocking on %s count=%d\n",
 				 __FILE__,__LINE__, tty->driver->name, port->count );
 				 
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	
 	set_current_state(TASK_RUNNING);
@@ -4324,6 +4322,7 @@ static const struct tty_operations mgsl_ops = {
 	.hangup = mgsl_hangup,
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
+	.get_icount = msgl_get_icount,
 	.proc_fops = &mgsl_proc_fops,
 };
 
@@ -7696,10 +7695,9 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
  *
  * skb  socket buffer containing HDLC frame
  * dev  pointer to network device structure
- *
- * returns 0 if success, otherwise error code
  */
-static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hdlcdev_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct mgsl_struct *info = dev_to_port(dev);
 	unsigned long flags;
@@ -7730,7 +7728,7 @@ static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	 	usc_start_transmitter(info);
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /**

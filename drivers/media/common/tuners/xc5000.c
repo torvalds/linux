@@ -61,6 +61,7 @@ struct xc5000_priv {
 	u32 bandwidth;
 	u8  video_standard;
 	u8  rf_mode;
+	u8  radio_input;
 };
 
 /* Misc Defines */
@@ -216,6 +217,7 @@ static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 	return XC_RESULT_SUCCESS;
 }
 
+#if 0
 /* This routine is never used because the only time we read data from the
    i2c bus is when we read registers, and we want that to be an atomic i2c
    transaction in case we are on a multi-master bus */
@@ -229,6 +231,27 @@ static int xc_read_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 		return -EREMOTEIO;
 	}
 	return 0;
+}
+#endif
+
+static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
+{
+	u8 buf[2] = { reg >> 8, reg & 0xff };
+	u8 bval[2] = { 0, 0 };
+	struct i2c_msg msg[2] = {
+		{ .addr = priv->i2c_props.addr,
+			.flags = 0, .buf = &buf[0], .len = 2 },
+		{ .addr = priv->i2c_props.addr,
+			.flags = I2C_M_RD, .buf = &bval[0], .len = 2 },
+	};
+
+	if (i2c_transfer(priv->i2c_props.adap, msg, 2) != 2) {
+		printk(KERN_WARNING "xc5000: I2C read failed\n");
+		return -EREMOTEIO;
+	}
+
+	*val = (bval[0] << 8) | bval[1];
+	return XC_RESULT_SUCCESS;
 }
 
 static void xc_wait(int wait_ms)
@@ -274,20 +297,14 @@ static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 	if (result == XC_RESULT_SUCCESS) {
 		/* wait for busy flag to clear */
 		while ((WatchDogTimer > 0) && (result == XC_RESULT_SUCCESS)) {
-			buf[0] = 0;
-			buf[1] = XREG_BUSY;
-
-			result = xc_send_i2c_data(priv, buf, 2);
+			result = xc5000_readreg(priv, XREG_BUSY, (u16 *)buf);
 			if (result == XC_RESULT_SUCCESS) {
-				result = xc_read_i2c_data(priv, buf, 2);
-				if (result == XC_RESULT_SUCCESS) {
-					if ((buf[0] == 0) && (buf[1] == 0)) {
-						/* busy flag cleared */
+				if ((buf[0] == 0) && (buf[1] == 0)) {
+					/* busy flag cleared */
 					break;
-					} else {
-						xc_wait(5); /* wait 5 ms */
-						WatchDogTimer--;
-					}
+				} else {
+					xc_wait(5); /* wait 5 ms */
+					WatchDogTimer--;
 				}
 			}
 		}
@@ -525,25 +542,6 @@ static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz, int mode)
 	return found;
 }
 
-static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
-{
-	u8 buf[2] = { reg >> 8, reg & 0xff };
-	u8 bval[2] = { 0, 0 };
-	struct i2c_msg msg[2] = {
-		{ .addr = priv->i2c_props.addr,
-			.flags = 0, .buf = &buf[0], .len = 2 },
-		{ .addr = priv->i2c_props.addr,
-			.flags = I2C_M_RD, .buf = &bval[0], .len = 2 },
-	};
-
-	if (i2c_transfer(priv->i2c_props.adap, msg, 2) != 2) {
-		printk(KERN_WARNING "xc5000: I2C read failed\n");
-		return -EREMOTEIO;
-	}
-
-	*val = (bval[0] << 8) | bval[1];
-	return XC_RESULT_SUCCESS;
-}
 
 static int xc5000_fwupload(struct dvb_frontend *fe)
 {
@@ -632,8 +630,12 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
-		xc_load_fw_and_init_tuner(fe);
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
+		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+			dprintk(1, "Unable to load firmware and init tuner\n");
+			return -EINVAL;
+		}
+	}
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
 
@@ -739,14 +741,11 @@ static int xc5000_is_firmware_loaded(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int xc5000_set_analog_params(struct dvb_frontend *fe,
+static int xc5000_set_tv_freq(struct dvb_frontend *fe,
 	struct analog_parameters *params)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
-
-	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
-		xc_load_fw_and_init_tuner(fe);
 
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
@@ -826,6 +825,86 @@ tune_channel:
 
 	return 0;
 }
+
+static int xc5000_set_radio_freq(struct dvb_frontend *fe,
+	struct analog_parameters *params)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+	u8 radio_input;
+
+	dprintk(1, "%s() frequency=%d (in units of khz)\n",
+		__func__, params->frequency);
+
+	if (priv->radio_input == XC5000_RADIO_NOT_CONFIGURED) {
+		dprintk(1, "%s() radio input not configured\n", __func__);
+		return -EINVAL;
+	}
+
+	if (priv->radio_input == XC5000_RADIO_FM1)
+		radio_input = FM_Radio_INPUT1;
+	else if  (priv->radio_input == XC5000_RADIO_FM2)
+		radio_input = FM_Radio_INPUT2;
+	else {
+		dprintk(1, "%s() unknown radio input %d\n", __func__,
+			priv->radio_input);
+		return -EINVAL;
+	}
+
+	priv->freq_hz = params->frequency * 125 / 2;
+
+	priv->rf_mode = XC_RF_MODE_AIR;
+
+	ret = xc_SetTVStandard(priv, XC5000_Standard[radio_input].VideoMode,
+			       XC5000_Standard[radio_input].AudioMode);
+
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");
+		return -EREMOTEIO;
+	}
+
+	ret = xc_SetSignalSource(priv, priv->rf_mode);
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR
+			"xc5000: xc_SetSignalSource(%d) failed\n",
+			priv->rf_mode);
+		return -EREMOTEIO;
+	}
+
+	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
+
+	return 0;
+}
+
+static int xc5000_set_analog_params(struct dvb_frontend *fe,
+			     struct analog_parameters *params)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
+
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
+		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+			dprintk(1, "Unable to load firmware and init tuner\n");
+			return -EINVAL;
+		}
+	}
+
+	switch (params->mode) {
+	case V4L2_TUNER_RADIO:
+		ret = xc5000_set_radio_freq(fe, params);
+		break;
+	case V4L2_TUNER_ANALOG_TV:
+	case V4L2_TUNER_DIGITAL_TV:
+		ret = xc5000_set_tv_freq(fe, params);
+		break;
+	}
+
+	return ret;
+}
+
 
 static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
@@ -963,7 +1042,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 
 struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 				   struct i2c_adapter *i2c,
-				   struct xc5000_config *cfg)
+				   const struct xc5000_config *cfg)
 {
 	struct xc5000_priv *priv = NULL;
 	int instance;
@@ -999,6 +1078,9 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		   call to xc5000_attach occurs before the digital side) */
 		priv->if_khz = cfg->if_khz;
 	}
+
+	if (priv->radio_input == 0)
+		priv->radio_input = cfg->radio_input;
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.

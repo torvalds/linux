@@ -6,7 +6,7 @@
  * and for mapping back from file handles to dentries.
  *
  * For details on why we do all the strange and hairy things in here
- * take a look at Documentation/filesystems/Exporting.
+ * take a look at Documentation/filesystems/nfs/Exporting.
  */
 #include <linux/exportfs.h>
 #include <linux/fs.h>
@@ -43,24 +43,26 @@ find_acceptable_alias(struct dentry *result,
 		void *context)
 {
 	struct dentry *dentry, *toput = NULL;
+	struct inode *inode;
 
 	if (acceptable(context, result))
 		return result;
 
-	spin_lock(&dcache_lock);
-	list_for_each_entry(dentry, &result->d_inode->i_dentry, d_alias) {
-		dget_locked(dentry);
-		spin_unlock(&dcache_lock);
+	inode = result->d_inode;
+	spin_lock(&inode->i_lock);
+	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+		dget(dentry);
+		spin_unlock(&inode->i_lock);
 		if (toput)
 			dput(toput);
 		if (dentry != result && acceptable(context, dentry)) {
 			dput(result);
 			return dentry;
 		}
-		spin_lock(&dcache_lock);
+		spin_lock(&inode->i_lock);
 		toput = dentry;
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&inode->i_lock);
 
 	if (toput)
 		dput(toput);
@@ -74,20 +76,19 @@ static struct dentry *
 find_disconnected_root(struct dentry *dentry)
 {
 	dget(dentry);
-	spin_lock(&dentry->d_lock);
-	while (!IS_ROOT(dentry) &&
-	       (dentry->d_parent->d_flags & DCACHE_DISCONNECTED)) {
-		struct dentry *parent = dentry->d_parent;
-		dget(parent);
-		spin_unlock(&dentry->d_lock);
+	while (!IS_ROOT(dentry)) {
+		struct dentry *parent = dget_parent(dentry);
+
+		if (!(parent->d_flags & DCACHE_DISCONNECTED)) {
+			dput(parent);
+			break;
+		}
+
 		dput(dentry);
 		dentry = parent;
-		spin_lock(&dentry->d_lock);
 	}
-	spin_unlock(&dentry->d_lock);
 	return dentry;
 }
-
 
 /*
  * Make sure target_dir is fully connected to the dentry tree.

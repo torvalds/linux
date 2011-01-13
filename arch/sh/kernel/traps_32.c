@@ -5,7 +5,7 @@
  *  SuperH version: Copyright (C) 1999 Niibe Yutaka
  *                  Copyright (C) 2000 Philipp Rumpf
  *                  Copyright (C) 2000 David Howells
- *                  Copyright (C) 2002 - 2007 Paul Mundt
+ *                  Copyright (C) 2002 - 2010 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -24,8 +24,11 @@
 #include <linux/kdebug.h>
 #include <linux/kexec.h>
 #include <linux/limits.h>
+#include <linux/sysfs.h>
+#include <linux/uaccess.h>
+#include <linux/perf_event.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <asm/alignment.h>
 #include <asm/fpu.h>
 #include <asm/kprobes.h>
 
@@ -79,12 +82,12 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	oops_enter();
 
-	console_verbose();
 	spin_lock_irq(&die_lock);
+	console_verbose();
 	bust_spinlocks(1);
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-
+	sysfs_printk_last_file();
 	print_modules();
 	show_regs(regs);
 
@@ -100,6 +103,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
+	oops_exit();
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -110,7 +114,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	oops_exit();
 	do_exit(SIGSEGV);
 }
 
@@ -136,6 +139,7 @@ static void die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
 			regs->pc = fixup->fixup;
 			return;
 		}
+
 		die(str, regs, err);
 	}
 }
@@ -192,6 +196,13 @@ static int handle_unaligned_ins(insn_size_t instruction, struct pt_regs *regs,
 	rm = &regs->regs[index];
 
 	count = 1<<(instruction&3);
+
+	switch (count) {
+	case 1: inc_unaligned_byte_access(); break;
+	case 2: inc_unaligned_word_access(); break;
+	case 4: inc_unaligned_dword_access(); break;
+	case 8: inc_unaligned_multi_access(); break;
+	}
 
 	ret = -EFAULT;
 	switch (instruction>>12) {
@@ -358,30 +369,33 @@ static inline int handle_delayslot(struct pt_regs *regs,
 #define SH_PC_8BIT_OFFSET(instr) ((((signed char)(instr))*2) + 4)
 #define SH_PC_12BIT_OFFSET(instr) ((((signed short)(instr<<4))>>3) + 4)
 
-/*
- * XXX: SH-2A needs this too, but it needs an overhaul thanks to mixed 32-bit
- * opcodes..
- */
-
-static int handle_unaligned_notify_count = 10;
-
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
-			    struct mem_access *ma)
+			    struct mem_access *ma, int expected,
+			    unsigned long address)
 {
 	u_int rm;
 	int ret, index;
 
+	/*
+	 * XXX: We can't handle mixed 16/32-bit instructions yet
+	 */
+	if (instruction_size(instruction) != 2)
+		return -EINVAL;
+
 	index = (instruction>>8)&15;	/* 0x0F00 */
 	rm = regs->regs[index];
 
-	/* shout about the first ten userspace fixups */
-	if (user_mode(regs) && handle_unaligned_notify_count>0) {
-		handle_unaligned_notify_count--;
-
-		printk(KERN_NOTICE "Fixing up unaligned userspace access "
-		       "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
-		       current->comm, task_pid_nr(current),
-		       (void *)regs->pc, instruction);
+	/*
+	 * Log the unexpected fixups, and then pass them on to perf.
+	 *
+	 * We intentionally don't report the expected cases to perf as
+	 * otherwise the trapped I/O case will skew the results too much
+	 * to be useful.
+	 */
+	if (!expected) {
+		unaligned_fixups_notify(current, instruction, regs);
+		perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, 0,
+			      regs, address);
 	}
 
 	ret = -EFAULT;
@@ -535,9 +549,34 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 
 	if (user_mode(regs)) {
 		int si_code = BUS_ADRERR;
+		unsigned int user_action;
 
 		local_irq_enable();
+		inc_unaligned_user_access();
 
+		set_fs(USER_DS);
+		if (copy_from_user(&instruction, (insn_size_t *)(regs->pc & ~1),
+				   sizeof(instruction))) {
+			set_fs(oldfs);
+			goto uspace_segv;
+		}
+		set_fs(oldfs);
+
+		/* shout about userspace fixups */
+		unaligned_fixups_notify(current, instruction, regs);
+
+		user_action = unaligned_user_action();
+		if (user_action & UM_FIXUP)
+			goto fixup;
+		if (user_action & UM_SIGNAL)
+			goto uspace_segv;
+		else {
+			/* ignore */
+			regs->pc += instruction_size(instruction);
+			return;
+		}
+
+fixup:
 		/* bad PC is not something we can fix */
 		if (regs->pc & 1) {
 			si_code = BUS_ADRALN;
@@ -545,20 +584,12 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		}
 
 		set_fs(USER_DS);
-		if (copy_from_user(&instruction, (void __user *)(regs->pc),
-				   sizeof(instruction))) {
-			/* Argh. Fault on the instruction itself.
-			   This should never happen non-SMP
-			*/
-			set_fs(oldfs);
-			goto uspace_segv;
-		}
-
 		tmp = handle_unaligned_access(instruction, regs,
-					      &user_mem_access);
+					      &user_mem_access, 0,
+					      address);
 		set_fs(oldfs);
 
-		if (tmp==0)
+		if (tmp == 0)
 			return; /* sorted */
 uspace_segv:
 		printk(KERN_NOTICE "Sending SIGBUS to \"%s\" due to unaligned "
@@ -571,6 +602,8 @@ uspace_segv:
 		info.si_addr = (void __user *)address;
 		force_sig_info(SIGBUS, &info, current);
 	} else {
+		inc_unaligned_kernel_access();
+
 		if (regs->pc & 1)
 			die("unaligned program counter", regs, error_code);
 
@@ -584,7 +617,10 @@ uspace_segv:
 			die("insn faulting in do_address_error", regs, 0);
 		}
 
-		handle_unaligned_access(instruction, regs, &user_mem_access);
+		unaligned_fixups_notify(current, instruction, regs);
+
+		handle_unaligned_access(instruction, regs, &user_mem_access,
+					0, address);
 		set_fs(oldfs);
 	}
 }
@@ -766,34 +802,9 @@ asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 	die_if_kernel("exception", regs, ex);
 }
 
-#if defined(CONFIG_SH_STANDARD_BIOS)
-void *gdb_vbr_vector;
-
-static inline void __init gdb_vbr_init(void)
-{
-	register unsigned long vbr;
-
-	/*
-	 * Read the old value of the VBR register to initialise
-	 * the vector through which debug and BIOS traps are
-	 * delegated by the Linux trap handler.
-	 */
-	asm volatile("stc vbr, %0" : "=r" (vbr));
-
-	gdb_vbr_vector = (void *)(vbr + 0x100);
-	printk("Setting GDB trap vector to 0x%08lx\n",
-	       (unsigned long)gdb_vbr_vector);
-}
-#endif
-
 void __cpuinit per_cpu_trap_init(void)
 {
 	extern void *vbr_base;
-
-#ifdef CONFIG_SH_STANDARD_BIOS
-	if (raw_smp_processor_id() == 0)
-		gdb_vbr_init();
-#endif
 
 	/* NOTE: The VBR value should be at P1
 	   (or P2, virtural "fixed" address space).
@@ -803,6 +814,9 @@ void __cpuinit per_cpu_trap_init(void)
 		     : /* no output */
 		     : "r" (&vbr_base)
 		     : "memory");
+
+	/* disable exception blocking now when the vbr has been setup */
+	clear_bl_bit();
 }
 
 void *set_exception_table_vec(unsigned int vec, void *handler)
@@ -830,13 +844,8 @@ void __init trap_init(void)
 	set_exception_table_evt(0x800, do_reserved_inst);
 	set_exception_table_evt(0x820, do_illegal_slot_inst);
 #elif defined(CONFIG_SH_FPU)
-#ifdef CONFIG_CPU_SUBTYPE_SHX3
-	set_exception_table_evt(0xd80, fpu_state_restore_trap_handler);
-	set_exception_table_evt(0xda0, fpu_state_restore_trap_handler);
-#else
 	set_exception_table_evt(0x800, fpu_state_restore_trap_handler);
 	set_exception_table_evt(0x820, fpu_state_restore_trap_handler);
-#endif
 #endif
 
 #ifdef CONFIG_CPU_SH2
@@ -851,35 +860,8 @@ void __init trap_init(void)
 #endif
 
 #ifdef TRAP_UBC
-	set_exception_table_vec(TRAP_UBC, break_point_trap);
+	set_exception_table_vec(TRAP_UBC, breakpoint_trap_handler);
 #endif
-
-	/* Setup VBR for boot cpu */
-	per_cpu_trap_init();
-}
-
-void show_trace(struct task_struct *tsk, unsigned long *sp,
-		struct pt_regs *regs)
-{
-	unsigned long addr;
-
-	if (regs && user_mode(regs))
-		return;
-
-	printk("\nCall trace:\n");
-
-	while (!kstack_end(sp)) {
-		addr = *sp++;
-		if (kernel_text_address(addr))
-			print_ip_sym(addr);
-	}
-
-	printk("\n");
-
-	if (!tsk)
-		tsk = current;
-
-	debug_show_held_locks(tsk);
 }
 
 void show_stack(struct task_struct *tsk, unsigned long *sp)

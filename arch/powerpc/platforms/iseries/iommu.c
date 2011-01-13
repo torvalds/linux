@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <asm/iommu.h>
 #include <asm/vio.h>
@@ -183,7 +184,7 @@ static void pci_dma_dev_setup_iseries(struct pci_dev *pdev)
 
 	BUG_ON(lsn == NULL);
 
-	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+	tbl = kzalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
 	iommu_table_getparms_iSeries(pdn->busno, *lsn, 0, tbl);
 
@@ -193,7 +194,7 @@ static void pci_dma_dev_setup_iseries(struct pci_dev *pdev)
 		pdn->iommu_table = iommu_init_table(tbl, -1);
 	else
 		kfree(tbl);
-	pdev->dev.archdata.dma_data = pdn->iommu_table;
+	set_iommu_table_base(&pdev->dev, pdn->iommu_table);
 }
 #else
 #define pci_dma_dev_setup_iseries	NULL

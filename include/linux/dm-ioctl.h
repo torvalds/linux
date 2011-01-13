@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001 - 2003 Sistina Software (UK) Limited.
- * Copyright (C) 2004 - 2005 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004 - 2009 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the LGPL.
  */
@@ -11,6 +11,7 @@
 #include <linux/types.h>
 
 #define DM_DIR "mapper"		/* Slashes not supported */
+#define DM_CONTROL_NODE "control"
 #define DM_MAX_TYPE_NAME 16
 #define DM_NAME_LEN 128
 #define DM_UUID_LEN 129
@@ -123,6 +124,16 @@ struct dm_ioctl {
 	__u32 target_count;	/* in/out */
 	__s32 open_count;	/* out */
 	__u32 flags;		/* in/out */
+
+	/*
+	 * event_nr holds either the event number (input and output) or the
+	 * udev cookie value (input only).
+	 * The DM_DEV_WAIT ioctl takes an event number as input.
+	 * The DM_SUSPEND, DM_DEV_REMOVE and DM_DEV_RENAME ioctls
+	 * use the field as a cookie to return in the DM_COOKIE
+	 * variable with the uevents they issue.
+	 * For output, the ioctls return the event number, not the cookie.
+	 */
 	__u32 event_nr;      	/* in/out */
 	__u32 padding;
 
@@ -256,9 +267,9 @@ enum {
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	14
+#define DM_VERSION_MINOR	18
 #define DM_VERSION_PATCHLEVEL	0
-#define DM_VERSION_EXTRA	"-ioctl (2008-04-23)"
+#define DM_VERSION_EXTRA	"-ioctl (2010-06-29)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */
@@ -298,5 +309,17 @@ enum {
  * Set this to suspend without flushing queued ios.
  */
 #define DM_NOFLUSH_FLAG		(1 << 11) /* In */
+
+/*
+ * If set, any table information returned will relate to the inactive
+ * table instead of the live one.  Always check DM_INACTIVE_PRESENT_FLAG
+ * is set before using the data returned.
+ */
+#define DM_QUERY_INACTIVE_TABLE_FLAG	(1 << 12) /* In */
+
+/*
+ * If set, a uevent was generated for which the caller may need to wait.
+ */
+#define DM_UEVENT_GENERATED_FLAG	(1 << 13) /* Out */
 
 #endif				/* _LINUX_DM_IOCTL_H */

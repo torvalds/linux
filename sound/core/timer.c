@@ -393,7 +393,7 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 	    event == SNDRV_TIMER_EVENT_CONTINUE)
 		resolution = snd_timer_resolution(ti);
 	if (ti->ccallback)
-		ti->ccallback(ti, SNDRV_TIMER_EVENT_START, &tstamp, resolution);
+		ti->ccallback(ti, event, &tstamp, resolution);
 	if (ti->flags & SNDRV_TIMER_IFLG_SLAVE)
 		return;
 	timer = ti->timer;
@@ -1160,6 +1160,7 @@ static void snd_timer_user_ccallback(struct snd_timer_instance *timeri,
 {
 	struct snd_timer_user *tu = timeri->callback_data;
 	struct snd_timer_tread r1;
+	unsigned long flags;
 
 	if (event >= SNDRV_TIMER_EVENT_START &&
 	    event <= SNDRV_TIMER_EVENT_PAUSE)
@@ -1169,9 +1170,9 @@ static void snd_timer_user_ccallback(struct snd_timer_instance *timeri,
 	r1.event = event;
 	r1.tstamp = *tstamp;
 	r1.val = resolution;
-	spin_lock(&tu->qlock);
+	spin_lock_irqsave(&tu->qlock, flags);
 	snd_timer_user_append_to_tqueue(tu, &r1);
-	spin_unlock(&tu->qlock);
+	spin_unlock_irqrestore(&tu->qlock, flags);
 	kill_fasync(&tu->fasync, SIGIO, POLL_IN);
 	wake_up(&tu->qchange_sleep);
 }
@@ -1237,6 +1238,11 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 static int snd_timer_user_open(struct inode *inode, struct file *file)
 {
 	struct snd_timer_user *tu;
+	int err;
+
+	err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
 
 	tu = kzalloc(sizeof(*tu), GFP_KERNEL);
 	if (tu == NULL)
@@ -1921,6 +1927,7 @@ static const struct file_operations snd_timer_f_ops =
 	.read =		snd_timer_user_read,
 	.open =		snd_timer_user_open,
 	.release =	snd_timer_user_release,
+	.llseek =	no_llseek,
 	.poll =		snd_timer_user_poll,
 	.unlocked_ioctl =	snd_timer_user_ioctl,
 	.compat_ioctl =	snd_timer_user_ioctl_compat,

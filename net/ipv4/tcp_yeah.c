@@ -157,8 +157,8 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 
 			if (queue > TCP_YEAH_ALPHA ||
 			    rtt - yeah->vegas.baseRTT > (yeah->vegas.baseRTT / TCP_YEAH_PHY)) {
-				if (queue > TCP_YEAH_ALPHA
-				    && tp->snd_cwnd > yeah->reno_count) {
+				if (queue > TCP_YEAH_ALPHA &&
+				    tp->snd_cwnd > yeah->reno_count) {
 					u32 reduction = min(queue / TCP_YEAH_GAMMA ,
 							    tp->snd_cwnd >> TCP_YEAH_EPSILON);
 

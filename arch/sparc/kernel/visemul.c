@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/thread_info.h>
+#include <linux/perf_event.h>
 
 #include <asm/ptrace.h>
 #include <asm/pstate.h>
@@ -617,7 +618,7 @@ static void pmul(struct pt_regs *regs, unsigned int insn, unsigned int opf)
 		rs2 = fps_regval(f, RS2(insn));
 
 		rd_val = 0;
-		src2 = (rs2 >> (opf == FMUL8x16AU_OPF) ? 16 : 0);
+		src2 = rs2 >> (opf == FMUL8x16AU_OPF ? 16 : 0);
 		for (byte = 0; byte < 4; byte++) {
 			u16 src1 = (rs1 >> (byte * 8)) & 0x00ff;
 			u32 prod = src1 * src2;
@@ -800,6 +801,8 @@ int vis_emul(struct pt_regs *regs, unsigned int insn)
 	unsigned int opf;
 
 	BUG_ON(regs->tstate & TSTATE_PRIV);
+
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, 0);
 
 	if (test_thread_flag(TIF_32BIT))
 		pc = (u32)pc;

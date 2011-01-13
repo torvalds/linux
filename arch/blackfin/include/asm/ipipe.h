@@ -35,9 +35,9 @@
 #include <asm/atomic.h>
 #include <asm/traps.h>
 
-#define IPIPE_ARCH_STRING     "1.11-00"
+#define IPIPE_ARCH_STRING     "1.12-00"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    11
+#define IPIPE_MINOR_NUMBER    12
 #define IPIPE_PATCH_NUMBER    0
 
 #ifdef CONFIG_SMP
@@ -49,7 +49,7 @@
 #define prepare_arch_switch(next)		\
 do {						\
 	ipipe_schedule_notify(current, next);	\
-	local_irq_disable_hw();			\
+	hard_local_irq_disable();			\
 } while (0)
 
 #define task_hijacked(p)						\
@@ -57,7 +57,7 @@ do {						\
 		int __x__ = __ipipe_root_domain_p;			\
 		__clear_bit(IPIPE_SYNC_FLAG, &ipipe_root_cpudom_var(status)); \
 		if (__x__)						\
-			local_irq_enable_hw();				\
+			hard_local_irq_enable();				\
 		!__x__;							\
 	})
 
@@ -124,16 +124,6 @@ static inline int __ipipe_check_tickdev(const char *devname)
 	return 1;
 }
 
-static inline void __ipipe_lock_root(void)
-{
-	set_bit(IPIPE_SYNCDEFER_FLAG, &ipipe_root_cpudom_var(status));
-}
-
-static inline void __ipipe_unlock_root(void)
-{
-	clear_bit(IPIPE_SYNCDEFER_FLAG, &ipipe_root_cpudom_var(status));
-}
-
 void __ipipe_enable_pipeline(void);
 
 #define __ipipe_hook_critical_ipi(ipd) do { } while (0)
@@ -144,10 +134,6 @@ void ___ipipe_sync_pipeline(unsigned long syncmask);
 void __ipipe_handle_irq(unsigned irq, struct pt_regs *regs);
 
 int __ipipe_get_irq_priority(unsigned irq);
-
-void __ipipe_stall_root_raw(void);
-
-void __ipipe_unstall_root_raw(void);
 
 void __ipipe_serial_debug(const char *fmt, ...);
 
@@ -181,7 +167,7 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 #define __ipipe_run_isr(ipd, irq)					\
 	do {								\
 		if (!__ipipe_pipeline_head_p(ipd))			\
-			local_irq_enable_hw();				\
+			hard_local_irq_enable();				\
 		if (ipd == ipipe_root_domain) {				\
 			if (unlikely(ipipe_virtual_irq_p(irq))) {	\
 				irq_enter();				\
@@ -197,7 +183,7 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 			__ipipe_run_irqtail();				\
 			__set_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
 		}							\
-		local_irq_disable_hw();					\
+		hard_local_irq_disable();					\
 	} while (0)
 
 #define __ipipe_syscall_watched_p(p, sc)	\
@@ -233,9 +219,6 @@ int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 
 #define task_hijacked(p)		0
 #define ipipe_trap_notify(t, r)  	0
-
-#define __ipipe_stall_root_raw()	do { } while (0)
-#define __ipipe_unstall_root_raw()	do { } while (0)
 
 #define ipipe_init_irq_threads()		do { } while (0)
 #define ipipe_start_irq_thread(irq, desc)	0

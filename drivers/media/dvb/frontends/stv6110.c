@@ -22,6 +22,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/dvb/frontend.h>
 
@@ -36,6 +37,8 @@ struct stv6110_priv {
 	struct i2c_adapter *i2c;
 
 	u32 mclk;
+	u8 clk_div;
+	u8 gain;
 	u8 regs[8];
 };
 
@@ -100,35 +103,25 @@ static int stv6110_read_regs(struct dvb_frontend *fe, u8 regs[],
 	struct stv6110_priv *priv = fe->tuner_priv;
 	int rc;
 	u8 reg[] = { start };
-	struct i2c_msg msg_wr = {
-		.addr	= priv->i2c_address,
-		.flags	= 0,
-		.buf	= reg,
-		.len	= 1,
+	struct i2c_msg msg[] = {
+		{
+			.addr	= priv->i2c_address,
+			.flags	= 0,
+			.buf	= reg,
+			.len	= 1,
+		}, {
+			.addr	= priv->i2c_address,
+			.flags	= I2C_M_RD,
+			.buf	= regs,
+			.len	= len,
+		},
 	};
 
-	struct i2c_msg msg_rd = {
-		.addr	= priv->i2c_address,
-		.flags	= I2C_M_RD,
-		.buf	= regs,
-		.len	= len,
-	};
-	/* write subaddr */
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	rc = i2c_transfer(priv->i2c, &msg_wr, 1);
-	if (rc != 1)
-		dprintk("%s: i2c error\n", __func__);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-	/* read registers */
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	rc = i2c_transfer(priv->i2c, &msg_rd, 1);
-	if (rc != 1)
+	rc = i2c_transfer(priv->i2c, msg, 2);
+	if (rc != 2)
 		dprintk("%s: i2c error\n", __func__);
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -221,6 +214,10 @@ static int stv6110_init(struct dvb_frontend *fe)
 	priv->regs[RSTV6110_CTRL1] |=
 				((((priv->mclk / 1000000) - 16) & 0x1f) << 3);
 
+	/* divisor value for the output clock */
+	priv->regs[RSTV6110_CTRL2] &= ~0xc0;
+	priv->regs[RSTV6110_CTRL2] |= (priv->clk_div << 6);
+
 	stv6110_write_regs(fe, &priv->regs[RSTV6110_CTRL1], RSTV6110_CTRL1, 8);
 	msleep(1);
 	stv6110_set_bandwidth(fe, 72000000);
@@ -260,7 +257,7 @@ static int stv6110_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	u8 ret = 0x04;
 	u32 divider, ref, p, presc, i, result_freq, vco_freq;
 	s32 p_calc, p_calc_opt = 1000, r_div, r_div_opt = 0, p_val;
-	s32 srate; u8 gain;
+	s32 srate;
 
 	dprintk("%s, freq=%d kHz, mclk=%d Hz\n", __func__,
 						frequency, priv->mclk);
@@ -278,15 +275,8 @@ static int stv6110_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	} else
 		srate = 15000000;
 
-	if (srate >= 15000000)
-		gain = 3; /* +6 dB */
-	else if (srate >= 5000000)
-		gain = 3; /* +6 dB */
-	else
-		gain = 3; /* +6 dB */
-
 	priv->regs[RSTV6110_CTRL2] &= ~0x0f;
-	priv->regs[RSTV6110_CTRL2] |= (gain & 0x0f);
+	priv->regs[RSTV6110_CTRL2] |= (priv->gain & 0x0f);
 
 	if (frequency <= 1023000) {
 		p = 1;
@@ -418,6 +408,10 @@ struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 	};
 	int ret;
 
+	/* divisor value for the output clock */
+	reg0[2] &= ~0xc0;
+	reg0[2] |= (config->clk_div << 6);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
@@ -436,6 +430,8 @@ struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 	priv->i2c_address = config->i2c_address;
 	priv->i2c = i2c;
 	priv->mclk = config->mclk;
+	priv->clk_div = config->clk_div;
+	priv->gain = config->gain;
 
 	memcpy(&priv->regs, &reg0[1], 8);
 

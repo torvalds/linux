@@ -1,52 +1,28 @@
 /*
- * linux/fs/nfsd/nfsctl.c
- *
  * Syscall interface to knfsd.
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/module.h>
-
-#include <linux/linkage.h>
-#include <linux/time.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/namei.h>
-#include <linux/fcntl.h>
-#include <linux/net.h>
-#include <linux/in.h>
-#include <linux/syscalls.h>
-#include <linux/unistd.h>
 #include <linux/slab.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/pagemap.h>
-#include <linux/init.h>
-#include <linux/inet.h>
-#include <linux/string.h>
-#include <linux/smp_lock.h>
+#include <linux/namei.h>
 #include <linux/ctype.h>
 
-#include <linux/nfs.h>
 #include <linux/nfsd_idmap.h>
-#include <linux/lockd/bind.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
+#include <linux/sunrpc/clnt.h>
 
-#include <asm/uaccess.h>
-#include <net/ipv6.h>
+#include "nfsd.h"
+#include "cache.h"
 
 /*
  *	We have a single directory with 9 nodes in it.
  */
 enum {
 	NFSD_Root = 1,
+#ifdef CONFIG_NFSD_DEPRECATED
 	NFSD_Svc,
 	NFSD_Add,
 	NFSD_Del,
@@ -54,7 +30,9 @@ enum {
 	NFSD_Unexport,
 	NFSD_Getfd,
 	NFSD_Getfs,
+#endif
 	NFSD_List,
+	NFSD_Export_features,
 	NFSD_Fh,
 	NFSD_FO_UnlockIP,
 	NFSD_FO_UnlockFS,
@@ -70,6 +48,7 @@ enum {
 	 */
 #ifdef CONFIG_NFSD_V4
 	NFSD_Leasetime,
+	NFSD_Gracetime,
 	NFSD_RecoveryDir,
 #endif
 };
@@ -77,6 +56,7 @@ enum {
 /*
  * write() for these nodes.
  */
+#ifdef CONFIG_NFSD_DEPRECATED
 static ssize_t write_svc(struct file *file, char *buf, size_t size);
 static ssize_t write_add(struct file *file, char *buf, size_t size);
 static ssize_t write_del(struct file *file, char *buf, size_t size);
@@ -84,6 +64,7 @@ static ssize_t write_export(struct file *file, char *buf, size_t size);
 static ssize_t write_unexport(struct file *file, char *buf, size_t size);
 static ssize_t write_getfd(struct file *file, char *buf, size_t size);
 static ssize_t write_getfs(struct file *file, char *buf, size_t size);
+#endif
 static ssize_t write_filehandle(struct file *file, char *buf, size_t size);
 static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size);
 static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size);
@@ -94,10 +75,12 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size);
 static ssize_t write_maxblksize(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
+static ssize_t write_gracetime(struct file *file, char *buf, size_t size);
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 #endif
 
 static ssize_t (*write_op[])(struct file *, char *, size_t) = {
+#ifdef CONFIG_NFSD_DEPRECATED
 	[NFSD_Svc] = write_svc,
 	[NFSD_Add] = write_add,
 	[NFSD_Del] = write_del,
@@ -105,6 +88,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Unexport] = write_unexport,
 	[NFSD_Getfd] = write_getfd,
 	[NFSD_Getfs] = write_getfs,
+#endif
 	[NFSD_Fh] = write_filehandle,
 	[NFSD_FO_UnlockIP] = write_unlock_ip,
 	[NFSD_FO_UnlockFS] = write_unlock_fs,
@@ -115,6 +99,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_MaxBlkSize] = write_maxblksize,
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
+	[NFSD_Gracetime] = write_gracetime,
 	[NFSD_RecoveryDir] = write_recoverydir,
 #endif
 };
@@ -142,6 +127,14 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 
 static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size_t size, loff_t *pos)
 {
+	static int warned;
+	if (file->f_dentry->d_name.name[0] == '.' && !warned) {
+		printk(KERN_INFO
+		       "Warning: \"%s\" uses deprecated NFSD interface: %s."
+		       "  This will be removed in 2.6.40\n",
+		       current->comm, file->f_dentry->d_name.name);
+		warned = 1;
+	}
 	if (! file->private_data) {
 		/* An attempt to read a transaction file without writing
 		 * causes a 0-byte write so that the file can return
@@ -158,6 +151,7 @@ static const struct file_operations transaction_ops = {
 	.write		= nfsctl_transaction_write,
 	.read		= nfsctl_transaction_read,
 	.release	= simple_transaction_release,
+	.llseek		= default_llseek,
 };
 
 static int exports_open(struct inode *inode, struct file *file)
@@ -173,13 +167,32 @@ static const struct file_operations exports_operations = {
 	.owner		= THIS_MODULE,
 };
 
-extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
+static int export_features_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "0x%x 0x%x\n", NFSEXP_ALLFLAGS, NFSEXP_SECINFO_FLAGS);
+	return 0;
+}
 
-static struct file_operations pool_stats_operations = {
+static int export_features_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, export_features_show, NULL);
+}
+
+static struct file_operations export_features_operations = {
+	.open		= export_features_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
+extern int nfsd_pool_stats_release(struct inode *inode, struct file *file);
+
+static const struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= nfsd_pool_stats_release,
 	.owner		= THIS_MODULE,
 };
 
@@ -188,6 +201,7 @@ static struct file_operations pool_stats_operations = {
  * payload - write methods
  */
 
+#ifdef CONFIG_NFSD_DEPRECATED
 /**
  * write_svc - Start kernel's NFSD server
  *
@@ -403,7 +417,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 
 	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
 
-	clp = auth_unix_lookup(&in6);
+	clp = auth_unix_lookup(&init_net, &in6);
 	if (!clp)
 		err = -EPERM;
 	else {
@@ -466,7 +480,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 
 	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
 
-	clp = auth_unix_lookup(&in6);
+	clp = auth_unix_lookup(&init_net, &in6);
 	if (!clp)
 		err = -EPERM;
 	else {
@@ -483,6 +497,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
  out:
 	return err;
 }
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 /**
  * write_unlock_ip - Release all locks used by a client
@@ -491,22 +506,18 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
  *
  * Input:
  *			buf:	'\n'-terminated C string containing a
- *				presentation format IPv4 address
+ *				presentation format IP address
  *			size:	length of C string in @buf
  * Output:
  *	On success:	returns zero if all specified locks were released;
  *			returns one if one or more locks were not released
  *	On error:	return code is negative errno value
- *
- * Note: Only AF_INET client addresses are passed in
  */
 static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 {
-	struct sockaddr_in sin = {
-		.sin_family	= AF_INET,
-	};
-	int b1, b2, b3, b4;
-	char c;
+	struct sockaddr_storage address;
+	struct sockaddr *sap = (struct sockaddr *)&address;
+	size_t salen = sizeof(address);
 	char *fo_path;
 
 	/* sanity check */
@@ -520,14 +531,10 @@ static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 	if (qword_get(&buf, fo_path, size) < 0)
 		return -EINVAL;
 
-	/* get ipv4 address */
-	if (sscanf(fo_path, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) != 4)
+	if (rpc_pton(fo_path, size, sap, salen) == 0)
 		return -EINVAL;
-	if (b1 > 255 || b2 > 255 || b3 > 255 || b4 > 255)
-		return -EINVAL;
-	sin.sin_addr.s_addr = htonl((b1 << 24) | (b2 << 16) | (b3 << 8) | b4);
 
-	return nlmsvc_unlock_all_by_ip((struct sockaddr *)&sin);
+	return nlmsvc_unlock_all_by_ip(sap);
 }
 
 /**
@@ -784,10 +791,7 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 		size -= len;
 		mesg += len;
 	}
-
-	mutex_unlock(&nfsd_mutex);
-	return (mesg-buf);
-
+	rv = mesg - buf;
 out_free:
 	kfree(nthreads);
 	mutex_unlock(&nfsd_mutex);
@@ -962,15 +966,12 @@ static ssize_t __write_ports_addfd(char *buf)
 	if (err != 0)
 		return err;
 
-	err = lockd_up();
-	if (err != 0)
-		goto out;
-
 	err = svc_addsock(nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT);
-	if (err < 0)
-		lockd_down();
+	if (err < 0) {
+		svc_destroy(nfsd_serv);
+		return err;
+	}
 
-out:
 	/* Decrease the count, but don't shut down the service */
 	nfsd_serv->sv_nrthreads--;
 	return err;
@@ -991,9 +992,6 @@ static ssize_t __write_ports_delfd(char *buf)
 	if (nfsd_serv != NULL)
 		len = svc_sock_names(nfsd_serv, buf,
 					SIMPLE_TRANSACTION_LIMIT, toclose);
-	if (len >= 0)
-		lockd_down();
-
 	kfree(toclose);
 	return len;
 }
@@ -1005,27 +1003,41 @@ static ssize_t __write_ports_delfd(char *buf)
 static ssize_t __write_ports_addxprt(char *buf)
 {
 	char transport[16];
+	struct svc_xprt *xprt;
 	int port, err;
 
 	if (sscanf(buf, "%15s %4u", transport, &port) != 2)
 		return -EINVAL;
 
-	if (port < 1 || port > USHORT_MAX)
+	if (port < 1 || port > USHRT_MAX)
 		return -EINVAL;
 
 	err = nfsd_create_serv();
 	if (err != 0)
 		return err;
 
-	err = svc_create_xprt(nfsd_serv, transport,
+	err = svc_create_xprt(nfsd_serv, transport, &init_net,
 				PF_INET, port, SVC_SOCK_ANONYMOUS);
-	if (err < 0) {
-		/* Give a reasonable perror msg for bad transport string */
-		if (err == -ENOENT)
-			err = -EPROTONOSUPPORT;
-		return err;
-	}
+	if (err < 0)
+		goto out_err;
+
+	err = svc_create_xprt(nfsd_serv, transport, &init_net,
+				PF_INET6, port, SVC_SOCK_ANONYMOUS);
+	if (err < 0 && err != -EAFNOSUPPORT)
+		goto out_close;
+
+	/* Decrease the count, but don't shut down the service */
+	nfsd_serv->sv_nrthreads--;
 	return 0;
+out_close:
+	xprt = svc_find_xprt(nfsd_serv, transport, PF_INET, port);
+	if (xprt != NULL) {
+		svc_close_xprt(xprt);
+		svc_xprt_put(xprt);
+	}
+out_err:
+	svc_destroy(nfsd_serv);
+	return err;
 }
 
 /*
@@ -1041,7 +1053,7 @@ static ssize_t __write_ports_delxprt(char *buf)
 	if (sscanf(&buf[1], "%15s %4u", transport, &port) != 2)
 		return -EINVAL;
 
-	if (port < 1 || port > USHORT_MAX || nfsd_serv == NULL)
+	if (port < 1 || port > USHRT_MAX || nfsd_serv == NULL)
 		return -EINVAL;
 
 	xprt = svc_find_xprt(nfsd_serv, transport, AF_UNSPEC, port);
@@ -1195,7 +1207,7 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 			bsize = NFSSVC_MAXBLKSIZE;
 		bsize &= ~(1024-1);
 		mutex_lock(&nfsd_mutex);
-		if (nfsd_serv && nfsd_serv->sv_nrthreads) {
+		if (nfsd_serv) {
 			mutex_unlock(&nfsd_mutex);
 			return -EBUSY;
 		}
@@ -1208,29 +1220,45 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 }
 
 #ifdef CONFIG_NFSD_V4
-extern time_t nfs4_leasetime(void);
-
-static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
+static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size, time_t *time)
 {
-	/* if size > 10 seconds, call
-	 * nfs4_reset_lease() then write out the new lease (seconds) as reply
-	 */
 	char *mesg = buf;
-	int rv, lease;
+	int rv, i;
 
 	if (size > 0) {
 		if (nfsd_serv)
 			return -EBUSY;
-		rv = get_int(&mesg, &lease);
+		rv = get_int(&mesg, &i);
 		if (rv)
 			return rv;
-		if (lease < 10 || lease > 3600)
+		/*
+		 * Some sanity checking.  We don't have a reason for
+		 * these particular numbers, but problems with the
+		 * extremes are:
+		 *	- Too short: the briefest network outage may
+		 *	  cause clients to lose all their locks.  Also,
+		 *	  the frequent polling may be wasteful.
+		 *	- Too long: do you really want reboot recovery
+		 *	  to take more than an hour?  Or to make other
+		 *	  clients wait an hour before being able to
+		 *	  revoke a dead client's locks?
+		 */
+		if (i < 10 || i > 3600)
 			return -EINVAL;
-		nfs4_reset_lease(lease);
+		*time = i;
 	}
 
-	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n",
-							nfs4_lease_time());
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n", *time);
+}
+
+static ssize_t nfsd4_write_time(struct file *file, char *buf, size_t size, time_t *time)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __nfsd4_write_time(file, buf, size, time);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
 }
 
 /**
@@ -1256,12 +1284,22 @@ static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
  */
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 {
-	ssize_t rv;
+	return nfsd4_write_time(file, buf, size, &nfsd4_lease);
+}
 
-	mutex_lock(&nfsd_mutex);
-	rv = __write_leasetime(file, buf, size);
-	mutex_unlock(&nfsd_mutex);
-	return rv;
+/**
+ * write_gracetime - Set or report current NFSv4 grace period time
+ *
+ * As above, but sets the time of the NFSv4 grace period.
+ *
+ * Note this should never be set to less than the *previous*
+ * lease-period time, but we don't try to enforce this.  (In the common
+ * case (a new boot), we don't know what the previous lease time was
+ * anyway.)
+ */
+static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
+{
+	return nfsd4_write_time(file, buf, size, &nfsd4_grace);
 }
 
 extern char *nfs4_recoverydir(void);
@@ -1285,6 +1323,8 @@ static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
 			return -EINVAL;
 
 		status = nfs4_reset_recoverydir(recdir);
+		if (status)
+			return status;
 	}
 
 	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%s\n",
@@ -1332,6 +1372,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 {
 	static struct tree_descr nfsd_files[] = {
+#ifdef CONFIG_NFSD_DEPRECATED
 		[NFSD_Svc] = {".svc", &transaction_ops, S_IWUSR},
 		[NFSD_Add] = {".add", &transaction_ops, S_IWUSR},
 		[NFSD_Del] = {".del", &transaction_ops, S_IWUSR},
@@ -1339,7 +1380,10 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Unexport] = {".unexport", &transaction_ops, S_IWUSR},
 		[NFSD_Getfd] = {".getfd", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Getfs] = {".getfs", &transaction_ops, S_IWUSR|S_IRUSR},
+#endif
 		[NFSD_List] = {"exports", &exports_operations, S_IRUGO},
+		[NFSD_Export_features] = {"export_features",
+					&export_features_operations, S_IRUGO},
 		[NFSD_FO_UnlockIP] = {"unlock_ip",
 					&transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_FO_UnlockFS] = {"unlock_filesystem",
@@ -1353,6 +1397,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
+		[NFSD_Gracetime] = {"nfsv4gracetime", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_RecoveryDir] = {"nfsv4recoverydir", &transaction_ops, S_IWUSR|S_IRUSR},
 #endif
 		/* last one */ {""}
@@ -1360,16 +1405,16 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 	return simple_fill_super(sb, 0x6e667364, nfsd_files);
 }
 
-static int nfsd_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *nfsd_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, nfsd_fill_super, mnt);
+	return mount_single(fs_type, flags, data, nfsd_fill_super);
 }
 
 static struct file_system_type nfsd_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfsd",
-	.get_sb		= nfsd_get_sb,
+	.mount		= nfsd_mount,
 	.kill_sb	= kill_litter_super,
 };
 

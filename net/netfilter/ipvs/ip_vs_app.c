@@ -18,12 +18,16 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
@@ -99,8 +103,8 @@ ip_vs_app_inc_new(struct ip_vs_app *app, __u16 proto, __u16 port)
 		goto out;
 
 	list_add(&inc->a_list, &app->incs_list);
-	IP_VS_DBG(9, "%s application %s:%u registered\n",
-		  pp->name, inc->name, inc->port);
+	IP_VS_DBG(9, "%s App %s:%u registered\n",
+		  pp->name, inc->name, ntohs(inc->port));
 
 	return 0;
 
@@ -126,7 +130,7 @@ ip_vs_app_inc_release(struct ip_vs_app *inc)
 		pp->unregister_app(inc);
 
 	IP_VS_DBG(9, "%s App %s:%u unregistered\n",
-		  pp->name, inc->name, inc->port);
+		  pp->name, inc->name, ntohs(inc->port));
 
 	list_del(&inc->a_list);
 
@@ -262,12 +266,12 @@ static inline void vs_fix_seq(const struct ip_vs_seq *vseq, struct tcphdr *th)
 	if (vseq->delta || vseq->previous_delta) {
 		if(after(seq, vseq->init_seq)) {
 			th->seq = htonl(seq + vseq->delta);
-			IP_VS_DBG(9, "vs_fix_seq(): added delta (%d) to seq\n",
-				  vseq->delta);
+			IP_VS_DBG(9, "%s(): added delta (%d) to seq\n",
+				  __func__, vseq->delta);
 		} else {
 			th->seq = htonl(seq + vseq->previous_delta);
-			IP_VS_DBG(9, "vs_fix_seq(): added previous_delta "
-				  "(%d) to seq\n", vseq->previous_delta);
+			IP_VS_DBG(9, "%s(): added previous_delta (%d) to seq\n",
+				  __func__, vseq->previous_delta);
 		}
 	}
 }
@@ -291,14 +295,14 @@ vs_fix_ack_seq(const struct ip_vs_seq *vseq, struct tcphdr *th)
 		   to receive next, so compare it with init_seq+delta */
 		if(after(ack_seq, vseq->init_seq+vseq->delta)) {
 			th->ack_seq = htonl(ack_seq - vseq->delta);
-			IP_VS_DBG(9, "vs_fix_ack_seq(): subtracted delta "
-				  "(%d) from ack_seq\n", vseq->delta);
+			IP_VS_DBG(9, "%s(): subtracted delta "
+				  "(%d) from ack_seq\n", __func__, vseq->delta);
 
 		} else {
 			th->ack_seq = htonl(ack_seq - vseq->previous_delta);
-			IP_VS_DBG(9, "vs_fix_ack_seq(): subtracted "
+			IP_VS_DBG(9, "%s(): subtracted "
 				  "previous_delta (%d) from ack_seq\n",
-				  vseq->previous_delta);
+				  __func__, vseq->previous_delta);
 		}
 	}
 }
@@ -564,49 +568,6 @@ static const struct file_operations ip_vs_app_fops = {
 	.release = seq_release,
 };
 #endif
-
-
-/*
- *	Replace a segment of data with a new segment
- */
-int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
-		      char *o_buf, int o_len, char *n_buf, int n_len)
-{
-	int diff;
-	int o_offset;
-	int o_left;
-
-	EnterFunction(9);
-
-	diff = n_len - o_len;
-	o_offset = o_buf - (char *)skb->data;
-	/* The length of left data after o_buf+o_len in the skb data */
-	o_left = skb->len - (o_offset + o_len);
-
-	if (diff <= 0) {
-		memmove(o_buf + n_len, o_buf + o_len, o_left);
-		memcpy(o_buf, n_buf, n_len);
-		skb_trim(skb, skb->len + diff);
-	} else if (diff <= skb_tailroom(skb)) {
-		skb_put(skb, diff);
-		memmove(o_buf + n_len, o_buf + o_len, o_left);
-		memcpy(o_buf, n_buf, n_len);
-	} else {
-		if (pskb_expand_head(skb, skb_headroom(skb), diff, pri))
-			return -ENOMEM;
-		skb_put(skb, diff);
-		memmove(skb->data + o_offset + n_len,
-			skb->data + o_offset + o_len, o_left);
-		skb_copy_to_linear_data_offset(skb, o_offset, n_buf, n_len);
-	}
-
-	/* must update the iph total length here */
-	ip_hdr(skb)->tot_len = htons(skb->len);
-
-	LeaveFunction(9);
-	return 0;
-}
-
 
 int __init ip_vs_app_init(void)
 {

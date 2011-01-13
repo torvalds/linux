@@ -17,6 +17,7 @@
 #include "isac.h"
 #include "isdnl1.h"
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/isapnp.h>
 #include <linux/interrupt.h>
 
@@ -313,7 +314,7 @@ hdlc_fill_fifo(struct BCState *bcs)
 			bcs->hw.hdlc.ctrl.sr.cmd |= HDLC_CMD_XME;
 	}
 	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "hdlc_fill_fifo %d/%ld", count, bcs->tx_skb->len);
+		debugl1(cs, "hdlc_fill_fifo %d/%u", count, bcs->tx_skb->len);
 	p = bcs->tx_skb->data;
 	ptr = (u_int *)p;
 	skb_pull(bcs->tx_skb, count);
@@ -822,7 +823,7 @@ static int __devinit avm_pnp_setup(struct IsdnCardState *cs)
 
 #endif /* __ISAPNP__ */
 
-#ifndef CONFIG_PCI_LEGACY
+#ifndef CONFIG_PCI
 
 static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 {
@@ -835,7 +836,7 @@ static struct pci_dev *dev_avm __devinitdata = NULL;
 
 static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 {
-	if ((dev_avm = pci_find_device(PCI_VENDOR_ID_AVM,
+	if ((dev_avm = hisax_find_pci_device(PCI_VENDOR_ID_AVM,
 		PCI_DEVICE_ID_AVM_A1, dev_avm))) {
 
 		if (pci_enable_device(dev_avm))
@@ -864,7 +865,7 @@ static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 	return (1);
 }
 
-#endif /* CONFIG_PCI_LEGACY */
+#endif /* CONFIG_PCI */
 
 int __devinit
 setup_avm_pcipnp(struct IsdnCard *card)

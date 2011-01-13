@@ -15,9 +15,6 @@
 
 #include <sound/soc.h>
 
-extern struct snd_soc_dai wm9081_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm9081;
-
 /*
  * SYSCLK sources
  */

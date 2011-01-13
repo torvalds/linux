@@ -34,6 +34,8 @@
 #include <acpi/acpi_bus.h>
 #include <linux/dmi.h>
 
+#include "internal.h"
+
 enum acpi_blacklist_predicates {
 	all_versions,
 	less_than_or_equal,
@@ -78,9 +80,10 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 
 static int __init blacklist_by_year(void)
 {
-	int year = dmi_get_year(DMI_BIOS_DATE);
+	int year;
+
 	/* Doesn't exist? Likely an old system */
-	if (year == -1) {
+	if (!dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL)) {
 		printk(KERN_ERR PREFIX "no DMI BIOS year, "
 			"acpi=force is required to enable ACPI\n" );
 		return 1;
@@ -180,6 +183,14 @@ static int __init dmi_disable_osi_vista(const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
 	acpi_osi_setup("!Windows 2006");
+	acpi_osi_setup("!Windows 2006 SP1");
+	acpi_osi_setup("!Windows 2006 SP2");
+	return 0;
+}
+static int __init dmi_disable_osi_win7(const struct dmi_system_id *d)
+{
+	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
+	acpi_osi_setup("!Windows 2009");
 	return 0;
 }
 
@@ -190,6 +201,71 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO Mobile V5505"),
+		},
+	},
+	{
+	/*
+	 * There have a NVIF method in MSI GX723 DSDT need call by Nvidia
+	 * driver (e.g. nouveau) when user press brightness hotkey.
+	 * Currently, nouveau driver didn't do the job and it causes there
+	 * have a infinite while loop in DSDT when user press hotkey.
+	 * We add MSI GX723's dmi information to this table for workaround
+	 * this issue.
+	 * Will remove MSI GX723 from the table after nouveau grows support.
+	 */
+	.callback = dmi_disable_osi_vista,
+	.ident = "MSI GX723",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "GX723"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "Sony VGN-NS10J_S",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "VGN-NS10J_S"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "Sony VGN-SR290J",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "VGN-SR290J"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "VGN-NS50B_L",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "VGN-NS50B_L"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "Toshiba Satellite L355",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "Satellite L355"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win7,
+	.ident = "ASUS K50IJ",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "K50IJ"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "Toshiba P305D",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "Satellite P305D"),
 		},
 	},
 
@@ -205,6 +281,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 * _OSI(Linux) helps sound
 	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad R61"),
 	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T61"),
+	 * T400, T500
 	 * _OSI(Linux) has Linux specific hooks
 	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X61"),
 	 * _OSI(Linux) is a NOP:
@@ -233,6 +310,22 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X61"),
+		},
+	},
+	{
+	.callback = dmi_enable_osi_linux,
+	.ident = "Lenovo ThinkPad T400",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T400"),
+		},
+	},
+	{
+	.callback = dmi_enable_osi_linux,
+	.ident = "Lenovo ThinkPad T500",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T500"),
 		},
 	},
 	{}

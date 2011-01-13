@@ -30,22 +30,18 @@
 #ifndef __RC4_H__
 #define __RC4_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 /*---------------------  Export Types  ------------------------------*/
 typedef struct {
-    UINT ux;
-    UINT uy;
-    BYTE abystate[256];
-} RC4Ext, DEF* PRC4Ext;
+    unsigned int ux;
+    unsigned int uy;
+    unsigned char abystate[256];
+} RC4Ext, *PRC4Ext;
 
-VOID rc4_init(PRC4Ext pRC4, PBYTE pbyKey, UINT cbKey_len);
-UINT rc4_byte(PRC4Ext pRC4);
-void rc4_encrypt(PRC4Ext pRC4, PBYTE pbyDest, PBYTE pbySrc, UINT cbData_len);
+void rc4_init(PRC4Ext pRC4, unsigned char *pbyKey, unsigned int cbKey_len);
+unsigned int rc4_byte(PRC4Ext pRC4);
+void rc4_encrypt(PRC4Ext pRC4, unsigned char *pbyDest, unsigned char *pbySrc, unsigned int cbData_len);
 
 #endif //__RC4_H__

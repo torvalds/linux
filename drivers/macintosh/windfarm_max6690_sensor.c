@@ -81,12 +81,13 @@ static int wf_max6690_probe(struct i2c_client *client,
 
 	rc = wf_register_sensor(&max->sens);
 	if (rc) {
-		i2c_set_clientdata(client, NULL);
 		kfree(max);
 	}
 
 	return rc;
 }
+
+static struct i2c_driver wf_max6690_driver;
 
 static struct i2c_client *wf_max6690_create(struct i2c_adapter *adapter,
 					    u8 addr, const char *loc)
@@ -119,7 +120,7 @@ static struct i2c_client *wf_max6690_create(struct i2c_adapter *adapter,
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&client->detected, &client->driver->clients);
+	list_add_tail(&client->detected, &wf_max6690_driver.clients);
 	return client;
 
  fail:
@@ -186,9 +187,9 @@ static struct i2c_driver wf_max6690_driver = {
 static int __init wf_max6690_sensor_init(void)
 {
 	/* Don't register on old machines that use therm_pm72 for now */
-	if (machine_is_compatible("PowerMac7,2") ||
-	    machine_is_compatible("PowerMac7,3") ||
-	    machine_is_compatible("RackMac3,1"))
+	if (of_machine_is_compatible("PowerMac7,2") ||
+	    of_machine_is_compatible("PowerMac7,3") ||
+	    of_machine_is_compatible("RackMac3,1"))
 		return -ENODEV;
 	return i2c_add_driver(&wf_max6690_driver);
 }

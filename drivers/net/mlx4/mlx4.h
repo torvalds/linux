@@ -40,6 +40,7 @@
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 #include <linux/timer.h>
+#include <linux/semaphore.h>
 #include <linux/workqueue.h>
 
 #include <linux/mlx4/device.h>
@@ -47,7 +48,6 @@
 #include <linux/mlx4/doorbell.h>
 
 #define DRV_NAME	"mlx4_core"
-#define PFX		DRV_NAME ": "
 #define DRV_VERSION	"0.01"
 #define DRV_RELDATE	"May 1, 2007"
 
@@ -87,17 +87,17 @@ extern int mlx4_debug_level;
 #endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_dbg(mdev, format, arg...)					\
-	do {								\
-		if (mlx4_debug_level)					\
-			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
-	} while (0)
+do {									\
+	if (mlx4_debug_level)						\
+		dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ##arg); \
+} while (0)
 
 #define mlx4_err(mdev, format, arg...) \
-	dev_err(&mdev->pdev->dev, format, ## arg)
+	dev_err(&mdev->pdev->dev, format, ##arg)
 #define mlx4_info(mdev, format, arg...) \
-	dev_info(&mdev->pdev->dev, format, ## arg)
+	dev_info(&mdev->pdev->dev, format, ##arg)
 #define mlx4_warn(mdev, format, arg...) \
-	dev_warn(&mdev->pdev->dev, format, ## arg)
+	dev_warn(&mdev->pdev->dev, format, ##arg)
 
 struct mlx4_bitmap {
 	u32			last;
@@ -205,9 +205,7 @@ struct mlx4_eq_table {
 	void __iomem	      **uar_map;
 	u32			clr_mask;
 	struct mlx4_eq	       *eq;
-	u64			icm_virt;
-	struct page	       *icm_page;
-	dma_addr_t		icm_dma;
+	struct mlx4_icm_table	table;
 	struct mlx4_icm_table	cmpt_table;
 	int			have_irq;
 	u8			inta_pin;
@@ -372,9 +370,6 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 		      struct mlx4_profile *request,
 		      struct mlx4_dev_cap *dev_cap,
 		      struct mlx4_init_hca_param *init_hca);
-
-int mlx4_map_eq_icm(struct mlx4_dev *dev, u64 icm_virt);
-void mlx4_unmap_eq_icm(struct mlx4_dev *dev);
 
 int mlx4_cmd_init(struct mlx4_dev *dev);
 void mlx4_cmd_cleanup(struct mlx4_dev *dev);

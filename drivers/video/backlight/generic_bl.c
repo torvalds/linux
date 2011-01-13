@@ -70,7 +70,7 @@ void corgibl_limit_intensity(int limit)
 }
 EXPORT_SYMBOL(corgibl_limit_intensity);
 
-static struct backlight_ops genericbl_ops = {
+static const struct backlight_ops genericbl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = genericbl_get_intensity,
 	.update_status  = genericbl_send_intensity,
@@ -78,6 +78,7 @@ static struct backlight_ops genericbl_ops = {
 
 static int genericbl_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct generic_bl_info *machinfo = pdev->dev.platform_data;
 	const char *name = "generic-bl";
 	struct backlight_device *bd;
@@ -89,14 +90,15 @@ static int genericbl_probe(struct platform_device *pdev)
 	if (machinfo->name)
 		name = machinfo->name;
 
-	bd = backlight_device_register (name,
-		&pdev->dev, NULL, &genericbl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = machinfo->max_intensity;
+	bd = backlight_device_register(name, &pdev->dev, NULL, &genericbl_ops,
+				       &props);
 	if (IS_ERR (bd))
 		return PTR_ERR (bd);
 
 	platform_set_drvdata(pdev, bd);
 
-	bd->props.max_brightness = machinfo->max_intensity;
 	bd->props.power = FB_BLANK_UNBLANK;
 	bd->props.brightness = machinfo->default_intensity;
 	backlight_update_status(bd);

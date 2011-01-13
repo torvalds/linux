@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 

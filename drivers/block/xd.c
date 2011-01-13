@@ -46,9 +46,11 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/blkdev.h>
+#include <linux/mutex.h>
 #include <linux/blkpg.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -56,6 +58,7 @@
 
 #include "xd.h"
 
+static DEFINE_MUTEX(xd_mutex);
 static void __init do_xd_setup (int *integers);
 #ifdef MODULE
 static int xd[5] = { -1,-1,-1,-1, };
@@ -130,9 +133,9 @@ static struct gendisk *xd_gendisk[2];
 
 static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
-static struct block_device_operations xd_fops = {
+static const struct block_device_operations xd_fops = {
 	.owner	= THIS_MODULE,
-	.locked_ioctl	= xd_ioctl,
+	.ioctl	= xd_ioctl,
 	.getgeo = xd_getgeo,
 };
 static DECLARE_WAIT_QUEUE_HEAD(xd_wait_int);
@@ -169,13 +172,6 @@ static int __init xd_init(void)
 
 	init_timer (&xd_watchdog_int); xd_watchdog_int.function = xd_watchdog;
 
-	if (!xd_dma_buffer)
-		xd_dma_buffer = (char *)xd_dma_mem_alloc(xd_maxsectors * 0x200);
-	if (!xd_dma_buffer) {
-		printk(KERN_ERR "xd: Out of memory.\n");
-		return -ENOMEM;
-	}
-
 	err = -EBUSY;
 	if (register_blkdev(XT_DISK_MAJOR, "xd"))
 		goto out1;
@@ -200,6 +196,19 @@ static int __init xd_init(void)
 		
 		printk("Detected %d hard drive%s (using IRQ%d & DMA%d)\n",
 			xd_drives,xd_drives == 1 ? "" : "s",xd_irq,xd_dma);
+	}
+
+	/*
+	 * With the drive detected, xd_maxsectors should now be known.
+	 * If xd_maxsectors is 0, nothing was detected and we fall through
+	 * to return -ENODEV
+	 */
+	if (!xd_dma_buffer && xd_maxsectors) {
+		xd_dma_buffer = (char *)xd_dma_mem_alloc(xd_maxsectors * 0x200);
+		if (!xd_dma_buffer) {
+			printk(KERN_ERR "xd: Out of memory.\n");
+			goto out3;
+		}
 	}
 
 	err = -ENODEV;
@@ -236,7 +245,7 @@ static int __init xd_init(void)
 	}
 
 	/* xd_maxsectors depends on controller - so set after detection */
-	blk_queue_max_sectors(xd_queue, xd_maxsectors);
+	blk_queue_max_hw_sectors(xd_queue, xd_maxsectors);
 
 	for (i = 0; i < xd_drives; i++)
 		add_disk(xd_gendisk[i]);
@@ -249,15 +258,17 @@ out4:
 	for (i = 0; i < xd_drives; i++)
 		put_disk(xd_gendisk[i]);
 out3:
-	release_region(xd_iobase,4);
+	if (xd_maxsectors)
+		release_region(xd_iobase,4);
+
+	if (xd_dma_buffer)
+		xd_dma_mem_free((unsigned long)xd_dma_buffer,
+				xd_maxsectors * 0x200);
 out2:
 	blk_cleanup_queue(xd_queue);
 out1a:
 	unregister_blkdev(XT_DISK_MAJOR, "xd");
 out1:
-	if (xd_dma_buffer)
-		xd_dma_mem_free((unsigned long)xd_dma_buffer,
-				xd_maxsectors * 0x200);
 	return err;
 Enomem:
 	err = -ENOMEM;
@@ -313,7 +324,7 @@ static void do_xd_request (struct request_queue * q)
 		int res = -EIO;
 		int retry;
 
-		if (!blk_fs_request(req))
+		if (req->cmd_type != REQ_TYPE_FS)
 			goto done;
 		if (block + count > get_capacity(req->rq_disk))
 			goto done;
@@ -338,7 +349,7 @@ static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 /* xd_ioctl: handle device ioctl's */
-static int xd_ioctl(struct block_device *bdev, fmode_t mode, u_int cmd, u_long arg)
+static int xd_locked_ioctl(struct block_device *bdev, fmode_t mode, u_int cmd, u_long arg)
 {
 	switch (cmd) {
 		case HDIO_SET_DMA:
@@ -364,6 +375,18 @@ static int xd_ioctl(struct block_device *bdev, fmode_t mode, u_int cmd, u_long a
 		default:
 			return -EINVAL;
 	}
+}
+
+static int xd_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	mutex_lock(&xd_mutex);
+	ret = xd_locked_ioctl(bdev, mode, cmd, param);
+	mutex_unlock(&xd_mutex);
+
+	return ret;
 }
 
 /* xd_readwrite: handle a read/write request */

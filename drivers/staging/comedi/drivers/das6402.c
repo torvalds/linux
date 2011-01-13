@@ -45,7 +45,7 @@ This driver has suffered bitrot.
 
 #define DAS6402_SIZE 16
 
-#define N_WORDS 3000*64
+#define N_WORDS (3000*64)
 
 #define STOP    0
 #define START   1
@@ -99,7 +99,8 @@ This driver has suffered bitrot.
 #define	C2 0x80
 #define	RWLH 0x30
 
-static int das6402_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das6402_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int das6402_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das6402 = {
 	.driver_name = "das6402",
@@ -108,7 +109,18 @@ static struct comedi_driver driver_das6402 = {
 	.detach = das6402_detach,
 };
 
-COMEDI_INITCLEANUP(driver_das6402);
+static int __init driver_das6402_init_module(void)
+{
+	return comedi_driver_register(&driver_das6402);
+}
+
+static void __exit driver_das6402_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das6402);
+}
+
+module_init(driver_das6402_init_module);
+module_exit(driver_das6402_cleanup_module);
 
 struct das6402_private {
 	int ai_bytes_to_read;
@@ -117,7 +129,8 @@ struct das6402_private {
 };
 #define devpriv ((struct das6402_private *)dev->private)
 
-static void das6402_ai_fifo_dregs(struct comedi_device *dev, struct comedi_subdevice *s);
+static void das6402_ai_fifo_dregs(struct comedi_device *dev,
+				  struct comedi_subdevice *s);
 
 static void das6402_setcounter(struct comedi_device *dev)
 {
@@ -163,7 +176,7 @@ static irqreturn_t intr_handler(int irq, void *d)
 	}
 #ifdef DEBUG
 	printk("das6402: interrupt! das6402_irqcount=%i\n",
-		devpriv->das6402_irqcount);
+	       devpriv->das6402_irqcount);
 	printk("das6402: iobase+2=%i\n", inw_p(dev->iobase + 2));
 #endif
 
@@ -174,7 +187,7 @@ static irqreturn_t intr_handler(int irq, void *d)
 		outb(0x07, dev->iobase + 8);	/* clears all flip-flops */
 #ifdef DEBUG
 		printk("das6402: Got %i samples\n\n",
-			devpriv->das6402_wordsread - diff);
+		       devpriv->das6402_wordsread - diff);
 #endif
 		s->async->events |= COMEDI_CB_EOA;
 		comedi_event(dev, s);
@@ -196,7 +209,8 @@ static void das6402_ai_fifo_read(struct comedi_device *dev, short *data, int n)
 }
 #endif
 
-static void das6402_ai_fifo_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
+static void das6402_ai_fifo_dregs(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
 {
 	while (1) {
 		if (!(inb(dev->iobase + 8) & 0x01))
@@ -205,7 +219,8 @@ static void das6402_ai_fifo_dregs(struct comedi_device *dev, struct comedi_subde
 	}
 }
 
-static int das6402_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int das6402_ai_cancel(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
 	/*
 	 *  This function should reset the board from whatever condition it
@@ -227,8 +242,8 @@ static int das6402_ai_cancel(struct comedi_device *dev, struct comedi_subdevice 
 }
 
 #ifdef unused
-static int das6402_ai_mode2(struct comedi_device *dev, struct comedi_subdevice *s,
-	comedi_trig *it)
+static int das6402_ai_mode2(struct comedi_device *dev,
+			    struct comedi_subdevice *s, comedi_trig * it)
 {
 	devpriv->das6402_ignoreirq = 1;
 
@@ -300,7 +315,8 @@ static int das6402_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static int das6402_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int das6402_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	unsigned int irq;
 	unsigned long iobase;
@@ -355,3 +371,7 @@ static int das6402_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

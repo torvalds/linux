@@ -28,7 +28,7 @@ static int simpad_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 
 	clear_cs3_bit(VCC_3V_EN|VCC_5V_EN|EN0|EN1);
 
-	skt->irq = IRQ_GPIO_CF_IRQ;
+	skt->socket.pci_irq = IRQ_GPIO_CF_IRQ;
 
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
@@ -123,7 +123,7 @@ static struct pcmcia_low_level simpad_pcmcia_ops = {
 	.socket_suspend		= simpad_pcmcia_socket_suspend,
 };
 
-int __init pcmcia_simpad_init(struct device *dev)
+int __devinit pcmcia_simpad_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

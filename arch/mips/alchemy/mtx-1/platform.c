@@ -1,7 +1,7 @@
 /*
  * MTX-1 platform devices registration
  *
- * Copyright (C) 2007, Florian Fainelli <florian@openwrt.org>
+ * Copyright (C) 2007-2009, Florian Fainelli <florian@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -142,7 +142,17 @@ static struct __initdata platform_device * mtx1_devs[] = {
 
 static int __init mtx1_register_devices(void)
 {
-	gpio_direction_input(207);
+	int rc;
+
+	rc = gpio_request(mtx1_gpio_button[0].gpio,
+					mtx1_gpio_button[0].desc);
+	if (rc < 0) {
+		printk(KERN_INFO "mtx1: failed to request %d\n",
+					mtx1_gpio_button[0].gpio);
+		goto out;
+	}
+	gpio_direction_input(mtx1_gpio_button[0].gpio);
+out:
 	return platform_add_devices(mtx1_devs, ARRAY_SIZE(mtx1_devs));
 }
 

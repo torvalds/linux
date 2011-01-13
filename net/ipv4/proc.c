@@ -59,13 +59,13 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 	local_bh_enable();
 
 	socket_seq_show(seq);
-	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %d\n",
+	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %ld\n",
 		   sock_prot_inuse_get(net, &tcp_prot), orphans,
 		   tcp_death_row.tw_count, sockets,
-		   atomic_read(&tcp_memory_allocated));
-	seq_printf(seq, "UDP: inuse %d mem %d\n",
+		   atomic_long_read(&tcp_memory_allocated));
+	seq_printf(seq, "UDP: inuse %d mem %ld\n",
 		   sock_prot_inuse_get(net, &udp_prot),
-		   atomic_read(&udp_memory_allocated));
+		   atomic_long_read(&udp_memory_allocated));
 	seq_printf(seq, "UDPLITE: inuse %d\n",
 		   sock_prot_inuse_get(net, &udplite_prot));
 	seq_printf(seq, "RAW: inuse %d\n",
@@ -127,8 +127,8 @@ static const struct snmp_mib snmp4_ipextstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct {
-	char *name;
+static const struct {
+	const char *name;
 	int index;
 } icmpmibmap[] = {
 	{ "DestUnreachs", ICMP_DEST_UNREACH },
@@ -249,6 +249,11 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPSackShifted", LINUX_MIB_SACKSHIFTED),
 	SNMP_MIB_ITEM("TCPSackMerged", LINUX_MIB_SACKMERGED),
 	SNMP_MIB_ITEM("TCPSackShiftFallback", LINUX_MIB_SACKSHIFTFALLBACK),
+	SNMP_MIB_ITEM("TCPBacklogDrop", LINUX_MIB_TCPBACKLOGDROP),
+	SNMP_MIB_ITEM("TCPMinTTLDrop", LINUX_MIB_TCPMINTTLDROP),
+	SNMP_MIB_ITEM("TCPDeferAcceptDrop", LINUX_MIB_TCPDEFERACCEPTDROP),
+	SNMP_MIB_ITEM("IPReversePathFilter", LINUX_MIB_IPRPFILTER),
+	SNMP_MIB_ITEM("TCPTimeWaitOverflow", LINUX_MIB_TCPTIMEWAITOVERFLOW),
 	SNMP_MIB_SENTINEL
 };
 
@@ -280,7 +285,7 @@ static void icmpmsg_put(struct seq_file *seq)
 
 	count = 0;
 	for (i = 0; i < ICMPMSG_MIB_MAX; i++) {
-		val = snmp_fold_field((void **) net->mib.icmpmsg_statistics, i);
+		val = snmp_fold_field((void __percpu **) net->mib.icmpmsg_statistics, i);
 		if (val) {
 			type[count] = i;
 			vals[count++] = val;
@@ -307,18 +312,18 @@ static void icmp_put(struct seq_file *seq)
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " Out%s", icmpmibmap[i].name);
 	seq_printf(seq, "\nIcmp: %lu %lu",
-		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_INMSGS),
-		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_INERRORS));
+		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_INMSGS),
+		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_INERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void **) net->mib.icmpmsg_statistics,
+			snmp_fold_field((void __percpu **) net->mib.icmpmsg_statistics,
 				icmpmibmap[i].index));
 	seq_printf(seq, " %lu %lu",
-		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_OUTMSGS),
-		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_OUTERRORS));
+		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_OUTMSGS),
+		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_OUTERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void **) net->mib.icmpmsg_statistics,
+			snmp_fold_field((void __percpu **) net->mib.icmpmsg_statistics,
 				icmpmibmap[i].index | 0x100));
 }
 
@@ -339,10 +344,12 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		   IPV4_DEVCONF_ALL(net, FORWARDING) ? 1 : 2,
 		   sysctl_ip_default_ttl);
 
+	BUILD_BUG_ON(offsetof(struct ipstats_mib, mibs) != 0);
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)net->mib.ip_statistics,
-					   snmp4_ipstats_list[i].entry));
+		seq_printf(seq, " %llu",
+			   snmp_fold_field64((void __percpu **)net->mib.ip_statistics,
+					     snmp4_ipstats_list[i].entry,
+					     offsetof(struct ipstats_mib, syncp)));
 
 	icmp_put(seq);	/* RFC 2011 compatibility */
 	icmpmsg_put(seq);
@@ -356,11 +363,11 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		/* MaxConn field is signed, RFC 2012 */
 		if (snmp4_tcp_list[i].entry == TCP_MIB_MAXCONN)
 			seq_printf(seq, " %ld",
-				   snmp_fold_field((void **)net->mib.tcp_statistics,
+				   snmp_fold_field((void __percpu **)net->mib.tcp_statistics,
 						   snmp4_tcp_list[i].entry));
 		else
 			seq_printf(seq, " %lu",
-				   snmp_fold_field((void **)net->mib.tcp_statistics,
+				   snmp_fold_field((void __percpu **)net->mib.tcp_statistics,
 						   snmp4_tcp_list[i].entry));
 	}
 
@@ -371,7 +378,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nUdp:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)net->mib.udp_statistics,
+			   snmp_fold_field((void __percpu **)net->mib.udp_statistics,
 					   snmp4_udp_list[i].entry));
 
 	/* the UDP and UDP-Lite MIBs are the same */
@@ -382,7 +389,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nUdpLite:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)net->mib.udplite_statistics,
+			   snmp_fold_field((void __percpu **)net->mib.udplite_statistics,
 					   snmp4_udp_list[i].entry));
 
 	seq_putc(seq, '\n');
@@ -419,7 +426,7 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nTcpExt:");
 	for (i = 0; snmp4_net_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)net->mib.net_statistics,
+			   snmp_fold_field((void __percpu **)net->mib.net_statistics,
 					   snmp4_net_list[i].entry));
 
 	seq_puts(seq, "\nIpExt:");
@@ -428,9 +435,10 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "\nIpExt:");
 	for (i = 0; snmp4_ipextstats_list[i].name != NULL; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)net->mib.ip_statistics,
-					   snmp4_ipextstats_list[i].entry));
+		seq_printf(seq, " %llu",
+			   snmp_fold_field64((void __percpu **)net->mib.ip_statistics,
+					     snmp4_ipextstats_list[i].entry,
+					     offsetof(struct ipstats_mib, syncp)));
 
 	seq_putc(seq, '\n');
 	return 0;

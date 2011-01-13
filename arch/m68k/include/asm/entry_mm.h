@@ -3,6 +3,9 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
+#ifdef __ASSEMBLY__
+#include <asm/thread_info.h>
+#endif
 
 /*
  * Stack layout in 'ret_from_exception':
@@ -46,15 +49,6 @@
 #define curptr a2
 
 LFLUSH_I_AND_D = 0x00000808
-LSIGTRAP = 5
-
-/* process bits for task_struct.ptrace */
-PT_TRACESYS_OFF = 3
-PT_TRACESYS_BIT = 1
-PT_PTRACED_OFF = 3
-PT_PTRACED_BIT = 0
-PT_DTRACE_OFF = 3
-PT_DTRACE_BIT = 2
 
 #define SAVE_ALL_INT save_all_int
 #define SAVE_ALL_SYS save_all_sys
@@ -118,9 +112,6 @@ PT_DTRACE_BIT = 2
 #define STR(X) STR1(X)
 #define STR1(X) #X
 
-#define PT_OFF_ORIG_D0	 0x24
-#define PT_OFF_FORMATVEC 0x32
-#define PT_OFF_SR	 0x2C
 #define SAVE_ALL_INT				\
 	"clrl	%%sp@-;"    /* stk_adj */	\
 	"pea	-1:w;"	    /* orig d0 = -1 */	\

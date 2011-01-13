@@ -8,6 +8,7 @@
 #include <linux/kmod.h>
 #include <linux/reboot.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/of_device.h>
 #include <asm/oplib.h>
 
@@ -442,7 +443,7 @@ static int kenvctrld(void *__unused)
 	return 0;
 }
 
-static void attach_one_temp(struct bbc_i2c_bus *bp, struct of_device *op,
+static void attach_one_temp(struct bbc_i2c_bus *bp, struct platform_device *op,
 			    int temp_idx)
 {
 	struct bbc_cpu_temperature *tp;
@@ -487,7 +488,7 @@ static void attach_one_temp(struct bbc_i2c_bus *bp, struct of_device *op,
 	tp->fan_todo[FAN_CPU] = FAN_SAME;
 }
 
-static void attach_one_fan(struct bbc_i2c_bus *bp, struct of_device *op,
+static void attach_one_fan(struct bbc_i2c_bus *bp, struct platform_device *op,
 			   int fan_idx)
 {
 	struct bbc_fan_control *fp;
@@ -522,32 +523,21 @@ static void attach_one_fan(struct bbc_i2c_bus *bp, struct of_device *op,
 	set_fan_speeds(fp);
 }
 
-int bbc_envctrl_init(struct bbc_i2c_bus *bp)
-{
-	struct of_device *op;
-	int temp_index = 0;
-	int fan_index = 0;
-	int devidx = 0;
-
-	while ((op = bbc_i2c_getdev(bp, devidx++)) != NULL) {
-		if (!strcmp(op->node->name, "temperature"))
-			attach_one_temp(bp, op, temp_index++);
-		if (!strcmp(op->node->name, "fan-control"))
-			attach_one_fan(bp, op, fan_index++);
-	}
-	if (temp_index != 0 && fan_index != 0) {
-		kenvctrld_task = kthread_run(kenvctrld, NULL, "kenvctrld");
-		if (IS_ERR(kenvctrld_task))
-			return PTR_ERR(kenvctrld_task);
-	}
-
-	return 0;
-}
-
 static void destroy_one_temp(struct bbc_cpu_temperature *tp)
 {
 	bbc_i2c_detach(tp->client);
 	kfree(tp);
+}
+
+static void destroy_all_temps(struct bbc_i2c_bus *bp)
+{
+	struct bbc_cpu_temperature *tp, *tpos;
+
+	list_for_each_entry_safe(tp, tpos, &bp->temps, bp_list) {
+		list_del(&tp->bp_list);
+		list_del(&tp->glob_list);
+		destroy_one_temp(tp);
+	}
 }
 
 static void destroy_one_fan(struct bbc_fan_control *fp)
@@ -556,22 +546,50 @@ static void destroy_one_fan(struct bbc_fan_control *fp)
 	kfree(fp);
 }
 
-void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp)
+static void destroy_all_fans(struct bbc_i2c_bus *bp)
 {
-	struct bbc_cpu_temperature *tp, *tpos;
 	struct bbc_fan_control *fp, *fpos;
-
-	kthread_stop(kenvctrld_task);
-
-	list_for_each_entry_safe(tp, tpos, &bp->temps, bp_list) {
-		list_del(&tp->bp_list);
-		list_del(&tp->glob_list);
-		destroy_one_temp(tp);
-	}
 
 	list_for_each_entry_safe(fp, fpos, &bp->fans, bp_list) {
 		list_del(&fp->bp_list);
 		list_del(&fp->glob_list);
 		destroy_one_fan(fp);
 	}
+}
+
+int bbc_envctrl_init(struct bbc_i2c_bus *bp)
+{
+	struct platform_device *op;
+	int temp_index = 0;
+	int fan_index = 0;
+	int devidx = 0;
+
+	while ((op = bbc_i2c_getdev(bp, devidx++)) != NULL) {
+		if (!strcmp(op->dev.of_node->name, "temperature"))
+			attach_one_temp(bp, op, temp_index++);
+		if (!strcmp(op->dev.of_node->name, "fan-control"))
+			attach_one_fan(bp, op, fan_index++);
+	}
+	if (temp_index != 0 && fan_index != 0) {
+		kenvctrld_task = kthread_run(kenvctrld, NULL, "kenvctrld");
+		if (IS_ERR(kenvctrld_task)) {
+			int err = PTR_ERR(kenvctrld_task);
+
+			kenvctrld_task = NULL;
+			destroy_all_temps(bp);
+			destroy_all_fans(bp);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp)
+{
+	if (kenvctrld_task)
+		kthread_stop(kenvctrld_task);
+
+	destroy_all_temps(bp);
+	destroy_all_fans(bp);
 }

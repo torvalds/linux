@@ -62,7 +62,7 @@ extern unsigned int idt_cpu_freq;
 static int timeout = WATCHDOG_TIMEOUT;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout value, in seconds (default="
-		WATCHDOG_TIMEOUT ")");
+		__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
@@ -198,7 +198,7 @@ static long rc32434_wdt_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = (void __user *)arg;
 	int new_timeout;
 	unsigned int value;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options =		WDIOF_SETTIMEOUT |
 					WDIOF_KEEPALIVEPING |
 					WDIOF_MAGICCLOSE,
@@ -276,7 +276,7 @@ static int __devinit rc32434_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	wdt_reg = ioremap_nocache(r->start, r->end - r->start);
+	wdt_reg = ioremap_nocache(r->start, resource_size(r));
 	if (!wdt_reg) {
 		printk(KERN_ERR PFX "failed to remap I/O resources\n");
 		return -ENXIO;

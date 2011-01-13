@@ -146,7 +146,7 @@ __SYSCALL(__NR_wait4, sys_wait4)
 #define __NR_kill				62
 __SYSCALL(__NR_kill, sys_kill)
 #define __NR_uname				63
-__SYSCALL(__NR_uname, sys_uname)
+__SYSCALL(__NR_uname, sys_newuname)
 
 #define __NR_semget				64
 __SYSCALL(__NR_semget, sys_semget)
@@ -659,8 +659,16 @@ __SYSCALL(__NR_preadv, sys_preadv)
 __SYSCALL(__NR_pwritev, sys_pwritev)
 #define __NR_rt_tgsigqueueinfo			297
 __SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
-#define __NR_perf_counter_open			298
-__SYSCALL(__NR_perf_counter_open, sys_perf_counter_open)
+#define __NR_perf_event_open			298
+__SYSCALL(__NR_perf_event_open, sys_perf_event_open)
+#define __NR_recvmmsg				299
+__SYSCALL(__NR_recvmmsg, sys_recvmmsg)
+#define __NR_fanotify_init			300
+__SYSCALL(__NR_fanotify_init, sys_fanotify_init)
+#define __NR_fanotify_mark			301
+__SYSCALL(__NR_fanotify_mark, sys_fanotify_mark)
+#define __NR_prlimit64				302
+__SYSCALL(__NR_prlimit64, sys_prlimit64)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR
@@ -678,6 +686,7 @@ __SYSCALL(__NR_perf_counter_open, sys_perf_counter_open)
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_NICE
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLD_UNAME
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
@@ -688,6 +697,12 @@ __SYSCALL(__NR_perf_counter_open, sys_perf_counter_open)
 #endif	/* __NO_STUBS */
 
 #ifdef __KERNEL__
+
+#ifndef COMPILE_OFFSETS
+#include <asm/asm-offsets.h>
+#define NR_syscalls (__NR_syscall_max + 1)
+#endif
+
 /*
  * "Conditional" syscalls
  *

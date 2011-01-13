@@ -6,11 +6,12 @@
  *  adding & removing files & directories
  */
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include "hpfs_fn.h"
 
 static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct quad_buffer_head qbh0;
 	struct buffer_head *bh;
@@ -23,7 +24,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	int r;
 	struct hpfs_dirent dee;
 	int err;
-	if ((err = hpfs_chk_name((char *)name, &len))) return err==-ENOENT ? -EINVAL : err;
+	if ((err = hpfs_chk_name(name, &len))) return err==-ENOENT ? -EINVAL : err;
 	lock_kernel();
 	err = -ENOSPC;
 	fnode = hpfs_alloc_fnode(dir->i_sb, hpfs_i(dir)->i_dno, &fno, &bh);
@@ -61,7 +62,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		result->i_mode &= ~0222;
 
 	mutex_lock(&hpfs_i(dir)->i_mutex);
-	r = hpfs_add_dirent(dir, (char *)name, len, &dee, 0);
+	r = hpfs_add_dirent(dir, name, len, &dee, 0);
 	if (r == 1)
 		goto bail3;
 	if (r == -1) {
@@ -120,7 +121,7 @@ bail:
 
 static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd)
 {
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct inode *result = NULL;
 	struct buffer_head *bh;
@@ -129,7 +130,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	int r;
 	struct hpfs_dirent dee;
 	int err;
-	if ((err = hpfs_chk_name((char *)name, &len)))
+	if ((err = hpfs_chk_name(name, &len)))
 		return err==-ENOENT ? -EINVAL : err;
 	lock_kernel();
 	err = -ENOSPC;
@@ -154,7 +155,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	result->i_op = &hpfs_file_iops;
 	result->i_fop = &hpfs_file_ops;
 	result->i_nlink = 1;
-	hpfs_decide_conv(result, (char *)name, len);
+	hpfs_decide_conv(result, name, len);
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
 	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, dee.creation_date);
 	result->i_ctime.tv_nsec = 0;
@@ -169,7 +170,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	hpfs_i(result)->mmu_private = 0;
 
 	mutex_lock(&hpfs_i(dir)->i_mutex);
-	r = hpfs_add_dirent(dir, (char *)name, len, &dee, 0);
+	r = hpfs_add_dirent(dir, name, len, &dee, 0);
 	if (r == 1)
 		goto bail2;
 	if (r == -1) {
@@ -210,7 +211,7 @@ bail:
 
 static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 {
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct buffer_head *bh;
 	struct fnode *fnode;
@@ -219,7 +220,7 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t 
 	struct hpfs_dirent dee;
 	struct inode *result = NULL;
 	int err;
-	if ((err = hpfs_chk_name((char *)name, &len))) return err==-ENOENT ? -EINVAL : err;
+	if ((err = hpfs_chk_name(name, &len))) return err==-ENOENT ? -EINVAL : err;
 	if (hpfs_sb(dir->i_sb)->sb_eas < 2) return -EPERM;
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
@@ -255,7 +256,7 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t 
 	init_special_inode(result, mode, rdev);
 
 	mutex_lock(&hpfs_i(dir)->i_mutex);
-	r = hpfs_add_dirent(dir, (char *)name, len, &dee, 0);
+	r = hpfs_add_dirent(dir, name, len, &dee, 0);
 	if (r == 1)
 		goto bail2;
 	if (r == -1) {
@@ -288,7 +289,7 @@ bail:
 
 static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *symlink)
 {
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct buffer_head *bh;
 	struct fnode *fnode;
@@ -297,7 +298,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	struct hpfs_dirent dee;
 	struct inode *result;
 	int err;
-	if ((err = hpfs_chk_name((char *)name, &len))) return err==-ENOENT ? -EINVAL : err;
+	if ((err = hpfs_chk_name(name, &len))) return err==-ENOENT ? -EINVAL : err;
 	lock_kernel();
 	if (hpfs_sb(dir->i_sb)->sb_eas < 2) {
 		unlock_kernel();
@@ -334,7 +335,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	result->i_data.a_ops = &hpfs_symlink_aops;
 
 	mutex_lock(&hpfs_i(dir)->i_mutex);
-	r = hpfs_add_dirent(dir, (char *)name, len, &dee, 0);
+	r = hpfs_add_dirent(dir, name, len, &dee, 0);
 	if (r == 1)
 		goto bail2;
 	if (r == -1) {
@@ -344,7 +345,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	fnode->len = len;
 	memcpy(fnode->name, name, len > 15 ? 15 : len);
 	fnode->up = dir->i_ino;
-	hpfs_set_ea(result, fnode, "SYMLINK", (char *)symlink, strlen(symlink));
+	hpfs_set_ea(result, fnode, "SYMLINK", symlink, strlen(symlink));
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
@@ -368,7 +369,7 @@ bail:
 
 static int hpfs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct quad_buffer_head qbh;
 	struct hpfs_dirent *de;
@@ -380,12 +381,12 @@ static int hpfs_unlink(struct inode *dir, struct dentry *dentry)
 	int err;
 
 	lock_kernel();
-	hpfs_adjust_length((char *)name, &len);
+	hpfs_adjust_length(name, &len);
 again:
 	mutex_lock(&hpfs_i(inode)->i_parent_mutex);
 	mutex_lock(&hpfs_i(dir)->i_mutex);
 	err = -ENOENT;
-	de = map_dirent(dir, hpfs_i(dir)->i_dno, (char *)name, len, &dno, &qbh);
+	de = map_dirent(dir, hpfs_i(dir)->i_dno, name, len, &dno, &qbh);
 	if (!de)
 		goto out;
 
@@ -412,22 +413,25 @@ again:
 
 		mutex_unlock(&hpfs_i(dir)->i_mutex);
 		mutex_unlock(&hpfs_i(inode)->i_parent_mutex);
-		d_drop(dentry);
-		spin_lock(&dentry->d_lock);
-		if (atomic_read(&dentry->d_count) > 1 ||
-		    generic_permission(inode, MAY_WRITE, NULL) ||
+		dentry_unhash(dentry);
+		if (!d_unhashed(dentry)) {
+			dput(dentry);
+			unlock_kernel();
+			return -ENOSPC;
+		}
+		if (generic_permission(inode, MAY_WRITE, 0, NULL) ||
 		    !S_ISREG(inode->i_mode) ||
 		    get_write_access(inode)) {
-			spin_unlock(&dentry->d_lock);
 			d_rehash(dentry);
+			dput(dentry);
 		} else {
 			struct iattr newattrs;
-			spin_unlock(&dentry->d_lock);
 			/*printk("HPFS: truncating file before delete.\n");*/
 			newattrs.ia_size = 0;
 			newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
 			err = notify_change(dentry, &newattrs);
 			put_write_access(inode);
+			dput(dentry);
 			if (!err)
 				goto again;
 		}
@@ -450,7 +454,7 @@ out:
 
 static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct quad_buffer_head qbh;
 	struct hpfs_dirent *de;
@@ -461,12 +465,12 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 	int err;
 	int r;
 
-	hpfs_adjust_length((char *)name, &len);
+	hpfs_adjust_length(name, &len);
 	lock_kernel();
 	mutex_lock(&hpfs_i(inode)->i_parent_mutex);
 	mutex_lock(&hpfs_i(dir)->i_mutex);
 	err = -ENOENT;
-	de = map_dirent(dir, hpfs_i(dir)->i_dno, (char *)name, len, &dno, &qbh);
+	de = map_dirent(dir, hpfs_i(dir)->i_dno, name, len, &dno, &qbh);
 	if (!de)
 		goto out;
 
@@ -545,10 +549,10 @@ const struct address_space_operations hpfs_symlink_aops = {
 static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry)
 {
-	char *old_name = (char *)old_dentry->d_name.name;
-	int old_len = old_dentry->d_name.len;
-	char *new_name = (char *)new_dentry->d_name.name;
-	int new_len = new_dentry->d_name.len;
+	const unsigned char *old_name = old_dentry->d_name.name;
+	unsigned old_len = old_dentry->d_name.len;
+	const unsigned char *new_name = new_dentry->d_name.name;
+	unsigned new_len = new_dentry->d_name.len;
 	struct inode *i = old_dentry->d_inode;
 	struct inode *new_inode = new_dentry->d_inode;
 	struct quad_buffer_head qbh, qbh1;
@@ -559,9 +563,9 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh;
 	struct fnode *fnode;
 	int err;
-	if ((err = hpfs_chk_name((char *)new_name, &new_len))) return err;
+	if ((err = hpfs_chk_name(new_name, &new_len))) return err;
 	err = 0;
-	hpfs_adjust_length((char *)old_name, &old_len);
+	hpfs_adjust_length(old_name, &old_len);
 
 	lock_kernel();
 	/* order doesn't matter, due to VFS exclusion */
@@ -578,7 +582,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto end1;
 	}
 
-	if (!(dep = map_dirent(old_dir, hpfs_i(old_dir)->i_dno, (char *)old_name, old_len, &dno, &qbh))) {
+	if (!(dep = map_dirent(old_dir, hpfs_i(old_dir)->i_dno, old_name, old_len, &dno, &qbh))) {
 		hpfs_error(i->i_sb, "lookup succeeded but map dirent failed");
 		err = -ENOENT;
 		goto end1;
@@ -589,7 +593,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_inode) {
 		int r;
 		if ((r = hpfs_remove_dirent(old_dir, dno, dep, &qbh, 1)) != 2) {
-			if ((nde = map_dirent(new_dir, hpfs_i(new_dir)->i_dno, (char *)new_name, new_len, NULL, &qbh1))) {
+			if ((nde = map_dirent(new_dir, hpfs_i(new_dir)->i_dno, new_name, new_len, NULL, &qbh1))) {
 				clear_nlink(new_inode);
 				copy_de(nde, &de);
 				memcpy(nde->name, new_name, new_len);
@@ -617,7 +621,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 	
 	if (new_dir == old_dir)
-		if (!(dep = map_dirent(old_dir, hpfs_i(old_dir)->i_dno, (char *)old_name, old_len, &dno, &qbh))) {
+		if (!(dep = map_dirent(old_dir, hpfs_i(old_dir)->i_dno, old_name, old_len, &dno, &qbh))) {
 			hpfs_unlock_creation(i->i_sb);
 			hpfs_error(i->i_sb, "lookup succeeded but map dirent failed at #2");
 			err = -ENOENT;
@@ -647,7 +651,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		brelse(bh);
 	}
 	hpfs_i(i)->i_conv = hpfs_sb(i->i_sb)->sb_conv;
-	hpfs_decide_conv(i, (char *)new_name, new_len);
+	hpfs_decide_conv(i, new_name, new_len);
 end1:
 	if (old_dir != new_dir)
 		mutex_unlock(&hpfs_i(new_dir)->i_mutex);

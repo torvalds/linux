@@ -4,16 +4,16 @@
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * it under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation; either version 2.1 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
@@ -147,17 +147,19 @@ struct nilfs_super_root {
 #define NILFS_MOUNT_ERRORS_CONT		0x0010  /* Continue on errors */
 #define NILFS_MOUNT_ERRORS_RO		0x0020  /* Remount fs ro on errors */
 #define NILFS_MOUNT_ERRORS_PANIC	0x0040  /* Panic on errors */
-#define NILFS_MOUNT_SNAPSHOT		0x0080  /* Snapshot flag */
 #define NILFS_MOUNT_BARRIER		0x1000  /* Use block barriers */
 #define NILFS_MOUNT_STRICT_ORDER	0x2000  /* Apply strict in-order
 						   semantics also for data */
+#define NILFS_MOUNT_NORECOVERY		0x4000  /* Disable write access during
+						   mount-time recovery */
+#define NILFS_MOUNT_DISCARD		0x8000  /* Issue DISCARD requests */
 
 
 /**
  * struct nilfs_super_block - structure of super block on disk
  */
 struct nilfs_super_block {
-	__le32	s_rev_level;		/* Revision level */
+/*00*/	__le32	s_rev_level;		/* Revision level */
 	__le16	s_minor_rev_level;	/* minor revision level */
 	__le16	s_magic;		/* Magic signature */
 
@@ -166,51 +168,53 @@ struct nilfs_super_block {
 					   is excluded. */
 	__le16  s_flags;		/* flags */
 	__le32  s_crc_seed;		/* Seed value of CRC calculation */
-	__le32	s_sum;			/* Check sum of super block */
+/*10*/	__le32	s_sum;			/* Check sum of super block */
 
 	__le32	s_log_block_size;	/* Block size represented as follows
 					   blocksize =
 					       1 << (s_log_block_size + 10) */
 	__le64  s_nsegments;		/* Number of segments in filesystem */
-	__le64  s_dev_size;		/* block device size in bytes */
+/*20*/	__le64  s_dev_size;		/* block device size in bytes */
 	__le64	s_first_data_block;	/* 1st seg disk block number */
-	__le32  s_blocks_per_segment;   /* number of blocks per full segment */
+/*30*/	__le32  s_blocks_per_segment;   /* number of blocks per full segment */
 	__le32	s_r_segments_percentage; /* Reserved segments percentage */
 
 	__le64  s_last_cno;		/* Last checkpoint number */
-	__le64  s_last_pseg;		/* disk block addr pseg written last */
+/*40*/	__le64  s_last_pseg;		/* disk block addr pseg written last */
 	__le64  s_last_seq;             /* seq. number of seg written last */
-	__le64	s_free_blocks_count;	/* Free blocks count */
+/*50*/	__le64	s_free_blocks_count;	/* Free blocks count */
 
 	__le64	s_ctime;		/* Creation time (execution time of
 					   newfs) */
-	__le64	s_mtime;		/* Mount time */
+/*60*/	__le64	s_mtime;		/* Mount time */
 	__le64	s_wtime;		/* Write time */
-	__le16	s_mnt_count;		/* Mount count */
+/*70*/	__le16	s_mnt_count;		/* Mount count */
 	__le16	s_max_mnt_count;	/* Maximal mount count */
 	__le16	s_state;		/* File system state */
 	__le16	s_errors;		/* Behaviour when detecting errors */
 	__le64	s_lastcheck;		/* time of last check */
 
-	__le32	s_checkinterval;	/* max. time between checks */
+/*80*/	__le32	s_checkinterval;	/* max. time between checks */
 	__le32	s_creator_os;		/* OS */
 	__le16	s_def_resuid;		/* Default uid for reserved blocks */
 	__le16	s_def_resgid;		/* Default gid for reserved blocks */
-	__le32	s_first_ino; 		/* First non-reserved inode */
+	__le32	s_first_ino;		/* First non-reserved inode */
 
-	__le16  s_inode_size; 		/* Size of an inode */
+/*90*/	__le16  s_inode_size;		/* Size of an inode */
 	__le16  s_dat_entry_size;       /* Size of a dat entry */
 	__le16  s_checkpoint_size;      /* Size of a checkpoint */
 	__le16	s_segment_usage_size;	/* Size of a segment usage */
 
-	__u8	s_uuid[16];		/* 128-bit uuid for volume */
-	char	s_volume_name[16]; 	/* volume name */
-	char	s_last_mounted[64]; 	/* directory where last mounted */
+/*98*/	__u8	s_uuid[16];		/* 128-bit uuid for volume */
+/*A8*/	char	s_volume_name[80];	/* volume name */
 
-	__le32  s_c_interval;           /* Commit interval of segment */
+/*F8*/	__le32  s_c_interval;           /* Commit interval of segment */
 	__le32  s_c_block_max;          /* Threshold of data amount for
 					   the segment construction */
-	__u32	s_reserved[192];	/* padding to the end of the block */
+/*100*/	__le64  s_feature_compat;	/* Compatible feature set */
+	__le64  s_feature_compat_ro;	/* Read-only compatible feature set */
+	__le64  s_feature_incompat;	/* Incompatible feature set */
+	__u32	s_reserved[186];	/* padding to the end of the block */
 };
 
 /*
@@ -224,6 +228,17 @@ struct nilfs_super_block {
  */
 #define NILFS_CURRENT_REV	2	/* current major revision */
 #define NILFS_MINOR_REV		0	/* minor revision */
+#define NILFS_MIN_SUPP_REV	2	/* minimum supported revision */
+
+/*
+ * Feature set definitions
+ *
+ * If there is a bit set in the incompatible feature set that the kernel
+ * doesn't know about, it should refuse to mount the filesystem.
+ */
+#define NILFS_FEATURE_COMPAT_SUPP	0ULL
+#define NILFS_FEATURE_COMPAT_RO_SUPP	0ULL
+#define NILFS_FEATURE_INCOMPAT_SUPP	0ULL
 
 /*
  * Bytes count of super_block for CRC-calculation
@@ -255,6 +270,14 @@ struct nilfs_super_block {
 					   segments */
 
 /*
+ * We call DAT, cpfile, and sufile root metadata files.  Inodes of
+ * these files are written in super root block instead of ifile, and
+ * garbage collector doesn't keep any past versions of these files.
+ */
+#define NILFS_ROOT_METADATA_FILE(ino) \
+	((ino) >= NILFS_DAT_INO && (ino) <= NILFS_SUFILE_INO)
+
+/*
  * bytes offset of secondary super block
  */
 #define NILFS_SB2_OFFSET_BYTES(devsize)	((((devsize) >> 12) - 1) << 12)
@@ -270,6 +293,12 @@ struct nilfs_super_block {
  */
 
 #define NILFS_NAME_LEN 255
+
+/*
+ * Block size limitations
+ */
+#define NILFS_MIN_BLOCK_SIZE		1024
+#define NILFS_MAX_BLOCK_SIZE		65536
 
 /*
  * The new version of the directory entry.  Since V0 structures are
@@ -311,7 +340,25 @@ enum {
 #define NILFS_DIR_ROUND			(NILFS_DIR_PAD - 1)
 #define NILFS_DIR_REC_LEN(name_len)	(((name_len) + 12 + NILFS_DIR_ROUND) & \
 					~NILFS_DIR_ROUND)
+#define NILFS_MAX_REC_LEN		((1<<16)-1)
 
+static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
+{
+	unsigned len = le16_to_cpu(dlen);
+
+	if (len == NILFS_MAX_REC_LEN)
+		return 1 << 16;
+	return len;
+}
+
+static inline __le16 nilfs_rec_len_to_disk(unsigned len)
+{
+	if (len == (1 << 16))
+		return cpu_to_le16(NILFS_MAX_REC_LEN);
+	else if (len > (1 << 16))
+		BUG();
+	return cpu_to_le16(len);
+}
 
 /**
  * struct nilfs_finfo - file information
@@ -374,6 +421,7 @@ union nilfs_binfo {
  * @ss_nfinfo: number of finfo structures
  * @ss_sumbytes: total size of segment summary in bytes
  * @ss_pad: padding
+ * @ss_cno: checkpoint number
  */
 struct nilfs_segment_summary {
 	__le32 ss_datasum;
@@ -388,6 +436,7 @@ struct nilfs_segment_summary {
 	__le32 ss_nfinfo;
 	__le32 ss_sumbytes;
 	__le32 ss_pad;
+	__le64 ss_cno;
 	/* array of finfo structures */
 };
 
@@ -403,6 +452,28 @@ struct nilfs_segment_summary {
 #define NILFS_SS_GC     0x0010  /* segment written for cleaner operation */
 
 /**
+ * struct nilfs_btree_node - B-tree node
+ * @bn_flags: flags
+ * @bn_level: level
+ * @bn_nchildren: number of children
+ * @bn_pad: padding
+ */
+struct nilfs_btree_node {
+	__u8 bn_flags;
+	__u8 bn_level;
+	__le16 bn_nchildren;
+	__le32 bn_pad;
+};
+
+/* flags */
+#define NILFS_BTREE_NODE_ROOT   0x01
+
+/* level */
+#define NILFS_BTREE_LEVEL_DATA          0
+#define NILFS_BTREE_LEVEL_NODE_MIN      (NILFS_BTREE_LEVEL_DATA + 1)
+#define NILFS_BTREE_LEVEL_MAX           14
+
+/**
  * struct nilfs_palloc_group_desc - block group descriptor
  * @pg_nfrees: number of free entries in block group
  */
@@ -412,10 +483,10 @@ struct nilfs_palloc_group_desc {
 
 /**
  * struct nilfs_dat_entry - disk address translation entry
- * @dt_blocknr: block number
- * @dt_start: start checkpoint number
- * @dt_end: end checkpoint number
- * @dt_rsv: reserved for future use
+ * @de_blocknr: block number
+ * @de_start: start checkpoint number
+ * @de_end: end checkpoint number
+ * @de_rsv: reserved for future use
  */
 struct nilfs_dat_entry {
 	__le64 de_blocknr;
@@ -423,15 +494,6 @@ struct nilfs_dat_entry {
 	__le64 de_end;
 	__le64 de_rsv;
 };
-
-/**
- * struct nilfs_dat_group_desc - block group descriptor
- * @dg_nfrees: number of free virtual block numbers in block group
- */
-struct nilfs_dat_group_desc {
-	__le32 dg_nfrees;
-};
-
 
 /**
  * struct nilfs_snapshot_list - snapshot list

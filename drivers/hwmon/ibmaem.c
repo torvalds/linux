@@ -20,6 +20,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ipmi.h>
 #include <linux/module.h>
 #include <linux/hwmon.h>
@@ -29,6 +31,7 @@
 #include <linux/kdev_t.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/math64.h>
@@ -1089,7 +1092,7 @@ static int __init aem_init(void)
 
 	res = driver_register(&aem_driver.driver);
 	if (res) {
-		printk(KERN_ERR "Can't register aem driver\n");
+		pr_err("Can't register aem driver\n");
 		return res;
 	}
 

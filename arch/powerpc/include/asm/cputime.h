@@ -18,6 +18,9 @@
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 #include <asm-generic/cputime.h>
+#ifdef __KERNEL__
+static inline void setup_cputime_one_jiffy(void) { }
+#endif
 #else
 
 #include <linux/types.h>
@@ -49,6 +52,11 @@ typedef u64 cputime64_t;
 #ifdef __KERNEL__
 
 /*
+ * One jiffy in timebase units computed during initialization
+ */
+extern cputime_t cputime_one_jiffy;
+
+/*
  * Convert cputime <-> jiffies
  */
 extern u64 __cputime_jiffies_factor;
@@ -65,10 +73,9 @@ static inline unsigned long cputime_to_jiffies(const cputime_t ct)
 static inline cputime_t cputime_to_scaled(const cputime_t ct)
 {
 	if (cpu_has_feature(CPU_FTR_SPURR) &&
-	    per_cpu(cputime_last_delta, smp_processor_id()))
-		return ct *
-			per_cpu(cputime_scaled_last_delta, smp_processor_id())/
-			per_cpu(cputime_last_delta, smp_processor_id());
+	    __get_cpu_var(cputime_last_delta))
+		return ct * __get_cpu_var(cputime_scaled_last_delta) /
+			    __get_cpu_var(cputime_last_delta);
 	return ct;
 }
 
@@ -87,6 +94,11 @@ static inline cputime_t jiffies_to_cputime(const unsigned long jif)
 	if (sec)
 		ct += (cputime_t) sec * tb_ticks_per_sec;
 	return ct;
+}
+
+static inline void setup_cputime_one_jiffy(void)
+{
+	cputime_one_jiffy = jiffies_to_cputime(1);
 }
 
 static inline cputime64_t jiffies64_to_cputime64(const u64 jif)
@@ -112,23 +124,23 @@ static inline u64 cputime64_to_jiffies64(const cputime_t ct)
 }
 
 /*
- * Convert cputime <-> milliseconds
+ * Convert cputime <-> microseconds
  */
 extern u64 __cputime_msec_factor;
 
-static inline unsigned long cputime_to_msecs(const cputime_t ct)
+static inline unsigned long cputime_to_usecs(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_msec_factor);
+	return mulhdu(ct, __cputime_msec_factor) * USEC_PER_MSEC;
 }
 
-static inline cputime_t msecs_to_cputime(const unsigned long ms)
+static inline cputime_t usecs_to_cputime(const unsigned long us)
 {
 	cputime_t ct;
 	unsigned long sec;
 
 	/* have to be a little careful about overflow */
-	ct = ms % 1000;
-	sec = ms / 1000;
+	ct = us % 1000000;
+	sec = us / 1000000;
 	if (ct) {
 		ct *= tb_ticks_per_sec;
 		do_div(ct, 1000);

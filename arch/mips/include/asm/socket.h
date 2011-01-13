@@ -42,6 +42,8 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 #define SO_SNDTIMEO	0x1005	/* send timeout */
 #define SO_RCVTIMEO 	0x1006	/* receive timeout */
 #define SO_ACCEPTCONN	0x1009
+#define SO_PROTOCOL	0x1028	/* protocol type */
+#define SO_DOMAIN	0x1029	/* domain/socket family */
 
 /* linux-specific, might as well be the same as on i386 */
 #define SO_NO_CHECK	11
@@ -77,6 +79,8 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 
 #define SO_TIMESTAMPING		37
 #define SCM_TIMESTAMPING	SO_TIMESTAMPING
+
+#define SO_RXQ_OVFL             40
 
 #ifdef __KERNEL__
 

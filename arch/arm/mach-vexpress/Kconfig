@@ -1,0 +1,9 @@
+menu "Versatile Express platform type"
+	depends on ARCH_VEXPRESS
+
+config ARCH_VEXPRESS_CA9X4
+	bool "Versatile Express Cortex-A9x4 tile"
+	select CPU_V7
+	select ARM_GIC
+
+endmenu

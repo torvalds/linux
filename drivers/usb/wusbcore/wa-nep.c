@@ -51,6 +51,7 @@
  */
 #include <linux/workqueue.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 
 #include "wa-hc.h"
 #include "wusbhc.h"

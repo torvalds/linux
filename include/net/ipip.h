@@ -7,12 +7,18 @@
 /* Keep error state on tunnel for 30 sec */
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
 
-struct ip_tunnel
-{
-	struct ip_tunnel	*next;
+/* 6rd prefix/relay information */
+struct ip_tunnel_6rd_parm {
+	struct in6_addr		prefix;
+	__be32			relay_prefix;
+	u16			prefixlen;
+	u16			relay_prefixlen;
+};
+
+struct ip_tunnel {
+	struct ip_tunnel __rcu	*next;
 	struct net_device	*dev;
 
-	int			recursion;	/* Depth of hard_start_xmit recursion */
 	int			err_count;	/* Number of arrived ICMP errors */
 	unsigned long		err_time;	/* Time when the last ICMP error arrived */
 
@@ -24,39 +30,38 @@ struct ip_tunnel
 
 	struct ip_tunnel_parm	parms;
 
-	struct ip_tunnel_prl_entry	*prl;		/* potential router list */
+	/* for SIT */
+#ifdef CONFIG_IPV6_SIT_6RD
+	struct ip_tunnel_6rd_parm	ip6rd;
+#endif
+	struct ip_tunnel_prl_entry __rcu *prl;		/* potential router list */
 	unsigned int			prl_count;	/* # of entries in PRL */
 };
 
-/* ISATAP: default interval between RS in secondy */
-#define IPTUNNEL_RS_DEFAULT_DELAY	(900)
-
-struct ip_tunnel_prl_entry
-{
-	struct ip_tunnel_prl_entry	*next;
+struct ip_tunnel_prl_entry {
+	struct ip_tunnel_prl_entry __rcu *next;
 	__be32				addr;
 	u16				flags;
-	unsigned long			rs_delay;
-	struct timer_list		rs_timer;
-	struct ip_tunnel		*tunnel;
-	spinlock_t			lock;
+	struct rcu_head			rcu_head;
 };
 
-#define IPTUNNEL_XMIT() do {						\
+#define __IPTUNNEL_XMIT(stats1, stats2) do {				\
 	int err;							\
 	int pkt_len = skb->len - skb_transport_offset(skb);		\
 									\
 	skb->ip_summed = CHECKSUM_NONE;					\
-	ip_select_ident(iph, &rt->u.dst, NULL);				\
+	ip_select_ident(iph, &rt->dst, NULL);				\
 									\
 	err = ip_local_out(skb);					\
-	if (net_xmit_eval(err) == 0) {					\
-		stats->tx_bytes += pkt_len;				\
-		stats->tx_packets++;					\
+	if (likely(net_xmit_eval(err) == 0)) {				\
+		(stats1)->tx_bytes += pkt_len;				\
+		(stats1)->tx_packets++;					\
 	} else {							\
-		stats->tx_errors++;					\
-		stats->tx_aborted_errors++;				\
+		(stats2)->tx_errors++;					\
+		(stats2)->tx_aborted_errors++;				\
 	}								\
 } while (0)
+
+#define IPTUNNEL_XMIT() __IPTUNNEL_XMIT(txq, stats)
 
 #endif

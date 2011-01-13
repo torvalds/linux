@@ -4,14 +4,44 @@
 #include <asm/hvcall.h>
 #include <asm/page.h>
 
+/* Get state of physical CPU from query_cpu_stopped */
+int smp_query_cpu_stopped(unsigned int pcpu);
+#define QCSS_STOPPED 0
+#define QCSS_STOPPING 1
+#define QCSS_NOT_STOPPED 2
+#define QCSS_HARDWARE_ERROR -1
+#define QCSS_HARDWARE_BUSY -2
+
 static inline long poll_pending(void)
 {
 	return plpar_hcall_norets(H_POLL_PENDING);
 }
 
+static inline u8 get_cede_latency_hint(void)
+{
+	return get_lppaca()->gpr5_dword.fields.cede_latency_hint;
+}
+
+static inline void set_cede_latency_hint(u8 latency_hint)
+{
+	get_lppaca()->gpr5_dword.fields.cede_latency_hint = latency_hint;
+}
+
 static inline long cede_processor(void)
 {
 	return plpar_hcall_norets(H_CEDE);
+}
+
+static inline long extended_cede_processor(unsigned long latency_hint)
+{
+	long rc;
+	u8 old_latency_hint = get_cede_latency_hint();
+
+	set_cede_latency_hint(latency_hint);
+	rc = cede_processor();
+	set_cede_latency_hint(old_latency_hint);
+
+	return rc;
 }
 
 static inline long vpa_call(unsigned long flags, unsigned long cpu,
@@ -161,6 +191,24 @@ static inline long plpar_pte_read_raw(unsigned long flags, unsigned long ptex,
 	return rc;
 }
 
+/*
+ * plpar_pte_read_4_raw can be called in real mode.
+ * ptes must be 8*sizeof(unsigned long)
+ */
+static inline long plpar_pte_read_4_raw(unsigned long flags, unsigned long ptex,
+					unsigned long *ptes)
+
+{
+	long rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+
+	rc = plpar_hcall9_raw(H_READ, retbuf, flags | H_READ_4, ptex);
+
+	memcpy(ptes, retbuf, 8*sizeof(unsigned long));
+
+	return rc;
+}
+
 static inline long plpar_pte_protect(unsigned long flags, unsigned long ptex,
 		unsigned long avpn)
 {
@@ -237,12 +285,12 @@ static inline long plpar_ipi(unsigned long servernum, unsigned long mfrr)
 	return plpar_hcall_norets(H_IPI, servernum, mfrr);
 }
 
-static inline long plpar_xirr(unsigned long *xirr_ret)
+static inline long plpar_xirr(unsigned long *xirr_ret, unsigned char cppr)
 {
 	long rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 
-	rc = plpar_hcall(H_XIRR, retbuf);
+	rc = plpar_hcall(H_XIRR, retbuf, cppr);
 
 	*xirr_ret = retbuf[0];
 

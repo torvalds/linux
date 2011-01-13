@@ -24,7 +24,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
@@ -376,7 +375,7 @@ static void tsi108_pci_irq_end(u_int irq)
  */
 
 static struct irq_chip tsi108_pci_irq = {
-	.typename = "tsi108_PCI_int",
+	.name = "tsi108_PCI_int",
 	.mask = tsi108_pci_irq_disable,
 	.ack = tsi108_pci_irq_ack,
 	.end = tsi108_pci_irq_end,
@@ -384,7 +383,7 @@ static struct irq_chip tsi108_pci_irq = {
 };
 
 static int pci_irq_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 *intspec, unsigned int intsize,
+			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	*out_hwirq = intspec[0];
@@ -398,7 +397,7 @@ static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
 	DBG("%s(%d, 0x%lx)\n", __func__, virq, hw);
 	if ((virq >= 1) && (virq <= 4)){
 		irq = virq + IRQ_PCI_INTAD_BASE - 1;
-		get_irq_desc(irq)->status |= IRQ_LEVEL;
+		irq_to_desc(irq)->status |= IRQ_LEVEL;
 		set_irq_chip(irq, &tsi108_pci_irq);
 	}
 	return 0;

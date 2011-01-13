@@ -9,6 +9,8 @@
  * the dangers of modifying code on the run.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
 #include <linux/uaccess.h>
@@ -17,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include <trace/syscall.h>
 
@@ -28,14 +31,34 @@
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
+/*
+ * modifying_code is set to notify NMIs that they need to use
+ * memory barriers when entering or exiting. But we don't want
+ * to burden NMIs with unnecessary memory barriers when code
+ * modification is not being done (which is most of the time).
+ *
+ * A mutex is already held when ftrace_arch_code_modify_prepare
+ * and post_process are called. No locks need to be taken here.
+ *
+ * Stop machine will make sure currently running NMIs are done
+ * and new NMIs will see the updated variable before we need
+ * to worry about NMIs doing memory barriers.
+ */
+static int modifying_code __read_mostly;
+static DEFINE_PER_CPU(int, save_modifying_code);
+
 int ftrace_arch_code_modify_prepare(void)
 {
 	set_kernel_text_rw();
+	set_all_modules_text_rw();
+	modifying_code = 1;
 	return 0;
 }
 
 int ftrace_arch_code_modify_post_process(void)
 {
+	modifying_code = 0;
+	set_all_modules_text_ro();
 	set_kernel_text_ro();
 	return 0;
 }
@@ -147,6 +170,11 @@ static void ftrace_mod_code(void)
 
 void ftrace_nmi_enter(void)
 {
+	__this_cpu_write(save_modifying_code, modifying_code);
+
+	if (!__this_cpu_read(save_modifying_code))
+		return;
+
 	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
 		smp_rmb();
 		ftrace_mod_code();
@@ -158,6 +186,9 @@ void ftrace_nmi_enter(void)
 
 void ftrace_nmi_exit(void)
 {
+	if (!__this_cpu_read(save_modifying_code))
+		return;
+
 	/* Finish all executions before clearing nmi_running */
 	smp_mb();
 	atomic_dec(&nmi_running);
@@ -187,9 +218,26 @@ static void wait_for_nmi(void)
 	nmi_wait_count++;
 }
 
+static inline int
+within(unsigned long addr, unsigned long start, unsigned long end)
+{
+	return addr >= start && addr < end;
+}
+
 static int
 do_ftrace_mod_code(unsigned long ip, void *new_code)
 {
+	/*
+	 * On x86_64, kernel text mappings are mapped read-only with
+	 * CONFIG_DEBUG_RODATA. So we use the kernel identity mapping instead
+	 * of the kernel text mapping to modify the kernel text.
+	 *
+	 * For 32bit kernels, these mappings are same and we can use
+	 * kernel identity mapping to modify code.
+	 */
+	if (within(ip, (unsigned long)_text, (unsigned long)_etext))
+		ip = (unsigned long)__va(__pa(ip));
+
 	mod_code_ip = (void *)ip;
 	mod_code_newcode = new_code;
 
@@ -212,14 +260,9 @@ do_ftrace_mod_code(unsigned long ip, void *new_code)
 	return mod_code_status;
 }
 
-
-
-
-static unsigned char ftrace_nop[MCOUNT_INSN_SIZE];
-
 static unsigned char *ftrace_nop_replace(void)
 {
-	return ftrace_nop;
+	return ideal_nop5;
 }
 
 static int
@@ -293,62 +336,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	extern const unsigned char ftrace_test_p6nop[];
-	extern const unsigned char ftrace_test_nop5[];
-	extern const unsigned char ftrace_test_jmp[];
-	int faulted = 0;
-
-	/*
-	 * There is no good nop for all x86 archs.
-	 * We will default to using the P6_NOP5, but first we
-	 * will test to make sure that the nop will actually
-	 * work on this CPU. If it faults, we will then
-	 * go to a lesser efficient 5 byte nop. If that fails
-	 * we then just use a jmp as our nop. This isn't the most
-	 * efficient nop, but we can not use a multi part nop
-	 * since we would then risk being preempted in the middle
-	 * of that nop, and if we enabled tracing then, it might
-	 * cause a system crash.
-	 *
-	 * TODO: check the cpuid to determine the best nop.
-	 */
-	asm volatile (
-		"ftrace_test_jmp:"
-		"jmp ftrace_test_p6nop\n"
-		"nop\n"
-		"nop\n"
-		"nop\n"  /* 2 byte jmp + 3 bytes */
-		"ftrace_test_p6nop:"
-		P6_NOP5
-		"jmp 1f\n"
-		"ftrace_test_nop5:"
-		".byte 0x66,0x66,0x66,0x66,0x90\n"
-		"1:"
-		".section .fixup, \"ax\"\n"
-		"2:	movl $1, %0\n"
-		"	jmp ftrace_test_nop5\n"
-		"3:	movl $2, %0\n"
-		"	jmp 1b\n"
-		".previous\n"
-		_ASM_EXTABLE(ftrace_test_p6nop, 2b)
-		_ASM_EXTABLE(ftrace_test_nop5, 3b)
-		: "=r"(faulted) : "0" (faulted));
-
-	switch (faulted) {
-	case 0:
-		pr_info("ftrace: converting mcount calls to 0f 1f 44 00 00\n");
-		memcpy(ftrace_nop, ftrace_test_p6nop, MCOUNT_INSN_SIZE);
-		break;
-	case 1:
-		pr_info("ftrace: converting mcount calls to 66 66 66 66 90\n");
-		memcpy(ftrace_nop, ftrace_test_nop5, MCOUNT_INSN_SIZE);
-		break;
-	case 2:
-		pr_info("ftrace: converting mcount calls to jmp . + 5\n");
-		memcpy(ftrace_nop, ftrace_test_jmp, MCOUNT_INSN_SIZE);
-		break;
-	}
-
 	/* The return code is retured via data */
 	*(unsigned long *)data = 0;
 
@@ -417,10 +404,6 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	unsigned long return_hooker = (unsigned long)
 				&return_to_handler;
 
-	/* Nmi's are currently unsupported */
-	if (unlikely(in_nmi()))
-		return;
-
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
@@ -469,66 +452,3 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-
-#ifdef CONFIG_FTRACE_SYSCALLS
-
-extern unsigned long __start_syscalls_metadata[];
-extern unsigned long __stop_syscalls_metadata[];
-extern unsigned long *sys_call_table;
-
-static struct syscall_metadata **syscalls_metadata;
-
-static struct syscall_metadata *find_syscall_meta(unsigned long *syscall)
-{
-	struct syscall_metadata *start;
-	struct syscall_metadata *stop;
-	char str[KSYM_SYMBOL_LEN];
-
-
-	start = (struct syscall_metadata *)__start_syscalls_metadata;
-	stop = (struct syscall_metadata *)__stop_syscalls_metadata;
-	kallsyms_lookup((unsigned long) syscall, NULL, NULL, NULL, str);
-
-	for ( ; start < stop; start++) {
-		if (start->name && !strcmp(start->name, str))
-			return start;
-	}
-	return NULL;
-}
-
-struct syscall_metadata *syscall_nr_to_meta(int nr)
-{
-	if (!syscalls_metadata || nr >= FTRACE_SYSCALL_MAX || nr < 0)
-		return NULL;
-
-	return syscalls_metadata[nr];
-}
-
-void arch_init_ftrace_syscalls(void)
-{
-	int i;
-	struct syscall_metadata *meta;
-	unsigned long **psys_syscall_table = &sys_call_table;
-	static atomic_t refs;
-
-	if (atomic_inc_return(&refs) != 1)
-		goto end;
-
-	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) *
-					FTRACE_SYSCALL_MAX, GFP_KERNEL);
-	if (!syscalls_metadata) {
-		WARN_ON(1);
-		return;
-	}
-
-	for (i = 0; i < FTRACE_SYSCALL_MAX; i++) {
-		meta = find_syscall_meta(psys_syscall_table[i]);
-		syscalls_metadata[i] = meta;
-	}
-	return;
-
-	/* Paranoid: avoid overflow */
-end:
-	atomic_dec(&refs);
-}
-#endif

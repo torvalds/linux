@@ -1,0 +1,289 @@
+<refentry id="vidioc-querycap">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_QUERYCAP</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_QUERYCAP</refname>
+    <refpurpose>Query device capabilities</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_capability *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_QUERYCAP</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>All V4L2 devices support the
+<constant>VIDIOC_QUERYCAP</constant> ioctl. It is used to identify
+kernel devices compatible with this specification and to obtain
+information about driver and hardware capabilities. The ioctl takes a
+pointer to a &v4l2-capability; which is filled by the driver. When the
+driver is not compatible with this specification the ioctl returns an
+&EINVAL;.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-capability">
+      <title>struct <structname>v4l2_capability</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>driver</structfield>[16]</entry>
+	    <entry><para>Name of the driver, a unique NUL-terminated
+ASCII string. For example: "bttv". Driver specific applications can
+use this information to verify the driver identity. It is also useful
+to work around known bugs, or to identify drivers in error reports.
+The driver version is stored in the <structfield>version</structfield>
+field.</para><para>Storing strings in fixed sized arrays is bad
+practice but unavoidable here. Drivers and applications should take
+precautions to never read or write beyond the end of the array and to
+make sure the strings are properly NUL-terminated.</para></entry>
+	  </row>
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>card</structfield>[32]</entry>
+	    <entry>Name of the device, a NUL-terminated ASCII string.
+For example: "Yoyodyne TV/FM". One driver may support different brands
+or models of video hardware. This information is intended for users,
+for example in a menu of available devices. Since multiple TV cards of
+the same brand may be installed which are supported by the same
+driver, this name should be combined with the character device file
+name (&eg; <filename>/dev/video2</filename>) or the
+<structfield>bus_info</structfield> string to avoid
+ambiguities.</entry>
+	  </row>
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>bus_info</structfield>[32]</entry>
+	    <entry>Location of the device in the system, a
+NUL-terminated ASCII string. For example: "PCI Slot 4". This
+information is intended for users, to distinguish multiple
+identical devices. If no such information is available the field may
+simply count the devices controlled by the driver, or contain the
+empty string (<structfield>bus_info</structfield>[0] = 0).<!-- XXX pci_dev->slot_name example --></entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>version</structfield></entry>
+	    <entry><para>Version number of the driver. Together with
+the <structfield>driver</structfield> field this identifies a
+particular driver. The version number is formatted using the
+<constant>KERNEL_VERSION()</constant> macro:</para></entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan"><para>
+<programlisting>
+#define KERNEL_VERSION(a,b,c) (((a) &lt;&lt; 16) + ((b) &lt;&lt; 8) + (c))
+
+__u32 version = KERNEL_VERSION(0, 8, 1);
+
+printf ("Version: %u.%u.%u\n",
+	(version &gt;&gt; 16) &amp; 0xFF,
+	(version &gt;&gt; 8) &amp; 0xFF,
+	 version &amp; 0xFF);
+</programlisting></para></entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>capabilities</structfield></entry>
+	    <entry>Device capabilities, see <xref
+		linkend="device-capabilities" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry>Reserved for future extensions. Drivers must set
+this array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="device-capabilities">
+      <title>Device Capabilities Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_CAPTURE</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>The device supports the <link
+linkend="capture">Video Capture</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT</constant></entry>
+	    <entry>0x00000002</entry>
+	    <entry>The device supports the <link
+linkend="output">Video Output</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_OVERLAY</constant></entry>
+	    <entry>0x00000004</entry>
+	    <entry>The device supports the <link
+linkend="overlay">Video Overlay</link> interface. A video overlay device
+typically stores captured images directly in the video memory of a
+graphics card, with hardware clipping and scaling.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VBI_CAPTURE</constant></entry>
+	    <entry>0x00000010</entry>
+	    <entry>The device supports the <link linkend="raw-vbi">Raw
+VBI Capture</link> interface, providing Teletext and Closed Caption
+data.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VBI_OUTPUT</constant></entry>
+	    <entry>0x00000020</entry>
+	    <entry>The device supports the <link linkend="raw-vbi">Raw VBI Output</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_SLICED_VBI_CAPTURE</constant></entry>
+	    <entry>0x00000040</entry>
+	    <entry>The device supports the <link linkend="sliced">Sliced VBI Capture</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_SLICED_VBI_OUTPUT</constant></entry>
+	    <entry>0x00000080</entry>
+	    <entry>The device supports the <link linkend="sliced">Sliced VBI Output</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_RDS_CAPTURE</constant></entry>
+	    <entry>0x00000100</entry>
+	    <entry>The device supports the <link linkend="rds">RDS</link> capture interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT_OVERLAY</constant></entry>
+	    <entry>0x00000200</entry>
+	    <entry>The device supports the <link linkend="osd">Video
+Output Overlay</link> (OSD) interface. Unlike the <wordasword>Video
+Overlay</wordasword> interface, this is a secondary function of video
+output devices and overlays an image onto an outgoing video signal.
+When the driver sets this flag, it must clear the
+<constant>V4L2_CAP_VIDEO_OVERLAY</constant> flag and vice
+versa.<footnote><para>The &v4l2-framebuffer; lacks an
+&v4l2-buf-type; field, therefore the type of overlay is implied by the
+driver capabilities.</para></footnote></entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_HW_FREQ_SEEK</constant></entry>
+	    <entry>0x00000400</entry>
+	    <entry>The device supports the &VIDIOC-S-HW-FREQ-SEEK; ioctl for
+hardware frequency seeking.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_RDS_OUTPUT</constant></entry>
+	    <entry>0x00000800</entry>
+	    <entry>The device supports the <link linkend="rds">RDS</link> output interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_TUNER</constant></entry>
+	    <entry>0x00010000</entry>
+	    <entry>The device has some sort of tuner to
+receive RF-modulated video signals. For more information about
+tuner programming see
+<xref linkend="tuner" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_AUDIO</constant></entry>
+	    <entry>0x00020000</entry>
+	    <entry>The device has audio inputs or outputs. It may or
+may not support audio recording or playback, in PCM or compressed
+formats. PCM audio support must be implemented as ALSA or OSS
+interface. For more information on audio inputs and outputs see <xref
+		linkend="audio" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_RADIO</constant></entry>
+	    <entry>0x00040000</entry>
+	    <entry>This is a radio receiver.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_MODULATOR</constant></entry>
+	    <entry>0x00080000</entry>
+	    <entry>The device has some sort of modulator to
+emit RF-modulated video/audio signals. For more information about
+modulator programming see
+<xref linkend="tuner" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_READWRITE</constant></entry>
+	    <entry>0x01000000</entry>
+	    <entry>The device supports the <link
+linkend="rw">read()</link> and/or <link linkend="rw">write()</link>
+I/O methods.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_ASYNCIO</constant></entry>
+	    <entry>0x02000000</entry>
+	    <entry>The device supports the <link
+linkend="async">asynchronous</link> I/O methods.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_STREAMING</constant></entry>
+	    <entry>0x04000000</entry>
+	    <entry>The device supports the <link
+linkend="mmap">streaming</link> I/O method.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The device is not compatible with this
+specification.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->
+

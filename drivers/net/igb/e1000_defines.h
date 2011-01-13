@@ -44,11 +44,12 @@
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
 
 /* Extended Device Control */
-#define E1000_CTRL_EXT_SDP7_DATA 0x00000080 /* Value of SW Defineable Pin 7 */
+#define E1000_CTRL_EXT_SDP3_DATA 0x00000080 /* Value of SW Defineable Pin 3 */
 /* Physical Func Reset Done Indication */
 #define E1000_CTRL_EXT_PFRSTD    0x00004000
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
+#define E1000_CTRL_EXT_LINK_MODE_1000BASE_KX  0x00400000
 #define E1000_CTRL_EXT_LINK_MODE_SGMII   0x00800000
 #define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_IRCA           0x00000001
@@ -163,6 +164,8 @@
 #define E1000_SWFW_EEP_SM   0x1
 #define E1000_SWFW_PHY0_SM  0x2
 #define E1000_SWFW_PHY1_SM  0x4
+#define E1000_SWFW_PHY2_SM  0x20
+#define E1000_SWFW_PHY3_SM  0x40
 
 /* FACTPS Definitions */
 /* Device Control */
@@ -312,12 +315,6 @@
 #define E1000_PBA_34K 0x0022
 #define E1000_PBA_64K 0x0040    /* 64KB */
 
-#define IFS_MAX       80
-#define IFS_MIN       40
-#define IFS_RATIO     4
-#define IFS_STEP      10
-#define MIN_NUM_XMITS 1000
-
 /* SW Semaphore Register */
 #define E1000_SWSM_SMBI         0x00000001 /* Driver Semaphore bit */
 #define E1000_SWSM_SWESMBI      0x00000002 /* FW Semaphore bit */
@@ -329,6 +326,7 @@
 #define E1000_ICR_RXDMT0        0x00000010 /* rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
 #define E1000_ICR_VMMB          0x00000100 /* VM MB event */
+#define E1000_ICR_DRSTA         0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_INT_ASSERTED  0x80000000
 /* LAN connected device generates an interrupt */
@@ -370,6 +368,7 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
+#define E1000_IMS_DRSTA     E1000_ICR_DRSTA     /* Device Reset Asserted */
 #define E1000_IMS_DOUTSYNC  E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
 
 /* Extended Interrupt Mask Set */
@@ -378,6 +377,7 @@
 /* Interrupt Cause Set */
 #define E1000_ICS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_ICS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
+#define E1000_ICS_DRSTA     E1000_ICR_DRSTA     /* Device Reset Aserted */
 
 /* Extended Interrupt Cause Set */
 
@@ -419,6 +419,9 @@
 #define E1000_ERR_SWFW_SYNC 13
 #define E1000_NOT_IMPLEMENTED 14
 #define E1000_ERR_MBX      15
+#define E1000_ERR_INVALID_ARGUMENT  16
+#define E1000_ERR_NO_SPACE          17
+#define E1000_ERR_NVM_PBA_SECTION   18
 
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define COPPER_LINK_UP_LIMIT              10
@@ -435,9 +438,54 @@
 /* Flow Control */
 #define E1000_FCRTL_XONE 0x80000000     /* Enable XON frame transmission */
 
+#define E1000_TSYNCTXCTL_VALID    0x00000001 /* tx timestamp valid */
+#define E1000_TSYNCTXCTL_ENABLED  0x00000010 /* enable tx timestampping */
+
+#define E1000_TSYNCRXCTL_VALID      0x00000001 /* rx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_MASK  0x0000000E /* rx type mask */
+#define E1000_TSYNCRXCTL_TYPE_L2_V2       0x00
+#define E1000_TSYNCRXCTL_TYPE_L4_V1       0x02
+#define E1000_TSYNCRXCTL_TYPE_L2_L4_V2    0x04
+#define E1000_TSYNCRXCTL_TYPE_ALL         0x08
+#define E1000_TSYNCRXCTL_TYPE_EVENT_V2    0x0A
+#define E1000_TSYNCRXCTL_ENABLED    0x00000010 /* enable rx timestampping */
+
+#define E1000_TSYNCRXCFG_PTP_V1_CTRLT_MASK   0x000000FF
+#define E1000_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE       0x00
+#define E1000_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE  0x01
+#define E1000_TSYNCRXCFG_PTP_V1_FOLLOWUP_MESSAGE   0x02
+#define E1000_TSYNCRXCFG_PTP_V1_DELAY_RESP_MESSAGE 0x03
+#define E1000_TSYNCRXCFG_PTP_V1_MANAGEMENT_MESSAGE 0x04
+
+#define E1000_TSYNCRXCFG_PTP_V2_MSGID_MASK               0x00000F00
+#define E1000_TSYNCRXCFG_PTP_V2_SYNC_MESSAGE                 0x0000
+#define E1000_TSYNCRXCFG_PTP_V2_DELAY_REQ_MESSAGE            0x0100
+#define E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_REQ_MESSAGE       0x0200
+#define E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_RESP_MESSAGE      0x0300
+#define E1000_TSYNCRXCFG_PTP_V2_FOLLOWUP_MESSAGE             0x0800
+#define E1000_TSYNCRXCFG_PTP_V2_DELAY_RESP_MESSAGE           0x0900
+#define E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_FOLLOWUP_MESSAGE  0x0A00
+#define E1000_TSYNCRXCFG_PTP_V2_ANNOUNCE_MESSAGE             0x0B00
+#define E1000_TSYNCRXCFG_PTP_V2_SIGNALLING_MESSAGE           0x0C00
+#define E1000_TSYNCRXCFG_PTP_V2_MANAGEMENT_MESSAGE           0x0D00
+
+#define E1000_TIMINCA_16NS_SHIFT 24
+
+#define E1000_MDICNFG_EXT_MDIO    0x80000000      /* MDI ext/int destination */
+#define E1000_MDICNFG_COM_MDIO    0x40000000      /* MDI shared w/ lan 0 */
+#define E1000_MDICNFG_PHY_MASK    0x03E00000
+#define E1000_MDICNFG_PHY_SHIFT   21
+
+/* PCI Express Control */
+#define E1000_GCR_CMPL_TMOUT_MASK       0x0000F000
+#define E1000_GCR_CMPL_TMOUT_10ms       0x00001000
+#define E1000_GCR_CMPL_TMOUT_RESEND     0x00010000
+#define E1000_GCR_CAP_VER2              0x00040000
+
 /* PHY Control Register */
 #define MII_CR_FULL_DUPLEX      0x0100  /* FDX =1, half duplex =0 */
 #define MII_CR_RESTART_AUTO_NEG 0x0200  /* Restart auto negotiation */
+#define MII_CR_POWER_DOWN       0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN      0x1000  /* Auto Neg Enable */
 #define MII_CR_LOOPBACK         0x4000  /* 0 = normal, 1 = loopback */
 #define MII_CR_RESET            0x8000  /* 0 = normal, 1 = PHY reset */
@@ -518,8 +566,16 @@
 #define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
 
-#define E1000_NVM_CFG_DONE_PORT_0  0x40000 /* MNG config cycle done */
-#define E1000_NVM_CFG_DONE_PORT_1  0x80000 /* ...for second port */
+#define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
+#define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */
+#define E1000_NVM_CFG_DONE_PORT_2  0x100000 /* ...for third port */
+#define E1000_NVM_CFG_DONE_PORT_3  0x200000 /* ...for fourth port */
+
+#define NVM_82580_LAN_FUNC_OFFSET(a) (a ? (0x40 + (0x40 * a)) : 0)
+
+/* Mask bits for fields in Word 0x24 of the NVM */
+#define NVM_WORD24_COM_MDIO         0x0008 /* MDIO interface shared */
+#define NVM_WORD24_EXT_MDIO         0x0004 /* MDIO accesses routed external */
 
 /* Mask bits for fields in Word 0x0f of the NVM */
 #define NVM_WORD0F_PAUSE_MASK       0x3000
@@ -527,11 +583,15 @@
 
 /* Mask bits for fields in Word 0x1a of the NVM */
 
+/* length of string needed to store part num */
+#define E1000_PBANUM_LENGTH         11
+
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM                    0xBABA
 
 #define NVM_PBA_OFFSET_0           8
 #define NVM_PBA_OFFSET_1           9
+#define NVM_PBA_PTR_GUARD          0xFAFA
 #define NVM_WORD_SIZE_BASE_SHIFT   6
 
 /* NVM Commands - Microwire */
@@ -568,10 +628,8 @@
 #define IGP_LED3_MODE           0x07000000
 
 /* PCI/PCI-X/PCI-EX Config space */
-#define PCIE_LINK_STATUS             0x12
-
-#define PCIE_LINK_WIDTH_MASK         0x3F0
-#define PCIE_LINK_WIDTH_SHIFT        4
+#define PCIE_DEVICE_CONTROL2         0x28
+#define PCIE_DEVICE_CONTROL2_16ms    0x0005
 
 #define PHY_REVISION_MASK      0xFFFFFFF0
 #define MAX_PHY_REG_ADDRESS    0x1F  /* 5 bit address bus (0-0x1F) */
@@ -583,7 +641,11 @@
  * E = External
  */
 #define M88E1111_I_PHY_ID    0x01410CC0
+#define M88E1112_E_PHY_ID    0x01410C90
+#define I347AT4_E_PHY_ID     0x01410DC0
 #define IGP03E1000_E_PHY_ID  0x02A80390
+#define I82580_I_PHY_ID      0x015403A0
+#define I350_I_PHY_ID        0x015403B0
 #define M88_VENDOR           0x0141
 
 /* M88E1000 Specific Registers */
@@ -649,17 +711,51 @@
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X    0x0100
 #define M88E1000_EPSCR_TX_CLK_25      0x0070 /* 25  MHz TX_CLK */
 
+/* Intel i347-AT4 Registers */
+
+#define I347AT4_PCDL                   0x10 /* PHY Cable Diagnostics Length */
+#define I347AT4_PCDC                   0x15 /* PHY Cable Diagnostics Control */
+#define I347AT4_PAGE_SELECT            0x16
+
+/* i347-AT4 Extended PHY Specific Control Register */
+
+/*
+ *  Number of times we will attempt to autonegotiate before downshifting if we
+ *  are the master
+ */
+#define I347AT4_PSCR_DOWNSHIFT_ENABLE 0x0800
+#define I347AT4_PSCR_DOWNSHIFT_MASK   0x7000
+#define I347AT4_PSCR_DOWNSHIFT_1X     0x0000
+#define I347AT4_PSCR_DOWNSHIFT_2X     0x1000
+#define I347AT4_PSCR_DOWNSHIFT_3X     0x2000
+#define I347AT4_PSCR_DOWNSHIFT_4X     0x3000
+#define I347AT4_PSCR_DOWNSHIFT_5X     0x4000
+#define I347AT4_PSCR_DOWNSHIFT_6X     0x5000
+#define I347AT4_PSCR_DOWNSHIFT_7X     0x6000
+#define I347AT4_PSCR_DOWNSHIFT_8X     0x7000
+
+/* i347-AT4 PHY Cable Diagnostics Control */
+#define I347AT4_PCDC_CABLE_LENGTH_UNIT 0x0400 /* 0=cm 1=meters */
+
+/* Marvell 1112 only registers */
+#define M88E1112_VCT_DSP_DISTANCE       0x001A
+
 /* M88EC018 Rev 2 specific DownShift settings */
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_MASK  0x0E00
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_5X    0x0800
 
 /* MDI Control */
+#define E1000_MDIC_DATA_MASK 0x0000FFFF
+#define E1000_MDIC_REG_MASK  0x001F0000
 #define E1000_MDIC_REG_SHIFT 16
+#define E1000_MDIC_PHY_MASK  0x03E00000
 #define E1000_MDIC_PHY_SHIFT 21
 #define E1000_MDIC_OP_WRITE  0x04000000
 #define E1000_MDIC_OP_READ   0x08000000
 #define E1000_MDIC_READY     0x10000000
+#define E1000_MDIC_INT_EN    0x20000000
 #define E1000_MDIC_ERROR     0x40000000
+#define E1000_MDIC_DEST      0x80000000
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000
@@ -669,5 +765,9 @@
 #define E1000_VFTA_ENTRY_SHIFT               5
 #define E1000_VFTA_ENTRY_MASK                0x7F
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK      0x1F
+
+/* DMA Coalescing register fields */
+#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision based
+                                                      on DMA coal */
 
 #endif

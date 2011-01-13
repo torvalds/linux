@@ -41,7 +41,7 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static struct ebt_table broute_table =
+static const struct ebt_table broute_table =
 {
 	.name		= "broute",
 	.table		= &initial_table,
@@ -71,7 +71,7 @@ static int __net_init broute_net_init(struct net *net)
 
 static void __net_exit broute_net_exit(struct net *net)
 {
-	ebt_unregister_table(net->xt.broute_table);
+	ebt_unregister_table(net, net->xt.broute_table);
 }
 
 static struct pernet_operations broute_net_ops = {
@@ -87,7 +87,8 @@ static int __init ebtable_broute_init(void)
 	if (ret < 0)
 		return ret;
 	/* see br_input.c */
-	rcu_assign_pointer(br_should_route_hook, ebt_broute);
+	rcu_assign_pointer(br_should_route_hook,
+			   (br_should_route_hook_t *)ebt_broute);
 	return 0;
 }
 

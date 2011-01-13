@@ -26,7 +26,7 @@
 #include <linux/miscdevice.h>
 #include <linux/kmod.h>
 #include <linux/reboot.h>
-#include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 
@@ -92,11 +92,11 @@
 #define ENVCTRL_CPUTEMP_MON			1    /* cpu temperature monitor */
 #define ENVCTRL_CPUVOLTAGE_MON	  	2    /* voltage monitor         */
 #define ENVCTRL_FANSTAT_MON  		3    /* fan status monitor      */
-#define ENVCTRL_ETHERTEMP_MON		4    /* ethernet temperarture */
+#define ENVCTRL_ETHERTEMP_MON		4    /* ethernet temperature */
 					     /* monitor                     */
 #define ENVCTRL_VOLTAGESTAT_MON	  	5    /* voltage status monitor  */
 #define ENVCTRL_MTHRBDTEMP_MON		6    /* motherboard temperature */
-#define ENVCTRL_SCSITEMP_MON		7    /* scsi temperarture */
+#define ENVCTRL_SCSITEMP_MON		7    /* scsi temperature */
 #define ENVCTRL_GLOBALADDR_MON		8    /* global address */
 
 /* Child device type.
@@ -698,7 +698,6 @@ envctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int
 envctrl_open(struct inode *inode, struct file *file)
 {
-	cycle_kernel_lock();
 	file->private_data = NULL;
 	return 0;
 }
@@ -721,6 +720,7 @@ static const struct file_operations envctrl_fops = {
 #endif
 	.open =			envctrl_open,
 	.release =		envctrl_release,
+	.llseek =		noop_llseek,
 };	
 
 static struct miscdevice envctrl_dev = {
@@ -1028,7 +1028,7 @@ static int kenvctrld(void *__unused)
 	return 0;
 }
 
-static int __devinit envctrl_probe(struct of_device *op,
+static int __devinit envctrl_probe(struct platform_device *op,
 				   const struct of_device_id *match)
 {
 	struct device_node *dp;
@@ -1042,7 +1042,7 @@ static int __devinit envctrl_probe(struct of_device *op,
 		return -ENOMEM;
 
 	index = 0;
-	dp = op->node->child;
+	dp = op->dev.of_node->child;
 	while (dp) {
 		if (!strcmp(dp->name, "gpio")) {
 			i2c_childlist[index].i2ctype = I2C_GPIO;
@@ -1105,7 +1105,7 @@ out_iounmap:
 	return err;
 }
 
-static int __devexit envctrl_remove(struct of_device *op)
+static int __devexit envctrl_remove(struct platform_device *op)
 {
 	int index;
 
@@ -1130,20 +1130,23 @@ static const struct of_device_id envctrl_match[] = {
 MODULE_DEVICE_TABLE(of, envctrl_match);
 
 static struct of_platform_driver envctrl_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= envctrl_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = envctrl_match,
+	},
 	.probe		= envctrl_probe,
 	.remove		= __devexit_p(envctrl_remove),
 };
 
 static int __init envctrl_init(void)
 {
-	return of_register_driver(&envctrl_driver, &of_bus_type);
+	return of_register_platform_driver(&envctrl_driver);
 }
 
 static void __exit envctrl_exit(void)
 {
-	of_unregister_driver(&envctrl_driver);
+	of_unregister_platform_driver(&envctrl_driver);
 }
 
 module_init(envctrl_init);

@@ -54,7 +54,7 @@
  *   LMAC. If you look at LMAC commands you'll se that they
  *   are actually regular iwlwifi target commands encapsulated
  *   into a special UMAC command called UMAC passthrough.
- *   This is due to the fact the the host talks exclusively
+ *   This is due to the fact the host talks exclusively
  *   to the UMAC and so there needs to be a special UMAC
  *   command for talking to the LMAC.
  *   This is how a wifi command is layed out:
@@ -98,16 +98,18 @@
  */
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
 #include "bus.h"
 #include "hal.h"
 #include "umac.h"
 #include "debug.h"
+#include "trace.h"
 
-static void iwm_nonwifi_cmd_init(struct iwm_priv *iwm,
-				 struct iwm_nonwifi_cmd *cmd,
-				 struct iwm_udma_nonwifi_cmd *udma_cmd)
+static int iwm_nonwifi_cmd_init(struct iwm_priv *iwm,
+				struct iwm_nonwifi_cmd *cmd,
+				struct iwm_udma_nonwifi_cmd *udma_cmd)
 {
 	INIT_LIST_HEAD(&cmd->pending);
 
@@ -118,7 +120,7 @@ static void iwm_nonwifi_cmd_init(struct iwm_priv *iwm,
 	cmd->seq_num = iwm->nonwifi_seq_num;
 	udma_cmd->seq_num = cpu_to_le16(cmd->seq_num);
 
-	cmd->seq_num = iwm->nonwifi_seq_num++;
+	iwm->nonwifi_seq_num++;
 	iwm->nonwifi_seq_num %= UMAC_NONWIFI_SEQ_NUM_MAX;
 
 	if (udma_cmd->resp)
@@ -130,6 +132,8 @@ static void iwm_nonwifi_cmd_init(struct iwm_priv *iwm,
 	cmd->buf.len = 0;
 
 	memcpy(&cmd->udma_cmd, udma_cmd, sizeof(*udma_cmd));
+
+	return cmd->seq_num;
 }
 
 u16 iwm_alloc_wifi_cmd_seq(struct iwm_priv *iwm)
@@ -204,9 +208,9 @@ void iwm_cmd_flush(struct iwm_priv *iwm)
 
 struct iwm_wifi_cmd *iwm_get_pending_wifi_cmd(struct iwm_priv *iwm, u16 seq_num)
 {
-	struct iwm_wifi_cmd *cmd, *next;
+	struct iwm_wifi_cmd *cmd;
 
-	list_for_each_entry_safe(cmd, next, &iwm->wifi_pending_cmd, pending)
+	list_for_each_entry(cmd, &iwm->wifi_pending_cmd, pending)
 		if (cmd->seq_num == seq_num) {
 			list_del(&cmd->pending);
 			return cmd;
@@ -215,12 +219,12 @@ struct iwm_wifi_cmd *iwm_get_pending_wifi_cmd(struct iwm_priv *iwm, u16 seq_num)
 	return NULL;
 }
 
-struct iwm_nonwifi_cmd *
-iwm_get_pending_nonwifi_cmd(struct iwm_priv *iwm, u8 seq_num, u8 cmd_opcode)
+struct iwm_nonwifi_cmd *iwm_get_pending_nonwifi_cmd(struct iwm_priv *iwm,
+						    u8 seq_num, u8 cmd_opcode)
 {
-	struct iwm_nonwifi_cmd *cmd, *next;
+	struct iwm_nonwifi_cmd *cmd;
 
-	list_for_each_entry_safe(cmd, next, &iwm->nonwifi_pending_cmd, pending)
+	list_for_each_entry(cmd, &iwm->nonwifi_pending_cmd, pending)
 		if ((cmd->seq_num == seq_num) &&
 		    (cmd->udma_cmd.opcode == cmd_opcode) &&
 		    (cmd->resp_received)) {
@@ -274,6 +278,7 @@ static int iwm_send_udma_nonwifi_cmd(struct iwm_priv *iwm,
 		    udma_cmd->handle_by_hw, cmd->seq_num, udma_cmd->addr,
 		    udma_cmd->op1_sz, udma_cmd->op2);
 
+	trace_iwm_tx_nonwifi_cmd(iwm, udma_hdr);
 	return iwm_bus_send_chunk(iwm, buf->start, buf->len);
 }
 
@@ -360,6 +365,7 @@ static int iwm_send_udma_wifi_cmd(struct iwm_priv *iwm,
 		return ret;
 	}
 
+	trace_iwm_tx_wifi_cmd(iwm, umac_hdr);
 	return iwm_bus_send_chunk(iwm, buf->start, buf->len);
 }
 
@@ -369,7 +375,7 @@ int iwm_hal_send_target_cmd(struct iwm_priv *iwm,
 			    const void *payload)
 {
 	struct iwm_nonwifi_cmd *cmd;
-	int ret;
+	int ret, seq_num;
 
 	cmd = kzalloc(sizeof(struct iwm_nonwifi_cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -377,7 +383,7 @@ int iwm_hal_send_target_cmd(struct iwm_priv *iwm,
 		return -ENOMEM;
 	}
 
-	iwm_nonwifi_cmd_init(iwm, cmd, udma_cmd);
+	seq_num = iwm_nonwifi_cmd_init(iwm, cmd, udma_cmd);
 
 	if (cmd->udma_cmd.opcode == UMAC_HDI_OUT_OPCODE_WRITE ||
 	    cmd->udma_cmd.opcode == UMAC_HDI_OUT_OPCODE_WRITE_PERSISTENT) {
@@ -393,7 +399,7 @@ int iwm_hal_send_target_cmd(struct iwm_priv *iwm,
 	if (ret < 0)
 		return ret;
 
-	return cmd->seq_num;
+	return seq_num;
 }
 
 static void iwm_build_lmac_hdr(struct iwm_priv *iwm, struct iwm_lmac_hdr *hdr,
@@ -409,7 +415,7 @@ static void iwm_build_lmac_hdr(struct iwm_priv *iwm, struct iwm_lmac_hdr *hdr,
 /*
  * iwm_hal_send_host_cmd(): sends commands to the UMAC or the LMAC.
  * Sending command to the LMAC is equivalent to sending a
- * regular UMAC command with the LMAC passtrough or the LMAC
+ * regular UMAC command with the LMAC passthrough or the LMAC
  * wrapper UMAC command IDs.
  */
 int iwm_hal_send_host_cmd(struct iwm_priv *iwm,

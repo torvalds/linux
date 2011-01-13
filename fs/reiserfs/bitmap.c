@@ -169,7 +169,7 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 			return 0;	// No free blocks in this bitmap
 		}
 
-		/* search for a first zero bit -- beggining of a window */
+		/* search for a first zero bit -- beginning of a window */
 		*beg = reiserfs_find_next_zero_le_bit
 		    ((unsigned long *)(bh->b_data), boundary, *beg);
 
@@ -425,7 +425,7 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 
 	journal_mark_dirty(th, s, sbh);
 	if (for_unformatted)
-		vfs_dq_free_block_nodirty(inode, 1);
+		dquot_free_block_nodirty(inode, 1);
 }
 
 void reiserfs_free_block(struct reiserfs_transaction_handle *th,
@@ -1049,7 +1049,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			       amount_needed, hint->inode->i_uid);
 #endif
 		quota_ret =
-		    vfs_dq_alloc_block_nodirty(hint->inode, amount_needed);
+		    dquot_alloc_block_nodirty(hint->inode, amount_needed);
 		if (quota_ret)	/* Quota exceeded? */
 			return QUOTA_EXCEEDED;
 		if (hint->preallocate && hint->prealloc_size) {
@@ -1058,7 +1058,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 				       "reiserquota: allocating (prealloc) %d blocks id=%u",
 				       hint->prealloc_size, hint->inode->i_uid);
 #endif
-			quota_ret = vfs_dq_prealloc_block_nodirty(hint->inode,
+			quota_ret = dquot_prealloc_block_nodirty(hint->inode,
 							 hint->prealloc_size);
 			if (quota_ret)
 				hint->preallocate = hint->prealloc_size = 0;
@@ -1092,7 +1092,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 					       hint->inode->i_uid);
 #endif
 				/* Free not allocated blocks */
-				vfs_dq_free_block_nodirty(hint->inode,
+				dquot_free_block_nodirty(hint->inode,
 					amount_needed + hint->prealloc_size -
 					nr_allocated);
 			}
@@ -1125,7 +1125,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			       REISERFS_I(hint->inode)->i_prealloc_count,
 			       hint->inode->i_uid);
 #endif
-		vfs_dq_free_block_nodirty(hint->inode, amount_needed +
+		dquot_free_block_nodirty(hint->inode, amount_needed +
 					 hint->prealloc_size - nr_allocated -
 					 REISERFS_I(hint->inode)->
 					 i_prealloc_count);
@@ -1249,14 +1249,18 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 	else if (bitmap == 0)
 		block = (REISERFS_DISK_OFFSET_IN_BYTES >> sb->s_blocksize_bits) + 1;
 
+	reiserfs_write_unlock(sb);
 	bh = sb_bread(sb, block);
+	reiserfs_write_lock(sb);
 	if (bh == NULL)
 		reiserfs_warning(sb, "sh-2029: %s: bitmap block (#%u) "
 		                 "reading failed", __func__, block);
 	else {
 		if (buffer_locked(bh)) {
 			PROC_INFO_INC(sb, scan_bitmap.wait);
+			reiserfs_write_unlock(sb);
 			__wait_on_buffer(bh);
+			reiserfs_write_lock(sb);
 		}
 		BUG_ON(!buffer_uptodate(bh));
 		BUG_ON(atomic_read(&bh->b_count) == 0);
@@ -1273,7 +1277,10 @@ int reiserfs_init_bitmap_cache(struct super_block *sb)
 	struct reiserfs_bitmap_info *bitmap;
 	unsigned int bmap_nr = reiserfs_bmap_count(sb);
 
+	/* Avoid lock recursion in fault case */
+	reiserfs_write_unlock(sb);
 	bitmap = vmalloc(sizeof(*bitmap) * bmap_nr);
+	reiserfs_write_lock(sb);
 	if (bitmap == NULL)
 		return -ENOMEM;
 

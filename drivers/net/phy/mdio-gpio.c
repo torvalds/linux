@@ -30,6 +30,7 @@
 
 #ifdef CONFIG_OF_GPIO
 #include <linux/of_gpio.h>
+#include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #endif
 
@@ -81,13 +82,12 @@ static struct mdiobb_ops mdio_gpio_ops = {
 	.get_mdio_data = mdio_get,
 };
 
-static int __devinit mdio_gpio_bus_init(struct device *dev,
+static struct mii_bus * __devinit mdio_gpio_bus_init(struct device *dev,
 					struct mdio_gpio_platform_data *pdata,
 					int bus_id)
 {
 	struct mii_bus *new_bus;
 	struct mdio_gpio_info *bitbang;
-	int ret = -ENOMEM;
 	int i;
 
 	bitbang = kzalloc(sizeof(*bitbang), GFP_KERNEL);
@@ -103,8 +103,6 @@ static int __devinit mdio_gpio_bus_init(struct device *dev,
 		goto out_free_bitbang;
 
 	new_bus->name = "GPIO Bitbanged MDIO",
-
-	ret = -ENODEV;
 
 	new_bus->phy_mask = pdata->phy_mask;
 	new_bus->irq = pdata->irqs;
@@ -129,15 +127,8 @@ static int __devinit mdio_gpio_bus_init(struct device *dev,
 
 	dev_set_drvdata(dev, new_bus);
 
-	ret = mdiobus_register(new_bus);
-	if (ret)
-		goto out_free_all;
+	return new_bus;
 
-	return 0;
-
-out_free_all:
-	dev_set_drvdata(dev, NULL);
-	gpio_free(bitbang->mdio);
 out_free_mdc:
 	gpio_free(bitbang->mdc);
 out_free_bus:
@@ -145,30 +136,47 @@ out_free_bus:
 out_free_bitbang:
 	kfree(bitbang);
 out:
-	return ret;
+	return NULL;
+}
+
+static void mdio_gpio_bus_deinit(struct device *dev)
+{
+	struct mii_bus *bus = dev_get_drvdata(dev);
+	struct mdio_gpio_info *bitbang = bus->priv;
+
+	dev_set_drvdata(dev, NULL);
+	gpio_free(bitbang->mdio);
+	gpio_free(bitbang->mdc);
+	free_mdio_bitbang(bus);
+	kfree(bitbang);
 }
 
 static void __devexit mdio_gpio_bus_destroy(struct device *dev)
 {
 	struct mii_bus *bus = dev_get_drvdata(dev);
-	struct mdio_gpio_info *bitbang = bus->priv;
 
 	mdiobus_unregister(bus);
-	free_mdio_bitbang(bus);
-	dev_set_drvdata(dev, NULL);
-	gpio_free(bitbang->mdc);
-	gpio_free(bitbang->mdio);
-	kfree(bitbang);
+	mdio_gpio_bus_deinit(dev);
 }
 
 static int __devinit mdio_gpio_probe(struct platform_device *pdev)
 {
 	struct mdio_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct mii_bus *new_bus;
+	int ret;
 
 	if (!pdata)
 		return -ENODEV;
 
-	return mdio_gpio_bus_init(&pdev->dev, pdata, pdev->id);
+	new_bus = mdio_gpio_bus_init(&pdev->dev, pdata, pdev->id);
+	if (!new_bus)
+		return -ENODEV;
+
+	ret = mdiobus_register(new_bus);
+	if (ret)
+		mdio_gpio_bus_deinit(&pdev->dev);
+
+	return ret;
 }
 
 static int __devexit mdio_gpio_remove(struct platform_device *pdev)
@@ -179,57 +187,44 @@ static int __devexit mdio_gpio_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF_GPIO
-static void __devinit add_phy(struct mdio_gpio_platform_data *pdata,
-			      struct device_node *np)
-{
-	const u32 *data;
-	int len, id, irq;
 
-	data = of_get_property(np, "reg", &len);
-	if (!data || len != 4)
-		return;
-
-	id = *data;
-	pdata->phy_mask &= ~(1 << id);
-
-	irq = of_irq_to_resource(np, 0, NULL);
-	if (irq)
-		pdata->irqs[id] = irq;
-}
-
-static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
+static int __devinit mdio_ofgpio_probe(struct platform_device *ofdev,
                                         const struct of_device_id *match)
 {
-	struct device_node *np = NULL;
 	struct mdio_gpio_platform_data *pdata;
+	struct mii_bus *new_bus;
 	int ret;
 
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	ret = of_get_gpio(ofdev->node, 0);
+	ret = of_get_gpio(ofdev->dev.of_node, 0);
 	if (ret < 0)
 		goto out_free;
 	pdata->mdc = ret;
 
-	ret = of_get_gpio(ofdev->node, 1);
+	ret = of_get_gpio(ofdev->dev.of_node, 1);
 	if (ret < 0)
-                goto out_free;
+		goto out_free;
 	pdata->mdio = ret;
 
-	while ((np = of_get_next_child(ofdev->node, np)))
-		if (!strcmp(np->type, "ethernet-phy"))
-			add_phy(pdata, np);
+	new_bus = mdio_gpio_bus_init(&ofdev->dev, pdata, pdata->mdc);
+	if (!new_bus)
+		goto out_free;
 
-	return mdio_gpio_bus_init(&ofdev->dev, pdata, pdata->mdc);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
+	if (ret)
+		mdio_gpio_bus_deinit(&ofdev->dev);
+
+	return ret;
 
 out_free:
 	kfree(pdata);
 	return -ENODEV;
 }
 
-static int __devexit mdio_ofgpio_remove(struct of_device *ofdev)
+static int __devexit mdio_ofgpio_remove(struct platform_device *ofdev)
 {
 	mdio_gpio_bus_destroy(&ofdev->dev);
 	kfree(ofdev->dev.platform_data);
@@ -243,10 +238,14 @@ static struct of_device_id mdio_ofgpio_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, mdio_ofgpio_match);
 
 static struct of_platform_driver mdio_ofgpio_driver = {
-	.name = "mdio-gpio",
-	.match_table = mdio_ofgpio_match,
+	.driver = {
+		.name = "mdio-gpio",
+		.owner = THIS_MODULE,
+		.of_match_table = mdio_ofgpio_match,
+	},
 	.probe = mdio_ofgpio_probe,
 	.remove = __devexit_p(mdio_ofgpio_remove),
 };

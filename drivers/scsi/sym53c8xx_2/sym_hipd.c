@@ -72,10 +72,7 @@ static void sym_printl_hex(u_char *p, int n)
 
 static void sym_print_msg(struct sym_ccb *cp, char *label, u_char *msg)
 {
-	if (label)
-		sym_print_addr(cp->cmd, "%s: ", label);
-	else
-		sym_print_addr(cp->cmd, "");
+	sym_print_addr(cp->cmd, "%s: ", label);
 
 	spi_print_msg(msg);
 	printf("\n");
@@ -2321,8 +2318,9 @@ static void sym_int_par (struct sym_hcb *np, u_short sist)
 	int phase	= cmd & 7;
 	struct sym_ccb *cp	= sym_ccb_from_dsa(np, dsa);
 
-	printf("%s: SCSI parity error detected: SCR1=%d DBC=%x SBCL=%x\n",
-		sym_name(np), hsts, dbc, sbcl);
+	if (printk_ratelimit())
+		printf("%s: SCSI parity error detected: SCR1=%d DBC=%x SBCL=%x\n",
+			sym_name(np), hsts, dbc, sbcl);
 
 	/*
 	 *  Check that the chip is connected to the SCSI BUS.
@@ -2691,7 +2689,7 @@ static void sym_int_ma (struct sym_hcb *np)
 	 *  we force a SIR_NEGO_PROTO interrupt (it is a hack that avoids 
 	 *  bloat for such a should_not_happen situation).
 	 *  In all other situation, we reset the BUS.
-	 *  Are these assumptions reasonnable ? (Wait and see ...)
+	 *  Are these assumptions reasonable ? (Wait and see ...)
 	 */
 unexpected_phase:
 	dsp -= 8;
@@ -4557,7 +4555,8 @@ static void sym_int_sir(struct sym_hcb *np)
 			switch (np->msgin [2]) {
 			case M_X_MODIFY_DP:
 				if (DEBUG_FLAGS & DEBUG_POINTER)
-					sym_print_msg(cp, NULL, np->msgin);
+					sym_print_msg(cp, "extended msg ",
+						      np->msgin);
 				tmp = (np->msgin[3]<<24) + (np->msgin[4]<<16) + 
 				      (np->msgin[5]<<8)  + (np->msgin[6]);
 				sym_modify_dp(np, tp, cp, tmp);
@@ -4584,7 +4583,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		 */
 		case M_IGN_RESIDUE:
 			if (DEBUG_FLAGS & DEBUG_POINTER)
-				sym_print_msg(cp, NULL, np->msgin);
+				sym_print_msg(cp, "1 or 2 byte ", np->msgin);
 			if (cp->host_flags & HF_SENSE)
 				OUTL_DSP(np, SCRIPTA_BA(np, clrack));
 			else

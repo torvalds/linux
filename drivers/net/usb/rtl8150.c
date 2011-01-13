@@ -270,7 +270,7 @@ static int read_mii_word(rtl8150_t * dev, u8 phy, __u8 indx, u16 * reg)
 		get_registers(dev, PHYCNT, 1, data);
 	} while ((data[0] & PHY_GO) && (i++ < MII_TIMEOUT));
 
-	if (i < MII_TIMEOUT) {
+	if (i <= MII_TIMEOUT) {
 		get_registers(dev, PHYDAT, 2, data);
 		*reg = data[0] | (data[1] << 8);
 		return 0;
@@ -295,7 +295,7 @@ static int write_mii_word(rtl8150_t * dev, u8 phy, __u8 indx, u16 reg)
 		get_registers(dev, PHYCNT, 1, data);
 	} while ((data[0] & PHY_GO) && (i++ < MII_TIMEOUT));
 
-	if (i < MII_TIMEOUT)
+	if (i <= MII_TIMEOUT)
 		return 0;
 	else
 		return 1;
@@ -313,20 +313,17 @@ static int rtl8150_set_mac_address(struct net_device *netdev, void *p)
 {
 	struct sockaddr *addr = p;
 	rtl8150_t *dev = netdev_priv(netdev);
-	int i;
 
 	if (netif_running(netdev))
 		return -EBUSY;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	dbg("%s: Setting MAC address to ", netdev->name);
-	for (i = 0; i < 5; i++)
-		dbg("%02X:", netdev->dev_addr[i]);
-	dbg("%02X\n", netdev->dev_addr[i]);
+	dbg("%s: Setting MAC address to %pM\n", netdev->name, netdev->dev_addr);
 	/* Set the IDR registers. */
-	set_registers(dev, IDR, sizeof(netdev->dev_addr), netdev->dev_addr);
+	set_registers(dev, IDR, netdev->addr_len, netdev->dev_addr);
 #ifdef EEPROM_WRITE
 	{
+	int i;
 	u8 cr;
 	/* Get the CR contents. */
 	get_registers(dev, CR, 1, &cr);
@@ -714,7 +711,7 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 	if (netdev->flags & IFF_PROMISC) {
 		dev->rx_creg |= cpu_to_le16(0x0001);
 		dev_info(&netdev->dev, "%s: promiscuous mode\n", netdev->name);
-	} else if (netdev->mc_count ||
+	} else if (!netdev_mc_empty(netdev) ||
 		   (netdev->flags & IFF_ALLMULTI)) {
 		dev->rx_creg &= cpu_to_le16(0xfffe);
 		dev->rx_creg |= cpu_to_le16(0x0002);
@@ -727,7 +724,8 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 	netif_wake_queue(netdev);
 }
 
-static int rtl8150_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t rtl8150_start_xmit(struct sk_buff *skb,
+					    struct net_device *netdev)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 	int count, res;
@@ -753,7 +751,7 @@ static int rtl8150_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		netdev->trans_start = jiffies;
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -864,7 +862,7 @@ static int rtl8150_get_settings(struct net_device *netdev, struct ethtool_cmd *e
 	return 0;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = rtl8150_get_drvinfo,
 	.get_settings = rtl8150_get_settings,
 	.get_link = ethtool_op_get_link

@@ -137,7 +137,7 @@
 #define __NR_clone		120
 #define __NR_setdomainname	121
 #define __NR_uname		122
-#define __NR_modify_ldt		123
+#define __NR_cacheflush		123
 #define __NR_adjtimex		124
 #define __NR_mprotect		125
 #define __NR_sigprocmask	126
@@ -384,11 +384,16 @@
 #define __NR_preadv		361
 #define __NR_pwritev		362
 #define __NR_rt_tgsigqueueinfo	363
-#define __NR_perf_counter_open	364
+#define __NR_perf_event_open	364
+#define __NR_recvmmsg		365
+#define __NR_accept4		366
+#define __NR_fanotify_init	367
+#define __NR_fanotify_mark	368
+#define __NR_prlimit64		369
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 365
+#define NR_syscalls 370
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -396,6 +401,7 @@
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
+#define __ARCH_WANT_SYS_IPC
 #define __ARCH_WANT_SYS_PAUSE
 #define __ARCH_WANT_SYS_SGETMASK
 #define __ARCH_WANT_SYS_SIGNAL
@@ -408,6 +414,7 @@
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_NICE
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLD_UNAME
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK

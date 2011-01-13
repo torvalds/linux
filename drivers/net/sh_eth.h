@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 
@@ -703,6 +702,7 @@ struct sh_eth_cpu_data {
 };
 
 struct sh_eth_private {
+	struct platform_device *pdev;
 	struct sh_eth_cpu_data *cd;
 	dma_addr_t rx_desc_dma;
 	dma_addr_t tx_desc_dma;
@@ -729,6 +729,9 @@ struct sh_eth_private {
 	char post_rx;		/* POST receive */
 	char post_fw;		/* POST forward */
 	struct net_device_stats tsu_stats;	/* TSU forward status */
+
+	unsigned no_ether_link:1;
+	unsigned ether_link_active_low:1;
 };
 
 static inline void sh_eth_soft_swap(char *src, int len)

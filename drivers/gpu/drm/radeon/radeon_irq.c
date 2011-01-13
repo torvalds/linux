@@ -76,7 +76,7 @@ int radeon_enable_vblank(struct drm_device *dev, int crtc)
 		default:
 			DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
 				  crtc);
-			return EINVAL;
+			return -EINVAL;
 		}
 	} else {
 		switch (crtc) {
@@ -89,7 +89,7 @@ int radeon_enable_vblank(struct drm_device *dev, int crtc)
 		default:
 			DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
 				  crtc);
-			return EINVAL;
+			return -EINVAL;
 		}
 	}
 
@@ -187,6 +187,9 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 	    (drm_radeon_private_t *) dev->dev_private;
 	u32 stat;
 	u32 r500_disp_int;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return IRQ_NONE;
 
 	/* Only consider the bits we're interested in - others could be used
 	 * outside the DRM
@@ -286,12 +289,15 @@ int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_pr
 	drm_radeon_irq_emit_t *emit = data;
 	int result;
 
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
-
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return -EINVAL;
+
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	result = radeon_emit_irq(dev);
 
@@ -315,6 +321,9 @@ int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_pr
 		return -EINVAL;
 	}
 
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return -EINVAL;
+
 	return radeon_wait_irq(dev, irqwait->irq_seq);
 }
 
@@ -325,6 +334,9 @@ void radeon_driver_irq_preinstall(struct drm_device * dev)
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
 	u32 dummy;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return;
 
 	/* Disable *all* interrupts */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)
@@ -345,6 +357,9 @@ int radeon_driver_irq_postinstall(struct drm_device *dev)
 
 	dev->max_vblank_count = 0x001fffff;
 
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return 0;
+
 	radeon_irq_set_state(dev, RADEON_SW_INT_ENABLE, 1);
 
 	return 0;
@@ -355,6 +370,9 @@ void radeon_driver_irq_uninstall(struct drm_device * dev)
 	drm_radeon_private_t *dev_priv =
 	    (drm_radeon_private_t *) dev->dev_private;
 	if (!dev_priv)
+		return;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
 		return;
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS600)

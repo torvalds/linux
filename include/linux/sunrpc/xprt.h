@@ -13,6 +13,7 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kref.h>
+#include <linux/ktime.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
@@ -38,10 +39,8 @@ enum rpc_display_format_t {
 	RPC_DISPLAY_ADDR = 0,
 	RPC_DISPLAY_PORT,
 	RPC_DISPLAY_PROTO,
-	RPC_DISPLAY_ALL,
 	RPC_DISPLAY_HEX_ADDR,
 	RPC_DISPLAY_HEX_PORT,
-	RPC_DISPLAY_UNIVERSAL_ADDR,
 	RPC_DISPLAY_NETID,
 	RPC_DISPLAY_MAX,
 };
@@ -65,10 +64,9 @@ struct rpc_rqst {
 	 * This is the private part
 	 */
 	struct rpc_task *	rq_task;	/* RPC task data */
+	struct rpc_cred *	rq_cred;	/* Bound cred */
 	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
-	int			rq_reply_bytes_recvd;	/* number of reply */
-							/* bytes received */
 	u32			rq_seqno;	/* gss seq no. used on req. */
 	int			rq_enc_pages_num;
 	struct page		**rq_enc_pages;	/* scratch pages for use by
@@ -79,12 +77,16 @@ struct rpc_rqst {
 	__u32 *			rq_buffer;	/* XDR encode buffer */
 	size_t			rq_callsize,
 				rq_rcvsize;
+	size_t			rq_xmit_bytes_sent;	/* total bytes sent */
+	size_t			rq_reply_bytes_recvd;	/* total reply bytes */
+							/* received */
 
 	struct xdr_buf		rq_private_buf;		/* The receive buffer
 							 * used in the softirq.
 							 */
 	unsigned long		rq_majortimeo;	/* major timeout alarm */
 	unsigned long		rq_timeout;	/* Current timeout value */
+	ktime_t			rq_rtt;		/* round-trip time */
 	unsigned int		rq_retries;	/* # of retries */
 	unsigned int		rq_connect_cookie;
 						/* A cookie used to track the
@@ -96,7 +98,7 @@ struct rpc_rqst {
 	 */
 	u32			rq_bytes_sent;	/* Bytes we have sent */
 
-	unsigned long		rq_xtime;	/* when transmitted */
+	ktime_t			rq_xtime;	/* transmit time stamp */
 	int			rq_ntrans;
 
 #if defined(CONFIG_NFS_V4_1)
@@ -124,6 +126,23 @@ struct rpc_xprt_ops {
 	void		(*close)(struct rpc_xprt *xprt);
 	void		(*destroy)(struct rpc_xprt *xprt);
 	void		(*print_stats)(struct rpc_xprt *xprt, struct seq_file *seq);
+};
+
+/*
+ * RPC transport identifiers
+ *
+ * To preserve compatibility with the historical use of raw IP protocol
+ * id's for transport selection, UDP and TCP identifiers are specified
+ * with the previous values. No such restriction exists for new transports,
+ * except that they may not collide with these values (17 and 6,
+ * respectively).
+ */
+#define XPRT_TRANSPORT_BC       (1 << 31)
+enum xprt_transports {
+	XPRT_TRANSPORT_UDP	= IPPROTO_UDP,
+	XPRT_TRANSPORT_TCP	= IPPROTO_TCP,
+	XPRT_TRANSPORT_BC_TCP	= IPPROTO_TCP | XPRT_TRANSPORT_BC,
+	XPRT_TRANSPORT_RDMA	= 256
 };
 
 struct rpc_xprt {
@@ -159,8 +178,7 @@ struct rpc_xprt {
 	/*
 	 * Connection of transports
 	 */
-	unsigned long		connect_timeout,
-				bind_timeout,
+	unsigned long		bind_timeout,
 				reestablish_timeout;
 	unsigned int		connect_cookie;	/* A cookie that gets bumped
 						   every time the transport
@@ -181,6 +199,7 @@ struct rpc_xprt {
 	spinlock_t		reserve_lock;	/* lock slot table */
 	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
+	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 #if defined(CONFIG_NFS_V4_1)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
@@ -205,6 +224,7 @@ struct rpc_xprt {
 					bklog_u;	/* backlog queue utilization */
 	} stat;
 
+	struct net		*xprt_net;
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
@@ -230,9 +250,11 @@ static inline int bc_prealloc(struct rpc_rqst *req)
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */
+	struct net *		net;
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
+	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 };
 
 struct xprt_class {
@@ -260,6 +282,8 @@ void			xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release(struct rpc_task *task);
 struct rpc_xprt *	xprt_get(struct rpc_xprt *xprt);
 void			xprt_put(struct rpc_xprt *xprt);
+struct rpc_xprt *	xprt_alloc(struct net *net, int size, int max_req);
+void			xprt_free(struct rpc_xprt *);
 
 static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)
 {
@@ -277,7 +301,6 @@ void			xprt_set_retrans_timeout_rtt(struct rpc_task *task);
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
 void			xprt_wait_for_buffer_space(struct rpc_task *task, rpc_action action);
 void			xprt_write_space(struct rpc_xprt *xprt);
-void			xprt_update_rtt(struct rpc_task *task);
 void			xprt_adjust_cwnd(struct rpc_task *task, int result);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);

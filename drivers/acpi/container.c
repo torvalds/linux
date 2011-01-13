@@ -29,11 +29,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/container.h>
+
+#define PREFIX "ACPI: "
 
 #define ACPI_CONTAINER_DEVICE_NAME	"ACPI container device"
 #define ACPI_CONTAINER_CLASS		"container"
@@ -200,20 +203,17 @@ container_walk_namespace_cb(acpi_handle handle,
 			    u32 lvl, void *context, void **rv)
 {
 	char *hid = NULL;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_device_info *info;
 	acpi_status status;
 	int *action = context;
 
-
-	status = acpi_get_object_info(handle, &buffer);
-	if (ACPI_FAILURE(status) || !buffer.pointer) {
+	status = acpi_get_object_info(handle, &info);
+	if (ACPI_FAILURE(status)) {
 		return AE_OK;
 	}
 
-	info = buffer.pointer;
 	if (info->valid & ACPI_VALID_HID)
-		hid = info->hardware_id.value;
+		hid = info->hardware_id.string;
 
 	if (hid == NULL) {
 		goto end;
@@ -240,7 +240,7 @@ container_walk_namespace_cb(acpi_handle handle,
 	}
 
       end:
-	kfree(buffer.pointer);
+	kfree(info);
 
 	return AE_OK;
 }
@@ -259,7 +259,7 @@ static int __init acpi_container_init(void)
 	acpi_walk_namespace(ACPI_TYPE_DEVICE,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    container_walk_namespace_cb, &action, NULL);
+			    container_walk_namespace_cb, NULL, &action, NULL);
 
 	return (0);
 }
@@ -272,7 +272,7 @@ static void __exit acpi_container_exit(void)
 	acpi_walk_namespace(ACPI_TYPE_DEVICE,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    container_walk_namespace_cb, &action, NULL);
+			    container_walk_namespace_cb, NULL, &action, NULL);
 
 	acpi_bus_unregister_driver(&acpi_container_driver);
 

@@ -23,6 +23,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -237,8 +238,14 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	unsigned bpw, hz;
 	u32 cfg, stat;
 
-	bpw = t ? t->bits_per_word : spi->bits_per_word;
-	hz = t ? t->speed_hz : spi->max_speed_hz;
+	bpw = spi->bits_per_word;
+	hz = spi->max_speed_hz;
+	if (t) {
+		if (t->bits_per_word)
+			bpw = t->bits_per_word;
+		if (t->speed_hz)
+			hz = t->speed_hz;
+	}
 
 	if (bpw < 4 || bpw > 24) {
 		dev_err(&spi->dev, "setupxfer: invalid bits_per_word=%d\n",
@@ -406,11 +413,13 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 	}
 
 	/* put buffers on the ring */
-	res = au1xxx_dbdma_put_dest(hw->dma_rx_ch, hw->rx, t->len);
+	res = au1xxx_dbdma_put_dest(hw->dma_rx_ch, virt_to_phys(hw->rx),
+				    t->len, DDMA_FLAGS_IE);
 	if (!res)
 		dev_err(hw->dev, "rx dma put dest error\n");
 
-	res = au1xxx_dbdma_put_source(hw->dma_tx_ch, (void *)hw->tx, t->len);
+	res = au1xxx_dbdma_put_source(hw->dma_tx_ch, virt_to_phys(hw->tx),
+				      t->len, DDMA_FLAGS_IE);
 	if (!res)
 		dev_err(hw->dev, "tx dma put source error\n");
 

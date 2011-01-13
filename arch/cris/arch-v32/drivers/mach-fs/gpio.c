@@ -22,7 +22,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/etraxgpio.h>
 #include <hwregs/reg_map.h>
@@ -64,6 +64,7 @@ static int dp_cnt;
 #define DP(x)
 #endif
 
+static DEFINE_MUTEX(gpio_mutex);
 static char gpio_name[] = "etrax gpio";
 
 #if 0
@@ -74,8 +75,7 @@ static wait_queue_head_t *gpio_wq;
 static int virtual_gpio_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg);
 #endif
-static int gpio_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg);
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static ssize_t gpio_write(struct file *file, const char *buf, size_t count,
 	loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
@@ -185,7 +185,7 @@ static volatile unsigned long *dir_oe[NUM_PORTS] = {
 static unsigned int gpio_poll(struct file *file, struct poll_table_struct *wait)
 {
 	unsigned int mask = 0;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	unsigned long data;
 	poll_wait(file, &priv->alarm_wq, wait);
 	if (priv->minor == GPIO_MINOR_A) {
@@ -353,7 +353,7 @@ gpio_pa_interrupt(int irq, void *dev_id)
 static ssize_t gpio_write(struct file *file, const char *buf, size_t count,
 	loff_t *off)
 {
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	unsigned char data, clk_mask, data_mask, write_msb;
 	unsigned long flags;
 	unsigned long shadow;
@@ -430,7 +430,7 @@ gpio_open(struct inode *inode, struct file *filp)
 	if (!priv)
 		return -ENOMEM;
 
-	lock_kernel();
+	mutex_lock(&gpio_mutex);
 	memset(priv, 0, sizeof(*priv));
 
 	priv->minor = p;
@@ -451,7 +451,7 @@ gpio_open(struct inode *inode, struct file *filp)
 	alarmlist = priv;
 	spin_unlock_irq(&alarm_lock);
 
-	unlock_kernel();
+	mutex_unlock(&gpio_mutex);
 	return 0;
 }
 
@@ -468,7 +468,7 @@ gpio_release(struct inode *inode, struct file *filp)
 
 	spin_lock_irq(&alarm_lock);
 	p = alarmlist;
-	todel = (struct gpio_private *)filp->private_data;
+	todel = filp->private_data;
 
 	if (p == todel) {
 		alarmlist = todel->next;
@@ -557,17 +557,15 @@ inline unsigned long setget_output(struct gpio_private *priv, unsigned long arg)
 	return dir_shadow;
 } /* setget_output */
 
-static int
-gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
+static int gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
 
 static int
-gpio_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+gpio_ioctl_unlocked(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 	unsigned long val;
 	unsigned long shadow;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	if (_IOC_TYPE(cmd) != ETRAXGPIO_IOCTYPE)
 		return -EINVAL;
 
@@ -707,6 +705,17 @@ gpio_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+       long ret;
+
+       mutex_lock(&gpio_mutex);
+       ret = gpio_ioctl_unlocked(file, cmd, arg);
+       mutex_unlock(&gpio_mutex);
+
+       return ret;
+}
+
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
 static int
 virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -714,7 +723,7 @@ virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	unsigned long flags;
 	unsigned short val;
 	unsigned short shadow;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 
 	switch (_IOC_NR(cmd)) {
 	case IO_SETBITS:
@@ -855,13 +864,14 @@ gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-struct file_operations gpio_fops = {
-	.owner       = THIS_MODULE,
-	.poll        = gpio_poll,
-	.ioctl       = gpio_ioctl,
-	.write       = gpio_write,
-	.open        = gpio_open,
-	.release     = gpio_release,
+static const struct file_operations gpio_fops = {
+	.owner		= THIS_MODULE,
+	.poll		= gpio_poll,
+	.unlocked_ioctl	= gpio_ioctl,
+	.write		= gpio_write,
+	.open		= gpio_open,
+	.release	= gpio_release,
+	.llseek		= noop_llseek,
 };
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO

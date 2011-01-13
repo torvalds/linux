@@ -22,7 +22,9 @@
 #include <linux/profile.h>
 #include <linux/bootmem.h>
 #include <linux/vmalloc.h>
+#include <linux/ftrace.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>
@@ -370,7 +372,7 @@ static int __cpuinit smp_boot_one_cpu(unsigned int cpu)
 	} else {
 		struct device_node *dp = of_find_node_by_cpuid(cpu);
 
-		prom_startcpu(dp->node, entry, cookie);
+		prom_startcpu(dp->phandle, entry, cookie);
 	}
 
 	for (timeout = 0; timeout < 50000; timeout++) {
@@ -822,13 +824,13 @@ void arch_send_call_function_single_ipi(int cpu)
 		      &cpumask_of_cpu(cpu));
 }
 
-void smp_call_function_client(int irq, struct pt_regs *regs)
+void __irq_entry smp_call_function_client(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
 	generic_smp_call_function_interrupt();
 }
 
-void smp_call_function_single_client(int irq, struct pt_regs *regs)
+void __irq_entry smp_call_function_single_client(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
 	generic_smp_call_function_single_interrupt();
@@ -964,7 +966,7 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	put_cpu();
 }
 
-void smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
+void __irq_entry smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
 {
 	struct mm_struct *mm;
 	unsigned long flags;
@@ -1148,7 +1150,7 @@ void smp_release(void)
  */
 extern void prom_world(int);
 
-void smp_penguin_jailcell(int irq, struct pt_regs *regs)
+void __irq_entry smp_penguin_jailcell(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
 
@@ -1364,7 +1366,7 @@ void smp_send_reschedule(int cpu)
 		      &cpumask_of_cpu(cpu));
 }
 
-void smp_receive_signal_client(int irq, struct pt_regs *regs)
+void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
 }
@@ -1389,8 +1391,8 @@ void smp_send_stop(void)
  * RETURNS:
  * Pointer to the allocated area on success, NULL on failure.
  */
-static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
-					unsigned long align)
+static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
+					size_t align)
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -1415,127 +1417,70 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 #endif
 }
 
-static size_t pcpur_size __initdata;
-static void **pcpur_ptrs __initdata;
-
-static struct page * __init pcpur_get_page(unsigned int cpu, int pageno)
+static void __init pcpu_free_bootmem(void *ptr, size_t size)
 {
-	size_t off = (size_t)pageno << PAGE_SHIFT;
-
-	if (off >= pcpur_size)
-		return NULL;
-
-	return virt_to_page(pcpur_ptrs[cpu] + off);
+	free_bootmem(__pa(ptr), size);
 }
 
-#define PCPU_CHUNK_SIZE (4UL * 1024UL * 1024UL)
-
-static void __init pcpu_map_range(unsigned long start, unsigned long end,
-				  struct page *page)
+static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	unsigned long pfn = page_to_pfn(page);
-	unsigned long pte_base;
+	if (cpu_to_node(from) == cpu_to_node(to))
+		return LOCAL_DISTANCE;
+	else
+		return REMOTE_DISTANCE;
+}
 
-	BUG_ON((pfn<<PAGE_SHIFT)&(PCPU_CHUNK_SIZE - 1UL));
+static void __init pcpu_populate_pte(unsigned long addr)
+{
+	pgd_t *pgd = pgd_offset_k(addr);
+	pud_t *pud;
+	pmd_t *pmd;
 
-	pte_base = (_PAGE_VALID | _PAGE_SZ4MB_4U |
-		    _PAGE_CP_4U | _PAGE_CV_4U |
-		    _PAGE_P_4U | _PAGE_W_4U);
-	if (tlb_type == hypervisor)
-		pte_base = (_PAGE_VALID | _PAGE_SZ4MB_4V |
-			    _PAGE_CP_4V | _PAGE_CV_4V |
-			    _PAGE_P_4V | _PAGE_W_4V);
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud)) {
+		pmd_t *new;
 
-	while (start < end) {
-		pgd_t *pgd = pgd_offset_k(start);
-		unsigned long this_end;
-		pud_t *pud;
-		pmd_t *pmd;
-		pte_t *pte;
+		new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+		pud_populate(&init_mm, pud, new);
+	}
 
-		pud = pud_offset(pgd, start);
-		if (pud_none(*pud)) {
-			pmd_t *new;
+	pmd = pmd_offset(pud, addr);
+	if (!pmd_present(*pmd)) {
+		pte_t *new;
 
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-			pud_populate(&init_mm, pud, new);
-		}
-
-		pmd = pmd_offset(pud, start);
-		if (!pmd_present(*pmd)) {
-			pte_t *new;
-
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-			pmd_populate_kernel(&init_mm, pmd, new);
-		}
-
-		pte = pte_offset_kernel(pmd, start);
-		this_end = (start + PMD_SIZE) & PMD_MASK;
-		if (this_end > end)
-			this_end = end;
-
-		while (start < this_end) {
-			unsigned long paddr = pfn << PAGE_SHIFT;
-
-			pte_val(*pte) = (paddr | pte_base);
-
-			start += PAGE_SIZE;
-			pte++;
-			pfn++;
-		}
+		new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+		pmd_populate_kernel(&init_mm, pmd, new);
 	}
 }
 
 void __init setup_per_cpu_areas(void)
 {
-	size_t dyn_size, static_size = __per_cpu_end - __per_cpu_start;
-	static struct vm_struct vm;
-	unsigned long delta, cpu;
-	size_t pcpu_unit_size;
-	size_t ptrs_size;
+	unsigned long delta;
+	unsigned int cpu;
+	int rc = -EINVAL;
 
-	pcpur_size = PFN_ALIGN(static_size + PERCPU_MODULE_RESERVE +
-			       PERCPU_DYNAMIC_RESERVE);
-	dyn_size = pcpur_size - static_size - PERCPU_MODULE_RESERVE;
-
-
-	ptrs_size = PFN_ALIGN(num_possible_cpus() * sizeof(pcpur_ptrs[0]));
-	pcpur_ptrs = alloc_bootmem(ptrs_size);
-
-	for_each_possible_cpu(cpu) {
-		pcpur_ptrs[cpu] = pcpu_alloc_bootmem(cpu, PCPU_CHUNK_SIZE,
-						     PCPU_CHUNK_SIZE);
-
-		free_bootmem(__pa(pcpur_ptrs[cpu] + pcpur_size),
-			     PCPU_CHUNK_SIZE - pcpur_size);
-
-		memcpy(pcpur_ptrs[cpu], __per_cpu_load, static_size);
+	if (pcpu_chosen_fc != PCPU_FC_PAGE) {
+		rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
+					    PERCPU_DYNAMIC_RESERVE, 4 << 20,
+					    pcpu_cpu_distance,
+					    pcpu_alloc_bootmem,
+					    pcpu_free_bootmem);
+		if (rc)
+			pr_warning("PERCPU: %s allocator failed (%d), "
+				   "falling back to page size\n",
+				   pcpu_fc_names[pcpu_chosen_fc], rc);
 	}
-
-	/* allocate address and map */
-	vm.flags = VM_ALLOC;
-	vm.size = num_possible_cpus() * PCPU_CHUNK_SIZE;
-	vm_area_register_early(&vm, PCPU_CHUNK_SIZE);
-
-	for_each_possible_cpu(cpu) {
-		unsigned long start = (unsigned long) vm.addr;
-		unsigned long end;
-
-		start += cpu * PCPU_CHUNK_SIZE;
-		end = start + PCPU_CHUNK_SIZE;
-		pcpu_map_range(start, end, virt_to_page(pcpur_ptrs[cpu]));
-	}
-
-	pcpu_unit_size = pcpu_setup_first_chunk(pcpur_get_page, static_size,
-						PERCPU_MODULE_RESERVE, dyn_size,
-						PCPU_CHUNK_SIZE, vm.addr, NULL);
-
-	free_bootmem(__pa(pcpur_ptrs), ptrs_size);
+	if (rc < 0)
+		rc = pcpu_page_first_chunk(PERCPU_MODULE_RESERVE,
+					   pcpu_alloc_bootmem,
+					   pcpu_free_bootmem,
+					   pcpu_populate_pte);
+	if (rc < 0)
+		panic("cannot initialize percpu area (err=%d)", rc);
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
-	for_each_possible_cpu(cpu) {
-		__per_cpu_offset(cpu) = delta + cpu * pcpu_unit_size;
-	}
+	for_each_possible_cpu(cpu)
+		__per_cpu_offset(cpu) = delta + pcpu_unit_offsets[cpu];
 
 	/* Setup %g5 for the boot cpu.  */
 	__local_per_cpu_offset = __per_cpu_offset(smp_processor_id());

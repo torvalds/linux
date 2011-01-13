@@ -92,6 +92,18 @@
 /* Keep this the last entry.  */
 #define R_390_NUM	61
 
+/* Bits present in AT_HWCAP. */
+#define HWCAP_S390_ESAN3	1
+#define HWCAP_S390_ZARCH	2
+#define HWCAP_S390_STFLE	4
+#define HWCAP_S390_MSA		8
+#define HWCAP_S390_LDISP	16
+#define HWCAP_S390_EIMM		32
+#define HWCAP_S390_DFP		64
+#define HWCAP_S390_HPAGE	128
+#define HWCAP_S390_ETF3EH	256
+#define HWCAP_S390_HIGH_GPRS	512
+
 /*
  * These are used to set parameters in the core dumps.
  */
@@ -143,7 +155,6 @@ extern unsigned int vdso_enabled;
 	} while (0)
 
 #define CORE_DUMP_USE_REGSET
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

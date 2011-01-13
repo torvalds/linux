@@ -35,6 +35,7 @@
 #include "ttm/ttm_placement.h"
 #include <linux/agp_backend.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <asm/agp.h>
 
@@ -73,6 +74,7 @@ static int ttm_agp_bind(struct ttm_backend *backend, struct ttm_mem_reg *bo_mem)
 {
 	struct ttm_agp_backend *agp_be =
 	    container_of(backend, struct ttm_agp_backend, backend);
+	struct drm_mm_node *node = bo_mem->mm_node;
 	struct agp_memory *mem = agp_be->mem;
 	int cached = (bo_mem->placement & TTM_PL_FLAG_CACHED);
 	int ret;
@@ -80,7 +82,7 @@ static int ttm_agp_bind(struct ttm_backend *backend, struct ttm_mem_reg *bo_mem)
 	mem->is_flushed = 1;
 	mem->type = (cached) ? AGP_USER_CACHED_MEMORY : AGP_USER_MEMORY;
 
-	ret = agp_bind_memory(mem, bo_mem->mm_node->start);
+	ret = agp_bind_memory(mem, node->start);
 	if (ret)
 		printk(KERN_ERR TTM_PFX "AGP Bind memory failed.\n");
 

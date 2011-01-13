@@ -70,8 +70,7 @@ static int debug;
 /* Function prototypes */
 static int  kobil_startup(struct usb_serial *serial);
 static void kobil_release(struct usb_serial *serial);
-static int  kobil_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static int  kobil_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void kobil_close(struct usb_serial_port *port);
 static int  kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *buf, int count);
@@ -85,9 +84,9 @@ static void kobil_read_int_callback(struct urb *urb);
 static void kobil_write_callback(struct urb *purb);
 static void kobil_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
+static void kobil_init_termios(struct tty_struct *tty);
 
-
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(KOBIL_VENDOR_ID, KOBIL_ADAPTER_B_PRODUCT_ID) },
 	{ USB_DEVICE(KOBIL_VENDOR_ID, KOBIL_ADAPTER_K_PRODUCT_ID) },
 	{ USB_DEVICE(KOBIL_VENDOR_ID, KOBIL_USBTWIN_PRODUCT_ID) },
@@ -120,6 +119,7 @@ static struct usb_serial_driver kobil_device = {
 	.release =		kobil_release,
 	.ioctl =		kobil_ioctl,
 	.set_termios =		kobil_set_termios,
+	.init_termios =		kobil_init_termios,
 	.tiocmget =		kobil_tiocmget,
 	.tiocmset =		kobil_tiocmset,
 	.open =			kobil_open,
@@ -210,9 +210,17 @@ static void kobil_release(struct usb_serial *serial)
 		kfree(usb_get_serial_port_data(serial->port[i]));
 }
 
+static void kobil_init_termios(struct tty_struct *tty)
+{
+	/* Default to echo off and other sane device settings */
+	tty->termios->c_lflag = 0;
+	tty->termios->c_lflag &= ~(ISIG | ICANON | ECHO | IEXTEN | XCASE);
+	tty->termios->c_iflag = IGNBRK | IGNPAR | IXOFF;
+	/* do NOT translate CR to CR-NL (0x0A -> 0x0A 0x0D) */
+	tty->termios->c_oflag &= ~ONLCR;
+}
 
-static int kobil_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int result = 0;
 	struct kobil_private *priv;
@@ -226,16 +234,6 @@ static int kobil_open(struct tty_struct *tty,
 	/* someone sets the dev to 0 if the close method has been called */
 	port->interrupt_in_urb->dev = port->serial->dev;
 
-	if (tty) {
-
-		/* Default to echo off and other sane device settings */
-		tty->termios->c_lflag = 0;
-		tty->termios->c_lflag &= ~(ISIG | ICANON | ECHO | IEXTEN |
-								 XCASE);
-		tty->termios->c_iflag = IGNBRK | IGNPAR | IXOFF;
-		/* do NOT translate CR to CR-NL (0x0A -> 0x0A 0x0D) */
-		tty->termios->c_oflag &= ~ONLCR;
-	}
 	/* allocate memory for transfer buffer */
 	transfer_buffer = kzalloc(transfer_buffer_length, GFP_KERNEL);
 	if (!transfer_buffer)
@@ -347,7 +345,8 @@ static void kobil_close(struct usb_serial_port *port)
 
 	/* FIXME: Add rts/dtr methods */
 	if (port->write_urb) {
-		usb_kill_urb(port->write_urb);
+		usb_poison_urb(port->write_urb);
+		kfree(port->write_urb->transfer_buffer);
 		usb_free_urb(port->write_urb);
 		port->write_urb = NULL;
 	}
@@ -390,7 +389,6 @@ static void kobil_read_int_callback(struct urb *urb)
 		*/
 		/* END DEBUG */
 
-		tty_buffer_request_room(tty, urb->actual_length);
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
@@ -626,7 +624,6 @@ static void kobil_set_termios(struct tty_struct *tty,
 	unsigned short urb_val = 0;
 	int c_cflag = tty->termios->c_cflag;
 	speed_t speed;
-	void *settings;
 
 	priv = usb_get_serial_port_data(port);
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
@@ -649,25 +646,13 @@ static void kobil_set_termios(struct tty_struct *tty,
 	}
 	urb_val |= (c_cflag & CSTOPB) ? SUSBCR_SPASB_2StopBits :
 							SUSBCR_SPASB_1StopBit;
-
-	settings = kzalloc(50, GFP_KERNEL);
-	if (!settings)
-		return;
-
-	sprintf(settings, "%d ", speed);
-
 	if (c_cflag & PARENB) {
-		if  (c_cflag & PARODD) {
+		if  (c_cflag & PARODD)
 			urb_val |= SUSBCR_SPASB_OddParity;
-			strcat(settings, "Odd Parity");
-		} else {
+		else
 			urb_val |= SUSBCR_SPASB_EvenParity;
-			strcat(settings, "Even Parity");
-		}
-	} else {
+	} else
 		urb_val |= SUSBCR_SPASB_NoParity;
-		strcat(settings, "No Parity");
-	}
 	tty->termios->c_cflag &= ~CMSPAR;
 	tty_encode_baud_rate(tty, speed, speed);
 
@@ -677,11 +662,10 @@ static void kobil_set_termios(struct tty_struct *tty,
 		  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 		  urb_val,
 		  0,
-		  settings,
+		  NULL,
 		  0,
 		  KOBIL_TIMEOUT
 		);
-	kfree(settings);
 }
 
 static int kobil_ioctl(struct tty_struct *tty, struct file *file,

@@ -201,19 +201,6 @@ config DIGIEPCA
 	  To compile this driver as a module, choose M here: the
 	  module will be called epca.
 
-config ESPSERIAL
-	tristate "Hayes ESP serial port support"
-	depends on SERIAL_NONSTANDARD && ISA && ISA_DMA_API && BROKEN
-	help
-	  This is a driver which supports Hayes ESP serial ports.  Both single
-	  port cards and multiport cards are supported.  Make sure to read
-	  <file:Documentation/hayes-esp.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called esp.
-
-	  If unsure, say N.
-
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
 	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
@@ -289,10 +276,18 @@ config N_HDLC
 	  Allows synchronous HDLC communications with tty device drivers that
 	  support synchronous HDLC such as the Microgate SyncLink adapter.
 
-	  This driver can only be built as a module ( = code which can be
+	  This driver can be built as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called n_hdlc. If you want to do that, say M
 	  here.
+
+config N_GSM
+	tristate "GSM MUX line discipline support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on NET
+	help
+	  This line discipline provides support for the GSM MUX protocol and
+	  presents the mux as a set of 61 individual tty devices.
 
 config RISCOM8
 	tristate "SDL RISCom/8 card support"
@@ -323,7 +318,7 @@ config SPECIALIX
 
 config SX
 	tristate "Specialix SX (and SI) card support"
-	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
+	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA) && BROKEN
 	help
 	  This is a driver for the SX and SI multiport serial cards.
 	  Please read the file <file:Documentation/serial/sx.txt> for details.
@@ -334,7 +329,7 @@ config SX
 
 config RIO
 	tristate "Specialix RIO system support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && BROKEN
 	help
 	  This is a driver for the Specialix RIO, a smart serial card which
 	  drives an outboard box that can support up to 128 ports.  Product
@@ -395,7 +390,7 @@ config NOZOMI
 
 config A2232
 	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ZORRO && BROKEN_ON_SMP
+	depends on EXPERIMENTAL && ZORRO && BROKEN
 	---help---
 	  This option supports the 2232 7-port serial card shipped with the
 	  Amiga 2000 and other Zorro-bus machines, dating from 1989.  At
@@ -498,6 +493,21 @@ config LEGACY_PTY_COUNT
 	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
 	  architectures and 24 bytes on 64-bit architectures.
 
+config TTY_PRINTK
+	bool "TTY driver to output user messages via printk"
+	depends on EMBEDDED
+	default n
+	---help---
+	  If you say Y here, the support for writing user messages (i.e.
+	  console messages) via printk is available.
+
+	  The feature is useful to inline user messages with kernel
+	  messages.
+	  In order to use this feature, you should output user messages
+	  to /dev/ttyprintk or redirect console to this TTY.
+
+	  If unsure, say N.
+
 config BRIQ_PANEL
 	tristate 'Total Impact briQ front panel driver'
 	depends on PPC_CHRP
@@ -515,7 +525,7 @@ config BRIQ_PANEL
 
 config BFIN_OTP
 	tristate "Blackfin On-Chip OTP Memory Support"
-	depends on BLACKFIN && (BF52x || BF54x)
+	depends on BLACKFIN && (BF51x || BF52x || BF54x)
 	default y
 	help
 	  If you say Y here, you will get support for a character device
@@ -672,6 +682,15 @@ config HVC_UDBG
        select HVC_DRIVER
        default n
 
+config HVC_DCC
+       bool "ARM JTAG DCC console"
+       depends on ARM
+       select HVC_DRIVER
+       help
+         This console uses the JTAG DCC on ARM to create a console under the HVC
+	 driver. This console is used through a JTAG only on ARM. If you don't have
+	 a JTAG then you probably don't want this option.
+
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
 	depends on VIRTIO
@@ -679,10 +698,18 @@ config VIRTIO_CONSOLE
 	help
 	  Virtio console for use with lguest and other hypervisors.
 
+	  Also serves as a general-purpose serial device for data
+	  transfer between the guest and host.  Character devices at
+	  /dev/vportNpn will be created when corresponding ports are
+	  found, where N is the device number and n is the port number
+	  within that device.  If specified by the host, a sysfs
+	  attribute called 'name' will be populated with a name for
+	  the port which can be used by udev scripts to create a
+	  symlink to the device.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Partitionable IBM Power5 ppc64 machines allow hosting of
 	  firmware virtual consoles from one Linux partition by
@@ -999,7 +1026,7 @@ config SCx200_GPIO
 
 config PC8736x_GPIO
 	tristate "NatSemi PC8736x GPIO Support"
-	depends on X86
+	depends on X86_32
 	default SCx200_GPIO	# mostly N
 	select NSC_GPIO		# needed for support routines
 	help
@@ -1028,10 +1055,6 @@ config CS5535_GPIO
 	  CS5536 Geode companion devices.
 
 	  If compiled as a module, it will be called cs5535_gpio.
-
-config GPIO_VR41XX
-	tristate "NEC VR4100 series General-purpose I/O Unit support"
-	depends on CPU_VR41XX
 
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN)"
@@ -1091,6 +1114,14 @@ config MMTIMER
 	  The mmtimer device allows direct userspace access to the
 	  Altix system timer.
 
+config UV_MMTIMER
+	tristate "UV_MMTIMER Memory mapped RTC for SGI UV"
+	depends on X86_UV
+	default m
+	help
+	  The uv_mmtimer device allows direct userspace access to the
+	  UV system timer.
+
 source "drivers/char/tpm/Kconfig"
 
 config TELCLOCK
@@ -1113,6 +1144,14 @@ config DEVPORT
 	default y
 
 source "drivers/s390/char/Kconfig"
+
+config RAMOOPS
+	tristate "Log panic/oops to a RAM buffer"
+	depends on HAS_IOMEM
+	default n
+	help
+	  This enables panic and oops messages to be logged to a circular
+	  buffer in RAM where it can be read back at some later point.
 
 endmenu
 

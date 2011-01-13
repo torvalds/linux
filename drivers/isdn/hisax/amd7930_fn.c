@@ -59,6 +59,7 @@
 #include "amd7930_fn.h"
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 
 static void Amd7930_new_ph(struct IsdnCardState *cs);
 
@@ -238,8 +239,6 @@ Amd7930_bh(struct work_struct *work)
 		container_of(work, struct IsdnCardState, tqueue);
         struct PStack *stptr;
 
-	if (!cs)
-		return;
 	if (test_and_clear_bit(D_CLEARBUSY, &cs->event)) {
                 if (cs->debug)
 			debugl1(cs, "Amd7930: bh, D-Channel Busy cleared");
@@ -596,6 +595,7 @@ Amd7930_l1hw(struct PStack *st, int pr, void *arg)
 				if (cs->debug & L1_DEB_WARN)
 					debugl1(cs, "Amd7930: l1hw: l2l1 tx_skb exist this shouldn't happen");
 				skb_queue_tail(&cs->sq, skb);
+				spin_unlock_irqrestore(&cs->lock, flags);
 				break;
 			}
 			if (cs->debug & DEB_DLOG_HEX)

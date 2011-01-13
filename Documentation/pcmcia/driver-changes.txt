@@ -1,4 +1,66 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* pcmcia_loop_config() and autoconfiguration (as of 2.6.36)
+   If struct pcmcia_device *p_dev->config_flags is set accordingly,
+   pcmcia_loop_config() now sets up certain configuration values
+   automatically, though the driver may still override the settings
+   in the callback function. The following autoconfiguration options
+   are provided at the moment:
+	CONF_AUTO_CHECK_VCC : check for matching Vcc
+	CONF_AUTO_SET_VPP   : set Vpp
+	CONF_AUTO_AUDIO     : auto-enable audio line, if required
+	CONF_AUTO_SET_IO    : set ioport resources (->resource[0,1])
+	CONF_AUTO_SET_IOMEM : set first iomem resource (->resource[2])
+
+* pcmcia_request_configuration -> pcmcia_enable_device (as of 2.6.36)
+   pcmcia_request_configuration() got renamed to pcmcia_enable_device(),
+   as it mirrors pcmcia_disable_device(). Configuration settings are now
+   stored in struct pcmcia_device, e.g. in the fields config_flags,
+   config_index, config_base, vpp.
+
+* pcmcia_request_window changes (as of 2.6.36)
+   Instead of win_req_t, drivers are now requested to fill out
+   struct pcmcia_device *p_dev->resource[2,3,4,5] for up to four ioport
+   ranges. After a call to pcmcia_request_window(), the regions found there
+   are reserved and may be used immediately -- until pcmcia_release_window()
+   is called.
+
+* pcmcia_request_io changes (as of 2.6.36)
+   Instead of io_req_t, drivers are now requested to fill out
+   struct pcmcia_device *p_dev->resource[0,1] for up to two ioport
+   ranges. After a call to pcmcia_request_io(), the ports found there
+   are reserved, after calling pcmcia_request_configuration(), they may
+   be used.
+
+* No dev_info_t, no cs_types.h (as of 2.6.36)
+   dev_info_t and a few other typedefs are removed. No longer use them
+   in PCMCIA device drivers. Also, do not include pcmcia/cs_types.h, as
+   this file is gone.
+
+* No dev_node_t (as of 2.6.35)
+   There is no more need to fill out a "dev_node_t" structure.
+
+* New IRQ request rules (as of 2.6.35)
+   Instead of the old pcmcia_request_irq() interface, drivers may now
+   choose between:
+   - calling request_irq/free_irq directly. Use the IRQ from *p_dev->irq.
+   - use pcmcia_request_irq(p_dev, handler_t); the PCMCIA core will
+     clean up automatically on calls to pcmcia_disable_device() or
+     device ejection.
+   - drivers still not capable of IRQF_SHARED (or not telling us so) may
+     use the deprecated pcmcia_request_exclusive_irq() for the time
+     being; they might receive a shared IRQ nonetheless.
+
+* no cs_error / CS_CHECK / CONFIG_PCMCIA_DEBUG (as of 2.6.33)
+   Instead of the cs_error() callback or the CS_CHECK() macro, please use
+   Linux-style checking of return values, and -- if necessary -- debug
+   messages using "dev_dbg()" or "pr_debug()".
+
+* New CIS tuple access (as of 2.6.33)
+   Instead of pcmcia_get_{first,next}_tuple(), pcmcia_get_tuple_data() and
+   pcmcia_parse_tuple(), a driver shall use "pcmcia_get_tuple()" if it is
+   only interested in one (raw) tuple, or "pcmcia_loop_tuple()" if it is
+   interested in all tuples of one type. To decode the MAC from CISTPL_FUNCE,
+   a new helper "pcmcia_get_mac_from_cis()" was added.
 
 * New configuration loop helper (as of 2.6.28)
    By calling pcmcia_loop_config(), a driver can iterate over all available

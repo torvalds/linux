@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -503,7 +504,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
 			goto err_out_free_pages;
 
 		dma_list[i] = t;
-		pci_unmap_addr_set(&eq->page_list[i], mapping, t);
+		dma_unmap_addr_set(&eq->page_list[i], mapping, t);
 
 		clear_page(eq->page_list[i].buf);
 	}
@@ -578,7 +579,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
 		if (eq->page_list[i].buf)
 			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
 					  eq->page_list[i].buf,
-					  pci_unmap_addr(&eq->page_list[i],
+					  dma_unmap_addr(&eq->page_list[i],
 							 mapping));
 
 	mthca_free_mailbox(dev, mailbox);
@@ -628,7 +629,7 @@ static void mthca_free_eq(struct mthca_dev *dev,
 	for (i = 0; i < npages; ++i)
 		pci_free_consistent(dev->pdev, PAGE_SIZE,
 				    eq->page_list[i].buf,
-				    pci_unmap_addr(&eq->page_list[i], mapping));
+				    dma_unmap_addr(&eq->page_list[i], mapping));
 
 	kfree(eq->page_list);
 	mthca_free_mailbox(dev, mailbox);
@@ -829,27 +830,34 @@ int mthca_init_eq_table(struct mthca_dev *dev)
 
 	if (dev->mthca_flags & MTHCA_FLAG_MSI_X) {
 		static const char *eq_name[] = {
-			[MTHCA_EQ_COMP]  = DRV_NAME " (comp)",
-			[MTHCA_EQ_ASYNC] = DRV_NAME " (async)",
-			[MTHCA_EQ_CMD]   = DRV_NAME " (cmd)"
+			[MTHCA_EQ_COMP]  = DRV_NAME "-comp",
+			[MTHCA_EQ_ASYNC] = DRV_NAME "-async",
+			[MTHCA_EQ_CMD]   = DRV_NAME "-cmd"
 		};
 
 		for (i = 0; i < MTHCA_NUM_EQ; ++i) {
+			snprintf(dev->eq_table.eq[i].irq_name,
+				 IB_DEVICE_NAME_MAX,
+				 "%s@pci:%s", eq_name[i],
+				 pci_name(dev->pdev));
 			err = request_irq(dev->eq_table.eq[i].msi_x_vector,
 					  mthca_is_memfree(dev) ?
 					  mthca_arbel_msi_x_interrupt :
 					  mthca_tavor_msi_x_interrupt,
-					  0, eq_name[i], dev->eq_table.eq + i);
+					  0, dev->eq_table.eq[i].irq_name,
+					  dev->eq_table.eq + i);
 			if (err)
 				goto err_out_cmd;
 			dev->eq_table.eq[i].have_irq = 1;
 		}
 	} else {
+		snprintf(dev->eq_table.eq[0].irq_name, IB_DEVICE_NAME_MAX,
+			 DRV_NAME "@pci:%s", pci_name(dev->pdev));
 		err = request_irq(dev->pdev->irq,
 				  mthca_is_memfree(dev) ?
 				  mthca_arbel_interrupt :
 				  mthca_tavor_interrupt,
-				  IRQF_SHARED, DRV_NAME, dev);
+				  IRQF_SHARED, dev->eq_table.eq[0].irq_name, dev);
 		if (err)
 			goto err_out_cmd;
 		dev->eq_table.have_irq = 1;

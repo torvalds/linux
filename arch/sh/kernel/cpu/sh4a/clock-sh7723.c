@@ -21,7 +21,11 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/clkdev.h>
 #include <asm/clock.h>
+#include <asm/hwblk.h>
+#include <cpu/sh7723.h>
 
 /* SH7723 registers */
 #define FRQCR		0xa4150000
@@ -30,15 +34,10 @@
 #define SCLKBCR		0xa415000c
 #define IRDACLKCR	0xa4150018
 #define PLLCR		0xa4150024
-#define MSTPCR0		0xa4150030
-#define MSTPCR1		0xa4150034
-#define MSTPCR2		0xa4150038
 #define DLLFRQ		0xa4150050
 
 /* Fixed 32 KHz root clock for RTC and Power Management purposes */
 static struct clk r_clk = {
-	.name           = "rclk",
-	.id             = -1,
 	.rate           = 32768,
 };
 
@@ -47,8 +46,6 @@ static struct clk r_clk = {
  * from the platform code.
  */
 struct clk extal_clk = {
-	.name		= "extal",
-	.id		= -1,
 	.rate		= 33333333,
 };
 
@@ -70,8 +67,6 @@ static struct clk_ops dll_clk_ops = {
 };
 
 static struct clk dll_clk = {
-	.name           = "dll_clk",
-	.id             = -1,
 	.ops		= &dll_clk_ops,
 	.parent		= &r_clk,
 	.flags		= CLK_ENABLE_ON_INIT,
@@ -95,8 +90,6 @@ static struct clk_ops pll_clk_ops = {
 };
 
 static struct clk pll_clk = {
-	.name		= "pll_clk",
-	.id		= -1,
 	.ops		= &pll_clk_ops,
 	.flags		= CLK_ENABLE_ON_INIT,
 };
@@ -111,89 +104,228 @@ struct clk *main_clks[] = {
 static int multipliers[] = { 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 static int divisors[] = { 1, 3, 2, 5, 3, 4, 5, 6, 8, 10, 12, 16, 20 };
 
-static struct clk_div_mult_table div4_table = {
+static struct clk_div_mult_table div4_div_mult_table = {
 	.divisors = divisors,
 	.nr_divisors = ARRAY_SIZE(divisors),
 	.multipliers = multipliers,
 	.nr_multipliers = ARRAY_SIZE(multipliers),
 };
 
-enum { DIV4_I, DIV4_U, DIV4_SH, DIV4_B, DIV4_B3, DIV4_P,
-       DIV4_SIUA, DIV4_SIUB, DIV4_IRDA, DIV4_NR };
+static struct clk_div4_table div4_table = {
+	.div_mult_table = &div4_div_mult_table,
+};
 
-#define DIV4(_str, _reg, _bit, _mask, _flags) \
-  SH_CLK_DIV4(_str, &pll_clk, _reg, _bit, _mask, _flags)
+enum { DIV4_I, DIV4_U, DIV4_SH, DIV4_B, DIV4_B3, DIV4_P, DIV4_NR };
+
+#define DIV4(_reg, _bit, _mask, _flags) \
+  SH_CLK_DIV4(&pll_clk, _reg, _bit, _mask, _flags)
 
 struct clk div4_clks[DIV4_NR] = {
-	[DIV4_I] = DIV4("cpu_clk", FRQCR, 20, 0x0dbf, CLK_ENABLE_ON_INIT),
-	[DIV4_U] = DIV4("umem_clk", FRQCR, 16, 0x0dbf, CLK_ENABLE_ON_INIT),
-	[DIV4_SH] = DIV4("shyway_clk", FRQCR, 12, 0x0dbf, CLK_ENABLE_ON_INIT),
-	[DIV4_B] = DIV4("bus_clk", FRQCR, 8, 0x0dbf, CLK_ENABLE_ON_INIT),
-	[DIV4_B3] = DIV4("b3_clk", FRQCR, 4, 0x0db4, CLK_ENABLE_ON_INIT),
-	[DIV4_P] = DIV4("peripheral_clk", FRQCR, 0, 0x0dbf, 0),
-	[DIV4_SIUA] = DIV4("siua_clk", SCLKACR, 0, 0x0dbf, 0),
-	[DIV4_SIUB] = DIV4("siub_clk", SCLKBCR, 0, 0x0dbf, 0),
-	[DIV4_IRDA] = DIV4("irda_clk", IRDACLKCR, 0, 0x0dbf, 0),
+	[DIV4_I] = DIV4(FRQCR, 20, 0x0dbf, CLK_ENABLE_ON_INIT),
+	[DIV4_U] = DIV4(FRQCR, 16, 0x0dbf, CLK_ENABLE_ON_INIT),
+	[DIV4_SH] = DIV4(FRQCR, 12, 0x0dbf, CLK_ENABLE_ON_INIT),
+	[DIV4_B] = DIV4(FRQCR, 8, 0x0dbf, CLK_ENABLE_ON_INIT),
+	[DIV4_B3] = DIV4(FRQCR, 4, 0x0db4, CLK_ENABLE_ON_INIT),
+	[DIV4_P] = DIV4(FRQCR, 0, 0x0dbf, 0),
 };
 
-struct clk div6_clks[] = {
-	SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
+enum { DIV4_IRDA, DIV4_ENABLE_NR };
+
+struct clk div4_enable_clks[DIV4_ENABLE_NR] = {
+	[DIV4_IRDA] = DIV4(IRDACLKCR, 0, 0x0dbf, 0),
 };
 
-#define MSTP(_str, _parent, _reg, _bit, _force_on, _need_cpg, _need_ram) \
-  SH_CLK_MSTP32(_str, -1, _parent, _reg, _bit, _force_on * CLK_ENABLE_ON_INIT)
+enum { DIV4_SIUA, DIV4_SIUB, DIV4_REPARENT_NR };
+
+struct clk div4_reparent_clks[DIV4_REPARENT_NR] = {
+	[DIV4_SIUA] = DIV4(SCLKACR, 0, 0x0dbf, 0),
+	[DIV4_SIUB] = DIV4(SCLKBCR, 0, 0x0dbf, 0),
+};
+enum { DIV6_V, DIV6_NR };
+
+struct clk div6_clks[DIV6_NR] = {
+	[DIV6_V] = SH_CLK_DIV6(&pll_clk, VCLKCR, 0),
+};
 
 static struct clk mstp_clks[] = {
 	/* See page 60 of Datasheet V1.0: Overview -> Block Diagram */
-	MSTP("tlb0", &div4_clks[DIV4_I], MSTPCR0, 31, 1, 1, 0),
-	MSTP("ic0", &div4_clks[DIV4_I], MSTPCR0, 30, 1, 1, 0),
-	MSTP("oc0", &div4_clks[DIV4_I], MSTPCR0, 29, 1, 1, 0),
-	MSTP("l2c0", &div4_clks[DIV4_SH], MSTPCR0, 28, 1, 1, 0),
-	MSTP("ilmem0", &div4_clks[DIV4_I], MSTPCR0, 27, 1, 1, 0),
-	MSTP("fpu0", &div4_clks[DIV4_I], MSTPCR0, 24, 1, 1, 0),
-	MSTP("intc0", &div4_clks[DIV4_I], MSTPCR0, 22, 1, 1, 0),
-	MSTP("dmac0", &div4_clks[DIV4_B], MSTPCR0, 21, 0, 1, 1),
-	MSTP("sh0", &div4_clks[DIV4_SH], MSTPCR0, 20, 0, 1, 0),
-	MSTP("hudi0", &div4_clks[DIV4_P], MSTPCR0, 19, 0, 1, 0),
-	MSTP("ubc0", &div4_clks[DIV4_I], MSTPCR0, 17, 0, 1, 0),
-	MSTP("tmu0", &div4_clks[DIV4_P], MSTPCR0, 15, 0, 1, 0),
-	MSTP("cmt0", &r_clk, MSTPCR0, 14, 0, 0, 0),
-	MSTP("rwdt0", &r_clk, MSTPCR0, 13, 0, 0, 0),
-	MSTP("dmac1", &div4_clks[DIV4_B], MSTPCR0, 12, 0, 1, 1),
-	MSTP("tmu1", &div4_clks[DIV4_P], MSTPCR0, 11, 0, 1, 0),
-	MSTP("flctl0", &div4_clks[DIV4_P], MSTPCR0, 10, 0, 1, 0),
-	MSTP("scif0", &div4_clks[DIV4_P], MSTPCR0, 9, 0, 1, 0),
-	MSTP("scif1", &div4_clks[DIV4_P], MSTPCR0, 8, 0, 1, 0),
-	MSTP("scif2", &div4_clks[DIV4_P], MSTPCR0, 7, 0, 1, 0),
-	MSTP("scif3", &div4_clks[DIV4_B], MSTPCR0, 6, 0, 1, 0),
-	MSTP("scif4", &div4_clks[DIV4_B], MSTPCR0, 5, 0, 1, 0),
-	MSTP("scif5", &div4_clks[DIV4_B], MSTPCR0, 4, 0, 1, 0),
-	MSTP("msiof0", &div4_clks[DIV4_B], MSTPCR0, 2, 0, 1, 0),
-	MSTP("msiof1", &div4_clks[DIV4_B], MSTPCR0, 1, 0, 1, 0),
-	MSTP("meram0", &div4_clks[DIV4_SH], MSTPCR0, 0, 1, 1, 0),
+	SH_HWBLK_CLK(HWBLK_TLB, &div4_clks[DIV4_I], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_IC, &div4_clks[DIV4_I], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_OC, &div4_clks[DIV4_I], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_L2C, &div4_clks[DIV4_SH], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_ILMEM, &div4_clks[DIV4_I], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_FPU, &div4_clks[DIV4_I], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_INTC, &div4_clks[DIV4_I], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_DMAC0, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_SHYWAY, &div4_clks[DIV4_SH], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_HUDI, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_UBC, &div4_clks[DIV4_I], 0),
+	SH_HWBLK_CLK(HWBLK_TMU0, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_CMT, &r_clk, 0),
+	SH_HWBLK_CLK(HWBLK_RWDT, &r_clk, 0),
+	SH_HWBLK_CLK(HWBLK_DMAC1, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_TMU1, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_FLCTL, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF0, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF1, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF2, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF3, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF4, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF5, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_MSIOF0, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_MSIOF1, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_MERAM, &div4_clks[DIV4_SH], 0),
 
-	MSTP("i2c0", &div4_clks[DIV4_P], MSTPCR1, 9, 0, 1, 0),
-	MSTP("rtc0", &r_clk, MSTPCR1, 8, 0, 0, 0),
+	SH_HWBLK_CLK(HWBLK_IIC, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_RTC, &r_clk, 0),
 
-	MSTP("atapi0", &div4_clks[DIV4_SH], MSTPCR2, 28, 0, 1, 0),
-	MSTP("adc0", &div4_clks[DIV4_P], MSTPCR2, 27, 0, 1, 0),
-	MSTP("tpu0", &div4_clks[DIV4_B], MSTPCR2, 25, 0, 1, 0),
-	MSTP("irda0", &div4_clks[DIV4_P], MSTPCR2, 24, 0, 1, 0),
-	MSTP("tsif0", &div4_clks[DIV4_B], MSTPCR2, 22, 0, 1, 0),
-	MSTP("icb0", &div4_clks[DIV4_B], MSTPCR2, 21, 0, 1, 1),
-	MSTP("sdhi0", &div4_clks[DIV4_B], MSTPCR2, 18, 0, 1, 0),
-	MSTP("sdhi1", &div4_clks[DIV4_B], MSTPCR2, 17, 0, 1, 0),
-	MSTP("keysc0", &r_clk, MSTPCR2, 14, 0, 0, 0),
-	MSTP("usb0", &div4_clks[DIV4_B], MSTPCR2, 11, 0, 1, 0),
-	MSTP("2dg0", &div4_clks[DIV4_B], MSTPCR2, 10, 0, 1, 1),
-	MSTP("siu0", &div4_clks[DIV4_B], MSTPCR2, 8, 0, 1, 0),
-	MSTP("veu1", &div4_clks[DIV4_B], MSTPCR2, 6, 1, 1, 1),
-	MSTP("vou0", &div4_clks[DIV4_B], MSTPCR2, 5, 0, 1, 1),
-	MSTP("beu0", &div4_clks[DIV4_B], MSTPCR2, 4, 0, 1, 1),
-	MSTP("ceu0", &div4_clks[DIV4_B], MSTPCR2, 3, 0, 1, 1),
-	MSTP("veu0", &div4_clks[DIV4_B], MSTPCR2, 2, 1, 1, 1),
-	MSTP("vpu0", &div4_clks[DIV4_B], MSTPCR2, 1, 1, 1, 1),
-	MSTP("lcdc0", &div4_clks[DIV4_B], MSTPCR2, 0, 0, 1, 1),
+	SH_HWBLK_CLK(HWBLK_ATAPI, &div4_clks[DIV4_SH], 0),
+	SH_HWBLK_CLK(HWBLK_ADC, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_TPU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_IRDA, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_TSIF, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_ICB, &div4_clks[DIV4_B], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_SDHI0, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_SDHI1, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_KEYSC, &r_clk, 0),
+	SH_HWBLK_CLK(HWBLK_USB, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_2DG, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_SIU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_VEU2H1, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_VOU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_BEU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_CEU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_VEU2H0, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_VPU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_LCDC, &div4_clks[DIV4_B], 0),
+};
+
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
+static struct clk_lookup lookups[] = {
+	/* main clocks */
+	CLKDEV_CON_ID("rclk", &r_clk),
+	CLKDEV_CON_ID("extal", &extal_clk),
+	CLKDEV_CON_ID("dll_clk", &dll_clk),
+	CLKDEV_CON_ID("pll_clk", &pll_clk),
+
+	/* DIV4 clocks */
+	CLKDEV_CON_ID("cpu_clk", &div4_clks[DIV4_I]),
+	CLKDEV_CON_ID("umem_clk", &div4_clks[DIV4_U]),
+	CLKDEV_CON_ID("shyway_clk", &div4_clks[DIV4_SH]),
+	CLKDEV_CON_ID("bus_clk", &div4_clks[DIV4_B]),
+	CLKDEV_CON_ID("b3_clk", &div4_clks[DIV4_B3]),
+	CLKDEV_CON_ID("peripheral_clk", &div4_clks[DIV4_P]),
+	CLKDEV_CON_ID("irda_clk", &div4_enable_clks[DIV4_IRDA]),
+	CLKDEV_CON_ID("siua_clk", &div4_reparent_clks[DIV4_SIUA]),
+	CLKDEV_CON_ID("siub_clk", &div4_reparent_clks[DIV4_SIUB]),
+
+	/* DIV6 clocks */
+	CLKDEV_CON_ID("video_clk", &div6_clks[DIV6_V]),
+
+	/* MSTP clocks */
+	CLKDEV_CON_ID("tlb0", &mstp_clks[HWBLK_TLB]),
+	CLKDEV_CON_ID("ic0", &mstp_clks[HWBLK_IC]),
+	CLKDEV_CON_ID("oc0", &mstp_clks[HWBLK_OC]),
+	CLKDEV_CON_ID("l2c0", &mstp_clks[HWBLK_L2C]),
+	CLKDEV_CON_ID("ilmem0", &mstp_clks[HWBLK_ILMEM]),
+	CLKDEV_CON_ID("fpu0", &mstp_clks[HWBLK_FPU]),
+	CLKDEV_CON_ID("intc0", &mstp_clks[HWBLK_INTC]),
+	CLKDEV_CON_ID("dmac0", &mstp_clks[HWBLK_DMAC0]),
+	CLKDEV_CON_ID("sh0", &mstp_clks[HWBLK_SHYWAY]),
+	CLKDEV_CON_ID("hudi0", &mstp_clks[HWBLK_HUDI]),
+	CLKDEV_CON_ID("ubc0", &mstp_clks[HWBLK_UBC]),
+	{
+		/* TMU0 */
+		.dev_id		= "sh_tmu.0",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU0],
+	}, {
+		/* TMU1 */
+		.dev_id		= "sh_tmu.1",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU0],
+	}, {
+		/* TMU2 */
+		.dev_id		= "sh_tmu.2",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU0],
+	},
+	CLKDEV_CON_ID("cmt_fck", &mstp_clks[HWBLK_CMT]),
+	CLKDEV_CON_ID("rwdt0", &mstp_clks[HWBLK_RWDT]),
+	CLKDEV_CON_ID("dmac1", &mstp_clks[HWBLK_DMAC1]),
+	{
+		/* TMU3 */
+		.dev_id		= "sh_tmu.3",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU1],
+	}, {
+		/* TMU4 */
+		.dev_id		= "sh_tmu.4",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU1],
+	}, {
+		/* TMU5 */
+		.dev_id		= "sh_tmu.5",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU1],
+	},
+	CLKDEV_CON_ID("flctl0", &mstp_clks[HWBLK_FLCTL]),
+	{
+		/* SCIF0 */
+		.dev_id		= "sh-sci.0",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF0],
+	}, {
+		/* SCIF1 */
+		.dev_id		= "sh-sci.1",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF1],
+	}, {
+		/* SCIF2 */
+		.dev_id		= "sh-sci.2",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF2],
+	}, {
+		/* SCIF3 */
+		.dev_id		= "sh-sci.3",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF3],
+	}, {
+		/* SCIF4 */
+		.dev_id		= "sh-sci.4",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF4],
+	}, {
+		/* SCIF5 */
+		.dev_id		= "sh-sci.5",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF5],
+	},
+	CLKDEV_CON_ID("msiof0", &mstp_clks[HWBLK_MSIOF0]),
+	CLKDEV_CON_ID("msiof1", &mstp_clks[HWBLK_MSIOF1]),
+	CLKDEV_CON_ID("meram0", &mstp_clks[HWBLK_MERAM]),
+	CLKDEV_CON_ID("i2c0", &mstp_clks[HWBLK_IIC]),
+	CLKDEV_CON_ID("rtc0", &mstp_clks[HWBLK_RTC]),
+	CLKDEV_CON_ID("atapi0", &mstp_clks[HWBLK_ATAPI]),
+	CLKDEV_CON_ID("adc0", &mstp_clks[HWBLK_ADC]),
+	CLKDEV_CON_ID("tpu0", &mstp_clks[HWBLK_TPU]),
+	CLKDEV_CON_ID("irda0", &mstp_clks[HWBLK_IRDA]),
+	CLKDEV_CON_ID("tsif0", &mstp_clks[HWBLK_TSIF]),
+	CLKDEV_CON_ID("icb0", &mstp_clks[HWBLK_ICB]),
+	CLKDEV_CON_ID("sdhi0", &mstp_clks[HWBLK_SDHI0]),
+	CLKDEV_CON_ID("sdhi1", &mstp_clks[HWBLK_SDHI1]),
+	CLKDEV_CON_ID("keysc0", &mstp_clks[HWBLK_KEYSC]),
+	CLKDEV_CON_ID("usb0", &mstp_clks[HWBLK_USB]),
+	CLKDEV_CON_ID("2dg0", &mstp_clks[HWBLK_2DG]),
+	CLKDEV_CON_ID("siu0", &mstp_clks[HWBLK_SIU]),
+	CLKDEV_CON_ID("veu1", &mstp_clks[HWBLK_VEU2H1]),
+	CLKDEV_CON_ID("vou0", &mstp_clks[HWBLK_VOU]),
+	CLKDEV_CON_ID("beu0", &mstp_clks[HWBLK_BEU]),
+	CLKDEV_CON_ID("ceu0", &mstp_clks[HWBLK_CEU]),
+	CLKDEV_CON_ID("veu0", &mstp_clks[HWBLK_VEU2H0]),
+	CLKDEV_CON_ID("vpu0", &mstp_clks[HWBLK_VPU]),
+	CLKDEV_CON_ID("lcdc0", &mstp_clks[HWBLK_LCDC]),
 };
 
 int __init arch_clk_init(void)
@@ -207,16 +339,26 @@ int __init arch_clk_init(void)
 		pll_clk.parent = &extal_clk;
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
-		ret = clk_register(main_clks[k]);
+		ret |= clk_register(main_clks[k]);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
 
 	if (!ret)
-		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));
+		ret = sh_clk_div4_enable_register(div4_enable_clks,
+					DIV4_ENABLE_NR, &div4_table);
 
 	if (!ret)
-		ret = sh_clk_mstp32_register(mstp_clks, ARRAY_SIZE(mstp_clks));
+		ret = sh_clk_div4_reparent_register(div4_reparent_clks,
+					DIV4_REPARENT_NR, &div4_table);
+
+	if (!ret)
+		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
+
+	if (!ret)
+		ret = sh_hwblk_clk_register(mstp_clks, HWBLK_NR);
 
 	return ret;
 }

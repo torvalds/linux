@@ -5,7 +5,7 @@
     Copyright (c) 2002, 2003  Philip Pokorny <ppokorny@penguincomputing.com>
     Copyright (c) 2003        Margit Schubert-While <margitsw@t-online.de>
     Copyright (c) 2004        Justin Thiessen <jthiessen@penguincomputing.com>
-    Copyright (C) 2007, 2008  Jean Delvare <khali@linux-fr.org>
+    Copyright (C) 2007--2009  Jean Delvare <khali@linux-fr.org>
 
     Chip details at	      <http://www.national.com/ds/LM/LM85.pdf>
 
@@ -38,9 +38,11 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_7(lm85b, lm85c, adm1027, adt7463, adt7468, emc6d100,
-		    emc6d102);
+enum chips {
+	any_chip, lm85b, lm85c,
+	adm1027, adt7463, adt7468,
+	emc6d100, emc6d102
+};
 
 /* The LM85 registers */
 
@@ -62,9 +64,12 @@ I2C_CLIENT_INSMOD_7(lm85b, lm85c, adm1027, adt7463, adt7468, emc6d100,
 #define	LM85_REG_VERSTEP		0x3f
 
 #define	ADT7468_REG_CFG5		0x7c
-#define		ADT7468_OFF64		0x01
+#define		ADT7468_OFF64		(1 << 0)
+#define		ADT7468_HFPWM		(1 << 1)
 #define	IS_ADT7468_OFF64(data)		\
 	((data)->type == adt7468 && !((data)->cfg5 & ADT7468_OFF64))
+#define	IS_ADT7468_HFPWM(data)		\
+	((data)->type == adt7468 && !((data)->cfg5 & ADT7468_HFPWM))
 
 /* These are the recognized values for the above regs */
 #define	LM85_COMPANY_NATIONAL		0x01
@@ -75,6 +80,8 @@ I2C_CLIENT_INSMOD_7(lm85b, lm85c, adm1027, adt7463, adt7468, emc6d100,
 #define	LM85_VERSTEP_GENERIC2		0x70
 #define	LM85_VERSTEP_LM85C		0x60
 #define	LM85_VERSTEP_LM85B		0x62
+#define	LM85_VERSTEP_LM96000_1		0x68
+#define	LM85_VERSTEP_LM96000_2		0x69
 #define	LM85_VERSTEP_ADM1027		0x60
 #define	LM85_VERSTEP_ADT7463		0x62
 #define	LM85_VERSTEP_ADT7463C		0x6A
@@ -321,8 +328,7 @@ struct lm85_data {
 	struct lm85_zone zone[3];
 };
 
-static int lm85_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info);
 static int lm85_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
 static int lm85_remove(struct i2c_client *client);
@@ -355,7 +361,7 @@ static struct i2c_driver lm85_driver = {
 	.remove		= lm85_remove,
 	.id_table	= lm85_id,
 	.detect		= lm85_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 
@@ -564,8 +570,14 @@ static ssize_t show_pwm_freq(struct device *dev,
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
-	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->freq_map,
-						  data->pwm_freq[nr]));
+	int freq;
+
+	if (IS_ADT7468_HFPWM(data))
+		freq = 22500;
+	else
+		freq = FREQ_FROM_REG(data->freq_map, data->pwm_freq[nr]);
+
+	return sprintf(buf, "%d\n", freq);
 }
 
 static ssize_t set_pwm_freq(struct device *dev,
@@ -577,10 +589,22 @@ static ssize_t set_pwm_freq(struct device *dev,
 	long val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
-	data->pwm_freq[nr] = FREQ_TO_REG(data->freq_map, val);
-	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
-		(data->zone[nr].range << 4)
-		| data->pwm_freq[nr]);
+	/* The ADT7468 has a special high-frequency PWM output mode,
+	 * where all PWM outputs are driven by a 22.5 kHz clock.
+	 * This might confuse the user, but there's not much we can do. */
+	if (data->type == adt7468 && val >= 11300) {	/* High freq. mode */
+		data->cfg5 &= ~ADT7468_HFPWM;
+		lm85_write_value(client, ADT7468_REG_CFG5, data->cfg5);
+	} else {					/* Low freq. mode */
+		data->pwm_freq[nr] = FREQ_TO_REG(data->freq_map, val);
+		lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
+				 (data->zone[nr].range << 4)
+				 | data->pwm_freq[nr]);
+		if (data->type == adt7468) {
+			data->cfg5 |= ADT7468_HFPWM;
+			lm85_write_value(client, ADT7468_REG_CFG5, data->cfg5);
+		}
+	}
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -1133,104 +1157,106 @@ static void lm85_init_client(struct i2c_client *client)
 		dev_warn(&client->dev, "Device is not ready\n");
 }
 
+static int lm85_is_fake(struct i2c_client *client)
+{
+	/*
+	 * Differenciate between real LM96000 and Winbond WPCD377I. The latter
+	 * emulate the former except that it has no hardware monitoring function
+	 * so the readings are always 0.
+	 */
+	int i;
+	u8 in_temp, fan;
+
+	for (i = 0; i < 8; i++) {
+		in_temp = i2c_smbus_read_byte_data(client, 0x20 + i);
+		fan = i2c_smbus_read_byte_data(client, 0x28 + i);
+		if (in_temp != 0x00 || fan != 0xff)
+			return 0;
+	}
+
+	return 1;
+}
+
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm85_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info)
+static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int address = client->addr;
 	const char *type_name;
+	int company, verstep;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
 		return -ENODEV;
 	}
 
-	/* If auto-detecting, determine the chip type */
-	if (kind < 0) {
-		int company = lm85_read_value(client, LM85_REG_COMPANY);
-		int verstep = lm85_read_value(client, LM85_REG_VERSTEP);
+	/* Determine the chip type */
+	company = lm85_read_value(client, LM85_REG_COMPANY);
+	verstep = lm85_read_value(client, LM85_REG_VERSTEP);
 
-		dev_dbg(&adapter->dev, "Detecting device at 0x%02x with "
-			"COMPANY: 0x%02x and VERSTEP: 0x%02x\n",
-			address, company, verstep);
+	dev_dbg(&adapter->dev, "Detecting device at 0x%02x with "
+		"COMPANY: 0x%02x and VERSTEP: 0x%02x\n",
+		address, company, verstep);
 
-		/* All supported chips have the version in common */
-		if ((verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC &&
-		    (verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC2) {
-			dev_dbg(&adapter->dev, "Autodetection failed: "
-				"unsupported version\n");
-			return -ENODEV;
+	/* All supported chips have the version in common */
+	if ((verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC &&
+	    (verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC2) {
+		dev_dbg(&adapter->dev,
+			"Autodetection failed: unsupported version\n");
+		return -ENODEV;
+	}
+	type_name = "lm85";
+
+	/* Now, refine the detection */
+	if (company == LM85_COMPANY_NATIONAL) {
+		switch (verstep) {
+		case LM85_VERSTEP_LM85C:
+			type_name = "lm85c";
+			break;
+		case LM85_VERSTEP_LM85B:
+			type_name = "lm85b";
+			break;
+		case LM85_VERSTEP_LM96000_1:
+		case LM85_VERSTEP_LM96000_2:
+			/* Check for Winbond WPCD377I */
+			if (lm85_is_fake(client)) {
+				dev_dbg(&adapter->dev,
+					"Found Winbond WPCD377I, ignoring\n");
+				return -ENODEV;
+			}
+			break;
 		}
-		kind = any_chip;
-
-		/* Now, refine the detection */
-		if (company == LM85_COMPANY_NATIONAL) {
-			switch (verstep) {
-			case LM85_VERSTEP_LM85C:
-				kind = lm85c;
-				break;
-			case LM85_VERSTEP_LM85B:
-				kind = lm85b;
-				break;
-			}
-		} else if (company == LM85_COMPANY_ANALOG_DEV) {
-			switch (verstep) {
-			case LM85_VERSTEP_ADM1027:
-				kind = adm1027;
-				break;
-			case LM85_VERSTEP_ADT7463:
-			case LM85_VERSTEP_ADT7463C:
-				kind = adt7463;
-				break;
-			case LM85_VERSTEP_ADT7468_1:
-			case LM85_VERSTEP_ADT7468_2:
-				kind = adt7468;
-				break;
-			}
-		} else if (company == LM85_COMPANY_SMSC) {
-			switch (verstep) {
-			case LM85_VERSTEP_EMC6D100_A0:
-			case LM85_VERSTEP_EMC6D100_A1:
-				/* Note: we can't tell a '100 from a '101 */
-				kind = emc6d100;
-				break;
-			case LM85_VERSTEP_EMC6D102:
-				kind = emc6d102;
-				break;
-			}
-		} else {
-			dev_dbg(&adapter->dev, "Autodetection failed: "
-				"unknown vendor\n");
-			return -ENODEV;
+	} else if (company == LM85_COMPANY_ANALOG_DEV) {
+		switch (verstep) {
+		case LM85_VERSTEP_ADM1027:
+			type_name = "adm1027";
+			break;
+		case LM85_VERSTEP_ADT7463:
+		case LM85_VERSTEP_ADT7463C:
+			type_name = "adt7463";
+			break;
+		case LM85_VERSTEP_ADT7468_1:
+		case LM85_VERSTEP_ADT7468_2:
+			type_name = "adt7468";
+			break;
 		}
+	} else if (company == LM85_COMPANY_SMSC) {
+		switch (verstep) {
+		case LM85_VERSTEP_EMC6D100_A0:
+		case LM85_VERSTEP_EMC6D100_A1:
+			/* Note: we can't tell a '100 from a '101 */
+			type_name = "emc6d100";
+			break;
+		case LM85_VERSTEP_EMC6D102:
+			type_name = "emc6d102";
+			break;
+		}
+	} else {
+		dev_dbg(&adapter->dev,
+			"Autodetection failed: unknown vendor\n");
+		return -ENODEV;
 	}
 
-	switch (kind) {
-	case lm85b:
-		type_name = "lm85b";
-		break;
-	case lm85c:
-		type_name = "lm85c";
-		break;
-	case adm1027:
-		type_name = "adm1027";
-		break;
-	case adt7463:
-		type_name = "adt7463";
-		break;
-	case adt7468:
-		type_name = "adt7468";
-		break;
-	case emc6d100:
-		type_name = "emc6d100";
-		break;
-	case emc6d102:
-		type_name = "emc6d102";
-		break;
-	default:
-		type_name = "lm85";
-	}
 	strlcpy(info->type, type_name, I2C_NAME_SIZE);
 
 	return 0;
@@ -1254,6 +1280,7 @@ static int lm85_probe(struct i2c_client *client,
 	switch (data->type) {
 	case adm1027:
 	case adt7463:
+	case adt7468:
 	case emc6d100:
 	case emc6d102:
 		data->freq_map = adm1027_freq_map;

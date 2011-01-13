@@ -4,29 +4,7 @@
 #include "levenshtein.h"
 #include "help.h"
 
-/* most GUI terminals set COLUMNS (although some don't export it) */
-static int term_columns(void)
-{
-	char *col_string = getenv("COLUMNS");
-	int n_cols;
-
-	if (col_string && (n_cols = atoi(col_string)) > 0)
-		return n_cols;
-
-#ifdef TIOCGWINSZ
-	{
-		struct winsize ws;
-		if (!ioctl(1, TIOCGWINSZ, &ws)) {
-			if (ws.ws_col)
-				return ws.ws_col;
-		}
-	}
-#endif
-
-	return 80;
-}
-
-void add_cmdname(struct cmdnames *cmds, const char *name, int len)
+void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 {
 	struct cmdname *ent = malloc(sizeof(*ent) + len + 1);
 
@@ -40,7 +18,8 @@ void add_cmdname(struct cmdnames *cmds, const char *name, int len)
 
 static void clean_cmdnames(struct cmdnames *cmds)
 {
-	int i;
+	unsigned int i;
+
 	for (i = 0; i < cmds->cnt; ++i)
 		free(cmds->names[i]);
 	free(cmds->names);
@@ -57,7 +36,7 @@ static int cmdname_compare(const void *a_, const void *b_)
 
 static void uniq(struct cmdnames *cmds)
 {
-	int i, j;
+	unsigned int i, j;
 
 	if (!cmds->cnt)
 		return;
@@ -71,7 +50,7 @@ static void uniq(struct cmdnames *cmds)
 
 void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes)
 {
-	int ci, cj, ei;
+	size_t ci, cj, ei;
 	int cmp;
 
 	ci = cj = ei = 0;
@@ -95,8 +74,12 @@ static void pretty_print_string_list(struct cmdnames *cmds, int longest)
 {
 	int cols = 1, rows;
 	int space = longest + 1; /* min 1 SP between words */
-	int max_cols = term_columns() - 1; /* don't print *on* the edge */
+	struct winsize win;
+	int max_cols;
 	int i, j;
+
+	get_term_dimensions(&win);
+	max_cols = win.ws_col - 1; /* don't print *on* the edge */
 
 	if (space < max_cols)
 		cols = max_cols / space;
@@ -106,8 +89,9 @@ static void pretty_print_string_list(struct cmdnames *cmds, int longest)
 		printf("  ");
 
 		for (j = 0; j < cols; j++) {
-			int n = j * rows + i;
-			int size = space;
+			unsigned int n = j * rows + i;
+			unsigned int size = space;
+
 			if (n >= cmds->cnt)
 				break;
 			if (j == cols-1 || n + rows >= cmds->cnt)
@@ -126,21 +110,6 @@ static int is_executable(const char *name)
 	    !S_ISREG(st.st_mode))
 		return 0;
 
-#ifdef __MINGW32__
-	/* cannot trust the executable bit, peek into the file instead */
-	char buf[3] = { 0 };
-	int n;
-	int fd = open(name, O_RDONLY);
-	st.st_mode &= ~S_IXUSR;
-	if (fd >= 0) {
-		n = read(fd, buf, 2);
-		if (n == 2)
-			/* DOS executables start with "MZ" */
-			if (!strcmp(buf, "#!") || !strcmp(buf, "MZ"))
-				st.st_mode |= S_IXUSR;
-		close(fd);
-	}
-#endif
 	return st.st_mode & S_IXUSR;
 }
 
@@ -223,7 +192,7 @@ void load_command_list(const char *prefix,
 void list_commands(const char *title, struct cmdnames *main_cmds,
 		   struct cmdnames *other_cmds)
 {
-	int i, longest = 0;
+	unsigned int i, longest = 0;
 
 	for (i = 0; i < main_cmds->cnt; i++)
 		if (longest < main_cmds->names[i]->len)
@@ -254,7 +223,8 @@ void list_commands(const char *title, struct cmdnames *main_cmds,
 
 int is_in_cmdlist(struct cmdnames *c, const char *s)
 {
-	int i;
+	unsigned int i;
+
 	for (i = 0; i < c->cnt; i++)
 		if (!strcmp(s, c->names[i]->name))
 			return 1;
@@ -286,7 +256,8 @@ static int levenshtein_compare(const void *p1, const void *p2)
 
 static void add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 {
-	int i;
+	unsigned int i;
+
 	ALLOC_GROW(cmds->names, cmds->cnt + old->cnt, cmds->alloc);
 
 	for (i = 0; i < old->cnt; i++)
@@ -298,7 +269,7 @@ static void add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 
 const char *help_unknown_cmd(const char *cmd)
 {
-	int i, n = 0, best_similarity = 0;
+	unsigned int i, n = 0, best_similarity = 0;
 	struct cmdnames main_cmds, other_cmds;
 
 	memset(&main_cmds, 0, sizeof(main_cmds));
@@ -335,7 +306,7 @@ const char *help_unknown_cmd(const char *cmd)
 
 		main_cmds.names[0] = NULL;
 		clean_cmdnames(&main_cmds);
-		fprintf(stderr, "WARNING: You called a Git program named '%s', "
+		fprintf(stderr, "WARNING: You called a perf program named '%s', "
 			"which does not exist.\n"
 			"Continuing under the assumption that you meant '%s'\n",
 			cmd, assumed);
@@ -360,7 +331,7 @@ const char *help_unknown_cmd(const char *cmd)
 	exit(1);
 }
 
-int cmd_version(int argc, const char **argv, const char *prefix)
+int cmd_version(int argc __used, const char **argv __used, const char *prefix __used)
 {
 	printf("perf version %s\n", perf_version_string);
 	return 0;

@@ -1,3 +1,9 @@
+/*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #ifndef _BLACKFIN_PGTABLE_H
 #define _BLACKFIN_PGTABLE_H
 
@@ -74,7 +80,8 @@ PTE_BIT_FUNC(mkyoung, |= _PAGE_ACCESSED);
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
-#define ZERO_PAGE(vaddr)	(virt_to_page(0))
+#define ZERO_PAGE(vaddr)	virt_to_page(empty_zero_page)
+extern char empty_zero_page[];
 
 extern unsigned int kobjsize(const void *objp);
 
@@ -91,6 +98,12 @@ extern unsigned int kobjsize(const void *objp);
  */
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
+
+/* provide a special get_unmapped_area for framebuffer mmaps of nommu */
+extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long);
+#define HAVE_ARCH_FB_UNMAPPED_AREA
 
 #include <asm-generic/pgtable.h>
 

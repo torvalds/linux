@@ -22,6 +22,7 @@ struct plat_serial8250_port {
 	void __iomem	*membase;	/* ioremap cookie or NULL */
 	resource_size_t	mapbase;	/* resource base */
 	unsigned int	irq;		/* interrupt number */
+	unsigned long	irqflags;	/* request_irq flags */
 	unsigned int	uartclk;	/* UART clock rate */
 	void            *private_data;
 	unsigned char	regshift;	/* register shift */
@@ -31,6 +32,11 @@ struct plat_serial8250_port {
 	unsigned int	type;		/* If UPF_FIXED_TYPE */
 	unsigned int	(*serial_in)(struct uart_port *, int);
 	void		(*serial_out)(struct uart_port *, int, int);
+	void		(*set_termios)(struct uart_port *,
+			               struct ktermios *new,
+			               struct ktermios *old);
+	void		(*pm)(struct uart_port *, unsigned int state,
+			      unsigned old);
 };
 
 /*
@@ -70,5 +76,13 @@ extern int early_serial_setup(struct uart_port *port);
 extern int serial8250_find_port(struct uart_port *p);
 extern int serial8250_find_port_for_earlycon(void);
 extern int setup_early_serial8250_console(char *cmdline);
+extern void serial8250_do_set_termios(struct uart_port *port,
+		struct ktermios *termios, struct ktermios *old);
+extern void serial8250_do_pm(struct uart_port *port, unsigned int state,
+			     unsigned int oldstate);
+
+extern void serial8250_set_isa_configurator(void (*v)
+					(int port, struct uart_port *up,
+						unsigned short *capabilities));
 
 #endif

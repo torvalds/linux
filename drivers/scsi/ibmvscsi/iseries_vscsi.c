@@ -158,10 +158,16 @@ static int iseriesvscsi_send_crq(struct ibmvscsi_host_data *hostdata,
 					     0);
 }
 
+static int iseriesvscsi_resume(struct ibmvscsi_host_data *hostdata)
+{
+	return 0;
+}
+
 struct ibmvscsi_ops iseriesvscsi_ops = {
 	.init_crq_queue = iseriesvscsi_init_crq_queue,
 	.release_crq_queue = iseriesvscsi_release_crq_queue,
 	.reset_crq_queue = iseriesvscsi_reset_crq_queue,
 	.reenable_crq_queue = iseriesvscsi_reenable_crq_queue,
 	.send_crq = iseriesvscsi_send_crq,
+	.resume = iseriesvscsi_resume,
 };

@@ -37,6 +37,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
+#include <linux/slab.h>
 
 /*--------------------------------------------------------------------------*/
 
@@ -301,9 +302,24 @@ static int tmio_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 	return 0;
 }
 
+static int tmio_nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
+		unsigned char *read_ecc, unsigned char *calc_ecc)
+{
+	int r0, r1;
+
+	/* assume ecc.size = 512 and ecc.bytes = 6 */
+	r0 = __nand_correct_data(buf, read_ecc, calc_ecc, 256);
+	if (r0 < 0)
+		return r0;
+	r1 = __nand_correct_data(buf + 256, read_ecc + 3, calc_ecc + 3, 256);
+	if (r1 < 0)
+		return r1;
+	return r0 + r1;
+}
+
 static int tmio_hw_init(struct platform_device *dev, struct tmio_nand *tmio)
 {
-	struct mfd_cell *cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell *cell = dev_get_platdata(&dev->dev);
 	int ret;
 
 	if (cell->enable) {
@@ -347,7 +363,7 @@ static int tmio_hw_init(struct platform_device *dev, struct tmio_nand *tmio)
 
 static void tmio_hw_stop(struct platform_device *dev, struct tmio_nand *tmio)
 {
-	struct mfd_cell *cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell *cell = dev_get_platdata(&dev->dev);
 
 	tmio_iowrite8(FCR_MODE_POWER_OFF, tmio->fcr + FCR_MODE);
 	if (cell->disable)
@@ -356,7 +372,7 @@ static void tmio_hw_stop(struct platform_device *dev, struct tmio_nand *tmio)
 
 static int tmio_probe(struct platform_device *dev)
 {
-	struct mfd_cell *cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell *cell = dev_get_platdata(&dev->dev);
 	struct tmio_nand_data *data = cell->driver_data;
 	struct resource *fcr = platform_get_resource(dev,
 			IORESOURCE_MEM, 0);
@@ -389,14 +405,14 @@ static int tmio_probe(struct platform_device *dev)
 	mtd->priv = nand_chip;
 	mtd->name = "tmio-nand";
 
-	tmio->ccr = ioremap(ccr->start, ccr->end - ccr->start + 1);
+	tmio->ccr = ioremap(ccr->start, resource_size(ccr));
 	if (!tmio->ccr) {
 		retval = -EIO;
 		goto err_iomap_ccr;
 	}
 
 	tmio->fcr_base = fcr->start & 0xfffff;
-	tmio->fcr = ioremap(fcr->start, fcr->end - fcr->start + 1);
+	tmio->fcr = ioremap(fcr->start, resource_size(fcr));
 	if (!tmio->fcr) {
 		retval = -EIO;
 		goto err_iomap_fcr;
@@ -424,7 +440,7 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->ecc.bytes = 6;
 	nand_chip->ecc.hwctl = tmio_nand_enable_hwecc;
 	nand_chip->ecc.calculate = tmio_nand_calculate_ecc;
-	nand_chip->ecc.correct = nand_correct_data;
+	nand_chip->ecc.correct = tmio_nand_correct_data;
 
 	if (data)
 		nand_chip->badblock_pattern = data->badblock_pattern;
@@ -500,7 +516,7 @@ static int tmio_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int tmio_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mfd_cell *cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell *cell = dev_get_platdata(&dev->dev);
 
 	if (cell->suspend)
 		cell->suspend(dev);
@@ -511,7 +527,7 @@ static int tmio_suspend(struct platform_device *dev, pm_message_t state)
 
 static int tmio_resume(struct platform_device *dev)
 {
-	struct mfd_cell *cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell *cell = dev_get_platdata(&dev->dev);
 
 	/* FIXME - is this required or merely another attack of the broken
 	 * SHARP platform? Looks suspicious.

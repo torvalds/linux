@@ -54,14 +54,14 @@ function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
 	struct trace_array_cpu *data;
 	unsigned long flags;
 	long disabled;
-	int cpu, resched;
+	int cpu;
 	int pc;
 
 	if (unlikely(!ftrace_function_enabled))
 		return;
 
 	pc = preempt_count();
-	resched = ftrace_preempt_disable();
+	preempt_disable_notrace();
 	local_save_flags(flags);
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
@@ -71,7 +71,7 @@ function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
 		trace_function(tr, ip, parent_ip, flags, pc);
 
 	atomic_dec(&data->disabled);
-	ftrace_preempt_enable(resched);
+	preempt_enable_notrace();
 }
 
 static void
@@ -288,11 +288,9 @@ static int
 ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 			 struct ftrace_probe_ops *ops, void *data)
 {
-	char str[KSYM_SYMBOL_LEN];
 	long count = (long)data;
 
-	kallsyms_lookup(ip, NULL, NULL, NULL, str);
-	seq_printf(m, "%s:", str);
+	seq_printf(m, "%ps:", (void *)ip);
 
 	if (ops == &traceon_probe_ops)
 		seq_printf(m, "traceon");
@@ -302,8 +300,7 @@ ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 	if (count == -1)
 		seq_printf(m, ":unlimited\n");
 	else
-		seq_printf(m, ":count=%ld", count);
-	seq_putc(m, '\n');
+		seq_printf(m, ":count=%ld\n", count);
 
 	return 0;
 }
@@ -364,7 +361,7 @@ ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
  out_reg:
 	ret = register_ftrace_function_probe(glob, ops, count);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static struct ftrace_func_command ftrace_traceon_cmd = {

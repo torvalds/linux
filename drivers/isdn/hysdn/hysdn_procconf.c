@@ -11,15 +11,18 @@
  *
  */
 
+#include <linux/cred.h>
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
+#include <linux/slab.h>
+#include <linux/mutex.h>
 #include <net/net_namespace.h>
 
 #include "hysdn_defs.h"
 
+static DEFINE_MUTEX(hysdn_conf_mutex);
 static char *hysdn_procconf_revision = "$Revision: 1.8.6.4 $";
 
 #define INFO_OUT_LEN 80		/* length of info line including lf */
@@ -232,7 +235,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 	char *cp, *tmp;
 
 	/* now search the addressed card */
-	lock_kernel();
+	mutex_lock(&hysdn_conf_mutex);
 	card = card_root;
 	while (card) {
 		pd = card->procconf;
@@ -241,7 +244,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 		card = card->next;	/* search next entry */
 	}
 	if (!card) {
-		unlock_kernel();
+		mutex_unlock(&hysdn_conf_mutex);
 		return (-ENODEV);	/* device is unknown/invalid */
 	}
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
@@ -253,7 +256,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 		/* write only access -> write boot file or conf line */
 
 		if (!(cnf = kmalloc(sizeof(struct conf_writedata), GFP_KERNEL))) {
-			unlock_kernel();
+			mutex_unlock(&hysdn_conf_mutex);
 			return (-EFAULT);
 		}
 		cnf->card = card;
@@ -265,7 +268,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 		/* read access -> output card info data */
 
 		if (!(tmp = kmalloc(INFO_OUT_LEN * 2 + 2, GFP_KERNEL))) {
-			unlock_kernel();
+			mutex_unlock(&hysdn_conf_mutex);
 			return (-EFAULT);	/* out of memory */
 		}
 		filep->private_data = tmp;	/* start of string */
@@ -299,10 +302,10 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 		*cp++ = '\n';
 		*cp = 0;	/* end of string */
 	} else {		/* simultaneous read/write access forbidden ! */
-		unlock_kernel();
+		mutex_unlock(&hysdn_conf_mutex);
 		return (-EPERM);	/* no permission this time */
 	}
-	unlock_kernel();
+	mutex_unlock(&hysdn_conf_mutex);
 	return nonseekable_open(ino, filep);
 }				/* hysdn_conf_open */
 
@@ -317,7 +320,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 	int retval = 0;
 	struct proc_dir_entry *pd;
 
-	lock_kernel();
+	mutex_lock(&hysdn_conf_mutex);
 	/* search the addressed card */
 	card = card_root;
 	while (card) {
@@ -327,7 +330,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 		card = card->next;	/* search next entry */
 	}
 	if (!card) {
-		unlock_kernel();
+		mutex_unlock(&hysdn_conf_mutex);
 		return (-ENODEV);	/* device is unknown/invalid */
 	}
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
@@ -350,7 +353,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 
 		kfree(filep->private_data);	/* release memory */
 	}
-	unlock_kernel();
+	mutex_unlock(&hysdn_conf_mutex);
 	return (retval);
 }				/* hysdn_conf_close */
 

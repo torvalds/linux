@@ -1,6 +1,4 @@
 /*
- * linux/arch/mips/kernel/irq_txx9.c
- *
  * Based on linux/arch/mips/jmr3927/rbhma3100/irq.c,
  *          linux/arch/mips/tx4927/common/tx4927_irq.c,
  *          linux/arch/mips/tx4938/common/irq.c
@@ -18,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
+#include <linux/irq.h>
 #include <asm/txx9irq.h>
 
 struct txx9_irc_reg {

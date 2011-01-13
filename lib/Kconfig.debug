@@ -50,6 +50,14 @@ config MAGIC_SYSRQ
 	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
 	  unless you really know what this hack does.
 
+config STRIP_ASM_SYMS
+	bool "Strip assembler-generated symbols during link"
+	default n
+	help
+	  Strip internal assembler-generated symbols during a link (symbols
+	  that look like '.Lxxx') so they don't pollute the output of
+	  get_wchan() and suchlike.
+
 config UNUSED_SYMBOLS
 	bool "Enable unused/obsolete exported symbols"
 	default y if X86
@@ -68,7 +76,6 @@ config UNUSED_SYMBOLS
 
 config DEBUG_FS
 	bool "Debug Filesystem"
-	depends on SYSFS
 	help
 	  debugfs is a virtual file system that kernel developers use to put
 	  debugging files into.  Enable this option to be able to read and
@@ -95,9 +102,10 @@ config HEADERS_CHECK
 
 config DEBUG_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
-	depends on UNDEFINED
+	depends on UNDEFINED || (BLACKFIN)
+	default y
 	# This option is on purpose disabled for now.
-	# It will be enabled when we are down to a resonable number
+	# It will be enabled when we are down to a reasonable number
 	# of section mismatch warnings (< 10 for an allyesconfig build)
 	help
 	  The section mismatch analysis checks if there are illegal
@@ -143,28 +151,34 @@ config DEBUG_SHIRQ
 	  Drivers ought to be able to handle interrupts coming in at those
 	  points; some don't and need to be caught.
 
-config DETECT_SOFTLOCKUP
-	bool "Detect Soft Lockups"
+config LOCKUP_DETECTOR
+	bool "Detect Hard and Soft Lockups"
 	depends on DEBUG_KERNEL && !S390
-	default y
 	help
-	  Say Y here to enable the kernel to detect "soft lockups",
-	  which are bugs that cause the kernel to loop in kernel
+	  Say Y here to enable the kernel to act as a watchdog to detect
+	  hard and soft lockups.
+
+	  Softlockups are bugs that cause the kernel to loop in kernel
 	  mode for more than 60 seconds, without giving other tasks a
-	  chance to run.
+	  chance to run.  The current stack trace is displayed upon
+	  detection and the system will stay locked up.
 
-	  When a soft-lockup is detected, the kernel will print the
-	  current stack trace (which you should report), but the
-	  system will stay locked up. This feature has negligible
-	  overhead.
+	  Hardlockups are bugs that cause the CPU to loop in kernel mode
+	  for more than 60 seconds, without letting other interrupts have a
+	  chance to run.  The current stack trace is displayed upon detection
+	  and the system will stay locked up.
 
-	  (Note that "hard lockups" are separate type of bugs that
-	   can be detected via the NMI-watchdog, on platforms that
-	   support it.)
+	  The overhead should be minimal.  A periodic hrtimer runs to
+	  generate interrupts and kick the watchdog task every 10-12 seconds.
+	  An NMI is generated every 60 seconds or so to check for hardlockups.
+
+config HARDLOCKUP_DETECTOR
+	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI && \
+		 !ARCH_HAS_NMI_WATCHDOG
 
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"
-	depends on DETECT_SOFTLOCKUP
+	depends on LOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to panic on "soft lockups",
 	  which are bugs that cause the kernel to loop in kernel
@@ -181,7 +195,7 @@ config BOOTPARAM_SOFTLOCKUP_PANIC
 
 config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
 	int
-	depends on DETECT_SOFTLOCKUP
+	depends on LOCKUP_DETECTOR
 	range 0 1
 	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
 	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
@@ -290,6 +304,28 @@ config DEBUG_OBJECTS_TIMERS
 	  timer routines to track the life time of timer objects and
 	  validate the timer operations.
 
+config DEBUG_OBJECTS_WORK
+	bool "Debug work objects"
+	depends on DEBUG_OBJECTS
+	help
+	  If you say Y here, additional code will be inserted into the
+	  work queue routines to track the life time of work objects and
+	  validate the work operations.
+
+config DEBUG_OBJECTS_RCU_HEAD
+	bool "Debug RCU callbacks objects"
+	depends on DEBUG_OBJECTS && PREEMPT
+	help
+	  Enable this to turn on debugging of RCU list heads (call_rcu() usage).
+
+config DEBUG_OBJECTS_PERCPU_COUNTER
+	bool "Debug percpu counter objects"
+	depends on DEBUG_OBJECTS
+	help
+	  If you say Y here, additional code will be inserted into the
+	  percpu counter routines to track the life time of percpu counter
+	  objects and validate the percpu counter operations.
+
 config DEBUG_OBJECTS_ENABLE_DEFAULT
 	int "debug_objects bootup default value (0-1)"
         range 0 1
@@ -326,7 +362,7 @@ config SLUB_DEBUG_ON
 config SLUB_STATS
 	default n
 	bool "Enable SLUB performance statistics"
-	depends on SLUB && SLUB_DEBUG && SYSFS
+	depends on SLUB && SYSFS
 	help
 	  SLUB statistics are useful to debug SLUBs allocation behavior in
 	  order find ways to optimize the allocator. This should never be
@@ -338,13 +374,13 @@ config SLUB_STATS
 
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
-	depends on DEBUG_KERNEL && EXPERIMENTAL && (X86 || ARM) && \
-		!MEMORY_HOTPLUG
-	select DEBUG_SLAB if SLAB
-	select SLUB_DEBUG if SLUB
+	depends on DEBUG_KERNEL && EXPERIMENTAL && !MEMORY_HOTPLUG && \
+		(X86 || ARM || PPC || S390 || SPARC64 || SUPERH || MICROBLAZE || TILE)
+
 	select DEBUG_FS if SYSFS
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select KALLSYMS
+	select CRC32
 	help
 	  Say Y here if you want to enable the memory leak
 	  detector. The memory allocation/freeing is traced in a way
@@ -355,8 +391,23 @@ config DEBUG_KMEMLEAK
 	  allocations. See Documentation/kmemleak.txt for more
 	  details.
 
+	  Enabling DEBUG_SLAB or SLUB_DEBUG may increase the chances
+	  of finding leaks due to the slab objects poisoning.
+
 	  In order to access the kmemleak file, debugfs needs to be
 	  mounted (usually at /sys/kernel/debug).
+
+config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
+	int "Maximum kmemleak early log entries"
+	depends on DEBUG_KMEMLEAK
+	range 200 40000
+	default 400
+	help
+	  Kmemleak must track all the memory allocations to avoid
+	  reporting false positives. Since memory may be allocated or
+	  freed before kmemleak is initialised, an early log buffer is
+	  used to store these actions. If kmemleak reports "early log
+	  buffer exceeded", please increase this value.
 
 config DEBUG_KMEMLEAK_TEST
 	tristate "Simple test for the kernel memory leak detector"
@@ -368,9 +419,16 @@ config DEBUG_KMEMLEAK_TEST
 
 	  If unsure, say N.
 
+config DEBUG_KMEMLEAK_DEFAULT_OFF
+	bool "Default kmemleak to off"
+	depends on DEBUG_KMEMLEAK
+	help
+	  Say Y here to disable kmemleak by default. It can then be enabled
+	  on the command line via kmemleak=on.
+
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
-	depends on DEBUG_KERNEL && PREEMPT && (TRACE_IRQFLAGS_SUPPORT || PPC64)
+	depends on DEBUG_KERNEL && PREEMPT && TRACE_IRQFLAGS_SUPPORT
 	default y
 	help
 	  If you say Y here then the kernel will use a debug variant of the
@@ -412,6 +470,15 @@ config DEBUG_MUTEXES
 	 This feature allows mutex semantics violations to be detected and
 	 reported.
 
+config BKL
+	bool "Big Kernel Lock" if (SMP || PREEMPT)
+	default y
+	help
+	  This is the traditional lock that is used in old code instead
+	  of proper locking. All drivers that use the BKL should depend
+	  on this symbol.
+	  Say Y here unless you are working on removing the BKL.
+
 config DEBUG_LOCK_ALLOC
 	bool "Lock debugging: detect incorrect freeing of live locks"
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
@@ -433,6 +500,7 @@ config PROVE_LOCKING
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
 	select DEBUG_LOCK_ALLOC
+	select TRACE_IRQFLAGS
 	default n
 	help
 	 This feature enables the kernel to prove that all locking
@@ -468,11 +536,52 @@ config PROVE_LOCKING
 
 	 For more details, see Documentation/lockdep-design.txt.
 
+config PROVE_RCU
+	bool "RCU debugging: prove RCU correctness"
+	depends on PROVE_LOCKING
+	default n
+	help
+	 This feature enables lockdep extensions that check for correct
+	 use of RCU APIs.  This is currently under development.  Say Y
+	 if you want to debug RCU usage or help work on the PROVE_RCU
+	 feature.
+
+	 Say N if you are unsure.
+
+config PROVE_RCU_REPEATEDLY
+	bool "RCU debugging: don't disable PROVE_RCU on first splat"
+	depends on PROVE_RCU
+	default n
+	help
+	 By itself, PROVE_RCU will disable checking upon issuing the
+	 first warning (or "splat").  This feature prevents such
+	 disabling, allowing multiple RCU-lockdep warnings to be printed
+	 on a single reboot.
+
+	 Say Y to allow multiple RCU-lockdep warnings per boot.
+
+	 Say N if you are unsure.
+
+config SPARSE_RCU_POINTER
+	bool "RCU debugging: sparse-based checks for pointer usage"
+	default n
+	help
+	 This feature enables the __rcu sparse annotation for
+	 RCU-protected pointers.  This annotation will cause sparse
+	 to flag any non-RCU used of annotated pointers.  This can be
+	 helpful when debugging RCU usage.  Please note that this feature
+	 is not intended to enforce code cleanliness; it is instead merely
+	 a debugging aid.
+
+	 Say Y to make sparse flag questionable use of RCU-protected pointers
+
+	 Say N if you are unsure.
+
 config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390
+	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -489,6 +598,14 @@ config LOCK_STAT
 
 	 For more details, see Documentation/lockstat.txt
 
+	 This also enables lock events required by "perf lock",
+	 subcommand of perf.
+	 If you want to use "perf lock", you also need to turn on
+	 CONFIG_EVENT_TRACING.
+
+	 CONFIG_LOCK_STAT defines "contended" and "acquired" lock events.
+	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
+
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
 	depends on DEBUG_KERNEL && LOCKDEP
@@ -498,11 +615,10 @@ config DEBUG_LOCKDEP
 	  of more runtime overhead.
 
 config TRACE_IRQFLAGS
-	depends on DEBUG_KERNEL
 	bool
-	default y
-	depends on TRACE_IRQFLAGS_SUPPORT
-	depends on PROVE_LOCKING
+	help
+	  Enables hooks to interrupt enabling and disabling for
+	  either tracing or lock debugging.
 
 config DEBUG_SPINLOCK_SLEEP
 	bool "Spinlock debugging: sleep-inside-spinlock checking"
@@ -545,7 +661,7 @@ config DEBUG_BUGVERBOSE
 	depends on BUG
 	depends on ARM || AVR32 || M32R || M68K || SPARC32 || SPARC64 || \
 		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300
-	default !EMBEDDED
+	default y
 	help
 	  Say Y here to make BUG() panics output the file name and line number
 	  of the BUG call as well as the EIP and oops trace.  This aids
@@ -563,6 +679,19 @@ config DEBUG_INFO
 	  Say Y here only if you plan to debug the kernel.
 
 	  If unsure, say N.
+
+config DEBUG_INFO_REDUCED
+	bool "Reduce debugging information"
+	depends on DEBUG_INFO
+	help
+	  If you say Y here gcc is instructed to generate less debugging
+	  information for structure types. This means that tools that
+	  need full debugging information (like kgdb or systemtap) won't
+	  be happy. But if you merely need debugging information to
+	  resolve line numbers there is no loss. Advantage is that
+	  build directory object sizes shrink dramatically over a full
+	  DEBUG_INFO build and compile times are reduced too.
+	  Only works with newer gcc versions.
 
 config DEBUG_VM
 	bool "Debug VM"
@@ -620,6 +749,15 @@ config DEBUG_LIST
 
 	  If unsure, say N.
 
+config TEST_LIST_SORT
+	bool "Linked list sorting test"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on 'list_sort()' function test. This test is
+	  executed only once during system boot, so affects only boot time.
+
+	  If unsure, say N.
+
 config DEBUG_SG
 	bool "Debug SG table operations"
 	depends on DEBUG_KERNEL
@@ -639,6 +777,21 @@ config DEBUG_NOTIFIERS
 	  modules properly unregister themselves from notifier chains.
 	  This is a relatively cheap check but if you care about maximum
 	  performance, say N.
+
+config DEBUG_CREDENTIALS
+	bool "Debug credential management"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on some debug checking for credential
+	  management.  The additional code keeps track of the number of
+	  pointers from task_structs to any given cred struct, and checks to
+	  see that this number never exceeds the usage count of the cred
+	  struct.
+
+	  Furthermore, if SELinux is enabled, this also checks that the
+	  security pointer in the cred struct is never seen to be invalid.
+
+	  If unsure, say N.
 
 #
 # Select this config option from the architecture Kconfig, if it
@@ -712,16 +865,52 @@ config RCU_TORTURE_TEST_RUNNABLE
 
 config RCU_CPU_STALL_DETECTOR
 	bool "Check for stalled CPUs delaying RCU grace periods"
-	depends on CLASSIC_RCU || TREE_RCU
-	default n
+	depends on TREE_RCU || TREE_PREEMPT_RCU
+	default y
 	help
 	  This option causes RCU to printk information on which
 	  CPUs are delaying the current grace period, but only when
 	  the grace period extends for excessive time periods.
 
-	  Say Y if you want RCU to perform such checks.
+	  Say N if you want to disable such checks.
+
+	  Say Y if you are unsure.
+
+config RCU_CPU_STALL_TIMEOUT
+	int "RCU CPU stall timeout in seconds"
+	depends on RCU_CPU_STALL_DETECTOR
+	range 3 300
+	default 60
+	help
+	  If a given RCU grace period extends more than the specified
+	  number of seconds, a CPU stall warning is printed.  If the
+	  RCU grace period persists, additional CPU stall warnings are
+	  printed at more widely spaced intervals.
+
+config RCU_CPU_STALL_DETECTOR_RUNNABLE
+	bool "RCU CPU stall checking starts automatically at boot"
+	depends on RCU_CPU_STALL_DETECTOR
+	default y
+	help
+	  If set, start checking for RCU CPU stalls immediately on
+	  boot.  Otherwise, RCU CPU stall checking must be manually
+	  enabled.
+
+	  Say Y if you are unsure.
+
+	  Say N if you wish to suppress RCU CPU stall checking during boot.
+
+config RCU_CPU_STALL_VERBOSE
+	bool "Print additional per-task information for RCU_CPU_STALL_DETECTOR"
+	depends on RCU_CPU_STALL_DETECTOR && TREE_PREEMPT_RCU
+	default y
+	help
+	  This option causes RCU to printk detailed per-task information
+	  for any tasks that are stalling the current RCU grace period.
 
 	  Say N if you are unsure.
+
+	  Say Y if you want to enable such checks.
 
 config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
@@ -777,10 +966,24 @@ config DEBUG_BLOCK_EXT_DEVT
 
 	  Say N if you are unsure.
 
+config DEBUG_FORCE_WEAK_PER_CPU
+	bool "Force weak per-cpu definitions"
+	depends on DEBUG_KERNEL
+	help
+	  s390 and alpha require percpu variables in modules to be
+	  defined weak to work around addressing range issue which
+	  puts the following two restrictions on percpu variable
+	  definitions.
+
+	  1. percpu symbols must be unique whether static or not
+	  2. percpu variables can't be defined inside a function
+
+	  To ensure that generic code follows the above rules, this
+	  option forces all percpu variables to be defined as weak.
+
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
-	depends on DEBUG_KERNEL
-	depends on KPROBES
+	depends on DEBUG_FS
 	depends on BLOCK
 	default n
 	help
@@ -791,7 +994,19 @@ config LKDTM
 	called lkdtm.
 
 	Documentation on how to use the module can be found in
-	drivers/misc/lkdtm.c
+	Documentation/fault-injection/provoke-crashes.txt
+
+config CPU_NOTIFIER_ERROR_INJECT
+	tristate "CPU notifier error injection module"
+	depends on HOTPLUG_CPU && DEBUG_KERNEL
+	help
+	  This option provides a kernel module that can be used to test
+	  the error handling of the cpu notifiers
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cpu-notifier-error-inject.
+
+	  If unsure, say N.
 
 config FAULT_INJECTION
 	bool "Fault-injection framework"
@@ -820,7 +1035,7 @@ config FAIL_MAKE_REQUEST
 	  Provide fault-injection capability for disk IO.
 
 config FAIL_IO_TIMEOUT
-	bool "Faul-injection capability for faking disk interrupts"
+	bool "Fault-injection capability for faking disk interrupts"
 	depends on FAULT_INJECTION && BLOCK
 	help
 	  Provide fault-injection capability on end IO handling. This
@@ -841,26 +1056,29 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !PPC && !S390
+	select FRAME_POINTER if !PPC && !S390 && !MICROBLAZE
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
 config LATENCYTOP
 	bool "Latency measuring infrastructure"
-	select FRAME_POINTER if !MIPS && !PPC && !S390
+	depends on HAVE_LATENCYTOP_SUPPORT
+	depends on DEBUG_KERNEL
+	depends on STACKTRACE_SUPPORT
+	depends on PROC_FS
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE
 	select SCHEDSTATS
 	select SCHED_DEBUG
-	depends on HAVE_LATENCYTOP_SUPPORT
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
 
 config SYSCTL_SYSCALL_CHECK
 	bool "Sysctl checks"
-	depends on SYSCTL_SYSCALL
+	depends on SYSCTL
 	---help---
 	  sys_sysctl uses binary paths that have been found challenging
 	  to properly maintain and use. This enables checks that help
@@ -934,10 +1152,10 @@ config DYNAMIC_DEBUG
 
 	  Usage:
 
-	  Dynamic debugging is controlled via the 'dynamic_debug/ddebug' file,
+	  Dynamic debugging is controlled via the 'dynamic_debug/control' file,
 	  which is contained in the 'debugfs' filesystem. Thus, the debugfs
 	  filesystem must first be mounted before making use of this feature.
-	  We refer the control file as: <debugfs>/dynamic_debug/ddebug. This
+	  We refer the control file as: <debugfs>/dynamic_debug/control. This
 	  file contains a list of the debug statements that can be enabled. The
 	  format for each line of the file is:
 
@@ -952,7 +1170,7 @@ config DYNAMIC_DEBUG
 
 	  From a live system:
 
-		nullarbor:~ # cat <debugfs>/dynamic_debug/ddebug
+		nullarbor:~ # cat <debugfs>/dynamic_debug/control
 		# filename:lineno [module]function flags format
 		fs/aio.c:222 [aio]__put_ioctx - "__put_ioctx:\040freeing\040%p\012"
 		fs/aio.c:248 [aio]ioctx_alloc - "ENOMEM:\040nr_events\040too\040high\012"
@@ -962,23 +1180,23 @@ config DYNAMIC_DEBUG
 
 		// enable the message at line 1603 of file svcsock.c
 		nullarbor:~ # echo -n 'file svcsock.c line 1603 +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// enable all the messages in file svcsock.c
 		nullarbor:~ # echo -n 'file svcsock.c +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// enable all the messages in the NFS server module
 		nullarbor:~ # echo -n 'module nfsd +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// enable all 12 messages in the function svc_process()
 		nullarbor:~ # echo -n 'func svc_process +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// disable all 12 messages in the function svc_process()
 		nullarbor:~ # echo -n 'func svc_process -p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 	  See Documentation/dynamic-debug-howto.txt for additional information.
 
@@ -992,6 +1210,26 @@ config DMA_API_DEBUG
 	  were never allocated.
 	  This option causes a performance degredation.  Use only if you want
 	  to debug device drivers. If unsure, say N.
+
+config ATOMIC64_SELFTEST
+	bool "Perform an atomic64_t self-test at boot"
+	help
+	  Enable this option to test the atomic64_t functions at boot.
+
+	  If unsure, say N.
+
+config ASYNC_RAID6_TEST
+	tristate "Self test for hardware accelerated raid6 recovery"
+	depends on ASYNC_RAID6_RECOV
+	select ASYNC_MEMCPY
+	---help---
+	  This is a one-shot self test that permutes through the
+	  recovery of all the possible two disk failure scenarios for a
+	  N-disk array.  Recovery is performed with the asynchronous
+	  raid6 recovery routines, and will optionally use an offload
+	  engine if one is available.
+
+	  If unsure, say N.
 
 source "samples/Kconfig"
 

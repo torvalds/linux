@@ -18,7 +18,7 @@
 #include <asm/system.h>
 #include <asm/mach-types.h>
 
-#include <mach/fpga.h>
+#include <plat/fpga.h>
 #include <mach/gpio.h>
 
 
@@ -39,7 +39,7 @@ static struct h2p2_dbg_fpga __iomem	*fpga;
 static u16				led_state, hw_led_state;
 
 
-#ifdef	CONFIG_LEDS_OMAP_DEBUG
+#ifdef	CONFIG_OMAP_DEBUG_LEDS
 #define new_led_api()	1
 #else
 #define new_led_api()	0
@@ -281,24 +281,27 @@ static int /* __init */ fpga_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int fpga_suspend_late(struct platform_device *pdev, pm_message_t mesg)
+static int fpga_suspend_noirq(struct device *dev)
 {
 	__raw_writew(~0, &fpga->leds);
 	return 0;
 }
 
-static int fpga_resume_early(struct platform_device *pdev)
+static int fpga_resume_noirq(struct device *dev)
 {
 	__raw_writew(~hw_led_state, &fpga->leds);
 	return 0;
 }
 
+static const struct dev_pm_ops fpga_dev_pm_ops = {
+	.suspend_noirq = fpga_suspend_noirq,
+	.resume_noirq = fpga_resume_noirq,
+};
 
 static struct platform_driver led_driver = {
 	.driver.name	= "omap_dbg_led",
+	.driver.pm	= &fpga_dev_pm_ops,
 	.probe		= fpga_probe,
-	.suspend_late	= fpga_suspend_late,
-	.resume_early	= fpga_resume_early,
 };
 
 static int __init fpga_init(void)

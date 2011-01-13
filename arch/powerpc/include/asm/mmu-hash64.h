@@ -41,6 +41,7 @@ extern char initial_stab[];
 
 #define SLB_NUM_BOLTED		3
 #define SLB_CACHE_ENTRIES	8
+#define SLB_MIN_SIZE		32
 
 /* Bits in the SLB ESID word */
 #define SLB_ESID_V		ASM_CONST(0x0000000008000000) /* valid */
@@ -139,26 +140,6 @@ struct mmu_psize_def
 #endif /* __ASSEMBLY__ */
 
 /*
- * The kernel use the constants below to index in the page sizes array.
- * The use of fixed constants for this purpose is better for performances
- * of the low level hash refill handlers.
- *
- * A non supported page size has a "shift" field set to 0
- *
- * Any new page size being implemented can get a new entry in here. Whether
- * the kernel will use it or not is a different matter though. The actual page
- * size used by hugetlbfs is not defined here and may be made variable
- */
-
-#define MMU_PAGE_4K		0	/* 4K */
-#define MMU_PAGE_64K		1	/* 64K */
-#define MMU_PAGE_64K_AP		2	/* 64K Admixed (in a 4K segment) */
-#define MMU_PAGE_1M		3	/* 1M */
-#define MMU_PAGE_16M		4	/* 16M */
-#define MMU_PAGE_16G		5	/* 16G */
-#define MMU_PAGE_COUNT		6
-
-/*
  * Segment sizes.
  * These are the values used by hardware in the B field of
  * SLB entries and the first dword of MMU hashtable entries.
@@ -191,14 +172,6 @@ extern unsigned long tce_alloc_start, tce_alloc_end;
  * If this is the case, mmu_ci_restrictions will be set to 1.
  */
 extern int mmu_ci_restrictions;
-
-#ifdef CONFIG_HUGETLB_PAGE
-/*
- * The page size indexes of the huge pages for use by hugetlbfs
- */
-extern unsigned int mmu_huge_psizes[MMU_PAGE_COUNT];
-
-#endif /* CONFIG_HUGETLB_PAGE */
 
 /*
  * This function sets the AVPN and L fields of the HPTE  appropriately
@@ -272,11 +245,14 @@ extern int __hash_page_64K(unsigned long ea, unsigned long access,
 			   unsigned long vsid, pte_t *ptep, unsigned long trap,
 			   unsigned int local, int ssize);
 struct mm_struct;
+unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap);
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap);
-extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
-			  unsigned long ea, unsigned long vsid, int local,
-			  unsigned long trap);
-
+int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
+		     pte_t *ptep, unsigned long trap, int local, int ssize,
+		     unsigned int shift, unsigned int mmu_psize);
+extern void hash_failure_debug(unsigned long ea, unsigned long access,
+			       unsigned long vsid, unsigned long trap,
+			       int ssize, int psize, unsigned long pte);
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,
 			     int psize, int ssize);
@@ -296,6 +272,7 @@ extern void slb_flush_and_rebolt(void);
 extern void stab_initialize(unsigned long stab);
 
 extern void slb_vmalloc_update(void);
+extern void slb_set_size(u16 size);
 #endif /* __ASSEMBLY__ */
 
 /*
@@ -398,6 +375,38 @@ extern void slb_vmalloc_update(void);
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+/*
+ * For the sub-page protection option, we extend the PGD with one of
+ * these.  Basically we have a 3-level tree, with the top level being
+ * the protptrs array.  To optimize speed and memory consumption when
+ * only addresses < 4GB are being protected, pointers to the first
+ * four pages of sub-page protection words are stored in the low_prot
+ * array.
+ * Each page of sub-page protection words protects 1GB (4 bytes
+ * protects 64k).  For the 3-level tree, each page of pointers then
+ * protects 8TB.
+ */
+struct subpage_prot_table {
+	unsigned long maxaddr;	/* only addresses < this are protected */
+	unsigned int **protptrs[2];
+	unsigned int *low_prot[4];
+};
+
+#define SBP_L1_BITS		(PAGE_SHIFT - 2)
+#define SBP_L2_BITS		(PAGE_SHIFT - 3)
+#define SBP_L1_COUNT		(1 << SBP_L1_BITS)
+#define SBP_L2_COUNT		(1 << SBP_L2_BITS)
+#define SBP_L2_SHIFT		(PAGE_SHIFT + SBP_L1_BITS)
+#define SBP_L3_SHIFT		(SBP_L2_SHIFT + SBP_L2_BITS)
+
+extern void subpage_prot_free(struct mm_struct *mm);
+extern void subpage_prot_init_new_context(struct mm_struct *mm);
+#else
+static inline void subpage_prot_free(struct mm_struct *mm) {}
+static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
+#endif /* CONFIG_PPC_SUBPAGE_PROT */
+
 typedef unsigned long mm_context_id_t;
 
 typedef struct {
@@ -411,6 +420,9 @@ typedef struct {
 	u16 sllp;		/* SLB page size encoding */
 #endif
 	unsigned long vdso_base;
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+	struct subpage_prot_table spt;
+#endif /* CONFIG_PPC_SUBPAGE_PROT */
 } mm_context_t;
 
 
@@ -421,7 +433,7 @@ typedef struct {
  * with.  However gcc is not clever enough to compute the
  * modulus (2^n-1) without a second multiply.
  */
-#define vsid_scrample(protovsid, size) \
+#define vsid_scramble(protovsid, size) \
 	((((protovsid) * VSID_MULTIPLIER_##size) % VSID_MODULUS_##size))
 
 #else /* 1 */

@@ -58,20 +58,22 @@
 #include <linux/tcp.h>
 #include <linux/percpu.h>
 #include <net/net_namespace.h>
+#include <linux/u64_stats_sync.h>
 
 struct pcpu_lstats {
-	unsigned long packets;
-	unsigned long bytes;
-	unsigned long drops;
+	u64			packets;
+	u64			bytes;
+	struct u64_stats_sync	syncp;
 };
 
 /*
  * The higher levels take care of making this non-reentrant (it's
  * called with bh's disabled).
  */
-static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t loopback_xmit(struct sk_buff *skb,
+				 struct net_device *dev)
 {
-	struct pcpu_lstats *pcpu_lstats, *lb_stats;
+	struct pcpu_lstats *lb_stats;
 	int len;
 
 	skb_orphan(skb);
@@ -79,41 +81,42 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->protocol = eth_type_trans(skb, dev);
 
 	/* it's OK to use per_cpu_ptr() because BHs are off */
-	pcpu_lstats = dev->ml_priv;
-	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
+	lb_stats = this_cpu_ptr(dev->lstats);
 
 	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
+		u64_stats_update_begin(&lb_stats->syncp);
 		lb_stats->bytes += len;
 		lb_stats->packets++;
-	} else
-		lb_stats->drops++;
+		u64_stats_update_end(&lb_stats->syncp);
+	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
-static struct net_device_stats *loopback_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev,
+						      struct rtnl_link_stats64 *stats)
 {
-	const struct pcpu_lstats *pcpu_lstats;
-	struct net_device_stats *stats = &dev->stats;
-	unsigned long bytes = 0;
-	unsigned long packets = 0;
-	unsigned long drops = 0;
+	u64 bytes = 0;
+	u64 packets = 0;
 	int i;
 
-	pcpu_lstats = dev->ml_priv;
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
+		u64 tbytes, tpackets;
+		unsigned int start;
 
-		lb_stats = per_cpu_ptr(pcpu_lstats, i);
-		bytes   += lb_stats->bytes;
-		packets += lb_stats->packets;
-		drops   += lb_stats->drops;
+		lb_stats = per_cpu_ptr(dev->lstats, i);
+		do {
+			start = u64_stats_fetch_begin(&lb_stats->syncp);
+			tbytes = lb_stats->bytes;
+			tpackets = lb_stats->packets;
+		} while (u64_stats_fetch_retry(&lb_stats->syncp, start));
+		bytes   += tbytes;
+		packets += tpackets;
 	}
 	stats->rx_packets = packets;
 	stats->tx_packets = packets;
-	stats->rx_dropped = drops;
-	stats->rx_errors  = drops;
 	stats->rx_bytes   = bytes;
 	stats->tx_bytes   = bytes;
 	return stats;
@@ -134,28 +137,23 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
-	struct pcpu_lstats *lstats;
-
-	lstats = alloc_percpu(struct pcpu_lstats);
-	if (!lstats)
+	dev->lstats = alloc_percpu(struct pcpu_lstats);
+	if (!dev->lstats)
 		return -ENOMEM;
 
-	dev->ml_priv = lstats;
 	return 0;
 }
 
 static void loopback_dev_free(struct net_device *dev)
 {
-	struct pcpu_lstats *lstats = dev->ml_priv;
-
-	free_percpu(lstats);
+	free_percpu(dev->lstats);
 	free_netdev(dev);
 }
 
 static const struct net_device_ops loopback_ops = {
 	.ndo_init      = loopback_dev_init,
 	.ndo_start_xmit= loopback_xmit,
-	.ndo_get_stats = loopback_get_stats,
+	.ndo_get_stats64 = loopback_get_stats64,
 };
 
 /*
@@ -206,20 +204,12 @@ static __net_init int loopback_net_init(struct net *net)
 out_free_netdev:
 	free_netdev(dev);
 out:
-	if (net == &init_net)
+	if (net_eq(net, &init_net))
 		panic("loopback: Failed to register netdevice: %d\n", err);
 	return err;
-}
-
-static __net_exit void loopback_net_exit(struct net *net)
-{
-	struct net_device *dev = net->loopback_dev;
-
-	unregister_netdev(dev);
 }
 
 /* Registered in net/core/dev.c */
 struct pernet_operations __net_initdata loopback_net_ops = {
        .init = loopback_net_init,
-       .exit = loopback_net_exit,
 };

@@ -1,30 +1,8 @@
- /*
-  * File:        include/asm-blackfin/mach-common/cdef_LPBlackfin.h
-  * Based on:
-  * Author:      unknown
-  *              COPYRIGHT 2005 Analog Devices
-  * Created:     ?
-  * Description:
-  *
-  * Modified:
-  *
-  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2, or (at your option)
-  * any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program; see the file COPYING.
-  * If not, write to the Free Software Foundation,
-  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-  */
+/*
+ * Copyright 2005-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef _CDEF_LPBLACKFIN_H
 #define _CDEF_LPBLACKFIN_H
@@ -194,15 +172,18 @@
 #define bfin_write_ICPLB_DATA14(val)         bfin_write32(ICPLB_DATA14,val)
 #define bfin_read_ICPLB_DATA15()             bfin_read32(ICPLB_DATA15)
 #define bfin_write_ICPLB_DATA15(val)         bfin_write32(ICPLB_DATA15,val)
-#define bfin_read_ITEST_COMMAND()            bfin_read32(ITEST_COMMAND)
 #define bfin_write_ITEST_COMMAND(val)        bfin_write32(ITEST_COMMAND,val)
 #if 0
 #define ITEST_INDEX            0xFFE01304   /* Instruction Test Index Register */
 #endif
-#define bfin_read_ITEST_DATA0()              bfin_read32(ITEST_DATA0)
 #define bfin_write_ITEST_DATA0(val)          bfin_write32(ITEST_DATA0,val)
-#define bfin_read_ITEST_DATA1()              bfin_read32(ITEST_DATA1)
 #define bfin_write_ITEST_DATA1(val)          bfin_write32(ITEST_DATA1,val)
+
+#if !ANOMALY_05000481
+#define bfin_read_ITEST_COMMAND()            bfin_read32(ITEST_COMMAND)
+#define bfin_read_ITEST_DATA0()              bfin_read32(ITEST_DATA0)
+#define bfin_read_ITEST_DATA1()              bfin_read32(ITEST_DATA1)
+#endif
 
 /* Event/Interrupt Registers*/
 
@@ -238,12 +219,16 @@
 #define bfin_write_EVT14(val)                bfin_write32(EVT14,val)
 #define bfin_read_EVT15()                    bfin_read32(EVT15)
 #define bfin_write_EVT15(val)                bfin_write32(EVT15,val)
+#define bfin_read_EVT_OVERRIDE()             bfin_read32(EVT_OVERRIDE)
+#define bfin_write_EVT_OVERRIDE(val)         bfin_write32(EVT_OVERRIDE,val)
 #define bfin_read_IMASK()                    bfin_read32(IMASK)
 #define bfin_write_IMASK(val)                bfin_write32(IMASK,val)
 #define bfin_read_IPEND()                    bfin_read32(IPEND)
 #define bfin_write_IPEND(val)                bfin_write32(IPEND,val)
 #define bfin_read_ILAT()                     bfin_read32(ILAT)
 #define bfin_write_ILAT(val)                 bfin_write32(ILAT,val)
+#define bfin_read_IPRIO()                    bfin_read32(IPRIO)
+#define bfin_write_IPRIO(val)                bfin_write32(IPRIO,val)
 
 /*Core Timer Registers*/
 #define bfin_read_TCNTL()                    bfin_read32(TCNTL)
@@ -320,9 +305,5 @@
 #define bfin_write_PFCNTR0(val)              bfin_write32(PFCNTR0,val)
 #define bfin_read_PFCNTR1()                  bfin_read32(PFCNTR1)
 #define bfin_write_PFCNTR1(val)              bfin_write32(PFCNTR1,val)
-
-/*
-#define IPRIO                  0xFFE02110
-*/
 
 #endif				/* _CDEF_LPBLACKFIN_H */

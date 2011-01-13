@@ -25,7 +25,7 @@
 
 #include <mach/pxa930.h>
 #include <mach/pxafb.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -477,6 +477,10 @@ static void __init tavorevb_init(void)
 	/* initialize MFP configurations */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(tavorevb_mfp_cfg));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	platform_device_register(&smc91x_device);
 
 	tavorevb_init_lcd();
@@ -485,10 +489,8 @@ static void __init tavorevb_init(void)
 
 MACHINE_START(TAVOREVB, "PXA930 Evaluation Board (aka TavorEVB)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
-	.phys_io        = 0x40000000,
 	.boot_params    = 0xa0000100,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa3xx_map_io,
 	.init_irq       = pxa3xx_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = tavorevb_init,

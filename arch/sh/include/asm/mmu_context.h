@@ -69,7 +69,7 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 		 * We exhaust ASID of this version.
 		 * Flush all TLB and start new cycle.
 		 */
-		flush_tlb_all();
+		local_flush_tlb_all();
 
 #ifdef CONFIG_SUPERH64
 		/*
@@ -158,7 +158,7 @@ static inline void enable_mmu(void)
 	unsigned int cpu = smp_processor_id();
 
 	/* Enable MMU */
-	ctrl_outl(MMU_CONTROL_INIT, MMUCR);
+	__raw_writel(MMU_CONTROL_INIT, MMUCR);
 	ctrl_barrier();
 
 	if (asid_cache(cpu) == NO_CONTEXT)
@@ -171,9 +171,9 @@ static inline void disable_mmu(void)
 {
 	unsigned long cr;
 
-	cr = ctrl_inl(MMUCR);
+	cr = __raw_readl(MMUCR);
 	cr &= ~MMU_CONTROL_INIT;
-	ctrl_outl(cr, MMUCR);
+	__raw_writel(cr, MMUCR);
 
 	ctrl_barrier();
 }

@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/agpgart.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include "agp.h"
 #include "compat_ioctl.h"
@@ -275,7 +276,6 @@ long compat_agp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case AGPIOC_CHIPSET_FLUSH32:
-		ret_val = agpioc_chipset_flush_wrap(curr_priv);
 		break;
 	}
 

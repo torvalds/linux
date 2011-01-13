@@ -15,16 +15,16 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/tty.h>
 #include <linux/mutex.h>
+#include <linux/magic.h>
 #include <linux/idr.h>
 #include <linux/devpts_fs.h>
 #include <linux/parser.h>
 #include <linux/fsnotify.h>
 #include <linux/seq_file.h>
-
-#define DEVPTS_SUPER_MAGIC 0x1cd1
 
 #define DEVPTS_DEFAULT_MODE 0600
 /*
@@ -331,7 +331,7 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
 }
 
 /*
- * devpts_get_sb()
+ * devpts_mount()
  *
  *     If the '-o newinstance' mount option was specified, mount a new
  *     (private) instance of devpts.  PTYs created in this instance are
@@ -345,20 +345,20 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
  *     semantics in devpts while preserving backward compatibility of the
  *     current 'single-namespace' semantics. i.e all mounts of devpts
  *     without the 'newinstance' mount option should bind to the initial
- *     kernel mount, like get_sb_single().
+ *     kernel mount, like mount_single().
  *
  *     Mounts with 'newinstance' option create a new, private namespace.
  *
  *     NOTE:
  *
- *     For single-mount semantics, devpts cannot use get_sb_single(),
- *     because get_sb_single()/sget() find and use the super-block from
+ *     For single-mount semantics, devpts cannot use mount_single(),
+ *     because mount_single()/sget() find and use the super-block from
  *     the most recent mount of devpts. But that recent mount may be a
- *     'newinstance' mount and get_sb_single() would pick the newinstance
+ *     'newinstance' mount and mount_single() would pick the newinstance
  *     super-block instead of the initial super-block.
  */
-static int devpts_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *devpts_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
 	int error;
 	struct pts_mount_opts opts;
@@ -366,7 +366,7 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 
 	error = parse_mount_options(data, PARSE_MOUNT, &opts);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 
 	if (opts.newinstance)
 		s = sget(fs_type, NULL, set_anon_super, NULL);
@@ -374,7 +374,7 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 		s = sget(fs_type, compare_init_pts_sb, set_anon_super, NULL);
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 
 	if (!s->s_root) {
 		s->s_flags = flags;
@@ -384,22 +384,17 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 		s->s_flags |= MS_ACTIVE;
 	}
 
-	simple_set_mnt(mnt, s);
-
 	memcpy(&(DEVPTS_SB(s))->mount_opts, &opts, sizeof(opts));
 
 	error = mknod_ptmx(s);
 	if (error)
-		goto out_dput;
+		goto out_undo_sget;
 
-	return 0;
-
-out_dput:
-	dput(s->s_root); /* undo dget() in simple_set_mnt() */
+	return dget(s->s_root);
 
 out_undo_sget:
 	deactivate_locked_super(s);
-	return error;
+	return ERR_PTR(error);
 }
 
 #else
@@ -407,10 +402,10 @@ out_undo_sget:
  * This supports only the legacy single-instance semantics (no
  * multiple-instance semantics)
  */
-static int devpts_get_sb(struct file_system_type *fs_type, int flags,
-		const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *devpts_mount(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, devpts_fill_super, mnt);
+	return mount_single(fs_type, flags, data, devpts_fill_super);
 }
 #endif
 
@@ -423,9 +418,8 @@ static void devpts_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type devpts_fs_type = {
-	.owner		= THIS_MODULE,
 	.name		= "devpts",
-	.get_sb		= devpts_get_sb,
+	.mount		= devpts_mount,
 	.kill_sb	= devpts_kill_sb,
 };
 
@@ -519,11 +513,23 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 
 struct tty_struct *devpts_get_tty(struct inode *pts_inode, int number)
 {
+	struct dentry *dentry;
+	struct tty_struct *tty;
+
 	BUG_ON(pts_inode->i_rdev == MKDEV(TTYAUX_MAJOR, PTMX_MINOR));
 
+	/* Ensure dentry has not been deleted by devpts_pty_kill() */
+	dentry = d_find_alias(pts_inode);
+	if (!dentry)
+		return NULL;
+
+	tty = NULL;
 	if (pts_inode->i_sb->s_magic == DEVPTS_SUPER_MAGIC)
-		return (struct tty_struct *)pts_inode->i_private;
-	return NULL;
+		tty = (struct tty_struct *)pts_inode->i_private;
+
+	dput(dentry);
+
+	return tty;
 }
 
 void devpts_pty_kill(struct tty_struct *tty)
@@ -564,13 +570,4 @@ static int __init init_devpts_fs(void)
 	}
 	return err;
 }
-
-static void __exit exit_devpts_fs(void)
-{
-	unregister_filesystem(&devpts_fs_type);
-	mntput(devpts_mnt);
-}
-
 module_init(init_devpts_fs)
-module_exit(exit_devpts_fs)
-MODULE_LICENSE("GPL");

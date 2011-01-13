@@ -22,6 +22,7 @@
 #include "isdnl3.h"
 #include "l3ni1.h"
 #include <linux/ctype.h>
+#include <linux/slab.h>
 
 extern char *HiSax_getrev(const char *revision);
 static const char *ni1_revision = "$Revision: 2.8.2.3 $";
@@ -2755,9 +2756,6 @@ static struct stateentry downstatelist[] =
 	 CC_TSPID, l3ni1_spid_tout },
 };
 
-#define DOWNSLLEN \
-	(sizeof(downstatelist) / sizeof(struct stateentry))
-
 static struct stateentry datastatelist[] =
 {
 	{ALL_STATES,
@@ -2810,9 +2808,6 @@ static struct stateentry datastatelist[] =
 	 MT_RESUME_REJECT, l3ni1_resume_rej},
 };
 
-#define DATASLLEN \
-	(sizeof(datastatelist) / sizeof(struct stateentry))
-
 static struct stateentry globalmes_list[] =
 {
 	{ALL_STATES,
@@ -2825,8 +2820,6 @@ static struct stateentry globalmes_list[] =
 	{ SBIT( 0 ), MT_DL_ESTABLISHED, l3ni1_spid_send },
 	{ SBIT( 20 ) | SBIT( 21 ) | SBIT( 22 ), MT_INFORMATION, l3ni1_spid_epid },
 };
-#define GLOBALM_LEN \
-	(sizeof(globalmes_list) / sizeof(struct stateentry))
 
 static struct stateentry manstatelist[] =
 {
@@ -2840,8 +2833,6 @@ static struct stateentry manstatelist[] =
          DL_RELEASE | INDICATION, l3ni1_dl_release},
 };
 
-#define MANSLLEN \
-        (sizeof(manstatelist) / sizeof(struct stateentry))
 /* *INDENT-ON* */
 
 
@@ -2858,11 +2849,11 @@ global_handler(struct PStack *st, int mt, struct sk_buff *skb)
 		proc->callref = skb->data[2]; /* cr flag */
 	else
 		proc->callref = 0;
-	for (i = 0; i < GLOBALM_LEN; i++)
+	for (i = 0; i < ARRAY_SIZE(globalmes_list); i++)
 		if ((mt == globalmes_list[i].primitive) &&
 		    ((1 << proc->state) & globalmes_list[i].state))
 			break;
-	if (i == GLOBALM_LEN) {
+	if (i == ARRAY_SIZE(globalmes_list)) {
 		if (st->l3.debug & L3_DEB_STATE) {
 			l3_debug(st, "ni1 global state %d mt %x unhandled",
 				proc->state, mt);
@@ -3049,11 +3040,11 @@ ni1up(struct PStack *st, int pr, void *arg)
 	}
 	if ((p = findie(skb->data, skb->len, IE_DISPLAY, 0)) != NULL) 
 	  l3ni1_deliver_display(proc, pr, p); /* Display IE included */
-	for (i = 0; i < DATASLLEN; i++)
+	for (i = 0; i < ARRAY_SIZE(datastatelist); i++)
 		if ((mt == datastatelist[i].primitive) &&
 		    ((1 << proc->state) & datastatelist[i].state))
 			break;
-	if (i == DATASLLEN) {
+	if (i == ARRAY_SIZE(datastatelist)) {
 		if (st->l3.debug & L3_DEB_STATE) {
 			l3_debug(st, "ni1up%sstate %d mt %#x unhandled",
 				(pr == (DL_DATA | INDICATION)) ? " " : "(broadcast) ",
@@ -3108,11 +3099,11 @@ ni1down(struct PStack *st, int pr, void *arg)
 		return;
 	}  
 
-	for (i = 0; i < DOWNSLLEN; i++)
+	for (i = 0; i < ARRAY_SIZE(downstatelist); i++)
 		if ((pr == downstatelist[i].primitive) &&
 		    ((1 << proc->state) & downstatelist[i].state))
 			break;
-	if (i == DOWNSLLEN) {
+	if (i == ARRAY_SIZE(downstatelist)) {
 		if (st->l3.debug & L3_DEB_STATE) {
 			l3_debug(st, "ni1down state %d prim %#x unhandled",
 				proc->state, pr);
@@ -3136,11 +3127,11 @@ ni1man(struct PStack *st, int pr, void *arg)
                 printk(KERN_ERR "HiSax ni1man without proc pr=%04x\n", pr);
                 return;
         }
-        for (i = 0; i < MANSLLEN; i++)
+        for (i = 0; i < ARRAY_SIZE(manstatelist); i++)
                 if ((pr == manstatelist[i].primitive) &&
                     ((1 << proc->state) & manstatelist[i].state))
                         break;
-        if (i == MANSLLEN) {
+        if (i == ARRAY_SIZE(manstatelist)) {
                 if (st->l3.debug & L3_DEB_STATE) {
                         l3_debug(st, "cr %d ni1man state %d prim %#x unhandled",
                                 proc->callref & 0x7f, proc->state, pr);

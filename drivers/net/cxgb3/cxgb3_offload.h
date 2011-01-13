@@ -64,14 +64,19 @@ void cxgb3_register_client(struct cxgb3_client *client);
 void cxgb3_unregister_client(struct cxgb3_client *client);
 void cxgb3_add_clients(struct t3cdev *tdev);
 void cxgb3_remove_clients(struct t3cdev *tdev);
-void cxgb3_err_notify(struct t3cdev *tdev, u32 status, u32 error);
+void cxgb3_event_notify(struct t3cdev *tdev, u32 event, u32 port);
 
 typedef int (*cxgb3_cpl_handler_func)(struct t3cdev *dev,
 				      struct sk_buff *skb, void *ctx);
 
 enum {
 	OFFLOAD_STATUS_UP,
-	OFFLOAD_STATUS_DOWN
+	OFFLOAD_STATUS_DOWN,
+	OFFLOAD_PORT_DOWN,
+	OFFLOAD_PORT_UP,
+	OFFLOAD_DB_FULL,
+	OFFLOAD_DB_EMPTY,
+	OFFLOAD_DB_DROP
 };
 
 struct cxgb3_client {
@@ -82,7 +87,7 @@ struct cxgb3_client {
 	int (*redirect)(void *ctx, struct dst_entry *old,
 			struct dst_entry *new, struct l2t_entry *l2t);
 	struct list_head client_list;
-	void (*err_handler)(struct t3cdev *tdev, u32 status, u32 error);
+	void (*event_handler)(struct t3cdev *tdev, u32 event, u32 port);
 };
 
 /*

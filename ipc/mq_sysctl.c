@@ -31,24 +31,24 @@ static void *get_mq(ctl_table *table)
 	return which;
 }
 
-static int proc_mq_dointvec(ctl_table *table, int write, struct file *filp,
+static int proc_mq_dointvec(ctl_table *table, int write,
 	void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table mq_table;
 	memcpy(&mq_table, table, sizeof(mq_table));
 	mq_table.data = get_mq(table);
 
-	return proc_dointvec(&mq_table, write, filp, buffer, lenp, ppos);
+	return proc_dointvec(&mq_table, write, buffer, lenp, ppos);
 }
 
 static int proc_mq_dointvec_minmax(ctl_table *table, int write,
-	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
+	void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table mq_table;
 	memcpy(&mq_table, table, sizeof(mq_table));
 	mq_table.data = get_mq(table);
 
-	return proc_dointvec_minmax(&mq_table, write, filp, buffer,
+	return proc_dointvec_minmax(&mq_table, write, buffer,
 					lenp, ppos);
 }
 #else
@@ -88,7 +88,7 @@ static ctl_table mq_sysctls[] = {
 		.extra1		= &msg_maxsize_limit_min,
 		.extra2		= &msg_maxsize_limit_max,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 static ctl_table mq_sysctl_dir[] = {
@@ -97,17 +97,16 @@ static ctl_table mq_sysctl_dir[] = {
 		.mode		= 0555,
 		.child		= mq_sysctls,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 static ctl_table mq_sysctl_root[] = {
 	{
-		.ctl_name	= CTL_FS,
 		.procname	= "fs",
 		.mode		= 0555,
 		.child		= mq_sysctl_dir,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 struct ctl_table_header *mq_register_sysctl_table(void)

@@ -24,7 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/omapfb.h>
+#include "omapfb.h"
 
 static int palmz71_panel_init(struct lcd_panel *panel,
 			      struct omapfb_device *fbdev)
@@ -109,12 +109,12 @@ struct platform_driver palmz71_panel_driver = {
 	},
 };
 
-static int palmz71_panel_drv_init(void)
+static int __init palmz71_panel_drv_init(void)
 {
 	return platform_driver_register(&palmz71_panel_driver);
 }
 
-static void palmz71_panel_drv_cleanup(void)
+static void __exit palmz71_panel_drv_cleanup(void)
 {
 	platform_driver_unregister(&palmz71_panel_driver);
 }

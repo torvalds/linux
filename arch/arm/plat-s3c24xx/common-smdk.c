@@ -42,6 +42,7 @@
 #include <plat/nand.h>
 
 #include <plat/common-smdk.h>
+#include <plat/gpio-cfg.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 
@@ -146,7 +147,7 @@ static struct mtd_partition smdk_default_nand_part[] = {
 	[7] = {
 		.name	= "S3C2410 flash partition 7",
 		.offset = SZ_1M * 48,
-		.size	= SZ_16M,
+		.size	= MTDPART_SIZ_FULL,
 	}
 };
 
@@ -185,10 +186,10 @@ void __init smdk_machine_init(void)
 {
 	/* Configure the LEDs (even if we have no LED support)*/
 
-	s3c2410_gpio_cfgpin(S3C2410_GPF(4), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_cfgpin(S3C2410_GPF(5), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_cfgpin(S3C2410_GPF(6), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_cfgpin(S3C2410_GPF(7), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(4), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(5), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(6), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(7), S3C2410_GPIO_OUTPUT);
 
 	s3c2410_gpio_setpin(S3C2410_GPF(4), 1);
 	s3c2410_gpio_setpin(S3C2410_GPF(5), 1);
@@ -198,7 +199,7 @@ void __init smdk_machine_init(void)
 	if (machine_is_smdk2443())
 		smdk_nand_info.twrph0 = 50;
 
-	s3c_device_nand.dev.platform_data = &smdk_nand_info;
+	s3c_nand_set_platdata(&smdk_nand_info);
 
 	platform_add_devices(smdk_devs, ARRAY_SIZE(smdk_devs));
 

@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "mesh.h"
@@ -157,9 +158,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 
 	/* In case nothing happened during the previous control interval, turn
 	 * the sharpening factor on. */
-	period = (HZ * pinfo->sampling_period + 500) / 1000;
-	if (!period)
-		period = 1;
+	period = msecs_to_jiffies(pinfo->sampling_period);
 	if (jiffies - spinfo->last_sample > 2 * period)
 		spinfo->sharp_cnt = pinfo->sharpen_duration;
 
@@ -169,18 +168,8 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 	 * still a good measurement and copy it. */
 	if (unlikely(spinfo->tx_num_xmit == 0))
 		pf = spinfo->last_pf;
-	else {
-		/* XXX: BAD HACK!!! */
-		struct sta_info *si = container_of(sta, struct sta_info, sta);
-
+	else
 		pf = spinfo->tx_num_failed * 100 / spinfo->tx_num_xmit;
-
-		if (ieee80211_vif_is_mesh(&si->sdata->vif) && pf == 100)
-			mesh_plink_broken(si);
-		pf <<= RC_PID_ARITH_SHIFT;
-		si->fail_avg = ((pf + (spinfo->last_pf << 3)) / 9)
-					>> RC_PID_ARITH_SHIFT;
-	}
 
 	spinfo->tx_num_xmit = 0;
 	spinfo->tx_num_failed = 0;
@@ -200,7 +189,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 	rate_control_pid_normalize(pinfo, sband->n_bitrates);
 
 	/* Compute the proportional, integral and derivative errors. */
-	err_prop = (pinfo->target << RC_PID_ARITH_SHIFT) - pf;
+	err_prop = (pinfo->target - pf) << RC_PID_ARITH_SHIFT;
 
 	err_avg = spinfo->err_avg_sc >> pinfo->smoothing_shift;
 	spinfo->err_avg_sc = spinfo->err_avg_sc - err_avg + err_prop;
@@ -262,9 +251,7 @@ static void rate_control_pid_tx_status(void *priv, struct ieee80211_supported_ba
 	}
 
 	/* Update PID controller state. */
-	period = (HZ * pinfo->sampling_period + 500) / 1000;
-	if (!period)
-		period = 1;
+	period = msecs_to_jiffies(pinfo->sampling_period);
 	if (time_after(jiffies, spinfo->last_sample + period))
 		rate_control_pid_sample(pinfo, sband, sta, spinfo);
 }
@@ -276,11 +263,9 @@ rate_control_pid_get_rate(void *priv, struct ieee80211_sta *sta,
 {
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_supported_band *sband = txrc->sband;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rc_pid_sta_info *spinfo = priv_sta;
 	int rateidx;
-	u16 fc;
 
 	if (txrc->rts)
 		info->control.rates[0].count =
@@ -290,16 +275,8 @@ rate_control_pid_get_rate(void *priv, struct ieee80211_sta *sta,
 			txrc->hw->conf.short_frame_max_tx_count;
 
 	/* Send management frames and NO_ACK data using lowest rate. */
-	fc = le16_to_cpu(hdr->frame_control);
-	if (!sta || !spinfo ||
-	    (fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    info->flags & IEEE80211_TX_CTL_NO_ACK) {
-		info->control.rates[0].idx = rate_lowest_index(sband, sta);
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->control.rates[0].count = 1;
-
+	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
-	}
 
 	rateidx = spinfo->txrate_idx;
 
@@ -321,7 +298,6 @@ rate_control_pid_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	struct rc_pid_sta_info *spinfo = priv_sta;
 	struct rc_pid_info *pinfo = priv;
 	struct rc_pid_rateinfo *rinfo = pinfo->rinfo;
-	struct sta_info *si;
 	int i, j, tmp;
 	bool s;
 
@@ -358,9 +334,6 @@ rate_control_pid_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	}
 
 	spinfo->txrate_idx = rate_lowest_index(sband, sta);
-	/* HACK */
-	si = container_of(sta, struct sta_info, sta);
-	si->fail_avg = 0;
 }
 
 static void *rate_control_pid_alloc(struct ieee80211_hw *hw,

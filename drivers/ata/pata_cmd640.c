@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -152,26 +153,34 @@ static int cmd640_port_start(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct cmd640_reg *timing;
 
-	int ret = ata_sff_port_start(ap);
-	if (ret < 0)
-		return ret;
-
 	timing = devm_kzalloc(&pdev->dev, sizeof(struct cmd640_reg), GFP_KERNEL);
 	if (timing == NULL)
 		return -ENOMEM;
 	timing->last = -1;	/* Force a load */
 	ap->private_data = timing;
-	return ret;
+	return 0;
+}
+
+static bool cmd640_sff_irq_check(struct ata_port *ap)
+{
+	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
+	int irq_reg		= ap->port_no ? ARTIM23 : CFR;
+	u8  irq_stat, irq_mask	= ap->port_no ? 0x10 : 0x04;
+
+	pci_read_config_byte(pdev, irq_reg, &irq_stat);
+
+	return irq_stat & irq_mask;
 }
 
 static struct scsi_host_template cmd640_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_PIO_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations cmd640_port_ops = {
-	.inherits	= &ata_bmdma_port_ops,
+	.inherits	= &ata_sff_port_ops,
 	/* In theory xfer_noirq is not needed once we kill the prefetcher */
 	.sff_data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_irq_check	= cmd640_sff_irq_check,
 	.qc_issue	= cmd640_qc_issue,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= cmd640_set_piomode,
@@ -180,13 +189,10 @@ static struct ata_port_operations cmd640_port_ops = {
 
 static void cmd640_hardware_init(struct pci_dev *pdev)
 {
-	u8 r;
 	u8 ctrl;
 
 	/* CMD640 detected, commiserations */
 	pci_write_config_byte(pdev, 0x5B, 0x00);
-	/* Get version info */
-	pci_read_config_byte(pdev, CFR, &r);
 	/* PIO0 command cycles */
 	pci_write_config_byte(pdev, CMDTIM, 0);
 	/* 512 byte bursts (sector) */
@@ -223,7 +229,7 @@ static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	cmd640_hardware_init(pdev);
 
-	return ata_pci_sff_init_one(pdev, ppi, &cmd640_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &cmd640_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

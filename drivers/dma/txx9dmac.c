@@ -180,9 +180,8 @@ static struct txx9dmac_desc *txx9dmac_first_queued(struct txx9dmac_chan *dc)
 
 static struct txx9dmac_desc *txx9dmac_last_child(struct txx9dmac_desc *desc)
 {
-	if (!list_empty(&desc->txd.tx_list))
-		desc = list_entry(desc->txd.tx_list.prev,
-				  struct txx9dmac_desc, desc_node);
+	if (!list_empty(&desc->tx_list))
+		desc = list_entry(desc->tx_list.prev, typeof(*desc), desc_node);
 	return desc;
 }
 
@@ -197,6 +196,7 @@ static struct txx9dmac_desc *txx9dmac_desc_alloc(struct txx9dmac_chan *dc,
 	desc = kzalloc(sizeof(*desc), flags);
 	if (!desc)
 		return NULL;
+	INIT_LIST_HEAD(&desc->tx_list);
 	dma_async_tx_descriptor_init(&desc->txd, &dc->chan);
 	desc->txd.tx_submit = txx9dmac_tx_submit;
 	/* txd.flags will be overwritten in prep funcs */
@@ -245,7 +245,7 @@ static void txx9dmac_sync_desc_for_cpu(struct txx9dmac_chan *dc,
 	struct txx9dmac_dev *ddev = dc->ddev;
 	struct txx9dmac_desc *child;
 
-	list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+	list_for_each_entry(child, &desc->tx_list, desc_node)
 		dma_sync_single_for_cpu(chan2parent(&dc->chan),
 				child->txd.phys, ddev->descsize,
 				DMA_TO_DEVICE);
@@ -267,11 +267,11 @@ static void txx9dmac_desc_put(struct txx9dmac_chan *dc,
 		txx9dmac_sync_desc_for_cpu(dc, desc);
 
 		spin_lock_bh(&dc->lock);
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			dev_vdbg(chan2dev(&dc->chan),
 				 "moving child desc %p to freelist\n",
 				 child);
-		list_splice_init(&desc->txd.tx_list, &dc->free_list);
+		list_splice_init(&desc->tx_list, &dc->free_list);
 		dev_vdbg(chan2dev(&dc->chan), "moving desc %p to freelist\n",
 			 desc);
 		list_add(&desc->desc_node, &dc->free_list);
@@ -429,26 +429,30 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	param = txd->callback_param;
 
 	txx9dmac_sync_desc_for_cpu(dc, desc);
-	list_splice_init(&txd->tx_list, &dc->free_list);
+	list_splice_init(&desc->tx_list, &dc->free_list);
 	list_move(&desc->desc_node, &dc->free_list);
 
-	/*
-	 * We use dma_unmap_page() regardless of how the buffers were
-	 * mapped before they were submitted...
-	 */
 	if (!ds) {
 		dma_addr_t dmaaddr;
 		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
 			dmaaddr = is_dmac64(dc) ?
 				desc->hwdesc.DAR : desc->hwdesc32.DAR;
-			dma_unmap_page(chan2parent(&dc->chan), dmaaddr,
-				       desc->len, DMA_FROM_DEVICE);
+			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
+				dma_unmap_single(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_FROM_DEVICE);
+			else
+				dma_unmap_page(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_FROM_DEVICE);
 		}
 		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
 			dmaaddr = is_dmac64(dc) ?
 				desc->hwdesc.SAR : desc->hwdesc32.SAR;
-			dma_unmap_page(chan2parent(&dc->chan), dmaaddr,
-				       desc->len, DMA_TO_DEVICE);
+			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
+				dma_unmap_single(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_TO_DEVICE);
 		}
 	}
 
@@ -567,7 +571,7 @@ static void txx9dmac_handle_error(struct txx9dmac_chan *dc, u32 csr)
 		 "Bad descriptor submitted for DMA! (cookie: %d)\n",
 		 bad_desc->txd.cookie);
 	txx9dmac_dump_desc(dc, &bad_desc->hwdesc);
-	list_for_each_entry(child, &bad_desc->txd.tx_list, desc_node)
+	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
 		txx9dmac_dump_desc(dc, &child->hwdesc);
 	/* Pretend the descriptor completed successfully */
 	txx9dmac_descriptor_complete(dc, bad_desc);
@@ -609,7 +613,7 @@ static void txx9dmac_scan_descriptors(struct txx9dmac_chan *dc)
 			return;
 		}
 
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			if (desc_read_CHAR(dc, child) == chain) {
 				/* Currently in progress */
 				if (csr & TXX9_DMA_CSR_ABCHC)
@@ -819,8 +823,7 @@ txx9dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			dma_sync_single_for_device(chan2parent(&dc->chan),
 					prev->txd.phys, ddev->descsize,
 					DMA_TO_DEVICE);
-			list_add_tail(&desc->desc_node,
-					&first->txd.tx_list);
+			list_add_tail(&desc->desc_node, &first->tx_list);
 		}
 		prev = desc;
 	}
@@ -915,8 +918,7 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 					prev->txd.phys,
 					ddev->descsize,
 					DMA_TO_DEVICE);
-			list_add_tail(&desc->desc_node,
-					&first->txd.tx_list);
+			list_add_tail(&desc->desc_node, &first->tx_list);
 		}
 		prev = desc;
 	}
@@ -936,11 +938,16 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	return &first->txd;
 }
 
-static void txx9dmac_terminate_all(struct dma_chan *chan)
+static int txx9dmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+			    unsigned long arg)
 {
 	struct txx9dmac_chan *dc = to_txx9dmac_chan(chan);
 	struct txx9dmac_desc *desc, *_desc;
 	LIST_HEAD(list);
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -EINVAL;
 
 	dev_vdbg(chan2dev(chan), "terminate_all\n");
 	spin_lock_bh(&dc->lock);
@@ -956,12 +963,13 @@ static void txx9dmac_terminate_all(struct dma_chan *chan)
 	/* Flush all pending and queued descriptors */
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		txx9dmac_descriptor_complete(dc, desc);
+
+	return 0;
 }
 
 static enum dma_status
-txx9dmac_is_tx_complete(struct dma_chan *chan,
-			dma_cookie_t cookie,
-		dma_cookie_t *done, dma_cookie_t *used)
+txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
+		   struct dma_tx_state *txstate)
 {
 	struct txx9dmac_chan *dc = to_txx9dmac_chan(chan);
 	dma_cookie_t last_used;
@@ -983,10 +991,7 @@ txx9dmac_is_tx_complete(struct dma_chan *chan,
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
 	}
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	return ret;
 }
@@ -1151,8 +1156,8 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	dc->dma.dev = &pdev->dev;
 	dc->dma.device_alloc_chan_resources = txx9dmac_alloc_chan_resources;
 	dc->dma.device_free_chan_resources = txx9dmac_free_chan_resources;
-	dc->dma.device_terminate_all = txx9dmac_terminate_all;
-	dc->dma.device_is_tx_complete = txx9dmac_is_tx_complete;
+	dc->dma.device_control = txx9dmac_control;
+	dc->dma.device_tx_status = txx9dmac_tx_status;
 	dc->dma.device_issue_pending = txx9dmac_issue_pending;
 	if (pdata && pdata->memcpy_chan == ch) {
 		dc->dma.device_prep_dma_memcpy = txx9dmac_prep_dma_memcpy;
@@ -1287,17 +1292,18 @@ static void txx9dmac_shutdown(struct platform_device *pdev)
 	txx9dmac_off(ddev);
 }
 
-static int txx9dmac_suspend_late(struct platform_device *pdev,
-				 pm_message_t mesg)
+static int txx9dmac_suspend_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
 
 	txx9dmac_off(ddev);
 	return 0;
 }
 
-static int txx9dmac_resume_early(struct platform_device *pdev)
+static int txx9dmac_resume_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
 	struct txx9dmac_platform_data *pdata = pdev->dev.platform_data;
 	u32 mcr;
@@ -1310,6 +1316,11 @@ static int txx9dmac_resume_early(struct platform_device *pdev)
 
 }
 
+static const struct dev_pm_ops txx9dmac_dev_pm_ops = {
+	.suspend_noirq = txx9dmac_suspend_noirq,
+	.resume_noirq = txx9dmac_resume_noirq,
+};
+
 static struct platform_driver txx9dmac_chan_driver = {
 	.remove		= __exit_p(txx9dmac_chan_remove),
 	.driver = {
@@ -1320,10 +1331,9 @@ static struct platform_driver txx9dmac_chan_driver = {
 static struct platform_driver txx9dmac_driver = {
 	.remove		= __exit_p(txx9dmac_remove),
 	.shutdown	= txx9dmac_shutdown,
-	.suspend_late	= txx9dmac_suspend_late,
-	.resume_early	= txx9dmac_resume_early,
 	.driver = {
 		.name	= "txx9dmac",
+		.pm	= &txx9dmac_dev_pm_ops,
 	},
 };
 
@@ -1352,3 +1362,5 @@ module_exit(txx9dmac_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TXx9 DMA Controller driver");
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
+MODULE_ALIAS("platform:txx9dmac");
+MODULE_ALIAS("platform:txx9dmac-chan");

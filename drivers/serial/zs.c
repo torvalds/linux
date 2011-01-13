@@ -602,12 +602,12 @@ static void zs_receive_chars(struct zs_port *zport)
 		uart_insert_char(uport, status, Rx_OVR, ch, flag);
 	}
 
-	tty_flip_buffer_push(uport->info->port.tty);
+	tty_flip_buffer_push(uport->state->port.tty);
 }
 
 static void zs_raw_transmit_chars(struct zs_port *zport)
 {
-	struct circ_buf *xmit = &zport->port.info->xmit;
+	struct circ_buf *xmit = &zport->port.state->xmit;
 
 	/* XON/XOFF chars.  */
 	if (zport->port.x_char) {
@@ -686,7 +686,7 @@ static void zs_status_handle(struct zs_port *zport, struct zs_port *zport_a)
 			uport->icount.rng++;
 
 		if (delta)
-			wake_up_interruptible(&uport->info->delta_msr_wait);
+			wake_up_interruptible(&uport->state->port.delta_msr_wait);
 
 		spin_lock(&scc->zlock);
 	}

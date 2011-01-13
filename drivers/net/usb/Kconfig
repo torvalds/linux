@@ -174,7 +174,7 @@ config USB_NET_CDCETHER
 	    * Ericsson Mobile Broadband Module (all variants)
  	    * Motorola (DM100 and SB4100)
  	    * Broadcom Cable Modem (reference design)
-	    * Toshiba (PCX1100U and F3507g)
+	    * Toshiba (PCX1100U and F3507g/F3607gw)
 	    * ...
 
 	  This driver creates an interface named "ethX", where X depends on
@@ -196,6 +196,25 @@ config USB_NET_CDC_EEM
 	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
 	  name is used instead.
 
+config USB_NET_CDC_NCM
+	tristate "CDC NCM support"
+	depends on USB_USBNET
+	default y
+	help
+	  This driver provides support for CDC NCM (Network Control Model
+	  Device USB Class Specification). The CDC NCM specification is
+	  available from <http://www.usb.org/>.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module.
+
+	  This driver should work with at least the following devices:
+	    * ST-Ericsson M700 LTE FDD/TDD Mobile Broadband Modem (ref. design)
+	    * ST-Ericsson M5730 HSPA+ Mobile Broadband Modem (reference design)
+	    * ST-Ericsson M570 HSPA+ Mobile Broadband Modem (reference design)
+	    * ST-Ericsson M343 HSPA Mobile Broadband Modem (reference design)
+	    * Ericsson F5521gw Mobile Broadband Module
+
 config USB_NET_DM9601
 	tristate "Davicom DM9601 based USB 1.1 10/100 ethernet devices"
 	depends on USB_USBNET
@@ -203,6 +222,14 @@ config USB_NET_DM9601
 	help
 	  This option adds support for Davicom DM9601 based USB 1.1
 	  10/100 Ethernet adapters.
+
+config USB_NET_SMSC75XX
+	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
+	depends on USB_USBNET
+	select CRC32
+	help
+	  This option adds support for SMSC LAN95XX based USB 2.0
+	  Gigabit Ethernet adapters.
 
 config USB_NET_SMSC95XX
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
@@ -350,6 +377,14 @@ config USB_NET_ZAURUS
 	  really need this non-conformant variant of CDC Ethernet (or in
 	  some cases CDC MDLM) protocol, not "g_ether".
 
+config USB_NET_CX82310_ETH
+	tristate "Conexant CX82310 USB ethernet port"
+	depends on USB_USBNET
+	help
+	  Choose this option if you're using a Conexant CX82310-based ADSL
+	  router with USB ethernet port. This driver is for routers only,
+	  it will not work with ADSL modems (use cxacru driver instead).
+
 config USB_HSO
 	tristate "Option USB High Speed Mobile Devices"
 	depends on USB && RFKILL
@@ -368,5 +403,34 @@ config USB_NET_INT51X1
 	  Choose this option if you're using a 14Mb USB-based PLC
 	  (Powerline Communications) solution with an Intellon
 	  INT51x1/INT5200 chip, like the "devolo dLan duo".
+
+config USB_CDC_PHONET
+	tristate "CDC Phonet support"
+	depends on PHONET
+	help
+	  Choose this option to support the Phonet interface to a Nokia
+	  cellular modem, as found on most Nokia handsets with the
+	  "PC suite" USB profile.
+
+config USB_IPHETH
+	tristate "Apple iPhone USB Ethernet driver"
+	default n
+	---help---
+	  Module used to share Internet connection (tethering) from your
+	  iPhone (Original, 3G and 3GS) to your system.
+	  Note that you need userspace libraries and programs that are needed
+	  to pair your device with your system and that understand the iPhone
+	  protocol.
+
+	  For more information: http://giagio.com/wiki/moin.cgi/iPhoneEthernetDriver
+
+config USB_SIERRA_NET
+	tristate "USB-to-WWAN Driver for Sierra Wireless modems"
+	depends on USB_USBNET
+	help
+	  Choose this option if you have a Sierra Wireless USB-to-WWAN device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sierra_net.
 
 endmenu

@@ -33,6 +33,7 @@
 #include <linux/regulator/max1586.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/usb/gpio_vbus.h>
 
 #include <mach/hardware.h>
@@ -43,8 +44,8 @@
 #include <mach/hx4700.h>
 #include <plat/i2c.h>
 #include <mach/irda.h>
-#include <mach/pxa2xx_spi.h>
 
+#include <video/platform_lcd.h>
 #include <video/w100fb.h>
 
 #include "devices.h"
@@ -174,14 +175,9 @@ static int hx4700_gpio_request(struct gpio_ress *gpios, int size)
  * IRDA
  */
 
-static void irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO105_HX4700_nIR_ON, mode & IR_OFF);
-}
-
 static struct pxaficp_platform_data ficp_info = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = irda_transceiver_mode,
+	.gpio_pwdown		= GPIO105_HX4700_nIR_ON,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 /*
@@ -368,8 +364,6 @@ static struct platform_device egpio = {
  * LCD - Sony display connected to ATI Imageon w3220
  */
 
-static int lcd_power;
-
 static void sony_lcd_init(void)
 {
 	gpio_set_value(GPIO84_HX4700_LCD_SQN, 1);
@@ -409,35 +403,6 @@ static void sony_lcd_off(void)
 	mdelay(10);
 	gpio_set_value(GPIO110_HX4700_LCD_LVDD_3V3_ON, 0);
 }
-
-static int hx4700_lcd_set_power(struct lcd_device *ldev, int level)
-{
-	switch (level) {
-	case FB_BLANK_UNBLANK:
-		sony_lcd_init();
-		break;
-	case FB_BLANK_NORMAL:
-	case FB_BLANK_VSYNC_SUSPEND:
-	case FB_BLANK_HSYNC_SUSPEND:
-	case FB_BLANK_POWERDOWN:
-		sony_lcd_off();
-		break;
-	}
-	lcd_power = level;
-	return 0;
-}
-
-static int hx4700_lcd_get_power(struct lcd_device *lm)
-{
-	return lcd_power;
-}
-
-static struct lcd_ops hx4700_lcd_ops = {
-	.get_power = hx4700_lcd_get_power,
-	.set_power = hx4700_lcd_set_power,
-};
-
-static struct lcd_device *hx4700_lcd_device;
 
 #ifdef CONFIG_PM
 static void w3220_lcd_suspend(struct w100fb_par *wfb)
@@ -573,6 +538,27 @@ static struct platform_device w3220 = {
 	.resource      = w3220_resources,
 };
 
+static void hx4700_lcd_set_power(struct plat_lcd_data *pd, unsigned int power)
+{
+	if (power)
+		sony_lcd_init();
+	else
+		sony_lcd_off();
+}
+
+static struct plat_lcd_data hx4700_lcd_data = {
+	.set_power = hx4700_lcd_set_power,
+};
+
+static struct platform_device hx4700_lcd = {
+	.name = "platform-lcd",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &hx4700_lcd_data,
+		.parent        = &w3220.dev,
+	},
+};
+
 /*
  * Backlight
  */
@@ -618,7 +604,7 @@ static struct platform_device gpio_vbus = {
 static const struct ads7846_platform_data tsc2046_info = {
 	.model            = 7846,
 	.vref_delay_usecs = 100,
-	.pressure_max     = 512,
+	.pressure_max     = 1024,
 	.debounce_max     = 10,
 	.debounce_tol     = 3,
 	.debounce_rep     = 1,
@@ -834,6 +820,7 @@ static struct platform_device *devices[] __initdata = {
 	&gpio_keys,
 	&backlight,
 	&w3220,
+	&hx4700_lcd,
 	&egpio,
 	&bq24022,
 	&gpio_vbus,
@@ -863,6 +850,10 @@ static void __init hx4700_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(hx4700_pin_config));
 	hx4700_gpio_request(ARRAY_AND_SIZE(global_gpios));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	pxa_set_ficp_info(&ficp_info);
@@ -872,9 +863,6 @@ static void __init hx4700_init(void)
 	pxa2xx_set_spi_info(2, &pxa_ssp2_master_info);
 	spi_register_board_info(ARRAY_AND_SIZE(tsc2046_board_info));
 
-	hx4700_lcd_device = lcd_device_register("w100fb", NULL,
-					(void *)&w3220_info, &hx4700_lcd_ops);
-
 	gpio_set_value(GPIO71_HX4700_ASIC3_nRESET, 0);
 	mdelay(10);
 	gpio_set_value(GPIO71_HX4700_ASIC3_nRESET, 1);
@@ -882,10 +870,9 @@ static void __init hx4700_init(void)
 }
 
 MACHINE_START(H4700, "HP iPAQ HX4700")
-	.phys_io      = 0x40000000,
-	.io_pg_offst  = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params  = 0xa0000100,
-	.map_io       = pxa_map_io,
+	.map_io       = pxa27x_map_io,
+	.nr_irqs      = HX4700_NR_IRQS,
 	.init_irq     = pxa27x_init_irq,
 	.init_machine = hx4700_init,
 	.timer        = &pxa_timer,

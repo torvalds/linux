@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -52,12 +52,16 @@ struct vnic_rq_ctrl {
 	u32 pad10;
 };
 
-/* Break the vnic_rq_buf allocations into blocks of 64 entries */
-#define VNIC_RQ_BUF_BLK_ENTRIES 64
-#define VNIC_RQ_BUF_BLK_SZ \
-	(VNIC_RQ_BUF_BLK_ENTRIES * sizeof(struct vnic_rq_buf))
+/* Break the vnic_rq_buf allocations into blocks of 32/64 entries */
+#define VNIC_RQ_BUF_MIN_BLK_ENTRIES 32
+#define VNIC_RQ_BUF_DFLT_BLK_ENTRIES 64
+#define VNIC_RQ_BUF_BLK_ENTRIES(entries) \
+	((unsigned int)((entries < VNIC_RQ_BUF_DFLT_BLK_ENTRIES) ? \
+	VNIC_RQ_BUF_MIN_BLK_ENTRIES : VNIC_RQ_BUF_DFLT_BLK_ENTRIES))
+#define VNIC_RQ_BUF_BLK_SZ(entries) \
+	(VNIC_RQ_BUF_BLK_ENTRIES(entries) * sizeof(struct vnic_rq_buf))
 #define VNIC_RQ_BUF_BLKS_NEEDED(entries) \
-	DIV_ROUND_UP(entries, VNIC_RQ_BUF_BLK_ENTRIES)
+	DIV_ROUND_UP(entries, VNIC_RQ_BUF_BLK_ENTRIES(entries))
 #define VNIC_RQ_BUF_BLKS_MAX VNIC_RQ_BUF_BLKS_NEEDED(4096)
 
 struct vnic_rq_buf {
@@ -79,7 +83,6 @@ struct vnic_rq {
 	struct vnic_rq_buf *to_use;
 	struct vnic_rq_buf *to_clean;
 	void *os_buf_head;
-	unsigned int buf_index;
 	unsigned int pkts_outstanding;
 };
 
@@ -103,11 +106,6 @@ static inline void *vnic_rq_next_desc(struct vnic_rq *rq)
 static inline unsigned int vnic_rq_next_index(struct vnic_rq *rq)
 {
 	return rq->to_use->index;
-}
-
-static inline unsigned int vnic_rq_next_buf_index(struct vnic_rq *rq)
-{
-	return rq->buf_index++;
 }
 
 static inline void vnic_rq_post(struct vnic_rq *rq,
@@ -141,6 +139,11 @@ static inline void vnic_rq_post(struct vnic_rq *rq,
 		wmb();
 		iowrite32(buf->index, &rq->ctrl->posted_index);
 	}
+}
+
+static inline int vnic_rq_posting_soon(struct vnic_rq *rq)
+{
+	return (rq->to_use->index & VNIC_RQ_RETURN_RATE) == 0;
 }
 
 static inline void vnic_rq_return_descs(struct vnic_rq *rq, unsigned int count)
@@ -186,7 +189,7 @@ static inline int vnic_rq_fill(struct vnic_rq *rq,
 {
 	int err;
 
-	while (vnic_rq_desc_avail(rq) > 1) {
+	while (vnic_rq_desc_avail(rq) > 0) {
 
 		err = (*buf_fill)(rq);
 		if (err)

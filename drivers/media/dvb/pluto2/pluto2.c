@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include "demux.h"
 #include "dmxdev.h"
@@ -439,7 +440,7 @@ static inline u32 divide(u32 numerator, u32 denominator)
 	if (denominator == 0)
 		return ~0;
 
-	return (numerator + denominator / 2) / denominator;
+	return DIV_ROUND_CLOSEST(numerator, denominator);
 }
 
 /* LG Innotek TDTE-E001P (Infineon TUA6034) */
@@ -646,7 +647,6 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 	i2c_set_adapdata(&pluto->i2c_adap, pluto);
 	strcpy(pluto->i2c_adap.name, DRIVER_NAME);
 	pluto->i2c_adap.owner = THIS_MODULE;
-	pluto->i2c_adap.class = I2C_CLASS_TV_DIGITAL;
 	pluto->i2c_adap.dev.parent = &pdev->dev;
 	pluto->i2c_adap.algo_data = &pluto->i2c_bit;
 	pluto->i2c_bit.data = pluto;

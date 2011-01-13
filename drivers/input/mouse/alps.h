@@ -23,13 +23,14 @@ struct alps_data {
 	char phys[32];			/* Phys */
 	const struct alps_model_info *i;/* Info */
 	int prev_fin;			/* Finger bit from previous packet */
+	struct timer_list timer;
 };
 
 #ifdef CONFIG_MOUSE_PS2_ALPS
-int alps_detect(struct psmouse *psmouse, int set_properties);
+int alps_detect(struct psmouse *psmouse, bool set_properties);
 int alps_init(struct psmouse *psmouse);
 #else
-inline int alps_detect(struct psmouse *psmouse, int set_properties)
+inline int alps_detect(struct psmouse *psmouse, bool set_properties)
 {
 	return -ENOSYS;
 }

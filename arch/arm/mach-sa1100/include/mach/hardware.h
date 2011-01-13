@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-sa1100/include/mach/hardware.h
  *
- * Copyright (C) 1998 Nicolas Pitre <nico@cam.org>
+ * Copyright (C) 1998 Nicolas Pitre <nico@fluxnic.net>
  *
  * This file contains the hardware definitions for SA1100 architecture
  *
@@ -75,5 +75,13 @@ static inline unsigned long get_clock_tick_rate(void)
 #ifdef CONFIG_SA1101
 #include "SA-1101.h"
 #endif
+
+#if defined(CONFIG_ARCH_SA1100) && defined(CONFIG_PCI)
+#define PCIBIOS_MIN_IO		0
+#define PCIBIOS_MIN_MEM		0
+#define pcibios_assign_all_busses()	1
+#define HAVE_ARCH_PCI_SET_DMA_MASK	1
+#endif
+
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

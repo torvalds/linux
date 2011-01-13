@@ -8,6 +8,6 @@ obj-$(CONFIG_SND_SOC_AU1XPSC_I2S) += snd-soc-au1xpsc-i2s.o
 obj-$(CONFIG_SND_SOC_AU1XPSC_AC97) += snd-soc-au1xpsc-ac97.o
 
 # Boards
-snd-soc-sample-ac97-objs := sample-ac97.o
+snd-soc-db1200-objs := db1200.o
 
-obj-$(CONFIG_SND_SOC_SAMPLE_PSC_AC97) += snd-soc-sample-ac97.o
+obj-$(CONFIG_SND_SOC_DB1200) += snd-soc-db1200.o

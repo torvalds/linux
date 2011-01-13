@@ -36,7 +36,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -44,6 +43,7 @@
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 #include <asm/uaccess.h>
 
 #undef DEBUG
@@ -411,7 +411,8 @@ static void catc_tx_done(struct urb *urb)
 	spin_unlock_irqrestore(&catc->tx_lock, flags);
 }
 
-static int catc_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t catc_start_xmit(struct sk_buff *skb,
+					 struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
 	unsigned long flags;
@@ -435,8 +436,8 @@ static int catc_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			clear_bit(TX_RUNNING, &catc->flags);
 	}
 
-	if ((catc->is_f5u011 && catc->tx_ptr)
-	     || (catc->tx_ptr >= ((TX_MAX_BURST - 1) * (PKT_SZ + 2))))
+	if ((catc->is_f5u011 && catc->tx_ptr) ||
+	    (catc->tx_ptr >= ((TX_MAX_BURST - 1) * (PKT_SZ + 2))))
 		netif_stop_queue(netdev);
 
 	spin_unlock_irqrestore(&catc->tx_lock, flags);
@@ -448,7 +449,7 @@ static int catc_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void catc_tx_timeout(struct net_device *netdev)
@@ -628,10 +629,9 @@ static void catc_multicast(unsigned char *addr, u8 *multicast)
 static void catc_set_multicast_list(struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	u8 broadcast[6];
 	u8 rx = RxEnable | RxPolarity | RxMultiCast;
-	int i;
 
 	memset(broadcast, 0xff, 6);
 	memset(catc->multicast, 0, 64);
@@ -647,8 +647,8 @@ static void catc_set_multicast_list(struct net_device *netdev)
 	if (netdev->flags & IFF_ALLMULTI) {
 		memset(catc->multicast, 0xff, 64);
 	} else {
-		for (i = 0, mc = netdev->mc_list; mc && i < netdev->mc_count; i++, mc = mc->next) {
-			u32 crc = ether_crc_le(6, mc->dmi_addr);
+		netdev_for_each_mc_addr(ha, netdev) {
+			u32 crc = ether_crc_le(6, ha->addr);
 			if (!catc->is_f5u011) {
 				catc->multicast[(crc >> 3) & 0x3f] |= 1 << (crc & 7);
 			} else {
@@ -697,7 +697,7 @@ static int catc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return 0;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = catc_get_drvinfo,
 	.get_settings = catc_get_settings,
 	.get_link = ethtool_op_get_link
@@ -896,11 +896,9 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 		f5u011_rxmode(catc, catc->rxmode);
 	}
 	dbg("Init done.");
-	printk(KERN_INFO "%s: %s USB Ethernet at usb-%s-%s, ",
+	printk(KERN_INFO "%s: %s USB Ethernet at usb-%s-%s, %pM.\n",
 	       netdev->name, (catc->is_f5u011) ? "Belkin F5U011" : "CATC EL1210A NetMate",
-	       usbdev->bus->bus_name, usbdev->devpath);
-	for (i = 0; i < 5; i++) printk("%2.2x:", netdev->dev_addr[i]);
-	printk("%2.2x.\n", netdev->dev_addr[i]);
+	       usbdev->bus->bus_name, usbdev->devpath, netdev->dev_addr);
 	usb_set_intfdata(intf, catc);
 
 	SET_NETDEV_DEV(netdev, &intf->dev);

@@ -82,4 +82,4 @@ Links:
 ------
 
 [1]: http://johannes.sipsolutions.net/PowerBook/touchpad/
-[2]: http://web.telia.com/~u89404340/touchpad/index.html
+[2]: http://web.archive.org/web/*/http://web.telia.com/~u89404340/touchpad/index.html

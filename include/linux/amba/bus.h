@@ -1,5 +1,9 @@
 /*
- *  linux/include/asm-arm/hardware/amba.h
+ *  linux/include/amba/bus.h
+ *
+ *  This device type deals with ARM PrimeCells and anything else that
+ *  presents a proper CID (0xB105F00D) at the end of the I/O register
+ *  region or that is derived from a PrimeCell.
  *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd, All Rights Reserved.
  *
@@ -10,11 +14,22 @@
 #ifndef ASMARM_AMBA_H
 #define ASMARM_AMBA_H
 
+#include <linux/clk.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/resource.h>
+#include <linux/regulator/consumer.h>
+
 #define AMBA_NR_IRQS	2
+#define AMBA_CID	0xb105f00d
+
+struct clk;
 
 struct amba_device {
 	struct device		dev;
 	struct resource		res;
+	struct clk		*pclk;
+	struct regulator	*vcore;
 	u64			dma_mask;
 	unsigned int		periphid;
 	unsigned int		irq[AMBA_NR_IRQS];
@@ -36,6 +51,11 @@ struct amba_driver {
 	struct amba_id		*id_table;
 };
 
+enum amba_vendor {
+	AMBA_VENDOR_ARM = 0x41,
+	AMBA_VENDOR_ST = 0x80,
+};
+
 #define amba_get_drvdata(d)	dev_get_drvdata(&d->dev)
 #define amba_set_drvdata(d,p)	dev_set_drvdata(&d->dev, p)
 
@@ -47,9 +67,27 @@ struct amba_device *amba_find_device(const char *, struct device *, unsigned int
 int amba_request_regions(struct amba_device *, const char *);
 void amba_release_regions(struct amba_device *);
 
-#define amba_config(d)	(((d)->periphid >> 24) & 0xff)
-#define amba_rev(d)	(((d)->periphid >> 20) & 0x0f)
-#define amba_manf(d)	(((d)->periphid >> 12) & 0xff)
-#define amba_part(d)	((d)->periphid & 0xfff)
+#define amba_pclk_enable(d)	\
+	(IS_ERR((d)->pclk) ? 0 : clk_enable((d)->pclk))
+
+#define amba_pclk_disable(d)	\
+	do { if (!IS_ERR((d)->pclk)) clk_disable((d)->pclk); } while (0)
+
+#define amba_vcore_enable(d)	\
+	(IS_ERR((d)->vcore) ? 0 : regulator_enable((d)->vcore))
+
+#define amba_vcore_disable(d)	\
+	do { if (!IS_ERR((d)->vcore)) regulator_disable((d)->vcore); } while (0)
+
+/* Some drivers don't use the struct amba_device */
+#define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)
+#define AMBA_REV_BITS(a) (((a) >> 20) & 0x0f)
+#define AMBA_MANF_BITS(a) (((a) >> 12) & 0xff)
+#define AMBA_PART_BITS(a) ((a) & 0xfff)
+
+#define amba_config(d)	AMBA_CONFIG_BITS((d)->periphid)
+#define amba_rev(d)	AMBA_REV_BITS((d)->periphid)
+#define amba_manf(d)	AMBA_MANF_BITS((d)->periphid)
+#define amba_part(d)	AMBA_PART_BITS((d)->periphid)
 
 #endif

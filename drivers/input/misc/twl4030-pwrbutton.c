@@ -27,7 +27,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 
 #define PWR_PWRON_IRQ (1 << 0)
 
@@ -39,18 +39,8 @@ static irqreturn_t powerbutton_irq(int irq, void *_pwr)
 	int err;
 	u8 value;
 
-#ifdef CONFIG_LOCKDEP
-	/* WORKAROUND for lockdep forcing IRQF_DISABLED on us, which
-	 * we don't want and can't tolerate since this is a threaded
-	 * IRQ and can sleep due to the i2c reads it has to issue.
-	 * Although it might be friendlier not to borrow this thread
-	 * context...
-	 */
-	local_irq_enable();
-#endif
-
-	err = twl4030_i2c_read_u8(TWL4030_MODULE_PM_MASTER, &value,
-				  STS_HW_CONDITIONS);
+	err = twl_i2c_read_u8(TWL4030_MODULE_PM_MASTER, &value,
+				STS_HW_CONDITIONS);
 	if (!err)  {
 		input_report_key(pwr, KEY_POWER, value & PWR_PWRON_IRQ);
 		input_sync(pwr);
@@ -62,7 +52,7 @@ static irqreturn_t powerbutton_irq(int irq, void *_pwr)
 	return IRQ_HANDLED;
 }
 
-static int __devinit twl4030_pwrbutton_probe(struct platform_device *pdev)
+static int __init twl4030_pwrbutton_probe(struct platform_device *pdev)
 {
 	struct input_dev *pwr;
 	int irq = platform_get_irq(pdev, 0);
@@ -80,7 +70,7 @@ static int __devinit twl4030_pwrbutton_probe(struct platform_device *pdev)
 	pwr->phys = "twl4030_pwrbutton/input0";
 	pwr->dev.parent = &pdev->dev;
 
-	err = request_irq(irq, powerbutton_irq,
+	err = request_threaded_irq(irq, NULL, powerbutton_irq,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"twl4030_pwrbutton", pwr);
 	if (err < 0) {
@@ -105,7 +95,7 @@ free_input_dev:
 	return err;
 }
 
-static int __devexit twl4030_pwrbutton_remove(struct platform_device *pdev)
+static int __exit twl4030_pwrbutton_remove(struct platform_device *pdev)
 {
 	struct input_dev *pwr = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
@@ -116,9 +106,8 @@ static int __devexit twl4030_pwrbutton_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver twl4030_pwrbutton_driver = {
-	.probe		= twl4030_pwrbutton_probe,
-	.remove		= __devexit_p(twl4030_pwrbutton_remove),
+static struct platform_driver twl4030_pwrbutton_driver = {
+	.remove		= __exit_p(twl4030_pwrbutton_remove),
 	.driver		= {
 		.name	= "twl4030_pwrbutton",
 		.owner	= THIS_MODULE,
@@ -127,7 +116,8 @@ struct platform_driver twl4030_pwrbutton_driver = {
 
 static int __init twl4030_pwrbutton_init(void)
 {
-	return platform_driver_register(&twl4030_pwrbutton_driver);
+	return platform_driver_probe(&twl4030_pwrbutton_driver,
+			twl4030_pwrbutton_probe);
 }
 module_init(twl4030_pwrbutton_init);
 

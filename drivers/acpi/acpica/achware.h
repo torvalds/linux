@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,14 @@ u32 acpi_hw_get_mode(void);
 /*
  * hwregs - ACPI Register I/O
  */
+acpi_status
+acpi_hw_validate_register(struct acpi_generic_address *reg,
+			  u8 max_bit_width, u64 *address);
+
+acpi_status acpi_hw_read(u32 *value, struct acpi_generic_address *reg);
+
+acpi_status acpi_hw_write(u32 value, struct acpi_generic_address *reg);
+
 struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id);
 
 acpi_status acpi_hw_write_pm1_control(u32 pm1a_control, u32 pm1b_control);
@@ -82,10 +90,11 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width);
 /*
  * hwgpe - GPE support
  */
-acpi_status acpi_hw_low_disable_gpe(struct acpi_gpe_event_info *gpe_event_info);
+u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info,
+			     struct acpi_gpe_register_info *gpe_register_info);
 
 acpi_status
-acpi_hw_write_gpe_enable_reg(struct acpi_gpe_event_info *gpe_event_info);
+acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 action);
 
 acpi_status
 acpi_hw_disable_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
@@ -111,6 +120,13 @@ acpi_status
 acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				 struct acpi_gpe_block_info *gpe_block,
 				 void *context);
+
+/*
+ * hwpci - PCI configuration support
+ */
+acpi_status
+acpi_hw_derive_pci_id(struct acpi_pci_id *pci_id,
+		      acpi_handle root_pci_device, acpi_handle pci_region);
 
 #ifdef	ACPI_FUTURE_USAGE
 /*

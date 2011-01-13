@@ -6,6 +6,7 @@
  *   Written By Michael Meissner
  *
  * Based on gcc/config/rs6000/crtsavres.asm from gcc
+ * 64 bit additions from reading the PPC elf64abi document.
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -43,6 +44,8 @@
 	.section ".text"
 
 #ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+
+#ifndef CONFIG_PPC64
 
 /* Routines for saving integer registers, called by the compiler.  */
 /* Called with r11 pointing to the stack header word of the caller of the */
@@ -226,4 +229,130 @@ _GLOBAL(_rest32gpr_31_x)
 	mtlr	0
 	mr	1,11
 	blr
+
+#else /* CONFIG_PPC64 */
+
+.globl	_savegpr0_14
+_savegpr0_14:
+	std	r14,-144(r1)
+.globl	_savegpr0_15
+_savegpr0_15:
+	std	r15,-136(r1)
+.globl	_savegpr0_16
+_savegpr0_16:
+	std	r16,-128(r1)
+.globl	_savegpr0_17
+_savegpr0_17:
+	std	r17,-120(r1)
+.globl	_savegpr0_18
+_savegpr0_18:
+	std	r18,-112(r1)
+.globl	_savegpr0_19
+_savegpr0_19:
+	std	r19,-104(r1)
+.globl	_savegpr0_20
+_savegpr0_20:
+	std	r20,-96(r1)
+.globl	_savegpr0_21
+_savegpr0_21:
+	std	r21,-88(r1)
+.globl	_savegpr0_22
+_savegpr0_22:
+	std	r22,-80(r1)
+.globl	_savegpr0_23
+_savegpr0_23:
+	std	r23,-72(r1)
+.globl	_savegpr0_24
+_savegpr0_24:
+	std	r24,-64(r1)
+.globl	_savegpr0_25
+_savegpr0_25:
+	std	r25,-56(r1)
+.globl	_savegpr0_26
+_savegpr0_26:
+	std	r26,-48(r1)
+.globl	_savegpr0_27
+_savegpr0_27:
+	std	r27,-40(r1)
+.globl	_savegpr0_28
+_savegpr0_28:
+	std	r28,-32(r1)
+.globl	_savegpr0_29
+_savegpr0_29:
+	std	r29,-24(r1)
+.globl	_savegpr0_30
+_savegpr0_30:
+	std	r30,-16(r1)
+.globl	_savegpr0_31
+_savegpr0_31:
+	std	r31,-8(r1)
+	std	r0,16(r1)
+	blr
+
+.globl	_restgpr0_14
+_restgpr0_14:
+	ld	r14,-144(r1)
+.globl	_restgpr0_15
+_restgpr0_15:
+	ld	r15,-136(r1)
+.globl	_restgpr0_16
+_restgpr0_16:
+	ld	r16,-128(r1)
+.globl	_restgpr0_17
+_restgpr0_17:
+	ld	r17,-120(r1)
+.globl	_restgpr0_18
+_restgpr0_18:
+	ld	r18,-112(r1)
+.globl	_restgpr0_19
+_restgpr0_19:
+	ld	r19,-104(r1)
+.globl	_restgpr0_20
+_restgpr0_20:
+	ld	r20,-96(r1)
+.globl	_restgpr0_21
+_restgpr0_21:
+	ld	r21,-88(r1)
+.globl	_restgpr0_22
+_restgpr0_22:
+	ld	r22,-80(r1)
+.globl	_restgpr0_23
+_restgpr0_23:
+	ld	r23,-72(r1)
+.globl	_restgpr0_24
+_restgpr0_24:
+	ld	r24,-64(r1)
+.globl	_restgpr0_25
+_restgpr0_25:
+	ld	r25,-56(r1)
+.globl	_restgpr0_26
+_restgpr0_26:
+	ld	r26,-48(r1)
+.globl	_restgpr0_27
+_restgpr0_27:
+	ld	r27,-40(r1)
+.globl	_restgpr0_28
+_restgpr0_28:
+	ld	r28,-32(r1)
+.globl	_restgpr0_29
+_restgpr0_29:
+	ld	r0,16(r1)
+	ld	r29,-24(r1)
+	mtlr	r0
+	ld	r30,-16(r1)
+	ld	r31,-8(r1)
+	blr
+
+.globl	_restgpr0_30
+_restgpr0_30:
+	ld	r30,-16(r1)
+.globl	_restgpr0_31
+_restgpr0_31:
+	ld	r0,16(r1)
+	ld	r31,-8(r1)
+	mtlr	r0
+	blr
+
+#endif /* CONFIG_PPC64 */
+
 #endif

@@ -238,6 +238,7 @@ static void do_identify(ide_drive_t *drive, u8 cmd, u16 *id)
  *	@drive: drive to identify
  *	@cmd: command to use
  *	@id: buffer for IDENTIFY data
+ *	@irq_ctx: flag set when called from the IRQ context
  *
  *	Sends an ATA(PI) IDENTIFY request to a drive and waits for a response.
  *
@@ -246,7 +247,7 @@ static void do_identify(ide_drive_t *drive, u8 cmd, u16 *id)
  *			2  device aborted the command (refused to identify itself)
  */
 
-int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
+int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id, int irq_ctx)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -263,7 +264,10 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 		tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
 	/* take a deep breath */
-	msleep(50);
+	if (irq_ctx)
+		mdelay(50);
+	else
+		msleep(50);
 
 	if (io_ports->ctl_addr &&
 	    (hwif->host_flags & IDE_HFLAG_BROKEN_ALTSTATUS) == 0) {
@@ -295,12 +299,19 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 
 	timeout = ((cmd == ATA_CMD_ID_ATA) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
 
-	if (ide_busy_sleep(drive, timeout, use_altstatus))
-		return 1;
-
 	/* wait for IRQ and ATA_DRQ */
-	msleep(50);
-	s = tp_ops->read_status(hwif);
+	if (irq_ctx) {
+		rc = __ide_wait_stat(drive, ATA_DRQ, BAD_R_STAT, timeout, &s);
+		if (rc)
+			return 1;
+	} else {
+		rc = ide_busy_sleep(drive, timeout, use_altstatus);
+		if (rc)
+			return 1;
+
+		msleep(50);
+		s = tp_ops->read_status(hwif);
+	}
 
 	if (OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
 		/* drive returned ID */
@@ -406,10 +417,10 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 
 	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY) ||
 	    present || cmd == ATA_CMD_ID_ATAPI) {
-		rc = ide_dev_read_id(drive, cmd, id);
+		rc = ide_dev_read_id(drive, cmd, id, 0);
 		if (rc)
 			/* failed: try again */
-			rc = ide_dev_read_id(drive, cmd, id);
+			rc = ide_dev_read_id(drive, cmd, id, 0);
 
 		stat = tp_ops->read_status(hwif);
 
@@ -424,7 +435,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			msleep(50);
 			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 			(void)ide_busy_sleep(drive, WAIT_WORSTCASE, 0);
-			rc = ide_dev_read_id(drive, cmd, id);
+			rc = ide_dev_read_id(drive, cmd, id, 0);
 		}
 
 		/* ensure drive IRQ is clear */
@@ -684,14 +695,8 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (irqd)
 		disable_irq(hwif->irq);
 
-	rc = ide_port_wait_ready(hwif);
-	if (rc == -ENODEV) {
-		printk(KERN_INFO "%s: no devices on the port\n", hwif->name);
-		goto out;
-	} else if (rc == -EBUSY)
-		printk(KERN_ERR "%s: not ready before the probe\n", hwif->name);
-	else
-		rc = -ENODEV;
+	if (ide_port_wait_ready(hwif) == -EBUSY)
+		printk(KERN_DEBUG "%s: Wait for ready failed before probe !\n", hwif->name);
 
 	/*
 	 * Second drive should only exist if first drive was found,
@@ -702,7 +707,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			rc = 0;
 	}
-out:
+
 	/*
 	 * Use cached IRQ number. It might be (and is...) changed by probe
 	 * code above
@@ -763,7 +768,7 @@ static int ide_init_queue(ide_drive_t *drive)
 
 	if (hwif->rqsize < max_sectors)
 		max_sectors = hwif->rqsize;
-	blk_queue_max_sectors(q, max_sectors);
+	blk_queue_max_hw_sectors(q, max_sectors);
 
 #ifdef CONFIG_PCI
 	/* When we have an IOMMU, we may have a problem where pci_map_sg()
@@ -779,8 +784,7 @@ static int ide_init_queue(ide_drive_t *drive)
 		max_sg_entries >>= 1;
 #endif /* CONFIG_PCI */
 
-	blk_queue_max_hw_segments(q, max_sg_entries);
-	blk_queue_max_phys_segments(q, max_sg_entries);
+	blk_queue_max_segments(q, max_sg_entries);
 
 	/* assign drive queue */
 	drive->queue = q;
@@ -818,6 +822,24 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 	return j;
 }
 
+static void ide_host_enable_irqs(struct ide_host *host)
+{
+	ide_hwif_t *hwif;
+	int i;
+
+	ide_host_for_each_port(i, hwif, host) {
+		if (hwif == NULL)
+			continue;
+
+		/* clear any pending IRQs */
+		hwif->tp_ops->read_status(hwif);
+
+		/* unmask IRQs */
+		if (hwif->io_ports.ctl_addr)
+			hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
+	}
+}
+
 /*
  * This routine sets up the IRQ for an IDE interface.
  */
@@ -830,9 +852,6 @@ static int init_irq (ide_hwif_t *hwif)
 
 	if (irq_handler == NULL)
 		irq_handler = ide_intr;
-
-	if (io_ports->ctl_addr)
-		hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
 		goto out_up;
@@ -1017,17 +1036,10 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
 
+		drive->pio_mode = XFER_PIO_0;
+
 		if (port_ops && port_ops->init_dev)
 			port_ops->init_dev(drive);
-	}
-
-	ide_port_for_each_dev(i, drive, hwif) {
-		/*
-		 * default to PIO Mode 0 before we figure out
-		 * the most suited mode for the attached device
-		 */
-		if (port_ops && port_ops->set_pio_mode)
-			port_ops->set_pio_mode(drive, 0);
 	}
 }
 
@@ -1186,7 +1198,7 @@ static int ide_find_port_slot(const struct ide_port_info *d)
 {
 	int idx = -ENOENT;
 	u8 bootable = (d && (d->host_flags & IDE_HFLAG_NON_BOOTABLE)) ? 0 : 1;
-	u8 i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;;
+	u8 i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;
 
 	/*
 	 * Claim an unassigned slot.
@@ -1404,6 +1416,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 			ide_port_tune_devices(hwif);
 	}
 
+	ide_host_enable_irqs(host);
+
 	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
 			continue;
@@ -1434,19 +1448,13 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif == NULL)
 			continue;
 
-		if (hwif->present)
-			hwif_register_devices(hwif);
-	}
-
-	ide_host_for_each_port(i, hwif, host) {
-		if (hwif == NULL)
-			continue;
-
 		ide_sysfs_register_port(hwif);
 		ide_proc_register_port(hwif);
 
-		if (hwif->present)
+		if (hwif->present) {
 			ide_proc_port_register_devices(hwif);
+			hwif_register_devices(hwif);
+		}
 	}
 
 	return j ? 0 : -1;

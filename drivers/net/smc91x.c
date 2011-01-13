@@ -35,7 +35,7 @@
  *
  * contributors:
  * 	Daris A Nevil <dnevil@snmc.com>
- *      Nicolas Pitre <nico@cam.org>
+ *      Nicolas Pitre <nico@fluxnic.net>
  *	Russell King <rmk@arm.linux.org.uk>
  *
  * History:
@@ -58,7 +58,7 @@
  *   22/09/04  Nicolas Pitre      big update (see commit log for details)
  */
 static const char version[] =
-	"smc91x.c: v1.1, sep 22 2004 by Nicolas Pitre <nico@cam.org>\n";
+	"smc91x.c: v1.1, sep 22 2004 by Nicolas Pitre <nico@fluxnic.net>\n";
 
 /* Debugging level */
 #ifndef SMC_DEBUG
@@ -70,9 +70,9 @@ static const char version[] =
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/crc32.h>
@@ -196,21 +196,23 @@ static void PRINT_PKT(u_char *buf, int length)
 /* this enables an interrupt in the interrupt mask register */
 #define SMC_ENABLE_INT(lp, x) do {					\
 	unsigned char mask;						\
-	spin_lock_irq(&lp->lock);					\
+	unsigned long smc_enable_flags;					\
+	spin_lock_irqsave(&lp->lock, smc_enable_flags);			\
 	mask = SMC_GET_INT_MASK(lp);					\
 	mask |= (x);							\
 	SMC_SET_INT_MASK(lp, mask);					\
-	spin_unlock_irq(&lp->lock);					\
+	spin_unlock_irqrestore(&lp->lock, smc_enable_flags);		\
 } while (0)
 
 /* this disables an interrupt from the interrupt mask register */
 #define SMC_DISABLE_INT(lp, x) do {					\
 	unsigned char mask;						\
-	spin_lock_irq(&lp->lock);					\
+	unsigned long smc_disable_flags;				\
+	spin_lock_irqsave(&lp->lock, smc_disable_flags);		\
 	mask = SMC_GET_INT_MASK(lp);					\
 	mask &= ~(x);							\
 	SMC_SET_INT_MASK(lp, mask);					\
-	spin_unlock_irq(&lp->lock);					\
+	spin_unlock_irqrestore(&lp->lock, smc_disable_flags);		\
 } while (0)
 
 /*
@@ -520,21 +522,21 @@ static inline void  smc_rcv(struct net_device *dev)
  * any other concurrent access and C would always interrupt B. But life
  * isn't that easy in a SMP world...
  */
-#define smc_special_trylock(lock)					\
+#define smc_special_trylock(lock, flags)				\
 ({									\
 	int __ret;							\
-	local_irq_disable();						\
+	local_irq_save(flags);						\
 	__ret = spin_trylock(lock);					\
 	if (!__ret)							\
-		local_irq_enable();					\
+		local_irq_restore(flags);				\
 	__ret;								\
 })
-#define smc_special_lock(lock)		spin_lock_irq(lock)
-#define smc_special_unlock(lock)	spin_unlock_irq(lock)
+#define smc_special_lock(lock, flags)		spin_lock_irqsave(lock, flags)
+#define smc_special_unlock(lock, flags) 	spin_unlock_irqrestore(lock, flags)
 #else
-#define smc_special_trylock(lock)	(1)
-#define smc_special_lock(lock)		do { } while (0)
-#define smc_special_unlock(lock)	do { } while (0)
+#define smc_special_trylock(lock, flags)	(flags == flags)
+#define smc_special_lock(lock, flags)   	do { flags = 0; } while (0)
+#define smc_special_unlock(lock, flags)	do { flags = 0; } while (0)
 #endif
 
 /*
@@ -548,10 +550,11 @@ static void smc_hardware_send_pkt(unsigned long data)
 	struct sk_buff *skb;
 	unsigned int packet_no, len;
 	unsigned char *buf;
+	unsigned long flags;
 
 	DBG(3, "%s: %s\n", dev->name, __func__);
 
-	if (!smc_special_trylock(&lp->lock)) {
+	if (!smc_special_trylock(&lp->lock, flags)) {
 		netif_stop_queue(dev);
 		tasklet_schedule(&lp->tx_task);
 		return;
@@ -559,7 +562,7 @@ static void smc_hardware_send_pkt(unsigned long data)
 
 	skb = lp->pending_tx_skb;
 	if (unlikely(!skb)) {
-		smc_special_unlock(&lp->lock);
+		smc_special_unlock(&lp->lock, flags);
 		return;
 	}
 	lp->pending_tx_skb = NULL;
@@ -569,7 +572,7 @@ static void smc_hardware_send_pkt(unsigned long data)
 		printk("%s: Memory allocation failed.\n", dev->name);
 		dev->stats.tx_errors++;
 		dev->stats.tx_fifo_errors++;
-		smc_special_unlock(&lp->lock);
+		smc_special_unlock(&lp->lock, flags);
 		goto done;
 	}
 
@@ -608,7 +611,7 @@ static void smc_hardware_send_pkt(unsigned long data)
 
 	/* queue the packet for TX */
 	SMC_SET_MMU_CMD(lp, MC_ENQUEUE);
-	smc_special_unlock(&lp->lock);
+	smc_special_unlock(&lp->lock, flags);
 
 	dev->trans_start = jiffies;
 	dev->stats.tx_packets++;
@@ -633,6 +636,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct smc_local *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	unsigned int numPages, poll_count, status;
+	unsigned long flags;
 
 	DBG(3, "%s: %s\n", dev->name, __func__);
 
@@ -655,10 +659,10 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_errors++;
 		dev->stats.tx_dropped++;
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
-	smc_special_lock(&lp->lock);
+	smc_special_lock(&lp->lock, flags);
 
 	/* now, try to allocate the memory */
 	SMC_SET_MMU_CMD(lp, MC_ALLOC | numPages);
@@ -676,7 +680,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
    	} while (--poll_count);
 
-	smc_special_unlock(&lp->lock);
+	smc_special_unlock(&lp->lock, flags);
 
 	lp->pending_tx_skb = skb;
    	if (!poll_count) {
@@ -692,7 +696,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		smc_hardware_send_pkt((unsigned long)dev);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1282,7 +1286,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id)
 			smc_phy_interrupt(dev);
 		} else if (status & IM_ERCV_INT) {
 			SMC_ACK_INT(lp, IM_ERCV_INT);
-			PRINTK("%s: UNSUPPORTED: ERCV INTERRUPT \n", dev->name);
+			PRINTK("%s: UNSUPPORTED: ERCV INTERRUPT\n", dev->name);
 		}
 	} while (--timeout);
 
@@ -1357,7 +1361,7 @@ static void smc_timeout(struct net_device *dev)
 		schedule_work(&lp->phy_configure);
 
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -1391,7 +1395,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	 * I don't need to zero the multicast table, because the flag is
 	 * checked before the table is
 	 */
-	else if (dev->flags & IFF_ALLMULTI || dev->mc_count > 16) {
+	else if (dev->flags & IFF_ALLMULTI || netdev_mc_count(dev) > 16) {
 		DBG(2, "%s: RCR_ALMUL\n", dev->name);
 		lp->rcr_cur_mode |= RCR_ALMUL;
 	}
@@ -1408,9 +1412,8 @@ static void smc_set_multicast_list(struct net_device *dev)
 	 * the number of the 8 bit register, while the low 3 bits are the bit
 	 * within that register.
 	 */
-	else if (dev->mc_count)  {
-		int i;
-		struct dev_mc_list *cur_addr;
+	else if (!netdev_mc_empty(dev)) {
+		struct netdev_hw_addr *ha;
 
 		/* table for flipping the order of 3 bits */
 		static const unsigned char invert3[] = {0, 4, 2, 6, 1, 5, 3, 7};
@@ -1418,20 +1421,16 @@ static void smc_set_multicast_list(struct net_device *dev)
 		/* start with a table of all zeros: reject all */
 		memset(multicast_table, 0, sizeof(multicast_table));
 
-		cur_addr = dev->mc_list;
-		for (i = 0; i < dev->mc_count; i++, cur_addr = cur_addr->next) {
+		netdev_for_each_mc_addr(ha, dev) {
 			int position;
 
-			/* do we have a pointer here? */
-			if (!cur_addr)
-				break;
 			/* make sure this is a multicast address -
 		   	   shouldn't this be a given if we have it here ? */
-			if (!(*cur_addr->dmi_addr & 1))
+			if (!(*ha->addr & 1))
 				continue;
 
 			/* only use the low order bits */
-			position = crc32_le(~0, cur_addr->dmi_addr, 6) & 0x3f;
+			position = crc32_le(~0, ha->addr, 6) & 0x3f;
 
 			/* do some messy swapping to put the bit in the right spot */
 			multicast_table[invert3[position&7]] |=
@@ -1774,6 +1773,7 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_start_xmit		= smc_hard_start_xmit,
 	.ndo_tx_timeout		= smc_timeout,
 	.ndo_set_multicast_list	= smc_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2026,7 +2026,7 @@ static int __devinit smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	}
 
 	/* Grab the IRQ */
-	retval = request_irq(dev->irq, &smc_interrupt, irq_flags, dev->name, dev);
+	retval = request_irq(dev->irq, smc_interrupt, irq_flags, dev->name, dev);
       	if (retval)
       		goto err_out;
 
@@ -2278,7 +2278,7 @@ static int __devinit smc_drv_probe(struct platform_device *pdev)
 
 	ndev->irq = ires->start;
 
-	if (ires->flags & IRQF_TRIGGER_MASK)
+	if (irq_flags == -1 || ires->flags & IRQF_TRIGGER_MASK)
 		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev, ndev);
@@ -2360,9 +2360,10 @@ static int __devexit smc_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int smc_drv_suspend(struct platform_device *dev, pm_message_t state)
+static int smc_drv_suspend(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	if (ndev) {
 		if (netif_running(ndev)) {
@@ -2374,13 +2375,14 @@ static int smc_drv_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int smc_drv_resume(struct platform_device *dev)
+static int smc_drv_resume(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	if (ndev) {
 		struct smc_local *lp = netdev_priv(ndev);
-		smc_enable_device(dev);
+		smc_enable_device(pdev);
 		if (netif_running(ndev)) {
 			smc_reset(ndev);
 			smc_enable(ndev);
@@ -2392,14 +2394,18 @@ static int smc_drv_resume(struct platform_device *dev)
 	return 0;
 }
 
+static struct dev_pm_ops smc_drv_pm_ops = {
+	.suspend	= smc_drv_suspend,
+	.resume		= smc_drv_resume,
+};
+
 static struct platform_driver smc_driver = {
 	.probe		= smc_drv_probe,
 	.remove		= __devexit_p(smc_drv_remove),
-	.suspend	= smc_drv_suspend,
-	.resume		= smc_drv_resume,
 	.driver		= {
 		.name	= CARDNAME,
 		.owner	= THIS_MODULE,
+		.pm	= &smc_drv_pm_ops,
 	},
 };
 

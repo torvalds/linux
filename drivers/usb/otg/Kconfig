@@ -41,6 +41,14 @@ config ISP1301_OMAP
 	  This driver can also be built as a module.  If so, the module
 	  will be called isp1301_omap.
 
+config USB_ULPI
+	bool "Generic ULPI Transceiver Driver"
+	depends on ARM
+	select USB_OTG_UTILS
+	help
+	  Enable this to support ULPI connected USB OTG transceivers which
+	  are likely found on embedded boards.
+
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030
@@ -50,6 +58,18 @@ config TWL4030_USB
 	  family chips (including the TWL5030 and TPS659x0 devices).
 	  This transceiver supports high and full speed devices plus,
 	  in host mode, low speed.
+
+config TWL6030_USB
+	tristate "TWL6030 USB Transceiver Driver"
+	depends on TWL4030_CORE
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver on TWL6030
+	  family chips. This TWL6030 transceiver has the VBUS and ID GND
+	  and OTG SRP events capabilities. For all other transceiver functionality
+	  UTMI PHY is embedded in OMAP4430. The internal PHY configurations APIs
+	  are hooked to this driver through platform_data structure.
+	  The definition of internal PHY APIs are in the mach-omap2 layer.
 
 config NOP_USB_XCEIV
 	tristate "NOP USB Transceiver Driver"
@@ -61,7 +81,7 @@ config NOP_USB_XCEIV
 
 config USB_LANGWELL_OTG
 	tristate "Intel Langwell USB OTG dual-role support"
-	depends on USB && MRST
+	depends on USB && PCI && INTEL_SCU_IPC
 	select USB_OTG
 	select USB_OTG_UTILS
 	help
@@ -72,5 +92,25 @@ config USB_LANGWELL_OTG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called langwell_otg.
+
+config USB_MSM_OTG_72K
+	tristate "OTG support for Qualcomm on-chip USB controller"
+	depends on (USB || USB_GADGET) && ARCH_MSM
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver on MSM chips. It
+	  handles PHY initialization, clock management, and workarounds
+	  required after resetting the hardware and power management.
+	  This driver is required even for peripheral only or host only
+	  mode configurations.
+
+config AB8500_USB
+        tristate "AB8500 USB Transceiver Driver"
+        depends on AB8500_CORE
+        select USB_OTG_UTILS
+        help
+          Enable this to support the USB OTG transceiver in AB8500 chip.
+          This transceiver supports high and full speed devices plus,
+          in host mode, low speed.
 
 endif # USB || OTG

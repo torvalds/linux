@@ -14,7 +14,8 @@
 /****************************************************************************/
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARCH_MXC)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
+    defined(CONFIG_ARCH_MXC) || defined(CONFIG_SOC_IMX28)
 /*
  *	Just figures, Motorola would have to change the offsets for
  *	registers in the same peripheral device on different models
@@ -43,15 +44,17 @@
 #define FEC_R_DES_START		0x180 /* Receive descriptor ring */
 #define FEC_X_DES_START		0x184 /* Transmit descriptor ring */
 #define FEC_R_BUFF_SIZE		0x188 /* Maximum receive buff size */
+#define FEC_MIIGSK_CFGR		0x300 /* MIIGSK Configuration reg */
+#define FEC_MIIGSK_ENR		0x308 /* MIIGSK Enable reg */
 
 #else
 
-#define FEC_ECNTRL;		0x000 /* Ethernet control reg */
-#define FEC_IEVENT;		0x004 /* Interrupt even reg */
-#define FEC_IMASK;		0x008 /* Interrupt mask reg */
-#define FEC_IVEC;		0x00c /* Interrupt vec status reg */
-#define FEC_R_DES_ACTIVE;	0x010 /* Receive descriptor reg */
-#define FEC_X_DES_ACTIVE;	0x01c /* Transmit descriptor reg */
+#define FEC_ECNTRL		0x000 /* Ethernet control reg */
+#define FEC_IEVENT		0x004 /* Interrupt even reg */
+#define FEC_IMASK		0x008 /* Interrupt mask reg */
+#define FEC_IVEC		0x00c /* Interrupt vec status reg */
+#define FEC_R_DES_ACTIVE	0x010 /* Receive descriptor reg */
+#define FEC_X_DES_ACTIVE	0x014 /* Transmit descriptor reg */
 #define FEC_MII_DATA		0x040 /* MII manage frame reg */
 #define FEC_MII_SPEED		0x044 /* MII speed control reg */
 #define FEC_R_BOUND		0x08c /* FIFO receive bound reg */
@@ -76,7 +79,7 @@
 /*
  *	Define the buffer descriptor structure.
  */
-#ifdef CONFIG_ARCH_MXC
+#if defined(CONFIG_ARCH_MXC) || defined(CONFIG_SOC_IMX28)
 struct bufdesc {
 	unsigned short cbd_datlen;	/* Data length */
 	unsigned short cbd_sc;	/* Control and status info */

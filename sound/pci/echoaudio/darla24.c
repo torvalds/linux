@@ -44,9 +44,9 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -67,7 +67,7 @@ static const struct firmware card_fw[] = {
 	{0, "darla24_dsp.fw"}
 };
 
-static struct pci_device_id snd_echo_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_echo_ids) = {
 	{0x1057, 0x1801, 0xECC0, 0x0040, 0, 0, 0},	/* DSP 56301 Darla24 rev.0 */
 	{0x1057, 0x1801, 0xECC0, 0x0041, 0, 0, 0},	/* DSP 56301 Darla24 rev.1 */
 	{0,}

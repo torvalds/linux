@@ -43,8 +43,12 @@ source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 source "fs/ocfs2/Kconfig"
 source "fs/btrfs/Kconfig"
+source "fs/nilfs2/Kconfig"
 
 endif # BLOCK
+
+config EXPORTFS
+	tristate
 
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EMBEDDED
@@ -58,12 +62,11 @@ source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
 
-source "fs/autofs/Kconfig"
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
 
 config CUSE
-	tristate "Character device in Userpace support"
+	tristate "Character device in Userspace support"
 	depends on FUSE_FS
 	help
 	  This FUSE extension allows character devices to be
@@ -108,6 +111,7 @@ source "fs/sysfs/Kconfig"
 
 config TMPFS
 	bool "Virtual memory file system support (former shm fs)"
+	depends on SHMEM
 	help
 	  Tmpfs is a file system which keeps all files in virtual memory.
 
@@ -133,8 +137,8 @@ config TMPFS_POSIX_ACL
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
-	depends on X86 || IA64 || PPC64 || SPARC64 || (SUPERH && MMU) || \
-		   (S390 && 64BIT) || SYS_SUPPORTS_HUGETLBFS || BROKEN
+	depends on X86 || IA64 || SPARC64 || (S390 && 64BIT) || \
+		   SYS_SUPPORTS_HUGETLBFS || BROKEN
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
@@ -175,6 +179,7 @@ source "fs/efs/Kconfig"
 source "fs/jffs2/Kconfig"
 # UBIFS File system configuration
 source "fs/ubifs/Kconfig"
+source "fs/logfs/Kconfig"
 source "fs/cramfs/Kconfig"
 source "fs/squashfs/Kconfig"
 source "fs/freevxfs/Kconfig"
@@ -186,32 +191,6 @@ source "fs/romfs/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"
-
-config NILFS2_FS
-	tristate "NILFS2 file system support (EXPERIMENTAL)"
-	depends on BLOCK && EXPERIMENTAL
-	select CRC32
-	help
-	  NILFS2 is a log-structured file system (LFS) supporting continuous
-	  snapshotting.  In addition to versioning capability of the entire
-	  file system, users can even restore files mistakenly overwritten or
-	  destroyed just a few seconds ago.  Since this file system can keep
-	  consistency like conventional LFS, it achieves quick recovery after
-	  system crashes.
-
-	  NILFS2 creates a number of checkpoints every few seconds or per
-	  synchronous write basis (unless there is no change).  Users can
-	  select significant versions among continuously created checkpoints,
-	  and can change them into snapshots which will be preserved for long
-	  periods until they are changed back to checkpoints.  Each
-	  snapshot is mountable as a read-only file system concurrently with
-	  its writable mount, and this feature is convenient for online backup.
-
-	  Some features including atime, extended attributes, and POSIX ACLs,
-	  are not supported yet.
-
-	  To compile this file system support as a module, choose M here: the
-	  module will be called nilfs2.  If unsure, say N.
 
 endif # MISC_FILESYSTEMS
 
@@ -244,9 +223,6 @@ config LOCKD_V4
 	depends on FILE_LOCKING
 	default y
 
-config EXPORTFS
-	tristate
-
 config NFS_ACL_SUPPORT
 	tristate
 	select FS_POSIX_ACL
@@ -257,7 +233,7 @@ config NFS_COMMON
 	default y
 
 source "net/sunrpc/Kconfig"
-source "fs/smbfs/Kconfig"
+source "fs/ceph/Kconfig"
 source "fs/cifs/Kconfig"
 source "fs/ncpfs/Kconfig"
 source "fs/coda/Kconfig"

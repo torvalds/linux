@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/capability.h>
 #include <linux/atm_suni.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
@@ -290,8 +291,9 @@ static int suni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 
 static void poll_los(struct atm_dev *dev)
 {
-	dev->signal = GET(RSOP_SIS) & SUNI_RSOP_SIS_LOSV ? ATM_PHY_SIG_LOST :
-	  ATM_PHY_SIG_FOUND;
+	atm_dev_signal_change(dev,
+		GET(RSOP_SIS) & SUNI_RSOP_SIS_LOSV ?
+		ATM_PHY_SIG_LOST : ATM_PHY_SIG_FOUND);
 }
 
 

@@ -27,6 +27,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <asm/atomic.h>
@@ -281,6 +282,7 @@ static long zcrypt_pcica_modexpo(struct zcrypt_device *zdev,
 	struct completion work;
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -318,6 +320,7 @@ static long zcrypt_pcica_modexpo_crt(struct zcrypt_device *zdev,
 	struct completion work;
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = kmalloc(PCICA_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -370,6 +373,7 @@ static int zcrypt_pcica_probe(struct ap_device *ap_dev)
 	zdev->min_mod_size = PCICA_MIN_MOD_SIZE;
 	zdev->max_mod_size = PCICA_MAX_MOD_SIZE;
 	zdev->speed_rating = PCICA_SPEED_RATING;
+	zdev->max_exp_bit_length = PCICA_MAX_MOD_SIZE;
 	ap_dev->reply = &zdev->reply;
 	ap_dev->private = zdev;
 	rc = zcrypt_device_register(zdev);

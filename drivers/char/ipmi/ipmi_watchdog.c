@@ -35,7 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/watchdog.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
@@ -149,6 +149,7 @@
 #define	WDIOC_GET_PRETIMEOUT     _IOW(WATCHDOG_IOCTL_BASE, 22, int)
 #endif
 
+static DEFINE_MUTEX(ipmi_watchdog_mutex);
 static int nowayout = WATCHDOG_NOWAYOUT;
 
 static ipmi_user_t watchdog_user;
@@ -196,7 +197,7 @@ static void ipmi_unregister_watchdog(int ipmi_intf);
  */
 static int start_now;
 
-static int set_param_int(const char *val, struct kernel_param *kp)
+static int set_param_timeout(const char *val, const struct kernel_param *kp)
 {
 	char *endp;
 	int  l;
@@ -215,10 +216,11 @@ static int set_param_int(const char *val, struct kernel_param *kp)
 	return rv;
 }
 
-static int get_param_int(char *buffer, struct kernel_param *kp)
-{
-	return sprintf(buffer, "%i", *((int *)kp->arg));
-}
+static struct kernel_param_ops param_ops_timeout = {
+	.set = set_param_timeout,
+	.get = param_get_int,
+};
+#define param_check_timeout param_check_int
 
 typedef int (*action_fn)(const char *intval, char *outval);
 
@@ -227,7 +229,7 @@ static int preaction_op(const char *inval, char *outval);
 static int preop_op(const char *inval, char *outval);
 static void check_parms(void);
 
-static int set_param_str(const char *val, struct kernel_param *kp)
+static int set_param_str(const char *val, const struct kernel_param *kp)
 {
 	action_fn  fn = (action_fn) kp->arg;
 	int        rv = 0;
@@ -251,7 +253,7 @@ static int set_param_str(const char *val, struct kernel_param *kp)
 	return rv;
 }
 
-static int get_param_str(char *buffer, struct kernel_param *kp)
+static int get_param_str(char *buffer, const struct kernel_param *kp)
 {
 	action_fn fn = (action_fn) kp->arg;
 	int       rv;
@@ -263,7 +265,7 @@ static int get_param_str(char *buffer, struct kernel_param *kp)
 }
 
 
-static int set_param_wdog_ifnum(const char *val, struct kernel_param *kp)
+static int set_param_wdog_ifnum(const char *val, const struct kernel_param *kp)
 {
 	int rv = param_set_int(val, kp);
 	if (rv)
@@ -276,27 +278,38 @@ static int set_param_wdog_ifnum(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-module_param_call(ifnum_to_use, set_param_wdog_ifnum, get_param_int,
-		  &ifnum_to_use, 0644);
+static struct kernel_param_ops param_ops_wdog_ifnum = {
+	.set = set_param_wdog_ifnum,
+	.get = param_get_int,
+};
+
+#define param_check_wdog_ifnum param_check_int
+
+static struct kernel_param_ops param_ops_str = {
+	.set = set_param_str,
+	.get = get_param_str,
+};
+
+module_param(ifnum_to_use, wdog_ifnum, 0644);
 MODULE_PARM_DESC(ifnum_to_use, "The interface number to use for the watchdog "
 		 "timer.  Setting to -1 defaults to the first registered "
 		 "interface");
 
-module_param_call(timeout, set_param_int, get_param_int, &timeout, 0644);
+module_param(timeout, timeout, 0644);
 MODULE_PARM_DESC(timeout, "Timeout value in seconds.");
 
-module_param_call(pretimeout, set_param_int, get_param_int, &pretimeout, 0644);
+module_param(pretimeout, timeout, 0644);
 MODULE_PARM_DESC(pretimeout, "Pretimeout value in seconds.");
 
-module_param_call(action, set_param_str, get_param_str, action_op, 0644);
+module_param_cb(action, &param_ops_str, action_op, 0644);
 MODULE_PARM_DESC(action, "Timeout action. One of: "
 		 "reset, none, power_cycle, power_off.");
 
-module_param_call(preaction, set_param_str, get_param_str, preaction_op, 0644);
+module_param_cb(preaction, &param_ops_str, preaction_op, 0644);
 MODULE_PARM_DESC(preaction, "Pretimeout action.  One of: "
 		 "pre_none, pre_smi, pre_nmi, pre_int.");
 
-module_param_call(preop, set_param_str, get_param_str, preop_op, 0644);
+module_param_cb(preop, &param_ops_str, preop_op, 0644);
 MODULE_PARM_DESC(preop, "Pretimeout driver operation.  One of: "
 		 "preop_none, preop_panic, preop_give_data.");
 
@@ -659,7 +672,7 @@ static struct watchdog_info ident = {
 	.identity	= "IPMI"
 };
 
-static int ipmi_ioctl(struct inode *inode, struct file *file,
+static int ipmi_ioctl(struct file *file,
 		      unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -728,6 +741,19 @@ static int ipmi_ioctl(struct inode *inode, struct file *file,
 	default:
 		return -ENOIOCTLCMD;
 	}
+}
+
+static long ipmi_unlocked_ioctl(struct file *file,
+				unsigned int cmd,
+				unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&ipmi_watchdog_mutex);
+	ret = ipmi_ioctl(file, cmd, arg);
+	mutex_unlock(&ipmi_watchdog_mutex);
+
+	return ret;
 }
 
 static ssize_t ipmi_write(struct file *file,
@@ -819,7 +845,6 @@ static int ipmi_open(struct inode *ino, struct file *filep)
 		if (test_and_set_bit(0, &ipmi_wdog_open))
 			return -EBUSY;
 
-		cycle_kernel_lock();
 
 		/*
 		 * Don't start the timer now, let it start on the
@@ -880,10 +905,11 @@ static const struct file_operations ipmi_wdog_fops = {
 	.read    = ipmi_read,
 	.poll    = ipmi_poll,
 	.write   = ipmi_write,
-	.ioctl   = ipmi_ioctl,
+	.unlocked_ioctl = ipmi_unlocked_ioctl,
 	.open    = ipmi_open,
 	.release = ipmi_close,
 	.fasync  = ipmi_fasync,
+	.llseek  = no_llseek,
 };
 
 static struct miscdevice ipmi_wdog_miscdev = {
@@ -1055,7 +1081,7 @@ ipmi_nmi(struct notifier_block *self, unsigned long val, void *data)
 {
 	struct die_args *args = data;
 
-	if (val != DIE_NMI)
+	if (val != DIE_NMIUNKNOWN)
 		return NOTIFY_OK;
 
 	/* Hack, if it's a memory or I/O error, ignore it. */

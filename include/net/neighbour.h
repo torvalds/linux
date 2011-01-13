@@ -24,6 +24,7 @@
 
 #include <linux/err.h>
 #include <linux/sysctl.h>
+#include <linux/workqueue.h>
 #include <net/rtnetlink.h>
 
 /*
@@ -36,8 +37,7 @@
 
 struct neighbour;
 
-struct neigh_parms
-{
+struct neigh_parms {
 #ifdef CONFIG_NET_NS
 	struct net *net;
 #endif
@@ -69,8 +69,7 @@ struct neigh_parms
 	int	locktime;
 };
 
-struct neigh_statistics
-{
+struct neigh_statistics {
 	unsigned long allocs;		/* number of allocated neighs */
 	unsigned long destroys;		/* number of destroyed neighs */
 	unsigned long hash_grows;	/* number of hash resizes */
@@ -89,40 +88,35 @@ struct neigh_statistics
 	unsigned long unres_discards;	/* number of unresolved drops */
 };
 
-#define NEIGH_CACHE_STAT_INC(tbl, field)				\
-	do {								\
-		preempt_disable();					\
-		(per_cpu_ptr((tbl)->stats, smp_processor_id())->field)++; \
-		preempt_enable();					\
-	} while (0)
+#define NEIGH_CACHE_STAT_INC(tbl, field) this_cpu_inc((tbl)->stats->field)
 
-struct neighbour
-{
-	struct neighbour	*next;
+struct neighbour {
+	struct neighbour __rcu	*next;
 	struct neigh_table	*tbl;
 	struct neigh_parms	*parms;
-	struct net_device		*dev;
-	unsigned long		used;
 	unsigned long		confirmed;
 	unsigned long		updated;
+	rwlock_t		lock;
+	atomic_t		refcnt;
+	struct sk_buff_head	arp_queue;
+	struct timer_list	timer;
+	unsigned long		used;
+	atomic_t		probes;
 	__u8			flags;
 	__u8			nud_state;
 	__u8			type;
 	__u8			dead;
-	atomic_t		probes;
-	rwlock_t		lock;
+	seqlock_t		ha_lock;
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 	struct hh_cache		*hh;
-	atomic_t		refcnt;
 	int			(*output)(struct sk_buff *skb);
-	struct sk_buff_head	arp_queue;
-	struct timer_list	timer;
-	struct neigh_ops	*ops;
+	const struct neigh_ops	*ops;
+	struct rcu_head		rcu;
+	struct net_device	*dev;
 	u8			primary_key[0];
 };
 
-struct neigh_ops
-{
+struct neigh_ops {
 	int			family;
 	void			(*solicit)(struct neighbour *, struct sk_buff*);
 	void			(*error_report)(struct neighbour *, struct sk_buff*);
@@ -132,8 +126,7 @@ struct neigh_ops
 	int			(*queue_xmit)(struct sk_buff*);
 };
 
-struct pneigh_entry
-{
+struct pneigh_entry {
 	struct pneigh_entry	*next;
 #ifdef CONFIG_NET_NS
 	struct net		*net;
@@ -147,38 +140,43 @@ struct pneigh_entry
  *	neighbour table manipulation
  */
 
+struct neigh_hash_table {
+	struct neighbour __rcu	**hash_buckets;
+	unsigned int		hash_mask;
+	__u32			hash_rnd;
+	struct rcu_head		rcu;
+};
 
-struct neigh_table
-{
+
+struct neigh_table {
 	struct neigh_table	*next;
 	int			family;
 	int			entry_size;
 	int			key_len;
-	__u32			(*hash)(const void *pkey, const struct net_device *);
+	__u32			(*hash)(const void *pkey,
+					const struct net_device *dev,
+					__u32 hash_rnd);
 	int			(*constructor)(struct neighbour *);
 	int			(*pconstructor)(struct pneigh_entry *);
 	void			(*pdestructor)(struct pneigh_entry *);
 	void			(*proxy_redo)(struct sk_buff *skb);
 	char			*id;
 	struct neigh_parms	parms;
-	/* HACK. gc_* shoul follow parms without a gap! */
+	/* HACK. gc_* should follow parms without a gap! */
 	int			gc_interval;
 	int			gc_thresh1;
 	int			gc_thresh2;
 	int			gc_thresh3;
 	unsigned long		last_flush;
-	struct timer_list 	gc_timer;
+	struct delayed_work	gc_work;
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;
 	atomic_t		entries;
 	rwlock_t		lock;
 	unsigned long		last_rand;
-	struct kmem_cache		*kmem_cachep;
-	struct neigh_statistics	*stats;
-	struct neighbour	**hash_buckets;
-	unsigned int		hash_mask;
-	__u32			hash_rnd;
-	unsigned int		hash_chain_gc;
+	struct kmem_cache	*kmem_cachep;
+	struct neigh_statistics	__percpu *stats;
+	struct neigh_hash_table __rcu *nht;
 	struct pneigh_entry	**phash_buckets;
 };
 
@@ -248,6 +246,7 @@ extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_en
 struct neigh_seq_state {
 	struct seq_net_private p;
 	struct neigh_table *tbl;
+	struct neigh_hash_table *nht;
 	void *(*neigh_sub_iter)(struct neigh_seq_state *state,
 				struct neighbour *n, loff_t *pos);
 	unsigned int bucket;
@@ -262,10 +261,8 @@ extern void neigh_seq_stop(struct seq_file *, void *);
 
 extern int			neigh_sysctl_register(struct net_device *dev, 
 						      struct neigh_parms *p,
-						      int p_id, int pdev_id,
 						      char *p_name,
-						      proc_handler *proc_handler,
-						      ctl_handler *strategy);
+						      proc_handler *proc_handler);
 extern void			neigh_sysctl_unregister(struct neigh_parms *p);
 
 static inline void __neigh_parms_put(struct neigh_parms *parms)
@@ -306,11 +303,28 @@ static inline void neigh_confirm(struct neighbour *neigh)
 
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {
-	neigh->used = jiffies;
+	unsigned long now = jiffies;
+	
+	if (neigh->used != now)
+		neigh->used = now;
 	if (!(neigh->nud_state&(NUD_CONNECTED|NUD_DELAY|NUD_PROBE)))
 		return __neigh_event_send(neigh, skb);
 	return 0;
 }
+
+#ifdef CONFIG_BRIDGE_NETFILTER
+static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
+{
+	unsigned seq, hh_alen;
+
+	do {
+		seq = read_seqbegin(&hh->hh_lock);
+		hh_alen = HH_DATA_ALIGN(ETH_HLEN);
+		memcpy(skb->data - hh_alen, hh->hh_data, ETH_ALEN + hh_alen - ETH_HLEN);
+	} while (read_seqretry(&hh->hh_lock, seq));
+	return 0;
+}
+#endif
 
 static inline int neigh_hh_output(struct hh_cache *hh, struct sk_buff *skb)
 {
@@ -363,4 +377,14 @@ struct neighbour_cb {
 
 #define NEIGH_CB(skb)	((struct neighbour_cb *)(skb)->cb)
 
+static inline void neigh_ha_snapshot(char *dst, const struct neighbour *n,
+				     const struct net_device *dev)
+{
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&n->ha_lock);
+		memcpy(dst, n->ha, dev->addr_len);
+	} while (read_seqretry(&n->ha_lock, seq));
+}
 #endif

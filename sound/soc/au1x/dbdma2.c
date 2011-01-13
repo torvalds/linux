@@ -2,7 +2,7 @@
  * Au12x0/Au1550 PSC ALSA ASoC audio support.
  *
  * (c) 2007-2008 MSC Vertriebsges.m.b.H.,
- *	Manuel Lauss <mano@roarinelk.homelinux.net>
+ *	Manuel Lauss <manuel.lauss@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,9 +10,6 @@
  *
  * DMA glue for Au1x-PSC audio.
  *
- * NOTE: all of these drivers can only work with a SINGLE instance
- *	 of a PSC. Multiple independent audio devices are impossible
- *	 with ASoC v1.
  */
 
 
@@ -51,8 +48,8 @@ struct au1xpsc_audio_dmadata {
 	struct snd_pcm_substream *substream;
 	unsigned long curr_period;	/* current segment DDMA is working on */
 	unsigned long q_period;		/* queue period(s) */
-	unsigned long dma_area;		/* address of queued DMA area */
-	unsigned long dma_area_s;	/* start address of DMA area */
+	dma_addr_t dma_area;		/* address of queued DMA area */
+	dma_addr_t dma_area_s;		/* start address of DMA area */
 	unsigned long pos;		/* current byte position being played */
 	unsigned long periods;		/* number of SG segments in total */
 	unsigned long period_bytes;	/* size in bytes of one SG segment */
@@ -60,9 +57,6 @@ struct au1xpsc_audio_dmadata {
 	/* runtime data */
 	int msbits;
 };
-
-/* instance data. There can be only one, MacLeod!!!! */
-static struct au1xpsc_audio_dmadata *au1xpsc_audio_pcmdma[2];
 
 /*
  * These settings are somewhat okay, at least on my machine audio plays
@@ -94,8 +88,7 @@ static const struct snd_pcm_hardware au1xpsc_pcm_hardware = {
 
 static void au1x_pcm_queue_tx(struct au1xpsc_audio_dmadata *cd)
 {
-	au1xxx_dbdma_put_source_flags(cd->ddma_chan,
-				(void *)phys_to_virt(cd->dma_area),
+	au1xxx_dbdma_put_source(cd->ddma_chan, cd->dma_area,
 				cd->period_bytes, DDMA_FLAGS_IE);
 
 	/* update next-to-queue period */
@@ -109,9 +102,8 @@ static void au1x_pcm_queue_tx(struct au1xpsc_audio_dmadata *cd)
 
 static void au1x_pcm_queue_rx(struct au1xpsc_audio_dmadata *cd)
 {
-	au1xxx_dbdma_put_dest_flags(cd->ddma_chan,
-				(void *)phys_to_virt(cd->dma_area),
-				cd->period_bytes, DDMA_FLAGS_IE);
+	au1xxx_dbdma_put_dest(cd->ddma_chan, cd->dma_area,
+			      cd->period_bytes, DDMA_FLAGS_IE);
 
 	/* update next-to-queue period */
 	++cd->q_period;
@@ -201,6 +193,14 @@ out:
 	return 0;
 }
 
+static inline struct au1xpsc_audio_dmadata *to_dmadata(struct snd_pcm_substream *ss)
+{
+	struct snd_soc_pcm_runtime *rtd = ss->private_data;
+	struct au1xpsc_audio_dmadata *pcd =
+				snd_soc_platform_get_drvdata(rtd->platform);
+	return &pcd[SUBSTREAM_TYPE(ss)];
+}
+
 static int au1xpsc_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params)
 {
@@ -213,7 +213,7 @@ static int au1xpsc_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto out;
 
 	stype = SUBSTREAM_TYPE(substream);
-	pcd = au1xpsc_audio_pcmdma[stype];
+	pcd = to_dmadata(substream);
 
 	DBG("runtime->dma_area = 0x%08lx dma_addr_t = 0x%08lx dma_size = %d "
 	    "runtime->min_align %d\n",
@@ -233,7 +233,7 @@ static int au1xpsc_pcm_hw_params(struct snd_pcm_substream *substream,
 	pcd->substream = substream;
 	pcd->period_bytes = params_period_bytes(params);
 	pcd->periods = params_periods(params);
-	pcd->dma_area_s = pcd->dma_area = (unsigned long)runtime->dma_addr;
+	pcd->dma_area_s = pcd->dma_area = runtime->dma_addr;
 	pcd->q_period = 0;
 	pcd->curr_period = 0;
 	pcd->pos = 0;
@@ -251,8 +251,7 @@ static int au1xpsc_pcm_hw_free(struct snd_pcm_substream *substream)
 
 static int au1xpsc_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	struct au1xpsc_audio_dmadata *pcd =
-			au1xpsc_audio_pcmdma[SUBSTREAM_TYPE(substream)];
+	struct au1xpsc_audio_dmadata *pcd = to_dmadata(substream);
 
 	au1xxx_dbdma_reset(pcd->ddma_chan);
 
@@ -269,7 +268,7 @@ static int au1xpsc_pcm_prepare(struct snd_pcm_substream *substream)
 
 static int au1xpsc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	u32 c = au1xpsc_audio_pcmdma[SUBSTREAM_TYPE(substream)]->ddma_chan;
+	u32 c = to_dmadata(substream)->ddma_chan;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -289,8 +288,7 @@ static int au1xpsc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 static snd_pcm_uframes_t
 au1xpsc_pcm_pointer(struct snd_pcm_substream *substream)
 {
-	return bytes_to_frames(substream->runtime,
-		au1xpsc_audio_pcmdma[SUBSTREAM_TYPE(substream)]->pos);
+	return bytes_to_frames(substream->runtime, to_dmadata(substream)->pos);
 }
 
 static int au1xpsc_pcm_open(struct snd_pcm_substream *substream)
@@ -301,7 +299,7 @@ static int au1xpsc_pcm_open(struct snd_pcm_substream *substream)
 
 static int au1xpsc_pcm_close(struct snd_pcm_substream *substream)
 {
-	au1x_pcm_dbdma_free(au1xpsc_audio_pcmdma[SUBSTREAM_TYPE(substream)]);
+	au1x_pcm_dbdma_free(to_dmadata(substream));
 	return 0;
 }
 
@@ -331,18 +329,21 @@ static int au1xpsc_pcm_new(struct snd_card *card,
 	return 0;
 }
 
-static int au1xpsc_pcm_probe(struct platform_device *pdev)
+/* au1xpsc audio platform */
+struct snd_soc_platform_driver au1xpsc_soc_platform = {
+	.ops		= &au1xpsc_pcm_ops,
+	.pcm_new	= au1xpsc_pcm_new,
+	.pcm_free	= au1xpsc_pcm_free_dma_buffers,
+};
+
+static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 {
+	struct au1xpsc_audio_dmadata *dmadata;
 	struct resource *r;
 	int ret;
 
-	if (au1xpsc_audio_pcmdma[PCM_TX] || au1xpsc_audio_pcmdma[PCM_RX])
-		return -EBUSY;
-
-	/* TX DMA */
-	au1xpsc_audio_pcmdma[PCM_TX]
-		= kzalloc(sizeof(struct au1xpsc_audio_dmadata), GFP_KERNEL);
-	if (!au1xpsc_audio_pcmdma[PCM_TX])
+	dmadata = kzalloc(2 * sizeof(struct au1xpsc_audio_dmadata), GFP_KERNEL);
+	if (!dmadata)
 		return -ENOMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -350,73 +351,110 @@ static int au1xpsc_pcm_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto out1;
 	}
-	(au1xpsc_audio_pcmdma[PCM_TX])->ddma_id = r->start;
+	dmadata[PCM_TX].ddma_id = r->start;
 
 	/* RX DMA */
-	au1xpsc_audio_pcmdma[PCM_RX]
-		= kzalloc(sizeof(struct au1xpsc_audio_dmadata), GFP_KERNEL);
-	if (!au1xpsc_audio_pcmdma[PCM_RX])
-		return -ENOMEM;
-
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!r) {
 		ret = -ENODEV;
-		goto out2;
+		goto out1;
 	}
-	(au1xpsc_audio_pcmdma[PCM_RX])->ddma_id = r->start;
+	dmadata[PCM_RX].ddma_id = r->start;
 
-	return 0;
+	platform_set_drvdata(pdev, dmadata);
 
-out2:
-	kfree(au1xpsc_audio_pcmdma[PCM_RX]);
-	au1xpsc_audio_pcmdma[PCM_RX] = NULL;
+	ret = snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
+	if (!ret)
+		return ret;
+
 out1:
-	kfree(au1xpsc_audio_pcmdma[PCM_TX]);
-	au1xpsc_audio_pcmdma[PCM_TX] = NULL;
+	kfree(dmadata);
 	return ret;
 }
 
-static int au1xpsc_pcm_remove(struct platform_device *pdev)
+static int __devexit au1xpsc_pcm_drvremove(struct platform_device *pdev)
 {
-	int i;
+	struct au1xpsc_audio_dmadata *dmadata = platform_get_drvdata(pdev);
 
-	for (i = 0; i < 2; i++) {
-		if (au1xpsc_audio_pcmdma[i]) {
-			au1x_pcm_dbdma_free(au1xpsc_audio_pcmdma[i]);
-			kfree(au1xpsc_audio_pcmdma[i]);
-			au1xpsc_audio_pcmdma[i] = NULL;
-		}
-	}
+	snd_soc_unregister_platform(&pdev->dev);
+	kfree(dmadata);
 
 	return 0;
 }
 
-/* au1xpsc audio platform */
-struct snd_soc_platform au1xpsc_soc_platform = {
-	.name		= "au1xpsc-pcm-dbdma",
-	.probe		= au1xpsc_pcm_probe,
-	.remove		= au1xpsc_pcm_remove,
-	.pcm_ops 	= &au1xpsc_pcm_ops,
-	.pcm_new	= au1xpsc_pcm_new,
-	.pcm_free	= au1xpsc_pcm_free_dma_buffers,
+static struct platform_driver au1xpsc_pcm_driver = {
+	.driver	= {
+		.name	= "au1xpsc-pcm",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= au1xpsc_pcm_drvprobe,
+	.remove		= __devexit_p(au1xpsc_pcm_drvremove),
 };
-EXPORT_SYMBOL_GPL(au1xpsc_soc_platform);
 
-static int __init au1xpsc_audio_dbdma_init(void)
+static int __init au1xpsc_audio_dbdma_load(void)
 {
-	au1xpsc_audio_pcmdma[PCM_TX] = NULL;
-	au1xpsc_audio_pcmdma[PCM_RX] = NULL;
-	return snd_soc_register_platform(&au1xpsc_soc_platform);
+	return platform_driver_register(&au1xpsc_pcm_driver);
 }
 
-static void __exit au1xpsc_audio_dbdma_exit(void)
+static void __exit au1xpsc_audio_dbdma_unload(void)
 {
-	snd_soc_unregister_platform(&au1xpsc_soc_platform);
+	platform_driver_unregister(&au1xpsc_pcm_driver);
 }
 
-module_init(au1xpsc_audio_dbdma_init);
-module_exit(au1xpsc_audio_dbdma_exit);
+module_init(au1xpsc_audio_dbdma_load);
+module_exit(au1xpsc_audio_dbdma_unload);
+
+
+struct platform_device *au1xpsc_pcm_add(struct platform_device *pdev)
+{
+	struct resource *res, *r;
+	struct platform_device *pd;
+	int id[2];
+	int ret;
+
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!r)
+		return NULL;
+	id[0] = r->start;
+
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!r)
+		return NULL;
+	id[1] = r->start;
+
+	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	if (!res)
+		return NULL;
+
+	res[0].start = res[0].end = id[0];
+	res[1].start = res[1].end = id[1];
+	res[0].flags = res[1].flags = IORESOURCE_DMA;
+
+	pd = platform_device_alloc("au1xpsc-pcm", pdev->id);
+	if (!pd)
+		goto out;
+
+	pd->resource = res;
+	pd->num_resources = 2;
+
+	ret = platform_device_add(pd);
+	if (!ret)
+		return pd;
+
+	platform_device_put(pd);
+out:
+	kfree(res);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(au1xpsc_pcm_add);
+
+void au1xpsc_pcm_destroy(struct platform_device *dmapd)
+{
+	if (dmapd)
+		platform_device_unregister(dmapd);
+}
+EXPORT_SYMBOL_GPL(au1xpsc_pcm_destroy);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au12x0/Au1550 PSC Audio DMA driver");
-MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");
+MODULE_AUTHOR("Manuel Lauss");

@@ -17,7 +17,9 @@
  * General Public License for more details.
  */
 
+#include <linux/kernel.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 /* Needed for AOP_TRUNCATED_PAGE in mlog_errno() */
@@ -153,30 +155,29 @@ static int status_map[] = {
 
 static int dlm_status_to_errno(enum dlm_status status)
 {
-	BUG_ON(status > (sizeof(status_map) / sizeof(status_map[0])));
+	BUG_ON(status < 0 || status >= ARRAY_SIZE(status_map));
 
 	return status_map[status];
 }
 
 static void o2dlm_lock_ast_wrapper(void *astarg)
 {
-	BUG_ON(o2cb_stack.sp_proto == NULL);
+	struct ocfs2_dlm_lksb *lksb = astarg;
 
-	o2cb_stack.sp_proto->lp_lock_ast(astarg);
+	lksb->lksb_conn->cc_proto->lp_lock_ast(lksb);
 }
 
 static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 {
-	BUG_ON(o2cb_stack.sp_proto == NULL);
+	struct ocfs2_dlm_lksb *lksb = astarg;
 
-	o2cb_stack.sp_proto->lp_blocking_ast(astarg, level);
+	lksb->lksb_conn->cc_proto->lp_blocking_ast(lksb, level);
 }
 
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
+	struct ocfs2_dlm_lksb *lksb = astarg;
 	int error = dlm_status_to_errno(status);
-
-	BUG_ON(o2cb_stack.sp_proto == NULL);
 
 	/*
 	 * In o2dlm, you can get both the lock_ast() for the lock being
@@ -192,16 +193,15 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 	if (status == DLM_CANCELGRANT)
 		return;
 
-	o2cb_stack.sp_proto->lp_unlock_ast(astarg, error);
+	lksb->lksb_conn->cc_proto->lp_unlock_ast(lksb, error);
 }
 
 static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 int mode,
-			 union ocfs2_dlm_lksb *lksb,
+			 struct ocfs2_dlm_lksb *lksb,
 			 u32 flags,
 			 void *name,
-			 unsigned int namelen,
-			 void *astarg)
+			 unsigned int namelen)
 {
 	enum dlm_status status;
 	int o2dlm_mode = mode_to_o2dlm(mode);
@@ -210,38 +210,47 @@ static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 
 	status = dlmlock(conn->cc_lockspace, o2dlm_mode, &lksb->lksb_o2dlm,
 			 o2dlm_flags, name, namelen,
-			 o2dlm_lock_ast_wrapper, astarg,
+			 o2dlm_lock_ast_wrapper, lksb,
 			 o2dlm_blocking_ast_wrapper);
 	ret = dlm_status_to_errno(status);
 	return ret;
 }
 
 static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
-			   union ocfs2_dlm_lksb *lksb,
-			   u32 flags,
-			   void *astarg)
+			   struct ocfs2_dlm_lksb *lksb,
+			   u32 flags)
 {
 	enum dlm_status status;
 	int o2dlm_flags = flags_to_o2dlm(flags);
 	int ret;
 
 	status = dlmunlock(conn->cc_lockspace, &lksb->lksb_o2dlm,
-			   o2dlm_flags, o2dlm_unlock_ast_wrapper, astarg);
+			   o2dlm_flags, o2dlm_unlock_ast_wrapper, lksb);
 	ret = dlm_status_to_errno(status);
 	return ret;
 }
 
-static int o2cb_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+static int o2cb_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 {
 	return dlm_status_to_errno(lksb->lksb_o2dlm.status);
 }
 
-static void *o2cb_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+/*
+ * o2dlm aways has a "valid" LVB. If the dlm loses track of the LVB
+ * contents, it will zero out the LVB.  Thus the caller can always trust
+ * the contents.
+ */
+static int o2cb_dlm_lvb_valid(struct ocfs2_dlm_lksb *lksb)
+{
+	return 1;
+}
+
+static void *o2cb_dlm_lvb(struct ocfs2_dlm_lksb *lksb)
 {
 	return (void *)(lksb->lksb_o2dlm.lvb);
 }
 
-static void o2cb_dump_lksb(union ocfs2_dlm_lksb *lksb)
+static void o2cb_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 {
 	dlm_print_one_lock(lksb->lksb_o2dlm.lockid);
 }
@@ -266,14 +275,16 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	u32 dlm_key;
 	struct dlm_ctxt *dlm;
 	struct o2dlm_private *priv;
-	struct dlm_protocol_version dlm_version;
+	struct dlm_protocol_version fs_version;
 
 	BUG_ON(conn == NULL);
-	BUG_ON(o2cb_stack.sp_proto == NULL);
+	BUG_ON(conn->cc_proto == NULL);
 
 	/* for now we only have one cluster/node, make sure we see it
 	 * in the heartbeat universe */
 	if (!o2hb_check_local_node_heartbeating()) {
+		if (o2hb_global_heartbeat_active())
+			mlog(ML_ERROR, "Global heartbeat not started\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -293,18 +304,18 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	/* used by the dlm code to make message headers unique, each
 	 * node in this domain must agree on this. */
 	dlm_key = crc32_le(0, conn->cc_name, conn->cc_namelen);
-	dlm_version.pv_major = conn->cc_version.pv_major;
-	dlm_version.pv_minor = conn->cc_version.pv_minor;
+	fs_version.pv_major = conn->cc_version.pv_major;
+	fs_version.pv_minor = conn->cc_version.pv_minor;
 
-	dlm = dlm_register_domain(conn->cc_name, dlm_key, &dlm_version);
+	dlm = dlm_register_domain(conn->cc_name, dlm_key, &fs_version);
 	if (IS_ERR(dlm)) {
 		rc = PTR_ERR(dlm);
 		mlog_errno(rc);
 		goto out_free;
 	}
 
-	conn->cc_version.pv_major = dlm_version.pv_major;
-	conn->cc_version.pv_minor = dlm_version.pv_minor;
+	conn->cc_version.pv_major = fs_version.pv_major;
+	conn->cc_version.pv_minor = fs_version.pv_minor;
 	conn->cc_lockspace = dlm;
 
 	dlm_register_eviction_cb(dlm, &priv->op_eviction_cb);
@@ -354,6 +365,7 @@ static struct ocfs2_stack_operations o2cb_stack_ops = {
 	.dlm_lock	= o2cb_dlm_lock,
 	.dlm_unlock	= o2cb_dlm_unlock,
 	.lock_status	= o2cb_dlm_lock_status,
+	.lvb_valid	= o2cb_dlm_lvb_valid,
 	.lock_lvb	= o2cb_dlm_lvb,
 	.dump_lksb	= o2cb_dump_lksb,
 };

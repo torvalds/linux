@@ -20,8 +20,8 @@
  * 02110-1301 USA
  */
 #include <linux/miscdevice.h>
+#include <linux/gfp.h>
 #include <linux/file.h>
-#include <linux/smp_lock.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -322,7 +322,6 @@ static int tgt_open(struct inode *inode, struct file *file)
 {
 	tx_ring.tr_idx = rx_ring.tr_idx = 0;
 
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -332,6 +331,7 @@ static const struct file_operations tgt_fops = {
 	.poll		= tgt_poll,
 	.write		= tgt_write,
 	.mmap		= tgt_mmap,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice tgt_miscdev = {

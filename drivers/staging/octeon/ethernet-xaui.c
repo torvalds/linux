@@ -26,21 +26,19 @@
 **********************************************************************/
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <linux/mii.h>
 #include <net/dst.h>
 
 #include <asm/octeon/octeon.h>
 
 #include "ethernet-defines.h"
 #include "octeon-ethernet.h"
-#include "ethernet-common.h"
 #include "ethernet-util.h"
 
 #include "cvmx-helper.h"
 
 #include "cvmx-gmxx-defs.h"
 
-static int cvm_oct_xaui_open(struct net_device *dev)
+int cvm_oct_xaui_open(struct net_device *dev)
 {
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -60,7 +58,7 @@ static int cvm_oct_xaui_open(struct net_device *dev)
 	return 0;
 }
 
-static int cvm_oct_xaui_stop(struct net_device *dev)
+int cvm_oct_xaui_stop(struct net_device *dev)
 {
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -112,10 +110,8 @@ int cvm_oct_xaui_init(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	cvm_oct_common_init(dev);
-	dev->open = cvm_oct_xaui_open;
-	dev->stop = cvm_oct_xaui_stop;
-	dev->stop(dev);
-	if (!octeon_is_simulation())
+	dev->netdev_ops->ndo_stop(dev);
+	if (!octeon_is_simulation() && priv->phydev == NULL)
 		priv->poll = cvm_oct_xaui_poll;
 
 	return 0;

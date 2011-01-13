@@ -24,9 +24,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <asm/qe.h>
 #include <asm/fsl_gtm.h>
-#include "../core/hcd.h"
 #include "fhci.h"
 
 static void recycle_frame(struct fhci_usb *usb, struct packet *pkt)
@@ -37,7 +37,7 @@ static void recycle_frame(struct fhci_usb *usb, struct packet *pkt)
 	pkt->info = 0;
 	pkt->priv_data = NULL;
 
-	cq_put(usb->ep0->empty_frame_Q, pkt);
+	cq_put(&usb->ep0->empty_frame_Q, pkt);
 }
 
 /* confirm submitted packet */
@@ -57,7 +57,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 		if ((td->data + td->actual_len) && trans_len)
 			memcpy(td->data + td->actual_len, pkt->data,
 			       trans_len);
-		cq_put(usb->ep0->dummy_packets_Q, pkt->data);
+		cq_put(&usb->ep0->dummy_packets_Q, pkt->data);
 	}
 
 	recycle_frame(usb, pkt);
@@ -125,7 +125,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 /*
  * Flush all transmitted packets from BDs
  * This routine is called when disabling the USB port to flush all
- * transmissions that are allready scheduled in the BDs
+ * transmissions that are already scheduled in the BDs
  */
 void fhci_flush_all_transmissions(struct fhci_usb *usb)
 {
@@ -213,7 +213,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 	}
 
 	/* update frame object fields before transmitting */
-	pkt = cq_get(usb->ep0->empty_frame_Q);
+	pkt = cq_get(&usb->ep0->empty_frame_Q);
 	if (!pkt) {
 		fhci_dbg(usb->fhci, "there is no empty frame\n");
 		return -1;
@@ -222,7 +222,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 
 	pkt->info = 0;
 	if (data == NULL) {
-		data = cq_get(usb->ep0->dummy_packets_Q);
+		data = cq_get(&usb->ep0->dummy_packets_Q);
 		BUG_ON(!data);
 		pkt->info = PKT_DUMMY_PACKET;
 	}
@@ -246,7 +246,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 		list_del_init(&td->frame_lh);
 		td->status = USB_TD_OK;
 		if (pkt->info & PKT_DUMMY_PACKET)
-			cq_put(usb->ep0->dummy_packets_Q, pkt->data);
+			cq_put(&usb->ep0->dummy_packets_Q, pkt->data);
 		recycle_frame(usb, pkt);
 		usb->actual_frame->total_bytes -= (len + PROTOCOL_OVERHEAD);
 		fhci_err(usb->fhci, "host transaction failed\n");
@@ -576,9 +576,7 @@ irqreturn_t fhci_irq(struct usb_hcd *hcd)
 			out_be16(&usb->fhci->regs->usb_event,
 				 usb->saved_msk);
 		} else if (usb->port_status == FHCI_PORT_DISABLED) {
-			if (fhci_ioports_check_bus_state(fhci) == 1 &&
-					usb->port_status != FHCI_PORT_LOW &&
-					usb->port_status != FHCI_PORT_FULL)
+			if (fhci_ioports_check_bus_state(fhci) == 1)
 				fhci_device_connected_interrupt(fhci);
 		}
 		usb_er &= ~USB_E_RESET_MASK;
@@ -605,9 +603,7 @@ irqreturn_t fhci_irq(struct usb_hcd *hcd)
 	}
 
 	if (usb_er & USB_E_IDLE_MASK) {
-		if (usb->port_status == FHCI_PORT_DISABLED &&
-				usb->port_status != FHCI_PORT_LOW &&
-				usb->port_status != FHCI_PORT_FULL) {
+		if (usb->port_status == FHCI_PORT_DISABLED) {
 			usb_er &= ~USB_E_RESET_MASK;
 			fhci_device_connected_interrupt(fhci);
 		} else if (usb->port_status ==
@@ -631,7 +627,7 @@ irqreturn_t fhci_irq(struct usb_hcd *hcd)
 
 
 /*
- * Process normal completions(error or sucess) and clean the schedule.
+ * Process normal completions(error or success) and clean the schedule.
  *
  * This is the main path for handing urbs back to drivers. The only other patth
  * is process_del_list(),which unlinks URBs by scanning EDs,instead of scanning

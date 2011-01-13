@@ -23,7 +23,7 @@
 #define PHISON_DEBUG
 
 #define DRV_NAME		"phison_e-box"	/* #0003 */
-#define DRV_VERSION 		"0.91"		/* #0003 */
+#define DRV_VERSION		"0.91"		/* #0003 */
 
 #define PCI_VENDOR_ID_PHISON	0x1987
 #define PCI_DEVICE_ID_PS5000	0x5000
@@ -56,20 +56,20 @@ static int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
-		.udma_mask 	= ATA_UDMA5,
+		.udma_mask	= ATA_UDMA5,
 
 		.port_ops	= &phison_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
 
-	ret = ata_pci_sff_init_one(pdev, ppi, &phison_sht, NULL);
+	ret = ata_pci_bmdma_init_one(pdev, ppi, &phison_sht, NULL, 0);
 
 	dev_dbg(&pdev->dev, "phison_init_one(), ret = %x\n", ret);
 
 	return ret;
 }
 
-static struct pci_device_id phison_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(phison_pci_tbl) = {
 	{ PCI_VENDOR_ID_PHISON, PCI_DEVICE_ID_PS5000, PCI_ANY_ID, PCI_ANY_ID,
 	  PCI_CLASS_STORAGE_IDE << 8, 0xffff00, 0 },
 	{ 0, },
@@ -87,12 +87,12 @@ static struct pci_driver phison_pci_driver = {
 #endif
 };
 
-static int phison_ide_init(void)
+static int __init phison_ide_init(void)
 {
 	return pci_register_driver(&phison_pci_driver);
 }
 
-static void phison_ide_exit(void)
+static void __exit phison_ide_exit(void)
 {
 	pci_unregister_driver(&phison_pci_driver);
 }

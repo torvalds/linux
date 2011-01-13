@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/ide.h>
 
 int generic_ide_suspend(struct device *dev, pm_message_t mesg)
@@ -10,9 +11,11 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	struct request_pm_state rqpm;
 	int ret;
 
-	/* call ACPI _GTM only once */
-	if ((drive->dn & 1) == 0 || pair == NULL)
-		ide_acpi_get_timing(hwif);
+	if (ide_port_acpi(hwif)) {
+		/* call ACPI _GTM only once */
+		if ((drive->dn & 1) == 0 || pair == NULL)
+			ide_acpi_get_timing(hwif);
+	}
 
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
@@ -26,9 +29,11 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
 	blk_put_request(rq);
 
-	/* call ACPI _PS3 only after both devices are suspended */
-	if (ret == 0 && ((drive->dn & 1) || pair == NULL))
-		ide_acpi_set_state(hwif, 0);
+	if (ret == 0 && ide_port_acpi(hwif)) {
+		/* call ACPI _PS3 only after both devices are suspended */
+		if ((drive->dn & 1) || pair == NULL)
+			ide_acpi_set_state(hwif, 0);
+	}
 
 	return ret;
 }
@@ -42,13 +47,15 @@ int generic_ide_resume(struct device *dev)
 	struct request_pm_state rqpm;
 	int err;
 
-	/* call ACPI _PS0 / _STM only once */
-	if ((drive->dn & 1) == 0 || pair == NULL) {
-		ide_acpi_set_state(hwif, 1);
-		ide_acpi_push_timing(hwif);
-	}
+	if (ide_port_acpi(hwif)) {
+		/* call ACPI _PS0 / _STM only once */
+		if ((drive->dn & 1) == 0 || pair == NULL) {
+			ide_acpi_set_state(hwif, 1);
+			ide_acpi_push_timing(hwif);
+		}
 
-	ide_acpi_exec_tfs(drive);
+		ide_acpi_exec_tfs(drive);
+	}
 
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
@@ -184,10 +191,10 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 
 #ifdef DEBUG_PM
 	printk("%s: completing PM request, %s\n", drive->name,
-	       blk_pm_suspend_request(rq) ? "suspend" : "resume");
+	       (rq->cmd_type == REQ_TYPE_PM_SUSPEND) ? "suspend" : "resume");
 #endif
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (blk_pm_suspend_request(rq))
+	if (rq->cmd_type == REQ_TYPE_PM_SUSPEND)
 		blk_stop_queue(q);
 	else
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
@@ -203,11 +210,11 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 {
 	struct request_pm_state *pm = rq->special;
 
-	if (blk_pm_suspend_request(rq) &&
+	if (rq->cmd_type == REQ_TYPE_PM_SUSPEND &&
 	    pm->pm_step == IDE_PM_START_SUSPEND)
 		/* Mark drive blocked when starting the suspend sequence. */
 		drive->dev_flags |= IDE_DFLAG_BLOCKED;
-	else if (blk_pm_resume_request(rq) &&
+	else if (rq->cmd_type == REQ_TYPE_PM_RESUME &&
 		 pm->pm_step == IDE_PM_START_RESUME) {
 		/*
 		 * The first thing we do on wakeup is to wait for BSY bit to

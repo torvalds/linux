@@ -73,7 +73,6 @@ static int rx_copybreak;
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -88,6 +87,7 @@ static int rx_copybreak;
 #include <linux/bitops.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */
 static char version[] __devinitdata =
@@ -131,8 +131,8 @@ IIIa. Ring buffers
 
 IVb. References
 
-http://www.smsc.com/main/tools/discontinued/83c171.pdf
-http://www.smsc.com/main/tools/discontinued/83c175.pdf
+http://www.smsc.com/media/Downloads_Public/discontinued/83c171.pdf
+http://www.smsc.com/media/Downloads_Public/discontinued/83c175.pdf
 http://scyld.com/expert/NWay.html
 http://www.national.com/pf/DP/DP83840A.html
 
@@ -167,7 +167,7 @@ static const struct epic_chip_info pci_id_tbl[] = {
 };
 
 
-static struct pci_device_id epic_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(epic_pci_tbl) = {
 	{ 0x10B8, 0x0005, 0x1092, 0x0AB4, 0, 0, SMSC_83C170_0 },
 	{ 0x10B8, 0x0005, PCI_ANY_ID, PCI_ANY_ID, 0, 0, SMSC_83C170 },
 	{ 0x10B8, 0x0006, PCI_ANY_ID, PCI_ANY_ID,
@@ -231,7 +231,7 @@ static const u16 media2miictl[16] = {
  * The EPIC100 Rx and Tx buffer descriptors.  Note that these
  * really ARE host-endian; it's not a misannotation.  We tell
  * the card to byteswap them internally on big-endian hosts -
- * look for #ifdef CONFIG_BIG_ENDIAN in epic_open().
+ * look for #ifdef __BIG_ENDIAN in epic_open().
  */
 
 struct epic_tx_desc {
@@ -278,7 +278,6 @@ struct epic_private {
 	struct pci_dev *pci_dev;			/* PCI bus location. */
 	int chip_id, chip_flags;
 
-	struct net_device_stats stats;
 	struct timer_list timer;			/* Media selection timer. */
 	int tx_threshold;
 	unsigned char mc_filter[8];
@@ -298,7 +297,8 @@ static void epic_restart(struct net_device *dev);
 static void epic_timer(unsigned long data);
 static void epic_tx_timeout(struct net_device *dev);
 static void epic_init_ring(struct net_device *dev);
-static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t epic_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev);
 static int epic_rx(struct net_device *dev, int budget);
 static int epic_poll(struct napi_struct *napi, int budget);
 static irqreturn_t epic_interrupt(int irq, void *dev_instance);
@@ -338,8 +338,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 #ifndef MODULE
 	static int printed_version;
 	if (!printed_version++)
-		printk (KERN_INFO "%s" KERN_INFO "%s",
-			version, version2);
+		printk(KERN_INFO "%s%s", version, version2);
 #endif
 
 	card_idx++;
@@ -630,8 +629,8 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 		barrier();
 		if ((inl(ioaddr + MIICtrl) & MII_READOP) == 0) {
 			/* Work around read failure bug. */
-			if (phy_id == 1 && location < 6
-				&& inw(ioaddr + MIIData) == 0xffff) {
+			if (phy_id == 1 && location < 6 &&
+			    inw(ioaddr + MIIData) == 0xffff) {
 				outl(read_cmd, ioaddr + MIICtrl);
 				continue;
 			}
@@ -653,7 +652,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int loc, int value)
 		if ((inl(ioaddr + MIICtrl) & MII_WRITEOP) == 0)
 			break;
 	}
-	return;
 }
 
 
@@ -668,7 +666,7 @@ static int epic_open(struct net_device *dev)
 	outl(0x4001, ioaddr + GENCTL);
 
 	napi_enable(&ep->napi);
-	if ((retval = request_irq(dev->irq, &epic_interrupt, IRQF_SHARED, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, epic_interrupt, IRQF_SHARED, dev->name, dev))) {
 		napi_disable(&ep->napi);
 		return retval;
 	}
@@ -692,7 +690,7 @@ static int epic_open(struct net_device *dev)
 		outl((inl(ioaddr + NVCTL) & ~0x003C) | 0x4800, ioaddr + NVCTL);
 
 	/* Tell the chip to byteswap descriptors on big-endian hosts */
-#ifdef CONFIG_BIG_ENDIAN
+#ifdef __BIG_ENDIAN
 	outl(0x4432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
 	inl(ioaddr + GENCTL);
 	outl(0x0432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
@@ -760,7 +758,7 @@ static int epic_open(struct net_device *dev)
 	init_timer(&ep->timer);
 	ep->timer.expires = jiffies + 3*HZ;
 	ep->timer.data = (unsigned long)dev;
-	ep->timer.function = &epic_timer;				/* timer handler */
+	ep->timer.function = epic_timer;				/* timer handler */
 	add_timer(&ep->timer);
 
 	return 0;
@@ -771,7 +769,6 @@ static int epic_open(struct net_device *dev)
 static void epic_pause(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
-	struct epic_private *ep = netdev_priv(dev);
 
 	netif_stop_queue (dev);
 
@@ -782,9 +779,9 @@ static void epic_pause(struct net_device *dev)
 
 	/* Update the error counts. */
 	if (inw(ioaddr + COMMAND) != 0xffff) {
-		ep->stats.rx_missed_errors += inb(ioaddr + MPCNT);
-		ep->stats.rx_frame_errors += inb(ioaddr + ALICNT);
-		ep->stats.rx_crc_errors += inb(ioaddr + CRCCNT);
+		dev->stats.rx_missed_errors += inb(ioaddr + MPCNT);
+		dev->stats.rx_frame_errors += inb(ioaddr + ALICNT);
+		dev->stats.rx_crc_errors += inb(ioaddr + CRCCNT);
 	}
 
 	/* Remove the packets on the Rx queue. */
@@ -808,7 +805,7 @@ static void epic_restart(struct net_device *dev)
 	for (i = 16; i > 0; i--)
 		outl(0x0008, ioaddr + TEST1);
 
-#ifdef CONFIG_BIG_ENDIAN
+#ifdef __BIG_ENDIAN
 	outl(0x0432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
 #else
 	outl(0x0412 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
@@ -841,7 +838,6 @@ static void epic_restart(struct net_device *dev)
 		   " interrupt %4.4x.\n",
 		   dev->name, (int)inl(ioaddr + COMMAND), (int)inl(ioaddr + GENCTL),
 		   (int)inl(ioaddr + INTSTAT));
-	return;
 }
 
 static void check_media(struct net_device *dev)
@@ -902,15 +898,15 @@ static void epic_tx_timeout(struct net_device *dev)
 		}
 	}
 	if (inw(ioaddr + TxSTAT) & 0x10) {		/* Tx FIFO underflow. */
-		ep->stats.tx_fifo_errors++;
+		dev->stats.tx_fifo_errors++;
 		outl(RestartTx, ioaddr + COMMAND);
 	} else {
 		epic_restart(dev);
 		outl(TxQueued, dev->base_addr + COMMAND);
 	}
 
-	dev->trans_start = jiffies;
-	ep->stats.tx_errors++;
+	dev->trans_start = jiffies; /* prevent tx timeout */
+	dev->stats.tx_errors++;
 	if (!ep->tx_full)
 		netif_wake_queue(dev);
 }
@@ -939,7 +935,7 @@ static void epic_init_ring(struct net_device *dev)
 
 	/* Fill in the Rx buffers.  Handle allocation failure gracefully. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		struct sk_buff *skb = dev_alloc_skb(ep->rx_buf_sz);
+		struct sk_buff *skb = dev_alloc_skb(ep->rx_buf_sz + 2);
 		ep->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
@@ -959,10 +955,9 @@ static void epic_init_ring(struct net_device *dev)
 			(i+1)*sizeof(struct epic_tx_desc);
 	}
 	ep->tx_ring[i-1].next = ep->tx_ring_dma;
-	return;
 }
 
-static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct epic_private *ep = netdev_priv(dev);
 	int entry, free_count;
@@ -970,7 +965,7 @@ static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	if (skb_padto(skb, ETH_ZLEN))
-		return 0;
+		return NETDEV_TX_OK;
 
 	/* Caution: the write order is important here, set the field with the
 	   "ownership" bit last. */
@@ -1007,20 +1002,19 @@ static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Trigger an immediate transmit demand. */
 	outl(TxQueued, dev->base_addr + COMMAND);
 
-	dev->trans_start = jiffies;
 	if (debug > 4)
 		printk(KERN_DEBUG "%s: Queued Tx packet size %d to slot %d, "
 			   "flag %2.2x Tx status %8.8x.\n",
 			   dev->name, (int)skb->len, entry, ctrl_word,
 			   (int)inl(dev->base_addr + TxSTAT));
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void epic_tx_error(struct net_device *dev, struct epic_private *ep,
 			  int status)
 {
-	struct net_device_stats *stats = &ep->stats;
+	struct net_device_stats *stats = &dev->stats;
 
 #ifndef final_version
 	/* There was an major error, log it. */
@@ -1057,9 +1051,9 @@ static void epic_tx(struct net_device *dev, struct epic_private *ep)
 			break;	/* It still hasn't been Txed */
 
 		if (likely(txstatus & 0x0001)) {
-			ep->stats.collisions += (txstatus >> 8) & 15;
-			ep->stats.tx_packets++;
-			ep->stats.tx_bytes += ep->tx_skbuff[entry]->len;
+			dev->stats.collisions += (txstatus >> 8) & 15;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += ep->tx_skbuff[entry]->len;
 		} else
 			epic_tx_error(dev, ep, txstatus);
 
@@ -1129,12 +1123,12 @@ static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 			goto out;
 
 		/* Always update the error counts to avoid overhead later. */
-		ep->stats.rx_missed_errors += inb(ioaddr + MPCNT);
-		ep->stats.rx_frame_errors += inb(ioaddr + ALICNT);
-		ep->stats.rx_crc_errors += inb(ioaddr + CRCCNT);
+		dev->stats.rx_missed_errors += inb(ioaddr + MPCNT);
+		dev->stats.rx_frame_errors += inb(ioaddr + ALICNT);
+		dev->stats.rx_crc_errors += inb(ioaddr + CRCCNT);
 
 		if (status & TxUnderrun) { /* Tx FIFO underflow. */
-			ep->stats.tx_fifo_errors++;
+			dev->stats.tx_fifo_errors++;
 			outl(ep->tx_threshold += 128, ioaddr + TxThresh);
 			/* Restart the transmit process. */
 			outl(RestartTx, ioaddr + COMMAND);
@@ -1187,10 +1181,10 @@ static int epic_rx(struct net_device *dev, int budget)
 			if (status & 0x2000) {
 				printk(KERN_WARNING "%s: Oversized Ethernet frame spanned "
 					   "multiple buffers, status %4.4x!\n", dev->name, status);
-				ep->stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 			} else if (status & 0x0006)
 				/* Rx Frame errors are counted in hardware. */
-				ep->stats.rx_errors++;
+				dev->stats.rx_errors++;
 		} else {
 			/* Malloc up new buffer, compatible with net-2e. */
 			/* Omit the four octet CRC from the length. */
@@ -1205,8 +1199,8 @@ static int epic_rx(struct net_device *dev, int budget)
 			}
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
-			if (pkt_len < rx_copybreak
-				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(ep->pci_dev,
 							    ep->rx_ring[entry].bufaddr,
@@ -1227,8 +1221,8 @@ static int epic_rx(struct net_device *dev, int budget)
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_receive_skb(skb);
-			ep->stats.rx_packets++;
-			ep->stats.rx_bytes += pkt_len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += pkt_len;
 		}
 		work_done++;
 		entry = (++ep->cur_rx) % RX_RING_SIZE;
@@ -1239,7 +1233,7 @@ static int epic_rx(struct net_device *dev, int budget)
 		entry = ep->dirty_rx % RX_RING_SIZE;
 		if (ep->rx_skbuff[entry] == NULL) {
 			struct sk_buff *skb;
-			skb = ep->rx_skbuff[entry] = dev_alloc_skb(ep->rx_buf_sz);
+			skb = ep->rx_skbuff[entry] = dev_alloc_skb(ep->rx_buf_sz + 2);
 			if (skb == NULL)
 				break;
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
@@ -1263,7 +1257,7 @@ static void epic_rx_err(struct net_device *dev, struct epic_private *ep)
 	if (status == EpicRemoved)
 		return;
 	if (status & RxOverflow) 	/* Missed a Rx frame. */
-		ep->stats.rx_errors++;
+		dev->stats.rx_errors++;
 	if (status & (RxOverflow | RxFull))
 		outw(RxQueued, ioaddr + COMMAND);
 }
@@ -1361,17 +1355,16 @@ static int epic_close(struct net_device *dev)
 
 static struct net_device_stats *epic_get_stats(struct net_device *dev)
 {
-	struct epic_private *ep = netdev_priv(dev);
 	long ioaddr = dev->base_addr;
 
 	if (netif_running(dev)) {
 		/* Update the error counts. */
-		ep->stats.rx_missed_errors += inb(ioaddr + MPCNT);
-		ep->stats.rx_frame_errors += inb(ioaddr + ALICNT);
-		ep->stats.rx_crc_errors += inb(ioaddr + CRCCNT);
+		dev->stats.rx_missed_errors += inb(ioaddr + MPCNT);
+		dev->stats.rx_frame_errors += inb(ioaddr + ALICNT);
+		dev->stats.rx_crc_errors += inb(ioaddr + CRCCNT);
 	}
 
-	return &ep->stats;
+	return &dev->stats;
 }
 
 /* Set or clear the multicast filter for this adaptor.
@@ -1390,23 +1383,22 @@ static void set_rx_mode(struct net_device *dev)
 		outl(0x002C, ioaddr + RxCtrl);
 		/* Unconditionally log net taps. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
-	} else if ((dev->mc_count > 0)  ||  (dev->flags & IFF_ALLMULTI)) {
+	} else if ((!netdev_mc_empty(dev)) || (dev->flags & IFF_ALLMULTI)) {
 		/* There is apparently a chip bug, so the multicast filter
 		   is never enabled. */
 		/* Too many to filter perfectly -- accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		outl(0x000C, ioaddr + RxCtrl);
-	} else if (dev->mc_count == 0) {
+	} else if (netdev_mc_empty(dev)) {
 		outl(0x0004, ioaddr + RxCtrl);
 		return;
 	} else {					/* Never executed, for now. */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-			 i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(ha, dev) {
 			unsigned int bit_nr =
-				ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f;
+				ether_crc_le(ETH_ALEN, ha->addr) & 0x3f;
 			mc_filter[bit_nr >> 3] |= (1 << bit_nr);
 		}
 	}
@@ -1416,7 +1408,6 @@ static void set_rx_mode(struct net_device *dev)
 			outw(((u16 *)mc_filter)[i], ioaddr + MC0 + i*4);
 		memcpy(ep->mc_filter, mc_filter, sizeof(mc_filter));
 	}
-	return;
 }
 
 static void netdev_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *info)
@@ -1600,7 +1591,7 @@ static int __init epic_init (void)
 {
 /* when a module, this is printed whether or not devices are found in probe */
 #ifdef MODULE
-	printk (KERN_INFO "%s" KERN_INFO "%s",
+	printk (KERN_INFO "%s%s",
 		version, version2);
 #endif
 

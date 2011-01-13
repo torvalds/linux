@@ -19,7 +19,6 @@
 #include <linux/jiffies.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
 #include "fat.h"
@@ -44,6 +43,9 @@ static int vfat_revalidate_shortname(struct dentry *dentry)
 
 static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
 	/* This is not negative dentry. Always valid. */
 	if (dentry->d_inode)
 		return 1;
@@ -52,6 +54,9 @@ static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 {
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
 	/*
 	 * This is not negative dentry. Always valid.
 	 *
@@ -86,13 +91,16 @@ static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 }
 
 /* returns the length of a struct qstr, ignoring trailing dots */
-static unsigned int vfat_striptail_len(struct qstr *qstr)
+static unsigned int __vfat_striptail_len(unsigned int len, const char *name)
 {
-	unsigned int len = qstr->len;
-
-	while (len && qstr->name[len - 1] == '.')
+	while (len && name[len - 1] == '.')
 		len--;
 	return len;
+}
+
+static unsigned int vfat_striptail_len(const struct qstr *qstr)
+{
+	return __vfat_striptail_len(qstr->len, qstr->name);
 }
 
 /*
@@ -101,7 +109,8 @@ static unsigned int vfat_striptail_len(struct qstr *qstr)
  * that the existing dentry can be used. The vfat fs routines will
  * return ENOENT or EINVAL as appropriate.
  */
-static int vfat_hash(struct dentry *dentry, struct qstr *qstr)
+static int vfat_hash(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
 	qstr->hash = full_name_hash(qstr->name, vfat_striptail_len(qstr));
 	return 0;
@@ -113,9 +122,10 @@ static int vfat_hash(struct dentry *dentry, struct qstr *qstr)
  * that the existing dentry can be used. The vfat fs routines will
  * return ENOENT or EINVAL as appropriate.
  */
-static int vfat_hashi(struct dentry *dentry, struct qstr *qstr)
+static int vfat_hashi(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
-	struct nls_table *t = MSDOS_SB(dentry->d_inode->i_sb)->nls_io;
+	struct nls_table *t = MSDOS_SB(dentry->d_sb)->nls_io;
 	const unsigned char *name;
 	unsigned int len;
 	unsigned long hash;
@@ -134,16 +144,18 @@ static int vfat_hashi(struct dentry *dentry, struct qstr *qstr)
 /*
  * Case insensitive compare of two vfat names.
  */
-static int vfat_cmpi(struct dentry *dentry, struct qstr *a, struct qstr *b)
+static int vfat_cmpi(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct nls_table *t = MSDOS_SB(dentry->d_inode->i_sb)->nls_io;
+	struct nls_table *t = MSDOS_SB(parent->d_sb)->nls_io;
 	unsigned int alen, blen;
 
 	/* A filename cannot end in '.' or we treat it like it has none */
-	alen = vfat_striptail_len(a);
-	blen = vfat_striptail_len(b);
+	alen = vfat_striptail_len(name);
+	blen = __vfat_striptail_len(len, str);
 	if (alen == blen) {
-		if (nls_strnicmp(t, a->name, b->name, alen) == 0)
+		if (nls_strnicmp(t, name->name, str, alen) == 0)
 			return 0;
 	}
 	return 1;
@@ -152,15 +164,17 @@ static int vfat_cmpi(struct dentry *dentry, struct qstr *a, struct qstr *b)
 /*
  * Case sensitive compare of two vfat names.
  */
-static int vfat_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b)
+static int vfat_cmp(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
 	unsigned int alen, blen;
 
 	/* A filename cannot end in '.' or we treat it like it has none */
-	alen = vfat_striptail_len(a);
-	blen = vfat_striptail_len(b);
+	alen = vfat_striptail_len(name);
+	blen = __vfat_striptail_len(len, str);
 	if (alen == blen) {
-		if (strncmp(a->name, b->name, alen) == 0)
+		if (strncmp(name->name, str, alen) == 0)
 			return 0;
 	}
 	return 1;
@@ -310,7 +324,7 @@ static int vfat_create_shortname(struct inode *dir, struct nls_table *nls,
 {
 	struct fat_mount_options *opts = &MSDOS_SB(dir->i_sb)->options;
 	wchar_t *ip, *ext_start, *end, *name_start;
-	unsigned char base[9], ext[4], buf[8], *p;
+	unsigned char base[9], ext[4], buf[5], *p;
 	unsigned char charbuf[NLS_MAX_CHARSET_SIZE];
 	int chl, chi;
 	int sz = 0, extlen, baselen, i, numtail_baselen, numtail2_baselen;
@@ -468,7 +482,7 @@ static int vfat_create_shortname(struct inode *dir, struct nls_table *nls,
 			return 0;
 	}
 
-	i = jiffies & 0xffff;
+	i = jiffies;
 	sz = (jiffies >> 16) & 0x7;
 	if (baselen > 2) {
 		baselen = numtail2_baselen;
@@ -477,7 +491,7 @@ static int vfat_create_shortname(struct inode *dir, struct nls_table *nls,
 	name_res[baselen + 4] = '~';
 	name_res[baselen + 5] = '1' + sz;
 	while (1) {
-		sprintf(buf, "%04X", i);
+		snprintf(buf, sizeof(buf), "%04X", i & 0xffff);
 		memcpy(&name_res[baselen], buf, 4);
 		if (vfat_find_form(dir, name_res) < 0)
 			break;
@@ -500,24 +514,17 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 	int charlen;
 
 	if (utf8) {
-		int name_len = strlen(name);
-
-		*outlen = utf8s_to_utf16s(name, PATH_MAX, (wchar_t *) outname);
-
-		/*
-		 * We stripped '.'s before and set len appropriately,
-		 * but utf8s_to_utf16s doesn't care about len
-		 */
-		*outlen -= (name_len - len);
-
-		if (*outlen > 255)
+		*outlen = utf8s_to_utf16s(name, len, (wchar_t *)outname);
+		if (*outlen < 0)
+			return *outlen;
+		else if (*outlen > FAT_LFN_LEN)
 			return -ENAMETOOLONG;
 
 		op = &outname[*outlen * sizeof(wchar_t)];
 	} else {
 		if (nls) {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 255;
+			     i < len && *outlen <= FAT_LFN_LEN;
 			     *outlen += 1)
 			{
 				if (escape && (*ip == ':')) {
@@ -557,7 +564,7 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 				return -ENAMETOOLONG;
 		} else {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 255;
+			     i < len && *outlen <= FAT_LFN_LEN;
 			     i++, *outlen += 1)
 			{
 				*op++ = *ip++;
@@ -709,6 +716,15 @@ static int vfat_find(struct inode *dir, struct qstr *qname,
 	return fat_search_long(dir, qname->name, len, sinfo);
 }
 
+/*
+ * (nfsd's) anonymous disconnected dentry?
+ * NOTE: !IS_ROOT() is not anonymous (I.e. d_splice_alias() did the job).
+ */
+static int vfat_d_anon_disconn(struct dentry *dentry)
+{
+	return IS_ROOT(dentry) && (dentry->d_flags & DCACHE_DISCONNECTED);
+}
+
 static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 				  struct nameidata *nd)
 {
@@ -737,11 +753,11 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	alias = d_find_alias(inode);
-	if (alias && !(alias->d_flags & DCACHE_DISCONNECTED)) {
+	if (alias && !vfat_d_anon_disconn(alias)) {
 		/*
-		 * This inode has non DCACHE_DISCONNECTED dentry. This
-		 * means, the user did ->lookup() by an another name
-		 * (longname vs 8.3 alias of it) in past.
+		 * This inode has non anonymous-DCACHE_DISCONNECTED
+		 * dentry. This means, the user did ->lookup() by an
+		 * another name (longname vs 8.3 alias of it) in past.
 		 *
 		 * Switch to new one for reason of locality if possible.
 		 */
@@ -751,14 +767,16 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 		iput(inode);
 		unlock_super(sb);
 		return alias;
-	}
+	} else
+		dput(alias);
+
 out:
 	unlock_super(sb);
-	dentry->d_op = sb->s_root->d_op;
+	d_set_d_op(dentry, sb->s_root->d_op);
 	dentry->d_time = dentry->d_parent->d_inode->i_version;
 	dentry = d_splice_alias(inode, dentry);
 	if (dentry) {
-		dentry->d_op = sb->s_root->d_op;
+		d_set_d_op(dentry, sb->s_root->d_op);
 		dentry->d_time = dentry->d_parent->d_inode->i_version;
 	}
 	return dentry;
@@ -1052,30 +1070,33 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
 
+	lock_super(sb);
 	res = fat_fill_super(sb, data, silent, &vfat_dir_inode_operations, 1);
-	if (res)
+	if (res) {
+		unlock_super(sb);
 		return res;
+	}
 
 	if (MSDOS_SB(sb)->options.name_check != 's')
-		sb->s_root->d_op = &vfat_ci_dentry_ops;
+		d_set_d_op(sb->s_root, &vfat_ci_dentry_ops);
 	else
-		sb->s_root->d_op = &vfat_dentry_ops;
+		d_set_d_op(sb->s_root, &vfat_dentry_ops);
 
+	unlock_super(sb);
 	return 0;
 }
 
-static int vfat_get_sb(struct file_system_type *fs_type,
+static struct dentry *vfat_mount(struct file_system_type *fs_type,
 		       int flags, const char *dev_name,
-		       void *data, struct vfsmount *mnt)
+		       void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, vfat_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, vfat_fill_super);
 }
 
 static struct file_system_type vfat_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "vfat",
-	.get_sb		= vfat_get_sb,
+	.mount		= vfat_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

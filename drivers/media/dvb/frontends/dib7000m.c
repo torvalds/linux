@@ -9,6 +9,7 @@
  *	published by the Free Software Foundation, version 2.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 
 #include "dvb_frontend.h"
@@ -804,7 +805,7 @@ static void dib7000m_set_channel(struct dib7000m_state *state, struct dvb_fronte
 	value = 0;
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= (0 << 7); break;
-		case /* 4K MODE */ 255: value |= (2 << 7); break;
+		case TRANSMISSION_MODE_4K: value |= (2 << 7); break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= (1 << 7); break;
 	}
@@ -865,7 +866,7 @@ static void dib7000m_set_channel(struct dib7000m_state *state, struct dvb_fronte
 	/* P_dvsy_sync_wait */
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_8K: value = 256; break;
-		case /* 4K MODE */ 255: value = 128; break;
+		case TRANSMISSION_MODE_4K: value = 128; break;
 		case TRANSMISSION_MODE_2K:
 		default: value = 64; break;
 	}
@@ -1019,7 +1020,7 @@ static int dib7000m_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	value = (6 << 8) | 0x80;
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= (7 << 12); break;
-		case /* 4K MODE */ 255: value |= (8 << 12); break;
+		case TRANSMISSION_MODE_4K: value |= (8 << 12); break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= (9 << 12); break;
 	}
@@ -1029,7 +1030,7 @@ static int dib7000m_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	value = (0 << 4);
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= 0x6; break;
-		case /* 4K MODE */ 255: value |= 0x7; break;
+		case TRANSMISSION_MODE_4K: value |= 0x7; break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= 0x8; break;
 	}
@@ -1039,7 +1040,7 @@ static int dib7000m_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	value = (0 << 4);
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= 0x6; break;
-		case /* 4K MODE */ 255: value |= 0x7; break;
+		case TRANSMISSION_MODE_4K: value |= 0x7; break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= 0x8; break;
 	}

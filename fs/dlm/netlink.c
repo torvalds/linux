@@ -9,6 +9,7 @@
 #include <net/genetlink.h>
 #include <linux/dlm.h>
 #include <linux/dlm_netlink.h>
+#include <linux/gfp.h>
 
 #include "dlm_internal.h"
 
@@ -26,7 +27,7 @@ static int prepare_data(u8 cmd, struct sk_buff **skbp, size_t size)
 	struct sk_buff *skb;
 	void *data;
 
-	skb = genlmsg_new(size, GFP_KERNEL);
+	skb = genlmsg_new(size, GFP_NOFS);
 	if (!skb)
 		return -ENOMEM;
 
@@ -63,7 +64,7 @@ static int send_data(struct sk_buff *skb)
 		return rv;
 	}
 
-	return genlmsg_unicast(skb, listener_nlpid);
+	return genlmsg_unicast(&init_net, skb, listener_nlpid);
 }
 
 static int user_cmd(struct sk_buff *skb, struct genl_info *info)
@@ -80,24 +81,11 @@ static struct genl_ops dlm_nl_ops = {
 
 int __init dlm_netlink_init(void)
 {
-	int rv;
-
-	rv = genl_register_family(&family);
-	if (rv)
-		return rv;
-
-	rv = genl_register_ops(&family, &dlm_nl_ops);
-	if (rv < 0)
-		goto err;
-	return 0;
- err:
-	genl_unregister_family(&family);
-	return rv;
+	return genl_register_family_with_ops(&family, &dlm_nl_ops, 1);
 }
 
 void dlm_netlink_exit(void)
 {
-	genl_unregister_ops(&family, &dlm_nl_ops);
 	genl_unregister_family(&family);
 }
 

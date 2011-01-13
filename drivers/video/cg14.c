@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -447,7 +446,7 @@ static struct sbus_mmap_map __cg14_mmap_map[CG14_MMAP_ENTRIES] __devinitdata = {
 	{ .size = 0 }
 };
 
-static void cg14_unmap_regs(struct of_device *op, struct fb_info *info,
+static void cg14_unmap_regs(struct platform_device *op, struct fb_info *info,
 			    struct cg14_par *par)
 {
 	if (par->regs)
@@ -464,9 +463,9 @@ static void cg14_unmap_regs(struct of_device *op, struct fb_info *info,
 			   info->screen_base, info->fix.smem_len);
 }
 
-static int __devinit cg14_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit cg14_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct cg14_par *par;
 	int is_8mb, linebytes, i, err;
@@ -571,7 +570,7 @@ out_err:
 	return err;
 }
 
-static int __devexit cg14_remove(struct of_device *op)
+static int __devexit cg14_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct cg14_par *par = info->par;
@@ -597,8 +596,11 @@ static const struct of_device_id cg14_match[] = {
 MODULE_DEVICE_TABLE(of, cg14_match);
 
 static struct of_platform_driver cg14_driver = {
-	.name		= "cg14",
-	.match_table	= cg14_match,
+	.driver = {
+		.name = "cg14",
+		.owner = THIS_MODULE,
+		.of_match_table = cg14_match,
+	},
 	.probe		= cg14_probe,
 	.remove		= __devexit_p(cg14_remove),
 };
@@ -608,12 +610,12 @@ static int __init cg14_init(void)
 	if (fb_get_options("cg14fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&cg14_driver, &of_bus_type);
+	return of_register_platform_driver(&cg14_driver);
 }
 
 static void __exit cg14_exit(void)
 {
-	of_unregister_driver(&cg14_driver);
+	of_unregister_platform_driver(&cg14_driver);
 }
 
 module_init(cg14_init);

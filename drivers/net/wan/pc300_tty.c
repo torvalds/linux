@@ -366,7 +366,7 @@ static void cpc_tty_close(struct tty_struct *tty, struct file *flip)
 	int res;
 
 	if (!tty || !tty->driver_data ) {
-		CPC_TTY_DBG("hdlx-tty: no TTY in close \n");
+		CPC_TTY_DBG("hdlx-tty: no TTY in close\n");
 		return;
 	}
 
@@ -540,7 +540,7 @@ static int cpc_tty_chars_in_buffer(struct tty_struct *tty)
 		return -ENODEV; 
 	}
    
-	return(0); 
+	return 0;
 } 
 
 static int pc300_tiocmset(struct tty_struct *tty, struct file *file,

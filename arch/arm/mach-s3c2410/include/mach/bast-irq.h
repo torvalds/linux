@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/include/mach/bast-irq.h
  *
- * Copyright (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003-2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * Machine BAST - IRQ Number definitions

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,8 @@
 #ifndef RT2X00USB_H
 #define RT2X00USB_H
 
+#include <linux/usb.h>
+
 #define to_usb_device_intf(d) \
 ({ \
 	struct usb_interface *intf = to_usb_interface(d); \
@@ -39,17 +41,11 @@
 #define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
 
 /*
- * Register defines.
- * Some registers require multiple attempts before success,
- * in those cases REGISTER_BUSY_COUNT attempts should be
- * taken with a REGISTER_BUSY_DELAY interval.
  * For USB vendor requests we need to pass a timeout
  * time in ms, for this we use the REGISTER_TIMEOUT,
  * however when loading firmware a higher value is
  * required. In that case we use the REGISTER_TIMEOUT_FIRMWARE.
  */
-#define REGISTER_BUSY_COUNT		5
-#define REGISTER_BUSY_DELAY		100
 #define REGISTER_TIMEOUT		500
 #define REGISTER_TIMEOUT_FIRMWARE	1000
 
@@ -171,25 +167,6 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 				   const u16 buffer_length, const int timeout);
 
 /**
- * rt2x00usb_vendor_request_large_buff - Send register command to device (buffered)
- * @rt2x00dev: Pointer to &struct rt2x00_dev
- * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
- * @requesttype: Request type &USB_VENDOR_REQUEST_*
- * @offset: Register start offset to perform action on
- * @buffer: Buffer where information will be read/written to by device
- * @buffer_length: Size of &buffer
- * @timeout: Operation timeout
- *
- * This function is used to transfer register data in blocks larger
- * then CSR_CACHE_SIZE. Use for firmware upload, keys and beacons.
- */
-int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
-					const u8 request, const u8 requesttype,
-					const u16 offset, const void *buffer,
-					const u16 buffer_length,
-					const int timeout);
-
-/**
  * rt2x00usb_vendor_request_sw - Send single register command to device
  * @rt2x00dev: Pointer to &struct rt2x00_dev
  * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
@@ -232,7 +209,7 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 }
 
 /**
- * rt2x00usb_regbusy_read - Read 32bit register word
+ * rt2x00usb_register_read - Read 32bit register word
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  * @offset: Register offset
  * @value: Pointer to where register contents should be stored
@@ -340,12 +317,13 @@ static inline void rt2x00usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
  * through rt2x00usb_vendor_request_buff().
  */
 static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
-					       const unsigned int offset,
-					       void *value, const u32 length)
+						 const unsigned int offset,
+						 const void *value,
+						 const u32 length)
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      value, length,
+				      (void *)value, length,
 				      REGISTER_TIMEOUT32(length));
 }
 
@@ -364,22 +342,13 @@ static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
  */
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   const unsigned int offset,
-			   struct rt2x00_field32 field,
+			   const struct rt2x00_field32 field,
 			   u32 *reg);
 
 /*
  * Radio handlers
  */
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
-
-/**
- * rt2x00usb_write_tx_data - Initialize URB for TX operation
- * @entry: The entry where the frame is located
- *
- * This function will initialize the URB and skb descriptor
- * to prepare the entry for the actual TX operation.
- */
-int rt2x00usb_write_tx_data(struct queue_entry *entry);
 
 /**
  * struct queue_entry_priv_usb: Per entry USB specific information
@@ -409,26 +378,32 @@ struct queue_entry_priv_usb_bcn {
 };
 
 /**
- * rt2x00usb_kick_tx_queue - Kick data queue
- * @rt2x00dev: Pointer to &struct rt2x00_dev
- * @qid: Data queue to kick
+ * rt2x00usb_kick_queue - Kick data queue
+ * @queue: Data queue to kick
  *
  * This will walk through all entries of the queue and push all pending
  * frames to the hardware as a single burst.
  */
-void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-			     const enum data_queue_qid qid);
+void rt2x00usb_kick_queue(struct data_queue *queue);
 
 /**
- * rt2x00usb_kill_tx_queue - Kill data queue
- * @rt2x00dev: Pointer to &struct rt2x00_dev
- * @qid: Data queue to kill
+ * rt2x00usb_flush_queue - Flush data queue
+ * @queue: Data queue to stop
  *
  * This will walk through all entries of the queue and kill all
- * previously kicked frames before they can be send.
+ * URB's which were send to the device.
  */
-void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
-			      const enum data_queue_qid qid);
+void rt2x00usb_flush_queue(struct data_queue *queue);
+
+/**
+ * rt2x00usb_watchdog - Watchdog for USB communication
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ *
+ * Check the health of the USB communication and determine
+ * if timeouts have occured. If this is the case, this function
+ * will reset all communication to restore functionality again.
+ */
+void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Device initialization handlers.

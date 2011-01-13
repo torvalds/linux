@@ -13,9 +13,13 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/gfp.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/protocol.h>
@@ -94,6 +98,7 @@ struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto)
 
 	return NULL;
 }
+EXPORT_SYMBOL(ip_vs_proto_get);
 
 
 /*
@@ -124,7 +129,8 @@ ip_vs_create_timeout_table(int *table, int size)
  *	Set timeout value for state specified by name
  */
 int
-ip_vs_set_state_timeout(int *table, int num, char **names, char *name, int to)
+ip_vs_set_state_timeout(int *table, int num, const char *const *names,
+			const char *name, int to)
 {
 	int i;
 
@@ -162,26 +168,24 @@ ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
 
 	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
 	if (ih == NULL)
-		sprintf(buf, "%s TRUNCATED", pp->name);
+		sprintf(buf, "TRUNCATED");
 	else if (ih->frag_off & htons(IP_OFFSET))
-		sprintf(buf, "%s %pI4->%pI4 frag",
-			pp->name, &ih->saddr, &ih->daddr);
+		sprintf(buf, "%pI4->%pI4 frag", &ih->saddr, &ih->daddr);
 	else {
-		__be16 _ports[2], *pptr
-;
+		__be16 _ports[2], *pptr;
+
 		pptr = skb_header_pointer(skb, offset + ih->ihl*4,
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
-			sprintf(buf, "%s TRUNCATED %pI4->%pI4",
-				pp->name, &ih->saddr, &ih->daddr);
+			sprintf(buf, "TRUNCATED %pI4->%pI4",
+				&ih->saddr, &ih->daddr);
 		else
-			sprintf(buf, "%s %pI4:%u->%pI4:%u",
-				pp->name,
+			sprintf(buf, "%pI4:%u->%pI4:%u",
 				&ih->saddr, ntohs(pptr[0]),
 				&ih->daddr, ntohs(pptr[1]));
 	}
 
-	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
+	pr_debug("%s: %s %s\n", msg, pp->name, buf);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -196,38 +200,36 @@ ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 
 	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
 	if (ih == NULL)
-		sprintf(buf, "%s TRUNCATED", pp->name);
+		sprintf(buf, "TRUNCATED");
 	else if (ih->nexthdr == IPPROTO_FRAGMENT)
-		sprintf(buf, "%s %pI6->%pI6 frag",
-			pp->name, &ih->saddr, &ih->daddr);
+		sprintf(buf, "%pI6->%pI6 frag",	&ih->saddr, &ih->daddr);
 	else {
 		__be16 _ports[2], *pptr;
 
 		pptr = skb_header_pointer(skb, offset + sizeof(struct ipv6hdr),
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
-			sprintf(buf, "%s TRUNCATED %pI6->%pI6",
-				pp->name, &ih->saddr, &ih->daddr);
+			sprintf(buf, "TRUNCATED %pI6->%pI6",
+				&ih->saddr, &ih->daddr);
 		else
-			sprintf(buf, "%s %pI6:%u->%pI6:%u",
-				pp->name,
+			sprintf(buf, "%pI6:%u->%pI6:%u",
 				&ih->saddr, ntohs(pptr[0]),
 				&ih->daddr, ntohs(pptr[1]));
 	}
 
-	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
+	pr_debug("%s: %s %s\n", msg, pp->name, buf);
 }
 #endif
 
 
 void
-ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
+ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
 			  const struct sk_buff *skb,
 			  int offset,
 			  const char *msg)
 {
 #ifdef CONFIG_IP_VS_IPV6
-	if (skb->protocol == htons(ETH_P_IPV6))
+	if (af == AF_INET6)
 		ip_vs_tcpudp_debug_packet_v6(pp, skb, offset, msg);
 	else
 #endif
@@ -253,13 +255,16 @@ int __init ip_vs_protocol_init(void)
 #ifdef CONFIG_IP_VS_PROTO_UDP
 	REGISTER_PROTOCOL(&ip_vs_protocol_udp);
 #endif
+#ifdef CONFIG_IP_VS_PROTO_SCTP
+	REGISTER_PROTOCOL(&ip_vs_protocol_sctp);
+#endif
 #ifdef CONFIG_IP_VS_PROTO_AH
 	REGISTER_PROTOCOL(&ip_vs_protocol_ah);
 #endif
 #ifdef CONFIG_IP_VS_PROTO_ESP
 	REGISTER_PROTOCOL(&ip_vs_protocol_esp);
 #endif
-	IP_VS_INFO("Registered protocols (%s)\n", &protocols[2]);
+	pr_info("Registered protocols (%s)\n", &protocols[2]);
 
 	return 0;
 }

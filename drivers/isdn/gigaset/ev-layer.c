@@ -35,54 +35,40 @@
 #define RT_RING		2
 #define RT_NUMBER	3
 #define RT_STRING	4
-#define RT_HEX		5
 #define RT_ZCAU		6
 
 /* Possible ASCII responses */
 #define RSP_OK		0
-//#define RSP_BUSY	1
-//#define RSP_CONNECT	2
+#define RSP_ERROR	1
 #define RSP_ZGCI	3
 #define RSP_RING	4
-#define RSP_ZAOC	5
-#define RSP_ZCSTR	6
-#define RSP_ZCFGT	7
-#define RSP_ZCFG	8
-#define RSP_ZCCR	9
-#define RSP_EMPTY	10
-#define RSP_ZLOG	11
-#define RSP_ZCAU	12
-#define RSP_ZMWI	13
-#define RSP_ZABINFO	14
-#define RSP_ZSMLSTCHG	15
+#define RSP_ZVLS	5
+#define RSP_ZCAU	6
+
+/* responses with values to store in at_state */
+/* - numeric */
 #define RSP_VAR		100
 #define RSP_ZSAU	(RSP_VAR + VAR_ZSAU)
 #define RSP_ZDLE	(RSP_VAR + VAR_ZDLE)
-#define RSP_ZVLS	(RSP_VAR + VAR_ZVLS)
 #define RSP_ZCTP	(RSP_VAR + VAR_ZCTP)
+/* - string */
 #define RSP_STR		(RSP_VAR + VAR_NUM)
 #define RSP_NMBR	(RSP_STR + STR_NMBR)
 #define RSP_ZCPN	(RSP_STR + STR_ZCPN)
 #define RSP_ZCON	(RSP_STR + STR_ZCON)
 #define RSP_ZBC		(RSP_STR + STR_ZBC)
 #define RSP_ZHLC	(RSP_STR + STR_ZHLC)
-#define RSP_ERROR	-1	/* ERROR              */
+
 #define RSP_WRONG_CID	-2	/* unknown cid in cmd */
-//#define RSP_EMPTY	-3
-#define RSP_UNKNOWN	-4	/* unknown response   */
-#define RSP_FAIL	-5	/* internal error     */
 #define RSP_INVAL	-6	/* invalid response   */
+#define RSP_NODEV	-9	/* device not connected */
 
 #define RSP_NONE	-19
 #define RSP_STRING	-20
 #define RSP_NULL	-21
-//#define RSP_RETRYFAIL	-22
-//#define RSP_RETRY	-23
-//#define RSP_SKIP	-24
 #define RSP_INIT	-27
 #define RSP_ANY		-26
 #define RSP_LAST	-28
-#define RSP_NODEV	-9
 
 /* actions for process_response */
 #define ACT_NOTHING		0
@@ -127,7 +113,6 @@
 #define ACT_NOTIFY_BC_UP	39
 #define ACT_DIAL		40
 #define ACT_ACCEPT		41
-#define ACT_PROTO_L2		42
 #define ACT_HUP			43
 #define ACT_IF_LOCK		44
 #define ACT_START		45
@@ -159,228 +144,216 @@
 #define SEQ_UMMODE	11
 
 
-// 100: init, 200: dle0, 250:dle1, 300: get cid (dial), 350: "hup" (no cid), 400: hup, 500: reset, 600: dial, 700: ring
+/* 100: init, 200: dle0, 250:dle1, 300: get cid (dial), 350: "hup" (no cid),
+ * 400: hup, 500: reset, 600: dial, 700: ring */
 struct reply_t gigaset_tab_nocid[] =
 {
-	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
+/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout,
+ * action, command */
 
-	/* initialize device, set cid mode if possible */
-	//{RSP_INIT,     -1, -1,100,                900, 0, {ACT_TEST}},
-	//{RSP_ERROR,   900,900, -1,                  0, 0, {ACT_FAILINIT}},
-	//{RSP_OK,      900,900, -1,                100, INIT_TIMEOUT,
-	//                                                  {ACT_TIMEOUT}},
+/* initialize device, set cid mode if possible */
+{RSP_INIT,	 -1,  -1, SEQ_INIT,		100,  1, {ACT_TIMEOUT} },
 
-	{RSP_INIT,     -1, -1,SEQ_INIT,           100, INIT_TIMEOUT,
-							  {ACT_TIMEOUT}},                /* wait until device is ready */
+{EV_TIMEOUT,	100, 100, -1,			101,  3, {0},	"Z\r"},
+{RSP_OK,	101, 103, -1,			120,  5, {ACT_GETSTRING},
+								"+GMR\r"},
 
-	{EV_TIMEOUT,  100,100, -1,                101, 3, {0},             "Z\r"},       /* device in transparent mode? try to initialize it. */
-	{RSP_OK,      101,103, -1,                120, 5, {ACT_GETSTRING}, "+GMR\r"},    /* get version */
+{EV_TIMEOUT,	101, 101, -1,			102,  5, {0},	"Z\r"},
+{RSP_ERROR,	101, 101, -1,			102,  5, {0},	"Z\r"},
 
-	{EV_TIMEOUT,  101,101, -1,                102, 5, {0},             "Z\r"},       /* timeout => try once again. */
-	{RSP_ERROR,   101,101, -1,                102, 5, {0},             "Z\r"},       /* error => try once again. */
+{EV_TIMEOUT,	102, 102, -1,			108,  5, {ACT_SETDLE1},
+								"^SDLE=0\r"},
+{RSP_OK,	108, 108, -1,			104, -1},
+{RSP_ZDLE,	104, 104,  0,			103,  5, {0},	"Z\r"},
+{EV_TIMEOUT,	104, 104, -1,			  0,  0, {ACT_FAILINIT} },
+{RSP_ERROR,	108, 108, -1,			  0,  0, {ACT_FAILINIT} },
 
-	{EV_TIMEOUT,  102,102, -1,                108, 5, {ACT_SETDLE1},   "^SDLE=0\r"}, /* timeout => try again in DLE mode. */
-	{RSP_OK,      108,108, -1,                104,-1},
-	{RSP_ZDLE,    104,104,  0,                103, 5, {0},             "Z\r"},
-	{EV_TIMEOUT,  104,104, -1,                  0, 0, {ACT_FAILINIT}},
-	{RSP_ERROR,   108,108, -1,                  0, 0, {ACT_FAILINIT}},
+{EV_TIMEOUT,	108, 108, -1,			105,  2, {ACT_SETDLE0,
+							  ACT_HUPMODEM,
+							  ACT_TIMEOUT} },
+{EV_TIMEOUT,	105, 105, -1,			103,  5, {0},	"Z\r"},
 
-	{EV_TIMEOUT,  108,108, -1,                105, 2, {ACT_SETDLE0,
-							   ACT_HUPMODEM,
-							   ACT_TIMEOUT}},                /* still timeout => connection in unimodem mode? */
-	{EV_TIMEOUT,  105,105, -1,                103, 5, {0},             "Z\r"},
+{RSP_ERROR,	102, 102, -1,			107,  5, {0},	"^GETPRE\r"},
+{RSP_OK,	107, 107, -1,			  0,  0, {ACT_CONFIGMODE} },
+{RSP_ERROR,	107, 107, -1,			  0,  0, {ACT_FAILINIT} },
+{EV_TIMEOUT,	107, 107, -1,			  0,  0, {ACT_FAILINIT} },
 
-	{RSP_ERROR,   102,102, -1,                107, 5, {0},             "^GETPRE\r"}, /* ERROR on ATZ => maybe in config mode? */
-	{RSP_OK,      107,107, -1,                  0, 0, {ACT_CONFIGMODE}},
-	{RSP_ERROR,   107,107, -1,                  0, 0, {ACT_FAILINIT}},
-	{EV_TIMEOUT,  107,107, -1,                  0, 0, {ACT_FAILINIT}},
+{RSP_ERROR,	103, 103, -1,			  0,  0, {ACT_FAILINIT} },
+{EV_TIMEOUT,	103, 103, -1,			  0,  0, {ACT_FAILINIT} },
 
-	{RSP_ERROR,   103,103, -1,                  0, 0, {ACT_FAILINIT}},
-	{EV_TIMEOUT,  103,103, -1,                  0, 0, {ACT_FAILINIT}},
+{RSP_STRING,	120, 120, -1,			121, -1, {ACT_SETVER} },
 
-	{RSP_STRING,  120,120, -1,                121,-1, {ACT_SETVER}},
+{EV_TIMEOUT,	120, 121, -1,			  0,  0, {ACT_FAILVER,
+							  ACT_INIT} },
+{RSP_ERROR,	120, 121, -1,			  0,  0, {ACT_FAILVER,
+							  ACT_INIT} },
+{RSP_OK,	121, 121, -1,			  0,  0, {ACT_GOTVER,
+							  ACT_INIT} },
 
-	{EV_TIMEOUT,  120,121, -1,                  0, 0, {ACT_FAILVER, ACT_INIT}},
-	{RSP_ERROR,   120,121, -1,                  0, 0, {ACT_FAILVER, ACT_INIT}},
-	{RSP_OK,      121,121, -1,                  0, 0, {ACT_GOTVER,  ACT_INIT}},
+/* leave dle mode */
+{RSP_INIT,	  0,   0, SEQ_DLE0,		201,  5, {0},	"^SDLE=0\r"},
+{RSP_OK,	201, 201, -1,			202, -1},
+{RSP_ZDLE,	202, 202,  0,			  0,  0, {ACT_DLE0} },
+{RSP_NODEV,	200, 249, -1,			  0,  0, {ACT_FAKEDLE0} },
+{RSP_ERROR,	200, 249, -1,			  0,  0, {ACT_FAILDLE0} },
+{EV_TIMEOUT,	200, 249, -1,			  0,  0, {ACT_FAILDLE0} },
 
-	/* leave dle mode */
-	{RSP_INIT,      0,  0,SEQ_DLE0,           201, 5, {0},             "^SDLE=0\r"},
-	{RSP_OK,      201,201, -1,                202,-1},
-	//{RSP_ZDLE,    202,202,  0,                202, 0, {ACT_ERROR}},//DELETE
-	{RSP_ZDLE,    202,202,  0,                  0, 0, {ACT_DLE0}},
-	{RSP_NODEV,   200,249, -1,                  0, 0, {ACT_FAKEDLE0}},
-	{RSP_ERROR,   200,249, -1,                  0, 0, {ACT_FAILDLE0}},
-	{EV_TIMEOUT,  200,249, -1,                  0, 0, {ACT_FAILDLE0}},
+/* enter dle mode */
+{RSP_INIT,	  0,   0, SEQ_DLE1,		251,  5, {0},	"^SDLE=1\r"},
+{RSP_OK,	251, 251, -1,			252, -1},
+{RSP_ZDLE,	252, 252,  1,			  0,  0, {ACT_DLE1} },
+{RSP_ERROR,	250, 299, -1,			  0,  0, {ACT_FAILDLE1} },
+{EV_TIMEOUT,	250, 299, -1,			  0,  0, {ACT_FAILDLE1} },
 
-	/* enter dle mode */
-	{RSP_INIT,      0,  0,SEQ_DLE1,           251, 5, {0},             "^SDLE=1\r"},
-	{RSP_OK,      251,251, -1,                252,-1},
-	{RSP_ZDLE,    252,252,  1,                  0, 0, {ACT_DLE1}},
-	{RSP_ERROR,   250,299, -1,                  0, 0, {ACT_FAILDLE1}},
-	{EV_TIMEOUT,  250,299, -1,                  0, 0, {ACT_FAILDLE1}},
+/* incoming call */
+{RSP_RING,	 -1,  -1, -1,			 -1, -1, {ACT_RING} },
 
-	/* incoming call */
-	{RSP_RING,     -1, -1, -1,                 -1,-1, {ACT_RING}},
+/* get cid */
+{RSP_INIT,	  0,   0, SEQ_CID,		301,  5, {0},	"^SGCI?\r"},
+{RSP_OK,	301, 301, -1,			302, -1},
+{RSP_ZGCI,	302, 302, -1,			  0,  0, {ACT_CID} },
+{RSP_ERROR,	301, 349, -1,			  0,  0, {ACT_FAILCID} },
+{EV_TIMEOUT,	301, 349, -1,			  0,  0, {ACT_FAILCID} },
 
-	/* get cid */
-	//{RSP_INIT,      0,  0,300,                901, 0, {ACT_TEST}},
-	//{RSP_ERROR,   901,901, -1,                  0, 0, {ACT_FAILCID}},
-	//{RSP_OK,      901,901, -1,                301, 5, {0},             "^SGCI?\r"},
+/* enter cid mode */
+{RSP_INIT,	  0,   0, SEQ_CIDMODE,		150,  5, {0},	"^SGCI=1\r"},
+{RSP_OK,	150, 150, -1,			  0,  0, {ACT_CMODESET} },
+{RSP_ERROR,	150, 150, -1,			  0,  0, {ACT_FAILCMODE} },
+{EV_TIMEOUT,	150, 150, -1,			  0,  0, {ACT_FAILCMODE} },
 
-	{RSP_INIT,      0,  0,SEQ_CID,            301, 5, {0},             "^SGCI?\r"},
-	{RSP_OK,      301,301, -1,                302,-1},
-	{RSP_ZGCI,    302,302, -1,                  0, 0, {ACT_CID}},
-	{RSP_ERROR,   301,349, -1,                  0, 0, {ACT_FAILCID}},
-	{EV_TIMEOUT,  301,349, -1,                  0, 0, {ACT_FAILCID}},
+/* leave cid mode */
+{RSP_INIT,	  0,   0, SEQ_UMMODE,		160,  5, {0},	"Z\r"},
+{RSP_OK,	160, 160, -1,			  0,  0, {ACT_UMODESET} },
+{RSP_ERROR,	160, 160, -1,			  0,  0, {ACT_FAILUMODE} },
+{EV_TIMEOUT,	160, 160, -1,			  0,  0, {ACT_FAILUMODE} },
 
-	/* enter cid mode */
-	{RSP_INIT,      0,  0,SEQ_CIDMODE,        150, 5, {0},             "^SGCI=1\r"},
-	{RSP_OK,      150,150, -1,                  0, 0, {ACT_CMODESET}},
-	{RSP_ERROR,   150,150, -1,                  0, 0, {ACT_FAILCMODE}},
-	{EV_TIMEOUT,  150,150, -1,                  0, 0, {ACT_FAILCMODE}},
+/* abort getting cid */
+{RSP_INIT,	  0,   0, SEQ_NOCID,		  0,  0, {ACT_ABORTCID} },
 
-	/* leave cid mode */
-	//{RSP_INIT,      0,  0,SEQ_UMMODE,         160, 5, {0},             "^SGCI=0\r"},
-	{RSP_INIT,      0,  0,SEQ_UMMODE,         160, 5, {0},             "Z\r"},
-	{RSP_OK,      160,160, -1,                  0, 0, {ACT_UMODESET}},
-	{RSP_ERROR,   160,160, -1,                  0, 0, {ACT_FAILUMODE}},
-	{EV_TIMEOUT,  160,160, -1,                  0, 0, {ACT_FAILUMODE}},
+/* reset */
+{RSP_INIT,	  0,   0, SEQ_SHUTDOWN,		504,  5, {0},	"Z\r"},
+{RSP_OK,	504, 504, -1,			  0,  0, {ACT_SDOWN} },
+{RSP_ERROR,	501, 599, -1,			  0,  0, {ACT_FAILSDOWN} },
+{EV_TIMEOUT,	501, 599, -1,			  0,  0, {ACT_FAILSDOWN} },
+{RSP_NODEV,	501, 599, -1,			  0,  0, {ACT_FAKESDOWN} },
 
-	/* abort getting cid */
-	{RSP_INIT,      0,  0,SEQ_NOCID,            0, 0, {ACT_ABORTCID}},
+{EV_PROC_CIDMODE, -1, -1, -1,			 -1, -1, {ACT_PROC_CIDMODE} },
+{EV_IF_LOCK,	 -1,  -1, -1,			 -1, -1, {ACT_IF_LOCK} },
+{EV_IF_VER,	 -1,  -1, -1,			 -1, -1, {ACT_IF_VER} },
+{EV_START,	 -1,  -1, -1,			 -1, -1, {ACT_START} },
+{EV_STOP,	 -1,  -1, -1,			 -1, -1, {ACT_STOP} },
+{EV_SHUTDOWN,	 -1,  -1, -1,			 -1, -1, {ACT_SHUTDOWN} },
 
-	/* reset */
-	{RSP_INIT,      0,  0,SEQ_SHUTDOWN,       504, 5, {0},             "Z\r"},
-	{RSP_OK,      504,504, -1,                  0, 0, {ACT_SDOWN}},
-	{RSP_ERROR,   501,599, -1,                  0, 0, {ACT_FAILSDOWN}},
-	{EV_TIMEOUT,  501,599, -1,                  0, 0, {ACT_FAILSDOWN}},
-	{RSP_NODEV,   501,599, -1,                  0, 0, {ACT_FAKESDOWN}},
-
-	{EV_PROC_CIDMODE,-1, -1, -1,               -1,-1, {ACT_PROC_CIDMODE}}, //FIXME
-	{EV_IF_LOCK,   -1, -1, -1,                 -1,-1, {ACT_IF_LOCK}}, //FIXME
-	{EV_IF_VER,    -1, -1, -1,                 -1,-1, {ACT_IF_VER}}, //FIXME
-	{EV_START,     -1, -1, -1,                 -1,-1, {ACT_START}}, //FIXME
-	{EV_STOP,      -1, -1, -1,                 -1,-1, {ACT_STOP}}, //FIXME
-	{EV_SHUTDOWN,  -1, -1, -1,                 -1,-1, {ACT_SHUTDOWN}}, //FIXME
-
-	/* misc. */
-	{RSP_EMPTY,    -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZCFGT,    -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZCFG,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZLOG,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZMWI,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZABINFO,  -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZSMLSTCHG,-1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-
-	{RSP_ZCAU,     -1, -1, -1,                 -1,-1, {ACT_ZCAU}},
-	{RSP_NONE,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ANY,      -1, -1, -1,                 -1,-1, {ACT_WARN}},
-	{RSP_LAST}
+/* misc. */
+{RSP_ERROR,	 -1,  -1, -1,			 -1, -1, {ACT_ERROR} },
+{RSP_ZCAU,	 -1,  -1, -1,			 -1, -1, {ACT_ZCAU} },
+{RSP_NONE,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
+{RSP_ANY,	 -1,  -1, -1,			 -1, -1, {ACT_WARN} },
+{RSP_LAST}
 };
 
-// 600: start dialing, 650: dial in progress, 800: connection is up, 700: ring, 400: hup, 750: accepted icall
+/* 600: start dialing, 650: dial in progress, 800: connection is up, 700: ring,
+ * 400: hup, 750: accepted icall */
 struct reply_t gigaset_tab_cid[] =
 {
-	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
+/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout,
+ * action, command */
 
-	/* dial */
-	{EV_DIAL,      -1, -1, -1,                 -1,-1, {ACT_DIAL}}, //FIXME
-	{RSP_INIT,      0,  0,SEQ_DIAL,           601, 5, {ACT_CMD+AT_BC}},
-	{RSP_OK,      601,601, -1,                602, 5, {ACT_CMD+AT_HLC}},
-	{RSP_NULL,    602,602, -1,                603, 5, {ACT_CMD+AT_PROTO}},
-	{RSP_OK,      602,602, -1,                603, 5, {ACT_CMD+AT_PROTO}},
-	{RSP_OK,      603,603, -1,                604, 5, {ACT_CMD+AT_TYPE}},
-	{RSP_OK,      604,604, -1,                605, 5, {ACT_CMD+AT_MSN}},
-	{RSP_OK,      605,605, -1,                606, 5, {ACT_CMD+AT_ISO}},
-	{RSP_NULL,    605,605, -1,                606, 5, {ACT_CMD+AT_ISO}},
-	{RSP_OK,      606,606, -1,                607, 5, {0},             "+VLS=17\r"}, /* set "Endgeraetemodus" */
-	{RSP_OK,      607,607, -1,                608,-1},
-	//{RSP_ZSAU,    608,608,ZSAU_PROCEEDING,    608, 0, {ACT_ERROR}},//DELETE
-	{RSP_ZSAU,    608,608,ZSAU_PROCEEDING,    609, 5, {ACT_CMD+AT_DIAL}},
-	{RSP_OK,      609,609, -1,                650, 0, {ACT_DIALING}},
+/* dial */
+{EV_DIAL,	 -1,  -1, -1,			 -1, -1, {ACT_DIAL} },
+{RSP_INIT,	  0,   0, SEQ_DIAL,		601,  5, {ACT_CMD+AT_BC} },
+{RSP_OK,	601, 601, -1,			603,  5, {ACT_CMD+AT_PROTO} },
+{RSP_OK,	603, 603, -1,			604,  5, {ACT_CMD+AT_TYPE} },
+{RSP_OK,	604, 604, -1,			605,  5, {ACT_CMD+AT_MSN} },
+{RSP_NULL,	605, 605, -1,			606,  5, {ACT_CMD+AT_CLIP} },
+{RSP_OK,	605, 605, -1,			606,  5, {ACT_CMD+AT_CLIP} },
+{RSP_NULL,	606, 606, -1,			607,  5, {ACT_CMD+AT_ISO} },
+{RSP_OK,	606, 606, -1,			607,  5, {ACT_CMD+AT_ISO} },
+{RSP_OK,	607, 607, -1,			608,  5, {0},	"+VLS=17\r"},
+{RSP_OK,	608, 608, -1,			609, -1},
+{RSP_ZSAU,	609, 609, ZSAU_PROCEEDING,	610,  5, {ACT_CMD+AT_DIAL} },
+{RSP_OK,	610, 610, -1,			650,  0, {ACT_DIALING} },
 
-	{RSP_ZVLS,    608,608, 17,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZCTP,    609,609, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZCPN,    609,609, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ERROR,   601,609, -1,                  0, 0, {ACT_ABORTDIAL}},
-	{EV_TIMEOUT,  601,609, -1,                  0, 0, {ACT_ABORTDIAL}},
+{RSP_ERROR,	601, 610, -1,			  0,  0, {ACT_ABORTDIAL} },
+{EV_TIMEOUT,	601, 610, -1,			  0,  0, {ACT_ABORTDIAL} },
 
-	/* dialing */
-	{RSP_ZCTP,    650,650, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZCPN,    650,650, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZSAU,    650,650,ZSAU_CALL_DELIVERED, -1,-1, {ACT_DEBUG}}, /* some devices don't send this */
+/* optional dialing responses */
+{EV_BC_OPEN,	650, 650, -1,			651, -1},
+{RSP_ZVLS,	609, 651, 17,			 -1, -1, {ACT_DEBUG} },
+{RSP_ZCTP,	610, 651, -1,			 -1, -1, {ACT_DEBUG} },
+{RSP_ZCPN,	610, 651, -1,			 -1, -1, {ACT_DEBUG} },
+{RSP_ZSAU,	650, 651, ZSAU_CALL_DELIVERED,	 -1, -1, {ACT_DEBUG} },
 
-	/* connection established  */
-	{RSP_ZSAU,    650,650,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT}}, //FIXME -> DLE1
-	{RSP_ZSAU,    750,750,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT}}, //FIXME -> DLE1
+/* connect */
+{RSP_ZSAU,	650, 650, ZSAU_ACTIVE,		800, -1, {ACT_CONNECT} },
+{RSP_ZSAU,	651, 651, ZSAU_ACTIVE,		800, -1, {ACT_CONNECT,
+							  ACT_NOTIFY_BC_UP} },
+{RSP_ZSAU,	750, 750, ZSAU_ACTIVE,		800, -1, {ACT_CONNECT} },
+{RSP_ZSAU,	751, 751, ZSAU_ACTIVE,		800, -1, {ACT_CONNECT,
+							  ACT_NOTIFY_BC_UP} },
+{EV_BC_OPEN,	800, 800, -1,			800, -1, {ACT_NOTIFY_BC_UP} },
 
-	{EV_BC_OPEN,  800,800, -1,                800,-1, {ACT_NOTIFY_BC_UP}}, //FIXME new constate + timeout
+/* remote hangup */
+{RSP_ZSAU,	650, 651, ZSAU_DISCONNECT_IND,	  0,  0, {ACT_REMOTEREJECT} },
+{RSP_ZSAU,	750, 751, ZSAU_DISCONNECT_IND,	  0,  0, {ACT_REMOTEHUP} },
+{RSP_ZSAU,	800, 800, ZSAU_DISCONNECT_IND,	  0,  0, {ACT_REMOTEHUP} },
 
-	/* remote hangup */
-	{RSP_ZSAU,    650,650,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEREJECT}},
-	{RSP_ZSAU,    750,750,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEHUP}},
-	{RSP_ZSAU,    800,800,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEHUP}},
+/* hangup */
+{EV_HUP,	 -1,  -1, -1,			 -1, -1, {ACT_HUP} },
+{RSP_INIT,	 -1,  -1, SEQ_HUP,		401,  5, {0},	"+VLS=0\r"},
+{RSP_OK,	401, 401, -1,			402,  5},
+{RSP_ZVLS,	402, 402,  0,			403,  5},
+{RSP_ZSAU,	403, 403, ZSAU_DISCONNECT_REQ,	 -1, -1, {ACT_DEBUG} },
+{RSP_ZSAU,	403, 403, ZSAU_NULL,		  0,  0, {ACT_DISCONNECT} },
+{RSP_NODEV,	401, 403, -1,			  0,  0, {ACT_FAKEHUP} },
+{RSP_ERROR,	401, 401, -1,			  0,  0, {ACT_ABORTHUP} },
+{EV_TIMEOUT,	401, 403, -1,			  0,  0, {ACT_ABORTHUP} },
 
-	/* hangup */
-	{EV_HUP,       -1, -1, -1,                 -1,-1, {ACT_HUP}}, //FIXME
-	{RSP_INIT,     -1, -1,SEQ_HUP,            401, 5, {0},             "+VLS=0\r"}, /* hang up */ //-1,-1?
-	{RSP_OK,      401,401, -1,                402, 5},
-	{RSP_ZVLS,    402,402,  0,                403, 5},
-	{RSP_ZSAU,    403,403,ZSAU_DISCONNECT_REQ, -1,-1, {ACT_DEBUG}}, /* if not remote hup */
-	//{RSP_ZSAU,    403,403,ZSAU_NULL,          401, 0, {ACT_ERROR}}, //DELETE//FIXME -> DLE0 // should we do this _before_ hanging up for base driver?
-	{RSP_ZSAU,    403,403,ZSAU_NULL,            0, 0, {ACT_DISCONNECT}}, //FIXME -> DLE0 // should we do this _before_ hanging up for base driver?
-	{RSP_NODEV,   401,403, -1,                  0, 0, {ACT_FAKEHUP}}, //FIXME -> DLE0 // should we do this _before_ hanging up for base driver?
-	{RSP_ERROR,   401,401, -1,                  0, 0, {ACT_ABORTHUP}},
-	{EV_TIMEOUT,  401,403, -1,                  0, 0, {ACT_ABORTHUP}},
+{EV_BC_CLOSED,	  0,   0, -1,			  0, -1, {ACT_NOTIFY_BC_DOWN} },
 
-	{EV_BC_CLOSED,  0,  0, -1,                  0,-1, {ACT_NOTIFY_BC_DOWN}}, //FIXME new constate + timeout
+/* ring */
+{RSP_ZBC,	700, 700, -1,			 -1, -1, {0} },
+{RSP_ZHLC,	700, 700, -1,			 -1, -1, {0} },
+{RSP_NMBR,	700, 700, -1,			 -1, -1, {0} },
+{RSP_ZCPN,	700, 700, -1,			 -1, -1, {0} },
+{RSP_ZCTP,	700, 700, -1,			 -1, -1, {0} },
+{EV_TIMEOUT,	700, 700, -1,			720, 720, {ACT_ICALL} },
+{EV_BC_CLOSED,	720, 720, -1,			  0, -1, {ACT_NOTIFY_BC_DOWN} },
 
-	/* ring */
-	{RSP_ZBC,     700,700, -1,                 -1,-1, {0}},
-	{RSP_ZHLC,    700,700, -1,                 -1,-1, {0}},
-	{RSP_NMBR,    700,700, -1,                 -1,-1, {0}},
-	{RSP_ZCPN,    700,700, -1,                 -1,-1, {0}},
-	{RSP_ZCTP,    700,700, -1,                 -1,-1, {0}},
-	{EV_TIMEOUT,  700,700, -1,               720,720, {ACT_ICALL}},
-	{EV_BC_CLOSED,720,720, -1,                  0,-1, {ACT_NOTIFY_BC_DOWN}},
+/*accept icall*/
+{EV_ACCEPT,	 -1,  -1, -1,			 -1, -1, {ACT_ACCEPT} },
+{RSP_INIT,	720, 720, SEQ_ACCEPT,		721,  5, {ACT_CMD+AT_PROTO} },
+{RSP_OK,	721, 721, -1,			722,  5, {ACT_CMD+AT_ISO} },
+{RSP_OK,	722, 722, -1,			723,  5, {0},	"+VLS=17\r"},
+{RSP_OK,	723, 723, -1,			724,  5, {0} },
+{RSP_ZVLS,	724, 724, 17,			750, 50, {ACT_ACCEPTED} },
+{RSP_ERROR,	721, 729, -1,			  0,  0, {ACT_ABORTACCEPT} },
+{EV_TIMEOUT,	721, 729, -1,			  0,  0, {ACT_ABORTACCEPT} },
+{RSP_ZSAU,	700, 729, ZSAU_NULL,		  0,  0, {ACT_ABORTACCEPT} },
+{RSP_ZSAU,	700, 729, ZSAU_ACTIVE,		  0,  0, {ACT_ABORTACCEPT} },
+{RSP_ZSAU,	700, 729, ZSAU_DISCONNECT_IND,	  0,  0, {ACT_ABORTACCEPT} },
 
-	/*accept icall*/
-	{EV_ACCEPT,    -1, -1, -1,                 -1,-1, {ACT_ACCEPT}}, //FIXME
-	{RSP_INIT,    720,720,SEQ_ACCEPT,         721, 5, {ACT_CMD+AT_PROTO}},
-	{RSP_OK,      721,721, -1,                722, 5, {ACT_CMD+AT_ISO}},
-	{RSP_OK,      722,722, -1,                723, 5, {0},             "+VLS=17\r"}, /* set "Endgeraetemodus" */
-	{RSP_OK,      723,723, -1,                724, 5, {0}},
-	{RSP_ZVLS,    724,724, 17,                750,50, {ACT_ACCEPTED}},
-	{RSP_ERROR,   721,729, -1,                  0, 0, {ACT_ABORTACCEPT}},
-	{EV_TIMEOUT,  721,729, -1,                  0, 0, {ACT_ABORTACCEPT}},
-	{RSP_ZSAU,    700,729,ZSAU_NULL,            0, 0, {ACT_ABORTACCEPT}},
-	{RSP_ZSAU,    700,729,ZSAU_ACTIVE,          0, 0, {ACT_ABORTACCEPT}},
-	{RSP_ZSAU,    700,729,ZSAU_DISCONNECT_IND,  0, 0, {ACT_ABORTACCEPT}},
+{EV_BC_OPEN,	750, 750, -1,			751, -1},
+{EV_TIMEOUT,	750, 751, -1,			  0,  0, {ACT_CONNTIMEOUT} },
 
-	{EV_TIMEOUT,  750,750, -1,                  0, 0, {ACT_CONNTIMEOUT}},
+/* B channel closed (general case) */
+{EV_BC_CLOSED,	 -1,  -1, -1,			 -1, -1, {ACT_NOTIFY_BC_DOWN} },
 
-	/* B channel closed (general case) */
-	{EV_BC_CLOSED, -1, -1, -1,                 -1,-1, {ACT_NOTIFY_BC_DOWN}}, //FIXME
-
-	/* misc. */
-	{EV_PROTO_L2,  -1, -1, -1,                 -1,-1, {ACT_PROTO_L2}}, //FIXME
-
-	{RSP_ZCON,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZCCR,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZAOC,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-	{RSP_ZCSTR,    -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
-
-	{RSP_ZCAU,     -1, -1, -1,                 -1,-1, {ACT_ZCAU}},
-	{RSP_NONE,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ANY,      -1, -1, -1,                 -1,-1, {ACT_WARN}},
-	{RSP_LAST}
+/* misc. */
+{RSP_ZCON,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
+{RSP_ZCAU,	 -1,  -1, -1,			 -1, -1, {ACT_ZCAU} },
+{RSP_NONE,	 -1,  -1, -1,			 -1, -1, {ACT_DEBUG} },
+{RSP_ANY,	 -1,  -1, -1,			 -1, -1, {ACT_WARN} },
+{RSP_LAST}
 };
 
 
-static const struct resp_type_t resp_type[] =
+static const struct resp_type_t {
+	unsigned char	*response;
+	int		resp_code;
+	int		type;
+} resp_type[] =
 {
-	/*{"",		RSP_EMPTY,	RT_NOTHING},*/
 	{"OK",		RSP_OK,		RT_NOTHING},
 	{"ERROR",	RSP_ERROR,	RT_NOTHING},
 	{"ZSAU",	RSP_ZSAU,	RT_ZSAU},
@@ -390,90 +363,53 @@ static const struct resp_type_t resp_type[] =
 	{"ZVLS",	RSP_ZVLS,	RT_NUMBER},
 	{"ZCTP",	RSP_ZCTP,	RT_NUMBER},
 	{"ZDLE",	RSP_ZDLE,	RT_NUMBER},
-	{"ZCFGT",	RSP_ZCFGT,	RT_NUMBER},
-	{"ZCCR",	RSP_ZCCR,	RT_NUMBER},
-	{"ZMWI",	RSP_ZMWI,	RT_NUMBER},
 	{"ZHLC",	RSP_ZHLC,	RT_STRING},
 	{"ZBC",		RSP_ZBC,	RT_STRING},
 	{"NMBR",	RSP_NMBR,	RT_STRING},
 	{"ZCPN",	RSP_ZCPN,	RT_STRING},
 	{"ZCON",	RSP_ZCON,	RT_STRING},
-	{"ZAOC",	RSP_ZAOC,	RT_STRING},
-	{"ZCSTR",	RSP_ZCSTR,	RT_STRING},
-	{"ZCFG",	RSP_ZCFG,	RT_HEX},
-	{"ZLOG",	RSP_ZLOG,	RT_NOTHING},
-	{"ZABINFO",	RSP_ZABINFO,	RT_NOTHING},
-	{"ZSMLSTCHG",	RSP_ZSMLSTCHG,	RT_NOTHING},
-	{NULL,0,0}
+	{NULL,		0,		0}
 };
 
-/*
- * Get integer from char-pointer
- */
-static int isdn_getnum(char *p)
+static const struct zsau_resp_t {
+	unsigned char	*str;
+	int		code;
+} zsau_resp[] =
 {
-	int v = -1;
-
-	gig_dbg(DEBUG_TRANSCMD, "string: %s", p);
-
-	while (*p >= '0' && *p <= '9')
-		v = ((v < 0) ? 0 : (v * 10)) + (int) ((*p++) - '0');
-	if (*p)
-		v = -1; /* invalid Character */
-	return v;
-}
-
-/*
- * Get integer from char-pointer
- */
-static int isdn_gethex(char *p)
-{
-	int v = 0;
-	int c;
-
-	gig_dbg(DEBUG_TRANSCMD, "string: %s", p);
-
-	if (!*p)
-		return -1;
-
-	do {
-		if (v > (INT_MAX - 15) / 16)
-			return -1;
-		c = *p;
-		if (c >= '0' && c <= '9')
-			c -= '0';
-		else if (c >= 'a' && c <= 'f')
-			c -= 'a' - 10;
-		else if (c >= 'A' && c <= 'F')
-			c -= 'A' - 10;
-		else
-			return -1;
-		v = v * 16 + c;
-	} while (*++p);
-
-	return v;
-}
+	{"OUTGOING_CALL_PROCEEDING",	ZSAU_OUTGOING_CALL_PROCEEDING},
+	{"CALL_DELIVERED",		ZSAU_CALL_DELIVERED},
+	{"ACTIVE",			ZSAU_ACTIVE},
+	{"DISCONNECT_IND",		ZSAU_DISCONNECT_IND},
+	{"NULL",			ZSAU_NULL},
+	{"DISCONNECT_REQ",		ZSAU_DISCONNECT_REQ},
+	{NULL,				ZSAU_UNKNOWN}
+};
 
 /* retrieve CID from parsed response
  * returns 0 if no CID, -1 if invalid CID, or CID value 1..65535
  */
 static int cid_of_response(char *s)
 {
-	int cid;
+	unsigned long cid;
+	int rc;
 
 	if (s[-1] != ';')
 		return 0;	/* no CID separator */
-	cid = isdn_getnum(s);
-	if (cid < 0)
+	rc = strict_strtoul(s, 10, &cid);
+	if (rc)
 		return 0;	/* CID not numeric */
 	if (cid < 1 || cid > 65535)
 		return -1;	/* CID out of range */
 	return cid;
-	//FIXME is ;<digit>+ at end of non-CID response really impossible?
 }
 
-/* This function will be called via task queue from the callback handler.
- * We received a modem response and have to handle it..
+/**
+ * gigaset_handle_modem_response() - process received modem response
+ * @cs:		device descriptor structure.
+ *
+ * Called by asyncdata/isocdata if a block of data received from the
+ * device must be processed as a modem command response. The data is
+ * already in the cs structure.
  */
 void gigaset_handle_modem_response(struct cardstate *cs)
 {
@@ -481,6 +417,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	int params;
 	int i, j;
 	const struct resp_type_t *rt;
+	const struct zsau_resp_t *zr;
 	int curarg;
 	unsigned long flags;
 	unsigned next, tail, head;
@@ -499,7 +436,6 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 		return;
 	}
 	cs->respdata[len] = 0;
-	gig_dbg(DEBUG_TRANSCMD, "raw string: '%s'", cs->respdata);
 	argv[0] = cs->respdata;
 	params = 1;
 	if (cs->at_state.getstring) {
@@ -534,14 +470,14 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 		for (j = 1; j < params; ++j)
 			argv[j][-1] = 0;
 
-		gig_dbg(DEBUG_TRANSCMD, "CMD received: %s", argv[0]);
+		gig_dbg(DEBUG_EVENT, "CMD received: %s", argv[0]);
 		if (cid) {
 			--params;
-			gig_dbg(DEBUG_TRANSCMD, "CID: %s", argv[params]);
+			gig_dbg(DEBUG_EVENT, "CID: %s", argv[params]);
 		}
-		gig_dbg(DEBUG_TRANSCMD, "available params: %d", params - 1);
+		gig_dbg(DEBUG_EVENT, "available params: %d", params - 1);
 		for (j = 1; j < params; j++)
-			gig_dbg(DEBUG_TRANSCMD, "param %d: %s", j, argv[j]);
+			gig_dbg(DEBUG_EVENT, "param %d: %s", j, argv[j]);
 	}
 
 	spin_lock_irqsave(&cs->ev_lock, flags);
@@ -573,10 +509,10 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 					break;
 
 			if (!rt->response) {
-				event->type = RSP_UNKNOWN;
-				dev_warn(cs->dev,
-					 "unknown modem response: %s\n",
-					 argv[curarg]);
+				event->type = RSP_NONE;
+				gig_dbg(DEBUG_EVENT,
+					"unknown modem response: '%s'\n",
+					argv[curarg]);
 				break;
 			}
 
@@ -607,24 +543,14 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 				event->parameter = ZSAU_NONE;
 				break;
 			}
-			if (!strcmp(argv[curarg], "OUTGOING_CALL_PROCEEDING"))
-				event->parameter = ZSAU_OUTGOING_CALL_PROCEEDING;
-			else if (!strcmp(argv[curarg], "CALL_DELIVERED"))
-				event->parameter = ZSAU_CALL_DELIVERED;
-			else if (!strcmp(argv[curarg], "ACTIVE"))
-				event->parameter = ZSAU_ACTIVE;
-			else if (!strcmp(argv[curarg], "DISCONNECT_IND"))
-				event->parameter = ZSAU_DISCONNECT_IND;
-			else if (!strcmp(argv[curarg], "NULL"))
-				event->parameter = ZSAU_NULL;
-			else if (!strcmp(argv[curarg], "DISCONNECT_REQ"))
-				event->parameter = ZSAU_DISCONNECT_REQ;
-			else {
-				event->parameter = ZSAU_UNKNOWN;
+			for (zr = zsau_resp; zr->str; ++zr)
+				if (!strcmp(argv[curarg], zr->str))
+					break;
+			event->parameter = zr->code;
+			if (!zr->str)
 				dev_warn(cs->dev,
 					"%s: unknown parameter %s after ZSAU\n",
 					 __func__, argv[curarg]);
-			}
 			++curarg;
 			break;
 		case RT_STRING:
@@ -634,34 +560,34 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 					dev_err(cs->dev, "out of memory\n");
 				++curarg;
 			}
-			gig_dbg(DEBUG_CMD, "string==%s",
+			gig_dbg(DEBUG_EVENT, "string==%s",
 				event->ptr ? (char *) event->ptr : "NULL");
 			break;
 		case RT_ZCAU:
 			event->parameter = -1;
 			if (curarg + 1 < params) {
-				i = isdn_gethex(argv[curarg]);
-				j = isdn_gethex(argv[curarg + 1]);
-				if (i >= 0 && i < 256 && j >= 0 && j < 256)
-					event->parameter = (unsigned) i << 8
-							   | j;
-				curarg += 2;
+				unsigned long type, value;
+
+				i = strict_strtoul(argv[curarg++], 16, &type);
+				j = strict_strtoul(argv[curarg++], 16, &value);
+
+				if (i == 0 && type < 256 &&
+				    j == 0 && value < 256)
+					event->parameter = (type << 8) | value;
 			} else
 				curarg = params - 1;
 			break;
 		case RT_NUMBER:
-		case RT_HEX:
+			event->parameter = -1;
 			if (curarg < params) {
-				if (param_type == RT_HEX)
-					event->parameter =
-						isdn_gethex(argv[curarg]);
-				else
-					event->parameter =
-						isdn_getnum(argv[curarg]);
-				++curarg;
-			} else
-				event->parameter = -1;
-			gig_dbg(DEBUG_CMD, "parameter==%d", event->parameter);
+				unsigned long res;
+				int rc;
+
+				rc = strict_strtoul(argv[curarg++], 10, &res);
+				if (rc == 0)
+					event->parameter = res;
+			}
+			gig_dbg(DEBUG_EVENT, "parameter==%d", event->parameter);
 			break;
 		}
 
@@ -676,7 +602,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	spin_unlock_irqrestore(&cs->ev_lock, flags);
 
 	if (curarg != params)
-		gig_dbg(DEBUG_ANY,
+		gig_dbg(DEBUG_EVENT,
 			"invalid number of processed parameters: %d/%d",
 			curarg, params);
 }
@@ -697,14 +623,19 @@ static void disconnect(struct at_state_t **at_state_p)
 	/* revert to selected idle mode */
 	if (!cs->cidmode) {
 		cs->at_state.pending_commands |= PC_UMMODE;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_UMMODE");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_UMMODE");
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
 
 	if (bcs) {
 		/* B channel assigned: invoke hardware specific handler */
 		cs->ops->close_bchannel(bcs);
+		/* notify LL */
+		if (bcs->chstate & (CHS_D_UP | CHS_NOTIFY_LL)) {
+			bcs->chstate &= ~(CHS_D_UP | CHS_NOTIFY_LL);
+			gigaset_isdn_hupD(bcs);
+		}
 	} else {
 		/* no B channel assigned: just deallocate */
 		spin_lock_irqsave(&cs->lock, flags);
@@ -771,15 +702,15 @@ static void init_failed(struct cardstate *cs, int mode)
 static void schedule_init(struct cardstate *cs, int state)
 {
 	if (cs->at_state.pending_commands & PC_INIT) {
-		gig_dbg(DEBUG_CMD, "not scheduling PC_INIT again");
+		gig_dbg(DEBUG_EVENT, "not scheduling PC_INIT again");
 		return;
 	}
 	cs->mstate = state;
 	cs->mode = M_UNKNOWN;
 	gigaset_block_channels(cs);
 	cs->at_state.pending_commands |= PC_INIT;
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_INIT");
 	cs->commands_pending = 1;
-	gig_dbg(DEBUG_CMD, "Scheduling PC_INIT");
 }
 
 /* Add "AT" to a command, add the cid, dle encode it, send the result to the
@@ -787,48 +718,27 @@ static void schedule_init(struct cardstate *cs, int state)
 static void send_command(struct cardstate *cs, const char *cmd, int cid,
 			 int dle, gfp_t kmallocflags)
 {
-	size_t cmdlen, buflen;
-	char *cmdpos, *cmdbuf, *cmdtail;
+	struct cmdbuf_t *cb;
+	size_t buflen;
 
-	cmdlen = strlen(cmd);
-	buflen = 11 + cmdlen;
-	if (unlikely(buflen <= cmdlen)) {
-		dev_err(cs->dev, "integer overflow in buflen\n");
+	buflen = strlen(cmd) + 12; /* DLE ( A T 1 2 3 4 5 <cmd> DLE ) \0 */
+	cb = kmalloc(sizeof(struct cmdbuf_t) + buflen, kmallocflags);
+	if (!cb) {
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		return;
 	}
-
-	cmdbuf = kmalloc(buflen, kmallocflags);
-	if (unlikely(!cmdbuf)) {
-		dev_err(cs->dev, "out of memory\n");
-		return;
-	}
-
-	cmdpos = cmdbuf + 9;
-	cmdtail = cmdpos + cmdlen;
-	memcpy(cmdpos, cmd, cmdlen);
-
-	if (cid > 0 && cid <= 65535) {
-		do {
-			*--cmdpos = '0' + cid % 10;
-			cid /= 10;
-			++cmdlen;
-		} while (cid);
-	}
-
-	cmdlen += 2;
-	*--cmdpos = 'T';
-	*--cmdpos = 'A';
-
-	if (dle) {
-		cmdlen += 4;
-		*--cmdpos = '(';
-		*--cmdpos = 0x10;
-		*cmdtail++ = 0x10;
-		*cmdtail++ = ')';
-	}
-
-	cs->ops->write_cmd(cs, cmdpos, cmdlen, NULL);
-	kfree(cmdbuf);
+	if (cid > 0 && cid <= 65535)
+		cb->len = snprintf(cb->buf, buflen,
+				  dle ? "\020(AT%d%s\020)" : "AT%d%s",
+				  cid, cmd);
+	else
+		cb->len = snprintf(cb->buf, buflen,
+				  dle ? "\020(AT%s\020)" : "AT%s",
+				  cmd);
+	cb->offset = 0;
+	cb->next = NULL;
+	cb->wake_tasklet = NULL;
+	cs->ops->write_cmd(cs, cb);
 }
 
 static struct at_state_t *at_state_from_cid(struct cardstate *cs, int cid)
@@ -861,12 +771,12 @@ static void bchannel_down(struct bc_state *bcs)
 {
 	if (bcs->chstate & CHS_B_UP) {
 		bcs->chstate &= ~CHS_B_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BHUP);
+		gigaset_isdn_hupB(bcs);
 	}
 
 	if (bcs->chstate & (CHS_D_UP | CHS_NOTIFY_LL)) {
 		bcs->chstate &= ~(CHS_D_UP | CHS_NOTIFY_LL);
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DHUP);
+		gigaset_isdn_hupD(bcs);
 	}
 
 	gigaset_free_channel(bcs);
@@ -876,12 +786,6 @@ static void bchannel_down(struct bc_state *bcs)
 
 static void bchannel_up(struct bc_state *bcs)
 {
-	if (!(bcs->chstate & CHS_D_UP)) {
-		dev_notice(bcs->cs->dev, "%s: D channel not up\n", __func__);
-		bcs->chstate |= CHS_D_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DCONN);
-	}
-
 	if (bcs->chstate & CHS_B_UP) {
 		dev_notice(bcs->cs->dev, "%s: B channel already up\n",
 			   __func__);
@@ -889,15 +793,17 @@ static void bchannel_up(struct bc_state *bcs)
 	}
 
 	bcs->chstate |= CHS_B_UP;
-	gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BCONN);
+	gigaset_isdn_connB(bcs);
 }
 
-static void start_dial(struct at_state_t *at_state, void *data, unsigned seq_index)
+static void start_dial(struct at_state_t *at_state, void *data,
+			unsigned seq_index)
 {
 	struct bc_state *bcs = at_state->bcs;
 	struct cardstate *cs = at_state->cs;
-	int retval;
+	char **commands = data;
 	unsigned long flags;
+	int i;
 
 	bcs->chstate |= CHS_NOTIFY_LL;
 
@@ -908,19 +814,23 @@ static void start_dial(struct at_state_t *at_state, void *data, unsigned seq_ind
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
 
-	retval = gigaset_isdn_setup_dial(at_state, data);
-	if (retval != 0)
-		goto error;
-
+	for (i = 0; i < AT_NUM; ++i) {
+		kfree(bcs->commands[i]);
+		bcs->commands[i] = commands[i];
+	}
 
 	at_state->pending_commands |= PC_CID;
-	gig_dbg(DEBUG_CMD, "Scheduling PC_CID");
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_CID");
 	cs->commands_pending = 1;
 	return;
 
 error:
+	for (i = 0; i < AT_NUM; ++i) {
+		kfree(commands[i]);
+		commands[i] = NULL;
+	}
 	at_state->pending_commands |= PC_NOCID;
-	gig_dbg(DEBUG_CMD, "Scheduling PC_NOCID");
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_NOCID");
 	cs->commands_pending = 1;
 	return;
 }
@@ -928,20 +838,31 @@ error:
 static void start_accept(struct at_state_t *at_state)
 {
 	struct cardstate *cs = at_state->cs;
-	int retval;
+	struct bc_state *bcs = at_state->bcs;
+	int i;
 
-	retval = gigaset_isdn_setup_accept(at_state);
+	for (i = 0; i < AT_NUM; ++i) {
+		kfree(bcs->commands[i]);
+		bcs->commands[i] = NULL;
+	}
 
-	if (retval == 0) {
-		at_state->pending_commands |= PC_ACCEPT;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_ACCEPT");
-		cs->commands_pending = 1;
-	} else {
+	bcs->commands[AT_PROTO] = kmalloc(9, GFP_ATOMIC);
+	bcs->commands[AT_ISO] = kmalloc(9, GFP_ATOMIC);
+	if (!bcs->commands[AT_PROTO] || !bcs->commands[AT_ISO]) {
+		dev_err(at_state->cs->dev, "out of memory\n");
 		/* error reset */
 		at_state->pending_commands |= PC_HUP;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_HUP");
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_HUP");
 		cs->commands_pending = 1;
+		return;
 	}
+
+	snprintf(bcs->commands[AT_PROTO], 9, "^SBPR=%u\r", bcs->proto2);
+	snprintf(bcs->commands[AT_ISO], 9, "^SISO=%u\r", bcs->channel + 1);
+
+	at_state->pending_commands |= PC_ACCEPT;
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_ACCEPT");
+	cs->commands_pending = 1;
 }
 
 static void do_start(struct cardstate *cs)
@@ -952,9 +873,7 @@ static void do_start(struct cardstate *cs)
 		schedule_init(cs, MS_INIT);
 
 	cs->isdn_up = 1;
-	gigaset_i4l_cmd(cs, ISDN_STAT_RUN);
-					// FIXME: not in locked mode
-					// FIXME 2: only after init sequence
+	gigaset_isdn_start(cs);
 
 	cs->waiting = 0;
 	wake_up(&cs->waitqueue);
@@ -970,7 +889,7 @@ static void finish_shutdown(struct cardstate *cs)
 	/* Tell the LL that the device is not available .. */
 	if (cs->isdn_up) {
 		cs->isdn_up = 0;
-		gigaset_i4l_cmd(cs, ISDN_STAT_STOP);
+		gigaset_isdn_stop(cs);
 	}
 
 	/* The rest is done by cleanup_cs () in user mode. */
@@ -987,8 +906,8 @@ static void do_shutdown(struct cardstate *cs)
 	if (cs->mstate == MS_READY) {
 		cs->mstate = MS_SHUTDOWN;
 		cs->at_state.pending_commands |= PC_SHUTDOWN;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_SHUTDOWN");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_SHUTDOWN");
 	} else
 		finish_shutdown(cs);
 }
@@ -1108,7 +1027,6 @@ static int do_lock(struct cardstate *cs)
 
 		break;
 	case MS_LOCKED:
-		//retval = -EACCES;
 		break;
 	default:
 		return -EBUSY;
@@ -1170,8 +1088,8 @@ static void do_action(int action, struct cardstate *cs,
 		}
 		spin_unlock_irqrestore(&cs->lock, flags);
 		cs->at_state.pending_commands |= PC_CIDMODE;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
 		break;
 	case ACT_FAILINIT:
 		dev_warn(cs->dev, "Could not initialize the device.\n");
@@ -1222,8 +1140,22 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_HUPMODEM:
 		/* send "+++" (hangup in unimodem mode) */
-		if (cs->connected)
-			cs->ops->write_cmd(cs, "+++", 3, NULL);
+		if (cs->connected) {
+			struct cmdbuf_t *cb;
+
+			cb = kmalloc(sizeof(struct cmdbuf_t) + 3, GFP_ATOMIC);
+			if (!cb) {
+				dev_err(cs->dev, "%s: out of memory\n",
+					__func__);
+				return;
+			}
+			memcpy(cb->buf, "+++", 3);
+			cb->len = 3;
+			cb->offset = 0;
+			cb->next = NULL;
+			cb->wake_tasklet = NULL;
+			cs->ops->write_cmd(cs, cb);
+		}
 		break;
 	case ACT_RING:
 		/* get fresh AT state structure for new CID */
@@ -1238,14 +1170,10 @@ static void do_action(int action, struct cardstate *cs,
 		 * note that bcs may be NULL if no B channel is free
 		 */
 		at_state2->ConState = 700;
-		kfree(at_state2->str_var[STR_NMBR]);
-		at_state2->str_var[STR_NMBR] = NULL;
-		kfree(at_state2->str_var[STR_ZCPN]);
-		at_state2->str_var[STR_ZCPN] = NULL;
-		kfree(at_state2->str_var[STR_ZBC]);
-		at_state2->str_var[STR_ZBC] = NULL;
-		kfree(at_state2->str_var[STR_ZHLC]);
-		at_state2->str_var[STR_ZHLC] = NULL;
+		for (i = 0; i < STR_NUM; ++i) {
+			kfree(at_state2->str_var[i]);
+			at_state2->str_var[i] = NULL;
+		}
 		at_state2->int_var[VAR_ZCTP] = -1;
 
 		spin_lock_irqsave(&cs->lock, flags);
@@ -1271,7 +1199,7 @@ static void do_action(int action, struct cardstate *cs,
 			break;
 		}
 		bcs->chstate |= CHS_D_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DCONN);
+		gigaset_isdn_connD(bcs);
 		cs->ops->init_bchannel(bcs);
 		break;
 	case ACT_DLE1:
@@ -1279,7 +1207,7 @@ static void do_action(int action, struct cardstate *cs,
 		bcs = cs->bcs + cs->curchannel;
 
 		bcs->chstate |= CHS_D_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DCONN);
+		gigaset_isdn_connD(bcs);
 		cs->ops->init_bchannel(bcs);
 		break;
 	case ACT_FAKEHUP:
@@ -1364,7 +1292,7 @@ static void do_action(int action, struct cardstate *cs,
 		cs->cur_at_seq = SEQ_NONE;
 		break;
 
-	case ACT_ABORTACCEPT:	/* hangup/error/timeout during ICALL processing */
+	case ACT_ABORTACCEPT:	/* hangup/error/timeout during ICALL procssng */
 		disconnect(p_at_state);
 		break;
 
@@ -1422,7 +1350,7 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_GOTVER:
 		if (cs->gotfwver == 0) {
 			cs->gotfwver = 1;
-			gig_dbg(DEBUG_ANY,
+			gig_dbg(DEBUG_EVENT,
 				"firmware version %02d.%03d.%02d.%02d",
 				cs->fwver[0], cs->fwver[1],
 				cs->fwver[2], cs->fwver[3]);
@@ -1433,21 +1361,11 @@ static void do_action(int action, struct cardstate *cs,
 		cs->gotfwver = -1;
 		dev_err(cs->dev, "could not read firmware version.\n");
 		break;
-#ifdef CONFIG_GIGASET_DEBUG
 	case ACT_ERROR:
-		*p_genresp = 1;
-		*p_resp_code = RSP_ERROR;
+		gig_dbg(DEBUG_ANY, "%s: ERROR response in ConState %d",
+			__func__, at_state->ConState);
+		cs->cur_at_seq = SEQ_NONE;
 		break;
-	case ACT_TEST:
-		{
-			static int count = 3; //2; //1;
-			*p_genresp = 1;
-			*p_resp_code = count ? RSP_ERROR : RSP_OK;
-			if (count > 0)
-				--count;
-		}
-		break;
-#endif
 	case ACT_DEBUG:
 		gig_dbg(DEBUG_ANY, "%s: resp_code %d in ConState %d",
 			__func__, ev->type, at_state->ConState);
@@ -1468,15 +1386,10 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_ACCEPT:
 		start_accept(at_state);
 		break;
-	case ACT_PROTO_L2:
-		gig_dbg(DEBUG_CMD, "set protocol to %u",
-			(unsigned) ev->parameter);
-		at_state->bcs->proto2 = ev->parameter;
-		break;
 	case ACT_HUP:
 		at_state->pending_commands |= PC_HUP;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_HUP");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_HUP");
 		break;
 
 	/* hotplug events */
@@ -1487,7 +1400,7 @@ static void do_action(int action, struct cardstate *cs,
 		do_start(cs);
 		break;
 
-	/* events from the interface */ // FIXME without ACT_xxxx?
+	/* events from the interface */
 	case ACT_IF_LOCK:
 		cs->cmd_result = ev->parameter ? do_lock(cs) : do_unlock(cs);
 		cs->waiting = 0;
@@ -1506,17 +1419,17 @@ static void do_action(int action, struct cardstate *cs,
 		wake_up(&cs->waitqueue);
 		break;
 
-	/* events from the proc file system */ // FIXME without ACT_xxxx?
+	/* events from the proc file system */
 	case ACT_PROC_CIDMODE:
 		spin_lock_irqsave(&cs->lock, flags);
 		if (ev->parameter != cs->cidmode) {
 			cs->cidmode = ev->parameter;
 			if (ev->parameter) {
 				cs->at_state.pending_commands |= PC_CIDMODE;
-				gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
+				gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 			} else {
 				cs->at_state.pending_commands |= PC_UMMODE;
-				gig_dbg(DEBUG_CMD, "Scheduling PC_UMMODE");
+				gig_dbg(DEBUG_EVENT, "Scheduling PC_UMMODE");
 			}
 			cs->commands_pending = 1;
 		}
@@ -1567,6 +1480,8 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 	if (ev->cid >= 0) {
 		at_state = at_state_from_cid(cs, ev->cid);
 		if (!at_state) {
+			gig_dbg(DEBUG_EVENT, "event %d for invalid cid %d",
+				ev->type, ev->cid);
 			gigaset_add_event(cs, &cs->at_state, RSP_WRONG_CID,
 					  NULL, 0, NULL);
 			return;
@@ -1574,13 +1489,13 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 	} else {
 		at_state = ev->at_state;
 		if (at_state_invalid(cs, at_state)) {
-			gig_dbg(DEBUG_ANY, "event for invalid at_state %p",
+			gig_dbg(DEBUG_EVENT, "event for invalid at_state %p",
 				at_state);
 			return;
 		}
 	}
 
-	gig_dbg(DEBUG_CMD, "connection state %d, event %d",
+	gig_dbg(DEBUG_EVENT, "connection state %d, event %d",
 		at_state->ConState, ev->type);
 
 	bcs = at_state->bcs;
@@ -1594,11 +1509,11 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 		if (ev->parameter != at_state->timer_index
 		    || !at_state->timer_active) {
 			ev->type = RSP_NONE; /* old timeout */
-			gig_dbg(DEBUG_ANY, "old timeout");
+			gig_dbg(DEBUG_EVENT, "old timeout");
 		} else if (!at_state->waiting)
-			gig_dbg(DEBUG_ANY, "timeout occurred");
+			gig_dbg(DEBUG_EVENT, "timeout occurred");
 		else
-			gig_dbg(DEBUG_ANY, "stopped waiting");
+			gig_dbg(DEBUG_EVENT, "stopped waiting");
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
 
@@ -1643,7 +1558,8 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 	for (curact = 0; curact < MAXACT; ++curact) {
 		/* The row tells us what we should do  ..
 		 */
-		do_action(rep->action[curact], cs, bcs, &at_state, &p_command, &genresp, &resp_code, ev);
+		do_action(rep->action[curact], cs, bcs, &at_state, &p_command,
+			  &genresp, &resp_code, ev);
 		if (!at_state)
 			break; /* may be freed after disconnect */
 	}
@@ -1655,13 +1571,14 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 
 		if (genresp) {
 			spin_lock_irqsave(&cs->lock, flags);
-			at_state->timer_expires = 0; //FIXME
-			at_state->timer_active = 0; //FIXME
+			at_state->timer_expires = 0;
+			at_state->timer_active = 0;
 			spin_unlock_irqrestore(&cs->lock, flags);
-			gigaset_add_event(cs, at_state, resp_code, NULL, 0, NULL);
+			gigaset_add_event(cs, at_state, resp_code,
+					  NULL, 0, NULL);
 		} else {
 			/* Send command to modem if not NULL... */
-			if (p_command/*rep->command*/) {
+			if (p_command) {
 				if (cs->connected)
 					send_command(cs, p_command,
 						     sendcid, cs->dle,
@@ -1704,11 +1621,11 @@ static void process_command_flags(struct cardstate *cs)
 	cs->commands_pending = 0;
 
 	if (cs->cur_at_seq) {
-		gig_dbg(DEBUG_CMD, "not searching scheduled commands: busy");
+		gig_dbg(DEBUG_EVENT, "not searching scheduled commands: busy");
 		return;
 	}
 
-	gig_dbg(DEBUG_CMD, "searching scheduled commands");
+	gig_dbg(DEBUG_EVENT, "searching scheduled commands");
 
 	sequence = SEQ_NONE;
 
@@ -1748,7 +1665,8 @@ static void process_command_flags(struct cardstate *cs)
 		}
 	}
 
-	/* only switch back to unimodem mode, if no commands are pending and no channels are up */
+	/* only switch back to unimodem mode if no commands are pending and
+	 * no channels are up */
 	spin_lock_irqsave(&cs->lock, flags);
 	if (cs->at_state.pending_commands == PC_UMMODE
 	    && !cs->cidmode
@@ -1807,9 +1725,8 @@ static void process_command_flags(struct cardstate *cs)
 
 	if (cs->at_state.pending_commands & PC_INIT) {
 		cs->at_state.pending_commands &= ~PC_INIT;
-		cs->dle = 0; //FIXME
+		cs->dle = 0;
 		cs->inbuf->inputstate = INS_command;
-		//FIXME reset card state (or -> LOCK0)?
 		schedule_sequence(cs, &cs->at_state, SEQ_INIT);
 		return;
 	}
@@ -1849,22 +1766,16 @@ static void process_command_flags(struct cardstate *cs)
 			switch (cs->mode) {
 			case M_UNIMODEM:
 				cs->at_state.pending_commands |= PC_CIDMODE;
-				gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
+				gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 				cs->commands_pending = 1;
 				return;
-#ifdef GIG_MAYINITONDIAL
 			case M_UNKNOWN:
 				schedule_init(cs, MS_INIT);
 				return;
-#endif
 			}
 			bcs->at_state.pending_commands &= ~PC_CID;
 			cs->curchannel = bcs->channel;
-#ifdef GIG_RETRYCID
 			cs->retry_count = 2;
-#else
-			cs->retry_count = 1;
-#endif
 			schedule_sequence(cs, &cs->at_state, SEQ_CID);
 			return;
 		}

@@ -24,7 +24,6 @@
 #include <linux/module.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
@@ -34,9 +33,10 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <plat/regs-iic.h>
 #include <plat/iic.h>
@@ -481,7 +481,8 @@ static int s3c24xx_i2c_set_master(struct s3c24xx_i2c *i2c)
 static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 			      struct i2c_msg *msgs, int num)
 {
-	unsigned long timeout;
+	unsigned long iicstat, timeout;
+	int spins = 20;
 	int ret;
 
 	if (i2c->suspended)
@@ -520,7 +521,21 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 
 	/* ensure the stop has been through the bus */
 
-	msleep(1);
+	dev_dbg(i2c->dev, "waiting for bus idle\n");
+
+	/* first, try busy waiting briefly */
+	do {
+		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+	} while ((iicstat & S3C2410_IICSTAT_START) && --spins);
+
+	/* if that timed out sleep */
+	if (!spins) {
+		msleep(1);
+		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+	}
+
+	if (iicstat & S3C2410_IICSTAT_START)
+		dev_warn(i2c->dev, "timeout waiting for bus idle\n");
 
  out:
 	return ret;
@@ -539,18 +554,23 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	int retry;
 	int ret;
 
+	clk_enable(i2c->clk);
+
 	for (retry = 0; retry < adap->retries; retry++) {
 
 		ret = s3c24xx_i2c_doxfer(i2c, msgs, num);
 
-		if (ret != -EAGAIN)
+		if (ret != -EAGAIN) {
+			clk_disable(i2c->clk);
 			return ret;
+		}
 
 		dev_dbg(i2c->dev, "Retrying transmission (%d)\n", retry);
 
 		udelay(100);
 	}
 
+	clk_disable(i2c->clk);
 	return -EREMOTEIO;
 }
 
@@ -646,8 +666,8 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 		unsigned long sda_delay;
 
 		if (pdata->sda_delay) {
-			sda_delay = (freq / 1000) * pdata->sda_delay;
-			sda_delay /= 1000000;
+			sda_delay = clkin * pdata->sda_delay;
+			sda_delay = DIV_ROUND_UP(sda_delay, 1000000);
 			sda_delay = DIV_ROUND_UP(sda_delay, 5);
 			if (sda_delay > 3)
 				sda_delay = 3;
@@ -762,11 +782,6 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	dev_info(i2c->dev, "bus frequency set to %d KHz\n", freq);
 	dev_dbg(i2c->dev, "S3C2410_IICCON=0x%02lx\n", iicon);
-
-	/* check for s3c2440 i2c controller  */
-
-	if (s3c24xx_i2c_is2440(i2c))
-		writel(0x0, i2c->regs + S3C2440_IICLC);
 
 	return 0;
 }
@@ -900,6 +915,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, i2c);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
+	clk_disable(i2c->clk);
 	return 0;
 
  err_cpufreq:
@@ -951,27 +967,37 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2c_suspend_late(struct platform_device *dev,
-				    pm_message_t msg)
+static int s3c24xx_i2c_suspend_noirq(struct device *dev)
 {
-	struct s3c24xx_i2c *i2c = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
+
 	i2c->suspended = 1;
+
 	return 0;
 }
 
-static int s3c24xx_i2c_resume(struct platform_device *dev)
+static int s3c24xx_i2c_resume(struct device *dev)
 {
-	struct s3c24xx_i2c *i2c = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
+	clk_enable(i2c->clk);
 	s3c24xx_i2c_init(i2c);
+	clk_disable(i2c->clk);
 
 	return 0;
 }
 
+static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
+	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
+	.resume = s3c24xx_i2c_resume,
+};
+
+#define S3C24XX_DEV_PM_OPS (&s3c24xx_i2c_dev_pm_ops)
 #else
-#define s3c24xx_i2c_suspend_late NULL
-#define s3c24xx_i2c_resume NULL
+#define S3C24XX_DEV_PM_OPS NULL
 #endif
 
 /* device driver for platform bus bits */
@@ -990,12 +1016,11 @@ MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);
 static struct platform_driver s3c24xx_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
 	.remove		= s3c24xx_i2c_remove,
-	.suspend_late	= s3c24xx_i2c_suspend_late,
-	.resume		= s3c24xx_i2c_resume,
 	.id_table	= s3c24xx_driver_ids,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c-i2c",
+		.pm	= S3C24XX_DEV_PM_OPS,
 	},
 };
 

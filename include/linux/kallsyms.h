@@ -107,18 +107,6 @@ static inline void print_symbol(const char *fmt, unsigned long addr)
 		       __builtin_extract_return_addr((void *)addr));
 }
 
-/*
- * Pretty-print a function pointer.  This function is deprecated.
- * Please use the "%pF" vsprintf format instead.
- */
-static inline void __deprecated print_fn_descriptor_symbol(const char *fmt, void *addr)
-{
-#if defined(CONFIG_IA64) || defined(CONFIG_PPC64)
-	addr = *(void **)addr;
-#endif
-	print_symbol(fmt, (unsigned long)addr);
-}
-
 static inline void print_ip_sym(unsigned long ip)
 {
 	printk("[<%p>] %pS\n", (void *) ip, (void *) ip);

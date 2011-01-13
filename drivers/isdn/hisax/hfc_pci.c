@@ -20,6 +20,7 @@
 #include "hfc_pci.h"
 #include "isdnl1.h"
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/interrupt.h>
 
 static const char *hfcpci_revision = "$Revision: 1.48.2.4 $";
@@ -549,7 +550,7 @@ hfcpci_fill_dfifo(struct IsdnCardState *cs)
 		count += D_FIFO_SIZE;	/* count now contains available bytes */
 
 	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "hfcpci_fill_Dfifo count(%ld/%d)",
+		debugl1(cs, "hfcpci_fill_Dfifo count(%u/%d)",
 			cs->tx_skb->len, count);
 	if (count < cs->tx_skb->len) {
 		if (cs->debug & L1_DEB_ISAC)
@@ -680,7 +681,7 @@ hfcpci_fill_fifo(struct BCState *bcs)
 		count += B_FIFO_SIZE;	/* count now contains available bytes */
 
 	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "hfcpci_fill_fifo %d count(%ld/%d),%lx",
+		debugl1(cs, "hfcpci_fill_fifo %d count(%u/%d),%lx",
 			bcs->channel, bcs->tx_skb->len,
 			count, current->state);
 
@@ -1506,8 +1507,6 @@ hfcpci_bh(struct work_struct *work)
 	u_long	flags;
 //      struct PStack *stptr;
 
-	if (!cs)
-		return;
 	if (test_and_clear_bit(D_L1STATECHANGE, &cs->event)) {
 		if (!cs->hw.hfcpci.nt_mode)
 			switch (cs->dc.hfcpci.ph_state) {
@@ -1659,7 +1658,7 @@ setup_hfcpci(struct IsdnCard *card)
 
 	i = 0;
 	while (id_list[i].vendor_id) {
-		tmp_hfcpci = pci_find_device(id_list[i].vendor_id,
+		tmp_hfcpci = hisax_find_pci_device(id_list[i].vendor_id,
 					     id_list[i].device_id,
 					     dev_hfcpci);
 		i++;

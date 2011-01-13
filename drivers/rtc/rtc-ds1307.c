@@ -106,9 +106,9 @@ struct ds1307 {
 	struct i2c_client	*client;
 	struct rtc_device	*rtc;
 	struct work_struct	work;
-	s32 (*read_block_data)(struct i2c_client *client, u8 command,
+	s32 (*read_block_data)(const struct i2c_client *client, u8 command,
 			       u8 length, u8 *values);
-	s32 (*write_block_data)(struct i2c_client *client, u8 command,
+	s32 (*write_block_data)(const struct i2c_client *client, u8 command,
 				u8 length, const u8 *values);
 };
 
@@ -158,8 +158,8 @@ MODULE_DEVICE_TABLE(i2c, ds1307_id);
 
 #define BLOCK_DATA_MAX_TRIES 10
 
-static s32 ds1307_read_block_data_once(struct i2c_client *client, u8 command,
-				  u8 length, u8 *values)
+static s32 ds1307_read_block_data_once(const struct i2c_client *client,
+				       u8 command, u8 length, u8 *values)
 {
 	s32 i, data;
 
@@ -172,7 +172,7 @@ static s32 ds1307_read_block_data_once(struct i2c_client *client, u8 command,
 	return i;
 }
 
-static s32 ds1307_read_block_data(struct i2c_client *client, u8 command,
+static s32 ds1307_read_block_data(const struct i2c_client *client, u8 command,
 				  u8 length, u8 *values)
 {
 	u8 oldvalues[I2C_SMBUS_BLOCK_MAX];
@@ -198,7 +198,7 @@ static s32 ds1307_read_block_data(struct i2c_client *client, u8 command,
 	return length;
 }
 
-static s32 ds1307_write_block_data(struct i2c_client *client, u8 command,
+static s32 ds1307_write_block_data(const struct i2c_client *client, u8 command,
 				   u8 length, const u8 *values)
 {
 	u8 currvalues[I2C_SMBUS_BLOCK_MAX];
@@ -556,7 +556,8 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 #define NVRAM_SIZE	56
 
 static ssize_t
-ds1307_nvram_read(struct kobject *kobj, struct bin_attribute *attr,
+ds1307_nvram_read(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct i2c_client	*client;
@@ -580,7 +581,8 @@ ds1307_nvram_read(struct kobject *kobj, struct bin_attribute *attr,
 }
 
 static ssize_t
-ds1307_nvram_write(struct kobject *kobj, struct bin_attribute *attr,
+ds1307_nvram_write(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct i2c_client	*client;
@@ -775,7 +777,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 
 read_rtc:
 	/* read RTC registers */
-	tmp = ds1307->read_block_data(ds1307->client, 0, 8, buf);
+	tmp = ds1307->read_block_data(ds1307->client, ds1307->offset, 8, buf);
 	if (tmp != 8) {
 		pr_debug("read error %d\n", tmp);
 		err = -EIO;
@@ -860,7 +862,7 @@ read_rtc:
 		if (ds1307->regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
 			tmp += 12;
 		i2c_smbus_write_byte_data(client,
-				DS1307_REG_HOUR,
+				ds1307->offset + DS1307_REG_HOUR,
 				bin2bcd(tmp));
 	}
 
@@ -874,13 +876,15 @@ read_rtc:
 	}
 
 	if (want_irq) {
-		err = request_irq(client->irq, ds1307_irq, 0,
+		err = request_irq(client->irq, ds1307_irq, IRQF_SHARED,
 			  ds1307->rtc->name, client);
 		if (err) {
 			dev_err(&client->dev,
 				"unable to request IRQ!\n");
 			goto exit_irq;
 		}
+
+		device_set_wakeup_capable(&client->dev, 1);
 		set_bit(HAS_ALARM, &ds1307->flags);
 		dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
 	}
@@ -896,8 +900,7 @@ read_rtc:
 	return 0;
 
 exit_irq:
-	if (ds1307->rtc)
-		rtc_device_unregister(ds1307->rtc);
+	rtc_device_unregister(ds1307->rtc);
 exit_free:
 	kfree(ds1307);
 	return err;

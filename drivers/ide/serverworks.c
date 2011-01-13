@@ -2,7 +2,7 @@
  * Copyright (C) 1998-2000 Michel Aubry
  * Copyright (C) 1998-2000 Andrzej Krzysztofowicz
  * Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
- * Copyright (C)      2007 Bartlomiej Zolnierkiewicz
+ * Copyright (C) 2007-2010 Bartlomiej Zolnierkiewicz
  * Portions copyright (c) 2001 Sun Microsystems
  *
  *
@@ -52,8 +52,6 @@ static const char *svwks_bad_ata100[] = {
 	NULL
 };
 
-static struct pci_dev *isa_dev;
-
 static int check_in_drive_lists (ide_drive_t *drive, const char **list)
 {
 	char *m = (char *)&drive->id[ATA_ID_PROD];
@@ -67,26 +65,14 @@ static int check_in_drive_lists (ide_drive_t *drive, const char **list)
 static u8 svwks_udma_filter(ide_drive_t *drive)
 {
 	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
-	u8 mask = 0;
 
-	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_HT1000IDE)
+	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_HT1000IDE) {
 		return 0x1f;
-	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
-		u32 reg = 0;
-		if (isa_dev)
-			pci_read_config_dword(isa_dev, 0x64, &reg);
-			
-		/*
-		 *	Don't enable UDMA on disk devices for the moment
-		 */
-		if(drive->media == ide_disk)
-			return 0;
-		/* Check the OSB4 DMA33 enable bit */
-		return ((reg & 0x00004000) == 0x00004000) ? 0x07 : 0;
 	} else if (dev->revision < SVWKS_CSB5_REVISION_NEW) {
 		return 0x07;
-	} else if (dev->revision >= SVWKS_CSB5_REVISION_NEW) {
-		u8 btr = 0, mode;
+	} else {
+		u8 btr = 0, mode, mask;
+
 		pci_read_config_byte(dev, 0x5A, &btr);
 		mode = btr & 0x3;
 
@@ -101,13 +87,9 @@ static u8 svwks_udma_filter(ide_drive_t *drive)
 		case 1:	 mask = 0x07; break;
 		default: mask = 0x00; break;
 		}
-	}
-	if (((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
-	     (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2)) &&
-	    (!(PCI_FUNC(dev->devfn) & 1)))
-		mask = 0x1f;
 
-	return mask;
+		return mask;
+	}
 }
 
 static u8 svwks_csb_check (struct pci_dev *dev)
@@ -124,12 +106,13 @@ static u8 svwks_csb_check (struct pci_dev *dev)
 	return 0;
 }
 
-static void svwks_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void svwks_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	static const u8 pio_modes[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
 	static const u8 drive_pci[] = { 0x41, 0x40, 0x43, 0x42 };
 
-	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	pci_write_config_byte(dev, drive_pci[drive->dn], pio_modes[pio]);
 
@@ -145,14 +128,14 @@ static void svwks_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 }
 
-static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void svwks_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	static const u8 udma_modes[]		= { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
 	static const u8 dma_modes[]		= { 0x77, 0x21, 0x20 };
 	static const u8 drive_pci2[]		= { 0x45, 0x44, 0x47, 0x46 };
 
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	const u8 speed		= drive->dma_mode;
 	u8 unit			= drive->dn & 1;
 
 	u8 ultra_enable	 = 0, ultra_timing = 0, dma_timing = 0;
@@ -185,8 +168,9 @@ static int init_chipset_svwks(struct pci_dev *dev)
 
 	/* OSB4 : South Bridge and IDE */
 	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
-		isa_dev = pci_get_device(PCI_VENDOR_ID_SERVERWORKS,
-			  PCI_DEVICE_ID_SERVERWORKS_OSB4, NULL);
+		struct pci_dev *isa_dev =
+			pci_get_device(PCI_VENDOR_ID_SERVERWORKS,
+					PCI_DEVICE_ID_SERVERWORKS_OSB4, NULL);
 		if (isa_dev) {
 			pci_read_config_dword(isa_dev, 0x64, &reg);
 			reg &= ~0x00002000; /* disable 600ns interrupt mask */
@@ -195,6 +179,7 @@ static int init_chipset_svwks(struct pci_dev *dev)
 					"enabled.\n", pci_name(dev));
 			reg |=  0x00004000; /* enable UDMA/33 support */
 			pci_write_config_dword(isa_dev, 0x64, reg);
+			pci_dev_put(isa_dev);
 		}
 	}
 
@@ -343,7 +328,6 @@ static u8 svwks_cable_detect(ide_hwif_t *hwif)
 static const struct ide_port_ops osb4_port_ops = {
 	.set_pio_mode		= svwks_set_pio_mode,
 	.set_dma_mode		= svwks_set_dma_mode,
-	.udma_filter		= svwks_udma_filter,
 };
 
 static const struct ide_port_ops svwks_port_ops = {
@@ -460,6 +444,6 @@ static void __exit svwks_ide_exit(void)
 module_init(svwks_ide_init);
 module_exit(svwks_ide_exit);
 
-MODULE_AUTHOR("Michael Aubry. Andrzej Krzysztofowicz, Andre Hedrick");
+MODULE_AUTHOR("Michael Aubry. Andrzej Krzysztofowicz, Andre Hedrick, Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("PCI driver module for Serverworks OSB4/CSB5/CSB6 IDE");
 MODULE_LICENSE("GPL");

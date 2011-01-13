@@ -11,11 +11,14 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include "sbshc.h"
 
-#define ACPI_SMB_HC_CLASS	"smbus_host_controller"
+#define PREFIX "ACPI: "
+
+#define ACPI_SMB_HC_CLASS	"smbus_host_ctl"
 #define ACPI_SMB_HC_DEVICE_NAME	"ACPI SMBus HC"
 
 struct acpi_smb_hc {
@@ -240,7 +243,7 @@ static int smbus_alarm(void *context)
 		case ACPI_SBS_CHARGER:
 		case ACPI_SBS_MANAGER:
 		case ACPI_SBS_BATTERY:
-			acpi_os_execute(OSL_GPE_HANDLER,
+			acpi_os_execute(OSL_NOTIFY_HANDLER,
 					acpi_smbus_callback, hc);
 		default:;
 	}

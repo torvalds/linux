@@ -22,6 +22,17 @@
 #include <crypto/rng.h>
 
 #include "internal.h"
+
+#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+
+/* a perfect nop */
+int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
+{
+	return 0;
+}
+
+#else
+
 #include "testmgr.h"
 
 /*
@@ -153,8 +164,21 @@ static void testmgr_free_buf(char *buf[XBUFSIZE])
 		free_page((unsigned long)buf[i]);
 }
 
+static int do_one_async_hash_op(struct ahash_request *req,
+				struct tcrypt_result *tr,
+				int ret)
+{
+	if (ret == -EINPROGRESS || ret == -EBUSY) {
+		ret = wait_for_completion_interruptible(&tr->completion);
+		if (!ret)
+			ret = tr->err;
+		INIT_COMPLETION(tr->completion);
+	}
+	return ret;
+}
+
 static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
-		     unsigned int tcount)
+		     unsigned int tcount, bool use_digest)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 	unsigned int i, j, k, temp;
@@ -190,10 +214,6 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 		hash_buff = xbuf[0];
 
-		ret = -EINVAL;
-		if (WARN_ON(template[i].psize > PAGE_SIZE))
-			goto out;
-
 		memcpy(hash_buff, template[i].plaintext, template[i].psize);
 		sg_init_one(&sg[0], hash_buff, template[i].psize);
 
@@ -210,23 +230,36 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 		}
 
 		ahash_request_set_crypt(req, sg, result, template[i].psize);
-		ret = crypto_ahash_digest(req);
-		switch (ret) {
-		case 0:
-			break;
-		case -EINPROGRESS:
-		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&tresult.completion);
-			if (!ret && !(ret = tresult.err)) {
-				INIT_COMPLETION(tresult.completion);
-				break;
+		if (use_digest) {
+			ret = do_one_async_hash_op(req, &tresult,
+						   crypto_ahash_digest(req));
+			if (ret) {
+				pr_err("alg: hash: digest failed on test %d "
+				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
 			}
-			/* fall through */
-		default:
-			printk(KERN_ERR "alg: hash: digest failed on test %d "
-			       "for %s: ret=%d\n", j, algo, -ret);
-			goto out;
+		} else {
+			ret = do_one_async_hash_op(req, &tresult,
+						   crypto_ahash_init(req));
+			if (ret) {
+				pr_err("alt: hash: init failed on test %d "
+				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
+			}
+			ret = do_one_async_hash_op(req, &tresult,
+						   crypto_ahash_update(req));
+			if (ret) {
+				pr_err("alt: hash: update failed on test %d "
+				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
+			}
+			ret = do_one_async_hash_op(req, &tresult,
+						   crypto_ahash_final(req));
+			if (ret) {
+				pr_err("alt: hash: final failed on test %d "
+				       "for %s: ret=%d\n", j, algo, -ret);
+				goto out;
+			}
 		}
 
 		if (memcmp(result, template[i].digest,
@@ -1205,7 +1238,7 @@ static int test_cprng(struct crypto_rng *tfm, struct cprng_testvec *template,
 		      unsigned int tcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_rng_tfm(tfm));
-	int err, i, j, seedsize;
+	int err = 0, i, j, seedsize;
 	u8 *seed;
 	char result[32];
 
@@ -1406,7 +1439,11 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 		return PTR_ERR(tfm);
 	}
 
-	err = test_hash(tfm, desc->suite.hash.vecs, desc->suite.hash.count);
+	err = test_hash(tfm, desc->suite.hash.vecs,
+			desc->suite.hash.count, true);
+	if (!err)
+		err = test_hash(tfm, desc->suite.hash.vecs,
+				desc->suite.hash.count, false);
 
 	crypto_free_ahash(tfm);
 	return err;
@@ -1481,9 +1518,54 @@ static int alg_test_cprng(const struct alg_test_desc *desc, const char *driver,
 	return err;
 }
 
+static int alg_test_null(const struct alg_test_desc *desc,
+			     const char *driver, u32 type, u32 mask)
+{
+	return 0;
+}
+
 /* Please keep this list sorted by algorithm name. */
 static const struct alg_test_desc alg_test_descs[] = {
 	{
+		.alg = "__driver-cbc-aes-aesni",
+		.test = alg_test_null,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = NULL,
+					.count = 0
+				},
+				.dec = {
+					.vecs = NULL,
+					.count = 0
+				}
+			}
+		}
+	}, {
+		.alg = "__driver-ecb-aes-aesni",
+		.test = alg_test_null,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = NULL,
+					.count = 0
+				},
+				.dec = {
+					.vecs = NULL,
+					.count = 0
+				}
+			}
+		}
+	}, {
+		.alg = "__ghash-pclmulqdqni",
+		.test = alg_test_null,
+		.suite = {
+			.hash = {
+				.vecs = NULL,
+				.count = 0
+			}
+		}
+	}, {
 		.alg = "ansi_cprng",
 		.test = alg_test_cprng,
 		.fips_allowed = 1,
@@ -1627,6 +1709,30 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "cryptd(__driver-ecb-aes-aesni)",
+		.test = alg_test_null,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = NULL,
+					.count = 0
+				},
+				.dec = {
+					.vecs = NULL,
+					.count = 0
+				}
+			}
+		}
+	}, {
+		.alg = "cryptd(__ghash-pclmulqdqni)",
+		.test = alg_test_null,
+		.suite = {
+			.hash = {
+				.vecs = NULL,
+				.count = 0
+			}
+		}
+	}, {
 		.alg = "ctr(aes)",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
@@ -1669,6 +1775,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.decomp = {
 					.vecs = deflate_decomp_tv_template,
 					.count = DEFLATE_DECOMP_TEST_VECTORS
+				}
+			}
+		}
+	}, {
+		.alg = "ecb(__aes-aesni)",
+		.test = alg_test_null,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = NULL,
+					.count = 0
+				},
+				.dec = {
+					.vecs = NULL,
+					.count = 0
 				}
 			}
 		}
@@ -1944,6 +2065,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 					.vecs = aes_gcm_dec_tv_template,
 					.count = AES_GCM_DEC_TEST_VECTORS
 				}
+			}
+		}
+	}, {
+		.alg = "ghash",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = ghash_tv_template,
+				.count = GHASH_TEST_VECTORS
 			}
 		}
 	}, {
@@ -2252,6 +2382,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "vmac(aes)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = aes_vmac128_tv_template,
+				.count = VMAC_AES_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "wp256",
 		.test = alg_test_hash,
 		.suite = {
@@ -2348,6 +2487,7 @@ static int alg_find_test(const char *alg)
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 {
 	int i;
+	int j;
 	int rc;
 
 	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER) {
@@ -2369,14 +2509,22 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	}
 
 	i = alg_find_test(alg);
-	if (i < 0)
+	j = alg_find_test(driver);
+	if (i < 0 && j < 0)
 		goto notest;
 
-	if (fips_enabled && !alg_test_descs[i].fips_allowed)
+	if (fips_enabled && ((i >= 0 && !alg_test_descs[i].fips_allowed) ||
+			     (j >= 0 && !alg_test_descs[j].fips_allowed)))
 		goto non_fips_alg;
 
-	rc = alg_test_descs[i].test(alg_test_descs + i, driver,
-				      type, mask);
+	rc = 0;
+	if (i >= 0)
+		rc |= alg_test_descs[i].test(alg_test_descs + i, driver,
+					     type, mask);
+	if (j >= 0)
+		rc |= alg_test_descs[j].test(alg_test_descs + j, driver,
+					     type, mask);
+
 test_done:
 	if (fips_enabled && rc)
 		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
@@ -2393,4 +2541,7 @@ notest:
 non_fips_alg:
 	return -EINVAL;
 }
+
+#endif /* CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */
+
 EXPORT_SYMBOL_GPL(alg_test);

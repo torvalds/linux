@@ -126,9 +126,8 @@ struct mv_xor_chan {
  * @idx: pool index
  * @unmap_src_cnt: number of xor sources
  * @unmap_len: transaction bytecount
+ * @tx_list: list of slots that make up a multi-descriptor transaction
  * @async_tx: support for the async_tx api
- * @group_list: list of slots that make up a multi-descriptor transaction
- *	for example transfer lengths larger than the supported hw max
  * @xor_check_result: result of zero sum
  * @crc32_result: result crc calculation
  */
@@ -145,6 +144,7 @@ struct mv_xor_desc_slot {
 	u16			unmap_src_cnt;
 	u32			value;
 	size_t			unmap_len;
+	struct list_head	tx_list;
 	struct dma_async_tx_descriptor	async_tx;
 	union {
 		u32		*xor_check_result;

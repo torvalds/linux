@@ -30,29 +30,112 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-#if WATCH_INACTIVE
-void
-i915_verify_inactive(struct drm_device *dev, char *file, int line)
+#if WATCH_LISTS
+int
+i915_verify_lists(struct drm_device *dev)
 {
+	static int warned;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
+	int err = 0;
 
-	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		obj = obj_priv->obj;
-		if (obj_priv->pin_count || obj_priv->active ||
-		    (obj->write_domain & ~(I915_GEM_DOMAIN_CPU |
-					   I915_GEM_DOMAIN_GTT)))
-			DRM_ERROR("inactive %p (p %d a %d w %x)  %s:%d\n",
+	if (warned)
+		return 0;
+
+	list_for_each_entry(obj, &dev_priv->render_ring.active_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed render active %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->active ||
+			   (obj->base.read_domains & I915_GEM_GPU_DOMAINS) == 0) {
+			DRM_ERROR("invalid render active %p (a %d r %x)\n",
 				  obj,
-				  obj_priv->pin_count, obj_priv->active,
-				  obj->write_domain, file, line);
+				  obj->active,
+				  obj->base.read_domains);
+			err++;
+		} else if (obj->base.write_domain && list_empty(&obj->gpu_write_list)) {
+			DRM_ERROR("invalid render active %p (w %x, gwl %d)\n",
+				  obj,
+				  obj->base.write_domain,
+				  !list_empty(&obj->gpu_write_list));
+			err++;
+		}
 	}
+
+	list_for_each_entry(obj, &dev_priv->mm.flushing_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed flushing %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS) == 0 ||
+			   list_empty(&obj->gpu_write_list)){
+			DRM_ERROR("invalid flushing %p (a %d w %x gwl %d)\n",
+				  obj,
+				  obj->active,
+				  obj->base.write_domain,
+				  !list_empty(&obj->gpu_write_list));
+			err++;
+		}
+	}
+
+	list_for_each_entry(obj, &dev_priv->mm.gpu_write_list, gpu_write_list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed gpu write %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS) == 0) {
+			DRM_ERROR("invalid gpu write %p (a %d w %x)\n",
+				  obj,
+				  obj->active,
+				  obj->base.write_domain);
+			err++;
+		}
+	}
+
+	list_for_each_entry(obj, &dev_priv->mm.inactive_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed inactive %p\n", obj);
+			err++;
+			break;
+		} else if (obj->pin_count || obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS)) {
+			DRM_ERROR("invalid inactive %p (p %d a %d w %x)\n",
+				  obj,
+				  obj->pin_count, obj->active,
+				  obj->base.write_domain);
+			err++;
+		}
+	}
+
+	list_for_each_entry(obj, &dev_priv->mm.pinned_list, list) {
+		if (obj->base.dev != dev ||
+		    !atomic_read(&obj->base.refcount.refcount)) {
+			DRM_ERROR("freed pinned %p\n", obj);
+			err++;
+			break;
+		} else if (!obj->pin_count || obj->active ||
+			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS)) {
+			DRM_ERROR("invalid pinned %p (p %d a %d w %x)\n",
+				  obj,
+				  obj->pin_count, obj->active,
+				  obj->base.write_domain);
+			err++;
+		}
+	}
+
+	return warned = err;
 }
 #endif /* WATCH_INACTIVE */
 
 
-#if WATCH_BUF | WATCH_EXEC | WATCH_PWRITE
+#if WATCH_EXEC | WATCH_PWRITE
 static void
 i915_gem_dump_page(struct page *page, uint32_t start, uint32_t end,
 		   uint32_t bias, uint32_t mark)
@@ -69,13 +152,12 @@ i915_gem_dump_page(struct page *page, uint32_t start, uint32_t end,
 }
 
 void
-i915_gem_dump_object(struct drm_gem_object *obj, int len,
+i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
 		     const char *where, uint32_t mark)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int page;
 
-	DRM_INFO("%s: object at offset %08x\n", where, obj_priv->gtt_offset);
+	DRM_INFO("%s: object at offset %08x\n", where, obj->gtt_offset);
 	for (page = 0; page < (len + PAGE_SIZE-1) / PAGE_SIZE; page++) {
 		int page_len, chunk, chunk_len;
 
@@ -87,9 +169,9 @@ i915_gem_dump_object(struct drm_gem_object *obj, int len,
 			chunk_len = page_len - chunk;
 			if (chunk_len > 128)
 				chunk_len = 128;
-			i915_gem_dump_page(obj_priv->page_list[page],
+			i915_gem_dump_page(obj->pages[page],
 					   chunk, chunk + chunk_len,
-					   obj_priv->gtt_offset +
+					   obj->gtt_offset +
 					   page * PAGE_SIZE,
 					   mark);
 		}
@@ -97,58 +179,21 @@ i915_gem_dump_object(struct drm_gem_object *obj, int len,
 }
 #endif
 
-#if WATCH_LRU
-void
-i915_dump_lru(struct drm_device *dev, const char *where)
-{
-	drm_i915_private_t		*dev_priv = dev->dev_private;
-	struct drm_i915_gem_object	*obj_priv;
-
-	DRM_INFO("active list %s {\n", where);
-	spin_lock(&dev_priv->mm.active_list_lock);
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list,
-			    list)
-	{
-		DRM_INFO("    %p: %08x\n", obj_priv,
-			 obj_priv->last_rendering_seqno);
-	}
-	spin_unlock(&dev_priv->mm.active_list_lock);
-	DRM_INFO("}\n");
-	DRM_INFO("flushing list %s {\n", where);
-	list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list,
-			    list)
-	{
-		DRM_INFO("    %p: %08x\n", obj_priv,
-			 obj_priv->last_rendering_seqno);
-	}
-	DRM_INFO("}\n");
-	DRM_INFO("inactive %s {\n", where);
-	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		DRM_INFO("    %p: %08x\n", obj_priv,
-			 obj_priv->last_rendering_seqno);
-	}
-	DRM_INFO("}\n");
-}
-#endif
-
-
 #if WATCH_COHERENCY
 void
-i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
+i915_gem_object_check_coherency(struct drm_i915_gem_object *obj, int handle)
 {
-	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_device *dev = obj->base.dev;
 	int page;
 	uint32_t *gtt_mapping;
 	uint32_t *backing_map = NULL;
 	int bad_count = 0;
 
-	DRM_INFO("%s: checking coherency of object %p@0x%08x (%d, %dkb):\n",
-		 __func__, obj, obj_priv->gtt_offset, handle,
+	DRM_INFO("%s: checking coherency of object %p@0x%08x (%d, %zdkb):\n",
+		 __func__, obj, obj->gtt_offset, handle,
 		 obj->size / 1024);
 
-	gtt_mapping = ioremap(dev->agp->base + obj_priv->gtt_offset,
-			      obj->size);
+	gtt_mapping = ioremap(dev->agp->base + obj->gtt_offset, obj->base.size);
 	if (gtt_mapping == NULL) {
 		DRM_ERROR("failed to map GTT space\n");
 		return;
@@ -157,7 +202,7 @@ i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 	for (page = 0; page < obj->size / PAGE_SIZE; page++) {
 		int i;
 
-		backing_map = kmap_atomic(obj_priv->page_list[page], KM_USER0);
+		backing_map = kmap_atomic(obj->pages[page], KM_USER0);
 
 		if (backing_map == NULL) {
 			DRM_ERROR("failed to map backing page\n");
@@ -172,7 +217,7 @@ i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 			if (cpuval != gttval) {
 				DRM_INFO("incoherent CPU vs GPU at 0x%08x: "
 					 "0x%08x vs 0x%08x\n",
-					 (int)(obj_priv->gtt_offset +
+					 (int)(obj->gtt_offset +
 					       page * PAGE_SIZE + i * 4),
 					 cpuval, gttval);
 				if (bad_count++ >= 8) {

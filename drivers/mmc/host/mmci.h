@@ -25,9 +25,9 @@
 #define MCI_CLK_ENABLE		(1 << 8)
 #define MCI_CLK_PWRSAVE		(1 << 9)
 #define MCI_CLK_BYPASS		(1 << 10)
-#define MCI_WIDE_BUS		(1 << 11)
-/* HW flow control on the ST Micro version */
-#define MCI_FCEN		(1 << 13)
+#define MCI_4BIT_BUS		(1 << 11)
+/* 8bit wide buses supported in ST Micro versions */
+#define MCI_ST_8BIT_BUS		(1 << 12)
 
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
@@ -54,10 +54,16 @@
 #define MCI_DPSM_MODE		(1 << 2)
 #define MCI_DPSM_DMAENABLE	(1 << 3)
 #define MCI_DPSM_BLOCKSIZE	(1 << 4)
-#define MCI_DPSM_RWSTART	(1 << 8)
-#define MCI_DPSM_RWSTOP		(1 << 9)
-#define MCI_DPSM_RWMOD		(1 << 10)
-#define MCI_DPSM_SDIOEN		(1 << 11)
+/* Control register extensions in the ST Micro U300 and Ux500 versions */
+#define MCI_ST_DPSM_RWSTART	(1 << 8)
+#define MCI_ST_DPSM_RWSTOP	(1 << 9)
+#define MCI_ST_DPSM_RWMOD	(1 << 10)
+#define MCI_ST_DPSM_SDIOEN	(1 << 11)
+/* Control register extensions in the ST Micro Ux500 versions */
+#define MCI_ST_DPSM_DMAREQCTL	(1 << 12)
+#define MCI_ST_DPSM_DBOOTMODEEN	(1 << 13)
+#define MCI_ST_DPSM_BUSYMODE	(1 << 14)
+#define MCI_ST_DPSM_DDRMODE	(1 << 15)
 
 #define MMCIDATACNT		0x030
 #define MMCISTATUS		0x034
@@ -133,16 +139,15 @@
 	MCI_DATATIMEOUTMASK|MCI_TXUNDERRUNMASK|MCI_RXOVERRUNMASK|	\
 	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK|MCI_DATABLOCKENDMASK)
 
-/*
- * The size of the FIFO in bytes.
- */
-#define MCI_FIFOSIZE	(16*4)
-	
-#define MCI_FIFOHALFSIZE (MCI_FIFOSIZE / 2)
+/* These interrupts are directed to IRQ1 when two IRQ lines are available */
+#define MCI_IRQ1MASK \
+	(MCI_RXFIFOHALFFULLMASK | MCI_RXDATAAVLBLMASK | \
+	 MCI_TXFIFOHALFEMPTYMASK)
 
 #define NR_SG		16
 
 struct clk;
+struct variant_data;
 
 struct mmci_host {
 	void __iomem		*base;
@@ -151,6 +156,10 @@ struct mmci_host {
 	struct mmc_data		*data;
 	struct mmc_host		*mmc;
 	struct clk		*clk;
+	int			gpio_cd;
+	int			gpio_wp;
+	int			gpio_cd_irq;
+	bool			singleirq;
 
 	unsigned int		data_xfered;
 
@@ -159,7 +168,8 @@ struct mmci_host {
 	unsigned int		mclk;
 	unsigned int		cclk;
 	u32			pwr;
-	struct mmc_platform_data *plat;
+	struct mmci_platform_data *plat;
+	struct variant_data	*variant;
 
 	u8			hw_designer;
 	u8			hw_revision:4;
@@ -167,41 +177,12 @@ struct mmci_host {
 	struct timer_list	timer;
 	unsigned int		oldstat;
 
-	unsigned int		sg_len;
+	bool			blockend;
+	bool			dataend;
 
 	/* pio stuff */
-	struct scatterlist	*sg_ptr;
-	unsigned int		sg_off;
+	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
+	struct regulator	*vcc;
 };
 
-static inline void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
-{
-	/*
-	 * Ideally, we want the higher levels to pass us a scatter list.
-	 */
-	host->sg_len = data->sg_len;
-	host->sg_ptr = data->sg;
-	host->sg_off = 0;
-}
-
-static inline int mmci_next_sg(struct mmci_host *host)
-{
-	host->sg_ptr++;
-	host->sg_off = 0;
-	return --host->sg_len;
-}
-
-static inline char *mmci_kmap_atomic(struct mmci_host *host, unsigned long *flags)
-{
-	struct scatterlist *sg = host->sg_ptr;
-
-	local_irq_save(*flags);
-	return kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
-}
-
-static inline void mmci_kunmap_atomic(struct mmci_host *host, void *buffer, unsigned long *flags)
-{
-	kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
-	local_irq_restore(*flags);
-}

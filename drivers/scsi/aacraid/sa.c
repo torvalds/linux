@@ -33,7 +33,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
-#include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/completion.h>

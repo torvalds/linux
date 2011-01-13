@@ -83,6 +83,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 
 #include "uwb-internal.h"
@@ -150,7 +151,7 @@ void uwb_rc_neh_put(struct uwb_rc_neh *neh)
  *	 0xff is invalid, so they must not be used. Initialization
  *	 fills up those two in the bitmap so they are not allocated.
  *
- * We spread the allocation around to reduce the posiblity of two
+ * We spread the allocation around to reduce the possibility of two
  * consecutive opened @neh's getting the same context ID assigned (to
  * avoid surprises with late events that timed out long time ago). So
  * first we search from where @rc->ctx_roll is, if not found, we

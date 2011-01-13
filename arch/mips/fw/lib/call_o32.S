@@ -1,6 +1,4 @@
 /*
- *	arch/mips/dec/prom/call_o32.S
- *
  *	O32 interface for the 64 (or N32) ABI.
  *
  *	Copyright (C) 2002  Maciej W. Rozycki

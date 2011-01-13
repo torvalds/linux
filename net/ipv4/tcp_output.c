@@ -37,6 +37,7 @@
 #include <net/tcp.h>
 
 #include <linux/compiler.h>
+#include <linux/gfp.h>
 #include <linux/module.h>
 
 /* People can turn this off for buggy TCP's found in printers etc. */
@@ -54,11 +55,16 @@ int sysctl_tcp_workaround_signed_windows __read_mostly = 0;
 int sysctl_tcp_tso_win_divisor __read_mostly = 3;
 
 int sysctl_tcp_mtu_probing __read_mostly = 0;
-int sysctl_tcp_base_mss __read_mostly = 512;
+int sysctl_tcp_base_mss __read_mostly = TCP_BASE_MSS;
 
 /* By default, RFC2861 behavior.  */
 int sysctl_tcp_slow_start_after_idle __read_mostly = 1;
 
+int sysctl_tcp_cookie_size __read_mostly = 0; /* TCP_COOKIE_MAX */
+EXPORT_SYMBOL_GPL(sysctl_tcp_cookie_size);
+
+
+/* Account for new data that has been sent to the network. */
 static void tcp_event_new_data_sent(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -113,9 +119,13 @@ static __u16 tcp_advertise_mss(struct sock *sk)
 	struct dst_entry *dst = __sk_dst_get(sk);
 	int mss = tp->advmss;
 
-	if (dst && dst_metric(dst, RTAX_ADVMSS) < mss) {
-		mss = dst_metric(dst, RTAX_ADVMSS);
-		tp->advmss = mss;
+	if (dst) {
+		unsigned int metric = dst_metric_advmss(dst);
+
+		if (metric < mss) {
+			mss = metric;
+			tp->advmss = mss;
+		}
 	}
 
 	return (__u16)mss;
@@ -142,6 +152,7 @@ static void tcp_cwnd_restart(struct sock *sk, struct dst_entry *dst)
 	tp->snd_cwnd_used = 0;
 }
 
+/* Congestion state accounting after a packet has been sent. */
 static void tcp_event_data_sent(struct tcp_sock *tp,
 				struct sk_buff *skb, struct sock *sk)
 {
@@ -161,6 +172,7 @@ static void tcp_event_data_sent(struct tcp_sock *tp,
 		icsk->icsk_ack.pingpong = 1;
 }
 
+/* Account for an ACK we sent. */
 static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
 {
 	tcp_dec_quickack_mode(sk, pkts);
@@ -176,7 +188,8 @@ static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
  */
 void tcp_select_initial_window(int __space, __u32 mss,
 			       __u32 *rcv_wnd, __u32 *window_clamp,
-			       int wscale_ok, __u8 *rcv_wscale)
+			       int wscale_ok, __u8 *rcv_wscale,
+			       __u32 init_rcv_wnd)
 {
 	unsigned int space = (__space < 0 ? 0 : __space);
 
@@ -215,23 +228,28 @@ void tcp_select_initial_window(int __space, __u32 mss,
 		}
 	}
 
-	/* Set initial window to value enough for senders,
-	 * following RFC2414. Senders, not following this RFC,
-	 * will be satisfied with 2.
+	/* Set initial window to a value enough for senders starting with
+	 * initial congestion window of TCP_DEFAULT_INIT_RCVWND. Place
+	 * a limit on the initial window when mss is larger than 1460.
 	 */
 	if (mss > (1 << *rcv_wscale)) {
-		int init_cwnd = 4;
-		if (mss > 1460 * 3)
-			init_cwnd = 2;
-		else if (mss > 1460)
-			init_cwnd = 3;
-		if (*rcv_wnd > init_cwnd * mss)
-			*rcv_wnd = init_cwnd * mss;
+		int init_cwnd = TCP_DEFAULT_INIT_RCVWND;
+		if (mss > 1460)
+			init_cwnd =
+			max_t(u32, (1460 * TCP_DEFAULT_INIT_RCVWND) / mss, 2);
+		/* when initializing use the value from init_rcv_wnd
+		 * rather than the default from above
+		 */
+		if (init_rcv_wnd)
+			*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
+		else
+			*rcv_wnd = min(*rcv_wnd, init_cwnd * mss);
 	}
 
 	/* Set the clamp no higher than max representable value */
 	(*window_clamp) = min(65535U << (*rcv_wscale), *window_clamp);
 }
+EXPORT_SYMBOL(tcp_select_initial_window);
 
 /* Chose a new window to advertise, update state in tcp_sock for the
  * socket, and return result with RFC1323 scaling applied.  The return
@@ -276,20 +294,22 @@ static u16 tcp_select_window(struct sock *sk)
 	return new_win;
 }
 
+/* Packet ECN state for a SYN-ACK */
 static inline void TCP_ECN_send_synack(struct tcp_sock *tp, struct sk_buff *skb)
 {
-	TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_CWR;
+	TCP_SKB_CB(skb)->flags &= ~TCPHDR_CWR;
 	if (!(tp->ecn_flags & TCP_ECN_OK))
-		TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_ECE;
+		TCP_SKB_CB(skb)->flags &= ~TCPHDR_ECE;
 }
 
+/* Packet ECN state for a SYN.  */
 static inline void TCP_ECN_send_syn(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->ecn_flags = 0;
 	if (sysctl_tcp_ecn == 1) {
-		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_ECE | TCPCB_FLAG_CWR;
+		TCP_SKB_CB(skb)->flags |= TCPHDR_ECE | TCPHDR_CWR;
 		tp->ecn_flags = TCP_ECN_OK;
 	}
 }
@@ -301,6 +321,9 @@ TCP_ECN_make_synack(struct request_sock *req, struct tcphdr *th)
 		th->ece = 1;
 }
 
+/* Set up ECN state for a packet on a ESTABLISHED socket that is about to
+ * be sent.
+ */
 static inline void TCP_ECN_send(struct sock *sk, struct sk_buff *skb,
 				int tcp_header_len)
 {
@@ -330,6 +353,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct sk_buff *skb,
  */
 static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 {
+	skb->ip_summed = CHECKSUM_PARTIAL;
 	skb->csum = 0;
 
 	TCP_SKB_CB(skb)->flags = flags;
@@ -340,7 +364,7 @@ static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
 	skb_shinfo(skb)->gso_type = 0;
 
 	TCP_SKB_CB(skb)->seq = seq;
-	if (flags & (TCPCB_FLAG_SYN | TCPCB_FLAG_FIN))
+	if (flags & (TCPHDR_SYN | TCPHDR_FIN))
 		seq++;
 	TCP_SKB_CB(skb)->end_seq = seq;
 }
@@ -353,16 +377,52 @@ static inline int tcp_urg_mode(const struct tcp_sock *tp)
 #define OPTION_SACK_ADVERTISE	(1 << 0)
 #define OPTION_TS		(1 << 1)
 #define OPTION_MD5		(1 << 2)
+#define OPTION_WSCALE		(1 << 3)
+#define OPTION_COOKIE_EXTENSION	(1 << 4)
 
 struct tcp_out_options {
 	u8 options;		/* bit field of OPTION_* */
 	u8 ws;			/* window scale, 0 to disable */
 	u8 num_sack_blocks;	/* number of SACK blocks to include */
+	u8 hash_size;		/* bytes in hash_location */
 	u16 mss;		/* 0 to disable */
 	__u32 tsval, tsecr;	/* need to include OPTION_TS */
+	__u8 *hash_location;	/* temporary pointer, overloaded */
 };
 
-/* Beware: Something in the Internet is very sensitive to the ordering of
+/* The sysctl int routines are generic, so check consistency here.
+ */
+static u8 tcp_cookie_size_check(u8 desired)
+{
+	int cookie_size;
+
+	if (desired > 0)
+		/* previously specified */
+		return desired;
+
+	cookie_size = ACCESS_ONCE(sysctl_tcp_cookie_size);
+	if (cookie_size <= 0)
+		/* no default specified */
+		return 0;
+
+	if (cookie_size <= TCP_COOKIE_MIN)
+		/* value too small, specify minimum */
+		return TCP_COOKIE_MIN;
+
+	if (cookie_size >= TCP_COOKIE_MAX)
+		/* value too large, specify maximum */
+		return TCP_COOKIE_MAX;
+
+	if (cookie_size & 1)
+		/* 8-bit multiple, illegal, fix it */
+		cookie_size++;
+
+	return (u8)cookie_size;
+}
+
+/* Write previously computed TCP options to the packet.
+ *
+ * Beware: Something in the Internet is very sensitive to the ordering of
  * TCP options, we learned this through the hard way, so be careful here.
  * Luckily we can at least blame others for their non-compliance but from
  * inter-operatibility perspective it seems that we're somewhat stuck with
@@ -374,17 +434,34 @@ struct tcp_out_options {
  * (but it may well be that other scenarios fail similarly).
  */
 static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
-			      const struct tcp_out_options *opts,
-			      __u8 **md5_hash) {
-	if (unlikely(OPTION_MD5 & opts->options)) {
-		*ptr++ = htonl((TCPOPT_NOP << 24) |
-			       (TCPOPT_NOP << 16) |
-			       (TCPOPT_MD5SIG << 8) |
-			       TCPOLEN_MD5SIG);
-		*md5_hash = (__u8 *)ptr;
+			      struct tcp_out_options *opts)
+{
+	u8 options = opts->options;	/* mungable copy */
+
+	/* Having both authentication and cookies for security is redundant,
+	 * and there's certainly not enough room.  Instead, the cookie-less
+	 * extension variant is proposed.
+	 *
+	 * Consider the pessimal case with authentication.  The options
+	 * could look like:
+	 *   COOKIE|MD5(20) + MSS(4) + SACK|TS(12) + WSCALE(4) == 40
+	 */
+	if (unlikely(OPTION_MD5 & options)) {
+		if (unlikely(OPTION_COOKIE_EXTENSION & options)) {
+			*ptr++ = htonl((TCPOPT_COOKIE << 24) |
+				       (TCPOLEN_COOKIE_BASE << 16) |
+				       (TCPOPT_MD5SIG << 8) |
+				       TCPOLEN_MD5SIG);
+		} else {
+			*ptr++ = htonl((TCPOPT_NOP << 24) |
+				       (TCPOPT_NOP << 16) |
+				       (TCPOPT_MD5SIG << 8) |
+				       TCPOLEN_MD5SIG);
+		}
+		options &= ~OPTION_COOKIE_EXTENSION;
+		/* overload cookie hash location */
+		opts->hash_location = (__u8 *)ptr;
 		ptr += 4;
-	} else {
-		*md5_hash = NULL;
 	}
 
 	if (unlikely(opts->mss)) {
@@ -393,12 +470,13 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 			       opts->mss);
 	}
 
-	if (likely(OPTION_TS & opts->options)) {
-		if (unlikely(OPTION_SACK_ADVERTISE & opts->options)) {
+	if (likely(OPTION_TS & options)) {
+		if (unlikely(OPTION_SACK_ADVERTISE & options)) {
 			*ptr++ = htonl((TCPOPT_SACK_PERM << 24) |
 				       (TCPOLEN_SACK_PERM << 16) |
 				       (TCPOPT_TIMESTAMP << 8) |
 				       TCPOLEN_TIMESTAMP);
+			options &= ~OPTION_SACK_ADVERTISE;
 		} else {
 			*ptr++ = htonl((TCPOPT_NOP << 24) |
 				       (TCPOPT_NOP << 16) |
@@ -409,15 +487,52 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		*ptr++ = htonl(opts->tsecr);
 	}
 
-	if (unlikely(OPTION_SACK_ADVERTISE & opts->options &&
-		     !(OPTION_TS & opts->options))) {
+	/* Specification requires after timestamp, so do it now.
+	 *
+	 * Consider the pessimal case without authentication.  The options
+	 * could look like:
+	 *   MSS(4) + SACK|TS(12) + COOKIE(20) + WSCALE(4) == 40
+	 */
+	if (unlikely(OPTION_COOKIE_EXTENSION & options)) {
+		__u8 *cookie_copy = opts->hash_location;
+		u8 cookie_size = opts->hash_size;
+
+		/* 8-bit multiple handled in tcp_cookie_size_check() above,
+		 * and elsewhere.
+		 */
+		if (0x2 & cookie_size) {
+			__u8 *p = (__u8 *)ptr;
+
+			/* 16-bit multiple */
+			*p++ = TCPOPT_COOKIE;
+			*p++ = TCPOLEN_COOKIE_BASE + cookie_size;
+			*p++ = *cookie_copy++;
+			*p++ = *cookie_copy++;
+			ptr++;
+			cookie_size -= 2;
+		} else {
+			/* 32-bit multiple */
+			*ptr++ = htonl(((TCPOPT_NOP << 24) |
+					(TCPOPT_NOP << 16) |
+					(TCPOPT_COOKIE << 8) |
+					TCPOLEN_COOKIE_BASE) +
+				       cookie_size);
+		}
+
+		if (cookie_size > 0) {
+			memcpy(ptr, cookie_copy, cookie_size);
+			ptr += (cookie_size / 4);
+		}
+	}
+
+	if (unlikely(OPTION_SACK_ADVERTISE & options)) {
 		*ptr++ = htonl((TCPOPT_NOP << 24) |
 			       (TCPOPT_NOP << 16) |
 			       (TCPOPT_SACK_PERM << 8) |
 			       TCPOLEN_SACK_PERM);
 	}
 
-	if (unlikely(opts->ws)) {
+	if (unlikely(OPTION_WSCALE & options)) {
 		*ptr++ = htonl((TCPOPT_NOP << 24) |
 			       (TCPOPT_WINDOW << 16) |
 			       (TCPOLEN_WINDOW << 8) |
@@ -445,17 +560,24 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 	}
 }
 
+/* Compute TCP options for SYN packets. This is not the final
+ * network wire format yet.
+ */
 static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 				struct tcp_out_options *opts,
 				struct tcp_md5sig_key **md5) {
 	struct tcp_sock *tp = tcp_sk(sk);
-	unsigned size = 0;
+	struct tcp_cookie_values *cvp = tp->cookie_values;
+	unsigned remaining = MAX_TCP_OPTION_SPACE;
+	u8 cookie_size = (!tp->rx_opt.cookie_out_never && cvp != NULL) ?
+			 tcp_cookie_size_check(cvp->cookie_desired) :
+			 0;
 
 #ifdef CONFIG_TCP_MD5SIG
 	*md5 = tp->af_specific->md5_lookup(sk, sk);
 	if (*md5) {
 		opts->options |= OPTION_MD5;
-		size += TCPOLEN_MD5SIG_ALIGNED;
+		remaining -= TCPOLEN_MD5SIG_ALIGNED;
 	}
 #else
 	*md5 = NULL;
@@ -471,76 +593,154 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 	 * SACKs don't matter, we never delay an ACK when we have any of those
 	 * going out.  */
 	opts->mss = tcp_advertise_mss(sk);
-	size += TCPOLEN_MSS_ALIGNED;
+	remaining -= TCPOLEN_MSS_ALIGNED;
 
 	if (likely(sysctl_tcp_timestamps && *md5 == NULL)) {
 		opts->options |= OPTION_TS;
 		opts->tsval = TCP_SKB_CB(skb)->when;
 		opts->tsecr = tp->rx_opt.ts_recent;
-		size += TCPOLEN_TSTAMP_ALIGNED;
+		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
 	if (likely(sysctl_tcp_window_scaling)) {
 		opts->ws = tp->rx_opt.rcv_wscale;
-		if (likely(opts->ws))
-			size += TCPOLEN_WSCALE_ALIGNED;
+		opts->options |= OPTION_WSCALE;
+		remaining -= TCPOLEN_WSCALE_ALIGNED;
 	}
 	if (likely(sysctl_tcp_sack)) {
 		opts->options |= OPTION_SACK_ADVERTISE;
 		if (unlikely(!(OPTION_TS & opts->options)))
-			size += TCPOLEN_SACKPERM_ALIGNED;
+			remaining -= TCPOLEN_SACKPERM_ALIGNED;
 	}
 
-	return size;
+	/* Note that timestamps are required by the specification.
+	 *
+	 * Odd numbers of bytes are prohibited by the specification, ensuring
+	 * that the cookie is 16-bit aligned, and the resulting cookie pair is
+	 * 32-bit aligned.
+	 */
+	if (*md5 == NULL &&
+	    (OPTION_TS & opts->options) &&
+	    cookie_size > 0) {
+		int need = TCPOLEN_COOKIE_BASE + cookie_size;
+
+		if (0x2 & need) {
+			/* 32-bit multiple */
+			need += 2; /* NOPs */
+
+			if (need > remaining) {
+				/* try shrinking cookie to fit */
+				cookie_size -= 2;
+				need -= 4;
+			}
+		}
+		while (need > remaining && TCP_COOKIE_MIN <= cookie_size) {
+			cookie_size -= 4;
+			need -= 4;
+		}
+		if (TCP_COOKIE_MIN <= cookie_size) {
+			opts->options |= OPTION_COOKIE_EXTENSION;
+			opts->hash_location = (__u8 *)&cvp->cookie_pair[0];
+			opts->hash_size = cookie_size;
+
+			/* Remember for future incarnations. */
+			cvp->cookie_desired = cookie_size;
+
+			if (cvp->cookie_desired != cvp->cookie_pair_size) {
+				/* Currently use random bytes as a nonce,
+				 * assuming these are completely unpredictable
+				 * by hostile users of the same system.
+				 */
+				get_random_bytes(&cvp->cookie_pair[0],
+						 cookie_size);
+				cvp->cookie_pair_size = cookie_size;
+			}
+
+			remaining -= need;
+		}
+	}
+	return MAX_TCP_OPTION_SPACE - remaining;
 }
 
+/* Set up TCP options for SYN-ACKs. */
 static unsigned tcp_synack_options(struct sock *sk,
 				   struct request_sock *req,
 				   unsigned mss, struct sk_buff *skb,
 				   struct tcp_out_options *opts,
-				   struct tcp_md5sig_key **md5) {
-	unsigned size = 0;
+				   struct tcp_md5sig_key **md5,
+				   struct tcp_extend_values *xvp)
+{
 	struct inet_request_sock *ireq = inet_rsk(req);
-	char doing_ts;
+	unsigned remaining = MAX_TCP_OPTION_SPACE;
+	u8 cookie_plus = (xvp != NULL && !xvp->cookie_out_never) ?
+			 xvp->cookie_plus :
+			 0;
 
 #ifdef CONFIG_TCP_MD5SIG
 	*md5 = tcp_rsk(req)->af_specific->md5_lookup(sk, req);
 	if (*md5) {
 		opts->options |= OPTION_MD5;
-		size += TCPOLEN_MD5SIG_ALIGNED;
+		remaining -= TCPOLEN_MD5SIG_ALIGNED;
+
+		/* We can't fit any SACK blocks in a packet with MD5 + TS
+		 * options. There was discussion about disabling SACK
+		 * rather than TS in order to fit in better with old,
+		 * buggy kernels, but that was deemed to be unnecessary.
+		 */
+		ireq->tstamp_ok &= !ireq->sack_ok;
 	}
 #else
 	*md5 = NULL;
 #endif
 
-	/* we can't fit any SACK blocks in a packet with MD5 + TS
-	   options. There was discussion about disabling SACK rather than TS in
-	   order to fit in better with old, buggy kernels, but that was deemed
-	   to be unnecessary. */
-	doing_ts = ireq->tstamp_ok && !(*md5 && ireq->sack_ok);
-
+	/* We always send an MSS option. */
 	opts->mss = mss;
-	size += TCPOLEN_MSS_ALIGNED;
+	remaining -= TCPOLEN_MSS_ALIGNED;
 
 	if (likely(ireq->wscale_ok)) {
 		opts->ws = ireq->rcv_wscale;
-		if (likely(opts->ws))
-			size += TCPOLEN_WSCALE_ALIGNED;
+		opts->options |= OPTION_WSCALE;
+		remaining -= TCPOLEN_WSCALE_ALIGNED;
 	}
-	if (likely(doing_ts)) {
+	if (likely(ireq->tstamp_ok)) {
 		opts->options |= OPTION_TS;
 		opts->tsval = TCP_SKB_CB(skb)->when;
 		opts->tsecr = req->ts_recent;
-		size += TCPOLEN_TSTAMP_ALIGNED;
+		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
 	if (likely(ireq->sack_ok)) {
 		opts->options |= OPTION_SACK_ADVERTISE;
-		if (unlikely(!doing_ts))
-			size += TCPOLEN_SACKPERM_ALIGNED;
+		if (unlikely(!ireq->tstamp_ok))
+			remaining -= TCPOLEN_SACKPERM_ALIGNED;
 	}
 
-	return size;
+	/* Similar rationale to tcp_syn_options() applies here, too.
+	 * If the <SYN> options fit, the same options should fit now!
+	 */
+	if (*md5 == NULL &&
+	    ireq->tstamp_ok &&
+	    cookie_plus > TCPOLEN_COOKIE_BASE) {
+		int need = cookie_plus; /* has TCPOLEN_COOKIE_BASE */
+
+		if (0x2 & need) {
+			/* 32-bit multiple */
+			need += 2; /* NOPs */
+		}
+		if (need <= remaining) {
+			opts->options |= OPTION_COOKIE_EXTENSION;
+			opts->hash_size = cookie_plus - TCPOLEN_COOKIE_BASE;
+			remaining -= need;
+		} else {
+			/* There's no error return, so flag it. */
+			xvp->cookie_out_never = 1; /* true */
+			opts->hash_size = 0;
+		}
+	}
+	return MAX_TCP_OPTION_SPACE - remaining;
 }
 
+/* Compute TCP options for ESTABLISHED sockets. This is not the
+ * final wire format yet.
+ */
 static unsigned tcp_established_options(struct sock *sk, struct sk_buff *skb,
 					struct tcp_out_options *opts,
 					struct tcp_md5sig_key **md5) {
@@ -601,7 +801,6 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	struct tcp_out_options opts;
 	unsigned tcp_options_size, tcp_header_size;
 	struct tcp_md5sig_key *md5;
-	__u8 *md5_hash_location;
 	struct tcphdr *th;
 	int err;
 
@@ -627,15 +826,18 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	tcb = TCP_SKB_CB(skb);
 	memset(&opts, 0, sizeof(opts));
 
-	if (unlikely(tcb->flags & TCPCB_FLAG_SYN))
+	if (unlikely(tcb->flags & TCPHDR_SYN))
 		tcp_options_size = tcp_syn_options(sk, skb, &opts, &md5);
 	else
 		tcp_options_size = tcp_established_options(sk, skb, &opts,
 							   &md5);
 	tcp_header_size = tcp_options_size + sizeof(struct tcphdr);
 
-	if (tcp_packets_in_flight(tp) == 0)
+	if (tcp_packets_in_flight(tp) == 0) {
 		tcp_ca_event(sk, CA_EVENT_TX_START);
+		skb->ooo_okay = 1;
+	} else
+		skb->ooo_okay = 0;
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
@@ -643,14 +845,14 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 
 	/* Build TCP header and checksum it. */
 	th = tcp_hdr(skb);
-	th->source		= inet->sport;
-	th->dest		= inet->dport;
+	th->source		= inet->inet_sport;
+	th->dest		= inet->inet_dport;
 	th->seq			= htonl(tcb->seq);
 	th->ack_seq		= htonl(tp->rcv_nxt);
 	*(((__be16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |
 					tcb->flags);
 
-	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
+	if (unlikely(tcb->flags & TCPHDR_SYN)) {
 		/* RFC1323: The window in SYN & SYN/ACK segments
 		 * is never scaled.
 		 */
@@ -667,36 +869,37 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 			th->urg_ptr = htons(tp->snd_up - tcb->seq);
 			th->urg = 1;
 		} else if (after(tcb->seq + 0xFFFF, tp->snd_nxt)) {
-			th->urg_ptr = 0xFFFF;
+			th->urg_ptr = htons(0xFFFF);
 			th->urg = 1;
 		}
 	}
 
-	tcp_options_write((__be32 *)(th + 1), tp, &opts, &md5_hash_location);
-	if (likely((tcb->flags & TCPCB_FLAG_SYN) == 0))
+	tcp_options_write((__be32 *)(th + 1), tp, &opts);
+	if (likely((tcb->flags & TCPHDR_SYN) == 0))
 		TCP_ECN_send(sk, skb, tcp_header_size);
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Calculate the MD5 hash, as we have all we need now */
 	if (md5) {
-		sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
-		tp->af_specific->calc_md5_hash(md5_hash_location,
+		sk_nocaps_add(sk, NETIF_F_GSO_MASK);
+		tp->af_specific->calc_md5_hash(opts.hash_location,
 					       md5, sk, NULL, skb);
 	}
 #endif
 
-	icsk->icsk_af_ops->send_check(sk, skb->len, skb);
+	icsk->icsk_af_ops->send_check(sk, skb);
 
-	if (likely(tcb->flags & TCPCB_FLAG_ACK))
+	if (likely(tcb->flags & TCPHDR_ACK))
 		tcp_event_ack_sent(sk, tcp_skb_pcount(skb));
 
 	if (skb->len != tcp_header_size)
 		tcp_event_data_sent(tp, skb, sk);
 
 	if (after(tcb->end_seq, tp->snd_nxt) || tcb->seq == tcb->end_seq)
-		TCP_INC_STATS(sock_net(sk), TCP_MIB_OUTSEGS);
+		TCP_ADD_STATS(sock_net(sk), TCP_MIB_OUTSEGS,
+			      tcp_skb_pcount(skb));
 
-	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
+	err = icsk->icsk_af_ops->queue_xmit(skb);
 	if (likely(err <= 0))
 		return err;
 
@@ -705,7 +908,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	return net_xmit_eval(err);
 }
 
-/* This routine just queue's the buffer
+/* This routine just queues the buffer for sending.
  *
  * NOTE: probe0 timer is not checked, do not forget tcp_push_pending_frames,
  * otherwise socket can stall.
@@ -722,10 +925,12 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 	sk_mem_charge(sk, skb->truesize);
 }
 
+/* Initialize TSO segments for a packet. */
 static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb,
 				 unsigned int mss_now)
 {
-	if (skb->len <= mss_now || !sk_can_gso(sk)) {
+	if (skb->len <= mss_now || !sk_can_gso(sk) ||
+	    skb->ip_summed == CHECKSUM_NONE) {
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
@@ -827,7 +1032,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len,
 
 	/* PSH and FIN should only be set in the second packet. */
 	flags = TCP_SKB_CB(skb)->flags;
-	TCP_SKB_CB(skb)->flags = flags & ~(TCPCB_FLAG_FIN | TCPCB_FLAG_PSH);
+	TCP_SKB_CB(skb)->flags = flags & ~(TCPHDR_FIN | TCPHDR_PSH);
 	TCP_SKB_CB(buff)->flags = flags;
 	TCP_SKB_CB(buff)->sacked = TCP_SKB_CB(skb)->sacked;
 
@@ -908,6 +1113,7 @@ static void __pskb_trim_head(struct sk_buff *skb, int len)
 	skb->len = skb->data_len;
 }
 
+/* Remove acked data from a packet in the transmit queue. */
 int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 {
 	if (skb_cloned(skb) && pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
@@ -936,7 +1142,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	return 0;
 }
 
-/* Not accounting for SACKs here. */
+/* Calculate MSS. Not accounting for SACKs here.  */
 int tcp_mtu_to_mss(struct sock *sk, int pmtu)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -980,6 +1186,7 @@ int tcp_mss_to_mtu(struct sock *sk, int mss)
 	return mtu;
 }
 
+/* MTU probing init per socket */
 void tcp_mtup_init(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -991,6 +1198,7 @@ void tcp_mtup_init(struct sock *sk)
 	icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, sysctl_tcp_base_mss);
 	icsk->icsk_mtup.probe_size = 0;
 }
+EXPORT_SYMBOL(tcp_mtup_init);
 
 /* This function synchronize snd mss to current pmtu/exthdr set.
 
@@ -1034,6 +1242,7 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 
 	return mss_now;
 }
+EXPORT_SYMBOL(tcp_sync_mss);
 
 /* Compute the current effective MSS, taking SACKs and IP options,
  * and even PMTU discovery events into account.
@@ -1130,8 +1339,7 @@ static inline unsigned int tcp_cwnd_test(struct tcp_sock *tp,
 	u32 in_flight, cwnd;
 
 	/* Don't be strict about the congestion window for the final FIN.  */
-	if ((TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN) &&
-	    tcp_skb_pcount(skb) == 1)
+	if ((TCP_SKB_CB(skb)->flags & TCPHDR_FIN) && tcp_skb_pcount(skb) == 1)
 		return 1;
 
 	in_flight = tcp_packets_in_flight(tp);
@@ -1142,7 +1350,8 @@ static inline unsigned int tcp_cwnd_test(struct tcp_sock *tp,
 	return 0;
 }
 
-/* This must be invoked the first time we consider transmitting
+/* Intialize TSO state of a skb.
+ * This must be invoked the first time we consider transmitting
  * SKB onto the wire.
  */
 static int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb,
@@ -1157,6 +1366,7 @@ static int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb,
 	return tso_segs;
 }
 
+/* Minshall's variant of the Nagle send check. */
 static inline int tcp_minshall_check(const struct tcp_sock *tp)
 {
 	return after(tp->snd_sml, tp->snd_una) &&
@@ -1174,9 +1384,9 @@ static inline int tcp_nagle_check(const struct tcp_sock *tp,
 				  const struct sk_buff *skb,
 				  unsigned mss_now, int nonagle)
 {
-	return (skb->len < mss_now &&
+	return skb->len < mss_now &&
 		((nonagle & TCP_NAGLE_CORK) ||
-		 (!nonagle && tp->packets_out && tcp_minshall_check(tp))));
+		 (!nonagle && tp->packets_out && tcp_minshall_check(tp)));
 }
 
 /* Return non-zero if the Nagle test allows this packet to be
@@ -1198,7 +1408,7 @@ static inline int tcp_nagle_test(struct tcp_sock *tp, struct sk_buff *skb,
 	 * Nagle can be ignored during F-RTO too (see RFC4138).
 	 */
 	if (tcp_urg_mode(tp) || (tp->frto_counter == 2) ||
-	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN))
+	    (TCP_SKB_CB(skb)->flags & TCPHDR_FIN))
 		return 1;
 
 	if (!tcp_nagle_check(tp, skb, cur_mss, nonagle))
@@ -1241,15 +1451,16 @@ static unsigned int tcp_snd_test(struct sock *sk, struct sk_buff *skb,
 	return cwnd_quota;
 }
 
+/* Test if sending is allowed right now. */
 int tcp_may_send_now(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb = tcp_send_head(sk);
 
-	return (skb &&
+	return skb &&
 		tcp_snd_test(sk, skb, tcp_current_mss(sk),
 			     (tcp_skb_is_last(sk, skb) ?
-			      tp->nonagle : TCP_NAGLE_PUSH)));
+			      tp->nonagle : TCP_NAGLE_PUSH));
 }
 
 /* Trim TSO SKB to LEN bytes, put the remaining data into a new packet
@@ -1260,7 +1471,7 @@ int tcp_may_send_now(struct sock *sk)
  * packet has never been sent out before (and thus is not cloned).
  */
 static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
-			unsigned int mss_now)
+			unsigned int mss_now, gfp_t gfp)
 {
 	struct sk_buff *buff;
 	int nlen = skb->len - len;
@@ -1270,7 +1481,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 	if (skb->len != skb->data_len)
 		return tcp_fragment(sk, skb, len, mss_now);
 
-	buff = sk_stream_alloc_skb(sk, 0, GFP_ATOMIC);
+	buff = sk_stream_alloc_skb(sk, 0, gfp);
 	if (unlikely(buff == NULL))
 		return -ENOMEM;
 
@@ -1286,7 +1497,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 
 	/* PSH and FIN should only be set in the second packet. */
 	flags = TCP_SKB_CB(skb)->flags;
-	TCP_SKB_CB(skb)->flags = flags & ~(TCPCB_FLAG_FIN | TCPCB_FLAG_PSH);
+	TCP_SKB_CB(skb)->flags = flags & ~(TCPHDR_FIN | TCPHDR_PSH);
 	TCP_SKB_CB(buff)->flags = flags;
 
 	/* This packet was never sent out yet, so no SACK bits. */
@@ -1316,8 +1527,9 @@ static int tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	u32 send_win, cong_win, limit, in_flight;
+	int win_divisor;
 
-	if (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN)
+	if (TCP_SKB_CB(skb)->flags & TCPHDR_FIN)
 		goto send_now;
 
 	if (icsk->icsk_ca_state != TCP_CA_Open)
@@ -1347,13 +1559,14 @@ static int tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
 	if ((skb != tcp_write_queue_tail(sk)) && (limit >= skb->len))
 		goto send_now;
 
-	if (sysctl_tcp_tso_win_divisor) {
+	win_divisor = ACCESS_ONCE(sysctl_tcp_tso_win_divisor);
+	if (win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
 
 		/* If at least some fraction of a window is available,
 		 * just use it.
 		 */
-		chunk /= sysctl_tcp_tso_win_divisor;
+		chunk /= win_divisor;
 		if (limit >= chunk)
 			goto send_now;
 	} else {
@@ -1377,6 +1590,10 @@ send_now:
 }
 
 /* Create a new MTU probe if we are ready.
+ * MTU probe is regularly attempting to increase the path MTU by
+ * deliberately sending larger packets.  This discovers routing
+ * changes resulting in larger path MTUs.
+ *
  * Returns 0 if we should wait to probe (no cwnd available),
  *         1 if a probe was sent,
  *         -1 otherwise
@@ -1439,7 +1656,7 @@ static int tcp_mtu_probe(struct sock *sk)
 
 	TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(nskb)->end_seq = TCP_SKB_CB(skb)->seq + probe_size;
-	TCP_SKB_CB(nskb)->flags = TCPCB_FLAG_ACK;
+	TCP_SKB_CB(nskb)->flags = TCPHDR_ACK;
 	TCP_SKB_CB(nskb)->sacked = 0;
 	nskb->csum = 0;
 	nskb->ip_summed = skb->ip_summed;
@@ -1464,7 +1681,7 @@ static int tcp_mtu_probe(struct sock *sk)
 			sk_wmem_free_skb(sk, skb);
 		} else {
 			TCP_SKB_CB(nskb)->flags |= TCP_SKB_CB(skb)->flags &
-						   ~(TCPCB_FLAG_FIN|TCPCB_FLAG_PSH);
+						   ~(TCPHDR_FIN|TCPHDR_PSH);
 			if (!skb_shinfo(skb)->nr_frags) {
 				skb_pull(skb, copy);
 				if (skb->ip_summed != CHECKSUM_PARTIAL)
@@ -1564,7 +1781,7 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 						    cwnd_quota);
 
 		if (skb->len > limit &&
-		    unlikely(tso_fragment(sk, skb, limit, mss_now)))
+		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
 
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
@@ -1598,11 +1815,6 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 			       int nonagle)
 {
-	struct sk_buff *skb = tcp_send_head(sk);
-
-	if (!skb)
-		return;
-
 	/* If we are closed, the bytes will have to remain here.
 	 * In time closedown will finish, we empty the write queue and
 	 * all will be happy.
@@ -1789,6 +2001,7 @@ static void tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 	sk_wmem_free_skb(sk, next_skb);
 }
 
+/* Check if coalescing SKBs is legal. */
 static int tcp_can_collapse(struct sock *sk, struct sk_buff *skb)
 {
 	if (tcp_skb_pcount(skb) > 1)
@@ -1807,6 +2020,9 @@ static int tcp_can_collapse(struct sock *sk, struct sk_buff *skb)
 	return 1;
 }
 
+/* Collapse packets in the retransmit queue to make to create
+ * less packets on the wire. This is only done on retransmission.
+ */
 static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *to,
 				     int space)
 {
@@ -1816,7 +2032,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *to,
 
 	if (!sysctl_tcp_retrans_collapse)
 		return;
-	if (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_SYN)
+	if (TCP_SKB_CB(skb)->flags & TCPHDR_SYN)
 		return;
 
 	tcp_for_write_queue_from_safe(skb, tmp, sk) {
@@ -1885,8 +2101,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	 * case, when window is shrunk to zero. In this case
 	 * our retransmit serves as a zero window probe.
 	 */
-	if (!before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))
-	    && TCP_SKB_CB(skb)->seq != tp->snd_una)
+	if (!before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)) &&
+	    TCP_SKB_CB(skb)->seq != tp->snd_una)
 		return -EAGAIN;
 
 	if (skb->len > cur_mss) {
@@ -1908,7 +2124,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	 * since it is cheap to do so and saves bytes on the network.
 	 */
 	if (skb->len > 0 &&
-	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN) &&
+	    (TCP_SKB_CB(skb)->flags & TCPHDR_FIN) &&
 	    tp->snd_una == (TCP_SKB_CB(skb)->end_seq - 1)) {
 		if (!pskb_trim(skb, 0)) {
 			/* Reuse, even though it does some unnecessary work */
@@ -1956,6 +2172,9 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	return err;
 }
 
+/* Check if we forward retransmits are possible in the current
+ * window/congestion state.
+ */
 static int tcp_can_forward_retransmit(struct sock *sk)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -2000,6 +2219,9 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	u32 last_lost;
 	int mib_idx;
 	int fwd_rexmitting = 0;
+
+	if (!tp->packets_out)
+		return;
 
 	if (!tp->lost_out)
 		tp->retransmit_high = tp->snd_una;
@@ -2094,13 +2316,14 @@ void tcp_send_fin(struct sock *sk)
 	mss_now = tcp_current_mss(sk);
 
 	if (tcp_send_head(sk) != NULL) {
-		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_FIN;
+		TCP_SKB_CB(skb)->flags |= TCPHDR_FIN;
 		TCP_SKB_CB(skb)->end_seq++;
 		tp->write_seq++;
 	} else {
 		/* Socket is locked, keep trying until memory is available. */
 		for (;;) {
-			skb = alloc_skb_fclone(MAX_TCP_HEADER, GFP_KERNEL);
+			skb = alloc_skb_fclone(MAX_TCP_HEADER,
+					       sk->sk_allocation);
 			if (skb)
 				break;
 			yield();
@@ -2110,7 +2333,7 @@ void tcp_send_fin(struct sock *sk)
 		skb_reserve(skb, MAX_TCP_HEADER);
 		/* FIN eats a sequence byte, write_seq advanced by tcp_queue_skb(). */
 		tcp_init_nondata_skb(skb, tp->write_seq,
-				     TCPCB_FLAG_ACK | TCPCB_FLAG_FIN);
+				     TCPHDR_ACK | TCPHDR_FIN);
 		tcp_queue_skb(sk, skb);
 	}
 	__tcp_push_pending_frames(sk, mss_now, TCP_NAGLE_OFF);
@@ -2135,7 +2358,7 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, MAX_TCP_HEADER);
 	tcp_init_nondata_skb(skb, tcp_acceptable_seq(sk),
-			     TCPCB_FLAG_ACK | TCPCB_FLAG_RST);
+			     TCPHDR_ACK | TCPHDR_RST);
 	/* Send it off. */
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	if (tcp_transmit_skb(sk, skb, 0, priority))
@@ -2144,7 +2367,8 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 	TCP_INC_STATS(sock_net(sk), TCP_MIB_OUTRSTS);
 }
 
-/* WARNING: This routine must only be called when we have already sent
+/* Send a crossed SYN-ACK during socket establishment.
+ * WARNING: This routine must only be called when we have already sent
  * a SYN packet that crossed the incoming SYN that caused this routine
  * to get called. If this assumption fails then the initial rcv_wnd
  * and rcv_wscale values will not be correct.
@@ -2154,11 +2378,11 @@ int tcp_send_synack(struct sock *sk)
 	struct sk_buff *skb;
 
 	skb = tcp_write_queue_head(sk);
-	if (skb == NULL || !(TCP_SKB_CB(skb)->flags & TCPCB_FLAG_SYN)) {
+	if (skb == NULL || !(TCP_SKB_CB(skb)->flags & TCPHDR_SYN)) {
 		printk(KERN_DEBUG "tcp_send_synack: wrong queue state\n");
 		return -EFAULT;
 	}
-	if (!(TCP_SKB_CB(skb)->flags & TCPCB_FLAG_ACK)) {
+	if (!(TCP_SKB_CB(skb)->flags & TCPHDR_ACK)) {
 		if (skb_cloned(skb)) {
 			struct sk_buff *nskb = skb_copy(skb, GFP_ATOMIC);
 			if (nskb == NULL)
@@ -2172,30 +2396,33 @@ int tcp_send_synack(struct sock *sk)
 			skb = nskb;
 		}
 
-		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_ACK;
+		TCP_SKB_CB(skb)->flags |= TCPHDR_ACK;
 		TCP_ECN_send_synack(tcp_sk(sk), skb);
 	}
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	return tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 }
 
-/*
- * Prepare a SYN-ACK.
- */
+/* Prepare a SYN-ACK. */
 struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
-				struct request_sock *req)
+				struct request_sock *req,
+				struct request_values *rvp)
 {
+	struct tcp_out_options opts;
+	struct tcp_extend_values *xvp = tcp_xv(rvp);
 	struct inet_request_sock *ireq = inet_rsk(req);
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct tcp_cookie_values *cvp = tp->cookie_values;
 	struct tcphdr *th;
-	int tcp_header_size;
-	struct tcp_out_options opts;
 	struct sk_buff *skb;
 	struct tcp_md5sig_key *md5;
-	__u8 *md5_hash_location;
+	int tcp_header_size;
 	int mss;
+	int s_data_desired = 0;
 
-	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
+	if (cvp != NULL && cvp->s_data_constant && cvp->s_data_desired)
+		s_data_desired = cvp->s_data_desired;
+	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1, GFP_ATOMIC);
 	if (skb == NULL)
 		return NULL;
 
@@ -2204,7 +2431,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 
 	skb_dst_set(skb, dst_clone(dst));
 
-	mss = dst_metric(dst, RTAX_ADVMSS);
+	mss = dst_metric_advmss(dst);
 	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < mss)
 		mss = tp->rx_opt.user_mss;
 
@@ -2212,13 +2439,20 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 		__u8 rcv_wscale;
 		/* Set this up on the first call only */
 		req->window_clamp = tp->window_clamp ? : dst_metric(dst, RTAX_WINDOW);
+
+		/* limit the window selection if the user enforce a smaller rx buffer */
+		if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+		    (req->window_clamp > tcp_full_space(sk) || req->window_clamp == 0))
+			req->window_clamp = tcp_full_space(sk);
+
 		/* tcp_full_space because it is guaranteed to be the first packet */
 		tcp_select_initial_window(tcp_full_space(sk),
 			mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
 			&req->rcv_wnd,
 			&req->window_clamp,
 			ireq->wscale_ok,
-			&rcv_wscale);
+			&rcv_wscale,
+			dst_metric(dst, RTAX_INITRWND));
 		ireq->rcv_wscale = rcv_wscale;
 	}
 
@@ -2230,8 +2464,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 #endif
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	tcp_header_size = tcp_synack_options(sk, req, mss,
-					     skb, &opts, &md5) +
-			  sizeof(struct tcphdr);
+					     skb, &opts, &md5, xvp)
+			+ sizeof(*th);
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
@@ -2247,30 +2481,64 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	 * not even correctly set)
 	 */
 	tcp_init_nondata_skb(skb, tcp_rsk(req)->snt_isn,
-			     TCPCB_FLAG_SYN | TCPCB_FLAG_ACK);
+			     TCPHDR_SYN | TCPHDR_ACK);
+
+	if (OPTION_COOKIE_EXTENSION & opts.options) {
+		if (s_data_desired) {
+			u8 *buf = skb_put(skb, s_data_desired);
+
+			/* copy data directly from the listening socket. */
+			memcpy(buf, cvp->s_data_payload, s_data_desired);
+			TCP_SKB_CB(skb)->end_seq += s_data_desired;
+		}
+
+		if (opts.hash_size > 0) {
+			__u32 workspace[SHA_WORKSPACE_WORDS];
+			u32 *mess = &xvp->cookie_bakery[COOKIE_DIGEST_WORDS];
+			u32 *tail = &mess[COOKIE_MESSAGE_WORDS-1];
+
+			/* Secret recipe depends on the Timestamp, (future)
+			 * Sequence and Acknowledgment Numbers, Initiator
+			 * Cookie, and others handled by IP variant caller.
+			 */
+			*tail-- ^= opts.tsval;
+			*tail-- ^= tcp_rsk(req)->rcv_isn + 1;
+			*tail-- ^= TCP_SKB_CB(skb)->seq + 1;
+
+			/* recommended */
+			*tail-- ^= (((__force u32)th->dest << 16) | (__force u32)th->source);
+			*tail-- ^= (u32)(unsigned long)cvp; /* per sockopt */
+
+			sha_transform((__u32 *)&xvp->cookie_bakery[0],
+				      (char *)mess,
+				      &workspace[0]);
+			opts.hash_location =
+				(__u8 *)&xvp->cookie_bakery[0];
+		}
+	}
+
 	th->seq = htonl(TCP_SKB_CB(skb)->seq);
 	th->ack_seq = htonl(tcp_rsk(req)->rcv_isn + 1);
 
 	/* RFC1323: The window in SYN & SYN/ACK segments is never scaled. */
 	th->window = htons(min(req->rcv_wnd, 65535U));
-	tcp_options_write((__be32 *)(th + 1), tp, &opts, &md5_hash_location);
+	tcp_options_write((__be32 *)(th + 1), tp, &opts);
 	th->doff = (tcp_header_size >> 2);
-	TCP_INC_STATS(sock_net(sk), TCP_MIB_OUTSEGS);
+	TCP_ADD_STATS(sock_net(sk), TCP_MIB_OUTSEGS, tcp_skb_pcount(skb));
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Okay, we have all we need - do the md5 hash if needed */
 	if (md5) {
-		tp->af_specific->calc_md5_hash(md5_hash_location,
+		tcp_rsk(req)->af_specific->calc_md5_hash(opts.hash_location,
 					       md5, NULL, req, skb);
 	}
 #endif
 
 	return skb;
 }
+EXPORT_SYMBOL(tcp_make_synack);
 
-/*
- * Do all connect socket setups that can be done AF independent.
- */
+/* Do all connect socket setups that can be done AF independent. */
 static void tcp_connect_init(struct sock *sk)
 {
 	struct dst_entry *dst = __sk_dst_get(sk);
@@ -2297,18 +2565,24 @@ static void tcp_connect_init(struct sock *sk)
 
 	if (!tp->window_clamp)
 		tp->window_clamp = dst_metric(dst, RTAX_WINDOW);
-	tp->advmss = dst_metric(dst, RTAX_ADVMSS);
+	tp->advmss = dst_metric_advmss(dst);
 	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < tp->advmss)
 		tp->advmss = tp->rx_opt.user_mss;
 
 	tcp_initialize_rcv_mss(sk);
+
+	/* limit the window selection if the user enforce a smaller rx buffer */
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (tp->window_clamp > tcp_full_space(sk) || tp->window_clamp == 0))
+		tp->window_clamp = tcp_full_space(sk);
 
 	tcp_select_initial_window(tcp_full_space(sk),
 				  tp->advmss - (tp->rx_opt.ts_recent_stamp ? tp->tcp_header_len - sizeof(struct tcphdr) : 0),
 				  &tp->rcv_wnd,
 				  &tp->window_clamp,
 				  sysctl_tcp_window_scaling,
-				  &rcv_wscale);
+				  &rcv_wscale,
+				  dst_metric(dst, RTAX_INITRWND));
 
 	tp->rx_opt.rcv_wscale = rcv_wscale;
 	tp->rcv_ssthresh = tp->rcv_wnd;
@@ -2329,13 +2603,12 @@ static void tcp_connect_init(struct sock *sk)
 	tcp_clear_retrans(tp);
 }
 
-/*
- * Build a SYN and send it off.
- */
+/* Build a SYN and send it off. */
 int tcp_connect(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
+	int err;
 
 	tcp_connect_init(sk);
 
@@ -2347,7 +2620,7 @@ int tcp_connect(struct sock *sk)
 	skb_reserve(buff, MAX_TCP_HEADER);
 
 	tp->snd_nxt = tp->write_seq;
-	tcp_init_nondata_skb(buff, tp->write_seq++, TCPCB_FLAG_SYN);
+	tcp_init_nondata_skb(buff, tp->write_seq++, TCPHDR_SYN);
 	TCP_ECN_send_syn(sk, buff);
 
 	/* Send it off. */
@@ -2358,7 +2631,9 @@ int tcp_connect(struct sock *sk)
 	sk->sk_wmem_queued += buff->truesize;
 	sk_mem_charge(sk, buff->truesize);
 	tp->packets_out += tcp_skb_pcount(buff);
-	tcp_transmit_skb(sk, buff, 1, GFP_KERNEL);
+	err = tcp_transmit_skb(sk, buff, 1, sk->sk_allocation);
+	if (err == -ECONNREFUSED)
+		return err;
 
 	/* We change tp->snd_nxt after the tcp_transmit_skb() call
 	 * in order to make this packet get counted in tcpOutSegs.
@@ -2372,6 +2647,7 @@ int tcp_connect(struct sock *sk)
 				  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
 	return 0;
 }
+EXPORT_SYMBOL(tcp_connect);
 
 /* Send out a delayed ack, the caller does the policy checking
  * to see if we should even be here.  See tcp_input.c:tcp_ack_snd_check()
@@ -2453,7 +2729,7 @@ void tcp_send_ack(struct sock *sk)
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(buff, MAX_TCP_HEADER);
-	tcp_init_nondata_skb(buff, tcp_acceptable_seq(sk), TCPCB_FLAG_ACK);
+	tcp_init_nondata_skb(buff, tcp_acceptable_seq(sk), TCPHDR_ACK);
 
 	/* Send it off, this clears delayed acks for us. */
 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
@@ -2487,11 +2763,12 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 	 * end to send an ack.  Don't queue or clone SKB, just
 	 * send it.
 	 */
-	tcp_init_nondata_skb(skb, tp->snd_una - !urgent, TCPCB_FLAG_ACK);
+	tcp_init_nondata_skb(skb, tp->snd_una - !urgent, TCPHDR_ACK);
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	return tcp_transmit_skb(sk, skb, 0, GFP_ATOMIC);
 }
 
+/* Initiate keepalive or window probe from timer. */
 int tcp_write_wakeup(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -2516,13 +2793,13 @@ int tcp_write_wakeup(struct sock *sk)
 		if (seg_size < TCP_SKB_CB(skb)->end_seq - TCP_SKB_CB(skb)->seq ||
 		    skb->len > mss) {
 			seg_size = min(seg_size, mss);
-			TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
+			TCP_SKB_CB(skb)->flags |= TCPHDR_PSH;
 			if (tcp_fragment(sk, skb, seg_size, mss))
 				return -1;
 		} else if (!tcp_skb_pcount(skb))
 			tcp_set_skb_tso_segs(sk, skb, mss);
 
-		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
+		TCP_SKB_CB(skb)->flags |= TCPHDR_PSH;
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
 		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 		if (!err)
@@ -2575,10 +2852,3 @@ void tcp_send_probe0(struct sock *sk)
 					  TCP_RTO_MAX);
 	}
 }
-
-EXPORT_SYMBOL(tcp_select_initial_window);
-EXPORT_SYMBOL(tcp_connect);
-EXPORT_SYMBOL(tcp_make_synack);
-EXPORT_SYMBOL(tcp_simple_retransmit);
-EXPORT_SYMBOL(tcp_sync_mss);
-EXPORT_SYMBOL(tcp_mtup_init);

@@ -22,7 +22,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/concat.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 
 struct of_flash_list {
 	struct mtd_info *mtd;
@@ -42,13 +44,13 @@ struct of_flash {
 #ifdef CONFIG_MTD_PARTITIONS
 #define OF_FLASH_PARTS(info)	((info)->parts)
 
-static int parse_obsolete_partitions(struct of_device *dev,
+static int parse_obsolete_partitions(struct platform_device *dev,
 				     struct of_flash *info,
 				     struct device_node *dp)
 {
 	int i, plen, nr_parts;
 	const struct {
-		u32 offset, len;
+		__be32 offset, len;
 	} *part;
 	const char *names;
 
@@ -67,9 +69,9 @@ static int parse_obsolete_partitions(struct of_device *dev,
 	names = of_get_property(dp, "partition-names", &plen);
 
 	for (i = 0; i < nr_parts; i++) {
-		info->parts[i].offset = part->offset;
-		info->parts[i].size   = part->len & ~1;
-		if (part->len & 1) /* bit 0 set signifies read only partition */
+		info->parts[i].offset = be32_to_cpu(part->offset);
+		info->parts[i].size   = be32_to_cpu(part->len) & ~1;
+		if (be32_to_cpu(part->len) & 1) /* bit 0 set signifies read only partition */
 			info->parts[i].mask_flags = MTD_WRITEABLE;
 
 		if (names && (plen > 0)) {
@@ -92,7 +94,7 @@ static int parse_obsolete_partitions(struct of_device *dev,
 #define parse_partitions(info, dev)	(0)
 #endif /* MTD_PARTITIONS */
 
-static int of_flash_remove(struct of_device *dev)
+static int of_flash_remove(struct platform_device *dev)
 {
 	struct of_flash *info;
 	int i;
@@ -139,10 +141,10 @@ static int of_flash_remove(struct of_device *dev)
 /* Helper function to handle probing of the obsolete "direct-mapped"
  * compatible binding, which has an extra "probe-type" property
  * describing the type of flash probe necessary. */
-static struct mtd_info * __devinit obsolete_probe(struct of_device *dev,
+static struct mtd_info * __devinit obsolete_probe(struct platform_device *dev,
 						  struct map_info *map)
 {
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	const char *of_probe;
 	struct mtd_info *mtd;
 	static const char *rom_probe_types[]
@@ -172,24 +174,66 @@ static struct mtd_info * __devinit obsolete_probe(struct of_device *dev,
 	}
 }
 
-static int __devinit of_flash_probe(struct of_device *dev,
+#ifdef CONFIG_MTD_PARTITIONS
+/* When partitions are set we look for a linux,part-probe property which
+   specifies the list of partition probers to use. If none is given then the
+   default is use. These take precedence over other device tree
+   information. */
+static const char *part_probe_types_def[] = { "cmdlinepart", "RedBoot", NULL };
+static const char ** __devinit of_get_probes(struct device_node *dp)
+{
+	const char *cp;
+	int cplen;
+	unsigned int l;
+	unsigned int count;
+	const char **res;
+
+	cp = of_get_property(dp, "linux,part-probe", &cplen);
+	if (cp == NULL)
+		return part_probe_types_def;
+
+	count = 0;
+	for (l = 0; l != cplen; l++)
+		if (cp[l] == 0)
+			count++;
+
+	res = kzalloc((count + 1)*sizeof(*res), GFP_KERNEL);
+	count = 0;
+	while (cplen > 0) {
+		res[count] = cp;
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+		count++;
+	}
+	return res;
+}
+
+static void __devinit of_free_probes(const char **probes)
+{
+	if (probes != part_probe_types_def)
+		kfree(probes);
+}
+#endif
+
+static int __devinit of_flash_probe(struct platform_device *dev,
 				    const struct of_device_id *match)
 {
 #ifdef CONFIG_MTD_PARTITIONS
-	static const char *part_probe_types[]
-		= { "cmdlinepart", "RedBoot", NULL };
+	const char **part_probe_types;
 #endif
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	struct resource res;
 	struct of_flash *info;
 	const char *probe_type = match->data;
-	const u32 *width;
+	const __be32 *width;
 	int err;
 	int i;
 	int count;
-	const u32 *p;
+	const __be32 *p;
 	int reg_tuple_size;
 	struct mtd_info **mtd_list = NULL;
+	resource_size_t res_size;
 
 	reg_tuple_size = (of_n_addr_cells(dp) + of_n_size_cells(dp)) * sizeof(u32);
 
@@ -202,9 +246,9 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	p = of_get_property(dp, "reg", &count);
 	if (count % reg_tuple_size != 0) {
 		dev_err(&dev->dev, "Malformed reg property on %s\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		err = -EINVAL;
-		goto err_out;
+		goto err_flash_remove;
 	}
 	count /= reg_tuple_size;
 
@@ -212,20 +256,22 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	info = kzalloc(sizeof(struct of_flash) +
 		       sizeof(struct of_flash_list) * count, GFP_KERNEL);
 	if (!info)
-		goto err_out;
-
-	mtd_list = kzalloc(sizeof(struct mtd_info) * count, GFP_KERNEL);
-	if (!info)
-		goto err_out;
+		goto err_flash_remove;
 
 	dev_set_drvdata(&dev->dev, info);
+
+	mtd_list = kzalloc(sizeof(*mtd_list) * count, GFP_KERNEL);
+	if (!mtd_list)
+		goto err_flash_remove;
 
 	for (i = 0; i < count; i++) {
 		err = -ENXIO;
 		if (of_address_to_resource(dp, i, &res)) {
-			dev_err(&dev->dev, "Can't get IO address from device"
-				" tree\n");
-			goto err_out;
+			/*
+			 * Continue with next register tuple if this
+			 * one is not mappable
+			 */
+			continue;
 		}
 
 		dev_dbg(&dev->dev, "of_flash device: %.8llx-%.8llx\n",
@@ -233,8 +279,8 @@ static int __devinit of_flash_probe(struct of_device *dev,
 			(unsigned long long)res.end);
 
 		err = -EBUSY;
-		info->list[i].res = request_mem_region(res.start, res.end -
-						       res.start + 1,
+		res_size = resource_size(&res);
+		info->list[i].res = request_mem_region(res.start, res_size,
 						       dev_name(&dev->dev));
 		if (!info->list[i].res)
 			goto err_out;
@@ -249,8 +295,8 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 		info->list[i].map.name = dev_name(&dev->dev);
 		info->list[i].map.phys = res.start;
-		info->list[i].map.size = res.end - res.start + 1;
-		info->list[i].map.bankwidth = *width;
+		info->list[i].map.size = res_size;
+		info->list[i].map.bankwidth = be32_to_cpup(width);
 
 		err = -ENOMEM;
 		info->list[i].map.virt = ioremap(info->list[i].map.phys,
@@ -305,25 +351,27 @@ static int __devinit of_flash_probe(struct of_device *dev,
 		goto err_out;
 
 #ifdef CONFIG_MTD_PARTITIONS
-	/* First look for RedBoot table or partitions on the command
-	 * line, these take precedence over device tree information */
+	part_probe_types = of_get_probes(dp);
 	err = parse_mtd_partitions(info->cmtd, part_probe_types,
 				   &info->parts, 0);
-	if (err < 0)
-		return err;
+	if (err < 0) {
+		of_free_probes(part_probe_types);
+		goto err_out;
+	}
+	of_free_probes(part_probe_types);
 
 #ifdef CONFIG_MTD_OF_PARTS
 	if (err == 0) {
 		err = of_mtd_parse_partitions(&dev->dev, dp, &info->parts);
 		if (err < 0)
-			return err;
+			goto err_out;
 	}
 #endif
 
 	if (err == 0) {
 		err = parse_obsolete_partitions(dev, info, dp);
 		if (err < 0)
-			return err;
+			goto err_out;
 	}
 
 	if (err > 0)
@@ -338,6 +386,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 err_out:
 	kfree(mtd_list);
+err_flash_remove:
 	of_flash_remove(dev);
 
 	return err;
@@ -360,6 +409,10 @@ static struct of_device_id of_flash_match[] = {
 		.data		= (void *)"jedec_probe",
 	},
 	{
+		.compatible     = "mtd-ram",
+		.data           = (void *)"map_ram",
+	},
+	{
 		.type		= "rom",
 		.compatible	= "direct-mapped"
 	},
@@ -368,8 +421,11 @@ static struct of_device_id of_flash_match[] = {
 MODULE_DEVICE_TABLE(of, of_flash_match);
 
 static struct of_platform_driver of_flash_driver = {
-	.name		= "of-flash",
-	.match_table	= of_flash_match,
+	.driver = {
+		.name = "of-flash",
+		.owner = THIS_MODULE,
+		.of_match_table = of_flash_match,
+	},
 	.probe		= of_flash_probe,
 	.remove		= of_flash_remove,
 };

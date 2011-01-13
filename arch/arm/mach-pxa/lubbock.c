@@ -25,7 +25,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <mach/pxa2xx_spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -50,6 +50,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/pm.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "clock.h"
@@ -66,26 +67,14 @@ static unsigned long lubbock_pin_config[] __initdata = {
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
 
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+
 	/* LCD - 16bpp DSTN */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
+	GPIOxx_LCD_DSTN_16BPP,
 
 	/* BTUART */
 	GPIO42_BTUART_RXD,
@@ -158,7 +147,7 @@ static void lubbock_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	do {
-		GEDR(0) = GPIO_bit(0);	/* clear our parent irq */
+		desc->chip->ack(irq);	/* clear our parent irq */
 		if (likely(pending)) {
 			irq = LUBBOCK_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
@@ -240,11 +229,18 @@ static struct resource sa1111_resources[] = {
 	},
 };
 
+static struct sa1111_platform_data sa1111_info = {
+	.irq_base	= LUBBOCK_SA1111_IRQ_BASE,
+};
+
 static struct platform_device sa1111_device = {
 	.name		= "sa1111",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(sa1111_resources),
 	.resource	= sa1111_resources,
+	.dev		= {
+		.platform_data	= &sa1111_info,
+	},
 };
 
 /* ADS7846 is connected through SSP ... and if your board has J5 populated,
@@ -482,11 +478,14 @@ static void lubbock_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data lubbock_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.detect_delay	= 1,
-	.init 		= lubbock_mci_init,
-	.get_ro		= lubbock_mci_get_ro,
-	.exit 		= lubbock_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.detect_delay_ms	= 10,
+	.init 			= lubbock_mci_init,
+	.get_ro			= lubbock_mci_get_ro,
+	.exit 			= lubbock_mci_exit,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= -1,
+	.gpio_power		= -1,
 };
 
 static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
@@ -504,8 +503,9 @@ static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
 }
 
 static struct pxaficp_platform_data lubbock_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE,
-	.transceiver_mode = lubbock_irda_transceiver_mode,
+	.gpio_pwdown		= -1,
+	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE,
+	.transceiver_mode	= lubbock_irda_transceiver_mode,
 };
 
 static void __init lubbock_init(void)
@@ -513,6 +513,10 @@ static void __init lubbock_init(void)
 	int flashboot = (LUB_CONF_SWITCHES & 1);
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(lubbock_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	clk_add_alias("SA1111_CLK", NULL, "GPIO11_CLK", NULL);
 	pxa_set_udc_info(&udc_info);
@@ -522,7 +526,7 @@ static void __init lubbock_init(void)
 	pxa_set_ac97_info(NULL);
 
 	lubbock_flash_data[0].width = lubbock_flash_data[1].width =
-		(BOOT_DEF & 1) ? 2 : 4;
+		(__raw_readl(BOOT_DEF) & 1) ? 2 : 4;
 	/* Compensate for the nROMBT switch which swaps the flash banks */
 	printk(KERN_NOTICE "Lubbock configured to boot from %s (bank %d)\n",
 	       flashboot?"Flash":"ROM", flashboot);
@@ -546,7 +550,7 @@ static struct map_desc lubbock_io_desc[] __initdata = {
 
 static void __init lubbock_map_io(void)
 {
-	pxa_map_io();
+	pxa25x_map_io();
 	iotable_init(lubbock_io_desc, ARRAY_SIZE(lubbock_io_desc));
 
 	PCFR |= PCFR_OPDE;
@@ -554,9 +558,8 @@ static void __init lubbock_map_io(void)
 
 MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
 	/* Maintainer: MontaVista Software Inc. */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= lubbock_map_io,
+	.nr_irqs	= LUBBOCK_NR_IRQS,
 	.init_irq	= lubbock_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= lubbock_init,

@@ -50,6 +50,26 @@
 #define L2X0_LINE_DATA			0xF10
 #define L2X0_LINE_TAG			0xF30
 #define L2X0_DEBUG_CTRL			0xF40
+#define L2X0_PREFETCH_CTRL		0xF60
+#define L2X0_POWER_CTRL			0xF80
+#define   L2X0_DYNAMIC_CLK_GATING_EN	(1 << 1)
+#define   L2X0_STNDBY_MODE_EN		(1 << 0)
+
+/* Registers shifts and masks */
+#define L2X0_CACHE_ID_PART_MASK		(0xf << 6)
+#define L2X0_CACHE_ID_PART_L210		(1 << 6)
+#define L2X0_CACHE_ID_PART_L310		(3 << 6)
+
+#define L2X0_AUX_CTRL_MASK			0xc0000fff
+#define L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT	16
+#define L2X0_AUX_CTRL_WAY_SIZE_SHIFT		17
+#define L2X0_AUX_CTRL_WAY_SIZE_MASK		(0x3 << 17)
+#define L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT	22
+#define L2X0_AUX_CTRL_NS_LOCKDOWN_SHIFT		26
+#define L2X0_AUX_CTRL_NS_INT_CTRL_SHIFT		27
+#define L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT	28
+#define L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT	29
+#define L2X0_AUX_CTRL_EARLY_BRESP_SHIFT		30
 
 #ifndef __ASSEMBLY__
 extern void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask);

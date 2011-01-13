@@ -50,6 +50,8 @@
 #include <linux/can/dev.h>
 #include <linux/can/platform/sja1000.h>
 
+#define SJA1000_ECHO_SKB_MAX	1 /* the SJA1000 has one TX buffer object */
+
 #define SJA1000_MAX_IRQ 20	/* max. number of interrupts handled in ISR */
 
 /* SJA1000 registers - manual section 6.4 (Pelican Mode) */
@@ -165,6 +167,7 @@ struct sja1000_priv {
 
 	void __iomem *reg_base;	 /* ioremap'ed address to registers */
 	unsigned long irq_flags; /* for request_irq() */
+	spinlock_t cmdreg_lock;  /* lock for concurrent cmd register writes */
 
 	u16 flags;		/* custom mode flags */
 	u8 ocr;			/* output control register */

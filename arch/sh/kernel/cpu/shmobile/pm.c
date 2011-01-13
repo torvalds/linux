@@ -1,5 +1,5 @@
 /*
- * arch/sh/kernel/cpu/sh4a/pm-sh_mobile.c
+ * arch/sh/kernel/cpu/shmobile/pm.c
  *
  * Power management support code for SuperH Mobile
  *
@@ -15,6 +15,13 @@
 #include <linux/suspend.h>
 #include <asm/suspend.h>
 #include <asm/uaccess.h>
+#include <asm/cacheflush.h>
+
+/*
+ * Notifier lists for pre/post sleep notification
+ */
+ATOMIC_NOTIFIER_HEAD(sh_mobile_pre_sleep_notifier_list);
+ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
 
 /*
  * Sleep modes available on SuperH Mobile:
@@ -26,50 +33,106 @@
 #define SUSP_MODE_SLEEP		(SUSP_SH_SLEEP)
 #define SUSP_MODE_SLEEP_SF	(SUSP_SH_SLEEP | SUSP_SH_SF)
 #define SUSP_MODE_STANDBY_SF	(SUSP_SH_STANDBY | SUSP_SH_SF)
+#define SUSP_MODE_RSTANDBY_SF \
+	(SUSP_SH_RSTANDBY | SUSP_SH_MMU | SUSP_SH_REGS | SUSP_SH_SF)
+ /*
+  * U-standby mode is unsupported since it needs bootloader hacks
+  */
 
-/*
- * The following modes are not there yet:
- *
- * R-standby mode is unsupported, but will be added in the future
- * U-standby mode is low priority since it needs bootloader hacks
- *
- * All modes should be tied in with cpuidle. But before that can
- * happen we need to keep track of enabled hardware blocks so we
- * can avoid entering sleep modes that stop clocks to hardware
- * blocks that are in use even though the cpu core is idle.
- */
+#ifdef CONFIG_CPU_SUBTYPE_SH7724
+#define RAM_BASE 0xfd800000 /* RSMEM */
+#else
+#define RAM_BASE 0xe5200000 /* ILRAM */
+#endif
 
-extern const unsigned char sh_mobile_standby[];
-extern const unsigned int sh_mobile_standby_size;
-
-static void sh_mobile_call_standby(unsigned long mode)
+void sh_mobile_call_standby(unsigned long mode)
 {
-	extern void *vbr_base;
-	void *onchip_mem = (void *)0xe5200000; /* ILRAM */
-	void (*standby_onchip_mem)(unsigned long) = onchip_mem;
+	void *onchip_mem = (void *)RAM_BASE;
+	struct sh_sleep_data *sdp = onchip_mem;
+	void (*standby_onchip_mem)(unsigned long, unsigned long);
 
-	/* Note: Wake up from sleep may generate exceptions!
-	 * Setup VBR to point to on-chip ram if self-refresh is
-	 * going to be used.
-	 */
-	if (mode & SUSP_SH_SF)
-		asm volatile("ldc %0, vbr" : : "r" (onchip_mem) : "memory");
+	/* code located directly after data structure */
+	standby_onchip_mem = (void *)(sdp + 1);
 
-	/* Copy the assembly snippet to the otherwise ununsed ILRAM */
-	memcpy(onchip_mem, sh_mobile_standby, sh_mobile_standby_size);
-	wmb();
-	ctrl_barrier();
+	atomic_notifier_call_chain(&sh_mobile_pre_sleep_notifier_list,
+				   mode, NULL);
+
+	/* flush the caches if MMU flag is set */
+	if (mode & SUSP_SH_MMU)
+		flush_cache_all();
 
 	/* Let assembly snippet in on-chip memory handle the rest */
-	standby_onchip_mem(mode);
+	standby_onchip_mem(mode, RAM_BASE);
 
-	/* Put VBR back in System RAM again */
-	if (mode & SUSP_SH_SF)
-		asm volatile("ldc %0, vbr" : : "r" (&vbr_base) : "memory");
+	atomic_notifier_call_chain(&sh_mobile_post_sleep_notifier_list,
+				   mode, NULL);
+}
+
+extern char sh_mobile_sleep_enter_start;
+extern char sh_mobile_sleep_enter_end;
+
+extern char sh_mobile_sleep_resume_start;
+extern char sh_mobile_sleep_resume_end;
+
+unsigned long sh_mobile_sleep_supported = SUSP_SH_SLEEP;
+
+void sh_mobile_register_self_refresh(unsigned long flags,
+				     void *pre_start, void *pre_end,
+				     void *post_start, void *post_end)
+{
+	void *onchip_mem = (void *)RAM_BASE;
+	void *vp;
+	struct sh_sleep_data *sdp;
+	int n;
+
+	/* part 0: data area */
+	sdp = onchip_mem;
+	sdp->addr.stbcr = 0xa4150020; /* STBCR */
+	sdp->addr.bar = 0xa4150040; /* BAR */
+	sdp->addr.pteh = 0xff000000; /* PTEH */
+	sdp->addr.ptel = 0xff000004; /* PTEL */
+	sdp->addr.ttb = 0xff000008; /* TTB */
+	sdp->addr.tea = 0xff00000c; /* TEA */
+	sdp->addr.mmucr = 0xff000010; /* MMUCR */
+	sdp->addr.ptea = 0xff000034; /* PTEA */
+	sdp->addr.pascr = 0xff000070; /* PASCR */
+	sdp->addr.irmcr = 0xff000078; /* IRMCR */
+	sdp->addr.ccr = 0xff00001c; /* CCR */
+	sdp->addr.ramcr = 0xff000074; /* RAMCR */
+	vp = sdp + 1;
+
+	/* part 1: common code to enter sleep mode */
+	n = &sh_mobile_sleep_enter_end - &sh_mobile_sleep_enter_start;
+	memcpy(vp, &sh_mobile_sleep_enter_start, n);
+	vp += roundup(n, 4);
+
+	/* part 2: board specific code to enter self-refresh mode */
+	n = pre_end - pre_start;
+	memcpy(vp, pre_start, n);
+	sdp->sf_pre = (unsigned long)vp;
+	vp += roundup(n, 4);
+
+	/* part 3: board specific code to resume from self-refresh mode */
+	n = post_end - post_start;
+	memcpy(vp, post_start, n);
+	sdp->sf_post = (unsigned long)vp;
+	vp += roundup(n, 4);
+
+	/* part 4: common code to resume from sleep mode */
+	WARN_ON(vp > (onchip_mem + 0x600));
+	vp = onchip_mem + 0x600; /* located at interrupt vector */
+	n = &sh_mobile_sleep_resume_end - &sh_mobile_sleep_resume_start;
+	memcpy(vp, &sh_mobile_sleep_resume_start, n);
+	sdp->resume = (unsigned long)vp;
+
+	sh_mobile_sleep_supported |= flags;
 }
 
 static int sh_pm_enter(suspend_state_t state)
 {
+	if (!(sh_mobile_sleep_supported & SUSP_MODE_STANDBY_SF))
+		return -ENXIO;
+
 	local_irq_disable();
 	set_bl_bit();
 	sh_mobile_call_standby(SUSP_MODE_STANDBY_SF);
@@ -86,6 +149,7 @@ static struct platform_suspend_ops sh_pm_ops = {
 static int __init sh_pm_init(void)
 {
 	suspend_set_ops(&sh_pm_ops);
+	sh_mobile_setup_cpuidle();
 	return 0;
 }
 

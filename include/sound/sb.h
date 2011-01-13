@@ -33,6 +33,7 @@ enum sb_hw_type {
 	SB_HW_20,
 	SB_HW_201,
 	SB_HW_PRO,
+	SB_HW_JAZZ16,		/* Media Vision Jazz16 */
 	SB_HW_16,
 	SB_HW_16CSP,		/* SB16 with CSP chip */
 	SB_HW_ALS100,		/* Avance Logic ALS100 chip */

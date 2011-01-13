@@ -1,10 +1,10 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1271
  *
- * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
+ * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Kalle Valo <kalle.valo@nokia.com>
+ * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,194 +22,129 @@
  *
  */
 
-#ifndef __WL12XX_TX_H__
-#define __WL12XX_TX_H__
+#ifndef __TX_H__
+#define __TX_H__
 
-#include <linux/bitops.h>
+#define TX_HW_BLOCK_SPARE                2
+#define TX_HW_BLOCK_SIZE                 252
 
-/*
- *
- * TX PATH
- *
- * The Tx path uses a double buffer and a tx_control structure, each located
- * at a fixed address in the device's memory. On startup, the host retrieves
- * the pointers to these addresses. A double buffer allows for continuous data
- * flow towards the device. The host keeps track of which buffer is available
- * and alternates between these two buffers on a per packet basis.
- *
- * The size of each of the two buffers is large enough to hold the longest
- * 802.3 packet - maximum size Ethernet packet + header + descriptor.
- * TX complete indication will be received a-synchronously in a TX done cyclic
- * buffer which is composed of 16 tx_result descriptors structures and is used
- * in a cyclic manner.
- *
- * The TX (HOST) procedure is as follows:
- * 1. Read the Tx path status, that will give the data_out_count.
- * 2. goto 1, if not possible.
- *    i.e. if data_in_count - data_out_count >= HwBuffer size (2 for double
- *    buffer).
- * 3. Copy the packet (preceded by double_buffer_desc), if possible.
- *    i.e. if data_in_count - data_out_count < HwBuffer size (2 for double
- *    buffer).
- * 4. increment data_in_count.
- * 5. Inform the firmware by generating a firmware internal interrupt.
- * 6. FW will increment data_out_count after it reads the buffer.
- *
- * The TX Complete procedure:
- * 1. To get a TX complete indication the host enables the tx_complete flag in
- *    the TX descriptor Structure.
- * 2. For each packet with a Tx Complete field set, the firmware adds the
- *    transmit results to the cyclic buffer (txDoneRing) and sets both done_1
- *    and done_2 to 1 to indicate driver ownership.
- * 3. The firmware sends a Tx Complete interrupt to the host to trigger the
- *    host to process the new data. Note: interrupt will be send per packet if
- *    TX complete indication was requested in tx_control or per crossing
- *    aggregation threshold.
- * 4. After receiving the Tx Complete interrupt, the host reads the
- *    TxDescriptorDone information in a cyclic manner and clears both done_1
- *    and done_2 fields.
- *
- */
+#define TX_HW_MGMT_PKT_LIFETIME_TU       2000
+/* The chipset reference driver states, that the "aid" value 1
+ * is for infra-BSS, but is still always used */
+#define TX_HW_DEFAULT_AID                1
 
-#define TX_COMPLETE_REQUIRED_BIT	0x80
-#define TX_STATUS_DATA_OUT_COUNT_MASK   0xf
-#define WL12XX_TX_ALIGN_TO 4
-#define WL12XX_TX_ALIGN(len) (((len) + WL12XX_TX_ALIGN_TO - 1) & \
-			     ~(WL12XX_TX_ALIGN_TO - 1))
-#define WL12XX_TKIP_IV_SPACE 4
+#define TX_HW_ATTR_SAVE_RETRIES          BIT(0)
+#define TX_HW_ATTR_HEADER_PAD            BIT(1)
+#define TX_HW_ATTR_SESSION_COUNTER       (BIT(2) | BIT(3) | BIT(4))
+#define TX_HW_ATTR_RATE_POLICY           (BIT(5) | BIT(6) | BIT(7) | \
+					  BIT(8) | BIT(9))
+#define TX_HW_ATTR_LAST_WORD_PAD         (BIT(10) | BIT(11))
+#define TX_HW_ATTR_TX_CMPLT_REQ          BIT(12)
 
-struct tx_control {
-	/* Rate Policy (class) index */
-	unsigned rate_policy:3;
+#define TX_HW_ATTR_OFST_SAVE_RETRIES     0
+#define TX_HW_ATTR_OFST_HEADER_PAD       1
+#define TX_HW_ATTR_OFST_SESSION_COUNTER  2
+#define TX_HW_ATTR_OFST_RATE_POLICY      5
+#define TX_HW_ATTR_OFST_LAST_WORD_PAD    10
+#define TX_HW_ATTR_OFST_TX_CMPLT_REQ     12
 
-	/* When set, no ack policy is expected */
-	unsigned ack_policy:1;
+#define TX_HW_RESULT_QUEUE_LEN           16
+#define TX_HW_RESULT_QUEUE_LEN_MASK      0xf
 
-	/*
-	 * Packet type:
-	 * 0 -> 802.11
-	 * 1 -> 802.3
-	 * 2 -> IP
-	 * 3 -> raw codec
-	 */
-	unsigned packet_type:2;
+#define WL1271_TX_ALIGN_TO 4
+#define WL1271_TX_ALIGN(len) (((len) + WL1271_TX_ALIGN_TO - 1) & \
+			     ~(WL1271_TX_ALIGN_TO - 1))
+#define WL1271_TKIP_IV_SPACE 4
 
-	/* If set, this is a QoS-Null or QoS-Data frame */
-	unsigned qos:1;
-
-	/*
-	 * If set, the target triggers the tx complete INT
-	 * upon frame sending completion.
-	 */
-	unsigned tx_complete:1;
-
-	/* 2 bytes padding before packet header */
-	unsigned xfer_pad:1;
-
-	unsigned reserved:7;
-} __attribute__ ((packed));
-
-
-struct tx_double_buffer_desc {
-	/* Length of payload, including headers. */
-	u16 length;
-
-	/*
-	 * A bit mask that specifies the initial rate to be used
-	 * Possible values are:
-	 * 0x0001 - 1Mbits
-	 * 0x0002 - 2Mbits
-	 * 0x0004 - 5.5Mbits
-	 * 0x0008 - 6Mbits
-	 * 0x0010 - 9Mbits
-	 * 0x0020 - 11Mbits
-	 * 0x0040 - 12Mbits
-	 * 0x0080 - 18Mbits
-	 * 0x0100 - 22Mbits
-	 * 0x0200 - 24Mbits
-	 * 0x0400 - 36Mbits
-	 * 0x0800 - 48Mbits
-	 * 0x1000 - 54Mbits
-	 */
-	u16 rate;
-
-	/* Time in us that a packet can spend in the target */
-	u32 expiry_time;
-
-	/* index of the TX queue used for this packet */
-	u8 xmit_queue;
-
-	/* Used to identify a packet */
+struct wl1271_tx_hw_descr {
+	/* Length of packet in words, including descriptor+header+data */
+	__le16 length;
+	/* Number of extra memory blocks to allocate for this packet in
+	   addition to the number of blocks derived from the packet length */
+	u8 extra_mem_blocks;
+	/* Total number of memory blocks allocated by the host for this packet.
+	   Must be equal or greater than the actual blocks number allocated by
+	   HW!! */
+	u8 total_mem_blocks;
+	/* Device time (in us) when the packet arrived to the driver */
+	__le32 start_time;
+	/* Max delay in TUs until transmission. The last device time the
+	   packet can be transmitted is: startTime+(1024*LifeTime) */
+	__le16 life_time;
+	/* Bitwise fields - see TX_ATTR... definitions above. */
+	__le16 tx_attr;
+	/* Packet identifier used also in the Tx-Result. */
 	u8 id;
-
-	struct tx_control control;
-
-	/*
-	 * The FW should cut the packet into fragments
-	 * of this size.
-	 */
-	u16 frag_threshold;
-
-	/* Numbers of HW queue blocks to be allocated */
-	u8 num_mem_blocks;
-
+	/* The packet TID value (as User-Priority) */
+	u8 tid;
+	/* Identifier of the remote STA in IBSS, 1 in infra-BSS */
+	u8 aid;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
-enum {
-	TX_SUCCESS              = 0,
-	TX_DMA_ERROR            = BIT(7),
-	TX_DISABLED             = BIT(6),
-	TX_RETRY_EXCEEDED       = BIT(5),
-	TX_TIMEOUT              = BIT(4),
-	TX_KEY_NOT_FOUND        = BIT(3),
-	TX_ENCRYPT_FAIL         = BIT(2),
-	TX_UNAVAILABLE_PRIORITY = BIT(1),
+enum wl1271_tx_hw_res_status {
+	TX_SUCCESS          = 0,
+	TX_HW_ERROR         = 1,
+	TX_DISABLED         = 2,
+	TX_RETRY_EXCEEDED   = 3,
+	TX_TIMEOUT          = 4,
+	TX_KEY_NOT_FOUND    = 5,
+	TX_PEER_NOT_FOUND   = 6,
+	TX_SESSION_MISMATCH = 7
 };
 
-struct tx_result {
-	/*
-	 * Ownership synchronization between the host and
-	 * the firmware. If done_1 and done_2 are cleared,
-	 * owned by the FW (no info ready).
-	 */
-	u8 done_1;
-
-	/* same as double_buffer_desc->id */
+struct wl1271_tx_hw_res_descr {
+	/* Packet Identifier - same value used in the Tx descriptor.*/
 	u8 id;
-
-	/*
-	 * Total air access duration consumed by this
-	 * packet, including all retries and overheads.
-	 */
-	u16 medium_usage;
-
-	/* Total media delay (from 1st EDCA AIFS counter until TX Complete). */
-	u32 medium_delay;
-
-	/* Time between host xfer and tx complete */
-	u32 fw_hnadling_time;
-
-	/* The LS-byte of the last TKIP sequence number. */
-	u8 lsb_seq_num;
-
-	/* Retry count */
-	u8 ack_failures;
-
-	/* At which rate we got a ACK */
-	u16 rate;
-
-	u16 reserved;
-
-	/* TX_* */
+	/* The status of the transmission, indicating success or one of
+	   several possible reasons for failure. */
 	u8 status;
+	/* Total air access duration including all retrys and overheads.*/
+	__le16 medium_usage;
+	/* The time passed from host xfer to Tx-complete.*/
+	__le32 fw_handling_time;
+	/* Total media delay
+	   (from 1st EDCA AIFS counter until TX Complete). */
+	__le32 medium_delay;
+	/* LS-byte of last TKIP seq-num (saved per AC for recovery). */
+	u8 lsb_security_sequence_number;
+	/* Retry count - number of transmissions without successful ACK.*/
+	u8 ack_failures;
+	/* The rate that succeeded getting ACK
+	   (Valid only if status=SUCCESS). */
+	u8 rate_class_index;
+	/* for 4-byte alignment. */
+	u8 spare;
+} __packed;
 
-	/* See done_1 */
-	u8 done_2;
-} __attribute__ ((packed));
+struct wl1271_tx_hw_res_if {
+	__le32 tx_result_fw_counter;
+	__le32 tx_result_host_counter;
+	struct wl1271_tx_hw_res_descr tx_results_queue[TX_HW_RESULT_QUEUE_LEN];
+} __packed;
 
-void wl12xx_tx_work(struct work_struct *work);
-void wl12xx_tx_complete(struct wl12xx *wl);
-void wl12xx_tx_flush(struct wl12xx *wl);
+static inline int wl1271_tx_get_queue(int queue)
+{
+	switch (queue) {
+	case 0:
+		return CONF_TX_AC_VO;
+	case 1:
+		return CONF_TX_AC_VI;
+	case 2:
+		return CONF_TX_AC_BE;
+	case 3:
+		return CONF_TX_AC_BK;
+	default:
+		return CONF_TX_AC_BE;
+	}
+}
+
+void wl1271_tx_work(struct work_struct *work);
+void wl1271_tx_work_locked(struct wl1271 *wl);
+void wl1271_tx_complete(struct wl1271 *wl);
+void wl1271_tx_reset(struct wl1271 *wl);
+void wl1271_tx_flush(struct wl1271 *wl);
+u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
+u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set);
 
 #endif

@@ -48,8 +48,6 @@
 #include <scsi/scsi_host.h>
 #include "../qlogicfas408.h"
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ciscode.h>
@@ -61,15 +59,6 @@
 #define INT_TYPE	0
 
 static char qlogic_name[] = "qlogic_cs";
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0644);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version = "qlogic_cs.c 1.79-ac 2002/10/26 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 static struct scsi_host_template qlogicfas_driver_template = {
 	.module			= THIS_MODULE,
@@ -91,7 +80,6 @@ static struct scsi_host_template qlogicfas_driver_template = {
 
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
 } scsi_info_t;
@@ -159,7 +147,7 @@ static int qlogic_probe(struct pcmcia_device *link)
 {
 	scsi_info_t *info;
 
-	DEBUG(0, "qlogic_attach()\n");
+	dev_dbg(&link->dev, "qlogic_attach()\n");
 
 	/* Create new SCSI device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -167,14 +155,8 @@ static int qlogic_probe(struct pcmcia_device *link)
 		return -ENOMEM;
 	info->p_dev = link;
 	link->priv = info;
-	link->io.NumPorts1 = 16;
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.IOAddrLines = 10;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->conf.Present = PRESENT_OPTION;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+	link->config_regs = PRESENT_OPTION;
 
 	return qlogic_config(link);
 }				/* qlogic_attach */
@@ -183,7 +165,7 @@ static int qlogic_probe(struct pcmcia_device *link)
 
 static void qlogic_detach(struct pcmcia_device *link)
 {
-	DEBUG(0, "qlogic_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "qlogic_detach\n");
 
 	qlogic_release(link);
 	kfree(link->priv);
@@ -192,73 +174,64 @@ static void qlogic_detach(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
-static int qlogic_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int qlogic_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->io_lines = 10;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
-	if (p_dev->io.BasePort1 == 0)
+	if (p_dev->resource[0]->start == 0)
 		return -ENODEV;
 
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static int qlogic_config(struct pcmcia_device * link)
 {
 	scsi_info_t *info = link->priv;
-	int last_ret, last_fn;
+	int ret;
 	struct Scsi_Host *host;
 
-	DEBUG(0, "qlogic_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "qlogic_config\n");
 
-	last_ret = pcmcia_loop_config(link, qlogic_config_check, NULL);
-	if (last_ret) {
-		cs_error(link, RequestIO, last_ret);
+	ret = pcmcia_loop_config(link, qlogic_config_check, NULL);
+	if (ret)
 		goto failed;
-	}
 
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+	if (!link->irq)
+		goto failed;
+
+	ret = pcmcia_enable_device(link);
+	if (ret)
+		goto failed;
 
 	if ((info->manf_id == MANFID_MACNICA) || (info->manf_id == MANFID_PIONEER) || (info->manf_id == 0x0098)) {
 		/* set ATAcmd */
-		outb(0xb4, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0xb4, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 
 	/* The KXL-810AN has a bigger IO port window */
-	if (link->io.NumPorts1 == 32)
+	if (resource_size(link->resource[0]) == 32)
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1 + 16, link->irq.AssignedIRQ);
+			link->resource[0]->start + 16, link->irq);
 	else
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1, link->irq.AssignedIRQ);
+			link->resource[0]->start, link->irq);
 	
 	if (!host) {
 		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
-		goto cs_failed;
+		goto failed;
 	}
 
-	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev_node = &info->node;
 	info->host = host;
 
 	return 0;
 
-cs_failed:
-	cs_error(link, last_fn, last_ret);
-	pcmcia_disable_device(link);
 failed:
+	pcmcia_disable_device(link);
 	return -ENODEV;
-
 }				/* qlogic_config */
 
 /*====================================================================*/
@@ -267,11 +240,11 @@ static void qlogic_release(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;
 
-	DEBUG(0, "qlogic_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "qlogic_release\n");
 
 	scsi_remove_host(info->host);
 
-	free_irq(link->irq.AssignedIRQ, info->host);
+	free_irq(link->irq, info->host);
 	pcmcia_disable_device(link);
 
 	scsi_host_put(info->host);
@@ -283,13 +256,13 @@ static int qlogic_resume(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;
 
-	pcmcia_request_configuration(link, &link->conf);
+	pcmcia_enable_device(link);
 	if ((info->manf_id == MANFID_MACNICA) ||
 	    (info->manf_id == MANFID_PIONEER) ||
 	    (info->manf_id == 0x0098)) {
-		outb(0x80, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0x80, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 	/* Ugggglllyyyy!!! */
 	qlogicfas408_bus_reset(NULL);
@@ -321,9 +294,7 @@ MODULE_DEVICE_TABLE(pcmcia, qlogic_ids);
 
 static struct pcmcia_driver qlogic_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
 	.name		= "qlogic_cs",
-	},
 	.probe		= qlogic_probe,
 	.remove		= qlogic_detach,
 	.id_table       = qlogic_ids,

@@ -24,6 +24,7 @@
 #include <linux/isdn.h>
 #include <linux/isdnif.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/capi.h>
 #include <linux/kernelcapi.h>
 #include <linux/ctype.h>
@@ -34,13 +35,12 @@
 #include <linux/isdn/capicmd.h>
 #include "capidrv.h"
 
-static char *revision = "$Revision: 1.1.2.2 $";
 static int debugmode = 0;
 
 MODULE_DESCRIPTION("CAPI4Linux: Interface to ISDN4Linux");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
-module_param(debugmode, uint, 0);
+module_param(debugmode, uint, S_IRUGO|S_IWUSR);
 
 /* -------- type definitions ----------------------------------------- */
 
@@ -671,8 +671,8 @@ static void n0(capidrv_contr * card, capidrv_ncci * ncci)
 				 NULL,	/* Useruserdata */   /* $$$$ */
 				 NULL	/* Facilitydataarray */
 	);
-	send_message(card, &cmsg);
 	plci_change_state(card, ncci->plcip, EV_PLCI_DISCONNECT_REQ);
+	send_message(card, &cmsg);
 
 	cmd.command = ISDN_STAT_BHUP;
 	cmd.driver = card->myid;
@@ -830,7 +830,7 @@ static void handle_controller(_cmsg * cmsg)
 		      case 0: break;
 		      case 1: s = "unknown class"; break;
 		      case 2: s = "unknown function"; break;
-		      default: s = "unkown error"; break;
+		      default: s = "unknown error"; break;
 		   }
 		   if (s)
 	           printk(KERN_INFO "capidrv-%d: %s from controller 0x%x function %d: %s\n",
@@ -924,8 +924,8 @@ static void handle_incoming_call(capidrv_contr * card, _cmsg * cmsg)
 		 */
 		capi_cmsg_answer(cmsg);
 		cmsg->Reject = 1;	/* ignore */
-		send_message(card, cmsg);
 		plci_change_state(card, plcip, EV_PLCI_CONNECT_REJECT);
+		send_message(card, cmsg);
 		printk(KERN_INFO "capidrv-%d: incoming call %s,%d,%d,%s ignored\n",
 			card->contrnr,
 			cmd.parm.setup.phone,
@@ -974,8 +974,8 @@ static void handle_incoming_call(capidrv_contr * card, _cmsg * cmsg)
 	case 2:		/* Call will be rejected. */
 		capi_cmsg_answer(cmsg);
 		cmsg->Reject = 2;	/* reject call, normal call clearing */
-		send_message(card, cmsg);
 		plci_change_state(card, plcip, EV_PLCI_CONNECT_REJECT);
+		send_message(card, cmsg);
 		break;
 
 	default:
@@ -983,8 +983,8 @@ static void handle_incoming_call(capidrv_contr * card, _cmsg * cmsg)
 		capi_cmsg_answer(cmsg);
 		cmsg->Reject = 8;	/* reject call,
 					   destination out of order */
-		send_message(card, cmsg);
 		plci_change_state(card, plcip, EV_PLCI_CONNECT_REJECT);
+		send_message(card, cmsg);
 		break;
 	}
 	return;
@@ -1020,8 +1020,8 @@ static void handle_plci(_cmsg * cmsg)
 		card->bchans[plcip->chan].disconnecting = 1;
 		plci_change_state(card, plcip, EV_PLCI_DISCONNECT_IND);
 		capi_cmsg_answer(cmsg);
-		send_message(card, cmsg);
 		plci_change_state(card, plcip, EV_PLCI_DISCONNECT_RESP);
+		send_message(card, cmsg);
 		break;
 
 	case CAPI_DISCONNECT_CONF:	/* plci */
@@ -1078,8 +1078,8 @@ static void handle_plci(_cmsg * cmsg)
 
 		if (card->bchans[plcip->chan].incoming) {
 			capi_cmsg_answer(cmsg);
-			send_message(card, cmsg);
 			plci_change_state(card, plcip, EV_PLCI_CONNECT_ACTIVE_IND);
+			send_message(card, cmsg);
 		} else {
 			capidrv_ncci *nccip;
 			capi_cmsg_answer(cmsg);
@@ -1098,13 +1098,14 @@ static void handle_plci(_cmsg * cmsg)
 						 NULL	/* NCPI */
 			);
 			nccip->msgid = cmsg->Messagenumber;
+			plci_change_state(card, plcip,
+					  EV_PLCI_CONNECT_ACTIVE_IND);
+			ncci_change_state(card, nccip, EV_NCCI_CONNECT_B3_REQ);
 			send_message(card, cmsg);
 			cmd.command = ISDN_STAT_DCONN;
 			cmd.driver = card->myid;
 			cmd.arg = plcip->chan;
 			card->interface.statcallb(&cmd);
-			plci_change_state(card, plcip, EV_PLCI_CONNECT_ACTIVE_IND);
-			ncci_change_state(card, nccip, EV_NCCI_CONNECT_B3_REQ);
 		}
 		break;
 
@@ -1193,8 +1194,8 @@ static void handle_ncci(_cmsg * cmsg)
 			goto notfound;
 
 		capi_cmsg_answer(cmsg);
-		send_message(card, cmsg);
 		ncci_change_state(card, nccip, EV_NCCI_CONNECT_B3_ACTIVE_IND);
+		send_message(card, cmsg);
 
 		cmd.command = ISDN_STAT_BCONN;
 		cmd.driver = card->myid;
@@ -1222,8 +1223,8 @@ static void handle_ncci(_cmsg * cmsg)
 							  0,	/* Reject */
 							  NULL	/* NCPI */
 				);
-				send_message(card, cmsg);
 				ncci_change_state(card, nccip, EV_NCCI_CONNECT_B3_RESP);
+				send_message(card, cmsg);
 				break;
 			}
 			printk(KERN_ERR "capidrv-%d: no mem for ncci, sorry\n",							card->contrnr);
@@ -1299,8 +1300,8 @@ static void handle_ncci(_cmsg * cmsg)
 		card->bchans[nccip->chan].disconnecting = 1;
 		ncci_change_state(card, nccip, EV_NCCI_DISCONNECT_B3_IND);
 		capi_cmsg_answer(cmsg);
-		send_message(card, cmsg);
 		ncci_change_state(card, nccip, EV_NCCI_DISCONNECT_B3_RESP);
+		send_message(card, cmsg);
 		break;
 
 	case CAPI_DISCONNECT_B3_CONF:	/* ncci */
@@ -1449,12 +1450,9 @@ static void handle_dtrace_data(capidrv_contr *card,
     	}
 
 	for (p = data, end = data+len; p < end; p++) {
-		u8 w;
 		PUTBYTE_TO_STATUS(card, ' ');
-		w = (*p >> 4) & 0xf;
-		PUTBYTE_TO_STATUS(card, (w < 10) ? '0'+w : 'A'-10+w);
-		w = *p & 0xf;
-		PUTBYTE_TO_STATUS(card, (w < 10) ? '0'+w : 'A'-10+w);
+		PUTBYTE_TO_STATUS(card, hex_asc_hi(*p));
+		PUTBYTE_TO_STATUS(card, hex_asc_lo(*p));
 	}
 	PUTBYTE_TO_STATUS(card, '\n');
 
@@ -1517,8 +1515,13 @@ static int decodeFVteln(char *teln, unsigned long *bmaskp, int *activep)
 	while (*s) {
 		int digit1 = 0;
 		int digit2 = 0;
-		if (!isdigit(*s)) return -3;
-		while (isdigit(*s)) { digit1 = digit1*10 + (*s - '0'); s++; }
+		char *endp;
+
+		digit1 = simple_strtoul(s, &endp, 10);
+		if (s == endp)
+			return -3;
+		s = endp;
+
 		if (digit1 <= 0 || digit1 > 30) return -4;
 		if (*s == 0 || *s == ',' || *s == ' ') {
 			bmask |= (1 << digit1);
@@ -1528,8 +1531,12 @@ static int decodeFVteln(char *teln, unsigned long *bmaskp, int *activep)
 		}
 		if (*s != '-') return -5;
 		s++;
-		if (!isdigit(*s)) return -3;
-		while (isdigit(*s)) { digit2 = digit2*10 + (*s - '0'); s++; }
+
+		digit2 = simple_strtoul(s, &endp, 10);
+		if (s == endp)
+			return -3;
+		s = endp;
+
 		if (digit2 <= 0 || digit2 > 30) return -4;
 		if (*s == 0 || *s == ',' || *s == ' ') {
 			if (digit1 > digit2)
@@ -2014,8 +2021,8 @@ static void send_listen(capidrv_contr *card)
 			     card->cipmask,
 			     card->cipmask2,
 			     NULL, NULL);
-	send_message(card, &cmdcmsg);
 	listen_change_state(card, EV_LISTEN_REQ);
+	send_message(card, &cmdcmsg);
 }
 
 static void listentimerfunc(unsigned long x)
@@ -2209,95 +2216,72 @@ static int capidrv_delcontr(u16 contr)
 }
 
 
-static void lower_callback(unsigned int cmd, u32 contr, void *data)
+static int
+lower_callback(struct notifier_block *nb, unsigned long val, void *v)
 {
+	capi_profile profile;
+	u32 contr = (long)v;
 
-	switch (cmd) {
-	case KCI_CONTRUP:
+	switch (val) {
+	case CAPICTR_UP:
 		printk(KERN_INFO "capidrv: controller %hu up\n", contr);
-		(void) capidrv_addcontr(contr, (capi_profile *) data);
+		if (capi20_get_profile(contr, &profile) == CAPI_NOERROR)
+			(void) capidrv_addcontr(contr, &profile);
 		break;
-	case KCI_CONTRDOWN:
+	case CAPICTR_DOWN:
 		printk(KERN_INFO "capidrv: controller %hu down\n", contr);
 		(void) capidrv_delcontr(contr);
 		break;
 	}
+	return NOTIFY_OK;
 }
 
 /*
  * /proc/capi/capidrv:
  * nrecvctlpkt nrecvdatapkt nsendctlpkt nsenddatapkt
  */
-static int proc_capidrv_read_proc(char *page, char **start, off_t off,
-                                       int count, int *eof, void *data)
+static int capidrv_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-
-	len += sprintf(page+len, "%lu %lu %lu %lu\n",
+	seq_printf(m, "%lu %lu %lu %lu\n",
 			global.ap.nrecvctlpkt,
 			global.ap.nrecvdatapkt,
 			global.ap.nsentctlpkt,
 			global.ap.nsentdatapkt);
-	if (off+count >= len)
-	   *eof = 1;
-	if (len < off)
-           return 0;
-	*start = page + off;
-	return ((count < len-off) ? count : len-off);
+	return 0;
 }
 
-static struct procfsentries {
-  char *name;
-  mode_t mode;
-  int (*read_proc)(char *page, char **start, off_t off,
-                                       int count, int *eof, void *data);
-  struct proc_dir_entry *procent;
-} procfsentries[] = {
-   /* { "capi",		  S_IFDIR, 0 }, */
-   { "capi/capidrv", 	  0	 , proc_capidrv_read_proc },
+static int capidrv_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, capidrv_proc_show, NULL);
+}
+
+static const struct file_operations capidrv_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= capidrv_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 static void __init proc_init(void)
 {
-    int nelem = ARRAY_SIZE(procfsentries);
-    int i;
-
-    for (i=0; i < nelem; i++) {
-        struct procfsentries *p = procfsentries + i;
-	p->procent = create_proc_entry(p->name, p->mode, NULL);
-	if (p->procent) p->procent->read_proc = p->read_proc;
-    }
+	proc_create("capi/capidrv", 0, NULL, &capidrv_proc_fops);
 }
 
 static void __exit proc_exit(void)
 {
-    int nelem = ARRAY_SIZE(procfsentries);
-    int i;
-
-    for (i=nelem-1; i >= 0; i--) {
-        struct procfsentries *p = procfsentries + i;
-	if (p->procent) {
-	   remove_proc_entry(p->name, NULL);
-	   p->procent = NULL;
-	}
-    }
+	remove_proc_entry("capi/capidrv", NULL);
 }
+
+static struct notifier_block capictr_nb = {
+	.notifier_call = lower_callback,
+};
 
 static int __init capidrv_init(void)
 {
 	capi_profile profile;
-	char rev[32];
-	char *p;
 	u32 ncontr, contr;
 	u16 errcode;
-
-	if ((p = strchr(revision, ':')) != NULL && p[1]) {
-		strncpy(rev, p + 2, sizeof(rev));
-		rev[sizeof(rev)-1] = 0;
-		if ((p = strchr(rev, '$')) != NULL && p > rev)
-		   *(p-1) = 0;
-	} else
-		strcpy(rev, "1.0");
 
 	global.ap.rparam.level3cnt = -2;  /* number of bchannels twice */
 	global.ap.rparam.datablkcnt = 16;
@@ -2309,10 +2293,11 @@ static int __init capidrv_init(void)
 		return -EIO;
 	}
 
-	capi20_set_callback(&global.ap, lower_callback);
+	register_capictr_notifier(&capictr_nb);
 
 	errcode = capi20_get_profile(0, &profile);
 	if (errcode != CAPI_NOERROR) {
+		unregister_capictr_notifier(&capictr_nb);
 		capi20_release(&global.ap);
 		return -EIO;
 	}
@@ -2326,29 +2311,15 @@ static int __init capidrv_init(void)
 	}
 	proc_init();
 
-	printk(KERN_NOTICE "capidrv: Rev %s: loaded\n", rev);
 	return 0;
 }
 
 static void __exit capidrv_exit(void)
 {
-	char rev[32];
-	char *p;
-
-	if ((p = strchr(revision, ':')) != NULL) {
-		strncpy(rev, p + 1, sizeof(rev));
-		rev[sizeof(rev)-1] = 0;
-		if ((p = strchr(rev, '$')) != NULL)
-			*p = 0;
-	} else {
-		strcpy(rev, " ??? ");
-	}
-
+	unregister_capictr_notifier(&capictr_nb);
 	capi20_release(&global.ap);
 
 	proc_exit();
-
-	printk(KERN_NOTICE "capidrv: Rev%s: unloaded\n", rev);
 }
 
 module_init(capidrv_init);

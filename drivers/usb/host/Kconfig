@@ -72,8 +72,9 @@ config USB_EHCI_ROOT_HUB_TT
 	  from ARC, and has since changed hands a few times.
 
 config USB_EHCI_TT_NEWSCHED
-	bool "Improved Transaction Translator scheduling (EXPERIMENTAL)"
-	depends on USB_EHCI_HCD && EXPERIMENTAL
+	bool "Improved Transaction Translator scheduling"
+	depends on USB_EHCI_HCD
+	default y
 	---help---
 	  This changes the periodic scheduling code to fill more of the low
 	  and full speed bandwidth available from the Transaction Translator
@@ -84,26 +85,72 @@ config USB_EHCI_TT_NEWSCHED
 	  If you have multiple periodic low/fullspeed devices connected to a
 	  highspeed USB hub which is connected to a highspeed USB Host
 	  Controller, and some of those devices will not work correctly
-	  (possibly due to "ENOSPC" or "-28" errors), say Y.
+	  (possibly due to "ENOSPC" or "-28" errors), say Y.  Conversely, if
+	  you have only one such device and it doesn't work, you could try
+	  saying N.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || \
+				    ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
+				    PPC_MPC512x || CPU_CAVIUM_OCTEON)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
-	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
+				    PPC_MPC512x)
 	default y
+
+config XPS_USB_HCD_XILINX
+	bool "Use Xilinx usb host EHCI controller core"
+	depends on USB_EHCI_HCD && (PPC32 || MICROBLAZE)
+	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	---help---
+		Xilinx xps USB host controller core is EHCI compilant and has
+		transaction translator built-in. It can be configured to either
+		support both high speed and full speed devices, or high speed
+		devices only.
+
+config USB_FSL_MPH_DR_OF
+	tristate
 
 config USB_EHCI_FSL
 	bool "Support for Freescale on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
+	select USB_FSL_MPH_DR_OF if OF
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
+
+config USB_EHCI_MXC
+	bool "Support for Freescale on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_MXC
+	select USB_EHCI_ROOT_HUB_TT
+	---help---
+	  Variation of ARC USB block used in some Freescale chips.
+
+config USB_EHCI_HCD_OMAP
+	bool "EHCI support for OMAP3 and later chips"
+	depends on USB_EHCI_HCD && ARCH_OMAP
+	default y
+	--- help ---
+	  Enables support for the on-chip EHCI controller on
+	  OMAP3 and later chips.
+
+config USB_EHCI_MSM
+	bool "Support for MSM on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_MSM
+	select USB_EHCI_ROOT_HUB_TT
+	select USB_MSM_OTG_72K
+	---help---
+	  Enables support for the USB Host controller present on the
+	  Qualcomm chipsets. Root Hub has inbuilt TT.
+	  This driver depends on OTG driver for PHY initialization,
+	  clock management, powering up VBUS, and power management.
 
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
@@ -112,6 +159,20 @@ config USB_EHCI_HCD_PPC_OF
 	---help---
 	  Enables support for the USB controller present on the PowerPC
 	  OpenFirmware platform bus.
+
+config USB_W90X900_EHCI
+	bool "W90X900(W90P910) EHCI support"
+	depends on USB_EHCI_HCD && ARCH_W90X900
+	---help---
+		Enables support for the W90X900 USB controller
+
+config USB_CNS3XXX_EHCI
+	bool "Cavium CNS3XXX EHCI Module"
+	depends on USB_EHCI_HCD && ARCH_CNS3XXX
+	---help---
+	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
+	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
+	  support.
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
@@ -153,6 +214,18 @@ config USB_ISP1760_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1760.
 
+config USB_ISP1362_HCD
+	tristate "ISP1362 HCD support"
+	depends on USB
+	default N
+	---help---
+	  Supports the Philips ISP1362 chip as a host controller
+
+	  This driver does not support isochronous transfers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called isp1362-hcd.
+
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"
 	depends on USB && USB_ARCH_HAS_OHCI
@@ -171,6 +244,21 @@ config USB_OHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called ohci-hcd.
 
+config USB_OHCI_HCD_OMAP1
+	bool "OHCI support for OMAP1/2 chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP1 || ARCH_OMAP2)
+	default y
+	---help---
+	  Enables support for the OHCI controller on OMAP1/2 chips.
+
+config USB_OHCI_HCD_OMAP3
+	bool "OHCI support for OMAP3 and later chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP3 || ARCH_OMAP4)
+	default y
+	---help---
+	  Enables support for the on-chip OHCI controller on
+	  OMAP3 and later chips.
+
 config USB_OHCI_HCD_PPC_SOC
 	bool "OHCI support for on-chip PPC USB controller"
 	depends on USB_OHCI_HCD && (STB03xxx || PPC_MPC52xx)
@@ -181,26 +269,27 @@ config USB_OHCI_HCD_PPC_SOC
 	  Enables support for the USB controller on the MPC52xx or
 	  STB03xxx processor chip.  If unsure, say Y.
 
-config USB_OHCI_HCD_PPC_OF
-	bool "OHCI support for PPC USB controller on OF platform bus"
-	depends on USB_OHCI_HCD && PPC_OF
-	default y
-	---help---
-	  Enables support for the USB controller PowerPC present on the
-	  OpenFirmware platform bus.
-
 config USB_OHCI_HCD_PPC_OF_BE
-	bool "Support big endian HC"
-	depends on USB_OHCI_HCD_PPC_OF
-	default y
+	bool "OHCI support for OF platform bus (big endian)"
+	depends on USB_OHCI_HCD && PPC_OF
 	select USB_OHCI_BIG_ENDIAN_DESC
 	select USB_OHCI_BIG_ENDIAN_MMIO
+	---help---
+	  Enables support for big-endian USB controllers present on the
+	  OpenFirmware platform bus.
 
 config USB_OHCI_HCD_PPC_OF_LE
-	bool "Support little endian HC"
-	depends on USB_OHCI_HCD_PPC_OF
-	default n
+	bool "OHCI support for OF platform bus (little endian)"
+	depends on USB_OHCI_HCD && PPC_OF
 	select USB_OHCI_LITTLE_ENDIAN
+	---help---
+	  Enables support for little-endian USB controllers present on the
+	  OpenFirmware platform bus.
+
+config USB_OHCI_HCD_PPC_OF
+	bool
+	depends on USB_OHCI_HCD && PPC_OF
+	default USB_OHCI_HCD_PPC_OF_BE || USB_OHCI_HCD_PPC_OF_LE
 
 config USB_OHCI_HCD_PCI
 	bool "OHCI support for PCI-bus USB controllers"
@@ -223,6 +312,13 @@ config USB_OHCI_HCD_SSB
 	  Broadcom based SSB bus.
 
 	  If unsure, say N.
+
+config USB_CNS3XXX_OHCI
+	bool "Cavium CNS3XXX OHCI Module"
+	depends on USB_OHCI_HCD && ARCH_CNS3XXX
+	---help---
+	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
+	  It is needed for low-speed USB 1.0 device support.
 
 config USB_OHCI_BIG_ENDIAN_DESC
 	bool
@@ -335,13 +431,6 @@ config USB_R8A66597_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8a66597-hcd.
 
-config SUPERH_ON_CHIP_R8A66597
-	boolean "Enable SuperH on-chip R8A66597 USB"
-	depends on USB_R8A66597_HCD && (CPU_SUBTYPE_SH7366 || CPU_SUBTYPE_SH7723)
-	help
-	   This driver enables support for the on-chip R8A66597 in the
-	   SH7366 and SH7723 processors.
-
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -369,3 +458,39 @@ config USB_HWA_HCD
 
 	  To compile this driver a module, choose M here: the module
 	  will be called "hwa-hc".
+
+config USB_IMX21_HCD
+       tristate "iMX21 HCD support"
+       depends on USB && ARM && MACH_MX21
+       help
+         This driver enables support for the on-chip USB host in the
+         iMX21 processor.
+
+         To compile this driver as a module, choose M here: the
+         module will be called "imx21-hcd".
+
+config USB_OCTEON_EHCI
+	bool "Octeon on-chip EHCI support"
+	depends on USB && USB_EHCI_HCD && CPU_CAVIUM_OCTEON
+	default n
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	help
+	  Enable support for the Octeon II SOC's on-chip EHCI
+	  controller.  It is needed for high-speed (480Mbit/sec)
+	  USB 2.0 device support.  All CN6XXX based chips with USB are
+	  supported.
+
+config USB_OCTEON_OHCI
+	bool "Octeon on-chip OHCI support"
+	depends on USB && USB_OHCI_HCD && CPU_CAVIUM_OCTEON
+	default USB_OCTEON_EHCI
+	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_OHCI_LITTLE_ENDIAN
+	help
+	  Enable support for the Octeon II SOC's on-chip OHCI
+	  controller.  It is needed for low-speed USB 1.0 device
+	  support.  All CN6XXX based chips with USB are supported.
+
+config USB_OCTEON2_COMMON
+	bool
+	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI

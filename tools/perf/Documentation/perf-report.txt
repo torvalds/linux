@@ -13,13 +13,111 @@ SYNOPSIS
 DESCRIPTION
 -----------
 This command displays the performance counter profile information recorded
-via perf report.
+via perf record.
 
 OPTIONS
 -------
 -i::
 --input=::
         Input file name. (default: perf.data)
+
+-v::
+--verbose::
+        Be more verbose. (show symbol address, etc)
+
+-d::
+--dsos=::
+	Only consider symbols in these dsos. CSV that understands
+	file://filename entries.
+-n::
+--show-nr-samples::
+	Show the number of samples for each symbol
+
+--showcpuutilization::
+        Show sample percentage for different cpu modes.
+
+-T::
+--threads::
+	Show per-thread event counters
+-C::
+--comms=::
+	Only consider symbols in these comms. CSV that understands
+	file://filename entries.
+-S::
+--symbols=::
+	Only consider these symbols. CSV that understands
+	file://filename entries.
+
+-U::
+--hide-unresolved::
+        Only display entries resolved to a symbol.
+
+-s::
+--sort=::
+	Sort by key(s): pid, comm, dso, symbol, parent.
+
+-p::
+--parent=<regex>::
+        regex filter to identify parent, see: '--sort parent'
+
+-x::
+--exclude-other::
+        Only display entries with parent-match.
+
+-w::
+--column-widths=<width[,width...]>::
+	Force each column width to the provided list, for large terminal
+	readability.
+
+-t::
+--field-separator=::
+
+	Use a special separator character and don't pad with spaces, replacing
+	all occurrences of this separator in symbol names (and other output)
+	with a '.' character, that thus it's the only non valid separator.
+
+-D::
+--dump-raw-trace::
+        Dump raw trace in ASCII.
+
+-g [type,min]::
+--call-graph::
+        Display call chains using type and min percent threshold.
+	type can be either:
+	- flat: single column, linear exposure of call chains.
+	- graph: use a graph tree, displaying absolute overhead rates.
+	- fractal: like graph, but displays relative rates. Each branch of
+		 the tree is considered as a new profiled object. +
+	Default: fractal,0.5.
+
+--pretty=<key>::
+        Pretty printing style.  key: normal, raw
+
+--stdio:: Use the stdio interface.
+
+--tui:: Use the TUI interface, that is integrated with annotate and allows
+        zooming into DSOs or threads, among other features. Use of --tui
+	requires a tty, if one is not present, as when piping to other
+	commands, the stdio interface is used.
+
+-k::
+--vmlinux=<file>::
+        vmlinux pathname
+
+--kallsyms=<file>::
+        kallsyms pathname
+
+-m::
+--modules::
+        Load module symbols. WARNING: This should only be used with -k and
+        a LIVE kernel.
+
+-f::
+--force::
+        Don't complain, do it.
+
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
 
 SEE ALSO
 --------

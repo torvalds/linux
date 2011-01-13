@@ -253,8 +253,9 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 
 	pci_for_each_dev(pcidev) {
 		if (pcidev->vendor == pci_vendor) {
-			amcc = kmalloc(sizeof(*amcc), GFP_KERNEL);
-			memset(amcc, 0, sizeof(*amcc));
+			amcc = kzalloc(sizeof(*amcc), GFP_KERNEL);
+			if (amcc == NULL)
+				continue;
 
 			amcc->pcidev = pcidev;
 			if (last) {

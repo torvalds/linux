@@ -10,46 +10,37 @@
 
 #include <linux/interrupt.h>
 #include <mach/dma.h>
+#include <asm/atomic.h>
 #include <asm/blackfin.h>
 #include <asm/page.h>
-
-#define MAX_DMA_ADDRESS PAGE_OFFSET
-
-/*****************************************************************************
-*        Generic DMA  Declarations
-*
-****************************************************************************/
-enum dma_chan_status {
-	DMA_CHANNEL_FREE,
-	DMA_CHANNEL_REQUESTED,
-	DMA_CHANNEL_ENABLED,
-};
+#include <asm-generic/dma.h>
+#include <asm/bfin_dma.h>
 
 /*-------------------------
  * config reg bits value
  *-------------------------*/
-#define DATA_SIZE_8 		0
-#define DATA_SIZE_16 		1
-#define DATA_SIZE_32 		2
+#define DATA_SIZE_8			0
+#define DATA_SIZE_16		1
+#define DATA_SIZE_32		2
 
-#define DMA_FLOW_STOP 		0
-#define DMA_FLOW_AUTO 		1
-#define DMA_FLOW_ARRAY 		4
-#define DMA_FLOW_SMALL 		6
-#define DMA_FLOW_LARGE 		7
+#define DMA_FLOW_STOP		0
+#define DMA_FLOW_AUTO		1
+#define DMA_FLOW_ARRAY		4
+#define DMA_FLOW_SMALL		6
+#define DMA_FLOW_LARGE		7
 
-#define DIMENSION_LINEAR    0
-#define DIMENSION_2D           1
+#define DIMENSION_LINEAR	0
+#define DIMENSION_2D		1
 
-#define DIR_READ     0
-#define DIR_WRITE    1
+#define DIR_READ			0
+#define DIR_WRITE			1
 
-#define INTR_DISABLE   0
-#define INTR_ON_BUF    2
-#define INTR_ON_ROW    3
+#define INTR_DISABLE		0
+#define INTR_ON_BUF			2
+#define INTR_ON_ROW			3
 
 #define DMA_NOSYNC_KEEP_DMA_BUF	0
-#define DMA_SYNC_RESTART	1
+#define DMA_SYNC_RESTART		1
 
 struct dmasg {
 	void *next_desc_addr;
@@ -104,11 +95,9 @@ struct dma_register {
 
 };
 
-struct mutex;
 struct dma_channel {
-	struct mutex dmalock;
 	const char *device_id;
-	enum dma_chan_status chan_status;
+	atomic_t chan_status;
 	volatile struct dma_register *regs;
 	struct dmasg *sg;		/* large mode descriptor */
 	unsigned int irq;
@@ -127,7 +116,7 @@ void blackfin_dma_resume(void);
 *	DMA API's
 *******************************************************************************/
 extern struct dma_channel dma_ch[MAX_DMA_CHANNELS];
-extern struct dma_register *dma_io_base_addr[MAX_DMA_CHANNELS];
+extern struct dma_register * const dma_io_base_addr[MAX_DMA_CHANNELS];
 extern int channel2irq(unsigned int channel);
 
 static inline void set_dma_start_addr(unsigned int channel, unsigned long addr)
@@ -220,32 +209,29 @@ static inline void set_dma_sg(unsigned int channel, struct dmasg *sg, int ndsize
 
 static inline int dma_channel_active(unsigned int channel)
 {
-	if (dma_ch[channel].chan_status == DMA_CHANNEL_FREE)
-		return 0;
-	else
-		return 1;
+	return atomic_read(&dma_ch[channel].chan_status);
 }
 
 static inline void disable_dma(unsigned int channel)
 {
 	dma_ch[channel].regs->cfg &= ~DMAEN;
 	SSYNC();
-	dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
 }
 static inline void enable_dma(unsigned int channel)
 {
 	dma_ch[channel].regs->curr_x_count = 0;
 	dma_ch[channel].regs->curr_y_count = 0;
 	dma_ch[channel].regs->cfg |= DMAEN;
-	dma_ch[channel].chan_status = DMA_CHANNEL_ENABLED;
 }
-void free_dma(unsigned int channel);
-int request_dma(unsigned int channel, const char *device_id);
 int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data);
 
 static inline void dma_disable_irq(unsigned int channel)
 {
 	disable_irq(dma_ch[channel].irq);
+}
+static inline void dma_disable_irq_nosync(unsigned int channel)
+{
+	disable_irq_nosync(dma_ch[channel].irq);
 }
 static inline void dma_enable_irq(unsigned int channel)
 {
@@ -257,6 +243,7 @@ static inline void clear_dma_irqstat(unsigned int channel)
 }
 
 void *dma_memcpy(void *dest, const void *src, size_t count);
+void *dma_memcpy_nocache(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
 void blackfin_dma_early_init(void);
 void early_dma_memcpy(void *dest, const void *src, size_t count);

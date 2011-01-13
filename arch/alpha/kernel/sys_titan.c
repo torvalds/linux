@@ -171,7 +171,7 @@ titan_set_irq_affinity(unsigned int irq, const struct cpumask *affinity)
 static void
 titan_device_interrupt(unsigned long vector)
 {
-	printk("titan_device_interrupt: NOT IMPLEMENTED YET!! \n");
+	printk("titan_device_interrupt: NOT IMPLEMENTED YET!!\n");
 }
 
 static void 
@@ -195,7 +195,7 @@ init_titan_irqs(struct irq_chip * ops, int imin, int imax)
 }
 
 static struct irq_chip titan_irq_type = {
-       .typename       = "TITAN",
+       .name	       = "TITAN",
        .startup        = titan_startup_irq,
        .shutdown       = titan_disable_irq,
        .enable         = titan_enable_irq,

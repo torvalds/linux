@@ -421,7 +421,7 @@ static void __init node_mem_init(cnodeid_t node)
 
 /*
  * A node with nothing.  We use it to avoid any special casing in
- * node_to_cpumask
+ * cpumask_of_node
  */
 static struct node_data null_node = {
 	.hub = {
@@ -505,5 +505,5 @@ void __init mem_init(void)
 	       (num_physpages - tmp) << (PAGE_SHIFT-10),
 	       datasize >> 10,
 	       initsize >> 10,
-	       (unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
+	       totalhigh_pages << (PAGE_SHIFT-10));
 }

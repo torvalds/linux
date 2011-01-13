@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/lcd.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/spi/spi.h>
 
 #include "ltv350qv.h"
@@ -328,3 +329,4 @@ module_exit(ltv350qv_exit);
 MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
 MODULE_DESCRIPTION("Samsung LTV350QV LCD Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:ltv350qv");

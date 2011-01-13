@@ -17,10 +17,13 @@
 #include <linux/hdreg.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
+#include <linux/mutex.h>
 #include <linux/memstick.h>
 
 #define DRIVER_NAME "mspro_block"
 
+static DEFINE_MUTEX(mspro_block_mutex);
 static int major;
 module_param(major, int, 0644);
 
@@ -178,6 +181,7 @@ static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 	struct mspro_block_data *msb = disk->private_data;
 	int rc = -ENXIO;
 
+	mutex_lock(&mspro_block_mutex);
 	mutex_lock(&mspro_block_disk_lock);
 
 	if (msb && msb->card) {
@@ -189,6 +193,7 @@ static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	mutex_unlock(&mspro_block_disk_lock);
+	mutex_unlock(&mspro_block_mutex);
 
 	return rc;
 }
@@ -220,7 +225,11 @@ static int mspro_block_disk_release(struct gendisk *disk)
 
 static int mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
 {
-	return mspro_block_disk_release(disk);
+	int ret;
+	mutex_lock(&mspro_block_mutex);
+	ret = mspro_block_disk_release(disk);
+	mutex_unlock(&mspro_block_mutex);
+	return ret;
 }
 
 static int mspro_block_bd_getgeo(struct block_device *bdev,
@@ -235,7 +244,7 @@ static int mspro_block_bd_getgeo(struct block_device *bdev,
 	return 0;
 }
 
-static struct block_device_operations ms_block_bdops = {
+static const struct block_device_operations ms_block_bdops = {
 	.open    = mspro_block_bd_open,
 	.release = mspro_block_bd_release,
 	.getgeo  = mspro_block_bd_getgeo,
@@ -804,7 +813,8 @@ static void mspro_block_start(struct memstick_dev *card)
 
 static int mspro_block_prepare_req(struct request_queue *q, struct request *req)
 {
-	if (!blk_fs_request(req) && !blk_pc_request(req)) {
+	if (req->cmd_type != REQ_TYPE_FS &&
+	    req->cmd_type != REQ_TYPE_BLOCK_PC) {
 		blk_dump_rq_flags(req, "MSPro unsupported request");
 		return BLKPREP_KILL;
 	}
@@ -1039,6 +1049,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 			snprintf(s_attr->name, sizeof(s_attr->name),
 				 "attr_x%02x", attr->entries[cnt].id);
 
+		sysfs_attr_init(&s_attr->dev_attr.attr);
 		s_attr->dev_attr.attr.name = s_attr->name;
 		s_attr->dev_attr.attr.mode = S_IRUGO;
 		s_attr->dev_attr.show = mspro_block_attr_show(s_attr->id);
@@ -1226,9 +1237,8 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	blk_queue_prep_rq(msb->queue, mspro_block_prepare_req);
 
 	blk_queue_bounce_limit(msb->queue, limit);
-	blk_queue_max_sectors(msb->queue, MSPRO_BLOCK_MAX_PAGES);
-	blk_queue_max_phys_segments(msb->queue, MSPRO_BLOCK_MAX_SEGS);
-	blk_queue_max_hw_segments(msb->queue, MSPRO_BLOCK_MAX_SEGS);
+	blk_queue_max_hw_sectors(msb->queue, MSPRO_BLOCK_MAX_PAGES);
+	blk_queue_max_segments(msb->queue, MSPRO_BLOCK_MAX_SEGS);
 	blk_queue_max_segment_size(msb->queue,
 				   MSPRO_BLOCK_MAX_PAGES * msb->page_size);
 
@@ -1330,12 +1340,13 @@ static void mspro_block_remove(struct memstick_dev *card)
 	struct mspro_block_data *msb = memstick_get_drvdata(card);
 	unsigned long flags;
 
-	del_gendisk(msb->disk);
-	dev_dbg(&card->dev, "mspro block remove\n");
 	spin_lock_irqsave(&msb->q_lock, flags);
 	msb->eject = 1;
 	blk_start_queue(msb->queue);
 	spin_unlock_irqrestore(&msb->q_lock, flags);
+
+	del_gendisk(msb->disk);
+	dev_dbg(&card->dev, "mspro block remove\n");
 
 	blk_cleanup_queue(msb->queue);
 	msb->queue = NULL;

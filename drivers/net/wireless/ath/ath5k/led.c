@@ -59,18 +59,30 @@ static const struct pci_device_id ath5k_led_devices[] = {
 	{ ATH_SDEVICE(PCI_VENDOR_ID_COMPAQ, PCI_ANY_ID), ATH_LED(1, 1) },
 	/* Acer Aspire One A150 (maximlevitsky@gmail.com) */
 	{ ATH_SDEVICE(PCI_VENDOR_ID_FOXCONN, 0xe008), ATH_LED(3, 0) },
+	/* Acer Aspire One AO531h AO751h (keng-yu.lin@canonical.com) */
+	{ ATH_SDEVICE(PCI_VENDOR_ID_FOXCONN, 0xe00d), ATH_LED(3, 0) },
 	/* Acer Ferrari 5000 (russ.dill@gmail.com) */
 	{ ATH_SDEVICE(PCI_VENDOR_ID_AMBIT, 0x0422), ATH_LED(1, 1) },
 	/* E-machines E510 (tuliom@gmail.com) */
 	{ ATH_SDEVICE(PCI_VENDOR_ID_AMBIT, 0x0428), ATH_LED(3, 0) },
+	/* BenQ Joybook R55v (nowymarluk@wp.pl) */
+	{ ATH_SDEVICE(PCI_VENDOR_ID_QMI, 0x0100), ATH_LED(1, 0) },
 	/* Acer Extensa 5620z (nekoreeve@gmail.com) */
 	{ ATH_SDEVICE(PCI_VENDOR_ID_QMI, 0x0105), ATH_LED(3, 0) },
 	/* Fukato Datacask Jupiter 1014a (mrb74@gmx.at) */
 	{ ATH_SDEVICE(PCI_VENDOR_ID_AZWAVE, 0x1026), ATH_LED(3, 0) },
 	/* IBM ThinkPad AR5BXB6 (legovini@spiro.fisica.unipd.it) */
 	{ ATH_SDEVICE(PCI_VENDOR_ID_IBM, 0x058a), ATH_LED(1, 0) },
+	/* HP Compaq CQ60-206US (ddreggors@jumptv.com) */
+	{ ATH_SDEVICE(PCI_VENDOR_ID_HP, 0x0137a), ATH_LED(3, 1) },
+	/* HP Compaq C700 (nitrousnrg@gmail.com) */
+	{ ATH_SDEVICE(PCI_VENDOR_ID_HP, 0x0137b), ATH_LED(3, 1) },
+	/* LiteOn AR5BXB63 (magooz@salug.it) */
+	{ ATH_SDEVICE(PCI_VENDOR_ID_ATHEROS, 0x3067), ATH_LED(3, 0) },
 	/* IBM-specific AR5212 (all others) */
 	{ PCI_VDEVICE(ATHEROS, PCI_DEVICE_ID_ATHEROS_AR5212_IBM), ATH_LED(0, 0) },
+	/* Dell Vostro A860 (shahar@shahar-or.co.il) */
+	{ ATH_SDEVICE(PCI_VENDOR_ID_QMI, 0x0112), ATH_LED(3, 0) },
 	{ }
 };
 
@@ -121,7 +133,7 @@ ath5k_register_led(struct ath5k_softc *sc, struct ath5k_led *led,
 	led->led_dev.default_trigger = trigger;
 	led->led_dev.brightness_set = ath5k_led_brightness_set;
 
-	err = led_classdev_register(&sc->pdev->dev, &led->led_dev);
+	err = led_classdev_register(sc->dev, &led->led_dev);
 	if (err) {
 		ATH5K_WARN(sc, "could not register LED %s\n", name);
 		led->sc = NULL;
@@ -149,11 +161,20 @@ int ath5k_init_leds(struct ath5k_softc *sc)
 {
 	int ret = 0;
 	struct ieee80211_hw *hw = sc->hw;
+#ifndef CONFIG_ATHEROS_AR231X
 	struct pci_dev *pdev = sc->pdev;
+#endif
 	char name[ATH5K_LED_MAX_NAME_LEN + 1];
 	const struct pci_device_id *match;
 
+	if (!sc->pdev)
+		return 0;
+
+#ifdef CONFIG_ATHEROS_AR231X
+	match = NULL;
+#else
 	match = pci_match_id(&ath5k_led_devices[0], pdev);
+#endif
 	if (match) {
 		__set_bit(ATH_STAT_LEDSOFT, sc->status);
 		sc->led_pin = ATH_PIN(match->driver_data);

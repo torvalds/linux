@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/if_bridge.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/times.h>
 #include <net/net_namespace.h>
 #include <asm/uaccess.h>
@@ -81,6 +82,7 @@ static int get_fdb_entries(struct net_bridge *br, void __user *userbuf,
 	return num;
 }
 
+/* called with RTNL */
 static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 {
 	struct net_device *dev;
@@ -89,7 +91,7 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	dev = dev_get_by_index(dev_net(br->dev), ifindex);
+	dev = __dev_get_by_index(dev_net(br->dev), ifindex);
 	if (dev == NULL)
 		return -EINVAL;
 
@@ -98,7 +100,6 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 	else
 		ret = br_del_if(br, dev);
 
-	dev_put(dev);
 	return ret;
 }
 
@@ -411,6 +412,6 @@ int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	}
 
-	pr_debug("Bridge does not support ioctl 0x%x\n", cmd);
+	br_debug(br, "Bridge does not support ioctl 0x%x\n", cmd);
 	return -EOPNOTSUPP;
 }

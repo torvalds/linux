@@ -85,7 +85,21 @@
 #define PR_SET_TIMERSLACK 29
 #define PR_GET_TIMERSLACK 30
 
-#define PR_TASK_PERF_COUNTERS_DISABLE		31
-#define PR_TASK_PERF_COUNTERS_ENABLE		32
+#define PR_TASK_PERF_EVENTS_DISABLE		31
+#define PR_TASK_PERF_EVENTS_ENABLE		32
+
+/*
+ * Set early/late kill mode for hwpoison memory corruption.
+ * This influences when the process gets killed on a memory corruption.
+ */
+#define PR_MCE_KILL	33
+# define PR_MCE_KILL_CLEAR   0
+# define PR_MCE_KILL_SET     1
+
+# define PR_MCE_KILL_LATE    0
+# define PR_MCE_KILL_EARLY   1
+# define PR_MCE_KILL_DEFAULT 2
+
+#define PR_MCE_KILL_GET 34
 
 #endif /* _LINUX_PRCTL_H */

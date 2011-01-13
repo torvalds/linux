@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <rdma/rdma_cm.h>
@@ -52,7 +53,7 @@ static void rds_iw_frag_drop_page(struct rds_page_frag *frag)
 static void rds_iw_frag_free(struct rds_page_frag *frag)
 {
 	rdsdebug("frag %p page %p\n", frag, frag->f_page);
-	BUG_ON(frag->f_page != NULL);
+	BUG_ON(frag->f_page);
 	kmem_cache_free(rds_iw_frag_slab, frag);
 }
 
@@ -142,31 +143,32 @@ static int rds_iw_recv_refill_one(struct rds_connection *conn,
 	struct ib_sge *sge;
 	int ret = -ENOMEM;
 
-	if (recv->r_iwinc == NULL) {
-		if (atomic_read(&rds_iw_allocation) >= rds_iw_sysctl_max_recv_allocation) {
+	if (!recv->r_iwinc) {
+		if (!atomic_add_unless(&rds_iw_allocation, 1, rds_iw_sysctl_max_recv_allocation)) {
 			rds_iw_stats_inc(s_iw_rx_alloc_limit);
 			goto out;
 		}
 		recv->r_iwinc = kmem_cache_alloc(rds_iw_incoming_slab,
 						 kptr_gfp);
-		if (recv->r_iwinc == NULL)
+		if (!recv->r_iwinc) {
+			atomic_dec(&rds_iw_allocation);
 			goto out;
-		atomic_inc(&rds_iw_allocation);
+		}
 		INIT_LIST_HEAD(&recv->r_iwinc->ii_frags);
 		rds_inc_init(&recv->r_iwinc->ii_inc, conn, conn->c_faddr);
 	}
 
-	if (recv->r_frag == NULL) {
+	if (!recv->r_frag) {
 		recv->r_frag = kmem_cache_alloc(rds_iw_frag_slab, kptr_gfp);
-		if (recv->r_frag == NULL)
+		if (!recv->r_frag)
 			goto out;
 		INIT_LIST_HEAD(&recv->r_frag->f_item);
 		recv->r_frag->f_page = NULL;
 	}
 
-	if (ic->i_frag.f_page == NULL) {
+	if (!ic->i_frag.f_page) {
 		ic->i_frag.f_page = alloc_page(page_gfp);
-		if (ic->i_frag.f_page == NULL)
+		if (!ic->i_frag.f_page)
 			goto out;
 		ic->i_frag.f_offset = 0;
 	}
@@ -229,8 +231,8 @@ int rds_iw_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 	int ret = 0;
 	u32 pos;
 
-	while ((prefill || rds_conn_up(conn))
-			&& rds_iw_ring_alloc(&ic->i_recv_ring, 1, &pos)) {
+	while ((prefill || rds_conn_up(conn)) &&
+	       rds_iw_ring_alloc(&ic->i_recv_ring, 1, &pos)) {
 		if (pos >= ic->i_recv_ring.w_nr) {
 			printk(KERN_NOTICE "Argh - ring alloc returned pos=%u\n",
 					pos);
@@ -271,7 +273,7 @@ int rds_iw_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 	return ret;
 }
 
-void rds_iw_inc_purge(struct rds_incoming *inc)
+static void rds_iw_inc_purge(struct rds_incoming *inc)
 {
 	struct rds_iw_incoming *iwinc;
 	struct rds_page_frag *frag;
@@ -467,8 +469,8 @@ static void rds_iw_send_ack(struct rds_iw_connection *ic, unsigned int adv_credi
 		set_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
 
 		rds_iw_stats_inc(s_iw_ack_send_failure);
-		/* Need to finesse this later. */
-		BUG();
+
+		rds_iw_conn_error(ic->conn, "sending ack failed\n");
 	} else
 		rds_iw_stats_inc(s_iw_ack_sent);
 }
@@ -714,7 +716,7 @@ static void rds_iw_process_recv(struct rds_connection *conn,
 	 * into the inc and save the inc so we can hang upcoming fragments
 	 * off its list.
 	 */
-	if (iwinc == NULL) {
+	if (!iwinc) {
 		iwinc = recv->r_iwinc;
 		recv->r_iwinc = NULL;
 		ic->i_iwinc = iwinc;
@@ -729,10 +731,10 @@ static void rds_iw_process_recv(struct rds_connection *conn,
 		hdr = &iwinc->ii_inc.i_hdr;
 		/* We can't just use memcmp here; fragments of a
 		 * single message may carry different ACKs */
-		if (hdr->h_sequence != ihdr->h_sequence
-		 || hdr->h_len != ihdr->h_len
-		 || hdr->h_sport != ihdr->h_sport
-		 || hdr->h_dport != ihdr->h_dport) {
+		if (hdr->h_sequence != ihdr->h_sequence ||
+		    hdr->h_len != ihdr->h_len ||
+		    hdr->h_sport != ihdr->h_sport ||
+		    hdr->h_dport != ihdr->h_dport) {
 			rds_iw_conn_error(conn,
 				"fragment header mismatch; forcing reconnect\n");
 			return;
@@ -783,17 +785,22 @@ void rds_iw_recv_cq_comp_handler(struct ib_cq *cq, void *context)
 {
 	struct rds_connection *conn = context;
 	struct rds_iw_connection *ic = conn->c_transport_data;
-	struct ib_wc wc;
-	struct rds_iw_ack_state state = { 0, };
-	struct rds_iw_recv_work *recv;
 
 	rdsdebug("conn %p cq %p\n", conn, cq);
 
 	rds_iw_stats_inc(s_iw_rx_cq_call);
 
-	ib_req_notify_cq(cq, IB_CQ_SOLICITED);
+	tasklet_schedule(&ic->i_recv_tasklet);
+}
 
-	while (ib_poll_cq(cq, 1, &wc) > 0) {
+static inline void rds_poll_cq(struct rds_iw_connection *ic,
+			       struct rds_iw_ack_state *state)
+{
+	struct rds_connection *conn = ic->conn;
+	struct ib_wc wc;
+	struct rds_iw_recv_work *recv;
+
+	while (ib_poll_cq(ic->i_recv_cq, 1, &wc) > 0) {
 		rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
 			 (unsigned long long)wc.wr_id, wc.status, wc.byte_len,
 			 be32_to_cpu(wc.ex.imm_data));
@@ -811,7 +818,7 @@ void rds_iw_recv_cq_comp_handler(struct ib_cq *cq, void *context)
 		if (rds_conn_up(conn) || rds_conn_connecting(conn)) {
 			/* We expect errors as the qp is drained during shutdown */
 			if (wc.status == IB_WC_SUCCESS) {
-				rds_iw_process_recv(conn, recv, wc.byte_len, &state);
+				rds_iw_process_recv(conn, recv, wc.byte_len, state);
 			} else {
 				rds_iw_conn_error(conn, "recv completion on "
 				       "%pI4 had status %u, disconnecting and "
@@ -822,6 +829,17 @@ void rds_iw_recv_cq_comp_handler(struct ib_cq *cq, void *context)
 
 		rds_iw_ring_free(&ic->i_recv_ring, 1);
 	}
+}
+
+void rds_iw_recv_tasklet_fn(unsigned long data)
+{
+	struct rds_iw_connection *ic = (struct rds_iw_connection *) data;
+	struct rds_connection *conn = ic->conn;
+	struct rds_iw_ack_state state = { 0, };
+
+	rds_poll_cq(ic, &state);
+	ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
+	rds_poll_cq(ic, &state);
 
 	if (state.ack_next_valid)
 		rds_iw_set_ack(ic, state.ack_next, state.ack_required);
@@ -869,7 +887,7 @@ int rds_iw_recv(struct rds_connection *conn)
 	return ret;
 }
 
-int __init rds_iw_recv_init(void)
+int rds_iw_recv_init(void)
 {
 	struct sysinfo si;
 	int ret = -ENOMEM;
@@ -881,13 +899,13 @@ int __init rds_iw_recv_init(void)
 	rds_iw_incoming_slab = kmem_cache_create("rds_iw_incoming",
 					sizeof(struct rds_iw_incoming),
 					0, 0, NULL);
-	if (rds_iw_incoming_slab == NULL)
+	if (!rds_iw_incoming_slab)
 		goto out;
 
 	rds_iw_frag_slab = kmem_cache_create("rds_iw_frag",
 					sizeof(struct rds_page_frag),
 					0, 0, NULL);
-	if (rds_iw_frag_slab == NULL)
+	if (!rds_iw_frag_slab)
 		kmem_cache_destroy(rds_iw_incoming_slab);
 	else
 		ret = 0;

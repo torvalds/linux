@@ -1,7 +1,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * http://www.algor.co.uk
  *
  * ########################################################################
  *
@@ -46,4 +45,3 @@ void ieee754_xcpt(struct ieee754xctx *xcp)
 	printk(KERN_DEBUG "floating point exception in \"%s\", type=%s\n",
 		xcp->op, rtnames[xcp->rt]);
 }
-

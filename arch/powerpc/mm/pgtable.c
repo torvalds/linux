@@ -22,6 +22,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
@@ -30,6 +31,18 @@
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 
+#include "mmu_decl.h"
+
+DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+
+#ifdef CONFIG_SMP
+
+/*
+ * Handle batching of page table freeing on SMP. Page tables are
+ * queued up and send to be freed later by RCU in order to avoid
+ * freeing a page table page that is being walked without locks
+ */
+
 static DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
 static unsigned long pte_freelist_forced_free;
 
@@ -37,12 +50,12 @@ struct pte_freelist_batch
 {
 	struct rcu_head	rcu;
 	unsigned int	index;
-	pgtable_free_t	tables[0];
+	unsigned long	tables[0];
 };
 
 #define PTE_FREELIST_SIZE \
 	((PAGE_SIZE - sizeof(struct pte_freelist_batch)) \
-	  / sizeof(pgtable_free_t))
+	  / sizeof(unsigned long))
 
 static void pte_free_smp_sync(void *arg)
 {
@@ -52,13 +65,13 @@ static void pte_free_smp_sync(void *arg)
 /* This is only called when we are critically out of memory
  * (and fail to get a page in pte_free_tlb).
  */
-static void pgtable_free_now(pgtable_free_t pgf)
+static void pgtable_free_now(void *table, unsigned shift)
 {
 	pte_freelist_forced_free++;
 
 	smp_call_function(pte_free_smp_sync, NULL, 1);
 
-	pgtable_free(pgf);
+	pgtable_free(table, shift);
 }
 
 static void pte_free_rcu_callback(struct rcu_head *head)
@@ -67,37 +80,43 @@ static void pte_free_rcu_callback(struct rcu_head *head)
 		container_of(head, struct pte_freelist_batch, rcu);
 	unsigned int i;
 
-	for (i = 0; i < batch->index; i++)
-		pgtable_free(batch->tables[i]);
+	for (i = 0; i < batch->index; i++) {
+		void *table = (void *)(batch->tables[i] & ~MAX_PGTABLE_INDEX_SIZE);
+		unsigned shift = batch->tables[i] & MAX_PGTABLE_INDEX_SIZE;
+
+		pgtable_free(table, shift);
+	}
 
 	free_page((unsigned long)batch);
 }
 
 static void pte_free_submit(struct pte_freelist_batch *batch)
 {
-	INIT_RCU_HEAD(&batch->rcu);
-	call_rcu(&batch->rcu, pte_free_rcu_callback);
+	call_rcu_sched(&batch->rcu, pte_free_rcu_callback);
 }
 
-void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
+void pgtable_free_tlb(struct mmu_gather *tlb, void *table, unsigned shift)
 {
 	/* This is safe since tlb_gather_mmu has disabled preemption */
 	struct pte_freelist_batch **batchp = &__get_cpu_var(pte_freelist_cur);
+	unsigned long pgf;
 
 	if (atomic_read(&tlb->mm->mm_users) < 2 ||
 	    cpumask_equal(mm_cpumask(tlb->mm), cpumask_of(smp_processor_id()))){
-		pgtable_free(pgf);
+		pgtable_free(table, shift);
 		return;
 	}
 
 	if (*batchp == NULL) {
 		*batchp = (struct pte_freelist_batch *)__get_free_page(GFP_ATOMIC);
 		if (*batchp == NULL) {
-			pgtable_free_now(pgf);
+			pgtable_free_now(table, shift);
 			return;
 		}
 		(*batchp)->index = 0;
 	}
+	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+	pgf = (unsigned long)table | shift;
 	(*batchp)->tables[(*batchp)->index++] = pgf;
 	if ((*batchp)->index == PTE_FREELIST_SIZE) {
 		pte_free_submit(*batchp);
@@ -116,27 +135,7 @@ void pte_free_finish(void)
 	*batchp = NULL;
 }
 
-/*
- * Handle i/d cache flushing, called from set_pte_at() or ptep_set_access_flags()
- */
-static pte_t do_dcache_icache_coherency(pte_t pte)
-{
-	unsigned long pfn = pte_pfn(pte);
-	struct page *page;
-
-	if (unlikely(!pfn_valid(pfn)))
-		return pte;
-	page = pfn_to_page(pfn);
-
-	if (!PageReserved(page) && !test_bit(PG_arch_1, &page->flags)) {
-		pr_debug("do_dcache_icache_coherency... flushing\n");
-		flush_dcache_icache_page(page);
-		set_bit(PG_arch_1, &page->flags);
-	}
-	else
-		pr_debug("do_dcache_icache_coherency... already clean\n");
-	return __pte(pte_val(pte) | _PAGE_HWEXEC);
-}
+#endif /* CONFIG_SMP */
 
 static inline int is_exec_fault(void)
 {
@@ -145,49 +144,150 @@ static inline int is_exec_fault(void)
 
 /* We only try to do i/d cache coherency on stuff that looks like
  * reasonably "normal" PTEs. We currently require a PTE to be present
- * and we avoid _PAGE_SPECIAL and _PAGE_NO_CACHE
+ * and we avoid _PAGE_SPECIAL and _PAGE_NO_CACHE. We also only do that
+ * on userspace PTEs
  */
 static inline int pte_looks_normal(pte_t pte)
 {
 	return (pte_val(pte) &
-		(_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE)) ==
-		(_PAGE_PRESENT);
+	    (_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER)) ==
+	    (_PAGE_PRESENT | _PAGE_USER);
 }
 
-#if defined(CONFIG_PPC_STD_MMU)
+struct page * maybe_pte_to_page(pte_t pte)
+{
+	unsigned long pfn = pte_pfn(pte);
+	struct page *page;
+
+	if (unlikely(!pfn_valid(pfn)))
+		return NULL;
+	page = pfn_to_page(pfn);
+	if (PageReserved(page))
+		return NULL;
+	return page;
+}
+
+#if defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0
+
 /* Server-style MMU handles coherency when hashing if HW exec permission
- * is supposed per page (currently 64-bit only). Else, we always flush
- * valid PTEs in set_pte.
+ * is supposed per page (currently 64-bit only). If not, then, we always
+ * flush the cache for valid PTEs in set_pte. Embedded CPU without HW exec
+ * support falls into the same category.
  */
-static inline int pte_need_exec_flush(pte_t pte, int set_pte)
+
+static pte_t set_pte_filter(pte_t pte, unsigned long addr)
 {
-	return set_pte && pte_looks_normal(pte) &&
-		!(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
-		  cpu_has_feature(CPU_FTR_NOEXECUTE));
+	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
+	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
+				       cpu_has_feature(CPU_FTR_NOEXECUTE))) {
+		struct page *pg = maybe_pte_to_page(pte);
+		if (!pg)
+			return pte;
+		if (!test_bit(PG_arch_1, &pg->flags)) {
+#ifdef CONFIG_8xx
+			/* On 8xx, cache control instructions (particularly
+			 * "dcbst" from flush_dcache_icache) fault as write
+			 * operation if there is an unpopulated TLB entry
+			 * for the address in question. To workaround that,
+			 * we invalidate the TLB here, thus avoiding dcbst
+			 * misbehaviour.
+			 */
+			/* 8xx doesn't care about PID, size or ind args */
+			_tlbil_va(addr, 0, 0, 0);
+#endif /* CONFIG_8xx */
+			flush_dcache_icache_page(pg);
+			set_bit(PG_arch_1, &pg->flags);
+		}
+	}
+	return pte;
 }
-#elif _PAGE_HWEXEC == 0
-/* Embedded type MMU without HW exec support (8xx only so far), we flush
- * the cache for any present PTE
+
+static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
+				     int dirty)
+{
+	return pte;
+}
+
+#else /* defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0 */
+
+/* Embedded type MMU with HW exec support. This is a bit more complicated
+ * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
+ * instead we "filter out" the exec permission for non clean pages.
  */
-static inline int pte_need_exec_flush(pte_t pte, int set_pte)
+static pte_t set_pte_filter(pte_t pte, unsigned long addr)
 {
-	return set_pte && pte_looks_normal(pte);
+	struct page *pg;
+
+	/* No exec permission in the first place, move on */
+	if (!(pte_val(pte) & _PAGE_EXEC) || !pte_looks_normal(pte))
+		return pte;
+
+	/* If you set _PAGE_EXEC on weird pages you're on your own */
+	pg = maybe_pte_to_page(pte);
+	if (unlikely(!pg))
+		return pte;
+
+	/* If the page clean, we move on */
+	if (test_bit(PG_arch_1, &pg->flags))
+		return pte;
+
+	/* If it's an exec fault, we flush the cache and make it clean */
+	if (is_exec_fault()) {
+		flush_dcache_icache_page(pg);
+		set_bit(PG_arch_1, &pg->flags);
+		return pte;
+	}
+
+	/* Else, we filter out _PAGE_EXEC */
+	return __pte(pte_val(pte) & ~_PAGE_EXEC);
 }
-#else
-/* Other embedded CPUs with HW exec support per-page, we flush on exec
- * fault if HWEXEC is not set
- */
-static inline int pte_need_exec_flush(pte_t pte, int set_pte)
+
+static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
+				     int dirty)
 {
-	return pte_looks_normal(pte) && is_exec_fault() &&
-		!(pte_val(pte) & _PAGE_HWEXEC);
+	struct page *pg;
+
+	/* So here, we only care about exec faults, as we use them
+	 * to recover lost _PAGE_EXEC and perform I$/D$ coherency
+	 * if necessary. Also if _PAGE_EXEC is already set, same deal,
+	 * we just bail out
+	 */
+	if (dirty || (pte_val(pte) & _PAGE_EXEC) || !is_exec_fault())
+		return pte;
+
+#ifdef CONFIG_DEBUG_VM
+	/* So this is an exec fault, _PAGE_EXEC is not set. If it was
+	 * an error we would have bailed out earlier in do_page_fault()
+	 * but let's make sure of it
+	 */
+	if (WARN_ON(!(vma->vm_flags & VM_EXEC)))
+		return pte;
+#endif /* CONFIG_DEBUG_VM */
+
+	/* If you set _PAGE_EXEC on weird pages you're on your own */
+	pg = maybe_pte_to_page(pte);
+	if (unlikely(!pg))
+		goto bail;
+
+	/* If the page is already clean, we move on */
+	if (test_bit(PG_arch_1, &pg->flags))
+		goto bail;
+
+	/* Clean the page and set PG_arch_1 */
+	flush_dcache_icache_page(pg);
+	set_bit(PG_arch_1, &pg->flags);
+
+ bail:
+	return __pte(pte_val(pte) | _PAGE_EXEC);
 }
-#endif
+
+#endif /* !(defined(CONFIG_PPC_STD_MMU) || _PAGE_EXEC == 0) */
 
 /*
  * set_pte stores a linux PTE into the linux page table.
  */
-void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+		pte_t pte)
 {
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(pte_present(*ptep));
@@ -196,9 +296,7 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte
 	 * this context might not have been activated yet when this
 	 * is called.
 	 */
-	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-	if (pte_need_exec_flush(pte, 1))
-		pte = do_dcache_icache_coherency(pte);
+	pte = set_pte_filter(pte, addr);
 
 	/* Perform the setting of the PTE */
 	__set_pte_at(mm, addr, ptep, pte, 0);
@@ -215,8 +313,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 			  pte_t *ptep, pte_t entry, int dirty)
 {
 	int changed;
-	if (!dirty && pte_need_exec_flush(entry, 0))
-		entry = do_dcache_icache_coherency(entry);
+	entry = set_access_flags_filter(entry, vma, dirty);
 	changed = !pte_same(*(ptep), entry);
 	if (changed) {
 		if (!(vma->vm_flags & VM_HUGETLB))
@@ -242,7 +339,7 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	BUG_ON(pud_none(*pud));
 	pmd = pmd_offset(pud, addr);
 	BUG_ON(!pmd_present(*pmd));
-	BUG_ON(!spin_is_locked(pte_lockptr(mm, pmd)));
+	assert_spin_locked(pte_lockptr(mm, pmd));
 }
 #endif /* CONFIG_DEBUG_VM */
 

@@ -23,9 +23,13 @@
 #include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+
 #include <asm/xen/hypervisor.h>
+
+#include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/page.h>
 #include <xen/interface/io/fbif.h>
@@ -440,7 +444,7 @@ static int __devinit xenfb_probe(struct xenbus_device *dev,
 	fb_info->fix.type = FB_TYPE_PACKED_PIXELS;
 	fb_info->fix.accel = FB_ACCEL_NONE;
 
-	fb_info->flags = FBINFO_FLAG_DEFAULT;
+	fb_info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
 
 	ret = fb_alloc_cmap(&fb_info->cmap, 256, 0);
 	if (ret < 0) {
@@ -454,6 +458,10 @@ static int __devinit xenfb_probe(struct xenbus_device *dev,
 
 	xenfb_init_shared_page(info, fb_info);
 
+	ret = xenfb_connect_backend(dev, info);
+	if (ret < 0)
+		goto error;
+
 	ret = register_framebuffer(fb_info);
 	if (ret) {
 		fb_deferred_io_cleanup(fb_info);
@@ -463,10 +471,6 @@ static int __devinit xenfb_probe(struct xenbus_device *dev,
 		goto error;
 	}
 	info->fb_info = fb_info;
-
-	ret = xenfb_connect_backend(dev, info);
-	if (ret < 0)
-		goto error;
 
 	xenfb_make_preferred_console();
 	return 0;
@@ -488,7 +492,7 @@ xenfb_make_preferred_console(void)
 		return;
 
 	acquire_console_sem();
-	for (c = console_drivers; c; c = c->next) {
+	for_each_console(c) {
 		if (!strcmp(c->name, "tty") && c->index == 0)
 			break;
 	}
@@ -558,26 +562,24 @@ static void xenfb_init_shared_page(struct xenfb_info *info,
 static int xenfb_connect_backend(struct xenbus_device *dev,
 				 struct xenfb_info *info)
 {
-	int ret, evtchn;
+	int ret, evtchn, irq;
 	struct xenbus_transaction xbt;
 
 	ret = xenbus_alloc_evtchn(dev, &evtchn);
 	if (ret)
 		return ret;
-	ret = bind_evtchn_to_irqhandler(evtchn, xenfb_event_handler,
+	irq = bind_evtchn_to_irqhandler(evtchn, xenfb_event_handler,
 					0, dev->devicetype, info);
-	if (ret < 0) {
+	if (irq < 0) {
 		xenbus_free_evtchn(dev, evtchn);
 		xenbus_dev_fatal(dev, ret, "bind_evtchn_to_irqhandler");
-		return ret;
+		return irq;
 	}
-	info->irq = ret;
-
  again:
 	ret = xenbus_transaction_start(&xbt);
 	if (ret) {
 		xenbus_dev_fatal(dev, ret, "starting transaction");
-		return ret;
+		goto unbind_irq;
 	}
 	ret = xenbus_printf(xbt, dev->nodename, "page-ref", "%lu",
 			    virt_to_mfn(info->page));
@@ -599,20 +601,25 @@ static int xenfb_connect_backend(struct xenbus_device *dev,
 		if (ret == -EAGAIN)
 			goto again;
 		xenbus_dev_fatal(dev, ret, "completing transaction");
-		return ret;
+		goto unbind_irq;
 	}
 
 	xenbus_switch_state(dev, XenbusStateInitialised);
+	info->irq = irq;
 	return 0;
 
  error_xenbus:
 	xenbus_transaction_end(xbt, 1);
 	xenbus_dev_fatal(dev, ret, "writing xenstore");
+ unbind_irq:
+	unbind_from_irqhandler(irq, info);
 	return ret;
 }
 
 static void xenfb_disconnect_backend(struct xenfb_info *info)
 {
+	/* Prevent xenfb refresh */
+	info->update_wanted = 0;
 	if (info->irq >= 0)
 		unbind_from_irqhandler(info->irq, info);
 	info->irq = -1;
@@ -627,6 +634,8 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 	switch (backend_state) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
+	case XenbusStateReconfiguring:
+	case XenbusStateReconfigured:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 		break;
@@ -680,7 +689,7 @@ static struct xenbus_driver xenfb_driver = {
 
 static int __init xenfb_init(void)
 {
-	if (!xen_domain())
+	if (!xen_pv_domain())
 		return -ENODEV;
 
 	/* Nothing to do if running in dom0. */

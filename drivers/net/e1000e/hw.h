@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2008 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -57,6 +57,7 @@ enum e1e_registers {
 	E1000_SCTL     = 0x00024, /* SerDes Control - RW */
 	E1000_FCAL     = 0x00028, /* Flow Control Address Low - RW */
 	E1000_FCAH     = 0x0002C, /* Flow Control Address High -RW */
+	E1000_FEXTNVM4 = 0x00024, /* Future Extended NVM 4 - RW */
 	E1000_FEXTNVM  = 0x00028, /* Future Extended NVM - RW */
 	E1000_FCT      = 0x00030, /* Flow Control Type - RW */
 	E1000_VET      = 0x00038, /* VLAN Ether Type - RW */
@@ -82,6 +83,7 @@ enum e1e_registers {
 	E1000_EXTCNF_CTRL  = 0x00F00, /* Extended Configuration Control */
 	E1000_EXTCNF_SIZE  = 0x00F08, /* Extended Configuration Size */
 	E1000_PHY_CTRL     = 0x00F10, /* PHY Control Register in CSR */
+#define E1000_POEMB	E1000_PHY_CTRL	/* PHY OEM Bits */
 	E1000_PBA      = 0x01000, /* Packet Buffer Allocation - RW */
 	E1000_PBS      = 0x01008, /* Packet Buffer Size */
 	E1000_EEMNGCTL = 0x01010, /* MNG EEprom Control */
@@ -208,6 +210,8 @@ enum e1e_registers {
 
 	E1000_KMRNCTRLSTA = 0x00034, /* MAC-PHY interface - RW */
 	E1000_MANC2H    = 0x05860, /* Management Control To Host - RW */
+	E1000_MDEF_BASE = 0x05890, /* Management Decision Filters */
+#define E1000_MDEF(_n)   (E1000_MDEF_BASE + ((_n) * 4))
 	E1000_SW_FW_SYNC = 0x05B5C, /* Software-Firmware Synchronization - RW */
 	E1000_GCR	= 0x05B00, /* PCI-Ex Control */
 	E1000_GCR2      = 0x05B64, /* PCI-Ex Control #2 */
@@ -215,10 +219,14 @@ enum e1e_registers {
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
 	E1000_SWSM2     = 0x05B58, /* Driver-only SW semaphore */
+	E1000_FFLT_DBG  = 0x05F04, /* Debug Register */
+	E1000_PCH_RAICC_BASE = 0x05F50, /* Receive Address Initial CRC */
+#define E1000_PCH_RAICC(_n)	(E1000_PCH_RAICC_BASE + ((_n) * 4))
+#define E1000_CRC_OFFSET	E1000_PCH_RAICC_BASE
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
 };
 
-/* RSS registers */
+#define E1000_MAX_PHY_ADDR		4
 
 /* IGP01E1000 Specific Registers */
 #define IGP01E1000_PHY_PORT_CONFIG	0x10 /* Port Config */
@@ -300,8 +308,14 @@ enum e1e_registers {
 #define E1000_KMRNCTRLSTA_OFFSET	0x001F0000
 #define E1000_KMRNCTRLSTA_OFFSET_SHIFT	16
 #define E1000_KMRNCTRLSTA_REN		0x00200000
+#define E1000_KMRNCTRLSTA_CTRL_OFFSET	0x1    /* Kumeran Control */
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3    /* Kumeran Diagnostic */
+#define E1000_KMRNCTRLSTA_TIMEOUTS	0x4    /* Kumeran Timeouts */
+#define E1000_KMRNCTRLSTA_INBAND_PARAM	0x9    /* Kumeran InBand Parameters */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK	0x1000 /* Nearend Loopback mode */
+#define E1000_KMRNCTRLSTA_K1_CONFIG	0x7
+#define E1000_KMRNCTRLSTA_K1_ENABLE	0x0002
+#define E1000_KMRNCTRLSTA_HD_CTRL	0x10   /* Kumeran HD Control */
 
 #define IFE_PHY_EXTENDED_STATUS_CONTROL	0x10
 #define IFE_PHY_SPECIAL_CONTROL		0x11 /* 100BaseTx PHY Special Control */
@@ -352,6 +366,7 @@ enum e1e_registers {
 #define E1000_DEV_ID_80003ES2LAN_COPPER_SPT	0x10BA
 #define E1000_DEV_ID_80003ES2LAN_SERDES_SPT	0x10BB
 
+#define E1000_DEV_ID_ICH8_82567V_3		0x1501
 #define E1000_DEV_ID_ICH8_IGP_M_AMT		0x1049
 #define E1000_DEV_ID_ICH8_IGP_AMT		0x104A
 #define E1000_DEV_ID_ICH8_IGP_C			0x104B
@@ -373,14 +388,20 @@ enum e1e_registers {
 #define E1000_DEV_ID_ICH10_R_BM_V		0x10CE
 #define E1000_DEV_ID_ICH10_D_BM_LM		0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF		0x10DF
+#define E1000_DEV_ID_ICH10_D_BM_V		0x1525
 #define E1000_DEV_ID_PCH_M_HV_LM		0x10EA
 #define E1000_DEV_ID_PCH_M_HV_LC		0x10EB
 #define E1000_DEV_ID_PCH_D_HV_DM		0x10EF
 #define E1000_DEV_ID_PCH_D_HV_DC		0x10F0
+#define E1000_DEV_ID_PCH2_LV_LM			0x1502
+#define E1000_DEV_ID_PCH2_LV_V			0x1503
 
 #define E1000_REVISION_4 4
 
 #define E1000_FUNC_1 1
+
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
 
 enum e1000_mac_type {
 	e1000_82571,
@@ -393,6 +414,7 @@ enum e1000_mac_type {
 	e1000_ich9lan,
 	e1000_ich10lan,
 	e1000_pchlan,
+	e1000_pch2lan,
 };
 
 enum e1000_media_type {
@@ -429,6 +451,7 @@ enum e1000_phy_type {
 	e1000_phy_bm,
 	e1000_phy_82578,
 	e1000_phy_82577,
+	e1000_phy_82579,
 };
 
 enum e1000_bus_width {
@@ -737,46 +760,54 @@ struct e1000_mac_operations {
 	s32  (*check_for_link)(struct e1000_hw *);
 	s32  (*cleanup_led)(struct e1000_hw *);
 	void (*clear_hw_cntrs)(struct e1000_hw *);
+	void (*clear_vfta)(struct e1000_hw *);
 	s32  (*get_bus_info)(struct e1000_hw *);
+	void (*set_lan_id)(struct e1000_hw *);
 	s32  (*get_link_up_info)(struct e1000_hw *, u16 *, u16 *);
 	s32  (*led_on)(struct e1000_hw *);
 	s32  (*led_off)(struct e1000_hw *);
-	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32, u32, u32);
+	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32);
 	s32  (*reset_hw)(struct e1000_hw *);
 	s32  (*init_hw)(struct e1000_hw *);
 	s32  (*setup_link)(struct e1000_hw *);
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
+	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
 /* Function pointers for the PHY. */
 struct e1000_phy_operations {
-	s32  (*acquire_phy)(struct e1000_hw *);
+	s32  (*acquire)(struct e1000_hw *);
+	s32  (*cfg_on_link_up)(struct e1000_hw *);
 	s32  (*check_polarity)(struct e1000_hw *);
 	s32  (*check_reset_block)(struct e1000_hw *);
-	s32  (*commit_phy)(struct e1000_hw *);
+	s32  (*commit)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
 	s32  (*get_cable_length)(struct e1000_hw *);
-	s32  (*get_phy_info)(struct e1000_hw *);
-	s32  (*read_phy_reg)(struct e1000_hw *, u32, u16 *);
-	void (*release_phy)(struct e1000_hw *);
-	s32  (*reset_phy)(struct e1000_hw *);
+	s32  (*get_info)(struct e1000_hw *);
+	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_reg_locked)(struct e1000_hw *, u32, u16 *);
+	void (*release)(struct e1000_hw *);
+	s32  (*reset)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
-	s32  (*write_phy_reg)(struct e1000_hw *, u32, u16);
-	s32  (*cfg_on_link_up)(struct e1000_hw *);
+	s32  (*write_reg)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg_locked)(struct e1000_hw *, u32, u16);
+	void (*power_up)(struct e1000_hw *);
+	void (*power_down)(struct e1000_hw *);
 };
 
 /* Function pointers for the NVM. */
 struct e1000_nvm_operations {
-	s32  (*acquire_nvm)(struct e1000_hw *);
-	s32  (*read_nvm)(struct e1000_hw *, u16, u16, u16 *);
-	void (*release_nvm)(struct e1000_hw *);
-	s32  (*update_nvm)(struct e1000_hw *);
+	s32  (*acquire)(struct e1000_hw *);
+	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
+	void (*release)(struct e1000_hw *);
+	s32  (*update)(struct e1000_hw *);
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
-	s32  (*validate_nvm)(struct e1000_hw *);
-	s32  (*write_nvm)(struct e1000_hw *, u16, u16, u16 *);
+	s32  (*validate)(struct e1000_hw *);
+	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
 };
 
 struct e1000_mac_info {
@@ -801,10 +832,16 @@ struct e1000_mac_info {
 	u16 ifs_ratio;
 	u16 ifs_step_size;
 	u16 mta_reg_count;
+
+	/* Maximum size of the MTA register table in all supported adapters */
+	#define MAX_MTA_REG 128
+	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
 	u8  forced_speed_duplex;
 
+	bool adaptive_ifs;
+	bool has_fwsm;
 	bool arc_subsystem_valid;
 	bool autoneg;
 	bool autoneg_failed;
@@ -875,6 +912,7 @@ struct e1000_fc_info {
 	u32 high_water;          /* Flow control high-water mark */
 	u32 low_water;           /* Flow control low-water mark */
 	u16 pause_time;          /* Flow control pause timer */
+	u16 refresh_time;        /* Flow control refresh timer */
 	bool send_xon;           /* Flow control send XON */
 	bool strict_ieee;        /* Strict IEEE mode */
 	enum e1000_fc_mode current_mode; /* FC mode in effect */
@@ -883,8 +921,11 @@ struct e1000_fc_info {
 
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
-	bool alt_mac_addr_is_present;
 	u32 smb_counter;
+};
+
+struct e1000_dev_spec_80003es2lan {
+	bool  mdic_wa_enable;
 };
 
 struct e1000_shadow_ram {
@@ -897,6 +938,8 @@ struct e1000_shadow_ram {
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
 	struct e1000_shadow_ram shadow_ram[E1000_ICH8_SHADOW_RAM_WORDS];
+	bool nvm_k1_enabled;
+	bool eee_disable;
 };
 
 struct e1000_hw {
@@ -914,19 +957,9 @@ struct e1000_hw {
 
 	union {
 		struct e1000_dev_spec_82571	e82571;
+		struct e1000_dev_spec_80003es2lan e80003es2lan;
 		struct e1000_dev_spec_ich8lan	ich8lan;
 	} dev_spec;
 };
-
-#ifdef DEBUG
-#define hw_dbg(hw, format, arg...) \
-	printk(KERN_DEBUG "%s: " format, e1000e_get_hw_dev_name(hw), ##arg)
-#else
-static inline int __attribute__ ((format (printf, 2, 3)))
-hw_dbg(struct e1000_hw *hw, const char *format, ...)
-{
-	return 0;
-}
-#endif
 
 #endif

@@ -52,7 +52,7 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 	{
 	 {
 	  .id = V4L2_CID_BRIGHTNESS,
@@ -635,10 +635,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->sensor = id->driver_info;
 	if (sd->sensor == SENSOR_PAS106) {
 		cam->cam_mode = sif_mode;
-		cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
+		cam->nmodes = ARRAY_SIZE(sif_mode);
 	} else {
 		cam->cam_mode = vga_mode;
-		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		cam->nmodes = ARRAY_SIZE(vga_mode);
 		gspca_dev->ctrl_dis = (1 << COLOR_IDX);
 	}
 	sd->brightness = BRIGHTNESS_DEF;
@@ -710,9 +710,9 @@ static void Et_setgainG(struct gspca_dev *gspca_dev, __u8 gain)
 }
 
 #define BLIMIT(bright) \
-	(__u8)((bright > 0x1f)?0x1f:((bright < 4)?3:bright))
+	(u8)((bright > 0x1f) ? 0x1f : ((bright < 4) ? 3 : bright))
 #define LIMIT(color) \
-	(unsigned char)((color > 0xff)?0xff:((color < 0)?0:color))
+	(u8)((color > 0xff) ? 0xff : ((color < 0) ? 0 : color))
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
@@ -752,8 +752,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 #undef LIMIT
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	int seqframe;
@@ -767,14 +766,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		       data[2], data[3], data[4], data[5]);
 		data += 30;
 		/* don't change datalength as the chips provided it */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		return;
 	}
 	if (len) {
 		data += 8;
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 	} else {			/* Drop Packet */
 		gspca_dev->last_packet_type = DISCARD_PACKET;
 	}
@@ -853,7 +851,7 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* sub-driver description */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
@@ -866,7 +864,7 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] __devinitconst = {
 	{USB_DEVICE(0x102c, 0x6151), .driver_info = SENSOR_PAS106},
 #if !defined CONFIG_USB_ET61X251 && !defined CONFIG_USB_ET61X251_MODULE
 	{USB_DEVICE(0x102c, 0x6251), .driver_info = SENSOR_TAS5130CXX},
@@ -877,7 +875,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
-static int sd_probe(struct usb_interface *intf,
+static int __devinit sd_probe(struct usb_interface *intf,
 		    const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),
@@ -898,18 +896,12 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

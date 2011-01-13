@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -128,7 +129,7 @@ struct cbq_class
 	long			avgidle;
 	long			deficit;	/* Saved deficit for WRR */
 	psched_time_t		penalized;
-	struct gnet_stats_basic bstats;
+	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
 	struct gnet_stats_rate_est rate_est;
 	struct tc_cbq_xstats	xstats;
@@ -389,8 +390,7 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	ret = qdisc_enqueue(skb, cl->q);
 	if (ret == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
-		sch->bstats.packets++;
-		sch->bstats.bytes += qdisc_pkt_len(skb);
+		qdisc_bstats_update(sch, skb);
 		cbq_mark_toplevel(q, cl);
 		if (!cl->next_alive)
 			cbq_activate_class(cl);
@@ -649,8 +649,7 @@ static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 		ret = qdisc_enqueue(skb, cl->q);
 		if (ret == NET_XMIT_SUCCESS) {
 			sch->q.qlen++;
-			sch->bstats.packets++;
-			sch->bstats.bytes += qdisc_pkt_len(skb);
+			qdisc_bstats_update(sch, skb);
 			if (!cl->next_alive)
 				cbq_activate_class(cl);
 			return 0;
@@ -1378,9 +1377,9 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.sibling = &q->link;
 	q->link.common.classid = sch->handle;
 	q->link.qdisc = sch;
-	if (!(q->link.q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-					    &pfifo_qdisc_ops,
-					    sch->handle)))
+	q->link.q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
+				      sch->handle);
+	if (!q->link.q)
 		q->link.q = &noop_qdisc;
 
 	q->link.priority = TC_CBQ_MAXPRIO-1;
@@ -1609,7 +1608,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 		cl->xstats.undertime = cl->undertime - q->now;
 
 	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
-	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
+	    gnet_stats_copy_rate_est(d, &cl->bstats, &cl->rate_est) < 0 ||
 	    gnet_stats_copy_queue(d, &cl->qstats) < 0)
 		return -1;
 
@@ -1621,29 +1620,25 @@ static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 {
 	struct cbq_class *cl = (struct cbq_class*)arg;
 
-	if (cl) {
-		if (new == NULL) {
-			new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-						&pfifo_qdisc_ops,
-						cl->common.classid);
-			if (new == NULL)
-				return -ENOBUFS;
-		} else {
+	if (new == NULL) {
+		new = qdisc_create_dflt(sch->dev_queue,
+					&pfifo_qdisc_ops, cl->common.classid);
+		if (new == NULL)
+			return -ENOBUFS;
+	} else {
 #ifdef CONFIG_NET_CLS_ACT
-			if (cl->police == TC_POLICE_RECLASSIFY)
-				new->reshape_fail = cbq_reshape_fail;
+		if (cl->police == TC_POLICE_RECLASSIFY)
+			new->reshape_fail = cbq_reshape_fail;
 #endif
-		}
-		sch_tree_lock(sch);
-		*old = cl->q;
-		cl->q = new;
-		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
-		qdisc_reset(*old);
-		sch_tree_unlock(sch);
-
-		return 0;
 	}
-	return -ENOENT;
+	sch_tree_lock(sch);
+	*old = cl->q;
+	cl->q = new;
+	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
+	qdisc_reset(*old);
+	sch_tree_unlock(sch);
+
+	return 0;
 }
 
 static struct Qdisc *
@@ -1651,7 +1646,7 @@ cbq_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	struct cbq_class *cl = (struct cbq_class*)arg;
 
-	return cl ? cl->q : NULL;
+	return cl->q;
 }
 
 static void cbq_qlen_notify(struct Qdisc *sch, unsigned long arg)
@@ -1877,8 +1872,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	cl->R_tab = rtab;
 	rtab = NULL;
 	cl->refcnt = 1;
-	if (!(cl->q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-					&pfifo_qdisc_ops, classid)))
+	cl->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
+	if (!cl->q)
 		cl->q = &noop_qdisc;
 	cl->common.classid = classid;
 	cl->tparent = parent;

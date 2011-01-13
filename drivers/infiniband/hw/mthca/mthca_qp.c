@@ -1319,10 +1319,12 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 }
 
 static void mthca_lock_cqs(struct mthca_cq *send_cq, struct mthca_cq *recv_cq)
+	__acquires(&send_cq->lock) __acquires(&recv_cq->lock)
 {
-	if (send_cq == recv_cq)
+	if (send_cq == recv_cq) {
 		spin_lock_irq(&send_cq->lock);
-	else if (send_cq->cqn < recv_cq->cqn) {
+		__acquire(&recv_cq->lock);
+	} else if (send_cq->cqn < recv_cq->cqn) {
 		spin_lock_irq(&send_cq->lock);
 		spin_lock_nested(&recv_cq->lock, SINGLE_DEPTH_NESTING);
 	} else {
@@ -1332,10 +1334,12 @@ static void mthca_lock_cqs(struct mthca_cq *send_cq, struct mthca_cq *recv_cq)
 }
 
 static void mthca_unlock_cqs(struct mthca_cq *send_cq, struct mthca_cq *recv_cq)
+	__releases(&send_cq->lock) __releases(&recv_cq->lock)
 {
-	if (send_cq == recv_cq)
+	if (send_cq == recv_cq) {
+		__release(&recv_cq->lock);
 		spin_unlock_irq(&send_cq->lock);
-	else if (send_cq->cqn < recv_cq->cqn) {
+	} else if (send_cq->cqn < recv_cq->cqn) {
 		spin_unlock(&recv_cq->lock);
 		spin_unlock_irq(&send_cq->lock);
 	} else {
@@ -1489,8 +1493,8 @@ static int build_mlx_header(struct mthca_dev *dev, struct mthca_sqp *sqp,
 	int err;
 	u16 pkey;
 
-	ib_ud_header_init(256, /* assume a MAD */
-			  mthca_ah_grh_present(to_mah(wr->wr.ud.ah)),
+	ib_ud_header_init(256, /* assume a MAD */ 1, 0, 0,
+			  mthca_ah_grh_present(to_mah(wr->wr.ud.ah)), 0,
 			  &sqp->ud_header);
 
 	err = mthca_read_ah(dev, to_mah(wr->wr.ud.ah), &sqp->ud_header);

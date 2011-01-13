@@ -24,6 +24,8 @@ struct oprofile_operations;
 extern unsigned long oprofile_buffer_size;
 extern unsigned long oprofile_cpu_buffer_size;
 extern unsigned long oprofile_buffer_watershed;
+extern unsigned long oprofile_time_slice;
+
 extern struct oprofile_operations oprofile_ops;
 extern unsigned long oprofile_started;
 extern unsigned long oprofile_backtrace_depth;
@@ -32,8 +34,10 @@ struct super_block;
 struct dentry;
 
 void oprofile_create_files(struct super_block *sb, struct dentry *root);
-void oprofile_timer_init(struct oprofile_operations *ops);
+int oprofile_timer_init(struct oprofile_operations *ops);
+void oprofile_timer_exit(void);
 
-int oprofile_set_backtrace(unsigned long depth);
+int oprofile_set_ulong(unsigned long *addr, unsigned long val);
+int oprofile_set_timeout(unsigned long time);
 
 #endif /* OPROF_H */

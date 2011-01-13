@@ -22,27 +22,17 @@ struct xfs_log_item;
 struct xfs_log_item_desc;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_ail;
+struct xfs_log_vec;
 
-/*
- * From xfs_trans_item.c
- */
-struct xfs_log_item_desc	*xfs_trans_add_item(struct xfs_trans *,
-					    struct xfs_log_item *);
-void				xfs_trans_free_item(struct xfs_trans *,
-					    struct xfs_log_item_desc *);
-struct xfs_log_item_desc	*xfs_trans_find_item(struct xfs_trans *,
-					     struct xfs_log_item *);
-struct xfs_log_item_desc	*xfs_trans_first_item(struct xfs_trans *);
-struct xfs_log_item_desc	*xfs_trans_next_item(struct xfs_trans *,
-					     struct xfs_log_item_desc *);
-void				xfs_trans_free_items(struct xfs_trans *, int);
-void				xfs_trans_unlock_items(struct xfs_trans *,
-							xfs_lsn_t);
-void				xfs_trans_free_busy(xfs_trans_t *tp);
-xfs_log_busy_slot_t		*xfs_trans_add_busy(xfs_trans_t *tp,
-						    xfs_agnumber_t ag,
-						    xfs_extlen_t idx);
+void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
+void	xfs_trans_del_item(struct xfs_log_item *);
+void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
+				int flags);
+void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);
 
+void	xfs_trans_committed_bulk(struct xfs_ail *ailp, struct xfs_log_vec *lv,
+				xfs_lsn_t commit_lsn, int aborted);
 /*
  * AIL traversal cursor.
  *
@@ -85,12 +75,29 @@ struct xfs_ail {
 /*
  * From xfs_trans_ail.c
  */
-void			xfs_trans_ail_update(struct xfs_ail *ailp,
-					struct xfs_log_item *lip, xfs_lsn_t lsn)
-					__releases(ailp->xa_lock);
-void			xfs_trans_ail_delete(struct xfs_ail *ailp,
-					struct xfs_log_item *lip)
-					__releases(ailp->xa_lock);
+void	xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
+				struct xfs_log_item **log_items, int nr_items,
+				xfs_lsn_t lsn) __releases(ailp->xa_lock);
+static inline void
+xfs_trans_ail_update(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn) __releases(ailp->xa_lock)
+{
+	xfs_trans_ail_update_bulk(ailp, &lip, 1, lsn);
+}
+
+void	xfs_trans_ail_delete_bulk(struct xfs_ail *ailp,
+				struct xfs_log_item **log_items, int nr_items)
+				__releases(ailp->xa_lock);
+static inline void
+xfs_trans_ail_delete(
+	struct xfs_ail	*ailp,
+	xfs_log_item_t	*lip) __releases(ailp->xa_lock)
+{
+	xfs_trans_ail_delete_bulk(ailp, &lip, 1);
+}
+
 void			xfs_trans_ail_push(struct xfs_ail *, xfs_lsn_t);
 void			xfs_trans_unlocked_item(struct xfs_ail *,
 					xfs_log_item_t *);

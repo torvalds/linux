@@ -1,8 +1,6 @@
 #ifndef _TFRC_H_
 #define _TFRC_H_
 /*
- *  net/dccp/ccids/lib/tfrc.h
- *
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2005-6 Ian McDonald <ian.mcdonald@jandi.co.nz>
@@ -32,7 +30,7 @@ extern int tfrc_debug;
 /* integer-arithmetic divisions of type (a * 1000000)/b */
 static inline u64 scaled_div(u64 a, u64 b)
 {
-	BUG_ON(b==0);
+	BUG_ON(b == 0);
 	return div64_u64(a * 1000000, b);
 }
 
@@ -59,6 +57,7 @@ static inline u32 tfrc_ewma(const u32 avg, const u32 newval, const u8 weight)
 
 extern u32  tfrc_calc_x(u16 s, u32 R, u32 p);
 extern u32  tfrc_calc_x_reverse_lookup(u32 fvalue);
+extern u32  tfrc_invert_loss_event_rate(u32 loss_event_rate);
 
 extern int  tfrc_tx_packet_history_init(void);
 extern void tfrc_tx_packet_history_exit(void);

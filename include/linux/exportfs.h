@@ -67,6 +67,19 @@ enum fid_type {
 	 * 32 bit parent block number, 32 bit parent generation number
 	 */
 	FILEID_UDF_WITH_PARENT = 0x52,
+
+	/*
+	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 32 bit generation number.
+	 */
+	FILEID_NILFS_WITHOUT_PARENT = 0x61,
+
+	/*
+	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 32 bit generation number, 32 bit parent generation.
+	 * 64 bit parent inode number.
+	 */
+	FILEID_NILFS_WITH_PARENT = 0x62,
 };
 
 struct fid {
@@ -96,8 +109,9 @@ struct fid {
  * @fh_to_parent:   find the implied object's parent and get a dentry for it
  * @get_name:       find the name for a given inode in a given directory
  * @get_parent:     find the parent of a given directory
+ * @commit_metadata: commit metadata changes to stable storage
  *
- * See Documentation/filesystems/Exporting for details on how to use
+ * See Documentation/filesystems/nfs/Exporting for details on how to use
  * this interface correctly.
  *
  * encode_fh:
@@ -137,6 +151,9 @@ struct fid {
  *    is also a directory.  In the event that it cannot be found, or storage
  *    space cannot be allocated, a %ERR_PTR should be returned.
  *
+ * commit_metadata:
+ *    @commit_metadata should commit metadata changes to stable storage.
+ *
  * Locking rules:
  *    get_parent is called with child->d_inode->i_mutex down
  *    get_name is not (which is possibly inconsistent)
@@ -152,6 +169,7 @@ struct export_operations {
 	int (*get_name)(struct dentry *parent, char *name,
 			struct dentry *child);
 	struct dentry * (*get_parent)(struct dentry *child);
+	int (*commit_metadata)(struct inode *inode);
 };
 
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,

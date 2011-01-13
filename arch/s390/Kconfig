@@ -1,18 +1,8 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-config SCHED_MC
-	def_bool y
-	depends on SMP
-
 config MMU
 	def_bool y
 
 config ZONE_DMA
-	def_bool y
-	depends on 64BIT
+	def_bool y if 64BIT
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -30,17 +20,12 @@ config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
 config ARCH_HAS_ILOG2_U32
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAS_ILOG2_U64
-	bool
-	default n
+	def_bool n
 
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_TIME
 	def_bool y
 
 config GENERIC_TIME_VSYSCALL
@@ -50,9 +35,10 @@ config GENERIC_CLOCKEVENTS
 	def_bool y
 
 config GENERIC_BUG
-	bool
-	depends on BUG
-	default y
+	def_bool y if BUG
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
 
 config NO_IOMEM
 	def_bool y
@@ -60,22 +46,20 @@ config NO_IOMEM
 config NO_DMA
 	def_bool y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool 64BIT
+
 config GENERIC_LOCKBREAK
-	bool
-	default y
-	depends on SMP && PREEMPT
+	def_bool y if SMP && PREEMPT
 
 config PGSTE
-	bool
-	default y if KVM
+	def_bool y if KVM
 
 config VIRT_CPU_ACCOUNTING
 	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
-
-mainmenu "Linux Kernel Configuration"
 
 config S390
 	def_bool y
@@ -84,17 +68,56 @@ config S390
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FTRACE_MCOUNT_RECORD
-	select HAVE_FTRACE_SYSCALLS
+	select HAVE_C_RECORDMCOUNT
+	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_GRAPH_TRACER
-	select HAVE_DEFAULT_NO_SPIN_MUTEXES
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_KVM if 64BIT
 	select HAVE_ARCH_TRACEHOOK
 	select INIT_ALL_POSSIBLE
-	select HAVE_PERF_COUNTERS
+	select HAVE_IRQ_WORK
+	select HAVE_PERF_EVENTS
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_GET_USER_PAGES_FAST
+	select HAVE_ARCH_MUTEX_CPU_RELAX
+	select ARCH_INLINE_SPIN_TRYLOCK
+	select ARCH_INLINE_SPIN_TRYLOCK_BH
+	select ARCH_INLINE_SPIN_LOCK
+	select ARCH_INLINE_SPIN_LOCK_BH
+	select ARCH_INLINE_SPIN_LOCK_IRQ
+	select ARCH_INLINE_SPIN_LOCK_IRQSAVE
+	select ARCH_INLINE_SPIN_UNLOCK
+	select ARCH_INLINE_SPIN_UNLOCK_BH
+	select ARCH_INLINE_SPIN_UNLOCK_IRQ
+	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_READ_TRYLOCK
+	select ARCH_INLINE_READ_LOCK
+	select ARCH_INLINE_READ_LOCK_BH
+	select ARCH_INLINE_READ_LOCK_IRQ
+	select ARCH_INLINE_READ_LOCK_IRQSAVE
+	select ARCH_INLINE_READ_UNLOCK
+	select ARCH_INLINE_READ_UNLOCK_BH
+	select ARCH_INLINE_READ_UNLOCK_IRQ
+	select ARCH_INLINE_READ_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_WRITE_TRYLOCK
+	select ARCH_INLINE_WRITE_LOCK
+	select ARCH_INLINE_WRITE_LOCK_BH
+	select ARCH_INLINE_WRITE_LOCK_IRQ
+	select ARCH_INLINE_WRITE_LOCK_IRQSAVE
+	select ARCH_INLINE_WRITE_UNLOCK
+	select ARCH_INLINE_WRITE_UNLOCK_BH
+	select ARCH_INLINE_WRITE_UNLOCK_IRQ
+	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
+
+config SCHED_OMIT_FRAME_POINTER
+	def_bool y
 
 source "init/Kconfig"
 
@@ -107,17 +130,21 @@ comment "Processor type and features"
 source "kernel/time/Kconfig"
 
 config 64BIT
-	bool "64 bit kernel"
+	def_bool y
+	prompt "64 bit kernel"
 	help
-	  Select this option if you have a 64 bit IBM zSeries machine
+	  Select this option if you have an IBM z/Architecture machine
 	  and want to use the 64 bit addressing mode.
 
 config 32BIT
-	bool
-	default y if !64BIT
+	def_bool y if !64BIT
+
+config KTIME_SCALAR
+	def_bool 32BIT
 
 config SMP
-	bool "Symmetric multi-processing support"
+	def_bool y
+	prompt "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -149,25 +176,44 @@ config NR_CPUS
 	  approximately sixteen kilobytes to the kernel image.
 
 config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs"
+	def_bool y
+	prompt "Support for hot-pluggable CPUs"
 	depends on SMP
 	select HOTPLUG
-	default n
 	help
 	  Say Y here to be able to turn CPUs off and on. CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
+config SCHED_MC
+	def_bool y
+	prompt "Multi-core scheduler support"
+	depends on SMP
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places.
+
+config SCHED_BOOK
+	def_bool y
+	prompt "Book scheduler support"
+	depends on SMP && SCHED_MC
+	help
+	  Book scheduler support improves the CPU scheduler's decision making
+	  when dealing with machines that have several books.
+
 config MATHEMU
-	bool "IEEE FPU emulation"
+	def_bool y
+	prompt "IEEE FPU emulation"
 	depends on MARCH_G5
 	help
 	  This option is required for IEEE compliant floating point arithmetic
-	  on older S/390 machines. Say Y unless you know your machine doesn't
+	  on older ESA/390 machines. Say Y unless you know your machine doesn't
 	  need this.
 
 config COMPAT
-	bool "Kernel support for 31 bit emulation"
+	def_bool y
+	prompt "Kernel support for 31 bit emulation"
 	depends on 64BIT
 	select COMPAT_BINFMT_ELF
 	help
@@ -177,38 +223,21 @@ config COMPAT
 	  executing 31 bit applications.  It is safe to say "Y".
 
 config SYSVIPC_COMPAT
-	bool
-	depends on COMPAT && SYSVIPC
-	default y
+	def_bool y if COMPAT && SYSVIPC
 
 config AUDIT_ARCH
-	bool
-	default y
-
-config S390_SWITCH_AMODE
-	bool "Switch kernel/user addressing modes"
-	help
-	  This option allows to switch the addressing modes of kernel and user
-	  space. The kernel parameter switch_amode=on will enable this feature,
-	  default is disabled. Enabling this (via kernel parameter) on machines
-	  earlier than IBM System z9-109 EC/BC will reduce system performance.
-
-	  Note that this option will also be selected by selecting the execute
-	  protection option below. Enabling the execute protection via the
-	  noexec kernel parameter will also switch the addressing modes,
-	  independent of the switch_amode kernel parameter.
-
+	def_bool y
 
 config S390_EXEC_PROTECT
-	bool "Data execute protection"
-	select S390_SWITCH_AMODE
+	def_bool y
+	prompt "Data execute protection"
 	help
 	  This option allows to enable a buffer overflow protection for user
 	  space programs and it also selects the addressing mode option above.
 	  The kernel parameter noexec=on will enable this feature and also
 	  switch the addressing modes, default is disabled. Enabling this (via
-	  kernel parameter) on machines earlier than IBM System z9-109 EC/BC
-	  will reduce system performance.
+	  kernel parameter) on machines earlier than IBM System z9 this will
+	  reduce system performance.
 
 comment "Code generation options"
 
@@ -217,46 +246,52 @@ choice
 	default MARCH_G5
 
 config MARCH_G5
-	bool "S/390 model G5 and G6"
+	bool "System/390 model G5 and G6"
 	depends on !64BIT
 	help
 	  Select this to build a 31 bit kernel that works
-	  on all S/390 and zSeries machines.
+	  on all ESA/390 and z/Architecture machines.
 
 config MARCH_Z900
-	bool "IBM eServer zSeries model z800 and z900"
+	bool "IBM zSeries model z800 and z900"
 	help
-	  Select this to optimize for zSeries machines. This
-	  will enable some optimizations that are not available
-	  on older 31 bit only CPUs.
+	  Select this to enable optimizations for model z800/z900 (2064 and
+	  2066 series). This will enable some optimizations that are not
+	  available on older ESA/390 (31 Bit) only CPUs.
 
 config MARCH_Z990
-	bool "IBM eServer zSeries model z890 and z990"
+	bool "IBM zSeries model z890 and z990"
 	help
-	  Select this enable optimizations for model z890/z990.
-	  This will be slightly faster but does not work on
-	  older machines such as the z900.
+	  Select this to enable optimizations for model z890/z990 (2084 and
+	  2086 series). The kernel will be slightly faster but will not work
+	  on older machines.
 
 config MARCH_Z9_109
 	bool "IBM System z9"
 	help
-	  Select this to enable optimizations for IBM System z9-109, IBM
-	  System z9 Enterprise Class (z9 EC), and IBM System z9 Business
-	  Class (z9 BC). The kernel will be slightly faster but will not
-	  work on older machines such as the z990, z890, z900, and z800.
+	  Select this to enable optimizations for IBM System z9 (2094 and
+	  2096 series). The kernel will be slightly faster but will not work
+	  on older machines.
 
 config MARCH_Z10
 	bool "IBM System z10"
 	help
-	  Select this to enable optimizations for IBM System z10. The
-	  kernel will be slightly faster but will not work on older
-	  machines such as the z990, z890, z900, z800, z9-109, z9-ec
-	  and z9-bc.
+	  Select this to enable optimizations for IBM System z10 (2097 and
+	  2098 series). The kernel will be slightly faster but will not work
+	  on older machines.
+
+config MARCH_Z196
+	bool "IBM zEnterprise 196"
+	help
+	  Select this to enable optimizations for IBM zEnterprise 196
+	  (2817 series). The kernel will be slightly faster but will not work
+	  on older machines.
 
 endchoice
 
 config PACK_STACK
-	bool "Pack kernel stack"
+	def_bool y
+	prompt "Pack kernel stack"
 	help
 	  This option enables the compiler option -mkernel-backchain if it
 	  is available. If the option is available the compiler supports
@@ -269,7 +304,8 @@ config PACK_STACK
 	  Say Y if you are unsure.
 
 config SMALL_STACK
-	bool "Use 8kb for kernel stack instead of 16kb"
+	def_bool n
+	prompt "Use 8kb for kernel stack instead of 16kb"
 	depends on PACK_STACK && 64BIT && !LOCKDEP
 	help
 	  If you say Y here and the compiler supports the -mkernel-backchain
@@ -281,7 +317,8 @@ config SMALL_STACK
 	  Say N if you are unsure.
 
 config CHECK_STACK
-	bool "Detect kernel stack overflow"
+	def_bool y
+	prompt "Detect kernel stack overflow"
 	help
 	  This option enables the compiler option -mstack-guard and
 	  -mstack-size if they are available. If the compiler supports them
@@ -305,7 +342,8 @@ config STACK_GUARD
 	  512 for 64 bit.
 
 config WARN_STACK
-	bool "Emit compiler warnings for function with broken stack usage"
+	def_bool n
+	prompt "Emit compiler warnings for function with broken stack usage"
 	help
 	  This option enables the compiler options -mwarn-framesize and
 	  -mwarn-dynamicstack. If the compiler supports these options it
@@ -340,24 +378,24 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
 config ARCH_SELECT_MEMORY_MODEL
-       def_bool y
+	def_bool y
 
 config ARCH_ENABLE_MEMORY_HOTPLUG
-	def_bool y
-	depends on SPARSEMEM
+	def_bool y if SPARSEMEM
 
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 
 config ARCH_HIBERNATION_POSSIBLE
-       def_bool y if 64BIT
+	def_bool y if 64BIT
 
 source "mm/Kconfig"
 
 comment "I/O subsystem configuration"
 
 config QDIO
-	tristate "QDIO support"
+	def_tristate y
+	prompt "QDIO support"
 	---help---
 	  This driver provides the Queued Direct I/O base support for
 	  IBM System z.
@@ -368,7 +406,8 @@ config QDIO
 	  If unsure, say Y.
 
 config CHSC_SCH
-	tristate "Support for CHSC subchannels"
+	def_tristate y
+	prompt "Support for CHSC subchannels"
 	help
 	  This driver allows usage of CHSC subchannels. A CHSC subchannel
 	  is usually present on LPAR only.
@@ -386,7 +425,8 @@ config CHSC_SCH
 comment "Misc"
 
 config IPL
-	bool "Builtin IPL record support"
+	def_bool y
+	prompt "Builtin IPL record support"
 	help
 	  If you want to use the produced kernel to IPL directly from a
 	  device, you have to merge a bootsector specific to the device
@@ -417,15 +457,9 @@ config FORCE_MAX_ZONEORDER
 	int
 	default "9"
 
-config PROCESS_DEBUG
-	bool "Show crashed user process info"
-	help
-	  Say Y to print all process fault locations to the console.  This is
-	  a debugging option; you probably do not want to set it unless you
-	  are an S390 port maintainer.
-
 config PFAULT
-	bool "Pseudo page fault support"
+	def_bool y
+	prompt "Pseudo page fault support"
 	help
 	  Select this option, if you want to use PFAULT pseudo page fault
 	  handling under VM. If running native or in LPAR, this option
@@ -437,7 +471,8 @@ config PFAULT
 	  this option.
 
 config SHARED_KERNEL
-	bool "VM shared kernel support"
+	def_bool y
+	prompt "VM shared kernel support"
 	help
 	  Select this option, if you want to share the text segment of the
 	  Linux kernel between different VM guests. This reduces memory
@@ -448,7 +483,8 @@ config SHARED_KERNEL
 	  doing and want to exploit this feature.
 
 config CMM
-	tristate "Cooperative memory management"
+	def_tristate n
+	prompt "Cooperative memory management"
 	help
 	  Select this option, if you want to enable the kernel interface
 	  to reduce the memory size of the system. This is accomplished
@@ -459,29 +495,17 @@ config CMM
 	  Everybody who wants to run Linux under VM should select this
 	  option.
 
-config CMM_PROC
-	bool "/proc interface to cooperative memory management"
-	depends on CMM
-	help
-	  Select this option to enable the /proc interface to the
-	  cooperative memory management.
-
 config CMM_IUCV
-	bool "IUCV special message interface to cooperative memory management"
+	def_bool y
+	prompt "IUCV special message interface to cooperative memory management"
 	depends on CMM && (SMSGIUCV=y || CMM=SMSGIUCV)
 	help
 	  Select this option to enable the special message interface to
 	  the cooperative memory management.
 
-config PAGE_STATES
-	bool "Unused page notification"
-	help
-	  This enables the notification of unused pages to the
-	  hypervisor. The ESSA instruction is used to do the states
-	  changes between a page that has content and the unused state.
-
 config APPLDATA_BASE
-	bool "Linux - VM Monitor Stream, base infrastructure"
+	def_bool n
+	prompt "Linux - VM Monitor Stream, base infrastructure"
 	depends on PROC_FS
 	help
 	  This provides a kernel interface for creating and updating z/VM APPLDATA
@@ -496,7 +520,8 @@ config APPLDATA_BASE
 	  The /proc entries can also be read from, showing the current settings.
 
 config APPLDATA_MEM
-	tristate "Monitor memory management statistics"
+	def_tristate m
+	prompt "Monitor memory management statistics"
 	depends on APPLDATA_BASE && VM_EVENT_COUNTERS
 	help
 	  This provides memory management related data to the Linux - VM Monitor
@@ -512,7 +537,8 @@ config APPLDATA_MEM
 	  appldata_mem.o.
 
 config APPLDATA_OS
-	tristate "Monitor OS statistics"
+	def_tristate m
+	prompt "Monitor OS statistics"
 	depends on APPLDATA_BASE
 	help
 	  This provides OS related data to the Linux - VM Monitor Stream, like
@@ -526,7 +552,8 @@ config APPLDATA_OS
 	  appldata_os.o.
 
 config APPLDATA_NET_SUM
-	tristate "Monitor overall network statistics"
+	def_tristate m
+	prompt "Monitor overall network statistics"
 	depends on APPLDATA_BASE && NET
 	help
 	  This provides network related data to the Linux - VM Monitor Stream,
@@ -543,30 +570,32 @@ config APPLDATA_NET_SUM
 source kernel/Kconfig.hz
 
 config S390_HYPFS_FS
-	bool "s390 hypervisor file system support"
+	def_bool y
+	prompt "s390 hypervisor file system support"
 	select SYS_HYPERVISOR
-	default y
 	help
 	  This is a virtual file system intended to provide accounting
 	  information in an s390 hypervisor environment.
 
 config KEXEC
-	bool "kexec system call"
+	def_bool n
+	prompt "kexec system call"
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
 	  but is independent of hardware/microcode support.
 
 config ZFCPDUMP
-	bool "zfcpdump support"
+	def_bool n
+	prompt "zfcpdump support"
 	select SMP
-	default n
 	help
 	  Select this option if you want to build an zfcpdump enabled kernel.
 	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
 
 config S390_GUEST
-bool "s390 guest support for KVM (EXPERIMENTAL)"
+	def_bool y
+	prompt "s390 guest support for KVM (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
 	select VIRTIO
 	select VIRTIO_RING
@@ -578,9 +607,9 @@ bool "s390 guest support for KVM (EXPERIMENTAL)"
 	  the default console.
 
 config SECCOMP
-	bool "Enable seccomp to safely compute untrusted bytecode"
+	def_bool y
+	prompt "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
-	default y
 	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their

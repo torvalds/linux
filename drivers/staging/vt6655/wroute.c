@@ -31,25 +31,13 @@
  *
  */
 
-
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__TCRC_H__)
 #include "tcrc.h"
-#endif
-#if !defined(__RXTX_H__)
 #include "rxtx.h"
-#endif
-#if !defined(__WROUTE_H__)
 #include "wroute.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
+
 /*---------------------  Static Definitions -------------------------*/
 
 /*---------------------  Static Classes  ----------------------------*/
@@ -65,67 +53,67 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*
  * Description:
- *      Relay packet.  Return TRUE if packet is copy to DMA1
+ *      Relay packet.  Return true if packet is copy to DMA1
  *
  * Parameters:
  *  In:
  *      pDevice             -
  *      pbySkbData          - rx packet skb data
  *  Out:
- *      TURE, FALSE
+ *      true, false
  *
- * Return Value: TRUE if packet duplicate; otherwise FALSE
+ * Return Value: true if packet duplicate; otherwise false
  *
  */
-BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeIndex)
+bool ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDataLen, unsigned int uNodeIndex)
 {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSTxDesc        pHeadTD, pLastTD;
-    UINT            cbFrameBodySize;
-    UINT            uMACfragNum;
-    BYTE            byPktTyp;
-    BOOL            bNeedEncryption = FALSE;
+    unsigned int cbFrameBodySize;
+    unsigned int uMACfragNum;
+    unsigned char byPktType;
+    bool bNeedEncryption = false;
     SKeyItem        STempKey;
     PSKeyItem       pTransmitKey = NULL;
-    UINT            cbHeaderSize;
-    UINT            ii;
-    PBYTE           pbyBSSID;
+    unsigned int cbHeaderSize;
+    unsigned int ii;
+    unsigned char *pbyBSSID;
 
 
 
 
     if (AVAIL_TD(pDevice, TYPE_AC0DMA)<=0) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Relay can't allocate TD1..\n");
-        return FALSE;
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Relay can't allocate TD1..\n");
+        return false;
     }
 
     pHeadTD = pDevice->apCurrTD[TYPE_AC0DMA];
 
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)pbySkbData, U_HEADER_LEN);
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (unsigned char *)pbySkbData, ETH_HLEN);
 
-    cbFrameBodySize = uDataLen - U_HEADER_LEN;
+    cbFrameBodySize = uDataLen - ETH_HLEN;
 
-    if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
+    if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
         cbFrameBodySize += 8;
     }
 
-    if (pDevice->bEncryptionEnable == TRUE) {
-        bNeedEncryption = TRUE;
+    if (pDevice->bEncryptionEnable == true) {
+        bNeedEncryption = true;
 
         // get group key
         pbyBSSID = pDevice->abyBroadcastAddr;
-        if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == FALSE) {
+        if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
             pTransmitKey = NULL;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
         } else {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
         }
     }
 
     if (pDevice->bEnableHostWEP) {
-        if (uNodeIndex >= 0) {
+	if (uNodeIndex < MAX_NODE_NUM + 1) {
             pTransmitKey = &STempKey;
             pTransmitKey->byCipherSuite = pMgmt->sNodeDBTable[uNodeIndex].byCipherSuite;
             pTransmitKey->dwKeyIndex = pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex;
@@ -142,16 +130,16 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
     uMACfragNum = cbGetFragCount(pDevice, pTransmitKey, cbFrameBodySize, &pDevice->sTxEthHeader);
 
     if (uMACfragNum > AVAIL_TD(pDevice,TYPE_AC0DMA)) {
-        return FALSE;
+        return false;
     }
-    byPktTyp = (BYTE)pDevice->byPacketType;
+    byPktType = (unsigned char)pDevice->byPacketType;
 
     if (pDevice->bFixRate) {
         if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
             if (pDevice->uConnectionRate >= RATE_11M) {
                 pDevice->wCurrentRate = RATE_11M;
             } else {
-                pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
             }
         } else {
             if ((pDevice->eCurrentPHYType == PHY_TYPE_11A) &&
@@ -161,7 +149,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
                 if (pDevice->uConnectionRate >= RATE_54M)
                     pDevice->wCurrentRate = RATE_54M;
                 else
-                    pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                    pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
             }
         }
     }
@@ -170,9 +158,9 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
     }
 
     if (pDevice->wCurrentRate <= RATE_11M)
-        byPktTyp = PK_TYPE_11B;
+        byPktType = PK_TYPE_11B;
 
-    vGenerateFIFOHeader(pDevice, byPktTyp, pDevice->pbyTmpBuff, bNeedEncryption,
+    vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff, bNeedEncryption,
                         cbFrameBodySize, TYPE_AC0DMA, pHeadTD,
                         &pDevice->sTxEthHeader, pbySkbData, pTransmitKey, uNodeIndex,
                         &uMACfragNum,
@@ -184,7 +172,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
         MACbPSWakeup(pDevice->PortOffset);
     }
 
-    pDevice->bPWBitOn = FALSE;
+    pDevice->bPWBitOn = false;
 
     pLastTD = pHeadTD;
     for (ii = 0; ii < uMACfragNum; ii++) {
@@ -204,7 +192,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
 
     MACvTransmitAC0(pDevice->PortOffset);
 
-    return TRUE;
+    return true;
 }
 
 

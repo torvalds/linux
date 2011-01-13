@@ -29,12 +29,16 @@
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include "p54spi.h"
-#include "p54spi_eeprom.h"
 #include "p54.h"
 
-#include "p54common.h"
+#include "lmac.h"
+
+#ifdef CONFIG_P54_SPI_DEFAULT_EEPROM
+#include "p54spi_eeprom.h"
+#endif /* CONFIG_P54_SPI_DEFAULT_EEPROM */
 
 MODULE_FIRMWARE("3826.arm");
 MODULE_ALIAS("stlc45xx");
@@ -111,15 +115,6 @@ static void p54spi_spi_write(struct p54s_priv *priv, u8 address,
 	spi_sync(priv->spi, &m);
 }
 
-static u16 p54spi_read16(struct p54s_priv *priv, u8 addr)
-{
-	__le16 val;
-
-	p54spi_spi_read(priv, addr, &val, sizeof(val));
-
-	return le16_to_cpu(val);
-}
-
 static u32 p54spi_read32(struct p54s_priv *priv, u8 addr)
 {
 	__le32 val;
@@ -139,37 +134,12 @@ static inline void p54spi_write32(struct p54s_priv *priv, u8 addr, __le32 val)
 	p54spi_spi_write(priv, addr, &val, sizeof(val));
 }
 
-struct p54spi_spi_reg {
-	u16 address;		/* __le16 ? */
-	u16 length;
-	char *name;
-};
-
-static const struct p54spi_spi_reg p54spi_registers_array[] =
-{
-	{ SPI_ADRS_ARM_INTERRUPTS,	32, "ARM_INT     " },
-	{ SPI_ADRS_ARM_INT_EN,		32, "ARM_INT_ENA " },
-	{ SPI_ADRS_HOST_INTERRUPTS,	32, "HOST_INT    " },
-	{ SPI_ADRS_HOST_INT_EN,		32, "HOST_INT_ENA" },
-	{ SPI_ADRS_HOST_INT_ACK,	32, "HOST_INT_ACK" },
-	{ SPI_ADRS_GEN_PURP_1,		32, "GP1_COMM    " },
-	{ SPI_ADRS_GEN_PURP_2,		32, "GP2_COMM    " },
-	{ SPI_ADRS_DEV_CTRL_STAT,	32, "DEV_CTRL_STA" },
-	{ SPI_ADRS_DMA_DATA,		16, "DMA_DATA    " },
-	{ SPI_ADRS_DMA_WRITE_CTRL,	16, "DMA_WR_CTRL " },
-	{ SPI_ADRS_DMA_WRITE_LEN,	16, "DMA_WR_LEN  " },
-	{ SPI_ADRS_DMA_WRITE_BASE,	32, "DMA_WR_BASE " },
-	{ SPI_ADRS_DMA_READ_CTRL,	16, "DMA_RD_CTRL " },
-	{ SPI_ADRS_DMA_READ_LEN,	16, "DMA_RD_LEN  " },
-	{ SPI_ADRS_DMA_WRITE_BASE,	32, "DMA_RD_BASE " }
-};
-
-static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
+static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, u32 bits)
 {
 	int i;
 
 	for (i = 0; i < 2000; i++) {
-		__le32 buffer = p54spi_read32(priv, reg);
+		u32 buffer = p54spi_read32(priv, reg);
 		if ((buffer & bits) == bits)
 			return 1;
 	}
@@ -179,8 +149,7 @@ static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
 static int p54spi_spi_write_dma(struct p54s_priv *priv, __le32 base,
 				const void *buf, size_t len)
 {
-	if (!p54spi_wait_bit(priv, SPI_ADRS_DMA_WRITE_CTRL,
-			     cpu_to_le32(HOST_ALLOWED))) {
+	if (!p54spi_wait_bit(priv, SPI_ADRS_DMA_WRITE_CTRL, HOST_ALLOWED)) {
 		dev_err(&priv->spi->dev, "spi_write_dma not allowed "
 			"to DMA write.\n");
 		return -EAGAIN;
@@ -229,9 +198,13 @@ static int p54spi_request_eeprom(struct ieee80211_hw *dev)
 
 	ret = request_firmware(&eeprom, "3826.eeprom", &priv->spi->dev);
 	if (ret < 0) {
+#ifdef CONFIG_P54_SPI_DEFAULT_EEPROM
 		dev_info(&priv->spi->dev, "loading default eeprom...\n");
 		ret = p54_parse_eeprom(dev, (void *) p54spi_eeprom,
 				       sizeof(p54spi_eeprom));
+#else
+		dev_err(&priv->spi->dev, "Failed to request user eeprom\n");
+#endif /* CONFIG_P54_SPI_DEFAULT_EEPROM */
 	} else {
 		dev_info(&priv->spi->dev, "loading user eeprom...\n");
 		ret = p54_parse_eeprom(dev, (void *) eeprom->data,
@@ -333,7 +306,7 @@ static int p54spi_wakeup(struct p54s_priv *priv)
 
 	/* And wait for the READY interrupt */
 	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
-			     cpu_to_le32(SPI_HOST_INT_READY))) {
+			     SPI_HOST_INT_READY)) {
 		dev_err(&priv->spi->dev, "INT_READY timeout\n");
 		return -EBUSY;
 	}
@@ -426,7 +399,7 @@ static irqreturn_t p54spi_interrupt(int irq, void *config)
 	struct spi_device *spi = config;
 	struct p54s_priv *priv = dev_get_drvdata(&spi->dev);
 
-	queue_work(priv->hw->workqueue, &priv->work);
+	ieee80211_queue_work(priv->hw, &priv->work);
 
 	return IRQ_HANDLED;
 }
@@ -444,7 +417,7 @@ static int p54spi_tx_frame(struct p54s_priv *priv, struct sk_buff *skb)
 		goto out;
 
 	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
-			     cpu_to_le32(SPI_HOST_INT_WR_READY))) {
+			     SPI_HOST_INT_WR_READY)) {
 		dev_err(&priv->spi->dev, "WR_READY timeout\n");
 		ret = -EAGAIN;
 		goto out;
@@ -514,7 +487,7 @@ static void p54spi_op_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	list_add_tail(&di->tx_list, &priv->tx_pending);
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-	queue_work(priv->hw->workqueue, &priv->work);
+	ieee80211_queue_work(priv->hw, &priv->work);
 }
 
 static void p54spi_work(struct work_struct *work)
@@ -635,7 +608,7 @@ static int __devinit p54spi_probe(struct spi_device *spi)
 
 	hw = p54_init_common(sizeof(*priv));
 	if (!hw) {
-		dev_err(&priv->spi->dev, "could not alloc ieee80211_hw");
+		dev_err(&spi->dev, "could not alloc ieee80211_hw");
 		return -ENOMEM;
 	}
 
@@ -713,7 +686,7 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 {
 	struct p54s_priv *priv = dev_get_drvdata(&spi->dev);
 
-	ieee80211_unregister_hw(priv->hw);
+	p54_unregister_common(priv->hw);
 
 	free_irq(gpio_to_irq(p54spi_gpio_irq), spi);
 
@@ -724,7 +697,6 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 	mutex_destroy(&priv->mutex);
 
 	p54_free_common(priv->hw);
-	ieee80211_free_hw(priv->hw);
 
 	return 0;
 }
@@ -732,9 +704,7 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 
 static struct spi_driver p54spi_driver = {
 	.driver = {
-		/* use cx3110x name because board-n800.c uses that for the
-		 * SPI port */
-		.name		= "cx3110x",
+		.name		= "p54spi",
 		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 	},
@@ -767,3 +737,5 @@ module_exit(p54spi_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
+MODULE_ALIAS("spi:cx3110x");
+MODULE_ALIAS("spi:p54spi");

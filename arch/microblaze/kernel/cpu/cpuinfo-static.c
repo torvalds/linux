@@ -18,7 +18,7 @@ static const char family_string[] = CONFIG_XILINX_MICROBLAZE0_FAMILY;
 static const char cpu_ver_string[] = CONFIG_XILINX_MICROBLAZE0_HW_VER;
 
 #define err_printk(x) \
-	early_printk("ERROR: Microblaze " x "- different for kernel and DTS\n");
+	early_printk("ERROR: Microblaze " x "-different for kernel and DTS\n");
 
 void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 {
@@ -72,12 +72,12 @@ void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 	ci->use_icache = fcpu(cpu, "xlnx,use-icache");
 	ci->icache_tagbits = fcpu(cpu, "xlnx,addr-tag-bits");
 	ci->icache_write = fcpu(cpu, "xlnx,allow-icache-wr");
-	ci->icache_line = fcpu(cpu, "xlnx,icache-line-len") << 2;
-	if (!ci->icache_line) {
+	ci->icache_line_length = fcpu(cpu, "xlnx,icache-line-len") << 2;
+	if (!ci->icache_line_length) {
 		if (fcpu(cpu, "xlnx,icache-use-fsl"))
-			ci->icache_line = 4 << 2;
+			ci->icache_line_length = 4 << 2;
 		else
-			ci->icache_line = 1 << 2;
+			ci->icache_line_length = 1 << 2;
 	}
 	ci->icache_size = fcpu(cpu, "i-cache-size");
 	ci->icache_base = fcpu(cpu, "i-cache-baseaddr");
@@ -86,16 +86,17 @@ void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 	ci->use_dcache = fcpu(cpu, "xlnx,use-dcache");
 	ci->dcache_tagbits = fcpu(cpu, "xlnx,dcache-addr-tag");
 	ci->dcache_write = fcpu(cpu, "xlnx,allow-dcache-wr");
-	ci->dcache_line = fcpu(cpu, "xlnx,dcache-line-len") << 2;
-	if (!ci->dcache_line) {
+	ci->dcache_line_length = fcpu(cpu, "xlnx,dcache-line-len") << 2;
+	if (!ci->dcache_line_length) {
 		if (fcpu(cpu, "xlnx,dcache-use-fsl"))
-			ci->dcache_line = 4 << 2;
+			ci->dcache_line_length = 4 << 2;
 		else
-			ci->dcache_line = 1 << 2;
+			ci->dcache_line_length = 1 << 2;
 	}
 	ci->dcache_size = fcpu(cpu, "d-cache-size");
 	ci->dcache_base = fcpu(cpu, "d-cache-baseaddr");
 	ci->dcache_high = fcpu(cpu, "d-cache-highaddr");
+	ci->dcache_wb = fcpu(cpu, "xlnx,dcache-use-writeback");
 
 	ci->use_dopb = fcpu(cpu, "xlnx,d-opb");
 	ci->use_iopb = fcpu(cpu, "xlnx,i-opb");
@@ -118,6 +119,7 @@ void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 	ci->pvr_user2 = fcpu(cpu, "xlnx,pvr-user2");
 
 	ci->mmu = fcpu(cpu, "xlnx,use-mmu");
+	ci->endian = fcpu(cpu, "xlnx,endianness");
 
 	ci->ver_code = 0;
 	ci->fpga_family_code = 0;

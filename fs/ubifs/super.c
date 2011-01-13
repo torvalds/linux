@@ -36,7 +36,6 @@
 #include <linux/mount.h>
 #include <linux/math64.h>
 #include <linux/writeback.h>
-#include <linux/smp_lock.h>
 #include "ubifs.h"
 
 /*
@@ -273,18 +272,26 @@ static struct inode *ubifs_alloc_inode(struct super_block *sb)
 	return &ui->vfs_inode;
 };
 
+static void ubifs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct ubifs_inode *ui = ubifs_inode(inode);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ubifs_inode_slab, ui);
+}
+
 static void ubifs_destroy_inode(struct inode *inode)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	kfree(ui->data);
-	kmem_cache_free(ubifs_inode_slab, inode);
+	call_rcu(&inode->i_rcu, ubifs_i_callback);
 }
 
 /*
  * Note, Linux write-back code calls this without 'i_mutex'.
  */
-static int ubifs_write_inode(struct inode *inode, int wait)
+static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int err = 0;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -318,6 +325,8 @@ static int ubifs_write_inode(struct inode *inode, int wait)
 		if (err)
 			ubifs_err("can't write inode %lu, error %d",
 				  inode->i_ino, err);
+		else
+			err = dbg_check_inode_size(c, inode, ui->ui_size);
 	}
 
 	ui->dirty = 0;
@@ -326,7 +335,7 @@ static int ubifs_write_inode(struct inode *inode, int wait)
 	return err;
 }
 
-static void ubifs_delete_inode(struct inode *inode)
+static void ubifs_evict_inode(struct inode *inode)
 {
 	int err;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -342,9 +351,12 @@ static void ubifs_delete_inode(struct inode *inode)
 
 	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	ubifs_assert(!atomic_read(&inode->i_count));
-	ubifs_assert(inode->i_nlink == 0);
 
 	truncate_inode_pages(&inode->i_data, 0);
+
+	if (inode->i_nlink)
+		goto done;
+
 	if (is_bad_inode(inode))
 		goto out;
 
@@ -366,7 +378,8 @@ out:
 		c->nospace = c->nospace_rp = 0;
 		smp_wmb();
 	}
-	clear_inode(inode);
+done:
+	end_writeback(inode);
 }
 
 static void ubifs_dirty_inode(struct inode *inode)
@@ -438,12 +451,6 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 {
 	int i, err;
 	struct ubifs_info *c = sb->s_fs_info;
-	struct writeback_control wbc = {
-		.sync_mode   = WB_SYNC_ALL,
-		.range_start = 0,
-		.range_end   = LLONG_MAX,
-		.nr_to_write = LONG_MAX,
-	};
 
 	/*
 	 * Zero @wait is just an advisory thing to help the file system shove
@@ -452,17 +459,6 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	 */
 	if (!wait)
 		return 0;
-
-	/*
-	 * VFS calls '->sync_fs()' before synchronizing all dirty inodes and
-	 * pages, so synchronize them first, then commit the journal. Strictly
-	 * speaking, it is not necessary to commit the journal here,
-	 * synchronizing write-buffers would be enough. But committing makes
-	 * UBIFS free space predictions much more accurate, so we want to let
-	 * the user be able to get more accurate results of 'statfs()' after
-	 * they synchronize the file system.
-	 */
-	generic_sync_sb_inodes(sb, &wbc);
 
 	/*
 	 * Synchronize write buffers, because 'ubifs_run_commit()' does not
@@ -474,6 +470,13 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 			return err;
 	}
 
+	/*
+	 * Strictly speaking, it is not necessary to commit the journal here,
+	 * synchronizing write-buffers would be enough. But committing makes
+	 * UBIFS free space predictions much more accurate, so we want to let
+	 * the user be able to get more accurate results of 'statfs()' after
+	 * they synchronize the file system.
+	 */
 	err = ubifs_run_commit(c);
 	if (err)
 		return err;
@@ -797,7 +800,7 @@ static int alloc_wbufs(struct ubifs_info *c)
 	 * does not need to be synchronized by timer.
 	 */
 	c->jheads[GCHD].wbuf.dtype = UBI_LONGTERM;
-	c->jheads[GCHD].wbuf.softlimit = ktime_set(0, 0);
+	c->jheads[GCHD].wbuf.no_timer = 1;
 
 	return 0;
 }
@@ -986,7 +989,7 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 		switch (token) {
 		/*
 		 * %Opt_fast_unmount and %Opt_norm_unmount options are ignored.
-		 * We accepte them in order to be backware-compatible. But this
+		 * We accept them in order to be backward-compatible. But this
 		 * should be removed at some point.
 		 */
 		case Opt_fast_unmount:
@@ -1142,11 +1145,11 @@ static int check_free_space(struct ubifs_info *c)
  */
 static int mount_ubifs(struct ubifs_info *c)
 {
-	struct super_block *sb = c->vfs_sb;
-	int err, mounted_read_only = (sb->s_flags & MS_RDONLY);
+	int err;
 	long long x;
 	size_t sz;
 
+	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
 	err = init_constants_early(c);
 	if (err)
 		return err;
@@ -1159,7 +1162,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_free;
 
-	if (c->empty && (mounted_read_only || c->ro_media)) {
+	if (c->empty && (c->ro_mount || c->ro_media)) {
 		/*
 		 * This UBI volume is empty, and read-only, or the file system
 		 * is mounted read-only - we cannot format it.
@@ -1170,7 +1173,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_free;
 	}
 
-	if (c->ro_media && !mounted_read_only) {
+	if (c->ro_media && !c->ro_mount) {
 		ubifs_err("cannot mount read-write - read-only media");
 		err = -EROFS;
 		goto out_free;
@@ -1190,7 +1193,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (!c->sbuf)
 		goto out_free;
 
-	if (!mounted_read_only) {
+	if (!c->ro_mount) {
 		c->ileb_buf = vmalloc(c->leb_size);
 		if (!c->ileb_buf)
 			goto out_free;
@@ -1233,7 +1236,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	}
 
 	sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num, c->vi.vol_id);
-	if (!mounted_read_only) {
+	if (!c->ro_mount) {
 		err = alloc_wbufs(c);
 		if (err)
 			goto out_cbuf;
@@ -1259,12 +1262,12 @@ static int mount_ubifs(struct ubifs_info *c)
 	if ((c->mst_node->flags & cpu_to_le32(UBIFS_MST_DIRTY)) != 0) {
 		ubifs_msg("recovery needed");
 		c->need_recovery = 1;
-		if (!mounted_read_only) {
+		if (!c->ro_mount) {
 			err = ubifs_recover_inl_heads(c, c->sbuf);
 			if (err)
 				goto out_master;
 		}
-	} else if (!mounted_read_only) {
+	} else if (!c->ro_mount) {
 		/*
 		 * Set the "dirty" flag so that if we reboot uncleanly we
 		 * will notice this immediately on the next mount.
@@ -1275,7 +1278,7 @@ static int mount_ubifs(struct ubifs_info *c)
 			goto out_master;
 	}
 
-	err = ubifs_lpt_init(c, 1, !mounted_read_only);
+	err = ubifs_lpt_init(c, 1, !c->ro_mount);
 	if (err)
 		goto out_lpt;
 
@@ -1287,11 +1290,14 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_journal;
 
-	err = ubifs_mount_orphans(c, c->need_recovery, mounted_read_only);
+	/* Calculate 'min_idx_lebs' after journal replay */
+	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+
+	err = ubifs_mount_orphans(c, c->need_recovery, c->ro_mount);
 	if (err)
 		goto out_orphans;
 
-	if (!mounted_read_only) {
+	if (!c->ro_mount) {
 		int lnum;
 
 		err = check_free_space(c);
@@ -1313,6 +1319,8 @@ static int mount_ubifs(struct ubifs_info *c)
 			if (err)
 				goto out_orphans;
 			err = ubifs_rcvry_gc_commit(c);
+			if (err)
+				goto out_orphans;
 		} else {
 			err = take_gc_lnum(c);
 			if (err)
@@ -1324,7 +1332,7 @@ static int mount_ubifs(struct ubifs_info *c)
 			 */
 			err = ubifs_leb_unmap(c, c->gc_lnum);
 			if (err)
-				return err;
+				goto out_orphans;
 		}
 
 		err = dbg_check_lprops(c);
@@ -1351,7 +1359,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	spin_unlock(&ubifs_infos_lock);
 
 	if (c->need_recovery) {
-		if (mounted_read_only)
+		if (c->ro_mount)
 			ubifs_msg("recovery deferred");
 		else {
 			c->need_recovery = 0;
@@ -1378,7 +1386,7 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
 		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
-	if (mounted_read_only)
+	if (c->ro_mount)
 		ubifs_msg("mounted read-only");
 	x = (long long)c->main_lebs * c->leb_size;
 	ubifs_msg("file system size:   %lld bytes (%lld KiB, %lld MiB, %d "
@@ -1399,12 +1407,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->leb_size, c->leb_size >> 10);
 	dbg_msg("data journal heads:  %d",
 		c->jhead_cnt - NONDATA_JHEADS_CNT);
-	dbg_msg("UUID:                %02X%02X%02X%02X-%02X%02X"
-	       "-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
-	       c->uuid[0], c->uuid[1], c->uuid[2], c->uuid[3],
-	       c->uuid[4], c->uuid[5], c->uuid[6], c->uuid[7],
-	       c->uuid[8], c->uuid[9], c->uuid[10], c->uuid[11],
-	       c->uuid[12], c->uuid[13], c->uuid[14], c->uuid[15]);
+	dbg_msg("UUID:                %pUB", c->uuid);
 	dbg_msg("big_lpt              %d", c->big_lpt);
 	dbg_msg("log LEBs:            %d (%d - %d)",
 		c->log_lebs, UBIFS_LOG_LNUM, c->log_last);
@@ -1645,7 +1648,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	}
 
 	dbg_gen("re-mounted read-write");
-	c->vfs_sb->s_flags &= ~MS_RDONLY;
+	c->ro_mount = 0;
 	c->remounting_rw = 0;
 	c->always_chk_crc = 0;
 	err = dbg_check_space_info(c);
@@ -1681,7 +1684,7 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	int i, err;
 
 	ubifs_assert(!c->need_recovery);
-	ubifs_assert(!(c->vfs_sb->s_flags & MS_RDONLY));
+	ubifs_assert(!c->ro_mount);
 
 	mutex_lock(&c->umount_mutex);
 	if (c->bgt) {
@@ -1691,10 +1694,8 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 
 	dbg_save_space_info(c);
 
-	for (i = 0; i < c->jhead_cnt; i++) {
+	for (i = 0; i < c->jhead_cnt; i++)
 		ubifs_wbuf_sync(&c->jheads[i].wbuf);
-		hrtimer_cancel(&c->jheads[i].wbuf.timer);
-	}
 
 	c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
 	c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
@@ -1709,6 +1710,7 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	vfree(c->ileb_buf);
 	c->ileb_buf = NULL;
 	ubifs_lpt_free(c, 1);
+	c->ro_mount = 1;
 	err = dbg_check_space_info(c);
 	if (err)
 		ubifs_ro_mode(c, err);
@@ -1722,8 +1724,6 @@ static void ubifs_put_super(struct super_block *sb)
 
 	ubifs_msg("un-mount UBI device %d, volume %d", c->vi.ubi_num,
 		  c->vi.vol_id);
-
-	lock_kernel();
 
 	/*
 	 * The following asserts are only valid if there has not been a failure
@@ -1742,7 +1742,7 @@ static void ubifs_put_super(struct super_block *sb)
 	 * the mutex is locked.
 	 */
 	mutex_lock(&c->umount_mutex);
-	if (!(c->vfs_sb->s_flags & MS_RDONLY)) {
+	if (!c->ro_mount) {
 		/*
 		 * First of all kill the background thread to make sure it does
 		 * not interfere with un-mounting and freeing resources.
@@ -1752,25 +1752,22 @@ static void ubifs_put_super(struct super_block *sb)
 			c->bgt = NULL;
 		}
 
-		/* Synchronize write-buffers */
-		if (c->jheads)
-			for (i = 0; i < c->jhead_cnt; i++) {
-				ubifs_wbuf_sync(&c->jheads[i].wbuf);
-				hrtimer_cancel(&c->jheads[i].wbuf.timer);
-			}
-
 		/*
-		 * On fatal errors c->ro_media is set to 1, in which case we do
+		 * On fatal errors c->ro_error is set to 1, in which case we do
 		 * not write the master node.
 		 */
-		if (!c->ro_media) {
+		if (!c->ro_error) {
+			int err;
+
+			/* Synchronize write-buffers */
+			for (i = 0; i < c->jhead_cnt; i++)
+				ubifs_wbuf_sync(&c->jheads[i].wbuf);
+
 			/*
 			 * We are being cleanly unmounted which means the
 			 * orphans were killed - indicate this in the master
 			 * node. Also save the reserved GC LEB number.
 			 */
-			int err;
-
 			c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
 			c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
 			c->mst_node->gc_lnum = cpu_to_le32(c->gc_lnum);
@@ -1783,6 +1780,10 @@ static void ubifs_put_super(struct super_block *sb)
 				 */
 				ubifs_err("failed to write master node, "
 					  "error %d", err);
+		} else {
+			for (i = 0; i < c->jhead_cnt; i++)
+				/* Make sure write-buffer timers are canceled */
+				hrtimer_cancel(&c->jheads[i].wbuf.timer);
 		}
 	}
 
@@ -1791,8 +1792,6 @@ static void ubifs_put_super(struct super_block *sb)
 	ubi_close_volume(c->ubi);
 	mutex_unlock(&c->umount_mutex);
 	kfree(c);
-
-	unlock_kernel();
 }
 
 static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
@@ -1808,22 +1807,21 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		return err;
 	}
 
-	lock_kernel();
-	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
+	if (c->ro_mount && !(*flags & MS_RDONLY)) {
+		if (c->ro_error) {
+			ubifs_msg("cannot re-mount R/W due to prior errors");
+			return -EROFS;
+		}
 		if (c->ro_media) {
-			ubifs_msg("cannot re-mount due to prior errors");
-			unlock_kernel();
+			ubifs_msg("cannot re-mount R/W - UBI volume is R/O");
 			return -EROFS;
 		}
 		err = ubifs_remount_rw(c);
-		if (err) {
-			unlock_kernel();
+		if (err)
 			return err;
-		}
-	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
-		if (c->ro_media) {
-			ubifs_msg("cannot re-mount due to prior errors");
-			unlock_kernel();
+	} else if (!c->ro_mount && (*flags & MS_RDONLY)) {
+		if (c->ro_error) {
+			ubifs_msg("cannot re-mount R/O due to prior errors");
 			return -EROFS;
 		}
 		ubifs_remount_ro(c);
@@ -1838,7 +1836,6 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	}
 
 	ubifs_assert(c->lst.taken_empty_lebs > 0);
-	unlock_kernel();
 	return 0;
 }
 
@@ -1847,7 +1844,7 @@ const struct super_operations ubifs_super_operations = {
 	.destroy_inode = ubifs_destroy_inode,
 	.put_super     = ubifs_put_super,
 	.write_inode   = ubifs_write_inode,
-	.delete_inode  = ubifs_delete_inode,
+	.evict_inode   = ubifs_evict_inode,
 	.statfs        = ubifs_statfs,
 	.dirty_inode   = ubifs_dirty_inode,
 	.remount_fs    = ubifs_remount_fs,
@@ -1860,22 +1857,32 @@ const struct super_operations ubifs_super_operations = {
  * @name: UBI volume name
  * @mode: UBI volume open mode
  *
- * There are several ways to specify UBI volumes when mounting UBIFS:
- * o ubiX_Y    - UBI device number X, volume Y;
- * o ubiY      - UBI device number 0, volume Y;
+ * The primary method of mounting UBIFS is by specifying the UBI volume
+ * character device node path. However, UBIFS may also be mounted withoug any
+ * character device node using one of the following methods:
+ *
+ * o ubiX_Y    - mount UBI device number X, volume Y;
+ * o ubiY      - mount UBI device number 0, volume Y;
  * o ubiX:NAME - mount UBI device X, volume with name NAME;
  * o ubi:NAME  - mount UBI device 0, volume with name NAME.
  *
  * Alternative '!' separator may be used instead of ':' (because some shells
  * like busybox may interpret ':' as an NFS host name separator). This function
- * returns ubi volume object in case of success and a negative error code in
- * case of failure.
+ * returns UBI volume description object in case of success and a negative
+ * error code in case of failure.
  */
 static struct ubi_volume_desc *open_ubi(const char *name, int mode)
 {
+	struct ubi_volume_desc *ubi;
 	int dev, vol;
 	char *endptr;
 
+	/* First, try to open using the device node path method */
+	ubi = ubi_open_volume_path(name, mode);
+	if (!IS_ERR(ubi))
+		return ubi;
+
+	/* Try the "nodev" method */
 	if (name[0] != 'u' || name[1] != 'b' || name[2] != 'i')
 		return ERR_PTR(-EINVAL);
 
@@ -1970,12 +1977,14 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	 *
 	 * Read-ahead will be disabled because @c->bdi.ra_pages is 0.
 	 */
+	c->bdi.name = "ubifs",
 	c->bdi.capabilities = BDI_CAP_MAP_COPY;
 	c->bdi.unplug_io_fn = default_unplug_io_fn;
 	err  = bdi_init(&c->bdi);
 	if (err)
 		goto out_close;
-	err = bdi_register(&c->bdi, NULL, "ubifs");
+	err = bdi_register(&c->bdi, NULL, "ubifs_%d_%d",
+			   c->vi.ubi_num, c->vi.vol_id);
 	if (err)
 		goto out_bdi;
 
@@ -1983,6 +1992,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		goto out_bdi;
 
+	sb->s_bdi = &c->bdi;
 	sb->s_fs_info = c;
 	sb->s_magic = UBIFS_SUPER_MAGIC;
 	sb->s_blocksize = UBIFS_BLOCK_SIZE;
@@ -2036,8 +2046,8 @@ static int sb_test(struct super_block *sb, void *data)
 	return c->vi.cdev == *dev;
 }
 
-static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
-			const char *name, void *data, struct vfsmount *mnt)
+static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
+			const char *name, void *data)
 {
 	struct ubi_volume_desc *ubi;
 	struct ubi_volume_info vi;
@@ -2053,9 +2063,9 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 	 */
 	ubi = open_ubi(name, UBI_READONLY);
 	if (IS_ERR(ubi)) {
-		ubifs_err("cannot open \"%s\", error %d",
-			  name, (int)PTR_ERR(ubi));
-		return PTR_ERR(ubi);
+		dbg_err("cannot open \"%s\", error %d",
+			name, (int)PTR_ERR(ubi));
+		return ERR_CAST(ubi);
 	}
 	ubi_get_volume_info(ubi, &vi);
 
@@ -2068,9 +2078,11 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	if (sb->s_root) {
+		struct ubifs_info *c1 = sb->s_fs_info;
+
 		/* A new mount point for already mounted UBIFS */
 		dbg_gen("this ubi volume is already mounted");
-		if ((flags ^ sb->s_flags) & MS_RDONLY) {
+		if (!!(flags & MS_RDONLY) != c1->ro_mount) {
 			err = -EBUSY;
 			goto out_deact;
 		}
@@ -2091,20 +2103,19 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 	/* 'fill_super()' opens ubi again so we must close it here */
 	ubi_close_volume(ubi);
 
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 
 out_deact:
 	deactivate_locked_super(sb);
 out_close:
 	ubi_close_volume(ubi);
-	return err;
+	return ERR_PTR(err);
 }
 
 static struct file_system_type ubifs_fs_type = {
 	.name    = "ubifs",
 	.owner   = THIS_MODULE,
-	.get_sb  = ubifs_get_sb,
+	.mount   = ubifs_mount,
 	.kill_sb = kill_anon_super,
 };
 

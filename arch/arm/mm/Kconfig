@@ -1,9 +1,5 @@
 comment "Processor Type"
 
-config CPU_32
-	bool
-	default y
-
 # Select CPU types depending on the architecture selected.  This selects
 # which CPUs we support in the kernel image, and the compiler instruction
 # optimiser behaviour.
@@ -17,7 +13,7 @@ config CPU_ARM610
 	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	help
 	  The ARM610 is the successor to the ARM3 processor
 	  and was produced by VLSI Technology Inc.
@@ -31,7 +27,7 @@ config CPU_ARM7TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
@@ -49,7 +45,7 @@ config CPU_ARM710
 	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
 	  designed by Advanced RISC Machines Ltd. The ARM710 is the
@@ -64,7 +60,7 @@ config CPU_ARM720T
 	bool "Support ARM720T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -83,7 +79,7 @@ config CPU_ARM740T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V3	# although the core is v4t
 	select CPU_CP15_MPU
 	help
@@ -100,7 +96,7 @@ config CPU_ARM9TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM9 processor core
@@ -114,7 +110,7 @@ config CPU_ARM920T
 	bool "Support ARM920T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -122,10 +118,7 @@ config CPU_ARM920T
 	select CPU_TLB_V4WBI if MMU
 	help
 	  The ARM920T is licensed to be produced by numerous vendors,
-	  and is used in the Maverick EP9312 and the Samsung S3C2410.
-
-	  More information on the Maverick EP9312 at
-	  <http://linuxdevices.com/products/PD2382866068.html>.
+	  and is used in the Cirrus EP93xx and the Samsung S3C2410.
 
 	  Say Y if you want support for the ARM920T processor.
 	  Otherwise, say N.
@@ -135,7 +128,7 @@ config CPU_ARM922T
 	bool "Support ARM922T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -154,7 +147,7 @@ config CPU_ARM925T
  	bool "Support ARM925T processor" if ARCH_OMAP1
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -173,7 +166,7 @@ config CPU_ARM926T
 	bool "Support ARM926T processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
@@ -191,7 +184,7 @@ config CPU_FA526
 	bool
 	select CPU_32v4
 	select CPU_ABRT_EV4
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_CACHE_FA
@@ -210,7 +203,7 @@ config CPU_ARM940T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -228,7 +221,7 @@ config CPU_ARM946E
 	depends on !MMU
 	select CPU_32v5
 	select CPU_ABRT_NOMMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -244,7 +237,7 @@ config CPU_ARM1020
 	bool "Support ARM1020T (rev 0) processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -262,7 +255,7 @@ config CPU_ARM1020E
 	bool "Support ARM1020E processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -275,7 +268,7 @@ config CPU_ARM1022
 	bool "Support ARM1022E processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
@@ -293,7 +286,7 @@ config CPU_ARM1026
 	bool "Support ARM1026EJ-S processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
@@ -311,7 +304,7 @@ config CPU_SA110
 	select CPU_32v3 if ARCH_RPC
 	select CPU_32v4 if !ARCH_RPC
 	select CPU_ABRT_EV4
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -331,7 +324,7 @@ config CPU_SA1100
 	bool
 	select CPU_32v4
 	select CPU_ABRT_EV4
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -342,7 +335,7 @@ config CPU_XSCALE
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -352,7 +345,7 @@ config CPU_XSC3
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -363,7 +356,7 @@ config CPU_MOHAWK
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -374,7 +367,7 @@ config CPU_FEROCEON
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_FEROCEON if MMU
@@ -389,12 +382,18 @@ config CPU_FEROCEON_OLD_ID
 	  for which the CPU ID is equal to the ARM926 ID.
 	  Relevant for Feroceon-1850 and early Feroceon-2850.
 
+# Marvell PJ4
+config CPU_PJ4
+	bool
+	select CPU_V7
+	select ARM_THUMBEE
+
 # ARMv6
 config CPU_V6
-	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
+	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX || ARCH_DOVE
 	select CPU_32v6
 	select CPU_ABRT_EV6
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_V6
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
@@ -405,8 +404,8 @@ config CPU_V6
 # ARMv6k
 config CPU_32v6K
 	bool "Support ARM V6K processor extensions" if !SMP
-	depends on CPU_V6
-	default y if SMP && !ARCH_MX3
+	depends on CPU_V6 || CPU_V7
+	default y if SMP && !(ARCH_MX3 || ARCH_OMAP2)
 	help
 	  Say Y here if your ARMv6 processor supports the 'K' extension.
 	  This enables the kernel to use some instructions not present
@@ -417,10 +416,10 @@ config CPU_32v6K
 # ARMv7
 config CPU_V7
 	bool "Support ARM V7 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
-	select CPU_32v6K
+	select CPU_32v6K if !ARCH_OMAP2
 	select CPU_32v7
 	select CPU_ABRT_EV7
-	select CPU_PABRT_IFAR
+	select CPU_PABRT_V7
 	select CPU_CACHE_V7
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
@@ -482,10 +481,13 @@ config CPU_ABRT_EV6
 config CPU_ABRT_EV7
 	bool
 
-config CPU_PABRT_IFAR
+config CPU_PABRT_LEGACY
 	bool
 
-config CPU_PABRT_NOIFAR
+config CPU_PABRT_V6
+	bool
+
+config CPU_PABRT_V7
 	bool
 
 # The cache model
@@ -576,6 +578,8 @@ config CPU_TLB_V6
 config CPU_TLB_V7
 	bool
 
+config VERIFY_PERMISSION_FAULT
+	bool
 endif
 
 config CPU_HAS_ASID
@@ -600,6 +604,14 @@ config CPU_CP15_MPU
 	select CPU_CP15
 	help
 	  Processor has the CP15 register, which has MPU related registers.
+
+config CPU_USE_DOMAINS
+	bool
+	depends on MMU
+	default y if !CPU_32v6K
+	help
+	  This option enables or disables the use of domain switching
+	  via the set_fs() function.
 
 #
 # CPU supports 36-bit I/O
@@ -629,6 +641,33 @@ config ARM_THUMBEE
 	help
 	  Say Y here if you have a CPU with the ThumbEE extension and code to
 	  make use of it. Say N for code that can run on CPUs without ThumbEE.
+
+config SWP_EMULATE
+	bool "Emulate SWP/SWPB instructions"
+	depends on CPU_V7
+	select HAVE_PROC_CPU if PROC_FS
+	default y if SMP
+	help
+	  ARMv6 architecture deprecates use of the SWP/SWPB instructions.
+	  ARMv7 multiprocessing extensions introduce the ability to disable
+	  these instructions, triggering an undefined instruction exception
+	  when executed. Say Y here to enable software emulation of these
+	  instructions for userspace (not kernel) using LDREX/STREX.
+	  Also creates /proc/cpu/swp_emulation for statistics.
+
+	  In some older versions of glibc [<=2.8] SWP is used during futex
+	  trylock() operations with the assumption that the code will not
+	  be preempted. This invalid assumption may be more likely to fail
+	  with SWP emulation enabled, leading to deadlock of the user
+	  application.
+
+	  NOTE: when accessing uncached shared regions, LDREX/STREX rely
+	  on an external transaction monitoring block called a global
+	  monitor to maintain update atomicity. If your system does not
+	  implement a global monitor, this option can cause programs that
+	  perform SWP operations to uncached memory to deadlock.
+
+	  If unsure, say Y.
 
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
@@ -719,17 +758,6 @@ config TLS_REG_EMUL
 	  a few prototypes like that in existence) and therefore access to
 	  that required register must be emulated.
 
-config HAS_TLS_REG
-	bool
-	depends on !TLS_REG_EMUL
-	default y if SMP || CPU_32v7
-	help
-	  This selects support for the CP15 thread register.
-	  It is defined to be available on some ARMv6 processors (including
-	  all SMP capable ARMv6's) or later processors.  User space may
-	  assume directly accessing that register and always obtain the
-	  expected value only on ARMv7 and above.
-
 config NEEDS_SYSCALL_FOR_CMPXCHG
 	bool
 	help
@@ -737,8 +765,33 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 	  Forget about fast user space cmpxchg support.
 	  It is just not possible.
 
+config DMA_CACHE_RWFO
+	bool "Enable read/write for ownership DMA cache maintenance"
+	depends on CPU_V6 && SMP
+	default y
+	help
+	  The Snoop Control Unit on ARM11MPCore does not detect the
+	  cache maintenance operations and the dma_{map,unmap}_area()
+	  functions may leave stale cache entries on other CPUs. By
+	  enabling this option, Read or Write For Ownership in the ARMv6
+	  DMA cache maintenance functions is performed. These LDR/STR
+	  instructions change the cache line state to shared or modified
+	  so that the cache operation has the desired effect.
+
+	  Note that the workaround is only valid on processors that do
+	  not perform speculative loads into the D-cache. For such
+	  processors, if cache maintenance operations are not broadcast
+	  in hardware, other workarounds are needed (e.g. cache
+	  maintenance broadcasting in software via FIQ).
+
 config OUTER_CACHE
 	bool
+
+config OUTER_CACHE_SYNC
+	bool
+	help
+	  The outer cache has a outer_cache_fns.sync function pointer
+	  that can be used to drain the write buffer of the outer cache.
 
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
@@ -758,11 +811,31 @@ config CACHE_FEROCEON_L2_WRITETHROUGH
 config CACHE_L2X0
 	bool "Enable the L2x0 outer cache controller"
 	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176 || \
-		   REALVIEW_EB_A9MP || ARCH_MX35 || ARCH_MX31 || MACH_REALVIEW_PBX
+		   REALVIEW_EB_A9MP || ARCH_MX35 || ARCH_MX31 || MACH_REALVIEW_PBX || \
+		   ARCH_NOMADIK || ARCH_OMAP4 || ARCH_S5PV310 || ARCH_TEGRA || \
+		   ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || ARCH_SHMOBILE
+	default y
+	select OUTER_CACHE
+	select OUTER_CACHE_SYNC
+	help
+	  This option enables the L2x0 PrimeCell.
+
+config CACHE_PL310
+	bool
+	depends on CACHE_L2X0
+	default y if CPU_V7 && !CPU_V6
+	help
+	  This option enables optimisations for the PL310 cache
+	  controller.
+
+config CACHE_TAUROS2
+	bool "Enable the Tauros2 L2 cache controller"
+	depends on (ARCH_DOVE || ARCH_MMP || CPU_PJ4)
 	default y
 	select OUTER_CACHE
 	help
-	  This option enables the L2x0 PrimeCell.
+	  This option enables the Tauros2 L2 cache controller (as
+	  found on PJ1/PJ4).
 
 config CACHE_XSC3L2
 	bool "Enable the L2 cache on XScale3"
@@ -771,3 +844,35 @@ config CACHE_XSC3L2
 	select OUTER_CACHE
 	help
 	  This option enables the L2 cache on XScale3.
+
+config ARM_L1_CACHE_SHIFT
+	int
+	default 6 if ARM_L1_CACHE_SHIFT_6
+	default 5
+
+config ARM_DMA_MEM_BUFFERABLE
+	bool "Use non-cacheable memory for DMA" if CPU_V6 && !CPU_V7
+	depends on !(MACH_REALVIEW_PB1176 || REALVIEW_EB_ARM11MP || \
+		     MACH_REALVIEW_PB11MP)
+	default y if CPU_V6 || CPU_V7
+	help
+	  Historically, the kernel has used strongly ordered mappings to
+	  provide DMA coherent memory.  With the advent of ARMv7, mapping
+	  memory with differing types results in unpredictable behaviour,
+	  so on these CPUs, this option is forced on.
+
+	  Multiple mappings with differing attributes is also unpredictable
+	  on ARMv6 CPUs, but since they do not have aggressive speculative
+	  prefetch, no harm appears to occur.
+
+	  However, drivers may be missing the necessary barriers for ARMv6,
+	  and therefore turning this on may result in unpredictable driver
+	  behaviour.  Therefore, we offer this as an option.
+
+	  You are recommended say 'Y' here and debug any affected drivers.
+
+config ARCH_HAS_BARRIERS
+	bool
+	help
+	  This option allows the use of custom mandatory barriers
+	  included via the mach/barriers.h file.

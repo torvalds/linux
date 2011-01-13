@@ -48,9 +48,7 @@ typedef struct kcapi_carddef {
 #include <linux/list.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
-
-#define	KCI_CONTRUP	0	/* arg: struct capi_profile */
-#define	KCI_CONTRDOWN	1	/* arg: NULL */
+#include <linux/notifier.h>
 
 struct capi20_appl {
 	u16 applid;
@@ -67,11 +65,6 @@ struct capi20_appl {
 	struct sk_buff_head recv_queue;
 	struct work_struct recv_work;
 	int release_in_progress;
-
-	/* ugly hack to allow for notification of added/removed
-	 * controllers. The Right Way (tm) is known. XXX
-	 */
-	void (*callback) (unsigned int cmd, __u32 contr, void *data);
 };
 
 u16 capi20_isinstalled(void);
@@ -84,11 +77,11 @@ u16 capi20_get_serial(u32 contr, u8 serial[CAPI_SERIAL_LEN]);
 u16 capi20_get_profile(u32 contr, struct capi_profile *profp);
 int capi20_manufacturer(unsigned int cmd, void __user *data);
 
-/* temporary hack XXX */
-void capi20_set_callback(struct capi20_appl *ap, 
-			 void (*callback) (unsigned int cmd, __u32 contr, void *data));
+#define CAPICTR_UP			0
+#define CAPICTR_DOWN			1
 
-
+int register_capictr_notifier(struct notifier_block *nb);
+int unregister_capictr_notifier(struct notifier_block *nb);
 
 #define CAPI_NOERROR                      0x0000
 

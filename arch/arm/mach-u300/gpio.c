@@ -25,11 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 
-/* Need access to SYSCON registers for PADmuxing */
-#include <mach/syscon.h>
-
-#include "padmux.h"
-
 /* Reference to GPIO block clock */
 static struct clk *clk;
 
@@ -286,6 +281,16 @@ int gpio_unregister_callback(unsigned gpio)
 }
 EXPORT_SYMBOL(gpio_unregister_callback);
 
+/* Non-zero means valid */
+int gpio_is_valid(int number)
+{
+	if (number >= 0 &&
+	    number < (U300_GPIO_NUM_PORTS * U300_GPIO_PINS_PER_PORT))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(gpio_is_valid);
+
 int gpio_request(unsigned gpio, const char *label)
 {
 	if (gpio_pin[gpio].users)
@@ -518,7 +523,7 @@ static void gpio_set_initial_values(void)
 
 	/*
 	 * Put all pins that are set to either 'GPIO_OUT' or 'GPIO_NOT_USED'
-	 * to output and 'GPIO_IN' to input for each port. And initalize
+	 * to output and 'GPIO_IN' to input for each port. And initialize
 	 * default value on outputs.
 	 */
 	for (i = 0; i < U300_GPIO_NUM_PORTS; i++) {
@@ -541,7 +546,7 @@ static void gpio_set_initial_values(void)
 	for (i = 0; i < U300_GPIO_MAX; i++) {
 		val = 0;
 		for (j = 0; j < 8; j++)
-			val |= (u32)((u300_gpio_config[i][j].pull_up == DISABLE_PULL_UP)) << j;
+			val |= (u32)((u300_gpio_config[i][j].pull_up == DISABLE_PULL_UP) << j);
 		local_irq_save(flags);
 		writel(val, virtbase + U300_GPIO_PXPER + i * U300_GPIO_PORTX_SPACING);
 		local_irq_restore(flags);
@@ -604,14 +609,6 @@ static int __init gpio_probe(struct platform_device *pdev)
 	       ((val & 0x0000FE00) >> 9),
 	       ((val & 0x000001FC) >> 2));
 	writel(U300_GPIO_CR_BLOCK_CLKRQ_ENABLE, virtbase + U300_GPIO_CR);
-#endif
-
-	/* Set up some padmuxing here */
-#ifdef CONFIG_MMC
-	pmx_set_mission_mode_mmc();
-#endif
-#ifdef CONFIG_SPI_PL022
-	pmx_set_mission_mode_spi();
 #endif
 
 	gpio_set_initial_values();

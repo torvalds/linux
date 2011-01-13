@@ -13,6 +13,7 @@
 #include <linux/circ_buf.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/udp.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
@@ -20,7 +21,7 @@
 
 static unsigned rxrpc_ack_defer = 1;
 
-static const char *rxrpc_acks[] = {
+static const char *const rxrpc_acks[] = {
 	"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY", "IDL",
 	"-?-"
 };
@@ -40,7 +41,7 @@ static const s8 rxrpc_ack_priority[] = {
 /*
  * propose an ACK be sent
  */
-void __rxrpc_propose_ACK(struct rxrpc_call *call, uint8_t ack_reason,
+void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 			 __be32 serial, bool immediate)
 {
 	unsigned long expiry;
@@ -120,7 +121,7 @@ cancel_timer:
 /*
  * propose an ACK be sent, locking the call structure
  */
-void rxrpc_propose_ACK(struct rxrpc_call *call, uint8_t ack_reason,
+void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		       __be32 serial, bool immediate)
 {
 	s8 prior = rxrpc_ack_priority[ack_reason];
@@ -243,6 +244,9 @@ static void rxrpc_resend_timer(struct rxrpc_call *call)
 
 	_enter("%d,%d,%d",
 	       call->acks_tail, call->acks_unacked, call->acks_head);
+
+	if (call->state >= RXRPC_CALL_COMPLETE)
+		return;
 
 	resend = 0;
 	resend_at = 0;
@@ -520,7 +524,7 @@ static void rxrpc_zap_tx_window(struct rxrpc_call *call)
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	unsigned long _skb, *acks_window;
-	uint8_t winsz = call->acks_winsz;
+	u8 winsz = call->acks_winsz;
 	int tail;
 
 	acks_window = call->acks_window;

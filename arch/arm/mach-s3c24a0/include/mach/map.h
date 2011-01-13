@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c24a0/include/mach/map.h
  *
- * Copyright 2003,2007  Simtec Electronics
+ * Copyright 2003-2007  Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -81,5 +81,6 @@
 
 #define S3C_PA_UART		S3C24A0_PA_UART
 #define S3C_PA_IIC		S3C24A0_PA_IIC
+#define S3C_PA_NAND		S3C24XX_PA_NAND
 
 #endif /* __ASM_ARCH_24A0_MAP_H */

@@ -253,11 +253,11 @@ ssize_t romfs_dev_strnlen(struct super_block *sb,
 
 #ifdef CONFIG_ROMFS_ON_MTD
 	if (sb->s_mtd)
-		return romfs_mtd_strnlen(sb, pos, limit);
+		return romfs_mtd_strnlen(sb, pos, maxlen);
 #endif
 #ifdef CONFIG_ROMFS_ON_BLOCK
 	if (sb->s_bdev)
-		return romfs_blk_strnlen(sb, pos, limit);
+		return romfs_blk_strnlen(sb, pos, maxlen);
 #endif
 	return -EIO;
 }

@@ -5,6 +5,7 @@
  */
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <net/cfg80211.h>
 #include <net/ip.h>
 #include "core.h"
@@ -141,10 +142,19 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy)
 			set_mandatory_flags_band(wiphy->bands[band], band);
 }
 
-int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
-				   const u8 *mac_addr)
+int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
+				   struct key_params *params, int key_idx,
+				   bool pairwise, const u8 *mac_addr)
 {
+	int i;
+
 	if (key_idx > 5)
+		return -EINVAL;
+
+	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
+		return -EINVAL;
+
+	if (pairwise && !mac_addr)
 		return -EINVAL;
 
 	/*
@@ -152,7 +162,7 @@ int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 	 * (because current deployments use pairwise WEP keys with
 	 * non-zero indizes but 802.11i clearly specifies to use zero)
 	 */
-	if (mac_addr && key_idx &&
+	if (pairwise && key_idx &&
 	    params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
 	    params->cipher != WLAN_CIPHER_SUITE_WEP104)
 		return -EINVAL;
@@ -179,7 +189,14 @@ int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 			return -EINVAL;
 		break;
 	default:
-		return -EINVAL;
+		/*
+		 * We don't know anything about this algorithm,
+		 * allow using it -- but the driver must check
+		 * all parameters! We still check below whether
+		 * or not the driver supports this algorithm,
+		 * of course.
+		 */
+		break;
 	}
 
 	if (params->seq) {
@@ -197,6 +214,12 @@ int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 		}
 	}
 
+	for (i = 0; i < rdev->wiphy.n_cipher_suites; i++)
+		if (params->cipher == rdev->wiphy.cipher_suites[i])
+			break;
+	if (i == rdev->wiphy.n_cipher_suites)
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -211,15 +234,18 @@ const unsigned char bridge_tunnel_header[] __aligned(2) =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 EXPORT_SYMBOL(bridge_tunnel_header);
 
-unsigned int ieee80211_hdrlen(__le16 fc)
+unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc)
 {
 	unsigned int hdrlen = 24;
 
 	if (ieee80211_is_data(fc)) {
 		if (ieee80211_has_a4(fc))
 			hdrlen = 30;
-		if (ieee80211_is_data_qos(fc))
+		if (ieee80211_is_data_qos(fc)) {
 			hdrlen += IEEE80211_QOS_CTL_LEN;
+			if (ieee80211_has_order(fc))
+				hdrlen += IEEE80211_HT_CTL_LEN;
+		}
 		goto out;
 	}
 
@@ -265,18 +291,18 @@ static int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 	switch (ae) {
 	case 0:
 		return 6;
-	case 1:
+	case MESH_FLAGS_AE_A4:
 		return 12;
-	case 2:
+	case MESH_FLAGS_AE_A5_A6:
 		return 18;
-	case 3:
+	case (MESH_FLAGS_AE_A4 | MESH_FLAGS_AE_A5_A6):
 		return 24;
 	default:
 		return 6;
 	}
 }
 
-int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
+int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 			   enum nl80211_iftype iftype)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -306,28 +332,52 @@ int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
 		cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
 	case cpu_to_le16(IEEE80211_FCTL_TODS):
 		if (unlikely(iftype != NL80211_IFTYPE_AP &&
-			     iftype != NL80211_IFTYPE_AP_VLAN))
+			     iftype != NL80211_IFTYPE_AP_VLAN &&
+			     iftype != NL80211_IFTYPE_P2P_GO))
 			return -1;
 		break;
 	case cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
 		if (unlikely(iftype != NL80211_IFTYPE_WDS &&
-			     iftype != NL80211_IFTYPE_MESH_POINT))
+			     iftype != NL80211_IFTYPE_MESH_POINT &&
+			     iftype != NL80211_IFTYPE_AP_VLAN &&
+			     iftype != NL80211_IFTYPE_STATION))
 			return -1;
 		if (iftype == NL80211_IFTYPE_MESH_POINT) {
 			struct ieee80211s_hdr *meshdr =
 				(struct ieee80211s_hdr *) (skb->data + hdrlen);
-			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+			/* make sure meshdr->flags is on the linear part */
+			if (!pskb_may_pull(skb, hdrlen + 1))
+				return -1;
 			if (meshdr->flags & MESH_FLAGS_AE_A5_A6) {
-				memcpy(dst, meshdr->eaddr1, ETH_ALEN);
-				memcpy(src, meshdr->eaddr2, ETH_ALEN);
+				skb_copy_bits(skb, hdrlen +
+					offsetof(struct ieee80211s_hdr, eaddr1),
+				       	dst, ETH_ALEN);
+				skb_copy_bits(skb, hdrlen +
+					offsetof(struct ieee80211s_hdr, eaddr2),
+				        src, ETH_ALEN);
 			}
+			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
 		}
 		break;
 	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
-		if (iftype != NL80211_IFTYPE_STATION ||
+		if ((iftype != NL80211_IFTYPE_STATION &&
+		     iftype != NL80211_IFTYPE_P2P_CLIENT &&
+		     iftype != NL80211_IFTYPE_MESH_POINT) ||
 		    (is_multicast_ether_addr(dst) &&
 		     !compare_ether_addr(src, addr)))
 			return -1;
+		if (iftype == NL80211_IFTYPE_MESH_POINT) {
+			struct ieee80211s_hdr *meshdr =
+				(struct ieee80211s_hdr *) (skb->data + hdrlen);
+			/* make sure meshdr->flags is on the linear part */
+			if (!pskb_may_pull(skb, hdrlen + 1))
+				return -1;
+			if (meshdr->flags & MESH_FLAGS_AE_A4)
+				skb_copy_bits(skb, hdrlen +
+					offsetof(struct ieee80211s_hdr, eaddr1),
+					src, ETH_ALEN);
+			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+		}
 		break;
 	case cpu_to_le16(0):
 		if (iftype != NL80211_IFTYPE_ADHOC)
@@ -335,7 +385,7 @@ int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
 		break;
 	}
 
-	if (unlikely(skb->len - hdrlen < 8))
+	if (!pskb_may_pull(skb, hdrlen + 8))
 		return -1;
 
 	payload = skb->data + hdrlen;
@@ -364,7 +414,7 @@ int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
 }
 EXPORT_SYMBOL(ieee80211_data_to_8023);
 
-int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
+int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 			     enum nl80211_iftype iftype, u8 *bssid, bool qos)
 {
 	struct ieee80211_hdr hdr;
@@ -389,6 +439,7 @@ int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
 	switch (iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_P2P_GO:
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA BSSID SA */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
@@ -397,6 +448,7 @@ int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
 		hdrlen = 24;
 		break;
 	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
 		memcpy(hdr.addr1, bssid, ETH_ALEN);
@@ -450,7 +502,7 @@ int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
 			skb_orphan(skb);
 
 		if (pskb_expand_head(skb, head_need, 0, GFP_ATOMIC)) {
-			printk(KERN_ERR "failed to reallocate Tx buffer\n");
+			pr_err("failed to reallocate Tx buffer\n");
 			return -ENOMEM;
 		}
 		skb->truesize += head_need;
@@ -478,6 +530,101 @@ int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
 }
 EXPORT_SYMBOL(ieee80211_data_from_8023);
 
+
+void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
+			      const u8 *addr, enum nl80211_iftype iftype,
+			      const unsigned int extra_headroom)
+{
+	struct sk_buff *frame = NULL;
+	u16 ethertype;
+	u8 *payload;
+	const struct ethhdr *eth;
+	int remaining, err;
+	u8 dst[ETH_ALEN], src[ETH_ALEN];
+
+	err = ieee80211_data_to_8023(skb, addr, iftype);
+	if (err)
+		goto out;
+
+	/* skip the wrapping header */
+	eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
+	if (!eth)
+		goto out;
+
+	while (skb != frame) {
+		u8 padding;
+		__be16 len = eth->h_proto;
+		unsigned int subframe_len = sizeof(struct ethhdr) + ntohs(len);
+
+		remaining = skb->len;
+		memcpy(dst, eth->h_dest, ETH_ALEN);
+		memcpy(src, eth->h_source, ETH_ALEN);
+
+		padding = (4 - subframe_len) & 0x3;
+		/* the last MSDU has no padding */
+		if (subframe_len > remaining)
+			goto purge;
+
+		skb_pull(skb, sizeof(struct ethhdr));
+		/* reuse skb for the last subframe */
+		if (remaining <= subframe_len + padding)
+			frame = skb;
+		else {
+			unsigned int hlen = ALIGN(extra_headroom, 4);
+			/*
+			 * Allocate and reserve two bytes more for payload
+			 * alignment since sizeof(struct ethhdr) is 14.
+			 */
+			frame = dev_alloc_skb(hlen + subframe_len + 2);
+			if (!frame)
+				goto purge;
+
+			skb_reserve(frame, hlen + sizeof(struct ethhdr) + 2);
+			memcpy(skb_put(frame, ntohs(len)), skb->data,
+				ntohs(len));
+
+			eth = (struct ethhdr *)skb_pull(skb, ntohs(len) +
+							padding);
+			if (!eth) {
+				dev_kfree_skb(frame);
+				goto purge;
+			}
+		}
+
+		skb_reset_network_header(frame);
+		frame->dev = skb->dev;
+		frame->priority = skb->priority;
+
+		payload = frame->data;
+		ethertype = (payload[6] << 8) | payload[7];
+
+		if (likely((compare_ether_addr(payload, rfc1042_header) == 0 &&
+			    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
+			   compare_ether_addr(payload,
+					      bridge_tunnel_header) == 0)) {
+			/* remove RFC1042 or Bridge-Tunnel
+			 * encapsulation and replace EtherType */
+			skb_pull(frame, 6);
+			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
+			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
+		} else {
+			memcpy(skb_push(frame, sizeof(__be16)), &len,
+				sizeof(__be16));
+			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
+			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
+		}
+		__skb_queue_tail(list, frame);
+	}
+
+	return;
+
+ purge:
+	__skb_queue_purge(list);
+ out:
+	dev_kfree_skb(skb);
+}
+EXPORT_SYMBOL(ieee80211_amsdu_to_8023s);
+
 /* Given a data frame determine the 802.1p/1d tag to use. */
 unsigned int cfg80211_classify8021d(struct sk_buff *skb)
 {
@@ -502,3 +649,239 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb)
 	return dscp >> 5;
 }
 EXPORT_SYMBOL(cfg80211_classify8021d);
+
+const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
+{
+	u8 *end, *pos;
+
+	pos = bss->information_elements;
+	if (pos == NULL)
+		return NULL;
+	end = pos + bss->len_information_elements;
+
+	while (pos + 1 < end) {
+		if (pos + 2 + pos[1] > end)
+			break;
+		if (pos[0] == ie)
+			return pos;
+		pos += 2 + pos[1];
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(ieee80211_bss_get_ie);
+
+void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct net_device *dev = wdev->netdev;
+	int i;
+
+	if (!wdev->connect_keys)
+		return;
+
+	for (i = 0; i < 6; i++) {
+		if (!wdev->connect_keys->params[i].cipher)
+			continue;
+		if (rdev->ops->add_key(wdev->wiphy, dev, i, false, NULL,
+					&wdev->connect_keys->params[i])) {
+			netdev_err(dev, "failed to set key %d\n", i);
+			continue;
+		}
+		if (wdev->connect_keys->def == i)
+			if (rdev->ops->set_default_key(wdev->wiphy, dev,
+						       i, true, true)) {
+				netdev_err(dev, "failed to set defkey %d\n", i);
+				continue;
+			}
+		if (wdev->connect_keys->defmgmt == i)
+			if (rdev->ops->set_default_mgmt_key(wdev->wiphy, dev, i))
+				netdev_err(dev, "failed to set mgtdef %d\n", i);
+	}
+
+	kfree(wdev->connect_keys);
+	wdev->connect_keys = NULL;
+}
+
+static void cfg80211_process_wdev_events(struct wireless_dev *wdev)
+{
+	struct cfg80211_event *ev;
+	unsigned long flags;
+	const u8 *bssid = NULL;
+
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	while (!list_empty(&wdev->event_list)) {
+		ev = list_first_entry(&wdev->event_list,
+				      struct cfg80211_event, list);
+		list_del(&ev->list);
+		spin_unlock_irqrestore(&wdev->event_lock, flags);
+
+		wdev_lock(wdev);
+		switch (ev->type) {
+		case EVENT_CONNECT_RESULT:
+			if (!is_zero_ether_addr(ev->cr.bssid))
+				bssid = ev->cr.bssid;
+			__cfg80211_connect_result(
+				wdev->netdev, bssid,
+				ev->cr.req_ie, ev->cr.req_ie_len,
+				ev->cr.resp_ie, ev->cr.resp_ie_len,
+				ev->cr.status,
+				ev->cr.status == WLAN_STATUS_SUCCESS,
+				NULL);
+			break;
+		case EVENT_ROAMED:
+			__cfg80211_roamed(wdev, ev->rm.bssid,
+					  ev->rm.req_ie, ev->rm.req_ie_len,
+					  ev->rm.resp_ie, ev->rm.resp_ie_len);
+			break;
+		case EVENT_DISCONNECTED:
+			__cfg80211_disconnected(wdev->netdev,
+						ev->dc.ie, ev->dc.ie_len,
+						ev->dc.reason, true);
+			break;
+		case EVENT_IBSS_JOINED:
+			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid);
+			break;
+		}
+		wdev_unlock(wdev);
+
+		kfree(ev);
+
+		spin_lock_irqsave(&wdev->event_lock, flags);
+	}
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+}
+
+void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev)
+{
+	struct wireless_dev *wdev;
+
+	ASSERT_RTNL();
+	ASSERT_RDEV_LOCK(rdev);
+
+	mutex_lock(&rdev->devlist_mtx);
+
+	list_for_each_entry(wdev, &rdev->netdev_list, list)
+		cfg80211_process_wdev_events(wdev);
+
+	mutex_unlock(&rdev->devlist_mtx);
+}
+
+int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, enum nl80211_iftype ntype,
+			  u32 *flags, struct vif_params *params)
+{
+	int err;
+	enum nl80211_iftype otype = dev->ieee80211_ptr->iftype;
+
+	ASSERT_RDEV_LOCK(rdev);
+
+	/* don't support changing VLANs, you just re-create them */
+	if (otype == NL80211_IFTYPE_AP_VLAN)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->change_virtual_intf ||
+	    !(rdev->wiphy.interface_modes & (1 << ntype)))
+		return -EOPNOTSUPP;
+
+	/* if it's part of a bridge, reject changing type to station/ibss */
+	if ((dev->priv_flags & IFF_BRIDGE_PORT) &&
+	    (ntype == NL80211_IFTYPE_ADHOC ||
+	     ntype == NL80211_IFTYPE_STATION ||
+	     ntype == NL80211_IFTYPE_P2P_CLIENT))
+		return -EBUSY;
+
+	if (ntype != otype) {
+		dev->ieee80211_ptr->use_4addr = false;
+		dev->ieee80211_ptr->mesh_id_up_len = 0;
+
+		switch (otype) {
+		case NL80211_IFTYPE_ADHOC:
+			cfg80211_leave_ibss(rdev, dev, false);
+			break;
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_P2P_CLIENT:
+			cfg80211_disconnect(rdev, dev,
+					    WLAN_REASON_DEAUTH_LEAVING, true);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			/* mesh should be handled? */
+			break;
+		default:
+			break;
+		}
+
+		cfg80211_process_rdev_events(rdev);
+	}
+
+	err = rdev->ops->change_virtual_intf(&rdev->wiphy, dev,
+					     ntype, flags, params);
+
+	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
+
+	if (!err && params && params->use_4addr != -1)
+		dev->ieee80211_ptr->use_4addr = params->use_4addr;
+
+	if (!err) {
+		dev->priv_flags &= ~IFF_DONT_BRIDGE;
+		switch (ntype) {
+		case NL80211_IFTYPE_STATION:
+			if (dev->ieee80211_ptr->use_4addr)
+				break;
+			/* fall through */
+		case NL80211_IFTYPE_P2P_CLIENT:
+		case NL80211_IFTYPE_ADHOC:
+			dev->priv_flags |= IFF_DONT_BRIDGE;
+			break;
+		case NL80211_IFTYPE_P2P_GO:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
+			/* bridging OK */
+			break;
+		case NL80211_IFTYPE_MONITOR:
+			/* monitor can't bridge anyway */
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case NUM_NL80211_IFTYPES:
+			/* not happening */
+			break;
+		}
+	}
+
+	return err;
+}
+
+u16 cfg80211_calculate_bitrate(struct rate_info *rate)
+{
+	int modulation, streams, bitrate;
+
+	if (!(rate->flags & RATE_INFO_FLAGS_MCS))
+		return rate->legacy;
+
+	/* the formula below does only work for MCS values smaller than 32 */
+	if (rate->mcs >= 32)
+		return 0;
+
+	modulation = rate->mcs & 7;
+	streams = (rate->mcs >> 3) + 1;
+
+	bitrate = (rate->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH) ?
+			13500000 : 6500000;
+
+	if (modulation < 4)
+		bitrate *= (modulation + 1);
+	else if (modulation == 4)
+		bitrate *= (modulation + 2);
+	else
+		bitrate *= (modulation + 3);
+
+	bitrate *= streams;
+
+	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
+		bitrate = (bitrate / 9) * 10;
+
+	/* do NOT round down here */
+	return (bitrate + 50000) / 100000;
+}

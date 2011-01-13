@@ -72,7 +72,7 @@ static void mpc8xx_end_irq(unsigned int virq)
 
 static int mpc8xx_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 
 	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
 	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
@@ -94,7 +94,7 @@ static int mpc8xx_set_irq_type(unsigned int virq, unsigned int flow_type)
 }
 
 static struct irq_chip mpc8xx_pic = {
-	.typename = " MPC8XX SIU ",
+	.name = "MPC8XX SIU",
 	.unmask = mpc8xx_unmask_irq,
 	.mask = mpc8xx_mask_irq,
 	.ack = mpc8xx_ack,
@@ -130,7 +130,7 @@ static int mpc8xx_pic_host_map(struct irq_host *h, unsigned int virq,
 
 
 static int mpc8xx_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 *intspec, unsigned int intsize,
+			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	static unsigned char map_pic_senses[4] = {

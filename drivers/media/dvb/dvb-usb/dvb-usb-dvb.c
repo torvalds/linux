@@ -88,6 +88,7 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap, short *adapter_nums)
 		goto err;
 	}
 	adap->dvb_adap.priv = adap;
+	adap->dvb_adap.fe_ioctl_override = adap->props.fe_ioctl_override;
 
 	if (adap->dev->props.read_mac_address) {
 		if (adap->dev->props.read_mac_address(adap->dev,adap->dvb_adap.proposed_mac) == 0)

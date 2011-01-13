@@ -28,21 +28,19 @@
 #include <linux/nilfs2_fs.h>
 #include "mdt.h"
 
-#define NILFS_SUFILE_GFP	NILFS_MDT_GFP
 
 static inline unsigned long nilfs_sufile_get_nsegments(struct inode *sufile)
 {
-	return NILFS_MDT(sufile)->mi_nilfs->ns_nsegments;
+	return NILFS_I_NILFS(sufile)->ns_nsegments;
 }
 
+unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile);
+
 int nilfs_sufile_alloc(struct inode *, __u64 *);
-int nilfs_sufile_get_segment_usage(struct inode *, __u64,
-				   struct nilfs_segment_usage **,
-				   struct buffer_head **);
-void nilfs_sufile_put_segment_usage(struct inode *, __u64,
-				    struct buffer_head *);
+int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum);
+int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
+				   unsigned long nblocks, time_t modtime);
 int nilfs_sufile_get_stat(struct inode *, struct nilfs_sustat *);
-int nilfs_sufile_get_ncleansegs(struct inode *, unsigned long *);
 ssize_t nilfs_sufile_get_suinfo(struct inode *, __u64, void *, unsigned,
 				size_t);
 
@@ -62,6 +60,9 @@ void nilfs_sufile_do_cancel_free(struct inode *, __u64, struct buffer_head *,
 				 struct buffer_head *);
 void nilfs_sufile_do_set_error(struct inode *, __u64, struct buffer_head *,
 			       struct buffer_head *);
+
+int nilfs_sufile_read(struct super_block *sb, size_t susize,
+		      struct nilfs_inode *raw_inode, struct inode **inodep);
 
 /**
  * nilfs_sufile_scrap - make a segment garbage

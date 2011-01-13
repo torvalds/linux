@@ -108,16 +108,15 @@ struct iwm_debugfs {
 	struct dentry *txq_dentry;
 	struct dentry *tx_credit_dentry;
 	struct dentry *rx_ticket_dentry;
+
+	struct dentry *fw_err_dentry;
 };
 
 #ifdef CONFIG_IWM_DEBUG
-int iwm_debugfs_init(struct iwm_priv *iwm);
+void iwm_debugfs_init(struct iwm_priv *iwm);
 void iwm_debugfs_exit(struct iwm_priv *iwm);
 #else
-static inline int iwm_debugfs_init(struct iwm_priv *iwm)
-{
-	return 0;
-}
+static inline void iwm_debugfs_init(struct iwm_priv *iwm) {}
 static inline void iwm_debugfs_exit(struct iwm_priv *iwm) {}
 #endif
 

@@ -32,7 +32,7 @@ enum cpu_type {
 
 	/* SH-4A types */
 	CPU_SH7763, CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785, CPU_SH7786,
-	CPU_SH7723, CPU_SH7724, CPU_SHX3,
+	CPU_SH7723, CPU_SH7724, CPU_SH7757, CPU_SHX3,
 
 	/* SH4AL-DSP types */
 	CPU_SH7343, CPU_SH7722, CPU_SH7366,
@@ -42,6 +42,17 @@ enum cpu_type {
 
 	/* Unknown subtype */
 	CPU_SH_NONE
+};
+
+enum cpu_family {
+	CPU_FAMILY_SH2,
+	CPU_FAMILY_SH2A,
+	CPU_FAMILY_SH3,
+	CPU_FAMILY_SH4,
+	CPU_FAMILY_SH4A,
+	CPU_FAMILY_SH4AL_DSP,
+	CPU_FAMILY_SH5,
+	CPU_FAMILY_UNKNOWN,
 };
 
 /*
@@ -61,7 +72,7 @@ struct tlb_info {
 };
 
 struct sh_cpuinfo {
-	unsigned int type;
+	unsigned int type, family;
 	int cut_major, cut_minor;
 	unsigned long loops_per_jiffy;
 	unsigned long asid_cache;
@@ -74,6 +85,11 @@ struct sh_cpuinfo {
 	struct tlb_info itlb;
 	struct tlb_info dtlb;
 
+#ifdef CONFIG_SMP
+	struct task_struct *idle;
+#endif
+
+	unsigned int phys_bits;
 	unsigned long flags;
 } __attribute__ ((aligned(L1_CACHE_BYTES)));
 
@@ -87,12 +103,36 @@ extern struct sh_cpuinfo cpu_data[];
 
 /* Forward decl */
 struct seq_operations;
+struct task_struct;
 
 extern struct pt_regs fake_swapper_regs;
+
+extern void cpu_init(void);
+extern void cpu_probe(void);
+
+/* arch/sh/kernel/process.c */
+extern unsigned int xstate_size;
+extern void free_thread_xstate(struct task_struct *);
+extern struct kmem_cache *task_xstate_cachep;
+
+/* arch/sh/mm/alignment.c */
+extern int get_unalign_ctl(struct task_struct *, unsigned long addr);
+extern int set_unalign_ctl(struct task_struct *, unsigned int val);
+
+#define GET_UNALIGN_CTL(tsk, addr)	get_unalign_ctl((tsk), (addr))
+#define SET_UNALIGN_CTL(tsk, val)	set_unalign_ctl((tsk), (val))
+
+/* arch/sh/mm/init.c */
+extern unsigned int mem_init_done;
 
 /* arch/sh/kernel/setup.c */
 const char *get_cpu_subtype(struct sh_cpuinfo *c);
 extern const struct seq_operations cpuinfo_op;
+
+/* thread_struct flags */
+#define SH_THREAD_UAC_NOPRINT	(1 << 0)
+#define SH_THREAD_UAC_SIGBUS	(1 << 1)
+#define SH_THREAD_UAC_MASK	(SH_THREAD_UAC_NOPRINT | SH_THREAD_UAC_SIGBUS)
 
 /* processor boot mode configuration */
 #define MODE_PIN0 (1 << 0)

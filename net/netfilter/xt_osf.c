@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
 
@@ -70,7 +70,8 @@ static void xt_osf_finger_free_rcu(struct rcu_head *rcu_head)
 }
 
 static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nlattr *osf_attrs[])
+			       const struct nlmsghdr *nlh,
+			       const struct nlattr * const osf_attrs[])
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *kf = NULL, *sf;
@@ -112,11 +113,12 @@ static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
 }
 
 static int xt_osf_remove_callback(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nlattr *osf_attrs[])
+				  const struct nlmsghdr *nlh,
+				  const struct nlattr * const osf_attrs[])
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *sf;
-	int err = ENOENT;
+	int err = -ENOENT;
 
 	if (!osf_attrs[OSF_ATTR_FINGER])
 		return -EINVAL;
@@ -191,8 +193,8 @@ static inline int xt_osf_ttl(const struct sk_buff *skb, const struct xt_osf_info
 	return ip->ttl == f_ttl;
 }
 
-static bool xt_osf_match_packet(const struct sk_buff *skb,
-		const struct xt_match_param *p)
+static bool
+xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 {
 	const struct xt_osf_info *info = p->matchinfo;
 	const struct iphdr *ip = ip_hdr(skb);
@@ -330,8 +332,9 @@ static bool xt_osf_match_packet(const struct sk_buff *skb,
 			fcount++;
 
 			if (info->flags & XT_OSF_LOG)
-				nf_log_packet(p->hooknum, 0, skb, p->in, p->out, NULL,
-					"%s [%s:%s] : %pi4:%d -> %pi4:%d hops=%d\n",
+				nf_log_packet(p->family, p->hooknum, skb,
+					p->in, p->out, NULL,
+					"%s [%s:%s] : %pI4:%d -> %pI4:%d hops=%d\n",
 					f->genre, f->version, f->subtype,
 					&ip->saddr, ntohs(tcp->source),
 					&ip->daddr, ntohs(tcp->dest),
@@ -345,8 +348,8 @@ static bool xt_osf_match_packet(const struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (!fcount && (info->flags & XT_OSF_LOG))
-		nf_log_packet(p->hooknum, 0, skb, p->in, p->out, NULL,
-			"Remote OS is not known: %pi4:%u -> %pi4:%u\n",
+		nf_log_packet(p->family, p->hooknum, skb, p->in, p->out, NULL,
+			"Remote OS is not known: %pI4:%u -> %pI4:%u\n",
 				&ip->saddr, ntohs(tcp->source),
 				&ip->daddr, ntohs(tcp->dest));
 
@@ -379,14 +382,14 @@ static int __init xt_osf_init(void)
 
 	err = nfnetlink_subsys_register(&xt_osf_nfnetlink);
 	if (err < 0) {
-		printk(KERN_ERR "Failed (%d) to register OSF nsfnetlink helper.\n", err);
+		pr_err("Failed to register OSF nsfnetlink helper (%d)\n", err);
 		goto err_out_exit;
 	}
 
 	err = xt_register_match(&xt_osf_match);
 	if (err) {
-		printk(KERN_ERR "Failed (%d) to register OS fingerprint "
-				"matching module.\n", err);
+		pr_err("Failed to register OS fingerprint "
+		       "matching module (%d)\n", err);
 		goto err_out_remove;
 	}
 

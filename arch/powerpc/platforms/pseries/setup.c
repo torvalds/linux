@@ -23,7 +23,6 @@
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/tty.h>
 #include <linux/major.h>
@@ -223,10 +222,6 @@ static void pseries_lpar_enable_pmcs(void)
 	set = 1UL << 63;
 	reset = 0;
 	plpar_hcall_norets(H_PERFMON, set, reset);
-
-	/* instruct hypervisor to maintain PMCs */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		get_lppaca()->pmcregs_in_use = 1;
 }
 
 static void __init pseries_discover_pic(void)
@@ -277,6 +272,58 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 static struct notifier_block pci_dn_reconfig_nb = {
 	.notifier_call = pci_dn_reconfig_notifier,
 };
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+/*
+ * Allocate space for the dispatch trace log for all possible cpus
+ * and register the buffers with the hypervisor.  This is used for
+ * computing time stolen by the hypervisor.
+ */
+static int alloc_dispatch_logs(void)
+{
+	int cpu, ret;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
+
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
+		return 0;
+
+	for_each_possible_cpu(cpu) {
+		pp = &paca[cpu];
+		dtl = kmalloc_node(DISPATCH_LOG_BYTES, GFP_KERNEL,
+				   cpu_to_node(cpu));
+		if (!dtl) {
+			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
+				cpu);
+			pr_warn("Stolen time statistics will be unreliable\n");
+			break;
+		}
+
+		pp->dtl_ridx = 0;
+		pp->dispatch_log = dtl;
+		pp->dispatch_log_end = dtl + N_DISPATCH_LOG;
+		pp->dtl_curr = dtl;
+	}
+
+	/* Register the DTL for the current (boot) cpu */
+	dtl = get_paca()->dispatch_log;
+	get_paca()->dtl_ridx = 0;
+	get_paca()->dtl_curr = dtl;
+	get_paca()->lppaca_ptr->dtl_idx = 0;
+
+	/* hypervisor reads buffer length from this field */
+	dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+	ret = register_dtl(hard_smp_processor_id(), __pa(dtl));
+	if (ret)
+		pr_warn("DTL registration failed for boot cpu %d (%d)\n",
+			smp_processor_id(), ret);
+	get_paca()->lppaca_ptr->dtl_enable_mask = 2;
+
+	return 0;
+}
+
+early_initcall(alloc_dispatch_logs);
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
 
 static void __init pSeries_setup_arch(void)
 {
@@ -501,13 +548,14 @@ static int __init pSeries_probe(void)
 }
 
 
-DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
+DECLARE_PER_CPU(long, smt_snooze_delay);
 
 static void pseries_dedicated_idle_sleep(void)
 { 
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long in_purr, out_purr;
+	long snooze = __get_cpu_var(smt_snooze_delay);
 
 	/*
 	 * Indicate to the HV that we are idle. Now would be
@@ -522,13 +570,12 @@ static void pseries_dedicated_idle_sleep(void)
 	 * has been checked recently.  If we should poll for a little
 	 * while, do so.
 	 */
-	if (__get_cpu_var(smt_snooze_delay)) {
-		start_snooze = get_tb() +
-			__get_cpu_var(smt_snooze_delay) * tb_ticks_per_usec;
+	if (snooze) {
+		start_snooze = get_tb() + snooze * tb_ticks_per_usec;
 		local_irq_enable();
 		set_thread_flag(TIF_POLLING_NRFLAG);
 
-		while (get_tb() < start_snooze) {
+		while ((snooze < 0) || (get_tb() < start_snooze)) {
 			if (need_resched() || cpu_is_offline(cpu))
 				goto out;
 			ppc64_runlatch_off();

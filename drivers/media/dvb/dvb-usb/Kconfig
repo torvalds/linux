@@ -1,6 +1,6 @@
 config DVB_USB
 	tristate "Support for various USB DVB devices"
-	depends on DVB_CORE && USB && I2C && INPUT
+	depends on DVB_CORE && USB && I2C && RC_CORE
 	help
 	  By enabling this you will be able to choose the various supported
 	  USB1.1 and USB2.0 DVB devices.
@@ -71,10 +71,12 @@ config DVB_USB_DIB0700
 	depends on DVB_USB
 	select DVB_DIB7000P if !DVB_FE_CUSTOMISE
 	select DVB_DIB7000M if !DVB_FE_CUSTOMISE
+	select DVB_DIB8000 if !DVB_FE_CUSTOMISE
 	select DVB_DIB3000MC if !DVB_FE_CUSTOMISE
 	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT3305 if !DVB_FE_CUSTOMISE
 	select DVB_TUNER_DIB0070 if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_DIB0090 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MT2266 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMISE
@@ -87,7 +89,7 @@ config DVB_USB_DIB0700
 	  Avermedia and other big and small companies.
 
 	  For an up-to-date list of devices supported by this driver, have a look
-	  on the Linux-DVB Wiki at www.linuxtv.org.
+	  on the LinuxTV Wiki at www.linuxtv.org.
 
 	  Say Y if you own such a device and want to use it. You should build it as
 	  a module.
@@ -111,11 +113,13 @@ config DVB_USB_CXUSB
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select DVB_DIB7000P if !DVB_FE_CUSTOMISE
-	select DVB_LGS8GL5 if !DVB_FE_CUSTOMISE
 	select DVB_TUNER_DIB0070 if !DVB_FE_CUSTOMISE
+	select DVB_ATBM8830 if !DVB_FE_CUSTOMISE
+	select DVB_LGS8GXX if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MAX2165 if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode
@@ -131,6 +135,7 @@ config DVB_USB_M920X
 	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_TDA827X if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the MSI Mega Sky 580 USB2.0 DVB-T receiver.
 	  Currently, only devices with a product id of
@@ -253,7 +258,7 @@ config DVB_USB_AF9005_REMOTE
 	  Afatech AF9005 based receiver.
 
 config DVB_USB_DW2102
-	tristate "DvbWorld DVB-S/S2 USB2.0 support"
+	tristate "DvbWorld & TeVii DVB-S/S2 USB2.0 support"
 	depends on DVB_USB
 	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
@@ -261,10 +266,16 @@ config DVB_USB_DW2102
 	select DVB_STB6000 if !DVB_FE_CUSTOMISE
 	select DVB_CX24116 if !DVB_FE_CUSTOMISE
 	select DVB_SI21XX if !DVB_FE_CUSTOMISE
-	select DVB_TDA10021 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
+	select DVB_MT312 if !DVB_FE_CUSTOMISE
+	select DVB_ZL10039 if !DVB_FE_CUSTOMISE
+	select DVB_DS3000 if !DVB_FE_CUSTOMISE
+	select DVB_STB6100 if !DVB_FE_CUSTOMISE
+	select DVB_STV6110 if !DVB_FE_CUSTOMISE
+	select DVB_STV0900 if !DVB_FE_CUSTOMISE
 	help
-	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
-	  and the TeVii S650.
+	  Say Y here to support the DvbWorld, TeVii, Prof DVB-S/S2 USB2.0
+	  receivers.
 
 config DVB_USB_CINERGY_T2
 	tristate "Terratec CinergyT2/qanu USB 2.0 DVB-T receiver"
@@ -303,6 +314,8 @@ config DVB_USB_AF9015
 	select MEDIA_TUNER_TDA18271 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MC44S803 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_TDA18218 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MXL5007T if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Afatech AF9015 based DVB-T USB2.0 receiver
 
@@ -313,3 +326,35 @@ config DVB_USB_CE6230
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Intel CE6230 DVB-T USB2.0 receiver
+
+config DVB_USB_FRIIO
+	tristate "Friio ISDB-T USB2.0 Receiver support"
+	depends on DVB_USB
+	help
+	  Say Y here to support the Japanese DTV receiver Friio.
+
+config DVB_USB_EC168
+	tristate "E3C EC168 DVB-T USB2.0 support"
+	depends on DVB_USB && EXPERIMENTAL
+	select DVB_EC100
+	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
+	help
+	  Say Y here to support the E3C EC168 DVB-T USB2.0 receiver.
+
+config DVB_USB_AZ6027
+	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"
+	depends on DVB_USB
+	select DVB_STB0899 if !DVB_FE_CUSTOMISE
+	select DVB_STB6100 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the AZ6027 device
+
+config DVB_USB_LME2510
+	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
+	depends on DVB_USB
+	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
+	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	select DVB_STV0288 if !DVB_FE_CUSTOMISE
+	select DVB_IX2505V if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0 .

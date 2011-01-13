@@ -36,8 +36,6 @@ ENTRY(cpu_arm7tdmi_switch_mm)
  * cpu_arm7tdmi_proc_fin()
  */
 ENTRY(cpu_arm7tdmi_proc_fin)
-		mov	r0, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-		msr	cpsr_c, r0
 		mov	pc, lr
 
 /*
@@ -48,7 +46,7 @@ ENTRY(cpu_arm7tdmi_proc_fin)
 ENTRY(cpu_arm7tdmi_reset)
 		mov	pc, r0
 
-		__INIT
+		__CPUINIT
 
 		.type	__arm7tdmi_setup, #function
 __arm7tdmi_setup:
@@ -64,7 +62,7 @@ __arm7tdmi_setup:
 		.type	arm7tdmi_processor_functions, #object
 ENTRY(arm7tdmi_processor_functions)
 		.word	v4t_late_abort
-		.word	pabort_noifar
+		.word	legacy_pabort
 		.word	cpu_arm7tdmi_proc_init
 		.word	cpu_arm7tdmi_proc_fin
 		.word	cpu_arm7tdmi_reset

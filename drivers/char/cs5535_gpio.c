@@ -17,7 +17,7 @@
 #include <linux/cdev.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
+
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -158,7 +158,6 @@ static int cs5535_gpio_open(struct inode *inode, struct file *file)
 {
 	u32 m = iminor(inode);
 
-	cycle_kernel_lock();
 	/* the mask says which pins are usable by this driver */
 	if ((mask & (1 << m)) == 0)
 		return -EINVAL;
@@ -170,7 +169,8 @@ static const struct file_operations cs5535_gpio_fops = {
 	.owner	= THIS_MODULE,
 	.write	= cs5535_gpio_write,
 	.read	= cs5535_gpio_read,
-	.open	= cs5535_gpio_open
+	.open	= cs5535_gpio_open,
+	.llseek = no_llseek,
 };
 
 static int __init cs5535_gpio_init(void)

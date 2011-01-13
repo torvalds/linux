@@ -35,6 +35,8 @@ Status: in development
 
 #include <linux/delay.h>
 #include <linux/ioport.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <asm/termios.h>
 #include <asm/ioctls.h>
@@ -52,7 +54,7 @@ struct serial2002_board {
 
 static const struct serial2002_board serial2002_boards[] = {
 	{
-	.name = "serial2002"}
+	 .name = "serial2002"}
 };
 
 /*
@@ -66,7 +68,6 @@ struct serial2002_range_table_t {
 	int length;
 	struct comedi_krange range;
 };
-
 
 struct serial2002_private {
 
@@ -82,14 +83,14 @@ struct serial2002_private {
 	struct serial2002_range_table_t in_range[32], out_range[32];
 };
 
-
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
  */
 #define devpriv ((struct serial2002_private *)dev->private)
 
-static int serial2002_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int serial2002_attach(struct comedi_device *dev,
+			     struct comedi_devconfig *it);
 static int serial2002_detach(struct comedi_device *dev);
 struct comedi_driver driver_serial2002 = {
 	.driver_name = "serial2002",
@@ -101,16 +102,21 @@ struct comedi_driver driver_serial2002 = {
 	.num_names = ARRAY_SIZE(serial2002_boards),
 };
 
-static int serial2002_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int serial2002_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int serial2002_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int serial2002_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int serial2002_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+static int serial2002_di_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int serial2002_do_winsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int serial2002_ai_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int serial2002_ao_winsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int serial2002_ao_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
 
 struct serial_data {
 	enum { is_invalid, is_digital, is_channel } kind;
@@ -120,14 +126,9 @@ struct serial_data {
 
 static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 {
-#ifdef HAVE_UNLOCKED_IOCTL
-	if (f->f_op->unlocked_ioctl) {
+	if (f->f_op->unlocked_ioctl)
 		return f->f_op->unlocked_ioctl(f, op, param);
-	}
-#endif
-	if (f->f_op->ioctl) {
-		return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
-	}
+
 	return -ENOSYS;
 }
 
@@ -184,28 +185,28 @@ static int tty_read(struct file *f, int timeout)
 
 				mask = f->f_op->poll(f, &table.pt);
 				if (mask & (POLLRDNORM | POLLRDBAND | POLLIN |
-						POLLHUP | POLLERR)) {
+					    POLLHUP | POLLERR)) {
 					break;
 				}
 				do_gettimeofday(&now);
 				elapsed =
-					(1000000 * (now.tv_sec - start.tv_sec) +
-					now.tv_usec - start.tv_usec);
+				    (1000000 * (now.tv_sec - start.tv_sec) +
+				     now.tv_usec - start.tv_usec);
 				if (elapsed > timeout) {
 					break;
 				}
 				set_current_state(TASK_INTERRUPTIBLE);
 				schedule_timeout(((timeout -
-							elapsed) * HZ) / 10000);
+						   elapsed) * HZ) / 10000);
 			}
 			poll_freewait(&table);
 			{
-			  unsigned char ch;
+				unsigned char ch;
 
-			  f->f_pos = 0;
-			  if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
-			    result = ch;
-			  }
+				f->f_pos = 0;
+				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
+					result = ch;
+				}
 			}
 		} else {
 			/* Device does not support poll, busy wait */
@@ -348,8 +349,7 @@ static struct serial_data serial_read(struct file *f, int timeout)
 				}
 			} else {
 				result.value =
-					(result.
-					value << 2) | ((data & 0x60) >> 5);
+				    (result.value << 2) | ((data & 0x60) >> 5);
 				result.kind = is_channel;
 			}
 			result.index = data & 0x1f;
@@ -364,7 +364,7 @@ static void serial_write(struct file *f, struct serial_data data)
 {
 	if (data.kind == is_digital) {
 		unsigned char ch =
-			((data.value << 5) & 0x20) | (data.index & 0x1f);
+		    ((data.value << 5) & 0x20) | (data.index & 0x1f);
 		tty_write(f, &ch, 1);
 	} else {
 		unsigned char ch[6];
@@ -393,47 +393,44 @@ static void serial_write(struct file *f, struct serial_data data)
 	}
 }
 
-static void serial_2002_open(struct comedi_device *dev)
+static int serial_2002_open(struct comedi_device *dev)
 {
+	int result;
 	char port[20];
 
 	sprintf(port, "/dev/ttyS%d", devpriv->port);
-	devpriv->tty = filp_open(port, 0, O_RDWR);
+	devpriv->tty = filp_open(port, O_RDWR, 0);
 	if (IS_ERR(devpriv->tty)) {
-		printk("serial_2002: file open error = %ld\n",
-			PTR_ERR(devpriv->tty));
+		result = (int)PTR_ERR(devpriv->tty);
+		printk("serial_2002: file open error = %d\n", result);
 	} else {
 		struct config_t {
 
-			int kind;
-			int bits;
+			short int kind;
+			short int bits;
 			int min;
 			int max;
 		};
 
-		struct config_t dig_in_config[32];
-		struct config_t dig_out_config[32];
-		struct config_t chan_in_config[32];
-		struct config_t chan_out_config[32];
+		struct config_t *dig_in_config;
+		struct config_t *dig_out_config;
+		struct config_t *chan_in_config;
+		struct config_t *chan_out_config;
 		int i;
 
-		for (i = 0; i < 32; i++) {
-			dig_in_config[i].kind = 0;
-			dig_in_config[i].bits = 0;
-			dig_in_config[i].min = 0;
-			dig_in_config[i].max = 0;
-			dig_out_config[i].kind = 0;
-			dig_out_config[i].bits = 0;
-			dig_out_config[i].min = 0;
-			dig_out_config[i].max = 0;
-			chan_in_config[i].kind = 0;
-			chan_in_config[i].bits = 0;
-			chan_in_config[i].min = 0;
-			chan_in_config[i].max = 0;
-			chan_out_config[i].kind = 0;
-			chan_out_config[i].bits = 0;
-			chan_out_config[i].min = 0;
-			chan_out_config[i].max = 0;
+		result = 0;
+		dig_in_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		dig_out_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		chan_in_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		chan_out_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		if (!dig_in_config || !dig_out_config
+		    || !chan_in_config || !chan_out_config) {
+			result = -ENOMEM;
+			goto err_alloc_configs;
 		}
 
 		tty_setspeed(devpriv->tty, devpriv->speed);
@@ -443,11 +440,11 @@ static void serial_2002_open(struct comedi_device *dev)
 
 			data = serial_read(devpriv->tty, 1000);
 			if (data.kind != is_channel || data.index != 31
-				|| !(data.value & 0xe0)) {
+			    || !(data.value & 0xe0)) {
 				break;
 			} else {
 				int command, channel, kind;
-				struct config_t *cur_config = 0;
+				struct config_t *cur_config = NULL;
 
 				channel = data.value & 0x1f;
 				kind = (data.value >> 5) & 0x7;
@@ -479,77 +476,92 @@ static void serial_2002_open(struct comedi_device *dev)
 					cur_config[channel].kind = kind;
 					switch (command) {
 					case 0:{
-							cur_config[channel].
-								bits =
-								(data.
-								value >> 10) &
-								0x3f;
+							cur_config[channel].bits
+							    =
+							    (data.value >> 10) &
+							    0x3f;
 						}
 						break;
 					case 1:{
 							int unit, sign, min;
-							unit = (data.
-								value >> 10) &
-								0x7;
-							sign = (data.
-								value >> 13) &
-								0x1;
-							min = (data.
-								value >> 14) &
-								0xfffff;
+							unit =
+							    (data.value >> 10) &
+							    0x7;
+							sign =
+							    (data.value >> 13) &
+							    0x1;
+							min =
+							    (data.value >> 14) &
+							    0xfffff;
 
 							switch (unit) {
 							case 0:{
-									min = min * 1000000;
+									min =
+									    min
+									    *
+									    1000000;
 								}
 								break;
 							case 1:{
-									min = min * 1000;
+									min =
+									    min
+									    *
+									    1000;
 								}
 								break;
 							case 2:{
-									min = min * 1;
+									min =
+									    min
+									    * 1;
 								}
 								break;
 							}
 							if (sign) {
 								min = -min;
 							}
-							cur_config[channel].
-								min = min;
+							cur_config[channel].min
+							    = min;
 						}
 						break;
 					case 2:{
 							int unit, sign, max;
-							unit = (data.
-								value >> 10) &
-								0x7;
-							sign = (data.
-								value >> 13) &
-								0x1;
-							max = (data.
-								value >> 14) &
-								0xfffff;
+							unit =
+							    (data.value >> 10) &
+							    0x7;
+							sign =
+							    (data.value >> 13) &
+							    0x1;
+							max =
+							    (data.value >> 14) &
+							    0xfffff;
 
 							switch (unit) {
 							case 0:{
-									max = max * 1000000;
+									max =
+									    max
+									    *
+									    1000000;
 								}
 								break;
 							case 1:{
-									max = max * 1000;
+									max =
+									    max
+									    *
+									    1000;
 								}
 								break;
 							case 2:{
-									max = max * 1;
+									max =
+									    max
+									    * 1;
 								}
 								break;
 							}
 							if (sign) {
 								max = -max;
 							}
-							cur_config[channel].
-								max = max;
+							cur_config[channel].max
+							    = max;
 						}
 						break;
 					}
@@ -559,8 +571,8 @@ static void serial_2002_open(struct comedi_device *dev)
 		for (i = 0; i <= 4; i++) {
 			/*  Fill in subdev data */
 			struct config_t *c;
-			unsigned char *mapping = 0;
-			struct serial2002_range_table_t *range = 0;
+			unsigned char *mapping = NULL;
+			struct serial2002_range_table_t *range = NULL;
 			int kind = 0;
 
 			switch (i) {
@@ -598,13 +610,14 @@ static void serial_2002_open(struct comedi_device *dev)
 				}
 				break;
 			default:{
-					c = 0;
+					c = NULL;
 				}
 				break;
 			}
 			if (c) {
 				struct comedi_subdevice *s;
-				const struct comedi_lrange **range_table_list = NULL;
+				const struct comedi_lrange **range_table_list =
+				    NULL;
 				unsigned int *maxdata_list;
 				int j, chan;
 
@@ -616,21 +629,23 @@ static void serial_2002_open(struct comedi_device *dev)
 				s = &dev->subdevices[i];
 				s->n_chan = chan;
 				s->maxdata = 0;
-				if (s->maxdata_list) {
-					kfree(s->maxdata_list);
-				}
+				kfree(s->maxdata_list);
 				s->maxdata_list = maxdata_list =
-					kmalloc(sizeof(unsigned int) * s->n_chan,
-					GFP_KERNEL);
-				if (s->range_table_list) {
-					kfree(s->range_table_list);
-				}
+				    kmalloc(sizeof(unsigned int) * s->n_chan,
+					    GFP_KERNEL);
+				if (!s->maxdata_list)
+					break;	/* error handled below */
+				kfree(s->range_table_list);
+				s->range_table = NULL;
+				s->range_table_list = NULL;
 				if (range) {
-					s->range_table = 0;
 					s->range_table_list = range_table_list =
-						kmalloc(sizeof
-						(struct serial2002_range_table_t) *
-						s->n_chan, GFP_KERNEL);
+					    kmalloc(sizeof
+						    (struct
+						     serial2002_range_table_t) *
+						    s->n_chan, GFP_KERNEL);
+					if (!s->range_table_list)
+						break;	/* err handled below */
 				}
 				for (chan = 0, j = 0; j < 32; j++) {
 					if (c[j].kind == kind) {
@@ -640,23 +655,51 @@ static void serial_2002_open(struct comedi_device *dev)
 						if (range) {
 							range[j].length = 1;
 							range[j].range.min =
-								c[j].min;
+							    c[j].min;
 							range[j].range.max =
-								c[j].max;
+							    c[j].max;
 							range_table_list[chan] =
-								(const struct
-								comedi_lrange *)
-								&range[j];
+							    (const struct
+							     comedi_lrange *)
+							    &range[j];
 						}
 						maxdata_list[chan] =
-							((long long)1 << c[j].
-							bits) - 1;
+						    ((long long)1 << c[j].bits)
+						    - 1;
 						chan++;
 					}
 				}
 			}
 		}
+		if (i <= 4) {
+			/* Failed to allocate maxdata_list or range_table_list
+			 * for a subdevice that needed it.  */
+			result = -ENOMEM;
+			for (i = 0; i <= 4; i++) {
+				struct comedi_subdevice *s;
+
+				s = &dev->subdevices[i];
+				kfree(s->maxdata_list);
+				s->maxdata_list = NULL;
+				kfree(s->range_table_list);
+				s->range_table_list = NULL;
+			}
+		}
+
+err_alloc_configs:
+		kfree(dig_in_config);
+		kfree(dig_out_config);
+		kfree(chan_in_config);
+		kfree(chan_out_config);
+
+		if (result) {
+			if (devpriv->tty) {
+				filp_close(devpriv->tty, 0);
+				devpriv->tty = NULL;
+			}
+		}
 	}
+	return result;
 }
 
 static void serial_2002_close(struct comedi_device *dev)
@@ -666,8 +709,9 @@ static void serial_2002_close(struct comedi_device *dev)
 	}
 }
 
-static int serial2002_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int serial2002_di_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -688,8 +732,9 @@ static int serial2002_di_rinsn(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int serial2002_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int serial2002_do_winsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -706,8 +751,9 @@ static int serial2002_do_winsn(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int serial2002_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int serial2002_ai_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -728,8 +774,9 @@ static int serial2002_ai_rinsn(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int serial2002_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int serial2002_ao_winsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -747,8 +794,9 @@ static int serial2002_ao_winsn(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int serial2002_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int serial2002_ao_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -760,8 +808,9 @@ static int serial2002_ao_rinsn(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int serial2002_ei_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int serial2002_ei_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -782,7 +831,8 @@ static int serial2002_ei_rinsn(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int serial2002_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int serial2002_attach(struct comedi_device *dev,
+			     struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 
@@ -855,7 +905,7 @@ static int serial2002_detach(struct comedi_device *dev)
 	int i;
 
 	printk("comedi%d: serial2002: remove\n", dev->minor);
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 5; i++) {
 		s = &dev->subdevices[i];
 		if (s->maxdata_list) {
 			kfree(s->maxdata_list);
@@ -867,4 +917,19 @@ static int serial2002_detach(struct comedi_device *dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_serial2002);
+static int __init driver_serial2002_init_module(void)
+{
+	return comedi_driver_register(&driver_serial2002);
+}
+
+static void __exit driver_serial2002_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_serial2002);
+}
+
+module_init(driver_serial2002_init_module);
+module_exit(driver_serial2002_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

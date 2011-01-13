@@ -20,7 +20,7 @@ __inode_direct_access(struct inode *inode, sector_t block,
 		      void **kaddr, unsigned long *pfn)
 {
 	struct block_device *bdev = inode->i_sb->s_bdev;
-	struct block_device_operations *ops = bdev->bd_disk->fops;
+	const struct block_device_operations *ops = bdev->bd_disk->fops;
 	sector_t sector;
 
 	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
@@ -69,8 +69,9 @@ void ext2_xip_verify_sb(struct super_block *sb)
 	if ((sbi->s_mount_opt & EXT2_MOUNT_XIP) &&
 	    !sb->s_bdev->bd_disk->fops->direct_access) {
 		sbi->s_mount_opt &= (~EXT2_MOUNT_XIP);
-		ext2_warning(sb, __func__,
-			     "ignoring xip option - not supported by bdev");
+		ext2_msg(sb, KERN_WARNING,
+			     "warning: ignoring xip option - "
+			     "not supported by bdev");
 	}
 }
 

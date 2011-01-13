@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "actables.h"
+#include <linux/tboot.h>
 
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwsleep")
@@ -244,7 +245,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 
 	if ((acpi_gbl_sleep_type_a > ACPI_SLEEP_TYPE_MAX) ||
 	    (acpi_gbl_sleep_type_b > ACPI_SLEEP_TYPE_MAX)) {
-		ACPI_ERROR((AE_INFO, "Sleep values out of range: A=%X B=%X",
+		ACPI_ERROR((AE_INFO, "Sleep values out of range: A=0x%X B=0x%X",
 			    acpi_gbl_sleep_type_a, acpi_gbl_sleep_type_b));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
@@ -306,7 +307,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 		return_ACPI_STATUS(status);
 	}
 	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-			  "Entering sleep state [S%d]\n", sleep_state));
+			  "Entering sleep state [S%u]\n", sleep_state));
 
 	/* Clear the SLP_EN and SLP_TYP fields */
 
@@ -341,6 +342,8 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	/* Flush caches, as per ACPI specification */
 
 	ACPI_FLUSH_CPU_CACHE();
+
+	tboot_sleep(sleep_state, pm1a_control, pm1b_control);
 
 	/* Write #2: Write both SLP_TYP + SLP_EN */
 

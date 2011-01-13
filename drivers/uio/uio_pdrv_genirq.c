@@ -20,6 +20,8 @@
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/stringify.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "uio_pdrv_genirq"
 
@@ -27,7 +29,26 @@ struct uio_pdrv_genirq_platdata {
 	struct uio_info *uioinfo;
 	spinlock_t lock;
 	unsigned long flags;
+	struct platform_device *pdev;
 };
+
+static int uio_pdrv_genirq_open(struct uio_info *info, struct inode *inode)
+{
+	struct uio_pdrv_genirq_platdata *priv = info->priv;
+
+	/* Wait until the Runtime PM code has woken up the device */
+	pm_runtime_get_sync(&priv->pdev->dev);
+	return 0;
+}
+
+static int uio_pdrv_genirq_release(struct uio_info *info, struct inode *inode)
+{
+	struct uio_pdrv_genirq_platdata *priv = info->priv;
+
+	/* Tell the Runtime PM code that the device has become idle */
+	pm_runtime_put_sync(&priv->pdev->dev);
+	return 0;
+}
 
 static irqreturn_t uio_pdrv_genirq_handler(int irq, struct uio_info *dev_info)
 {
@@ -97,6 +118,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	priv->uioinfo = uioinfo;
 	spin_lock_init(&priv->lock);
 	priv->flags = 0; /* interrupt is enabled to begin with */
+	priv->pdev = pdev;
 
 	uiomem = &uioinfo->mem[0];
 
@@ -133,10 +155,18 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	 * Interrupt sharing is not supported.
 	 */
 
-	uioinfo->irq_flags |= IRQF_DISABLED;
 	uioinfo->handler = uio_pdrv_genirq_handler;
 	uioinfo->irqcontrol = uio_pdrv_genirq_irqcontrol;
+	uioinfo->open = uio_pdrv_genirq_open;
+	uioinfo->release = uio_pdrv_genirq_release;
 	uioinfo->priv = priv;
+
+	/* Enable Runtime PM for this device:
+	 * The device starts in suspended state to allow the hardware to be
+	 * turned off by default. The Runtime PM bus code should power on the
+	 * hardware and enable clocks at open().
+	 */
+	pm_runtime_enable(&pdev->dev);
 
 	ret = uio_register_device(&pdev->dev, priv->uioinfo);
 	if (ret) {
@@ -148,6 +178,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	return 0;
  bad1:
 	kfree(priv);
+	pm_runtime_disable(&pdev->dev);
  bad0:
 	return ret;
 }
@@ -157,9 +188,32 @@ static int uio_pdrv_genirq_remove(struct platform_device *pdev)
 	struct uio_pdrv_genirq_platdata *priv = platform_get_drvdata(pdev);
 
 	uio_unregister_device(priv->uioinfo);
+	pm_runtime_disable(&pdev->dev);
 	kfree(priv);
 	return 0;
 }
+
+static int uio_pdrv_genirq_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * In this driver pm_runtime_get_sync() and pm_runtime_put_sync()
+	 * are used at open() and release() time. This allows the
+	 * Runtime PM code to turn off power to the device while the
+	 * device is unused, ie before open() and after release().
+	 *
+	 * This Runtime PM callback does not need to save or restore
+	 * any registers since user space is responsbile for hardware
+	 * register reinitialization after open().
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops uio_pdrv_genirq_dev_pm_ops = {
+	.runtime_suspend = uio_pdrv_genirq_runtime_nop,
+	.runtime_resume = uio_pdrv_genirq_runtime_nop,
+};
 
 static struct platform_driver uio_pdrv_genirq = {
 	.probe = uio_pdrv_genirq_probe,
@@ -167,6 +221,7 @@ static struct platform_driver uio_pdrv_genirq = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.pm = &uio_pdrv_genirq_dev_pm_ops,
 	},
 };
 

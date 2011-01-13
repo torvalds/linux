@@ -40,12 +40,13 @@
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/stddef.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
+#include <asm/unaligned.h>
 #include <net/slhc_vj.h>
 #include <asm/atomic.h>
 
@@ -68,7 +69,6 @@
 
 #define MPHDRLEN	6	/* multilink protocol header length */
 #define MPHDRLEN_SSN	4	/* ditto with short sequence numbers */
-#define MIN_FRAG_SIZE	64
 
 /*
  * An instance of /dev/ppp can be associated with either a ppp
@@ -167,7 +167,7 @@ struct channel {
 	u8		avail;		/* flag used in multilink stuff */
 	u8		had_frag;	/* >= 1 fragments have been sent */
 	u32		lastseq;	/* MP: last sequence # received */
-	int     speed;		/* speed of the corresponding ppp channel*/
+	int		speed;		/* speed of the corresponding ppp channel*/
 #endif /* CONFIG_PPP_MULTILINK */
 };
 
@@ -180,11 +180,12 @@ struct channel {
  * channel.downl.
  */
 
+static DEFINE_MUTEX(ppp_mutex);
 static atomic_t ppp_unit_count = ATOMIC_INIT(0);
 static atomic_t channel_count = ATOMIC_INIT(0);
 
 /* per-net private data for this module */
-static int ppp_net_id;
+static int ppp_net_id __read_mostly;
 struct ppp_net {
 	/* units to ppp mapping */
 	struct idr units_idr;
@@ -210,7 +211,7 @@ struct ppp_net {
 };
 
 /* Get the PPP protocol number from a skb */
-#define PPP_PROTO(skb)	(((skb)->data[0] << 8) + (skb)->data[1])
+#define PPP_PROTO(skb)	get_unaligned_be16((skb)->data)
 
 /* We limit the length of ppp->file.rq to this (arbitrary) value */
 #define PPP_MAX_RQLEN	32
@@ -362,7 +363,6 @@ static const int npindex_to_ethertype[NUM_NP] = {
  */
 static int ppp_open(struct inode *inode, struct file *file)
 {
-	cycle_kernel_lock();
 	/*
 	 * This could (should?) be enforced by the permissions on /dev/ppp.
 	 */
@@ -404,6 +404,7 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t ret;
 	struct sk_buff *skb = NULL;
+	struct iovec iov;
 
 	ret = count;
 
@@ -425,8 +426,8 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 			 * network traffic (demand mode).
 			 */
 			struct ppp *ppp = PF_TO_PPP(pf);
-			if (ppp->n_channels == 0
-			    && (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+			if (ppp->n_channels == 0 &&
+			    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
 				break;
 		}
 		ret = -EAGAIN;
@@ -447,7 +448,9 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	if (skb->len > count)
 		goto outf;
 	ret = -EFAULT;
-	if (copy_to_user(buf, skb->data, skb->len))
+	iov.iov_base = buf;
+	iov.iov_len = count;
+	if (skb_copy_datagram_iovec(skb, 0, &iov, skb->len))
 		goto outf;
 	ret = skb->len;
 
@@ -511,8 +514,8 @@ static unsigned int ppp_poll(struct file *file, poll_table *wait)
 	else if (pf->kind == INTERFACE) {
 		/* see comment in ppp_read */
 		struct ppp *ppp = PF_TO_PPP(pf);
-		if (ppp->n_channels == 0
-		    && (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+		if (ppp->n_channels == 0 &&
+		    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
 			mask |= POLLIN | POLLRDNORM;
 	}
 
@@ -535,14 +538,9 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 	}
 
 	len = uprog.len * sizeof(struct sock_filter);
-	code = kmalloc(len, GFP_KERNEL);
-	if (code == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(code, uprog.filter, len)) {
-		kfree(code);
-		return -EFAULT;
-	}
+	code = memdup_user(uprog.filter, len);
+	if (IS_ERR(code))
+		return PTR_ERR(code);
 
 	err = sk_chk_filter(code, uprog.len);
 	if (err) {
@@ -584,7 +582,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 * this fd and reopening /dev/ppp.
 		 */
 		err = -EINVAL;
-		lock_kernel();
+		mutex_lock(&ppp_mutex);
 		if (pf->kind == INTERFACE) {
 			ppp = PF_TO_PPP(pf);
 			if (file == ppp->owner)
@@ -596,7 +594,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		} else
 			printk(KERN_DEBUG "PPPIOCDETACH file->f_count=%ld\n",
 			       atomic_long_read(&file->f_count));
-		unlock_kernel();
+		mutex_unlock(&ppp_mutex);
 		return err;
 	}
 
@@ -604,7 +602,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct channel *pch;
 		struct ppp_channel *chan;
 
-		lock_kernel();
+		mutex_lock(&ppp_mutex);
 		pch = PF_TO_CHANNEL(pf);
 
 		switch (cmd) {
@@ -626,7 +624,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				err = chan->ops->ioctl(chan, cmd, arg);
 			up_read(&pch->chan_sem);
 		}
-		unlock_kernel();
+		mutex_unlock(&ppp_mutex);
 		return err;
 	}
 
@@ -636,7 +634,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 	}
 
-	lock_kernel();
+	mutex_lock(&ppp_mutex);
 	ppp = PF_TO_PPP(pf);
 	switch (cmd) {
 	case PPPIOCSMRU:
@@ -784,7 +782,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	default:
 		err = -ENOTTY;
 	}
-	unlock_kernel();
+	mutex_unlock(&ppp_mutex);
 	return err;
 }
 
@@ -797,7 +795,7 @@ static int ppp_unattached_ioctl(struct net *net, struct ppp_file *pf,
 	struct ppp_net *pn;
 	int __user *p = (int __user *)arg;
 
-	lock_kernel();
+	mutex_lock(&ppp_mutex);
 	switch (cmd) {
 	case PPPIOCNEWUNIT:
 		/* Create a new ppp unit */
@@ -848,7 +846,7 @@ static int ppp_unattached_ioctl(struct net *net, struct ppp_file *pf,
 	default:
 		err = -ENOTTY;
 	}
-	unlock_kernel();
+	mutex_unlock(&ppp_mutex);
 	return err;
 }
 
@@ -859,17 +857,13 @@ static const struct file_operations ppp_device_fops = {
 	.poll		= ppp_poll,
 	.unlocked_ioctl	= ppp_ioctl,
 	.open		= ppp_open,
-	.release	= ppp_release
+	.release	= ppp_release,
+	.llseek		= noop_llseek,
 };
 
 static __net_init int ppp_init_net(struct net *net)
 {
-	struct ppp_net *pn;
-	int err;
-
-	pn = kzalloc(sizeof(*pn), GFP_KERNEL);
-	if (!pn)
-		return -ENOMEM;
+	struct ppp_net *pn = net_generic(net, ppp_net_id);
 
 	idr_init(&pn->units_idr);
 	mutex_init(&pn->all_ppp_mutex);
@@ -879,32 +873,21 @@ static __net_init int ppp_init_net(struct net *net)
 
 	spin_lock_init(&pn->all_channels_lock);
 
-	err = net_assign_generic(net, ppp_net_id, pn);
-	if (err) {
-		kfree(pn);
-		return err;
-	}
-
 	return 0;
 }
 
 static __net_exit void ppp_exit_net(struct net *net)
 {
-	struct ppp_net *pn;
+	struct ppp_net *pn = net_generic(net, ppp_net_id);
 
-	pn = net_generic(net, ppp_net_id);
 	idr_destroy(&pn->units_idr);
-	/*
-	 * if someone has cached our net then
-	 * further net_generic call will return NULL
-	 */
-	net_assign_generic(net, ppp_net_id, NULL);
-	kfree(pn);
 }
 
 static struct pernet_operations ppp_net_ops = {
 	.init = ppp_init_net,
 	.exit = ppp_exit_net,
+	.id   = &ppp_net_id,
+	.size = sizeof(struct ppp_net),
 };
 
 #define PPP_MAJOR	108
@@ -917,7 +900,7 @@ static int __init ppp_init(void)
 
 	printk(KERN_INFO "PPP generic driver version " PPP_VERSION "\n");
 
-	err = register_pernet_gen_device(&ppp_net_id, &ppp_net_ops);
+	err = register_pernet_device(&ppp_net_ops);
 	if (err) {
 		printk(KERN_ERR "failed to register PPP pernet device (%d)\n", err);
 		goto out;
@@ -943,7 +926,7 @@ static int __init ppp_init(void)
 out_chrdev:
 	unregister_chrdev(PPP_MAJOR, "ppp");
 out_net:
-	unregister_pernet_gen_device(ppp_net_id, &ppp_net_ops);
+	unregister_pernet_device(&ppp_net_ops);
 out:
 	return err;
 }
@@ -951,7 +934,7 @@ out:
 /*
  * Network interface unit routines.
  */
-static int
+static netdev_tx_t
 ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ppp *ppp = netdev_priv(dev);
@@ -982,18 +965,17 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pp = skb_push(skb, 2);
 	proto = npindex_to_proto[npi];
-	pp[0] = proto >> 8;
-	pp[1] = proto;
+	put_unaligned_be16(proto, pp);
 
 	netif_stop_queue(dev);
 	skb_queue_tail(&ppp->file.xq, skb);
 	ppp_xmit_process(ppp);
-	return 0;
+	return NETDEV_TX_OK;
 
  outf:
 	kfree_skb(skb);
 	++dev->stats.tx_dropped;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int
@@ -1073,8 +1055,8 @@ ppp_xmit_process(struct ppp *ppp)
 	ppp_xmit_lock(ppp);
 	if (!ppp->closing) {
 		ppp_push(ppp);
-		while (!ppp->xmit_pending
-		       && (skb = skb_dequeue(&ppp->file.xq)))
+		while (!ppp->xmit_pending &&
+		       (skb = skb_dequeue(&ppp->file.xq)))
 			ppp_send_frame(ppp, skb);
 		/* If there's no work left to do, tell the core net
 		   code that we can accept some more. */
@@ -1153,18 +1135,16 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		/* the filter instructions are constructed assuming
 		   a four-byte PPP header on each packet */
 		*skb_push(skb, 2) = 1;
-		if (ppp->pass_filter
-		    && sk_run_filter(skb, ppp->pass_filter,
-				     ppp->pass_len) == 0) {
+		if (ppp->pass_filter &&
+		    sk_run_filter(skb, ppp->pass_filter) == 0) {
 			if (ppp->debug & 1)
 				printk(KERN_DEBUG "PPP: outbound frame not passed\n");
 			kfree_skb(skb);
 			return;
 		}
 		/* if this packet passes the active filter, record the time */
-		if (!(ppp->active_filter
-		      && sk_run_filter(skb, ppp->active_filter,
-				       ppp->active_len) == 0))
+		if (!(ppp->active_filter &&
+		      sk_run_filter(skb, ppp->active_filter) == 0))
 			ppp->last_xmit = jiffies;
 		skb_pull(skb, 2);
 #else
@@ -1218,8 +1198,8 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	}
 
 	/* try to do packet compression */
-	if ((ppp->xstate & SC_COMP_RUN) && ppp->xc_state
-	    && proto != PPP_LCP && proto != PPP_CCP) {
+	if ((ppp->xstate & SC_COMP_RUN) && ppp->xc_state &&
+	    proto != PPP_LCP && proto != PPP_CCP) {
 		if (!(ppp->flags & SC_CCP_UP) && (ppp->flags & SC_MUST_COMP)) {
 			if (net_ratelimit())
 				printk(KERN_ERR "ppp: compression required but down - pkt dropped.\n");
@@ -1303,19 +1283,24 @@ ppp_push(struct ppp *ppp)
 }
 
 #ifdef CONFIG_PPP_MULTILINK
+static bool mp_protocol_compress __read_mostly = true;
+module_param(mp_protocol_compress, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(mp_protocol_compress,
+		 "compress protocol id in multilink fragments");
+
 /*
  * Divide a packet to be transmitted into fragments and
  * send them out the individual links.
  */
 static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 {
-	int	len, totlen;
-	int	i, bits, hdrlen, mtu;
-	int	flen;
-	int	navail,	nfree, nzero;
-	int	nbigger;
-	int	totspeed;
-	int	totfree;
+	int len, totlen;
+	int i, bits, hdrlen, mtu;
+	int flen;
+	int navail, nfree, nzero;
+	int nbigger;
+	int totspeed;
+	int totfree;
 	unsigned char *p, *q;
 	struct list_head *list;
 	struct channel *pch;
@@ -1323,21 +1308,26 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 	struct ppp_channel *chan;
 
 	totspeed = 0; /*total bitrate of the bundle*/
-	nfree =	0;	/* # channels which	have no	packet already queued */
-	navail = 0;	/* total # of usable channels (not deregistered) */
-	nzero =	0; /* number of	channels with zero speed associated*/
-	totfree	= 0; /*total # of channels available and
+	nfree = 0; /* # channels which have no packet already queued */
+	navail = 0; /* total # of usable channels (not deregistered) */
+	nzero = 0; /* number of channels with zero speed associated*/
+	totfree = 0; /*total # of channels available and
 				  *having no queued packets before
 				  *starting the fragmentation*/
 
 	hdrlen = (ppp->flags & SC_MP_XSHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
-	i =	0;
-	list_for_each_entry(pch, &ppp->channels, clist)	{
-		navail += pch->avail = (pch->chan != NULL);
-		pch->speed = pch->chan->speed;
-		if (pch->avail)	{
+	i = 0;
+	list_for_each_entry(pch, &ppp->channels, clist) {
+		if (pch->chan) {
+			pch->avail = 1;
+			navail++;
+			pch->speed = pch->chan->speed;
+		} else {
+			pch->avail = 0;
+		}
+		if (pch->avail) {
 			if (skb_queue_empty(&pch->file.xq) ||
-				!pch->had_frag)	{
+				!pch->had_frag) {
 					if (pch->speed == 0)
 						nzero++;
 					else
@@ -1347,60 +1337,60 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 					++nfree;
 					++totfree;
 				}
-			if (!pch->had_frag && i	< ppp->nxchan)
-				ppp->nxchan	= i;
+			if (!pch->had_frag && i < ppp->nxchan)
+				ppp->nxchan = i;
 		}
 		++i;
 	}
 	/*
-	 * Don't start sending this	packet unless at least half	of
-	 * the channels	are	free.  This	gives much better TCP
-	 * performance if we have a	lot	of channels.
+	 * Don't start sending this packet unless at least half of
+	 * the channels are free.  This gives much better TCP
+	 * performance if we have a lot of channels.
 	 */
-	if (nfree == 0 || nfree	< navail / 2)
-		return 0; /* can't take now, leave it in xmit_pending	*/
+	if (nfree == 0 || nfree < navail / 2)
+		return 0; /* can't take now, leave it in xmit_pending */
 
-	/* Do protocol field compression (XXX this should be optional) */
-	p =	skb->data;
-	len	= skb->len;
-	if (*p == 0) {
+	/* Do protocol field compression */
+	p = skb->data;
+	len = skb->len;
+	if (*p == 0 && mp_protocol_compress) {
 		++p;
 		--len;
 	}
 
 	totlen = len;
-	nbigger	= len %	nfree;
+	nbigger = len % nfree;
 
-	/* skip	to the channel after the one we	last used
-	   and start at	that one */
+	/* skip to the channel after the one we last used
+	   and start at that one */
 	list = &ppp->channels;
-	for	(i = 0;	i <	ppp->nxchan; ++i) {
+	for (i = 0; i < ppp->nxchan; ++i) {
 		list = list->next;
-		if (list ==	&ppp->channels)	{
-			i =	0;
+		if (list == &ppp->channels) {
+			i = 0;
 			break;
 		}
 	}
 
-	/* create a	fragment for each channel */
+	/* create a fragment for each channel */
 	bits = B;
-	while (nfree > 0 &&	len	> 0) {
+	while (len > 0) {
 		list = list->next;
-		if (list ==	&ppp->channels)	{
-			i =	0;
+		if (list == &ppp->channels) {
+			i = 0;
 			continue;
 		}
-		pch	= list_entry(list, struct channel, clist);
+		pch = list_entry(list, struct channel, clist);
 		++i;
 		if (!pch->avail)
 			continue;
 
 		/*
-		 * Skip	this channel if	it has a fragment pending already and
-		 * we haven't given	a fragment to all of the free channels.
+		 * Skip this channel if it has a fragment pending already and
+		 * we haven't given a fragment to all of the free channels.
 		 */
 		if (pch->avail == 1) {
-			if (nfree >	0)
+			if (nfree > 0)
 				continue;
 		} else {
 			pch->avail = 1;
@@ -1409,51 +1399,54 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		/* check the channel's mtu and whether it is still attached. */
 		spin_lock_bh(&pch->downl);
 		if (pch->chan == NULL) {
-			/* can't use this channel, it's	being deregistered */
+			/* can't use this channel, it's being deregistered */
 			if (pch->speed == 0)
 				nzero--;
 			else
-				totspeed -=	pch->speed;
+				totspeed -= pch->speed;
 
 			spin_unlock_bh(&pch->downl);
 			pch->avail = 0;
 			totlen = len;
 			totfree--;
 			nfree--;
-			if (--navail ==	0)
+			if (--navail == 0)
 				break;
 			continue;
 		}
 
 		/*
 		*if the channel speed is not set divide
-		*the packet	evenly among the free channels;
+		*the packet evenly among the free channels;
 		*otherwise divide it according to the speed
 		*of the channel we are going to transmit on
 		*/
-		if (pch->speed == 0) {
-			flen = totlen/nfree	;
-			if (nbigger > 0) {
-				flen++;
-				nbigger--;
-			}
-		} else {
-			flen = (((totfree - nzero)*(totlen + hdrlen*totfree)) /
-				((totspeed*totfree)/pch->speed)) - hdrlen;
-			if (nbigger > 0) {
-				flen += ((totfree - nzero)*pch->speed)/totspeed;
-				nbigger -= ((totfree - nzero)*pch->speed)/
+		flen = len;
+		if (nfree > 0) {
+			if (pch->speed == 0) {
+				flen = len/nfree;
+				if (nbigger > 0) {
+					flen++;
+					nbigger--;
+				}
+			} else {
+				flen = (((totfree - nzero)*(totlen + hdrlen*totfree)) /
+					((totspeed*totfree)/pch->speed)) - hdrlen;
+				if (nbigger > 0) {
+					flen += ((totfree - nzero)*pch->speed)/totspeed;
+					nbigger -= ((totfree - nzero)*pch->speed)/
 							totspeed;
+				}
 			}
+			nfree--;
 		}
-		nfree--;
 
 		/*
-		 *check	if we are on the last channel or
-		 *we exceded the lenght	of the data	to
+		 *check if we are on the last channel or
+		 *we exceded the lenght of the data to
 		 *fragment
 		 */
-		if ((nfree == 0) || (flen > len))
+		if ((nfree <= 0) || (flen > len))
 			flen = len;
 		/*
 		 *it is not worth to tx on slow channels:
@@ -1461,29 +1454,28 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		 *above formula will be equal or less than zero.
 		 *Skip the channel in this case
 		 */
-		if (flen <=	0) {
+		if (flen <= 0) {
 			pch->avail = 2;
 			spin_unlock_bh(&pch->downl);
 			continue;
 		}
 
-		mtu	= pch->chan->mtu + 2 - hdrlen;
-		if (mtu	< 4)
-			mtu	= 4;
+		mtu = pch->chan->mtu - hdrlen;
+		if (mtu < 4)
+			mtu = 4;
 		if (flen > mtu)
 			flen = mtu;
-		if (flen ==	len)
-			bits |=	E;
-		frag = alloc_skb(flen +	hdrlen + (flen == 0), GFP_ATOMIC);
+		if (flen == len)
+			bits |= E;
+		frag = alloc_skb(flen + hdrlen + (flen == 0), GFP_ATOMIC);
 		if (!frag)
 			goto noskb;
-		q =	skb_put(frag, flen + hdrlen);
+		q = skb_put(frag, flen + hdrlen);
 
-		/* make	the	MP header */
-		q[0] = PPP_MP >> 8;
-		q[1] = PPP_MP;
+		/* make the MP header */
+		put_unaligned_be16(PPP_MP, q);
 		if (ppp->flags & SC_MP_XSHORTSEQ) {
-			q[2] = bits	+ ((ppp->nxseq >> 8) & 0xf);
+			q[2] = bits + ((ppp->nxseq >> 8) & 0xf);
 			q[3] = ppp->nxseq;
 		} else {
 			q[2] = bits;
@@ -1496,24 +1488,24 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 
 		/* try to send it down the channel */
 		chan = pch->chan;
-		if (!skb_queue_empty(&pch->file.xq)	||
+		if (!skb_queue_empty(&pch->file.xq) ||
 			!chan->ops->start_xmit(chan, frag))
 			skb_queue_tail(&pch->file.xq, frag);
-		pch->had_frag =	1;
+		pch->had_frag = 1;
 		p += flen;
-		len	-= flen;
+		len -= flen;
 		++ppp->nxseq;
 		bits = 0;
 		spin_unlock_bh(&pch->downl);
 	}
-	ppp->nxchan	= i;
+	ppp->nxchan = i;
 
 	return 1;
 
  noskb:
 	spin_unlock_bh(&pch->downl);
 	if (ppp->debug & 1)
-		printk(KERN_ERR	"PPP: no memory	(fragment)\n");
+		printk(KERN_ERR "PPP: no memory (fragment)\n");
 	++ppp->dev->stats.tx_errors;
 	++ppp->nxseq;
 	return 1;	/* abandon the frame */
@@ -1558,9 +1550,11 @@ ppp_channel_push(struct channel *pch)
  * Receive-side routines.
  */
 
-/* misuse a few fields of the skb for MP reconstruction */
-#define sequence	priority
-#define BEbits		cb[0]
+struct ppp_mp_skb_parm {
+	u32		sequence;
+	u8		BEbits;
+};
+#define PPP_MP_CB(skb)	((struct ppp_mp_skb_parm *)((skb)->cb))
 
 static inline void
 ppp_do_recv(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
@@ -1579,24 +1573,35 @@ ppp_input(struct ppp_channel *chan, struct sk_buff *skb)
 	struct channel *pch = chan->ppp;
 	int proto;
 
-	if (!pch || skb->len == 0) {
+	if (!pch) {
 		kfree_skb(skb);
 		return;
 	}
 
-	proto = PPP_PROTO(skb);
 	read_lock_bh(&pch->upl);
+	if (!pskb_may_pull(skb, 2)) {
+		kfree_skb(skb);
+		if (pch->ppp) {
+			++pch->ppp->dev->stats.rx_length_errors;
+			ppp_receive_error(pch->ppp);
+		}
+		goto done;
+	}
+
+	proto = PPP_PROTO(skb);
 	if (!pch->ppp || proto >= 0xc000 || proto == PPP_CCPFRAG) {
 		/* put it on the channel queue */
 		skb_queue_tail(&pch->file.rq, skb);
 		/* drop old frames if queue too long */
-		while (pch->file.rq.qlen > PPP_MAX_RQLEN
-		       && (skb = skb_dequeue(&pch->file.rq)))
+		while (pch->file.rq.qlen > PPP_MAX_RQLEN &&
+		       (skb = skb_dequeue(&pch->file.rq)))
 			kfree_skb(skb);
 		wake_up_interruptible(&pch->file.rwait);
 	} else {
 		ppp_do_recv(pch->ppp, skb, pch);
 	}
+
+done:
 	read_unlock_bh(&pch->upl);
 }
 
@@ -1629,7 +1634,8 @@ ppp_input_error(struct ppp_channel *chan, int code)
 static void
 ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 {
-	if (pskb_may_pull(skb, 2)) {
+	/* note: a 0-length skb is used as an error indication */
+	if (skb->len > 0) {
 #ifdef CONFIG_PPP_MULTILINK
 		/* XXX do channel-level decompression here */
 		if (PPP_PROTO(skb) == PPP_MP)
@@ -1637,15 +1643,10 @@ ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 		else
 #endif /* CONFIG_PPP_MULTILINK */
 			ppp_receive_nonmp_frame(ppp, skb);
-		return;
+	} else {
+		kfree_skb(skb);
+		ppp_receive_error(ppp);
 	}
-
-	if (skb->len > 0)
-		/* note: a 0-length skb is used as an error indication */
-		++ppp->dev->stats.rx_length_errors;
-
-	kfree_skb(skb);
-	ppp_receive_error(ppp);
 }
 
 static void
@@ -1667,8 +1668,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 	 * Note that some decompressors need to see uncompressed frames
 	 * that come in as well as compressed frames.
 	 */
-	if (ppp->rc_state && (ppp->rstate & SC_DECOMP_RUN)
-	    && (ppp->rstate & (SC_DC_FERROR | SC_DC_ERROR)) == 0)
+	if (ppp->rc_state && (ppp->rstate & SC_DECOMP_RUN) &&
+	    (ppp->rstate & (SC_DC_FERROR | SC_DC_ERROR)) == 0)
 		skb = ppp_decompress_frame(ppp, skb);
 
 	if (ppp->flags & SC_MUST_COMP && ppp->rstate & SC_DC_FERROR)
@@ -1739,8 +1740,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		/* control or unknown frame - pass it to pppd */
 		skb_queue_tail(&ppp->file.rq, skb);
 		/* limit queue length by dropping old frames */
-		while (ppp->file.rq.qlen > PPP_MAX_RQLEN
-		       && (skb = skb_dequeue(&ppp->file.rq)))
+		while (ppp->file.rq.qlen > PPP_MAX_RQLEN &&
+		       (skb = skb_dequeue(&ppp->file.rq)))
 			kfree_skb(skb);
 		/* wake up any process polling or blocking on read */
 		wake_up_interruptible(&ppp->file.rwait);
@@ -1758,26 +1759,24 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 				goto err;
 
 			*skb_push(skb, 2) = 0;
-			if (ppp->pass_filter
-			    && sk_run_filter(skb, ppp->pass_filter,
-					     ppp->pass_len) == 0) {
+			if (ppp->pass_filter &&
+			    sk_run_filter(skb, ppp->pass_filter) == 0) {
 				if (ppp->debug & 1)
 					printk(KERN_DEBUG "PPP: inbound frame "
 					       "not passed\n");
 				kfree_skb(skb);
 				return;
 			}
-			if (!(ppp->active_filter
-			      && sk_run_filter(skb, ppp->active_filter,
-					       ppp->active_len) == 0))
+			if (!(ppp->active_filter &&
+			      sk_run_filter(skb, ppp->active_filter) == 0))
 				ppp->last_recv = jiffies;
 			__skb_pull(skb, 2);
 		} else
 #endif /* CONFIG_PPP_FILTER */
 			ppp->last_recv = jiffies;
 
-		if ((ppp->dev->flags & IFF_UP) == 0
-		    || ppp->npmode[npi] != NPMODE_PASS) {
+		if ((ppp->dev->flags & IFF_UP) == 0 ||
+		    ppp->npmode[npi] != NPMODE_PASS) {
 			kfree_skb(skb);
 		} else {
 			/* chop off protocol */
@@ -1882,13 +1881,13 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 		seq = (skb->data[3] << 16) | (skb->data[4] << 8)| skb->data[5];
 		mask = 0xffffff;
 	}
-	skb->BEbits = skb->data[2];
+	PPP_MP_CB(skb)->BEbits = skb->data[2];
 	skb_pull(skb, mphdrlen);	/* pull off PPP and MP headers */
 
 	/*
 	 * Do protocol ID decompression on the first fragment of each packet.
 	 */
-	if ((skb->BEbits & B) && (skb->data[0] & 1))
+	if ((PPP_MP_CB(skb)->BEbits & B) && (skb->data[0] & 1))
 		*skb_push(skb, 1) = 0;
 
 	/*
@@ -1900,7 +1899,7 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 		seq += mask + 1;
 	else if ((int)(seq - ppp->minseq) > (int)(mask >> 1))
 		seq -= mask + 1;	/* should never happen */
-	skb->sequence = seq;
+	PPP_MP_CB(skb)->sequence = seq;
 	pch->lastseq = seq;
 
 	/*
@@ -1935,14 +1934,21 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	/* If the queue is getting long, don't wait any longer for packets
 	   before the start of the queue. */
 	if (skb_queue_len(&ppp->mrq) >= PPP_MP_MAX_QLEN) {
-		struct sk_buff *skb = skb_peek(&ppp->mrq);
-		if (seq_before(ppp->minseq, skb->sequence))
-			ppp->minseq = skb->sequence;
+		struct sk_buff *mskb = skb_peek(&ppp->mrq);
+		if (seq_before(ppp->minseq, PPP_MP_CB(mskb)->sequence))
+			ppp->minseq = PPP_MP_CB(mskb)->sequence;
 	}
 
 	/* Pull completed packets off the queue and receive them. */
-	while ((skb = ppp_mp_reconstruct(ppp)))
-		ppp_receive_nonmp_frame(ppp, skb);
+	while ((skb = ppp_mp_reconstruct(ppp))) {
+		if (pskb_may_pull(skb, 2))
+			ppp_receive_nonmp_frame(ppp, skb);
+		else {
+			++ppp->dev->stats.rx_length_errors;
+			kfree_skb(skb);
+			ppp_receive_error(ppp);
+		}
+	}
 
 	return;
 
@@ -1960,12 +1966,12 @@ ppp_mp_insert(struct ppp *ppp, struct sk_buff *skb)
 {
 	struct sk_buff *p;
 	struct sk_buff_head *list = &ppp->mrq;
-	u32 seq = skb->sequence;
+	u32 seq = PPP_MP_CB(skb)->sequence;
 
 	/* N.B. we don't need to lock the list lock because we have the
 	   ppp unit receive-side lock. */
 	skb_queue_walk(list, p) {
-		if (seq_before(seq, p->sequence))
+		if (seq_before(seq, PPP_MP_CB(p)->sequence))
 			break;
 	}
 	__skb_queue_before(list, p, skb);
@@ -1994,22 +2000,22 @@ ppp_mp_reconstruct(struct ppp *ppp)
 	tail = NULL;
 	for (p = head; p != (struct sk_buff *) list; p = next) {
 		next = p->next;
-		if (seq_before(p->sequence, seq)) {
+		if (seq_before(PPP_MP_CB(p)->sequence, seq)) {
 			/* this can't happen, anyway ignore the skb */
 			printk(KERN_ERR "ppp_mp_reconstruct bad seq %u < %u\n",
-			       p->sequence, seq);
+			       PPP_MP_CB(p)->sequence, seq);
 			head = next;
 			continue;
 		}
-		if (p->sequence != seq) {
+		if (PPP_MP_CB(p)->sequence != seq) {
 			/* Fragment `seq' is missing.  If it is after
 			   minseq, it might arrive later, so stop here. */
 			if (seq_after(seq, minseq))
 				break;
 			/* Fragment `seq' is lost, keep going. */
 			lost = 1;
-			seq = seq_before(minseq, p->sequence)?
-				minseq + 1: p->sequence;
+			seq = seq_before(minseq, PPP_MP_CB(p)->sequence)?
+				minseq + 1: PPP_MP_CB(p)->sequence;
 			next = p;
 			continue;
 		}
@@ -2023,7 +2029,7 @@ ppp_mp_reconstruct(struct ppp *ppp)
 		 */
 
 		/* B bit set indicates this fragment starts a packet */
-		if (p->BEbits & B) {
+		if (PPP_MP_CB(p)->BEbits & B) {
 			head = p;
 			lost = 0;
 			len = 0;
@@ -2032,7 +2038,8 @@ ppp_mp_reconstruct(struct ppp *ppp)
 		len += p->len;
 
 		/* Got a complete packet yet? */
-		if (lost == 0 && (p->BEbits & E) && (head->BEbits & B)) {
+		if (lost == 0 && (PPP_MP_CB(p)->BEbits & E) &&
+		    (PPP_MP_CB(head)->BEbits & B)) {
 			if (len > ppp->mrru + 2) {
 				++ppp->dev->stats.rx_length_errors;
 				printk(KERN_DEBUG "PPP: reconstructed packet"
@@ -2058,7 +2065,7 @@ ppp_mp_reconstruct(struct ppp *ppp)
 		 * and we haven't found a complete valid packet yet,
 		 * we can discard up to and including this fragment.
 		 */
-		if (p->BEbits & E)
+		if (PPP_MP_CB(p)->BEbits & E)
 			head = next;
 
 		++seq;
@@ -2068,10 +2075,11 @@ ppp_mp_reconstruct(struct ppp *ppp)
 	if (tail != NULL) {
 		/* If we have discarded any fragments,
 		   signal a receive error. */
-		if (head->sequence != ppp->nextseq) {
+		if (PPP_MP_CB(head)->sequence != ppp->nextseq) {
 			if (ppp->debug & 1)
 				printk(KERN_DEBUG "  missed pkts %u..%u\n",
-				       ppp->nextseq, head->sequence-1);
+				       ppp->nextseq,
+				       PPP_MP_CB(head)->sequence-1);
 			++ppp->dev->stats.rx_dropped;
 			ppp_receive_error(ppp);
 		}
@@ -2080,7 +2088,7 @@ ppp_mp_reconstruct(struct ppp *ppp)
 			/* copy to a single skb */
 			for (p = head; p != tail->next; p = p->next)
 				skb_copy_bits(p, 0, skb_put(skb, p->len), p->len);
-		ppp->nextseq = tail->sequence + 1;
+		ppp->nextseq = PPP_MP_CB(tail)->sequence + 1;
 		head = tail->next;
 	}
 
@@ -2169,6 +2177,24 @@ int ppp_unit_number(struct ppp_channel *chan)
 }
 
 /*
+ * Return the PPP device interface name of a channel.
+ */
+char *ppp_dev_name(struct ppp_channel *chan)
+{
+	struct channel *pch = chan->ppp;
+	char *name = NULL;
+
+	if (pch) {
+		read_lock_bh(&pch->upl);
+		if (pch->ppp && pch->ppp->dev)
+			name = pch->ppp->dev->name;
+		read_unlock_bh(&pch->upl);
+	}
+	return name;
+}
+
+
+/*
  * Disconnect a channel from the generic layer.
  * This must be called in process context.
  */
@@ -2234,13 +2260,13 @@ ppp_set_compress(struct ppp *ppp, unsigned long arg)
 	unsigned char ccp_option[CCP_MAX_OPTION_LENGTH];
 
 	err = -EFAULT;
-	if (copy_from_user(&data, (void __user *) arg, sizeof(data))
-	    || (data.length <= CCP_MAX_OPTION_LENGTH
-		&& copy_from_user(ccp_option, (void __user *) data.ptr, data.length)))
+	if (copy_from_user(&data, (void __user *) arg, sizeof(data)) ||
+	    (data.length <= CCP_MAX_OPTION_LENGTH &&
+	     copy_from_user(ccp_option, (void __user *) data.ptr, data.length)))
 		goto out;
 	err = -EINVAL;
-	if (data.length > CCP_MAX_OPTION_LENGTH
-	    || ccp_option[1] < 2 || ccp_option[1] > data.length)
+	if (data.length > CCP_MAX_OPTION_LENGTH ||
+	    ccp_option[1] < 2 || ccp_option[1] > data.length)
 		goto out;
 
 	cp = try_then_request_module(
@@ -2558,16 +2584,16 @@ ppp_create_interface(struct net *net, int unit, int *retp)
 	 */
 	dev_net_set(dev, net);
 
-	ret = -EEXIST;
 	mutex_lock(&pn->all_ppp_mutex);
 
 	if (unit < 0) {
 		unit = unit_get(&pn->units_idr, ppp);
 		if (unit < 0) {
-			*retp = unit;
+			ret = unit;
 			goto out2;
 		}
 	} else {
+		ret = -EEXIST;
 		if (unit_find(&pn->units_idr, unit))
 			goto out2; /* unit already exists */
 		/*
@@ -2642,10 +2668,10 @@ static void ppp_shutdown_interface(struct ppp *ppp)
 		ppp->closing = 1;
 		ppp_unlock(ppp);
 		unregister_netdev(ppp->dev);
+		unit_put(&pn->units_idr, ppp->file.index);
 	} else
 		ppp_unlock(ppp);
 
-	unit_put(&pn->units_idr, ppp->file.index);
 	ppp->file.dead = 1;
 	ppp->owner = NULL;
 	wake_up_interruptible(&ppp->file.rwait);
@@ -2825,7 +2851,7 @@ static void __exit ppp_cleanup(void)
 	unregister_chrdev(PPP_MAJOR, "ppp");
 	device_destroy(ppp_class, MKDEV(PPP_MAJOR, 0));
 	class_destroy(ppp_class);
-	unregister_pernet_gen_device(ppp_net_id, &ppp_net_ops);
+	unregister_pernet_device(&ppp_net_ops);
 }
 
 /*
@@ -2833,8 +2859,7 @@ static void __exit ppp_cleanup(void)
  * by holding all_ppp_mutex
  */
 
-/* associate pointer with specified number */
-static int unit_set(struct idr *p, void *ptr, int n)
+static int __unit_alloc(struct idr *p, void *ptr, int n)
 {
 	int unit, err;
 
@@ -2845,10 +2870,24 @@ again:
 	}
 
 	err = idr_get_new_above(p, ptr, n, &unit);
-	if (err == -EAGAIN)
-		goto again;
+	if (err < 0) {
+		if (err == -EAGAIN)
+			goto again;
+		return err;
+	}
 
-	if (unit != n) {
+	return unit;
+}
+
+/* associate pointer with specified number */
+static int unit_set(struct idr *p, void *ptr, int n)
+{
+	int unit;
+
+	unit = __unit_alloc(p, ptr, n);
+	if (unit < 0)
+		return unit;
+	else if (unit != n) {
 		idr_remove(p, unit);
 		return -EINVAL;
 	}
@@ -2859,19 +2898,7 @@ again:
 /* get new free unit number and associate pointer with it */
 static int unit_get(struct idr *p, void *ptr)
 {
-	int unit, err;
-
-again:
-	if (!idr_pre_get(p, GFP_KERNEL)) {
-		printk(KERN_ERR "PPP: No free memory for idr\n");
-		return -ENOMEM;
-	}
-
-	err = idr_get_new_above(p, ptr, 0, &unit);
-	if (err == -EAGAIN)
-		goto again;
-
-	return unit;
+	return __unit_alloc(p, ptr, 0);
 }
 
 /* put unit number back to a pool */
@@ -2896,11 +2923,12 @@ EXPORT_SYMBOL(ppp_register_channel);
 EXPORT_SYMBOL(ppp_unregister_channel);
 EXPORT_SYMBOL(ppp_channel_index);
 EXPORT_SYMBOL(ppp_unit_number);
+EXPORT_SYMBOL(ppp_dev_name);
 EXPORT_SYMBOL(ppp_input);
 EXPORT_SYMBOL(ppp_input_error);
 EXPORT_SYMBOL(ppp_output_wakeup);
 EXPORT_SYMBOL(ppp_register_compressor);
 EXPORT_SYMBOL(ppp_unregister_compressor);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV_MAJOR(PPP_MAJOR);
-MODULE_ALIAS("/dev/ppp");
+MODULE_ALIAS_CHARDEV(PPP_MAJOR, 0);
+MODULE_ALIAS("devname:ppp");

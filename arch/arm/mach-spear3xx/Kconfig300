@@ -1,0 +1,17 @@
+#
+# SPEAr300 machine configuration file
+#
+
+if MACH_SPEAR300
+
+choice
+	prompt "SPEAr300 Boards"
+	default BOARD_SPEAR300_EVB
+
+config BOARD_SPEAR300_EVB
+	bool "SPEAr300 Evaluation Board"
+	help
+	  Supports ST SPEAr300 Evaluation Board
+endchoice
+
+endif	#MACH_SPEAR300

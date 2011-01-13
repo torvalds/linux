@@ -21,14 +21,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
+ *
+ * Richard Woodruff notes that any changes to this code must be carefully
+ * audited and tested to ensure that they don't cause a TLB miss while
+ * the SDRAM is inaccessible.  Such a situation will crash the system
+ * since it will cause the ARM MMU to attempt to walk the page tables.
+ * These crashes may be intermittent.
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/io.h>
 #include <mach/hardware.h>
 
-#include "prm.h"
-#include "cm.h"
+#include "prm2xxx_3xxx.h"
+#include "cm2xxx_3xxx.h"
 #include "sdrc.h"
 
 	.text
@@ -128,7 +134,7 @@ omap243x_sdi_prcm_voltctrl:
 prcm_mask_val:
 	.word 0xFFFF3FFC
 omap243x_sdi_timer_32ksynct_cr:
-	.word IO_ADDRESS(OMAP2430_32KSYNCT_BASE + 0x010)
+	.word OMAP2_L4_IO_ADDRESS(OMAP2430_32KSYNCT_BASE + 0x010)
 ENTRY(omap243x_sram_ddr_init_sz)
 	.word	. - omap243x_sram_ddr_init
 
@@ -224,7 +230,7 @@ omap243x_srs_prcm_voltctrl:
 ddr_prcm_mask_val:
 	.word 0xFFFF3FFC
 omap243x_srs_timer_32ksynct:
-	.word IO_ADDRESS(OMAP2430_32KSYNCT_BASE + 0x010)
+	.word OMAP2_L4_IO_ADDRESS(OMAP2430_32KSYNCT_BASE + 0x010)
 
 ENTRY(omap243x_sram_reprogram_sdrc_sz)
 	.word	. - omap243x_sram_reprogram_sdrc

@@ -2,7 +2,6 @@ menuconfig SND_HDA_INTEL
 	tristate "Intel HD Audio"
 	select SND_PCM
 	select SND_VMASTER
-	select SND_JACK if INPUT=y || INPUT=SND
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) and its compatible devices.
@@ -38,6 +37,39 @@ config SND_HDA_INPUT_BEEP
 	help
 	  Say Y here to build a digital beep interface for HD-audio
 	  driver. This interface is used to generate digital beeps.
+
+config SND_HDA_INPUT_BEEP_MODE
+	int "Digital beep registration mode (0=off, 1=on, 2=mute sw on/off)"
+	depends on SND_HDA_INPUT_BEEP=y
+	default "1"
+	range 0 2
+	help
+	  Set 0 to disable the digital beep interface for HD-audio by default.
+	  Set 1 to always enable the digital beep interface for HD-audio by
+	  default. Set 2 to control the beep device registration to input
+	  layer using a "Beep Switch" in mixer applications.
+
+config SND_HDA_INPUT_JACK
+	bool "Support jack plugging notification via input layer"
+	depends on INPUT=y || INPUT=SND
+	select SND_JACK
+	help
+	  Say Y here to enable the jack plugging notification via
+	  input layer.
+
+config SND_HDA_PATCH_LOADER
+	bool "Support initialization patch loading for HD-audio"
+	depends on EXPERIMENTAL
+	select FW_LOADER
+	select SND_HDA_HWDEP
+	select SND_HDA_RECONFIG
+	help
+	  Say Y here to allow the HD-audio driver to load a pseudo
+	  firmware file ("patch") for overriding the BIOS setup at
+	  start up.  The "patch" file can be specified via patch module
+	  option, such as patch=hda-init.
+
+	  This option turns on hwdep and reconfig features automatically.
 
 config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"
@@ -87,45 +119,32 @@ config SND_HDA_CODEC_VIA
 	  snd-hda-codec-via.
 	  This module is automatically loaded at probing.
 
-config SND_HDA_CODEC_ATIHDMI
-	bool "Build ATI HDMI HD-audio codec support"
+config SND_HDA_CODEC_HDMI
+	bool "Build HDMI/DisplayPort HD-audio codec support"
+	select SND_DYNAMIC_MINORS
 	default y
 	help
-	  Say Y here to include ATI HDMI HD-audio codec support in
-	  snd-hda-intel driver, such as ATI RS600 HDMI.
+	  Say Y here to include HDMI and DisplayPort HD-audio codec
+	  support in snd-hda-intel driver.  This includes all AMD/ATI,
+	  Intel and Nvidia HDMI/DisplayPort codecs.
 
 	  When the HD-audio driver is built as a module, the codec
 	  support code is also built as another module,
-	  snd-hda-codec-atihdmi.
+	  snd-hda-codec-hdmi.
 	  This module is automatically loaded at probing.
 
-config SND_HDA_CODEC_NVHDMI
-	bool "Build NVIDIA HDMI HD-audio codec support"
+config SND_HDA_CODEC_CIRRUS
+	bool "Build Cirrus Logic codec support"
+	depends on SND_HDA_INTEL
 	default y
 	help
-	  Say Y here to include NVIDIA HDMI HD-audio codec support in
-	  snd-hda-intel driver, such as NVIDIA MCP78 HDMI.
+	  Say Y here to include Cirrus Logic codec support in
+	  snd-hda-intel driver, such as CS4206.
 
 	  When the HD-audio driver is built as a module, the codec
 	  support code is also built as another module,
-	  snd-hda-codec-nvhdmi.
+	  snd-hda-codec-cirrus.
 	  This module is automatically loaded at probing.
-
-config SND_HDA_CODEC_INTELHDMI
-	bool "Build INTEL HDMI HD-audio codec support"
-	default y
-	help
-	  Say Y here to include INTEL HDMI HD-audio codec support in
-	  snd-hda-intel driver, such as Eaglelake integrated HDMI.
-
-	  When the HD-audio driver is built as a module, the codec
-	  support code is also built as another module,
-	  snd-hda-codec-intelhdmi.
-	  This module is automatically loaded at probing.
-
-config SND_HDA_ELD
-	def_bool y
-	depends on SND_HDA_CODEC_INTELHDMI
 
 config SND_HDA_CODEC_CONEXANT
 	bool "Build Conexant HD-audio codec support"

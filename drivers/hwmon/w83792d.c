@@ -50,7 +50,6 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83792d);
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -302,7 +301,7 @@ struct w83792d_data {
 
 static int w83792d_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int w83792d_detect(struct i2c_client *client, int kind,
+static int w83792d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int w83792d_remove(struct i2c_client *client);
 static struct w83792d_data *w83792d_update_device(struct device *dev);
@@ -314,7 +313,7 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev);
 static void w83792d_init_client(struct i2c_client *client);
 
 static const struct i2c_device_id w83792d_id[] = {
-	{ "w83792d", w83792d },
+	{ "w83792d", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83792d_id);
@@ -328,7 +327,7 @@ static struct i2c_driver w83792d_driver = {
 	.remove		= w83792d_remove,
 	.id_table	= w83792d_id,
 	.detect		= w83792d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static inline long in_count_from_reg(int nr, struct w83792d_data *data)
@@ -1263,7 +1262,7 @@ static const struct attribute_group w83792d_group = {
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int
-w83792d_detect(struct i2c_client *client, int kind, struct i2c_board_info *info)
+w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int val1, val2;
@@ -1273,58 +1272,33 @@ w83792d_detect(struct i2c_client *client, int kind, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	/* The w83792d may be stuck in some other bank than bank 0. This may
-	   make reading other information impossible. Specify a force=... or
-	   force_*=... parameter, and the Winbond will be reset to the right
-	   bank. */
-	if (kind < 0) {
-		if (w83792d_read_value(client, W83792D_REG_CONFIG) & 0x80) {
-			return -ENODEV;
-		}
-		val1 = w83792d_read_value(client, W83792D_REG_BANK);
-		val2 = w83792d_read_value(client, W83792D_REG_CHIPMAN);
-		/* Check for Winbond ID if in bank 0 */
-		if (!(val1 & 0x07)) {  /* is Bank0 */
-			if (((!(val1 & 0x80)) && (val2 != 0xa3)) ||
-			     ((val1 & 0x80) && (val2 != 0x5c))) {
-				return -ENODEV;
-			}
-		}
-		/* If Winbond chip, address of chip and W83792D_REG_I2C_ADDR
-		   should match */
-		if (w83792d_read_value(client,
-					W83792D_REG_I2C_ADDR) != address) {
-			return -ENODEV;
-		}
-	}
+	if (w83792d_read_value(client, W83792D_REG_CONFIG) & 0x80)
+		return -ENODEV;
 
-	/* We have either had a force parameter, or we have already detected the
-	   Winbond. Put it now into bank 0 and Vendor ID High Byte */
+	val1 = w83792d_read_value(client, W83792D_REG_BANK);
+	val2 = w83792d_read_value(client, W83792D_REG_CHIPMAN);
+	/* Check for Winbond ID if in bank 0 */
+	if (!(val1 & 0x07)) {  /* is Bank0 */
+		if ((!(val1 & 0x80) && val2 != 0xa3) ||
+		    ( (val1 & 0x80) && val2 != 0x5c))
+			return -ENODEV;
+	}
+	/* If Winbond chip, address of chip and W83792D_REG_I2C_ADDR
+	   should match */
+	if (w83792d_read_value(client, W83792D_REG_I2C_ADDR) != address)
+		return -ENODEV;
+
+	/*  Put it now into bank 0 and Vendor ID High Byte */
 	w83792d_write_value(client,
 			    W83792D_REG_BANK,
 			    (w83792d_read_value(client,
 				W83792D_REG_BANK) & 0x78) | 0x80);
 
 	/* Determine the chip type. */
-	if (kind <= 0) {
-		/* get vendor ID */
-		val2 = w83792d_read_value(client, W83792D_REG_CHIPMAN);
-		if (val2 != 0x5c) {  /* the vendor is NOT Winbond */
-			return -ENODEV;
-		}
-		val1 = w83792d_read_value(client, W83792D_REG_WCHIPID);
-		if (val1 == 0x7a) {
-			kind = w83792d;
-		} else {
-			if (kind == 0)
-				dev_warn(&adapter->dev,
-					"w83792d: Ignoring 'force' parameter for"
-					" unknown chip at adapter %d, address"
-					" 0x%02x\n", i2c_adapter_id(adapter),
-					address);
-			return -ENODEV;
-		}
-	}
+	val1 = w83792d_read_value(client, W83792D_REG_WCHIPID);
+	val2 = w83792d_read_value(client, W83792D_REG_CHIPMAN);
+	if (val1 != 0x7a || val2 != 0x5c)
+		return -ENODEV;
 
 	strlcpy(info->type, "w83792d", I2C_NAME_SIZE);
 

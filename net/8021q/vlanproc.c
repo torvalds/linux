@@ -107,7 +107,7 @@ static const struct file_operations vlandev_fops = {
  */
 
 /* Strings */
-static const char *vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
+static const char *const vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
     [VLAN_NAME_TYPE_RAW_PLUS_VID]        = "VLAN_NAME_TYPE_RAW_PLUS_VID",
     [VLAN_NAME_TYPE_PLUS_VID_NO_PAD]	 = "VLAN_NAME_TYPE_PLUS_VID_NO_PAD",
     [VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD] = "VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD",
@@ -140,7 +140,7 @@ void vlan_proc_cleanup(struct net *net)
  *	Create /proc/net/vlan entries
  */
 
-int vlan_proc_init(struct net *net)
+int __net_init vlan_proc_init(struct net *net)
 {
 	struct vlan_net *vn = net_generic(net, vlan_net_id);
 
@@ -201,18 +201,17 @@ int vlan_proc_rem_dev(struct net_device *vlandev)
 
 /* start read of /proc/net/vlan/config */
 static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(dev_base_lock)
+	__acquires(rcu)
 {
 	struct net_device *dev;
 	struct net *net = seq_file_net(seq);
 	loff_t i = 1;
 
-	read_lock(&dev_base_lock);
-
+	rcu_read_lock();
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for_each_netdev(net, dev) {
+	for_each_netdev_rcu(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -234,7 +233,7 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (v == SEQ_START_TOKEN)
 		dev = net_device_entry(&net->dev_base_head);
 
-	for_each_netdev_continue(net, dev) {
+	for_each_netdev_continue_rcu(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -245,9 +244,9 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void vlan_seq_stop(struct seq_file *seq, void *v)
-	__releases(dev_base_lock)
+	__releases(rcu)
 {
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
 static int vlan_seq_show(struct seq_file *seq, void *v)
@@ -279,29 +278,26 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 {
 	struct net_device *vlandev = (struct net_device *) seq->private;
 	const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
-	const struct net_device_stats *stats;
-	static const char fmt[] = "%30s %12lu\n";
+	struct rtnl_link_stats64 temp;
+	const struct rtnl_link_stats64 *stats;
+	static const char fmt64[] = "%30s %12llu\n";
 	int i;
 
 	if (!is_vlan_dev(vlandev))
 		return 0;
 
-	stats = dev_get_stats(vlandev);
+	stats = dev_get_stats(vlandev, &temp);
 	seq_printf(seq,
 		   "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",
 		   vlandev->name, dev_info->vlan_id,
 		   (int)(dev_info->flags & 1), vlandev->priv_flags);
 
-	seq_printf(seq, fmt, "total frames received", stats->rx_packets);
-	seq_printf(seq, fmt, "total bytes received", stats->rx_bytes);
-	seq_printf(seq, fmt, "Broadcast/Multicast Rcvd", stats->multicast);
+	seq_printf(seq, fmt64, "total frames received", stats->rx_packets);
+	seq_printf(seq, fmt64, "total bytes received", stats->rx_bytes);
+	seq_printf(seq, fmt64, "Broadcast/Multicast Rcvd", stats->multicast);
 	seq_puts(seq, "\n");
-	seq_printf(seq, fmt, "total frames transmitted", stats->tx_packets);
-	seq_printf(seq, fmt, "total bytes transmitted", stats->tx_bytes);
-	seq_printf(seq, fmt, "total headroom inc",
-		   dev_info->cnt_inc_headroom_on_tx);
-	seq_printf(seq, fmt, "total encap on xmit",
-		   dev_info->cnt_encap_on_xmit);
+	seq_printf(seq, fmt64, "total frames transmitted", stats->tx_packets);
+	seq_printf(seq, fmt64, "total bytes transmitted", stats->tx_bytes);
 	seq_printf(seq, "Device: %s", dev_info->real_dev->name);
 	/* now show all PRIORITY mappings relating to this VLAN */
 	seq_printf(seq, "\nINGRESS priority mappings: "

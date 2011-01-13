@@ -516,6 +516,7 @@ get the interrupt driven case to work efficiently */
 			break;
 	if (i == 0x5000) {
 		printk(KERN_ERR "au1000 AC97: AC97 command read timeout\n");
+		spin_unlock(&au1000->ac97_lock);
 		return 0;
 	}
 

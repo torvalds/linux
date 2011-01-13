@@ -37,6 +37,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/dst.h>
 
 /* 32bit DMA ops. */
@@ -393,11 +394,11 @@ dma_addr_t map_descbuffer(struct b43legacy_dmaring *ring,
 	dma_addr_t dmaaddr;
 
 	if (tx)
-		dmaaddr = ssb_dma_map_single(ring->dev->dev,
+		dmaaddr = dma_map_single(ring->dev->dev->dma_dev,
 					     buf, len,
 					     DMA_TO_DEVICE);
 	else
-		dmaaddr = ssb_dma_map_single(ring->dev->dev,
+		dmaaddr = dma_map_single(ring->dev->dev->dma_dev,
 					     buf, len,
 					     DMA_FROM_DEVICE);
 
@@ -411,11 +412,11 @@ void unmap_descbuffer(struct b43legacy_dmaring *ring,
 		      int tx)
 {
 	if (tx)
-		ssb_dma_unmap_single(ring->dev->dev,
+		dma_unmap_single(ring->dev->dev->dma_dev,
 				     addr, len,
 				     DMA_TO_DEVICE);
 	else
-		ssb_dma_unmap_single(ring->dev->dev,
+		dma_unmap_single(ring->dev->dev->dma_dev,
 				     addr, len,
 				     DMA_FROM_DEVICE);
 }
@@ -427,8 +428,8 @@ void sync_descbuffer_for_cpu(struct b43legacy_dmaring *ring,
 {
 	B43legacy_WARN_ON(ring->tx);
 
-	ssb_dma_sync_single_for_cpu(ring->dev->dev,
-				    addr, len, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(ring->dev->dev->dma_dev,
+				addr, len, DMA_FROM_DEVICE);
 }
 
 static inline
@@ -438,8 +439,8 @@ void sync_descbuffer_for_device(struct b43legacy_dmaring *ring,
 {
 	B43legacy_WARN_ON(ring->tx);
 
-	ssb_dma_sync_single_for_device(ring->dev->dev,
-				       addr, len, DMA_FROM_DEVICE);
+	dma_sync_single_for_device(ring->dev->dev->dma_dev,
+				   addr, len, DMA_FROM_DEVICE);
 }
 
 static inline
@@ -459,10 +460,10 @@ void free_descriptor_buffer(struct b43legacy_dmaring *ring,
 static int alloc_ringmemory(struct b43legacy_dmaring *ring)
 {
 	/* GFP flags must match the flags in free_ringmemory()! */
-	ring->descbase = ssb_dma_alloc_consistent(ring->dev->dev,
-						  B43legacy_DMA_RINGMEMSIZE,
-						  &(ring->dmabase),
-						  GFP_KERNEL);
+	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
+					    B43legacy_DMA_RINGMEMSIZE,
+					    &(ring->dmabase),
+					    GFP_KERNEL);
 	if (!ring->descbase) {
 		b43legacyerr(ring->dev->wl, "DMA ringmemory allocation"
 			     " failed\n");
@@ -475,8 +476,8 @@ static int alloc_ringmemory(struct b43legacy_dmaring *ring)
 
 static void free_ringmemory(struct b43legacy_dmaring *ring)
 {
-	ssb_dma_free_consistent(ring->dev->dev, B43legacy_DMA_RINGMEMSIZE,
-				ring->descbase, ring->dmabase, GFP_KERNEL);
+	dma_free_coherent(ring->dev->dev->dma_dev, B43legacy_DMA_RINGMEMSIZE,
+			  ring->descbase, ring->dmabase);
 }
 
 /* Reset the RX DMA channel */
@@ -588,7 +589,7 @@ static bool b43legacy_dma_mapping_error(struct b43legacy_dmaring *ring,
 					 size_t buffersize,
 					 bool dma_to_device)
 {
-	if (unlikely(ssb_dma_mapping_error(ring->dev->dev, addr)))
+	if (unlikely(dma_mapping_error(ring->dev->dev->dma_dev, addr)))
 		return 1;
 
 	switch (ring->type) {
@@ -905,7 +906,7 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 			goto err_kfree_meta;
 
 		/* test for ability to dma to txhdr_cache */
-		dma_test = ssb_dma_map_single(dev->dev, ring->txhdr_cache,
+		dma_test = dma_map_single(dev->dev->dma_dev, ring->txhdr_cache,
 					      sizeof(struct b43legacy_txhdr_fw3),
 					      DMA_TO_DEVICE);
 
@@ -919,7 +920,7 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 			if (!ring->txhdr_cache)
 				goto err_kfree_meta;
 
-			dma_test = ssb_dma_map_single(dev->dev,
+			dma_test = dma_map_single(dev->dev->dma_dev,
 					ring->txhdr_cache,
 					sizeof(struct b43legacy_txhdr_fw3),
 					DMA_TO_DEVICE);
@@ -929,9 +930,9 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 				goto err_kfree_txhdr_cache;
 		}
 
-		ssb_dma_unmap_single(dev->dev, dma_test,
-				     sizeof(struct b43legacy_txhdr_fw3),
-				     DMA_TO_DEVICE);
+		dma_unmap_single(dev->dev->dma_dev, dma_test,
+				 sizeof(struct b43legacy_txhdr_fw3),
+				 DMA_TO_DEVICE);
 	}
 
 	ring->nr_slots = nr_slots;
@@ -1039,9 +1040,12 @@ static int b43legacy_dma_set_mask(struct b43legacy_wldev *dev, u64 mask)
 	/* Try to set the DMA mask. If it fails, try falling back to a
 	 * lower mask, as we can always also support a lower one. */
 	while (1) {
-		err = ssb_dma_set_mask(dev->dev, mask);
-		if (!err)
-			break;
+		err = dma_set_mask(dev->dev->dma_dev, mask);
+		if (!err) {
+			err = dma_set_coherent_mask(dev->dev->dma_dev, mask);
+			if (!err)
+				break;
+		}
 		if (mask == DMA_BIT_MASK(64)) {
 			mask = DMA_BIT_MASK(32);
 			fallback = 1;
@@ -1240,8 +1244,9 @@ struct b43legacy_dmaring *parse_cookie(struct b43legacy_wldev *dev,
 }
 
 static int dma_tx_fragment(struct b43legacy_dmaring *ring,
-			    struct sk_buff *skb)
+			    struct sk_buff **in_skb)
 {
+	struct sk_buff *skb = *in_skb;
 	const struct b43legacy_dma_ops *ops = ring->ops;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u8 *header;
@@ -1305,8 +1310,14 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 		}
 
 		memcpy(skb_put(bounce_skb, skb->len), skb->data, skb->len);
+		memcpy(bounce_skb->cb, skb->cb, sizeof(skb->cb));
+		bounce_skb->dev = skb->dev;
+		skb_set_queue_mapping(bounce_skb, skb_get_queue_mapping(skb));
+		info = IEEE80211_SKB_CB(bounce_skb);
+
 		dev_kfree_skb_any(skb);
 		skb = bounce_skb;
+		*in_skb = bounce_skb;
 		meta->skb = skb;
 		meta->dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
 		if (b43legacy_dma_mapping_error(ring, meta->dmaaddr, skb->len, 1)) {
@@ -1360,23 +1371,39 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		     struct sk_buff *skb)
 {
 	struct b43legacy_dmaring *ring;
+	struct ieee80211_hdr *hdr;
 	int err = 0;
 	unsigned long flags;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	ring = priority_to_txring(dev, skb_get_queue_mapping(skb));
 	spin_lock_irqsave(&ring->lock, flags);
 	B43legacy_WARN_ON(!ring->tx);
-	if (unlikely(free_slots(ring) < SLOTS_PER_PACKET)) {
-		b43legacywarn(dev->wl, "DMA queue overflow\n");
+
+	if (unlikely(ring->stopped)) {
+		/* We get here only because of a bug in mac80211.
+		 * Because of a race, one packet may be queued after
+		 * the queue is stopped, thus we got called when we shouldn't.
+		 * For now, just refuse the transmit. */
+		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
+			b43legacyerr(dev->wl, "Packet after queue stopped\n");
 		err = -ENOSPC;
 		goto out_unlock;
 	}
-	/* Check if the queue was stopped in mac80211,
-	 * but we got called nevertheless.
-	 * That would be a mac80211 bug. */
-	B43legacy_BUG_ON(ring->stopped);
 
-	err = dma_tx_fragment(ring, skb);
+	if (unlikely(WARN_ON(free_slots(ring) < SLOTS_PER_PACKET))) {
+		/* If we get here, we have a real error with the queue
+		 * full, but queues not stopped. */
+		b43legacyerr(dev->wl, "DMA queue overflow\n");
+		err = -ENOSPC;
+		goto out_unlock;
+	}
+
+	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
+	 * into the skb data or cb now. */
+	hdr = NULL;
+	info = NULL;
+	err = dma_tx_fragment(ring, &skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */
@@ -1388,7 +1415,6 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		b43legacyerr(dev->wl, "DMA tx mapping failure\n");
 		goto out_unlock;
 	}
-	ring->nr_tx_packets++;
 	if ((free_slots(ring) < SLOTS_PER_PACKET) ||
 	    should_inject_overflow(ring)) {
 		/* This TX ring is full. */
@@ -1502,25 +1528,6 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	}
 
 	spin_unlock(&ring->lock);
-}
-
-void b43legacy_dma_get_tx_stats(struct b43legacy_wldev *dev,
-			      struct ieee80211_tx_queue_stats *stats)
-{
-	const int nr_queues = dev->wl->hw->queues;
-	struct b43legacy_dmaring *ring;
-	unsigned long flags;
-	int i;
-
-	for (i = 0; i < nr_queues; i++) {
-		ring = priority_to_txring(dev, i);
-
-		spin_lock_irqsave(&ring->lock, flags);
-		stats[i].len = ring->used_slots / SLOTS_PER_PACKET;
-		stats[i].limit = ring->nr_slots / SLOTS_PER_PACKET;
-		stats[i].count = ring->nr_tx_packets;
-		spin_unlock_irqrestore(&ring->lock, flags);
-	}
 }
 
 static void dma_rx(struct b43legacy_dmaring *ring,

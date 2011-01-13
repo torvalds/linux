@@ -54,6 +54,7 @@ static void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	if (bd->bd_ail)
 		list_move(&bd->bd_ail_st_list, &bd->bd_ail->ai_ail2_list);
 	get_bh(bh);
+	atomic_inc(&sdp->sd_log_pinned);
 	trace_gfs2_pin(bd, 1);
 }
 
@@ -94,6 +95,7 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	trace_gfs2_pin(bd, 0);
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
+	atomic_dec(&sdp->sd_log_pinned);
 }
 
 
@@ -132,6 +134,7 @@ static struct buffer_head *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type)
 static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
+	struct gfs2_meta_header *mh;
 	struct gfs2_trans *tr;
 
 	lock_buffer(bd->bd_bh);
@@ -148,6 +151,9 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 	gfs2_meta_check(sdp, bd->bd_bh);
 	gfs2_pin(sdp, bd->bd_bh);
+	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
+	mh->__pad0 = cpu_to_be64(0);
+	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
 	sdp->sd_log_num_buf++;
 	list_add(&le->le_list, &sdp->sd_log_le_buf);
 	tr->tr_num_buf_new++;
@@ -524,9 +530,9 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
 		sdp->sd_log_num_databuf++;
-		list_add(&le->le_list, &sdp->sd_log_le_databuf);
+		list_add_tail(&le->le_list, &sdp->sd_log_le_databuf);
 	} else {
-		list_add(&le->le_list, &sdp->sd_log_le_ordered);
+		list_add_tail(&le->le_list, &sdp->sd_log_le_ordered);
 	}
 out:
 	gfs2_log_unlock(sdp);

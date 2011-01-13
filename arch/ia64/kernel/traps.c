@@ -19,7 +19,6 @@
 #include <linux/kdebug.h>
 
 #include <asm/fpswa.h>
-#include <asm/ia32.h>
 #include <asm/intrinsics.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -626,10 +625,6 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		break;
 
 	      case 45:
-#ifdef CONFIG_IA32_SUPPORT
-		if (ia32_exception(&regs, isr) == 0)
-			return;
-#endif
 		printk(KERN_ERR "Unexpected IA-32 exception (Trap 45)\n");
 		printk(KERN_ERR "  iip - 0x%lx, ifa - 0x%lx, isr - 0x%lx\n",
 		       iip, ifa, isr);
@@ -637,10 +632,6 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		break;
 
 	      case 46:
-#ifdef CONFIG_IA32_SUPPORT
-		if (ia32_intercept(&regs, isr) == 0)
-			return;
-#endif
 		printk(KERN_ERR "Unexpected IA-32 intercept trap (Trap 46)\n");
 		printk(KERN_ERR "  iip - 0x%lx, ifa - 0x%lx, isr - 0x%lx, iim - 0x%lx\n",
 		       iip, ifa, isr, iim);

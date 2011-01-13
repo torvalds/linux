@@ -12,4 +12,7 @@ struct dev_archdata {
 #endif
 };
 
+struct pdev_archdata {
+};
+
 #endif

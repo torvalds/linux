@@ -5,10 +5,13 @@
  * marked non-static so that assembler code can get at them.
  */
 
-#define MAX_PHYS_ADDRESS	(1UL << 42UL)
-#define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
+#define MAX_PHYS_ADDRESS	(1UL << 41UL)
+#define KPTE_BITMAP_CHUNK_SZ		(256UL * 1024UL * 1024UL)
 #define KPTE_BITMAP_BYTES	\
 	((MAX_PHYS_ADDRESS / KPTE_BITMAP_CHUNK_SZ) / 8)
+#define VALID_ADDR_BITMAP_CHUNK_SZ	(4UL * 1024UL * 1024UL)
+#define VALID_ADDR_BITMAP_BYTES	\
+	((MAX_PHYS_ADDRESS / VALID_ADDR_BITMAP_CHUNK_SZ) / 8)
 
 extern unsigned long kern_linear_pte_xor[2];
 extern unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
@@ -42,7 +45,7 @@ extern void free_initmem(void);
 #define VMEMMAP_ALIGN(x)	(((x)+VMEMMAP_CHUNK-1UL)&VMEMMAP_CHUNK_MASK)
 
 #define VMEMMAP_SIZE	((((1UL << MAX_PHYSADDR_BITS) >> PAGE_SHIFT) * \
-			  sizeof(struct page *)) >> VMEMMAP_CHUNK_SHIFT)
+			  sizeof(struct page)) >> VMEMMAP_CHUNK_SHIFT)
 extern unsigned long vmemmap_table[VMEMMAP_SIZE];
 #endif
 

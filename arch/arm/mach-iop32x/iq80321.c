@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 #include <linux/mtd/physmap.h>
@@ -46,7 +45,6 @@ static void __init iq80321_timer_init(void)
 
 static struct sys_timer iq80321_timer = {
 	.init		= iq80321_timer_init,
-	.offset		= iop_gettimeoffset,
 };
 
 
@@ -188,8 +186,6 @@ static void __init iq80321_init_machine(void)
 
 MACHINE_START(IQ80321, "Intel IQ80321")
 	/* Maintainer: Intel Corp. */
-	.phys_io	= IQ80321_UART,
-	.io_pg_offst	= ((IQ80321_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= iq80321_map_io,
 	.init_irq	= iop32x_init_irq,

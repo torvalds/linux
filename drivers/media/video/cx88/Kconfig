@@ -1,12 +1,11 @@
 config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
-	depends on VIDEO_DEV && PCI && I2C && INPUT
+	depends on VIDEO_DEV && PCI && I2C && RC_CORE
 	select I2C_ALGOBIT
 	select VIDEO_BTCX
 	select VIDEOBUF_DMA_SG
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	select VIDEO_IR
 	select VIDEO_WM8775 if VIDEO_HELPER_CHIPS_AUTO
 	---help---
 	  This is a video4linux driver for Conexant 2388x based
@@ -17,7 +16,7 @@ config VIDEO_CX88
 
 config VIDEO_CX88_ALSA
 	tristate "Conexant 2388x DMA audio support"
-	depends on VIDEO_CX88 && SND && EXPERIMENTAL
+	depends on VIDEO_CX88 && SND
 	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on
@@ -61,6 +60,8 @@ config VIDEO_CX88_DVB
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_STV0288 if !DVB_FE_CUSTOMISE
 	select DVB_STB6000 if !DVB_FE_CUSTOMISE
+	select DVB_STV0900 if !DVB_FE_CUSTOMISE
+	select DVB_STB6100 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMISE
 	---help---
 	  This adds support for DVB/ATSC cards based on the

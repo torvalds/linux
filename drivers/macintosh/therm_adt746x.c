@@ -3,9 +3,9 @@
  *
  * Copyright (C) 2003, 2004 Colin Leroy, Rasmus Rohde, Benjamin Herrenschmidt
  *
- * Documentation from
- * http://www.analog.com/UploadedFiles/Data_Sheets/115254175ADT7467_pra.pdf
- * http://www.analog.com/UploadedFiles/Data_Sheets/3686221171167ADT7460_b.pdf
+ * Documentation from 115254175ADT7467_pra.pdf and 3686221171167ADT7460_b.pdf
+ * http://www.onsemi.com/PowerSolutions/product.do?id=ADT7467
+ * http://www.onsemi.com/PowerSolutions/product.do?id=ADT7460
  *
  */
 
@@ -79,16 +79,19 @@ struct thermostat {
 	u8			limits[3];
 	int			last_speed[2];
 	int			last_var[2];
+	int			pwm_inv[2];
 };
 
 static enum {ADT7460, ADT7467} therm_type;
 static int therm_bus, therm_address;
-static struct of_device * of_dev;
+static struct platform_device * of_dev;
 static struct thermostat* thermostat;
 static struct task_struct *thread_therm = NULL;
 
 static void write_both_fan_speed(struct thermostat *th, int speed);
 static void write_fan_speed(struct thermostat *th, int speed, int fan);
+static void thermostat_create_files(void);
+static void thermostat_remove_files(void);
 
 static int
 write_reg(struct thermostat* th, int reg, u8 data)
@@ -124,6 +127,8 @@ read_reg(struct thermostat* th, int reg)
 	return data;
 }
 
+static struct i2c_driver thermostat_driver;
+
 static int
 attach_thermostat(struct i2c_adapter *adapter)
 {
@@ -148,7 +153,7 @@ attach_thermostat(struct i2c_adapter *adapter)
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&client->detected, &client->driver->clients);
+	list_add_tail(&client->detected, &thermostat_driver.clients);
 	return 0;
 }
 
@@ -158,6 +163,8 @@ remove_thermostat(struct i2c_client *client)
 	struct thermostat *th = i2c_get_clientdata(client);
 	int i;
 	
+	thermostat_remove_files();
+
 	if (thread_therm != NULL) {
 		kthread_stop(thread_therm);
 	}
@@ -227,19 +234,23 @@ static void write_fan_speed(struct thermostat *th, int speed, int fan)
 	
 	if (speed >= 0) {
 		manual = read_reg(th, MANUAL_MODE[fan]);
+		manual &= ~INVERT_MASK;
 		write_reg(th, MANUAL_MODE[fan],
-			(manual|MANUAL_MASK) & (~INVERT_MASK));
+			manual | MANUAL_MASK | th->pwm_inv[fan]);
 		write_reg(th, FAN_SPD_SET[fan], speed);
 	} else {
 		/* back to automatic */
 		if(therm_type == ADT7460) {
 			manual = read_reg(th,
 				MANUAL_MODE[fan]) & (~MANUAL_MASK);
-
+			manual &= ~INVERT_MASK;
+			manual |= th->pwm_inv[fan];
 			write_reg(th,
 				MANUAL_MODE[fan], manual|REM_CONTROL[fan]);
 		} else {
 			manual = read_reg(th, MANUAL_MODE[fan]);
+			manual &= ~INVERT_MASK;
+			manual |= th->pwm_inv[fan];
 			write_reg(th, MANUAL_MODE[fan], manual&(~AUTO_MASK));
 		}
 	}
@@ -305,7 +316,7 @@ static void update_fans_speed (struct thermostat *th)
 
 			if (verbose)
 				printk(KERN_DEBUG "adt746x: Setting fans speed to %d "
-						 "(limit exceeded by %d on %s) \n",
+						 "(limit exceeded by %d on %s)\n",
 						new_speed, var,
 						sensor_location[fan_number+1]);
 			write_both_fan_speed(th, new_speed);
@@ -385,7 +396,7 @@ static int probe_thermostat(struct i2c_client *client,
 	i2c_set_clientdata(client, th);
 	th->clt = client;
 
-	rc = read_reg(th, 0);
+	rc = read_reg(th, CONFIG_REG);
 	if (rc < 0) {
 		dev_err(&client->dev, "Thermostat failed to read config!\n");
 		kfree(th);
@@ -416,6 +427,10 @@ static int probe_thermostat(struct i2c_client *client,
 
 	thermostat = th;
 
+	/* record invert bit status because fw can corrupt it after suspend */
+	th->pwm_inv[0] = read_reg(th, MANUAL_MODE[0]) & INVERT_MASK;
+	th->pwm_inv[1] = read_reg(th, MANUAL_MODE[1]) & INVERT_MASK;
+
 	/* be sure to really write fan speed the first time */
 	th->last_speed[0] = -2;
 	th->last_speed[1] = -2;
@@ -437,6 +452,8 @@ static int probe_thermostat(struct i2c_client *client,
 		thread_therm = NULL;
 		return -ENOMEM;
 	}
+
+	thermostat_create_files();
 
 	return 0;
 }
@@ -555,7 +572,6 @@ thermostat_init(void)
 	struct device_node* np;
 	const u32 *prop;
 	int i = 0, offset = 0;
-	int err;
 
 	np = of_find_node_by_name(NULL, "fan");
 	if (!np)
@@ -622,6 +638,17 @@ thermostat_init(void)
 		return -ENODEV;
 	}
 
+#ifndef CONFIG_I2C_POWERMAC
+	request_module("i2c-powermac");
+#endif
+
+	return i2c_add_driver(&thermostat_driver);
+}
+
+static void thermostat_create_files(void)
+{
+	int err;
+
 	err = device_create_file(&of_dev->dev, &dev_attr_sensor1_temperature);
 	err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_temperature);
 	err |= device_create_file(&of_dev->dev, &dev_attr_sensor1_limit);
@@ -636,16 +663,9 @@ thermostat_init(void)
 	if (err)
 		printk(KERN_WARNING
 			"Failed to create tempertaure attribute file(s).\n");
-
-#ifndef CONFIG_I2C_POWERMAC
-	request_module("i2c-powermac");
-#endif
-
-	return i2c_add_driver(&thermostat_driver);
 }
 
-static void __exit
-thermostat_exit(void)
+static void thermostat_remove_files(void)
 {
 	if (of_dev) {
 		device_remove_file(&of_dev->dev, &dev_attr_sensor1_temperature);
@@ -662,9 +682,14 @@ thermostat_exit(void)
 			device_remove_file(&of_dev->dev,
 					   &dev_attr_sensor2_fan_speed);
 
-		of_device_unregister(of_dev);
 	}
+}
+
+static void __exit
+thermostat_exit(void)
+{
 	i2c_del_driver(&thermostat_driver);
+	of_device_unregister(of_dev);
 }
 
 module_init(thermostat_init);

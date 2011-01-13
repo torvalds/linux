@@ -1,12 +1,12 @@
 config USB_IP_COMMON
 	tristate "USB IP support (EXPERIMENTAL)"
-	depends on USB && NET && EXPERIMENTAL
+	depends on USB && NET && EXPERIMENTAL && BKL
 	default N
 	---help---
 	  This enables pushing USB packets over IP to allow remote
 	  machines access to USB devices directly.  For more details,
 	  and links to the userspace utility programs to let this work
-	  properly, see http://usbip.naist.jp/
+	  properly, see http://usbip.sourceforge.net/.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbip_common_mod.
@@ -34,3 +34,10 @@ config USB_IP_HOST
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called usbip.
+
+config USB_IP_DEBUG_ENABLE
+	bool "USB-IP Debug Enable"
+	depends on USB_IP_COMMON
+	default N
+	---help---
+	  This enables the debug messages from the USB-IP drivers.

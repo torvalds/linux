@@ -29,11 +29,25 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/io.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/gpio.h>
+
+#define NAS100D_SDA_PIN		5
+#define NAS100D_SCL_PIN		6
+
+/* Buttons */
+#define NAS100D_PB_GPIO         14   /* power button */
+#define NAS100D_RB_GPIO         4    /* reset button */
+
+/* Power control */
+#define NAS100D_PO_GPIO         12   /* power off */
+
+/* LEDs */
+#define NAS100D_LED_WLAN_GPIO	0
+#define NAS100D_LED_DISK_GPIO	3
+#define NAS100D_LED_PWR_GPIO	15
 
 static struct flash_platform_data nas100d_flash_data = {
 	.map_name		= "cfi_probe",
@@ -300,8 +314,6 @@ static void __init nas100d_init(void)
 
 MACHINE_START(NAS100D, "Iomega NAS 100d")
 	/* Maintainer: www.nslu2-linux.org */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,

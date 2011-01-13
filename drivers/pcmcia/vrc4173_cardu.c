@@ -6,7 +6,7 @@
  * 	NEC VRC4173 CARDU driver for Socket Services
  *	(This device doesn't support CardBus. it is supporting only 16bit PC Card.)
  *
- * Copyright 2002,2003 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ * Copyright 2002,2003 Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -41,7 +41,7 @@
 #include "vrc4173_cardu.h"
 
 MODULE_DESCRIPTION("NEC VRC4173 CARDU driver for Socket Services");
-MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yuasa@linux-mips.org>");
 MODULE_LICENSE("GPL");
 
 static int vrc4173_cardu_slots;
@@ -461,7 +461,7 @@ static int __devinit vrc4173_cardu_probe(struct pci_dev *dev,
 {
 	vrc4173_socket_t *socket;
 	unsigned long start, len, flags;
-	int slot, err;
+	int slot, err, ret;
 
 	slot = vrc4173_cardu_slots++;
 	socket = &cardu_sockets[slot];
@@ -474,43 +474,63 @@ static int __devinit vrc4173_cardu_probe(struct pci_dev *dev,
 		return err;
 
 	start = pci_resource_start(dev, 0);
-	if (start == 0)
-		return -ENODEV;
+	if (start == 0) {
+		ret = -ENODEV;
+		goto disable;
+	}
 
 	len = pci_resource_len(dev, 0);
-	if (len == 0)
-		return -ENODEV;
+	if (len == 0) {
+		ret = -ENODEV;
+		goto disable;
+	}
 
-	if (((flags = pci_resource_flags(dev, 0)) & IORESOURCE_MEM) == 0)
-		return -EBUSY;
+	flags = pci_resource_flags(dev, 0);
+	if ((flags & IORESOURCE_MEM) == 0) {
+		ret = -EBUSY;
+		goto disable;
+	}
 
-	if ((err = pci_request_regions(dev, socket->name)) < 0)
-		return err;
+	err = pci_request_regions(dev, socket->name);
+	if (err < 0) {
+		ret = err;
+		goto disable;
+	}
 
 	socket->base = ioremap(start, len);
-	if (socket->base == NULL)
-		return -ENODEV;
+	if (socket->base == NULL) {
+		ret = -ENODEV;
+		goto release;
+	}
 
 	socket->dev = dev;
 
 	socket->pcmcia_socket = pcmcia_register_socket(slot, &cardu_operations, 1);
 	if (socket->pcmcia_socket == NULL) {
-		iounmap(socket->base);
-		socket->base = NULL;
-		return -ENOMEM;
+		ret =  -ENOMEM;
+		goto unmap;
 	}
 
 	if (request_irq(dev->irq, cardu_interrupt, IRQF_SHARED, socket->name, socket) < 0) {
-		pcmcia_unregister_socket(socket->pcmcia_socket);
-		socket->pcmcia_socket = NULL;
-		iounmap(socket->base);
-		socket->base = NULL;
-		return -EBUSY;
+		ret = -EBUSY;
+		goto unregister;
 	}
 
 	printk(KERN_INFO "%s at %#08lx, IRQ %d\n", socket->name, start, dev->irq);
 
 	return 0;
+
+unregister:
+	pcmcia_unregister_socket(socket->pcmcia_socket);
+	socket->pcmcia_socket = NULL;
+unmap:
+	iounmap(socket->base);
+	socket->base = NULL;
+release:
+	pci_release_regions(dev);
+disable:
+	pci_disable_device(dev);
+	return ret;
 }
 
 static int __devinit vrc4173_cardu_setup(char *options)

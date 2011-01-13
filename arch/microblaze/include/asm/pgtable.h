@@ -16,6 +16,10 @@
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
+#ifndef __ASSEMBLY__
+extern int mem_init_done;
+#endif
+
 #ifndef CONFIG_MMU
 
 #define pgd_present(pgd)	(1) /* pages are always present on non MMU */
@@ -51,6 +55,15 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 #define arch_enter_lazy_cpu_mode()	do {} while (0)
 
+#define pgprot_noncached_wc(prot)	prot
+
+/*
+ * All 32bit addresses are effectively valid for vmalloc...
+ * Sort of meaningless for non-VM targets.
+ */
+#define	VMALLOC_START	0
+#define	VMALLOC_END	0xffffffff
+
 #else /* CONFIG_MMU */
 
 #include <asm-generic/4level-fixup.h>
@@ -68,7 +81,6 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 extern unsigned long va_to_phys(unsigned long address);
 extern pte_t *va_to_pte(unsigned long address);
-extern unsigned long ioremap_bot, ioremap_base;
 
 /*
  * The following only work if pte_present() is true.
@@ -85,9 +97,23 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #define VMALLOC_START	(CONFIG_KERNEL_START + \
 				max(32 * 1024 * 1024UL, memory_size))
 #define VMALLOC_END	ioremap_bot
-#define VMALLOC_VMADDR(x) ((unsigned long)(x))
 
 #endif /* __ASSEMBLY__ */
+
+/*
+ * Macro to mark a page protection value as "uncacheable".
+ */
+
+#define _PAGE_CACHE_CTL	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
+							_PAGE_WRITETHRU)
+
+#define pgprot_noncached(prot) \
+			(__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+					_PAGE_NO_CACHE | _PAGE_GUARDED))
+
+#define pgprot_noncached_wc(prot) \
+			 (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+							_PAGE_NO_CACHE))
 
 /*
  * The MicroBlaze MMU is identical to the PPC-40x MMU, and uses a hash
@@ -185,6 +211,7 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /* Definitions for MicroBlaze. */
 #define	_PAGE_GUARDED	0x001	/* G: page is guarded from prefetch */
+#define _PAGE_FILE	0x001	/* when !present: nonlinear file mapping */
 #define _PAGE_PRESENT	0x002	/* software: PTE contains a translation */
 #define	_PAGE_NO_CACHE	0x004	/* I: caching is inhibited */
 #define	_PAGE_WRITETHRU	0x008	/* W: caching is write-through */
@@ -320,8 +347,7 @@ static inline int pte_write(pte_t pte) { return pte_val(pte) & _PAGE_RW; }
 static inline int pte_exec(pte_t pte)  { return pte_val(pte) & _PAGE_EXEC; }
 static inline int pte_dirty(pte_t pte) { return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte) { return pte_val(pte) & _PAGE_ACCESSED; }
-/* FIXME */
-static inline int pte_file(pte_t pte)		{ return 0; }
+static inline int pte_file(pte_t pte)  { return pte_val(pte) & _PAGE_FILE; }
 
 static inline void pte_uncache(pte_t pte) { pte_val(pte) |= _PAGE_NO_CACHE; }
 static inline void pte_cache(pte_t pte)   { pte_val(pte) &= ~_PAGE_NO_CACHE; }
@@ -397,7 +423,7 @@ static inline unsigned long pte_update(pte_t *p, unsigned long clr,
 	mts     rmsr, %2\n\
 	nop"
 	: "=&r" (old), "=&r" (tmp), "=&r" (msr), "=m" (*p)
-	: "r" ((unsigned long)(p+1) - 4), "r" (clr), "r" (set), "m" (*p)
+	: "r" ((unsigned long)(p + 1) - 4), "r" (clr), "r" (set), "m" (*p)
 	: "cc");
 
 	return old;
@@ -478,28 +504,16 @@ static inline pmd_t *pmd_offset(pgd_t *dir, unsigned long address)
 #define pte_offset_kernel(dir, addr)	\
 	((pte_t *) pmd_page_kernel(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir, addr)		\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE0) + pte_index(addr))
-#define pte_offset_map_nested(dir, addr)	\
-	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE1) + pte_index(addr))
+	((pte_t *) kmap_atomic(pmd_page(*(dir))) + pte_index(addr))
 
-#define pte_unmap(pte)		kunmap_atomic(pte, KM_PTE0)
-#define pte_unmap_nested(pte)	kunmap_atomic(pte, KM_PTE1)
+#define pte_unmap(pte)		kunmap_atomic(pte)
 
 /* Encode and decode a nonlinear file mapping entry */
 #define PTE_FILE_MAX_BITS	29
 #define pte_to_pgoff(pte)	(pte_val(pte) >> 3)
-#define pgoff_to_pte(off)	((pte_t) { ((off) << 3) })
+#define pgoff_to_pte(off)	((pte_t) { ((off) << 3) | _PAGE_FILE })
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
-
-/*
- * When flushing the tlb entry for a page, we also need to flush the hash
- * table entry.  flush_hash_page is assembler (for speed) in hashtable.S.
- */
-extern int flush_hash_page(unsigned context, unsigned long va, pte_t *ptep);
-
-/* Add an HPTE to the hash table */
-extern void add_hash_page(unsigned context, unsigned long va, pte_t *ptep);
 
 /*
  * Encode and decode a swap entry.
@@ -514,15 +528,7 @@ extern void add_hash_page(unsigned context, unsigned long va, pte_t *ptep);
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) >> 2 })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val << 2 })
 
-
-/* CONFIG_APUS */
-/* For virtual address to physical address conversion */
-extern void cache_clear(__u32 addr, int length);
-extern void cache_push(__u32 addr, int length);
-extern int mm_end_of_chunk(unsigned long addr, int len);
 extern unsigned long iopa(unsigned long addr);
-/* extern unsigned long mm_ptov(unsigned long addr) \
-	__attribute__ ((const)); TBD */
 
 /* Values for nocacheflag and cmode */
 /* These are not used by the APUS kernel_map, but prevents
@@ -532,18 +538,6 @@ extern unsigned long iopa(unsigned long addr);
 #define	IOMAP_NOCACHE_SER	1
 #define	IOMAP_NOCACHE_NONSER	2
 #define	IOMAP_NO_COPYBACK	3
-
-/*
- * Map some physical address range into the kernel address space.
- */
-extern unsigned long kernel_map(unsigned long paddr, unsigned long size,
-				int nocacheflag, unsigned long *memavailp);
-
-/*
- * Set cache mode of (kernel space) address range.
- */
-extern void kernel_set_cachemode(unsigned long address, unsigned long size,
-				unsigned int cmode);
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
@@ -558,26 +552,15 @@ extern void kernel_set_cachemode(unsigned long address, unsigned long size,
 void do_page_fault(struct pt_regs *regs, unsigned long address,
 		   unsigned long error_code);
 
-void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
-			     unsigned int size, int flags);
-
-void __init adjust_total_lowmem(void);
 void mapin_ram(void);
 int map_page(unsigned long va, phys_addr_t pa, int flags);
 
 extern int mem_init_done;
-extern unsigned long ioremap_base;
-extern unsigned long ioremap_bot;
 
 asmlinkage void __init mmu_init(void);
 
 void __init *early_get_page(void);
 
-void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle);
-void consistent_free(void *vaddr);
-void consistent_sync(void *vaddr, size_t size, int direction);
-void consistent_sync_page(struct page *page, unsigned long offset,
-	size_t size, int direction);
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 
@@ -585,6 +568,14 @@ void consistent_sync_page(struct page *page, unsigned long offset,
 
 #ifndef __ASSEMBLY__
 #include <asm-generic/pgtable.h>
+
+extern unsigned long ioremap_bot, ioremap_base;
+
+void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle);
+void consistent_free(size_t size, void *vaddr);
+void consistent_sync(void *vaddr, size_t size, int direction);
+void consistent_sync_page(struct page *page, unsigned long offset,
+	size_t size, int direction);
 
 void setup_memory(void);
 #endif /* __ASSEMBLY__ */

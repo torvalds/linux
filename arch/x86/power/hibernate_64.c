@@ -4,10 +4,11 @@
  * Distribute under GPLv2
  *
  * Copyright (c) 2007 Rafael J. Wysocki <rjw@sisk.pl>
- * Copyright (c) 2002 Pavel Machek <pavel@suse.cz>
+ * Copyright (c) 2002 Pavel Machek <pavel@ucw.cz>
  * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
  */
 
+#include <linux/gfp.h>
 #include <linux/smp.h>
 #include <linux/suspend.h>
 #include <asm/proto.h>

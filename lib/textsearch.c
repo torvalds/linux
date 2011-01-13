@@ -103,6 +103,7 @@
 #include <linux/rcupdate.h>
 #include <linux/err.h>
 #include <linux/textsearch.h>
+#include <linux/slab.h>
 
 static LIST_HEAD(ts_ops);
 static DEFINE_SPINLOCK(ts_mod_lock);

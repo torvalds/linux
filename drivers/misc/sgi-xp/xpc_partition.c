@@ -17,7 +17,9 @@
 
 #include <linux/device.h>
 #include <linux/hardirq.h>
+#include <linux/slab.h>
 #include "xpc.h"
+#include <asm/uv/uv_hub.h>
 
 /* XPC is exiting flag */
 int xpc_exiting;
@@ -92,8 +94,12 @@ xpc_get_rsvd_page_pa(int nasid)
 			break;
 
 		/* !!! L1_CACHE_ALIGN() is only a sn2-bte_copy requirement */
-		if (L1_CACHE_ALIGN(len) > buf_len) {
-			kfree(buf_base);
+		if (is_shub())
+			len = L1_CACHE_ALIGN(len);
+
+		if (len > buf_len) {
+			if (buf_base != NULL)
+				kfree(buf_base);
 			buf_len = L1_CACHE_ALIGN(len);
 			buf = xpc_kmalloc_cacheline_aligned(buf_len, GFP_KERNEL,
 							    &buf_base);
@@ -105,7 +111,7 @@ xpc_get_rsvd_page_pa(int nasid)
 			}
 		}
 
-		ret = xp_remote_memcpy(xp_pa(buf), rp_pa, buf_len);
+		ret = xp_remote_memcpy(xp_pa(buf), rp_pa, len);
 		if (ret != xpSuccess) {
 			dev_dbg(xpc_part, "xp_remote_memcpy failed %d\n", ret);
 			break;
@@ -143,7 +149,7 @@ xpc_setup_rsvd_page(void)
 		dev_err(xpc_part, "SAL failed to locate the reserved page\n");
 		return -ESRCH;
 	}
-	rp = (struct xpc_rsvd_page *)__va(rp_pa);
+	rp = (struct xpc_rsvd_page *)__va(xp_socket_pa(rp_pa));
 
 	if (rp->SAL_version < 3) {
 		/* SAL_versions < 3 had a SAL_partid defined as a u8 */
@@ -433,18 +439,23 @@ xpc_discovery(void)
 	 * nodes that can comprise an access protection grouping. The access
 	 * protection is in regards to memory, IOI and IPI.
 	 */
-	max_regions = 64;
 	region_size = xp_region_size;
 
-	switch (region_size) {
-	case 128:
-		max_regions *= 2;
-	case 64:
-		max_regions *= 2;
-	case 32:
-		max_regions *= 2;
-		region_size = 16;
-		DBUG_ON(!is_shub2());
+	if (is_uv())
+		max_regions = 256;
+	else {
+		max_regions = 64;
+
+		switch (region_size) {
+		case 128:
+			max_regions *= 2;
+		case 64:
+			max_regions *= 2;
+		case 32:
+			max_regions *= 2;
+			region_size = 16;
+			DBUG_ON(!is_shub2());
+		}
 	}
 
 	for (region = 0; region < max_regions; region++) {

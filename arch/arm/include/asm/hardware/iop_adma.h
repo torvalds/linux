@@ -86,6 +86,7 @@ struct iop_adma_chan {
  * @idx: pool index
  * @unmap_src_cnt: number of xor sources
  * @unmap_len: transaction bytecount
+ * @tx_list: list of descriptors that are associated with one operation
  * @async_tx: support for the async_tx api
  * @group_list: list of slots that make up a multi-descriptor transaction
  *	for example transfer lengths larger than the supported hw max
@@ -102,10 +103,12 @@ struct iop_adma_desc_slot {
 	u16 idx;
 	u16 unmap_src_cnt;
 	size_t unmap_len;
+	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
 	union {
 		u32 *xor_check_result;
 		u32 *crc32_result;
+		u32 *pq_check_result;
 	};
 };
 

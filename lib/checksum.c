@@ -37,7 +37,8 @@
 
 #include <asm/byteorder.h>
 
-static inline unsigned short from32to16(unsigned long x)
+#ifndef do_csum
+static inline unsigned short from32to16(unsigned int x)
 {
 	/* add up 16-bit and 16-bit for 16+c bit */
 	x = (x & 0xffff) + (x >> 16);
@@ -49,13 +50,17 @@ static inline unsigned short from32to16(unsigned long x)
 static unsigned int do_csum(const unsigned char *buff, int len)
 {
 	int odd, count;
-	unsigned long result = 0;
+	unsigned int result = 0;
 
 	if (len <= 0)
 		goto out;
 	odd = 1 & (unsigned long) buff;
 	if (odd) {
+#ifdef __LITTLE_ENDIAN
+		result += (*buff << 8);
+#else
 		result = *buff;
+#endif
 		len--;
 		buff++;
 	}
@@ -69,9 +74,9 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 		}
 		count >>= 1;		/* nr of 32-bit words.. */
 		if (count) {
-			unsigned long carry = 0;
+			unsigned int carry = 0;
 			do {
-				unsigned long w = *(unsigned long *) buff;
+				unsigned int w = *(unsigned int *) buff;
 				count--;
 				buff += 4;
 				result += carry;
@@ -87,13 +92,18 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 		}
 	}
 	if (len & 1)
+#ifdef __LITTLE_ENDIAN
+		result += *buff;
+#else
 		result += (*buff << 8);
+#endif
 	result = from32to16(result);
 	if (odd)
 		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
 out:
 	return result;
 }
+#endif
 
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,

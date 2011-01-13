@@ -24,21 +24,17 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_btree_trace.h"
-#include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 
 STATIC struct xfs_btree_cur *
@@ -60,12 +56,14 @@ xfs_allocbt_set_root(
 	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
 	xfs_agnumber_t		seqno = be32_to_cpu(agf->agf_seqno);
 	int			btnum = cur->bc_btnum;
+	struct xfs_perag	*pag = xfs_perag_get(cur->bc_mp, seqno);
 
 	ASSERT(ptr->s != 0);
 
 	agf->agf_roots[btnum] = ptr->s;
 	be32_add_cpu(&agf->agf_levels[btnum], inc);
-	cur->bc_mp->m_perag[seqno].pagf_levels[btnum] += inc;
+	pag->pagf_levels[btnum] += inc;
+	xfs_perag_put(pag);
 
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 }
@@ -131,7 +129,7 @@ xfs_allocbt_free_block(
 	 * disk. If a busy block is allocated, the iclog is pushed up to the
 	 * LSN that freed the block.
 	 */
-	xfs_alloc_mark_busy(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1);
+	xfs_alloc_busy_insert(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1);
 	xfs_trans_agbtree_delta(cur->bc_tp, -1);
 	return 0;
 }
@@ -149,6 +147,7 @@ xfs_allocbt_update_lastrec(
 {
 	struct xfs_agf		*agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
 	xfs_agnumber_t		seqno = be32_to_cpu(agf->agf_seqno);
+	struct xfs_perag	*pag;
 	__be32			len;
 	int			numrecs;
 
@@ -192,7 +191,9 @@ xfs_allocbt_update_lastrec(
 	}
 
 	agf->agf_longest = len;
-	cur->bc_mp->m_perag[seqno].pagf_longest = be32_to_cpu(len);
+	pag = xfs_perag_get(cur->bc_mp, seqno);
+	pag->pagf_longest = be32_to_cpu(len);
+	xfs_perag_put(pag);
 	xfs_alloc_log_agf(cur->bc_tp, cur->bc_private.a.agbp, XFS_AGF_LONGEST);
 }
 
@@ -277,38 +278,6 @@ xfs_allocbt_key_diff(
 		return diff;
 
 	return (__int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
-}
-
-STATIC int
-xfs_allocbt_kill_root(
-	struct xfs_btree_cur	*cur,
-	struct xfs_buf		*bp,
-	int			level,
-	union xfs_btree_ptr	*newroot)
-{
-	int			error;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_STATS_INC(cur, killroot);
-
-	/*
-	 * Update the root pointer, decreasing the level by 1 and then
-	 * free the old root.
-	 */
-	xfs_allocbt_set_root(cur, newroot, -1);
-	error = xfs_allocbt_free_block(cur, bp);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
-		return error;
-	}
-
-	XFS_BTREE_STATS_INC(cur, free);
-
-	xfs_btree_setbuf(cur, level, NULL);
-	cur->bc_nlevels--;
-
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
-	return 0;
 }
 
 #ifdef DEBUG
@@ -422,7 +391,6 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
 	.set_root		= xfs_allocbt_set_root,
-	.kill_root		= xfs_allocbt_kill_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
 	.update_lastrec		= xfs_allocbt_update_lastrec,

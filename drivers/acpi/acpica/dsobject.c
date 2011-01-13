@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
+	acpi_object_type type;
 
 	ACPI_FUNCTION_TRACE(ds_build_internal_object);
 
@@ -172,7 +173,20 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(status);
 			}
 
-			switch (op->common.node->type) {
+			/*
+			 * Special handling for Alias objects. We need to setup the type
+			 * and the Op->Common.Node to point to the Alias target. Note,
+			 * Alias has at most one level of indirection internally.
+			 */
+			type = op->common.node->type;
+			if (type == ACPI_TYPE_LOCAL_ALIAS) {
+				type = obj_desc->common.type;
+				op->common.node =
+				    ACPI_CAST_PTR(struct acpi_namespace_node,
+						  op->common.node->object);
+			}
+
+			switch (type) {
 				/*
 				 * For these types, we need the actual node, not the subobject.
 				 * However, the subobject did not get an extra reference count above.
@@ -288,7 +302,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	if (byte_list) {
 		if (byte_list->common.aml_opcode != AML_INT_BYTELIST_OP) {
 			ACPI_ERROR((AE_INFO,
-				    "Expecting bytelist, got AML opcode %X in op %p",
+				    "Expecting bytelist, found AML opcode 0x%X in op %p",
 				    byte_list->common.aml_opcode, byte_list));
 
 			acpi_ut_remove_reference(obj_desc);
@@ -482,14 +496,27 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	if (arg) {
 		/*
 		 * num_elements was exhausted, but there are remaining elements in the
-		 * package_list.
+		 * package_list. Truncate the package to num_elements.
 		 *
 		 * Note: technically, this is an error, from ACPI spec: "It is an error
 		 * for NumElements to be less than the number of elements in the
-		 * PackageList". However, for now, we just print an error message and
-		 * no exception is returned.
+		 * PackageList". However, we just print a message and
+		 * no exception is returned. This provides Windows compatibility. Some
+		 * BIOSs will alter the num_elements on the fly, creating this type
+		 * of ill-formed package object.
 		 */
 		while (arg) {
+			/*
+			 * We must delete any package elements that were created earlier
+			 * and are not going to be used because of the package truncation.
+			 */
+			if (arg->common.node) {
+				acpi_ut_remove_reference(ACPI_CAST_PTR
+							 (union
+							  acpi_operand_object,
+							  arg->common.node));
+				arg->common.node = NULL;
+			}
 
 			/* Find out how many elements there really are */
 
@@ -497,16 +524,16 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 			arg = arg->common.next;
 		}
 
-		ACPI_WARNING((AE_INFO,
-			    "Package List length (%X) larger than NumElements count (%X), truncated\n",
-			    i, element_count));
+		ACPI_INFO((AE_INFO,
+			   "Actual Package length (%u) is larger than NumElements field (%u), truncated\n",
+			   i, element_count));
 	} else if (i < element_count) {
 		/*
 		 * Arg list (elements) was exhausted, but we did not reach num_elements count.
 		 * Note: this is not an error, the package is padded out with NULLs.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Package List length (%X) smaller than NumElements count (%X), padded with null elements\n",
+				  "Package List length (%u) smaller than NumElements count (%u), padded with null elements\n",
 				  i, element_count));
 	}
 
@@ -671,7 +698,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			case AML_ONES_OP:
 
-				obj_desc->integer.value = ACPI_INTEGER_MAX;
+				obj_desc->integer.value = ACPI_UINT64_MAX;
 
 				/* Truncate value if we are executing from a 32-bit ACPI table */
 
@@ -688,7 +715,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown constant opcode %X",
+					    "Unknown constant opcode 0x%X",
 					    opcode));
 				status = AE_AML_OPERAND_TYPE;
 				break;
@@ -704,7 +731,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			break;
 
 		default:
-			ACPI_ERROR((AE_INFO, "Unknown Integer type %X",
+			ACPI_ERROR((AE_INFO, "Unknown Integer type 0x%X",
 				    op_info->type));
 			status = AE_AML_OPERAND_TYPE;
 			break;
@@ -793,7 +820,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unimplemented reference type for AML opcode: %4.4X",
+					    "Unimplemented reference type for AML opcode: 0x%4.4X",
 					    opcode));
 				return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 			}
@@ -803,7 +830,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unimplemented data type: %X",
+		ACPI_ERROR((AE_INFO, "Unimplemented data type: 0x%X",
 			    obj_desc->common.type));
 
 		status = AE_AML_OPERAND_TYPE;

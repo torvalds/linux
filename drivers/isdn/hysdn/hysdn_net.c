@@ -119,7 +119,7 @@ net_close(struct net_device *dev)
 /* send a packet on this interface. */
 /* new style for kernel >= 2.3.33   */
 /************************************/
-static int
+static netdev_tx_t
 net_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_local *lp = (struct net_local *) dev;
@@ -148,7 +148,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	if (lp->sk_count <= 3) {
 		schedule_work(&((hysdn_card *) dev->ml_priv)->irq_queue);
 	}
-	return (0);		/* success */
+	return NETDEV_TX_OK;	/* success */
 }				/* net_send_packet */
 
 
@@ -187,12 +187,13 @@ void
 hysdn_rx_netpkt(hysdn_card * card, unsigned char *buf, unsigned short len)
 {
 	struct net_local *lp = card->netif;
-	struct net_device *dev = lp->dev;
+	struct net_device *dev;
 	struct sk_buff *skb;
 
 	if (!lp)
 		return;		/* non existing device */
 
+	dev = lp->dev;
 	dev->stats.rx_bytes += len;
 
 	skb = dev_alloc_skb(len);

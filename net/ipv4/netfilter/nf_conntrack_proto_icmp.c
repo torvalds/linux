@@ -18,6 +18,7 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_log.h>
 
 static unsigned int nf_ct_icmp_timeout __read_mostly = 30*HZ;
@@ -54,8 +55,8 @@ static const u_int8_t invmap[] = {
 static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 			      const struct nf_conntrack_tuple *orig)
 {
-	if (orig->dst.u.icmp.type >= sizeof(invmap)
-	    || !invmap[orig->dst.u.icmp.type])
+	if (orig->dst.u.icmp.type >= sizeof(invmap) ||
+	    !invmap[orig->dst.u.icmp.type])
 		return false;
 
 	tuple->src.u.icmp.id = orig->src.u.icmp.id;
@@ -101,8 +102,8 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		[ICMP_ADDRESS] = 1
 	};
 
-	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new)
-	    || !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
+	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new) ||
+	    !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
 		pr_debug("icmp: can't create new conn with type %u\n",
 			 ct->tuplehash[0].tuple.dst.u.icmp.type);
@@ -114,13 +115,14 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
 static int
-icmp_error_message(struct net *net, struct sk_buff *skb,
+icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		 enum ip_conntrack_info *ctinfo,
 		 unsigned int hooknum)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
 	const struct nf_conntrack_l4proto *innerproto;
 	const struct nf_conntrack_tuple_hash *h;
+	u16 zone = tmpl ? nf_ct_zone(tmpl) : NF_CT_DEFAULT_ZONE;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
 
@@ -146,7 +148,7 @@ icmp_error_message(struct net *net, struct sk_buff *skb,
 
 	*ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(net, &innertuple);
+	h = nf_conntrack_find_get(net, zone, &innertuple);
 	if (!h) {
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
@@ -163,7 +165,8 @@ icmp_error_message(struct net *net, struct sk_buff *skb,
 
 /* Small and modified version of icmp_rcv */
 static int
-icmp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
+icmp_error(struct net *net, struct nf_conn *tmpl,
+	   struct sk_buff *skb, unsigned int dataoff,
 	   enum ip_conntrack_info *ctinfo, u_int8_t pf, unsigned int hooknum)
 {
 	const struct icmphdr *icmph;
@@ -201,14 +204,14 @@ icmp_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 	}
 
 	/* Need to track icmp error message? */
-	if (icmph->type != ICMP_DEST_UNREACH
-	    && icmph->type != ICMP_SOURCE_QUENCH
-	    && icmph->type != ICMP_TIME_EXCEEDED
-	    && icmph->type != ICMP_PARAMETERPROB
-	    && icmph->type != ICMP_REDIRECT)
+	if (icmph->type != ICMP_DEST_UNREACH &&
+	    icmph->type != ICMP_SOURCE_QUENCH &&
+	    icmph->type != ICMP_TIME_EXCEEDED &&
+	    icmph->type != ICMP_PARAMETERPROB &&
+	    icmph->type != ICMP_REDIRECT)
 		return NF_ACCEPT;
 
-	return icmp_error_message(net, skb, ctinfo, hooknum);
+	return icmp_error_message(net, tmpl, skb, ctinfo, hooknum);
 }
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
@@ -238,17 +241,17 @@ static const struct nla_policy icmp_nla_policy[CTA_PROTO_MAX+1] = {
 static int icmp_nlattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *tuple)
 {
-	if (!tb[CTA_PROTO_ICMP_TYPE]
-	    || !tb[CTA_PROTO_ICMP_CODE]
-	    || !tb[CTA_PROTO_ICMP_ID])
+	if (!tb[CTA_PROTO_ICMP_TYPE] ||
+	    !tb[CTA_PROTO_ICMP_CODE] ||
+	    !tb[CTA_PROTO_ICMP_ID])
 		return -EINVAL;
 
 	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMP_TYPE]);
 	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMP_CODE]);
 	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMP_ID]);
 
-	if (tuple->dst.u.icmp.type >= sizeof(invmap)
-	    || !invmap[tuple->dst.u.icmp.type])
+	if (tuple->dst.u.icmp.type >= sizeof(invmap) ||
+	    !invmap[tuple->dst.u.icmp.type])
 		return -EINVAL;
 
 	return 0;
@@ -270,9 +273,7 @@ static struct ctl_table icmp_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{
-		.ctl_name = 0
-	}
+	{ }
 };
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 static struct ctl_table icmp_compat_sysctl_table[] = {
@@ -283,9 +284,7 @@ static struct ctl_table icmp_compat_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{
-		.ctl_name = 0
-	}
+	{ }
 };
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */

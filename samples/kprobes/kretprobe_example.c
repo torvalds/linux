@@ -23,6 +23,7 @@
 #include <linux/kprobes.h>
 #include <linux/ktime.h>
 #include <linux/limits.h>
+#include <linux/sched.h>
 
 static char func_name[NAME_MAX] = "do_fork";
 module_param_string(func, func_name, NAME_MAX, S_IRUGO);

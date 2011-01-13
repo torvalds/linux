@@ -44,6 +44,7 @@
 int ar9170_write_mem(struct ar9170 *ar, const __le32 *data, size_t len);
 int ar9170_write_reg(struct ar9170 *ar, const u32 reg, const u32 val);
 int ar9170_read_reg(struct ar9170 *ar, u32 reg, u32 *val);
+int ar9170_read_mreg(struct ar9170 *ar, int nregs, const u32 *regs, u32 *out);
 int ar9170_echo_test(struct ar9170 *ar, u32 v);
 
 /*
@@ -78,7 +79,7 @@ __regwrite_out :							\
 	if (__nreg) {							\
 		if (IS_ACCEPTING_CMD(__ar))				\
 			__err = ar->exec_cmd(__ar, AR9170_CMD_WREG,	\
-					     8 * __nreg, 		\
+					     8 * __nreg,		\
 					     (u8 *) &__ar->cmdbuf[1],	\
 					     0, NULL);			\
 		__nreg = 0;						\

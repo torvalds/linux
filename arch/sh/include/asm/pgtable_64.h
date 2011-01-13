@@ -43,11 +43,6 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 }
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
-{
-	pmd_val(*pmdp) = (unsigned long) ptep;
-}
-
 /*
  * PGD defines. Top level.
  */
@@ -59,6 +54,9 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 
 /* To find an entry in a kernel PGD. */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
+
+#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+#define __pmd_offset(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 
 /*
  * PMD level access routines. Same notes as above.
@@ -80,13 +78,13 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 #define pte_index(address) \
 		((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
+#define __pte_offset(address)	pte_index(address)
+
 #define pte_offset_kernel(dir, addr) \
 		((pte_t *) ((pmd_val(*(dir))) & PAGE_MASK) + pte_index((addr)))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel(dir, addr)
-#define pte_offset_map_nested(dir,addr)	pte_offset_kernel(dir, addr)
 #define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
 
 #ifndef __ASSEMBLY__
 #define IOBASE_VADDR	0xff000000
@@ -123,8 +121,22 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 #define _PAGE_DIRTY	0x400  /* software: page accessed in write */
 #define _PAGE_ACCESSED	0x800  /* software: page referenced */
 
+/* Wrapper for extended mode pgprot twiddling */
+#define _PAGE_EXT(x)		((unsigned long long)(x) << 32)
+
+/*
+ * We can use the sign-extended bits in the PTEL to get 32 bits of
+ * software flags. This works for now because no implementations uses
+ * anything above the PPN field.
+ */
+#define _PAGE_WIRED	_PAGE_EXT(0x001) /* software: wire the tlb entry */
+#define _PAGE_SPECIAL	_PAGE_EXT(0x002)
+
+#define _PAGE_CLEAR_FLAGS	(_PAGE_PRESENT | _PAGE_FILE | _PAGE_SHARED | \
+				 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_WIRED)
+
 /* Mask which drops software flags */
-#define _PAGE_FLAGS_HARDWARE_MASK	0xfffffffffffff3dbLL
+#define _PAGE_FLAGS_HARDWARE_MASK	(NEFF_MASK & ~(_PAGE_CLEAR_FLAGS))
 
 /*
  * HugeTLB support
@@ -162,7 +174,8 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 /* Default flags for a User page */
 #define _PAGE_TABLE	(_KERNPG_TABLE | _PAGE_USER)
 
-#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | \
+			 _PAGE_SPECIAL)
 
 /*
  * We have full permissions (Read/Write/Execute/Shared).
@@ -196,12 +209,6 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
    registers into user-space via /dev/map).  */
 #define pgprot_noncached(x) __pgprot(((x).pgprot & ~(_PAGE_CACHABLE)) | _PAGE_DEVICE)
 #define pgprot_writecombine(prot) __pgprot(pgprot_val(prot) & ~_PAGE_CACHABLE)
-
-/*
- * Handling allocation failures during page table setup.
- */
-extern void __handle_bad_pmd_kernel(pmd_t * pmd);
-#define __handle_bad_pmd(x)	__handle_bad_pmd_kernel(x)
 
 /*
  * PTE level access routines.
@@ -258,7 +265,7 @@ static inline int pte_dirty(pte_t pte)  { return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)  { return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)   { return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_write(pte_t pte)  { return pte_val(pte) & _PAGE_WRITE; }
-static inline int pte_special(pte_t pte){ return 0; }
+static inline int pte_special(pte_t pte){ return pte_val(pte) & _PAGE_SPECIAL; }
 
 static inline pte_t pte_wrprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_WRITE)); return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
@@ -267,8 +274,7 @@ static inline pte_t pte_mkwrite(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | 
 static inline pte_t pte_mkdirty(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_DIRTY)); return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_ACCESSED)); return pte; }
 static inline pte_t pte_mkhuge(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_SZHUGE)); return pte; }
-static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
-
+static inline pte_t pte_mkspecial(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_SPECIAL)); return pte; }
 
 /*
  * Conversion functions: convert a page and protection to a page entry.

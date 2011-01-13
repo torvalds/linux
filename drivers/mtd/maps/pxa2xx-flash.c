@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -20,14 +21,23 @@
 
 #include <asm/io.h>
 #include <mach/hardware.h>
-#include <asm/cacheflush.h>
 
 #include <asm/mach/flash.h>
+
+#define CACHELINESIZE	32
 
 static void pxa2xx_map_inval_cache(struct map_info *map, unsigned long from,
 				      ssize_t len)
 {
-	flush_ioremap_region(map->phys, map->cached, from, len);
+	unsigned long start = (unsigned long)map->cached + from;
+	unsigned long end = start + len;
+
+	start &= ~(CACHELINESIZE - 1);
+	while (start < end) {
+		/* invalidate D cache line */
+		asm volatile ("mcr p15, 0, %0, c7, c6, 1" : : "r" (start));
+		start += CACHELINESIZE;
+	}
 }
 
 struct pxa2xx_flash_info {
@@ -41,7 +51,7 @@ struct pxa2xx_flash_info {
 static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 
-static int __init pxa2xx_flash_probe(struct platform_device *pdev)
+static int __devinit pxa2xx_flash_probe(struct platform_device *pdev)
 {
 	struct flash_platform_data *flash = pdev->dev.platform_data;
 	struct pxa2xx_flash_info *info;
@@ -53,11 +63,10 @@ static int __init pxa2xx_flash_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	info = kmalloc(sizeof(struct pxa2xx_flash_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct pxa2xx_flash_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	memset(info, 0, sizeof(struct pxa2xx_flash_info));
 	info->map.name = (char *) flash->name;
 	info->map.bankwidth = flash->width;
 	info->map.phys = res->start;
@@ -175,5 +184,5 @@ module_init(init_pxa2xx_flash);
 module_exit(cleanup_pxa2xx_flash);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Nicolas Pitre <nico@cam.org>");
+MODULE_AUTHOR("Nicolas Pitre <nico@fluxnic.net>");
 MODULE_DESCRIPTION("MTD map driver for Intel XScale PXA2xx");

@@ -15,24 +15,15 @@
 #include <linux/acpi.h>
 #include <linux/libata.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <scsi/scsi_device.h>
 #include "libata.h"
 
 #include <acpi/acpi_bus.h>
 
-enum {
-	ATA_ACPI_FILTER_SETXFER	= 1 << 0,
-	ATA_ACPI_FILTER_LOCK	= 1 << 1,
-	ATA_ACPI_FILTER_DIPM	= 1 << 2,
-
-	ATA_ACPI_FILTER_DEFAULT	= ATA_ACPI_FILTER_SETXFER |
-				  ATA_ACPI_FILTER_LOCK |
-				  ATA_ACPI_FILTER_DIPM,
-};
-
-static unsigned int ata_acpi_gtf_filter = ATA_ACPI_FILTER_DEFAULT;
+unsigned int ata_acpi_gtf_filter = ATA_ACPI_FILTER_DEFAULT;
 module_param_named(acpi_gtf_filter, ata_acpi_gtf_filter, int, 0644);
-MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock, 0x4=DIPM)");
+MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock, 0x4=DIPM, 0x8=FPDMA non-zero offset, 0x10=FPDMA DMA Setup FIS auto-activate)");
 
 #define NO_PORT_MULT		0xffff
 #define SATA_ADR(root, pmp)	(((root) << 16) | (pmp))
@@ -74,7 +65,7 @@ void ata_acpi_associate_sata_port(struct ata_port *ap)
 	WARN_ON(!(ap->flags & ATA_FLAG_ACPI_SATA));
 
 	if (!sata_pmp_attached(ap)) {
-		acpi_integer adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
+		u64 adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
 
 		ap->link.device->acpi_handle =
 			acpi_get_child(ap->host->acpi_handle, adr);
@@ -84,7 +75,7 @@ void ata_acpi_associate_sata_port(struct ata_port *ap)
 		ap->link.device->acpi_handle = NULL;
 
 		ata_for_each_link(link, ap, EDGE) {
-			acpi_integer adr = SATA_ADR(ap->port_no, link->pmp);
+			u64 adr = SATA_ADR(ap->port_no, link->pmp);
 
 			link->device->acpi_handle =
 				acpi_get_child(ap->host->acpi_handle, adr);
@@ -154,12 +145,6 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	int wait = 0;
 	unsigned long flags;
-	acpi_handle handle;
-
-	if (dev)
-		handle = dev->acpi_handle;
-	else
-		handle = ap->acpi_handle;
 
 	spin_lock_irqsave(ap->lock, flags);
 	/*
@@ -613,10 +598,11 @@ static void ata_acpi_gtf_to_tf(struct ata_device *dev,
 	tf->command = gtf->tf[6];	/* 0x1f7 */
 }
 
-static int ata_acpi_filter_tf(const struct ata_taskfile *tf,
+static int ata_acpi_filter_tf(struct ata_device *dev,
+			      const struct ata_taskfile *tf,
 			      const struct ata_taskfile *ptf)
 {
-	if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_SETXFER) {
+	if (dev->gtf_filter & ATA_ACPI_FILTER_SETXFER) {
 		/* libata doesn't use ACPI to configure transfer mode.
 		 * It will only confuse device configuration.  Skip.
 		 */
@@ -625,7 +611,7 @@ static int ata_acpi_filter_tf(const struct ata_taskfile *tf,
 			return 1;
 	}
 
-	if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_LOCK) {
+	if (dev->gtf_filter & ATA_ACPI_FILTER_LOCK) {
 		/* BIOS writers, sorry but we don't wanna lock
 		 * features unless the user explicitly said so.
 		 */
@@ -647,11 +633,22 @@ static int ata_acpi_filter_tf(const struct ata_taskfile *tf,
 			return 1;
 	}
 
-	if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_DIPM) {
+	if (tf->command == ATA_CMD_SET_FEATURES &&
+	    tf->feature == SETFEATURES_SATA_ENABLE) {
 		/* inhibit enabling DIPM */
-		if (tf->command == ATA_CMD_SET_FEATURES &&
-		    tf->feature == SETFEATURES_SATA_ENABLE &&
+		if (dev->gtf_filter & ATA_ACPI_FILTER_DIPM &&
 		    tf->nsect == SATA_DIPM)
+			return 1;
+
+		/* inhibit FPDMA non-zero offset */
+		if (dev->gtf_filter & ATA_ACPI_FILTER_FPDMA_OFFSET &&
+		    (tf->nsect == SATA_FPDMA_OFFSET ||
+		     tf->nsect == SATA_FPDMA_IN_ORDER))
+			return 1;
+
+		/* inhibit FPDMA auto activation */
+		if (dev->gtf_filter & ATA_ACPI_FILTER_FPDMA_AA &&
+		    tf->nsect == SATA_FPDMA_AA)
 			return 1;
 	}
 
@@ -689,6 +686,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 	struct ata_taskfile tf, ptf, rtf;
 	unsigned int err_mask;
 	const char *level;
+	const char *descr;
 	char msg[60];
 	int rc;
 
@@ -703,7 +701,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 		pptf = &ptf;
 	}
 
-	if (!ata_acpi_filter_tf(&tf, pptf)) {
+	if (!ata_acpi_filter_tf(dev, &tf, pptf)) {
 		rtf = tf;
 		err_mask = ata_exec_internal(dev, &rtf, NULL,
 					     DMA_NONE, NULL, 0, 0);
@@ -736,11 +734,13 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 		snprintf(msg, sizeof(msg), "filtered out");
 		rc = 0;
 	}
+	descr = ata_get_cmd_descript(tf.command);
 
 	ata_dev_printk(dev, level,
-		       "ACPI cmd %02x/%02x:%02x:%02x:%02x:%02x:%02x %s\n",
+		       "ACPI cmd %02x/%02x:%02x:%02x:%02x:%02x:%02x (%s) %s\n",
 		       tf.command, tf.feature, tf.nsect, tf.lbal,
-		       tf.lbam, tf.lbah, tf.device, msg);
+		       tf.lbam, tf.lbah, tf.device,
+		       (descr ? descr : "unknown"), msg);
 
 	return rc;
 }
@@ -802,12 +802,11 @@ static int ata_acpi_exec_tfs(struct ata_device *dev, int *nr_executed)
  * EH context.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -ENOENT if _SDD doesn't exist, -errno on failure.
  */
 static int ata_acpi_push_id(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
-	int err;
 	acpi_status status;
 	struct acpi_object_list input;
 	union acpi_object in_params[1];
@@ -830,12 +829,16 @@ static int ata_acpi_push_id(struct ata_device *dev)
 	status = acpi_evaluate_object(dev->acpi_handle, "_SDD", &input, NULL);
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
-	err = ACPI_FAILURE(status) ? -EIO : 0;
-	if (err < 0)
+	if (status == AE_NOT_FOUND)
+		return -ENOENT;
+
+	if (ACPI_FAILURE(status)) {
 		ata_dev_printk(dev, KERN_WARNING,
 			       "ACPI _SDD failed (AE 0x%x)\n", status);
+		return -EIO;
+	}
 
-	return err;
+	return 0;
 }
 
 /**
@@ -966,7 +969,7 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 	/* do _SDD if SATA */
 	if (acpi_sata) {
 		rc = ata_acpi_push_id(dev);
-		if (rc)
+		if (rc && rc != -ENOENT)
 			goto acpi_err;
 	}
 

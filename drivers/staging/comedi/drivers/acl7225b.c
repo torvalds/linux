@@ -22,7 +22,8 @@ Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 #define ACL7225_DI_LO  2	/* Digital input low byte (DI0-DI7) */
 #define ACL7225_DI_HI  3	/* Digital input high byte (DI8-DI15) */
 
-static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * it);
+static int acl7225b_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it);
 static int acl7225b_detach(struct comedi_device *dev);
 
 struct boardtype {
@@ -48,10 +49,22 @@ static struct comedi_driver driver_acl7225b = {
 	.offset = sizeof(struct boardtype),
 };
 
-COMEDI_INITCLEANUP(driver_acl7225b);
+static int __init driver_acl7225b_init_module(void)
+{
+	return comedi_driver_register(&driver_acl7225b);
+}
 
-static int acl7225b_do_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn *insn, unsigned int *data)
+static void __exit driver_acl7225b_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_acl7225b);
+}
+
+module_init(driver_acl7225b_init_module);
+module_exit(driver_acl7225b_cleanup_module);
+
+static int acl7225b_do_insn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -64,36 +77,39 @@ static int acl7225b_do_insn(struct comedi_device *dev, struct comedi_subdevice *
 		outb(s->state & 0xff, dev->iobase + (unsigned long)s->private);
 	if (data[0] & 0xff00)
 		outb((s->state >> 8),
-			dev->iobase + (unsigned long)s->private + 1);
+		     dev->iobase + (unsigned long)s->private + 1);
 
 	data[1] = s->state;
 
 	return 2;
 }
 
-static int acl7225b_di_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn *insn, unsigned int *data)
+static int acl7225b_di_insn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
 
 	data[1] = inb(dev->iobase + (unsigned long)s->private) |
-		(inb(dev->iobase + (unsigned long)s->private + 1) << 8);
+	    (inb(dev->iobase + (unsigned long)s->private + 1) << 8);
 
 	return 2;
 }
 
-static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * it)
+static int acl7225b_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int iobase, iorange;
 
 	iobase = it->options[0];
 	iorange = this_board->io_range;
-	printk("comedi%d: acl7225b: board=%s 0x%04x ", dev->minor,
-		this_board->name, iobase);
+	printk(KERN_INFO "comedi%d: acl7225b: board=%s 0x%04x\n", dev->minor,
+	       this_board->name, iobase);
 	if (!request_region(iobase, iorange, "acl7225b")) {
-		printk("I/O port conflict\n");
+		printk(KERN_ERR "comedi%d: request_region failed - I/O port conflict\n",
+			dev->minor);
 		return -EIO;
 	}
 	dev->board_name = this_board->name;
@@ -133,17 +149,19 @@ static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * 
 	s->range_table = &range_digital;
 	s->private = (void *)ACL7225_DI_LO;
 
-	printk("\n");
-
 	return 0;
 }
 
 static int acl7225b_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: acl7225b: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: acl7225b: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->io_range);
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

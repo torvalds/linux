@@ -1,13 +1,9 @@
-#ifndef __WL12XX_PS_H__
-#define __WL12XX_PS_H__
-
 /*
- * This file is part of wl12xx
+ * This file is part of wl1271
  *
- * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Kalle Valo <kalle.valo@nokia.com>
+ * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,12 +21,16 @@
  *
  */
 
+#ifndef __PS_H__
+#define __PS_H__
+
 #include "wl12xx.h"
 #include "acx.h"
 
-int wl12xx_ps_set_mode(struct wl12xx *wl, enum acx_ps_mode mode);
-void wl12xx_ps_elp_sleep(struct wl12xx *wl);
-int wl12xx_ps_elp_wakeup(struct wl12xx *wl);
+int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
+		       u32 rates, bool send);
+void wl1271_ps_elp_sleep(struct wl1271 *wl);
+int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake);
+void wl1271_elp_work(struct work_struct *work);
 
-
-#endif /* __WL12XX_PS_H__ */
+#endif /* __WL1271_PS_H__ */

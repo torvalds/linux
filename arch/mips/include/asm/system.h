@@ -12,6 +12,7 @@
 #ifndef _ASM_SYSTEM_H
 #define _ASM_SYSTEM_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/irqflags.h>
 
@@ -31,6 +32,9 @@
 extern asmlinkage void *resume(void *last, void *next, void *next_ti);
 
 struct task_struct;
+
+extern unsigned int ll_bit;
+extern struct task_struct *ll_task;
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 
@@ -63,11 +67,18 @@ do {									\
 #define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
 #endif
 
+#define __clear_software_ll_bit()					\
+do {									\
+	if (!__builtin_constant_p(cpu_has_llsc) || !cpu_has_llsc)	\
+		ll_bit = 0;						\
+} while (0)
+
 #define switch_to(prev, next, last)					\
 do {									\
 	__mips_mt_fpaff_switch_to(prev);				\
 	if (cpu_has_dsp)						\
 		__save_dsp(prev);					\
+	__clear_software_ll_bit();					\
 	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 
@@ -84,7 +95,9 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 {
 	__u32 retval;
 
-	if (cpu_has_llsc && R10000_LLSC_WAR) {
+	smp_mb__before_llsc();
+
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long dummy;
 
 		__asm__ __volatile__(
@@ -99,24 +112,22 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
-	} else if (cpu_has_llsc) {
+	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
 
-		__asm__ __volatile__(
-		"	.set	mips3					\n"
-		"1:	ll	%0, %3			# xchg_u32	\n"
-		"	.set	mips0					\n"
-		"	move	%2, %z4					\n"
-		"	.set	mips3					\n"
-		"	sc	%2, %1					\n"
-		"	beqz	%2, 2f					\n"
-		"	.subsection 2					\n"
-		"2:	b	1b					\n"
-		"	.previous					\n"
-		"	.set	mips0					\n"
-		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-		: "R" (*m), "Jr" (val)
-		: "memory");
+		do {
+			__asm__ __volatile__(
+			"	.set	mips3				\n"
+			"	ll	%0, %3		# xchg_u32	\n"
+			"	.set	mips0				\n"
+			"	move	%2, %z4				\n"
+			"	.set	mips3				\n"
+			"	sc	%2, %1				\n"
+			"	.set	mips0				\n"
+			: "=&r" (retval), "=m" (*m), "=&r" (dummy)
+			: "R" (*m), "Jr" (val)
+			: "memory");
+		} while (unlikely(!dummy));
 	} else {
 		unsigned long flags;
 
@@ -136,7 +147,9 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 {
 	__u64 retval;
 
-	if (cpu_has_llsc && R10000_LLSC_WAR) {
+	smp_mb__before_llsc();
+
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long dummy;
 
 		__asm__ __volatile__(
@@ -149,22 +162,20 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
-	} else if (cpu_has_llsc) {
+	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
 
-		__asm__ __volatile__(
-		"	.set	mips3					\n"
-		"1:	lld	%0, %3			# xchg_u64	\n"
-		"	move	%2, %z4					\n"
-		"	scd	%2, %1					\n"
-		"	beqz	%2, 2f					\n"
-		"	.subsection 2					\n"
-		"2:	b	1b					\n"
-		"	.previous					\n"
-		"	.set	mips0					\n"
-		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-		: "R" (*m), "Jr" (val)
-		: "memory");
+		do {
+			__asm__ __volatile__(
+			"	.set	mips3				\n"
+			"	lld	%0, %3		# xchg_u64	\n"
+			"	move	%2, %z4				\n"
+			"	scd	%2, %1				\n"
+			"	.set	mips0				\n"
+			: "=&r" (retval), "=m" (*m), "=&r" (dummy)
+			: "R" (*m), "Jr" (val)
+			: "memory");
+		} while (unlikely(!dummy));
 	} else {
 		unsigned long flags;
 
@@ -183,10 +194,6 @@ extern __u64 __xchg_u64_unsupported_on_32bit_kernels(volatile __u64 * m, __u64 v
 #define __xchg_u64 __xchg_u64_unsupported_on_32bit_kernels
 #endif
 
-/* This function doesn't exist, so you'll get a linker error
-   if something tries to do an invalid xchg().  */
-extern void __xchg_called_with_bad_pointer(void);
-
 static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
 {
 	switch (size) {
@@ -195,11 +202,17 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 	case 8:
 		return __xchg_u64(ptr, x);
 	}
-	__xchg_called_with_bad_pointer();
+
 	return x;
 }
 
-#define xchg(ptr, x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))))
+#define xchg(ptr, x)							\
+({									\
+	BUILD_BUG_ON(sizeof(*(ptr)) & ~0xc);				\
+									\
+	((__typeof__(*(ptr)))						\
+		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))));	\
+})
 
 extern void set_handler(unsigned long offset, void *addr, unsigned long len);
 extern void set_uncached_handler(unsigned long offset, void *addr, unsigned long len);

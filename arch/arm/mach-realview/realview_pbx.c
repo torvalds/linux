@@ -22,18 +22,22 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/pl061.h>
+#include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
+#include <asm/pmu.h>
 #include <asm/smp_twd.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/mmc.h>
 #include <asm/mach/time.h>
 
 #include <mach/hardware.h>
@@ -118,6 +122,27 @@ static void __init realview_pbx_map_io(void)
 		iotable_init(realview_local_io_desc, ARRAY_SIZE(realview_local_io_desc));
 }
 
+static struct pl061_platform_data gpio0_plat_data = {
+	.gpio_base	= 0,
+	.irq_base	= -1,
+};
+
+static struct pl061_platform_data gpio1_plat_data = {
+	.gpio_base	= 8,
+	.irq_base	= -1,
+};
+
+static struct pl061_platform_data gpio2_plat_data = {
+	.gpio_base	= 16,
+	.irq_base	= -1,
+};
+
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 /*
  * RealView PBXCore AMBA devices
  */
@@ -166,29 +191,29 @@ static void __init realview_pbx_map_io(void)
 #define PBX_SSP_DMA		{ 9, 8 }
 
 /* FPGA Primecells */
-AMBA_DEVICE(aaci,	"fpga:04",	AACI,		NULL);
-AMBA_DEVICE(mmc0,	"fpga:05",	MMCI0,		&realview_mmc0_plat_data);
-AMBA_DEVICE(kmi0,	"fpga:06",	KMI0,		NULL);
-AMBA_DEVICE(kmi1,	"fpga:07",	KMI1,		NULL);
-AMBA_DEVICE(uart3,	"fpga:09",	PBX_UART3,	NULL);
+AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
+AMBA_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
+AMBA_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
+AMBA_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
+AMBA_DEVICE(uart3,	"fpga:uart3",	PBX_UART3,	NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,	"dev:00",	PBX_SMC,	NULL);
-AMBA_DEVICE(sctl,	"dev:e0",	SCTL,		NULL);
-AMBA_DEVICE(wdog,	"dev:e1",	PBX_WATCHDOG, 	NULL);
-AMBA_DEVICE(gpio0,	"dev:e4",	PBX_GPIO0,	NULL);
-AMBA_DEVICE(gpio1,	"dev:e5",	GPIO1,		NULL);
-AMBA_DEVICE(gpio2,	"dev:e6",	GPIO2,		NULL);
-AMBA_DEVICE(rtc,	"dev:e8",	PBX_RTC,	NULL);
-AMBA_DEVICE(sci0,	"dev:f0",	SCI,		NULL);
-AMBA_DEVICE(uart0,	"dev:f1",	PBX_UART0,	NULL);
-AMBA_DEVICE(uart1,	"dev:f2",	PBX_UART1,	NULL);
-AMBA_DEVICE(uart2,	"dev:f3",	PBX_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:f4",	PBX_SSP,	NULL);
+AMBA_DEVICE(smc,	"dev:smc",	PBX_SMC,	NULL);
+AMBA_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
+AMBA_DEVICE(wdog,	"dev:wdog",	PBX_WATCHDOG, 	NULL);
+AMBA_DEVICE(gpio0,	"dev:gpio0",	PBX_GPIO0,	&gpio0_plat_data);
+AMBA_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
+AMBA_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
+AMBA_DEVICE(rtc,	"dev:rtc",	PBX_RTC,	NULL);
+AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
+AMBA_DEVICE(uart0,	"dev:uart0",	PBX_UART0,	NULL);
+AMBA_DEVICE(uart1,	"dev:uart1",	PBX_UART1,	NULL);
+AMBA_DEVICE(uart2,	"dev:uart2",	PBX_UART2,	NULL);
+AMBA_DEVICE(ssp0,	"dev:ssp0",	PBX_SSP,	&ssp0_plat_data);
 
 /* Primecells on the NEC ISSP chip */
-AMBA_DEVICE(clcd,	"issp:20",	PBX_CLCD,	&clcd_plat_data);
-AMBA_DEVICE(dmac,	"issp:30",	DMAC,		NULL);
+AMBA_DEVICE(clcd,	"issp:clcd",	PBX_CLCD,	&clcd_plat_data);
+AMBA_DEVICE(dmac,	"issp:dmac",	DMAC,		NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,
@@ -254,19 +279,46 @@ static struct resource realview_pbx_isp1761_resources[] = {
 	},
 };
 
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start		= IRQ_PBX_PMU_CPU0,
+		.end		= IRQ_PBX_PMU_CPU0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start		= IRQ_PBX_PMU_CPU1,
+		.end		= IRQ_PBX_PMU_CPU1,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start		= IRQ_PBX_PMU_CPU2,
+		.end		= IRQ_PBX_PMU_CPU2,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start		= IRQ_PBX_PMU_CPU3,
+		.end		= IRQ_PBX_PMU_CPU3,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name			= "arm-pmu",
+	.id			= ARM_PMU_DEVICE_CPU,
+	.num_resources		= ARRAY_SIZE(pmu_resources),
+	.resource		= pmu_resources,
+};
+
 static void __init gic_init_irq(void)
 {
 	/* ARM PBX on-board GIC */
 	if (core_tile_pbx11mp() || core_tile_pbxa9mp()) {
-		gic_cpu_base_addr = __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE);
-		gic_dist_init(0, __io_address(REALVIEW_PBX_TILE_GIC_DIST_BASE),
-			      29);
-		gic_cpu_init(0, __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE));
+		gic_init(0, 29, __io_address(REALVIEW_PBX_TILE_GIC_DIST_BASE),
+			 __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE));
 	} else {
-		gic_cpu_base_addr = __io_address(REALVIEW_PBX_GIC_CPU_BASE);
-		gic_dist_init(0, __io_address(REALVIEW_PBX_GIC_DIST_BASE),
-			      IRQ_PBX_GIC_START);
-		gic_cpu_init(0, __io_address(REALVIEW_PBX_GIC_CPU_BASE));
+		gic_init(0, IRQ_PBX_GIC_START,
+			 __io_address(REALVIEW_PBX_GIC_DIST_BASE),
+			 __io_address(REALVIEW_PBX_GIC_CPU_BASE));
 	}
 }
 
@@ -288,6 +340,40 @@ static struct sys_timer realview_pbx_timer = {
 	.init		= realview_pbx_timer_init,
 };
 
+static void realview_pbx_fixup(struct machine_desc *mdesc, struct tag *tags,
+			       char **from, struct meminfo *meminfo)
+{
+#ifdef CONFIG_SPARSEMEM
+	/*
+	 * Memory configuration with SPARSEMEM enabled on RealView PBX (see
+	 * asm/mach/memory.h for more information).
+	 */
+	meminfo->bank[0].start = 0;
+	meminfo->bank[0].size = SZ_256M;
+	meminfo->bank[1].start = 0x20000000;
+	meminfo->bank[1].size = SZ_512M;
+	meminfo->bank[2].start = 0x80000000;
+	meminfo->bank[2].size = SZ_256M;
+	meminfo->nr_banks = 3;
+#else
+	realview_fixup(mdesc, tags, from, meminfo);
+#endif
+}
+
+static void realview_pbx_reset(char mode)
+{
+	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
+	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);
+
+	/*
+	 * To reset, we hit the on-board reset register
+	 * in the system FPGA
+	 */
+	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
+	__raw_writel(0x00F0, reset_ctrl);
+	__raw_writel(0x00F4, reset_ctrl);
+}
+
 static void __init realview_pbx_init(void)
 {
 	int i;
@@ -304,6 +390,7 @@ static void __init realview_pbx_init(void)
 		/* 16KB way size, 8-way associativity, parity disabled
 		 * Bits:  .. 0 0 0 0 1 00 1 0 1 001 0 000 0 .... .... .... */
 		l2x0_init(l2x0_base, 0x02520000, 0xc0000fff);
+		platform_device_register(&pmu_device);
 	}
 #endif
 
@@ -322,13 +409,13 @@ static void __init realview_pbx_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
+	realview_reset = realview_pbx_reset;
 }
 
 MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= REALVIEW_PBX_UART0_BASE,
-	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PBX_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.fixup		= realview_pbx_fixup,
 	.map_io		= realview_pbx_map_io,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pbx_timer,

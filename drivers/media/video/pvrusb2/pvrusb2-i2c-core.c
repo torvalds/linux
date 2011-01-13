@@ -50,6 +50,7 @@ MODULE_PARM_DESC(disable_autoload_ir_video,
 
 /* Mapping of IR schemes to known I2C addresses - if any */
 static const unsigned char ir_video_addresses[] = {
+	[PVR2_IR_SCHEME_ZILOG] = 0x71,
 	[PVR2_IR_SCHEME_29XXX] = 0x18,
 	[PVR2_IR_SCHEME_24XXX] = 0x18,
 };
@@ -540,7 +541,6 @@ static struct i2c_algorithm pvr2_i2c_algo_template = {
 static struct i2c_adapter pvr2_i2c_adap_template = {
 	.owner         = THIS_MODULE,
 	.class	       = 0,
-	.id            = I2C_HW_B_BT848,
 };
 
 

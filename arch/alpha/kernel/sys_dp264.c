@@ -199,7 +199,7 @@ clipper_set_affinity(unsigned int irq, const struct cpumask *affinity)
 }
 
 static struct irq_chip dp264_irq_type = {
-	.typename	= "DP264",
+	.name		= "DP264",
 	.startup	= dp264_startup_irq,
 	.shutdown	= dp264_disable_irq,
 	.enable		= dp264_enable_irq,
@@ -210,7 +210,7 @@ static struct irq_chip dp264_irq_type = {
 };
 
 static struct irq_chip clipper_irq_type = {
-	.typename	= "CLIPPER",
+	.name		= "CLIPPER",
 	.startup	= clipper_startup_irq,
 	.shutdown	= clipper_disable_irq,
 	.enable		= clipper_enable_irq,
@@ -224,7 +224,7 @@ static void
 dp264_device_interrupt(unsigned long vector)
 {
 #if 1
-	printk("dp264_device_interrupt: NOT IMPLEMENTED YET!! \n");
+	printk("dp264_device_interrupt: NOT IMPLEMENTED YET!!\n");
 #else
 	unsigned long pld;
 	unsigned int i;

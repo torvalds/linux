@@ -55,6 +55,7 @@
 #include <linux/ppp_defs.h>
 #include <linux/ppp-comp.h>
 #include <linux/scatterlist.h>
+#include <asm/unaligned.h>
 
 #include "ppp_mppe.h"
 
@@ -195,8 +196,8 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 	struct ppp_mppe_state *state;
 	unsigned int digestsize;
 
-	if (optlen != CILEN_MPPE + sizeof(state->master_key)
-	    || options[0] != CI_MPPE || options[1] != CILEN_MPPE)
+	if (optlen != CILEN_MPPE + sizeof(state->master_key) ||
+	    options[0] != CI_MPPE || options[1] != CILEN_MPPE)
 		goto out;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
@@ -276,8 +277,8 @@ mppe_init(void *arg, unsigned char *options, int optlen, int unit, int debug,
 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
 	unsigned char mppe_opts;
 
-	if (optlen != CILEN_MPPE
-	    || options[0] != CI_MPPE || options[1] != CILEN_MPPE)
+	if (optlen != CILEN_MPPE ||
+	    options[0] != CI_MPPE || options[1] != CILEN_MPPE)
 		return 0;
 
 	MPPE_CI_TO_OPTS(&options[2], mppe_opts);
@@ -395,16 +396,14 @@ mppe_compress(void *arg, unsigned char *ibuf, unsigned char *obuf,
 	 */
 	obuf[0] = PPP_ADDRESS(ibuf);
 	obuf[1] = PPP_CONTROL(ibuf);
-	obuf[2] = PPP_COMP >> 8;	/* isize + MPPE_OVHD + 1 */
-	obuf[3] = PPP_COMP;	/* isize + MPPE_OVHD + 2 */
+	put_unaligned_be16(PPP_COMP, obuf + 2);
 	obuf += PPP_HDRLEN;
 
 	state->ccount = (state->ccount + 1) % MPPE_CCOUNT_SPACE;
 	if (state->debug >= 7)
 		printk(KERN_DEBUG "mppe_compress[%d]: ccount %d\n", state->unit,
 		       state->ccount);
-	obuf[0] = state->ccount >> 8;
-	obuf[1] = state->ccount & 0xff;
+	put_unaligned_be16(state->ccount, obuf);
 
 	if (!state->stateful ||	/* stateless mode     */
 	    ((state->ccount & 0xff) == 0xff) ||	/* "flag" packet      */

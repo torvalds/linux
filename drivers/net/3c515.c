@@ -65,7 +65,6 @@ static int max_interrupt_work = 20;
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
@@ -99,7 +98,7 @@ static int rx_nocopy, rx_copy, queued_packet;
 #define WAIT_TX_AVAIL 200
 
 /* Operational parameter that usually are not changed. */
-#define TX_TIMEOUT  40		/* Time in jiffies before concluding Tx hung */
+#define TX_TIMEOUT  ((4*HZ)/10)	/* Time in jiffies before concluding Tx hung */
 
 /* The size here is somewhat misleading: the Corkscrew also uses the ISA
    aliased registers at <base>+0x400.
@@ -369,8 +368,8 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 			    struct pnp_dev *idev, int card_number);
 static int corkscrew_open(struct net_device *dev);
 static void corkscrew_timer(unsigned long arg);
-static int corkscrew_start_xmit(struct sk_buff *skb,
-				struct net_device *dev);
+static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static int corkscrew_rx(struct net_device *dev);
 static void corkscrew_timeout(struct net_device *dev);
 static int boomerang_rx(struct net_device *dev);
@@ -663,7 +662,9 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 		pr_warning(" *** Warning: this IRQ is unlikely to work! ***\n");
 
 	{
-		char *ram_split[] = { "5:3", "3:1", "1:1", "3:5" };
+		static const char * const ram_split[] = {
+			"5:3", "3:1", "1:1", "3:5"
+		};
 		__u32 config;
 		EL3WINDOW(3);
 		vp->available_media = inw(ioaddr + Wn3_Options);
@@ -735,7 +736,7 @@ static int corkscrew_open(struct net_device *dev)
 		init_timer(&vp->timer);
 		vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
 		vp->timer.data = (unsigned long) dev;
-		vp->timer.function = &corkscrew_timer;	/* timer handler */
+		vp->timer.function = corkscrew_timer;	/* timer handler */
 		add_timer(&vp->timer);
 	} else
 		dev->if_port = vp->default_media;
@@ -764,13 +765,14 @@ static int corkscrew_open(struct net_device *dev)
 	/* Use the now-standard shared IRQ implementation. */
 	if (vp->capabilities == 0x11c7) {
 		/* Corkscrew: Cannot share ISA resources. */
-		if (dev->irq == 0
-		    || dev->dma == 0
-		    || request_irq(dev->irq, &corkscrew_interrupt, 0,
-				   vp->product_name, dev)) return -EAGAIN;
+		if (dev->irq == 0 ||
+		    dev->dma == 0 ||
+		    request_irq(dev->irq, corkscrew_interrupt, 0,
+				vp->product_name, dev))
+			return -EAGAIN;
 		enable_dma(dev->dma);
 		set_dma_mode(dev->dma, DMA_MODE_CASCADE);
-	} else if (request_irq(dev->irq, &corkscrew_interrupt, IRQF_SHARED,
+	} else if (request_irq(dev->irq, corkscrew_interrupt, IRQF_SHARED,
 			       vp->product_name, dev)) {
 		return -EAGAIN;
 	}
@@ -832,7 +834,9 @@ static int corkscrew_open(struct net_device *dev)
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 			vp->rx_ring[i].addr = isa_virt_to_bus(skb->data);
 		}
-		vp->rx_ring[i - 1].next = isa_virt_to_bus(&vp->rx_ring[0]);	/* Wrap the ring. */
+		if (i != 0)
+			vp->rx_ring[i - 1].next =
+				isa_virt_to_bus(&vp->rx_ring[0]);	/* Wrap the ring. */
 		outl(isa_virt_to_bus(&vp->rx_ring[0]), ioaddr + UpListPtr);
 	}
 	if (vp->full_bus_master_tx) {	/* Boomerang bus master Tx. */
@@ -956,7 +960,6 @@ static void corkscrew_timer(unsigned long data)
 		       dev->name, media_tbl[dev->if_port].name);
 
 #endif				/* AUTOMEDIA */
-	return;
 }
 
 static void corkscrew_timeout(struct net_device *dev)
@@ -990,14 +993,14 @@ static void corkscrew_timeout(struct net_device *dev)
 		if (!(inw(ioaddr + EL3_STATUS) & CmdInProgress))
 			break;
 	outw(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	dev->stats.tx_dropped++;
 	netif_wake_queue(dev);
 }
 
-static int corkscrew_start_xmit(struct sk_buff *skb,
-				struct net_device *dev)
+static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct corkscrew_private *vp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
@@ -1053,8 +1056,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 				prev_entry->status &= ~0x80000000;
 			netif_wake_queue(dev);
 		}
-		dev->trans_start = jiffies;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	/* Put out the doubleword header... */
 	outl(skb->len, ioaddr + TX_FIFO);
@@ -1089,7 +1091,6 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 		outw(SetTxThreshold + (1536 >> 2), ioaddr + EL3_CMD);
 #endif				/* bus master */
 
-	dev->trans_start = jiffies;
 
 	/* Clear the Tx status stack. */
 	{
@@ -1117,7 +1118,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 			outb(0x00, ioaddr + TxStatus);	/* Pop the status stack. */
 		}
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up
@@ -1366,8 +1367,8 @@ static int boomerang_rx(struct net_device *dev)
 
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
-			if (pkt_len < rx_copybreak
-			    && (skb = dev_alloc_skb(pkt_len + 4)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 4)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				memcpy(skb_put(skb, pkt_len),
@@ -1516,7 +1517,6 @@ static void update_stats(int ioaddr, struct net_device *dev)
 
 	/* We change back to window 7 (not 1) with the Vortex. */
 	EL3WINDOW(7);
-	return;
 }
 
 /* This new version of set_rx_mode() supports v1.4 kernels.
@@ -1533,7 +1533,7 @@ static void set_rx_mode(struct net_device *dev)
 			pr_debug("%s: Setting promiscuous mode.\n",
 			       dev->name);
 		new_mode = SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm;
-	} else if ((dev->mc_list) || (dev->flags & IFF_ALLMULTI)) {
+	} else if (!netdev_mc_empty(dev) || dev->flags & IFF_ALLMULTI) {
 		new_mode = SetRxFilter | RxStation | RxMulticast | RxBroadcast;
 	} else
 		new_mode = SetRxFilter | RxStation | RxBroadcast;

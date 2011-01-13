@@ -3,10 +3,53 @@ menu "Generic Driver Options"
 config UEVENT_HELPER_PATH
 	string "path to uevent helper"
 	depends on HOTPLUG
-	default "/sbin/hotplug"
+	default ""
 	help
 	  Path to uevent helper program forked by the kernel for
 	  every uevent.
+	  Before the switch to the netlink-based uevent source, this was
+	  used to hook hotplug scripts into kernel device events. It
+	  usually pointed to a shell script at /sbin/hotplug.
+	  This should not be used today, because usual systems create
+	  many events at bootup or device discovery in a very short time
+	  frame. One forked process per event can create so many processes
+	  that it creates a high system load, or on smaller systems
+	  it is known to create out-of-memory situations during bootup.
+
+config DEVTMPFS
+	bool "Maintain a devtmpfs filesystem to mount at /dev"
+	depends on HOTPLUG
+	help
+	  This creates a tmpfs/ramfs filesystem instance early at bootup.
+	  In this filesystem, the kernel driver core maintains device
+	  nodes with their default names and permissions for all
+	  registered devices with an assigned major/minor number.
+	  Userspace can modify the filesystem content as needed, add
+	  symlinks, and apply needed permissions.
+	  It provides a fully functional /dev directory, where usually
+	  udev runs on top, managing permissions and adding meaningful
+	  symlinks.
+	  In very limited environments, it may provide a sufficient
+	  functional /dev without any further help. It also allows simple
+	  rescue systems, and reliably handles dynamic major/minor numbers.
+
+	  Notice: if CONFIG_TMPFS isn't enabled, the simpler ramfs
+	  file system will be used instead.
+
+config DEVTMPFS_MOUNT
+	bool "Automount devtmpfs at /dev, after the kernel mounted the rootfs"
+	depends on DEVTMPFS
+	help
+	  This will instruct the kernel to automatically mount the
+	  devtmpfs filesystem at /dev, directly after the kernel has
+	  mounted the root filesystem. The behavior can be overridden
+	  with the commandline parameter: devtmpfs.mount=0|1.
+	  This option does not affect initramfs based booting, here
+	  the devtmpfs filesystem always needs to be mounted manually
+	  after the roots is mounted.
+	  With this option enabled, it allows to bring up a system in
+	  rescue mode with init=/bin/sh, even when the /dev directory
+	  on the rootfs is completely empty.
 
 config STANDALONE
 	bool "Select only drivers that don't need compile-time external firmware" if EXPERIMENTAL
@@ -28,7 +71,6 @@ config PREVENT_FIRMWARE_BUILD
 
 config FW_LOADER
 	tristate "Userspace firmware loading support" if EMBEDDED
-	depends on HOTPLUG
 	default y
 	---help---
 	  This option is provided for the case where no in-kernel-tree modules

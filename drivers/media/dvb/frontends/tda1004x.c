@@ -598,7 +598,7 @@ static int tda1004x_decode_fec(int tdafec)
 	return -1;
 }
 
-static int tda1004x_write(struct dvb_frontend* fe, u8 *buf, int len)
+static int tda1004x_write(struct dvb_frontend* fe, const u8 buf[], int len)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
 
@@ -1269,7 +1269,7 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 	int id;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
 	if (!state) {
 		printk(KERN_ERR "Can't alocate memory for tda10045 state\n");
 		return NULL;
@@ -1339,7 +1339,7 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	int id;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct tda1004x_state), GFP_KERNEL);
 	if (!state) {
 		printk(KERN_ERR "Can't alocate memory for tda10046 state\n");
 		return NULL;

@@ -27,7 +27,9 @@
 #ifndef _R300_REG_H_
 #define _R300_REG_H_
 
-
+#define R300_SURF_TILE_MACRO (1<<16)
+#define R300_SURF_TILE_MICRO (2<<16)
+#define R300_SURF_TILE_BOTH (3<<16)
 
 
 #define R300_MC_INIT_MISC_LAT_TIMER	0x180
@@ -898,6 +900,7 @@
 #	define R300_TX_FORMAT_FL_I32		    0x1B
 #	define R300_TX_FORMAT_FL_I32A32		    0x1C
 #	define R300_TX_FORMAT_FL_R32G32B32A32	    0x1D
+#	define R300_TX_FORMAT_ATI2N		    0x1F
 	/* alpha modes, convenience mostly */
 	/* if you have alpha, pick constant appropriate to the
 	   number of channels (1 for I8, 2 for I8A8, 4 for R8G8B8A8, etc */
@@ -949,6 +952,7 @@
 #       define R300_TXO_ENDIAN_HALFDW_SWAP       (3 << 0)
 #       define R300_TXO_MACRO_TILE               (1 << 2)
 #       define R300_TXO_MICRO_TILE               (1 << 3)
+#       define R300_TXO_MICRO_TILE_SQUARE        (2 << 3)
 #       define R300_TXO_OFFSET_MASK              0xffffffe0
 #       define R300_TXO_OFFSET_SHIFT             5
 	/* END: Guess from R200 */
@@ -1357,6 +1361,7 @@
 #       define R300_COLORPITCH_MASK              0x00001FF8 /* GUESS */
 #       define R300_COLOR_TILE_ENABLE            (1 << 16) /* GUESS */
 #       define R300_COLOR_MICROTILE_ENABLE       (1 << 17) /* GUESS */
+#       define R300_COLOR_MICROTILE_SQUARE_ENABLE (2 << 17)
 #       define R300_COLOR_ENDIAN_NO_SWAP         (0 << 18) /* GUESS */
 #       define R300_COLOR_ENDIAN_WORD_SWAP       (1 << 18) /* GUESS */
 #       define R300_COLOR_ENDIAN_DWORD_SWAP      (2 << 18) /* GUESS */

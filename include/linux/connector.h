@@ -24,9 +24,6 @@
 
 #include <linux/types.h>
 
-#define CN_IDX_CONNECTOR		0xffffffff
-#define CN_VAL_CONNECTOR		0xffffffff
-
 /*
  * Process Events connector unique ids -- used for message routing
  */
@@ -41,8 +38,12 @@
 #define CN_IDX_BB			0x5	/* BlackBoard, from the TSP GPL sampling framework */
 #define CN_DST_IDX			0x6
 #define CN_DST_VAL			0x1
+#define CN_IDX_DM			0x7	/* Device Mapper */
+#define CN_VAL_DM_USERSPACE_LOG		0x1
+#define CN_IDX_DRBD			0x8
+#define CN_VAL_DRBD			0x1
 
-#define CN_NETLINK_USERS		7
+#define CN_NETLINK_USERS		8
 
 /*
  * Maximum connector's message size.
@@ -71,30 +72,6 @@ struct cn_msg {
 	__u8 data[0];
 };
 
-/*
- * Notify structure - requests notification about
- * registering/unregistering idx/val in range [first, first+range].
- */
-struct cn_notify_req {
-	__u32 first;
-	__u32 range;
-};
-
-/*
- * Main notification control message
- * *_notify_num 	- number of appropriate cn_notify_req structures after 
- *				this struct.
- * group 		- notification receiver's idx.
- * len 			- total length of the attached data.
- */
-struct cn_ctl_msg {
-	__u32 idx_notify_num;
-	__u32 val_notify_num;
-	__u32 group;
-	__u32 len;
-	__u8 data[0];
-};
-
 #ifdef __KERNEL__
 
 #include <asm/atomic.h>
@@ -111,12 +88,6 @@ struct cn_queue_dev {
 	unsigned char name[CN_CBQ_NAMELEN];
 
 	struct workqueue_struct *cn_queue;
-	/* Sent to kevent to create cn_queue only when needed */
-	struct work_struct wq_creation;
-	/* Tell if the wq_creation job is pending/completed */
-	atomic_t wq_requested;
-	/* Wait for cn_queue to be created */
-	wait_queue_head_t wq_created;
 
 	struct list_head queue_list;
 	spinlock_t queue_lock;
@@ -130,11 +101,8 @@ struct cn_callback_id {
 };
 
 struct cn_callback_data {
-	void (*destruct_data) (void *);
-	void *ddata;
-	
-	void *callback_priv;
-	void (*callback) (void *);
+	struct sk_buff *skb;
+	void (*callback) (struct cn_msg *, struct netlink_skb_parms *);
 
 	void *free;
 };
@@ -150,11 +118,6 @@ struct cn_callback_entry {
 	u32 seq, group;
 };
 
-struct cn_ctl_entry {
-	struct list_head notify_entry;
-	struct cn_ctl_msg *msg;
-};
-
 struct cn_dev {
 	struct cb_id id;
 
@@ -165,14 +128,12 @@ struct cn_dev {
 	struct cn_queue_dev *cbdev;
 };
 
-int cn_add_callback(struct cb_id *, char *, void (*callback) (void *));
+int cn_add_callback(struct cb_id *, char *, void (*callback) (struct cn_msg *, struct netlink_skb_parms *));
 void cn_del_callback(struct cb_id *);
 int cn_netlink_send(struct cn_msg *, u32, gfp_t);
 
-int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id, void (*callback)(void *));
+int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id, void (*callback)(struct cn_msg *, struct netlink_skb_parms *));
 void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id);
-
-int queue_cn_work(struct cn_callback_entry *cbq, struct work_struct *work);
 
 struct cn_queue_dev *cn_queue_alloc_dev(char *name, struct sock *);
 void cn_queue_free_dev(struct cn_queue_dev *dev);

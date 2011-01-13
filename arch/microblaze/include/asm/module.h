@@ -9,6 +9,8 @@
 #ifndef _ASM_MICROBLAZE_MODULE_H
 #define _ASM_MICROBLAZE_MODULE_H
 
+#include <asm-generic/module.h>
+
 /* Microblaze Relocations */
 #define R_MICROBLAZE_NONE 0
 #define R_MICROBLAZE_32 1
@@ -23,14 +25,6 @@
 #define R_MICROBLAZE_32_SYM_OP_SYM 10
 /* Keep this the last entry. */
 #define R_MICROBLAZE_NUM 11
-
-struct mod_arch_specific {
-	int foo;
-};
-
-#define Elf_Shdr	Elf32_Shdr
-#define Elf_Sym		Elf32_Sym
-#define Elf_Ehdr	Elf32_Ehdr
 
 typedef struct { volatile int counter; } module_t;
 

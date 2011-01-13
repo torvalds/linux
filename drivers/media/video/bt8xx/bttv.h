@@ -17,8 +17,6 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/ir-common.h>
-#include <media/ir-kbd-i2c.h>
 #include <media/i2c-addr.h>
 #include <media/tuner.h>
 
@@ -283,6 +281,7 @@ extern struct tvcard bttv_tvcards[];
 extern void bttv_idcard(struct bttv *btv);
 extern void bttv_init_card1(struct bttv *btv);
 extern void bttv_init_card2(struct bttv *btv);
+extern void bttv_init_tuner(struct bttv *btv);
 
 /* card-specific funtions */
 extern void tea5757_set_freq(struct bttv *btv, unsigned short freq);

@@ -99,57 +99,57 @@ static int vp7045_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 /* The keymapping struct. Somehow this should be loaded to the driver, but
  * currently it is hardcoded. */
-static struct dvb_usb_rc_key vp7045_rc_keys[] = {
-	{ 0x00, 0x16, KEY_POWER },
-	{ 0x00, 0x10, KEY_MUTE },
-	{ 0x00, 0x03, KEY_1 },
-	{ 0x00, 0x01, KEY_2 },
-	{ 0x00, 0x06, KEY_3 },
-	{ 0x00, 0x09, KEY_4 },
-	{ 0x00, 0x1d, KEY_5 },
-	{ 0x00, 0x1f, KEY_6 },
-	{ 0x00, 0x0d, KEY_7 },
-	{ 0x00, 0x19, KEY_8 },
-	{ 0x00, 0x1b, KEY_9 },
-	{ 0x00, 0x15, KEY_0 },
-	{ 0x00, 0x05, KEY_CHANNELUP },
-	{ 0x00, 0x02, KEY_CHANNELDOWN },
-	{ 0x00, 0x1e, KEY_VOLUMEUP },
-	{ 0x00, 0x0a, KEY_VOLUMEDOWN },
-	{ 0x00, 0x11, KEY_RECORD },
-	{ 0x00, 0x17, KEY_FAVORITES }, /* Heart symbol - Channel list. */
-	{ 0x00, 0x14, KEY_PLAY },
-	{ 0x00, 0x1a, KEY_STOP },
-	{ 0x00, 0x40, KEY_REWIND },
-	{ 0x00, 0x12, KEY_FASTFORWARD },
-	{ 0x00, 0x0e, KEY_PREVIOUS }, /* Recall - Previous channel. */
-	{ 0x00, 0x4c, KEY_PAUSE },
-	{ 0x00, 0x4d, KEY_SCREEN }, /* Full screen mode. */
-	{ 0x00, 0x54, KEY_AUDIO }, /* MTS - Switch to secondary audio. */
-	{ 0x00, 0x0c, KEY_CANCEL }, /* Cancel */
-	{ 0x00, 0x1c, KEY_EPG }, /* EPG */
-	{ 0x00, 0x00, KEY_TAB }, /* Tab */
-	{ 0x00, 0x48, KEY_INFO }, /* Preview */
-	{ 0x00, 0x04, KEY_LIST }, /* RecordList */
-	{ 0x00, 0x0f, KEY_TEXT }, /* Teletext */
-	{ 0x00, 0x41, KEY_PREVIOUSSONG },
-	{ 0x00, 0x42, KEY_NEXTSONG },
-	{ 0x00, 0x4b, KEY_UP },
-	{ 0x00, 0x51, KEY_DOWN },
-	{ 0x00, 0x4e, KEY_LEFT },
-	{ 0x00, 0x52, KEY_RIGHT },
-	{ 0x00, 0x4f, KEY_ENTER },
-	{ 0x00, 0x13, KEY_CANCEL },
-	{ 0x00, 0x4a, KEY_CLEAR },
-	{ 0x00, 0x54, KEY_PRINT }, /* Capture */
-	{ 0x00, 0x43, KEY_SUBTITLE }, /* Subtitle/CC */
-	{ 0x00, 0x08, KEY_VIDEO }, /* A/V */
-	{ 0x00, 0x07, KEY_SLEEP }, /* Hibernate */
-	{ 0x00, 0x45, KEY_ZOOM }, /* Zoom+ */
-	{ 0x00, 0x18, KEY_RED},
-	{ 0x00, 0x53, KEY_GREEN},
-	{ 0x00, 0x5e, KEY_YELLOW},
-	{ 0x00, 0x5f, KEY_BLUE}
+static struct rc_map_table rc_map_vp7045_table[] = {
+	{ 0x0016, KEY_POWER },
+	{ 0x0010, KEY_MUTE },
+	{ 0x0003, KEY_1 },
+	{ 0x0001, KEY_2 },
+	{ 0x0006, KEY_3 },
+	{ 0x0009, KEY_4 },
+	{ 0x001d, KEY_5 },
+	{ 0x001f, KEY_6 },
+	{ 0x000d, KEY_7 },
+	{ 0x0019, KEY_8 },
+	{ 0x001b, KEY_9 },
+	{ 0x0015, KEY_0 },
+	{ 0x0005, KEY_CHANNELUP },
+	{ 0x0002, KEY_CHANNELDOWN },
+	{ 0x001e, KEY_VOLUMEUP },
+	{ 0x000a, KEY_VOLUMEDOWN },
+	{ 0x0011, KEY_RECORD },
+	{ 0x0017, KEY_FAVORITES }, /* Heart symbol - Channel list. */
+	{ 0x0014, KEY_PLAY },
+	{ 0x001a, KEY_STOP },
+	{ 0x0040, KEY_REWIND },
+	{ 0x0012, KEY_FASTFORWARD },
+	{ 0x000e, KEY_PREVIOUS }, /* Recall - Previous channel. */
+	{ 0x004c, KEY_PAUSE },
+	{ 0x004d, KEY_SCREEN }, /* Full screen mode. */
+	{ 0x0054, KEY_AUDIO }, /* MTS - Switch to secondary audio. */
+	{ 0x000c, KEY_CANCEL }, /* Cancel */
+	{ 0x001c, KEY_EPG }, /* EPG */
+	{ 0x0000, KEY_TAB }, /* Tab */
+	{ 0x0048, KEY_INFO }, /* Preview */
+	{ 0x0004, KEY_LIST }, /* RecordList */
+	{ 0x000f, KEY_TEXT }, /* Teletext */
+	{ 0x0041, KEY_PREVIOUSSONG },
+	{ 0x0042, KEY_NEXTSONG },
+	{ 0x004b, KEY_UP },
+	{ 0x0051, KEY_DOWN },
+	{ 0x004e, KEY_LEFT },
+	{ 0x0052, KEY_RIGHT },
+	{ 0x004f, KEY_ENTER },
+	{ 0x0013, KEY_CANCEL },
+	{ 0x004a, KEY_CLEAR },
+	{ 0x0054, KEY_PRINT }, /* Capture */
+	{ 0x0043, KEY_SUBTITLE }, /* Subtitle/CC */
+	{ 0x0008, KEY_VIDEO }, /* A/V */
+	{ 0x0007, KEY_SLEEP }, /* Hibernate */
+	{ 0x0045, KEY_ZOOM }, /* Zoom+ */
+	{ 0x0018, KEY_RED},
+	{ 0x0053, KEY_GREEN},
+	{ 0x005e, KEY_YELLOW},
+	{ 0x005f, KEY_BLUE}
 };
 
 static int vp7045_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
@@ -165,10 +165,10 @@ static int vp7045_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		return 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(vp7045_rc_keys); i++)
-		if (vp7045_rc_keys[i].data == key) {
+	for (i = 0; i < ARRAY_SIZE(rc_map_vp7045_table); i++)
+		if (rc5_data(&rc_map_vp7045_table[i]) == key) {
 			*state = REMOTE_KEY_PRESSED;
-			*event = vp7045_rc_keys[i].event;
+			*event = rc_map_vp7045_table[i].keycode;
 			break;
 		}
 	return 0;
@@ -259,10 +259,12 @@ static struct dvb_usb_device_properties vp7045_properties = {
 	.power_ctrl       = vp7045_power_ctrl,
 	.read_mac_address = vp7045_read_mac_addr,
 
-	.rc_interval      = 400,
-	.rc_key_map       = vp7045_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(vp7045_rc_keys),
-	.rc_query         = vp7045_rc_query,
+	.rc.legacy = {
+		.rc_interval      = 400,
+		.rc_map_table       = rc_map_vp7045_table,
+		.rc_map_size  = ARRAY_SIZE(rc_map_vp7045_table),
+		.rc_query         = vp7045_rc_query,
+	},
 
 	.num_device_descs = 2,
 	.devices = {

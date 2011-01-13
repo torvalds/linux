@@ -64,8 +64,6 @@ typedef unsigned long elf_fpregset_t;
 #define EF_CRIS_VARIANT_COMMON_V10_V32	0x00000004
 /* End of excerpt from {binutils}/include/elf/cris.h.  */
 
-#define USE_ELF_CORE_DUMP
-
 #define ELF_EXEC_PAGESIZE	8192
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

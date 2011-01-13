@@ -62,11 +62,9 @@ struct cal_chipset_ops {
 extern int use_calgary;
 
 #ifdef CONFIG_CALGARY_IOMMU
-extern int calgary_iommu_init(void);
-extern void detect_calgary(void);
+extern int detect_calgary(void);
 #else
-static inline int calgary_iommu_init(void) { return 1; }
-static inline void detect_calgary(void) { return; }
+static inline int detect_calgary(void) { return -ENODEV; }
 #endif
 
 #endif /* _ASM_X86_CALGARY_H */

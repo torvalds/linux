@@ -31,34 +31,21 @@
 #ifndef __WPA2_H__
 #define __WPA2_H__
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__BSSDB_H__)
 #include "bssdb.h"
-#endif
-#if !defined(__VNTWIFI_H__)
-#include "vntwifi.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
+#define MAX_PMKID_CACHE         16
 
 typedef struct tagsPMKIDInfo {
-    BYTE    abyBSSID[6];
-    BYTE    abyPMKID[16];
+    unsigned char abyBSSID[6];
+    unsigned char abyPMKID[16];
 } PMKIDInfo, *PPMKIDInfo;
 
 typedef struct tagSPMKIDCache {
-    ULONG       BSSIDInfoCount;
+    unsigned long BSSIDInfoCount;
     PMKIDInfo   BSSIDInfo[MAX_PMKID_CACHE];
 } SPMKIDCache, *PSPMKIDCache;
 
@@ -70,31 +57,22 @@ typedef struct tagSPMKIDCache {
 /*---------------------  Export Types  ------------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
-VOID
+void
 WPA2_ClearRSN (
-    IN PKnownBSS        pBSSNode
+    PKnownBSS        pBSSNode
     );
 
-VOID
+void
 WPA2vParseRSN (
-    IN PKnownBSS        pBSSNode,
-    IN PWLAN_IE_RSN     pRSN
+    PKnownBSS        pBSSNode,
+    PWLAN_IE_RSN     pRSN
     );
 
-UINT
+unsigned int
 WPA2uSetIEs(
-    IN PVOID pMgmtHandle,
-    OUT PWLAN_IE_RSN pRSNIEs
+    void *pMgmtHandle,
+    PWLAN_IE_RSN pRSNIEs
     );
-
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __WPA2_H__

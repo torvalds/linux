@@ -15,6 +15,7 @@ struct nlm_host;
 struct nfs4_sequence_args;
 struct nfs4_sequence_res;
 struct nfs_server;
+struct nfs4_minor_version_ops;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -44,14 +45,8 @@ struct nfs_client {
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
-	nfs4_verifier		cl_confirm;
 	unsigned long		cl_state;
 
-	struct rb_root		cl_openowner_id;
-	struct rb_root		cl_lockowner_id;
-
-	struct list_head	cl_delegations;
-	struct rb_root		cl_state_owners;
 	spinlock_t		cl_lock;
 
 	unsigned long		cl_lease_time;
@@ -71,11 +66,8 @@ struct nfs_client {
 	 */
 	char			cl_ipaddr[48];
 	unsigned char		cl_id_uniquifier;
-	int		     (* cl_call_sync)(struct nfs_server *server,
-					      struct rpc_message *msg,
-					      struct nfs4_sequence_args *args,
-					      struct nfs4_sequence_res *res,
-					      int cache_reply);
+	u32			cl_cb_ident;	/* v4.0 callback identifier */
+	const struct nfs4_minor_version_ops *cl_mvops;
 #endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_V4_1
@@ -86,6 +78,8 @@ struct nfs_client {
 	/* The flags used for obtaining the clientid during EXCHANGE_ID */
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session; 	/* sharred session */
+	struct list_head	cl_layouts;
+	struct pnfs_deviceid_cache *cl_devid_cache; /* pNFS deviceid cache */
 #endif /* CONFIG_NFS_V4_1 */
 
 #ifdef CONFIG_NFS_FSCACHE
@@ -105,7 +99,7 @@ struct nfs_server {
 	struct rpc_clnt *	client;		/* RPC client handle */
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
 	struct nlm_host		*nlm_host;	/* NLM client handle */
-	struct nfs_iostats *	io_stats;	/* I/O statistics */
+	struct nfs_iostats __percpu *io_stats;	/* I/O statistics */
 	struct backing_dev_info	backing_dev_info;
 	atomic_long_t		writeback;	/* number of writeback pages */
 	int			flags;		/* various flags */
@@ -128,6 +122,7 @@ struct nfs_server {
 
 	struct nfs_fsid		fsid;
 	__u64			maxfilesize;	/* maximum file size */
+	struct timespec		time_delta;	/* smallest time granularity */
 	unsigned long		mount_time;	/* when this fs was mounted */
 	dev_t			s_dev;		/* superblock dev numbers */
 
@@ -148,7 +143,15 @@ struct nfs_server {
 	u32			acl_bitmask;	/* V4 bitmask representing the ACEs
 						   that are supported on this
 						   filesystem */
+	struct pnfs_layoutdriver_type  *pnfs_curr_ld; /* Active layout driver */
+	struct rpc_wait_queue	roc_rpcwaitq;
+
+	/* the following fields are protected by nfs_client->cl_lock */
+	struct rb_root		state_owners;
+	struct rb_root		openowner_id;
+	struct rb_root		lockowner_id;
 #endif
+	struct list_head	delegations;
 	void (*destroy)(struct nfs_server *);
 
 	atomic_t active; /* Keep trace of any activity to this server */
@@ -167,6 +170,16 @@ struct nfs_server {
 #define NFS_CAP_SYMLINKS	(1U << 2)
 #define NFS_CAP_ACLS		(1U << 3)
 #define NFS_CAP_ATOMIC_OPEN	(1U << 4)
+#define NFS_CAP_CHANGE_ATTR	(1U << 5)
+#define NFS_CAP_FILEID		(1U << 6)
+#define NFS_CAP_MODE		(1U << 7)
+#define NFS_CAP_NLINK		(1U << 8)
+#define NFS_CAP_OWNER		(1U << 9)
+#define NFS_CAP_OWNER_GROUP	(1U << 10)
+#define NFS_CAP_ATIME		(1U << 11)
+#define NFS_CAP_CTIME		(1U << 12)
+#define NFS_CAP_MTIME		(1U << 13)
+#define NFS_CAP_POSIX_LOCK	(1U << 14)
 
 
 /* maximum number of slots to use */
@@ -184,6 +197,9 @@ struct nfs4_slot_table {
 	int		max_slots;		/* # slots in table */
 	int		highest_used_slotid;	/* sent to server on each SEQ.
 						 * op for dynamic resizing */
+	int		target_max_slots;	/* Set by CB_RECALL_SLOT as
+						 * the new max_slots */
+	struct completion complete;
 };
 
 static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)

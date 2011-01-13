@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/wrapper.h>
@@ -25,6 +26,8 @@
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
 #include <asm/portmux.h>
+#include <mach/bfin_serial_5xx.h>
+#undef DRIVER_NAME
 
 #ifdef CONFIG_SIR_BFIN_DMA
 struct dma_rx_buf {

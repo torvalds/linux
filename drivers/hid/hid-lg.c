@@ -7,6 +7,7 @@
  *  Copyright (c) 2006-2007 Jiri Kosina
  *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
+ *  Copyright (c) 2010 Hendrik Iben
  */
 
 /*
@@ -19,6 +20,9 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/random.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 
 #include "hid-ids.h"
 #include "hid-lg.h"
@@ -33,24 +37,44 @@
 #define LG_NOGET		0x100
 #define LG_FF			0x200
 #define LG_FF2			0x400
+#define LG_RDESC_REL_ABS	0x800
+#define LG_FF3			0x1000
+#define LG_FF4			0x2000
 
 /*
  * Certain Logitech keyboards send in report #3 keys which are far
  * above the logical maximum described in descriptor. This extends
  * the original value of 0x28c of logical maximum to 0x104d
  */
-static void lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
 
-	if ((quirks & LG_RDESC) && rsize >= 90 && rdesc[83] == 0x26 &&
+	if ((quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
-		dev_info(&hdev->dev, "fixing up Logitech keyboard report "
-				"descriptor\n");
+		hid_info(hdev,
+			 "fixing up Logitech keyboard report descriptor\n");
 		rdesc[84] = rdesc[89] = 0x4d;
 		rdesc[85] = rdesc[90] = 0x10;
 	}
+	if ((quirks & LG_RDESC_REL_ABS) && *rsize >= 50 &&
+			rdesc[32] == 0x81 && rdesc[33] == 0x06 &&
+			rdesc[49] == 0x81 && rdesc[50] == 0x06) {
+		hid_info(hdev,
+			 "fixing up rel/abs in Logitech report descriptor\n");
+		rdesc[33] = rdesc[50] = 0x02;
+	}
+	if ((quirks & LG_FF4) && *rsize >= 101 &&
+			rdesc[41] == 0x95 && rdesc[42] == 0x0B &&
+			rdesc[47] == 0x05 && rdesc[48] == 0x09) {
+		hid_info(hdev, "fixing up Logitech Speed Force Wireless button descriptor\n");
+		rdesc[41] = 0x05;
+		rdesc[42] = 0x09;
+		rdesc[47] = 0x95;
+		rdesc[48] = 0x0B;
+	}
+	return rdesc;
 }
 
 #define lg_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
@@ -89,6 +113,22 @@ static int lg_ultrax_remote_mapping(struct hid_input *hi,
 	return 1;
 }
 
+static int lg_dinovo_mapping(struct hid_input *hi, struct hid_usage *usage,
+		unsigned long **bit, int *max)
+{
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_LOGIVENDOR)
+		return 0;
+
+	switch (usage->hid & HID_USAGE) {
+
+	case 0x00d: lg_map_key_clear(KEY_MEDIA);	break;
+	default:
+		return 0;
+
+	}
+	return 1;
+}
+
 static int lg_wireless_mapping(struct hid_input *hi, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
@@ -101,6 +141,9 @@ static int lg_wireless_mapping(struct hid_input *hi, struct hid_usage *usage,
 	case 0x1004: lg_map_key_clear(KEY_VIDEO);		break;
 	case 0x1005: lg_map_key_clear(KEY_AUDIO);		break;
 	case 0x100a: lg_map_key_clear(KEY_DOCUMENTS);		break;
+	/* The following two entries are Playlist 1 and 2 on the MX3200 */
+	case 0x100f: lg_map_key_clear(KEY_FN_1);		break;
+	case 0x1010: lg_map_key_clear(KEY_FN_2);		break;
 	case 0x1011: lg_map_key_clear(KEY_PREVIOUSSONG);	break;
 	case 0x1012: lg_map_key_clear(KEY_NEXTSONG);		break;
 	case 0x1013: lg_map_key_clear(KEY_CAMERA);		break;
@@ -112,6 +155,7 @@ static int lg_wireless_mapping(struct hid_input *hi, struct hid_usage *usage,
 	case 0x1019: lg_map_key_clear(KEY_PROG1);		break;
 	case 0x101a: lg_map_key_clear(KEY_PROG2);		break;
 	case 0x101b: lg_map_key_clear(KEY_PROG3);		break;
+	case 0x101c: lg_map_key_clear(KEY_CYCLEWINDOWS);	break;
 	case 0x101f: lg_map_key_clear(KEY_ZOOMIN);		break;
 	case 0x1020: lg_map_key_clear(KEY_ZOOMOUT);		break;
 	case 0x1021: lg_map_key_clear(KEY_ZOOMRESET);		break;
@@ -122,6 +166,11 @@ static int lg_wireless_mapping(struct hid_input *hi, struct hid_usage *usage,
 	case 0x1029: lg_map_key_clear(KEY_SHUFFLE);		break;
 	case 0x102a: lg_map_key_clear(KEY_BACK);		break;
 	case 0x102b: lg_map_key_clear(KEY_CYCLEWINDOWS);	break;
+	case 0x102d: lg_map_key_clear(KEY_WWW);			break;
+	/* The following two are 'Start/answer call' and 'End/reject call'
+	   on the MX3200 */
+	case 0x1031: lg_map_key_clear(KEY_OK);			break;
+	case 0x1032: lg_map_key_clear(KEY_CANCEL);		break;
 	case 0x1041: lg_map_key_clear(KEY_BATTERY);		break;
 	case 0x1042: lg_map_key_clear(KEY_WORDPROCESSOR);	break;
 	case 0x1043: lg_map_key_clear(KEY_SPREADSHEET);		break;
@@ -162,6 +211,10 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_RECEIVER &&
 			lg_ultrax_remote_mapping(hi, usage, bit, max))
+		return 1;
+
+	if (hdev->product == USB_DEVICE_ID_DINOVO_MINI &&
+			lg_dinovo_mapping(hi, usage, bit, max))
 		return 1;
 
 	if ((quirks & LG_WIRELESS) && lg_wireless_mapping(hi, usage, bit, max))
@@ -234,23 +287,46 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
-	if (quirks & (LG_FF | LG_FF2))
+	if (quirks & (LG_FF | LG_FF2 | LG_FF3))
 		connect_mask &= ~HID_CONNECT_FF;
 
 	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
+	}
+
+	if (quirks & LG_FF4) {
+		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+		ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+
+		if (ret >= 0) {
+			/* insert a little delay of 10 jiffies ~ 40ms */
+			wait_queue_head_t wait;
+			init_waitqueue_head (&wait);
+			wait_event_interruptible_timeout(wait, 0, 10);
+
+			/* Select random Address */
+			buf[1] = 0xB2;
+			get_random_bytes(&buf[2], 2);
+
+			ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
+		}
 	}
 
 	if (quirks & LG_FF)
 		lgff_init(hdev);
 	if (quirks & LG_FF2)
 		lg2ff_init(hdev);
+	if (quirks & LG_FF3)
+		lg3ff_init(hdev);
+	if (quirks & LG_FF4)
+		lg4ff_init(hdev);
 
 	return 0;
 err_free:
@@ -285,6 +361,8 @@ static const struct hid_device_id lg_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL),
 		.driver_data = LG_NOGET | LG_FF },
 
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD_CORD),
+		.driver_data = LG_FF2 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD),
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2_2),
@@ -299,10 +377,21 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G25_WHEEL),
 		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WII_WHEEL),
+		.driver_data = LG_FF4 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG ),
+		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
 		.driver_data = LG_FF2 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FLIGHT_SYSTEM_G940),
+		.driver_data = LG_FF3 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_SPACENAVIGATOR),
+		.driver_data = LG_RDESC_REL_ABS },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_SPACETRAVELLER),
+		.driver_data = LG_RDESC_REL_ABS },
 	{ }
 };
+
 MODULE_DEVICE_TABLE(hid, lg_devices);
 
 static struct hid_driver lg_driver = {
@@ -315,12 +404,12 @@ static struct hid_driver lg_driver = {
 	.probe = lg_probe,
 };
 
-static int lg_init(void)
+static int __init lg_init(void)
 {
 	return hid_register_driver(&lg_driver);
 }
 
-static void lg_exit(void)
+static void __exit lg_exit(void)
 {
 	hid_unregister_driver(&lg_driver);
 }

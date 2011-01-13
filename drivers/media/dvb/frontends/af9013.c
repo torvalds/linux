@@ -1,5 +1,5 @@
 /*
- * DVB USB Linux driver for Afatech AF9015 DVB-T USB2.0 receiver
+ * Afatech AF9013 demodulator driver
  *
  * Copyright (C) 2007 Antti Palosaari <crope@iki.fi>
  *
@@ -42,6 +42,8 @@ struct af9013_state {
 
 	struct af9013_config config;
 
+	/* tuner/demod RF and IF AGC limits used for signal strength calc */
+	u8 signal_strength_en, rf_50, rf_80, if_50, if_80;
 	u16 signal_strength;
 	u32 ber;
 	u32 ucblocks;
@@ -220,184 +222,37 @@ static u32 af913_div(u32 a, u32 b, u32 x)
 
 static int af9013_set_coeff(struct af9013_state *state, fe_bandwidth_t bw)
 {
-	int ret = 0;
-	u8 i = 0;
-	u8 buf[24];
-	u32 uninitialized_var(ns_coeff1_2048nu);
-	u32 uninitialized_var(ns_coeff1_8191nu);
-	u32 uninitialized_var(ns_coeff1_8192nu);
-	u32 uninitialized_var(ns_coeff1_8193nu);
-	u32 uninitialized_var(ns_coeff2_2k);
-	u32 uninitialized_var(ns_coeff2_8k);
-
+	int ret, i, j, found;
 	deb_info("%s: adc_clock:%d bw:%d\n", __func__,
 		state->config.adc_clock, bw);
 
-	switch (state->config.adc_clock) {
-	case 28800: /* 28.800 MHz */
-		switch (bw) {
-		case BANDWIDTH_6_MHZ:
-			ns_coeff1_2048nu = 0x01e79e7a;
-			ns_coeff1_8191nu = 0x0079eb6e;
-			ns_coeff1_8192nu = 0x0079e79e;
-			ns_coeff1_8193nu = 0x0079e3cf;
-			ns_coeff2_2k     = 0x00f3cf3d;
-			ns_coeff2_8k     = 0x003cf3cf;
+	/* lookup coeff from table */
+	for (i = 0, found = 0; i < ARRAY_SIZE(coeff_table); i++) {
+		if (coeff_table[i].adc_clock == state->config.adc_clock &&
+			coeff_table[i].bw == bw) {
+			found = 1;
 			break;
-		case BANDWIDTH_7_MHZ:
-			ns_coeff1_2048nu = 0x0238e38e;
-			ns_coeff1_8191nu = 0x008e3d55;
-			ns_coeff1_8192nu = 0x008e38e4;
-			ns_coeff1_8193nu = 0x008e3472;
-			ns_coeff2_2k     = 0x011c71c7;
-			ns_coeff2_8k     = 0x00471c72;
-			break;
-		case BANDWIDTH_8_MHZ:
-			ns_coeff1_2048nu = 0x028a28a3;
-			ns_coeff1_8191nu = 0x00a28f3d;
-			ns_coeff1_8192nu = 0x00a28a29;
-			ns_coeff1_8193nu = 0x00a28514;
-			ns_coeff2_2k     = 0x01451451;
-			ns_coeff2_8k     = 0x00514514;
-			break;
-		default:
-			ret = -EINVAL;
 		}
-		break;
-	case 20480: /* 20.480 MHz */
-		switch (bw) {
-		case BANDWIDTH_6_MHZ:
-			ns_coeff1_2048nu = 0x02adb6dc;
-			ns_coeff1_8191nu = 0x00ab7313;
-			ns_coeff1_8192nu = 0x00ab6db7;
-			ns_coeff1_8193nu = 0x00ab685c;
-			ns_coeff2_2k     = 0x0156db6e;
-			ns_coeff2_8k     = 0x0055b6dc;
-			break;
-		case BANDWIDTH_7_MHZ:
-			ns_coeff1_2048nu = 0x03200001;
-			ns_coeff1_8191nu = 0x00c80640;
-			ns_coeff1_8192nu = 0x00c80000;
-			ns_coeff1_8193nu = 0x00c7f9c0;
-			ns_coeff2_2k     = 0x01900000;
-			ns_coeff2_8k     = 0x00640000;
-			break;
-		case BANDWIDTH_8_MHZ:
-			ns_coeff1_2048nu = 0x03924926;
-			ns_coeff1_8191nu = 0x00e4996e;
-			ns_coeff1_8192nu = 0x00e49249;
-			ns_coeff1_8193nu = 0x00e48b25;
-			ns_coeff2_2k     = 0x01c92493;
-			ns_coeff2_8k     = 0x00724925;
-			break;
-		default:
-			ret = -EINVAL;
-		}
-		break;
-	case 28000: /* 28.000 MHz */
-		switch (bw) {
-		case BANDWIDTH_6_MHZ:
-			ns_coeff1_2048nu = 0x01f58d10;
-			ns_coeff1_8191nu = 0x007d672f;
-			ns_coeff1_8192nu = 0x007d6344;
-			ns_coeff1_8193nu = 0x007d5f59;
-			ns_coeff2_2k     = 0x00fac688;
-			ns_coeff2_8k     = 0x003eb1a2;
-			break;
-		case BANDWIDTH_7_MHZ:
-			ns_coeff1_2048nu = 0x02492492;
-			ns_coeff1_8191nu = 0x00924db7;
-			ns_coeff1_8192nu = 0x00924925;
-			ns_coeff1_8193nu = 0x00924492;
-			ns_coeff2_2k     = 0x01249249;
-			ns_coeff2_8k     = 0x00492492;
-			break;
-		case BANDWIDTH_8_MHZ:
-			ns_coeff1_2048nu = 0x029cbc15;
-			ns_coeff1_8191nu = 0x00a7343f;
-			ns_coeff1_8192nu = 0x00a72f05;
-			ns_coeff1_8193nu = 0x00a729cc;
-			ns_coeff2_2k     = 0x014e5e0a;
-			ns_coeff2_8k     = 0x00539783;
-			break;
-		default:
-			ret = -EINVAL;
-		}
-		break;
-	case 25000: /* 25.000 MHz */
-		switch (bw) {
-		case BANDWIDTH_6_MHZ:
-			ns_coeff1_2048nu = 0x0231bcb5;
-			ns_coeff1_8191nu = 0x008c7391;
-			ns_coeff1_8192nu = 0x008c6f2d;
-			ns_coeff1_8193nu = 0x008c6aca;
-			ns_coeff2_2k     = 0x0118de5b;
-			ns_coeff2_8k     = 0x00463797;
-			break;
-		case BANDWIDTH_7_MHZ:
-			ns_coeff1_2048nu = 0x028f5c29;
-			ns_coeff1_8191nu = 0x00a3dc29;
-			ns_coeff1_8192nu = 0x00a3d70a;
-			ns_coeff1_8193nu = 0x00a3d1ec;
-			ns_coeff2_2k     = 0x0147ae14;
-			ns_coeff2_8k     = 0x0051eb85;
-			break;
-		case BANDWIDTH_8_MHZ:
-			ns_coeff1_2048nu = 0x02ecfb9d;
-			ns_coeff1_8191nu = 0x00bb44c1;
-			ns_coeff1_8192nu = 0x00bb3ee7;
-			ns_coeff1_8193nu = 0x00bb390d;
-			ns_coeff2_2k     = 0x01767dce;
-			ns_coeff2_8k     = 0x005d9f74;
-			break;
-		default:
-			ret = -EINVAL;
-		}
-		break;
-	default:
-		err("invalid xtal");
-		return -EINVAL;
-	}
-	if (ret) {
-		err("invalid bandwidth");
-		return ret;
 	}
 
-	buf[i++] = (u8) ((ns_coeff1_2048nu & 0x03000000) >> 24);
-	buf[i++] = (u8) ((ns_coeff1_2048nu & 0x00ff0000) >> 16);
-	buf[i++] = (u8) ((ns_coeff1_2048nu & 0x0000ff00) >> 8);
-	buf[i++] = (u8) ((ns_coeff1_2048nu & 0x000000ff));
-	buf[i++] = (u8) ((ns_coeff2_2k     & 0x01c00000) >> 22);
-	buf[i++] = (u8) ((ns_coeff2_2k     & 0x003fc000) >> 14);
-	buf[i++] = (u8) ((ns_coeff2_2k     & 0x00003fc0) >> 6);
-	buf[i++] = (u8) ((ns_coeff2_2k     & 0x0000003f));
-	buf[i++] = (u8) ((ns_coeff1_8191nu & 0x03000000) >> 24);
-	buf[i++] = (u8) ((ns_coeff1_8191nu & 0x00ffc000) >> 16);
-	buf[i++] = (u8) ((ns_coeff1_8191nu & 0x0000ff00) >> 8);
-	buf[i++] = (u8) ((ns_coeff1_8191nu & 0x000000ff));
-	buf[i++] = (u8) ((ns_coeff1_8192nu & 0x03000000) >> 24);
-	buf[i++] = (u8) ((ns_coeff1_8192nu & 0x00ffc000) >> 16);
-	buf[i++] = (u8) ((ns_coeff1_8192nu & 0x0000ff00) >> 8);
-	buf[i++] = (u8) ((ns_coeff1_8192nu & 0x000000ff));
-	buf[i++] = (u8) ((ns_coeff1_8193nu & 0x03000000) >> 24);
-	buf[i++] = (u8) ((ns_coeff1_8193nu & 0x00ffc000) >> 16);
-	buf[i++] = (u8) ((ns_coeff1_8193nu & 0x0000ff00) >> 8);
-	buf[i++] = (u8) ((ns_coeff1_8193nu & 0x000000ff));
-	buf[i++] = (u8) ((ns_coeff2_8k     & 0x01c00000) >> 22);
-	buf[i++] = (u8) ((ns_coeff2_8k     & 0x003fc000) >> 14);
-	buf[i++] = (u8) ((ns_coeff2_8k     & 0x00003fc0) >> 6);
-	buf[i++] = (u8) ((ns_coeff2_8k     & 0x0000003f));
+	if (!found) {
+		err("invalid bw or clock");
+		ret = -EINVAL;
+		goto error;
+	}
 
-	deb_info("%s: coeff:", __func__);
-	debug_dump(buf, sizeof(buf), deb_info);
+	deb_info("%s: coeff: ", __func__);
+	debug_dump(coeff_table[i].val, sizeof(coeff_table[i].val), deb_info);
 
 	/* program */
-	for (i = 0; i < sizeof(buf); i++) {
-		ret = af9013_write_reg(state, 0xae00 + i, buf[i]);
+	for (j = 0; j < sizeof(coeff_table[i].val); j++) {
+		ret = af9013_write_reg(state, 0xae00 + j,
+			coeff_table[i].val[j]);
 		if (ret)
 			break;
 	}
 
+error:
 	return ret;
 }
 
@@ -486,6 +341,19 @@ static int af9013_set_freq_ctrl(struct af9013_state *state, fe_bandwidth_t bw)
 				if_sample_freq = 4300000; /* 4.3 MHz */
 				break;
 			}
+		} else if (state->config.tuner == AF9013_TUNER_TDA18218) {
+			switch (bw) {
+			case BANDWIDTH_6_MHZ:
+				if_sample_freq = 3000000; /* 3 MHz */
+				break;
+			case BANDWIDTH_7_MHZ:
+				if_sample_freq = 3500000; /* 3.5 MHz */
+				break;
+			case BANDWIDTH_8_MHZ:
+			default:
+				if_sample_freq = 4000000; /* 4 MHz */
+				break;
+			}
 		}
 
 		while (if_sample_freq > (adc_freq / 2))
@@ -527,6 +395,10 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 	u8 i, buf[3] = {0, 0, 0};
 	*auto_mode = 0; /* set if parameters are requested to auto set */
 
+	/* Try auto-detect transmission parameters in case of AUTO requested or
+	   garbage parameters given by application for compatibility.
+	   MPlayer seems to provide garbage parameters currently. */
+
 	switch (params->transmission_mode) {
 	case TRANSMISSION_MODE_AUTO:
 		*auto_mode = 1;
@@ -536,7 +408,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[0] |= (1 << 0);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid transmission_mode\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->guard_interval) {
@@ -554,7 +427,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[0] |= (3 << 2);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid guard_interval\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->hierarchy_information) {
@@ -572,7 +446,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[0] |= (3 << 4);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid hierarchy_information\n", __func__);
+		*auto_mode = 1;
 	};
 
 	switch (params->constellation) {
@@ -587,7 +462,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[1] |= (2 << 6);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid constellation\n", __func__);
+		*auto_mode = 1;
 	}
 
 	/* Use HP. How and which case we can switch to LP? */
@@ -611,7 +487,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[2] |= (4 << 0);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid code_rate_HP\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->code_rate_LP) {
@@ -638,7 +515,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		if (params->hierarchy_information == HIERARCHY_AUTO)
 			break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid code_rate_LP\n", __func__);
+		*auto_mode = 1;
 	}
 
 	switch (params->bandwidth) {
@@ -651,7 +529,8 @@ static int af9013_set_ofdm_params(struct af9013_state *state,
 		buf[1] |= (2 << 2);
 		break;
 	default:
-		return -EINVAL;
+		deb_info("%s: invalid bandwidth\n", __func__);
+		buf[1] |= (2 << 2); /* cannot auto-detect BW, try 8 MHz */
 	}
 
 	/* program */
@@ -750,6 +629,10 @@ static int af9013_set_frontend(struct dvb_frontend *fe,
 
 	state->frequency = params->frequency;
 
+	/* program tuner */
+	if (fe->ops.tuner_ops.set_params)
+		fe->ops.tuner_ops.set_params(fe, params);
+
 	/* program CFOE coefficients */
 	ret = af9013_set_coeff(state, params->u.ofdm.bandwidth);
 	if (ret)
@@ -779,10 +662,6 @@ static int af9013_set_frontend(struct dvb_frontend *fe,
 	ret = af9013_write_reg_bits(state, 0x9bc2, 0, 1, 0);
 	if (ret)
 		goto error;
-
-	/* program tuner */
-	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, params);
 
 	/* program TPS and bandwidth, check if auto mode needed */
 	ret = af9013_set_ofdm_params(state, &params->u.ofdm, &auto_mode);
@@ -1085,46 +964,32 @@ error:
 static int af9013_update_signal_strength(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
-	int ret;
-	u8 tmp0;
-	u8 rf_gain, rf_50, rf_80, if_gain, if_50, if_80;
+	int ret = 0;
+	u8 rf_gain, if_gain;
 	int signal_strength;
 
 	deb_info("%s\n", __func__);
 
-	state->signal_strength = 0;
-
-	ret = af9013_read_reg_bits(state, 0x9bee, 0, 1, &tmp0);
-	if (ret)
-		goto error;
-	if (tmp0) {
-		ret = af9013_read_reg(state, 0x9bbd, &rf_50);
-		if (ret)
-			goto error;
-		ret = af9013_read_reg(state, 0x9bd0, &rf_80);
-		if (ret)
-			goto error;
-		ret = af9013_read_reg(state, 0x9be2, &if_50);
-		if (ret)
-			goto error;
-		ret = af9013_read_reg(state, 0x9be4, &if_80);
-		if (ret)
-			goto error;
+	if (state->signal_strength_en) {
 		ret = af9013_read_reg(state, 0xd07c, &rf_gain);
 		if (ret)
 			goto error;
 		ret = af9013_read_reg(state, 0xd07d, &if_gain);
 		if (ret)
 			goto error;
-		signal_strength = (0xffff / (9 * (rf_50 + if_50) - \
-			11 * (rf_80 + if_80))) * (10 * (rf_gain + if_gain) - \
-			11 * (rf_80 + if_80));
+		signal_strength = (0xffff / \
+			(9 * (state->rf_50 + state->if_50) - \
+			11 * (state->rf_80 + state->if_80))) * \
+			(10 * (rf_gain + if_gain) - \
+			11 * (state->rf_80 + state->if_80));
 		if (signal_strength < 0)
 			signal_strength = 0;
 		else if (signal_strength > 0xffff)
 			signal_strength = 0xffff;
 
 		state->signal_strength = signal_strength;
+	} else {
+		state->signal_strength = 0;
 	}
 
 error:
@@ -1173,45 +1038,49 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	u8 tmp;
 	*status = 0;
 
-	/* TPS lock */
-	ret = af9013_read_reg_bits(state, 0xd330, 3, 1, &tmp);
-	if (ret)
-		goto error;
-	if (tmp)
-		*status |= FE_HAS_VITERBI | FE_HAS_CARRIER | FE_HAS_SIGNAL;
-
 	/* MPEG2 lock */
 	ret = af9013_read_reg_bits(state, 0xd507, 6, 1, &tmp);
 	if (ret)
 		goto error;
 	if (tmp)
-		*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI |
+			FE_HAS_SYNC | FE_HAS_LOCK;
 
-	if (!(*status & FE_HAS_SIGNAL)) {
+	if (!*status) {
+		/* TPS lock */
+		ret = af9013_read_reg_bits(state, 0xd330, 3, 1, &tmp);
+		if (ret)
+			goto error;
+		if (tmp)
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
+				FE_HAS_VITERBI;
+	}
+
+	if (!*status) {
+		/* CFO lock */
+		ret = af9013_read_reg_bits(state, 0xd333, 7, 1, &tmp);
+		if (ret)
+			goto error;
+		if (tmp)
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
+	}
+
+	if (!*status) {
+		/* SFOE lock */
+		ret = af9013_read_reg_bits(state, 0xd334, 6, 1, &tmp);
+		if (ret)
+			goto error;
+		if (tmp)
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
+	}
+
+	if (!*status) {
 		/* AGC lock */
 		ret = af9013_read_reg_bits(state, 0xd1a0, 6, 1, &tmp);
 		if (ret)
 			goto error;
 		if (tmp)
 			*status |= FE_HAS_SIGNAL;
-	}
-
-	if (!(*status & FE_HAS_CARRIER)) {
-		/* CFO lock */
-		ret = af9013_read_reg_bits(state, 0xd333, 7, 1, &tmp);
-		if (ret)
-			goto error;
-		if (tmp)
-			*status |= FE_HAS_CARRIER;
-	}
-
-	if (!(*status & FE_HAS_CARRIER)) {
-		/* SFOE lock */
-		ret = af9013_read_reg_bits(state, 0xd334, 6, 1, &tmp);
-		if (ret)
-			goto error;
-		if (tmp)
-			*status |= FE_HAS_CARRIER;
 	}
 
 	ret = af9013_update_statistics(fe);
@@ -1353,6 +1222,7 @@ static int af9013_init(struct dvb_frontend *fe)
 		break;
 	case AF9013_TUNER_MXL5005D:
 	case AF9013_TUNER_MXL5005R:
+	case AF9013_TUNER_MXL5007T:
 		len = ARRAY_SIZE(tuner_init_mxl5005);
 		init = tuner_init_mxl5005;
 		break;
@@ -1378,6 +1248,7 @@ static int af9013_init(struct dvb_frontend *fe)
 		init = tuner_init_mt2060_2;
 		break;
 	case AF9013_TUNER_TDA18271:
+	case AF9013_TUNER_TDA18218:
 		len = ARRAY_SIZE(tuner_init_tda18271);
 		init = tuner_init_tda18271;
 		break;
@@ -1422,6 +1293,27 @@ static int af9013_init(struct dvb_frontend *fe)
 	ret = af9013_lock_led(state, 1);
 	if (ret)
 		goto error;
+
+	/* read values needed for signal strength calculation */
+	ret = af9013_read_reg_bits(state, 0x9bee, 0, 1,
+		&state->signal_strength_en);
+	if (ret)
+		goto error;
+
+	if (state->signal_strength_en) {
+		ret = af9013_read_reg(state, 0x9bbd, &state->rf_50);
+		if (ret)
+			goto error;
+		ret = af9013_read_reg(state, 0x9bd0, &state->rf_80);
+		if (ret)
+			goto error;
+		ret = af9013_read_reg(state, 0x9be2, &state->if_50);
+		if (ret)
+			goto error;
+		ret = af9013_read_reg(state, 0x9be4, &state->if_80);
+		if (ret)
+			goto error;
+	}
 
 error:
 	return ret;
@@ -1563,7 +1455,7 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 {
 	int ret;
 	struct af9013_state *state = NULL;
-	u8 buf[3], i;
+	u8 buf[4], i;
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct af9013_state), GFP_KERNEL);
@@ -1596,12 +1488,12 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 	}
 
 	/* firmware version */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		ret = af9013_read_reg(state, 0x5103 + i, &buf[i]);
 		if (ret)
 			goto error;
 	}
-	info("firmware version:%d.%d.%d", buf[0], buf[1], buf[2]);
+	info("firmware version:%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3]);
 
 	/* settings for mp2if */
 	if (state->config.output_mode == AF9013_OUTPUT_MODE_USB) {

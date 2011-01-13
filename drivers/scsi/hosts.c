@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -31,6 +32,7 @@
 #include <linux/completion.h>
 #include <linux/transport_class.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
@@ -40,7 +42,7 @@
 #include "scsi_logging.h"
 
 
-static int scsi_host_next_hn;		/* host_no for next new host */
+static atomic_t scsi_host_next_hn;	/* host_no for next new host */
 
 
 static void scsi_host_cls_release(struct device *dev)
@@ -155,6 +157,7 @@ EXPORT_SYMBOL(scsi_host_set_state);
 void scsi_remove_host(struct Scsi_Host *shost)
 {
 	unsigned long flags;
+
 	mutex_lock(&shost->scan_mutex);
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_CANCEL))
@@ -164,8 +167,10 @@ void scsi_remove_host(struct Scsi_Host *shost)
 			return;
 		}
 	spin_unlock_irqrestore(shost->host_lock, flags);
-	mutex_unlock(&shost->scan_mutex);
+
+	scsi_autopm_get_host(shost);
 	scsi_forget_host(shost);
+	mutex_unlock(&shost->scan_mutex);
 	scsi_proc_host_rm(shost);
 
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -180,14 +185,20 @@ void scsi_remove_host(struct Scsi_Host *shost)
 EXPORT_SYMBOL(scsi_remove_host);
 
 /**
- * scsi_add_host - add a scsi host
+ * scsi_add_host_with_dma - add a scsi host with dma device
  * @shost:	scsi host pointer to add
  * @dev:	a struct device of type scsi class
+ * @dma_dev:	dma device for the host
+ *
+ * Note: You rarely need to worry about this unless you're in a
+ * virtualised host environments, so use the simpler scsi_add_host()
+ * function instead.
  *
  * Return value: 
  * 	0 on success / != 0 for error
  **/
-int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
+int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
+			   struct device *dma_dev)
 {
 	struct scsi_host_template *sht = shost->hostt;
 	int error = -EINVAL;
@@ -207,13 +218,20 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
+	shost->dma_dev = dma_dev;
 
 	error = device_add(&shost->shost_gendev);
 	if (error)
 		goto out;
 
+	pm_runtime_set_active(&shost->shost_gendev);
+	pm_runtime_enable(&shost->shost_gendev);
+	device_enable_async_suspend(&shost->shost_gendev);
+
 	scsi_host_set_state(shost, SHOST_RUNNING);
 	get_device(shost->shost_gendev.parent);
+
+	device_enable_async_suspend(&shost->shost_dev);
 
 	error = device_add(&shost->shost_dev);
 	if (error)
@@ -262,7 +280,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
  fail:
 	return error;
 }
-EXPORT_SYMBOL(scsi_add_host);
+EXPORT_SYMBOL(scsi_add_host_with_dma);
 
 static void scsi_host_dev_release(struct device *dev)
 {
@@ -313,7 +331,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 {
 	struct Scsi_Host *shost;
 	gfp_t gfp_mask = GFP_KERNEL;
-	int rval;
 
 	if (sht->unchecked_isa_dma && privsize)
 		gfp_mask |= __GFP_DMA;
@@ -333,7 +350,11 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 
 	mutex_init(&shost->scan_mutex);
 
-	shost->host_no = scsi_host_next_hn++; /* XXX(hch): still racy */
+	/*
+	 * subtract one because we increment first then return, but we need to
+	 * know what the next host number was before increment
+	 */
+	shost->host_no = atomic_inc_return(&scsi_host_next_hn) - 1;
 	shost->dma_channel = 0xff;
 
 	/* These three are default values which can be overridden */
@@ -355,6 +376,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->this_id = sht->this_id;
 	shost->can_queue = sht->can_queue;
 	shost->sg_tablesize = sht->sg_tablesize;
+	shost->sg_prot_tablesize = sht->sg_prot_tablesize;
 	shost->cmd_per_lun = sht->cmd_per_lun;
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
 	shost->use_clustering = sht->use_clustering;
@@ -390,9 +412,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 
 	device_initialize(&shost->shost_gendev);
 	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);
-#ifndef CONFIG_SYSFS_DEPRECATED
 	shost->shost_gendev.bus = &scsi_bus_type;
-#endif
 	shost->shost_gendev.type = &scsi_host_type;
 
 	device_initialize(&shost->shost_dev);
@@ -404,7 +424,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
 			"scsi_eh_%d", shost->host_no);
 	if (IS_ERR(shost->ehandler)) {
-		rval = PTR_ERR(shost->ehandler);
+		printk(KERN_WARNING "scsi%d: error handler thread failed to spawn, error = %ld\n",
+			shost->host_no, PTR_ERR(shost->ehandler));
 		goto fail_kfree;
 	}
 

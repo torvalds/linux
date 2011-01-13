@@ -125,7 +125,7 @@ static void hp_sdc_mlc_isr (int irq, void *dev_id,
 		break;
 
 	default:
-		printk(KERN_WARNING PREFIX "Unkown HIL Error status (%x)!\n", data);
+		printk(KERN_WARNING PREFIX "Unknown HIL Error status (%x)!\n", data);
 		break;
 	}
 
@@ -296,7 +296,7 @@ static void hp_sdc_mlc_out(hil_mlc *mlc)
 	priv->tseq[3] = 0;
 	if (mlc->opacket & HIL_CTRL_APE) {
 		priv->tseq[3] |= HP_SDC_LPC_APE_IPF;
-		down_trylock(&mlc->csem);
+		BUG_ON(down_trylock(&mlc->csem));
 	}
  enqueue:
 	hp_sdc_enqueue_transaction(&priv->trans);
@@ -305,6 +305,7 @@ static void hp_sdc_mlc_out(hil_mlc *mlc)
 static int __init hp_sdc_mlc_init(void)
 {
 	hil_mlc *mlc = &hp_sdc_mlc;
+	int err;
 
 #ifdef __mc68000__
 	if (!MACH_IS_HP300)
@@ -323,22 +324,21 @@ static int __init hp_sdc_mlc_init(void)
 	mlc->out = &hp_sdc_mlc_out;
 	mlc->priv = &hp_sdc_mlc_priv;
 
-	if (hil_mlc_register(mlc)) {
+	err = hil_mlc_register(mlc);
+	if (err) {
 		printk(KERN_WARNING PREFIX "Failed to register MLC structure with hil_mlc\n");
-		goto err0;
+		return err;
 	}
 
 	if (hp_sdc_request_hil_irq(&hp_sdc_mlc_isr)) {
 		printk(KERN_WARNING PREFIX "Request for raw HIL ISR hook denied\n");
-		goto err1;
+		if (hil_mlc_unregister(mlc))
+			printk(KERN_ERR PREFIX "Failed to unregister MLC structure with hil_mlc.\n"
+				"This is bad.  Could cause an oops.\n");
+		return -EBUSY;
 	}
+
 	return 0;
- err1:
-	if (hil_mlc_unregister(mlc))
-		printk(KERN_ERR PREFIX "Failed to unregister MLC structure with hil_mlc.\n"
-			"This is bad.  Could cause an oops.\n");
- err0:
-	return -EBUSY;
 }
 
 static void __exit hp_sdc_mlc_exit(void)

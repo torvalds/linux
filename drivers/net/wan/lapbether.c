@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/net.h>
@@ -45,7 +46,7 @@
 
 #include <net/x25device.h>
 
-static char bcast_addr[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static const u8 bcast_addr[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /* If this number is made larger, check that the temporary string buffer
  * in lapbeth_new_device is large enough to store the probe device name.*/
@@ -138,7 +139,7 @@ static int lapbeth_data_indication(struct net_device *dev, struct sk_buff *skb)
 		return NET_RX_DROP;
 
 	ptr  = skb->data;
-	*ptr = 0x00;
+	*ptr = X25_IFACE_DATA;
 
 	skb->protocol = x25_type_trans(skb, dev);
 	return netif_rx(skb);
@@ -147,7 +148,8 @@ static int lapbeth_data_indication(struct net_device *dev, struct sk_buff *skb)
 /*
  *	Send a LAPB frame via an ethernet interface
  */
-static int lapbeth_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	int err;
 
@@ -159,14 +161,14 @@ static int lapbeth_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 
 	switch (skb->data[0]) {
-	case 0x00:
+	case X25_IFACE_DATA:
 		break;
-	case 0x01:
+	case X25_IFACE_CONNECT:
 		if ((err = lapb_connect_request(dev)) != LAPB_OK)
 			printk(KERN_ERR "lapbeth: lapb_connect_request "
 			       "error: %d\n", err);
 		goto drop;
-	case 0x02:
+	case X25_IFACE_DISCONNECT:
 		if ((err = lapb_disconnect_request(dev)) != LAPB_OK)
 			printk(KERN_ERR "lapbeth: lapb_disconnect_request "
 			       "err: %d\n", err);
@@ -223,7 +225,7 @@ static void lapbeth_connected(struct net_device *dev, int reason)
 	}
 
 	ptr  = skb_put(skb, 1);
-	*ptr = 0x01;
+	*ptr = X25_IFACE_CONNECT;
 
 	skb->protocol = x25_type_trans(skb, dev);
 	netif_rx(skb);
@@ -240,7 +242,7 @@ static void lapbeth_disconnected(struct net_device *dev, int reason)
 	}
 
 	ptr  = skb_put(skb, 1);
-	*ptr = 0x02;
+	*ptr = X25_IFACE_DISCONNECT;
 
 	skb->protocol = x25_type_trans(skb, dev);
 	netif_rx(skb);

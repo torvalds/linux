@@ -19,7 +19,7 @@
   file called LICENSE.
 
   Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+  Intel Linux Wireless <ilw@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
@@ -46,7 +46,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 
-#include "ieee80211.h"
+#include "libipw.h"
 
 struct ipw2100_priv;
 struct ipw2100_tx_packet;
@@ -164,7 +164,7 @@ struct bd_status {
 		} fields;
 		u8 field;
 	} info;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw2100_bd {
 	u32 host_addr;
@@ -174,7 +174,7 @@ struct ipw2100_bd {
 	 * 1st TBD) */
 	u8 num_fragments;
 	u8 reserved[6];
-} __attribute__ ((packed));
+} __packed;
 
 #define IPW_BD_QUEUE_LENGTH(n) (1<<n)
 #define IPW_BD_ALIGNMENT(L)    (L*sizeof(struct ipw2100_bd))
@@ -232,7 +232,7 @@ struct ipw2100_status {
 #define IPW_STATUS_FLAG_WEP_ENCRYPTED	(1<<1)
 #define IPW_STATUS_FLAG_CRC_ERROR       (1<<2)
 	u8 rssi;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw2100_status_queue {
 	/* driver (virtual) pointer to queue */
@@ -293,7 +293,7 @@ struct ipw2100_cmd_header {
 	u32 reserved1[3];
 	u32 *ordinal1_ptr;
 	u32 *ordinal2_ptr;
-} __attribute__ ((packed));
+} __packed;
 
 struct ipw2100_data_header {
 	u32 host_command_reg;
@@ -307,7 +307,7 @@ struct ipw2100_data_header {
 	u8 src_addr[ETH_ALEN];
 	u8 dst_addr[ETH_ALEN];
 	u16 fragment_size;
-} __attribute__ ((packed));
+} __packed;
 
 /* Host command data structure */
 struct host_command {
@@ -316,7 +316,7 @@ struct host_command {
 	u32 host_command_sequence;	// UNIQUE COMMAND NUMBER (ID)
 	u32 host_command_length;	// LENGTH
 	u32 host_command_parameters[HOST_COMMAND_PARAMS_REG_LEN];	// COMMAND PARAMETERS
-} __attribute__ ((packed));
+} __packed;
 
 typedef enum {
 	POWER_ON_RESET,
@@ -343,7 +343,7 @@ struct ipw2100_tx_packet {
 		struct {	/* DATA */
 			struct ipw2100_data_header *data;
 			dma_addr_t data_phys;
-			struct ieee80211_txb *txb;
+			struct libipw_txb *txb;
 		} d_struct;
 	} info;
 	int jiffy_start;
@@ -382,7 +382,7 @@ struct ipw2100_notification {
 	u32 hnhdr_size;		/* size in bytes of data
 				   or number of entries, if table.
 				   Does NOT include header */
-} __attribute__ ((packed));
+} __packed;
 
 #define MAX_KEY_SIZE	16
 #define	MAX_KEYS	8
@@ -492,7 +492,7 @@ struct ipw2100_priv {
 	int stop_hang_check;	/* Set 1 when shutting down to kill hang_check */
 	int stop_rf_kill;	/* Set 1 when shutting down to kill rf_kill */
 
-	struct ieee80211_device *ieee;
+	struct libipw_device *ieee;
 	unsigned long status;
 	unsigned long config;
 	unsigned long capability;
@@ -788,7 +788,7 @@ struct ipw2100_priv {
 #define IPW_CARD_DISABLE_PHY_OFF_COMPLETE_WAIT	    100	// 100 milli
 #define IPW_PREPARE_POWER_DOWN_COMPLETE_WAIT	    100	// 100 milli
 
-#define IPW_HEADER_802_11_SIZE		 sizeof(struct ieee80211_hdr_3addr)
+#define IPW_HEADER_802_11_SIZE		 sizeof(struct libipw_hdr_3addr)
 #define IPW_MAX_80211_PAYLOAD_SIZE              2304U
 #define IPW_MAX_802_11_PAYLOAD_LENGTH		2312
 #define IPW_MAX_ACCEPTABLE_TX_FRAME_LENGTH	1536
@@ -803,18 +803,18 @@ struct ipw2100_priv {
 		IPW_802_11_FCS_LENGTH)
 
 #define IPW_802_11_PAYLOAD_OFFSET \
-        (sizeof(struct ieee80211_hdr_3addr) + \
-         sizeof(struct ieee80211_snap_hdr))
+        (sizeof(struct libipw_hdr_3addr) + \
+         sizeof(struct libipw_snap_hdr))
 
 struct ipw2100_rx {
 	union {
 		unsigned char payload[IPW_RX_NIC_BUFFER_LENGTH];
-		struct ieee80211_hdr_4addr header;
+		struct libipw_hdr_4addr header;
 		u32 status;
 		struct ipw2100_notification notification;
 		struct ipw2100_cmd_header command;
 	} rx_data;
-} __attribute__ ((packed));
+} __packed;
 
 /* Bit 0-7 are for 802.11b tx rates - .  Bit 5-7 are reserved */
 #define TX_RATE_1_MBIT              0x0001

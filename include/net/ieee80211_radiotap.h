@@ -80,7 +80,7 @@ struct ieee80211_radiotap_header {
 				 * Additional extensions are made
 				 * by setting bit 31.
 				 */
-};
+} __packed;
 
 /* Name                                 Data type    Units
  * ----                                 ---------    -----
@@ -198,6 +198,10 @@ enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_TX_FLAGS = 15,
 	IEEE80211_RADIOTAP_RTS_RETRIES = 16,
 	IEEE80211_RADIOTAP_DATA_RETRIES = 17,
+
+	/* valid in every it_present bitmap, even vendor namespaces */
+	IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE = 29,
+	IEEE80211_RADIOTAP_VENDOR_NAMESPACE = 30,
 	IEEE80211_RADIOTAP_EXT = 31
 };
 

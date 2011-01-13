@@ -1,7 +1,13 @@
+/*
+ * Copyright 2007-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #ifndef _MACH_PORTMUX_H_
 #define _MACH_PORTMUX_H_
 
-#define MAX_RESOURCES 	MAX_BLACKFIN_GPIOS
+#define MAX_RESOURCES	MAX_BLACKFIN_GPIOS
 
 #define P_PPI0_CLK	(P_DONTCARE)
 #define P_PPI0_FS1	(P_DONTCARE)
@@ -85,6 +91,7 @@
 #define P_SPI0_MOSI	(P_DONTCARE)
 #define P_SPI0_MISO	(P_DONTCARE)
 #define P_SPI0_SCK	(P_DONTCARE)
+#define GPIO_DEFAULT_BOOT_SPI_CS GPIO_PF2
 #define P_DEFAULT_BOOT_SPI_CS P_SPI0_SSEL2
 
 #endif /* _MACH_PORTMUX_H_ */

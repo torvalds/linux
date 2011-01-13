@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2002-2004 John Belmonte
  *  Copyright (C) 2008 Philip Langdale
+ *  Copyright (C) 2010 Pierre Ducroquet
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,9 +43,14 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
+#include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
+#include <linux/leds.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -61,9 +67,10 @@ MODULE_LICENSE("GPL");
 
 /* Toshiba ACPI method paths */
 #define METHOD_LCD_BRIGHTNESS	"\\_SB_.PCI0.VGA_.LCD_._BCM"
-#define METHOD_HCI_1		"\\_SB_.VALD.GHCI"
-#define METHOD_HCI_2		"\\_SB_.VALZ.GHCI"
+#define TOSH_INTERFACE_1	"\\_SB_.VALD"
+#define TOSH_INTERFACE_2	"\\_SB_.VALZ"
 #define METHOD_VIDEO_OUT	"\\_SB_.VALX.DSSX"
+#define GHCI_METHOD		".GHCI"
 
 /* Toshiba HCI interface definitions
  *
@@ -114,6 +121,31 @@ static const struct acpi_device_id toshiba_device_ids[] = {
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, toshiba_device_ids);
+
+static const struct key_entry toshiba_acpi_keymap[] __initconst = {
+	{ KE_KEY, 0x101, { KEY_MUTE } },
+	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
+	{ KE_KEY, 0x103, { KEY_ZOOMIN } },
+	{ KE_KEY, 0x13b, { KEY_COFFEE } },
+	{ KE_KEY, 0x13c, { KEY_BATTERY } },
+	{ KE_KEY, 0x13d, { KEY_SLEEP } },
+	{ KE_KEY, 0x13e, { KEY_SUSPEND } },
+	{ KE_KEY, 0x13f, { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, 0x140, { KEY_BRIGHTNESSDOWN } },
+	{ KE_KEY, 0x141, { KEY_BRIGHTNESSUP } },
+	{ KE_KEY, 0x142, { KEY_WLAN } },
+	{ KE_KEY, 0x143, { KEY_PROG1 } },
+	{ KE_KEY, 0x17f, { KEY_FN } },
+	{ KE_KEY, 0xb05, { KEY_PROG2 } },
+	{ KE_KEY, 0xb06, { KEY_WWW } },
+	{ KE_KEY, 0xb07, { KEY_MAIL } },
+	{ KE_KEY, 0xb30, { KEY_STOP } },
+	{ KE_KEY, 0xb31, { KEY_PREVIOUSSONG } },
+	{ KE_KEY, 0xb32, { KEY_NEXTSONG } },
+	{ KE_KEY, 0xb33, { KEY_PLAYPAUSE } },
+	{ KE_KEY, 0xb5a, { KEY_MEDIA } },
+	{ KE_END, 0 },
+};
 
 /* utility
  */
@@ -250,10 +282,117 @@ static acpi_status hci_read2(u32 reg, u32 *out1, u32 *out2, u32 *result)
 struct toshiba_acpi_dev {
 	struct platform_device *p_dev;
 	struct rfkill *bt_rfk;
+	struct input_dev *hotkey_dev;
+	int illumination_installed;
+	acpi_handle handle;
 
 	const char *bt_name;
 
 	struct mutex mutex;
+};
+
+/* Illumination support */
+static int toshiba_illumination_available(void)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return 0;
+	}
+	in[0] = 0xf400;
+	status = hci_raw(in, out);
+	return 1;
+}
+
+static void toshiba_illumination_set(struct led_classdev *cdev,
+				     enum led_brightness brightness)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	/* First request : initialize communication. */
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return;
+	}
+
+	if (brightness) {
+		/* Switch the illumination on */
+		in[0] = 0xf400;
+		in[1] = 0x14e;
+		in[2] = 1;
+		status = hci_raw(in, out);
+		if (ACPI_FAILURE(status)) {
+			printk(MY_INFO "ACPI call for illumination failed.\n");
+			return;
+		}
+	} else {
+		/* Switch the illumination off */
+		in[0] = 0xf400;
+		in[1] = 0x14e;
+		in[2] = 0;
+		status = hci_raw(in, out);
+		if (ACPI_FAILURE(status)) {
+			printk(MY_INFO "ACPI call for illumination failed.\n");
+			return;
+		}
+	}
+
+	/* Last request : close communication. */
+	in[0] = 0xf200;
+	in[1] = 0;
+	in[2] = 0;
+	hci_raw(in, out);
+}
+
+static enum led_brightness toshiba_illumination_get(struct led_classdev *cdev)
+{
+	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+	enum led_brightness result;
+
+	/* First request : initialize communication. */
+	in[0] = 0xf100;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Illumination device not available\n");
+		return LED_OFF;
+	}
+
+	/* Check the illumination */
+	in[0] = 0xf300;
+	in[1] = 0x14e;
+	status = hci_raw(in, out);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "ACPI call for illumination failed.\n");
+		return LED_OFF;
+	}
+
+	result = out[2] ? LED_FULL : LED_OFF;
+
+	/* Last request : close communication. */
+	in[0] = 0xf200;
+	in[1] = 0;
+	in[2] = 0;
+	hci_raw(in, out);
+
+	return result;
+}
+
+static struct led_classdev toshiba_led = {
+	.name           = "toshiba::illumination",
+	.max_brightness = 1,
+	.brightness_set = toshiba_illumination_set,
+	.brightness_get = toshiba_illumination_get,
 };
 
 static struct toshiba_acpi_dev toshiba_acpi = {
@@ -335,6 +474,7 @@ static void bt_rfkill_poll(struct rfkill *rfkill, void *data)
 	if (hci_result != HCI_SUCCESS) {
 		/* Can't do anything useful */
 		mutex_unlock(&dev->mutex);
+		return;
 	}
 
 	new_rfk_state = value;
@@ -356,63 +496,6 @@ static int force_fan;
 static int last_key_event;
 static int key_event_valid;
 
-typedef struct _ProcItem {
-	const char *name;
-	char *(*read_func) (char *);
-	unsigned long (*write_func) (const char *, unsigned long);
-} ProcItem;
-
-/* proc file handlers
- */
-
-static int
-dispatch_read(char *page, char **start, off_t off, int count, int *eof,
-	      ProcItem * item)
-{
-	char *p = page;
-	int len;
-
-	if (off == 0)
-		p = item->read_func(p);
-
-	/* ISSUE: I don't understand this code */
-	len = (p - page);
-	if (len <= off + count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-	return len;
-}
-
-static int
-dispatch_write(struct file *file, const char __user * buffer,
-	       unsigned long count, ProcItem * item)
-{
-	int result;
-	char *tmp_buffer;
-
-	/* Arg buffer points to userspace memory, which can't be accessed
-	 * directly.  Since we're making a copy, zero-terminate the
-	 * destination so that sscanf can be used on it safely.
-	 */
-	tmp_buffer = kmalloc(count + 1, GFP_KERNEL);
-	if (!tmp_buffer)
-		return -ENOMEM;
-
-	if (copy_from_user(tmp_buffer, buffer, count)) {
-		result = -EFAULT;
-	} else {
-		tmp_buffer[count] = 0;
-		result = item->write_func(tmp_buffer, count);
-	}
-	kfree(tmp_buffer);
-	return result;
-}
-
 static int get_lcd(struct backlight_device *bd)
 {
 	u32 hci_result;
@@ -425,19 +508,24 @@ static int get_lcd(struct backlight_device *bd)
 		return -EFAULT;
 }
 
-static char *read_lcd(char *p)
+static int lcd_proc_show(struct seq_file *m, void *v)
 {
 	int value = get_lcd(NULL);
 
 	if (value >= 0) {
-		p += sprintf(p, "brightness:              %d\n", value);
-		p += sprintf(p, "brightness_levels:       %d\n",
+		seq_printf(m, "brightness:              %d\n", value);
+		seq_printf(m, "brightness_levels:       %d\n",
 			     HCI_LCD_BRIGHTNESS_LEVELS);
 	} else {
 		printk(MY_ERR "Error reading LCD brightness\n");
 	}
 
-	return p;
+	return 0;
+}
+
+static int lcd_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, lcd_proc_show, NULL);
 }
 
 static int set_lcd(int value)
@@ -457,12 +545,20 @@ static int set_lcd_status(struct backlight_device *bd)
 	return set_lcd(bd->props.brightness);
 }
 
-static unsigned long write_lcd(const char *buffer, unsigned long count)
+static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
+			      size_t count, loff_t *pos)
 {
+	char cmd[42];
+	size_t len;
 	int value;
 	int ret;
 
-	if (sscanf(buffer, " brightness : %i", &value) == 1 &&
+	len = min(count, sizeof(cmd) - 1);
+	if (copy_from_user(cmd, buf, len))
+		return -EFAULT;
+	cmd[len] = '\0';
+
+	if (sscanf(cmd, " brightness : %i", &value) == 1 &&
 	    value >= 0 && value < HCI_LCD_BRIGHTNESS_LEVELS) {
 		ret = set_lcd(value);
 		if (ret == 0)
@@ -473,7 +569,16 @@ static unsigned long write_lcd(const char *buffer, unsigned long count)
 	return ret;
 }
 
-static char *read_video(char *p)
+static const struct file_operations lcd_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= lcd_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= lcd_proc_write,
+};
+
+static int video_proc_show(struct seq_file *m, void *v)
 {
 	u32 hci_result;
 	u32 value;
@@ -483,18 +588,25 @@ static char *read_video(char *p)
 		int is_lcd = (value & HCI_VIDEO_OUT_LCD) ? 1 : 0;
 		int is_crt = (value & HCI_VIDEO_OUT_CRT) ? 1 : 0;
 		int is_tv = (value & HCI_VIDEO_OUT_TV) ? 1 : 0;
-		p += sprintf(p, "lcd_out:                 %d\n", is_lcd);
-		p += sprintf(p, "crt_out:                 %d\n", is_crt);
-		p += sprintf(p, "tv_out:                  %d\n", is_tv);
+		seq_printf(m, "lcd_out:                 %d\n", is_lcd);
+		seq_printf(m, "crt_out:                 %d\n", is_crt);
+		seq_printf(m, "tv_out:                  %d\n", is_tv);
 	} else {
 		printk(MY_ERR "Error reading video out status\n");
 	}
 
-	return p;
+	return 0;
 }
 
-static unsigned long write_video(const char *buffer, unsigned long count)
+static int video_proc_open(struct inode *inode, struct file *file)
 {
+	return single_open(file, video_proc_show, NULL);
+}
+
+static ssize_t video_proc_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *pos)
+{
+	char *cmd, *buffer;
 	int value;
 	int remain = count;
 	int lcd_out = -1;
@@ -502,6 +614,17 @@ static unsigned long write_video(const char *buffer, unsigned long count)
 	int tv_out = -1;
 	u32 hci_result;
 	u32 video_out;
+
+	cmd = kmalloc(count + 1, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+	if (copy_from_user(cmd, buf, count)) {
+		kfree(cmd);
+		return -EFAULT;
+	}
+	cmd[count] = '\0';
+
+	buffer = cmd;
 
 	/* scan expression.  Multiple expressions may be delimited with ;
 	 *
@@ -521,6 +644,8 @@ static unsigned long write_video(const char *buffer, unsigned long count)
 		}
 		while (remain && *(buffer - 1) != ';');
 	}
+
+	kfree(cmd);
 
 	hci_read1(HCI_VIDEO_OUT, &video_out, &hci_result);
 	if (hci_result == HCI_SUCCESS) {
@@ -542,28 +667,50 @@ static unsigned long write_video(const char *buffer, unsigned long count)
 	return count;
 }
 
-static char *read_fan(char *p)
+static const struct file_operations video_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= video_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= video_proc_write,
+};
+
+static int fan_proc_show(struct seq_file *m, void *v)
 {
 	u32 hci_result;
 	u32 value;
 
 	hci_read1(HCI_FAN, &value, &hci_result);
 	if (hci_result == HCI_SUCCESS) {
-		p += sprintf(p, "running:                 %d\n", (value > 0));
-		p += sprintf(p, "force_on:                %d\n", force_fan);
+		seq_printf(m, "running:                 %d\n", (value > 0));
+		seq_printf(m, "force_on:                %d\n", force_fan);
 	} else {
 		printk(MY_ERR "Error reading fan status\n");
 	}
 
-	return p;
+	return 0;
 }
 
-static unsigned long write_fan(const char *buffer, unsigned long count)
+static int fan_proc_open(struct inode *inode, struct file *file)
 {
+	return single_open(file, fan_proc_show, NULL);
+}
+
+static ssize_t fan_proc_write(struct file *file, const char __user *buf,
+			      size_t count, loff_t *pos)
+{
+	char cmd[42];
+	size_t len;
 	int value;
 	u32 hci_result;
 
-	if (sscanf(buffer, " force_on : %i", &value) == 1 &&
+	len = min(count, sizeof(cmd) - 1);
+	if (copy_from_user(cmd, buf, len))
+		return -EFAULT;
+	cmd[len] = '\0';
+
+	if (sscanf(cmd, " force_on : %i", &value) == 1 &&
 	    value >= 0 && value <= 1) {
 		hci_write1(HCI_FAN, value, &hci_result);
 		if (hci_result != HCI_SUCCESS)
@@ -577,7 +724,16 @@ static unsigned long write_fan(const char *buffer, unsigned long count)
 	return count;
 }
 
-static char *read_keys(char *p)
+static const struct file_operations fan_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= fan_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= fan_proc_write,
+};
+
+static int keys_proc_show(struct seq_file *m, void *v)
 {
 	u32 hci_result;
 	u32 value;
@@ -601,18 +757,30 @@ static char *read_keys(char *p)
 		}
 	}
 
-	p += sprintf(p, "hotkey_ready:            %d\n", key_event_valid);
-	p += sprintf(p, "hotkey:                  0x%04x\n", last_key_event);
-
-      end:
-	return p;
+	seq_printf(m, "hotkey_ready:            %d\n", key_event_valid);
+	seq_printf(m, "hotkey:                  0x%04x\n", last_key_event);
+end:
+	return 0;
 }
 
-static unsigned long write_keys(const char *buffer, unsigned long count)
+static int keys_proc_open(struct inode *inode, struct file *file)
 {
+	return single_open(file, keys_proc_show, NULL);
+}
+
+static ssize_t keys_proc_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *pos)
+{
+	char cmd[42];
+	size_t len;
 	int value;
 
-	if (sscanf(buffer, " hotkey_ready : %i", &value) == 1 && value == 0) {
+	len = min(count, sizeof(cmd) - 1);
+	if (copy_from_user(cmd, buf, len))
+		return -EFAULT;
+	cmd[len] = '\0';
+
+	if (sscanf(cmd, " hotkey_ready : %i", &value) == 1 && value == 0) {
 		key_event_valid = 0;
 	} else {
 		return -EINVAL;
@@ -621,53 +789,56 @@ static unsigned long write_keys(const char *buffer, unsigned long count)
 	return count;
 }
 
-static char *read_version(char *p)
+static const struct file_operations keys_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= keys_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= keys_proc_write,
+};
+
+static int version_proc_show(struct seq_file *m, void *v)
 {
-	p += sprintf(p, "driver:                  %s\n", TOSHIBA_ACPI_VERSION);
-	p += sprintf(p, "proc_interface:          %d\n",
-		     PROC_INTERFACE_VERSION);
-	return p;
+	seq_printf(m, "driver:                  %s\n", TOSHIBA_ACPI_VERSION);
+	seq_printf(m, "proc_interface:          %d\n", PROC_INTERFACE_VERSION);
+	return 0;
 }
+
+static int version_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, version_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations version_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= version_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /* proc and module init
  */
 
 #define PROC_TOSHIBA		"toshiba"
 
-static ProcItem proc_items[] = {
-	{"lcd", read_lcd, write_lcd},
-	{"video", read_video, write_video},
-	{"fan", read_fan, write_fan},
-	{"keys", read_keys, write_keys},
-	{"version", read_version, NULL},
-	{NULL}
-};
-
-static acpi_status __init add_device(void)
+static void __init create_toshiba_proc_entries(void)
 {
-	struct proc_dir_entry *proc;
-	ProcItem *item;
-
-	for (item = proc_items; item->name; ++item) {
-		proc = create_proc_read_entry(item->name,
-					      S_IFREG | S_IRUGO | S_IWUSR,
-					      toshiba_proc_dir,
-					      (read_proc_t *) dispatch_read,
-					      item);
-		if (proc && item->write_func)
-			proc->write_proc = (write_proc_t *) dispatch_write;
-	}
-
-	return AE_OK;
+	proc_create("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir, &lcd_proc_fops);
+	proc_create("video", S_IRUGO | S_IWUSR, toshiba_proc_dir, &video_proc_fops);
+	proc_create("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir, &fan_proc_fops);
+	proc_create("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir, &keys_proc_fops);
+	proc_create("version", S_IRUGO, toshiba_proc_dir, &version_proc_fops);
 }
 
-static acpi_status remove_device(void)
+static void remove_toshiba_proc_entries(void)
 {
-	ProcItem *item;
-
-	for (item = proc_items; item->name; ++item)
-		remove_proc_entry(item->name, toshiba_proc_dir);
-	return AE_OK;
+	remove_proc_entry("lcd", toshiba_proc_dir);
+	remove_proc_entry("video", toshiba_proc_dir);
+	remove_proc_entry("fan", toshiba_proc_dir);
+	remove_proc_entry("keys", toshiba_proc_dir);
+	remove_proc_entry("version", toshiba_proc_dir);
 }
 
 static struct backlight_ops toshiba_backlight_data = {
@@ -675,8 +846,105 @@ static struct backlight_ops toshiba_backlight_data = {
         .update_status  = set_lcd_status,
 };
 
+static void toshiba_acpi_notify(acpi_handle handle, u32 event, void *context)
+{
+	u32 hci_result, value;
+
+	if (event != 0x80)
+		return;
+	do {
+		hci_read1(HCI_SYSTEM_EVENT, &value, &hci_result);
+		if (hci_result == HCI_SUCCESS) {
+			if (value == 0x100)
+				continue;
+			/* act on key press; ignore key release */
+			if (value & 0x80)
+				continue;
+
+			if (!sparse_keymap_report_event(toshiba_acpi.hotkey_dev,
+							value, 1, true)) {
+				printk(MY_INFO "Unknown key %x\n",
+				       value);
+			}
+		} else if (hci_result == HCI_NOT_SUPPORTED) {
+			/* This is a workaround for an unresolved issue on
+			 * some machines where system events sporadically
+			 * become disabled. */
+			hci_write1(HCI_SYSTEM_EVENT, 1, &hci_result);
+			printk(MY_NOTICE "Re-enabled hotkeys\n");
+		}
+	} while (hci_result != HCI_EMPTY);
+}
+
+static int __init toshiba_acpi_setup_keyboard(char *device)
+{
+	acpi_status status;
+	int error;
+
+	status = acpi_get_handle(NULL, device, &toshiba_acpi.handle);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Unable to get notification device\n");
+		return -ENODEV;
+	}
+
+	toshiba_acpi.hotkey_dev = input_allocate_device();
+	if (!toshiba_acpi.hotkey_dev) {
+		printk(MY_INFO "Unable to register input device\n");
+		return -ENOMEM;
+	}
+
+	toshiba_acpi.hotkey_dev->name = "Toshiba input device";
+	toshiba_acpi.hotkey_dev->phys = device;
+	toshiba_acpi.hotkey_dev->id.bustype = BUS_HOST;
+
+	error = sparse_keymap_setup(toshiba_acpi.hotkey_dev,
+				    toshiba_acpi_keymap, NULL);
+	if (error)
+		goto err_free_dev;
+
+	status = acpi_install_notify_handler(toshiba_acpi.handle,
+				ACPI_DEVICE_NOTIFY, toshiba_acpi_notify, NULL);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Unable to install hotkey notification\n");
+		error = -ENODEV;
+		goto err_free_keymap;
+	}
+
+	status = acpi_evaluate_object(toshiba_acpi.handle, "ENAB", NULL, NULL);
+	if (ACPI_FAILURE(status)) {
+		printk(MY_INFO "Unable to enable hotkeys\n");
+		error = -ENODEV;
+		goto err_remove_notify;
+	}
+
+	error = input_register_device(toshiba_acpi.hotkey_dev);
+	if (error) {
+		printk(MY_INFO "Unable to register input device\n");
+		goto err_remove_notify;
+	}
+
+	return 0;
+
+ err_remove_notify:
+	acpi_remove_notify_handler(toshiba_acpi.handle,
+				   ACPI_DEVICE_NOTIFY, toshiba_acpi_notify);
+ err_free_keymap:
+	sparse_keymap_free(toshiba_acpi.hotkey_dev);
+ err_free_dev:
+	input_free_device(toshiba_acpi.hotkey_dev);
+	toshiba_acpi.hotkey_dev = NULL;
+	return error;
+}
+
 static void toshiba_acpi_exit(void)
 {
+	if (toshiba_acpi.hotkey_dev) {
+		acpi_remove_notify_handler(toshiba_acpi.handle,
+				ACPI_DEVICE_NOTIFY, toshiba_acpi_notify);
+		sparse_keymap_free(toshiba_acpi.hotkey_dev);
+		input_unregister_device(toshiba_acpi.hotkey_dev);
+	}
+
 	if (toshiba_acpi.bt_rfk) {
 		rfkill_unregister(toshiba_acpi.bt_rfk);
 		rfkill_destroy(toshiba_acpi.bt_rfk);
@@ -685,10 +953,13 @@ static void toshiba_acpi_exit(void)
 	if (toshiba_backlight_device)
 		backlight_device_unregister(toshiba_backlight_device);
 
-	remove_device();
+	remove_toshiba_proc_entries();
 
 	if (toshiba_proc_dir)
 		remove_proc_entry(PROC_TOSHIBA, acpi_root_dir);
+
+	if (toshiba_acpi.illumination_installed)
+		led_classdev_unregister(&toshiba_led);
 
 	platform_device_unregister(toshiba_acpi.p_dev);
 
@@ -697,20 +968,24 @@ static void toshiba_acpi_exit(void)
 
 static int __init toshiba_acpi_init(void)
 {
-	acpi_status status = AE_OK;
 	u32 hci_result;
 	bool bt_present;
 	int ret = 0;
+	struct backlight_properties props;
 
 	if (acpi_disabled)
 		return -ENODEV;
 
 	/* simple device detection: look for HCI method */
-	if (is_valid_acpi_path(METHOD_HCI_1))
-		method_hci = METHOD_HCI_1;
-	else if (is_valid_acpi_path(METHOD_HCI_2))
-		method_hci = METHOD_HCI_2;
-	else
+	if (is_valid_acpi_path(TOSH_INTERFACE_1 GHCI_METHOD)) {
+		method_hci = TOSH_INTERFACE_1 GHCI_METHOD;
+		if (toshiba_acpi_setup_keyboard(TOSH_INTERFACE_1))
+			printk(MY_INFO "Unable to activate hotkeys\n");
+	} else if (is_valid_acpi_path(TOSH_INTERFACE_2 GHCI_METHOD)) {
+		method_hci = TOSH_INTERFACE_2 GHCI_METHOD;
+		if (toshiba_acpi_setup_keyboard(TOSH_INTERFACE_2))
+			printk(MY_INFO "Unable to activate hotkeys\n");
+	} else
 		return -ENODEV;
 
 	printk(MY_INFO "Toshiba Laptop ACPI Extras version %s\n",
@@ -740,17 +1015,15 @@ static int __init toshiba_acpi_init(void)
 		toshiba_acpi_exit();
 		return -ENODEV;
 	} else {
-		status = add_device();
-		if (ACPI_FAILURE(status)) {
-			toshiba_acpi_exit();
-			return -ENODEV;
-		}
+		create_toshiba_proc_entries();
 	}
 
+	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
 	toshiba_backlight_device = backlight_device_register("toshiba",
-						&toshiba_acpi.p_dev->dev,
-						NULL,
-						&toshiba_backlight_data);
+							     &toshiba_acpi.p_dev->dev,
+							     NULL,
+							     &toshiba_backlight_data,
+							     &props);
         if (IS_ERR(toshiba_backlight_device)) {
 		ret = PTR_ERR(toshiba_backlight_device);
 
@@ -759,7 +1032,6 @@ static int __init toshiba_acpi_init(void)
 		toshiba_acpi_exit();
 		return ret;
 	}
-        toshiba_backlight_device->props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
 
 	/* Register rfkill switch for Bluetooth */
 	if (hci_get_bt_present(&bt_present) == HCI_SUCCESS && bt_present) {
@@ -781,6 +1053,13 @@ static int __init toshiba_acpi_init(void)
 			toshiba_acpi_exit();
 			return ret;
 		}
+	}
+
+	toshiba_acpi.illumination_installed = 0;
+	if (toshiba_illumination_available()) {
+		if (!led_classdev_register(&(toshiba_acpi.p_dev->dev),
+					   &toshiba_led))
+			toshiba_acpi.illumination_installed = 1;
 	}
 
 	return 0;

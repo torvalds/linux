@@ -23,6 +23,7 @@
 #include <linux/string.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <net/ax25.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -411,7 +412,7 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 {
 	ax25_uid_assoc *user;
 	ax25_route *ax25_rt;
-	int err;
+	int err = 0;
 
 	if ((ax25_rt = ax25_get_route(addr, NULL)) == NULL)
 		return -EHOSTUNREACH;
@@ -452,7 +453,7 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 put:
 	ax25_put_route(ax25_rt);
 
-	return 0;
+	return err;
 }
 
 struct sk_buff *ax25_rt_build_path(struct sk_buff *skb, ax25_address *src,

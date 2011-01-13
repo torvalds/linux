@@ -3,11 +3,13 @@
  */
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/sysrq.h>
 #include <linux/stop_machine.h>
 #include <linux/freezer.h>
 
+#include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/grant_table.h>
 #include <xen/events.h>
@@ -16,6 +18,7 @@
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/page.h>
+#include <asm/xen/hypervisor.h>
 
 enum shutdown_state {
 	SHUTDOWN_INVALID = -1,
@@ -32,10 +35,31 @@ enum shutdown_state {
 static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 
 #ifdef CONFIG_PM_SLEEP
+static int xen_hvm_suspend(void *data)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
+	int *cancelled = data;
+
+	BUG_ON(!irqs_disabled());
+
+	*cancelled = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+
+	xen_hvm_post_suspend(*cancelled);
+	gnttab_resume();
+
+	if (!*cancelled) {
+		xen_irq_resume();
+		xen_console_resume();
+		xen_timer_resume();
+	}
+
+	return 0;
+}
+
 static int xen_suspend(void *data)
 {
-	int *cancelled = data;
 	int err;
+	int *cancelled = data;
 
 	BUG_ON(!irqs_disabled());
 
@@ -43,7 +67,6 @@ static int xen_suspend(void *data)
 	if (err) {
 		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
 			err);
-		dpm_resume_noirq(PMSG_RESUME);
 		return err;
 	}
 
@@ -69,7 +92,6 @@ static int xen_suspend(void *data)
 	}
 
 	sysdev_resume();
-	dpm_resume_noirq(PMSG_RESUME);
 
 	return 0;
 }
@@ -88,14 +110,14 @@ static void do_suspend(void)
 	err = freeze_processes();
 	if (err) {
 		printk(KERN_ERR "xen suspend: freeze failed %d\n", err);
-		return;
+		goto out;
 	}
 #endif
 
 	err = dpm_suspend_start(PMSG_SUSPEND);
 	if (err) {
 		printk(KERN_ERR "xen suspend: dpm_suspend_start %d\n", err);
-		goto out;
+		goto out_thaw;
 	}
 
 	printk(KERN_DEBUG "suspending xenstore...\n");
@@ -104,31 +126,37 @@ static void do_suspend(void)
 	err = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (err) {
 		printk(KERN_ERR "dpm_suspend_noirq failed: %d\n", err);
-		goto resume_devices;
+		goto out_resume;
 	}
 
-	err = stop_machine(xen_suspend, &cancelled, cpumask_of(0));
+	if (xen_hvm_domain())
+		err = stop_machine(xen_hvm_suspend, &cancelled, cpumask_of(0));
+	else
+		err = stop_machine(xen_suspend, &cancelled, cpumask_of(0));
+
+	dpm_resume_noirq(PMSG_RESUME);
+
 	if (err) {
 		printk(KERN_ERR "failed to start xen_suspend: %d\n", err);
-		goto out;
+		cancelled = 1;
 	}
 
+out_resume:
 	if (!cancelled) {
 		xen_arch_resume();
 		xs_resume();
 	} else
 		xs_suspend_cancel();
 
-	dpm_resume_noirq(PMSG_RESUME);
-
-resume_devices:
 	dpm_resume_end(PMSG_RESUME);
 
 	/* Make sure timer events get retriggered on all CPUs */
 	clock_was_set();
-out:
+
+out_thaw:
 #ifdef CONFIG_PREEMPT
 	thaw_processes();
+out:
 #endif
 	shutting_down = SHUTDOWN_INVALID;
 }
@@ -183,6 +211,7 @@ static void shutdown_handler(struct xenbus_watch *watch,
 	kfree(str);
 }
 
+#ifdef CONFIG_MAGIC_SYSRQ
 static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 			  unsigned int len)
 {
@@ -209,17 +238,18 @@ static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 		goto again;
 
 	if (sysrq_key != '\0')
-		handle_sysrq(sysrq_key, NULL);
+		handle_sysrq(sysrq_key);
 }
-
-static struct xenbus_watch shutdown_watch = {
-	.node = "control/shutdown",
-	.callback = shutdown_handler
-};
 
 static struct xenbus_watch sysrq_watch = {
 	.node = "control/sysrq",
 	.callback = sysrq_handler
+};
+#endif
+
+static struct xenbus_watch shutdown_watch = {
+	.node = "control/shutdown",
+	.callback = shutdown_handler
 };
 
 static int setup_shutdown_watcher(void)
@@ -232,11 +262,13 @@ static int setup_shutdown_watcher(void)
 		return err;
 	}
 
+#ifdef CONFIG_MAGIC_SYSRQ
 	err = register_xenbus_watch(&sysrq_watch);
 	if (err) {
 		printk(KERN_ERR "Failed to set sysrq watcher\n");
 		return err;
 	}
+#endif
 
 	return 0;
 }
@@ -249,7 +281,19 @@ static int shutdown_event(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
-static int __init setup_shutdown_event(void)
+static int __init __setup_shutdown_event(void)
+{
+	/* Delay initialization in the PV on HVM case */
+	if (xen_hvm_domain())
+		return 0;
+
+	if (!xen_pv_domain())
+		return -ENODEV;
+
+	return xen_setup_shutdown_event();
+}
+
+int xen_setup_shutdown_event(void)
 {
 	static struct notifier_block xenstore_notifier = {
 		.notifier_call = shutdown_event
@@ -258,5 +302,6 @@ static int __init setup_shutdown_event(void)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xen_setup_shutdown_event);
 
-subsys_initcall(setup_shutdown_event);
+subsys_initcall(__setup_shutdown_event);

@@ -27,8 +27,6 @@
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
 
-#define __addr_ok(addr) ((unsigned long)(addr) < get_addr_limit())
-
 /*
  * check that a range of addresses falls within the current address limit
  */

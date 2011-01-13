@@ -1,0 +1,55 @@
+menuconfig SND_IMX_SOC
+	tristate "SoC Audio for Freescale i.MX CPUs"
+	depends on ARCH_MXC
+	select SND_PCM
+	select FIQ
+	select SND_SOC_AC97_BUS
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the i.MX SSI interface.
+
+
+if SND_IMX_SOC
+
+config SND_MXC_SOC_SSI
+	tristate
+
+config SND_MXC_SOC_FIQ
+	tristate
+
+config SND_MXC_SOC_MX2
+	tristate
+
+config SND_MXC_SOC_WM1133_EV1
+	tristate "Audio on the the i.MX31ADS with WM1133-EV1 fitted"
+	depends on MACH_MX31ADS_WM1133_EV1 && EXPERIMENTAL
+	select SND_SOC_WM8350
+	select SND_MXC_SOC_SSI
+	select SND_MXC_SOC_FIQ
+	help
+	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
+	  PMIC board with WM8835x fitted.
+
+config SND_SOC_PHYCORE_AC97
+	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
+	depends on MACH_PCM043 || MACH_PCA100
+	select SND_SOC_WM9712
+	select SND_MXC_SOC_SSI
+	select SND_MXC_SOC_FIQ
+	help
+	  Say Y if you want to add support for SoC audio on Phytec phyCORE
+	  and phyCARD boards in AC97 mode
+
+config SND_SOC_EUKREA_TLV320
+	tristate "Eukrea TLV320"
+	depends on MACH_EUKREA_MBIMX27_BASEBOARD \
+		|| MACH_EUKREA_MBIMXSD25_BASEBOARD \
+		|| MACH_EUKREA_MBIMXSD35_BASEBOARD
+	select SND_SOC_TLV320AIC23
+	select SND_MXC_SOC_SSI
+	select SND_MXC_SOC_FIQ
+	help
+	  Enable I2S based access to the TLV320AIC23B codec attached
+	  to the SSI interface
+
+endif	# SND_IMX_SOC

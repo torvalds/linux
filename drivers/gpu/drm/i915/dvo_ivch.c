@@ -153,9 +153,6 @@ struct ivch_priv {
 	bool quiet;
 
 	uint16_t width, height;
-
-	uint16_t save_VR01;
-	uint16_t save_VR40;
 };
 
 
@@ -169,13 +166,13 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo);
 static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	u8 out_buf[1];
 	u8 in_buf[2];
 
 	struct i2c_msg msgs[] = {
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD,
 			.len = 0,
 		},
@@ -186,7 +183,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 			.buf = out_buf,
 		},
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD | I2C_M_NOSTART,
 			.len = 2,
 			.buf = in_buf,
@@ -195,14 +192,15 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 
 	out_buf[0] = addr;
 
-	if (i2c_transfer(&i2cbus->adapter, msgs, 3) == 3) {
+	if (i2c_transfer(adapter, msgs, 3) == 3) {
 		*data = (in_buf[1] << 8) | in_buf[0];
 		return true;
 	};
 
 	if (!priv->quiet) {
-		DRM_DEBUG("Unable to read register 0x%02x from %s:%02x.\n",
-			  addr, i2cbus->adapter.name, i2cbus->slave_addr);
+		DRM_DEBUG_KMS("Unable to read register 0x%02x from "
+				"%s:%02x.\n",
+			  addr, adapter->name, dvo->slave_addr);
 	}
 	return false;
 }
@@ -211,10 +209,10 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	u8 out_buf[3];
 	struct i2c_msg msg = {
-		.addr = i2cbus->slave_addr,
+		.addr = dvo->slave_addr,
 		.flags = 0,
 		.len = 3,
 		.buf = out_buf,
@@ -224,12 +222,12 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 	out_buf[1] = data & 0xff;
 	out_buf[2] = data >> 8;
 
-	if (i2c_transfer(&i2cbus->adapter, &msg, 1) == 1)
+	if (i2c_transfer(adapter, &msg, 1) == 1)
 		return true;
 
 	if (!priv->quiet) {
-		DRM_DEBUG("Unable to write register 0x%02x to %s:%d.\n",
-			  addr, i2cbus->adapter.name, i2cbus->slave_addr);
+		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d.\n",
+			  addr, adapter->name, dvo->slave_addr);
 	}
 
 	return false;
@@ -237,7 +235,7 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 
 /** Probes the given bus and slave address for an ivch */
 static bool ivch_init(struct intel_dvo_device *dvo,
-		      struct intel_i2c_chan *i2cbus)
+		      struct i2c_adapter *adapter)
 {
 	struct ivch_priv *priv;
 	uint16_t temp;
@@ -246,8 +244,7 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 	if (priv == NULL)
 		return false;
 
-	dvo->i2c_bus = i2cbus;
-	dvo->i2c_bus->slave_addr = dvo->slave_addr;
+	dvo->i2c_bus = adapter;
 	dvo->dev_priv = priv;
 	priv->quiet = true;
 
@@ -260,7 +257,7 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 	 * the address it's responding on.
 	 */
 	if ((temp & VR00_BASE_ADDRESS_MASK) != dvo->slave_addr) {
-		DRM_DEBUG("ivch detect failed due to address mismatch "
+		DRM_DEBUG_KMS("ivch detect failed due to address mismatch "
 			  "(%d vs %d)\n",
 			  (temp & VR00_BASE_ADDRESS_MASK), dvo->slave_addr);
 		goto out;
@@ -366,57 +363,41 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo)
 	uint16_t val;
 
 	ivch_read(dvo, VR00, &val);
-	DRM_DEBUG("VR00: 0x%04x\n", val);
+	DRM_LOG_KMS("VR00: 0x%04x\n", val);
 	ivch_read(dvo, VR01, &val);
-	DRM_DEBUG("VR01: 0x%04x\n", val);
+	DRM_LOG_KMS("VR01: 0x%04x\n", val);
 	ivch_read(dvo, VR30, &val);
-	DRM_DEBUG("VR30: 0x%04x\n", val);
+	DRM_LOG_KMS("VR30: 0x%04x\n", val);
 	ivch_read(dvo, VR40, &val);
-	DRM_DEBUG("VR40: 0x%04x\n", val);
+	DRM_LOG_KMS("VR40: 0x%04x\n", val);
 
 	/* GPIO registers */
 	ivch_read(dvo, VR80, &val);
-	DRM_DEBUG("VR80: 0x%04x\n", val);
+	DRM_LOG_KMS("VR80: 0x%04x\n", val);
 	ivch_read(dvo, VR81, &val);
-	DRM_DEBUG("VR81: 0x%04x\n", val);
+	DRM_LOG_KMS("VR81: 0x%04x\n", val);
 	ivch_read(dvo, VR82, &val);
-	DRM_DEBUG("VR82: 0x%04x\n", val);
+	DRM_LOG_KMS("VR82: 0x%04x\n", val);
 	ivch_read(dvo, VR83, &val);
-	DRM_DEBUG("VR83: 0x%04x\n", val);
+	DRM_LOG_KMS("VR83: 0x%04x\n", val);
 	ivch_read(dvo, VR84, &val);
-	DRM_DEBUG("VR84: 0x%04x\n", val);
+	DRM_LOG_KMS("VR84: 0x%04x\n", val);
 	ivch_read(dvo, VR85, &val);
-	DRM_DEBUG("VR85: 0x%04x\n", val);
+	DRM_LOG_KMS("VR85: 0x%04x\n", val);
 	ivch_read(dvo, VR86, &val);
-	DRM_DEBUG("VR86: 0x%04x\n", val);
+	DRM_LOG_KMS("VR86: 0x%04x\n", val);
 	ivch_read(dvo, VR87, &val);
-	DRM_DEBUG("VR87: 0x%04x\n", val);
+	DRM_LOG_KMS("VR87: 0x%04x\n", val);
 	ivch_read(dvo, VR88, &val);
-	DRM_DEBUG("VR88: 0x%04x\n", val);
+	DRM_LOG_KMS("VR88: 0x%04x\n", val);
 
 	/* Scratch register 0 - AIM Panel type */
 	ivch_read(dvo, VR8E, &val);
-	DRM_DEBUG("VR8E: 0x%04x\n", val);
+	DRM_LOG_KMS("VR8E: 0x%04x\n", val);
 
 	/* Scratch register 1 - Status register */
 	ivch_read(dvo, VR8F, &val);
-	DRM_DEBUG("VR8F: 0x%04x\n", val);
-}
-
-static void ivch_save(struct intel_dvo_device *dvo)
-{
-	struct ivch_priv *priv = dvo->dev_priv;
-
-	ivch_read(dvo, VR01, &priv->save_VR01);
-	ivch_read(dvo, VR40, &priv->save_VR40);
-}
-
-static void ivch_restore(struct intel_dvo_device *dvo)
-{
-	struct ivch_priv *priv = dvo->dev_priv;
-
-	ivch_write(dvo, VR01, priv->save_VR01);
-	ivch_write(dvo, VR40, priv->save_VR40);
+	DRM_LOG_KMS("VR8F: 0x%04x\n", val);
 }
 
 static void ivch_destroy(struct intel_dvo_device *dvo)
@@ -432,8 +413,6 @@ static void ivch_destroy(struct intel_dvo_device *dvo)
 struct intel_dvo_dev_ops ivch_ops= {
 	.init = ivch_init,
 	.dpms = ivch_dpms,
-	.save = ivch_save,
-	.restore = ivch_restore,
 	.mode_valid = ivch_mode_valid,
 	.mode_set = ivch_mode_set,
 	.detect = ivch_detect,

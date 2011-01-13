@@ -99,11 +99,15 @@ static int dac_mute_put(struct snd_kcontrol *ctl,
 
 static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
-	static const char *const names[3] = {
-		"Front", "Front+Surround", "Front+Surround+Back"
+	static const char *const names[5] = {
+		"Front",
+		"Front+Surround",
+		"Front+Surround+Back",
+		"Front+Surround+Center/LFE",
+		"Front+Surround+Center/LFE+Back",
 	};
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = 2 + (chip->model.dac_channels == 8);
+	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
 
 	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	info->count = 1;
@@ -127,7 +131,7 @@ static int upmix_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 void oxygen_update_dac_routing(struct oxygen *chip)
 {
 	/* DAC 0: front, DAC 1: surround, DAC 2: center/LFE, DAC 3: back */
-	static const unsigned int reg_values[3] = {
+	static const unsigned int reg_values[5] = {
 		/* stereo -> front */
 		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
 		(1 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
@@ -142,6 +146,16 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
 		(0 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
 		(2 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT),
+		/* stereo -> front+surround+center/LFE */
+		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
+		(3 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT),
+		/* stereo -> front+surround+center/LFE+back */
+		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
 		(0 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT),
 	};
 	u8 channels;
@@ -167,22 +181,23 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 			      OXYGEN_PLAY_DAC1_SOURCE_MASK |
 			      OXYGEN_PLAY_DAC2_SOURCE_MASK |
 			      OXYGEN_PLAY_DAC3_SOURCE_MASK);
+	if (chip->model.update_center_lfe_mix)
+		chip->model.update_center_lfe_mix(chip, chip->dac_routing > 2);
 }
 
 static int upmix_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = 2 + (chip->model.dac_channels == 8);
+	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
 	int changed;
 
+	if (value->value.enumerated.item[0] >= count)
+		return -EINVAL;
 	mutex_lock(&chip->mutex);
 	changed = value->value.enumerated.item[0] != chip->dac_routing;
 	if (changed) {
-		chip->dac_routing = min(value->value.enumerated.item[0],
-					count - 1);
-		spin_lock_irq(&chip->reg_lock);
+		chip->dac_routing = value->value.enumerated.item[0];
 		oxygen_update_dac_routing(chip);
-		spin_unlock_irq(&chip->reg_lock);
 	}
 	mutex_unlock(&chip->mutex);
 	return changed;
@@ -575,8 +590,10 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 static int ac97_volume_info(struct snd_kcontrol *ctl,
 			    struct snd_ctl_elem_info *info)
 {
+	int stereo = (ctl->private_value >> 16) & 1;
+
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = 2;
+	info->count = stereo ? 2 : 1;
 	info->value.integer.min = 0;
 	info->value.integer.max = 0x1f;
 	return 0;
@@ -587,6 +604,7 @@ static int ac97_volume_get(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 	unsigned int codec = (ctl->private_value >> 24) & 1;
+	int stereo = (ctl->private_value >> 16) & 1;
 	unsigned int index = ctl->private_value & 0xff;
 	u16 reg;
 
@@ -594,7 +612,8 @@ static int ac97_volume_get(struct snd_kcontrol *ctl,
 	reg = oxygen_read_ac97(chip, codec, index);
 	mutex_unlock(&chip->mutex);
 	value->value.integer.value[0] = 31 - (reg & 0x1f);
-	value->value.integer.value[1] = 31 - ((reg >> 8) & 0x1f);
+	if (stereo)
+		value->value.integer.value[1] = 31 - ((reg >> 8) & 0x1f);
 	return 0;
 }
 
@@ -603,6 +622,7 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 {
 	struct oxygen *chip = ctl->private_data;
 	unsigned int codec = (ctl->private_value >> 24) & 1;
+	int stereo = (ctl->private_value >> 16) & 1;
 	unsigned int index = ctl->private_value & 0xff;
 	u16 oldreg, newreg;
 	int change;
@@ -612,8 +632,11 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 	newreg = oldreg;
 	newreg = (newreg & ~0x1f) |
 		(31 - (value->value.integer.value[0] & 0x1f));
-	newreg = (newreg & ~0x1f00) |
-		((31 - (value->value.integer.value[0] & 0x1f)) << 8);
+	if (stereo)
+		newreg = (newreg & ~0x1f00) |
+			((31 - (value->value.integer.value[1] & 0x1f)) << 8);
+	else
+		newreg = (newreg & ~0x1f00) | ((newreg & 0x1f) << 8);
 	change = newreg != oldreg;
 	if (change)
 		oxygen_write_ac97(chip, codec, index, newreg);
@@ -673,7 +696,7 @@ static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
 		.private_value = ((codec) << 24) | ((invert) << 16) | \
 				 ((bitnr) << 8) | (index), \
 	}
-#define AC97_VOLUME(xname, codec, index) { \
+#define AC97_VOLUME(xname, codec, index, stereo) { \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 		.name = xname, \
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
@@ -682,10 +705,10 @@ static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
 		.get = ac97_volume_get, \
 		.put = ac97_volume_put, \
 		.tlv = { .p = ac97_db_scale, }, \
-		.private_value = ((codec) << 24) | (index), \
+		.private_value = ((codec) << 24) | ((stereo) << 16) | (index), \
 	}
 
-static DECLARE_TLV_DB_SCALE(monitor_db_scale, -1000, 1000, 0);
+static DECLARE_TLV_DB_SCALE(monitor_db_scale, -600, 600, 0);
 static DECLARE_TLV_DB_SCALE(ac97_db_scale, -3450, 150, 0);
 static DECLARE_TLV_DB_SCALE(ac97_rec_db_scale, 0, 150, 0);
 
@@ -782,7 +805,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Switch",
+				.name = "Analog Input Monitor Playback Switch",
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
 				.put = monitor_put,
@@ -790,7 +813,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Volume",
+				.name = "Analog Input Monitor Playback Volume",
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 				.info = monitor_volume_info,
@@ -807,7 +830,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Switch",
+				.name = "Analog Input Monitor Playback Switch",
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
 				.put = monitor_put,
@@ -815,7 +838,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Volume",
+				.name = "Analog Input Monitor Playback Volume",
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 				.info = monitor_volume_info,
@@ -832,7 +855,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Switch",
+				.name = "Analog Input Monitor Playback Switch",
 				.index = 1,
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
@@ -841,7 +864,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Volume",
+				.name = "Analog Input Monitor Playback Volume",
 				.index = 1,
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -859,7 +882,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Digital Input Monitor Switch",
+				.name = "Digital Input Monitor Playback Switch",
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
 				.put = monitor_put,
@@ -867,7 +890,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Digital Input Monitor Volume",
+				.name = "Digital Input Monitor Playback Volume",
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 				.info = monitor_volume_info,
@@ -882,18 +905,18 @@ static const struct {
 };
 
 static const struct snd_kcontrol_new ac97_controls[] = {
-	AC97_VOLUME("Mic Capture Volume", 0, AC97_MIC),
+	AC97_VOLUME("Mic Capture Volume", 0, AC97_MIC, 0),
 	AC97_SWITCH("Mic Capture Switch", 0, AC97_MIC, 15, 1),
 	AC97_SWITCH("Mic Boost (+20dB)", 0, AC97_MIC, 6, 0),
 	AC97_SWITCH("Line Capture Switch", 0, AC97_LINE, 15, 1),
-	AC97_VOLUME("CD Capture Volume", 0, AC97_CD),
+	AC97_VOLUME("CD Capture Volume", 0, AC97_CD, 1),
 	AC97_SWITCH("CD Capture Switch", 0, AC97_CD, 15, 1),
-	AC97_VOLUME("Aux Capture Volume", 0, AC97_AUX),
+	AC97_VOLUME("Aux Capture Volume", 0, AC97_AUX, 1),
 	AC97_SWITCH("Aux Capture Switch", 0, AC97_AUX, 15, 1),
 };
 
 static const struct snd_kcontrol_new ac97_fp_controls[] = {
-	AC97_VOLUME("Front Panel Playback Volume", 1, AC97_HEADPHONE),
+	AC97_VOLUME("Front Panel Playback Volume", 1, AC97_HEADPHONE, 1),
 	AC97_SWITCH("Front Panel Playback Switch", 1, AC97_HEADPHONE, 15, 1),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -946,6 +969,12 @@ static int add_controls(struct oxygen *chip,
 			if (err == 1)
 				continue;
 		}
+		if (!strcmp(template.name, "Stereo Upmixing") &&
+		    chip->model.dac_channels == 2)
+			continue;
+		if (!strncmp(template.name, "CD Capture ", 11) &&
+		    !(chip->model.device_config & AC97_CD_INPUT))
+			continue;
 		if (!strcmp(template.name, "Master Playback Volume") &&
 		    chip->model.dac_tlv) {
 			template.tlv.p = chip->model.dac_tlv;

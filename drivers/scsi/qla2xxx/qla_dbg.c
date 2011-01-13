@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -216,7 +216,7 @@ qla24xx_soft_reset(struct qla_hw_data *ha)
 
 static int
 qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
-    uint16_t ram_words, void **nxt)
+    uint32_t ram_words, void **nxt)
 {
 	int rval;
 	uint32_t cnt, stat, timer, words, idx;
@@ -377,6 +377,24 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	return ptr + sizeof(struct qla2xxx_mq_chain);
 }
 
+static void
+qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (rval != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Failed to dump firmware (%x)!!!\n", rval);
+		ha->fw_dumped = 0;
+	} else {
+		qla_printk(KERN_INFO, ha,
+		    "Firmware dump saved to temp buffer (%ld/%p).\n",
+		    vha->host_no, ha->fw_dump);
+		ha->fw_dumped = 1;
+		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
+	}
+}
+
 /**
  * qla2300_fw_dump() - Dumps binary data from the 2300 firmware.
  * @ha: HA context
@@ -530,17 +548,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (rval == QLA_SUCCESS)
 		qla2xxx_copy_queues(ha, nxt);
 
-	if (rval != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%x)!!!\n", rval);
-		ha->fw_dumped = 0;
-
-	} else {
-		qla_printk(KERN_INFO, ha,
-		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    base_vha->host_no, ha->fw_dump);
-		ha->fw_dumped = 1;
-	}
+	qla2xxx_dump_post_process(base_vha, rval);
 
 qla2300_fw_dump_failed:
 	if (!hardware_locked)
@@ -737,17 +745,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (rval == QLA_SUCCESS)
 		qla2xxx_copy_queues(ha, &fw->risc_ram[cnt]);
 
-	if (rval != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%x)!!!\n", rval);
-		ha->fw_dumped = 0;
-
-	} else {
-		qla_printk(KERN_INFO, ha,
-		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    base_vha->host_no, ha->fw_dump);
-		ha->fw_dumped = 1;
-	}
+	qla2xxx_dump_post_process(base_vha, rval);
 
 qla2100_fw_dump_failed:
 	if (!hardware_locked)
@@ -770,6 +768,9 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t	ext_mem_cnt;
 	void		*nxt;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+
+	if (IS_QLA82XX(ha))
+		return;
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
@@ -984,17 +985,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	qla24xx_copy_eft(ha, nxt);
 
 qla24xx_fw_dump_failed_0:
-	if (rval != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%x)!!!\n", rval);
-		ha->fw_dumped = 0;
-
-	} else {
-		qla_printk(KERN_INFO, ha,
-		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    base_vha->host_no, ha->fw_dump);
-		ha->fw_dumped = 1;
-	}
+	qla2xxx_dump_post_process(base_vha, rval);
 
 qla24xx_fw_dump_failed:
 	if (!hardware_locked)
@@ -1305,17 +1296,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 
 qla25xx_fw_dump_failed_0:
-	if (rval != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%x)!!!\n", rval);
-		ha->fw_dumped = 0;
-
-	} else {
-		qla_printk(KERN_INFO, ha,
-		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    base_vha->host_no, ha->fw_dump);
-		ha->fw_dumped = 1;
-	}
+	qla2xxx_dump_post_process(base_vha, rval);
 
 qla25xx_fw_dump_failed:
 	if (!hardware_locked)
@@ -1628,17 +1609,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 
 qla81xx_fw_dump_failed_0:
-	if (rval != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%x)!!!\n", rval);
-		ha->fw_dumped = 0;
-
-	} else {
-		qla_printk(KERN_INFO, ha,
-		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    base_vha->host_no, ha->fw_dump);
-		ha->fw_dumped = 1;
-	}
+	qla2xxx_dump_post_process(base_vha, rval);
 
 qla81xx_fw_dump_failed:
 	if (!hardware_locked)
@@ -1692,4 +1663,62 @@ qla2x00_dump_buffer(uint8_t * b, uint32_t size)
 		printk("\n");
 }
 
+void
+qla2x00_dump_buffer_zipped(uint8_t *b, uint32_t size)
+{
+	uint32_t cnt;
+	uint8_t c;
+	uint8_t  last16[16], cur16[16];
+	uint32_t lc = 0, num_same16 = 0, j;
 
+	printk(KERN_DEBUG " 0   1   2   3   4   5   6   7   8   9  "
+	    "Ah  Bh  Ch  Dh  Eh  Fh\n");
+	printk(KERN_DEBUG "----------------------------------------"
+	    "----------------------\n");
+
+	for (cnt = 0; cnt < size;) {
+		c = *b++;
+
+		cur16[lc++] = c;
+
+		cnt++;
+		if (cnt % 16)
+			continue;
+
+		/* We have 16 now */
+		lc = 0;
+		if (num_same16 == 0) {
+			memcpy(last16, cur16, 16);
+			num_same16++;
+			continue;
+		}
+		if (memcmp(cur16, last16, 16) == 0) {
+			num_same16++;
+			continue;
+		}
+		for (j = 0; j < 16; j++)
+			printk(KERN_DEBUG "%02x  ", (uint32_t)last16[j]);
+		printk(KERN_DEBUG "\n");
+
+		if (num_same16 > 1)
+			printk(KERN_DEBUG "> prev pattern repeats (%u)"
+			    "more times\n", num_same16-1);
+		memcpy(last16, cur16, 16);
+		num_same16 = 1;
+	}
+
+	if (num_same16) {
+		for (j = 0; j < 16; j++)
+			printk(KERN_DEBUG "%02x  ", (uint32_t)last16[j]);
+		printk(KERN_DEBUG "\n");
+
+		if (num_same16 > 1)
+			printk(KERN_DEBUG "> prev pattern repeats (%u)"
+			    "more times\n", num_same16-1);
+	}
+	if (lc) {
+		for (j = 0; j < lc; j++)
+			printk(KERN_DEBUG "%02x  ", (uint32_t)cur16[j]);
+		printk(KERN_DEBUG "\n");
+	}
+}

@@ -96,11 +96,11 @@ static int gprs_recv(struct gprs_dev *gp, struct sk_buff *skb)
 		goto drop;
 	}
 
-	if (likely(skb_headroom(skb) & 3)) {
+	if (skb_headroom(skb) & 3) {
 		struct sk_buff *rskb, *fs;
 		int flen = 0;
 
-		/* Phonet Pipe data header is misaligned (3 bytes),
+		/* Phonet Pipe data header may be misaligned (3 bytes),
 		 * so wrap the IP packet as a single fragment of an head-less
 		 * socket buffer. The network stack will pull what it needs,
 		 * but at least, the whole IP payload is not memcpy'd. */
@@ -183,7 +183,7 @@ static int gprs_close(struct net_device *dev)
 	return 0;
 }
 
-static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gprs_dev *gp = netdev_priv(dev);
 	struct sock *sk = gp->sk;
@@ -195,7 +195,7 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 	default:
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	skb_orphan(skb);
@@ -215,7 +215,7 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	if (pep_writeable(sk))
 		netif_wake_queue(dev);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int gprs_set_mtu(struct net_device *dev, int new_mtu)

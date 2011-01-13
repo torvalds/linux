@@ -118,8 +118,8 @@ define archhelp
 	@echo  '* vmlinux	- Uncompressed kernel image (./vmlinux)'
 	@echo  '  palo		- Bootable image (./lifimage)'
 	@echo  '  install	- Install kernel using'
-	@echo  '		  (your) ~/bin/installkernel or'
-	@echo  '		  (distribution) /sbin/installkernel or'
+	@echo  '		  (your) ~/bin/$(INSTALLKERNEL) or'
+	@echo  '		  (distribution) /sbin/$(INSTALLKERNEL) or'
 	@echo  '		  copy to $$(INSTALL_PATH)'
 endef
 

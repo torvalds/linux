@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
+#include <linux/slab.h>
 
 struct nop_usb_xceiv {
 	struct otg_transceiver	otg;
@@ -53,6 +54,7 @@ EXPORT_SYMBOL(usb_nop_xceiv_register);
 void usb_nop_xceiv_unregister(void)
 {
 	platform_device_unregister(pd);
+	pd = NULL;
 }
 EXPORT_SYMBOL(usb_nop_xceiv_unregister);
 

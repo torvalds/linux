@@ -339,8 +339,7 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 		max_channel = 6;
 	}
 	if (channel > max_channel) {
-		printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
-			channel);
+		printk("%s: bug, invalid RTSI_channel=%i\n", __func__, channel);
 		return 0;
 	}
 	return 1 << (base_bit_shift + channel);
@@ -369,7 +368,7 @@ enum ai_convert_output_selection {
 	AI_CONVERT_Output_Enable_High = 3
 };
 static unsigned AI_CONVERT_Output_Select(enum ai_convert_output_selection
-	selection)
+					 selection)
 {
 	return selection & 0x3;
 }
@@ -530,10 +529,11 @@ enum RTSI_Trig_B_Output_Bits {
 	RTSI_Sub_Selection_1_Bit = 0x8000	/*  not for m-series */
 };
 static inline unsigned RTSI_Trig_Output_Bits(unsigned rtsi_channel,
-	unsigned source)
+					     unsigned source)
 {
 	return (source & 0xf) << ((rtsi_channel % 4) * 4);
 };
+
 static inline unsigned RTSI_Trig_Output_Mask(unsigned rtsi_channel)
 {
 	return 0xf << ((rtsi_channel % 4) * 4);
@@ -541,7 +541,7 @@ static inline unsigned RTSI_Trig_Output_Mask(unsigned rtsi_channel)
 
 /* inverse to RTSI_Trig_Output_Bits() */
 static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel,
-	unsigned bits)
+					       unsigned bits)
 {
 	return (bits >> ((rtsi_channel % 4) * 4)) & 0xf;
 };
@@ -566,7 +566,7 @@ enum ao_update_output_selection {
 	AO_Update_Output_Enable_High = 3
 };
 static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
-	selection)
+					selection)
 {
 	return selection & 0x3;
 }
@@ -730,13 +730,15 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 	BUG();
 	return 0;
 }
+
 static inline unsigned GPCT_DMA_Select_Bits(unsigned gpct_index,
-	unsigned mite_channel)
+					    unsigned mite_channel)
 {
 	BUG_ON(gpct_index > 1);
 	return ni_stc_dma_channel_select_bitfield(mite_channel) << (4 *
-		gpct_index);
+								    gpct_index);
 }
+
 static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 {
 	BUG_ON(gpct_index > 1);
@@ -839,6 +841,7 @@ static inline unsigned int DACx_Direct_Data_671x(int channel)
 {
 	return channel;
 }
+
 enum AO_Misc_611x_Bits {
 	CLEAR_WG = 1,
 };
@@ -870,10 +873,12 @@ static inline unsigned int CS5529_CONFIG_DOUT(int output)
 {
 	return 1 << (18 + output);
 }
+
 static inline unsigned int CS5529_CONFIG_AOUT(int output)
 {
 	return 1 << (22 + output);
 }
+
 enum cs5529_command_bits {
 	CSCMD_POWER_SAVE = 0x1,
 	CSCMD_REGISTER_SELECT_MASK = 0xe,
@@ -898,8 +903,9 @@ enum cs5529_status_bits {
 */
 
 enum { ai_gain_16 =
-		0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x,
-		ai_gain_628x, ai_gain_6143 };
+	    0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x,
+	ai_gain_628x, ai_gain_6143
+};
 enum caldac_enum { caldac_none = 0, mb88341, dac8800, dac8043, ad8522,
 	ad8804, ad8842, ad8804_debug
 };
@@ -1064,18 +1070,22 @@ static inline int M_Offset_AO_Waveform_Order(int channel)
 {
 	return 0xc2 + 0x4 * channel;
 };
+
 static inline int M_Offset_AO_Config_Bank(int channel)
 {
 	return 0xc3 + 0x4 * channel;
 };
+
 static inline int M_Offset_DAC_Direct_Data(int channel)
 {
 	return 0xc0 + 0x4 * channel;
 }
+
 static inline int M_Offset_Gen_PWM(int channel)
 {
 	return 0x44 + 0x2 * channel;
 }
+
 static inline int M_Offset_Static_AI_Control(int i)
 {
 	int offset[] = {
@@ -1090,6 +1100,7 @@ static inline int M_Offset_Static_AI_Control(int i)
 	}
 	return offset[i];
 };
+
 static inline int M_Offset_AO_Reference_Attenuation(int channel)
 {
 	int offset[] = {
@@ -1104,11 +1115,12 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 	}
 	return offset[channel];
 };
+
 static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
 {
 	if (n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS) {
 		printk("%s: invalid pfi output select register=%i\n",
-			__func__, n);
+		       __func__, n);
 		return M_Offset_PFI_Output_Select_1;
 	}
 	return M_Offset_PFI_Output_Select_1 + (n - 1) * 2;
@@ -1130,8 +1142,9 @@ static inline unsigned MSeries_AI_Config_Channel_Bits(unsigned channel)
 {
 	return channel & 0xf;
 }
+
 static inline unsigned MSeries_AI_Config_Bank_Bits(enum ni_reg_type reg_type,
-	unsigned channel)
+						   unsigned channel)
 {
 	unsigned bits = channel & 0x30;
 	if (reg_type == ni_reg_622x) {
@@ -1140,6 +1153,7 @@ static inline unsigned MSeries_AI_Config_Bank_Bits(enum ni_reg_type reg_type,
 	}
 	return bits;
 }
+
 static inline unsigned MSeries_AI_Config_Gain_Bits(unsigned range)
 {
 	return (range & 0x7) << 9;
@@ -1159,11 +1173,11 @@ enum MSeries_Clock_and_Fout2_Bits {
 	MSeries_RTSI_10MHz_Bit = 0x80
 };
 static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned
-	RTSI_channel)
+							      RTSI_channel)
 {
 	if (RTSI_channel > 7) {
 		printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
-			RTSI_channel);
+		       RTSI_channel);
 		return 0;
 	}
 	if (RTSI_channel == 7)
@@ -1183,18 +1197,18 @@ static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
 	static const unsigned max_divisor = 0x10;
 	if (divisor < 1 || divisor > max_divisor) {
-		printk("%s: bug, invalid divisor=%i\n", __func__,
-			divisor);
+		printk("%s: bug, invalid divisor=%i\n", __func__, divisor);
 		return 0;
 	}
 	return (divisor & 0xf) << 8;
 }
+
 static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
 {
 	static const unsigned max_multiplier = 0x100;
 	if (multiplier < 1 || multiplier > max_multiplier) {
 		printk("%s: bug, invalid multiplier=%i\n", __func__,
-			multiplier);
+		       multiplier);
 		return 0;
 	}
 	return multiplier & 0xff;
@@ -1217,15 +1231,17 @@ enum MSeries_AI_Config_FIFO_Bypass_Bits {
 	MSeries_AI_Bypass_Config_FIFO_Bit = 0x80000000
 };
 static inline unsigned MSeries_AI_Bypass_Cal_Sel_Pos_Bits(int
-	calibration_source)
+							  calibration_source)
 {
 	return (calibration_source << 7) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
 }
+
 static inline unsigned MSeries_AI_Bypass_Cal_Sel_Neg_Bits(int
-	calibration_source)
+							  calibration_source)
 {
 	return (calibration_source << 10) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
 }
+
 static inline unsigned MSeries_AI_Bypass_Gain_Bits(int gain)
 {
 	return (gain << 18) & MSeries_AI_Bypass_Gain_Mask;
@@ -1260,15 +1276,16 @@ static inline unsigned MSeries_PFI_Output_Select_Mask(unsigned channel)
 {
 	return 0x1f << (channel % 3) * 5;
 };
+
 static inline unsigned MSeries_PFI_Output_Select_Bits(unsigned channel,
-	unsigned source)
+						      unsigned source)
 {
 	return (source & 0x1f) << ((channel % 3) * 5);
 };
 
 /* inverse to MSeries_PFI_Output_Select_Bits */
 static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel,
-	unsigned bits)
+							unsigned bits)
 {
 	return (bits >> ((channel % 3) * 5)) & 0x1f;
 };
@@ -1285,11 +1302,12 @@ static inline unsigned MSeries_PFI_Filter_Select_Mask(unsigned channel)
 {
 	return 0x3 << (channel * 2);
 }
+
 static inline unsigned MSeries_PFI_Filter_Select_Bits(unsigned channel,
-	unsigned filter)
+						      unsigned filter)
 {
 	return (filter << (channel *
-			2)) & MSeries_PFI_Filter_Select_Mask(channel);
+			   2)) & MSeries_PFI_Filter_Select_Mask(channel);
 }
 
 enum CDIO_DMA_Select_Bits {

@@ -26,13 +26,12 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
 #include <linux/mpage.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/bit_spinlock.h>
-#include <linux/pagevec.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -92,23 +91,10 @@ static inline int compressed_bio_size(struct btrfs_root *root,
 static struct bio *compressed_bio_alloc(struct block_device *bdev,
 					u64 first_byte, gfp_t gfp_flags)
 {
-	struct bio *bio;
 	int nr_vecs;
 
 	nr_vecs = bio_get_nr_vecs(bdev);
-	bio = bio_alloc(gfp_flags, nr_vecs);
-
-	if (bio == NULL && (current->flags & PF_MEMALLOC)) {
-		while (!bio && (nr_vecs /= 2))
-			bio = bio_alloc(gfp_flags, nr_vecs);
-	}
-
-	if (bio) {
-		bio->bi_size = 0;
-		bio->bi_bdev = bdev;
-		bio->bi_sector = first_byte >> 9;
-	}
-	return bio;
+	return btrfs_bio_alloc(bdev, first_byte >> 9, nr_vecs, gfp_flags);
 }
 
 static int check_compressed_csum(struct inode *inode,
@@ -164,7 +150,6 @@ fail:
  */
 static void end_compressed_bio_read(struct bio *bio, int err)
 {
-	struct extent_io_tree *tree;
 	struct compressed_bio *cb = bio->bi_private;
 	struct inode *inode;
 	struct page *page;
@@ -188,7 +173,6 @@ static void end_compressed_bio_read(struct bio *bio, int err)
 	/* ok, we're the last bio for this extent, lets start
 	 * the decompression.
 	 */
-	tree = &BTRFS_I(inode)->io_tree;
 	ret = btrfs_zlib_decompress_biovec(cb->compressed_pages,
 					cb->start,
 					cb->orig_bio->bi_io_vec,
@@ -446,7 +430,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	unsigned long nr_pages = 0;
 	struct extent_map *em;
 	struct address_space *mapping = inode->i_mapping;
-	struct pagevec pvec;
 	struct extent_map_tree *em_tree;
 	struct extent_io_tree *tree;
 	u64 end;
@@ -462,7 +445,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 
 	end_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
 
-	pagevec_init(&pvec, 0);
 	while (last_offset < compressed_end) {
 		page_index = last_offset >> PAGE_CACHE_SHIFT;
 
@@ -479,25 +461,16 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			goto next;
 		}
 
-		page = alloc_page(mapping_gfp_mask(mapping) | GFP_NOFS);
+		page = __page_cache_alloc(mapping_gfp_mask(mapping) &
+								~__GFP_FS);
 		if (!page)
 			break;
 
-		page->index = page_index;
-		/*
-		 * what we want to do here is call add_to_page_cache_lru,
-		 * but that isn't exported, so we reproduce it here
-		 */
-		if (add_to_page_cache(page, mapping,
-				      page->index, GFP_NOFS)) {
+		if (add_to_page_cache_lru(page, mapping, page_index,
+								GFP_NOFS)) {
 			page_cache_release(page);
 			goto next;
 		}
-
-		/* open coding of lru_cache_add, also not exported */
-		page_cache_get(page);
-		if (!pagevec_add(&pvec, page))
-			__pagevec_lru_add_file(&pvec);
 
 		end = last_offset + PAGE_CACHE_SIZE - 1;
 		/*
@@ -507,10 +480,10 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 */
 		set_page_extent_mapped(page);
 		lock_extent(tree, last_offset, end, GFP_NOFS);
-		spin_lock(&em_tree->lock);
+		read_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, last_offset,
 					   PAGE_CACHE_SIZE);
-		spin_unlock(&em_tree->lock);
+		read_unlock(&em_tree->lock);
 
 		if (!em || last_offset < em->start ||
 		    (last_offset + PAGE_CACHE_SIZE > extent_map_end(em)) ||
@@ -552,8 +525,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 next:
 		last_offset += PAGE_CACHE_SIZE;
 	}
-	if (pagevec_count(&pvec))
-		__pagevec_lru_add_file(&pvec);
 	return 0;
 }
 
@@ -594,11 +565,11 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	em_tree = &BTRFS_I(inode)->extent_tree;
 
 	/* we need the actual starting offset of this extent in the file */
-	spin_lock(&em_tree->lock);
+	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree,
 				   page_offset(bio->bi_io_vec->bv_page),
 				   PAGE_CACHE_SIZE);
-	spin_unlock(&em_tree->lock);
+	read_unlock(&em_tree->lock);
 
 	compressed_len = em->block_len;
 	cb = kmalloc(compressed_bio_size(root, compressed_len), GFP_NOFS);

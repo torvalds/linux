@@ -44,6 +44,52 @@ struct ttm_bo_device;
 
 struct drm_mm_node;
 
+
+/**
+ * struct ttm_placement
+ *
+ * @fpfn:		first valid page frame number to put the object
+ * @lpfn:		last valid page frame number to put the object
+ * @num_placement:	number of prefered placements
+ * @placement:		prefered placements
+ * @num_busy_placement:	number of prefered placements when need to evict buffer
+ * @busy_placement:	prefered placements when need to evict buffer
+ *
+ * Structure indicating the placement you request for an object.
+ */
+struct ttm_placement {
+	unsigned	fpfn;
+	unsigned	lpfn;
+	unsigned	num_placement;
+	const uint32_t	*placement;
+	unsigned	num_busy_placement;
+	const uint32_t	*busy_placement;
+};
+
+/**
+ * struct ttm_bus_placement
+ *
+ * @addr:		mapped virtual address
+ * @base:		bus base address
+ * @is_iomem:		is this io memory ?
+ * @size:		size in byte
+ * @offset:		offset from the base address
+ * @io_reserved_vm:     The VM system has a refcount in @io_reserved_count
+ * @io_reserved_count:  Refcounting the numbers of callers to ttm_mem_io_reserve
+ *
+ * Structure indicating the bus placement of an object.
+ */
+struct ttm_bus_placement {
+	void		*addr;
+	unsigned long	base;
+	unsigned long	size;
+	unsigned long	offset;
+	bool		is_iomem;
+	bool		io_reserved_vm;
+	uint64_t        io_reserved_count;
+};
+
+
 /**
  * struct ttm_mem_reg
  *
@@ -52,18 +98,21 @@ struct drm_mm_node;
  * @num_pages: Actual size of memory region in pages.
  * @page_alignment: Page alignment.
  * @placement: Placement flags.
+ * @bus: Placement on io bus accessible to the CPU
  *
  * Structure indicating the placement and space resources used by a
  * buffer object.
  */
 
 struct ttm_mem_reg {
-	struct drm_mm_node *mm_node;
+	void *mm_node;
+	unsigned long start;
 	unsigned long size;
 	unsigned long num_pages;
 	uint32_t page_alignment;
 	uint32_t mem_type;
 	uint32_t placement;
+	struct ttm_bus_placement bus;
 };
 
 /**
@@ -108,11 +157,6 @@ struct ttm_tt;
  * keeps one refcount. When this refcount reaches zero,
  * the object is destroyed.
  * @event_queue: Queue for processes waiting on buffer object status change.
- * @lock: spinlock protecting mostly synchronization members.
- * @proposed_placement: Proposed placement for the buffer. Changed only by the
- * creator prior to validation as opposed to bo->mem.proposed_flags which is
- * changed by the implementation prior to a buffer move if it wants to outsmart
- * the buffer creator / user. This latter happens, for example, at eviction.
  * @mem: structure describing current placement.
  * @persistant_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
@@ -155,6 +199,7 @@ struct ttm_buffer_object {
 	 * Members constant at init.
 	 */
 
+	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
 	unsigned long buffer_start;
 	enum ttm_bo_type type;
@@ -170,13 +215,11 @@ struct ttm_buffer_object {
 	struct kref kref;
 	struct kref list_kref;
 	wait_queue_head_t event_queue;
-	spinlock_t lock;
 
 	/**
 	 * Members protected by the bo::reserved lock.
 	 */
 
-	uint32_t proposed_placement;
 	struct ttm_mem_reg mem;
 	struct file *persistant_swap_storage;
 	struct ttm_tt *ttm;
@@ -195,6 +238,7 @@ struct ttm_buffer_object {
 	struct list_head lru;
 	struct list_head ddestroy;
 	struct list_head swap;
+	struct list_head io_reserve_lru;
 	uint32_t val_seq;
 	bool seq_valid;
 
@@ -205,9 +249,11 @@ struct ttm_buffer_object {
 
 	atomic_t reserved;
 
-
 	/**
-	 * Members protected by the bo::lock
+	 * Members protected by struct buffer_object_device::fence_lock
+	 * In addition, setting sync_obj to anything else
+	 * than NULL requires bo::reserved to be held. This allows for
+	 * checking NULL while reserved but not holding the mentioned lock.
 	 */
 
 	void *sync_obj_arg;
@@ -245,15 +291,17 @@ struct ttm_buffer_object {
  * premapped region.
  */
 
+#define TTM_BO_MAP_IOMEM_MASK 0x80
 struct ttm_bo_kmap_obj {
 	void *virtual;
 	struct page *page;
 	enum {
-		ttm_bo_map_iomap,
-		ttm_bo_map_vmap,
-		ttm_bo_map_kmap,
-		ttm_bo_map_premapped,
+		ttm_bo_map_iomap        = 1 | TTM_BO_MAP_IOMEM_MASK,
+		ttm_bo_map_vmap         = 2,
+		ttm_bo_map_kmap         = 3,
+		ttm_bo_map_premapped    = 4 | TTM_BO_MAP_IOMEM_MASK,
 	} bo_kmap_type;
+	struct ttm_buffer_object *bo;
 };
 
 /**
@@ -283,29 +331,32 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
  * Note: It might be necessary to block validations before the
  * wait by reserving the buffer.
  * Returns -EBUSY if no_wait is true and the buffer is busy.
- * Returns -ERESTART if interrupted by a signal.
+ * Returns -ERESTARTSYS if interrupted by a signal.
  */
 extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
 		       bool interruptible, bool no_wait);
 /**
- * ttm_buffer_object_validate
+ * ttm_bo_validate
  *
  * @bo: The buffer object.
- * @proposed_placement: Proposed_placement for the buffer object.
+ * @placement: Proposed placement for the buffer object.
  * @interruptible: Sleep interruptible if sleeping.
- * @no_wait: Return immediately if the buffer is busy.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  *
  * Changes placement and caching policy of the buffer object
- * according to bo::proposed_flags.
+ * according proposed placement.
  * Returns
- * -EINVAL on invalid proposed_flags.
+ * -EINVAL on invalid proposed placement.
  * -ENOMEM on out-of-memory condition.
  * -EBUSY if no_wait is true and buffer busy.
- * -ERESTART if interrupted by a signal.
+ * -ERESTARTSYS if interrupted by a signal.
  */
-extern int ttm_buffer_object_validate(struct ttm_buffer_object *bo,
-				      uint32_t proposed_placement,
-				      bool interruptible, bool no_wait);
+extern int ttm_bo_validate(struct ttm_buffer_object *bo,
+				struct ttm_placement *placement,
+				bool interruptible, bool no_wait_reserve,
+				bool no_wait_gpu);
+
 /**
  * ttm_bo_unref
  *
@@ -314,6 +365,61 @@ extern int ttm_buffer_object_validate(struct ttm_buffer_object *bo,
  * Unreference and clear a pointer to a buffer object.
  */
 extern void ttm_bo_unref(struct ttm_buffer_object **bo);
+
+
+/**
+ * ttm_bo_list_ref_sub
+ *
+ * @bo: The buffer object.
+ * @count: The number of references with which to decrease @bo::list_kref;
+ * @never_free: The refcount should not reach zero with this operation.
+ *
+ * Release @count lru list references to this buffer object.
+ */
+extern void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
+				bool never_free);
+
+/**
+ * ttm_bo_add_to_lru
+ *
+ * @bo: The buffer object.
+ *
+ * Add this bo to the relevant mem type lru and, if it's backed by
+ * system pages (ttms) to the swap list.
+ * This function must be called with struct ttm_bo_global::lru_lock held, and
+ * is typically called immediately prior to unreserving a bo.
+ */
+extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
+
+/**
+ * ttm_bo_del_from_lru
+ *
+ * @bo: The buffer object.
+ *
+ * Remove this bo from all lru lists used to lookup and reserve an object.
+ * This function must be called with struct ttm_bo_global::lru_lock held,
+ * and is usually called just immediately after the bo has been reserved to
+ * avoid recursive reservation from lru lists.
+ */
+extern int ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
+
+
+/**
+ * ttm_bo_lock_delayed_workqueue
+ *
+ * Prevent the delayed workqueue from running.
+ * Returns
+ * True if the workqueue was queued at the time
+ */
+extern int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev);
+
+/**
+ * ttm_bo_unlock_delayed_workqueue
+ *
+ * Allows the delayed workqueue to run.
+ */
+extern void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev,
+					    int resched);
 
 /**
  * ttm_bo_synccpu_write_grab
@@ -326,7 +432,7 @@ extern void ttm_bo_unref(struct ttm_buffer_object **bo);
  * waiting for buffer idle. This lock is recursive.
  * Returns
  * -EBUSY if the buffer is busy and no_wait is true.
- * -ERESTART if interrupted by a signal.
+ * -ERESTARTSYS if interrupted by a signal.
  */
 
 extern int
@@ -341,7 +447,7 @@ ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait);
 extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
 
 /**
- * ttm_buffer_object_init
+ * ttm_bo_init
  *
  * @bdev: Pointer to a ttm_bo_device struct.
  * @bo: Pointer to a ttm_buffer_object to be initialized.
@@ -366,23 +472,27 @@ extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
  * together with the @destroy function,
  * enables driver-specific objects derived from a ttm_buffer_object.
  * On successful return, the object kref and list_kref are set to 1.
+ * If a failure occurs, the function will call the @destroy function, or
+ * kfree() if @destroy is NULL. Thus, after a failure, dereferencing @bo is
+ * illegal and will likely cause memory corruption.
+ *
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.
- * -ERESTART: Interrupted by signal while sleeping waiting for resources.
+ * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 
-extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
-				  struct ttm_buffer_object *bo,
-				  unsigned long size,
-				  enum ttm_bo_type type,
-				  uint32_t flags,
-				  uint32_t page_alignment,
-				  unsigned long buffer_start,
-				  bool interrubtible,
-				  struct file *persistant_swap_storage,
-				  size_t acc_size,
-				  void (*destroy) (struct ttm_buffer_object *));
+extern int ttm_bo_init(struct ttm_bo_device *bdev,
+			struct ttm_buffer_object *bo,
+			unsigned long size,
+			enum ttm_bo_type type,
+			struct ttm_placement *placement,
+			uint32_t page_alignment,
+			unsigned long buffer_start,
+			bool interrubtible,
+			struct file *persistant_swap_storage,
+			size_t acc_size,
+			void (*destroy) (struct ttm_buffer_object *));
 /**
  * ttm_bo_synccpu_object_init
  *
@@ -403,47 +513,43 @@ extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
  * GEM user interface.
  * @p_bo: On successful completion *p_bo points to the created object.
  *
- * This function allocates a ttm_buffer_object, and then calls
- * ttm_buffer_object_init on that object.
- * The destroy function is set to kfree().
+ * This function allocates a ttm_buffer_object, and then calls ttm_bo_init
+ * on that object. The destroy function is set to kfree().
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.
- * -ERESTART: Interrupted by signal while waiting for resources.
+ * -ERESTARTSYS: Interrupted by signal while waiting for resources.
  */
 
-extern int ttm_buffer_object_create(struct ttm_bo_device *bdev,
-				    unsigned long size,
-				    enum ttm_bo_type type,
-				    uint32_t flags,
-				    uint32_t page_alignment,
-				    unsigned long buffer_start,
-				    bool interruptible,
-				    struct file *persistant_swap_storage,
-				    struct ttm_buffer_object **p_bo);
+extern int ttm_bo_create(struct ttm_bo_device *bdev,
+				unsigned long size,
+				enum ttm_bo_type type,
+				struct ttm_placement *placement,
+				uint32_t page_alignment,
+				unsigned long buffer_start,
+				bool interruptible,
+				struct file *persistant_swap_storage,
+				struct ttm_buffer_object **p_bo);
 
 /**
  * ttm_bo_check_placement
  *
- * @bo: the buffer object.
- * @set_flags: placement flags to set.
- * @clr_flags: placement flags to clear.
+ * @bo:		the buffer object.
+ * @placement:	placements
  *
  * Performs minimal validity checking on an intended change of
  * placement flags.
  * Returns
  * -EINVAL: Intended change is invalid or not allowed.
  */
-
 extern int ttm_bo_check_placement(struct ttm_buffer_object *bo,
-				  uint32_t set_flags, uint32_t clr_flags);
+					struct ttm_placement *placement);
 
 /**
  * ttm_bo_init_mm
  *
  * @bdev: Pointer to a ttm_bo_device struct.
  * @mem_type: The memory type.
- * @p_offset: offset for managed area in pages.
  * @p_size: size managed area in pages.
  *
  * Initialize a manager for a given memory type.
@@ -456,7 +562,7 @@ extern int ttm_bo_check_placement(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
-			  unsigned long p_offset, unsigned long p_size);
+				unsigned long p_size);
 /**
  * ttm_bo_clean_mm
  *
@@ -501,7 +607,7 @@ extern int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type);
  *
  * Returns:
  * -EINVAL: Invalid or uninitialized memory type.
- * -ERESTART: The call was interrupted by a signal while waiting to
+ * -ERESTARTSYS: The call was interrupted by a signal while waiting to
  * evict a buffer.
  */
 
@@ -522,8 +628,7 @@ extern int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type);
 static inline void *ttm_kmap_obj_virtual(struct ttm_bo_kmap_obj *map,
 					 bool *is_iomem)
 {
-	*is_iomem = (map->bo_kmap_type == ttm_bo_map_iomap ||
-		     map->bo_kmap_type == ttm_bo_map_premapped);
+	*is_iomem = !!(map->bo_kmap_type & TTM_BO_MAP_IOMEM_MASK);
 	return map->virtual;
 }
 
@@ -605,7 +710,7 @@ extern int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
  * be called from the fops::read and fops::write method.
  * Returns:
  * See man (2) write, man(2) read. In particular,
- * the function may return -EINTR if
+ * the function may return -ERESTARTSYS if
  * interrupted by a signal.
  */
 

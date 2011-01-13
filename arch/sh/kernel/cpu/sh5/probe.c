@@ -17,7 +17,7 @@
 #include <asm/cache.h>
 #include <asm/tlb.h>
 
-int __init detect_cpu_and_cache_system(void)
+void __cpuinit cpu_probe(void)
 {
 	unsigned long long cir;
 
@@ -33,6 +33,8 @@ int __init detect_cpu_and_cache_system(void)
 	else if (((cir >> 32) & 0xffff) == 0x51e2)
 		/* CPU.VCR aliased at CIR address on SH5-101 */
 		boot_cpu_data.type = CPU_SH5_101;
+
+	boot_cpu_data.family = CPU_FAMILY_SH5;
 
 	/*
 	 * First, setup some sane values for the I-cache.
@@ -70,6 +72,4 @@ int __init detect_cpu_and_cache_system(void)
 
 	/* Setup some I/D TLB defaults */
 	sh64_tlb_init();
-
-	return 0;
 }

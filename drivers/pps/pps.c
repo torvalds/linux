@@ -71,9 +71,14 @@ static long pps_cdev_ioctl(struct file *file,
 	case PPS_GETPARAMS:
 		pr_debug("PPS_GETPARAMS: source %d\n", pps->id);
 
-		/* Return current parameters */
-		err = copy_to_user(uarg, &pps->params,
-						sizeof(struct pps_kparams));
+		spin_lock_irq(&pps->lock);
+
+		/* Get the current parameters */
+		params = pps->params;
+
+		spin_unlock_irq(&pps->lock);
+
+		err = copy_to_user(uarg, &params, sizeof(struct pps_kparams));
 		if (err)
 			return -EFAULT;
 
@@ -244,7 +249,7 @@ int pps_register_cdev(struct pps_device *pps)
 	}
 	pps->dev = device_create(pps_class, pps->info.dev, pps->devno, NULL,
 							"pps%d", pps->id);
-	if (err)
+	if (IS_ERR(pps->dev))
 		goto del_cdev;
 	dev_set_drvdata(pps->dev, pps);
 

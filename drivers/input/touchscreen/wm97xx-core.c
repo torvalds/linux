@@ -48,6 +48,7 @@
 #include <linux/wm97xx.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #define TS_NAME			"wm97xx"
 #define WM_CORE_VERSION		"1.00"
@@ -124,6 +125,8 @@ int wm97xx_read_aux_adc(struct wm97xx *wm, u16 adcsel)
 {
 	int power_adc = 0, auxval;
 	u16 power = 0;
+	int rc = 0;
+	int timeout = 0;
 
 	/* get codec */
 	mutex_lock(&wm->codec_mutex);
@@ -142,7 +145,9 @@ int wm97xx_read_aux_adc(struct wm97xx *wm, u16 adcsel)
 
 	/* Turn polling mode on to read AUX ADC */
 	wm->pen_probably_down = 1;
-	wm->codec->poll_sample(wm, adcsel, &auxval);
+
+	while (rc != RC_VALID && timeout++ < 5)
+		rc = wm->codec->poll_sample(wm, adcsel, &auxval);
 
 	if (power_adc)
 		wm97xx_reg_write(wm, AC97_EXTENDED_MID, power | 0x8000);
@@ -151,8 +156,15 @@ int wm97xx_read_aux_adc(struct wm97xx *wm, u16 adcsel)
 
 	wm->pen_probably_down = 0;
 
+	if (timeout >= 5) {
+		dev_err(wm->dev,
+			"timeout reading auxadc %d, disabling digitiser\n",
+			adcsel);
+		wm->codec->dig_enable(wm, false);
+	}
+
 	mutex_unlock(&wm->codec_mutex);
-	return auxval & 0xfff;
+	return (rc == RC_VALID ? auxval & 0xfff : -EBUSY);
 }
 EXPORT_SYMBOL_GPL(wm97xx_read_aux_adc);
 
@@ -199,12 +211,12 @@ void wm97xx_set_gpio(struct wm97xx *wm, u32 gpio,
 	mutex_lock(&wm->codec_mutex);
 	reg = wm97xx_reg_read(wm, AC97_GPIO_STATUS);
 
-	if (status & WM97XX_GPIO_HIGH)
+	if (status == WM97XX_GPIO_HIGH)
 		reg |= gpio;
 	else
 		reg &= ~gpio;
 
-	if (wm->id == WM9712_ID2)
+	if (wm->id == WM9712_ID2 && wm->variant != WM97xx_WM1613)
 		wm97xx_reg_write(wm, AC97_GPIO_STATUS, reg << 1);
 	else
 		wm97xx_reg_write(wm, AC97_GPIO_STATUS, reg);
@@ -307,7 +319,7 @@ static void wm97xx_pen_irq_worker(struct work_struct *work)
 					 WM97XX_GPIO_13);
 		}
 
-		if (wm->id == WM9712_ID2)
+		if (wm->id == WM9712_ID2 && wm->variant != WM97xx_WM1613)
 			wm97xx_reg_write(wm, AC97_GPIO_STATUS, (status &
 						~WM97XX_GPIO_13) << 1);
 		else
@@ -561,6 +573,7 @@ static void wm97xx_ts_input_close(struct input_dev *idev)
 static int wm97xx_probe(struct device *dev)
 {
 	struct wm97xx *wm;
+	struct wm97xx_pdata *pdata = dev->platform_data;
 	int ret = 0, id = 0;
 
 	wm = kzalloc(sizeof(struct wm97xx), GFP_KERNEL);
@@ -581,6 +594,8 @@ static int wm97xx_probe(struct device *dev)
 	}
 
 	wm->id = wm97xx_reg_read(wm, AC97_VENDOR_ID2);
+
+	wm->variant = WM97xx_GENERIC;
 
 	dev_info(wm->dev, "detected a wm97%02x codec\n", wm->id & 0xff);
 
@@ -656,6 +671,7 @@ static int wm97xx_probe(struct device *dev)
 	}
 	platform_set_drvdata(wm->battery_dev, wm);
 	wm->battery_dev->dev.parent = dev;
+	wm->battery_dev->dev.platform_data = pdata;
 	ret = platform_device_add(wm->battery_dev);
 	if (ret < 0)
 		goto batt_reg_err;
@@ -669,6 +685,7 @@ static int wm97xx_probe(struct device *dev)
 	}
 	platform_set_drvdata(wm->touch_dev, wm);
 	wm->touch_dev->dev.parent = dev;
+	wm->touch_dev->dev.platform_data = pdata;
 	ret = platform_device_add(wm->touch_dev);
 	if (ret < 0)
 		goto touch_reg_err;
@@ -678,8 +695,7 @@ static int wm97xx_probe(struct device *dev)
  touch_reg_err:
 	platform_device_put(wm->touch_dev);
  touch_err:
-	platform_device_unregister(wm->battery_dev);
-	wm->battery_dev = NULL;
+	platform_device_del(wm->battery_dev);
  batt_reg_err:
 	platform_device_put(wm->battery_dev);
  batt_err:

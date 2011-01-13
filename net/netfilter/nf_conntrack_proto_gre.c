@@ -31,6 +31,7 @@
 #include <linux/in.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/dst.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -43,7 +44,7 @@
 #define GRE_TIMEOUT		(30 * HZ)
 #define GRE_STREAM_TIMEOUT	(180 * HZ)
 
-static int proto_gre_net_id;
+static int proto_gre_net_id __read_mostly;
 struct netns_proto_gre {
 	rwlock_t		keymap_lock;
 	struct list_head	keymap_list;
@@ -241,7 +242,7 @@ static int gre_packet(struct nf_conn *ct,
 				   ct->proto.gre.stream_timeout);
 		/* Also, more likely to be important, and not a probe. */
 		set_bit(IPS_ASSURED_BIT, &ct->status);
-		nf_conntrack_event_cache(IPCT_STATUS, ct);
+		nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else
 		nf_ct_refresh_acct(ct, ctinfo, skb,
 				   ct->proto.gre.timeout);
@@ -300,32 +301,24 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 
 static int proto_gre_net_init(struct net *net)
 {
-	struct netns_proto_gre *net_gre;
-	int rv;
+	struct netns_proto_gre *net_gre = net_generic(net, proto_gre_net_id);
 
-	net_gre = kmalloc(sizeof(struct netns_proto_gre), GFP_KERNEL);
-	if (!net_gre)
-		return -ENOMEM;
 	rwlock_init(&net_gre->keymap_lock);
 	INIT_LIST_HEAD(&net_gre->keymap_list);
 
-	rv = net_assign_generic(net, proto_gre_net_id, net_gre);
-	if (rv < 0)
-		kfree(net_gre);
-	return rv;
+	return 0;
 }
 
 static void proto_gre_net_exit(struct net *net)
 {
-	struct netns_proto_gre *net_gre = net_generic(net, proto_gre_net_id);
-
 	nf_ct_gre_keymap_flush(net);
-	kfree(net_gre);
 }
 
 static struct pernet_operations proto_gre_net_ops = {
 	.init = proto_gre_net_init,
 	.exit = proto_gre_net_exit,
+	.id   = &proto_gre_net_id,
+	.size = sizeof(struct netns_proto_gre),
 };
 
 static int __init nf_ct_proto_gre_init(void)
@@ -335,7 +328,7 @@ static int __init nf_ct_proto_gre_init(void)
 	rv = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_gre4);
 	if (rv < 0)
 		return rv;
-	rv = register_pernet_gen_subsys(&proto_gre_net_id, &proto_gre_net_ops);
+	rv = register_pernet_subsys(&proto_gre_net_ops);
 	if (rv < 0)
 		nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_gre4);
 	return rv;
@@ -344,7 +337,7 @@ static int __init nf_ct_proto_gre_init(void)
 static void __exit nf_ct_proto_gre_fini(void)
 {
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_gre4);
-	unregister_pernet_gen_subsys(proto_gre_net_id, &proto_gre_net_ops);
+	unregister_pernet_subsys(&proto_gre_net_ops);
 }
 
 module_init(nf_ct_proto_gre_init);

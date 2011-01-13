@@ -24,20 +24,16 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
+#include "xfs_trace.h"
 
 #ifdef XFS_TRANS_DEBUG
 STATIC void
@@ -47,32 +43,8 @@ xfs_trans_inode_broot_debug(
 #define	xfs_trans_inode_broot_debug(ip)
 #endif
 
-
 /*
- * Get and lock the inode for the caller if it is not already
- * locked within the given transaction.  If it is already locked
- * within the transaction, just increment its lock recursion count
- * and return a pointer to it.
- *
- * For an inode to be locked in a transaction, the inode lock, as
- * opposed to the io lock, must be taken exclusively.  This ensures
- * that the inode can be involved in only 1 transaction at a time.
- * Lock recursion is handled on the io lock, but only for lock modes
- * of equal or lesser strength.  That is, you can recur on the io lock
- * held EXCL with a SHARED request but not vice versa.  Also, if
- * the inode is already a part of the transaction then you cannot
- * go from not holding the io lock to having it EXCL or SHARED.
- *
- * Use the inode cache routine xfs_inode_incore() to find the inode
- * if it is already owned by this transaction.
- *
- * If we don't already own the inode, use xfs_iget() to get it.
- * Since the inode log item structure is embedded in the incore
- * inode structure and is initialized when the inode is brought
- * into memory, there is nothing to do with it here.
- *
- * If the given transaction pointer is NULL, just call xfs_iget().
- * This simplifies code which must handle both cases.
+ * Get an inode and join it to the transaction.
  */
 int
 xfs_trans_iget(
@@ -84,103 +56,40 @@ xfs_trans_iget(
 	xfs_inode_t	**ipp)
 {
 	int			error;
-	xfs_inode_t		*ip;
 
-	/*
-	 * If the transaction pointer is NULL, just call the normal
-	 * xfs_iget().
-	 */
-	if (tp == NULL)
-		return xfs_iget(mp, NULL, ino, flags, lock_flags, ipp, 0);
-
-	/*
-	 * If we find the inode in core with this transaction
-	 * pointer in its i_transp field, then we know we already
-	 * have it locked.  In this case we just increment the lock
-	 * recursion count and return the inode to the caller.
-	 * Assert that the inode is already locked in the mode requested
-	 * by the caller.  We cannot do lock promotions yet, so
-	 * die if someone gets this wrong.
-	 */
-	if ((ip = xfs_inode_incore(tp->t_mountp, ino, tp)) != NULL) {
-		/*
-		 * Make sure that the inode lock is held EXCL and
-		 * that the io lock is never upgraded when the inode
-		 * is already a part of the transaction.
-		 */
-		ASSERT(ip->i_itemp != NULL);
-		ASSERT(lock_flags & XFS_ILOCK_EXCL);
-		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-		ASSERT((!(lock_flags & XFS_IOLOCK_EXCL)) ||
-		       xfs_isilocked(ip, XFS_IOLOCK_EXCL));
-		ASSERT((!(lock_flags & XFS_IOLOCK_EXCL)) ||
-		       (ip->i_itemp->ili_flags & XFS_ILI_IOLOCKED_EXCL));
-		ASSERT((!(lock_flags & XFS_IOLOCK_SHARED)) ||
-		       xfs_isilocked(ip, XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED));
-		ASSERT((!(lock_flags & XFS_IOLOCK_SHARED)) ||
-		       (ip->i_itemp->ili_flags & XFS_ILI_IOLOCKED_ANY));
-
-		if (lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) {
-			ip->i_itemp->ili_iolock_recur++;
-		}
-		if (lock_flags & XFS_ILOCK_EXCL) {
-			ip->i_itemp->ili_ilock_recur++;
-		}
-		*ipp = ip;
-		return 0;
+	error = xfs_iget(mp, tp, ino, flags, lock_flags, ipp);
+	if (!error && tp) {
+		xfs_trans_ijoin(tp, *ipp);
+		(*ipp)->i_itemp->ili_lock_flags = lock_flags;
 	}
-
-	ASSERT(lock_flags & XFS_ILOCK_EXCL);
-	error = xfs_iget(tp->t_mountp, tp, ino, flags, lock_flags, &ip, 0);
-	if (error) {
-		return error;
-	}
-	ASSERT(ip != NULL);
-
-	xfs_trans_ijoin(tp, ip, lock_flags);
-	*ipp = ip;
-	return 0;
+	return error;
 }
 
 /*
- * Add the locked inode to the transaction.
- * The inode must be locked, and it cannot be associated with any
- * transaction.  The caller must specify the locks already held
- * on the inode.
+ * Add a locked inode to the transaction.
+ *
+ * The inode must be locked, and it cannot be associated with any transaction.
  */
 void
 xfs_trans_ijoin(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip,
-	uint		lock_flags)
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip)
 {
 	xfs_inode_log_item_t	*iip;
 
 	ASSERT(ip->i_transp == NULL);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(lock_flags & XFS_ILOCK_EXCL);
 	if (ip->i_itemp == NULL)
 		xfs_inode_item_init(ip, ip->i_mount);
 	iip = ip->i_itemp;
-	ASSERT(iip->ili_flags == 0);
-	ASSERT(iip->ili_ilock_recur == 0);
-	ASSERT(iip->ili_iolock_recur == 0);
+	ASSERT(iip->ili_lock_flags == 0);
 
 	/*
 	 * Get a log_item_desc to point at the new item.
 	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t*)(iip));
+	xfs_trans_add_item(tp, &iip->ili_item);
 
 	xfs_trans_inode_broot_debug(ip);
-
-	/*
-	 * If the IO lock is already held, mark that in the inode log item.
-	 */
-	if (lock_flags & XFS_IOLOCK_EXCL) {
-		iip->ili_flags |= XFS_ILI_IOLOCKED_EXCL;
-	} else if (lock_flags & XFS_IOLOCK_SHARED) {
-		iip->ili_flags |= XFS_ILI_IOLOCKED_SHARED;
-	}
 
 	/*
 	 * Initialize i_transp so we can find it with xfs_inode_incore()
@@ -189,26 +98,54 @@ xfs_trans_ijoin(
 	ip->i_transp = tp;
 }
 
-
-
 /*
- * Mark the inode as not needing to be unlocked when the inode item's
- * IOP_UNLOCK() routine is called.  The inode must already be locked
- * and associated with the given transaction.
+ * Add a locked inode to the transaction.
+ *
+ *
+ * Grabs a reference to the inode which will be dropped when the transaction
+ * is commited.  The inode will also be unlocked at that point.  The inode
+ * must be locked, and it cannot be associated with any transaction.
  */
-/*ARGSUSED*/
 void
-xfs_trans_ihold(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip)
+xfs_trans_ijoin_ref(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	uint			lock_flags)
 {
-	ASSERT(ip->i_transp == tp);
-	ASSERT(ip->i_itemp != NULL);
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	ip->i_itemp->ili_flags |= XFS_ILI_HOLD;
+	xfs_trans_ijoin(tp, ip);
+	IHOLD(ip);
+	ip->i_itemp->ili_lock_flags = lock_flags;
 }
 
+/*
+ * Transactional inode timestamp update. Requires the inode to be locked and
+ * joined to the transaction supplied. Relies on the transaction subsystem to
+ * track dirty state and update/writeback the inode accordingly.
+ */
+void
+xfs_trans_ichgtime(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	int			flags)
+{
+	struct inode		*inode = VFS_I(ip);
+	timespec_t		tv;
+
+	ASSERT(tp);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	ASSERT(ip->i_transp == tp);
+
+	tv = current_fs_time(inode->i_sb);
+
+	if ((flags & XFS_ICHGTIME_MOD) &&
+	    !timespec_equal(&inode->i_mtime, &tv)) {
+		inode->i_mtime = tv;
+	}
+	if ((flags & XFS_ICHGTIME_CHG) &&
+	    !timespec_equal(&inode->i_ctime, &tv)) {
+		inode->i_ctime = tv;
+	}
+}
 
 /*
  * This is called to mark the fields indicated in fieldmask as needing
@@ -225,17 +162,12 @@ xfs_trans_log_inode(
 	xfs_inode_t	*ip,
 	uint		flags)
 {
-	xfs_log_item_desc_t	*lidp;
-
 	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_itemp != NULL);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
-	lidp = xfs_trans_find_item(tp, (xfs_log_item_t*)(ip->i_itemp));
-	ASSERT(lidp != NULL);
-
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	lidp->lid_flags |= XFS_LID_DIRTY;
+	ip->i_itemp->ili_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 
 	/*
 	 * Always OR in the bits from the ili_last_fields field.

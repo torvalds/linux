@@ -75,7 +75,8 @@ do {									  \
 
 
 /* UDMA IN OP CODE -- cmd bits [3:0] */
-#define UDMA_IN_OPCODE_MASK			0xF
+#define UDMA_HDI_IN_NW_CMD_OPCODE_POS		0
+#define UDMA_HDI_IN_NW_CMD_OPCODE_SEED		0xF
 
 #define UDMA_IN_OPCODE_GENERAL_RESP		0x0
 #define UDMA_IN_OPCODE_READ_RESP		0x1
@@ -130,7 +131,7 @@ do {									  \
 #define IWM_MAX_WIFI_CMD_BUFF_SIZE	(IWM_SDIO_FW_MAX_CHUNK_SIZE - \
 					 IWM_MAX_WIFI_HEADERS_SIZE)
 
-#define IWM_HAL_CONCATENATE_BUF_SIZE	8192
+#define IWM_HAL_CONCATENATE_BUF_SIZE	(32 * 1024)
 
 struct iwm_wifi_cmd_buff {
 	u16 len;

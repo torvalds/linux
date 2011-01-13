@@ -23,7 +23,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <mach/clock.h>
+#include <plat/clock.h>
 #include <asm/system.h>
 
 #define VERY_HI_RATE	900000000
@@ -40,7 +40,7 @@ static struct clk *mpu_clk;
 
 /* TODO: Add support for SDRAM timing changes */
 
-int omap_verify_speed(struct cpufreq_policy *policy)
+static int omap_verify_speed(struct cpufreq_policy *policy)
 {
 	if (freq_table)
 		return cpufreq_frequency_table_verify(policy, freq_table);
@@ -58,7 +58,7 @@ int omap_verify_speed(struct cpufreq_policy *policy)
 	return 0;
 }
 
-unsigned int omap_getspeed(unsigned int cpu)
+static unsigned int omap_getspeed(unsigned int cpu)
 {
 	unsigned long rate;
 
@@ -78,10 +78,10 @@ static int omap_target(struct cpufreq_policy *policy,
 
 	/* Ensure desired rate is within allowed range.  Some govenors
 	 * (ondemand) will just pass target_freq=0 to get the minimum. */
-	if (target_freq < policy->cpuinfo.min_freq)
-		target_freq = policy->cpuinfo.min_freq;
-	if (target_freq > policy->cpuinfo.max_freq)
-		target_freq = policy->cpuinfo.max_freq;
+	if (target_freq < policy->min)
+		target_freq = policy->min;
+	if (target_freq > policy->max)
+		target_freq = policy->max;
 
 	freqs.old = omap_getspeed(0);
 	freqs.new = clk_round_rate(mpu_clk, target_freq * 1000) / 1000;
@@ -127,13 +127,14 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	/* FIXME: what's the actual transition time? */
-	policy->cpuinfo.transition_latency = 10 * 1000 * 1000;
+	policy->cpuinfo.transition_latency = 300 * 1000;
 
 	return 0;
 }
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)
 {
+	clk_exit_cpufreq_table(&freq_table);
 	clk_put(mpu_clk);
 	return 0;
 }

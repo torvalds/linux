@@ -37,15 +37,11 @@ ENTRY(cpu_arm940_switch_mm)
  * cpu_arm940_proc_fin()
  */
 ENTRY(cpu_arm940_proc_fin)
-	stmfd	sp!, {lr}
-	mov	ip, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-	msr	cpsr_c, ip
-	bl	arm940_flush_kern_cache_all
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x00001000		@ i-cache
 	bic	r0, r0, #0x00000004		@ d-cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldmfd	sp!, {pc}
+	mov	pc, lr
 
 /*
  * cpu_arm940_reset(loc)
@@ -70,6 +66,17 @@ ENTRY(cpu_arm940_reset)
 ENTRY(cpu_arm940_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	mov	pc, lr
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm940_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(arm940_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -141,14 +148,15 @@ ENTRY(arm940_coherent_user_range)
 	/* FALLTHROUGH */
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(arm940_flush_kern_dcache_page)
+ENTRY(arm940_flush_kern_dcache_area)
 	mov	ip, #0
 	mov	r1, #(CACHE_DSEGMENTS - 1) << 4	@ 4 segments
 1:	orr	r3, r1, #(CACHE_DENTRIES - 1) << 26 @ 64 entries
@@ -170,7 +178,7 @@ ENTRY(arm940_flush_kern_dcache_page)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm940_dma_inv_range)
+arm940_dma_inv_range:
 	mov	ip, #0
 	mov	r1, #(CACHE_DSEGMENTS - 1) << 4	@ 4 segments
 1:	orr	r3, r1, #(CACHE_DENTRIES - 1) << 26 @ 64 entries
@@ -191,7 +199,7 @@ ENTRY(arm940_dma_inv_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm940_dma_clean_range)
+arm940_dma_clean_range:
 ENTRY(cpu_arm940_dcache_clean_area)
 	mov	ip, #0
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
@@ -232,18 +240,43 @@ ENTRY(arm940_dma_flush_range)
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm940_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	arm940_dma_clean_range
+	bcs	arm940_dma_inv_range
+	b	arm940_dma_flush_range
+ENDPROC(arm940_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm940_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(arm940_dma_unmap_area)
+
 ENTRY(arm940_cache_fns)
+	.long	arm940_flush_icache_all
 	.long	arm940_flush_kern_cache_all
 	.long	arm940_flush_user_cache_all
 	.long	arm940_flush_user_cache_range
 	.long	arm940_coherent_kern_range
 	.long	arm940_coherent_user_range
-	.long	arm940_flush_kern_dcache_page
-	.long	arm940_dma_inv_range
-	.long	arm940_dma_clean_range
+	.long	arm940_flush_kern_dcache_area
+	.long	arm940_dma_map_area
+	.long	arm940_dma_unmap_area
 	.long	arm940_dma_flush_range
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm940_setup, #function
 __arm940_setup:
@@ -322,7 +355,7 @@ __arm940_setup:
 	.type	arm940_processor_functions, #object
 ENTRY(arm940_processor_functions)
 	.word	nommu_early_abort
-	.word	pabort_noifar
+	.word	legacy_pabort
 	.word	cpu_arm940_proc_init
 	.word	cpu_arm940_proc_fin
 	.word	cpu_arm940_reset

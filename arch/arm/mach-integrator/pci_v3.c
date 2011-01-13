@@ -22,7 +22,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -30,7 +29,9 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <asm/irq.h>
+#include <asm/signal.h>
 #include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
@@ -389,9 +390,9 @@ static int __init pci_v3_setup_resources(struct resource **resource)
  * means I can't get additional information on the reason for the pm2fb
  * problems.  I suppose I'll just have to mind-meld with the machine. ;)
  */
-#define SC_PCI     (IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_PCIENABLE_OFFSET)
-#define SC_LBFADDR (IO_ADDRESS(INTEGRATOR_SC_BASE) + 0x20)
-#define SC_LBFCODE (IO_ADDRESS(INTEGRATOR_SC_BASE) + 0x24)
+#define SC_PCI     IO_ADDRESS(INTEGRATOR_SC_PCIENABLE)
+#define SC_LBFADDR IO_ADDRESS(INTEGRATOR_SC_BASE + 0x20)
+#define SC_LBFCODE IO_ADDRESS(INTEGRATOR_SC_BASE + 0x24)
 
 static int
 v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
@@ -486,7 +487,7 @@ int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
 	return ret;
 }
 
-struct pci_bus *pci_v3_scan_bus(int nr, struct pci_sys_data *sys)
+struct pci_bus * __init pci_v3_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	return pci_scan_bus(sys->busnr, &pci_v3_ops, sys);
 }
@@ -504,10 +505,10 @@ void __init pci_v3_preinit(void)
 	/*
 	 * Hook in our fault handler for PCI errors
 	 */
-	hook_fault_code(4, v3_pci_fault, SIGBUS, "external abort on linefetch");
-	hook_fault_code(6, v3_pci_fault, SIGBUS, "external abort on linefetch");
-	hook_fault_code(8, v3_pci_fault, SIGBUS, "external abort on non-linefetch");
-	hook_fault_code(10, v3_pci_fault, SIGBUS, "external abort on non-linefetch");
+	hook_fault_code(4, v3_pci_fault, SIGBUS, 0, "external abort on linefetch");
+	hook_fault_code(6, v3_pci_fault, SIGBUS, 0, "external abort on linefetch");
+	hook_fault_code(8, v3_pci_fault, SIGBUS, 0, "external abort on non-linefetch");
+	hook_fault_code(10, v3_pci_fault, SIGBUS, 0, "external abort on non-linefetch");
 
 	spin_lock_irqsave(&v3_lock, flags);
 

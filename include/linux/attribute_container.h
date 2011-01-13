@@ -17,7 +17,7 @@ struct attribute_container {
 	struct list_head	node;
 	struct klist		containers;
 	struct class		*class;
-	struct attribute_group	*grp;
+	const struct attribute_group *grp;
 	struct device_attribute **attrs;
 	int (*match)(struct attribute_container *, struct device *);
 #define	ATTRIBUTE_CONTAINER_NO_CLASSDEVS	0x01

@@ -29,9 +29,10 @@
 
 #define VELOCITY_NAME          "via-velocity"
 #define VELOCITY_FULL_DRV_NAM  "VIA Networking Velocity Family Gigabit Ethernet Adapter Driver"
-#define VELOCITY_VERSION       "1.14"
+#define VELOCITY_VERSION       "1.15"
 
 #define VELOCITY_IO_SIZE	256
+#define VELOCITY_NAPI_WEIGHT	64
 
 #define PKT_BUF_SZ          1540
 
@@ -96,8 +97,8 @@
  * Bits in the CSM register
  */
 
-#define CSM_IPOK            0x40	//IP Checkusm validatiaon ok
-#define CSM_TUPOK           0x20	//TCP/UDP Checkusm validatiaon ok
+#define CSM_IPOK            0x40	//IP Checksum validation ok
+#define CSM_TUPOK           0x20	//TCP/UDP Checksum validation ok
 #define CSM_FRAG            0x10	//Fragment IP datagram
 #define CSM_IPKT            0x04	//Received an IP packet
 #define CSM_TCPKT           0x02	//Received a TCP packet
@@ -192,7 +193,7 @@ struct rx_desc {
 	__le32 pa_low;		/* Low 32 bit PCI address */
 	__le16 pa_high;		/* Next 16 bit PCI address (48 total) */
 	__le16 size;		/* bits 0--14 - frame size, bit 15 - enable int. */
-} __attribute__ ((__packed__));
+} __packed;
 
 /*
  *	Transmit descriptor
@@ -207,7 +208,7 @@ struct tdesc1 {
 	__le16 vlan;
 	u8 TCR;
 	u8 cmd;			/* bits 0--1 - TCPLS, bits 4--7 - CMDZ */
-} __attribute__ ((__packed__));
+} __packed;
 
 enum {
 	TD_QUEUE = cpu_to_le16(0x8000)
@@ -217,7 +218,7 @@ struct td_buf {
 	__le32 pa_low;
 	__le16 pa_high;
 	__le16 size;		/* bits 0--13 - size, bit 15 - queue */
-} __attribute__ ((__packed__));
+} __packed;
 
 struct tx_desc {
 	struct tdesc0 tdesc0;
@@ -819,7 +820,7 @@ enum  velocity_owner {
  *	Bits in the EECSR register
  */
 
-#define EECSR_EMBP          0x40	/* eeprom embeded programming */
+#define EECSR_EMBP          0x40	/* eeprom embedded programming */
 #define EECSR_RELOAD        0x20	/* eeprom content reload */
 #define EECSR_DPM           0x10	/* eeprom direct programming */
 #define EECSR_ECS           0x08	/* eeprom CS pin */
@@ -847,7 +848,7 @@ enum  velocity_owner {
  *	Bits in CHIPGCR register
  */
 
-#define CHIPGCR_FCGMII      0x80
+#define CHIPGCR_FCGMII      0x80	/* enable GMII mode */
 #define CHIPGCR_FCFDX       0x40
 #define CHIPGCR_FCRESV      0x20
 #define CHIPGCR_FCMODE      0x10
@@ -1005,7 +1006,8 @@ struct mac_regs {
 
 	volatile __le32 RDBaseLo;	/* 0x38 */
 	volatile __le16 RDIdx;		/* 0x3C */
-	volatile __le16 reserved_3E;
+	volatile u8 TQETMR;		/* 0x3E, VT3216 and above only */
+	volatile u8 RQETMR;		/* 0x3F, VT3216 and above only */
 
 	volatile __le32 TDBaseLo[4];	/* 0x40 */
 
@@ -1094,7 +1096,7 @@ struct mac_regs {
 
 	volatile __le16 PatternCRC[8];	/* 0xB0 */
 	volatile __le32 ByteMask[4][4];	/* 0xC0 */
-} __attribute__ ((__packed__));
+} __packed;
 
 
 enum hw_mib {
@@ -1214,7 +1216,7 @@ struct arp_packet {
 	u8 ar_sip[4];
 	u8 ar_tha[ETH_ALEN];
 	u8 ar_tip[4];
-} __attribute__ ((__packed__));
+} __packed;
 
 struct _magic_packet {
 	u8 dest_mac[6];
@@ -1222,7 +1224,7 @@ struct _magic_packet {
 	__be16 type;
 	u8 MAC[16][6];
 	u8 password[6];
-} __attribute__ ((__packed__));
+} __packed;
 
 /*
  *	Store for chip context when saving and restoring status. Not
@@ -1238,86 +1240,16 @@ struct velocity_context {
 	u32 pattern[8];
 };
 
-
-/*
- *	MII registers.
- */
-
-
 /*
  *	Registers in the MII (offset unit is WORD)
  */
-
-#define MII_REG_BMCR        0x00	// physical address
-#define MII_REG_BMSR        0x01	//
-#define MII_REG_PHYID1      0x02	// OUI
-#define MII_REG_PHYID2      0x03	// OUI + Module ID + REV ID
-#define MII_REG_ANAR        0x04	//
-#define MII_REG_ANLPAR      0x05	//
-#define MII_REG_G1000CR     0x09	//
-#define MII_REG_G1000SR     0x0A	//
-#define MII_REG_MODCFG      0x10	//
-#define MII_REG_TCSR        0x16	//
-#define MII_REG_PLED        0x1B	//
-// NS, MYSON only
-#define MII_REG_PCR         0x17	//
-// ESI only
-#define MII_REG_PCSR        0x17	//
-#define MII_REG_AUXCR       0x1C	//
 
 // Marvell 88E1000/88E1000S
 #define MII_REG_PSCR        0x10	// PHY specific control register
 
 //
-// Bits in the BMCR register
+// Bits in the Silicon revision register
 //
-#define BMCR_RESET          0x8000	//
-#define BMCR_LBK            0x4000	//
-#define BMCR_SPEED100       0x2000	//
-#define BMCR_AUTO           0x1000	//
-#define BMCR_PD             0x0800	//
-#define BMCR_ISO            0x0400	//
-#define BMCR_REAUTO         0x0200	//
-#define BMCR_FDX            0x0100	//
-#define BMCR_SPEED1G        0x0040	//
-//
-// Bits in the BMSR register
-//
-#define BMSR_AUTOCM         0x0020	//
-#define BMSR_LNK            0x0004	//
-
-//
-// Bits in the ANAR register
-//
-#define ANAR_ASMDIR         0x0800	// Asymmetric PAUSE support
-#define ANAR_PAUSE          0x0400	// Symmetric PAUSE Support
-#define ANAR_T4             0x0200	//
-#define ANAR_TXFD           0x0100	//
-#define ANAR_TX             0x0080	//
-#define ANAR_10FD           0x0040	//
-#define ANAR_10             0x0020	//
-//
-// Bits in the ANLPAR register
-//
-#define ANLPAR_ASMDIR       0x0800	// Asymmetric PAUSE support
-#define ANLPAR_PAUSE        0x0400	// Symmetric PAUSE Support
-#define ANLPAR_T4           0x0200	//
-#define ANLPAR_TXFD         0x0100	//
-#define ANLPAR_TX           0x0080	//
-#define ANLPAR_10FD         0x0040	//
-#define ANLPAR_10           0x0020	//
-
-//
-// Bits in the G1000CR register
-//
-#define G1000CR_1000FD      0x0200	// PHY is 1000-T Full-duplex capable
-#define G1000CR_1000        0x0100	// PHY is 1000-T Half-duplex capable
-
-//
-// Bits in the G1000SR register
-//
-#define G1000SR_1000FD      0x0800	// LP PHY is 1000-T Full-duplex capable
-#define G1000SR_1000        0x0400	// LP PHY is 1000-T Half-duplex capable
 
 #define TCSR_ECHODIS        0x2000	//
 #define AUXCR_MDPPS         0x0004	//
@@ -1336,7 +1268,6 @@ struct velocity_context {
 
 #define PHYID_REV_ID_MASK   0x0000000FUL
 
-#define PHYID_GET_PHY_REV_ID(i)     ((i) & PHYID_REV_ID_MASK)
 #define PHYID_GET_PHY_ID(i)         ((i) & ~PHYID_REV_ID_MASK)
 
 #define MII_REG_BITS_ON(x,i,p) do {\
@@ -1360,8 +1291,8 @@ struct velocity_context {
 
 #define MII_GET_PHY_ID(p) ({\
     u32 id;\
-    velocity_mii_read((p),MII_REG_PHYID2,(u16 *) &id);\
-    velocity_mii_read((p),MII_REG_PHYID1,((u16 *) &id)+1);\
+    velocity_mii_read((p),MII_PHYSID2,(u16 *) &id);\
+    velocity_mii_read((p),MII_PHYSID1,((u16 *) &id)+1);\
     (id);})
 
 /*
@@ -1421,7 +1352,6 @@ enum velocity_msg_level {
  */
 
 #define     VELOCITY_FLAGS_TAGGING         0x00000001UL
-#define     VELOCITY_FLAGS_TX_CSUM         0x00000002UL
 #define     VELOCITY_FLAGS_RX_CSUM         0x00000004UL
 #define     VELOCITY_FLAGS_IP_ALIGN        0x00000008UL
 #define     VELOCITY_FLAGS_VAL_PKT_LEN     0x00000010UL
@@ -1460,7 +1390,8 @@ enum speed_opt {
 	SPD_DPX_100_HALF = 1,
 	SPD_DPX_100_FULL = 2,
 	SPD_DPX_10_HALF = 3,
-	SPD_DPX_10_FULL = 4
+	SPD_DPX_10_FULL = 4,
+	SPD_DPX_1000_FULL = 5
 };
 
 enum velocity_init_type {
@@ -1491,6 +1422,10 @@ struct velocity_opt {
 	int rx_bandwidth_hi;
 	int rx_bandwidth_lo;
 	int rx_bandwidth_en;
+	int rxqueue_timer;
+	int txqueue_timer;
+	int tx_intsup;
+	int rx_intsup;
 	u32 flags;
 };
 
@@ -1499,8 +1434,6 @@ struct velocity_opt {
 #define GET_RD_BY_IDX(vptr, idx)   (vptr->rd_ring[idx])
 
 struct velocity_info {
-	struct list_head list;
-
 	struct pci_dev *pdev;
 	struct net_device *dev;
 
@@ -1559,6 +1492,8 @@ struct velocity_info {
 	u32 ticks;
 
 	u8 rev_id;
+
+	struct napi_struct napi;
 };
 
 /**
@@ -1570,22 +1505,25 @@ struct velocity_info {
  *	addresses on this chain then we use the first - multi-IP WOL is not
  *	supported.
  *
- *	CHECK ME: locking
  */
 
 static inline int velocity_get_ip(struct velocity_info *vptr)
 {
-	struct in_device *in_dev = (struct in_device *) vptr->dev->ip_ptr;
+	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
+	int res = -ENOENT;
 
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(vptr->dev);
 	if (in_dev != NULL) {
 		ifa = (struct in_ifaddr *) in_dev->ifa_list;
 		if (ifa != NULL) {
 			memcpy(vptr->ip_addr, &ifa->ifa_address, 4);
-			return 0;
+			res = 0;
 		}
 	}
-	return -ENOENT;
+	rcu_read_unlock();
+	return res;
 }
 
 /**

@@ -1,0 +1,321 @@
+<refentry id="vidioc-enuminput">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_ENUMINPUT</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_ENUMINPUT</refname>
+    <refpurpose>Enumerate video inputs</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_input
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_ENUMINPUT</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>To query the attributes of a video input applications
+initialize the <structfield>index</structfield> field of &v4l2-input;
+and call the <constant>VIDIOC_ENUMINPUT</constant> ioctl with a
+pointer to this structure. Drivers fill the rest of the structure or
+return an &EINVAL; when the index is out of bounds. To enumerate all
+inputs applications shall begin at index zero, incrementing by one
+until the driver returns <errorcode>EINVAL</errorcode>.</para>
+
+    <table frame="none" pgwide="1" id="v4l2-input">
+      <title>struct <structname>v4l2_input</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>index</structfield></entry>
+	    <entry>Identifies the input, set by the
+application.</entry>
+	  </row>
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>name</structfield>[32]</entry>
+	    <entry>Name of the video input, a NUL-terminated ASCII
+string, for example: "Vin (Composite 2)". This information is intended
+for the user, preferably the connector label on the device itself.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>Type of the input, see <xref
+		linkend="input-type" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>audioset</structfield></entry>
+	    <entry><para>Drivers can enumerate up to 32 video and
+audio inputs. This field shows which audio inputs were selectable as
+audio source if this was the currently selected video input. It is a
+bit mask. The LSB corresponds to audio input 0, the MSB to input 31.
+Any number of bits can be set, or none.</para><para>When the driver
+does not enumerate audio inputs no bits must be set. Applications
+shall not interpret this as lack of audio support. Some drivers
+automatically select audio sources and do not enumerate them since
+there is no choice anyway.</para><para>For details on audio inputs and
+how to select the current input see <xref
+		  linkend="audio" />.</para></entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>tuner</structfield></entry>
+	    <entry>Capture devices can have zero or more tuners (RF
+demodulators). When the <structfield>type</structfield> is set to
+<constant>V4L2_INPUT_TYPE_TUNER</constant> this is an RF connector and
+this field identifies the tuner. It corresponds to
+&v4l2-tuner; field <structfield>index</structfield>. For details on
+tuners see <xref linkend="tuner" />.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-std-id;</entry>
+	    <entry><structfield>std</structfield></entry>
+	    <entry>Every video input supports one or more different
+video standards. This field is a set of all supported standards. For
+details on video standards and how to switch see <xref
+linkend="standard" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>status</structfield></entry>
+	    <entry>This field provides status information about the
+input. See <xref linkend="input-status" /> for flags.
+With the exception of the sensor orientation bits <structfield>status</structfield> is only valid when this is the
+current input.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>capabilities</structfield></entry>
+	    <entry>This field provides capabilities for the
+input. See <xref linkend="input-capabilities" /> for flags.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[3]</entry>
+	    <entry>Reserved for future extensions. Drivers must set
+the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="input-type">
+      <title>Input Types</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_INPUT_TYPE_TUNER</constant></entry>
+	    <entry>1</entry>
+	    <entry>This input uses a tuner (RF demodulator).</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_INPUT_TYPE_CAMERA</constant></entry>
+	    <entry>2</entry>
+	    <entry>Analog baseband input, for example CVBS /
+Composite Video, S-Video, RGB.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <!-- Status flags based on proposal by Mark McClelland,
+video4linux-list@redhat.com on 18 Oct 2002, subject "Re: [V4L] Re:
+v4l2 api". "Why are some of them inverted? So that the driver doesn't
+have to lie about the status in cases where it can't tell one way or
+the other. Plus, a status of zero would generally mean that everything
+is OK." -->
+
+    <table frame="none" pgwide="1" id="input-status">
+      <title>Input Status Flags</title>
+      <tgroup cols="3">
+	<colspec colname="c1" />
+	<colspec colname="c2" align="center" />
+	<colspec colname="c3" />
+	<spanspec namest="c1" nameend="c3" spanname="hspan"
+	  align="left" />
+	<tbody valign="top">
+	  <row>
+	    <entry spanname="hspan">General</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_POWER</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>Attached device is off.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_SIGNAL</constant></entry>
+	    <entry>0x00000002</entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_COLOR</constant></entry>
+	    <entry>0x00000004</entry>
+	    <entry>The hardware supports color decoding, but does not
+detect color modulation in the signal.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan">Sensor Orientation</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_HFLIP</constant></entry>
+	    <entry>0x00000010</entry>
+	    <entry>The input is connected to a device that produces a signal
+that is flipped horizontally and does not correct this before passing the
+signal to userspace.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_VFLIP</constant></entry>
+	    <entry>0x00000020</entry>
+	    <entry>The input is connected to a device that produces a signal
+that is flipped vertically and does not correct this before passing the
+signal to userspace. Note that a 180 degree rotation is the same as HFLIP | VFLIP</entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan">Analog Video</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_H_LOCK</constant></entry>
+	    <entry>0x00000100</entry>
+	    <entry>No horizontal sync lock.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_COLOR_KILL</constant></entry>
+	    <entry>0x00000200</entry>
+	    <entry>A color killer circuit automatically disables color
+decoding when it detects no color modulation. When this flag is set
+the color killer is enabled <emphasis>and</emphasis> has shut off
+color decoding.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan">Digital Video</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_SYNC</constant></entry>
+	    <entry>0x00010000</entry>
+	    <entry>No synchronization lock.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_EQU</constant></entry>
+	    <entry>0x00020000</entry>
+	    <entry>No equalizer lock.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_CARRIER</constant></entry>
+	    <entry>0x00040000</entry>
+	    <entry>Carrier recovery failed.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan">VCR and Set-Top Box</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_MACROVISION</constant></entry>
+	    <entry>0x01000000</entry>
+	    <entry>Macrovision is an analog copy prevention system
+mangling the video signal to confuse video recorders. When this
+flag is set Macrovision has been detected.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_NO_ACCESS</constant></entry>
+	    <entry>0x02000000</entry>
+	    <entry>Conditional access denied.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_ST_VTR</constant></entry>
+	    <entry>0x04000000</entry>
+	    <entry>VTR time constant. [?]</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <!-- Capability flags based on video timings RFC by Muralidharan
+Karicheri, titled RFC (v1.2): V4L - Support for video timings at the
+input/output interface to linux-media@vger.kernel.org on 19 Oct 2009.
+	-->
+    <table frame="none" pgwide="1" id="input-capabilities">
+      <title>Input capabilities</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_IN_CAP_PRESETS</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>This input supports setting DV presets by using VIDIOC_S_DV_PRESET.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_CAP_CUSTOM_TIMINGS</constant></entry>
+	    <entry>0x00000002</entry>
+	    <entry>This input supports setting custom video timings by using VIDIOC_S_DV_TIMINGS.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_CAP_STD</constant></entry>
+	    <entry>0x00000004</entry>
+	    <entry>This input supports setting the TV standard by using VIDIOC_S_STD.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-input; <structfield>index</structfield> is
+out of bounds.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

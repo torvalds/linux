@@ -1,0 +1,290 @@
+Copyright 2010 Nicolas Palix <npalix@diku.dk>
+Copyright 2010 Julia Lawall <julia@diku.dk>
+Copyright 2010 Gilles Muller <Gilles.Muller@lip6.fr>
+
+
+ Getting Coccinelle
+~~~~~~~~~~~~~~~~~~~~
+
+The semantic patches included in the kernel use the 'virtual rule'
+feature which was introduced in Coccinelle version 0.1.11.
+
+Coccinelle (>=0.2.0) is available through the package manager
+of many distributions, e.g. :
+
+ - Debian (>=squeeze)
+ - Fedora (>=13)
+ - Ubuntu (>=10.04 Lucid Lynx)
+ - OpenSUSE
+ - Arch Linux
+ - NetBSD
+ - FreeBSD
+
+
+You can get the latest version released from the Coccinelle homepage at
+http://coccinelle.lip6.fr/
+
+Information and tips about Coccinelle are also provided on the wiki
+pages at http://cocci.ekstranet.diku.dk/wiki/doku.php
+
+Once you have it, run the following command:
+
+     	./configure
+        make
+
+as a regular user, and install it with
+
+        sudo make install
+
+The semantic patches in the kernel will work best with Coccinelle version
+0.2.4 or later.  Using earlier versions may incur some parse errors in the
+semantic patch code, but any results that are obtained should still be
+correct.
+
+ Using Coccinelle on the Linux kernel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A Coccinelle-specific target is defined in the top level
+Makefile. This target is named 'coccicheck' and calls the 'coccicheck'
+front-end in the 'scripts' directory.
+
+Four modes are defined: patch, report, context, and org. The mode to
+use is specified by setting the MODE variable with 'MODE=<mode>'.
+
+'patch' proposes a fix, when possible.
+
+'report' generates a list in the following format:
+  file:line:column-column: message
+
+'context' highlights lines of interest and their context in a
+diff-like style.Lines of interest are indicated with '-'.
+
+'org' generates a report in the Org mode format of Emacs.
+
+Note that not all semantic patches implement all modes. For easy use
+of Coccinelle, the default mode is "chain" which tries the previous
+modes in the order above until one succeeds.
+
+To make a report for every semantic patch, run the following command:
+
+	make coccicheck MODE=report
+
+NB: The 'report' mode is the default one.
+
+To produce patches, run:
+
+	make coccicheck MODE=patch
+
+
+The coccicheck target applies every semantic patch available in the
+sub-directories of 'scripts/coccinelle' to the entire Linux kernel.
+
+For each semantic patch, a commit message is proposed.  It gives a
+description of the problem being checked by the semantic patch, and
+includes a reference to Coccinelle.
+
+As any static code analyzer, Coccinelle produces false
+positives. Thus, reports must be carefully checked, and patches
+reviewed.
+
+
+ Using Coccinelle with a single semantic patch
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The optional make variable COCCI can be used to check a single
+semantic patch. In that case, the variable must be initialized with
+the name of the semantic patch to apply.
+
+For instance:
+
+	make coccicheck COCCI=<my_SP.cocci> MODE=patch
+or
+	make coccicheck COCCI=<my_SP.cocci> MODE=report
+
+
+ Using Coccinelle on (modified) files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To apply Coccinelle on a file basis, instead of a directory basis, the
+following command may be used:
+
+    make C=1 CHECK="scripts/coccicheck"
+
+To check only newly edited code, use the value 2 for the C flag, i.e.
+
+    make C=2 CHECK="scripts/coccicheck"
+
+This runs every semantic patch in scripts/coccinelle by default. The
+COCCI variable may additionally be used to only apply a single
+semantic patch as shown in the previous section.
+
+The "chain" mode is the default. You can select another one with the
+MODE variable explained above.
+
+In this mode, there is no information about semantic patches
+displayed, and no commit message proposed.
+
+
+ Proposing new semantic patches
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+New semantic patches can be proposed and submitted by kernel
+developers. For sake of clarity, they should be organized in the
+sub-directories of 'scripts/coccinelle/'.
+
+
+ Detailed description of the 'report' mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+'report' generates a list in the following format:
+  file:line:column-column: message
+
+Example:
+
+Running
+
+	make coccicheck MODE=report COCCI=scripts/coccinelle/api/err_cast.cocci
+
+will execute the following part of the SmPL script.
+
+<smpl>
+@r depends on !context && !patch && (org || report)@
+expression x;
+position p;
+@@
+
+ ERR_PTR@p(PTR_ERR(x))
+
+@script:python depends on report@
+p << r.p;
+x << r.x;
+@@
+
+msg="ERR_CAST can be used with %s" % (x)
+coccilib.report.print_report(p[0], msg)
+</smpl>
+
+This SmPL excerpt generates entries on the standard output, as
+illustrated below:
+
+/home/user/linux/crypto/ctr.c:188:9-16: ERR_CAST can be used with alg
+/home/user/linux/crypto/authenc.c:619:9-16: ERR_CAST can be used with auth
+/home/user/linux/crypto/xts.c:227:9-16: ERR_CAST can be used with alg
+
+
+ Detailed description of the 'patch' mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the 'patch' mode is available, it proposes a fix for each problem
+identified.
+
+Example:
+
+Running
+	make coccicheck MODE=patch COCCI=scripts/coccinelle/api/err_cast.cocci
+
+will execute the following part of the SmPL script.
+
+<smpl>
+@ depends on !context && patch && !org && !report @
+expression x;
+@@
+
+- ERR_PTR(PTR_ERR(x))
++ ERR_CAST(x)
+</smpl>
+
+This SmPL excerpt generates patch hunks on the standard output, as
+illustrated below:
+
+diff -u -p a/crypto/ctr.c b/crypto/ctr.c
+--- a/crypto/ctr.c 2010-05-26 10:49:38.000000000 +0200
++++ b/crypto/ctr.c 2010-06-03 23:44:49.000000000 +0200
+@@ -185,7 +185,7 @@ static struct crypto_instance *crypto_ct
+ 	alg = crypto_attr_alg(tb[1], CRYPTO_ALG_TYPE_CIPHER,
+ 				  CRYPTO_ALG_TYPE_MASK);
+ 	if (IS_ERR(alg))
+-		return ERR_PTR(PTR_ERR(alg));
++		return ERR_CAST(alg);
+ 
+ 	/* Block size must be >= 4 bytes. */
+ 	err = -EINVAL;
+
+ Detailed description of the 'context' mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+'context' highlights lines of interest and their context
+in a diff-like style.
+
+NOTE: The diff-like output generated is NOT an applicable patch. The
+      intent of the 'context' mode is to highlight the important lines
+      (annotated with minus, '-') and gives some surrounding context
+      lines around. This output can be used with the diff mode of
+      Emacs to review the code.
+
+Example:
+
+Running
+	make coccicheck MODE=context COCCI=scripts/coccinelle/api/err_cast.cocci
+
+will execute the following part of the SmPL script.
+
+<smpl>
+@ depends on context && !patch && !org && !report@
+expression x;
+@@
+
+* ERR_PTR(PTR_ERR(x))
+</smpl>
+
+This SmPL excerpt generates diff hunks on the standard output, as
+illustrated below:
+
+diff -u -p /home/user/linux/crypto/ctr.c /tmp/nothing
+--- /home/user/linux/crypto/ctr.c	2010-05-26 10:49:38.000000000 +0200
++++ /tmp/nothing
+@@ -185,7 +185,6 @@ static struct crypto_instance *crypto_ct
+ 	alg = crypto_attr_alg(tb[1], CRYPTO_ALG_TYPE_CIPHER,
+ 				  CRYPTO_ALG_TYPE_MASK);
+ 	if (IS_ERR(alg))
+-		return ERR_PTR(PTR_ERR(alg));
+ 
+ 	/* Block size must be >= 4 bytes. */
+ 	err = -EINVAL;
+
+ Detailed description of the 'org' mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+'org' generates a report in the Org mode format of Emacs.
+
+Example:
+
+Running
+	make coccicheck MODE=org COCCI=scripts/coccinelle/api/err_cast.cocci
+
+will execute the following part of the SmPL script.
+
+<smpl>
+@r depends on !context && !patch && (org || report)@
+expression x;
+position p;
+@@
+
+ ERR_PTR@p(PTR_ERR(x))
+
+@script:python depends on org@
+p << r.p;
+x << r.x;
+@@
+
+msg="ERR_CAST can be used with %s" % (x)
+msg_safe=msg.replace("[","@(").replace("]",")")
+coccilib.org.print_todo(p[0], msg_safe)
+</smpl>
+
+This SmPL excerpt generates Org entries on the standard output, as
+illustrated below:
+
+* TODO [[view:/home/user/linux/crypto/ctr.c::face=ovl-face1::linb=188::colb=9::cole=16][ERR_CAST can be used with alg]]
+* TODO [[view:/home/user/linux/crypto/authenc.c::face=ovl-face1::linb=619::colb=9::cole=16][ERR_CAST can be used with auth]]
+* TODO [[view:/home/user/linux/crypto/xts.c::face=ovl-face1::linb=227::colb=9::cole=16][ERR_CAST can be used with alg]]

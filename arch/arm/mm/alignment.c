@@ -11,11 +11,13 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/moduleparam.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
@@ -77,6 +79,8 @@ static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
 
+core_param(alignment, ai_usermode, int, 0600);
+
 #define UM_WARN		(1 << 0)
 #define UM_FIXUP	(1 << 1)
 #define UM_SIGNAL	(1 << 2)
@@ -91,36 +95,29 @@ static const char *usermode_action[] = {
 	"signal+warn"
 };
 
-static int
-proc_alignment_read(char *page, char **start, off_t off, int count, int *eof,
-		    void *data)
+static int alignment_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	int len;
-
-	p += sprintf(p, "User:\t\t%lu\n", ai_user);
-	p += sprintf(p, "System:\t\t%lu\n", ai_sys);
-	p += sprintf(p, "Skipped:\t%lu\n", ai_skipped);
-	p += sprintf(p, "Half:\t\t%lu\n", ai_half);
-	p += sprintf(p, "Word:\t\t%lu\n", ai_word);
+	seq_printf(m, "User:\t\t%lu\n", ai_user);
+	seq_printf(m, "System:\t\t%lu\n", ai_sys);
+	seq_printf(m, "Skipped:\t%lu\n", ai_skipped);
+	seq_printf(m, "Half:\t\t%lu\n", ai_half);
+	seq_printf(m, "Word:\t\t%lu\n", ai_word);
 	if (cpu_architecture() >= CPU_ARCH_ARMv5TE)
-		p += sprintf(p, "DWord:\t\t%lu\n", ai_dword);
-	p += sprintf(p, "Multi:\t\t%lu\n", ai_multi);
-	p += sprintf(p, "User faults:\t%i (%s)\n", ai_usermode,
+		seq_printf(m, "DWord:\t\t%lu\n", ai_dword);
+	seq_printf(m, "Multi:\t\t%lu\n", ai_multi);
+	seq_printf(m, "User faults:\t%i (%s)\n", ai_usermode,
 			usermode_action[ai_usermode]);
 
-	len = (p - page) - off;
-	if (len < 0)
-		len = 0;
-
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-
-	return len;
+	return 0;
 }
 
-static int proc_alignment_write(struct file *file, const char __user *buffer,
-				unsigned long count, void *data)
+static int alignment_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, alignment_proc_show, NULL);
+}
+
+static ssize_t alignment_proc_write(struct file *file, const char __user *buffer,
+				    size_t count, loff_t *pos)
 {
 	char mode;
 
@@ -133,6 +130,13 @@ static int proc_alignment_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
+static const struct file_operations alignment_proc_fops = {
+	.open		= alignment_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= alignment_proc_write,
+};
 #endif /* CONFIG_PROC_FS */
 
 union offset_union {
@@ -159,17 +163,19 @@ union offset_union {
 
 #define __get8_unaligned_check(ins,val,addr,err)	\
 	__asm__(					\
-	"1:	"ins"	%1, [%2], #1\n"			\
+ ARM(	"1:	"ins"	%1, [%2], #1\n"	)		\
+ THUMB(	"1:	"ins"	%1, [%2]\n"	)		\
+ THUMB(	"	add	%2, %2, #1\n"	)		\
 	"2:\n"						\
-	"	.section .fixup,\"ax\"\n"		\
+	"	.pushsection .fixup,\"ax\"\n"		\
 	"	.align	2\n"				\
 	"3:	mov	%0, #1\n"			\
 	"	b	2b\n"				\
-	"	.previous\n"				\
-	"	.section __ex_table,\"a\"\n"		\
+	"	.popsection\n"				\
+	"	.pushsection __ex_table,\"a\"\n"	\
 	"	.align	3\n"				\
 	"	.long	1b, 3b\n"			\
-	"	.previous\n"				\
+	"	.popsection\n"				\
 	: "=r" (err), "=&r" (val), "=r" (addr)		\
 	: "0" (err), "2" (addr))
 
@@ -215,20 +221,22 @@ union offset_union {
 	do {							\
 		unsigned int err = 0, v = val, a = addr;	\
 		__asm__( FIRST_BYTE_16				\
-		"1:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"1:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"1:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
 		"2:	"ins"	%1, [%2]\n"			\
 		"3:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
+		"	.pushsection .fixup,\"ax\"\n"		\
 		"	.align	2\n"				\
 		"4:	mov	%0, #1\n"			\
 		"	b	3b\n"				\
-		"	.previous\n"				\
-		"	.section __ex_table,\"a\"\n"		\
+		"	.popsection\n"				\
+		"	.pushsection __ex_table,\"a\"\n"	\
 		"	.align	3\n"				\
 		"	.long	1b, 4b\n"			\
 		"	.long	2b, 4b\n"			\
-		"	.previous\n"				\
+		"	.popsection\n"				\
 		: "=r" (err), "=&r" (v), "=&r" (a)		\
 		: "0" (err), "1" (v), "2" (a));			\
 		if (err)					\
@@ -245,26 +253,32 @@ union offset_union {
 	do {							\
 		unsigned int err = 0, v = val, a = addr;	\
 		__asm__( FIRST_BYTE_32				\
-		"1:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"1:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"1:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
-		"2:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"2:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"2:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
-		"3:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"3:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"3:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
 		"4:	"ins"	%1, [%2]\n"			\
 		"5:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
+		"	.pushsection .fixup,\"ax\"\n"		\
 		"	.align	2\n"				\
 		"6:	mov	%0, #1\n"			\
 		"	b	5b\n"				\
-		"	.previous\n"				\
-		"	.section __ex_table,\"a\"\n"		\
+		"	.popsection\n"				\
+		"	.pushsection __ex_table,\"a\"\n"	\
 		"	.align	3\n"				\
 		"	.long	1b, 6b\n"			\
 		"	.long	2b, 6b\n"			\
 		"	.long	3b, 6b\n"			\
 		"	.long	4b, 6b\n"			\
-		"	.previous\n"				\
+		"	.popsection\n"				\
 		: "=r" (err), "=&r" (v), "=&r" (a)		\
 		: "0" (err), "1" (v), "2" (a));			\
 		if (err)					\
@@ -871,8 +885,23 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	if (ai_usermode & UM_SIGNAL)
 		force_sig(SIGBUS, current);
-	else
-		set_cr(cr_no_alignment);
+	else {
+		/*
+		 * We're about to disable the alignment trap and return to
+		 * user space.  But if an interrupt occurs before actually
+		 * reaching user space, then the IRQ vector entry code will
+		 * notice that we were still in kernel space and therefore
+		 * the alignment trap won't be re-enabled in that case as it
+		 * is presumed to be always on from kernel space.
+		 * Let's prevent that race by disabling interrupts here (they
+		 * are disabled on the way back to user space anyway in
+		 * entry-common.S) and disable the alignment trap only if
+		 * there is no work pending for this thread.
+		 */
+		raw_local_irq_disable();
+		if (!(current_thread_info()->flags & _TIF_WORK_MASK))
+			set_cr(cr_no_alignment);
+	}
 
 	return 0;
 }
@@ -888,16 +917,10 @@ static int __init alignment_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *res;
 
-	res = proc_mkdir("cpu", NULL);
+	res = proc_create("cpu/alignment", S_IWUSR | S_IRUGO, NULL,
+			  &alignment_proc_fops);
 	if (!res)
 		return -ENOMEM;
-
-	res = create_proc_entry("alignment", S_IWUSR | S_IRUGO, res);
-	if (!res)
-		return -ENOMEM;
-
-	res->read_proc = proc_alignment_read;
-	res->write_proc = proc_alignment_write;
 #endif
 
 	/*
@@ -916,8 +939,20 @@ static int __init alignment_init(void)
 		ai_usermode = UM_FIXUP;
 	}
 
-	hook_fault_code(1, do_alignment, SIGILL, "alignment exception");
-	hook_fault_code(3, do_alignment, SIGILL, "alignment exception");
+	hook_fault_code(1, do_alignment, SIGBUS, BUS_ADRALN,
+			"alignment exception");
+
+	/*
+	 * ARMv6K and ARMv7 use fault status 3 (0b00011) as Access Flag section
+	 * fault, not as alignment error.
+	 *
+	 * TODO: handle ARMv6K properly. Runtime check for 'K' extension is
+	 * needed.
+	 */
+	if (cpu_architecture() <= CPU_ARCH_ARMv6) {
+		hook_fault_code(3, do_alignment, SIGBUS, BUS_ADRALN,
+				"alignment exception");
+	}
 
 	return 0;
 }

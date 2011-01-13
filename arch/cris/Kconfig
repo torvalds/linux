@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see the Configure script.
-#
-
-mainmenu "Linux/CRIS Kernel Configuration"
-
 config MMU
 	bool
 	default y
@@ -19,6 +12,12 @@ config RWSEM_GENERIC_SPINLOCK
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
+
+config GENERIC_CMOS_UPDATE
+	def_bool y
+
+config ARCH_USES_GETTIMEOFFSET
+	def_bool n
 
 config GENERIC_IOMAP
        bool
@@ -122,16 +121,19 @@ choice
 
 config ETRAX100LX
 	bool "ETRAX-100LX-v1"
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support version 1 of the ETRAX 100LX.
 
 config ETRAX100LX_V2
 	bool "ETRAX-100LX-v2"
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support version 2 of the ETRAX 100LX.
 
 config SVINTO_SIM
 	bool "ETRAX-100LX-for-xsim-simulator"
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support the xsim ETRAX Simulator.
 

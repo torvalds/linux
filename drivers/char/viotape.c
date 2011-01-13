@@ -46,7 +46,8 @@
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -63,6 +64,7 @@
 #define VIOTAPE_KERN_WARN	KERN_WARNING "viotape: "
 #define VIOTAPE_KERN_INFO	KERN_INFO "viotape: "
 
+static DEFINE_MUTEX(proc_viotape_mutex);
 static int viotape_numdev;
 
 /*
@@ -683,9 +685,9 @@ static long viotap_unlocked_ioctl(struct file *file,
 {
 	long rc;
 
-	lock_kernel();
+	mutex_lock(&proc_viotape_mutex);
 	rc = viotap_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&proc_viotape_mutex);
 	return rc;
 }
 
@@ -699,7 +701,7 @@ static int viotap_open(struct inode *inode, struct file *file)
 	if (op == NULL)
 		return -ENOMEM;
 
-	lock_kernel();
+	mutex_lock(&proc_viotape_mutex);
 	get_dev_info(file->f_path.dentry->d_inode, &devi);
 
 	/* Note: We currently only support one mode! */
@@ -730,7 +732,7 @@ static int viotap_open(struct inode *inode, struct file *file)
 
 free_op:
 	free_op_struct(op);
-	unlock_kernel();
+	mutex_unlock(&proc_viotape_mutex);
 	return ret;
 }
 
@@ -803,6 +805,7 @@ const struct file_operations viotap_fops = {
 	.unlocked_ioctl =	viotap_unlocked_ioctl,
 	.open =			viotap_open,
 	.release =		viotap_release,
+	.llseek = 		noop_llseek,
 };
 
 /* Handle interrupt events for tape */
@@ -865,7 +868,7 @@ static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
 	int i = vdev->unit_address;
 	int j;
-	struct device_node *node = vdev->dev.archdata.of_node;
+	struct device_node *node = vdev->dev.of_node;
 
 	if (i >= VIOTAPE_MAX_TAPE)
 		return -ENODEV;

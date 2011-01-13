@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -418,9 +418,9 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 		case ACPI_EXD_REFERENCE:
 
 			acpi_ex_out_string("Class Name",
-					   (char *)
-					   acpi_ut_get_reference_name
-					   (obj_desc));
+					   ACPI_CAST_PTR(char,
+							 acpi_ut_get_reference_name
+							 (obj_desc)));
 			acpi_ex_dump_reference_obj(obj_desc);
 			break;
 
@@ -742,7 +742,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "**** Start operand dump for opcode [%s], %d operands\n",
+			  "**** Start operand dump for opcode [%s], %u operands\n",
 			  opcode_name, num_operands));
 
 	if (num_operands == 0) {
@@ -812,7 +812,7 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
 	acpi_ex_out_string("Type", acpi_ut_get_type_name(node->type));
 	acpi_ex_out_pointer("Attached Object",
 			    acpi_ns_get_attached_object(node));
-	acpi_ex_out_pointer("Parent", acpi_ns_get_parent_node(node));
+	acpi_ex_out_pointer("Parent", node->parent);
 
 	acpi_ex_dump_object(ACPI_CAST_PTR(union acpi_operand_object, node),
 			    acpi_ex_dump_node);
@@ -945,7 +945,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_PACKAGE:
 
-		acpi_os_printf("[Package] Contains %d Elements:\n",
+		acpi_os_printf("[Package] Contains %u Elements:\n",
 			       obj_desc->package.count);
 
 		for (i = 0; i < obj_desc->package.count; i++) {

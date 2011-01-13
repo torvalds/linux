@@ -1,38 +1,11 @@
 /*
- * File:         include/asm-blackfin/mach-bf537/cdefBF537.h
- * Based on:
- * Author:
+ * Copyright 2005-2010 Analog Devices Inc.
  *
- * Created:
- * Description:
- *
- * Rev:
- *
- * Modified:
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF534_H
 #define _DEF_BF534_H
-
-/* Include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
 
 /************************************************************************************
 ** System MMR Register Map
@@ -217,12 +190,8 @@
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register                                                */
 
 /* DMA Traffic Control Registers													*/
-#define DMA_TC_PER			0xFFC00B0C	/* Traffic Control Periods Register			*/
-#define DMA_TC_CNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define DMA_TCPER			0xFFC00B0C	/* Traffic Control Periods Register			*/
-#define DMA_TCCNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
+#define DMAC_TC_PER			0xFFC00B0C	/* Traffic Control Periods Register			*/
+#define DMAC_TC_CNT			0xFFC00B10	/* Traffic Control Current Counts Register	*/
 
 /* DMA Controller (0xFFC00C00 - 0xFFC00FFF)															*/
 #define DMA0_NEXT_DESC_PTR		0xFFC00C00	/* DMA Channel 0 Next Descriptor Pointer Register               */
@@ -458,22 +427,22 @@
 
 /* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/
 #define TWI0_REGBASE			0xFFC01400
-#define TWI_CLKDIV			0xFFC01400	/* Serial Clock Divider Register                        */
-#define TWI_CONTROL			0xFFC01404	/* TWI Control Register                                         */
-#define TWI_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register                          */
-#define TWI_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register                           */
-#define TWI_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register                          */
-#define TWI_MASTER_CTL		0xFFC01414	/* Master Mode Control Register                         */
-#define TWI_MASTER_STAT		0xFFC01418	/* Master Mode Status Register                          */
-#define TWI_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register                         */
-#define TWI_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register                        */
-#define TWI_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register           */
-#define TWI_FIFO_CTL		0xFFC01428	/* FIFO Control Register                                        */
-#define TWI_FIFO_STAT		0xFFC0142C	/* FIFO Status Register                                         */
-#define TWI_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register      */
-#define TWI_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register      */
-#define TWI_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register       */
-#define TWI_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register       */
+#define TWI0_CLKDIV			0xFFC01400	/* Serial Clock Divider Register                        */
+#define TWI0_CONTROL			0xFFC01404	/* TWI Control Register                                         */
+#define TWI0_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register                          */
+#define TWI0_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register                           */
+#define TWI0_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register                          */
+#define TWI0_MASTER_CTL		0xFFC01414	/* Master Mode Control Register                         */
+#define TWI0_MASTER_STAT		0xFFC01418	/* Master Mode Status Register                          */
+#define TWI0_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register                         */
+#define TWI0_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register                        */
+#define TWI0_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register           */
+#define TWI0_FIFO_CTL		0xFFC01428	/* FIFO Control Register                                        */
+#define TWI0_FIFO_STAT		0xFFC0142C	/* FIFO Status Register                                         */
+#define TWI0_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register      */
+#define TWI0_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register      */
+#define TWI0_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register       */
+#define TWI0_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register       */
 
 /* General Purpose I/O Port G (0xFFC01500 - 0xFFC015FF)												*/
 #define PORTGIO					0xFFC01500	/* Port G I/O Pin State Specify Register                                */
@@ -958,7 +927,7 @@
 #define HMDMA0_CONTROL		0xFFC03300	/* Handshake MDMA0 Control Register                                     */
 #define HMDMA0_ECINIT		0xFFC03304	/* HMDMA0 Initial Edge Count Register                           */
 #define HMDMA0_BCINIT		0xFFC03308	/* HMDMA0 Initial Block Count Register                          */
-#define HMDMA0_ECURGENT		0xFFC0330C	/* HMDMA0 Urgent Edge Count Threshhold Register         */
+#define HMDMA0_ECURGENT		0xFFC0330C	/* HMDMA0 Urgent Edge Count Threshold Register         */
 #define HMDMA0_ECOVERFLOW	0xFFC03310	/* HMDMA0 Edge Count Overflow Interrupt Register        */
 #define HMDMA0_ECOUNT		0xFFC03314	/* HMDMA0 Current Edge Count Register                           */
 #define HMDMA0_BCOUNT		0xFFC03318	/* HMDMA0 Current Block Count Register                          */
@@ -966,7 +935,7 @@
 #define HMDMA1_CONTROL		0xFFC03340	/* Handshake MDMA1 Control Register                                     */
 #define HMDMA1_ECINIT		0xFFC03344	/* HMDMA1 Initial Edge Count Register                           */
 #define HMDMA1_BCINIT		0xFFC03348	/* HMDMA1 Initial Block Count Register                          */
-#define HMDMA1_ECURGENT		0xFFC0334C	/* HMDMA1 Urgent Edge Count Threshhold Register         */
+#define HMDMA1_ECURGENT		0xFFC0334C	/* HMDMA1 Urgent Edge Count Threshold Register         */
 #define HMDMA1_ECOVERFLOW	0xFFC03350	/* HMDMA1 Edge Count Overflow Interrupt Register        */
 #define HMDMA1_ECOUNT		0xFFC03354	/* HMDMA1 Current Edge Count Register                           */
 #define HMDMA1_BCOUNT		0xFFC03358	/* HMDMA1 Current Block Count Register                          */
@@ -982,67 +951,6 @@
 **				modifier UNLESS the lower order bits are saved and ORed back in when
 **				the macro is used.
 *************************************************************************************/
-/*
-** ********************* PLL AND RESET MASKS ****************************************/
-/* PLL_CTL Masks																	*/
-#define DF				0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2                                     */
-#define PLL_OFF			0x0002	/* PLL Not Powered                                                                      */
-#define STOPCK			0x0008	/* Core Clock Off                                                                       */
-#define PDWN			0x0020	/* Enter Deep Sleep Mode                                                        */
-#define	IN_DELAY		0x0040	/* Add 200ps Delay To EBIU Input Latches                        */
-#define	OUT_DELAY		0x0080	/* Add 200ps Delay To EBIU Output Signals                       */
-#define BYPASS			0x0100	/* Bypass the PLL                                                                       */
-#define	MSEL			0x7E00	/* Multiplier Select For CCLK/VCO Factors                       */
-/* PLL_CTL Macros (Only Use With Logic OR While Setting Lower Order Bits)			*/
-#define	SET_MSEL(x)		(((x)&0x3F) << 0x9)	/* Set MSEL = 0-63 --> VCO = CLKIN*MSEL         */
-
-/* PLL_DIV Masks														*/
-#define SSEL			0x000F	/* System Select                                                */
-#define	CSEL			0x0030	/* Core Select                                                  */
-#define CSEL_DIV1		0x0000	/*              CCLK = VCO / 1                                  */
-#define CSEL_DIV2		0x0010	/*              CCLK = VCO / 2                                  */
-#define	CSEL_DIV4		0x0020	/*              CCLK = VCO / 4                                  */
-#define	CSEL_DIV8		0x0030	/*              CCLK = VCO / 8                                  */
-/* PLL_DIV Macros														*/
-#define SET_SSEL(x)		((x)&0xF)	/* Set SSEL = 0-15 --> SCLK = VCO/SSEL  */
-
-/* VR_CTL Masks																	*/
-#define	FREQ			0x0003	/* Switching Oscillator Frequency For Regulator */
-#define	HIBERNATE		0x0000	/*              Powerdown/Bypass On-Board Regulation    */
-#define	FREQ_333		0x0001	/*              Switching Frequency Is 333 kHz                  */
-#define	FREQ_667		0x0002	/*              Switching Frequency Is 667 kHz                  */
-#define	FREQ_1000		0x0003	/*              Switching Frequency Is 1 MHz                    */
-
-#define GAIN			0x000C	/* Voltage Level Gain   */
-#define	GAIN_5			0x0000	/*              GAIN = 5                */
-#define	GAIN_10			0x0004	/*              GAIN = 10               */
-#define	GAIN_20			0x0008	/*              GAIN = 20               */
-#define	GAIN_50			0x000C	/*              GAIN = 50               */
-
-#define	VLEV			0x00F0	/* Internal Voltage Level                                       */
-#define	VLEV_085 		0x0060	/*              VLEV = 0.85 V (-5% - +10% Accuracy)     */
-#define	VLEV_090		0x0070	/*              VLEV = 0.90 V (-5% - +10% Accuracy)     */
-#define	VLEV_095		0x0080	/*              VLEV = 0.95 V (-5% - +10% Accuracy)     */
-#define	VLEV_100		0x0090	/*              VLEV = 1.00 V (-5% - +10% Accuracy)     */
-#define	VLEV_105		0x00A0	/*              VLEV = 1.05 V (-5% - +10% Accuracy)     */
-#define	VLEV_110		0x00B0	/*              VLEV = 1.10 V (-5% - +10% Accuracy)     */
-#define	VLEV_115		0x00C0	/*              VLEV = 1.15 V (-5% - +10% Accuracy)     */
-#define	VLEV_120		0x00D0	/*              VLEV = 1.20 V (-5% - +10% Accuracy)     */
-#define	VLEV_125		0x00E0	/*              VLEV = 1.25 V (-5% - +10% Accuracy)     */
-#define	VLEV_130		0x00F0	/*              VLEV = 1.30 V (-5% - +10% Accuracy)     */
-
-#define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate       */
-#define	CANWE			0x0200	/* Enable CAN Wakeup From Hibernate			*/
-#define	PHYWE			0x0400	/* Enable PHY Wakeup From Hibernate			*/
-#define	CLKBUFOE		0x4000	/* CLKIN Buffer Output Enable */
-#define	PHYCLKOE		CLKBUFOE	/* Alternative legacy name for the above */
-#define	SCKELOW		0x8000	/* Enable Drive CKE Low During Reset		*/
-
-/* PLL_STAT Masks																	*/
-#define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
-#define	FULL_ON				0x0002	/* Processor In Full On Mode                                    */
-#define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
-#define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
 /* CHIPID Masks */
 #define CHIPID_VERSION         0xF0000000
@@ -1114,92 +1022,6 @@
 #define IWR_ENABLE(x)	(1 << ((x)&0x1F))	/* Wakeup Enable Peripheral #x          */
 #define IWR_DISABLE(x)	(0xFFFFFFFF ^ (1 << ((x)&0x1F)))	/* Wakeup Disable Peripheral #x         */
 
-/* ************** UART CONTROLLER MASKS *************************/
-/* UARTx_LCR Masks												*/
-#define WLS(x)		(((x)-5) & 0x03)	/* Word Length Select   */
-#define STB			0x04	/* Stop Bits                    */
-#define PEN			0x08	/* Parity Enable                */
-#define EPS			0x10	/* Even Parity Select   */
-#define STP			0x20	/* Stick Parity                 */
-#define SB			0x40	/* Set Break                    */
-#define DLAB		0x80	/* Divisor Latch Access */
-
-/* UARTx_MCR Mask										*/
-#define LOOP_ENA		0x10	/* Loopback Mode Enable         */
-#define LOOP_ENA_P	0x04
-/* UARTx_LSR Masks										*/
-#define DR			0x01	/* Data Ready                           */
-#define OE			0x02	/* Overrun Error                        */
-#define PE			0x04	/* Parity Error                         */
-#define FE			0x08	/* Framing Error                        */
-#define BI			0x10	/* Break Interrupt                      */
-#define THRE		0x20	/* THR Empty                            */
-#define TEMT		0x40	/* TSR and UART_THR Empty       */
-
-/* UARTx_IER Masks															*/
-#define ERBFI		0x01	/* Enable Receive Buffer Full Interrupt         */
-#define ETBEI		0x02	/* Enable Transmit Buffer Empty Interrupt       */
-#define ELSI		0x04	/* Enable RX Status Interrupt                           */
-
-/* UARTx_IIR Masks														*/
-#define NINT		0x01	/* Pending Interrupt                                    */
-#define IIR_TX_READY    0x02	/* UART_THR empty                               */
-#define IIR_RX_READY    0x04	/* Receive data ready                           */
-#define IIR_LINE_CHANGE 0x06	/* Receive line status                          */
-#define IIR_STATUS	0x06
-
-/* UARTx_GCTL Masks													*/
-#define UCEN		0x01	/* Enable UARTx Clocks                          */
-#define IREN		0x02	/* Enable IrDA Mode                                     */
-#define TPOLC		0x04	/* IrDA TX Polarity Change                      */
-#define RPOLC		0x08	/* IrDA RX Polarity Change                      */
-#define FPE			0x10	/* Force Parity Error On Transmit       */
-#define FFE			0x20	/* Force Framing Error On Transmit      */
-
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  ****************************/
-/* SPI_CTL Masks																	*/
-#define	TIMOD		0x0003	/* Transfer Initiate Mode                                                       */
-#define RDBR_CORE	0x0000	/*              RDBR Read Initiates, IRQ When RDBR Full         */
-#define	TDBR_CORE	0x0001	/*              TDBR Write Initiates, IRQ When TDBR Empty       */
-#define RDBR_DMA	0x0002	/*              DMA Read, DMA Until FIFO Empty                          */
-#define TDBR_DMA	0x0003	/*              DMA Write, DMA Until FIFO Full                          */
-#define SZ			0x0004	/* Send Zero (When TDBR Empty, Send Zero/Last*)         */
-#define GM			0x0008	/* Get More (When RDBR Full, Overwrite/Discard*)        */
-#define PSSE		0x0010	/* Slave-Select Input Enable                                            */
-#define EMISO		0x0020	/* Enable MISO As Output                                                        */
-#define SIZE		0x0100	/* Size of Words (16/8* Bits)                                           */
-#define LSBF		0x0200	/* LSB First                                                                            */
-#define CPHA		0x0400	/* Clock Phase                                                                          */
-#define CPOL		0x0800	/* Clock Polarity                                                                       */
-#define MSTR		0x1000	/* Master/Slave*                                                                        */
-#define WOM			0x2000	/* Write Open Drain Master                                                      */
-#define SPE			0x4000	/* SPI Enable                                                                           */
-
-/* SPI_FLG Masks																	*/
-#define FLS1		0x0002	/* Enables SPI_FLOUT1 as SPI Slave-Select Output        */
-#define FLS2		0x0004	/* Enables SPI_FLOUT2 as SPI Slave-Select Output        */
-#define FLS3		0x0008	/* Enables SPI_FLOUT3 as SPI Slave-Select Output        */
-#define FLS4		0x0010	/* Enables SPI_FLOUT4 as SPI Slave-Select Output        */
-#define FLS5		0x0020	/* Enables SPI_FLOUT5 as SPI Slave-Select Output        */
-#define FLS6		0x0040	/* Enables SPI_FLOUT6 as SPI Slave-Select Output        */
-#define FLS7		0x0080	/* Enables SPI_FLOUT7 as SPI Slave-Select Output        */
-#define FLG1		0xFDFF	/* Activates SPI_FLOUT1                                                         */
-#define FLG2		0xFBFF	/* Activates SPI_FLOUT2                                                         */
-#define FLG3		0xF7FF	/* Activates SPI_FLOUT3                                                         */
-#define FLG4		0xEFFF	/* Activates SPI_FLOUT4                                                         */
-#define FLG5		0xDFFF	/* Activates SPI_FLOUT5                                                         */
-#define FLG6		0xBFFF	/* Activates SPI_FLOUT6                                                         */
-#define FLG7		0x7FFF	/* Activates SPI_FLOUT7                                                         */
-
-/* SPI_STAT Masks																				*/
-#define SPIF		0x0001	/* SPI Finished (Single-Word Transfer Complete)                                 */
-#define MODF		0x0002	/* Mode Fault Error (Another Device Tried To Become Master)             */
-#define TXE			0x0004	/* Transmission Error (Data Sent With No New Data In TDBR)              */
-#define TXS			0x0008	/* SPI_TDBR Data Buffer Status (Full/Empty*)                                    */
-#define RBSY		0x0010	/* Receive Error (Data Received With RDBR Full)                                 */
-#define RXS			0x0020	/* SPI_RDBR Data Buffer Status (Full/Empty*)                                    */
-#define TXCOL		0x0040	/* Transmit Collision Error (Corrupt Data May Have Been Sent)   */
-
 /*  ****************  GENERAL PURPOSE TIMER MASKS  **********************/
 /* TIMER_ENABLE Masks													*/
 #define TIMEN0			0x0001	/* Enable Timer 0                                       */
@@ -1269,142 +1091,6 @@
 #define TOGGLE_HI		0x0100	/* PWM_OUT PULSE_HI Toggle Mode                 */
 #define EMU_RUN			0x0200	/* Emulation Behavior Select                    */
 #define ERR_TYP			0xC000	/* Error Type                                                   */
-
-/* ******************   GPIO PORTS F, G, H MASKS  ***********************/
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks 				*/
-/* Port F Masks 														*/
-#define PF0		0x0001
-#define PF1		0x0002
-#define PF2		0x0004
-#define PF3		0x0008
-#define PF4		0x0010
-#define PF5		0x0020
-#define PF6		0x0040
-#define PF7		0x0080
-#define PF8		0x0100
-#define PF9		0x0200
-#define PF10	0x0400
-#define PF11	0x0800
-#define PF12	0x1000
-#define PF13	0x2000
-#define PF14	0x4000
-#define PF15	0x8000
-
-/* Port G Masks															*/
-#define PG0		0x0001
-#define PG1		0x0002
-#define PG2		0x0004
-#define PG3		0x0008
-#define PG4		0x0010
-#define PG5		0x0020
-#define PG6		0x0040
-#define PG7		0x0080
-#define PG8		0x0100
-#define PG9		0x0200
-#define PG10	0x0400
-#define PG11	0x0800
-#define PG12	0x1000
-#define PG13	0x2000
-#define PG14	0x4000
-#define PG15	0x8000
-
-/* Port H Masks															*/
-#define PH0		0x0001
-#define PH1		0x0002
-#define PH2		0x0004
-#define PH3		0x0008
-#define PH4		0x0010
-#define PH5		0x0020
-#define PH6		0x0040
-#define PH7		0x0080
-#define PH8		0x0100
-#define PH9		0x0200
-#define PH10	0x0400
-#define PH11	0x0800
-#define PH12	0x1000
-#define PH13	0x2000
-#define PH14	0x4000
-#define PH15	0x8000
-
-/* *******************  SERIAL PORT MASKS  **************************************/
-/* SPORTx_TCR1 Masks															*/
-#define TSPEN		0x0001	/* Transmit Enable                                                              */
-#define ITCLK		0x0002	/* Internal Transmit Clock Select                               */
-#define DTYPE_NORM	0x0004	/* Data Format Normal                                                   */
-#define DTYPE_ULAW	0x0008	/* Compand Using u-Law                                                  */
-#define DTYPE_ALAW	0x000C	/* Compand Using A-Law                                                  */
-#define TLSBIT		0x0010	/* Transmit Bit Order                                                   */
-#define ITFS		0x0200	/* Internal Transmit Frame Sync Select                  */
-#define TFSR		0x0400	/* Transmit Frame Sync Required Select                  */
-#define DITFS		0x0800	/* Data-Independent Transmit Frame Sync Select  */
-#define LTFS		0x1000	/* Low Transmit Frame Sync Select                               */
-#define LATFS		0x2000	/* Late Transmit Frame Sync Select                              */
-#define TCKFE		0x4000	/* Clock Falling Edge Select                                    */
-
-/* SPORTx_TCR2 Masks and Macro													*/
-#define SLEN(x)		((x)&0x1F)	/* SPORT TX Word Length (2 - 31)                                */
-#define TXSE		0x0100	/* TX Secondary Enable                                                  */
-#define TSFSE		0x0200	/* Transmit Stereo Frame Sync Enable                    */
-#define TRFST		0x0400	/* Left/Right Order (1 = Right Channel 1st)             */
-
-/* SPORTx_RCR1 Masks															*/
-#define RSPEN		0x0001	/* Receive Enable                                                               */
-#define IRCLK		0x0002	/* Internal Receive Clock Select                                */
-#define DTYPE_NORM	0x0004	/* Data Format Normal                                                   */
-#define DTYPE_ULAW	0x0008	/* Compand Using u-Law                                                  */
-#define DTYPE_ALAW	0x000C	/* Compand Using A-Law                                                  */
-#define RLSBIT		0x0010	/* Receive Bit Order                                                    */
-#define IRFS		0x0200	/* Internal Receive Frame Sync Select                   */
-#define RFSR		0x0400	/* Receive Frame Sync Required Select                   */
-#define LRFS		0x1000	/* Low Receive Frame Sync Select                                */
-#define LARFS		0x2000	/* Late Receive Frame Sync Select                               */
-#define RCKFE		0x4000	/* Clock Falling Edge Select                                    */
-
-/* SPORTx_RCR2 Masks															*/
-#define SLEN(x)		((x)&0x1F)	/* SPORT RX Word Length (2 - 31)                                */
-#define RXSE		0x0100	/* RX Secondary Enable                                                  */
-#define RSFSE		0x0200	/* RX Stereo Frame Sync Enable                                  */
-#define RRFST		0x0400	/* Right-First Data Order                                               */
-
-/* SPORTx_STAT Masks															*/
-#define RXNE		0x0001	/* Receive FIFO Not Empty Status                                */
-#define RUVF		0x0002	/* Sticky Receive Underflow Status                              */
-#define ROVF		0x0004	/* Sticky Receive Overflow Status                               */
-#define TXF			0x0008	/* Transmit FIFO Full Status                                    */
-#define TUVF		0x0010	/* Sticky Transmit Underflow Status                             */
-#define TOVF		0x0020	/* Sticky Transmit Overflow Status                              */
-#define TXHRE		0x0040	/* Transmit Hold Register Empty                                 */
-
-/* SPORTx_MCMC1 Macros															*/
-#define SP_WOFF(x)		((x) & 0x3FF)	/* Multichannel Window Offset Field                     */
-
-/* Only use WSIZE Macro With Logic OR While Setting Lower Order Bits						*/
-#define SP_WSIZE(x)	(((((x)>>0x3)-1)&0xF) << 0xC)	/* Multichannel Window Size = (x/8)-1   */
-
-/* SPORTx_MCMC2 Masks															*/
-#define REC_BYPASS	0x0000	/* Bypass Mode (No Clock Recovery)                              */
-#define REC_2FROM4	0x0002	/* Recover 2 MHz Clock from 4 MHz Clock                 */
-#define REC_8FROM16	0x0003	/* Recover 8 MHz Clock from 16 MHz Clock                */
-#define MCDTXPE		0x0004	/* Multichannel DMA Transmit Packing                    */
-#define MCDRXPE		0x0008	/* Multichannel DMA Receive Packing                             */
-#define MCMEN		0x0010	/* Multichannel Frame Mode Enable                               */
-#define FSDR		0x0080	/* Multichannel Frame Sync to Data Relationship */
-#define MFD_0		0x0000	/* Multichannel Frame Delay = 0                                 */
-#define MFD_1		0x1000	/* Multichannel Frame Delay = 1                                 */
-#define MFD_2		0x2000	/* Multichannel Frame Delay = 2                                 */
-#define MFD_3		0x3000	/* Multichannel Frame Delay = 3                                 */
-#define MFD_4		0x4000	/* Multichannel Frame Delay = 4                                 */
-#define MFD_5		0x5000	/* Multichannel Frame Delay = 5                                 */
-#define MFD_6		0x6000	/* Multichannel Frame Delay = 6                                 */
-#define MFD_7		0x7000	/* Multichannel Frame Delay = 7                                 */
-#define MFD_8		0x8000	/* Multichannel Frame Delay = 8                                 */
-#define MFD_9		0x9000	/* Multichannel Frame Delay = 9                                 */
-#define MFD_10		0xA000	/* Multichannel Frame Delay = 10                                */
-#define MFD_11		0xB000	/* Multichannel Frame Delay = 11                                */
-#define MFD_12		0xC000	/* Multichannel Frame Delay = 12                                */
-#define MFD_13		0xD000	/* Multichannel Frame Delay = 13                                */
-#define MFD_14		0xE000	/* Multichannel Frame Delay = 14                                */
-#define MFD_15		0xF000	/* Multichannel Frame Delay = 15                                */
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  *************************/
 /* EBIU_AMGCTL Masks																	*/
@@ -1669,34 +1355,6 @@
 #define BGSTAT			0x0020	/* Bus Grant Status                                             */
 
 /* **************************  DMA CONTROLLER MASKS  ********************************/
-/* DMAx_CONFIG, MDMA_yy_CONFIG Masks												*/
-#define DMAEN			0x0001	/* DMA Channel Enable                                                   */
-#define WNR				0x0002	/* Channel Direction (W/R*)                                             */
-#define WDSIZE_8		0x0000	/* Transfer Word Size = 8                                               */
-#define WDSIZE_16		0x0004	/* Transfer Word Size = 16                                              */
-#define WDSIZE_32		0x0008	/* Transfer Word Size = 32                                              */
-#define DMA2D			0x0010	/* DMA Mode (2D/1D*)                                                    */
-#define RESTART			0x0020	/* DMA Buffer Clear                                                             */
-#define DI_SEL			0x0040	/* Data Interrupt Timing Select                                 */
-#define DI_EN			0x0080	/* Data Interrupt Enable                                                */
-#define NDSIZE_0		0x0000	/* Next Descriptor Size = 0 (Stop/Autobuffer)   */
-#define NDSIZE_1		0x0100	/* Next Descriptor Size = 1                                             */
-#define NDSIZE_2		0x0200	/* Next Descriptor Size = 2                                             */
-#define NDSIZE_3		0x0300	/* Next Descriptor Size = 3                                             */
-#define NDSIZE_4		0x0400	/* Next Descriptor Size = 4                                             */
-#define NDSIZE_5		0x0500	/* Next Descriptor Size = 5                                             */
-#define NDSIZE_6		0x0600	/* Next Descriptor Size = 6                                             */
-#define NDSIZE_7		0x0700	/* Next Descriptor Size = 7                                             */
-#define NDSIZE_8		0x0800	/* Next Descriptor Size = 8                                             */
-#define NDSIZE_9		0x0900	/* Next Descriptor Size = 9                                             */
-#define NDSIZE	        	0x0900	/* Next Descriptor Size */
-
-#define DMAFLOW	        	0x7000	/* Flow Control */
-#define DMAFLOW_STOP		0x0000	/* Stop Mode */
-#define DMAFLOW_AUTO		0x1000	/* Autobuffer Mode */
-#define DMAFLOW_ARRAY		0x4000	/* Descriptor Array Mode */
-#define DMAFLOW_SMALL		0x6000	/* Small Model Descriptor List Mode */
-#define DMAFLOW_LARGE		0x7000	/* Large Model Descriptor List Mode */
 
 /* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks								*/
 #define CTYPE			0x0040	/* DMA Channel Type Indicator (Memory/Peripheral*)      */
@@ -1713,12 +1371,6 @@
 #define PMAP_UART0TX	0x9000	/*              UART0 Port Transmit DMA                                         */
 #define	PMAP_UART1RX	0xA000	/*              UART1 Port Receive DMA                                          */
 #define	PMAP_UART1TX	0xB000	/*              UART1 Port Transmit DMA                                         */
-
-/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks						*/
-#define DMA_DONE		0x0001	/* DMA Completion Interrupt Status      */
-#define DMA_ERR			0x0002	/* DMA Error Interrupt Status           */
-#define DFETCH			0x0004	/* DMA Descriptor Fetch Indicator       */
-#define DMA_RUN			0x0008	/* DMA Channel Running Indicator        */
 
 /*  ************  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS *************/
 /*  PPI_CONTROL Masks													*/
@@ -1761,7 +1413,7 @@
 #define	TWI_ENA		0x0080	/* TWI Enable                                                                   */
 #define	SCCB		0x0200	/* SCCB Compatibility Enable                                    */
 
-/* TWI_SLAVE_CTRL Masks															*/
+/* TWI_SLAVE_CTL Masks															*/
 #define	SEN			0x0001	/* Slave Enable                                                                 */
 #define	SADD_LEN	0x0002	/* Slave Address Length                                                 */
 #define	STDVAL		0x0004	/* Slave Transmit Data Valid                                    */
@@ -1772,7 +1424,7 @@
 #define	SDIR		0x0001	/* Slave Transfer Direction (Transmit/Receive*) */
 #define GCALL		0x0002	/* General Call Indicator                                               */
 
-/* TWI_MASTER_CTRL Masks													*/
+/* TWI_MASTER_CTL Masks													*/
 #define	MEN			0x0001	/* Master Mode Enable                                           */
 #define	MADD_LEN	0x0002	/* Master Address Length                                        */
 #define	MDIR		0x0004	/* Master Transmit Direction (RX/TX*)           */
@@ -1820,628 +1472,6 @@
 #define	RCV_EMPTY	0x0000	/*              Receive FIFO Empty                                              */
 #define	RCV_HALF	0x0004	/*              Receive FIFO Has 1 Byte To Read                 */
 #define	RCV_FULL	0x000C	/*              Receive FIFO Full (2 Bytes To Read)             */
-
-/* ************  CONTROLLER AREA NETWORK (CAN) MASKS  ***************/
-/* CAN_CONTROL Masks												*/
-#define	SRS			0x0001	/* Software Reset                                               */
-#define	DNM			0x0002	/* Device Net Mode                                              */
-#define	ABO			0x0004	/* Auto-Bus On Enable                                   */
-#define	TXPRIO		0x0008	/* TX Priority (Priority/Mailbox*)              */
-#define	WBA			0x0010	/* Wake-Up On CAN Bus Activity Enable   */
-#define	SMR			0x0020	/* Sleep Mode Request                                   */
-#define	CSR			0x0040	/* CAN Suspend Mode Request                             */
-#define	CCR			0x0080	/* CAN Configuration Mode Request               */
-
-/* CAN_STATUS Masks												*/
-#define	WT			0x0001	/* TX Warning Flag                                      */
-#define	WR			0x0002	/* RX Warning Flag                                      */
-#define	EP			0x0004	/* Error Passive Mode                           */
-#define	EBO			0x0008	/* Error Bus Off Mode                           */
-#define	SMA			0x0020	/* Sleep Mode Acknowledge                       */
-#define	CSA			0x0040	/* Suspend Mode Acknowledge                     */
-#define	CCA			0x0080	/* Configuration Mode Acknowledge       */
-#define	MBPTR		0x1F00	/* Mailbox Pointer                                      */
-#define	TRM			0x4000	/* Transmit Mode                                        */
-#define	REC			0x8000	/* Receive Mode                                         */
-
-/* CAN_CLOCK Masks									*/
-#define	BRP			0x03FF	/* Bit-Rate Pre-Scaler  */
-
-/* CAN_TIMING Masks											*/
-#define	TSEG1		0x000F	/* Time Segment 1                               */
-#define	TSEG2		0x0070	/* Time Segment 2                               */
-#define	SAM			0x0080	/* Sampling                                             */
-#define	SJW			0x0300	/* Synchronization Jump Width   */
-
-/* CAN_DEBUG Masks											*/
-#define	DEC			0x0001	/* Disable CAN Error Counters   */
-#define	DRI			0x0002	/* Disable CAN RX Input                 */
-#define	DTO			0x0004	/* Disable CAN TX Output                */
-#define	DIL			0x0008	/* Disable CAN Internal Loop    */
-#define	MAA			0x0010	/* Mode Auto-Acknowledge Enable */
-#define	MRB			0x0020	/* Mode Read Back Enable                */
-#define	CDE			0x8000	/* CAN Debug Enable                             */
-
-/* CAN_CEC Masks										*/
-#define	RXECNT		0x00FF	/* Receive Error Counter        */
-#define	TXECNT		0xFF00	/* Transmit Error Counter       */
-
-/* CAN_INTR Masks											*/
-#define	MBRIRQ	0x0001	/* Mailbox Receive Interrupt	*/
-#define	MBRIF		MBRIRQ	/* legacy */
-#define	MBTIRQ	0x0002	/* Mailbox Transmit Interrupt	*/
-#define	MBTIF		MBTIRQ	/* legacy */
-#define	GIRQ		0x0004	/* Global Interrupt                             */
-#define	SMACK		0x0008	/* Sleep Mode Acknowledge               */
-#define	CANTX		0x0040	/* CAN TX Bus Value                             */
-#define	CANRX		0x0080	/* CAN RX Bus Value                             */
-
-/* CAN_MBxx_ID1 and CAN_MBxx_ID0 Masks										*/
-#define DFC			0xFFFF	/* Data Filtering Code (If Enabled) (ID0)               */
-#define	EXTID_LO	0xFFFF	/* Lower 16 Bits of Extended Identifier (ID0)   */
-#define	EXTID_HI	0x0003	/* Upper 2 Bits of Extended Identifier (ID1)    */
-#define	BASEID		0x1FFC	/* Base Identifier                                                              */
-#define	IDE			0x2000	/* Identifier Extension                                                 */
-#define	RTR			0x4000	/* Remote Frame Transmission Request                    */
-#define	AME			0x8000	/* Acceptance Mask Enable                                               */
-
-/* CAN_MBxx_TIMESTAMP Masks					*/
-#define TSV			0xFFFF	/* Timestamp    */
-
-/* CAN_MBxx_LENGTH Masks						*/
-#define DLC			0x000F	/* Data Length Code     */
-
-/* CAN_AMxxH and CAN_AMxxL Masks												*/
-#define DFM			0xFFFF	/* Data Field Mask (If Enabled) (CAN_AMxxL)                     */
-#define	EXTID_LO	0xFFFF	/* Lower 16 Bits of Extended Identifier (CAN_AMxxL)     */
-#define	EXTID_HI	0x0003	/* Upper 2 Bits of Extended Identifier (CAN_AMxxH)      */
-#define	BASEID		0x1FFC	/* Base Identifier                                                                      */
-#define	AMIDE		0x2000	/* Acceptance Mask ID Extension Enable                          */
-#define	FMD			0x4000	/* Full Mask Data Field Enable                                          */
-#define	FDF			0x8000	/* Filter On Data Field Enable                                          */
-
-/* CAN_MC1 Masks									*/
-#define	MC0			0x0001	/* Enable Mailbox 0             */
-#define	MC1			0x0002	/* Enable Mailbox 1             */
-#define	MC2			0x0004	/* Enable Mailbox 2             */
-#define	MC3			0x0008	/* Enable Mailbox 3             */
-#define	MC4			0x0010	/* Enable Mailbox 4             */
-#define	MC5			0x0020	/* Enable Mailbox 5             */
-#define	MC6			0x0040	/* Enable Mailbox 6             */
-#define	MC7			0x0080	/* Enable Mailbox 7             */
-#define	MC8			0x0100	/* Enable Mailbox 8             */
-#define	MC9			0x0200	/* Enable Mailbox 9             */
-#define	MC10		0x0400	/* Enable Mailbox 10    */
-#define	MC11		0x0800	/* Enable Mailbox 11    */
-#define	MC12		0x1000	/* Enable Mailbox 12    */
-#define	MC13		0x2000	/* Enable Mailbox 13    */
-#define	MC14		0x4000	/* Enable Mailbox 14    */
-#define	MC15		0x8000	/* Enable Mailbox 15    */
-
-/* CAN_MC2 Masks									*/
-#define	MC16		0x0001	/* Enable Mailbox 16    */
-#define	MC17		0x0002	/* Enable Mailbox 17    */
-#define	MC18		0x0004	/* Enable Mailbox 18    */
-#define	MC19		0x0008	/* Enable Mailbox 19    */
-#define	MC20		0x0010	/* Enable Mailbox 20    */
-#define	MC21		0x0020	/* Enable Mailbox 21    */
-#define	MC22		0x0040	/* Enable Mailbox 22    */
-#define	MC23		0x0080	/* Enable Mailbox 23    */
-#define	MC24		0x0100	/* Enable Mailbox 24    */
-#define	MC25		0x0200	/* Enable Mailbox 25    */
-#define	MC26		0x0400	/* Enable Mailbox 26    */
-#define	MC27		0x0800	/* Enable Mailbox 27    */
-#define	MC28		0x1000	/* Enable Mailbox 28    */
-#define	MC29		0x2000	/* Enable Mailbox 29    */
-#define	MC30		0x4000	/* Enable Mailbox 30    */
-#define	MC31		0x8000	/* Enable Mailbox 31    */
-
-/* CAN_MD1 Masks												*/
-#define	MD0			0x0001	/* Enable Mailbox 0 For Receive         */
-#define	MD1			0x0002	/* Enable Mailbox 1 For Receive         */
-#define	MD2			0x0004	/* Enable Mailbox 2 For Receive         */
-#define	MD3			0x0008	/* Enable Mailbox 3 For Receive         */
-#define	MD4			0x0010	/* Enable Mailbox 4 For Receive         */
-#define	MD5			0x0020	/* Enable Mailbox 5 For Receive         */
-#define	MD6			0x0040	/* Enable Mailbox 6 For Receive         */
-#define	MD7			0x0080	/* Enable Mailbox 7 For Receive         */
-#define	MD8			0x0100	/* Enable Mailbox 8 For Receive         */
-#define	MD9			0x0200	/* Enable Mailbox 9 For Receive         */
-#define	MD10		0x0400	/* Enable Mailbox 10 For Receive        */
-#define	MD11		0x0800	/* Enable Mailbox 11 For Receive        */
-#define	MD12		0x1000	/* Enable Mailbox 12 For Receive        */
-#define	MD13		0x2000	/* Enable Mailbox 13 For Receive        */
-#define	MD14		0x4000	/* Enable Mailbox 14 For Receive        */
-#define	MD15		0x8000	/* Enable Mailbox 15 For Receive        */
-
-/* CAN_MD2 Masks												*/
-#define	MD16		0x0001	/* Enable Mailbox 16 For Receive        */
-#define	MD17		0x0002	/* Enable Mailbox 17 For Receive        */
-#define	MD18		0x0004	/* Enable Mailbox 18 For Receive        */
-#define	MD19		0x0008	/* Enable Mailbox 19 For Receive        */
-#define	MD20		0x0010	/* Enable Mailbox 20 For Receive        */
-#define	MD21		0x0020	/* Enable Mailbox 21 For Receive        */
-#define	MD22		0x0040	/* Enable Mailbox 22 For Receive        */
-#define	MD23		0x0080	/* Enable Mailbox 23 For Receive        */
-#define	MD24		0x0100	/* Enable Mailbox 24 For Receive        */
-#define	MD25		0x0200	/* Enable Mailbox 25 For Receive        */
-#define	MD26		0x0400	/* Enable Mailbox 26 For Receive        */
-#define	MD27		0x0800	/* Enable Mailbox 27 For Receive        */
-#define	MD28		0x1000	/* Enable Mailbox 28 For Receive        */
-#define	MD29		0x2000	/* Enable Mailbox 29 For Receive        */
-#define	MD30		0x4000	/* Enable Mailbox 30 For Receive        */
-#define	MD31		0x8000	/* Enable Mailbox 31 For Receive        */
-
-/* CAN_RMP1 Masks												*/
-#define	RMP0		0x0001	/* RX Message Pending In Mailbox 0      */
-#define	RMP1		0x0002	/* RX Message Pending In Mailbox 1      */
-#define	RMP2		0x0004	/* RX Message Pending In Mailbox 2      */
-#define	RMP3		0x0008	/* RX Message Pending In Mailbox 3      */
-#define	RMP4		0x0010	/* RX Message Pending In Mailbox 4      */
-#define	RMP5		0x0020	/* RX Message Pending In Mailbox 5      */
-#define	RMP6		0x0040	/* RX Message Pending In Mailbox 6      */
-#define	RMP7		0x0080	/* RX Message Pending In Mailbox 7      */
-#define	RMP8		0x0100	/* RX Message Pending In Mailbox 8      */
-#define	RMP9		0x0200	/* RX Message Pending In Mailbox 9      */
-#define	RMP10		0x0400	/* RX Message Pending In Mailbox 10     */
-#define	RMP11		0x0800	/* RX Message Pending In Mailbox 11     */
-#define	RMP12		0x1000	/* RX Message Pending In Mailbox 12     */
-#define	RMP13		0x2000	/* RX Message Pending In Mailbox 13     */
-#define	RMP14		0x4000	/* RX Message Pending In Mailbox 14     */
-#define	RMP15		0x8000	/* RX Message Pending In Mailbox 15     */
-
-/* CAN_RMP2 Masks												*/
-#define	RMP16		0x0001	/* RX Message Pending In Mailbox 16     */
-#define	RMP17		0x0002	/* RX Message Pending In Mailbox 17     */
-#define	RMP18		0x0004	/* RX Message Pending In Mailbox 18     */
-#define	RMP19		0x0008	/* RX Message Pending In Mailbox 19     */
-#define	RMP20		0x0010	/* RX Message Pending In Mailbox 20     */
-#define	RMP21		0x0020	/* RX Message Pending In Mailbox 21     */
-#define	RMP22		0x0040	/* RX Message Pending In Mailbox 22     */
-#define	RMP23		0x0080	/* RX Message Pending In Mailbox 23     */
-#define	RMP24		0x0100	/* RX Message Pending In Mailbox 24     */
-#define	RMP25		0x0200	/* RX Message Pending In Mailbox 25     */
-#define	RMP26		0x0400	/* RX Message Pending In Mailbox 26     */
-#define	RMP27		0x0800	/* RX Message Pending In Mailbox 27     */
-#define	RMP28		0x1000	/* RX Message Pending In Mailbox 28     */
-#define	RMP29		0x2000	/* RX Message Pending In Mailbox 29     */
-#define	RMP30		0x4000	/* RX Message Pending In Mailbox 30     */
-#define	RMP31		0x8000	/* RX Message Pending In Mailbox 31     */
-
-/* CAN_RML1 Masks												*/
-#define	RML0		0x0001	/* RX Message Lost In Mailbox 0         */
-#define	RML1		0x0002	/* RX Message Lost In Mailbox 1         */
-#define	RML2		0x0004	/* RX Message Lost In Mailbox 2         */
-#define	RML3		0x0008	/* RX Message Lost In Mailbox 3         */
-#define	RML4		0x0010	/* RX Message Lost In Mailbox 4         */
-#define	RML5		0x0020	/* RX Message Lost In Mailbox 5         */
-#define	RML6		0x0040	/* RX Message Lost In Mailbox 6         */
-#define	RML7		0x0080	/* RX Message Lost In Mailbox 7         */
-#define	RML8		0x0100	/* RX Message Lost In Mailbox 8         */
-#define	RML9		0x0200	/* RX Message Lost In Mailbox 9         */
-#define	RML10		0x0400	/* RX Message Lost In Mailbox 10        */
-#define	RML11		0x0800	/* RX Message Lost In Mailbox 11        */
-#define	RML12		0x1000	/* RX Message Lost In Mailbox 12        */
-#define	RML13		0x2000	/* RX Message Lost In Mailbox 13        */
-#define	RML14		0x4000	/* RX Message Lost In Mailbox 14        */
-#define	RML15		0x8000	/* RX Message Lost In Mailbox 15        */
-
-/* CAN_RML2 Masks												*/
-#define	RML16		0x0001	/* RX Message Lost In Mailbox 16        */
-#define	RML17		0x0002	/* RX Message Lost In Mailbox 17        */
-#define	RML18		0x0004	/* RX Message Lost In Mailbox 18        */
-#define	RML19		0x0008	/* RX Message Lost In Mailbox 19        */
-#define	RML20		0x0010	/* RX Message Lost In Mailbox 20        */
-#define	RML21		0x0020	/* RX Message Lost In Mailbox 21        */
-#define	RML22		0x0040	/* RX Message Lost In Mailbox 22        */
-#define	RML23		0x0080	/* RX Message Lost In Mailbox 23        */
-#define	RML24		0x0100	/* RX Message Lost In Mailbox 24        */
-#define	RML25		0x0200	/* RX Message Lost In Mailbox 25        */
-#define	RML26		0x0400	/* RX Message Lost In Mailbox 26        */
-#define	RML27		0x0800	/* RX Message Lost In Mailbox 27        */
-#define	RML28		0x1000	/* RX Message Lost In Mailbox 28        */
-#define	RML29		0x2000	/* RX Message Lost In Mailbox 29        */
-#define	RML30		0x4000	/* RX Message Lost In Mailbox 30        */
-#define	RML31		0x8000	/* RX Message Lost In Mailbox 31        */
-
-/* CAN_OPSS1 Masks																				*/
-#define	OPSS0		0x0001	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 0       */
-#define	OPSS1		0x0002	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 1       */
-#define	OPSS2		0x0004	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 2       */
-#define	OPSS3		0x0008	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 3       */
-#define	OPSS4		0x0010	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 4       */
-#define	OPSS5		0x0020	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 5       */
-#define	OPSS6		0x0040	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 6       */
-#define	OPSS7		0x0080	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 7       */
-#define	OPSS8		0x0100	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 8       */
-#define	OPSS9		0x0200	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 9       */
-#define	OPSS10		0x0400	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 10      */
-#define	OPSS11		0x0800	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 11      */
-#define	OPSS12		0x1000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 12      */
-#define	OPSS13		0x2000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 13      */
-#define	OPSS14		0x4000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 14      */
-#define	OPSS15		0x8000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 15      */
-
-/* CAN_OPSS2 Masks																				*/
-#define	OPSS16		0x0001	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 16      */
-#define	OPSS17		0x0002	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 17      */
-#define	OPSS18		0x0004	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 18      */
-#define	OPSS19		0x0008	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 19      */
-#define	OPSS20		0x0010	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 20      */
-#define	OPSS21		0x0020	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 21      */
-#define	OPSS22		0x0040	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 22      */
-#define	OPSS23		0x0080	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 23      */
-#define	OPSS24		0x0100	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 24      */
-#define	OPSS25		0x0200	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 25      */
-#define	OPSS26		0x0400	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 26      */
-#define	OPSS27		0x0800	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 27      */
-#define	OPSS28		0x1000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 28      */
-#define	OPSS29		0x2000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 29      */
-#define	OPSS30		0x4000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 30      */
-#define	OPSS31		0x8000	/* Enable RX Overwrite Protection or TX Single-Shot For Mailbox 31      */
-
-/* CAN_TRR1 Masks														*/
-#define	TRR0		0x0001	/* Deny But Don't Lock Access To Mailbox 0      */
-#define	TRR1		0x0002	/* Deny But Don't Lock Access To Mailbox 1      */
-#define	TRR2		0x0004	/* Deny But Don't Lock Access To Mailbox 2      */
-#define	TRR3		0x0008	/* Deny But Don't Lock Access To Mailbox 3      */
-#define	TRR4		0x0010	/* Deny But Don't Lock Access To Mailbox 4      */
-#define	TRR5		0x0020	/* Deny But Don't Lock Access To Mailbox 5      */
-#define	TRR6		0x0040	/* Deny But Don't Lock Access To Mailbox 6      */
-#define	TRR7		0x0080	/* Deny But Don't Lock Access To Mailbox 7      */
-#define	TRR8		0x0100	/* Deny But Don't Lock Access To Mailbox 8      */
-#define	TRR9		0x0200	/* Deny But Don't Lock Access To Mailbox 9      */
-#define	TRR10		0x0400	/* Deny But Don't Lock Access To Mailbox 10     */
-#define	TRR11		0x0800	/* Deny But Don't Lock Access To Mailbox 11     */
-#define	TRR12		0x1000	/* Deny But Don't Lock Access To Mailbox 12     */
-#define	TRR13		0x2000	/* Deny But Don't Lock Access To Mailbox 13     */
-#define	TRR14		0x4000	/* Deny But Don't Lock Access To Mailbox 14     */
-#define	TRR15		0x8000	/* Deny But Don't Lock Access To Mailbox 15     */
-
-/* CAN_TRR2 Masks														*/
-#define	TRR16		0x0001	/* Deny But Don't Lock Access To Mailbox 16     */
-#define	TRR17		0x0002	/* Deny But Don't Lock Access To Mailbox 17     */
-#define	TRR18		0x0004	/* Deny But Don't Lock Access To Mailbox 18     */
-#define	TRR19		0x0008	/* Deny But Don't Lock Access To Mailbox 19     */
-#define	TRR20		0x0010	/* Deny But Don't Lock Access To Mailbox 20     */
-#define	TRR21		0x0020	/* Deny But Don't Lock Access To Mailbox 21     */
-#define	TRR22		0x0040	/* Deny But Don't Lock Access To Mailbox 22     */
-#define	TRR23		0x0080	/* Deny But Don't Lock Access To Mailbox 23     */
-#define	TRR24		0x0100	/* Deny But Don't Lock Access To Mailbox 24     */
-#define	TRR25		0x0200	/* Deny But Don't Lock Access To Mailbox 25     */
-#define	TRR26		0x0400	/* Deny But Don't Lock Access To Mailbox 26     */
-#define	TRR27		0x0800	/* Deny But Don't Lock Access To Mailbox 27     */
-#define	TRR28		0x1000	/* Deny But Don't Lock Access To Mailbox 28     */
-#define	TRR29		0x2000	/* Deny But Don't Lock Access To Mailbox 29     */
-#define	TRR30		0x4000	/* Deny But Don't Lock Access To Mailbox 30     */
-#define	TRR31		0x8000	/* Deny But Don't Lock Access To Mailbox 31     */
-
-/* CAN_TRS1 Masks													*/
-#define	TRS0		0x0001	/* Remote Frame Request For Mailbox 0   */
-#define	TRS1		0x0002	/* Remote Frame Request For Mailbox 1   */
-#define	TRS2		0x0004	/* Remote Frame Request For Mailbox 2   */
-#define	TRS3		0x0008	/* Remote Frame Request For Mailbox 3   */
-#define	TRS4		0x0010	/* Remote Frame Request For Mailbox 4   */
-#define	TRS5		0x0020	/* Remote Frame Request For Mailbox 5   */
-#define	TRS6		0x0040	/* Remote Frame Request For Mailbox 6   */
-#define	TRS7		0x0080	/* Remote Frame Request For Mailbox 7   */
-#define	TRS8		0x0100	/* Remote Frame Request For Mailbox 8   */
-#define	TRS9		0x0200	/* Remote Frame Request For Mailbox 9   */
-#define	TRS10		0x0400	/* Remote Frame Request For Mailbox 10  */
-#define	TRS11		0x0800	/* Remote Frame Request For Mailbox 11  */
-#define	TRS12		0x1000	/* Remote Frame Request For Mailbox 12  */
-#define	TRS13		0x2000	/* Remote Frame Request For Mailbox 13  */
-#define	TRS14		0x4000	/* Remote Frame Request For Mailbox 14  */
-#define	TRS15		0x8000	/* Remote Frame Request For Mailbox 15  */
-
-/* CAN_TRS2 Masks													*/
-#define	TRS16		0x0001	/* Remote Frame Request For Mailbox 16  */
-#define	TRS17		0x0002	/* Remote Frame Request For Mailbox 17  */
-#define	TRS18		0x0004	/* Remote Frame Request For Mailbox 18  */
-#define	TRS19		0x0008	/* Remote Frame Request For Mailbox 19  */
-#define	TRS20		0x0010	/* Remote Frame Request For Mailbox 20  */
-#define	TRS21		0x0020	/* Remote Frame Request For Mailbox 21  */
-#define	TRS22		0x0040	/* Remote Frame Request For Mailbox 22  */
-#define	TRS23		0x0080	/* Remote Frame Request For Mailbox 23  */
-#define	TRS24		0x0100	/* Remote Frame Request For Mailbox 24  */
-#define	TRS25		0x0200	/* Remote Frame Request For Mailbox 25  */
-#define	TRS26		0x0400	/* Remote Frame Request For Mailbox 26  */
-#define	TRS27		0x0800	/* Remote Frame Request For Mailbox 27  */
-#define	TRS28		0x1000	/* Remote Frame Request For Mailbox 28  */
-#define	TRS29		0x2000	/* Remote Frame Request For Mailbox 29  */
-#define	TRS30		0x4000	/* Remote Frame Request For Mailbox 30  */
-#define	TRS31		0x8000	/* Remote Frame Request For Mailbox 31  */
-
-/* CAN_AA1 Masks												*/
-#define	AA0			0x0001	/* Aborted Message In Mailbox 0         */
-#define	AA1			0x0002	/* Aborted Message In Mailbox 1         */
-#define	AA2			0x0004	/* Aborted Message In Mailbox 2         */
-#define	AA3			0x0008	/* Aborted Message In Mailbox 3         */
-#define	AA4			0x0010	/* Aborted Message In Mailbox 4         */
-#define	AA5			0x0020	/* Aborted Message In Mailbox 5         */
-#define	AA6			0x0040	/* Aborted Message In Mailbox 6         */
-#define	AA7			0x0080	/* Aborted Message In Mailbox 7         */
-#define	AA8			0x0100	/* Aborted Message In Mailbox 8         */
-#define	AA9			0x0200	/* Aborted Message In Mailbox 9         */
-#define	AA10		0x0400	/* Aborted Message In Mailbox 10        */
-#define	AA11		0x0800	/* Aborted Message In Mailbox 11        */
-#define	AA12		0x1000	/* Aborted Message In Mailbox 12        */
-#define	AA13		0x2000	/* Aborted Message In Mailbox 13        */
-#define	AA14		0x4000	/* Aborted Message In Mailbox 14        */
-#define	AA15		0x8000	/* Aborted Message In Mailbox 15        */
-
-/* CAN_AA2 Masks												*/
-#define	AA16		0x0001	/* Aborted Message In Mailbox 16        */
-#define	AA17		0x0002	/* Aborted Message In Mailbox 17        */
-#define	AA18		0x0004	/* Aborted Message In Mailbox 18        */
-#define	AA19		0x0008	/* Aborted Message In Mailbox 19        */
-#define	AA20		0x0010	/* Aborted Message In Mailbox 20        */
-#define	AA21		0x0020	/* Aborted Message In Mailbox 21        */
-#define	AA22		0x0040	/* Aborted Message In Mailbox 22        */
-#define	AA23		0x0080	/* Aborted Message In Mailbox 23        */
-#define	AA24		0x0100	/* Aborted Message In Mailbox 24        */
-#define	AA25		0x0200	/* Aborted Message In Mailbox 25        */
-#define	AA26		0x0400	/* Aborted Message In Mailbox 26        */
-#define	AA27		0x0800	/* Aborted Message In Mailbox 27        */
-#define	AA28		0x1000	/* Aborted Message In Mailbox 28        */
-#define	AA29		0x2000	/* Aborted Message In Mailbox 29        */
-#define	AA30		0x4000	/* Aborted Message In Mailbox 30        */
-#define	AA31		0x8000	/* Aborted Message In Mailbox 31        */
-
-/* CAN_TA1 Masks													*/
-#define	TA0			0x0001	/* Transmit Successful From Mailbox 0   */
-#define	TA1			0x0002	/* Transmit Successful From Mailbox 1   */
-#define	TA2			0x0004	/* Transmit Successful From Mailbox 2   */
-#define	TA3			0x0008	/* Transmit Successful From Mailbox 3   */
-#define	TA4			0x0010	/* Transmit Successful From Mailbox 4   */
-#define	TA5			0x0020	/* Transmit Successful From Mailbox 5   */
-#define	TA6			0x0040	/* Transmit Successful From Mailbox 6   */
-#define	TA7			0x0080	/* Transmit Successful From Mailbox 7   */
-#define	TA8			0x0100	/* Transmit Successful From Mailbox 8   */
-#define	TA9			0x0200	/* Transmit Successful From Mailbox 9   */
-#define	TA10		0x0400	/* Transmit Successful From Mailbox 10  */
-#define	TA11		0x0800	/* Transmit Successful From Mailbox 11  */
-#define	TA12		0x1000	/* Transmit Successful From Mailbox 12  */
-#define	TA13		0x2000	/* Transmit Successful From Mailbox 13  */
-#define	TA14		0x4000	/* Transmit Successful From Mailbox 14  */
-#define	TA15		0x8000	/* Transmit Successful From Mailbox 15  */
-
-/* CAN_TA2 Masks													*/
-#define	TA16		0x0001	/* Transmit Successful From Mailbox 16  */
-#define	TA17		0x0002	/* Transmit Successful From Mailbox 17  */
-#define	TA18		0x0004	/* Transmit Successful From Mailbox 18  */
-#define	TA19		0x0008	/* Transmit Successful From Mailbox 19  */
-#define	TA20		0x0010	/* Transmit Successful From Mailbox 20  */
-#define	TA21		0x0020	/* Transmit Successful From Mailbox 21  */
-#define	TA22		0x0040	/* Transmit Successful From Mailbox 22  */
-#define	TA23		0x0080	/* Transmit Successful From Mailbox 23  */
-#define	TA24		0x0100	/* Transmit Successful From Mailbox 24  */
-#define	TA25		0x0200	/* Transmit Successful From Mailbox 25  */
-#define	TA26		0x0400	/* Transmit Successful From Mailbox 26  */
-#define	TA27		0x0800	/* Transmit Successful From Mailbox 27  */
-#define	TA28		0x1000	/* Transmit Successful From Mailbox 28  */
-#define	TA29		0x2000	/* Transmit Successful From Mailbox 29  */
-#define	TA30		0x4000	/* Transmit Successful From Mailbox 30  */
-#define	TA31		0x8000	/* Transmit Successful From Mailbox 31  */
-
-/* CAN_MBTD Masks												*/
-#define TDPTR		0x001F	/* Mailbox To Temporarily Disable       */
-#define	TDA			0x0040	/* Temporary Disable Acknowledge        */
-#define	TDR			0x0080	/* Temporary Disable Request            */
-
-/* CAN_RFH1 Masks																		*/
-#define	RFH0		0x0001	/* Enable Automatic Remote Frame Handling For Mailbox 0         */
-#define	RFH1		0x0002	/* Enable Automatic Remote Frame Handling For Mailbox 1         */
-#define	RFH2		0x0004	/* Enable Automatic Remote Frame Handling For Mailbox 2         */
-#define	RFH3		0x0008	/* Enable Automatic Remote Frame Handling For Mailbox 3         */
-#define	RFH4		0x0010	/* Enable Automatic Remote Frame Handling For Mailbox 4         */
-#define	RFH5		0x0020	/* Enable Automatic Remote Frame Handling For Mailbox 5         */
-#define	RFH6		0x0040	/* Enable Automatic Remote Frame Handling For Mailbox 6         */
-#define	RFH7		0x0080	/* Enable Automatic Remote Frame Handling For Mailbox 7         */
-#define	RFH8		0x0100	/* Enable Automatic Remote Frame Handling For Mailbox 8         */
-#define	RFH9		0x0200	/* Enable Automatic Remote Frame Handling For Mailbox 9         */
-#define	RFH10		0x0400	/* Enable Automatic Remote Frame Handling For Mailbox 10        */
-#define	RFH11		0x0800	/* Enable Automatic Remote Frame Handling For Mailbox 11        */
-#define	RFH12		0x1000	/* Enable Automatic Remote Frame Handling For Mailbox 12        */
-#define	RFH13		0x2000	/* Enable Automatic Remote Frame Handling For Mailbox 13        */
-#define	RFH14		0x4000	/* Enable Automatic Remote Frame Handling For Mailbox 14        */
-#define	RFH15		0x8000	/* Enable Automatic Remote Frame Handling For Mailbox 15        */
-
-/* CAN_RFH2 Masks																		*/
-#define	RFH16		0x0001	/* Enable Automatic Remote Frame Handling For Mailbox 16        */
-#define	RFH17		0x0002	/* Enable Automatic Remote Frame Handling For Mailbox 17        */
-#define	RFH18		0x0004	/* Enable Automatic Remote Frame Handling For Mailbox 18        */
-#define	RFH19		0x0008	/* Enable Automatic Remote Frame Handling For Mailbox 19        */
-#define	RFH20		0x0010	/* Enable Automatic Remote Frame Handling For Mailbox 20        */
-#define	RFH21		0x0020	/* Enable Automatic Remote Frame Handling For Mailbox 21        */
-#define	RFH22		0x0040	/* Enable Automatic Remote Frame Handling For Mailbox 22        */
-#define	RFH23		0x0080	/* Enable Automatic Remote Frame Handling For Mailbox 23        */
-#define	RFH24		0x0100	/* Enable Automatic Remote Frame Handling For Mailbox 24        */
-#define	RFH25		0x0200	/* Enable Automatic Remote Frame Handling For Mailbox 25        */
-#define	RFH26		0x0400	/* Enable Automatic Remote Frame Handling For Mailbox 26        */
-#define	RFH27		0x0800	/* Enable Automatic Remote Frame Handling For Mailbox 27        */
-#define	RFH28		0x1000	/* Enable Automatic Remote Frame Handling For Mailbox 28        */
-#define	RFH29		0x2000	/* Enable Automatic Remote Frame Handling For Mailbox 29        */
-#define	RFH30		0x4000	/* Enable Automatic Remote Frame Handling For Mailbox 30        */
-#define	RFH31		0x8000	/* Enable Automatic Remote Frame Handling For Mailbox 31        */
-
-/* CAN_MBTIF1 Masks													*/
-#define	MBTIF0		0x0001	/* TX Interrupt Active In Mailbox 0             */
-#define	MBTIF1		0x0002	/* TX Interrupt Active In Mailbox 1             */
-#define	MBTIF2		0x0004	/* TX Interrupt Active In Mailbox 2             */
-#define	MBTIF3		0x0008	/* TX Interrupt Active In Mailbox 3             */
-#define	MBTIF4		0x0010	/* TX Interrupt Active In Mailbox 4             */
-#define	MBTIF5		0x0020	/* TX Interrupt Active In Mailbox 5             */
-#define	MBTIF6		0x0040	/* TX Interrupt Active In Mailbox 6             */
-#define	MBTIF7		0x0080	/* TX Interrupt Active In Mailbox 7             */
-#define	MBTIF8		0x0100	/* TX Interrupt Active In Mailbox 8             */
-#define	MBTIF9		0x0200	/* TX Interrupt Active In Mailbox 9             */
-#define	MBTIF10		0x0400	/* TX Interrupt Active In Mailbox 10    */
-#define	MBTIF11		0x0800	/* TX Interrupt Active In Mailbox 11    */
-#define	MBTIF12		0x1000	/* TX Interrupt Active In Mailbox 12    */
-#define	MBTIF13		0x2000	/* TX Interrupt Active In Mailbox 13    */
-#define	MBTIF14		0x4000	/* TX Interrupt Active In Mailbox 14    */
-#define	MBTIF15		0x8000	/* TX Interrupt Active In Mailbox 15    */
-
-/* CAN_MBTIF2 Masks													*/
-#define	MBTIF16		0x0001	/* TX Interrupt Active In Mailbox 16    */
-#define	MBTIF17		0x0002	/* TX Interrupt Active In Mailbox 17    */
-#define	MBTIF18		0x0004	/* TX Interrupt Active In Mailbox 18    */
-#define	MBTIF19		0x0008	/* TX Interrupt Active In Mailbox 19    */
-#define	MBTIF20		0x0010	/* TX Interrupt Active In Mailbox 20    */
-#define	MBTIF21		0x0020	/* TX Interrupt Active In Mailbox 21    */
-#define	MBTIF22		0x0040	/* TX Interrupt Active In Mailbox 22    */
-#define	MBTIF23		0x0080	/* TX Interrupt Active In Mailbox 23    */
-#define	MBTIF24		0x0100	/* TX Interrupt Active In Mailbox 24    */
-#define	MBTIF25		0x0200	/* TX Interrupt Active In Mailbox 25    */
-#define	MBTIF26		0x0400	/* TX Interrupt Active In Mailbox 26    */
-#define	MBTIF27		0x0800	/* TX Interrupt Active In Mailbox 27    */
-#define	MBTIF28		0x1000	/* TX Interrupt Active In Mailbox 28    */
-#define	MBTIF29		0x2000	/* TX Interrupt Active In Mailbox 29    */
-#define	MBTIF30		0x4000	/* TX Interrupt Active In Mailbox 30    */
-#define	MBTIF31		0x8000	/* TX Interrupt Active In Mailbox 31    */
-
-/* CAN_MBRIF1 Masks													*/
-#define	MBRIF0		0x0001	/* RX Interrupt Active In Mailbox 0             */
-#define	MBRIF1		0x0002	/* RX Interrupt Active In Mailbox 1             */
-#define	MBRIF2		0x0004	/* RX Interrupt Active In Mailbox 2             */
-#define	MBRIF3		0x0008	/* RX Interrupt Active In Mailbox 3             */
-#define	MBRIF4		0x0010	/* RX Interrupt Active In Mailbox 4             */
-#define	MBRIF5		0x0020	/* RX Interrupt Active In Mailbox 5             */
-#define	MBRIF6		0x0040	/* RX Interrupt Active In Mailbox 6             */
-#define	MBRIF7		0x0080	/* RX Interrupt Active In Mailbox 7             */
-#define	MBRIF8		0x0100	/* RX Interrupt Active In Mailbox 8             */
-#define	MBRIF9		0x0200	/* RX Interrupt Active In Mailbox 9             */
-#define	MBRIF10		0x0400	/* RX Interrupt Active In Mailbox 10    */
-#define	MBRIF11		0x0800	/* RX Interrupt Active In Mailbox 11    */
-#define	MBRIF12		0x1000	/* RX Interrupt Active In Mailbox 12    */
-#define	MBRIF13		0x2000	/* RX Interrupt Active In Mailbox 13    */
-#define	MBRIF14		0x4000	/* RX Interrupt Active In Mailbox 14    */
-#define	MBRIF15		0x8000	/* RX Interrupt Active In Mailbox 15    */
-
-/* CAN_MBRIF2 Masks													*/
-#define	MBRIF16		0x0001	/* RX Interrupt Active In Mailbox 16    */
-#define	MBRIF17		0x0002	/* RX Interrupt Active In Mailbox 17    */
-#define	MBRIF18		0x0004	/* RX Interrupt Active In Mailbox 18    */
-#define	MBRIF19		0x0008	/* RX Interrupt Active In Mailbox 19    */
-#define	MBRIF20		0x0010	/* RX Interrupt Active In Mailbox 20    */
-#define	MBRIF21		0x0020	/* RX Interrupt Active In Mailbox 21    */
-#define	MBRIF22		0x0040	/* RX Interrupt Active In Mailbox 22    */
-#define	MBRIF23		0x0080	/* RX Interrupt Active In Mailbox 23    */
-#define	MBRIF24		0x0100	/* RX Interrupt Active In Mailbox 24    */
-#define	MBRIF25		0x0200	/* RX Interrupt Active In Mailbox 25    */
-#define	MBRIF26		0x0400	/* RX Interrupt Active In Mailbox 26    */
-#define	MBRIF27		0x0800	/* RX Interrupt Active In Mailbox 27    */
-#define	MBRIF28		0x1000	/* RX Interrupt Active In Mailbox 28    */
-#define	MBRIF29		0x2000	/* RX Interrupt Active In Mailbox 29    */
-#define	MBRIF30		0x4000	/* RX Interrupt Active In Mailbox 30    */
-#define	MBRIF31		0x8000	/* RX Interrupt Active In Mailbox 31    */
-
-/* CAN_MBIM1 Masks												*/
-#define	MBIM0		0x0001	/* Enable Interrupt For Mailbox 0       */
-#define	MBIM1		0x0002	/* Enable Interrupt For Mailbox 1       */
-#define	MBIM2		0x0004	/* Enable Interrupt For Mailbox 2       */
-#define	MBIM3		0x0008	/* Enable Interrupt For Mailbox 3       */
-#define	MBIM4		0x0010	/* Enable Interrupt For Mailbox 4       */
-#define	MBIM5		0x0020	/* Enable Interrupt For Mailbox 5       */
-#define	MBIM6		0x0040	/* Enable Interrupt For Mailbox 6       */
-#define	MBIM7		0x0080	/* Enable Interrupt For Mailbox 7       */
-#define	MBIM8		0x0100	/* Enable Interrupt For Mailbox 8       */
-#define	MBIM9		0x0200	/* Enable Interrupt For Mailbox 9       */
-#define	MBIM10		0x0400	/* Enable Interrupt For Mailbox 10      */
-#define	MBIM11		0x0800	/* Enable Interrupt For Mailbox 11      */
-#define	MBIM12		0x1000	/* Enable Interrupt For Mailbox 12      */
-#define	MBIM13		0x2000	/* Enable Interrupt For Mailbox 13      */
-#define	MBIM14		0x4000	/* Enable Interrupt For Mailbox 14      */
-#define	MBIM15		0x8000	/* Enable Interrupt For Mailbox 15      */
-
-/* CAN_MBIM2 Masks												*/
-#define	MBIM16		0x0001	/* Enable Interrupt For Mailbox 16      */
-#define	MBIM17		0x0002	/* Enable Interrupt For Mailbox 17      */
-#define	MBIM18		0x0004	/* Enable Interrupt For Mailbox 18      */
-#define	MBIM19		0x0008	/* Enable Interrupt For Mailbox 19      */
-#define	MBIM20		0x0010	/* Enable Interrupt For Mailbox 20      */
-#define	MBIM21		0x0020	/* Enable Interrupt For Mailbox 21      */
-#define	MBIM22		0x0040	/* Enable Interrupt For Mailbox 22      */
-#define	MBIM23		0x0080	/* Enable Interrupt For Mailbox 23      */
-#define	MBIM24		0x0100	/* Enable Interrupt For Mailbox 24      */
-#define	MBIM25		0x0200	/* Enable Interrupt For Mailbox 25      */
-#define	MBIM26		0x0400	/* Enable Interrupt For Mailbox 26      */
-#define	MBIM27		0x0800	/* Enable Interrupt For Mailbox 27      */
-#define	MBIM28		0x1000	/* Enable Interrupt For Mailbox 28      */
-#define	MBIM29		0x2000	/* Enable Interrupt For Mailbox 29      */
-#define	MBIM30		0x4000	/* Enable Interrupt For Mailbox 30      */
-#define	MBIM31		0x8000	/* Enable Interrupt For Mailbox 31      */
-
-/* CAN_GIM Masks																*/
-#define	EWTIM		0x0001	/* Enable TX Error Count Interrupt                                      */
-#define	EWRIM		0x0002	/* Enable RX Error Count Interrupt                                      */
-#define	EPIM		0x0004	/* Enable Error-Passive Mode Interrupt                          */
-#define	BOIM		0x0008	/* Enable Bus Off Interrupt                                                     */
-#define	WUIM		0x0010	/* Enable Wake-Up Interrupt                                                     */
-#define	UIAIM		0x0020	/* Enable Access To Unimplemented Address Interrupt     */
-#define	AAIM		0x0040	/* Enable Abort Acknowledge Interrupt                           */
-#define	RMLIM		0x0080	/* Enable RX Message Lost Interrupt                                     */
-#define	UCEIM		0x0100	/* Enable Universal Counter Overflow Interrupt          */
-#define	EXTIM		0x0200	/* Enable External Trigger Output Interrupt                     */
-#define	ADIM		0x0400	/* Enable Access Denied Interrupt                                       */
-
-/* CAN_GIS Masks															*/
-#define	EWTIS		0x0001	/* TX Error Count IRQ Status                                    */
-#define	EWRIS		0x0002	/* RX Error Count IRQ Status                                    */
-#define	EPIS		0x0004	/* Error-Passive Mode IRQ Status                                */
-#define	BOIS		0x0008	/* Bus Off IRQ Status                                                   */
-#define	WUIS		0x0010	/* Wake-Up IRQ Status                                                   */
-#define	UIAIS		0x0020	/* Access To Unimplemented Address IRQ Status   */
-#define	AAIS		0x0040	/* Abort Acknowledge IRQ Status                                 */
-#define	RMLIS		0x0080	/* RX Message Lost IRQ Status                                   */
-#define	UCEIS		0x0100	/* Universal Counter Overflow IRQ Status                */
-#define	EXTIS		0x0200	/* External Trigger Output IRQ Status                   */
-#define	ADIS		0x0400	/* Access Denied IRQ Status                                             */
-
-/* CAN_GIF Masks															*/
-#define	EWTIF		0x0001	/* TX Error Count IRQ Flag                                              */
-#define	EWRIF		0x0002	/* RX Error Count IRQ Flag                                              */
-#define	EPIF		0x0004	/* Error-Passive Mode IRQ Flag                                  */
-#define	BOIF		0x0008	/* Bus Off IRQ Flag                                                             */
-#define	WUIF		0x0010	/* Wake-Up IRQ Flag                                                             */
-#define	UIAIF		0x0020	/* Access To Unimplemented Address IRQ Flag             */
-#define	AAIF		0x0040	/* Abort Acknowledge IRQ Flag                                   */
-#define	RMLIF		0x0080	/* RX Message Lost IRQ Flag                                             */
-#define	UCEIF		0x0100	/* Universal Counter Overflow IRQ Flag                  */
-#define	EXTIF		0x0200	/* External Trigger Output IRQ Flag                             */
-#define	ADIF		0x0400	/* Access Denied IRQ Flag                                               */
-
-/* CAN_UCCNF Masks															*/
-#define	UCCNF		0x000F	/* Universal Counter Mode                                               */
-#define UC_STAMP	0x0001	/*              Timestamp Mode                                                  */
-#define UC_WDOG		0x0002	/*              Watchdog Mode                                                   */
-#define UC_AUTOTX	0x0003	/*              Auto-Transmit Mode                                              */
-#define UC_ERROR	0x0006	/*              CAN Error Frame Count                                   */
-#define UC_OVER		0x0007	/*              CAN Overload Frame Count                                */
-#define UC_LOST		0x0008	/*              Arbitration Lost During TX Count                */
-#define UC_AA		0x0009	/*              TX Abort Count                                                  */
-#define UC_TA		0x000A	/*              TX Successful Count                                             */
-#define UC_REJECT	0x000B	/*              RX Message Rejected Count                               */
-#define UC_RML		0x000C	/*              RX Message Lost Count                                   */
-#define UC_RX		0x000D	/*              Total Successful RX Messages Count              */
-#define UC_RMP		0x000E	/*              Successful RX W/Matching ID Count               */
-#define UC_ALL		0x000F	/*              Correct Message On CAN Bus Line Count   */
-#define	UCRC		0x0020	/* Universal Counter Reload/Clear                               */
-#define	UCCT		0x0040	/* Universal Counter CAN Trigger                                */
-#define	UCE			0x0080	/* Universal Counter Enable                                             */
-
-/* CAN_ESR Masks										*/
-#define	ACKE		0x0004	/* Acknowledge Error            */
-#define	SER			0x0008	/* Stuff Error                          */
-#define	CRCE		0x0010	/* CRC Error                            */
-#define	SA0			0x0020	/* Stuck At Dominant Error      */
-#define	BEF			0x0040	/* Bit Error Flag                       */
-#define	FER			0x0080	/* Form Error Flag                      */
-
-/* CAN_EWR Masks												*/
-#define	EWLREC		0x00FF	/* RX Error Count Limit (For EWRIS)     */
-#define	EWLTEC		0xFF00	/* TX Error Count Limit (For EWTIS)     */
 
 /*  *******************  PIN CONTROL REGISTER MASKS  ************************/
 /* PORT_MUX Masks															*/

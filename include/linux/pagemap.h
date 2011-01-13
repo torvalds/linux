@@ -13,6 +13,7 @@
 #include <linux/gfp.h>
 #include <linux/bitops.h>
 #include <linux/hardirq.h> /* for in_interrupt() */
+#include <linux/hugetlb_inline.h>
 
 /*
  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
@@ -132,7 +133,7 @@ static inline int page_cache_get_speculative(struct page *page)
 {
 	VM_BUG_ON(in_interrupt());
 
-#if !defined(CONFIG_SMP) && defined(CONFIG_CLASSIC_RCU)
+#if !defined(CONFIG_SMP) && defined(CONFIG_TREE_RCU)
 # ifdef CONFIG_PREEMPT
 	VM_BUG_ON(!in_atomic());
 # endif
@@ -170,7 +171,7 @@ static inline int page_cache_add_speculative(struct page *page, int count)
 {
 	VM_BUG_ON(in_interrupt());
 
-#if !defined(CONFIG_SMP) && defined(CONFIG_CLASSIC_RCU)
+#if !defined(CONFIG_SMP) && defined(CONFIG_TREE_RCU)
 # ifdef CONFIG_PREEMPT
 	VM_BUG_ON(!in_atomic());
 # endif
@@ -253,6 +254,8 @@ extern struct page * read_cache_page_async(struct address_space *mapping,
 extern struct page * read_cache_page(struct address_space *mapping,
 				pgoff_t index, filler_t *filler,
 				void *data);
+extern struct page * read_cache_page_gfp(struct address_space *mapping,
+				pgoff_t index, gfp_t gfp_mask);
 extern int read_cache_pages(struct address_space *mapping,
 		struct list_head *pages, filler_t *filler, void *data);
 
@@ -279,10 +282,16 @@ static inline loff_t page_offset(struct page *page)
 	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
 }
 
+extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
+				     unsigned long address);
+
 static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 					unsigned long address)
 {
-	pgoff_t pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
+	pgoff_t pgoff;
+	if (unlikely(is_vm_hugetlb_page(vma)))
+		return linear_hugepage_index(vma, address);
+	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
 	pgoff += vma->vm_pgoff;
 	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
 }
@@ -290,6 +299,8 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 extern void __lock_page(struct page *page);
 extern int __lock_page_killable(struct page *page);
 extern void __lock_page_nosync(struct page *page);
+extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+				unsigned int flags);
 extern void unlock_page(struct page *page);
 
 static inline void __set_page_locked(struct page *page)
@@ -341,6 +352,17 @@ static inline void lock_page_nosync(struct page *page)
 		__lock_page_nosync(page);
 }
 	
+/*
+ * lock_page_or_retry - Lock the page, unless this would block and the
+ * caller indicated that it can handle a retry.
+ */
+static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
+				     unsigned int flags)
+{
+	might_sleep();
+	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
+}
+
 /*
  * This is exported only for wait_on_page_locked/wait_on_page_writeback.
  * Never use this directly!
@@ -421,8 +443,10 @@ static inline int fault_in_pages_readable(const char __user *uaddr, int size)
 		const char __user *end = uaddr + size - 1;
 
 		if (((unsigned long)uaddr & PAGE_MASK) !=
-				((unsigned long)end & PAGE_MASK))
+				((unsigned long)end & PAGE_MASK)) {
 		 	ret = __get_user(c, end);
+			(void)c;
+		}
 	}
 	return ret;
 }

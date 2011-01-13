@@ -998,8 +998,8 @@ enum link_state_t {
 struct ql_rcv_buf_cb {
 	struct ql_rcv_buf_cb *next;
 	struct sk_buff *skb;
-	 DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	 DECLARE_PCI_UNMAP_LEN(maplen);
+	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+	DEFINE_DMA_UNMAP_LEN(maplen);
 	__le32 buf_phy_addr_low;
 	__le32 buf_phy_addr_high;
 	int index;
@@ -1029,8 +1029,8 @@ struct oal {
 };
 
 struct map_list {
-	 DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	 DECLARE_PCI_UNMAP_LEN(maplen);
+	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+	DEFINE_DMA_UNMAP_LEN(maplen);
 };
 
 struct ql_tx_buf_cb {

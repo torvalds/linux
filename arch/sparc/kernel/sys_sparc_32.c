@@ -19,7 +19,6 @@
 #include <linux/mman.h>
 #include <linux/utsname.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/ipc.h>
 
 #include <asm/uaccess.h>
@@ -45,7 +44,8 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 		/* We do not accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
-		if ((flags & MAP_SHARED) && (addr & (SHMLBA - 1)))
+		if ((flags & MAP_SHARED) &&
+		    ((addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1)))
 			return -EINVAL;
 		return addr;
 	}
@@ -79,15 +79,6 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	}
 }
 
-asmlinkage unsigned long sparc_brk(unsigned long brk)
-{
-	if(ARCH_SUN4C) {
-		if ((brk & 0xe0000000) != (current->mm->brk & 0xe0000000))
-			return current->mm->brk;
-	}
-	return sys_brk(brk);
-}
-
 /*
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
@@ -106,119 +97,6 @@ out:
 	return error;
 }
 
-/*
- * sys_ipc() is the de-multiplexer for the SysV IPC calls..
- *
- * This is really horribly ugly.
- */
-
-asmlinkage int sys_ipc (uint call, int first, int second, int third, void __user *ptr, long fifth)
-{
-	int version, err;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	if (call <= SEMCTL)
-		switch (call) {
-		case SEMOP:
-			err = sys_semtimedop (first, (struct sembuf __user *)ptr, second, NULL);
-			goto out;
-		case SEMTIMEDOP:
-			err = sys_semtimedop (first, (struct sembuf __user *)ptr, second, (const struct timespec __user *) fifth);
-			goto out;
-		case SEMGET:
-			err = sys_semget (first, second, third);
-			goto out;
-		case SEMCTL: {
-			union semun fourth;
-			err = -EINVAL;
-			if (!ptr)
-				goto out;
-			err = -EFAULT;
-			if (get_user(fourth.__pad,
-				     (void __user * __user *)ptr))
-				goto out;
-			err = sys_semctl (first, second, third, fourth);
-			goto out;
-			}
-		default:
-			err = -ENOSYS;
-			goto out;
-		}
-	if (call <= MSGCTL) 
-		switch (call) {
-		case MSGSND:
-			err = sys_msgsnd (first, (struct msgbuf __user *) ptr, 
-					  second, third);
-			goto out;
-		case MSGRCV:
-			switch (version) {
-			case 0: {
-				struct ipc_kludge tmp;
-				err = -EINVAL;
-				if (!ptr)
-					goto out;
-				err = -EFAULT;
-				if (copy_from_user(&tmp, (struct ipc_kludge __user *) ptr, sizeof (tmp)))
-					goto out;
-				err = sys_msgrcv (first, tmp.msgp, second, tmp.msgtyp, third);
-				goto out;
-				}
-			case 1: default:
-				err = sys_msgrcv (first,
-						  (struct msgbuf __user *) ptr,
-						  second, fifth, third);
-				goto out;
-			}
-		case MSGGET:
-			err = sys_msgget ((key_t) first, second);
-			goto out;
-		case MSGCTL:
-			err = sys_msgctl (first, second, (struct msqid_ds __user *) ptr);
-			goto out;
-		default:
-			err = -ENOSYS;
-			goto out;
-		}
-	if (call <= SHMCTL) 
-		switch (call) {
-		case SHMAT:
-			switch (version) {
-			case 0: default: {
-				ulong raddr;
-				err = do_shmat (first, (char __user *) ptr, second, &raddr);
-				if (err)
-					goto out;
-				err = -EFAULT;
-				if (put_user (raddr, (ulong __user *) third))
-					goto out;
-				err = 0;
-				goto out;
-				}
-			case 1:	/* iBCS2 emulator entry point */
-				err = -EINVAL;
-				goto out;
-			}
-		case SHMDT: 
-			err = sys_shmdt ((char __user *)ptr);
-			goto out;
-		case SHMGET:
-			err = sys_shmget (first, second, third);
-			goto out;
-		case SHMCTL:
-			err = sys_shmctl (first, second, (struct shmid_ds __user *) ptr);
-			goto out;
-		default:
-			err = -ENOSYS;
-			goto out;
-		}
-	else
-		err = -ENOSYS;
-out:
-	return err;
-}
-
 int sparc_mmap_check(unsigned long addr, unsigned long len)
 {
 	if (ARCH_SUN4C &&
@@ -234,31 +112,6 @@ int sparc_mmap_check(unsigned long addr, unsigned long len)
 }
 
 /* Linux version of mmap */
-static unsigned long do_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags, unsigned long fd,
-	unsigned long pgoff)
-{
-	struct file * file = NULL;
-	unsigned long retval = -EBADF;
-
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	len = PAGE_ALIGN(len);
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	down_write(&current->mm->mmap_sem);
-	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:
-	return retval;
-}
 
 asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
@@ -266,14 +119,16 @@ asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 {
 	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
 	   we have. */
-	return do_mmap2(addr, len, prot, flags, fd, pgoff >> (PAGE_SHIFT - 12));
+	return sys_mmap_pgoff(addr, len, prot, flags, fd,
+			      pgoff >> (PAGE_SHIFT - 12));
 }
 
 asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
 	unsigned long off)
 {
-	return do_mmap2(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	/* no alignment check? */
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 }
 
 long sparc_remap_file_pages(unsigned long start, unsigned long size,
@@ -285,27 +140,6 @@ long sparc_remap_file_pages(unsigned long start, unsigned long size,
 	 */
 	return sys_remap_file_pages(start, size, prot,
 				    (pgoff >> (PAGE_SHIFT - 12)), flags);
-}
-
-extern unsigned long do_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr);
-                
-asmlinkage unsigned long sparc_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr)
-{
-	unsigned long ret = -EINVAL;
-
-	if (unlikely(sparc_mmap_check(addr, old_len)))
-		goto out;
-	if (unlikely(sparc_mmap_check(new_addr, new_len)))
-		goto out;
-	down_write(&current->mm->mmap_sem);
-	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-	up_write(&current->mm->mmap_sem);
-out:
-	return ret;       
 }
 
 /* we come to here via sys_nis_syscall so it can setup the regs argument */
@@ -331,7 +165,6 @@ sparc_breakpoint (struct pt_regs *regs)
 {
 	siginfo_t info;
 
-	lock_kernel();
 #ifdef DEBUG_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
@@ -345,7 +178,6 @@ sparc_breakpoint (struct pt_regs *regs)
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%x nPC=%x\n", regs->pc, regs->npc);
 #endif
-	unlock_kernel();
 }
 
 asmlinkage int
@@ -447,7 +279,9 @@ out:
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	long __res;
 	register long __g1 __asm__ ("g1") = __NR_execve;

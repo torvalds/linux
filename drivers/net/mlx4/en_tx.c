@@ -33,10 +33,12 @@
 
 #include <asm/page.h>
 #include <linux/mlx4/cq.h>
+#include <linux/slab.h>
 #include <linux/mlx4/qp.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
+#include <linux/tcp.h>
 
 #include "mlx4_en.h"
 
@@ -47,7 +49,7 @@ enum {
 static int inline_thold __read_mostly = MAX_INLINE;
 
 module_param_named(inline_thold, inline_thold, int, 0444);
-MODULE_PARM_DESC(inline_thold, "treshold for using inline data");
+MODULE_PARM_DESC(inline_thold, "threshold for using inline data");
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring *ring, u32 size,
@@ -150,7 +152,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring,
-			     int cq, int srqn)
+			     int cq)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
@@ -168,7 +170,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	ring->doorbell_qpn = swab32(ring->qp.qpn << 8);
 
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
-				ring->cqn, srqn, &ring->context);
+				ring->cqn, &ring->context);
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
 			       &ring->qp, &ring->qp_state);
@@ -249,6 +251,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				pci_unmap_page(mdev->pdev,
 					(dma_addr_t) be64_to_cpu(data->addr),
 					 frag->size, PCI_DMA_TODEVICE);
+				++data;
 			}
 		}
 		/* Stamp the freed descriptor */
@@ -436,6 +439,7 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 {
 	struct mlx4_en_cq *cq = &priv->tx_cq[tx_ind];
 	struct mlx4_en_tx_ring *ring = &priv->tx_ring[tx_ind];
+	unsigned long flags;
 
 	/* If we don't have a pending timer, set one up to catch our recent
 	   post in case the interface becomes idle */
@@ -444,9 +448,9 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 
 	/* Poll the CQ every mlx4_en_TX_MODER_POLL packets */
 	if ((++ring->poll_cnt & (MLX4_EN_TX_POLL_MODER - 1)) == 0)
-		if (spin_trylock_irq(&ring->comp_lock)) {
+		if (spin_trylock_irqsave(&ring->comp_lock, flags)) {
 			mlx4_en_process_tx_cq(priv->dev, cq);
-			spin_unlock_irq(&ring->comp_lock);
+			spin_unlock_irqrestore(&ring->comp_lock, flags);
 		}
 }
 
@@ -579,7 +583,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	/* If we support per priority flow control and the packet contains
 	 * a vlan tag, send the packet to the TX ring assigned to that priority
 	 */
-	if (priv->prof->rx_ppp && priv->vlgrp && vlan_tx_tag_present(skb)) {
+	if (priv->prof->rx_ppp && vlan_tx_tag_present(skb)) {
 		vlan_tag = vlan_tx_tag_get(skb);
 		return MLX4_EN_NUM_TX_RINGS + (vlan_tag >> 13);
 	}
@@ -587,7 +591,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return skb_tx_hash(dev, skb);
 }
 
-int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -597,6 +601,9 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx4_wqe_data_seg *data;
 	struct skb_frag_struct *frag;
 	struct mlx4_en_tx_info *tx_info;
+	struct ethhdr *ethh;
+	u64 mac;
+	u32 mac_l, mac_h;
 	int tx_ind = 0;
 	int nr_txbb;
 	int desc_size;
@@ -608,6 +615,9 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i;
 	int lso_header_size;
 	void *fragptr;
+
+	if (!priv->port_up)
+		goto tx_drop;
 
 	real_size = get_real_size(skb, dev, &lso_header_size);
 	if (unlikely(!real_size))
@@ -624,7 +634,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_ind = skb->queue_mapping;
 	ring = &priv->tx_ring[tx_ind];
-	if (priv->vlgrp && vlan_tx_tag_present(skb))
+	if (vlan_tx_tag_present(skb))
 		vlan_tag = vlan_tx_tag_get(skb);
 
 	/* Check available TXBBs And 2K spare for prefetch */
@@ -671,6 +681,19 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_desc->ctrl.srcrb_flags |= cpu_to_be32(MLX4_WQE_CTRL_IP_CSUM |
 							 MLX4_WQE_CTRL_TCP_UDP_CSUM);
 		priv->port_stats.tx_chksum_offload++;
+	}
+
+	if (unlikely(priv->validate_loopback)) {
+		/* Copy dst mac address to wqe */
+		skb_reset_mac_header(skb);
+		ethh = eth_hdr(skb);
+		if (ethh && ethh->h_dest) {
+			mac = mlx4_en_mac_to_u64(ethh->h_dest);
+			mac_h = (u32) ((mac & 0xffff00000000ULL) >> 16);
+			mac_l = (u32) (mac & 0xffffffff);
+			tx_desc->ctrl.srcrb_flags |= cpu_to_be32(mac_h);
+			tx_desc->ctrl.imm = cpu_to_be32(mac_l);
+		}
 	}
 
 	/* Handle LSO (TSO) packets */
@@ -764,7 +787,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Poll CQ here */
 	mlx4_en_xmit_poll(priv, tx_ind);
 
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_drop:
 	dev_kfree_skb_any(skb);

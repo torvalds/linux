@@ -26,6 +26,7 @@
  */
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/bio.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc7.h>
@@ -181,7 +182,7 @@ mmc_spi_readbytes(struct mmc_spi_host *host, unsigned len)
 				host->data_dma, sizeof(*host->data),
 				DMA_FROM_DEVICE);
 
-	status = spi_sync(host->spi, &host->readback);
+	status = spi_sync_locked(host->spi, &host->readback);
 
 	if (host->dma_dev)
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -540,7 +541,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 				host->data_dma, sizeof(*host->data),
 				DMA_BIDIRECTIONAL);
 	}
-	status = spi_sync(host->spi, &host->m);
+	status = spi_sync_locked(host->spi, &host->m);
 
 	if (host->dma_dev)
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -684,7 +685,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 				host->data_dma, sizeof(*scratch),
 				DMA_BIDIRECTIONAL);
 
-	status = spi_sync(spi, &host->m);
+	status = spi_sync_locked(spi, &host->m);
 
 	if (status != 0) {
 		dev_dbg(&spi->dev, "write error (%d)\n", status);
@@ -821,7 +822,7 @@ mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t,
 				DMA_FROM_DEVICE);
 	}
 
-	status = spi_sync(spi, &host->m);
+	status = spi_sync_locked(spi, &host->m);
 
 	if (host->dma_dev) {
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -1017,7 +1018,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 					host->data_dma, sizeof(*scratch),
 					DMA_BIDIRECTIONAL);
 
-		tmp = spi_sync(spi, &host->m);
+		tmp = spi_sync_locked(spi, &host->m);
 
 		if (host->dma_dev)
 			dma_sync_single_for_cpu(host->dma_dev,
@@ -1054,6 +1055,8 @@ static void mmc_spi_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct mmc_spi_host	*host = mmc_priv(mmc);
 	int			status = -EINVAL;
+	int			crc_retry = 5;
+	struct mmc_command	stop;
 
 #ifdef DEBUG
 	/* MMC core and layered drivers *MUST* issue SPI-aware commands */
@@ -1083,15 +1086,40 @@ static void mmc_spi_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 #endif
 
+	/* request exclusive bus access */
+	spi_bus_lock(host->spi->master);
+
+crc_recover:
 	/* issue command; then optionally data and stop */
 	status = mmc_spi_command_send(host, mrq, mrq->cmd, mrq->data != NULL);
 	if (status == 0 && mrq->data) {
 		mmc_spi_data_do(host, mrq->cmd, mrq->data, mrq->data->blksz);
+
+		/*
+		 * The SPI bus is not always reliable for large data transfers.
+		 * If an occasional crc error is reported by the SD device with
+		 * data read/write over SPI, it may be recovered by repeating
+		 * the last SD command again. The retry count is set to 5 to
+		 * ensure the driver passes stress tests.
+		 */
+		if (mrq->data->error == -EILSEQ && crc_retry) {
+			stop.opcode = MMC_STOP_TRANSMISSION;
+			stop.arg = 0;
+			stop.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+			status = mmc_spi_command_send(host, mrq, &stop, 0);
+			crc_retry--;
+			mrq->data->error = 0;
+			goto crc_recover;
+		}
+
 		if (mrq->stop)
 			status = mmc_spi_command_send(host, mrq, mrq->stop, 0);
 		else
 			mmc_cs_off(host);
 	}
+
+	/* release the bus */
+	spi_bus_unlock(host->spi->master);
 
 	mmc_request_done(host->mmc, mrq);
 }
@@ -1289,29 +1317,18 @@ mmc_spi_detect_irq(int irq, void *mmc)
 	return IRQ_HANDLED;
 }
 
-struct count_children {
-	unsigned	n;
-	struct bus_type	*bus;
-};
-
-static int maybe_count_child(struct device *dev, void *c)
-{
-	struct count_children *ccp = c;
-
-	if (dev->bus == ccp->bus) {
-		if (ccp->n)
-			return -EBUSY;
-		ccp->n++;
-	}
-	return 0;
-}
-
 static int mmc_spi_probe(struct spi_device *spi)
 {
 	void			*ones;
 	struct mmc_host		*mmc;
 	struct mmc_spi_host	*host;
 	int			status;
+
+	/* We rely on full duplex transfers, mostly to reduce
+	 * per-transfer overheads (by making fewer transfers).
+	 */
+	if (spi->master->flags & SPI_MASTER_HALF_DUPLEX)
+		return -EINVAL;
 
 	/* MMC and SD specs only seem to care that sampling is on the
 	 * rising edge ... meaning SPI modes 0 or 3.  So either SPI mode
@@ -1329,32 +1346,6 @@ static int mmc_spi_probe(struct spi_device *spi)
 				spi->mode, spi->max_speed_hz / 1000,
 				status);
 		return status;
-	}
-
-	/* We can use the bus safely iff nobody else will interfere with us.
-	 * Most commands consist of one SPI message to issue a command, then
-	 * several more to collect its response, then possibly more for data
-	 * transfer.  Clocking access to other devices during that period will
-	 * corrupt the command execution.
-	 *
-	 * Until we have software primitives which guarantee non-interference,
-	 * we'll aim for a hardware-level guarantee.
-	 *
-	 * REVISIT we can't guarantee another device won't be added later...
-	 */
-	if (spi->master->num_chipselect > 1) {
-		struct count_children cc;
-
-		cc.n = 0;
-		cc.bus = spi->dev.bus;
-		status = device_for_each_child(spi->dev.parent, &cc,
-				maybe_count_child);
-		if (status < 0) {
-			dev_err(&spi->dev, "can't share SPI bus\n");
-			return status;
-		}
-
-		dev_warn(&spi->dev, "ASSUMING SPI bus stays unshared!\n");
 	}
 
 	/* We need a supply of ones to transmit.  This is the only time
@@ -1375,8 +1366,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
-	mmc->max_hw_segs = MMC_SPI_BLOCKSATONCE;
-	mmc->max_phys_segs = MMC_SPI_BLOCKSATONCE;
+	mmc->max_segs = MMC_SPI_BLOCKSATONCE;
 	mmc->max_req_size = MMC_SPI_BLOCKSATONCE * MMC_SPI_BLOCKSIZE;
 	mmc->max_blk_count = MMC_SPI_BLOCKSATONCE;
 
@@ -1526,12 +1516,21 @@ static int __devexit mmc_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static struct of_device_id mmc_spi_of_match_table[] __devinitdata = {
+	{ .compatible = "mmc-spi-slot", },
+	{},
+};
+#endif
 
 static struct spi_driver mmc_spi_driver = {
 	.driver = {
 		.name =		"mmc_spi",
 		.bus =		&spi_bus_type,
 		.owner =	THIS_MODULE,
+#if defined(CONFIG_OF)
+		.of_match_table = mmc_spi_of_match_table,
+#endif
 	},
 	.probe =	mmc_spi_probe,
 	.remove =	__devexit_p(mmc_spi_remove),
@@ -1556,3 +1555,4 @@ MODULE_AUTHOR("Mike Lavender, David Brownell, "
 		"Hans-Peter Nilsson, Jan Nikitenko");
 MODULE_DESCRIPTION("SPI SD/MMC host driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:mmc_spi");

@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
@@ -38,6 +39,8 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
+
+#define PREFIX "ACPI: "
 
 #define ACPI_PROCESSOR_CLASS		"processor"
 #define ACPI_PROCESSOR_FILE_PERFORMANCE	"performance"
@@ -150,20 +153,77 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	return 0;
 }
 
-int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
+#define ACPI_PROCESSOR_NOTIFY_PERFORMANCE	0x80
+/*
+ * acpi_processor_ppc_ost: Notify firmware the _PPC evaluation status
+ * @handle: ACPI processor handle
+ * @status: the status code of _PPC evaluation
+ *	0: success. OSPM is now using the performance state specificed.
+ *	1: failure. OSPM has not changed the number of P-states in use
+ */
+static void acpi_processor_ppc_ost(acpi_handle handle, int status)
+{
+	union acpi_object params[2] = {
+		{.type = ACPI_TYPE_INTEGER,},
+		{.type = ACPI_TYPE_INTEGER,},
+	};
+	struct acpi_object_list arg_list = {2, params};
+	acpi_handle temp;
+
+	params[0].integer.value = ACPI_PROCESSOR_NOTIFY_PERFORMANCE;
+	params[1].integer.value =  status;
+
+	/* when there is no _OST , skip it */
+	if (ACPI_FAILURE(acpi_get_handle(handle, "_OST", &temp)))
+		return;
+
+	acpi_evaluate_object(handle, "_OST", &arg_list, NULL);
+	return;
+}
+
+int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 {
 	int ret;
 
-	if (ignore_ppc)
+	if (ignore_ppc) {
+		/*
+		 * Only when it is notification event, the _OST object
+		 * will be evaluated. Otherwise it is skipped.
+		 */
+		if (event_flag)
+			acpi_processor_ppc_ost(pr->handle, 1);
 		return 0;
+	}
 
 	ret = acpi_processor_get_platform_limit(pr);
-
+	/*
+	 * Only when it is notification event, the _OST object
+	 * will be evaluated. Otherwise it is skipped.
+	 */
+	if (event_flag) {
+		if (ret < 0)
+			acpi_processor_ppc_ost(pr->handle, 1);
+		else
+			acpi_processor_ppc_ost(pr->handle, 0);
+	}
 	if (ret < 0)
 		return (ret);
 	else
 		return cpufreq_update_policy(pr->id);
 }
+
+int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
+{
+	struct acpi_processor *pr;
+
+	pr = per_cpu(processors, cpu);
+	if (!pr || !pr->performance || !pr->performance->state_count)
+		return -ENODEV;
+	*limit = pr->performance->states[pr->performance_platform_limit].
+		core_frequency * 1000;
+	return 0;
+}
+EXPORT_SYMBOL(acpi_processor_get_bios_limit);
 
 void acpi_processor_ppc_init(void)
 {
@@ -354,7 +414,11 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	if (result)
 		goto update_bios;
 
-	return 0;
+	/* We need to call _PPC once when cpufreq starts */
+	if (ignore_ppc != 1)
+		result = acpi_processor_get_platform_limit(pr);
+
+	return result;
 
 	/*
 	 * Having _PPC but missing frequencies (_PSS, _PCT) is a very good hint that
@@ -383,8 +447,8 @@ int acpi_processor_notify_smm(struct module *calling_module)
 	if (!try_module_get(calling_module))
 		return -EINVAL;
 
-	/* is_done is set to negative if an error occured,
-	 * and to postitive if _no_ error occured, but SMM
+	/* is_done is set to negative if an error occurred,
+	 * and to postitive if _no_ error occurred, but SMM
 	 * was already notified. This avoids double notification
 	 * which might lead to unexpected results...
 	 */
@@ -498,7 +562,7 @@ end:
 }
 
 int acpi_processor_preregister_performance(
-		struct acpi_processor_performance *performance)
+		struct acpi_processor_performance __percpu *performance)
 {
 	int count, count_target;
 	int retval = 0;
@@ -509,7 +573,7 @@ int acpi_processor_preregister_performance(
 	struct acpi_processor *match_pr;
 	struct acpi_psd_package *match_pdomain;
 
-	if (!alloc_cpumask_var(&covered_cpus, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL))
 		return -ENOMEM;
 
 	mutex_lock(&performance_mutex);
@@ -556,7 +620,6 @@ int acpi_processor_preregister_performance(
 	 * Now that we have _PSD data from all CPUs, lets setup P-state 
 	 * domain info.
 	 */
-	cpumask_clear(covered_cpus);
 	for_each_possible_cpu(i) {
 		pr = per_cpu(processors, i);
 		if (!pr)

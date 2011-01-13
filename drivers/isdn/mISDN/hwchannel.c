@@ -15,6 +15,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/mISDNhw.h>
 
@@ -109,18 +110,19 @@ mISDN_freedchannel(struct dchannel *ch)
 	}
 	skb_queue_purge(&ch->squeue);
 	skb_queue_purge(&ch->rqueue);
-	flush_scheduled_work();
+	flush_work_sync(&ch->workq);
 	return 0;
 }
 EXPORT_SYMBOL(mISDN_freedchannel);
 
-int
-mISDN_freebchannel(struct bchannel *ch)
+void
+mISDN_clear_bchannel(struct bchannel *ch)
 {
 	if (ch->tx_skb) {
 		dev_kfree_skb(ch->tx_skb);
 		ch->tx_skb = NULL;
 	}
+	ch->tx_idx = 0;
 	if (ch->rx_skb) {
 		dev_kfree_skb(ch->rx_skb);
 		ch->rx_skb = NULL;
@@ -129,9 +131,19 @@ mISDN_freebchannel(struct bchannel *ch)
 		dev_kfree_skb(ch->next_skb);
 		ch->next_skb = NULL;
 	}
+	test_and_clear_bit(FLG_TX_BUSY, &ch->Flags);
+	test_and_clear_bit(FLG_TX_NEXT, &ch->Flags);
+	test_and_clear_bit(FLG_ACTIVE, &ch->Flags);
+}
+EXPORT_SYMBOL(mISDN_clear_bchannel);
+
+int
+mISDN_freebchannel(struct bchannel *ch)
+{
+	mISDN_clear_bchannel(ch);
 	skb_queue_purge(&ch->rqueue);
 	ch->rcount = 0;
-	flush_scheduled_work();
+	flush_work_sync(&ch->workq);
 	return 0;
 }
 EXPORT_SYMBOL(mISDN_freebchannel);

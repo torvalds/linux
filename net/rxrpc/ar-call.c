@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/circ_buf.h>
 #include <net/sock.h>
@@ -96,7 +97,7 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 }
 
 /*
- * allocate a new client call and attempt to to get a connection slot for it
+ * allocate a new client call and attempt to get a connection slot for it
  */
 static struct rxrpc_call *rxrpc_alloc_client_call(
 	struct rxrpc_sock *rx,
@@ -785,6 +786,7 @@ static void rxrpc_call_life_expired(unsigned long _call)
 
 /*
  * handle resend timer expiry
+ * - may not take call->state_lock as this can deadlock against del_timer_sync()
  */
 static void rxrpc_resend_time_expired(unsigned long _call)
 {
@@ -795,12 +797,9 @@ static void rxrpc_resend_time_expired(unsigned long _call)
 	if (call->state >= RXRPC_CALL_COMPLETE)
 		return;
 
-	read_lock_bh(&call->state_lock);
 	clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
-	if (call->state < RXRPC_CALL_COMPLETE &&
-	    !test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
+	if (!test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
 		rxrpc_queue_call(call);
-	read_unlock_bh(&call->state_lock);
 }
 
 /*

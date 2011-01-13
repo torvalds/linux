@@ -27,16 +27,12 @@
  *
  */
 
-
 #ifndef __RF_H__
 #define __RF_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
+
 /*---------------------  Export Definitions -------------------------*/
 //
 // Baseband RF pair definition in eeprom (Bits 6..0)
@@ -79,38 +75,30 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
-BOOL IFRFbWriteEmbeded(DWORD_PTR dwIoBase, DWORD dwData);
-BOOL RFbSelectChannel(DWORD_PTR dwIoBase, BYTE byRFType, BYTE byChannel);
-BOOL RFbInit (
-    IN  PSDevice  pDevice
+bool IFRFbWriteEmbeded(unsigned long dwIoBase, unsigned long dwData);
+bool RFbSelectChannel(unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel);
+bool RFbInit (
+    PSDevice  pDevice
     );
-BOOL RFvWriteWakeProgSyn(DWORD_PTR dwIoBase, BYTE byRFType, UINT uChannel);
-BOOL RFbSetPower(PSDevice pDevice, UINT uRATE, UINT uCH);
-BOOL RFbRawSetPower(
-    IN  PSDevice  pDevice,
-    IN  BYTE      byPwr,
-    IN  UINT      uRATE
+bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigned int uChannel);
+bool RFbSetPower(PSDevice pDevice, unsigned int uRATE, unsigned int uCH);
+bool RFbRawSetPower(
+    PSDevice  pDevice,
+    unsigned char byPwr,
+    unsigned int uRATE
     );
 
-VOID
+void
 RFvRSSITodBm(
-    IN  PSDevice pDevice,
-    IN  BYTE     byCurrRSSI,
-    OUT PLONG    pldBm
+    PSDevice pDevice,
+    unsigned char byCurrRSSI,
+    long    *pldBm
     );
 
 //{{ RobertYu: 20050104
-BOOL RFbAL7230SelectChannelPostProcess(DWORD_PTR dwIoBase, BYTE byOldChannel, BYTE byNewChannel);
+bool RFbAL7230SelectChannelPostProcess(unsigned long dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel);
 //}} RobertYu
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __RF_H__
 

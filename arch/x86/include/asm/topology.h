@@ -35,11 +35,16 @@
 # endif
 #endif
 
-/* Node not present */
-#define NUMA_NO_NODE	(-1)
+/*
+ * to preserve the visibility of NUMA_NO_NODE definition,
+ * moved to there from here.  May be used independent of
+ * CONFIG_NUMA.
+ */
+#include <linux/numa.h>
 
 #ifdef CONFIG_NUMA
 #include <linux/cpumask.h>
+
 #include <asm/mpspec.h>
 
 #ifdef CONFIG_X86_32
@@ -48,32 +53,28 @@
 extern int cpu_to_node_map[];
 
 /* Returns the number of the node containing CPU 'cpu' */
-static inline int cpu_to_node(int cpu)
+static inline int __cpu_to_node(int cpu)
 {
 	return cpu_to_node_map[cpu];
 }
-#define early_cpu_to_node(cpu)	cpu_to_node(cpu)
+#define early_cpu_to_node __cpu_to_node
+#define cpu_to_node __cpu_to_node
 
 #else /* CONFIG_X86_64 */
 
 /* Mappings between logical cpu number and node number */
 DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
 
-/* Returns the number of the current Node. */
-DECLARE_PER_CPU(int, node_number);
-#define numa_node_id()		percpu_read(node_number)
-
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
-extern int cpu_to_node(int cpu);
+/*
+ * override generic percpu implementation of cpu_to_node
+ */
+extern int __cpu_to_node(int cpu);
+#define cpu_to_node __cpu_to_node
+
 extern int early_cpu_to_node(int cpu);
 
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
-
-/* Returns the number of the node containing CPU 'cpu' */
-static inline int cpu_to_node(int cpu)
-{
-	return per_cpu(x86_cpu_to_node_map, cpu);
-}
 
 /* Same function but used if called before per_cpu areas are setup */
 static inline int early_cpu_to_node(int cpu)
@@ -116,38 +117,42 @@ extern unsigned long node_remap_size[];
 
 # define SD_CACHE_NICE_TRIES	1
 # define SD_IDLE_IDX		1
-# define SD_NEWIDLE_IDX		2
-# define SD_FORKEXEC_IDX	0
 
 #else
 
 # define SD_CACHE_NICE_TRIES	2
 # define SD_IDLE_IDX		2
-# define SD_NEWIDLE_IDX		2
-# define SD_FORKEXEC_IDX	1
 
 #endif
 
 /* sched_domains SD_NODE_INIT for NUMA machines */
-#define SD_NODE_INIT (struct sched_domain) {		\
-	.min_interval		= 8,			\
-	.max_interval		= 32,			\
-	.busy_factor		= 32,			\
-	.imbalance_pct		= 125,			\
-	.cache_nice_tries	= SD_CACHE_NICE_TRIES,	\
-	.busy_idx		= 3,			\
-	.idle_idx		= SD_IDLE_IDX,		\
-	.newidle_idx		= SD_NEWIDLE_IDX,	\
-	.wake_idx		= 1,			\
-	.forkexec_idx		= SD_FORKEXEC_IDX,	\
-	.flags			= SD_LOAD_BALANCE	\
-				| SD_BALANCE_EXEC	\
-				| SD_BALANCE_FORK	\
-				| SD_WAKE_AFFINE	\
-				| SD_WAKE_BALANCE	\
-				| SD_SERIALIZE,		\
-	.last_balance		= jiffies,		\
-	.balance_interval	= 1,			\
+#define SD_NODE_INIT (struct sched_domain) {				\
+	.min_interval		= 8,					\
+	.max_interval		= 32,					\
+	.busy_factor		= 32,					\
+	.imbalance_pct		= 125,					\
+	.cache_nice_tries	= SD_CACHE_NICE_TRIES,			\
+	.busy_idx		= 3,					\
+	.idle_idx		= SD_IDLE_IDX,				\
+	.newidle_idx		= 0,					\
+	.wake_idx		= 0,					\
+	.forkexec_idx		= 0,					\
+									\
+	.flags			= 1*SD_LOAD_BALANCE			\
+				| 1*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_EXEC			\
+				| 1*SD_BALANCE_FORK			\
+				| 0*SD_BALANCE_WAKE			\
+				| 1*SD_WAKE_AFFINE			\
+				| 0*SD_PREFER_LOCAL			\
+				| 0*SD_SHARE_CPUPOWER			\
+				| 0*SD_POWERSAVINGS_BALANCE		\
+				| 0*SD_SHARE_PKG_RESOURCES		\
+				| 1*SD_SERIALIZE			\
+				| 0*SD_PREFER_SIBLING			\
+				,					\
+	.last_balance		= jiffies,				\
+	.balance_interval	= 1,					\
 }
 
 #ifdef CONFIG_X86_64_ACPI_NUMA
@@ -161,20 +166,14 @@ static inline int numa_node_id(void)
 {
 	return 0;
 }
-
-static inline int cpu_to_node(int cpu)
-{
-	return 0;
-}
+/*
+ * indicate override:
+ */
+#define numa_node_id numa_node_id
 
 static inline int early_cpu_to_node(int cpu)
 {
 	return 0;
-}
-
-static inline const struct cpumask *cpumask_of_node(int node)
-{
-	return cpu_online_mask;
 }
 
 static inline void setup_node_to_cpumask_map(void) { }

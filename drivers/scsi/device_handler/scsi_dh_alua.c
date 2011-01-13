@@ -1,7 +1,7 @@
 /*
  * Generic SCSI-3 ALUA SCSI Device Handler
  *
- * Copyright (C) 2007, 2008 Hannes Reinecke, SUSE Linux Products GmbH.
+ * Copyright (C) 2007-2010 Hannes Reinecke, SUSE Linux Products GmbH.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,17 +19,20 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  */
+#include <linux/slab.h>
+#include <linux/delay.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dh.h>
 
 #define ALUA_DH_NAME "alua"
-#define ALUA_DH_VER "1.2"
+#define ALUA_DH_VER "1.3"
 
 #define TPGS_STATE_OPTIMIZED		0x0
 #define TPGS_STATE_NONOPTIMIZED		0x1
 #define TPGS_STATE_STANDBY		0x2
 #define TPGS_STATE_UNAVAILABLE		0x3
+#define TPGS_STATE_LBA_DEPENDENT	0x4
 #define TPGS_STATE_OFFLINE		0xe
 #define TPGS_STATE_TRANSITIONING	0xf
 
@@ -38,6 +41,7 @@
 #define TPGS_SUPPORT_NONOPTIMIZED	0x02
 #define TPGS_SUPPORT_STANDBY		0x04
 #define TPGS_SUPPORT_UNAVAILABLE	0x08
+#define TPGS_SUPPORT_LBA_DEPENDENT	0x10
 #define TPGS_SUPPORT_OFFLINE		0x40
 #define TPGS_SUPPORT_TRANSITION		0x80
 
@@ -60,10 +64,16 @@ struct alua_dh_data {
 	int			bufflen;
 	unsigned char		sense[SCSI_SENSE_BUFFERSIZE];
 	int			senselen;
+	struct scsi_device	*sdev;
+	activate_complete	callback_fn;
+	void			*callback_data;
 };
 
 #define ALUA_POLICY_SWITCH_CURRENT	0
 #define ALUA_POLICY_SWITCH_ALL		1
+
+static char print_alua_state(int);
+static int alua_check_sense(struct scsi_device *, struct scsi_sense_hdr *);
 
 static inline struct alua_dh_data *get_alua_data(struct scsi_device *sdev)
 {
@@ -231,18 +241,71 @@ done:
 }
 
 /*
+ * alua_stpg - Evaluate SET TARGET GROUP STATES
+ * @sdev: the device to be evaluated
+ * @state: the new target group state
+ *
+ * Send a SET TARGET GROUP STATES command to the device.
+ * We only have to test here if we should resubmit the command;
+ * any other error is assumed as a failure.
+ */
+static void stpg_endio(struct request *req, int error)
+{
+	struct alua_dh_data *h = req->end_io_data;
+	struct scsi_sense_hdr sense_hdr;
+	unsigned err = SCSI_DH_IO;
+
+	if (error || host_byte(req->errors) != DID_OK ||
+			msg_byte(req->errors) != COMMAND_COMPLETE)
+		goto done;
+
+	if (err == SCSI_DH_IO && h->senselen > 0) {
+		err = scsi_normalize_sense(h->sense, SCSI_SENSE_BUFFERSIZE,
+					   &sense_hdr);
+		if (!err) {
+			err = SCSI_DH_IO;
+			goto done;
+		}
+		err = alua_check_sense(h->sdev, &sense_hdr);
+		if (err == ADD_TO_MLQUEUE) {
+			err = SCSI_DH_RETRY;
+			goto done;
+		}
+		sdev_printk(KERN_INFO, h->sdev,
+			    "%s: stpg sense code: %02x/%02x/%02x\n",
+			    ALUA_DH_NAME, sense_hdr.sense_key,
+			    sense_hdr.asc, sense_hdr.ascq);
+		err = SCSI_DH_IO;
+	}
+	if (err == SCSI_DH_OK) {
+		h->state = TPGS_STATE_OPTIMIZED;
+		sdev_printk(KERN_INFO, h->sdev,
+			    "%s: port group %02x switched to state %c\n",
+			    ALUA_DH_NAME, h->group_id,
+			    print_alua_state(h->state));
+	}
+done:
+	blk_put_request(req);
+	if (h->callback_fn) {
+		h->callback_fn(h->callback_data, err);
+		h->callback_fn = h->callback_data = NULL;
+	}
+	return;
+}
+
+/*
  * submit_stpg - Issue a SET TARGET GROUP STATES command
- * @sdev: sdev the command should be sent to
  *
  * Currently we're only setting the current target port group state
  * to 'active/optimized' and let the array firmware figure out
  * the states of the remaining groups.
  */
-static unsigned submit_stpg(struct scsi_device *sdev, struct alua_dh_data *h)
+static unsigned submit_stpg(struct alua_dh_data *h)
 {
 	struct request *rq;
 	int err = SCSI_DH_RES_TEMP_UNAVAIL;
 	int stpg_len = 8;
+	struct scsi_device *sdev = h->sdev;
 
 	/* Prepare the data buffer */
 	memset(h->buff, 0, stpg_len);
@@ -252,7 +315,7 @@ static unsigned submit_stpg(struct scsi_device *sdev, struct alua_dh_data *h)
 
 	rq = get_alua_req(sdev, h->buff, stpg_len, WRITE);
 	if (!rq)
-		goto done;
+		return SCSI_DH_RES_TEMP_UNAVAIL;
 
 	/* Prepare the command. */
 	rq->cmd[0] = MAINTENANCE_OUT;
@@ -266,17 +329,9 @@ static unsigned submit_stpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	rq->sense = h->sense;
 	memset(rq->sense, 0, SCSI_SENSE_BUFFERSIZE);
 	rq->sense_len = h->senselen = 0;
+	rq->end_io_data = h;
 
-	err = blk_execute_rq(rq->q, NULL, rq, 1);
-	if (err == -EIO) {
-		sdev_printk(KERN_INFO, sdev,
-			    "%s: stpg failed with %x\n",
-			    ALUA_DH_NAME, rq->errors);
-		h->senselen = rq->sense_len;
-		err = SCSI_DH_IO;
-	}
-	blk_put_request(rq);
-done:
+	blk_execute_rq_nowait(rq->q, NULL, rq, 1, stpg_endio);
 	return err;
 }
 
@@ -408,6 +463,8 @@ static char print_alua_state(int state)
 		return 'S';
 	case TPGS_STATE_UNAVAILABLE:
 		return 'U';
+	case TPGS_STATE_LBA_DEPENDENT:
+		return 'L';
 	case TPGS_STATE_OFFLINE:
 		return 'O';
 	case TPGS_STATE_TRANSITIONING:
@@ -477,50 +534,6 @@ static int alua_check_sense(struct scsi_device *sdev,
 }
 
 /*
- * alua_stpg - Evaluate SET TARGET GROUP STATES
- * @sdev: the device to be evaluated
- * @state: the new target group state
- *
- * Send a SET TARGET GROUP STATES command to the device.
- * We only have to test here if we should resubmit the command;
- * any other error is assumed as a failure.
- */
-static int alua_stpg(struct scsi_device *sdev, int state,
-		     struct alua_dh_data *h)
-{
-	struct scsi_sense_hdr sense_hdr;
-	unsigned err;
-	int retry = ALUA_FAILOVER_RETRIES;
-
- retry:
-	err = submit_stpg(sdev, h);
-	if (err == SCSI_DH_IO && h->senselen > 0) {
-		err = scsi_normalize_sense(h->sense, SCSI_SENSE_BUFFERSIZE,
-					   &sense_hdr);
-		if (!err)
-			return SCSI_DH_IO;
-		err = alua_check_sense(sdev, &sense_hdr);
-		if (retry > 0 && err == ADD_TO_MLQUEUE) {
-			retry--;
-			goto retry;
-		}
-		sdev_printk(KERN_INFO, sdev,
-			    "%s: stpg sense code: %02x/%02x/%02x\n",
-			    ALUA_DH_NAME, sense_hdr.sense_key,
-			    sense_hdr.asc, sense_hdr.ascq);
-		err = SCSI_DH_IO;
-	}
-	if (err == SCSI_DH_OK) {
-		h->state = state;
-		sdev_printk(KERN_INFO, sdev,
-			    "%s: port group %02x switched to state %c\n",
-			    ALUA_DH_NAME, h->group_id,
-			    print_alua_state(h->state) );
-	}
-	return err;
-}
-
-/*
  * alua_rtpg - Evaluate REPORT TARGET GROUP STATES
  * @sdev: the device to be evaluated.
  *
@@ -534,7 +547,9 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	int len, k, off, valid_states = 0;
 	char *ucp;
 	unsigned err;
+	unsigned long expiry, interval = 10;
 
+	expiry = round_jiffies_up(jiffies + ALUA_FAILOVER_TIMEOUT);
  retry:
 	err = submit_rtpg(sdev, h);
 
@@ -545,7 +560,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 			return SCSI_DH_IO;
 
 		err = alua_check_sense(sdev, &sense_hdr);
-		if (err == ADD_TO_MLQUEUE)
+		if (err == ADD_TO_MLQUEUE && time_before(jiffies, expiry))
 			goto retry;
 		sdev_printk(KERN_INFO, sdev,
 			    "%s: rtpg sense code %02x/%02x/%02x\n",
@@ -579,38 +594,37 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	}
 
 	sdev_printk(KERN_INFO, sdev,
-		    "%s: port group %02x state %c supports %c%c%c%c%c%c\n",
+		    "%s: port group %02x state %c supports %c%c%c%c%c%c%c\n",
 		    ALUA_DH_NAME, h->group_id, print_alua_state(h->state),
 		    valid_states&TPGS_SUPPORT_TRANSITION?'T':'t',
 		    valid_states&TPGS_SUPPORT_OFFLINE?'O':'o',
+		    valid_states&TPGS_SUPPORT_LBA_DEPENDENT?'L':'l',
 		    valid_states&TPGS_SUPPORT_UNAVAILABLE?'U':'u',
 		    valid_states&TPGS_SUPPORT_STANDBY?'S':'s',
 		    valid_states&TPGS_SUPPORT_NONOPTIMIZED?'N':'n',
 		    valid_states&TPGS_SUPPORT_OPTIMIZED?'A':'a');
 
-	if (h->tpgs & TPGS_MODE_EXPLICIT) {
-		switch (h->state) {
-		case TPGS_STATE_TRANSITIONING:
+	switch (h->state) {
+	case TPGS_STATE_TRANSITIONING:
+		if (time_before(jiffies, expiry)) {
 			/* State transition, retry */
+			interval *= 10;
+			msleep(interval);
 			goto retry;
-			break;
-		case TPGS_STATE_OFFLINE:
-			/* Path is offline, fail */
-			err = SCSI_DH_DEV_OFFLINED;
-			break;
-		default:
-			break;
 		}
-	} else {
-		/* Only Implicit ALUA support */
-		if (h->state == TPGS_STATE_OPTIMIZED ||
-		    h->state == TPGS_STATE_NONOPTIMIZED ||
-		    h->state == TPGS_STATE_STANDBY)
-			/* Useable path if active */
-			err = SCSI_DH_OK;
-		else
-			/* Path unuseable for unavailable/offline */
-			err = SCSI_DH_DEV_OFFLINED;
+		/* Transitioning time exceeded, set port to standby */
+		err = SCSI_DH_RETRY;
+		h->state = TPGS_STATE_STANDBY;
+		break;
+	case TPGS_STATE_OFFLINE:
+	case TPGS_STATE_UNAVAILABLE:
+		/* Path unuseable for unavailable/offline */
+		err = SCSI_DH_DEV_OFFLINED;
+		break;
+	default:
+		/* Useable path if active */
+		err = SCSI_DH_OK;
+		break;
 	}
 	return err;
 }
@@ -652,7 +666,8 @@ out:
  * based on a certain policy. But until we actually encounter them it
  * should be okay.
  */
-static int alua_activate(struct scsi_device *sdev)
+static int alua_activate(struct scsi_device *sdev,
+			activate_complete fn, void *data)
 {
 	struct alua_dh_data *h = get_alua_data(sdev);
 	int err = SCSI_DH_OK;
@@ -663,11 +678,21 @@ static int alua_activate(struct scsi_device *sdev)
 			goto out;
 	}
 
-	if (h->tpgs == TPGS_MODE_EXPLICIT && h->state != TPGS_STATE_OPTIMIZED)
-		err = alua_stpg(sdev, TPGS_STATE_OPTIMIZED, h);
+	if (h->tpgs & TPGS_MODE_EXPLICIT &&
+	    h->state != TPGS_STATE_OPTIMIZED &&
+	    h->state != TPGS_STATE_LBA_DEPENDENT) {
+		h->callback_fn = fn;
+		h->callback_data = data;
+		err = submit_stpg(h);
+		if (err == SCSI_DH_OK)
+			return 0;
+		h->callback_fn = h->callback_data = NULL;
+	}
 
 out:
-	return err;
+	if (fn)
+		fn(data, err);
+	return 0;
 }
 
 /*
@@ -681,8 +706,11 @@ static int alua_prep_fn(struct scsi_device *sdev, struct request *req)
 	struct alua_dh_data *h = get_alua_data(sdev);
 	int ret = BLKPREP_OK;
 
-	if (h->state != TPGS_STATE_OPTIMIZED &&
-	    h->state != TPGS_STATE_NONOPTIMIZED) {
+	if (h->state == TPGS_STATE_TRANSITIONING)
+		ret = BLKPREP_DEFER;
+	else if (h->state != TPGS_STATE_OPTIMIZED &&
+		 h->state != TPGS_STATE_NONOPTIMIZED &&
+		 h->state != TPGS_STATE_LBA_DEPENDENT) {
 		ret = BLKPREP_KILL;
 		req->cmd_flags |= REQ_QUIET;
 	}
@@ -701,6 +729,8 @@ static const struct scsi_dh_devlist alua_dev_list[] = {
 	{"IBM", "2145" },
 	{"Pillar", "Axiom" },
 	{"Intel", "Multi-Flex"},
+	{"NETAPP", "LUN"},
+	{"AIX", "NVDISK"},
 	{NULL, NULL}
 };
 
@@ -745,6 +775,7 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	h->rel_port = -1;
 	h->buff = h->inq;
 	h->bufflen = ALUA_INQUIRY_SIZE;
+	h->sdev = sdev;
 
 	err = alua_initialize(sdev, h);
 	if (err != SCSI_DH_OK)

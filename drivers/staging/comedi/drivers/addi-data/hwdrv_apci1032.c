@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -34,7 +34,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
   +-------------------------------+---------------------------------------+
   | Project manager: Eric Stolz   | Date       :  02/12/2002              |
   +-------------------------------+---------------------------------------+
-  | Description :   Hardware Layer Acces For APCI-1032                    |
+  | Description :   Hardware Layer Access For APCI-1032                   |
   +-----------------------------------------------------------------------+
   |                             UPDATES                                   |
   +----------+-----------+------------------------------------------------+
@@ -53,8 +53,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 #include "hwdrv_apci1032.h"
 #include <linux/delay.h>
-/* Global variables */
-unsigned int ui_InterruptStatus = 0;
+
+static unsigned int ui_InterruptStatus;
 
 /*
 +----------------------------------------------------------------------------+
@@ -108,9 +108,9 @@ int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subde
 			ui_TmpValue =
 				inl(devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
 		}		/* if (data[1] == ADDIDATA_OR) */
-		else {
+		else
 			outl(0x6, devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
-		}		/* else if(data[1] == ADDIDATA_OR) */
+				/* else if(data[1] == ADDIDATA_OR) */
 	}			/*  if( data[0] == ADDIDATA_ENABLE) */
 	else {
 		ul_Command1 = ul_Command1 & 0xFFFF0000;
@@ -150,7 +150,7 @@ int i_APCI1032_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_TmpValue = 0;
 	unsigned int ui_Channel;
 	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel >= 0 && ui_Channel <= 31) {
+	if (ui_Channel <= 31) {
 		ui_TmpValue = (unsigned int) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
 /*
 * since only 1 channel reqd to bring it to last bit it is rotated 8
@@ -221,9 +221,9 @@ int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 		}		/* switch(ui_NoOfChannels) */
 	}			/* if(data[1]==0) */
 	else {
-		if (data[1] == 1) {
+		if (data[1] == 1)
 			*data = ui_InterruptStatus;
-		}		/* if(data[1]==1) */
+				/* if(data[1]==1) */
 	}			/* else if(data[1]==0) */
 	return insn->n;
 }

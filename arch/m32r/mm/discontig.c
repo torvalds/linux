@@ -32,6 +32,9 @@ typedef struct {
 } mem_prof_t;
 static mem_prof_t mem_prof[MAX_NUMNODES];
 
+extern unsigned long memory_start;
+extern unsigned long memory_end;
+
 static void __init mem_prof_init(void)
 {
 	unsigned long start_pfn, holes, free_pfn;
@@ -42,7 +45,7 @@ static void __init mem_prof_init(void)
 	/* Node#0 SDRAM */
 	mp = &mem_prof[0];
 	mp->start_pfn = PFN_UP(CONFIG_MEMORY_START);
-	mp->pages = PFN_DOWN(CONFIG_MEMORY_SIZE);
+	mp->pages = PFN_DOWN(memory_end - memory_start);
 	mp->holes = 0;
 	mp->free_pfn = PFN_UP(__pa(_end));
 

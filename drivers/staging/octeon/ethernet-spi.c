@@ -26,14 +26,12 @@
 **********************************************************************/
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <linux/mii.h>
 #include <net/dst.h>
 
 #include <asm/octeon/octeon.h>
 
 #include "ethernet-defines.h"
 #include "octeon-ethernet.h"
-#include "ethernet-common.h"
 #include "ethernet-util.h"
 
 #include "cvmx-spi.h"
@@ -296,6 +294,8 @@ int cvm_oct_spi_init(struct net_device *dev)
 	if (number_spi_ports == 0) {
 		r = request_irq(OCTEON_IRQ_RML, cvm_oct_spi_rml_interrupt,
 				IRQF_SHARED, "SPI", &number_spi_ports);
+		if (r)
+			return r;
 	}
 	number_spi_ports++;
 
@@ -318,6 +318,6 @@ void cvm_oct_spi_uninit(struct net_device *dev)
 			cvmx_write_csr(CVMX_SPXX_INT_MSK(interface), 0);
 			cvmx_write_csr(CVMX_STXX_INT_MSK(interface), 0);
 		}
-		free_irq(8 + 46, &number_spi_ports);
+		free_irq(OCTEON_IRQ_RML, &number_spi_ports);
 	}
 }

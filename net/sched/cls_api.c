@@ -24,6 +24,7 @@
 #include <linux/kmod.h>
 #include <linux/netlink.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/netlink.h>
@@ -98,8 +99,9 @@ out:
 }
 EXPORT_SYMBOL(unregister_tcf_proto_ops);
 
-static int tfilter_notify(struct sk_buff *oskb, struct nlmsghdr *n,
-			  struct tcf_proto *tp, unsigned long fh, int event);
+static int tfilter_notify(struct net *net, struct sk_buff *oskb,
+			  struct nlmsghdr *n, struct tcf_proto *tp,
+			  unsigned long fh, int event);
 
 
 /* Select new prio value from the range, managed by kernel. */
@@ -137,9 +139,6 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	int err;
 	int tp_created = 0;
 
-	if (net != &init_net)
-		return -EINVAL;
-
 replay:
 	t = NLMSG_DATA(n);
 	protocol = TC_H_MIN(t->tcm_info);
@@ -158,7 +157,7 @@ replay:
 	/* Find head of filter chain. */
 
 	/* Find link */
-	dev = __dev_get_by_index(&init_net, t->tcm_ifindex);
+	dev = __dev_get_by_index(net, t->tcm_ifindex);
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -168,8 +167,7 @@ replay:
 
 	/* Find qdisc */
 	if (!parent) {
-		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, 0);
-		q = dev_queue->qdisc_sleeping;
+		q = dev->qdisc;
 		parent = q->handle;
 	} else {
 		q = qdisc_lookup(dev, TC_H_MAJ(t->tcm_parent));
@@ -180,6 +178,9 @@ replay:
 	/* Is it classful? */
 	if ((cops = q->ops->cl_ops) == NULL)
 		return -EINVAL;
+
+	if (cops->tcf_chain == NULL)
+		return -EOPNOTSUPP;
 
 	/* Do we search for filter, attached to class? */
 	if (TC_H_MIN(parent)) {
@@ -280,7 +281,7 @@ replay:
 			*back = tp->next;
 			spin_unlock_bh(root_lock);
 
-			tfilter_notify(skb, n, tp, fh, RTM_DELTFILTER);
+			tfilter_notify(net, skb, n, tp, fh, RTM_DELTFILTER);
 			tcf_destroy(tp);
 			err = 0;
 			goto errout;
@@ -303,10 +304,10 @@ replay:
 		case RTM_DELTFILTER:
 			err = tp->ops->delete(tp, fh);
 			if (err == 0)
-				tfilter_notify(skb, n, tp, fh, RTM_DELTFILTER);
+				tfilter_notify(net, skb, n, tp, fh, RTM_DELTFILTER);
 			goto errout;
 		case RTM_GETTFILTER:
-			err = tfilter_notify(skb, n, tp, fh, RTM_NEWTFILTER);
+			err = tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER);
 			goto errout;
 		default:
 			err = -EINVAL;
@@ -322,7 +323,7 @@ replay:
 			*back = tp;
 			spin_unlock_bh(root_lock);
 		}
-		tfilter_notify(skb, n, tp, fh, RTM_NEWTFILTER);
+		tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER);
 	} else {
 		if (tp_created)
 			tcf_destroy(tp);
@@ -348,7 +349,7 @@ static int tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp,
 	tcm = NLMSG_DATA(nlh);
 	tcm->tcm_family = AF_UNSPEC;
 	tcm->tcm__pad1 = 0;
-	tcm->tcm__pad1 = 0;
+	tcm->tcm__pad2 = 0;
 	tcm->tcm_ifindex = qdisc_dev(tp->q)->ifindex;
 	tcm->tcm_parent = tp->classid;
 	tcm->tcm_info = TC_H_MAKE(tp->prio, tp->protocol);
@@ -368,8 +369,9 @@ nla_put_failure:
 	return -1;
 }
 
-static int tfilter_notify(struct sk_buff *oskb, struct nlmsghdr *n,
-			  struct tcf_proto *tp, unsigned long fh, int event)
+static int tfilter_notify(struct net *net, struct sk_buff *oskb,
+			  struct nlmsghdr *n, struct tcf_proto *tp,
+			  unsigned long fh, int event)
 {
 	struct sk_buff *skb;
 	u32 pid = oskb ? NETLINK_CB(oskb).pid : 0;
@@ -383,7 +385,7 @@ static int tfilter_notify(struct sk_buff *oskb, struct nlmsghdr *n,
 		return -EINVAL;
 	}
 
-	return rtnetlink_send(skb, &init_net, pid, RTNLGRP_TC,
+	return rtnetlink_send(skb, net, pid, RTNLGRP_TC,
 			      n->nlmsg_flags & NLM_F_ECHO);
 }
 
@@ -402,10 +404,10 @@ static int tcf_node_dump(struct tcf_proto *tp, unsigned long n,
 			     a->cb->nlh->nlmsg_seq, NLM_F_MULTI, RTM_NEWTFILTER);
 }
 
+/* called with RTNL */
 static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	struct netdev_queue *dev_queue;
 	int t;
 	int s_t;
 	struct net_device *dev;
@@ -416,22 +418,20 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	const struct Qdisc_class_ops *cops;
 	struct tcf_dump_args arg;
 
-	if (net != &init_net)
-		return 0;
-
 	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
 		return skb->len;
-	if ((dev = dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
+	if ((dev = __dev_get_by_index(net, tcm->tcm_ifindex)) == NULL)
 		return skb->len;
 
-	dev_queue = netdev_get_tx_queue(dev, 0);
 	if (!tcm->tcm_parent)
-		q = dev_queue->qdisc_sleeping;
+		q = dev->qdisc;
 	else
 		q = qdisc_lookup(dev, TC_H_MAJ(tcm->tcm_parent));
 	if (!q)
 		goto out;
 	if ((cops = q->ops->cl_ops) == NULL)
+		goto errout;
+	if (cops->tcf_chain == NULL)
 		goto errout;
 	if (TC_H_MIN(tcm->tcm_parent)) {
 		cl = cops->get(q, tcm->tcm_parent);
@@ -482,7 +482,6 @@ errout:
 	if (cl)
 		cops->put(q, cl);
 out:
-	dev_put(dev);
 	return skb->len;
 }
 

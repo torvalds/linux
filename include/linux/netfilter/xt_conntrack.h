@@ -32,42 +32,6 @@ enum {
 	XT_CONNTRACK_DIRECTION    = 1 << 12,
 };
 
-/* This is exposed to userspace, so remains frozen in time. */
-struct ip_conntrack_old_tuple
-{
-	struct {
-		__be32 ip;
-		union {
-			__u16 all;
-		} u;
-	} src;
-
-	struct {
-		__be32 ip;
-		union {
-			__u16 all;
-		} u;
-
-		/* The protocol. */
-		__u16 protonum;
-	} dst;
-};
-
-struct xt_conntrack_info
-{
-	unsigned int statemask, statusmask;
-
-	struct ip_conntrack_old_tuple tuple[IP_CT_DIR_MAX];
-	struct in_addr sipmsk[IP_CT_DIR_MAX], dipmsk[IP_CT_DIR_MAX];
-
-	unsigned long expires_min, expires_max;
-
-	/* Flags word */
-	__u8 flags;
-	/* Inverse flags */
-	__u8 invflags;
-};
-
 struct xt_conntrack_mtinfo1 {
 	union nf_inet_addr origsrc_addr, origsrc_mask;
 	union nf_inet_addr origdst_addr, origdst_mask;
@@ -79,6 +43,19 @@ struct xt_conntrack_mtinfo1 {
 	__be16 replsrc_port, repldst_port;
 	__u16 match_flags, invert_flags;
 	__u8 state_mask, status_mask;
+};
+
+struct xt_conntrack_mtinfo2 {
+	union nf_inet_addr origsrc_addr, origsrc_mask;
+	union nf_inet_addr origdst_addr, origdst_mask;
+	union nf_inet_addr replsrc_addr, replsrc_mask;
+	union nf_inet_addr repldst_addr, repldst_mask;
+	__u32 expires_min, expires_max;
+	__u16 l4proto;
+	__be16 origsrc_port, origdst_port;
+	__be16 replsrc_port, repldst_port;
+	__u16 match_flags, invert_flags;
+	__u16 state_mask, status_mask;
 };
 
 #endif /*_XT_CONNTRACK_H*/

@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/if_arp.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -780,11 +781,11 @@ int c2_register_device(struct c2_dev *dev)
 	/* Register pseudo network device */
 	dev->pseudo_netdev = c2_pseudo_netdev_init(dev);
 	if (!dev->pseudo_netdev)
-		goto out3;
+		goto out;
 
 	ret = register_netdev(dev->pseudo_netdev);
 	if (ret)
-		goto out2;
+		goto out_free_netdev;
 
 	pr_debug("%s:%u\n", __func__, __LINE__);
 	strlcpy(dev->ibdev.name, "amso%d", IB_DEVICE_NAME_MAX);
@@ -851,6 +852,10 @@ int c2_register_device(struct c2_dev *dev)
 	dev->ibdev.post_recv = c2_post_receive;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(*dev->ibdev.iwcm), GFP_KERNEL);
+	if (dev->ibdev.iwcm == NULL) {
+		ret = -ENOMEM;
+		goto out_unregister_netdev;
+	}
 	dev->ibdev.iwcm->add_ref = c2_add_ref;
 	dev->ibdev.iwcm->rem_ref = c2_rem_ref;
 	dev->ibdev.iwcm->get_qp = c2_get_qp;
@@ -860,25 +865,27 @@ int c2_register_device(struct c2_dev *dev)
 	dev->ibdev.iwcm->create_listen = c2_service_create;
 	dev->ibdev.iwcm->destroy_listen = c2_service_destroy;
 
-	ret = ib_register_device(&dev->ibdev);
+	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)
-		goto out1;
+		goto out_free_iwcm;
 
 	for (i = 0; i < ARRAY_SIZE(c2_dev_attributes); ++i) {
 		ret = device_create_file(&dev->ibdev.dev,
 					       c2_dev_attributes[i]);
 		if (ret)
-			goto out0;
+			goto out_unregister_ibdev;
 	}
-	goto out3;
+	goto out;
 
-out0:
+out_unregister_ibdev:
 	ib_unregister_device(&dev->ibdev);
-out1:
+out_free_iwcm:
+	kfree(dev->ibdev.iwcm);
+out_unregister_netdev:
 	unregister_netdev(dev->pseudo_netdev);
-out2:
+out_free_netdev:
 	free_netdev(dev->pseudo_netdev);
-out3:
+out:
 	pr_debug("%s:%u ret=%d\n", __func__, __LINE__, ret);
 	return ret;
 }

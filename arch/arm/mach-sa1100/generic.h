@@ -13,8 +13,7 @@ extern void __init sa1100_init_gpio(void);
 
 #define SET_BANK(__nr,__start,__size) \
 	mi->bank[__nr].start = (__start), \
-	mi->bank[__nr].size = (__size), \
-	mi->bank[__nr].node = (((unsigned)(__start) - PHYS_OFFSET) >> 27)
+	mi->bank[__nr].size = (__size)
 
 extern void (*sa1100fb_backlight_power)(int on);
 extern void (*sa1100fb_lcd_power)(int on);
@@ -32,14 +31,11 @@ extern unsigned int sa11x0_ppcr_to_freq(unsigned int idx);
 struct flash_platform_data;
 struct resource;
 
-extern void sa11x0_set_flash_data(struct flash_platform_data *flash,
-				  struct resource *res, int nr);
-
-struct sa11x0_ssp_plat_ops;
-extern void sa11x0_set_ssp_data(struct sa11x0_ssp_plat_ops *ops);
+void sa11x0_register_mtd(struct flash_platform_data *flash,
+			 struct resource *res, int nr);
 
 struct irda_platform_data;
-void sa11x0_set_irda_data(struct irda_platform_data *irda);
+void sa11x0_register_irda(struct irda_platform_data *irda);
 
 struct mcp_plat_data;
-void sa11x0_set_mcp_data(struct mcp_plat_data *data);
+void sa11x0_register_mcp(struct mcp_plat_data *data);

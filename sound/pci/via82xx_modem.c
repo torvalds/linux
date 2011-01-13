@@ -260,8 +260,8 @@ struct via82xx_modem {
 	struct snd_info_entry *proc_entry;
 };
 
-static struct pci_device_id snd_via82xx_modem_ids[] = {
-	{ 0x1106, 0x3068, PCI_ANY_ID, PCI_ANY_ID, 0, 0, TYPE_CARD_VIA82XX_MODEM, },
+static DEFINE_PCI_DEVICE_TABLE(snd_via82xx_modem_ids) = {
+	{ PCI_VDEVICE(VIA, 0x3068), TYPE_CARD_VIA82XX_MODEM, },
 	{ 0, }
 };
 

@@ -16,6 +16,7 @@
  */
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/list.h>

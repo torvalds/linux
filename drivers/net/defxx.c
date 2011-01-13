@@ -300,7 +300,8 @@ static int		dfx_rcv_init(DFX_board_t *bp, int get_buffers);
 static void		dfx_rcv_queue_process(DFX_board_t *bp);
 static void		dfx_rcv_flush(DFX_board_t *bp);
 
-static int		dfx_xmt_queue_pkt(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
+				     struct net_device *dev);
 static int		dfx_xmt_done(DFX_board_t *bp);
 static void		dfx_xmt_flush(DFX_board_t *bp);
 
@@ -1023,7 +1024,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 				 &data) != DFX_K_SUCCESS) {
 		printk("%s: Could not read adapter factory MAC address!\n",
 		       print_name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 	}
 	le32 = cpu_to_le32(data);
 	memcpy(&bp->factory_mac_addr[0], &le32, sizeof(u32));
@@ -1032,7 +1033,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 				 &data) != DFX_K_SUCCESS) {
 		printk("%s: Could not read adapter factory MAC address!\n",
 		       print_name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 	}
 	le32 = cpu_to_le32(data);
 	memcpy(&bp->factory_mac_addr[4], &le32, sizeof(u16));
@@ -1051,12 +1052,9 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 		board_name = "DEFEA";
 	if (dfx_bus_pci)
 		board_name = "DEFPA";
-	pr_info("%s: %s at %saddr = 0x%llx, IRQ = %d, "
-		"Hardware addr = %02X-%02X-%02X-%02X-%02X-%02X\n",
+	pr_info("%s: %s at %saddr = 0x%llx, IRQ = %d, Hardware addr = %pMF\n",
 		print_name, board_name, dfx_use_mmio ? "" : "I/O ",
-		(long long)bar_start, dev->irq,
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+		(long long)bar_start, dev->irq, dev->dev_addr);
 
 	/*
 	 * Get memory for descriptor block, consumer block, and other buffers
@@ -1077,7 +1075,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 	if (top_v == NULL) {
 		printk("%s: Could not allocate memory for host buffers "
 		       "and structures!\n", print_name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 	}
 	memset(top_v, 0, alloc_size);	/* zero out memory before continuing */
 	top_p = bp->kmalloced_dma;	/* get physical address of buffer */
@@ -1147,7 +1145,7 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 	DBG_printk("%s: Consumer block virt = %0lX, phys = %0X\n",
 		   print_name, (long)bp->cons_block_virt, bp->cons_block_phys);
 
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 }
 
 
@@ -1197,7 +1195,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_hw_dma_uninit(bp, bp->reset_type) != DFX_K_SUCCESS)
 		{
 		printk("%s: Could not uninitialize/reset adapter!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1231,7 +1229,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 							NULL) != DFX_K_SUCCESS)
 		{
 		printk("%s: Could not set adapter burst size!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1248,7 +1246,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 							NULL) != DFX_K_SUCCESS)
 		{
 		printk("%s: Could not set consumer block address!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1280,7 +1278,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: DMA command request failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Set the initial values for eFDXEnable and MACTReq MIB objects */
@@ -1296,7 +1294,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: DMA command request failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Initialize adapter CAM */
@@ -1304,7 +1302,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_ctl_update_cam(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: Adapter CAM update failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Initialize adapter filters */
@@ -1312,7 +1310,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	if (dfx_ctl_update_filters(bp) != DFX_K_SUCCESS)
 		{
 		printk("%s: Adapter filters update failed!\n", bp->dev->name);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/*
@@ -1330,7 +1328,7 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 		printk("%s: Receive buffer allocation failed\n", bp->dev->name);
 		if (get_buffers)
 			dfx_rcv_flush(bp);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Issue START command and bring adapter to LINK_(UN)AVAILABLE state */
@@ -1341,13 +1339,13 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 		printk("%s: Start command failed\n", bp->dev->name);
 		if (get_buffers)
 			dfx_rcv_flush(bp);
-		return(DFX_K_FAILURE);
+		return DFX_K_FAILURE;
 		}
 
 	/* Initialization succeeded, reenable PDQ interrupts */
 
 	dfx_port_write_long(bp, PI_PDQ_K_REG_HOST_INT_ENB, PI_HOST_INT_K_ENABLE_DEF_INTS);
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -1436,7 +1434,7 @@ static int dfx_open(struct net_device *dev)
 
 	/* Set device structure info */
 	netif_start_queue(dev);
-	return(0);
+	return 0;
 }
 
 
@@ -1528,7 +1526,7 @@ static int dfx_close(struct net_device *dev)
 
 	free_irq(dev->irq, dev);
 
-	return(0);
+	return 0;
 }
 
 
@@ -2029,7 +2027,7 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 
 	bp->cmd_req_virt->cmd_type = PI_CMD_K_SMT_MIB_GET;
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return((struct net_device_stats *) &bp->stats);
+		return (struct net_device_stats *)&bp->stats;
 
 	/* Fill the bp->stats structure with the SMT MIB object values */
 
@@ -2130,7 +2128,7 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 
 	bp->cmd_req_virt->cmd_type = PI_CMD_K_CNTRS_GET;
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return((struct net_device_stats *) &bp->stats);
+		return (struct net_device_stats *)&bp->stats;
 
 	/* Fill the bp->stats structure with the FDDI counter values */
 
@@ -2146,7 +2144,7 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 	bp->stats.port_lem_cts[0]			= bp->cmd_rsp_virt->cntrs_get.cntrs.link_errors[0].ls;
 	bp->stats.port_lem_cts[1]			= bp->cmd_rsp_virt->cntrs_get.cntrs.link_errors[1].ls;
 
-	return((struct net_device_stats *) &bp->stats);
+	return (struct net_device_stats *)&bp->stats;
 	}
 
 
@@ -2197,7 +2195,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	int					i;			/* used as index in for loop */
-	struct dev_mc_list	*dmi;		/* ptr to multicast addr entry */
+	struct netdev_hw_addr *ha;
 
 	/* Enable LLC frame promiscuous mode, if necessary */
 
@@ -2229,7 +2227,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 		 *		 perfect filtering will be used.
 		 */
 
-		if (dev->mc_count > (PI_CMD_ADDR_FILTER_K_SIZE - bp->uc_count))
+		if (netdev_mc_count(dev) > (PI_CMD_ADDR_FILTER_K_SIZE - bp->uc_count))
 			{
 			bp->group_prom	= PI_FSTATE_K_PASS;		/* Enable LLC group prom mode */
 			bp->mc_count	= 0;					/* Don't add mc addrs to CAM */
@@ -2237,17 +2235,16 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 		else
 			{
 			bp->group_prom	= PI_FSTATE_K_BLOCK;	/* Disable LLC group prom mode */
-			bp->mc_count	= dev->mc_count;		/* Add mc addrs to CAM */
+			bp->mc_count	= netdev_mc_count(dev);		/* Add mc addrs to CAM */
 			}
 
 		/* Copy addresses to multicast address table, then update adapter CAM */
 
-		dmi = dev->mc_list;				/* point to first multicast addr */
-		for (i=0; i < bp->mc_count; i++)
-			{
-			memcpy(&bp->mc_table[i*FDDI_K_ALEN], dmi->dmi_addr, FDDI_K_ALEN);
-			dmi = dmi->next;			/* point to next multicast addr */
-			}
+		i = 0;
+		netdev_for_each_mc_addr(ha, dev)
+			memcpy(&bp->mc_table[i++ * FDDI_K_ALEN],
+			       ha->addr, FDDI_K_ALEN);
+
 		if (dfx_ctl_update_cam(bp) != DFX_K_SUCCESS)
 			{
 			DBG_printk("%s: Could not update multicast address table!\n", dev->name);
@@ -2357,7 +2354,7 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 		{
 		DBG_printk("%s: Adapter CAM updated with new MAC address\n", dev->name);
 		}
-	return(0);			/* always return zero */
+	return 0;			/* always return zero */
 	}
 
 
@@ -2441,8 +2438,8 @@ static int dfx_ctl_update_cam(DFX_board_t *bp)
 	/* Issue command to update adapter CAM, then return */
 
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return(DFX_K_FAILURE);
-	return(DFX_K_SUCCESS);
+		return DFX_K_FAILURE;
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2507,8 +2504,8 @@ static int dfx_ctl_update_filters(DFX_board_t *bp)
 	/* Issue command to update adapter filters, then return */
 
 	if (dfx_hw_dma_cmd_req(bp) != DFX_K_SUCCESS)
-		return(DFX_K_FAILURE);
-	return(DFX_K_SUCCESS);
+		return DFX_K_FAILURE;
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2564,7 +2561,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 		(status == PI_STATE_K_HALTED)		||
 		(status == PI_STATE_K_DMA_UNAVAIL)	||
 		(status == PI_STATE_K_UPGRADE))
-		return(DFX_K_OUTSTATE);
+		return DFX_K_OUTSTATE;
 
 	/* Put response buffer on the command response queue */
 
@@ -2602,7 +2599,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 		udelay(100);			/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
+		return DFX_K_HW_TIMEOUT;
 
 	/* Bump (and wrap) the completion index and write out to register */
 
@@ -2622,14 +2619,14 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 		udelay(100);			/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
+		return DFX_K_HW_TIMEOUT;
 
 	/* Bump (and wrap) the completion index and write out to register */
 
 	bp->cmd_rsp_reg.index.comp += 1;
 	bp->cmd_rsp_reg.index.comp &= PI_CMD_RSP_K_NUM_ENTRIES-1;
 	dfx_port_write_long(bp, PI_PDQ_K_REG_CMD_RSP_PROD, bp->cmd_rsp_reg.lword);
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2703,7 +2700,7 @@ static int dfx_hw_port_ctrl_req(
 		udelay(100);			/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
+		return DFX_K_HW_TIMEOUT;
 
 	/*
 	 * If the address of host_data is non-zero, assume caller has supplied a
@@ -2713,7 +2710,7 @@ static int dfx_hw_port_ctrl_req(
 
 	if (host_data != NULL)
 		dfx_port_read_long(bp, PI_PDQ_K_REG_HOST_DATA, host_data);
-	return(DFX_K_SUCCESS);
+	return DFX_K_SUCCESS;
 	}
 
 
@@ -2803,7 +2800,7 @@ static int dfx_hw_adap_state_rd(DFX_board_t *bp)
 	PI_UINT32 port_status;		/* Port Status register value */
 
 	dfx_port_read_long(bp, PI_PDQ_K_REG_PORT_STATUS, &port_status);
-	return((port_status & PI_PSTATUS_M_STATE) >> PI_PSTATUS_V_STATE);
+	return (port_status & PI_PSTATUS_M_STATE) >> PI_PSTATUS_V_STATE;
 	}
 
 
@@ -2855,8 +2852,8 @@ static int dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type)
 		udelay(100);					/* wait for 100 microseconds */
 		}
 	if (timeout_cnt == 0)
-		return(DFX_K_HW_TIMEOUT);
-	return(DFX_K_SUCCESS);
+		return DFX_K_HW_TIMEOUT;
+	return DFX_K_SUCCESS;
 	}
 
 /*
@@ -3188,11 +3185,8 @@ static void dfx_rcv_queue_process(
  *   None
  */
 
-static int dfx_xmt_queue_pkt(
-	struct sk_buff	*skb,
-	struct net_device	*dev
-	)
-
+static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
+				     struct net_device *dev)
 	{
 	DFX_board_t		*bp = netdev_priv(dev);
 	u8			prod;				/* local transmit producer index */
@@ -3218,7 +3212,7 @@ static int dfx_xmt_queue_pkt(
 		bp->xmt_length_errors++;		/* bump error counter */
 		netif_wake_queue(dev);
 		dev_kfree_skb(skb);
-		return(0);				/* return "success" */
+		return NETDEV_TX_OK;			/* return "success" */
 	}
 	/*
 	 * See if adapter link is available, if not, free buffer
@@ -3241,7 +3235,7 @@ static int dfx_xmt_queue_pkt(
 			bp->xmt_discards++;					/* bump error counter */
 			dev_kfree_skb(skb);		/* free sk_buff now */
 			netif_wake_queue(dev);
-			return(0);							/* return "success" */
+			return NETDEV_TX_OK;		/* return "success" */
 			}
 		}
 
@@ -3345,7 +3339,7 @@ static int dfx_xmt_queue_pkt(
 	dfx_port_write_long(bp, PI_PDQ_K_REG_TYPE_2_PROD, bp->rcv_xmt_reg.lword);
 	spin_unlock_irqrestore(&bp->lock, flags);
 	netif_wake_queue(dev);
-	return(0);							/* packet queued to adapter */
+	return NETDEV_TX_OK;	/* packet queued to adapter */
 	}
 
 
@@ -3633,7 +3627,7 @@ static int __devinit dfx_pci_register(struct pci_dev *,
 				      const struct pci_device_id *);
 static void __devexit dfx_pci_unregister(struct pci_dev *);
 
-static struct pci_device_id dfx_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(dfx_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_FDDI) },
 	{ }
 };

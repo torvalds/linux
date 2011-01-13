@@ -109,15 +109,26 @@ struct ar9170_rxstream_mpdu_merge {
 	bool has_plcp;
 };
 
+struct ar9170_tx_queue_stats {
+	unsigned int len;
+	unsigned int limit;
+	unsigned int count;
+};
+
 #define AR9170_QUEUE_TIMEOUT		64
 #define AR9170_TX_TIMEOUT		8
 #define AR9170_JANITOR_DELAY		128
 #define AR9170_TX_INVALID_RATE		0xffffffff
 
+#define AR9170_NUM_TX_LIMIT_HARD	AR9170_TXQ_DEPTH
+#define AR9170_NUM_TX_LIMIT_SOFT	(AR9170_TXQ_DEPTH - 10)
+
 struct ar9170 {
 	struct ieee80211_hw *hw;
+	struct ath_common common;
 	struct mutex mutex;
 	enum ar9170_device_state state;
+	bool registered;
 	unsigned long bad_hw_nagger;
 
 	int (*open)(struct ar9170 *);
@@ -130,12 +141,11 @@ struct ar9170 {
 
 	/* interface mode settings */
 	struct ieee80211_vif *vif;
-	u8 mac_addr[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
 
 	/* beaconing */
 	struct sk_buff *beacon;
 	struct work_struct beacon_work;
+	bool enable_beacon;
 
 	/* cryptographic engine */
 	u64 usedkeys;
@@ -143,10 +153,8 @@ struct ar9170 {
 	bool disable_offload;
 
 	/* filter settings */
-	struct work_struct filter_config_work;
-	u64 cur_mc_hash, want_mc_hash;
-	u32 cur_filter, want_filter;
-	unsigned long filter_changed;
+	u64 cur_mc_hash;
+	u32 cur_filter;
 	unsigned int filter_state;
 	bool sniffer_enabled;
 
@@ -163,6 +171,8 @@ struct ar9170 {
 	u8 power_2G_ht20[8];
 	u8 power_2G_ht40[8];
 
+	u8 phy_heavy_clip;
+
 #ifdef CONFIG_AR9170_LEDS
 	struct delayed_work led_work;
 	struct ar9170_led leds[AR9170_NUM_LEDS];
@@ -170,7 +180,7 @@ struct ar9170 {
 
 	/* qos queue settings */
 	spinlock_t tx_stats_lock;
-	struct ieee80211_tx_queue_stats tx_stats[5];
+	struct ar9170_tx_queue_stats tx_stats[5];
 	struct ieee80211_tx_queue_params edcf[5];
 
 	spinlock_t cmdlock;
@@ -181,7 +191,6 @@ struct ar9170 {
 
 	/* EEPROM */
 	struct ar9170_eeprom eeprom;
-	struct ath_regulatory regulatory;
 
 	/* tx queues - as seen by hw - */
 	struct sk_buff_head tx_pending[__AR9170_NUM_TXQ];
@@ -192,26 +201,18 @@ struct ar9170 {
 	struct ar9170_rxstream_mpdu_merge rx_mpdu;
 	struct sk_buff *rx_failover;
 	int rx_failover_missing;
-};
 
-struct ar9170_sta_info {
+	/* (cached) HW A-MPDU settings */
+	u8 global_ampdu_density;
+	u8 global_ampdu_factor;
 };
-
-#define AR9170_TX_FLAG_WAIT_FOR_ACK	BIT(0)
-#define AR9170_TX_FLAG_NO_ACK		BIT(1)
-#define AR9170_TX_FLAG_BLOCK_ACK	BIT(2)
 
 struct ar9170_tx_info {
 	unsigned long timeout;
-	unsigned int flags;
 };
 
 #define IS_STARTED(a)		(((struct ar9170 *)a)->state >= AR9170_STARTED)
 #define IS_ACCEPTING_CMD(a)	(((struct ar9170 *)a)->state >= AR9170_IDLE)
-
-#define AR9170_FILTER_CHANGED_MODE		BIT(0)
-#define AR9170_FILTER_CHANGED_MULTICAST		BIT(1)
-#define AR9170_FILTER_CHANGED_FRAMEFILTER	BIT(2)
 
 /* exported interface */
 void *ar9170_alloc(size_t priv_size);
@@ -226,8 +227,8 @@ int ar9170_nag_limiter(struct ar9170 *ar);
 int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int ar9170_init_mac(struct ar9170 *ar);
 int ar9170_set_qos(struct ar9170 *ar);
-int ar9170_update_multicast(struct ar9170 *ar);
-int ar9170_update_frame_filter(struct ar9170 *ar);
+int ar9170_update_multicast(struct ar9170 *ar, const u64 mc_hast);
+int ar9170_update_frame_filter(struct ar9170 *ar, const u32 filter);
 int ar9170_set_operating_mode(struct ar9170 *ar);
 int ar9170_set_beacon_timers(struct ar9170 *ar);
 int ar9170_set_dyn_sifs_ack(struct ar9170 *ar);

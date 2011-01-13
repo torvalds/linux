@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
 #include "global.h"
 struct res_map_refresh res_map_refresh_tbl[] = {
 /*hres, vres, vclock, vmode_refresh*/
@@ -66,6 +67,7 @@ struct res_map_refresh res_map_refresh_tbl[] = {
 	{1088, 612, RES_1088X612_60HZ_PIXCLOCK, 60},
 	{1152, 720, RES_1152X720_60HZ_PIXCLOCK, 60},
 	{1200, 720, RES_1200X720_60HZ_PIXCLOCK, 60},
+	{1200, 900, RES_1200X900_60HZ_PIXCLOCK, 60},
 	{1280, 600, RES_1280X600_60HZ_PIXCLOCK, 60},
 	{1280, 720, RES_1280X720_50HZ_PIXCLOCK, 50},
 	{1280, 768, RES_1280X768_50HZ_PIXCLOCK, 50},
@@ -100,12 +102,8 @@ struct io_reg CN400_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0x08, 0x00},
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address  */
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
@@ -159,16 +157,12 @@ struct io_reg CN700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIASR, CR30, 0xFF, 0x04},
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0x7F, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0xFF, 0x31},
 {VIACR, CR41, 0xFF, 0x80},
 {VIACR, CR42, 0xFF, 0x00},
 {VIACR, CR55, 0x80, 0x00},
 {VIACR, CR5D, 0x80, 0x00},	/*Horizontal Retrace Start bit[11] should be 0*/
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address */
 {VIACR, CR68, 0xFF, 0x67},	/* Default FIFO For IGA2 */
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFD, 0x40},
@@ -233,9 +227,6 @@ struct io_reg KM400_ModeXregs[] = {
 	{VIACR, CR55, 0x80, 0x00},
 	{VIACR, CR5D, 0x80, 0x00},
 	{VIACR, CR36, 0xFF, 0x01},	/* Power Mangement 3                  */
-	{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address */
-	{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address */
-	{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address */
 	{VIACR, CR68, 0xFF, 0x67},	/* Default FIFO For IGA2              */
 	{VIACR, CR6A, 0x20, 0x20},	/* Extended FIFO On                   */
 	{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1            */
@@ -285,14 +276,9 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0x08, 0x00},
 {VIACR, CR47, 0xC8, 0x00},	/* Clear VCK Plus. */
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CRA3, 0xFF, 0x00},	/* Secondary Display Starting Address  */
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
@@ -325,69 +311,61 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR96, 0xFF, 0x00},
 {VIACR, CR97, 0xFF, 0x00},
 {VIACR, CR99, 0xFF, 0x00},
-{VIACR, CR9B, 0xFF, 0x00},
-{VIACR, CRD2, 0xFF, 0xFF}	/* TMDS/LVDS control register.         */
+{VIACR, CR9B, 0xFF, 0x00}
 };
 
-/* For VT3353: Common Setting for Video Mode */
-struct io_reg VX800_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
+struct io_reg VX855_ModeXregs[] = {
+{VIASR, SR10, 0xFF, 0x01},
 {VIASR, SR15, 0x02, 0x02},
 {VIASR, SR16, 0xBF, 0x08},
 {VIASR, SR17, 0xFF, 0x1F},
 {VIASR, SR18, 0xFF, 0x4E},
 {VIASR, SR1A, 0xFB, 0x08},
 {VIASR, SR1B, 0xFF, 0xF0},
-{VIASR, SR1E, 0xFF, 0x01},
-{VIASR, SR2A, 0xFF, 0x00},
+{VIASR, SR1E, 0x07, 0x01},
+{VIASR, SR2A, 0xF0, 0x00},
+{VIASR, SR58, 0xFF, 0x00},
+{VIASR, SR59, 0xFF, 0x00},
 {VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
+{VIACR, CR09, 0xFF, 0x00},	/* Initial CR09=0*/
+{VIACR, CR11, 0x8F, 0x00},	/* IGA1 initial  Vertical end       */
+{VIACR, CR17, 0x7F, 0x00}, 	/* IGA1 CRT Mode control init   */
 {VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
 {VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
 {VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
 {VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
-{VIACR, CR33, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
+{VIACR, CR33, 0x7F, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0x08, 0x00},
-{VIACR, CR47, 0xC8, 0x00},	/* Clear VCK Plus. */
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CRA3, 0xFF, 0x00},	/* Secondary Display Starting Address  */
 {VIACR, CR69, 0xFF, 0x00},
-{VIACR, CR6A, 0xFF, 0x40},
+{VIACR, CR6A, 0xFD, 0x60},
 {VIACR, CR6B, 0xFF, 0x00},
 {VIACR, CR6C, 0xFF, 0x00},
-{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1             */
-{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2             */
-{VIACR, CR7C, 0xFF, 0x03},	/* LCD Scaling Parameter 3             */
-{VIACR, CR7D, 0xFF, 0x04},	/* LCD Scaling Parameter 4             */
-{VIACR, CR7E, 0xFF, 0x07},	/* LCD Scaling Parameter 5             */
-{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Scaling Parameter 6             */
-{VIACR, CR80, 0xFF, 0x0D},	/* LCD Scaling Parameter 7             */
-{VIACR, CR81, 0xFF, 0x13},	/* LCD Scaling Parameter 8             */
-{VIACR, CR82, 0xFF, 0x16},	/* LCD Scaling Parameter 9             */
-{VIACR, CR83, 0xFF, 0x19},	/* LCD Scaling Parameter 10            */
-{VIACR, CR84, 0xFF, 0x1C},	/* LCD Scaling Parameter 11            */
-{VIACR, CR85, 0xFF, 0x1D},	/* LCD Scaling Parameter 12            */
-{VIACR, CR86, 0xFF, 0x1E},	/* LCD Scaling Parameter 13            */
-{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14            */
-{VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
-{VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
-{VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
-{VIACR, CRD4, 0xFF, 0x81},	/* Second power sequence control       */
-{VIACR, CR8B, 0xFF, 0x5D},	/* LCD Power Sequence Control 0        */
-{VIACR, CR8C, 0xFF, 0x2B},	/* LCD Power Sequence Control 1        */
-{VIACR, CR8D, 0xFF, 0x6F},	/* LCD Power Sequence Control 2        */
-{VIACR, CR8E, 0xFF, 0x2B},	/* LCD Power Sequence Control 3        */
-{VIACR, CR8F, 0xFF, 0x01},	/* LCD Power Sequence Control 4        */
-{VIACR, CR90, 0xFF, 0x01},	/* LCD Power Sequence Control 5        */
-{VIACR, CR91, 0xFF, 0x80},	/* 24/12 bit LVDS Data off             */
+{VIACR, CR7A, 0xFF, 0x01},          /* LCD Scaling Parameter 1             */
+{VIACR, CR7B, 0xFF, 0x02},          /* LCD Scaling Parameter 2             */
+{VIACR, CR7C, 0xFF, 0x03},          /* LCD Scaling Parameter 3             */
+{VIACR, CR7D, 0xFF, 0x04},          /* LCD Scaling Parameter 4             */
+{VIACR, CR7E, 0xFF, 0x07},          /* LCD Scaling Parameter 5             */
+{VIACR, CR7F, 0xFF, 0x0A},          /* LCD Scaling Parameter 6             */
+{VIACR, CR80, 0xFF, 0x0D},          /* LCD Scaling Parameter 7             */
+{VIACR, CR81, 0xFF, 0x13},          /* LCD Scaling Parameter 8             */
+{VIACR, CR82, 0xFF, 0x16},          /* LCD Scaling Parameter 9             */
+{VIACR, CR83, 0xFF, 0x19},          /* LCD Scaling Parameter 10            */
+{VIACR, CR84, 0xFF, 0x1C},          /* LCD Scaling Parameter 11            */
+{VIACR, CR85, 0xFF, 0x1D},          /* LCD Scaling Parameter 12            */
+{VIACR, CR86, 0xFF, 0x1E},          /* LCD Scaling Parameter 13            */
+{VIACR, CR87, 0xFF, 0x1F},          /* LCD Scaling Parameter 14            */
+{VIACR, CR88, 0xFF, 0x40},          /* LCD Panel Type                      */
+{VIACR, CR89, 0xFF, 0x00},          /* LCD Timing Control 0                */
+{VIACR, CR8A, 0xFF, 0x88},          /* LCD Timing Control 1                */
+{VIACR, CRD4, 0xFF, 0x81},          /* Second power sequence control       */
+{VIACR, CR91, 0xFF, 0x80},          /* 24/12 bit LVDS Data off             */
 {VIACR, CR96, 0xFF, 0x00},
 {VIACR, CR97, 0xFF, 0x00},
 {VIACR, CR99, 0xFF, 0x00},
 {VIACR, CR9B, 0xFF, 0x00},
-{VIACR, CRD2, 0xFF, 0xFF}	/* TMDS/LVDS control register.         */
+{VIACR, CRD2, 0xFF, 0xFF}           /* TMDS/LVDS control register.         */
 };
 
 /* Video Mode Table */
@@ -401,7 +379,6 @@ struct io_reg CLE266_ModeXregs[] = { {VIASR, SR1E, 0xF0, 0x00},
 {VIASR, SR1A, 0xFB, 0x08},
 
 {VIACR, CR32, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0x08, 0x00},
 {VIACR, CR6A, 0xFF, 0x80},
@@ -437,7 +414,7 @@ struct io_reg PM1024x768[] = { {VIASR, 0x16, 0xBF, 0x0C},
 };
 
 struct patch_table res_patch_table[] = {
-	{VIA_RES_1024X768, ARRAY_SIZE(PM1024x768), PM1024x768}
+	{ARRAY_SIZE(PM1024x768), PM1024x768}
 };
 
 /* struct VPITTable {
@@ -784,6 +761,16 @@ struct crt_mode_table CRTM1200x720[] = {
 	 {1568, 1200, 1200, 368, 1256, 128, 746, 720, 720, 26, 721, 3} }
 };
 
+/* 1200x900 (DCON) */
+struct crt_mode_table DCON1200x900[] = {
+	/* r_rate,          vclk,               hsp,               vsp   */
+	{REFRESH_60, CLK_57_275M, M1200X900_R60_HSP, M1200X900_R60_VSP,
+	/* The correct htotal is 1240, but this doesn't raster on VX855. */
+	/* Via suggested changing to a multiple of 16, hence 1264.       */
+	/*  HT,   HA,  HBS, HBE,  HSS, HSE,  VT,  VA, VBS, VBE, VSS, VSE */
+	 {1264, 1200, 1200,  64, 1211,  32, 912, 900, 900,  12, 901, 10} }
+};
+
 /* 1280x600 (GTF) */
 struct crt_mode_table CRTM1280x600[] = {
 	/* r_rate,          vclk,              hsp,             vsp   */
@@ -904,169 +891,154 @@ struct crt_mode_table CRTM2048x1536[] = {
 	 {2800, 2048, 2048, 752, 2200, 224, 1592, 1536, 1536, 56, 1539, 4} }
 };
 
-/* Video Mode Table */
-/* struct VideoModeTable {*/
-/*  int                               ModeIndex;*/
-/*  struct crt_mode_table             *crtc;*/
-/*  int                               mode_array;*/
-/* };*/
-struct VideoModeTable CLE266Modes[] = {
+struct VideoModeTable viafb_modes[] = {
 	/* Display : 480x640 (GTF) */
-	{VIA_RES_480X640, CRTM480x640, ARRAY_SIZE(CRTM480x640)},
+	{CRTM480x640, ARRAY_SIZE(CRTM480x640)},
 
 	/* Display : 640x480 */
-	{VIA_RES_640X480, CRTM640x480, ARRAY_SIZE(CRTM640x480)},
+	{CRTM640x480, ARRAY_SIZE(CRTM640x480)},
 
 	/* Display : 720x480 (GTF) */
-	{VIA_RES_720X480, CRTM720x480, ARRAY_SIZE(CRTM720x480)},
+	{CRTM720x480, ARRAY_SIZE(CRTM720x480)},
 
 	/* Display : 720x576 (GTF) */
-	{VIA_RES_720X576, CRTM720x576, ARRAY_SIZE(CRTM720x576)},
+	{CRTM720x576, ARRAY_SIZE(CRTM720x576)},
 
 	/* Display : 800x600 */
-	{VIA_RES_800X600, CRTM800x600, ARRAY_SIZE(CRTM800x600)},
+	{CRTM800x600, ARRAY_SIZE(CRTM800x600)},
 
 	/* Display : 800x480 (CVT) */
-	{VIA_RES_800X480, CRTM800x480, ARRAY_SIZE(CRTM800x480)},
+	{CRTM800x480, ARRAY_SIZE(CRTM800x480)},
 
 	/* Display : 848x480 (CVT) */
-	{VIA_RES_848X480, CRTM848x480, ARRAY_SIZE(CRTM848x480)},
+	{CRTM848x480, ARRAY_SIZE(CRTM848x480)},
 
 	/* Display : 852x480 (GTF) */
-	{VIA_RES_856X480, CRTM852x480, ARRAY_SIZE(CRTM852x480)},
+	{CRTM852x480, ARRAY_SIZE(CRTM852x480)},
 
 	/* Display : 1024x512 (GTF) */
-	{VIA_RES_1024X512, CRTM1024x512, ARRAY_SIZE(CRTM1024x512)},
+	{CRTM1024x512, ARRAY_SIZE(CRTM1024x512)},
 
 	/* Display : 1024x600 */
-	{VIA_RES_1024X600, CRTM1024x600, ARRAY_SIZE(CRTM1024x600)},
-
-	/* Display : 1024x576 (GTF) */
-	/*{ VIA_RES_1024X576, CRTM1024x576, ARRAY_SIZE(CRTM1024x576)}, */
+	{CRTM1024x600, ARRAY_SIZE(CRTM1024x600)},
 
 	/* Display : 1024x768 */
-	{VIA_RES_1024X768, CRTM1024x768, ARRAY_SIZE(CRTM1024x768)},
+	{CRTM1024x768, ARRAY_SIZE(CRTM1024x768)},
 
 	/* Display : 1152x864 */
-	{VIA_RES_1152X864, CRTM1152x864, ARRAY_SIZE(CRTM1152x864)},
+	{CRTM1152x864, ARRAY_SIZE(CRTM1152x864)},
 
 	/* Display : 1280x768 (GTF) */
-	{VIA_RES_1280X768, CRTM1280x768, ARRAY_SIZE(CRTM1280x768)},
+	{CRTM1280x768, ARRAY_SIZE(CRTM1280x768)},
 
 	/* Display : 960x600 (CVT) */
-	{VIA_RES_960X600, CRTM960x600, ARRAY_SIZE(CRTM960x600)},
+	{CRTM960x600, ARRAY_SIZE(CRTM960x600)},
 
 	/* Display : 1000x600 (GTF) */
-	{VIA_RES_1000X600, CRTM1000x600, ARRAY_SIZE(CRTM1000x600)},
+	{CRTM1000x600, ARRAY_SIZE(CRTM1000x600)},
 
 	/* Display : 1024x576 (GTF) */
-	{VIA_RES_1024X576, CRTM1024x576, ARRAY_SIZE(CRTM1024x576)},
+	{CRTM1024x576, ARRAY_SIZE(CRTM1024x576)},
 
 	/* Display : 1088x612 (GTF) */
-	{VIA_RES_1088X612, CRTM1088x612, ARRAY_SIZE(CRTM1088x612)},
+	{CRTM1088x612, ARRAY_SIZE(CRTM1088x612)},
 
 	/* Display : 1152x720 (CVT) */
-	{VIA_RES_1152X720, CRTM1152x720, ARRAY_SIZE(CRTM1152x720)},
+	{CRTM1152x720, ARRAY_SIZE(CRTM1152x720)},
 
 	/* Display : 1200x720 (GTF) */
-	{VIA_RES_1200X720, CRTM1200x720, ARRAY_SIZE(CRTM1200x720)},
+	{CRTM1200x720, ARRAY_SIZE(CRTM1200x720)},
+
+	/* Display : 1200x900 (DCON) */
+	{DCON1200x900, ARRAY_SIZE(DCON1200x900)},
 
 	/* Display : 1280x600 (GTF) */
-	{VIA_RES_1280X600, CRTM1280x600, ARRAY_SIZE(CRTM1280x600)},
+	{CRTM1280x600, ARRAY_SIZE(CRTM1280x600)},
 
 	/* Display : 1280x800 (CVT) */
-	{VIA_RES_1280X800, CRTM1280x800, ARRAY_SIZE(CRTM1280x800)},
-
-	/* Display : 1280x800 (GTF) */
-	/*{ M1280x800, CRTM1280x800, ARRAY_SIZE(CRTM1280x800)}, */
+	{CRTM1280x800, ARRAY_SIZE(CRTM1280x800)},
 
 	/* Display : 1280x960 */
-	{VIA_RES_1280X960, CRTM1280x960, ARRAY_SIZE(CRTM1280x960)},
+	{CRTM1280x960, ARRAY_SIZE(CRTM1280x960)},
 
 	/* Display : 1280x1024 */
-	{VIA_RES_1280X1024, CRTM1280x1024, ARRAY_SIZE(CRTM1280x1024)},
+	{CRTM1280x1024, ARRAY_SIZE(CRTM1280x1024)},
 
 	/* Display : 1360x768 (CVT) */
-	{VIA_RES_1360X768, CRTM1360x768, ARRAY_SIZE(CRTM1360x768)},
-
-	/* Display : 1360x768 (CVT Reduce Blanking) */
-	{VIA_RES_1360X768_RB, CRTM1360x768_RB,
-	 ARRAY_SIZE(CRTM1360x768_RB)},
+	{CRTM1360x768, ARRAY_SIZE(CRTM1360x768)},
 
 	/* Display : 1366x768 */
-	{VIA_RES_1366X768, CRTM1366x768, ARRAY_SIZE(CRTM1366x768)},
+	{CRTM1366x768, ARRAY_SIZE(CRTM1366x768)},
 
 	/* Display : 1368x768 (GTF) */
-	/*{ M1368x768,CRTM1368x768,ARRAY_SIZE(CRTM1368x768)}, */
-	/* Display : 1368x768 (GTF) */
-	{VIA_RES_1368X768, CRTM1368x768, ARRAY_SIZE(CRTM1368x768)},
+	{CRTM1368x768, ARRAY_SIZE(CRTM1368x768)},
 
 	/* Display : 1440x900 (CVT) */
-	{VIA_RES_1440X900, CRTM1440x900, ARRAY_SIZE(CRTM1440x900)},
-
-	/* Display : 1440x900 (CVT Reduce Blanking) */
-	{VIA_RES_1440X900_RB, CRTM1440x900_RB,
-	 ARRAY_SIZE(CRTM1440x900_RB)},
+	{CRTM1440x900, ARRAY_SIZE(CRTM1440x900)},
 
 	/* Display : 1440x1050 (GTF) */
-	{VIA_RES_1440X1050, CRTM1440x1050, ARRAY_SIZE(CRTM1440x1050)},
-
-	/* Display : 1400x1050 (CVT Reduce Blanking) */
-	{VIA_RES_1400X1050_RB, CRTM1400x1050_RB,
-	 ARRAY_SIZE(CRTM1400x1050_RB)},
+	{CRTM1440x1050, ARRAY_SIZE(CRTM1440x1050)},
 
 	/* Display : 1600x900 (CVT) */
-	{VIA_RES_1600X900, CRTM1600x900, ARRAY_SIZE(CRTM1600x900)},
-
-	/* Display : 1600x900 (CVT Reduce Blanking) */
-	{VIA_RES_1600X900_RB, CRTM1600x900_RB,
-	 ARRAY_SIZE(CRTM1600x900_RB)},
+	{CRTM1600x900, ARRAY_SIZE(CRTM1600x900)},
 
 	/* Display : 1600x1024 (GTF) */
-	{VIA_RES_1600X1024, CRTM1600x1024, ARRAY_SIZE(CRTM1600x1024)},
+	{CRTM1600x1024, ARRAY_SIZE(CRTM1600x1024)},
 
 	/* Display : 1600x1200 */
-	{VIA_RES_1600X1200, CRTM1600x1200, ARRAY_SIZE(CRTM1600x1200)},
+	{CRTM1600x1200, ARRAY_SIZE(CRTM1600x1200)},
 
 	/* Display : 1680x1050 (CVT) */
-	{VIA_RES_1680X1050, CRTM1680x1050, ARRAY_SIZE(CRTM1680x1050)},
-
-	/* Display : 1680x1050 (CVT Reduce Blanking) */
-	{VIA_RES_1680X1050_RB, CRTM1680x1050_RB,
-	 ARRAY_SIZE(CRTM1680x1050_RB)},
+	{CRTM1680x1050, ARRAY_SIZE(CRTM1680x1050)},
 
 	/* Display : 1792x1344 (DMT) */
-	{VIA_RES_1792X1344, CRTM1792x1344, ARRAY_SIZE(CRTM1792x1344)},
+	{CRTM1792x1344, ARRAY_SIZE(CRTM1792x1344)},
 
 	/* Display : 1856x1392 (DMT) */
-	{VIA_RES_1856X1392, CRTM1856x1392, ARRAY_SIZE(CRTM1856x1392)},
+	{CRTM1856x1392, ARRAY_SIZE(CRTM1856x1392)},
 
 	/* Display : 1920x1440 */
-	{VIA_RES_1920X1440, CRTM1920x1440, ARRAY_SIZE(CRTM1920x1440)},
+	{CRTM1920x1440, ARRAY_SIZE(CRTM1920x1440)},
 
 	/* Display : 2048x1536 */
-	{VIA_RES_2048X1536, CRTM2048x1536, ARRAY_SIZE(CRTM2048x1536)},
+	{CRTM2048x1536, ARRAY_SIZE(CRTM2048x1536)},
 
 	/* Display : 1280x720 */
-	{VIA_RES_1280X720, CRTM1280x720, ARRAY_SIZE(CRTM1280x720)},
+	{CRTM1280x720, ARRAY_SIZE(CRTM1280x720)},
 
 	/* Display : 1920x1080 (CVT) */
-	{VIA_RES_1920X1080, CRTM1920x1080, ARRAY_SIZE(CRTM1920x1080)},
-
-	/* Display : 1920x1080 (CVT Reduce Blanking) */
-	{VIA_RES_1920X1080_RB, CRTM1920x1080_RB,
-	 ARRAY_SIZE(CRTM1920x1080_RB)},
+	{CRTM1920x1080, ARRAY_SIZE(CRTM1920x1080)},
 
 	/* Display : 1920x1200 (CVT) */
-	{VIA_RES_1920X1200, CRTM1920x1200, ARRAY_SIZE(CRTM1920x1200)},
-
-	/* Display : 1920x1200 (CVT Reduce Blanking) */
-	{VIA_RES_1920X1200_RB, CRTM1920x1200_RB,
-	 ARRAY_SIZE(CRTM1920x1200_RB)},
+	{CRTM1920x1200, ARRAY_SIZE(CRTM1920x1200)},
 
 	/* Display : 1400x1050 (CVT) */
-	{VIA_RES_1400X1050, CRTM1400x1050, ARRAY_SIZE(CRTM1400x1050)}
+	{CRTM1400x1050, ARRAY_SIZE(CRTM1400x1050)}
 };
+
+struct VideoModeTable viafb_rb_modes[] = {
+	/* Display : 1360x768 (CVT Reduce Blanking) */
+	{CRTM1360x768_RB, ARRAY_SIZE(CRTM1360x768_RB)},
+
+	/* Display : 1440x900 (CVT Reduce Blanking) */
+	{CRTM1440x900_RB, ARRAY_SIZE(CRTM1440x900_RB)},
+
+	/* Display : 1400x1050 (CVT Reduce Blanking) */
+	{CRTM1400x1050_RB, ARRAY_SIZE(CRTM1400x1050_RB)},
+
+	/* Display : 1600x900 (CVT Reduce Blanking) */
+	{CRTM1600x900_RB, ARRAY_SIZE(CRTM1600x900_RB)},
+
+	/* Display : 1680x1050 (CVT Reduce Blanking) */
+	{CRTM1680x1050_RB, ARRAY_SIZE(CRTM1680x1050_RB)},
+
+	/* Display : 1920x1080 (CVT Reduce Blanking) */
+	{CRTM1920x1080_RB, ARRAY_SIZE(CRTM1920x1080_RB)},
+
+	/* Display : 1920x1200 (CVT Reduce Blanking) */
+	{CRTM1920x1200_RB, ARRAY_SIZE(CRTM1920x1200_RB)}
+};
+
 struct crt_mode_table CEAM1280x720[] = {
 	{REFRESH_60, CLK_74_270M, M1280X720_CEA_R60_HSP,
 	 M1280X720_CEA_R60_VSP,
@@ -1081,6 +1053,41 @@ struct crt_mode_table CEAM1920x1080[] = {
 };
 struct VideoModeTable CEA_HDMI_Modes[] = {
 	/* Display : 1280x720 */
-	{VIA_RES_1280X720, CEAM1280x720, ARRAY_SIZE(CEAM1280x720)},
-	{VIA_RES_1920X1080, CEAM1920x1080, ARRAY_SIZE(CEAM1920x1080)}
+	{CEAM1280x720, ARRAY_SIZE(CEAM1280x720)},
+	{CEAM1920x1080, ARRAY_SIZE(CEAM1920x1080)}
 };
+
+int NUM_TOTAL_RES_MAP_REFRESH = ARRAY_SIZE(res_map_refresh_tbl);
+int NUM_TOTAL_CEA_MODES = ARRAY_SIZE(CEA_HDMI_Modes);
+int NUM_TOTAL_CN400_ModeXregs = ARRAY_SIZE(CN400_ModeXregs);
+int NUM_TOTAL_CN700_ModeXregs = ARRAY_SIZE(CN700_ModeXregs);
+int NUM_TOTAL_KM400_ModeXregs = ARRAY_SIZE(KM400_ModeXregs);
+int NUM_TOTAL_CX700_ModeXregs = ARRAY_SIZE(CX700_ModeXregs);
+int NUM_TOTAL_VX855_ModeXregs = ARRAY_SIZE(VX855_ModeXregs);
+int NUM_TOTAL_CLE266_ModeXregs = ARRAY_SIZE(CLE266_ModeXregs);
+int NUM_TOTAL_PATCH_MODE = ARRAY_SIZE(res_patch_table);
+
+
+struct VideoModeTable *viafb_get_mode(int hres, int vres)
+{
+	u32 i;
+	for (i = 0; i < ARRAY_SIZE(viafb_modes); i++)
+		if (viafb_modes[i].mode_array &&
+			viafb_modes[i].crtc[0].crtc.hor_addr == hres &&
+			viafb_modes[i].crtc[0].crtc.ver_addr == vres)
+			return &viafb_modes[i];
+
+	return NULL;
+}
+
+struct VideoModeTable *viafb_get_rb_mode(int hres, int vres)
+{
+	u32 i;
+	for (i = 0; i < ARRAY_SIZE(viafb_rb_modes); i++)
+		if (viafb_rb_modes[i].mode_array &&
+			viafb_rb_modes[i].crtc[0].crtc.hor_addr == hres &&
+			viafb_rb_modes[i].crtc[0].crtc.ver_addr == vres)
+			return &viafb_rb_modes[i];
+
+	return NULL;
+}

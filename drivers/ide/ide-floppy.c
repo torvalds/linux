@@ -25,7 +25,6 @@
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/genhd.h>
-#include <linux/slab.h>
 #include <linux/cdrom.h>
 #include <linux/ide.h>
 #include <linux/hdreg.h>
@@ -74,7 +73,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 		drive->failed_pc = NULL;
 
 	if (pc->c[0] == GPCMD_READ_10 || pc->c[0] == GPCMD_WRITE_10 ||
-	    (rq && blk_pc_request(rq)))
+	    (rq && rq->cmd_type == REQ_TYPE_BLOCK_PC))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
 
@@ -99,7 +98,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 			       "Aborting request!\n");
 	}
 
-	if (blk_special_request(rq))
+	if (rq->cmd_type == REQ_TYPE_SPECIAL)
 		rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
 
 	return uptodate;
@@ -208,7 +207,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 	memcpy(rq->cmd, pc->c, 12);
 
 	pc->rq = rq;
-	if (rq->cmd_flags & REQ_RW)
+	if (rq->cmd_flags & REQ_WRITE)
 		pc->flags |= PC_FLAG_WRITING;
 
 	pc->flags |= PC_FLAG_DMA_OK;
@@ -248,14 +247,16 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		} else
 			printk(KERN_ERR PFX "%s: I/O error\n", drive->name);
 
-		if (blk_special_request(rq)) {
+		if (rq->cmd_type == REQ_TYPE_SPECIAL) {
 			rq->errors = 0;
 			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 			return ide_stopped;
 		} else
 			goto out_end;
 	}
-	if (blk_fs_request(rq)) {
+
+	switch (rq->cmd_type) {
+	case REQ_TYPE_FS:
 		if (((long)blk_rq_pos(rq) % floppy->bs_factor) ||
 		    (blk_rq_sectors(rq) % floppy->bs_factor)) {
 			printk(KERN_ERR PFX "%s: unsupported r/w rq size\n",
@@ -264,13 +265,18 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		}
 		pc = &floppy->queued_pc;
 		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
-	} else if (blk_special_request(rq) || blk_sense_request(rq)) {
+		break;
+	case REQ_TYPE_SPECIAL:
+	case REQ_TYPE_SENSE:
 		pc = (struct ide_atapi_pc *)rq->special;
-	} else if (blk_pc_request(rq)) {
+		break;
+	case REQ_TYPE_BLOCK_PC:
 		pc = &floppy->queued_pc;
 		idefloppy_blockpc_cmd(floppy, pc, rq);
-	} else
+		break;
+	default:
 		BUG();
+	}
 
 	ide_prep_sense(drive, rq);
 
@@ -281,7 +287,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 
 	cmd.rq = rq;
 
-	if (blk_fs_request(rq) || blk_rq_bytes(rq)) {
+	if (rq->cmd_type == REQ_TYPE_FS || blk_rq_bytes(rq)) {
 		ide_init_sg_cmd(&cmd, blk_rq_bytes(rq));
 		ide_map_sg(drive, &cmd);
 	}
@@ -291,9 +297,9 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	return ide_floppy_issue_pc(drive, &cmd, pc);
 out_end:
 	drive->failed_pc = NULL;
-	if (blk_fs_request(rq) == 0 && rq->errors == 0)
+	if (rq->cmd_type != REQ_TYPE_FS && rq->errors == 0)
 		rq->errors = -EIO;
-	ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
+	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
 	return ide_stopped;
 }
 
@@ -486,7 +492,7 @@ static void ide_floppy_setup(ide_drive_t *drive)
 		drive->atapi_flags |= IDE_AFLAG_ZIP_DRIVE;
 		/* This value will be visible in the /proc/ide/hdx/settings */
 		drive->pc_delay = IDEFLOPPY_PC_DELAY;
-		blk_queue_max_sectors(drive->queue, 64);
+		blk_queue_max_hw_sectors(drive->queue, 64);
 	}
 
 	/*
@@ -494,7 +500,7 @@ static void ide_floppy_setup(ide_drive_t *drive)
 	 * nasty clicking noises without it, so please don't remove this.
 	 */
 	if (strncmp((char *)&id[ATA_ID_PROD], "IOMEGA Clik!", 11) == 0) {
-		blk_queue_max_sectors(drive->queue, 64);
+		blk_queue_max_hw_sectors(drive->queue, 64);
 		drive->atapi_flags |= IDE_AFLAG_CLIK_DRIVE;
 		/* IOMEGA Clik! drives do not support lock/unlock commands */
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;

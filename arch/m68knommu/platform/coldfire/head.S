@@ -15,6 +15,7 @@
 #include <asm/coldfire.h>
 #include <asm/mcfcache.h>
 #include <asm/mcfsim.h>
+#include <asm/thread_info.h>
 
 /*****************************************************************************/
 
@@ -106,6 +107,9 @@
 .global _ramvec
 .global	_ramstart
 .global	_ramend
+#if defined(CONFIG_UBOOT)
+.global	_init_sp
+#endif
 
 /*****************************************************************************/
 
@@ -124,6 +128,10 @@ _ramstart:
 .long	0
 _ramend:
 .long	0
+#if defined(CONFIG_UBOOT)
+_init_sp:
+.long	0
+#endif
 
 /*****************************************************************************/
 
@@ -137,6 +145,9 @@ __HEAD
 _start:
 	nop					/* filler */
 	movew	#0x2700, %sr			/* no interrupts */
+#if defined(CONFIG_UBOOT)
+	movel	%sp,_init_sp			/* save initial stack pointer */
+#endif
 
 	/*
 	 *	Do any platform or board specific setup now. Most boards

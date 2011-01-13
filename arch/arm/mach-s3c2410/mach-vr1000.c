@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-vr1000.c
  *
- * Copyright (c) 2003-2005,2008 Simtec Electronics
+ * Copyright (c) 2003-2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * Machine support for Thorcom VR1000 board. Designed for Thorcom by
@@ -49,6 +49,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/iic.h>
+#include <plat/audio-simtec.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
@@ -333,7 +334,7 @@ static struct i2c_board_info vr1000_i2c_devs[] __initdata = {
 /* devices for this board */
 
 static struct platform_device *vr1000_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
@@ -356,8 +357,7 @@ static struct clk *vr1000_clocks[] __initdata = {
 
 static void vr1000_power_off(void)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPB(9), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_setpin(S3C2410_GPB(9), 1);
+	gpio_direction_output(S3C2410_GPB(9), 1);
 }
 
 static void __init vr1000_map_io(void)
@@ -393,12 +393,13 @@ static void __init vr1000_init(void)
 				ARRAY_SIZE(vr1000_i2c_devs));
 
 	nor_simtec_init();
+	simtec_audio_add(NULL, true, NULL);
+
+	WARN_ON(gpio_request(S3C2410_GPB(9), "power off"));
 }
 
 MACHINE_START(VR1000, "Thorcom-VR1000")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= vr1000_map_io,
 	.init_machine	= vr1000_init,

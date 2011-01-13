@@ -43,71 +43,9 @@
 /* Video Memory Size */
 #define VIDEO_MEMORY_SIZE_16M    0x1000000
 
-/* Definition Mode Index
-*/
-#define     VIA_RES_640X480                 	0
-#define     VIA_RES_800X600                 	1
-#define     VIA_RES_1024X768                	2
-#define     VIA_RES_1152X864                	3
-#define     VIA_RES_1280X1024               	4
-#define     VIA_RES_1600X1200               	5
-#define     VIA_RES_1440X1050               	6
-#define     VIA_RES_1280X768                	7
-#define     VIA_RES_1280X960                	8
-#define     VIA_RES_1920X1440               	9
-#define     VIA_RES_848X480                 	10
-#define     VIA_RES_1400X1050               	11
-#define     VIA_RES_720X480                 	12
-#define     VIA_RES_720X576                 	13
-#define     VIA_RES_1024X512                	14
-#define     VIA_RES_856X480                 	15
-#define     VIA_RES_1024X576                	16
-#define     VIA_RES_640X400                 	17
-#define     VIA_RES_1280X720                	18
-#define     VIA_RES_1920X1080               	19
-#define     VIA_RES_800X480                 	20
-#define     VIA_RES_1368X768                	21
-#define     VIA_RES_1024X600                	22
-#define     VIA_RES_1280X800                	23
-#define     VIA_RES_1680X1050               	24
-#define     VIA_RES_960X600			25
-#define     VIA_RES_1000X600               	26
-#define     VIA_RES_1088X612               	27
-#define     VIA_RES_1152X720               	28
-#define     VIA_RES_1200X720               	29
-#define     VIA_RES_1280X600               	30
-#define     VIA_RES_1360X768               	31
-#define     VIA_RES_1366X768               	32
-#define     VIA_RES_1440X900               	33
-#define     VIA_RES_1600X900               	34
-#define     VIA_RES_1600X1024              	35
-#define     VIA_RES_1792X1344              	36
-#define     VIA_RES_1856X1392              	37
-#define     VIA_RES_1920X1200              	38
-#define     VIA_RES_2048X1536              	39
-#define     VIA_RES_480X640                  	40
-
-/*Reduce Blanking*/
-#define     VIA_RES_1360X768_RB          	131
-#define     VIA_RES_1440X900_RB          	133
-#define     VIA_RES_1400X1050_RB        	111
-#define     VIA_RES_1600X900_RB          	134
-#define     VIA_RES_1680X1050_RB        	124
-#define     VIA_RES_1920X1080_RB        	119
-#define     VIA_RES_1920X1200_RB        	138
-
-#define     VIA_RES_INVALID                 	255
-
-/* standard VGA IO port
-*/
-#define VIARMisc    0x3CC
-#define VIAWMisc    0x3C2
-#define VIAStatus   0x3DA
-#define VIACR       0x3D4
-#define VIASR       0x3C4
-#define VIAGR       0x3CE
-#define VIAAR       0x3C0
-
+/*
+ * Lengths of the VPIT structure arrays.
+ */
 #define StdCR       0x19
 #define StdSR       0x04
 #define StdGR       0x09
@@ -118,7 +56,6 @@
 /* Display path */
 #define IGA1        1
 #define IGA2        2
-#define IGA1_IGA2   3
 
 /* Define Color Depth  */
 #define MODE_8BPP       1
@@ -167,6 +104,10 @@
 #define SR4B    0x4B
 #define SR4C    0x4C
 #define SR52    0x52
+#define SR57	0x57
+#define SR58	0x58
+#define SR59	0x59
+#define SR5D    0x5D
 #define SR5E    0x5E
 #define SR65    0x65
 
@@ -622,6 +563,10 @@
 #define M1200X720_R60_HSP       NEGATIVE
 #define M1200X720_R60_VSP       POSITIVE
 
+/* 1200x900@60 Sync Polarity (DCON) */
+#define M1200X900_R60_HSP       NEGATIVE
+#define M1200X900_R60_VSP       NEGATIVE
+
 /* 1280x600@60 Sync Polarity (GTF Mode) */
 #define M1280x600_R60_HSP       NEGATIVE
 #define M1280x600_R60_VSP       POSITIVE
@@ -686,7 +631,6 @@
 #define CLK_25_175M     25175000
 #define CLK_26_880M     26880000
 #define CLK_29_581M     29581000
-#define CLK_31_490M     31490000
 #define CLK_31_500M     31500000
 #define CLK_31_728M     31728000
 #define CLK_32_668M     32688000
@@ -703,6 +647,7 @@
 #define CLK_52_406M     52406000
 #define CLK_52_977M     52977000
 #define CLK_56_250M     56250000
+#define CLK_57_275M     57275000
 #define CLK_60_466M     60466000
 #define CLK_61_500M     61500000
 #define CLK_65_000M     65000000
@@ -730,7 +675,6 @@
 #define CLK_119_000M    119000000
 #define CLK_121_750M    121750000	/* 121.704MHz */
 #define CLK_125_104M    125104000
-#define CLK_133_308M    133308000
 #define CLK_135_000M    135000000
 #define CLK_136_700M    136700000
 #define CLK_138_400M    138400000
@@ -753,218 +697,6 @@
 #define CLK_172_798M    172798000
 #define CLK_122_614M    122614000
 
-/* CLE266 PLL value
-*/
-#define CLE266_PLL_25_175M     0x0000C763
-#define CLE266_PLL_26_880M     0x0000440F
-#define CLE266_PLL_29_581M     0x00008421
-#define CLE266_PLL_31_490M     0x00004721
-#define CLE266_PLL_31_500M     0x0000C3B5
-#define CLE266_PLL_31_728M     0x0000471F
-#define CLE266_PLL_32_668M     0x0000C449
-#define CLE266_PLL_36_000M     0x0000C5E5
-#define CLE266_PLL_40_000M     0x0000C459
-#define CLE266_PLL_41_291M     0x00004417
-#define CLE266_PLL_43_163M     0x0000C579
-#define CLE266_PLL_45_250M     0x0000C57F	/* 45.46MHz */
-#define CLE266_PLL_46_000M     0x0000875A
-#define CLE266_PLL_46_996M     0x0000C4E9
-#define CLE266_PLL_48_000M     0x00001443
-#define CLE266_PLL_48_875M     0x00001D63
-#define CLE266_PLL_49_500M     0x00008653
-#define CLE266_PLL_52_406M     0x0000C475
-#define CLE266_PLL_52_977M     0x00004525
-#define CLE266_PLL_56_250M     0x000047B7
-#define CLE266_PLL_60_466M     0x0000494C
-#define CLE266_PLL_61_500M     0x00001456
-#define CLE266_PLL_65_000M     0x000086ED
-#define CLE266_PLL_65_178M     0x0000855B
-#define CLE266_PLL_66_750M     0x0000844B	/* 67.116MHz */
-#define CLE266_PLL_68_179M     0x00000413
-#define CLE266_PLL_69_924M     0x00001153
-#define CLE266_PLL_70_159M     0x00001462
-#define CLE266_PLL_72_000M     0x00001879
-#define CLE266_PLL_74_270M     0x00004853
-#define CLE266_PLL_78_750M     0x00004321
-#define CLE266_PLL_80_136M     0x0000051C
-#define CLE266_PLL_83_375M     0x0000C25D
-#define CLE266_PLL_83_950M     0x00000729
-#define CLE266_PLL_84_750M     0x00008576	/* 84.537MHz */
-#define CLE266_PLL_85_860M     0x00004754
-#define CLE266_PLL_88_750M     0x0000051F
-#define CLE266_PLL_94_500M     0x00000521
-#define CLE266_PLL_97_750M     0x00004652
-#define CLE266_PLL_101_000M    0x0000497F
-#define CLE266_PLL_106_500M    0x00008477	/* 106.491463 MHz */
-#define CLE266_PLL_108_000M    0x00008479
-#define CLE266_PLL_113_309M    0x00000C5F
-#define CLE266_PLL_118_840M    0x00004553
-#define CLE266_PLL_119_000M    0x00000D6C
-#define CLE266_PLL_121_750M    0x00004555	/* 121.704MHz */
-#define CLE266_PLL_125_104M    0x000006B5
-#define CLE266_PLL_133_308M    0x0000465F
-#define CLE266_PLL_135_000M    0x0000455E
-#define CLE266_PLL_136_700M    0x00000C73
-#define CLE266_PLL_138_400M    0x00000957
-#define CLE266_PLL_146_760M    0x00004567
-#define CLE266_PLL_148_500M    0x00000853
-#define CLE266_PLL_153_920M    0x00000856
-#define CLE266_PLL_156_000M    0x0000456D
-#define CLE266_PLL_157_500M    0x000005B7
-#define CLE266_PLL_162_000M    0x00004571
-#define CLE266_PLL_187_000M    0x00000976
-#define CLE266_PLL_193_295M    0x0000086C
-#define CLE266_PLL_202_500M    0x00000763
-#define CLE266_PLL_204_000M    0x00000764
-#define CLE266_PLL_218_500M    0x0000065C
-#define CLE266_PLL_234_000M    0x00000662
-#define CLE266_PLL_267_250M    0x00000670
-#define CLE266_PLL_297_500M    0x000005E6
-#define CLE266_PLL_74_481M     0x0000051A
-#define CLE266_PLL_172_798M    0x00004579
-#define CLE266_PLL_122_614M    0x0000073C
-
-/* K800 PLL value
-*/
-#define K800_PLL_25_175M     0x00539001
-#define K800_PLL_26_880M     0x001C8C80
-#define K800_PLL_29_581M     0x00409080
-#define K800_PLL_31_490M     0x006F9001
-#define K800_PLL_31_500M     0x008B9002
-#define K800_PLL_31_728M     0x00AF9003
-#define K800_PLL_32_668M     0x00909002
-#define K800_PLL_36_000M     0x009F9002
-#define K800_PLL_40_000M     0x00578C02
-#define K800_PLL_41_291M     0x00438C01
-#define K800_PLL_43_163M     0x00778C03
-#define K800_PLL_45_250M     0x007D8C83	/* 45.46MHz */
-#define K800_PLL_46_000M     0x00658C02
-#define K800_PLL_46_996M     0x00818C83
-#define K800_PLL_48_000M     0x00848C83
-#define K800_PLL_48_875M     0x00508C81
-#define K800_PLL_49_500M     0x00518C01
-#define K800_PLL_52_406M     0x00738C02
-#define K800_PLL_52_977M     0x00928C83
-#define K800_PLL_56_250M     0x007C8C02
-#define K800_PLL_60_466M     0x00A78C83
-#define K800_PLL_61_500M     0x00AA8C83
-#define K800_PLL_65_000M     0x006B8C01
-#define K800_PLL_65_178M     0x00B48C83
-#define K800_PLL_66_750M     0x00948C82	/* 67.116MHz */
-#define K800_PLL_68_179M     0x00708C01
-#define K800_PLL_69_924M     0x00C18C83
-#define K800_PLL_70_159M     0x00C28C83
-#define K800_PLL_72_000M     0x009F8C82
-#define K800_PLL_74_270M     0x00ce0c03
-#define K800_PLL_78_750M     0x00408801
-#define K800_PLL_80_136M     0x00428801
-#define K800_PLL_83_375M     0x005B0882
-#define K800_PLL_83_950M     0x00738803
-#define K800_PLL_84_750M     0x00748883	/* 84.477MHz */
-#define K800_PLL_85_860M     0x00768883
-#define K800_PLL_88_750M     0x007A8883
-#define K800_PLL_94_500M     0x00828803
-#define K800_PLL_97_750M     0x00878883
-#define K800_PLL_101_000M    0x008B8883
-#define K800_PLL_106_500M    0x00758882	/* 106.491463 MHz */
-#define K800_PLL_108_000M    0x00778882
-#define K800_PLL_113_309M    0x005D8881
-#define K800_PLL_118_840M    0x00A48883
-#define K800_PLL_119_000M    0x00838882
-#define K800_PLL_121_750M    0x00A88883	/* 121.704MHz */
-#define K800_PLL_125_104M    0x00688801
-#define K800_PLL_133_308M    0x005D8801
-#define K800_PLL_135_000M    0x001A4081
-#define K800_PLL_136_700M    0x00BD8883
-#define K800_PLL_138_400M    0x00728881
-#define K800_PLL_146_760M    0x00CC8883
-#define K800_PLL_148_500M    0x00ce0803
-#define K800_PLL_153_920M    0x00548482
-#define K800_PLL_156_000M    0x006B8483
-#define K800_PLL_157_500M    0x00142080
-#define K800_PLL_162_000M    0x006F8483
-#define K800_PLL_187_000M    0x00818483
-#define K800_PLL_193_295M    0x004F8481
-#define K800_PLL_202_500M    0x00538481
-#define K800_PLL_204_000M    0x008D8483
-#define K800_PLL_218_500M    0x00978483
-#define K800_PLL_234_000M    0x00608401
-#define K800_PLL_267_250M    0x006E8481
-#define K800_PLL_297_500M    0x00A48402
-#define K800_PLL_74_481M     0x007B8C81
-#define K800_PLL_172_798M    0x00778483
-#define K800_PLL_122_614M    0x00878882
-
-/* PLL for VT3324 */
-#define CX700_25_175M     0x008B1003
-#define CX700_26_719M     0x00931003
-#define CX700_26_880M     0x00941003
-#define CX700_29_581M     0x00A49003
-#define CX700_31_490M     0x00AE1003
-#define CX700_31_500M     0x00AE1003
-#define CX700_31_728M     0x00AF1003
-#define CX700_32_668M     0x00B51003
-#define CX700_36_000M     0x00C81003
-#define CX700_40_000M     0x006E0C03
-#define CX700_41_291M     0x00710C03
-#define CX700_43_163M     0x00770C03
-#define CX700_45_250M     0x007D0C03	/* 45.46MHz */
-#define CX700_46_000M     0x007F0C03
-#define CX700_46_996M     0x00818C83
-#define CX700_48_000M     0x00840C03
-#define CX700_48_875M     0x00508C81
-#define CX700_49_500M     0x00880C03
-#define CX700_52_406M     0x00730C02
-#define CX700_52_977M     0x00920C03
-#define CX700_56_250M     0x009B0C03
-#define CX700_60_466M     0x00460C00
-#define CX700_61_500M     0x00AA0C03
-#define CX700_65_000M     0x006B0C01
-#define CX700_65_178M     0x006B0C01
-#define CX700_66_750M     0x00940C02	/*67.116MHz */
-#define CX700_68_179M     0x00BC0C03
-#define CX700_69_924M     0x00C10C03
-#define CX700_70_159M     0x00C20C03
-#define CX700_72_000M     0x009F0C02
-#define CX700_74_270M     0x00CE0C03
-#define CX700_74_481M     0x00CE0C03
-#define CX700_78_750M     0x006C0803
-#define CX700_80_136M     0x006E0803
-#define CX700_83_375M     0x005B0882
-#define CX700_83_950M     0x00730803
-#define CX700_84_750M     0x00740803	/* 84.537Mhz */
-#define CX700_85_860M     0x00760803
-#define CX700_88_750M     0x00AC8885
-#define CX700_94_500M     0x00820803
-#define CX700_97_750M     0x00870803
-#define CX700_101_000M    0x008B0803
-#define CX700_106_500M    0x00750802
-#define CX700_108_000M    0x00950803
-#define CX700_113_309M    0x005D0801
-#define CX700_118_840M    0x00A40803
-#define CX700_119_000M    0x00830802
-#define CX700_121_750M    0x00420800	/* 121.704MHz */
-#define CX700_125_104M    0x00AD0803
-#define CX700_133_308M    0x00930802
-#define CX700_135_000M    0x00950802
-#define CX700_136_700M    0x00BD0803
-#define CX700_138_400M    0x00720801
-#define CX700_146_760M    0x00CC0803
-#define CX700_148_500M    0x00a40802
-#define CX700_153_920M    0x00540402
-#define CX700_156_000M    0x006B0403
-#define CX700_157_500M    0x006C0403
-#define CX700_162_000M    0x006F0403
-#define CX700_172_798M    0x00770403
-#define CX700_187_000M    0x00810403
-#define CX700_193_295M    0x00850403
-#define CX700_202_500M    0x008C0403
-#define CX700_204_000M    0x008D0403
-#define CX700_218_500M    0x00970403
-#define CX700_234_000M    0x00600401
-#define CX700_267_250M    0x00B90403
-#define CX700_297_500M    0x00CE0403
-#define CX700_122_614M    0x00870802
 
 /* Definition CRTC Timing Index */
 #define H_TOTAL_INDEX               0
@@ -1023,6 +755,7 @@
 #define RES_1600X1200_60HZ_PIXCLOCK  6172
 #define RES_1600X1200_75HZ_PIXCLOCK  4938
 #define RES_1280X720_60HZ_PIXCLOCK   13426
+#define RES_1200X900_60HZ_PIXCLOCK   17459
 #define RES_1920X1080_60HZ_PIXCLOCK  5787
 #define RES_1400X1050_60HZ_PIXCLOCK  8214
 #define RES_1400X1050_75HZ_PIXCLOCK  6410

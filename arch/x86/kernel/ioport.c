@@ -103,9 +103,10 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
  * on system-call entry - see also fork() and the signal handling
  * code.
  */
-static int do_iopl(unsigned int level, struct pt_regs *regs)
+long sys_iopl(unsigned int level, struct pt_regs *regs)
 {
 	unsigned int old = (regs->flags >> 12) & 3;
+	struct thread_struct *t = &current->thread;
 
 	if (level > 3)
 		return -EINVAL;
@@ -115,29 +116,8 @@ static int do_iopl(unsigned int level, struct pt_regs *regs)
 			return -EPERM;
 	}
 	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | (level << 12);
+	t->iopl = level << 12;
+	set_iopl_mask(t->iopl);
 
 	return 0;
 }
-
-#ifdef CONFIG_X86_32
-long sys_iopl(struct pt_regs *regs)
-{
-	unsigned int level = regs->bx;
-	struct thread_struct *t = &current->thread;
-	int rc;
-
-	rc = do_iopl(level, regs);
-	if (rc < 0)
-		goto out;
-
-	t->iopl = level << 12;
-	set_iopl_mask(t->iopl);
-out:
-	return rc;
-}
-#else
-asmlinkage long sys_iopl(unsigned int level, struct pt_regs *regs)
-{
-	return do_iopl(level, regs);
-}
-#endif

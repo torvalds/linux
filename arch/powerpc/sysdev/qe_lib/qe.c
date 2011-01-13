@@ -27,6 +27,8 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/crc32.h>
+#include <linux/mod_devicetable.h>
+#include <linux/of_platform.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -91,7 +93,7 @@ phys_addr_t get_qe_base(void)
 
 EXPORT_SYMBOL(get_qe_base);
 
-void __init qe_reset(void)
+void qe_reset(void)
 {
 	if (qe_immr == NULL)
 		qe_immr = ioremap(get_qe_base(), QE_IMMAP_SIZE);
@@ -112,6 +114,7 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 {
 	unsigned long flags;
 	u8 mcn_shift = 0, dev_shift = 0;
+	u32 ret;
 
 	spin_lock_irqsave(&qe_lock, flags);
 	if (cmd == QE_RESET) {
@@ -139,11 +142,13 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 	}
 
 	/* wait for the QE_CR_FLG to clear */
-	while(in_be32(&qe_immr->cp.cecr) & QE_CR_FLG)
-		cpu_relax();
+	ret = spin_event_timeout((in_be32(&qe_immr->cp.cecr) & QE_CR_FLG) == 0,
+			   100, 0);
+	/* On timeout (e.g. failure), the expression will be false (ret == 0),
+	   otherwise it will be true (ret == 1). */
 	spin_unlock_irqrestore(&qe_lock, flags);
 
-	return 0;
+	return ret == 1;
 }
 EXPORT_SYMBOL(qe_issue_cmd);
 
@@ -314,16 +319,18 @@ EXPORT_SYMBOL(qe_put_snum);
 static int qe_sdma_init(void)
 {
 	struct sdma __iomem *sdma = &qe_immr->sdma;
-	unsigned long sdma_buf_offset;
+	static unsigned long sdma_buf_offset = (unsigned long)-ENOMEM;
 
 	if (!sdma)
 		return -ENODEV;
 
 	/* allocate 2 internal temporary buffers (512 bytes size each) for
 	 * the SDMA */
- 	sdma_buf_offset = qe_muram_alloc(512 * 2, 4096);
-	if (IS_ERR_VALUE(sdma_buf_offset))
-		return -ENOMEM;
+	if (IS_ERR_VALUE(sdma_buf_offset)) {
+		sdma_buf_offset = qe_muram_alloc(512 * 2, 4096);
+		if (IS_ERR_VALUE(sdma_buf_offset))
+			return -ENOMEM;
+	}
 
 	out_be32(&sdma->sdebcr, (u32) sdma_buf_offset & QE_SDEBCR_BA_MASK);
  	out_be32(&sdma->sdmr, (QE_SDMR_GLB_1_MSK |
@@ -333,7 +340,7 @@ static int qe_sdma_init(void)
 }
 
 /* The maximum number of RISCs we support */
-#define MAX_QE_RISC     2
+#define MAX_QE_RISC     4
 
 /* Firmware information stored here for qe_get_firmware_info() */
 static struct qe_firmware_info qe_firmware_info;
@@ -633,6 +640,7 @@ unsigned int qe_get_num_of_snums(void)
 		if ((num_of_snums < 28) || (num_of_snums > QE_NUM_OF_SNUM)) {
 			/* No QE ever has fewer than 28 SNUMs */
 			pr_err("QE: number of snum is invalid\n");
+			of_node_put(qe);
 			return -EINVAL;
 		}
 	}
@@ -642,3 +650,39 @@ unsigned int qe_get_num_of_snums(void)
 	return num_of_snums;
 }
 EXPORT_SYMBOL(qe_get_num_of_snums);
+
+#if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx)
+static int qe_resume(struct platform_device *ofdev)
+{
+	if (!qe_alive_during_sleep())
+		qe_reset();
+	return 0;
+}
+
+static int qe_probe(struct platform_device *ofdev,
+		    const struct of_device_id *id)
+{
+	return 0;
+}
+
+static const struct of_device_id qe_ids[] = {
+	{ .compatible = "fsl,qe", },
+	{ },
+};
+
+static struct of_platform_driver qe_driver = {
+	.driver = {
+		.name = "fsl-qe",
+		.owner = THIS_MODULE,
+		.of_match_table = qe_ids,
+	},
+	.probe = qe_probe,
+	.resume = qe_resume,
+};
+
+static int __init qe_drv_init(void)
+{
+	return of_register_platform_driver(&qe_driver);
+}
+device_initcall(qe_drv_init);
+#endif /* defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx) */

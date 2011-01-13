@@ -2,9 +2,16 @@
 #define LINUX_B43_PHY_COMMON_H_
 
 #include <linux/types.h>
+#include <linux/nl80211.h>
 
 struct b43_wldev;
 
+/* Complex number using 2 32-bit signed integers */
+struct b43_c32 { s32 i, q; };
+
+#define CORDIC_CONVERT(value)	(((value) >= 0) ? \
+				 ((((value) >> 15) + 1) >> 1) : \
+				 -((((-(value)) >> 15) + 1) >> 1))
 
 /* PHY register routing bits */
 #define B43_PHYROUTE			0x0C00 /* PHY register routing bits mask */
@@ -32,6 +39,9 @@ struct b43_wldev;
 #define B43_PHYVER_TYPE_SHIFT		8
 #define B43_PHYVER_VERSION		0x00FF
 
+/* PHY writes need to be flushed if we reach limit */
+#define B43_MAX_WRITES_IN_ROW		24
+
 /**
  * enum b43_interference_mitigation - Interference Mitigation mode
  *
@@ -49,11 +59,11 @@ enum b43_interference_mitigation {
 
 /* Antenna identifiers */
 enum {
-	B43_ANTENNA0,		/* Antenna 0 */
-	B43_ANTENNA1,		/* Antenna 0 */
-	B43_ANTENNA_AUTO1,	/* Automatic, starting with antenna 1 */
-	B43_ANTENNA_AUTO0,	/* Automatic, starting with antenna 0 */
-	B43_ANTENNA2,
+	B43_ANTENNA0 = 0,	/* Antenna 0 */
+	B43_ANTENNA1 = 1,	/* Antenna 1 */
+	B43_ANTENNA_AUTO0 = 2,	/* Automatic, starting with antenna 0 */
+	B43_ANTENNA_AUTO1 = 3,	/* Automatic, starting with antenna 1 */
+	B43_ANTENNA2 = 4,
 	B43_ANTENNA3 = 8,
 
 	B43_ANTENNA_AUTO = B43_ANTENNA_AUTO0,
@@ -95,6 +105,8 @@ enum b43_txpwr_result {
  * 			Must not be NULL.
  * @phy_write:		Write to a PHY register.
  * 			Must not be NULL.
+ * @phy_maskset:	Maskset a PHY register, taking shortcuts.
+ *			If it is NULL, a generic algorithm is used.
  * @radio_read:		Read from a Radio register.
  * 			Must not be NULL.
  * @radio_write:	Write to a Radio register.
@@ -129,7 +141,7 @@ enum b43_txpwr_result {
  * 			If the parameter "ignore_tssi" is true, the TSSI values should
  * 			be ignored and a recalculation of the power settings should be
  * 			done even if the TSSI values did not change.
- * 			This callback is called with wl->irq_lock held and must not sleep.
+ * 			This function may sleep, but should not.
  * 			Must not be NULL.
  * @adjust_txpower:	Write the previously calculated TX power settings
  * 			(from @recalc_txpower) to the hardware.
@@ -154,6 +166,7 @@ struct b43_phy_operations {
 	/* Register access */
 	u16 (*phy_read)(struct b43_wldev *dev, u16 reg);
 	void (*phy_write)(struct b43_wldev *dev, u16 reg, u16 value);
+	void (*phy_maskset)(struct b43_wldev *dev, u16 reg, u16 mask, u16 set);
 	u16 (*radio_read)(struct b43_wldev *dev, u16 reg);
 	void (*radio_write)(struct b43_wldev *dev, u16 reg, u16 value);
 
@@ -209,6 +222,9 @@ struct b43_phy {
 	bool supports_2ghz;
 	bool supports_5ghz;
 
+	/* HT info */
+	bool is_40mhz;
+
 	/* GMODE bit enabled? */
 	bool gmode;
 
@@ -218,6 +234,9 @@ struct b43_phy {
 	u8 type;
 	/* PHY revision number. */
 	u8 rev;
+
+	/* Count writes since last read */
+	u8 writes_counter;
 
 	/* Radio versioning */
 	u16 radio_manuf;	/* Radio manufacturer */
@@ -238,8 +257,10 @@ struct b43_phy {
 	 * check is needed. */
 	unsigned long next_txpwr_check_time;
 
-	/* current channel */
+	/* Current channel */
 	unsigned int channel;
+	u16 channel_freq;
+	enum nl80211_channel_type channel_type;
 
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;
@@ -289,6 +310,11 @@ u16 b43_phy_read(struct b43_wldev *dev, u16 reg);
  * b43_phy_write - 16bit PHY register write access
  */
 void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value);
+
+/**
+ * b43_phy_copy - copy contents of 16bit PHY register to another
+ */
+void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg);
 
 /**
  * b43_phy_mask - Mask a PHY register with a mask
@@ -371,7 +397,6 @@ void b43_software_rfkill(struct b43_wldev *dev, bool blocked);
  *
  * Compare the current TX power output to the desired power emission
  * and schedule an adjustment in case it mismatches.
- * Requires wl->irq_lock locked.
  *
  * @flags:	OR'ed enum b43_phy_txpower_check_flags flags.
  * 		See the docs below.
@@ -411,5 +436,8 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
  */
 void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);
 
+bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type);
+
+struct b43_c32 b43_cordic(int theta);
 
 #endif /* LINUX_B43_PHY_COMMON_H_ */

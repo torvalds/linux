@@ -197,6 +197,8 @@ static inline pte_t __mk_pte(void * page, pgprot_t pgprot)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { pte_val(pte) = (pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot); return pte; }
 
+#define pgprot_noncached(prot) __pgprot((pgprot_val(prot) | _PAGE_NO_CACHE))
+
 
 /* pte_val refers to a page in the 0x4xxxxxxx physical DRAM interval
  * __pte_page(pte_val) refers to the "virtual" DRAM interval
@@ -246,10 +248,8 @@ static inline pgd_t * pgd_offset(const struct mm_struct *mm, unsigned long addre
 	((pte_t *) pmd_page_vaddr(*(dir)) +  __pte_offset(address))
 #define pte_offset_map(dir, address) \
 	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
-#define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)
 
 #define pte_unmap(pte) do { } while (0)
-#define pte_unmap_nested(pte) do { } while (0)
 #define pte_pfn(x)		((unsigned long)(__va((x).pte)) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
@@ -257,6 +257,9 @@ static inline pgd_t * pgd_offset(const struct mm_struct *mm, unsigned long addre
         printk("%s:%d: bad pte %p(%08lx).\n", __FILE__, __LINE__, &(e), pte_val(e))
 #define pgd_ERROR(e) \
         printk("%s:%d: bad pgd %p(%08lx).\n", __FILE__, __LINE__, &(e), pgd_val(e))
+
+#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)         \
+		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */
@@ -268,7 +271,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */
  * Actually I am not sure on what this could be used for.
  */
 static inline void update_mmu_cache(struct vm_area_struct * vma,
-	unsigned long address, pte_t pte)
+	unsigned long address, pte_t *ptep)
 {
 }
 

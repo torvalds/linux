@@ -4,7 +4,7 @@
  *		 Denis Joseph Barrow,
  */
 
-#include <asm/lowcore.h>
+#include <asm/asm-offsets.h>
 
 #
 # do_reipl_asm

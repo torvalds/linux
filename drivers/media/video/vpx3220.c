@@ -22,12 +22,12 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("vpx3220a/vpx3216b/vpx3214c video decoder driver");
 MODULE_AUTHOR("Laurent Pinchart");
@@ -391,7 +391,7 @@ static int vpx3220_s_routing(struct v4l2_subdev *sd,
 		{0x0e, 1}
 	};
 
-	if (input < 0 || input > 2)
+	if (input > 2)
 		return -EINVAL;
 
 	v4l2_dbg(1, debug, sd, "input switched to %s\n", inputs[input]);
@@ -613,9 +613,25 @@ static const struct i2c_device_id vpx3220_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, vpx3220_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "vpx3220",
-	.probe = vpx3220_probe,
-	.remove = vpx3220_remove,
-	.id_table = vpx3220_id,
+static struct i2c_driver vpx3220_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "vpx3220",
+	},
+	.probe		= vpx3220_probe,
+	.remove		= vpx3220_remove,
+	.id_table	= vpx3220_id,
 };
+
+static __init int init_vpx3220(void)
+{
+	return i2c_add_driver(&vpx3220_driver);
+}
+
+static __exit void exit_vpx3220(void)
+{
+	i2c_del_driver(&vpx3220_driver);
+}
+
+module_init(init_vpx3220);
+module_exit(exit_vpx3220);

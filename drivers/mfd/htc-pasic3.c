@@ -19,6 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/ds1wm.h>
 #include <linux/mfd/htc-pasic3.h>
+#include <linux/slab.h>
 
 struct pasic3_data {
 	void __iomem *mapping;
@@ -129,13 +130,6 @@ static int __init pasic3_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret;
 	int irq = 0;
-
-	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (r) {
-		ds1wm_resources[1].flags = IORESOURCE_IRQ | (r->flags &
-			(IORESOURCE_IRQ_HIGHEDGE | IORESOURCE_IRQ_LOWEDGE));
-		irq = r->start;
-	}
 
 	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (r) {

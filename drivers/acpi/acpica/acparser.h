@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,8 @@
 
 #define ACPI_PARSE_DEFERRED_OP          0x0100
 #define ACPI_PARSE_DISASSEMBLE          0x0200
+
+#define ACPI_PARSE_MODULE_LEVEL         0x0400
 
 /******************************************************************************
  *

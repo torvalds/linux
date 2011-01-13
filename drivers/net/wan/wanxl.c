@@ -268,7 +268,7 @@ static irqreturn_t wanxl_intr(int irq, void* dev_id)
 
 
 
-static int wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
         port_t *port = dev_to_port(dev);
 	desc_t *desc;
@@ -298,7 +298,6 @@ static int wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc->stat = PACKET_FULL;
 	writel(1 << (DOORBELL_TO_CARD_TX_0 + port->node),
 	       port->card->plx + PLX_DOORBELL_TO_CARD);
-	dev->trans_start = jiffies;
 
 	port->tx_out = (port->tx_out + 1) % TX_BUFFERS;
 
@@ -310,7 +309,7 @@ static int wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_unlock(&port->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -814,7 +813,7 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	return 0;
 }
 
-static struct pci_device_id wanxl_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(wanxl_pci_tbl) = {
 	{ PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_SBE_WANXL100, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_SBE_WANXL200, PCI_ANY_ID,

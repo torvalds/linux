@@ -66,7 +66,7 @@ static void cmd_done(struct fsc_state *, int result);
 static void set_dma_cmds(struct fsc_state *, struct scsi_cmnd *);
 
 
-static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int mac53c94_queue_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	struct fsc_state *state;
 
@@ -75,8 +75,9 @@ static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *
 		int i;
 		printk(KERN_DEBUG "mac53c94_queue %p: command is", cmd);
 		for (i = 0; i < cmd->cmd_len; ++i)
-			printk(" %.2x", cmd->cmnd[i]);
-		printk("\n" KERN_DEBUG "use_sg=%d request_bufflen=%d request_buffer=%p\n",
+			printk(KERN_CONT " %.2x", cmd->cmnd[i]);
+		printk(KERN_CONT "\n");
+		printk(KERN_DEBUG "use_sg=%d request_bufflen=%d request_buffer=%p\n",
 		       scsi_sg_count(cmd), scsi_bufflen(cmd), scsi_sglist(cmd));
 	}
 #endif
@@ -97,6 +98,8 @@ static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(mac53c94_queue)
 
 static int mac53c94_host_reset(struct scsi_cmnd *cmd)
 {
@@ -541,8 +544,11 @@ MODULE_DEVICE_TABLE (of, mac53c94_match);
 
 static struct macio_driver mac53c94_driver = 
 {
-	.name 		= "mac53c94",
-	.match_table	= mac53c94_match,
+	.driver = {
+		.name 		= "mac53c94",
+		.owner		= THIS_MODULE,
+		.of_match_table	= mac53c94_match,
+	},
 	.probe		= mac53c94_probe,
 	.remove		= mac53c94_remove,
 };

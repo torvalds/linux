@@ -32,8 +32,10 @@
 #include <linux/blkpg.h>
 #include <linux/timer.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/hdreg.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
@@ -66,6 +68,7 @@ MODULE_LICENSE("GPL");
 
 #define CPQARRAY_DMA_MASK	0xFFFFFFFF	/* 32 bit DMA */
 
+static DEFINE_MUTEX(cpqarray_mutex);
 static int nr_ctlr;
 static ctlr_info_t *hba[MAX_CTLR];
 
@@ -156,7 +159,7 @@ static int sendcmd(
 	unsigned int blkcnt,
 	unsigned int log_unit );
 
-static int ida_open(struct block_device *bdev, fmode_t mode);
+static int ida_unlocked_open(struct block_device *bdev, fmode_t mode);
 static int ida_release(struct gendisk *disk, fmode_t mode);
 static int ida_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg);
 static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -177,7 +180,6 @@ static int cpqarray_register_ctlr(int ctlr, struct pci_dev *pdev);
 
 #ifdef CONFIG_PROC_FS
 static void ida_procinit(int i);
-static int ida_proc_get_info(char *buffer, char **start, off_t offset, int length, int *eof, void *data);
 #else
 static void ida_procinit(int i) {}
 #endif
@@ -193,11 +195,11 @@ static inline ctlr_info_t *get_host(struct gendisk *disk)
 }
 
 
-static struct block_device_operations ida_fops  = {
+static const struct block_device_operations ida_fops  = {
 	.owner		= THIS_MODULE,
-	.open		= ida_open,
+	.open		= ida_unlocked_open,
 	.release	= ida_release,
-	.locked_ioctl	= ida_ioctl,
+	.ioctl		= ida_ioctl,
 	.getgeo		= ida_getgeo,
 	.revalidate_disk= ida_revalidate,
 };
@@ -206,6 +208,7 @@ static struct block_device_operations ida_fops  = {
 #ifdef CONFIG_PROC_FS
 
 static struct proc_dir_entry *proc_array;
+static const struct file_operations ida_proc_fops;
 
 /*
  * Get us a file in /proc/array that says something about each controller.
@@ -218,19 +221,16 @@ static void __init ida_procinit(int i)
 		if (!proc_array) return;
 	}
 
-	create_proc_read_entry(hba[i]->devname, 0, proc_array,
-			       ida_proc_get_info, hba[i]);
+	proc_create_data(hba[i]->devname, 0, proc_array, &ida_proc_fops, hba[i]);
 }
 
 /*
  * Report information about this controller.
  */
-static int ida_proc_get_info(char *buffer, char **start, off_t offset, int length, int *eof, void *data)
+static int ida_proc_show(struct seq_file *m, void *v)
 {
-	off_t pos = 0;
-	off_t len = 0;
-	int size, i, ctlr;
-	ctlr_info_t *h = (ctlr_info_t*)data;
+	int i, ctlr;
+	ctlr_info_t *h = (ctlr_info_t*)m->private;
 	drv_info_t *drv;
 #ifdef CPQ_PROC_PRINT_QUEUES
 	cmdlist_t *c;
@@ -238,7 +238,7 @@ static int ida_proc_get_info(char *buffer, char **start, off_t offset, int lengt
 #endif
 
 	ctlr = h->ctlr;
-	size = sprintf(buffer, "%s:  Compaq %s Controller\n"
+	seq_printf(m, "%s:  Compaq %s Controller\n"
 		"       Board ID: 0x%08lx\n"
 		"       Firmware Revision: %c%c%c%c\n"
 		"       Controller Sig: 0x%08lx\n"
@@ -258,55 +258,54 @@ static int ida_proc_get_info(char *buffer, char **start, off_t offset, int lengt
 		h->log_drives, h->phys_drives,
 		h->Qdepth, h->maxQsinceinit);
 
-	pos += size; len += size;
-	
-	size = sprintf(buffer+len, "Logical Drive Info:\n");
-	pos += size; len += size;
+	seq_puts(m, "Logical Drive Info:\n");
 
 	for(i=0; i<h->log_drives; i++) {
 		drv = &h->drv[i];
-		size = sprintf(buffer+len, "ida/c%dd%d: blksz=%d nr_blks=%d\n",
+		seq_printf(m, "ida/c%dd%d: blksz=%d nr_blks=%d\n",
 				ctlr, i, drv->blk_size, drv->nr_blks);
-		pos += size; len += size;
 	}
 
 #ifdef CPQ_PROC_PRINT_QUEUES
 	spin_lock_irqsave(IDA_LOCK(h->ctlr), flags); 
-	size = sprintf(buffer+len, "\nCurrent Queues:\n");
-	pos += size; len += size;
+	seq_puts(m, "\nCurrent Queues:\n");
 
 	c = h->reqQ;
-	size = sprintf(buffer+len, "reqQ = %p", c); pos += size; len += size;
+	seq_printf(m, "reqQ = %p", c);
 	if (c) c=c->next;
 	while(c && c != h->reqQ) {
-		size = sprintf(buffer+len, "->%p", c);
-		pos += size; len += size;
+		seq_printf(m, "->%p", c);
 		c=c->next;
 	}
 
 	c = h->cmpQ;
-	size = sprintf(buffer+len, "\ncmpQ = %p", c); pos += size; len += size;
+	seq_printf(m, "\ncmpQ = %p", c);
 	if (c) c=c->next;
 	while(c && c != h->cmpQ) {
-		size = sprintf(buffer+len, "->%p", c);
-		pos += size; len += size;
+		seq_printf(m, "->%p", c);
 		c=c->next;
 	}
 
-	size = sprintf(buffer+len, "\n"); pos += size; len += size;
+	seq_putc(m, '\n');
 	spin_unlock_irqrestore(IDA_LOCK(h->ctlr), flags); 
 #endif
-	size = sprintf(buffer+len, "nr_allocs = %d\nnr_frees = %d\n",
+	seq_printf(m, "nr_allocs = %d\nnr_frees = %d\n",
 			h->nr_allocs, h->nr_frees);
-	pos += size; len += size;
-
-	*eof = 1;
-	*start = buffer+offset;
-	len -= offset;
-	if (len>length)
-		len = length;
-	return len;
+	return 0;
 }
+
+static int ida_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ida_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations ida_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ida_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif /* CONFIG_PROC_FS */
 
 module_param_array(eisa, int, NULL, 0);
@@ -389,7 +388,7 @@ static void __devexit cpqarray_remove_one_eisa (int i)
 }
 
 /* pdev is NULL for eisa */
-static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
+static int __devinit cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 {
 	struct request_queue *q;
 	int j;
@@ -451,11 +450,8 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 		blk_queue_bounce_limit(q, hba[i]->pci_dev->dma_mask);
 
 	/* This is a hardware imposed limit. */
-	blk_queue_max_hw_segments(q, SG_MAX);
+	blk_queue_max_segments(q, SG_MAX);
 
-	/* This is a driver limit and could be eliminated. */
-	blk_queue_max_phys_segments(q, SG_MAX);
-	
 	init_timer(&hba[i]->timer);
 	hba[i]->timer.expires = jiffies + IDA_TIMER;
 	hba[i]->timer.data = (unsigned long)hba[i];
@@ -509,7 +505,7 @@ Enomem4:
 	return -1;
 }
 
-static int __init cpqarray_init_one( struct pci_dev *pdev,
+static int __devinit cpqarray_init_one( struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	int i;
@@ -746,7 +742,7 @@ __setup("smart2=", cpqarray_setup);
 /*
  * Find an EISA controller's signature.  Set up an hba if we find it.
  */
-static int __init cpqarray_eisa_detect(void)
+static int __devinit cpqarray_eisa_detect(void)
 {
 	int i=0, j;
 	__u32 board_id;
@@ -846,13 +842,29 @@ static int ida_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
+static int ida_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	mutex_lock(&cpqarray_mutex);
+	ret = ida_open(bdev, mode);
+	mutex_unlock(&cpqarray_mutex);
+
+	return ret;
+}
+
 /*
  * Close.  Sync first.
  */
 static int ida_release(struct gendisk *disk, fmode_t mode)
 {
-	ctlr_info_t *host = get_host(disk);
+	ctlr_info_t *host;
+
+	mutex_lock(&cpqarray_mutex);
+	host = get_host(disk);
 	host->usage_count--;
+	mutex_unlock(&cpqarray_mutex);
+
 	return 0;
 }
 
@@ -1134,7 +1146,7 @@ static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  *  ida_ioctl does some miscellaneous stuff like reporting drive geometry,
  *  setting readahead and submitting commands from userspace to the controller.
  */
-static int ida_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
+static int ida_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
 	drv_info_t *drv = get_drv(bdev->bd_disk);
 	ctlr_info_t *host = get_host(bdev->bd_disk);
@@ -1168,7 +1180,8 @@ out_passthru:
 		return error;
 	case IDAGETCTLRSIG:
 		if (!arg) return -EINVAL;
-		put_user(host->ctlr_sig, (int __user *)arg);
+		if (put_user(host->ctlr_sig, (int __user *)arg))
+			return -EFAULT;
 		return 0;
 	case IDAREVALIDATEVOLS:
 		if (MINOR(bdev->bd_dev) != 0)
@@ -1176,7 +1189,8 @@ out_passthru:
 		return revalidate_allvol(host);
 	case IDADRIVERVERSION:
 		if (!arg) return -EINVAL;
-		put_user(DRIVER_VERSION, (unsigned long __user *)arg);
+		if (put_user(DRIVER_VERSION, (unsigned long __user *)arg))
+			return -EFAULT;
 		return 0;
 	case IDAGETPCIINFO:
 	{
@@ -1198,6 +1212,19 @@ out_passthru:
 	}
 		
 }
+
+static int ida_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	mutex_lock(&cpqarray_mutex);
+	ret = ida_locked_ioctl(bdev, mode, cmd, param);
+	mutex_unlock(&cpqarray_mutex);
+
+	return ret;
+}
+
 /*
  * ida_ctlr_ioctl is for passing commands to the controller from userspace.
  * The command block (io) has already been copied to kernel space for us,
@@ -1231,17 +1258,11 @@ static int ida_ctlr_ioctl(ctlr_info_t *h, int dsk, ida_ioctl_t *io)
 	/* Pre submit processing */
 	switch(io->cmd) {
 	case PASSTHRU_A:
-		p = kmalloc(io->sg[0].size, GFP_KERNEL);
-		if (!p) 
-		{ 
-			error = -ENOMEM; 
-			cmd_free(h, c, 0); 
-			return(error);
-		}
-		if (copy_from_user(p, io->sg[0].addr, io->sg[0].size)) {
-			kfree(p);
-			cmd_free(h, c, 0); 
-			return -EFAULT;
+		p = memdup_user(io->sg[0].addr, io->sg[0].size);
+		if (IS_ERR(p)) {
+			error = PTR_ERR(p);
+			cmd_free(h, c, 0);
+			return error;
 		}
 		c->req.hdr.blk = pci_map_single(h->pci_dev, &(io->c), 
 				sizeof(ida_ioctl_t), 
@@ -1272,18 +1293,12 @@ static int ida_ctlr_ioctl(ctlr_info_t *h, int dsk, ida_ioctl_t *io)
 	case DIAG_PASS_THRU:
 	case COLLECT_BUFFER:
 	case WRITE_FLASH_ROM:
-		p = kmalloc(io->sg[0].size, GFP_KERNEL);
-		if (!p) 
- 		{ 
-                        error = -ENOMEM; 
-                        cmd_free(h, c, 0);
-                        return(error);
+		p = memdup_user(io->sg[0].addr, io->sg[0].size);
+		if (IS_ERR(p)) {
+			error = PTR_ERR(p);
+			cmd_free(h, c, 0);
+			return error;
                 }
-		if (copy_from_user(p, io->sg[0].addr, io->sg[0].size)) {
-			kfree(p);
-                        cmd_free(h, c, 0);
-			return -EFAULT;
-		}
 		c->req.sg[0].size = io->sg[0].size;
 		c->req.sg[0].addr = pci_map_single(h->pci_dev, p, 
 			c->req.sg[0].size, PCI_DMA_BIDIRECTIONAL); 

@@ -101,6 +101,7 @@ static inline void __invalidate_icache_page_alias(unsigned long virt,
 #define flush_cache_vmap(start,end)	flush_cache_all()
 #define flush_cache_vunmap(start,end)	flush_cache_all()
 
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page*);
 extern void flush_cache_range(struct vm_area_struct*, ulong, ulong);
 extern void flush_cache_page(struct vm_area_struct*, unsigned long, unsigned long);
@@ -114,6 +115,7 @@ extern void flush_cache_page(struct vm_area_struct*, unsigned long, unsigned lon
 #define flush_cache_vmap(start,end)			do { } while (0)
 #define flush_cache_vunmap(start,end)			do { } while (0)
 
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #define flush_dcache_page(page)				do { } while (0)
 
 #define flush_cache_page(vma,addr,pfn)			do { } while (0)

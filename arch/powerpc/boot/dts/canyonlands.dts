@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for AMCC Canyonlands (460EX)
  *
- * Copyright 2008 DENX Software Engineering, Stefan Roese <sr@denx.de>
+ * Copyright 2008-2009 DENX Software Engineering, Stefan Roese <sr@denx.de>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without
@@ -105,6 +105,15 @@
 		dcr-reg = <0x00c 0x002>;
 	};
 
+	CPM0: cpm {
+		compatible = "ibm,cpm";
+		dcr-access-method = "native";
+		dcr-reg = <0x160 0x003>;
+		unused-units = <0x00000100>;
+		idle-doze = <0x02000000>;
+		standby = <0xfeff791d>;
+	};
+
 	L2C0: l2c {
 		compatible = "ibm,l2-cache-460ex", "ibm,l2-cache";
 		dcr-reg = <0x020 0x008		/* Internal SRAM DCR's */
@@ -149,19 +158,27 @@
 					/*RXDE*/  0x5 0x4>;
 		};
 
-                USB0: ehci@bffd0400 {
-                        compatible = "ibm,usb-ehci-460ex", "usb-ehci";
-                        interrupt-parent = <&UIC2>;
-                        interrupts = <0x1d 4>;
-                        reg = <4 0xbffd0400 0x90 4 0xbffd0490 0x70>;
-                };
+		USB0: ehci@bffd0400 {
+			compatible = "ibm,usb-ehci-460ex", "usb-ehci";
+			interrupt-parent = <&UIC2>;
+			interrupts = <0x1d 4>;
+			reg = <4 0xbffd0400 0x90 4 0xbffd0490 0x70>;
+		};
 
-                USB1: usb@bffd0000 {
-                        compatible = "ohci-le";
-                        reg = <4 0xbffd0000 0x60>;
-                        interrupt-parent = <&UIC2>;
-                        interrupts = <0x1e 4>;
-                };
+		USB1: usb@bffd0000 {
+			compatible = "ohci-le";
+			reg = <4 0xbffd0000 0x60>;
+			interrupt-parent = <&UIC2>;
+			interrupts = <0x1e 4>;
+		};
+
+		SATA0: sata@bffd1000 {
+			compatible = "amcc,sata-460ex";
+			reg = <4 0xbffd1000 0x800 4 0xbffd0800 0x400>;
+			interrupt-parent = <&UIC3>;
+			interrupts = <0x0 0x4       /* SATA */
+				      0x5 0x4>;     /* AHBDMA */
+		};
 
 		POB0: opb {
 			compatible = "ibm,opb-460ex", "ibm,opb";
@@ -215,6 +232,29 @@
 						reg = <0x03fa0000 0x00060000>;
 					};
 				};
+
+				ndfc@3,0 {
+					compatible = "ibm,ndfc";
+					reg = <0x00000003 0x00000000 0x00002000>;
+					ccr = <0x00001000>;
+					bank-settings = <0x80002222>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					nand {
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						partition@0 {
+							label = "u-boot";
+							reg = <0x00000000 0x00100000>;
+						};
+						partition@100000 {
+							label = "user";
+							reg = <0x00000000 0x03f00000>;
+						};
+					};
+				};
 			};
 
 			UART0: serial@ef600300 {
@@ -237,28 +277,6 @@
 				current-speed = <0>; /* Filled in by U-Boot */
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x1 0x4>;
-			};
-
-			UART2: serial@ef600500 {
-				device_type = "serial";
-				compatible = "ns16550";
-				reg = <0xef600500 0x00000008>;
-				virtual-reg = <0xef600500>;
-				clock-frequency = <0>; /* Filled in by U-Boot */
-				current-speed = <0>; /* Filled in by U-Boot */
-				interrupt-parent = <&UIC1>;
-				interrupts = <0x1d 0x4>;
-			};
-
-			UART3: serial@ef600600 {
-				device_type = "serial";
-				compatible = "ns16550";
-				reg = <0xef600600 0x00000008>;
-				virtual-reg = <0xef600600>;
-				clock-frequency = <0>; /* Filled in by U-Boot */
-				current-speed = <0>; /* Filled in by U-Boot */
-				interrupt-parent = <&UIC1>;
-				interrupts = <0x1e 0x4>;
 			};
 
 			IIC0: i2c@ef600700 {
@@ -329,6 +347,7 @@
 				max-frame-size = <9000>;
 				rx-fifo-size = <4096>;
 				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
 				phy-mode = "rgmii";
 				phy-map = <0x00000000>;
 				rgmii-device = <&RGMII0>;
@@ -358,6 +377,7 @@
 				max-frame-size = <9000>;
 				rx-fifo-size = <4096>;
 				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
 				phy-mode = "rgmii";
 				phy-map = <0x00000000>;
 				rgmii-device = <&RGMII0>;

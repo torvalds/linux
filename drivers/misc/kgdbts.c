@@ -295,6 +295,10 @@ static int check_and_rewind_pc(char *put_str, char *arg)
 	/* On x86 a breakpoint stop requires it to be decremented */
 	if (addr + 1 == kgdbts_regs.ip)
 		offset = -1;
+#elif defined(CONFIG_SUPERH)
+	/* On SUPERH a breakpoint stop requires it to be decremented */
+	if (addr + 2 == kgdbts_regs.pc)
+		offset = -2;
 #endif
 	if (strcmp(arg, "silent") &&
 		instruction_pointer(&kgdbts_regs) + offset != addr) {
@@ -305,6 +309,8 @@ static int check_and_rewind_pc(char *put_str, char *arg)
 #ifdef CONFIG_X86
 	/* On x86 adjust the instruction pointer if needed */
 	kgdbts_regs.ip += offset;
+#elif defined(CONFIG_SUPERH)
+	kgdbts_regs.pc += offset;
 #endif
 	return 0;
 }
@@ -712,6 +718,12 @@ static int run_simple_test(int is_get_char, int chr)
 
 	/* End of packet == #XX so look for the '#' */
 	if (put_buf_cnt > 3 && put_buf[put_buf_cnt - 3] == '#') {
+		if (put_buf_cnt >= BUFMAX) {
+			eprintk("kgdbts: ERROR: put buffer overflow on"
+				" '%s' line %i\n", ts.name, ts.idx);
+			put_buf_cnt = 0;
+			return 0;
+		}
 		put_buf[put_buf_cnt] = '\0';
 		v2printk("put%i: %s\n", ts.idx, put_buf);
 		/* Trigger check here */
@@ -885,16 +897,16 @@ static void kgdbts_run_tests(void)
 	int nmi_sleep = 0;
 	int i;
 
-	ptr = strstr(config, "F");
+	ptr = strchr(config, 'F');
 	if (ptr)
 		fork_test = simple_strtol(ptr + 1, NULL, 10);
-	ptr = strstr(config, "S");
+	ptr = strchr(config, 'S');
 	if (ptr)
 		do_sys_open_test = simple_strtol(ptr + 1, NULL, 10);
-	ptr = strstr(config, "N");
+	ptr = strchr(config, 'N');
 	if (ptr)
 		nmi_sleep = simple_strtol(ptr+1, NULL, 10);
-	ptr = strstr(config, "I");
+	ptr = strchr(config, 'I');
 	if (ptr)
 		sstep_test = simple_strtol(ptr+1, NULL, 10);
 
@@ -1032,12 +1044,6 @@ static int __init init_kgdbts(void)
 	return configure_kgdbts();
 }
 
-static void cleanup_kgdbts(void)
-{
-	if (configured == 1)
-		kgdb_unregister_io_module(&kgdbts_io_ops);
-}
-
 static int kgdbts_get_char(void)
 {
 	int val = 0;
@@ -1069,10 +1075,8 @@ static int param_set_kgdbts_var(const char *kmessage, struct kernel_param *kp)
 		return 0;
 	}
 
-	if (kgdb_connected) {
-		printk(KERN_ERR
-	       "kgdbts: Cannot reconfigure while KGDB is connected.\n");
-
+	if (configured == 1) {
+		printk(KERN_ERR "kgdbts: ERROR: Already configured and running.\n");
 		return -EBUSY;
 	}
 
@@ -1080,9 +1084,6 @@ static int param_set_kgdbts_var(const char *kmessage, struct kernel_param *kp)
 	/* Chop out \n char as a result of echo */
 	if (config[len - 1] == '\n')
 		config[len - 1] = '\0';
-
-	if (configured == 1)
-		cleanup_kgdbts();
 
 	/* Go and configure with the new params. */
 	return configure_kgdbts();
@@ -1111,7 +1112,6 @@ static struct kgdb_io kgdbts_io_ops = {
 };
 
 module_init(init_kgdbts);
-module_exit(cleanup_kgdbts);
 module_param_call(kgdbts, param_set_kgdbts_var, param_get_string, &kps, 0644);
 MODULE_PARM_DESC(kgdbts, "<A|V1|V2>[F#|S#][N#]");
 MODULE_DESCRIPTION("KGDB Test Suite");

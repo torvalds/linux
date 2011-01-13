@@ -43,6 +43,12 @@ struct blk_queue_tags;
 #define DISABLE_CLUSTERING 0
 #define ENABLE_CLUSTERING 1
 
+enum {
+	SCSI_QDEPTH_DEFAULT,	/* default requested change, e.g. from sysfs */
+	SCSI_QDEPTH_QFULL,	/* scsi-ml requested due to queue full */
+	SCSI_QDEPTH_RAMP_UP,	/* scsi-ml requested due to threshhold event */
+};
+
 struct scsi_host_template {
 	struct module *module;
 	const char *name;
@@ -121,8 +127,7 @@ struct scsi_host_template {
 	 *
 	 * STATUS: REQUIRED
 	 */
-	int (* queuecommand)(struct scsi_cmnd *,
-			     void (*done)(struct scsi_cmnd *));
+	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
 
 	/*
 	 * The transfer functions are used to queue a scsi command to
@@ -294,7 +299,7 @@ struct scsi_host_template {
 	 *
 	 * Status: OPTIONAL
 	 */
-	int (* change_queue_depth)(struct scsi_device *, int);
+	int (* change_queue_depth)(struct scsi_device *, int, int);
 
 	/*
 	 * Fill in this function to allow the changing of tag types
@@ -319,6 +324,14 @@ struct scsi_host_template {
 	 */
 	int (* bios_param)(struct scsi_device *, struct block_device *,
 			sector_t, int []);
+
+	/*
+	 * This function is called when one or more partitions on the
+	 * device reach beyond the end of the device.
+	 *
+	 * Status: OPTIONAL
+	 */
+	void (*unlock_native_capacity)(struct scsi_device *);
 
 	/*
 	 * Can be used to export driver statistics and other infos to the
@@ -374,6 +387,7 @@ struct scsi_host_template {
 	 * of scatter-gather.
 	 */
 	unsigned short sg_tablesize;
+	unsigned short sg_prot_tablesize;
 
 	/*
 	 * Set this if the host adapter has limitations beside segment count.
@@ -490,6 +504,25 @@ struct scsi_host_template {
 };
 
 /*
+ * Temporary #define for host lock push down. Can be removed when all
+ * drivers have been updated to take advantage of unlocked
+ * queuecommand.
+ *
+ */
+#define DEF_SCSI_QCMD(func_name) \
+	int func_name(struct Scsi_Host *shost, struct scsi_cmnd *cmd)	\
+	{								\
+		unsigned long irq_flags;				\
+		int rc;							\
+		spin_lock_irqsave(shost->host_lock, irq_flags);		\
+		scsi_cmd_get_serial(shost, cmd);			\
+		rc = func_name##_lck (cmd, cmd->scsi_done);			\
+		spin_unlock_irqrestore(shost->host_lock, irq_flags);	\
+		return rc;						\
+	}
+
+
+/*
  * shost state: If you alter this, you also need to alter scsi_sysfs.c
  * (for the ascii descriptions) and the state model enforcer:
  * scsi_host_set_state()
@@ -585,6 +618,7 @@ struct Scsi_Host {
 	int can_queue;
 	short cmd_per_lun;
 	short unsigned int sg_tablesize;
+	short unsigned int sg_prot_tablesize;
 	short unsigned int max_sectors;
 	unsigned long dma_boundary;
 	/* 
@@ -677,6 +711,12 @@ struct Scsi_Host {
 	void *shost_data;
 
 	/*
+	 * Points to the physical bus device we'd use to do DMA
+	 * Needed just in case we have virtual hosts.
+	 */
+	struct device *dma_dev;
+
+	/*
 	 * We should ensure that this is aligned, both for better performance
 	 * and also because some compilers (m68k) don't automatically force
 	 * alignment to a long boundary.
@@ -720,7 +760,9 @@ extern int scsi_queue_work(struct Scsi_Host *, struct work_struct *);
 extern void scsi_flush_work(struct Scsi_Host *);
 
 extern struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *, int);
-extern int __must_check scsi_add_host(struct Scsi_Host *, struct device *);
+extern int __must_check scsi_add_host_with_dma(struct Scsi_Host *,
+					       struct device *,
+					       struct device *);
 extern void scsi_scan_host(struct Scsi_Host *);
 extern void scsi_rescan_device(struct device *);
 extern void scsi_remove_host(struct Scsi_Host *);
@@ -728,8 +770,15 @@ extern struct Scsi_Host *scsi_host_get(struct Scsi_Host *);
 extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
 extern const char *scsi_host_state_name(enum scsi_host_state);
+extern void scsi_cmd_get_serial(struct Scsi_Host *, struct scsi_cmnd *);
 
 extern u64 scsi_calculate_bounce_limit(struct Scsi_Host *);
+
+static inline int __must_check scsi_add_host(struct Scsi_Host *host,
+					     struct device *dev)
+{
+	return scsi_add_host_with_dma(host, dev, dev);
+}
 
 static inline struct device *scsi_get_device(struct Scsi_Host *shost)
 {
@@ -795,26 +844,31 @@ static inline unsigned int scsi_host_get_prot(struct Scsi_Host *shost)
 	return shost->prot_capabilities;
 }
 
+static inline int scsi_host_prot_dma(struct Scsi_Host *shost)
+{
+	return shost->prot_capabilities >= SHOST_DIX_TYPE0_PROTECTION;
+}
+
 static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsigned int target_type)
 {
-	switch (target_type) {
-	case 1: return shost->prot_capabilities & SHOST_DIF_TYPE1_PROTECTION;
-	case 2: return shost->prot_capabilities & SHOST_DIF_TYPE2_PROTECTION;
-	case 3: return shost->prot_capabilities & SHOST_DIF_TYPE3_PROTECTION;
-	}
+	static unsigned char cap[] = { 0,
+				       SHOST_DIF_TYPE1_PROTECTION,
+				       SHOST_DIF_TYPE2_PROTECTION,
+				       SHOST_DIF_TYPE3_PROTECTION };
 
-	return 0;
+	return shost->prot_capabilities & cap[target_type] ? target_type : 0;
 }
 
 static inline unsigned int scsi_host_dix_capable(struct Scsi_Host *shost, unsigned int target_type)
 {
-	switch (target_type) {
-	case 0: return shost->prot_capabilities & SHOST_DIX_TYPE0_PROTECTION;
-	case 1: return shost->prot_capabilities & SHOST_DIX_TYPE1_PROTECTION;
-	case 2: return shost->prot_capabilities & SHOST_DIX_TYPE2_PROTECTION;
-	case 3: return shost->prot_capabilities & SHOST_DIX_TYPE3_PROTECTION;
-	}
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+	static unsigned char cap[] = { SHOST_DIX_TYPE0_PROTECTION,
+				       SHOST_DIX_TYPE1_PROTECTION,
+				       SHOST_DIX_TYPE2_PROTECTION,
+				       SHOST_DIX_TYPE3_PROTECTION };
 
+	return shost->prot_capabilities & cap[target_type];
+#endif
 	return 0;
 }
 

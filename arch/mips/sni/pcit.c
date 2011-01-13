@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/serial_8250.h>
 
@@ -176,7 +177,7 @@ void end_pcit_irq(unsigned int irq)
 }
 
 static struct irq_chip pcit_irq_type = {
-	.typename = "PCIT",
+	.name = "PCIT",
 	.ack = disable_pcit_irq,
 	.mask = disable_pcit_irq,
 	.mask_ack = disable_pcit_irq,

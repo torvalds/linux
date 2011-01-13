@@ -15,6 +15,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
@@ -264,7 +265,7 @@ int stmp3xxx_dma_make_chain(int ch, struct stmp37xx_circ_dma_chain *chain,
 					stmp3xxx_dma_free_command(ch,
 								  &descriptors
 								  [i]);
-				} while (i-- >= 0);
+				} while (i-- > 0);
 			}
 			return err;
 		}

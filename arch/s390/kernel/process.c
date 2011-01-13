@@ -16,9 +16,9 @@
 #include <linux/fs.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
+#include <linux/slab.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>
@@ -27,11 +27,12 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
-#include <linux/utsname.h>
 #include <linux/tick.h>
 #include <linux/elfcore.h>
 #include <linux/kernel_stat.h>
 #include <linux/syscalls.h>
+#include <linux/compat.h>
+#include <linux/kprobes.h>
 #include <asm/compat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -41,6 +42,7 @@
 #include <asm/irq.h>
 #include <asm/timer.h>
 #include <asm/nmi.h>
+#include <asm/smp.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
@@ -75,18 +77,13 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  */
 static void default_idle(void)
 {
-	/* CPU is going idle. */
+	if (cpu_is_offline(smp_processor_id()))
+		cpu_die();
 	local_irq_disable();
 	if (need_resched()) {
 		local_irq_enable();
 		return;
 	}
-#ifdef CONFIG_HOTPLUG_CPU
-	if (cpu_is_offline(smp_processor_id())) {
-		preempt_enable_no_resched();
-		cpu_die();
-	}
-#endif
 	local_mcck_disable();
 	if (test_thread_flag(TIF_MCCK_PENDING)) {
 		local_mcck_enable();
@@ -116,15 +113,17 @@ void cpu_idle(void)
 	}
 }
 
-extern void kernel_thread_starter(void);
+extern void __kprobes kernel_thread_starter(void);
 
 asm(
-	".align 4\n"
+	".section .kprobes.text, \"ax\"\n"
+	".global kernel_thread_starter\n"
 	"kernel_thread_starter:\n"
 	"    la    2,0(10)\n"
 	"    basr  14,9\n"
 	"    la    2,0\n"
-	"    br    11\n");
+	"    br    11\n"
+	".previous\n");
 
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
@@ -153,8 +152,6 @@ void exit_thread(void)
 
 void flush_thread(void)
 {
-	clear_used_math();
-	clear_tsk_thread_flag(current, TIF_USEDFPU);
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -216,7 +213,10 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	/* start new process with ar4 pointing to the correct address space */
 	p->thread.mm_segment = get_fs();
 	/* Don't copy debug registers */
-	memset(&p->thread.per_info, 0, sizeof(p->thread.per_info));
+	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
+	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
+	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(p, TIF_PER_TRAP);
 	/* Initialize per thread user and system timer values */
 	ti = task_thread_info(p);
 	ti->user_timer = 0;
@@ -230,17 +230,11 @@ SYSCALL_DEFINE0(fork)
 	return do_fork(SIGCHLD, regs->gprs[15], regs, 0, NULL, NULL);
 }
 
-SYSCALL_DEFINE0(clone)
+SYSCALL_DEFINE4(clone, unsigned long, newsp, unsigned long, clone_flags,
+		int __user *, parent_tidptr, int __user *, child_tidptr)
 {
 	struct pt_regs *regs = task_pt_regs(current);
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
 
-	clone_flags = regs->gprs[3];
-	newsp = regs->orig_gpr2;
-	parent_tidptr = (int __user *) regs->gprs[4];
-	child_tidptr = (int __user *) regs->gprs[5];
 	if (!newsp)
 		newsp = regs->gprs[15];
 	return do_fork(clone_flags, newsp, regs, 0,
@@ -274,30 +268,26 @@ asmlinkage void execve_tail(void)
 /*
  * sys_execve() executes a new program.
  */
-SYSCALL_DEFINE0(execve)
+SYSCALL_DEFINE3(execve, const char __user *, name,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	char *filename;
-	unsigned long result;
-	int rc;
+	long rc;
 
-	filename = getname((char __user *) regs->orig_gpr2);
-	if (IS_ERR(filename)) {
-		result = PTR_ERR(filename);
+	filename = getname(name);
+	rc = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		return rc;
+	rc = do_execve(filename, argv, envp, regs);
+	if (rc)
 		goto out;
-	}
-	rc = do_execve(filename, (char __user * __user *) regs->gprs[3],
-		       (char __user * __user *) regs->gprs[4], regs);
-	if (rc) {
-		result = rc;
-		goto out_putname;
-	}
 	execve_tail();
-	result = regs->gprs[2];
-out_putname:
-	putname(filename);
+	rc = regs->gprs[2];
 out:
-	return result;
+	putname(filename);
+	return rc;
 }
 
 /*

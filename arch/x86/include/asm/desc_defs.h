@@ -12,9 +12,9 @@
 #include <linux/types.h>
 
 /*
- * FIXME: Acessing the desc_struct through its fields is more elegant,
+ * FIXME: Accessing the desc_struct through its fields is more elegant,
  * and should be the one valid thing to do. However, a lot of open code
- * still touches the a and b acessors, and doing this allow us to do it
+ * still touches the a and b accessors, and doing this allow us to do it
  * incrementally. We keep the signature as a struct, rather than an union,
  * so we can get rid of it transparently in the future -- glommer
  */
@@ -33,6 +33,12 @@ struct desc_struct {
 		};
 	};
 } __attribute__((packed));
+
+#define GDT_ENTRY_INIT(flags, base, limit) { { { \
+		.a = ((limit) & 0xffff) | (((base) & 0xffff) << 16), \
+		.b = (((base) & 0xff0000) >> 16) | (((flags) & 0xf0ff) << 8) | \
+			((limit) & 0xf0000) | ((base) & 0xff000000), \
+	} } }
 
 enum {
 	GATE_INTERRUPT = 0xE,

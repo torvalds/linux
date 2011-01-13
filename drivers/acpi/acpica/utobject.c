@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -190,6 +190,35 @@ union acpi_operand_object *acpi_ut_create_package_object(u32 count)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_create_integer_object
+ *
+ * PARAMETERS:  initial_value       - Initial value for the integer
+ *
+ * RETURN:      Pointer to a new Integer object, null on failure
+ *
+ * DESCRIPTION: Create an initialized integer object
+ *
+ ******************************************************************************/
+
+union acpi_operand_object *acpi_ut_create_integer_object(u64 initial_value)
+{
+	union acpi_operand_object *integer_desc;
+
+	ACPI_FUNCTION_TRACE(ut_create_integer_object);
+
+	/* Create and initialize a new integer object */
+
+	integer_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+	if (!integer_desc) {
+		return_PTR(NULL);
+	}
+
+	integer_desc->integer.value = initial_value;
+	return_PTR(integer_desc);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_create_buffer_object
  *
  * PARAMETERS:  buffer_size            - Size of buffer to be created
@@ -222,7 +251,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 
 		buffer = ACPI_ALLOCATE_ZEROED(buffer_size);
 		if (!buffer) {
-			ACPI_ERROR((AE_INFO, "Could not allocate size %X",
+			ACPI_ERROR((AE_INFO, "Could not allocate size %u",
 				    (u32) buffer_size));
 			acpi_ut_remove_reference(buffer_desc);
 			return_PTR(NULL);
@@ -274,7 +303,7 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
 	 */
 	string = ACPI_ALLOCATE_ZEROED(string_size + 1);
 	if (!string) {
-		ACPI_ERROR((AE_INFO, "Could not allocate size %X",
+		ACPI_ERROR((AE_INFO, "Could not allocate size %u",
 			    (u32) string_size));
 		acpi_ut_remove_reference(string_desc);
 		return_PTR(NULL);
@@ -504,7 +533,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 			 */
 			ACPI_ERROR((AE_INFO,
 				    "Cannot convert to external object - "
-				    "unsupported Reference Class [%s] %X in object %p",
+				    "unsupported Reference Class [%s] 0x%X in object %p",
 				    acpi_ut_get_reference_name(internal_object),
 				    internal_object->reference.class,
 				    internal_object));
@@ -516,7 +545,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	default:
 
 		ACPI_ERROR((AE_INFO, "Cannot convert to external object - "
-			    "unsupported type [%s] %X in object %p",
+			    "unsupported type [%s] 0x%X in object %p",
 			    acpi_ut_get_object_type_name(internal_object),
 			    internal_object->common.type, internal_object));
 		status = AE_TYPE;

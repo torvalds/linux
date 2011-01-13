@@ -30,8 +30,7 @@
 #define VIRTIO_RING_F_INDIRECT_DESC	28
 
 /* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
-struct vring_desc
-{
+struct vring_desc {
 	/* Address (guest-physical). */
 	__u64 addr;
 	/* Length. */
@@ -42,24 +41,21 @@ struct vring_desc
 	__u16 next;
 };
 
-struct vring_avail
-{
+struct vring_avail {
 	__u16 flags;
 	__u16 idx;
 	__u16 ring[];
 };
 
 /* u32 is used here for ids for padding reasons. */
-struct vring_used_elem
-{
+struct vring_used_elem {
 	/* Index of start of used descriptor chain. */
 	__u32 id;
 	/* Total length of the descriptor chain which was used (written to) */
 	__u32 len;
 };
 
-struct vring_used
-{
+struct vring_used {
 	__u16 flags;
 	__u16 idx;
 	struct vring_used_elem ring[];

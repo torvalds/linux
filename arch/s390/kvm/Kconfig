@@ -1,15 +1,11 @@
 #
 # KVM configuration
 #
-config HAVE_KVM
-       bool
-
-config HAVE_KVM_IRQCHIP
-       bool
+source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
-	bool "Virtualization"
-	default y
+	def_bool y
+	prompt "Virtualization"
 	---help---
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
@@ -20,11 +16,11 @@ menuconfig VIRTUALIZATION
 if VIRTUALIZATION
 
 config KVM
-	tristate "Kernel-based Virtual Machine (KVM) support"
+	def_tristate y
+	prompt "Kernel-based Virtual Machine (KVM) support"
 	depends on HAVE_KVM && EXPERIMENTAL
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
-	select S390_SWITCH_AMODE
 	---help---
 	  Support hosting paravirtualized guest machines using the SIE
 	  virtualization capability on the mainframe. This should work
@@ -38,11 +34,9 @@ config KVM
 
 	  If unsure, say N.
 
-config KVM_TRACE
-       bool
-
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
+source drivers/vhost/Kconfig
 source drivers/virtio/Kconfig
 
 endif # VIRTUALIZATION

@@ -286,7 +286,7 @@ static void m32r_sio_start_tx(struct uart_port *port)
 {
 #ifdef CONFIG_SERIAL_M32R_PLDSIO
 	struct uart_sio_port *up = (struct uart_sio_port *)port;
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 
 	if (!(up->ier & UART_IER_THRI)) {
 		up->ier |= UART_IER_THRI;
@@ -325,7 +325,7 @@ static void m32r_sio_enable_ms(struct uart_port *port)
 
 static void receive_chars(struct uart_sio_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.info->port.tty;
+	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned char ch;
 	unsigned char flag;
 	int max_count = 256;
@@ -398,7 +398,7 @@ static void receive_chars(struct uart_sio_port *up, int *status)
 
 static void transmit_chars(struct uart_sio_port *up)
 {
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 	int count;
 
 	if (up->port.x_char) {

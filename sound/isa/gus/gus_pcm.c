@@ -795,13 +795,13 @@ static int snd_gf1_pcm_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 		if (!(pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE))
 			continue;
 		/* load real volume - better precision */
-		spin_lock_irqsave(&gus->reg_lock, flags);
+		spin_lock(&gus->reg_lock);
 		snd_gf1_select_voice(gus, pvoice->number);
 		snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
 		vol = pvoice == pcmp->pvoices[0] ? gus->gf1.pcm_volume_level_left : gus->gf1.pcm_volume_level_right;
 		snd_gf1_write16(gus, SNDRV_GF1_VW_VOLUME, vol);
 		pcmp->final_volume = 1;
-		spin_unlock_irqrestore(&gus->reg_lock, flags);
+		spin_unlock(&gus->reg_lock);
 	}
 	spin_unlock_irqrestore(&gus->voice_alloc, flags);
 	return change;

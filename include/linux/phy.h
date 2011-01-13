@@ -24,6 +24,7 @@
 #include <linux/mii.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/atomic.h>
 
@@ -81,6 +82,10 @@ typedef enum {
  */
 #define MII_BUS_ID_SIZE	(20 - 3)
 
+/* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
+   IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips. */
+#define MII_ADDR_C45 (1<<30)
+
 /*
  * The Bus class for PHYs.  Devices which provide access to
  * PHYs should register using this structure
@@ -111,7 +116,7 @@ struct mii_bus {
 	/* list of all PHYs on bus */
 	struct phy_device *phy_map[PHY_MAX_ADDR];
 
-	/* Phy addresses to be ignored when probing */
+	/* PHY addresses to be ignored when probing */
 	u32 phy_mask;
 
 	/*
@@ -127,8 +132,8 @@ int mdiobus_register(struct mii_bus *bus);
 void mdiobus_unregister(struct mii_bus *bus);
 void mdiobus_free(struct mii_bus *bus);
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
-int mdiobus_read(struct mii_bus *bus, int addr, u16 regnum);
-int mdiobus_write(struct mii_bus *bus, int addr, u16 regnum, u16 val);
+int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
+int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 
 
 #define PHY_INTERRUPT_DISABLED	0x0
@@ -229,6 +234,8 @@ enum phy_state {
 	PHY_RESUMING
 };
 
+struct sk_buff;
+
 /* phy_device: An instance of a PHY
  *
  * drv: Pointer to the driver for this PHY instance
@@ -276,7 +283,7 @@ struct phy_device {
 
 	phy_interface_t interface;
 
-	/* Bus address of the PHY (0-32) */
+	/* Bus address of the PHY (0-31) */
 	int addr;
 
 	/*
@@ -397,6 +404,26 @@ struct phy_driver {
 	/* Clears up any memory if needed */
 	void (*remove)(struct phy_device *phydev);
 
+	/* Handles SIOCSHWTSTAMP ioctl for hardware time stamping. */
+	int  (*hwtstamp)(struct phy_device *phydev, struct ifreq *ifr);
+
+	/*
+	 * Requests a Rx timestamp for 'skb'. If the skb is accepted,
+	 * the phy driver promises to deliver it using netif_rx() as
+	 * soon as a timestamp becomes available. One of the
+	 * PTP_CLASS_ values is passed in 'type'. The function must
+	 * return true if the skb is accepted for delivery.
+	 */
+	bool (*rxtstamp)(struct phy_device *dev, struct sk_buff *skb, int type);
+
+	/*
+	 * Requests a Tx timestamp for 'skb'. The phy driver promises
+	 * to deliver it to the socket's error queue as soon as a
+	 * timestamp becomes available. One of the PTP_CLASS_ values
+	 * is passed in 'type'.
+	 */
+	void (*txtstamp)(struct phy_device *dev, struct sk_buff *skb, int type);
+
 	struct device_driver driver;
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)
@@ -422,7 +449,7 @@ struct phy_fixup {
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-static inline int phy_read(struct phy_device *phydev, u16 regnum)
+static inline int phy_read(struct phy_device *phydev, u32 regnum)
 {
 	return mdiobus_read(phydev->bus, phydev->addr, regnum);
 }
@@ -437,7 +464,7 @@ static inline int phy_read(struct phy_device *phydev, u16 regnum)
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-static inline int phy_write(struct phy_device *phydev, u16 regnum, u16 val)
+static inline int phy_write(struct phy_device *phydev, u32 regnum, u16 val)
 {
 	return mdiobus_write(phydev->bus, phydev->addr, regnum, val);
 }
@@ -445,12 +472,10 @@ static inline int phy_write(struct phy_device *phydev, u16 regnum, u16 val)
 int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id);
 struct phy_device* get_phy_device(struct mii_bus *bus, int addr);
 int phy_device_register(struct phy_device *phy);
-int phy_clear_interrupt(struct phy_device *phydev);
-int phy_config_interrupt(struct phy_device *phydev, u32 interrupts);
-int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
-		u32 flags, phy_interface_t interface);
+int phy_init_hw(struct phy_device *phydev);
 struct phy_device * phy_attach(struct net_device *dev,
 		const char *bus_id, u32 flags, phy_interface_t interface);
+struct phy_device *phy_find_first(struct mii_bus *bus);
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
 		void (*handler)(struct net_device *), u32 flags,
 		phy_interface_t interface);
@@ -463,17 +488,12 @@ void phy_start(struct phy_device *phydev);
 void phy_stop(struct phy_device *phydev);
 int phy_start_aneg(struct phy_device *phydev);
 
-void phy_sanitize_settings(struct phy_device *phydev);
 int phy_stop_interrupts(struct phy_device *phydev);
-int phy_enable_interrupts(struct phy_device *phydev);
-int phy_disable_interrupts(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev) {
 	return phydev->drv->read_status(phydev);
 }
 
-int genphy_config_advert(struct phy_device *phydev);
-int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
 int genphy_config_aneg(struct phy_device *phydev);
 int genphy_update_link(struct phy_device *phydev);
@@ -482,18 +502,16 @@ int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 void phy_driver_unregister(struct phy_driver *drv);
 int phy_driver_register(struct phy_driver *new_driver);
-void phy_prepare_link(struct phy_device *phydev,
-		void (*adjust_link)(struct net_device *));
+void phy_state_machine(struct work_struct *work);
 void phy_start_machine(struct phy_device *phydev,
 		void (*handler)(struct net_device *));
 void phy_stop_machine(struct phy_device *phydev);
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 int phy_mii_ioctl(struct phy_device *phydev,
-		struct mii_ioctl_data *mii_data, int cmd);
+		struct ifreq *ifr, int cmd);
 int phy_start_interrupts(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
-struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id);
 void phy_device_free(struct phy_device *phydev);
 
 int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,

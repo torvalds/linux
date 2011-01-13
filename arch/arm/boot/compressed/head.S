@@ -22,19 +22,27 @@
 #if defined(CONFIG_DEBUG_ICEDCC)
 
 #ifdef CONFIG_CPU_V6
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
+#elif defined(CONFIG_CPU_V7)
+		.macro	loadsp, rb, tmp
+		.endm
+		.macro	writeb, ch, rb
+wait:		mrc	p14, 0, pc, c0, c1, 0
+		bcs	wait
+		mcr	p14, 0, \ch, c0, c5, 0
+		.endm
 #elif defined(CONFIG_CPU_XSCALE)
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c8, c0, 0
 		.endm
 #else
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c1, c0, 0
@@ -50,7 +58,7 @@
 		.endm
 
 #if defined(CONFIG_ARCH_SA1100)
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		mov	\rb, #0x80000000	@ physical base address
 #ifdef CONFIG_DEBUG_LL_SER3
 		add	\rb, \rb, #0x00050000	@ Ser3
@@ -59,13 +67,13 @@
 #endif
 		.endm
 #elif defined(CONFIG_ARCH_S3C2410)
-		.macro loadsp, rb
+		.macro loadsp, rb, tmp
 		mov	\rb, #0x50000000
 		add	\rb, \rb, #0x4000 * CONFIG_S3C_LOWLEVEL_UART_PORT
 		.endm
 #else
-		.macro	loadsp,	rb
-		addruart \rb
+		.macro	loadsp,	rb, tmp
+		addruart \rb, \tmp
 		.endm
 #endif
 #endif
@@ -117,9 +125,13 @@
  * sort out different calling conventions
  */
 		.align
+		.arm				@ Always enter in ARM state
 start:
 		.type	start,#function
-		.rept	8
+ THUMB(		adr	r12, BSYM(1f)	)
+ THUMB(		bx	r12		)
+ THUMB(		.rept	6		)
+ ARM(		.rept	8		)
 		mov	r0, r0
 		.endr
 
@@ -127,6 +139,7 @@ start:
 		.word	0x016f2818		@ Magic numbers to help the loader
 		.word	start			@ absolute load/run zImage address
 		.word	_edata			@ zImage end address
+ THUMB(		.thumb			)
 1:		mov	r7, r1			@ save architecture ID
 		mov	r8, r2			@ save atags pointer
 
@@ -140,7 +153,8 @@ start:
 		tst	r2, #3			@ not user?
 		bne	not_angel
 		mov	r0, #0x17		@ angel_SWIreason_EnterSVC
-		swi	0x123456		@ angel_SWI_ARM
+ ARM(		swi	0x123456	)	@ angel_SWI_ARM
+ THUMB(		svc	0xab		)	@ angel_SWI_THUMB
 not_angel:
 		mrs	r2, cpsr		@ turn off interrupts to
 		orr	r2, r2, #0xc0		@ prevent angel from running
@@ -161,7 +175,16 @@ not_angel:
 
 		.text
 		adr	r0, LC0
-		ldmia	r0, {r1, r2, r3, r4, r5, r6, ip, sp}
+		ldmia	r0, {r1, r2, r3, r5, r6, r11, ip}
+		ldr	sp, [r0, #28]
+#ifdef CONFIG_AUTO_ZRELADDR
+		@ determine final kernel image address
+		mov	r4, pc
+		and	r4, r4, #0xf8000000
+		add	r4, r4, #TEXT_OFFSET
+#else
+		ldr	r4, =zreladdr
+#endif
 		subs	r0, r0, r1		@ calculate the delta offset
 
 						@ if delta is zero, we are
@@ -171,12 +194,13 @@ not_angel:
 		/*
 		 * We're running at a different address.  We need to fix
 		 * up various pointers:
-		 *   r5 - zImage base address
-		 *   r6 - GOT start
+		 *   r5 - zImage base address (_start)
+		 *   r6 - size of decompressed image
+		 *   r11 - GOT start
 		 *   ip - GOT end
 		 */
 		add	r5, r5, r0
-		add	r6, r6, r0
+		add	r11, r11, r0
 		add	ip, ip, r0
 
 #ifndef CONFIG_ZBOOT_ROM
@@ -194,10 +218,10 @@ not_angel:
 		/*
 		 * Relocate all entries in the GOT table.
 		 */
-1:		ldr	r1, [r6, #0]		@ relocate entries in the GOT
+1:		ldr	r1, [r11, #0]		@ relocate entries in the GOT
 		add	r1, r1, r0		@ table.  This fixes up the
-		str	r1, [r6], #4		@ C references.
-		cmp	r6, ip
+		str	r1, [r11], #4		@ C references.
+		cmp	r11, ip
 		blo	1b
 #else
 
@@ -205,12 +229,12 @@ not_angel:
 		 * Relocate entries in the GOT table.  We only relocate
 		 * the entries that are outside the (relocated) BSS region.
 		 */
-1:		ldr	r1, [r6, #0]		@ relocate entries in the GOT
+1:		ldr	r1, [r11, #0]		@ relocate entries in the GOT
 		cmp	r1, r2			@ entry < bss_start ||
 		cmphs	r3, r1			@ _end < entry
 		addlo	r1, r1, r0		@ table.  This fixes up the
-		str	r1, [r6], #4		@ C references.
-		cmp	r6, ip
+		str	r1, [r11], #4		@ C references.
+		cmp	r11, ip
 		blo	1b
 #endif
 
@@ -236,6 +260,7 @@ not_relocated:	mov	r0, #0
  * Check to see if we will overwrite ourselves.
  *   r4 = final kernel address
  *   r5 = start of this image
+ *   r6 = size of decompressed image
  *   r2 = end of malloc space (and therefore this image)
  * We basically want:
  *   r4 >= r2 -> OK
@@ -243,8 +268,7 @@ not_relocated:	mov	r0, #0
  */
 		cmp	r4, r2
 		bhs	wont_overwrite
-		sub	r3, sp, r5		@ > compressed kernel size
-		add	r0, r4, r3, lsl #2	@ allow for 4x expansion
+		add	r0, r4, r6
 		cmp	r0, r5
 		bls	wont_overwrite
 
@@ -260,25 +284,27 @@ not_relocated:	mov	r0, #0
  * r1-r3  = unused
  * r4     = kernel execution address
  * r5     = decompressed kernel start
- * r6     = processor ID
  * r7     = architecture ID
  * r8     = atags pointer
- * r9-r14 = corrupted
+ * r9-r12,r14 = corrupted
  */
 		add	r1, r5, r0		@ end of decompressed kernel
 		adr	r2, reloc_start
 		ldr	r3, LC1
 		add	r3, r2, r3
-1:		ldmia	r2!, {r9 - r14}		@ copy relocation code
-		stmia	r1!, {r9 - r14}
-		ldmia	r2!, {r9 - r14}
-		stmia	r1!, {r9 - r14}
+1:		ldmia	r2!, {r9 - r12, r14}	@ copy relocation code
+		stmia	r1!, {r9 - r12, r14}
+		ldmia	r2!, {r9 - r12, r14}
+		stmia	r1!, {r9 - r12, r14}
 		cmp	r2, r3
 		blo	1b
-		add	sp, r1, #128		@ relocate the stack
+		mov	sp, r1
+		add	sp, sp, #128		@ relocate the stack
 
 		bl	cache_clean_flush
-		add	pc, r5, r0		@ call relocation code
+ ARM(		add	pc, r5, r0		) @ call relocation code
+ THUMB(		add	r12, r5, r0		)
+ THUMB(		mov	pc, r12			) @ call relocation code
 
 /*
  * We're not in danger of overwriting ourselves.  Do this the simple way.
@@ -291,21 +317,22 @@ wont_overwrite:	mov	r0, r4
 		bl	decompress_kernel
 		b	call_kernel
 
+		.align	2
 		.type	LC0, #object
 LC0:		.word	LC0			@ r1
 		.word	__bss_start		@ r2
 		.word	_end			@ r3
-		.word	zreladdr		@ r4
 		.word	_start			@ r5
-		.word	_got_start		@ r6
+		.word	_image_size		@ r6
+		.word	_got_start		@ r11
 		.word	_got_end		@ ip
-		.word	user_stack+4096		@ sp
+		.word	user_stack_end		@ sp
 LC1:		.word	reloc_end - reloc_start
 		.size	LC0, . - LC0
 
 #ifdef CONFIG_ARCH_RPC
 		.globl	params
-params:		ldr	r0, =params_phys
+params:		ldr	r0, =0x10000100		@ params_phys for RPC
 		mov	pc, lr
 		.ltorg
 		.align
@@ -321,12 +348,10 @@ params:		ldr	r0, =params_phys
  *
  * On entry,
  *  r4 = kernel execution address
- *  r6 = processor ID
  *  r7 = architecture number
  *  r8 = atags pointer
- *  r9 = run-time address of "start"  (???)
  * On exit,
- *  r1, r2, r3, r9, r10, r12 corrupted
+ *  r0, r1, r2, r3, r9, r10, r12 corrupted
  * This routine must preserve:
  *  r4, r5, r6, r7, r8
  */
@@ -381,12 +406,18 @@ __armv3_mpu_cache_on:
 
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
+		/*
+		 * ?? ARMv3 MMU does not allow reading the control register,
+		 * does this really work on ARMv3 MPU?
+		 */
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 						@ .... .... .... WC.M
 		orr	r0, r0, #0x000d		@ .... .... .... 11.1
+		/* ?? this overwrites the value constructed above? */
 		mov	r0, #0
 		mcr	p15, 0, r0, c1, c0, 0	@ write control reg
 
+		/* ?? invalidate for the second time? */
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr
 
@@ -420,7 +451,8 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  */
 		mov	r1, #0x1e
 		orr	r1, r1, #3 << 10
-		mov	r2, pc, lsr #20
+		mov	r2, pc
+		mov	r2, r2, lsr #20
 		orr	r1, r1, r2, lsl #20
 		add	r0, r3, r2, lsl #2
 		str	r1, [r0], #4
@@ -431,6 +463,7 @@ ENDPROC(__setup_mmu)
 
 __armv4_mmu_cache_on:
 		mov	r12, lr
+#ifdef CONFIG_MMU
 		bl	__setup_mmu
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
@@ -444,10 +477,12 @@ __armv4_mmu_cache_on:
 		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+#endif
 		mov	pc, r12
 
 __armv7_mmu_cache_on:
 		mov	r12, lr
+#ifdef CONFIG_MMU
 		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
 		tst	r11, #0xf		@ VMSA
 		blne	__setup_mmu
@@ -455,9 +490,11 @@ __armv7_mmu_cache_on:
 		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
 		tst	r11, #0xf		@ VMSA
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+#endif
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x003c		@ write buffer
+#ifdef CONFIG_MMU
 #ifdef CONFIG_CPU_ENDIAN_BE8
 		orr	r0, r0, #1 << 25	@ big-endian page tables
 #endif
@@ -465,6 +502,7 @@ __armv7_mmu_cache_on:
 		movne	r1, #-1
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
+#endif
 		mcr	p15, 0, r0, c1, c0, 0	@ load control register
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
 		mov	r0, #0
@@ -498,6 +536,7 @@ __arm6_mmu_cache_on:
 		mov	pc, r12
 
 __common_mmu_cache_on:
+#ifndef CONFIG_THUMB2_KERNEL
 #ifndef DEBUG
 		orr	r0, r0, #0x000d		@ Write buffer, mmu
 #endif
@@ -509,6 +548,7 @@ __common_mmu_cache_on:
 1:		mcr	p15, 0, r0, c1, c0, 0	@ load control register
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back to
 		sub	pc, lr, r0, lsr #32	@ properly flush pipeline
+#endif
 
 /*
  * All code following this line is relocatable.  It is relocated by
@@ -519,10 +559,9 @@ __common_mmu_cache_on:
  * r1-r3  = unused
  * r4     = kernel execution address
  * r5     = decompressed kernel start
- * r6     = processor ID
  * r7     = architecture ID
  * r8     = atags pointer
- * r9-r14 = corrupted
+ * r9-r12,r14 = corrupted
  */
 		.align	5
 reloc_start:	add	r9, r5, r0
@@ -531,13 +570,14 @@ reloc_start:	add	r9, r5, r0
 		mov	r1, r4
 1:
 		.rept	4
-		ldmia	r5!, {r0, r2, r3, r10 - r14}	@ relocate kernel
-		stmia	r1!, {r0, r2, r3, r10 - r14}
+		ldmia	r5!, {r0, r2, r3, r10 - r12, r14}	@ relocate kernel
+		stmia	r1!, {r0, r2, r3, r10 - r12, r14}
 		.endr
 
 		cmp	r5, r9
 		blo	1b
-		add	sp, r1, #128		@ relocate the stack
+		mov	sp, r1
+		add	sp, sp, #128		@ relocate the stack
 		debug_reloc_end
 
 call_kernel:	bl	cache_clean_flush
@@ -557,21 +597,23 @@ call_kernel:	bl	cache_clean_flush
  *  r1  = corrupted
  *  r2  = corrupted
  *  r3  = block offset
- *  r6  = corrupted
+ *  r9  = corrupted
  *  r12 = corrupted
  */
 
 call_cache_fn:	adr	r12, proc_types
 #ifdef CONFIG_CPU_CP15
-		mrc	p15, 0, r6, c0, c0	@ get processor ID
+		mrc	p15, 0, r9, c0, c0	@ get processor ID
 #else
-		ldr	r6, =CONFIG_PROCESSOR_ID
+		ldr	r9, =CONFIG_PROCESSOR_ID
 #endif
 1:		ldr	r1, [r12, #0]		@ get value
 		ldr	r2, [r12, #4]		@ get mask
-		eor	r1, r1, r6		@ (real ^ match)
+		eor	r1, r1, r9		@ (real ^ match)
 		tst	r1, r2			@       & mask
-		addeq	pc, r12, r3		@ call cache function
+ ARM(		addeq	pc, r12, r3		) @ call cache function
+ THUMB(		addeq	r12, r3			)
+ THUMB(		moveq	pc, r12			) @ call cache function
 		add	r12, r12, #4*5
 		b	1b
 
@@ -589,13 +631,15 @@ call_cache_fn:	adr	r12, proc_types
  * methods.  Writeback caches _must_ have the flush method
  * defined.
  */
+		.align	2
 		.type	proc_types,#object
 proc_types:
 		.word	0x41560600		@ ARM6/610
 		.word	0xffffffe0
-		b	__arm6_mmu_cache_off	@ works, but slow
-		b	__arm6_mmu_cache_off
+		W(b)	__arm6_mmu_cache_off	@ works, but slow
+		W(b)	__arm6_mmu_cache_off
 		mov	pc, lr
+ THUMB(		nop				)
 @		b	__arm6_mmu_cache_on		@ untested
 @		b	__arm6_mmu_cache_off
 @		b	__armv3_mmu_cache_flush
@@ -603,76 +647,78 @@ proc_types:
 		.word	0x00000000		@ old ARM ID
 		.word	0x0000f000
 		mov	pc, lr
+ THUMB(		nop				)
 		mov	pc, lr
+ THUMB(		nop				)
 		mov	pc, lr
+ THUMB(		nop				)
 
 		.word	0x41007000		@ ARM7/710
 		.word	0xfff8fe00
-		b	__arm7_mmu_cache_off
-		b	__arm7_mmu_cache_off
+		W(b)	__arm7_mmu_cache_off
+		W(b)	__arm7_mmu_cache_off
 		mov	pc, lr
+ THUMB(		nop				)
 
 		.word	0x41807200		@ ARM720T (writethrough)
 		.word	0xffffff00
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
 		mov	pc, lr
+ THUMB(		nop				)
 
 		.word	0x41007400		@ ARM74x
 		.word	0xff00ff00
-		b	__armv3_mpu_cache_on
-		b	__armv3_mpu_cache_off
-		b	__armv3_mpu_cache_flush
+		W(b)	__armv3_mpu_cache_on
+		W(b)	__armv3_mpu_cache_off
+		W(b)	__armv3_mpu_cache_flush
 		
 		.word	0x41009400		@ ARM94x
 		.word	0xff00ff00
-		b	__armv4_mpu_cache_on
-		b	__armv4_mpu_cache_off
-		b	__armv4_mpu_cache_flush
+		W(b)	__armv4_mpu_cache_on
+		W(b)	__armv4_mpu_cache_off
+		W(b)	__armv4_mpu_cache_flush
 
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000
 		mov	pc, lr
+ THUMB(		nop				)
 		mov	pc, lr
+ THUMB(		nop				)
 		mov	pc, lr
+ THUMB(		nop				)
 
 		@ Everything from here on will be the new ID system.
 
 		.word	0x4401a100		@ sa110 / sa1100
 		.word	0xffffffe0
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv4_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv4_mmu_cache_flush
 
 		.word	0x6901b110		@ sa1110
 		.word	0xfffffff0
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv4_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv4_mmu_cache_flush
 
-		.word	0x56056930
-		.word	0xff0ffff0		@ PXA935
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv4_mmu_cache_flush
+		.word	0x56056900
+		.word	0xffffff00		@ PXA9xx
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv4_mmu_cache_flush
 
 		.word	0x56158000		@ PXA168
 		.word	0xfffff000
-		b __armv4_mmu_cache_on
-		b __armv4_mmu_cache_off
-		b __armv5tej_mmu_cache_flush
-
-		.word	0x56056930
-		.word	0xff0ffff0		@ PXA935
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv4_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv5tej_mmu_cache_flush
 
 		.word	0x56050000		@ Feroceon
 		.word	0xff0f0000
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv5tej_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv5tej_mmu_cache_flush
 
 #ifdef CONFIG_CPU_FEROCEON_OLD_ID
 		/* this conflicts with the standard ARMv5TE entry */
@@ -685,47 +731,56 @@ proc_types:
 
 		.word	0x66015261		@ FA526
 		.word	0xff01fff1
-		b	__fa526_cache_on
-		b	__armv4_mmu_cache_off
-		b	__fa526_cache_flush
+		W(b)	__fa526_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__fa526_cache_flush
 
 		@ These match on the architecture ID
 
 		.word	0x00020000		@ ARMv4T
 		.word	0x000f0000
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv4_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv4_mmu_cache_flush
 
 		.word	0x00050000		@ ARMv5TE
 		.word	0x000f0000
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv4_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv4_mmu_cache_flush
 
 		.word	0x00060000		@ ARMv5TEJ
 		.word	0x000f0000
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv5tej_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv5tej_mmu_cache_flush
 
 		.word	0x0007b000		@ ARMv6
 		.word	0x000ff000
-		b	__armv4_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv6_mmu_cache_flush
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv6_mmu_cache_flush
+
+		.word	0x560f5810		@ Marvell PJ4 ARMv6
+		.word	0xff0ffff0
+		W(b)	__armv4_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv6_mmu_cache_flush
 
 		.word	0x000f0000		@ new CPU Id
 		.word	0x000f0000
-		b	__armv7_mmu_cache_on
-		b	__armv7_mmu_cache_off
-		b	__armv7_mmu_cache_flush
+		W(b)	__armv7_mmu_cache_on
+		W(b)	__armv7_mmu_cache_off
+		W(b)	__armv7_mmu_cache_flush
 
 		.word	0			@ unrecognised type
 		.word	0
 		mov	pc, lr
+ THUMB(		nop				)
 		mov	pc, lr
+ THUMB(		nop				)
 		mov	pc, lr
+ THUMB(		nop				)
 
 		.size	proc_types, . - proc_types
 
@@ -733,9 +788,10 @@ proc_types:
  * Turn off the Cache and MMU.  ARMv3 does not support
  * reading the control register, but ARMv4 does.
  *
- * On entry,  r6 = processor ID
- * On exit,   r0, r1, r2, r3, r12 corrupted
- * This routine must preserve: r4, r6, r7
+ * On exit,
+ *  r0, r1, r2, r3, r9, r12 corrupted
+ * This routine must preserve:
+ *  r4, r6, r7
  */
 		.align	5
 cache_off:	mov	r3, #12			@ cache_off function
@@ -760,22 +816,30 @@ __armv3_mpu_cache_off:
 		mov	pc, lr
 
 __armv4_mmu_cache_off:
+#ifdef CONFIG_MMU
 		mrc	p15, 0, r0, c1, c0
 		bic	r0, r0, #0x000d
 		mcr	p15, 0, r0, c1, c0	@ turn MMU and cache off
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c7	@ invalidate whole cache v4
 		mcr	p15, 0, r0, c8, c7	@ invalidate whole TLB v4
+#endif
 		mov	pc, lr
 
 __armv7_mmu_cache_off:
 		mrc	p15, 0, r0, c1, c0
+#ifdef CONFIG_MMU
 		bic	r0, r0, #0x000d
+#else
+		bic	r0, r0, #0x000c
+#endif
 		mcr	p15, 0, r0, c1, c0	@ turn MMU and cache off
 		mov	r12, lr
 		bl	__armv7_mmu_cache_flush
 		mov	r0, #0
+#ifdef CONFIG_MMU
 		mcr	p15, 0, r0, c8, c7, 0	@ invalidate whole TLB
+#endif
 		mcr	p15, 0, r0, c7, c5, 6	@ invalidate BTC
 		mcr	p15, 0, r0, c7, c10, 4	@ DSB
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
@@ -799,10 +863,8 @@ __armv3_mmu_cache_off:
 /*
  * Clean and flush the cache to maintain consistency.
  *
- * On entry,
- *  r6 = processor ID
  * On exit,
- *  r1, r2, r3, r11, r12 corrupted
+ *  r1, r2, r3, r9, r10, r11, r12 corrupted
  * This routine must preserve:
  *  r0, r4, r5, r6, r7
  */
@@ -852,7 +914,7 @@ __armv7_mmu_cache_flush:
 		b	iflush
 hierarchical:
 		mcr	p15, 0, r10, c7, c10, 5	@ DMB
-		stmfd	sp!, {r0-r5, r7, r9, r11}
+		stmfd	sp!, {r0-r7, r9-r11}
 		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
 		mov	r3, r3, lsr #23		@ left align loc bit field
@@ -877,8 +939,12 @@ loop1:
 loop2:
 		mov	r9, r4			@ create working copy of max way size
 loop3:
-		orr	r11, r10, r9, lsl r5	@ factor way and cache number into r11
-		orr	r11, r11, r7, lsl r2	@ factor index number into r11
+ ARM(		orr	r11, r10, r9, lsl r5	) @ factor way and cache number into r11
+ ARM(		orr	r11, r11, r7, lsl r2	) @ factor index number into r11
+ THUMB(		lsl	r6, r9, r5		)
+ THUMB(		orr	r11, r10, r6		) @ factor way and cache number into r11
+ THUMB(		lsl	r6, r7, r2		)
+ THUMB(		orr	r11, r11, r6		) @ factor index number into r11
 		mcr	p15, 0, r11, c7, c14, 2	@ clean & invalidate by set/way
 		subs	r9, r9, #1		@ decrement the way
 		bge	loop3
@@ -889,7 +955,7 @@ skip:
 		cmp	r3, r10
 		bgt	loop1
 finished:
-		ldmfd	sp!, {r0-r5, r7, r9, r11}
+		ldmfd	sp!, {r0-r7, r9-r11}
 		mov	r10, #0			@ swith back to cache level 0
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
 iflush:
@@ -910,7 +976,7 @@ __armv4_mmu_cache_flush:
 		mov	r2, #64*1024		@ default: 32K dcache size (*2)
 		mov	r11, #32		@ default: 32 byte line size
 		mrc	p15, 0, r3, c0, c0, 1	@ read cache type
-		teq	r3, r6			@ cache ID register present?
+		teq	r3, r9			@ cache ID register present?
 		beq	no_cache_id
 		mov	r1, r3, lsr #18
 		and	r1, r1, #7
@@ -923,9 +989,13 @@ __armv4_mmu_cache_flush:
 		mov	r11, #8
 		mov	r11, r11, lsl r3	@ cache line size in bytes
 no_cache_id:
-		bic	r1, pc, #63		@ align to longest cache line
+		mov	r1, pc
+		bic	r1, r1, #63		@ align to longest cache line
 		add	r2, r1, r2
-1:		ldr	r3, [r1], r11		@ s/w flush D cache
+1:
+ ARM(		ldr	r3, [r1], r11		) @ s/w flush D cache
+ THUMB(		ldr     r3, [r1]		) @ s/w flush D cache
+ THUMB(		add     r1, r1, r11		)
 		teq	r1, r2
 		bne	1b
 
@@ -937,7 +1007,7 @@ no_cache_id:
 __armv3_mmu_cache_flush:
 __armv3_mpu_cache_flush:
 		mov	r1, #0
-		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
+		mcr	p15, 0, r1, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr
 
 /*
@@ -945,10 +1015,12 @@ __armv3_mpu_cache_flush:
  * memory, which again must be relocatable.
  */
 #ifdef DEBUG
+		.align	2
 		.type	phexbuf,#object
 phexbuf:	.space	12
 		.size	phexbuf, . - phexbuf
 
+@ phex corrupts {r0, r1, r2, r3}
 phex:		adr	r3, phexbuf
 		mov	r2, #0
 		strb	r2, [r3, r1]
@@ -963,7 +1035,8 @@ phex:		adr	r3, phexbuf
 		strb	r2, [r3, r1]
 		b	1b
 
-puts:		loadsp	r3
+@ puts corrupts {r0, r1, r2, r3}
+puts:		loadsp	r3, r1
 1:		ldrb	r2, [r0], #1
 		teq	r2, #0
 		moveq	pc, lr
@@ -977,12 +1050,14 @@ puts:		loadsp	r3
 		teq	r0, #0
 		bne	1b
 		mov	pc, lr
+@ putc corrupts {r0, r1, r2, r3}
 putc:
 		mov	r2, r0
 		mov	r0, #0
-		loadsp	r3
+		loadsp	r3, r1
 		b	2b
 
+@ memdump corrupts {r0, r1, r2, r3, r10, r11, r12, lr}
 memdump:	mov	r12, r0
 		mov	r10, lr
 		mov	r11, #0
@@ -1016,5 +1091,6 @@ memdump:	mov	r12, r0
 reloc_end:
 
 		.align
-		.section ".stack", "w"
+		.section ".stack", "aw", %nobits
 user_stack:	.space	4096
+user_stack_end:

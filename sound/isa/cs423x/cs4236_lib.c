@@ -87,6 +87,8 @@
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/asoundef.h>
+#include <sound/initval.h>
+#include <sound/tlv.h>
 
 /*
  *
@@ -264,7 +266,10 @@ static void snd_cs4236_resume(struct snd_wss *chip)
 }
 
 #endif /* CONFIG_PM */
-
+/*
+ * This function does no fail if the chip is not CS4236B or compatible.
+ * It just an equivalent to the snd_wss_create() then.
+ */
 int snd_cs4236_create(struct snd_card *card,
 		      unsigned long port,
 		      unsigned long cport,
@@ -281,21 +286,17 @@ int snd_cs4236_create(struct snd_card *card,
 	*rchip = NULL;
 	if (hardware == WSS_HW_DETECT)
 		hardware = WSS_HW_DETECT3;
-	if (cport < 0x100) {
-		snd_printk(KERN_ERR "please, specify control port "
-			   "for CS4236+ chips\n");
-		return -ENODEV;
-	}
+
 	err = snd_wss_create(card, port, cport,
 			     irq, dma1, dma2, hardware, hwshare, &chip);
 	if (err < 0)
 		return err;
 
-	if (!(chip->hardware & WSS_HW_CS4236B_MASK)) {
-		snd_printk(KERN_ERR "CS4236+: MODE3 and extended registers "
-			   "not available, hardware=0x%x\n", chip->hardware);
-		snd_device_free(card, chip);
-		return -ENODEV;
+	if ((chip->hardware & WSS_HW_CS4236B_MASK) == 0) {
+		snd_printd("chip is not CS4236+, hardware=0x%x\n",
+			   chip->hardware);
+		*rchip = chip;
+		return 0;
 	}
 #if 0
 	{
@@ -308,9 +309,16 @@ int snd_cs4236_create(struct snd_card *card,
 				   idx, snd_cs4236_ctrl_in(chip, idx));
 	}
 #endif
+	if (cport < 0x100 || cport == SNDRV_AUTO_PORT) {
+		snd_printk(KERN_ERR "please, specify control port "
+			   "for CS4236+ chips\n");
+		snd_device_free(card, chip);
+		return -ENODEV;
+	}
 	ver1 = snd_cs4236_ctrl_in(chip, 1);
 	ver2 = snd_cs4236_ext_in(chip, CS4236_VERSION);
-	snd_printdd("CS4236: [0x%lx] C1 (version) = 0x%x, ext = 0x%x\n", cport, ver1, ver2);
+	snd_printdd("CS4236: [0x%lx] C1 (version) = 0x%x, ext = 0x%x\n",
+			cport, ver1, ver2);
 	if (ver1 != ver2) {
 		snd_printk(KERN_ERR "CS4236+ chip detected, but "
 			   "control port 0x%lx is not valid\n", cport);
@@ -321,13 +329,17 @@ int snd_cs4236_create(struct snd_card *card,
 	snd_cs4236_ctrl_out(chip, 2, 0xff);
 	snd_cs4236_ctrl_out(chip, 3, 0x00);
 	snd_cs4236_ctrl_out(chip, 4, 0x80);
-	snd_cs4236_ctrl_out(chip, 5, ((IEC958_AES1_CON_PCM_CODER & 3) << 6) | IEC958_AES0_CON_EMPHASIS_NONE);
+	reg = ((IEC958_AES1_CON_PCM_CODER & 3) << 6) |
+	      IEC958_AES0_CON_EMPHASIS_NONE;
+	snd_cs4236_ctrl_out(chip, 5, reg);
 	snd_cs4236_ctrl_out(chip, 6, IEC958_AES1_CON_PCM_CODER >> 2);
 	snd_cs4236_ctrl_out(chip, 7, 0x00);
-	/* 0x8c for C8 is valid for Turtle Beach Malibu - the IEC-958 output */
-	/* is working with this setup, other hardware should have */
-	/* different signal paths and this value should be selectable */
-	/* in the future */
+	/*
+	 * 0x8c for C8 is valid for Turtle Beach Malibu - the IEC-958
+	 * output is working with this setup, other hardware should
+	 * have different signal paths and this value should be
+	 * selectable in the future
+	 */
 	snd_cs4236_ctrl_out(chip, 8, 0x8c);
 	chip->rate_constraint = snd_cs4236_xrate;
 	chip->set_playback_format = snd_cs4236_playback_format;
@@ -339,9 +351,10 @@ int snd_cs4236_create(struct snd_card *card,
 
 	/* initialize extended registers */
 	for (reg = 0; reg < sizeof(snd_cs4236_ext_map); reg++)
-		snd_cs4236_ext_out(chip, CS4236_I23VAL(reg), snd_cs4236_ext_map[reg]);
+		snd_cs4236_ext_out(chip, CS4236_I23VAL(reg),
+				   snd_cs4236_ext_map[reg]);
 
-        /* initialize compatible but more featured registers */
+	/* initialize compatible but more featured registers */
 	snd_wss_out(chip, CS4231_LEFT_INPUT, 0x40);
 	snd_wss_out(chip, CS4231_RIGHT_INPUT, 0x40);
 	snd_wss_out(chip, CS4231_AUX1_LEFT_INPUT, 0xff);
@@ -386,6 +399,14 @@ int snd_cs4236_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
   .info = snd_cs4236_info_single, \
   .get = snd_cs4236_get_single, .put = snd_cs4236_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
+
+#define CS4236_SINGLE_TLV(xname, xindex, reg, shift, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .info = snd_cs4236_info_single, \
+  .get = snd_cs4236_get_single, .put = snd_cs4236_put_single, \
+  .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = (xtlv) } }
 
 static int snd_cs4236_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
@@ -490,6 +511,16 @@ static int snd_cs4236_put_singlec(struct snd_kcontrol *kcontrol, struct snd_ctl_
   .get = snd_cs4236_get_double, .put = snd_cs4236_put_double, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
 
+#define CS4236_DOUBLE_TLV(xname, xindex, left_reg, right_reg, shift_left, \
+			  shift_right, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .info = snd_cs4236_info_double, \
+  .get = snd_cs4236_get_double, .put = snd_cs4236_put_double, \
+  .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | \
+		   (shift_right << 19) | (mask << 24) | (invert << 22), \
+  .tlv = { .p = (xtlv) } }
+
 static int snd_cs4236_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
@@ -560,11 +591,22 @@ static int snd_cs4236_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-#define CS4236_DOUBLE1(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert) \
+#define CS4236_DOUBLE1(xname, xindex, left_reg, right_reg, shift_left, \
+			shift_right, mask, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_cs4236_info_double, \
   .get = snd_cs4236_get_double1, .put = snd_cs4236_put_double1, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
+
+#define CS4236_DOUBLE1_TLV(xname, xindex, left_reg, right_reg, shift_left, \
+			   shift_right, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .info = snd_cs4236_info_double, \
+  .get = snd_cs4236_get_double1, .put = snd_cs4236_put_double1, \
+  .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | \
+		   (shift_right << 19) | (mask << 24) | (invert << 22), \
+  .tlv = { .p = (xtlv) } }
 
 static int snd_cs4236_get_double1(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -619,16 +661,18 @@ static int snd_cs4236_put_double1(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return change;
 }
 
-#define CS4236_MASTER_DIGITAL(xname, xindex) \
+#define CS4236_MASTER_DIGITAL(xname, xindex, xtlv) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
   .info = snd_cs4236_info_double, \
   .get = snd_cs4236_get_master_digital, .put = snd_cs4236_put_master_digital, \
-  .private_value = 71 << 24 }
+  .private_value = 71 << 24, \
+  .tlv = { .p = (xtlv) } }
 
 static inline int snd_cs4236_mixer_master_digital_invert_volume(int vol)
 {
 	return (vol < 64) ? 63 - vol : 64 + (71 - vol);
-}        
+}
 
 static int snd_cs4236_get_master_digital(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -661,11 +705,13 @@ static int snd_cs4236_put_master_digital(struct snd_kcontrol *kcontrol, struct s
 	return change;
 }
 
-#define CS4235_OUTPUT_ACCU(xname, xindex) \
+#define CS4235_OUTPUT_ACCU(xname, xindex, xtlv) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
   .info = snd_cs4236_info_double, \
   .get = snd_cs4235_get_output_accu, .put = snd_cs4235_put_output_accu, \
-  .private_value = 3 << 24 }
+  .private_value = 3 << 24, \
+  .tlv = { .p = (xtlv) } }
 
 static inline int snd_cs4235_mixer_output_accu_get_volume(int vol)
 {
@@ -720,41 +766,56 @@ static int snd_cs4235_put_output_accu(struct snd_kcontrol *kcontrol, struct snd_
 	return change;
 }
 
+static const DECLARE_TLV_DB_SCALE(db_scale_7bit, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_6bit_12db_max, -8250, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_22db_max, -2400, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_2bit, -1800, 600, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+
 static struct snd_kcontrol_new snd_cs4236_controls[] = {
 
 CS4236_DOUBLE("Master Digital Playback Switch", 0,
 		CS4236_LEFT_MASTER, CS4236_RIGHT_MASTER, 7, 7, 1, 1),
 CS4236_DOUBLE("Master Digital Capture Switch", 0,
 		CS4236_DAC_MUTE, CS4236_DAC_MUTE, 7, 6, 1, 1),
-CS4236_MASTER_DIGITAL("Master Digital Volume", 0),
+CS4236_MASTER_DIGITAL("Master Digital Volume", 0, db_scale_7bit),
 
-CS4236_DOUBLE("Capture Boost Volume", 0,
-		CS4236_LEFT_MIX_CTRL, CS4236_RIGHT_MIX_CTRL, 5, 5, 3, 1),
+CS4236_DOUBLE_TLV("Capture Boost Volume", 0,
+		  CS4236_LEFT_MIX_CTRL, CS4236_RIGHT_MIX_CTRL, 5, 5, 3, 1,
+		  db_scale_2bit),
 
 WSS_DOUBLE("PCM Playback Switch", 0,
 		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 7, 7, 1, 1),
-WSS_DOUBLE("PCM Playback Volume", 0,
-		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 0, 0, 63, 1),
+WSS_DOUBLE_TLV("PCM Playback Volume", 0,
+		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 0, 0, 63, 1,
+		db_scale_6bit),
 
 CS4236_DOUBLE("DSP Playback Switch", 0,
 		CS4236_LEFT_DSP, CS4236_RIGHT_DSP, 7, 7, 1, 1),
-CS4236_DOUBLE("DSP Playback Volume", 0,
-		CS4236_LEFT_DSP, CS4236_RIGHT_DSP, 0, 0, 63, 1),
+CS4236_DOUBLE_TLV("DSP Playback Volume", 0,
+		  CS4236_LEFT_DSP, CS4236_RIGHT_DSP, 0, 0, 63, 1,
+		  db_scale_6bit),
 
 CS4236_DOUBLE("FM Playback Switch", 0,
 		CS4236_LEFT_FM, CS4236_RIGHT_FM, 7, 7, 1, 1),
-CS4236_DOUBLE("FM Playback Volume", 0,
-		CS4236_LEFT_FM, CS4236_RIGHT_FM, 0, 0, 63, 1),
+CS4236_DOUBLE_TLV("FM Playback Volume", 0,
+		  CS4236_LEFT_FM, CS4236_RIGHT_FM, 0, 0, 63, 1,
+		  db_scale_6bit),
 
 CS4236_DOUBLE("Wavetable Playback Switch", 0,
 		CS4236_LEFT_WAVE, CS4236_RIGHT_WAVE, 7, 7, 1, 1),
-CS4236_DOUBLE("Wavetable Playback Volume", 0,
-		CS4236_LEFT_WAVE, CS4236_RIGHT_WAVE, 0, 0, 63, 1),
+CS4236_DOUBLE_TLV("Wavetable Playback Volume", 0,
+		  CS4236_LEFT_WAVE, CS4236_RIGHT_WAVE, 0, 0, 63, 1,
+		  db_scale_6bit_12db_max),
 
 WSS_DOUBLE("Synth Playback Switch", 0,
 		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 7, 7, 1, 1),
-WSS_DOUBLE("Synth Volume", 0,
-		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 0, 0, 31, 1),
+WSS_DOUBLE_TLV("Synth Volume", 0,
+		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
 WSS_DOUBLE("Synth Capture Switch", 0,
 		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 6, 6, 1, 1),
 WSS_DOUBLE("Synth Capture Bypass", 0,
@@ -764,14 +825,16 @@ CS4236_DOUBLE("Mic Playback Switch", 0,
 		CS4236_LEFT_MIC, CS4236_RIGHT_MIC, 6, 6, 1, 1),
 CS4236_DOUBLE("Mic Capture Switch", 0,
 		CS4236_LEFT_MIC, CS4236_RIGHT_MIC, 7, 7, 1, 1),
-CS4236_DOUBLE("Mic Volume", 0, CS4236_LEFT_MIC, CS4236_RIGHT_MIC, 0, 0, 31, 1),
-CS4236_DOUBLE("Mic Playback Boost", 0,
+CS4236_DOUBLE_TLV("Mic Volume", 0, CS4236_LEFT_MIC, CS4236_RIGHT_MIC,
+		  0, 0, 31, 1, db_scale_5bit_22db_max),
+CS4236_DOUBLE("Mic Playback Boost (+20dB)", 0,
 		CS4236_LEFT_MIC, CS4236_RIGHT_MIC, 5, 5, 1, 0),
 
 WSS_DOUBLE("Line Playback Switch", 0,
 		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 7, 7, 1, 1),
-WSS_DOUBLE("Line Volume", 0,
-		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 0, 0, 31, 1),
+WSS_DOUBLE_TLV("Line Volume", 0,
+		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
 WSS_DOUBLE("Line Capture Switch", 0,
 		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 6, 6, 1, 1),
 WSS_DOUBLE("Line Capture Bypass", 0,
@@ -779,57 +842,63 @@ WSS_DOUBLE("Line Capture Bypass", 0,
 
 WSS_DOUBLE("CD Playback Switch", 0,
 		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
-WSS_DOUBLE("CD Volume", 0,
-		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 0, 0, 31, 1),
+WSS_DOUBLE_TLV("CD Volume", 0,
+		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
 WSS_DOUBLE("CD Capture Switch", 0,
 		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 6, 6, 1, 1),
 
 CS4236_DOUBLE1("Mono Output Playback Switch", 0,
 		CS4231_MONO_CTRL, CS4236_RIGHT_MIX_CTRL, 6, 7, 1, 1),
-CS4236_DOUBLE1("Mono Playback Switch", 0,
+CS4236_DOUBLE1("Beep Playback Switch", 0,
 		CS4231_MONO_CTRL, CS4236_LEFT_MIX_CTRL, 7, 7, 1, 1),
-WSS_SINGLE("Mono Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1),
-WSS_SINGLE("Mono Playback Bypass", 0, CS4231_MONO_CTRL, 5, 1, 0),
+WSS_SINGLE_TLV("Beep Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1,
+		db_scale_4bit),
+WSS_SINGLE("Beep Bypass Playback Switch", 0, CS4231_MONO_CTRL, 5, 1, 0),
 
-WSS_DOUBLE("Capture Volume", 0,
-		CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT, 0, 0, 15, 0),
+WSS_DOUBLE_TLV("Capture Volume", 0, CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT,
+		0, 0, 15, 0, db_scale_rec_gain),
 WSS_DOUBLE("Analog Loopback Capture Switch", 0,
 		CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT, 7, 7, 1, 0),
 
-WSS_SINGLE("Digital Loopback Playback Switch", 0, CS4231_LOOPBACK, 0, 1, 0),
-CS4236_DOUBLE1("Digital Loopback Playback Volume", 0,
-		CS4231_LOOPBACK, CS4236_RIGHT_LOOPBACK, 2, 0, 63, 1)
+WSS_SINGLE("Loopback Digital Playback Switch", 0, CS4231_LOOPBACK, 0, 1, 0),
+CS4236_DOUBLE1_TLV("Loopback Digital Playback Volume", 0,
+		   CS4231_LOOPBACK, CS4236_RIGHT_LOOPBACK, 2, 0, 63, 1,
+		   db_scale_6bit),
 };
+
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_6db_max, -5600, 200, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_2bit_16db_max, -2400, 800, 0);
 
 static struct snd_kcontrol_new snd_cs4235_controls[] = {
 
-WSS_DOUBLE("Master Switch", 0,
+WSS_DOUBLE("Master Playback Switch", 0,
 		CS4235_LEFT_MASTER, CS4235_RIGHT_MASTER, 7, 7, 1, 1),
-WSS_DOUBLE("Master Volume", 0,
-		CS4235_LEFT_MASTER, CS4235_RIGHT_MASTER, 0, 0, 31, 1),
+WSS_DOUBLE_TLV("Master Playback Volume", 0,
+		CS4235_LEFT_MASTER, CS4235_RIGHT_MASTER, 0, 0, 31, 1,
+		db_scale_5bit_6db_max),
 
-CS4235_OUTPUT_ACCU("Playback Volume", 0),
+CS4235_OUTPUT_ACCU("Playback Volume", 0, db_scale_2bit_16db_max),
 
-CS4236_DOUBLE("Master Digital Playback Switch", 0,
-		CS4236_LEFT_MASTER, CS4236_RIGHT_MASTER, 7, 7, 1, 1),
-CS4236_DOUBLE("Master Digital Capture Switch", 0,
-		CS4236_DAC_MUTE, CS4236_DAC_MUTE, 7, 6, 1, 1),
-CS4236_MASTER_DIGITAL("Master Digital Volume", 0),
-
-WSS_DOUBLE("Master Digital Playback Switch", 1,
+WSS_DOUBLE("Synth Playback Switch", 1,
 		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 7, 7, 1, 1),
-WSS_DOUBLE("Master Digital Capture Switch", 1,
+WSS_DOUBLE("Synth Capture Switch", 1,
 		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 6, 6, 1, 1),
-WSS_DOUBLE("Master Digital Volume", 1,
-		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 0, 0, 31, 1),
+WSS_DOUBLE_TLV("Synth Volume", 1,
+		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
 
-CS4236_DOUBLE("Capture Volume", 0,
-		CS4236_LEFT_MIX_CTRL, CS4236_RIGHT_MIX_CTRL, 5, 5, 3, 1),
+CS4236_DOUBLE_TLV("Capture Volume", 0,
+		  CS4236_LEFT_MIX_CTRL, CS4236_RIGHT_MIX_CTRL, 5, 5, 3, 1,
+		  db_scale_2bit),
 
-WSS_DOUBLE("PCM Switch", 0,
+WSS_DOUBLE("PCM Playback Switch", 0,
 		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 7, 7, 1, 1),
-WSS_DOUBLE("PCM Volume", 0,
-		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 0, 0, 63, 1),
+WSS_DOUBLE("PCM Capture Switch", 0,
+		CS4236_DAC_MUTE, CS4236_DAC_MUTE, 7, 6, 1, 1),
+WSS_DOUBLE_TLV("PCM Volume", 0,
+		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 0, 0, 63, 1,
+		db_scale_6bit),
 
 CS4236_DOUBLE("DSP Switch", 0, CS4236_LEFT_DSP, CS4236_RIGHT_DSP, 7, 7, 1, 1),
 
@@ -842,29 +911,29 @@ CS4236_DOUBLE("Mic Capture Switch", 0,
 		CS4236_LEFT_MIC, CS4236_RIGHT_MIC, 7, 7, 1, 1),
 CS4236_DOUBLE("Mic Playback Switch", 0,
 		CS4236_LEFT_MIC, CS4236_RIGHT_MIC, 6, 6, 1, 1),
-CS4236_SINGLE("Mic Volume", 0, CS4236_LEFT_MIC, 0, 31, 1),
-CS4236_SINGLE("Mic Playback Boost", 0, CS4236_LEFT_MIC, 5, 1, 0),
+CS4236_SINGLE_TLV("Mic Volume", 0, CS4236_LEFT_MIC, 0, 31, 1,
+		  db_scale_5bit_22db_max),
+CS4236_SINGLE("Mic Boost (+20dB)", 0, CS4236_LEFT_MIC, 5, 1, 0),
 
-WSS_DOUBLE("Aux Playback Switch", 0,
+WSS_DOUBLE("Line Playback Switch", 0,
 		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 7, 7, 1, 1),
-WSS_DOUBLE("Aux Capture Switch", 0,
+WSS_DOUBLE("Line Capture Switch", 0,
 		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 6, 6, 1, 1),
-WSS_DOUBLE("Aux Volume", 0,
-		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 0, 0, 31, 1),
+WSS_DOUBLE_TLV("Line Volume", 0,
+		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
 
-WSS_DOUBLE("Aux Playback Switch", 1,
+WSS_DOUBLE("CD Playback Switch", 1,
 		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 7, 7, 1, 1),
-WSS_DOUBLE("Aux Capture Switch", 1,
+WSS_DOUBLE("CD Capture Switch", 1,
 		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 6, 6, 1, 1),
-WSS_DOUBLE("Aux Volume", 1,
-		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 0, 0, 31, 1),
+WSS_DOUBLE_TLV("CD Volume", 1,
+		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 0, 0, 31, 1,
+		db_scale_5bit_12db_max),
 
-CS4236_DOUBLE1("Master Mono Switch", 0,
-		CS4231_MONO_CTRL, CS4236_RIGHT_MIX_CTRL, 6, 7, 1, 1),
-
-CS4236_DOUBLE1("Mono Switch", 0,
+CS4236_DOUBLE1("Beep Playback Switch", 0,
 		CS4231_MONO_CTRL, CS4236_LEFT_MIX_CTRL, 7, 7, 1, 1),
-WSS_SINGLE("Mono Volume", 0, CS4231_MONO_CTRL, 0, 15, 1),
+WSS_SINGLE("Beep Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1),
 
 WSS_DOUBLE("Analog Loopback Switch", 0,
 		CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT, 7, 7, 1, 0),

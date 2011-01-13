@@ -165,7 +165,7 @@ static int ves1820_set_symbolrate(struct ves1820_state *state, u32 symbolrate)
 	tmp = ((symbolrate << 4) % fin) << 8;
 	ratio = (ratio << 8) + tmp / fin;
 	tmp = (tmp % fin) << 8;
-	ratio = (ratio << 8) + (tmp + fin / 2) / fin;
+	ratio = (ratio << 8) + DIV_ROUND_CLOSEST(tmp, fin);
 
 	BDR = ratio;
 	BDRI = (((state->config->xin << 5) / symbolrate) + 1) / 2;
@@ -374,7 +374,7 @@ struct dvb_frontend* ves1820_attach(const struct ves1820_config* config,
 	struct ves1820_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct ves1820_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct ves1820_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 

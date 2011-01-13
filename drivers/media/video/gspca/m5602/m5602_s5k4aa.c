@@ -35,10 +35,29 @@ static
     const
 	struct dmi_system_id s5k4aa_vflip_dmi_table[] = {
 	{
+		.ident = "BRUNEINIT",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "BRUNENIT"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BRUNENIT"),
+			DMI_MATCH(DMI_BOARD_VERSION, "00030D0000000001")
+		}
+	}, {
 		.ident = "Fujitsu-Siemens Amilo Xa 2528",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xa 2528")
+		}
+	}, {
+		.ident = "Fujitsu-Siemens Amilo Xi 2428",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2428")
+		}
+	}, {
+		.ident = "Fujitsu-Siemens Amilo Xi 2528",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2528")
 		}
 	}, {
 		.ident = "Fujitsu-Siemens Amilo Xi 2550",
@@ -47,11 +66,31 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2550")
 		}
 	}, {
+		.ident = "Fujitsu-Siemens Amilo Pa 2548",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 2548")
+		}
+	}, {
+		.ident = "MSI GX700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
+			DMI_MATCH(DMI_BIOS_DATE, "12/02/2008")
+		}
+	}, {
 		.ident = "MSI GX700",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
 			DMI_MATCH(DMI_BIOS_DATE, "07/26/2007")
+		}
+	}, {
+		.ident = "MSI GX700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
+			DMI_MATCH(DMI_BIOS_DATE, "07/19/2007")
 		}
 	}, {
 		.ident = "MSI GX700/GX705/EX700",
@@ -104,13 +143,13 @@ static const struct ctrl s5k4aa_ctrls[] = {
 #define VFLIP_IDX 0
 	{
 		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_VFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "vertical flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = s5k4aa_set_vflip,
 		.get = s5k4aa_get_vflip
@@ -118,13 +157,13 @@ static const struct ctrl s5k4aa_ctrls[] = {
 #define HFLIP_IDX 1
 	{
 		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_HFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "horizontal flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = s5k4aa_set_hflip,
 		.get = s5k4aa_get_hflip
@@ -209,7 +248,7 @@ int s5k4aa_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a s5k4aa sensor");
+	PDEBUG(D_PROBE, "Probing for a s5k4aa sensor");
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_s5k4aa) && !err; i++) {
@@ -476,9 +515,6 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
-	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
-	if (err < 0)
-		return err;
 
 	err = m5602_read_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
@@ -495,7 +531,10 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	return err;
 }
@@ -524,9 +563,6 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
-	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
-	if (err < 0)
-		return err;
 
 	err = m5602_read_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
@@ -543,7 +579,10 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	return err;
 }

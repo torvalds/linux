@@ -43,7 +43,6 @@
 #include <linux/fcntl.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
@@ -114,7 +113,8 @@ static int  sbni_pci_probe( struct net_device  * );
 static struct net_device  *sbni_probe1(struct net_device *, unsigned long, int);
 static int  sbni_open( struct net_device * );
 static int  sbni_close( struct net_device * );
-static int  sbni_start_xmit( struct sk_buff *, struct net_device * );
+static netdev_tx_t sbni_start_xmit(struct sk_buff *,
+					 struct net_device * );
 static int  sbni_ioctl( struct net_device *, struct ifreq *, int );
 static void  set_multicast_list( struct net_device * );
 
@@ -194,9 +194,9 @@ static unsigned int  netcard_portlist[ ] __initdata = {
 static inline int __init
 sbni_isa_probe( struct net_device  *dev )
 {
-	if( dev->base_addr > 0x1ff
-	    &&  request_region( dev->base_addr, SBNI_IO_EXTENT, dev->name )
-	    &&  sbni_probe1( dev, dev->base_addr, dev->irq ) )
+	if( dev->base_addr > 0x1ff &&
+	    request_region( dev->base_addr, SBNI_IO_EXTENT, dev->name ) &&
+	    sbni_probe1( dev, dev->base_addr, dev->irq ) )
 
 		return  0;
 	else {
@@ -285,8 +285,8 @@ static int __init sbni_init(struct net_device *dev)
 
 	for( i = 0;  netcard_portlist[ i ];  ++i ) {
 		int  ioaddr = netcard_portlist[ i ];
-		if( request_region( ioaddr, SBNI_IO_EXTENT, dev->name )
-		    &&  sbni_probe1( dev, ioaddr, 0 ))
+		if( request_region( ioaddr, SBNI_IO_EXTENT, dev->name ) &&
+		    sbni_probe1( dev, ioaddr, 0 ))
 			return 0;
 	}
 
@@ -305,9 +305,9 @@ sbni_pci_probe( struct net_device  *dev )
 		unsigned long  pci_ioaddr;
 		u16  subsys;
 
-		if( pdev->vendor != SBNI_PCI_VENDOR
-		    &&  pdev->device != SBNI_PCI_DEVICE )
-				continue;
+		if( pdev->vendor != SBNI_PCI_VENDOR &&
+		    pdev->device != SBNI_PCI_DEVICE )
+			continue;
 
 		pci_ioaddr = pci_resource_start( pdev, 0 );
 		pci_irq_line = pdev->irq;
@@ -326,11 +326,9 @@ sbni_pci_probe( struct net_device  *dev )
 		}
 
 		if (pci_irq_line <= 0 || pci_irq_line >= nr_irqs)
-			printk( KERN_WARNING "  WARNING: The PCI BIOS assigned "
-				"this PCI card to IRQ %d, which is unlikely "
-				"to work!.\n"
-				KERN_WARNING " You should use the PCI BIOS "
-				"setup to assign a valid IRQ line.\n",
+			printk( KERN_WARNING
+	"  WARNING: The PCI BIOS assigned this PCI card to IRQ %d, which is unlikely to work!.\n"
+	" You should use the PCI BIOS setup to assign a valid IRQ line.\n",
 				pci_irq_line );
 
 		/* avoiding re-enable dual adapters */
@@ -446,7 +444,7 @@ sbni_probe1( struct net_device  *dev,  unsigned long  ioaddr,  int  irq )
 
 #ifdef CONFIG_SBNI_MULTILINE
 
-static int
+static netdev_tx_t
 sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 {
 	struct net_device  *p;
@@ -465,7 +463,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 			prepare_to_send( skb, p );
 			spin_unlock( &nl->lock );
 			netif_start_queue( dev );
-			return  0;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -474,7 +472,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 
 #else	/* CONFIG_SBNI_MULTILINE */
 
-static int
+static netdev_tx_t
 sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 {
 	struct net_local  *nl  = netdev_priv(dev);
@@ -485,7 +483,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 	prepare_to_send( skb, dev );
 
 	spin_unlock( &nl->lock );
-	return  0;
+	return NETDEV_TX_OK;
 }
 
 #endif	/* CONFIG_SBNI_MULTILINE */
@@ -978,8 +976,8 @@ check_fhdr( u32  ioaddr,  u32  *framelen,  u32  *frameno,  u32  *ack,
 	*ack = *framelen & FRAME_ACK_MASK;
 	*is_first = (*framelen & FRAME_FIRST) != 0;
 
-	if( (*framelen &= FRAME_LEN_MASK) < 6
-	    ||  *framelen > SBNI_MAX_FRAME - 3 )
+	if( (*framelen &= FRAME_LEN_MASK) < 6 ||
+	    *framelen > SBNI_MAX_FRAME - 3 )
 		return  0;
 
 	value = inb( ioaddr + DAT );
@@ -1174,10 +1172,10 @@ sbni_open( struct net_device  *dev )
 	if( dev->base_addr < 0x400 ) {		/* ISA only */
 		struct net_device  **p = sbni_cards;
 		for( ;  *p  &&  p < sbni_cards + SBNI_MAX_NUM_CARDS;  ++p )
-			if( (*p)->irq == dev->irq
-			    &&  ((*p)->base_addr == dev->base_addr + 4
-				 ||  (*p)->base_addr == dev->base_addr - 4)
-			    &&  (*p)->flags & IFF_UP ) {
+			if( (*p)->irq == dev->irq &&
+			    ((*p)->base_addr == dev->base_addr + 4 ||
+			     (*p)->base_addr == dev->base_addr - 4) &&
+			    (*p)->flags & IFF_UP ) {
 
 				((struct net_local *) (netdev_priv(*p)))
 					->second = dev;

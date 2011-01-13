@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/notifier.h>
@@ -84,21 +85,26 @@
 /*
  * Error codes returned by the I/O sub-system.
  *
- * UBI_IO_PEB_EMPTY: the physical eraseblock is empty, i.e. it contains only
- *                   %0xFF bytes
- * UBI_IO_PEB_FREE: the physical eraseblock is free, i.e. it contains only a
- *                  valid erase counter header, and the rest are %0xFF bytes
- * UBI_IO_BAD_EC_HDR: the erase counter header is corrupted (bad magic or CRC)
- * UBI_IO_BAD_VID_HDR: the volume identifier header is corrupted (bad magic or
- *                     CRC)
+ * UBI_IO_FF: the read region of flash contains only 0xFFs
+ * UBI_IO_FF_BITFLIPS: the same as %UBI_IO_FF, but also also there was a data
+ *                     integrity error reported by the MTD driver
+ *                     (uncorrectable ECC error in case of NAND)
+ * UBI_IO_BAD_HDR: the EC or VID header is corrupted (bad magic or CRC)
+ * UBI_IO_BAD_HDR_EBADMSG: the same as %UBI_IO_BAD_HDR, but also there was a
+ *                         data integrity error reported by the MTD driver
+ *                         (uncorrectable ECC error in case of NAND)
  * UBI_IO_BITFLIPS: bit-flips were detected and corrected
+ *
+ * Note, it is probably better to have bit-flip and ebadmsg as flags which can
+ * be or'ed with other error code. But this is a big change because there are
+ * may callers, so it does not worth the risk of introducing a bug
  */
 enum {
-	UBI_IO_PEB_EMPTY = 1,
-	UBI_IO_PEB_FREE,
-	UBI_IO_BAD_EC_HDR,
-	UBI_IO_BAD_VID_HDR,
-	UBI_IO_BITFLIPS
+	UBI_IO_FF = 1,
+	UBI_IO_FF_BITFLIPS,
+	UBI_IO_BAD_HDR,
+	UBI_IO_BAD_HDR_EBADMSG,
+	UBI_IO_BITFLIPS,
 };
 
 /*
@@ -301,6 +307,7 @@ struct ubi_wl_entry;
  *                @vol->readers, @vol->writers, @vol->exclusive,
  *                @vol->ref_count, @vol->mapping and @vol->eba_tbl.
  * @ref_count: count of references on the UBI device
+ * @image_seq: image sequence number recorded on EC headers
  *
  * @rsvd_pebs: count of reserved physical eraseblocks
  * @avail_pebs: count of available physical eraseblocks
@@ -348,13 +355,14 @@ struct ubi_wl_entry;
  * @bgt_thread: background thread description object
  * @thread_enabled: if the background thread is enabled
  * @bgt_name: background thread name
- * @reboot_notifier: notifier to terminate background thread before rebooting
  *
  * @flash_size: underlying MTD device size (in bytes)
  * @peb_count: count of physical eraseblocks on the MTD device
  * @peb_size: physical eraseblock size
  * @bad_peb_count: count of bad physical eraseblocks
  * @good_peb_count: count of good physical eraseblocks
+ * @corr_peb_count: count of corrupted physical eraseblocks (preserved and not
+ *                  used by UBI)
  * @erroneous_peb_count: count of erroneous physical eraseblocks in @erroneous
  * @max_erroneous: maximum allowed amount of erroneous physical eraseblocks
  * @min_io_size: minimal input/output unit size of the underlying MTD device
@@ -372,6 +380,7 @@ struct ubi_wl_entry;
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  *               not
+ * @nor_flash: non-zero if working on top of NOR flash
  * @mtd: MTD device descriptor
  *
  * @peb_buf1: a buffer of PEB size used for different purposes
@@ -390,6 +399,7 @@ struct ubi_device {
 	struct ubi_volume *volumes[UBI_MAX_VOLUMES+UBI_INT_VOL_COUNT];
 	spinlock_t volumes_lock;
 	int ref_count;
+	int image_seq;
 
 	int rsvd_pebs;
 	int avail_pebs;
@@ -432,7 +442,6 @@ struct ubi_device {
 	struct task_struct *bgt_thread;
 	int thread_enabled;
 	char bgt_name[sizeof(UBI_BGT_NAME_PATTERN)+2];
-	struct notifier_block reboot_notifier;
 
 	/* I/O sub-system's stuff */
 	long long flash_size;
@@ -440,6 +449,7 @@ struct ubi_device {
 	int peb_size;
 	int bad_peb_count;
 	int good_peb_count;
+	int corr_peb_count;
 	int erroneous_peb_count;
 	int max_erroneous;
 	int min_io_size;
@@ -452,7 +462,8 @@ struct ubi_device {
 	int vid_hdr_offset;
 	int vid_hdr_aloffset;
 	int vid_hdr_shift;
-	int bad_allowed;
+	unsigned int bad_allowed:1;
+	unsigned int nor_flash:1;
 	struct mtd_info *mtd;
 
 	void *peb_buf1;
@@ -503,6 +514,7 @@ int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf,
 		      int length);
 int ubi_check_volume(struct ubi_device *ubi, int vol_id);
 void ubi_calculate_reserved(struct ubi_device *ubi);
+int ubi_check_pattern(const void *buf, uint8_t patt, int size);
 
 /* eba.c */
 int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
@@ -566,7 +578,7 @@ void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.
- * @rb: a pointer to type 'struct rb_node' to to use as a loop counter
+ * @rb: a pointer to type 'struct rb_node' to use as a loop counter
  * @pos: a pointer to RB-tree entry type to use as a loop counter
  * @root: RB-tree's root
  * @member: the name of the 'struct rb_node' within the RB-tree entry
@@ -575,7 +587,8 @@ void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
 	for (rb = rb_first(root),                                            \
 	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL);     \
 	     rb;                                                             \
-	     rb = rb_next(rb), pos = container_of(rb, typeof(*pos), member))
+	     rb = rb_next(rb),                                               \
+	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL))
 
 /**
  * ubi_zalloc_vid_hdr - allocate a volume identifier header object.

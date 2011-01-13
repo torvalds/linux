@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/isdn/capiutil.h>
+#include <linux/slab.h>
 
 /* from CAPI2.0 DDK AVM Berlin GmbH */
 
@@ -1019,7 +1020,7 @@ int __init cdebug_init(void)
 	if (!g_debbuf->buf) {
 		kfree(g_cmsg);
 		kfree(g_debbuf);
-		return -ENOMEM;;
+		return -ENOMEM;
 	}
 	g_debbuf->size = CDEBUG_GSIZE;
 	g_debbuf->buf[0] = 0;

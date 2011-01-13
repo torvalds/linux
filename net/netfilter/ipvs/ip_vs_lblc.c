@@ -11,7 +11,7 @@
  * Changes:
  *     Martin Hamilton         :    fixed the terrible locking bugs
  *                                   *lock(tbl->lock) ==> *lock(&tbl->lock)
- *     Wensong Zhang           :    fixed the uninitilized tbl->lock bug
+ *     Wensong Zhang           :    fixed the uninitialized tbl->lock bug
  *     Wensong Zhang           :    added doing full expiration check to
  *                                   collect stale entries of 24+ hours when
  *                                   no partial expire check in a half hour
@@ -39,7 +39,11 @@
  * me to write this module.
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
@@ -118,7 +122,7 @@ static ctl_table vs_vars_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table_header * sysctl_header;
@@ -199,7 +203,7 @@ ip_vs_lblc_new(struct ip_vs_lblc_table *tbl, const union nf_inet_addr *daddr,
 	if (!en) {
 		en = kmalloc(sizeof(*en), GFP_ATOMIC);
 		if (!en) {
-			IP_VS_ERR("ip_vs_lblc_new(): no memory\n");
+			pr_err("%s(): no memory\n", __func__);
 			return NULL;
 		}
 
@@ -332,7 +336,7 @@ static int ip_vs_lblc_init_svc(struct ip_vs_service *svc)
 	 */
 	tbl = kmalloc(sizeof(*tbl), GFP_ATOMIC);
 	if (tbl == NULL) {
-		IP_VS_ERR("ip_vs_lblc_init_svc(): no memory\n");
+		pr_err("%s(): no memory\n", __func__);
 		return -ENOMEM;
 	}
 	svc->sched_data = tbl;
@@ -477,7 +481,7 @@ ip_vs_lblc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 
-	IP_VS_DBG(6, "ip_vs_lblc_schedule(): Scheduling...\n");
+	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
 	/* First look in our cache */
 	read_lock(&svc->sched_lock);

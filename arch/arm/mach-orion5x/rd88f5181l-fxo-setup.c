@@ -169,8 +169,6 @@ subsys_initcall(rd88f5181l_fxo_pci_init);
 
 MACHINE_START(RD88F5181L_FXO, "Marvell Orion-VoIP FXO Reference Design")
 	/* Maintainer: Nicolas Pitre <nico@marvell.com> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f5181l_fxo_init,
 	.map_io		= orion5x_map_io,

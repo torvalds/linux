@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2003 - 2009 NetXen, Inc.
+ * Copyright (C) 2009 - QLogic Corporation.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -18,56 +19,14 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
- *
- * Contact Information:
- *    info@netxen.com
- * NetXen Inc,
- * 18922 Forge Drive
- * Cupertino, CA 95014-0701
+ * in the file called "COPYING".
  *
  */
 
 #include "netxen_nic_hw.h"
 #include "netxen_nic.h"
-#include "netxen_nic_phan_reg.h"
 
 #define NXHAL_VERSION	1
-
-static int
-netxen_api_lock(struct netxen_adapter *adapter)
-{
-	u32 done = 0, timeout = 0;
-
-	for (;;) {
-		/* Acquire PCIE HW semaphore5 */
-		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM5_LOCK));
-
-		if (done == 1)
-			break;
-
-		if (++timeout >= NX_OS_CRB_RETRY_COUNT) {
-			printk(KERN_ERR "%s: lock timeout.\n", __func__);
-			return -1;
-		}
-
-		msleep(1);
-	}
-
-#if 0
-	NXWR32(adapter,
-		NETXEN_API_LOCK_ID, NX_OS_API_LOCK_DRIVER);
-#endif
-	return 0;
-}
-
-static int
-netxen_api_unlock(struct netxen_adapter *adapter)
-{
-	/* Release PCIE HW semaphore5 */
-	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM5_UNLOCK));
-	return 0;
-}
 
 static u32
 netxen_poll_rsp(struct netxen_adapter *adapter)
@@ -265,7 +224,8 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 		rds_ring = &recv_ctx->rds_rings[i];
 
 		reg = le32_to_cpu(prsp_rds[i].host_producer_crb);
-		rds_ring->crb_rcv_producer = NETXEN_NIC_REG(reg - 0x200);
+		rds_ring->crb_rcv_producer = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(reg - 0x200));
 	}
 
 	prsp_sds = ((nx_cardrsp_sds_ring_t *)
@@ -275,10 +235,12 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 		sds_ring = &recv_ctx->sds_rings[i];
 
 		reg = le32_to_cpu(prsp_sds[i].host_consumer_crb);
-		sds_ring->crb_sts_consumer = NETXEN_NIC_REG(reg - 0x200);
+		sds_ring->crb_sts_consumer = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(reg - 0x200));
 
 		reg = le32_to_cpu(prsp_sds[i].interrupt_crb);
-		sds_ring->crb_intr_mask = NETXEN_NIC_REG(reg - 0x200);
+		sds_ring->crb_intr_mask = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(reg - 0x200));
 	}
 
 	recv_ctx->state = le32_to_cpu(prsp->host_ctx_state);
@@ -378,7 +340,8 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 
 	if (err == NX_RCODE_SUCCESS) {
 		temp = le32_to_cpu(prsp->cds_ring.host_producer_crb);
-		tx_ring->crb_cmd_producer = NETXEN_NIC_REG(temp - 0x200);
+		tx_ring->crb_cmd_producer = netxen_get_ioaddr(adapter,
+				NETXEN_NIC_REG(temp - 0x200));
 #if 0
 		adapter->tx_state =
 			le32_to_cpu(prsp->host_ctx_state);
@@ -414,6 +377,44 @@ nx_fw_cmd_destroy_tx_ctx(struct netxen_adapter *adapter)
 			"%s: Failed to destroy tx ctx in firmware\n",
 			netxen_nic_driver_name);
 	}
+}
+
+int
+nx_fw_cmd_query_phy(struct netxen_adapter *adapter, u32 reg, u32 *val)
+{
+	u32 rcode;
+
+	rcode = netxen_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			NXHAL_VERSION,
+			reg,
+			0,
+			0,
+			NX_CDRP_CMD_READ_PHY);
+
+	if (rcode != NX_RCODE_SUCCESS)
+		return -EIO;
+
+	return NXRD32(adapter, NX_ARG1_CRB_OFFSET);
+}
+
+int
+nx_fw_cmd_set_phy(struct netxen_adapter *adapter, u32 reg, u32 val)
+{
+	u32 rcode;
+
+	rcode = netxen_issue_cmd(adapter,
+			adapter->ahw.pci_func,
+			NXHAL_VERSION,
+			reg,
+			val,
+			0,
+			NX_CDRP_CMD_WRITE_PHY);
+
+	if (rcode != NX_RCODE_SUCCESS)
+		return -EIO;
+
+	return 0;
 }
 
 static u64 ctx_addr_sig_regs[][3] = {
@@ -628,7 +629,8 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	if (addr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate tx desc ring\n",
 				netdev->name);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out_free;
 	}
 
 	tx_ring->desc_head = (struct cmd_desc_type0 *)addr;
@@ -647,9 +649,10 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		}
 		rds_ring->desc_head = (struct rcv_desc *)addr;
 
-		if (adapter->fw_major < 4)
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 			rds_ring->crb_rcv_producer =
-				recv_crb_registers[port].crb_rcv_producer[ring];
+				netxen_get_ioaddr(adapter,
+			recv_crb_registers[port].crb_rcv_producer[ring]);
 	}
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
@@ -667,15 +670,21 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		}
 		sds_ring->desc_head = (struct status_desc *)addr;
 
-		sds_ring->crb_sts_consumer =
-			recv_crb_registers[port].crb_sts_consumer[ring];
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+			sds_ring->crb_sts_consumer =
+				netxen_get_ioaddr(adapter,
+				recv_crb_registers[port].crb_sts_consumer[ring]);
 
-		sds_ring->crb_intr_mask =
-			recv_crb_registers[port].sw_int_mask[ring];
+			sds_ring->crb_intr_mask =
+				netxen_get_ioaddr(adapter,
+				recv_crb_registers[port].sw_int_mask[ring]);
+		}
 	}
 
 
-	if (adapter->fw_major >= 4) {
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		if (test_and_set_bit(__NX_FW_ATTACHED, &adapter->state))
+			goto done;
 		err = nx_fw_cmd_create_rx_ctx(adapter);
 		if (err)
 			goto err_out_free;
@@ -684,12 +693,11 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			goto err_out_free;
 	} else {
 		err = netxen_init_old_ctx(adapter);
-		if (err) {
-			netxen_free_hw_resources(adapter);
-			return err;
-		}
+		if (err)
+			goto err_out_free;
 	}
 
+done:
 	return 0;
 
 err_out_free:
@@ -707,16 +715,23 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 
 	int port = adapter->portnum;
 
-	if (adapter->fw_major >= 4) {
-		nx_fw_cmd_destroy_tx_ctx(adapter);
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		if (!test_and_clear_bit(__NX_FW_ATTACHED, &adapter->state))
+			goto done;
+
 		nx_fw_cmd_destroy_rx_ctx(adapter);
+		nx_fw_cmd_destroy_tx_ctx(adapter);
 	} else {
 		netxen_api_lock(adapter);
 		NXWR32(adapter, CRB_CTX_SIGNATURE_REG(port),
-				NETXEN_CTX_RESET | port);
+				NETXEN_CTX_D3_RESET | port);
 		netxen_api_unlock(adapter);
 	}
 
+	/* Allow dma queues to drain after context reset */
+	msleep(20);
+
+done:
 	recv_ctx = &adapter->recv_ctx;
 
 	if (recv_ctx->hwctx != NULL) {

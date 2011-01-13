@@ -1,7 +1,7 @@
 #ifndef __PARISC_SYSTEM_H
 #define __PARISC_SYSTEM_H
 
-#include <asm/psw.h>
+#include <linux/irqflags.h>
 
 /* The program status word as bitfields.  */
 struct pa_psw {
@@ -47,23 +47,6 @@ extern struct task_struct *_switch_to(struct task_struct *, struct task_struct *
 #define switch_to(prev, next, last) do {			\
 	(last) = _switch_to(prev, next);			\
 } while(0)
-
-/* interrupt control */
-#define local_save_flags(x)	__asm__ __volatile__("ssm 0, %0" : "=r" (x) : : "memory")
-#define local_irq_disable()	__asm__ __volatile__("rsm %0,%%r0\n" : : "i" (PSW_I) : "memory" )
-#define local_irq_enable()	__asm__ __volatile__("ssm %0,%%r0\n" : : "i" (PSW_I) : "memory" )
-
-#define local_irq_save(x) \
-	__asm__ __volatile__("rsm %1,%0" : "=r" (x) :"i" (PSW_I) : "memory" )
-#define local_irq_restore(x) \
-	__asm__ __volatile__("mtsm %0" : : "r" (x) : "memory" )
-
-#define irqs_disabled()			\
-({					\
-	unsigned long flags;		\
-	local_save_flags(flags);	\
-	(flags & PSW_I) == 0;		\
-})
 
 #define mfctl(reg)	({		\
 	unsigned long cr;		\
@@ -160,7 +143,7 @@ static inline void set_eiem(unsigned long val)
    ldcd). */
 
 #define __PA_LDCW_ALIGNMENT	4
-#define __ldcw_align(a) ((volatile unsigned int *)a)
+#define __ldcw_align(a) (&(a)->slock)
 #define __LDCW	"ldcw,co"
 
 #endif /*!CONFIG_PA20*/
@@ -168,13 +151,13 @@ static inline void set_eiem(unsigned long val)
 /* LDCW, the only atomic read-write operation PA-RISC has. *sigh*.  */
 #define __ldcw(a) ({						\
 	unsigned __ret;						\
-	__asm__ __volatile__(__LDCW " 0(%1),%0"			\
-		: "=r" (__ret) : "r" (a));			\
+	__asm__ __volatile__(__LDCW " 0(%2),%0"			\
+		: "=r" (__ret), "+m" (*(a)) : "r" (a));		\
 	__ret;							\
 })
 
 #ifdef CONFIG_SMP
-# define __lock_aligned __attribute__((__section__(".data.lock_aligned")))
+# define __lock_aligned __attribute__((__section__(".data..lock_aligned")))
 #endif
 
 #define arch_align_stack(x) (x)

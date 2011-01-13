@@ -33,6 +33,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/bug.h>
+#include <asm/kvm_book3s_asm.h>
 
 /* 601 only have IBAT; cr0.eq is set on 601 when using this macro */
 #define LOAD_BAT(n, reg, RA, RB)	\
@@ -164,6 +165,9 @@ __after_mmu_off:
 #ifdef CONFIG_PPC_EARLY_DEBUG_CPM
 	bl	setup_cpm_bat
 #endif
+#ifdef CONFIG_PPC_EARLY_DEBUG_USBGECKO
+	bl	setup_usbgecko_bat
+#endif
 
 /*
  * Call setup_cpu for CPU 0 and initialize 6xx Idle
@@ -244,8 +248,8 @@ __secondary_hold_acknowledge:
  * task's thread_struct.
  */
 #define EXCEPTION_PROLOG	\
-	mtspr	SPRN_SPRG0,r10;	\
-	mtspr	SPRN_SPRG1,r11;	\
+	mtspr	SPRN_SPRG_SCRATCH0,r10;	\
+	mtspr	SPRN_SPRG_SCRATCH1,r11;	\
 	mfcr	r10;		\
 	EXCEPTION_PROLOG_1;	\
 	EXCEPTION_PROLOG_2
@@ -255,7 +259,7 @@ __secondary_hold_acknowledge:
 	andi.	r11,r11,MSR_PR;	\
 	tophys(r11,r1);			/* use tophys(r1) if kernel */ \
 	beq	1f;		\
-	mfspr	r11,SPRN_SPRG3;	\
+	mfspr	r11,SPRN_SPRG_THREAD;	\
 	lwz	r11,THREAD_INFO-THREAD(r11);	\
 	addi	r11,r11,THREAD_SIZE;	\
 	tophys(r11,r11);	\
@@ -267,9 +271,9 @@ __secondary_hold_acknowledge:
 	stw	r10,_CCR(r11);		/* save registers */ \
 	stw	r12,GPR12(r11);	\
 	stw	r9,GPR9(r11);	\
-	mfspr	r10,SPRN_SPRG0;	\
+	mfspr	r10,SPRN_SPRG_SCRATCH0;	\
 	stw	r10,GPR10(r11);	\
-	mfspr	r12,SPRN_SPRG1;	\
+	mfspr	r12,SPRN_SPRG_SCRATCH1;	\
 	stw	r12,GPR11(r11);	\
 	mflr	r10;		\
 	stw	r10,_LINK(r11);	\
@@ -300,6 +304,7 @@ __secondary_hold_acknowledge:
  */
 #define EXCEPTION(n, label, hdlr, xfer)		\
 	. = n;					\
+	DO_KVM n;				\
 label:						\
 	EXCEPTION_PROLOG;			\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;	\
@@ -355,11 +360,12 @@ i##n:								\
  *	-- paulus.
  */
 	. = 0x200
-	mtspr	SPRN_SPRG0,r10
-	mtspr	SPRN_SPRG1,r11
+	DO_KVM  0x200
+	mtspr	SPRN_SPRG_SCRATCH0,r10
+	mtspr	SPRN_SPRG_SCRATCH1,r11
 	mfcr	r10
 #ifdef CONFIG_PPC_CHRP
-	mfspr	r11,SPRN_SPRG2
+	mfspr	r11,SPRN_SPRG_RTAS
 	cmpwi	0,r11,0
 	bne	7f
 #endif /* CONFIG_PPC_CHRP */
@@ -367,7 +373,7 @@ i##n:								\
 7:	EXCEPTION_PROLOG_2
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_PPC_CHRP
-	mfspr	r4,SPRN_SPRG2
+	mfspr	r4,SPRN_SPRG_RTAS
 	cmpwi	cr1,r4,0
 	bne	cr1,1f
 #endif
@@ -378,6 +384,7 @@ i##n:								\
 
 /* Data access exception. */
 	. = 0x300
+	DO_KVM  0x300
 DataAccess:
 	EXCEPTION_PROLOG
 	mfspr	r10,SPRN_DSISR
@@ -394,6 +401,7 @@ DataAccess:
 
 /* Instruction access exception. */
 	. = 0x400
+	DO_KVM  0x400
 InstructionAccess:
 	EXCEPTION_PROLOG
 	andis.	r0,r9,0x4000		/* no pte found? */
@@ -410,6 +418,7 @@ InstructionAccess:
 
 /* Alignment exception */
 	. = 0x600
+	DO_KVM  0x600
 Alignment:
 	EXCEPTION_PROLOG
 	mfspr	r4,SPRN_DAR
@@ -424,6 +433,7 @@ Alignment:
 
 /* Floating-point unavailable */
 	. = 0x800
+	DO_KVM  0x800
 FPUnavailable:
 BEGIN_FTR_SECTION
 /*
@@ -447,6 +457,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 
 /* System call */
 	. = 0xc00
+	DO_KVM  0xc00
 SystemCall:
 	EXCEPTION_PROLOG
 	EXC_XFER_EE_LITE(0xc00, DoSyscall)
@@ -464,9 +475,11 @@ SystemCall:
  * by executing an altivec instruction.
  */
 	. = 0xf00
+	DO_KVM  0xf00
 	b	PerformanceMonitor
 
 	. = 0xf20
+	DO_KVM  0xf20
 	b	AltiVecUnavailable
 
 /*
@@ -485,7 +498,7 @@ InstructionTLBMiss:
 	mfspr	r3,SPRN_IMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
 	cmplw	0,r1,r3
-	mfspr	r2,SPRN_SPRG3
+	mfspr	r2,SPRN_SPRG_THREAD
 	li	r1,_PAGE_USER|_PAGE_PRESENT /* low addresses tested as user */
 	lwz	r2,PGDIR(r2)
 	bge-	112f
@@ -559,7 +572,7 @@ DataLoadTLBMiss:
 	mfspr	r3,SPRN_DMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
 	cmplw	0,r1,r3
-	mfspr	r2,SPRN_SPRG3
+	mfspr	r2,SPRN_SPRG_THREAD
 	li	r1,_PAGE_USER|_PAGE_PRESENT /* low addresses tested as user */
 	lwz	r2,PGDIR(r2)
 	bge-	112f
@@ -598,12 +611,12 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtcrf	0x80,r2
 BEGIN_MMU_FTR_SECTION
 	li	r0,1
-	mfspr	r1,SPRN_SPRG4
+	mfspr	r1,SPRN_SPRG_603_LRU
 	rlwinm	r2,r3,20,27,31		/* Get Address bits 15:19 */
 	slw	r0,r0,r2
 	xor	r1,r0,r1
 	srw	r0,r1,r2
-	mtspr   SPRN_SPRG4,r1
+	mtspr   SPRN_SPRG_603_LRU,r1
 	mfspr	r2,SPRN_SRR1
 	rlwimi	r2,r0,31-14,14,14
 	mtspr   SPRN_SRR1,r2
@@ -643,7 +656,7 @@ DataStoreTLBMiss:
 	mfspr	r3,SPRN_DMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
 	cmplw	0,r1,r3
-	mfspr	r2,SPRN_SPRG3
+	mfspr	r2,SPRN_SPRG_THREAD
 	li	r1,_PAGE_RW|_PAGE_USER|_PAGE_PRESENT /* access flags */
 	lwz	r2,PGDIR(r2)
 	bge-	112f
@@ -678,12 +691,12 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtcrf	0x80,r2
 BEGIN_MMU_FTR_SECTION
 	li	r0,1
-	mfspr	r1,SPRN_SPRG4
+	mfspr	r1,SPRN_SPRG_603_LRU
 	rlwinm	r2,r3,20,27,31		/* Get Address bits 15:19 */
 	slw	r0,r0,r2
 	xor	r1,r0,r1
 	srw	r0,r1,r2
-	mtspr   SPRN_SPRG4,r1
+	mtspr   SPRN_SPRG_603_LRU,r1
 	mfspr	r2,SPRN_SRR1
 	rlwimi	r2,r0,31-14,14,14
 	mtspr   SPRN_SRR1,r2
@@ -864,9 +877,9 @@ __secondary_start:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* phys address of our thread_struct */
 	CLR_TOP32(r4)
-	mtspr	SPRN_SPRG3,r4
+	mtspr	SPRN_SPRG_THREAD,r4
 	li	r3,0
-	mtspr	SPRN_SPRG2,r3	/* 0 => not in RTAS */
+	mtspr	SPRN_SPRG_RTAS,r3	/* 0 => not in RTAS */
 
 	/* enable MMU and jump to start_secondary */
 	li	r4,MSR_KERNEL
@@ -878,6 +891,10 @@ __secondary_start:
 	SYNC
 	RFI
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_KVM_BOOK3S_HANDLER
+#include "../kvm/book3s_rmhandlers.S"
+#endif
 
 /*
  * Those generic dummy functions are kept for CPUs not
@@ -947,9 +964,9 @@ start_here:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* init task's THREAD */
 	CLR_TOP32(r4)
-	mtspr	SPRN_SPRG3,r4
+	mtspr	SPRN_SPRG_THREAD,r4
 	li	r3,0
-	mtspr	SPRN_SPRG2,r3	/* 0 => not in RTAS */
+	mtspr	SPRN_SPRG_RTAS,r3	/* 0 => not in RTAS */
 
 	/* stack */
 	lis	r1,init_thread_union@ha
@@ -1124,9 +1141,8 @@ mmu_off:
 	RFI
 
 /*
- * Use the first pair of BAT registers to map the 1st 16MB
- * of RAM to PAGE_OFFSET.  From this point on we can't safely
- * call OF any more.
+ * On 601, we use 3 BATs to map up to 24M of RAM at _PAGE_OFFSET
+ * (we keep one for debugging) and on others, we use one 256M BAT.
  */
 initial_bats:
 	lis	r11,PAGE_OFFSET@h
@@ -1136,12 +1152,16 @@ initial_bats:
 	bne	4f
 	ori	r11,r11,4		/* set up BAT registers for 601 */
 	li	r8,0x7f			/* valid, block length = 8MB */
-	oris	r9,r11,0x800000@h	/* set up BAT reg for 2nd 8M */
-	oris	r10,r8,0x800000@h	/* set up BAT reg for 2nd 8M */
 	mtspr	SPRN_IBAT0U,r11		/* N.B. 601 has valid bit in */
 	mtspr	SPRN_IBAT0L,r8		/* lower BAT register */
-	mtspr	SPRN_IBAT1U,r9
-	mtspr	SPRN_IBAT1L,r10
+	addis	r11,r11,0x800000@h
+	addis	r8,r8,0x800000@h
+	mtspr	SPRN_IBAT1U,r11
+	mtspr	SPRN_IBAT1L,r8
+	addis	r11,r11,0x800000@h
+	addis	r8,r8,0x800000@h
+	mtspr	SPRN_IBAT2U,r11
+	mtspr	SPRN_IBAT2L,r8
 	isync
 	blr
 
@@ -1197,6 +1217,28 @@ setup_cpm_bat:
 	ori	r11, r11, (BL_1M << 2) | 2
 	mtspr	SPRN_DBAT1U, r11
 
+	blr
+#endif
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_USBGECKO
+setup_usbgecko_bat:
+	/* prepare a BAT for early io */
+#if defined(CONFIG_GAMECUBE)
+	lis	r8, 0x0c00
+#elif defined(CONFIG_WII)
+	lis	r8, 0x0d00
+#else
+#error Invalid platform for USB Gecko based early debugging.
+#endif
+	/*
+	 * The virtual address used must match the virtual address
+	 * associated to the fixmap entry FIX_EARLY_DEBUG_BASE.
+	 */
+	lis	r11, 0xfffe	/* top 128K */
+	ori	r8, r8, 0x002a	/* uncached, guarded ,rw */
+	ori	r11, r11, 0x2	/* 128K, Vs=1, Vp=0 */
+	mtspr	SPRN_DBAT1L, r8
+	mtspr	SPRN_DBAT1U, r11
 	blr
 #endif
 

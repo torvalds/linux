@@ -8,6 +8,7 @@
 #include <linux/pnp.h>
 
 #include <asm/vsyscall.h>
+#include <asm/x86_init.h>
 #include <asm/time.h>
 
 #ifdef CONFIG_X86_32
@@ -165,33 +166,29 @@ void rtc_cmos_write(unsigned char val, unsigned char addr)
 }
 EXPORT_SYMBOL(rtc_cmos_write);
 
-static int set_rtc_mmss(unsigned long nowtime)
+int update_persistent_clock(struct timespec now)
 {
 	unsigned long flags;
 	int retval;
 
 	spin_lock_irqsave(&rtc_lock, flags);
-	retval = set_wallclock(nowtime);
+	retval = x86_platform.set_wallclock(now.tv_sec);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return retval;
 }
 
 /* not static: needed by APM */
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	unsigned long retval, flags;
 
 	spin_lock_irqsave(&rtc_lock, flags);
-	retval = get_wallclock();
+	retval = x86_platform.get_wallclock();
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	return retval;
-}
-
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
+	ts->tv_sec = retval;
+	ts->tv_nsec = 0;
 }
 
 unsigned long long native_read_tsc(void)

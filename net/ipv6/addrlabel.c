@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/in6.h>
+#include <linux/slab.h>
 #include <net/addrconf.h>
 #include <linux/if_addrlabel.h>
 #include <linux/netlink.h>
@@ -52,11 +53,7 @@ static struct ip6addrlbl_table
 static inline
 struct net *ip6addrlbl_net(const struct ip6addrlbl_entry *lbl)
 {
-#ifdef CONFIG_NET_NS
-	return lbl->lbl_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&lbl->lbl_net);
 }
 
 /*
@@ -396,6 +393,11 @@ int __init ipv6_addr_label_init(void)
 	return register_pernet_subsys(&ipv6_addr_label_ops);
 }
 
+void ipv6_addr_label_cleanup(void)
+{
+	unregister_pernet_subsys(&ipv6_addr_label_ops);
+}
+
 static const struct nla_policy ifal_policy[IFAL_MAX+1] = {
 	[IFAL_ADDRESS]		= { .len = sizeof(struct in6_addr), },
 	[IFAL_LABEL]		= { .len = sizeof(u32), },
@@ -421,10 +423,6 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 	    ifal->ifal_prefixlen > 128)
 		return -EINVAL;
 
-	if (ifal->ifal_index &&
-	    !__dev_get_by_index(net, ifal->ifal_index))
-		return -EINVAL;
-
 	if (!tb[IFAL_ADDRESS])
 		return -EINVAL;
 
@@ -440,6 +438,10 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	switch(nlh->nlmsg_type) {
 	case RTM_NEWADDRLABEL:
+		if (ifal->ifal_index &&
+		    !__dev_get_by_index(net, ifal->ifal_index))
+			return -EINVAL;
+
 		err = ip6addrlbl_add(net, pfx, ifal->ifal_prefixlen,
 				     ifal->ifal_index, label,
 				     nlh->nlmsg_flags & NLM_F_REPLACE);
@@ -516,10 +518,9 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 static inline int ip6addrlbl_msgsize(void)
 {
-	return (NLMSG_ALIGN(sizeof(struct ifaddrlblmsg))
+	return NLMSG_ALIGN(sizeof(struct ifaddrlblmsg))
 		+ nla_total_size(16)	/* IFAL_ADDRESS */
-		+ nla_total_size(4)	/* IFAL_LABEL */
-	);
+		+ nla_total_size(4);	/* IFAL_LABEL */
 }
 
 static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,

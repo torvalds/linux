@@ -398,7 +398,7 @@ exit:
  * guaranteed that all the free functions for all the elements have finished
  * executing and the reaper is not running.
  */
-void
+static void
 xfs_mru_cache_flush(
 	xfs_mru_cache_t		*mru)
 {
@@ -408,7 +408,7 @@ xfs_mru_cache_flush(
 	spin_lock(&mru->lock);
 	if (mru->queued) {
 		spin_unlock(&mru->lock);
-		cancel_rearming_delayed_workqueue(xfs_mru_reap_wq, &mru->work);
+		cancel_delayed_work_sync(&mru->work);
 		spin_lock(&mru->lock);
 	}
 
@@ -559,35 +559,6 @@ xfs_mru_cache_lookup(
 		__release(mru_lock); /* help sparse not be stupid */
 	} else
 		spin_unlock(&mru->lock);
-
-	return elem ? elem->value : NULL;
-}
-
-/*
- * To look up an element using its key, but leave its location in the internal
- * lists alone, call xfs_mru_cache_peek().  If the element isn't found, this
- * function returns NULL.
- *
- * See the comments above the declaration of the xfs_mru_cache_lookup() function
- * for important locking information pertaining to this call.
- */
-void *
-xfs_mru_cache_peek(
-	xfs_mru_cache_t	*mru,
-	unsigned long	key)
-{
-	xfs_mru_cache_elem_t *elem;
-
-	ASSERT(mru && mru->lists);
-	if (!mru || !mru->lists)
-		return NULL;
-
-	spin_lock(&mru->lock);
-	elem = radix_tree_lookup(&mru->store, key);
-	if (!elem)
-		spin_unlock(&mru->lock);
-	else
-		__release(mru_lock); /* help sparse not be stupid */
 
 	return elem ? elem->value : NULL;
 }

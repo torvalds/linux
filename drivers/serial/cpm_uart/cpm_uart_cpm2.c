@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/console.h>
@@ -61,7 +62,7 @@ void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
 	void __iomem *pram;
 	unsigned long offset;
 	struct resource res;
-	unsigned long len;
+	resource_size_t len;
 
 	/* Don't remap parameter RAM if it has already been initialized
 	 * during console setup.
@@ -74,7 +75,7 @@ void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
 	if (of_address_to_resource(np, 1, &res))
 		return NULL;
 
-	len = 1 + res.end - res.start;
+	len = resource_size(&res);
 	pram = ioremap(res.start, len);
 	if (!pram)
 		return NULL;
@@ -132,7 +133,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	memsz = L1_CACHE_ALIGN(pinfo->rx_nrfifos * pinfo->rx_fifosize) +
 	    L1_CACHE_ALIGN(pinfo->tx_nrfifos * pinfo->tx_fifosize);
 	if (is_con) {
-		mem_addr = alloc_bootmem(memsz);
+		mem_addr = kzalloc(memsz, GFP_NOWAIT);
 		dma_addr = virt_to_bus(mem_addr);
 	}
 	else

@@ -36,6 +36,7 @@
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
+#include <asm/mpc5xxx.h>
 
 #include "fs_enet.h"
 #include "fec.h"
@@ -51,7 +52,7 @@
 static int fs_enet_fec_mii_read(struct mii_bus *bus , int phy_id, int location)
 {
 	struct fec_info* fec = bus->priv;
-	fec_t __iomem *fecp = fec->fecp;
+	struct fec __iomem *fecp = fec->fecp;
 	int i, ret = -1;
 
 	BUG_ON((in_be32(&fecp->fec_r_cntrl) & FEC_RCNTRL_MII_MODE) == 0);
@@ -74,7 +75,7 @@ static int fs_enet_fec_mii_read(struct mii_bus *bus , int phy_id, int location)
 static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, u16 val)
 {
 	struct fec_info* fec = bus->priv;
-	fec_t __iomem *fecp = fec->fecp;
+	struct fec __iomem *fecp = fec->fecp;
 	int i;
 
 	/* this must never happen */
@@ -100,14 +101,14 @@ static int fs_enet_fec_mii_reset(struct mii_bus *bus)
 	return 0;
 }
 
-static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
+static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev,
                                         const struct of_device_id *match)
 {
-	struct device_node *np = NULL;
 	struct resource res;
 	struct mii_bus *new_bus;
 	struct fec_info *fec;
-	int ret = -ENOMEM, i;
+	int (*get_bus_freq)(struct device_node *) = match->data;
+	int ret = -ENOMEM, clock, speed;
 
 	new_bus = mdiobus_alloc();
 	if (!new_bus)
@@ -123,7 +124,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	new_bus->write = &fs_enet_fec_mii_write;
 	new_bus->reset = &fs_enet_fec_mii_reset;
 
-	ret = of_address_to_resource(ofdev->node, 0, &res);
+	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
 	if (ret)
 		goto out_res;
 
@@ -133,13 +134,35 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	if (!fec->fecp)
 		goto out_fec;
 
-	fec->mii_speed = ((ppc_proc_freq + 4999999) / 5000000) << 1;
+	if (get_bus_freq) {
+		clock = get_bus_freq(ofdev->dev.of_node);
+		if (!clock) {
+			/* Use maximum divider if clock is unknown */
+			dev_warn(&ofdev->dev, "could not determine IPS clock\n");
+			clock = 0x3F * 5000000;
+		}
+	} else
+		clock = ppc_proc_freq;
+
+	/*
+	 * Scale for a MII clock <= 2.5 MHz
+	 * Note that only 6 bits (25:30) are available for MII speed.
+	 */
+	speed = (clock + 4999999) / 5000000;
+	if (speed > 0x3F) {
+		speed = 0x3F;
+		dev_err(&ofdev->dev,
+			"MII clock (%d Hz) exceeds max (2.5 MHz)\n",
+			clock / speed);
+	}
+
+	fec->mii_speed = speed << 1;
 
 	setbits32(&fec->fecp->fec_r_cntrl, FEC_RCNTRL_MII_MODE);
 	setbits32(&fec->fecp->fec_ecntrl, FEC_ECNTRL_PINMUX |
 	                                  FEC_ECNTRL_ETHER_EN);
 	out_be32(&fec->fecp->fec_ievent, FEC_ENET_MII);
-	out_be32(&fec->fecp->fec_mii_speed, fec->mii_speed);
+	clrsetbits_be32(&fec->fecp->fec_mii_speed, 0x7E, fec->mii_speed);
 
 	new_bus->phy_mask = ~0;
 	new_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
@@ -149,7 +172,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	new_bus->parent = &ofdev->dev;
 	dev_set_drvdata(&ofdev->dev, new_bus);
 
-	ret = of_mdiobus_register(new_bus, ofdev->node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
 	if (ret)
 		goto out_free_irqs;
 
@@ -169,7 +192,7 @@ out:
 	return ret;
 }
 
-static int fs_enet_mdio_remove(struct of_device *ofdev)
+static int fs_enet_mdio_remove(struct platform_device *ofdev)
 {
 	struct mii_bus *bus = dev_get_drvdata(&ofdev->dev);
 	struct fec_info *fec = bus->priv;
@@ -188,12 +211,22 @@ static struct of_device_id fs_enet_mdio_fec_match[] = {
 	{
 		.compatible = "fsl,pq1-fec-mdio",
 	},
+#if defined(CONFIG_PPC_MPC512x)
+	{
+		.compatible = "fsl,mpc5121-fec-mdio",
+		.data = mpc5xxx_get_bus_frequency,
+	},
+#endif
 	{},
 };
+MODULE_DEVICE_TABLE(of, fs_enet_mdio_fec_match);
 
 static struct of_platform_driver fs_enet_fec_mdio_driver = {
-	.name = "fsl-fec-mdio",
-	.match_table = fs_enet_mdio_fec_match,
+	.driver = {
+		.name = "fsl-fec-mdio",
+		.owner = THIS_MODULE,
+		.of_match_table = fs_enet_mdio_fec_match,
+	},
 	.probe = fs_enet_mdio_probe,
 	.remove = fs_enet_mdio_remove,
 };

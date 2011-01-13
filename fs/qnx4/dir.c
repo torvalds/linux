@@ -11,7 +11,6 @@
  * 20-06-1998 by Frank Denis : Linux 2.1.99+ & dcache support.
  */
 
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include "qnx4.h"
 
@@ -26,10 +25,8 @@ static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int ix, ino;
 	int size;
 
-	QNX4DEBUG(("qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
-	QNX4DEBUG(("filp->f_pos         = %ld\n", (long) filp->f_pos));
-
-	lock_kernel();
+	QNX4DEBUG((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
+	QNX4DEBUG((KERN_INFO "filp->f_pos         = %ld\n", (long) filp->f_pos));
 
 	while (filp->f_pos < inode->i_size) {
 		blknum = qnx4_block_map( inode, filp->f_pos >> QNX4_BLOCK_SIZE_BITS );
@@ -50,7 +47,7 @@ static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 					size = QNX4_NAME_MAX;
 
 				if ( ( de->di_status & (QNX4_FILE_USED|QNX4_FILE_LINK) ) != 0 ) {
-					QNX4DEBUG(("qnx4_readdir:%.*s\n", size, de->di_fname));
+					QNX4DEBUG((KERN_INFO "qnx4_readdir:%.*s\n", size, de->di_fname));
 					if ( ( de->di_status & QNX4_FILE_LINK ) == 0 )
 						ino = blknum * QNX4_INODES_PER_BLOCK + ix - 1;
 					else {
@@ -71,23 +68,18 @@ static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		brelse(bh);
 	}
 out:
-	unlock_kernel();
 	return 0;
 }
 
 const struct file_operations qnx4_dir_operations =
 {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= qnx4_readdir,
-	.fsync		= simple_fsync,
+	.fsync		= generic_file_fsync,
 };
 
 const struct inode_operations qnx4_dir_inode_operations =
 {
 	.lookup		= qnx4_lookup,
-#ifdef CONFIG_QNX4FS_RW
-	.create		= qnx4_create,
-	.unlink		= qnx4_unlink,
-	.rmdir		= qnx4_rmdir,
-#endif
 };

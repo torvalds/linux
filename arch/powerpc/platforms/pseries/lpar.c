@@ -39,6 +39,7 @@
 #include <asm/cputable.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
+#include <asm/trace.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -247,11 +248,13 @@ void vpa_init(int cpu)
 	int hwcpu = get_hard_smp_processor_id(cpu);
 	unsigned long addr;
 	long ret;
+	struct paca_struct *pp;
+	struct dtl_entry *dtl;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		lppaca[cpu].vmxregs_in_use = 1;
+		lppaca_of(cpu).vmxregs_in_use = 1;
 
-	addr = __pa(&lppaca[cpu]);
+	addr = __pa(&lppaca_of(cpu));
 	ret = register_vpa(hwcpu, addr);
 
 	if (ret) {
@@ -273,6 +276,25 @@ void vpa_init(int cpu)
 			       "registration for cpu %d (hw %d) of area %lx "
 			       "returns %ld\n", cpu, hwcpu, addr, ret);
 	}
+
+	/*
+	 * Register dispatch trace log, if one has been allocated.
+	 */
+	pp = &paca[cpu];
+	dtl = pp->dispatch_log;
+	if (dtl) {
+		pp->dtl_ridx = 0;
+		pp->dtl_curr = dtl;
+		lppaca_of(cpu).dtl_idx = 0;
+
+		/* hypervisor reads buffer length from this field */
+		dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+		ret = register_dtl(hwcpu, __pa(dtl));
+		if (ret)
+			pr_warn("DTL registration failed for cpu %d (%ld)\n",
+				cpu, ret);
+		lppaca_of(cpu).dtl_enable_mask = 2;
+	}
 }
 
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
@@ -286,7 +308,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long hpte_v, hpte_r;
 
 	if (!(vflags & HPTE_V_BOLTED))
-		pr_debug("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
+		pr_devel("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
 			 "rflags=%lx, vflags=%lx, psize=%d)\n",
 			 hpte_group, va, pa, rflags, vflags, psize);
 
@@ -294,7 +316,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	hpte_r = hpte_encode_r(pa, psize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
-		pr_debug(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
+		pr_devel(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
 	/* Now fill in the actual HPTE */
 	/* Set CEC cookie to 0         */
@@ -311,7 +333,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
 	if (unlikely(lpar_rc == H_PTEG_FULL)) {
 		if (!(vflags & HPTE_V_BOLTED))
-			pr_debug(" full\n");
+			pr_devel(" full\n");
 		return -1;
 	}
 
@@ -322,11 +344,11 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	 */
 	if (unlikely(lpar_rc != H_SUCCESS)) {
 		if (!(vflags & HPTE_V_BOLTED))
-			pr_debug(" lpar err %lu\n", lpar_rc);
+			pr_devel(" lpar err %lu\n", lpar_rc);
 		return -2;
 	}
 	if (!(vflags & HPTE_V_BOLTED))
-		pr_debug(" -> slot: %lu\n", slot & 7);
+		pr_devel(" -> slot: %lu\n", slot & 7);
 
 	/* Because of iSeries, we have to pass down the secondary
 	 * bucket bit here as well
@@ -366,21 +388,28 @@ static void pSeries_lpar_hptab_clear(void)
 {
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
-	unsigned long dummy1, dummy2, dword0;
+	struct {
+		unsigned long pteh;
+		unsigned long ptel;
+	} ptes[4];
 	long lpar_rc;
-	int i;
+	int i, j;
 
-	/* TODO: Use bulk call */
-	for (i = 0; i < hpte_count; i++) {
-		/* dont remove HPTEs with VRMA mappings */
-		lpar_rc = plpar_pte_remove_raw(H_ANDCOND, i, HPTE_V_1TB_SEG,
-						&dummy1, &dummy2);
-		if (lpar_rc == H_NOT_FOUND) {
-			lpar_rc = plpar_pte_read_raw(0, i, &dword0, &dummy1);
-			if (!lpar_rc && ((dword0 & HPTE_V_VRMA_MASK)
-				!= HPTE_V_VRMA_MASK))
-				/* Can be hpte for 1TB Seg. So remove it */
-				plpar_pte_remove_raw(0, i, 0, &dummy1, &dummy2);
+	/* Read in batches of 4,
+	 * invalidate only valid entries not in the VRMA
+	 * hpte_count will be a multiple of 4
+         */
+	for (i = 0; i < hpte_count; i += 4) {
+		lpar_rc = plpar_pte_read_4_raw(0, i, (void *)ptes);
+		if (lpar_rc != H_SUCCESS)
+			continue;
+		for (j = 0; j < 4; j++){
+			if ((ptes[j].pteh & HPTE_V_VRMA_MASK) ==
+				HPTE_V_VRMA_MASK)
+				continue;
+			if (ptes[j].pteh & HPTE_V_VALID)
+				plpar_pte_remove_raw(0, i + j, 0,
+					&(ptes[j].pteh), &(ptes[j].ptel));
 		}
 	}
 }
@@ -418,17 +447,17 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	want_v = hpte_encode_avpn(va, psize, ssize);
 
-	pr_debug("    update: avpnv=%016lx, hash=%016lx, f=%lx, psize: %d ...",
+	pr_devel("    update: avpnv=%016lx, hash=%016lx, f=%lx, psize: %d ...",
 		 want_v, slot, flags, psize);
 
 	lpar_rc = plpar_pte_protect(flags, slot, want_v);
 
 	if (lpar_rc == H_NOT_FOUND) {
-		pr_debug("not found !\n");
+		pr_devel("not found !\n");
 		return -1;
 	}
 
-	pr_debug("ok\n");
+	pr_devel("ok\n");
 
 	BUG_ON(lpar_rc != H_SUCCESS);
 
@@ -503,7 +532,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 	unsigned long lpar_rc;
 	unsigned long dummy1, dummy2;
 
-	pr_debug("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
+	pr_devel("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
 		 slot, va, psize, local);
 
 	want_v = hpte_encode_avpn(va, psize, ssize);
@@ -598,6 +627,18 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
 }
 
+static int __init disable_bulk_remove(char *str)
+{
+	if (strcmp(str, "off") == 0 &&
+	    firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+			printk(KERN_INFO "Disabling BULK_REMOVE firmware feature");
+			powerpc_firmware_features &= ~FW_FEATURE_BULK_REMOVE;
+	}
+	return 1;
+}
+
+__setup("bulk_remove=", disable_bulk_remove);
+
 void __init hpte_init_lpar(void)
 {
 	ppc_md.hpte_invalidate	= pSeries_lpar_hpte_invalidate;
@@ -660,4 +701,36 @@ void arch_free_page(struct page *page, int order)
 }
 EXPORT_SYMBOL(arch_free_page);
 
+#endif
+
+#ifdef CONFIG_TRACEPOINTS
+/*
+ * We optimise our hcall path by placing hcall_tracepoint_refcount
+ * directly in the TOC so we can check if the hcall tracepoints are
+ * enabled via a single load.
+ */
+
+/* NB: reg/unreg are called while guarded with the tracepoints_mutex */
+extern long hcall_tracepoint_refcount;
+
+void hcall_tracepoint_regfunc(void)
+{
+	hcall_tracepoint_refcount++;
+}
+
+void hcall_tracepoint_unregfunc(void)
+{
+	hcall_tracepoint_refcount--;
+}
+
+void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
+{
+	trace_hcall_entry(opcode, args);
+}
+
+void __trace_hcall_exit(long opcode, unsigned long retval,
+			unsigned long *retbuf)
+{
+	trace_hcall_exit(opcode, retval, retbuf);
+}
 #endif

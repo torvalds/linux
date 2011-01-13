@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,6 +120,34 @@ const char *acpi_ut_validate_exception(acpi_status status)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_is_pci_root_bridge
+ *
+ * PARAMETERS:  Id              - The HID/CID in string format
+ *
+ * RETURN:      TRUE if the Id is a match for a PCI/PCI-Express Root Bridge
+ *
+ * DESCRIPTION: Determine if the input ID is a PCI Root Bridge ID.
+ *
+ ******************************************************************************/
+
+u8 acpi_ut_is_pci_root_bridge(char *id)
+{
+
+	/*
+	 * Check if this is a PCI root bridge.
+	 * ACPI 3.0+: check for a PCI Express root also.
+	 */
+	if (!(ACPI_STRCMP(id,
+			  PCI_ROOT_HID_STRING)) ||
+	    !(ACPI_STRCMP(id, PCI_EXPRESS_ROOT_HID_STRING))) {
+		return (TRUE);
+	}
+
+	return (FALSE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_is_aml_table
  *
  * PARAMETERS:  Table               - An ACPI table
@@ -172,7 +200,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	/* Guard against multiple allocations of ID to the same location */
 
 	if (*owner_id) {
-		ACPI_ERROR((AE_INFO, "Owner ID [%2.2X] already exists",
+		ACPI_ERROR((AE_INFO, "Owner ID [0x%2.2X] already exists",
 			    *owner_id));
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
 	}
@@ -282,7 +310,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	/* Zero is not a valid owner_iD */
 
 	if (owner_id == 0) {
-		ACPI_ERROR((AE_INFO, "Invalid OwnerId: %2.2X", owner_id));
+		ACPI_ERROR((AE_INFO, "Invalid OwnerId: 0x%2.2X", owner_id));
 		return_VOID;
 	}
 
@@ -308,7 +336,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "Release of non-allocated OwnerId: %2.2X",
+			    "Release of non-allocated OwnerId: 0x%2.2X",
 			    owner_id + 1));
 	}
 
@@ -691,13 +719,12 @@ acpi_name acpi_ut_repair_name(char *name)
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
+acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer)
 {
 	u32 this_digit = 0;
-	acpi_integer return_value = 0;
-	acpi_integer quotient;
-	acpi_integer dividend;
+	u64 return_value = 0;
+	u64 quotient;
+	u64 dividend;
 	u32 to_integer_op = (base == ACPI_ANY_BASE);
 	u32 mode32 = (acpi_gbl_integer_byte_width == 4);
 	u8 valid_digits = 0;
@@ -811,9 +838,8 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 
 		/* Divide the digit into the correct position */
 
-		(void)
-		    acpi_ut_short_divide((dividend - (acpi_integer) this_digit),
-					 base, &quotient, NULL);
+		(void)acpi_ut_short_divide((dividend - (u64) this_digit),
+					   base, &quotient, NULL);
 
 		if (return_value > quotient) {
 			if (to_integer_op) {
@@ -1013,78 +1039,3 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 
 	return_ACPI_STATUS(AE_AML_INTERNAL);
 }
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_error, acpi_exception, acpi_warning, acpi_info
- *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
- *              Format              - Printf format string + additional args
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print message with module/line/version info
- *
- ******************************************************************************/
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_error(const char *module_name, u32 line_number, const char *format, ...)
-{
-	va_list args;
-
-	acpi_os_printf("ACPI Error: ");
-
-	va_start(args, format);
-	acpi_os_vprintf(format, args);
-	acpi_os_printf(" %8.8X %s-%u\n", ACPI_CA_VERSION, module_name,
-		       line_number);
-	va_end(args);
-}
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_exception(const char *module_name,
-	       u32 line_number, acpi_status status, const char *format, ...)
-{
-	va_list args;
-
-	acpi_os_printf("ACPI Exception: %s, ", acpi_format_exception(status));
-
-	va_start(args, format);
-	acpi_os_vprintf(format, args);
-	acpi_os_printf(" %8.8X %s-%u\n", ACPI_CA_VERSION, module_name,
-		       line_number);
-	va_end(args);
-}
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_warning(const char *module_name, u32 line_number, const char *format, ...)
-{
-	va_list args;
-
-	acpi_os_printf("ACPI Warning: ");
-
-	va_start(args, format);
-	acpi_os_vprintf(format, args);
-	acpi_os_printf(" %8.8X %s-%u\n", ACPI_CA_VERSION, module_name,
-		       line_number);
-	va_end(args);
-}
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_info(const char *module_name, u32 line_number, const char *format, ...)
-{
-	va_list args;
-
-	acpi_os_printf("ACPI: ");
-
-	va_start(args, format);
-	acpi_os_vprintf(format, args);
-	acpi_os_printf("\n");
-	va_end(args);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_error)
-ACPI_EXPORT_SYMBOL(acpi_exception)
-ACPI_EXPORT_SYMBOL(acpi_warning)
-ACPI_EXPORT_SYMBOL(acpi_info)

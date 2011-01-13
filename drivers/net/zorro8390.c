@@ -102,6 +102,7 @@ static struct zorro_device_id zorro8390_zorro_tbl[] __devinitdata = {
     { ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, },
     { 0 }
 };
+MODULE_DEVICE_TABLE(zorro, zorro8390_zorro_tbl);
 
 static struct zorro_driver zorro8390_driver = {
     .name	= "zorro8390",
@@ -120,6 +121,9 @@ static int __devinit zorro8390_init_one(struct zorro_dev *z,
     for (i = ARRAY_SIZE(cards)-1; i >= 0; i--)
 	if (z->id == cards[i].id)
 	    break;
+    if (i < 0)
+        return -ENODEV;
+
     board = z->resource.start;
     ioaddr = board+cards[i].offset;
     dev = alloc_ei_netdev();
@@ -427,7 +431,6 @@ static void zorro8390_block_output(struct net_device *dev, int count,
 
     z_writeb(ENISR_RDC, nic_base + NE_EN0_ISR);	/* Ack intr. */
     ei_status.dmaing &= ~0x01;
-    return;
 }
 
 static void __devexit zorro8390_remove_one(struct zorro_dev *z)

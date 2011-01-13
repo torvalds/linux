@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include "internal.h"
@@ -68,6 +69,11 @@ static int cryptomgr_probe(void *data)
 		goto err;
 
 	do {
+		if (tmpl->create) {
+			err = tmpl->create(tmpl, param->tb);
+			continue;
+		}
+
 		inst = tmpl->alloc(param->tb);
 		if (IS_ERR(inst))
 			err = PTR_ERR(inst);
@@ -205,6 +211,10 @@ static int cryptomgr_test(void *data)
 	struct crypto_test_param *param = data;
 	u32 type = param->type;
 	int err = 0;
+
+#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+	goto skiptest;
+#endif
 
 	if (type & CRYPTO_ALG_TESTED)
 		goto skiptest;

@@ -210,7 +210,7 @@ static unsigned char const PRIVATE_REQ[]
 
 
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	/* the same device id seems to be used by all
 	   usb enabled GPS devices */
 	{ USB_DEVICE(GARMIN_VENDOR_ID, 3) },
@@ -271,7 +271,6 @@ static void send_to_tty(struct usb_serial_port *port,
 		usb_serial_debug_data(debug, &port->dev,
 					__func__, actual_length, data);
 
-		tty_buffer_request_room(tty, actual_length);
 		tty_insert_flip_string(tty, data, actual_length);
 		tty_flip_buffer_push(tty);
 	}
@@ -933,8 +932,7 @@ static int garmin_init_session(struct usb_serial_port *port)
 
 
 
-static int garmin_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int garmin_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	unsigned long flags;
 	int status = 0;
@@ -1266,7 +1264,6 @@ static void garmin_read_bulk_callback(struct urb *urb)
 		garmin_data_p->flags &= ~FLAGS_BULK_IN_ACTIVE;
 		spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 	}
-	return;
 }
 
 
@@ -1391,14 +1388,13 @@ static void garmin_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
-	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 	/* set flag, data received will be put into a queue
 	   for later processing */
-	spin_lock_irqsave(&garmin_data_p->lock, flags);
+	spin_lock_irq(&garmin_data_p->lock);
 	garmin_data_p->flags |= FLAGS_QUEUING|FLAGS_THROTTLED;
-	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
+	spin_unlock_irq(&garmin_data_p->lock);
 }
 
 
@@ -1406,13 +1402,12 @@ static void garmin_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
-	unsigned long flags;
 	int status;
 
 	dbg("%s - port %d", __func__, port->number);
-	spin_lock_irqsave(&garmin_data_p->lock, flags);
+	spin_lock_irq(&garmin_data_p->lock);
 	garmin_data_p->flags &= ~FLAGS_THROTTLED;
-	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
+	spin_unlock_irq(&garmin_data_p->lock);
 
 	/* in native mode send queued data to tty, in
 	   serial mode nothing needs to be done here */
@@ -1420,7 +1415,7 @@ static void garmin_unthrottle(struct tty_struct *tty)
 		garmin_flush_queue(garmin_data_p);
 
 	if (0 != (garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE)) {
-		status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+		status = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (status)
 			dev_err(&port->dev,
 				"%s - failed resubmitting read urb, error %d\n",

@@ -1,0 +1,75 @@
+    <refentry id="V4L2-PIX-FMT-SGBRG8">
+      <refmeta>
+	<refentrytitle>V4L2_PIX_FMT_SGBRG8 ('GBRG')</refentrytitle>
+	&manvol;
+      </refmeta>
+      <refnamediv>
+	<refname><constant>V4L2_PIX_FMT_SGBRG8</constant></refname>
+	<refpurpose>Bayer RGB format</refpurpose>
+      </refnamediv>
+      <refsect1>
+	<title>Description</title>
+
+	<para>This is commonly the native format of digital cameras,
+reflecting the arrangement of sensors on the CCD device. Only one red,
+green or blue value is given for each pixel. Missing components must
+be interpolated from neighbouring pixels. From left to right the first
+row consists of a green and blue value, the second row of a red and
+green value. This scheme repeats to the right and down for every two
+columns and rows.</para>
+
+	<example>
+	  <title><constant>V4L2_PIX_FMT_SGBRG8</constant> 4 &times; 4
+pixel image</title>
+
+	  <formalpara>
+	    <title>Byte Order.</title>
+	    <para>Each cell is one byte.
+	      <informaltable frame="none">
+		<tgroup cols="5" align="center">
+		  <colspec align="left" colwidth="2*" />
+		  <tbody valign="top">
+		    <row>
+		      <entry>start&nbsp;+&nbsp;0:</entry>
+		      <entry>G<subscript>00</subscript></entry>
+		      <entry>B<subscript>01</subscript></entry>
+		      <entry>G<subscript>02</subscript></entry>
+		      <entry>B<subscript>03</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;4:</entry>
+		      <entry>R<subscript>10</subscript></entry>
+		      <entry>G<subscript>11</subscript></entry>
+		      <entry>R<subscript>12</subscript></entry>
+		      <entry>G<subscript>13</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;8:</entry>
+		      <entry>G<subscript>20</subscript></entry>
+		      <entry>B<subscript>21</subscript></entry>
+		      <entry>G<subscript>22</subscript></entry>
+		      <entry>B<subscript>23</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;12:</entry>
+		      <entry>R<subscript>30</subscript></entry>
+		      <entry>G<subscript>31</subscript></entry>
+		      <entry>R<subscript>32</subscript></entry>
+		      <entry>G<subscript>33</subscript></entry>
+		    </row>
+		  </tbody>
+		</tgroup>
+	      </informaltable>
+	    </para>
+	  </formalpara>
+	</example>
+      </refsect1>
+    </refentry>
+
+  <!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "pixfmt.sgml"
+indent-tabs-mode: nil
+End:
+  -->

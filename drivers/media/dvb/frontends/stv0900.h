@@ -29,8 +29,14 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
+struct stv0900_reg {
+	u16 addr;
+	u8  val;
+};
+
 struct stv0900_config {
 	u8 demod_address;
+	u8 demod_mode;
 	u32 xtal;
 	u8 clkmode;/* 0 for CLKI,  2 for XTALI */
 
@@ -38,11 +44,15 @@ struct stv0900_config {
 
 	u8 path1_mode;
 	u8 path2_mode;
-
+	struct stv0900_reg *ts_config_regs;
 	u8 tun1_maddress;/* 0, 1, 2, 3 for 0xc0, 0xc2, 0xc4, 0xc6 */
 	u8 tun2_maddress;
 	u8 tun1_adc;/* 1 for stv6110, 2 for stb6100 */
 	u8 tun2_adc;
+	u8 tun1_type;/* for now 3 for stb6100 auto, else - software */
+	u8 tun2_type;
+	/* Set device param to start dma */
+	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
 };
 
 #if defined(CONFIG_DVB_STV0900) || (defined(CONFIG_DVB_STV0900_MODULE) \

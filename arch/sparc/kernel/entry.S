@@ -400,6 +400,39 @@ linux_trap_ipi15_sun4d:
 	/* FIXME */
 1:	b,a	1b
 
+#ifdef CONFIG_SPARC_LEON
+
+	.globl	smpleon_ticker
+	/* SMP per-cpu ticker interrupts are handled specially. */
+smpleon_ticker:
+        SAVE_ALL
+	or	%l0, PSR_PIL, %g2
+	wr	%g2, 0x0, %psr
+	WRITE_PAUSE
+	wr	%g2, PSR_ET, %psr
+	WRITE_PAUSE
+	call	leon_percpu_timer_interrupt
+	 add	%sp, STACKFRAME_SZ, %o0
+	wr	%l0, PSR_ET, %psr
+	WRITE_PAUSE
+	RESTORE_ALL
+
+	.align	4
+	.globl	linux_trap_ipi15_leon
+linux_trap_ipi15_leon:
+	SAVE_ALL
+	or	%l0, PSR_PIL, %l4
+	wr	%l4, 0x0, %psr
+	WRITE_PAUSE
+	wr	%l4, PSR_ET, %psr
+	WRITE_PAUSE
+	call	leon_cross_call_irq
+	 nop
+	b	ret_trap_lockless_ipi
+	 clr	%l6
+
+#endif /* CONFIG_SPARC_LEON */
+
 #endif /* CONFIG_SMP */
 
 	/* This routine handles illegal instructions and privileged
@@ -1261,7 +1294,7 @@ linux_sparc_syscall:
 	sethi	%hi(PSR_SYSCALL), %l4
 	or	%l0, %l4, %l0
 	/* Direct access to user regs, must faster. */
-	cmp	%g1, NR_SYSCALLS
+	cmp	%g1, NR_syscalls
 	bgeu	linux_sparc_ni_syscall
 	 sll	%g1, 2, %l4
 	ld	[%l7 + %l4], %l7

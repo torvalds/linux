@@ -29,6 +29,9 @@
 #define SO_RCVBUFFORCE	0x100b
 #define SO_ERROR	0x1007
 #define SO_TYPE		0x1008
+#define SO_PROTOCOL	0x1028
+#define SO_DOMAIN	0x1029
+
 
 /* Linux specific, keep the same. */
 #define SO_NO_CHECK	0x000b
@@ -52,6 +55,8 @@
 
 #define SO_TIMESTAMPING		0x0023
 #define SCM_TIMESTAMPING	SO_TIMESTAMPING
+
+#define SO_RXQ_OVFL             0x0024
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001

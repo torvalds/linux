@@ -1,6 +1,8 @@
+menu "Xen driver support"
+	depends on XEN
+
 config XEN_BALLOON
 	bool "Xen memory balloon driver"
-	depends on XEN
 	default y
 	help
 	  The balloon driver allows the Xen domain to request more memory from
@@ -20,7 +22,6 @@ config XEN_SCRUB_PAGES
 
 config XEN_DEV_EVTCHN
 	tristate "Xen /dev/xen/evtchn device"
-	depends on XEN
 	default y
 	help
 	  The evtchn driver allows a userspace process to triger event
@@ -30,7 +31,6 @@ config XEN_DEV_EVTCHN
 
 config XENFS
 	tristate "Xen filesystem"
-	depends on XEN
 	default y
 	help
 	  The xen filesystem provides a way for domains to share
@@ -53,7 +53,7 @@ config XEN_COMPAT_XENFS
 
 config XEN_SYS_HYPERVISOR
        bool "Create xen entries under /sys/hypervisor"
-       depends on XEN && SYSFS
+       depends on SYSFS
        select SYS_HYPERVISOR
        default y
        help
@@ -61,3 +61,20 @@ config XEN_SYS_HYPERVISOR
 	 hypervisor environment.  When running native or in another
 	 virtual environment, /sys/hypervisor will still be present,
 	 but will have no xen contents.
+
+config XEN_PLATFORM_PCI
+	tristate "xen platform pci device driver"
+	depends on XEN_PVHVM
+	default m
+	help
+	  Driver for the Xen PCI Platform device: it is responsible for
+	  initializing xenbus and grant_table when running in a Xen HVM
+	  domain. As a consequence this driver is required to run any Xen PV
+	  frontend on Xen HVM.
+
+config SWIOTLB_XEN
+	def_bool y
+	depends on PCI
+	select SWIOTLB
+
+endmenu

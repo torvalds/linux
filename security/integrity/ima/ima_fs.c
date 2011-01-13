@@ -16,6 +16,7 @@
  *	current measurement list and IMA statistics
  */
 #include <linux/fcntl.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/rculist.h>
@@ -43,8 +44,9 @@ static ssize_t ima_show_htable_violations(struct file *filp,
 	return ima_show_htable_value(buf, count, ppos, &ima_htable.violations);
 }
 
-static struct file_operations ima_htable_violations_ops = {
-	.read = ima_show_htable_violations
+static const struct file_operations ima_htable_violations_ops = {
+	.read = ima_show_htable_violations,
+	.llseek = generic_file_llseek,
 };
 
 static ssize_t ima_show_measurements_count(struct file *filp,
@@ -55,8 +57,9 @@ static ssize_t ima_show_measurements_count(struct file *filp,
 
 }
 
-static struct file_operations ima_measurements_count_ops = {
-	.read = ima_show_measurements_count
+static const struct file_operations ima_measurements_count_ops = {
+	.read = ima_show_measurements_count,
+	.llseek = generic_file_llseek,
 };
 
 /* returns pointer to hlist_node */
@@ -146,7 +149,7 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations ima_measurments_seqops = {
+static const struct seq_operations ima_measurments_seqops = {
 	.start = ima_measurements_start,
 	.next = ima_measurements_next,
 	.stop = ima_measurements_stop,
@@ -158,7 +161,7 @@ static int ima_measurements_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ima_measurments_seqops);
 }
 
-static struct file_operations ima_measurements_ops = {
+static const struct file_operations ima_measurements_ops = {
 	.open = ima_measurements_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -221,7 +224,7 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations ima_ascii_measurements_seqops = {
+static const struct seq_operations ima_ascii_measurements_seqops = {
 	.start = ima_measurements_start,
 	.next = ima_measurements_next,
 	.stop = ima_measurements_stop,
@@ -233,7 +236,7 @@ static int ima_ascii_measurements_open(struct inode *inode, struct file *file)
 	return seq_open(file, &ima_ascii_measurements_seqops);
 }
 
-static struct file_operations ima_ascii_measurements_ops = {
+static const struct file_operations ima_ascii_measurements_ops = {
 	.open = ima_ascii_measurements_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -243,32 +246,34 @@ static struct file_operations ima_ascii_measurements_ops = {
 static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 				size_t datalen, loff_t *ppos)
 {
-	char *data;
-	int rc;
+	char *data = NULL;
+	ssize_t result;
 
 	if (datalen >= PAGE_SIZE)
-		return -ENOMEM;
-	if (*ppos != 0) {
-		/* No partial writes. */
-		return -EINVAL;
-	}
+		datalen = PAGE_SIZE - 1;
+
+	/* No partial writes. */
+	result = -EINVAL;
+	if (*ppos != 0)
+		goto out;
+
+	result = -ENOMEM;
 	data = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		goto out;
 
-	if (copy_from_user(data, buf, datalen)) {
-		kfree(data);
-		return -EFAULT;
-	}
 	*(data + datalen) = '\0';
-	rc = ima_parse_add_rule(data);
-	if (rc < 0) {
-		datalen = -EINVAL;
-		valid_policy = 0;
-	}
 
+	result = -EFAULT;
+	if (copy_from_user(data, buf, datalen))
+		goto out;
+
+	result = ima_parse_add_rule(data);
+out:
+	if (result < 0)
+		valid_policy = 0;
 	kfree(data);
-	return datalen;
+	return result;
 }
 
 static struct dentry *ima_dir;
@@ -313,10 +318,11 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations ima_measure_policy_ops = {
+static const struct file_operations ima_measure_policy_ops = {
 	.open = ima_open_policy,
 	.write = ima_write_policy,
-	.release = ima_release_policy
+	.release = ima_release_policy,
+	.llseek = generic_file_llseek,
 };
 
 int __init ima_fs_init(void)

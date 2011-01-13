@@ -23,12 +23,14 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
+#include <media/rc-core.h>
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"
@@ -76,6 +78,13 @@
 #define CX23885_BOARD_HAUPPAUGE_HVR1255        20
 #define CX23885_BOARD_HAUPPAUGE_HVR1210        21
 #define CX23885_BOARD_MYGICA_X8506             22
+#define CX23885_BOARD_MAGICPRO_PROHDTVE2       23
+#define CX23885_BOARD_HAUPPAUGE_HVR1850        24
+#define CX23885_BOARD_COMPRO_VIDEOMATE_E800    25
+#define CX23885_BOARD_HAUPPAUGE_HVR1290        26
+#define CX23885_BOARD_MYGICA_X8558PRO          27
+#define CX23885_BOARD_LEADTEK_WINFAST_PXTV1200 28
+#define CX23885_BOARD_GOTVIEW_X5_3D_HYBRID     29
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -87,6 +96,12 @@
 #define GPIO_7 0x00000080
 #define GPIO_8 0x00000100
 #define GPIO_9 0x00000200
+#define GPIO_10 0x00000400
+#define GPIO_11 0x00000800
+#define GPIO_12 0x00001000
+#define GPIO_13 0x00002000
+#define GPIO_14 0x00004000
+#define GPIO_15 0x00008000
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
@@ -148,6 +163,7 @@ enum cx23885_itype {
 	CX23885_VMUX_COMPOSITE3,
 	CX23885_VMUX_COMPOSITE4,
 	CX23885_VMUX_SVIDEO,
+	CX23885_VMUX_COMPONENT,
 	CX23885_VMUX_TELEVISION,
 	CX23885_VMUX_CABLE,
 	CX23885_VMUX_DVB,
@@ -290,8 +306,15 @@ struct cx23885_tsport {
 	void                       *port_priv;
 };
 
+struct cx23885_kernel_ir {
+	struct cx23885_dev	*cx;
+	char			*name;
+	char			*phys;
+
+	struct rc_dev		*rc;
+};
+
 struct cx23885_dev {
-	struct list_head           devlist;
 	atomic_t                   refcount;
 	struct v4l2_device 	   v4l2_dev;
 
@@ -302,6 +325,7 @@ struct cx23885_dev {
 	u32                        __iomem *lmmio;
 	u8                         __iomem *bmmio;
 	int                        pci_irqmask;
+	spinlock_t		   pci_irqmask_lock; /* protects mask reg too */
 	int                        hwrevision;
 
 	/* This valud is board specific and is used to configure the
@@ -313,6 +337,7 @@ struct cx23885_dev {
 
 	int                        nr;
 	struct mutex               lock;
+	struct mutex               gpio_lock;
 
 	/* board details */
 	unsigned int               board;
@@ -327,6 +352,7 @@ struct cx23885_dev {
 		CX23885_BRIDGE_UNDEFINED = 0,
 		CX23885_BRIDGE_885 = 885,
 		CX23885_BRIDGE_887 = 887,
+		CX23885_BRIDGE_888 = 888,
 	} bridge;
 
 	/* Analog video */
@@ -340,6 +366,17 @@ struct cx23885_dev {
 	unsigned char              radio_addr;
 	unsigned int               has_radio;
 	struct v4l2_subdev 	   *sd_cx25840;
+	struct work_struct	   cx25840_work;
+
+	/* Infrared */
+	struct v4l2_subdev         *sd_ir;
+	struct work_struct	   ir_rx_work;
+	unsigned long		   ir_rx_notifications;
+	struct work_struct	   ir_tx_work;
+	unsigned long		   ir_tx_notifications;
+
+	struct cx23885_kernel_ir   *kernel_ir;
+	atomic_t		   ir_input_stopping;
 
 	/* V4l */
 	u32                        freq;
@@ -368,7 +405,13 @@ static inline struct cx23885_dev *to_cx23885(struct v4l2_device *v4l2_dev)
 #define call_all(dev, o, f, args...) \
 	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
-extern struct list_head cx23885_devlist;
+#define CX23885_HW_888_IR  (1 << 0)
+#define CX23885_HW_AV_CORE (1 << 1)
+
+#define call_hw(dev, grpid, o, f, args...) \
+	v4l2_device_call_all(&dev->v4l2_dev, grpid, o, f, ##args)
+
+extern struct v4l2_subdev *cx23885_find_hw(struct cx23885_dev *dev, u32 hw);
 
 #define SRAM_CH01  0 /* Video A */
 #define SRAM_CH02  1 /* VBI A */
@@ -391,7 +434,7 @@ struct sram_channel {
 	u32  cmds_start;
 	u32  ctrl_start;
 	u32  cdt;
-	u32  fifo_start;;
+	u32  fifo_start;
 	u32  fifo_size;
 	u32  ptr1_reg;
 	u32  ptr2_reg;
@@ -440,9 +483,14 @@ extern void cx23885_wakeup(struct cx23885_tsport *port,
 
 extern void cx23885_gpio_set(struct cx23885_dev *dev, u32 mask);
 extern void cx23885_gpio_clear(struct cx23885_dev *dev, u32 mask);
+extern u32 cx23885_gpio_get(struct cx23885_dev *dev, u32 mask);
 extern void cx23885_gpio_enable(struct cx23885_dev *dev, u32 mask,
 	int asoutput);
 
+extern void cx23885_irq_add_enable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_enable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_disable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_remove(struct cx23885_dev *dev, u32 mask);
 
 /* ----------------------------------------------------------- */
 /* cx23885-cards.c                                             */
@@ -456,6 +504,8 @@ extern int cx23885_tuner_callback(void *priv, int component,
 	int command, int arg);
 extern void cx23885_card_list(struct cx23885_dev *dev);
 extern int  cx23885_ir_init(struct cx23885_dev *dev);
+extern void cx23885_ir_pci_int_enable(struct cx23885_dev *dev);
+extern void cx23885_ir_fini(struct cx23885_dev *dev);
 extern void cx23885_gpio_setup(struct cx23885_dev *dev);
 extern void cx23885_card_setup(struct cx23885_dev *dev);
 extern void cx23885_card_setup_pre_i2c(struct cx23885_dev *dev);
@@ -500,6 +550,13 @@ extern void cx23885_417_check_encoder(struct cx23885_dev *dev);
 extern void cx23885_mc417_init(struct cx23885_dev *dev);
 extern int mc417_memory_read(struct cx23885_dev *dev, u32 address, u32 *value);
 extern int mc417_memory_write(struct cx23885_dev *dev, u32 address, u32 value);
+extern int mc417_register_read(struct cx23885_dev *dev,
+				u16 address, u32 *value);
+extern int mc417_register_write(struct cx23885_dev *dev,
+				u16 address, u32 value);
+extern void mc417_gpio_set(struct cx23885_dev *dev, u32 mask);
+extern void mc417_gpio_clear(struct cx23885_dev *dev, u32 mask);
+extern void mc417_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput);
 
 
 /* ----------------------------------------------------------- */

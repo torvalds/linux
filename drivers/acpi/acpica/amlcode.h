@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -404,6 +404,7 @@ typedef enum {
 	REGION_SMBUS,
 	REGION_CMOS,
 	REGION_PCI_BAR,
+	REGION_IPMI,
 	REGION_DATA_TABLE,	/* Internal use only */
 	REGION_FIXED_HW = 0x7F
 } AML_REGION_TYPES;

@@ -22,6 +22,7 @@
 #include <linux/jbd2.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
 #include <trace/events/jbd2.h>
 
 /*
@@ -117,13 +118,13 @@ static int __try_to_free_cp_buf(struct journal_head *jh)
 void __jbd2_log_wait_for_space(journal_t *journal)
 {
 	int nblocks, space_left;
-	assert_spin_locked(&journal->j_state_lock);
+	/* assert_spin_locked(&journal->j_state_lock); */
 
 	nblocks = jbd_space_needed(journal);
 	while (__jbd2_log_space_left(journal) < nblocks) {
 		if (journal->j_flags & JBD2_ABORT)
 			return;
-		spin_unlock(&journal->j_state_lock);
+		write_unlock(&journal->j_state_lock);
 		mutex_lock(&journal->j_checkpoint_mutex);
 
 		/*
@@ -137,7 +138,7 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 		 * filesystem, so abort the journal and leave a stack
 		 * trace for forensic evidence.
 		 */
-		spin_lock(&journal->j_state_lock);
+		write_lock(&journal->j_state_lock);
 		spin_lock(&journal->j_list_lock);
 		nblocks = jbd_space_needed(journal);
 		space_left = __jbd2_log_space_left(journal);
@@ -148,7 +149,7 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 			if (journal->j_committing_transaction)
 				tid = journal->j_committing_transaction->t_tid;
 			spin_unlock(&journal->j_list_lock);
-			spin_unlock(&journal->j_state_lock);
+			write_unlock(&journal->j_state_lock);
 			if (chkpt) {
 				jbd2_log_do_checkpoint(journal);
 			} else if (jbd2_cleanup_journal_tail(journal) == 0) {
@@ -166,7 +167,7 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 				WARN_ON(1);
 				jbd2_journal_abort(journal, 0);
 			}
-			spin_lock(&journal->j_state_lock);
+			write_lock(&journal->j_state_lock);
 		} else {
 			spin_unlock(&journal->j_list_lock);
 		}
@@ -254,7 +255,9 @@ __flush_batch(journal_t *journal, int *batch_count)
 {
 	int i;
 
-	ll_rw_block(SWRITE, *batch_count, journal->j_chkpt_bhs);
+	for (i = 0; i < *batch_count; i++)
+		write_dirty_buffer(journal->j_chkpt_bhs[i], WRITE);
+
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = journal->j_chkpt_bhs[i];
 		clear_buffer_jwrite(bh);
@@ -296,6 +299,16 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		transaction->t_chp_stats.cs_forced_to_close++;
 		spin_unlock(&journal->j_list_lock);
 		jbd_unlock_bh_state(bh);
+		if (unlikely(journal->j_flags & JBD2_UNMOUNT))
+			/*
+			 * The journal thread is dead; so starting and
+			 * waiting for a commit to finish will cause
+			 * us to wait for a _very_ long time.
+			 */
+			printk(KERN_ERR "JBD2: %s: "
+			       "Waiting for Godot: block %llu\n",
+			       journal->j_devname,
+			       (unsigned long long) bh->b_blocknr);
 		jbd2_log_start_commit(journal, tid);
 		jbd2_log_wait_commit(journal, tid);
 		ret = 1;
@@ -473,7 +486,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	 * next transaction ID we will write, and where it will
 	 * start. */
 
-	spin_lock(&journal->j_state_lock);
+	write_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);
 	transaction = journal->j_checkpoint_transactions;
 	if (transaction) {
@@ -495,7 +508,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	/* If the oldest pinned transaction is at the tail of the log
            already then there's not much we can do right now. */
 	if (journal->j_tail_sequence == first_tid) {
-		spin_unlock(&journal->j_state_lock);
+		write_unlock(&journal->j_state_lock);
 		return 1;
 	}
 
@@ -506,6 +519,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	if (blocknr < journal->j_tail)
 		freed = freed + journal->j_last - journal->j_first;
 
+	trace_jbd2_cleanup_journal_tail(journal, first_tid, blocknr, freed);
 	jbd_debug(1,
 		  "Cleaning journal tail from %d to %d (offset %lu), "
 		  "freeing %lu\n",
@@ -514,7 +528,21 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	journal->j_free += freed;
 	journal->j_tail_sequence = first_tid;
 	journal->j_tail = blocknr;
-	spin_unlock(&journal->j_state_lock);
+	write_unlock(&journal->j_state_lock);
+
+	/*
+	 * If there is an external journal, we need to make sure that
+	 * any data blocks that were recently written out --- perhaps
+	 * by jbd2_log_do_checkpoint() --- are flushed out before we
+	 * drop the transactions from the external journal.  It's
+	 * unlikely this will be necessary, especially with a
+	 * appropriately sized journal, but we need this to guarantee
+	 * correctness.  Fortunately jbd2_cleanup_journal_tail()
+	 * doesn't get called all that often.
+	 */
+	if ((journal->j_fs_dev != journal->j_dev) &&
+	    (journal->j_flags & JBD2_BARRIER))
+		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
 	if (!(journal->j_flags & JBD2_ABORT))
 		jbd2_journal_update_superblock(journal, 1);
 	return 0;
@@ -643,6 +671,7 @@ out:
 
 int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 {
+	struct transaction_chp_stats_s *stats;
 	transaction_t *transaction;
 	journal_t *journal;
 	int ret = 0;
@@ -679,6 +708,12 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 
 	/* OK, that was the last buffer for the transaction: we can now
 	   safely remove this transaction from the log */
+	stats = &transaction->t_chp_stats;
+	if (stats->cs_chp_time)
+		stats->cs_chp_time = jbd2_time_diff(stats->cs_chp_time,
+						    jiffies);
+	trace_jbd2_checkpoint_stats(journal->j_fs_dev->bd_dev,
+				    transaction->t_tid, stats);
 
 	__jbd2_journal_drop_transaction(journal, transaction);
 	kfree(transaction);
@@ -751,7 +786,7 @@ void __jbd2_journal_drop_transaction(journal_t *journal, transaction_t *transact
 	J_ASSERT(transaction->t_log_list == NULL);
 	J_ASSERT(transaction->t_checkpoint_list == NULL);
 	J_ASSERT(transaction->t_checkpoint_io_list == NULL);
-	J_ASSERT(transaction->t_updates == 0);
+	J_ASSERT(atomic_read(&transaction->t_updates) == 0);
 	J_ASSERT(journal->j_committing_transaction != transaction);
 	J_ASSERT(journal->j_running_transaction != transaction);
 

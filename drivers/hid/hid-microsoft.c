@@ -33,18 +33,18 @@
  * Microsoft Wireless Desktop Receiver (Model 1028) has
  * 'Usage Min/Max' where it ought to have 'Physical Min/Max'
  */
-static void ms_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *ms_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
 	unsigned long quirks = (unsigned long)hid_get_drvdata(hdev);
 
-	if ((quirks & MS_RDESC) && rsize == 571 && rdesc[557] == 0x19 &&
+	if ((quirks & MS_RDESC) && *rsize == 571 && rdesc[557] == 0x19 &&
 			rdesc[559] == 0x29) {
-		dev_info(&hdev->dev, "fixing up Microsoft Wireless Receiver "
-				"Model 1028 report descriptor\n");
+		hid_info(hdev, "fixing up Microsoft Wireless Receiver Model 1028 report descriptor\n");
 		rdesc[557] = 0x35;
 		rdesc[559] = 0x45;
 	}
+	return rdesc;
 }
 
 #define ms_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
@@ -154,14 +154,14 @@ static int ms_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT | ((quirks & MS_HIDINPUT) ?
 				HID_CONNECT_HIDINPUT_FORCE : 0));
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 
@@ -197,12 +197,12 @@ static struct hid_driver ms_driver = {
 	.probe = ms_probe,
 };
 
-static int ms_init(void)
+static int __init ms_init(void)
 {
 	return hid_register_driver(&ms_driver);
 }
 
-static void ms_exit(void)
+static void __exit ms_exit(void)
 {
 	hid_unregister_driver(&ms_driver);
 }

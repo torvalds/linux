@@ -20,6 +20,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
@@ -146,24 +148,27 @@ int lis3lv02d_acpi_write(struct lis3lv02d *lis3, int reg, u8 val)
 
 static int lis3lv02d_dmi_matched(const struct dmi_system_id *dmi)
 {
-	lis3_dev.ac = *((struct axis_conversion *)dmi->driver_data);
-	printk(KERN_INFO DRIVER_NAME ": hardware type %s found.\n", dmi->ident);
+	lis3_dev.ac = *((union axis_conversion *)dmi->driver_data);
+	pr_info("hardware type %s found\n", dmi->ident);
 
 	return 1;
 }
 
 /* Represents, for each axis seen by userspace, the corresponding hw axis (+1).
  * If the value is negative, the opposite of the hw value is used. */
-static struct axis_conversion lis3lv02d_axis_normal = {1, 2, 3};
-static struct axis_conversion lis3lv02d_axis_y_inverted = {1, -2, 3};
-static struct axis_conversion lis3lv02d_axis_x_inverted = {-1, 2, 3};
-static struct axis_conversion lis3lv02d_axis_z_inverted = {1, 2, -3};
-static struct axis_conversion lis3lv02d_axis_xy_swap = {2, 1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_rotated_left = {-2, 1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_rotated_left_usd = {-2, 1, -3};
-static struct axis_conversion lis3lv02d_axis_xy_swap_inverted = {-2, -1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_rotated_right = {2, -1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_swap_yz_inverted = {2, -1, -3};
+#define DEFINE_CONV(name, x, y, z)			      \
+	static union axis_conversion lis3lv02d_axis_##name = \
+		{ .as_array = { x, y, z } }
+DEFINE_CONV(normal, 1, 2, 3);
+DEFINE_CONV(y_inverted, 1, -2, 3);
+DEFINE_CONV(x_inverted, -1, 2, 3);
+DEFINE_CONV(z_inverted, 1, 2, -3);
+DEFINE_CONV(xy_swap, 2, 1, 3);
+DEFINE_CONV(xy_rotated_left, -2, 1, 3);
+DEFINE_CONV(xy_rotated_left_usd, -2, 1, -3);
+DEFINE_CONV(xy_swap_inverted, -2, -1, 3);
+DEFINE_CONV(xy_rotated_right, 2, -1, 3);
+DEFINE_CONV(xy_swap_yz_inverted, 2, -1, -3);
 
 #define AXIS_DMI_MATCH(_ident, _name, _axis) {		\
 	.ident = _ident,				\
@@ -197,11 +202,13 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("HP2133", "HP 2133", xy_rotated_left),
 	AXIS_DMI_MATCH("HP2140", "HP 2140", xy_swap_inverted),
 	AXIS_DMI_MATCH("NC653x", "HP Compaq 653", xy_rotated_left_usd),
-	AXIS_DMI_MATCH("NC673x", "HP Compaq 673", xy_rotated_left_usd),
+	AXIS_DMI_MATCH("NC6730b", "HP Compaq 6730b", xy_rotated_left_usd),
+	AXIS_DMI_MATCH("NC6730s", "HP Compaq 6730s", xy_swap),
 	AXIS_DMI_MATCH("NC651xx", "HP Compaq 651", xy_rotated_right),
 	AXIS_DMI_MATCH("NC6710x", "HP Compaq 6710", xy_swap_yz_inverted),
 	AXIS_DMI_MATCH("NC6715x", "HP Compaq 6715", y_inverted),
 	AXIS_DMI_MATCH("NC693xx", "HP EliteBook 693", xy_rotated_right),
+	AXIS_DMI_MATCH("NC693xx", "HP EliteBook 853", xy_swap),
 	/* Intel-based HP Pavilion dv5 */
 	AXIS_DMI_MATCH2("HPDV5_I",
 			PRODUCT_NAME, "HP Pavilion dv5",
@@ -214,6 +221,13 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 			y_inverted),
 	AXIS_DMI_MATCH("DV7", "HP Pavilion dv7", x_inverted),
 	AXIS_DMI_MATCH("HP8710", "HP Compaq 8710", y_inverted),
+	AXIS_DMI_MATCH("HDX18", "HP HDX 18", x_inverted),
+	AXIS_DMI_MATCH("HPB432x", "HP ProBook 432", xy_rotated_left),
+	AXIS_DMI_MATCH("HPB442x", "HP ProBook 442", xy_rotated_left),
+	AXIS_DMI_MATCH("HPB452x", "HP ProBook 452", y_inverted),
+	AXIS_DMI_MATCH("HPB522x", "HP ProBook 522", xy_swap),
+	AXIS_DMI_MATCH("HPB532x", "HP ProBook 532", y_inverted),
+	AXIS_DMI_MATCH("Mini510x", "HP Mini 510", xy_rotated_left_usd),
 	{ NULL, }
 /* Laptop models without axis info (yet):
  * "NC6910" "HP Compaq 6910"
@@ -290,9 +304,11 @@ static int lis3lv02d_add(struct acpi_device *device)
 	lis3lv02d_enum_resources(device);
 
 	/* If possible use a "standard" axes order */
-	if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
-		printk(KERN_INFO DRIVER_NAME ": laptop model unknown, "
-				 "using default axes configuration\n");
+	if (lis3_dev.ac.x && lis3_dev.ac.y && lis3_dev.ac.z) {
+		pr_info("Using custom axes %d,%d,%d\n",
+			lis3_dev.ac.x, lis3_dev.ac.y, lis3_dev.ac.z);
+	} else if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
+		pr_info("laptop model unknown, using default axes configuration\n");
 		lis3_dev.ac = lis3lv02d_axis_normal;
 	}
 
@@ -321,8 +337,8 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 	lis3lv02d_joystick_disable();
 	lis3lv02d_poweroff(&lis3_dev);
 
-	flush_work(&hpled_led.work);
 	led_classdev_unregister(&hpled_led.led_classdev);
+	flush_work(&hpled_led.work);
 
 	return lis3lv02d_remove_fs(&lis3_dev);
 }
@@ -370,7 +386,7 @@ static int __init lis3lv02d_init_module(void)
 	if (ret < 0)
 		return ret;
 
-	printk(KERN_INFO DRIVER_NAME " driver loaded.\n");
+	pr_info("driver loaded\n");
 
 	return 0;
 }

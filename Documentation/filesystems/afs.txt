@@ -23,15 +23,13 @@ it does support include:
 
  (*) Security (currently only AFS kaserver and KerberosIV tickets).
 
- (*) File reading.
+ (*) File reading and writing.
 
  (*) Automounting.
 
+ (*) Local caching (via fscache).
+
 It does not yet support the following AFS features:
-
- (*) Write support.
-
- (*) Local caching.
 
  (*) pioctl() system call.
 
@@ -56,7 +54,7 @@ They permit the debugging messages to be turned on dynamically by manipulating
 the masks in the following files:
 
 	/sys/module/af_rxrpc/parameters/debug
-	/sys/module/afs/parameters/debug
+	/sys/module/kafs/parameters/debug
 
 
 =====
@@ -66,9 +64,9 @@ USAGE
 When inserting the driver modules the root cell must be specified along with a
 list of volume location server IP addresses:
 
-	insmod af_rxrpc.o
-	insmod rxkad.o
-	insmod kafs.o rootcell=cambridge.redhat.com:172.16.18.73:172.16.18.91
+	modprobe af_rxrpc
+	modprobe rxkad
+	modprobe kafs rootcell=cambridge.redhat.com:172.16.18.73:172.16.18.91
 
 The first module is the AF_RXRPC network protocol driver.  This provides the
 RxRPC remote operation protocol and may also be accessed from userspace.  See:
@@ -81,7 +79,7 @@ is the actual filesystem driver for the AFS filesystem.
 Once the module has been loaded, more modules can be added by the following
 procedure:
 
-	echo add grand.central.org 18.7.14.88:128.2.191.224 >/proc/fs/afs/cells
+	echo add grand.central.org 18.9.48.14:128.2.203.61:130.237.48.87 >/proc/fs/afs/cells
 
 Where the parameters to the "add" command are the name of a cell and a list of
 volume location servers within that cell, with the latter separated by colons.
@@ -101,7 +99,7 @@ The name of the volume can be suffixes with ".backup" or ".readonly" to
 specify connection to only volumes of those types.
 
 The name of the cell is optional, and if not given during a mount, then the
-named volume will be looked up in the cell specified during insmod.
+named volume will be looked up in the cell specified during modprobe.
 
 Additional cells can be added through /proc (see later section).
 
@@ -163,14 +161,14 @@ THE CELL DATABASE
 
 The filesystem maintains an internal database of all the cells it knows and the
 IP addresses of the volume location servers for those cells.  The cell to which
-the system belongs is added to the database when insmod is performed by the
+the system belongs is added to the database when modprobe is performed by the
 "rootcell=" argument or, if compiled in, using a "kafs.rootcell=" argument on
 the kernel command line.
 
 Further cells can be added by commands similar to the following:
 
 	echo add CELLNAME VLADDR[:VLADDR][:VLADDR]... >/proc/fs/afs/cells
-	echo add grand.central.org 18.7.14.88:128.2.191.224 >/proc/fs/afs/cells
+	echo add grand.central.org 18.9.48.14:128.2.203.61:130.237.48.87 >/proc/fs/afs/cells
 
 No other cell database operations are available at this time.
 
@@ -233,7 +231,7 @@ insmod /tmp/kafs.o rootcell=cambridge.redhat.com:172.16.18.91
 mount -t afs \%root.afs. /afs
 mount -t afs \%cambridge.redhat.com:root.cell. /afs/cambridge.redhat.com/
 
-echo add grand.central.org 18.7.14.88:128.2.191.224 > /proc/fs/afs/cells
+echo add grand.central.org 18.9.48.14:128.2.203.61:130.237.48.87 > /proc/fs/afs/cells
 mount -t afs "#grand.central.org:root.cell." /afs/grand.central.org/
 mount -t afs "#grand.central.org:root.archive." /afs/grand.central.org/archive
 mount -t afs "#grand.central.org:root.contrib." /afs/grand.central.org/contrib

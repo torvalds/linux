@@ -73,7 +73,8 @@
 #define FULL_DUPLEX        2
 
 #define AT_RX_BUF_SIZE		(ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN)
-#define MAX_JUMBO_FRAME_SIZE 	(9*1024)
+#define MAX_JUMBO_FRAME_SIZE	(6*1024)
+#define MAX_TSO_FRAME_SIZE      (7*1024)
 #define MAX_TX_OFFLOAD_THRESH	(9*1024)
 
 #define AT_MAX_RECEIVE_QUEUE    4
@@ -87,10 +88,11 @@
 #define AT_MAX_INT_WORK		5
 #define AT_TWSI_EEPROM_TIMEOUT 	100
 #define AT_HW_MAX_IDLE_DELAY 	10
-#define AT_SUSPEND_LINK_TIMEOUT 28
+#define AT_SUSPEND_LINK_TIMEOUT 100
 
 #define AT_ASPM_L0S_TIMER	6
 #define AT_ASPM_L1_TIMER	12
+#define AT_LCKDET_TIMER		12
 
 #define ATL1C_PCIE_L0S_L1_DISABLE 	0x01
 #define ATL1C_PCIE_PHY_RESET		0x02
@@ -188,14 +190,14 @@ struct atl1c_tpd_ext_desc {
 #define RRS_HDS_TYPE_DATA	2
 
 #define RRS_IS_NO_HDS_TYPE(flag) \
-	(((flag) >> (RRS_HDS_TYPE_SHIFT)) & RRS_HDS_TYPE_MASK == 0)
+	((((flag) >> (RRS_HDS_TYPE_SHIFT)) & RRS_HDS_TYPE_MASK) == 0)
 
 #define RRS_IS_HDS_HEAD(flag) \
-	(((flag) >> (RRS_HDS_TYPE_SHIFT)) & RRS_HDS_TYPE_MASK == \
+	((((flag) >> (RRS_HDS_TYPE_SHIFT)) & RRS_HDS_TYPE_MASK) == \
 			RRS_HDS_TYPE_HEAD)
 
 #define RRS_IS_HDS_DATA(flag) \
-	(((flag) >> (RRS_HDS_TYPE_SHIFT)) & RRS_HDS_TYPE_MASK == \
+	((((flag) >> (RRS_HDS_TYPE_SHIFT)) & RRS_HDS_TYPE_MASK) == \
 			RRS_HDS_TYPE_DATA)
 
 /* rrs word 3 bit 0:31 */
@@ -245,7 +247,7 @@ struct atl1c_tpd_ext_desc {
 #define RRS_PACKET_TYPE_802_3  	1
 #define RRS_PACKET_TYPE_ETH	0
 #define RRS_PACKET_IS_ETH(word) \
-	(((word) >> RRS_PACKET_TYPE_SHIFT) & RRS_PACKET_TYPE_MASK == \
+	((((word) >> RRS_PACKET_TYPE_SHIFT) & RRS_PACKET_TYPE_MASK) == \
 			RRS_PACKET_TYPE_ETH)
 #define RRS_RXD_IS_VALID(word) \
 	((((word) >> RRS_RXD_UPDATED_SHIFT) & RRS_RXD_UPDATED_MASK) == 1)
@@ -313,6 +315,10 @@ enum atl1c_rss_type {
 enum atl1c_nic_type {
 	athr_l1c = 0,
 	athr_l2c = 1,
+	athr_l2c_b,
+	athr_l2c_b2,
+	athr_l1d,
+	athr_l1d_2,
 };
 
 enum atl1c_trans_queue {
@@ -389,6 +395,8 @@ struct atl1c_hw {
 	u16 subsystem_id;
 	u16 subsystem_vendor_id;
 	u8 revision_id;
+	u16 phy_id1;
+	u16 phy_id2;
 
 	u32 intr_mask;
 	u8 dmaw_dly_cnt;
@@ -426,8 +434,12 @@ struct atl1c_hw {
 #define ATL1C_ASPM_L1_SUPPORT		0x0100
 #define ATL1C_ASPM_CTRL_MON		0x0200
 #define ATL1C_HIB_DISABLE		0x0400
-#define ATL1C_LINK_CAP_1000M		0x0800
-#define ATL1C_FPGA_VERSION		0x8000
+#define ATL1C_APS_MODE_ENABLE           0x0800
+#define ATL1C_LINK_EXT_SYNC             0x1000
+#define ATL1C_CLK_GATING_EN             0x2000
+#define ATL1C_FPGA_VERSION              0x8000
+	u16 link_cap_flags;
+#define ATL1C_LINK_CAP_1000M		0x0001
 	u16 cmb_tpd;
 	u16 cmb_rrd;
 	u16 cmb_rx_timer; /* 2us resolution */
@@ -470,11 +482,32 @@ struct atl1c_ring_header {
 struct atl1c_buffer {
 	struct sk_buff *skb;	/* socket buffer */
 	u16 length;		/* rx buffer length */
-	u16 state;		/* state of buffer */
-#define ATL1_BUFFER_FREE	0
-#define ATL1_BUFFER_BUSY	1
+	u16 flags;		/* information of buffer */
+#define ATL1C_BUFFER_FREE		0x0001
+#define ATL1C_BUFFER_BUSY		0x0002
+#define ATL1C_BUFFER_STATE_MASK		0x0003
+
+#define ATL1C_PCIMAP_SINGLE		0x0004
+#define ATL1C_PCIMAP_PAGE		0x0008
+#define ATL1C_PCIMAP_TYPE_MASK		0x000C
+
+#define ATL1C_PCIMAP_TODEVICE		0x0010
+#define ATL1C_PCIMAP_FROMDEVICE		0x0020
+#define ATL1C_PCIMAP_DIRECTION_MASK	0x0030
 	dma_addr_t dma;
 };
+
+#define ATL1C_SET_BUFFER_STATE(buff, state) do {	\
+	((buff)->flags) &= ~ATL1C_BUFFER_STATE_MASK;	\
+	((buff)->flags) |= (state);			\
+	} while (0)
+
+#define ATL1C_SET_PCIMAP_TYPE(buff, type, direction) do {	\
+	((buff)->flags) &= ~ATL1C_PCIMAP_TYPE_MASK;		\
+	((buff)->flags) |= (type);				\
+	((buff)->flags) &= ~ATL1C_PCIMAP_DIRECTION_MASK;	\
+	((buff)->flags) |= (direction);				\
+	} while (0)
 
 /* transimit packet descriptor (tpd) ring */
 struct atl1c_tpd_ring {
@@ -526,7 +559,6 @@ struct atl1c_adapter {
 	struct napi_struct  napi;
 	struct atl1c_hw        hw;
 	struct atl1c_hw_stats  hw_stats;
-	struct net_device_stats net_stats;
 	struct mii_if_info  mii;    /* MII interface info */
 	u16 rx_buffer_len;
 
@@ -534,6 +566,9 @@ struct atl1c_adapter {
 #define __AT_TESTING        0x0001
 #define __AT_RESETTING      0x0002
 #define __AT_DOWN           0x0003
+	u8 work_event;
+#define ATL1C_WORK_EVENT_RESET 		0x01
+#define ATL1C_WORK_EVENT_LINK_CHANGE	0x02
 	u32 msg_enable;
 
 	bool have_msi;
@@ -545,8 +580,7 @@ struct atl1c_adapter {
 	spinlock_t tx_lock;
 	atomic_t irq_sem;
 
-	struct work_struct reset_task;
-	struct work_struct link_chg_task;
+	struct work_struct common_task;
 	struct timer_list watchdog_timer;
 	struct timer_list phy_config_timer;
 
@@ -597,8 +631,6 @@ struct atl1c_adapter {
 extern char atl1c_driver_name[];
 extern char atl1c_driver_version[];
 
-extern int atl1c_up(struct atl1c_adapter *adapter);
-extern void atl1c_down(struct atl1c_adapter *adapter);
 extern void atl1c_reinit_locked(struct atl1c_adapter *adapter);
 extern s32 atl1c_reset_hw(struct atl1c_hw *hw);
 extern void atl1c_set_ethtool_ops(struct net_device *netdev);

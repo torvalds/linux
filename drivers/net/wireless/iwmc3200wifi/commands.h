@@ -56,7 +56,7 @@
 
 struct iwm_umac_cmd_reset {
 	__le32 flags;
-} __attribute__ ((packed));
+} __packed;
 
 #define UMAC_PARAM_TBL_ORD_FIX    0x0
 #define UMAC_PARAM_TBL_ORD_VAR    0x1
@@ -102,12 +102,10 @@ enum {
 	CFG_SCAN_NUM_PASSIVE_CHAN_PER_PARTIAL_SCAN,
 	CFG_TLC_SUPPORTED_TX_HT_RATES,
 	CFG_TLC_SUPPORTED_TX_RATES,
-	CFG_TLC_VALID_ANTENNA,
 	CFG_TLC_SPATIAL_STREAM_SUPPORTED,
 	CFG_TLC_RETRY_PER_RATE,
 	CFG_TLC_RETRY_PER_HT_RATE,
-	CFG_TLC_FIXED_RATE,
-	CFG_TLC_FIXED_RATE_FLAGS,
+	CFG_TLC_FIXED_MCS,
 	CFG_TLC_CONTROL_FLAGS,
 	CFG_TLC_SR_MIN_FAIL,
 	CFG_TLC_SR_MIN_PASS,
@@ -137,6 +135,10 @@ enum {
 	CFG_TLC_RENEW_ADDBA_DELAY,
 	CFG_TLC_NUM_OF_MULTISEC_TO_COUN_LOAD,
 	CFG_TLC_IS_STABLE_IN_HT,
+	CFG_TLC_SR_SIC_1ST_FAIL,
+	CFG_TLC_SR_SIC_1ST_PASS,
+	CFG_TLC_SR_SIC_TOTAL_FAIL,
+	CFG_TLC_SR_SIC_TOTAL_PASS,
 	CFG_RLC_CHAIN_CTRL,
 	CFG_TRK_TABLE_OP_MODE,
 	CFG_TRK_TABLE_RSSI_THRESHOLD,
@@ -148,6 +150,58 @@ enum {
 	CFG_MLME_DBG_NOTIF_BLOCK,
 	CFG_BT_OFF_BECONS_INTERVALS,
 	CFG_BT_FRAG_DURATION,
+	CFG_ACTIVE_CHAINS,
+	CFG_CALIB_CTRL,
+	CFG_CAPABILITY_SUPPORTED_HT_RATES,
+	CFG_HT_MAC_PARAM_INFO,
+	CFG_MIMO_PS_MODE,
+	CFG_HT_DEFAULT_CAPABILIES_INFO,
+	CFG_LED_SC_RESOLUTION_FACTOR,
+	CFG_PTAM_ENERGY_CCK_DET_DEFAULT,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_DEFAULT,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_DEFAULT,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_DEFAULT,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_DEFAULT,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_DEFAULT,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_DEFAULT,
+	CFG_PTAM_ENERGY_CCK_DET_MIN_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_MIN_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MIN_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_MIN_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MIN_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_MIN_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MIN_VAL,
+	CFG_PTAM_ENERGY_CCK_DET_MAX_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_MAX_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MAX_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_MAX_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MAX_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_MAX_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MAX_VAL,
+	CFG_PTAM_ENERGY_CCK_DET_STEP_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_STEP_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_STEP_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_STEP_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_STEP_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_STEP_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_STEP_VAL,
+	CFG_PTAM_LINK_SENS_FA_OFDM_MAX,
+	CFG_PTAM_LINK_SENS_FA_OFDM_MIN,
+	CFG_PTAM_LINK_SENS_FA_CCK_MAX,
+	CFG_PTAM_LINK_SENS_FA_CCK_MIN,
+	CFG_PTAM_LINK_SENS_NRG_DIFF,
+	CFG_PTAM_LINK_SENS_NRG_MARGIN,
+	CFG_PTAM_LINK_SENS_MAX_NUMBER_OF_TIMES_IN_CCK_NO_FA,
+	CFG_PTAM_LINK_SENS_AUTO_CORR_MAX_TH_CCK,
+	CFG_AGG_MGG_TID_LOAD_ADDBA_THRESHOLD,
+	CFG_AGG_MGG_TID_LOAD_DELBA_THRESHOLD,
+	CFG_AGG_MGG_ADDBA_BUF_SIZE,
+	CFG_AGG_MGG_ADDBA_INACTIVE_TIMEOUT,
+	CFG_AGG_MGG_ADDBA_DEBUG_FLAGS,
+	CFG_SCAN_PERIODIC_RSSI_HIGH_THRESHOLD,
+	CFG_SCAN_PERIODIC_COEF_RSSI_HIGH,
+	CFG_11D_ENABLED,
+	CFG_11H_FEATURE_FLAGS,
 
 	/* <-- LAST --> */
 	CFG_TBL_FIX_LAST
@@ -156,7 +210,8 @@ enum {
 /* variable size table */
 enum {
 	CFG_NET_ADDR = 0,
-	CFG_PROFILE,
+	CFG_LED_PATTERN_TABLE,
+
 	/* <-- LAST --> */
 	CFG_TBL_VAR_LAST
 };
@@ -165,37 +220,37 @@ struct iwm_umac_cmd_set_param_fix {
 	__le16 tbl;
 	__le16 key;
 	__le32 value;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_set_param_var {
 	__le16 tbl;
 	__le16 key;
 	__le16 len;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_get_param {
 	__le16 tbl;
 	__le16 key;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_get_param_resp {
 	__le16 tbl;
 	__le16 key;
 	__le16 len;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_eeprom_proxy_hdr {
 	__le32 type;
 	__le32 offset;
 	__le32 len;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_eeprom_proxy {
 	struct iwm_umac_cmd_eeprom_proxy_hdr hdr;
 	u8 buf[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define IWM_UMAC_CMD_EEPROM_TYPE_READ       0x1
 #define IWM_UMAC_CMD_EEPROM_TYPE_WRITE      0x2
@@ -212,13 +267,13 @@ struct iwm_umac_channel_info {
 	u8 reserved;
 	u8 flags;
 	__le32 channels_mask;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_get_channel_list {
 	__le16 count;
 	__le16 reserved;
 	struct iwm_umac_channel_info ch[0];
-} __attribute__ ((packed));
+} __packed;
 
 
 /* UMAC WiFi interface commands */
@@ -232,6 +287,7 @@ struct iwm_umac_cmd_get_channel_list {
 /* Wireless mode */
 #define WIRELESS_MODE_11A  0x1
 #define WIRELESS_MODE_11G  0x2
+#define WIRELESS_MODE_11N  0x4
 
 #define UMAC_PROFILE_EX_IE_REQUIRED	0x1
 #define UMAC_PROFILE_QOS_ALLOWED	0x2
@@ -248,7 +304,7 @@ struct iwm_umac_ssid {
 	u8 ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_scan_request {
 	struct iwm_umac_wifi_if hdr;
@@ -258,7 +314,7 @@ struct iwm_umac_cmd_scan_request {
 	u8 timeout; /* In seconds */
 	u8 reserved;
 	struct iwm_umac_ssid ssids[UMAC_WIFI_IF_PROBE_OPTION_MAX];
-} __attribute__ ((packed));
+} __packed;
 
 #define UMAC_CIPHER_TYPE_NONE		0xFF
 #define UMAC_CIPHER_TYPE_USE_GROUPCAST	0x00
@@ -288,6 +344,9 @@ struct iwm_umac_cmd_scan_request {
 /* iwm_umac_security.flag is WSC mode on -- bits [2:2] */
 #define UMAC_SEC_FLG_WSC_ON_POS		2
 #define UMAC_SEC_FLG_WSC_ON_SEED	1
+#define UMAC_SEC_FLG_WSC_ON_MSK         (UMAC_SEC_FLG_WSC_ON_SEED << \
+					 UMAC_SEC_FLG_WSC_ON_POS)
+
 
 /* Legacy profile can use only WEP40 and WEP104 for encryption and
  * OPEN or PSK for authentication */
@@ -298,7 +357,7 @@ struct iwm_umac_security {
 	u8 ucast_cipher;
 	u8 mcast_cipher;
 	u8 flags;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_ibss {
 	u8 beacon_interval;	/* in millisecond */
@@ -307,7 +366,7 @@ struct iwm_umac_ibss {
 	u8 band;
 	u8 channel;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 #define UMAC_MODE_BSS	0
 #define UMAC_MODE_IBSS	1
@@ -326,13 +385,13 @@ struct iwm_umac_profile {
 	__le16 flags;
 	u8 wireless_mode;
 	u8 bss_num;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_invalidate_profile {
 	struct iwm_umac_wifi_if hdr;
 	u8 reason;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 /* Encryption key commands */
 struct iwm_umac_key_wep40 {
@@ -341,7 +400,7 @@ struct iwm_umac_key_wep40 {
 	u8 key[WLAN_KEY_LEN_WEP40];
 	u8 static_key;
 	u8 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_key_wep104 {
 	struct iwm_umac_wifi_if hdr;
@@ -349,7 +408,7 @@ struct iwm_umac_key_wep104 {
 	u8 key[WLAN_KEY_LEN_WEP104];
 	u8 static_key;
 	u8 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 #define IWM_TKIP_KEY_SIZE 16
 #define IWM_TKIP_MIC_SIZE 8
@@ -361,7 +420,7 @@ struct iwm_umac_key_tkip {
 	u8 tkip_key[IWM_TKIP_KEY_SIZE];
 	u8 mic_rx_key[IWM_TKIP_MIC_SIZE];
 	u8 mic_tx_key[IWM_TKIP_MIC_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_key_ccmp {
 	struct iwm_umac_wifi_if hdr;
@@ -369,22 +428,47 @@ struct iwm_umac_key_ccmp {
 	u8 iv_count[6];
 	u8 reserved[2];
 	u8 key[WLAN_KEY_LEN_CCMP];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_key_remove {
 	struct iwm_umac_wifi_if hdr;
 	struct iwm_umac_key_hdr key_hdr;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_tx_key_id {
 	struct iwm_umac_wifi_if hdr;
 	u8 key_idx;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
+
+struct iwm_umac_pwr_trigger {
+	struct iwm_umac_wifi_if hdr;
+	__le32 reseved;
+} __packed;
 
 struct iwm_umac_cmd_stats_req {
 	__le32 flags;
-} __attribute__ ((packed));
+} __packed;
+
+struct iwm_umac_cmd_stop_resume_tx {
+	u8 flags;
+	u8 sta_id;
+	__le16 stop_resume_tid_msk;
+	__le16 last_seq_num[IWM_UMAC_TID_NR];
+	u16 reserved;
+} __packed;
+
+#define IWM_CMD_PMKID_ADD   1
+#define IWM_CMD_PMKID_DEL   2
+#define IWM_CMD_PMKID_FLUSH 3
+
+struct iwm_umac_pmkid_update {
+	struct iwm_umac_wifi_if hdr;
+	__le32 command;
+	u8 bssid[ETH_ALEN];
+	__le16 reserved;
+	u8 pmkid[WLAN_PMKID_LEN];
+} __packed;
 
 /* LMAC commands */
 int iwm_read_mac(struct iwm_priv *iwm, u8 *mac);
@@ -393,6 +477,7 @@ int iwm_send_init_calib_cfg(struct iwm_priv *iwm, u8 calib_requested);
 int iwm_send_periodic_calib_cfg(struct iwm_priv *iwm, u8 calib_requested);
 int iwm_send_calib_results(struct iwm_priv *iwm);
 int iwm_store_rxiq_calib_result(struct iwm_priv *iwm);
+int iwm_send_ct_kill_cfg(struct iwm_priv *iwm, u8 entry, u8 exit);
 
 /* UMAC commands */
 int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
@@ -403,16 +488,21 @@ int iwm_umac_set_config_var(struct iwm_priv *iwm, u16 key,
 			    void *payload, u16 payload_size);
 int iwm_send_umac_config(struct iwm_priv *iwm, __le32 reset_flags);
 int iwm_send_mlme_profile(struct iwm_priv *iwm);
+int __iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_send_packet(struct iwm_priv *iwm, struct sk_buff *skb, int pool_id);
 int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx);
-int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
-		struct iwm_key *key);
+int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key);
+int iwm_tx_power_trigger(struct iwm_priv *iwm);
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags);
 int iwm_send_umac_channel_list(struct iwm_priv *iwm);
 int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,
 		   int ssid_num);
 int iwm_scan_one_ssid(struct iwm_priv *iwm, u8 *ssid, int ssid_len);
+int iwm_send_umac_stop_resume_tx(struct iwm_priv *iwm,
+				 struct iwm_umac_notif_stop_resume_tx *ntf);
+int iwm_send_pmkid_update(struct iwm_priv *iwm,
+			  struct cfg80211_pmksa *pmksa, u32 command);
 
 /* UDMA commands */
 int iwm_target_reset(struct iwm_priv *iwm);

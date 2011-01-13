@@ -16,10 +16,11 @@ struct tcf_common {
 	u32				tcfc_capab;
 	int				tcfc_action;
 	struct tcf_t			tcfc_tm;
-	struct gnet_stats_basic		tcfc_bstats;
+	struct gnet_stats_basic_packed	tcfc_bstats;
 	struct gnet_stats_queue		tcfc_qstats;
 	struct gnet_stats_rate_est	tcfc_rate_est;
 	spinlock_t			tcfc_lock;
+	struct rcu_head			tcfc_rcu;
 };
 #define tcf_next	common.tcfc_next
 #define tcf_index	common.tcfc_index
@@ -32,6 +33,7 @@ struct tcf_common {
 #define tcf_qstats	common.tcfc_qstats
 #define tcf_rate_est	common.tcfc_rate_est
 #define tcf_lock	common.tcfc_lock
+#define tcf_rcu		common.tcfc_rcu
 
 struct tcf_police {
 	struct tcf_common	common;

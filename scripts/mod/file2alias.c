@@ -104,7 +104,7 @@ static void device_id_check(const char *modname, const char *device_id,
 static void do_usb_entry(struct usb_device_id *id,
 			 unsigned int bcdDevice_initial, int bcdDevice_initial_digits,
 			 unsigned char range_lo, unsigned char range_hi,
-			 struct module *mod)
+			 unsigned char max, struct module *mod)
 {
 	char alias[500];
 	strcpy(alias, "usb:");
@@ -118,9 +118,22 @@ static void do_usb_entry(struct usb_device_id *id,
 		sprintf(alias + strlen(alias), "%0*X",
 			bcdDevice_initial_digits, bcdDevice_initial);
 	if (range_lo == range_hi)
-		sprintf(alias + strlen(alias), "%u", range_lo);
-	else if (range_lo > 0 || range_hi < 9)
-		sprintf(alias + strlen(alias), "[%u-%u]", range_lo, range_hi);
+		sprintf(alias + strlen(alias), "%X", range_lo);
+	else if (range_lo > 0 || range_hi < max) {
+		if (range_lo > 0x9 || range_hi < 0xA)
+			sprintf(alias + strlen(alias),
+				"[%X-%X]",
+				range_lo,
+				range_hi);
+		else {
+			sprintf(alias + strlen(alias),
+				range_lo < 0x9 ? "[%X-9" : "[%X",
+				range_lo);
+			sprintf(alias + strlen(alias),
+				range_hi > 0xA ? "a-%X]" : "%X]",
+				range_lo);
+		}
+	}
 	if (bcdDevice_initial_digits < (sizeof(id->bcdDevice_lo) * 2 - 1))
 		strcat(alias, "*");
 
@@ -147,10 +160,49 @@ static void do_usb_entry(struct usb_device_id *id,
 		   "MODULE_ALIAS(\"%s\");\n", alias);
 }
 
+/* Handles increment/decrement of BCD formatted integers */
+/* Returns the previous value, so it works like i++ or i-- */
+static unsigned int incbcd(unsigned int *bcd,
+			   int inc,
+			   unsigned char max,
+			   size_t chars)
+{
+	unsigned int init = *bcd, i, j;
+	unsigned long long c, dec = 0;
+
+	/* If bcd is not in BCD format, just increment */
+	if (max > 0x9) {
+		*bcd += inc;
+		return init;
+	}
+
+	/* Convert BCD to Decimal */
+	for (i=0 ; i < chars ; i++) {
+		c = (*bcd >> (i << 2)) & 0xf;
+		c = c > 9 ? 9 : c; /* force to bcd just in case */
+		for (j=0 ; j < i ; j++)
+			c = c * 10;
+		dec += c;
+	}
+
+	/* Do our increment/decrement */
+	dec += inc;
+	*bcd  = 0;
+
+	/* Convert back to BCD */
+	for (i=0 ; i < chars ; i++) {
+		for (c=1,j=0 ; j < i ; j++)
+			c = c * 10;
+		c = (dec / c) % 10;
+		*bcd += c << (i << 2);
+	}
+	return init;
+}
+
 static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 {
 	unsigned int devlo, devhi;
-	unsigned char chi, clo;
+	unsigned char chi, clo, max;
 	int ndigits;
 
 	id->match_flags = TO_NATIVE(id->match_flags);
@@ -161,6 +213,17 @@ static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 		TO_NATIVE(id->bcdDevice_lo) : 0x0U;
 	devhi = id->match_flags & USB_DEVICE_ID_MATCH_DEV_HI ?
 		TO_NATIVE(id->bcdDevice_hi) : ~0x0U;
+
+	/* Figure out if this entry is in bcd or hex format */
+	max = 0x9; /* Default to decimal format */
+	for (ndigits = 0 ; ndigits < sizeof(id->bcdDevice_lo) * 2 ; ndigits++) {
+		clo = (devlo >> (ndigits << 2)) & 0xf;
+		chi = ((devhi > 0x9999 ? 0x9999 : devhi) >> (ndigits << 2)) & 0xf;
+		if (clo > max || chi > max) {
+			max = 0xf;
+			break;
+		}
+	}
 
 	/*
 	 * Some modules (visor) have empty slots as placeholder for
@@ -173,21 +236,27 @@ static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 	for (ndigits = sizeof(id->bcdDevice_lo) * 2 - 1; devlo <= devhi; ndigits--) {
 		clo = devlo & 0xf;
 		chi = devhi & 0xf;
-		if (chi > 9)	/* it's bcd not hex */
-			chi = 9;
+		if (chi > max)	/* If we are in bcd mode, truncate if necessary */
+			chi = max;
 		devlo >>= 4;
 		devhi >>= 4;
 
 		if (devlo == devhi || !ndigits) {
-			do_usb_entry(id, devlo, ndigits, clo, chi, mod);
+			do_usb_entry(id, devlo, ndigits, clo, chi, max, mod);
 			break;
 		}
 
-		if (clo > 0)
-			do_usb_entry(id, devlo++, ndigits, clo, 9, mod);
+		if (clo > 0x0)
+			do_usb_entry(id,
+				     incbcd(&devlo, 1, max,
+					    sizeof(id->bcdDevice_lo) * 2),
+				     ndigits, clo, max, max, mod);
 
-		if (chi < 9)
-			do_usb_entry(id, devhi--, ndigits, 0, chi, mod);
+		if (chi < max)
+			do_usb_entry(id,
+				     incbcd(&devhi, -1, max,
+					    sizeof(id->bcdDevice_lo) * 2),
+				     ndigits, 0x0, chi, max, mod);
 	}
 }
 
@@ -657,6 +726,15 @@ static int do_i2c_entry(const char *filename, struct i2c_device_id *id,
 	return 1;
 }
 
+/* Looks like: spi:S */
+static int do_spi_entry(const char *filename, struct spi_device_id *id,
+			char *alias)
+{
+	sprintf(alias, SPI_MODULE_PREFIX "%s", id->name);
+
+	return 1;
+}
+
 static const struct dmifield {
 	const char *prefix;
 	int field;
@@ -718,6 +796,51 @@ static int do_platform_entry(const char *filename,
 	return 1;
 }
 
+static int do_mdio_entry(const char *filename,
+			 struct mdio_device_id *id, char *alias)
+{
+	int i;
+
+	alias += sprintf(alias, MDIO_MODULE_PREFIX);
+
+	for (i = 0; i < 32; i++) {
+		if (!((id->phy_id_mask >> (31-i)) & 1))
+			*(alias++) = '?';
+		else if ((id->phy_id >> (31-i)) & 1)
+			*(alias++) = '1';
+		else
+			*(alias++) = '0';
+	}
+
+	/* Terminate the string */
+	*alias = 0;
+
+	return 1;
+}
+
+/* Looks like: zorro:iN. */
+static int do_zorro_entry(const char *filename, struct zorro_device_id *id,
+			  char *alias)
+{
+	id->id = TO_NATIVE(id->id);
+	strcpy(alias, "zorro:");
+	ADD(alias, "i", id->id != ZORRO_WILDCARD, id->id);
+	return 1;
+}
+
+/* looks like: "pnp:dD" */
+static int do_isapnp_entry(const char *filename,
+			   struct isapnp_device_id *id, char *alias)
+{
+	sprintf(alias, "pnp:d%c%c%c%x%x%x%x*",
+		'A' + ((id->vendor >> 2) & 0x3f) - 1,
+		'A' + (((id->vendor & 3) << 3) | ((id->vendor >> 13) & 7)) - 1,
+		'A' + ((id->vendor >> 8) & 0x1f) - 1,
+		(id->function >> 4) & 0x0f, id->function & 0x0f,
+		(id->function >> 12) & 0x0f, (id->function >> 8) & 0x0f);
+	return 1;
+}
+
 /* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -726,7 +849,7 @@ static inline int sym_is(const char *symbol, const char *name)
 	match = strstr(symbol, name);
 	if (!match)
 		return 0;
-	return match[strlen(symbol)] == '\0';
+	return match[strlen(name)] == '\0';
 }
 
 static void do_table(void *symval, unsigned long size,
@@ -761,16 +884,16 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	char *zeros = NULL;
 
 	/* We're looking for a section relative symbol */
-	if (!sym->st_shndx || sym->st_shndx >= info->hdr->e_shnum)
+	if (!sym->st_shndx || get_secindex(info, sym) >= info->num_sections)
 		return;
 
 	/* Handle all-NULL symbols allocated into .bss */
-	if (info->sechdrs[sym->st_shndx].sh_type & SHT_NOBITS) {
+	if (info->sechdrs[get_secindex(info, sym)].sh_type & SHT_NOBITS) {
 		zeros = calloc(1, sym->st_size);
 		symval = zeros;
 	} else {
 		symval = (void *)info->hdr
-			+ info->sechdrs[sym->st_shndx].sh_offset
+			+ info->sechdrs[get_secindex(info, sym)].sh_offset
 			+ sym->st_value;
 	}
 
@@ -853,6 +976,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct i2c_device_id), "i2c",
 			 do_i2c_entry, mod);
+	else if (sym_is(symname, "__mod_spi_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct spi_device_id), "spi",
+			 do_spi_entry, mod);
 	else if (sym_is(symname, "__mod_dmi_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct dmi_system_id), "dmi",
@@ -861,6 +988,18 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct platform_device_id), "platform",
 			 do_platform_entry, mod);
+	else if (sym_is(symname, "__mod_mdio_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct mdio_device_id), "mdio",
+			 do_mdio_entry, mod);
+	else if (sym_is(symname, "__mod_zorro_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct zorro_device_id), "zorro",
+			 do_zorro_entry, mod);
+	else if (sym_is(symname, "__mod_isapnp_device_table"))
+		do_table(symval, sym->st_size,
+			sizeof(struct isapnp_device_id), "isa",
+			do_isapnp_entry, mod);
 	free(zeros);
 }
 

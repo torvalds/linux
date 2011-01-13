@@ -9,7 +9,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include "cb710-mmc.h"
@@ -26,7 +25,7 @@ static const u8 cb710_src_freq_mhz[16] = {
 	50, 55, 60, 65, 70, 75, 80, 85
 };
 
-static void cb710_mmc_set_clock(struct mmc_host *mmc, int hz)
+static void cb710_mmc_select_clock_divider(struct mmc_host *mmc, int hz)
 {
 	struct cb710_slot *slot = cb710_mmc_to_slot(mmc);
 	struct pci_dev *pdev = cb710_slot_to_chip(slot)->pdev;
@@ -34,8 +33,11 @@ static void cb710_mmc_set_clock(struct mmc_host *mmc, int hz)
 	u32 divider_idx;
 	int src_hz;
 
-	/* this is magic, unverifiable for me, unless I get
-	 * MMC card with cables connected to bus signals */
+	/* on CB710 in HP nx9500:
+	 *   src_freq_idx == 0
+	 *   indexes 1-7 work as written in the table
+	 *   indexes 0,8-15 give no clock output
+	 */
 	pci_read_config_dword(pdev, 0x48, &src_freq_idx);
 	src_freq_idx = (src_freq_idx >> 16) & 0xF;
 	src_hz = cb710_src_freq_mhz[src_freq_idx] * 1000000;
@@ -47,13 +49,15 @@ static void cb710_mmc_set_clock(struct mmc_host *mmc, int hz)
 
 	if (src_freq_idx)
 		divider_idx |= 0x8;
+	else if (divider_idx == 0)
+		divider_idx = 1;
 
 	cb710_pci_update_config_reg(pdev, 0x40, ~0xF0000000, divider_idx << 28);
 
 	dev_dbg(cb710_slot_dev(slot),
-		"clock set to %d Hz, wanted %d Hz; flag = %d\n",
+		"clock set to %d Hz, wanted %d Hz; src_freq_idx = %d, divider_idx = %d|%d\n",
 		src_hz >> cb710_clock_divider_log2[divider_idx & 7],
-		hz, (divider_idx & 8) != 0);
+		hz, src_freq_idx, divider_idx & 7, divider_idx & 8);
 }
 
 static void __cb710_mmc_enable_irq(struct cb710_slot *slot,
@@ -96,16 +100,8 @@ static void cb710_mmc_reset_events(struct cb710_slot *slot)
 	cb710_write_port_8(slot, CB710_MMC_STATUS2_PORT, 0xFF);
 }
 
-static int cb710_mmc_is_card_inserted(struct cb710_slot *slot)
-{
-	return cb710_read_port_8(slot, CB710_MMC_STATUS3_PORT)
-		& CB710_MMC_S3_CARD_DETECTED;
-}
-
 static void cb710_mmc_enable_4bit_data(struct cb710_slot *slot, int enable)
 {
-	dev_dbg(cb710_slot_dev(slot), "configuring %d-data-line%s mode\n",
-		enable ? 4 : 1, enable ? "s" : "");
 	if (enable)
 		cb710_modify_port_8(slot, CB710_MMC_CONFIG1_PORT,
 			CB710_MMC_C1_4BIT_DATA_BUS, 0);
@@ -278,7 +274,7 @@ static int cb710_mmc_receive(struct cb710_slot *slot, struct mmc_data *data)
 	if (unlikely(data->blksz & 15 && (data->blocks != 1 || data->blksz != 8)))
 		return -EINVAL;
 
-	sg_miter_start(&miter, data->sg, data->sg_len, 0);
+	sg_miter_start(&miter, data->sg, data->sg_len, SG_MITER_TO_SG);
 
 	cb710_modify_port_8(slot, CB710_MMC_CONFIG2_PORT,
 		15, CB710_MMC_C2_READ_PIO_SIZE_MASK);
@@ -307,7 +303,7 @@ static int cb710_mmc_receive(struct cb710_slot *slot, struct mmc_data *data)
 			goto out;
 	}
 out:
-	cb710_sg_miter_stop_writing(&miter);
+	sg_miter_stop(&miter);
 	return err;
 }
 
@@ -322,7 +318,7 @@ static int cb710_mmc_send(struct cb710_slot *slot, struct mmc_data *data)
 	if (unlikely(data->blocks > 1 && data->blksz & 15))
 		return -EINVAL;
 
-	sg_miter_start(&miter, data->sg, data->sg_len, 0);
+	sg_miter_start(&miter, data->sg, data->sg_len, SG_MITER_FROM_SG);
 
 	cb710_modify_port_8(slot, CB710_MMC_CONFIG2_PORT,
 		0, CB710_MMC_C2_READ_PIO_SIZE_MASK);
@@ -495,13 +491,8 @@ static void cb710_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	reader->mrq = mrq;
 	cb710_mmc_enable_irq(slot, CB710_MMC_IE_TEST_MASK, 0);
 
-	if (cb710_mmc_is_card_inserted(slot)) {
-		if (!cb710_mmc_command(mmc, mrq->cmd) && mrq->stop)
-			cb710_mmc_command(mmc, mrq->stop);
-		mdelay(1);
-	} else {
-		mrq->cmd->error = -ENOMEDIUM;
-	}
+	if (!cb710_mmc_command(mmc, mrq->cmd) && mrq->stop)
+		cb710_mmc_command(mmc, mrq->stop);
 
 	tasklet_schedule(&reader->finish_req_tasklet);
 }
@@ -513,7 +504,7 @@ static int cb710_mmc_powerup(struct cb710_slot *slot)
 #endif
 	int err;
 
-	/* a lot of magic; see comment in cb710_mmc_set_clock() */
+	/* a lot of magic for now */
 	dev_dbg(cb710_slot_dev(slot), "bus powerup\n");
 	cb710_dump_regs(chip, CB710_DUMP_REGS_MMC);
 	err = cb710_wait_while_busy(slot, CB710_MMC_S2_BUSY_20);
@@ -573,13 +564,7 @@ static void cb710_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct cb710_mmc_reader *reader = mmc_priv(mmc);
 	int err;
 
-	cb710_mmc_set_clock(mmc, ios->clock);
-
-	if (!cb710_mmc_is_card_inserted(slot)) {
-		dev_dbg(cb710_slot_dev(slot),
-			"no card inserted - ignoring bus powerup request\n");
-		ios->power_mode = MMC_POWER_OFF;
-	}
+	cb710_mmc_select_clock_divider(mmc, ios->clock);
 
 	if (ios->power_mode != reader->last_power_mode)
 	switch (ios->power_mode) {
@@ -618,6 +603,14 @@ static int cb710_mmc_get_ro(struct mmc_host *mmc)
 
 	return cb710_read_port_8(slot, CB710_MMC_STATUS3_PORT)
 		& CB710_MMC_S3_WRITE_PROTECTED;
+}
+
+static int cb710_mmc_get_cd(struct mmc_host *mmc)
+{
+	struct cb710_slot *slot = cb710_mmc_to_slot(mmc);
+
+	return cb710_read_port_8(slot, CB710_MMC_STATUS3_PORT)
+		& CB710_MMC_S3_CARD_DETECTED;
 }
 
 static int cb710_mmc_irq_handler(struct cb710_slot *slot)
@@ -665,7 +658,8 @@ static void cb710_mmc_finish_request_tasklet(unsigned long data)
 static const struct mmc_host_ops cb710_mmc_host = {
 	.request = cb710_mmc_request,
 	.set_ios = cb710_mmc_set_ios,
-	.get_ro = cb710_mmc_get_ro
+	.get_ro = cb710_mmc_get_ro,
+	.get_cd = cb710_mmc_get_cd,
 };
 
 #ifdef CONFIG_PM
@@ -676,7 +670,7 @@ static int cb710_mmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct mmc_host *mmc = cb710_slot_to_mmc(slot);
 	int err;
 
-	err = mmc_suspend_host(mmc, state);
+	err = mmc_suspend_host(mmc);
 	if (err)
 		return err;
 
@@ -747,6 +741,7 @@ static int __devinit cb710_mmc_init(struct platform_device *pdev)
 err_free_mmc:
 	dev_dbg(cb710_slot_dev(slot), "mmc_add_host() failed: %d\n", err);
 
+	cb710_set_irq_handler(slot, NULL);
 	mmc_free_host(mmc);
 	return err;
 }

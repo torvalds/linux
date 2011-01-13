@@ -57,25 +57,25 @@ static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, 
 
 /* remote control */
 /* key list for the tiny remote control (Yakumo, don't know about the others) */
-static struct dvb_usb_rc_key dtt200u_rc_keys[] = {
-	{ 0x80, 0x01, KEY_MUTE },
-	{ 0x80, 0x02, KEY_CHANNELDOWN },
-	{ 0x80, 0x03, KEY_VOLUMEDOWN },
-	{ 0x80, 0x04, KEY_1 },
-	{ 0x80, 0x05, KEY_2 },
-	{ 0x80, 0x06, KEY_3 },
-	{ 0x80, 0x07, KEY_4 },
-	{ 0x80, 0x08, KEY_5 },
-	{ 0x80, 0x09, KEY_6 },
-	{ 0x80, 0x0a, KEY_7 },
-	{ 0x80, 0x0c, KEY_ZOOM },
-	{ 0x80, 0x0d, KEY_0 },
-	{ 0x80, 0x0e, KEY_SELECT },
-	{ 0x80, 0x12, KEY_POWER },
-	{ 0x80, 0x1a, KEY_CHANNELUP },
-	{ 0x80, 0x1b, KEY_8 },
-	{ 0x80, 0x1e, KEY_VOLUMEUP },
-	{ 0x80, 0x1f, KEY_9 },
+static struct rc_map_table rc_map_dtt200u_table[] = {
+	{ 0x8001, KEY_MUTE },
+	{ 0x8002, KEY_CHANNELDOWN },
+	{ 0x8003, KEY_VOLUMEDOWN },
+	{ 0x8004, KEY_1 },
+	{ 0x8005, KEY_2 },
+	{ 0x8006, KEY_3 },
+	{ 0x8007, KEY_4 },
+	{ 0x8008, KEY_5 },
+	{ 0x8009, KEY_6 },
+	{ 0x800a, KEY_7 },
+	{ 0x800c, KEY_ZOOM },
+	{ 0x800d, KEY_0 },
+	{ 0x800e, KEY_SELECT },
+	{ 0x8012, KEY_POWER },
+	{ 0x801a, KEY_CHANNELUP },
+	{ 0x801b, KEY_8 },
+	{ 0x801e, KEY_VOLUMEUP },
+	{ 0x801f, KEY_9 },
 };
 
 static int dtt200u_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
@@ -161,10 +161,12 @@ static struct dvb_usb_device_properties dtt200u_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
-	.rc_query        = dtt200u_rc_query,
+	.rc.legacy = {
+		.rc_interval     = 300,
+		.rc_map_table    = rc_map_dtt200u_table,
+		.rc_map_size     = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_query        = dtt200u_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -206,10 +208,12 @@ static struct dvb_usb_device_properties wt220u_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
-	.rc_query        = dtt200u_rc_query,
+	.rc.legacy = {
+		.rc_interval     = 300,
+		.rc_map_table      = rc_map_dtt200u_table,
+		.rc_map_size = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_query        = dtt200u_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -251,10 +255,12 @@ static struct dvb_usb_device_properties wt220u_fc_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
-	.rc_query        = dtt200u_rc_query,
+	.rc.legacy = {
+		.rc_interval     = 300,
+		.rc_map_table    = rc_map_dtt200u_table,
+		.rc_map_size     = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_query        = dtt200u_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -296,10 +302,12 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
 
-	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
-	.rc_query        = dtt200u_rc_query,
+	.rc.legacy = {
+		.rc_interval     = 300,
+		.rc_map_table    = rc_map_dtt200u_table,
+		.rc_map_size     = ARRAY_SIZE(rc_map_dtt200u_table),
+		.rc_query        = dtt200u_rc_query,
+	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 

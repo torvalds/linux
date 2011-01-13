@@ -7,6 +7,7 @@
  *     Copyright IBM Corp. 2003, 2009
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -329,6 +330,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	struct raw3270_request *rq;
 	int rc;
 
+	kstat_cpu(smp_processor_id()).irqs[IOINT_C70]++;
 	rp = dev_get_drvdata(&cdev->dev);
 	if (!rp)
 		return;
@@ -373,7 +375,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		rq->rc = ccw_device_start(rp->cdev, &rq->ccw,
 					  (unsigned long) rq, 0, 0);
 		if (rq->rc == 0)
-			return;	/* Sucessfully restarted. */
+			return;	/* Successfully restarted. */
 		break;
 	case RAW3270_IO_STOP:
 		if (!rq)
@@ -1361,11 +1363,13 @@ static int raw3270_pm_start(struct ccw_device *cdev)
 
 void raw3270_pm_unfreeze(struct raw3270_view *view)
 {
+#ifdef CONFIG_TN3270_CONSOLE
 	struct raw3270 *rp;
 
 	rp = view->dev;
 	if (rp && test_bit(RAW3270_FLAGS_FROZEN, &rp->flags))
 		ccw_device_force_console();
+#endif
 }
 
 static struct ccw_device_id raw3270_id[] = {

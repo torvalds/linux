@@ -70,6 +70,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -936,7 +937,7 @@ static int serial_polled;
 static int mpsc_rx_intr(struct mpsc_port_info *pi)
 {
 	struct mpsc_rx_desc *rxre;
-	struct tty_struct *tty = pi->port.info->port.tty;
+	struct tty_struct *tty = pi->port.state->port.tty;
 	u32	cmdstat, bytes_in, i;
 	int	rc = 0;
 	u8	*bp;
@@ -1109,7 +1110,7 @@ static void mpsc_setup_tx_desc(struct mpsc_port_info *pi, u32 count, u32 intr)
 
 static void mpsc_copy_tx_data(struct mpsc_port_info *pi)
 {
-	struct circ_buf *xmit = &pi->port.info->xmit;
+	struct circ_buf *xmit = &pi->port.state->xmit;
 	u8 *bp;
 	u32 i;
 
@@ -2070,6 +2071,7 @@ static int mpsc_drv_probe(struct platform_device *dev)
 
 		if (!(rc = mpsc_drv_map_regs(pi, dev))) {
 			mpsc_drv_get_platform_data(pi, dev, dev->id);
+			pi->port.dev = &dev->dev;
 
 			if (!(rc = mpsc_make_ready(pi))) {
 				spin_lock_init(&pi->tx_lock);

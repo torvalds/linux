@@ -13,14 +13,43 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
+#include <asm/hazards.h>
 #include <asm/tlbflush.h>
 #ifdef CONFIG_MIPS_MT_SMTC
 #include <asm/mipsmtregs.h>
 #include <asm/smtc.h>
 #endif /* SMTC */
 #include <asm-generic/mm_hooks.h>
+
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+
+#define TLBMISS_HANDLER_SETUP_PGD(pgd)				\
+	tlbmiss_handler_setup_pgd((unsigned long)(pgd))
+
+static inline void tlbmiss_handler_setup_pgd(unsigned long pgd)
+{
+	/* Check for swapper_pg_dir and convert to physical address. */
+	if ((pgd & CKSEG3) == CKSEG0)
+		pgd = CPHYSADDR(pgd);
+	write_c0_context(pgd << 11);
+}
+
+#define TLBMISS_HANDLER_SETUP()						\
+	do {								\
+		TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir);		\
+		write_c0_xcontext((unsigned long) smp_processor_id() << 51); \
+	} while (0)
+
+
+static inline unsigned long get_current_pgd(void)
+{
+	return PHYS_TO_XKSEG_CACHED((read_c0_context() >> 11) & ~0xfffUL);
+}
+
+#else /* CONFIG_MIPS_PGD_C0_CONTEXT: using  pgd_current*/
 
 /*
  * For the fast tlb miss handlers, we keep a per cpu array of pointers
@@ -35,14 +64,16 @@ extern unsigned long pgd_current[];
 #ifdef CONFIG_32BIT
 #define TLBMISS_HANDLER_SETUP()						\
 	write_c0_context((unsigned long) smp_processor_id() << 25);	\
+	back_to_back_c0_hazard();					\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
 #ifdef CONFIG_64BIT
 #define TLBMISS_HANDLER_SETUP()						\
 	write_c0_context((unsigned long) smp_processor_id() << 26);	\
+	back_to_back_c0_hazard();					\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
-
+#endif /* CONFIG_MIPS_PGD_C0_CONTEXT*/
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
 #define ASID_INC	0x40
@@ -73,7 +104,7 @@ extern unsigned long smtc_asid_mask;
 
 #endif
 
-#define cpu_context(cpu, mm)	((mm)->context[cpu])
+#define cpu_context(cpu, mm)	((mm)->context.asid[cpu])
 #define cpu_asid(cpu, mm)	(cpu_context((cpu), (mm)) & ASID_MASK)
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 
@@ -164,12 +195,12 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * having ASID_MASK smaller than the hardware maximum,
 	 * make sure no "soft" bits become "hard"...
 	 */
-	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK)
-			| (cpu_context(cpu, next) & ASID_MASK));
+	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK) |
+			 cpu_asid(cpu, next));
 	ehb(); /* Make sure it propagates to TCStatus */
 	evpe(mtflags);
 #else
-	write_c0_entryhi(cpu_context(cpu, next));
+	write_c0_entryhi(cpu_asid(cpu, next));
 #endif /* CONFIG_MIPS_MT_SMTC */
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 
@@ -177,8 +208,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * Mark current->active_mm as not "active" anymore.
 	 * We don't want to mislead possible IPI tlb flush routines.
 	 */
-	cpu_clear(cpu, prev->cpu_vm_mask);
-	cpu_set(cpu, next->cpu_vm_mask);
+	cpumask_clear_cpu(cpu, mm_cpumask(prev));
+	cpumask_set_cpu(cpu, mm_cpumask(next));
 
 	local_irq_restore(flags);
 }
@@ -225,17 +256,17 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 	}
 	/* See comments for similar code above */
 	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK) |
-	                 (cpu_context(cpu, next) & ASID_MASK));
+	                 cpu_asid(cpu, next));
 	ehb(); /* Make sure it propagates to TCStatus */
 	evpe(mtflags);
 #else
-	write_c0_entryhi(cpu_context(cpu, next));
+	write_c0_entryhi(cpu_asid(cpu, next));
 #endif /* CONFIG_MIPS_MT_SMTC */
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 
 	/* mark mmu ownership change */
-	cpu_clear(cpu, prev->cpu_vm_mask);
-	cpu_set(cpu, next->cpu_vm_mask);
+	cpumask_clear_cpu(cpu, mm_cpumask(prev));
+	cpumask_set_cpu(cpu, mm_cpumask(next));
 
 	local_irq_restore(flags);
 }
@@ -257,7 +288,7 @@ drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 
 	local_irq_save(flags);
 
-	if (cpu_isset(cpu, mm->cpu_vm_mask))  {
+	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
 		get_new_mmu_context(mm, cpu);
 #ifdef CONFIG_MIPS_MT_SMTC
 		/* See comments for similar code above */

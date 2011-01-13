@@ -1856,7 +1856,7 @@ E: rfkoenig@immd4.informatik.uni-erlangen.de
 D: The Linux Support Team Erlangen
 
 N: Andreas Koensgen
-E: ajk@iehk.rwth-aachen.de
+E: ajk@comnets.uni-bremen.de
 D: 6pack driver for AX.25
 
 N: Harald Koerfgen
@@ -2005,6 +2005,9 @@ N: Paul Laufer
 E: paul@laufernet.com
 D: Soundblaster driver fixes, ISAPnP quirk
 S: California, USA
+
+N: Jonathan Layes
+D: ARPD support
 
 N: Tom Lees
 E: tom@lpsg.demon.co.uk
@@ -2362,8 +2365,6 @@ E: acme@redhat.com
 W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
 D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
-S: R. Brasílio Itiberê, 4270/1010 - Água Verde
-S: 80240-060 - Curitiba - Paraná
 S: Brazil
 
 N: Karsten Merker
@@ -2797,7 +2798,7 @@ D: Starter of Linux1394 effort
 S: ask per mail for current address
 
 N: Nicolas Pitre
-E: nico@cam.org
+E: nico@fluxnic.net
 D: StrongARM SA1100 support integrator & hacker
 D: Xscale PXA architecture
 D: unified SMC 91C9x/91C11x ethernet driver (smc91x)
@@ -3551,12 +3552,12 @@ E: cvance@nai.com
 D: portions of the Linux Security Module (LSM) framework and security modules
 
 N: Petr Vandrovec
-E: vandrove@vc.cvut.cz
+E: petr@vandrovec.name
 D: Small contributions to ncpfs
 D: Matrox framebuffer driver
-S: Chudenicka 8
-S: 10200 Prague 10, Hostivar
-S: Czech Republic
+S: 21513 Conradia Ct
+S: Cupertino, CA 95014
+S: USA
 
 N: Thibaut Varene
 E: T-Bone@parisc-linux.org
@@ -3801,6 +3802,9 @@ D: Written Specialix SX driver
 S: van Bronckhorststraat 12
 S: 2612 XV Delft
 S: The Netherlands
+
+N: Thomas Woller
+D: CS461x Cirrus Logic sound driver
 
 N: David Woodhouse
 E: dwmw2@infradead.org

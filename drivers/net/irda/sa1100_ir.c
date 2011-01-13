@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
@@ -233,8 +232,11 @@ static int sa1100_irda_startup(struct sa1100_irda *si)
 	/*
 	 * Ensure that the ports for this device are setup correctly.
 	 */
-	if (si->pdata->startup)
-		si->pdata->startup(si->dev);
+	if (si->pdata->startup)	{
+		ret = si->pdata->startup(si->dev);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Configure PPC for IRDA - we want to drive TXD2 low.
@@ -329,7 +331,7 @@ static int sa1100_irda_resume(struct platform_device *pdev)
 		 * If we missed a speed change, initialise at the new speed
 		 * directly.  It is debatable whether this is actually
 		 * required, but in the interests of continuing from where
-		 * we left off it is desireable.  The converse argument is
+		 * we left off it is desirable.  The converse argument is
 		 * that we should re-negotiate at 9600 baud again.
 		 */
 		if (si->newspeed) {
@@ -667,7 +669,7 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 			sa1100_irda_set_speed(si, speed);
 		}
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (!IS_FIR(si)) {
@@ -713,9 +715,7 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_TXE;
 	}
 
-	dev->trans_start = jiffies;
-
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int
@@ -881,9 +881,6 @@ static const struct net_device_ops sa1100_irda_netdev_ops = {
 	.ndo_stop		= sa1100_irda_stop,
 	.ndo_start_xmit		= sa1100_irda_hard_xmit,
 	.ndo_do_ioctl		= sa1100_irda_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
 };
 
 static int sa1100_irda_probe(struct platform_device *pdev)

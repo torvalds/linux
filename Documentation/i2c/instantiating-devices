@@ -102,7 +102,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
 	strlcpy(i2c_info.name, "isp1301_pnx", I2C_NAME_SIZE);
 	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
-						   normal_i2c);
+						   normal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);
 	(...)
 }
@@ -188,7 +188,7 @@ segment, the address is sufficient to uniquely identify the device to be
 deleted.
 
 Example:
-# echo eeprom 0x50 > /sys/class/i2c-adapter/i2c-3/new_device
+# echo eeprom 0x50 > /sys/bus/i2c/devices/i2c-3/new_device
 
 While this interface should only be used when in-kernel device declaration
 can't be done, there is a variety of cases where it can be helpful:

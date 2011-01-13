@@ -195,14 +195,30 @@ config RADIO_MAESTRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maestro.
 
+config RADIO_MIROPCM20
+	tristate "miroSOUND PCM20 radio"
+	depends on ISA && VIDEO_V4L2 && SND
+	select SND_ISA
+	select SND_MIRO
+	---help---
+	  Choose Y here if you have this FM radio card. You also need to enable
+	  the ALSA sound system. This choice automatically selects the ALSA
+	  sound card driver "Miro miroSOUND PCM1pro/PCM12/PCM20radio" as this
+	  is required for the radio-miropcm20.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux API.  Information on
+	  this API and pointers to "v4l" programs may be found at
+	  <file:Documentation/video4linux/API.html>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-miropcm20.
+
 config RADIO_SF16FMI
-	tristate "SF16FMI Radio"
+	tristate "SF16-FMI/SF16-FMP Radio"
 	depends on ISA && VIDEO_V4L2
 	---help---
-	  Choose Y here if you have one of these FM radio cards.  If you
-	  compile the driver into the kernel and your card is not PnP one, you
-	  have to add "sf16fm=<io>" to the kernel command line (I/O address is
-	  0x284 or 0x384).
+	  Choose Y here if you have one of these FM radio cards.
 
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux API.  Information on
@@ -288,16 +304,6 @@ config RADIO_TYPHOON
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-typhoon.
 
-config RADIO_TYPHOON_PROC_FS
-	bool "Support for /proc/radio-typhoon"
-	depends on PROC_FS && RADIO_TYPHOON
-	help
-	  Say Y here if you want the typhoon radio card driver to write
-	  status information (frequency, volume, muted, mute frequency,
-	  base address) to /proc/radio-typhoon. The file can be viewed with
-	  your favorite pager (i.e. use "more /proc/radio-typhoon" or "less
-	  /proc/radio-typhoon" or simply "cat /proc/radio-typhoon").
-
 config RADIO_TYPHOON_PORT
 	hex "Typhoon I/O port (0x316 or 0x336)"
 	depends on RADIO_TYPHOON=y
@@ -339,6 +345,29 @@ config RADIO_ZOLTRIX_PORT
 	help
 	  Enter the I/O port of your Zoltrix radio card.
 
+config I2C_SI4713
+	tristate "I2C driver for Silicon Labs Si4713 device"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  Say Y here if you want support to Si4713 I2C device.
+	  This device driver supports only i2c bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called si4713.
+
+config RADIO_SI4713
+	tristate "Silicon Labs Si4713 FM Radio Transmitter support"
+	depends on I2C && VIDEO_V4L2
+	select I2C_SI4713
+	---help---
+	  Say Y here if you want support to Si4713 FM Radio Transmitter.
+	  This device can transmit audio through FM. It can transmit
+	  RDS and RBDS signals as well. This module is the v4l2 radio
+	  interface for the i2c driver of this device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-si4713.
+
 config USB_DSBR
 	tristate "D-Link/GemTek USB FM radio support"
 	depends on USB && VIDEO_V4L2
@@ -351,29 +380,11 @@ config USB_DSBR
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
 
-config USB_SI470X
-	tristate "Silicon Labs Si470x FM Radio Receiver support"
-	depends on USB && VIDEO_V4L2
-	---help---
-	  This is a driver for USB devices with the Silicon Labs SI470x
-	  chip. Currently these devices are known to work:
-	  - 10c4:818a: Silicon Labs USB FM Radio Reference Design
-	  - 06e1:a155: ADS/Tech FM Radio Receiver (formerly Instant FM Music)
-	  - 1b80:d700: KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
+config RADIO_SI470X
+	bool "Silicon Labs Si470x FM Radio Receiver support"
+	depends on VIDEO_V4L2
 
-	  Sound is provided by the ALSA USB Audio/MIDI driver. Therefore
-	  if you don't want to use the device solely for RDS receiving,
-	  it is recommended to also select SND_USB_AUDIO.
-
-	  Please have a look at the documentation, especially on how
-	  to redirect the audio stream from the radio to your sound device:
-	  Documentation/video4linux/si470x.txt
-
-	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-si470x.
+source "drivers/media/radio/si470x/Kconfig"
 
 config USB_MR800
 	tristate "AverMedia MR 800 USB FM radio support"
@@ -405,5 +416,56 @@ config RADIO_TEA5764_XTAL
 	help
 	  Say Y here if TEA5764 have a 32768 Hz crystal in circuit, say N
 	  here if TEA5764 reference frequency is connected in FREQIN.
+
+config RADIO_SAA7706H
+	tristate "SAA7706H Car Radio DSP"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  Say Y here if you want to use the SAA7706H Car radio Digital
+	  Signal Processor, found for instance on the Russellville development
+	  board. On the russellville the device is connected to internal
+	  timberdale I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called SAA7706H.
+
+config RADIO_TEF6862
+	tristate "TEF6862 Car Radio Enhanced Selectivity Tuner"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  Say Y here if you want to use the TEF6862 Car Radio Enhanced
+	  Selectivity Tuner, found for instance on the Russellville development
+	  board. On the russellville the device is connected to internal
+	  timberdale I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called TEF6862.
+
+config RADIO_TIMBERDALE
+	tristate "Enable the Timberdale radio driver"
+	depends on MFD_TIMBERDALE && VIDEO_V4L2
+	depends on I2C	# for RADIO_SAA7706H
+	select RADIO_TEF6862
+	select RADIO_SAA7706H
+	---help---
+	  This is a kind of umbrella driver for the Radio Tuner and DSP
+	  found behind the Timberdale FPGA on the Russellville board.
+	  Enabling this driver will automatically select the DSP and tuner.
+
+config RADIO_WL1273
+	tristate "Texas Instruments WL1273 I2C FM Radio"
+	depends on I2C && VIDEO_V4L2
+	select MFD_WL1273_CORE
+	select FW_LOADER
+	---help---
+	  Choose Y here if you have this FM radio chip.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux 2 API.  Information on
+	  this API and pointers to "v4l2" programs may be found at
+	  <file:Documentation/video4linux/API.html>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-wl1273.
 
 endif # RADIO_ADAPTERS

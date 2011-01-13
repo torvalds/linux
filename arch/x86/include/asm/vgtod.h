@@ -21,6 +21,7 @@ struct vsyscall_gtod_data {
 		u32	shift;
 	} clock;
 	struct timespec wall_to_monotonic;
+	struct timespec wall_time_coarse;
 };
 extern struct vsyscall_gtod_data __vsyscall_gtod_data
 __section_vsyscall_gtod_data;

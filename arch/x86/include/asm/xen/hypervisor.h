@@ -37,31 +37,39 @@
 extern struct shared_info *HYPERVISOR_shared_info;
 extern struct start_info *xen_start_info;
 
-enum xen_domain_type {
-	XEN_NATIVE,		/* running on bare hardware    */
-	XEN_PV_DOMAIN,		/* running in a PV domain      */
-	XEN_HVM_DOMAIN,		/* running in a Xen hvm domain */
-};
+#include <asm/processor.h>
+
+static inline uint32_t xen_cpuid_base(void)
+{
+	uint32_t base, eax, ebx, ecx, edx;
+	char signature[13];
+
+	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
+		cpuid(base, &eax, &ebx, &ecx, &edx);
+		*(uint32_t *)(signature + 0) = ebx;
+		*(uint32_t *)(signature + 4) = ecx;
+		*(uint32_t *)(signature + 8) = edx;
+		signature[12] = 0;
+
+		if (!strcmp("XenVMMXenVMM", signature) && ((eax - base) >= 2))
+			return base;
+	}
+
+	return 0;
+}
 
 #ifdef CONFIG_XEN
-extern enum xen_domain_type xen_domain_type;
+extern bool xen_hvm_need_lapic(void);
+
+static inline bool xen_x2apic_para_available(void)
+{
+	return xen_hvm_need_lapic();
+}
 #else
-#define xen_domain_type		XEN_NATIVE
+static inline bool xen_x2apic_para_available(void)
+{
+	return (xen_cpuid_base() != 0);
+}
 #endif
-
-#define xen_domain()		(xen_domain_type != XEN_NATIVE)
-#define xen_pv_domain()		(xen_domain() &&			\
-				 xen_domain_type == XEN_PV_DOMAIN)
-#define xen_hvm_domain()	(xen_domain() &&			\
-				 xen_domain_type == XEN_HVM_DOMAIN)
-
-#ifdef CONFIG_XEN_DOM0
-#include <xen/interface/xen.h>
-
-#define xen_initial_domain()	(xen_pv_domain() && \
-				 xen_start_info->flags & SIF_INITDOMAIN)
-#else  /* !CONFIG_XEN_DOM0 */
-#define xen_initial_domain()	(0)
-#endif	/* CONFIG_XEN_DOM0 */
 
 #endif /* _ASM_X86_XEN_HYPERVISOR_H */

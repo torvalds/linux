@@ -14,6 +14,7 @@
 #include <linux/termios.h>
 #include <linux/err.h>
 #include <linux/reboot.h>
+#include <linux/gfp.h>
 
 #include "sclp.h"
 #include "sclp_rw.h"

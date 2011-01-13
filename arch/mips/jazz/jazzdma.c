@@ -14,6 +14,7 @@
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/spinlock.h>
+#include <linux/gfp.h>
 #include <asm/mipsregs.h>
 #include <asm/jazz.h>
 #include <asm/io.h>
@@ -190,7 +191,7 @@ int vdma_free(unsigned long laddr)
 		return -1;
 	}
 
-	while (pgtbl[i].owner == laddr && i < VDMA_PGTBL_ENTRIES) {
+	while (i < VDMA_PGTBL_ENTRIES && pgtbl[i].owner == laddr) {
 		pgtbl[i].owner = VDMA_PAGE_EMPTY;
 		i++;
 	}

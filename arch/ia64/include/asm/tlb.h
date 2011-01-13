@@ -74,7 +74,7 @@ struct ia64_tr_entry {
 extern int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size);
 extern void ia64_ptr_entry(u64 target_mask, int slot);
 
-extern struct ia64_tr_entry __per_cpu_idtrs[NR_CPUS][2][IA64_TR_ALLOC_MAX];
+extern struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
 
 /*
  region register macros
@@ -236,22 +236,22 @@ do {							\
 	__tlb_remove_tlb_entry(tlb, ptep, addr);	\
 } while (0)
 
-#define pte_free_tlb(tlb, ptep)				\
+#define pte_free_tlb(tlb, ptep, address)		\
 do {							\
 	tlb->need_flush = 1;				\
-	__pte_free_tlb(tlb, ptep);			\
+	__pte_free_tlb(tlb, ptep, address);		\
 } while (0)
 
-#define pmd_free_tlb(tlb, ptep)				\
+#define pmd_free_tlb(tlb, ptep, address)		\
 do {							\
 	tlb->need_flush = 1;				\
-	__pmd_free_tlb(tlb, ptep);			\
+	__pmd_free_tlb(tlb, ptep, address);		\
 } while (0)
 
-#define pud_free_tlb(tlb, pudp)				\
+#define pud_free_tlb(tlb, pudp, address)		\
 do {							\
 	tlb->need_flush = 1;				\
-	__pud_free_tlb(tlb, pudp);			\
+	__pud_free_tlb(tlb, pudp, address);		\
 } while (0)
 
 #endif /* _ASM_IA64_TLB_H */

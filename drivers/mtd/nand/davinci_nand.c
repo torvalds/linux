@@ -32,8 +32,10 @@
 #include <linux/io.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/slab.h>
 
 #include <mach/nand.h>
+#include <mach/aemif.h>
 
 #include <asm/mach-types.h>
 
@@ -73,6 +75,8 @@ struct davinci_nand_info {
 	uint32_t		mask_cle;
 
 	uint32_t		core_chipsel;
+
+	struct davinci_aemif_timing	*timing;
 };
 
 static DEFINE_SPINLOCK(davinci_nand_lock);
@@ -310,7 +314,9 @@ static int nand_davinci_correct_4bit(struct mtd_info *mtd,
 	unsigned short ecc10[8];
 	unsigned short *ecc16;
 	u32 syndrome[4];
+	u32 ecc_state;
 	unsigned num_errors, corrected;
+	unsigned long timeo;
 
 	/* All bytes 0xff?  It's an erased page; ignore its ECC. */
 	for (i = 0; i < 10; i++) {
@@ -348,19 +354,44 @@ compare:
 	if (!(syndrome[0] | syndrome[1] | syndrome[2] | syndrome[3]))
 		return 0;
 
+	/*
+	 * Clear any previous address calculation by doing a dummy read of an
+	 * error address register.
+	 */
+	davinci_nand_readl(info, NAND_ERR_ADD1_OFFSET);
+
 	/* Start address calculation, and wait for it to complete.
 	 * We _could_ start reading more data while this is working,
 	 * to speed up the overall page read.
 	 */
 	davinci_nand_writel(info, NANDFCR_OFFSET,
 			davinci_nand_readl(info, NANDFCR_OFFSET) | BIT(13));
+
+	/*
+	 * ECC_STATE field reads 0x3 (Error correction complete) immediately
+	 * after setting the 4BITECC_ADD_CALC_START bit. So if you immediately
+	 * begin trying to poll for the state, you may fall right out of your
+	 * loop without any of the correction calculations having taken place.
+	 * The recommendation from the hardware team is to initially delay as
+	 * long as ECC_STATE reads less than 4. After that, ECC HW has entered
+	 * correction state.
+	 */
+	timeo = jiffies + usecs_to_jiffies(100);
+	do {
+		ecc_state = (davinci_nand_readl(info,
+				NANDFSR_OFFSET) >> 8) & 0x0f;
+		cpu_relax();
+	} while ((ecc_state < 4) && time_before(jiffies, timeo));
+
 	for (;;) {
 		u32	fsr = davinci_nand_readl(info, NANDFSR_OFFSET);
 
 		switch ((fsr >> 8) & 0x0f) {
 		case 0:		/* no error, should not happen */
+			davinci_nand_readl(info, NAND_ERR_ERRVAL1_OFFSET);
 			return 0;
 		case 1:		/* five or more errors detected */
+			davinci_nand_readl(info, NAND_ERR_ERRVAL1_OFFSET);
 			return -EIO;
 		case 2:		/* error addresses computed */
 		case 3:
@@ -452,36 +483,6 @@ static int nand_davinci_dev_ready(struct mtd_info *mtd)
 	return davinci_nand_readl(info, NANDFSR_OFFSET) & BIT(0);
 }
 
-static void __init nand_dm6446evm_flash_init(struct davinci_nand_info *info)
-{
-	uint32_t regval, a1cr;
-
-	/*
-	 * NAND FLASH timings @ PLL1 == 459 MHz
-	 *  - AEMIF.CLK freq   = PLL1/6 = 459/6 = 76.5 MHz
-	 *  - AEMIF.CLK period = 1/76.5 MHz = 13.1 ns
-	 */
-	regval = 0
-		| (0 << 31)           /* selectStrobe */
-		| (0 << 30)           /* extWait (never with NAND) */
-		| (1 << 26)           /* writeSetup      10 ns */
-		| (3 << 20)           /* writeStrobe     40 ns */
-		| (1 << 17)           /* writeHold       10 ns */
-		| (0 << 13)           /* readSetup       10 ns */
-		| (3 << 7)            /* readStrobe      60 ns */
-		| (0 << 4)            /* readHold        10 ns */
-		| (3 << 2)            /* turnAround      ?? ns */
-		| (0 << 0)            /* asyncSize       8-bit bus */
-		;
-	a1cr = davinci_nand_readl(info, A1CR_OFFSET);
-	if (a1cr != regval) {
-		dev_dbg(info->dev, "Warning: NAND config: Set A1CR " \
-		       "reg to 0x%08x, was 0x%08x, should be done by " \
-		       "bootloader.\n", regval, a1cr);
-		davinci_nand_writel(info, A1CR_OFFSET, regval);
-	}
-}
-
 /*----------------------------------------------------------------------*/
 
 /* An ECC layout for using 4-bit ECC with small-page flash, storing
@@ -500,6 +501,26 @@ static struct nand_ecclayout hwecc4_small __initconst = {
 	},
 };
 
+/* An ECC layout for using 4-bit ECC with large-page (2048bytes) flash,
+ * storing ten ECC bytes plus the manufacturer's bad block marker byte,
+ * and not overlapping the default BBT markers.
+ */
+static struct nand_ecclayout hwecc4_2048 __initconst = {
+	.eccbytes = 40,
+	.eccpos = {
+		/* at the end of spare sector */
+		24, 25, 26, 27, 28, 29,	30, 31, 32, 33,
+		34, 35, 36, 37, 38, 39,	40, 41, 42, 43,
+		44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+		54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+		},
+	.oobfree = {
+		/* 2 bytes at offset 0 hold manufacturer badblock markers */
+		{.offset = 2, .length = 22, },
+		/* 5 bytes at offset 8 hold BBT markers */
+		/* 8 bytes at offset 16 hold JFFS2 clean markers */
+	},
+};
 
 static int __init nand_davinci_probe(struct platform_device *pdev)
 {
@@ -538,8 +559,8 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 		goto err_nomem;
 	}
 
-	vaddr = ioremap(res1->start, res1->end - res1->start);
-	base = ioremap(res2->start, res2->end - res2->start);
+	vaddr = ioremap(res1->start, resource_size(res1));
+	base = ioremap(res2->start, resource_size(res2));
 	if (!vaddr || !base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -EINVAL;
@@ -563,6 +584,9 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 
 	/* options such as NAND_USE_FLASH_BBT or 16-bit widths */
 	info->chip.options	= pdata->options;
+	info->chip.bbt_td	= pdata->bbt_td;
+	info->chip.bbt_md	= pdata->bbt_md;
+	info->timing		= pdata->timing;
 
 	info->ioaddr		= (uint32_t __force) vaddr;
 
@@ -571,7 +595,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	info->mask_chipsel	= pdata->mask_chipsel;
 
 	/* use nandboot-capable ALE/CLE masks by default */
-	info->mask_ale		= pdata->mask_cle ? : MASK_ALE;
+	info->mask_ale		= pdata->mask_ale ? : MASK_ALE;
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
 
 	/* Set address of hardware control function */
@@ -640,15 +664,25 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 		goto err_clk_enable;
 	}
 
-	/* EMIF timings should normally be set by the boot loader,
-	 * especially after boot-from-NAND.  The *only* reason to
-	 * have this special casing for the DM6446 EVM is to work
-	 * with boot-from-NOR ... with CS0 manually re-jumpered
-	 * (after startup) so it addresses the NAND flash, not NOR.
-	 * Even for dev boards, that's unusually rude...
+	/*
+	 * Setup Async configuration register in case we did not boot from
+	 * NAND and so bootloader did not bother to set it up.
 	 */
-	if (machine_is_davinci_evm())
-		nand_dm6446evm_flash_init(info);
+	val = davinci_nand_readl(info, A1CR_OFFSET + info->core_chipsel * 4);
+
+	/* Extended Wait is not valid and Select Strobe mode is not used */
+	val &= ~(ACR_ASIZE_MASK | ACR_EW_MASK | ACR_SS_MASK);
+	if (info->chip.options & NAND_BUSWIDTH_16)
+		val |= 0x1;
+
+	davinci_nand_writel(info, A1CR_OFFSET + info->core_chipsel * 4, val);
+
+	ret = davinci_aemif_setup_timing(info->timing, info->base,
+							info->core_chipsel);
+	if (ret < 0) {
+		dev_dbg(&pdev->dev, "NAND timing values setup fail\n");
+		goto err_timing;
+	}
 
 	spin_lock_irq(&davinci_nand_lock);
 
@@ -660,7 +694,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	spin_unlock_irq(&davinci_nand_lock);
 
 	/* Scan to find existence of the device(s) */
-	ret = nand_scan_ident(&info->mtd, pdata->mask_chipsel ? 2 : 1);
+	ret = nand_scan_ident(&info->mtd, pdata->mask_chipsel ? 2 : 1, NULL);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
 		goto err_scan;
@@ -690,15 +724,23 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 				info->mtd.oobsize - 16;
 			goto syndrome_done;
 		}
+		if (chunks == 4) {
+			info->ecclayout = hwecc4_2048;
+			info->chip.ecc.mode = NAND_ECC_HW_OOB_FIRST;
+			goto syndrome_done;
+		}
 
-		/* For large page chips we'll be wanting to use a
-		 * not-yet-implemented mode that reads OOB data
-		 * before reading the body of the page, to avoid
-		 * the "infix OOB" model of NAND_ECC_HW_SYNDROME
-		 * (and preserve manufacturer badblock markings).
+		/* 4KiB page chips are not yet supported. The eccpos from
+		 * nand_ecclayout cannot hold 80 bytes and change to eccpos[]
+		 * breaks userspace ioctl interface with mtd-utils. Once we
+		 * resolve this issue, NAND_ECC_HW_OOB_FIRST mode can be used
+		 * for the 4KiB page chips.
+		 *
+		 * TODO: Note that nand_ecclayout has now been expanded and can
+		 *  hold plenty of OOB entries.
 		 */
 		dev_warn(&pdev->dev, "no 4-bit ECC support yet "
-				"for large page NAND\n");
+				"for 4KiB-page NAND\n");
 		ret = -EIO;
 		goto err_scan;
 
@@ -756,6 +798,7 @@ syndrome_done:
 	return 0;
 
 err_scan:
+err_timing:
 	clk_disable(info->clk);
 
 err_clk_enable:

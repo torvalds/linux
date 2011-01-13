@@ -27,6 +27,7 @@
  *  of the License.
  */
 
+#include <linux/gfp.h>
 #include "sched_cpupri.h"
 
 /* Convert between a 140 based task->prio, and our 102 based cpupri */
@@ -47,9 +48,7 @@ static int convert_prio(int prio)
 }
 
 #define for_each_cpupri_active(array, idx)                    \
-  for (idx = find_first_bit(array, CPUPRI_NR_PRIORITIES);     \
-       idx < CPUPRI_NR_PRIORITIES;                            \
-       idx = find_next_bit(array, CPUPRI_NR_PRIORITIES, idx+1))
+	for_each_set_bit(idx, array, CPUPRI_NR_PRIORITIES)
 
 /**
  * cpupri_find - find the best (lowest-pri) CPU in the system
@@ -58,7 +57,7 @@ static int convert_prio(int prio)
  * @lowest_mask: A mask to fill in with selected CPUs (or NULL)
  *
  * Note: This function returns the recommended CPUs as calculated during the
- * current invokation.  By the time the call returns, the CPUs may have in
+ * current invocation.  By the time the call returns, the CPUs may have in
  * fact changed priorities any number of times.  While not ideal, it is not
  * an issue of correctness since the normal rebalancer logic will correct
  * any discrepancies created by racing against the uncertainty of the current
@@ -81,8 +80,21 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		if (cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
 			continue;
 
-		if (lowest_mask)
+		if (lowest_mask) {
 			cpumask_and(lowest_mask, &p->cpus_allowed, vec->mask);
+
+			/*
+			 * We have to ensure that we have at least one bit
+			 * still set in the array, since the map could have
+			 * been concurrently emptied between the first and
+			 * second reads of vec->mask.  If we hit this
+			 * condition, simply act as though we never hit this
+			 * priority level and continue on.
+			 */
+			if (cpumask_any(lowest_mask) >= nr_cpu_ids)
+				continue;
+		}
+
 		return 1;
 	}
 
@@ -114,32 +126,34 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 
 	/*
 	 * If the cpu was currently mapped to a different value, we
-	 * first need to unmap the old value
+	 * need to map it to the new value then remove the old value.
+	 * Note, we must add the new value first, otherwise we risk the
+	 * cpu being cleared from pri_active, and this cpu could be
+	 * missed for a push or pull.
 	 */
-	if (likely(oldpri != CPUPRI_INVALID)) {
-		struct cpupri_vec *vec  = &cp->pri_to_cpu[oldpri];
-
-		spin_lock_irqsave(&vec->lock, flags);
-
-		vec->count--;
-		if (!vec->count)
-			clear_bit(oldpri, cp->pri_active);
-		cpumask_clear_cpu(cpu, vec->mask);
-
-		spin_unlock_irqrestore(&vec->lock, flags);
-	}
-
 	if (likely(newpri != CPUPRI_INVALID)) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[newpri];
 
-		spin_lock_irqsave(&vec->lock, flags);
+		raw_spin_lock_irqsave(&vec->lock, flags);
 
 		cpumask_set_cpu(cpu, vec->mask);
 		vec->count++;
 		if (vec->count == 1)
 			set_bit(newpri, cp->pri_active);
 
-		spin_unlock_irqrestore(&vec->lock, flags);
+		raw_spin_unlock_irqrestore(&vec->lock, flags);
+	}
+	if (likely(oldpri != CPUPRI_INVALID)) {
+		struct cpupri_vec *vec  = &cp->pri_to_cpu[oldpri];
+
+		raw_spin_lock_irqsave(&vec->lock, flags);
+
+		vec->count--;
+		if (!vec->count)
+			clear_bit(oldpri, cp->pri_active);
+		cpumask_clear_cpu(cpu, vec->mask);
+
+		raw_spin_unlock_irqrestore(&vec->lock, flags);
 	}
 
 	*currpri = newpri;
@@ -152,22 +166,18 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
  *
  * Returns: -ENOMEM if memory fails.
  */
-int cpupri_init(struct cpupri *cp, bool bootmem)
+int cpupri_init(struct cpupri *cp)
 {
-	gfp_t gfp = GFP_KERNEL;
 	int i;
-
-	if (bootmem)
-		gfp = GFP_NOWAIT;
 
 	memset(cp, 0, sizeof(*cp));
 
 	for (i = 0; i < CPUPRI_NR_PRIORITIES; i++) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[i];
 
-		spin_lock_init(&vec->lock);
+		raw_spin_lock_init(&vec->lock);
 		vec->count = 0;
-		if (!zalloc_cpumask_var(&vec->mask, gfp))
+		if (!zalloc_cpumask_var(&vec->mask, GFP_KERNEL))
 			goto cleanup;
 	}
 

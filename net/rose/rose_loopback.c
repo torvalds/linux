@@ -7,6 +7,7 @@
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/timer.h>
 #include <net/ax25.h>
@@ -75,7 +76,7 @@ static void rose_loopback_timer(unsigned long param)
 		lci_i     = ((skb->data[0] << 8) & 0xF00) + ((skb->data[1] << 0) & 0x0FF);
 		frametype = skb->data[2];
 		dest      = (rose_address *)(skb->data + 4);
-		lci_o     = 0xFFF - lci_i;
+		lci_o     = ROSE_DEFAULT_MAXVC + 1 - lci_i;
 
 		skb_reset_transport_header(skb);
 

@@ -2393,8 +2393,8 @@ struct skge_element {
 	struct skge_element	*next;
 	void			*desc;
 	struct sk_buff  	*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	DECLARE_PCI_UNMAP_LEN(maplen);
+	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+	DEFINE_DMA_UNMAP_LEN(maplen);
 };
 
 struct skge_ring {
@@ -2423,6 +2423,8 @@ struct skge_hw {
 	u16		     phy_addr;
 	spinlock_t	     phy_lock;
 	struct tasklet_struct phy_task;
+
+	char		     irq_name[0]; /* skge@pci:000:04:00.0 */
 };
 
 enum pause_control {

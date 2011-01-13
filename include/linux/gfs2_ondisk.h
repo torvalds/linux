@@ -81,7 +81,11 @@ struct gfs2_meta_header {
 	__be32 mh_type;
 	__be64 __pad0;		/* Was generation number in gfs1 */
 	__be32 mh_format;
-	__be32 __pad1;		/* Was incarnation number in gfs1 */
+	/* This union is to keep userspace happy */
+	union {
+		__be32 mh_jid;		/* Was incarnation number in gfs1 */
+		__be32 __pad1;
+	};
 };
 
 /*
@@ -176,33 +180,6 @@ struct gfs2_rgrp {
 };
 
 /*
- * quota linked list: user quotas and group quotas form two separate 
- * singly linked lists. ll_next stores uids or gids of next quotas in the 
- * linked list.
-
-Given the uid/gid, how to calculate the quota file offsets for the corresponding
-gfs2_quota structures on disk:
-
-for user quotas, given uid,
-offset = uid * sizeof(struct gfs2_quota);
-
-for group quotas, given gid,
-offset = (gid * sizeof(struct gfs2_quota)) + sizeof(struct gfs2_quota);
-
-
-  uid:0   gid:0       uid:12   gid:12      uid:17   gid:17     uid:5142 gid:5142
-+-------+-------+    +-------+-------+    +-------+- - - -+    +- - - -+-------+
-| valid | valid | :: | valid | valid | :: | valid | inval | :: | inval | valid |
-+-------+-------+    +-------+-------+    +-------+- - - -+    +- - - -+-------+
-next:12   next:12    next:17 next:5142    next:NULL                    next:NULL
-    |       |            |       |            |<-- user quota list         |
-     \______|___________/ \______|___________/         group quota list -->|
-            |                    |                                         |
-             \__________________/ \_______________________________________/
-
-*/
-
-/*
  * quota structure
  */
 
@@ -210,8 +187,7 @@ struct gfs2_quota {
 	__be64 qu_limit;
 	__be64 qu_warn;
 	__be64 qu_value;
-	__be32 qu_ll_next; /* location of next quota in list */
-	__u8 qu_reserved[60];
+	__u8 qu_reserved[64];
 };
 
 /*
@@ -333,6 +309,28 @@ struct gfs2_leaf {
 
 /*
  * Extended attribute header format
+ *
+ * This works in a similar way to dirents. There is a fixed size header
+ * followed by a variable length section made up of the name and the
+ * associated data. In the case of a "stuffed" entry, the value is
+ * inline directly after the name, the ea_num_ptrs entry will be
+ * zero in that case. For non-"stuffed" entries, there will be
+ * a set of pointers (aligned to 8 byte boundary) to the block(s)
+ * containing the value.
+ *
+ * The blocks containing the values and the blocks containing the
+ * extended attribute headers themselves all start with the common
+ * metadata header. Each inode, if it has extended attributes, will
+ * have either a single block containing the extended attribute headers
+ * or a single indirect block pointing to blocks containing the
+ * extended attribure headers.
+ *
+ * The maximim size of the data part of an extended attribute is 64k
+ * so the number of blocks required depends upon block size. Since the
+ * block size also determines the number of pointers in an indirect
+ * block, its a fairly complicated calculation to work out the maximum
+ * number of blocks that an inode may have relating to extended attributes.
+ *
  */
 
 #define GFS2_EA_MAX_NAME_LEN	255

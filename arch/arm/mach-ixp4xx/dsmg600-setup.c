@@ -33,6 +33,23 @@
 #include <asm/mach/time.h>
 #include <asm/gpio.h>
 
+#define DSMG600_SDA_PIN		5
+#define DSMG600_SCL_PIN		4
+
+/* DSM-G600 Timer Setting */
+#define DSMG600_FREQ		66000000
+
+/* Buttons */
+#define DSMG600_PB_GPIO		15	/* power button */
+#define DSMG600_RB_GPIO		3	/* reset button */
+
+/* Power control */
+#define DSMG600_PO_GPIO		2	/* power off */
+
+/* LEDs */
+#define DSMG600_LED_PWR_GPIO	0
+#define DSMG600_LED_WLAN_GPIO	14
+
 static struct flash_platform_data dsmg600_flash_data = {
 	.map_name		= "cfi_probe",
 	.width			= 2,
@@ -262,8 +279,6 @@ static void __init dsmg600_init(void)
 
 MACHINE_START(DSMG600, "D-Link DSM-G600 RevA")
 	/* Maintainer: www.nslu2-linux.org */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,

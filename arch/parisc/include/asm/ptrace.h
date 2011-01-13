@@ -47,20 +47,18 @@ struct pt_regs {
 
 #define task_regs(task) ((struct pt_regs *) ((char *)(task) + TASK_REGS))
 
-struct task_struct;
 #define arch_has_single_step()	1
-void user_disable_single_step(struct task_struct *task);
-void user_enable_single_step(struct task_struct *task);
-
 #define arch_has_block_step()	1
-void user_enable_block_step(struct task_struct *task);
 
 /* XXX should we use iaoq[1] or iaoq[0] ? */
 #define user_mode(regs)			(((regs)->iaoq[0] & 3) ? 1 : 0)
 #define user_space(regs)		(((regs)->iasq[1] != 0) ? 1 : 0)
 #define instruction_pointer(regs)	((regs)->iaoq[0] & ~3)
+#define user_stack_pointer(regs)	((regs)->gr[30])
 unsigned long profile_pc(struct pt_regs *);
 extern void show_regs(struct pt_regs *);
-#endif
+
+
+#endif /* __KERNEL__ */
 
 #endif

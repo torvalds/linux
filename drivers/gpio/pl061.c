@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
+#include <linux/slab.h>
 
 #define GPIODIR 0x400
 #define GPIOIS  0x404
@@ -90,6 +91,12 @@ static int pl061_direction_output(struct gpio_chip *gc, unsigned offset,
 	gpiodir = readb(chip->base + GPIODIR);
 	gpiodir |= 1 << offset;
 	writeb(gpiodir, chip->base + GPIODIR);
+
+	/*
+	 * gpio value is set again, because pl061 doesn't allow to set value of
+	 * a gpio pin before configuring it in OUT mode.
+	 */
+	writeb(!!value << offset, chip->base + (1 << (offset + 2)));
 	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
@@ -107,6 +114,16 @@ static void pl061_set_value(struct gpio_chip *gc, unsigned offset, int value)
 	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
 
 	writeb(!!value << offset, chip->base + (1 << (offset + 2)));
+}
+
+static int pl061_to_irq(struct gpio_chip *gc, unsigned offset)
+{
+	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+
+	if (chip->irq_base == (unsigned) -1)
+		return -EINVAL;
+
+	return chip->irq_base + offset;
 }
 
 /*
@@ -147,7 +164,7 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 	unsigned long flags;
 	u8 gpiois, gpioibe, gpioiev;
 
-	if (offset < 0 || offset > PL061_GPIO_NR)
+	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
 
 	spin_lock_irqsave(&chip->irq_lock, flags);
@@ -172,7 +189,7 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 		gpioibe &= ~(1 << offset);
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			gpioiev |= 1 << offset;
-		else
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
 			gpioiev &= ~(1 << offset);
 	}
 	writeb(gpioibe, chip->base + GPIOIBE);
@@ -193,14 +210,14 @@ static struct irq_chip pl061_irqchip = {
 
 static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct list_head *chip_list = get_irq_chip_data(irq);
+	struct list_head *chip_list = get_irq_data(irq);
 	struct list_head *ptr;
 	struct pl061_gpio *chip;
 
 	desc->chip->ack(irq);
 	list_for_each(ptr, chip_list) {
 		unsigned long pending;
-		int gpio;
+		int offset;
 
 		chip = list_entry(ptr, struct pl061_gpio, list);
 		pending = readb(chip->base + GPIOMIS);
@@ -209,19 +226,19 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 		if (pending == 0)
 			continue;
 
-		for_each_bit(gpio, &pending, PL061_GPIO_NR)
-			generic_handle_irq(gpio_to_irq(gpio));
+		for_each_set_bit(offset, &pending, PL061_GPIO_NR)
+			generic_handle_irq(pl061_to_irq(&chip->gc, offset));
 	}
 	desc->chip->unmask(irq);
 }
 
-static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
+static int pl061_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct pl061_platform_data *pdata;
 	struct pl061_gpio *chip;
 	struct list_head *chip_list;
 	int ret, irq, i;
-	static unsigned long init_irq[BITS_TO_LONGS(NR_IRQS)];
+	static DECLARE_BITMAP(init_irq, NR_IRQS);
 
 	pdata = dev->dev.platform_data;
 	if (pdata == NULL)
@@ -251,6 +268,7 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 	chip->gc.direction_output = pl061_direction_output;
 	chip->gc.get = pl061_get_value;
 	chip->gc.set = pl061_set_value;
+	chip->gc.to_irq = pl061_to_irq;
 	chip->gc.base = pdata->gpio_base;
 	chip->gc.ngpio = PL061_GPIO_NR;
 	chip->gc.label = dev_name(&dev->dev);
@@ -280,13 +298,14 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 	if (!test_and_set_bit(irq, init_irq)) { /* list initialized? */
 		chip_list = kmalloc(sizeof(*chip_list), GFP_KERNEL);
 		if (chip_list == NULL) {
+			clear_bit(irq, init_irq);
 			ret = -ENOMEM;
 			goto iounmap;
 		}
 		INIT_LIST_HEAD(chip_list);
-		set_irq_chip_data(irq, chip_list);
+		set_irq_data(irq, chip_list);
 	} else
-		chip_list = get_irq_chip_data(irq);
+		chip_list = get_irq_data(irq);
 	list_add(&chip->list, chip_list);
 
 	for (i = 0; i < PL061_GPIO_NR; i++) {
@@ -314,7 +333,7 @@ free_mem:
 	return ret;
 }
 
-static struct amba_id pl061_ids[] __initdata = {
+static struct amba_id pl061_ids[] = {
 	{
 		.id	= 0x00041061,
 		.mask	= 0x000fffff,

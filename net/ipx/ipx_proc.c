@@ -13,45 +13,15 @@
 #include <net/tcp_states.h>
 #include <net/ipx.h>
 
-static __inline__ struct ipx_interface *ipx_get_interface_idx(loff_t pos)
-{
-	struct ipx_interface *i;
-
-	list_for_each_entry(i, &ipx_interfaces, node)
-		if (!pos--)
-			goto out;
-	i = NULL;
-out:
-	return i;
-}
-
-static struct ipx_interface *ipx_interfaces_next(struct ipx_interface *i)
-{
-	struct ipx_interface *rc = NULL;
-
-	if (i->node.next != &ipx_interfaces)
-		rc = list_entry(i->node.next, struct ipx_interface, node);
-	return rc;
-}
-
 static void *ipx_seq_interface_start(struct seq_file *seq, loff_t *pos)
 {
-	loff_t l = *pos;
-
 	spin_lock_bh(&ipx_interfaces_lock);
-	return l ? ipx_get_interface_idx(--l) : SEQ_START_TOKEN;
+	return seq_list_start_head(&ipx_interfaces, *pos);
 }
 
 static void *ipx_seq_interface_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct ipx_interface *i;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN)
-		i = ipx_interfaces_head();
-	else
-		i = ipx_interfaces_next(v);
-	return i;
+	return seq_list_next(v, &ipx_interfaces, pos);
 }
 
 static void ipx_seq_interface_stop(struct seq_file *seq, void *v)
@@ -63,7 +33,7 @@ static int ipx_seq_interface_show(struct seq_file *seq, void *v)
 {
 	struct ipx_interface *i;
 
-	if (v == SEQ_START_TOKEN) {
+	if (v == &ipx_interfaces) {
 		seq_puts(seq, "Network    Node_Address   Primary  Device     "
 			      "Frame_Type");
 #ifdef IPX_REFCNT_DEBUG
@@ -73,7 +43,7 @@ static int ipx_seq_interface_show(struct seq_file *seq, void *v)
 		goto out;
 	}
 
-	i = v;
+	i = list_entry(v, struct ipx_interface, node);
 	seq_printf(seq, "%08lX   ", (unsigned long int)ntohl(i->if_netnum));
 	seq_printf(seq, "%02X%02X%02X%02X%02X%02X   ",
 			i->if_node[0], i->if_node[1], i->if_node[2],
@@ -89,53 +59,15 @@ out:
 	return 0;
 }
 
-static struct ipx_route *ipx_routes_head(void)
-{
-	struct ipx_route *rc = NULL;
-
-	if (!list_empty(&ipx_routes))
-		rc = list_entry(ipx_routes.next, struct ipx_route, node);
-	return rc;
-}
-
-static struct ipx_route *ipx_routes_next(struct ipx_route *r)
-{
-	struct ipx_route *rc = NULL;
-
-	if (r->node.next != &ipx_routes)
-		rc = list_entry(r->node.next, struct ipx_route, node);
-	return rc;
-}
-
-static __inline__ struct ipx_route *ipx_get_route_idx(loff_t pos)
-{
-	struct ipx_route *r;
-
-	list_for_each_entry(r, &ipx_routes, node)
-		if (!pos--)
-			goto out;
-	r = NULL;
-out:
-	return r;
-}
-
 static void *ipx_seq_route_start(struct seq_file *seq, loff_t *pos)
 {
-	loff_t l = *pos;
 	read_lock_bh(&ipx_routes_lock);
-	return l ? ipx_get_route_idx(--l) : SEQ_START_TOKEN;
+	return seq_list_start_head(&ipx_routes, *pos);
 }
 
 static void *ipx_seq_route_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct ipx_route *r;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN)
-		r = ipx_routes_head();
-	else
-		r = ipx_routes_next(v);
-	return r;
+	return seq_list_next(v, &ipx_routes, pos);
 }
 
 static void ipx_seq_route_stop(struct seq_file *seq, void *v)
@@ -147,11 +79,13 @@ static int ipx_seq_route_show(struct seq_file *seq, void *v)
 {
 	struct ipx_route *rt;
 
-	if (v == SEQ_START_TOKEN) {
+	if (v == &ipx_routes) {
 		seq_puts(seq, "Network    Router_Net   Router_Node\n");
 		goto out;
 	}
-	rt = v;
+
+	rt = list_entry(v, struct ipx_route, node);
+
 	seq_printf(seq, "%08lX   ", (unsigned long int)ntohl(rt->ir_net));
 	if (rt->ir_routed)
 		seq_printf(seq, "%08lX     %02X%02X%02X%02X%02X%02X\n",
@@ -226,9 +160,9 @@ static void *ipx_seq_socket_next(struct seq_file *seq, void *v, loff_t *pos)
 	spin_unlock_bh(&i->if_sklist_lock);
 	sk = NULL;
 	for (;;) {
-		i = ipx_interfaces_next(i);
-		if (!i)
+		if (i->node.next == &ipx_interfaces)
 			break;
+		i = list_entry(i->node.next, struct ipx_interface, node);
 		spin_lock_bh(&i->if_sklist_lock);
 		if (!hlist_empty(&i->if_sklist)) {
 			sk = sk_head(&i->if_sklist);

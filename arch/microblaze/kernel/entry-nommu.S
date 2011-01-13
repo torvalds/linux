@@ -122,7 +122,7 @@ ENTRY(_interrupt)
 
 ret_from_intr:
 	lwi	r11, r1, PT_MODE
-	bneid	r11, 3f
+	bneid	r11, no_intr_resched
 
 	lwi	r6, r31, TS_THREAD_INFO	/* get thread info */
 	lwi	r19, r6, TI_FLAGS	/* get flags in thread info */
@@ -133,16 +133,18 @@ ret_from_intr:
 	bralid	r15, schedule
 	nop
 1:	andi	r11, r19, _TIF_SIGPENDING
-	beqid	r11, no_intr_reshed
+	beqid	r11, no_intr_resched
 	addk	r5, r1, r0
 	addk	r7, r0, r0
 	bralid	r15, do_signal
 	addk	r6, r0, r0
 
-no_intr_reshed:
+no_intr_resched:
+	/* Disable interrupts, we are now committed to the state restore */
+	disable_irq
+
 	/* save mode indicator */
 	lwi	r11, r1, PT_MODE
-3:
 	swi	r11, r0, PER_CPU(KM)
 
 	/* save r31 */
@@ -208,8 +210,6 @@ ENTRY(_user_exception)
 	lwi	r1, r1, TS_THREAD_INFO		/* get the thread info */
 	/* calculate kernel stack pointer */
 	addik	r1, r1, THREAD_SIZE - PT_SIZE
-	swi	r11, r0, PER_CPU(R11_SAVE)	/* temporarily save r11 */
-	lwi	r11, r0, PER_CPU(KM)		/* load mode indicator */
 2:
 	swi	r11, r1, PT_MODE		/* store the mode */
 	lwi	r11, r0, PER_CPU(R11_SAVE)	/* reload r11 */
@@ -476,6 +476,8 @@ ENTRY(ret_from_fork)
 	nop
 
 work_pending:
+	enable_irq
+
 	andi	r11, r19, _TIF_NEED_RESCHED
 	beqi	r11, 1f
 	bralid	r15, schedule
@@ -551,29 +553,21 @@ no_work_pending:
 	rtid	r14, 0
 	nop
 
-sys_vfork_wrapper:
-	brid	sys_vfork
+sys_vfork:
+	brid	microblaze_vfork
 	addk	r5, r1, r0
 
-sys_clone_wrapper:
-	brid	sys_clone
+sys_clone:
+	brid	microblaze_clone
 	addk	r7, r1, r0
 
-sys_execve_wrapper:
-	brid	sys_execve
+sys_execve:
+	brid	microblaze_execve
 	addk	r8, r1, r0
-
-sys_sigreturn_wrapper:
-	brid	sys_sigreturn
-	addk	r5, r1, r0
 
 sys_rt_sigreturn_wrapper:
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0
-
-sys_sigsuspend_wrapper:
-	brid	sys_rt_sigsuspend
-	addk	r6, r1, r0
 
 sys_rt_sigsuspend_wrapper:
 	brid	sys_rt_sigsuspend
@@ -594,3 +588,31 @@ sys_rt_sigsuspend_wrapper:
 #include "syscall_table.S"
 
 syscall_table_size=(.-sys_call_table)
+
+type_SYSCALL:
+	.ascii "SYSCALL\0"
+type_IRQ:
+	.ascii "IRQ\0"
+type_IRQ_PREEMPT:
+	.ascii "IRQ (PREEMPTED)\0"
+type_SYSCALL_PREEMPT:
+	.ascii " SYSCALL (PREEMPTED)\0"
+
+	/*
+	 * Trap decoding for stack unwinder
+	 * Tuples are (start addr, end addr, string)
+	 * If return address lies on [start addr, end addr],
+	 * unwinder displays 'string'
+	 */
+
+	.align 4
+.global microblaze_trap_handlers
+microblaze_trap_handlers:
+	/* Exact matches come first */
+	.word ret_to_user  ; .word ret_to_user    ; .word type_SYSCALL
+	.word ret_from_intr; .word ret_from_intr  ; .word type_IRQ
+	/* Fuzzy matches go here */
+	.word ret_from_intr; .word no_intr_resched; .word type_IRQ_PREEMPT
+	.word work_pending ; .word no_work_pending; .word type_SYSCALL_PREEMPT
+	/* End of table */
+	.word 0             ; .word 0               ; .word 0

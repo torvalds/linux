@@ -42,8 +42,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/uwb.h>
 #include <linux/uwb/whci.h>
@@ -443,12 +445,11 @@ static int whcrc_post_reset(struct umc_dev *umc)
 	struct whcrc *whcrc = umc_get_drvdata(umc);
 	struct uwb_rc *uwb_rc = whcrc->uwb_rc;
 
-	uwb_rc_post_reset(uwb_rc);
-	return 0;
+	return uwb_rc_post_reset(uwb_rc);
 }
 
 /* PCI device ID's that we handle [so it gets loaded] */
-static struct pci_device_id whcrc_id_table[] = {
+static struct pci_device_id __used whcrc_id_table[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_WIRELESS_WHCI, ~0) },
 	{ /* empty last entry */ }
 };

@@ -81,13 +81,6 @@ config SH_7343_SOLUTION_ENGINE
 	  Select 7343 SolutionEngine if configuring for a Hitachi
 	  SH7343 (SH-Mobile 3AS) evaluation board.
 
-config SH_7751_SYSTEMH
-	bool "SystemH7751R"
-	depends on CPU_SUBTYPE_SH7751R
-	help
-	  Select SystemH if you are configuring for a Renesas SystemH
-	  7751R evaluation board.
-
 config SH_HP6XX
 	bool "HP6XX"
 	select SYS_SUPPORTS_APM_EMULATION
@@ -150,17 +143,32 @@ config SH_SDK7780
 	  Select SDK7780 if configuring for a Renesas SH7780 SDK7780R3
 	  evaluation board.
 
+config SH_SDK7786
+	bool "SDK7786"
+	depends on CPU_SUBTYPE_SH7786
+	select SYS_SUPPORTS_PCI
+	select NO_IOPORT if !PCI
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select HAVE_SRAM_POOL
+	help
+	  Select SDK7786 if configuring for a Renesas Technology Europe
+	  SH7786-65nm board.
+
 config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	select SYS_SUPPORTS_PCI
 	select IO_TRAPPED if MMU
 
+config SH_SH7757LCR
+	bool "SH7757LCR"
+	depends on CPU_SUBTYPE_SH7757
+	select ARCH_REQUIRE_GPIOLIB
+
 config SH_SH7785LCR
 	bool "SH7785LCR"
 	depends on CPU_SUBTYPE_SH7785
 	select SYS_SUPPORTS_PCI
-	select IO_TRAPPED if MMU
 
 config SH_SH7785LCR_29BIT_PHYSMAPS
 	bool "SH7785LCR 29bit physmaps"
@@ -171,11 +179,19 @@ config SH_SH7785LCR_29BIT_PHYSMAPS
 	  DIP switch(S2-5). If you set the DIP switch for S2-5 = ON,
 	  you can access all on-board device in 29bit address mode.
 
+config SH_SH7785LCR_PT
+	bool "SH7785LCR prototype board on 32-bit MMU mode"
+	depends on SH_SH7785LCR && 32BIT
+	default n
+	help
+	  If you use prototype board, this option is enabled.
+
 config SH_URQUELL
 	bool "Urquell"
 	depends on CPU_SUBTYPE_SH7786
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_PCI
+	select NO_IOPORT if !PCI
 
 config SH_MIGOR
 	bool "Migo-R"
@@ -192,6 +208,20 @@ config SH_AP325RXA
 	help
 	  Renesas "AP-325RXA" support.
 	  Compatible with ALGO SYSTEM CO.,LTD. "AP-320A"
+
+config SH_KFR2R09
+	bool "KFR2R09"
+	depends on CPU_SUBTYPE_SH7724
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  "Kit For R2R for 2009" support.
+
+config SH_ECOVEC
+	bool "EcoVec"
+	depends on CPU_SUBTYPE_SH7724
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Renesas "R0P7724LC0011/21RL (EcoVec)" support.
 
 config SH_SH7763RDP
 	bool "SH7763RDP"
@@ -258,6 +288,7 @@ config SH_LBOX_RE2
 config SH_X3PROTO
 	bool "SH-X3 Prototype board"
 	depends on CPU_SUBTYPE_SHX3
+	select NO_IOPORT if !PCI
 
 config SH_MAGIC_PANEL_R2
 	bool "Magic Panel R2"
@@ -277,6 +308,17 @@ config SH_POLARIS
 	depends on CPU_SUBTYPE_SH7709
 	help
 	  Select if configuring for an SMSC Polaris development board
+
+config SH_SH2007
+	bool "SH-2007 board"
+	select NO_IOPORT
+	depends on CPU_SUBTYPE_SH7780
+	help
+	  SH-2007 is a single-board computer based around SH7780 chip
+	  intended for embedded applications.
+	  It has an Ethernet interface (SMC9118), direct connected
+	  Compact Flash socket, two serial ports and PC-104 bus.
+	  More information at <http://sh2000.sh-linux.org>.
 
 endmenu
 

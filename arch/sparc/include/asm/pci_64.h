@@ -10,14 +10,11 @@
  * or architectures with incomplete PCI setup by the loader.
  */
 #define pcibios_assign_all_busses()	0
-#define pcibios_scan_all_fns(a, b)	0
 
 #define PCIBIOS_MIN_IO		0UL
 #define PCIBIOS_MIN_MEM		0UL
 
 #define PCI_IRQ_NONE		0xffffffff
-
-#define PCI_CACHE_LINE_BYTES	64
 
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
@@ -35,116 +32,14 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
  */
 #define PCI_DMA_BUS_IS_PHYS	(0)
 
-static inline void *pci_alloc_consistent(struct pci_dev *pdev, size_t size,
-					 dma_addr_t *dma_handle)
-{
-	return dma_alloc_coherent(&pdev->dev, size, dma_handle, GFP_ATOMIC);
-}
-
-static inline void pci_free_consistent(struct pci_dev *pdev, size_t size,
-				       void *vaddr, dma_addr_t dma_handle)
-{
-	return dma_free_coherent(&pdev->dev, size, vaddr, dma_handle);
-}
-
-static inline dma_addr_t pci_map_single(struct pci_dev *pdev, void *ptr,
-					size_t size, int direction)
-{
-	return dma_map_single(&pdev->dev, ptr, size,
-			      (enum dma_data_direction) direction);
-}
-
-static inline void pci_unmap_single(struct pci_dev *pdev, dma_addr_t dma_addr,
-				    size_t size, int direction)
-{
-	dma_unmap_single(&pdev->dev, dma_addr, size,
-			 (enum dma_data_direction) direction);
-}
-
-#define pci_map_page(dev, page, off, size, dir) \
-	pci_map_single(dev, (page_address(page) + (off)), size, dir)
-#define pci_unmap_page(dev,addr,sz,dir) \
-	pci_unmap_single(dev,addr,sz,dir)
-
-/* pci_unmap_{single,page} is not a nop, thus... */
-#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	\
-	dma_addr_t ADDR_NAME;
-#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)		\
-	__u32 LEN_NAME;
-#define pci_unmap_addr(PTR, ADDR_NAME)			\
-	((PTR)->ADDR_NAME)
-#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)		\
-	(((PTR)->ADDR_NAME) = (VAL))
-#define pci_unmap_len(PTR, LEN_NAME)			\
-	((PTR)->LEN_NAME)
-#define pci_unmap_len_set(PTR, LEN_NAME, VAL)		\
-	(((PTR)->LEN_NAME) = (VAL))
-
-static inline int pci_map_sg(struct pci_dev *pdev, struct scatterlist *sg,
-			     int nents, int direction)
-{
-	return dma_map_sg(&pdev->dev, sg, nents,
-			  (enum dma_data_direction) direction);
-}
-
-static inline void pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sg,
-				int nents, int direction)
-{
-	dma_unmap_sg(&pdev->dev, sg, nents,
-		     (enum dma_data_direction) direction);
-}
-
-static inline void pci_dma_sync_single_for_cpu(struct pci_dev *pdev,
-					       dma_addr_t dma_handle,
-					       size_t size, int direction)
-{
-	dma_sync_single_for_cpu(&pdev->dev, dma_handle, size,
-				(enum dma_data_direction) direction);
-}
-
-static inline void pci_dma_sync_single_for_device(struct pci_dev *pdev,
-						  dma_addr_t dma_handle,
-						  size_t size, int direction)
-{
-	/* No flushing needed to sync cpu writes to the device.  */
-}
-
-static inline void pci_dma_sync_sg_for_cpu(struct pci_dev *pdev,
-					   struct scatterlist *sg,
-					   int nents, int direction)
-{
-	dma_sync_sg_for_cpu(&pdev->dev, sg, nents,
-			    (enum dma_data_direction) direction);
-}
-
-static inline void pci_dma_sync_sg_for_device(struct pci_dev *pdev,
-					      struct scatterlist *sg,
-					      int nelems, int direction)
-{
-	/* No flushing needed to sync cpu writes to the device.  */
-}
-
-/* Return whether the given PCI device DMA address mask can
- * be supported properly.  For example, if your device can
- * only drive the low 24-bits during PCI bus mastering, then
- * you would pass 0x00ffffff as the mask to this function.
- */
-extern int pci_dma_supported(struct pci_dev *hwdev, u64 mask);
-
 /* PCI IOMMU mapping bypass support. */
 
 /* PCI 64-bit addressing works for all slots on all controller
  * types on sparc64.  However, it requires that the device
  * can drive enough of the 64 bits.
  */
-#define PCI64_REQUIRED_MASK	(~(dma64_addr_t)0)
+#define PCI64_REQUIRED_MASK	(~(u64)0)
 #define PCI64_ADDR_BASE		0xfffc000000000000UL
-
-static inline int pci_dma_mapping_error(struct pci_dev *pdev,
-					dma_addr_t dma_addr)
-{
-	return dma_mapping_error(&pdev->dev, dma_addr);
-}
 
 #ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,

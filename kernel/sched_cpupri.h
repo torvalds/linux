@@ -12,7 +12,7 @@
 /* values 2-101 are RT priorities 0-99 */
 
 struct cpupri_vec {
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	int        count;
 	cpumask_var_t mask;
 };
@@ -27,7 +27,7 @@ struct cpupri {
 int  cpupri_find(struct cpupri *cp,
 		 struct task_struct *p, struct cpumask *lowest_mask);
 void cpupri_set(struct cpupri *cp, int cpu, int pri);
-int cpupri_init(struct cpupri *cp, bool bootmem);
+int cpupri_init(struct cpupri *cp);
 void cpupri_cleanup(struct cpupri *cp);
 #else
 #define cpupri_set(cp, cpu, pri) do { } while (0)

@@ -7,11 +7,6 @@ config VIDEO_V4L2
 	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
 	default VIDEO_DEV && VIDEO_V4L2_COMMON
 
-config VIDEO_V4L1
-	tristate
-	depends on VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
-	default VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
-
 config VIDEOBUF_GEN
 	tristate
 
@@ -37,10 +32,6 @@ config VIDEO_BTCX
 	depends on PCI
 	tristate
 
-config VIDEO_IR
-	tristate
-	depends on INPUT
-
 config VIDEO_TVEEPROM
 	tristate
 	depends on I2C
@@ -48,6 +39,10 @@ config VIDEO_TVEEPROM
 config VIDEO_TUNER
 	tristate
 	depends on MEDIA_TUNER
+
+config V4L2_MEM2MEM_DEV
+	tristate
+	depends on VIDEOBUF_GEN
 
 #
 # Multimedia Video device configuration
@@ -83,7 +78,7 @@ config VIDEO_FIXED_MINOR_RANGES
 
 config VIDEO_HELPER_CHIPS_AUTO
 	bool "Autoselect pertinent encoders/decoders and other helper chips"
-	default y
+	default y if !EMBEDDED
 	---help---
 	  Most video cards may require additional modules to encode or
 	  decode audio/video standards. This option will autoselect
@@ -96,7 +91,7 @@ config VIDEO_HELPER_CHIPS_AUTO
 
 config VIDEO_IR_I2C
 	tristate "I2C module for IR" if !VIDEO_HELPER_CHIPS_AUTO
-	depends on I2C && VIDEO_IR
+	depends on I2C && RC_CORE
 	default y
 	---help---
 	  Most boards have an IR chip directly connected via GPIO. However,
@@ -112,7 +107,7 @@ config VIDEO_IR_I2C
 #
 
 menu "Encoders/decoders and other helper chips"
-	depends on !VIDEO_HELPER_CHIPS_AUTO
+	visible if !VIDEO_HELPER_CHIPS_AUTO
 
 comment "Audio decoders"
 
@@ -203,9 +198,9 @@ config VIDEO_CS53L32A
 	  module will be called cs53l32a.
 
 config VIDEO_M52790
-       tristate "Mitsubishi M52790 A/V switch"
-       depends on VIDEO_V4L2 && I2C
-       ---help---
+	tristate "Mitsubishi M52790 A/V switch"
+	depends on VIDEO_V4L2 && I2C
+	---help---
 	 Support for the Mitsubishi M52790 A/V switch.
 
 	 To compile this driver as a module, choose M here: the
@@ -265,6 +260,15 @@ config VIDEO_SAA6588
 
 comment "Video decoders"
 
+config VIDEO_ADV7180
+	tristate "Analog Devices ADV7180 decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Analog Devices ADV7180 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7180.
+
 config VIDEO_BT819
 	tristate "BT819A VideoStream decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -312,6 +316,14 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_MT9V011
+	tristate "Micron mt9v011 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Micron
+	  mt0v011 1.3 Mpixel camera.  It currently only works with the
+	  em28xx driver.
+
 config VIDEO_TCM825X
 	tristate "TCM825x camera sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -348,7 +360,7 @@ config VIDEO_SAA717X
 
 config VIDEO_SAA7191
 	tristate "Philips SAA7191 video decoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7191 video decoder.
 
@@ -374,6 +386,15 @@ config VIDEO_TVP5150
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp5150.
+
+config VIDEO_TVP7002
+	tristate "Texas Instruments TVP7002 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Texas Instruments TVP7002 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tvp7002.
 
 config VIDEO_VPX3220
 	tristate "vpx3220a, vpx3216b & vpx3214c video decoders"
@@ -458,6 +479,12 @@ config VIDEO_ADV7343
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7343.
 
+config VIDEO_AK881X
+	tristate "AK8813/AK8814 video encoders"
+	depends on I2C
+	help
+	  Video output driver for AKM AK8813 and AK8814 TV encoders
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
@@ -485,9 +512,30 @@ config VIDEO_UPD64083
 
 endmenu # encoder / decoder chips
 
+config VIDEO_SH_VOU
+	tristate "SuperH VOU video output driver"
+	depends on VIDEO_DEV && ARCH_SHMOBILE
+	select VIDEOBUF_DMA_CONTIG
+	help
+	  Support for the Video Output Unit (VOU) on SuperH SoCs.
+
+config VIDEO_VIU
+	tristate "Freescale VIU Video Driver"
+	depends on VIDEO_V4L2 && PPC_MPC512x
+	select VIDEOBUF_DMA_CONTIG
+	default y
+	---help---
+	  Support for Freescale VIU video driver. This device captures
+	  video data, or overlays video on DIU frame buffer.
+
+	  Say Y here if you want to enable VIU device on MPC5121e Rev2+.
+	  In doubt, say N.
+
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	select FONT_8x16
 	select VIDEOBUF_VMALLOC
 	default n
 	---help---
@@ -497,11 +545,15 @@ config VIDEO_VIVI
 	  Say Y here if you want to test video apps or debug V4L devices.
 	  In doubt, say N.
 
+source "drivers/media/video/davinci/Kconfig"
+
+source "drivers/media/video/omap/Kconfig"
+
 source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_PMS
 	tristate "Mediavision Pro Movie Studio Video For Linux"
-	depends on ISA && VIDEO_V4L1
+	depends on ISA && VIDEO_V4L2
 	help
 	  Say Y if you have such a thing.
 
@@ -510,7 +562,7 @@ config VIDEO_PMS
 
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
-	depends on PARPORT && VIDEO_V4L1
+	depends on PARPORT && VIDEO_V4L2
 	help
 	  Say Y have if you the black and white version of the QuickCam
 	  camera. See the next option for the color version.
@@ -520,7 +572,7 @@ config VIDEO_BWQCAM
 
 config VIDEO_CQCAM
 	tristate "QuickCam Colour Video For Linux (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PARPORT && VIDEO_V4L1
+	depends on EXPERIMENTAL && PARPORT && VIDEO_V4L2
 	help
 	  This is the video4linux driver for the colour version of the
 	  Connectix QuickCam.  If you have one of these cameras, say Y here,
@@ -531,7 +583,7 @@ config VIDEO_CQCAM
 
 config VIDEO_W9966
 	tristate "W9966CF Webcam (FlyCam Supra and others) Video For Linux"
-	depends on PARPORT_1284 && PARPORT && VIDEO_V4L1
+	depends on PARPORT_1284 && PARPORT && VIDEO_V4L2
 	help
 	  Video4linux driver for Winbond's w9966 based Webcams.
 	  Currently tested with the LifeView FlyCam Supra.
@@ -542,62 +594,7 @@ config VIDEO_W9966
 	  Check out <file:Documentation/video4linux/w9966.txt> for more
 	  information.
 
-config VIDEO_CPIA
-	tristate "CPiA Video For Linux"
-	depends on VIDEO_V4L1
-	---help---
-	  This is the video4linux driver for cameras based on Vision's CPiA
-	  (Colour Processor Interface ASIC), such as the Creative Labs Video
-	  Blaster Webcam II. If you have one of these cameras, say Y here
-	  and select parallel port and/or USB lowlevel support below,
-	  otherwise say N. This will not work with the Creative Webcam III.
-
-	  Please read <file:Documentation/video4linux/README.cpia> for more
-	  information.
-
-	  This driver is also available as a module (cpia).
-
-config VIDEO_CPIA_PP
-	tristate "CPiA Parallel Port Lowlevel Support"
-	depends on PARPORT_1284 && VIDEO_CPIA && PARPORT
-	help
-	  This is the lowlevel parallel port support for cameras based on
-	  Vision's CPiA (Colour Processor Interface ASIC), such as the
-	  Creative Webcam II. If you have the parallel port version of one
-	  of these cameras, say Y here, otherwise say N. It is also available
-	  as a module (cpia_pp).
-
-config VIDEO_CPIA_USB
-	tristate "CPiA USB Lowlevel Support"
-	depends on VIDEO_CPIA && USB
-	help
-	  This is the lowlevel USB support for cameras based on Vision's CPiA
-	  (Colour Processor Interface ASIC), such as the Creative Webcam II.
-	  If you have the USB version of one of these cameras, say Y here,
-	  otherwise say N. This will not work with the Creative Webcam III.
-	  It is also available as a module (cpia_usb).
-
 source "drivers/media/video/cpia2/Kconfig"
-
-config VIDEO_SAA5246A
-	tristate "SAA5246A, SAA5281 Teletext processor"
-	depends on I2C && VIDEO_V4L2
-	help
-	  Support for I2C bus based teletext using the SAA5246A or SAA5281
-	  chip. Useful only if you live in Europe.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa5246a.
-
-config VIDEO_SAA5249
-	tristate "SAA5249 Teletext processor"
-	depends on I2C && VIDEO_V4L2
-	help
-	  Support for I2C bus based teletext using the SAA5249 chip. At the
-	  moment this is only useful on some European WinTV cards.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa5249.
 
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
@@ -607,19 +604,11 @@ config VIDEO_VINO
 	  Say Y here to build in support for the Vino video input system found
 	  on SGI Indy machines.
 
-config VIDEO_STRADIS
-	tristate "Stradis 4:2:2 MPEG-2 video driver  (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI && VIDEO_V4L1 && VIRT_TO_BUS
-	help
-	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
-	  driver for PCI.  There is a product page at
-	  <http://www.stradis.com/>.
-
 source "drivers/media/video/zoran/Kconfig"
 
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
-	depends on PCI && SONY_LAPTOP && VIDEO_V4L1
+	depends on PCI && SONY_LAPTOP && VIDEO_V4L2
 	---help---
 	  This is the video4linux driver for the Motion Eye camera found
 	  in the Vaio Picturebook laptops. Please read the material in
@@ -635,7 +624,7 @@ source "drivers/media/video/saa7134/Kconfig"
 
 config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
-	depends on PCI && VIDEO_V4L1 && I2C
+	depends on PCI && VIDEO_V4L2 && I2C
 	select VIDEO_SAA7146_VV
 	select VIDEO_TUNER
 	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
@@ -672,6 +661,16 @@ config VIDEO_HEXIUM_GEMINI
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.
 
+config VIDEO_TIMBERDALE
+	tristate "Support for timberdale Video In/LogiWIN"
+	depends on VIDEO_V4L2 && I2C
+	select DMA_ENGINE
+	select TIMB_DMA
+	select VIDEO_ADV7180
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	Add support for the Video In peripherial of the timberdale FPGA.
+
 source "drivers/media/video/cx88/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
@@ -682,9 +681,11 @@ source "drivers/media/video/ivtv/Kconfig"
 
 source "drivers/media/video/cx18/Kconfig"
 
+source "drivers/media/video/saa7164/Kconfig"
+
 config VIDEO_M32R_AR
 	tristate "AR devices"
-	depends on M32R && VIDEO_V4L1
+	depends on M32R && VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the Renesas AR (Artificial Retina)
 	  camera module.
@@ -710,6 +711,22 @@ config VIDEO_CAFE_CCIC
 	  CMOS camera controller.  This is the controller found on first-
 	  generation OLPC systems.
 
+config VIDEO_SR030PC30
+	tristate "SR030PC30 VGA camera sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This driver supports SR030PC30 VGA camera from Siliconfile
+
+config VIDEO_VIA_CAMERA
+	tristate "VIAFB camera controller support"
+	depends on FB_VIA
+	select VIDEOBUF_DMA_SG
+	select VIDEO_OV7670
+	help
+	   Driver support for the integrated camera controller in VIA
+	   Chrome9 chipsets.  Currently only tested on OLPC xo-1.5 systems
+	   with ov7670 sensors.
+
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C
@@ -718,6 +735,12 @@ config SOC_CAMERA
 	  SoC Camera is a common API to several cameras, not connecting
 	  over a bus like PCI or USB. For example some i2c camera connected
 	  directly to the data bus of an SoC.
+
+config SOC_CAMERA_IMX074
+	tristate "imx074 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports IMX074 cameras from Sony
 
 config SOC_CAMERA_MT9M001
 	tristate "mt9m001 support"
@@ -728,10 +751,11 @@ config SOC_CAMERA_MT9M001
 	  and colour models.
 
 config SOC_CAMERA_MT9M111
-	tristate "mt9m111 and mt9m112 support"
+	tristate "mt9m111, mt9m112 and mt9m131 support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This driver supports MT9M111 and MT9M112 cameras from Micron
+	  This driver supports MT9M111, MT9M112 and MT9M131 cameras from
+	  Micron/Aptina
 
 config SOC_CAMERA_MT9T031
 	tristate "mt9t031 support"
@@ -739,12 +763,24 @@ config SOC_CAMERA_MT9T031
 	help
 	  This driver supports MT9T031 cameras from Micron.
 
+config SOC_CAMERA_MT9T112
+	tristate "mt9t112 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9T112 cameras from Aptina.
+
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 support"
 	depends on SOC_CAMERA && I2C
 	select GPIO_PCA953X if MT9V022_PCA9536_SWITCH
 	help
 	  This driver supports MT9V022 cameras from Micron
+
+config SOC_CAMERA_RJ54N1
+	tristate "rj54n1cb0c support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a rj54n1cb0c video driver
 
 config SOC_CAMERA_TW9910
 	tristate "tw9910 support"
@@ -758,11 +794,29 @@ config SOC_CAMERA_PLATFORM
 	help
 	  This is a generic SoC camera platform driver, useful for testing
 
+config SOC_CAMERA_OV2640
+	tristate "ov2640 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov2640 camera driver
+
+config SOC_CAMERA_OV6650
+	tristate "ov6650 sensor support"
+	depends on SOC_CAMERA && I2C
+	---help---
+	  This is a V4L2 SoC camera driver for the OmniVision OV6650 sensor
+
 config SOC_CAMERA_OV772X
 	tristate "ov772x camera support"
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov772x camera driver
+
+config SOC_CAMERA_OV9640
+	tristate "ov9640 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov9640 camera driver
 
 config MX1_VIDEO
 	bool
@@ -794,6 +848,12 @@ config VIDEO_PXA27x
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
+config VIDEO_SH_MOBILE_CSI2
+	tristate "SuperH Mobile MIPI CSI-2 Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
+	---help---
+	  This is a v4l2 driver for the SuperH MIPI CSI-2 Interface
+
 config VIDEO_SH_MOBILE_CEU
 	tristate "SuperH Mobile CEU Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA && HAVE_CLK
@@ -801,12 +861,33 @@ config VIDEO_SH_MOBILE_CEU
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
 
+config VIDEO_OMAP1
+	tristate "OMAP1 Camera Interface driver"
+	depends on VIDEO_DEV && ARCH_OMAP1 && SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the TI OMAP1 camera interface
+
 config VIDEO_OMAP2
 	tristate "OMAP2 Camera Capture Interface driver"
 	depends on VIDEO_DEV && ARCH_OMAP2
 	select VIDEOBUF_DMA_SG
 	---help---
 	  This is a v4l2 driver for the TI OMAP2 camera capture interface
+
+config VIDEO_MX2_HOSTSUPPORT
+        bool
+
+config VIDEO_MX2
+	tristate "i.MX27/i.MX25 Camera Sensor Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && (MACH_MX27 || ARCH_MX25)
+	select VIDEOBUF_DMA_CONTIG
+	select VIDEO_MX2_HOSTSUPPORT
+	---help---
+	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
+	  Interface
+
 
 #
 # USB Multimedia device configuration
@@ -829,85 +910,23 @@ source "drivers/media/video/hdpvr/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
 
+source "drivers/media/video/tlg2300/Kconfig"
+
 source "drivers/media/video/cx231xx/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
-source "drivers/media/video/usbvideo/Kconfig"
-
 source "drivers/media/video/et61x251/Kconfig"
 
-config VIDEO_OVCAMCHIP
-	tristate "OmniVision Camera Chip support"
-	depends on I2C && VIDEO_V4L1
-	---help---
-	  Support for the OmniVision OV6xxx and OV7xxx series of camera chips.
-	  This driver is intended to be used with the ov511 and w9968cf USB
-	  camera drivers.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ovcamchip.
-
-config USB_W9968CF
-	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on VIDEO_V4L1 && I2C && VIDEO_OVCAMCHIP
-	---help---
-	  Say Y here if you want support for cameras based on OV681 or
-	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
-
-	  This driver has an optional plugin, which is distributed as a
-	  separate module only (released under GPL). It allows to use higher
-	  resolutions and framerates, but cannot be included in the official
-	  Linux kernel for performance purposes.
-
-	  See <file:Documentation/video4linux/w9968cf.txt> for more info.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w9968cf.
-
-config USB_OV511
-	tristate "USB OV511 Camera support"
-	depends on VIDEO_V4L1
-	---help---
-	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. See <file:Documentation/video4linux/ov511.txt>
-	  for more information and for a list of supported cameras.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ov511.
-
-config USB_SE401
-	tristate "USB SE401 Camera support"
-	depends on VIDEO_V4L1
-	---help---
-	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. See <file:Documentation/video4linux/se401.txt>
-	  for more information and for a list of supported cameras.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called se401.
-
 source "drivers/media/video/sn9c102/Kconfig"
-
-config USB_STV680
-	tristate "USB STV680 (Pencam) Camera support"
-	depends on VIDEO_V4L1
-	---help---
-	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. This includes the Pencam line of cameras.
-	  See <file:Documentation/video4linux/stv680.txt> for more information
-	  and for a list of supported cameras.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called stv680.
-
-source "drivers/media/video/zc0301/Kconfig"
 
 source "drivers/media/video/pwc/Kconfig"
 
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
 	depends on VIDEO_V4L2
+	select VIDEOBUF_GEN
+	select VIDEOBUF_VMALLOC
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port.
@@ -925,7 +944,7 @@ config USB_STKWEBCAM
 	  Supported devices are typically found in some Asus laptops,
 	  with USB id 174f:a311 and 05e1:0501. Other Syntek cameras
 	  may be supported by the stk11xx driver, from which this is
-	  derived, see http://stk11xx.sourceforge.net
+	  derived, see <http://sourceforge.net/projects/syntekdriver/> 
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stkwebcam.
@@ -941,3 +960,36 @@ config USB_S2255
 
 endif # V4L_USB_DRIVERS
 endif # VIDEO_CAPTURE_DRIVERS
+
+menuconfig V4L_MEM2MEM_DRIVERS
+	bool "Memory-to-memory multimedia devices"
+	depends on VIDEO_V4L2
+	default n
+	---help---
+	  Say Y here to enable selecting drivers for V4L devices that
+	  use system memory for both source and destination buffers, as opposed
+	  to capture and output drivers, which use memory buffers for just
+	  one of those.
+
+if V4L_MEM2MEM_DRIVERS
+
+config VIDEO_MEM2MEM_TESTDEV
+	tristate "Virtual test device for mem2mem framework"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select VIDEOBUF_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	default n
+	---help---
+	  This is a virtual test device for the memory-to-memory driver
+	  framework.
+
+config  VIDEO_SAMSUNG_S5P_FIMC
+	tristate "Samsung S5P FIMC (video postprocessor) driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
+	select VIDEOBUF_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	  This is a v4l2 driver for the S5P camera interface
+	  (video postprocessor)
+
+endif # V4L_MEM2MEM_DRIVERS

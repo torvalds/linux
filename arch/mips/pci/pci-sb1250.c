@@ -37,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 #include <linux/tty.h>
+#include <linux/vt.h>
 
 #include <asm/io.h>
 
@@ -58,7 +59,7 @@ static void *cfg_space;
 #define LDT_BUS_ENABLED	2
 #define PCI_DEVICE_MODE	4
 
-static int sb1250_bus_status = 0;
+static int sb1250_bus_status;
 
 #define PCI_BRIDGE_DEVICE  0
 #define LDT_BRIDGE_DEVICE  1
@@ -254,7 +255,7 @@ static int __init sb1250_pcibios_init(void)
 	 * XXX ehs: Should this happen in PCI Device mode?
 	 */
 	io_map_base = ioremap(A_PHYS_LDTPCI_IO_MATCH_BYTES, 1024 * 1024);
-	sb1250_controller.io_map_base = io_map_base;
+	sb1250_controller.io_map_base = (unsigned long)io_map_base;
 	set_io_port_base((unsigned long)io_map_base);
 
 #ifdef CONFIG_SIBYTE_HAS_LDT

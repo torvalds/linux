@@ -44,37 +44,41 @@ static struct apic *apic_probe[] __initdata = {
 	NULL,
 };
 
+static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
+{
+	return hard_smp_processor_id() >> index_msb;
+}
+
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
  */
 void __init default_setup_apic_routing(void)
 {
+
+	enable_IR_x2apic();
+
 #ifdef CONFIG_X86_X2APIC
-	if (x2apic_mode && (apic != &apic_x2apic_phys &&
+	if (x2apic_mode
 #ifdef CONFIG_X86_UV
-		       apic != &apic_x2apic_uv_x &&
+		       && apic != &apic_x2apic_uv_x
 #endif
-		       apic != &apic_x2apic_cluster)) {
+		       ) {
 		if (x2apic_phys)
 			apic = &apic_x2apic_phys;
 		else
 			apic = &apic_x2apic_cluster;
-		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
 	}
 #endif
 
-	if (apic == &apic_flat) {
-		if (max_physical_apicid >= 8)
+	if (apic == &apic_flat && num_possible_cpus() > 8)
 			apic = &apic_physflat;
-		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
-	}
 
-	/*
-	 * Now that apic routing model is selected, configure the
-	 * fault handling for intr remapping.
-	 */
-	if (intr_remapping_enabled)
-		enable_drhd_fault_handling();
+	printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
+
+	if (is_vsmp_box()) {
+		/* need to update phys_pkg_id */
+		apic->phys_pkg_id = apicid_phys_pkg_id;
+	}
 }
 
 /* Same for both flat and physical. */

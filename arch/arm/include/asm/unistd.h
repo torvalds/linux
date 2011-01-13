@@ -360,8 +360,8 @@
 #define __NR_readlinkat			(__NR_SYSCALL_BASE+332)
 #define __NR_fchmodat			(__NR_SYSCALL_BASE+333)
 #define __NR_faccessat			(__NR_SYSCALL_BASE+334)
-					/* 335 for pselect6 */
-					/* 336 for ppoll */
+#define __NR_pselect6			(__NR_SYSCALL_BASE+335)
+#define __NR_ppoll			(__NR_SYSCALL_BASE+336)
 #define __NR_unshare			(__NR_SYSCALL_BASE+337)
 #define __NR_set_robust_list		(__NR_SYSCALL_BASE+338)
 #define __NR_get_robust_list		(__NR_SYSCALL_BASE+339)
@@ -372,7 +372,7 @@
 #define __NR_vmsplice			(__NR_SYSCALL_BASE+343)
 #define __NR_move_pages			(__NR_SYSCALL_BASE+344)
 #define __NR_getcpu			(__NR_SYSCALL_BASE+345)
-					/* 346 for epoll_pwait */
+#define __NR_epoll_pwait		(__NR_SYSCALL_BASE+346)
 #define __NR_kexec_load			(__NR_SYSCALL_BASE+347)
 #define __NR_utimensat			(__NR_SYSCALL_BASE+348)
 #define __NR_signalfd			(__NR_SYSCALL_BASE+349)
@@ -390,7 +390,12 @@
 #define __NR_preadv			(__NR_SYSCALL_BASE+361)
 #define __NR_pwritev			(__NR_SYSCALL_BASE+362)
 #define __NR_rt_tgsigqueueinfo		(__NR_SYSCALL_BASE+363)
-#define __NR_perf_counter_open		(__NR_SYSCALL_BASE+364)
+#define __NR_perf_event_open		(__NR_SYSCALL_BASE+364)
+#define __NR_recvmmsg			(__NR_SYSCALL_BASE+365)
+#define __NR_accept4			(__NR_SYSCALL_BASE+366)
+#define __NR_fanotify_init		(__NR_SYSCALL_BASE+367)
+#define __NR_fanotify_mark		(__NR_SYSCALL_BASE+368)
+#define __NR_prlimit64			(__NR_SYSCALL_BASE+369)
 
 /*
  * The following SWIs are ARM private.
@@ -401,6 +406,15 @@
 #define __ARM_NR_usr26			(__ARM_NR_BASE+3)
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
+
+/*
+ * *NOTE*: This is a ghost syscall private to the kernel.  Only the
+ * __kuser_cmpxchg code in entry-armv.S should be aware of its
+ * existence.  Don't ever use this from user code.
+ */
+#ifdef __KERNEL__
+#define __ARM_NR_cmpxchg		(__ARM_NR_BASE+0x00fff0)
+#endif
 
 /*
  * The following syscalls are obsolete and no longer available for EABI.
@@ -432,9 +446,13 @@
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
+#define __ARCH_WANT_SYS_OLD_MMAP
+#define __ARCH_WANT_SYS_OLD_SELECT
 
 #if !defined(CONFIG_AEABI) || defined(CONFIG_OABI_COMPAT)
 #define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_SYS_IPC
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_UTIME
@@ -455,6 +473,7 @@
  * Unimplemented (or alternatively implemented) syscalls
  */
 #define __IGNORE_fadvise64_64		1
+#define __IGNORE_migrate_pages		1
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_ARM_UNISTD_H */

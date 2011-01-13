@@ -8,7 +8,6 @@
  * the kernel has booted.
  */
 
-#include <linux/autoconf.h>
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
 
@@ -51,10 +50,7 @@ SECTIONS
 	_etext = . ;			/* End of text section. */
 	__etext = .;
 
-	. = ALIGN(4);			/* Exception table. */
-	__start___ex_table = .;
-	__ex_table : { *(__ex_table) }
-	__stop___ex_table = .;
+	EXCEPTION_TABLE(4)
 
 	RODATA
 
@@ -62,43 +58,43 @@ SECTIONS
 	___data_start = . ;
 	__Sdata = . ;
 	.data : {			/* Data */
+		CACHELINE_ALIGNED_DATA(32)
+		READ_MOSTLY_DATA(32)
 		DATA_DATA
 	}
 	__edata = . ;			/* End of data section. */
 	_edata = . ;
 
-	. = ALIGN(PAGE_SIZE);	/* init_task and stack, must be aligned. */
-	.data.init_task : { *(.data.init_task) }
+	INIT_TASK_DATA_SECTION(PAGE_SIZE)
 
 	. = ALIGN(PAGE_SIZE);		/* Init code and data. */
 	__init_begin = .;
-	.init.text : {
-		   _sinittext = .;
-		   INIT_TEXT
-		   _einittext = .;
-	}
+	INIT_TEXT_SECTION(PAGE_SIZE)
 	.init.data : { INIT_DATA }
-	. = ALIGN(16);
-	__setup_start = .;
-	.init.setup : { *(.init.setup) }
-	__setup_end = .;
+	.init.setup : { INIT_SETUP(16) }
 #ifdef CONFIG_ETRAX_ARCH_V32
 	__start___param = .;
 	__param : { *(__param) }
 	__stop___param = .;
 #endif
 	.initcall.init : {
-		__initcall_start = .;
-		INITCALLS
-		__initcall_end = .;
+		INIT_CALLS
 	}
 
 	.con_initcall.init : {
-		__con_initcall_start = .;
-		*(.con_initcall.init)
-		__con_initcall_end = .;
+		CON_INITCALL
 	}
 	SECURITY_INIT
+
+	/* .exit.text is discarded at runtime, not link time,
+	 * to deal with references from __bug_table
+	 */
+	.exit.text : {
+		EXIT_TEXT
+	}
+	.exit.data : {
+		EXIT_DATA
+	}
 
 #ifdef CONFIG_ETRAX_ARCH_V10
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -114,9 +110,7 @@ SECTIONS
 	PERCPU(PAGE_SIZE)
 
 	.init.ramfs : {
-		__initramfs_start = .;
-		*(.init.ramfs)
-		__initramfs_end = .;
+		INIT_RAM_FS
 	}
 #endif
 
@@ -130,22 +124,13 @@ SECTIONS
 	__init_end = .;
 
 	__data_end = . ;		/* Move to _edata ? */
-	__bss_start = .;		/* BSS. */
-	.bss : {
-		*(COMMON)
-		*(.bss)
-	}
+	BSS_SECTION(1, 1, 1)
 
 	. =  ALIGN (0x20);
 	_end = .;
 	__end = .;
 
-	/* Sections to be discarded */
-	/DISCARD/ : {
-		EXIT_TEXT
-		EXIT_DATA
-		*(.exitcall.exit)
-        }
-
 	dram_end = dram_start + (CONFIG_ETRAX_DRAM_SIZE - __CONFIG_ETRAX_VMEM_SIZE)*1024*1024;
+
+	DISCARDS
 }

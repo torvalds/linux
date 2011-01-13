@@ -2,6 +2,7 @@
 #define __ASM_SH_SYSTEM_32_H
 
 #include <linux/types.h>
+#include <asm/mmu.h>
 
 #ifdef CONFIG_SH_DSP
 
@@ -14,12 +15,12 @@ do {									\
 			(u32 *)&tsk->thread.dsp_status;			\
 	__asm__ __volatile__ (						\
 		".balign 4\n\t"						\
+		"movs.l	@r2+, a0\n\t"					\
 		"movs.l	@r2+, a1\n\t"					\
 		"movs.l	@r2+, a0g\n\t"					\
 		"movs.l	@r2+, a1g\n\t"					\
 		"movs.l	@r2+, m0\n\t"					\
 		"movs.l	@r2+, m1\n\t"					\
-		"movs.l	@r2+, a0\n\t"					\
 		"movs.l	@r2+, x0\n\t"					\
 		"movs.l	@r2+, x1\n\t"					\
 		"movs.l	@r2+, y0\n\t"					\
@@ -39,20 +40,20 @@ do {									\
 									\
 	__asm__ __volatile__ (						\
 		".balign 4\n\t"						\
-		"stc.l	mod, @-r2\n\t"				\
+		"stc.l	mod, @-r2\n\t"					\
 		"stc.l	re, @-r2\n\t"					\
 		"stc.l	rs, @-r2\n\t"					\
-		"sts.l	dsr, @-r2\n\t"				\
-		"sts.l	y1, @-r2\n\t"					\
-		"sts.l	y0, @-r2\n\t"					\
-		"sts.l	x1, @-r2\n\t"					\
-		"sts.l	x0, @-r2\n\t"					\
-		"sts.l	a0, @-r2\n\t"					\
-		".word	0xf653		! movs.l	a1, @-r2\n\t"	\
-		".word	0xf6f3		! movs.l	a0g, @-r2\n\t"	\
-		".word	0xf6d3		! movs.l	a1g, @-r2\n\t"	\
-		".word	0xf6c3		! movs.l        m0, @-r2\n\t"	\
-		".word	0xf6e3		! movs.l        m1, @-r2\n\t"	\
+		"sts.l	dsr, @-r2\n\t"					\
+		"movs.l	y1, @-r2\n\t"					\
+		"movs.l	y0, @-r2\n\t"					\
+		"movs.l	x1, @-r2\n\t"					\
+		"movs.l	x0, @-r2\n\t"					\
+		"movs.l	m1, @-r2\n\t"					\
+		"movs.l	m0, @-r2\n\t"					\
+		"movs.l	a1g, @-r2\n\t"					\
+		"movs.l	a0g, @-r2\n\t"					\
+		"movs.l	a1, @-r2\n\t"					\
+		"movs.l	a0, @-r2\n\t"					\
 		: : "r" (__ts2));					\
 } while (0)
 
@@ -62,6 +63,16 @@ do {									\
 #define __save_dsp(tsk)		do { } while (0)
 #define __restore_dsp(tsk)	do { } while (0)
 #endif
+
+#if defined(CONFIG_CPU_SH4A)
+#define __icbi(addr)	__asm__ __volatile__ ( "icbi @%0\n\t" : : "r" (addr))
+#else
+#define __icbi(addr)	mb()
+#endif
+
+#define __ocbp(addr)	__asm__ __volatile__ ( "ocbp @%0\n\t" : : "r" (addr))
+#define __ocbi(addr)	__asm__ __volatile__ ( "ocbi @%0\n\t" : : "r" (addr))
+#define __ocbwb(addr)	__asm__ __volatile__ ( "ocbwb @%0\n\t" : : "r" (addr))
 
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next);
@@ -134,45 +145,6 @@ do {								\
 		__restore_dsp(prev);				\
 } while (0)
 
-#define __uses_jump_to_uncached \
-	noinline __attribute__ ((__section__ (".uncached.text")))
-
-/*
- * Jump to uncached area.
- * When handling TLB or caches, we need to do it from an uncached area.
- */
-#define jump_to_uncached()			\
-do {						\
-	unsigned long __dummy;			\
-						\
-	__asm__ __volatile__(			\
-		"mova	1f, %0\n\t"		\
-		"add	%1, %0\n\t"		\
-		"jmp	@%0\n\t"		\
-		" nop\n\t"			\
-		".balign 4\n"			\
-		"1:"				\
-		: "=&z" (__dummy)		\
-		: "r" (cached_to_uncached));	\
-} while (0)
-
-/*
- * Back to cached area.
- */
-#define back_to_cached()				\
-do {							\
-	unsigned long __dummy;				\
-	ctrl_barrier();					\
-	__asm__ __volatile__(				\
-		"mov.l	1f, %0\n\t"			\
-		"jmp	@%0\n\t"			\
-		" nop\n\t"				\
-		".balign 4\n"				\
-		"1:	.long 2f\n"			\
-		"2:"					\
-		: "=&r" (__dummy));			\
-} while (0)
-
 #ifdef CONFIG_CPU_HAS_SR_RB
 #define lookup_exception_vector()	\
 ({					\
@@ -198,8 +170,23 @@ do {							\
 })
 #endif
 
+static inline reg_size_t register_align(void *val)
+{
+	return (unsigned long)(signed long)val;
+}
+
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
-			    struct mem_access *ma);
+			    struct mem_access *ma, int, unsigned long address);
+
+static inline void trigger_address_error(void)
+{
+	__asm__ __volatile__ (
+		"ldc %0, sr\n\t"
+		"mov.l @%1, %0"
+		:
+		: "r" (0x10000000), "r" (0x80000001)
+	);
+}
 
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,
@@ -216,5 +203,34 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 				   unsigned long r6, unsigned long r7,
 				   struct pt_regs __regs);
+
+static inline void set_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ (
+		"stc	sr, %0\n\t"
+		"or	%2, %0\n\t"
+		"and	%3, %0\n\t"
+		"ldc	%0, sr\n\t"
+		: "=&r" (__dummy0), "=r" (__dummy1)
+		: "r" (0x10000000), "r" (0xffffff0f)
+		: "memory"
+	);
+}
+
+static inline void clear_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ (
+		"stc	sr, %0\n\t"
+		"and	%2, %0\n\t"
+		"ldc	%0, sr\n\t"
+		: "=&r" (__dummy0), "=r" (__dummy1)
+		: "1" (~0x10000000)
+		: "memory"
+	);
+}
 
 #endif /* __ASM_SH_SYSTEM_32_H */

@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/mmiotrace.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 
 #include <asm/atomic.h>
@@ -307,11 +308,13 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 				struct trace_array_cpu *data,
 				struct mmiotrace_rw *rw)
 {
+	struct ftrace_event_call *call = &event_mmiotrace_rw;
+	struct ring_buffer *buffer = tr->buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_rw *entry;
 	int pc = preempt_count();
 
-	event = trace_buffer_lock_reserve(tr, TRACE_MMIO_RW,
+	event = trace_buffer_lock_reserve(buffer, TRACE_MMIO_RW,
 					  sizeof(*entry), 0, pc);
 	if (!event) {
 		atomic_inc(&dropped_count);
@@ -319,7 +322,9 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 	}
 	entry	= ring_buffer_event_data(event);
 	entry->rw			= *rw;
-	trace_buffer_unlock_commit(tr, event, 0, pc);
+
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, pc);
 }
 
 void mmio_trace_rw(struct mmiotrace_rw *rw)
@@ -333,11 +338,13 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 				struct trace_array_cpu *data,
 				struct mmiotrace_map *map)
 {
+	struct ftrace_event_call *call = &event_mmiotrace_map;
+	struct ring_buffer *buffer = tr->buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_map *entry;
 	int pc = preempt_count();
 
-	event = trace_buffer_lock_reserve(tr, TRACE_MMIO_MAP,
+	event = trace_buffer_lock_reserve(buffer, TRACE_MMIO_MAP,
 					  sizeof(*entry), 0, pc);
 	if (!event) {
 		atomic_inc(&dropped_count);
@@ -345,7 +352,9 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 	}
 	entry	= ring_buffer_event_data(event);
 	entry->map			= *map;
-	trace_buffer_unlock_commit(tr, event, 0, pc);
+
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, pc);
 }
 
 void mmio_trace_mapping(struct mmiotrace_map *map)

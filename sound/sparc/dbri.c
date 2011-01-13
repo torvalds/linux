@@ -58,6 +58,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -298,7 +299,7 @@ struct dbri_streaminfo {
 /* This structure holds the information for both chips (DBRI & CS4215) */
 struct snd_dbri {
 	int regs_size, irq;	/* Needed for unload */
-	struct of_device *op;	/* OF device info */
+	struct platform_device *op;	/* OF device info */
 	spinlock_t lock;
 
 	struct dbri_dma *dma;	/* Pointer to our DMA block */
@@ -2522,7 +2523,7 @@ static void __devinit snd_dbri_proc(struct snd_card *card)
 static void snd_dbri_free(struct snd_dbri *dbri);
 
 static int __devinit snd_dbri_create(struct snd_card *card,
-				     struct of_device *op,
+				     struct platform_device *op,
 				     int irq, int dev)
 {
 	struct snd_dbri *dbri = card->private_data;
@@ -2591,7 +2592,7 @@ static void snd_dbri_free(struct snd_dbri *dbri)
 				  (void *)dbri->dma, dbri->dma_dvma);
 }
 
-static int __devinit dbri_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit dbri_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct snd_dbri *dbri;
 	struct resource *rp;
@@ -2607,7 +2608,7 @@ static int __devinit dbri_probe(struct of_device *op, const struct of_device_id 
 		return -ENOENT;
 	}
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 	if (irq <= 0) {
 		printk(KERN_ERR "DBRI-%d: No IRQ.\n", dev);
 		return -ENODEV;
@@ -2650,7 +2651,7 @@ static int __devinit dbri_probe(struct of_device *op, const struct of_device_id 
 
 	printk(KERN_INFO "audio%d at %p (irq %d) is DBRI(%c)+CS4215(%d)\n",
 	       dev, dbri->regs,
-	       dbri->irq, op->node->name[9], dbri->mm.version);
+	       dbri->irq, op->dev.of_node->name[9], dbri->mm.version);
 	dev++;
 
 	return 0;
@@ -2661,7 +2662,7 @@ _err:
 	return err;
 }
 
-static int __devexit dbri_remove(struct of_device *op)
+static int __devexit dbri_remove(struct platform_device *op)
 {
 	struct snd_card *card = dev_get_drvdata(&op->dev);
 
@@ -2686,8 +2687,11 @@ static const struct of_device_id dbri_match[] = {
 MODULE_DEVICE_TABLE(of, dbri_match);
 
 static struct of_platform_driver dbri_sbus_driver = {
-	.name		= "dbri",
-	.match_table	= dbri_match,
+	.driver = {
+		.name = "dbri",
+		.owner = THIS_MODULE,
+		.of_match_table = dbri_match,
+	},
 	.probe		= dbri_probe,
 	.remove		= __devexit_p(dbri_remove),
 };
@@ -2695,12 +2699,12 @@ static struct of_platform_driver dbri_sbus_driver = {
 /* Probe for the dbri chip and then attach the driver. */
 static int __init dbri_init(void)
 {
-	return of_register_driver(&dbri_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&dbri_sbus_driver);
 }
 
 static void __exit dbri_exit(void)
 {
-	of_unregister_driver(&dbri_sbus_driver);
+	of_unregister_platform_driver(&dbri_sbus_driver);
 }
 
 module_init(dbri_init);

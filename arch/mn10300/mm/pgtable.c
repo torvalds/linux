@@ -12,11 +12,11 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/smp.h>
 #include <linux/highmem.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/quicklist.h>
@@ -59,7 +59,7 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 	 * It's enough to flush this one mapping.
 	 * (PGE mappings get flushed as well)
 	 */
-	__flush_tlb_one(vaddr);
+	local_flush_tlb_one(vaddr);
 }
 
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)

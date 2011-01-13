@@ -67,10 +67,11 @@ struct ar9170_usb {
 	bool req_one_stage_fw;
 
 	spinlock_t tx_urb_lock;
-	unsigned int tx_submitted_urbs;
+	atomic_t tx_submitted_urbs;
 	unsigned int tx_pending_urbs;
 
 	struct completion cmd_wait;
+	struct completion firmware_loading_complete;
 	int readlen;
 	u8 *readbuf;
 

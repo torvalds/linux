@@ -10,6 +10,7 @@
 
 #include <asm/machvec.h>
 #include <asm/dma.h>
+#include <asm/perf_event.h>
 
 #include "proto.h"
 #include "irq_impl.h"
@@ -228,7 +229,7 @@ struct irqaction timer_irqaction = {
 };
 
 static struct irq_chip rtc_irq_type = {
-	.typename	= "RTC",
+	.name		= "RTC",
 	.startup	= rtc_startup,
 	.shutdown	= rtc_enable_disable,
 	.enable		= rtc_enable_disable,

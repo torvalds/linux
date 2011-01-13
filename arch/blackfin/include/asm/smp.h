@@ -1,23 +1,8 @@
 /*
- * File:         arch/blackfin/include/asm/smp.h
- * Author:       Philippe Gerum <rpm@xenomai.org>
+ * Copyright 2007-2009 Analog Devices Inc.
+ *                          Philippe Gerum <rpm@xenomai.org>
  *
- *               Copyright 2007 Analog Devices Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef __ASM_BLACKFIN_SMP_H
@@ -37,8 +22,23 @@ extern char coreb_trampoline_start, coreb_trampoline_end;
 struct corelock_slot {
 	int lock;
 };
+extern struct corelock_slot corelock;
+
+#ifdef __ARCH_SYNC_CORE_ICACHE
+extern unsigned long icache_invld_count[NR_CPUS];
+#endif
+#ifdef __ARCH_SYNC_CORE_DCACHE
+extern unsigned long dcache_invld_count[NR_CPUS];
+#endif
 
 void smp_icache_flush_range_others(unsigned long start,
 				   unsigned long end);
+#ifdef CONFIG_HOTPLUG_CPU
+void coreb_sleep(u32 sic_iwr0, u32 sic_iwr1, u32 sic_iwr2);
+void cpu_die(void);
+void platform_cpu_die(void);
+int __cpu_disable(void);
+int __cpu_die(unsigned int cpu);
+#endif
 
 #endif /* !__ASM_BLACKFIN_SMP_H */

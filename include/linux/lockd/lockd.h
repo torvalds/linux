@@ -43,6 +43,7 @@ struct nlm_host {
 	struct sockaddr_storage	h_addr;		/* peer address */
 	size_t			h_addrlen;
 	struct sockaddr_storage	h_srcaddr;	/* our address (optional) */
+	size_t			h_srcaddrlen;
 	struct rpc_clnt		*h_rpcclnt;	/* RPC client to talk to peer */
 	char			*h_name;		/* remote hostname */
 	u32			h_version;	/* interface version */
@@ -201,9 +202,9 @@ extern u32			nsm_local_state;
  * Lockd client functions
  */
 struct nlm_rqst * nlm_alloc_call(struct nlm_host *host);
-void		  nlm_release_call(struct nlm_rqst *);
 int		  nlm_async_call(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 int		  nlm_async_reply(struct nlm_rqst *, u32, const struct rpc_call_ops *);
+void		  nlmclnt_release_call(struct nlm_rqst *);
 struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl);
 void		  nlmclnt_finish_block(struct nlm_wait *block);
 int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
@@ -222,13 +223,14 @@ struct nlm_host  *nlmclnt_lookup_host(const struct sockaddr *sap,
 					const u32 version,
 					const char *hostname,
 					int noresvport);
+void		  nlmclnt_release_host(struct nlm_host *);
 struct nlm_host  *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 					const char *hostname,
 					const size_t hostname_len);
+void		  nlmsvc_release_host(struct nlm_host *);
 struct rpc_clnt * nlm_bind_host(struct nlm_host *);
 void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
-void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
 void		  nlm_host_rebooted(const struct nlm_reboot *);
 
@@ -266,6 +268,7 @@ unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);
 void		  nlmsvc_grant_reply(struct nlm_cookie *, __be32);
+void		  nlmsvc_release_call(struct nlm_rqst *);
 
 /*
  * File handling for the server personality
@@ -338,49 +341,6 @@ static inline int nlm_privileged_requester(const struct svc_rqst *rqstp)
 	}
 }
 
-static inline int __nlm_cmp_addr4(const struct sockaddr *sap1,
-				  const struct sockaddr *sap2)
-{
-	const struct sockaddr_in *sin1 = (const struct sockaddr_in *)sap1;
-	const struct sockaddr_in *sin2 = (const struct sockaddr_in *)sap2;
-	return sin1->sin_addr.s_addr == sin2->sin_addr.s_addr;
-}
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
-				  const struct sockaddr *sap2)
-{
-	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sap1;
-	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
-	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
-}
-#else	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
-static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
-				  const struct sockaddr *sap2)
-{
-	return 0;
-}
-#endif	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
-
-/*
- * Compare two host addresses
- *
- * Return TRUE if the addresses are the same; otherwise FALSE.
- */
-static inline int nlm_cmp_addr(const struct sockaddr *sap1,
-			       const struct sockaddr *sap2)
-{
-	if (sap1->sa_family == sap2->sa_family) {
-		switch (sap1->sa_family) {
-		case AF_INET:
-			return __nlm_cmp_addr4(sap1, sap2);
-		case AF_INET6:
-			return __nlm_cmp_addr6(sap1, sap2);
-		}
-	}
-	return 0;
-}
-
 /*
  * Compare two NLM locks.
  * When the second lock is of type F_UNLCK, this acts like a wildcard.
@@ -395,7 +355,7 @@ static inline int nlm_compare_locks(const struct file_lock *fl1,
 	     &&(fl1->fl_type  == fl2->fl_type || fl2->fl_type == F_UNLCK);
 }
 
-extern struct lock_manager_operations nlmsvc_lock_operations;
+extern const struct lock_manager_operations nlmsvc_lock_operations;
 
 #endif /* __KERNEL__ */
 

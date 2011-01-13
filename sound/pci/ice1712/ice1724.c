@@ -53,6 +53,7 @@
 #include "phase.h"
 #include "wtm.h"
 #include "se.h"
+#include "quartet.h"
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("VIA ICEnsemble ICE1724/1720 (Envy24HT/PT)");
@@ -70,6 +71,7 @@ MODULE_SUPPORTED_DEVICE("{"
 	       PHASE_DEVICE_DESC
 	       WTM_DEVICE_DESC
 	       SE_DEVICE_DESC
+	       QTET_DEVICE_DESC
 		"{VIA,VT1720},"
 		"{VIA,VT1724},"
 		"{ICEnsemble,Generic ICE1724},"
@@ -92,8 +94,8 @@ MODULE_PARM_DESC(model, "Use the given board model.");
 
 
 /* Both VT1720 and VT1724 have the same PCI IDs */
-static const struct pci_device_id snd_vt1724_ids[] = {
-	{ PCI_VENDOR_ID_ICE, PCI_DEVICE_ID_VT1724, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+static DEFINE_PCI_DEVICE_TABLE(snd_vt1724_ids) = {
+	{ PCI_VDEVICE(ICE, PCI_DEVICE_ID_VT1724), 0 },
 	{ 0, }
 };
 
@@ -103,6 +105,8 @@ MODULE_DEVICE_TABLE(pci, snd_vt1724_ids);
 static int PRO_RATE_LOCKED;
 static int PRO_RATE_RESET = 1;
 static unsigned int PRO_RATE_DEFAULT = 44100;
+
+static char *ext_clock_names[1] = { "IEC958 In" };
 
 /*
  *  Basic I/O
@@ -118,9 +122,12 @@ static inline int stdclock_is_spdif_master(struct snd_ice1712 *ice)
 	return (inb(ICEMT1724(ice, RATE)) & VT1724_SPDIF_MASTER) ? 1 : 0;
 }
 
+/*
+ * locking rate makes sense only for internal clock mode
+ */
 static inline int is_pro_rate_locked(struct snd_ice1712 *ice)
 {
-	return ice->is_spdif_master(ice) || PRO_RATE_LOCKED;
+	return (!ice->is_spdif_master(ice)) && PRO_RATE_LOCKED;
 }
 
 /*
@@ -196,6 +203,12 @@ static void snd_vt1724_set_gpio_dir(struct snd_ice1712 *ice, unsigned int data)
 	inw(ICEREG1724(ice, GPIO_DIRECTION)); /* dummy read for pci-posting */
 }
 
+/* get gpio direction 0 = read, 1 = write */
+static unsigned int snd_vt1724_get_gpio_dir(struct snd_ice1712 *ice)
+{
+	return inl(ICEREG1724(ice, GPIO_DIRECTION));
+}
+
 /* set the gpio mask (0 = writable) */
 static void snd_vt1724_set_gpio_mask(struct snd_ice1712 *ice, unsigned int data)
 {
@@ -203,6 +216,17 @@ static void snd_vt1724_set_gpio_mask(struct snd_ice1712 *ice, unsigned int data)
 	if (!ice->vt1720) /* VT1720 supports only 16 GPIO bits */
 		outb((data >> 16) & 0xff, ICEREG1724(ice, GPIO_WRITE_MASK_22));
 	inw(ICEREG1724(ice, GPIO_WRITE_MASK)); /* dummy read for pci-posting */
+}
+
+static unsigned int snd_vt1724_get_gpio_mask(struct snd_ice1712 *ice)
+{
+	unsigned int mask;
+	if (!ice->vt1720)
+		mask = (unsigned int)inb(ICEREG1724(ice, GPIO_WRITE_MASK_22));
+	else
+		mask = 0;
+	mask = (mask << 16) | inw(ICEREG1724(ice, GPIO_WRITE_MASK));
+	return mask;
 }
 
 static void snd_vt1724_set_gpio_data(struct snd_ice1712 *ice, unsigned int data)
@@ -560,6 +584,7 @@ static int snd_vt1724_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		spin_lock(&ice->reg_lock);
 		old = inb(ICEMT1724(ice, DMA_CONTROL));
 		if (cmd == SNDRV_PCM_TRIGGER_START)
@@ -568,6 +593,10 @@ static int snd_vt1724_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			old &= ~what;
 		outb(old, ICEMT1724(ice, DMA_CONTROL));
 		spin_unlock(&ice->reg_lock);
+		break;
+
+	case SNDRV_PCM_TRIGGER_RESUME:
+		/* apps will have to restart stream */
 		break;
 
 	default:
@@ -643,19 +672,25 @@ static int snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 	    (inb(ICEMT1724(ice, DMA_PAUSE)) & DMA_PAUSES)) {
 		/* running? we cannot change the rate now... */
 		spin_unlock_irqrestore(&ice->reg_lock, flags);
-		return -EBUSY;
+		return ((rate == ice->cur_rate) && !force) ? 0 : -EBUSY;
 	}
 	if (!force && is_pro_rate_locked(ice)) {
+		/* comparing required and current rate - makes sense for
+		 * internal clock only */
 		spin_unlock_irqrestore(&ice->reg_lock, flags);
 		return (rate == ice->cur_rate) ? 0 : -EBUSY;
 	}
 
-	old_rate = ice->get_rate(ice);
-	if (force || (old_rate != rate))
-		ice->set_rate(ice, rate);
-	else if (rate == ice->cur_rate) {
-		spin_unlock_irqrestore(&ice->reg_lock, flags);
-		return 0;
+	if (force || !ice->is_spdif_master(ice)) {
+		/* force means the rate was switched by ucontrol, otherwise
+		 * setting clock rate for internal clock mode */
+		old_rate = ice->get_rate(ice);
+		if (force || (old_rate != rate))
+			ice->set_rate(ice, rate);
+		else if (rate == ice->cur_rate) {
+			spin_unlock_irqrestore(&ice->reg_lock, flags);
+			return 0;
+		}
 	}
 
 	ice->cur_rate = rate;
@@ -1011,6 +1046,8 @@ static int snd_vt1724_playback_pro_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	if (ice->pro_open)
+		ice->pro_open(ice, substream);
 	return 0;
 }
 
@@ -1029,6 +1066,8 @@ static int snd_vt1724_capture_pro_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	if (ice->pro_open)
+		ice->pro_open(ice, substream);
 	return 0;
 }
 
@@ -1289,7 +1328,7 @@ static int __devinit snd_vt1724_pcm_spdif(struct snd_ice1712 *ice, int device)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(ice->pci),
-					      64*1024, 64*1024);
+					      256*1024, 256*1024);
 
 	ice->pcm = pcm;
 
@@ -1403,7 +1442,7 @@ static int __devinit snd_vt1724_pcm_indep(struct snd_ice1712 *ice, int device)
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(ice->pci),
-					      64*1024, 64*1024);
+					      256*1024, 256*1024);
 
 	ice->pcm_ds = pcm;
 
@@ -1782,15 +1821,21 @@ static int snd_vt1724_pro_internal_clock_info(struct snd_kcontrol *kcontrol,
 					      struct snd_ctl_elem_info *uinfo)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-
+	int hw_rates_count = ice->hw_rates->count;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = ice->hw_rates->count + 1;
+
+	uinfo->value.enumerated.items = hw_rates_count + ice->ext_clock_count;
+	/* upper limit - keep at top */
 	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
 		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	if (uinfo->value.enumerated.item == uinfo->value.enumerated.items - 1)
-		strcpy(uinfo->value.enumerated.name, "IEC958 Input");
+	if (uinfo->value.enumerated.item >= hw_rates_count)
+		/* ext_clock items */
+		strcpy(uinfo->value.enumerated.name,
+				ice->ext_clock_names[
+				uinfo->value.enumerated.item - hw_rates_count]);
 	else
+		/* int clock items */
 		sprintf(uinfo->value.enumerated.name, "%d",
 			ice->hw_rates->list[uinfo->value.enumerated.item]);
 	return 0;
@@ -1804,7 +1849,8 @@ static int snd_vt1724_pro_internal_clock_get(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irq(&ice->reg_lock);
 	if (ice->is_spdif_master(ice)) {
-		ucontrol->value.enumerated.item[0] = ice->hw_rates->count;
+		ucontrol->value.enumerated.item[0] = ice->hw_rates->count +
+			ice->get_spdif_master_type(ice);
 	} else {
 		rate = ice->get_rate(ice);
 		ucontrol->value.enumerated.item[0] = 0;
@@ -1819,8 +1865,14 @@ static int snd_vt1724_pro_internal_clock_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int stdclock_get_spdif_master_type(struct snd_ice1712 *ice)
+{
+	/* standard external clock - only single type - SPDIF IN */
+	return 0;
+}
+
 /* setting clock to external - SPDIF */
-static void stdclock_set_spdif_clock(struct snd_ice1712 *ice)
+static int stdclock_set_spdif_clock(struct snd_ice1712 *ice, int type)
 {
 	unsigned char oval;
 	unsigned char i2s_oval;
@@ -1829,7 +1881,9 @@ static void stdclock_set_spdif_clock(struct snd_ice1712 *ice)
 	/* setting 256fs */
 	i2s_oval = inb(ICEMT1724(ice, I2S_FORMAT));
 	outb(i2s_oval & ~VT1724_MT_I2S_MCLK_128X, ICEMT1724(ice, I2S_FORMAT));
+	return 0;
 }
+
 
 static int snd_vt1724_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_value *ucontrol)
@@ -1837,19 +1891,20 @@ static int snd_vt1724_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned int old_rate, new_rate;
 	unsigned int item = ucontrol->value.enumerated.item[0];
-	unsigned int spdif = ice->hw_rates->count;
+	unsigned int first_ext_clock = ice->hw_rates->count;
 
-	if (item > spdif)
+	if (item >  first_ext_clock + ice->ext_clock_count - 1)
 		return -EINVAL;
 
+	/* if rate = 0 => external clock */
 	spin_lock_irq(&ice->reg_lock);
 	if (ice->is_spdif_master(ice))
 		old_rate = 0;
 	else
 		old_rate = ice->get_rate(ice);
-	if (item == spdif) {
-		/* switching to external clock via SPDIF */
-		ice->set_spdif_clock(ice);
+	if (item >= first_ext_clock) {
+		/* switching to external clock */
+		ice->set_spdif_clock(ice, item - first_ext_clock);
 		new_rate = 0;
 	} else {
 		/* internal on-card clock */
@@ -1861,7 +1916,7 @@ static int snd_vt1724_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 	}
 	spin_unlock_irq(&ice->reg_lock);
 
-	/* the first reset to the SPDIF master mode? */
+	/* the first switch to the ext. clock mode? */
 	if (old_rate != new_rate && !new_rate) {
 		/* notify akm chips as well */
 		unsigned int i;
@@ -2105,7 +2160,7 @@ static int snd_vt1724_pro_peak_get(struct snd_kcontrol *kcontrol,
 }
 
 static struct snd_kcontrol_new snd_vt1724_mixer_pro_peak __devinitdata = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "Multi Track Peak",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info = snd_vt1724_pro_peak_info,
@@ -2131,6 +2186,7 @@ static struct snd_ice1712_card_info *card_tables[] __devinitdata = {
 	snd_vt1724_phase_cards,
 	snd_vt1724_wtm_cards,
 	snd_vt1724_se_cards,
+	snd_vt1724_qtet_cards,
 	NULL,
 };
 
@@ -2262,7 +2318,7 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 
 
 
-static void __devinit snd_vt1724_chip_reset(struct snd_ice1712 *ice)
+static void snd_vt1724_chip_reset(struct snd_ice1712 *ice)
 {
 	outb(VT1724_RESET , ICEREG1724(ice, CONTROL));
 	inb(ICEREG1724(ice, CONTROL)); /* pci posting flush */
@@ -2272,7 +2328,7 @@ static void __devinit snd_vt1724_chip_reset(struct snd_ice1712 *ice)
 	msleep(10);
 }
 
-static int __devinit snd_vt1724_chip_init(struct snd_ice1712 *ice)
+static int snd_vt1724_chip_init(struct snd_ice1712 *ice)
 {
 	outb(ice->eeprom.data[ICE_EEP2_SYSCONF], ICEREG1724(ice, SYS_CFG));
 	outb(ice->eeprom.data[ICE_EEP2_ACLINK], ICEREG1724(ice, AC97_CFG));
@@ -2286,6 +2342,14 @@ static int __devinit snd_vt1724_chip_init(struct snd_ice1712 *ice)
 	snd_vt1724_set_gpio_data(ice, ice->eeprom.gpiostate);
 
 	outb(0, ICEREG1724(ice, POWERDOWN));
+
+	/* MPU_RX and TX irq masks are cleared later dynamically */
+	outb(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX , ICEREG1724(ice, IRQMASK));
+
+	/* don't handle FIFO overrun/underruns (just yet),
+	 * since they cause machine lockups
+	 */
+	outb(VT1724_MULTI_FIFO_ERR, ICEMT1724(ice, DMA_INT_MASK));
 
 	return 0;
 }
@@ -2421,7 +2485,9 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 	mutex_init(&ice->open_mutex);
 	mutex_init(&ice->i2c_mutex);
 	ice->gpio.set_mask = snd_vt1724_set_gpio_mask;
+	ice->gpio.get_mask = snd_vt1724_get_gpio_mask;
 	ice->gpio.set_dir = snd_vt1724_set_gpio_dir;
+	ice->gpio.get_dir = snd_vt1724_get_gpio_dir;
 	ice->gpio.set_data = snd_vt1724_set_gpio_data;
 	ice->gpio.get_data = snd_vt1724_get_gpio_data;
 	ice->card = card;
@@ -2430,6 +2496,8 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 	pci_set_master(pci);
 	snd_vt1724_proc_init(ice);
 	synchronize_irq(pci->irq);
+
+	card->private_data = ice;
 
 	err = pci_request_regions(pci, "ICE1724");
 	if (err < 0) {
@@ -2458,14 +2526,6 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 		snd_vt1724_free(ice);
 		return -EIO;
 	}
-
-	/* MPU_RX and TX irq masks are cleared later dynamically */
-	outb(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX , ICEREG1724(ice, IRQMASK));
-
-	/* don't handle FIFO overrun/underruns (just yet),
-	 * since they cause machine lockups
-	 */
-	outb(VT1724_MULTI_FIFO_ERR, ICEMT1724(ice, DMA_INT_MASK));
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ice, &ops);
 	if (err < 0) {
@@ -2515,6 +2575,9 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 		return err;
 	}
 
+	/* field init before calling chip_init */
+	ice->ext_clock_count = 0;
+
 	for (tbl = card_tables; *tbl; tbl++) {
 		for (c = *tbl; c->subvendor; c++) {
 			if (c->subvendor == ice->eeprom.subvendor) {
@@ -2553,6 +2616,13 @@ __found:
 		ice->set_mclk = stdclock_set_mclk;
 	if (!ice->set_spdif_clock)
 		ice->set_spdif_clock = stdclock_set_spdif_clock;
+	if (!ice->get_spdif_master_type)
+		ice->get_spdif_master_type = stdclock_get_spdif_master_type;
+	if (!ice->ext_clock_names)
+		ice->ext_clock_names = ext_clock_names;
+	if (!ice->ext_clock_count)
+		ice->ext_clock_count = ARRAY_SIZE(ext_clock_names);
+
 	if (!ice->hw_rates)
 		set_std_hw_rates(ice);
 
@@ -2650,11 +2720,96 @@ static void __devexit snd_vt1724_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
+#ifdef CONFIG_PM
+static int snd_vt1724_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (!ice->pm_suspend_enabled)
+		return 0;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
+	snd_pcm_suspend_all(ice->pcm);
+	snd_pcm_suspend_all(ice->pcm_pro);
+	snd_pcm_suspend_all(ice->pcm_ds);
+	snd_ac97_suspend(ice->ac97);
+
+	spin_lock_irq(&ice->reg_lock);
+	ice->pm_saved_is_spdif_master = ice->is_spdif_master(ice);
+	ice->pm_saved_spdif_ctrl = inw(ICEMT1724(ice, SPDIF_CTRL));
+	ice->pm_saved_spdif_cfg = inb(ICEREG1724(ice, SPDIF_CFG));
+	ice->pm_saved_route = inl(ICEMT1724(ice, ROUTE_PLAYBACK));
+	spin_unlock_irq(&ice->reg_lock);
+
+	if (ice->pm_suspend)
+		ice->pm_suspend(ice);
+
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
+	return 0;
+}
+
+static int snd_vt1724_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (!ice->pm_suspend_enabled)
+		return 0;
+
+	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+
+	if (pci_enable_device(pci) < 0) {
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+
+	pci_set_master(pci);
+
+	snd_vt1724_chip_reset(ice);
+
+	if (snd_vt1724_chip_init(ice) < 0) {
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+
+	if (ice->pm_resume)
+		ice->pm_resume(ice);
+
+	if (ice->pm_saved_is_spdif_master) {
+		/* switching to external clock via SPDIF */
+		ice->set_spdif_clock(ice, 0);
+	} else {
+		/* internal on-card clock */
+		snd_vt1724_set_pro_rate(ice, ice->pro_rate_default, 1);
+	}
+
+	update_spdif_bits(ice, ice->pm_saved_spdif_ctrl);
+
+	outb(ice->pm_saved_spdif_cfg, ICEREG1724(ice, SPDIF_CFG));
+	outl(ice->pm_saved_route, ICEMT1724(ice, ROUTE_PLAYBACK));
+
+	if (ice->ac97)
+		snd_ac97_resume(ice->ac97);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
 static struct pci_driver driver = {
 	.name = "ICE1724",
 	.id_table = snd_vt1724_ids,
 	.probe = snd_vt1724_probe,
 	.remove = __devexit_p(snd_vt1724_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_vt1724_suspend,
+	.resume = snd_vt1724_resume,
+#endif
 };
 
 static int __init alsa_card_ice1724_init(void)

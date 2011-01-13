@@ -1,0 +1,311 @@
+#if !defined(_I915_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
+#define _I915_TRACE_H_
+
+#include <linux/stringify.h>
+#include <linux/types.h>
+#include <linux/tracepoint.h>
+
+#include <drm/drmP.h>
+#include "i915_drv.h"
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM i915
+#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
+#define TRACE_INCLUDE_FILE i915_trace
+
+/* object tracking */
+
+TRACE_EVENT(i915_gem_object_create,
+
+	    TP_PROTO(struct drm_i915_gem_object *obj),
+
+	    TP_ARGS(obj),
+
+	    TP_STRUCT__entry(
+			     __field(struct drm_i915_gem_object *, obj)
+			     __field(u32, size)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->obj = obj;
+			   __entry->size = obj->base.size;
+			   ),
+
+	    TP_printk("obj=%p, size=%u", __entry->obj, __entry->size)
+);
+
+TRACE_EVENT(i915_gem_object_bind,
+
+	    TP_PROTO(struct drm_i915_gem_object *obj, u32 gtt_offset, bool mappable),
+
+	    TP_ARGS(obj, gtt_offset, mappable),
+
+	    TP_STRUCT__entry(
+			     __field(struct drm_i915_gem_object *, obj)
+			     __field(u32, gtt_offset)
+			     __field(bool, mappable)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->obj = obj;
+			   __entry->gtt_offset = gtt_offset;
+			   __entry->mappable = mappable;
+			   ),
+
+	    TP_printk("obj=%p, gtt_offset=%08x%s",
+		      __entry->obj, __entry->gtt_offset,
+		      __entry->mappable ? ", mappable" : "")
+);
+
+TRACE_EVENT(i915_gem_object_change_domain,
+
+	    TP_PROTO(struct drm_i915_gem_object *obj, uint32_t old_read_domains, uint32_t old_write_domain),
+
+	    TP_ARGS(obj, old_read_domains, old_write_domain),
+
+	    TP_STRUCT__entry(
+			     __field(struct drm_i915_gem_object *, obj)
+			     __field(u32, read_domains)
+			     __field(u32, write_domain)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->obj = obj;
+			   __entry->read_domains = obj->base.read_domains | (old_read_domains << 16);
+			   __entry->write_domain = obj->base.write_domain | (old_write_domain << 16);
+			   ),
+
+	    TP_printk("obj=%p, read=%04x, write=%04x",
+		      __entry->obj,
+		      __entry->read_domains, __entry->write_domain)
+);
+
+DECLARE_EVENT_CLASS(i915_gem_object,
+
+	    TP_PROTO(struct drm_i915_gem_object *obj),
+
+	    TP_ARGS(obj),
+
+	    TP_STRUCT__entry(
+			     __field(struct drm_i915_gem_object *, obj)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->obj = obj;
+			   ),
+
+	    TP_printk("obj=%p", __entry->obj)
+);
+
+DEFINE_EVENT(i915_gem_object, i915_gem_object_clflush,
+
+	    TP_PROTO(struct drm_i915_gem_object *obj),
+
+	    TP_ARGS(obj)
+);
+
+DEFINE_EVENT(i915_gem_object, i915_gem_object_unbind,
+
+	    TP_PROTO(struct drm_i915_gem_object *obj),
+
+	    TP_ARGS(obj)
+);
+
+DEFINE_EVENT(i915_gem_object, i915_gem_object_destroy,
+
+	    TP_PROTO(struct drm_i915_gem_object *obj),
+
+	    TP_ARGS(obj)
+);
+
+/* batch tracing */
+
+TRACE_EVENT(i915_gem_request_submit,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   i915_trace_irq_get(dev, seqno);
+			   ),
+
+	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
+);
+
+TRACE_EVENT(i915_gem_request_flush,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno,
+		     u32 flush_domains, u32 invalidate_domains),
+
+	    TP_ARGS(dev, seqno, flush_domains, invalidate_domains),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, seqno)
+			     __field(u32, flush_domains)
+			     __field(u32, invalidate_domains)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   __entry->flush_domains = flush_domains;
+			   __entry->invalidate_domains = invalidate_domains;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%u, flush=%04x, invalidate=%04x",
+		      __entry->dev, __entry->seqno,
+		      __entry->flush_domains, __entry->invalidate_domains)
+);
+
+DECLARE_EVENT_CLASS(i915_gem_request,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
+);
+
+DEFINE_EVENT(i915_gem_request, i915_gem_request_complete,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno)
+);
+
+DEFINE_EVENT(i915_gem_request, i915_gem_request_retire,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno)
+);
+
+DEFINE_EVENT(i915_gem_request, i915_gem_request_wait_begin,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno)
+);
+
+DEFINE_EVENT(i915_gem_request, i915_gem_request_wait_end,
+
+	    TP_PROTO(struct drm_device *dev, u32 seqno),
+
+	    TP_ARGS(dev, seqno)
+);
+
+DECLARE_EVENT_CLASS(i915_ring,
+
+	    TP_PROTO(struct drm_device *dev),
+
+	    TP_ARGS(dev),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   ),
+
+	    TP_printk("dev=%u", __entry->dev)
+);
+
+DEFINE_EVENT(i915_ring, i915_ring_wait_begin,
+
+	    TP_PROTO(struct drm_device *dev),
+
+	    TP_ARGS(dev)
+);
+
+DEFINE_EVENT(i915_ring, i915_ring_wait_end,
+
+	    TP_PROTO(struct drm_device *dev),
+
+	    TP_ARGS(dev)
+);
+
+TRACE_EVENT(i915_flip_request,
+	    TP_PROTO(int plane, struct drm_i915_gem_object *obj),
+
+	    TP_ARGS(plane, obj),
+
+	    TP_STRUCT__entry(
+		    __field(int, plane)
+		    __field(struct drm_i915_gem_object *, obj)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->plane = plane;
+		    __entry->obj = obj;
+		    ),
+
+	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
+);
+
+TRACE_EVENT(i915_flip_complete,
+	    TP_PROTO(int plane, struct drm_i915_gem_object *obj),
+
+	    TP_ARGS(plane, obj),
+
+	    TP_STRUCT__entry(
+		    __field(int, plane)
+		    __field(struct drm_i915_gem_object *, obj)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->plane = plane;
+		    __entry->obj = obj;
+		    ),
+
+	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
+);
+
+TRACE_EVENT(i915_reg_rw,
+           TP_PROTO(int cmd, uint32_t reg, uint64_t val, int len),
+
+           TP_ARGS(cmd, reg, val, len),
+
+           TP_STRUCT__entry(
+                   __field(int, cmd)
+                   __field(uint32_t, reg)
+                   __field(uint64_t, val)
+                   __field(int, len)
+                   ),
+
+           TP_fast_assign(
+                   __entry->cmd = cmd;
+                   __entry->reg = reg;
+                   __entry->val = (uint64_t)val;
+                   __entry->len = len;
+                   ),
+
+           TP_printk("cmd=%c, reg=0x%x, val=0x%llx, len=%d",
+                     __entry->cmd, __entry->reg, __entry->val, __entry->len)
+);
+
+#endif /* _I915_TRACE_H_ */
+
+/* This part must be outside protection */
+#undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH .
+#include <trace/define_trace.h>

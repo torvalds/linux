@@ -1,7 +1,8 @@
 /*
  * devices.c
  * (C) Copyright 1999 Randy Dunlap.
- * (C) Copyright 1999,2000 Thomas Sailer <sailer@ife.ee.ethz.ch>. (proc file per device)
+ * (C) Copyright 1999,2000 Thomas Sailer <sailer@ife.ee.ethz.ch>.
+ *     (proc file per device)
  * (C) Copyright 1999 Deti Fliegl (new USB architecture)
  *
  * This program is free software; you can redistribute it and/or modify
@@ -50,23 +51,22 @@
 
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/poll.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 #include <linux/usbdevice_fs.h>
+#include <linux/usb/hcd.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "usb.h"
-#include "hcd.h"
 
 /* Define ALLOW_SERIAL_NUMBER if you want to see the serial number of devices */
 #define ALLOW_SERIAL_NUMBER
 
 static const char *format_topo =
-/* T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=ddd MxCh=dd */
-"\nT:  Bus=%2.2d Lev=%2.2d Prnt=%2.2d Port=%2.2d Cnt=%2.2d Dev#=%3d Spd=%3s MxCh=%2d\n";
+/* T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=dddd MxCh=dd */
+"\nT:  Bus=%2.2d Lev=%2.2d Prnt=%2.2d Port=%2.2d Cnt=%2.2d Dev#=%3d Spd=%-4s MxCh=%2d\n";
 
 static const char *format_string_manufacturer =
 /* S:  Manufacturer=xxxx */
@@ -117,12 +117,20 @@ static const char *format_endpt =
  * However, these will come from functions that return ptrs to each of them.
  */
 
-static DECLARE_WAIT_QUEUE_HEAD(deviceconndiscwq);
-static unsigned int conndiscevcnt;
-
-/* this struct stores the poll state for <mountpoint>/devices pollers */
-struct usb_device_status {
-	unsigned int lastev;
+/*
+ * Wait for an connect/disconnect event to happen. We initialize
+ * the event counter with an odd number, and each event will increment
+ * the event counter by two, so it will always _stay_ odd. That means
+ * that it will never be zero, so "event 0" will never match a current
+ * event, and thus 'poll' will always trigger as readable for the first
+ * time it gets called.
+ */
+static struct device_connect_event {
+	atomic_t count;
+	wait_queue_head_t wait;
+} device_event = {
+	.count = ATOMIC_INIT(1),
+	.wait = __WAIT_QUEUE_HEAD_INITIALIZER(device_event.wait)
 };
 
 struct class_info {
@@ -130,23 +138,25 @@ struct class_info {
 	char *class_name;
 };
 
-static const struct class_info clas_info[] =
-{					/* max. 5 chars. per name string */
+static const struct class_info clas_info[] = {
+	/* max. 5 chars. per name string */
 	{USB_CLASS_PER_INTERFACE,	">ifc"},
 	{USB_CLASS_AUDIO,		"audio"},
 	{USB_CLASS_COMM,		"comm."},
 	{USB_CLASS_HID,			"HID"},
-	{USB_CLASS_HUB,			"hub"},
 	{USB_CLASS_PHYSICAL,		"PID"},
+	{USB_CLASS_STILL_IMAGE,		"still"},
 	{USB_CLASS_PRINTER,		"print"},
 	{USB_CLASS_MASS_STORAGE,	"stor."},
+	{USB_CLASS_HUB,			"hub"},
 	{USB_CLASS_CDC_DATA,		"data"},
-	{USB_CLASS_APP_SPEC,		"app."},
-	{USB_CLASS_VENDOR_SPEC,		"vend."},
-	{USB_CLASS_STILL_IMAGE,		"still"},
 	{USB_CLASS_CSCID,		"scard"},
 	{USB_CLASS_CONTENT_SEC,		"c-sec"},
 	{USB_CLASS_VIDEO,		"video"},
+	{USB_CLASS_WIRELESS_CONTROLLER,	"wlcon"},
+	{USB_CLASS_MISC,		"misc"},
+	{USB_CLASS_APP_SPEC,		"app."},
+	{USB_CLASS_VENDOR_SPEC,		"vend."},
 	{-1,				"unk."}		/* leave as last */
 };
 
@@ -154,8 +164,8 @@ static const struct class_info clas_info[] =
 
 void usbfs_conn_disc_event(void)
 {
-	conndiscevcnt++;
-	wake_up(&deviceconndiscwq);
+	atomic_add(2, &device_event.count);
+	wake_up(&device_event.wait);
 }
 
 static const char *class_decode(const int class)
@@ -181,8 +191,10 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 
 	if (speed == USB_SPEED_HIGH) {
 		switch (le16_to_cpu(desc->wMaxPacketSize) & (0x03 << 11)) {
-		case 1 << 11:	bandwidth = 2; break;
-		case 2 << 11:	bandwidth = 3; break;
+		case 1 << 11:
+			bandwidth = 2; break;
+		case 2 << 11:
+			bandwidth = 3; break;
 		}
 	}
 
@@ -190,7 +202,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		type = "Ctrl";
-		if (speed == USB_SPEED_HIGH) 	/* uframes per NAK */
+		if (speed == USB_SPEED_HIGH)	/* uframes per NAK */
 			interval = desc->bInterval;
 		else
 			interval = 0;
@@ -492,7 +504,7 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 		return 0;
 	/* allocate 2^1 pages = 8K (on i386);
 	 * should be more than enough for one device */
-	pages_start = (char *)__get_free_pages(GFP_KERNEL, 1);
+	pages_start = (char *)__get_free_pages(GFP_NOIO, 1);
 	if (!pages_start)
 		return -ENOMEM;
 
@@ -507,11 +519,14 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 		speed = "1.5"; break;
 	case USB_SPEED_UNKNOWN:		/* usb 1.1 root hub code */
 	case USB_SPEED_FULL:
-		speed = "12 "; break;
+		speed = "12"; break;
+	case USB_SPEED_WIRELESS:	/* Wireless has no real fixed speed */
 	case USB_SPEED_HIGH:
 		speed = "480"; break;
+	case USB_SPEED_SUPER:
+		speed = "5000"; break;
 	default:
-		speed = "?? ";
+		speed = "??";
 	}
 	data_end = pages_start + sprintf(pages_start, format_topo,
 			bus->busnum, level, parent_devnum,
@@ -627,55 +642,16 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 static unsigned int usb_device_poll(struct file *file,
 				    struct poll_table_struct *wait)
 {
-	struct usb_device_status *st = file->private_data;
-	unsigned int mask = 0;
+	unsigned int event_count;
 
-	lock_kernel();
-	if (!st) {
-		st = kmalloc(sizeof(struct usb_device_status), GFP_KERNEL);
+	poll_wait(file, &device_event.wait, wait);
 
-		/* we may have dropped BKL -
-		 * need to check for having lost the race */
-		if (file->private_data) {
-			kfree(st);
-			st = file->private_data;
-			goto lost_race;
-		}
-		/* we haven't lost - check for allocation failure now */
-		if (!st) {
-			unlock_kernel();
-			return POLLIN;
-		}
-
-		/*
-		 * need to prevent the module from being unloaded, since
-		 * proc_unregister does not call the release method and
-		 * we would have a memory leak
-		 */
-		st->lastev = conndiscevcnt;
-		file->private_data = st;
-		mask = POLLIN;
+	event_count = atomic_read(&device_event.count);
+	if (file->f_version != event_count) {
+		file->f_version = event_count;
+		return POLLIN | POLLRDNORM;
 	}
-lost_race:
-	if (file->f_mode & FMODE_READ)
-		poll_wait(file, &deviceconndiscwq, wait);
-	if (st->lastev != conndiscevcnt)
-		mask |= POLLIN;
-	st->lastev = conndiscevcnt;
-	unlock_kernel();
-	return mask;
-}
 
-static int usb_device_open(struct inode *inode, struct file *file)
-{
-	file->private_data = NULL;
-	return 0;
-}
-
-static int usb_device_release(struct inode *inode, struct file *file)
-{
-	kfree(file->private_data);
-	file->private_data = NULL;
 	return 0;
 }
 
@@ -683,7 +659,7 @@ static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	lock_kernel();
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 
 	switch (orig) {
 	case 0:
@@ -699,7 +675,7 @@ static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
 		ret = -EINVAL;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return ret;
 }
 
@@ -707,6 +683,4 @@ const struct file_operations usbfs_devices_fops = {
 	.llseek =	usb_device_lseek,
 	.read =		usb_device_read,
 	.poll =		usb_device_poll,
-	.open =		usb_device_open,
-	.release =	usb_device_release,
 };

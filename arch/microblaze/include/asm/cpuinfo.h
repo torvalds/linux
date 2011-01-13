@@ -38,12 +38,13 @@ struct cpuinfo {
 	u32 use_exc;
 	u32 ver_code;
 	u32 mmu;
+	u32 endian;
 
 	/* CPU caches */
 	u32 use_icache;
 	u32 icache_tagbits;
 	u32 icache_write;
-	u32 icache_line;
+	u32 icache_line_length;
 	u32 icache_size;
 	unsigned long icache_base;
 	unsigned long icache_high;
@@ -51,8 +52,9 @@ struct cpuinfo {
 	u32 use_dcache;
 	u32 dcache_tagbits;
 	u32 dcache_write;
-	u32 dcache_line;
+	u32 dcache_line_length;
 	u32 dcache_size;
+	u32 dcache_wb;
 	unsigned long dcache_base;
 	unsigned long dcache_high;
 
@@ -75,7 +77,6 @@ struct cpuinfo {
 	u32 num_rd_brk;
 	u32 num_wr_brk;
 	u32 cpu_clock_freq; /* store real freq of cpu */
-	u32 freq_div_hz; /* store freq/HZ */
 
 	/* FPGA family */
 	u32 fpga_family_code;
@@ -96,7 +97,8 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu);
 static inline unsigned int fcpu(struct device_node *cpu, char *n)
 {
 	int *val;
-	return (val = (int *) of_get_property(cpu, n, NULL)) ? *val : 0;
+	return (val = (int *) of_get_property(cpu, n, NULL)) ?
+							be32_to_cpup(val) : 0;
 }
 
 #endif /* _ASM_MICROBLAZE_CPUINFO_H */

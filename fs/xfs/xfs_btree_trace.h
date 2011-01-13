@@ -58,8 +58,6 @@ void xfs_btree_trace_argbi(const char *, struct xfs_btree_cur *,
 		struct xfs_buf *, int, int);
 void xfs_btree_trace_argbii(const char *, struct xfs_btree_cur *,
 		struct xfs_buf *, int, int, int);
-void xfs_btree_trace_argfffi(const char *, struct xfs_btree_cur *,
-		xfs_dfiloff_t, xfs_dfsbno_t, xfs_dfilblks_t, int, int);
 void xfs_btree_trace_argi(const char *, struct xfs_btree_cur *, int, int);
 void xfs_btree_trace_argipk(const char *, struct xfs_btree_cur *, int,
 		union xfs_btree_ptr, union xfs_btree_key *, int);
@@ -71,24 +69,10 @@ void xfs_btree_trace_argr(const char *, struct xfs_btree_cur *,
 		union xfs_btree_rec *, int);
 void xfs_btree_trace_cursor(const char *, struct xfs_btree_cur *, int, int);
 
-
-#define XFS_ALLOCBT_TRACE_SIZE	4096	/* size of global trace buffer */
-extern ktrace_t	*xfs_allocbt_trace_buf;
-
-#define XFS_INOBT_TRACE_SIZE	4096	/* size of global trace buffer */
-extern ktrace_t	*xfs_inobt_trace_buf;
-
-#define XFS_BMBT_TRACE_SIZE	4096	/* size of global trace buffer */
-#define XFS_BMBT_KTRACE_SIZE	32	/* size of per-inode trace buffer */
-extern ktrace_t	*xfs_bmbt_trace_buf;
-
-
 #define	XFS_BTREE_TRACE_ARGBI(c, b, i)	\
 	xfs_btree_trace_argbi(__func__, c, b, i, __LINE__)
 #define	XFS_BTREE_TRACE_ARGBII(c, b, i, j)	\
 	xfs_btree_trace_argbii(__func__, c, b, i, j, __LINE__)
-#define	XFS_BTREE_TRACE_ARGFFFI(c, o, b, i, j)	\
-	xfs_btree_trace_argfffi(__func__, c, o, b, i, j, __LINE__)
 #define	XFS_BTREE_TRACE_ARGI(c, i)	\
 	xfs_btree_trace_argi(__func__, c, i, __LINE__)
 #define	XFS_BTREE_TRACE_ARGIPK(c, i, p, k)	\
@@ -104,7 +88,6 @@ extern ktrace_t	*xfs_bmbt_trace_buf;
 #else
 #define	XFS_BTREE_TRACE_ARGBI(c, b, i)
 #define	XFS_BTREE_TRACE_ARGBII(c, b, i, j)
-#define	XFS_BTREE_TRACE_ARGFFFI(c, o, b, i, j)
 #define	XFS_BTREE_TRACE_ARGI(c, i)
 #define	XFS_BTREE_TRACE_ARGIPK(c, i, p, s)
 #define	XFS_BTREE_TRACE_ARGIPR(c, i, p, r)

@@ -21,7 +21,6 @@
 #include <linux/tty.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/bootmem.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/time.h>
@@ -36,13 +35,14 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
+#include <asm/sched_clock.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
-static int __init ixp4xx_clocksource_init(void);
-static int __init ixp4xx_clockevent_init(void);
+static void __init ixp4xx_clocksource_init(void);
+static void __init ixp4xx_clockevent_init(void);
 static struct clock_event_device clockevent_ixp4xx;
 
 /*************************************************************************
@@ -117,7 +117,7 @@ int gpio_to_irq(int gpio)
 }
 EXPORT_SYMBOL(gpio_to_irq);
 
-int irq_to_gpio(int irq)
+int irq_to_gpio(unsigned int irq)
 {
 	int gpio = (irq < 32) ? irq2gpio[irq] : -EINVAL;
 
@@ -267,7 +267,7 @@ void __init ixp4xx_init_irq(void)
 
 static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &clockevent_ixp4xx;
+	struct clock_event_device *evt = dev_id;
 
 	/* Clear Pending Interrupt by writing '1' to it */
 	*IXP4XX_OSST = IXP4XX_OSST_TIMER_1_PEND;
@@ -281,6 +281,7 @@ static struct irqaction ixp4xx_timer_irq = {
 	.name		= "timer1",
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= ixp4xx_timer_interrupt,
+	.dev_id		= &clockevent_ixp4xx,
 };
 
 void __init ixp4xx_timer_init(void)
@@ -399,9 +400,26 @@ void __init ixp4xx_sys_init(void)
 }
 
 /*
+ * sched_clock()
+ */
+static DEFINE_CLOCK_DATA(cd);
+
+unsigned long long notrace sched_clock(void)
+{
+	u32 cyc = *IXP4XX_OSTS;
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
+}
+
+static void notrace ixp4xx_update_sched_clock(void)
+{
+	u32 cyc = *IXP4XX_OSTS;
+	update_sched_clock(&cd, cyc, (u32)~0);
+}
+
+/*
  * clocksource
  */
-cycle_t ixp4xx_get_cycles(struct clocksource *cs)
+static cycle_t ixp4xx_get_cycles(struct clocksource *cs)
 {
 	return *IXP4XX_OSTS;
 }
@@ -411,19 +429,16 @@ static struct clocksource clocksource_ixp4xx = {
 	.rating		= 200,
 	.read		= ixp4xx_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift 		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 unsigned long ixp4xx_timer_freq = FREQ;
-static int __init ixp4xx_clocksource_init(void)
+EXPORT_SYMBOL(ixp4xx_timer_freq);
+static void __init ixp4xx_clocksource_init(void)
 {
-	clocksource_ixp4xx.mult =
-		clocksource_hz2mult(ixp4xx_timer_freq,
-				    clocksource_ixp4xx.shift);
-	clocksource_register(&clocksource_ixp4xx);
+	init_sched_clock(&cd, ixp4xx_update_sched_clock, 32, ixp4xx_timer_freq);
 
-	return 0;
+	clocksource_register_hz(&clocksource_ixp4xx, ixp4xx_timer_freq);
 }
 
 /*
@@ -479,7 +494,7 @@ static struct clock_event_device clockevent_ixp4xx = {
 	.set_next_event	= ixp4xx_set_next_event,
 };
 
-static int __init ixp4xx_clockevent_init(void)
+static void __init ixp4xx_clockevent_init(void)
 {
 	clockevent_ixp4xx.mult = div_sc(FREQ, NSEC_PER_SEC,
 					clockevent_ixp4xx.shift);
@@ -490,5 +505,4 @@ static int __init ixp4xx_clockevent_init(void)
 	clockevent_ixp4xx.cpumask = cpumask_of(0);
 
 	clockevents_register_device(&clockevent_ixp4xx);
-	return 0;
 }

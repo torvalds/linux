@@ -18,13 +18,19 @@
 #define REGD_H
 
 #include <linux/nl80211.h>
-
 #include <net/cfg80211.h>
+
+#include "ath.h"
+
+enum ctl_group {
+	CTL_FCC = 0x10,
+	CTL_MKK = 0x40,
+	CTL_ETSI = 0x30,
+};
 
 #define NO_CTL 0xff
 #define SD_NO_CTL               0xE0
 #define NO_CTL                  0xff
-#define CTL_MODE_M              7
 #define CTL_11A                 0
 #define CTL_11B                 1
 #define CTL_11G                 2
@@ -47,27 +53,10 @@
 #define CHANNEL_HALF_BW         10
 #define CHANNEL_QUARTER_BW      5
 
-struct reg_dmn_pair_mapping {
-	u16 regDmnEnum;
-	u16 reg_5ghz_ctl;
-	u16 reg_2ghz_ctl;
-};
-
 struct country_code_to_enum_rd {
 	u16 countryCode;
 	u16 regDmnEnum;
 	const char *isoName;
-};
-
-struct ath_regulatory {
-	char alpha2[2];
-	u16 country_code;
-	u16 max_power_level;
-	u32 tp_scale;
-	u16 current_rd;
-	u16 current_rd_ext;
-	int16_t power_limit;
-	struct reg_dmn_pair_mapping *regpair;
 };
 
 enum CountryCode {
@@ -75,10 +64,13 @@ enum CountryCode {
 	CTRY_ALGERIA = 12,
 	CTRY_ARGENTINA = 32,
 	CTRY_ARMENIA = 51,
+	CTRY_ARUBA = 533,
 	CTRY_AUSTRALIA = 36,
 	CTRY_AUSTRIA = 40,
 	CTRY_AZERBAIJAN = 31,
 	CTRY_BAHRAIN = 48,
+	CTRY_BANGLADESH = 50,
+	CTRY_BARBADOS = 52,
 	CTRY_BELARUS = 112,
 	CTRY_BELGIUM = 56,
 	CTRY_BELIZE = 84,
@@ -87,6 +79,7 @@ enum CountryCode {
 	CTRY_BRAZIL = 76,
 	CTRY_BRUNEI_DARUSSALAM = 96,
 	CTRY_BULGARIA = 100,
+	CTRY_CAMBODIA = 116,
 	CTRY_CANADA = 124,
 	CTRY_CHILE = 152,
 	CTRY_CHINA = 156,
@@ -107,7 +100,11 @@ enum CountryCode {
 	CTRY_GEORGIA = 268,
 	CTRY_GERMANY = 276,
 	CTRY_GREECE = 300,
+	CTRY_GREENLAND = 304,
+	CTRY_GRENEDA = 308,
+	CTRY_GUAM = 316,
 	CTRY_GUATEMALA = 320,
+	CTRY_HAITI = 332,
 	CTRY_HONDURAS = 340,
 	CTRY_HONG_KONG = 344,
 	CTRY_HUNGARY = 348,

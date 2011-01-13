@@ -86,10 +86,12 @@ show_pools(struct device *dev, struct device_attribute *attr, char *buf)
 		unsigned pages = 0;
 		unsigned blocks = 0;
 
+		spin_lock_irq(&pool->lock);
 		list_for_each_entry(page, &pool->page_list, page_list) {
 			pages++;
 			blocks += page->in_use;
 		}
+		spin_unlock_irq(&pool->lock);
 
 		/* per-pool info, no real statistics yet */
 		temp = scnprintf(next, size, "%-16s %4u %4Zu %4Zu %2u\n",
@@ -308,6 +310,8 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 	struct dma_page *page;
 	size_t offset;
 	void *retval;
+
+	might_sleep_if(mem_flags & __GFP_WAIT);
 
 	spin_lock_irqsave(&pool->lock, flags);
  restart:

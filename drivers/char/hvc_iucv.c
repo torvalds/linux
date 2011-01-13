@@ -12,6 +12,7 @@
 #define pr_fmt(fmt)		KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <asm/ebcdic.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
@@ -139,6 +140,8 @@ struct hvc_iucv_private *hvc_iucv_get_private(uint32_t num)
  *
  * This function allocates a new struct iucv_tty_buffer element and, optionally,
  * allocates an internal data buffer with the specified size @size.
+ * The internal data buffer is always allocated with GFP_DMA which is
+ * required for receiving and sending data with IUCV.
  * Note: The total message size arises from the internal buffer size and the
  *	 members of the iucv_tty_msg structure.
  * The function returns NULL if memory allocation has failed.
@@ -154,7 +157,7 @@ static struct iucv_tty_buffer *alloc_tty_buffer(size_t size, gfp_t flags)
 
 	if (size > 0) {
 		bufp->msg.length = MSG_SIZE(size);
-		bufp->mbuf = kmalloc(bufp->msg.length, flags);
+		bufp->mbuf = kmalloc(bufp->msg.length, flags | GFP_DMA);
 		if (!bufp->mbuf) {
 			mempool_free(bufp, hvc_iucv_mempool);
 			return NULL;
@@ -237,7 +240,7 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 	if (!rb->mbuf) { /* message not yet received ... */
 		/* allocate mem to store msg data; if no memory is available
 		 * then leave the buffer on the list and re-try later */
-		rb->mbuf = kmalloc(rb->msg.length, GFP_ATOMIC);
+		rb->mbuf = kmalloc(rb->msg.length, GFP_ATOMIC | GFP_DMA);
 		if (!rb->mbuf)
 			return -ENOMEM;
 
@@ -273,7 +276,9 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 	case MSG_TYPE_WINSIZE:
 		if (rb->mbuf->datalen != sizeof(struct winsize))
 			break;
-		hvc_resize(priv->hvc, *((struct winsize *) rb->mbuf->data));
+		/* The caller must ensure that the hvc is locked, which
+		 * is the case when called from hvc_iucv_get_chars() */
+		__hvc_resize(priv->hvc, *((struct winsize *) rb->mbuf->data));
 		break;
 
 	case MSG_TYPE_ERROR:	/* ignored ... */
@@ -920,7 +925,7 @@ static int hvc_iucv_pm_restore_thaw(struct device *dev)
 
 
 /* HVC operations */
-static struct hv_ops hvc_iucv_ops = {
+static const struct hv_ops hvc_iucv_ops = {
 	.get_chars = hvc_iucv_get_chars,
 	.put_chars = hvc_iucv_put_chars,
 	.notifier_add = hvc_iucv_notifier_add,
@@ -929,7 +934,7 @@ static struct hv_ops hvc_iucv_ops = {
 };
 
 /* Suspend / resume device operations */
-static struct dev_pm_ops hvc_iucv_pm_ops = {
+static const struct dev_pm_ops hvc_iucv_pm_ops = {
 	.freeze	  = hvc_iucv_pm_freeze,
 	.thaw	  = hvc_iucv_pm_restore_thaw,
 	.restore  = hvc_iucv_pm_restore_thaw,
@@ -1006,7 +1011,7 @@ static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 	priv->dev->release = (void (*)(struct device *)) kfree;
 	rc = device_register(priv->dev);
 	if (rc) {
-		kfree(priv->dev);
+		put_device(priv->dev);
 		goto out_error_dev;
 	}
 
@@ -1144,7 +1149,7 @@ out_err:
  * Note: If it is called early in the boot process, @val is stored and
  *	 parsed later in hvc_iucv_init().
  */
-static int param_set_vmidfilter(const char *val, struct kernel_param *kp)
+static int param_set_vmidfilter(const char *val, const struct kernel_param *kp)
 {
 	int rc;
 
@@ -1171,7 +1176,7 @@ static int param_set_vmidfilter(const char *val, struct kernel_param *kp)
  * The function stores the filter as a comma-separated list of z/VM user IDs
  * in @buffer. Typically, sysfs routines call this function for attr show.
  */
-static int param_get_vmidfilter(char *buffer, struct kernel_param *kp)
+static int param_get_vmidfilter(char *buffer, const struct kernel_param *kp)
 {
 	int rc;
 	size_t index, len;
@@ -1197,6 +1202,11 @@ static int param_get_vmidfilter(char *buffer, struct kernel_param *kp)
 }
 
 #define param_check_vmidfilter(name, p) __param_check(name, p, void)
+
+static struct kernel_param_ops param_ops_vmidfilter = {
+	.set = param_set_vmidfilter,
+	.get = param_get_vmidfilter,
+};
 
 /**
  * hvc_iucv_init() - z/VM IUCV HVC device driver initialization
@@ -1293,13 +1303,11 @@ static int __init hvc_iucv_init(void)
 	if (rc) {
 		pr_err("Registering IUCV handlers failed with error code=%d\n",
 			rc);
-		goto out_error_iucv;
+		goto out_error_hvc;
 	}
 
 	return 0;
 
-out_error_iucv:
-	iucv_unregister(&hvc_iucv_handler, 0);
 out_error_hvc:
 	for (i = 0; i < hvc_iucv_devices; i++)
 		if (hvc_iucv_table[i])

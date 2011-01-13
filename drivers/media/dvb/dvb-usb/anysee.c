@@ -203,11 +203,11 @@ static struct i2c_algorithm anysee_i2c_algo = {
 
 static int anysee_mt352_demod_init(struct dvb_frontend *fe)
 {
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x28 };
-	static u8 reset []         = { RESET,      0x80 };
-	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
-	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0x20 };
-	static u8 gpp_ctl_cfg []   = { GPP_CTL,    0x33 };
+	static u8 clock_config[]   = { CLOCK_CTL,  0x38, 0x28 };
+	static u8 reset[]          = { RESET,      0x80 };
+	static u8 adc_ctl_1_cfg[]  = { ADC_CTL_1,  0x40 };
+	static u8 agc_cfg[]        = { AGC_TARGET, 0x28, 0x20 };
+	static u8 gpp_ctl_cfg[]    = { GPP_CTL,    0x33 };
 	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
@@ -344,7 +344,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	if (ret)
 		return ret;
 
-	err("Unkown Anysee version: %02x %02x %02x. "\
+	err("Unknown Anysee version: %02x %02x %02x. "\
 	    "Please report the <linux-dvb@linuxtv.org>.",
 	    hw_info[0], hw_info[1], hw_info[2]);
 
@@ -354,7 +354,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct anysee_state *state = adap->dev->priv;
-	deb_info("%s: \n", __func__);
+	deb_info("%s:\n", __func__);
 
 	switch (state->tuner) {
 	case DVB_PLL_THOMSON_DTT7579:
@@ -374,77 +374,31 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int anysee_rc_query(struct dvb_usb_device *d)
 {
 	u8 buf[] = {CMD_GET_IR_CODE};
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
 	u8 ircode[2];
-	int i, ret;
+	int ret;
 
-	ret = anysee_ctrl_msg(d, buf, sizeof(buf), &ircode[0], 2);
+	/* Remote controller is basic NEC using address byte 0x08.
+	   Anysee device RC query returns only two bytes, status and code,
+	   address byte is dropped. Also it does not return any value for
+	   NEC RCs having address byte other than 0x08. Due to that, we
+	   cannot use that device as standard NEC receiver.
+	   It could be possible make hack which reads whole code directly
+	   from device memory... */
+
+	ret = anysee_ctrl_msg(d, buf, sizeof(buf), ircode, sizeof(ircode));
 	if (ret)
 		return ret;
 
-	*event = 0;
-	*state = REMOTE_NO_KEY_PRESSED;
-
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (keymap[i].custom == ircode[0] &&
-		    keymap[i].data == ircode[1]) {
-			*event = keymap[i].event;
-			*state = REMOTE_KEY_PRESSED;
-			return 0;
-		}
+	if (ircode[0]) {
+		deb_rc("%s: key pressed %02x\n", __func__, ircode[1]);
+		rc_keydown(d->rc_dev, 0x08 << 8 | ircode[1], 0);
 	}
+
 	return 0;
 }
-
-static struct dvb_usb_rc_key anysee_rc_keys[] = {
-	{ 0x01, 0x00, KEY_0 },
-	{ 0x01, 0x01, KEY_1 },
-	{ 0x01, 0x02, KEY_2 },
-	{ 0x01, 0x03, KEY_3 },
-	{ 0x01, 0x04, KEY_4 },
-	{ 0x01, 0x05, KEY_5 },
-	{ 0x01, 0x06, KEY_6 },
-	{ 0x01, 0x07, KEY_7 },
-	{ 0x01, 0x08, KEY_8 },
-	{ 0x01, 0x09, KEY_9 },
-	{ 0x01, 0x0a, KEY_POWER },
-	{ 0x01, 0x0b, KEY_DOCUMENTS },    /* * */
-	{ 0x01, 0x19, KEY_FAVORITES },
-	{ 0x01, 0x20, KEY_SLEEP },
-	{ 0x01, 0x21, KEY_MODE },         /* 4:3 / 16:9 select */
-	{ 0x01, 0x22, KEY_ZOOM },
-	{ 0x01, 0x47, KEY_TEXT },
-	{ 0x01, 0x16, KEY_TV },           /* TV / radio select */
-	{ 0x01, 0x1e, KEY_LANGUAGE },     /* Second Audio Program */
-	{ 0x01, 0x1a, KEY_SUBTITLE },
-	{ 0x01, 0x1b, KEY_CAMERA },       /* screenshot */
-	{ 0x01, 0x42, KEY_MUTE },
-	{ 0x01, 0x0e, KEY_MENU },
-	{ 0x01, 0x0f, KEY_EPG },
-	{ 0x01, 0x17, KEY_INFO },
-	{ 0x01, 0x10, KEY_EXIT },
-	{ 0x01, 0x13, KEY_VOLUMEUP },
-	{ 0x01, 0x12, KEY_VOLUMEDOWN },
-	{ 0x01, 0x11, KEY_CHANNELUP },
-	{ 0x01, 0x14, KEY_CHANNELDOWN },
-	{ 0x01, 0x15, KEY_OK },
-	{ 0x01, 0x1d, KEY_RED },
-	{ 0x01, 0x1f, KEY_GREEN },
-	{ 0x01, 0x1c, KEY_YELLOW },
-	{ 0x01, 0x44, KEY_BLUE },
-	{ 0x01, 0x0c, KEY_SHUFFLE },      /* snapshot */
-	{ 0x01, 0x48, KEY_STOP },
-	{ 0x01, 0x50, KEY_PLAY },
-	{ 0x01, 0x51, KEY_PAUSE },
-	{ 0x01, 0x49, KEY_RECORD },
-	{ 0x01, 0x18, KEY_PREVIOUS },     /* |<< */
-	{ 0x01, 0x0d, KEY_NEXT },         /* >>| */
-	{ 0x01, 0x24, KEY_PROG1 },        /* F1 */
-	{ 0x01, 0x25, KEY_PROG2 },        /* F2 */
-};
 
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties anysee_properties;
@@ -463,6 +417,11 @@ static int anysee_probe(struct usb_interface *intf,
 	if (intf->num_altsetting < 1)
 		return -ENODEV;
 
+	/*
+	 * Anysee is always warm (its USB-bridge, Cypress FX2, uploads
+	 * firmware from eeprom).  If dvb_usb_device_init() succeeds that
+	 * means d is a valid pointer.
+	 */
 	ret = dvb_usb_device_init(intf, &anysee_properties, THIS_MODULE, &d,
 		adapter_nr);
 	if (ret)
@@ -479,13 +438,10 @@ static int anysee_probe(struct usb_interface *intf,
 	if (ret)
 		return ret;
 
-	if (d)
-		ret = anysee_init(d);
-
-	return ret;
+	return anysee_init(d);
 }
 
-static struct usb_device_id anysee_table [] = {
+static struct usb_device_id anysee_table[] = {
 	{ USB_DEVICE(USB_VID_CYPRESS, USB_PID_ANYSEE) },
 	{ USB_DEVICE(USB_VID_AMT,     USB_PID_ANYSEE) },
 	{ }		/* Terminating entry */
@@ -511,17 +467,20 @@ static struct dvb_usb_device_properties anysee_properties = {
 				.endpoint = 0x82,
 				.u = {
 					.bulk = {
-						.buffersize = 512,
+						.buffersize = (16*512),
 					}
 				}
 			},
 		}
 	},
 
-	.rc_key_map       = anysee_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(anysee_rc_keys),
-	.rc_query         = anysee_rc_query,
-	.rc_interval      = 200,  /* windows driver uses 500ms */
+	.rc.core = {
+		.rc_codes         = RC_MAP_ANYSEE,
+		.protocol         = RC_TYPE_OTHER,
+		.module_name      = "anysee",
+		.rc_query         = anysee_rc_query,
+		.rc_interval      = 250,  /* windows driver uses 500ms */
+	},
 
 	.i2c_algo         = &anysee_i2c_algo,
 

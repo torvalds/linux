@@ -13,6 +13,7 @@
 #include <linux/mbus.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <linux/delay.h>
 
 /*
  * PCIe unit register offsets.
@@ -46,6 +47,8 @@
 #define  PCIE_STAT_BUS_OFFS		8
 #define  PCIE_STAT_BUS_MASK		0xff
 #define  PCIE_STAT_LINK_DOWN		1
+#define PCIE_DEBUG_CTRL         0x1a60
+#define  PCIE_DEBUG_SOFT_RESET		(1<<20)
 
 
 u32 __init orion_pcie_dev_id(void __iomem *base)
@@ -83,6 +86,32 @@ void __init orion_pcie_set_local_bus_nr(void __iomem *base, int nr)
 	stat &= ~(PCIE_STAT_BUS_MASK << PCIE_STAT_BUS_OFFS);
 	stat |= nr << PCIE_STAT_BUS_OFFS;
 	writel(stat, base + PCIE_STAT_OFF);
+}
+
+void __init orion_pcie_reset(void __iomem *base)
+{
+	u32 reg;
+	int i;
+
+	/*
+	 * MV-S104860-U0, Rev. C:
+	 * PCI Express Unit Soft Reset
+	 * When set, generates an internal reset in the PCI Express unit.
+	 * This bit should be cleared after the link is re-established.
+	 */
+	reg = readl(base + PCIE_DEBUG_CTRL);
+	reg |= PCIE_DEBUG_SOFT_RESET;
+	writel(reg, base + PCIE_DEBUG_CTRL);
+
+	for (i = 0; i < 20; i++) {
+		mdelay(10);
+
+		if (orion_pcie_link_up(base))
+			break;
+	}
+
+	reg &= ~(PCIE_DEBUG_SOFT_RESET);
+	writel(reg, base + PCIE_DEBUG_CTRL);
 }
 
 /*
@@ -131,6 +160,12 @@ static void __init orion_pcie_setup_wins(void __iomem *base,
 
 		size += cs->size;
 	}
+
+	/*
+	 * Round up 'size' to the nearest power of two.
+	 */
+	if ((size & (size - 1)) != 0)
+		size = 1 << fls(size);
 
 	/*
 	 * Setup BAR[1] to all DRAM banks.

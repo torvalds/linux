@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2003 - 2009 NetXen, Inc.
+ * Copyright (C) 2009 - QLogic Corporation.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -18,20 +19,12 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
- *
- * Contact Information:
- *    info@netxen.com
- * NetXen Inc,
- * 18922 Forge Drive
- * Cupertino, CA 95014-0701
+ * in the file called "COPYING".
  *
  */
 
 #ifndef __NETXEN_NIC_HW_H_
 #define __NETXEN_NIC_HW_H_
-
-#include "netxen_nic_hdr.h"
 
 /* Hardware memory size of 128 meg */
 #define NETXEN_MEMADDR_MAX (128 * 1024 * 1024)
@@ -63,10 +56,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
  *	Bit 31: soft_reset => 1:reset the MAC and the SERDES, 0:no-op
  */
 
-#define netxen_gb_enable_tx(config_word)	\
-	((config_word) |= 1 << 0)
-#define netxen_gb_enable_rx(config_word)	\
-	((config_word) |= 1 << 2)
 #define netxen_gb_tx_flowctl(config_word)	\
 	((config_word) |= 1 << 4)
 #define netxen_gb_rx_flowctl(config_word)	\
@@ -79,8 +68,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 	((config_word) |= 1 << 18)
 #define netxen_gb_rx_reset_mac(config_word)	\
 	((config_word) |= 1 << 19)
-#define netxen_gb_soft_reset(config_word)	\
-	((config_word) |= 1 << 31)
 
 #define netxen_gb_unset_tx_flowctl(config_word)	\
 	((config_word) &= ~(1 << 4))
@@ -242,7 +229,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
  * Bits 14-15 : speed => 0:10Mb/s, 1:100Mb/s, 2:1000Mb/s, 3:rsvd
  */
 
-#define netxen_get_phy_cablelen(config_word) (((config_word) >> 7) & 0x07)
 #define netxen_get_phy_speed(config_word) (((config_word) >> 14) & 0x03)
 
 #define netxen_set_phy_speed(config_word, val)	\
@@ -252,83 +238,10 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 #define netxen_clear_phy_duplex(config_word)	\
 		((config_word) &= ~(1 << 13))
 
-#define netxen_get_phy_jabber(config_word)	\
-		_netxen_crb_get_bit(config_word, 0)
-#define netxen_get_phy_polarity(config_word)	\
-		_netxen_crb_get_bit(config_word, 1)
-#define netxen_get_phy_recvpause(config_word)	\
-		_netxen_crb_get_bit(config_word, 2)
-#define netxen_get_phy_xmitpause(config_word)	\
-		_netxen_crb_get_bit(config_word, 3)
-#define netxen_get_phy_energydetect(config_word) \
-		_netxen_crb_get_bit(config_word, 4)
-#define netxen_get_phy_downshift(config_word)	\
-		_netxen_crb_get_bit(config_word, 5)
-#define netxen_get_phy_crossover(config_word)	\
-		_netxen_crb_get_bit(config_word, 6)
 #define netxen_get_phy_link(config_word)	\
 		_netxen_crb_get_bit(config_word, 10)
-#define netxen_get_phy_resolved(config_word)	\
-		_netxen_crb_get_bit(config_word, 11)
-#define netxen_get_phy_pagercvd(config_word)	\
-		_netxen_crb_get_bit(config_word, 12)
 #define netxen_get_phy_duplex(config_word)	\
 		_netxen_crb_get_bit(config_word, 13)
-
-/*
- * Interrupt Register definition
- * This definition applies to registers 18 and 19 (int enable and int status).
- * Bit 0 : jabber
- * Bit 1 : polarity_changed
- * Bit 4 : energy_detect
- * Bit 5 : downshift
- * Bit 6 : mdi_xover_changed
- * Bit 7 : fifo_over_underflow
- * Bit 8 : false_carrier
- * Bit 9 : symbol_error
- * Bit 10: link_status_changed
- * Bit 11: autoneg_completed
- * Bit 12: page_received
- * Bit 13: duplex_changed
- * Bit 14: speed_changed
- * Bit 15: autoneg_error
- */
-
-#define netxen_get_phy_int_jabber(config_word)	\
-		_netxen_crb_get_bit(config_word, 0)
-#define netxen_get_phy_int_polarity_changed(config_word)	\
-		_netxen_crb_get_bit(config_word, 1)
-#define netxen_get_phy_int_energy_detect(config_word)	\
-		_netxen_crb_get_bit(config_word, 4)
-#define netxen_get_phy_int_downshift(config_word)	\
-		_netxen_crb_get_bit(config_word, 5)
-#define netxen_get_phy_int_mdi_xover_changed(config_word)	\
-		_netxen_crb_get_bit(config_word, 6)
-#define netxen_get_phy_int_fifo_over_underflow(config_word)	\
-		_netxen_crb_get_bit(config_word, 7)
-#define netxen_get_phy_int_false_carrier(config_word)	\
-		_netxen_crb_get_bit(config_word, 8)
-#define netxen_get_phy_int_symbol_error(config_word)	\
-		_netxen_crb_get_bit(config_word, 9)
-#define netxen_get_phy_int_link_status_changed(config_word)	\
-		_netxen_crb_get_bit(config_word, 10)
-#define netxen_get_phy_int_autoneg_completed(config_word)	\
-		_netxen_crb_get_bit(config_word, 11)
-#define netxen_get_phy_int_page_received(config_word)	\
-		_netxen_crb_get_bit(config_word, 12)
-#define netxen_get_phy_int_duplex_changed(config_word)	\
-		_netxen_crb_get_bit(config_word, 13)
-#define netxen_get_phy_int_speed_changed(config_word)	\
-		_netxen_crb_get_bit(config_word, 14)
-#define netxen_get_phy_int_autoneg_error(config_word)	\
-		_netxen_crb_get_bit(config_word, 15)
-
-#define netxen_set_phy_int_link_status_changed(config_word)	\
-		((config_word) |= 1 << 10)
-#define netxen_set_phy_int_autoneg_completed(config_word)	\
-		((config_word) |= 1 << 11)
-#define netxen_set_phy_int_speed_changed(config_word)	\
-		((config_word) |= 1 << 14)
 
 /*
  * NIU Mode Register.
@@ -345,33 +258,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 #define NETXEN_NIU_ALLMULTI_MODE	2
 
 /*
- * NIU GB Drop CRC Register
- *
- * Bit 0 : drop_gb0 => 1:drop pkts with bad CRCs, 0:pass them on
- * Bit 1 : drop_gb1 => 1:drop pkts with bad CRCs, 0:pass them on
- * Bit 2 : drop_gb2 => 1:drop pkts with bad CRCs, 0:pass them on
- * Bit 3 : drop_gb3 => 1:drop pkts with bad CRCs, 0:pass them on
- */
-
-#define netxen_set_gb_drop_gb0(config_word)	\
-		((config_word) |= 1 << 0)
-#define netxen_set_gb_drop_gb1(config_word)	\
-		((config_word) |= 1 << 1)
-#define netxen_set_gb_drop_gb2(config_word)	\
-		((config_word) |= 1 << 2)
-#define netxen_set_gb_drop_gb3(config_word)	\
-		((config_word) |= 1 << 3)
-
-#define netxen_clear_gb_drop_gb0(config_word)	\
-		((config_word) &= ~(1 << 0))
-#define netxen_clear_gb_drop_gb1(config_word)	\
-		((config_word) &= ~(1 << 1))
-#define netxen_clear_gb_drop_gb2(config_word)	\
-		((config_word) &= ~(1 << 2))
-#define netxen_clear_gb_drop_gb3(config_word)	\
-		((config_word) &= ~(1 << 3))
-
-/*
  * NIU XG MAC Config Register
  *
  * Bit 0 : tx_enable => 1:enable frame xmit, 0:disable
@@ -386,22 +272,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 
 #define netxen_xg_soft_reset(config_word)	\
 		((config_word) |= 1 << 4)
-
-/* Set promiscuous mode for a GbE interface */
-int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
-				    u32 mode);
-int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
-				       u32 mode);
-
-/* Generic enable for GbE ports. Will detect the speed of the link. */
-int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port);
-
-int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port);
-
-/* Disable a GbE interface */
-int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter);
-
-int netxen_niu_disable_xg_port(struct netxen_adapter *adapter);
 
 typedef struct {
 	unsigned valid;

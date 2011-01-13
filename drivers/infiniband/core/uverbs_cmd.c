@@ -35,6 +35,7 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -285,7 +286,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 
 	ucontext = ibdev->alloc_ucontext(ibdev, &udata);
 	if (IS_ERR(ucontext)) {
-		ret = PTR_ERR(file->ucontext);
+		ret = PTR_ERR(ucontext);
 		goto err;
 	}
 
@@ -301,10 +302,15 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 
 	resp.num_comp_vectors = file->device->num_comp_vectors;
 
-	filp = ib_uverbs_alloc_event_file(file, 1, &resp.async_fd);
+	ret = get_unused_fd();
+	if (ret < 0)
+		goto err_free;
+	resp.async_fd = ret;
+
+	filp = ib_uverbs_alloc_event_file(file, 1);
 	if (IS_ERR(filp)) {
 		ret = PTR_ERR(filp);
-		goto err_free;
+		goto err_fd;
 	}
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
@@ -332,8 +338,10 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	return in_len;
 
 err_file:
-	put_unused_fd(resp.async_fd);
 	fput(filp);
+
+err_fd:
+	put_unused_fd(resp.async_fd);
 
 err_free:
 	ibdev->dealloc_ucontext(ucontext);
@@ -452,6 +460,8 @@ ssize_t ib_uverbs_query_port(struct ib_uverbs_file *file,
 	resp.active_width    = attr.active_width;
 	resp.active_speed    = attr.active_speed;
 	resp.phys_state      = attr.phys_state;
+	resp.link_layer      = rdma_port_get_link_layer(file->device->ib_dev,
+							cmd.port_num);
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp))
@@ -715,6 +725,7 @@ ssize_t ib_uverbs_create_comp_channel(struct ib_uverbs_file *file,
 	struct ib_uverbs_create_comp_channel	   cmd;
 	struct ib_uverbs_create_comp_channel_resp  resp;
 	struct file				  *filp;
+	int ret;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -722,9 +733,16 @@ ssize_t ib_uverbs_create_comp_channel(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	filp = ib_uverbs_alloc_event_file(file, 0, &resp.fd);
-	if (IS_ERR(filp))
+	ret = get_unused_fd();
+	if (ret < 0)
+		return ret;
+	resp.fd = ret;
+
+	filp = ib_uverbs_alloc_event_file(file, 0);
+	if (IS_ERR(filp)) {
+		put_unused_fd(resp.fd);
 		return PTR_ERR(filp);
+	}
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -875,68 +893,81 @@ out:
 	return ret ? ret : in_len;
 }
 
+static int copy_wc_to_user(void __user *dest, struct ib_wc *wc)
+{
+	struct ib_uverbs_wc tmp;
+
+	tmp.wr_id		= wc->wr_id;
+	tmp.status		= wc->status;
+	tmp.opcode		= wc->opcode;
+	tmp.vendor_err		= wc->vendor_err;
+	tmp.byte_len		= wc->byte_len;
+	tmp.ex.imm_data		= (__u32 __force) wc->ex.imm_data;
+	tmp.qp_num		= wc->qp->qp_num;
+	tmp.src_qp		= wc->src_qp;
+	tmp.wc_flags		= wc->wc_flags;
+	tmp.pkey_index		= wc->pkey_index;
+	tmp.slid		= wc->slid;
+	tmp.sl			= wc->sl;
+	tmp.dlid_path_bits	= wc->dlid_path_bits;
+	tmp.port_num		= wc->port_num;
+	tmp.reserved		= 0;
+
+	if (copy_to_user(dest, &tmp, sizeof tmp))
+		return -EFAULT;
+
+	return 0;
+}
+
 ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 			  const char __user *buf, int in_len,
 			  int out_len)
 {
 	struct ib_uverbs_poll_cq       cmd;
-	struct ib_uverbs_poll_cq_resp *resp;
+	struct ib_uverbs_poll_cq_resp  resp;
+	u8 __user                     *header_ptr;
+	u8 __user                     *data_ptr;
 	struct ib_cq                  *cq;
-	struct ib_wc                  *wc;
-	int                            ret = 0;
-	int                            i;
-	int                            rsize;
+	struct ib_wc                   wc;
+	int                            ret;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	wc = kmalloc(cmd.ne * sizeof *wc, GFP_KERNEL);
-	if (!wc)
-		return -ENOMEM;
-
-	rsize = sizeof *resp + cmd.ne * sizeof(struct ib_uverbs_wc);
-	resp = kmalloc(rsize, GFP_KERNEL);
-	if (!resp) {
-		ret = -ENOMEM;
-		goto out_wc;
-	}
-
 	cq = idr_read_cq(cmd.cq_handle, file->ucontext, 0);
-	if (!cq) {
-		ret = -EINVAL;
-		goto out;
+	if (!cq)
+		return -EINVAL;
+
+	/* we copy a struct ib_uverbs_poll_cq_resp to user space */
+	header_ptr = (void __user *)(unsigned long) cmd.response;
+	data_ptr = header_ptr + sizeof resp;
+
+	memset(&resp, 0, sizeof resp);
+	while (resp.count < cmd.ne) {
+		ret = ib_poll_cq(cq, 1, &wc);
+		if (ret < 0)
+			goto out_put;
+		if (!ret)
+			break;
+
+		ret = copy_wc_to_user(data_ptr, &wc);
+		if (ret)
+			goto out_put;
+
+		data_ptr += sizeof(struct ib_uverbs_wc);
+		++resp.count;
 	}
 
-	resp->count = ib_poll_cq(cq, cmd.ne, wc);
-
-	put_cq_read(cq);
-
-	for (i = 0; i < resp->count; i++) {
-		resp->wc[i].wr_id 	   = wc[i].wr_id;
-		resp->wc[i].status 	   = wc[i].status;
-		resp->wc[i].opcode 	   = wc[i].opcode;
-		resp->wc[i].vendor_err 	   = wc[i].vendor_err;
-		resp->wc[i].byte_len 	   = wc[i].byte_len;
-		resp->wc[i].ex.imm_data    = (__u32 __force) wc[i].ex.imm_data;
-		resp->wc[i].qp_num 	   = wc[i].qp->qp_num;
-		resp->wc[i].src_qp 	   = wc[i].src_qp;
-		resp->wc[i].wc_flags 	   = wc[i].wc_flags;
-		resp->wc[i].pkey_index 	   = wc[i].pkey_index;
-		resp->wc[i].slid 	   = wc[i].slid;
-		resp->wc[i].sl 		   = wc[i].sl;
-		resp->wc[i].dlid_path_bits = wc[i].dlid_path_bits;
-		resp->wc[i].port_num 	   = wc[i].port_num;
-	}
-
-	if (copy_to_user((void __user *) (unsigned long) cmd.response, resp, rsize))
+	if (copy_to_user(header_ptr, &resp, sizeof resp)) {
 		ret = -EFAULT;
+		goto out_put;
+	}
 
-out:
-	kfree(resp);
+	ret = in_len;
 
-out_wc:
-	kfree(wc);
-	return ret ? ret : in_len;
+out_put:
+	put_cq_read(cq);
+	return ret;
 }
 
 ssize_t ib_uverbs_req_notify_cq(struct ib_uverbs_file *file,

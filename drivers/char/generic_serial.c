@@ -22,12 +22,14 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
+#include <linux/sched.h>
 #include <linux/serial.h>
 #include <linux/mm.h>
 #include <linux/generic_serial.h>
 #include <linux/interrupt.h>
 #include <linux/tty_flip.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <asm/uaccess.h>
 
 #define DEBUG 

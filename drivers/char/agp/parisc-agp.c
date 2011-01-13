@@ -19,6 +19,7 @@
 #include <linux/klist.h>
 #include <linux/agp_backend.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 #include <asm/parisc-device.h>
 #include <asm/ropes.h>
@@ -32,7 +33,7 @@
 #define AGP8X_MODE		(1 << AGP8X_MODE_BIT)
 
 static unsigned long
-parisc_agp_mask_memory(struct agp_bridge_data *bridge, unsigned long addr,
+parisc_agp_mask_memory(struct agp_bridge_data *bridge, dma_addr_t addr,
 		       int type);
 
 static struct _parisc_agp_info {
@@ -189,17 +190,9 @@ parisc_agp_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 }
 
 static unsigned long
-parisc_agp_mask_memory(struct agp_bridge_data *bridge, unsigned long addr,
+parisc_agp_mask_memory(struct agp_bridge_data *bridge, dma_addr_t addr,
 		       int type)
 {
-	return SBA_PDIR_VALID_BIT | addr;
-}
-
-static unsigned long
-parisc_agp_page_mask_memory(struct agp_bridge_data *bridge, struct page *page,
-			    int type)
-{
-	unsigned long addr = phys_to_gart(page_to_phys(page));
 	return SBA_PDIR_VALID_BIT | addr;
 }
 
@@ -366,8 +359,12 @@ parisc_agp_setup(void __iomem *ioc_hpa, void __iomem *lba_hpa)
 	bridge->dev = fake_bridge_dev;
 
 	error = agp_add_bridge(bridge);
+	if (error)
+		goto fail;
+	return 0;
 
 fail:
+	kfree(fake_bridge_dev);
 	return error;
 }
 

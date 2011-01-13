@@ -9,6 +9,7 @@
 #include <linux/atm_tcp.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 
@@ -67,7 +68,7 @@ static int atmtcp_send_control(struct atm_vcc *vcc,int type,
 	*(struct atm_vcc **) &new_msg->vcc = vcc;
 	old_test = test_bit(flag,&vcc->flags);
 	out_vcc->push(out_vcc,skb);
-	add_wait_queue(sk_atm(vcc)->sk_sleep, &wait);
+	add_wait_queue(sk_sleep(sk_atm(vcc)), &wait);
 	while (test_bit(flag,&vcc->flags) == old_test) {
 		mb();
 		out_vcc = PRIV(vcc->dev) ? PRIV(vcc->dev)->vcc : NULL;
@@ -79,7 +80,7 @@ static int atmtcp_send_control(struct atm_vcc *vcc,int type,
 		schedule();
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk_atm(vcc)->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk_atm(vcc)), &wait);
 	return error;
 }
 
@@ -104,7 +105,7 @@ static int atmtcp_recv_control(const struct atmtcp_control *msg)
 		    msg->type);
 		return -EINVAL;
 	}
-	wake_up(sk_atm(vcc)->sk_sleep);
+	wake_up(sk_sleep(sk_atm(vcc)));
 	return 0;
 }
 
@@ -365,7 +366,7 @@ static int atmtcp_create(int itf,int persist,struct atm_dev **result)
 	if (!dev_data)
 		return -ENOMEM;
 
-	dev = atm_dev_register(DEV_LABEL,&atmtcp_v_dev_ops,itf,NULL);
+	dev = atm_dev_register(DEV_LABEL,NULL,&atmtcp_v_dev_ops,itf,NULL);
 	if (!dev) {
 		kfree(dev_data);
 		return itf == -1 ? -ENOMEM : -EBUSY;
@@ -391,7 +392,10 @@ static int atmtcp_attach(struct atm_vcc *vcc,int itf)
 			atm_dev_put(dev);
 			return -EMEDIUMTYPE;
 		}
-		if (PRIV(dev)->vcc) return -EBUSY;
+		if (PRIV(dev)->vcc) {
+			atm_dev_put(dev);
+			return -EBUSY;
+		}
 	}
 	else {
 		int error;

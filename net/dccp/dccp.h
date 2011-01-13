@@ -93,9 +93,6 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 #define DCCP_FALLBACK_RTT	(USEC_PER_SEC / 5)
 #define DCCP_SANE_RTT_MAX	(3 * USEC_PER_SEC)
 
-/* Maximal interval between probes for local resources.  */
-#define DCCP_RESOURCE_PROBE_INTERVAL ((unsigned)(HZ / 2U))
-
 /* sysctl variables for DCCP */
 extern int  sysctl_dccp_request_retries;
 extern int  sysctl_dccp_retries1;
@@ -153,18 +150,27 @@ static inline u64 max48(const u64 seq1, const u64 seq2)
 }
 
 /**
- * dccp_loss_free  -  Evaluates condition for data loss from RFC 4340, 7.7.1
- * @s1:	 start sequence number
- * @s2:  end sequence number
+ * dccp_loss_count - Approximate the number of lost data packets in a burst loss
+ * @s1:  last known sequence number before the loss ('hole')
+ * @s2:  first sequence number seen after the 'hole'
  * @ndp: NDP count on packet with sequence number @s2
- * Returns true if the sequence range s1...s2 has no data loss.
  */
-static inline bool dccp_loss_free(const u64 s1, const u64 s2, const u64 ndp)
+static inline u64 dccp_loss_count(const u64 s1, const u64 s2, const u64 ndp)
 {
 	s64 delta = dccp_delta_seqno(s1, s2);
 
 	WARN_ON(delta < 0);
-	return (u64)delta <= ndp + 1;
+	delta -= ndp + 1;
+
+	return delta > 0 ? delta : 0;
+}
+
+/**
+ * dccp_loss_free - Evaluate condition for data loss from RFC 4340, 7.7.1
+ */
+static inline bool dccp_loss_free(const u64 s1, const u64 s2, const u64 ndp)
+{
+	return dccp_loss_count(s1, s2, ndp) == 0;
 }
 
 enum {
@@ -189,17 +195,12 @@ enum {
 #define DCCP_MIB_MAX	__DCCP_MIB_MAX
 struct dccp_mib {
 	unsigned long	mibs[DCCP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
 #define DCCP_INC_STATS(field)	    SNMP_INC_STATS(dccp_statistics, field)
 #define DCCP_INC_STATS_BH(field)    SNMP_INC_STATS_BH(dccp_statistics, field)
-#define DCCP_INC_STATS_USER(field)  SNMP_INC_STATS_USER(dccp_statistics, field)
 #define DCCP_DEC_STATS(field)	    SNMP_DEC_STATS(dccp_statistics, field)
-#define DCCP_ADD_STATS_BH(field, val) \
-			SNMP_ADD_STATS_BH(dccp_statistics, field, val)
-#define DCCP_ADD_STATS_USER(field, val)	\
-			SNMP_ADD_STATS_USER(dccp_statistics, field, val)
 
 /*
  * 	Checksumming routines
@@ -223,7 +224,7 @@ static inline void dccp_csum_outgoing(struct sk_buff *skb)
 	skb->csum = skb_checksum(skb, 0, (cov > skb->len)? skb->len : cov, 0);
 }
 
-extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
+extern void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 
 extern int  dccp_retransmit_skb(struct sock *sk);
 
@@ -234,8 +235,22 @@ extern void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
 			   const enum dccp_pkt_type pkt_type);
 
-extern void dccp_write_xmit(struct sock *sk, int block);
-extern void dccp_write_space(struct sock *sk);
+/*
+ * TX Packet Dequeueing Interface
+ */
+extern void		dccp_qpolicy_push(struct sock *sk, struct sk_buff *skb);
+extern bool		dccp_qpolicy_full(struct sock *sk);
+extern void		dccp_qpolicy_drop(struct sock *sk, struct sk_buff *skb);
+extern struct sk_buff	*dccp_qpolicy_top(struct sock *sk);
+extern struct sk_buff	*dccp_qpolicy_pop(struct sock *sk);
+extern bool		dccp_qpolicy_param_ok(struct sock *sk, __be32 param);
+
+/*
+ * TX Packet Output and TX Timers
+ */
+extern void   dccp_write_xmit(struct sock *sk);
+extern void   dccp_write_space(struct sock *sk);
+extern void   dccp_flush_write_queue(struct sock *sk, long *time_budget);
 
 extern void dccp_init_xmit_timers(struct sock *sk);
 static inline void dccp_clear_xmit_timers(struct sock *sk)
@@ -246,7 +261,6 @@ static inline void dccp_clear_xmit_timers(struct sock *sk)
 extern unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu);
 
 extern const char *dccp_packet_name(const int type);
-extern const char *dccp_state_name(const int state);
 
 extern void dccp_set_state(struct sock *sk, const int state);
 extern void dccp_done(struct sock *sk);
@@ -290,14 +304,14 @@ extern int	   dccp_disconnect(struct sock *sk, int flags);
 extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
 				   char __user *optval, int __user *optlen);
 extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
-				   char __user *optval, int optlen);
+				   char __user *optval, unsigned int optlen);
 #ifdef CONFIG_COMPAT
 extern int	   compat_dccp_getsockopt(struct sock *sk,
 				int level, int optname,
 				char __user *optval, int __user *optlen);
 extern int	   compat_dccp_setsockopt(struct sock *sk,
 				int level, int optname,
-				char __user *optval, int optlen);
+				char __user *optval, unsigned int optlen);
 #endif
 extern int	   dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int	   dccp_sendmsg(struct kiocb *iocb, struct sock *sk,
@@ -412,9 +426,27 @@ static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	dp->dccps_gsr = seq;
+	if (after48(seq, dp->dccps_gsr))
+		dp->dccps_gsr = seq;
 	/* Sequence validity window depends on remote Sequence Window (7.5.1) */
 	dp->dccps_swl = SUB48(ADD48(dp->dccps_gsr, 1), dp->dccps_r_seq_win / 4);
+	/*
+	 * Adjust SWL so that it is not below ISR. In contrast to RFC 4340,
+	 * 7.5.1 we perform this check beyond the initial handshake: W/W' are
+	 * always > 32, so for the first W/W' packets in the lifetime of a
+	 * connection we always have to adjust SWL.
+	 * A second reason why we are doing this is that the window depends on
+	 * the feature-remote value of Sequence Window: nothing stops the peer
+	 * from updating this value while we are busy adjusting SWL for the
+	 * first W packets (we would have to count from scratch again then).
+	 * Therefore it is safer to always make sure that the Sequence Window
+	 * is not artificially extended by a peer who grows SWL downwards by
+	 * continually updating the feature-remote Sequence-Window.
+	 * If sequence numbers wrap it is bad luck. But that will take a while
+	 * (48 bit), and this measure prevents Sequence-number attacks.
+	 */
+	if (before48(dp->dccps_swl, dp->dccps_isr))
+		dp->dccps_swl = dp->dccps_isr;
 	dp->dccps_swh = ADD48(dp->dccps_gsr, (3 * dp->dccps_r_seq_win) / 4);
 }
 
@@ -425,16 +457,21 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 	dp->dccps_gss = seq;
 	/* Ack validity window depends on local Sequence Window value (7.5.1) */
 	dp->dccps_awl = SUB48(ADD48(dp->dccps_gss, 1), dp->dccps_l_seq_win);
+	/* Adjust AWL so that it is not below ISS - see comment above for SWL */
+	if (before48(dp->dccps_awl, dp->dccps_iss))
+		dp->dccps_awl = dp->dccps_iss;
 	dp->dccps_awh = dp->dccps_gss;
+}
+
+static inline int dccp_ackvec_pending(const struct sock *sk)
+{
+	return dccp_sk(sk)->dccps_hc_rx_ackvec != NULL &&
+	       !dccp_ackvec_is_empty(dccp_sk(sk)->dccps_hc_rx_ackvec);
 }
 
 static inline int dccp_ack_pending(const struct sock *sk)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	return dp->dccps_timestamp_echo != 0 ||
-	       (dp->dccps_hc_rx_ackvec != NULL &&
-		dccp_ackvec_pending(dp->dccps_hc_rx_ackvec)) ||
-	       inet_csk_ack_scheduled(sk);
+	return dccp_ackvec_pending(sk) || inet_csk_ack_scheduled(sk);
 }
 
 extern int  dccp_feat_finalise_settings(struct dccp_sock *dp);
@@ -446,16 +483,11 @@ extern void dccp_feat_list_purge(struct list_head *fn_list);
 
 extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
 extern int dccp_insert_options_rsk(struct dccp_request_sock*, struct sk_buff*);
-extern int dccp_insert_option_elapsed_time(struct sock *sk,
-					    struct sk_buff *skb,
-					    u32 elapsed_time);
+extern int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed);
 extern u32 dccp_timestamp(void);
 extern void dccp_timestamping_init(void);
-extern int dccp_insert_option_timestamp(struct sock *sk,
-					 struct sk_buff *skb);
-extern int dccp_insert_option(struct sock *sk, struct sk_buff *skb,
-			       unsigned char option,
-			       const void *value, unsigned char len);
+extern int dccp_insert_option(struct sk_buff *skb, unsigned char option,
+			      const void *value, unsigned char len);
 
 #ifdef CONFIG_SYSCTL
 extern int dccp_sysctl_init(void);

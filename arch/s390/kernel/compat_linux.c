@@ -24,22 +24,13 @@
 #include <linux/signal.h>
 #include <linux/resource.h>
 #include <linux/times.h>
-#include <linux/utsname.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/slab.h>
 #include <linux/uio.h>
-#include <linux/nfs_fs.h>
 #include <linux/quota.h>
 #include <linux/module.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/poll.h>
 #include <linux/personality.h>
 #include <linux/stat.h>
@@ -59,6 +50,7 @@
 #include <linux/ptrace.h>
 #include <linux/fadvise.h>
 #include <linux/ipc.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/uaccess.h>
@@ -443,65 +435,27 @@ sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
  * sys32_execve() executes a new program after the asm stub has set
  * things up for us.  This should basically do what I want it to.
  */
-asmlinkage long sys32_execve(void)
+asmlinkage long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
+			     compat_uptr_t __user *envp)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	char *filename;
-	unsigned long result;
-	int rc;
+	long rc;
 
-	filename = getname(compat_ptr(regs->orig_gpr2));
-	if (IS_ERR(filename)) {
-		result = PTR_ERR(filename);
-                goto out;
-	}
-	rc = compat_do_execve(filename, compat_ptr(regs->gprs[3]),
-			      compat_ptr(regs->gprs[4]), regs);
-	if (rc) {
-		result = rc;
-		goto out_putname;
-	}
+	filename = getname(name);
+	rc = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		return rc;
+	rc = compat_do_execve(filename, argv, envp, regs);
+	if (rc)
+		goto out;
 	current->thread.fp_regs.fpc=0;
 	asm volatile("sfpc %0,0" : : "d" (0));
-	result = regs->gprs[2];
-out_putname:
-        putname(filename);
+	rc = regs->gprs[2];
 out:
-	return result;
+	putname(filename);
+	return rc;
 }
-
-
-#ifdef CONFIG_MODULES
-
-asmlinkage long
-sys32_init_module(void __user *umod, unsigned long len,
-		const char __user *uargs)
-{
-	return sys_init_module(umod, len, uargs);
-}
-
-asmlinkage long
-sys32_delete_module(const char __user *name_user, unsigned int flags)
-{
-	return sys_delete_module(name_user, flags);
-}
-
-#else /* CONFIG_MODULES */
-
-asmlinkage long
-sys32_init_module(void __user *umod, unsigned long len,
-		const char __user *uargs)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long
-sys32_delete_module(const char __user *name_user, unsigned int flags)
-{
-	return -ENOSYS;
-}
-
-#endif  /* CONFIG_MODULES */
 
 asmlinkage long sys32_pread64(unsigned int fd, char __user *ubuf,
 				size_t count, u32 poshi, u32 poslo)
@@ -566,59 +520,6 @@ asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL_SYSCALL
-struct __sysctl_args32 {
-	u32 name;
-	int nlen;
-	u32 oldval;
-	u32 oldlenp;
-	u32 newval;
-	u32 newlen;
-	u32 __unused[4];
-};
-
-asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
-{
-	struct __sysctl_args32 tmp;
-	int error;
-	size_t oldlen;
-	size_t __user *oldlenp = NULL;
-	unsigned long addr = (((unsigned long)&args->__unused[0]) + 7) & ~7;
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	if (tmp.oldval && tmp.oldlenp) {
-		/* Duh, this is ugly and might not work if sysctl_args
-		   is in read-only memory, but do_sysctl does indirectly
-		   a lot of uaccess in both directions and we'd have to
-		   basically copy the whole sysctl.c here, and
-		   glibc's __sysctl uses rw memory for the structure
-		   anyway.  */
-		if (get_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)) ||
-		    put_user(oldlen, (size_t __user *)addr))
-			return -EFAULT;
-		oldlenp = (size_t __user *)addr;
-	}
-
-	lock_kernel();
-	error = do_sysctl(compat_ptr(tmp.name), tmp.nlen, compat_ptr(tmp.oldval),
-			  oldlenp, compat_ptr(tmp.newval), tmp.newlen);
-	unlock_kernel();
-	if (oldlenp) {
-		if (!error) {
-			if (get_user(oldlen, (size_t __user *)addr) ||
-			    put_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)))
-				error = -EFAULT;
-		}
-		if (copy_to_user(args->__unused, tmp.__unused,
-				 sizeof(tmp.__unused)))
-			error = -EFAULT;
-	}
-	return error;
-}
-#endif
-
 struct stat64_emu31 {
 	unsigned long long  st_dev;
 	unsigned int    __pad1;
@@ -668,7 +569,7 @@ static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
 	return copy_to_user(ubuf,&tmp,sizeof(tmp)) ? -EFAULT : 0; 
 }
 
-asmlinkage long sys32_stat64(char __user * filename, struct stat64_emu31 __user * statbuf)
+asmlinkage long sys32_stat64(const char __user * filename, struct stat64_emu31 __user * statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_stat(filename, &stat);
@@ -677,7 +578,7 @@ asmlinkage long sys32_stat64(char __user * filename, struct stat64_emu31 __user 
 	return ret;
 }
 
-asmlinkage long sys32_lstat64(char __user * filename, struct stat64_emu31 __user * statbuf)
+asmlinkage long sys32_lstat64(const char __user * filename, struct stat64_emu31 __user * statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_lstat(filename, &stat);
@@ -695,7 +596,7 @@ asmlinkage long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * sta
 	return ret;
 }
 
-asmlinkage long sys32_fstatat64(unsigned int dfd, char __user *filename,
+asmlinkage long sys32_fstatat64(unsigned int dfd, const char __user *filename,
 				struct stat64_emu31 __user* statbuf, int flag)
 {
 	struct kstat stat;
@@ -714,75 +615,35 @@ asmlinkage long sys32_fstatat64(unsigned int dfd, char __user *filename,
  */
 
 struct mmap_arg_struct_emu31 {
-	u32	addr;
-	u32	len;
-	u32	prot;
-	u32	flags;
-	u32	fd;
-	u32	offset;
+	compat_ulong_t addr;
+	compat_ulong_t len;
+	compat_ulong_t prot;
+	compat_ulong_t flags;
+	compat_ulong_t fd;
+	compat_ulong_t offset;
 };
 
-/* common code for old and new mmaps */
-static inline long do_mmap2(
-	unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
-{
-	struct file * file = NULL;
-	unsigned long error = -EBADF;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	if (!IS_ERR((void *) error) && error + len >= 0x80000000ULL) {
-		/* Result is out of bounds.  */
-		do_munmap(current->mm, addr, len);
-		error = -ENOMEM;
-	}
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:    
-	return error;
-}
-
-
-asmlinkage unsigned long
-old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
+asmlinkage unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
 {
 	struct mmap_arg_struct_emu31 a;
-	int error = -EFAULT;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-
-	error = -EINVAL;
+		return -EFAULT;
 	if (a.offset & ~PAGE_MASK)
-		goto out;
-
-	error = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset >> PAGE_SHIFT); 
-out:
-	return error;
+		return -EINVAL;
+	a.addr = (unsigned long) compat_ptr(a.addr);
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+			      a.offset >> PAGE_SHIFT);
 }
 
-asmlinkage long 
-sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
+asmlinkage long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
 {
 	struct mmap_arg_struct_emu31 a;
-	int error = -EFAULT;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-	error = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
-out:
-	return error;
+		return -EFAULT;
+	a.addr = (unsigned long) compat_ptr(a.addr);
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
 }
 
 asmlinkage long sys32_read(unsigned int fd, char __user * buf, size_t count)
@@ -793,29 +654,12 @@ asmlinkage long sys32_read(unsigned int fd, char __user * buf, size_t count)
 	return sys_read(fd, buf, count);
 }
 
-asmlinkage long sys32_write(unsigned int fd, char __user * buf, size_t count)
+asmlinkage long sys32_write(unsigned int fd, const char __user * buf, size_t count)
 {
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 
 
 	return sys_write(fd, buf, count);
-}
-
-asmlinkage long sys32_clone(void)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
-
-	clone_flags = regs->gprs[3] & 0xffffffffUL;
-	newsp = regs->orig_gpr2 & 0x7fffffffUL;
-	parent_tidptr = compat_ptr(regs->gprs[4]);
-	child_tidptr = compat_ptr(regs->gprs[5]);
-	if (!newsp)
-		newsp = regs->gprs[15];
-	return do_fork(clone_flags, newsp, regs, 0,
-		       parent_tidptr, child_tidptr);
 }
 
 /*

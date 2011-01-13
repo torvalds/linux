@@ -1,7 +1,7 @@
 /*
  * Count register synchronisation.
  *
- * All CPUs will have their count registers synchronised to the CPU0 expirelo
+ * All CPUs will have their count registers synchronised to the CPU0 next time
  * value. This can cause a small timewarp for CPU0. All other CPU's should
  * not have done anything significant (but they may have had interrupts
  * enabled briefly - prom_smp_finish() should not be responsible for enabling
@@ -13,21 +13,22 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>
-#include <linux/r4k-timer.h>
+#include <linux/cpumask.h>
 
+#include <asm/r4k-timer.h>
 #include <asm/atomic.h>
 #include <asm/barrier.h>
-#include <asm/cpumask.h>
 #include <asm/mipsregs.h>
 
-static atomic_t __initdata count_start_flag = ATOMIC_INIT(0);
-static atomic_t __initdata count_count_start = ATOMIC_INIT(0);
-static atomic_t __initdata count_count_stop = ATOMIC_INIT(0);
+static atomic_t __cpuinitdata count_start_flag = ATOMIC_INIT(0);
+static atomic_t __cpuinitdata count_count_start = ATOMIC_INIT(0);
+static atomic_t __cpuinitdata count_count_stop = ATOMIC_INIT(0);
+static atomic_t __cpuinitdata count_reference = ATOMIC_INIT(0);
 
 #define COUNTON	100
 #define NR_LOOPS 5
 
-void __init synchronise_count_master(void)
+void __cpuinit synchronise_count_master(void)
 {
 	int i;
 	unsigned long flags;
@@ -42,19 +43,20 @@ void __init synchronise_count_master(void)
 	return;
 #endif
 
-	pr_info("Checking COUNT synchronization across %u CPUs: ",
-		num_online_cpus());
+	printk(KERN_INFO "Synchronize counters across %u CPUs: ",
+	       num_online_cpus());
 
 	local_irq_save(flags);
 
 	/*
 	 * Notify the slaves that it's time to start
 	 */
+	atomic_set(&count_reference, read_c0_count());
 	atomic_set(&count_start_flag, 1);
 	smp_wmb();
 
-	/* Count will be initialised to expirelo for all CPU's */
-	initcount = expirelo;
+	/* Count will be initialised to current timer for all CPU's */
+	initcount = read_c0_count();
 
 	/*
 	 * We loop a few times to get a primed instruction cache,
@@ -106,7 +108,7 @@ void __init synchronise_count_master(void)
 	printk("done.\n");
 }
 
-void __init synchronise_count_slave(void)
+void __cpuinit synchronise_count_slave(void)
 {
 	int i;
 	unsigned long flags;
@@ -131,8 +133,8 @@ void __init synchronise_count_slave(void)
 	while (!atomic_read(&count_start_flag))
 		mb();
 
-	/* Count will be initialised to expirelo for all CPU's */
-	initcount = expirelo;
+	/* Count will be initialised to next expire for all CPU's */
+	initcount = atomic_read(&count_reference);
 
 	ncpus = num_online_cpus();
 	for (i = 0; i < NR_LOOPS; i++) {
@@ -156,4 +158,3 @@ void __init synchronise_count_slave(void)
 	local_irq_restore(flags);
 }
 #undef NR_LOOPS
-#endif

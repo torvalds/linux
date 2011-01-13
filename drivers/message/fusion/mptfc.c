@@ -54,6 +54,7 @@
 #include <linux/reboot.h>	/* notifier code */
 #include <linux/workqueue.h>
 #include <linux/sort.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -96,8 +97,7 @@ static u8	mptfcInternalCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static int mptfc_target_alloc(struct scsi_target *starget);
 static int mptfc_slave_alloc(struct scsi_device *sdev);
-static int mptfc_qcmd(struct scsi_cmnd *SCpnt,
-		      void (*done)(struct scsi_cmnd *));
+static int mptfc_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt);
 static void mptfc_target_destroy(struct scsi_target *starget);
 static void mptfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout);
 static void __devexit mptfc_remove(struct pci_dev *pdev);
@@ -195,29 +195,34 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	unsigned long		flags;
 	int			ready;
 	MPT_ADAPTER 		*ioc;
+	int			loops = 40;	/* seconds */
 
 	hd = shost_priv(SCpnt->device->host);
 	ioc = hd->ioc;
 	spin_lock_irqsave(shost->host_lock, flags);
-	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY) {
+	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY
+	 || (loops > 0 && ioc->active == 0)) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"mptfc_block_error_handler.%d: %d:%d, port status is "
-			"DID_IMM_RETRY, deferring %s recovery.\n",
+			"%x, active flag %d, deferring %s recovery.\n",
 			ioc->name, ioc->sh->host_no,
-			SCpnt->device->id, SCpnt->device->lun, caller));
+			SCpnt->device->id, SCpnt->device->lun,
+			ready, ioc->active, caller));
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
+		loops --;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata) {
+	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata
+	 || ioc->active == 0) {
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%d, failing recovery, "
-			"port state %d, vdevice %p.\n", caller,
+			"port state %x, active %d, vdevice %p.\n", caller,
 			ioc->name, ioc->sh->host_no,
 			SCpnt->device->id, SCpnt->device->lun, ready,
-			SCpnt->device->hostdata));
+			ioc->active, SCpnt->device->hostdata));
 		return FAILED;
 	}
 	dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
@@ -476,6 +481,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 				if (vtarget) {
 					vtarget->id = pg0->CurrentTargetID;
 					vtarget->channel = pg0->CurrentBus;
+					vtarget->deleted = 0;
 				}
 			}
 			*((struct mptfc_rport_info **)rport->dd_data) = ri;
@@ -643,7 +649,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 }
 
 static int
-mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+mptfc_qcmd_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	struct mptfc_rport_info	*ri;
 	struct fc_rport	*rport = starget_to_rport(scsi_target(SCpnt->device));
@@ -673,6 +679,8 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	return mptscsih_qcmd(SCpnt,done);
 }
+
+static DEF_SCSI_QCMD(mptfc_qcmd)
 
 /*
  *	mptfc_display_port_link_speed - displaying link speed
@@ -1086,6 +1094,8 @@ mptfc_setup_reset(struct work_struct *work)
 		container_of(work, MPT_ADAPTER, fc_setup_reset_work);
 	u64			pn;
 	struct mptfc_rport_info *ri;
+	struct scsi_target      *starget;
+	VirtTarget              *vtarget;
 
 	/* reset about to happen, delete (block) all rports */
 	list_for_each_entry(ri, &ioc->fc_rports, list) {
@@ -1093,6 +1103,12 @@ mptfc_setup_reset(struct work_struct *work)
 			ri->flags &= ~MPT_RPORT_INFO_FLAGS_REGISTERED;
 			fc_remote_port_delete(ri->rport);	/* won't sleep */
 			ri->rport = NULL;
+			starget = ri->starget;
+			if (starget) {
+				vtarget = starget->hostdata;
+				if (vtarget)
+					vtarget->deleted = 1;
+			}
 
 			pn = (u64)ri->pg0.WWPN.High << 32 |
 			     (u64)ri->pg0.WWPN.Low;
@@ -1113,6 +1129,8 @@ mptfc_rescan_devices(struct work_struct *work)
 	int			ii;
 	u64			pn;
 	struct mptfc_rport_info *ri;
+	struct scsi_target      *starget;
+	VirtTarget              *vtarget;
 
 	/* start by tagging all ports as missing */
 	list_for_each_entry(ri, &ioc->fc_rports, list) {
@@ -1140,6 +1158,12 @@ mptfc_rescan_devices(struct work_struct *work)
 				       MPT_RPORT_INFO_FLAGS_MISSING);
 			fc_remote_port_delete(ri->rport);	/* won't sleep */
 			ri->rport = NULL;
+			starget = ri->starget;
+			if (starget) {
+				vtarget = starget->hostdata;
+				if (vtarget)
+					vtarget->deleted = 1;
+			}
 
 			pn = (u64)ri->pg0.WWPN.High << 32 |
 			     (u64)ri->pg0.WWPN.Low;
@@ -1288,25 +1312,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "ScsiLookup @ %p\n",
 		 ioc->name, ioc->ScsiLookup));
 
-	/* Clear the TM flags
-	 */
-	hd->abortSCpnt = NULL;
-
-	/* Clear the pointer used to store
-	 * single-threaded commands, i.e., those
-	 * issued during a bus scan, dv and
-	 * configuration pages.
-	 */
-	hd->cmdPtr = NULL;
-
-	/* Initialize this SCSI Hosts' timers
-	 * To use, set the timer expires field
-	 * and add_timer
-	 */
-	init_timer(&hd->timer);
-	hd->timer.data = (unsigned long) hd;
-	hd->timer.function = mptscsih_timer_expired;
-
 	hd->last_queue_full = 0;
 
 	sh->transportt = mptfc_transport_template;
@@ -1371,6 +1376,9 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	unsigned long flags;
 	int rc=1;
 
+	if (ioc->bus_type != FC)
+		return 0;
+
 	devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
 			ioc->name, event));
 
@@ -1409,7 +1417,7 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	unsigned long	flags;
 
 	rc = mptscsih_ioc_reset(ioc,reset_phase);
-	if (rc == 0)
+	if ((ioc->bus_type != FC) || (!rc))
 		return rc;
 
 
@@ -1465,9 +1473,12 @@ mptfc_init(void)
 	if (!mptfc_transport_template)
 		return -ENODEV;
 
-	mptfcDoneCtx = mpt_register(mptscsih_io_done, MPTFC_DRIVER);
-	mptfcTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTFC_DRIVER);
-	mptfcInternalCtx = mpt_register(mptscsih_scandv_complete, MPTFC_DRIVER);
+	mptfcDoneCtx = mpt_register(mptscsih_io_done, MPTFC_DRIVER,
+	    "mptscsih_scandv_complete");
+	mptfcTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTFC_DRIVER,
+	    "mptscsih_scandv_complete");
+	mptfcInternalCtx = mpt_register(mptscsih_scandv_complete, MPTFC_DRIVER,
+	    "mptscsih_scandv_complete");
 
 	mpt_event_register(mptfcDoneCtx, mptfc_event_process);
 	mpt_reset_register(mptfcDoneCtx, mptfc_ioc_reset);

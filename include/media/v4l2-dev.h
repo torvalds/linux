@@ -21,17 +21,18 @@
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
 #define VFL_TYPE_RADIO		2
-#define VFL_TYPE_VTX		3
-#define VFL_TYPE_MAX		4
+#define VFL_TYPE_MAX		3
 
 struct v4l2_ioctl_callbacks;
 struct video_device;
 struct v4l2_device;
+struct v4l2_ctrl_handler;
 
-/* Flag to mark the video_device struct as unregistered.
-   Drivers can set this flag if they want to block all future
-   device access. It is set by video_unregister_device. */
-#define V4L2_FL_UNREGISTERED	(0)
+/* Flag to mark the video_device struct as registered.
+   Drivers can clear this flag if they want to block all future
+   device access. It is cleared by video_unregister_device. */
+#define V4L2_FL_REGISTERED	(0)
+#define V4L2_FL_USES_V4L2_FH	(1)
 
 struct v4l2_file_operations {
 	struct module *owner;
@@ -40,8 +41,6 @@ struct v4l2_file_operations {
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*ioctl) (struct file *, unsigned int, unsigned long);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
-	unsigned long (*get_unmapped_area) (struct file *, unsigned long,
-				unsigned long, unsigned long, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
 	int (*open) (struct file *);
 	int (*release) (struct file *);
@@ -66,6 +65,9 @@ struct video_device
 	struct device *parent;		/* device parent */
 	struct v4l2_device *v4l2_dev;	/* v4l2_device parent */
 
+	/* Control handler associated with this device node. May be NULL. */
+	struct v4l2_ctrl_handler *ctrl_handler;
+
 	/* device info */
 	char name[32];
 	int vfl_type;
@@ -76,6 +78,10 @@ struct video_device
 	unsigned long flags;
 	/* attribute to differentiate multiple indices on one physical device */
 	int index;
+
+	/* V4L2 file handles */
+	spinlock_t		fh_lock; /* Lock for all v4l2_fhs */
+	struct list_head	fh_list; /* List of struct v4l2_fh */
 
 	int debug;			/* Activates debug level*/
 
@@ -88,6 +94,9 @@ struct video_device
 
 	/* ioctl callbacks */
 	const struct v4l2_ioctl_ops *ioctl_ops;
+
+	/* serialization lock */
+	struct mutex *lock;
 };
 
 /* dev to video-device */
@@ -96,15 +105,15 @@ struct video_device
 /* Register video devices. Note that if video_register_device fails,
    the release() callback of the video_device structure is *not* called, so
    the caller is responsible for freeing any data. Usually that means that
-   you call video_device_release() on failure.
-
-   Also note that vdev->minor is set to -1 if the registration failed. */
+   you call video_device_release() on failure. */
 int __must_check video_register_device(struct video_device *vdev, int type, int nr);
-int __must_check video_register_device_index(struct video_device *vdev,
-						int type, int nr, int index);
+
+/* Same as video_register_device, but no warning is issued if the desired
+   device node number was already in use. */
+int __must_check video_register_device_no_warn(struct video_device *vdev, int type, int nr);
 
 /* Unregister video devices. Will do nothing if vdev == NULL or
-   vdev->minor < 0. */
+   video_is_registered() returns false. */
 void video_unregister_device(struct video_device *vdev);
 
 /* helper functions to alloc/release struct video_device, the
@@ -139,9 +148,14 @@ static inline void *video_drvdata(struct file *file)
 	return video_get_drvdata(video_devdata(file));
 }
 
-static inline int video_is_unregistered(struct video_device *vdev)
+static inline const char *video_device_node_name(struct video_device *vdev)
 {
-	return test_bit(V4L2_FL_UNREGISTERED, &vdev->flags);
+	return dev_name(&vdev->dev);
+}
+
+static inline int video_is_registered(struct video_device *vdev)
+{
+	return test_bit(V4L2_FL_REGISTERED, &vdev->flags);
 }
 
 #endif /* _V4L2_DEV_H */

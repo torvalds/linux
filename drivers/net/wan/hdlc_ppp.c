@@ -389,6 +389,7 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	for (opt = data; len; len -= opt[1], opt += opt[1]) {
 		if (len < 2 || len < opt[1]) {
 			dev->stats.rx_errors++;
+			kfree(out);
 			return; /* bad packet, drop silently */
 		}
 
@@ -627,9 +628,15 @@ static void ppp_stop(struct net_device *dev)
 	ppp_cp_event(dev, PID_LCP, STOP, 0, 0, 0, NULL);
 }
 
+static void ppp_close(struct net_device *dev)
+{
+	ppp_tx_flush();
+}
+
 static struct hdlc_proto proto = {
 	.start		= ppp_start,
 	.stop		= ppp_stop,
+	.close		= ppp_close,
 	.type_trans	= ppp_type_trans,
 	.ioctl		= ppp_ioctl,
 	.netif_rx	= ppp_rx,

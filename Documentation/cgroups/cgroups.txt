@@ -18,10 +18,13 @@ CONTENTS:
   1.2 Why are cgroups needed ?
   1.3 How are cgroups implemented ?
   1.4 What does notify_on_release do ?
-  1.5 How do I use cgroups ?
+  1.5 What does clone_children do ?
+  1.6 How do I use cgroups ?
 2. Usage Examples and Syntax
   2.1 Basic Usage
   2.2 Attaching processes
+  2.3 Mounting hierarchies by name
+  2.4 Notification API
 3. Kernel API
   3.1 Overview
   3.2 Synchronization
@@ -227,7 +230,13 @@ as the path relative to the root of the cgroup file system.
 Each cgroup is represented by a directory in the cgroup file system
 containing the following files describing that cgroup:
 
- - tasks: list of tasks (by pid) attached to that cgroup
+ - tasks: list of tasks (by pid) attached to that cgroup.  This list
+   is not guaranteed to be sorted.  Writing a thread id into this file
+   moves the thread into this cgroup.
+ - cgroup.procs: list of tgids in the cgroup.  This list is not
+   guaranteed to be sorted or free of duplicate tgids, and userspace
+   should sort/uniquify the list if this property is required.
+   This is a read-only file, for now.
  - notify_on_release flag: run the release agent on exit?
  - release_agent: the path to use for release notifications (this file
    exists in the top cgroup only)
@@ -285,7 +294,16 @@ notify_on_release in the root cgroup at system boot is disabled
 value of their parents notify_on_release setting. The default value of
 a cgroup hierarchy's release_agent path is empty.
 
-1.5 How do I use cgroups ?
+1.5 What does clone_children do ?
+---------------------------------
+
+If the clone_children flag is enabled (1) in a cgroup, then all
+cgroups created beneath will call the post_clone callbacks for each
+subsystem of the newly created cgroup. Usually when this callback is
+implemented for a subsystem, it copies the values of the parent
+subsystem, this is the case for the cpuset.
+
+1.6 How do I use cgroups ?
 --------------------------
 
 To start a new job that is to be contained within a cgroup, using
@@ -331,7 +349,7 @@ To mount a cgroup hierarchy with all available subsystems, type:
 The "xxx" is not interpreted by the cgroup code, but will appear in
 /proc/mounts so may be any useful identifying string that you like.
 
-To mount a cgroup hierarchy with just the cpuset and numtasks
+To mount a cgroup hierarchy with just the cpuset and memory
 subsystems, type:
 # mount -t cgroup -o cpuset,memory hier1 /dev/cgroup
 
@@ -374,7 +392,7 @@ Now you want to do something with this cgroup.
 
 In this directory you can find several files:
 # ls
-notify_on_release tasks
+cgroup.procs notify_on_release tasks
 (plus whatever files added by the attached subsystems)
 
 Now attach your shell to this cgroup:
@@ -407,6 +425,45 @@ If you have several tasks to attach, you have to do it one after another:
 You can attach the current shell task by echoing 0:
 
 # echo 0 > tasks
+
+2.3 Mounting hierarchies by name
+--------------------------------
+
+Passing the name=<x> option when mounting a cgroups hierarchy
+associates the given name with the hierarchy.  This can be used when
+mounting a pre-existing hierarchy, in order to refer to it by name
+rather than by its set of active subsystems.  Each hierarchy is either
+nameless, or has a unique name.
+
+The name should match [\w.-]+
+
+When passing a name=<x> option for a new hierarchy, you need to
+specify subsystems manually; the legacy behaviour of mounting all
+subsystems when none are explicitly specified is not supported when
+you give a subsystem a name.
+
+The name of the subsystem appears as part of the hierarchy description
+in /proc/mounts and /proc/<pid>/cgroups.
+
+2.4 Notification API
+--------------------
+
+There is mechanism which allows to get notifications about changing
+status of a cgroup.
+
+To register new notification handler you need:
+ - create a file descriptor for event notification using eventfd(2);
+ - open a control file to be monitored (e.g. memory.usage_in_bytes);
+ - write "<event_fd> <control_fd> <args>" to cgroup.event_control.
+   Interpretation of args is defined by control file implementation;
+
+eventfd will be woken up by control file implementation or when the
+cgroup is removed.
+
+To unregister notification handler just close eventfd.
+
+NOTE: Support of notifications should be implemented for the control
+file. See documentation for the subsystem.
 
 3. Kernel API
 =============
@@ -461,6 +518,11 @@ Each subsystem should:
 - add an entry in linux/cgroup_subsys.h
 - define a cgroup_subsys object called <name>_subsys
 
+If a subsystem can be compiled as a module, it should also have in its
+module initcall a call to cgroup_load_subsys(), and in its exitcall a
+call to cgroup_unload_subsys(). It should also set its_subsys.module =
+THIS_MODULE in its .c file.
+
 Each subsystem may export the following methods. The only mandatory
 methods are create/destroy. Any others that are null are presumed to
 be successful no-ops.
@@ -501,7 +563,7 @@ rmdir() will fail with it. From this behavior, pre_destroy() can be
 called multiple times against a cgroup.
 
 int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	       struct task_struct *task)
+	       struct task_struct *task, bool threadgroup)
 (cgroup_mutex held by caller)
 
 Called prior to moving a task into a cgroup; if the subsystem
@@ -509,14 +571,31 @@ returns an error, this will abort the attach operation.  If a NULL
 task is passed, then a successful result indicates that *any*
 unspecified task can be moved into the cgroup. Note that this isn't
 called on a fork. If this method returns 0 (success) then this should
-remain valid while the caller holds cgroup_mutex.
+remain valid while the caller holds cgroup_mutex and it is ensured that either
+attach() or cancel_attach() will be called in future. If threadgroup is
+true, then a successful result indicates that all threads in the given
+thread's threadgroup can be moved together.
+
+void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
+	       struct task_struct *task, bool threadgroup)
+(cgroup_mutex held by caller)
+
+Called when a task attach operation has failed after can_attach() has succeeded.
+A subsystem whose can_attach() has some side-effects should provide this
+function, so that the subsystem can implement a rollback. If not, not necessary.
+This will be called only about subsystems whose can_attach() operation have
+succeeded.
 
 void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	    struct cgroup *old_cgrp, struct task_struct *task)
+	    struct cgroup *old_cgrp, struct task_struct *task,
+	    bool threadgroup)
 (cgroup_mutex held by caller)
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
+If threadgroup is true, the subsystem should take care of all threads
+in the specified thread's threadgroup. Currently does not support any
+subsystem that might need the old_cgrp for every thread in the group.
 
 void fork(struct cgroup_subsy *ss, struct task_struct *task)
 

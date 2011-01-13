@@ -45,7 +45,7 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/pnp.h>
 
 #include "../comedidev.h"
@@ -97,7 +97,8 @@ union encvaluetype {
 
 #define C6XDIGIO_TIME_OUT 20
 
-static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int c6xdigio_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it);
 static int c6xdigio_detach(struct comedi_device *dev);
 struct comedi_driver driver_c6xdigio = {
 	.driver_name = "c6xdigio",
@@ -114,28 +115,28 @@ static void C6X_pwmInit(unsigned long baseAddr)
 
 	WriteByteToHwPort(baseAddr, 0x70);
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x74);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x70);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
@@ -219,11 +220,11 @@ static int C6X_encInput(unsigned long baseAddr, unsigned channel)
 	/* printk("Inside C6X_encInput\n"); */
 
 	enc.value = 0;
-	if (channel == 0) {
+	if (channel == 0)
 		ppcmd = 0x48;
-	} else {
+	else
 		ppcmd = 0x50;
-	}
+
 	WriteByteToHwPort(baseAddr, ppcmd);
 	tmp = ReadByteFromHwPort(baseAddr + 1);
 	while (((tmp & 0x80) == 0) && (timeout < C6XDIGIO_TIME_OUT)) {
@@ -315,38 +316,41 @@ static void C6X_encResetAll(unsigned long baseAddr)
 
 	WriteByteToHwPort(baseAddr, 0x68);
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x6C);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x68);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 }
 
 static int c6xdigio_pwmo_insn_read(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
 {
 	printk("c6xdigio_pwmo_insn_read %x\n", insn->n);
 	return insn->n;
 }
 
 static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -375,20 +379,20 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
 /* { */
 /* int i; */
 /* int chan = CR_CHAN(insn->chanspec); */
-/*  *//* C6X_encResetAll( dev->iobase ); */
-/*  *//* return insn->n; */
+      /*  *//* C6X_encResetAll( dev->iobase ); */
+      /*  *//* return insn->n; */
 /* } */
 
 static int c6xdigio_ei_insn_read(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	/*   printk("c6xdigio_ei__insn_read %x\n", insn->n); */
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for (n = 0; n < insn->n; n++) {
+	for (n = 0; n < insn->n; n++)
 		data[n] = (C6X_encInput(dev->iobase, chan) & 0xffffff);
-	}
 
 	return n;
 }
@@ -426,7 +430,8 @@ static struct pnp_driver c6xdigio_pnp_driver = {
 	.id_table = c6xdigio_pnp_tbl,
 };
 
-static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int c6xdigio_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it)
 {
 	int result = 0;
 	unsigned long iobase;
@@ -446,15 +451,14 @@ static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	if (result < 0)
 		return result;
 
-	/*  Make sure that PnP ports gets activated */
+	/*  Make sure that PnP ports get activated */
 	pnp_register_driver(&c6xdigio_pnp_driver);
 
 	irq = it->options[1];
-	if (irq > 0) {
+	if (irq > 0)
 		printk("comedi%d: irq = %u ignored\n", dev->minor, irq);
-	} else if (irq == 0) {
+	else if (irq == 0)
 		printk("comedi%d: no irq\n", dev->minor);
-	}
 
 	s = dev->subdevices + 0;
 	/* pwm output subdevice */
@@ -477,19 +481,19 @@ static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	s->maxdata = 0xffffff;
 	s->range_table = &range_unknown;
 
-	/*           s = dev->subdevices + 2; */
-	      /* pwm output subdevice */
-	/*       s->type = COMEDI_SUBD_COUNTER;  // Not sure what to put here */
-	/*       s->subdev_flags = SDF_WRITEABLE; */
-	/*       s->n_chan = 1; */
-	/*       s->trig[0] = c6xdigio_ei_init; */
-	/*       s->insn_read = c6xdigio_ei_init_insn_read; */
-	/*       s->insn_write = c6xdigio_ei_init_insn_write; */
-	/*       s->maxdata = 0xFFFF;  // Really just a don't care */
-	/*       s->range_table = &range_unknown; // Not sure what to put here */
+	/*	s = dev->subdevices + 2; */
+	/* pwm output subdevice */
+	/*	s->type = COMEDI_SUBD_COUNTER;  // Not sure what to put here */
+	/*	s->subdev_flags = SDF_WRITEABLE; */
+	/*	s->n_chan = 1; */
+	/*	s->trig[0] = c6xdigio_ei_init; */
+	/*	s->insn_read = c6xdigio_ei_init_insn_read; */
+	/*	s->insn_write = c6xdigio_ei_init_insn_write; */
+	/*	s->maxdata = 0xFFFF;  // Really just a don't care */
+	/*	s->range_table = &range_unknown; // Not sure what to put here */
 
-	/*  I will call this init anyway but more than likely the DSP board will not be connect */
-	/*  when device driver is loaded. */
+	/*  I will call this init anyway but more than likely the DSP board */
+	/*  will not be connected when device driver is loaded. */
 	board_init(dev);
 
 	return 0;
@@ -497,19 +501,35 @@ static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *i
 
 static int c6xdigio_detach(struct comedi_device *dev)
 {
-/* board_halt(dev);  may not need this */
+	/* board_halt(dev);  may not need this */
 
 	printk("comedi%d: c6xdigio: remove\n", dev->minor);
 
-	if (dev->iobase) {
+	if (dev->iobase)
 		release_region(dev->iobase, C6XDIGIO_SIZE);
-	}
-	if (dev->irq) {
+
+	/*  Not using IRQ so I am not sure if I need this */
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}			/*  Not using IRQ so I am not sure if I need this */
+
 	pnp_unregister_driver(&c6xdigio_pnp_driver);
 
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_c6xdigio);
+static int __init driver_c6xdigio_init_module(void)
+{
+	return comedi_driver_register(&driver_c6xdigio);
+}
+
+static void __exit driver_c6xdigio_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_c6xdigio);
+}
+
+module_init(driver_c6xdigio_init_module);
+module_exit(driver_c6xdigio_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

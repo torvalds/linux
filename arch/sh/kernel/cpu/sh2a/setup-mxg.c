@@ -115,16 +115,13 @@ static DECLARE_INTC_DESC(intc_desc, "mxg", vectors, groups,
 			 mask_registers, prio_registers, NULL);
 
 static struct sh_timer_config mtu2_0_platform_data = {
-	.name = "MTU2_0",
 	.channel_offset = -0x80,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_0_resources[] = {
 	[0] = {
-		.name	= "MTU2_0",
 		.start	= 0xff801300,
 		.end	= 0xff801326,
 		.flags	= IORESOURCE_MEM,
@@ -146,16 +143,13 @@ static struct platform_device mtu2_0_device = {
 };
 
 static struct sh_timer_config mtu2_1_platform_data = {
-	.name = "MTU2_1",
 	.channel_offset = -0x100,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_1_resources[] = {
 	[0] = {
-		.name	= "MTU2_1",
 		.start	= 0xff801380,
 		.end	= 0xff801390,
 		.flags	= IORESOURCE_MEM,
@@ -177,16 +171,13 @@ static struct platform_device mtu2_1_device = {
 };
 
 static struct sh_timer_config mtu2_2_platform_data = {
-	.name = "MTU2_2",
 	.channel_offset = 0x80,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_2_resources[] = {
 	[0] = {
-		.name	= "MTU2_2",
 		.start	= 0xff801000,
 		.end	= 0xff80100a,
 		.flags	= IORESOURCE_MEM,
@@ -207,29 +198,25 @@ static struct platform_device mtu2_2_device = {
 	.num_resources	= ARRAY_SIZE(mtu2_2_resources),
 };
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xff804000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-		.scbrr_algo_id	= SCBRR_ALGO_2,
-		.type		= PORT_SCIF,
-		.irqs		= { 220, 220, 220, 220 },
-	}, {
-		.flags = 0,
-	}
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xff804000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
+	.type		= PORT_SCIF,
+	.irqs		= { 220, 220, 220, 220 },
 };
 
-static struct platform_device sci_device = {
+static struct platform_device scif0_device = {
 	.name		= "sh-sci",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
-		.platform_data	= sci_platform_data,
+		.platform_data	= &scif0_platform_data,
 	},
 };
 
 static struct platform_device *mxg_devices[] __initdata = {
-	&sci_device,
+	&scif0_device,
 	&mtu2_0_device,
 	&mtu2_1_device,
 	&mtu2_2_device,
@@ -240,7 +227,7 @@ static int __init mxg_devices_setup(void)
 	return platform_add_devices(mxg_devices,
 				    ARRAY_SIZE(mxg_devices));
 }
-__initcall(mxg_devices_setup);
+arch_initcall(mxg_devices_setup);
 
 void __init plat_irq_setup(void)
 {
@@ -248,6 +235,7 @@ void __init plat_irq_setup(void)
 }
 
 static struct platform_device *mxg_early_devices[] __initdata = {
+	&scif0_device,
 	&mtu2_0_device,
 	&mtu2_1_device,
 	&mtu2_2_device,

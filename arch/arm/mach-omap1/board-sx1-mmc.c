@@ -15,9 +15,9 @@
 #include <linux/platform_device.h>
 
 #include <mach/hardware.h>
-#include <mach/mmc.h>
+#include <plat/mmc.h>
 #include <mach/gpio.h>
-#include <mach/board-sx1.h>
+#include <plat/board-sx1.h>
 
 #if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
 
@@ -44,8 +44,7 @@ static struct omap_mmc_platform_data mmc1_data = {
 	.nr_slots                       = 1,
 	.slots[0]       = {
 		.set_power              = mmc_set_power,
-		.ocr_mask               = MMC_VDD_28_29 | MMC_VDD_30_31 |
-					  MMC_VDD_32_33 | MMC_VDD_33_34,
+		.ocr_mask               = MMC_VDD_32_33 | MMC_VDD_33_34,
 		.name                   = "mmcblk",
 	},
 };

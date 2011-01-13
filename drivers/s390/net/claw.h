@@ -74,8 +74,8 @@
 #define MAX_ENVELOPE_SIZE       65536
 #define CLAW_DEFAULT_MTU_SIZE   4096
 #define DEF_PACK_BUFSIZE	32768
-#define READ                    0
-#define WRITE                   1
+#define READ_CHANNEL		0
+#define WRITE_CHANNEL		1
 
 #define TB_TX                   0          /* sk buffer handling in process  */
 #define TB_STOP                 1          /* network device stop in process */
@@ -128,6 +128,18 @@ static inline int claw_dbf_passes(debug_info_t *dbf_grp, int level)
 						debug_buffer); \
 		} \
 	} while (0)
+
+/**
+ * Enum for classifying detected devices.
+ */
+enum claw_channel_types {
+	/* Device is not a channel  */
+	claw_channel_type_none,
+
+	/* Device is a CLAW channel device */
+	claw_channel_type_claw
+};
+
 
 /*******************************************************
 *  Define Control Blocks                               *

@@ -21,24 +21,25 @@
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
-#include <mach/led.h>
+#include <plat/led.h>
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/dma.h>
-#include <mach/tc.h>
-#include <mach/board.h>
-#include <mach/irda.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
+#include <plat/flash.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/dma.h>
+#include <plat/tc.h>
+#include <plat/board.h>
+#include <plat/irda.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -50,19 +51,18 @@
 #define PALMTT_MMC_WP_GPIO	8
 #define PALMTT_HDQ_GPIO		11
 
-static int palmtt_keymap[] = {
+static const unsigned int palmtt_keymap[] = {
 	KEY(0, 0, KEY_ESC),
-	KEY(0, 1, KEY_SPACE),
-	KEY(0, 2, KEY_LEFTCTRL),
-	KEY(0, 3, KEY_TAB),
-	KEY(0, 4, KEY_ENTER),
-	KEY(1, 0, KEY_LEFT),
+	KEY(1, 0, KEY_SPACE),
+	KEY(2, 0, KEY_LEFTCTRL),
+	KEY(3, 0, KEY_TAB),
+	KEY(4, 0, KEY_ENTER),
+	KEY(0, 1, KEY_LEFT),
 	KEY(1, 1, KEY_DOWN),
-	KEY(1, 2, KEY_UP),
-	KEY(1, 3, KEY_RIGHT),
-	KEY(2, 0, KEY_SLEEP),
-	KEY(2, 4, KEY_Y),
-	0
+	KEY(2, 1, KEY_UP),
+	KEY(3, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_SLEEP),
+	KEY(4, 2, KEY_Y),
 };
 
 static struct mtd_partition palmtt_partitions[] = {
@@ -104,9 +104,9 @@ static struct mtd_partition palmtt_partitions[] = {
 	}
 };
 
-static struct flash_platform_data palmtt_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data palmtt_flash_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= palmtt_partitions,
 	.nr_parts	= ARRAY_SIZE(palmtt_partitions),
 };
@@ -118,7 +118,7 @@ static struct resource palmtt_flash_resource = {
 };
 
 static struct platform_device palmtt_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &palmtt_flash_data,
@@ -135,10 +135,15 @@ static struct resource palmtt_kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data palmtt_keymap_data = {
+	.keymap		= palmtt_keymap,
+	.keymap_size	= ARRAY_SIZE(palmtt_keymap),
+};
+
 static struct omap_kp_platform_data palmtt_kp_data = {
 	.rows	= 6,
 	.cols	= 3,
-	.keymap = palmtt_keymap,
+	.keymap_data = &palmtt_keymap_data,
 };
 
 static struct platform_device palmtt_kp_device = {
@@ -274,13 +279,8 @@ static struct omap_lcd_config palmtt_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_uart_config palmtt_uart_config __initdata = {
-	.enabled_uarts = (1 << 0) | (1 << 1) | (0 << 2),
-};
-
 static struct omap_board_config_kernel palmtt_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&palmtt_lcd_config	},
-	{ OMAP_TAG_UART,	&palmtt_uart_config	},
 };
 
 static void __init omap_mpu_wdt_mode(int mode) {
@@ -294,6 +294,14 @@ static void __init omap_mpu_wdt_mode(int mode) {
 
 static void __init omap_palmtt_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
 	omap_mpu_wdt_mode(0);
 
 	omap_board_config = palmtt_config;
@@ -303,7 +311,7 @@ static void __init omap_palmtt_init(void)
 
 	spi_register_board_info(palmtt_boardinfo,ARRAY_SIZE(palmtt_boardinfo));
 	omap_serial_init();
-	omap_usb_init(&palmtt_usb_config);
+	omap1_usb_init(&palmtt_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
@@ -313,10 +321,9 @@ static void __init omap_palmtt_map_io(void)
 }
 
 MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")
-	.phys_io	= 0xfff00000,
-	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_palmtt_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_palmtt_init_irq,
 	.init_machine	= omap_palmtt_init,
 	.timer		= &omap_timer,

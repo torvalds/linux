@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 
@@ -34,9 +35,8 @@
 
 struct mcu {
 	struct mutex lock;
-	struct device_node *np;
 	struct i2c_client *client;
-	struct of_gpio_chip of_gc;
+	struct gpio_chip gc;
 	u8 reg_ctrl;
 };
 
@@ -55,8 +55,7 @@ static void mcu_power_off(void)
 
 static void mcu_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct of_gpio_chip *of_gc = to_of_gpio_chip(gc);
-	struct mcu *mcu = container_of(of_gc, struct mcu, of_gc);
+	struct mcu *mcu = container_of(gc, struct mcu, gc);
 	u8 bit = 1 << (4 + gpio);
 
 	mutex_lock(&mcu->lock);
@@ -78,9 +77,7 @@ static int mcu_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 static int mcu_gpiochip_add(struct mcu *mcu)
 {
 	struct device_node *np;
-	struct of_gpio_chip *of_gc = &mcu->of_gc;
-	struct gpio_chip *gc = &of_gc->gc;
-	int ret;
+	struct gpio_chip *gc = &mcu->gc;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,mcu-mpc8349emitx");
 	if (!np)
@@ -93,32 +90,14 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 	gc->base = -1;
 	gc->set = mcu_gpio_set;
 	gc->direction_output = mcu_gpio_dir_out;
-	of_gc->gpio_cells = 2;
-	of_gc->xlate = of_gpio_simple_xlate;
+	gc->of_node = np;
 
-	np->data = of_gc;
-	mcu->np = np;
-
-	/*
-	 * We don't want to lose the node, its ->data and ->full_name...
-	 * So, if succeeded, we don't put the node here.
-	 */
-	ret = gpiochip_add(gc);
-	if (ret)
-		of_node_put(np);
-	return ret;
+	return gpiochip_add(gc);
 }
 
 static int mcu_gpiochip_remove(struct mcu *mcu)
 {
-	int ret;
-
-	ret = gpiochip_remove(&mcu->of_gc.gc);
-	if (ret)
-		return ret;
-	of_node_put(mcu->np);
-
-	return 0;
+	return gpiochip_remove(&mcu->gc);
 }
 
 static int __devinit mcu_probe(struct i2c_client *client,
@@ -181,10 +160,16 @@ static const struct i2c_device_id mcu_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcu_ids);
 
+static struct of_device_id mcu_of_match_table[] __devinitdata = {
+	{ .compatible = "fsl,mcu-mpc8349emitx", },
+	{ },
+};
+
 static struct i2c_driver mcu_driver = {
 	.driver = {
 		.name = "mcu-mpc8349emitx",
 		.owner = THIS_MODULE,
+		.of_match_table = mcu_of_match_table,
 	},
 	.probe = mcu_probe,
 	.remove	= __devexit_p(mcu_remove),

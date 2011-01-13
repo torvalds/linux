@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/list.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -34,9 +35,7 @@ int pcibios_assign_bus_offset = 1;
 void pcibios_make_OF_bus_map(void);
 
 static void fixup_cpc710_pci64(struct pci_dev* dev);
-#ifdef CONFIG_PPC_OF
 static u8* pci_to_OF_bus_map;
-#endif
 
 /* By default, we don't re-assign bus numbers. We do this only on
  * some pmacs
@@ -83,7 +82,6 @@ fixup_cpc710_pci64(struct pci_dev* dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixup_cpc710_pci64);
 
-#ifdef CONFIG_PPC_OF
 /*
  * Functions below are used on OpenFirmware machines.
  */
@@ -357,42 +355,15 @@ pci_create_OF_bus_map(void)
 	}
 }
 
-#else /* CONFIG_PPC_OF */
-void pcibios_make_OF_bus_map(void)
+void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
-}
-#endif /* CONFIG_PPC_OF */
-
-static void __devinit pcibios_scan_phb(struct pci_controller *hose)
-{
-	struct pci_bus *bus;
-	struct device_node *node = hose->dn;
 	unsigned long io_offset;
 	struct resource *res = &hose->io_resource;
-
-	pr_debug("PCI: Scanning PHB %s\n",
-		 node ? node->full_name : "<NO NAME>");
-
-	/* Create an empty bus for the toplevel */
-	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, hose);
-	if (bus == NULL) {
-		printk(KERN_ERR "Failed to create bus for PCI domain %04x\n",
-		       hose->global_number);
-		return;
-	}
-	bus->secondary = hose->first_busno;
-	hose->bus = bus;
 
 	/* Fixup IO space offset */
 	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
 	res->start = (res->start + io_offset) & 0xffffffffu;
 	res->end = (res->end + io_offset) & 0xffffffffu;
-
-	/* Wire up PHB bus resources */
-	pcibios_setup_phb_resources(hose);
-
-	/* Scan children */
-	hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 }
 
 static int __init pcibios_init(void)
@@ -410,7 +381,7 @@ static int __init pcibios_init(void)
 		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
 		hose->last_busno = 0xff;
-		pcibios_scan_phb(hose);
+		pcibios_scan_phb(hose, hose);
 		pci_bus_add_devices(hose->bus);
 		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
@@ -478,75 +449,4 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 	return result;
 }
 
-/*
- * Null PCI config access functions, for the case when we can't
- * find a hose.
- */
-#define NULL_PCI_OP(rw, size, type)					\
-static int								\
-null_##rw##_config_##size(struct pci_dev *dev, int offset, type val)	\
-{									\
-	return PCIBIOS_DEVICE_NOT_FOUND;    				\
-}
 
-static int
-null_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
-		 int len, u32 *val)
-{
-	return PCIBIOS_DEVICE_NOT_FOUND;
-}
-
-static int
-null_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
-		  int len, u32 val)
-{
-	return PCIBIOS_DEVICE_NOT_FOUND;
-}
-
-static struct pci_ops null_pci_ops =
-{
-	.read = null_read_config,
-	.write = null_write_config,
-};
-
-/*
- * These functions are used early on before PCI scanning is done
- * and all of the pci_dev and pci_bus structures have been created.
- */
-static struct pci_bus *
-fake_pci_bus(struct pci_controller *hose, int busnr)
-{
-	static struct pci_bus bus;
-
-	if (hose == 0) {
-		hose = pci_bus_to_hose(busnr);
-		if (hose == 0)
-			printk(KERN_ERR "Can't find hose for PCI bus %d!\n", busnr);
-	}
-	bus.number = busnr;
-	bus.sysdata = hose;
-	bus.ops = hose? hose->ops: &null_pci_ops;
-	return &bus;
-}
-
-#define EARLY_PCI_OP(rw, size, type)					\
-int early_##rw##_config_##size(struct pci_controller *hose, int bus,	\
-			       int devfn, int offset, type value)	\
-{									\
-	return pci_bus_##rw##_config_##size(fake_pci_bus(hose, bus),	\
-					    devfn, offset, value);	\
-}
-
-EARLY_PCI_OP(read, byte, u8 *)
-EARLY_PCI_OP(read, word, u16 *)
-EARLY_PCI_OP(read, dword, u32 *)
-EARLY_PCI_OP(write, byte, u8)
-EARLY_PCI_OP(write, word, u16)
-EARLY_PCI_OP(write, dword, u32)
-
-extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
-int early_find_capability(struct pci_controller *hose, int bus, int devfn,
-			  int cap)
-{
-	return pci_bus_find_capability(fake_pci_bus(hose, bus), devfn, cap);
-}

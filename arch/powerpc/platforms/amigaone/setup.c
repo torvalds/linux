@@ -13,12 +13,13 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/seq_file.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 
 #include <asm/machdep.h>
 #include <asm/cputable.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/i8259.h>
 #include <asm/time.h>
@@ -110,13 +111,16 @@ void __init amigaone_init_IRQ(void)
 	irq_set_default_host(i8259_get_host());
 }
 
-void __init amigaone_init(void)
+static int __init request_isa_regions(void)
 {
 	request_region(0x00, 0x20, "dma1");
 	request_region(0x40, 0x20, "timer");
 	request_region(0x80, 0x10, "dma page reg");
 	request_region(0xc0, 0x20, "dma2");
+
+	return 0;
 }
+machine_device_initcall(amigaone, request_isa_regions);
 
 void amigaone_restart(char *cmd)
 {
@@ -161,7 +165,6 @@ define_machine(amigaone) {
 	.name			= "AmigaOne",
 	.probe			= amigaone_probe,
 	.setup_arch		= amigaone_setup_arch,
-	.init			= amigaone_init,
 	.show_cpuinfo		= amigaone_show_cpuinfo,
 	.init_IRQ		= amigaone_init_IRQ,
 	.restart		= amigaone_restart,

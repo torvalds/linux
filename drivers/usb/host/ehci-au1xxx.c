@@ -69,6 +69,15 @@ static void au1xxx_stop_ehc(void)
 	au_sync();
 }
 
+static int au1xxx_ehci_setup(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int ret = ehci_init(hcd);
+
+	ehci->need_io_watchdog = 0;
+	return ret;
+}
+
 static const struct hc_driver ehci_au1xxx_hc_driver = {
 	.description		= hcd_name,
 	.product_desc		= "Au1xxx EHCI",
@@ -86,7 +95,7 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 	 * FIXME -- ehci_init() doesn't do enough here.
 	 * See ehci-ppc-soc for a complete implementation.
 	 */
-	.reset			= ehci_init,
+	.reset			= au1xxx_ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -113,12 +122,15 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 	.bus_resume		= ehci_bus_resume,
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
+
+	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
 static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
+	struct resource *res;
 	int ret;
 
 	if (usb_disabled())
@@ -142,8 +154,9 @@ static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	hcd->rsrc_start = pdev->resource[0].start;
-	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		pr_debug("request_mem_region failed");
@@ -197,10 +210,9 @@ static int ehci_hcd_au1xxx_drv_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ehci_hcd_au1xxx_drv_suspend(struct platform_device *pdev,
-					pm_message_t message)
+static int ehci_hcd_au1xxx_drv_suspend(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	unsigned long flags;
 	int rc;
@@ -212,32 +224,17 @@ static int ehci_hcd_au1xxx_drv_suspend(struct platform_device *pdev,
 		msleep(10);
 
 	/* Root hub was already suspended. Disable irq emission and
-	 * mark HW unaccessible, bail out if RH has been resumed. Use
-	 * the spinlock to properly synchronize with possible pending
-	 * RH suspend or resume activity.
-	 *
-	 * This is still racy as hcd->state is manipulated outside of
-	 * any locks =P But that will be a different fix.
+	 * mark HW unaccessible.  The PM and USB cores make sure that
+	 * the root hub is either suspended or stopped.
 	 */
 	spin_lock_irqsave(&ehci->lock, flags);
-	if (hcd->state != HC_STATE_SUSPENDED) {
-		rc = -EINVAL;
-		goto bail;
-	}
+	ehci_prepare_ports_for_controller_suspend(ehci, device_may_wakeup(dev));
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
-
-	/* make sure snapshot being resumed re-enumerates everything */
-	if (message.event == PM_EVENT_PRETHAW) {
-		ehci_halt(ehci);
-		ehci_reset(ehci);
-	}
 
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	au1xxx_stop_ehc();
-
-bail:
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	// could save FLADJ in case of Vaux power loss
@@ -246,10 +243,9 @@ bail:
 	return rc;
 }
 
-
-static int ehci_hcd_au1xxx_drv_resume(struct platform_device *pdev)
+static int ehci_hcd_au1xxx_drv_resume(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
 	au1xxx_start_ehc();
@@ -268,6 +264,7 @@ static int ehci_hcd_au1xxx_drv_resume(struct platform_device *pdev)
 	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
 		int	mask = INTR_MASK;
 
+		ehci_prepare_ports_for_controller_resume(ehci);
 		if (!hcd->self.root_hub->do_remote_wakeup)
 			mask &= ~STS_PCD;
 		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
@@ -303,20 +300,25 @@ static int ehci_hcd_au1xxx_drv_resume(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops au1xxx_ehci_pmops = {
+	.suspend	= ehci_hcd_au1xxx_drv_suspend,
+	.resume		= ehci_hcd_au1xxx_drv_resume,
+};
+
+#define AU1XXX_EHCI_PMOPS &au1xxx_ehci_pmops
+
 #else
-#define ehci_hcd_au1xxx_drv_suspend NULL
-#define ehci_hcd_au1xxx_drv_resume NULL
+#define AU1XXX_EHCI_PMOPS NULL
 #endif
 
 static struct platform_driver ehci_hcd_au1xxx_driver = {
 	.probe		= ehci_hcd_au1xxx_drv_probe,
 	.remove		= ehci_hcd_au1xxx_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-	.suspend	= ehci_hcd_au1xxx_drv_suspend,
-	.resume		= ehci_hcd_au1xxx_drv_resume,
 	.driver = {
 		.name	= "au1xxx-ehci",
 		.owner	= THIS_MODULE,
+		.pm	= AU1XXX_EHCI_PMOPS,
 	}
 };
 

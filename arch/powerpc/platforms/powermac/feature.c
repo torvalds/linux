@@ -21,6 +21,8 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/spinlock.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
@@ -59,10 +61,10 @@ extern struct device_node *k2_skiplist[2];
  * We use a single global lock to protect accesses. Each driver has
  * to take care of its own locking
  */
-DEFINE_SPINLOCK(feature_lock);
+DEFINE_RAW_SPINLOCK(feature_lock);
 
-#define LOCK(flags)	spin_lock_irqsave(&feature_lock, flags);
-#define UNLOCK(flags)	spin_unlock_irqrestore(&feature_lock, flags);
+#define LOCK(flags)	raw_spin_lock_irqsave(&feature_lock, flags);
+#define UNLOCK(flags)	raw_spin_unlock_irqrestore(&feature_lock, flags);
 
 
 /*
@@ -2191,7 +2193,11 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
 		PMAC_MB_MAY_SLEEP,
 	},
-	{	"iMac,1",			"iMac (first generation)",
+	{       "PowerMac10,2",                 "Mac mini (Late 2005)",
+		PMAC_TYPE_UNKNOWN_INTREPID,     intrepid_features,
+		PMAC_MB_MAY_SLEEP,
+	},
+ 	{	"iMac,1",			"iMac (first generation)",
 		PMAC_TYPE_ORIG_IMAC,		paddington_features,
 		0
 	},
@@ -2419,14 +2425,14 @@ static int __init probe_motherboard(void)
 	dt = of_find_node_by_name(NULL, "device-tree");
 	if (dt != NULL)
 		model = of_get_property(dt, "model", NULL);
-	for(i=0; model && i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
+	for(i=0; model && i<ARRAY_SIZE(pmac_mb_defs); i++) {
 	    if (strcmp(model, pmac_mb_defs[i].model_string) == 0) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
 	    }
 	}
-	for(i=0; i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
-	    if (machine_is_compatible(pmac_mb_defs[i].model_string)) {
+	for(i=0; i<ARRAY_SIZE(pmac_mb_defs); i++) {
+	    if (of_machine_is_compatible(pmac_mb_defs[i].model_string)) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
 	    }
@@ -2589,9 +2595,16 @@ static void __init probe_uninorth(void)
 	if (address == 0)
 		return;
 	uninorth_base = ioremap(address, 0x40000);
+	if (uninorth_base == NULL)
+		return;
 	uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
-	if (uninorth_maj == 3 || uninorth_maj == 4)
+	if (uninorth_maj == 3 || uninorth_maj == 4) {
 		u3_ht_base = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
+		if (u3_ht_base == NULL) {
+			iounmap(uninorth_base);
+			return;
+		}
+	}
 
 	printk(KERN_INFO "Found %s memory controller & host bridge"
 	       " @ 0x%08x revision: 0x%02x\n", uninorth_maj == 3 ? "U3" :
@@ -2860,12 +2873,11 @@ set_initial_features(void)
 
 		/* Switch airport off */
 		for_each_node_by_name(np, "radio") {
-			if (np && np->parent == macio_chips[0].of_node) {
+			if (np->parent == macio_chips[0].of_node) {
 				macio_chips[0].flags |= MACIO_FLAG_AIRPORT_ON;
 				core99_airport_enable(np, 0, 0);
 			}
 		}
-		of_node_put(np);
 	}
 
 	/* On all machines that support sound PM, switch sound off */

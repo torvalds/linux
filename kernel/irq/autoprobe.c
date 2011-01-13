@@ -45,7 +45,7 @@ unsigned long probe_irq_on(void)
 	 * flush such a longstanding irq before considering it as spurious.
 	 */
 	for_each_irq_desc_reverse(i, desc) {
-		spin_lock_irq(&desc->lock);
+		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
 			/*
 			 * An old-style architecture might still have
@@ -57,11 +57,12 @@ unsigned long probe_irq_on(void)
 			 * Some chips need to know about probing in
 			 * progress:
 			 */
-			if (desc->chip->set_type)
-				desc->chip->set_type(i, IRQ_TYPE_PROBE);
-			desc->chip->startup(i);
+			if (desc->irq_data.chip->irq_set_type)
+				desc->irq_data.chip->irq_set_type(&desc->irq_data,
+							 IRQ_TYPE_PROBE);
+			desc->irq_data.chip->irq_startup(&desc->irq_data);
 		}
-		spin_unlock_irq(&desc->lock);
+		raw_spin_unlock_irq(&desc->lock);
 	}
 
 	/* Wait for longstanding interrupts to trigger. */
@@ -73,13 +74,13 @@ unsigned long probe_irq_on(void)
 	 * happened in the previous stage, it may have masked itself)
 	 */
 	for_each_irq_desc_reverse(i, desc) {
-		spin_lock_irq(&desc->lock);
+		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
 			desc->status |= IRQ_AUTODETECT | IRQ_WAITING;
-			if (desc->chip->startup(i))
+			if (desc->irq_data.chip->irq_startup(&desc->irq_data))
 				desc->status |= IRQ_PENDING;
 		}
-		spin_unlock_irq(&desc->lock);
+		raw_spin_unlock_irq(&desc->lock);
 	}
 
 	/*
@@ -91,19 +92,19 @@ unsigned long probe_irq_on(void)
 	 * Now filter out any obviously spurious interrupts
 	 */
 	for_each_irq_desc(i, desc) {
-		spin_lock_irq(&desc->lock);
+		raw_spin_lock_irq(&desc->lock);
 		status = desc->status;
 
 		if (status & IRQ_AUTODETECT) {
 			/* It triggered already - consider it spurious. */
 			if (!(status & IRQ_WAITING)) {
 				desc->status = status & ~IRQ_AUTODETECT;
-				desc->chip->shutdown(i);
+				desc->irq_data.chip->irq_shutdown(&desc->irq_data);
 			} else
 				if (i < 32)
 					mask |= 1 << i;
 		}
-		spin_unlock_irq(&desc->lock);
+		raw_spin_unlock_irq(&desc->lock);
 	}
 
 	return mask;
@@ -129,7 +130,7 @@ unsigned int probe_irq_mask(unsigned long val)
 	int i;
 
 	for_each_irq_desc(i, desc) {
-		spin_lock_irq(&desc->lock);
+		raw_spin_lock_irq(&desc->lock);
 		status = desc->status;
 
 		if (status & IRQ_AUTODETECT) {
@@ -137,9 +138,9 @@ unsigned int probe_irq_mask(unsigned long val)
 				mask |= 1 << i;
 
 			desc->status = status & ~IRQ_AUTODETECT;
-			desc->chip->shutdown(i);
+			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
 		}
-		spin_unlock_irq(&desc->lock);
+		raw_spin_unlock_irq(&desc->lock);
 	}
 	mutex_unlock(&probing_active);
 
@@ -171,7 +172,7 @@ int probe_irq_off(unsigned long val)
 	unsigned int status;
 
 	for_each_irq_desc(i, desc) {
-		spin_lock_irq(&desc->lock);
+		raw_spin_lock_irq(&desc->lock);
 		status = desc->status;
 
 		if (status & IRQ_AUTODETECT) {
@@ -181,9 +182,9 @@ int probe_irq_off(unsigned long val)
 				nr_of_irqs++;
 			}
 			desc->status = status & ~IRQ_AUTODETECT;
-			desc->chip->shutdown(i);
+			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
 		}
-		spin_unlock_irq(&desc->lock);
+		raw_spin_unlock_irq(&desc->lock);
 	}
 	mutex_unlock(&probing_active);
 

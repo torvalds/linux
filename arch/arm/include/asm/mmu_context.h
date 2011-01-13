@@ -18,7 +18,6 @@
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
 #include <asm/proc-fns.h>
-#include <asm-generic/mm_hooks.h>
 
 void __check_kvm_seq(struct mm_struct *mm);
 
@@ -43,12 +42,23 @@ void __check_kvm_seq(struct mm_struct *mm);
 #define ASID_FIRST_VERSION	(1 << ASID_BITS)
 
 extern unsigned int cpu_last_asid;
+#ifdef CONFIG_SMP
+DECLARE_PER_CPU(struct mm_struct *, current_mm);
+#endif
 
 void __init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 void __new_context(struct mm_struct *mm);
 
 static inline void check_context(struct mm_struct *mm)
 {
+	/*
+	 * This code is executed with interrupts enabled. Therefore,
+	 * mm->context.id cannot be updated to the latest ASID version
+	 * on a different CPU (and condition below not triggered)
+	 * without first getting an IPI to reset the context. The
+	 * alternative is to take a read_lock on mm->context.id_lock
+	 * (after changing its type to rwlock_t).
+	 */
 	if (unlikely((mm->context.id ^ cpu_last_asid) >> ASID_BITS))
 		__new_context(mm);
 
@@ -62,8 +72,10 @@ static inline void check_context(struct mm_struct *mm)
 
 static inline void check_context(struct mm_struct *mm)
 {
+#ifdef CONFIG_MMU
 	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
 		__check_kvm_seq(mm);
+#endif
 }
 
 #define init_new_context(tsk,mm)	0
@@ -101,19 +113,52 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 #ifdef CONFIG_SMP
 	/* check for possible thread migration */
-	if (!cpus_empty(next->cpu_vm_mask) && !cpu_isset(cpu, next->cpu_vm_mask))
+	if (!cpumask_empty(mm_cpumask(next)) &&
+	    !cpumask_test_cpu(cpu, mm_cpumask(next)))
 		__flush_icache_all();
 #endif
-	if (!cpu_test_and_set(cpu, next->cpu_vm_mask) || prev != next) {
+	if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)) || prev != next) {
+#ifdef CONFIG_SMP
+		struct mm_struct **crt_mm = &per_cpu(current_mm, cpu);
+		*crt_mm = next;
+#endif
 		check_context(next);
 		cpu_switch_mm(next->pgd, next);
 		if (cache_is_vivt())
-			cpu_clear(cpu, prev->cpu_vm_mask);
+			cpumask_clear_cpu(cpu, mm_cpumask(prev));
 	}
 #endif
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 #define activate_mm(prev,next)	switch_mm(prev, next, NULL)
+
+/*
+ * We are inserting a "fake" vma for the user-accessible vector page so
+ * gdb and friends can get to it through ptrace and /proc/<pid>/mem.
+ * But we also want to remove it before the generic code gets to see it
+ * during process exit or the unmapping of it would  cause total havoc.
+ * (the macro is used as remove_vma() is static to mm/mmap.c)
+ */
+#define arch_exit_mmap(mm) \
+do { \
+	struct vm_area_struct *high_vma = find_vma(mm, 0xffff0000); \
+	if (high_vma) { \
+		BUG_ON(high_vma->vm_next);  /* it should be last */ \
+		if (high_vma->vm_prev) \
+			high_vma->vm_prev->vm_next = NULL; \
+		else \
+			mm->mmap = NULL; \
+		rb_erase(&high_vma->vm_rb, &mm->mm_rb); \
+		mm->mmap_cache = NULL; \
+		mm->map_count--; \
+		remove_vma(high_vma); \
+	} \
+} while (0)
+
+static inline void arch_dup_mmap(struct mm_struct *oldmm,
+				 struct mm_struct *mm)
+{
+}
 
 #endif

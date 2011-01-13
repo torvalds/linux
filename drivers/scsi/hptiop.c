@@ -1,6 +1,6 @@
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
- * Copyright (C) 2006-2007 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2009 HighPoint Technologies, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
+#include <linux/gfp.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/div64.h>
@@ -41,7 +42,7 @@ MODULE_DESCRIPTION("HighPoint RocketRAID 3xxx/4xxx Controller Driver");
 
 static char driver_name[] = "hptiop";
 static const char driver_name_long[] = "RocketRAID 3xxx/4xxx Controller driver";
-static const char driver_ver[] = "v1.3 (071203)";
+static const char driver_ver[] = "v1.6 (090910)";
 
 static int iop_send_sync_msg(struct hptiop_hba *hba, u32 msg, u32 millisec);
 static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
@@ -115,8 +116,12 @@ static void hptiop_drain_outbound_queue_itl(struct hptiop_hba *hba)
 static int iop_intr_itl(struct hptiop_hba *hba)
 {
 	struct hpt_iopmu_itl __iomem *iop = hba->u.itl.iop;
+	void __iomem *plx = hba->u.itl.plx;
 	u32 status;
 	int ret = 0;
+
+	if (plx && readl(plx + 0x11C5C) & 0xf)
+		writel(1, plx + 0x11C60);
 
 	status = readl(&iop->outbound_intstatus);
 
@@ -460,15 +465,25 @@ static void __iomem *hptiop_map_pci_bar(struct hptiop_hba *hba, int index)
 
 static int hptiop_map_pci_bar_itl(struct hptiop_hba *hba)
 {
+	struct pci_dev *pcidev = hba->pcidev;
 	hba->u.itl.iop = hptiop_map_pci_bar(hba, 0);
-	if (hba->u.itl.iop)
-		return 0;
-	else
+	if (hba->u.itl.iop == NULL)
 		return -1;
+	if ((pcidev->device & 0xff00) == 0x4400) {
+		hba->u.itl.plx = hba->u.itl.iop;
+		hba->u.itl.iop = hptiop_map_pci_bar(hba, 2);
+		if (hba->u.itl.iop == NULL) {
+			iounmap(hba->u.itl.plx);
+			return -1;
+		}
+	}
+	return 0;
 }
 
 static void hptiop_unmap_pci_bar_itl(struct hptiop_hba *hba)
 {
+	if (hba->u.itl.plx)
+		iounmap(hba->u.itl.plx);
 	iounmap(hba->u.itl.iop);
 }
 
@@ -736,7 +751,7 @@ static void hptiop_post_req_mv(struct hptiop_hba *hba,
 		MVIOP_MU_QUEUE_ADDR_HOST_BIT | size_bit, hba);
 }
 
-static int hptiop_queuecommand(struct scsi_cmnd *scp,
+static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 				void (*done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *host = scp->device->host;
@@ -804,6 +819,8 @@ cmd_done:
 	return 0;
 }
 
+static DEF_SCSI_QCMD(hptiop_queuecommand)
+
 static const char *hptiop_info(struct Scsi_Host *host)
 {
 	return driver_name_long;
@@ -820,7 +837,7 @@ static int hptiop_reset_hba(struct hptiop_hba *hba)
 			atomic_read(&hba->resetting) == 0, 60 * HZ);
 
 	if (atomic_read(&hba->resetting)) {
-		/* IOP is in unkown state, abort reset */
+		/* IOP is in unknown state, abort reset */
 		printk(KERN_ERR "scsi%d: reset failed\n", hba->host->host_no);
 		return -1;
 	}
@@ -847,9 +864,12 @@ static int hptiop_reset(struct scsi_cmnd *scp)
 }
 
 static int hptiop_adjust_disk_queue_depth(struct scsi_device *sdev,
-						int queue_depth)
+					  int queue_depth, int reason)
 {
 	struct hptiop_hba *hba = (struct hptiop_hba *)sdev->host->hostdata;
+
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
 
 	if (queue_depth > hba->max_requests)
 		queue_depth = hba->max_requests;
@@ -1139,7 +1159,7 @@ free_pci_regions:
 disable_pci_device:
 	pci_disable_device(pcidev);
 
-	dprintk("scsi%d: hptiop_probe fail\n", host->host_no);
+	dprintk("scsi%d: hptiop_probe fail\n", host ? host->host_no : 0);
 	return -ENODEV;
 }
 
@@ -1239,22 +1259,23 @@ static struct hptiop_adapter_ops hptiop_mv_ops = {
 static struct pci_device_id hptiop_id_table[] = {
 	{ PCI_VDEVICE(TTI, 0x3220), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3320), (kernel_ulong_t)&hptiop_itl_ops },
-	{ PCI_VDEVICE(TTI, 0x3520), (kernel_ulong_t)&hptiop_itl_ops },
-	{ PCI_VDEVICE(TTI, 0x4320), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x3410), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3510), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3511), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x3520), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3521), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3522), (kernel_ulong_t)&hptiop_itl_ops },
-	{ PCI_VDEVICE(TTI, 0x3410), (kernel_ulong_t)&hptiop_itl_ops },
-	{ PCI_VDEVICE(TTI, 0x3540), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3530), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x3540), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3560), (kernel_ulong_t)&hptiop_itl_ops },
-	{ PCI_VDEVICE(TTI, 0x4322), (kernel_ulong_t)&hptiop_itl_ops },
-	{ PCI_VDEVICE(TTI, 0x4321), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4210), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4211), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4310), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4311), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x4320), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x4321), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x4322), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x4400), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3120), (kernel_ulong_t)&hptiop_mv_ops },
 	{ PCI_VDEVICE(TTI, 0x3122), (kernel_ulong_t)&hptiop_mv_ops },
 	{ PCI_VDEVICE(TTI, 0x3020), (kernel_ulong_t)&hptiop_mv_ops },

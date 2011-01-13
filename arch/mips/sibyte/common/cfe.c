@@ -287,7 +287,7 @@ void __init prom_init(void)
 	 * boot console
 	 */
 	cfe_cons_handle = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE);
-	if (cfe_getenv("LINUX_CMDLINE", arcs_cmdline, CL_SIZE) < 0) {
+	if (cfe_getenv("LINUX_CMDLINE", arcs_cmdline, COMMAND_LINE_SIZE) < 0) {
 		if (argc >= 0) {
 			/* The loader should have set the command line */
 			/* too early for panic to do any good */
@@ -318,7 +318,7 @@ void __init prom_init(void)
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 	/* Not sure this is needed, but it's the safe way. */
-	arcs_cmdline[CL_SIZE-1] = 0;
+	arcs_cmdline[COMMAND_LINE_SIZE-1] = 0;
 
 	prom_meminit();
 

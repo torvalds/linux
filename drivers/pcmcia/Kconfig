@@ -17,24 +17,6 @@ menuconfig PCCARD
 
 if PCCARD
 
-config PCMCIA_DEBUG
-	bool "Enable PCCARD debugging"
-	help
-	  Say Y here to enable PCMCIA subsystem debugging.  You
-	  will need to choose the debugging level either via the
-	  kernel command line, or module options depending whether
-	  you build the PCMCIA as modules.
-
-	  The kernel command line options are:
-	    pcmcia_core.pc_debug=N
-	    pcmcia.pc_debug=N
-	    sa11xx_core.pc_debug=N
-
-	  The module option is called pc_debug=N
-
-	  In all the above examples, N is the debugging verbosity
-	  level.
-
 config PCMCIA
 	tristate "16-bit PCMCIA support"
 	select CRC32
@@ -67,22 +49,8 @@ config PCMCIA_LOAD_CIS
 
 	  If unsure, say Y.
 
-config PCMCIA_IOCTL
-	bool "PCMCIA control ioctl (obsolete)"
-	depends on PCMCIA
-	default y
-	help
-	  If you say Y here, the deprecated ioctl interface to the PCMCIA
-	  subsystem will be built. It is needed by cardmgr and cardctl
-	  (pcmcia-cs) to function properly.
-
-	  You should use the new pcmciautils package instead (see
-	  <file:Documentation/Changes> for location and details).
-
-	  If unsure, say Y.
-
 config CARDBUS
-	bool "32-bit CardBus support"	
+	bool "32-bit CardBus support"
 	depends on PCI
 	default y
 	---help---
@@ -102,11 +70,11 @@ config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
 	select CARDBUS if !EMBEDDED
-	select PCCARD_NONSTATIC
+	select PCCARD_NONSTATIC if PCMCIA != n
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
-	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is 
-	  the hardware inside your computer that PCMCIA cards are plugged 
+	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
+	  the hardware inside your computer that PCMCIA cards are plugged
 	  into.
 
 	  To compile this driver as modules, choose M here: the
@@ -179,9 +147,8 @@ config TCIC
 
 config PCMCIA_M8XX
 	tristate "MPC8xx PCMCIA support"
-	depends on PCMCIA && PPC && 8xx
-	select PCCARD_IODYN
-	select PCCARD_NONSTATIC
+	depends on PCCARD && PPC && 8xx
+	select PCCARD_IODYN if PCMCIA != n
 	help
 	  Say Y here to include support for PowerPC 8xx series PCMCIA
 	  controller.
@@ -190,11 +157,40 @@ config PCMCIA_M8XX
 
 config PCMCIA_AU1X00
 	tristate "Au1x00 pcmcia support"
-	depends on SOC_AU1X00 && PCMCIA
+	depends on MIPS_ALCHEMY && PCMCIA
+
+config PCMCIA_ALCHEMY_DEVBOARD
+	tristate "Alchemy Db/Pb1xxx PCMCIA socket services"
+	depends on MIPS_ALCHEMY && PCMCIA
+	select 64BIT_PHYS_ADDR
+	help
+	  Enable this driver of you want PCMCIA support on your Alchemy
+	  Db1000, Db/Pb1100, Db/Pb1500, Db/Pb1550, Db/Pb1200 board.
+	  NOT suitable for the PB1000!
+
+	  This driver is also available as a module called db1xxx_ss.ko
+
+config PCMCIA_XXS1500
+	tristate "MyCable XXS1500 PCMCIA socket support"
+	depends on PCMCIA && MIPS_XXS1500
+	select 64BIT_PHYS_ADDR
+	help
+	  Support for the PCMCIA/CF socket interface on MyCable XXS1500
+	  systems.
+
+	  This driver is also available as a module called xxs1500_ss.ko
+
+config PCMCIA_BCM63XX
+	tristate "bcm63xx pcmcia support"
+	depends on BCM63XX && PCMCIA
+
+config PCMCIA_SOC_COMMON
+	tristate
 
 config PCMCIA_SA1100
 	tristate "SA1100 support"
 	depends on ARM && ARCH_SA1100 && PCMCIA
+	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for SA11x0-based PCMCIA or CF
 	  sockets, found on HP iPAQs, Yopy, and other StrongARM(R)/
@@ -205,6 +201,7 @@ config PCMCIA_SA1100
 config PCMCIA_SA1111
 	tristate "SA1111 support"
 	depends on ARM && ARCH_SA1100 && SA1111 && PCMCIA
+	select PCMCIA_SOC_COMMON
 	help
 	  Say Y  here to include support for SA1111-based PCMCIA or CF
 	  sockets, found on the Jornada 720, Graphicsmaster and other
@@ -217,9 +214,30 @@ config PCMCIA_PXA2XX
 	depends on ARM && ARCH_PXA && PCMCIA
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
 		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
-		    || ARCH_VIPER || ARCH_PXA_ESERIES || MACH_STARGATE2)
+		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2 \
+		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
+		    || MACH_COLIBRI320)
+	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
+
+config PCMCIA_DEBUG
+	bool "Enable debugging"
+	depends on (PCMCIA_SA1111 || PCMCIA_SA1100 || PCMCIA_PXA2XX)
+	help
+	  Say Y here to enable debugging for the SoC PCMCIA layer.
+	  You will need to choose the debugging level either via the
+	  kernel command line, or module options depending whether
+	  you build the drivers as modules.
+
+	  The kernel command line options are:
+	    sa11xx_core.pc_debug=N
+	    pxa2xx_core.pc_debug=N
+
+	  The module option is called pc_debug=N
+
+	  In all the above examples, N is the debugging verbosity
+	  level.
 
 config PCMCIA_PROBE
 	bool
@@ -228,14 +246,12 @@ config PCMCIA_PROBE
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
 	depends on M32R && CHIP_M32700 && PCMCIA
-	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R PCMCIA controller.
 
 config M32R_CFC
 	bool "M32R CF I/F Controller"
 	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT)
-	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R CompactFlash controller.
 
@@ -283,7 +299,7 @@ config ELECTRA_CF
 	  PA Semi Electra eval board.
 
 config PCCARD_NONSTATIC
-	tristate
+	bool
 
 config PCCARD_IODYN
 	bool

@@ -1,9 +1,9 @@
 /*
- *    Support for Legend Silicon DMB-TH demodulator
- *    LGS8913, LGS8GL5
+ *    Support for Legend Silicon GB20600 (a.k.a DMB-TH) demodulator
+ *    LGS8913, LGS8GL5, LGS8G75
  *    experimental support LGS8G42, LGS8G52
  *
- *    Copyright (C) 2007,2008 David T.L. Wong <davidtlwong@gmail.com>
+ *    Copyright (C) 2007-2009 David T.L. Wong <davidtlwong@gmail.com>
  *    Copyright (C) 2008 Sirius International (Hong Kong) Limited
  *    Timothy Lee <timothy.lee@siriushk.com> (for initial work on LGS8GL5)
  *
@@ -38,7 +38,7 @@ struct lgs8gxx_state {
 #define SC_QAM64	0x10	/* 64QAM modulation */
 #define SC_QAM32	0x0C	/* 32QAM modulation */
 #define SC_QAM16	0x08	/* 16QAM modulation */
-#define SC_QAM4NR	0x04	/* 4QAM modulation */
+#define SC_QAM4NR	0x04	/* 4QAM-NR modulation */
 #define SC_QAM4		0x00	/* 4QAM modulation */
 
 #define LGS_FEC_MASK	0x03	/* FEC Rate Mask */
@@ -47,8 +47,8 @@ struct lgs8gxx_state {
 #define LGS_FEC_0_8	0x02	/* FEC Rate 0.8 */
 
 #define TIM_MASK	  0x20	/* Time Interleave Length Mask */
-#define TIM_LONG	  0x00	/* Time Interleave Length = 720 */
-#define TIM_MIDDLE     0x20   /* Time Interleave Length = 240 */
+#define TIM_LONG	  0x20	/* Time Interleave Length = 720 */
+#define TIM_MIDDLE     0x00   /* Time Interleave Length = 240 */
 
 #define CF_MASK	0x80	/* Control Frame Mask */
 #define CF_EN	0x80	/* Control Frame On */

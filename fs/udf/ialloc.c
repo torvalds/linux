@@ -20,7 +20,6 @@
 
 #include "udfdecl.h"
 #include <linux/fs.h>
-#include <linux/quotaops.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -31,15 +30,6 @@ void udf_free_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
-
-	/*
-	 * Note: we must free any quota before locking the superblock,
-	 * as writing the quota to disk may need the lock as well.
-	 */
-	vfs_dq_free_inode(inode);
-	vfs_dq_drop(inode);
-
-	clear_inode(inode);
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	if (sbi->s_lvid_bh) {
@@ -102,37 +92,21 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		return NULL;
 	}
 
-	mutex_lock(&sbi->s_alloc_mutex);
 	if (sbi->s_lvid_bh) {
-		struct logicalVolIntegrityDesc *lvid =
-			(struct logicalVolIntegrityDesc *)
-			sbi->s_lvid_bh->b_data;
-		struct logicalVolIntegrityDescImpUse *lvidiu =
-							udf_sb_lvidiu(sbi);
-		struct logicalVolHeaderDesc *lvhd;
-		uint64_t uniqueID;
-		lvhd = (struct logicalVolHeaderDesc *)
-				(lvid->logicalVolContentsUse);
+		struct logicalVolIntegrityDescImpUse *lvidiu;
+
+		iinfo->i_unique = lvid_get_unique_id(sb);
+		mutex_lock(&sbi->s_alloc_mutex);
+		lvidiu = udf_sb_lvidiu(sbi);
 		if (S_ISDIR(mode))
 			le32_add_cpu(&lvidiu->numDirs, 1);
 		else
 			le32_add_cpu(&lvidiu->numFiles, 1);
-		iinfo->i_unique = uniqueID = le64_to_cpu(lvhd->uniqueID);
-		if (!(++uniqueID & 0x00000000FFFFFFFFUL))
-			uniqueID += 16;
-		lvhd->uniqueID = cpu_to_le64(uniqueID);
 		udf_updated_lvid(sb);
+		mutex_unlock(&sbi->s_alloc_mutex);
 	}
-	mutex_unlock(&sbi->s_alloc_mutex);
-	inode->i_mode = mode;
-	inode->i_uid = current_fsuid();
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else {
-		inode->i_gid = current_fsgid();
-	}
+
+	inode_init_owner(inode, dir, mode);
 
 	iinfo->i_location.logicalBlockNum = block;
 	iinfo->i_location.partitionReferenceNum =
@@ -152,15 +126,6 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		iinfo->i_crtime = current_fs_time(inode->i_sb);
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
-
-	if (vfs_dq_alloc_inode(inode)) {
-		vfs_dq_drop(inode);
-		inode->i_flags |= S_NOQUOTA;
-		inode->i_nlink = 0;
-		iput(inode);
-		*err = -EDQUOT;
-		return NULL;
-	}
 
 	*err = 0;
 	return inode;

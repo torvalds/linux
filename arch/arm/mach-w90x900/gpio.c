@@ -1,7 +1,7 @@
 /*
- * linux/arch/arm/mach-w90p910/gpio.c
+ * linux/arch/arm/mach-w90x900/gpio.c
  *
- * Generic w90p910 GPIO handling
+ * Generic nuc900 GPIO handling
  *
  *  Wan ZongShun <mcuos.com@gmail.com>
  *
@@ -30,31 +30,31 @@
 #define GPIO_IN			(0x0C)
 #define GROUPINERV		(0x10)
 #define GPIO_GPIO(Nb)		(0x00000001 << (Nb))
-#define to_w90p910_gpio_chip(c) container_of(c, struct w90p910_gpio_chip, chip)
+#define to_nuc900_gpio_chip(c) container_of(c, struct nuc900_gpio_chip, chip)
 
-#define W90P910_GPIO_CHIP(name, base_gpio, nr_gpio)			\
+#define NUC900_GPIO_CHIP(name, base_gpio, nr_gpio)			\
 	{								\
 		.chip = {						\
 			.label		  = name,			\
-			.direction_input  = w90p910_dir_input,		\
-			.direction_output = w90p910_dir_output,		\
-			.get		  = w90p910_gpio_get,		\
-			.set		  = w90p910_gpio_set,		\
+			.direction_input  = nuc900_dir_input,		\
+			.direction_output = nuc900_dir_output,		\
+			.get		  = nuc900_gpio_get,		\
+			.set		  = nuc900_gpio_set,		\
 			.base		  = base_gpio,			\
 			.ngpio		  = nr_gpio,			\
 		}							\
 	}
 
-struct w90p910_gpio_chip {
+struct nuc900_gpio_chip {
 	struct gpio_chip	chip;
 	void __iomem		*regbase;	/* Base of group register*/
 	spinlock_t 		gpio_lock;
 };
 
-static int w90p910_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int nuc900_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct w90p910_gpio_chip *w90p910_gpio = to_w90p910_gpio_chip(chip);
-	void __iomem *pio = w90p910_gpio->regbase + GPIO_IN;
+	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	void __iomem *pio = nuc900_gpio->regbase + GPIO_IN;
 	unsigned int regval;
 
 	regval = __raw_readl(pio);
@@ -63,14 +63,14 @@ static int w90p910_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return (regval != 0);
 }
 
-static void w90p910_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+static void nuc900_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct w90p910_gpio_chip *w90p910_gpio = to_w90p910_gpio_chip(chip);
-	void __iomem *pio = w90p910_gpio->regbase + GPIO_OUT;
+	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	void __iomem *pio = nuc900_gpio->regbase + GPIO_OUT;
 	unsigned int regval;
 	unsigned long flags;
 
-	spin_lock_irqsave(&w90p910_gpio->gpio_lock, flags);
+	spin_lock_irqsave(&nuc900_gpio->gpio_lock, flags);
 
 	regval = __raw_readl(pio);
 
@@ -81,36 +81,36 @@ static void w90p910_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 
 	__raw_writel(regval, pio);
 
-	spin_unlock_irqrestore(&w90p910_gpio->gpio_lock, flags);
+	spin_unlock_irqrestore(&nuc900_gpio->gpio_lock, flags);
 }
 
-static int w90p910_dir_input(struct gpio_chip *chip, unsigned offset)
+static int nuc900_dir_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct w90p910_gpio_chip *w90p910_gpio = to_w90p910_gpio_chip(chip);
-	void __iomem *pio = w90p910_gpio->regbase + GPIO_DIR;
+	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	void __iomem *pio = nuc900_gpio->regbase + GPIO_DIR;
 	unsigned int regval;
 	unsigned long flags;
 
-	spin_lock_irqsave(&w90p910_gpio->gpio_lock, flags);
+	spin_lock_irqsave(&nuc900_gpio->gpio_lock, flags);
 
 	regval = __raw_readl(pio);
 	regval &= ~GPIO_GPIO(offset);
 	__raw_writel(regval, pio);
 
-	spin_unlock_irqrestore(&w90p910_gpio->gpio_lock, flags);
+	spin_unlock_irqrestore(&nuc900_gpio->gpio_lock, flags);
 
 	return 0;
 }
 
-static int w90p910_dir_output(struct gpio_chip *chip, unsigned offset, int val)
+static int nuc900_dir_output(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct w90p910_gpio_chip *w90p910_gpio = to_w90p910_gpio_chip(chip);
-	void __iomem *outreg = w90p910_gpio->regbase + GPIO_OUT;
-	void __iomem *pio = w90p910_gpio->regbase + GPIO_DIR;
+	struct nuc900_gpio_chip *nuc900_gpio = to_nuc900_gpio_chip(chip);
+	void __iomem *outreg = nuc900_gpio->regbase + GPIO_OUT;
+	void __iomem *pio = nuc900_gpio->regbase + GPIO_DIR;
 	unsigned int regval;
 	unsigned long flags;
 
-	spin_lock_irqsave(&w90p910_gpio->gpio_lock, flags);
+	spin_lock_irqsave(&nuc900_gpio->gpio_lock, flags);
 
 	regval = __raw_readl(pio);
 	regval |= GPIO_GPIO(offset);
@@ -125,28 +125,28 @@ static int w90p910_dir_output(struct gpio_chip *chip, unsigned offset, int val)
 
 	__raw_writel(regval, outreg);
 
-	spin_unlock_irqrestore(&w90p910_gpio->gpio_lock, flags);
+	spin_unlock_irqrestore(&nuc900_gpio->gpio_lock, flags);
 
 	return 0;
 }
 
-static struct w90p910_gpio_chip w90p910_gpio[] = {
-	W90P910_GPIO_CHIP("GROUPC", 0, 16),
-	W90P910_GPIO_CHIP("GROUPD", 16, 10),
-	W90P910_GPIO_CHIP("GROUPE", 26, 14),
-	W90P910_GPIO_CHIP("GROUPF", 40, 10),
-	W90P910_GPIO_CHIP("GROUPG", 50, 17),
-	W90P910_GPIO_CHIP("GROUPH", 67, 8),
-	W90P910_GPIO_CHIP("GROUPI", 75, 17),
+static struct nuc900_gpio_chip nuc900_gpio[] = {
+	NUC900_GPIO_CHIP("GROUPC", 0, 16),
+	NUC900_GPIO_CHIP("GROUPD", 16, 10),
+	NUC900_GPIO_CHIP("GROUPE", 26, 14),
+	NUC900_GPIO_CHIP("GROUPF", 40, 10),
+	NUC900_GPIO_CHIP("GROUPG", 50, 17),
+	NUC900_GPIO_CHIP("GROUPH", 67, 8),
+	NUC900_GPIO_CHIP("GROUPI", 75, 17),
 };
 
-void __init w90p910_init_gpio(int nr_group)
+void __init nuc900_init_gpio(int nr_group)
 {
 	unsigned	i;
-	struct w90p910_gpio_chip *gpio_chip;
+	struct nuc900_gpio_chip *gpio_chip;
 
 	for (i = 0; i < nr_group; i++) {
-		gpio_chip = &w90p910_gpio[i];
+		gpio_chip = &nuc900_gpio[i];
 		spin_lock_init(&gpio_chip->gpio_lock);
 		gpio_chip->regbase = GPIO_BASE + i * GROUPINERV;
 		gpiochip_add(&gpio_chip->chip);

@@ -19,8 +19,6 @@ config MMU
 config NO_IOMEM
 	def_bool y
 
-mainmenu "Linux/Usermode Kernel Configuration"
-
 config ISA
 	bool
 
@@ -54,10 +52,6 @@ config GENERIC_BUG
 	bool
 	default y
 	depends on BUG
-
-config GENERIC_TIME
-	bool
-	default y
 
 config GENERIC_CLOCKEVENTS
 	bool

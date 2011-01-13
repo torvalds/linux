@@ -48,8 +48,10 @@ extern int eth_validate_addr(struct net_device *dev);
 
 
 
-extern struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count);
+extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
+					    unsigned int rxqs);
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
+#define alloc_etherdev_mq(sizeof_priv, count) alloc_etherdev_mqs(sizeof_priv, count, count)
 
 /**
  * is_zero_ether_addr - Determine if give Ethernet address is all zeros.
@@ -71,7 +73,7 @@ static inline int is_zero_ether_addr(const u8 *addr)
  */
 static inline int is_multicast_ether_addr(const u8 *addr)
 {
-	return (0x01 & addr[0]);
+	return 0x01 & addr[0];
 }
 
 /**
@@ -82,7 +84,7 @@ static inline int is_multicast_ether_addr(const u8 *addr)
  */
 static inline int is_local_ether_addr(const u8 *addr)
 {
-	return (0x02 & addr[0]);
+	return 0x02 & addr[0];
 }
 
 /**
@@ -124,6 +126,20 @@ static inline void random_ether_addr(u8 *addr)
 	get_random_bytes (addr, ETH_ALEN);
 	addr [0] &= 0xfe;	/* clear multicast bit */
 	addr [0] |= 0x02;	/* set local assignment bit (IEEE802) */
+}
+
+/**
+ * dev_hw_addr_random - Create random MAC and set device flag
+ * @dev: pointer to net_device structure
+ * @hwaddr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Generate random MAC to be used by a device and set addr_assign_type
+ * so the state can be read by sysfs and be used by udev.
+ */
+static inline void dev_hw_addr_random(struct net_device *dev, u8 *hwaddr)
+{
+	dev->addr_assign_type |= NET_ADDR_RANDOM;
+	random_ether_addr(hwaddr);
 }
 
 /**
@@ -223,13 +239,29 @@ static inline bool is_etherdev_addr(const struct net_device *dev,
  * entry points.
  */
 
-static inline int compare_ether_header(const void *a, const void *b)
+static inline unsigned long compare_ether_header(const void *a, const void *b)
 {
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	unsigned long fold;
+
+	/*
+	 * We want to compare 14 bytes:
+	 *  [a0 ... a13] ^ [b0 ... b13]
+	 * Use two long XOR, ORed together, with an overlap of two bytes.
+	 *  [a0  a1  a2  a3  a4  a5  a6  a7 ] ^ [b0  b1  b2  b3  b4  b5  b6  b7 ] |
+	 *  [a6  a7  a8  a9  a10 a11 a12 a13] ^ [b6  b7  b8  b9  b10 b11 b12 b13]
+	 * This means the [a6 a7] ^ [b6 b7] part is done two times.
+	*/
+	fold = *(unsigned long *)a ^ *(unsigned long *)b;
+	fold |= *(unsigned long *)(a + 6) ^ *(unsigned long *)(b + 6);
+	return fold;
+#else
 	u32 *a32 = (u32 *)((u8 *)a + 2);
 	u32 *b32 = (u32 *)((u8 *)b + 2);
 
 	return (*(u16 *)a ^ *(u16 *)b) | (a32[0] ^ b32[0]) |
 	       (a32[1] ^ b32[1]) | (a32[2] ^ b32[2]);
+#endif
 }
 
 #endif	/* _LINUX_ETHERDEVICE_H */

@@ -138,8 +138,10 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/cdrom.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
+static DEFINE_MUTEX(pcd_mutex);
 static DEFINE_SPINLOCK(pcd_lock);
 
 module_param(verbose, bool, 0644);
@@ -219,20 +221,26 @@ static int pcd_sector;		/* address of next requested sector */
 static int pcd_count;		/* number of blocks still to do */
 static char *pcd_buf;		/* buffer for request in progress */
 
-static int pcd_warned;		/* Have we logged a phase warning ? */
-
 /* kernel glue structures */
 
 static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pcd_unit *cd = bdev->bd_disk->private_data;
-	return cdrom_open(&cd->info, bdev, mode);
+	int ret;
+
+	mutex_lock(&pcd_mutex);
+	ret = cdrom_open(&cd->info, bdev, mode);
+	mutex_unlock(&pcd_mutex);
+
+	return ret;
 }
 
 static int pcd_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pcd_unit *cd = disk->private_data;
+	mutex_lock(&pcd_mutex);
 	cdrom_release(&cd->info, mode);
+	mutex_unlock(&pcd_mutex);
 	return 0;
 }
 
@@ -240,7 +248,13 @@ static int pcd_block_ioctl(struct block_device *bdev, fmode_t mode,
 				unsigned cmd, unsigned long arg)
 {
 	struct pcd_unit *cd = bdev->bd_disk->private_data;
-	return cdrom_ioctl(&cd->info, bdev, mode, cmd, arg);
+	int ret;
+
+	mutex_lock(&pcd_mutex);
+	ret = cdrom_ioctl(&cd->info, bdev, mode, cmd, arg);
+	mutex_unlock(&pcd_mutex);
+
+	return ret;
 }
 
 static int pcd_block_media_changed(struct gendisk *disk)
@@ -249,11 +263,11 @@ static int pcd_block_media_changed(struct gendisk *disk)
 	return cdrom_media_changed(&cd->info);
 }
 
-static struct block_device_operations pcd_bdops = {
+static const struct block_device_operations pcd_bdops = {
 	.owner		= THIS_MODULE,
 	.open		= pcd_block_open,
 	.release	= pcd_block_release,
-	.locked_ioctl	= pcd_block_ioctl,
+	.ioctl		= pcd_block_ioctl,
 	.media_changed	= pcd_block_media_changed,
 };
 
@@ -343,11 +357,11 @@ static int pcd_wait(struct pcd_unit *cd, int go, int stop, char *fun, char *msg)
 	       && (j++ < PCD_SPIN))
 		udelay(PCD_DELAY);
 
-	if ((r & (IDE_ERR & stop)) || (j >= PCD_SPIN)) {
+	if ((r & (IDE_ERR & stop)) || (j > PCD_SPIN)) {
 		s = read_reg(cd, 7);
 		e = read_reg(cd, 1);
 		p = read_reg(cd, 2);
-		if (j >= PCD_SPIN)
+		if (j > PCD_SPIN)
 			e |= 0x100;
 		if (fun)
 			printk("%s: %s %s: alt=0x%x stat=0x%x err=0x%x"
@@ -417,12 +431,10 @@ static int pcd_completion(struct pcd_unit *cd, char *buf, char *fun)
 					printk
 					    ("%s: %s: Unexpected phase %d, d=%d, k=%d\n",
 					     cd->name, fun, p, d, k);
-				if ((verbose < 2) && !pcd_warned) {
-					pcd_warned = 1;
-					printk
-					    ("%s: WARNING: ATAPI phase errors\n",
-					     cd->name);
-				}
+				if (verbose < 2)
+					printk_once(
+					    "%s: WARNING: ATAPI phase errors\n",
+					    cd->name);
 				mdelay(1);
 			}
 			if (k++ > PCD_TMO) {

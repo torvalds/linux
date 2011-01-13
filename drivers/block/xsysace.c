@@ -89,10 +89,12 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/mutex.h>
 #include <linux/ata.h>
 #include <linux/hdreg.h>
 #include <linux/platform_device.h>
 #if defined(CONFIG_OF)
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #endif
@@ -212,6 +214,7 @@ struct ace_device {
 	u16 cf_id[ATA_ID_WORDS];
 };
 
+static DEFINE_MUTEX(xsysace_mutex);
 static int ace_major;
 
 /* ---------------------------------------------------------------------
@@ -390,9 +393,10 @@ static inline void ace_dump_mem(void *base, int len)
 
 static void ace_dump_regs(struct ace_device *ace)
 {
-	dev_info(ace->dev, "    ctrl:  %.8x  seccnt/cmd: %.4x      ver:%.4x\n"
-		 KERN_INFO "    status:%.8x  mpu_lba:%.8x  busmode:%4x\n"
-		 KERN_INFO "    error: %.8x  cfg_lba:%.8x  fatstat:%.4x\n",
+	dev_info(ace->dev,
+		 "    ctrl:  %.8x  seccnt/cmd: %.4x      ver:%.4x\n"
+		 "    status:%.8x  mpu_lba:%.8x  busmode:%4x\n"
+		 "    error: %.8x  cfg_lba:%.8x  fatstat:%.4x\n",
 		 ace_in32(ace, ACE_CTRL),
 		 ace_in(ace, ACE_SECCNTCMD),
 		 ace_in(ace, ACE_VERSION),
@@ -464,7 +468,7 @@ struct request *ace_get_next_request(struct request_queue * q)
 	struct request *req;
 
 	while ((req = blk_peek_request(q)) != NULL) {
-		if (blk_fs_request(req))
+		if (req->cmd_type == REQ_TYPE_FS)
 			break;
 		blk_start_request(req);
 		__blk_end_request_all(req, -EIO);
@@ -900,11 +904,14 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_open() users=%i\n", ace->users + 1);
 
+	mutex_lock(&xsysace_mutex);
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users++;
 	spin_unlock_irqrestore(&ace->lock, flags);
 
 	check_disk_change(bdev);
+	mutex_unlock(&xsysace_mutex);
+
 	return 0;
 }
 
@@ -916,6 +923,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_release() users=%i\n", ace->users - 1);
 
+	mutex_lock(&xsysace_mutex);
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users--;
 	if (ace->users == 0) {
@@ -923,6 +931,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 		ace_out(ace, ACE_CTRL, val & ~ACE_CTRL_LOCKREQ);
 	}
 	spin_unlock_irqrestore(&ace->lock, flags);
+	mutex_unlock(&xsysace_mutex);
 	return 0;
 }
 
@@ -940,7 +949,7 @@ static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static struct block_device_operations ace_fops = {
+static const struct block_device_operations ace_fops = {
 	.owner = THIS_MODULE,
 	.open = ace_open,
 	.release = ace_release,
@@ -1187,7 +1196,7 @@ static struct platform_driver ace_platform_driver = {
 
 #if defined(CONFIG_OF)
 static int __devinit
-ace_of_probe(struct of_device *op, const struct of_device_id *match)
+ace_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource res;
 	resource_size_t physaddr;
@@ -1197,10 +1206,10 @@ ace_of_probe(struct of_device *op, const struct of_device_id *match)
 	dev_dbg(&op->dev, "ace_of_probe(%p, %p)\n", op, match);
 
 	/* device id */
-	id = of_get_property(op->node, "port-number", NULL);
+	id = of_get_property(op->dev.of_node, "port-number", NULL);
 
 	/* physaddr */
-	rc = of_address_to_resource(op->node, 0, &res);
+	rc = of_address_to_resource(op->dev.of_node, 0, &res);
 	if (rc) {
 		dev_err(&op->dev, "invalid address\n");
 		return rc;
@@ -1208,25 +1217,26 @@ ace_of_probe(struct of_device *op, const struct of_device_id *match)
 	physaddr = res.start;
 
 	/* irq */
-	irq = irq_of_parse_and_map(op->node, 0);
+	irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 	/* bus width */
 	bus_width = ACE_BUS_WIDTH_16;
-	if (of_find_property(op->node, "8-bit", NULL))
+	if (of_find_property(op->dev.of_node, "8-bit", NULL))
 		bus_width = ACE_BUS_WIDTH_8;
 
 	/* Call the bus-independant setup code */
-	return ace_alloc(&op->dev, id ? *id : 0, physaddr, irq, bus_width);
+	return ace_alloc(&op->dev, id ? be32_to_cpup(id) : 0,
+						physaddr, irq, bus_width);
 }
 
-static int __devexit ace_of_remove(struct of_device *op)
+static int __devexit ace_of_remove(struct platform_device *op)
 {
 	ace_free(&op->dev);
 	return 0;
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id ace_of_match[] __devinitdata = {
+static const struct of_device_id ace_of_match[] __devinitconst = {
 	{ .compatible = "xlnx,opb-sysace-1.00.b", },
 	{ .compatible = "xlnx,opb-sysace-1.00.c", },
 	{ .compatible = "xlnx,xps-sysace-1.00.a", },
@@ -1236,13 +1246,12 @@ static struct of_device_id ace_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, ace_of_match);
 
 static struct of_platform_driver ace_of_driver = {
-	.owner = THIS_MODULE,
-	.name = "xsysace",
-	.match_table = ace_of_match,
 	.probe = ace_of_probe,
 	.remove = __devexit_p(ace_of_remove),
 	.driver = {
 		.name = "xsysace",
+		.owner = THIS_MODULE,
+		.of_match_table = ace_of_match,
 	},
 };
 

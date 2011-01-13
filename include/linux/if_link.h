@@ -4,9 +4,8 @@
 #include <linux/types.h>
 #include <linux/netlink.h>
 
-/* The struct should be in sync with struct net_device_stats */
-struct rtnl_link_stats
-{
+/* This struct should be in sync with struct rtnl_link_stats64 */
+struct rtnl_link_stats {
 	__u32	rx_packets;		/* total packets received	*/
 	__u32	tx_packets;		/* total packets transmitted	*/
 	__u32	rx_bytes;		/* total bytes received 	*/
@@ -38,9 +37,41 @@ struct rtnl_link_stats
 	__u32	tx_compressed;
 };
 
+/* The main device statistics structure */
+struct rtnl_link_stats64 {
+	__u64	rx_packets;		/* total packets received	*/
+	__u64	tx_packets;		/* total packets transmitted	*/
+	__u64	rx_bytes;		/* total bytes received 	*/
+	__u64	tx_bytes;		/* total bytes transmitted	*/
+	__u64	rx_errors;		/* bad packets received		*/
+	__u64	tx_errors;		/* packet transmit problems	*/
+	__u64	rx_dropped;		/* no space in linux buffers	*/
+	__u64	tx_dropped;		/* no space available in linux	*/
+	__u64	multicast;		/* multicast packets received	*/
+	__u64	collisions;
+
+	/* detailed rx_errors: */
+	__u64	rx_length_errors;
+	__u64	rx_over_errors;		/* receiver ring buff overflow	*/
+	__u64	rx_crc_errors;		/* recved pkt with crc error	*/
+	__u64	rx_frame_errors;	/* recv'd frame alignment error */
+	__u64	rx_fifo_errors;		/* recv'r fifo overrun		*/
+	__u64	rx_missed_errors;	/* receiver missed packet	*/
+
+	/* detailed tx_errors */
+	__u64	tx_aborted_errors;
+	__u64	tx_carrier_errors;
+	__u64	tx_fifo_errors;
+	__u64	tx_heartbeat_errors;
+	__u64	tx_window_errors;
+
+	/* for cslip etc */
+	__u64	rx_compressed;
+	__u64	tx_compressed;
+};
+
 /* The struct should be in sync with struct ifmap */
-struct rtnl_link_ifmap
-{
+struct rtnl_link_ifmap {
 	__u64	mem_start;
 	__u64	mem_end;
 	__u64	base_addr;
@@ -49,8 +80,25 @@ struct rtnl_link_ifmap
 	__u8	port;
 };
 
-enum
-{
+/*
+ * IFLA_AF_SPEC
+ *   Contains nested attributes for address family specific attributes.
+ *   Each address family may create a attribute with the address family
+ *   number as type and create its own attribute structure in it.
+ *
+ *   Example:
+ *   [IFLA_AF_SPEC] = {
+ *       [AF_INET] = {
+ *           [IFLA_INET_CONF] = ...,
+ *       },
+ *       [AF_INET6] = {
+ *           [IFLA_INET6_FLAGS] = ...,
+ *           [IFLA_INET6_CONF] = ...,
+ *       }
+ *   }
+ */
+
+enum {
 	IFLA_UNSPEC,
 	IFLA_ADDRESS,
 	IFLA_BROADCAST,
@@ -81,6 +129,12 @@ enum
 #define IFLA_LINKINFO IFLA_LINKINFO
 	IFLA_NET_NS_PID,
 	IFLA_IFALIAS,
+	IFLA_NUM_VF,		/* Number of VFs if device is SR-IOV PF */
+	IFLA_VFINFO_LIST,
+	IFLA_STATS64,
+	IFLA_VF_PORTS,
+	IFLA_PORT_SELF,
+	IFLA_AF_SPEC,
 	__IFLA_MAX
 };
 
@@ -92,6 +146,14 @@ enum
 #define IFLA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifinfomsg))))
 #define IFLA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ifinfomsg))
 #endif
+
+enum {
+	IFLA_INET_UNSPEC,
+	IFLA_INET_CONF,
+	__IFLA_INET_MAX,
+};
+
+#define IFLA_INET_MAX (__IFLA_INET_MAX - 1)
 
 /* ifi_flags.
 
@@ -123,8 +185,7 @@ enum
  */
 
 /* Subtype attributes for IFLA_PROTINFO */
-enum
-{
+enum {
 	IFLA_INET6_UNSPEC,
 	IFLA_INET6_FLAGS,	/* link flags			*/
 	IFLA_INET6_CONF,	/* sysctl parameters		*/
@@ -137,16 +198,14 @@ enum
 
 #define IFLA_INET6_MAX	(__IFLA_INET6_MAX - 1)
 
-struct ifla_cacheinfo
-{
+struct ifla_cacheinfo {
 	__u32	max_reasm_len;
 	__u32	tstamp;		/* ipv6InterfaceTable updated timestamp */
 	__u32	reachable_time;
 	__u32	retrans_time;
 };
 
-enum
-{
+enum {
 	IFLA_INFO_UNSPEC,
 	IFLA_INFO_KIND,
 	IFLA_INFO_DATA,
@@ -158,8 +217,7 @@ enum
 
 /* VLAN section */
 
-enum
-{
+enum {
 	IFLA_VLAN_UNSPEC,
 	IFLA_VLAN_ID,
 	IFLA_VLAN_FLAGS,
@@ -175,8 +233,7 @@ struct ifla_vlan_flags {
 	__u32	mask;
 };
 
-enum
-{
+enum {
 	IFLA_VLAN_QOS_UNSPEC,
 	IFLA_VLAN_QOS_MAPPING,
 	__IFLA_VLAN_QOS_MAX
@@ -184,10 +241,141 @@ enum
 
 #define IFLA_VLAN_QOS_MAX	(__IFLA_VLAN_QOS_MAX - 1)
 
-struct ifla_vlan_qos_mapping
-{
+struct ifla_vlan_qos_mapping {
 	__u32 from;
 	__u32 to;
+};
+
+/* MACVLAN section */
+enum {
+	IFLA_MACVLAN_UNSPEC,
+	IFLA_MACVLAN_MODE,
+	__IFLA_MACVLAN_MAX,
+};
+
+#define IFLA_MACVLAN_MAX (__IFLA_MACVLAN_MAX - 1)
+
+enum macvlan_mode {
+	MACVLAN_MODE_PRIVATE = 1, /* don't talk to other macvlans */
+	MACVLAN_MODE_VEPA    = 2, /* talk to other ports through ext bridge */
+	MACVLAN_MODE_BRIDGE  = 4, /* talk to bridge ports directly */
+	MACVLAN_MODE_PASSTHRU = 8,/* take over the underlying device */
+};
+
+/* SR-IOV virtual function management section */
+
+enum {
+	IFLA_VF_INFO_UNSPEC,
+	IFLA_VF_INFO,
+	__IFLA_VF_INFO_MAX,
+};
+
+#define IFLA_VF_INFO_MAX (__IFLA_VF_INFO_MAX - 1)
+
+enum {
+	IFLA_VF_UNSPEC,
+	IFLA_VF_MAC,		/* Hardware queue specific attributes */
+	IFLA_VF_VLAN,
+	IFLA_VF_TX_RATE,	/* TX Bandwidth Allocation */
+	__IFLA_VF_MAX,
+};
+
+#define IFLA_VF_MAX (__IFLA_VF_MAX - 1)
+
+struct ifla_vf_mac {
+	__u32 vf;
+	__u8 mac[32]; /* MAX_ADDR_LEN */
+};
+
+struct ifla_vf_vlan {
+	__u32 vf;
+	__u32 vlan; /* 0 - 4095, 0 disables VLAN filter */
+	__u32 qos;
+};
+
+struct ifla_vf_tx_rate {
+	__u32 vf;
+	__u32 rate; /* Max TX bandwidth in Mbps, 0 disables throttling */
+};
+
+struct ifla_vf_info {
+	__u32 vf;
+	__u8 mac[32];
+	__u32 vlan;
+	__u32 qos;
+	__u32 tx_rate;
+};
+
+/* VF ports management section
+ *
+ *	Nested layout of set/get msg is:
+ *
+ *		[IFLA_NUM_VF]
+ *		[IFLA_VF_PORTS]
+ *			[IFLA_VF_PORT]
+ *				[IFLA_PORT_*], ...
+ *			[IFLA_VF_PORT]
+ *				[IFLA_PORT_*], ...
+ *			...
+ *		[IFLA_PORT_SELF]
+ *			[IFLA_PORT_*], ...
+ */
+
+enum {
+	IFLA_VF_PORT_UNSPEC,
+	IFLA_VF_PORT,			/* nest */
+	__IFLA_VF_PORT_MAX,
+};
+
+#define IFLA_VF_PORT_MAX (__IFLA_VF_PORT_MAX - 1)
+
+enum {
+	IFLA_PORT_UNSPEC,
+	IFLA_PORT_VF,			/* __u32 */
+	IFLA_PORT_PROFILE,		/* string */
+	IFLA_PORT_VSI_TYPE,		/* 802.1Qbg (pre-)standard VDP */
+	IFLA_PORT_INSTANCE_UUID,	/* binary UUID */
+	IFLA_PORT_HOST_UUID,		/* binary UUID */
+	IFLA_PORT_REQUEST,		/* __u8 */
+	IFLA_PORT_RESPONSE,		/* __u16, output only */
+	__IFLA_PORT_MAX,
+};
+
+#define IFLA_PORT_MAX (__IFLA_PORT_MAX - 1)
+
+#define PORT_PROFILE_MAX	40
+#define PORT_UUID_MAX		16
+#define PORT_SELF_VF		-1
+
+enum {
+	PORT_REQUEST_PREASSOCIATE = 0,
+	PORT_REQUEST_PREASSOCIATE_RR,
+	PORT_REQUEST_ASSOCIATE,
+	PORT_REQUEST_DISASSOCIATE,
+};
+
+enum {
+	PORT_VDP_RESPONSE_SUCCESS = 0,
+	PORT_VDP_RESPONSE_INVALID_FORMAT,
+	PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES,
+	PORT_VDP_RESPONSE_UNUSED_VTID,
+	PORT_VDP_RESPONSE_VTID_VIOLATION,
+	PORT_VDP_RESPONSE_VTID_VERSION_VIOALTION,
+	PORT_VDP_RESPONSE_OUT_OF_SYNC,
+	/* 0x08-0xFF reserved for future VDP use */
+	PORT_PROFILE_RESPONSE_SUCCESS = 0x100,
+	PORT_PROFILE_RESPONSE_INPROGRESS,
+	PORT_PROFILE_RESPONSE_INVALID,
+	PORT_PROFILE_RESPONSE_BADSTATE,
+	PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES,
+	PORT_PROFILE_RESPONSE_ERROR,
+};
+
+struct ifla_port_vsi {
+	__u8 vsi_mgr_id;
+	__u8 vsi_type_id[3];
+	__u8 vsi_type_version;
+	__u8 pad[3];
 };
 
 #endif /* _LINUX_IF_LINK_H */

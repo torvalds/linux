@@ -13,6 +13,8 @@
 #ifndef __S390_KVM_PARA_H
 #define __S390_KVM_PARA_H
 
+#ifdef __KERNEL__
+
 /*
  * Hypercalls for KVM on s390. The calling convention is similar to the
  * s390 ABI, so we use R2-R6 for parameters 1-5. In addition we use R1
@@ -146,5 +148,7 @@ static inline unsigned int kvm_arch_para_features(void)
 {
 	return 0;
 }
+
+#endif
 
 #endif /* __S390_KVM_PARA_H */

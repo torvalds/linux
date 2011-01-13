@@ -42,6 +42,8 @@ int dvb_usb_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 			msleep(delay_ms);
 
 		ret = usb_bulk_msg(d->udev,usb_rcvbulkpipe(d->udev,
+				d->props.generic_bulk_ctrl_endpoint_response ?
+				d->props.generic_bulk_ctrl_endpoint_response :
 				d->props.generic_bulk_ctrl_endpoint),rbuf,rlen,&actlen,
 				2000);
 

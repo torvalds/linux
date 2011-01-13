@@ -396,6 +396,7 @@ static struct real_driver sx_real_driver = {
 static const struct file_operations sx_fw_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = sx_fw_ioctl,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice sx_fw_device = {
@@ -1698,7 +1699,7 @@ static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
-	lock_kernel();
+	tty_lock();
 
 	sx_dprintk(SX_DEBUG_FIRMWARE, "IOCTL %x: %lx\n", cmd, arg);
 
@@ -1847,7 +1848,7 @@ static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	}
 out:
-	unlock_kernel();
+	tty_unlock();
 	func_exit();
 	return rc;
 }
@@ -1858,7 +1859,7 @@ static int sx_break(struct tty_struct *tty, int flag)
 	int rv;
 
 	func_enter();
-	lock_kernel();
+	tty_lock();
 
 	if (flag)
 		rv = sx_send_command(port, HS_START, -1, HS_IDLE_BREAK);
@@ -1867,7 +1868,7 @@ static int sx_break(struct tty_struct *tty, int flag)
 	if (rv != 1)
 		printk(KERN_ERR "sx: couldn't send break (%x).\n",
 			read_sx_byte(port->board, CHAN_OFFSET(port, hi_hstat)));
-	unlock_kernel();
+	tty_unlock();
 	func_exit();
 	return 0;
 }
@@ -1908,7 +1909,7 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 	/* func_enter2(); */
 
 	rc = 0;
-	lock_kernel();
+	tty_lock();
 	switch (cmd) {
 	case TIOCGSERIAL:
 		rc = gs_getserial(&port->gs, argp);
@@ -1920,7 +1921,7 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 		rc = -ENOIOCTLCMD;
 		break;
 	}
-	unlock_kernel();
+	tty_unlock();
 
 	/* func_exit(); */
 	return rc;

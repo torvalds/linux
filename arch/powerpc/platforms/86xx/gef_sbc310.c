@@ -1,9 +1,9 @@
 /*
- * GE Fanuc SBC310 board support
+ * GE SBC310 board support
  *
- * Author: Martyn Welch <martyn.welch@gefanuc.com>
+ * Author: Martyn Welch <martyn.welch@ge.com>
  *
- * Copyright 2008 GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -33,6 +33,7 @@
 #include <asm/udbg.h>
 
 #include <asm/mpic.h>
+#include <asm/nvram.h>
 
 #include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
@@ -81,7 +82,7 @@ static void __init gef_sbc310_setup_arch(void)
 	}
 #endif
 
-	printk(KERN_INFO "GE Fanuc Intelligent Platforms SBC310 6U VPX SBC\n");
+	printk(KERN_INFO "GE Intelligent Platforms SBC310 6U VPX SBC\n");
 
 #ifdef CONFIG_SMP
 	mpc86xx_smp_init();
@@ -95,6 +96,10 @@ static void __init gef_sbc310_setup_arch(void)
 			printk(KERN_WARNING "Unable to map board registers\n");
 		of_node_put(regs);
 	}
+
+#if defined(CONFIG_MMIO_NVRAM)
+	mmio_nvram_init();
+#endif
 }
 
 /* Return the PCB revision */
@@ -137,7 +142,7 @@ static void gef_sbc310_show_cpuinfo(struct seq_file *m)
 {
 	uint svid = mfspr(SPRN_SVR);
 
-	seq_printf(m, "Vendor\t\t: GE Fanuc Intelligent Platforms\n");
+	seq_printf(m, "Vendor\t\t: GE Intelligent Platforms\n");
 
 	seq_printf(m, "Board ID\t: 0x%2.2x\n", gef_sbc310_get_board_id());
 	seq_printf(m, "Revision\t: %u%c\n", gef_sbc310_get_pcb_rev(),
@@ -218,7 +223,7 @@ static int __init declare_of_platform_devices(void)
 machine_device_initcall(gef_sbc310, declare_of_platform_devices);
 
 define_machine(gef_sbc310) {
-	.name			= "GE Fanuc SBC310",
+	.name			= "GE SBC310",
 	.probe			= gef_sbc310_probe,
 	.setup_arch		= gef_sbc310_setup_arch,
 	.init_IRQ		= gef_sbc310_init_irq,

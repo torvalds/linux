@@ -262,11 +262,11 @@ A partial list of the supported mount options follows:
 		mount.	
   domain	Set the SMB/CIFS workgroup name prepended to the
 		username during CIFS session establishment
-  forceuid	Set the default uid for inodes based on the uid
-		passed in. For mounts to servers
+  forceuid	Set the default uid for inodes to the uid
+		passed in on mount. For mounts to servers
 		which do support the CIFS Unix extensions, such as a
 		properly configured Samba server, the server provides
-		the uid, gid and mode so this parameter should  not be
+		the uid, gid and mode so this parameter should not be
 		specified unless the server and clients uid and gid
 		numbering differ.  If the server and client are in the
 		same domain (e.g. running winbind or nss_ldap) and
@@ -278,11 +278,7 @@ A partial list of the supported mount options follows:
 		of existing files will be the uid (gid) of the person
 		who executed the mount (root, except when mount.cifs
 		is configured setuid for user mounts) unless the "uid=" 
-		(gid) mount option is specified.  For the uid (gid) of newly
-		created files and directories, ie files created since 
-		the last mount of the server share, the expected uid 
-		(gid) is cached as long as the inode remains in 
-		memory on the client.   Also note that permission
+		(gid) mount option is specified. Also note that permission
 		checks (authorization checks) on accesses to a file occur
 		at the server, but there are cases in which an administrator
 		may want to restrict at the client as well.  For those
@@ -290,18 +286,31 @@ A partial list of the supported mount options follows:
 		(such as Windows), permissions can also be checked at the
 		client, and a crude form of client side permission checking 
 		can be enabled by specifying file_mode and dir_mode on 
-		the client.  Note that the mount.cifs helper must be
-		at version 1.10 or higher to support specifying the uid
-		(or gid) in non-numeric form.
-  forcegid	(similar to above but for the groupid instead of uid)
+		the client.  (default)
+  forcegid	(similar to above but for the groupid instead of uid) (default)
+  noforceuid	Fill in file owner information (uid) by requesting it from
+		the server if possible. With this option, the value given in
+		the uid= option (on mount) will only be used if the server
+		can not support returning uids on inodes.
+  noforcegid	(similar to above but for the group owner, gid, instead of uid)
   uid		Set the default uid for inodes, and indicate to the
-		cifs kernel driver which local user mounted . If the server
+		cifs kernel driver which local user mounted. If the server
 		supports the unix extensions the default uid is
 		not used to fill in the owner fields of inodes (files)
 		unless the "forceuid" parameter is specified.
   gid		Set the default gid for inodes (similar to above).
   file_mode     If CIFS Unix extensions are not supported by the server
 		this overrides the default mode for file inodes.
+  fsc		Enable local disk caching using FS-Cache (off by default). This
+  		option could be useful to improve performance on a slow link,
+		heavily loaded server and/or network where reading from the
+		disk is faster than reading from the server (over the network).
+		This could also impact scalability positively as the
+		number of calls to the server are reduced. However, local
+		caching is not suitable for all workloads for e.g. read-once
+		type workloads. So, you need to consider carefully your
+		workload/scenario before using this option. Currently, local
+		disk caching is functional for CIFS files opened as read-only.
   dir_mode      If CIFS Unix extensions are not supported by the server 
 		this overrides the default mode for directory inodes.
   port		attempt to contact the server on this tcp port, before
@@ -328,6 +337,15 @@ A partial list of the supported mount options follows:
   wsize		default write size (default 57344)
 		maximum wsize currently allowed by CIFS is 57344 (fourteen
 		4096 byte pages)
+  actimeo=n	attribute cache timeout in seconds (default 1 second).
+		After this timeout, the cifs client requests fresh attribute
+		information from the server. This option allows to tune the
+		attribute cache timeout to suit the workload needs. Shorter
+		timeouts mean better the cache coherency, but increased number
+		of calls to the server. Longer timeouts mean reduced number
+		of calls to the server at the expense of less stricter cache
+		coherency checks (i.e. incorrect attribute cache for a short
+		period of time).
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only
@@ -424,7 +442,7 @@ A partial list of the supported mount options follows:
 		source name to use to represent the client netbios machine 
 		name when doing the RFC1001 netbios session initialize.
   direct        Do not do inode data caching on files opened on this mount.
-		This precludes mmaping files on this mount. In some cases
+		This precludes mmapping files on this mount. In some cases
 		with fast networks and little or no caching benefits on the
 		client (e.g. when the application is doing large sequential
 		reads bigger than page size without rereading the same data) 
@@ -518,6 +536,11 @@ A partial list of the supported mount options follows:
 		SFU does).  In the future the bottom 9 bits of the
 		mode also will be emulated using queries of the security
 		descriptor (ACL).
+ mfsymlinks     Enable support for Minshall+French symlinks
+		(see http://wiki.samba.org/index.php/UNIX_Extensions#Minshall.2BFrench_symlinks)
+		This option is ignored when specified together with the
+		'sfu' option. Minshall+French symlinks are used even if
+		the server supports the CIFS Unix Extensions.
  sign           Must use packet signing (helps avoid unwanted data modification
 		by intermediate systems in the route).  Note that signing
 		does not work with lanman or plaintext authentication.
@@ -569,8 +592,9 @@ module can be displayed via modinfo.
 Misc /proc/fs/cifs Flags and Debug Info
 =======================================
 Informational pseudo-files:
-DebugData		Displays information about active CIFS sessions
-			and shares, as well as the cifs.ko version.
+DebugData		Displays information about active CIFS sessions and
+			shares, features enabled as well as the cifs.ko
+			version.
 Stats			Lists summary resource usage information as well as per
 			share statistics, if CONFIG_CIFS_STATS in enabled
 			in the kernel configuration.

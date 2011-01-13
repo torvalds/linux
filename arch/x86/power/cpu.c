@@ -4,7 +4,7 @@
  * Distribute under GPLv2
  *
  * Copyright (c) 2007 Rafael J. Wysocki <rjw@sisk.pl>
- * Copyright (c) 2002 Pavel Machek <pavel@suse.cz>
+ * Copyright (c) 2002 Pavel Machek <pavel@ucw.cz>
  * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
  */
 
@@ -18,6 +18,7 @@
 #include <asm/mce.h>
 #include <asm/xcr.h>
 #include <asm/suspend.h>
+#include <asm/debugreg.h>
 
 #ifdef CONFIG_X86_32
 static struct saved_context saved_context;
@@ -104,12 +105,15 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr4 = read_cr4();
 	ctxt->cr8 = read_cr8();
 #endif
+	ctxt->misc_enable_saved = !rdmsrl_safe(MSR_IA32_MISC_ENABLE,
+					       &ctxt->misc_enable);
 }
 
 /* Needed by apm.c */
 void save_processor_state(void)
 {
 	__save_processor_state(&saved_context);
+	save_sched_clock_state();
 }
 #ifdef CONFIG_X86_32
 EXPORT_SYMBOL(save_processor_state);
@@ -142,31 +146,6 @@ static void fix_processor_context(void)
 #endif
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
-
-	/*
-	 * Now maybe reload the debug registers
-	 */
-	if (current->thread.debugreg7) {
-#ifdef CONFIG_X86_32
-		set_debugreg(current->thread.debugreg0, 0);
-		set_debugreg(current->thread.debugreg1, 1);
-		set_debugreg(current->thread.debugreg2, 2);
-		set_debugreg(current->thread.debugreg3, 3);
-		/* no 4 and 5 */
-		set_debugreg(current->thread.debugreg6, 6);
-		set_debugreg(current->thread.debugreg7, 7);
-#else
-		/* CONFIG_X86_64 */
-		loaddebug(&current->thread, 0);
-		loaddebug(&current->thread, 1);
-		loaddebug(&current->thread, 2);
-		loaddebug(&current->thread, 3);
-		/* no 4 and 5 */
-		loaddebug(&current->thread, 6);
-		loaddebug(&current->thread, 7);
-#endif
-	}
-
 }
 
 /**
@@ -176,6 +155,8 @@ static void fix_processor_context(void)
  */
 static void __restore_processor_state(struct saved_context *ctxt)
 {
+	if (ctxt->misc_enable_saved)
+		wrmsrl(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
 	/*
 	 * control registers
 	 */
@@ -242,17 +223,14 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 
 	do_fpu_end();
-	mtrr_ap_init();
-
-#ifdef CONFIG_X86_32
-	mcheck_init(&boot_cpu_data);
-#endif
+	mtrr_bp_restore();
 }
 
 /* Needed by apm.c */
 void restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
+	restore_sched_clock_state();
 }
 #ifdef CONFIG_X86_32
 EXPORT_SYMBOL(restore_processor_state);

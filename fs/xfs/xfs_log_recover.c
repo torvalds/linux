@@ -24,15 +24,11 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
@@ -46,54 +42,97 @@
 #include "xfs_quota.h"
 #include "xfs_rw.h"
 #include "xfs_utils.h"
+#include "xfs_trace.h"
 
 STATIC int	xlog_find_zeroed(xlog_t *, xfs_daddr_t *);
 STATIC int	xlog_clear_stale_blocks(xlog_t *, xfs_lsn_t);
-STATIC void	xlog_recover_insert_item_backq(xlog_recover_item_t **q,
-					       xlog_recover_item_t *item);
 #if defined(DEBUG)
 STATIC void	xlog_recover_check_summary(xlog_t *);
 #else
 #define	xlog_recover_check_summary(log)
 #endif
 
+/*
+ * This structure is used during recovery to record the buf log items which
+ * have been canceled and should not be replayed.
+ */
+struct xfs_buf_cancel {
+	xfs_daddr_t		bc_blkno;
+	uint			bc_len;
+	int			bc_refcount;
+	struct list_head	bc_list;
+};
 
 /*
  * Sector aligned buffer routines for buffer create/read/write/access
  */
 
-#define XLOG_SECTOR_ROUNDUP_BBCOUNT(log, bbs)	\
-	( ((log)->l_sectbb_mask && (bbs & (log)->l_sectbb_mask)) ? \
-	((bbs + (log)->l_sectbb_mask + 1) & ~(log)->l_sectbb_mask) : (bbs) )
-#define XLOG_SECTOR_ROUNDDOWN_BLKNO(log, bno)	((bno) & ~(log)->l_sectbb_mask)
+/*
+ * Verify the given count of basic blocks is valid number of blocks
+ * to specify for an operation involving the given XFS log buffer.
+ * Returns nonzero if the count is valid, 0 otherwise.
+ */
 
-xfs_buf_t *
+static inline int
+xlog_buf_bbcount_valid(
+	xlog_t		*log,
+	int		bbcount)
+{
+	return bbcount > 0 && bbcount <= log->l_logBBsize;
+}
+
+/*
+ * Allocate a buffer to hold log data.  The buffer needs to be able
+ * to map to a range of nbblks basic blocks at any valid (basic
+ * block) offset within the log.
+ */
+STATIC xfs_buf_t *
 xlog_get_bp(
 	xlog_t		*log,
 	int		nbblks)
 {
-	if (nbblks <= 0 || nbblks > log->l_logBBsize) {
-		xlog_warn("XFS: Invalid block length (0x%x) given for buffer", nbblks);
-		XFS_ERROR_REPORT("xlog_get_bp(1)",
-				 XFS_ERRLEVEL_HIGH, log->l_mp);
+	if (!xlog_buf_bbcount_valid(log, nbblks)) {
+		xlog_warn("XFS: Invalid block length (0x%x) given for buffer",
+			nbblks);
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_HIGH, log->l_mp);
 		return NULL;
 	}
 
-	if (log->l_sectbb_log) {
-		if (nbblks > 1)
-			nbblks += XLOG_SECTOR_ROUNDUP_BBCOUNT(log, 1);
-		nbblks = XLOG_SECTOR_ROUNDUP_BBCOUNT(log, nbblks);
-	}
-	return xfs_buf_get_noaddr(BBTOB(nbblks), log->l_mp->m_logdev_targp);
+	/*
+	 * We do log I/O in units of log sectors (a power-of-2
+	 * multiple of the basic block size), so we round up the
+	 * requested size to acommodate the basic blocks required
+	 * for complete log sectors.
+	 *
+	 * In addition, the buffer may be used for a non-sector-
+	 * aligned block offset, in which case an I/O of the
+	 * requested size could extend beyond the end of the
+	 * buffer.  If the requested size is only 1 basic block it
+	 * will never straddle a sector boundary, so this won't be
+	 * an issue.  Nor will this be a problem if the log I/O is
+	 * done in basic blocks (sector size 1).  But otherwise we
+	 * extend the buffer by one extra log sector to ensure
+	 * there's space to accomodate this possiblility.
+	 */
+	if (nbblks > 1 && log->l_sectBBsize > 1)
+		nbblks += log->l_sectBBsize;
+	nbblks = round_up(nbblks, log->l_sectBBsize);
+
+	return xfs_buf_get_uncached(log->l_mp->m_logdev_targp,
+					BBTOB(nbblks), 0);
 }
 
-void
+STATIC void
 xlog_put_bp(
 	xfs_buf_t	*bp)
 {
 	xfs_buf_free(bp);
 }
 
+/*
+ * Return the address of the start of the given block number's data
+ * in a log buffer.  The buffer covers a log sector-aligned region.
+ */
 STATIC xfs_caddr_t
 xlog_align(
 	xlog_t		*log,
@@ -101,15 +140,10 @@ xlog_align(
 	int		nbblks,
 	xfs_buf_t	*bp)
 {
-	xfs_caddr_t	ptr;
+	xfs_daddr_t	offset = blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1);
 
-	if (!log->l_sectbb_log)
-		return XFS_BUF_PTR(bp);
-
-	ptr = XFS_BUF_PTR(bp) + BBTOB((int)blk_no & log->l_sectbb_mask);
-	ASSERT(XFS_BUF_SIZE(bp) >=
-		BBTOB(nbblks + (blk_no & log->l_sectbb_mask)));
-	return ptr;
+	ASSERT(BBTOB(offset + nbblks) <= XFS_BUF_SIZE(bp));
+	return XFS_BUF_PTR(bp) + BBTOB(offset);
 }
 
 
@@ -125,21 +159,18 @@ xlog_bread_noalign(
 {
 	int		error;
 
-	if (nbblks <= 0 || nbblks > log->l_logBBsize) {
-		xlog_warn("XFS: Invalid block length (0x%x) given for buffer", nbblks);
-		XFS_ERROR_REPORT("xlog_bread(1)",
-				 XFS_ERRLEVEL_HIGH, log->l_mp);
+	if (!xlog_buf_bbcount_valid(log, nbblks)) {
+		xlog_warn("XFS: Invalid block length (0x%x) given for buffer",
+			nbblks);
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_HIGH, log->l_mp);
 		return EFSCORRUPTED;
 	}
 
-	if (log->l_sectbb_log) {
-		blk_no = XLOG_SECTOR_ROUNDDOWN_BLKNO(log, blk_no);
-		nbblks = XLOG_SECTOR_ROUNDUP_BBCOUNT(log, nbblks);
-	}
+	blk_no = round_down(blk_no, log->l_sectBBsize);
+	nbblks = round_up(nbblks, log->l_sectBBsize);
 
 	ASSERT(nbblks > 0);
 	ASSERT(BBTOB(nbblks) <= XFS_BUF_SIZE(bp));
-	ASSERT(bp);
 
 	XFS_BUF_SET_ADDR(bp, log->l_logBBstart + blk_no);
 	XFS_BUF_READ(bp);
@@ -148,7 +179,7 @@ xlog_bread_noalign(
 	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	xfsbdstrat(log->l_mp, bp);
-	error = xfs_iowait(bp);
+	error = xfs_buf_iowait(bp);
 	if (error)
 		xfs_ioerror_alert("xlog_bread", log->l_mp,
 				  bp, XFS_BUF_ADDR(bp));
@@ -187,17 +218,15 @@ xlog_bwrite(
 {
 	int		error;
 
-	if (nbblks <= 0 || nbblks > log->l_logBBsize) {
-		xlog_warn("XFS: Invalid block length (0x%x) given for buffer", nbblks);
-		XFS_ERROR_REPORT("xlog_bwrite(1)",
-				 XFS_ERRLEVEL_HIGH, log->l_mp);
+	if (!xlog_buf_bbcount_valid(log, nbblks)) {
+		xlog_warn("XFS: Invalid block length (0x%x) given for buffer",
+			nbblks);
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_HIGH, log->l_mp);
 		return EFSCORRUPTED;
 	}
 
-	if (log->l_sectbb_log) {
-		blk_no = XLOG_SECTOR_ROUNDDOWN_BLKNO(log, blk_no);
-		nbblks = XLOG_SECTOR_ROUNDUP_BBCOUNT(log, nbblks);
-	}
+	blk_no = round_down(blk_no, log->l_sectBBsize);
+	nbblks = round_up(nbblks, log->l_sectBBsize);
 
 	ASSERT(nbblks > 0);
 	ASSERT(BBTOB(nbblks) <= XFS_BUF_SIZE(bp));
@@ -225,16 +254,10 @@ xlog_header_check_dump(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	int			b;
-
-	cmn_err(CE_DEBUG, "%s:  SB : uuid = ", __func__);
-	for (b = 0; b < 16; b++)
-		cmn_err(CE_DEBUG, "%02x", ((__uint8_t *)&mp->m_sb.sb_uuid)[b]);
-	cmn_err(CE_DEBUG, ", fmt = %d\n", XLOG_FMT);
-	cmn_err(CE_DEBUG, "    log : uuid = ");
-	for (b = 0; b < 16; b++)
-		cmn_err(CE_DEBUG, "%02x", ((__uint8_t *)&head->h_fs_uuid)[b]);
-	cmn_err(CE_DEBUG, ", fmt = %d\n", be32_to_cpu(head->h_fmt));
+	cmn_err(CE_DEBUG, "%s:  SB : uuid = %pU, fmt = %d\n",
+		__func__, &mp->m_sb.sb_uuid, XLOG_FMT);
+	cmn_err(CE_DEBUG, "    log : uuid = %pU, fmt = %d\n",
+		&head->h_fs_uuid, be32_to_cpu(head->h_fmt));
 }
 #else
 #define xlog_header_check_dump(mp, head)
@@ -310,12 +333,13 @@ xlog_recover_iodone(
 		 * this during recovery. One strike!
 		 */
 		xfs_ioerror_alert("xlog_recover_iodone",
-				  bp->b_mount, bp, XFS_BUF_ADDR(bp));
-		xfs_force_shutdown(bp->b_mount, SHUTDOWN_META_IO_ERROR);
+					bp->b_target->bt_mount, bp,
+					XFS_BUF_ADDR(bp));
+		xfs_force_shutdown(bp->b_target->bt_mount,
+					SHUTDOWN_META_IO_ERROR);
 	}
-	bp->b_mount = NULL;
 	XFS_BUF_CLR_IODONE_FUNC(bp);
-	xfs_biodone(bp);
+	xfs_buf_ioend(bp, 0);
 }
 
 /*
@@ -334,39 +358,38 @@ xlog_find_cycle_start(
 {
 	xfs_caddr_t	offset;
 	xfs_daddr_t	mid_blk;
+	xfs_daddr_t	end_blk;
 	uint		mid_cycle;
 	int		error;
 
-	mid_blk = BLK_AVG(first_blk, *last_blk);
-	while (mid_blk != first_blk && mid_blk != *last_blk) {
+	end_blk = *last_blk;
+	mid_blk = BLK_AVG(first_blk, end_blk);
+	while (mid_blk != first_blk && mid_blk != end_blk) {
 		error = xlog_bread(log, mid_blk, 1, bp, &offset);
 		if (error)
 			return error;
 		mid_cycle = xlog_get_cycle(offset);
-		if (mid_cycle == cycle) {
-			*last_blk = mid_blk;
-			/* last_half_cycle == mid_cycle */
-		} else {
-			first_blk = mid_blk;
-			/* first_half_cycle == mid_cycle */
-		}
-		mid_blk = BLK_AVG(first_blk, *last_blk);
+		if (mid_cycle == cycle)
+			end_blk = mid_blk;   /* last_half_cycle == mid_cycle */
+		else
+			first_blk = mid_blk; /* first_half_cycle == mid_cycle */
+		mid_blk = BLK_AVG(first_blk, end_blk);
 	}
-	ASSERT((mid_blk == first_blk && mid_blk+1 == *last_blk) ||
-	       (mid_blk == *last_blk && mid_blk-1 == first_blk));
+	ASSERT((mid_blk == first_blk && mid_blk+1 == end_blk) ||
+	       (mid_blk == end_blk && mid_blk-1 == first_blk));
+
+	*last_blk = end_blk;
 
 	return 0;
 }
 
 /*
- * Check that the range of blocks does not contain the cycle number
- * given.  The scan needs to occur from front to back and the ptr into the
- * region must be updated since a later routine will need to perform another
- * test.  If the region is completely good, we end up returning the same
- * last block number.
- *
- * Set blkno to -1 if we encounter no errors.  This is an invalid block number
- * since we don't ever expect logs to get this large.
+ * Check that a range of blocks does not contain stop_on_cycle_no.
+ * Fill in *new_blk with the block offset where such a block is
+ * found, or with -1 (an invalid block number) if there is no such
+ * block in the range.  The scan needs to occur from front to back
+ * and the pointer into the region must be updated since a later
+ * routine will need to perform another test.
  */
 STATIC int
 xlog_find_verify_cycle(
@@ -383,12 +406,16 @@ xlog_find_verify_cycle(
 	xfs_caddr_t	buf = NULL;
 	int		error = 0;
 
+	/*
+	 * Greedily allocate a buffer big enough to handle the full
+	 * range of basic blocks we'll be examining.  If that fails,
+	 * try a smaller size.  We need to be able to read at least
+	 * a log sector, or we're out of luck.
+	 */
 	bufblks = 1 << ffs(nbblks);
-
 	while (!(bp = xlog_get_bp(log, bufblks))) {
-		/* can't get enough memory to do everything in one big buffer */
 		bufblks >>= 1;
-		if (bufblks <= log->l_sectbb_log)
+		if (bufblks < log->l_sectBBsize)
 			return ENOMEM;
 	}
 
@@ -636,7 +663,7 @@ xlog_find_head(
 		 * In this case we want to find the first block with cycle
 		 * number matching last_half_cycle.  We expect the log to be
 		 * some variation on
-		 *        x + 1 ... | x ...
+		 *        x + 1 ... | x ... | x
 		 * The first block with cycle number x (last_half_cycle) will
 		 * be where the new head belongs.  First we do a binary search
 		 * for the first occurrence of last_half_cycle.  The binary
@@ -646,11 +673,13 @@ xlog_find_head(
 		 * the log, then we look for occurrences of last_half_cycle - 1
 		 * at the end of the log.  The cases we're looking for look
 		 * like
-		 *        x + 1 ... | x | x + 1 | x ...
-		 *                               ^ binary search stopped here
+		 *                               v binary search stopped here
+		 *        x + 1 ... | x | x + 1 | x ... | x
+		 *                   ^ but we want to locate this spot
 		 * or
-		 *        x + 1 ... | x ... | x - 1 | x
 		 *        <---------> less than scan distance
+		 *        x + 1 ... | x ... | x - 1 | x
+		 *                           ^ we want to locate this spot
 		 */
 		stop_on_cycle = last_half_cycle;
 		if ((error = xlog_find_cycle_start(log, bp, first_blk,
@@ -706,16 +735,16 @@ xlog_find_head(
 		 * certainly not the head of the log.  By searching for
 		 * last_half_cycle-1 we accomplish that.
 		 */
-		start_blk = log_bbnum - num_scan_bblks + head_blk;
 		ASSERT(head_blk <= INT_MAX &&
-			(xfs_daddr_t) num_scan_bblks - head_blk >= 0);
+			(xfs_daddr_t) num_scan_bblks >= head_blk);
+		start_blk = log_bbnum - (num_scan_bblks - head_blk);
 		if ((error = xlog_find_verify_cycle(log, start_blk,
 					num_scan_bblks - (int)head_blk,
 					(stop_on_cycle - 1), &new_blk)))
 			goto bp_err;
 		if (new_blk != -1) {
 			head_blk = new_blk;
-			goto bad_blk;
+			goto validate_head;
 		}
 
 		/*
@@ -733,7 +762,7 @@ xlog_find_head(
 			head_blk = new_blk;
 	}
 
- bad_blk:
+validate_head:
 	/*
 	 * Now we need to make sure head_blk is not pointing to a block in
 	 * the middle of a log record.
@@ -755,7 +784,7 @@ xlog_find_head(
 		if ((error = xlog_find_verify_log_record(log, start_blk,
 							&head_blk, 0)) == -1) {
 			/* We hit the beginning of the log during our search */
-			start_blk = log_bbnum - num_scan_bblks + head_blk;
+			start_blk = log_bbnum - (num_scan_bblks - head_blk);
 			new_blk = log_bbnum;
 			ASSERT(start_blk <= INT_MAX &&
 				(xfs_daddr_t) log_bbnum-start_blk >= 0);
@@ -810,7 +839,7 @@ xlog_find_head(
  * We could speed up search by using current head_blk buffer, but it is not
  * available.
  */
-int
+STATIC int
 xlog_find_tail(
 	xlog_t			*log,
 	xfs_daddr_t		*head_blk,
@@ -840,12 +869,12 @@ xlog_find_tail(
 	if (*head_blk == 0) {				/* special case */
 		error = xlog_bread(log, 0, 1, bp, &offset);
 		if (error)
-			goto bread_err;
+			goto done;
 
 		if (xlog_get_cycle(offset) == 0) {
 			*tail_blk = 0;
 			/* leave all other log inited values alone */
-			goto exit;
+			goto done;
 		}
 	}
 
@@ -856,7 +885,7 @@ xlog_find_tail(
 	for (i = (int)(*head_blk) - 1; i >= 0; i--) {
 		error = xlog_bread(log, i, 1, bp, &offset);
 		if (error)
-			goto bread_err;
+			goto done;
 
 		if (XLOG_HEADER_MAGIC_NUM == be32_to_cpu(*(__be32 *)offset)) {
 			found = 1;
@@ -873,7 +902,7 @@ xlog_find_tail(
 		for (i = log->l_logBBsize - 1; i >= (int)(*head_blk); i--) {
 			error = xlog_bread(log, i, 1, bp, &offset);
 			if (error)
-				goto bread_err;
+				goto done;
 
 			if (XLOG_HEADER_MAGIC_NUM ==
 			    be32_to_cpu(*(__be32 *)offset)) {
@@ -907,12 +936,12 @@ xlog_find_tail(
 	log->l_curr_cycle = be32_to_cpu(rhead->h_cycle);
 	if (found == 2)
 		log->l_curr_cycle++;
-	log->l_tail_lsn = be64_to_cpu(rhead->h_tail_lsn);
-	log->l_last_sync_lsn = be64_to_cpu(rhead->h_lsn);
-	log->l_grant_reserve_cycle = log->l_curr_cycle;
-	log->l_grant_reserve_bytes = BBTOB(log->l_curr_block);
-	log->l_grant_write_cycle = log->l_curr_cycle;
-	log->l_grant_write_bytes = BBTOB(log->l_curr_block);
+	atomic64_set(&log->l_tail_lsn, be64_to_cpu(rhead->h_tail_lsn));
+	atomic64_set(&log->l_last_sync_lsn, be64_to_cpu(rhead->h_lsn));
+	xlog_assign_grant_head(&log->l_grant_reserve_head, log->l_curr_cycle,
+					BBTOB(log->l_curr_block));
+	xlog_assign_grant_head(&log->l_grant_write_head, log->l_curr_cycle,
+					BBTOB(log->l_curr_block));
 
 	/*
 	 * Look for unmount record.  If we find it, then we know there
@@ -942,13 +971,13 @@ xlog_find_tail(
 	}
 	after_umount_blk = (i + hblks + (int)
 		BTOBB(be32_to_cpu(rhead->h_len))) % log->l_logBBsize;
-	tail_lsn = log->l_tail_lsn;
+	tail_lsn = atomic64_read(&log->l_tail_lsn);
 	if (*head_blk == after_umount_blk &&
 	    be32_to_cpu(rhead->h_num_logops) == 1) {
 		umount_data_blk = (i + hblks) % log->l_logBBsize;
 		error = xlog_bread(log, umount_data_blk, 1, bp, &offset);
 		if (error)
-			goto bread_err;
+			goto done;
 
 		op_head = (xlog_op_header_t *)offset;
 		if (op_head->oh_flags & XLOG_UNMOUNT_TRANS) {
@@ -957,12 +986,10 @@ xlog_find_tail(
 			 * log records will point recovery to after the
 			 * current unmount record.
 			 */
-			log->l_tail_lsn =
-				xlog_assign_lsn(log->l_curr_cycle,
-						after_umount_blk);
-			log->l_last_sync_lsn =
-				xlog_assign_lsn(log->l_curr_cycle,
-						after_umount_blk);
+			xlog_assign_atomic_lsn(&log->l_tail_lsn,
+					log->l_curr_cycle, after_umount_blk);
+			xlog_assign_atomic_lsn(&log->l_last_sync_lsn,
+					log->l_curr_cycle, after_umount_blk);
 			*tail_blk = after_umount_blk;
 
 			/*
@@ -994,12 +1021,10 @@ xlog_find_tail(
 	 * But... if the -device- itself is readonly, just skip this.
 	 * We can't recover this device anyway, so it won't matter.
 	 */
-	if (!xfs_readonly_buftarg(log->l_mp->m_logdev_targp)) {
+	if (!xfs_readonly_buftarg(log->l_mp->m_logdev_targp))
 		error = xlog_clear_stale_blocks(log, tail_lsn);
-	}
 
-bread_err:
-exit:
+done:
 	xlog_put_bp(bp);
 
 	if (error)
@@ -1159,16 +1184,22 @@ xlog_write_log_records(
 	xfs_caddr_t	offset;
 	xfs_buf_t	*bp;
 	int		balign, ealign;
-	int		sectbb = XLOG_SECTOR_ROUNDUP_BBCOUNT(log, 1);
+	int		sectbb = log->l_sectBBsize;
 	int		end_block = start_block + blocks;
 	int		bufblks;
 	int		error = 0;
 	int		i, j = 0;
 
+	/*
+	 * Greedily allocate a buffer big enough to handle the full
+	 * range of basic blocks to be written.  If that fails, try
+	 * a smaller size.  We need to be able to write at least a
+	 * log sector, or we're out of luck.
+	 */
 	bufblks = 1 << ffs(blocks);
 	while (!(bp = xlog_get_bp(log, bufblks))) {
 		bufblks >>= 1;
-		if (bufblks <= log->l_sectbb_log)
+		if (bufblks < sectbb)
 			return ENOMEM;
 	}
 
@@ -1176,7 +1207,7 @@ xlog_write_log_records(
 	 * the buffer in the starting sector not covered by the first
 	 * write below.
 	 */
-	balign = XLOG_SECTOR_ROUNDDOWN_BLKNO(log, start_block);
+	balign = round_down(start_block, sectbb);
 	if (balign != start_block) {
 		error = xlog_bread_noalign(log, start_block, 1, bp);
 		if (error)
@@ -1195,7 +1226,7 @@ xlog_write_log_records(
 		 * the buffer in the final sector not covered by the write.
 		 * If this is the same sector as the above read, skip it.
 		 */
-		ealign = XLOG_SECTOR_ROUNDDOWN_BLKNO(log, end_block);
+		ealign = round_down(end_block, sectbb);
 		if (j == 0 && (start_block + endcount > ealign)) {
 			offset = XFS_BUF_PTR(bp);
 			balign = BBTOB(ealign - start_block);
@@ -1372,40 +1403,50 @@ xlog_clear_stale_blocks(
 
 STATIC xlog_recover_t *
 xlog_recover_find_tid(
-	xlog_recover_t		*q,
+	struct hlist_head	*head,
 	xlog_tid_t		tid)
 {
-	xlog_recover_t		*p = q;
+	xlog_recover_t		*trans;
+	struct hlist_node	*n;
 
-	while (p != NULL) {
-		if (p->r_log_tid == tid)
-		    break;
-		p = p->r_next;
+	hlist_for_each_entry(trans, n, head, r_list) {
+		if (trans->r_log_tid == tid)
+			return trans;
 	}
-	return p;
+	return NULL;
 }
 
 STATIC void
-xlog_recover_put_hashq(
-	xlog_recover_t		**q,
-	xlog_recover_t		*trans)
+xlog_recover_new_tid(
+	struct hlist_head	*head,
+	xlog_tid_t		tid,
+	xfs_lsn_t		lsn)
 {
-	trans->r_next = *q;
-	*q = trans;
+	xlog_recover_t		*trans;
+
+	trans = kmem_zalloc(sizeof(xlog_recover_t), KM_SLEEP);
+	trans->r_log_tid   = tid;
+	trans->r_lsn	   = lsn;
+	INIT_LIST_HEAD(&trans->r_itemq);
+
+	INIT_HLIST_NODE(&trans->r_list);
+	hlist_add_head(&trans->r_list, head);
 }
 
 STATIC void
 xlog_recover_add_item(
-	xlog_recover_item_t	**itemq)
+	struct list_head	*head)
 {
 	xlog_recover_item_t	*item;
 
 	item = kmem_zalloc(sizeof(xlog_recover_item_t), KM_SLEEP);
-	xlog_recover_insert_item_backq(itemq, item);
+	INIT_LIST_HEAD(&item->ri_list);
+	list_add_tail(&item->ri_list, head);
 }
 
 STATIC int
 xlog_recover_add_to_cont_trans(
+	struct log		*log,
 	xlog_recover_t		*trans,
 	xfs_caddr_t		dp,
 	int			len)
@@ -1414,8 +1455,7 @@ xlog_recover_add_to_cont_trans(
 	xfs_caddr_t		ptr, old_ptr;
 	int			old_len;
 
-	item = trans->r_itemq;
-	if (item == NULL) {
+	if (list_empty(&trans->r_itemq)) {
 		/* finish copying rest of trans header */
 		xlog_recover_add_item(&trans->r_itemq);
 		ptr = (xfs_caddr_t) &trans->r_theader +
@@ -1423,7 +1463,8 @@ xlog_recover_add_to_cont_trans(
 		memcpy(ptr, dp, len); /* d, s, l */
 		return 0;
 	}
-	item = item->ri_prev;
+	/* take the tail entry */
+	item = list_entry(trans->r_itemq.prev, xlog_recover_item_t, ri_list);
 
 	old_ptr = item->ri_buf[item->ri_cnt-1].i_addr;
 	old_len = item->ri_buf[item->ri_cnt-1].i_len;
@@ -1432,6 +1473,7 @@ xlog_recover_add_to_cont_trans(
 	memcpy(&ptr[old_len], dp, len); /* d, s, l */
 	item->ri_buf[item->ri_cnt-1].i_len += len;
 	item->ri_buf[item->ri_cnt-1].i_addr = ptr;
+	trace_xfs_log_recover_item_add_cont(log, trans, item, 0);
 	return 0;
 }
 
@@ -1450,6 +1492,7 @@ xlog_recover_add_to_cont_trans(
  */
 STATIC int
 xlog_recover_add_to_trans(
+	struct log		*log,
 	xlog_recover_t		*trans,
 	xfs_caddr_t		dp,
 	int			len)
@@ -1460,8 +1503,7 @@ xlog_recover_add_to_trans(
 
 	if (!len)
 		return 0;
-	item = trans->r_itemq;
-	if (item == NULL) {
+	if (list_empty(&trans->r_itemq)) {
 		/* we need to catch log corruptions here */
 		if (*(uint *)dp != XFS_TRANS_HEADER_MAGIC) {
 			xlog_warn("XFS: xlog_recover_add_to_trans: "
@@ -1479,12 +1521,15 @@ xlog_recover_add_to_trans(
 	memcpy(ptr, dp, len);
 	in_f = (xfs_inode_log_format_t *)ptr;
 
-	if (item->ri_prev->ri_total != 0 &&
-	     item->ri_prev->ri_total == item->ri_prev->ri_cnt) {
+	/* take the tail entry */
+	item = list_entry(trans->r_itemq.prev, xlog_recover_item_t, ri_list);
+	if (item->ri_total != 0 &&
+	     item->ri_total == item->ri_cnt) {
+		/* tail item is in use, get a new one */
 		xlog_recover_add_item(&trans->r_itemq);
+		item = list_entry(trans->r_itemq.prev,
+					xlog_recover_item_t, ri_list);
 	}
-	item = trans->r_itemq;
-	item = item->ri_prev;
 
 	if (item->ri_total == 0) {		/* first region to be added */
 		if (in_f->ilf_size == 0 ||
@@ -1506,99 +1551,35 @@ xlog_recover_add_to_trans(
 	item->ri_buf[item->ri_cnt].i_addr = ptr;
 	item->ri_buf[item->ri_cnt].i_len  = len;
 	item->ri_cnt++;
+	trace_xfs_log_recover_item_add(log, trans, item, 0);
 	return 0;
 }
 
-STATIC void
-xlog_recover_new_tid(
-	xlog_recover_t		**q,
-	xlog_tid_t		tid,
-	xfs_lsn_t		lsn)
-{
-	xlog_recover_t		*trans;
-
-	trans = kmem_zalloc(sizeof(xlog_recover_t), KM_SLEEP);
-	trans->r_log_tid   = tid;
-	trans->r_lsn	   = lsn;
-	xlog_recover_put_hashq(q, trans);
-}
-
-STATIC int
-xlog_recover_unlink_tid(
-	xlog_recover_t		**q,
-	xlog_recover_t		*trans)
-{
-	xlog_recover_t		*tp;
-	int			found = 0;
-
-	ASSERT(trans != NULL);
-	if (trans == *q) {
-		*q = (*q)->r_next;
-	} else {
-		tp = *q;
-		while (tp) {
-			if (tp->r_next == trans) {
-				found = 1;
-				break;
-			}
-			tp = tp->r_next;
-		}
-		if (!found) {
-			xlog_warn(
-			     "XFS: xlog_recover_unlink_tid: trans not found");
-			ASSERT(0);
-			return XFS_ERROR(EIO);
-		}
-		tp->r_next = tp->r_next->r_next;
-	}
-	return 0;
-}
-
-STATIC void
-xlog_recover_insert_item_backq(
-	xlog_recover_item_t	**q,
-	xlog_recover_item_t	*item)
-{
-	if (*q == NULL) {
-		item->ri_prev = item->ri_next = item;
-		*q = item;
-	} else {
-		item->ri_next		= *q;
-		item->ri_prev		= (*q)->ri_prev;
-		(*q)->ri_prev		= item;
-		item->ri_prev->ri_next	= item;
-	}
-}
-
-STATIC void
-xlog_recover_insert_item_frontq(
-	xlog_recover_item_t	**q,
-	xlog_recover_item_t	*item)
-{
-	xlog_recover_insert_item_backq(q, item);
-	*q = item;
-}
-
+/*
+ * Sort the log items in the transaction. Cancelled buffers need
+ * to be put first so they are processed before any items that might
+ * modify the buffers. If they are cancelled, then the modifications
+ * don't need to be replayed.
+ */
 STATIC int
 xlog_recover_reorder_trans(
-	xlog_recover_t		*trans)
+	struct log		*log,
+	xlog_recover_t		*trans,
+	int			pass)
 {
-	xlog_recover_item_t	*first_item, *itemq, *itemq_next;
-	xfs_buf_log_format_t	*buf_f;
-	ushort			flags = 0;
+	xlog_recover_item_t	*item, *n;
+	LIST_HEAD(sort_list);
 
-	first_item = itemq = trans->r_itemq;
-	trans->r_itemq = NULL;
-	do {
-		itemq_next = itemq->ri_next;
-		buf_f = (xfs_buf_log_format_t *)itemq->ri_buf[0].i_addr;
+	list_splice_init(&trans->r_itemq, &sort_list);
+	list_for_each_entry_safe(item, n, &sort_list, ri_list) {
+		xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
 
-		switch (ITEM_TYPE(itemq)) {
+		switch (ITEM_TYPE(item)) {
 		case XFS_LI_BUF:
-			flags = buf_f->blf_flags;
-			if (!(flags & XFS_BLI_CANCEL)) {
-				xlog_recover_insert_item_frontq(&trans->r_itemq,
-								itemq);
+			if (!(buf_f->blf_flags & XFS_BLF_CANCEL)) {
+				trace_xfs_log_recover_item_reorder_head(log,
+							trans, item, pass);
+				list_move(&item->ri_list, &trans->r_itemq);
 				break;
 			}
 		case XFS_LI_INODE:
@@ -1606,7 +1587,9 @@ xlog_recover_reorder_trans(
 		case XFS_LI_QUOTAOFF:
 		case XFS_LI_EFD:
 		case XFS_LI_EFI:
-			xlog_recover_insert_item_backq(&trans->r_itemq, itemq);
+			trace_xfs_log_recover_item_reorder_tail(log,
+							trans, item, pass);
+			list_move_tail(&item->ri_list, &trans->r_itemq);
 			break;
 		default:
 			xlog_warn(
@@ -1614,8 +1597,8 @@ xlog_recover_reorder_trans(
 			ASSERT(0);
 			return XFS_ERROR(EIO);
 		}
-		itemq = itemq_next;
-	} while (first_item != itemq);
+	}
+	ASSERT(list_empty(&sort_list));
 	return 0;
 }
 
@@ -1631,85 +1614,52 @@ xlog_recover_reorder_trans(
  * record in the table to tell us how many times we expect to see this
  * record during the second pass.
  */
-STATIC void
-xlog_recover_do_buffer_pass1(
-	xlog_t			*log,
-	xfs_buf_log_format_t	*buf_f)
+STATIC int
+xlog_recover_buffer_pass1(
+	struct log		*log,
+	xlog_recover_item_t	*item)
 {
-	xfs_buf_cancel_t	*bcp;
-	xfs_buf_cancel_t	*nextp;
-	xfs_buf_cancel_t	*prevp;
-	xfs_buf_cancel_t	**bucket;
-	xfs_daddr_t		blkno = 0;
-	uint			len = 0;
-	ushort			flags = 0;
-
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		blkno = buf_f->blf_blkno;
-		len = buf_f->blf_len;
-		flags = buf_f->blf_flags;
-		break;
-	}
+	xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
+	struct list_head	*bucket;
+	struct xfs_buf_cancel	*bcp;
 
 	/*
 	 * If this isn't a cancel buffer item, then just return.
 	 */
-	if (!(flags & XFS_BLI_CANCEL))
-		return;
-
-	/*
-	 * Insert an xfs_buf_cancel record into the hash table of
-	 * them.  If there is already an identical record, bump
-	 * its reference count.
-	 */
-	bucket = &log->l_buf_cancel_table[(__uint64_t)blkno %
-					  XLOG_BC_TABLE_SIZE];
-	/*
-	 * If the hash bucket is empty then just insert a new record into
-	 * the bucket.
-	 */
-	if (*bucket == NULL) {
-		bcp = (xfs_buf_cancel_t *)kmem_alloc(sizeof(xfs_buf_cancel_t),
-						     KM_SLEEP);
-		bcp->bc_blkno = blkno;
-		bcp->bc_len = len;
-		bcp->bc_refcount = 1;
-		bcp->bc_next = NULL;
-		*bucket = bcp;
-		return;
+	if (!(buf_f->blf_flags & XFS_BLF_CANCEL)) {
+		trace_xfs_log_recover_buf_not_cancel(log, buf_f);
+		return 0;
 	}
 
 	/*
-	 * The hash bucket is not empty, so search for duplicates of our
-	 * record.  If we find one them just bump its refcount.  If not
-	 * then add us at the end of the list.
+	 * Insert an xfs_buf_cancel record into the hash table of them.
+	 * If there is already an identical record, bump its reference count.
 	 */
-	prevp = NULL;
-	nextp = *bucket;
-	while (nextp != NULL) {
-		if (nextp->bc_blkno == blkno && nextp->bc_len == len) {
-			nextp->bc_refcount++;
-			return;
+	bucket = XLOG_BUF_CANCEL_BUCKET(log, buf_f->blf_blkno);
+	list_for_each_entry(bcp, bucket, bc_list) {
+		if (bcp->bc_blkno == buf_f->blf_blkno &&
+		    bcp->bc_len == buf_f->blf_len) {
+			bcp->bc_refcount++;
+			trace_xfs_log_recover_buf_cancel_ref_inc(log, buf_f);
+			return 0;
 		}
-		prevp = nextp;
-		nextp = nextp->bc_next;
 	}
-	ASSERT(prevp != NULL);
-	bcp = (xfs_buf_cancel_t *)kmem_alloc(sizeof(xfs_buf_cancel_t),
-					     KM_SLEEP);
-	bcp->bc_blkno = blkno;
-	bcp->bc_len = len;
+
+	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), KM_SLEEP);
+	bcp->bc_blkno = buf_f->blf_blkno;
+	bcp->bc_len = buf_f->blf_len;
 	bcp->bc_refcount = 1;
-	bcp->bc_next = NULL;
-	prevp->bc_next = bcp;
+	list_add_tail(&bcp->bc_list, bucket);
+
+	trace_xfs_log_recover_buf_cancel_add(log, buf_f);
+	return 0;
 }
 
 /*
  * Check to see whether the buffer being recovered has a corresponding
  * entry in the buffer cancel record table.  If it does then return 1
  * so that it will be cancelled, otherwise return 0.  If the buffer is
- * actually a buffer cancel item (XFS_BLI_CANCEL is set), then decrement
+ * actually a buffer cancel item (XFS_BLF_CANCEL is set), then decrement
  * the refcount on the entry in the table and remove it from the table
  * if this is the last reference.
  *
@@ -1720,144 +1670,87 @@ xlog_recover_do_buffer_pass1(
  */
 STATIC int
 xlog_check_buffer_cancelled(
-	xlog_t			*log,
+	struct log		*log,
 	xfs_daddr_t		blkno,
 	uint			len,
 	ushort			flags)
 {
-	xfs_buf_cancel_t	*bcp;
-	xfs_buf_cancel_t	*prevp;
-	xfs_buf_cancel_t	**bucket;
+	struct list_head	*bucket;
+	struct xfs_buf_cancel	*bcp;
 
 	if (log->l_buf_cancel_table == NULL) {
 		/*
 		 * There is nothing in the table built in pass one,
 		 * so this buffer must not be cancelled.
 		 */
-		ASSERT(!(flags & XFS_BLI_CANCEL));
-		return 0;
-	}
-
-	bucket = &log->l_buf_cancel_table[(__uint64_t)blkno %
-					  XLOG_BC_TABLE_SIZE];
-	bcp = *bucket;
-	if (bcp == NULL) {
-		/*
-		 * There is no corresponding entry in the table built
-		 * in pass one, so this buffer has not been cancelled.
-		 */
-		ASSERT(!(flags & XFS_BLI_CANCEL));
+		ASSERT(!(flags & XFS_BLF_CANCEL));
 		return 0;
 	}
 
 	/*
-	 * Search for an entry in the buffer cancel table that
-	 * matches our buffer.
+	 * Search for an entry in the  cancel table that matches our buffer.
 	 */
-	prevp = NULL;
-	while (bcp != NULL) {
-		if (bcp->bc_blkno == blkno && bcp->bc_len == len) {
-			/*
-			 * We've go a match, so return 1 so that the
-			 * recovery of this buffer is cancelled.
-			 * If this buffer is actually a buffer cancel
-			 * log item, then decrement the refcount on the
-			 * one in the table and remove it if this is the
-			 * last reference.
-			 */
-			if (flags & XFS_BLI_CANCEL) {
-				bcp->bc_refcount--;
-				if (bcp->bc_refcount == 0) {
-					if (prevp == NULL) {
-						*bucket = bcp->bc_next;
-					} else {
-						prevp->bc_next = bcp->bc_next;
-					}
-					kmem_free(bcp);
-				}
-			}
-			return 1;
-		}
-		prevp = bcp;
-		bcp = bcp->bc_next;
+	bucket = XLOG_BUF_CANCEL_BUCKET(log, blkno);
+	list_for_each_entry(bcp, bucket, bc_list) {
+		if (bcp->bc_blkno == blkno && bcp->bc_len == len)
+			goto found;
 	}
+
 	/*
-	 * We didn't find a corresponding entry in the table, so
-	 * return 0 so that the buffer is NOT cancelled.
+	 * We didn't find a corresponding entry in the table, so return 0 so
+	 * that the buffer is NOT cancelled.
 	 */
-	ASSERT(!(flags & XFS_BLI_CANCEL));
+	ASSERT(!(flags & XFS_BLF_CANCEL));
 	return 0;
-}
 
-STATIC int
-xlog_recover_do_buffer_pass2(
-	xlog_t			*log,
-	xfs_buf_log_format_t	*buf_f)
-{
-	xfs_daddr_t		blkno = 0;
-	ushort			flags = 0;
-	uint			len = 0;
-
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		blkno = buf_f->blf_blkno;
-		flags = buf_f->blf_flags;
-		len = buf_f->blf_len;
-		break;
+found:
+	/*
+	 * We've go a match, so return 1 so that the recovery of this buffer
+	 * is cancelled.  If this buffer is actually a buffer cancel log
+	 * item, then decrement the refcount on the one in the table and
+	 * remove it if this is the last reference.
+	 */
+	if (flags & XFS_BLF_CANCEL) {
+		if (--bcp->bc_refcount == 0) {
+			list_del(&bcp->bc_list);
+			kmem_free(bcp);
+		}
 	}
-
-	return xlog_check_buffer_cancelled(log, blkno, len, flags);
+	return 1;
 }
 
 /*
- * Perform recovery for a buffer full of inodes.  In these buffers,
- * the only data which should be recovered is that which corresponds
- * to the di_next_unlinked pointers in the on disk inode structures.
- * The rest of the data for the inodes is always logged through the
- * inodes themselves rather than the inode buffer and is recovered
- * in xlog_recover_do_inode_trans().
+ * Perform recovery for a buffer full of inodes.  In these buffers, the only
+ * data which should be recovered is that which corresponds to the
+ * di_next_unlinked pointers in the on disk inode structures.  The rest of the
+ * data for the inodes is always logged through the inodes themselves rather
+ * than the inode buffer and is recovered in xlog_recover_inode_pass2().
  *
- * The only time when buffers full of inodes are fully recovered is
- * when the buffer is full of newly allocated inodes.  In this case
- * the buffer will not be marked as an inode buffer and so will be
- * sent to xlog_recover_do_reg_buffer() below during recovery.
+ * The only time when buffers full of inodes are fully recovered is when the
+ * buffer is full of newly allocated inodes.  In this case the buffer will
+ * not be marked as an inode buffer and so will be sent to
+ * xlog_recover_do_reg_buffer() below during recovery.
  */
 STATIC int
 xlog_recover_do_inode_buffer(
-	xfs_mount_t		*mp,
+	struct xfs_mount	*mp,
 	xlog_recover_item_t	*item,
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	xfs_buf_log_format_t	*buf_f)
 {
 	int			i;
-	int			item_index;
-	int			bit;
-	int			nbits;
-	int			reg_buf_offset;
-	int			reg_buf_bytes;
+	int			item_index = 0;
+	int			bit = 0;
+	int			nbits = 0;
+	int			reg_buf_offset = 0;
+	int			reg_buf_bytes = 0;
 	int			next_unlinked_offset;
 	int			inodes_per_buf;
 	xfs_agino_t		*logged_nextp;
 	xfs_agino_t		*buffer_nextp;
-	unsigned int		*data_map = NULL;
-	unsigned int		map_size = 0;
 
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		data_map = buf_f->blf_data_map;
-		map_size = buf_f->blf_map_size;
-		break;
-	}
-	/*
-	 * Set the variables corresponding to the current region to
-	 * 0 so that we'll initialize them on the first pass through
-	 * the loop.
-	 */
-	reg_buf_offset = 0;
-	reg_buf_bytes = 0;
-	bit = 0;
-	nbits = 0;
-	item_index = 0;
+	trace_xfs_log_recover_buf_inode_buf(mp->m_log, buf_f);
+
 	inodes_per_buf = XFS_BUF_COUNT(bp) >> mp->m_sb.sb_inodelog;
 	for (i = 0; i < inodes_per_buf; i++) {
 		next_unlinked_offset = (i * mp->m_sb.sb_inodesize) +
@@ -1872,21 +1765,21 @@ xlog_recover_do_inode_buffer(
 			 * the current di_next_unlinked field.
 			 */
 			bit += nbits;
-			bit = xfs_next_bit(data_map, map_size, bit);
+			bit = xfs_next_bit(buf_f->blf_data_map,
+					   buf_f->blf_map_size, bit);
 
 			/*
 			 * If there are no more logged regions in the
 			 * buffer, then we're done.
 			 */
-			if (bit == -1) {
+			if (bit == -1)
 				return 0;
-			}
 
-			nbits = xfs_contig_bits(data_map, map_size,
-							 bit);
+			nbits = xfs_contig_bits(buf_f->blf_data_map,
+						buf_f->blf_map_size, bit);
 			ASSERT(nbits > 0);
-			reg_buf_offset = bit << XFS_BLI_SHIFT;
-			reg_buf_bytes = nbits << XFS_BLI_SHIFT;
+			reg_buf_offset = bit << XFS_BLF_SHIFT;
+			reg_buf_bytes = nbits << XFS_BLF_SHIFT;
 			item_index++;
 		}
 
@@ -1895,12 +1788,11 @@ xlog_recover_do_inode_buffer(
 		 * di_next_unlinked field, then move on to the next
 		 * di_next_unlinked field.
 		 */
-		if (next_unlinked_offset < reg_buf_offset) {
+		if (next_unlinked_offset < reg_buf_offset)
 			continue;
-		}
 
 		ASSERT(item->ri_buf[item_index].i_addr != NULL);
-		ASSERT((item->ri_buf[item_index].i_len % XFS_BLI_CHUNK) == 0);
+		ASSERT((item->ri_buf[item_index].i_len % XFS_BLF_CHUNK) == 0);
 		ASSERT((reg_buf_offset + reg_buf_bytes) <= XFS_BUF_COUNT(bp));
 
 		/*
@@ -1908,9 +1800,8 @@ xlog_recover_do_inode_buffer(
 		 * current di_next_unlinked field.  Extract its value
 		 * and copy it to the buffer copy.
 		 */
-		logged_nextp = (xfs_agino_t *)
-			       ((char *)(item->ri_buf[item_index].i_addr) +
-				(next_unlinked_offset - reg_buf_offset));
+		logged_nextp = item->ri_buf[item_index].i_addr +
+				next_unlinked_offset - reg_buf_offset;
 		if (unlikely(*logged_nextp == 0)) {
 			xfs_fs_cmn_err(CE_ALERT, mp,
 				"bad inode buffer log record (ptr = 0x%p, bp = 0x%p).  XFS trying to replay bad (0) inode di_next_unlinked field",
@@ -1934,38 +1825,34 @@ xlog_recover_do_inode_buffer(
  * given buffer.  The bitmap in the buf log format structure indicates
  * where to place the logged data.
  */
-/*ARGSUSED*/
 STATIC void
 xlog_recover_do_reg_buffer(
+	struct xfs_mount	*mp,
 	xlog_recover_item_t	*item,
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	xfs_buf_log_format_t	*buf_f)
 {
 	int			i;
 	int			bit;
 	int			nbits;
-	unsigned int		*data_map = NULL;
-	unsigned int		map_size = 0;
 	int                     error;
 
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		data_map = buf_f->blf_data_map;
-		map_size = buf_f->blf_map_size;
-		break;
-	}
+	trace_xfs_log_recover_buf_reg_buf(mp->m_log, buf_f);
+
 	bit = 0;
 	i = 1;  /* 0 is the buf format structure */
 	while (1) {
-		bit = xfs_next_bit(data_map, map_size, bit);
+		bit = xfs_next_bit(buf_f->blf_data_map,
+				   buf_f->blf_map_size, bit);
 		if (bit == -1)
 			break;
-		nbits = xfs_contig_bits(data_map, map_size, bit);
+		nbits = xfs_contig_bits(buf_f->blf_data_map,
+					buf_f->blf_map_size, bit);
 		ASSERT(nbits > 0);
 		ASSERT(item->ri_buf[i].i_addr != NULL);
-		ASSERT(item->ri_buf[i].i_len % XFS_BLI_CHUNK == 0);
+		ASSERT(item->ri_buf[i].i_len % XFS_BLF_CHUNK == 0);
 		ASSERT(XFS_BUF_COUNT(bp) >=
-		       ((uint)bit << XFS_BLI_SHIFT)+(nbits<<XFS_BLI_SHIFT));
+		       ((uint)bit << XFS_BLF_SHIFT)+(nbits<<XFS_BLF_SHIFT));
 
 		/*
 		 * Do a sanity check if this is a dquot buffer. Just checking
@@ -1974,20 +1861,19 @@ xlog_recover_do_reg_buffer(
 		 */
 		error = 0;
 		if (buf_f->blf_flags &
-		   (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
+		   (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
 			if (item->ri_buf[i].i_addr == NULL) {
 				cmn_err(CE_ALERT,
 					"XFS: NULL dquot in %s.", __func__);
 				goto next;
 			}
-			if (item->ri_buf[i].i_len < sizeof(xfs_dqblk_t)) {
+			if (item->ri_buf[i].i_len < sizeof(xfs_disk_dquot_t)) {
 				cmn_err(CE_ALERT,
 					"XFS: dquot too small (%d) in %s.",
 					item->ri_buf[i].i_len, __func__);
 				goto next;
 			}
-			error = xfs_qm_dqcheck((xfs_disk_dquot_t *)
-					       item->ri_buf[i].i_addr,
+			error = xfs_qm_dqcheck(item->ri_buf[i].i_addr,
 					       -1, 0, XFS_QMOPT_DOWARN,
 					       "dquot_buf_recover");
 			if (error)
@@ -1995,9 +1881,9 @@ xlog_recover_do_reg_buffer(
 		}
 
 		memcpy(xfs_buf_offset(bp,
-			(uint)bit << XFS_BLI_SHIFT),	/* dest */
+			(uint)bit << XFS_BLF_SHIFT),	/* dest */
 			item->ri_buf[i].i_addr,		/* source */
-			nbits<<XFS_BLI_SHIFT);		/* length */
+			nbits<<XFS_BLF_SHIFT);		/* length */
  next:
 		i++;
 		bit += nbits;
@@ -2146,6 +2032,8 @@ xlog_recover_do_dquot_buffer(
 {
 	uint			type;
 
+	trace_xfs_log_recover_buf_dquot_buf(log, buf_f);
+
 	/*
 	 * Filesystems are required to send in quota flags at mount time.
 	 */
@@ -2154,11 +2042,11 @@ xlog_recover_do_dquot_buffer(
 	}
 
 	type = 0;
-	if (buf_f->blf_flags & XFS_BLI_UDQUOT_BUF)
+	if (buf_f->blf_flags & XFS_BLF_UDQUOT_BUF)
 		type |= XFS_DQ_USER;
-	if (buf_f->blf_flags & XFS_BLI_PDQUOT_BUF)
+	if (buf_f->blf_flags & XFS_BLF_PDQUOT_BUF)
 		type |= XFS_DQ_PROJ;
-	if (buf_f->blf_flags & XFS_BLI_GDQUOT_BUF)
+	if (buf_f->blf_flags & XFS_BLF_GDQUOT_BUF)
 		type |= XFS_DQ_GROUP;
 	/*
 	 * This type of quotas was turned off, so ignore this buffer
@@ -2166,7 +2054,7 @@ xlog_recover_do_dquot_buffer(
 	if (log->l_quotaoffs_flag & type)
 		return;
 
-	xlog_recover_do_reg_buffer(item, bp, buf_f);
+	xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
 }
 
 /*
@@ -2179,7 +2067,7 @@ xlog_recover_do_dquot_buffer(
  * here which overlaps that may be stale.
  *
  * When meta-data buffers are freed at run time we log a buffer item
- * with the XFS_BLI_CANCEL bit set to indicate that previous copies
+ * with the XFS_BLF_CANCEL bit set to indicate that previous copies
  * of the buffer in the log should not be replayed at recovery time.
  * This is so that if the blocks covered by the buffer are reused for
  * file data before we crash we don't end up replaying old, freed
@@ -2193,81 +2081,50 @@ xlog_recover_do_dquot_buffer(
  * for more details on the implementation of the table of cancel records.
  */
 STATIC int
-xlog_recover_do_buffer_trans(
+xlog_recover_buffer_pass2(
 	xlog_t			*log,
-	xlog_recover_item_t	*item,
-	int			pass)
+	xlog_recover_item_t	*item)
 {
-	xfs_buf_log_format_t	*buf_f;
-	xfs_mount_t		*mp;
+	xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
+	xfs_mount_t		*mp = log->l_mp;
 	xfs_buf_t		*bp;
 	int			error;
-	int			cancel;
-	xfs_daddr_t		blkno;
-	int			len;
-	ushort			flags;
+	uint			buf_flags;
 
-	buf_f = (xfs_buf_log_format_t *)item->ri_buf[0].i_addr;
-
-	if (pass == XLOG_RECOVER_PASS1) {
-		/*
-		 * In this pass we're only looking for buf items
-		 * with the XFS_BLI_CANCEL bit set.
-		 */
-		xlog_recover_do_buffer_pass1(log, buf_f);
+	/*
+	 * In this pass we only want to recover all the buffers which have
+	 * not been cancelled and are not cancellation buffers themselves.
+	 */
+	if (xlog_check_buffer_cancelled(log, buf_f->blf_blkno,
+			buf_f->blf_len, buf_f->blf_flags)) {
+		trace_xfs_log_recover_buf_cancel(log, buf_f);
 		return 0;
-	} else {
-		/*
-		 * In this pass we want to recover all the buffers
-		 * which have not been cancelled and are not
-		 * cancellation buffers themselves.  The routine
-		 * we call here will tell us whether or not to
-		 * continue with the replay of this buffer.
-		 */
-		cancel = xlog_recover_do_buffer_pass2(log, buf_f);
-		if (cancel) {
-			return 0;
-		}
-	}
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		blkno = buf_f->blf_blkno;
-		len = buf_f->blf_len;
-		flags = buf_f->blf_flags;
-		break;
-	default:
-		xfs_fs_cmn_err(CE_ALERT, log->l_mp,
-			"xfs_log_recover: unknown buffer type 0x%x, logdev %s",
-			buf_f->blf_type, log->l_mp->m_logname ?
-			log->l_mp->m_logname : "internal");
-		XFS_ERROR_REPORT("xlog_recover_do_buffer_trans",
-				 XFS_ERRLEVEL_LOW, log->l_mp);
-		return XFS_ERROR(EFSCORRUPTED);
 	}
 
-	mp = log->l_mp;
-	if (flags & XFS_BLI_INODE_BUF) {
-		bp = xfs_buf_read_flags(mp->m_ddev_targp, blkno, len,
-								XFS_BUF_LOCK);
-	} else {
-		bp = xfs_buf_read(mp->m_ddev_targp, blkno, len, 0);
-	}
+	trace_xfs_log_recover_buf_recover(log, buf_f);
+
+	buf_flags = XBF_LOCK;
+	if (!(buf_f->blf_flags & XFS_BLF_INODE_BUF))
+		buf_flags |= XBF_MAPPED;
+
+	bp = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
+			  buf_flags);
 	if (XFS_BUF_ISERROR(bp)) {
-		xfs_ioerror_alert("xlog_recover_do..(read#1)", log->l_mp,
-				  bp, blkno);
+		xfs_ioerror_alert("xlog_recover_do..(read#1)", mp,
+				  bp, buf_f->blf_blkno);
 		error = XFS_BUF_GETERROR(bp);
 		xfs_buf_relse(bp);
 		return error;
 	}
 
 	error = 0;
-	if (flags & XFS_BLI_INODE_BUF) {
+	if (buf_f->blf_flags & XFS_BLF_INODE_BUF) {
 		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
-	} else if (flags &
-		  (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
+	} else if (buf_f->blf_flags &
+		  (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
 		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
 	} else {
-		xlog_recover_do_reg_buffer(item, bp, buf_f);
+		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
 	}
 	if (error)
 		return XFS_ERROR(error);
@@ -2294,8 +2151,7 @@ xlog_recover_do_buffer_trans(
 		XFS_BUF_STALE(bp);
 		error = xfs_bwrite(mp, bp);
 	} else {
-		ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
-		bp->b_mount = mp;
+		ASSERT(bp->b_target->bt_mount == mp);
 		XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
 		xfs_bdwrite(mp, bp);
 	}
@@ -2304,16 +2160,14 @@ xlog_recover_do_buffer_trans(
 }
 
 STATIC int
-xlog_recover_do_inode_trans(
+xlog_recover_inode_pass2(
 	xlog_t			*log,
-	xlog_recover_item_t	*item,
-	int			pass)
+	xlog_recover_item_t	*item)
 {
 	xfs_inode_log_format_t	*in_f;
-	xfs_mount_t		*mp;
+	xfs_mount_t		*mp = log->l_mp;
 	xfs_buf_t		*bp;
 	xfs_dinode_t		*dip;
-	xfs_ino_t		ino;
 	int			len;
 	xfs_caddr_t		src;
 	xfs_caddr_t		dest;
@@ -2323,22 +2177,15 @@ xlog_recover_do_inode_trans(
 	xfs_icdinode_t		*dicp;
 	int			need_free = 0;
 
-	if (pass == XLOG_RECOVER_PASS1) {
-		return 0;
-	}
-
 	if (item->ri_buf[0].i_len == sizeof(xfs_inode_log_format_t)) {
-		in_f = (xfs_inode_log_format_t *)item->ri_buf[0].i_addr;
+		in_f = item->ri_buf[0].i_addr;
 	} else {
-		in_f = (xfs_inode_log_format_t *)kmem_alloc(
-			sizeof(xfs_inode_log_format_t), KM_SLEEP);
+		in_f = kmem_alloc(sizeof(xfs_inode_log_format_t), KM_SLEEP);
 		need_free = 1;
 		error = xfs_inode_item_format_convert(&item->ri_buf[0], in_f);
 		if (error)
 			goto error;
 	}
-	ino = in_f->ilf_ino;
-	mp = log->l_mp;
 
 	/*
 	 * Inode buffers can be freed, look out for it,
@@ -2347,11 +2194,13 @@ xlog_recover_do_inode_trans(
 	if (xlog_check_buffer_cancelled(log, in_f->ilf_blkno,
 					in_f->ilf_len, 0)) {
 		error = 0;
+		trace_xfs_log_recover_inode_cancel(log, in_f);
 		goto error;
 	}
+	trace_xfs_log_recover_inode_recover(log, in_f);
 
-	bp = xfs_buf_read_flags(mp->m_ddev_targp, in_f->ilf_blkno,
-				in_f->ilf_len, XFS_BUF_LOCK);
+	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len,
+			  XBF_LOCK);
 	if (XFS_BUF_ISERROR(bp)) {
 		xfs_ioerror_alert("xlog_recover_do..(read#2)", mp,
 				  bp, in_f->ilf_blkno);
@@ -2371,19 +2220,19 @@ xlog_recover_do_inode_trans(
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
 			"xfs_inode_recover: Bad inode magic number, dino ptr = 0x%p, dino bp = 0x%p, ino = %Ld",
-			dip, bp, ino);
-		XFS_ERROR_REPORT("xlog_recover_do_inode_trans(1)",
+			dip, bp, in_f->ilf_ino);
+		XFS_ERROR_REPORT("xlog_recover_inode_pass2(1)",
 				 XFS_ERRLEVEL_LOW, mp);
 		error = EFSCORRUPTED;
 		goto error;
 	}
-	dicp = (xfs_icdinode_t *)(item->ri_buf[1].i_addr);
+	dicp = item->ri_buf[1].i_addr;
 	if (unlikely(dicp->di_magic != XFS_DINODE_MAGIC)) {
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
 			"xfs_inode_recover: Bad inode log record, rec ptr 0x%p, ino %Ld",
-			item, ino);
-		XFS_ERROR_REPORT("xlog_recover_do_inode_trans(2)",
+			item, in_f->ilf_ino);
+		XFS_ERROR_REPORT("xlog_recover_inode_pass2(2)",
 				 XFS_ERRLEVEL_LOW, mp);
 		error = EFSCORRUPTED;
 		goto error;
@@ -2400,6 +2249,7 @@ xlog_recover_do_inode_trans(
 			/* do nothing */
 		} else {
 			xfs_buf_relse(bp);
+			trace_xfs_log_recover_inode_skip(log, in_f);
 			error = 0;
 			goto error;
 		}
@@ -2410,12 +2260,12 @@ xlog_recover_do_inode_trans(
 	if (unlikely((dicp->di_mode & S_IFMT) == S_IFREG)) {
 		if ((dicp->di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (dicp->di_format != XFS_DINODE_FMT_BTREE)) {
-			XFS_CORRUPTION_ERROR("xlog_recover_do_inode_trans(3)",
+			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(3)",
 					 XFS_ERRLEVEL_LOW, mp, dicp);
 			xfs_buf_relse(bp);
 			xfs_fs_cmn_err(CE_ALERT, mp,
 				"xfs_inode_recover: Bad regular inode log record, rec ptr 0x%p, ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
-				item, dip, bp, ino);
+				item, dip, bp, in_f->ilf_ino);
 			error = EFSCORRUPTED;
 			goto error;
 		}
@@ -2423,40 +2273,40 @@ xlog_recover_do_inode_trans(
 		if ((dicp->di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (dicp->di_format != XFS_DINODE_FMT_BTREE) &&
 		    (dicp->di_format != XFS_DINODE_FMT_LOCAL)) {
-			XFS_CORRUPTION_ERROR("xlog_recover_do_inode_trans(4)",
+			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(4)",
 					     XFS_ERRLEVEL_LOW, mp, dicp);
 			xfs_buf_relse(bp);
 			xfs_fs_cmn_err(CE_ALERT, mp,
 				"xfs_inode_recover: Bad dir inode log record, rec ptr 0x%p, ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
-				item, dip, bp, ino);
+				item, dip, bp, in_f->ilf_ino);
 			error = EFSCORRUPTED;
 			goto error;
 		}
 	}
 	if (unlikely(dicp->di_nextents + dicp->di_anextents > dicp->di_nblocks)){
-		XFS_CORRUPTION_ERROR("xlog_recover_do_inode_trans(5)",
+		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(5)",
 				     XFS_ERRLEVEL_LOW, mp, dicp);
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
 			"xfs_inode_recover: Bad inode log record, rec ptr 0x%p, dino ptr 0x%p, dino bp 0x%p, ino %Ld, total extents = %d, nblocks = %Ld",
-			item, dip, bp, ino,
+			item, dip, bp, in_f->ilf_ino,
 			dicp->di_nextents + dicp->di_anextents,
 			dicp->di_nblocks);
 		error = EFSCORRUPTED;
 		goto error;
 	}
 	if (unlikely(dicp->di_forkoff > mp->m_sb.sb_inodesize)) {
-		XFS_CORRUPTION_ERROR("xlog_recover_do_inode_trans(6)",
+		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(6)",
 				     XFS_ERRLEVEL_LOW, mp, dicp);
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
 			"xfs_inode_recover: Bad inode log rec ptr 0x%p, dino ptr 0x%p, dino bp 0x%p, ino %Ld, forkoff 0x%x",
-			item, dip, bp, ino, dicp->di_forkoff);
+			item, dip, bp, in_f->ilf_ino, dicp->di_forkoff);
 		error = EFSCORRUPTED;
 		goto error;
 	}
 	if (unlikely(item->ri_buf[1].i_len > sizeof(struct xfs_icdinode))) {
-		XFS_CORRUPTION_ERROR("xlog_recover_do_inode_trans(7)",
+		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(7)",
 				     XFS_ERRLEVEL_LOW, mp, dicp);
 		xfs_buf_relse(bp);
 		xfs_fs_cmn_err(CE_ALERT, mp,
@@ -2467,7 +2317,7 @@ xlog_recover_do_inode_trans(
 	}
 
 	/* The core is in in-core format */
-	xfs_dinode_to_disk(dip, (xfs_icdinode_t *)item->ri_buf[1].i_addr);
+	xfs_dinode_to_disk(dip, item->ri_buf[1].i_addr);
 
 	/* the rest is in on-disk format */
 	if (item->ri_buf[1].i_len > sizeof(struct xfs_icdinode)) {
@@ -2548,7 +2398,7 @@ xlog_recover_do_inode_trans(
 			break;
 
 		default:
-			xlog_warn("XFS: xlog_recover_do_inode_trans: Invalid flag");
+			xlog_warn("XFS: xlog_recover_inode_pass2: Invalid flag");
 			ASSERT(0);
 			xfs_buf_relse(bp);
 			error = EIO;
@@ -2557,8 +2407,7 @@ xlog_recover_do_inode_trans(
 	}
 
 write_inode_buffer:
-	ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
-	bp->b_mount = mp;
+	ASSERT(bp->b_target->bt_mount == mp);
 	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
 	xfs_bdwrite(mp, bp);
 error:
@@ -2573,18 +2422,11 @@ error:
  * of that type.
  */
 STATIC int
-xlog_recover_do_quotaoff_trans(
+xlog_recover_quotaoff_pass1(
 	xlog_t			*log,
-	xlog_recover_item_t	*item,
-	int			pass)
+	xlog_recover_item_t	*item)
 {
-	xfs_qoff_logformat_t	*qoff_f;
-
-	if (pass == XLOG_RECOVER_PASS2) {
-		return (0);
-	}
-
-	qoff_f = (xfs_qoff_logformat_t *)item->ri_buf[0].i_addr;
+	xfs_qoff_logformat_t	*qoff_f = item->ri_buf[0].i_addr;
 	ASSERT(qoff_f);
 
 	/*
@@ -2605,22 +2447,17 @@ xlog_recover_do_quotaoff_trans(
  * Recover a dquot record
  */
 STATIC int
-xlog_recover_do_dquot_trans(
+xlog_recover_dquot_pass2(
 	xlog_t			*log,
-	xlog_recover_item_t	*item,
-	int			pass)
+	xlog_recover_item_t	*item)
 {
-	xfs_mount_t		*mp;
+	xfs_mount_t		*mp = log->l_mp;
 	xfs_buf_t		*bp;
 	struct xfs_disk_dquot	*ddq, *recddq;
 	int			error;
 	xfs_dq_logformat_t	*dq_f;
 	uint			type;
 
-	if (pass == XLOG_RECOVER_PASS1) {
-		return 0;
-	}
-	mp = log->l_mp;
 
 	/*
 	 * Filesystems are required to send in quota flags at mount time.
@@ -2628,14 +2465,13 @@ xlog_recover_do_dquot_trans(
 	if (mp->m_qflags == 0)
 		return (0);
 
-	recddq = (xfs_disk_dquot_t *)item->ri_buf[1].i_addr;
-
-	if (item->ri_buf[1].i_addr == NULL) {
+	recddq = item->ri_buf[1].i_addr;
+	if (recddq == NULL) {
 		cmn_err(CE_ALERT,
 			"XFS: NULL dquot in %s.", __func__);
 		return XFS_ERROR(EIO);
 	}
-	if (item->ri_buf[1].i_len < sizeof(xfs_dqblk_t)) {
+	if (item->ri_buf[1].i_len < sizeof(xfs_disk_dquot_t)) {
 		cmn_err(CE_ALERT,
 			"XFS: dquot too small (%d) in %s.",
 			item->ri_buf[1].i_len, __func__);
@@ -2660,12 +2496,12 @@ xlog_recover_do_dquot_trans(
 	 * The other possibility, of course, is that the quota subsystem was
 	 * removed since the last mount - ENOSYS.
 	 */
-	dq_f = (xfs_dq_logformat_t *)item->ri_buf[0].i_addr;
+	dq_f = item->ri_buf[0].i_addr;
 	ASSERT(dq_f);
 	if ((error = xfs_qm_dqcheck(recddq,
 			   dq_f->qlf_id,
 			   0, XFS_QMOPT_DOWARN,
-			   "xlog_recover_do_dquot_trans (log copy)"))) {
+			   "xlog_recover_dquot_pass2 (log copy)"))) {
 		return XFS_ERROR(EIO);
 	}
 	ASSERT(dq_f->qlf_len == 1);
@@ -2688,7 +2524,7 @@ xlog_recover_do_dquot_trans(
 	 * minimal initialization then.
 	 */
 	if (xfs_qm_dqcheck(ddq, dq_f->qlf_id, 0, XFS_QMOPT_DOWARN,
-			   "xlog_recover_do_dquot_trans")) {
+			   "xlog_recover_dquot_pass2")) {
 		xfs_buf_relse(bp);
 		return XFS_ERROR(EIO);
 	}
@@ -2696,8 +2532,7 @@ xlog_recover_do_dquot_trans(
 	memcpy(ddq, recddq, item->ri_buf[1].i_len);
 
 	ASSERT(dq_f->qlf_size == 2);
-	ASSERT(bp->b_mount == NULL || bp->b_mount == mp);
-	bp->b_mount = mp;
+	ASSERT(bp->b_target->bt_mount == mp);
 	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
 	xfs_bdwrite(mp, bp);
 
@@ -2712,38 +2547,31 @@ xlog_recover_do_dquot_trans(
  * LSN.
  */
 STATIC int
-xlog_recover_do_efi_trans(
+xlog_recover_efi_pass2(
 	xlog_t			*log,
 	xlog_recover_item_t	*item,
-	xfs_lsn_t		lsn,
-	int			pass)
+	xfs_lsn_t		lsn)
 {
 	int			error;
-	xfs_mount_t		*mp;
+	xfs_mount_t		*mp = log->l_mp;
 	xfs_efi_log_item_t	*efip;
 	xfs_efi_log_format_t	*efi_formatp;
 
-	if (pass == XLOG_RECOVER_PASS1) {
-		return 0;
-	}
+	efi_formatp = item->ri_buf[0].i_addr;
 
-	efi_formatp = (xfs_efi_log_format_t *)item->ri_buf[0].i_addr;
-
-	mp = log->l_mp;
 	efip = xfs_efi_init(mp, efi_formatp->efi_nextents);
 	if ((error = xfs_efi_copy_format(&(item->ri_buf[0]),
 					 &(efip->efi_format)))) {
 		xfs_efi_item_free(efip);
 		return error;
 	}
-	efip->efi_next_extent = efi_formatp->efi_nextents;
-	efip->efi_flags |= XFS_EFI_COMMITTED;
+	atomic_set(&efip->efi_next_extent, efi_formatp->efi_nextents);
 
 	spin_lock(&log->l_ailp->xa_lock);
 	/*
 	 * xfs_trans_ail_update() drops the AIL lock.
 	 */
-	xfs_trans_ail_update(log->l_ailp, (xfs_log_item_t *)efip, lsn);
+	xfs_trans_ail_update(log->l_ailp, &efip->efi_item, lsn);
 	return 0;
 }
 
@@ -2756,11 +2584,10 @@ xlog_recover_do_efi_trans(
  * efd format structure.  If we find it, we remove the efi from the
  * AIL and free it.
  */
-STATIC void
-xlog_recover_do_efd_trans(
+STATIC int
+xlog_recover_efd_pass2(
 	xlog_t			*log,
-	xlog_recover_item_t	*item,
-	int			pass)
+	xlog_recover_item_t	*item)
 {
 	xfs_efd_log_format_t	*efd_formatp;
 	xfs_efi_log_item_t	*efip = NULL;
@@ -2769,11 +2596,7 @@ xlog_recover_do_efd_trans(
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp = log->l_ailp;
 
-	if (pass == XLOG_RECOVER_PASS1) {
-		return;
-	}
-
-	efd_formatp = (xfs_efd_log_format_t *)item->ri_buf[0].i_addr;
+	efd_formatp = item->ri_buf[0].i_addr;
 	ASSERT((item->ri_buf[0].i_len == (sizeof(xfs_efd_log_format_32_t) +
 		((efd_formatp->efd_nextents - 1) * sizeof(xfs_extent_32_t)))) ||
 	       (item->ri_buf[0].i_len == (sizeof(xfs_efd_log_format_64_t) +
@@ -2804,63 +2627,6 @@ xlog_recover_do_efd_trans(
 	}
 	xfs_trans_ail_cursor_done(ailp, &cur);
 	spin_unlock(&ailp->xa_lock);
-}
-
-/*
- * Perform the transaction
- *
- * If the transaction modifies a buffer or inode, do it now.  Otherwise,
- * EFIs and EFDs get queued up by adding entries into the AIL for them.
- */
-STATIC int
-xlog_recover_do_trans(
-	xlog_t			*log,
-	xlog_recover_t		*trans,
-	int			pass)
-{
-	int			error = 0;
-	xlog_recover_item_t	*item, *first_item;
-
-	error = xlog_recover_reorder_trans(trans);
-	if (error)
-		return error;
-
-	first_item = item = trans->r_itemq;
-	do {
-		switch (ITEM_TYPE(item)) {
-		case XFS_LI_BUF:
-			error = xlog_recover_do_buffer_trans(log, item, pass);
-			break;
-		case XFS_LI_INODE:
-			error = xlog_recover_do_inode_trans(log, item, pass);
-			break;
-		case XFS_LI_EFI:
-			error = xlog_recover_do_efi_trans(log, item,
-							  trans->r_lsn, pass);
-			break;
-		case XFS_LI_EFD:
-			xlog_recover_do_efd_trans(log, item, pass);
-			error = 0;
-			break;
-		case XFS_LI_DQUOT:
-			error = xlog_recover_do_dquot_trans(log, item, pass);
-			break;
-		case XFS_LI_QUOTAOFF:
-			error = xlog_recover_do_quotaoff_trans(log, item,
-							       pass);
-			break;
-		default:
-			xlog_warn(
-	"XFS: invalid item type (%d) xlog_recover_do_trans", ITEM_TYPE(item));
-			ASSERT(0);
-			error = XFS_ERROR(EIO);
-			break;
-		}
-
-		if (error)
-			return error;
-		item = item->ri_next;
-	} while (first_item != item);
 
 	return 0;
 }
@@ -2872,41 +2638,114 @@ xlog_recover_do_trans(
  */
 STATIC void
 xlog_recover_free_trans(
-	xlog_recover_t		*trans)
+	struct xlog_recover	*trans)
 {
-	xlog_recover_item_t	*first_item, *item, *free_item;
+	xlog_recover_item_t	*item, *n;
 	int			i;
 
-	item = first_item = trans->r_itemq;
-	do {
-		free_item = item;
-		item = item->ri_next;
-		 /* Free the regions in the item. */
-		for (i = 0; i < free_item->ri_cnt; i++) {
-			kmem_free(free_item->ri_buf[i].i_addr);
-		}
+	list_for_each_entry_safe(item, n, &trans->r_itemq, ri_list) {
+		/* Free the regions in the item. */
+		list_del(&item->ri_list);
+		for (i = 0; i < item->ri_cnt; i++)
+			kmem_free(item->ri_buf[i].i_addr);
 		/* Free the item itself */
-		kmem_free(free_item->ri_buf);
-		kmem_free(free_item);
-	} while (first_item != item);
+		kmem_free(item->ri_buf);
+		kmem_free(item);
+	}
 	/* Free the transaction recover structure */
 	kmem_free(trans);
 }
 
 STATIC int
+xlog_recover_commit_pass1(
+	struct log		*log,
+	struct xlog_recover	*trans,
+	xlog_recover_item_t	*item)
+{
+	trace_xfs_log_recover_item_recover(log, trans, item, XLOG_RECOVER_PASS1);
+
+	switch (ITEM_TYPE(item)) {
+	case XFS_LI_BUF:
+		return xlog_recover_buffer_pass1(log, item);
+	case XFS_LI_QUOTAOFF:
+		return xlog_recover_quotaoff_pass1(log, item);
+	case XFS_LI_INODE:
+	case XFS_LI_EFI:
+	case XFS_LI_EFD:
+	case XFS_LI_DQUOT:
+		/* nothing to do in pass 1 */
+		return 0;
+	default:
+		xlog_warn(
+	"XFS: invalid item type (%d) xlog_recover_commit_pass1",
+			ITEM_TYPE(item));
+		ASSERT(0);
+		return XFS_ERROR(EIO);
+	}
+}
+
+STATIC int
+xlog_recover_commit_pass2(
+	struct log		*log,
+	struct xlog_recover	*trans,
+	xlog_recover_item_t	*item)
+{
+	trace_xfs_log_recover_item_recover(log, trans, item, XLOG_RECOVER_PASS2);
+
+	switch (ITEM_TYPE(item)) {
+	case XFS_LI_BUF:
+		return xlog_recover_buffer_pass2(log, item);
+	case XFS_LI_INODE:
+		return xlog_recover_inode_pass2(log, item);
+	case XFS_LI_EFI:
+		return xlog_recover_efi_pass2(log, item, trans->r_lsn);
+	case XFS_LI_EFD:
+		return xlog_recover_efd_pass2(log, item);
+	case XFS_LI_DQUOT:
+		return xlog_recover_dquot_pass2(log, item);
+	case XFS_LI_QUOTAOFF:
+		/* nothing to do in pass2 */
+		return 0;
+	default:
+		xlog_warn(
+	"XFS: invalid item type (%d) xlog_recover_commit_pass2",
+			ITEM_TYPE(item));
+		ASSERT(0);
+		return XFS_ERROR(EIO);
+	}
+}
+
+/*
+ * Perform the transaction.
+ *
+ * If the transaction modifies a buffer or inode, do it now.  Otherwise,
+ * EFIs and EFDs get queued up by adding entries into the AIL for them.
+ */
+STATIC int
 xlog_recover_commit_trans(
-	xlog_t			*log,
-	xlog_recover_t		**q,
-	xlog_recover_t		*trans,
+	struct log		*log,
+	struct xlog_recover	*trans,
 	int			pass)
 {
-	int			error;
+	int			error = 0;
+	xlog_recover_item_t	*item;
 
-	if ((error = xlog_recover_unlink_tid(q, trans)))
+	hlist_del(&trans->r_list);
+
+	error = xlog_recover_reorder_trans(log, trans, pass);
+	if (error)
 		return error;
-	if ((error = xlog_recover_do_trans(log, trans, pass)))
-		return error;
-	xlog_recover_free_trans(trans);			/* no error */
+
+	list_for_each_entry(item, &trans->r_itemq, ri_list) {
+		if (pass == XLOG_RECOVER_PASS1)
+			error = xlog_recover_commit_pass1(log, trans, item);
+		else
+			error = xlog_recover_commit_pass2(log, trans, item);
+		if (error)
+			return error;
+	}
+
+	xlog_recover_free_trans(trans);
 	return 0;
 }
 
@@ -2931,7 +2770,7 @@ xlog_recover_unmount_trans(
 STATIC int
 xlog_recover_process_data(
 	xlog_t			*log,
-	xlog_recover_t		*rhash[],
+	struct hlist_head	rhash[],
 	xlog_rec_header_t	*rhead,
 	xfs_caddr_t		dp,
 	int			pass)
@@ -2965,7 +2804,7 @@ xlog_recover_process_data(
 		}
 		tid = be32_to_cpu(ohead->oh_tid);
 		hash = XLOG_RHASH(tid);
-		trans = xlog_recover_find_tid(rhash[hash], tid);
+		trans = xlog_recover_find_tid(&rhash[hash], tid);
 		if (trans == NULL) {		   /* not found; add new tid */
 			if (ohead->oh_flags & XLOG_START_TRANS)
 				xlog_recover_new_tid(&rhash[hash], tid,
@@ -2983,14 +2822,15 @@ xlog_recover_process_data(
 			switch (flags) {
 			case XLOG_COMMIT_TRANS:
 				error = xlog_recover_commit_trans(log,
-						&rhash[hash], trans, pass);
+								trans, pass);
 				break;
 			case XLOG_UNMOUNT_TRANS:
 				error = xlog_recover_unmount_trans(trans);
 				break;
 			case XLOG_WAS_CONT_TRANS:
-				error = xlog_recover_add_to_cont_trans(trans,
-						dp, be32_to_cpu(ohead->oh_len));
+				error = xlog_recover_add_to_cont_trans(log,
+						trans, dp,
+						be32_to_cpu(ohead->oh_len));
 				break;
 			case XLOG_START_TRANS:
 				xlog_warn(
@@ -3000,7 +2840,7 @@ xlog_recover_process_data(
 				break;
 			case 0:
 			case XLOG_CONTINUE_TRANS:
-				error = xlog_recover_add_to_trans(trans,
+				error = xlog_recover_add_to_trans(log, trans,
 						dp, be32_to_cpu(ohead->oh_len));
 				break;
 			default:
@@ -3035,7 +2875,7 @@ xlog_recover_process_efi(
 	xfs_extent_t		*extp;
 	xfs_fsblock_t		startblock_fsb;
 
-	ASSERT(!(efip->efi_flags & XFS_EFI_RECOVERED));
+	ASSERT(!test_bit(XFS_EFI_RECOVERED, &efip->efi_flags));
 
 	/*
 	 * First check the validity of the extents described by the
@@ -3074,7 +2914,7 @@ xlog_recover_process_efi(
 					 extp->ext_len);
 	}
 
-	efip->efi_flags |= XFS_EFI_RECOVERED;
+	set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
 	error = xfs_trans_commit(tp, 0);
 	return error;
 
@@ -3131,7 +2971,7 @@ xlog_recover_process_efis(
 		 * Skip EFIs that we've already processed.
 		 */
 		efip = (xfs_efi_log_item_t *)lip;
-		if (efip->efi_flags & XFS_EFI_RECOVERED) {
+		if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags)) {
 			lip = xfs_trans_ail_cursor_next(ailp, &cur);
 			continue;
 		}
@@ -3209,14 +3049,14 @@ xlog_recover_process_one_iunlink(
 	int				error;
 
 	ino = XFS_AGINO_TO_INO(mp, agno, agino);
-	error = xfs_iget(mp, NULL, ino, 0, 0, &ip, 0);
+	error = xfs_iget(mp, NULL, ino, 0, 0, &ip);
 	if (error)
 		goto fail;
 
 	/*
 	 * Get the on disk inode to find the next inode in the bucket.
 	 */
-	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, XFS_BUF_LOCK);
+	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, XBF_LOCK);
 	if (error)
 		goto fail_iput;
 
@@ -3263,7 +3103,7 @@ xlog_recover_process_one_iunlink(
  * freeing of the inode and its removal from the list must be
  * atomic.
  */
-void
+STATIC void
 xlog_recover_process_iunlinks(
 	xlog_t		*log)
 {
@@ -3401,42 +3241,6 @@ xlog_pack_data(
 	}
 }
 
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-STATIC void
-xlog_unpack_data_checksum(
-	xlog_rec_header_t	*rhead,
-	xfs_caddr_t		dp,
-	xlog_t			*log)
-{
-	__be32			*up = (__be32 *)dp;
-	uint			chksum = 0;
-	int			i;
-
-	/* divide length by 4 to get # words */
-	for (i=0; i < be32_to_cpu(rhead->h_len) >> 2; i++) {
-		chksum ^= be32_to_cpu(*up);
-		up++;
-	}
-	if (chksum != be32_to_cpu(rhead->h_chksum)) {
-	    if (rhead->h_chksum ||
-		((log->l_flags & XLOG_CHKSUM_MISMATCH) == 0)) {
-		    cmn_err(CE_DEBUG,
-			"XFS: LogR chksum mismatch: was (0x%x) is (0x%x)\n",
-			    be32_to_cpu(rhead->h_chksum), chksum);
-		    cmn_err(CE_DEBUG,
-"XFS: Disregard message if filesystem was created with non-DEBUG kernel");
-		    if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
-			    cmn_err(CE_DEBUG,
-				"XFS: LogR this is a LogV2 filesystem\n");
-		    }
-		    log->l_flags |= XLOG_CHKSUM_MISMATCH;
-	    }
-	}
-}
-#else
-#define xlog_unpack_data_checksum(rhead, dp, log)
-#endif
-
 STATIC void
 xlog_unpack_data(
 	xlog_rec_header_t	*rhead,
@@ -3460,8 +3264,6 @@ xlog_unpack_data(
 			dp += BBSIZE;
 		}
 	}
-
-	xlog_unpack_data_checksum(rhead, dp, log);
 }
 
 STATIC int
@@ -3517,12 +3319,12 @@ xlog_do_recovery_pass(
 {
 	xlog_rec_header_t	*rhead;
 	xfs_daddr_t		blk_no;
-	xfs_caddr_t		bufaddr, offset;
+	xfs_caddr_t		offset;
 	xfs_buf_t		*hbp, *dbp;
 	int			error = 0, h_size;
 	int			bblks, split_bblks;
 	int			hblks, split_hblks, wrapped_hblks;
-	xlog_recover_t		*rhash[XLOG_RHASH_SIZE];
+	struct hlist_head	rhash[XLOG_RHASH_SIZE];
 
 	ASSERT(head_blk != tail_blk);
 
@@ -3560,7 +3362,7 @@ xlog_do_recovery_pass(
 			hblks = 1;
 		}
 	} else {
-		ASSERT(log->l_sectbb_log == 0);
+		ASSERT(log->l_sectBBsize == 1);
 		hblks = 1;
 		hbp = xlog_get_bp(log, 1);
 		h_size = XLOG_BIG_RECORD_BSIZE;
@@ -3610,7 +3412,7 @@ xlog_do_recovery_pass(
 			/*
 			 * Check for header wrapping around physical end-of-log
 			 */
-			offset = NULL;
+			offset = XFS_BUF_PTR(hbp);
 			split_hblks = 0;
 			wrapped_hblks = 0;
 			if (blk_no + hblks <= log->l_logBBsize) {
@@ -3646,9 +3448,8 @@ xlog_do_recovery_pass(
 				 *   - order is important.
 				 */
 				wrapped_hblks = hblks - split_hblks;
-				bufaddr = XFS_BUF_PTR(hbp);
 				error = XFS_BUF_SET_PTR(hbp,
-						bufaddr + BBTOB(split_hblks),
+						offset + BBTOB(split_hblks),
 						BBTOB(hblks - split_hblks));
 				if (error)
 					goto bread_err2;
@@ -3658,14 +3459,10 @@ xlog_do_recovery_pass(
 				if (error)
 					goto bread_err2;
 
-				error = XFS_BUF_SET_PTR(hbp, bufaddr,
+				error = XFS_BUF_SET_PTR(hbp, offset,
 							BBTOB(hblks));
 				if (error)
 					goto bread_err2;
-
-				if (!offset)
-					offset = xlog_align(log, 0,
-							wrapped_hblks, hbp);
 			}
 			rhead = (xlog_rec_header_t *)offset;
 			error = xlog_valid_rec_header(log, rhead,
@@ -3685,7 +3482,7 @@ xlog_do_recovery_pass(
 			} else {
 				/* This log record is split across the
 				 * physical end of log */
-				offset = NULL;
+				offset = XFS_BUF_PTR(dbp);
 				split_bblks = 0;
 				if (blk_no != log->l_logBBsize) {
 					/* some data is before the physical
@@ -3714,9 +3511,8 @@ xlog_do_recovery_pass(
 				 *   _first_, then the log start (LR header end)
 				 *   - order is important.
 				 */
-				bufaddr = XFS_BUF_PTR(dbp);
 				error = XFS_BUF_SET_PTR(dbp,
-						bufaddr + BBTOB(split_bblks),
+						offset + BBTOB(split_bblks),
 						BBTOB(bblks - split_bblks));
 				if (error)
 					goto bread_err2;
@@ -3727,13 +3523,9 @@ xlog_do_recovery_pass(
 				if (error)
 					goto bread_err2;
 
-				error = XFS_BUF_SET_PTR(dbp, bufaddr, h_size);
+				error = XFS_BUF_SET_PTR(dbp, offset, h_size);
 				if (error)
 					goto bread_err2;
-
-				if (!offset)
-					offset = xlog_align(log, wrapped_hblks,
-						bblks - split_bblks, dbp);
 			}
 			xlog_unpack_data(rhead, offset, log);
 			if ((error = xlog_recover_process_data(log, rhash,
@@ -3796,7 +3588,7 @@ xlog_do_log_recovery(
 	xfs_daddr_t	head_blk,
 	xfs_daddr_t	tail_blk)
 {
-	int		error;
+	int		error, i;
 
 	ASSERT(head_blk != tail_blk);
 
@@ -3804,10 +3596,12 @@ xlog_do_log_recovery(
 	 * First do a pass to find all of the cancelled buf log items.
 	 * Store them in the buf_cancel_table for use in the second pass.
 	 */
-	log->l_buf_cancel_table =
-		(xfs_buf_cancel_t **)kmem_zalloc(XLOG_BC_TABLE_SIZE *
-						 sizeof(xfs_buf_cancel_t*),
+	log->l_buf_cancel_table = kmem_zalloc(XLOG_BC_TABLE_SIZE *
+						 sizeof(struct list_head),
 						 KM_SLEEP);
+	for (i = 0; i < XLOG_BC_TABLE_SIZE; i++)
+		INIT_LIST_HEAD(&log->l_buf_cancel_table[i]);
+
 	error = xlog_do_recovery_pass(log, head_blk, tail_blk,
 				      XLOG_RECOVER_PASS1);
 	if (error != 0) {
@@ -3826,7 +3620,7 @@ xlog_do_log_recovery(
 		int	i;
 
 		for (i = 0; i < XLOG_BC_TABLE_SIZE; i++)
-			ASSERT(log->l_buf_cancel_table[i] == NULL);
+			ASSERT(list_empty(&log->l_buf_cancel_table[i]));
 	}
 #endif	/* DEBUG */
 
@@ -3888,7 +3682,7 @@ xlog_do_recover(
 	XFS_BUF_READ(bp);
 	XFS_BUF_UNASYNC(bp);
 	xfsbdstrat(log->l_mp, bp);
-	error = xfs_iowait(bp);
+	error = xfs_buf_iowait(bp);
 	if (error) {
 		xfs_ioerror_alert("xlog_do_recover",
 				  log->l_mp, bp, XFS_BUF_ADDR(bp));
@@ -3993,8 +3787,7 @@ xlog_recover_finish(
 		 * case the unlink transactions would have problems
 		 * pushing the EFIs out of the way.
 		 */
-		xfs_log_force(log->l_mp, (xfs_lsn_t)0,
-			      (XFS_LOG_FORCE | XFS_LOG_SYNC));
+		xfs_log_force(log->l_mp, XFS_LOG_SYNC);
 
 		xlog_recover_process_iunlinks(log);
 
@@ -4027,10 +3820,6 @@ xlog_recover_check_summary(
 	xfs_agf_t	*agfp;
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
-	xfs_buf_t	*sbbp;
-#ifdef XFS_LOUD_RECOVERY
-	xfs_sb_t	*sbp;
-#endif
 	xfs_agnumber_t	agno;
 	__uint64_t	freeblks;
 	__uint64_t	itotal;
@@ -4065,30 +3854,5 @@ xlog_recover_check_summary(
 			xfs_buf_relse(agibp);
 		}
 	}
-
-	sbbp = xfs_getsb(mp, 0);
-#ifdef XFS_LOUD_RECOVERY
-	sbp = &mp->m_sb;
-	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(sbbp));
-	cmn_err(CE_NOTE,
-		"xlog_recover_check_summary: sb_icount %Lu itotal %Lu",
-		sbp->sb_icount, itotal);
-	cmn_err(CE_NOTE,
-		"xlog_recover_check_summary: sb_ifree %Lu itotal %Lu",
-		sbp->sb_ifree, ifree);
-	cmn_err(CE_NOTE,
-		"xlog_recover_check_summary: sb_fdblocks %Lu freeblks %Lu",
-		sbp->sb_fdblocks, freeblks);
-#if 0
-	/*
-	 * This is turned off until I account for the allocation
-	 * btree blocks which live in free space.
-	 */
-	ASSERT(sbp->sb_icount == itotal);
-	ASSERT(sbp->sb_ifree == ifree);
-	ASSERT(sbp->sb_fdblocks == freeblks);
-#endif
-#endif
-	xfs_buf_relse(sbbp);
 }
 #endif /* DEBUG */

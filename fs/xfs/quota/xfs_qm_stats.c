@@ -23,75 +23,49 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_bmap.h"
-#include "xfs_btree.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_qm.h"
 
 struct xqmstats xqmstats;
 
-STATIC int
-xfs_qm_read_xfsquota(
-	char		*buffer,
-	char		**start,
-	off_t		offset,
-	int		count,
-	int		*eof,
-	void		*data)
+static int xqm_proc_show(struct seq_file *m, void *v)
 {
-	int		len;
-
 	/* maximum; incore; ratio free to inuse; freelist */
-	len = sprintf(buffer, "%d\t%d\t%d\t%u\n",
+	seq_printf(m, "%d\t%d\t%d\t%u\n",
 			ndquot,
 			xfs_Gqm? atomic_read(&xfs_Gqm->qm_totaldquots) : 0,
 			xfs_Gqm? xfs_Gqm->qm_dqfree_ratio : 0,
-			xfs_Gqm? xfs_Gqm->qm_dqfreelist.qh_nelems : 0);
-
-	if (offset >= len) {
-		*start = buffer;
-		*eof = 1;
-		return 0;
-	}
-	*start = buffer + offset;
-	if ((len -= offset) > count)
-		return count;
-	*eof = 1;
-
-	return len;
+			xfs_Gqm? xfs_Gqm->qm_dqfrlist_cnt : 0);
+	return 0;
 }
 
-STATIC int
-xfs_qm_read_stats(
-	char		*buffer,
-	char		**start,
-	off_t		offset,
-	int		count,
-	int		*eof,
-	void		*data)
+static int xqm_proc_open(struct inode *inode, struct file *file)
 {
-	int		len;
+	return single_open(file, xqm_proc_show, NULL);
+}
 
+static const struct file_operations xqm_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= xqm_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int xqmstat_proc_show(struct seq_file *m, void *v)
+{
 	/* quota performance statistics */
-	len = sprintf(buffer, "qm %u %u %u %u %u %u %u %u\n",
+	seq_printf(m, "qm %u %u %u %u %u %u %u %u\n",
 			xqmstats.xs_qm_dqreclaims,
 			xqmstats.xs_qm_dqreclaim_misses,
 			xqmstats.xs_qm_dquot_dups,
@@ -100,25 +74,27 @@ xfs_qm_read_stats(
 			xqmstats.xs_qm_dqwants,
 			xqmstats.xs_qm_dqshake_reclaims,
 			xqmstats.xs_qm_dqinact_reclaims);
-
-	if (offset >= len) {
-		*start = buffer;
-		*eof = 1;
-		return 0;
-	}
-	*start = buffer + offset;
-	if ((len -= offset) > count)
-		return count;
-	*eof = 1;
-
-	return len;
+	return 0;
 }
+
+static int xqmstat_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, xqmstat_proc_show, NULL);
+}
+
+static const struct file_operations xqmstat_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= xqmstat_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 void
 xfs_qm_init_procfs(void)
 {
-	create_proc_read_entry("fs/xfs/xqmstat", 0, NULL, xfs_qm_read_stats, NULL);
-	create_proc_read_entry("fs/xfs/xqm", 0, NULL, xfs_qm_read_xfsquota, NULL);
+	proc_create("fs/xfs/xqmstat", 0, NULL, &xqmstat_proc_fops);
+	proc_create("fs/xfs/xqm", 0, NULL, &xqm_proc_fops);
 }
 
 void

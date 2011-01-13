@@ -36,6 +36,8 @@
     asb100	7	3	1	4	0x31	0x0694	yes	no
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -50,9 +52,6 @@
 
 /* I2C addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(asb100);
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -209,14 +208,14 @@ static void asb100_write_value(struct i2c_client *client, u16 reg, u16 val);
 
 static int asb100_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int asb100_detect(struct i2c_client *client, int kind,
+static int asb100_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int asb100_remove(struct i2c_client *client);
 static struct asb100_data *asb100_update_device(struct device *dev);
 static void asb100_init_client(struct i2c_client *client);
 
 static const struct i2c_device_id asb100_id[] = {
-	{ "asb100", asb100 },
+	{ "asb100", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, asb100_id);
@@ -230,7 +229,7 @@ static struct i2c_driver asb100_driver = {
 	.remove		= asb100_remove,
 	.id_table	= asb100_id,
 	.detect		= asb100_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* 7 Voltages */
@@ -697,61 +696,41 @@ ERROR_SC_2:
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int asb100_detect(struct i2c_client *client, int kind,
+static int asb100_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int val1, val2;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("asb100.o: detect failed, "
-				"smbus byte data not supported!\n");
+		pr_debug("detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 
-	/* The chip may be stuck in some other bank than bank 0. This may
-	   make reading other information impossible. Specify a force=... or
-	   force_*=... parameter, and the chip will be reset to the right
-	   bank. */
-	if (kind < 0) {
+	val1 = i2c_smbus_read_byte_data(client, ASB100_REG_BANK);
+	val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
 
-		int val1 = i2c_smbus_read_byte_data(client, ASB100_REG_BANK);
-		int val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
+	/* If we're in bank 0 */
+	if ((!(val1 & 0x07)) &&
+			/* Check for ASB100 ID (low byte) */
+			(((!(val1 & 0x80)) && (val2 != 0x94)) ||
+			/* Check for ASB100 ID (high byte ) */
+			((val1 & 0x80) && (val2 != 0x06)))) {
+		pr_debug("detect failed, bad chip id 0x%02x!\n", val2);
+		return -ENODEV;
+	}
 
-		/* If we're in bank 0 */
-		if ((!(val1 & 0x07)) &&
-				/* Check for ASB100 ID (low byte) */
-				(((!(val1 & 0x80)) && (val2 != 0x94)) ||
-				/* Check for ASB100 ID (high byte ) */
-				((val1 & 0x80) && (val2 != 0x06)))) {
-			pr_debug("asb100.o: detect failed, "
-					"bad chip id 0x%02x!\n", val2);
-			return -ENODEV;
-		}
-
-	} /* kind < 0 */
-
-	/* We have either had a force parameter, or we have already detected
-	   Winbond. Put it now into bank 0 and Vendor ID High Byte */
+	/* Put it now into bank 0 and Vendor ID High Byte */
 	i2c_smbus_write_byte_data(client, ASB100_REG_BANK,
 		(i2c_smbus_read_byte_data(client, ASB100_REG_BANK) & 0x78)
 		| 0x80);
 
 	/* Determine the chip type. */
-	if (kind <= 0) {
-		int val1 = i2c_smbus_read_byte_data(client, ASB100_REG_WCHIPID);
-		int val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
+	val1 = i2c_smbus_read_byte_data(client, ASB100_REG_WCHIPID);
+	val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
 
-		if ((val1 == 0x31) && (val2 == 0x06))
-			kind = asb100;
-		else {
-			if (kind == 0)
-				dev_warn(&adapter->dev, "ignoring "
-					"'force' parameter for unknown chip "
-					"at adapter %d, address 0x%02x.\n",
-					i2c_adapter_id(adapter), client->addr);
-			return -ENODEV;
-		}
-	}
+	if (val1 != 0x31 || val2 != 0x06)
+		return -ENODEV;
 
 	strlcpy(info->type, "asb100", I2C_NAME_SIZE);
 
@@ -766,7 +745,7 @@ static int asb100_probe(struct i2c_client *client,
 
 	data = kzalloc(sizeof(struct asb100_data), GFP_KERNEL);
 	if (!data) {
-		pr_debug("asb100.o: probe failed, kzalloc failed!\n");
+		pr_debug("probe failed, kzalloc failed!\n");
 		err = -ENOMEM;
 		goto ERROR0;
 	}

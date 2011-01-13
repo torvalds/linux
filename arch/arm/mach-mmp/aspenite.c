@@ -13,6 +13,10 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/smc91x.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/nand.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -20,6 +24,9 @@
 #include <mach/mfp-pxa168.h>
 #include <mach/pxa168.h>
 #include <mach/gpio.h>
+#include <video/pxa168fb.h>
+#include <linux/input.h>
+#include <plat/pxa27x_keypad.h>
 
 #include "common.h"
 
@@ -56,6 +63,50 @@ static unsigned long common_pin_config[] __initdata = {
 	/* UART1 */
 	GPIO107_UART1_RXD,
 	GPIO108_UART1_TXD,
+
+	/* SSP1 */
+	GPIO113_I2S_MCLK,
+	GPIO114_I2S_FRM,
+	GPIO115_I2S_BCLK,
+	GPIO116_I2S_RXD,
+	GPIO117_I2S_TXD,
+
+	/* LCD */
+	GPIO56_LCD_FCLK_RD,
+	GPIO57_LCD_LCLK_A0,
+	GPIO58_LCD_PCLK_WR,
+	GPIO59_LCD_DENA_BIAS,
+	GPIO60_LCD_DD0,
+	GPIO61_LCD_DD1,
+	GPIO62_LCD_DD2,
+	GPIO63_LCD_DD3,
+	GPIO64_LCD_DD4,
+	GPIO65_LCD_DD5,
+	GPIO66_LCD_DD6,
+	GPIO67_LCD_DD7,
+	GPIO68_LCD_DD8,
+	GPIO69_LCD_DD9,
+	GPIO70_LCD_DD10,
+	GPIO71_LCD_DD11,
+	GPIO72_LCD_DD12,
+	GPIO73_LCD_DD13,
+	GPIO74_LCD_DD14,
+	GPIO75_LCD_DD15,
+	GPIO76_LCD_DD16,
+	GPIO77_LCD_DD17,
+	GPIO78_LCD_DD18,
+	GPIO79_LCD_DD19,
+	GPIO80_LCD_DD20,
+	GPIO81_LCD_DD21,
+	GPIO82_LCD_DD22,
+	GPIO83_LCD_DD23,
+
+	/* Keypad */
+	GPIO109_KP_MKIN1,
+	GPIO110_KP_MKIN0,
+	GPIO111_KP_MKOUT7,
+	GPIO112_KP_MKOUT6,
+	GPIO121_KP_MKIN4,
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -85,32 +136,117 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static struct mtd_partition aspenite_nand_partitions[] = {
+	{
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= SZ_1M,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_8M,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= (SZ_2M + SZ_1M),
+		.mask_flags	= 0,
+	}, {
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_48M,
+		.mask_flags	= 0,
+	}
+};
+
+static struct pxa3xx_nand_platform_data aspenite_nand_info = {
+	.enable_arbiter	= 1,
+	.parts		= aspenite_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(aspenite_nand_partitions),
+};
+
+static struct i2c_board_info aspenite_i2c_info[] __initdata = {
+	{ I2C_BOARD_INFO("wm8753", 0x1b), },
+};
+
+static struct fb_videomode video_modes[] = {
+	[0] = {
+		.pixclock	= 30120,
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 480,
+		.hsync_len	= 1,
+		.left_margin	= 215,
+		.right_margin	= 40,
+		.vsync_len	= 1,
+		.upper_margin	= 34,
+		.lower_margin	= 10,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+	},
+};
+
+struct pxa168fb_mach_info aspenite_lcd_info = {
+	.id			= "Graphic Frame",
+	.modes			= video_modes,
+	.num_modes		= ARRAY_SIZE(video_modes),
+	.pix_fmt		= PIX_FMT_RGB565,
+	.io_pin_allocation_mode = PIN_MODE_DUMB_24,
+	.dumb_mode		= DUMB_MODE_RGB888,
+	.active			= 1,
+	.panel_rbswap		= 0,
+	.invert_pixclock	= 0,
+};
+
+static unsigned int aspenite_matrix_key_map[] = {
+	KEY(0, 6, KEY_UP),	/* SW 4 */
+	KEY(0, 7, KEY_DOWN),	/* SW 5 */
+	KEY(1, 6, KEY_LEFT),	/* SW 6 */
+	KEY(1, 7, KEY_RIGHT),	/* SW 7 */
+	KEY(4, 6, KEY_ENTER),	/* SW 8 */
+	KEY(4, 7, KEY_ESC),	/* SW 9 */
+};
+
+static struct pxa27x_keypad_platform_data aspenite_keypad_info __initdata = {
+	.matrix_key_rows	= 5,
+	.matrix_key_cols	= 8,
+	.matrix_key_map		= aspenite_matrix_key_map,
+	.matrix_key_map_size	= ARRAY_SIZE(aspenite_matrix_key_map),
+	.debounce_interval	= 30,
+};
+
 static void __init common_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(common_pin_config));
 
 	/* on-chip devices */
 	pxa168_add_uart(1);
+	pxa168_add_twsi(1, NULL, ARRAY_AND_SIZE(aspenite_i2c_info));
+	pxa168_add_ssp(1);
+	pxa168_add_nand(&aspenite_nand_info);
+	pxa168_add_fb(&aspenite_lcd_info);
+	pxa168_add_keypad(&aspenite_keypad_info);
 
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);
 }
 
 MACHINE_START(ASPENITE, "PXA168-based Aspenite Development Platform")
-	.phys_io        = APB_PHYS_BASE,
-	.boot_params    = 0x00000100,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= mmp_map_io,
+	.nr_irqs	= IRQ_BOARD_START,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = common_init,
 MACHINE_END
 
 MACHINE_START(ZYLONITE2, "PXA168-based Zylonite2 Development Platform")
-	.phys_io        = APB_PHYS_BASE,
-	.boot_params    = 0x00000100,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= mmp_map_io,
+	.nr_irqs	= IRQ_BOARD_START,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = common_init,

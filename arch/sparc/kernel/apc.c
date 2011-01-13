@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -69,14 +68,13 @@ static void apc_swift_idle(void)
 #endif
 } 
 
-static inline void apc_free(struct of_device *op)
+static inline void apc_free(struct platform_device *op)
 {
 	of_iounmap(&op->resource[0], regs, resource_size(&op->resource[0]));
 }
 
 static int apc_open(struct inode *inode, struct file *f)
 {
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -87,61 +85,46 @@ static int apc_release(struct inode *inode, struct file *f)
 
 static long apc_ioctl(struct file *f, unsigned int cmd, unsigned long __arg)
 {
-	__u8 inarg, __user *arg;
-
-	arg = (__u8 __user *) __arg;
-
-	lock_kernel();
+	__u8 inarg, __user *arg = (__u8 __user *) __arg;
 
 	switch (cmd) {
 	case APCIOCGFANCTL:
-		if (put_user(apc_readb(APC_FANCTL_REG) & APC_REGMASK, arg)) {
-			unlock_kernel();
+		if (put_user(apc_readb(APC_FANCTL_REG) & APC_REGMASK, arg))
 			return -EFAULT;
-		}
 		break;
 
 	case APCIOCGCPWR:
-		if (put_user(apc_readb(APC_CPOWER_REG) & APC_REGMASK, arg)) {
-			unlock_kernel();
+		if (put_user(apc_readb(APC_CPOWER_REG) & APC_REGMASK, arg))
 			return -EFAULT;
-		}
 		break;
 
 	case APCIOCGBPORT:
-		if (put_user(apc_readb(APC_BPORT_REG) & APC_BPMASK, arg)) {
-			unlock_kernel();
+		if (put_user(apc_readb(APC_BPORT_REG) & APC_BPMASK, arg))
 			return -EFAULT;
-		}
 		break;
 
 	case APCIOCSFANCTL:
-		if (get_user(inarg, arg)) {
-			unlock_kernel();
+		if (get_user(inarg, arg))
 			return -EFAULT;
-		}
 		apc_writeb(inarg & APC_REGMASK, APC_FANCTL_REG);
 		break;
+
 	case APCIOCSCPWR:
-		if (get_user(inarg, arg)) {
-			unlock_kernel();
+		if (get_user(inarg, arg))
 			return -EFAULT;
-		}
 		apc_writeb(inarg & APC_REGMASK, APC_CPOWER_REG);
 		break;
+
 	case APCIOCSBPORT:
-		if (get_user(inarg, arg)) {
-			unlock_kernel();
+		if (get_user(inarg, arg))
 			return -EFAULT;
-		}
 		apc_writeb(inarg & APC_BPMASK, APC_BPORT_REG);
 		break;
+
 	default:
-		unlock_kernel();
 		return -EINVAL;
 	};
 
-	unlock_kernel();
 	return 0;
 }
 
@@ -149,11 +132,12 @@ static const struct file_operations apc_fops = {
 	.unlocked_ioctl =	apc_ioctl,
 	.open =			apc_open,
 	.release =		apc_release,
+	.llseek =		noop_llseek,
 };
 
 static struct miscdevice apc_miscdev = { APC_MINOR, APC_DEVNAME, &apc_fops };
 
-static int __devinit apc_probe(struct of_device *op,
+static int __devinit apc_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	int err;
@@ -191,14 +175,17 @@ static struct of_device_id __initdata apc_match[] = {
 MODULE_DEVICE_TABLE(of, apc_match);
 
 static struct of_platform_driver apc_driver = {
-	.name		= "apc",
-	.match_table	= apc_match,
+	.driver = {
+		.name = "apc",
+		.owner = THIS_MODULE,
+		.of_match_table = apc_match,
+	},
 	.probe		= apc_probe,
 };
 
 static int __init apc_init(void)
 {
-	return of_register_driver(&apc_driver, &of_bus_type);
+	return of_register_platform_driver(&apc_driver);
 }
 
 /* This driver is not critical to the boot process

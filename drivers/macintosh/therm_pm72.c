@@ -114,7 +114,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -149,7 +148,7 @@
  * Driver statics
  */
 
-static struct of_device *		of_dev;
+static struct platform_device *		of_dev;
 static struct i2c_adapter *		u3_0;
 static struct i2c_adapter *		u3_1;
 static struct i2c_adapter *		k2;
@@ -286,6 +285,8 @@ struct fcu_fan_table	fcu_fans[] = {
 	},
 };
 
+static struct i2c_driver therm_pm72_driver;
+
 /*
  * Utility function to create an i2c_client structure and
  * attach it to one of u3 adapters
@@ -318,7 +319,7 @@ static struct i2c_client *attach_i2c_chip(int id, const char *name)
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&clt->detected, &clt->driver->clients);
+	list_add_tail(&clt->detected, &therm_pm72_driver.clients);
 	return clt;
 }
 
@@ -946,10 +947,16 @@ static void do_monitor_cpu_combined(void)
 		printk(KERN_WARNING "Warning ! Temperature way above maximum (%d) !\n",
 		       temp_combi >> 16);
 		state0->overtemp += CPU_MAX_OVERTEMP / 4;
-	} else if (temp_combi > (state0->mpu.tmax << 16))
+	} else if (temp_combi > (state0->mpu.tmax << 16)) {
 		state0->overtemp++;
-	else
+		printk(KERN_WARNING "Temperature %d above max %d. overtemp %d\n",
+		       temp_combi >> 16, state0->mpu.tmax, state0->overtemp);
+	} else {
+		if (state0->overtemp)
+			printk(KERN_WARNING "Temperature back down to %d\n",
+			       temp_combi >> 16);
 		state0->overtemp = 0;
+	}
 	if (state0->overtemp >= CPU_MAX_OVERTEMP)
 		critical_state = 1;
 	if (state0->overtemp > 0) {
@@ -1021,10 +1028,16 @@ static void do_monitor_cpu_split(struct cpu_pid_state *state)
 		       " (%d) !\n",
 		       state->index, temp >> 16);
 		state->overtemp += CPU_MAX_OVERTEMP / 4;
-	} else if (temp > (state->mpu.tmax << 16))
+	} else if (temp > (state->mpu.tmax << 16)) {
 		state->overtemp++;
-	else
+		printk(KERN_WARNING "CPU %d temperature %d above max %d. overtemp %d\n",
+		       state->index, temp >> 16, state->mpu.tmax, state->overtemp);
+	} else {
+		if (state->overtemp)
+			printk(KERN_WARNING "CPU %d temperature back down to %d\n",
+			       state->index, temp >> 16);
 		state->overtemp = 0;
+	}
 	if (state->overtemp >= CPU_MAX_OVERTEMP)
 		critical_state = 1;
 	if (state->overtemp > 0) {
@@ -1083,10 +1096,16 @@ static void do_monitor_cpu_rack(struct cpu_pid_state *state)
 		       " (%d) !\n",
 		       state->index, temp >> 16);
 		state->overtemp = CPU_MAX_OVERTEMP / 4;
-	} else if (temp > (state->mpu.tmax << 16))
+	} else if (temp > (state->mpu.tmax << 16)) {
 		state->overtemp++;
-	else
+		printk(KERN_WARNING "CPU %d temperature %d above max %d. overtemp %d\n",
+		       state->index, temp >> 16, state->mpu.tmax, state->overtemp);
+	} else {
+		if (state->overtemp)
+			printk(KERN_WARNING "CPU %d temperature back down to %d\n",
+			       state->index, temp >> 16);
 		state->overtemp = 0;
+	}
 	if (state->overtemp >= CPU_MAX_OVERTEMP)
 		critical_state = 1;
 	if (state->overtemp > 0) {
@@ -1897,7 +1916,7 @@ static int create_control_loops(void)
 	 */
 	if (rackmac)
 		cpu_pid_type = CPU_PID_TYPE_RACKMAC;
-	else if (machine_is_compatible("PowerMac7,3")
+	else if (of_machine_is_compatible("PowerMac7,3")
 	    && (cpu_count > 1)
 	    && fcu_fans[CPUA_PUMP_RPM_INDEX].id != FCU_FAN_ABSENT_ID
 	    && fcu_fans[CPUB_PUMP_RPM_INDEX].id != FCU_FAN_ABSENT_ID) {
@@ -2191,36 +2210,43 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 	}
 }
 
-static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
+static int fcu_of_probe(struct platform_device* dev, const struct of_device_id *match)
 {
 	state = state_detached;
+	of_dev = dev;
+
+	dev_info(&dev->dev, "PowerMac G5 Thermal control driver %s\n", VERSION);
 
 	/* Lookup the fans in the device tree */
-	fcu_lookup_fans(dev->node);
+	fcu_lookup_fans(dev->dev.of_node);
 
 	/* Add the driver */
 	return i2c_add_driver(&therm_pm72_driver);
 }
 
-static int fcu_of_remove(struct of_device* dev)
+static int fcu_of_remove(struct platform_device* dev)
 {
 	i2c_del_driver(&therm_pm72_driver);
 
 	return 0;
 }
 
-static struct of_device_id fcu_match[] = 
+static const struct of_device_id fcu_match[] = 
 {
 	{
 	.type		= "fcu",
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, fcu_match);
 
 static struct of_platform_driver fcu_of_platform_driver = 
 {
-	.name 		= "temperature",
-	.match_table	= fcu_match,
+	.driver = {
+		.name = "temperature",
+		.owner = THIS_MODULE,
+		.of_match_table = fcu_match,
+	},
 	.probe		= fcu_of_probe,
 	.remove		= fcu_of_remove
 };
@@ -2230,43 +2256,19 @@ static struct of_platform_driver fcu_of_platform_driver =
  */
 static int __init therm_pm72_init(void)
 {
-	struct device_node *np;
+	rackmac = of_machine_is_compatible("RackMac3,1");
 
-	rackmac = machine_is_compatible("RackMac3,1");
-
-	if (!machine_is_compatible("PowerMac7,2") &&
-	    !machine_is_compatible("PowerMac7,3") &&
+	if (!of_machine_is_compatible("PowerMac7,2") &&
+	    !of_machine_is_compatible("PowerMac7,3") &&
 	    !rackmac)
 	    	return -ENODEV;
 
-	printk(KERN_INFO "PowerMac G5 Thermal control driver %s\n", VERSION);
-
-	np = of_find_node_by_type(NULL, "fcu");
-	if (np == NULL) {
-		/* Some machines have strangely broken device-tree */
-		np = of_find_node_by_path("/u3@0,f8000000/i2c@f8001000/fan@15e");
-		if (np == NULL) {
-			    printk(KERN_ERR "Can't find FCU in device-tree !\n");
-			    return -ENODEV;
-		}
-	}
-	of_dev = of_platform_device_create(np, "temperature", NULL);
-	if (of_dev == NULL) {
-		printk(KERN_ERR "Can't register FCU platform device !\n");
-		return -ENODEV;
-	}
-
-	of_register_platform_driver(&fcu_of_platform_driver);
-	
-	return 0;
+	return of_register_platform_driver(&fcu_of_platform_driver);
 }
 
 static void __exit therm_pm72_exit(void)
 {
 	of_unregister_platform_driver(&fcu_of_platform_driver);
-
-	if (of_dev)
-		of_device_unregister(of_dev);
 }
 
 module_init(therm_pm72_init);

@@ -194,10 +194,8 @@ static inline void print_state(struct hvsi_struct *hp)
 		"HVSI_WAIT_FOR_MCTRL_RESPONSE",
 		"HVSI_FSP_DIED",
 	};
-	const char *name = state_names[hp->state];
-
-	if (hp->state > ARRAY_SIZE(state_names))
-		name = "UNKNOWN";
+	const char *name = (hp->state < ARRAY_SIZE(state_names))
+		? state_names[hp->state] : "UNKNOWN";
 
 	pr_debug("hvsi%i: state = %s\n", hp->index, name);
 #endif /* DEBUG */
@@ -405,7 +403,7 @@ static void hvsi_insert_chars(struct hvsi_struct *hp, const char *buf, int len)
 			hp->sysrq = 1;
 			continue;
 		} else if (hp->sysrq) {
-			handle_sysrq(c, hp->tty);
+			handle_sysrq(c);
 			hp->sysrq = 0;
 			continue;
 		}
@@ -852,8 +850,8 @@ static void hvsi_flush_output(struct hvsi_struct *hp)
 	wait_event_timeout(hp->emptyq, (hp->n_outbuf <= 0), HVSI_TIMEOUT);
 
 	/* 'writer' could still be pending if it didn't see n_outbuf = 0 yet */
-	cancel_delayed_work(&hp->writer);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&hp->writer);
+	flush_work_sync(&hp->handshaker);
 
 	/*
 	 * it's also possible that our timeout expired and hvsi_write_worker
@@ -1230,11 +1228,12 @@ static struct tty_driver *hvsi_console_device(struct console *console,
 
 static int __init hvsi_console_setup(struct console *console, char *options)
 {
-	struct hvsi_struct *hp = &hvsi_ports[console->index];
+	struct hvsi_struct *hp;
 	int ret;
 
 	if (console->index < 0 || console->index >= hvsi_count)
 		return -1;
+	hp = &hvsi_ports[console->index];
 
 	/* give the FSP a chance to change the baud rate when we re-open */
 	hvsi_close_protocol(hp);
@@ -1256,7 +1255,7 @@ static int __init hvsi_console_setup(struct console *console, char *options)
 	return 0;
 }
 
-static struct console hvsi_con_driver = {
+static struct console hvsi_console = {
 	.name		= "hvsi",
 	.write		= hvsi_console_print,
 	.device		= hvsi_console_device,
@@ -1309,7 +1308,7 @@ static int __init hvsi_console_init(void)
 	}
 
 	if (hvsi_count)
-		register_console(&hvsi_con_driver);
+		register_console(&hvsi_console);
 	return 0;
 }
 console_initcall(hvsi_console_init);

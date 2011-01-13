@@ -23,7 +23,7 @@
 
 int jffs2_sum_init(struct jffs2_sb_info *c)
 {
-	uint32_t sum_size = max_t(uint32_t, c->sector_size, MAX_SUMMARY_SIZE);
+	uint32_t sum_size = min_t(uint32_t, c->sector_size, MAX_SUMMARY_SIZE);
 
 	c->summary = kzalloc(sizeof(struct jffs2_summary), GFP_KERNEL);
 

@@ -20,6 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/serial.h>
+#include <linux/slab.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
@@ -313,7 +314,7 @@ static void qe_uart_stop_tx(struct uart_port *port)
  * This function will attempt to stuff of all the characters from the
  * kernel's transmit buffer into TX BDs.
  *
- * A return value of non-zero indicates that it sucessfully stuffed all
+ * A return value of non-zero indicates that it successfully stuffed all
  * characters from the kernel buffer.
  *
  * A return value of zero indicates that there are still characters in the
@@ -327,7 +328,7 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 	unsigned char *p;
 	unsigned int count;
 	struct uart_port *port = &qe_port->port;
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	bdp = qe_port->rx_cur;
 
@@ -466,7 +467,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 	int i;
 	unsigned char ch, *cp;
 	struct uart_port *port = &qe_port->port;
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	struct qe_bd *bdp;
 	u16 status;
 	unsigned int flg;
@@ -1179,22 +1180,24 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 
 	if (firmware->header.length != fw->size) {
 		dev_err(dev, "invalid firmware\n");
-		return;
+		goto out;
 	}
 
 	ret = qe_upload_firmware(firmware);
 	if (ret) {
 		dev_err(dev, "could not load firmware\n");
-		return;
+		goto out;
 	}
 
 	firmware_loaded = 1;
+ out:
+	release_firmware(fw);
 }
 
-static int ucc_uart_probe(struct of_device *ofdev,
+static int ucc_uart_probe(struct platform_device *ofdev,
 	const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	const unsigned int *iprop;      /* Integer OF properties */
 	const char *sprop;      /* String OF properties */
 	struct uart_qe_port *qe_port = NULL;
@@ -1247,7 +1250,7 @@ static int ucc_uart_probe(struct of_device *ofdev,
 			 */
 			ret = request_firmware_nowait(THIS_MODULE,
 				FW_ACTION_HOTPLUG, filename, &ofdev->dev,
-				&ofdev->dev, uart_firmware_cont);
+				GFP_KERNEL, &ofdev->dev, uart_firmware_cont);
 			if (ret) {
 				dev_err(&ofdev->dev,
 					"could not load firmware %s\n",
@@ -1459,7 +1462,7 @@ static int ucc_uart_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int ucc_uart_remove(struct of_device *ofdev)
+static int ucc_uart_remove(struct platform_device *ofdev)
 {
 	struct uart_qe_port *qe_port = dev_get_drvdata(&ofdev->dev);
 
@@ -1483,9 +1486,11 @@ static struct of_device_id ucc_uart_match[] = {
 MODULE_DEVICE_TABLE(of, ucc_uart_match);
 
 static struct of_platform_driver ucc_uart_of_driver = {
-	.owner  	= THIS_MODULE,
-	.name   	= "ucc_uart",
-	.match_table    = ucc_uart_match,
+	.driver = {
+		.name = "ucc_uart",
+		.owner = THIS_MODULE,
+		.of_match_table    = ucc_uart_match,
+	},
 	.probe  	= ucc_uart_probe,
 	.remove 	= ucc_uart_remove,
 };

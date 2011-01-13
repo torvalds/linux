@@ -22,6 +22,11 @@
 
 #include <asm-generic/pci-dma-compat.h>
 
+/* Return values for ppc_md.pci_probe_mode function */
+#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
+#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
+#define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
+
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
 
@@ -40,7 +45,6 @@ struct pci_dev;
  */
 #define pcibios_assign_all_busses() \
 	(ppc_pci_has_flag(PPC_PCI_REASSIGN_ALL_BUS))
-#define pcibios_scan_all_fns(a, b)	0
 
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
@@ -61,8 +65,8 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 #ifdef CONFIG_PCI
-extern void set_pci_dma_ops(struct dma_mapping_ops *dma_ops);
-extern struct dma_mapping_ops *get_pci_dma_ops(void);
+extern void set_pci_dma_ops(struct dma_map_ops *dma_ops);
+extern struct dma_map_ops *get_pci_dma_ops(void);
 #else	/* CONFIG_PCI */
 #define set_pci_dma_ops(d)
 #define get_pci_dma_ops()	NULL
@@ -137,38 +141,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 
 #define HAVE_PCI_LEGACY	1
 
-#if defined(CONFIG_PPC64) || defined(CONFIG_NOT_COHERENT_CACHE)
-/*
- * For 64-bit kernels, pci_unmap_{single,page} is not a nop.
- * For 32-bit non-coherent kernels, pci_dma_sync_single_for_cpu() and
- * so on are not nops.
- * and thus...
- */
-#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	\
-	dma_addr_t ADDR_NAME;
-#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)		\
-	__u32 LEN_NAME;
-#define pci_unmap_addr(PTR, ADDR_NAME)			\
-	((PTR)->ADDR_NAME)
-#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)		\
-	(((PTR)->ADDR_NAME) = (VAL))
-#define pci_unmap_len(PTR, LEN_NAME)			\
-	((PTR)->LEN_NAME)
-#define pci_unmap_len_set(PTR, LEN_NAME, VAL)		\
-	(((PTR)->LEN_NAME) = (VAL))
-
-#else /* 32-bit && coherent */
-
-/* pci_unmap_{page,single} is a nop so... */
-#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)
-#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)
-#define pci_unmap_addr(PTR, ADDR_NAME)		(0)
-#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)	do { } while (0)
-#define pci_unmap_len(PTR, LEN_NAME)		(0)
-#define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
-
-#endif /* CONFIG_PPC64 || CONFIG_NOT_COHERENT_CACHE */
-
 #ifdef CONFIG_PPC64
 
 /* The PCI address space does not equal the physical memory address
@@ -228,6 +200,8 @@ extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 
 extern void pcibios_setup_bus_devices(struct pci_bus *bus);
 extern void pcibios_setup_bus_self(struct pci_bus *bus);
+extern void pcibios_setup_phb_io_space(struct pci_controller *hose);
+extern void pcibios_scan_phb(struct pci_controller *hose, void *sysdata);
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_POWERPC_PCI_H */

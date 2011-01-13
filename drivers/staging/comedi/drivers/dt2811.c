@@ -34,13 +34,13 @@ Configuration options:
   [0] - I/O port base address
   [1] - IRQ, although this is currently unused
   [2] - A/D reference
-          0 = signle-ended
-          1 = differential
+	  0 = signle-ended
+	  1 = differential
 	  2 = pseudo-differential (common reference)
   [3] - A/D range
-          0 = [-5,5]
-	  1 = [-2.5,2.5]
-	  2 = [0,5]
+	  0 = [-5, 5]
+	  1 = [-2.5, 2.5]
+	  2 = [0, 5]
   [4] - D/A 0 range (same choices)
   [4] - D/A 1 range (same choices)
 */
@@ -52,46 +52,57 @@ Configuration options:
 
 static const char *driver_name = "dt2811";
 
-static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = { 4, {
-			RANGE(0, 5),
-			RANGE(0, 2.5),
-			RANGE(0, 1.25),
-			RANGE(0, 0.625)
+static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
+	4, {
+		RANGE(0, 5),
+		RANGE(0, 2.5),
+		RANGE(0, 1.25),
+		RANGE(0, 0.625)
 	}
 };
-static const struct comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = { 4, {
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(-0.625, 0.625),
-			RANGE(-0.3125, 0.3125)
+
+static const struct comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = {
+	4, {
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+		RANGE(-0.625, 0.625),
+		RANGE(-0.3125, 0.3125)
 	}
 };
-static const struct comedi_lrange range_dt2811_pgh_ai_5_bipolar = { 4, {
-			RANGE(-5, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(-0.625, 0.625)
+
+static const struct comedi_lrange range_dt2811_pgh_ai_5_bipolar = {
+	4, {
+		RANGE(-5, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+		RANGE(-0.625, 0.625)
 	}
 };
-static const struct comedi_lrange range_dt2811_pgl_ai_5_unipolar = { 4, {
-			RANGE(0, 5),
-			RANGE(0, 0.5),
-			RANGE(0, 0.05),
-			RANGE(0, 0.01)
+
+static const struct comedi_lrange range_dt2811_pgl_ai_5_unipolar = {
+	4, {
+		RANGE(0, 5),
+		RANGE(0, 0.5),
+		RANGE(0, 0.05),
+		RANGE(0, 0.01)
 	}
 };
-static const struct comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = { 4, {
-			RANGE(-2.5, 2.5),
-			RANGE(-0.25, 0.25),
-			RANGE(-0.025, 0.025),
-			RANGE(-0.005, 0.005)
+
+static const struct comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = {
+	4, {
+		RANGE(-2.5, 2.5),
+		RANGE(-0.25, 0.25),
+		RANGE(-0.025, 0.025),
+		RANGE(-0.005, 0.005)
 	}
 };
-static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
-			RANGE(-5, 5),
-			RANGE(-0.5, 0.5),
-			RANGE(-0.05, 0.05),
-			RANGE(-0.01, 0.01)
+
+static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
+	4, {
+		RANGE(-5, 5),
+		RANGE(-0.5, 0.5),
+		RANGE(-0.05, 0.05),
+		RANGE(-0.01, 0.01)
 	}
 };
 
@@ -202,20 +213,21 @@ struct dt2811_board {
 
 static const struct dt2811_board boardtypes[] = {
 	{"dt2811-pgh",
-			&range_dt2811_pgh_ai_5_bipolar,
-			&range_dt2811_pgh_ai_2_5_bipolar,
-			&range_dt2811_pgh_ai_5_unipolar,
-		},
+	 &range_dt2811_pgh_ai_5_bipolar,
+	 &range_dt2811_pgh_ai_2_5_bipolar,
+	 &range_dt2811_pgh_ai_5_unipolar,
+	 },
 	{"dt2811-pgl",
-			&range_dt2811_pgl_ai_5_bipolar,
-			&range_dt2811_pgl_ai_2_5_bipolar,
-			&range_dt2811_pgl_ai_5_unipolar,
-		},
+	 &range_dt2811_pgl_ai_5_bipolar,
+	 &range_dt2811_pgl_ai_2_5_bipolar,
+	 &range_dt2811_pgl_ai_5_unipolar,
+	 },
 };
 
 #define this_board ((const struct dt2811_board *)dev->board_ptr)
 
-static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dt2811_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int dt2811_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dt2811 = {
 	.driver_name = "dt2811",
@@ -227,18 +239,32 @@ static struct comedi_driver driver_dt2811 = {
 	.offset = sizeof(struct dt2811_board),
 };
 
-COMEDI_INITCLEANUP(driver_dt2811);
+static int __init driver_dt2811_init_module(void)
+{
+	return comedi_driver_register(&driver_dt2811);
+}
+
+static void __exit driver_dt2811_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dt2811);
+}
+
+module_init(driver_dt2811_init_module);
+module_exit(driver_dt2811_cleanup_module);
 
 static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			  struct comedi_insn *insn, unsigned int *data);
 static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dt2811_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dt2811_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dt2811_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			  struct comedi_insn *insn, unsigned int *data);
+static int dt2811_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int dt2811_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int dt2811_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
 
 enum { card_2811_pgh, card_2811_pgl };
 
@@ -295,21 +321,21 @@ static irqreturn_t dt2811_interrupt(int irq, void *d)
   options[0]   Board base address
   options[1]   IRQ
   options[2]   Input configuration
-                 0 == single-ended
-                 1 == differential
-                 2 == pseudo-differential
+		 0 == single-ended
+		 1 == differential
+		 2 == pseudo-differential
   options[3]   Analog input range configuration
-                 0 == bipolar 5  (-5V -- +5V)
-                 1 == bipolar 2.5V  (-2.5V -- +2.5V)
-                 2 == unipolar 5V  (0V -- +5V)
+		 0 == bipolar 5  (-5V -- +5V)
+		 1 == bipolar 2.5V  (-2.5V -- +2.5V)
+		 2 == unipolar 5V  (0V -- +5V)
   options[4]   Analog output 0 range configuration
-                 0 == bipolar 5  (-5V -- +5V)
-                 1 == bipolar 2.5V  (-2.5V -- +2.5V)
-                 2 == unipolar 5V  (0V -- +5V)
+		 0 == bipolar 5  (-5V -- +5V)
+		 1 == bipolar 2.5V  (-2.5V -- +2.5V)
+		 2 == unipolar 5V  (0V -- +5V)
   options[5]   Analog output 1 range configuration
-                 0 == bipolar 5  (-5V -- +5V)
-                 1 == bipolar 2.5V  (-2.5V -- +2.5V)
-                 2 == unipolar 5V  (0V -- +5V)
+		 0 == bipolar 5  (-5V -- +5V)
+		 1 == bipolar 2.5V  (-2.5V -- +2.5V)
+		 2 == unipolar 5V  (0V -- +5V)
 */
 
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -324,10 +350,10 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	iobase = it->options[0];
 
-	printk("comedi%d: dt2811: base=0x%04lx\n", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: dt2811:base=0x%04lx\n", dev->minor, iobase);
 
 	if (!request_region(iobase, DT2811_SIZE, driver_name)) {
-		printk("I/O port conflict\n");
+		printk(KERN_ERR "I/O port conflict\n");
 		return -EIO;
 	}
 
@@ -349,7 +375,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		irqs = probe_irq_on();
 
 		outb(DT2811_CLRERROR | DT2811_INTENB,
-			dev->iobase + DT2811_ADCSR);
+		     dev->iobase + DT2811_ADCSR);
 		outb(0, dev->iobase + DT2811_ADGCR);
 
 		udelay(100);
@@ -357,25 +383,25 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
 
-		/*outb(DT2811_CLRERROR|DT2811_INTENB,dev->iobase+DT2811_ADCSR); */
+		/*outb(DT2811_CLRERROR|DT2811_INTENB,
+			dev->iobase+DT2811_ADCSR);*/
 
-		if (inb(dev->iobase + DT2811_ADCSR) & DT2811_ADERROR) {
-			printk("error probing irq (bad) \n");
-		}
+		if (inb(dev->iobase + DT2811_ADCSR) & DT2811_ADERROR)
+			printk(KERN_ERR "error probing irq (bad)\n");
 		dev->irq = 0;
 		if (irq > 0) {
 			i = inb(dev->iobase + DT2811_ADDATLO);
 			i = inb(dev->iobase + DT2811_ADDATHI);
-			printk("(irq = %d)\n", irq);
+			printk(KERN_INFO "(irq = %d)\n", irq);
 			ret = request_irq(irq, dt2811_interrupt, 0,
-				driver_name, dev);
+					  driver_name, dev);
 			if (ret < 0)
 				return -EIO;
 			dev->irq = irq;
 		} else if (irq == 0) {
-			printk("(no irq)\n");
+			printk(KERN_INFO "(no irq)\n");
 		} else {
-			printk("( multiple irq's -- this is bad! )\n");
+			printk(KERN_ERR "( multiple irq's -- this is bad! )\n");
 		}
 	}
 #endif
@@ -487,20 +513,18 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static int dt2811_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: dt2811: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: dt2811: remove\n", dev->minor);
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
-	if (dev->iobase) {
+	if (dev->iobase)
 		release_region(dev->iobase, DT2811_SIZE);
-	}
 
 	return 0;
 }
 
 static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int timeout = DT2811_TIMEOUT;
@@ -510,7 +534,7 @@ static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		outb(chan, dev->iobase + DT2811_ADGCR);
 
 		while (timeout
-			&& inb(dev->iobase + DT2811_ADCSR) & DT2811_ADBUSY)
+		       && inb(dev->iobase + DT2811_ADCSR) & DT2811_ADBUSY)
 			timeout--;
 		if (!timeout)
 			return -ETIME;
@@ -536,8 +560,10 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
 	switch (dev->i_admode) {
 	case COMEDI_MDEMAND:
 		dev->ntrig = adtrig->n - 1;
+		/* not neccessary */
 		/*printk("dt2811: AD soft trigger\n"); */
-		/*outb(DT2811_CLRERROR|DT2811_INTENB,dev->iobase+DT2811_ADCSR); */ /* not neccessary */
+		/*outb(DT2811_CLRERROR|DT2811_INTENB,
+			dev->iobase+DT2811_ADCSR); */
 		outb(dev->curadchan, dev->iobase + DT2811_ADGCR);
 		do_gettimeofday(&trigtime);
 		break;
@@ -551,7 +577,7 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
 #endif
 
 static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;
@@ -561,30 +587,31 @@ static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	for (i = 0; i < insn->n; i++) {
 		outb(data[i] & 0xff, dev->iobase + DT2811_DADAT0LO + 2 * chan);
 		outb((data[i] >> 8) & 0xff,
-			dev->iobase + DT2811_DADAT0HI + 2 * chan);
+		     dev->iobase + DT2811_DADAT0HI + 2 * chan);
 		devpriv->ao_readback[chan] = data[i];
 	}
 
 	return i;
 }
 
-static int dt2811_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dt2811_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;
 
 	chan = CR_CHAN(insn->chanspec);
 
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
-	}
 
 	return i;
 }
 
-static int dt2811_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dt2811_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -594,8 +621,9 @@ static int dt2811_di_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 	return 2;
 }
 
-static int dt2811_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dt2811_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -608,3 +636,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 
 	return 2;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

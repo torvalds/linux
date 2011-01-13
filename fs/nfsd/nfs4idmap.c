@@ -1,6 +1,4 @@
 /*
- *  fs/nfsd/nfs4idmap.c
- *
  *  Mapping of UID/GIDs to name and vice versa.
  *
  *  Copyright (c) 2002, 2003 The Regents of the University of
@@ -35,23 +33,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
-
-#include <linux/mm.h>
-#include <linux/utsname.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/sunrpc/clnt.h>
-#include <linux/nfs.h>
-#include <linux/nfs4.h>
-#include <linux/nfs_fs.h>
-#include <linux/nfs_page.h>
-#include <linux/sunrpc/cache.h>
 #include <linux/nfsd_idmap.h>
-#include <linux/list.h>
-#include <linux/time.h>
 #include <linux/seq_file.h>
-#include <linux/sunrpc/svcauth.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * Cache entry
@@ -146,6 +131,12 @@ idtoname_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
 }
 
 static int
+idtoname_upcall(struct cache_detail *cd, struct cache_head *ch)
+{
+	return sunrpc_cache_pipe_upcall(cd, ch, idtoname_request);
+}
+
+static int
 idtoname_match(struct cache_head *ca, struct cache_head *cb)
 {
 	struct ent *a = container_of(ca, struct ent, h);
@@ -175,10 +166,10 @@ idtoname_show(struct seq_file *m, struct cache_detail *cd, struct cache_head *h)
 }
 
 static void
-warn_no_idmapd(struct cache_detail *detail)
+warn_no_idmapd(struct cache_detail *detail, int has_died)
 {
 	printk("nfsd: nfsv4 idmapping failing: has idmapd %s?\n",
-			detail->last_close? "died" : "not been started");
+			has_died ? "died" : "not been started");
 }
 
 
@@ -192,7 +183,7 @@ static struct cache_detail idtoname_cache = {
 	.hash_table	= idtoname_table,
 	.name		= "nfs4.idtoname",
 	.cache_put	= ent_put,
-	.cache_request	= idtoname_request,
+	.cache_upcall	= idtoname_upcall,
 	.cache_parse	= idtoname_parse,
 	.cache_show	= idtoname_show,
 	.warn_no_listener = warn_no_idmapd,
@@ -325,6 +316,12 @@ nametoid_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
 }
 
 static int
+nametoid_upcall(struct cache_detail *cd, struct cache_head *ch)
+{
+	return sunrpc_cache_pipe_upcall(cd, ch, nametoid_request);
+}
+
+static int
 nametoid_match(struct cache_head *ca, struct cache_head *cb)
 {
 	struct ent *a = container_of(ca, struct ent, h);
@@ -363,7 +360,7 @@ static struct cache_detail nametoid_cache = {
 	.hash_table	= nametoid_table,
 	.name		= "nfs4.nametoid",
 	.cache_put	= ent_put,
-	.cache_request	= nametoid_request,
+	.cache_upcall	= nametoid_upcall,
 	.cache_parse	= nametoid_parse,
 	.cache_show	= nametoid_show,
 	.warn_no_listener = warn_no_idmapd,
@@ -485,109 +482,26 @@ nfsd_idmap_shutdown(void)
 	cache_unregister(&nametoid_cache);
 }
 
-/*
- * Deferred request handling
- */
-
-struct idmap_defer_req {
-       struct cache_req		req;
-       struct cache_deferred_req deferred_req;
-       wait_queue_head_t	waitq;
-       atomic_t			count;
-};
-
-static inline void
-put_mdr(struct idmap_defer_req *mdr)
-{
-	if (atomic_dec_and_test(&mdr->count))
-		kfree(mdr);
-}
-
-static inline void
-get_mdr(struct idmap_defer_req *mdr)
-{
-	atomic_inc(&mdr->count);
-}
-
-static void
-idmap_revisit(struct cache_deferred_req *dreq, int toomany)
-{
-	struct idmap_defer_req *mdr =
-		container_of(dreq, struct idmap_defer_req, deferred_req);
-
-	wake_up(&mdr->waitq);
-	put_mdr(mdr);
-}
-
-static struct cache_deferred_req *
-idmap_defer(struct cache_req *req)
-{
-	struct idmap_defer_req *mdr =
-		container_of(req, struct idmap_defer_req, req);
-
-	mdr->deferred_req.revisit = idmap_revisit;
-	get_mdr(mdr);
-	return (&mdr->deferred_req);
-}
-
-static inline int
-do_idmap_lookup(struct ent *(*lookup_fn)(struct ent *), struct ent *key,
-		struct cache_detail *detail, struct ent **item,
-		struct idmap_defer_req *mdr)
-{
-	*item = lookup_fn(key);
-	if (!*item)
-		return -ENOMEM;
-	return cache_check(detail, &(*item)->h, &mdr->req);
-}
-
-static inline int
-do_idmap_lookup_nowait(struct ent *(*lookup_fn)(struct ent *),
-			struct ent *key, struct cache_detail *detail,
-			struct ent **item)
-{
-	int ret = -ENOMEM;
-
-	*item = lookup_fn(key);
-	if (!*item)
-		goto out_err;
-	ret = -ETIMEDOUT;
-	if (!test_bit(CACHE_VALID, &(*item)->h.flags)
-			|| (*item)->h.expiry_time < get_seconds()
-			|| detail->flush_time > (*item)->h.last_refresh)
-		goto out_put;
-	ret = -ENOENT;
-	if (test_bit(CACHE_NEGATIVE, &(*item)->h.flags))
-		goto out_put;
-	return 0;
-out_put:
-	cache_put(&(*item)->h, detail);
-out_err:
-	*item = NULL;
-	return ret;
-}
-
 static int
 idmap_lookup(struct svc_rqst *rqstp,
 		struct ent *(*lookup_fn)(struct ent *), struct ent *key,
 		struct cache_detail *detail, struct ent **item)
 {
-	struct idmap_defer_req *mdr;
 	int ret;
 
-	mdr = kzalloc(sizeof(*mdr), GFP_KERNEL);
-	if (!mdr)
+	*item = lookup_fn(key);
+	if (!*item)
 		return -ENOMEM;
-	atomic_set(&mdr->count, 1);
-	init_waitqueue_head(&mdr->waitq);
-	mdr->req.defer = idmap_defer;
-	ret = do_idmap_lookup(lookup_fn, key, detail, item, mdr);
-	if (ret == -EAGAIN) {
-		wait_event_interruptible_timeout(mdr->waitq,
-			test_bit(CACHE_VALID, &(*item)->h.flags), 1 * HZ);
-		ret = do_idmap_lookup_nowait(lookup_fn, key, detail, item);
+ retry:
+	ret = cache_check(detail, &(*item)->h, &rqstp->rq_chandle);
+
+	if (ret == -ETIMEDOUT) {
+		struct ent *prev_item = *item;
+		*item = lookup_fn(key);
+		if (*item != prev_item)
+			goto retry;
+		cache_put(&(*item)->h, detail);
 	}
-	put_mdr(mdr);
 	return ret;
 }
 

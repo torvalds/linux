@@ -53,18 +53,14 @@ static inline int ext3_acl_count(size_t size)
 
 #ifdef CONFIG_EXT3_FS_POSIX_ACL
 
-/* Value for inode->u.ext3_i.i_acl and inode->u.ext3_i.i_default_acl
-   if the ACL has not been cached */
-#define EXT3_ACL_NOT_CACHED ((void *)-1)
-
 /* acl.c */
-extern int ext3_permission (struct inode *, int);
+extern int ext3_check_acl (struct inode *, int, unsigned int);
 extern int ext3_acl_chmod (struct inode *);
 extern int ext3_init_acl (handle_t *, struct inode *, struct inode *);
 
 #else  /* CONFIG_EXT3_FS_POSIX_ACL */
 #include <linux/sched.h>
-#define ext3_permission NULL
+#define ext3_check_acl NULL
 
 static inline int
 ext3_acl_chmod(struct inode *inode)

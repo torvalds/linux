@@ -1,5 +1,7 @@
-comment "You can enable one or both FireWire driver stacks."
-comment "See the help texts for more information."
+menu "IEEE 1394 (FireWire) support"
+	depends on PCI || BROKEN
+	# firewire-core does not depend on PCI but is
+	# not useful without PCI controller driver
 
 config FIREWIRE
 	tristate "FireWire driver stack"
@@ -15,41 +17,16 @@ config FIREWIRE
 	  To compile this driver as a module, say M here: the module will be
 	  called firewire-core.
 
-	  This module functionally replaces ieee1394, raw1394, and video1394.
-	  To access it from application programs, you generally need at least
-	  libraw1394 v2.  IIDC/DCAM applications need libdc1394 v2.
-	  No libraries are required to access storage devices through the
-	  firewire-sbp2 driver.
-
-	  NOTE:
-	  FireWire audio devices currently require the old drivers (ieee1394,
-	  ohci1394, raw1394).
-
 config FIREWIRE_OHCI
 	tristate "OHCI-1394 controllers"
-	depends on PCI && FIREWIRE
+	depends on PCI && FIREWIRE && MMU
 	help
 	  Enable this driver if you have a FireWire controller based
 	  on the OHCI specification.  For all practical purposes, this
 	  is the only chipset in use, so say Y here.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-ohci.  It replaces ohci1394 of the classic IEEE 1394
-	  stack.
-
-	  NOTE:
-	  If you want to install firewire-ohci and ohci1394 together, you
-	  should configure them only as modules and blacklist the driver(s)
-	  which you don't want to have auto-loaded.  Add either
-
-	      blacklist firewire-ohci
-	  or
-	      blacklist ohci1394
-	      blacklist video1394
-	      blacklist dv1394
-
-	  to /etc/modprobe.conf or /etc/modprobe.d/* and update modprobe.conf
-	  depending on your distribution.
+	  called firewire-ohci.
 
 config FIREWIRE_OHCI_DEBUG
 	bool
@@ -66,8 +43,7 @@ config FIREWIRE_SBP2
 	  like scanners.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-sbp2.  It replaces sbp2 of the classic IEEE 1394
-	  stack.
+	  called firewire-sbp2.
 
 	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
 	  configuration section.
@@ -83,5 +59,30 @@ config FIREWIRE_NET
 	  NOTE, this driver is not stable yet!
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-net.  It replaces eth1394 of the classic IEEE 1394
-	  stack.
+	  called firewire-net.
+
+config FIREWIRE_NOSY
+	tristate "Nosy - a FireWire traffic sniffer for PCILynx cards"
+	depends on PCI
+	help
+	  Nosy is an IEEE 1394 packet sniffer that is used for protocol
+	  analysis and in development of IEEE 1394 drivers, applications,
+	  or firmwares.
+
+	  This driver lets you use a Texas Instruments PCILynx 1394 to PCI
+	  link layer controller TSB12LV21/A/B as a low-budget bus analyzer.
+	  PCILynx is a nowadays very rare IEEE 1394 controller which is
+	  not OHCI 1394 compliant.
+
+	  The following cards are known to be based on PCILynx or PCILynx-2:
+	  IOI IOI-1394TT (PCI card), Unibrain Fireboard 400 PCI Lynx-2
+	  (PCI card), Newer Technology FireWire 2 Go (CardBus card),
+	  Apple Power Mac G3 blue & white (onboard controller).
+
+	  To compile this driver as a module, say M here:  The module will be
+	  called nosy.  Source code of a userspace interface to nosy, called
+	  nosy-dump, can be found in tools/firewire/ of the kernel sources.
+
+	  If unsure, say N.
+
+endmenu

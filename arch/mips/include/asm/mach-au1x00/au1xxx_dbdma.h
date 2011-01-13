@@ -305,6 +305,7 @@ typedef struct dbdma_chan_config {
 	dbdev_tab_t		*chan_dest;
 	au1x_dma_chan_t		*chan_ptr;
 	au1x_ddma_desc_t	*chan_desc_base;
+	u32			cdb_membase; /* kmalloc base of above */
 	au1x_ddma_desc_t	*get_ptr, *put_ptr, *cur_ptr;
 	void			*chan_callparam;
 	void			(*chan_callback)(int, void *);
@@ -338,8 +339,8 @@ u32 au1xxx_dbdma_set_devwidth(u32 chanid, int bits);
 u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries);
 
 /* Put buffers on source/destination descriptors. */
-u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags);
-u32 _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags);
+u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags);
+u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags);
 
 /* Get a buffer from the destination descriptor. */
 u32 au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes);
@@ -357,29 +358,6 @@ u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr);
 u32 au1xxx_ddma_add_device(dbdev_tab_t *dev);
 extern void au1xxx_ddma_del_device(u32 devid);
 void *au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp);
-#ifdef CONFIG_PM
-void au1xxx_dbdma_suspend(void);
-void au1xxx_dbdma_resume(void);
-#endif
-
-
-/*
- * Some compatibilty macros -- needed to make changes to API
- * without breaking existing drivers.
- */
-#define au1xxx_dbdma_put_source(chanid, buf, nbytes)			\
-	_au1xxx_dbdma_put_source(chanid, buf, nbytes, DDMA_FLAGS_IE)
-#define au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags)	\
-	_au1xxx_dbdma_put_source(chanid, buf, nbytes, flags)
-#define put_source_flags(chanid, buf, nbytes, flags)			\
-	au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags)
-
-#define au1xxx_dbdma_put_dest(chanid, buf, nbytes)			\
-	_au1xxx_dbdma_put_dest(chanid, buf, nbytes, DDMA_FLAGS_IE)
-#define au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags) 	\
-	_au1xxx_dbdma_put_dest(chanid, buf, nbytes, flags)
-#define put_dest_flags(chanid, buf, nbytes, flags)			\
-	au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags)
 
 /*
  *	Flags for the put_source/put_dest functions.

@@ -432,8 +432,6 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		/* Read config space back so we can restore after reset */
 		read_msi_msg(virq, &msg);
 		entry->msg = msg;
-
-		unmask_msi_irq(virq);
 	}
 
 	return 0;

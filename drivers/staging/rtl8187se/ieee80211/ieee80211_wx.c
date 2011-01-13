@@ -30,20 +30,14 @@
 
 ******************************************************************************/
 #include <linux/wireless.h>
-#include <linux/version.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 #include "ieee80211.h"
 static const char *ieee80211_modes[] = {
 	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
 };
-
-#ifdef FEDORACORE_9
-#define IN_FEDORACORE_9 1
-#else
-#define IN_FEDORACORE_9 0
-#endif
 
 #define MAX_CUSTOM_LEN 64
 static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
@@ -61,11 +55,7 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, network->bssid, ETH_ALEN);
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
-#else
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_ADDR_LEN);
-#endif
 
 	/* Remaining entries will be displayed in the order we provide them */
 
@@ -77,28 +67,16 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	if (network->ssid_len == 0) {
 	//YJ,modified,080903,end
 		iwe.u.data.length = sizeof("<hidden>");
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 		start = iwe_stream_add_point(info, start, stop, &iwe, "<hidden>");
-#else
-		start = iwe_stream_add_point(start, stop, &iwe, "<hidden>");
-#endif
 	} else {
 		iwe.u.data.length = min(network->ssid_len, (u8)32);
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 		start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
-#else
-		start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
-#endif
 	}
 	//printk("ESSID: %s\n",network->ssid);
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11%s", ieee80211_modes[network->mode]);
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_CHAR_LEN);
-#else
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_CHAR_LEN);
-#endif
 
         /* Add mode */
         iwe.cmd = SIOCGIWMODE;
@@ -109,11 +87,7 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
 
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 		start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_UINT_LEN);
-#else
-		start = iwe_stream_add_event(start, stop, &iwe, IW_EV_UINT_LEN);
-#endif
 	}
 
         /* Add frequency/channel */
@@ -123,11 +97,7 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.freq.m = network->channel;
 	iwe.u.freq.e = 0;
 	iwe.u.freq.i = 0;
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_FREQ_LEN);
-#else
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_FREQ_LEN);
-#endif
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
@@ -136,11 +106,7 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 	start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
-#else
-	start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
-#endif
 
 	/* Add basic and extended rates */
 	max_rate = 0;
@@ -169,20 +135,12 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = SIOCGIWRATE;
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = max_rate * 500000;
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_PARAM_LEN);
-#else
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_PARAM_LEN);
-#endif
 
 	iwe.cmd = IWEVCUSTOM;
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
-#else
-		start = iwe_stream_add_point(start, stop, &iwe, custom);
-#endif
 
 	/* Add quality statistics */
 	/* TODO: Fix these values... */
@@ -201,54 +159,15 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	if (!(network->stats.mask & IEEE80211_STATMASK_SIGNAL))
 		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID;
 	iwe.u.qual.updated = 7;
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
-#else
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
-#endif
 
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
-#else
-		start = iwe_stream_add_point(start, stop, &iwe, custom);
-#endif
 
-#if 0
-	if (ieee->wpa_enabled && network->wpa_ie_len){
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-	//	printk("WPA IE\n");
-		u8 *p = buf;
-		p += sprintf(p, "wpa_ie=");
-		for (i = 0; i < network->wpa_ie_len; i++) {
-			p += sprintf(p, "%02x", network->wpa_ie[i]);
-		}
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
-		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
-#else
-		start = iwe_stream_add_point(start, stop, &iwe, buf);
-#endif
-	}
-
-	if (ieee->wpa_enabled && network->rsn_ie_len){
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-
-		u8 *p = buf;
-		p += sprintf(p, "rsn_ie=");
-		for (i = 0; i < network->rsn_ie_len; i++) {
-			p += sprintf(p, "%02x", network->rsn_ie[i]);
-		}
-
-
-#else
 		memset(&iwe, 0, sizeof(iwe));
         if (network->wpa_ie_len) {
 	//	printk("wpa_ie_len:%d\n", network->wpa_ie_len);
@@ -256,36 +175,18 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
                 memcpy(buf, network->wpa_ie, network->wpa_ie_len);
                 iwe.cmd = IWEVGENIE;
                 iwe.u.data.length = network->wpa_ie_len;
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
                 start = iwe_stream_add_point(info, start, stop, &iwe, buf);
-#else
-                start = iwe_stream_add_point(start, stop, &iwe, buf);
-#endif
         }
 
         memset(&iwe, 0, sizeof(iwe));
         if (network->rsn_ie_len) {
 	//	printk("=====>rsn_ie_len:\n", network->rsn_ie_len);
-		#if 0
-		{
-			int i;
-			for (i=0; i<network->rsn_ie_len; i++);
-			printk("%2x ", network->rsn_ie[i]);
-			printk("\n");
-		}
-		#endif
                 char buf[MAX_WPA_IE_LEN];
                 memcpy(buf, network->rsn_ie, network->rsn_ie_len);
                 iwe.cmd = IWEVGENIE;
                 iwe.u.data.length = network->rsn_ie_len;
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
-#else
-		start = iwe_stream_add_point(start, stop, &iwe, buf);
-#endif
 	}
-
-#endif
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
 	 * for given network. */
@@ -295,11 +196,7 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 		      " Last beacon: %lums ago", (jiffies - network->last_scanned) / (HZ / 100));
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))||IN_FEDORACORE_9)
 		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
-#else
-		start = iwe_stream_add_point(start, stop, &iwe, custom);
-#endif
 
 	return start;
 }
@@ -338,10 +235,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 			else
 				IEEE80211_DEBUG_SCAN(
 					"Not showing network '%s ("
-					MAC_FMT ")' due to age (%lums).\n",
+					"%pM)' due to age (%lums).\n",
 					escape_essid(network->ssid,
 						     network->ssid_len),
-					MAC_ARG(network->bssid),
+					network->bssid,
 					(jiffies - network->last_scanned) / (HZ / 100));
 		}
 	}
@@ -428,18 +325,15 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		struct ieee80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kmalloc(sizeof(struct ieee80211_crypt_data),
+		new_crypt = kzalloc(sizeof(struct ieee80211_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
-		memset(new_crypt, 0, sizeof(struct ieee80211_crypt_data));
 		new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		if (!new_crypt->ops) {
-			request_module("ieee80211_crypt_wep");
+		if (!new_crypt->ops)
 			new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		}
 
-		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
+		if (new_crypt->ops)
 			new_crypt->priv = new_crypt->ops->init(key);
 
 		if (!new_crypt->ops || !new_crypt->priv) {
@@ -586,7 +480,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
         struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
         int i, idx, ret = 0;
         int group_key = 0;
-        const char *alg, *module;
+        const char *alg;
         struct ieee80211_crypto_ops *ops;
         struct ieee80211_crypt_data **crypt;
 
@@ -638,24 +532,16 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 	sec.enabled = 1;
     //    sec.encrypt = 1;
-#if 0
-        if (group_key ? !ieee->host_mc_decrypt :
-            !(ieee->host_encrypt || ieee->host_decrypt ||
-              ieee->host_encrypt_msdu))
-                goto skip_host_crypt;
-#endif
+
         switch (ext->alg) {
         case IW_ENCODE_ALG_WEP:
                 alg = "WEP";
-                module = "ieee80211_crypt_wep";
                 break;
         case IW_ENCODE_ALG_TKIP:
                 alg = "TKIP";
-                module = "ieee80211_crypt_tkip";
                 break;
         case IW_ENCODE_ALG_CCMP:
                 alg = "CCMP";
-                module = "ieee80211_crypt_ccmp";
                 break;
         default:
                 IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
@@ -666,10 +552,8 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 //	printk("8-09-08-9=====>%s, alg name:%s\n",__func__, alg);
 
 	 ops = ieee80211_get_crypto_ops(alg);
-        if (ops == NULL) {
-                request_module(module);
+        if (ops == NULL)
                 ops = ieee80211_get_crypto_ops(alg);
-        }
         if (ops == NULL) {
                 IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
                                    dev->name, ext->alg);
@@ -689,7 +573,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                         goto done;
                 }
                 new_crypt->ops = ops;
-                if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
+                if (new_crypt->ops)
                         new_crypt->priv = new_crypt->ops->init(idx);
                 if (new_crypt->priv == NULL) {
                         kfree(new_crypt);
@@ -810,7 +694,7 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 #if 1
 	case IW_AUTH_WPA_ENABLED:
 		ieee->wpa_enabled = (data->value)?1:0;
-		//printk("enalbe wpa:%d\n", ieee->wpa_enabled);
+		//printk("enable wpa:%d\n", ieee->wpa_enabled);
 		break;
 
 #endif
@@ -829,15 +713,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 #if 1
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
-#if 0
-	printk("====>%s()\n", __func__);
-	{
-		int i;
-		for (i=0; i<len; i++)
-		printk("%2x ", ie[i]&0xff);
-		printk("\n");
-	}
-#endif
 	u8 *buf = NULL;
 
 	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))
@@ -852,10 +727,9 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 			printk("len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
-		buf = kmalloc(len, GFP_KERNEL);
+		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-		memcpy(buf, ie, len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;
@@ -871,14 +745,4 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 	return 0;
 
 }
-#endif
-
-#if 0
-EXPORT_SYMBOL(ieee80211_wx_set_gen_ie);
-EXPORT_SYMBOL(ieee80211_wx_set_mlme);
-EXPORT_SYMBOL(ieee80211_wx_set_auth);
-EXPORT_SYMBOL(ieee80211_wx_set_encode_ext);
-EXPORT_SYMBOL(ieee80211_wx_get_scan);
-EXPORT_SYMBOL(ieee80211_wx_set_encode);
-EXPORT_SYMBOL(ieee80211_wx_get_encode);
 #endif

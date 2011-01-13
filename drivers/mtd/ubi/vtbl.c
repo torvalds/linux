@@ -58,6 +58,7 @@
 
 #include <linux/crc32.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <asm/div64.h>
 #include "ubi.h"
 
@@ -365,7 +366,7 @@ write_error:
 		 * Probably this physical eraseblock went bad, try to pick
 		 * another one.
 		 */
-		list_add_tail(&new_seb->u.list, &si->corr);
+		list_add(&new_seb->u.list, &si->erase);
 		goto retry;
 	}
 	kfree(new_seb);
@@ -413,7 +414,7 @@ static struct ubi_vtbl_record *process_lvol(struct ubi_device *ubi,
 	 * 0 contains more recent information.
 	 *
 	 * So the plan is to first check LEB 0. Then
-	 * a. if LEB 0 is OK, it must be containing the most resent data; then
+	 * a. if LEB 0 is OK, it must be containing the most recent data; then
 	 *    we compare it with LEB 1, and if they are different, we copy LEB
 	 *    0 to LEB 1;
 	 * b. if LEB 0 is corrupted, but LEB 1 has to be OK, and we copy LEB 1
@@ -566,6 +567,7 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 		vol->reserved_pebs = be32_to_cpu(vtbl[i].reserved_pebs);
 		vol->alignment = be32_to_cpu(vtbl[i].alignment);
 		vol->data_pad = be32_to_cpu(vtbl[i].data_pad);
+		vol->upd_marker = vtbl[i].upd_marker;
 		vol->vol_type = vtbl[i].vol_type == UBI_VID_DYNAMIC ?
 					UBI_DYNAMIC_VOLUME : UBI_STATIC_VOLUME;
 		vol->name_len = be16_to_cpu(vtbl[i].name_len);
@@ -660,9 +662,13 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 	ubi->vol_count += 1;
 	vol->ubi = ubi;
 
-	if (reserved_pebs > ubi->avail_pebs)
+	if (reserved_pebs > ubi->avail_pebs) {
 		ubi_err("not enough PEBs, required %d, available %d",
 			reserved_pebs, ubi->avail_pebs);
+		if (ubi->corr_peb_count)
+			ubi_err("%d PEBs are corrupted and not used",
+				ubi->corr_peb_count);
+	}
 	ubi->rsvd_pebs += reserved_pebs;
 	ubi->avail_pebs -= reserved_pebs;
 
@@ -835,7 +841,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 			return PTR_ERR(ubi->vtbl);
 	}
 
-	ubi->avail_pebs = ubi->good_peb_count;
+	ubi->avail_pebs = ubi->good_peb_count - ubi->corr_peb_count;
 
 	/*
 	 * The layout volume is OK, initialize the corresponding in-RAM data
@@ -846,7 +852,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 		goto out_free;
 
 	/*
-	 * Get sure that the scanning information is consistent to the
+	 * Make sure that the scanning information is consistent to the
 	 * information stored in the volume table.
 	 */
 	err = check_scanning_info(ubi, si);

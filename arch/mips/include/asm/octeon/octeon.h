@@ -35,6 +35,7 @@ extern int octeon_is_simulation(void);
 extern int octeon_is_pci_host(void);
 extern int octeon_usb_is_ref_clk(void);
 extern uint64_t octeon_get_clock_rate(void);
+extern u64 octeon_get_io_clock_rate(void);
 extern const char *octeon_board_type_string(void);
 extern const char *octeon_get_pci_interrupts(void);
 extern int octeon_get_southbridge_interrupt(void);
@@ -47,8 +48,10 @@ struct octeon_cop2_state;
 extern unsigned long octeon_crypto_enable(struct octeon_cop2_state *state);
 extern void octeon_crypto_disable(struct octeon_cop2_state *state,
 				  unsigned long flags);
+extern asmlinkage void octeon_cop2_restore(struct octeon_cop2_state *task);
 
 extern void octeon_init_cvmcount(void);
+extern void octeon_setup_delays(void);
 
 #define OCTEON_ARGV_MAX_ARGS	64
 #define OCTOEN_SERIAL_LEN	20
@@ -212,6 +215,11 @@ struct octeon_cf_data {
 	int		dma_engine;	/* -1 for no DMA */
 };
 
+struct octeon_i2c_data {
+	unsigned int	sys_freq;
+	unsigned int	i2c_freq;
+};
+
 extern void octeon_write_lcd(const char *s);
 extern void octeon_check_cpu_bist(void);
 extern int octeon_get_boot_debug_flag(void);
@@ -246,5 +254,7 @@ static inline uint32_t octeon_npi_read32(uint64_t address)
 }
 
 extern struct cvmx_bootinfo *octeon_bootinfo;
+
+extern uint64_t octeon_bootloader_entry_addr;
 
 #endif /* __ASM_OCTEON_OCTEON_H */

@@ -27,35 +27,39 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 
 unsigned int nf_ct_expect_hsize __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_expect_hsize);
 
-static unsigned int nf_ct_expect_hash_rnd __read_mostly;
 unsigned int nf_ct_expect_max __read_mostly;
-static int nf_ct_expect_hash_rnd_initted __read_mostly;
 
 static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
 
+static HLIST_HEAD(nf_ct_userspace_expect_list);
+
 /* nf_conntrack_expect helper functions */
-void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
+void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
+				u32 pid, int report)
 {
 	struct nf_conn_help *master_help = nfct_help(exp->master);
 	struct net *net = nf_ct_exp_net(exp);
 
-	NF_CT_ASSERT(master_help);
 	NF_CT_ASSERT(!timer_pending(&exp->timeout));
 
 	hlist_del_rcu(&exp->hnode);
 	net->ct.expect_count--;
 
 	hlist_del(&exp->lnode);
-	master_help->expecting[exp->class]--;
+	if (!(exp->flags & NF_CT_EXPECT_USERSPACE))
+		master_help->expecting[exp->class]--;
+
+	nf_ct_expect_event_report(IPEXP_DESTROY, exp, pid, report);
 	nf_ct_expect_put(exp);
 
 	NF_CT_STAT_INC(net, expect_delete);
 }
-EXPORT_SYMBOL_GPL(nf_ct_unlink_expect);
+EXPORT_SYMBOL_GPL(nf_ct_unlink_expect_report);
 
 static void nf_ct_expectation_timed_out(unsigned long ul_expect)
 {
@@ -71,20 +75,19 @@ static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple
 {
 	unsigned int hash;
 
-	if (unlikely(!nf_ct_expect_hash_rnd_initted)) {
-		get_random_bytes(&nf_ct_expect_hash_rnd,
-				 sizeof(nf_ct_expect_hash_rnd));
-		nf_ct_expect_hash_rnd_initted = 1;
+	if (unlikely(!nf_conntrack_hash_rnd)) {
+		init_nf_conntrack_hash_rnd();
 	}
 
 	hash = jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
 		      (((tuple->dst.protonum ^ tuple->src.l3num) << 16) |
-		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hash_rnd);
+		       (__force __u16)tuple->dst.u.all) ^ nf_conntrack_hash_rnd);
 	return ((u64)hash * nf_ct_expect_hsize) >> 32;
 }
 
 struct nf_conntrack_expect *
-__nf_ct_expect_find(struct net *net, const struct nf_conntrack_tuple *tuple)
+__nf_ct_expect_find(struct net *net, u16 zone,
+		    const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 	struct hlist_node *n;
@@ -95,7 +98,8 @@ __nf_ct_expect_find(struct net *net, const struct nf_conntrack_tuple *tuple)
 
 	h = nf_ct_expect_dst_hash(tuple);
 	hlist_for_each_entry_rcu(i, n, &net->ct.expect_hash[h], hnode) {
-		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
+		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
+		    nf_ct_zone(i->master) == zone)
 			return i;
 	}
 	return NULL;
@@ -104,12 +108,13 @@ EXPORT_SYMBOL_GPL(__nf_ct_expect_find);
 
 /* Just find a expectation corresponding to a tuple. */
 struct nf_conntrack_expect *
-nf_ct_expect_find_get(struct net *net, const struct nf_conntrack_tuple *tuple)
+nf_ct_expect_find_get(struct net *net, u16 zone,
+		      const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 
 	rcu_read_lock();
-	i = __nf_ct_expect_find(net, tuple);
+	i = __nf_ct_expect_find(net, zone, tuple);
 	if (i && !atomic_inc_not_zero(&i->use))
 		i = NULL;
 	rcu_read_unlock();
@@ -121,7 +126,8 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_find_get);
 /* If an expectation for this connection is found, it gets delete from
  * global list then returned. */
 struct nf_conntrack_expect *
-nf_ct_find_expectation(struct net *net, const struct nf_conntrack_tuple *tuple)
+nf_ct_find_expectation(struct net *net, u16 zone,
+		       const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i, *exp = NULL;
 	struct hlist_node *n;
@@ -133,7 +139,8 @@ nf_ct_find_expectation(struct net *net, const struct nf_conntrack_tuple *tuple)
 	h = nf_ct_expect_dst_hash(tuple);
 	hlist_for_each_entry(i, n, &net->ct.expect_hash[h], hnode) {
 		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
-		    nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
+		    nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
+		    nf_ct_zone(i->master) == zone) {
 			exp = i;
 			break;
 		}
@@ -202,9 +209,10 @@ static inline int expect_clash(const struct nf_conntrack_expect *a,
 static inline int expect_matches(const struct nf_conntrack_expect *a,
 				 const struct nf_conntrack_expect *b)
 {
-	return a->master == b->master && a->class == b->class
-		&& nf_ct_tuple_equal(&a->tuple, &b->tuple)
-		&& nf_ct_tuple_mask_equal(&a->mask, &b->mask);
+	return a->master == b->master && a->class == b->class &&
+		nf_ct_tuple_equal(&a->tuple, &b->tuple) &&
+		nf_ct_tuple_mask_equal(&a->mask, &b->mask) &&
+		nf_ct_zone(a->master) == nf_ct_zone(b->master);
 }
 
 /* Generally a bad idea to call this: could have matched already. */
@@ -232,7 +240,6 @@ struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 
 	new->master = me;
 	atomic_set(&new->use, 1);
-	INIT_RCU_HEAD(&new->rcu);
 	return new;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
@@ -314,16 +321,21 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 
 	atomic_inc(&exp->use);
 
-	hlist_add_head(&exp->lnode, &master_help->expectations);
-	master_help->expecting[exp->class]++;
+	if (master_help) {
+		hlist_add_head(&exp->lnode, &master_help->expectations);
+		master_help->expecting[exp->class]++;
+	} else if (exp->flags & NF_CT_EXPECT_USERSPACE)
+		hlist_add_head(&exp->lnode, &nf_ct_userspace_expect_list);
 
 	hlist_add_head_rcu(&exp->hnode, &net->ct.expect_hash[h]);
 	net->ct.expect_count++;
 
 	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
 		    (unsigned long)exp);
-	p = &master_help->helper->expect_policy[exp->class];
-	exp->timeout.expires = jiffies + p->timeout * HZ;
+	if (master_help) {
+		p = &master_help->helper->expect_policy[exp->class];
+		exp->timeout.expires = jiffies + p->timeout * HZ;
+	}
 	add_timer(&exp->timeout);
 
 	atomic_inc(&exp->use);
@@ -374,7 +386,9 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 	unsigned int h;
 	int ret = 1;
 
-	if (!master_help->helper) {
+	/* Don't allow expectations created from kernel-space with no helper */
+	if (!(expect->flags & NF_CT_EXPECT_USERSPACE) &&
+	    (!master_help || (master_help && !master_help->helper))) {
 		ret = -ESHUTDOWN;
 		goto out;
 	}
@@ -392,13 +406,16 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 		}
 	}
 	/* Will be over limit? */
-	p = &master_help->helper->expect_policy[expect->class];
-	if (p->max_expected &&
-	    master_help->expecting[expect->class] >= p->max_expected) {
-		evict_oldest_expect(master, expect);
-		if (master_help->expecting[expect->class] >= p->max_expected) {
-			ret = -EMFILE;
-			goto out;
+	if (master_help) {
+		p = &master_help->helper->expect_policy[expect->class];
+		if (p->max_expected &&
+		    master_help->expecting[expect->class] >= p->max_expected) {
+			evict_oldest_expect(master, expect);
+			if (master_help->expecting[expect->class]
+						>= p->max_expected) {
+				ret = -EMFILE;
+				goto out;
+			}
 		}
 	}
 
@@ -432,6 +449,21 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_related_report);
+
+void nf_ct_remove_userspace_expectations(void)
+{
+	struct nf_conntrack_expect *exp;
+	struct hlist_node *n, *next;
+
+	hlist_for_each_entry_safe(exp, n, next,
+				  &nf_ct_userspace_expect_list, lnode) {
+		if (del_timer(&exp->timeout)) {
+			nf_ct_unlink_expect(exp);
+			nf_ct_expect_put(exp);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(nf_ct_remove_userspace_expectations);
 
 #ifdef CONFIG_PROC_FS
 struct ct_expect_iter_state {
@@ -500,6 +532,7 @@ static void exp_seq_stop(struct seq_file *seq, void *v)
 static int exp_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_expect *expect;
+	struct nf_conntrack_helper *helper;
 	struct hlist_node *n = v;
 	char *delim = "";
 
@@ -522,8 +555,20 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		seq_printf(s, "PERMANENT");
 		delim = ",";
 	}
-	if (expect->flags & NF_CT_EXPECT_INACTIVE)
+	if (expect->flags & NF_CT_EXPECT_INACTIVE) {
 		seq_printf(s, "%sINACTIVE", delim);
+		delim = ",";
+	}
+	if (expect->flags & NF_CT_EXPECT_USERSPACE)
+		seq_printf(s, "%sUSERSPACE", delim);
+
+	helper = rcu_dereference(nfct_help(expect->master)->helper);
+	if (helper) {
+		seq_printf(s, "%s%s", expect->flags ? " " : "", helper->name);
+		if (helper->expect_policy[expect->class].name)
+			seq_printf(s, "/%s",
+				   helper->expect_policy[expect->class].name);
+	}
 
 	return seq_putc(s, '\n');
 }
@@ -569,7 +614,7 @@ static void exp_proc_remove(struct net *net)
 #endif /* CONFIG_PROC_FS */
 }
 
-module_param_named(expect_hashsize, nf_ct_expect_hsize, uint, 0600);
+module_param_named(expect_hashsize, nf_ct_expect_hsize, uint, 0400);
 
 int nf_conntrack_expect_init(struct net *net)
 {
@@ -577,7 +622,7 @@ int nf_conntrack_expect_init(struct net *net)
 
 	if (net_eq(net, &init_net)) {
 		if (!nf_ct_expect_hsize) {
-			nf_ct_expect_hsize = nf_conntrack_htable_size / 256;
+			nf_ct_expect_hsize = net->ct.htable_size / 256;
 			if (!nf_ct_expect_hsize)
 				nf_ct_expect_hsize = 1;
 		}
@@ -617,8 +662,10 @@ err1:
 void nf_conntrack_expect_fini(struct net *net)
 {
 	exp_proc_remove(net);
-	if (net_eq(net, &init_net))
+	if (net_eq(net, &init_net)) {
+		rcu_barrier(); /* Wait for call_rcu() before destroy */
 		kmem_cache_destroy(nf_ct_expect_cachep);
+	}
 	nf_ct_free_hashtable(net->ct.expect_hash, net->ct.expect_vmalloc,
 			     nf_ct_expect_hsize);
 }

@@ -41,6 +41,9 @@ Possible debug options are
 	P		Poisoning (object and padding)
 	U		User tracking (free and alloc)
 	T		Trace (please only use on single slabs)
+	A		Toggle failslab filter mark for the cache
+	O		Switch debugging off for caches that would have
+			caused higher minimum slab orders
 	-		Switch all debugging off (useful if the kernel is
 			configured with CONFIG_SLUB_DEBUG_ON)
 
@@ -58,6 +61,14 @@ Red zoning and tracking may realign the slab.  We can just apply sanity checks
 to the dentry cache with
 
 	slub_debug=F,dentry
+
+Debugging options may require the minimum possible slab order to increase as
+a result of storing the metadata (for example, caches with PAGE_SIZE object
+sizes).  This has a higher liklihood of resulting in slab allocation errors
+in low memory situations or if there's high fragmentation of memory.  To
+switch off debugging for such caches by default, use
+
+	slub_debug=O
 
 In case you forgot to enable debugging on the kernel command line: It is
 possible to enable debugging manually when the kernel is up. Look at the
@@ -235,7 +246,7 @@ been overwritten. Here a string of 8 characters was written into a slab that
 has the length of 8 characters. However, a 8 character string needs a
 terminating 0. That zero has overwritten the first byte of the Redzone field.
 After reporting the details of the issue encountered the FIX SLUB message
-tell us that SLUB has restored the Redzone to its proper value and then
+tells us that SLUB has restored the Redzone to its proper value and then
 system operations continue.
 
 Emergency operations:

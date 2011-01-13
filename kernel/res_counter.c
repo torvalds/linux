@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <linux/parser.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
 #include <linux/res_counter.h>
 #include <linux/uaccess.h>
 #include <linux/mm.h>
@@ -19,6 +18,7 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
 {
 	spin_lock_init(&counter->lock);
 	counter->limit = RESOURCE_MAX;
+	counter->soft_limit = RESOURCE_MAX;
 	counter->parent = parent;
 }
 
@@ -101,6 +101,8 @@ res_counter_member(struct res_counter *counter, int member)
 		return &counter->limit;
 	case RES_FAILCNT:
 		return &counter->failcnt;
+	case RES_SOFT_LIMIT:
+		return &counter->soft_limit;
 	};
 
 	BUG();

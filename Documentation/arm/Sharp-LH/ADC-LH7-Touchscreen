@@ -7,7 +7,7 @@ The driver only implements a four-wire touch panel protocol.
 
 The touchscreen driver is maintenance free except for the pen-down or
 touch threshold.  Some resistive displays and board combinations may
-require tuning of this threshold.  The driver exposes some of it's
+require tuning of this threshold.  The driver exposes some of its
 internal state in the sys filesystem.  If the kernel is configured
 with it, CONFIG_SYSFS, and sysfs is mounted at /sys, there will be a
 directory

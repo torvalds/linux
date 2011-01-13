@@ -217,6 +217,7 @@ struct dw_desc {
 
 	/* THEN values for driver housekeeping */
 	struct list_head		desc_node;
+	struct list_head		tx_list;
 	struct dma_async_tx_descriptor	txd;
 	size_t				len;
 };

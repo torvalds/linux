@@ -7,6 +7,7 @@ struct request_queue;
 struct request;
 struct scsi_cmnd;
 struct scsi_device;
+struct scsi_target;
 struct scsi_host_template;
 struct Scsi_Host;
 struct scsi_nl_hdr;
@@ -39,9 +40,25 @@ static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 #endif
 
 /* scsi_devinfo.c */
+
+/* list of keys for the lists */
+enum {
+	SCSI_DEVINFO_GLOBAL = 0,
+	SCSI_DEVINFO_SPI,
+};
+
 extern int scsi_get_device_flags(struct scsi_device *sdev,
 				 const unsigned char *vendor,
 				 const unsigned char *model);
+extern int scsi_get_device_flags_keyed(struct scsi_device *sdev,
+				       const unsigned char *vendor,
+				       const unsigned char *model, int key);
+extern int scsi_dev_info_list_add_keyed(int compatible, char *vendor,
+					char *model, char *strflags,
+					int flags, int key);
+extern int scsi_dev_info_add_list(int key, const char *name);
+extern int scsi_dev_info_remove_list(int key);
+
 extern int __init scsi_init_devinfo(void);
 extern void scsi_exit_devinfo(void);
 
@@ -71,7 +88,6 @@ extern int scsi_init_queue(void);
 extern void scsi_exit_queue(void);
 struct request_queue;
 struct request;
-extern int scsi_prep_fn(struct request_queue *, struct request *);
 extern struct kmem_cache *scsi_sdb_cache;
 
 /* scsi_proc.c */
@@ -117,7 +133,7 @@ extern struct scsi_transport_template blank_transport_template;
 extern void __scsi_remove_device(struct scsi_device *);
 
 extern struct bus_type scsi_bus_type;
-extern struct attribute_group *scsi_sysfs_shost_attr_groups[];
+extern const struct attribute_group *scsi_sysfs_shost_attr_groups[];
 
 /* scsi_netlink.c */
 #ifdef CONFIG_SCSI_NETLINK
@@ -128,6 +144,22 @@ extern struct sock *scsi_nl_sock;
 static inline void scsi_netlink_init(void) {}
 static inline void scsi_netlink_exit(void) {}
 #endif
+
+/* scsi_pm.c */
+#ifdef CONFIG_PM_OPS
+extern const struct dev_pm_ops scsi_bus_pm_ops;
+#endif
+#ifdef CONFIG_PM_RUNTIME
+extern void scsi_autopm_get_target(struct scsi_target *);
+extern void scsi_autopm_put_target(struct scsi_target *);
+extern int scsi_autopm_get_host(struct Scsi_Host *);
+extern void scsi_autopm_put_host(struct Scsi_Host *);
+#else
+static inline void scsi_autopm_get_target(struct scsi_target *t) {}
+static inline void scsi_autopm_put_target(struct scsi_target *t) {}
+static inline int scsi_autopm_get_host(struct Scsi_Host *h) { return 0; }
+static inline void scsi_autopm_put_host(struct Scsi_Host *h) {}
+#endif /* CONFIG_PM_RUNTIME */
 
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport

@@ -43,7 +43,6 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 
@@ -73,7 +72,8 @@
 
 static const char* host_info(struct Scsi_Host *host)
 {
-	return "SCSI emulation for USB Mass Storage devices";
+	struct us_data *us = host_to_us(host);
+	return us->scsi_name;
 }
 
 static int slave_alloc (struct scsi_device *sdev)
@@ -113,7 +113,7 @@ static int slave_alloc (struct scsi_device *sdev)
 	 * Let the scanning code know if this target merely sets
 	 * Peripheral Device Type to 0x1f to indicate no LUN.
 	 */
-	if (us->subclass == US_SC_UFI)
+	if (us->subclass == USB_SC_UFI)
 		sdev->sdev_target->pdt_1f_for_no_lun = 1;
 
 	return 0;
@@ -132,15 +132,15 @@ static int slave_configure(struct scsi_device *sdev)
 
 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
 			max_sectors = PAGE_CACHE_SIZE >> 9;
-		if (queue_max_sectors(sdev->request_queue) > max_sectors)
-			blk_queue_max_sectors(sdev->request_queue,
+		if (queue_max_hw_sectors(sdev->request_queue) > max_sectors)
+			blk_queue_max_hw_sectors(sdev->request_queue,
 					      max_sectors);
 	} else if (sdev->type == TYPE_TAPE) {
 		/* Tapes need much higher max_sector limits, so just
 		 * raise it to the maximum possible (4 GB / 512) and
 		 * let the queue segment size sort out the real limit.
 		 */
-		blk_queue_max_sectors(sdev->request_queue, 0x7FFFFF);
+		blk_queue_max_hw_sectors(sdev->request_queue, 0x7FFFFF);
 	}
 
 	/* Some USB host controllers can't do DMA; they have to use PIO.
@@ -176,7 +176,7 @@ static int slave_configure(struct scsi_device *sdev)
 		/* Disk-type devices use MODE SENSE(6) if the protocol
 		 * (SubClass) is Transparent SCSI, otherwise they use
 		 * MODE SENSE(10). */
-		if (us->subclass != US_SC_SCSI && us->subclass != US_SC_CYP_ATACB)
+		if (us->subclass != USB_SC_SCSI && us->subclass != USB_SC_CYP_ATACB)
 			sdev->use_10_for_ms = 1;
 
 		/* Many disks only accept MODE SENSE transfer lengths of
@@ -208,6 +208,10 @@ static int slave_configure(struct scsi_device *sdev)
 		 * The sd driver has to guess which is the case. */
 		if (us->fflags & US_FL_CAPACITY_HEURISTICS)
 			sdev->guess_capacity = 1;
+
+		/* Some devices cannot handle READ_CAPACITY_16 */
+		if (us->fflags & US_FL_NO_READ_CAPACITY_16)
+			sdev->no_read_capacity_16 = 1;
 
 		/* assume SPC3 or latter devices support sense size > 18 */
 		if (sdev->scsi_level > SCSI_SPC_2)
@@ -245,7 +249,7 @@ static int slave_configure(struct scsi_device *sdev)
 		 * capacity will be decremented or is correct. */
 		if (!(us->fflags & (US_FL_FIX_CAPACITY | US_FL_CAPACITY_OK |
 					US_FL_SCM_MULT_TARG)) &&
-				us->protocol == US_PR_BULK)
+				us->protocol == USB_PR_BULK)
 			us->use_last_sector_hacks = 1;
 	} else {
 
@@ -253,6 +257,10 @@ static int slave_configure(struct scsi_device *sdev)
 		 * or to force 192-byte transfer lengths for MODE SENSE.
 		 * But they do need to use MODE SENSE(10). */
 		sdev->use_10_for_ms = 1;
+
+		/* Some (fake) usb cdrom devices don't like READ_DISC_INFO */
+		if (us->fflags & US_FL_NO_READ_DISC_INFO)
+			sdev->no_read_disc_info = 1;
 	}
 
 	/* The CB and CBI transports have no way to pass LUN values
@@ -261,7 +269,7 @@ static int slave_configure(struct scsi_device *sdev)
 	 * scsi_level == 0 (UNKNOWN).  Hence such devices must necessarily
 	 * be single-LUN.
 	 */
-	if ((us->protocol == US_PR_CB || us->protocol == US_PR_CBI) &&
+	if ((us->protocol == USB_PR_CB || us->protocol == USB_PR_CBI) &&
 			sdev->scsi_level == SCSI_UNKNOWN)
 		us->max_lun = 0;
 
@@ -277,7 +285,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 /* queue a command */
 /* This is always called with scsi_lock(host) held */
-static int queuecommand(struct scsi_cmnd *srb,
+static int queuecommand_lck(struct scsi_cmnd *srb,
 			void (*done)(struct scsi_cmnd *))
 {
 	struct us_data *us = host_to_us(srb->device->host);
@@ -306,6 +314,8 @@ static int queuecommand(struct scsi_cmnd *srb,
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(queuecommand)
 
 /***********************************************************************
  * Error handling functions
@@ -483,7 +493,7 @@ static ssize_t show_max_sectors(struct device *dev, struct device_attribute *att
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 
-	return sprintf(buf, "%u\n", queue_max_sectors(sdev->request_queue));
+	return sprintf(buf, "%u\n", queue_max_hw_sectors(sdev->request_queue));
 }
 
 /* Input routine for the sysfs max_sectors file */
@@ -493,9 +503,9 @@ static ssize_t store_max_sectors(struct device *dev, struct device_attribute *at
 	struct scsi_device *sdev = to_scsi_device(dev);
 	unsigned short ms;
 
-	if (sscanf(buf, "%hu", &ms) > 0 && ms <= SCSI_DEFAULT_MAX_SECTORS) {
-		blk_queue_max_sectors(sdev->request_queue, ms);
-		return strlen(buf);
+	if (sscanf(buf, "%hu", &ms) > 0) {
+		blk_queue_max_hw_sectors(sdev->request_queue, ms);
+		return count;
 	}
 	return -EINVAL;	
 }
@@ -538,7 +548,7 @@ struct scsi_host_template usb_stor_host_template = {
 	.slave_configure =		slave_configure,
 
 	/* lots of sg segments can be handled */
-	.sg_tablesize =			SG_ALL,
+	.sg_tablesize =			SCSI_MAX_SG_CHAIN_SEGMENTS,
 
 	/* limit the total size of a transfer to 120 KB */
 	.max_sectors =                  240,

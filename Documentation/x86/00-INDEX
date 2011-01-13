@@ -2,3 +2,5 @@
 	- this file
 mtrr.txt
 	- how to use x86 Memory Type Range Registers to increase performance
+exception-tables.txt
+	- why and how Linux kernel uses exception tables on x86

@@ -468,7 +468,8 @@ int netfs_trans_finish_send(struct netfs_trans *t, struct pohmelfs_sb *psb)
 				continue;
 		}
 
-		if (psb->active_state && (psb->active_state->state.ctl.prio >= st->ctl.prio))
+		if (psb->active_state && (psb->active_state->state.ctl.prio >= st->ctl.prio) &&
+				(t->flags & NETFS_TRANS_SINGLE_DST))
 			st = &psb->active_state->state;
 
 		err = netfs_trans_push(t, st);

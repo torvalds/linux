@@ -37,7 +37,7 @@ typedef __u16 __bitwise __hc16;
 #define __hc16	__le16
 #endif
 
-/* statistics can be kept for for tuning/monitoring */
+/* statistics can be kept for tuning/monitoring */
 struct ehci_stats {
 	/* irq usage */
 	unsigned long		normal;
@@ -73,6 +73,7 @@ struct ehci_hcd {			/* one per controller */
 
 	/* async schedule support */
 	struct ehci_qh		*async;
+	struct ehci_qh		*dummy;		/* For AMD quirk use */
 	struct ehci_qh		*reclaim;
 	unsigned		scanning : 1;
 
@@ -87,8 +88,9 @@ struct ehci_hcd {			/* one per controller */
 	int			next_uframe;	/* scan periodic, start here */
 	unsigned		periodic_sched;	/* periodic activity count */
 
-	/* list of itds completed while clock_frame was still active */
+	/* list of itds & sitds completed while clock_frame was still active */
 	struct list_head	cached_itd_list;
+	struct list_head	cached_sitd_list;
 	unsigned		clock_frame;
 
 	/* per root hub port */
@@ -118,6 +120,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		stamp;
 	unsigned		random_frame;
 	unsigned long		next_statechange;
+	ktime_t			last_periodic_enable;
 	u32			command;
 
 	/* SILICON QUIRKS */
@@ -126,6 +129,11 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		big_endian_mmio:1;
 	unsigned		big_endian_desc:1;
 	unsigned		has_amcc_usb23:1;
+	unsigned		need_io_watchdog:1;
+	unsigned		broken_periodic:1;
+	unsigned		amd_l1_fix:1;
+	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
+	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -135,7 +143,9 @@ struct ehci_hcd {			/* one per controller */
 	#define OHCI_HCCTRL_OFFSET      0x4
 	#define OHCI_HCCTRL_LEN         0x4
 	__hc32			*ohci_hcctrl_reg;
-
+	unsigned		has_hostpc:1;
+	unsigned		has_lpm:1;  /* support link power management */
+	unsigned		has_ppcd:1; /* support per-port change bits */
 	u8			sbrn;		/* packed release number */
 
 	/* irq statistics */
@@ -149,9 +159,6 @@ struct ehci_hcd {			/* one per controller */
 	/* debug files */
 #ifdef DEBUG
 	struct dentry		*debug_dir;
-	struct dentry		*debug_async;
-	struct dentry		*debug_periodic;
-	struct dentry		*debug_registers;
 #endif
 };
 
@@ -191,7 +198,7 @@ timer_action_done (struct ehci_hcd *ehci, enum ehci_timer_action action)
 	clear_bit (action, &ehci->actions);
 }
 
-static void free_cached_itd_list(struct ehci_hcd *ehci);
+static void free_cached_lists(struct ehci_hcd *ehci);
 
 /*-------------------------------------------------------------------------*/
 
@@ -298,8 +305,8 @@ union ehci_shadow {
  * These appear in both the async and (for interrupt) periodic schedules.
  */
 
-struct ehci_qh {
-	/* first part defined by EHCI spec */
+/* first part defined by EHCI spec */
+struct ehci_qh_hw {
 	__hc32			hw_next;	/* see EHCI 3.6.1 */
 	__hc32			hw_info1;       /* see EHCI 3.6.2 */
 #define	QH_HEAD		0x00008000
@@ -317,7 +324,10 @@ struct ehci_qh {
 	__hc32			hw_token;
 	__hc32			hw_buf [5];
 	__hc32			hw_buf_hi [5];
+} __attribute__ ((aligned(32)));
 
+struct ehci_qh {
+	struct ehci_qh_hw	*hw;
 	/* the rest is HCD-private */
 	dma_addr_t		qh_dma;		/* address of qh */
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
@@ -336,6 +346,7 @@ struct ehci_qh {
 	u32			refcount;
 	unsigned		stamp;
 
+	u8			needs_rescan;	/* Dequeue during giveback */
 	u8			qh_state;
 #define	QH_STATE_LINKED		1		/* HC sees this */
 #define	QH_STATE_UNLINK		2		/* HC may still see this */
@@ -354,8 +365,10 @@ struct ehci_qh {
 	unsigned short		period;		/* polling interval */
 	unsigned short		start;		/* where polling starts */
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
+
 	struct usb_device	*dev;		/* access to TT */
-} __attribute__ ((aligned (32)));
+	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
+};
 
 /*-------------------------------------------------------------------------*/
 
@@ -384,22 +397,18 @@ struct ehci_iso_sched {
  * acts like a qh would, if EHCI had them for ISO.
  */
 struct ehci_iso_stream {
-	/* first two fields match QH, but info1 == 0 */
-	__hc32			hw_next;
-	__hc32			hw_info1;
+	/* first field matches ehci_hq, but is NULL */
+	struct ehci_qh_hw	*hw;
 
 	u32			refcount;
 	u8			bEndpointAddress;
 	u8			highspeed;
-	u16			depth;		/* depth in uframes */
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
 	struct usb_device	*udev;
 	struct usb_host_endpoint *ep;
 
 	/* output of (re)scheduling */
-	unsigned long		start;		/* jiffies */
-	unsigned long		rescheduled;
 	int			next_uframe;
 	__hc32			splits;
 
@@ -526,6 +535,16 @@ struct ehci_fstn {
 
 /*-------------------------------------------------------------------------*/
 
+/* Prepare the PORTSC wakeup flags during controller suspend/resume */
+
+#define ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup)	\
+		ehci_adjust_port_wakeup_flags(ehci, true, do_wakeup);
+
+#define ehci_prepare_ports_for_controller_resume(ehci)			\
+		ehci_adjust_port_wakeup_flags(ehci, false, false);
+
+/*-------------------------------------------------------------------------*/
+
 #ifdef CONFIG_USB_EHCI_ROOT_HUB_TT
 
 /*
@@ -542,24 +561,24 @@ static inline unsigned int
 ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 {
 	if (ehci_is_TDI(ehci)) {
-		switch ((portsc>>26)&3) {
+		switch ((portsc >> (ehci->has_hostpc ? 25 : 26)) & 3) {
 		case 0:
 			return 0;
 		case 1:
-			return (1<<USB_PORT_FEAT_LOWSPEED);
+			return USB_PORT_STAT_LOW_SPEED;
 		case 2:
 		default:
-			return (1<<USB_PORT_FEAT_HIGHSPEED);
+			return USB_PORT_STAT_HIGH_SPEED;
 		}
 	}
-	return (1<<USB_PORT_FEAT_HIGHSPEED);
+	return USB_PORT_STAT_HIGH_SPEED;
 }
 
 #else
 
 #define	ehci_is_TDI(e)			(0)
 
-#define	ehci_port_speed(ehci, portsc)	(1<<USB_PORT_FEAT_HIGHSPEED)
+#define	ehci_port_speed(ehci, portsc)	USB_PORT_STAT_HIGH_SPEED
 #endif
 
 /*-------------------------------------------------------------------------*/

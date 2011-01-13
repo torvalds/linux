@@ -98,19 +98,15 @@
 #define MSR_RI		__MASK(MSR_RI_LG)	/* Recoverable Exception */
 #define MSR_LE		__MASK(MSR_LE_LG)	/* Little Endian */
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC_BOOK3S_64)
+/* Server variant */
 #define MSR_		MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV
 #define MSR_KERNEL      MSR_ | MSR_SF
-
 #define MSR_USER32	MSR_ | MSR_PR | MSR_EE
 #define MSR_USER64	MSR_USER32 | MSR_SF
-
-#else /* 32-bit */
+#elif defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_8xx)
 /* Default MSR for kernel mode. */
-#ifndef MSR_KERNEL	/* reg_booke.h also defines this */
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
-#endif
-
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
 #endif
 
@@ -297,10 +293,12 @@
 #define HID1_ABE	(1<<10)		/* 7450 Address Broadcast Enable */
 #define HID1_PS		(1<<16)		/* 750FX PLL selection */
 #define SPRN_HID2	0x3F8		/* Hardware Implementation Register 2 */
+#define SPRN_HID2_GEKKO	0x398		/* Gekko HID2 Register */
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define SPRN_IABR2	0x3FA		/* 83xx */
 #define SPRN_IBCR	0x135		/* 83xx Insn Breakpoint Control Reg */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
+#define SPRN_HID4_GEKKO	0x3F3		/* Gekko HID4 */
 #define SPRN_HID5	0x3F6		/* 970 HID5 */
 #define SPRN_HID6	0x3F9	/* BE HID 6 */
 #define   HID6_LB	(0x0F<<12) /* Concurrent Large Page Modes */
@@ -430,6 +428,10 @@
 #define   SRR1_WAKEMT		0x00280000 /* mtctrl */
 #define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
 #define   SRR1_WAKETHERM	0x00100000 /* Thermal management interrupt */
+#define   SRR1_PROGFPE		0x00100000 /* Floating Point Enabled */
+#define   SRR1_PROGPRIV		0x00040000 /* Privileged instruction */
+#define   SRR1_PROGTRAP		0x00020000 /* Trap */
+#define   SRR1_PROGADDR		0x00010000 /* SRR0 contains subsequent addr */
 #define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
 #define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
 
@@ -465,6 +467,14 @@
 #define SPRN_VRSAVE	0x100	/* Vector Register Save Register */
 #define SPRN_XER	0x001	/* Fixed Point Exception Register */
 
+#define SPRN_MMCR0_GEKKO 0x3B8 /* Gekko Monitor Mode Control Register 0 */
+#define SPRN_MMCR1_GEKKO 0x3BC /* Gekko Monitor Mode Control Register 1 */
+#define SPRN_PMC1_GEKKO  0x3B9 /* Gekko Performance Monitor Control 1 */
+#define SPRN_PMC2_GEKKO  0x3BA /* Gekko Performance Monitor Control 2 */
+#define SPRN_PMC3_GEKKO  0x3BD /* Gekko Performance Monitor Control 3 */
+#define SPRN_PMC4_GEKKO  0x3BE /* Gekko Performance Monitor Control 4 */
+#define SPRN_WPAR_GEKKO  0x399 /* Gekko Write Pipe Address Register */
+
 #define SPRN_SCOMC	0x114	/* SCOM Access Control */
 #define SPRN_SCOMD	0x115	/* SCOM Access DATA */
 
@@ -493,6 +503,8 @@
 #define SPRN_MMCR1	798
 #define SPRN_MMCRA	0x312
 #define   MMCRA_SDSYNC	0x80000000UL /* SDAR synced with SIAR */
+#define   MMCRA_SDAR_DCACHE_MISS 0x40000000UL
+#define   MMCRA_SDAR_ERAT_MISS   0x20000000UL
 #define   MMCRA_SIHV	0x10000000UL /* state of MSR HV when SIAR set */
 #define   MMCRA_SIPR	0x08000000UL /* state of MSR PR when SIAR set */
 #define   MMCRA_SLOT	0x07000000UL /* SLOT bits (37-39) */
@@ -646,6 +658,137 @@
 #endif
 
 /*
+ * SPRG usage:
+ *
+ * All 64-bit:
+ *	- SPRG1 stores PACA pointer
+ *
+ * 64-bit server:
+ *	- SPRG0 unused (reserved for HV on Power4)
+ *	- SPRG2 scratch for exception vectors
+ *	- SPRG3 unused (user visible)
+ *
+ * 64-bit embedded
+ *	- SPRG0 generic exception scratch
+ *	- SPRG2 TLB exception stack
+ *	- SPRG3 unused (user visible)
+ *	- SPRG4 unused (user visible)
+ *	- SPRG6 TLB miss scratch (user visible, sorry !)
+ *	- SPRG7 critical exception scratch
+ *	- SPRG8 machine check exception scratch
+ *	- SPRG9 debug exception scratch
+ *
+ * All 32-bit:
+ *	- SPRG3 current thread_info pointer
+ *        (virtual on BookE, physical on others)
+ *
+ * 32-bit classic:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors
+ *	- SPRG2 indicator that we are in RTAS
+ *	- SPRG4 (603 only) pseudo TLB LRU data
+ *
+ * 32-bit 40x:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors
+ *	- SPRG2 scratch for exception vectors
+ *	- SPRG4 scratch for exception vectors (not 403)
+ *	- SPRG5 scratch for exception vectors (not 403)
+ *	- SPRG6 scratch for exception vectors (not 403)
+ *	- SPRG7 scratch for exception vectors (not 403)
+ *
+ * 32-bit 440 and FSL BookE:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors (*)
+ *	- SPRG2 scratch for crit interrupts handler
+ *	- SPRG4 scratch for exception vectors
+ *	- SPRG5 scratch for exception vectors
+ *	- SPRG6 scratch for machine check handler
+ *	- SPRG7 scratch for exception vectors
+ *	- SPRG9 scratch for debug vectors (e500 only)
+ *
+ *      Additionally, BookE separates "read" and "write"
+ *      of those registers. That allows to use the userspace
+ *      readable variant for reads, which can avoid a fault
+ *      with KVM type virtualization.
+ *
+ *      (*) Under KVM, the host SPRG1 is used to point to
+ *      the current VCPU data structure
+ *
+ * 32-bit 8xx:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors
+ *	- SPRG2 apparently unused but initialized
+ *
+ */
+#ifdef CONFIG_PPC64
+#define SPRN_SPRG_PACA 		SPRN_SPRG1
+#else
+#define SPRN_SPRG_THREAD 	SPRN_SPRG3
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG2
+#endif
+
+#ifdef CONFIG_PPC_BOOK3E_64
+#define SPRN_SPRG_MC_SCRATCH	SPRN_SPRG8
+#define SPRN_SPRG_CRIT_SCRATCH	SPRN_SPRG7
+#define SPRN_SPRG_DBG_SCRATCH	SPRN_SPRG9
+#define SPRN_SPRG_TLB_EXFRAME	SPRN_SPRG2
+#define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6
+#define SPRN_SPRG_GEN_SCRATCH	SPRN_SPRG0
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_32
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_RTAS		SPRN_SPRG2
+#define SPRN_SPRG_603_LRU	SPRN_SPRG4
+#endif
+
+#ifdef CONFIG_40x
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
+#define SPRN_SPRG_SCRATCH3	SPRN_SPRG4
+#define SPRN_SPRG_SCRATCH4	SPRN_SPRG5
+#define SPRN_SPRG_SCRATCH5	SPRN_SPRG6
+#define SPRN_SPRG_SCRATCH6	SPRN_SPRG7
+#endif
+
+#ifdef CONFIG_BOOKE
+#define SPRN_SPRG_RSCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_WSCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_RSCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_WSCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_RSCRATCH_CRIT	SPRN_SPRG2
+#define SPRN_SPRG_WSCRATCH_CRIT	SPRN_SPRG2
+#define SPRN_SPRG_RSCRATCH2	SPRN_SPRG4R
+#define SPRN_SPRG_WSCRATCH2	SPRN_SPRG4W
+#define SPRN_SPRG_RSCRATCH3	SPRN_SPRG5R
+#define SPRN_SPRG_WSCRATCH3	SPRN_SPRG5W
+#define SPRN_SPRG_RSCRATCH_MC	SPRN_SPRG6R
+#define SPRN_SPRG_WSCRATCH_MC	SPRN_SPRG6W
+#define SPRN_SPRG_RSCRATCH4	SPRN_SPRG7R
+#define SPRN_SPRG_WSCRATCH4	SPRN_SPRG7W
+#ifdef CONFIG_E200
+#define SPRN_SPRG_RSCRATCH_DBG	SPRN_SPRG6R
+#define SPRN_SPRG_WSCRATCH_DBG	SPRN_SPRG6W
+#else
+#define SPRN_SPRG_RSCRATCH_DBG	SPRN_SPRG9
+#define SPRN_SPRG_WSCRATCH_DBG	SPRN_SPRG9
+#endif
+#define SPRN_SPRG_RVCPU		SPRN_SPRG1
+#define SPRN_SPRG_WVCPU		SPRN_SPRG1
+#endif
+
+#ifdef CONFIG_8xx
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
+#endif
+
+/*
  * An mtfsf instruction with the L bit set. On CPUs that support this a
  * full 64bits of FPSCR is restored and on other CPUs the L bit is ignored.
  *
@@ -684,6 +827,7 @@
 #define PVR_403GC	0x00200200
 #define PVR_403GCX	0x00201400
 #define PVR_405GP	0x40110000
+#define PVR_476		0x11a52000
 #define PVR_STB03XXX	0x40310000
 #define PVR_NP405H	0x41410000
 #define PVR_NP405L	0x41610000
@@ -720,6 +864,9 @@
 #define PVR_8245	0x80811014
 #define PVR_8260	PVR_8240
 
+/* 476 Simulator seems to currently have the PVR of the 602... */
+#define PVR_476_ISS	0x00052000
+
 /* 64-bit processors */
 /* XXX the prefix should be PVR_, we'll do a global sweep to fix it one day */
 #define PV_NORTHSTAR	0x0033
@@ -743,7 +890,7 @@
 #ifndef __ASSEMBLY__
 #define mfmsr()		({unsigned long rval; \
 			asm volatile("mfmsr %0" : "=r" (rval)); rval;})
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")
 #define mtmsrd(v)	__mtmsrd((v), 0)
@@ -804,7 +951,14 @@
 #ifdef CONFIG_PPC64
 
 extern void ppc64_runlatch_on(void);
-extern void ppc64_runlatch_off(void);
+extern void __ppc64_runlatch_off(void);
+
+#define ppc64_runlatch_off()					\
+	do {							\
+		if (cpu_has_feature(CPU_FTR_CTRL) &&		\
+		    test_thread_flag(TIF_RUNLATCH))		\
+			__ppc64_runlatch_off();			\
+	} while (0)
 
 extern unsigned long scom970_read(unsigned int address);
 extern void scom970_write(unsigned int address, unsigned long value);

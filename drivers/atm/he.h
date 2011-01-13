@@ -67,11 +67,6 @@
 #define CONFIG_RBPL_BUFSIZE	4096
 #define RBPL_MASK(x)		(((unsigned long)(x))&((CONFIG_RBPL_SIZE<<3)-1))
 
-#define CONFIG_RBPS_SIZE	1024
-#define CONFIG_RBPS_THRESH	64
-#define CONFIG_RBPS_BUFSIZE	128
-#define RBPS_MASK(x)		(((unsigned long)(x))&((CONFIG_RBPS_SIZE<<3)-1))
-
 /* 5.1.3 initialize connection memory */
 
 #define CONFIG_RSRA		0x00000
@@ -203,36 +198,37 @@ struct he_hsp {
 	} group[HE_NUM_GROUPS];
 };
 
-/* figure 2.9 receive buffer pools */
+/*
+ * figure 2.9 receive buffer pools
+ *
+ * since a virtual address might be more than 32 bits, we store an index
+ * in the virt member of he_rbp.  NOTE: the lower six bits in the  rbrq
+ * addr member are used for buffer status further limiting us to 26 bits.
+ */
 
 struct he_rbp {
 	volatile u32 phys;
-	volatile u32 status;
+	volatile u32 idx;	/* virt */
 };
 
-/* NOTE: it is suggested that virt be the virtual address of the host
-   buffer.  on a 64-bit machine, this would not work.  Instead, we
-   store the real virtual address in another list, and store an index
-   (and buffer status) in the virt member.
-*/
+#define RBP_IDX_OFFSET 6
 
-#define RBP_INDEX_OFF	6
-#define RBP_INDEX(x)	(((long)(x) >> RBP_INDEX_OFF) & 0xffff)
-#define RBP_LOANED	0x80000000
-#define RBP_SMALLBUF	0x40000000
+/*
+ * the he dma engine will try to hold an extra 16 buffers in its local
+ * caches.  and add a couple buffers for safety.
+ */
 
-struct he_virt {
-	void *virt;
+#define RBPL_TABLE_SIZE (CONFIG_RBPL_SIZE + 16 + 2)
+
+struct he_buff {
+	struct list_head entry;
+	dma_addr_t mapping;
+	unsigned long len;
+	u8 data[];
 };
-
-#define RBPL_ALIGNMENT CONFIG_RBPL_SIZE
-#define RBPS_ALIGNMENT CONFIG_RBPS_SIZE
 
 #ifdef notyet
 struct he_group {
-	u32 rpbs_size, rpbs_qsize;
-	struct he_rbp rbps_ba;
-
 	u32 rpbl_size, rpbl_qsize;
 	struct he_rpb_entry *rbpl_ba;
 };
@@ -297,17 +293,14 @@ struct he_dev {
 	struct he_rbrq *rbrq_base, *rbrq_head;
 	int rbrq_peak;
 
+	struct he_buff **rbpl_virt;
+	unsigned long *rbpl_table;
+	unsigned long rbpl_hint;
 	struct pci_pool *rbpl_pool;
 	dma_addr_t rbpl_phys;
 	struct he_rbp *rbpl_base, *rbpl_tail;
-	struct he_virt *rbpl_virt;
+	struct list_head rbpl_outstanding;
 	int rbpl_peak;
-
-	struct pci_pool *rbps_pool;
-	dma_addr_t rbps_phys;
-	struct he_rbp *rbps_base, *rbps_tail;
-	struct he_virt *rbps_virt;
-	int rbps_peak;
 
 	dma_addr_t tbrq_phys;
 	struct he_tbrq *tbrq_base, *tbrq_head;
@@ -321,20 +314,12 @@ struct he_dev {
 	struct he_dev *next;
 };
 
-struct he_iovec
-{
-	u32 iov_base;
-	u32 iov_len;
-};
-
 #define HE_MAXIOV 20
 
 struct he_vcc
 {
-	struct he_iovec iov_head[HE_MAXIOV];
-	struct he_iovec *iov_tail;
+	struct list_head buffers;
 	int pdu_len;
-
 	int rc_index;
 
 	wait_queue_head_t rx_waitq;

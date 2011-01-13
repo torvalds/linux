@@ -19,9 +19,9 @@
 #define _LINUX_IO_MAPPING_H
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/page.h>
-#include <asm/iomap.h>
 
 /*
  * The io_mapping mechanism provides an abstraction for mapping
@@ -31,6 +31,8 @@
  */
 
 #ifdef CONFIG_HAVE_ATOMIC_IOMAP
+
+#include <asm/iomap.h>
 
 struct io_mapping {
 	resource_size_t base;
@@ -49,29 +51,37 @@ static inline struct io_mapping *
 io_mapping_create_wc(resource_size_t base, unsigned long size)
 {
 	struct io_mapping *iomap;
-
-	if (!is_io_mapping_possible(base, size))
-		return NULL;
+	pgprot_t prot;
 
 	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
 	if (!iomap)
-		return NULL;
+		goto out_err;
+
+	if (iomap_create_wc(base, size, &prot))
+		goto out_free;
 
 	iomap->base = base;
 	iomap->size = size;
-	iomap->prot = pgprot_writecombine(__pgprot(__PAGE_KERNEL));
+	iomap->prot = prot;
 	return iomap;
+
+out_free:
+	kfree(iomap);
+out_err:
+	return NULL;
 }
 
 static inline void
 io_mapping_free(struct io_mapping *mapping)
 {
+	iomap_free(mapping->base, mapping->size);
 	kfree(mapping);
 }
 
 /* Atomic map/unmap */
-static inline void *
-io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
+static inline void __iomem *
+io_mapping_map_atomic_wc(struct io_mapping *mapping,
+			 unsigned long offset)
 {
 	resource_size_t phys_addr;
 	unsigned long pfn;
@@ -79,16 +89,16 @@ io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
 	BUG_ON(offset >= mapping->size);
 	phys_addr = mapping->base + offset;
 	pfn = (unsigned long) (phys_addr >> PAGE_SHIFT);
-	return iomap_atomic_prot_pfn(pfn, KM_USER0, mapping->prot);
+	return iomap_atomic_prot_pfn(pfn, mapping->prot);
 }
 
 static inline void
-io_mapping_unmap_atomic(void *vaddr)
+io_mapping_unmap_atomic(void __iomem *vaddr)
 {
-	iounmap_atomic(vaddr, KM_USER0);
+	iounmap_atomic(vaddr);
 }
 
-static inline void *
+static inline void __iomem *
 io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
 {
 	resource_size_t phys_addr;
@@ -100,7 +110,7 @@ io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
 }
 
 static inline void
-io_mapping_unmap(void *vaddr)
+io_mapping_unmap(void __iomem *vaddr)
 {
 	iounmap(vaddr);
 }
@@ -114,36 +124,37 @@ struct io_mapping;
 static inline struct io_mapping *
 io_mapping_create_wc(resource_size_t base, unsigned long size)
 {
-	return (struct io_mapping *) ioremap_wc(base, size);
+	return (struct io_mapping __force *) ioremap_wc(base, size);
 }
 
 static inline void
 io_mapping_free(struct io_mapping *mapping)
 {
-	iounmap(mapping);
+	iounmap((void __force __iomem *) mapping);
 }
 
 /* Atomic map/unmap */
-static inline void *
-io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
+static inline void __iomem *
+io_mapping_map_atomic_wc(struct io_mapping *mapping,
+			 unsigned long offset)
 {
-	return ((char *) mapping) + offset;
+	return ((char __force __iomem *) mapping) + offset;
 }
 
 static inline void
-io_mapping_unmap_atomic(void *vaddr)
+io_mapping_unmap_atomic(void __iomem *vaddr)
 {
 }
 
 /* Non-atomic map/unmap */
-static inline void *
+static inline void __iomem *
 io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
 {
-	return ((char *) mapping) + offset;
+	return ((char __force __iomem *) mapping) + offset;
 }
 
 static inline void
-io_mapping_unmap(void *vaddr)
+io_mapping_unmap(void __iomem *vaddr)
 {
 }
 

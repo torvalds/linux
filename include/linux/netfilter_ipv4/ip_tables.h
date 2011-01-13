@@ -27,12 +27,49 @@
 
 #include <linux/netfilter/x_tables.h>
 
+#ifndef __KERNEL__
 #define IPT_FUNCTION_MAXNAMELEN XT_FUNCTION_MAXNAMELEN
 #define IPT_TABLE_MAXNAMELEN XT_TABLE_MAXNAMELEN
 #define ipt_match xt_match
 #define ipt_target xt_target
 #define ipt_table xt_table
 #define ipt_get_revision xt_get_revision
+#define ipt_entry_match xt_entry_match
+#define ipt_entry_target xt_entry_target
+#define ipt_standard_target xt_standard_target
+#define ipt_error_target xt_error_target
+#define ipt_counters xt_counters
+#define IPT_CONTINUE XT_CONTINUE
+#define IPT_RETURN XT_RETURN
+
+/* This group is older than old (iptables < v1.4.0-rc1~89) */
+#include <linux/netfilter/xt_tcpudp.h>
+#define ipt_udp xt_udp
+#define ipt_tcp xt_tcp
+#define IPT_TCP_INV_SRCPT	XT_TCP_INV_SRCPT
+#define IPT_TCP_INV_DSTPT	XT_TCP_INV_DSTPT
+#define IPT_TCP_INV_FLAGS	XT_TCP_INV_FLAGS
+#define IPT_TCP_INV_OPTION	XT_TCP_INV_OPTION
+#define IPT_TCP_INV_MASK	XT_TCP_INV_MASK
+#define IPT_UDP_INV_SRCPT	XT_UDP_INV_SRCPT
+#define IPT_UDP_INV_DSTPT	XT_UDP_INV_DSTPT
+#define IPT_UDP_INV_MASK	XT_UDP_INV_MASK
+
+/* The argument to IPT_SO_ADD_COUNTERS. */
+#define ipt_counters_info xt_counters_info
+/* Standard return verdict, or do jump. */
+#define IPT_STANDARD_TARGET XT_STANDARD_TARGET
+/* Error verdict. */
+#define IPT_ERROR_TARGET XT_ERROR_TARGET
+
+/* fn returns 0 to continue iteration */
+#define IPT_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct ipt_entry, e, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define IPT_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
+#endif
 
 /* Yes, Virginia, you have to zero the padding. */
 struct ipt_ip {
@@ -52,12 +89,6 @@ struct ipt_ip {
 	u_int8_t invflags;
 };
 
-#define ipt_entry_match xt_entry_match
-#define ipt_entry_target xt_entry_target
-#define ipt_standard_target xt_standard_target
-
-#define ipt_counters xt_counters
-
 /* Values for "flag" field in struct ipt_ip (general ip structure). */
 #define IPT_F_FRAG		0x01	/* Set if rule is a fragment rule */
 #define IPT_F_GOTO		0x02	/* Set if jump is a goto */
@@ -76,8 +107,7 @@ struct ipt_ip {
 /* This structure defines each of the firewall rules.  Consists of 3
    parts which are 1) general IP header stuff 2) match specific
    stuff 3) the target to perform if the rule matches */
-struct ipt_entry
-{
+struct ipt_entry {
 	struct ipt_ip ip;
 
 	/* Mark with fields that we care about. */
@@ -117,26 +147,8 @@ struct ipt_entry
 #define IPT_SO_GET_REVISION_TARGET	(IPT_BASE_CTL + 3)
 #define IPT_SO_GET_MAX			IPT_SO_GET_REVISION_TARGET
 
-#define IPT_CONTINUE XT_CONTINUE
-#define IPT_RETURN XT_RETURN
-
-#include <linux/netfilter/xt_tcpudp.h>
-#define ipt_udp xt_udp
-#define ipt_tcp xt_tcp
-
-#define IPT_TCP_INV_SRCPT	XT_TCP_INV_SRCPT
-#define IPT_TCP_INV_DSTPT	XT_TCP_INV_DSTPT
-#define IPT_TCP_INV_FLAGS	XT_TCP_INV_FLAGS
-#define IPT_TCP_INV_OPTION	XT_TCP_INV_OPTION
-#define IPT_TCP_INV_MASK	XT_TCP_INV_MASK
-
-#define IPT_UDP_INV_SRCPT	XT_UDP_INV_SRCPT
-#define IPT_UDP_INV_DSTPT	XT_UDP_INV_DSTPT
-#define IPT_UDP_INV_MASK	XT_UDP_INV_MASK
-
 /* ICMP matching stuff */
-struct ipt_icmp
-{
+struct ipt_icmp {
 	u_int8_t type;				/* type to match */
 	u_int8_t code[2];			/* range of code */
 	u_int8_t invflags;			/* Inverse flags */
@@ -146,10 +158,9 @@ struct ipt_icmp
 #define IPT_ICMP_INV	0x01	/* Invert the sense of type/code test */
 
 /* The argument to IPT_SO_GET_INFO */
-struct ipt_getinfo
-{
+struct ipt_getinfo {
 	/* Which table: caller fills this in. */
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Kernel fills these in. */
 	/* Which hook entry points are valid: bitmask */
@@ -169,10 +180,9 @@ struct ipt_getinfo
 };
 
 /* The argument to IPT_SO_SET_REPLACE. */
-struct ipt_replace
-{
+struct ipt_replace {
 	/* Which table. */
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* Which hook entry points are valid: bitmask.  You can't
            change this. */
@@ -200,14 +210,10 @@ struct ipt_replace
 	struct ipt_entry entries[0];
 };
 
-/* The argument to IPT_SO_ADD_COUNTERS. */
-#define ipt_counters_info xt_counters_info
-
 /* The argument to IPT_SO_GET_ENTRIES. */
-struct ipt_get_entries
-{
+struct ipt_get_entries {
 	/* Which table: user fills this in. */
-	char name[IPT_TABLE_MAXNAMELEN];
+	char name[XT_TABLE_MAXNAMELEN];
 
 	/* User fills this in: total entry size. */
 	unsigned int size;
@@ -216,25 +222,12 @@ struct ipt_get_entries
 	struct ipt_entry entrytable[0];
 };
 
-/* Standard return verdict, or do jump. */
-#define IPT_STANDARD_TARGET XT_STANDARD_TARGET
-/* Error verdict. */
-#define IPT_ERROR_TARGET XT_ERROR_TARGET
-
 /* Helper functions */
-static __inline__ struct ipt_entry_target *
+static __inline__ struct xt_entry_target *
 ipt_get_target(struct ipt_entry *e)
 {
 	return (void *)e + e->target_offset;
 }
-
-/* fn returns 0 to continue iteration */
-#define IPT_MATCH_ITERATE(e, fn, args...) \
-	XT_MATCH_ITERATE(struct ipt_entry, e, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define IPT_ENTRY_ITERATE(entries, size, fn, args...) \
-	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
 
 /*
  *	Main firewall chains definitions and global var's definitions.
@@ -245,27 +238,19 @@ ipt_get_target(struct ipt_entry *e)
 extern void ipt_init(void) __init;
 
 extern struct xt_table *ipt_register_table(struct net *net,
-					   struct xt_table *table,
+					   const struct xt_table *table,
 					   const struct ipt_replace *repl);
-extern void ipt_unregister_table(struct xt_table *table);
+extern void ipt_unregister_table(struct net *net, struct xt_table *table);
 
 /* Standard entry. */
-struct ipt_standard
-{
+struct ipt_standard {
 	struct ipt_entry entry;
-	struct ipt_standard_target target;
+	struct xt_standard_target target;
 };
 
-struct ipt_error_target
-{
-	struct ipt_entry_target target;
-	char errorname[IPT_FUNCTION_MAXNAMELEN];
-};
-
-struct ipt_error
-{
+struct ipt_error {
 	struct ipt_entry entry;
-	struct ipt_error_target target;
+	struct xt_error_target target;
 };
 
 #define IPT_ENTRY_INIT(__size)						       \
@@ -277,7 +262,7 @@ struct ipt_error
 #define IPT_STANDARD_INIT(__verdict)					       \
 {									       \
 	.entry		= IPT_ENTRY_INIT(sizeof(struct ipt_standard)),	       \
-	.target		= XT_TARGET_INIT(IPT_STANDARD_TARGET,		       \
+	.target		= XT_TARGET_INIT(XT_STANDARD_TARGET,		       \
 					 sizeof(struct xt_standard_target)),   \
 	.target.verdict	= -(__verdict) - 1,				       \
 }
@@ -285,24 +270,22 @@ struct ipt_error
 #define IPT_ERROR_INIT							       \
 {									       \
 	.entry		= IPT_ENTRY_INIT(sizeof(struct ipt_error)),	       \
-	.target		= XT_TARGET_INIT(IPT_ERROR_TARGET,		       \
-					 sizeof(struct ipt_error_target)),     \
+	.target		= XT_TARGET_INIT(XT_ERROR_TARGET,		       \
+					 sizeof(struct xt_error_target)),      \
 	.target.errorname = "ERROR",					       \
 }
 
+extern void *ipt_alloc_initial_table(const struct xt_table *);
 extern unsigned int ipt_do_table(struct sk_buff *skb,
 				 unsigned int hook,
 				 const struct net_device *in,
 				 const struct net_device *out,
 				 struct xt_table *table);
 
-#define IPT_ALIGN(s) XT_ALIGN(s)
-
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
 
-struct compat_ipt_entry
-{
+struct compat_ipt_entry {
 	struct ipt_ip ip;
 	compat_uint_t nfcache;
 	u_int16_t target_offset;
@@ -313,26 +296,11 @@ struct compat_ipt_entry
 };
 
 /* Helper functions */
-static inline struct ipt_entry_target *
+static inline struct xt_entry_target *
 compat_ipt_get_target(struct compat_ipt_entry *e)
 {
 	return (void *)e + e->target_offset;
 }
-
-#define COMPAT_IPT_ALIGN(s) 	COMPAT_XT_ALIGN(s)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IPT_MATCH_ITERATE(e, fn, args...) \
-	XT_MATCH_ITERATE(struct compat_ipt_entry, e, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IPT_ENTRY_ITERATE(entries, size, fn, args...) \
-	XT_ENTRY_ITERATE(struct compat_ipt_entry, entries, size, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
-	XT_ENTRY_ITERATE_CONTINUE(struct compat_ipt_entry, entries, size, n, \
-				  fn, ## args)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/

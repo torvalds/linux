@@ -1381,6 +1381,30 @@ static void send_break(ser_info_t *info, unsigned int duration)
 }
 
 
+/*
+ * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
+ * Return: write counters to the user passed counter struct
+ * NB: both 1->0 and 0->1 transitions are counted except for
+ *     RI where only 0->1 is counted.
+ */
+static int rs_360_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	ser_info_t *info = (ser_info_t *)tty->driver_data;
+	struct async_icount cnow;
+
+	local_irq_disable();
+	cnow = info->state->icount;
+	local_irq_enable();
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+
+	return 0;
+}
+
 static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
@@ -1394,7 +1418,7 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
 		return -ENODEV;
 
-	if ((cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 		    return -EIO;
 	}
@@ -1477,31 +1501,6 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 			return 0;
 #endif
 
-		/* 
-		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-		 * Return: write counters to the user passed counter struct
-		 * NB: both 1->0 and 0->1 transitions are counted except for
-		 *     RI where only 0->1 is counted.
-		 */
-		case TIOCGICOUNT:
-			local_irq_disable();
-			cnow = info->state->icount;
-			local_irq_enable();
-			p_cuser = (struct serial_icounter_struct *) arg;
-/* 			error = put_user(cnow.cts, &p_cuser->cts); */
-/* 			if (error) return error; */
-/* 			error = put_user(cnow.dsr, &p_cuser->dsr); */
-/* 			if (error) return error; */
-/* 			error = put_user(cnow.rng, &p_cuser->rng); */
-/* 			if (error) return error; */
-/* 			error = put_user(cnow.dcd, &p_cuser->dcd); */
-/* 			if (error) return error; */
-
-			put_user(cnow.cts, &p_cuser->cts);
-			put_user(cnow.dsr, &p_cuser->dsr);
-			put_user(cnow.rng, &p_cuser->rng);
-			put_user(cnow.dcd, &p_cuser->dcd);
-			return 0;
 
 		default:
 			return -ENOIOCTLCMD;
@@ -1705,7 +1704,6 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 	printk("jiff=%lu...", jiffies);
 #endif
 
-	lock_kernel();
 	/* We go through the loop at least once because we can't tell
 	 * exactly when the last character exits the shifter.  There can
 	 * be at least two characters waiting to be sent after the buffers
@@ -1734,7 +1732,6 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 			bdp--;
 	} while (bdp->status & BD_SC_READY);
 	current->state = TASK_RUNNING;
-	unlock_kernel();
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
 #endif
@@ -1862,7 +1859,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		printk("block_til_ready blocking: ttys%d, count = %d\n",
 		       info->line, state->count);
 #endif
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&info->open_wait, &wait);
@@ -2649,7 +2648,7 @@ static int __init rs_360_init(void)
 				sup->tfcr = SMC_EB;
 
 				/* Set this to 1 for now, so we get single
-				 * character interrupts.  Using idle charater
+				 * character interrupts.  Using idle character
 				 * time requires some additional tuning.
 				 */
 				sup->mrblr = 1;
@@ -2728,7 +2727,7 @@ static int __init rs_360_init(void)
 				up->tfcr = SMC_EB;
 
 				/* Set this to 1 for now, so we get single
-				 * character interrupts.  Using idle charater
+				 * character interrupts.  Using idle character
 				 * time requires some additional tuning.
 				 */
 				up->mrblr = 1;
@@ -2886,7 +2885,7 @@ int serial_console_setup( struct console *co, char *options)
 		sup->tfcr = SMC_EB;
 
 		/* Set this to 1 for now, so we get single
-		 * character interrupts.  Using idle charater
+		 * character interrupts.  Using idle character
 		 * time requires some additional tuning.
 		 */
 		sup->mrblr = 1;

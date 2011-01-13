@@ -70,7 +70,7 @@ eb64p_end_irq(unsigned int irq)
 }
 
 static struct irq_chip eb64p_irq_type = {
-	.typename	= "EB64P",
+	.name		= "EB64P",
 	.startup	= eb64p_startup_irq,
 	.shutdown	= eb64p_disable_irq,
 	.enable		= eb64p_enable_irq,

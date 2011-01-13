@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-main.h: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O
+ * vxge-main.h: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O
  *              Virtualized Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #ifndef VXGE_MAIN_H
 #define VXGE_MAIN_H
@@ -21,7 +21,7 @@
 
 #define VXGE_DRIVER_NAME		"vxge"
 #define VXGE_DRIVER_VENDOR		"Neterion, Inc"
-#define VXGE_DRIVER_VERSION_MAJOR 0
+#define VXGE_DRIVER_FW_VERSION_MAJOR	1
 
 #define DRV_VERSION	VXGE_VERSION_MAJOR"."VXGE_VERSION_MINOR"."\
 	VXGE_VERSION_FIX"."VXGE_VERSION_BUILD"-"\
@@ -29,8 +29,12 @@
 
 #define PCI_DEVICE_ID_TITAN_WIN		0x5733
 #define PCI_DEVICE_ID_TITAN_UNI		0x5833
+#define VXGE_HW_TITAN1_PCI_REVISION	1
+#define VXGE_HW_TITAN1A_PCI_REVISION	2
+
 #define	VXGE_USE_DEFAULT		0xffffffff
 #define VXGE_HW_VPATH_MSIX_ACTIVE	4
+#define VXGE_ALARM_MSIX_ID		2
 #define VXGE_HW_RXSYNC_FREQ_CNT		4
 #define VXGE_LL_WATCH_DOG_TIMEOUT	(15 * HZ)
 #define VXGE_LL_RX_COPY_THRESHOLD	256
@@ -52,11 +56,13 @@
 
 #define VXGE_TTI_BTIMER_VAL 250000
 
-#define VXGE_TTI_LTIMER_VAL 1000
-#define VXGE_TTI_RTIMER_VAL 0
-#define VXGE_RTI_BTIMER_VAL 250
-#define VXGE_RTI_LTIMER_VAL 100
-#define VXGE_RTI_RTIMER_VAL 0
+#define VXGE_TTI_LTIMER_VAL	1000
+#define VXGE_T1A_TTI_LTIMER_VAL	80
+#define VXGE_TTI_RTIMER_VAL	0
+#define VXGE_T1A_TTI_RTIMER_VAL	400
+#define VXGE_RTI_BTIMER_VAL	250
+#define VXGE_RTI_LTIMER_VAL	100
+#define VXGE_RTI_RTIMER_VAL	0
 #define VXGE_FIFO_INDICATE_MAX_PKTS VXGE_DEF_FIFO_LENGTH
 #define VXGE_ISR_POLLING_CNT 	8
 #define VXGE_MAX_CONFIG_DEV	0xFF
@@ -75,19 +81,42 @@
 #define TTI_TX_UFC_B	40
 #define TTI_TX_UFC_C	60
 #define TTI_TX_UFC_D	100
+#define TTI_T1A_TX_UFC_A	30
+#define TTI_T1A_TX_UFC_B	80
+/* Slope - (max_mtu - min_mtu)/(max_mtu_ufc - min_mtu_ufc) */
+/* Slope - 93 */
+/* 60 - 9k Mtu, 140 - 1.5k mtu */
+#define TTI_T1A_TX_UFC_C(mtu)	(60 + ((VXGE_HW_MAX_MTU - mtu) / 93))
 
-#define RTI_RX_URANGE_A	5
-#define RTI_RX_URANGE_B	15
-#define RTI_RX_URANGE_C	40
-#define RTI_RX_UFC_A	1
-#define RTI_RX_UFC_B	5
-#define RTI_RX_UFC_C	10
-#define RTI_RX_UFC_D	15
+/* Slope - 37 */
+/* 100 - 9k Mtu, 300 - 1.5k mtu */
+#define TTI_T1A_TX_UFC_D(mtu)	(100 + ((VXGE_HW_MAX_MTU - mtu) / 37))
+
+
+#define RTI_RX_URANGE_A		5
+#define RTI_RX_URANGE_B		15
+#define RTI_RX_URANGE_C		40
+#define RTI_T1A_RX_URANGE_A	1
+#define RTI_T1A_RX_URANGE_B	20
+#define RTI_T1A_RX_URANGE_C	50
+#define RTI_RX_UFC_A		1
+#define RTI_RX_UFC_B		5
+#define RTI_RX_UFC_C		10
+#define RTI_RX_UFC_D		15
+#define RTI_T1A_RX_UFC_B	20
+#define RTI_T1A_RX_UFC_C	50
+#define RTI_T1A_RX_UFC_D	60
+
 
 /* Milli secs timer period */
 #define VXGE_TIMER_DELAY		10000
 
 #define VXGE_LL_MAX_FRAME_SIZE(dev) ((dev)->mtu + VXGE_HW_MAC_HEADER_MAX_SIZE)
+
+#define is_sriov(function_mode) \
+	((function_mode == VXGE_HW_FUNCTION_MODE_SRIOV) || \
+	(function_mode == VXGE_HW_FUNCTION_MODE_SRIOV_8) || \
+	(function_mode == VXGE_HW_FUNCTION_MODE_SRIOV_4))
 
 enum vxge_reset_event {
 	/* reset events */
@@ -112,7 +141,6 @@ enum vxge_mac_addr_state {
 struct vxge_drv_config {
 	int config_dev_cnt;
 	int total_dev_cnt;
-	unsigned long inta_dev_open;
 	int g_no_cpus;
 	unsigned int vpath_per_dev;
 };
@@ -140,15 +168,15 @@ struct vxge_config {
 
 	int		addr_learn_en;
 
-	int		rth_steering;
-	int		rth_algorithm;
-	int		rth_hash_type_tcpipv4;
-	int		rth_hash_type_ipv4;
-	int		rth_hash_type_tcpipv6;
-	int		rth_hash_type_ipv6;
-	int		rth_hash_type_tcpipv6ex;
-	int		rth_hash_type_ipv6ex;
-	int		rth_bkt_sz;
+	u32		rth_steering:2,
+			rth_algorithm:2,
+			rth_hash_type_tcpipv4:1,
+			rth_hash_type_ipv4:1,
+			rth_hash_type_tcpipv6:1,
+			rth_hash_type_ipv6:1,
+			rth_hash_type_tcpipv6ex:1,
+			rth_hash_type_ipv6ex:1,
+			rth_bkt_sz:8;
 	int		rth_jhash_golden_ratio;
 	int		tx_steering_type;
 	int 	fifo_indicate_max_pkts;
@@ -167,7 +195,6 @@ struct vxge_msix_entry {
 
 struct vxge_sw_stats {
 	/* Network Stats (interface stats) */
-	struct net_device_stats net_stats;
 
 	/* Tx */
 	u64 tx_frms;
@@ -212,21 +239,13 @@ struct vxge_fifo_stats {
 };
 
 struct vxge_fifo {
-	struct net_device	*ndev;
-	struct pci_dev		*pdev;
+	struct net_device *ndev;
+	struct pci_dev *pdev;
 	struct __vxge_hw_fifo *handle;
+	struct netdev_queue *txq;
 
-	/* The vpath id maintained in the driver -
-	 * 0 to 'maximum_vpaths_in_function - 1'
-	 */
-	int driver_id;
 	int tx_steering_type;
 	int indicate_max_pkts;
-	spinlock_t tx_lock;
-	/* flag used to maintain queue state when MULTIQ is not enabled */
-#define VPATH_QUEUE_START       0
-#define VPATH_QUEUE_STOP        1
-	int queue_state;
 
 	/* Tx stats */
 	struct vxge_fifo_stats stats;
@@ -252,14 +271,16 @@ struct vxge_ring {
 	 */
 	int driver_id;
 
-	 /* copy of the flag indicating whether rx_csum is to be used */
-	u32 rx_csum;
+	/* copy of the flag indicating whether rx_csum is to be used */
+	u32 rx_csum:1,
+	    rx_hwts:1;
 
 	int pkts_processed;
 	int budget;
 	int gro_enable;
 
 	struct napi_struct napi;
+	struct napi_struct *napi_p;
 
 #define VXGE_MAX_MAC_ADDR_COUNT		30
 
@@ -273,7 +294,6 @@ struct vxge_ring {
 } ____cacheline_aligned;
 
 struct vxge_vpath {
-
 	struct vxge_fifo fifo;
 	struct vxge_ring ring;
 
@@ -285,8 +305,8 @@ struct vxge_vpath {
 	int is_configured;
 	int is_open;
 	struct vxgedev *vdev;
-	u8 (macaddr)[ETH_ALEN];
-	u8 (macmask)[ETH_ALEN];
+	u8 macaddr[ETH_ALEN];
+	u8 macmask[ETH_ALEN];
 
 #define VXGE_MAX_LEARN_MAC_ADDR_CNT	2048
 	/* mac addresses currently programmed into NIC */
@@ -331,7 +351,9 @@ struct vxgedev {
 	u16		all_multi_flg;
 
 	 /* A flag indicating whether rx_csum is to be used or not. */
-	u32	rx_csum;
+	u32	rx_csum:1,
+		rx_hwts:1,
+		titan1:1;
 
 	struct vxge_msix_entry *vxge_entries;
 	struct msix_entry *entries;
@@ -363,7 +385,6 @@ struct vxgedev {
 
 	struct __vxge_hw_vpath_handle *vp_handles[VXGE_HW_MAX_VIRTUAL_PATHS];
 	void __iomem *bar0;
-	void __iomem *bar1;
 	struct vxge_sw_stats	stats;
 	int		mtu;
 	/* Below variables are used for vpath selection to transmit a packet */
@@ -374,10 +395,12 @@ struct vxgedev {
 	u32 		level_err;
 	u32 		level_trace;
 	char		fw_version[VXGE_HW_FW_STRLEN];
+	struct work_struct reset_task;
 };
 
 struct vxge_rx_priv {
 	struct sk_buff		*skb;
+	unsigned char		*skb_data;
 	dma_addr_t		data_dma;
 	dma_addr_t		data_size;
 };
@@ -391,8 +414,6 @@ struct vxge_tx_priv {
 	static int p = val; \
 	module_param(p, int, 0)
 
-#define vxge_os_bug(fmt...)		{ printk(fmt); BUG(); }
-
 #define vxge_os_timer(timer, handle, arg, exp) do { \
 		init_timer(&timer); \
 		timer.function = handle; \
@@ -400,71 +421,10 @@ struct vxge_tx_priv {
 		mod_timer(&timer, (jiffies + exp)); \
 	} while (0);
 
-int __devinit vxge_device_register(struct __vxge_hw_device *devh,
-				    struct vxge_config *config,
-				    int high_dma, int no_of_vpath,
-				    struct vxgedev **vdev);
-
-void vxge_device_unregister(struct __vxge_hw_device *devh);
-
-void vxge_vpath_intr_enable(struct vxgedev *vdev, int vp_id);
-
-void vxge_vpath_intr_disable(struct vxgedev *vdev, int vp_id);
-
-void vxge_callback_link_up(struct __vxge_hw_device *devh);
-
-void vxge_callback_link_down(struct __vxge_hw_device *devh);
-
-enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
-	struct macInfo *mac);
-
-int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac);
-
-int vxge_reset(struct vxgedev *vdev);
-
-enum vxge_hw_status
-vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
-	u8 t_code, void *userdata);
-
-enum vxge_hw_status
-vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
-	enum vxge_hw_fifo_tcode t_code, void *userdata, void **skb_ptr);
-
-int vxge_close(struct net_device *dev);
-
-int vxge_open(struct net_device *dev);
-
-void vxge_close_vpaths(struct vxgedev *vdev, int index);
-
-int vxge_open_vpaths(struct vxgedev *vdev);
-
+void vxge_initialize_ethtool_ops(struct net_device *ndev);
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
+int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override);
 
-void vxge_stop_all_tx_queue(struct vxgedev *vdev);
-
-void vxge_stop_tx_queue(struct vxge_fifo *fifo);
-
-void vxge_start_all_tx_queue(struct vxgedev *vdev);
-
-void vxge_wake_tx_queue(struct vxge_fifo *fifo, struct sk_buff *skb);
-
-enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
-	struct macInfo *mac);
-
-enum vxge_hw_status vxge_del_mac_addr(struct vxgedev *vdev,
-	struct macInfo *mac);
-
-int vxge_mac_list_add(struct vxge_vpath *vpath,
-	struct macInfo *mac);
-
-void vxge_free_mac_add_list(struct vxge_vpath *vpath);
-
-enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath);
-
-enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath);
-
-int do_vxge_close(struct net_device *dev, int do_io);
-extern void initialize_ethtool_ops(struct net_device *ndev);
 /**
  * #define VXGE_DEBUG_INIT: debug for initialization functions
  * #define VXGE_DEBUG_TX	 : debug transmit related functions

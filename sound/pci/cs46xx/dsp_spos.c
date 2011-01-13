@@ -225,39 +225,25 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 {
 	struct dsp_spos_instance * ins = kzalloc(sizeof(struct dsp_spos_instance), GFP_KERNEL);
 
-	if (ins == NULL) 
+	if (ins == NULL)
 		return NULL;
 
 	/* better to use vmalloc for this big table */
-	ins->symbol_table.nsymbols = 0;
 	ins->symbol_table.symbols = vmalloc(sizeof(struct dsp_symbol_entry) *
 					    DSP_MAX_SYMBOLS);
-	ins->symbol_table.highest_frag_index = 0;
-
-	if (ins->symbol_table.symbols == NULL) {
+	ins->code.data = kmalloc(DSP_CODE_BYTE_SIZE, GFP_KERNEL);
+	ins->modules = kmalloc(sizeof(struct dsp_module_desc) * DSP_MAX_MODULES, GFP_KERNEL);
+	if (!ins->symbol_table.symbols || !ins->code.data || !ins->modules) {
 		cs46xx_dsp_spos_destroy(chip);
 		goto error;
 	}
-
+	ins->symbol_table.nsymbols = 0;
+	ins->symbol_table.highest_frag_index = 0;
 	ins->code.offset = 0;
 	ins->code.size = 0;
-	ins->code.data = kmalloc(DSP_CODE_BYTE_SIZE, GFP_KERNEL);
-
-	if (ins->code.data == NULL) {
-		cs46xx_dsp_spos_destroy(chip);
-		goto error;
-	}
-
 	ins->nscb = 0;
 	ins->ntask = 0;
-
 	ins->nmodules = 0;
-	ins->modules = kmalloc(sizeof(struct dsp_module_desc) * DSP_MAX_MODULES, GFP_KERNEL);
-
-	if (ins->modules == NULL) {
-		cs46xx_dsp_spos_destroy(chip);
-		goto error;
-	}
 
 	/* default SPDIF input sample rate
 	   to 48000 khz */
@@ -271,8 +257,8 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 
 	/* set left and right validity bits and
 	   default channel status */
-	ins->spdif_csuv_default = 
-		ins->spdif_csuv_stream =  
+	ins->spdif_csuv_default =
+		ins->spdif_csuv_stream =
 	 /* byte 0 */  ((unsigned int)_wrap_all_bits(  (SNDRV_PCM_DEFAULT_CON_SPDIF        & 0xff)) << 24) |
 	 /* byte 1 */  ((unsigned int)_wrap_all_bits( ((SNDRV_PCM_DEFAULT_CON_SPDIF >> 8) & 0xff)) << 16) |
 	 /* byte 3 */   (unsigned int)_wrap_all_bits(  (SNDRV_PCM_DEFAULT_CON_SPDIF >> 24) & 0xff) |
@@ -281,6 +267,9 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 	return ins;
 
 error:
+	kfree(ins->modules);
+	kfree(ins->code.data);
+	vfree(ins->symbol_table.symbols);
 	kfree(ins);
 	return NULL;
 }
@@ -298,6 +287,9 @@ void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 		if (ins->scbs[i].deleted) continue;
 
 		cs46xx_dsp_proc_free_scb_desc ( (ins->scbs + i) );
+#ifdef CONFIG_PM
+		kfree(ins->scbs[i].data);
+#endif
 	}
 
 	kfree(ins->code.data);
@@ -974,13 +966,11 @@ static struct dsp_scb_descriptor * _map_scb (struct snd_cs46xx *chip, char * nam
 
 	index = find_free_scb_index (ins);
 
+	memset(&ins->scbs[index], 0, sizeof(ins->scbs[index]));
 	strcpy(ins->scbs[index].scb_name, name);
 	ins->scbs[index].address = dest;
 	ins->scbs[index].index = index;
-	ins->scbs[index].proc_info = NULL;
 	ins->scbs[index].ref_count = 1;
-	ins->scbs[index].deleted = 0;
-	spin_lock_init(&ins->scbs[index].lock);
 
 	desc = (ins->scbs + index);
 	ins->scbs[index].scb_symbol = add_symbol (chip, name, dest, SYMBOL_PARAMETER);
@@ -1022,10 +1012,19 @@ _map_task_tree (struct snd_cs46xx *chip, char * name, u32 dest, u32 size)
 	return desc;
 }
 
+#define SCB_BYTES	(0x10 * 4)
+
 struct dsp_scb_descriptor *
 cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32 dest)
 {
 	struct dsp_scb_descriptor * desc;
+
+#ifdef CONFIG_PM
+	/* copy the data for resume */
+	scb_data = kmemdup(scb_data, SCB_BYTES, GFP_KERNEL);
+	if (!scb_data)
+		return NULL;
+#endif
 
 	desc = _map_scb (chip,name,dest);
 	if (desc) {
@@ -1033,6 +1032,9 @@ cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32
 		_dsp_create_scb(chip,scb_data,dest);
 	} else {
 		snd_printk(KERN_ERR "dsp_spos: failed to map SCB\n");
+#ifdef CONFIG_PM
+		kfree(scb_data);
+#endif
 	}
 
 	return desc;
@@ -1988,7 +1990,28 @@ int cs46xx_dsp_resume(struct snd_cs46xx * chip)
 			continue;
 		_dsp_create_scb(chip, s->data, s->address);
 	}
-
+	for (i = 0; i < ins->nscb; i++) {
+		struct dsp_scb_descriptor *s = &ins->scbs[i];
+		if (s->deleted)
+			continue;
+		if (s->updated)
+			cs46xx_dsp_spos_update_scb(chip, s);
+		if (s->volume_set)
+			cs46xx_dsp_scb_set_volume(chip, s,
+						  s->volume[0], s->volume[1]);
+	}
+	if (ins->spdif_status_out & DSP_SPDIF_STATUS_HW_ENABLED) {
+		cs46xx_dsp_enable_spdif_hw(chip);
+		snd_cs46xx_poke(chip, (ins->ref_snoop_scb->address + 2) << 2,
+				(OUTPUT_SNOOP_BUFFER + 0x10) << 0x10);
+		if (ins->spdif_status_out & DSP_SPDIF_STATUS_PLAYBACK_OPEN)
+			cs46xx_poke_via_dsp(chip, SP_SPDOUT_CSUV,
+					    ins->spdif_csuv_stream);
+	}
+	if (chip->dsp_spos_instance->spdif_status_in) {
+		cs46xx_poke_via_dsp(chip, SP_ASER_COUNTDOWN, 0x80000005);
+		cs46xx_poke_via_dsp(chip, SP_SPDIN_CONTROL, 0x800003ff);
+	}
 	return 0;
 }
 #endif

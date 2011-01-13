@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 
@@ -836,21 +837,24 @@ struct pmf_function *__pmf_find_function(struct device_node *target,
 		return NULL;
  find_it:
 	dev = pmf_find_device(actor);
-	if (dev == NULL)
-		return NULL;
+	if (dev == NULL) {
+		result = NULL;
+		goto out;
+	}
 
 	list_for_each_entry(func, &dev->functions, link) {
 		if (name && strcmp(name, func->name))
 			continue;
-		if (func->phandle && target->node != func->phandle)
+		if (func->phandle && target->phandle != func->phandle)
 			continue;
 		if ((func->flags & flags) == 0)
 			continue;
 		result = func;
 		break;
 	}
-	of_node_put(actor);
 	pmf_put_device(dev);
+out:
+	of_node_put(actor);
 	return result;
 }
 

@@ -275,7 +275,7 @@ struct snd_ali {
 #endif
 };
 
-static struct pci_device_id snd_ali_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_ali_ids) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5451), 0, 0, 0},
 	{0, }
 };
@@ -310,12 +310,16 @@ static int snd_ali_codec_ready(struct snd_ali *codec,
 	unsigned int res;
 	
 	end_time = jiffies + msecs_to_jiffies(250);
-	do {
+
+	for (;;) {
 		res = snd_ali_5451_peek(codec,port);
 		if (!(res & 0x8000))
 			return 0;
+		if (!time_after_eq(end_time, jiffies))
+			break;
 		schedule_timeout_uninterruptible(1);
-	} while (time_after_eq(end_time, jiffies));
+	}
+
 	snd_ali_5451_poke(codec, port, res & ~0x8000);
 	snd_printdd("ali_codec_ready: codec is not ready.\n ");
 	return -EIO;
@@ -327,15 +331,17 @@ static int snd_ali_stimer_ready(struct snd_ali *codec)
 	unsigned long dwChk1,dwChk2;
 	
 	dwChk1 = snd_ali_5451_peek(codec, ALI_STIMER);
-	dwChk2 = snd_ali_5451_peek(codec, ALI_STIMER);
-
 	end_time = jiffies + msecs_to_jiffies(250);
-	do {
+
+	for (;;) {
 		dwChk2 = snd_ali_5451_peek(codec, ALI_STIMER);
 		if (dwChk2 != dwChk1)
 			return 0;
+		if (!time_after_eq(end_time, jiffies))
+			break;
 		schedule_timeout_uninterruptible(1);
-	} while (time_after_eq(end_time, jiffies));
+	}
+
 	snd_printk(KERN_ERR "ali_stimer_read: stimer is not ready.\n");
 	return -EIO;
 }
@@ -472,45 +478,6 @@ static int snd_ali_reset_5451(struct snd_ali *codec)
 	return 0;
 }
 
-#ifdef CODEC_RESET
-
-static int snd_ali_reset_codec(struct snd_ali *codec)
-{
-	struct pci_dev *pci_dev;
-	unsigned char bVal;
-	unsigned int   dwVal;
-	unsigned short wCount, wReg;
-
-	pci_dev = codec->pci_m1533;
-	
-	pci_read_config_dword(pci_dev, 0x7c, &dwVal);
-	pci_write_config_dword(pci_dev, 0x7c, dwVal | 0x08000000);
-	udelay(5000);
-	pci_read_config_dword(pci_dev, 0x7c, &dwVal);
-	pci_write_config_dword(pci_dev, 0x7c, dwVal & 0xf7ffffff);
-	udelay(5000);
-
-	bVal = inb(ALI_REG(codec,ALI_SCTRL));
-	bVal |= 0x02;
-	outb(ALI_REG(codec,ALI_SCTRL),bVal);
-	udelay(5000);
-	bVal = inb(ALI_REG(codec,ALI_SCTRL));
-	bVal &= 0xfd;
-	outb(ALI_REG(codec,ALI_SCTRL),bVal);
-	udelay(15000);
-
-	wCount = 200;
-	while (wCount--) {
-		wReg = snd_ali_codec_read(codec->ac97, AC97_POWERDOWN);
-		if ((wReg & 0x000f) == 0x000f)
-			return 0;
-		udelay(5000);
-	}
-	return -1;
-}
-
-#endif
-
 /*
  *  ALI 5451 Controller
  */
@@ -554,22 +521,6 @@ static void snd_ali_disable_address_interrupt(struct snd_ali *codec)
 	gc &= ~MIDLP_IE;
 	outl(gc, ALI_REG(codec, ALI_GC_CIR));
 }
-
-#if 0 /* not used */
-static void snd_ali_enable_voice_irq(struct snd_ali *codec,
-				     unsigned int channel)
-{
-	unsigned int mask;
-	struct snd_ali_channel_control *pchregs = &(codec->chregs);
-
-	snd_ali_printk("enable_voice_irq channel=%d\n",channel);
-	
-	mask = 1 << (channel & 0x1f);
-	pchregs->data.ainten  = inl(ALI_REG(codec, pchregs->regs.ainten));
-	pchregs->data.ainten |= mask;
-	outl(pchregs->data.ainten, ALI_REG(codec, pchregs->regs.ainten));
-}
-#endif
 
 static void snd_ali_disable_voice_irq(struct snd_ali *codec,
 				      unsigned int channel)
@@ -670,16 +621,6 @@ static void snd_ali_free_channel_pcm(struct snd_ali *codec, int channel)
 		codec->synth.chcnt--;
 	}
 }
-
-#if 0 /* not used */
-static void snd_ali_start_voice(struct snd_ali *codec, unsigned int channel)
-{
-	unsigned int mask = 1 << (channel & 0x1f);
-	
-	snd_ali_printk("start_voice: channel=%d\n",channel);
-	outl(mask, ALI_REG(codec,codec->chregs.regs.start));
-}
-#endif
 
 static void snd_ali_stop_voice(struct snd_ali *codec, unsigned int channel)
 {
@@ -1032,7 +973,7 @@ static void snd_ali_free_voice(struct snd_ali * codec,
 	void *private_data;
 
 	snd_ali_printk("free_voice: channel=%d\n",pvoice->number);
-	if (pvoice == NULL || !pvoice->use)
+	if (!pvoice->use)
 		return;
 	snd_ali_clear_voices(codec, pvoice->number, pvoice->number);
 	spin_lock_irq(&codec->voice_alloc);

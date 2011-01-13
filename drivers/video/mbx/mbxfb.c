@@ -693,7 +693,7 @@ static void __devinit setup_memc(struct fb_info *fbi)
 	unsigned long tmp;
 	int i;
 
-	/* FIXME: use platfrom specific parameters */
+	/* FIXME: use platform specific parameters */
 	/* setup SDRAM controller */
 	write_reg_dly((LMCFG_LMC_DS | LMCFG_LMC_TS | LMCFG_LMD_TS |
 		LMCFG_LMA_TS),

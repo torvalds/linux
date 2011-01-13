@@ -9,10 +9,10 @@
 //
 //============================================================================
 #include <linux/usb.h>
+#include <linux/gfp.h>
 
 #include "wb35tx_f.h"
 #include "mds_f.h"
-#include "sysdef.h"
 
 unsigned char
 Wb35Tx_get_tx_buffer(struct hw_data * pHwData, u8 **pBuffer)
@@ -30,7 +30,7 @@ static void Wb35Tx_complete(struct urb * pUrb)
 	struct wbsoft_priv *adapter = pUrb->context;
 	struct hw_data *	pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
-	PMDS		pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 
 	printk("wb35: tx complete\n");
 	// Variable setting
@@ -40,7 +40,7 @@ static void Wb35Tx_complete(struct urb * pUrb)
 	pWb35Tx->TxSendIndex++;
 	pWb35Tx->TxSendIndex %= MAX_USB_TX_BUFFER_NUMBER;
 
-	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
+	if (pHwData->SurpriseRemove) // Let WbWlanHalt to handle surprise remove
 		goto error;
 
 	if (pWb35Tx->tx_halt)
@@ -67,13 +67,13 @@ static void Wb35Tx(struct wbsoft_priv *adapter)
 	struct hw_data *	pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	u8		*pTxBufferAddress;
-	PMDS		pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx4Urb;
 	int         	retv;
 	u32		SendIndex;
 
 
-	if (pHwData->SurpriseRemove || pHwData->HwStop)
+	if (pHwData->SurpriseRemove)
 		goto cleanup;
 
 	if (pWb35Tx->tx_halt)
@@ -88,8 +88,8 @@ static void Wb35Tx(struct wbsoft_priv *adapter)
 	//
 	// Issuing URB
 	//
-	usb_fill_bulk_urb(pUrb, pHwData->WbUsb.udev,
-			  usb_sndbulkpipe(pHwData->WbUsb.udev, 4),
+	usb_fill_bulk_urb(pUrb, pHwData->udev,
+			  usb_sndbulkpipe(pHwData->udev, 4),
 			  pTxBufferAddress, pMds->TxBufferSize[ SendIndex ],
 			  Wb35Tx_complete, adapter);
 
@@ -152,16 +152,12 @@ void Wb35Tx_stop(struct hw_data * pHwData)
 	// Trying to canceling the Trp of EP2
 	if (pWb35Tx->EP2vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx2Urb ); // Only use unlink, let Wb35Tx_destrot to free them
-	#ifdef _PE_TX_DUMP_
-	printk("EP2 Tx stop\n");
-	#endif
+	pr_debug("EP2 Tx stop\n");
 
 	// Trying to canceling the Irp of EP4
 	if (pWb35Tx->EP4vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx4Urb ); // Only use unlink, let Wb35Tx_destrot to free them
-	#ifdef _PE_TX_DUMP_
-	printk("EP4 Tx stop\n");
-	#endif
+	pr_debug("EP4 Tx stop\n");
 }
 
 //======================================================
@@ -181,9 +177,7 @@ void Wb35Tx_destroy(struct hw_data * pHwData)
 	if (pWb35Tx->Tx2Urb)
 		usb_free_urb( pWb35Tx->Tx2Urb );
 
-	#ifdef _PE_TX_DUMP_
-	printk("Wb35Tx_destroy OK\n");
-	#endif
+	pr_debug("Wb35Tx_destroy OK\n");
 }
 
 void Wb35Tx_CurrentTime(struct wbsoft_priv *adapter, u32 TimeCount)
@@ -209,7 +203,7 @@ static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 {
 	struct wbsoft_priv *adapter = pUrb->context;
 	struct hw_data *	pHwData = &adapter->sHwData;
-	T02_DESCRIPTOR	T02, TSTATUS;
+	struct T02_descriptor	T02, TSTATUS;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	u32 *		pltmp = (u32 *)pWb35Tx->EP2_buf;
 	u32		i;
@@ -221,7 +215,7 @@ static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 	pWb35Tx->EP2VM_status = pUrb->status;
 
 	// For Linux 2.4. Interrupt will always trigger
-	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
+	if (pHwData->SurpriseRemove) // Let WbWlanHalt to handle surprise remove
 		goto error;
 
 	if (pWb35Tx->tx_halt)
@@ -262,7 +256,7 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
 	int		retv;
 
-	if (pHwData->SurpriseRemove || pHwData->HwStop)
+	if (pHwData->SurpriseRemove)
 		goto error;
 
 	if (pWb35Tx->tx_halt)
@@ -271,16 +265,14 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 	//
 	// Issuing URB
 	//
-	usb_fill_int_urb( pUrb, pHwData->WbUsb.udev, usb_rcvintpipe(pHwData->WbUsb.udev,2),
+	usb_fill_int_urb( pUrb, pHwData->udev, usb_rcvintpipe(pHwData->udev,2),
 			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, adapter, 32);
 
 	pWb35Tx->EP2vm_state = VM_RUNNING;
 	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
 
 	if (retv < 0) {
-		#ifdef _PE_TX_DUMP_
-		printk("EP2 Tx Irp sending error\n");
-		#endif
+		pr_debug("EP2 Tx Irp sending error\n");
 		goto error;
 	}
 

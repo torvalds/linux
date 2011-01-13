@@ -30,6 +30,18 @@ MODULE PARAMETERS
 
 This module has the following parameters:
 
+fqs_duration	Duration (in microseconds) of artificially induced bursts
+		of force_quiescent_state() invocations.  In RCU
+		implementations having force_quiescent_state(), these
+		bursts help force races between forcing a given grace
+		period and that grace period ending on its own.
+
+fqs_holdoff	Holdoff time (in microseconds) between consecutive calls
+		to force_quiescent_state() within a burst.
+
+fqs_stutter	Wait time (in seconds) between consecutive bursts
+		of calls to force_quiescent_state().
+
 irqreaders	Says to invoke RCU readers from irq level.  This is currently
 		done via timers.  Defaults to "1" for variants of RCU that
 		permit this.  (Or, more accurately, variants of RCU that do
@@ -76,8 +88,10 @@ torture_type	The type of RCU to test: "rcu" for the rcu_read_lock() API,
 		"rcu_sync" for rcu_read_lock() with synchronous reclamation,
 		"rcu_bh" for the rcu_read_lock_bh() API, "rcu_bh_sync" for
 		rcu_read_lock_bh() with synchronous reclamation, "srcu" for
-		the "srcu_read_lock()" API, and "sched" for the use of
-		preempt_disable() together with synchronize_sched().
+		the "srcu_read_lock()" API, "sched" for the use of
+		preempt_disable() together with synchronize_sched(),
+		and "sched_expedited" for the use of preempt_disable()
+		with synchronize_sched_expedited().
 
 verbose		Enable debug printk()s.  Default is disabled.
 
@@ -161,6 +175,13 @@ the per-CPU counter state.  The numbers in parentheses are the values
 of the "old" and "current" counters for the corresponding CPU.  The
 "idx" value maps the "old" and "current" values to the underlying array,
 and is useful for debugging.
+
+Similarly, sched_expedited RCU provides the following:
+
+	sched_expedited-torture: rtc: d0000000016c1880 ver: 1090796 tfle: 0 rta: 1090796 rtaf: 0 rtf: 1090787 rtmbe: 0 nt: 27713319
+	sched_expedited-torture: Reader Pipe:  12660320201 95875 0 0 0 0 0 0 0 0 0
+	sched_expedited-torture: Reader Batch:  12660424885 0 0 0 0 0 0 0 0 0 0
+	sched_expedited-torture: Free-Block Circulation:  1090795 1090795 1090794 1090793 1090792 1090791 1090790 1090789 1090788 1090787 0
 
 
 USAGE

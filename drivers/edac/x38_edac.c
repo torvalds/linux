@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <linux/slab.h>
 #include <linux/edac.h>
 #include "edac_core.h"
 
@@ -30,7 +29,7 @@
 /* Intel X38 register addresses - device 0 function 0 - DRAM Controller */
 
 #define X38_MCHBAR_LOW	0x48	/* MCH Memory Mapped Register BAR */
-#define X38_MCHBAR_HIGH	0x4b
+#define X38_MCHBAR_HIGH	0x4c
 #define X38_MCHBAR_MASK	0xfffffc000ULL	/* bits 35:14 */
 #define X38_MMR_WINDOW_SIZE	16384
 

@@ -14,7 +14,7 @@
 /* et passe en argument a acinit, mais est scrute sur le bus pour s'adapter  */
 /* au nombre de cartes presentes sur le bus. IOCL code 6 affichait V2.4.3    */
 /* F.LAFORSE 28/11/95 creation de fichiers acXX.o avec les differentes       */
-/* adresses de base des cartes, IOCTL 6 plus complet                         */
+/* addresses de base des cartes, IOCTL 6 plus complet                         */
 /* J.PAGET le 19/08/96 copie de la version V2.6 en V2.8.0 sans modification  */
 /* de code autre que le texte V2.6.1 en V2.8.0                               */
 /*****************************************************************************/
@@ -23,8 +23,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/wait.h>
@@ -58,6 +60,7 @@
 #define PCI_DEVICE_ID_APPLICOM_PCI2000PFB     0x0003
 #endif
 
+static DEFINE_MUTEX(ac_mutex);
 static char *applicom_pci_devnames[] = {
 	"PCI board",
 	"PCI2000IBS / PCI2000CAN",
@@ -105,8 +108,7 @@ static unsigned int DeviceErrorCount;	/* number of device error     */
 
 static ssize_t ac_read (struct file *, char __user *, size_t, loff_t *);
 static ssize_t ac_write (struct file *, const char __user *, size_t, loff_t *);
-static int ac_ioctl(struct inode *, struct file *, unsigned int,
-		    unsigned long);
+static long ac_ioctl(struct file *, unsigned int, unsigned long);
 static irqreturn_t ac_interrupt(int, void *);
 
 static const struct file_operations ac_fops = {
@@ -114,7 +116,7 @@ static const struct file_operations ac_fops = {
 	.llseek = no_llseek,
 	.read = ac_read,
 	.write = ac_write,
-	.ioctl = ac_ioctl,
+	.unlocked_ioctl = ac_ioctl,
 };
 
 static struct miscdevice ac_miscdev = {
@@ -564,6 +566,7 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 				struct mailbox mailbox;
 
 				/* Got a packet for us */
+				memset(&st_loc, 0, sizeof(st_loc));
 				ret = do_ac_read(i, buf, &st_loc, &mailbox);
 				spin_unlock_irqrestore(&apbs[i].mutex, flags);
 				set_current_state(TASK_RUNNING);
@@ -688,7 +691,7 @@ static irqreturn_t ac_interrupt(int vec, void *dev_instance)
 
 
 
-static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
      
 {				/* @ ADG ou ATO selon le cas */
 	int i;
@@ -702,15 +705,11 @@ static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	/* In general, the device is only openable by root anyway, so we're not
 	   particularly concerned that bogus ioctls can flood the console. */
 
-	adgl = kmalloc(sizeof(struct st_ram_io), GFP_KERNEL);
-	if (!adgl)
-		return -ENOMEM;
+	adgl = memdup_user(argp, sizeof(struct st_ram_io));
+	if (IS_ERR(adgl))
+		return PTR_ERR(adgl);
 
-	if (copy_from_user(adgl, argp, sizeof(struct st_ram_io))) {
-		kfree(adgl);
-		return -EFAULT;
-	}
-	
+	mutex_lock(&ac_mutex);	
 	IndexCard = adgl->num_card-1;
 	 
 	if(cmd != 6 && ((IndexCard >= MAX_BOARD) || !apbs[IndexCard].RamIO)) {
@@ -720,6 +719,7 @@ static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			warncount--;
 		}
 		kfree(adgl);
+		mutex_unlock(&ac_mutex);
 		return -EINVAL;
 	}
 
@@ -837,6 +837,7 @@ static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	}
 	Dummy = readb(apbs[IndexCard].RamIO + VERS);
 	kfree(adgl);
+	mutex_unlock(&ac_mutex);
 	return 0;
 }
 

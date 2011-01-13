@@ -36,6 +36,8 @@ struct i2c_algo_bit_data {
 	void (*setscl) (void *data, int state);
 	int  (*getsda) (void *data);
 	int  (*getscl) (void *data);
+	int  (*pre_xfer)  (struct i2c_adapter *);
+	void (*post_xfer) (struct i2c_adapter *);
 
 	/* local settings */
 	int udelay;		/* half clock cycle time in us,

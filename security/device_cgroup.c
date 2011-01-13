@@ -10,6 +10,7 @@
 #include <linux/list.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
 
@@ -61,7 +62,8 @@ static inline struct dev_cgroup *task_devcgroup(struct task_struct *task)
 struct cgroup_subsys devices_subsys;
 
 static int devcgroup_can_attach(struct cgroup_subsys *ss,
-		struct cgroup *new_cgroup, struct task_struct *task)
+		struct cgroup *new_cgroup, struct task_struct *task,
+		bool threadgroup)
 {
 	if (current != task && !capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -468,7 +470,7 @@ struct cgroup_subsys devices_subsys = {
 	.name = "devices",
 	.can_attach = devcgroup_can_attach,
 	.create = devcgroup_create,
-	.destroy  = devcgroup_destroy,
+	.destroy = devcgroup_destroy,
 	.populate = devcgroup_populate,
 	.subsys_id = devices_subsys_id,
 };

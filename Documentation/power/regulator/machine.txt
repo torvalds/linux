@@ -52,7 +52,7 @@ static struct regulator_init_data regulator1_data = {
 };
 
 Regulator-1 supplies power to Regulator-2. This relationship must be registered
-with the core so that Regulator-1 is also enabled when Consumer A enables it's
+with the core so that Regulator-1 is also enabled when Consumer A enables its
 supply (Regulator-2). The supply regulator is set by the supply_regulator_dev
 field below:-
 
@@ -87,7 +87,7 @@ static struct platform_device regulator_devices[] = {
 },
 };
 /* register regulator 1 device */
-platform_device_register(&wm8350_regulator_devices[0]);
+platform_device_register(&regulator_devices[0]);
 
 /* register regulator 2 device */
-platform_device_register(&wm8350_regulator_devices[1]);
+platform_device_register(&regulator_devices[1]);

@@ -5,11 +5,6 @@
  * the ppc64 hashed page table.
  */
 
-#ifndef __ASSEMBLY__
-#include <linux/stddef.h>
-#include <asm/tlbflush.h>
-#endif /* __ASSEMBLY__ */
-
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/pgtable-ppc64-64k.h>
 #else
@@ -38,26 +33,47 @@
 #endif
 
 /*
- * Define the address range of the vmalloc VM area.
+ * Define the address range of the kernel non-linear virtual area
  */
-#define VMALLOC_START ASM_CONST(0xD000000000000000)
-#define VMALLOC_SIZE  (PGTABLE_RANGE >> 1)
-#define VMALLOC_END   (VMALLOC_START + VMALLOC_SIZE)
+
+#ifdef CONFIG_PPC_BOOK3E
+#define KERN_VIRT_START ASM_CONST(0x8000000000000000)
+#else
+#define KERN_VIRT_START ASM_CONST(0xD000000000000000)
+#endif
+#define KERN_VIRT_SIZE	PGTABLE_RANGE
 
 /*
- * Define the address ranges for MMIO and IO space :
+ * The vmalloc space starts at the beginning of that region, and
+ * occupies half of it on hash CPUs and a quarter of it on Book3E
+ * (we keep a quarter for the virtual memmap)
+ */
+#define VMALLOC_START	KERN_VIRT_START
+#ifdef CONFIG_PPC_BOOK3E
+#define VMALLOC_SIZE	(KERN_VIRT_SIZE >> 2)
+#else
+#define VMALLOC_SIZE	(KERN_VIRT_SIZE >> 1)
+#endif
+#define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
+
+/*
+ * The second half of the kernel virtual space is used for IO mappings,
+ * it's itself carved into the PIO region (ISA and PHB IO space) and
+ * the ioremap space
  *
- *  ISA_IO_BASE = VMALLOC_END, 64K reserved area
+ *  ISA_IO_BASE = KERN_IO_START, 64K reserved area
  *  PHB_IO_BASE = ISA_IO_BASE + 64K to ISA_IO_BASE + 2G, PHB IO spaces
  * IOREMAP_BASE = ISA_IO_BASE + 2G to VMALLOC_START + PGTABLE_RANGE
  */
+#define KERN_IO_START	(KERN_VIRT_START + (KERN_VIRT_SIZE >> 1))
 #define FULL_IO_SIZE	0x80000000ul
-#define  ISA_IO_BASE	(VMALLOC_END)
-#define  ISA_IO_END	(VMALLOC_END + 0x10000ul)
+#define  ISA_IO_BASE	(KERN_IO_START)
+#define  ISA_IO_END	(KERN_IO_START + 0x10000ul)
 #define  PHB_IO_BASE	(ISA_IO_END)
-#define  PHB_IO_END	(VMALLOC_END + FULL_IO_SIZE)
+#define  PHB_IO_END	(KERN_IO_START + FULL_IO_SIZE)
 #define IOREMAP_BASE	(PHB_IO_END)
-#define IOREMAP_END	(VMALLOC_START + PGTABLE_RANGE)
+#define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE)
+
 
 /*
  * Region IDs
@@ -68,22 +84,31 @@
 
 #define VMALLOC_REGION_ID	(REGION_ID(VMALLOC_START))
 #define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
-#define VMEMMAP_REGION_ID	(0xfUL)
+#define VMEMMAP_REGION_ID	(0xfUL)	/* Server only */
 #define USER_REGION_ID		(0UL)
 
 /*
- * Defines the address of the vmemap area, in its own region
+ * Defines the address of the vmemap area, in its own region on
+ * hash table CPUs and after the vmalloc space on Book3E
  */
+#ifdef CONFIG_PPC_BOOK3E
+#define VMEMMAP_BASE		VMALLOC_END
+#define VMEMMAP_END		KERN_IO_START
+#else
 #define VMEMMAP_BASE		(VMEMMAP_REGION_ID << REGION_SHIFT)
+#endif
 #define vmemmap			((struct page *)VMEMMAP_BASE)
 
 
 /*
  * Include the PTE bits definitions
  */
+#ifdef CONFIG_PPC_BOOK3S
 #include <asm/pte-hash64.h>
+#else
+#include <asm/pte-book3e.h>
+#endif
 #include <asm/pte-common.h>
-
 
 #ifdef CONFIG_PPC_MM_SLICES
 #define HAVE_ARCH_UNMAPPED_AREA
@@ -91,6 +116,9 @@
 #endif /* CONFIG_PPC_MM_SLICES */
 
 #ifndef __ASSEMBLY__
+
+#include <linux/stddef.h>
+#include <asm/tlbflush.h>
 
 /*
  * This is the default implementation of various PTE accessors, it's
@@ -165,9 +193,7 @@
   (((pte_t *) pmd_page_vaddr(*(dir))) + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
-#define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir), (addr))
 #define pte_unmap(pte)			do { } while(0)
-#define pte_unmap_nested(pte)		do { } while(0)
 
 /* to find an entry in a kernel page-table-directory */
 /* This now only contains the vmalloc pages */
@@ -285,8 +311,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
 	unsigned long bits = pte_val(entry) &
-		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW |
-		 _PAGE_EXEC | _PAGE_HWEXEC);
+		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
 
 #ifdef PTE_ATOMIC_UPDATES
 	unsigned long old, tmp;
@@ -327,6 +352,7 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define pgoff_to_pte(off)	((pte_t) {((off) << PTE_RPN_SHIFT)|_PAGE_FILE})
 #define PTE_FILE_MAX_BITS	(BITS_PER_LONG - PTE_RPN_SHIFT)
 
+void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
 void pgtable_cache_init(void);
 
 /*
@@ -351,7 +377,18 @@ void pgtable_cache_init(void);
 	return pt;
 }
 
-pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long address);
+#ifdef CONFIG_HUGETLB_PAGE
+pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+				 unsigned *shift);
+#else
+static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+					       unsigned *shift)
+{
+	if (shift)
+		*shift = 0;
+	return find_linux_pte(pgdir, ea);
+}
+#endif /* !CONFIG_HUGETLB_PAGE */
 
 #endif /* __ASSEMBLY__ */
 

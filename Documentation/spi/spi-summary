@@ -350,7 +350,7 @@ SPI protocol drivers somewhat resemble platform device drivers:
 		.resume		= CHIP_resume,
 	};
 
-The driver core will autmatically attempt to bind this driver to any SPI
+The driver core will automatically attempt to bind this driver to any SPI
 device whose board_info gave a modalias of "CHIP".  Your probe() code
 might look like this unless you're creating a device which is managing
 a bus (appearing under /sys/class/spi_master).
@@ -538,7 +538,7 @@ SPI MESSAGE QUEUE
 The bulk of the driver will be managing the I/O queue fed by transfer().
 
 That queue could be purely conceptual.  For example, a driver used only
-for low-frequency sensor acess might be fine using synchronous PIO.
+for low-frequency sensor access might be fine using synchronous PIO.
 
 But the queue will probably be very real, using message->queue, PIO,
 often DMA (especially if the root filesystem is in SPI flash), and

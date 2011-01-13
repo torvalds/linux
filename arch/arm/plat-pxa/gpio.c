@@ -16,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sysdev.h>
-#include <linux/bootmem.h>
+#include <linux/slab.h>
 
 #include <mach/gpio.h>
 
@@ -112,16 +112,11 @@ static int __init pxa_init_gpio_chip(int gpio_end)
 	int i, gpio, nbanks = gpio_to_bank(gpio_end) + 1;
 	struct pxa_gpio_chip *chips;
 
-	/* this is early, we have to use bootmem allocator, and we really
-	 * want this to be allocated dynamically for different 'gpio_end'
-	 */
-	chips = alloc_bootmem_low(nbanks * sizeof(struct pxa_gpio_chip));
+	chips = kzalloc(nbanks * sizeof(struct pxa_gpio_chip), GFP_KERNEL);
 	if (chips == NULL) {
 		pr_err("%s: failed to allocate GPIO chips\n", __func__);
 		return -ENOMEM;
 	}
-
-	memset(chips, 0, nbanks * sizeof(struct pxa_gpio_chip));
 
 	for (i = 0, gpio = 0; i < nbanks; i++, gpio += 32) {
 		struct gpio_chip *c = &chips[i].chip;

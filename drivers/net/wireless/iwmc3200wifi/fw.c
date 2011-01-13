@@ -217,6 +217,13 @@ static int iwm_load_img(struct iwm_priv *iwm, const char *img_name)
 		 IWM_BUILD_YEAR(build_date), IWM_BUILD_MONTH(build_date),
 		 IWM_BUILD_DAY(build_date));
 
+	if (!strcmp(img_name, iwm->bus_ops->umac_name))
+		sprintf(iwm->umac_version, "%02X.%02X",
+			ver->major, ver->minor);
+
+	if (!strcmp(img_name, iwm->bus_ops->lmac_name))
+		sprintf(iwm->lmac_version, "%02X.%02X",
+			ver->major, ver->minor);
 
  err_release_fw:
 	release_firmware(fw);
@@ -261,6 +268,33 @@ static int iwm_load_lmac(struct iwm_priv *iwm, const char *img_name)
 			cpu_to_le32(UMAC_RST_CTRL_FLG_LARC_CLK_EN), 0);
 }
 
+static int iwm_init_calib(struct iwm_priv *iwm, unsigned long cfg_bitmap,
+			  unsigned long expected_bitmap, u8 rx_iq_cmd)
+{
+	/* Read RX IQ calibration result from EEPROM */
+	if (test_bit(rx_iq_cmd, &cfg_bitmap)) {
+		iwm_store_rxiq_calib_result(iwm);
+		set_bit(PHY_CALIBRATE_RX_IQ_CMD, &iwm->calib_done_map);
+	}
+
+	iwm_send_prio_table(iwm);
+	iwm_send_init_calib_cfg(iwm, cfg_bitmap);
+
+	while (iwm->calib_done_map != expected_bitmap) {
+		if (iwm_notif_handle(iwm, CALIBRATION_RES_NOTIFICATION,
+				     IWM_SRC_LMAC, WAIT_NOTIF_TIMEOUT)) {
+			IWM_DBG_FW(iwm, DBG, "Initial calibration timeout\n");
+			return -ETIMEDOUT;
+		}
+
+		IWM_DBG_FW(iwm, DBG, "Got calibration result. calib_done_map: "
+			   "0x%lx, expected calibrations: 0x%lx\n",
+			   iwm->calib_done_map, expected_bitmap);
+	}
+
+	return 0;
+}
+
 /*
  * We currently have to load 3 FWs:
  * 1) The UMAC (Upper MAC).
@@ -275,6 +309,8 @@ static int iwm_load_lmac(struct iwm_priv *iwm, const char *img_name)
  */
 int iwm_load_fw(struct iwm_priv *iwm)
 {
+	unsigned long init_calib_map, periodic_calib_map;
+	unsigned long expected_calib_map;
 	int ret;
 
 	/* We first start downloading the UMAC */
@@ -315,32 +351,22 @@ int iwm_load_fw(struct iwm_priv *iwm)
 		return ret;
 	}
 
-#ifdef CONFIG_IWM_B0_HW_SUPPORT
-	if (iwm->conf.hw_b0) {
-		clear_bit(PHY_CALIBRATE_RX_IQ_CMD, &iwm->conf.init_calib_map);
-		clear_bit(PHY_CALIBRATE_RX_IQ_CMD,
-			  &iwm->conf.periodic_calib_map);
-	}
-#endif
-	/* Read RX IQ calibration result from EEPROM */
-	if (test_bit(PHY_CALIBRATE_RX_IQ_CMD, &iwm->conf.init_calib_map)) {
-		iwm_store_rxiq_calib_result(iwm);
-		set_bit(PHY_CALIBRATE_RX_IQ_CMD, &iwm->calib_done_map);
-	}
+	init_calib_map = iwm->conf.calib_map & IWM_CALIB_MAP_INIT_MSK;
+	expected_calib_map = iwm->conf.expected_calib_map &
+		IWM_CALIB_MAP_INIT_MSK;
+	periodic_calib_map = IWM_CALIB_MAP_PER_LMAC(iwm->conf.calib_map);
 
-	iwm_send_prio_table(iwm);
-	iwm_send_init_calib_cfg(iwm, iwm->conf.init_calib_map);
-
-	while (iwm->calib_done_map != iwm->conf.init_calib_map) {
-		ret = iwm_notif_handle(iwm, CALIBRATION_RES_NOTIFICATION,
-				       IWM_SRC_LMAC, WAIT_NOTIF_TIMEOUT);
-		if (ret) {
-			IWM_ERR(iwm, "Wait for calibration result timeout\n");
+	ret = iwm_init_calib(iwm, init_calib_map, expected_calib_map,
+			     CALIB_CFG_RX_IQ_IDX);
+	if (ret < 0) {
+		/* Let's try the old way */
+		ret = iwm_init_calib(iwm, expected_calib_map,
+				     expected_calib_map,
+				     PHY_CALIBRATE_RX_IQ_CMD);
+		if (ret < 0) {
+			IWM_ERR(iwm, "Calibration result timeout\n");
 			goto out;
 		}
-		IWM_DBG_FW(iwm, DBG, "Got calibration result. calib_done_map: "
-			   "0x%lx, requested calibrations: 0x%lx\n",
-			   iwm->calib_done_map, iwm->conf.init_calib_map);
 	}
 
 	/* Handle LMAC CALIBRATION_COMPLETE notification */
@@ -378,7 +404,9 @@ int iwm_load_fw(struct iwm_priv *iwm)
 
 	iwm_send_prio_table(iwm);
 	iwm_send_calib_results(iwm);
-	iwm_send_periodic_calib_cfg(iwm, iwm->conf.periodic_calib_map);
+	iwm_send_periodic_calib_cfg(iwm, periodic_calib_map);
+	iwm_send_ct_kill_cfg(iwm, iwm->conf.ct_kill_entry,
+			     iwm->conf.ct_kill_exit);
 
 	return 0;
 

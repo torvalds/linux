@@ -90,8 +90,15 @@
 #define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
 #define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
 
-#define	MCFSIM_PADDR		0x244		/* Parallel Direction (r/w) */
-#define	MCFSIM_PADAT		0x248		/* Parallel Data (r/w) */
+#define	MCFSIM_PADDR		(MCF_MBAR + 0x244)
+#define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
+
+/*
+ * Generic GPIO support
+ */
+#define MCFGPIO_PIN_MAX			16
+#define MCFGPIO_IRQ_MAX			-1
+#define MCFGPIO_IRQ_VECBASE		-1
 
 
 /* Definition offset address for CS2-7  -- old mask 5307 */
@@ -117,22 +124,6 @@
 #define	MCFSIM_DMA2ICR		MCFSIM_ICR8	/* DMA 2 ICR */
 #define	MCFSIM_DMA3ICR		MCFSIM_ICR9	/* DMA 3 ICR */
 
-#if defined(CONFIG_M5307)
-#define	MCFSIM_IMR_MASKALL	0x3fffe		/* All SIM intr sources */
-#endif
-
-/*
- *	Macro to set IMR register. It is 32 bits on the 5307.
- */
-#define	mcf_getimr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR))
-
-#define	mcf_setimr(imr)		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR)) = (imr);
-
-#define	mcf_getipr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IPR))
-
 
 /*
  *	Some symbol defines for the Parallel Port Pin Assignment Register
@@ -149,6 +140,11 @@
 #define IRQ3_LEVEL6	0x40
 #define IRQ1_LEVEL2	0x20
 
+/*
+ *	Define system peripheral IRQ usage.
+ */
+#define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
+#define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
 
 /*
  *	Define the Cache register flags.

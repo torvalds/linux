@@ -10,6 +10,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/module.h>
@@ -37,6 +40,19 @@ struct isakmp_hdr {
 
 #define PORT_ISAKMP	500
 
+static void
+ah_esp_conn_fill_param_proto(int af, const struct ip_vs_iphdr *iph,
+			     int inverse, struct ip_vs_conn_param *p)
+{
+	if (likely(!inverse))
+		ip_vs_conn_fill_param(af, IPPROTO_UDP,
+				      &iph->saddr, htons(PORT_ISAKMP),
+				      &iph->daddr, htons(PORT_ISAKMP), p);
+	else
+		ip_vs_conn_fill_param(af, IPPROTO_UDP,
+				      &iph->daddr, htons(PORT_ISAKMP),
+				      &iph->saddr, htons(PORT_ISAKMP), p);
+}
 
 static struct ip_vs_conn *
 ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
@@ -44,21 +60,10 @@ ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		   int inverse)
 {
 	struct ip_vs_conn *cp;
+	struct ip_vs_conn_param p;
 
-	if (likely(!inverse)) {
-		cp = ip_vs_conn_in_get(af, IPPROTO_UDP,
-				       &iph->saddr,
-				       htons(PORT_ISAKMP),
-				       &iph->daddr,
-				       htons(PORT_ISAKMP));
-	} else {
-		cp = ip_vs_conn_in_get(af, IPPROTO_UDP,
-				       &iph->daddr,
-				       htons(PORT_ISAKMP),
-				       &iph->saddr,
-				       htons(PORT_ISAKMP));
-	}
-
+	ah_esp_conn_fill_param_proto(af, iph, inverse, &p);
+	cp = ip_vs_conn_in_get(&p);
 	if (!cp) {
 		/*
 		 * We are not sure if the packet is from our
@@ -84,21 +89,10 @@ ah_esp_conn_out_get(int af, const struct sk_buff *skb,
 		    int inverse)
 {
 	struct ip_vs_conn *cp;
+	struct ip_vs_conn_param p;
 
-	if (likely(!inverse)) {
-		cp = ip_vs_conn_out_get(af, IPPROTO_UDP,
-					&iph->saddr,
-					htons(PORT_ISAKMP),
-					&iph->daddr,
-					htons(PORT_ISAKMP));
-	} else {
-		cp = ip_vs_conn_out_get(af, IPPROTO_UDP,
-					&iph->daddr,
-					htons(PORT_ISAKMP),
-					&iph->saddr,
-					htons(PORT_ISAKMP));
-	}
-
+	ah_esp_conn_fill_param_proto(af, iph, inverse, &p);
+	cp = ip_vs_conn_out_get(&p);
 	if (!cp) {
 		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for inout packet "
 			      "%s%s %s->%s\n",
@@ -122,56 +116,6 @@ ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	*verdict = NF_ACCEPT;
 	return 0;
 }
-
-
-static void
-ah_esp_debug_packet_v4(struct ip_vs_protocol *pp, const struct sk_buff *skb,
-		       int offset, const char *msg)
-{
-	char buf[256];
-	struct iphdr _iph, *ih;
-
-	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
-	if (ih == NULL)
-		sprintf(buf, "%s TRUNCATED", pp->name);
-	else
-		sprintf(buf, "%s %pI4->%pI4",
-			pp->name, &ih->saddr, &ih->daddr);
-
-	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
-}
-
-#ifdef CONFIG_IP_VS_IPV6
-static void
-ah_esp_debug_packet_v6(struct ip_vs_protocol *pp, const struct sk_buff *skb,
-		       int offset, const char *msg)
-{
-	char buf[256];
-	struct ipv6hdr _iph, *ih;
-
-	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
-	if (ih == NULL)
-		sprintf(buf, "%s TRUNCATED", pp->name);
-	else
-		sprintf(buf, "%s %pI6->%pI6",
-			pp->name, &ih->saddr, &ih->daddr);
-
-	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
-}
-#endif
-
-static void
-ah_esp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
-		    int offset, const char *msg)
-{
-#ifdef CONFIG_IP_VS_IPV6
-	if (skb->protocol == htons(ETH_P_IPV6))
-		ah_esp_debug_packet_v6(pp, skb, offset, msg);
-	else
-#endif
-		ah_esp_debug_packet_v4(pp, skb, offset, msg);
-}
-
 
 static void ah_esp_init(struct ip_vs_protocol *pp)
 {
@@ -203,7 +147,7 @@ struct ip_vs_protocol ip_vs_protocol_ah = {
 	.register_app =		NULL,
 	.unregister_app =	NULL,
 	.app_conn_bind =	NULL,
-	.debug_packet =		ah_esp_debug_packet,
+	.debug_packet =		ip_vs_tcpudp_debug_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
 	.set_state_timeout =	NULL,
 };
@@ -227,7 +171,7 @@ struct ip_vs_protocol ip_vs_protocol_esp = {
 	.register_app =		NULL,
 	.unregister_app =	NULL,
 	.app_conn_bind =	NULL,
-	.debug_packet =		ah_esp_debug_packet,
+	.debug_packet =		ip_vs_tcpudp_debug_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
 };
 #endif

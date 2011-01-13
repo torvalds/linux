@@ -52,7 +52,6 @@ Please report success/failure with other different cards to
 #include "8255.h"
 
 #define PCI_VENDOR_ID_CB	0x1307	/*  PCI vendor number of ComputerBoards */
-#define N_BOARDS	10	/*  Number of boards in cb_pcidda_boards */
 #define EEPROM_SIZE	128	/*  number of entries in eeprom */
 #define MAX_AO_CHANNELS 8	/*  maximum number of ao channels for supported boards */
 
@@ -115,13 +114,13 @@ Please report success/failure with other different cards to
 static const struct comedi_lrange cb_pcidda_ranges = {
 	6,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-		}
+	 BIP_RANGE(10),
+	 BIP_RANGE(5),
+	 BIP_RANGE(2.5),
+	 UNI_RANGE(10),
+	 UNI_RANGE(5),
+	 UNI_RANGE(2.5),
+	 }
 };
 
 /*
@@ -147,63 +146,63 @@ struct cb_pcidda_board {
 
 static const struct cb_pcidda_board cb_pcidda_boards[] = {
 	{
-	.name = "pci-dda02/12",
-	.status = 1,
-	.device_id = 0x20,
-	.ao_chans = 2,
-	.ao_bits = 12,
-	.ranges = &cb_pcidda_ranges,
-		},
+	 .name = "pci-dda02/12",
+	 .status = 1,
+	 .device_id = 0x20,
+	 .ao_chans = 2,
+	 .ao_bits = 12,
+	 .ranges = &cb_pcidda_ranges,
+	 },
 	{
-	.name = "pci-dda04/12",
-	.status = 1,
-	.device_id = 0x21,
-	.ao_chans = 4,
-	.ao_bits = 12,
-	.ranges = &cb_pcidda_ranges,
-		},
+	 .name = "pci-dda04/12",
+	 .status = 1,
+	 .device_id = 0x21,
+	 .ao_chans = 4,
+	 .ao_bits = 12,
+	 .ranges = &cb_pcidda_ranges,
+	 },
 	{
-	.name = "pci-dda08/12",
-	.status = 0,
-	.device_id = 0x22,
-	.ao_chans = 8,
-	.ao_bits = 12,
-	.ranges = &cb_pcidda_ranges,
-		},
+	 .name = "pci-dda08/12",
+	 .status = 0,
+	 .device_id = 0x22,
+	 .ao_chans = 8,
+	 .ao_bits = 12,
+	 .ranges = &cb_pcidda_ranges,
+	 },
 	{
-	.name = "pci-dda02/16",
-	.status = 2,
-	.device_id = 0x23,
-	.ao_chans = 2,
-	.ao_bits = 16,
-	.ranges = &cb_pcidda_ranges,
-		},
+	 .name = "pci-dda02/16",
+	 .status = 2,
+	 .device_id = 0x23,
+	 .ao_chans = 2,
+	 .ao_bits = 16,
+	 .ranges = &cb_pcidda_ranges,
+	 },
 	{
-	.name = "pci-dda04/16",
-	.status = 2,
-	.device_id = 0x24,
-	.ao_chans = 4,
-	.ao_bits = 16,
-	.ranges = &cb_pcidda_ranges,
-		},
+	 .name = "pci-dda04/16",
+	 .status = 2,
+	 .device_id = 0x24,
+	 .ao_chans = 4,
+	 .ao_bits = 16,
+	 .ranges = &cb_pcidda_ranges,
+	 },
 	{
-	.name = "pci-dda08/16",
-	.status = 0,
-	.device_id = 0x25,
-	.ao_chans = 8,
-	.ao_bits = 16,
-	.ranges = &cb_pcidda_ranges,
-		},
+	 .name = "pci-dda08/16",
+	 .status = 0,
+	 .device_id = 0x25,
+	 .ao_chans = 8,
+	 .ao_bits = 16,
+	 .ranges = &cb_pcidda_ranges,
+	 },
 };
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
-	{PCI_VENDOR_ID_CB, 0x0020, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0023, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0025, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0020) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0021) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0022) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0023) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0024) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0025) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
@@ -239,11 +238,13 @@ struct cb_pcidda_private {
  */
 #define devpriv ((struct cb_pcidda_private *)dev->private)
 
-static int cb_pcidda_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int cb_pcidda_attach(struct comedi_device *dev,
+			    struct comedi_devconfig *it);
 static int cb_pcidda_detach(struct comedi_device *dev);
 /* static int cb_pcidda_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data); */
-static int cb_pcidda_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcidda_ao_winsn(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data);
 
 /* static int cb_pcidda_ai_cmd(struct comedi_device *dev, struct *comedi_subdevice *s);*/
 /* static int cb_pcidda_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s, struct comedi_cmd *cmd); */
@@ -251,11 +252,11 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev, struct comedi_subdevice
 
 static unsigned int cb_pcidda_serial_in(struct comedi_device *dev);
 static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
-	unsigned int num_bits);
+				 unsigned int num_bits);
 static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
-	unsigned int address);
+					  unsigned int address);
 static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
-	unsigned int range);
+				unsigned int range);
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -274,10 +275,11 @@ static struct comedi_driver driver_cb_pcidda = {
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
-static int cb_pcidda_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int cb_pcidda_attach(struct comedi_device *dev,
+			    struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 
 	printk("comedi%d: cb_pcidda: ", dev->minor);
@@ -293,30 +295,28 @@ static int cb_pcidda_attach(struct comedi_device *dev, struct comedi_devconfig *
  */
 	printk("\n");
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_CB) {
 			if (it->options[0] || it->options[1]) {
 				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
+				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
 					continue;
 				}
 			}
-			for (index = 0; index < N_BOARDS; index++) {
+			for (index = 0; index < ARRAY_SIZE(cb_pcidda_boards); index++) {
 				if (cb_pcidda_boards[index].device_id ==
-					pcidev->device) {
+				    pcidev->device) {
 					goto found;
 				}
 			}
 		}
 	}
 	if (!pcidev) {
-		printk("Not a ComputerBoards/MeasurementComputing card on requested position\n");
+		printk
+		    ("Not a ComputerBoards/MeasurementComputing card on requested position\n");
 		return -EIO;
 	}
-      found:
+found:
 	devpriv->pci_dev = pcidev;
 	dev->board_ptr = cb_pcidda_boards + index;
 	/*  "thisboard" macro can be used from here. */
@@ -326,7 +326,8 @@ static int cb_pcidda_attach(struct comedi_device *dev, struct comedi_devconfig *
 	 * Enable PCI device and request regions.
 	 */
 	if (comedi_pci_enable(pcidev, thisboard->name)) {
-		printk("cb_pcidda: failed to enable PCI device and request regions\n");
+		printk
+		    ("cb_pcidda: failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 
@@ -334,14 +335,17 @@ static int cb_pcidda_attach(struct comedi_device *dev, struct comedi_devconfig *
  * Allocate the I/O ports.
  */
 	devpriv->digitalio =
-		pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
+	    pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
 	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
 
 /*
  * Warn about the status of the driver.
  */
 	if (thisboard->status == 2)
-		printk("WARNING: DRIVER FOR THIS BOARD NOT CHECKED WITH MANUAL. " "WORKS ASSUMING FULL COMPATIBILITY WITH PCI-DDA08/12. " "PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
+		printk
+		    ("WARNING: DRIVER FOR THIS BOARD NOT CHECKED WITH MANUAL. "
+		     "WORKS ASSUMING FULL COMPATIBILITY WITH PCI-DDA08/12. "
+		     "PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
 
 /*
  * Initialize dev->board_name.
@@ -402,9 +406,8 @@ static int cb_pcidda_detach(struct comedi_device *dev)
  */
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if (devpriv->dac) {
+			if (devpriv->dac)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
@@ -423,7 +426,8 @@ static int cb_pcidda_detach(struct comedi_device *dev)
  * I will program this later... ;-)
  */
 #if 0
-static int cb_pcidda_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+static int cb_pcidda_ai_cmd(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
 {
 	printk("cb_pcidda_ai_cmd\n");
 	printk("subdev: %d\n", cmd->subdev);
@@ -442,8 +446,9 @@ static int cb_pcidda_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *
 #endif
 
 #if 0
-static int cb_pcidda_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int cb_pcidda_ai_cmdtest(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -487,9 +492,9 @@ static int cb_pcidda_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevi
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER
-		&& cmd->scan_begin_src != TRIG_EXT)
+	    && cmd->scan_begin_src != TRIG_EXT)
 		err++;
 	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
 		err++;
@@ -569,21 +574,21 @@ static int cb_pcidda_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevi
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		cb_pcidda_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				      cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		cb_pcidda_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				      cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->scan_end_arg) {
+		    cmd->scan_begin_arg <
+		    cmd->convert_arg * cmd->scan_end_arg) {
 			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
+			    cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
 	}
@@ -608,8 +613,9 @@ static int cb_pcidda_ns_to_timer(unsigned int *ns, int round)
 }
 #endif
 
-static int cb_pcidda_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidda_ao_winsn(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int command;
 	unsigned int channel, range;
@@ -666,9 +672,8 @@ static unsigned int cb_pcidda_serial_in(struct comedi_device *dev)
 
 	for (i = 1; i <= value_width; i++) {
 		/*  read bits most significant bit first */
-		if (inw_p(devpriv->dac + DACALIBRATION1) & SERIAL_OUT_BIT) {
+		if (inw_p(devpriv->dac + DACALIBRATION1) & SERIAL_OUT_BIT)
 			value |= 1 << (value_width - i);
-		}
 	}
 
 	return value;
@@ -676,7 +681,7 @@ static unsigned int cb_pcidda_serial_in(struct comedi_device *dev)
 
 /* lowlevel write to eeprom/dac */
 static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
-	unsigned int num_bits)
+				 unsigned int num_bits)
 {
 	int i;
 
@@ -692,7 +697,7 @@ static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
 
 /* reads a 16 bit value from board's eeprom */
 static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
-	unsigned int address)
+					  unsigned int address)
 {
 	unsigned int i;
 	unsigned int cal2_bits;
@@ -705,9 +710,8 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 	/*  send serial output stream to eeprom */
 	cal2_bits = SELECT_EEPROM_BIT | DESELECT_REF_DAC_BIT | DUMMY_BIT;
 	/*  deactivate caldacs (one caldac for every two channels) */
-	for (i = 0; i < max_num_caldacs; i++) {
+	for (i = 0; i < max_num_caldacs; i++)
 		cal2_bits |= DESELECT_CALDAC_BIT(i);
-	}
 	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
 
 	/*  tell eeprom we want to read */
@@ -725,8 +729,9 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 }
 
 /* writes to 8 bit calibration dacs */
-static void cb_pcidda_write_caldac(struct comedi_device *dev, unsigned int caldac,
-	unsigned int channel, unsigned int value)
+static void cb_pcidda_write_caldac(struct comedi_device *dev,
+				   unsigned int caldac, unsigned int channel,
+				   unsigned int value)
 {
 	unsigned int cal2_bits;
 	unsigned int i;
@@ -744,9 +749,8 @@ static void cb_pcidda_write_caldac(struct comedi_device *dev, unsigned int calda
 */
 	cal2_bits = DESELECT_REF_DAC_BIT | DUMMY_BIT;
 	/*  deactivate caldacs (one caldac for every two channels) */
-	for (i = 0; i < max_num_caldacs; i++) {
+	for (i = 0; i < max_num_caldacs; i++)
 		cal2_bits |= DESELECT_CALDAC_BIT(i);
-	}
 	/*  activate the caldac we want */
 	cal2_bits &= ~DESELECT_CALDAC_BIT(caldac);
 	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
@@ -787,14 +791,14 @@ static unsigned int fine_offset_channel(unsigned int ao_channel)
 
 /* returns eeprom address that provides offset for given ao channel and range */
 static unsigned int offset_eeprom_address(unsigned int ao_channel,
-	unsigned int range)
+					  unsigned int range)
 {
 	return 0x7 + 2 * range + 12 * ao_channel;
 }
 
 /* returns eeprom address that provides gain calibration for given ao channel and range */
 static unsigned int gain_eeprom_address(unsigned int ao_channel,
-	unsigned int range)
+					unsigned int range)
 {
 	return 0x8 + 2 * range + 12 * ao_channel;
 }
@@ -813,7 +817,7 @@ static unsigned int eeprom_fine_byte(unsigned int word)
 
 /* set caldacs to eeprom values for given channel and range */
 static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
-	unsigned int range)
+				unsigned int range)
 {
 	unsigned int coarse_offset, fine_offset, coarse_gain, fine_gain;
 
@@ -822,31 +826,71 @@ static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 
 	/*  get values from eeprom data */
 	coarse_offset =
-		eeprom_coarse_byte(devpriv->
-		eeprom_data[offset_eeprom_address(channel, range)]);
+	    eeprom_coarse_byte(devpriv->eeprom_data
+			       [offset_eeprom_address(channel, range)]);
 	fine_offset =
-		eeprom_fine_byte(devpriv->
-		eeprom_data[offset_eeprom_address(channel, range)]);
+	    eeprom_fine_byte(devpriv->eeprom_data
+			     [offset_eeprom_address(channel, range)]);
 	coarse_gain =
-		eeprom_coarse_byte(devpriv->
-		eeprom_data[gain_eeprom_address(channel, range)]);
+	    eeprom_coarse_byte(devpriv->eeprom_data
+			       [gain_eeprom_address(channel, range)]);
 	fine_gain =
-		eeprom_fine_byte(devpriv->
-		eeprom_data[gain_eeprom_address(channel, range)]);
+	    eeprom_fine_byte(devpriv->eeprom_data
+			     [gain_eeprom_address(channel, range)]);
 
 	/*  set caldacs */
 	cb_pcidda_write_caldac(dev, caldac_number(channel),
-		coarse_offset_channel(channel), coarse_offset);
+			       coarse_offset_channel(channel), coarse_offset);
 	cb_pcidda_write_caldac(dev, caldac_number(channel),
-		fine_offset_channel(channel), fine_offset);
+			       fine_offset_channel(channel), fine_offset);
 	cb_pcidda_write_caldac(dev, caldac_number(channel),
-		coarse_gain_channel(channel), coarse_gain);
+			       coarse_gain_channel(channel), coarse_gain);
 	cb_pcidda_write_caldac(dev, caldac_number(channel),
-		fine_gain_channel(channel), fine_gain);
+			       fine_gain_channel(channel), fine_gain);
 }
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_PCI_INITCLEANUP(driver_cb_pcidda, cb_pcidda_pci_table);
+static int __devinit driver_cb_pcidda_pci_probe(struct pci_dev *dev,
+						const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_cb_pcidda.driver_name);
+}
+
+static void __devexit driver_cb_pcidda_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_cb_pcidda_pci_driver = {
+	.id_table = cb_pcidda_pci_table,
+	.probe = &driver_cb_pcidda_pci_probe,
+	.remove = __devexit_p(&driver_cb_pcidda_pci_remove)
+};
+
+static int __init driver_cb_pcidda_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_cb_pcidda);
+	if (retval < 0)
+		return retval;
+
+	driver_cb_pcidda_pci_driver.name = (char *)driver_cb_pcidda.driver_name;
+	return pci_register_driver(&driver_cb_pcidda_pci_driver);
+}
+
+static void __exit driver_cb_pcidda_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_cb_pcidda_pci_driver);
+	comedi_driver_unregister(&driver_cb_pcidda);
+}
+
+module_init(driver_cb_pcidda_init_module);
+module_exit(driver_cb_pcidda_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

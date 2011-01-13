@@ -71,7 +71,7 @@ struct c2_mq {
 		u8 __iomem *adapter;
 	} msg_pool;
 	dma_addr_t host_dma;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	u16 hint_count;
 	u16 priv;
 	struct c2_mq_shared __iomem *peer;

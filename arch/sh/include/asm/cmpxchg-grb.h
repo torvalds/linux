@@ -57,11 +57,10 @@ static inline unsigned long __cmpxchg_u32(volatile int *m, unsigned long old,
 		"   mov.l  @%1,   %0      \n\t" /* load  old value */
 		"   cmp/eq  %0,   %2      \n\t"
 		"   bf            1f      \n\t" /* if not equal */
-		"   mov.l   %2,   @%1     \n\t" /* store new value */
+		"   mov.l   %3,   @%1     \n\t" /* store new value */
 		"1: mov     r1,   r15     \n\t" /* LOGOUT */
-		: "=&r" (retval),
-		  "+r"  (m)
-		: "r"   (new)
+		: "=&r" (retval)
+		:  "r"  (m), "r"  (old), "r"  (new)
 		: "memory" , "r0", "r1", "t");
 
 	return retval;

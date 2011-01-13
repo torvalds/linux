@@ -141,24 +141,28 @@ static int fdtv_read_uncorrected_blocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return -EOPNOTSUPP;
 }
 
-#define ACCEPTED 0x9
-
 static int fdtv_set_frontend(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *params)
 {
 	struct firedtv *fdtv = fe->sec_priv;
 
-	/* FIXME: avc_tuner_dsd never returns ACCEPTED. Check status? */
-	if (avc_tuner_dsd(fdtv, params) != ACCEPTED)
-		return -EINVAL;
-	else
-		return 0; /* not sure of this... */
+	return avc_tuner_dsd(fdtv, params);
 }
 
 static int fdtv_get_frontend(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *params)
 {
 	return -EOPNOTSUPP;
+}
+
+static int fdtv_get_property(struct dvb_frontend *fe, struct dtv_property *tvp)
+{
+	return 0;
+}
+
+static int fdtv_set_property(struct dvb_frontend *fe, struct dtv_property *tvp)
+{
+	return 0;
 }
 
 void fdtv_frontend_init(struct firedtv *fdtv)
@@ -171,6 +175,9 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 
 	ops->set_frontend		= fdtv_set_frontend;
 	ops->get_frontend		= fdtv_get_frontend;
+
+	ops->get_property		= fdtv_get_property;
+	ops->set_property		= fdtv_set_property;
 
 	ops->read_status		= fdtv_read_status;
 	ops->read_ber			= fdtv_read_ber;
@@ -185,6 +192,24 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 
 	switch (fdtv->type) {
 	case FIREDTV_DVB_S:
+		fi->type		= FE_QPSK;
+
+		fi->frequency_min	= 950000;
+		fi->frequency_max	= 2150000;
+		fi->frequency_stepsize	= 125;
+		fi->symbol_rate_min	= 1000000;
+		fi->symbol_rate_max	= 40000000;
+
+		fi->caps		= FE_CAN_INVERSION_AUTO |
+					  FE_CAN_FEC_1_2	|
+					  FE_CAN_FEC_2_3	|
+					  FE_CAN_FEC_3_4	|
+					  FE_CAN_FEC_5_6	|
+					  FE_CAN_FEC_7_8	|
+					  FE_CAN_FEC_AUTO	|
+					  FE_CAN_QPSK;
+		break;
+
 	case FIREDTV_DVB_S2:
 		fi->type		= FE_QPSK;
 
@@ -194,14 +219,15 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
 
-		fi->caps 		= FE_CAN_INVERSION_AUTO	|
-					  FE_CAN_FEC_1_2	|
-					  FE_CAN_FEC_2_3	|
-					  FE_CAN_FEC_3_4	|
-					  FE_CAN_FEC_5_6	|
-					  FE_CAN_FEC_7_8	|
-					  FE_CAN_FEC_AUTO	|
-					  FE_CAN_QPSK;
+		fi->caps		= FE_CAN_INVERSION_AUTO |
+					  FE_CAN_FEC_1_2        |
+					  FE_CAN_FEC_2_3        |
+					  FE_CAN_FEC_3_4        |
+					  FE_CAN_FEC_5_6        |
+					  FE_CAN_FEC_7_8        |
+					  FE_CAN_FEC_AUTO       |
+					  FE_CAN_QPSK           |
+					  FE_CAN_2G_MODULATION;
 		break;
 
 	case FIREDTV_DVB_C:

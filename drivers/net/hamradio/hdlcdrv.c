@@ -42,12 +42,12 @@
 
 /*****************************************************************************/
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/net.h>
 #include <linux/in.h>
 #include <linux/if.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
@@ -110,7 +110,7 @@ static int calc_crc_ccitt(const unsigned char *buf, int cnt)
 	for (; cnt > 0; cnt--)
 		crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ *buf++) & 0xff];
 	crc ^= 0xffff;
-	return (crc & 0xffff);
+	return crc & 0xffff;
 }
 #endif
 
@@ -399,20 +399,21 @@ void hdlcdrv_arbitrate(struct net_device *dev, struct hdlcdrv_state *s)
  * ===================== network driver interface =========================
  */
 
-static int hdlcdrv_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hdlcdrv_send_packet(struct sk_buff *skb,
+				       struct net_device *dev)
 {
 	struct hdlcdrv_state *sm = netdev_priv(dev);
 
 	if (skb->data[0] != 0) {
 		do_kiss_params(sm, skb->data, skb->len);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (sm->skb)
 		return NETDEV_TX_LOCKED;
 	netif_stop_queue(dev);
 	sm->skb = skb;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* --------------------------------------------------------------------- */

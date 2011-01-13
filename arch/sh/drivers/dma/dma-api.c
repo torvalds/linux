@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/dma.h>
 
 DEFINE_SPINLOCK(dma_spin_lock);
@@ -411,8 +412,8 @@ EXPORT_SYMBOL(unregister_dmac);
 static int __init dma_api_init(void)
 {
 	printk(KERN_NOTICE "DMA: Registering DMA API.\n");
-	create_proc_read_entry("dma", 0, 0, dma_read_proc, 0);
-	return 0;
+	return create_proc_read_entry("dma", 0, 0, dma_read_proc, 0)
+		    ? 0 : -ENOMEM;
 }
 subsys_initcall(dma_api_init);
 

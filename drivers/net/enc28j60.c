@@ -18,7 +18,6 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -1276,7 +1275,8 @@ static void enc28j60_hw_tx(struct enc28j60_net *priv)
 	locked_reg_bfset(priv, ECON1, ECON1_TXRTS);
 }
 
-static int enc28j60_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t enc28j60_send_packet(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct enc28j60_net *priv = netdev_priv(dev);
 
@@ -1293,13 +1293,11 @@ static int enc28j60_send_packet(struct sk_buff *skb, struct net_device *dev)
 	 */
 	netif_stop_queue(dev);
 
-	/* save the timestamp */
-	priv->netdev->trans_start = jiffies;
 	/* Remember the skb for deferred processing */
 	priv->tx_skb = skb;
 	schedule_work(&priv->tx_work);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void enc28j60_tx_work_handler(struct work_struct *work)
@@ -1412,7 +1410,7 @@ static void enc28j60_set_multicast_list(struct net_device *dev)
 		if (netif_msg_link(priv))
 			dev_info(&dev->dev, "promiscuous mode\n");
 		priv->rxfilter = RXFILTER_PROMISC;
-	} else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count) {
+	} else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev)) {
 		if (netif_msg_link(priv))
 			dev_info(&dev->dev, "%smulticast mode\n",
 				(dev->flags & IFF_ALLMULTI) ? "all-" : "");
@@ -1665,3 +1663,4 @@ MODULE_AUTHOR("Claudio Lanconelli <lanconelli.claudio@eptar.com>");
 MODULE_LICENSE("GPL");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., ffff=all)");
+MODULE_ALIAS("spi:" DRV_NAME);

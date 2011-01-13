@@ -27,6 +27,7 @@
 #include <linux/ethtool.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -556,17 +557,14 @@ static int hash_get_index(__u8 *addr)
  */
 static void at91ether_sethashtable(struct net_device *dev)
 {
-	struct dev_mc_list *curr;
+	struct netdev_hw_addr *ha;
 	unsigned long mc_filter[2];
-	unsigned int i, bitnr;
+	unsigned int bitnr;
 
 	mc_filter[0] = mc_filter[1] = 0;
 
-	curr = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++, curr = curr->next) {
-		if (!curr) break;	/* unexpected end of list */
-
-		bitnr = hash_get_index(curr->dmi_addr);
+	netdev_for_each_mc_addr(ha, dev) {
+		bitnr = hash_get_index(ha->addr);
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
 
@@ -592,7 +590,7 @@ static void at91ether_set_multicast_list(struct net_device *dev)
 		at91_emac_write(AT91_EMAC_HSH, -1);
 		at91_emac_write(AT91_EMAC_HSL, -1);
 		cfg |= AT91_EMAC_MTI;
-	} else if (dev->mc_count > 0) {			/* Enable specific multicasts */
+	} else if (!netdev_mc_empty(dev)) { /* Enable specific multicasts */
 		at91ether_sethashtable(dev);
 		cfg |= AT91_EMAC_MTI;
 	} else if (dev->flags & (~IFF_ALLMULTI)) {	/* Disable all multicast mode */
@@ -826,7 +824,6 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Set length of the packet in the Transmit Control register */
 		at91_emac_write(AT91_EMAC_TCR, skb->len);
 
-		dev->trans_start = jiffies;
 	} else {
 		printk(KERN_ERR "at91_ether.c: at91ether_start_xmit() called, but device is busy!\n");
 		return NETDEV_TX_BUSY;	/* if we return anything but zero, dev.c:1055 calls kfree_skb(skb)
@@ -834,7 +831,7 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				we free and return(0) or don't free and return 1 */
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1228,7 +1225,6 @@ static int at91ether_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver at91ether_driver = {
-	.probe		= at91ether_probe,
 	.remove		= __devexit_p(at91ether_remove),
 	.suspend	= at91ether_suspend,
 	.resume		= at91ether_resume,
@@ -1240,7 +1236,7 @@ static struct platform_driver at91ether_driver = {
 
 static int __init at91ether_init(void)
 {
-	return platform_driver_register(&at91ether_driver);
+	return platform_driver_probe(&at91ether_driver, at91ether_probe);
 }
 
 static void __exit at91ether_exit(void)

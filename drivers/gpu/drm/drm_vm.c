@@ -36,6 +36,7 @@
 #include "drmP.h"
 #if defined(__ia64__)
 #include <linux/efi.h>
+#include <linux/slab.h>
 #endif
 
 static void drm_vm_open(struct vm_area_struct *vma);
@@ -60,7 +61,7 @@ static pgprot_t drm_io_prot(uint32_t map_type, struct vm_area_struct *vma)
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
-#elif defined(__sparc__)
+#elif defined(__sparc__) || defined(__arm__)
 	tmp = pgprot_noncached(tmp);
 #endif
 	return tmp;
@@ -137,7 +138,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 				break;
 		}
 
-		if (!agpmem)
+		if (&agpmem->head == &dev->agp->memory)
 			goto vm_fault_error;
 
 		/*
@@ -369,28 +370,28 @@ static int drm_vm_sg_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 
 /** AGP virtual memory operations */
-static struct vm_operations_struct drm_vm_ops = {
+static const struct vm_operations_struct drm_vm_ops = {
 	.fault = drm_vm_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_close,
 };
 
 /** Shared virtual memory operations */
-static struct vm_operations_struct drm_vm_shm_ops = {
+static const struct vm_operations_struct drm_vm_shm_ops = {
 	.fault = drm_vm_shm_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_shm_close,
 };
 
 /** DMA virtual memory operations */
-static struct vm_operations_struct drm_vm_dma_ops = {
+static const struct vm_operations_struct drm_vm_dma_ops = {
 	.fault = drm_vm_dma_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_close,
 };
 
 /** Scatter-gather virtual memory operations */
-static struct vm_operations_struct drm_vm_sg_ops = {
+static const struct vm_operations_struct drm_vm_sg_ops = {
 	.fault = drm_vm_sg_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_close,
@@ -432,6 +433,25 @@ static void drm_vm_open(struct vm_area_struct *vma)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+void drm_vm_close_locked(struct vm_area_struct *vma)
+{
+	struct drm_file *priv = vma->vm_file->private_data;
+	struct drm_device *dev = priv->minor->dev;
+	struct drm_vma_entry *pt, *temp;
+
+	DRM_DEBUG("0x%08lx,0x%08lx\n",
+		  vma->vm_start, vma->vm_end - vma->vm_start);
+	atomic_dec(&dev->vma_count);
+
+	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
+		if (pt->vma == vma) {
+			list_del(&pt->head);
+			kfree(pt);
+			break;
+		}
+	}
+}
+
 /**
  * \c close method for all virtual memory types.
  *
@@ -444,20 +464,9 @@ static void drm_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	struct drm_vma_entry *pt, *temp;
-
-	DRM_DEBUG("0x%08lx,0x%08lx\n",
-		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
-		if (pt->vma == vma) {
-			list_del(&pt->head);
-			kfree(pt);
-			break;
-		}
-	}
+	drm_vm_close_locked(vma);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -514,14 +523,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-resource_size_t drm_core_get_map_ofs(struct drm_local_map * map)
-{
-	return map->offset;
-}
-
-EXPORT_SYMBOL(drm_core_get_map_ofs);
-
-resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
+static resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 {
 #ifdef __alpha__
 	return dev->hose->dense_mem_base - dev->hose->mem_space->start;
@@ -529,8 +531,6 @@ resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 	return 0;
 #endif
 }
-
-EXPORT_SYMBOL(drm_core_get_reg_ofs);
 
 /**
  * mmap DMA memory.
@@ -600,6 +600,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	switch (map->type) {
+#if !defined(__arm__)
 	case _DRM_AGP:
 		if (drm_core_has_AGP(dev) && dev->agp->cant_use_aperture) {
 			/*
@@ -614,20 +615,31 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			break;
 		}
 		/* fall through to _DRM_FRAME_BUFFER... */
+#endif
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
-		offset = dev->driver->get_reg_ofs(dev);
+		offset = drm_core_get_reg_ofs(dev);
 		vma->vm_flags |= VM_IO;	/* not in core dump */
 		vma->vm_page_prot = drm_io_prot(map->type, vma);
+#if !defined(__arm__)
 		if (io_remap_pfn_range(vma, vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,
 				       vma->vm_page_prot))
 			return -EAGAIN;
+#else
+		if (remap_pfn_range(vma, vma->vm_start,
+					(map->offset + offset) >> PAGE_SHIFT,
+					vma->vm_end - vma->vm_start,
+					vma->vm_page_prot))
+			return -EAGAIN;
+#endif
+
 		DRM_DEBUG("   Type = %d; start = 0x%lx, end = 0x%lx,"
 			  " offset = 0x%llx\n",
 			  map->type,
 			  vma->vm_start, vma->vm_end, (unsigned long long)(map->offset + offset));
+
 		vma->vm_ops = &drm_vm_ops;
 		break;
 	case _DRM_CONSISTENT:

@@ -138,7 +138,7 @@ struct i2400m_bcf_hdr {
 	__le32 module_id;
 	__le32 module_vendor;
 	__le32 date;		/* BCD YYYMMDD */
-	__le32 size;
+	__le32 size;            /* in dwords */
 	__le32 key_size;	/* in dwords */
 	__le32 modulus_size;	/* in dwords */
 	__le32 exponent_size;	/* in dwords */
@@ -165,16 +165,6 @@ enum i2400m_brh {
 	I2400M_BRH_DIRECT_ACCESS = 0x00000400,
 	I2400M_BRH_RESPONSE_REQUIRED = 0x00000200,
 	I2400M_BRH_USE_CHECKSUM = 0x00000100,
-};
-
-
-/* Constants for bcf->module_id */
-enum i2400m_bcf_mod_id {
-	/* Firmware file carries its own pokes -- pokes are a set of
-	 * magical values that have to be written in certain memory
-	 * addresses to get the device up and ready for firmware
-	 * download when it is in non-signed boot mode. */
-	I2400M_BCF_MOD_ID_POKES = 0x000000001,
 };
 
 
@@ -276,6 +266,7 @@ enum {
 	I2400M_WARM_RESET_BARKER = 0x50f750f7,
 	I2400M_NBOOT_BARKER = 0xdeadbeef,
 	I2400M_SBOOT_BARKER = 0x0ff1c1a1,
+	I2400M_SBOOT_BARKER_6050 = 0x80000001,
 	I2400M_ACK_BARKER = 0xfeedbabe,
 	I2400M_D2H_MSG_BARKER = 0xbeefbabe,
 };

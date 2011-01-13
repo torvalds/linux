@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 Intel Corporation.
+  Copyright(c) 2009 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -274,6 +274,8 @@ static s32 e1000_set_vfta_vf(struct e1000_hw *hw, u16 vid, bool set)
 
 	err = mbx->ops.read_posted(hw, msgbuf, 2);
 
+	msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+
 	/* if nacked the vlan was rejected */
 	if (!err && (msgbuf[0] == (E1000_VF_SET_VLAN | E1000_VT_MSGTYPE_NACK)))
 		err = -E1000_ERR_MAC_INIT;
@@ -317,6 +319,8 @@ static void e1000_rar_set_vf(struct e1000_hw *hw, u8 * addr, u32 index)
 	if (!ret_val)
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
 
+	msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+
 	/* if nacked the address was rejected, use "perm_addr" */
 	if (!ret_val &&
 	    (msgbuf[0] == (E1000_VF_SET_MAC_ADDR | E1000_VT_MSGTYPE_NACK)))
@@ -358,8 +362,8 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 	 * or a virtual function reset
 	 */
 
-	/* If we were hit with a reset drop the link */
-	if (!mbx->ops.check_for_rst(hw))
+	/* If we were hit with a reset or timeout drop the link */
+	if (!mbx->ops.check_for_rst(hw) || !mbx->timeout)
 		mac->get_link_status = true;
 
 	if (!mac->get_link_status)

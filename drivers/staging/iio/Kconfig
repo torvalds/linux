@@ -1,0 +1,56 @@
+#
+# Industrial I/O subsytem configuration
+#
+
+menuconfig IIO
+	tristate "Industrial I/O support"
+	depends on !S390
+	---help---
+	  The industrial I/O subsystem provides a unified framework for
+	  drivers for many different types of embedded sensors using a
+	  number of different physical interfaces (i2c, spi, etc). See
+	  Documentation/industrialio for more information.
+if IIO
+
+config IIO_RING_BUFFER
+	bool "Enable ring buffer support within IIO"
+	help
+	  Provide core support for various ring buffer based data
+	  acquisition methods.
+
+if IIO_RING_BUFFER
+
+config IIO_SW_RING
+       select IIO_TRIGGER
+	tristate "Industrial I/O lock free software ring"
+	help
+	  Example software ring buffer implementation.  The design aim
+	  of this particular realization was to minimize write locking
+	  with the intention that some devices would be able to write
+	  in interrupt context.
+
+endif # IIO_RINGBUFFER
+
+config IIO_TRIGGER
+	boolean "Enable triggered sampling support"
+	help
+	  Provides IIO core support for triggers.  Currently these
+	  are used to initialize capture of samples to push into
+	  ring buffers.  The triggers are effectively a 'capture
+	  data now' interrupt.
+
+
+source "drivers/staging/iio/accel/Kconfig"
+source "drivers/staging/iio/adc/Kconfig"
+source "drivers/staging/iio/addac/Kconfig"
+source "drivers/staging/iio/dac/Kconfig"
+source "drivers/staging/iio/dds/Kconfig"
+source "drivers/staging/iio/gyro/Kconfig"
+source "drivers/staging/iio/imu/Kconfig"
+source "drivers/staging/iio/light/Kconfig"
+source "drivers/staging/iio/magnetometer/Kconfig"
+source "drivers/staging/iio/meter/Kconfig"
+source "drivers/staging/iio/resolver/Kconfig"
+source "drivers/staging/iio/trigger/Kconfig"
+
+endif # IIO

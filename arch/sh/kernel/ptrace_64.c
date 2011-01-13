@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
+#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -39,6 +39,9 @@
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
 #include <asm/fpu.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
 
 /* This mask defines the bits of the SR which the user is not allowed to
    change, which are everything except S, Q, M, PR, SZ, FR. */
@@ -79,13 +82,13 @@ get_fpu_long(struct task_struct *task, unsigned long addr)
 
 	if (last_task_used_math == task) {
 		enable_fpu();
-		save_fpu(task, regs);
+		save_fpu(task);
 		disable_fpu();
 		last_task_used_math = 0;
 		regs->sr |= SR_FD;
 	}
 
-	tmp = ((long *)&task->thread.fpu)[addr / sizeof(unsigned long)];
+	tmp = ((long *)task->thread.xstate)[addr / sizeof(unsigned long)];
 	return tmp;
 }
 
@@ -111,17 +114,16 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 	regs = (struct pt_regs*)((unsigned char *)task + THREAD_SIZE) - 1;
 
 	if (!tsk_used_math(task)) {
-		fpinit(&task->thread.fpu.hard);
-		set_stopped_child_used_math(task);
+		init_fpu(task);
 	} else if (last_task_used_math == task) {
 		enable_fpu();
-		save_fpu(task, regs);
+		save_fpu(task);
 		disable_fpu();
 		last_task_used_math = 0;
 		regs->sr |= SR_FD;
 	}
 
-	((long *)&task->thread.fpu)[addr / sizeof(unsigned long)] = data;
+	((long *)task->thread.xstate)[addr / sizeof(unsigned long)] = data;
 	return 0;
 }
 
@@ -130,6 +132,8 @@ void user_enable_single_step(struct task_struct *child)
 	struct pt_regs *regs = child->thread.uregs;
 
 	regs->sr |= SR_SSTEP;	/* auto-resetting upon exception */
+
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 void user_disable_single_step(struct task_struct *child)
@@ -137,6 +141,8 @@ void user_disable_single_step(struct task_struct *child)
 	struct pt_regs *regs = child->thread.uregs;
 
 	regs->sr &= ~SR_SSTEP;
+
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 static int genregs_get(struct task_struct *target,
@@ -219,7 +225,7 @@ int fpregs_get(struct task_struct *target,
 		return ret;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpu.hard, 0, -1);
+				   &target->thread.xstate->hardfpu, 0, -1);
 }
 
 static int fpregs_set(struct task_struct *target,
@@ -236,7 +242,7 @@ static int fpregs_set(struct task_struct *target,
 	set_stopped_child_used_math(target);
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu.hard, 0, -1);
+				  &target->thread.xstate->hardfpu, 0, -1);
 }
 
 static int fpregs_active(struct task_struct *target,
@@ -245,6 +251,85 @@ static int fpregs_active(struct task_struct *target,
 	return tsk_used_math(target) ? regset->n : 0;
 }
 #endif
+
+const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_NAME(pc),
+	REG_OFFSET_NAME(sr),
+	REG_OFFSET_NAME(syscall_nr),
+	REGS_OFFSET_NAME(0),
+	REGS_OFFSET_NAME(1),
+	REGS_OFFSET_NAME(2),
+	REGS_OFFSET_NAME(3),
+	REGS_OFFSET_NAME(4),
+	REGS_OFFSET_NAME(5),
+	REGS_OFFSET_NAME(6),
+	REGS_OFFSET_NAME(7),
+	REGS_OFFSET_NAME(8),
+	REGS_OFFSET_NAME(9),
+	REGS_OFFSET_NAME(10),
+	REGS_OFFSET_NAME(11),
+	REGS_OFFSET_NAME(12),
+	REGS_OFFSET_NAME(13),
+	REGS_OFFSET_NAME(14),
+	REGS_OFFSET_NAME(15),
+	REGS_OFFSET_NAME(16),
+	REGS_OFFSET_NAME(17),
+	REGS_OFFSET_NAME(18),
+	REGS_OFFSET_NAME(19),
+	REGS_OFFSET_NAME(20),
+	REGS_OFFSET_NAME(21),
+	REGS_OFFSET_NAME(22),
+	REGS_OFFSET_NAME(23),
+	REGS_OFFSET_NAME(24),
+	REGS_OFFSET_NAME(25),
+	REGS_OFFSET_NAME(26),
+	REGS_OFFSET_NAME(27),
+	REGS_OFFSET_NAME(28),
+	REGS_OFFSET_NAME(29),
+	REGS_OFFSET_NAME(30),
+	REGS_OFFSET_NAME(31),
+	REGS_OFFSET_NAME(32),
+	REGS_OFFSET_NAME(33),
+	REGS_OFFSET_NAME(34),
+	REGS_OFFSET_NAME(35),
+	REGS_OFFSET_NAME(36),
+	REGS_OFFSET_NAME(37),
+	REGS_OFFSET_NAME(38),
+	REGS_OFFSET_NAME(39),
+	REGS_OFFSET_NAME(40),
+	REGS_OFFSET_NAME(41),
+	REGS_OFFSET_NAME(42),
+	REGS_OFFSET_NAME(43),
+	REGS_OFFSET_NAME(44),
+	REGS_OFFSET_NAME(45),
+	REGS_OFFSET_NAME(46),
+	REGS_OFFSET_NAME(47),
+	REGS_OFFSET_NAME(48),
+	REGS_OFFSET_NAME(49),
+	REGS_OFFSET_NAME(50),
+	REGS_OFFSET_NAME(51),
+	REGS_OFFSET_NAME(52),
+	REGS_OFFSET_NAME(53),
+	REGS_OFFSET_NAME(54),
+	REGS_OFFSET_NAME(55),
+	REGS_OFFSET_NAME(56),
+	REGS_OFFSET_NAME(57),
+	REGS_OFFSET_NAME(58),
+	REGS_OFFSET_NAME(59),
+	REGS_OFFSET_NAME(60),
+	REGS_OFFSET_NAME(61),
+	REGS_OFFSET_NAME(62),
+	REGS_OFFSET_NAME(63),
+	TREGS_OFFSET_NAME(0),
+	TREGS_OFFSET_NAME(1),
+	TREGS_OFFSET_NAME(2),
+	TREGS_OFFSET_NAME(3),
+	TREGS_OFFSET_NAME(4),
+	TREGS_OFFSET_NAME(5),
+	TREGS_OFFSET_NAME(6),
+	TREGS_OFFSET_NAME(7),
+	REG_OFFSET_END,
+};
 
 /*
  * These are our native regset flavours.
@@ -298,9 +383,11 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 	return &user_sh64_native_view;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
+	unsigned long __user *datap = (unsigned long __user *) data;
 
 	switch (request) {
 	/* read the word at location addr in the USER area. */
@@ -315,13 +402,15 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			tmp = get_stack_long(child, addr);
 		else if ((addr >= offsetof(struct user, fpu)) &&
 			 (addr <  offsetof(struct user, u_fpvalid))) {
-			tmp = get_fpu_long(child, addr - offsetof(struct user, fpu));
+			unsigned long index;
+			index = addr - offsetof(struct user, fpu);
+			tmp = get_fpu_long(child, index);
 		} else if (addr == offsetof(struct user, u_fpvalid)) {
 			tmp = !!tsk_used_math(child);
 		} else {
 			break;
 		}
-		ret = put_user(tmp, (unsigned long *)data);
+		ret = put_user(tmp, datap);
 		break;
 	}
 
@@ -352,7 +441,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		else if ((addr >= offsetof(struct user, fpu)) &&
 			 (addr <  offsetof(struct user, u_fpvalid))) {
-			ret = put_fpu_long(child, addr - offsetof(struct user, fpu), data);
+			unsigned long index;
+			index = addr - offsetof(struct user, fpu);
+			ret = put_fpu_long(child, index, data);
 		}
 		break;
 
@@ -360,23 +451,23 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		return copy_regset_to_user(child, &user_sh64_native_view,
 					   REGSET_GENERAL,
 					   0, sizeof(struct pt_regs),
-					   (void __user *)data);
+					   datap);
 	case PTRACE_SETREGS:
 		return copy_regset_from_user(child, &user_sh64_native_view,
 					     REGSET_GENERAL,
 					     0, sizeof(struct pt_regs),
-					     (const void __user *)data);
+					     datap);
 #ifdef CONFIG_SH_FPU
 	case PTRACE_GETFPREGS:
 		return copy_regset_to_user(child, &user_sh64_native_view,
 					   REGSET_FPU,
 					   0, sizeof(struct user_fpu_struct),
-					   (void __user *)data);
+					   datap);
 	case PTRACE_SETFPREGS:
 		return copy_regset_from_user(child, &user_sh64_native_view,
 					     REGSET_FPU,
 					     0, sizeof(struct user_fpu_struct),
-					     (const void __user *)data);
+					     datap);
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -386,13 +477,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
+asmlinkage int sh64_ptrace(long request, long pid,
+			   unsigned long addr, unsigned long data)
 {
 #define WPC_DBRMODE 0x0d104008
-	static int first_call = 1;
+	static unsigned long first_call;
 
-	lock_kernel();
-	if (first_call) {
+	if (!test_and_set_bit(0, &first_call)) {
 		/* Set WPC.DBRMODE to 0.  This makes all debug events get
 		 * delivered through RESVEC, i.e. into the handlers in entry.S.
 		 * (If the kernel was downloaded using a remote gdb, WPC.DBRMODE
@@ -402,9 +493,7 @@ asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 		 * the remote gdb.) */
 		printk("DBRMODE set to 0 to permit native debugging\n");
 		poke_real_address_q(WPC_DBRMODE, 0);
-		first_call = 0;
 	}
-	unlock_kernel();
 
 	return sys_ptrace(request, pid, addr, data);
 }
@@ -438,6 +527,9 @@ asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
 		 */
 		ret = -1LL;
 
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_enter(regs, regs->regs[9]);
+
 	if (unlikely(current->audit_context))
 		audit_syscall_entry(audit_arch(), regs->regs[1],
 				    regs->regs[2], regs->regs[3],
@@ -448,12 +540,18 @@ asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
 
 asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 {
+	int step;
+
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->regs[9]),
 				   regs->regs[9]);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_exit(regs, regs->regs[9]);
+
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }
 
 /* Called with interrupts disabled */
@@ -470,9 +568,10 @@ asmlinkage void do_single_step(unsigned long long vec, struct pt_regs *regs)
 }
 
 /* Called with interrupts disabled */
-asmlinkage void do_software_break_point(unsigned long long vec,
-					struct pt_regs *regs)
+BUILD_TRAP_HANDLER(breakpoint)
 {
+	TRAP_HANDLER_DECL;
+
 	/* We need to forward step the PC, to counteract the backstep done
 	   in signal.c. */
 	local_irq_enable();

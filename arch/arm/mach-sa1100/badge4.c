@@ -51,6 +51,10 @@ static struct resource sa1111_resources[] = {
 	},
 };
 
+static struct sa1111_platform_data sa1111_info = {
+	.irq_base	= IRQ_BOARD_END,
+};
+
 static u64 sa1111_dmamask = 0xffffffffUL;
 
 static struct platform_device sa1111_device = {
@@ -59,6 +63,7 @@ static struct platform_device sa1111_device = {
 	.dev		= {
 		.dma_mask = &sa1111_dmamask,
 		.coherent_dma_mask = 0xffffffff,
+		.platform_data = &sa1111_info,
 	},
 	.num_resources	= ARRAY_SIZE(sa1111_resources),
 	.resource	= sa1111_resources,
@@ -212,7 +217,7 @@ static int __init badge4_init(void)
 	/* maybe turn on 5v0 from the start */
 	badge4_set_5V(BADGE4_5V_INITIALLY, five_v_on);
 
-	sa11x0_set_flash_data(&badge4_flash_data, &badge4_flash_resource, 1);
+	sa11x0_register_mtd(&badge4_flash_data, &badge4_flash_resource, 1);
 
 	return 0;
 }
@@ -297,8 +302,6 @@ static void __init badge4_map_io(void)
 }
 
 MACHINE_START(BADGE4, "Hewlett-Packard Laboratories BadgePAD 4")
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
 	.map_io		= badge4_map_io,
 	.init_irq	= sa1100_init_irq,

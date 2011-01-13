@@ -25,6 +25,14 @@ config MTD_DEBUG_VERBOSE
 	help
 	  Determines the verbosity level of the MTD debugging messages.
 
+config MTD_TESTS
+	tristate "MTD tests support"
+	depends on m
+	help
+	  This option includes various MTD tests into compilation. The tests
+	  should normally be compiled as kernel modules. The modules perform
+	  various checks and verifications when loaded.
+
 config MTD_CONCAT
 	tristate "MTD concatenating support"
 	help
@@ -44,14 +52,6 @@ config MTD_PARTITIONS
 	  Note, however, that you don't need this option for the DiskOnChip
 	  devices. Partitioning on NFTL 'devices' is a different - that's the
 	  'normal' form of partitioning used on a block device.
-
-config MTD_TESTS
-	tristate "MTD tests support"
-	depends on m
-	help
-	  This option includes various MTD tests into compilation. The tests
-	  should normally be compiled as kernel modules. The modules perform
-	  various checks and verifications when loaded.
 
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
@@ -159,7 +159,7 @@ config MTD_AFS_PARTS
 
 config MTD_OF_PARTS
 	tristate "Flash partition map based on OF description"
-	depends on PPC_OF && MTD_PARTITIONS
+	depends on OF && MTD_PARTITIONS
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,
@@ -304,9 +304,24 @@ config SSFDC
 	  This enables read only access to SmartMedia formatted NAND
 	  flash. You can mount it with FAT file system.
 
+
+config SM_FTL
+	tristate "SmartMedia/xD new translation layer"
+	depends on EXPERIMENTAL && BLOCK
+	select MTD_BLKDEVS
+	select MTD_NAND_ECC
+	help
+	  This enables EXPERIMENTAL R/W support for SmartMedia/xD
+	  FTL (Flash translation layer).
+	  Write support is only lightly tested, therefore this driver
+	  isn't recommended to use with valuable data (anyway if you have
+	  valuable data, do backups regardless of software/hardware you
+	  use, because you never know what will eat your data...)
+	  If you only need R/O access, you can use older R/O driver
+	  (CONFIG_SSFDC)
+
 config MTD_OOPS
 	tristate "Log panic/oops to an MTD buffer"
-	depends on MTD
 	help
 	  This enables panic and oops messages to be logged to a circular
 	  buffer in a flash partition where it can be read back at some

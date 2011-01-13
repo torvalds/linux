@@ -548,8 +548,6 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 				      (phystat0 & B43legacy_RX_PHYST0_OFDM),
 				      (phystat0 & B43legacy_RX_PHYST0_GAINCTL),
 				      (phystat3 & B43legacy_RX_PHYST3_TRSTATE));
-	status.noise = dev->stats.link_noise;
-	status.qual = (jssi * 100) / B43legacy_RX_MAX_SSI;
 	/* change to support A PHY */
 	if (phystat0 & B43legacy_RX_PHYST0_OFDM)
 		status.rate_idx = b43legacy_plcp_get_bitrate_idx_ofdm(plcp, false);
@@ -590,8 +588,8 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 		       chanstat);
 	}
 
-	dev->stats.last_rx = jiffies;
-	ieee80211_rx_irqsafe(dev->wl->hw, skb, &status);
+	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+	ieee80211_rx_irqsafe(dev->wl->hw, skb);
 
 	return;
 drop:

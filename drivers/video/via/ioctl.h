@@ -35,11 +35,9 @@
 #define VIAFB_GET_SAMM_INFO		0x56494107	/* 'VIA\07' */
 #define VIAFB_TURN_ON_OUTPUT_DEVICE     0x56494108	/* 'VIA\08' */
 #define VIAFB_TURN_OFF_OUTPUT_DEVICE    0x56494109	/* 'VIA\09' */
-#define VIAFB_SET_DEVICE		0x5649410A
 #define VIAFB_GET_DEVICE		0x5649410B
 #define VIAFB_GET_DRIVER_VERSION	0x56494112	/* 'VIA\12' */
 #define VIAFB_GET_CHIP_INFO		0x56494113	/* 'VIA\13' */
-#define VIAFB_SET_DEVICE_INFO           0x56494114
 #define VIAFB_GET_DEVICE_INFO           0x56494115
 
 #define VIAFB_GET_DEVICE_SUPPORT	0x56494118
@@ -50,9 +48,6 @@
 #define VIAFB_GET_GAMMA_LUT		0x56494124
 #define VIAFB_SET_GAMMA_LUT		0x56494125
 #define VIAFB_GET_GAMMA_SUPPORT_STATE	0x56494126
-#define VIAFB_SET_VIDEO_DEVICE		0x56494127
-#define VIAFB_GET_VIDEO_DEVICE		0x56494128
-#define VIAFB_SET_SECOND_MODE		0x56494129
 #define VIAFB_SYNC_SURFACE		0x56494130
 #define VIAFB_GET_DRIVER_CAPS		0x56494131
 #define VIAFB_GET_IGA_SCALING_INFO	0x56494132
@@ -77,7 +72,7 @@
 /*SAMM operation flag*/
 #define OP_SAMM            0x80
 
-#define LCD_PANEL_ID_MAXIMUM	22
+#define LCD_PANEL_ID_MAXIMUM	23
 
 #define STATE_ON            0x1
 #define STATE_OFF           0x0
@@ -179,9 +174,7 @@ struct viafb_ioctl_setting {
 	unsigned short second_dev_bpp;
 	/* Indicate which device are primary display device. */
 	unsigned int primary_device;
-	/* Indicate which device will show video. only valid in duoview mode */
-	unsigned int video_device_status;
-	unsigned int struct_reserved[34];
+	unsigned int struct_reserved[35];
 	struct viafb_ioctl_lcd_attribute lcd_attributes;
 };
 

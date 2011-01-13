@@ -4,7 +4,7 @@
  *  Derived from ivtv-i2c.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,16 +40,20 @@
 #define GETSDL_BIT      0x0008
 
 #define CX18_CS5345_I2C_ADDR		0x4c
+#define CX18_Z8F0811_IR_TX_I2C_ADDR	0x70
+#define CX18_Z8F0811_IR_RX_I2C_ADDR	0x71
 
 /* This array should match the CX18_HW_ defines */
 static const u8 hw_addrs[] = {
-	0,			/* CX18_HW_TUNER */
-	0,			/* CX18_HW_TVEEPROM */
-	CX18_CS5345_I2C_ADDR,	/* CX18_HW_CS5345 */
-	0,			/* CX18_HW_DVB */
-	0,			/* CX18_HW_418_AV */
-	0,			/* CX18_HW_GPIO_MUX */
-	0,			/* CX18_HW_GPIO_RESET_CTRL */
+	0,				/* CX18_HW_TUNER */
+	0,				/* CX18_HW_TVEEPROM */
+	CX18_CS5345_I2C_ADDR,		/* CX18_HW_CS5345 */
+	0,				/* CX18_HW_DVB */
+	0,				/* CX18_HW_418_AV */
+	0,				/* CX18_HW_GPIO_MUX */
+	0,				/* CX18_HW_GPIO_RESET_CTRL */
+	CX18_Z8F0811_IR_TX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
+	CX18_Z8F0811_IR_RX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -62,17 +66,8 @@ static const u8 hw_bus[] = {
 	0,	/* CX18_HW_418_AV */
 	0,	/* CX18_HW_GPIO_MUX */
 	0,	/* CX18_HW_GPIO_RESET_CTRL */
-};
-
-/* This array should match the CX18_HW_ defines */
-static const char * const hw_modules[] = {
-	"tuner",	/* CX18_HW_TUNER */
-	NULL,		/* CX18_HW_TVEEPROM */
-	"cs5345",	/* CX18_HW_CS5345 */
-	NULL,		/* CX18_HW_DVB */
-	NULL,		/* CX18_HW_418_AV */
-	NULL,		/* CX18_HW_GPIO_MUX */
-	NULL,		/* CX18_HW_GPIO_RESET_CTRL */
+	0,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
+	0,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -84,14 +79,40 @@ static const char * const hw_devicenames[] = {
 	"cx23418_AV",
 	"gpio_mux",
 	"gpio_reset_ctrl",
+	"ir_tx_z8f0811_haup",
+	"ir_rx_z8f0811_haup",
 };
+
+static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
+			   const char *type, u8 addr)
+{
+	struct i2c_board_info info;
+	struct IR_i2c_init_data *init_data = &cx->ir_i2c_init_data;
+	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, type, I2C_NAME_SIZE);
+
+	/* Our default information for ir-kbd-i2c.c to use */
+	switch (hw) {
+	case CX18_HW_Z8F0811_IR_RX_HAUP:
+		init_data->ir_codes = RC_MAP_HAUPPAUGE_NEW;
+		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
+		init_data->type = RC_TYPE_RC5;
+		init_data->name = cx->card_name;
+		info.platform_data = init_data;
+		break;
+	}
+
+	return i2c_new_probed_device(adap, &info, addr_list, NULL) == NULL ?
+	       -1 : 0;
+}
 
 int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 {
 	struct v4l2_subdev *sd;
 	int bus = hw_bus[idx];
 	struct i2c_adapter *adap = &cx->i2c_adap[bus];
-	const char *mod = hw_modules[idx];
 	const char *type = hw_devicenames[idx];
 	u32 hw = 1 << idx;
 
@@ -100,27 +121,31 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 
 	if (hw == CX18_HW_TUNER) {
 		/* special tuner group handling */
-		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
-				adap, mod, type, cx->card_i2c->radio);
+		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
+				adap, type, 0, cx->card_i2c->radio);
 		if (sd != NULL)
 			sd->grp_id = hw;
-		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
-				adap, mod, type, cx->card_i2c->demod);
+		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
+				adap, type, 0, cx->card_i2c->demod);
 		if (sd != NULL)
 			sd->grp_id = hw;
-		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
-				adap, mod, type, cx->card_i2c->tv);
+		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
+				adap, type, 0, cx->card_i2c->tv);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		return sd != NULL ? 0 : -1;
 	}
 
+	if (hw & CX18_HW_IR_ANY)
+		return cx18_i2c_new_ir(cx, adap, hw, type, hw_addrs[idx]);
+
 	/* Is it not an I2C device or one we do not wish to register? */
 	if (!hw_addrs[idx])
 		return -1;
 
-	/* It's an I2C device other than an analog tuner */
-	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, mod, type, hw_addrs[idx]);
+	/* It's an I2C device other than an analog tuner or IR chip */
+	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, type, hw_addrs[idx],
+				 NULL);
 	if (sd != NULL)
 		sd->grp_id = hw;
 	return sd != NULL ? 0 : -1;
@@ -190,7 +215,6 @@ static int cx18_getsda(void *data)
 /* template for i2c-bit-algo */
 static struct i2c_adapter cx18_i2c_adap_template = {
 	.name = "cx18 i2c driver",
-	.id = I2C_HW_B_CX2341X,
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
 	.owner = THIS_MODULE,

@@ -4,7 +4,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- * http://www.algor.co.uk
  *
  * ########################################################################
  *
@@ -71,8 +70,7 @@ s64 ieee754sp_tlong(ieee754sp x)
 			round = 0;
 			sticky = residue != 0;
 			xm = 0;
-		}
-		else {
+		} else {
 			residue = xm << (32 - SP_MBITS + xe);
 			round = (residue >> 31) != 0;
 			sticky = (residue << 1) != 0;

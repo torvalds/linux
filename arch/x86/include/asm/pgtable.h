@@ -2,6 +2,7 @@
 #define _ASM_X86_PGTABLE_H
 
 #include <asm/page.h>
+#include <asm/e820.h>
 
 #include <asm/pgtable_types.h>
 
@@ -15,6 +16,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/x86_init.h>
+
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
@@ -24,6 +27,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 extern spinlock_t pgd_lock;
 extern struct list_head pgd_list;
+
+extern struct mm_struct *pgd_page_get_mm(struct page *page);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -54,16 +59,6 @@ extern struct list_head pgd_list;
 
 #define pte_update(mm, addr, ptep)              do { } while (0)
 #define pte_update_defer(mm, addr, ptep)        do { } while (0)
-
-static inline void __init paravirt_pagetable_setup_start(pgd_t *base)
-{
-	native_pagetable_setup_start(base);
-}
-
-static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
-{
-	native_pagetable_setup_done(base);
-}
 
 #define pgd_val(x)	native_pgd_val(x)
 #define __pgd(x)	native_make_pgd(x)
@@ -132,6 +127,11 @@ static inline int pte_special(pte_t pte)
 static inline unsigned long pte_pfn(pte_t pte)
 {
 	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
+}
+
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
@@ -269,9 +269,16 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 
 #define canon_pgprot(p) __pgprot(massage_pgprot(p))
 
-static inline int is_new_memtype_allowed(unsigned long flags,
-						unsigned long new_flags)
+static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+					 unsigned long flags,
+					 unsigned long new_flags)
 {
+	/*
+	 * PAT type is always WB for untracked ranges, so no need to check.
+	 */
+	if (x86_platform.is_untracked_pat_range(paddr, paddr + size))
+		return 1;
+
 	/*
 	 * Certain new memtypes are not allowed with certain
 	 * requested memtype:
@@ -351,7 +358,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  * this macro returns the index of the entry in the pmd page which would
  * control the given virtual address
  */
-static inline unsigned pmd_index(unsigned long address)
+static inline unsigned long pmd_index(unsigned long address)
 {
 	return (address >> PMD_SHIFT) & (PTRS_PER_PMD - 1);
 }
@@ -371,7 +378,7 @@ static inline unsigned pmd_index(unsigned long address)
  * this function returns the index of the entry in the pte page which would
  * control the given virtual address
  */
-static inline unsigned pte_index(unsigned long address)
+static inline unsigned long pte_index(unsigned long address)
 {
 	return (address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
 }
@@ -422,11 +429,6 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(address);
 }
 
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
-}
-
 static inline int pud_large(pud_t pud)
 {
 	return (pud_val(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
@@ -462,7 +464,7 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
 #define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
 
 /* to find an entry in a page-table-directory. */
-static inline unsigned pud_index(unsigned long address)
+static inline unsigned long pud_index(unsigned long address)
 {
 	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
 }
@@ -602,6 +604,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm,
 	clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
 	pte_update(mm, addr, ptep);
 }
+
+#define flush_tlb_fix_spurious_fault(vma, address)
 
 /*
  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);

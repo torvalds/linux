@@ -1,32 +1,7 @@
 /*
- * file:         include/asm-blackfin/mach-bf537/irq.h
- * based on:
- * author:
+ * Copyright 2005-2008 Analog Devices Inc.
  *
- * created:
- * description:
- *	system mmr register map
- * rev:
- *
- * modified:
- *
- *
- * bugs:         enter bugs at http://blackfin.uclinux.org/
- *
- * this program is free software; you can redistribute it and/or modify
- * it under the terms of the gnu general public license as published by
- * the free software foundation; either version 2, or (at your option)
- * any later version.
- *
- * this program is distributed in the hope that it will be useful,
- * but without any warranty; without even the implied warranty of
- * merchantability or fitness for a particular purpose.  see the
- * gnu general public license for more details.
- *
- * you should have received a copy of the gnu general public license
- * along with this program; see the file copying.
- * if not, write to the free software foundation,
- * 59 temple place - suite 330, boston, ma 02111-1307, usa.
+ * Licensed under the GPL-2 or later
  */
 
 #ifndef _BF537_IRQ_H_
@@ -99,7 +74,7 @@
 
 #define IRQ_PPI_ERROR       42	/*PPI Error Interrupt */
 #define IRQ_CAN_ERROR       43	/*CAN Error Interrupt */
-#define IRQ_MAC_ERROR       44	/*PPI Error Interrupt */
+#define IRQ_MAC_ERROR       44	/*MAC Status/Error Interrupt */
 #define IRQ_SPORT0_ERROR    45	/*SPORT0 Error Interrupt */
 #define IRQ_SPORT1_ERROR    46	/*SPORT1 Error Interrupt */
 #define IRQ_SPI_ERROR       47	/*SPI Error Interrupt */
@@ -159,7 +134,17 @@
 
 #define GPIO_IRQ_BASE	IRQ_PF0
 
-#define NR_IRQS     (IRQ_PH15+1)
+#define IRQ_MAC_PHYINT		98 /* PHY_INT Interrupt */
+#define IRQ_MAC_MMCINT		99 /* MMC Counter Interrupt */
+#define IRQ_MAC_RXFSINT		100 /* RX Frame-Status Interrupt */
+#define IRQ_MAC_TXFSINT		101 /* TX Frame-Status Interrupt */
+#define IRQ_MAC_WAKEDET		102 /* Wake-Up Interrupt */
+#define IRQ_MAC_RXDMAERR	103 /* RX DMA Direction Error Interrupt */
+#define IRQ_MAC_TXDMAERR	104 /* TX DMA Direction Error Interrupt */
+#define IRQ_MAC_STMDONE		105 /* Station Mgt. Transfer Done Interrupt */
+
+#define NR_MACH_IRQS	(IRQ_MAC_STMDONE + 1)
+#define NR_IRQS		(NR_MACH_IRQS + NR_SPARE_IRQS)
 
 #define IVG7            7
 #define IVG8            8

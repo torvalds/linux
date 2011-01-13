@@ -66,6 +66,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_LICENSE("GPL");
@@ -897,6 +898,15 @@ static int tas_create(struct i2c_adapter *adapter,
 	client = i2c_new_device(adapter, &info);
 	if (!client)
 		return -ENODEV;
+	/*
+	 * We know the driver is already loaded, so the device should be
+	 * already bound. If not it means binding failed, and then there
+	 * is no point in keeping the device instantiated.
+	 */
+	if (!client->driver) {
+		i2c_unregister_device(client);
+		return -ENODEV;
+	}
 
 	/*
 	 * Let i2c-core delete that device on driver removal.

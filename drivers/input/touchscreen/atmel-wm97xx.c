@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #define AC97C_ICA		0x10
 #define AC97C_CBRHR		0x30
@@ -59,7 +60,7 @@
 #define ATMEL_WM97XX_AC97C_IRQ		(29)
 #define ATMEL_WM97XX_GPIO_DEFAULT	(32+16) /* Pin 16 on port B. */
 #else
-#error Unkown CPU, this driver only supports AT32AP700X CPUs.
+#error Unknown CPU, this driver only supports AT32AP700X CPUs.
 #endif
 
 struct continuous {

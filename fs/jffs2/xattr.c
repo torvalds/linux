@@ -31,7 +31,7 @@
  *   is used to release xattr name/value pair and detach from c->xattrindex.
  * reclaim_xattr_datum(c)
  *   is used to reclaim xattr name/value pairs on the xattr name/value pair cache when
- *   memory usage by cache is over c->xdatum_mem_threshold. Currentry, this threshold 
+ *   memory usage by cache is over c->xdatum_mem_threshold. Currently, this threshold 
  *   is hard coded as 32KiB.
  * do_verify_xattr_datum(c, xd)
  *   is used to load the xdatum informations without name/value pair from the medium.
@@ -588,7 +588,7 @@ static void delete_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 
 void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
-	/* It's called from jffs2_clear_inode() on inode removing.
+	/* It's called from jffs2_evict_inode() on inode removing.
 	   When an inode with XATTR is removed, those XATTRs must be removed. */
 	struct jffs2_xattr_ref *ref, *_ref;
 
@@ -626,7 +626,7 @@ void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 
 static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
-	/* success of check_xattr_ref_inode() means taht inode (ic) dose not have
+	/* success of check_xattr_ref_inode() means that inode (ic) dose not have
 	 * duplicate name/value pairs. If duplicate name/value pair would be found,
 	 * one will be removed.
 	 */
@@ -904,7 +904,7 @@ struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c,
  * do_jffs2_setxattr(inode, xprefix, xname, buffer, size, flags)
  *   is an implementation of setxattr handler on jffs2.
  * -------------------------------------------------- */
-struct xattr_handler *jffs2_xattr_handlers[] = {
+const struct xattr_handler *jffs2_xattr_handlers[] = {
 	&jffs2_user_xattr_handler,
 #ifdef CONFIG_JFFS2_FS_SECURITY
 	&jffs2_security_xattr_handler,
@@ -917,8 +917,8 @@ struct xattr_handler *jffs2_xattr_handlers[] = {
 	NULL
 };
 
-static struct xattr_handler *xprefix_to_handler(int xprefix) {
-	struct xattr_handler *ret;
+static const struct xattr_handler *xprefix_to_handler(int xprefix) {
+	const struct xattr_handler *ret;
 
 	switch (xprefix) {
 	case JFFS2_XPREFIX_USER:
@@ -955,7 +955,7 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct jffs2_inode_cache *ic = f->inocache;
 	struct jffs2_xattr_ref *ref, **pref;
 	struct jffs2_xattr_datum *xd;
-	struct xattr_handler *xhandle;
+	const struct xattr_handler *xhandle;
 	ssize_t len, rc;
 	int retry = 0;
 
@@ -990,9 +990,11 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (!xhandle)
 			continue;
 		if (buffer) {
-			rc = xhandle->list(inode, buffer+len, size-len, xd->xname, xd->name_len);
+			rc = xhandle->list(dentry, buffer+len, size-len,
+					   xd->xname, xd->name_len, xd->flags);
 		} else {
-			rc = xhandle->list(inode, NULL, 0, xd->xname, xd->name_len);
+			rc = xhandle->list(dentry, NULL, 0, xd->xname,
+					   xd->name_len, xd->flags);
 		}
 		if (rc < 0)
 			goto out;

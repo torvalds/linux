@@ -15,7 +15,7 @@
 
 static inline void __iomem *__io(unsigned long addr)
 {
-	return (void __iomem *)((addr - KIRKWOOD_PCIE_IO_PHYS_BASE)
+	return (void __iomem *)((addr - KIRKWOOD_PCIE_IO_BUS_BASE)
 					+ KIRKWOOD_PCIE_IO_VIRT_BASE);
 }
 
@@ -42,8 +42,8 @@ __arch_iounmap(void __iomem *addr)
 		__iounmap(addr);
 }
 
-#define __arch_ioremap(p, s, m)	__arch_ioremap(p, s, m)
-#define __arch_iounmap(a)	__arch_iounmap(a)
+#define __arch_ioremap		__arch_ioremap
+#define __arch_iounmap		__arch_iounmap
 #define __io(a)			__io(a)
 #define __mem_pci(a)		(a)
 

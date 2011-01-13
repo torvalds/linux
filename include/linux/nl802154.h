@@ -64,12 +64,17 @@ enum {
 	IEEE802154_ATTR_COORD_REALIGN,
 	IEEE802154_ATTR_SEC,
 
+	IEEE802154_ATTR_PAGE,
+	IEEE802154_ATTR_CHANNEL_PAGE_LIST,
+
+	IEEE802154_ATTR_PHY_NAME,
+
 	__IEEE802154_ATTR_MAX,
 };
 
 #define IEEE802154_ATTR_MAX (__IEEE802154_ATTR_MAX - 1)
 
-extern struct nla_policy ieee802154_policy[];
+extern const struct nla_policy ieee802154_policy[];
 
 /* commands */
 /* REQ should be responded with CONF
@@ -110,6 +115,11 @@ enum {
 	IEEE802154_GTS_CONF, /* Not supported yet */
 	IEEE802154_RX_ENABLE_REQ, /* Not supported yet */
 	IEEE802154_RX_ENABLE_CONF, /* Not supported yet */
+
+	IEEE802154_LIST_IFACE,
+	IEEE802154_LIST_PHY,
+	IEEE802154_ADD_IFACE,
+	IEEE802154_DEL_IFACE,
 
 	__IEEE802154_CMD_MAX,
 };

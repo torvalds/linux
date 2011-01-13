@@ -1,4 +1,7 @@
 #include "radeonfb.h"
+
+#include <linux/slab.h>
+
 #include "../edid.h"
 
 static struct fb_var_screeninfo radeonfb_default_var = {

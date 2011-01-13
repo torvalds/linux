@@ -39,6 +39,7 @@
 #define CIR_CAR_REG             0x38
 #define CIR_OT_CFG1             0x40
 #define CIR_OT_CFG2             0x44
+#define GBULK_BIT_EN            0x68
 #define PWR_CTL_EN              0x74
 
 /* Polaris Endpoints capture mask for register EP_MODE_SET */
@@ -60,10 +61,10 @@
 #define PWR_RESETOUT_EN         0x100  /* bit8 */
 
 enum AV_MODE{
-       POLARIS_AVMODE_DEFAULT = 0,
-       POLARIS_AVMODE_DIGITAL = 0x10,
-       POLARIS_AVMODE_ANALOGT_TV = 0x20,
-       POLARIS_AVMODE_ENXTERNAL_AV = 0x30,
+	POLARIS_AVMODE_DEFAULT = 0,
+	POLARIS_AVMODE_DIGITAL = 0x10,
+	POLARIS_AVMODE_ANALOGT_TV = 0x20,
+	POLARIS_AVMODE_ENXTERNAL_AV = 0x30,
 
 };
 

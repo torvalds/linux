@@ -531,7 +531,7 @@ setup_gazelisa(struct IsdnCard *card, struct IsdnCardState *cs)
 	return (0);
 }
 
-#ifdef CONFIG_PCI_LEGACY
+#ifdef CONFIG_PCI
 static struct pci_dev *dev_tel __devinitdata = NULL;
 
 static int __devinit
@@ -546,7 +546,7 @@ setup_gazelpci(struct IsdnCardState *cs)
 	found = 0;
 	seekcard = PCI_DEVICE_ID_PLX_R685;
 	for (nbseek = 0; nbseek < 4; nbseek++) {
-		if ((dev_tel = pci_find_device(PCI_VENDOR_ID_PLX,
+		if ((dev_tel = hisax_find_pci_device(PCI_VENDOR_ID_PLX,
 					seekcard, dev_tel))) {
 			if (pci_enable_device(dev_tel))
 				return 1;
@@ -620,7 +620,7 @@ setup_gazelpci(struct IsdnCardState *cs)
 
 	return (0);
 }
-#endif /* CONFIG_PCI_LEGACY */
+#endif /* CONFIG_PCI */
 
 int __devinit
 setup_gazel(struct IsdnCard *card)
@@ -640,7 +640,7 @@ setup_gazel(struct IsdnCard *card)
 			return (0);
 	} else {
 
-#ifdef CONFIG_PCI_LEGACY
+#ifdef CONFIG_PCI
 		if (setup_gazelpci(cs))
 			return (0);
 #else

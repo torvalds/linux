@@ -38,11 +38,10 @@
 #define DRIVER_DESC "DiBcom 3000M-B DVB-T demodulator"
 #define DRIVER_AUTHOR "Patrick Boettcher, patrick.boettcher@desy.de"
 
-#ifdef CONFIG_DVB_DIBCOM_DEBUG
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,2=xfer,4=setfe,8=getfe (|-able)).");
-#endif
+
 #define deb_info(args...) dprintk(0x01,args)
 #define deb_i2c(args...)  dprintk(0x02,args)
 #define deb_srch(args...) dprintk(0x04,args)
@@ -50,12 +49,6 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,2=xfer,4=setfe,8=getfe (|-a
 #define deb_xfer(args...) dprintk(0x02,args)
 #define deb_setf(args...) dprintk(0x04,args)
 #define deb_getf(args...) dprintk(0x08,args)
-
-#ifdef CONFIG_DVB_DIBCOM_DEBUG
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,2=i2c,4=srch (|-able)).");
-#endif
 
 static int dib3000_read_reg(struct dib3000_state *state, u16 reg)
 {
@@ -154,7 +147,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 			case BANDWIDTH_AUTO:
 				return -EOPNOTSUPP;
 			default:
-				err("unkown bandwidth value.");
+				err("unknown bandwidth value.");
 				return -EINVAL;
 		}
 	}

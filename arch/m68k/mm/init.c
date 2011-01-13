@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/gfp.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
@@ -126,7 +127,7 @@ void __init mem_init(void)
 #endif
 
 	printk("Memory: %luk/%luk available (%dk kernel code, %dk data, %dk init)\n",
-	       (unsigned long)nr_free_pages() << (PAGE_SHIFT-10),
+	       nr_free_pages() << (PAGE_SHIFT-10),
 	       totalram_pages << (PAGE_SHIFT-10),
 	       codepages << (PAGE_SHIFT-10),
 	       datapages << (PAGE_SHIFT-10),

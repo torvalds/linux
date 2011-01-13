@@ -51,8 +51,9 @@
 #include <linux/unistd.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
-#include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
@@ -61,9 +62,12 @@
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
+#include <media/ir-kbd-i2c.h>
 
 #include <linux/ivtv.h>
 
@@ -114,8 +118,14 @@
 #define IVTV_REG_VPU 			(0x9058)
 #define IVTV_REG_APU 			(0xA064)
 
+/* Other registers */
+#define IVTV_REG_DEC_LINE_FIELD		(0x28C0)
+
 /* debugging */
 extern int ivtv_debug;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+extern int ivtv_fw_debug;
+#endif
 
 #define IVTV_DBGFLG_WARN    (1 << 0)
 #define IVTV_DBGFLG_INFO    (1 << 1)
@@ -176,12 +186,16 @@ extern int ivtv_debug;
 
 #define IVTV_MAX_PGM_INDEX (400)
 
+/* Default I2C SCL period in microseconds */
+#define IVTV_DEFAULT_I2C_CLOCK_PERIOD	20
+
 struct ivtv_options {
 	int kilobytes[IVTV_MAX_STREAMS];        /* size in kilobytes of each stream */
 	int cardtype;				/* force card type on load */
 	int tuner;				/* set tuner on load */
 	int radio;				/* enable/disable radio */
 	int newi2c;				/* new I2C algorithm */
+	int i2c_clock_period;			/* period of SCL for I2C bus */
 };
 
 /* ivtv-specific mailbox template */
@@ -247,7 +261,6 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_DEC_PAUSED	   20 	/* the decoder is paused */
 #define IVTV_F_I_INITED		   21 	/* set after first open */
 #define IVTV_F_I_FAILED		   22 	/* set if first open failed */
-#define IVTV_F_I_WORK_INITED       23	/* worker thread was initialized */
 
 /* Event notifications */
 #define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
@@ -366,12 +379,18 @@ struct ivtv_stream {
 };
 
 struct ivtv_open_id {
+	struct v4l2_fh fh;
 	u32 open_id;                    /* unique ID for this file descriptor */
 	int type;                       /* stream type */
 	int yuv_frames;                 /* 1: started OUT_UDMA_YUV output mode */
 	enum v4l2_priority prio;        /* priority */
 	struct ivtv *itv;
 };
+
+static inline struct ivtv_open_id *fh2id(struct v4l2_fh *fh)
+{
+	return container_of(fh, struct ivtv_open_id, fh);
+}
 
 struct yuv_frame_info
 {
@@ -613,6 +632,8 @@ struct ivtv {
 	struct ivtv_options options; 	/* user options */
 
 	struct v4l2_device v4l2_dev;
+	struct cx2341x_handler cxhdl;
+	struct v4l2_ctrl_handler hdl_gpio;
 	struct v4l2_subdev sd_gpio;	/* GPIO sub-device */
 	u16 instance;
 
@@ -630,7 +651,6 @@ struct ivtv {
 	v4l2_std_id std_out;            /* current TV output standard */
 	u8 audio_stereo_mode;           /* decoder setting how to handle stereo MPEG audio */
 	u8 audio_bilingual_mode;        /* decoder setting how to handle bilingual MPEG audio */
-	struct cx2341x_mpeg_params params;              /* current encoder parameters */
 
 
 	/* Locking */
@@ -647,8 +667,9 @@ struct ivtv {
 	/* Interrupts & DMA */
 	u32 irqmask;                    /* active interrupts */
 	u32 irq_rr_idx;                 /* round-robin stream index */
-	struct workqueue_struct *irq_work_queues;       /* workqueue for PIO/YUV/VBI actions */
-	struct work_struct irq_work_queue;              /* work entry */
+	struct kthread_worker irq_worker;		/* kthread worker for PIO/YUV/VBI actions */
+	struct task_struct *irq_worker_task;		/* task for irq_worker */
+	struct kthread_work irq_work;	/* kthread work entry */
 	spinlock_t dma_reg_lock;        /* lock access to DMA engine registers */
 	int cur_dma_stream;		/* index of current stream doing DMA (-1 if none) */
 	int cur_pio_stream;		/* index of current stream doing PIO (-1 if none) */
@@ -677,6 +698,7 @@ struct ivtv {
 	int i2c_state;                  /* i2c bit state */
 	struct mutex i2c_bus_lock;      /* lock i2c bus */
 
+	struct IR_i2c_init_data ir_i2c_init_data;
 
 	/* Program Index information */
 	u32 pgm_info_offset;            /* start of pgm info in encoder memory */
@@ -717,6 +739,7 @@ struct ivtv {
 	struct v4l2_rect osd_rect;      /* current OSD position and size */
 	struct v4l2_rect main_rect;     /* current Main window position and size */
 	struct osd_info *osd_info;      /* ivtvfb private OSD info */
+	void (*ivtvfb_restore)(struct ivtv *itv); /* Used for a warm start */
 };
 
 static inline struct ivtv *to_ivtv(struct v4l2_device *v4l2_dev)
@@ -788,15 +811,23 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
 /* Call the specified callback for all subdevs matching hw (if 0, then
    match them all). Ignore any errors. */
 #define ivtv_call_hw(itv, hw, o, f, args...) 				\
-	__v4l2_device_call_subdevs(&(itv)->v4l2_dev, !(hw) || (sd->grp_id & (hw)), o, f , ##args)
+	do {								\
+		struct v4l2_subdev *__sd;				\
+		__v4l2_device_call_subdevs_p(&(itv)->v4l2_dev, __sd,	\
+			!(hw) || (__sd->grp_id & (hw)), o, f , ##args);	\
+	} while (0)
 
 #define ivtv_call_all(itv, o, f, args...) ivtv_call_hw(itv, 0, o, f , ##args)
 
 /* Call the specified callback for all subdevs matching hw (if 0, then
    match them all). If the callback returns an error other than 0 or
    -ENOIOCTLCMD, then return with that error code. */
-#define ivtv_call_hw_err(itv, hw, o, f, args...)  		\
-	__v4l2_device_call_subdevs_until_err(&(itv)->v4l2_dev, !(hw) || (sd->grp_id & (hw)), o, f , ##args)
+#define ivtv_call_hw_err(itv, hw, o, f, args...)			\
+({									\
+	struct v4l2_subdev *__sd;					\
+	__v4l2_device_call_subdevs_until_err_p(&(itv)->v4l2_dev, __sd,	\
+		!(hw) || (__sd->grp_id & (hw)), o, f , ##args);		\
+})
 
 #define ivtv_call_all_err(itv, o, f, args...) ivtv_call_hw_err(itv, 0, o, f , ##args)
 

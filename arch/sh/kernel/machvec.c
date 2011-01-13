@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <asm/machvec.h>
 #include <asm/sections.h>
+#include <asm/addrspace.h>
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -117,19 +118,9 @@ void __init sh_mv_setup(void)
 		sh_mv.mv_##elem = generic_##elem; \
 } while (0)
 
-	mv_set(inb);	mv_set(inw);	mv_set(inl);
-	mv_set(outb);	mv_set(outw);	mv_set(outl);
-
-	mv_set(inb_p);	mv_set(inw_p);	mv_set(inl_p);
-	mv_set(outb_p);	mv_set(outw_p);	mv_set(outl_p);
-
-	mv_set(insb);	mv_set(insw);	mv_set(insl);
-	mv_set(outsb);	mv_set(outsw);	mv_set(outsl);
-
-	mv_set(ioport_map);
-	mv_set(ioport_unmap);
 	mv_set(irq_demux);
 	mv_set(mode_pins);
+	mv_set(mem_init);
 
 	if (!sh_mv.mv_nr_irqs)
 		sh_mv.mv_nr_irqs = NR_IRQS;

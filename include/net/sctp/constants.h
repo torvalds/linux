@@ -61,7 +61,6 @@ enum { SCTP_DEFAULT_INSTREAMS = SCTP_MAX_STREAM };
  * symbols.  CIDs are dense through SCTP_CID_BASE_MAX.
  */
 #define SCTP_CID_BASE_MAX		SCTP_CID_SHUTDOWN_COMPLETE
-#define SCTP_CID_MAX			SCTP_CID_ASCONF_ACK
 
 #define SCTP_NUM_BASE_CHUNK_TYPES	(SCTP_CID_BASE_MAX + 1)
 
@@ -85,9 +84,6 @@ typedef enum {
 	SCTP_EVENT_T_PRIMITIVE
 
 } sctp_event_t;
-
-#define SCTP_EVENT_T_MAX SCTP_EVENT_T_PRIMITIVE
-#define SCTP_EVENT_T_NUM (SCTP_EVENT_T_MAX + 1)
 
 /* As a convenience for the state machine, we append SCTP_EVENT_* and
  * SCTP_ULP_* to the list of possible chunks.
@@ -162,9 +158,6 @@ SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
 		       		- (unsigned long)(c->chunk_hdr)\
 				- sizeof(sctp_data_chunk_t)))
 
-#define SCTP_MAX_ERROR_CAUSE  SCTP_ERROR_NONEXIST_IP
-#define SCTP_NUM_ERROR_CAUSE  10
-
 /* Internal error codes */
 typedef enum {
 
@@ -231,7 +224,7 @@ typedef enum {
 	SCTP_SS_LISTENING      = TCP_LISTEN,
 	SCTP_SS_ESTABLISHING   = TCP_SYN_SENT,
 	SCTP_SS_ESTABLISHED    = TCP_ESTABLISHED,
-	SCTP_SS_DISCONNECTING  = TCP_CLOSING,
+	SCTP_SS_CLOSING        = TCP_CLOSING,
 } sctp_sock_state_t;
 
 /* These functions map various type to printable names.  */
@@ -241,7 +234,9 @@ const char *sctp_tname(const sctp_subtype_t);	/* timeouts */
 const char *sctp_pname(const sctp_subtype_t);	/* primitives */
 
 /* This is a table of printable names of sctp_state_t's.  */
-extern const char *sctp_state_tbl[], *sctp_evttype_tbl[], *sctp_status_tbl[];
+extern const char *const sctp_state_tbl[];
+extern const char *const sctp_evttype_tbl[];
+extern const char *const sctp_status_tbl[];
 
 /* Maximum chunk length considering padding requirements. */
 enum { SCTP_MAX_CHUNK_LEN = ((1<<16) - sizeof(__u32)) };
@@ -264,7 +259,6 @@ enum { SCTP_ARBITRARY_COOKIE_ECHO_LEN = 200 };
 #define SCTP_TSN_MAP_INITIAL BITS_PER_LONG
 #define SCTP_TSN_MAP_INCREMENT SCTP_TSN_MAP_INITIAL
 #define SCTP_TSN_MAP_SIZE 4096
-#define SCTP_TSN_MAX_GAP  65535
 
 /* We will not record more than this many duplicate TSNs between two
  * SACKs.  The minimum PMTU is 576.  Remove all the headers and there
@@ -299,21 +293,19 @@ enum { SCTP_MAX_GABS = 16 };
 
 #define SCTP_CLOCK_GRANULARITY	1	/* 1 jiffy */
 
-#define SCTP_DEF_MAX_INIT 6
-#define SCTP_DEF_MAX_SEND 10
-
 #define SCTP_DEFAULT_COOKIE_LIFE	(60 * 1000) /* 60 seconds */
 
 #define SCTP_DEFAULT_MINWINDOW	1500	/* default minimum rwnd size */
 #define SCTP_DEFAULT_MAXWINDOW	65535	/* default rwnd size */
+#define SCTP_DEFAULT_RWND_SHIFT  4	/* by default, update on 1/16 of
+					 * rcvbuf, which is 1/8 of initial
+					 * window
+					 */
 #define SCTP_DEFAULT_MAXSEGMENT 1500	/* MTU size, this is the limit
                                          * to which we will raise the P-MTU.
 					 */
 #define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
 #define SCTP_HOW_MANY_SECRETS 2		/* How many secrets I keep */
-#define SCTP_HOW_LONG_COOKIE_LIVE 3600	/* How many seconds the current
-					 * secret will live?
-					 */
 #define SCTP_SECRET_SIZE 32		/* Number of octets in a 256 bits. */
 
 #define SCTP_SIGNATURE_SIZE 20	        /* size of a SLA-1 signature */
@@ -360,6 +352,13 @@ typedef enum {
 	SCTP_SCOPE_LOOPBACK,		/* IPv4 loopback address */
 	SCTP_SCOPE_UNUSABLE,		/* IPv4 unusable addresses */
 } sctp_scope_t;
+
+typedef enum {
+	SCTP_SCOPE_POLICY_DISABLE,	/* Disable IPv4 address scoping */
+	SCTP_SCOPE_POLICY_ENABLE,	/* Enable IPv4 address scoping */
+	SCTP_SCOPE_POLICY_PRIVATE,	/* Follow draft but allow IPv4 private addresses */
+	SCTP_SCOPE_POLICY_LINK,		/* Follow draft but allow IPv4 link local addresses */
+} sctp_scope_policy_t;
 
 /* Based on IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>,
  * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 198.18.0.0/24,

@@ -5,9 +5,11 @@
  * Author: Andi Kleen
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
+#include <linux/sched.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -90,23 +92,24 @@ static void cmci_discover(int banks, int boot)
 		if (test_bit(i, owned))
 			continue;
 
-		rdmsrl(MSR_IA32_MC0_CTL2 + i, val);
+		rdmsrl(MSR_IA32_MCx_CTL2(i), val);
 
 		/* Already owned by someone else? */
-		if (val & CMCI_EN) {
-			if (test_and_clear_bit(i, owned) || boot)
+		if (val & MCI_CTL2_CMCI_EN) {
+			if (test_and_clear_bit(i, owned) && !boot)
 				print_update("SHD", &hdr, i);
 			__clear_bit(i, __get_cpu_var(mce_poll_banks));
 			continue;
 		}
 
-		val |= CMCI_EN | CMCI_THRESHOLD;
-		wrmsrl(MSR_IA32_MC0_CTL2 + i, val);
-		rdmsrl(MSR_IA32_MC0_CTL2 + i, val);
+		val &= ~MCI_CTL2_CMCI_THRESHOLD_MASK;
+		val |= MCI_CTL2_CMCI_EN | CMCI_THRESHOLD;
+		wrmsrl(MSR_IA32_MCx_CTL2(i), val);
+		rdmsrl(MSR_IA32_MCx_CTL2(i), val);
 
 		/* Did the enable bit stick? -- the bank supports CMCI */
-		if (val & CMCI_EN) {
-			if (!test_and_set_bit(i, owned) || boot)
+		if (val & MCI_CTL2_CMCI_EN) {
+			if (!test_and_set_bit(i, owned) && !boot)
 				print_update("CMCI", &hdr, i);
 			__clear_bit(i, __get_cpu_var(mce_poll_banks));
 		} else {
@@ -127,7 +130,7 @@ void cmci_recheck(void)
 	unsigned long flags;
 	int banks;
 
-	if (!mce_available(&current_cpu_data) || !cmci_supported(&banks))
+	if (!mce_available(__this_cpu_ptr(&cpu_info)) || !cmci_supported(&banks))
 		return;
 	local_irq_save(flags);
 	machine_check_poll(MCP_TIMESTAMP, &__get_cpu_var(mce_banks_owned));
@@ -152,9 +155,9 @@ void cmci_clear(void)
 		if (!test_bit(i, __get_cpu_var(mce_banks_owned)))
 			continue;
 		/* Disable CMCI */
-		rdmsrl(MSR_IA32_MC0_CTL2 + i, val);
-		val &= ~(CMCI_EN|CMCI_THRESHOLD_MASK);
-		wrmsrl(MSR_IA32_MC0_CTL2 + i, val);
+		rdmsrl(MSR_IA32_MCx_CTL2(i), val);
+		val &= ~(MCI_CTL2_CMCI_EN|MCI_CTL2_CMCI_THRESHOLD_MASK);
+		wrmsrl(MSR_IA32_MCx_CTL2(i), val);
 		__clear_bit(i, __get_cpu_var(mce_banks_owned));
 	}
 	spin_unlock_irqrestore(&cmci_discover_lock, flags);

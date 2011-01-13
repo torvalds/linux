@@ -18,7 +18,6 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -32,6 +31,7 @@
 #include <asm/uaccess.h>
 
 volatile unsigned long irq_err_count;
+DEFINE_PER_CPU(unsigned long, irq_pmi_count);
 
 void ack_bad_irq(unsigned int irq)
 {
@@ -64,9 +64,7 @@ int irq_select_affinity(unsigned int irq)
 int
 show_interrupts(struct seq_file *p, void *v)
 {
-#ifdef CONFIG_SMP
 	int j;
-#endif
 	int irq = *(loff_t *) v;
 	struct irqaction * action;
 	unsigned long flags;
@@ -81,7 +79,7 @@ show_interrupts(struct seq_file *p, void *v)
 #endif
 
 	if (irq < ACTUAL_NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
 		action = irq_desc[irq].action;
 		if (!action) 
 			goto unlock;
@@ -92,7 +90,7 @@ show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(irq, j));
 #endif
-		seq_printf(p, " %14s", irq_desc[irq].chip->typename);
+		seq_printf(p, " %14s", irq_desc[irq].chip->name);
 		seq_printf(p, "  %c%s",
 			(action->flags & IRQF_DISABLED)?'+':' ',
 			action->name);
@@ -105,7 +103,7 @@ show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 unlock:
-		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	} else if (irq == ACTUAL_NR_IRQS) {
 #ifdef CONFIG_SMP
 		seq_puts(p, "IPI: ");
@@ -113,6 +111,10 @@ unlock:
 			seq_printf(p, "%10lu ", cpu_data[j].ipi_count);
 		seq_putc(p, '\n');
 #endif
+		seq_puts(p, "PMI: ");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10lu ", per_cpu(irq_pmi_count, j));
+		seq_puts(p, "          Performance Monitoring\n");
 		seq_printf(p, "ERR: %10lu\n", irq_err_count);
 	}
 	return 0;

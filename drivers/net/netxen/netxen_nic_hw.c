@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2003 - 2009 NetXen, Inc.
+ * Copyright (C) 2009 - QLogic Corporation.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -18,19 +19,13 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
- *
- * Contact Information:
- *    info@netxen.com
- * NetXen Inc,
- * 18922 Forge Drive
- * Cupertino, CA 95014-0701
+ * in the file called "COPYING".
  *
  */
 
+#include <linux/slab.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
-#include "netxen_nic_phan_reg.h"
 
 #include <net/ip.h>
 
@@ -47,6 +42,11 @@
 #define CRB_HI(off)	((crb_hub_agt[CRB_BLK(off)] << 20) | ((off) & 0xf0000))
 #define CRB_INDIRECT_2M	(0x1e0000UL)
 
+static void netxen_nic_io_write_128M(struct netxen_adapter *adapter,
+		void __iomem *addr, u32 data);
+static u32 netxen_nic_io_read_128M(struct netxen_adapter *adapter,
+		void __iomem *addr);
+
 #ifndef readq
 static inline u64 readq(void __iomem *addr)
 {
@@ -61,9 +61,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 	writel(((u32) (val >> 32)), (addr + 4));
 }
 #endif
-
-#define ADDR_IN_RANGE(addr, low, high)	\
-	(((addr) < (high)) && ((addr) >= (low)))
 
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
 	((adapter)->ahw.pci_base0 + (off))
@@ -87,7 +84,6 @@ static void __iomem *pci_base_offset(struct netxen_adapter *adapter,
 	return NULL;
 }
 
-#define CRB_WIN_LOCK_TIMEOUT 100000000
 static crb_128M_2M_block_map_t
 crb_128M_2M_map[64] __cacheline_aligned_in_smp = {
     {{{0, 0,         0,         0} } },		/* 0: PCI */
@@ -321,6 +317,65 @@ static unsigned crb_hub_agt[64] =
 
 #define NETXEN_WINDOW_ONE 	0x2000000 /*CRB Window: bit 25 of CRB address */
 
+#define NETXEN_PCIE_SEM_TIMEOUT	10000
+
+static int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
+
+int
+netxen_pcie_sem_lock(struct netxen_adapter *adapter, int sem, u32 id_reg)
+{
+	int done = 0, timeout = 0;
+
+	while (!done) {
+		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_LOCK(sem)));
+		if (done == 1)
+			break;
+		if (++timeout >= NETXEN_PCIE_SEM_TIMEOUT)
+			return -EIO;
+		msleep(1);
+	}
+
+	if (id_reg)
+		NXWR32(adapter, id_reg, adapter->portnum);
+
+	return 0;
+}
+
+void
+netxen_pcie_sem_unlock(struct netxen_adapter *adapter, int sem)
+{
+	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
+}
+
+static int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
+{
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_1+(0x10000*port), 0x1447);
+		NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_0+(0x10000*port), 0x5);
+	}
+
+	return 0;
+}
+
+/* Disable an XG interface */
+static int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
+{
+	__u32 mac_cfg;
+	u32 port = adapter->physical_port;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
+
+	if (port > NETXEN_NIU_MAX_XG_PORTS)
+		return -EINVAL;
+
+	mac_cfg = 0;
+	if (NXWR32(adapter,
+			NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port), mac_cfg))
+		return -EIO;
+	return 0;
+}
+
 #define NETXEN_UNICAST_ADDR(port, index) \
 	(NETXEN_UNICAST_ADDR_BASE+(port*32)+(index*8))
 #define NETXEN_MCAST_ADDR(port, index) \
@@ -330,12 +385,89 @@ static unsigned crb_hub_agt[64] =
 #define MAC_LO(addr) \
 	((addr[5] << 16) | (addr[4] << 8) | (addr[3]))
 
+static int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
+{
+	u32 mac_cfg;
+	u32 cnt = 0;
+	__u32 reg = 0x0200;
+	u32 port = adapter->physical_port;
+	u16 board_type = adapter->ahw.board_type;
+
+	if (port > NETXEN_NIU_MAX_XG_PORTS)
+		return -EINVAL;
+
+	mac_cfg = NXRD32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port));
+	mac_cfg &= ~0x4;
+	NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port), mac_cfg);
+
+	if ((board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ) ||
+			(board_type == NETXEN_BRDTYPE_P2_SB31_10G_HMEZ))
+		reg = (0x20 << port);
+
+	NXWR32(adapter, NETXEN_NIU_FRAME_COUNT_SELECT, reg);
+
+	mdelay(10);
+
+	while (NXRD32(adapter, NETXEN_NIU_FRAME_COUNT) && ++cnt < 20)
+		mdelay(10);
+
+	if (cnt < 20) {
+
+		reg = NXRD32(adapter,
+			NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port));
+
+		if (mode == NETXEN_NIU_PROMISC_MODE)
+			reg = (reg | 0x2000UL);
+		else
+			reg = (reg & ~0x2000UL);
+
+		if (mode == NETXEN_NIU_ALLMULTI_MODE)
+			reg = (reg | 0x1000UL);
+		else
+			reg = (reg & ~0x1000UL);
+
+		NXWR32(adapter,
+			NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port), reg);
+	}
+
+	mac_cfg |= 0x4;
+	NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port), mac_cfg);
+
+	return 0;
+}
+
+static int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
+{
+	u32 mac_hi, mac_lo;
+	u32 reg_hi, reg_lo;
+
+	u8 phy = adapter->physical_port;
+
+	if (phy >= NETXEN_NIU_MAX_XG_PORTS)
+		return -EINVAL;
+
+	mac_lo = ((u32)addr[0] << 16) | ((u32)addr[1] << 24);
+	mac_hi = addr[2] | ((u32)addr[3] << 8) |
+		((u32)addr[4] << 16) | ((u32)addr[5] << 24);
+
+	reg_lo = NETXEN_NIU_XGE_STATION_ADDR_0_1 + (0x10000 * phy);
+	reg_hi = NETXEN_NIU_XGE_STATION_ADDR_0_HI + (0x10000 * phy);
+
+	/* write twice to flush */
+	if (NXWR32(adapter, reg_lo, mac_lo) || NXWR32(adapter, reg_hi, mac_hi))
+		return -EIO;
+	if (NXWR32(adapter, reg_lo, mac_lo) || NXWR32(adapter, reg_hi, mac_hi))
+		return -EIO;
+
+	return 0;
+}
+
 static int
 netxen_nic_enable_mcast_filter(struct netxen_adapter *adapter)
 {
 	u32	val = 0;
 	u16 port = adapter->physical_port;
-	u8 *addr = adapter->netdev->dev_addr;
+	u8 *addr = adapter->mac_addr;
 
 	if (adapter->mc_enabled)
 		return 0;
@@ -364,7 +496,7 @@ netxen_nic_disable_mcast_filter(struct netxen_adapter *adapter)
 {
 	u32	val = 0;
 	u16 port = adapter->physical_port;
-	u8 *addr = adapter->netdev->dev_addr;
+	u8 *addr = adapter->mac_addr;
 
 	if (!adapter->mc_enabled)
 		return 0;
@@ -401,12 +533,12 @@ netxen_nic_set_mcast_addr(struct netxen_adapter *adapter,
 	return 0;
 }
 
-void netxen_p2_nic_set_multi(struct net_device *netdev)
+static void netxen_p2_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8 null_addr[6];
-	int index = 0;
+	int i;
 
 	memset(null_addr, 0, 6);
 
@@ -421,7 +553,7 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 		return;
 	}
 
-	if (netdev->mc_count == 0) {
+	if (netdev_mc_empty(netdev)) {
 		adapter->set_promisc(adapter,
 				NETXEN_NIU_NON_PROMISC_MODE);
 		netxen_nic_disable_mcast_filter(adapter);
@@ -430,23 +562,20 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 
 	adapter->set_promisc(adapter, NETXEN_NIU_ALLMULTI_MODE);
 	if (netdev->flags & IFF_ALLMULTI ||
-			netdev->mc_count > adapter->max_mc_count) {
+			netdev_mc_count(netdev) > adapter->max_mc_count) {
 		netxen_nic_disable_mcast_filter(adapter);
 		return;
 	}
 
 	netxen_nic_enable_mcast_filter(adapter);
 
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next, index++)
-		netxen_nic_set_mcast_addr(adapter, index, mc_ptr->dmi_addr);
-
-	if (index != netdev->mc_count)
-		printk(KERN_WARNING "%s: %s multicast address count mismatch\n",
-			netxen_nic_driver_name, netdev->name);
+	i = 0;
+	netdev_for_each_mc_addr(ha, netdev)
+		netxen_nic_set_mcast_addr(adapter, i++, ha->addr);
 
 	/* Clear out remaining addresses */
-	for (; index < adapter->max_mc_count; index++)
-		netxen_nic_set_mcast_addr(adapter, index, null_addr);
+	while (i < adapter->max_mc_count)
+		netxen_nic_set_mcast_addr(adapter, i++, null_addr);
 }
 
 static int
@@ -460,15 +589,25 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	i = 0;
 
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return -EIO;
+
 	tx_ring = adapter->tx_ring;
-	netif_tx_lock_bh(adapter->netdev);
+	__netif_tx_lock_bh(tx_ring->txq);
 
 	producer = tx_ring->producer;
 	consumer = tx_ring->sw_consumer;
 
-	if (nr_desc >= find_diff_among(producer, consumer, tx_ring->num_desc)) {
-		netif_tx_unlock_bh(adapter->netdev);
-		return -EBUSY;
+	if (nr_desc >= netxen_tx_avail(tx_ring)) {
+		netif_tx_stop_queue(tx_ring->txq);
+		smp_mb();
+		if (netxen_tx_avail(tx_ring) > nr_desc) {
+			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
+				netif_tx_wake_queue(tx_ring->txq);
+		} else {
+			__netif_tx_unlock_bh(tx_ring->txq);
+			return -EBUSY;
+		}
 	}
 
 	do {
@@ -490,7 +629,7 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	netxen_nic_update_cmd_producer(adapter, tx_ring);
 
-	netif_tx_unlock_bh(adapter->netdev);
+	__netif_tx_unlock_bh(tx_ring->txq);
 
 	return 0;
 }
@@ -516,7 +655,7 @@ nx_p3_sre_macaddr_change(struct netxen_adapter *adapter, u8 *addr, unsigned op)
 }
 
 static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
-		u8 *addr, struct list_head *del_list)
+		const u8 *addr, struct list_head *del_list)
 {
 	struct list_head *head;
 	nx_mac_list_t *cur;
@@ -543,19 +682,24 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 				cur->mac_addr, NETXEN_MAC_ADD);
 }
 
-void netxen_p3_nic_set_multi(struct net_device *netdev)
+static void netxen_p3_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
-	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	struct netdev_hw_addr *ha;
+	static const u8 bcast_addr[ETH_ALEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 	u32 mode = VPORT_MISS_MODE_DROP;
 	LIST_HEAD(del_list);
 	struct list_head *head;
 	nx_mac_list_t *cur;
 
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return;
+
 	list_splice_tail_init(&adapter->mac_list, &del_list);
 
-	nx_p3_nic_add_mac(adapter, netdev->dev_addr, &del_list);
+	nx_p3_nic_add_mac(adapter, adapter->mac_addr, &del_list);
 	nx_p3_nic_add_mac(adapter, bcast_addr, &del_list);
 
 	if (netdev->flags & IFF_PROMISC) {
@@ -564,16 +708,14 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 	}
 
 	if ((netdev->flags & IFF_ALLMULTI) ||
-			(netdev->mc_count > adapter->max_mc_count)) {
+			(netdev_mc_count(netdev) > adapter->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 		goto send_fw_cmd;
 	}
 
-	if (netdev->mc_count > 0) {
-		for (mc_ptr = netdev->mc_list; mc_ptr;
-		     mc_ptr = mc_ptr->next) {
-			nx_p3_nic_add_mac(adapter, mc_ptr->dmi_addr, &del_list);
-		}
+	if (!netdev_mc_empty(netdev)) {
+		netdev_for_each_mc_addr(ha, netdev)
+			nx_p3_nic_add_mac(adapter, ha->addr, &del_list);
 	}
 
 send_fw_cmd:
@@ -589,7 +731,7 @@ send_fw_cmd:
 	}
 }
 
-int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
+static int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 {
 	nx_nic_req_t req;
 	u64 word;
@@ -622,7 +764,7 @@ void netxen_p3_free_mac_list(struct netxen_adapter *adapter)
 	}
 }
 
-int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
+static int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
 {
 	/* assuming caller has already copied new addr to netdev */
 	netxen_p3_nic_set_multi(adapter->netdev);
@@ -637,17 +779,20 @@ int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 {
 	nx_nic_req_t req;
-	u64 word;
-	int rv;
+	u64 word[6];
+	int rv, i;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
+	memset(word, 0, sizeof(word));
 
-	req.qhdr = cpu_to_le64(NX_NIC_REQUEST << 23);
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
 
-	word = NETXEN_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
-	req.req_hdr = cpu_to_le64(word);
+	word[0] = NETXEN_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word[0]);
 
-	memcpy(&req.words[0], &adapter->coal, sizeof(adapter->coal));
+	memcpy(&word[0], &adapter->coal, sizeof(adapter->coal));
+	for (i = 0; i < 6; i++)
+		req.words[i] = cpu_to_le64(word[i]);
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
@@ -658,6 +803,61 @@ int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 	return rv;
 }
 
+int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int rv = 0;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_CONFIG_HW_LRO | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	req.words[0] = cpu_to_le64(enable);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "ERROR. Could not send "
+			"configure hw lro request\n");
+	}
+
+	return rv;
+}
+
+int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int rv = 0;
+
+	if (!!(adapter->flags & NETXEN_NIC_BRIDGE_ENABLED) == enable)
+		return rv;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_CONFIG_BRIDGING |
+		((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	req.words[0] = cpu_to_le64(enable);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "ERROR. Could not send "
+				"configure bridge mode request\n");
+	}
+
+	adapter->flags ^= NETXEN_NIC_BRIDGE_ENABLED;
+
+	return rv;
+}
+
+
 #define RSS_HASHTYPE_IP_TCP	0x3
 
 int netxen_config_rss(struct netxen_adapter *adapter, int enable)
@@ -666,9 +866,11 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 	u64 word;
 	int i, rv;
 
-	u64 key[] = { 0xbeac01fa6a42b73bULL, 0x8030f20c77cb2da3ULL,
-			0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
-			0x255b0ec26d5a56daULL };
+	static const u64 key[] = {
+		0xbeac01fa6a42b73bULL, 0x8030f20c77cb2da3ULL,
+		0xae7b30b4d0ca2bcbULL, 0x43a38fb04167253dULL,
+		0x255b0ec26d5a56daULL
+	};
 
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
@@ -692,7 +894,7 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 		((u64)(enable & 0x1) << 8) |
 		((0x7ULL) << 48);
 	req.words[0] = cpu_to_le64(word);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < ARRAY_SIZE(key); i++)
 		req.words[i+1] = cpu_to_le64(key[i]);
 
 
@@ -702,6 +904,30 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 				adapter->netdev->name);
 	}
 
+	return rv;
+}
+
+int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int rv;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_CONFIG_IPADDR | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	req.words[0] = cpu_to_le64(cmd);
+	req.words[1] = cpu_to_le64(ip);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "%s: could not notify %s IP 0x%x reuqest\n",
+				adapter->netdev->name,
+				(cmd == NX_IP_UP) ? "Add" : "Remove", ip);
+	}
 	return rv;
 }
 
@@ -724,6 +950,29 @@ int netxen_linkevent_request(struct netxen_adapter *adapter, int enable)
 				adapter->netdev->name);
 	}
 
+	return rv;
+}
+
+int netxen_send_lro_cleanup(struct netxen_adapter *adapter)
+{
+	nx_nic_req_t req;
+	u64 word;
+	int rv;
+
+	memset(&req, 0, sizeof(nx_nic_req_t));
+	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
+
+	word = NX_NIC_H2C_OPCODE_LRO_REQUEST |
+		((u64)adapter->portnum << 16) |
+		((u64)NX_NIC_LRO_REQUEST_CLEANUP << 56) ;
+
+	req.req_hdr = cpu_to_le64(word);
+
+	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0) {
+		printk(KERN_ERR "%s: could not cleanup lro flows\n",
+				adapter->netdev->name);
+	}
 	return rv;
 }
 
@@ -786,23 +1035,20 @@ static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 	return 0;
 }
 
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 {
 	__le32 *pmac = (__le32 *) mac;
 	u32 offset;
 
-	offset = NETXEN_USER_START +
-		offsetof(struct netxen_new_user_info, mac_addr) +
-		adapter->portnum * sizeof(u64);
+	offset = NX_FW_MAC_ADDR_OFFSET + (adapter->portnum * sizeof(u64));
 
 	if (netxen_get_flash_block(adapter, offset, sizeof(u64), pmac) == -1)
 		return -1;
 
 	if (*mac == cpu_to_le64(~0ULL)) {
 
-		offset = NETXEN_USER_START_OLD +
-			offsetof(struct netxen_user_old_info, mac_addr) +
-			adapter->portnum * sizeof(u64);
+		offset = NX_OLD_MAC_ADDR_OFFSET +
+			(adapter->portnum * sizeof(u64));
 
 		if (netxen_get_flash_block(adapter,
 					offset, sizeof(u64), pmac) == -1)
@@ -814,7 +1060,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 	return 0;
 }
 
-int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
+int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 {
 	uint32_t crbaddr, mac_hi, mac_lo;
 	int pci_func = adapter->ahw.pci_func;
@@ -833,120 +1079,75 @@ int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 	return 0;
 }
 
-#define CRB_WIN_LOCK_TIMEOUT 100000000
-
-static int crb_win_lock(struct netxen_adapter *adapter)
-{
-	int done = 0, timeout = 0;
-
-	while (!done) {
-		/* acquire semaphore3 from PCI HW block */
-		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM7_LOCK));
-		if (done == 1)
-			break;
-		if (timeout >= CRB_WIN_LOCK_TIMEOUT)
-			return -1;
-		timeout++;
-		udelay(1);
-	}
-	NXWR32(adapter, NETXEN_CRB_WIN_LOCK_ID, adapter->portnum);
-	return 0;
-}
-
-static void crb_win_unlock(struct netxen_adapter *adapter)
-{
-	int val;
-
-	val = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM7_UNLOCK));
-}
-
 /*
  * Changes the CRB window to the specified window.
  */
-void
-netxen_nic_pci_change_crbwindow_128M(struct netxen_adapter *adapter, u32 wndw)
+static void
+netxen_nic_pci_set_crbwindow_128M(struct netxen_adapter *adapter,
+		u32 window)
 {
 	void __iomem *offset;
-	u32 tmp;
-	int count = 0;
-	uint8_t func = adapter->ahw.pci_func;
+	int count = 10;
+	u8 func = adapter->ahw.pci_func;
 
-	if (adapter->curr_window == wndw)
+	if (adapter->ahw.crb_win == window)
 		return;
-	/*
-	 * Move the CRB window.
-	 * We need to write to the "direct access" region of PCI
-	 * to avoid a race condition where the window register has
-	 * not been successfully written across CRB before the target
-	 * register address is received by PCI. The direct region bypasses
-	 * the CRB bus.
-	 */
+
 	offset = PCI_OFFSET_SECOND_RANGE(adapter,
 			NETXEN_PCIX_PH_REG(PCIE_CRB_WINDOW_REG(func)));
 
-	if (wndw & 0x1)
-		wndw = NETXEN_WINDOW_ONE;
-
-	writel(wndw, offset);
-
-	/* MUST make sure window is set before we forge on... */
-	while ((tmp = readl(offset)) != wndw) {
-		printk(KERN_WARNING "%s: %s WARNING: CRB window value not "
-		       "registered properly: 0x%08x.\n",
-		       netxen_nic_driver_name, __func__, tmp);
-		mdelay(1);
-		if (count >= 10)
+	writel(window, offset);
+	do {
+		if (window == readl(offset))
 			break;
-		count++;
-	}
 
-	if (wndw == NETXEN_WINDOW_ONE)
-		adapter->curr_window = 1;
-	else
-		adapter->curr_window = 0;
+		if (printk_ratelimit())
+			dev_warn(&adapter->pdev->dev,
+					"failed to set CRB window to %d\n",
+					(window == NETXEN_WINDOW_ONE));
+		udelay(1);
+
+	} while (--count > 0);
+
+	if (count > 0)
+		adapter->ahw.crb_win = window;
 }
 
 /*
- * Return -1 if off is not valid,
+ * Returns < 0 if off is not valid,
  *	 1 if window access is needed. 'off' is set to offset from
  *	   CRB space in 128M pci map
  *	 0 if no window access is needed. 'off' is set to 2M addr
  * In: 'off' is offset from base in 128M pci map
  */
 static int
-netxen_nic_pci_get_crb_addr_2M(struct netxen_adapter *adapter, ulong *off)
+netxen_nic_pci_get_crb_addr_2M(struct netxen_adapter *adapter,
+		ulong off, void __iomem **addr)
 {
 	crb_128M_2M_sub_block_map_t *m;
 
 
-	if (*off >= NETXEN_CRB_MAX)
-		return -1;
+	if ((off >= NETXEN_CRB_MAX) || (off < NETXEN_PCI_CRBSPACE))
+		return -EINVAL;
 
-	if (*off >= NETXEN_PCI_CAMQM && (*off < NETXEN_PCI_CAMQM_2M_END)) {
-		*off = (*off - NETXEN_PCI_CAMQM) + NETXEN_PCI_CAMQM_2M_BASE +
-			(ulong)adapter->ahw.pci_base0;
-		return 0;
-	}
-
-	if (*off < NETXEN_PCI_CRBSPACE)
-		return -1;
-
-	*off -= NETXEN_PCI_CRBSPACE;
+	off -= NETXEN_PCI_CRBSPACE;
 
 	/*
 	 * Try direct map
 	 */
-	m = &crb_128M_2M_map[CRB_BLK(*off)].sub_block[CRB_SUBBLK(*off)];
+	m = &crb_128M_2M_map[CRB_BLK(off)].sub_block[CRB_SUBBLK(off)];
 
-	if (m->valid && (m->start_128M <= *off) && (m->end_128M > *off)) {
-		*off = *off + m->start_2M - m->start_128M +
-			(ulong)adapter->ahw.pci_base0;
+	if (m->valid && (m->start_128M <= off) && (m->end_128M > off)) {
+		*addr = adapter->ahw.pci_base0 + m->start_2M +
+			(off - m->start_128M);
 		return 0;
 	}
 
 	/*
 	 * Not in direct map, use crb window
 	 */
+	*addr = adapter->ahw.pci_base0 + CRB_INDIRECT_2M +
+		(off & MASK(16));
 	return 1;
 }
 
@@ -956,912 +1157,679 @@ netxen_nic_pci_get_crb_addr_2M(struct netxen_adapter *adapter, ulong *off)
  * side effect: lock crb window
  */
 static void
-netxen_nic_pci_set_crbwindow_2M(struct netxen_adapter *adapter, ulong *off)
+netxen_nic_pci_set_crbwindow_2M(struct netxen_adapter *adapter, ulong off)
 {
-	u32 win_read;
+	u32 window;
+	void __iomem *addr = adapter->ahw.pci_base0 + CRB_WINDOW_2M;
 
-	adapter->crb_win = CRB_HI(*off);
-	writel(adapter->crb_win, (adapter->ahw.pci_base0 + CRB_WINDOW_2M));
-	/*
-	 * Read back value to make sure write has gone through before trying
-	 * to use it.
-	 */
-	win_read = readl(adapter->ahw.pci_base0 + CRB_WINDOW_2M);
-	if (win_read != adapter->crb_win) {
-		printk(KERN_ERR "%s: Written crbwin (0x%x) != "
-				"Read crbwin (0x%x), off=0x%lx\n",
-				__func__, adapter->crb_win, win_read, *off);
+	off -= NETXEN_PCI_CRBSPACE;
+
+	window = CRB_HI(off);
+
+	writel(window, addr);
+	if (readl(addr) != window) {
+		if (printk_ratelimit())
+			dev_warn(&adapter->pdev->dev,
+				"failed to set CRB window to %d off 0x%lx\n",
+				window, off);
 	}
-	*off = (*off & MASK(16)) + CRB_INDIRECT_2M +
-		(ulong)adapter->ahw.pci_base0;
 }
 
-int
-netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter, ulong off, u32 data)
+static void __iomem *
+netxen_nic_map_indirect_address_128M(struct netxen_adapter *adapter,
+		ulong win_off, void __iomem **mem_ptr)
 {
+	ulong off = win_off;
 	void __iomem *addr;
+	resource_size_t mem_base;
 
-	if (ADDR_IN_WINDOW1(off)) {
-		addr = NETXEN_CRB_NORMALIZE(adapter, off);
-	} else {		/* Window 0 */
-		addr = pci_base_offset(adapter, off);
-		netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	}
+	if (ADDR_IN_WINDOW1(win_off))
+		off = NETXEN_CRB_NORMAL(win_off);
 
-	if (!addr) {
-		netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-		return 1;
-	}
+	addr = pci_base_offset(adapter, off);
+	if (addr)
+		return addr;
 
-	writel(data, addr);
+	if (adapter->ahw.pci_len0 == 0)
+		off -= NETXEN_PCI_CRBSPACE;
 
-	if (!ADDR_IN_WINDOW1(off))
-		netxen_nic_pci_change_crbwindow_128M(adapter, 1);
+	mem_base = pci_resource_start(adapter->pdev, 0);
+	*mem_ptr = ioremap(mem_base + (off & PAGE_MASK), PAGE_SIZE);
+	if (*mem_ptr)
+		addr = *mem_ptr + (off & (PAGE_SIZE - 1));
 
-	return 0;
-}
-
-u32
-netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off)
-{
-	void __iomem *addr;
-	u32 data;
-
-	if (ADDR_IN_WINDOW1(off)) {	/* Window 1 */
-		addr = NETXEN_CRB_NORMALIZE(adapter, off);
-	} else {		/* Window 0 */
-		addr = pci_base_offset(adapter, off);
-		netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	}
-
-	if (!addr) {
-		netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-		return 1;
-	}
-
-	data = readl(addr);
-
-	if (!ADDR_IN_WINDOW1(off))
-		netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-
-	return data;
-}
-
-int
-netxen_nic_hw_write_wx_2M(struct netxen_adapter *adapter, ulong off, u32 data)
-{
-	unsigned long flags = 0;
-	int rv;
-
-	rv = netxen_nic_pci_get_crb_addr_2M(adapter, &off);
-
-	if (rv == -1) {
-		printk(KERN_ERR "%s: invalid offset: 0x%016lx\n",
-				__func__, off);
-		dump_stack();
-		return -1;
-	}
-
-	if (rv == 1) {
-		write_lock_irqsave(&adapter->adapter_lock, flags);
-		crb_win_lock(adapter);
-		netxen_nic_pci_set_crbwindow_2M(adapter, &off);
-		writel(data, (void __iomem *)off);
-		crb_win_unlock(adapter);
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
-	} else
-		writel(data, (void __iomem *)off);
-
-
-	return 0;
-}
-
-u32
-netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter, ulong off)
-{
-	unsigned long flags = 0;
-	int rv;
-	u32 data;
-
-	rv = netxen_nic_pci_get_crb_addr_2M(adapter, &off);
-
-	if (rv == -1) {
-		printk(KERN_ERR "%s: invalid offset: 0x%016lx\n",
-				__func__, off);
-		dump_stack();
-		return -1;
-	}
-
-	if (rv == 1) {
-		write_lock_irqsave(&adapter->adapter_lock, flags);
-		crb_win_lock(adapter);
-		netxen_nic_pci_set_crbwindow_2M(adapter, &off);
-		data = readl((void __iomem *)off);
-		crb_win_unlock(adapter);
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
-	} else
-		data = readl((void __iomem *)off);
-
-	return data;
-}
-
-/*
- * check memory access boundary.
- * used by test agent. support ddr access only for now
- */
-static unsigned long
-netxen_nic_pci_mem_bound_check(struct netxen_adapter *adapter,
-		unsigned long long addr, int size)
-{
-	if (!ADDR_IN_RANGE(addr,
-			NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX) ||
-		!ADDR_IN_RANGE(addr+size-1,
-			NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX) ||
-		((size != 1) && (size != 2) && (size != 4) && (size != 8))) {
-		return 0;
-	}
-
-	return 1;
-}
-
-static int netxen_pci_set_window_warning_count;
-
-unsigned long
-netxen_nic_pci_set_window_128M(struct netxen_adapter *adapter,
-		unsigned long long addr)
-{
-	void __iomem *offset;
-	int window;
-	unsigned long long	qdr_max;
-	uint8_t func = adapter->ahw.pci_func;
-
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		qdr_max = NETXEN_ADDR_QDR_NET_MAX_P2;
-	} else {
-		qdr_max = NETXEN_ADDR_QDR_NET_MAX_P3;
-	}
-
-	if (ADDR_IN_RANGE(addr, NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
-		/* DDR network side */
-		addr -= NETXEN_ADDR_DDR_NET;
-		window = (addr >> 25) & 0x3ff;
-		if (adapter->ahw.ddr_mn_window != window) {
-			adapter->ahw.ddr_mn_window = window;
-			offset = PCI_OFFSET_SECOND_RANGE(adapter,
-				NETXEN_PCIX_PH_REG(PCIE_MN_WINDOW_REG(func)));
-			writel(window, offset);
-			/* MUST make sure window is set before we forge on... */
-			readl(offset);
-		}
-		addr -= (window * NETXEN_WINDOW_ONE);
-		addr += NETXEN_PCI_DDR_NET;
-	} else if (ADDR_IN_RANGE(addr, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX)) {
-		addr -= NETXEN_ADDR_OCM0;
-		addr += NETXEN_PCI_OCM0;
-	} else if (ADDR_IN_RANGE(addr, NETXEN_ADDR_OCM1, NETXEN_ADDR_OCM1_MAX)) {
-		addr -= NETXEN_ADDR_OCM1;
-		addr += NETXEN_PCI_OCM1;
-	} else if (ADDR_IN_RANGE(addr, NETXEN_ADDR_QDR_NET, qdr_max)) {
-		/* QDR network side */
-		addr -= NETXEN_ADDR_QDR_NET;
-		window = (addr >> 22) & 0x3f;
-		if (adapter->ahw.qdr_sn_window != window) {
-			adapter->ahw.qdr_sn_window = window;
-			offset = PCI_OFFSET_SECOND_RANGE(adapter,
-				NETXEN_PCIX_PH_REG(PCIE_SN_WINDOW_REG(func)));
-			writel((window << 22), offset);
-			/* MUST make sure window is set before we forge on... */
-			readl(offset);
-		}
-		addr -= (window * 0x400000);
-		addr += NETXEN_PCI_QDR_NET;
-	} else {
-		/*
-		 * peg gdb frequently accesses memory that doesn't exist,
-		 * this limits the chit chat so debugging isn't slowed down.
-		 */
-		if ((netxen_pci_set_window_warning_count++ < 8)
-		    || (netxen_pci_set_window_warning_count % 64 == 0))
-			printk("%s: Warning:netxen_nic_pci_set_window()"
-			       " Unknown address range!\n",
-			       netxen_nic_driver_name);
-		addr = -1UL;
-	}
 	return addr;
-}
-
-/*
- * Note : only 32-bit writes!
- */
-int netxen_nic_pci_write_immediate_128M(struct netxen_adapter *adapter,
-		u64 off, u32 data)
-{
-	writel(data, (void __iomem *)(PCI_OFFSET_SECOND_RANGE(adapter, off)));
-	return 0;
-}
-
-u32 netxen_nic_pci_read_immediate_128M(struct netxen_adapter *adapter, u64 off)
-{
-	return readl((void __iomem *)(pci_base_offset(adapter, off)));
-}
-
-unsigned long
-netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
-		unsigned long long addr)
-{
-	int window;
-	u32 win_read;
-
-	if (ADDR_IN_RANGE(addr, NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
-		/* DDR network side */
-		window = MN_WIN(addr);
-		adapter->ahw.ddr_mn_window = window;
-		NXWR32(adapter, adapter->ahw.mn_win_crb | NETXEN_PCI_CRBSPACE,
-				window);
-		win_read = NXRD32(adapter,
-				adapter->ahw.mn_win_crb | NETXEN_PCI_CRBSPACE);
-		if ((win_read << 17) != window) {
-			printk(KERN_INFO "Written MNwin (0x%x) != "
-				"Read MNwin (0x%x)\n", window, win_read);
-		}
-		addr = GET_MEM_OFFS_2M(addr) + NETXEN_PCI_DDR_NET;
-	} else if (ADDR_IN_RANGE(addr,
-				NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX)) {
-		if ((addr & 0x00ff800) == 0xff800) {
-			printk("%s: QM access not handled.\n", __func__);
-			addr = -1UL;
-		}
-
-		window = OCM_WIN(addr);
-		adapter->ahw.ddr_mn_window = window;
-		NXWR32(adapter, adapter->ahw.mn_win_crb | NETXEN_PCI_CRBSPACE,
-				window);
-		win_read = NXRD32(adapter,
-				adapter->ahw.mn_win_crb | NETXEN_PCI_CRBSPACE);
-		if ((win_read >> 7) != window) {
-			printk(KERN_INFO "%s: Written OCMwin (0x%x) != "
-					"Read OCMwin (0x%x)\n",
-					__func__, window, win_read);
-		}
-		addr = GET_MEM_OFFS_2M(addr) + NETXEN_PCI_OCM0_2M;
-
-	} else if (ADDR_IN_RANGE(addr,
-			NETXEN_ADDR_QDR_NET, NETXEN_ADDR_QDR_NET_MAX_P3)) {
-		/* QDR network side */
-		window = MS_WIN(addr);
-		adapter->ahw.qdr_sn_window = window;
-		NXWR32(adapter, adapter->ahw.ms_win_crb | NETXEN_PCI_CRBSPACE,
-				window);
-		win_read = NXRD32(adapter,
-				adapter->ahw.ms_win_crb | NETXEN_PCI_CRBSPACE);
-		if (win_read != window) {
-			printk(KERN_INFO "%s: Written MSwin (0x%x) != "
-					"Read MSwin (0x%x)\n",
-					__func__, window, win_read);
-		}
-		addr = GET_MEM_OFFS_2M(addr) + NETXEN_PCI_QDR_NET;
-
-	} else {
-		/*
-		 * peg gdb frequently accesses memory that doesn't exist,
-		 * this limits the chit chat so debugging isn't slowed down.
-		 */
-		if ((netxen_pci_set_window_warning_count++ < 8)
-			|| (netxen_pci_set_window_warning_count%64 == 0)) {
-			printk("%s: Warning:%s Unknown address range!\n",
-					__func__, netxen_nic_driver_name);
-}
-		addr = -1UL;
-	}
-	return addr;
-}
-
-static int netxen_nic_pci_is_same_window(struct netxen_adapter *adapter,
-				      unsigned long long addr)
-{
-	int window;
-	unsigned long long qdr_max;
-
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		qdr_max = NETXEN_ADDR_QDR_NET_MAX_P2;
-	else
-		qdr_max = NETXEN_ADDR_QDR_NET_MAX_P3;
-
-	if (ADDR_IN_RANGE(addr,
-			NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
-		/* DDR network side */
-		BUG();	/* MN access can not come here */
-	} else if (ADDR_IN_RANGE(addr,
-			NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX)) {
-		return 1;
-	} else if (ADDR_IN_RANGE(addr,
-				NETXEN_ADDR_OCM1, NETXEN_ADDR_OCM1_MAX)) {
-		return 1;
-	} else if (ADDR_IN_RANGE(addr, NETXEN_ADDR_QDR_NET, qdr_max)) {
-		/* QDR network side */
-		window = ((addr - NETXEN_ADDR_QDR_NET) >> 22) & 0x3f;
-		if (adapter->ahw.qdr_sn_window == window)
-			return 1;
-	}
-
-	return 0;
-}
-
-static int netxen_nic_pci_mem_read_direct(struct netxen_adapter *adapter,
-			u64 off, void *data, int size)
-{
-	unsigned long flags;
-	void __iomem *addr, *mem_ptr = NULL;
-	int ret = 0;
-	u64 start;
-	unsigned long mem_base;
-	unsigned long mem_page;
-
-	write_lock_irqsave(&adapter->adapter_lock, flags);
-
-	/*
-	 * If attempting to access unknown address or straddle hw windows,
-	 * do not access.
-	 */
-	start = adapter->pci_set_window(adapter, off);
-	if ((start == -1UL) ||
-		(netxen_nic_pci_is_same_window(adapter, off+size-1) == 0)) {
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
-		printk(KERN_ERR "%s out of bound pci memory access. "
-			"offset is 0x%llx\n", netxen_nic_driver_name,
-			(unsigned long long)off);
-		return -1;
-	}
-
-	addr = pci_base_offset(adapter, start);
-	if (!addr) {
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
-		mem_base = pci_resource_start(adapter->pdev, 0);
-		mem_page = start & PAGE_MASK;
-		/* Map two pages whenever user tries to access addresses in two
-		consecutive pages.
-		*/
-		if (mem_page != ((start + size - 1) & PAGE_MASK))
-			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE * 2);
-		else
-			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE);
-		if (mem_ptr == NULL) {
-			*(uint8_t  *)data = 0;
-			return -1;
-		}
-		addr = mem_ptr;
-		addr += start & (PAGE_SIZE - 1);
-		write_lock_irqsave(&adapter->adapter_lock, flags);
-	}
-
-	switch (size) {
-	case 1:
-		*(uint8_t  *)data = readb(addr);
-		break;
-	case 2:
-		*(uint16_t *)data = readw(addr);
-		break;
-	case 4:
-		*(uint32_t *)data = readl(addr);
-		break;
-	case 8:
-		*(uint64_t *)data = readq(addr);
-		break;
-	default:
-		ret = -1;
-		break;
-	}
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
-
-	if (mem_ptr)
-		iounmap(mem_ptr);
-	return ret;
 }
 
 static int
-netxen_nic_pci_mem_write_direct(struct netxen_adapter *adapter, u64 off,
-		void *data, int size)
+netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter, ulong off, u32 data)
 {
 	unsigned long flags;
 	void __iomem *addr, *mem_ptr = NULL;
-	int ret = 0;
-	u64 start;
-	unsigned long mem_base;
-	unsigned long mem_page;
 
-	write_lock_irqsave(&adapter->adapter_lock, flags);
+	addr = netxen_nic_map_indirect_address_128M(adapter, off, &mem_ptr);
+	if (!addr)
+		return -EIO;
 
-	/*
-	 * If attempting to access unknown address or straddle hw windows,
-	 * do not access.
-	 */
-	start = adapter->pci_set_window(adapter, off);
-	if ((start == -1UL) ||
-		(netxen_nic_pci_is_same_window(adapter, off+size-1) == 0)) {
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
-		printk(KERN_ERR "%s out of bound pci memory access. "
-			"offset is 0x%llx\n", netxen_nic_driver_name,
-			(unsigned long long)off);
-		return -1;
+	if (ADDR_IN_WINDOW1(off)) { /* Window 1 */
+		netxen_nic_io_write_128M(adapter, addr, data);
+	} else {        /* Window 0 */
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
+		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
+		writel(data, addr);
+		netxen_nic_pci_set_crbwindow_128M(adapter,
+				NETXEN_WINDOW_ONE);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 	}
 
-	addr = pci_base_offset(adapter, start);
-	if (!addr) {
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
-		mem_base = pci_resource_start(adapter->pdev, 0);
-		mem_page = start & PAGE_MASK;
-		/* Map two pages whenever user tries to access addresses in two
-		 * consecutive pages.
-		 */
-		if (mem_page != ((start + size - 1) & PAGE_MASK))
-			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE*2);
+	if (mem_ptr)
+		iounmap(mem_ptr);
+
+	return 0;
+}
+
+static u32
+netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off)
+{
+	unsigned long flags;
+	void __iomem *addr, *mem_ptr = NULL;
+	u32 data;
+
+	addr = netxen_nic_map_indirect_address_128M(adapter, off, &mem_ptr);
+	if (!addr)
+		return -EIO;
+
+	if (ADDR_IN_WINDOW1(off)) { /* Window 1 */
+		data = netxen_nic_io_read_128M(adapter, addr);
+	} else {        /* Window 0 */
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
+		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
+		data = readl(addr);
+		netxen_nic_pci_set_crbwindow_128M(adapter,
+				NETXEN_WINDOW_ONE);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
+	}
+
+	if (mem_ptr)
+		iounmap(mem_ptr);
+
+	return data;
+}
+
+static int
+netxen_nic_hw_write_wx_2M(struct netxen_adapter *adapter, ulong off, u32 data)
+{
+	unsigned long flags;
+	int rv;
+	void __iomem *addr = NULL;
+
+	rv = netxen_nic_pci_get_crb_addr_2M(adapter, off, &addr);
+
+	if (rv == 0) {
+		writel(data, addr);
+		return 0;
+	}
+
+	if (rv > 0) {
+		/* indirect access */
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
+		crb_win_lock(adapter);
+		netxen_nic_pci_set_crbwindow_2M(adapter, off);
+		writel(data, addr);
+		crb_win_unlock(adapter);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
+		return 0;
+	}
+
+	dev_err(&adapter->pdev->dev,
+			"%s: invalid offset: 0x%016lx\n", __func__, off);
+	dump_stack();
+	return -EIO;
+}
+
+static u32
+netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter, ulong off)
+{
+	unsigned long flags;
+	int rv;
+	u32 data;
+	void __iomem *addr = NULL;
+
+	rv = netxen_nic_pci_get_crb_addr_2M(adapter, off, &addr);
+
+	if (rv == 0)
+		return readl(addr);
+
+	if (rv > 0) {
+		/* indirect access */
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
+		crb_win_lock(adapter);
+		netxen_nic_pci_set_crbwindow_2M(adapter, off);
+		data = readl(addr);
+		crb_win_unlock(adapter);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
+		return data;
+	}
+
+	dev_err(&adapter->pdev->dev,
+			"%s: invalid offset: 0x%016lx\n", __func__, off);
+	dump_stack();
+	return -1;
+}
+
+/* window 1 registers only */
+static void netxen_nic_io_write_128M(struct netxen_adapter *adapter,
+		void __iomem *addr, u32 data)
+{
+	read_lock(&adapter->ahw.crb_lock);
+	writel(data, addr);
+	read_unlock(&adapter->ahw.crb_lock);
+}
+
+static u32 netxen_nic_io_read_128M(struct netxen_adapter *adapter,
+		void __iomem *addr)
+{
+	u32 val;
+
+	read_lock(&adapter->ahw.crb_lock);
+	val = readl(addr);
+	read_unlock(&adapter->ahw.crb_lock);
+
+	return val;
+}
+
+static void netxen_nic_io_write_2M(struct netxen_adapter *adapter,
+		void __iomem *addr, u32 data)
+{
+	writel(data, addr);
+}
+
+static u32 netxen_nic_io_read_2M(struct netxen_adapter *adapter,
+		void __iomem *addr)
+{
+	return readl(addr);
+}
+
+void __iomem *
+netxen_get_ioaddr(struct netxen_adapter *adapter, u32 offset)
+{
+	void __iomem *addr = NULL;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		if ((offset < NETXEN_CRB_PCIX_HOST2) &&
+				(offset > NETXEN_CRB_PCIX_HOST))
+			addr = PCI_OFFSET_SECOND_RANGE(adapter, offset);
 		else
-			mem_ptr = ioremap(mem_base + mem_page, PAGE_SIZE);
-		if (mem_ptr == NULL)
-			return -1;
-		addr = mem_ptr;
-		addr += start & (PAGE_SIZE - 1);
-		write_lock_irqsave(&adapter->adapter_lock, flags);
+			addr = NETXEN_CRB_NORMALIZE(adapter, offset);
+	} else {
+		WARN_ON(netxen_nic_pci_get_crb_addr_2M(adapter,
+					offset, &addr));
 	}
 
-	switch (size) {
-	case 1:
-		writeb(*(uint8_t *)data, addr);
-		break;
-	case 2:
-		writew(*(uint16_t *)data, addr);
-		break;
-	case 4:
-		writel(*(uint32_t *)data, addr);
-		break;
-	case 8:
-		writeq(*(uint64_t *)data, addr);
-		break;
-	default:
-		ret = -1;
-		break;
+	return addr;
+}
+
+static int
+netxen_nic_pci_set_window_128M(struct netxen_adapter *adapter,
+		u64 addr, u32 *start)
+{
+	if (ADDR_IN_RANGE(addr, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX)) {
+		*start = (addr - NETXEN_ADDR_OCM0  + NETXEN_PCI_OCM0);
+		return 0;
+	} else if (ADDR_IN_RANGE(addr,
+				NETXEN_ADDR_OCM1, NETXEN_ADDR_OCM1_MAX)) {
+		*start = (addr - NETXEN_ADDR_OCM1 + NETXEN_PCI_OCM1);
+		return 0;
 	}
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
+
+	return -EIO;
+}
+
+static int
+netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
+		u64 addr, u32 *start)
+{
+	u32 window;
+
+	window = OCM_WIN(addr);
+
+	writel(window, adapter->ahw.ocm_win_crb);
+	/* read back to flush */
+	readl(adapter->ahw.ocm_win_crb);
+
+	adapter->ahw.ocm_win = window;
+	*start = NETXEN_PCI_OCM0_2M + GET_MEM_OFFS_2M(addr);
+	return 0;
+}
+
+static int
+netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
+		u64 *data, int op)
+{
+	void __iomem *addr, *mem_ptr = NULL;
+	resource_size_t mem_base;
+	int ret;
+	u32 start;
+
+	spin_lock(&adapter->ahw.mem_lock);
+
+	ret = adapter->pci_set_window(adapter, off, &start);
+	if (ret != 0)
+		goto unlock;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		addr = adapter->ahw.pci_base0 + start;
+	} else {
+		addr = pci_base_offset(adapter, start);
+		if (addr)
+			goto noremap;
+
+		mem_base = pci_resource_start(adapter->pdev, 0) +
+					(start & PAGE_MASK);
+		mem_ptr = ioremap(mem_base, PAGE_SIZE);
+		if (mem_ptr == NULL) {
+			ret = -EIO;
+			goto unlock;
+		}
+
+		addr = mem_ptr + (start & (PAGE_SIZE-1));
+	}
+noremap:
+	if (op == 0)	/* read */
+		*data = readq(addr);
+	else		/* write */
+		writeq(*data, addr);
+
+unlock:
+	spin_unlock(&adapter->ahw.mem_lock);
+
 	if (mem_ptr)
 		iounmap(mem_ptr);
 	return ret;
+}
+
+void
+netxen_pci_camqm_read_2M(struct netxen_adapter *adapter, u64 off, u64 *data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		NETXEN_PCI_CAMQM_2M_BASE + (off - NETXEN_PCI_CAMQM);
+
+	spin_lock(&adapter->ahw.mem_lock);
+	*data = readq(addr);
+	spin_unlock(&adapter->ahw.mem_lock);
+}
+
+void
+netxen_pci_camqm_write_2M(struct netxen_adapter *adapter, u64 off, u64 data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		NETXEN_PCI_CAMQM_2M_BASE + (off - NETXEN_PCI_CAMQM);
+
+	spin_lock(&adapter->ahw.mem_lock);
+	writeq(data, addr);
+	spin_unlock(&adapter->ahw.mem_lock);
 }
 
 #define MAX_CTL_CHECK   1000
 
-int
+static int
 netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size)
+		u64 off, u64 data)
 {
-	unsigned long   flags;
-	int	     i, j, ret = 0, loop, sz[2], off0;
-	uint32_t      temp;
-	uint64_t      off8, tmpw, word[2] = {0, 0};
+	int j, ret;
+	u32 temp, off_lo, off_hi, addr_hi, data_hi, data_lo;
 	void __iomem *mem_crb;
 
-	/*
-	 * If not MN, go check for MS or invalid.
-	 */
-	if (netxen_nic_pci_mem_bound_check(adapter, off, size) == 0)
-		return netxen_nic_pci_mem_write_direct(adapter,
-				off, data, size);
+	/* Only 64-bit aligned access */
+	if (off & 7)
+		return -EIO;
 
-	off8 = off & 0xfffffff8;
-	off0 = off & 0x7;
-	sz[0] = (size < (8 - off0)) ? size : (8 - off0);
-	sz[1] = size - sz[0];
-	loop = ((off0 + size - 1) >> 3) + 1;
-	mem_crb = pci_base_offset(adapter, NETXEN_CRB_DDR_NET);
+	/* P2 has different SIU and MIU test agent base addr */
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_QDR_NET,
+				NETXEN_ADDR_QDR_NET_MAX_P2)) {
+		mem_crb = pci_base_offset(adapter,
+				NETXEN_CRB_QDR_NET+SIU_TEST_AGT_BASE);
+		addr_hi = SIU_TEST_AGT_ADDR_HI;
+		data_lo = SIU_TEST_AGT_WRDATA_LO;
+		data_hi = SIU_TEST_AGT_WRDATA_HI;
+		off_lo = off & SIU_TEST_AGT_ADDR_MASK;
+		off_hi = SIU_TEST_AGT_UPPER_ADDR(off);
+		goto correct;
+	}
 
-	if ((size != 8) || (off0 != 0))  {
-		for (i = 0; i < loop; i++) {
-			if (adapter->pci_mem_read(adapter,
-				off8 + (i << 3), &word[i], 8))
-				return -1;
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
+		mem_crb = pci_base_offset(adapter,
+				NETXEN_CRB_DDR_NET+MIU_TEST_AGT_BASE);
+		addr_hi = MIU_TEST_AGT_ADDR_HI;
+		data_lo = MIU_TEST_AGT_WRDATA_LO;
+		data_hi = MIU_TEST_AGT_WRDATA_HI;
+		off_lo = off & MIU_TEST_AGT_ADDR_MASK;
+		off_hi = 0;
+		goto correct;
+	}
+
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX) ||
+		ADDR_IN_RANGE(off, NETXEN_ADDR_OCM1, NETXEN_ADDR_OCM1_MAX)) {
+		if (adapter->ahw.pci_len0 != 0) {
+			return netxen_nic_pci_mem_access_direct(adapter,
+					off, &data, 1);
 		}
 	}
 
-	switch (size) {
-	case 1:
-		tmpw = *((uint8_t *)data);
-		break;
-	case 2:
-		tmpw = *((uint16_t *)data);
-		break;
-	case 4:
-		tmpw = *((uint32_t *)data);
-		break;
-	case 8:
-	default:
-		tmpw = *((uint64_t *)data);
-		break;
-	}
-	word[0] &= ~((~(~0ULL << (sz[0] * 8))) << (off0 * 8));
-	word[0] |= tmpw << (off0 * 8);
+	return -EIO;
 
-	if (loop == 2) {
-		word[1] &= ~(~0ULL << (sz[1] * 8));
-		word[1] |= tmpw >> (sz[0] * 8);
-	}
+correct:
+	spin_lock(&adapter->ahw.mem_lock);
+	netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 
-	write_lock_irqsave(&adapter->adapter_lock, flags);
-	netxen_nic_pci_change_crbwindow_128M(adapter, 0);
+	writel(off_lo, (mem_crb + MIU_TEST_AGT_ADDR_LO));
+	writel(off_hi, (mem_crb + addr_hi));
+	writel(data & 0xffffffff, (mem_crb + data_lo));
+	writel((data >> 32) & 0xffffffff, (mem_crb + data_hi));
+	writel((TA_CTL_ENABLE | TA_CTL_WRITE), (mem_crb + TEST_AGT_CTRL));
+	writel((TA_CTL_START | TA_CTL_ENABLE | TA_CTL_WRITE),
+			(mem_crb + TEST_AGT_CTRL));
 
-	for (i = 0; i < loop; i++) {
-		writel((uint32_t)(off8 + (i << 3)),
-			(mem_crb+MIU_TEST_AGT_ADDR_LO));
-		writel(0,
-			(mem_crb+MIU_TEST_AGT_ADDR_HI));
-		writel(word[i] & 0xffffffff,
-			(mem_crb+MIU_TEST_AGT_WRDATA_LO));
-		writel((word[i] >> 32) & 0xffffffff,
-			(mem_crb+MIU_TEST_AGT_WRDATA_HI));
-		writel(MIU_TA_CTL_ENABLE|MIU_TA_CTL_WRITE,
-			(mem_crb+MIU_TEST_AGT_CTRL));
-		writel(MIU_TA_CTL_START|MIU_TA_CTL_ENABLE|MIU_TA_CTL_WRITE,
-			(mem_crb+MIU_TEST_AGT_CTRL));
-
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = readl(
-			     (mem_crb+MIU_TEST_AGT_CTRL));
-			if ((temp & MIU_TA_CTL_BUSY) == 0)
-				break;
-		}
-
-		if (j >= MAX_CTL_CHECK) {
-			if (printk_ratelimit())
-				dev_err(&adapter->pdev->dev,
-					"failed to write through agent\n");
-			ret = -1;
+	for (j = 0; j < MAX_CTL_CHECK; j++) {
+		temp = readl((mem_crb + TEST_AGT_CTRL));
+		if ((temp & TA_CTL_BUSY) == 0)
 			break;
-		}
 	}
 
-	netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
+	if (j >= MAX_CTL_CHECK) {
+		if (printk_ratelimit())
+			dev_err(&adapter->pdev->dev,
+					"failed to write through agent\n");
+		ret = -EIO;
+	} else
+		ret = 0;
+
+	netxen_nic_pci_set_crbwindow_128M(adapter, NETXEN_WINDOW_ONE);
+	spin_unlock(&adapter->ahw.mem_lock);
 	return ret;
 }
 
-int
+static int
 netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size)
+		u64 off, u64 *data)
 {
-	unsigned long   flags;
-	int	     i, j = 0, k, start, end, loop, sz[2], off0[2];
-	uint32_t      temp;
-	uint64_t      off8, val, word[2] = {0, 0};
+	int j, ret;
+	u32 temp, off_lo, off_hi, addr_hi, data_hi, data_lo;
+	u64 val;
 	void __iomem *mem_crb;
 
+	/* Only 64-bit aligned access */
+	if (off & 7)
+		return -EIO;
 
-	/*
-	 * If not MN, go check for MS or invalid.
-	 */
-	if (netxen_nic_pci_mem_bound_check(adapter, off, size) == 0)
-		return netxen_nic_pci_mem_read_direct(adapter, off, data, size);
+	/* P2 has different SIU and MIU test agent base addr */
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_QDR_NET,
+				NETXEN_ADDR_QDR_NET_MAX_P2)) {
+		mem_crb = pci_base_offset(adapter,
+				NETXEN_CRB_QDR_NET+SIU_TEST_AGT_BASE);
+		addr_hi = SIU_TEST_AGT_ADDR_HI;
+		data_lo = SIU_TEST_AGT_RDDATA_LO;
+		data_hi = SIU_TEST_AGT_RDDATA_HI;
+		off_lo = off & SIU_TEST_AGT_ADDR_MASK;
+		off_hi = SIU_TEST_AGT_UPPER_ADDR(off);
+		goto correct;
+	}
 
-	off8 = off & 0xfffffff8;
-	off0[0] = off & 0x7;
-	off0[1] = 0;
-	sz[0] = (size < (8 - off0[0])) ? size : (8 - off0[0]);
-	sz[1] = size - sz[0];
-	loop = ((off0[0] + size - 1) >> 3) + 1;
-	mem_crb = pci_base_offset(adapter, NETXEN_CRB_DDR_NET);
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
+		mem_crb = pci_base_offset(adapter,
+				NETXEN_CRB_DDR_NET+MIU_TEST_AGT_BASE);
+		addr_hi = MIU_TEST_AGT_ADDR_HI;
+		data_lo = MIU_TEST_AGT_RDDATA_LO;
+		data_hi = MIU_TEST_AGT_RDDATA_HI;
+		off_lo = off & MIU_TEST_AGT_ADDR_MASK;
+		off_hi = 0;
+		goto correct;
+	}
 
-	write_lock_irqsave(&adapter->adapter_lock, flags);
-	netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-
-	for (i = 0; i < loop; i++) {
-		writel((uint32_t)(off8 + (i << 3)),
-			(mem_crb+MIU_TEST_AGT_ADDR_LO));
-		writel(0,
-			(mem_crb+MIU_TEST_AGT_ADDR_HI));
-		writel(MIU_TA_CTL_ENABLE,
-			(mem_crb+MIU_TEST_AGT_CTRL));
-		writel(MIU_TA_CTL_START|MIU_TA_CTL_ENABLE,
-			(mem_crb+MIU_TEST_AGT_CTRL));
-
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = readl(
-			      (mem_crb+MIU_TEST_AGT_CTRL));
-			if ((temp & MIU_TA_CTL_BUSY) == 0)
-				break;
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX) ||
+		ADDR_IN_RANGE(off, NETXEN_ADDR_OCM1, NETXEN_ADDR_OCM1_MAX)) {
+		if (adapter->ahw.pci_len0 != 0) {
+			return netxen_nic_pci_mem_access_direct(adapter,
+					off, data, 0);
 		}
+	}
 
-		if (j >= MAX_CTL_CHECK) {
-			if (printk_ratelimit())
-				dev_err(&adapter->pdev->dev,
+	return -EIO;
+
+correct:
+	spin_lock(&adapter->ahw.mem_lock);
+	netxen_nic_pci_set_crbwindow_128M(adapter, 0);
+
+	writel(off_lo, (mem_crb + MIU_TEST_AGT_ADDR_LO));
+	writel(off_hi, (mem_crb + addr_hi));
+	writel(TA_CTL_ENABLE, (mem_crb + TEST_AGT_CTRL));
+	writel((TA_CTL_START|TA_CTL_ENABLE), (mem_crb + TEST_AGT_CTRL));
+
+	for (j = 0; j < MAX_CTL_CHECK; j++) {
+		temp = readl(mem_crb + TEST_AGT_CTRL);
+		if ((temp & TA_CTL_BUSY) == 0)
+			break;
+	}
+
+	if (j >= MAX_CTL_CHECK) {
+		if (printk_ratelimit())
+			dev_err(&adapter->pdev->dev,
 					"failed to read through agent\n");
-			break;
-		}
-
-		start = off0[i] >> 2;
-		end   = (off0[i] + sz[i] - 1) >> 2;
-		for (k = start; k <= end; k++) {
-			word[i] |= ((uint64_t) readl(
-				    (mem_crb +
-				    MIU_TEST_AGT_RDDATA(k))) << (32*k));
-		}
-	}
-
-	netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
-
-	if (j >= MAX_CTL_CHECK)
-		return -1;
-
-	if (sz[0] == 8) {
-		val = word[0];
+		ret = -EIO;
 	} else {
-		val = ((word[0] >> (off0[0] * 8)) & (~(~0ULL << (sz[0] * 8)))) |
-			((word[1] & (~(~0ULL << (sz[1] * 8)))) << (sz[0] * 8));
+
+		temp = readl(mem_crb + data_hi);
+		val = ((u64)temp << 32);
+		val |= readl(mem_crb + data_lo);
+		*data = val;
+		ret = 0;
 	}
 
-	switch (size) {
-	case 1:
-		*(uint8_t  *)data = val;
-		break;
-	case 2:
-		*(uint16_t *)data = val;
-		break;
-	case 4:
-		*(uint32_t *)data = val;
-		break;
-	case 8:
-		*(uint64_t *)data = val;
-		break;
-	}
-	return 0;
-}
+	netxen_nic_pci_set_crbwindow_128M(adapter, NETXEN_WINDOW_ONE);
+	spin_unlock(&adapter->ahw.mem_lock);
 
-int
-netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size)
-{
-	int i, j, ret = 0, loop, sz[2], off0;
-	uint32_t temp;
-	uint64_t off8, mem_crb, tmpw, word[2] = {0, 0};
-
-	/*
-	 * If not MN, go check for MS or invalid.
-	 */
-	if (off >= NETXEN_ADDR_QDR_NET && off <= NETXEN_ADDR_QDR_NET_MAX_P3)
-		mem_crb = NETXEN_CRB_QDR_NET;
-	else {
-		mem_crb = NETXEN_CRB_DDR_NET;
-		if (netxen_nic_pci_mem_bound_check(adapter, off, size) == 0)
-			return netxen_nic_pci_mem_write_direct(adapter,
-					off, data, size);
-	}
-
-	off8 = off & 0xfffffff8;
-	off0 = off & 0x7;
-	sz[0] = (size < (8 - off0)) ? size : (8 - off0);
-	sz[1] = size - sz[0];
-	loop = ((off0 + size - 1) >> 3) + 1;
-
-	if ((size != 8) || (off0 != 0)) {
-		for (i = 0; i < loop; i++) {
-			if (adapter->pci_mem_read(adapter, off8 + (i << 3),
-						&word[i], 8))
-				return -1;
-		}
-	}
-
-	switch (size) {
-	case 1:
-		tmpw = *((uint8_t *)data);
-		break;
-	case 2:
-		tmpw = *((uint16_t *)data);
-		break;
-	case 4:
-		tmpw = *((uint32_t *)data);
-		break;
-	case 8:
-	default:
-		tmpw = *((uint64_t *)data);
-	break;
-	}
-
-	word[0] &= ~((~(~0ULL << (sz[0] * 8))) << (off0 * 8));
-	word[0] |= tmpw << (off0 * 8);
-
-	if (loop == 2) {
-		word[1] &= ~(~0ULL << (sz[1] * 8));
-		word[1] |= tmpw >> (sz[0] * 8);
-	}
-
-	/*
-	 * don't lock here - write_wx gets the lock if each time
-	 * write_lock_irqsave(&adapter->adapter_lock, flags);
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	 */
-
-	for (i = 0; i < loop; i++) {
-		temp = off8 + (i << 3);
-		NXWR32(adapter, mem_crb+MIU_TEST_AGT_ADDR_LO, temp);
-		temp = 0;
-		NXWR32(adapter, mem_crb+MIU_TEST_AGT_ADDR_HI, temp);
-		temp = word[i] & 0xffffffff;
-		NXWR32(adapter, mem_crb+MIU_TEST_AGT_WRDATA_LO, temp);
-		temp = (word[i] >> 32) & 0xffffffff;
-		NXWR32(adapter, mem_crb+MIU_TEST_AGT_WRDATA_HI, temp);
-		temp = MIU_TA_CTL_ENABLE | MIU_TA_CTL_WRITE;
-		NXWR32(adapter, mem_crb+MIU_TEST_AGT_CTRL, temp);
-		temp = MIU_TA_CTL_START | MIU_TA_CTL_ENABLE | MIU_TA_CTL_WRITE;
-		NXWR32(adapter, mem_crb+MIU_TEST_AGT_CTRL, temp);
-
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = NXRD32(adapter, mem_crb + MIU_TEST_AGT_CTRL);
-			if ((temp & MIU_TA_CTL_BUSY) == 0)
-				break;
-		}
-
-		if (j >= MAX_CTL_CHECK) {
-			if (printk_ratelimit())
-				dev_err(&adapter->pdev->dev,
-					"failed to write through agent\n");
-			ret = -1;
-			break;
-		}
-	}
-
-	/*
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-	 * write_unlock_irqrestore(&adapter->adapter_lock, flags);
-	 */
 	return ret;
 }
 
-int
-netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
-		u64 off, void *data, int size)
+static int
+netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
+		u64 off, u64 data)
 {
-	int i, j = 0, k, start, end, loop, sz[2], off0[2];
-	uint32_t      temp;
-	uint64_t      off8, val, mem_crb, word[2] = {0, 0};
+	int j, ret;
+	u32 temp, off8;
+	void __iomem *mem_crb;
 
-	/*
-	 * If not MN, go check for MS or invalid.
-	 */
+	/* Only 64-bit aligned access */
+	if (off & 7)
+		return -EIO;
 
-	if (off >= NETXEN_ADDR_QDR_NET && off <= NETXEN_ADDR_QDR_NET_MAX_P3)
-		mem_crb = NETXEN_CRB_QDR_NET;
-	else {
-		mem_crb = NETXEN_CRB_DDR_NET;
-		if (netxen_nic_pci_mem_bound_check(adapter, off, size) == 0)
-			return netxen_nic_pci_mem_read_direct(adapter,
-					off, data, size);
+	/* P3 onward, test agent base for MIU and SIU is same */
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_QDR_NET,
+				NETXEN_ADDR_QDR_NET_MAX_P3)) {
+		mem_crb = netxen_get_ioaddr(adapter,
+				NETXEN_CRB_QDR_NET+MIU_TEST_AGT_BASE);
+		goto correct;
 	}
 
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
+		mem_crb = netxen_get_ioaddr(adapter,
+				NETXEN_CRB_DDR_NET+MIU_TEST_AGT_BASE);
+		goto correct;
+	}
+
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX))
+		return netxen_nic_pci_mem_access_direct(adapter, off, &data, 1);
+
+	return -EIO;
+
+correct:
 	off8 = off & 0xfffffff8;
-	off0[0] = off & 0x7;
-	off0[1] = 0;
-	sz[0] = (size < (8 - off0[0])) ? size : (8 - off0[0]);
-	sz[1] = size - sz[0];
-	loop = ((off0[0] + size - 1) >> 3) + 1;
 
-	/*
-	 * don't lock here - write_wx gets the lock if each time
-	 * write_lock_irqsave(&adapter->adapter_lock, flags);
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	 */
+	spin_lock(&adapter->ahw.mem_lock);
 
-	for (i = 0; i < loop; i++) {
-		temp = off8 + (i << 3);
-		NXWR32(adapter, mem_crb + MIU_TEST_AGT_ADDR_LO, temp);
-		temp = 0;
-		NXWR32(adapter, mem_crb + MIU_TEST_AGT_ADDR_HI, temp);
-		temp = MIU_TA_CTL_ENABLE;
-		NXWR32(adapter, mem_crb + MIU_TEST_AGT_CTRL, temp);
-		temp = MIU_TA_CTL_START | MIU_TA_CTL_ENABLE;
-		NXWR32(adapter, mem_crb + MIU_TEST_AGT_CTRL, temp);
+	writel(off8, (mem_crb + MIU_TEST_AGT_ADDR_LO));
+	writel(0, (mem_crb + MIU_TEST_AGT_ADDR_HI));
 
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = NXRD32(adapter, mem_crb + MIU_TEST_AGT_CTRL);
-			if ((temp & MIU_TA_CTL_BUSY) == 0)
-				break;
-		}
+	writel(data & 0xffffffff,
+			mem_crb + MIU_TEST_AGT_WRDATA_LO);
+	writel((data >> 32) & 0xffffffff,
+			mem_crb + MIU_TEST_AGT_WRDATA_HI);
 
-		if (j >= MAX_CTL_CHECK) {
-			if (printk_ratelimit())
-				dev_err(&adapter->pdev->dev,
-					"failed to read through agent\n");
+	writel((TA_CTL_ENABLE | TA_CTL_WRITE), (mem_crb + TEST_AGT_CTRL));
+	writel((TA_CTL_START | TA_CTL_ENABLE | TA_CTL_WRITE),
+			(mem_crb + TEST_AGT_CTRL));
+
+	for (j = 0; j < MAX_CTL_CHECK; j++) {
+		temp = readl(mem_crb + TEST_AGT_CTRL);
+		if ((temp & TA_CTL_BUSY) == 0)
 			break;
-		}
-
-		start = off0[i] >> 2;
-		end   = (off0[i] + sz[i] - 1) >> 2;
-		for (k = start; k <= end; k++) {
-			temp = NXRD32(adapter,
-				mem_crb + MIU_TEST_AGT_RDDATA(k));
-			word[i] |= ((uint64_t)temp << (32 * k));
-		}
 	}
 
-	/*
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-	 * write_unlock_irqrestore(&adapter->adapter_lock, flags);
-	 */
+	if (j >= MAX_CTL_CHECK) {
+		if (printk_ratelimit())
+			dev_err(&adapter->pdev->dev,
+					"failed to write through agent\n");
+		ret = -EIO;
+	} else
+		ret = 0;
 
-	if (j >= MAX_CTL_CHECK)
-		return -1;
+	spin_unlock(&adapter->ahw.mem_lock);
 
-	if (sz[0] == 8) {
-		val = word[0];
+	return ret;
+}
+
+static int
+netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
+		u64 off, u64 *data)
+{
+	int j, ret;
+	u32 temp, off8;
+	u64 val;
+	void __iomem *mem_crb;
+
+	/* Only 64-bit aligned access */
+	if (off & 7)
+		return -EIO;
+
+	/* P3 onward, test agent base for MIU and SIU is same */
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_QDR_NET,
+				NETXEN_ADDR_QDR_NET_MAX_P3)) {
+		mem_crb = netxen_get_ioaddr(adapter,
+				NETXEN_CRB_QDR_NET+MIU_TEST_AGT_BASE);
+		goto correct;
+	}
+
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_DDR_NET, NETXEN_ADDR_DDR_NET_MAX)) {
+		mem_crb = netxen_get_ioaddr(adapter,
+				NETXEN_CRB_DDR_NET+MIU_TEST_AGT_BASE);
+		goto correct;
+	}
+
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX)) {
+		return netxen_nic_pci_mem_access_direct(adapter,
+				off, data, 0);
+	}
+
+	return -EIO;
+
+correct:
+	off8 = off & 0xfffffff8;
+
+	spin_lock(&adapter->ahw.mem_lock);
+
+	writel(off8, (mem_crb + MIU_TEST_AGT_ADDR_LO));
+	writel(0, (mem_crb + MIU_TEST_AGT_ADDR_HI));
+	writel(TA_CTL_ENABLE, (mem_crb + TEST_AGT_CTRL));
+	writel((TA_CTL_START | TA_CTL_ENABLE), (mem_crb + TEST_AGT_CTRL));
+
+	for (j = 0; j < MAX_CTL_CHECK; j++) {
+		temp = readl(mem_crb + TEST_AGT_CTRL);
+		if ((temp & TA_CTL_BUSY) == 0)
+			break;
+	}
+
+	if (j >= MAX_CTL_CHECK) {
+		if (printk_ratelimit())
+			dev_err(&adapter->pdev->dev,
+					"failed to read through agent\n");
+		ret = -EIO;
 	} else {
-		val = ((word[0] >> (off0[0] * 8)) & (~(~0ULL << (sz[0] * 8)))) |
-		((word[1] & (~(~0ULL << (sz[1] * 8)))) << (sz[0] * 8));
+		val = (u64)(readl(mem_crb + MIU_TEST_AGT_RDDATA_HI)) << 32;
+		val |= readl(mem_crb + MIU_TEST_AGT_RDDATA_LO);
+		*data = val;
+		ret = 0;
 	}
 
-	switch (size) {
-	case 1:
-		*(uint8_t  *)data = val;
-		break;
-	case 2:
-		*(uint16_t *)data = val;
-		break;
-	case 4:
-		*(uint32_t *)data = val;
-		break;
-	case 8:
-		*(uint64_t *)data = val;
-		break;
+	spin_unlock(&adapter->ahw.mem_lock);
+
+	return ret;
+}
+
+void
+netxen_setup_hwops(struct netxen_adapter *adapter)
+{
+	adapter->init_port = netxen_niu_xg_init_port;
+	adapter->stop_port = netxen_niu_disable_xg_port;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		adapter->crb_read = netxen_nic_hw_read_wx_128M,
+		adapter->crb_write = netxen_nic_hw_write_wx_128M,
+		adapter->pci_set_window = netxen_nic_pci_set_window_128M,
+		adapter->pci_mem_read = netxen_nic_pci_mem_read_128M,
+		adapter->pci_mem_write = netxen_nic_pci_mem_write_128M,
+		adapter->io_read = netxen_nic_io_read_128M,
+		adapter->io_write = netxen_nic_io_write_128M,
+
+		adapter->macaddr_set = netxen_p2_nic_set_mac_addr;
+		adapter->set_multi = netxen_p2_nic_set_multi;
+		adapter->set_mtu = netxen_nic_set_mtu_xgb;
+		adapter->set_promisc = netxen_p2_nic_set_promisc;
+
+	} else {
+		adapter->crb_read = netxen_nic_hw_read_wx_2M,
+		adapter->crb_write = netxen_nic_hw_write_wx_2M,
+		adapter->pci_set_window = netxen_nic_pci_set_window_2M,
+		adapter->pci_mem_read = netxen_nic_pci_mem_read_2M,
+		adapter->pci_mem_write = netxen_nic_pci_mem_write_2M,
+		adapter->io_read = netxen_nic_io_read_2M,
+		adapter->io_write = netxen_nic_io_write_2M,
+
+		adapter->set_mtu = nx_fw_cmd_set_mtu;
+		adapter->set_promisc = netxen_p3_nic_set_promisc;
+		adapter->macaddr_set = netxen_p3_nic_set_mac_addr;
+		adapter->set_multi = netxen_p3_nic_set_multi;
+
+		adapter->phy_read = nx_fw_cmd_query_phy;
+		adapter->phy_write = nx_fw_cmd_set_phy;
 	}
-	return 0;
-}
-
-/*
- * Note : only 32-bit writes!
- */
-int netxen_nic_pci_write_immediate_2M(struct netxen_adapter *adapter,
-		u64 off, u32 data)
-{
-	NXWR32(adapter, off, data);
-
-	return 0;
-}
-
-u32 netxen_nic_pci_read_immediate_2M(struct netxen_adapter *adapter, u64 off)
-{
-	return NXRD32(adapter, off);
 }
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
-	int offset, board_type, magic, header_version;
+	int offset, board_type, magic;
 	struct pci_dev *pdev = adapter->pdev;
 
-	offset = NETXEN_BRDCFG_START +
-		offsetof(struct netxen_board_info, magic);
+	offset = NX_FW_MAGIC_OFFSET;
 	if (netxen_rom_fast_read(adapter, offset, &magic))
 		return -EIO;
 
-	offset = NETXEN_BRDCFG_START +
-		offsetof(struct netxen_board_info, header_version);
-	if (netxen_rom_fast_read(adapter, offset, &header_version))
-		return -EIO;
-
-	if (magic != NETXEN_BDINFO_MAGIC ||
-			header_version != NETXEN_BDINFO_VERSION) {
-		dev_err(&pdev->dev,
-			"invalid board config, magic=%08x, version=%08x\n",
-			magic, header_version);
+	if (magic != NETXEN_BDINFO_MAGIC) {
+		dev_err(&pdev->dev, "invalid board config, magic=%08x\n",
+			magic);
 		return -EIO;
 	}
 
-	offset = NETXEN_BRDCFG_START +
-		offsetof(struct netxen_board_info, board_type);
+	offset = NX_BRDTYPE_OFFSET;
 	if (netxen_rom_fast_read(adapter, offset, &board_type))
 		return -EIO;
-
-	adapter->ahw.board_type = board_type;
 
 	if (board_type == NETXEN_BRDTYPE_P3_4_GB_MM) {
 		u32 gpio = NXRD32(adapter, NETXEN_ROMUSB_GLB_PAD_GPIO_I);
 		if ((gpio & 0x8000) == 0)
 			board_type = NETXEN_BRDTYPE_P3_10G_TP;
 	}
+
+	adapter->ahw.board_type = board_type;
 
 	switch (board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
@@ -1906,16 +1874,7 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 }
 
 /* NIU access sections */
-
-int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu)
-{
-	new_mtu += MTU_FUDGE_FACTOR;
-	NXWR32(adapter, NETXEN_NIU_GB_MAX_FRAME_SIZE(adapter->physical_port),
-		new_mtu);
-	return 0;
-}
-
-int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
+static int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 {
 	new_mtu += MTU_FUDGE_FACTOR;
 	if (adapter->physical_port == 0)
@@ -1947,10 +1906,10 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 			return;
 		}
 
-		if (adapter->phy_read
-		    && adapter->phy_read(adapter,
-			     NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-			     &status) == 0) {
+		if (adapter->phy_read &&
+		    adapter->phy_read(adapter,
+				      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+				      &status) == 0) {
 			if (netxen_get_phy_link(status)) {
 				switch (netxen_get_phy_speed(status)) {
 				case 0:
@@ -1977,10 +1936,10 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 					adapter->link_duplex = -1;
 					break;
 				}
-				if (adapter->phy_read
-				    && adapter->phy_read(adapter,
-					     NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					     &autoneg) != 0)
+				if (adapter->phy_read &&
+				    adapter->phy_read(adapter,
+						      NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
+						      &autoneg) != 0)
 					adapter->link_autoneg = autoneg;
 			} else
 				goto link_down;
@@ -1989,62 +1948,6 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 			adapter->link_speed = 0;
 			adapter->link_duplex = -1;
 		}
-	}
-}
-
-void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
-{
-	u32 fw_major, fw_minor, fw_build;
-	char brd_name[NETXEN_MAX_SHORT_NAME];
-	char serial_num[32];
-	int i, addr, val;
-	int *ptr32;
-	struct pci_dev *pdev = adapter->pdev;
-
-	adapter->driver_mismatch = 0;
-
-	ptr32 = (int *)&serial_num;
-	addr = NETXEN_USER_START +
-	       offsetof(struct netxen_new_user_info, serial_num);
-	for (i = 0; i < 8; i++) {
-		if (netxen_rom_fast_read(adapter, addr, &val) == -1) {
-			dev_err(&pdev->dev, "error reading board info\n");
-			adapter->driver_mismatch = 1;
-			return;
-		}
-		ptr32[i] = cpu_to_le32(val);
-		addr += sizeof(u32);
-	}
-
-	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
-	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
-	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
-
-	adapter->fw_major = fw_major;
-	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build);
-
-	if (adapter->portnum == 0) {
-		get_brd_name_by_type(adapter->ahw.board_type, brd_name);
-
-		printk(KERN_INFO "NetXen %s Board S/N %s  Chip rev 0x%x\n",
-				brd_name, serial_num, adapter->ahw.revision_id);
-	}
-
-	if (adapter->fw_version < NETXEN_VERSION_CODE(3, 4, 216)) {
-		adapter->driver_mismatch = 1;
-		dev_warn(&pdev->dev, "firmware version %d.%d.%d unsupported\n",
-				fw_major, fw_minor, fw_build);
-		return;
-	}
-
-	dev_info(&pdev->dev, "firmware version %d.%d.%d\n",
-			fw_major, fw_minor, fw_build);
-
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		i = NXRD32(adapter, NETXEN_SRE_MISC);
-		adapter->ahw.cut_through = (i & 0x8000) ? 1 : 0;
-		dev_info(&pdev->dev, "firmware running in %s mode\n",
-		adapter->ahw.cut_through ? "cut-through" : "legacy");
 	}
 }
 

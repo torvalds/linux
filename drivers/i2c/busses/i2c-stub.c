@@ -29,11 +29,18 @@
 #include <linux/i2c.h>
 
 #define MAX_CHIPS 10
+#define STUB_FUNC (I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE | \
+		   I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA | \
+		   I2C_FUNC_SMBUS_I2C_BLOCK)
 
 static unsigned short chip_addr[MAX_CHIPS];
 module_param_array(chip_addr, ushort, NULL, S_IRUGO);
 MODULE_PARM_DESC(chip_addr,
 		 "Chip addresses (up to 10, between 0x03 and 0x77)");
+
+static unsigned long functionality = STUB_FUNC;
+module_param(functionality, ulong, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(functionality, "Override functionality bitfield");
 
 struct stub_chip {
 	u8 pointer;
@@ -48,7 +55,7 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 	char read_write, u8 command, int size, union i2c_smbus_data * data)
 {
 	s32 ret;
-	int i;
+	int i, len;
 	struct stub_chip *chip = NULL;
 
 	/* Search for the right chip */
@@ -118,6 +125,29 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 		ret = 0;
 		break;
 
+	case I2C_SMBUS_I2C_BLOCK_DATA:
+		len = data->block[0];
+		if (read_write == I2C_SMBUS_WRITE) {
+			for (i = 0; i < len; i++) {
+				chip->words[command + i] &= 0xff00;
+				chip->words[command + i] |= data->block[1 + i];
+			}
+			dev_dbg(&adap->dev, "i2c block data - addr 0x%02x, "
+					"wrote %d bytes at 0x%02x.\n",
+					addr, len, command);
+		} else {
+			for (i = 0; i < len; i++) {
+				data->block[1 + i] =
+					chip->words[command + i] & 0xff;
+			}
+			dev_dbg(&adap->dev, "i2c block data - addr 0x%02x, "
+					"read  %d bytes at 0x%02x.\n",
+					addr, len, command);
+		}
+
+		ret = 0;
+		break;
+
 	default:
 		dev_dbg(&adap->dev, "Unsupported I2C/SMBus command\n");
 		ret = -EOPNOTSUPP;
@@ -129,8 +159,7 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 
 static u32 stub_func(struct i2c_adapter *adapter)
 {
-	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
-		I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA;
+	return STUB_FUNC & functionality;
 }
 
 static const struct i2c_algorithm smbus_algorithm = {

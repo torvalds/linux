@@ -1,6 +1,9 @@
 config ECRYPT_FS
 	tristate "eCrypt filesystem layer support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && KEYS && CRYPTO && NET
+	depends on EXPERIMENTAL && KEYS && CRYPTO
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_MD5
 	help
 	  Encrypted filesystem that operates on the VFS layer.  See
 	  <file:Documentation/filesystems/ecryptfs.txt> to learn more about

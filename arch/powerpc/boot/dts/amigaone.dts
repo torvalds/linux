@@ -70,8 +70,8 @@
 			devsel-speed = <0x00000001>;
 			min-grant = <0>;
 			max-latency = <0>;
-			/* First 64k for I/O at 0x0 on PCI mapped to 0x0 on ISA. */
-			ranges = <0x00000001 0 0x01000000 0 0x00000000 0x00010000>;
+			/* First 4k for I/O at 0x0 on PCI mapped to 0x0 on ISA. */
+			ranges = <0x00000001 0 0x01000000 0 0x00000000 0x00001000>;
 			interrupt-parent = <&i8259>;
 			#interrupt-cells = <2>;
 			#address-cells = <2>;

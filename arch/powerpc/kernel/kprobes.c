@@ -31,12 +31,13 @@
 #include <linux/preempt.h>
 #include <linux/module.h>
 #include <linux/kdebug.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_BOOKE
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 #define MSR_SINGLESTEP	(MSR_DE)
 #else
 #define MSR_SINGLESTEP	(MSR_SE)
@@ -110,9 +111,12 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	 * like Decrementer or External Interrupt */
 	regs->msr &= ~MSR_EE;
 	regs->msr |= MSR_SINGLESTEP;
-#ifdef CONFIG_BOOKE
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	regs->msr &= ~MSR_CE;
 	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
+#ifdef CONFIG_PPC_47x
+	isync();
+#endif
 #endif
 
 	/*
@@ -374,17 +378,6 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
  * single-stepped a copy of the instruction.  The address of this
  * copy is p->ainsn.insn.
  */
-static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
-{
-	int ret;
-	unsigned int insn = *p->ainsn.insn;
-
-	regs->nip = (unsigned long)p->addr;
-	ret = emulate_step(regs, insn);
-	if (ret == 0)
-		regs->nip = (unsigned long)p->addr + 4;
-}
-
 static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
@@ -402,7 +395,8 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 		cur->post_handler(cur, regs, 0);
 	}
 
-	resume_execution(cur, regs);
+	/* Adjust nip to after the single-stepped instruction */
+	regs->nip = (unsigned long)cur->addr + 4;
 	regs->msr |= kcb->kprobe_saved_msr;
 
 	/*Restore back the original saved kprobes variables and continue. */
