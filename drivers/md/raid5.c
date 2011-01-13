@@ -5527,8 +5527,8 @@ static int raid5_start_reshape(mddev_t *mddev)
 		return -ENOSPC;
 
 	list_for_each_entry(rdev, &mddev->disks, same_set)
-		if (rdev->raid_disk < 0 &&
-		    !test_bit(Faulty, &rdev->flags))
+		if ((rdev->raid_disk < 0 || rdev->raid_disk >= conf->raid_disks)
+		     && !test_bit(Faulty, &rdev->flags))
 			spares++;
 
 	if (spares - mddev->degraded < mddev->delta_disks - conf->max_degraded)
@@ -5588,6 +5588,11 @@ static int raid5_start_reshape(mddev_t *mddev)
 					/* Failure here is OK */;
 			} else
 				break;
+		} else if (rdev->raid_disk >= conf->previous_raid_disks
+			   && !test_bit(Faulty, &rdev->flags)) {
+			/* This is a spare that was manually added */
+			set_bit(In_sync, &rdev->flags);
+			added_devices++;
 		}
 
 	/* When a reshape changes the number of devices, ->degraded
