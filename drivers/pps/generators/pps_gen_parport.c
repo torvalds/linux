@@ -76,8 +76,15 @@ static enum hrtimer_restart hrtimer_event(struct hrtimer *timer)
 	long lim, delta;
 	unsigned long flags;
 
-	/* NB: approx time with blocked interrupts =
-	   send_delay + 3 * SAFETY_INTERVAL */
+	/* We have to disable interrupts here. The idea is to prevent
+	 * other interrupts on the same processor to introduce random
+	 * lags while polling the clock. getnstimeofday() takes <1us on
+	 * most machines while other interrupt handlers can take much
+	 * more potentially.
+	 *
+	 * NB: approx time with blocked interrupts =
+	 * send_delay + 3 * SAFETY_INTERVAL
+	 */
 	local_irq_save(flags);
 
 	/* first of all we get the time stamp... */
