@@ -326,8 +326,8 @@ void pps_event(int source, struct pps_ktime *ts, int event, void *data)
 
 	/* Wake up if captured something */
 	if (captured) {
-		pps->go = ~0;
-		wake_up_interruptible(&pps->queue);
+		pps->last_ev++;
+		wake_up_interruptible_all(&pps->queue);
 
 		kill_fasync(&pps->async_queue, SIGIO, POLL_IN);
 	}

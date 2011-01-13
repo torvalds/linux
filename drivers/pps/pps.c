@@ -136,6 +136,7 @@ static long pps_cdev_ioctl(struct file *file,
 
 	case PPS_FETCH: {
 		struct pps_fdata fdata;
+		unsigned int ev;
 
 		pr_debug("PPS_FETCH: source %d\n", pps->id);
 
@@ -143,11 +144,12 @@ static long pps_cdev_ioctl(struct file *file,
 		if (err)
 			return -EFAULT;
 
-		pps->go = 0;
+		ev = pps->last_ev;
 
 		/* Manage the timeout */
 		if (fdata.timeout.flags & PPS_TIME_INVALID)
-			err = wait_event_interruptible(pps->queue, pps->go);
+			err = wait_event_interruptible(pps->queue,
+					ev != pps->last_ev);
 		else {
 			unsigned long ticks;
 
@@ -159,7 +161,9 @@ static long pps_cdev_ioctl(struct file *file,
 
 			if (ticks != 0) {
 				err = wait_event_interruptible_timeout(
-						pps->queue, pps->go, ticks);
+						pps->queue,
+						ev != pps->last_ev,
+						ticks);
 				if (err == 0)
 					return -ETIMEDOUT;
 			}
