@@ -76,6 +76,10 @@
 /* Wrapper for extended mode pgprot twiddling */
 #define _PAGE_EXT(x)		((unsigned long long)(x) << 32)
 
+#ifdef CONFIG_X2TLB
+#define _PAGE_PCC_MASK	0x00000000	/* No legacy PTEA support */
+#else
+
 /* software: moves to PTEA.TC (Timing Control) */
 #define _PAGE_PCC_AREA5	0x00000000	/* use BSC registers for area5 */
 #define _PAGE_PCC_AREA6	0x80000000	/* use BSC registers for area6 */
@@ -89,7 +93,8 @@
 #define _PAGE_PCC_ATR8	0x60000000	/* Attribute Memory space, 8 bit bus */
 #define _PAGE_PCC_ATR16	0x60000001	/* Attribute Memory space, 6 bit bus */
 
-#ifndef CONFIG_X2TLB
+#define _PAGE_PCC_MASK	0xe0000001
+
 /* copy the ptea attributes */
 static inline unsigned long copy_ptea_attributes(unsigned long x)
 {
@@ -231,13 +236,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 					   _PAGE_EXT_KERN_EXEC))
 
 #define PAGE_KERNEL_PCC(slot, type) \
-			__pgprot(_PAGE_PRESENT | _PAGE_DIRTY | \
-				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD | \
-				 _PAGE_EXT(_PAGE_EXT_KERN_READ | \
-					   _PAGE_EXT_KERN_WRITE | \
-					   _PAGE_EXT_KERN_EXEC) \
-				 (slot ? _PAGE_PCC_AREA5 : _PAGE_PCC_AREA6) | \
-				 (type))
+			__pgprot(0)
 
 #elif defined(CONFIG_MMU) /* SH-X TLB */
 #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE | \
