@@ -12453,12 +12453,6 @@ static const struct alc_fixup alc262_fixups[] = {
 			{ }
 		}
 	},
-	[PINFIX_PB_M5210] = {
-		.verbs = (const struct hda_verb[]) {
-			{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
-			{}
-		}
-	},
 };
 
 static struct snd_pci_quirk alc262_fixup_tbl[] = {
@@ -14826,7 +14820,7 @@ static void alc269_fixup_hweq(struct hda_codec *codec,
 
 enum {
 	ALC269_FIXUP_SONY_VAIO,
-	ALC275_FIX_SONY_VAIO_GPIO2,
+	ALC275_FIXUP_SONY_VAIO_GPIO2,
 	ALC269_FIXUP_DELL_M101Z,
 	ALC269_FIXUP_SKU_IGNORE,
 	ALC269_FIXUP_ASUS_G73JW,
@@ -14841,7 +14835,7 @@ static const struct alc_fixup alc269_fixups[] = {
 			{}
 		}
 	},
-	[ALC275_FIX_SONY_VAIO_GPIO2] = {
+	[ALC275_FIXUP_SONY_VAIO_GPIO2] = {
 		.verbs = (const struct hda_verb[]) {
 			{0x01, AC_VERB_SET_GPIO_MASK, 0x04},
 			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04},
@@ -14886,7 +14880,7 @@ static const struct alc_fixup alc269_fixups[] = {
 };
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
-	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
+	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIXUP_SONY_VAIO_GPIO2),
 	SND_PCI_QUIRK(0x104d, 0x907b, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
