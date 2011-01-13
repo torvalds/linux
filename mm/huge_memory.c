@@ -841,6 +841,19 @@ static void __split_huge_page(struct page *page,
 			continue;
 		mapcount += __split_huge_page_splitting(page, vma, addr);
 	}
+	/*
+	 * It is critical that new vmas are added to the tail of the
+	 * anon_vma list. This guarantes that if copy_huge_pmd() runs
+	 * and establishes a child pmd before
+	 * __split_huge_page_splitting() freezes the parent pmd (so if
+	 * we fail to prevent copy_huge_pmd() from running until the
+	 * whole __split_huge_page() is complete), we will still see
+	 * the newly established pmd of the child later during the
+	 * walk, to be able to set it as pmd_trans_splitting too.
+	 */
+	if (mapcount != page_mapcount(page))
+		printk(KERN_ERR "mapcount %d page_mapcount %d\n",
+		       mapcount, page_mapcount(page));
 	BUG_ON(mapcount != page_mapcount(page));
 
 	__split_huge_page_refcount(page);
@@ -854,6 +867,9 @@ static void __split_huge_page(struct page *page,
 			continue;
 		mapcount2 += __split_huge_page_map(page, vma, addr);
 	}
+	if (mapcount != mapcount2)
+		printk(KERN_ERR "mapcount %d mapcount2 %d page_mapcount %d\n",
+		       mapcount, mapcount2, page_mapcount(page));
 	BUG_ON(mapcount != mapcount2);
 }
 
