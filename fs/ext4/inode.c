@@ -39,6 +39,7 @@
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 
@@ -3737,7 +3738,7 @@ static int ext4_set_bh_endio(struct buffer_head *bh, struct inode *inode)
 retry:
 	io_end = ext4_init_io_end(inode, GFP_ATOMIC);
 	if (!io_end) {
-		pr_warning_ratelimited("%s: allocation fail\n", __func__);
+		pr_warn_ratelimited("%s: allocation fail\n", __func__);
 		schedule();
 		goto retry;
 	}
