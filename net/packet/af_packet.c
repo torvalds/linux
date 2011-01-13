@@ -164,7 +164,6 @@ struct packet_mreq_max {
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req,
 		int closing, int tx_ring);
 
-#define PGV_FROM_VMALLOC 1
 struct pgv {
 	char *buffer;
 };

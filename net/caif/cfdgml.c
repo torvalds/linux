@@ -18,7 +18,6 @@
 #define DGM_CMD_BIT  0x80
 #define DGM_FLOW_OFF 0x81
 #define DGM_FLOW_ON  0x80
-#define DGM_CTRL_PKT_SIZE 1
 #define DGM_MTU 1500
 
 static int cfdgml_receive(struct cflayer *layr, struct cfpkt *pkt);

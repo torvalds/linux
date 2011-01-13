@@ -59,7 +59,6 @@ struct dn_hash
 };
 
 #define dz_key_0(key)		((key).datum = 0)
-#define dz_prefix(key,dz)	((key).datum)
 
 #define for_nexthops(fi) { int nhsel; const struct dn_fib_nh *nh;\
 	for(nhsel = 0, nh = (fi)->fib_nh; nhsel < (fi)->fib_nhs; nh++, nhsel++)
