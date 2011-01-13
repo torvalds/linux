@@ -1859,13 +1859,16 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
 {
 	struct hstate *h = &default_hstate;
 	unsigned long tmp;
+	int ret;
 
 	if (!write)
 		tmp = h->max_huge_pages;
 
 	table->data = &tmp;
 	table->maxlen = sizeof(unsigned long);
-	proc_doulongvec_minmax(table, write, buffer, length, ppos);
+	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
+	if (ret)
+		goto out;
 
 	if (write) {
 		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
@@ -1880,8 +1883,8 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
 		if (nodes_allowed != &node_states[N_HIGH_MEMORY])
 			NODEMASK_FREE(nodes_allowed);
 	}
-
-	return 0;
+out:
+	return ret;
 }
 
 int hugetlb_sysctl_handler(struct ctl_table *table, int write,
@@ -1919,21 +1922,24 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
 {
 	struct hstate *h = &default_hstate;
 	unsigned long tmp;
+	int ret;
 
 	if (!write)
 		tmp = h->nr_overcommit_huge_pages;
 
 	table->data = &tmp;
 	table->maxlen = sizeof(unsigned long);
-	proc_doulongvec_minmax(table, write, buffer, length, ppos);
+	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
+	if (ret)
+		goto out;
 
 	if (write) {
 		spin_lock(&hugetlb_lock);
 		h->nr_overcommit_huge_pages = tmp;
 		spin_unlock(&hugetlb_lock);
 	}
-
-	return 0;
+out:
+	return ret;
 }
 
 #endif /* CONFIG_SYSCTL */
