@@ -936,6 +936,8 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, uuid, spec);
 }
 
+int kptr_restrict = 1;
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
@@ -979,6 +981,7 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
  *       Implements a "recursive vsnprintf".
  *       Do not use this feature without some mechanism to verify the
  *       correctness of the format string and va_list arguments.
+ * - 'K' For a kernel pointer that should be hidden from unprivileged users
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
@@ -1035,6 +1038,25 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		return buf + vsnprintf(buf, end - buf,
 				       ((struct va_format *)ptr)->fmt,
 				       *(((struct va_format *)ptr)->va));
+	case 'K':
+		/*
+		 * %pK cannot be used in IRQ context because its test
+		 * for CAP_SYSLOG would be meaningless.
+		 */
+		if (in_irq() || in_serving_softirq() || in_nmi()) {
+			if (spec.field_width == -1)
+				spec.field_width = 2 * sizeof(void *);
+			return string(buf, end, "pK-error", spec);
+		} else if ((kptr_restrict == 0) ||
+			 (kptr_restrict == 1 &&
+			  has_capability_noaudit(current, CAP_SYSLOG)))
+			break;
+
+		if (spec.field_width == -1) {
+			spec.field_width = 2 * sizeof(void *);
+			spec.flags |= ZEROPAD;
+		}
+		return number(buf, end, 0, spec);
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
