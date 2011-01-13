@@ -131,8 +131,12 @@ static void put_compound_page(struct page *page)
 			atomic_dec(&page->_count);
 			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
 			compound_unlock_irqrestore(page_head, flags);
-			if (put_page_testzero(page_head))
-				__put_compound_page(page_head);
+			if (put_page_testzero(page_head)) {
+				if (PageHead(page_head))
+					__put_compound_page(page_head);
+				else
+					__put_single_page(page_head);
+			}
 		} else {
 			/* page_head is a dangling pointer */
 			VM_BUG_ON(PageTail(page));
