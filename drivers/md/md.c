@@ -6824,7 +6824,7 @@ void md_do_sync(mddev_t *mddev)
 		       desc, mdname(mddev));
 		mddev->curr_resync = j;
 	}
-	mddev->curr_resync_completed = mddev->curr_resync;
+	mddev->curr_resync_completed = j;
 
 	while (j < max_sectors) {
 		sector_t sectors;
@@ -6842,8 +6842,7 @@ void md_do_sync(mddev_t *mddev)
 			md_unplug(mddev);
 			wait_event(mddev->recovery_wait,
 				   atomic_read(&mddev->recovery_active) == 0);
-			mddev->curr_resync_completed =
-				mddev->curr_resync;
+			mddev->curr_resync_completed = j;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
