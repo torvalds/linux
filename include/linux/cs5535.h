@@ -111,6 +111,8 @@ static inline int cs5535_has_vsa2(void)
 void cs5535_gpio_set(unsigned offset, unsigned int reg);
 void cs5535_gpio_clear(unsigned offset, unsigned int reg);
 int cs5535_gpio_isset(unsigned offset, unsigned int reg);
+int cs5535_gpio_set_irq(unsigned group, unsigned irq);
+void cs5535_gpio_setup_event(unsigned offset, int pair, int pme);
 
 /* MFGPTs */
 
