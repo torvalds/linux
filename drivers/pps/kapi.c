@@ -324,7 +324,7 @@ void pps_event(int source, struct pps_ktime *ts, int event, void *data)
 		captured = ~0;
 	}
 
-	/* Wake up iif captured somthing */
+	/* Wake up if captured something */
 	if (captured) {
 		pps->go = ~0;
 		wake_up_interruptible(&pps->queue);
