@@ -1430,7 +1430,7 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
 	int ret;
 
 	BUG_ON(!PageLocked(page));
-	BUG_ON(PageTransHuge(page));
+	VM_BUG_ON(!PageHuge(page) && PageTransHuge(page));
 
 	if (unlikely(PageKsm(page)))
 		ret = try_to_unmap_ksm(page, flags);
