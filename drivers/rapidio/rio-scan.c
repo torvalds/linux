@@ -437,9 +437,15 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 				next_destid++;
 		} else
 			rdev->destid = rio_get_device_id(port, destid, hopcount);
-	} else
-		/* Switch device has an associated destID */
-		rdev->destid = RIO_INVALID_DESTID;
+
+		rdev->hopcount = 0xff;
+	} else {
+		/* Switch device has an associated destID which
+		 * will be adjusted later
+		 */
+		rdev->destid = destid;
+		rdev->hopcount = hopcount;
+	}
 
 	/* If a PE has both switch and other functions, show it as a switch */
 	if (rio_is_switch(rdev)) {
@@ -450,8 +456,6 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 		if (!rswitch)
 			goto cleanup;
 		rswitch->switchid = next_switchid;
-		rswitch->hopcount = hopcount;
-		rswitch->destid = destid;
 		rswitch->port_ok = 0;
 		rswitch->route_table = kzalloc(sizeof(u8)*
 					RIO_MAX_ROUTE_ENTRIES(port->sys_size),
@@ -632,8 +636,7 @@ rio_unlock_device(struct rio_mport *port, u16 destid, u8 hopcount)
 
 /**
  * rio_route_add_entry- Add a route entry to a switch routing table
- * @mport: Master port to send transaction
- * @rswitch: Switch device
+ * @rdev: RIO device
  * @table: Routing table ID
  * @route_destid: Destination ID to be routed
  * @route_port: Port number to be routed
@@ -647,31 +650,31 @@ rio_unlock_device(struct rio_mport *port, u16 destid, u8 hopcount)
  * on failure.
  */
 static int
-rio_route_add_entry(struct rio_mport *mport, struct rio_switch *rswitch,
+rio_route_add_entry(struct rio_dev *rdev,
 		    u16 table, u16 route_destid, u8 route_port, int lock)
 {
 	int rc;
 
 	if (lock) {
-		rc = rio_lock_device(mport, rswitch->destid,
-				     rswitch->hopcount, 1000);
+		rc = rio_lock_device(rdev->net->hport, rdev->destid,
+				     rdev->hopcount, 1000);
 		if (rc)
 			return rc;
 	}
 
-	rc = rswitch->add_entry(mport, rswitch->destid,
-					rswitch->hopcount, table,
-					route_destid, route_port);
+	rc = rdev->rswitch->add_entry(rdev->net->hport, rdev->destid,
+				      rdev->hopcount, table,
+				      route_destid, route_port);
 	if (lock)
-		rio_unlock_device(mport, rswitch->destid, rswitch->hopcount);
+		rio_unlock_device(rdev->net->hport, rdev->destid,
+				  rdev->hopcount);
 
 	return rc;
 }
 
 /**
  * rio_route_get_entry- Read a route entry in a switch routing table
- * @mport: Master port to send transaction
- * @rswitch: Switch device
+ * @rdev: RIO device
  * @table: Routing table ID
  * @route_destid: Destination ID to be routed
  * @route_port: Pointer to read port number into
@@ -685,23 +688,24 @@ rio_route_add_entry(struct rio_mport *mport, struct rio_switch *rswitch,
  * on failure.
  */
 static int
-rio_route_get_entry(struct rio_mport *mport, struct rio_switch *rswitch, u16 table,
+rio_route_get_entry(struct rio_dev *rdev, u16 table,
 		    u16 route_destid, u8 *route_port, int lock)
 {
 	int rc;
 
 	if (lock) {
-		rc = rio_lock_device(mport, rswitch->destid,
-				     rswitch->hopcount, 1000);
+		rc = rio_lock_device(rdev->net->hport, rdev->destid,
+				     rdev->hopcount, 1000);
 		if (rc)
 			return rc;
 	}
 
-	rc = rswitch->get_entry(mport, rswitch->destid,
-					rswitch->hopcount, table,
-					route_destid, route_port);
+	rc = rdev->rswitch->get_entry(rdev->net->hport, rdev->destid,
+				      rdev->hopcount, table,
+				      route_destid, route_port);
 	if (lock)
-		rio_unlock_device(mport, rswitch->destid, rswitch->hopcount);
+		rio_unlock_device(rdev->net->hport, rdev->destid,
+				  rdev->hopcount);
 
 	return rc;
 }
@@ -811,14 +815,14 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 	if (rio_is_switch(rdev)) {
 		next_switchid++;
 		sw_inport = RIO_GET_PORT_NUM(rdev->swpinfo);
-		rio_route_add_entry(port, rdev->rswitch, RIO_GLOBAL_TABLE,
+		rio_route_add_entry(rdev, RIO_GLOBAL_TABLE,
 				    port->host_deviceid, sw_inport, 0);
 		rdev->rswitch->route_table[port->host_deviceid] = sw_inport;
 
 		for (destid = 0; destid < next_destid; destid++) {
 			if (destid == port->host_deviceid)
 				continue;
-			rio_route_add_entry(port, rdev->rswitch, RIO_GLOBAL_TABLE,
+			rio_route_add_entry(rdev, RIO_GLOBAL_TABLE,
 					    destid, sw_inport, 0);
 			rdev->rswitch->route_table[destid] = sw_inport;
 		}
@@ -850,8 +854,7 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 				    "RIO: scanning device on port %d\n",
 				    port_num);
 				rdev->rswitch->port_ok |= (1 << port_num);
-				rio_route_add_entry(port, rdev->rswitch,
-						RIO_GLOBAL_TABLE,
+				rio_route_add_entry(rdev, RIO_GLOBAL_TABLE,
 						RIO_ANY_DESTID(port->sys_size),
 						port_num, 0);
 
@@ -865,7 +868,7 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 					     destid < next_destid; destid++) {
 						if (destid == port->host_deviceid)
 							continue;
-						rio_route_add_entry(port, rdev->rswitch,
+						rio_route_add_entry(rdev,
 								    RIO_GLOBAL_TABLE,
 								    destid,
 								    port_num,
@@ -904,7 +907,7 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 				next_destid++;
 		}
 
-		rdev->rswitch->destid = sw_destid;
+		rdev->destid = sw_destid;
 	} else
 		pr_debug("RIO: found %s (vid %4.4x did %4.4x)\n",
 		    rio_name(rdev), rdev->vid, rdev->did);
@@ -958,7 +961,7 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 		next_switchid++;
 
 		/* Associated destid is how we accessed this switch */
-		rdev->rswitch->destid = destid;
+		rdev->destid = destid;
 
 		pr_debug(
 		    "RIO: found %s (vid %4.4x did %4.4x) with %d ports\n",
@@ -981,7 +984,7 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 				for (ndestid = 0;
 				     ndestid < RIO_ANY_DESTID(port->sys_size);
 				     ndestid++) {
-					rio_route_get_entry(port, rdev->rswitch,
+					rio_route_get_entry(rdev,
 							    RIO_GLOBAL_TABLE,
 							    ndestid,
 							    &route_port, 0);
@@ -1076,7 +1079,7 @@ static void rio_update_route_tables(struct rio_mport *port)
 
 	list_for_each_entry(rdev, &rio_devices, global_list) {
 
-		destid = (rio_is_switch(rdev))?rdev->rswitch->destid:rdev->destid;
+		destid = rdev->destid;
 
 		list_for_each_entry(rswitch, &rio_switches, node) {
 
@@ -1085,13 +1088,13 @@ static void rio_update_route_tables(struct rio_mport *port)
 
 			if (RIO_INVALID_ROUTE == rswitch->route_table[destid]) {
 				/* Skip if destid ends in empty switch*/
-				if (rswitch->destid == destid)
+				if (rswitch->rdev->destid == destid)
 					continue;
 
 				sport = RIO_GET_PORT_NUM(rswitch->rdev->swpinfo);
 
 				if (rswitch->add_entry)	{
-					rio_route_add_entry(port, rswitch,
+					rio_route_add_entry(rswitch->rdev,
 						RIO_GLOBAL_TABLE, destid,
 						sport, 0);
 					rswitch->route_table[destid] = sport;
@@ -1203,21 +1206,20 @@ static void rio_build_route_tables(void)
 
 	list_for_each_entry(rdev, &rio_devices, global_list)
 		if (rio_is_switch(rdev)) {
-			rio_lock_device(rdev->net->hport, rdev->rswitch->destid,
-					rdev->rswitch->hopcount, 1000);
+			rio_lock_device(rdev->net->hport, rdev->destid,
+					rdev->hopcount, 1000);
 			for (i = 0;
 			     i < RIO_MAX_ROUTE_ENTRIES(rdev->net->hport->sys_size);
 			     i++) {
-				if (rio_route_get_entry
-				    (rdev->net->hport, rdev->rswitch,
-				     RIO_GLOBAL_TABLE, i, &sport, 0) < 0)
+				if (rio_route_get_entry(rdev,
+					RIO_GLOBAL_TABLE, i, &sport, 0) < 0)
 					continue;
 				rdev->rswitch->route_table[i] = sport;
 			}
 
 			rio_unlock_device(rdev->net->hport,
-					  rdev->rswitch->destid,
-					  rdev->rswitch->hopcount);
+					  rdev->destid,
+					  rdev->hopcount);
 		}
 }
 

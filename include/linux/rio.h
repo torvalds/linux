@@ -98,7 +98,8 @@ union rio_pw_msg;
  * @dev: Device model device
  * @riores: RIO resources this device owns
  * @pwcback: port-write callback function for this device
- * @destid: Network destination ID
+ * @destid: Network destination ID (or associated destid for switch)
+ * @hopcount: Hopcount to this device
  * @prev: Previous RIO device connected to the current one
  */
 struct rio_dev {
@@ -126,6 +127,7 @@ struct rio_dev {
 	struct resource riores[RIO_MAX_DEV_RESOURCES];
 	int (*pwcback) (struct rio_dev *rdev, union rio_pw_msg *msg, int step);
 	u16 destid;
+	u8 hopcount;
 	struct rio_dev *prev;
 };
 
@@ -229,8 +231,6 @@ struct rio_net {
  * @node: Node in global list of switches
  * @rdev: Associated RIO device structure
  * @switchid: Switch ID that is unique across a network
- * @hopcount: Hopcount to this switch
- * @destid: Associated destid in the path
  * @route_table: Copy of switch routing table
  * @port_ok: Status of each port (one bit per port) - OK=1 or UNINIT=0
  * @add_entry: Callback for switch-specific route add function
@@ -247,8 +247,6 @@ struct rio_switch {
 	struct list_head node;
 	struct rio_dev *rdev;
 	u16 switchid;
-	u16 hopcount;
-	u16 destid;
 	u8 *route_table;
 	u32 port_ok;
 	int (*add_entry) (struct rio_mport * mport, u16 destid, u8 hopcount,
