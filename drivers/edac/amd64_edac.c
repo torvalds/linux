@@ -1406,10 +1406,10 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 	chan_addr = f10_get_norm_dct_addr(pvt, range, sys_addr,
 					  high_range, dct_sel_base);
 
-	/* remove Node ID (in case of node interleaving) */
-	tmp = chan_addr & 0xFC0;
-
-	chan_addr = ((chan_addr >> hweight8(intlv_en)) & GENMASK(12, 47)) | tmp;
+	/* Remove node interleaving, see F1x120 */
+	if (intlv_en)
+		chan_addr = ((chan_addr >> (12 + hweight8(intlv_en))) << 12) |
+			    (chan_addr & 0xfff);
 
 	/* remove channel interleave and hash */
 	if (dct_interleave_enabled(pvt) &&
