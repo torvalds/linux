@@ -758,6 +758,35 @@ static int jmb38x_ms_set_param(struct memstick_host *msh,
 	return 0;
 }
 
+#define PCI_PMOS0_CONTROL		0xae
+#define  PMOS0_ENABLE			0x01
+#define  PMOS0_OVERCURRENT_LEVEL_2_4V	0x06
+#define  PMOS0_EN_OVERCURRENT_DEBOUNCE	0x40
+#define  PMOS0_SW_LED_POLARITY_ENABLE	0x80
+#define  PMOS0_ACTIVE_BITS (PMOS0_ENABLE | PMOS0_EN_OVERCURRENT_DEBOUNCE | \
+			    PMOS0_OVERCURRENT_LEVEL_2_4V)
+#define PCI_CLOCK_CTL			0xb9
+
+static int jmb38x_ms_pmos(struct pci_dev *pdev, int flag)
+{
+	unsigned char val;
+
+	pci_read_config_byte(pdev, PCI_PMOS0_CONTROL, &val);
+	if (flag)
+		val |= PMOS0_ACTIVE_BITS;
+	else
+		val &= ~PMOS0_ACTIVE_BITS;
+	pci_write_config_byte(pdev, PCI_PMOS0_CONTROL, val);
+	dev_dbg(&pdev->dev, "JMB38x: set PMOS0 val 0x%x\n", val);
+
+	pci_read_config_byte(pdev, PCI_CLOCK_CTL, &val);
+	pci_write_config_byte(pdev, PCI_CLOCK_CTL, val & ~0x0f);
+	pci_write_config_byte(pdev, PCI_CLOCK_CTL, val | 0x01);
+	dev_dbg(&pdev->dev, "Clock Control by PCI config is disabled!\n");
+
+        return 0;
+}
+
 #ifdef CONFIG_PM
 
 static int jmb38x_ms_suspend(struct pci_dev *dev, pm_message_t state)
@@ -790,8 +819,7 @@ static int jmb38x_ms_resume(struct pci_dev *dev)
 		return rc;
 	pci_set_master(dev);
 
-	pci_read_config_dword(dev, 0xac, &rc);
-	pci_write_config_dword(dev, 0xac, rc | 0x00470000);
+	jmb38x_ms_pmos(dev, 1);
 
 	for (rc = 0; rc < jm->host_cnt; ++rc) {
 		if (!jm->hosts[rc])
@@ -900,8 +928,7 @@ static int jmb38x_ms_probe(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	pci_read_config_dword(pdev, 0xac, &rc);
-	pci_write_config_dword(pdev, 0xac, rc | 0x00470000);
+	jmb38x_ms_pmos(pdev, 1);
 
 	cnt = jmb38x_ms_count_slots(pdev);
 	if (!cnt) {
@@ -981,6 +1008,8 @@ static void jmb38x_ms_remove(struct pci_dev *dev)
 
 		jmb38x_ms_free_host(jm->hosts[cnt]);
 	}
+
+	jmb38x_ms_pmos(dev, 0);
 
 	pci_set_drvdata(dev, NULL);
 	pci_release_regions(dev);
