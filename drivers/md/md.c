@@ -3918,7 +3918,7 @@ static struct md_sysfs_entry md_sync_speed = __ATTR_RO(sync_speed);
 static ssize_t
 sync_completed_show(mddev_t *mddev, char *page)
 {
-	unsigned long max_sectors, resync;
+	unsigned long long max_sectors, resync;
 
 	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		return sprintf(page, "none\n");
@@ -3929,7 +3929,7 @@ sync_completed_show(mddev_t *mddev, char *page)
 		max_sectors = mddev->dev_sectors;
 
 	resync = mddev->curr_resync_completed;
-	return sprintf(page, "%lu / %lu\n", resync, max_sectors);
+	return sprintf(page, "%llu / %llu\n", resync, max_sectors);
 }
 
 static struct md_sysfs_entry md_sync_completed = __ATTR_RO(sync_completed);
