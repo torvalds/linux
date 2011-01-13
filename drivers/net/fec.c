@@ -1409,10 +1409,9 @@ fec_probe(struct platform_device *pdev)
 			break;
 		ret = request_irq(irq, fec_enet_interrupt, IRQF_DISABLED, pdev->name, ndev);
 		if (ret) {
-			while (i >= 0) {
+			while (--i >= 0) {
 				irq = platform_get_irq(pdev, i);
 				free_irq(irq, ndev);
-				i--;
 			}
 			goto failed_irq;
 		}
