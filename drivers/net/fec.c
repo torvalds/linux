@@ -1377,8 +1377,10 @@ fec_probe(struct platform_device *pdev)
 
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof(struct fec_enet_private));
-	if (!ndev)
-		return -ENOMEM;
+	if (!ndev) {
+		ret = -ENOMEM;
+		goto failed_alloc_etherdev;
+	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -1456,6 +1458,8 @@ failed_irq:
 	iounmap((void __iomem *)ndev->base_addr);
 failed_ioremap:
 	free_netdev(ndev);
+failed_alloc_etherdev:
+	release_mem_region(r->start, resource_size(r));
 
 	return ret;
 }
@@ -1465,6 +1469,7 @@ fec_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct resource *r;
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -1475,6 +1480,11 @@ fec_drv_remove(struct platform_device *pdev)
 	iounmap((void __iomem *)ndev->base_addr);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	BUG_ON(!r);
+	release_mem_region(r->start, resource_size(r));
+
 	return 0;
 }
 
