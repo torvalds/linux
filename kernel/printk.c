@@ -1539,6 +1539,10 @@ static const char * const kmsg_reasons[] = {
 	[KMSG_DUMP_OOPS]	= "oops",
 	[KMSG_DUMP_PANIC]	= "panic",
 	[KMSG_DUMP_KEXEC]	= "kexec",
+	[KMSG_DUMP_RESTART]	= "restart",
+	[KMSG_DUMP_HALT]	= "halt",
+	[KMSG_DUMP_POWEROFF]	= "poweroff",
+	[KMSG_DUMP_EMERG]	= "emergency_restart",
 };
 
 static const char *kmsg_to_str(enum kmsg_dump_reason reason)
