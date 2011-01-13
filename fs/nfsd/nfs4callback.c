@@ -866,6 +866,7 @@ void nfsd4_cb_recall(struct nfs4_delegation *dp)
 	cb->cb_ops = &nfsd4_cb_recall_ops;
 	dp->dl_retries = 1;
 
+	INIT_LIST_HEAD(&cb->cb_per_client);
 	cb->cb_done = true;
 
 	run_nfsd4_cb(&dp->dl_recall);
