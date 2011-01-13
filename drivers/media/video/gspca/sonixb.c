@@ -1565,7 +1565,7 @@ static const struct sd_desc sd_desc = {
 	.driver_info = (SENSOR_ ## sensor << 8) | BRIDGE_ ## bridge
 
 
-static const struct usb_device_id device_table[] __devinitconst = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6001), SB(TAS5110C, 102)}, /* TAS5110C1B */
 	{USB_DEVICE(0x0c45, 0x6005), SB(TAS5110C, 101)}, /* TAS5110C1B */
 	{USB_DEVICE(0x0c45, 0x6007), SB(TAS5110D, 101)}, /* TAS5110D */
@@ -1599,7 +1599,7 @@ static const struct usb_device_id device_table[] __devinitconst = {
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
-static int __devinit sd_probe(struct usb_interface *intf,
+static int sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),

@@ -864,7 +864,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const struct usb_device_id device_table[] __devinitconst = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x102c, 0x6151), .driver_info = SENSOR_PAS106},
 #if !defined CONFIG_USB_ET61X251 && !defined CONFIG_USB_ET61X251_MODULE
 	{USB_DEVICE(0x102c, 0x6251), .driver_info = SENSOR_TAS5130CXX},
@@ -875,7 +875,7 @@ static const struct usb_device_id device_table[] __devinitconst = {
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
-static int __devinit sd_probe(struct usb_interface *intf,
+static int sd_probe(struct usb_interface *intf,
 		    const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),

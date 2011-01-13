@@ -2909,7 +2909,7 @@ static const struct sd_desc sd_desc = {
 	.driver_info = (BRIDGE_ ## bridge << 16) \
 			| (SENSOR_ ## sensor << 8) \
 			| (flags)
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0458, 0x7025), BS(SN9C120, MI0360)},
 	{USB_DEVICE(0x0458, 0x702e), BS(SN9C120, OV7660)},
 	{USB_DEVICE(0x045e, 0x00f5), BSF(SN9C105, OV7660, PDN_INV)},
