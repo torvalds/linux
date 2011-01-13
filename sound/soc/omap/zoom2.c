@@ -24,7 +24,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
@@ -162,35 +161,36 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int zoom2_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	/* Add Zoom2 specific widgets */
-	ret = snd_soc_dapm_new_controls(codec, zoom2_twl4030_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, zoom2_twl4030_dapm_widgets,
 				ARRAY_SIZE(zoom2_twl4030_dapm_widgets));
 	if (ret)
 		return ret;
 
 	/* Set up Zoom2 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* Zoom2 connected pins */
-	snd_soc_dapm_enable_pin(codec, "Ext Mic");
-	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_enable_pin(codec, "Headset Mic");
-	snd_soc_dapm_enable_pin(codec, "Headset Stereophone");
-	snd_soc_dapm_enable_pin(codec, "Aux In");
+	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
+	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
+	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
+	snd_soc_dapm_enable_pin(dapm, "Aux In");
 
 	/* TWL4030 not connected pins */
-	snd_soc_dapm_nc_pin(codec, "CARKITMIC");
-	snd_soc_dapm_nc_pin(codec, "DIGIMIC0");
-	snd_soc_dapm_nc_pin(codec, "DIGIMIC1");
-	snd_soc_dapm_nc_pin(codec, "EARPIECE");
-	snd_soc_dapm_nc_pin(codec, "PREDRIVEL");
-	snd_soc_dapm_nc_pin(codec, "PREDRIVER");
-	snd_soc_dapm_nc_pin(codec, "CARKITL");
-	snd_soc_dapm_nc_pin(codec, "CARKITR");
+	snd_soc_dapm_nc_pin(dapm, "CARKITMIC");
+	snd_soc_dapm_nc_pin(dapm, "DIGIMIC0");
+	snd_soc_dapm_nc_pin(dapm, "DIGIMIC1");
+	snd_soc_dapm_nc_pin(dapm, "EARPIECE");
+	snd_soc_dapm_nc_pin(dapm, "PREDRIVEL");
+	snd_soc_dapm_nc_pin(dapm, "PREDRIVER");
+	snd_soc_dapm_nc_pin(dapm, "CARKITL");
+	snd_soc_dapm_nc_pin(dapm, "CARKITR");
 
-	ret = snd_soc_dapm_sync(codec);
+	ret = snd_soc_dapm_sync(dapm);
 
 	return ret;
 }

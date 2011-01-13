@@ -666,7 +666,7 @@ static struct snd_kcontrol_new ad1986a_mixers[] = {
 	HDA_CODEC_MUTE("Aux Playback Switch", 0x16, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x0f, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x0f, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mono Playback Volume", 0x1e, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Mono Playback Switch", 0x1e, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x0, HDA_OUTPUT),
@@ -729,7 +729,7 @@ static struct snd_kcontrol_new ad1986a_laptop_mixers[] = {
 	HDA_CODEC_MUTE("Aux Playback Switch", 0x16, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x0f, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x0f, 0x0, HDA_OUTPUT),
 	/* 
 	   HDA_CODEC_VOLUME("Mono Playback Volume", 0x1e, 0x0, HDA_OUTPUT),
 	   HDA_CODEC_MUTE("Mono Playback Switch", 0x1e, 0x0, HDA_OUTPUT), */
@@ -775,7 +775,7 @@ static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x0f, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x0f, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x0, HDA_OUTPUT),
 	{
@@ -1358,7 +1358,7 @@ static struct snd_kcontrol_new ad1983_mixers[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x12, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x13, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x15, 0x0, HDA_OUTPUT),
 	{
@@ -1515,8 +1515,8 @@ static struct snd_kcontrol_new ad1981_mixers[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x1c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x1d, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x1d, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x18, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x15, 0x0, HDA_OUTPUT),
 	{
@@ -1726,8 +1726,8 @@ static struct snd_kcontrol_new ad1981_hp_mixers[] = {
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x1d, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x1d, 0x0, HDA_OUTPUT),
 #endif
-	HDA_CODEC_VOLUME("Mic Boost", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost", 0x18, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x18, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x15, 0x0, HDA_OUTPUT),
 	{
@@ -1774,7 +1774,7 @@ static struct snd_kcontrol_new ad1981_thinkpad_mixers[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x12, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x1d, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x1d, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x15, 0x0, HDA_OUTPUT),
 	{
@@ -2160,8 +2160,8 @@ static struct snd_kcontrol_new ad1988_6stack_mixers2[] = {
 	HDA_CODEC_VOLUME("Analog Mix Playback Volume", 0x21, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Analog Mix Playback Switch", 0x21, 0x0, HDA_OUTPUT),
 
-	HDA_CODEC_VOLUME("Front Mic Boost", 0x39, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x3c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x39, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x3c, 0x0, HDA_OUTPUT),
 
 	{ } /* end */
 };
@@ -2203,8 +2203,8 @@ static struct snd_kcontrol_new ad1988_3stack_mixers2[] = {
 	HDA_CODEC_VOLUME("Analog Mix Playback Volume", 0x21, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Analog Mix Playback Switch", 0x21, 0x0, HDA_OUTPUT),
 
-	HDA_CODEC_VOLUME("Front Mic Boost", 0x39, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x3c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x39, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x3c, 0x0, HDA_OUTPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Channel Mode",
@@ -2232,7 +2232,7 @@ static struct snd_kcontrol_new ad1988_laptop_mixers[] = {
 	HDA_CODEC_VOLUME("Analog Mix Playback Volume", 0x21, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Analog Mix Playback Switch", 0x21, 0x0, HDA_OUTPUT),
 
-	HDA_CODEC_VOLUME("Mic Boost", 0x39, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x39, 0x0, HDA_OUTPUT),
 
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -2902,7 +2902,7 @@ static int new_analog_input(struct ad198x_spec *spec, hda_nid_t pin,
 		idx = ad1988_pin_idx(pin);
 		bnid = ad1988_boost_nids[idx];
 		if (bnid) {
-			sprintf(name, "%s Boost", ctlname);
+			sprintf(name, "%s Boost Volume", ctlname);
 			return add_control(spec, AD_CTL_WIDGET_VOL, name,
 					   HDA_COMPOSE_AMP_VAL(bnid, 3, idx, HDA_OUTPUT));
 
@@ -3300,8 +3300,8 @@ static struct snd_kcontrol_new ad1884_base_mixers[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x20, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x20, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x14, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x0d, 0x0, HDA_OUTPUT),
@@ -3499,9 +3499,9 @@ static struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("Docking Mic Playback Volume", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("Docking Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost", 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Docking Mic Boost", 0x25, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Dock Mic Boost Volume", 0x25, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x0d, 0x0, HDA_OUTPUT),
@@ -3560,8 +3560,8 @@ static struct snd_kcontrol_new ad1984_dell_desktop_mixers[] = {
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line-In Playback Volume", 0x20, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Line-In Playback Switch", 0x20, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line-In Boost", 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line-In Boost Volume", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x14, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x0d, 0x0, HDA_OUTPUT),
@@ -3745,9 +3745,9 @@ static struct snd_kcontrol_new ad1884a_base_mixers[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x20, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x20, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost", 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Boost", 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x25, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Boost Volume", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x25, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x0d, 0x0, HDA_OUTPUT),
@@ -3888,9 +3888,9 @@ static struct snd_kcontrol_new ad1884a_laptop_mixers[] = {
 	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("Dock Mic Playback Volume", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("Dock Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost", 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Dock Mic Boost", 0x25, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Dock Mic Boost Volume", 0x25, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
 	{ } /* end */
@@ -4126,8 +4126,8 @@ static struct snd_kcontrol_new ad1984a_thinkpad_mixers[] = {
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x20, 0x5, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x20, 0x00, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
 	{
@@ -4255,8 +4255,8 @@ static struct snd_kcontrol_new ad1984a_touchsmart_mixers[] = {
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x20, 0x5, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Mic Boost", 0x25, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Internal Mic Boost", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x25, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x17, 0x0, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -4494,9 +4494,9 @@ static struct snd_kcontrol_new ad1882_base_mixers[] = {
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x13, 1, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x13, 1, 0x0, HDA_OUTPUT),
 
-	HDA_CODEC_VOLUME("Mic Boost", 0x3c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost", 0x39, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Line-In Boost", 0x3a, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost Volume", 0x3c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Volume", 0x39, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line-In Boost Volume", 0x3a, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x0d, 0x0, HDA_OUTPUT),
@@ -4547,7 +4547,7 @@ static struct snd_kcontrol_new ad1882a_loopback_mixers[] = {
 	HDA_CODEC_MUTE("Line Playback Switch", 0x20, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x20, 0x06, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x20, 0x06, HDA_INPUT),
-	HDA_CODEC_VOLUME("Digital Mic Boost", 0x1f, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Digital Mic Boost Volume", 0x1f, 0x0, HDA_INPUT),
 	{ } /* end */
 };
 

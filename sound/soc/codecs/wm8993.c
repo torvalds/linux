@@ -24,7 +24,6 @@
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/wm8993.h>
 
@@ -226,7 +225,6 @@ static struct {
 
 struct wm8993_priv {
 	struct wm_hubs_data hubs_data;
-	u16 reg_cache[WM8993_REGISTER_COUNT];
 	struct regulator_bulk_data supplies[WM8993_NUM_SUPPLIES];
 	struct wm8993_platform_data pdata;
 	enum snd_soc_control_type control_type;
@@ -735,6 +733,7 @@ static int class_w_put(struct snd_kcontrol *kcontrol,
 					    0);
 		}
 		wm8993->class_w_users++;
+		wm8993->hubs_data.class_w = true;
 	}
 
 	/* Implement the change */
@@ -751,6 +750,7 @@ static int class_w_put(struct snd_kcontrol *kcontrol,
 					    WM8993_CP_DYN_V);
 		}
 		wm8993->class_w_users--;
+		wm8993->hubs_data.class_w = false;
 	}
 
 	dev_dbg(codec->dev, "Indirect DAC use count now %d\n",
@@ -968,7 +968,7 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
 						    wm8993->supplies);
 			if (ret != 0)
@@ -1029,6 +1029,12 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				    WM8993_VMID_SEL_MASK | WM8993_BIAS_ENA,
 				    0);
 
+		snd_soc_update_bits(codec, WM8993_ANTIPOP2,
+				    WM8993_STARTUP_BIAS_ENA |
+				    WM8993_VMID_BUF_ENA |
+				    WM8993_VMID_RAMP_MASK |
+				    WM8993_BIAS_SRC, 0);
+
 #ifdef CONFIG_REGULATOR
                /* Post 2.6.34 we will be able to get a callback when
                 * the regulators are disabled which we can use but
@@ -1043,7 +1049,7 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1225,7 +1231,7 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 		       - wm8993->fs);
 	for (i = 1; i < ARRAY_SIZE(clk_sys_rates); i++) {
 		cur_val = abs((wm8993->sysclk_rate /
-			       clk_sys_rates[i].ratio) - wm8993->fs);;
+			       clk_sys_rates[i].ratio) - wm8993->fs);
 		if (cur_val < best_val) {
 			best = i;
 			best_val = cur_val;
@@ -1422,6 +1428,7 @@ static struct snd_soc_dai_driver wm8993_dai = {
 static int wm8993_probe(struct snd_soc_codec *codec)
 {
 	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, i, val;
 
 	wm8993->hubs_data.hp_startup_mode = 1;
@@ -1503,11 +1510,11 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 				     ARRAY_SIZE(wm8993_eq_controls));
 	}
 
-	snd_soc_dapm_new_controls(codec, wm8993_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm8993_dapm_widgets,
 				  ARRAY_SIZE(wm8993_dapm_widgets));
 	wm_hubs_add_analogue_controls(codec);
 
-	snd_soc_dapm_add_routes(codec, routes, ARRAY_SIZE(routes));
+	snd_soc_dapm_add_routes(dapm, routes, ARRAY_SIZE(routes));
 	wm_hubs_add_analogue_routes(codec, wm8993->pdata.lineout1_diff,
 				    wm8993->pdata.lineout2_diff);
 

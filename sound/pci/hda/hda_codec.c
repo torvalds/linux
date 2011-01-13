@@ -4571,6 +4571,9 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		}
 		memset(cfg->hp_pins + cfg->hp_outs, 0,
 		       sizeof(hda_nid_t) * (AUTO_CFG_MAX_OUTS - cfg->hp_outs));
+		if (!cfg->hp_outs)
+			cfg->line_out_type = AUTO_PIN_HP_OUT;
+
 	}
 
 	/* sort by sequence */

@@ -44,7 +44,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
@@ -140,6 +139,7 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	printk(KERN_DEBUG
@@ -154,25 +154,25 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Add specific widgets */
-	snd_soc_dapm_new_controls(codec, at91sam9g20ek_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, at91sam9g20ek_dapm_widgets,
 				  ARRAY_SIZE(at91sam9g20ek_dapm_widgets));
 	/* Set up specific audio path interconnects */
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	/* not connected */
-	snd_soc_dapm_nc_pin(codec, "RLINEIN");
-	snd_soc_dapm_nc_pin(codec, "LLINEIN");
+	snd_soc_dapm_nc_pin(dapm, "RLINEIN");
+	snd_soc_dapm_nc_pin(dapm, "LLINEIN");
 
 #ifdef ENABLE_MIC_INPUT
-	snd_soc_dapm_enable_pin(codec, "Int Mic");
+	snd_soc_dapm_enable_pin(dapm, "Int Mic");
 #else
-	snd_soc_dapm_nc_pin(codec, "Int Mic");
+	snd_soc_dapm_nc_pin(dapm, "Int Mic");
 #endif
 
 	/* always connected */
-	snd_soc_dapm_enable_pin(codec, "Ext Spk");
+	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
