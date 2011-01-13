@@ -355,7 +355,7 @@ config ARCH_MXS
 	bool "Freescale MXS-based"
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	help
 	  Support for Freescale MXS-based family of processors
 
