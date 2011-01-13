@@ -1386,7 +1386,6 @@ fec_probe(struct platform_device *pdev)
 
 	/* setup board info structure */
 	fep = netdev_priv(ndev);
-	memset(fep, 0, sizeof(*fep));
 
 	ndev->base_addr = (unsigned long)ioremap(r->start, resource_size(r));
 	fep->pdev = pdev;
