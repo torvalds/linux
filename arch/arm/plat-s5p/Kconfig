@@ -66,3 +66,19 @@ config S5P_DEV_CSIS1
 	bool
 	help
 	  Compile in platform device definitions for MIPI-CSIS channel 1
+
+menuconfig S5P_SYSMMU
+	bool "SYSMMU support"
+	depends on ARCH_S5PV310
+	help
+	  This is a System MMU driver for Samsung ARM based Soc.
+
+if S5P_SYSMMU
+
+config S5P_SYSMMU_DEBUG
+	bool "Enables debug messages"
+	depends on S5P_SYSMMU
+	help
+	  This enables SYSMMU driver debug massages.
+
+endif
