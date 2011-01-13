@@ -131,7 +131,6 @@ static struct mutex tx_data_lock;
 /* module parameters */
 static int debug;	/* debug output */
 static int disable_rx;	/* disable RX device */
-static int disable_tx;	/* disable TX device */
 static int minor = -1;	/* minor number */
 
 #define dprintk(fmt, args...)						\
@@ -1218,12 +1217,10 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 */
 	client->addr = 0x70;
 
-	if (!disable_tx) {
-		if (i2c_master_recv(client, &buf, 1) == 1)
-			have_tx = 1;
-		dprintk("probe 0x70 @ %s: %s\n",
-			adap->name, have_tx ? "success" : "failed");
-	}
+	if (i2c_master_recv(client, &buf, 1) == 1)
+		have_tx = 1;
+	dprintk("probe 0x70 @ %s: %s\n",
+		adap->name, have_tx ? "success" : "failed");
 
 	if (!disable_rx) {
 		client->addr = 0x71;
@@ -1398,6 +1395,3 @@ MODULE_PARM_DESC(debug, "Enable debugging messages");
 
 module_param(disable_rx, bool, 0644);
 MODULE_PARM_DESC(disable_rx, "Disable the IR receiver device");
-
-module_param(disable_tx, bool, 0644);
-MODULE_PARM_DESC(disable_tx, "Disable the IR transmitter device");
