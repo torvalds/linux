@@ -4016,19 +4016,24 @@ suspend_lo_store(mddev_t *mddev, const char *buf, size_t len)
 {
 	char *e;
 	unsigned long long new = simple_strtoull(buf, &e, 10);
+	unsigned long long old = mddev->suspend_lo;
 
 	if (mddev->pers == NULL || 
 	    mddev->pers->quiesce == NULL)
 		return -EINVAL;
 	if (buf == e || (*e && *e != '\n'))
 		return -EINVAL;
-	if (new >= mddev->suspend_hi ||
-	    (new > mddev->suspend_lo && new < mddev->suspend_hi)) {
-		mddev->suspend_lo = new;
+
+	mddev->suspend_lo = new;
+	if (new >= old)
+		/* Shrinking suspended region */
 		mddev->pers->quiesce(mddev, 2);
-		return len;
-	} else
-		return -EINVAL;
+	else {
+		/* Expanding suspended region - need to wait */
+		mddev->pers->quiesce(mddev, 1);
+		mddev->pers->quiesce(mddev, 0);
+	}
+	return len;
 }
 static struct md_sysfs_entry md_suspend_lo =
 __ATTR(suspend_lo, S_IRUGO|S_IWUSR, suspend_lo_show, suspend_lo_store);
@@ -4045,20 +4050,24 @@ suspend_hi_store(mddev_t *mddev, const char *buf, size_t len)
 {
 	char *e;
 	unsigned long long new = simple_strtoull(buf, &e, 10);
+	unsigned long long old = mddev->suspend_hi;
 
 	if (mddev->pers == NULL ||
 	    mddev->pers->quiesce == NULL)
 		return -EINVAL;
 	if (buf == e || (*e && *e != '\n'))
 		return -EINVAL;
-	if ((new <= mddev->suspend_lo && mddev->suspend_lo >= mddev->suspend_hi) ||
-	    (new > mddev->suspend_lo && new > mddev->suspend_hi)) {
-		mddev->suspend_hi = new;
+
+	mddev->suspend_hi = new;
+	if (new <= old)
+		/* Shrinking suspended region */
+		mddev->pers->quiesce(mddev, 2);
+	else {
+		/* Expanding suspended region - need to wait */
 		mddev->pers->quiesce(mddev, 1);
 		mddev->pers->quiesce(mddev, 0);
-		return len;
-	} else
-		return -EINVAL;
+	}
+	return len;
 }
 static struct md_sysfs_entry md_suspend_hi =
 __ATTR(suspend_hi, S_IRUGO|S_IWUSR, suspend_hi_show, suspend_hi_store);
