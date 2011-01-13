@@ -1170,7 +1170,6 @@ static int fec_enet_init(struct net_device *dev)
 
 	spin_lock_init(&fep->hw_lock);
 
-	fep->hwp = (void __iomem *)dev->base_addr;
 	fep->netdev = dev;
 
 	/* Get the Ethernet address */
@@ -1387,10 +1386,10 @@ fec_probe(struct platform_device *pdev)
 	/* setup board info structure */
 	fep = netdev_priv(ndev);
 
-	ndev->base_addr = (unsigned long)ioremap(r->start, resource_size(r));
+	fep->hwp = ioremap(r->start, resource_size(r));
 	fep->pdev = pdev;
 
-	if (!ndev->base_addr) {
+	if (!fep->hwp) {
 		ret = -ENOMEM;
 		goto failed_ioremap;
 	}
@@ -1453,7 +1452,7 @@ failed_clk:
 			free_irq(irq, ndev);
 	}
 failed_irq:
-	iounmap((void __iomem *)ndev->base_addr);
+	iounmap(fep->hwp);
 failed_ioremap:
 	free_netdev(ndev);
 failed_alloc_etherdev:
@@ -1475,7 +1474,7 @@ fec_drv_remove(struct platform_device *pdev)
 	fec_enet_mii_remove(fep);
 	clk_disable(fep->clk);
 	clk_put(fep->clk);
-	iounmap((void __iomem *)ndev->base_addr);
+	iounmap(fep->hwp);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
 
