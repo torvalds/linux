@@ -12,6 +12,8 @@
 
 #include "dm-log-userspace-transfer.h"
 
+#define DM_LOG_USERSPACE_VSN "1.1.0"
+
 struct flush_entry {
 	int type;
 	region_t region;
@@ -765,7 +767,7 @@ static int __init userspace_dirty_log_init(void)
 		return r;
 	}
 
-	DMINFO("version 1.0.0 loaded");
+	DMINFO("version " DM_LOG_USERSPACE_VSN " loaded");
 	return 0;
 }
 
@@ -775,7 +777,7 @@ static void __exit userspace_dirty_log_exit(void)
 	dm_ulog_tfr_exit();
 	mempool_destroy(flush_entry_pool);
 
-	DMINFO("version 1.0.0 unloaded");
+	DMINFO("version " DM_LOG_USERSPACE_VSN " unloaded");
 	return;
 }
 
