@@ -855,7 +855,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	sector_t max_possible_sectors;
 	sector_t min_md_device_sectors;
 	struct drbd_backing_dev *nbc = NULL; /* new_backing_conf */
-	struct inode *inode, *inode2;
+	struct block_device *bdev;
 	struct lru_cache *resync_lru = NULL;
 	union drbd_state ns, os;
 	unsigned int max_seg_s;
@@ -907,46 +907,40 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		}
 	}
 
-	nbc->lo_file = filp_open(nbc->dc.backing_dev, O_RDWR, 0);
-	if (IS_ERR(nbc->lo_file)) {
+	bdev = blkdev_get_by_path(nbc->dc.backing_dev,
+				  FMODE_READ | FMODE_WRITE | FMODE_EXCL, mdev);
+	if (IS_ERR(bdev)) {
 		dev_err(DEV, "open(\"%s\") failed with %ld\n", nbc->dc.backing_dev,
-		    PTR_ERR(nbc->lo_file));
-		nbc->lo_file = NULL;
+			PTR_ERR(bdev));
 		retcode = ERR_OPEN_DISK;
 		goto fail;
 	}
+	nbc->backing_bdev = bdev;
 
-	inode = nbc->lo_file->f_dentry->d_inode;
-
-	if (!S_ISBLK(inode->i_mode)) {
-		retcode = ERR_DISK_NOT_BDEV;
-		goto fail;
-	}
-
-	nbc->md_file = filp_open(nbc->dc.meta_dev, O_RDWR, 0);
-	if (IS_ERR(nbc->md_file)) {
+	/*
+	 * meta_dev_idx >= 0: external fixed size, possibly multiple
+	 * drbd sharing one meta device.  TODO in that case, paranoia
+	 * check that [md_bdev, meta_dev_idx] is not yet used by some
+	 * other drbd minor!  (if you use drbd.conf + drbdadm, that
+	 * should check it for you already; but if you don't, or
+	 * someone fooled it, we need to double check here)
+	 */
+	bdev = blkdev_get_by_path(nbc->dc.meta_dev,
+				  FMODE_READ | FMODE_WRITE | FMODE_EXCL,
+				  (nbc->dc.meta_dev_idx < 0) ?
+				  (void *)mdev : (void *)drbd_m_holder);
+	if (IS_ERR(bdev)) {
 		dev_err(DEV, "open(\"%s\") failed with %ld\n", nbc->dc.meta_dev,
-		    PTR_ERR(nbc->md_file));
-		nbc->md_file = NULL;
+			PTR_ERR(bdev));
 		retcode = ERR_OPEN_MD_DISK;
 		goto fail;
 	}
+	nbc->md_bdev = bdev;
 
-	inode2 = nbc->md_file->f_dentry->d_inode;
-
-	if (!S_ISBLK(inode2->i_mode)) {
-		retcode = ERR_MD_NOT_BDEV;
-		goto fail;
-	}
-
-	nbc->backing_bdev = inode->i_bdev;
-	if (bd_claim(nbc->backing_bdev, mdev)) {
-		printk(KERN_ERR "drbd: bd_claim(%p,%p); failed [%p;%p;%u]\n",
-		       nbc->backing_bdev, mdev,
-		       nbc->backing_bdev->bd_holder,
-		       nbc->backing_bdev->bd_contains->bd_holder,
-		       nbc->backing_bdev->bd_holders);
-		retcode = ERR_BDCLAIM_DISK;
+	if ((nbc->backing_bdev == nbc->md_bdev) !=
+	    (nbc->dc.meta_dev_idx == DRBD_MD_INDEX_INTERNAL ||
+	     nbc->dc.meta_dev_idx == DRBD_MD_INDEX_FLEX_INT)) {
+		retcode = ERR_MD_IDX_INVALID;
 		goto fail;
 	}
 
@@ -955,28 +949,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 			offsetof(struct bm_extent, lce));
 	if (!resync_lru) {
 		retcode = ERR_NOMEM;
-		goto release_bdev_fail;
-	}
-
-	/* meta_dev_idx >= 0: external fixed size,
-	 * possibly multiple drbd sharing one meta device.
-	 * TODO in that case, paranoia check that [md_bdev, meta_dev_idx] is
-	 * not yet used by some other drbd minor!
-	 * (if you use drbd.conf + drbdadm,
-	 * that should check it for you already; but if you don't, or someone
-	 * fooled it, we need to double check here) */
-	nbc->md_bdev = inode2->i_bdev;
-	if (bd_claim(nbc->md_bdev, (nbc->dc.meta_dev_idx < 0) ? (void *)mdev
-				: (void *) drbd_m_holder)) {
-		retcode = ERR_BDCLAIM_MD_DISK;
-		goto release_bdev_fail;
-	}
-
-	if ((nbc->backing_bdev == nbc->md_bdev) !=
-	    (nbc->dc.meta_dev_idx == DRBD_MD_INDEX_INTERNAL ||
-	     nbc->dc.meta_dev_idx == DRBD_MD_INDEX_FLEX_INT)) {
-		retcode = ERR_MD_IDX_INVALID;
-		goto release_bdev2_fail;
+		goto fail;
 	}
 
 	/* RT - for drbd_get_max_capacity() DRBD_MD_INDEX_FLEX_INT */
@@ -987,7 +960,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 			(unsigned long long) drbd_get_max_capacity(nbc),
 			(unsigned long long) nbc->dc.disk_size);
 		retcode = ERR_DISK_TO_SMALL;
-		goto release_bdev2_fail;
+		goto fail;
 	}
 
 	if (nbc->dc.meta_dev_idx < 0) {
@@ -1004,7 +977,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		dev_warn(DEV, "refusing attach: md-device too small, "
 		     "at least %llu sectors needed for this meta-disk type\n",
 		     (unsigned long long) min_md_device_sectors);
-		goto release_bdev2_fail;
+		goto fail;
 	}
 
 	/* Make sure the new disk is big enough
@@ -1012,7 +985,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (drbd_get_max_capacity(nbc) <
 	    drbd_get_capacity(mdev->this_bdev)) {
 		retcode = ERR_DISK_TO_SMALL;
-		goto release_bdev2_fail;
+		goto fail;
 	}
 
 	nbc->known_size = drbd_get_capacity(nbc->backing_bdev);
@@ -1035,7 +1008,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	retcode = _drbd_request_state(mdev, NS(disk, D_ATTACHING), CS_VERBOSE);
 	drbd_resume_io(mdev);
 	if (retcode < SS_SUCCESS)
-		goto release_bdev2_fail;
+		goto fail;
 
 	if (!get_ldev_if_state(mdev, D_ATTACHING))
 		goto force_diskless;
@@ -1269,18 +1242,14 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
  force_diskless:
 	drbd_force_state(mdev, NS(disk, D_FAILED));
 	drbd_md_sync(mdev);
- release_bdev2_fail:
-	if (nbc)
-		bd_release(nbc->md_bdev);
- release_bdev_fail:
-	if (nbc)
-		bd_release(nbc->backing_bdev);
  fail:
 	if (nbc) {
-		if (nbc->lo_file)
-			fput(nbc->lo_file);
-		if (nbc->md_file)
-			fput(nbc->md_file);
+		if (nbc->backing_bdev)
+			blkdev_put(nbc->backing_bdev,
+				   FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+		if (nbc->md_bdev)
+			blkdev_put(nbc->md_bdev,
+				   FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 		kfree(nbc);
 	}
 	lc_destroy(resync_lru);

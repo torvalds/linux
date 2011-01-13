@@ -493,7 +493,7 @@ again:
 			continue;
 
 		if (device->bdev) {
-			close_bdev_exclusive(device->bdev, device->mode);
+			blkdev_put(device->bdev, device->mode);
 			device->bdev = NULL;
 			fs_devices->open_devices--;
 		}
@@ -527,7 +527,7 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		if (device->bdev) {
-			close_bdev_exclusive(device->bdev, device->mode);
+			blkdev_put(device->bdev, device->mode);
 			fs_devices->open_devices--;
 		}
 		if (device->writeable) {
@@ -584,13 +584,15 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	int seeding = 1;
 	int ret = 0;
 
+	flags |= FMODE_EXCL;
+
 	list_for_each_entry(device, head, dev_list) {
 		if (device->bdev)
 			continue;
 		if (!device->name)
 			continue;
 
-		bdev = open_bdev_exclusive(device->name, flags, holder);
+		bdev = blkdev_get_by_path(device->name, flags, holder);
 		if (IS_ERR(bdev)) {
 			printk(KERN_INFO "open %s failed\n", device->name);
 			goto error;
@@ -642,7 +644,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 error_brelse:
 		brelse(bh);
 error_close:
-		close_bdev_exclusive(bdev, FMODE_READ);
+		blkdev_put(bdev, flags);
 error:
 		continue;
 	}
@@ -688,7 +690,8 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 
 	mutex_lock(&uuid_mutex);
 
-	bdev = open_bdev_exclusive(path, flags, holder);
+	flags |= FMODE_EXCL;
+	bdev = blkdev_get_by_path(path, flags, holder);
 
 	if (IS_ERR(bdev)) {
 		ret = PTR_ERR(bdev);
@@ -720,7 +723,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 
 	brelse(bh);
 error_close:
-	close_bdev_exclusive(bdev, flags);
+	blkdev_put(bdev, flags);
 error:
 	mutex_unlock(&uuid_mutex);
 	return ret;
@@ -1183,8 +1186,8 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 			goto out;
 		}
 	} else {
-		bdev = open_bdev_exclusive(device_path, FMODE_READ,
-				      root->fs_info->bdev_holder);
+		bdev = blkdev_get_by_path(device_path, FMODE_READ | FMODE_EXCL,
+					  root->fs_info->bdev_holder);
 		if (IS_ERR(bdev)) {
 			ret = PTR_ERR(bdev);
 			goto out;
@@ -1251,7 +1254,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		root->fs_info->fs_devices->latest_bdev = next_device->bdev;
 
 	if (device->bdev) {
-		close_bdev_exclusive(device->bdev, device->mode);
+		blkdev_put(device->bdev, device->mode);
 		device->bdev = NULL;
 		device->fs_devices->open_devices--;
 	}
@@ -1294,7 +1297,7 @@ error_brelse:
 	brelse(bh);
 error_close:
 	if (bdev)
-		close_bdev_exclusive(bdev, FMODE_READ);
+		blkdev_put(bdev, FMODE_READ | FMODE_EXCL);
 out:
 	mutex_unlock(&root->fs_info->volume_mutex);
 	mutex_unlock(&uuid_mutex);
@@ -1446,7 +1449,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if ((sb->s_flags & MS_RDONLY) && !root->fs_info->fs_devices->seeding)
 		return -EINVAL;
 
-	bdev = open_bdev_exclusive(device_path, 0, root->fs_info->bdev_holder);
+	bdev = blkdev_get_by_path(device_path, FMODE_EXCL,
+				  root->fs_info->bdev_holder);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
@@ -1572,7 +1576,7 @@ out:
 	mutex_unlock(&root->fs_info->volume_mutex);
 	return ret;
 error:
-	close_bdev_exclusive(bdev, 0);
+	blkdev_put(bdev, FMODE_EXCL);
 	if (seeding_dev) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);

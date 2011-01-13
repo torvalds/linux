@@ -59,7 +59,7 @@ static struct char_device_struct {
 } *chrdevs[CHRDEV_MAJOR_HASH_SIZE];
 
 /* index in the above */
-static inline int major_to_index(int major)
+static inline int major_to_index(unsigned major)
 {
 	return major % CHRDEV_MAJOR_HASH_SIZE;
 }
