@@ -139,8 +139,8 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 		goto exit_1;
 	} else if (input) {
 		in_buf = input;
-	} else if (!fill || !posp) {
-		error("NULL input pointer and missing position pointer or fill function");
+	} else if (!fill) {
+		error("NULL input pointer and missing fill function");
 		goto exit_1;
 	} else {
 		in_buf = malloc(lzo1x_worst_compress(LZO_BLOCK_SIZE));
@@ -154,21 +154,40 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 	if (posp)
 		*posp = 0;
 
-	if (fill)
-		fill(in_buf, lzo1x_worst_compress(LZO_BLOCK_SIZE));
+	if (fill) {
+		/*
+		 * Start from in_buf + HEADER_SIZE_MAX to make it possible
+		 * to use memcpy() to copy the unused data to the beginning
+		 * of the buffer. This way memmove() isn't needed which
+		 * is missing from pre-boot environments of most archs.
+		 */
+		in_buf += HEADER_SIZE_MAX;
+		in_len = fill(in_buf, HEADER_SIZE_MAX);
+	}
 
-	if (!parse_header(input, &skip, in_len)) {
+	if (!parse_header(in_buf, &skip, in_len)) {
 		error("invalid header");
 		goto exit_2;
 	}
 	in_buf += skip;
 	in_len -= skip;
 
+	if (fill) {
+		/* Move the unused data to the beginning of the buffer. */
+		memcpy(in_buf_save, in_buf, in_len);
+		in_buf = in_buf_save;
+	}
+
 	if (posp)
 		*posp = skip;
 
 	for (;;) {
 		/* read uncompressed block size */
+		if (fill && in_len < 4) {
+			skip = fill(in_buf + in_len, 4 - in_len);
+			if (skip > 0)
+				in_len += skip;
+		}
 		if (in_len < 4) {
 			error("file corrupted");
 			goto exit_2;
@@ -190,6 +209,11 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 		}
 
 		/* read compressed block size, and skip block checksum info */
+		if (fill && in_len < 8) {
+			skip = fill(in_buf + in_len, 8 - in_len);
+			if (skip > 0)
+				in_len += skip;
+		}
 		if (in_len < 8) {
 			error("file corrupted");
 			goto exit_2;
@@ -198,12 +222,21 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 		in_buf += 8;
 		in_len -= 8;
 
-		if (src_len <= 0 || src_len > dst_len || src_len > in_len) {
+		if (src_len <= 0 || src_len > dst_len) {
 			error("file corrupted");
 			goto exit_2;
 		}
 
 		/* decompress */
+		if (fill && in_len < src_len) {
+			skip = fill(in_buf + in_len, src_len - in_len);
+			if (skip > 0)
+				in_len += skip;
+		}
+		if (in_len < src_len) {
+			error("file corrupted");
+			goto exit_2;
+		}
 		tmp = dst_len;
 
 		/* When the input data is not compressed at all,
@@ -227,12 +260,19 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 			out_buf += dst_len;
 		if (posp)
 			*posp += src_len + 12;
+
+		in_buf += src_len;
+		in_len -= src_len;
 		if (fill) {
+			/*
+			 * If there happens to still be unused data left in
+			 * in_buf, move it to the beginning of the buffer.
+			 * Use a loop to avoid memmove() dependency.
+			 */
+			if (in_len > 0)
+				for (skip = 0; skip < in_len; ++skip)
+					in_buf_save[skip] = in_buf[skip];
 			in_buf = in_buf_save;
-			fill(in_buf, lzo1x_worst_compress(LZO_BLOCK_SIZE));
-		} else {
-			in_buf += src_len;
-			in_len -= src_len;
 		}
 	}
 
