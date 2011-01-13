@@ -208,6 +208,10 @@ static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
 		I2C_BOARD_INFO("lp5521", 0x34),
 		.platform_data = &lp5521_sec_data,
 	},
+	{
+		/* Light sensor Rohm BH1780GLI */
+		I2C_BOARD_INFO("bh1780", 0x29),
+	},
 };
 
 #define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
