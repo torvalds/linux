@@ -39,6 +39,7 @@
 #include <linux/syslog.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
+#include <linux/rculist.h>
 
 #include <asm/uaccess.h>
 
@@ -1502,7 +1503,7 @@ int kmsg_dump_register(struct kmsg_dumper *dumper)
 	/* Don't allow registering multiple times */
 	if (!dumper->registered) {
 		dumper->registered = 1;
-		list_add_tail(&dumper->list, &dump_list);
+		list_add_tail_rcu(&dumper->list, &dump_list);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
@@ -1526,32 +1527,15 @@ int kmsg_dump_unregister(struct kmsg_dumper *dumper)
 	spin_lock_irqsave(&dump_list_lock, flags);
 	if (dumper->registered) {
 		dumper->registered = 0;
-		list_del(&dumper->list);
+		list_del_rcu(&dumper->list);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
+	synchronize_rcu();
 
 	return err;
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_unregister);
-
-static const char * const kmsg_reasons[] = {
-	[KMSG_DUMP_OOPS]	= "oops",
-	[KMSG_DUMP_PANIC]	= "panic",
-	[KMSG_DUMP_KEXEC]	= "kexec",
-	[KMSG_DUMP_RESTART]	= "restart",
-	[KMSG_DUMP_HALT]	= "halt",
-	[KMSG_DUMP_POWEROFF]	= "poweroff",
-	[KMSG_DUMP_EMERG]	= "emergency_restart",
-};
-
-static const char *kmsg_to_str(enum kmsg_dump_reason reason)
-{
-	if (reason >= ARRAY_SIZE(kmsg_reasons) || reason < 0)
-		return "unknown";
-
-	return kmsg_reasons[reason];
-}
 
 /**
  * kmsg_dump - dump kernel log to kernel message dumpers.
@@ -1591,13 +1575,9 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 		l2 = chars;
 	}
 
-	if (!spin_trylock_irqsave(&dump_list_lock, flags)) {
-		printk(KERN_ERR "dump_kmsg: dump list lock is held during %s, skipping dump\n",
-				kmsg_to_str(reason));
-		return;
-	}
-	list_for_each_entry(dumper, &dump_list, list)
+	rcu_read_lock();
+	list_for_each_entry_rcu(dumper, &dump_list, list)
 		dumper->dump(dumper, reason, s1, l1, s2, l2);
-	spin_unlock_irqrestore(&dump_list_lock, flags);
+	rcu_read_unlock();
 }
 #endif
