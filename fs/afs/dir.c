@@ -62,7 +62,7 @@ const struct inode_operations afs_dir_inode_operations = {
 	.setattr	= afs_setattr,
 };
 
-static const struct dentry_operations afs_fs_dentry_operations = {
+const struct dentry_operations afs_fs_dentry_operations = {
 	.d_revalidate	= afs_d_revalidate,
 	.d_delete	= afs_d_delete,
 	.d_release	= afs_d_release,
@@ -582,8 +582,6 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 success:
-	d_set_d_op(dentry, &afs_fs_dentry_operations);
-
 	d_add(dentry, inode);
 	_leave(" = 0 { vn=%u u=%u } -> { ino=%lu v=%llu }",
 	       fid.vnode,
