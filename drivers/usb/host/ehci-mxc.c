@@ -177,8 +177,8 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		clk_enable(priv->ahbclk);
 	}
 
-	/* "dr" device has its own clock */
-	if (pdev->id == 0) {
+	/* "dr" device has its own clock on i.MX51 */
+	if (cpu_is_mx51() && (pdev->id == 0)) {
 		priv->phy1clk = clk_get(dev, "usb_phy1");
 		if (IS_ERR(priv->phy1clk)) {
 			ret = PTR_ERR(priv->phy1clk);
