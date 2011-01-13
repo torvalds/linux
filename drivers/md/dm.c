@@ -1883,7 +1883,7 @@ static struct mapped_device *alloc_dev(int minor)
 	add_disk(md->disk);
 	format_dev_t(md->name, MKDEV(_major, minor));
 
-	md->wq = create_singlethread_workqueue("kdmflush");
+	md->wq = alloc_ordered_workqueue("kdmflush", WQ_MEM_RECLAIM);
 	if (!md->wq)
 		goto bad_thread;
 

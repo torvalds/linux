@@ -818,7 +818,7 @@ static int persistent_ctr(struct dm_exception_store *store,
 	atomic_set(&ps->pending_count, 0);
 	ps->callbacks = NULL;
 
-	ps->metadata_wq = create_singlethread_workqueue("ksnaphd");
+	ps->metadata_wq = alloc_ordered_workqueue("ksnaphd", WQ_MEM_RECLAIM);
 	if (!ps->metadata_wq) {
 		kfree(ps);
 		DMERR("couldn't start header metadata update thread");

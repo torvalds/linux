@@ -672,7 +672,7 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 		goto bad_slab;
 
 	INIT_WORK(&kc->kcopyd_work, do_work);
-	kc->kcopyd_wq = create_singlethread_workqueue("kcopyd");
+	kc->kcopyd_wq = alloc_ordered_workqueue("kcopyd", WQ_MEM_RECLAIM);
 	if (!kc->kcopyd_wq)
 		goto bad_workqueue;
 
