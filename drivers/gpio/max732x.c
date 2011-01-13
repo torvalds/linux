@@ -327,40 +327,40 @@ static int max732x_gpio_to_irq(struct gpio_chip *gc, unsigned off)
 	return chip->irq_base + off;
 }
 
-static void max732x_irq_mask(unsigned int irq)
+static void max732x_irq_mask(struct irq_data *d)
 {
-	struct max732x_chip *chip = get_irq_chip_data(irq);
+	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask_cur &= ~(1 << (irq - chip->irq_base));
+	chip->irq_mask_cur &= ~(1 << (d->irq - chip->irq_base));
 }
 
-static void max732x_irq_unmask(unsigned int irq)
+static void max732x_irq_unmask(struct irq_data *d)
 {
-	struct max732x_chip *chip = get_irq_chip_data(irq);
+	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask_cur |= 1 << (irq - chip->irq_base);
+	chip->irq_mask_cur |= 1 << (d->irq - chip->irq_base);
 }
 
-static void max732x_irq_bus_lock(unsigned int irq)
+static void max732x_irq_bus_lock(struct irq_data *d)
 {
-	struct max732x_chip *chip = get_irq_chip_data(irq);
+	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
 
 	mutex_lock(&chip->irq_lock);
 	chip->irq_mask_cur = chip->irq_mask;
 }
 
-static void max732x_irq_bus_sync_unlock(unsigned int irq)
+static void max732x_irq_bus_sync_unlock(struct irq_data *d)
 {
-	struct max732x_chip *chip = get_irq_chip_data(irq);
+	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
 
 	max732x_irq_update_mask(chip);
 	mutex_unlock(&chip->irq_lock);
 }
 
-static int max732x_irq_set_type(unsigned int irq, unsigned int type)
+static int max732x_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct max732x_chip *chip = get_irq_chip_data(irq);
-	uint16_t off = irq - chip->irq_base;
+	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
+	uint16_t off = d->irq - chip->irq_base;
 	uint16_t mask = 1 << off;
 
 	if (!(mask & chip->dir_input)) {
@@ -371,7 +371,7 @@ static int max732x_irq_set_type(unsigned int irq, unsigned int type)
 
 	if (!(type & IRQ_TYPE_EDGE_BOTH)) {
 		dev_err(&chip->client->dev, "irq %d: unsupported type %d\n",
-			irq, type);
+			d->irq, type);
 		return -EINVAL;
 	}
 
@@ -390,11 +390,11 @@ static int max732x_irq_set_type(unsigned int irq, unsigned int type)
 
 static struct irq_chip max732x_irq_chip = {
 	.name			= "max732x",
-	.mask			= max732x_irq_mask,
-	.unmask			= max732x_irq_unmask,
-	.bus_lock		= max732x_irq_bus_lock,
-	.bus_sync_unlock	= max732x_irq_bus_sync_unlock,
-	.set_type		= max732x_irq_set_type,
+	.irq_mask		= max732x_irq_mask,
+	.irq_unmask		= max732x_irq_unmask,
+	.irq_bus_lock		= max732x_irq_bus_lock,
+	.irq_bus_sync_unlock	= max732x_irq_bus_sync_unlock,
+	.irq_set_type		= max732x_irq_set_type,
 };
 
 static uint8_t max732x_irq_pending(struct max732x_chip *chip)
