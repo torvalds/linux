@@ -127,12 +127,6 @@ static inline void INIT rc_init_code(struct rc *rc)
 }
 
 
-/* Called once. TODO: bb_maybe_free() */
-static inline void INIT rc_free(struct rc *rc)
-{
-	free(rc->buffer);
-}
-
 /* Called twice, but one callsite is in inline'd rc_is_bit_0_helper() */
 static void INIT rc_do_normalize(struct rc *rc)
 {
