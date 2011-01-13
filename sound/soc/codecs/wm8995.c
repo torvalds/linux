@@ -30,7 +30,7 @@
 
 #include "wm8995.h"
 
-static const u16 wm8995_reg_defs[WM8995_MAX_REGISTER + 1] __devinitconst = {
+static const u16 wm8995_reg_defs[WM8995_MAX_REGISTER + 1] = {
 	[0]     = 0x8995, [5]     = 0x0100, [16]    = 0x000b, [17]    = 0x000b,
 	[24]    = 0x02c0, [25]    = 0x02c0, [26]    = 0x02c0, [27]    = 0x02c0,
 	[28]    = 0x000f, [32]    = 0x0005, [33]    = 0x0005, [40]    = 0x0003,

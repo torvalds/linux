@@ -339,7 +339,6 @@ EXPORT_SYMBOL_GPL(tpa6130a2_stereo_enable);
 int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 {
 	struct	tpa6130a2_data *data;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	if (tpa6130a2_client == NULL)
 		return -ENODEV;
