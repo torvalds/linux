@@ -3594,7 +3594,7 @@ static int stac_check_auto_mic(struct hda_codec *codec)
 		if (check_mic_pin(codec, spec->dmic_nids[i],
 		    &fixed, &ext, &dock))
 			return 0;
-	if (!fixed && !ext && !dock)
+	if (!fixed || (!ext && !dock))
 		return 0; /* no input to switch */
 	if (!(get_wcaps(codec, ext) & AC_WCAP_UNSOL_CAP))
 		return 0; /* no unsol support */
