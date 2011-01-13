@@ -3,6 +3,9 @@ menu "Board support"
 config SOLUTION_ENGINE
 	bool
 
+config SH_ALPHA_BOARD
+	bool
+
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
 	select SOLUTION_ENGINE
@@ -319,6 +322,21 @@ config SH_SH2007
 	  It has an Ethernet interface (SMC9118), direct connected
 	  Compact Flash socket, two serial ports and PC-104 bus.
 	  More information at <http://sh2000.sh-linux.org>.
+
+config SH_APSH4A3A
+	bool "AP-SH4A-3A"
+	select SH_ALPHA_BOARD
+	depends on CPU_SUBTYPE_SH7785
+	help
+	  Select AP-SH4A-3A if configuring for an ALPHAPROJECT AP-SH4A-3A.
+
+config SH_APSH4AD0A
+	bool "AP-SH4AD-0A"
+	select SH_ALPHA_BOARD
+	select SYS_SUPPORTS_PCI
+	depends on CPU_SUBTYPE_SH7786
+	help
+	  Select AP-SH4AD-0A if configuring for an ALPHAPROJECT AP-SH4AD-0A.
 
 endmenu
 

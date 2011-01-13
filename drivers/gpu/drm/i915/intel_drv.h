@@ -257,6 +257,9 @@ extern void intel_pch_panel_fitting(struct drm_device *dev,
 extern u32 intel_panel_get_max_backlight(struct drm_device *dev);
 extern u32 intel_panel_get_backlight(struct drm_device *dev);
 extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
+extern void intel_panel_setup_backlight(struct drm_device *dev);
+extern void intel_panel_enable_backlight(struct drm_device *dev);
+extern void intel_panel_disable_backlight(struct drm_device *dev);
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);

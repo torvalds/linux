@@ -4383,11 +4383,11 @@ F:	Documentation/scsi/NinjaSCSI.txt
 F:	drivers/scsi/nsp32*
 
 NTFS FILESYSTEM
-M:	Anton Altaparmakov <aia21@cantab.net>
+M:	Anton Altaparmakov <anton@tuxera.com>
 L:	linux-ntfs-dev@lists.sourceforge.net
-W:	http://www.linux-ntfs.org/
+W:	http://www.tuxera.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aia21/ntfs-2.6.git
-S:	Maintained
+S:	Supported
 F:	Documentation/filesystems/ntfs.txt
 F:	fs/ntfs/
 
