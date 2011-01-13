@@ -118,7 +118,7 @@ config GPIO_SCH
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
-	depends on GPIOLIB
+	depends on GPIOLIB && MFD_SUPPORT && PCI
 	select MFD_CORE
 	select MFD_VX855
 	help
