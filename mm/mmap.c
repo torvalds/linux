@@ -254,7 +254,15 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 	down_write(&mm->mmap_sem);
 
 #ifdef CONFIG_COMPAT_BRK
-	min_brk = mm->end_code;
+	/*
+	 * CONFIG_COMPAT_BRK can still be overridden by setting
+	 * randomize_va_space to 2, which will still cause mm->start_brk
+	 * to be arbitrarily shifted
+	 */
+	if (mm->start_brk > PAGE_ALIGN(mm->end_data))
+		min_brk = mm->start_brk;
+	else
+		min_brk = mm->end_data;
 #else
 	min_brk = mm->start_brk;
 #endif
