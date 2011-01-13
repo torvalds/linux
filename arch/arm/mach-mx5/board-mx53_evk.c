@@ -24,6 +24,8 @@
 #include <linux/fec.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/spi/flash.h>
+#include <linux/spi/spi.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -99,6 +101,17 @@ static struct fec_platform_data mx53_evk_fec_pdata = {
 	.phy = PHY_INTERFACE_MODE_RMII,
 };
 
+static struct spi_board_info mx53_evk_spi_board_info[] __initdata = {
+	{
+		.modalias = "mtd_dataflash",
+		.max_speed_hz = 25000000,
+		.bus_num = 0,
+		.chip_select = 1,
+		.mode = SPI_MODE_0,
+		.platform_data = NULL,
+	},
+};
+
 static int mx53_evk_spi_cs[] = {
 	EVK_ECSPI1_CS0,
 	EVK_ECSPI1_CS1,
@@ -123,6 +136,8 @@ static void __init mx53_evk_board_init(void)
 	imx53_add_sdhci_esdhc_imx(0, NULL);
 	imx53_add_sdhci_esdhc_imx(1, NULL);
 
+	spi_register_board_info(mx53_evk_spi_board_info,
+		ARRAY_SIZE(mx53_evk_spi_board_info));
 	imx53_add_ecspi(0, &mx53_evk_spi_data);
 }
 
