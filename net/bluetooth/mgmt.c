@@ -571,7 +571,7 @@ failed:
 	return err;
 }
 
-static int uuid_rsp(struct sock *sk, u16 opcode, u16 index)
+static int index_rsp(struct sock *sk, u16 opcode, u16 index)
 {
 	struct mgmt_hdr *hdr;
 	struct mgmt_ev_cmd_complete *ev;
@@ -594,6 +594,39 @@ static int uuid_rsp(struct sock *sk, u16 opcode, u16 index)
 		kfree_skb(skb);
 
 	return 0;
+}
+
+static u8 get_service_classes(struct hci_dev *hdev)
+{
+	struct list_head *p;
+	u8 val = 0;
+
+	list_for_each(p, &hdev->uuids) {
+		struct bt_uuid *uuid = list_entry(p, struct bt_uuid, list);
+
+		val |= uuid->svc_hint;
+	}
+
+	return val;
+}
+
+static int update_class(struct hci_dev *hdev)
+{
+	u8 cod[3];
+
+	BT_DBG("%s", hdev->name);
+
+	if (test_bit(HCI_SERVICE_CACHE, &hdev->flags))
+		return 0;
+
+	cod[0] = hdev->minor_class;
+	cod[1] = hdev->major_class;
+	cod[2] = get_service_classes(hdev);
+
+	if (memcmp(cod, hdev->dev_class, 3) == 0)
+		return 0;
+
+	return hci_send_cmd(hdev, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
 }
 
 static int add_uuid(struct sock *sk, unsigned char *data, u16 len)
@@ -622,10 +655,15 @@ static int add_uuid(struct sock *sk, unsigned char *data, u16 len)
 	}
 
 	memcpy(uuid->uuid, cp->uuid, 16);
+	uuid->svc_hint = cp->svc_hint;
 
 	list_add(&uuid->list, &hdev->uuids);
 
-	err = uuid_rsp(sk, MGMT_OP_ADD_UUID, dev_id);
+	err = update_class(hdev);
+	if (err < 0)
+		goto failed;
+
+	err = index_rsp(sk, MGMT_OP_ADD_UUID, dev_id);
 
 failed:
 	hci_dev_unlock_bh(hdev);
@@ -676,9 +714,80 @@ static int remove_uuid(struct sock *sk, unsigned char *data, u16 len)
 		goto unlock;
 	}
 
-	err = uuid_rsp(sk, MGMT_OP_REMOVE_UUID, dev_id);
+	err = update_class(hdev);
+	if (err < 0)
+		goto unlock;
+
+	err = index_rsp(sk, MGMT_OP_REMOVE_UUID, dev_id);
 
 unlock:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int set_dev_class(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_set_dev_class *cp;
+	u16 dev_id;
+	int err;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	BT_DBG("request for hci%u", dev_id);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_SET_DEV_CLASS, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	hdev->major_class = cp->major;
+	hdev->minor_class = cp->minor;
+
+	err = update_class(hdev);
+
+	if (err == 0)
+		err = index_rsp(sk, MGMT_OP_SET_DEV_CLASS, dev_id);
+
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int set_service_cache(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_set_service_cache *cp;
+	u16 dev_id;
+	int err;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_SET_SERVICE_CACHE, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	BT_DBG("hci%u enable %d", dev_id, cp->enable);
+
+	if (cp->enable) {
+		set_bit(HCI_SERVICE_CACHE, &hdev->flags);
+		err = 0;
+	} else {
+		clear_bit(HCI_SERVICE_CACHE, &hdev->flags);
+		err = update_class(hdev);
+	}
+
+	if (err == 0)
+		err = index_rsp(sk, MGMT_OP_SET_SERVICE_CACHE, dev_id);
+
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
@@ -742,6 +851,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_REMOVE_UUID:
 		err = remove_uuid(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_SET_DEV_CLASS:
+		err = set_dev_class(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_SET_SERVICE_CACHE:
+		err = set_service_cache(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);

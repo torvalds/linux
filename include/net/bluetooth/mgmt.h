@@ -76,12 +76,26 @@ struct mgmt_mode {
 struct mgmt_cp_add_uuid {
 	__le16 index;
 	__u8 uuid[16];
+	__u8 svc_hint;
 } __packed;
 
 #define MGMT_OP_REMOVE_UUID		0x000A
 struct mgmt_cp_remove_uuid {
 	__le16 index;
 	__u8 uuid[16];
+} __packed;
+
+#define MGMT_OP_SET_DEV_CLASS		0x000B
+struct mgmt_cp_set_dev_class {
+	__le16 index;
+	__u8 major;
+	__u8 minor;
+} __packed;
+
+#define MGMT_OP_SET_SERVICE_CACHE	0x000C
+struct mgmt_cp_set_service_cache {
+	__le16 index;
+	__u8 enable;
 } __packed;
 
 #define MGMT_EV_CMD_COMPLETE		0x0001

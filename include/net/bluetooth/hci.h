@@ -81,6 +81,7 @@ enum {
 	HCI_AUTO_OFF,
 	HCI_MGMT,
 	HCI_PAIRABLE,
+	HCI_SERVICE_CACHE,
 };
 
 /* HCI ioctl defines */

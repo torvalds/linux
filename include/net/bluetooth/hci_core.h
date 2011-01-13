@@ -70,6 +70,7 @@ struct bdaddr_list {
 struct bt_uuid {
 	struct list_head list;
 	u8 uuid[16];
+	u8 svc_hint;
 };
 
 #define NUM_REASSEMBLY 4
@@ -86,6 +87,8 @@ struct hci_dev {
 	bdaddr_t	bdaddr;
 	__u8		dev_name[248];
 	__u8		dev_class[3];
+	__u8		major_class;
+	__u8		minor_class;
 	__u8		features[8];
 	__u8		commands[64];
 	__u8		ssp_mode;
