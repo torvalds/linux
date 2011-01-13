@@ -973,15 +973,15 @@ static void crypt_encode_key(char *hex, u8 *key, unsigned int size)
 
 static int crypt_set_key(struct crypt_config *cc, char *key)
 {
-	unsigned key_size = strlen(key) >> 1;
-
-	if (cc->key_size && cc->key_size != key_size)
+	/* The key size may not be changed. */
+	if (cc->key_size != (strlen(key) >> 1))
 		return -EINVAL;
 
-	cc->key_size = key_size; /* initial settings */
+	/* Hyphen (which gives a key_size of zero) means there is no key. */
+	if (!cc->key_size && strcmp(key, "-"))
+		return -EINVAL;
 
-	if ((!key_size && strcmp(key, "-")) ||
-	   (key_size && crypt_decode_key(cc->key, key, key_size) < 0))
+	if (cc->key_size && crypt_decode_key(cc->key, key, cc->key_size) < 0)
 		return -EINVAL;
 
 	set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
@@ -1194,6 +1194,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Cannot allocate encryption context";
 		return -ENOMEM;
 	}
+	cc->key_size = key_size;
 
 	ti->private = cc;
 	ret = crypt_ctr_cipher(ti, argv[0], argv[1]);
