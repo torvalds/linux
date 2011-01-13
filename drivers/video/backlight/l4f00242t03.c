@@ -62,6 +62,8 @@ static void l4f00242t03_lcd_init(struct spi_device *spi)
 		regulator_enable(priv->core_reg);
 	}
 
+	l4f00242t03_reset(pdata->reset_gpio);
+
 	gpio_set_value(pdata->data_enable_gpio, 1);
 	msleep(60);
 	spi_write(spi, (const u8 *)cmd, ARRAY_SIZE(cmd) * sizeof(u16));
@@ -227,7 +229,6 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 	}
 
 	/* Init the LCD */
-	l4f00242t03_reset(pdata->reset_gpio);
 	l4f00242t03_lcd_init(spi);
 	priv->lcd_state = FB_BLANK_VSYNC_SUSPEND;
 	l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_UNBLANK);
