@@ -288,10 +288,12 @@ static int md_make_request(struct request_queue *q, struct bio *bio)
 	int rv;
 	int cpu;
 
-	if (mddev == NULL || mddev->pers == NULL) {
+	if (mddev == NULL || mddev->pers == NULL
+	    || !mddev->ready) {
 		bio_io_error(bio);
 		return 0;
 	}
+	smp_rmb(); /* Ensure implications of  'active' are visible */
 	rcu_read_lock();
 	if (mddev->suspended) {
 		DEFINE_WAIT(__wait);
@@ -4564,7 +4566,8 @@ int md_run(mddev_t *mddev)
 	mddev->safemode_timer.data = (unsigned long) mddev;
 	mddev->safemode_delay = (200 * HZ)/1000 +1; /* 200 msec delay */
 	mddev->in_sync = 1;
-
+	smp_wmb();
+	mddev->ready = 1;
 	list_for_each_entry(rdev, &mddev->disks, same_set)
 		if (rdev->raid_disk >= 0) {
 			char nm[20];
@@ -4725,6 +4728,7 @@ EXPORT_SYMBOL_GPL(md_stop_writes);
 
 void md_stop(mddev_t *mddev)
 {
+	mddev->ready = 0;
 	mddev->pers->stop(mddev);
 	if (mddev->pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
