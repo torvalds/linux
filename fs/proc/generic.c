@@ -425,13 +425,10 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		if (de->namelen != dentry->d_name.len)
 			continue;
 		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
-			unsigned int ino;
-
-			ino = de->low_ino;
 			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
 			error = -EINVAL;
-			inode = proc_get_inode(dir->i_sb, ino, de);
+			inode = proc_get_inode(dir->i_sb, de);
 			goto out_unlock;
 		}
 	}
@@ -768,12 +765,7 @@ EXPORT_SYMBOL(proc_create_data);
 
 static void free_proc_entry(struct proc_dir_entry *de)
 {
-	unsigned int ino = de->low_ino;
-
-	if (ino < PROC_DYNAMIC_FIRST)
-		return;
-
-	release_inode_number(ino);
+	release_inode_number(de->low_ino);
 
 	if (S_ISLNK(de->mode))
 		kfree(de->data);
