@@ -84,7 +84,7 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 
 	count += sprintf(buf, "%s registers\n", codec->name);
 	for (i = 0; i < codec->driver->reg_cache_size; i += step) {
-		if (codec->driver->readable_register && !codec->driver->readable_register(codec, i))
+		if (codec->readable_register && !codec->readable_register(codec, i))
 			continue;
 
 		count += sprintf(buf + count, "%2x: ", i);
@@ -2029,8 +2029,8 @@ static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
  */
 int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg)
 {
-	if (codec->driver->volatile_register)
-		return codec->driver->volatile_register(codec, reg);
+	if (codec->volatile_register)
+		return codec->volatile_register(codec, reg);
 	else
 		return 0;
 }
@@ -3489,6 +3489,8 @@ int snd_soc_register_codec(struct device *dev,
 
 	codec->write = codec_drv->write;
 	codec->read = codec_drv->read;
+	codec->volatile_register = codec_drv->volatile_register;
+	codec->readable_register = codec_drv->readable_register;
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	codec->dapm.dev = dev;
 	codec->dapm.codec = codec;
@@ -3515,6 +3517,13 @@ int snd_soc_register_codec(struct device *dev,
 				goto fail;
 			}
 		}
+	}
+
+	if (codec_drv->reg_access_size && codec_drv->reg_access_default) {
+		if (!codec->volatile_register)
+			codec->volatile_register = snd_soc_default_volatile_register;
+		if (!codec->readable_register)
+			codec->readable_register = snd_soc_default_readable_register;
 	}
 
 	for (i = 0; i < num_dai; i++) {
