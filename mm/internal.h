@@ -39,6 +39,15 @@ static inline void __put_page(struct page *page)
 
 extern unsigned long highest_memmap_pfn;
 
+#ifdef CONFIG_SMP
+extern int putback_active_lru_page(struct zone *zone, struct page *page);
+#else
+static inline int putback_active_lru_page(struct zone *zone, struct page *page)
+{
+	return 0;
+}
+#endif
+
 /*
  * in mm/vmscan.c:
  */
