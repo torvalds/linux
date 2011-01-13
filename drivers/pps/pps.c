@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <linux/idr.h>
+#include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/poll.h>
 #include <linux/pps_kernel.h>
@@ -39,7 +40,7 @@
 static dev_t pps_devt;
 static struct class *pps_class;
 
-static DEFINE_SPINLOCK(pps_idr_lock);
+static DEFINE_MUTEX(pps_idr_lock);
 static DEFINE_IDR(pps_idr);
 
 /*
@@ -239,9 +240,9 @@ static void pps_device_destruct(struct device *dev)
 
 	/* release id here to protect others from using it while it's
 	 * still in use */
-	spin_lock_irq(&pps_idr_lock);
+	mutex_lock(&pps_idr_lock);
 	idr_remove(&pps_idr, pps->id);
-	spin_unlock_irq(&pps_idr_lock);
+	mutex_unlock(&pps_idr_lock);
 
 	kfree(dev);
 	kfree(pps);
@@ -252,17 +253,19 @@ int pps_register_cdev(struct pps_device *pps)
 	int err;
 	dev_t devt;
 
+	mutex_lock(&pps_idr_lock);
 	/* Get new ID for the new PPS source */
-	if (idr_pre_get(&pps_idr, GFP_KERNEL) == 0)
+	if (idr_pre_get(&pps_idr, GFP_KERNEL) == 0) {
+		mutex_unlock(&pps_idr_lock);
 		return -ENOMEM;
+	}
 
 	/* Now really allocate the PPS source.
 	 * After idr_get_new() calling the new source will be freely available
 	 * into the kernel.
 	 */
-	spin_lock_irq(&pps_idr_lock);
 	err = idr_get_new(&pps_idr, pps, &pps->id);
-	spin_unlock_irq(&pps_idr_lock);
+	mutex_unlock(&pps_idr_lock);
 
 	if (err < 0)
 		return err;
@@ -302,9 +305,9 @@ del_cdev:
 	cdev_del(&pps->cdev);
 
 free_idr:
-	spin_lock_irq(&pps_idr_lock);
+	mutex_lock(&pps_idr_lock);
 	idr_remove(&pps_idr, pps->id);
-	spin_unlock_irq(&pps_idr_lock);
+	mutex_unlock(&pps_idr_lock);
 
 	return err;
 }
