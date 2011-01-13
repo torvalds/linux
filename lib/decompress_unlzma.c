@@ -631,6 +631,8 @@ STATIC inline int INIT unlzma(unsigned char *buf, int in_len,
 			if (cst.rep0 == 0)
 				break;
 		}
+		if (rc.buffer_size <= 0)
+			goto exit_3;
 	}
 
 	if (posp)
@@ -638,6 +640,7 @@ STATIC inline int INIT unlzma(unsigned char *buf, int in_len,
 	if (wr.flush)
 		wr.flush(wr.buffer, wr.buffer_pos);
 	ret = 0;
+exit_3:
 	large_free(p);
 exit_2:
 	if (!output)
