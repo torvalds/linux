@@ -38,13 +38,12 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 		       int(*flush)(void*, unsigned int),
 		       unsigned char *out_buf,
 		       int *pos,
-		       void(*error_fn)(char *x)) {
+		       void(*error)(char *x)) {
 	u8 *zbuf;
 	struct z_stream_s *strm;
 	int rc;
 	size_t out_len;
 
-	set_error_fn(error_fn);
 	rc = -1;
 	if (flush) {
 		out_len = 0x8000; /* 32 K */
