@@ -325,6 +325,16 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	return __pte(val);
 }
 
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	pmdval_t val = pmd_val(pmd);
+
+	val &= _HPAGE_CHG_MASK;
+	val |= massage_pgprot(newprot) & ~_HPAGE_CHG_MASK;
+
+	return __pmd(val);
+}
+
 /* mprotect needs to preserve PAT bits when updating vm_page_prot */
 #define pgprot_modify pgprot_modify
 static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
