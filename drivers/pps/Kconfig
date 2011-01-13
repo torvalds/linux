@@ -41,4 +41,6 @@ config NTP_PPS
 
 source drivers/pps/clients/Kconfig
 
+source drivers/pps/generators/Kconfig
+
 endmenu
