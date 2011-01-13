@@ -1938,7 +1938,7 @@ static const struct wm8962_reg_access {
 	[21139] = { 0xFFFF, 0xFFFF, 0x0000 }, /* R21139 - VSS_XTS32_0 */
 };
 
-static int wm8962_volatile_register(unsigned int reg)
+static int wm8962_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	if (wm8962_reg_access[reg].vol)
 		return 1;
@@ -1946,7 +1946,7 @@ static int wm8962_volatile_register(unsigned int reg)
 		return 0;
 }
 
-static int wm8962_readable_register(unsigned int reg)
+static int wm8962_readable_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	if (wm8962_reg_access[reg].read)
 		return 1;

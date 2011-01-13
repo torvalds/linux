@@ -84,7 +84,7 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 
 	count += sprintf(buf, "%s registers\n", codec->name);
 	for (i = 0; i < codec->driver->reg_cache_size; i += step) {
-		if (codec->driver->readable_register && !codec->driver->readable_register(i))
+		if (codec->driver->readable_register && !codec->driver->readable_register(codec, i))
 			continue;
 
 		count += sprintf(buf + count, "%2x: ", i);
@@ -2030,7 +2030,7 @@ static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg)
 {
 	if (codec->driver->volatile_register)
-		return codec->driver->volatile_register(reg);
+		return codec->driver->volatile_register(codec, reg);
 	else
 		return 0;
 }

@@ -169,7 +169,7 @@ struct wm9081_priv {
 	struct wm9081_retune_mobile_config *retune;
 };
 
-static int wm9081_volatile_register(unsigned int reg)
+static int wm9081_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM9081_SOFTWARE_RESET:

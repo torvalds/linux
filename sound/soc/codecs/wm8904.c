@@ -596,7 +596,7 @@ static struct {
 	{ 0x003F, 0x003F, 0 }, /* R248 - FLL NCO Test 1 */
 };
 
-static int wm8904_volatile_register(unsigned int reg)
+static int wm8904_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	return wm8904_access[reg].vol;
 }

@@ -909,7 +909,7 @@ static const struct snd_soc_dapm_route wm8995_intercon[] = {
 	{ "SPK2R", NULL, "SPK2R Driver" }
 };
 
-static int wm8995_volatile(unsigned int reg)
+static int wm8995_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	/* out of bounds registers are generally considered
 	 * volatile to support register banks that are partially

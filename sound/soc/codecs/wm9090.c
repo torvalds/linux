@@ -144,7 +144,7 @@ struct wm9090_priv {
 	void *control_data;
 };
 
-static int wm9090_volatile(unsigned int reg)
+static int wm9090_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM9090_SOFTWARE_RESET:
@@ -518,7 +518,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 			for (i = 1; i < codec->driver->reg_cache_size; i++) {
 				if (reg_cache[i] == wm9090_reg_defaults[i])
 					continue;
-				if (wm9090_volatile(i))
+				if (wm9090_volatile(codec, i))
 					continue;
 
 				ret = snd_soc_write(codec, i, reg_cache[i]);

@@ -232,7 +232,7 @@ struct wm8903_priv {
 	int mic_delay;
 };
 
-static int wm8903_volatile_register(unsigned int reg)
+static int wm8903_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8903_SW_RESET_AND_ID:

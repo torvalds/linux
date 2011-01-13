@@ -109,7 +109,7 @@ struct wm8994_priv {
 	struct wm8994_pdata *pdata;
 };
 
-static int wm8994_readable(unsigned int reg)
+static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8994_GPIO_1:
@@ -136,7 +136,7 @@ static int wm8994_readable(unsigned int reg)
 	return wm8994_access_masks[reg].readable != 0;
 }
 
-static int wm8994_volatile(unsigned int reg)
+static int wm8994_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	if (reg >= WM8994_CACHE_SIZE)
 		return 1;
@@ -164,7 +164,7 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 
-	if (!wm8994_volatile(reg)) {
+	if (!wm8994_volatile(codec, reg)) {
 		ret = snd_soc_cache_write(codec, reg, value);
 		if (ret != 0)
 			dev_err(codec->dev, "Cache write to %x failed: %d\n",
@@ -182,7 +182,7 @@ static unsigned int wm8994_read(struct snd_soc_codec *codec,
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 
-	if (!wm8994_volatile(reg) && wm8994_readable(reg) &&
+	if (!wm8994_volatile(codec, reg) && wm8994_readable(codec, reg) &&
 	    reg < codec->driver->reg_cache_size) {
 		ret = snd_soc_cache_read(codec, reg, &val);
 		if (ret >= 0)
@@ -2943,7 +2943,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	/* Read our current status back from the chip - we don't want to
 	 * reset as this may interfere with the GPIO or LDO operation. */
 	for (i = 0; i < WM8994_CACHE_SIZE; i++) {
-		if (!wm8994_readable(i) || wm8994_volatile(i))
+		if (!wm8994_readable(codec, i) || wm8994_volatile(codec, i))
 			continue;
 
 		ret = wm8994_reg_read(codec->control_data, i);
