@@ -1637,13 +1637,15 @@ static void dm_request_fn(struct request_queue *q)
 		if (map_request(ti, clone, md))
 			goto requeued;
 
-		spin_lock_irq(q->queue_lock);
+		BUG_ON(!irqs_disabled());
+		spin_lock(q->queue_lock);
 	}
 
 	goto out;
 
 requeued:
-	spin_lock_irq(q->queue_lock);
+	BUG_ON(!irqs_disabled());
+	spin_lock(q->queue_lock);
 
 plug_and_out:
 	if (!elv_queue_empty(q))
