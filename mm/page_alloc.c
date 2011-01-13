@@ -651,13 +651,10 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 	trace_mm_page_free_direct(page, order);
 	kmemcheck_free_shadow(page, order);
 
-	for (i = 0; i < (1 << order); i++) {
-		struct page *pg = page + i;
-
-		if (PageAnon(pg))
-			pg->mapping = NULL;
-		bad += free_pages_check(pg);
-	}
+	if (PageAnon(page))
+		page->mapping = NULL;
+	for (i = 0; i < (1 << order); i++)
+		bad += free_pages_check(page + i);
 	if (bad)
 		return false;
 
