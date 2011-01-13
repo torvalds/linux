@@ -1085,7 +1085,8 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_flush_requests = 1;
 	ti->num_discard_requests = 1;
 
-	ms->kmirrord_wq = alloc_ordered_workqueue("kmirrord", WQ_MEM_RECLAIM);
+	ms->kmirrord_wq = alloc_workqueue("kmirrord",
+					  WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
 	if (!ms->kmirrord_wq) {
 		DMERR("couldn't start kmirrord");
 		r = -ENOMEM;
@@ -1414,7 +1415,7 @@ static int mirror_iterate_devices(struct dm_target *ti,
 
 static struct target_type mirror_target = {
 	.name	 = "mirror",
-	.version = {1, 12, 0},
+	.version = {1, 12, 1},
 	.module	 = THIS_MODULE,
 	.ctr	 = mirror_ctr,
 	.dtr	 = mirror_dtr,
