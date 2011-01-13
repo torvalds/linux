@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/vmstat.h>
 #include <linux/highmem.h>
+#include <linux/swap.h>
 
 #include <asm/pgtable.h>
 
@@ -89,6 +90,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 		get_page(page);
+		SetPageReferenced(page);
 		pages[*nr] = page;
 		(*nr)++;
 
@@ -103,6 +105,7 @@ static inline void get_head_page_multiple(struct page *page, int nr)
 	VM_BUG_ON(page != compound_head(page));
 	VM_BUG_ON(page_count(page) == 0);
 	atomic_add(nr, &page->_count);
+	SetPageReferenced(page);
 }
 
 static inline void get_huge_page_tail(struct page *page)

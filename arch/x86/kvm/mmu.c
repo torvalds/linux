@@ -945,6 +945,35 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	return young;
 }
 
+static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
+			      unsigned long data)
+{
+	u64 *spte;
+	int young = 0;
+
+	/*
+	 * If there's no access bit in the secondary pte set by the
+	 * hardware it's up to gup-fast/gup to set the access bit in
+	 * the primary pte or in the page structure.
+	 */
+	if (!shadow_accessed_mask)
+		goto out;
+
+	spte = rmap_next(kvm, rmapp, NULL);
+	while (spte) {
+		u64 _spte = *spte;
+		BUG_ON(!(_spte & PT_PRESENT_MASK));
+		young = _spte & PT_ACCESSED_MASK;
+		if (young) {
+			young = 1;
+			break;
+		}
+		spte = rmap_next(kvm, rmapp, spte);
+	}
+out:
+	return young;
+}
+
 #define RMAP_RECYCLE_THRESHOLD 1000
 
 static void rmap_recycle(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
@@ -963,6 +992,11 @@ static void rmap_recycle(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 int kvm_age_hva(struct kvm *kvm, unsigned long hva)
 {
 	return kvm_handle_hva(kvm, hva, 0, kvm_age_rmapp);
+}
+
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	return kvm_handle_hva(kvm, hva, 0, kvm_test_age_rmapp);
 }
 
 #ifdef MMU_DEBUG
