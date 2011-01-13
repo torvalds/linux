@@ -102,6 +102,9 @@ struct mdm6600_port {
 };
 
 static int mdm6600_wake_irq;
+static bool mdm6600_wake_irq_enabled;
+static DEFINE_SPINLOCK(mdm6600_wake_irq_lock);
+
 /*
  * Count the number of attached ports. Don't use port->number as it may
  * changed if other ttyUSB have been registered before.
@@ -140,6 +143,13 @@ static void mdm6600_wake_work(struct work_struct *work)
 static irqreturn_t mdm6600_irq_handler(int irq, void *ptr)
 {
 	struct mdm6600_port *modem = ptr;
+
+	spin_lock(&mdm6600_wake_irq_lock);
+	if (mdm6600_wake_irq_enabled) {
+		disable_irq_nosync(irq);
+		mdm6600_wake_irq_enabled = false;
+	}
+	spin_unlock(&mdm6600_wake_irq_lock);
 
 	wake_lock_timeout(&modem->readlock, MODEM_WAKELOCK_TIME);
 	queue_work(system_nrt_wq, &modem->wake_work);
@@ -495,6 +505,13 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 	spin_unlock_irqrestore(&modem->write.pending_lock, flags);
 
+	spin_lock_irqsave(&mdm6600_wake_irq_lock, flags);
+	if (mdm6600_wake_irq_enabled) {
+		disable_irq_nosync(mdm6600_wake_irq);
+		mdm6600_wake_irq_enabled = false;
+	}
+	spin_unlock_irqrestore(&mdm6600_wake_irq_lock, flags);
+
 	spin_lock_irqsave(&modem->susp_lock, flags);
 	if (modem->susp_count) {
 		usb_anchor_urb(u, &modem->write.delayed);
@@ -823,10 +840,16 @@ static int mdm6600_suspend(struct usb_interface *intf, pm_message_t message)
 
 	dbg("%s: event=%d", __func__, message.event);
 
-	spin_lock_irq(&modem->susp_lock);
+	if (modem->number == MODEM_INTERFACE_NUM) {
+		spin_lock_irq(&mdm6600_wake_irq_lock);
+		if (!mdm6600_wake_irq_enabled) {
+			enable_irq(mdm6600_wake_irq);
+			mdm6600_wake_irq_enabled = true;
+		}
+		spin_unlock_irq(&mdm6600_wake_irq_lock);
+	}
 
-	if (modem->number == MODEM_INTERFACE_NUM)
-		enable_irq(mdm6600_wake_irq);
+	spin_lock_irq(&modem->susp_lock);
 
 	if (!modem->susp_count++ && modem->opened) {
 		spin_unlock_irq(&modem->susp_lock);
@@ -850,9 +873,6 @@ static int mdm6600_resume(struct usb_interface *intf)
 	dbg("%s", __func__);
 
 	spin_lock_irq(&modem->susp_lock);
-
-	if (modem->number == MODEM_INTERFACE_NUM)
-		disable_irq(mdm6600_wake_irq);
 
 	if (!--modem->susp_count && modem->opened) {
 		dbg("%s: submit urbs", __func__);
