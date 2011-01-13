@@ -14814,6 +14814,8 @@ static void alc269_fixup_hweq(struct hda_codec *codec,
 {
 	int coef;
 
+	if (pre_init)
+		return;
 	coef = alc_read_coef_idx(codec, 0x1e);
 	alc_write_coef_idx(codec, 0x1e, coef | 0x80);
 }
