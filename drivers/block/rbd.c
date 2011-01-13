@@ -1790,18 +1790,29 @@ static ssize_t rbd_add(struct bus_type *bus, const char *buf, size_t count)
 
 	rc = rbd_bus_add_dev(rbd_dev);
 	if (rc)
-		goto err_out_disk;
+		goto err_out_blkdev;
+
 	/* set up and announce blkdev mapping */
 	rc = rbd_init_disk(rbd_dev);
 	if (rc)
-		goto err_out_blkdev;
+		goto err_out_bus;
 
 	return count;
 
+err_out_bus:
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
+	list_del_init(&rbd_dev->node);
+	mutex_unlock(&ctl_mutex);
+
+	/* this will also clean up rest of rbd_dev stuff */
+
+	rbd_bus_del_dev(rbd_dev);
+	kfree(options);
+	kfree(mon_dev_name);
+	return rc;
+
 err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
-err_out_disk:
-	rbd_free_disk(rbd_dev);
 err_out_client:
 	rbd_put_client(rbd_dev);
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
