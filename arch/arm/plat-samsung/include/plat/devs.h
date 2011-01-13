@@ -137,6 +137,8 @@ extern struct platform_device s5p_device_fimc2;
 extern struct platform_device s5p_device_mipi_csis0;
 extern struct platform_device s5p_device_mipi_csis1;
 
+extern struct platform_device s5pv310_device_sysmmu;
+
 /* s3c2440 specific devices */
 
 #ifdef CONFIG_CPU_S3C2440

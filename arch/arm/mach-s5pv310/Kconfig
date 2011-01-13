@@ -66,6 +66,11 @@ config S5PV310_SETUP_SDHCI_GPIO
 	help
 	  Common setup code for SDHCI gpio.
 
+config S5PV310_DEV_SYSMMU
+	bool
+	help
+	  Common setup code for SYSTEM MMU in S5PV310
+
 # machine support
 
 menu "S5PC210 Machines"
@@ -83,6 +88,7 @@ config MACH_SMDKC210
 	select S5PV310_DEV_PD
 	select S5PV310_SETUP_I2C1
 	select S5PV310_SETUP_SDHCI
+	select S5PV310_DEV_SYSMMU
 	help
 	  Machine support for Samsung SMDKC210
 	  S5PC210(MCP) is one of package option of S5PV310
