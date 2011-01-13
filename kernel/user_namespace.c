@@ -12,6 +12,8 @@
 #include <linux/highuid.h>
 #include <linux/cred.h>
 
+static struct kmem_cache *user_ns_cachep __read_mostly;
+
 /*
  * Create a new user namespace, deriving the creator from the user in the
  * passed credentials, and replacing that user with the new root user for the
@@ -26,7 +28,7 @@ int create_user_ns(struct cred *new)
 	struct user_struct *root_user;
 	int n;
 
-	ns = kmalloc(sizeof(struct user_namespace), GFP_KERNEL);
+	ns = kmem_cache_alloc(user_ns_cachep, GFP_KERNEL);
 	if (!ns)
 		return -ENOMEM;
 
@@ -38,7 +40,7 @@ int create_user_ns(struct cred *new)
 	/* Alloc new root user.  */
 	root_user = alloc_uid(ns, 0);
 	if (!root_user) {
-		kfree(ns);
+		kmem_cache_free(user_ns_cachep, ns);
 		return -ENOMEM;
 	}
 
@@ -71,7 +73,7 @@ static void free_user_ns_work(struct work_struct *work)
 	struct user_namespace *ns =
 		container_of(work, struct user_namespace, destroyer);
 	free_uid(ns->creator);
-	kfree(ns);
+	kmem_cache_free(user_ns_cachep, ns);
 }
 
 void free_user_ns(struct kref *kref)
@@ -126,3 +128,10 @@ gid_t user_ns_map_gid(struct user_namespace *to, const struct cred *cred, gid_t 
 	/* No useful relationship so no mapping */
 	return overflowgid;
 }
+
+static __init int user_namespaces_init(void)
+{
+	user_ns_cachep = KMEM_CACHE(user_namespace, SLAB_PANIC);
+	return 0;
+}
+module_init(user_namespaces_init);
