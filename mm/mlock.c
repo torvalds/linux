@@ -169,7 +169,7 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 	VM_BUG_ON(end   > vma->vm_end);
 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
-	gup_flags = FOLL_TOUCH | FOLL_MLOCK;
+	gup_flags = FOLL_TOUCH;
 	/*
 	 * We want to touch writable mappings with a write fault in order
 	 * to break COW, except for shared mappings because these don't COW
@@ -177,6 +177,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 	 */
 	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
 		gup_flags |= FOLL_WRITE;
+
+	if (vma->vm_flags & VM_LOCKED)
+		gup_flags |= FOLL_MLOCK;
 
 	/* We don't try to access the guard page of a stack vma */
 	if (stack_guard_page(vma, start)) {
@@ -456,18 +459,15 @@ static int do_mlock_pages(unsigned long start, size_t len, int ignore_errors)
 		/*
 		 * Now fault in a range of pages within the first VMA.
 		 */
-		if (vma->vm_flags & VM_LOCKED) {
-			ret = __mlock_vma_pages_range(vma, nstart, nend);
-			if (ret < 0 && ignore_errors) {
-				ret = 0;
-				continue;	/* continue at next VMA */
-			}
-			if (ret) {
-				ret = __mlock_posix_error_return(ret);
-				break;
-			}
-		} else
-			make_pages_present(nstart, nend);
+		ret = __mlock_vma_pages_range(vma, nstart, nend);
+		if (ret < 0 && ignore_errors) {
+			ret = 0;
+			continue;	/* continue at next VMA */
+		}
+		if (ret) {
+			ret = __mlock_posix_error_return(ret);
+			break;
+		}
 	}
 	up_read(&mm->mmap_sem);
 	return ret;	/* 0 or negative error code */
