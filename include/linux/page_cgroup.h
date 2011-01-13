@@ -35,15 +35,18 @@ struct page_cgroup *lookup_page_cgroup(struct page *page);
 
 enum {
 	/* flags for mem_cgroup */
-	PCG_LOCK,  /* page cgroup is locked */
+	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
 	PCG_CACHE, /* charged as cache */
 	PCG_USED, /* this object is in use. */
-	PCG_ACCT_LRU, /* page has been accounted for */
+	PCG_MIGRATION, /* under page migration */
+	/* flags for mem_cgroup and file and I/O status */
+	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
 	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
 	PCG_FILE_DIRTY, /* page is dirty */
 	PCG_FILE_WRITEBACK, /* page is under writeback */
 	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
-	PCG_MIGRATION, /* under page migration */
+	/* No lock in page_cgroup */
+	PCG_ACCT_LRU, /* page has been accounted for (under lru_lock) */
 };
 
 #define TESTPCGFLAG(uname, lname)			\
@@ -117,6 +120,10 @@ static inline enum zone_type page_cgroup_zid(struct page_cgroup *pc)
 
 static inline void lock_page_cgroup(struct page_cgroup *pc)
 {
+	/*
+	 * Don't take this lock in IRQ context.
+	 * This lock is for pc->mem_cgroup, USED, CACHE, MIGRATION
+	 */
 	bit_spin_lock(PCG_LOCK, &pc->flags);
 }
 
@@ -128,6 +135,24 @@ static inline void unlock_page_cgroup(struct page_cgroup *pc)
 static inline int page_is_cgroup_locked(struct page_cgroup *pc)
 {
 	return bit_spin_is_locked(PCG_LOCK, &pc->flags);
+}
+
+static inline void move_lock_page_cgroup(struct page_cgroup *pc,
+	unsigned long *flags)
+{
+	/*
+	 * We know updates to pc->flags of page cache's stats are from both of
+	 * usual context or IRQ context. Disable IRQ to avoid deadlock.
+	 */
+	local_irq_save(*flags);
+	bit_spin_lock(PCG_MOVE_LOCK, &pc->flags);
+}
+
+static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
+	unsigned long *flags)
+{
+	bit_spin_unlock(PCG_MOVE_LOCK, &pc->flags);
+	local_irq_restore(*flags);
 }
 
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */

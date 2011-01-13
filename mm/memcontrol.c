@@ -1606,6 +1606,7 @@ void mem_cgroup_update_page_stat(struct page *page,
 	struct mem_cgroup *mem;
 	struct page_cgroup *pc = lookup_page_cgroup(page);
 	bool need_unlock = false;
+	unsigned long uninitialized_var(flags);
 
 	if (unlikely(!pc))
 		return;
@@ -1617,7 +1618,7 @@ void mem_cgroup_update_page_stat(struct page *page,
 	/* pc->mem_cgroup is unstable ? */
 	if (unlikely(mem_cgroup_stealed(mem))) {
 		/* take a lock against to access pc->mem_cgroup */
-		lock_page_cgroup(pc);
+		move_lock_page_cgroup(pc, &flags);
 		need_unlock = true;
 		mem = pc->mem_cgroup;
 		if (!mem || !PageCgroupUsed(pc))
@@ -1640,7 +1641,7 @@ void mem_cgroup_update_page_stat(struct page *page,
 
 out:
 	if (unlikely(need_unlock))
-		unlock_page_cgroup(pc);
+		move_unlock_page_cgroup(pc, &flags);
 	rcu_read_unlock();
 	return;
 }
@@ -2211,9 +2212,13 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
 {
 	int ret = -EINVAL;
+	unsigned long flags;
+
 	lock_page_cgroup(pc);
 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
+		move_lock_page_cgroup(pc, &flags);
 		__mem_cgroup_move_account(pc, from, to, uncharge);
+		move_unlock_page_cgroup(pc, &flags);
 		ret = 0;
 	}
 	unlock_page_cgroup(pc);
