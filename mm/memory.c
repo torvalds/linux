@@ -1305,6 +1305,10 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 		goto out;
 	}
 	if (pmd_trans_huge(*pmd)) {
+		if (flags & FOLL_SPLIT) {
+			split_huge_page_pmd(mm, pmd);
+			goto split_fallthrough;
+		}
 		spin_lock(&mm->page_table_lock);
 		if (likely(pmd_trans_huge(*pmd))) {
 			if (unlikely(pmd_trans_splitting(*pmd))) {
@@ -1320,6 +1324,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 			spin_unlock(&mm->page_table_lock);
 		/* fall through */
 	}
+split_fallthrough:
 	if (unlikely(pmd_bad(*pmd)))
 		goto no_page_table;
 
