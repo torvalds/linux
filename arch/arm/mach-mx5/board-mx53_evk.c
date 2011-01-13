@@ -33,8 +33,8 @@
 #include <mach/iomux-mx53.h>
 
 #define SMD_FEC_PHY_RST		IMX_GPIO_NR(7, 6)
-#define EVK_ECSPI1_CS0		IMX_GPIO_NR(3, 19)
-#define EVK_ECSPI1_CS1		IMX_GPIO_NR(2, 30)
+#define EVK_ECSPI1_CS0		IMX_GPIO_NR(2, 30)
+#define EVK_ECSPI1_CS1		IMX_GPIO_NR(3, 19)
 
 #include "crm_regs.h"
 #include "devices-imx53.h"
@@ -54,6 +54,14 @@ static iomux_v3_cfg_t mx53_evk_pads[] = {
 	MX53_PAD_ATA_CS_1__UART3_RXD,
 	MX53_PAD_ATA_DA_1__UART3_CTS,
 	MX53_PAD_ATA_DA_2__UART3_RTS,
+
+	MX53_PAD_EIM_D16__CSPI1_SCLK,
+	MX53_PAD_EIM_D17__CSPI1_MISO,
+	MX53_PAD_EIM_D18__CSPI1_MOSI,
+
+	/* ecspi chip select lines */
+	MX53_PAD_EIM_EB2__GPIO_2_30,
+	MX53_PAD_EIM_D19__GPIO_3_19,
 };
 
 static const struct imxuart_platform_data mx53_evk_uart_pdata __initconst = {
