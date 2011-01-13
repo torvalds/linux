@@ -3,6 +3,9 @@ menu "Board support"
 config SOLUTION_ENGINE
 	bool
 
+config SH_ALPHA_BOARD
+	bool
+
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
 	select SOLUTION_ENGINE
