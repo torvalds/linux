@@ -393,6 +393,9 @@ static void get_cs_base_and_mask(struct amd64_pvt *pvt, int csrow, u8 dct,
 #define for_each_chip_select(i, dct, pvt) \
 	for (i = 0; i < pvt->csels[dct].b_cnt; i++)
 
+#define chip_select_base(i, dct, pvt) \
+	pvt->csels[dct].csbases[i]
+
 #define for_each_chip_select_mask(i, dct, pvt) \
 	for (i = 0; i < pvt->csels[dct].m_cnt; i++)
 
@@ -1254,30 +1257,23 @@ static u64 f10_get_norm_dct_addr(struct amd64_pvt *pvt, int range,
 	return (sys_addr & GENMASK(6,47)) - (chan_off & GENMASK(23,47));
 }
 
-/* Hack for the time being - Can we get this from BIOS?? */
-#define	CH0SPARE_RANK	0
-#define	CH1SPARE_RANK	1
-
 /*
  * checks if the csrow passed in is marked as SPARED, if so returns the new
  * spare row
  */
 static int f10_process_possible_spare(struct amd64_pvt *pvt, u8 dct, int csrow)
 {
-	u32 swap_done;
-	u32 bad_dram_cs;
+	int tmp_cs;
 
-	/* Depending on channel, isolate respective SPARING info */
-	if (dct) {
-		swap_done = F10_ONLINE_SPARE_SWAPDONE1(pvt->online_spare);
-		bad_dram_cs = F10_ONLINE_SPARE_BADDRAM_CS1(pvt->online_spare);
-		if (swap_done && (csrow == bad_dram_cs))
-			csrow = CH1SPARE_RANK;
-	} else {
-		swap_done = F10_ONLINE_SPARE_SWAPDONE0(pvt->online_spare);
-		bad_dram_cs = F10_ONLINE_SPARE_BADDRAM_CS0(pvt->online_spare);
-		if (swap_done && (csrow == bad_dram_cs))
-			csrow = CH0SPARE_RANK;
+	if (online_spare_swap_done(pvt, dct) &&
+	    csrow == online_spare_bad_dramcs(pvt, dct)) {
+
+		for_each_chip_select(tmp_cs, dct, pvt) {
+			if (chip_select_base(tmp_cs, dct, pvt) & 0x2) {
+				csrow = tmp_cs;
+				break;
+			}
+		}
 	}
 	return csrow;
 }

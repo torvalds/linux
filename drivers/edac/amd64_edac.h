@@ -259,10 +259,8 @@
 #define SCRCTRL				0x58
 
 #define F10_ONLINE_SPARE		0xB0
-#define F10_ONLINE_SPARE_SWAPDONE0(x)	((x) & BIT(1))
-#define F10_ONLINE_SPARE_SWAPDONE1(x)	((x) & BIT(3))
-#define F10_ONLINE_SPARE_BADDRAM_CS0(x) (((x) >> 4) & 0x00000007)
-#define F10_ONLINE_SPARE_BADDRAM_CS1(x) (((x) >> 8) & 0x00000007)
+#define online_spare_swap_done(pvt, c)	(((pvt)->online_spare >> (1 + 2 * (c))) & 0x1)
+#define online_spare_bad_dramcs(pvt, c)	(((pvt)->online_spare >> (4 + 4 * (c))) & 0x7)
 
 #define F10_NB_ARRAY_ADDR		0xB8
 #define F10_NB_ARRAY_DRAM_ECC		BIT(31)
