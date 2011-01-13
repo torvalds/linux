@@ -140,6 +140,7 @@ struct qtm_cmd_proc_msg {
 #define QTM_TOUCH_MULTI_STATUS_MOVE		(1 << 4)
 #define QTM_TOUCH_MULTI_STATUS_VECTOR		(1 << 3)
 #define QTM_TOUCH_MULTI_STATUS_AMPLITUDE	(1 << 2)
+#define QTM_TOUCH_MULTI_STATUS_SUPPRESS		(1 << 1)
 struct qtm_touch_multi_msg {
 	uint8_t			report_id;
 	uint8_t			status;
@@ -426,6 +427,7 @@ struct qtm_proci_palm_suppression_cfg {
 	uint8_t		large_obj_thr;
 	uint8_t		distance_thr;
 	uint8_t		sup_ext_to;
+	uint8_t		strength;
 } __attribute__ ((packed));
 
 /* QTM_OBJ_SPT_DIGITIZER T43 */

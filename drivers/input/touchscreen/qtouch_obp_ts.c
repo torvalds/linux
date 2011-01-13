@@ -863,7 +863,8 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 		return 1;
 	}
 
-	down = !(msg->status & QTM_TOUCH_MULTI_STATUS_RELEASE);
+	down = !(msg->status & (QTM_TOUCH_MULTI_STATUS_RELEASE |
+		 QTM_TOUCH_MULTI_STATUS_SUPPRESS));
 
 	ts->finger_data[finger].x_data = x;
 	ts->finger_data[finger].y_data = y;
