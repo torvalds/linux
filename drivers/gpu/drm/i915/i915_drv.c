@@ -52,7 +52,7 @@ module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 unsigned int i915_panel_use_ssc = 1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
 
-bool i915_try_reset = true;
+static bool i915_try_reset = true;
 module_param_named(reset, i915_try_reset, bool, 0600);
 
 static struct drm_driver driver;

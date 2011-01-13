@@ -2327,7 +2327,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 
 }
 
-static const int const snb_b_fdi_train_param [] = {
+static const int snb_b_fdi_train_param [] = {
 	FDI_LINK_TRAIN_400MV_0DB_SNB_B,
 	FDI_LINK_TRAIN_400MV_6DB_SNB_B,
 	FDI_LINK_TRAIN_600MV_3_5DB_SNB_B,

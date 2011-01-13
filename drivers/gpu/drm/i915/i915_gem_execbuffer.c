@@ -690,8 +690,6 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	/* reacquire the objects */
 	eb_reset(eb);
 	for (i = 0; i < count; i++) {
-		struct drm_i915_gem_object *obj;
-
 		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
 							exec[i].handle));
 		if (obj == NULL) {

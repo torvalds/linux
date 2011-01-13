@@ -43,7 +43,7 @@ struct  intel_ring_buffer {
 		RING_BLT = 0x4,
 	} id;
 	u32		mmio_base;
-	void		*virtual_start;
+	void		__iomem *virtual_start;
 	struct		drm_device *dev;
 	struct		drm_i915_gem_object *obj;
 
@@ -141,6 +141,26 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 {
 	return ioread32(ring->status_page.page_addr + reg);
 }
+
+/**
+ * Reads a dword out of the status page, which is written to from the command
+ * queue by automatic updates, MI_REPORT_HEAD, MI_STORE_DATA_INDEX, or
+ * MI_STORE_DATA_IMM.
+ *
+ * The following dwords have a reserved meaning:
+ * 0x00: ISR copy, updated when an ISR bit not set in the HWSTAM changes.
+ * 0x04: ring 0 head pointer
+ * 0x05: ring 1 head pointer (915-class)
+ * 0x06: ring 2 head pointer (915-class)
+ * 0x10-0x1b: Context status DWords (GM45)
+ * 0x1f: Last written status offset. (GM45)
+ *
+ * The area from dword 0x20 to 0x3ff is available for driver usage.
+ */
+#define READ_HWSP(dev_priv, reg) intel_read_status_page(LP_RING(dev_priv), reg)
+#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
+#define I915_GEM_HWS_INDEX		0x20
+#define I915_BREADCRUMB_INDEX		0x21
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 int __must_check intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);

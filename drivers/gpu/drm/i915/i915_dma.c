@@ -60,10 +60,11 @@ static int i915_init_phys_hws(struct drm_device *dev)
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+	ring->status_page.page_addr =
+		(void __force __iomem *)dev_priv->status_page_dmah->vaddr;
 	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
 
-	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
+	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		dev_priv->dma_status_page |= (dev_priv->dma_status_page >> 28) &
@@ -188,7 +189,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		}
 	}
 
-	ring->virtual_start = ring->map.handle;
+	ring->virtual_start = (void __force __iomem *)ring->map.handle;
 
 	dev_priv->cpp = init->cpp;
 	dev_priv->back_offset = init->back_offset;
@@ -870,8 +871,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 				" G33 hw status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr = dev_priv->hws_map.handle;
-	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
+	ring->status_page.page_addr =
+		(void __force __iomem *)dev_priv->hws_map.handle;
+	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, ring->status_page.gfx_addr);
 
 	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",

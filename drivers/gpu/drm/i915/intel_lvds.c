@@ -503,7 +503,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 		return drm_add_edid_modes(connector, intel_lvds->edid);
 
 	mode = drm_mode_duplicate(dev, intel_lvds->fixed_mode);
-	if (mode == 0)
+	if (mode == NULL)
 		return 0;
 
 	drm_mode_probed_add(connector, mode);
