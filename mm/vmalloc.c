@@ -2456,13 +2456,8 @@ static int s_show(struct seq_file *m, void *p)
 	seq_printf(m, "0x%p-0x%p %7ld",
 		v->addr, v->addr + v->size, v->size);
 
-	if (v->caller) {
-		char buff[KSYM_SYMBOL_LEN];
-
-		seq_putc(m, ' ');
-		sprint_symbol(buff, (unsigned long)v->caller);
-		seq_puts(m, buff);
-	}
+	if (v->caller)
+		seq_printf(m, " %pS", v->caller);
 
 	if (v->nr_pages)
 		seq_printf(m, " pages=%d", v->nr_pages);
