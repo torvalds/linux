@@ -324,7 +324,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 		if (mem_flags & __GFP_WAIT) {
 			DECLARE_WAITQUEUE(wait, current);
 
-			__set_current_state(TASK_INTERRUPTIBLE);
+			__set_current_state(TASK_UNINTERRUPTIBLE);
 			__add_wait_queue(&pool->waitq, &wait);
 			spin_unlock_irqrestore(&pool->lock, flags);
 
