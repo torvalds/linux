@@ -779,7 +779,7 @@ static int dev_remove(struct dm_ioctl *param, size_t param_size)
 	hc = __find_device_hash_cell(param);
 
 	if (!hc) {
-		DMWARN("device doesn't appear to be in the dev hash table.");
+		DMDEBUG_LIMIT("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
 		return -ENXIO;
 	}
@@ -791,7 +791,7 @@ static int dev_remove(struct dm_ioctl *param, size_t param_size)
 	 */
 	r = dm_lock_for_deletion(md);
 	if (r) {
-		DMWARN("unable to remove open device %s", hc->name);
+		DMDEBUG_LIMIT("unable to remove open device %s", hc->name);
 		up_write(&_hash_lock);
 		dm_put(md);
 		return r;
@@ -938,7 +938,7 @@ static int do_resume(struct dm_ioctl *param)
 
 	hc = __find_device_hash_cell(param);
 	if (!hc) {
-		DMWARN("device doesn't appear to be in the dev hash table.");
+		DMDEBUG_LIMIT("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
 		return -ENXIO;
 	}
@@ -1265,7 +1265,7 @@ static int table_clear(struct dm_ioctl *param, size_t param_size)
 
 	hc = __find_device_hash_cell(param);
 	if (!hc) {
-		DMWARN("device doesn't appear to be in the dev hash table.");
+		DMDEBUG_LIMIT("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
 		return -ENXIO;
 	}
