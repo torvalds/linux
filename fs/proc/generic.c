@@ -826,12 +826,9 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 		wait_for_completion(de->pde_unload_completion);
 
-		goto continue_removing;
+		spin_lock(&de->pde_unload_lock);
 	}
-	spin_unlock(&de->pde_unload_lock);
 
-continue_removing:
-	spin_lock(&de->pde_unload_lock);
 	while (!list_empty(&de->pde_openers)) {
 		struct pde_opener *pdeo;
 
