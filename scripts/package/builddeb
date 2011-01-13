@@ -239,7 +239,7 @@ fi
 
 # Build header package
 find . -name Makefile -o -name Kconfig\* -o -name \*.pl > /tmp/files$$
-find arch/x86/include include scripts -type f >> /tmp/files$$
+find arch/$SRCARCH/include include scripts -type f >> /tmp/files$$
 (cd $objtree; find .config Module.symvers include scripts -type f >> /tmp/objfiles$$)
 destdir=$kernel_headers_dir/usr/src/linux-headers-$version
 mkdir -p "$destdir"
