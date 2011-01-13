@@ -104,34 +104,24 @@ static pfn_t fault_pfn;
 inline int kvm_is_mmio_pfn(pfn_t pfn)
 {
 	if (pfn_valid(pfn)) {
-		struct page *head;
+		int reserved;
 		struct page *tail = pfn_to_page(pfn);
-		head = compound_head(tail);
+		struct page *head = compound_trans_head(tail);
+		reserved = PageReserved(head);
 		if (head != tail) {
-			smp_rmb();
 			/*
-			 * head may be a dangling pointer.
-			 * __split_huge_page_refcount clears PageTail
-			 * before overwriting first_page, so if
-			 * PageTail is still there it means the head
-			 * pointer isn't dangling.
+			 * "head" is not a dangling pointer
+			 * (compound_trans_head takes care of that)
+			 * but the hugepage may have been splitted
+			 * from under us (and we may not hold a
+			 * reference count on the head page so it can
+			 * be reused before we run PageReferenced), so
+			 * we've to check PageTail before returning
+			 * what we just read.
 			 */
-			if (PageTail(tail)) {
-				/*
-				 * the "head" is not a dangling
-				 * pointer but the hugepage may have
-				 * been splitted from under us (and we
-				 * may not hold a reference count on
-				 * the head page so it can be reused
-				 * before we run PageReferenced), so
-				 * we've to recheck PageTail before
-				 * returning what we just read.
-				 */
-				int reserved = PageReserved(head);
-				smp_rmb();
-				if (PageTail(tail))
-					return reserved;
-			}
+			smp_rmb();
+			if (PageTail(tail))
+				return reserved;
 		}
 		return PageReserved(tail);
 	}
