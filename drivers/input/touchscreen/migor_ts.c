@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/i2c.h>
@@ -226,8 +227,9 @@ static int migor_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int migor_ts_suspend(struct i2c_client *client, pm_message_t mesg)
+static int migor_ts_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct migor_ts_priv *priv = dev_get_drvdata(&client->dev);
 
 	if (device_may_wakeup(&client->dev))
@@ -236,8 +238,9 @@ static int migor_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-static int migor_ts_resume(struct i2c_client *client)
+static int migor_ts_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct migor_ts_priv *priv = dev_get_drvdata(&client->dev);
 
 	if (device_may_wakeup(&client->dev))
@@ -245,6 +248,8 @@ static int migor_ts_resume(struct i2c_client *client)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(migor_ts_pm, migor_ts_suspend, migor_ts_resume);
 
 static const struct i2c_device_id migor_ts_id[] = {
 	{ "migor_ts", 0 },
@@ -255,11 +260,10 @@ MODULE_DEVICE_TABLE(i2c, migor_ts);
 static struct i2c_driver migor_ts_driver = {
 	.driver = {
 		.name = "migor_ts",
+		.pm = &migor_ts_pm,
 	},
 	.probe = migor_ts_probe,
 	.remove = migor_ts_remove,
-	.suspend = migor_ts_suspend,
-	.resume = migor_ts_resume,
 	.id_table = migor_ts_id,
 };
 
