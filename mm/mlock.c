@@ -159,10 +159,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long addr = start;
-	struct page *pages[16]; /* 16 gives a reasonable batch */
 	int nr_pages = (end - start) / PAGE_SIZE;
-	int ret = 0;
 	int gup_flags;
+	int ret;
 
 	VM_BUG_ON(start & ~PAGE_MASK);
 	VM_BUG_ON(end   & ~PAGE_MASK);
@@ -170,7 +169,7 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 	VM_BUG_ON(end   > vma->vm_end);
 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
-	gup_flags = FOLL_TOUCH | FOLL_GET;
+	gup_flags = FOLL_TOUCH | FOLL_MLOCK;
 	/*
 	 * We want to touch writable mappings with a write fault in order
 	 * to break COW, except for shared mappings because these don't COW
@@ -185,63 +184,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		nr_pages--;
 	}
 
-	while (nr_pages > 0) {
-		int i;
-
-		cond_resched();
-
-		/*
-		 * get_user_pages makes pages present if we are
-		 * setting mlock. and this extra reference count will
-		 * disable migration of this page.  However, page may
-		 * still be truncated out from under us.
-		 */
-		ret = __get_user_pages(current, mm, addr,
-				min_t(int, nr_pages, ARRAY_SIZE(pages)),
-				gup_flags, pages, NULL);
-		/*
-		 * This can happen for, e.g., VM_NONLINEAR regions before
-		 * a page has been allocated and mapped at a given offset,
-		 * or for addresses that map beyond end of a file.
-		 * We'll mlock the pages if/when they get faulted in.
-		 */
-		if (ret < 0)
-			break;
-
-		lru_add_drain();	/* push cached pages to LRU */
-
-		for (i = 0; i < ret; i++) {
-			struct page *page = pages[i];
-
-			if (page->mapping) {
-				/*
-				 * That preliminary check is mainly to avoid
-				 * the pointless overhead of lock_page on the
-				 * ZERO_PAGE: which might bounce very badly if
-				 * there is contention.  However, we're still
-				 * dirtying its cacheline with get/put_page:
-				 * we'll add another __get_user_pages flag to
-				 * avoid it if that case turns out to matter.
-				 */
-				lock_page(page);
-				/*
-				 * Because we lock page here and migration is
-				 * blocked by the elevated reference, we need
-				 * only check for file-cache page truncation.
-				 */
-				if (page->mapping)
-					mlock_vma_page(page);
-				unlock_page(page);
-			}
-			put_page(page);	/* ref from get_user_pages() */
-		}
-
-		addr += ret * PAGE_SIZE;
-		nr_pages -= ret;
-		ret = 0;
-	}
-
-	return ret;	/* 0 or negative error code */
+	ret = __get_user_pages(current, mm, addr, nr_pages, gup_flags,
+			       NULL, NULL);
+	return max(ret, 0);	/* 0 or negative error code */
 }
 
 /*
