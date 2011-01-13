@@ -16,6 +16,7 @@
 #include <linux/kthread.h>
 #include <linux/khugepaged.h>
 #include <linux/freezer.h>
+#include <linux/mman.h>
 #include <asm/tlb.h>
 #include <asm/pgalloc.h>
 #include "internal.h"
@@ -1388,18 +1389,36 @@ out:
 	return ret;
 }
 
-int hugepage_madvise(unsigned long *vm_flags)
+int hugepage_madvise(unsigned long *vm_flags, int advice)
 {
-	/*
-	 * Be somewhat over-protective like KSM for now!
-	 */
-	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
-			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
-			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
-			 VM_MIXEDMAP | VM_SAO))
-		return -EINVAL;
-
-	*vm_flags |= VM_HUGEPAGE;
+	switch (advice) {
+	case MADV_HUGEPAGE:
+		/*
+		 * Be somewhat over-protective like KSM for now!
+		 */
+		if (*vm_flags & (VM_HUGEPAGE |
+				 VM_SHARED   | VM_MAYSHARE   |
+				 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
+				 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
+				 VM_MIXEDMAP | VM_SAO))
+			return -EINVAL;
+		*vm_flags &= ~VM_NOHUGEPAGE;
+		*vm_flags |= VM_HUGEPAGE;
+		break;
+	case MADV_NOHUGEPAGE:
+		/*
+		 * Be somewhat over-protective like KSM for now!
+		 */
+		if (*vm_flags & (VM_NOHUGEPAGE |
+				 VM_SHARED   | VM_MAYSHARE   |
+				 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
+				 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
+				 VM_MIXEDMAP | VM_SAO))
+			return -EINVAL;
+		*vm_flags &= ~VM_HUGEPAGE;
+		*vm_flags |= VM_NOHUGEPAGE;
+		break;
+	}
 
 	return 0;
 }

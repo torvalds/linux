@@ -38,9 +38,10 @@ static inline void khugepaged_exit(struct mm_struct *mm)
 static inline int khugepaged_enter(struct vm_area_struct *vma)
 {
 	if (!test_bit(MMF_VM_HUGEPAGE, &vma->vm_mm->flags))
-		if (khugepaged_always() ||
-		    (khugepaged_req_madv() &&
-		     vma->vm_flags & VM_HUGEPAGE))
+		if ((khugepaged_always() ||
+		     (khugepaged_req_madv() &&
+		      vma->vm_flags & VM_HUGEPAGE)) &&
+		    !(vma->vm_flags & VM_NOHUGEPAGE))
 			if (__khugepaged_enter(vma->vm_mm))
 				return -ENOMEM;
 	return 0;

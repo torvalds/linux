@@ -83,6 +83,7 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_GROWSUP	0x00000200
 #else
 #define VM_GROWSUP	0x00000000
+#define VM_NOHUGEPAGE	0x00000200	/* MADV_NOHUGEPAGE marked this vma */
 #endif
 #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
 #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */

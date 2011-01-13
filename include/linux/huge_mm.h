@@ -52,10 +52,12 @@ extern pmd_t *page_check_address_pmd(struct page *page,
 #define HPAGE_PMD_SIZE HPAGE_SIZE
 
 #define transparent_hugepage_enabled(__vma)				\
-	(transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_FLAG) ||	\
-	 (transparent_hugepage_flags &					\
-	  (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
-	  (__vma)->vm_flags & VM_HUGEPAGE))
+	((transparent_hugepage_flags &					\
+	  (1<<TRANSPARENT_HUGEPAGE_FLAG) ||				\
+	  (transparent_hugepage_flags &					\
+	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
+	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
+	 !((__vma)->vm_flags & VM_NOHUGEPAGE))
 #define transparent_hugepage_defrag(__vma)				\
 	((transparent_hugepage_flags &					\
 	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)) ||			\
@@ -103,7 +105,7 @@ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
 #if HPAGE_PMD_ORDER > MAX_ORDER
 #error "hugepages can't be allocated by the buddy allocator"
 #endif
-extern int hugepage_madvise(unsigned long *vm_flags);
+extern int hugepage_madvise(unsigned long *vm_flags, int advice);
 extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
 				    unsigned long start,
 				    unsigned long end,
@@ -141,7 +143,7 @@ static inline int split_huge_page(struct page *page)
 	do { } while (0)
 #define wait_split_huge_page(__anon_vma, __pmd)	\
 	do { } while (0)
-static inline int hugepage_madvise(unsigned long *vm_flags)
+static inline int hugepage_madvise(unsigned long *vm_flags, int advice)
 {
 	BUG();
 	return 0;
