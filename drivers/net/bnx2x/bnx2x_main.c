@@ -5037,7 +5037,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 		memset(&ilt_cli, 0, sizeof(struct ilt_client_info));
 		memset(&ilt, 0, sizeof(struct bnx2x_ilt));
 
-		/* initalize dummy TM client */
+		/* initialize dummy TM client */
 		ilt_cli.start = 0;
 		ilt_cli.end = ILT_NUM_PAGE_ENTRIES - 1;
 		ilt_cli.client_num = ILT_CLIENT_TM;

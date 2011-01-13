@@ -614,7 +614,7 @@ static struct device_attribute dcon_device_files[] = {
 	__ATTR(resumeline, 0644, dcon_resumeline_show, dcon_resumeline_store),
 };
 
-static struct backlight_ops dcon_bl_ops = {
+static const struct backlight_ops dcon_bl_ops = {
 	.get_brightness = dconbl_get,
 	.update_status = dconbl_set
 };

@@ -64,7 +64,7 @@ config MACH_U300_DUAL_RAM
 	bool "Dual RAM"
 	help
 		Select this if you want support for Dual RAM phones.
-		This is two RAM memorys on different EMIFs.
+		This is two RAM memories on different EMIFs.
 endchoice
 
 config U300_DEBUG

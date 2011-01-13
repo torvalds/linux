@@ -1098,7 +1098,7 @@ supported currently at the toplevel.
                                  * an arbitrary array of bytes
                                  */
 
-  childnode@addresss {	/* define a child node named "childnode"
+  childnode@address {	/* define a child node named "childnode"
                                  * whose unit name is "childnode at
 				 * address"
                                  */

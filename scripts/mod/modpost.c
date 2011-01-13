@@ -1615,7 +1615,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
  * A module includes a number of sections that are discarded
  * either when loaded or when used as built-in.
  * For loaded modules all functions marked __init and all data
- * marked __initdata will be discarded when the module has been intialized.
+ * marked __initdata will be discarded when the module has been initialized.
  * Likewise for modules used built-in the sections marked __exit
  * are discarded because __exit marked function are supposed to be called
  * only when a module is unloaded which never happens for built-in modules.

@@ -874,7 +874,7 @@ Possible values are:
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
                                  is waiting for an interrupt
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accesible via KVM_GET_VCPU_EVENTS)
+                                 accessible via KVM_GET_VCPU_EVENTS)
 
 This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
 irqchip, the multiprocessing state must be maintained by userspace.

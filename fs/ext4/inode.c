@@ -3380,7 +3380,7 @@ int ext4_alloc_da_blocks(struct inode *inode)
 	 * doing I/O at all.
 	 *
 	 * We could call write_cache_pages(), and then redirty all of
-	 * the pages by calling redirty_page_for_writeback() but that
+	 * the pages by calling redirty_page_for_writepage() but that
 	 * would be ugly in the extreme.  So instead we would need to
 	 * replicate parts of the code in the above functions,
 	 * simplifying them becuase we wouldn't actually intend to
@@ -3762,9 +3762,9 @@ retry:
  * preallocated extents, and those write extend the file, no need to
  * fall back to buffered IO.
  *
- * For holes, we fallocate those blocks, mark them as unintialized
+ * For holes, we fallocate those blocks, mark them as uninitialized
  * If those blocks were preallocated, we mark sure they are splited, but
- * still keep the range to write as unintialized.
+ * still keep the range to write as uninitialized.
  *
  * The unwrritten extents will be converted to written when DIO is completed.
  * For async direct IO, since the IO may still pending when return, we

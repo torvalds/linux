@@ -259,7 +259,7 @@ enum scrub_type {
  *			for single channel are 64 bits, for dual channel 128
  *			bits.
  *
- * Single-Ranked stick:	A Single-ranked stick has 1 chip-select row of memmory.
+ * Single-Ranked stick:	A Single-ranked stick has 1 chip-select row of memory.
  *			Motherboards commonly drive two chip-select pins to
  *			a memory stick. A single-ranked stick, will occupy
  *			only one of those rows. The other will be unused.

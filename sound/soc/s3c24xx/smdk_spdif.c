@@ -61,7 +61,7 @@ static int set_audio_clock_heirachy(struct platform_device *pdev)
 		goto out3;
 	}
 
-	/* Set audio clock heirachy for S/PDIF */
+	/* Set audio clock hierarchy for S/PDIF */
 	clk_set_parent(mout_epll, fout_epll);
 	clk_set_parent(sclk_audio0, mout_epll);
 	clk_set_parent(sclk_spdif, sclk_audio0);
@@ -79,7 +79,7 @@ out1:
 
 /* We should haved to set clock directly on this part because of clock
  * scheme of Samsudng SoCs did not support to set rates from abstrct
- * clock of it's heirachy.
+ * clock of it's hierarchy.
  */
 static int set_audio_clock_rate(unsigned long epll_rate,
 				unsigned long audio_rate)
@@ -197,7 +197,7 @@ static int __init smdk_init(void)
 	if (ret)
 		goto err1;
 
-	/* Set audio clock heirachy manually */
+	/* Set audio clock hierarchy manually */
 	ret = set_audio_clock_heirachy(smdk_snd_spdif_device);
 	if (ret)
 		goto err1;

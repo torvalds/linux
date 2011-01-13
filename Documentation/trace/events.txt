@@ -125,7 +125,7 @@ is the size of the data item, in bytes.
 For example, here's the information displayed for the 'sched_wakeup'
 event:
 
-# cat /debug/tracing/events/sched/sched_wakeup/format
+# cat /sys/kernel/debug/tracing/events/sched/sched_wakeup/format
 
 name: sched_wakeup
 ID: 60
@@ -201,19 +201,19 @@ to the 'filter' file for the given event.
 
 For example:
 
-# cd /debug/tracing/events/sched/sched_wakeup
+# cd /sys/kernel/debug/tracing/events/sched/sched_wakeup
 # echo "common_preempt_count > 4" > filter
 
 A slightly more involved example:
 
-# cd /debug/tracing/events/sched/sched_signal_send
+# cd /sys/kernel/debug/tracing/events/signal/signal_generate
 # echo "((sig >= 10 && sig < 15) || sig == 17) && comm != bash" > filter
 
 If there is an error in the expression, you'll get an 'Invalid
 argument' error when setting it, and the erroneous string along with
 an error message can be seen by looking at the filter e.g.:
 
-# cd /debug/tracing/events/sched/sched_signal_send
+# cd /sys/kernel/debug/tracing/events/signal/signal_generate
 # echo "((sig >= 10 && sig < 15) || dsig == 17) && comm != bash" > filter
 -bash: echo: write error: Invalid argument
 # cat filter

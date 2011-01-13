@@ -94,7 +94,7 @@ static void anon_vma_chain_free(struct anon_vma_chain *anon_vma_chain)
  * anonymous pages mapped into it with that anon_vma.
  *
  * The common case will be that we already have one, but if
- * if not we either need to find an adjacent mapping that we
+ * not we either need to find an adjacent mapping that we
  * can re-use the anon_vma from (very common when the only
  * reason for splitting a vma has been mprotect()), or we
  * allocate a new one.

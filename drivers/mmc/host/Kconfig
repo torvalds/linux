@@ -501,7 +501,7 @@ config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
 	depends on MMC_BLOCK && (SUPERH || ARCH_SHMOBILE)
 	help
-	  This selects the MMC Host Interface controler (MMCIF).
+	  This selects the MMC Host Interface controller (MMCIF).
 
 	  This driver supports MMCIF in sh7724/sh7757/sh7372.
 

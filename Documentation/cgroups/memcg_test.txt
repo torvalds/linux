@@ -398,7 +398,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	written to move_charge_at_immigrate.
 
  9.10 Memory thresholds
-	Memory controler implements memory thresholds using cgroups notification
+	Memory controller implements memory thresholds using cgroups notification
 	API. You can use Documentation/cgroups/cgroup_event_listener.c to test
 	it.
 

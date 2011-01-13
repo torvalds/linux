@@ -2845,14 +2845,14 @@ fix_extent_len:
  * to an uninitialized extent.
  *
  * Writing to an uninitized extent may result in splitting the uninitialized
- * extent into multiple /intialized unintialized extents (up to three)
+ * extent into multiple /initialized uninitialized extents (up to three)
  * There are three possibilities:
  *   a> There is no split required: Entire extent should be uninitialized
  *   b> Splits in two extents: Write is happening at either end of the extent
  *   c> Splits in three extents: Somone is writing in middle of the extent
  *
  * One of more index blocks maybe needed if the extent tree grow after
- * the unintialized extent split. To prevent ENOSPC occur at the IO
+ * the uninitialized extent split. To prevent ENOSPC occur at the IO
  * complete, we need to split the uninitialized extent before DIO submit
  * the IO. The uninitialized extent called at this time will be split
  * into three uninitialized extent(at most). After IO complete, the part

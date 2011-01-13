@@ -975,7 +975,7 @@ struct klist *bus_get_device_klist(struct bus_type *bus)
 EXPORT_SYMBOL_GPL(bus_get_device_klist);
 
 /*
- * Yes, this forcably breaks the klist abstraction temporarily.  It
+ * Yes, this forcibly breaks the klist abstraction temporarily.  It
  * just wants to sort the klist, not change reference counts and
  * take/drop locks rapidly in the process.  It does all this while
  * holding the lock for the list, so objects can't otherwise be

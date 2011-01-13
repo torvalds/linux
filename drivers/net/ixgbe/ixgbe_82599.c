@@ -1079,7 +1079,7 @@ s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc)
 
 	/*
 	 * The defaults in the HW for RX PB 1-7 are not zero and so should be
-	 * intialized to zero for non DCB mode otherwise actual total RX PB
+	 * initialized to zero for non DCB mode otherwise actual total RX PB
 	 * would be bigger than programmed and filter space would run into
 	 * the PB 0 region.
 	 */
@@ -1167,7 +1167,7 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 
 	/*
 	 * The defaults in the HW for RX PB 1-7 are not zero and so should be
-	 * intialized to zero for non DCB mode otherwise actual total RX PB
+	 * initialized to zero for non DCB mode otherwise actual total RX PB
 	 * would be bigger than programmed and filter space would run into
 	 * the PB 0 region.
 	 */

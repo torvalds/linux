@@ -888,7 +888,7 @@ out_finish:
 /**
  *	swsusp_read - read the hibernation image.
  *	@flags_p: flags passed by the "frozen" kernel in the image header should
- *		  be written into this memeory location
+ *		  be written into this memory location
  */
 
 int swsusp_read(unsigned int *flags_p)

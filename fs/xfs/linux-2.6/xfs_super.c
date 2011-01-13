@@ -947,7 +947,7 @@ out_reclaim:
  * Slab object creation initialisation for the XFS inode.
  * This covers only the idempotent fields in the XFS inode;
  * all other fields need to be initialised on allocation
- * from the slab. This avoids the need to repeatedly intialise
+ * from the slab. This avoids the need to repeatedly initialise
  * fields in the xfs inode that left in the initialise state
  * when freeing the inode.
  */

@@ -6580,7 +6580,8 @@ static long do_ixj_ioctl(struct file *file_p, unsigned int cmd, unsigned long ar
 	case IXJCTL_SET_FILTER:
 		if (copy_from_user(&jf, argp, sizeof(jf))) 
 			retval = -EFAULT;
-		retval = ixj_init_filter(j, &jf);
+		else
+			retval = ixj_init_filter(j, &jf);
 		break;
 	case IXJCTL_SET_FILTER_RAW:
 		if (copy_from_user(&jfr, argp, sizeof(jfr))) 

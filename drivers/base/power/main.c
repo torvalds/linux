@@ -8,7 +8,7 @@
  *
  *
  * The driver model core calls device_pm_add() when a device is registered.
- * This will intialize the embedded device_pm_info object in the device
+ * This will initialize the embedded device_pm_info object in the device
  * and add it to the list of power-controlled devices. sysfs entries for
  * controlling device power management will also be added.
  *

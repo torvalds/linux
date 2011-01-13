@@ -332,7 +332,7 @@ MODULE_PARM_DESC(txselect, \
 #define krp_serdesctrl KREG_IBPORT_IDX(IBSerdesCtrl)
 
 /*
- * Per-context kernel registers.  Acess only with qib_read_kreg_ctxt()
+ * Per-context kernel registers.  Access only with qib_read_kreg_ctxt()
  * or qib_write_kreg_ctxt()
  */
 #define krc_rcvhdraddr KREG_IDX(RcvHdrAddr0)

@@ -901,7 +901,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 /*
  * The below -8 is to reserve 8 bytes on top of the ring0 stack.
  * This is necessary to guarantee that the entire "struct pt_regs"
- * is accessable even if the CPU haven't stored the SS/ESP registers
+ * is accessible even if the CPU haven't stored the SS/ESP registers
  * on the stack (interrupt gate does not save these registers
  * when switching to the same priv ring).
  * Therefore beware: accessing the ss/esp fields of the

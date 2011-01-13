@@ -2007,7 +2007,7 @@ F:	drivers/scsi/dc395x.*
 DCCP PROTOCOL
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 L:	dccp@vger.kernel.org
-W:	http://linux-net.osdl.org/index.php/DCCP
+W:	http://www.linuxfoundation.org/collaborate/workgroups/networking/dccp
 S:	Maintained
 F:	include/linux/dccp.h
 F:	include/linux/tfrc.h
@@ -2429,7 +2429,7 @@ ETHERNET BRIDGE
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
 L:	bridge@lists.linux-foundation.org
 L:	netdev@vger.kernel.org
-W:	http://www.linux-foundation.org/en/Net:Bridge
+W:	http://www.linuxfoundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/
 F:	net/bridge/
@@ -4633,7 +4633,7 @@ M:	Jeremy Fitzhardinge <jeremy@xensource.com>
 M:	Chris Wright <chrisw@sous-sol.org>
 M:	Alok Kataria <akataria@vmware.com>
 M:	Rusty Russell <rusty@rustcorp.com.au>
-L:	virtualization@lists.osdl.org
+L:	virtualization@lists.linux-foundation.org
 S:	Supported
 F:	Documentation/ia64/paravirt_ops.txt
 F:	arch/*/kernel/paravirt*
@@ -6530,7 +6530,7 @@ F:	include/linux/virtio_console.h
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	kvm@vger.kernel.org
-L:	virtualization@lists.osdl.org
+L:	virtualization@lists.linux-foundation.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/vhost/
@@ -6800,7 +6800,7 @@ XEN HYPERVISOR INTERFACE
 M:	Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
-L:	virtualization@lists.osdl.org
+L:	virtualization@lists.linux-foundation.org
 S:	Supported
 F:	arch/x86/xen/
 F:	drivers/*/xen-*front.c
