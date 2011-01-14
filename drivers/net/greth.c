@@ -870,10 +870,9 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 			}
 		}
 
-		/* Allocate new skb to replace current */
-		newskb = netdev_alloc_skb(dev, MAX_FRAME_SIZE + NET_IP_ALIGN);
-
-		if (!bad && newskb) {
+		/* Allocate new skb to replace current, not needed if the
+		 * current skb can be reused */
+		if (!bad && (newskb=netdev_alloc_skb(dev, MAX_FRAME_SIZE + NET_IP_ALIGN))) {
 			skb_reserve(newskb, NET_IP_ALIGN);
 
 			dma_addr = dma_map_single(greth->dev,
@@ -910,11 +909,22 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 				if (net_ratelimit())
 					dev_warn(greth->dev, "Could not create DMA mapping, dropping packet\n");
 				dev_kfree_skb(newskb);
+				/* reusing current skb, so it is a drop */
 				dev->stats.rx_dropped++;
 			}
+		} else if (bad) {
+			/* Bad Frame transfer, the skb is reused */
+			dev->stats.rx_dropped++;
 		} else {
+			/* Failed Allocating a new skb. This is rather stupid
+			 * but the current "filled" skb is reused, as if
+			 * transfer failure. One could argue that RX descriptor
+			 * table handling should be divided into cleaning and
+			 * filling as the TX part of the driver
+			 */
 			if (net_ratelimit())
 				dev_warn(greth->dev, "Could not allocate SKB, dropping packet\n");
+			/* reusing current skb, so it is a drop */
 			dev->stats.rx_dropped++;
 		}
 
