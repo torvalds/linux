@@ -993,8 +993,13 @@ extern void pci_restore_msi_state(struct pci_dev *dev);
 extern int pci_msi_enabled(void);
 #endif
 
+#ifdef CONFIG_PCIEPORTBUS
 extern bool pcie_ports_disabled;
 extern bool pcie_ports_auto;
+#else
+#define pcie_ports_disabled	true
+#define pcie_ports_auto		false
+#endif
 
 #ifndef CONFIG_PCIEASPM
 static inline int pcie_aspm_enabled(void)
