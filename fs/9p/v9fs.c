@@ -198,10 +198,8 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 				v9ses->flags |= V9FS_ACCESS_CLIENT;
 #else
 				P9_DPRINTK(P9_DEBUG_ERROR,
-					"access=client option not supported\n");
-				kfree(s);
-				ret = -EINVAL;
-				goto free_and_return;
+					"Not defined CONFIG_9P_FS_POSIX_ACL. "
+					"Ignoring access=client option\n");
 #endif
 			} else {
 				v9ses->flags |= V9FS_ACCESS_SINGLE;
