@@ -1972,9 +1972,9 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 				wiphy_debug(local->hw.wiphy,
 					    "%s: No ack for nullfunc frame to"
-					    " AP %pM, try %d\n",
+					    " AP %pM, try %d/%i\n",
 					    sdata->name, bssid,
-					    ifmgd->probe_send_count);
+					    ifmgd->probe_send_count, max_tries);
 #endif
 				ieee80211_mgd_probe_ap_send(sdata);
 			} else {
@@ -2001,10 +2001,10 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			wiphy_debug(local->hw.wiphy,
 				    "%s: No probe response from AP %pM"
-				    " after %dms, try %d\n",
+				    " after %dms, try %d/%i\n",
 				    sdata->name,
 				    bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ,
-				    ifmgd->probe_send_count);
+				    ifmgd->probe_send_count, max_tries);
 #endif
 			ieee80211_mgd_probe_ap_send(sdata);
 		} else {
