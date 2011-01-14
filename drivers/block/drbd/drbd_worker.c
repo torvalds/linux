@@ -86,7 +86,7 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 	struct drbd_conf *mdev = e->mdev;
 
 	spin_lock_irqsave(&mdev->req_lock, flags);
-	mdev->read_cnt += e->size >> 9;
+	mdev->read_cnt += e->i.size >> 9;
 	list_del(&e->w.list);
 	if (list_empty(&mdev->read_ee))
 		wake_up(&mdev->ee_wait);
@@ -113,12 +113,12 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 	 * we may no longer access it,
 	 * it may be freed/reused already!
 	 * (as soon as we release the req_lock) */
-	e_sector = e->sector;
+	e_sector = e->i.sector;
 	do_al_complete_io = e->flags & EE_CALL_AL_COMPLETE_IO;
 	block_id = e->block_id;
 
 	spin_lock_irqsave(&mdev->req_lock, flags);
-	mdev->writ_cnt += e->size >> 9;
+	mdev->writ_cnt += e->i.size >> 9;
 	list_del(&e->w.list); /* has been on active_ee or sync_ee */
 	list_add_tail(&e->w.list, &mdev->done_ee);
 
@@ -159,12 +159,12 @@ void drbd_endio_sec(struct bio *bio, int error)
 	if (error && __ratelimit(&drbd_ratelimit_state))
 		dev_warn(DEV, "%s: error=%d s=%llus\n",
 				is_write ? "write" : "read", error,
-				(unsigned long long)e->sector);
+				(unsigned long long)e->i.sector);
 	if (!error && !uptodate) {
 		if (__ratelimit(&drbd_ratelimit_state))
 			dev_warn(DEV, "%s: setting error to -EIO s=%llus\n",
 					is_write ? "write" : "read",
-					(unsigned long long)e->sector);
+					(unsigned long long)e->i.sector);
 		/* strange behavior of some lower level drivers...
 		 * fail the request by clearing the uptodate flag,
 		 * but do not return any error?! */
@@ -265,7 +265,7 @@ void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm, struct drbd_e
 		page = tmp;
 	}
 	/* and now the last, possibly only partially used page */
-	len = e->size & (PAGE_SIZE - 1);
+	len = e->i.size & (PAGE_SIZE - 1);
 	sg_set_page(&sg, page, len ?: PAGE_SIZE, 0);
 	crypto_hash_update(&desc, &sg, sg.length);
 	crypto_hash_final(&desc, digest);
@@ -308,8 +308,8 @@ int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	digest_size = crypto_hash_digestsize(mdev->csums_tfm);
 	digest = kmalloc(digest_size, GFP_NOIO);
 	if (digest) {
-		sector_t sector = e->sector;
-		unsigned int size = e->size;
+		sector_t sector = e->i.sector;
+		unsigned int size = e->i.size;
 		drbd_csum_ee(mdev, mdev->csums_tfm, e, digest);
 		/* Free e and pages before send.
 		 * In case we block on congestion, we could otherwise run into
@@ -901,7 +901,7 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_epoch_ent
 {
 	if (drbd_ee_has_active_page(e)) {
 		/* This might happen if sendpage() has not finished */
-		int i = (e->size + PAGE_SIZE -1) >> PAGE_SHIFT;
+		int i = (e->i.size + PAGE_SIZE -1) >> PAGE_SHIFT;
 		atomic_add(i, &mdev->pp_in_use_by_net);
 		atomic_sub(i, &mdev->pp_in_use);
 		spin_lock_irq(&mdev->req_lock);
@@ -934,7 +934,7 @@ int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	} else {
 		if (__ratelimit(&drbd_ratelimit_state))
 			dev_err(DEV, "Sending NegDReply. sector=%llus.\n",
-			    (unsigned long long)e->sector);
+			    (unsigned long long)e->i.sector);
 
 		ok = drbd_send_ack(mdev, P_NEG_DREPLY, e);
 	}
@@ -966,7 +966,7 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	if (get_ldev_if_state(mdev, D_FAILED)) {
-		drbd_rs_complete_io(mdev, e->sector);
+		drbd_rs_complete_io(mdev, e->i.sector);
 		put_ldev(mdev);
 	}
 
@@ -985,12 +985,12 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	} else {
 		if (__ratelimit(&drbd_ratelimit_state))
 			dev_err(DEV, "Sending NegRSDReply. sector %llus.\n",
-			    (unsigned long long)e->sector);
+			    (unsigned long long)e->i.sector);
 
 		ok = drbd_send_ack(mdev, P_NEG_RS_DREPLY, e);
 
 		/* update resync data with failure */
-		drbd_rs_failed_io(mdev, e->sector, e->size);
+		drbd_rs_failed_io(mdev, e->i.sector, e->i.size);
 	}
 
 	dec_unacked(mdev);
@@ -1017,7 +1017,7 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	if (get_ldev(mdev)) {
-		drbd_rs_complete_io(mdev, e->sector);
+		drbd_rs_complete_io(mdev, e->i.sector);
 		put_ldev(mdev);
 	}
 
@@ -1039,9 +1039,9 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 		}
 
 		if (eq) {
-			drbd_set_in_sync(mdev, e->sector, e->size);
+			drbd_set_in_sync(mdev, e->i.sector, e->i.size);
 			/* rs_same_csums unit is BM_BLOCK_SIZE */
-			mdev->rs_same_csum += e->size >> BM_BLOCK_SHIFT;
+			mdev->rs_same_csum += e->i.size >> BM_BLOCK_SHIFT;
 			ok = drbd_send_ack(mdev, P_RS_IS_IN_SYNC, e);
 		} else {
 			inc_rs_pending(mdev);
@@ -1068,8 +1068,8 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
-	sector_t sector = e->sector;
-	unsigned int size = e->size;
+	sector_t sector = e->i.sector;
+	unsigned int size = e->i.size;
 	int digest_size;
 	void *digest;
 	int ok = 1;
@@ -1127,8 +1127,8 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	struct drbd_epoch_entry *e = container_of(w, struct drbd_epoch_entry, w);
 	struct digest_info *di;
 	void *digest;
-	sector_t sector = e->sector;
-	unsigned int size = e->size;
+	sector_t sector = e->i.sector;
+	unsigned int size = e->i.size;
 	int digest_size;
 	int ok, eq = 0;
 
@@ -1141,7 +1141,7 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	/* after "cancel", because after drbd_disconnect/drbd_rs_cancel_all
 	 * the resync lru has been cleaned up already */
 	if (get_ldev(mdev)) {
-		drbd_rs_complete_io(mdev, e->sector);
+		drbd_rs_complete_io(mdev, e->i.sector);
 		put_ldev(mdev);
 	}
 

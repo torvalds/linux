@@ -2506,7 +2506,7 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 
 	if (!cn_reply) {
 		dev_err(DEV, "could not kmalloc buffer for drbd_bcast_ee, sector %llu, size %u\n",
-				(unsigned long long)e->sector, e->size);
+				(unsigned long long)e->i.sector, e->i.size);
 		return;
 	}
 
@@ -2516,11 +2516,11 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 	tl = tl_add_str(tl, T_dump_ee_reason, reason);
 	tl = tl_add_blob(tl, T_seen_digest, seen_hash, dgs);
 	tl = tl_add_blob(tl, T_calc_digest, calc_hash, dgs);
-	tl = tl_add_int(tl, T_ee_sector, &e->sector);
+	tl = tl_add_int(tl, T_ee_sector, &e->i.sector);
 	tl = tl_add_int(tl, T_ee_block_id, &e->block_id);
 
 	/* dump the first 32k */
-	len = min_t(unsigned, e->size, 32 << 10);
+	len = min_t(unsigned, e->i.size, 32 << 10);
 	put_unaligned(T_ee_data, tl++);
 	put_unaligned(len, tl++);
 

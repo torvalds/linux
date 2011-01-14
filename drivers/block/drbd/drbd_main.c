@@ -2464,8 +2464,8 @@ int drbd_send_ack(struct drbd_conf *mdev,
 	enum drbd_packets cmd, struct drbd_epoch_entry *e)
 {
 	return _drbd_send_ack(mdev, cmd,
-			      cpu_to_be64(e->sector),
-			      cpu_to_be32(e->size),
+			      cpu_to_be64(e->i.sector),
+			      cpu_to_be32(e->i.size),
 			      e->block_id);
 }
 
@@ -2671,7 +2671,7 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
 {
 	struct page *page = e->pages;
-	unsigned len = e->size;
+	unsigned len = e->i.size;
 	/* hint all but last page with MSG_MORE */
 	page_chain_for_each(page) {
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
@@ -2796,19 +2796,19 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
-	if (e->size <= DRBD_MAX_SIZE_H80_PACKET) {
+	if (e->i.size <= DRBD_MAX_SIZE_H80_PACKET) {
 		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
 		p.head.h80.command = cpu_to_be16(cmd);
 		p.head.h80.length  =
-			cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);
+			cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + dgs + e->i.size);
 	} else {
 		p.head.h95.magic   = cpu_to_be16(DRBD_MAGIC_BIG);
 		p.head.h95.command = cpu_to_be16(cmd);
 		p.head.h95.length  =
-			cpu_to_be32(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);
+			cpu_to_be32(sizeof(p) - sizeof(struct p_header80) + dgs + e->i.size);
 	}
 
-	p.sector   = cpu_to_be64(e->sector);
+	p.sector   = cpu_to_be64(e->i.sector);
 	p.block_id = e->block_id;
 	/* p.seq_num  = 0;    No sequence numbers here.. */
 

@@ -764,10 +764,9 @@ struct drbd_epoch_entry {
 	struct drbd_conf *mdev;
 	struct page *pages;
 	atomic_t pending_bios;
-	unsigned int size;
+	struct drbd_interval i;
 	/* see comments on ee flag bits below */
 	unsigned long flags;
-	sector_t sector;
 	union {
 		u64 block_id;
 		struct digest_info *digest;

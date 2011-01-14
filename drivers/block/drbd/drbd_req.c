@@ -185,7 +185,7 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 		 *
 		 * anyways, if we found one,
 		 * we just have to do a wake_up.  */
-#define OVERLAPS overlaps(sector, size, e->sector, e->size)
+#define OVERLAPS overlaps(sector, size, e->i.sector, e->i.size)
 		slot = ee_hash_slot(mdev, req->i.sector);
 		hlist_for_each_entry(e, n, slot, collision) {
 			if (OVERLAPS) {
@@ -364,7 +364,7 @@ static int _req_conflicts(struct drbd_request *req)
 	if (mdev->ee_hash_s) {
 		/* now, check for overlapping requests with remote origin */
 		BUG_ON(mdev->ee_hash == NULL);
-#define OVERLAPS overlaps(e->sector, e->size, sector, size)
+#define OVERLAPS overlaps(e->i.sector, e->i.size, sector, size)
 		slot = ee_hash_slot(mdev, sector);
 		hlist_for_each_entry(e, n, slot, collision) {
 			if (OVERLAPS) {
@@ -373,7 +373,7 @@ static int _req_conflicts(struct drbd_request *req)
 				      "pending: %llus +%u\n",
 				      current->comm, current->pid,
 				      (unsigned long long)sector, size,
-				      (unsigned long long)e->sector, e->size);
+				      (unsigned long long)e->i.sector, e->i.size);
 				goto out_conflict;
 			}
 		}

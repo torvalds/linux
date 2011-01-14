@@ -338,9 +338,9 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 	e->mdev = mdev;
 	e->pages = page;
 	atomic_set(&e->pending_bios, 0);
-	e->size = data_size;
+	e->i.size = data_size;
 	e->flags = 0;
-	e->sector = sector;
+	e->i.sector = sector;
 	/*
 	 * The block_id is opaque to the receiver.  It is not endianness
 	 * converted, and sent back to the sender unchanged.
@@ -1091,8 +1091,8 @@ int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
 	struct bio *bios = NULL;
 	struct bio *bio;
 	struct page *page = e->pages;
-	sector_t sector = e->sector;
-	unsigned ds = e->size;
+	sector_t sector = e->i.sector;
+	unsigned ds = e->i.size;
 	unsigned n_bios = 0;
 	unsigned nr_pages = (ds + PAGE_SIZE -1) >> PAGE_SHIFT;
 	int err = -ENOMEM;
@@ -1107,7 +1107,7 @@ next_bio:
 		dev_err(DEV, "submit_ee: Allocation of a bio failed\n");
 		goto fail;
 	}
-	/* > e->sector, unless this is the first bio */
+	/* > e->i.sector, unless this is the first bio */
 	bio->bi_sector = sector;
 	bio->bi_bdev = mdev->ldev->backing_bdev;
 	bio->bi_rw = rw;
@@ -1414,17 +1414,17 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 static int e_end_resync_block(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 {
 	struct drbd_epoch_entry *e = (struct drbd_epoch_entry *)w;
-	sector_t sector = e->sector;
+	sector_t sector = e->i.sector;
 	int ok;
 
 	D_ASSERT(hlist_unhashed(&e->collision));
 
 	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
-		drbd_set_in_sync(mdev, sector, e->size);
+		drbd_set_in_sync(mdev, sector, e->i.size);
 		ok = drbd_send_ack(mdev, P_RS_WRITE_ACK, e);
 	} else {
 		/* Record failure to sync */
-		drbd_rs_failed_io(mdev, sector, e->size);
+		drbd_rs_failed_io(mdev, sector, e->i.size);
 
 		ok  = drbd_send_ack(mdev, P_NEG_ACK, e);
 	}
@@ -1549,7 +1549,7 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packets cmd, un
 static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	struct drbd_epoch_entry *e = (struct drbd_epoch_entry *)w;
-	sector_t sector = e->sector;
+	sector_t sector = e->i.sector;
 	int ok = 1, pcmd;
 
 	if (mdev->net_conf->wire_protocol == DRBD_PROT_C) {
@@ -1560,7 +1560,7 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 				P_RS_WRITE_ACK : P_WRITE_ACK;
 			ok &= drbd_send_ack(mdev, pcmd, e);
 			if (pcmd == P_RS_WRITE_ACK)
-				drbd_set_in_sync(mdev, sector, e->size);
+				drbd_set_in_sync(mdev, sector, e->i.size);
 		} else {
 			ok  = drbd_send_ack(mdev, P_NEG_ACK, e);
 			/* we expect it to be marked out of sync anyways...
@@ -1718,7 +1718,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 	} else {
 		/* don't get the req_lock yet,
 		 * we may sleep in drbd_wait_peer_seq */
-		const int size = e->size;
+		const int size = e->i.size;
 		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->flags);
 		DEFINE_WAIT(wait);
 		int first;
@@ -1861,10 +1861,10 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 	if (mdev->state.pdsk < D_INCONSISTENT) {
 		/* In case we have the only disk of the cluster, */
-		drbd_set_out_of_sync(mdev, e->sector, e->size);
+		drbd_set_out_of_sync(mdev, e->i.sector, e->i.size);
 		e->flags |= EE_CALL_AL_COMPLETE_IO;
 		e->flags &= ~EE_MAY_SET_IN_SYNC;
-		drbd_al_begin_io(mdev, e->sector);
+		drbd_al_begin_io(mdev, e->i.sector);
 	}
 
 	if (drbd_submit_ee(mdev, e, rw, DRBD_FAULT_DT_WR) == 0)
@@ -1877,7 +1877,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 	hlist_del_init(&e->collision);
 	spin_unlock_irq(&mdev->req_lock);
 	if (e->flags & EE_CALL_AL_COMPLETE_IO)
-		drbd_al_complete_io(mdev, e->sector);
+		drbd_al_complete_io(mdev, e->i.sector);
 
 out_interrupted:
 	drbd_may_finish_epoch(mdev, e->epoch, EV_PUT + EV_CLEANUP);
