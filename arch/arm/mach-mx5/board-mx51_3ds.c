@@ -75,7 +75,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-#if defined(CONFIG_KEYBOARD_IMX) || defined(CONFIG_KEYBOARD_IMX_MODULE)
 static int mx51_3ds_board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(0, 1, KEY_2),
@@ -110,16 +109,6 @@ static const struct matrix_keymap_data mx51_3ds_map_data __initconst = {
 	.keymap		= mx51_3ds_board_keymap,
 	.keymap_size	= ARRAY_SIZE(mx51_3ds_board_keymap),
 };
-
-static void mxc_init_keypad(void)
-{
-	imx51_add_imx_keypad(&mx51_3ds_map_data);
-}
-#else
-static inline void mxc_init_keypad(void)
-{
-}
-#endif
 
 static int mx51_3ds_spi2_cs[] = {
 	MXC_SPI_CS(0),
@@ -162,7 +151,7 @@ static void __init mxc_board_init(void)
 				    "devices on the board are unusable.\n");
 
 	imx51_add_sdhci_esdhc_imx(0, NULL);
-	mxc_init_keypad();
+	imx51_add_imx_keypad(&mx51_3ds_map_data);
 	imx51_add_imx2_wdt(0, NULL);
 }
 
