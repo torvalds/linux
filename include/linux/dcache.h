@@ -168,6 +168,7 @@ struct dentry_operations {
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
+	int (*d_manage)(struct dentry *, bool);
 } ____cacheline_aligned;
 
 /*
@@ -214,8 +215,9 @@ struct dentry_operations {
 
 #define DCACHE_MOUNTED		0x10000	/* is a mountpoint */
 #define DCACHE_NEED_AUTOMOUNT	0x20000	/* handle automount on this dir */
+#define DCACHE_MANAGE_TRANSIT	0x40000	/* manage transit from this dirent */
 #define DCACHE_MANAGED_DENTRY \
-	(DCACHE_MOUNTED|DCACHE_NEED_AUTOMOUNT)
+	(DCACHE_MOUNTED|DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT)
 
 extern seqlock_t rename_lock;
 
@@ -404,7 +406,12 @@ static inline void dont_mount(struct dentry *dentry)
 
 extern void dput(struct dentry *);
 
-static inline int d_mountpoint(struct dentry *dentry)
+static inline bool d_managed(struct dentry *dentry)
+{
+	return dentry->d_flags & DCACHE_MANAGED_DENTRY;
+}
+
+static inline bool d_mountpoint(struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_MOUNTED;
 }

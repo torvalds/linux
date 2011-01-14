@@ -176,10 +176,7 @@ out_err:
 	path_put(&nd->path);
 	goto out;
 out_follow:
-	while (d_mountpoint(nd->path.dentry) &&
-	       follow_down(&nd->path))
-		;
-	err = 0;
+	err = follow_down(&nd->path, false);
 	goto out;
 }
 

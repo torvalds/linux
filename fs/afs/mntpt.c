@@ -273,10 +273,7 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 		break;
 	case -EBUSY:
 		/* someone else made a mount here whilst we were busy */
-		while (d_mountpoint(nd->path.dentry) &&
-		       follow_down(&nd->path))
-			;
-		err = 0;
+		err = follow_down(&nd->path, false);
 	default:
 		mntput(newmnt);
 		break;

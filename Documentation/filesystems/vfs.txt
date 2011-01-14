@@ -865,6 +865,7 @@ struct dentry_operations {
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
+	int (*d_manage)(struct dentry *, bool);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -938,11 +939,29 @@ struct dentry_operations {
 	target and the parent VFS mount record to provide inheritable mount
 	parameters.  NULL should be returned if someone else managed to make
 	the automount first.  If the automount failed, then an error code
-	should be returned.
+	should be returned.  If -EISDIR is returned, then the directory will
+	be treated as an ordinary directory and returned to pathwalk to
+	continue walking.
 
 	This function is only used if DCACHE_NEED_AUTOMOUNT is set on the
 	dentry.  This is set by __d_instantiate() if S_AUTOMOUNT is set on the
 	inode being added.
+
+  d_manage: called to allow the filesystem to manage the transition from a
+	dentry (optional).  This allows autofs, for example, to hold up clients
+	waiting to explore behind a 'mountpoint' whilst letting the daemon go
+	past and construct the subtree there.  0 should be returned to let the
+	calling process continue.  -EISDIR can be returned to tell pathwalk to
+	use this directory as an ordinary directory and to ignore anything
+	mounted on it and not to check the automount flag.  Any other error
+	code will abort pathwalk completely.
+
+	If the 'mounting_here' parameter is true, then namespace_sem is being
+	held by the caller and the function should not initiate any mounts or
+	unmounts that it will then wait for.
+
+	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
+	dentry being transited from.
 
 Example :
 

@@ -960,6 +960,7 @@ static int follow_automount(struct path *path, unsigned flags,
 
 /*
  * Handle a dentry that is managed in some way.
+ * - Flagged for transit management (autofs)
  * - Flagged as mountpoint
  * - Flagged as automount point
  *
@@ -979,6 +980,16 @@ static int follow_managed(struct path *path, unsigned flags)
 	while (managed = ACCESS_ONCE(path->dentry->d_flags),
 	       managed &= DCACHE_MANAGED_DENTRY,
 	       unlikely(managed != 0)) {
+		/* Allow the filesystem to manage the transit without i_mutex
+		 * being held. */
+		if (managed & DCACHE_MANAGE_TRANSIT) {
+			BUG_ON(!path->dentry->d_op);
+			BUG_ON(!path->dentry->d_op->d_manage);
+			ret = path->dentry->d_op->d_manage(path->dentry, false);
+			if (ret < 0)
+				return ret == -EISDIR ? 0 : ret;
+		}
+
 		/* Transit to a mounted filesystem. */
 		if (managed & DCACHE_MOUNTED) {
 			struct vfsmount *mounted = lookup_mnt(path);
@@ -1012,7 +1023,7 @@ static int follow_managed(struct path *path, unsigned flags)
 	return 0;
 }
 
-int follow_down(struct path *path)
+int follow_down_one(struct path *path)
 {
 	struct vfsmount *mounted;
 
@@ -1029,14 +1040,19 @@ int follow_down(struct path *path)
 
 /*
  * Skip to top of mountpoint pile in rcuwalk mode.  We abort the rcu-walk if we
- * meet an automount point and we're not walking to "..".  True is returned to
+ * meet a managed dentry and we're not walking to "..".  True is returned to
  * continue, false to abort.
  */
 static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 			       struct inode **inode, bool reverse_transit)
 {
+	unsigned abort_mask =
+		reverse_transit ? 0 : DCACHE_MANAGE_TRANSIT;
+
 	while (d_mountpoint(path->dentry)) {
 		struct vfsmount *mounted;
+		if (path->dentry->d_flags & abort_mask)
+			return true;
 		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
 		if (!mounted)
 			break;
@@ -1083,6 +1099,57 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 	__follow_mount_rcu(nd, &nd->path, &inode, true);
 	nd->inode = inode;
 
+	return 0;
+}
+
+/*
+ * Follow down to the covering mount currently visible to userspace.  At each
+ * point, the filesystem owning that dentry may be queried as to whether the
+ * caller is permitted to proceed or not.
+ *
+ * Care must be taken as namespace_sem may be held (indicated by mounting_here
+ * being true).
+ */
+int follow_down(struct path *path, bool mounting_here)
+{
+	unsigned managed;
+	int ret;
+
+	while (managed = ACCESS_ONCE(path->dentry->d_flags),
+	       unlikely(managed & DCACHE_MANAGED_DENTRY)) {
+		/* Allow the filesystem to manage the transit without i_mutex
+		 * being held.
+		 *
+		 * We indicate to the filesystem if someone is trying to mount
+		 * something here.  This gives autofs the chance to deny anyone
+		 * other than its daemon the right to mount on its
+		 * superstructure.
+		 *
+		 * The filesystem may sleep at this point.
+		 */
+		if (managed & DCACHE_MANAGE_TRANSIT) {
+			BUG_ON(!path->dentry->d_op);
+			BUG_ON(!path->dentry->d_op->d_manage);
+			ret = path->dentry->d_op->d_manage(path->dentry, mounting_here);
+			if (ret < 0)
+				return ret == -EISDIR ? 0 : ret;
+		}
+
+		/* Transit to a mounted filesystem. */
+		if (managed & DCACHE_MOUNTED) {
+			struct vfsmount *mounted = lookup_mnt(path);
+			if (!mounted)
+				break;
+			dput(path->dentry);
+			mntput(path->mnt);
+			path->mnt = mounted;
+			path->dentry = dget(mounted->mnt_root);
+			continue;
+		}
+
+		/* Don't handle automount points here */
+		break;
+	}
 	return 0;
 }
 
@@ -3530,6 +3597,7 @@ const struct inode_operations page_symlink_inode_operations = {
 };
 
 EXPORT_SYMBOL(user_path_at);
+EXPORT_SYMBOL(follow_down_one);
 EXPORT_SYMBOL(follow_down);
 EXPORT_SYMBOL(follow_up);
 EXPORT_SYMBOL(get_write_access); /* binfmt_aout */

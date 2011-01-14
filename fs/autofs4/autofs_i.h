@@ -229,19 +229,6 @@ int autofs4_wait(struct autofs_sb_info *,struct dentry *, enum autofs_notify);
 int autofs4_wait_release(struct autofs_sb_info *,autofs_wqt_t,int);
 void autofs4_catatonic_mode(struct autofs_sb_info *);
 
-static inline int autofs4_follow_mount(struct path *path)
-{
-	int res = 0;
-
-	while (d_mountpoint(path->dentry)) {
-		int followed = follow_down(path);
-		if (!followed)
-			break;
-		res = 1;
-	}
-	return res;
-}
-
 static inline u32 autofs4_get_dev(struct autofs_sb_info *sbi)
 {
 	return new_encode_dev(sbi->sb->s_dev);

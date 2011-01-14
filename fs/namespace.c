@@ -1844,9 +1844,10 @@ static int do_move_mount(struct path *path, char *old_name)
 		return err;
 
 	down_write(&namespace_sem);
-	while (d_mountpoint(path->dentry) &&
-	       follow_down(path))
-		;
+	err = follow_down(path, true);
+	if (err < 0)
+		goto out;
+
 	err = -EINVAL;
 	if (!check_mnt(path->mnt) || !check_mnt(old_path.mnt))
 		goto out;
@@ -1940,9 +1941,10 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 
 	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
-	while (d_mountpoint(path->dentry) &&
-	       follow_down(path))
-		;
+	err = follow_down(path, true);
+	if (err < 0)
+		goto unlock;
+
 	err = -EINVAL;
 	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(path->mnt))
 		goto unlock;
