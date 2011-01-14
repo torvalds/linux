@@ -356,6 +356,8 @@ static int greth_open(struct net_device *dev)
 		dev_dbg(&dev->dev, " starting queue\n");
 	netif_start_queue(dev);
 
+	GRETH_REGSAVE(greth->regs->status, 0xFF);
+
 	napi_enable(&greth->napi);
 
 	greth_enable_irqs(greth);
@@ -371,7 +373,9 @@ static int greth_close(struct net_device *dev)
 
 	napi_disable(&greth->napi);
 
+	greth_disable_irqs(greth);
 	greth_disable_tx(greth);
+	greth_disable_rx(greth);
 
 	netif_stop_queue(dev);
 
