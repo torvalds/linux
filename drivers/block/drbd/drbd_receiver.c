@@ -4392,11 +4392,9 @@ static int got_BarrierAck(struct drbd_conf *mdev, struct p_header80 *h)
 
 	if (mdev->state.conn == C_AHEAD &&
 	    atomic_read(&mdev->ap_in_flight) == 0 &&
-	    atomic_read(&mdev->rs_pending_cnt) == 0 &&
-	    list_empty(&mdev->start_resync_work.list)) {
-		    struct drbd_work *w = &mdev->start_resync_work;
-		    w->cb = w_start_resync;
-		    drbd_queue_work(&mdev->data.work, w);
+	    !test_and_set_bit(AHEAD_TO_SYNC_SOURCE, &mdev->current_epoch->flags)) {
+		mdev->start_resync_timer.expires = jiffies + HZ;
+		add_timer(&mdev->start_resync_timer);
 	}
 
 	return true;

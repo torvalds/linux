@@ -850,6 +850,7 @@ enum {
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, misc wait gets woken */
 	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
+	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */
@@ -961,6 +962,7 @@ struct drbd_conf {
 			  start_resync_work;
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
+	struct timer_list start_resync_timer;
 #ifdef DRBD_DEBUG_MD_SYNC
 	struct {
 		unsigned int line;
@@ -1544,6 +1546,7 @@ extern int w_send_oos(struct drbd_conf *, struct drbd_work *, int);
 extern int w_start_resync(struct drbd_conf *, struct drbd_work *, int);
 
 extern void resync_timer_fn(unsigned long data);
+extern void start_resync_timer_fn(unsigned long data);
 
 /* drbd_receiver.c */
 extern int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector);

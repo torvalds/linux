@@ -2984,12 +2984,16 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	mdev->go_diskless.cb  = w_go_diskless;
 	mdev->md_sync_work.cb = w_md_sync;
 	mdev->bm_io_work.w.cb = w_bitmap_io;
+	mdev->start_resync_work.cb = w_start_resync;
 	init_timer(&mdev->resync_timer);
 	init_timer(&mdev->md_sync_timer);
+	init_timer(&mdev->start_resync_timer);
 	mdev->resync_timer.function = resync_timer_fn;
 	mdev->resync_timer.data = (unsigned long) mdev;
 	mdev->md_sync_timer.function = md_sync_timer_fn;
 	mdev->md_sync_timer.data = (unsigned long) mdev;
+	mdev->start_resync_timer.function = start_resync_timer_fn;
+	mdev->start_resync_timer.data = (unsigned long) mdev;
 
 	init_waitqueue_head(&mdev->misc_wait);
 	init_waitqueue_head(&mdev->state_wait);

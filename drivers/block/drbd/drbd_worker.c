@@ -712,10 +712,24 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 }
 
 
+void start_resync_timer_fn(unsigned long data)
+{
+	struct drbd_conf *mdev = (struct drbd_conf *) data;
+
+	drbd_queue_work(&mdev->data.work, &mdev->start_resync_work);
+}
+
 int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
-	drbd_start_resync(mdev, C_SYNC_SOURCE);
+	if (atomic_read(&mdev->unacked_cnt) || atomic_read(&mdev->rs_pending_cnt)) {
+		dev_warn(DEV, "w_start_resync later...\n");
+		mdev->start_resync_timer.expires = jiffies + HZ/10;
+		add_timer(&mdev->start_resync_timer);
+		return 1;
+	}
 
+	drbd_start_resync(mdev, C_SYNC_SOURCE);
+	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->current_epoch->flags);
 	return 1;
 }
 
