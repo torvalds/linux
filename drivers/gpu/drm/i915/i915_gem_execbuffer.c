@@ -464,8 +464,6 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 	int ret;
 
 	list_for_each_entry(obj, objects, exec_list) {
-		obj->base.pending_read_domains = 0;
-		obj->base.pending_write_domain = 0;
 		ret = i915_gem_execbuffer_relocate_object(obj, eb);
 		if (ret)
 			return ret;
@@ -505,6 +503,9 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			list_move(&obj->exec_list, &ordered_objects);
 		else
 			list_move_tail(&obj->exec_list, &ordered_objects);
+
+		obj->base.pending_read_domains = 0;
+		obj->base.pending_write_domain = 0;
 	}
 	list_splice(&ordered_objects, objects);
 
@@ -636,6 +637,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 {
 	struct drm_i915_gem_relocation_entry *reloc;
 	struct drm_i915_gem_object *obj;
+	int *reloc_offset;
 	int i, total, ret;
 
 	/* We may process another execbuffer during the unlock... */
@@ -653,8 +655,11 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	for (i = 0; i < count; i++)
 		total += exec[i].relocation_count;
 
+	reloc_offset = drm_malloc_ab(count, sizeof(*reloc_offset));
 	reloc = drm_malloc_ab(total, sizeof(*reloc));
-	if (reloc == NULL) {
+	if (reloc == NULL || reloc_offset == NULL) {
+		drm_free_large(reloc);
+		drm_free_large(reloc_offset);
 		mutex_lock(&dev->struct_mutex);
 		return -ENOMEM;
 	}
@@ -672,6 +677,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 			goto err;
 		}
 
+		reloc_offset[i] = total;
 		total += exec[i].relocation_count;
 	}
 
@@ -705,17 +711,12 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	if (ret)
 		goto err;
 
-	total = 0;
 	list_for_each_entry(obj, objects, exec_list) {
-		obj->base.pending_read_domains = 0;
-		obj->base.pending_write_domain = 0;
+		int offset = obj->exec_entry - exec;
 		ret = i915_gem_execbuffer_relocate_object_slow(obj, eb,
-							       reloc + total);
+							       reloc + reloc_offset[offset]);
 		if (ret)
 			goto err;
-
-		total += exec->relocation_count;
-		exec++;
 	}
 
 	/* Leave the user relocations as are, this is the painfully slow path,
@@ -726,6 +727,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 
 err:
 	drm_free_large(reloc);
+	drm_free_large(reloc_offset);
 	return ret;
 }
 
@@ -770,7 +772,8 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 	if (from == NULL || to == from)
 		return 0;
 
-	if (INTEL_INFO(obj->base.dev)->gen < 6)
+	/* XXX gpu semaphores are currently causing hard hangs on SNB mobile */
+	if (INTEL_INFO(obj->base.dev)->gen < 6 || IS_MOBILE(obj->base.dev))
 		return i915_gem_object_wait_rendering(obj, true);
 
 	idx = intel_ring_sync_index(from, to);

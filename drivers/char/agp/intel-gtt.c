@@ -1361,7 +1361,7 @@ static const struct intel_gtt_driver_description {
 		&i81x_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82830_CGC, "830M",
 		&i8xx_gtt_driver},
-	{ PCI_DEVICE_ID_INTEL_82845G_IG, "830M",
+	{ PCI_DEVICE_ID_INTEL_82845G_IG, "845G",
 		&i8xx_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82854_IG, "854",
 		&i8xx_gtt_driver},
