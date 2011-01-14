@@ -42,9 +42,6 @@ enum {
 	/* flags for mem_cgroup and file and I/O status */
 	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
 	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
-	PCG_FILE_DIRTY, /* page is dirty */
-	PCG_FILE_WRITEBACK, /* page is under writeback */
-	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
 	/* No lock in page_cgroup */
 	PCG_ACCT_LRU, /* page has been accounted for (under lru_lock) */
 };
@@ -65,10 +62,6 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
 static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
 
-#define TESTSETPCGFLAG(uname, lname)			\
-static inline int TestSetPageCgroup##uname(struct page_cgroup *pc)	\
-	{ return test_and_set_bit(PCG_##lname, &pc->flags);  }
-
 /* Cache flag is set only once (at allocation) */
 TESTPCGFLAG(Cache, CACHE)
 CLEARPCGFLAG(Cache, CACHE)
@@ -87,22 +80,6 @@ TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
 SETPCGFLAG(FileMapped, FILE_MAPPED)
 CLEARPCGFLAG(FileMapped, FILE_MAPPED)
 TESTPCGFLAG(FileMapped, FILE_MAPPED)
-
-SETPCGFLAG(FileDirty, FILE_DIRTY)
-CLEARPCGFLAG(FileDirty, FILE_DIRTY)
-TESTPCGFLAG(FileDirty, FILE_DIRTY)
-TESTCLEARPCGFLAG(FileDirty, FILE_DIRTY)
-TESTSETPCGFLAG(FileDirty, FILE_DIRTY)
-
-SETPCGFLAG(FileWriteback, FILE_WRITEBACK)
-CLEARPCGFLAG(FileWriteback, FILE_WRITEBACK)
-TESTPCGFLAG(FileWriteback, FILE_WRITEBACK)
-
-SETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-CLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-TESTPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-TESTCLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
-TESTSETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
 
 SETPCGFLAG(Migration, MIGRATION)
 CLEARPCGFLAG(Migration, MIGRATION)
