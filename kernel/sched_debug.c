@@ -296,9 +296,11 @@ static void print_cpu(struct seq_file *m, int cpu)
 	P(ttwu_count);
 	P(ttwu_local);
 
-	P(bkl_count);
+	SEQ_printf(m, "  .%-30s: %d\n", "bkl_count",
+				rq->rq_sched_info.bkl_count);
 
 #undef P
+#undef P64
 #endif
 	spin_lock_irqsave(&sched_debug_lock, flags);
 	print_cfs_stats(m, cpu);
