@@ -1967,7 +1967,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 		else {
 			dev_err(DEV, "--dry-run is not supported by peer");
 			kfree(p);
-			return 0;
+			return -1;
 		}
 	}
 	p->conn_flags    = cpu_to_be32(cf);
