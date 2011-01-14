@@ -183,11 +183,32 @@ static struct platform_device mmc_device = {
 	.resource	= sh_mmcif_resources,
 };
 
+/* IrDA */
+static struct resource irda_resources[] = {
+	[0] = {
+		.start	= 0xE6D00000,
+		.end	= 0xE6D01FD4 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(95),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device irda_device = {
+	.name           = "sh_irda",
+	.id		= 0,
+	.resource       = irda_resources,
+	.num_resources  = ARRAY_SIZE(irda_resources),
+};
+
 static struct platform_device *ag5evm_devices[] __initdata = {
 	&eth_device,
 	&keysc_device,
 	&fsi_device,
 	&mmc_device,
+	&irda_device,
 };
 
 static struct map_desc ag5evm_io_desc[] __initdata = {
@@ -286,6 +307,11 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_FSIAIBT, NULL);
 	gpio_request(GPIO_FN_FSIAISLD, NULL);
 	gpio_request(GPIO_FN_FSIAOSLD, NULL);
+
+	/* IrDA */
+	gpio_request(GPIO_FN_PORT241_IRDA_OUT, NULL);
+	gpio_request(GPIO_FN_PORT242_IRDA_IN,  NULL);
+	gpio_request(GPIO_FN_PORT243_IRDA_FIRSEL, NULL);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Shared attribute override enable, 64K*8way */
