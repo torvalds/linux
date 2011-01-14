@@ -1153,6 +1153,9 @@ static int efx_wanted_channels(void)
 	int count;
 	int cpu;
 
+	if (rss_cpus)
+		return rss_cpus;
+
 	if (unlikely(!zalloc_cpumask_var(&core_mask, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "sfc: RSS disabled due to allocation failure\n");
@@ -1266,27 +1269,18 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 	efx->legacy_irq = 0;
 }
 
-struct efx_tx_queue *
-efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
-{
-	unsigned tx_channel_offset =
-		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
-	EFX_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
-			    type >= EFX_TXQ_TYPES);
-	return &efx->channel[tx_channel_offset + index]->tx_queue[type];
-}
-
 static void efx_set_channels(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	unsigned tx_channel_offset =
+
+	efx->tx_channel_offset =
 		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
 
 	/* Channel pointers were set in efx_init_struct() but we now
 	 * need to clear them for TX queues in any RX-only channels. */
 	efx_for_each_channel(channel, efx) {
-		if (channel->channel - tx_channel_offset >=
+		if (channel->channel - efx->tx_channel_offset >=
 		    efx->n_tx_channels) {
 			efx_for_each_channel_tx_queue(tx_queue, channel)
 				tx_queue->channel = NULL;
