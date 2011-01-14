@@ -58,8 +58,6 @@ static LIST_HEAD(dai_list);
 static LIST_HEAD(platform_list);
 static LIST_HEAD(codec_list);
 
-static int snd_soc_register_card(struct snd_soc_card *card);
-static int snd_soc_unregister_card(struct snd_soc_card *card);
 static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
 
 /*
@@ -1870,6 +1868,13 @@ static int soc_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	int ret = 0;
 
+	/*
+	 * no card, so machine driver should be registering card
+	 * we should not be here in that case so ret error
+	 */
+	if (!card)
+		return -EINVAL;
+
 	/* Bodge while we unpick instantiation */
 	card->dev = &pdev->dev;
 	snd_soc_initialize_card_lists(card);
@@ -3105,11 +3110,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_digital_mute);
  *
  * @card: Card to register
  *
- * Note that currently this is an internal only function: it will be
- * exposed to machine drivers after further backporting of ASoC v2
- * registration APIs.
  */
-static int snd_soc_register_card(struct snd_soc_card *card)
+int snd_soc_register_card(struct snd_soc_card *card)
 {
 	int i;
 
@@ -3141,17 +3143,15 @@ static int snd_soc_register_card(struct snd_soc_card *card)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_soc_register_card);
 
 /**
  * snd_soc_unregister_card - Unregister a card with the ASoC core
  *
  * @card: Card to unregister
  *
- * Note that currently this is an internal only function: it will be
- * exposed to machine drivers after further backporting of ASoC v2
- * registration APIs.
  */
-static int snd_soc_unregister_card(struct snd_soc_card *card)
+int snd_soc_unregister_card(struct snd_soc_card *card)
 {
 	if (card->instantiated)
 		soc_cleanup_card_resources(card);
@@ -3162,6 +3162,7 @@ static int snd_soc_unregister_card(struct snd_soc_card *card)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_soc_unregister_card);
 
 /*
  * Simplify DAI link configuration by removing ".-1" from device names
