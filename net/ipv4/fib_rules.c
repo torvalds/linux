@@ -41,12 +41,12 @@ struct fib4_rule {
 	__be32			srcmask;
 	__be32			dst;
 	__be32			dstmask;
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	u32			tclassid;
 #endif
 };
 
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 u32 fib_rules_tclass(struct fib_result *res)
 {
 	return res->r ? ((struct fib4_rule *) res->r)->tclassid : 0;
@@ -165,7 +165,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	if (frh->dst_len)
 		rule4->dst = nla_get_be32(tb[FRA_DST]);
 
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	if (tb[FRA_FLOW])
 		rule4->tclassid = nla_get_u32(tb[FRA_FLOW]);
 #endif
@@ -195,7 +195,7 @@ static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	if (frh->tos && (rule4->tos != frh->tos))
 		return 0;
 
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	if (tb[FRA_FLOW] && (rule4->tclassid != nla_get_u32(tb[FRA_FLOW])))
 		return 0;
 #endif
@@ -224,7 +224,7 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	if (rule4->src_len)
 		NLA_PUT_BE32(skb, FRA_SRC, rule4->src);
 
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	if (rule4->tclassid)
 		NLA_PUT_U32(skb, FRA_FLOW, rule4->tclassid);
 #endif

@@ -140,6 +140,9 @@ config IP_ROUTE_VERBOSE
 	  handled by the klogd daemon which is responsible for kernel messages
 	  ("man klogd").
 
+config IP_ROUTE_CLASSID
+	bool
+
 config IP_PNP
 	bool "IP: kernel level autoconfiguration"
 	help
@@ -655,4 +658,3 @@ config TCP_MD5SIG
 	  on the Internet.
 
 	  If unsure, say N.
-

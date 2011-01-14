@@ -72,7 +72,7 @@ struct dst_entry {
 
 	u32			metrics[RTAX_MAX];
 
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			tclassid;
 #else
 	__u32			__pad2;
