@@ -1410,11 +1410,15 @@ no_open:
 static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct dentry *parent = NULL;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode;
 	struct inode *dir;
 	struct nfs_open_context *ctx;
 	int openflags, ret = 0;
 
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = dentry->d_inode;
 	if (!is_atomic_open(nd) || d_mountpoint(dentry))
 		goto no_open;
 
