@@ -36,7 +36,7 @@ static long autofs4_root_compat_ioctl(struct file *,unsigned int,unsigned long);
 static int autofs4_dir_open(struct inode *inode, struct file *file);
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
 static struct vfsmount *autofs4_d_automount(struct path *);
-static int autofs4_d_manage(struct dentry *, bool);
+static int autofs4_d_manage(struct dentry *, bool, bool);
 
 const struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
@@ -450,7 +450,7 @@ done:
 	return NULL;
 }
 
-int autofs4_d_manage(struct dentry *dentry, bool mounting_here)
+int autofs4_d_manage(struct dentry *dentry, bool mounting_here, bool rcu_walk)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 
@@ -463,6 +463,10 @@ int autofs4_d_manage(struct dentry *dentry, bool mounting_here)
 			return -EISDIR;
 		return 0;
 	}
+
+	/* We need to sleep, so we need pathwalk to be in ref-mode */
+	if (rcu_walk)
+		return -ECHILD;
 
 	/* Wait for pending expires */
 	do_expire_wait(dentry);

@@ -865,7 +865,7 @@ struct dentry_operations {
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
-	int (*d_manage)(struct dentry *, bool);
+	int (*d_manage)(struct dentry *, bool, bool);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -959,6 +959,11 @@ struct dentry_operations {
 	If the 'mounting_here' parameter is true, then namespace_sem is being
 	held by the caller and the function should not initiate any mounts or
 	unmounts that it will then wait for.
+
+	If the 'rcu_walk' parameter is true, then the caller is doing a
+	pathwalk in RCU-walk mode.  Sleeping is not permitted in this mode,
+	and the caller can be asked to leave it and call again by returing
+	-ECHILD.
 
 	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
 	dentry being transited from.

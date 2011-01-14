@@ -32,7 +32,7 @@ d_release:	no		no		yes		no
 d_iput:		no		no		yes		no
 d_dname:	no		no		no		no
 d_automount:	no		no		yes		no
-d_manage:	no		no		yes		no
+d_manage:	no		no		yes (ref-walk)	maybe
 
 --------------------------- inode_operations --------------------------- 
 prototypes:
