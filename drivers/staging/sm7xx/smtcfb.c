@@ -1071,7 +1071,7 @@ static int __maybe_unused smtcfb_resume(struct pci_dev *pdev)
 	/* when resuming, restore pci data and fb cursor */
 	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
 		retv = pci_set_power_state(pdev, PCI_D0);
-		retv = pci_restore_state(pdev);
+		pci_restore_state(pdev);
 		if (pci_enable_device(pdev))
 			return -1;
 		pci_set_master(pdev);

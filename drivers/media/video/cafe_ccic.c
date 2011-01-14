@@ -2184,9 +2184,7 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 	struct cafe_camera *cam = to_cam(v4l2_dev);
 	int ret = 0;
 
-	ret = pci_restore_state(pdev);
-	if (ret)
-		return ret;
+	pci_restore_state(pdev);
 	ret = pci_enable_device(pdev);
 
 	if (ret) {

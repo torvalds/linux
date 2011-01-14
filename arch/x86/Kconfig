@@ -1934,12 +1934,18 @@ config PCI_MMCONFIG
 	depends on X86_64 && PCI && ACPI
 
 config PCI_CNB20LE_QUIRK
-	bool "Read CNB20LE Host Bridge Windows"
-	depends on PCI
+	bool "Read CNB20LE Host Bridge Windows" if EMBEDDED
+	default n
+	depends on PCI && EXPERIMENTAL
 	help
 	  Read the PCI windows out of the CNB20LE host bridge. This allows
 	  PCI hotplug to work on systems with the CNB20LE chipset which do
 	  not have ACPI.
+
+	  There's no public spec for this chipset, and this functionality
+	  is known to be incomplete.
+
+	  You should say N unless you know you need this.
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"

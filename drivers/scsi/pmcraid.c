@@ -2228,12 +2228,7 @@ static void pmcraid_ioa_reset(struct pmcraid_cmd *cmd)
 		/* Once either bist or pci reset is done, restore PCI config
 		 * space. If this fails, proceed with hard reset again
 		 */
-		if (pci_restore_state(pinstance->pdev)) {
-			pmcraid_info("config-space error resetting again\n");
-			pinstance->ioa_state = IOA_STATE_IN_RESET_ALERT;
-			pmcraid_reset_alert(cmd);
-			break;
-		}
+		pci_restore_state(pinstance->pdev);
 
 		/* fail all pending commands */
 		pmcraid_fail_outstanding_cmds(pinstance);
