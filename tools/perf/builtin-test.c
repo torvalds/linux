@@ -408,6 +408,8 @@ static int test__open_syscall_event_on_all_cpus(void)
 		goto out_close_fd;
 	}
 
+	err = 0;
+
 	for (cpu = 0; cpu < cpus->nr; ++cpu) {
 		unsigned int expected;
 
@@ -416,18 +418,18 @@ static int test__open_syscall_event_on_all_cpus(void)
 
 		if (perf_evsel__read_on_cpu(evsel, cpu, 0) < 0) {
 			pr_debug("perf_evsel__open_read_on_cpu\n");
-			goto out_close_fd;
+			err = -1;
+			break;
 		}
 
 		expected = nr_open_calls + cpu;
 		if (evsel->counts->cpu[cpu].val != expected) {
 			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
 				 expected, cpus->map[cpu], evsel->counts->cpu[cpu].val);
-			goto out_close_fd;
+			err = -1;
 		}
 	}
 
-	err = 0;
 out_close_fd:
 	perf_evsel__close_fd(evsel, 1, threads->nr);
 out_evsel_delete:
