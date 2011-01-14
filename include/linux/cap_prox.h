@@ -47,6 +47,10 @@ struct cap_prox_platform_data {
 	uint8_t key1_save_drift_thres;
 	uint8_t key3_save_drift_thres;
 	uint8_t save_drift_diff_thres;
+	uint8_t key1_failsafe_thres;
+	uint8_t key3_failsafe_thres;
+	uint16_t key2_signal_thres;
+	uint16_t key4_signal_thres;
 
 	struct cap_prox_cfg	plat_cap_prox_cfg;
 };

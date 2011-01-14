@@ -158,32 +158,34 @@ static int cap_prox_read_data(struct cap_prox_data *cp)
 	int key1_save_drift = 0;
 	int key3_save_drift = 0;
 	int save_drift_diff = 0;
+	int key1_key2_signal_drift = 0;
+	int key3_key4_signal_drift = 0;
 	uint8_t mesg_buf[sizeof(struct cap_prox_msg)];
 
 
 	ret = cap_prox_read(cp, mesg_buf, sizeof(struct cap_prox_msg));
 	if (ret) {
 		status = CP_STATUS_NUM_KEYS_ENABLED;
-		pr_info("MK: read failed \n");
+		pr_info("%s: read failed \n",  __func__);
 		goto read_fail_ret;
 	}
 	msg = (struct cap_prox_msg *)mesg_buf;
 
 	if (cp_dbg & 0x02) {
 		pr_info("%s: Cap-Prox data \n", __func__);
-		pr_info(" msg->status 0x%2x \n",msg->status);
-		pr_info(" msg->ref_key1 0x%x \n",msg->ref_key1);
-		pr_info(" msg->ref_key3 0x%x \n",msg->ref_key3);
-		pr_info(" msg->chip_id 0x%2x \n",msg->chip_id);
-		pr_info(" msg->sw_ver 0x%2x \n",msg->sw_ver);
-		pr_info(" msg->signal1 0x%x \n",msg->signal1);
-		pr_info(" msg->signal2 0x%x \n",msg->signal2);
-		pr_info(" msg->signal3 0x%x \n",msg->signal3);
-		pr_info(" msg->signal4 0x%x \n",msg->signal4);
-		pr_info(" msg->save_ref1 0x%x \n",msg->save_ref1);
-		pr_info(" msg->save_ref2 0x%x \n",msg->save_ref2);
-		pr_info(" msg->save_ref3 0x%x \n",msg->save_ref3);
-		pr_info(" msg->save_ref4 0x%x \n\n",msg->save_ref4);
+		pr_info(" msg->status 0x%2x \n", msg->status);
+		pr_info(" msg->ref_key1 %d \n", msg->ref_key1);
+		pr_info(" msg->ref_key3 %d \n", msg->ref_key3);
+		pr_info(" msg->chip_id 0x%2x \n", msg->chip_id);
+		pr_info(" msg->sw_ver 0x%2x \n", msg->sw_ver);
+		pr_info(" msg->signal1 %d \n", msg->signal1);
+		pr_info(" msg->signal2 %d \n", msg->signal2);
+		pr_info(" msg->signal3 %d \n", msg->signal3);
+		pr_info(" msg->signal4 %d \n", msg->signal4);
+		pr_info(" msg->save_ref1 %d \n", msg->save_ref1);
+		pr_info(" msg->save_ref2 %d \n", msg->save_ref2);
+		pr_info(" msg->save_ref3 %d \n", msg->save_ref3);
+		pr_info(" msg->save_ref4 %d \n\n", msg->save_ref4);
 	}
 
 	key1_ref_drift = abs(msg->ref_key1 - msg->signal1);
@@ -192,6 +194,8 @@ static int cap_prox_read_data(struct cap_prox_data *cp)
 	key1_save_drift = abs(msg->save_ref1 - msg->signal1);
 	key3_save_drift = abs(msg->save_ref3 - msg->signal3);
 	save_drift_diff = abs(key3_save_drift - key1_save_drift);
+	key1_key2_signal_drift = abs(msg->signal1 - msg->signal2);
+	key3_key4_signal_drift = abs(msg->signal3 - msg->signal4);
 
 	if (cp_dbg) {
 		pr_info("%s: Key1 ref drift %d \n", __func__, key1_ref_drift);
@@ -200,8 +204,12 @@ static int cap_prox_read_data(struct cap_prox_data *cp)
 			 __func__, ref_drift_diff);
 		pr_info("%s: Key1 save drift %d \n", __func__, key1_save_drift);
 		pr_info("%s: key3 save drift %d \n", __func__, key3_save_drift);
-		pr_info("%s: Key1 Key3 drift diff %d \n\n",
+		pr_info("%s: Key1 Key3 saved drift diff %d \n\n",
 			 __func__, save_drift_diff);
+		pr_info("%s: Key1 Key2 signal/sheild drift diff %d \n\n",
+			 __func__, key1_key2_signal_drift);
+		pr_info("%s: Key3 Key4 signal/sheild drift diff %d \n\n",
+			 __func__, key3_key4_signal_drift);
 	}
 
 	switch (msg->status) {
@@ -218,6 +226,18 @@ static int cap_prox_read_data(struct cap_prox_data *cp)
 		if ((save_drift_diff < cp->pdata->save_drift_diff_thres) &&
 			 (key1_save_drift < cp->pdata->key1_save_drift_thres) &&
 			 (key3_save_drift < cp->pdata->key3_save_drift_thres)) {
+
+			/* Key1 sensor has failed, keep in force detect */
+			if ((key1_key2_signal_drift >
+				 cp->pdata->key1_failsafe_thres) &&
+				 (msg->signal2 > cp->pdata->key2_signal_thres))
+				break;
+
+			/* Key3 sensor has failed, keep in force detect */
+			if ((key3_key4_signal_drift >
+				 cp->pdata->key3_failsafe_thres) &&
+				 (msg->signal4 > cp->pdata->key4_signal_thres))
+				break;
 
 			status = msg->status & 0xF0;
 			cap_prox_write(cp,&status,1);
