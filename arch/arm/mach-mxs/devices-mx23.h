@@ -10,6 +10,7 @@
  */
 #include <mach/mx23.h>
 #include <mach/devices-common.h>
+#include <mach/mxsfb.h>
 
 extern const struct amba_device mx23_duart_device __initconst;
 #define mx23_add_duart() \
@@ -21,3 +22,6 @@ extern const struct mxs_auart_data mx23_auart_data[] __initconst;
 #define mx23_add_auart1()		mx23_add_auart(1)
 
 #define mx23_add_mxs_pwm(id)		mxs_add_mxs_pwm(MX23_PWM_BASE_ADDR, id)
+
+struct platform_device *__init mx23_add_mxsfb(
+		const struct mxsfb_platform_data *pdata);

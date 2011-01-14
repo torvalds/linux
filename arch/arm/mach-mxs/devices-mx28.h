@@ -10,6 +10,7 @@
  */
 #include <mach/mx28.h>
 #include <mach/devices-common.h>
+#include <mach/mxsfb.h>
 
 extern const struct amba_device mx28_duart_device __initconst;
 #define mx28_add_duart() \
@@ -37,3 +38,6 @@ extern const struct mxs_i2c_data mx28_mxs_i2c_data[] __initconst;
 #define mx28_add_mxs_i2c(id)		mxs_add_mxs_i2c(&mx28_mxs_i2c_data[id])
 
 #define mx28_add_mxs_pwm(id)		mxs_add_mxs_pwm(MX28_PWM_BASE_ADDR, id)
+
+struct platform_device *__init mx28_add_mxsfb(
+		const struct mxsfb_platform_data *pdata);
