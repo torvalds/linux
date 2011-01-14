@@ -2712,7 +2712,7 @@ vmxnet3_acquire_msix_vectors(struct vmxnet3_adapter *adapter,
 			break;
 		} else {
 			/* If fails to enable required number of MSI-x vectors
-			 * try enabling 3 of them. One each for rx, tx and event
+			 * try enabling minimum number of vectors required.
 			 */
 			vectors = vector_threshold;
 			printk(KERN_ERR "Failed to enable %d MSI-X for %s, try"
@@ -2774,7 +2774,7 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 		 */
 		if (err == VMXNET3_LINUX_MIN_MSIX_VECT) {
 			if (adapter->share_intr != VMXNET3_INTR_BUDDYSHARE
-			    || adapter->num_rx_queues != 2) {
+			    || adapter->num_rx_queues != 1) {
 				adapter->share_intr = VMXNET3_INTR_TXSHARE;
 				printk(KERN_ERR "Number of rx queues : 1\n");
 				adapter->num_rx_queues = 1;
