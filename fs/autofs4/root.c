@@ -151,11 +151,8 @@ void autofs4_dentry_release(struct dentry *de)
 	DPRINTK("releasing %p", de);
 
 	inf = autofs4_dentry_ino(de);
-	de->d_fsdata = NULL;
-
 	if (inf) {
 		struct autofs_sb_info *sbi = autofs4_sbi(de->d_sb);
-
 		if (sbi) {
 			spin_lock(&sbi->lookup_lock);
 			if (!list_empty(&inf->active))
@@ -164,10 +161,6 @@ void autofs4_dentry_release(struct dentry *de)
 				list_del(&inf->expiring);
 			spin_unlock(&sbi->lookup_lock);
 		}
-
-		inf->dentry = NULL;
-		inf->inode = NULL;
-
 		autofs4_free_ino(inf);
 	}
 }
@@ -583,7 +576,6 @@ static int autofs4_dir_symlink(struct inode *dir,
 	p_ino = autofs4_dentry_ino(dentry->d_parent);
 	if (p_ino && dentry->d_parent != dentry)
 		atomic_inc(&p_ino->count);
-	ino->inode = inode;
 
 	ino->u.symlink = cp;
 	dir->i_mtime = CURRENT_TIME;
@@ -713,7 +705,6 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	p_ino = autofs4_dentry_ino(dentry->d_parent);
 	if (p_ino && dentry->d_parent != dentry)
 		atomic_inc(&p_ino->count);
-	ino->inode = inode;
 	inc_nlink(dir);
 	dir->i_mtime = CURRENT_TIME;
 
