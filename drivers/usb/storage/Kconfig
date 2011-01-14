@@ -31,6 +31,16 @@ config USB_STORAGE_DEBUG
 	  Say Y here in order to have the USB Mass Storage code generate
 	  verbose debugging messages.
 
+config USB_STORAGE_REALTEK
+	tristate "Realtek Card Reader support"
+	depends on USB_STORAGE
+	help
+	  Say Y here to include additional code to support the power-saving function
+	  for Realtek RTS51xx USB card readers.
+
+	  If this driver is compiled as a module, it will be named ums-realtek.
+
+
 config USB_STORAGE_DATAFAB
 	tristate "Datafab Compact Flash Reader support"
 	depends on USB_STORAGE
