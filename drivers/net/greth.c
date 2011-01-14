@@ -503,7 +503,7 @@ greth_start_xmit_gbit(struct sk_buff *skb, struct net_device *dev)
 		greth->tx_skbuff[curr_tx] = NULL;
 		bdp = greth->tx_bd_base + curr_tx;
 
-		status = GRETH_TXBD_CSALL;
+		status = GRETH_TXBD_CSALL | GRETH_BD_EN;
 		status |= frag->size & GRETH_BD_LEN;
 
 		/* Wrap around descriptor ring */
@@ -540,26 +540,27 @@ greth_start_xmit_gbit(struct sk_buff *skb, struct net_device *dev)
 
 	wmb();
 
-	/* Enable the descriptors that we configured ...  */
-	for (i = 0; i < nr_frags + 1; i++) {
-		bdp = greth->tx_bd_base + greth->tx_next;
-		greth_write_bd(&bdp->stat, greth_read_bd(&bdp->stat) | GRETH_BD_EN);
-		greth->tx_next = NEXT_TX(greth->tx_next);
-		greth->tx_free--;
-	}
+	/* Enable the descriptor chain by enabling the first descriptor */
+	bdp = greth->tx_bd_base + greth->tx_next;
+	greth_write_bd(&bdp->stat, greth_read_bd(&bdp->stat) | GRETH_BD_EN);
+	greth->tx_next = curr_tx;
+	greth->tx_free -= nr_frags + 1;
+
+	wmb();
 
 	greth_enable_tx(greth);
 
 	return NETDEV_TX_OK;
 
 frag_map_error:
-	/* Unmap SKB mappings that succeeded */
+	/* Unmap SKB mappings that succeeded and disable descriptor */
 	for (i = 0; greth->tx_next + i != curr_tx; i++) {
 		bdp = greth->tx_bd_base + greth->tx_next + i;
 		dma_unmap_single(greth->dev,
 				 greth_read_bd(&bdp->addr),
 				 greth_read_bd(&bdp->stat) & GRETH_BD_LEN,
 				 DMA_TO_DEVICE);
+		greth_write_bd(&bdp->stat, 0);
 	}
 map_error:
 	if (net_ratelimit())
