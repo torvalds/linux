@@ -779,7 +779,8 @@ static void path_put_conditional(struct path *path, struct nameidata *nd)
 		mntput(path->mnt);
 }
 
-static inline void path_to_nameidata(struct path *path, struct nameidata *nd)
+static inline void path_to_nameidata(const struct path *path,
+					struct nameidata *nd)
 {
 	if (!(nd->flags & LOOKUP_RCU)) {
 		dput(nd->path.dentry);
@@ -791,20 +792,20 @@ static inline void path_to_nameidata(struct path *path, struct nameidata *nd)
 }
 
 static __always_inline int
-__do_follow_link(struct path *path, struct nameidata *nd, void **p)
+__do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 {
 	int error;
-	struct dentry *dentry = path->dentry;
+	struct dentry *dentry = link->dentry;
 
-	touch_atime(path->mnt, dentry);
+	touch_atime(link->mnt, dentry);
 	nd_set_link(nd, NULL);
 
-	if (path->mnt != nd->path.mnt) {
-		path_to_nameidata(path, nd);
+	if (link->mnt != nd->path.mnt) {
+		path_to_nameidata(link, nd);
 		nd->inode = nd->path.dentry->d_inode;
 		dget(dentry);
 	}
-	mntget(path->mnt);
+	mntget(link->mnt);
 
 	nd->last_type = LAST_BIND;
 	*p = dentry->d_inode->i_op->follow_link(dentry, nd);
@@ -2348,11 +2349,12 @@ reval:
 	nd.flags = flags;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
-		struct path holder;
+		struct path link = path;
+		struct inode *linki = link.dentry->d_inode;
 		void *cookie;
 		error = -ELOOP;
 		/* S_ISDIR part is a temporary automount kludge */
-		if (!(nd.flags & LOOKUP_FOLLOW) && !S_ISDIR(nd.inode->i_mode))
+		if (!(nd.flags & LOOKUP_FOLLOW) && !S_ISDIR(linki->i_mode))
 			goto exit_dput;
 		if (count++ == 32)
 			goto exit_dput;
@@ -2368,23 +2370,22 @@ reval:
 		 * just set LAST_BIND.
 		 */
 		nd.flags |= LOOKUP_PARENT;
-		error = security_inode_follow_link(path.dentry, &nd);
+		error = security_inode_follow_link(link.dentry, &nd);
 		if (error)
 			goto exit_dput;
-		error = __do_follow_link(&path, &nd, &cookie);
+		error = __do_follow_link(&link, &nd, &cookie);
 		if (unlikely(error)) {
-			if (!IS_ERR(cookie) && nd.inode->i_op->put_link)
-				nd.inode->i_op->put_link(path.dentry, &nd, cookie);
+			if (!IS_ERR(cookie) && linki->i_op->put_link)
+				linki->i_op->put_link(link.dentry, &nd, cookie);
 			/* nd.path had been dropped */
-			nd.path = path;
+			nd.path = link;
 			goto out_path;
 		}
-		holder = path;
 		nd.flags &= ~LOOKUP_PARENT;
 		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
-		if (nd.inode->i_op->put_link)
-			nd.inode->i_op->put_link(holder.dentry, &nd, cookie);
-		path_put(&holder);
+		if (linki->i_op->put_link)
+			linki->i_op->put_link(link.dentry, &nd, cookie);
+		path_put(&link);
 	}
 out:
 	if (nd.root.mnt)
