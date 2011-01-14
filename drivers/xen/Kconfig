@@ -71,7 +71,14 @@ config XEN_SYS_HYPERVISOR
 	 but will have no xen contents.
 
 config XEN_XENBUS_FRONTEND
-       tristate
+	tristate
+
+config XEN_GNTDEV
+	tristate "userspace grant access device driver"
+	depends on XEN
+	select MMU_NOTIFIER
+	help
+	  Allows userspace processes to use grants.
 
 config XEN_PLATFORM_PCI
 	tristate "xen platform pci device driver"
