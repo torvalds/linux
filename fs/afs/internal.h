@@ -577,6 +577,7 @@ extern int afs_drop_inode(struct inode *);
 /*
  * main.c
  */
+extern struct workqueue_struct *afs_wq;
 extern struct afs_uuid afs_uuid;
 
 /*

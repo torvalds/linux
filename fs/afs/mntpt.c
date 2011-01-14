@@ -268,8 +268,8 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 		path_put(&nd->path);
 		nd->path.mnt = newmnt;
 		nd->path.dentry = dget(newmnt->mnt_root);
-		schedule_delayed_work(&afs_mntpt_expiry_timer,
-				      afs_mntpt_expiry_timeout * HZ);
+		queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
+				   afs_mntpt_expiry_timeout * HZ);
 		break;
 	case -EBUSY:
 		/* someone else made a mount here whilst we were busy */
@@ -295,8 +295,8 @@ static void afs_mntpt_expiry_timed_out(struct work_struct *work)
 
 	if (!list_empty(&afs_vfsmounts)) {
 		mark_mounts_for_expiry(&afs_vfsmounts);
-		schedule_delayed_work(&afs_mntpt_expiry_timer,
-				      afs_mntpt_expiry_timeout * HZ);
+		queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
+				   afs_mntpt_expiry_timeout * HZ);
 	}
 
 	_leave("");
@@ -310,6 +310,5 @@ void afs_mntpt_kill_timer(void)
 	_enter("");
 
 	ASSERT(list_empty(&afs_vfsmounts));
-	cancel_delayed_work(&afs_mntpt_expiry_timer);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&afs_mntpt_expiry_timer);
 }
