@@ -6592,13 +6592,12 @@ F:	Documentation/i2c/busses/i2c-viapro
 F:	drivers/i2c/busses/i2c-viapro.c
 
 VIA SD/MMC CARD CONTROLLER DRIVER
-M:	Joseph Chan <JosephChan@via.com.tw>
+M:	Bruce Chang <brucechang@via.com.tw>
 M:	Harald Welte <HaraldWelte@viatech.com>
 S:	Maintained
 F:	drivers/mmc/host/via-sdmmc.c
 
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
-M:	Joseph Chan <JosephChan@via.com.tw>
 M:	Florian Tobias Schandinat <FlorianSchandinat@gmx.de>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained

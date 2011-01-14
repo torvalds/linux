@@ -94,12 +94,12 @@ struct sh_mmcif_plat_data {
 
 static inline u32 sh_mmcif_readl(void __iomem *addr, int reg)
 {
-	return readl(addr + reg);
+	return __raw_readl(addr + reg);
 }
 
 static inline void sh_mmcif_writel(void __iomem *addr, int reg, u32 val)
 {
-	writel(val, addr + reg);
+	__raw_writel(val, addr + reg);
 }
 
 #define SH_MMCIF_BBS 512 /* boot block size */
