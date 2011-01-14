@@ -1600,6 +1600,9 @@ static struct of_device_id greth_of_match[] = {
 	{
 	 .name = "GAISLER_ETHMAC",
 	 },
+	{
+	 .name = "01_01d",
+	 },
 	{},
 };
 
