@@ -1238,6 +1238,9 @@ static int simple_playback_pcm_open(struct hda_pcm_stream *hinfo,
 		snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_CHANNELS,
 				hw_constraints_channels);
+	} else {
+		snd_pcm_hw_constraint_step(substream->runtime, 0,
+					   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 	}
 
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
