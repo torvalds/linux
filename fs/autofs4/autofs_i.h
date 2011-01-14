@@ -218,6 +218,36 @@ extern const struct inode_operations autofs4_direct_root_inode_operations;
 extern const struct file_operations autofs4_dir_operations;
 extern const struct file_operations autofs4_root_operations;
 
+/* Operations methods */
+
+struct vfsmount *autofs4_d_automount(struct path *);
+
+/* VFS automount flags management functions */
+
+static inline void __managed_dentry_set_automount(struct dentry *dentry)
+{
+	dentry->d_flags |= DCACHE_NEED_AUTOMOUNT;
+}
+
+static inline void managed_dentry_set_automount(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_set_automount(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_clear_automount(struct dentry *dentry)
+{
+	dentry->d_flags &= ~DCACHE_NEED_AUTOMOUNT;
+}
+
+static inline void managed_dentry_clear_automount(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_clear_automount(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
 /* Initializing function */
 
 int autofs4_fill_super(struct super_block *, void *, int);
