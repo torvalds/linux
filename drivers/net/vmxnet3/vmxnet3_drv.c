@@ -3101,6 +3101,9 @@ vmxnet3_suspend(struct device *device)
 	if (!netif_running(netdev))
 		return 0;
 
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		napi_disable(&adapter->rx_queue[i].napi);
+
 	vmxnet3_disable_all_intrs(adapter);
 	vmxnet3_free_irqs(adapter);
 	vmxnet3_free_intr_resources(adapter);
@@ -3192,7 +3195,7 @@ skip_arp:
 static int
 vmxnet3_resume(struct device *device)
 {
-	int err;
+	int err, i = 0;
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
@@ -3224,6 +3227,8 @@ vmxnet3_resume(struct device *device)
 			       VMXNET3_CMD_UPDATE_PMCFG);
 	vmxnet3_alloc_intr_resources(adapter);
 	vmxnet3_request_irqs(adapter);
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		napi_enable(&adapter->rx_queue[i].napi);
 	vmxnet3_enable_all_intrs(adapter);
 
 	return 0;
