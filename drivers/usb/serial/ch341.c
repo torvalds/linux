@@ -479,12 +479,22 @@ static void ch341_read_int_callback(struct urb *urb)
 	if (actual_length >= 4) {
 		struct ch341_private *priv = usb_get_serial_port_data(port);
 		unsigned long flags;
+		u8 prev_line_status = priv->line_status;
 
 		spin_lock_irqsave(&priv->lock, flags);
 		priv->line_status = (~(data[2])) & CH341_BITS_MODEM_STAT;
 		if ((data[1] & CH341_MULT_STAT))
 			priv->multi_status_change = 1;
 		spin_unlock_irqrestore(&priv->lock, flags);
+
+		if ((priv->line_status ^ prev_line_status) & CH341_BIT_DCD) {
+			struct tty_struct *tty = tty_port_tty_get(&port->port);
+			if (tty)
+				usb_serial_handle_dcd_change(port, tty,
+					    priv->line_status & CH341_BIT_DCD);
+			tty_kref_put(tty);
+		}
+
 		wake_up_interruptible(&priv->delta_msr_wait);
 	}
 

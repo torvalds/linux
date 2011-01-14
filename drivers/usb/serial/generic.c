@@ -578,6 +578,26 @@ int usb_serial_handle_break(struct usb_serial_port *port)
 }
 EXPORT_SYMBOL_GPL(usb_serial_handle_break);
 
+/**
+ *	usb_serial_handle_dcd_change - handle a change of carrier detect state
+ *	@port: usb_serial_port structure for the open port
+ *	@tty: tty_struct structure for the port
+ *	@status: new carrier detect status, nonzero if active
+ */
+void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
+				struct tty_struct *tty, unsigned int status)
+{
+	struct tty_port *port = &usb_port->port;
+
+	dbg("%s - port %d, status %d", __func__, usb_port->number, status);
+
+	if (status)
+		wake_up_interruptible(&port->open_wait);
+	else if (tty && !C_CLOCAL(tty))
+		tty_hangup(tty);
+}
+EXPORT_SYMBOL_GPL(usb_serial_handle_dcd_change);
+
 int usb_serial_generic_resume(struct usb_serial *serial)
 {
 	struct usb_serial_port *port;
