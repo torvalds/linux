@@ -232,6 +232,7 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 		tuner_i2c_xfer_send(&priv->i2c_props, pll_bw_nom, 2);
 	}
 
+
 	tda8290_i2c_bridge(fe, 1);
 
 	if (fe->ops.tuner_ops.set_analog_params)

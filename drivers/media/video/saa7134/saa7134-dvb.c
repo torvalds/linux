@@ -237,6 +237,8 @@ static struct tda18271_std_map mb86a20s_tda18271_std_map = {
 static struct tda18271_config kworld_tda18271_config = {
 	.std_map = &mb86a20s_tda18271_std_map,
 	.gate    = TDA18271_GATE_DIGITAL,
+	.config  = 3,	/* Use tuner callback for AGC */
+
 };
 
 static const struct mb86a20s_config kworld_mb86a20s_config = {
@@ -1654,24 +1656,16 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
-		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x14000);
-		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x14000);
-		msleep(20);
-		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x54000);
-		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x54000);
-		msleep(20);
+		/* Switch to digital mode */
+		saa7134_tuner_callback(dev, 0,
+				       TDA18271_CALLBACK_CMD_AGC_ENABLE, 1);
 		fe0->dvb.frontend = dvb_attach(mb86a20s_attach,
 					       &kworld_mb86a20s_config,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend != NULL) {
-#if 0
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
 				   &tda829x_no_probe);
-#else
-			dvb_attach(tda829x_attach, fe0->dvb.frontend,
-				   &dev->i2c_adap, 0x4b, NULL);
-#endif
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &kworld_tda18271_config);
