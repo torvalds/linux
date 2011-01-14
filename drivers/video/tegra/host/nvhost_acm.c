@@ -99,6 +99,12 @@ static const char *get_module_clk_id(const char *module, int index)
 {
 	if (index == 1 && strcmp(module, "gr2d") == 0)
 		return "epp";
+	else if (index == 2 && strcmp(module, "gr2d") == 0)
+		return "emc";
+	else if (index == 1 && strcmp(module, "gr3d") == 0)
+		return "emc";
+	else if (index == 1 && strcmp(module, "mpe") == 0)
+		return "emc";
 	else if (index == 0)
 		return module;
 	return NULL;
