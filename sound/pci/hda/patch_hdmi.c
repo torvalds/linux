@@ -850,6 +850,9 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	runtime->hw.channels_max = hinfo->channels_max;
 	runtime->hw.formats = hinfo->formats;
 	runtime->hw.rates = hinfo->rates;
+
+	snd_pcm_hw_constraint_step(substream->runtime, 0,
+				   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 	return 0;
 }
 
