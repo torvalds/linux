@@ -48,6 +48,9 @@ static atomic_t devices_found;
 static int enable_mq = 1;
 static int irq_share_mode;
 
+static void
+vmxnet3_write_mac_addr(struct vmxnet3_adapter *adapter, u8 *mac);
+
 /*
  *    Enable/Disable the given intr
  */
@@ -2168,6 +2171,8 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 	/* rx filter settings */
 	devRead->rxFilterConf.rxMode = 0;
 	vmxnet3_restore_vlan(adapter);
+	vmxnet3_write_mac_addr(adapter, adapter->netdev->dev_addr);
+
 	/* the rest are already zeroed */
 }
 
