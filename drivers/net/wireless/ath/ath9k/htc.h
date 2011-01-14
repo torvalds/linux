@@ -366,7 +366,7 @@ struct ath9k_htc_priv {
 	u16 seq_no;
 	u32 bmiss_cnt;
 
-	struct ath9k_hw_cal_data caldata[ATH9K_NUM_CHANNELS];
+	struct ath9k_hw_cal_data caldata;
 
 	spinlock_t beacon_lock;
 

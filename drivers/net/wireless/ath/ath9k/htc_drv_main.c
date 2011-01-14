@@ -121,7 +121,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_channel *channel = priv->hw->conf.channel;
-	struct ath9k_hw_cal_data *caldata;
+	struct ath9k_hw_cal_data *caldata = NULL;
 	enum htc_phymode mode;
 	__be16 htc_mode;
 	u8 cmd_rsp;
@@ -139,7 +139,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
 
-	caldata = &priv->caldata[channel->hw_value];
+	caldata = &priv->caldata;
 	ret = ath9k_hw_reset(ah, ah->curchan, caldata, false);
 	if (ret) {
 		ath_err(common,
@@ -202,7 +202,8 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 		channel->center_freq, conf_is_ht(conf), conf_is_ht40(conf),
 		fastcc);
 
-	caldata = &priv->caldata[channel->hw_value];
+	if (!fastcc)
+		caldata = &priv->caldata;
 	ret = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (ret) {
 		ath_err(common,
