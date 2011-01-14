@@ -82,7 +82,7 @@ static inline void callchain_init(struct callchain_root *root)
 	root->max_depth = 0;
 }
 
-static inline u64 cumul_hits(struct callchain_node *node)
+static inline u64 callchain_cumul_hits(struct callchain_node *node)
 {
 	return node->hit + node->children_hit;
 }

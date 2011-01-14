@@ -430,7 +430,7 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 		u64 cumul;
 
 		child = rb_entry(node, struct callchain_node, rb_node);
-		cumul = cumul_hits(child);
+		cumul = callchain_cumul_hits(child);
 		remaining -= cumul;
 
 		/*

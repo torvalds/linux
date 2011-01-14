@@ -377,7 +377,7 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *self,
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
 		struct rb_node *next = rb_next(node);
-		u64 cumul = cumul_hits(child);
+		u64 cumul = callchain_cumul_hits(child);
 		struct callchain_list *chain;
 		char folded_sign = ' ';
 		int first = true;
