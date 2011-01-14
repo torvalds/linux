@@ -99,7 +99,6 @@ struct autofs_info {
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
-#define AUTOFS_INF_MOUNTPOINT	(1<<1) /* mountpoint status for direct expire */
 #define AUTOFS_INF_PENDING	(1<<2) /* dentry pending mount */
 
 struct autofs_wait_queue {
@@ -221,6 +220,7 @@ extern const struct file_operations autofs4_root_operations;
 /* Operations methods */
 
 struct vfsmount *autofs4_d_automount(struct path *);
+int autofs4_d_manage(struct dentry *, bool);
 
 /* VFS automount flags management functions */
 
@@ -245,6 +245,54 @@ static inline void managed_dentry_clear_automount(struct dentry *dentry)
 {
 	spin_lock(&dentry->d_lock);
 	__managed_dentry_clear_automount(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_set_transit(struct dentry *dentry)
+{
+	dentry->d_flags |= DCACHE_MANAGE_TRANSIT;
+}
+
+static inline void managed_dentry_set_transit(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_set_transit(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_clear_transit(struct dentry *dentry)
+{
+	dentry->d_flags &= ~DCACHE_MANAGE_TRANSIT;
+}
+
+static inline void managed_dentry_clear_transit(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_clear_transit(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_set_managed(struct dentry *dentry)
+{
+	dentry->d_flags |= (DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT);
+}
+
+static inline void managed_dentry_set_managed(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_set_managed(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_clear_managed(struct dentry *dentry)
+{
+	dentry->d_flags &= ~(DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT);
+}
+
+static inline void managed_dentry_clear_managed(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_clear_managed(dentry);
 	spin_unlock(&dentry->d_lock);
 }
 

@@ -424,6 +424,7 @@ static const struct dentry_operations autofs4_root_dentry_operations = {
 /* For other dentries */
 static const struct dentry_operations autofs4_dentry_operations = {
 	.d_automount	= autofs4_d_automount,
+	.d_manage	= autofs4_d_manage,
 	.d_release	= autofs4_dentry_release,
 };
 
@@ -604,6 +605,18 @@ struct vfsmount *autofs4_d_automount(struct path *path)
 	DPRINTK("dentry=%p %.*s",
 		dentry, dentry->d_name.len, dentry->d_name.name);
 
+	/*
+	 * Someone may have manually umounted this or it was a submount
+	 * that has gone away.
+	 */
+	spin_lock(&dentry->d_lock);
+	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
+		if (!(dentry->d_flags & DCACHE_MANAGE_TRANSIT) &&
+		     (dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
+			__managed_dentry_set_transit(path->dentry);
+	}
+	spin_unlock(&dentry->d_lock);
+
 	/* The daemon never triggers a mount. */
 	if (autofs4_oz_mode(sbi))
 		return NULL;
@@ -633,31 +646,63 @@ struct vfsmount *autofs4_d_automount(struct path *path)
 
 	/*
 	 * If the dentry is a symlink it's equivalent to a directory
-	 * having d_mounted() true, so there's no need to call back
+	 * having d_mountpoint() true, so there's no need to call back
 	 * to the daemon.
 	 */
 	if (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode))
 		goto done;
-	spin_lock(&dentry->d_lock);
-	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
+	if (!d_mountpoint(dentry)) {
+		/*
+		 * It's possible that user space hasn't removed directories
+		 * after umounting a rootless multi-mount, although it
+		 * should. For v5 have_submounts() is sufficient to handle
+		 * this because the leaves of the directory tree under the
+		 * mount never trigger mounts themselves (they have an autofs
+		 * trigger mount mounted on them). But v4 pseudo direct mounts
+		 * do need the leaves to to trigger mounts. In this case we
+		 * have no choice but to use the list_empty() check and
+		 * require user space behave.
+		 */
+		if (sbi->version > 4) {
+			if (have_submounts(dentry))
+				goto done;
+		} else {
+			spin_lock(&dentry->d_lock);
+			if (!list_empty(&dentry->d_subdirs)) {
+				spin_unlock(&dentry->d_lock);
+				goto done;
+			}
+			spin_unlock(&dentry->d_lock);
+		}
 		ino->flags |= AUTOFS_INF_PENDING;
-		spin_unlock(&dentry->d_lock);
 		spin_unlock(&sbi->fs_lock);
 		status = autofs4_mount_wait(dentry);
 		if (status)
 			return ERR_PTR(status);
 		spin_lock(&sbi->fs_lock);
 		ino->flags &= ~AUTOFS_INF_PENDING;
-		goto done;
 	}
-	spin_unlock(&dentry->d_lock);
 done:
-	/*
-	 * Any needed mounting has been completed and the path updated
-	 * so turn this into a normal dentry so we don't continually
-	 * call ->d_automount().
-	 */
-	managed_dentry_clear_automount(dentry);
+	if (!(ino->flags & AUTOFS_INF_EXPIRING)) {
+		/*
+		 * Any needed mounting has been completed and the path updated
+		 * so turn this into a normal dentry so we don't continually
+		 * call ->d_automount() and ->d_manage().
+		 */
+		spin_lock(&dentry->d_lock);
+		__managed_dentry_clear_transit(dentry);
+		/*
+		 * Only clear DMANAGED_AUTOMOUNT for rootless multi-mounts and
+		 * symlinks as in all other cases the dentry will be covered by
+		 * an actual mount so ->d_automount() won't be called during
+		 * the follow.
+		 */
+		if ((!d_mountpoint(dentry) &&
+		    !list_empty(&dentry->d_subdirs)) ||
+		    (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode)))
+			__managed_dentry_clear_automount(dentry);
+		spin_unlock(&dentry->d_lock);
+	}
 	spin_unlock(&sbi->fs_lock);
 
 	/* Mount succeeded, check if we ended up with a new dentry */
@@ -666,6 +711,30 @@ done:
 		return ERR_PTR(-ENOENT);
 
 	return NULL;
+}
+
+int autofs4_d_manage(struct dentry *dentry, bool mounting_here)
+{
+	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
+
+	DPRINTK("dentry=%p %.*s",
+		dentry, dentry->d_name.len, dentry->d_name.name);
+
+	/* The daemon never waits. */
+	if (autofs4_oz_mode(sbi) || mounting_here) {
+		if (!d_mountpoint(dentry))
+			return -EISDIR;
+		return 0;
+	}
+
+	/* Wait for pending expires */
+	do_expire_wait(dentry);
+
+	/*
+	 * This dentry may be under construction so wait on mount
+	 * completion.
+	 */
+	return autofs4_mount_wait(dentry);
 }
 
 /* Lookups in the root directory */
@@ -704,7 +773,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		/* Mark entries in the root as mount triggers */
 		if (autofs_type_indirect(sbi->type) && IS_ROOT(dentry->d_parent)) {
 			d_set_d_op(dentry, &autofs4_dentry_operations);
-			managed_dentry_set_automount(dentry);
+			__managed_dentry_set_managed(dentry);
 		}
 
 		ino = autofs4_init_ino(NULL, sbi, 0555);

@@ -253,6 +253,7 @@ static struct autofs_info *autofs4_mkroot(struct autofs_sb_info *sbi)
 
 static const struct dentry_operations autofs4_sb_dentry_operations = {
 	.d_automount	= autofs4_d_automount,
+	.d_manage	= autofs4_d_manage,
 	.d_release      = autofs4_dentry_release,
 };
 
@@ -322,7 +323,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	}
 
 	if (autofs_type_trigger(sbi->type))
-		__managed_dentry_set_automount(root);
+		__managed_dentry_set_managed(root);
 
 	root_inode->i_fop = &autofs4_root_operations;
 	root_inode->i_op = autofs_type_trigger(sbi->type) ?
