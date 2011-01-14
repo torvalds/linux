@@ -2032,7 +2032,7 @@ static void ucc_geth_set_multi(struct net_device *dev)
 			netdev_for_each_mc_addr(ha, dev) {
 				/* Only support group multicast for now.
 				 */
-				if (!(ha->addr[0] & 1))
+				if (!is_multicast_ether_addr(ha->addr))
 					continue;
 
 				/* Ask CPM to run CRC and set bit in

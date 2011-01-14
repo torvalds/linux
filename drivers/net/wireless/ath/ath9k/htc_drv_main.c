@@ -301,6 +301,16 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 
 	priv->nstations++;
 
+	/*
+	 * Set chainmask etc. on the target.
+	 */
+	ret = ath9k_htc_update_cap_target(priv);
+	if (ret)
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Failed to update capability in target\n");
+
+	priv->ah->is_monitoring = true;
+
 	return 0;
 
 err_vif:
@@ -328,6 +338,7 @@ static int ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 	}
 
 	priv->nstations--;
+	priv->ah->is_monitoring = false;
 
 	return 0;
 }
@@ -419,7 +430,7 @@ static int ath9k_htc_remove_station(struct ath9k_htc_priv *priv,
 	return 0;
 }
 
-static int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
+int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
 {
 	struct ath9k_htc_cap_target tcap;
 	int ret;
@@ -1186,6 +1197,20 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	/*
+	 * Monitor interface should be added before
+	 * IEEE80211_CONF_CHANGE_CHANNEL is handled.
+	 */
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		if (conf->flags & IEEE80211_CONF_MONITOR) {
+			if (ath9k_htc_add_monitor_interface(priv))
+				ath_err(common, "Failed to set monitor mode\n");
+			else
+				ath_dbg(common, ATH_DBG_CONFIG,
+					"HW opmode set to Monitor mode\n");
+		}
+	}
+
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
@@ -1219,16 +1244,6 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		priv->txpowlimit = 2 * conf->power_level;
 		ath_update_txpow(priv);
-	}
-
-	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
-		if (conf->flags & IEEE80211_CONF_MONITOR) {
-			if (ath9k_htc_add_monitor_interface(priv))
-				ath_err(common, "Failed to set monitor mode\n");
-			else
-				ath_dbg(common, ATH_DBG_CONFIG,
-					"HW opmode set to Monitor mode\n");
-		}
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
