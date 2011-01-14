@@ -98,7 +98,6 @@ struct mdm6600_port {
 	int opened;
 	int number;
 	u16 tiocm_status;
-	struct work_struct wake_work;
 };
 
 static int mdm6600_wake_irq;
@@ -113,24 +112,16 @@ static void mdm6600_read_bulk_cb(struct urb *urb);
 static void mdm6600_write_bulk_cb(struct urb *urb);
 static void mdm6600_release(struct usb_serial *serial);
 
-static void mdm6600_wake_work(struct work_struct *work)
-{
-	struct mdm6600_port *modem = container_of(work, struct mdm6600_port,
-		wake_work);
-
-	dbg("%s: port %d", __func__, modem->number);
-	/* let usbcore auto-resume the modem */
-	if (usb_autopm_get_interface(modem->serial->interface) == 0)
-		/* set usage count back to 0 */
-		usb_autopm_put_interface_no_suspend(modem->serial->interface);
-}
-
 static irqreturn_t mdm6600_irq_handler(int irq, void *ptr)
 {
 	struct mdm6600_port *modem = ptr;
 
 	wake_lock_timeout(&modem->readlock, MODEM_WAKELOCK_TIME);
-	queue_work(system_nrt_wq, &modem->wake_work);
+
+	/* let usbcore auto-resume the modem */
+	if (usb_autopm_get_interface_async(modem->serial->interface) == 0)
+		/* set usage count back to 0 */
+		usb_autopm_put_interface_no_suspend(modem->serial->interface);
 
 	return IRQ_HANDLED;
 }
@@ -251,7 +242,6 @@ static int mdm6600_attach(struct usb_serial *serial)
 	serial->dev->parent->autosuspend_delay = 0;
 
 	if (modem->number == MODEM_INTERFACE_NUM) {
-		INIT_WORK(&modem->wake_work, mdm6600_wake_work);
 		status = request_irq(mdm6600_wake_irq, mdm6600_irq_handler,
 				IRQ_TYPE_EDGE_FALLING, "usb_wake_host", modem);
 		if (status) {
@@ -309,7 +299,6 @@ static void mdm6600_disconnect(struct usb_serial *serial)
 	if (modem->number == MODEM_INTERFACE_NUM) {
 		disable_irq_wake(mdm6600_wake_irq);
 		free_irq(mdm6600_wake_irq, modem);
-		cancel_work_sync(&modem->wake_work);
 	}
 
 	mdm6600_kill_urbs(modem);
