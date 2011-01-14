@@ -105,7 +105,8 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(dev, NULL, 384 * 1024, 4096, NVOBJ_FLAG_VM,
+	ret = nouveau_gpuobj_new(dev, NULL, 384 * 1024, 4096,
+				 NVOBJ_FLAG_VM | NVOBJ_FLAG_VM_USER,
 				 &grch->unk418810);
 	if (ret)
 		return ret;

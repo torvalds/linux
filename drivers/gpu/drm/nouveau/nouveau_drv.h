@@ -160,6 +160,7 @@ enum nouveau_flags {
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
 #define NVOBJ_FLAG_VM			(1 << 3)
+#define NVOBJ_FLAG_VM_USER		(1 << 4)
 
 #define NVOBJ_CINST_GLOBAL	0xdeadbeef
 
