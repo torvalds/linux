@@ -54,7 +54,7 @@
 
 static int global_major = 0; // dynamic major by default 
 static int global_minor = 0;
-
+#define EETI_I2C_RATE   (200*1000)
 #define MAX_I2C_LEN		10
 #define FIFO_SIZE		PAGE_SIZE
 #define MAX_SUPPORT_POINT	5
@@ -244,7 +244,7 @@ static ssize_t egalax_cdev_write(struct file *file, const char __user *buf, size
 		return -EFAULT;
 	}
 	
-	ret = i2c_master_send(p_egalax_i2c_dev->client, tmp, count);
+	ret = i2c_master_normal_send(p_egalax_i2c_dev->client, tmp, count,EETI_I2C_RATE);
 	TS_DEBUG("I2C writing %zu bytes.\n", count);
 
 	kfree(tmp);
@@ -338,7 +338,6 @@ static void ProcessReport(unsigned char *buf, int buflen)
 {
 	int i;
 	short X=0, Y=0, ContactID=0, Status=0;
-
 	if(buflen!=MAX_I2C_LEN || buf[0]!=0x04) // check buffer len & header
 		return;
 
@@ -421,10 +420,9 @@ static int egalax_i2c_measure(struct i2c_client *client, char skip_packet)
 {
 	u8 x_buf[MAX_I2C_LEN];
 	int count, loop=3;
-	
 	DBG();
 	do{
-		count = i2c_master_recv(client, x_buf, MAX_I2C_LEN);
+		count = i2c_master_normal_recv(client, x_buf, MAX_I2C_LEN,EETI_I2C_RATE);
 	}while(count==EAGAIN && --loop);
 
 	if( count<0 || (x_buf[0]!=REPORTID_VENDOR && x_buf[0]!=REPORTID_MTOUCH) )
@@ -467,7 +465,6 @@ static void egalax_i2c_wq(struct work_struct *work)
 	struct _egalax_i2c *egalax_i2c = container_of(work, struct _egalax_i2c, work);
 	struct i2c_client *client = egalax_i2c->client;
 	int gpio = client->irq;
-
 	TS_DEBUG("egalax_i2c_wq run\n");
 	mutex_lock(&egalax_i2c->mutex_wq);
 
@@ -492,7 +489,6 @@ static void egalax_i2c_wq(struct work_struct *work)
 static irqreturn_t egalax_i2c_interrupt(int irq, void *dev_id)
 {
 	struct _egalax_i2c *egalax_i2c = (struct _egalax_i2c *)dev_id;
-
 	TS_DEBUG("egalax_i2c_interrupt with irq:%d\n", irq);
 	disable_irq_nosync(irq);
 	queue_work(egalax_i2c->ktouch_wq, &egalax_i2c->work);
@@ -506,7 +502,7 @@ static int egalax_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct _egalax_i2c *egalax_i2c = i2c_get_clientdata(client);
 	u8 cmdbuf[MAX_I2C_LEN]={0x03, 0x05, 0x0A, 0x03, 0x36, 0x3F, 0x02, 0, 0, 0};
 	
-	i2c_master_send(client, cmdbuf, MAX_I2C_LEN);
+	i2c_master_normal_send(client, cmdbuf, MAX_I2C_LEN, EETI_I2C_RATE);
 
 	egalax_i2c->work_state = 0;
 	disable_irq(p_egalax_i2c_dev->irq);
@@ -781,7 +777,7 @@ static void __init egalax_i2c_ts_init_async(void *unused, async_cookie_t cookie)
 {
 	int result;
 	dev_t devno = 0;
-printk("--------> %s <-------------\n",__func__);
+
 	DBG();
 
 	// Asking for a dynamic major unless directed otherwise at load time.
@@ -824,7 +820,7 @@ printk("--------> %s <-------------\n",__func__);
 	device_create(egalax_class, NULL, devno, NULL, "egalax_i2c");
 #endif
 	TS_DEBUG("register egalax_i2c cdev, major: %d \n",global_major);
-printk("--------> %s <-------------\n",__func__);
+
 	printk(KERN_DEBUG "[egalax_i2c]: init done\n");
 	return i2c_add_driver(&egalax_i2c_driver);
 
