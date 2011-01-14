@@ -1979,6 +1979,155 @@ void pci_disable_obff(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_disable_obff);
 
+/**
+ * pci_ltr_supported - check whether a device supports LTR
+ * @dev: PCI device
+ *
+ * RETURNS:
+ * True if @dev supports latency tolerance reporting, false otherwise.
+ */
+bool pci_ltr_supported(struct pci_dev *dev)
+{
+	int pos;
+	u32 cap;
+
+	if (!pci_is_pcie(dev))
+		return false;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return false;
+
+	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP2, &cap);
+
+	return cap & PCI_EXP_DEVCAP2_LTR;
+}
+EXPORT_SYMBOL(pci_ltr_supported);
+
+/**
+ * pci_enable_ltr - enable latency tolerance reporting
+ * @dev: PCI device
+ *
+ * Enable LTR on @dev if possible, which means enabling it first on
+ * upstream ports.
+ *
+ * RETURNS:
+ * Zero on success, errno on failure.
+ */
+int pci_enable_ltr(struct pci_dev *dev)
+{
+	int pos;
+	u16 ctrl;
+	int ret;
+
+	if (!pci_ltr_supported(dev))
+		return -ENOTSUPP;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return -ENOTSUPP;
+
+	/* Only primary function can enable/disable LTR */
+	if (PCI_FUNC(dev->devfn) != 0)
+		return -EINVAL;
+
+	/* Enable upstream ports first */
+	if (dev->bus) {
+		ret = pci_enable_ltr(dev->bus->self);
+		if (ret)
+			return ret;
+	}
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl |= PCI_EXP_LTR_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_enable_ltr);
+
+/**
+ * pci_disable_ltr - disable latency tolerance reporting
+ * @dev: PCI device
+ */
+void pci_disable_ltr(struct pci_dev *dev)
+{
+	int pos;
+	u16 ctrl;
+
+	if (!pci_ltr_supported(dev))
+		return;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	/* Only primary function can enable/disable LTR */
+	if (PCI_FUNC(dev->devfn) != 0)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl &= ~PCI_EXP_LTR_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_disable_ltr);
+
+static int __pci_ltr_scale(int *val)
+{
+	int scale = 0;
+
+	while (*val > 1023) {
+		*val = (*val + 31) / 32;
+		scale++;
+	}
+	return scale;
+}
+
+/**
+ * pci_set_ltr - set LTR latency values
+ * @dev: PCI device
+ * @snoop_lat_ns: snoop latency in nanoseconds
+ * @nosnoop_lat_ns: nosnoop latency in nanoseconds
+ *
+ * Figure out the scale and set the LTR values accordingly.
+ */
+int pci_set_ltr(struct pci_dev *dev, int snoop_lat_ns, int nosnoop_lat_ns)
+{
+	int pos, ret, snoop_scale, nosnoop_scale;
+	u16 val;
+
+	if (!pci_ltr_supported(dev))
+		return -ENOTSUPP;
+
+	snoop_scale = __pci_ltr_scale(&snoop_lat_ns);
+	nosnoop_scale = __pci_ltr_scale(&nosnoop_lat_ns);
+
+	if (snoop_lat_ns > PCI_LTR_VALUE_MASK ||
+	    nosnoop_lat_ns > PCI_LTR_VALUE_MASK)
+		return -EINVAL;
+
+	if ((snoop_scale > (PCI_LTR_SCALE_MASK >> PCI_LTR_SCALE_SHIFT)) ||
+	    (nosnoop_scale > (PCI_LTR_SCALE_MASK >> PCI_LTR_SCALE_SHIFT)))
+		return -EINVAL;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_LTR);
+	if (!pos)
+		return -ENOTSUPP;
+
+	val = (snoop_scale << PCI_LTR_SCALE_SHIFT) | snoop_lat_ns;
+	ret = pci_write_config_word(dev, pos + PCI_LTR_MAX_SNOOP_LAT, val);
+	if (ret != 4)
+		return -EIO;
+
+	val = (nosnoop_scale << PCI_LTR_SCALE_SHIFT) | nosnoop_lat_ns;
+	ret = pci_write_config_word(dev, pos + PCI_LTR_MAX_NOSNOOP_LAT, val);
+	if (ret != 4)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_set_ltr);
+
 static int pci_acs_enable;
 
 /**
