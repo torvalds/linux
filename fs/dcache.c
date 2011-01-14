@@ -1357,8 +1357,8 @@ EXPORT_SYMBOL(d_alloc_name);
 
 void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 {
-	BUG_ON(dentry->d_op);
-	BUG_ON(dentry->d_flags & (DCACHE_OP_HASH	|
+	WARN_ON_ONCE(dentry->d_op);
+	WARN_ON_ONCE(dentry->d_flags & (DCACHE_OP_HASH	|
 				DCACHE_OP_COMPARE	|
 				DCACHE_OP_REVALIDATE	|
 				DCACHE_OP_DELETE ));
