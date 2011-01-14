@@ -1124,6 +1124,14 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (res)
 		return res;
 
+	/* Drivers should switch to dev_pm_ops instead. */
+	if (driver->suspend)
+		pr_warn("i2c-core: driver [%s] using legacy suspend method\n",
+			driver->driver.name);
+	if (driver->resume)
+		pr_warn("i2c-core: driver [%s] using legacy resume method\n",
+			driver->driver.name);
+
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
 	INIT_LIST_HEAD(&driver->clients);
