@@ -3,6 +3,7 @@ config R8712U
 	depends on WLAN && USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select FW_LOADER
 	default N
 	---help---
 	This option adds the Realtek RTL8712 USB device such as the D-Link DWA-130.

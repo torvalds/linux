@@ -40,7 +40,7 @@ static u32 rtl871x_open_fw(struct _adapter *padapter, void **pphfwfile_hdl,
 		    const u8 **ppmappedfw)
 {
 	int rc;
-	const char firmware_file[] = "rtl8712u/rtl8712u.bin";
+	const char firmware_file[] = "rtlwifi/rtl8712u.bin";
 	const struct firmware **praw = (const struct firmware **)
 				       (pphfwfile_hdl);
 	struct dvobj_priv *pdvobjpriv = (struct dvobj_priv *)
@@ -58,6 +58,7 @@ static u32 rtl871x_open_fw(struct _adapter *padapter, void **pphfwfile_hdl,
 	*ppmappedfw = (u8 *)((*praw)->data);
 	return (*praw)->size;
 }
+MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 
 static void fill_fwpriv(struct _adapter *padapter, struct fw_priv *pfwpriv)
 {
