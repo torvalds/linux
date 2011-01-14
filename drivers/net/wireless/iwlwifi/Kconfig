@@ -116,6 +116,22 @@ config IWL5000
 		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
 		Intel 2000 Series Wi-Fi Adapters
 
+config IWL_P2P
+	bool "iwlwifi experimental P2P support"
+	depends on IWL5000
+	help
+	  This option enables experimental P2P support for some devices
+	  based on microcode support. Since P2P support is still under
+	  development, this option may even enable it for some devices
+	  now that turn out to not support it in the future due to
+	  microcode restrictions.
+
+	  To determine if your microcode supports the experimental P2P
+	  offered by this option, check if the driver advertises AP
+	  support when it is loaded.
+
+	  Say Y only if you want to experiment with P2P.
+
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
 	depends on IWLWIFI

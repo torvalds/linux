@@ -1404,9 +1404,10 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	struct iwl_rxon_context *tmp, *ctx = NULL;
 	int err;
+	enum nl80211_iftype viftype = ieee80211_vif_type_p2p(vif);
 
 	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
-			   vif->type, vif->addr);
+			   viftype, vif->addr);
 
 	mutex_lock(&priv->mutex);
 
@@ -1430,7 +1431,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			continue;
 		}
 
-		if (!(possible_modes & BIT(vif->type)))
+		if (!(possible_modes & BIT(viftype)))
 			continue;
 
 		/* have maybe usable context w/o interface */
