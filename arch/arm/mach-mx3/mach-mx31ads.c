@@ -117,7 +117,6 @@ static inline int mxc_init_extuart(void)
 }
 #endif
 
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -134,11 +133,6 @@ static inline void mxc_init_imx_uart(void)
 	mxc_iomux_setup_multiple_pins(uart_pins, ARRAY_SIZE(uart_pins), "uart-0");
 	imx31_add_imx_uart0(&uart_pdata);
 }
-#else /* !SERIAL_IMX */
-static inline void mxc_init_imx_uart(void)
-{
-}
-#endif /* !SERIAL_IMX */
 
 static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
 {
