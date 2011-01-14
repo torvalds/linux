@@ -283,7 +283,7 @@ static int smb_compare_dentry(const struct dentry *,
 		unsigned int, const char *, const struct qstr *);
 static int smb_delete_dentry(const struct dentry *);
 
-static const struct dentry_operations smbfs_dentry_operations =
+const struct dentry_operations smbfs_dentry_operations =
 {
 	.d_revalidate	= smb_lookup_validate,
 	.d_hash		= smb_hash_dentry,
@@ -291,7 +291,7 @@ static const struct dentry_operations smbfs_dentry_operations =
 	.d_delete	= smb_delete_dentry,
 };
 
-static const struct dentry_operations smbfs_dentry_operations_case =
+const struct dentry_operations smbfs_dentry_operations_case =
 {
 	.d_revalidate	= smb_lookup_validate,
 	.d_delete	= smb_delete_dentry,
