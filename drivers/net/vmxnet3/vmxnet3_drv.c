@@ -1867,13 +1867,8 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 		/* add vlan rx stripping. */
 		if (adapter->netdev->features & NETIF_F_HW_VLAN_RX) {
 			int i;
-			struct Vmxnet3_DSDevRead *devRead = &shared->devRead;
 			adapter->vlan_grp = grp;
 
-			/* update FEATURES to device */
-			devRead->misc.uptFeatures |= UPT1_F_RXVLAN;
-			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
-					       VMXNET3_CMD_UPDATE_FEATURE);
 			/*
 			 *  Clear entire vfTable; then enable untagged pkts.
 			 *  Note: setting one entry in vfTable to non-zero turns
@@ -1905,11 +1900,6 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 			}
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
-
-			/* update FEATURES to device */
-			devRead->misc.uptFeatures &= ~UPT1_F_RXVLAN;
-			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
-					       VMXNET3_CMD_UPDATE_FEATURE);
 		}
 	}
 }
@@ -2083,10 +2073,8 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		devRead->misc.uptFeatures |= UPT1_F_LRO;
 		devRead->misc.maxNumRxSG = cpu_to_le16(1 + MAX_SKB_FRAGS);
 	}
-	if ((adapter->netdev->features & NETIF_F_HW_VLAN_RX) &&
-	    adapter->vlan_grp) {
+	if (adapter->netdev->features & NETIF_F_HW_VLAN_RX)
 		devRead->misc.uptFeatures |= UPT1_F_RXVLAN;
-	}
 
 	devRead->misc.mtu = cpu_to_le32(adapter->netdev->mtu);
 	devRead->misc.queueDescPA = cpu_to_le64(adapter->queue_desc_pa);
