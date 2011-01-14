@@ -47,6 +47,12 @@ struct mfd_cell {
 
 	/* don't check for resource conflicts */
 	bool			ignore_resource_conflicts;
+
+	/*
+	 * Disable runtime PM callbacks for this subdevice - see
+	 * pm_runtime_no_callbacks().
+	 */
+	bool			pm_runtime_no_callbacks;
 };
 
 extern int mfd_add_devices(struct device *parent, int id,
