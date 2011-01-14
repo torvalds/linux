@@ -1997,6 +1997,8 @@ static long ocfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	int change_size = 1;
 	int cmd = OCFS2_IOC_RESVSP64;
 
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+		return -EOPNOTSUPP;
 	if (!ocfs2_writes_unwritten_extents(osb))
 		return -EOPNOTSUPP;
 

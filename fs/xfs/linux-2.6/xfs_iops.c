@@ -518,6 +518,9 @@ xfs_vn_fallocate(
 	xfs_inode_t	*ip = XFS_I(inode);
 	int		cmd = XFS_IOC_RESVSP;
 
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+		return -EOPNOTSUPP;
+
 	/* preallocation on directories not yet supported */
 	error = -ENODEV;
 	if (S_ISDIR(inode->i_mode))

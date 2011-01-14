@@ -1426,7 +1426,7 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	next = (next + 1) << sdp->sd_sb.sb_bsize_shift;
 
 	/* We only support the FALLOC_FL_KEEP_SIZE mode */
-	if (mode && (mode != FALLOC_FL_KEEP_SIZE))
+	if (mode & ~FALLOC_FL_KEEP_SIZE)
 		return -EOPNOTSUPP;
 
 	offset = (offset >> sdp->sd_sb.sb_bsize_shift) <<

@@ -7116,7 +7116,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	alloc_end =  (offset + len + mask) & ~mask;
 
 	/* We only support the FALLOC_FL_KEEP_SIZE mode */
-	if (mode && (mode != FALLOC_FL_KEEP_SIZE))
+	if (mode & ~FALLOC_FL_KEEP_SIZE)
 		return -EOPNOTSUPP;
 
 	/*
