@@ -156,10 +156,10 @@ config SPI_IMX_VER_0_4
 	def_bool y if ARCH_MX31
 
 config SPI_IMX_VER_0_7
-	def_bool y if ARCH_MX25 || ARCH_MX35 || ARCH_MX51
+	def_bool y if ARCH_MX25 || ARCH_MX35 || ARCH_MX51 || ARCH_MX53
 
 config SPI_IMX_VER_2_3
-	def_bool y if ARCH_MX51
+	def_bool y if ARCH_MX51 || ARCH_MX53
 
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
@@ -310,8 +310,8 @@ config SPI_S3C24XX_GPIO
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on ARCH_S3C64XX && EXPERIMENTAL
-	select S3C64XX_DMA
+	depends on (ARCH_S3C64XX || ARCH_S5P64X0)
+	select S3C64XX_DMA if ARCH_S3C64XX
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 
