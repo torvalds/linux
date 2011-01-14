@@ -87,7 +87,7 @@ static inline u64 callchain_cumul_hits(struct callchain_node *node)
 	return node->hit + node->children_hit;
 }
 
-int register_callchain_param(struct callchain_param *param);
+int callchain_register_param(struct callchain_param *param);
 int callchain_append(struct callchain_root *root,
 		     struct callchain_cursor *cursor,
 		     u64 period);

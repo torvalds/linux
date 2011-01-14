@@ -221,7 +221,7 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 	} else if (!dont_use_callchains && callchain_param.mode != CHAIN_NONE &&
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
-			if (register_callchain_param(&callchain_param) < 0) {
+			if (callchain_register_param(&callchain_param) < 0) {
 				fprintf(stderr, "Can't register callchain"
 						" params\n");
 				return -EINVAL;
@@ -423,7 +423,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	if (tok2)
 		callchain_param.print_limit = strtod(tok2, &endptr);
 setup:
-	if (register_callchain_param(&callchain_param) < 0) {
+	if (callchain_register_param(&callchain_param) < 0) {
 		fprintf(stderr, "Can't register callchain params\n");
 		return -1;
 	}

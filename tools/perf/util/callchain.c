@@ -143,7 +143,7 @@ sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_root *chain_root,
 	rb_root->rb_node = chain_root->node.rb_root.rb_node;
 }
 
-int register_callchain_param(struct callchain_param *param)
+int callchain_register_param(struct callchain_param *param)
 {
 	switch (param->mode) {
 	case CHAIN_GRAPH_ABS:
