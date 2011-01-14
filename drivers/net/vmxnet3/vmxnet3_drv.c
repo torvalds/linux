@@ -2426,7 +2426,7 @@ vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 	sz = adapter->rx_buf_per_pkt * VMXNET3_RING_SIZE_ALIGN;
 	ring0_size = adapter->rx_queue[0].rx_ring[0].size;
 	ring0_size = (ring0_size + sz - 1) / sz * sz;
-	ring0_size = min_t(u32, rq->rx_ring[0].size, VMXNET3_RX_RING_MAX_SIZE /
+	ring0_size = min_t(u32, ring0_size, VMXNET3_RX_RING_MAX_SIZE /
 			   sz * sz);
 	ring1_size = adapter->rx_queue[0].rx_ring[1].size;
 	comp_size = ring0_size + ring1_size;
