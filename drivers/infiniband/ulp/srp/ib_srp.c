@@ -72,12 +72,6 @@ module_param(topspin_workarounds, int, 0444);
 MODULE_PARM_DESC(topspin_workarounds,
 		 "Enable workarounds for Topspin/Cisco SRP target bugs if != 0");
 
-static int mellanox_workarounds = 1;
-
-module_param(mellanox_workarounds, int, 0444);
-MODULE_PARM_DESC(mellanox_workarounds,
-		 "Enable workarounds for Mellanox SRP target bugs if != 0");
-
 static void srp_add_one(struct ib_device *device);
 static void srp_remove_one(struct ib_device *device);
 static void srp_recv_completion(struct ib_cq *cq, void *target_ptr);
@@ -112,14 +106,6 @@ static int srp_target_is_topspin(struct srp_target_port *target)
 	return topspin_workarounds &&
 		(!memcmp(&target->ioc_guid, topspin_oui, sizeof topspin_oui) ||
 		 !memcmp(&target->ioc_guid, cisco_oui, sizeof cisco_oui));
-}
-
-static int srp_target_is_mellanox(struct srp_target_port *target)
-{
-	static const u8 mellanox_oui[3] = { 0x00, 0x02, 0xc9 };
-
-	return mellanox_workarounds &&
-		!memcmp(&target->ioc_guid, mellanox_oui, sizeof mellanox_oui);
 }
 
 static struct srp_iu *srp_alloc_iu(struct srp_host *host, size_t size,
@@ -662,8 +648,7 @@ static int srp_map_fmr(struct srp_target_port *target, struct scatterlist *scat,
 	if (!dev->fmr_pool)
 		return -ENODEV;
 
-	if (srp_target_is_mellanox(target) &&
-	    (ib_sg_dma_address(ibdev, &scat[0]) & ~dev->fmr_page_mask))
+	if (ib_sg_dma_address(ibdev, &scat[0]) & ~dev->fmr_page_mask)
 		return -EINVAL;
 
 	len = page_cnt = 0;
