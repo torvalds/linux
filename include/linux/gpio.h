@@ -35,13 +35,13 @@ static inline int gpio_request(unsigned gpio, const char *label)
 	return -ENOSYS;
 }
 
-static inline int __must_check gpio_request_one(unsigned gpio,
+static inline int gpio_request_one(unsigned gpio,
 					unsigned long flags, const char *label)
 {
 	return -ENOSYS;
 }
 
-static inline int __must_check gpio_request_array(struct gpio *array, size_t num)
+static inline int gpio_request_array(struct gpio *array, size_t num)
 {
 	return -ENOSYS;
 }
