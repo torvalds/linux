@@ -132,6 +132,10 @@ static int v9fs_set_acl(struct dentry *dentry, int type, struct posix_acl *acl)
 	struct inode *inode = dentry->d_inode;
 
 	set_cached_acl(inode, type, acl);
+
+	if (!acl)
+		return 0;
+
 	/* Set a setxattr request to server */
 	size = posix_acl_xattr_size(acl->a_count);
 	buffer = kmalloc(size, GFP_KERNEL);
@@ -181,10 +185,8 @@ int v9fs_acl_chmod(struct dentry *dentry)
 int v9fs_set_create_acl(struct dentry *dentry,
 			struct posix_acl *dpacl, struct posix_acl *pacl)
 {
-	if (dpacl)
-		v9fs_set_acl(dentry, ACL_TYPE_DEFAULT, dpacl);
-	if (pacl)
-		v9fs_set_acl(dentry, ACL_TYPE_ACCESS, pacl);
+	v9fs_set_acl(dentry, ACL_TYPE_DEFAULT, dpacl);
+	v9fs_set_acl(dentry, ACL_TYPE_ACCESS, pacl);
 	posix_acl_release(dpacl);
 	posix_acl_release(pacl);
 	return 0;
