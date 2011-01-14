@@ -184,6 +184,10 @@ static inline void mx50_rdp_fec_reset(void)
 	gpio_set_value(FEC_RESET_B, 1);
 }
 
+static const struct imxi2c_platform_data i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
 /*
  * Board specific initialization.
  */
@@ -196,6 +200,9 @@ static void __init mx50_rdp_board_init(void)
 	imx50_add_imx_uart(1, &uart_pdata);
 	mx50_rdp_fec_reset();
 	imx50_add_fec(&fec_data);
+	imx50_add_imx_i2c(0, &i2c_data);
+	imx50_add_imx_i2c(1, &i2c_data);
+	imx50_add_imx_i2c(2, &i2c_data);
 }
 
 static void __init mx50_rdp_timer_init(void)
