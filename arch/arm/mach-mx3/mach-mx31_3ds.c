@@ -147,10 +147,10 @@ static struct mc13783_regulator_init_data mx31_3ds_regulators[] = {
 		.init_data = &pwgtx_init,
 	}, {
 
-		.id = MC13783_REGU_GPO1, /* Turn on 1.8V */
+		.id = MC13783_REG_GPO1, /* Turn on 1.8V */
 		.init_data = &gpo_init,
 	}, {
-		.id = MC13783_REGU_GPO3, /* Turn on 3.3V */
+		.id = MC13783_REG_GPO3, /* Turn on 3.3V */
 		.init_data = &gpo_init,
 	},
 };
