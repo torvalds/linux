@@ -175,13 +175,6 @@ static inline int autofs4_ispending(struct dentry *dentry)
 	return 0;
 }
 
-static inline void autofs4_copy_atime(struct file *src, struct file *dst)
-{
-	dst->f_path.dentry->d_inode->i_atime =
-		src->f_path.dentry->d_inode->i_atime;
-	return;
-}
-
 struct inode *autofs4_get_inode(struct super_block *, struct autofs_info *);
 void autofs4_free_ino(struct autofs_info *);
 
