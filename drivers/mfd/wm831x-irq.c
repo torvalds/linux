@@ -481,6 +481,9 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 	}
 
 out:
+	/* Touchscreen interrupts are handled specially in the driver */
+	status_regs[0] &= ~(WM831X_TCHDATA_EINT | WM831X_TCHPD_EINT);
+
 	for (i = 0; i < ARRAY_SIZE(status_regs); i++) {
 		if (status_regs[i])
 			wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1 + i,
