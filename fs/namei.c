@@ -896,51 +896,120 @@ int follow_up(struct path *path)
 }
 
 /*
- * serialization is taken care of in namespace.c
+ * Perform an automount
+ * - return -EISDIR to tell follow_managed() to stop and return the path we
+ *   were called with.
  */
-static void __follow_mount_rcu(struct nameidata *nd, struct path *path,
-				struct inode **inode)
+static int follow_automount(struct path *path, unsigned flags,
+			    bool *need_mntput)
 {
-	while (d_mountpoint(path->dentry)) {
-		struct vfsmount *mounted;
-		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
-		if (!mounted)
-			return;
-		path->mnt = mounted;
-		path->dentry = mounted->mnt_root;
-		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
-		*inode = path->dentry->d_inode;
-	}
-}
+	struct vfsmount *mnt;
 
-static int __follow_mount(struct path *path)
-{
-	int res = 0;
-	while (d_mountpoint(path->dentry)) {
-		struct vfsmount *mounted = lookup_mnt(path);
-		if (!mounted)
-			break;
-		dput(path->dentry);
-		if (res)
-			mntput(path->mnt);
-		path->mnt = mounted;
-		path->dentry = dget(mounted->mnt_root);
-		res = 1;
-	}
-	return res;
-}
+	if (!path->dentry->d_op || !path->dentry->d_op->d_automount)
+		return -EREMOTE;
 
-static void follow_mount(struct path *path)
-{
-	while (d_mountpoint(path->dentry)) {
-		struct vfsmount *mounted = lookup_mnt(path);
-		if (!mounted)
-			break;
-		dput(path->dentry);
+	/* We want to mount if someone is trying to open/create a file of any
+	 * type under the mountpoint, wants to traverse through the mountpoint
+	 * or wants to open the mounted directory.
+	 *
+	 * We don't want to mount if someone's just doing a stat and they've
+	 * set AT_SYMLINK_NOFOLLOW - unless they're stat'ing a directory and
+	 * appended a '/' to the name.
+	 */
+	if (!(flags & LOOKUP_FOLLOW) &&
+	    !(flags & (LOOKUP_CONTINUE | LOOKUP_DIRECTORY |
+		       LOOKUP_OPEN | LOOKUP_CREATE)))
+		return -EISDIR;
+
+	current->total_link_count++;
+	if (current->total_link_count >= 40)
+		return -ELOOP;
+
+	mnt = path->dentry->d_op->d_automount(path);
+	if (IS_ERR(mnt)) {
+		/*
+		 * The filesystem is allowed to return -EISDIR here to indicate
+		 * it doesn't want to automount.  For instance, autofs would do
+		 * this so that its userspace daemon can mount on this dentry.
+		 *
+		 * However, we can only permit this if it's a terminal point in
+		 * the path being looked up; if it wasn't then the remainder of
+		 * the path is inaccessible and we should say so.
+		 */
+		if (PTR_ERR(mnt) == -EISDIR && (flags & LOOKUP_CONTINUE))
+			return -EREMOTE;
+		return PTR_ERR(mnt);
+	}
+	if (!mnt) /* mount collision */
+		return 0;
+
+	if (mnt->mnt_sb == path->mnt->mnt_sb &&
+	    mnt->mnt_root == path->dentry) {
+		mntput(mnt);
+		return -ELOOP;
+	}
+
+	dput(path->dentry);
+	if (*need_mntput)
 		mntput(path->mnt);
-		path->mnt = mounted;
-		path->dentry = dget(mounted->mnt_root);
+	path->mnt = mnt;
+	path->dentry = dget(mnt->mnt_root);
+	*need_mntput = true;
+	return 0;
+}
+
+/*
+ * Handle a dentry that is managed in some way.
+ * - Flagged as mountpoint
+ * - Flagged as automount point
+ *
+ * This may only be called in refwalk mode.
+ *
+ * Serialization is taken care of in namespace.c
+ */
+static int follow_managed(struct path *path, unsigned flags)
+{
+	unsigned managed;
+	bool need_mntput = false;
+	int ret;
+
+	/* Given that we're not holding a lock here, we retain the value in a
+	 * local variable for each dentry as we look at it so that we don't see
+	 * the components of that value change under us */
+	while (managed = ACCESS_ONCE(path->dentry->d_flags),
+	       managed &= DCACHE_MANAGED_DENTRY,
+	       unlikely(managed != 0)) {
+		/* Transit to a mounted filesystem. */
+		if (managed & DCACHE_MOUNTED) {
+			struct vfsmount *mounted = lookup_mnt(path);
+			if (mounted) {
+				dput(path->dentry);
+				if (need_mntput)
+					mntput(path->mnt);
+				path->mnt = mounted;
+				path->dentry = dget(mounted->mnt_root);
+				need_mntput = true;
+				continue;
+			}
+
+			/* Something is mounted on this dentry in another
+			 * namespace and/or whatever was mounted there in this
+			 * namespace got unmounted before we managed to get the
+			 * vfsmount_lock */
+		}
+
+		/* Handle an automount point */
+		if (managed & DCACHE_NEED_AUTOMOUNT) {
+			ret = follow_automount(path, flags, &need_mntput);
+			if (ret < 0)
+				return ret == -EISDIR ? 0 : ret;
+			continue;
+		}
+
+		/* We didn't change the current path point */
+		break;
 	}
+	return 0;
 }
 
 int follow_down(struct path *path)
@@ -958,13 +1027,37 @@ int follow_down(struct path *path)
 	return 0;
 }
 
+/*
+ * Skip to top of mountpoint pile in rcuwalk mode.  We abort the rcu-walk if we
+ * meet an automount point and we're not walking to "..".  True is returned to
+ * continue, false to abort.
+ */
+static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
+			       struct inode **inode, bool reverse_transit)
+{
+	while (d_mountpoint(path->dentry)) {
+		struct vfsmount *mounted;
+		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
+		if (!mounted)
+			break;
+		path->mnt = mounted;
+		path->dentry = mounted->mnt_root;
+		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
+		*inode = path->dentry->d_inode;
+	}
+
+	if (unlikely(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
+		return reverse_transit;
+	return true;
+}
+
 static int follow_dotdot_rcu(struct nameidata *nd)
 {
 	struct inode *inode = nd->inode;
 
 	set_root_rcu(nd);
 
-	while(1) {
+	while (1) {
 		if (nd->path.dentry == nd->root.dentry &&
 		    nd->path.mnt == nd->root.mnt) {
 			break;
@@ -987,10 +1080,26 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 		inode = nd->path.dentry->d_inode;
 	}
-	__follow_mount_rcu(nd, &nd->path, &inode);
+	__follow_mount_rcu(nd, &nd->path, &inode, true);
 	nd->inode = inode;
 
 	return 0;
+}
+
+/*
+ * Skip to top of mountpoint pile in refwalk mode for follow_dotdot()
+ */
+static void follow_mount(struct path *path)
+{
+	while (d_mountpoint(path->dentry)) {
+		struct vfsmount *mounted = lookup_mnt(path);
+		if (!mounted)
+			break;
+		dput(path->dentry);
+		mntput(path->mnt);
+		path->mnt = mounted;
+		path->dentry = dget(mounted->mnt_root);
+	}
 }
 
 static void follow_dotdot(struct nameidata *nd)
@@ -1057,12 +1166,14 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 	struct vfsmount *mnt = nd->path.mnt;
 	struct dentry *dentry, *parent = nd->path.dentry;
 	struct inode *dir;
+	int err;
+
 	/*
 	 * See if the low-level filesystem might want
 	 * to use its own hash..
 	 */
 	if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
-		int err = parent->d_op->d_hash(parent, nd->inode, name);
+		err = parent->d_op->d_hash(parent, nd->inode, name);
 		if (err < 0)
 			return err;
 	}
@@ -1092,20 +1203,25 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 done2:
 		path->mnt = mnt;
 		path->dentry = dentry;
-		__follow_mount_rcu(nd, path, inode);
-	} else {
-		dentry = __d_lookup(parent, name);
-		if (!dentry)
-			goto need_lookup;
-found:
-		if (dentry->d_flags & DCACHE_OP_REVALIDATE)
-			goto need_revalidate;
-done:
-		path->mnt = mnt;
-		path->dentry = dentry;
-		__follow_mount(path);
-		*inode = path->dentry->d_inode;
+		if (likely(__follow_mount_rcu(nd, path, inode, false)))
+			return 0;
+		if (nameidata_drop_rcu(nd))
+			return -ECHILD;
+		/* fallthru */
 	}
+	dentry = __d_lookup(parent, name);
+	if (!dentry)
+		goto need_lookup;
+found:
+	if (dentry->d_flags & DCACHE_OP_REVALIDATE)
+		goto need_revalidate;
+done:
+	path->mnt = mnt;
+	path->dentry = dentry;
+	err = follow_managed(path, nd->flags);
+	if (unlikely(err < 0))
+		return err;
+	*inode = path->dentry->d_inode;
 	return 0;
 
 need_lookup:
@@ -2203,11 +2319,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (open_flag & O_EXCL)
 		goto exit_dput;
 
-	if (__follow_mount(path)) {
-		error = -ELOOP;
-		if (open_flag & O_NOFOLLOW)
-			goto exit_dput;
-	}
+	error = follow_managed(path, nd->flags);
+	if (error < 0)
+		goto exit_dput;
 
 	error = -ENOENT;
 	if (!path->dentry->d_inode)
