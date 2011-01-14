@@ -75,7 +75,7 @@ static void cs4245_write(struct oxygen *chip, unsigned int reg, u8 value)
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
 			 CS4245_SPI_ADDRESS |
 			 CS4245_SPI_WRITE |
-			 (value << 8) | reg);
+			 (reg << 8) | value);
 	data->cs4245_regs[reg] = value;
 }
 
