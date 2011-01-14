@@ -360,7 +360,7 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 			return -EINVAL;					\
 		}							\
 	}								\
-	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU);		\
+	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_##dr);		\
 									\
 	for (i = 10000; i; i--)						\
 		if (!(__raw_readl(CLKCTRL_BASE_ADDR +			\
