@@ -130,6 +130,8 @@ struct srp_target_port {
 	u32			lkey;
 	u32			rkey;
 	enum srp_target_state	state;
+	unsigned int		max_iu_len;
+	unsigned int		cmd_sg_cnt;
 
 	/* Everything above this point is used in the hot path of
 	 * command processing. Try to keep them packed into cachelines.
