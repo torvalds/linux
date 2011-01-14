@@ -45,6 +45,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
  *  - ending slashes ok even for nonexistent files
  *  - internal "there are more path components" flag
  *  - dentry cache is untrusted; force a real lookup
+ *  - suppress terminal automount
  */
 #define LOOKUP_FOLLOW		0x0001
 #define LOOKUP_DIRECTORY	0x0002
@@ -53,6 +54,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_PARENT		0x0010
 #define LOOKUP_REVAL		0x0020
 #define LOOKUP_RCU		0x0040
+#define LOOKUP_NO_AUTOMOUNT	0x0080
 /*
  * Intent data
  */
