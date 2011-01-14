@@ -8,7 +8,7 @@ Parameters: <cipher> <key> <iv_offset> <device path> <offset>
 
 <cipher>
     Encryption cipher and an optional IV generation mode.
-    (In format cipher-chainmode-ivopts:ivmode).
+    (In format cipher[:keycount]-chainmode-ivopts:ivmode).
     Examples:
        des
        aes-cbc-essiv:sha256
@@ -19,6 +19,11 @@ Parameters: <cipher> <key> <iv_offset> <device path> <offset>
 <key>
     Key used for encryption. It is encoded as a hexadecimal number.
     You can only use key sizes that are valid for the selected cipher.
+
+<keycount>
+    Multi-key compatibility mode. You can define <keycount> keys and
+    then sectors are encrypted according to their offsets (sector 0 uses key0;
+    sector 1 uses key1 etc.).  <keycount> must be a power of two.
 
 <iv_offset>
     The IV offset is a sector count that is added to the sector number

@@ -71,6 +71,8 @@ struct dm_table {
 	void *event_context;
 
 	struct dm_md_mempools *mempools;
+
+	struct list_head target_callbacks;
 };
 
 /*
@@ -204,6 +206,7 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&t->devices);
+	INIT_LIST_HEAD(&t->target_callbacks);
 	atomic_set(&t->holders, 0);
 	t->discards_supported = 1;
 
@@ -1225,10 +1228,17 @@ int dm_table_resume_targets(struct dm_table *t)
 	return 0;
 }
 
+void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callbacks *cb)
+{
+	list_add(&cb->list, &t->target_callbacks);
+}
+EXPORT_SYMBOL_GPL(dm_table_add_target_callbacks);
+
 int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 {
 	struct dm_dev_internal *dd;
 	struct list_head *devices = dm_table_get_devices(t);
+	struct dm_target_callbacks *cb;
 	int r = 0;
 
 	list_for_each_entry(dd, devices, list) {
@@ -1242,6 +1252,10 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 				     dm_device_name(t->md),
 				     bdevname(dd->dm_dev.bdev, b));
 	}
+
+	list_for_each_entry(cb, &t->target_callbacks, list)
+		if (cb->congested_fn)
+			r |= cb->congested_fn(cb, bdi_bits);
 
 	return r;
 }
@@ -1264,6 +1278,7 @@ void dm_table_unplug_all(struct dm_table *t)
 {
 	struct dm_dev_internal *dd;
 	struct list_head *devices = dm_table_get_devices(t);
+	struct dm_target_callbacks *cb;
 
 	list_for_each_entry(dd, devices, list) {
 		struct request_queue *q = bdev_get_queue(dd->dm_dev.bdev);
@@ -1276,6 +1291,10 @@ void dm_table_unplug_all(struct dm_table *t)
 				     dm_device_name(t->md),
 				     bdevname(dd->dm_dev.bdev, b));
 	}
+
+	list_for_each_entry(cb, &t->target_callbacks, list)
+		if (cb->unplug_fn)
+			cb->unplug_fn(cb);
 }
 
 struct mapped_device *dm_table_get_md(struct dm_table *t)

@@ -370,6 +370,16 @@
 #define DM_ULOG_REQUEST_TYPE(request_type) \
 	(DM_ULOG_REQUEST_MASK & (request_type))
 
+/*
+ * DM_ULOG_REQUEST_VERSION is incremented when there is a
+ * change to the way information is passed between kernel
+ * and userspace.  This could be a structure change of
+ * dm_ulog_request or a change in the way requests are
+ * issued/handled.  Changes are outlined here:
+ *	version 1:  Initial implementation
+ */
+#define DM_ULOG_REQUEST_VERSION 1
+
 struct dm_ulog_request {
 	/*
 	 * The local unique identifier (luid) and the universally unique
@@ -383,8 +393,9 @@ struct dm_ulog_request {
 	 */
 	uint64_t luid;
 	char uuid[DM_UUID_LEN];
-	char padding[7];        /* Padding because DM_UUID_LEN = 129 */
+	char padding[3];        /* Padding because DM_UUID_LEN = 129 */
 
+	uint32_t version;       /* See DM_ULOG_REQUEST_VERSION */
 	int32_t error;          /* Used to report back processing errors */
 
 	uint32_t seq;           /* Sequence number for request */
