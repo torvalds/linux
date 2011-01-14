@@ -1232,29 +1232,26 @@ static void greth_link_change(struct net_device *dev)
 	struct greth_private *greth = netdev_priv(dev);
 	struct phy_device *phydev = greth->phy;
 	unsigned long flags;
-
 	int status_change = 0;
+	u32 ctrl;
 
 	spin_lock_irqsave(&greth->devlock, flags);
 
 	if (phydev->link) {
 
 		if ((greth->speed != phydev->speed) || (greth->duplex != phydev->duplex)) {
-
-			GRETH_REGANDIN(greth->regs->control,
-				       ~(GRETH_CTRL_FD | GRETH_CTRL_SP | GRETH_CTRL_GB));
+			ctrl = GRETH_REGLOAD(greth->regs->control) &
+			       ~(GRETH_CTRL_FD | GRETH_CTRL_SP | GRETH_CTRL_GB);
 
 			if (phydev->duplex)
-				GRETH_REGORIN(greth->regs->control, GRETH_CTRL_FD);
+				ctrl |= GRETH_CTRL_FD;
 
-			if (phydev->speed == SPEED_100) {
-
-				GRETH_REGORIN(greth->regs->control, GRETH_CTRL_SP);
-			}
-
+			if (phydev->speed == SPEED_100)
+				ctrl |= GRETH_CTRL_SP;
 			else if (phydev->speed == SPEED_1000)
-				GRETH_REGORIN(greth->regs->control, GRETH_CTRL_GB);
+				ctrl |= GRETH_CTRL_GB;
 
+			GRETH_REGSAVE(greth->regs->control, ctrl);
 			greth->speed = phydev->speed;
 			greth->duplex = phydev->duplex;
 			status_change = 1;
