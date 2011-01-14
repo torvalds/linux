@@ -20,6 +20,8 @@
 #include <linux/spi/spi.h>
 #include <linux/mfd/ab8500.h>
 #include <linux/mfd/tc3589x.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -181,8 +183,58 @@ static void __init mop500_i2c_init(void)
 	db8500_add_i2c3(&u8500_i2c3_data);
 }
 
+static struct gpio_keys_button mop500_gpio_keys[] = {
+	{
+		.desc			= "SFH7741 Proximity Sensor",
+		.type			= EV_SW,
+		.code			= SW_FRONT_PROXIMITY,
+		.gpio			= GPIO_PROX_SENSOR,
+		.active_low		= 0,
+		.can_disable		= 1,
+	}
+};
+
+static struct regulator *prox_regulator;
+static int mop500_prox_activate(struct device *dev);
+static void mop500_prox_deactivate(struct device *dev);
+
+static struct gpio_keys_platform_data mop500_gpio_keys_data = {
+	.buttons	= mop500_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(mop500_gpio_keys),
+	.enable		= mop500_prox_activate,
+	.disable	= mop500_prox_deactivate,
+};
+
+static struct platform_device mop500_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= 0,
+	.dev	= {
+		.platform_data	= &mop500_gpio_keys_data,
+	},
+};
+
+static int mop500_prox_activate(struct device *dev)
+{
+	prox_regulator = regulator_get(&mop500_gpio_keys_device.dev,
+						"vcc");
+	if (IS_ERR(prox_regulator)) {
+		dev_err(&mop500_gpio_keys_device.dev,
+			"no regulator\n");
+		return PTR_ERR(prox_regulator);
+	}
+	regulator_enable(prox_regulator);
+	return 0;
+}
+
+static void mop500_prox_deactivate(struct device *dev)
+{
+	regulator_disable(prox_regulator);
+	regulator_put(prox_regulator);
+}
+
 /* add any platform devices here - TODO */
 static struct platform_device *platform_devs[] __initdata = {
+	&mop500_gpio_keys_device,
 };
 
 static void __init mop500_spi_init(void)
