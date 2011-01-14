@@ -432,6 +432,9 @@ static void init_once(void *foo)
 	mutex_init(&bdev->bd_mutex);
 	INIT_LIST_HEAD(&bdev->bd_inodes);
 	INIT_LIST_HEAD(&bdev->bd_list);
+#ifdef CONFIG_SYSFS
+	INIT_LIST_HEAD(&bdev->bd_holder_disks);
+#endif
 	inode_init_once(&ei->vfs_inode);
 	/* Initialize mutex for freeze. */
 	mutex_init(&bdev->bd_fsfreeze_mutex);
@@ -779,6 +782,23 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 }
 
 #ifdef CONFIG_SYSFS
+struct bd_holder_disk {
+	struct list_head	list;
+	struct gendisk		*disk;
+	int			refcnt;
+};
+
+static struct bd_holder_disk *bd_find_holder_disk(struct block_device *bdev,
+						  struct gendisk *disk)
+{
+	struct bd_holder_disk *holder;
+
+	list_for_each_entry(holder, &bdev->bd_holder_disks, list)
+		if (holder->disk == disk)
+			return holder;
+	return NULL;
+}
+
 static int add_symlink(struct kobject *from, struct kobject *to)
 {
 	return sysfs_create_link(from, to, kobject_name(to));
@@ -793,6 +813,8 @@ static void del_symlink(struct kobject *from, struct kobject *to)
  * bd_link_disk_holder - create symlinks between holding disk and slave bdev
  * @bdev: the claimed slave bdev
  * @disk: the holding disk
+ *
+ * DON'T USE THIS UNLESS YOU'RE ALREADY USING IT.
  *
  * This functions creates the following sysfs symlinks.
  *
@@ -817,47 +839,83 @@ static void del_symlink(struct kobject *from, struct kobject *to)
  */
 int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 {
+	struct bd_holder_disk *holder;
 	int ret = 0;
 
 	mutex_lock(&bdev->bd_mutex);
 
-	WARN_ON_ONCE(!bdev->bd_holder || bdev->bd_holder_disk);
+	WARN_ON_ONCE(!bdev->bd_holder);
 
 	/* FIXME: remove the following once add_disk() handles errors */
 	if (WARN_ON(!disk->slave_dir || !bdev->bd_part->holder_dir))
 		goto out_unlock;
 
-	ret = add_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
-	if (ret)
-		goto out_unlock;
-
-	ret = add_symlink(bdev->bd_part->holder_dir, &disk_to_dev(disk)->kobj);
-	if (ret) {
-		del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
+	holder = bd_find_holder_disk(bdev, disk);
+	if (holder) {
+		holder->refcnt++;
 		goto out_unlock;
 	}
 
-	bdev->bd_holder_disk = disk;
+	holder = kzalloc(sizeof(*holder), GFP_KERNEL);
+	if (!holder) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	INIT_LIST_HEAD(&holder->list);
+	holder->disk = disk;
+	holder->refcnt = 1;
+
+	ret = add_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
+	if (ret)
+		goto out_free;
+
+	ret = add_symlink(bdev->bd_part->holder_dir, &disk_to_dev(disk)->kobj);
+	if (ret)
+		goto out_del;
+
+	list_add(&holder->list, &bdev->bd_holder_disks);
+	goto out_unlock;
+
+out_del:
+	del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
+out_free:
+	kfree(holder);
 out_unlock:
 	mutex_unlock(&bdev->bd_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(bd_link_disk_holder);
 
-static void bd_unlink_disk_holder(struct block_device *bdev)
+/**
+ * bd_unlink_disk_holder - destroy symlinks created by bd_link_disk_holder()
+ * @bdev: the calimed slave bdev
+ * @disk: the holding disk
+ *
+ * DON'T USE THIS UNLESS YOU'RE ALREADY USING IT.
+ *
+ * CONTEXT:
+ * Might sleep.
+ */
+void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 {
-	struct gendisk *disk = bdev->bd_holder_disk;
+	struct bd_holder_disk *holder;
 
-	bdev->bd_holder_disk = NULL;
-	if (!disk)
-		return;
+	mutex_lock(&bdev->bd_mutex);
 
-	del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
-	del_symlink(bdev->bd_part->holder_dir, &disk_to_dev(disk)->kobj);
+	holder = bd_find_holder_disk(bdev, disk);
+
+	if (!WARN_ON_ONCE(holder == NULL) && !--holder->refcnt) {
+		del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
+		del_symlink(bdev->bd_part->holder_dir,
+			    &disk_to_dev(disk)->kobj);
+		list_del_init(&holder->list);
+		kfree(holder);
+	}
+
+	mutex_unlock(&bdev->bd_mutex);
 }
-#else
-static inline void bd_unlink_disk_holder(struct block_device *bdev)
-{ }
+EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
 #endif
 
 /**
@@ -1380,7 +1438,6 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 		 * unblock evpoll if it was a write holder.
 		 */
 		if (bdev_free) {
-			bd_unlink_disk_holder(bdev);
 			if (bdev->bd_write_holder) {
 				disk_unblock_events(bdev->bd_disk);
 				bdev->bd_write_holder = false;

@@ -350,6 +350,7 @@ static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
 	if (!d->dm_dev.bdev)
 		return;
 
+	bd_unlink_disk_holder(d->dm_dev.bdev, dm_disk(md));
 	blkdev_put(d->dm_dev.bdev, d->dm_dev.mode | FMODE_EXCL);
 	d->dm_dev.bdev = NULL;
 }

@@ -666,7 +666,7 @@ struct block_device {
 	int			bd_holders;
 	bool			bd_write_holder;
 #ifdef CONFIG_SYSFS
-	struct gendisk *	bd_holder_disk;	/* for sysfs slave linkng */
+	struct list_head	bd_holder_disks;
 #endif
 	struct block_device *	bd_contains;
 	unsigned		bd_block_size;
@@ -2058,11 +2058,17 @@ extern struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode,
 extern int blkdev_put(struct block_device *bdev, fmode_t mode);
 #ifdef CONFIG_SYSFS
 extern int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk);
+extern void bd_unlink_disk_holder(struct block_device *bdev,
+				  struct gendisk *disk);
 #else
 static inline int bd_link_disk_holder(struct block_device *bdev,
 				      struct gendisk *disk)
 {
 	return 0;
+}
+static inline void bd_unlink_disk_holder(struct block_device *bdev,
+					 struct gendisk *disk)
+{
 }
 #endif
 #endif

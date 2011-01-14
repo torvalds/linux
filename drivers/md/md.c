@@ -1912,6 +1912,7 @@ static void unbind_rdev_from_array(mdk_rdev_t * rdev)
 		MD_BUG();
 		return;
 	}
+	bd_unlink_disk_holder(rdev->bdev, rdev->mddev->gendisk);
 	list_del_rcu(&rdev->same_set);
 	printk(KERN_INFO "md: unbind<%s>\n", bdevname(rdev->bdev,b));
 	rdev->mddev = NULL;
