@@ -23,6 +23,7 @@
 #include <asm/localtimer.h>
 #include <asm/arch_timer.h>
 #include <asm/system_info.h>
+#include <asm/sched_clock.h>
 
 static unsigned long arch_timer_rate;
 static int arch_timer_ppi;
@@ -204,6 +205,18 @@ static inline cycle_t arch_counter_get_cntvct(void)
 	return ((cycle_t) cvalh << 32) | cvall;
 }
 
+static u32 notrace arch_counter_get_cntvct32(void)
+{
+	cycle_t cntvct = arch_counter_get_cntvct();
+
+	/*
+	 * The sched_clock infrastructure only knows about counters
+	 * with at most 32bits. Forget about the upper 24 bits for the
+	 * time being...
+	 */
+	return (u32)(cntvct & (u32)~0);
+}
+
 static cycle_t arch_counter_read(struct clocksource *cs)
 {
 	return arch_counter_get_cntpct();
@@ -285,4 +298,16 @@ out_free:
 	free_percpu(arch_timer_evt);
 
 	return err;
+}
+
+int __init arch_timer_sched_clock_init(void)
+{
+	int err;
+
+	err = arch_timer_available();
+	if (err)
+		return err;
+
+	setup_sched_clock(arch_counter_get_cntvct32, 32, arch_timer_rate);
+	return 0;
 }
