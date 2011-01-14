@@ -161,22 +161,9 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 };
 
 /* Serial ports */
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
-
-static inline void mxc_init_imx_uart(void)
-{
-	imx51_add_imx_uart(0, &uart_pdata);
-	imx51_add_imx_uart(1, &uart_pdata);
-	imx51_add_imx_uart(2, &uart_pdata);
-}
-#else /* !SERIAL_IMX */
-static inline void mxc_init_imx_uart(void)
-{
-}
-#endif /* SERIAL_IMX */
 
 static const struct imxi2c_platform_data babbage_i2c_data __initconst = {
 	.bitrate = 100000,
@@ -360,7 +347,11 @@ static void __init mxc_board_init(void)
 #endif
 	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
 					ARRAY_SIZE(mx51babbage_pads));
-	mxc_init_imx_uart();
+
+	imx51_add_imx_uart(0, &uart_pdata);
+	imx51_add_imx_uart(1, &uart_pdata);
+	imx51_add_imx_uart(2, &uart_pdata);
+
 	babbage_fec_reset();
 	imx51_add_fec(NULL);
 
