@@ -346,7 +346,7 @@ static struct soc2030_regs mode_1280x720[] = {
 static struct soc2030_regs pll_table[] = {
 	{WRITE_REG_DATA, 0x001e, 0x0503},	/*Pad Slew rate*/
 	{WRITE_REG_DATA, 0x0014, 0x2545},	/*PLL_CONTROL*/
-	{WRITE_REG_DATA, 0x0010, 0x011C},	/*PLL_DIVIDERS*/
+	{WRITE_REG_DATA, 0x0010, 0x0a56},	/*PLL_DIVIDERS 43mhz*/
 	{WRITE_REG_DATA, 0x0012, 0x10F7},	/*PLL_P_DIVIDERS*/
 	{WRITE_REG_DATA, 0x0014, 0x2547},	/*PLL_CONTROL*/
 	{WRITE_REG_DATA, 0x0014, 0x2447},	/*PLL_CONTROL*/
