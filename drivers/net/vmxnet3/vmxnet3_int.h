@@ -317,6 +317,7 @@ struct vmxnet3_adapter {
 	struct vmxnet3_rx_queue		rx_queue[VMXNET3_DEVICE_MAX_RX_QUEUES];
 	struct vlan_group		*vlan_grp;
 	struct vmxnet3_intr		intr;
+	spinlock_t			cmd_lock;
 	struct Vmxnet3_DriverShared	*shared;
 	struct Vmxnet3_PMConf		*pm_conf;
 	struct Vmxnet3_TxQueueDesc	*tqd_start;     /* all tx queue desc */

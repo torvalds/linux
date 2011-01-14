@@ -142,9 +142,13 @@ vmxnet3_check_link(struct vmxnet3_adapter *adapter, bool affectTxQueue)
 {
 	u32 ret;
 	int i;
+	unsigned long flags;
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_LINK);
 	ret = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+
 	adapter->link_speed = ret >> 16;
 	if (ret & 1) { /* Link is up. */
 		printk(KERN_INFO "%s: NIC Link is Up %d Mbps\n",
@@ -186,8 +190,10 @@ vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 
 	/* Check if there is an error on xmit/recv queues */
 	if (events & (VMXNET3_ECR_TQERR | VMXNET3_ECR_RQERR)) {
+		spin_lock(&adapter->cmd_lock);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_GET_QUEUE_STATUS);
+		spin_unlock(&adapter->cmd_lock);
 
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			if (adapter->tqd_start[i].status.stopped)
@@ -1857,6 +1863,7 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct Vmxnet3_DriverShared *shared = adapter->shared;
 	u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
+	unsigned long flags;
 
 	if (grp) {
 		/* add vlan rx stripping. */
@@ -1873,8 +1880,10 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 				vfTable[i] = 0;
 
 			VMXNET3_SET_VFTABLE_ENTRY(vfTable, 0);
+			spin_lock_irqsave(&adapter->cmd_lock, flags);
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
+			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 		} else {
 			printk(KERN_ERR "%s: vlan_rx_register when device has "
 			       "no NETIF_F_HW_VLAN_RX\n", netdev->name);
@@ -1893,8 +1902,10 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 				 */
 				vfTable[i] = 0;
 			}
+			spin_lock_irqsave(&adapter->cmd_lock, flags);
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
+			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 		}
 	}
 }
@@ -1927,10 +1938,13 @@ vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
+	unsigned long flags;
 
 	VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid);
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 }
 
 
@@ -1939,10 +1953,13 @@ vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
+	unsigned long flags;
 
 	VMXNET3_CLEAR_VFTABLE_ENTRY(vfTable, vid);
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 }
 
 
@@ -1973,6 +1990,7 @@ static void
 vmxnet3_set_mc(struct net_device *netdev)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	unsigned long flags;
 	struct Vmxnet3_RxFilterConf *rxConf =
 					&adapter->shared->devRead.rxFilterConf;
 	u8 *new_table = NULL;
@@ -2008,6 +2026,7 @@ vmxnet3_set_mc(struct net_device *netdev)
 		rxConf->mfTablePA = 0;
 	}
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	if (new_mode != rxConf->rxMode) {
 		rxConf->rxMode = cpu_to_le32(new_mode);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
@@ -2016,6 +2035,7 @@ vmxnet3_set_mc(struct net_device *netdev)
 
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_MAC_FILTERS);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	kfree(new_table);
 }
@@ -2165,6 +2185,7 @@ vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 {
 	int err, i;
 	u32 ret;
+	unsigned long flags;
 
 	dev_dbg(&adapter->netdev->dev, "%s: skb_buf_size %d, rx_buf_per_pkt %d,"
 		" ring sizes %u %u %u\n", adapter->netdev->name,
@@ -2194,9 +2215,11 @@ vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 			       adapter->shared_pa));
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DSAH, VMXNET3_GET_ADDR_HI(
 			       adapter->shared_pa));
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_ACTIVATE_DEV);
 	ret = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to activate dev %s: error %u\n",
@@ -2243,7 +2266,10 @@ rq_err:
 void
 vmxnet3_reset_dev(struct vmxnet3_adapter *adapter)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_RESET_DEV);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 }
 
 
@@ -2251,12 +2277,15 @@ int
 vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter)
 {
 	int i;
+	unsigned long flags;
 	if (test_and_set_bit(VMXNET3_STATE_BIT_QUIESCED, &adapter->state))
 		return 0;
 
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_QUIESCE_DEV);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	vmxnet3_disable_all_intrs(adapter);
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
@@ -2706,9 +2735,11 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 	u32 cfg;
 
 	/* intr settings */
+	spin_lock(&adapter->cmd_lock);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_GET_CONF_INTR);
 	cfg = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+	spin_unlock(&adapter->cmd_lock);
 	adapter->intr.type = cfg & 0x3;
 	adapter->intr.mask_mode = (cfg >> 2) & 0x3;
 
@@ -2893,6 +2924,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 
+	spin_lock_init(&adapter->cmd_lock);
 	adapter->shared = pci_alloc_consistent(adapter->pdev,
 			  sizeof(struct Vmxnet3_DriverShared),
 			  &adapter->shared_pa);
@@ -3096,6 +3128,7 @@ vmxnet3_suspend(struct device *device)
 	u8 *arpreq;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
+	unsigned long flags;
 	int i = 0;
 
 	if (!netif_running(netdev))
@@ -3179,8 +3212,10 @@ skip_arp:
 	adapter->shared->devRead.pmConfDesc.confPA = cpu_to_le64(virt_to_phys(
 								 pmConf));
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_PMCFG);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, PMSG_SUSPEND),
@@ -3196,6 +3231,7 @@ static int
 vmxnet3_resume(struct device *device)
 {
 	int err, i = 0;
+	unsigned long flags;
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
@@ -3223,8 +3259,10 @@ vmxnet3_resume(struct device *device)
 
 	pci_enable_wake(pdev, PCI_D0, 0);
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_PMCFG);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	vmxnet3_alloc_intr_resources(adapter);
 	vmxnet3_request_irqs(adapter);
 	for (i = 0; i < adapter->num_rx_queues; i++)

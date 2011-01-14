@@ -45,6 +45,7 @@ static int
 vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	unsigned long flags;
 
 	if (adapter->rxcsum != val) {
 		adapter->rxcsum = val;
@@ -56,8 +57,10 @@ vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
 				adapter->shared->devRead.misc.uptFeatures &=
 				~UPT1_F_RXCSUM;
 
+			spin_lock_irqsave(&adapter->cmd_lock, flags);
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);
+			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 		}
 	}
 	return 0;
@@ -153,12 +156,15 @@ vmxnet3_get_stats(struct net_device *netdev)
 	struct UPT1_TxStats *devTxStats;
 	struct UPT1_RxStats *devRxStats;
 	struct net_device_stats *net_stats = &netdev->stats;
+	unsigned long flags;
 	int i;
 
 	adapter = netdev_priv(netdev);
 
 	/* Collect the dev stats into the shared area */
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_STATS);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	memset(net_stats, 0, sizeof(*net_stats));
 	for (i = 0; i < adapter->num_tx_queues; i++) {
@@ -296,6 +302,7 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data)
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u8 lro_requested = (data & ETH_FLAG_LRO) == 0 ? 0 : 1;
 	u8 lro_present = (netdev->features & NETIF_F_LRO) == 0 ? 0 : 1;
+	unsigned long flags;
 
 	if (data & ~ETH_FLAG_LRO)
 		return -EOPNOTSUPP;
@@ -311,8 +318,10 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data)
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
 							~UPT1_F_LRO;
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_FEATURE);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	}
 	return 0;
 }
@@ -322,11 +331,14 @@ vmxnet3_get_ethtool_stats(struct net_device *netdev,
 			  struct ethtool_stats *stats, u64  *buf)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	unsigned long flags;
 	u8 *base;
 	int i;
 	int j = 0;
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_STATS);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	/* this does assume each counter is 64-bit wide */
 	for (j = 0; j < adapter->num_tx_queues; j++) {
@@ -605,6 +617,7 @@ vmxnet3_set_rss_indir(struct net_device *netdev,
 		      const struct ethtool_rxfh_indir *p)
 {
 	unsigned int i;
+	unsigned long flags;
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 
@@ -623,8 +636,10 @@ vmxnet3_set_rss_indir(struct net_device *netdev,
 	for (i = 0; i < rssConf->indTableSize; i++)
 		rssConf->indTable[i] = p->ring_index[i];
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_RSSIDT);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	return 0;
 
