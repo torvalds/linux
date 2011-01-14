@@ -121,22 +121,9 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 };
 
 /* Serial ports */
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
 static const struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
-
-static inline void mxc_init_imx_uart(void)
-{
-	imx51_add_imx_uart(0, &uart_pdata);
-	imx51_add_imx_uart(1, &uart_pdata);
-	imx51_add_imx_uart(2, &uart_pdata);
-}
-#else /* !SERIAL_IMX */
-static inline void mxc_init_imx_uart(void)
-{
-}
-#endif /* SERIAL_IMX */
 
 /* This function is board specific as the bit mask for the plldiv will also
  * be different for other Freescale SoCs, thus a common bitmask is not
@@ -320,7 +307,9 @@ static void __init mxc_board_init(void)
 					ARRAY_SIZE(mx51efikamx_pads));
 	mx51_efikamx_board_id();
 	mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
-	mxc_init_imx_uart();
+	imx51_add_imx_uart(0, &uart_pdata);
+	imx51_add_imx_uart(1, &uart_pdata);
+	imx51_add_imx_uart(2, &uart_pdata);
 	imx51_add_sdhci_esdhc_imx(0, NULL);
 
 	/* on < 1.2 boards both SD controllers are used */
