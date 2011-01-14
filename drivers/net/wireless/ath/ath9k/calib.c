@@ -382,9 +382,8 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 	s16 default_nf;
 	int i, j;
 
-	if (!ah->caldata)
-		return;
-
+	ah->caldata->channel = chan->channel;
+	ah->caldata->channelFlags = chan->channelFlags & ~CHANNEL_CW_INT;
 	h = ah->caldata->nfCalHist;
 	default_nf = ath9k_hw_get_default_nf(ah, chan);
 	for (i = 0; i < NUM_NF_READINGS; i++) {
