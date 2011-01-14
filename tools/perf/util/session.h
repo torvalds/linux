@@ -51,7 +51,8 @@ struct perf_session {
 	int			cwdlen;
 	char			*cwd;
 	struct ordered_samples	ordered_samples;
-	char filename[0];
+	struct callchain_cursor	callchain_cursor;
+	char			filename[0];
 };
 
 struct perf_event_ops;
@@ -94,10 +95,10 @@ int __perf_session__process_events(struct perf_session *self,
 int perf_session__process_events(struct perf_session *self,
 				 struct perf_event_ops *event_ops);
 
-struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
-						   struct thread *thread,
-						   struct ip_callchain *chain,
-						   struct symbol **parent);
+int perf_session__resolve_callchain(struct perf_session *self,
+				    struct thread *thread,
+				    struct ip_callchain *chain,
+				    struct symbol **parent);
 
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
 

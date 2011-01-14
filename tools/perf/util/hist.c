@@ -211,7 +211,9 @@ void hist_entry__free(struct hist_entry *he)
  * collapse the histogram
  */
 
-static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
+static bool hists__collapse_insert_entry(struct hists *self,
+					 struct rb_root *root,
+					 struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -226,8 +228,11 @@ static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 
 		if (!cmp) {
 			iter->period += he->period;
-			if (symbol_conf.use_callchain)
-				callchain_merge(iter->callchain, he->callchain);
+			if (symbol_conf.use_callchain) {
+				callchain_cursor_reset(&self->callchain_cursor);
+				callchain_merge(&self->callchain_cursor, iter->callchain,
+						he->callchain);
+			}
 			hist_entry__free(he);
 			return false;
 		}
@@ -262,7 +267,7 @@ void hists__collapse_resort(struct hists *self)
 		next = rb_next(&n->rb_node);
 
 		rb_erase(&n->rb_node, &self->entries);
-		if (collapse__insert_entry(&tmp, n))
+		if (hists__collapse_insert_entry(self, &tmp, n))
 			hists__inc_nr_entries(self, n);
 	}
 

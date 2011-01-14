@@ -242,17 +242,16 @@ static bool symbol__match_parent_regex(struct symbol *sym)
 	return 0;
 }
 
-struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
-						   struct thread *thread,
-						   struct ip_callchain *chain,
-						   struct symbol **parent)
+int perf_session__resolve_callchain(struct perf_session *self,
+				    struct thread *thread,
+				    struct ip_callchain *chain,
+				    struct symbol **parent)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
 	unsigned int i;
-	struct map_symbol *syms = calloc(chain->nr, sizeof(*syms));
+	int err;
 
-	if (!syms)
-		return NULL;
+	callchain_cursor_reset(&self->callchain_cursor);
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip = chain->ips[i];
@@ -281,12 +280,15 @@ struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
 				*parent = al.sym;
 			if (!symbol_conf.use_callchain)
 				break;
-			syms[i].map = al.map;
-			syms[i].sym = al.sym;
 		}
+
+		err = callchain_cursor_append(&self->callchain_cursor,
+					      ip, al.map, al.sym);
+		if (err)
+			return err;
 	}
 
-	return syms;
+	return 0;
 }
 
 static int process_event_synth_stub(event_t *event __used,
