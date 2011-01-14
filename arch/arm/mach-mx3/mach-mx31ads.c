@@ -73,8 +73,7 @@
  * This file contains the board-specific initialization routines.
  */
 
-#if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
-/*!
+/*
  * The serial port definition structure.
  */
 static struct plat_serial8250_port serial_platform_data[] = {
@@ -110,12 +109,6 @@ static int __init mxc_init_extuart(void)
 {
 	return platform_device_register(&serial_device);
 }
-#else
-static inline int mxc_init_extuart(void)
-{
-	return 0;
-}
-#endif
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
