@@ -583,6 +583,13 @@ void release_open_intent(struct nameidata *nd)
 		fput(nd->intent.open.file);
 }
 
+/*
+ * Call d_revalidate and handle filesystems that request rcu-walk
+ * to be dropped. This may be called and return in rcu-walk mode,
+ * regardless of success or error. If -ECHILD is returned, the caller
+ * must return -ECHILD back up the path walk stack so path walk may
+ * be restarted in ref-walk mode.
+ */
 static int d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	int status;
@@ -673,6 +680,9 @@ force_reval_path(struct path *path, struct nameidata *nd)
 		return 0;
 
 	if (!status) {
+		/* Don't d_invalidate in rcu-walk mode */
+		if (nameidata_drop_rcu(nd))
+			return -ECHILD;
 		d_invalidate(dentry);
 		status = -ESTALE;
 	}
