@@ -351,7 +351,6 @@ free_xid:
 struct vfsmount *cifs_dfs_d_automount(struct path *path)
 {
 	struct vfsmount *newmnt;
-	int err;
 
 	cFYI(1, "in %s", __func__);
 
@@ -361,25 +360,12 @@ struct vfsmount *cifs_dfs_d_automount(struct path *path)
 		return newmnt;
 	}
 
-	mntget(newmnt);
-	err = do_add_mount(newmnt, path, path->mnt->mnt_flags | MNT_SHRINKABLE,
-			   &cifs_dfs_automount_list);
-	switch (err) {
-	case 0:
-		schedule_delayed_work(&cifs_dfs_automount_task,
-				      cifs_dfs_mountpoint_expiry_timeout);
-		cFYI(1, "leaving %s [ok]" , __func__);
-		return newmnt;
-	case -EBUSY:
-		/* someone else made a mount here whilst we were busy */
-		mntput(newmnt);
-		cFYI(1, "leaving %s [EBUSY]" , __func__);
-		return NULL;
-	default:
-		mntput(newmnt);
-		cFYI(1, "leaving %s [error %d]" , __func__, err);
-		return ERR_PTR(err);
-	}
+	mntget(newmnt); /* prevent immediate expiration */
+	mnt_set_expiry(newmnt, &cifs_dfs_automount_list);
+	schedule_delayed_work(&cifs_dfs_automount_task,
+			      cifs_dfs_mountpoint_expiry_timeout);
+	cFYI(1, "leaving %s [ok]" , __func__);
+	return newmnt;
 }
 
 const struct inode_operations cifs_dfs_referral_inode_operations = {

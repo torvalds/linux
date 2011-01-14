@@ -149,26 +149,10 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	if (IS_ERR(mnt))
 		goto out;
 
-	mntget(mnt);
-	err = do_add_mount(mnt, path, path->mnt->mnt_flags | MNT_SHRINKABLE,
-			   &nfs_automount_list);
-	switch (err) {
-	case 0:
-		dprintk("%s: done, success\n", __func__);
-		schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
-		break;
-	case -EBUSY:
-		/* someone else made a mount here whilst we were busy */
-		mntput(mnt);
-		dprintk("%s: done, collision\n", __func__);
-		mnt = NULL;
-		break;
-	default:
-		mntput(mnt);
-		dprintk("%s: done, error %d\n", __func__, err);
-		mnt = ERR_PTR(err);
-		break;
-	}
+	dprintk("%s: done, success\n", __func__);
+	mntget(mnt); /* prevent immediate expiration */
+	mnt_set_expiry(mnt, &nfs_automount_list);
+	schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
 
 out:
 	nfs_free_fattr(fattr);

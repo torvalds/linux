@@ -900,6 +900,7 @@ static int follow_automount(struct path *path, unsigned flags,
 			    bool *need_mntput)
 {
 	struct vfsmount *mnt;
+	int err;
 
 	if (!path->dentry->d_op || !path->dentry->d_op->d_automount)
 		return -EREMOTE;
@@ -942,22 +943,49 @@ static int follow_automount(struct path *path, unsigned flags,
 			return -EREMOTE;
 		return PTR_ERR(mnt);
 	}
+
 	if (!mnt) /* mount collision */
 		return 0;
 
+	/* The new mount record should have at least 2 refs to prevent it being
+	 * expired before we get a chance to add it
+	 */
+	BUG_ON(mnt_get_count(mnt) < 2);
+
 	if (mnt->mnt_sb == path->mnt->mnt_sb &&
 	    mnt->mnt_root == path->dentry) {
+		mnt_clear_expiry(mnt);
+		mntput(mnt);
 		mntput(mnt);
 		return -ELOOP;
 	}
 
-	dput(path->dentry);
-	if (*need_mntput)
-		mntput(path->mnt);
-	path->mnt = mnt;
-	path->dentry = dget(mnt->mnt_root);
-	*need_mntput = true;
-	return 0;
+	/* We need to add the mountpoint to the parent.  The filesystem may
+	 * have placed it on an expiry list, and so we need to make sure it
+	 * won't be expired under us if do_add_mount() fails (do_add_mount()
+	 * will eat a reference unconditionally).
+	 */
+	mntget(mnt);
+	err = do_add_mount(mnt, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
+	switch (err) {
+	case -EBUSY:
+		/* Someone else made a mount here whilst we were busy */
+		err = 0;
+	default:
+		mnt_clear_expiry(mnt);
+		mntput(mnt);
+		mntput(mnt);
+		return err;
+	case 0:
+		mntput(mnt);
+		dput(path->dentry);
+		if (*need_mntput)
+			mntput(path->mnt);
+		path->mnt = mnt;
+		path->dentry = dget(mnt->mnt_root);
+		*need_mntput = true;
+		return 0;
+	}
 }
 
 /*

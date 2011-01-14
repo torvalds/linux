@@ -241,7 +241,6 @@ error_no_devname:
 struct vfsmount *afs_d_automount(struct path *path)
 {
 	struct vfsmount *newmnt;
-	int err;
 
 	_enter("{%s,%s}", path->mnt->mnt_devname, path->dentry->d_name.name);
 
@@ -249,24 +248,12 @@ struct vfsmount *afs_d_automount(struct path *path)
 	if (IS_ERR(newmnt))
 		return newmnt;
 
-	mntget(newmnt);
-	err = do_add_mount(newmnt, path, MNT_SHRINKABLE, &afs_vfsmounts);
-	switch (err) {
-	case 0:
-		queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
-				   afs_mntpt_expiry_timeout * HZ);
-		_leave(" = %p {%s}", newmnt, newmnt->mnt_devname);
-		return newmnt;
-	case -EBUSY:
-		/* someone else made a mount here whilst we were busy */
-		mntput(newmnt);
-		_leave(" = NULL [EBUSY]");
-		return NULL;
-	default:
-		mntput(newmnt);
-		_leave(" = %d", err);
-		return ERR_PTR(err);
-	}
+	mntget(newmnt); /* prevent immediate expiration */
+	mnt_set_expiry(newmnt, &afs_vfsmounts);
+	queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
+			   afs_mntpt_expiry_timeout * HZ);
+	_leave(" = %p {%s}", newmnt, newmnt->mnt_devname);
+	return newmnt;
 }
 
 /*
