@@ -387,6 +387,13 @@ config MACH_PCONTROL_G20
 	  Select this if you are using taskit's Stamp9G20 CPU module on this
 	  carrier board, beeing the decentralized unit of a building automation
 	  system; featuring nvram, eth-switch, iso-rs485, display, io
+
+config MACH_GSIA18S
+	bool "GS_IA18_S board"
+	help
+	  This enables support for the GS_IA18_S board
+	  produced by GeoSIG Ltd company. This is an internet accelerograph.
+	  <http://www.geosig.com>
 endif
 
 if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
