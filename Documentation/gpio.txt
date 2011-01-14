@@ -135,7 +135,7 @@ setting up a platform_device using the GPIO, is mark its direction:
 	int gpio_direction_input(unsigned gpio);
 	int gpio_direction_output(unsigned gpio, int value);
 
-The return value is zero for success, else a negative errno.  It must
+The return value is zero for success, else a negative errno.  It should
 be checked, since the get/set calls don't have error returns and since
 misconfiguration is possible.  You should normally issue these calls from
 a task context.  However, for spinlock-safe GPIOs it's OK to use them
