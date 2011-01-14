@@ -106,7 +106,7 @@ struct hdpvr_device {
 	struct work_struct	worker;
 
 	/* I2C adapter */
-	struct i2c_adapter	*i2c_adapter;
+	struct i2c_adapter	i2c_adapter;
 	/* I2C lock */
 	struct mutex		i2c_mutex;
 
