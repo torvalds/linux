@@ -293,8 +293,6 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context)
  *
  ******************************************************************************/
 static u8 acpi_ev_global_lock_pending;
-static spinlock_t _acpi_ev_global_lock_pending_lock;
-#define acpi_ev_global_lock_pending_lock &_acpi_ev_global_lock_pending_lock
 
 static u32 acpi_ev_global_lock_handler(void *context)
 {
