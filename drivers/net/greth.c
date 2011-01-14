@@ -586,12 +586,13 @@ static irqreturn_t greth_interrupt(int irq, void *dev_id)
 	status = GRETH_REGLOAD(greth->regs->status);
 
 	/* Handle rx and tx interrupts through poll */
-	if (status & (GRETH_INT_RX | GRETH_INT_TX)) {
+	if (status & (GRETH_INT_RE | GRETH_INT_RX |
+		      GRETH_INT_TE | GRETH_INT_TX)) {
 
 		/* Clear interrupt status */
-		GRETH_REGORIN(greth->regs->status,
-			      status & (GRETH_INT_RX | GRETH_INT_TX));
-
+		GRETH_REGSAVE(greth->regs->status,
+			      status & (GRETH_INT_RE | GRETH_INT_RX |
+					GRETH_INT_TE | GRETH_INT_TX));
 		retval = IRQ_HANDLED;
 
 		/* Disable interrupts and schedule poll() */
