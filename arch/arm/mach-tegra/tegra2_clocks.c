@@ -2024,6 +2024,7 @@ struct clk tegra_list_clks[] = {
 	SHARED_CLK("disp1.emc",	"tegradc.0",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("disp2.emc",	"tegradc.1",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("hdmi.emc",	"hdmi",			"emc",	&tegra_clk_emc),
+	SHARED_CLK("host.emc",	"tegra_grhost",		"emc",	&tegra_clk_emc),
 };
 
 #define CLK_DUPLICATE(_name, _dev, _con)		\
