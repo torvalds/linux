@@ -917,11 +917,9 @@ out:
 	return ret;
 }
 
-int wl1271_plt_stop(struct wl1271 *wl)
+int __wl1271_plt_stop(struct wl1271 *wl)
 {
 	int ret = 0;
-
-	mutex_lock(&wl->mutex);
 
 	wl1271_notice("power down");
 
@@ -938,12 +936,21 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	wl->state = WL1271_STATE_OFF;
 	wl->rx_counter = 0;
 
-out:
 	mutex_unlock(&wl->mutex);
-
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->recovery_work);
+	mutex_lock(&wl->mutex);
+out:
+	return ret;
+}
 
+int wl1271_plt_stop(struct wl1271 *wl)
+{
+	int ret;
+
+	mutex_lock(&wl->mutex);
+	ret = __wl1271_plt_stop(wl);
+	mutex_unlock(&wl->mutex);
 	return ret;
 }
 
@@ -3109,6 +3116,9 @@ EXPORT_SYMBOL_GPL(wl1271_register_hw);
 
 void wl1271_unregister_hw(struct wl1271 *wl)
 {
+	if (wl->state == WL1271_STATE_PLT)
+		__wl1271_plt_stop(wl);
+
 	unregister_netdevice_notifier(&wl1271_dev_notifier);
 	ieee80211_unregister_hw(wl->hw);
 	wl->mac80211_registered = false;
