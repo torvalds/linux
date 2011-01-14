@@ -318,7 +318,7 @@ static int mb86a20s_i2c_writereg(struct mb86a20s_state *state,
 
 	rc = i2c_transfer(state->i2c, &msg, 1);
 	if (rc != 1) {
-		printk("%s: writereg rcor(rc == %i, reg == 0x%02x,"
+		printk("%s: writereg error (rc == %i, reg == 0x%02x,"
 			 " data == 0x%02x)\n", __func__, rc, reg, data);
 		return rc;
 	}
@@ -353,7 +353,7 @@ static int mb86a20s_i2c_readreg(struct mb86a20s_state *state,
 	rc = i2c_transfer(state->i2c, msg, 2);
 
 	if (rc != 2) {
-		rc("%s: reg=0x%x (rcor=%d)\n", __func__, reg, rc);
+		rc("%s: reg=0x%x (error=%d)\n", __func__, reg, rc);
 		return rc;
 	}
 
