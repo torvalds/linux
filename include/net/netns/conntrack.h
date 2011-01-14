@@ -28,8 +28,6 @@ struct netns_ct {
 	struct ctl_table_header	*acct_sysctl_header;
 	struct ctl_table_header	*event_sysctl_header;
 #endif
-	int			hash_vmalloc;
-	int			expect_vmalloc;
 	char			*slabname;
 };
 #endif

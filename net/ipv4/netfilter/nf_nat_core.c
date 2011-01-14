@@ -682,8 +682,7 @@ static int __net_init nf_nat_net_init(struct net *net)
 {
 	/* Leave them the same for the moment. */
 	net->ipv4.nat_htable_size = net->ct.htable_size;
-	net->ipv4.nat_bysource = nf_ct_alloc_hashtable(&net->ipv4.nat_htable_size,
-						       &net->ipv4.nat_vmalloced, 0);
+	net->ipv4.nat_bysource = nf_ct_alloc_hashtable(&net->ipv4.nat_htable_size, 0);
 	if (!net->ipv4.nat_bysource)
 		return -ENOMEM;
 	return 0;
@@ -705,8 +704,7 @@ static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	nf_ct_iterate_cleanup(net, &clean_nat, NULL);
 	synchronize_rcu();
-	nf_ct_free_hashtable(net->ipv4.nat_bysource, net->ipv4.nat_vmalloced,
-			     net->ipv4.nat_htable_size);
+	nf_ct_free_hashtable(net->ipv4.nat_bysource, net->ipv4.nat_htable_size);
 }
 
 static struct pernet_operations nf_nat_net_ops = {

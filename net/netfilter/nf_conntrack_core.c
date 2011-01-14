@@ -1202,9 +1202,9 @@ static int kill_all(struct nf_conn *i, void *data)
 	return 1;
 }
 
-void nf_ct_free_hashtable(void *hash, int vmalloced, unsigned int size)
+void nf_ct_free_hashtable(void *hash, unsigned int size)
 {
-	if (vmalloced)
+	if (is_vmalloc_addr(hash))
 		vfree(hash);
 	else
 		free_pages((unsigned long)hash,
@@ -1271,8 +1271,7 @@ static void nf_conntrack_cleanup_net(struct net *net)
 		goto i_see_dead_people;
 	}
 
-	nf_ct_free_hashtable(net->ct.hash, net->ct.hash_vmalloc,
-			     net->ct.htable_size);
+	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
 	nf_conntrack_ecache_fini(net);
 	nf_conntrack_acct_fini(net);
 	nf_conntrack_expect_fini(net);
@@ -1301,13 +1300,11 @@ void nf_conntrack_cleanup(struct net *net)
 	}
 }
 
-void *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced, int nulls)
+void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 {
 	struct hlist_nulls_head *hash;
 	unsigned int nr_slots, i;
 	size_t sz;
-
-	*vmalloced = 0;
 
 	BUILD_BUG_ON(sizeof(struct hlist_nulls_head) != sizeof(struct hlist_head));
 	nr_slots = *sizep = roundup(*sizep, PAGE_SIZE / sizeof(struct hlist_nulls_head));
@@ -1315,7 +1312,6 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced, int nulls)
 	hash = (void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO,
 					get_order(sz));
 	if (!hash) {
-		*vmalloced = 1;
 		printk(KERN_WARNING "nf_conntrack: falling back to vmalloc.\n");
 		hash = __vmalloc(sz, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
 				 PAGE_KERNEL);
@@ -1331,7 +1327,7 @@ EXPORT_SYMBOL_GPL(nf_ct_alloc_hashtable);
 
 int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 {
-	int i, bucket, vmalloced, old_vmalloced;
+	int i, bucket;
 	unsigned int hashsize, old_size;
 	struct hlist_nulls_head *hash, *old_hash;
 	struct nf_conntrack_tuple_hash *h;
@@ -1348,7 +1344,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	if (!hashsize)
 		return -EINVAL;
 
-	hash = nf_ct_alloc_hashtable(&hashsize, &vmalloced, 1);
+	hash = nf_ct_alloc_hashtable(&hashsize, 1);
 	if (!hash)
 		return -ENOMEM;
 
@@ -1370,15 +1366,13 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 		}
 	}
 	old_size = init_net.ct.htable_size;
-	old_vmalloced = init_net.ct.hash_vmalloc;
 	old_hash = init_net.ct.hash;
 
 	init_net.ct.htable_size = nf_conntrack_htable_size = hashsize;
-	init_net.ct.hash_vmalloc = vmalloced;
 	init_net.ct.hash = hash;
 	spin_unlock_bh(&nf_conntrack_lock);
 
-	nf_ct_free_hashtable(old_hash, old_vmalloced, old_size);
+	nf_ct_free_hashtable(old_hash, old_size);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
@@ -1491,8 +1485,7 @@ static int nf_conntrack_init_net(struct net *net)
 	}
 
 	net->ct.htable_size = nf_conntrack_htable_size;
-	net->ct.hash = nf_ct_alloc_hashtable(&net->ct.htable_size,
-					     &net->ct.hash_vmalloc, 1);
+	net->ct.hash = nf_ct_alloc_hashtable(&net->ct.htable_size, 1);
 	if (!net->ct.hash) {
 		ret = -ENOMEM;
 		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
@@ -1515,8 +1508,7 @@ err_ecache:
 err_acct:
 	nf_conntrack_expect_fini(net);
 err_expect:
-	nf_ct_free_hashtable(net->ct.hash, net->ct.hash_vmalloc,
-			     net->ct.htable_size);
+	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
 err_hash:
 	kmem_cache_destroy(net->ct.nf_conntrack_cachep);
 err_cache:

@@ -639,8 +639,7 @@ int nf_conntrack_expect_init(struct net *net)
 	}
 
 	net->ct.expect_count = 0;
-	net->ct.expect_hash = nf_ct_alloc_hashtable(&nf_ct_expect_hsize,
-						  &net->ct.expect_vmalloc, 0);
+	net->ct.expect_hash = nf_ct_alloc_hashtable(&nf_ct_expect_hsize, 0);
 	if (net->ct.expect_hash == NULL)
 		goto err1;
 
@@ -662,8 +661,7 @@ err3:
 	if (net_eq(net, &init_net))
 		kmem_cache_destroy(nf_ct_expect_cachep);
 err2:
-	nf_ct_free_hashtable(net->ct.expect_hash, net->ct.expect_vmalloc,
-			     nf_ct_expect_hsize);
+	nf_ct_free_hashtable(net->ct.expect_hash, nf_ct_expect_hsize);
 err1:
 	return err;
 }
@@ -675,6 +673,5 @@ void nf_conntrack_expect_fini(struct net *net)
 		rcu_barrier(); /* Wait for call_rcu() before destroy */
 		kmem_cache_destroy(nf_ct_expect_cachep);
 	}
-	nf_ct_free_hashtable(net->ct.expect_hash, net->ct.expect_vmalloc,
-			     nf_ct_expect_hsize);
+	nf_ct_free_hashtable(net->ct.expect_hash, nf_ct_expect_hsize);
 }
