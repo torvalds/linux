@@ -49,7 +49,6 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *,
 static void cp210x_break_ctl(struct tty_struct *, int);
 static int cp210x_startup(struct usb_serial *);
 static void cp210x_dtr_rts(struct usb_serial_port *p, int on);
-static int cp210x_carrier_raised(struct usb_serial_port *p);
 
 static int debug;
 
@@ -166,8 +165,7 @@ static struct usb_serial_driver cp210x_device = {
 	.tiocmget 		= cp210x_tiocmget,
 	.tiocmset		= cp210x_tiocmset,
 	.attach			= cp210x_startup,
-	.dtr_rts		= cp210x_dtr_rts,
-	.carrier_raised		= cp210x_carrier_raised
+	.dtr_rts		= cp210x_dtr_rts
 };
 
 /* Config request types */
@@ -764,15 +762,6 @@ static int cp210x_tiocmget (struct tty_struct *tty, struct file *file)
 	dbg("%s - control = 0x%.2x", __func__, control);
 
 	return result;
-}
-
-static int cp210x_carrier_raised(struct usb_serial_port *p)
-{
-	unsigned int control;
-	cp210x_get_config(p, CP210X_GET_MDMSTS, &control, 1);
-	if (control & CONTROL_DCD)
-		return 1;
-	return 0;
 }
 
 static void cp210x_break_ctl (struct tty_struct *tty, int break_state)
