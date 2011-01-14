@@ -27,6 +27,7 @@
  ******************************************************************************/
 
 #define _RTL871X_IOCTL_LINUX_C_
+#define _RTL871X_MP_IOCTL_C_
 
 #include "osdep_service.h"
 #include "drv_types.h"
