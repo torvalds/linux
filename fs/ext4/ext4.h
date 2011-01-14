@@ -2065,7 +2065,7 @@ extern int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 extern void ext4_ext_truncate(struct inode *);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
-extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
+extern long ext4_fallocate(struct file *file, int mode, loff_t offset,
 			  loff_t len);
 extern int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 			  ssize_t len);

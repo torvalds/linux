@@ -255,10 +255,10 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (((offset + len) > inode->i_sb->s_maxbytes) || ((offset + len) < 0))
 		return -EFBIG;
 
-	if (!inode->i_op->fallocate)
+	if (!file->f_op->fallocate)
 		return -EOPNOTSUPP;
 
-	return inode->i_op->fallocate(inode, mode, offset, len);
+	return file->f_op->fallocate(file, mode, offset, len);
 }
 
 SYSCALL_DEFINE(fallocate)(int fd, int mode, loff_t offset, loff_t len)
