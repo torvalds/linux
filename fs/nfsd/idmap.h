@@ -1,11 +1,9 @@
 /*
- *  include/linux/nfs4_acl.c
+ *  Mapping of UID to name and vice versa.
  *
- *  Common NFSv4 ACL handling definitions.
- *
- *  Copyright (c) 2002 The Regents of the University of Michigan.
- *  All rights reserved.
- *
+ *  Copyright (c) 2002, 2003 The Regents of the University of
+ *  Michigan.  All rights reserved.
+> *
  *  Marius Aamodt Eriksen <marius@umich.edu>
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -34,28 +32,31 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LINUX_NFS4_ACL_H
-#define LINUX_NFS4_ACL_H
+#ifndef LINUX_NFSD_IDMAP_H
+#define LINUX_NFSD_IDMAP_H
 
-#include <linux/posix_acl.h>
+#include <linux/in.h>
+#include <linux/sunrpc/svc.h>
 
-/* Maximum ACL we'll accept from client; chosen (somewhat arbitrarily) to
- * fit in a page: */
-#define NFS4_ACL_MAX 170
+/* XXX from linux/nfs_idmap.h */
+#define IDMAP_NAMESZ 128
 
-struct nfs4_acl *nfs4_acl_new(int);
-int nfs4_acl_get_whotype(char *, u32);
-int nfs4_acl_write_who(int who, char *p);
-int nfs4_acl_permission(struct nfs4_acl *acl, uid_t owner, gid_t group,
-		                        uid_t who, u32 mask);
+#ifdef CONFIG_NFSD_V4
+int nfsd_idmap_init(void);
+void nfsd_idmap_shutdown(void);
+#else
+static inline int nfsd_idmap_init(void)
+{
+	return 0;
+}
+static inline void nfsd_idmap_shutdown(void)
+{
+}
+#endif
 
-#define NFS4_ACL_TYPE_DEFAULT	0x01
-#define NFS4_ACL_DIR		0x02
-#define NFS4_ACL_OWNER		0x04
+__be32 nfsd_map_name_to_uid(struct svc_rqst *, const char *, size_t, __u32 *);
+__be32 nfsd_map_name_to_gid(struct svc_rqst *, const char *, size_t, __u32 *);
+int nfsd_map_uid_to_name(struct svc_rqst *, __u32, char *);
+int nfsd_map_gid_to_name(struct svc_rqst *, __u32, char *);
 
-struct nfs4_acl *nfs4_acl_posix_to_nfsv4(struct posix_acl *,
-				struct posix_acl *, unsigned int flags);
-int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *, struct posix_acl **,
-				struct posix_acl **, unsigned int flags);
-
-#endif /* LINUX_NFS4_ACL_H */
+#endif /* LINUX_NFSD_IDMAP_H */

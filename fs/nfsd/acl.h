@@ -1,11 +1,9 @@
 /*
- *  include/linux/nfsd_idmap.h
+ *  Common NFSv4 ACL handling definitions.
  *
- *  Mapping of UID to name and vice versa.
+ *  Copyright (c) 2002 The Regents of the University of Michigan.
+ *  All rights reserved.
  *
- *  Copyright (c) 2002, 2003 The Regents of the University of
- *  Michigan.  All rights reserved.
-> *
  *  Marius Aamodt Eriksen <marius@umich.edu>
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -34,31 +32,28 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LINUX_NFSD_IDMAP_H
-#define LINUX_NFSD_IDMAP_H
+#ifndef LINUX_NFS4_ACL_H
+#define LINUX_NFS4_ACL_H
 
-#include <linux/in.h>
-#include <linux/sunrpc/svc.h>
+#include <linux/posix_acl.h>
 
-/* XXX from linux/nfs_idmap.h */
-#define IDMAP_NAMESZ 128
+/* Maximum ACL we'll accept from client; chosen (somewhat arbitrarily) to
+ * fit in a page: */
+#define NFS4_ACL_MAX 170
 
-#ifdef CONFIG_NFSD_V4
-int nfsd_idmap_init(void);
-void nfsd_idmap_shutdown(void);
-#else
-static inline int nfsd_idmap_init(void)
-{
-	return 0;
-}
-static inline void nfsd_idmap_shutdown(void)
-{
-}
-#endif
+struct nfs4_acl *nfs4_acl_new(int);
+int nfs4_acl_get_whotype(char *, u32);
+int nfs4_acl_write_who(int who, char *p);
+int nfs4_acl_permission(struct nfs4_acl *acl, uid_t owner, gid_t group,
+		                        uid_t who, u32 mask);
 
-int nfsd_map_name_to_uid(struct svc_rqst *, const char *, size_t, __u32 *);
-int nfsd_map_name_to_gid(struct svc_rqst *, const char *, size_t, __u32 *);
-int nfsd_map_uid_to_name(struct svc_rqst *, __u32, char *);
-int nfsd_map_gid_to_name(struct svc_rqst *, __u32, char *);
+#define NFS4_ACL_TYPE_DEFAULT	0x01
+#define NFS4_ACL_DIR		0x02
+#define NFS4_ACL_OWNER		0x04
 
-#endif /* LINUX_NFSD_IDMAP_H */
+struct nfs4_acl *nfs4_acl_posix_to_nfsv4(struct posix_acl *,
+				struct posix_acl *, unsigned int flags);
+int nfs4_acl_nfsv4_to_posix(struct nfs4_acl *, struct posix_acl **,
+				struct posix_acl **, unsigned int flags);
+
+#endif /* LINUX_NFS4_ACL_H */
