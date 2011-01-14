@@ -141,13 +141,12 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 	return rc;
 }
 
-static inode *ecryptfs_get_inode(struct inode *lower_inode,
+static struct inode *ecryptfs_get_inode(struct inode *lower_inode,
 		       struct super_block *sb)
 {
 	struct inode *inode;
 	int rc = 0;
 
-	lower_inode = lower_dentry->d_inode;
 	if (lower_inode->i_sb != ecryptfs_superblock_to_lower(sb)) {
 		rc = -EXDEV;
 		goto out;
@@ -202,7 +201,7 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 {
 	struct inode *lower_inode = lower_dentry->d_inode;
 	struct inode *inode = ecryptfs_get_inode(lower_inode, sb);
-	if (IS_ERR(inode)
+	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
 		d_add(dentry, inode);
