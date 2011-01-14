@@ -204,9 +204,6 @@ void autofs_dev_ioctl_exit(void);
 
 extern const struct inode_operations autofs4_symlink_inode_operations;
 extern const struct inode_operations autofs4_dir_inode_operations;
-extern const struct inode_operations autofs4_root_inode_operations;
-extern const struct inode_operations autofs4_indirect_root_inode_operations;
-extern const struct inode_operations autofs4_direct_root_inode_operations;
 extern const struct file_operations autofs4_dir_operations;
 extern const struct file_operations autofs4_root_operations;
 
