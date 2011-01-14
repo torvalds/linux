@@ -218,12 +218,12 @@ config MFD_STMPE
 		Keypad: stmpe-keypad
 		Touchscreen: stmpe-ts
 
-config MFD_TC35892
-	bool "Support Toshiba TC35892"
+config MFD_TC3589X
+	bool "Support Toshiba TC35892 and variants"
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
-	  Support for the Toshiba TC35892 I/O Expander.
+	  Support for the Toshiba TC35892 and variants I/O Expander.
 
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
@@ -605,6 +605,16 @@ config MFD_VX855
 	  Say yes here to enable support for various functions of the
 	  VIA VX855/VX875 south bridge. You will need to enable the vx855_spi
 	  and/or vx855_gpio drivers for this to do anything useful.
+
+config MFD_WL1273_CORE
+	tristate
+	depends on I2C
+	select MFD_CORE
+	default n
+	help
+	  This is the core driver for the TI WL1273 FM radio. This MFD
+	  driver connects the radio-wl1273 V4L2 module and the wl1273
+	  audio codec.
 
 endif # MFD_SUPPORT
 

@@ -1161,16 +1161,6 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int viacam_vidiocgmbuf(struct file *filp, void *priv,
-		struct video_mbuf *mbuf)
-{
-	struct via_camera *cam = priv;
-
-	return videobuf_cgmbuf(&cam->vb_queue, mbuf, 6);
-}
-#endif
-
 /* G/S_PARM */
 
 static int viacam_g_parm(struct file *filp, void *priv,
@@ -1251,9 +1241,6 @@ static const struct v4l2_ioctl_ops viacam_ioctl_ops = {
 	.vidioc_s_parm		= viacam_s_parm,
 	.vidioc_enum_framesizes = viacam_enum_framesizes,
 	.vidioc_enum_frameintervals = viacam_enum_frameintervals,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf		= viacam_vidiocgmbuf,
-#endif
 };
 
 /*----------------------------------------------------------------------------*/
@@ -1360,7 +1347,7 @@ static __devinit int viacam_probe(struct platform_device *pdev)
 	 */
 	sensor_adapter = viafb_find_i2c_adapter(VIA_PORT_31);
 	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, sensor_adapter,
-			"ov7670", "ov7670", 0x42 >> 1, NULL);
+			"ov7670", 0x42 >> 1, NULL);
 	if (cam->sensor == NULL) {
 		dev_err(&pdev->dev, "Unable to find the sensor!\n");
 		ret = -ENODEV;

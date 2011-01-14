@@ -115,7 +115,7 @@ struct pvr2_ctl_info {
 		} type_int;
 		struct { /* enumerated control */
 			unsigned int count;       /* enum value count */
-			const char **value_names; /* symbol names */
+			const char * const *value_names; /* symbol names */
 		} type_enum;
 		struct { /* bitmask control */
 			unsigned int valid_bits; /* bits in use */

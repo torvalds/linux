@@ -25,6 +25,143 @@
 #include "bnx2x_cmn.h"
 #include "bnx2x_dump.h"
 
+/* Note: in the format strings below %s is replaced by the queue-name which is
+ * either its index or 'fcoe' for the fcoe queue. Make sure the format string
+ * length does not exceed ETH_GSTRING_LEN - MAX_QUEUE_NAME_LEN + 2
+ */
+#define MAX_QUEUE_NAME_LEN	4
+static const struct {
+	long offset;
+	int size;
+	char string[ETH_GSTRING_LEN];
+} bnx2x_q_stats_arr[] = {
+/* 1 */	{ Q_STATS_OFFSET32(total_bytes_received_hi), 8, "[%s]: rx_bytes" },
+	{ Q_STATS_OFFSET32(error_bytes_received_hi),
+						8, "[%s]: rx_error_bytes" },
+	{ Q_STATS_OFFSET32(total_unicast_packets_received_hi),
+						8, "[%s]: rx_ucast_packets" },
+	{ Q_STATS_OFFSET32(total_multicast_packets_received_hi),
+						8, "[%s]: rx_mcast_packets" },
+	{ Q_STATS_OFFSET32(total_broadcast_packets_received_hi),
+						8, "[%s]: rx_bcast_packets" },
+	{ Q_STATS_OFFSET32(no_buff_discard_hi),	8, "[%s]: rx_discards" },
+	{ Q_STATS_OFFSET32(rx_err_discard_pkt),
+					 4, "[%s]: rx_phy_ip_err_discards"},
+	{ Q_STATS_OFFSET32(rx_skb_alloc_failed),
+					 4, "[%s]: rx_skb_alloc_discard" },
+	{ Q_STATS_OFFSET32(hw_csum_err), 4, "[%s]: rx_csum_offload_errors" },
+
+/* 10 */{ Q_STATS_OFFSET32(total_bytes_transmitted_hi),	8, "[%s]: tx_bytes" },
+	{ Q_STATS_OFFSET32(total_unicast_packets_transmitted_hi),
+						8, "[%s]: tx_ucast_packets" },
+	{ Q_STATS_OFFSET32(total_multicast_packets_transmitted_hi),
+						8, "[%s]: tx_mcast_packets" },
+	{ Q_STATS_OFFSET32(total_broadcast_packets_transmitted_hi),
+						8, "[%s]: tx_bcast_packets" }
+};
+
+#define BNX2X_NUM_Q_STATS ARRAY_SIZE(bnx2x_q_stats_arr)
+
+static const struct {
+	long offset;
+	int size;
+	u32 flags;
+#define STATS_FLAGS_PORT		1
+#define STATS_FLAGS_FUNC		2
+#define STATS_FLAGS_BOTH		(STATS_FLAGS_FUNC | STATS_FLAGS_PORT)
+	char string[ETH_GSTRING_LEN];
+} bnx2x_stats_arr[] = {
+/* 1 */	{ STATS_OFFSET32(total_bytes_received_hi),
+				8, STATS_FLAGS_BOTH, "rx_bytes" },
+	{ STATS_OFFSET32(error_bytes_received_hi),
+				8, STATS_FLAGS_BOTH, "rx_error_bytes" },
+	{ STATS_OFFSET32(total_unicast_packets_received_hi),
+				8, STATS_FLAGS_BOTH, "rx_ucast_packets" },
+	{ STATS_OFFSET32(total_multicast_packets_received_hi),
+				8, STATS_FLAGS_BOTH, "rx_mcast_packets" },
+	{ STATS_OFFSET32(total_broadcast_packets_received_hi),
+				8, STATS_FLAGS_BOTH, "rx_bcast_packets" },
+	{ STATS_OFFSET32(rx_stat_dot3statsfcserrors_hi),
+				8, STATS_FLAGS_PORT, "rx_crc_errors" },
+	{ STATS_OFFSET32(rx_stat_dot3statsalignmenterrors_hi),
+				8, STATS_FLAGS_PORT, "rx_align_errors" },
+	{ STATS_OFFSET32(rx_stat_etherstatsundersizepkts_hi),
+				8, STATS_FLAGS_PORT, "rx_undersize_packets" },
+	{ STATS_OFFSET32(etherstatsoverrsizepkts_hi),
+				8, STATS_FLAGS_PORT, "rx_oversize_packets" },
+/* 10 */{ STATS_OFFSET32(rx_stat_etherstatsfragments_hi),
+				8, STATS_FLAGS_PORT, "rx_fragments" },
+	{ STATS_OFFSET32(rx_stat_etherstatsjabbers_hi),
+				8, STATS_FLAGS_PORT, "rx_jabbers" },
+	{ STATS_OFFSET32(no_buff_discard_hi),
+				8, STATS_FLAGS_BOTH, "rx_discards" },
+	{ STATS_OFFSET32(mac_filter_discard),
+				4, STATS_FLAGS_PORT, "rx_filtered_packets" },
+	{ STATS_OFFSET32(xxoverflow_discard),
+				4, STATS_FLAGS_PORT, "rx_fw_discards" },
+	{ STATS_OFFSET32(brb_drop_hi),
+				8, STATS_FLAGS_PORT, "rx_brb_discard" },
+	{ STATS_OFFSET32(brb_truncate_hi),
+				8, STATS_FLAGS_PORT, "rx_brb_truncate" },
+	{ STATS_OFFSET32(pause_frames_received_hi),
+				8, STATS_FLAGS_PORT, "rx_pause_frames" },
+	{ STATS_OFFSET32(rx_stat_maccontrolframesreceived_hi),
+				8, STATS_FLAGS_PORT, "rx_mac_ctrl_frames" },
+	{ STATS_OFFSET32(nig_timer_max),
+			4, STATS_FLAGS_PORT, "rx_constant_pause_events" },
+/* 20 */{ STATS_OFFSET32(rx_err_discard_pkt),
+				4, STATS_FLAGS_BOTH, "rx_phy_ip_err_discards"},
+	{ STATS_OFFSET32(rx_skb_alloc_failed),
+				4, STATS_FLAGS_BOTH, "rx_skb_alloc_discard" },
+	{ STATS_OFFSET32(hw_csum_err),
+				4, STATS_FLAGS_BOTH, "rx_csum_offload_errors" },
+
+	{ STATS_OFFSET32(total_bytes_transmitted_hi),
+				8, STATS_FLAGS_BOTH, "tx_bytes" },
+	{ STATS_OFFSET32(tx_stat_ifhcoutbadoctets_hi),
+				8, STATS_FLAGS_PORT, "tx_error_bytes" },
+	{ STATS_OFFSET32(total_unicast_packets_transmitted_hi),
+				8, STATS_FLAGS_BOTH, "tx_ucast_packets" },
+	{ STATS_OFFSET32(total_multicast_packets_transmitted_hi),
+				8, STATS_FLAGS_BOTH, "tx_mcast_packets" },
+	{ STATS_OFFSET32(total_broadcast_packets_transmitted_hi),
+				8, STATS_FLAGS_BOTH, "tx_bcast_packets" },
+	{ STATS_OFFSET32(tx_stat_dot3statsinternalmactransmiterrors_hi),
+				8, STATS_FLAGS_PORT, "tx_mac_errors" },
+	{ STATS_OFFSET32(rx_stat_dot3statscarriersenseerrors_hi),
+				8, STATS_FLAGS_PORT, "tx_carrier_errors" },
+/* 30 */{ STATS_OFFSET32(tx_stat_dot3statssinglecollisionframes_hi),
+				8, STATS_FLAGS_PORT, "tx_single_collisions" },
+	{ STATS_OFFSET32(tx_stat_dot3statsmultiplecollisionframes_hi),
+				8, STATS_FLAGS_PORT, "tx_multi_collisions" },
+	{ STATS_OFFSET32(tx_stat_dot3statsdeferredtransmissions_hi),
+				8, STATS_FLAGS_PORT, "tx_deferred" },
+	{ STATS_OFFSET32(tx_stat_dot3statsexcessivecollisions_hi),
+				8, STATS_FLAGS_PORT, "tx_excess_collisions" },
+	{ STATS_OFFSET32(tx_stat_dot3statslatecollisions_hi),
+				8, STATS_FLAGS_PORT, "tx_late_collisions" },
+	{ STATS_OFFSET32(tx_stat_etherstatscollisions_hi),
+				8, STATS_FLAGS_PORT, "tx_total_collisions" },
+	{ STATS_OFFSET32(tx_stat_etherstatspkts64octets_hi),
+				8, STATS_FLAGS_PORT, "tx_64_byte_packets" },
+	{ STATS_OFFSET32(tx_stat_etherstatspkts65octetsto127octets_hi),
+			8, STATS_FLAGS_PORT, "tx_65_to_127_byte_packets" },
+	{ STATS_OFFSET32(tx_stat_etherstatspkts128octetsto255octets_hi),
+			8, STATS_FLAGS_PORT, "tx_128_to_255_byte_packets" },
+	{ STATS_OFFSET32(tx_stat_etherstatspkts256octetsto511octets_hi),
+			8, STATS_FLAGS_PORT, "tx_256_to_511_byte_packets" },
+/* 40 */{ STATS_OFFSET32(tx_stat_etherstatspkts512octetsto1023octets_hi),
+			8, STATS_FLAGS_PORT, "tx_512_to_1023_byte_packets" },
+	{ STATS_OFFSET32(etherstatspkts1024octetsto1522octets_hi),
+			8, STATS_FLAGS_PORT, "tx_1024_to_1522_byte_packets" },
+	{ STATS_OFFSET32(etherstatspktsover1522octets_hi),
+			8, STATS_FLAGS_PORT, "tx_1523_to_9022_byte_packets" },
+	{ STATS_OFFSET32(pause_frames_sent_hi),
+				8, STATS_FLAGS_PORT, "tx_pause_frames" }
+};
+
+#define BNX2X_NUM_STATS		ARRAY_SIZE(bnx2x_stats_arr)
+
 static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -45,14 +182,9 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->speed = bp->link_params.req_line_speed[cfg_idx];
 		cmd->duplex = bp->link_params.req_duplex[cfg_idx];
 	}
-	if (IS_MF(bp)) {
-		u16 vn_max_rate = ((bp->mf_config[BP_VN(bp)] &
-			FUNC_MF_CFG_MAX_BW_MASK) >> FUNC_MF_CFG_MAX_BW_SHIFT) *
-			100;
 
-		if (vn_max_rate < cmd->speed)
-			cmd->speed = vn_max_rate;
-	}
+	if (IS_MF(bp))
+		cmd->speed = bnx2x_get_mf_speed(bp);
 
 	if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
 		cmd->port = PORT_TP;
@@ -87,17 +219,56 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 advertising, cfg_idx, old_multi_phy_config, new_multi_phy_config;
+	u32 speed;
 
-	if (IS_MF(bp))
+	if (IS_MF_SD(bp))
 		return 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_cmd: cmd %d\n"
-	   DP_LEVEL "  supported 0x%x  advertising 0x%x  speed %d\n"
-	   DP_LEVEL "  duplex %d  port %d  phy_address %d  transceiver %d\n"
-	   DP_LEVEL "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
+	   "  supported 0x%x  advertising 0x%x  speed %d speed_hi %d\n"
+	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
+	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
 	   cmd->cmd, cmd->supported, cmd->advertising, cmd->speed,
+	   cmd->speed_hi,
 	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
 	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
+
+	speed = cmd->speed;
+	speed |= (cmd->speed_hi << 16);
+
+	if (IS_MF_SI(bp)) {
+		u32 param = 0;
+		u32 line_speed = bp->link_vars.line_speed;
+
+		/* use 10G if no link detected */
+		if (!line_speed)
+			line_speed = 10000;
+
+		if (bp->common.bc_ver < REQ_BC_VER_4_SET_MF_BW) {
+			BNX2X_DEV_INFO("To set speed BC %X or higher "
+				       "is required, please upgrade BC\n",
+				       REQ_BC_VER_4_SET_MF_BW);
+			return -EINVAL;
+		}
+		if (line_speed < speed) {
+			BNX2X_DEV_INFO("New speed should be less or equal "
+				       "to actual line speed\n");
+			return -EINVAL;
+		}
+		/* load old values */
+		param = bp->mf_config[BP_VN(bp)];
+
+		/* leave only MIN value */
+		param &= FUNC_MF_CFG_MIN_BW_MASK;
+
+		/* set new MAX value */
+		param |= (((speed * 100) / line_speed)
+				 << FUNC_MF_CFG_MAX_BW_SHIFT)
+				  & FUNC_MF_CFG_MAX_BW_MASK;
+
+		bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW, param);
+		return 0;
+	}
 
 	cfg_idx = bnx2x_get_link_cfg_idx(bp);
 	old_multi_phy_config = bp->link_params.multi_phy_config;
@@ -168,8 +339,6 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	} else { /* forced speed */
 		/* advertise the requested speed and duplex if supported */
-		u32 speed = cmd->speed;
-		speed |= (cmd->speed_hi << 16);
 		switch (speed) {
 		case SPEED_10:
 			if (cmd->duplex == DUPLEX_FULL) {
@@ -1286,7 +1455,7 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 
 			save_val = REG_RD(bp, offset);
 
-			REG_WR(bp, offset, (wr_val & mask));
+			REG_WR(bp, offset, wr_val & mask);
 
 			val = REG_RD(bp, offset);
 
@@ -1499,8 +1668,15 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	 * updates that have been performed while interrupts were
 	 * disabled.
 	 */
-	if (bp->common.int_block == INT_BLOCK_IGU)
+	if (bp->common.int_block == INT_BLOCK_IGU) {
+		/* Disable local BHes to prevent a dead-lock situation between
+		 * sch_direct_xmit() and bnx2x_run_loopback() (calling
+		 * bnx2x_tx_int()), as both are taking netif_tx_lock().
+		 */
+		local_bh_disable();
 		bnx2x_tx_int(fp_tx);
+		local_bh_enable();
+	}
 
 	rx_idx = le16_to_cpu(*fp_rx->rx_cons_sb);
 	if (rx_idx != rx_start_idx + num_pkts)
@@ -1650,7 +1826,7 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 	config->hdr.client_id = bp->fp->cl_id;
 	config->hdr.reserved1 = 0;
 
-	bp->set_mac_pending++;
+	bp->set_mac_pending = 1;
 	smp_wmb();
 	rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_SET_MAC, 0,
 			   U64_HI(bnx2x_sp_mapping(bp, mac_config)),
@@ -1748,134 +1924,6 @@ static void bnx2x_self_test(struct net_device *dev,
 #endif
 }
 
-static const struct {
-	long offset;
-	int size;
-	u8 string[ETH_GSTRING_LEN];
-} bnx2x_q_stats_arr[BNX2X_NUM_Q_STATS] = {
-/* 1 */	{ Q_STATS_OFFSET32(total_bytes_received_hi), 8, "[%d]: rx_bytes" },
-	{ Q_STATS_OFFSET32(error_bytes_received_hi),
-						8, "[%d]: rx_error_bytes" },
-	{ Q_STATS_OFFSET32(total_unicast_packets_received_hi),
-						8, "[%d]: rx_ucast_packets" },
-	{ Q_STATS_OFFSET32(total_multicast_packets_received_hi),
-						8, "[%d]: rx_mcast_packets" },
-	{ Q_STATS_OFFSET32(total_broadcast_packets_received_hi),
-						8, "[%d]: rx_bcast_packets" },
-	{ Q_STATS_OFFSET32(no_buff_discard_hi),	8, "[%d]: rx_discards" },
-	{ Q_STATS_OFFSET32(rx_err_discard_pkt),
-					 4, "[%d]: rx_phy_ip_err_discards"},
-	{ Q_STATS_OFFSET32(rx_skb_alloc_failed),
-					 4, "[%d]: rx_skb_alloc_discard" },
-	{ Q_STATS_OFFSET32(hw_csum_err), 4, "[%d]: rx_csum_offload_errors" },
-
-/* 10 */{ Q_STATS_OFFSET32(total_bytes_transmitted_hi),	8, "[%d]: tx_bytes" },
-	{ Q_STATS_OFFSET32(total_unicast_packets_transmitted_hi),
-						8, "[%d]: tx_ucast_packets" },
-	{ Q_STATS_OFFSET32(total_multicast_packets_transmitted_hi),
-						8, "[%d]: tx_mcast_packets" },
-	{ Q_STATS_OFFSET32(total_broadcast_packets_transmitted_hi),
-						8, "[%d]: tx_bcast_packets" }
-};
-
-static const struct {
-	long offset;
-	int size;
-	u32 flags;
-#define STATS_FLAGS_PORT		1
-#define STATS_FLAGS_FUNC		2
-#define STATS_FLAGS_BOTH		(STATS_FLAGS_FUNC | STATS_FLAGS_PORT)
-	u8 string[ETH_GSTRING_LEN];
-} bnx2x_stats_arr[BNX2X_NUM_STATS] = {
-/* 1 */	{ STATS_OFFSET32(total_bytes_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_bytes" },
-	{ STATS_OFFSET32(error_bytes_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_error_bytes" },
-	{ STATS_OFFSET32(total_unicast_packets_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_ucast_packets" },
-	{ STATS_OFFSET32(total_multicast_packets_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_mcast_packets" },
-	{ STATS_OFFSET32(total_broadcast_packets_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_bcast_packets" },
-	{ STATS_OFFSET32(rx_stat_dot3statsfcserrors_hi),
-				8, STATS_FLAGS_PORT, "rx_crc_errors" },
-	{ STATS_OFFSET32(rx_stat_dot3statsalignmenterrors_hi),
-				8, STATS_FLAGS_PORT, "rx_align_errors" },
-	{ STATS_OFFSET32(rx_stat_etherstatsundersizepkts_hi),
-				8, STATS_FLAGS_PORT, "rx_undersize_packets" },
-	{ STATS_OFFSET32(etherstatsoverrsizepkts_hi),
-				8, STATS_FLAGS_PORT, "rx_oversize_packets" },
-/* 10 */{ STATS_OFFSET32(rx_stat_etherstatsfragments_hi),
-				8, STATS_FLAGS_PORT, "rx_fragments" },
-	{ STATS_OFFSET32(rx_stat_etherstatsjabbers_hi),
-				8, STATS_FLAGS_PORT, "rx_jabbers" },
-	{ STATS_OFFSET32(no_buff_discard_hi),
-				8, STATS_FLAGS_BOTH, "rx_discards" },
-	{ STATS_OFFSET32(mac_filter_discard),
-				4, STATS_FLAGS_PORT, "rx_filtered_packets" },
-	{ STATS_OFFSET32(xxoverflow_discard),
-				4, STATS_FLAGS_PORT, "rx_fw_discards" },
-	{ STATS_OFFSET32(brb_drop_hi),
-				8, STATS_FLAGS_PORT, "rx_brb_discard" },
-	{ STATS_OFFSET32(brb_truncate_hi),
-				8, STATS_FLAGS_PORT, "rx_brb_truncate" },
-	{ STATS_OFFSET32(pause_frames_received_hi),
-				8, STATS_FLAGS_PORT, "rx_pause_frames" },
-	{ STATS_OFFSET32(rx_stat_maccontrolframesreceived_hi),
-				8, STATS_FLAGS_PORT, "rx_mac_ctrl_frames" },
-	{ STATS_OFFSET32(nig_timer_max),
-			4, STATS_FLAGS_PORT, "rx_constant_pause_events" },
-/* 20 */{ STATS_OFFSET32(rx_err_discard_pkt),
-				4, STATS_FLAGS_BOTH, "rx_phy_ip_err_discards"},
-	{ STATS_OFFSET32(rx_skb_alloc_failed),
-				4, STATS_FLAGS_BOTH, "rx_skb_alloc_discard" },
-	{ STATS_OFFSET32(hw_csum_err),
-				4, STATS_FLAGS_BOTH, "rx_csum_offload_errors" },
-
-	{ STATS_OFFSET32(total_bytes_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_bytes" },
-	{ STATS_OFFSET32(tx_stat_ifhcoutbadoctets_hi),
-				8, STATS_FLAGS_PORT, "tx_error_bytes" },
-	{ STATS_OFFSET32(total_unicast_packets_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_ucast_packets" },
-	{ STATS_OFFSET32(total_multicast_packets_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_mcast_packets" },
-	{ STATS_OFFSET32(total_broadcast_packets_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_bcast_packets" },
-	{ STATS_OFFSET32(tx_stat_dot3statsinternalmactransmiterrors_hi),
-				8, STATS_FLAGS_PORT, "tx_mac_errors" },
-	{ STATS_OFFSET32(rx_stat_dot3statscarriersenseerrors_hi),
-				8, STATS_FLAGS_PORT, "tx_carrier_errors" },
-/* 30 */{ STATS_OFFSET32(tx_stat_dot3statssinglecollisionframes_hi),
-				8, STATS_FLAGS_PORT, "tx_single_collisions" },
-	{ STATS_OFFSET32(tx_stat_dot3statsmultiplecollisionframes_hi),
-				8, STATS_FLAGS_PORT, "tx_multi_collisions" },
-	{ STATS_OFFSET32(tx_stat_dot3statsdeferredtransmissions_hi),
-				8, STATS_FLAGS_PORT, "tx_deferred" },
-	{ STATS_OFFSET32(tx_stat_dot3statsexcessivecollisions_hi),
-				8, STATS_FLAGS_PORT, "tx_excess_collisions" },
-	{ STATS_OFFSET32(tx_stat_dot3statslatecollisions_hi),
-				8, STATS_FLAGS_PORT, "tx_late_collisions" },
-	{ STATS_OFFSET32(tx_stat_etherstatscollisions_hi),
-				8, STATS_FLAGS_PORT, "tx_total_collisions" },
-	{ STATS_OFFSET32(tx_stat_etherstatspkts64octets_hi),
-				8, STATS_FLAGS_PORT, "tx_64_byte_packets" },
-	{ STATS_OFFSET32(tx_stat_etherstatspkts65octetsto127octets_hi),
-			8, STATS_FLAGS_PORT, "tx_65_to_127_byte_packets" },
-	{ STATS_OFFSET32(tx_stat_etherstatspkts128octetsto255octets_hi),
-			8, STATS_FLAGS_PORT, "tx_128_to_255_byte_packets" },
-	{ STATS_OFFSET32(tx_stat_etherstatspkts256octetsto511octets_hi),
-			8, STATS_FLAGS_PORT, "tx_256_to_511_byte_packets" },
-/* 40 */{ STATS_OFFSET32(tx_stat_etherstatspkts512octetsto1023octets_hi),
-			8, STATS_FLAGS_PORT, "tx_512_to_1023_byte_packets" },
-	{ STATS_OFFSET32(etherstatspkts1024octetsto1522octets_hi),
-			8, STATS_FLAGS_PORT, "tx_1024_to_1522_byte_packets" },
-	{ STATS_OFFSET32(etherstatspktsover1522octets_hi),
-			8, STATS_FLAGS_PORT, "tx_1523_to_9022_byte_packets" },
-	{ STATS_OFFSET32(pause_frames_sent_hi),
-				8, STATS_FLAGS_PORT, "tx_pause_frames" }
-};
-
 #define IS_PORT_STAT(i) \
 	((bnx2x_stats_arr[i].flags & STATS_FLAGS_BOTH) == STATS_FLAGS_PORT)
 #define IS_FUNC_STAT(i)		(bnx2x_stats_arr[i].flags & STATS_FLAGS_FUNC)
@@ -1890,7 +1938,8 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		if (is_multi(bp)) {
-			num_stats = BNX2X_NUM_Q_STATS * bp->num_queues;
+			num_stats = BNX2X_NUM_STAT_QUEUES(bp) *
+				BNX2X_NUM_Q_STATS;
 			if (!IS_MF_MODE_STAT(bp))
 				num_stats += BNX2X_NUM_STATS;
 		} else {
@@ -1916,15 +1965,25 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int i, j, k;
+	char queue_name[MAX_QUEUE_NAME_LEN+1];
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		if (is_multi(bp)) {
 			k = 0;
-			for_each_queue(bp, i) {
+			for_each_napi_queue(bp, i) {
+				memset(queue_name, 0, sizeof(queue_name));
+
+				if (IS_FCOE_IDX(i))
+					sprintf(queue_name, "fcoe");
+				else
+					sprintf(queue_name, "%d", i);
+
 				for (j = 0; j < BNX2X_NUM_Q_STATS; j++)
-					sprintf(buf + (k + j)*ETH_GSTRING_LEN,
-						bnx2x_q_stats_arr[j].string, i);
+					snprintf(buf + (k + j)*ETH_GSTRING_LEN,
+						ETH_GSTRING_LEN,
+						bnx2x_q_stats_arr[j].string,
+						queue_name);
 				k += BNX2X_NUM_Q_STATS;
 			}
 			if (IS_MF_MODE_STAT(bp))
@@ -1958,7 +2017,7 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 
 	if (is_multi(bp)) {
 		k = 0;
-		for_each_queue(bp, i) {
+		for_each_napi_queue(bp, i) {
 			hw_stats = (u32 *)&bp->fp[i].eth_q_stats;
 			for (j = 0; j < BNX2X_NUM_Q_STATS; j++) {
 				if (bnx2x_q_stats_arr[j].size == 0) {

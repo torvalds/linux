@@ -2081,10 +2081,6 @@ struct __vxge_hw_ring_rxd_priv {
 #endif
 };
 
-/* ========================= FIFO PRIVATE API ============================= */
-
-struct vxge_hw_fifo_attr;
-
 struct vxge_hw_mempool_cbs {
 	void (*item_func_alloc)(
 			struct vxge_hw_mempool *mempoolh,
@@ -2158,27 +2154,27 @@ enum vxge_hw_vpath_mac_addr_add_mode {
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_add(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN],
+	u8 *macaddr,
+	u8 *macaddr_mask,
 	enum vxge_hw_vpath_mac_addr_add_mode duplicate_mode);
 
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_get(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN]);
+	u8 *macaddr,
+	u8 *macaddr_mask);
 
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_get_next(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN]);
+	u8 *macaddr,
+	u8 *macaddr_mask);
 
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_delete(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN]);
+	u8 *macaddr,
+	u8 *macaddr_mask);
 
 enum vxge_hw_status
 vxge_hw_vpath_vid_add(
@@ -2285,6 +2281,7 @@ vxge_hw_channel_dtr_free(struct __vxge_hw_channel *channel, void *dtrh);
 
 int
 vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel);
+
 void
 vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id);
 

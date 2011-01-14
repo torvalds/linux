@@ -32,10 +32,12 @@
 #define MPU_EP_CONTROL 		0
 
 /********** MPU semphore ******************/
-#define MPU_EP_SEMAPHORE_OFFSET 	0xac
-#define EP_SEMAPHORE_POST_STAGE_MASK	0x0000FFFF
-#define EP_SEMAPHORE_POST_ERR_MASK	0x1
-#define EP_SEMAPHORE_POST_ERR_SHIFT	31
+#define MPU_EP_SEMAPHORE_OFFSET		0xac
+#define MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET	0x400
+#define EP_SEMAPHORE_POST_STAGE_MASK		0x0000FFFF
+#define EP_SEMAPHORE_POST_ERR_MASK		0x1
+#define EP_SEMAPHORE_POST_ERR_SHIFT		31
+
 /* MPU semphore POST stage values */
 #define POST_STAGE_AWAITING_HOST_RDY 	0x1 /* FW awaiting goahead from host */
 #define POST_STAGE_HOST_RDY 		0x2 /* Host has given go-ahed to FW */
@@ -66,6 +68,28 @@
 #define PCICFG_UE_STATUS_LOW_MASK		0xA8
 #define PCICFG_UE_STATUS_HI_MASK		0xAC
 
+/******** SLI_INTF ***********************/
+#define SLI_INTF_REG_OFFSET			0x58
+#define SLI_INTF_VALID_MASK			0xE0000000
+#define SLI_INTF_VALID				0xC0000000
+#define SLI_INTF_HINT2_MASK			0x1F000000
+#define SLI_INTF_HINT2_SHIFT			24
+#define SLI_INTF_HINT1_MASK			0x00FF0000
+#define SLI_INTF_HINT1_SHIFT			16
+#define SLI_INTF_FAMILY_MASK			0x00000F00
+#define SLI_INTF_FAMILY_SHIFT			8
+#define SLI_INTF_IF_TYPE_MASK			0x0000F000
+#define SLI_INTF_IF_TYPE_SHIFT			12
+#define SLI_INTF_REV_MASK			0x000000F0
+#define SLI_INTF_REV_SHIFT			4
+#define SLI_INTF_FT_MASK			0x00000001
+
+
+/* SLI family */
+#define BE_SLI_FAMILY		0x0
+#define LANCER_A0_SLI_FAMILY	0xA
+
+
 /********* ISR0 Register offset **********/
 #define CEV_ISR0_OFFSET 			0xC18
 #define CEV_ISR_SIZE				4
@@ -73,6 +97,9 @@
 /********* Event Q door bell *************/
 #define DB_EQ_OFFSET			DB_CQ_OFFSET
 #define DB_EQ_RING_ID_MASK		0x1FF	/* bits 0 - 8 */
+#define DB_EQ_RING_ID_EXT_MASK		0x3e00  /* bits 9-13 */
+#define DB_EQ_RING_ID_EXT_MASK_SHIFT	(2) /* qid bits 9-13 placing at 11-15 */
+
 /* Clear the interrupt for this eq */
 #define DB_EQ_CLR_SHIFT			(9)	/* bit 9 */
 /* Must be 1 */
@@ -85,6 +112,10 @@
 /********* Compl Q door bell *************/
 #define DB_CQ_OFFSET 			0x120
 #define DB_CQ_RING_ID_MASK		0x3FF	/* bits 0 - 9 */
+#define DB_CQ_RING_ID_EXT_MASK		0x7C00	/* bits 10-14 */
+#define DB_CQ_RING_ID_EXT_MASK_SHIFT	(1)	/* qid bits 10-14
+						 placing at 11-15 */
+
 /* Number of event entries processed */
 #define DB_CQ_NUM_POPPED_SHIFT		(16) 	/* bits 16 - 28 */
 /* Rearm bit */

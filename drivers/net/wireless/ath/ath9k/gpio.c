@@ -103,8 +103,8 @@ static int ath_register_led(struct ath_softc *sc, struct ath_led *led,
 
 	ret = led_classdev_register(wiphy_dev(sc->hw->wiphy), &led->led_cdev);
 	if (ret)
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Failed to register led:%s", led->name);
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"Failed to register led:%s", led->name);
 	else
 		led->registered = 1;
 	return ret;
@@ -236,13 +236,13 @@ static void ath_detect_bt_priority(struct ath_softc *sc)
 		sc->sc_flags &= ~(SC_OP_BT_PRIORITY_DETECTED | SC_OP_BT_SCAN);
 		/* Detect if colocated bt started scanning */
 		if (btcoex->bt_priority_cnt >= ATH_BT_CNT_SCAN_THRESHOLD) {
-			ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_BTCOEX,
-				  "BT scan detected");
+			ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_BTCOEX,
+				"BT scan detected\n");
 			sc->sc_flags |= (SC_OP_BT_SCAN |
 					 SC_OP_BT_PRIORITY_DETECTED);
 		} else if (btcoex->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
-			ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_BTCOEX,
-				  "BT priority traffic detected");
+			ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_BTCOEX,
+				"BT priority traffic detected\n");
 			sc->sc_flags |= SC_OP_BT_PRIORITY_DETECTED;
 		}
 
@@ -259,7 +259,7 @@ static void ath9k_gen_timer_start(struct ath_hw *ah,
 	ath9k_hw_gen_timer_start(ah, timer, timer_next, timer_period);
 
 	if ((ah->imask & ATH9K_INT_GENTIMER) == 0) {
-		ath9k_hw_set_interrupts(ah, 0);
+		ath9k_hw_disable_interrupts(ah);
 		ah->imask |= ATH9K_INT_GENTIMER;
 		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
@@ -273,7 +273,7 @@ static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 
 	/* if no timer is enabled, turn off interrupt mask */
 	if (timer_table->timer_mask.val == 0) {
-		ath9k_hw_set_interrupts(ah, 0);
+		ath9k_hw_disable_interrupts(ah);
 		ah->imask &= ~ATH9K_INT_GENTIMER;
 		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
@@ -310,10 +310,8 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 		timer_period = is_btscan ? btcoex->btscan_no_stomp :
 					   btcoex->btcoex_no_stomp;
-		ath9k_gen_timer_start(ah,
-				      btcoex->no_stomp_timer,
-				      (ath9k_hw_gettsf32(ah) +
-				       timer_period), timer_period * 10);
+		ath9k_gen_timer_start(ah, btcoex->no_stomp_timer, 0,
+				      timer_period * 10);
 		btcoex->hw_timer_enabled = true;
 	}
 
@@ -333,8 +331,8 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
-	ath_print(common, ATH_DBG_BTCOEX,
-		  "no stomp timer running\n");
+	ath_dbg(common, ATH_DBG_BTCOEX,
+		"no stomp timer running\n");
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
@@ -380,8 +378,8 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_hw *ah = sc->sc_ah;
 
-	ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-		  "Starting btcoex timers");
+	ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+		"Starting btcoex timers\n");
 
 	/* make sure duty cycle timer is also stopped when resuming */
 	if (btcoex->hw_timer_enabled)

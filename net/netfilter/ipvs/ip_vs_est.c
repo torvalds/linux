@@ -8,8 +8,12 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Changes:
- *
+ * Changes:     Hans Schillstrom <hans.schillstrom@ericsson.com>
+ *              Network name space (netns) aware.
+ *              Global data moved to netns i.e struct netns_ipvs
+ *              Affected data: est_list and est_lock.
+ *              estimation_timer() runs with timer per netns.
+ *              get_stats()) do the per cpu summing.
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -48,11 +52,42 @@
  */
 
 
-static void estimation_timer(unsigned long arg);
+/*
+ * Make a summary from each cpu
+ */
+static void ip_vs_read_cpu_stats(struct ip_vs_stats_user *sum,
+				 struct ip_vs_cpu_stats *stats)
+{
+	int i;
 
-static LIST_HEAD(est_list);
-static DEFINE_SPINLOCK(est_lock);
-static DEFINE_TIMER(est_timer, estimation_timer, 0, 0);
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *s = per_cpu_ptr(stats, i);
+		unsigned int start;
+		__u64 inbytes, outbytes;
+		if (i) {
+			sum->conns += s->ustats.conns;
+			sum->inpkts += s->ustats.inpkts;
+			sum->outpkts += s->ustats.outpkts;
+			do {
+				start = u64_stats_fetch_begin_bh(&s->syncp);
+				inbytes = s->ustats.inbytes;
+				outbytes = s->ustats.outbytes;
+			} while (u64_stats_fetch_retry_bh(&s->syncp, start));
+			sum->inbytes += inbytes;
+			sum->outbytes += outbytes;
+		} else {
+			sum->conns = s->ustats.conns;
+			sum->inpkts = s->ustats.inpkts;
+			sum->outpkts = s->ustats.outpkts;
+			do {
+				start = u64_stats_fetch_begin_bh(&s->syncp);
+				sum->inbytes = s->ustats.inbytes;
+				sum->outbytes = s->ustats.outbytes;
+			} while (u64_stats_fetch_retry_bh(&s->syncp, start));
+		}
+	}
+}
+
 
 static void estimation_timer(unsigned long arg)
 {
@@ -62,11 +97,16 @@ static void estimation_timer(unsigned long arg)
 	u32 n_inpkts, n_outpkts;
 	u64 n_inbytes, n_outbytes;
 	u32 rate;
+	struct net *net = (struct net *)arg;
+	struct netns_ipvs *ipvs;
 
-	spin_lock(&est_lock);
-	list_for_each_entry(e, &est_list, list) {
+	ipvs = net_ipvs(net);
+	ip_vs_read_cpu_stats(&ipvs->tot_stats->ustats, ipvs->cpustats);
+	spin_lock(&ipvs->est_lock);
+	list_for_each_entry(e, &ipvs->est_list, list) {
 		s = container_of(e, struct ip_vs_stats, est);
 
+		ip_vs_read_cpu_stats(&s->ustats, s->cpustats);
 		spin_lock(&s->lock);
 		n_conns = s->ustats.conns;
 		n_inpkts = s->ustats.inpkts;
@@ -75,38 +115,39 @@ static void estimation_timer(unsigned long arg)
 		n_outbytes = s->ustats.outbytes;
 
 		/* scaled by 2^10, but divided 2 seconds */
-		rate = (n_conns - e->last_conns)<<9;
+		rate = (n_conns - e->last_conns) << 9;
 		e->last_conns = n_conns;
-		e->cps += ((long)rate - (long)e->cps)>>2;
-		s->ustats.cps = (e->cps+0x1FF)>>10;
+		e->cps += ((long)rate - (long)e->cps) >> 2;
+		s->ustats.cps = (e->cps + 0x1FF) >> 10;
 
-		rate = (n_inpkts - e->last_inpkts)<<9;
+		rate = (n_inpkts - e->last_inpkts) << 9;
 		e->last_inpkts = n_inpkts;
-		e->inpps += ((long)rate - (long)e->inpps)>>2;
-		s->ustats.inpps = (e->inpps+0x1FF)>>10;
+		e->inpps += ((long)rate - (long)e->inpps) >> 2;
+		s->ustats.inpps = (e->inpps + 0x1FF) >> 10;
 
-		rate = (n_outpkts - e->last_outpkts)<<9;
+		rate = (n_outpkts - e->last_outpkts) << 9;
 		e->last_outpkts = n_outpkts;
-		e->outpps += ((long)rate - (long)e->outpps)>>2;
-		s->ustats.outpps = (e->outpps+0x1FF)>>10;
+		e->outpps += ((long)rate - (long)e->outpps) >> 2;
+		s->ustats.outpps = (e->outpps + 0x1FF) >> 10;
 
-		rate = (n_inbytes - e->last_inbytes)<<4;
+		rate = (n_inbytes - e->last_inbytes) << 4;
 		e->last_inbytes = n_inbytes;
-		e->inbps += ((long)rate - (long)e->inbps)>>2;
-		s->ustats.inbps = (e->inbps+0xF)>>5;
+		e->inbps += ((long)rate - (long)e->inbps) >> 2;
+		s->ustats.inbps = (e->inbps + 0xF) >> 5;
 
-		rate = (n_outbytes - e->last_outbytes)<<4;
+		rate = (n_outbytes - e->last_outbytes) << 4;
 		e->last_outbytes = n_outbytes;
-		e->outbps += ((long)rate - (long)e->outbps)>>2;
-		s->ustats.outbps = (e->outbps+0xF)>>5;
+		e->outbps += ((long)rate - (long)e->outbps) >> 2;
+		s->ustats.outbps = (e->outbps + 0xF) >> 5;
 		spin_unlock(&s->lock);
 	}
-	spin_unlock(&est_lock);
-	mod_timer(&est_timer, jiffies + 2*HZ);
+	spin_unlock(&ipvs->est_lock);
+	mod_timer(&ipvs->est_timer, jiffies + 2*HZ);
 }
 
-void ip_vs_new_estimator(struct ip_vs_stats *stats)
+void ip_vs_new_estimator(struct net *net, struct ip_vs_stats *stats)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_estimator *est = &stats->est;
 
 	INIT_LIST_HEAD(&est->list);
@@ -126,18 +167,19 @@ void ip_vs_new_estimator(struct ip_vs_stats *stats)
 	est->last_outbytes = stats->ustats.outbytes;
 	est->outbps = stats->ustats.outbps<<5;
 
-	spin_lock_bh(&est_lock);
-	list_add(&est->list, &est_list);
-	spin_unlock_bh(&est_lock);
+	spin_lock_bh(&ipvs->est_lock);
+	list_add(&est->list, &ipvs->est_list);
+	spin_unlock_bh(&ipvs->est_lock);
 }
 
-void ip_vs_kill_estimator(struct ip_vs_stats *stats)
+void ip_vs_kill_estimator(struct net *net, struct ip_vs_stats *stats)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_estimator *est = &stats->est;
 
-	spin_lock_bh(&est_lock);
+	spin_lock_bh(&ipvs->est_lock);
 	list_del(&est->list);
-	spin_unlock_bh(&est_lock);
+	spin_unlock_bh(&ipvs->est_lock);
 }
 
 void ip_vs_zero_estimator(struct ip_vs_stats *stats)
@@ -157,13 +199,35 @@ void ip_vs_zero_estimator(struct ip_vs_stats *stats)
 	est->outbps = 0;
 }
 
+static int __net_init __ip_vs_estimator_init(struct net *net)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	INIT_LIST_HEAD(&ipvs->est_list);
+	spin_lock_init(&ipvs->est_lock);
+	setup_timer(&ipvs->est_timer, estimation_timer, (unsigned long)net);
+	mod_timer(&ipvs->est_timer, jiffies + 2 * HZ);
+	return 0;
+}
+
+static void __net_exit __ip_vs_estimator_exit(struct net *net)
+{
+	del_timer_sync(&net_ipvs(net)->est_timer);
+}
+static struct pernet_operations ip_vs_app_ops = {
+	.init = __ip_vs_estimator_init,
+	.exit = __ip_vs_estimator_exit,
+};
+
 int __init ip_vs_estimator_init(void)
 {
-	mod_timer(&est_timer, jiffies + 2 * HZ);
-	return 0;
+	int rv;
+
+	rv = register_pernet_subsys(&ip_vs_app_ops);
+	return rv;
 }
 
 void ip_vs_estimator_cleanup(void)
 {
-	del_timer_sync(&est_timer);
+	unregister_pernet_subsys(&ip_vs_app_ops);
 }

@@ -419,28 +419,6 @@ static int sync(struct camera_data *cam, int frame_nr)
 
 /******************************************************************************
  *
- *  ioctl_get_mbuf
- *
- *****************************************************************************/
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int ioctl_get_mbuf(void *arg, struct camera_data *cam)
-{
-	struct video_mbuf *vm;
-	int i;
-	vm = arg;
-
-	memset(vm, 0, sizeof(*vm));
-	vm->size = cam->frame_size*cam->num_frames;
-	vm->frames = cam->num_frames;
-	for (i = 0; i < cam->num_frames; i++)
-		vm->offsets[i] = cam->frame_size * i;
-
-	return 0;
-}
-#endif
-
-/******************************************************************************
- *
  *  ioctl_set_gpio
  *
  *****************************************************************************/
@@ -1380,17 +1358,6 @@ static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		}
 		break;
 	}
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	case VIDIOCGMBUF:
-	{
-		struct cpia2_fh *fh = file->private_data;
-		if(fh->prio != V4L2_PRIORITY_RECORD) {
-			mutex_unlock(&cam->busy_lock);
-			return -EBUSY;
-		}
-		break;
-	}
-#endif
 	default:
 		break;
 	}
@@ -1400,11 +1367,6 @@ static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case CPIA2_IOC_SET_GPIO:
 		retval = ioctl_set_gpio(arg, cam);
 		break;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	case VIDIOCGMBUF:	/* mmap interface */
-		retval = ioctl_get_mbuf(arg, cam);
-		break;
-#endif
 	case VIDIOC_QUERYCAP:
 		retval = ioctl_querycap(arg,cam);
 		break;

@@ -26,7 +26,6 @@
 #include <linux/kmod.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -743,8 +742,6 @@ static int video_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
-	lock_kernel();
-
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -761,8 +758,6 @@ static int video_open(struct file *file)
 			    fh, NULL);
 
 	dprintk(1, "post videobuf_queue_init()\n");
-
-	unlock_kernel();
 
 	return 0;
 }
@@ -1029,35 +1024,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv,
-	struct video_mbuf *mbuf)
-{
-	struct cx23885_fh *fh = priv;
-	struct videobuf_queue *q;
-	struct v4l2_requestbuffers req;
-	unsigned int i;
-	int err;
-
-	q = get_queue(fh);
-	memset(&req, 0, sizeof(req));
-	req.type   = q->type;
-	req.count  = 8;
-	req.memory = V4L2_MEMORY_MMAP;
-	err = videobuf_reqbufs(q, &req);
-	if (err < 0)
-		return err;
-
-	mbuf->frames = req.count;
-	mbuf->size   = 0;
-	for (i = 0; i < mbuf->frames; i++) {
-		mbuf->offsets[i]  = q->bufs[i]->boff;
-		mbuf->size       += q->bufs[i]->bsize;
-	}
-	return 0;
-}
-#endif
-
 static int vidioc_reqbufs(struct file *file, void *priv,
 	struct v4l2_requestbuffers *p)
 {
@@ -1160,7 +1126,6 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 	if (0 == INPUT(n)->type)
 		return -EINVAL;
 
-	memset(i, 0, sizeof(*i));
 	i->index = n;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name, iname[INPUT(n)->type]);
@@ -1432,9 +1397,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf          = vidiocgmbuf,
-#endif
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
@@ -1512,10 +1474,10 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		if (dev->tuner_addr)
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[1].i2c_adap,
-				NULL, "tuner", dev->tuner_addr, NULL);
+				"tuner", dev->tuner_addr, NULL);
 		else
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_bus[1].i2c_adap, NULL,
+				&dev->i2c_bus[1].i2c_adap,
 				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_TV));
 		if (sd) {
 			struct tuner_setup tun_setup;

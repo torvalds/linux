@@ -6,7 +6,6 @@
  */
 
 #include <linux/platform_device.h>
-#include <linux/amba/bus.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 
@@ -20,6 +19,7 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
+#include <mach/prcmu.h>
 
 #include "clock.h"
 
@@ -45,29 +45,22 @@ static struct map_desc ux500_io_desc[] __initdata = {
 	__IO_DEV_DESC(UX500_BACKUPRAM0_BASE, SZ_8K),
 };
 
-static struct amba_device *ux500_amba_devs[] __initdata = {
-	&ux500_pl031_device,
-};
-
 void __init ux500_map_io(void)
 {
 	iotable_init(ux500_io_desc, ARRAY_SIZE(ux500_io_desc));
 }
 
-void __init ux500_init_devices(void)
-{
-	amba_add_devices(ux500_amba_devs, ARRAY_SIZE(ux500_amba_devs));
-}
-
 void __init ux500_init_irq(void)
 {
-	gic_dist_init(0, __io_address(UX500_GIC_DIST_BASE), 29);
-	gic_cpu_init(0, __io_address(UX500_GIC_CPU_BASE));
+	gic_init(0, 29, __io_address(UX500_GIC_DIST_BASE),
+		 __io_address(UX500_GIC_CPU_BASE));
 
 	/*
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
+	if (cpu_is_u8500())
+		prcmu_early_init();
 	clk_init();
 }
 
@@ -75,14 +68,14 @@ void __init ux500_init_irq(void)
 static inline void ux500_cache_wait(void __iomem *reg, unsigned long mask)
 {
 	/* wait for the operation to complete */
-	while (readl(reg) & mask)
+	while (readl_relaxed(reg) & mask)
 		;
 }
 
 static inline void ux500_cache_sync(void)
 {
 	void __iomem *base = __io_address(UX500_L2CC_BASE);
-	writel(0, base + L2X0_CACHE_SYNC);
+	writel_relaxed(0, base + L2X0_CACHE_SYNC);
 	ux500_cache_wait(base + L2X0_CACHE_SYNC, 1);
 }
 
@@ -107,7 +100,7 @@ static void ux500_l2x0_inv_all(void)
 	uint32_t l2x0_way_mask = (1<<16) - 1;	/* Bitmask of active ways */
 
 	/* invalidate all ways */
-	writel(l2x0_way_mask, l2x0_base + L2X0_INV_WAY);
+	writel_relaxed(l2x0_way_mask, l2x0_base + L2X0_INV_WAY);
 	ux500_cache_wait(l2x0_base + L2X0_INV_WAY, l2x0_way_mask);
 	ux500_cache_sync();
 }

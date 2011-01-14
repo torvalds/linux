@@ -891,12 +891,13 @@ err:
    there is non-reboot way to recover if something goes wrong.
    */
 
-static char irqrmap[] = {-1,-1,0,1,-1,2,-1,-1,-1,0,3,4,-1,-1,-1,-1};
-static char irqrmap2[] = {-1,-1,4,0,1,2,-1,3,-1,4,5,6,7,-1,-1,-1};
+static const char irqrmap[] = {-1,-1,0,1,-1,2,-1,-1,-1,0,3,4,-1,-1,-1,-1};
+static const char irqrmap2[] = {-1,-1,4,0,1,2,-1,3,-1,4,5,6,7,-1,-1,-1};
 static int	eepro_grab_irq(struct net_device *dev)
 {
-	int irqlist[] = { 3, 4, 5, 7, 9, 10, 11, 12, 0 };
-	int *irqp = irqlist, temp_reg, ioaddr = dev->base_addr;
+	static const int irqlist[] = { 3, 4, 5, 7, 9, 10, 11, 12, 0 };
+	const int *irqp = irqlist;
+	int temp_reg, ioaddr = dev->base_addr;
 
 	eepro_sw2bank1(ioaddr); /* be CAREFUL, BANK 1 now */
 

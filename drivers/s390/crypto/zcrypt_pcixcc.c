@@ -45,12 +45,12 @@
 #define PCIXCC_MIN_MOD_SIZE_OLD	 64	/*  512 bits	*/
 #define PCIXCC_MAX_MOD_SIZE	256	/* 2048 bits	*/
 #define CEX3C_MIN_MOD_SIZE	PCIXCC_MIN_MOD_SIZE
-#define CEX3C_MAX_MOD_SIZE	PCIXCC_MAX_MOD_SIZE
+#define CEX3C_MAX_MOD_SIZE	512	/* 4096 bits	*/
 
 #define PCIXCC_MCL2_SPEED_RATING	7870
 #define PCIXCC_MCL3_SPEED_RATING	7870
 #define CEX2C_SPEED_RATING		7000
-#define CEX3C_SPEED_RATING		6500	/* FIXME: needs finetuning */
+#define CEX3C_SPEED_RATING		6500
 
 #define PCIXCC_MAX_ICA_MESSAGE_SIZE 0x77c  /* max size type6 v2 crt message */
 #define PCIXCC_MAX_ICA_RESPONSE_SIZE 0x77c /* max size type86 v2 reply	    */
@@ -567,6 +567,15 @@ static int convert_response_ica(struct zcrypt_device *zdev,
 	case TYPE88_RSP_CODE:
 		return convert_error(zdev, reply);
 	case TYPE86_RSP_CODE:
+		if (msg->cprbx.ccp_rtcode &&
+		   (msg->cprbx.ccp_rscode == 0x14f) &&
+		   (outputdatalength > 256)) {
+			if (zdev->max_exp_bit_length <= 17) {
+				zdev->max_exp_bit_length = 17;
+				return -EAGAIN;
+			} else
+				return -EINVAL;
+		}
 		if (msg->hdr.reply_code)
 			return convert_error(zdev, reply);
 		if (msg->cprbx.cprb_ver_id == 0x02)
@@ -1052,11 +1061,13 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 			zdev->speed_rating = PCIXCC_MCL2_SPEED_RATING;
 			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE_OLD;
 			zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
+			zdev->max_exp_bit_length = PCIXCC_MAX_MOD_SIZE;
 		} else {
 			zdev->type_string = "PCIXCC_MCL3";
 			zdev->speed_rating = PCIXCC_MCL3_SPEED_RATING;
 			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE;
 			zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
+			zdev->max_exp_bit_length = PCIXCC_MAX_MOD_SIZE;
 		}
 		break;
 	case AP_DEVICE_TYPE_CEX2C:
@@ -1065,6 +1076,7 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 		zdev->speed_rating = CEX2C_SPEED_RATING;
 		zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE;
 		zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
+		zdev->max_exp_bit_length = PCIXCC_MAX_MOD_SIZE;
 		break;
 	case AP_DEVICE_TYPE_CEX3C:
 		zdev->user_space_type = ZCRYPT_CEX3C;
@@ -1072,6 +1084,7 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 		zdev->speed_rating = CEX3C_SPEED_RATING;
 		zdev->min_mod_size = CEX3C_MIN_MOD_SIZE;
 		zdev->max_mod_size = CEX3C_MAX_MOD_SIZE;
+		zdev->max_exp_bit_length = CEX3C_MAX_MOD_SIZE;
 		break;
 	default:
 		goto out_free;

@@ -114,11 +114,11 @@ struct drbd_conf;
 #define D_ASSERT(exp)	if (!(exp)) \
 	 dev_err(DEV, "ASSERT( " #exp " ) in %s:%d\n", __FILE__, __LINE__)
 
-#define ERR_IF(exp) if (({				\
-	int _b = (exp) != 0;				\
-	if (_b) dev_err(DEV, "%s: (%s) in %s:%d\n",	\
-		__func__, #exp, __FILE__, __LINE__);	\
-	 _b;						\
+#define ERR_IF(exp) if (({						\
+	int _b = (exp) != 0;						\
+	if (_b) dev_err(DEV, "ASSERT FAILED: %s: (%s) in %s:%d\n",	\
+			__func__, #exp, __FILE__, __LINE__);		\
+	_b;								\
 	}))
 
 /* Defines to control fault insertion */
@@ -749,17 +749,12 @@ struct drbd_epoch {
 
 /* drbd_epoch flag bits */
 enum {
-	DE_BARRIER_IN_NEXT_EPOCH_ISSUED,
-	DE_BARRIER_IN_NEXT_EPOCH_DONE,
-	DE_CONTAINS_A_BARRIER,
 	DE_HAVE_BARRIER_NUMBER,
-	DE_IS_FINISHING,
 };
 
 enum epoch_event {
 	EV_PUT,
 	EV_GOT_BARRIER_NR,
-	EV_BARRIER_DONE,
 	EV_BECAME_LAST,
 	EV_CLEANUP = 32, /* used as flag */
 };
@@ -801,11 +796,6 @@ enum {
 	__EE_CALL_AL_COMPLETE_IO,
 	__EE_MAY_SET_IN_SYNC,
 
-	/* This epoch entry closes an epoch using a barrier.
-	 * On sucessful completion, the epoch is released,
-	 * and the P_BARRIER_ACK send. */
-	__EE_IS_BARRIER,
-
 	/* In case a barrier failed,
 	 * we need to resubmit without the barrier flag. */
 	__EE_RESUBMITTED,
@@ -820,7 +810,6 @@ enum {
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
-#define EE_IS_BARRIER          (1<<__EE_IS_BARRIER)
 #define	EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
@@ -843,16 +832,15 @@ enum {
 				 * Gets cleared when the state.conn
 				 * goes into C_CONNECTED state. */
 	WRITE_BM_AFTER_RESYNC,	/* A kmalloc() during resync failed */
-	NO_BARRIER_SUPP,	/* underlying block device doesn't implement barriers */
 	CONSIDER_RESYNC,
 
-	MD_NO_BARRIER,		/* meta data device does not support barriers,
-				   so don't even try */
+	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
 	SUSPEND_IO,		/* suspend application io */
 	BITMAP_IO,		/* suspend application io;
 				   once no more io in flight, start bitmap io */
 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
-	GO_DISKLESS,		/* Disk failed, local_cnt reached zero, we are going diskless */
+	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
+	WAS_IO_ERROR,		/* Local disk failed returned IO error */
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
 	NET_CONGESTED,		/* The data socket is congested */
 
@@ -947,7 +935,6 @@ enum write_ordering_e {
 	WO_none,
 	WO_drain_io,
 	WO_bdev_flush,
-	WO_bio_barrier
 };
 
 struct fifo_buffer {
@@ -1281,6 +1268,7 @@ extern int drbd_bmio_set_n_write(struct drbd_conf *mdev);
 extern int drbd_bmio_clear_n_write(struct drbd_conf *mdev);
 extern int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *), char *why);
 extern void drbd_go_diskless(struct drbd_conf *mdev);
+extern void drbd_ldev_destroy(struct drbd_conf *mdev);
 
 
 /* Meta data layout
@@ -1798,17 +1786,17 @@ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach,
 	case EP_PASS_ON:
 		if (!forcedetach) {
 			if (__ratelimit(&drbd_ratelimit_state))
-				dev_err(DEV, "Local IO failed in %s."
-					     "Passing error on...\n", where);
+				dev_err(DEV, "Local IO failed in %s.\n", where);
 			break;
 		}
 		/* NOTE fall through to detach case if forcedetach set */
 	case EP_DETACH:
 	case EP_CALL_HELPER:
+		set_bit(WAS_IO_ERROR, &mdev->flags);
 		if (mdev->state.disk > D_FAILED) {
 			_drbd_set_state(_NS(mdev, disk, D_FAILED), CS_HARD, NULL);
-			dev_err(DEV, "Local IO failed in %s."
-				     "Detaching...\n", where);
+			dev_err(DEV,
+				"Local IO failed in %s. Detaching...\n", where);
 		}
 		break;
 	}
@@ -1874,7 +1862,7 @@ static inline sector_t drbd_md_last_sector(struct drbd_backing_dev *bdev)
 static inline sector_t drbd_get_capacity(struct block_device *bdev)
 {
 	/* return bdev ? get_capacity(bdev->bd_disk) : 0; */
-	return bdev ? bdev->bd_inode->i_size >> 9 : 0;
+	return bdev ? i_size_read(bdev->bd_inode) >> 9 : 0;
 }
 
 /**
@@ -2127,7 +2115,11 @@ static inline void put_ldev(struct drbd_conf *mdev)
 	__release(local);
 	D_ASSERT(i >= 0);
 	if (i == 0) {
+		if (mdev->state.disk == D_DISKLESS)
+			/* even internal references gone, safe to destroy */
+			drbd_ldev_destroy(mdev);
 		if (mdev->state.disk == D_FAILED)
+			/* all application IO references gone. */
 			drbd_go_diskless(mdev);
 		wake_up(&mdev->misc_wait);
 	}
@@ -2137,6 +2129,10 @@ static inline void put_ldev(struct drbd_conf *mdev)
 static inline int _get_ldev_if_state(struct drbd_conf *mdev, enum drbd_disk_state mins)
 {
 	int io_allowed;
+
+	/* never get a reference while D_DISKLESS */
+	if (mdev->state.disk == D_DISKLESS)
+		return 0;
 
 	atomic_inc(&mdev->local_cnt);
 	io_allowed = (mdev->state.disk >= mins);
@@ -2406,12 +2402,12 @@ static inline void drbd_md_flush(struct drbd_conf *mdev)
 {
 	int r;
 
-	if (test_bit(MD_NO_BARRIER, &mdev->flags))
+	if (test_bit(MD_NO_FUA, &mdev->flags))
 		return;
 
 	r = blkdev_issue_flush(mdev->ldev->md_bdev, GFP_KERNEL, NULL);
 	if (r) {
-		set_bit(MD_NO_BARRIER, &mdev->flags);
+		set_bit(MD_NO_FUA, &mdev->flags);
 		dev_err(DEV, "meta data flush failed with status %d, disabling md-flushes\n", r);
 	}
 }

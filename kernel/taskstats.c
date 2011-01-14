@@ -89,8 +89,7 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 		return -ENOMEM;
 
 	if (!info) {
-		int seq = get_cpu_var(taskstats_seqnum)++;
-		put_cpu_var(taskstats_seqnum);
+		int seq = this_cpu_inc_return(taskstats_seqnum) - 1;
 
 		reply = genlmsg_put(skb, 0, seq, &family, 0, cmd);
 	} else
@@ -349,25 +348,47 @@ static int parse(struct nlattr *na, struct cpumask *mask)
 	return ret;
 }
 
+#ifdef CONFIG_IA64
+#define TASKSTATS_NEEDS_PADDING 1
+#endif
+
 static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 {
 	struct nlattr *na, *ret;
 	int aggr;
 
-	/* If we don't pad, we end up with alignment on a 4 byte boundary.
-	 * This causes lots of runtime warnings on systems requiring 8 byte
-	 * alignment */
-	u32 pids[2] = { pid, 0 };
-	int pid_size = ALIGN(sizeof(pid), sizeof(long));
-
 	aggr = (type == TASKSTATS_TYPE_PID)
 			? TASKSTATS_TYPE_AGGR_PID
 			: TASKSTATS_TYPE_AGGR_TGID;
 
+	/*
+	 * The taskstats structure is internally aligned on 8 byte
+	 * boundaries but the layout of the aggregrate reply, with
+	 * two NLA headers and the pid (each 4 bytes), actually
+	 * force the entire structure to be unaligned. This causes
+	 * the kernel to issue unaligned access warnings on some
+	 * architectures like ia64. Unfortunately, some software out there
+	 * doesn't properly unroll the NLA packet and assumes that the start
+	 * of the taskstats structure will always be 20 bytes from the start
+	 * of the netlink payload. Aligning the start of the taskstats
+	 * structure breaks this software, which we don't want. So, for now
+	 * the alignment only happens on architectures that require it
+	 * and those users will have to update to fixed versions of those
+	 * packages. Space is reserved in the packet only when needed.
+	 * This ifdef should be removed in several years e.g. 2012 once
+	 * we can be confident that fixed versions are installed on most
+	 * systems. We add the padding before the aggregate since the
+	 * aggregate is already a defined type.
+	 */
+#ifdef TASKSTATS_NEEDS_PADDING
+	if (nla_put(skb, TASKSTATS_TYPE_NULL, 0, NULL) < 0)
+		goto err;
+#endif
 	na = nla_nest_start(skb, aggr);
 	if (!na)
 		goto err;
-	if (nla_put(skb, type, pid_size, pids) < 0)
+
+	if (nla_put(skb, type, sizeof(pid), &pid) < 0)
 		goto err;
 	ret = nla_reserve(skb, TASKSTATS_TYPE_STATS, sizeof(struct taskstats));
 	if (!ret)
@@ -456,6 +477,18 @@ out:
 	return rc;
 }
 
+static size_t taskstats_packet_size(void)
+{
+	size_t size;
+
+	size = nla_total_size(sizeof(u32)) +
+		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
+#ifdef TASKSTATS_NEEDS_PADDING
+	size += nla_total_size(0); /* Padding for alignment */
+#endif
+	return size;
+}
+
 static int cmd_attr_pid(struct genl_info *info)
 {
 	struct taskstats *stats;
@@ -464,8 +497,7 @@ static int cmd_attr_pid(struct genl_info *info)
 	u32 pid;
 	int rc;
 
-	size = nla_total_size(sizeof(u32)) +
-		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
+	size = taskstats_packet_size();
 
 	rc = prepare_reply(info, TASKSTATS_CMD_NEW, &rep_skb, size);
 	if (rc < 0)
@@ -494,8 +526,7 @@ static int cmd_attr_tgid(struct genl_info *info)
 	u32 tgid;
 	int rc;
 
-	size = nla_total_size(sizeof(u32)) +
-		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
+	size = taskstats_packet_size();
 
 	rc = prepare_reply(info, TASKSTATS_CMD_NEW, &rep_skb, size);
 	if (rc < 0)
@@ -570,8 +601,7 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	/*
 	 * Size includes space for nested attributes
 	 */
-	size = nla_total_size(sizeof(u32)) +
-		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
+	size = taskstats_packet_size();
 
 	is_thread_group = !!taskstats_tgid_alloc(tsk);
 	if (is_thread_group) {
@@ -581,7 +611,7 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 		fill_tgid_exit(tsk);
 	}
 
-	listeners = &__raw_get_cpu_var(listener_array);
+	listeners = __this_cpu_ptr(&listener_array);
 	if (list_empty(&listeners->list))
 		return;
 

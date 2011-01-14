@@ -94,7 +94,7 @@ static inline void hw_breakpoint_disable(void)
 
 static inline int hw_breakpoint_active(void)
 {
-	return __get_cpu_var(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
+	return __this_cpu_read(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
 }
 
 extern void aout_dump_debugregs(struct user *dump);

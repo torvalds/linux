@@ -70,8 +70,6 @@
  *    entries that haven't been touched for a day.
  */
 #define COUNT_FOR_FULL_EXPIRATION   30
-static int sysctl_ip_vs_lblcr_expiration = 24*60*60*HZ;
-
 
 /*
  *     for IPVS lblcr entry hash table
@@ -296,15 +294,13 @@ struct ip_vs_lblcr_table {
 static ctl_table vs_vars_table[] = {
 	{
 		.procname	= "lblcr_expiration",
-		.data		= &sysctl_ip_vs_lblcr_expiration,
+		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{ }
 };
-
-static struct ctl_table_header * sysctl_header;
 
 static inline void ip_vs_lblcr_free(struct ip_vs_lblcr_entry *en)
 {
@@ -425,14 +421,15 @@ static inline void ip_vs_lblcr_full_check(struct ip_vs_service *svc)
 	unsigned long now = jiffies;
 	int i, j;
 	struct ip_vs_lblcr_entry *en, *nxt;
+	struct netns_ipvs *ipvs = net_ipvs(svc->net);
 
 	for (i=0, j=tbl->rover; i<IP_VS_LBLCR_TAB_SIZE; i++) {
 		j = (j + 1) & IP_VS_LBLCR_TAB_MASK;
 
 		write_lock(&svc->sched_lock);
 		list_for_each_entry_safe(en, nxt, &tbl->bucket[j], list) {
-			if (time_after(en->lastuse+sysctl_ip_vs_lblcr_expiration,
-				       now))
+			if (time_after(en->lastuse
+					+ ipvs->sysctl_lblcr_expiration, now))
 				continue;
 
 			ip_vs_lblcr_free(en);
@@ -664,6 +661,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	read_lock(&svc->sched_lock);
 	en = ip_vs_lblcr_get(svc->af, tbl, &iph.daddr);
 	if (en) {
+		struct netns_ipvs *ipvs = net_ipvs(svc->net);
 		/* We only hold a read lock, but this is atomic */
 		en->lastuse = jiffies;
 
@@ -675,7 +673,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		/* More than one destination + enough time passed by, cleanup */
 		if (atomic_read(&en->set.size) > 1 &&
 				time_after(jiffies, en->set.lastmod +
-				sysctl_ip_vs_lblcr_expiration)) {
+				ipvs->sysctl_lblcr_expiration)) {
 			struct ip_vs_dest *m;
 
 			write_lock(&en->set.lock);
@@ -744,23 +742,73 @@ static struct ip_vs_scheduler ip_vs_lblcr_scheduler =
 	.schedule =		ip_vs_lblcr_schedule,
 };
 
+/*
+ *  per netns init.
+ */
+static int __net_init __ip_vs_lblcr_init(struct net *net)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	if (!net_eq(net, &init_net)) {
+		ipvs->lblcr_ctl_table = kmemdup(vs_vars_table,
+						sizeof(vs_vars_table),
+						GFP_KERNEL);
+		if (ipvs->lblcr_ctl_table == NULL)
+			goto err_dup;
+	} else
+		ipvs->lblcr_ctl_table = vs_vars_table;
+	ipvs->sysctl_lblcr_expiration = 24*60*60*HZ;
+	ipvs->lblcr_ctl_table[0].data = &ipvs->sysctl_lblcr_expiration;
+
+	ipvs->lblcr_ctl_header =
+		register_net_sysctl_table(net, net_vs_ctl_path,
+					  ipvs->lblcr_ctl_table);
+	if (!ipvs->lblcr_ctl_header)
+		goto err_reg;
+
+	return 0;
+
+err_reg:
+	if (!net_eq(net, &init_net))
+		kfree(ipvs->lblcr_ctl_table);
+
+err_dup:
+	return -ENOMEM;
+}
+
+static void __net_exit __ip_vs_lblcr_exit(struct net *net)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	unregister_net_sysctl_table(ipvs->lblcr_ctl_header);
+
+	if (!net_eq(net, &init_net))
+		kfree(ipvs->lblcr_ctl_table);
+}
+
+static struct pernet_operations ip_vs_lblcr_ops = {
+	.init = __ip_vs_lblcr_init,
+	.exit = __ip_vs_lblcr_exit,
+};
 
 static int __init ip_vs_lblcr_init(void)
 {
 	int ret;
 
-	sysctl_header = register_sysctl_paths(net_vs_ctl_path, vs_vars_table);
+	ret = register_pernet_subsys(&ip_vs_lblcr_ops);
+	if (ret)
+		return ret;
+
 	ret = register_ip_vs_scheduler(&ip_vs_lblcr_scheduler);
 	if (ret)
-		unregister_sysctl_table(sysctl_header);
+		unregister_pernet_subsys(&ip_vs_lblcr_ops);
 	return ret;
 }
 
-
 static void __exit ip_vs_lblcr_cleanup(void)
 {
-	unregister_sysctl_table(sysctl_header);
 	unregister_ip_vs_scheduler(&ip_vs_lblcr_scheduler);
+	unregister_pernet_subsys(&ip_vs_lblcr_ops);
 }
 
 

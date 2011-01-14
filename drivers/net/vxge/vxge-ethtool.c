@@ -80,7 +80,7 @@ static int vxge_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 static void vxge_ethtool_gdrvinfo(struct net_device *dev,
 				  struct ethtool_drvinfo *info)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	strlcpy(info->driver, VXGE_DRIVER_NAME, sizeof(VXGE_DRIVER_NAME));
 	strlcpy(info->version, DRV_VERSION, sizeof(DRV_VERSION));
 	strlcpy(info->fw_version, vdev->fw_version, VXGE_HW_FW_STRLEN);
@@ -108,7 +108,7 @@ static void vxge_ethtool_gregs(struct net_device *dev,
 	enum vxge_hw_status status;
 	u64 reg;
 	u64 *reg_space = (u64 *)space;
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 
 	regs->len = sizeof(struct vxge_hw_vpath_reg) * vdev->no_of_vpath;
@@ -144,7 +144,7 @@ static void vxge_ethtool_gregs(struct net_device *dev,
  */
 static int vxge_ethtool_idnic(struct net_device *dev, u32 data)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 
 	vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_ON);
@@ -166,7 +166,7 @@ static int vxge_ethtool_idnic(struct net_device *dev, u32 data)
 static void vxge_ethtool_getpause_data(struct net_device *dev,
 				       struct ethtool_pauseparam *ep)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 
 	vxge_hw_device_getpause_data(hldev, 0, &ep->tx_pause, &ep->rx_pause);
@@ -185,7 +185,7 @@ static void vxge_ethtool_getpause_data(struct net_device *dev,
 static int vxge_ethtool_setpause_data(struct net_device *dev,
 				      struct ethtool_pauseparam *ep)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 
 	vxge_hw_device_setpause_data(hldev, 0, ep->tx_pause, ep->rx_pause);
@@ -203,7 +203,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	enum vxge_hw_status status;
 	enum vxge_hw_status swstatus;
 	struct vxge_vpath *vpath = NULL;
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 	struct vxge_hw_xmac_stats *xmac_stats;
 	struct vxge_hw_device_stats_sw_info *sw_stats;
@@ -572,7 +572,7 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 {
 	int stat_size = 0;
 	int i, j;
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	switch (stringset) {
 	case ETH_SS_STATS:
 		vxge_add_string("VPATH STATISTICS%s\t\t\t",
@@ -1059,21 +1059,21 @@ static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
 
 static int vxge_ethtool_get_regs_len(struct net_device *dev)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 
 	return sizeof(struct vxge_hw_vpath_reg) * vdev->no_of_vpath;
 }
 
 static u32 vxge_get_rx_csum(struct net_device *dev)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 
 	return vdev->rx_csum;
 }
 
 static int vxge_set_rx_csum(struct net_device *dev, u32 data)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 
 	if (data)
 		vdev->rx_csum = 1;
@@ -1095,7 +1095,7 @@ static int vxge_ethtool_op_set_tso(struct net_device *dev, u32 data)
 
 static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -1114,7 +1114,7 @@ static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset)
 
 static int vxge_set_flags(struct net_device *dev, u32 data)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	enum vxge_hw_status status;
 
 	if (data & ~ETH_FLAG_RXHASH)
@@ -1148,7 +1148,7 @@ static int vxge_set_flags(struct net_device *dev, u32 data)
 
 static int vxge_fw_flash(struct net_device *dev, struct ethtool_flash *parms)
 {
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 
 	if (vdev->max_vpath_supported != VXGE_HW_MAX_VIRTUAL_PATHS) {
 		printk(KERN_INFO "Single Function Mode is required to flash the"
@@ -1177,7 +1177,7 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_rx_csum		= vxge_get_rx_csum,
 	.set_rx_csum		= vxge_set_rx_csum,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_hw_csum,
+	.set_tx_csum		= ethtool_op_set_tx_ipv6_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
 	.get_tso		= ethtool_op_get_tso,

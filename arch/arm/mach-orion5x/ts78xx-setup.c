@@ -239,7 +239,7 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 static struct resource ts78xx_ts_nand_resources = {
 	.start		= TS_NAND_DATA,
 	.end		= TS_NAND_DATA + 4,
-	.flags		= IORESOURCE_IO,
+	.flags		= IORESOURCE_MEM,
 };
 
 static struct platform_device ts78xx_ts_nand_device = {

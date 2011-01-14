@@ -74,11 +74,7 @@ struct cifs_wksid {
 	char sidname[SIDNAMELENGTH];
 } __attribute__((packed));
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-
 extern int match_sid(struct cifs_sid *);
 extern int compare_sids(const struct cifs_sid *, const struct cifs_sid *);
-
-#endif /*  CONFIG_CIFS_EXPERIMENTAL */
 
 #endif /* _CIFSACL_H */

@@ -6,7 +6,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.14
+ *    mpi2_cnfg.h Version:  02.00.15
  *
  *  Version History
  *  ---------------
@@ -121,6 +121,10 @@
  *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_6 and related defines.
  *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_7 and related defines.
  *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_8 and related defines.
+ *  05-12-10  02.00.15  Added MPI2_RAIDVOL0_STATUS_FLAG_VOL_NOT_CONSISTENT
+ *                      define.
+ *                      Added MPI2_PHYSDISK0_INCOMPATIBLE_MEDIA_TYPE define.
+ *                      Added MPI2_SAS_NEG_LINK_RATE_UNSUPPORTED_PHY define.
  *  --------------------------------------------------------------------------
  */
 
@@ -333,7 +337,7 @@ typedef struct _MPI2_CONFIG_REQUEST
 #define MPI2_CONFIG_ACTION_PAGE_READ_NVRAM          (0x06)
 #define MPI2_CONFIG_ACTION_PAGE_GET_CHANGEABLE      (0x07)
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* Config Reply Message */
@@ -379,6 +383,8 @@ typedef struct _MPI2_CONFIG_REPLY
 #define MPI2_MFGPAGE_DEVID_SAS2116_1                (0x0064)
 #define MPI2_MFGPAGE_DEVID_SAS2116_2                (0x0065)
 
+#define MPI2_MFGPAGE_DEVID_SSS6200                  (0x007E)
+
 #define MPI2_MFGPAGE_DEVID_SAS2208_1                (0x0080)
 #define MPI2_MFGPAGE_DEVID_SAS2208_2                (0x0081)
 #define MPI2_MFGPAGE_DEVID_SAS2208_3                (0x0082)
@@ -388,6 +394,8 @@ typedef struct _MPI2_CONFIG_REPLY
 #define MPI2_MFGPAGE_DEVID_SAS2308_1                (0x0086)
 #define MPI2_MFGPAGE_DEVID_SAS2308_2                (0x0087)
 #define MPI2_MFGPAGE_DEVID_SAS2308_3                (0x006E)
+
+
 
 
 /* Manufacturing Page 0 */
@@ -729,6 +737,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1
 /* IO Unit Page 1 Flags defines */
 #define MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY    (0x00000800)
 #define MPI2_IOUNITPAGE1_MASK_SATA_WRITE_CACHE          (0x00000600)
+#define MPI2_IOUNITPAGE1_SATA_WRITE_CACHE_SHIFT         (9)
 #define MPI2_IOUNITPAGE1_ENABLE_SATA_WRITE_CACHE        (0x00000000)
 #define MPI2_IOUNITPAGE1_DISABLE_SATA_WRITE_CACHE       (0x00000200)
 #define MPI2_IOUNITPAGE1_UNCHANGED_SATA_WRITE_CACHE     (0x00000400)
@@ -1347,6 +1356,7 @@ typedef struct _MPI2_CONFIG_PAGE_RAID_VOL_0
 #define MPI2_RAIDVOL0_STATUS_FLAG_CAPACITY_EXPANSION        (0x00040000)
 #define MPI2_RAIDVOL0_STATUS_FLAG_BACKGROUND_INIT           (0x00020000)
 #define MPI2_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS        (0x00010000)
+#define MPI2_RAIDVOL0_STATUS_FLAG_VOL_NOT_CONSISTENT        (0x00000080)
 #define MPI2_RAIDVOL0_STATUS_FLAG_OCE_ALLOWED               (0x00000040)
 #define MPI2_RAIDVOL0_STATUS_FLAG_BGI_COMPLETE              (0x00000020)
 #define MPI2_RAIDVOL0_STATUS_FLAG_1E_OFFSET_MIRROR          (0x00000000)
@@ -1469,11 +1479,15 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_0
 #define MPI2_PHYSDISK0_INCOMPATIBLE_MAX_LBA             (0x03)
 #define MPI2_PHYSDISK0_INCOMPATIBLE_SATA_EXTENDED_CMD   (0x04)
 #define MPI2_PHYSDISK0_INCOMPATIBLE_REMOVEABLE_MEDIA    (0x05)
+#define MPI2_PHYSDISK0_INCOMPATIBLE_MEDIA_TYPE          (0x06)
 #define MPI2_PHYSDISK0_INCOMPATIBLE_UNKNOWN             (0xFF)
 
 /* PhysDiskAttributes defines */
+#define MPI2_PHYSDISK0_ATTRIB_MEDIA_MASK                (0x0C)
 #define MPI2_PHYSDISK0_ATTRIB_SOLID_STATE_DRIVE         (0x08)
 #define MPI2_PHYSDISK0_ATTRIB_HARD_DISK_DRIVE           (0x04)
+
+#define MPI2_PHYSDISK0_ATTRIB_PROTOCOL_MASK             (0x03)
 #define MPI2_PHYSDISK0_ATTRIB_SAS_PROTOCOL              (0x02)
 #define MPI2_PHYSDISK0_ATTRIB_SATA_PROTOCOL             (0x01)
 
@@ -1545,6 +1559,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1
 #define MPI2_SAS_NEG_LINK_RATE_SATA_OOB_COMPLETE        (0x03)
 #define MPI2_SAS_NEG_LINK_RATE_PORT_SELECTOR            (0x04)
 #define MPI2_SAS_NEG_LINK_RATE_SMP_RESET_IN_PROGRESS    (0x05)
+#define MPI2_SAS_NEG_LINK_RATE_UNSUPPORTED_PHY          (0x06)
 #define MPI2_SAS_NEG_LINK_RATE_1_5                      (0x08)
 #define MPI2_SAS_NEG_LINK_RATE_3_0                      (0x09)
 #define MPI2_SAS_NEG_LINK_RATE_6_0                      (0x0A)
@@ -1571,6 +1586,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_1
 #define MPI2_SAS_PHYINFO_PHY_VACANT                     (0x80000000)
 
 #define MPI2_SAS_PHYINFO_PHY_POWER_CONDITION_MASK       (0x18000000)
+#define MPI2_SAS_PHYINFO_SHIFT_PHY_POWER_CONDITION      (27)
 #define MPI2_SAS_PHYINFO_PHY_POWER_ACTIVE               (0x00000000)
 #define MPI2_SAS_PHYINFO_PHY_POWER_PARTIAL              (0x08000000)
 #define MPI2_SAS_PHYINFO_PHY_POWER_SLUMBER              (0x10000000)

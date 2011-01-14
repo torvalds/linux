@@ -2125,9 +2125,12 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 			 */
 			if (unlikely(journal_data && PageChecked(page)))
 				err = __ext4_journalled_writepage(page, len);
-			else
+			else if (test_opt(inode->i_sb, MBLK_IO_SUBMIT))
 				err = ext4_bio_write_page(&io_submit, page,
 							  len, mpd->wbc);
+			else
+				err = block_write_full_page(page,
+					noalloc_get_block_write, mpd->wbc);
 
 			if (!err)
 				mpd->pages_written++;

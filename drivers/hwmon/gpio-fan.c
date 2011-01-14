@@ -376,10 +376,6 @@ static int fan_ctrl_init(struct gpio_fan_data *fan_data,
 		}
 	}
 
-	err = sysfs_create_group(&pdev->dev.kobj, &gpio_fan_ctrl_group);
-	if (err)
-		goto err_free_gpio;
-
 	fan_data->num_ctrl = num_ctrl;
 	fan_data->ctrl = ctrl;
 	fan_data->num_speed = pdata->num_speed;
@@ -390,6 +386,10 @@ static int fan_ctrl_init(struct gpio_fan_data *fan_data,
 		err = -ENODEV;
 		goto err_free_gpio;
 	}
+
+	err = sysfs_create_group(&pdev->dev.kobj, &gpio_fan_ctrl_group);
+	if (err)
+		goto err_free_gpio;
 
 	return 0;
 

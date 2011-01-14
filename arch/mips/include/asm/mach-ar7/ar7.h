@@ -201,7 +201,6 @@ static inline void ar7_device_off(u32 bit)
 }
 
 int __init ar7_gpio_init(void);
-
-int __init ar7_gpio_init(void);
+void __init ar7_init_clocks(void);
 
 #endif /* __AR7_H__ */

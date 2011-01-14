@@ -1405,9 +1405,16 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 	return &ip->i_inode;
 }
 
+static void gfs2_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(gfs2_inode_cachep, inode);
+}
+
 static void gfs2_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(gfs2_inode_cachep, inode);
+	call_rcu(&inode->i_rcu, gfs2_i_callback);
 }
 
 const struct super_operations gfs2_super_ops = {

@@ -23,6 +23,7 @@
 #include <linux/suspend.h>
 #include <linux/sysdev.h>
 
+#include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/gpio.h>
@@ -30,6 +31,7 @@
 #include <mach/reset.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -90,23 +92,21 @@ unsigned int pxa25x_get_clk_frequency_khz(int info)
 	return (turbo & 1) ? (N/1000) : (M/1000);
 }
 
-/*
- * Return the current memory clock frequency in units of 10kHz
- */
-unsigned int pxa25x_get_memclk_frequency_10khz(void)
+static unsigned long clk_pxa25x_mem_getrate(struct clk *clk)
 {
-	return L_clk_mult[(CCCR >> 0) & 0x1f] * BASE_CLK / 10000;
+	return L_clk_mult[(CCCR >> 0) & 0x1f] * BASE_CLK;
 }
 
-static unsigned long clk_pxa25x_lcd_getrate(struct clk *clk)
-{
-	return pxa25x_get_memclk_frequency_10khz() * 10000;
-}
+static const struct clkops clk_pxa25x_mem_ops = {
+	.enable		= clk_dummy_enable,
+	.disable	= clk_dummy_disable,
+	.getrate	= clk_pxa25x_mem_getrate,
+};
 
 static const struct clkops clk_pxa25x_lcd_ops = {
-	.enable		= clk_cken_enable,
-	.disable	= clk_cken_disable,
-	.getrate	= clk_pxa25x_lcd_getrate,
+	.enable		= clk_pxa2xx_cken_enable,
+	.disable	= clk_pxa2xx_cken_disable,
+	.getrate	= clk_pxa25x_mem_getrate,
 };
 
 static unsigned long gpio12_config_32k[] = {
@@ -160,31 +160,30 @@ static const struct clkops clk_pxa25x_gpio11_ops = {
  * 95.842MHz -> MMC 19.169MHz, I2C 31.949MHz, FICP 47.923MHz, USB 47.923MHz
  * 147.456MHz -> UART 14.7456MHz, AC97 12.288MHz, I2S 5.672MHz (allegedly)
  */
-static DEFINE_CKEN(pxa25x_hwuart, HWUART, 14745600, 1);
-
-static struct clk_lookup pxa25x_hwuart_clkreg =
-	INIT_CLKREG(&clk_pxa25x_hwuart, "pxa2xx-uart.3", NULL);
 
 /*
  * PXA 2xx clock declarations.
  */
+static DEFINE_PXA2_CKEN(pxa25x_hwuart, HWUART, 14745600, 1);
+static DEFINE_PXA2_CKEN(pxa25x_ffuart, FFUART, 14745600, 1);
+static DEFINE_PXA2_CKEN(pxa25x_btuart, BTUART, 14745600, 1);
+static DEFINE_PXA2_CKEN(pxa25x_stuart, STUART, 14745600, 1);
+static DEFINE_PXA2_CKEN(pxa25x_usb, USB, 47923000, 5);
+static DEFINE_PXA2_CKEN(pxa25x_mmc, MMC, 19169000, 0);
+static DEFINE_PXA2_CKEN(pxa25x_i2c, I2C, 31949000, 0);
+static DEFINE_PXA2_CKEN(pxa25x_ssp, SSP, 3686400, 0);
+static DEFINE_PXA2_CKEN(pxa25x_nssp, NSSP, 3686400, 0);
+static DEFINE_PXA2_CKEN(pxa25x_assp, ASSP, 3686400, 0);
+static DEFINE_PXA2_CKEN(pxa25x_pwm0, PWM0, 3686400, 0);
+static DEFINE_PXA2_CKEN(pxa25x_pwm1, PWM1, 3686400, 0);
+static DEFINE_PXA2_CKEN(pxa25x_ac97, AC97, 24576000, 0);
+static DEFINE_PXA2_CKEN(pxa25x_i2s, I2S, 14745600, 0);
+static DEFINE_PXA2_CKEN(pxa25x_ficp, FICP, 47923000, 0);
+
 static DEFINE_CK(pxa25x_lcd, LCD, &clk_pxa25x_lcd_ops);
-static DEFINE_CKEN(pxa25x_ffuart, FFUART, 14745600, 1);
-static DEFINE_CKEN(pxa25x_btuart, BTUART, 14745600, 1);
-static DEFINE_CKEN(pxa25x_stuart, STUART, 14745600, 1);
-static DEFINE_CKEN(pxa25x_usb, USB, 47923000, 5);
 static DEFINE_CLK(pxa25x_gpio11, &clk_pxa25x_gpio11_ops, 3686400, 0);
 static DEFINE_CLK(pxa25x_gpio12, &clk_pxa25x_gpio12_ops, 32768, 0);
-static DEFINE_CKEN(pxa25x_mmc, MMC, 19169000, 0);
-static DEFINE_CKEN(pxa25x_i2c, I2C, 31949000, 0);
-static DEFINE_CKEN(pxa25x_ssp, SSP, 3686400, 0);
-static DEFINE_CKEN(pxa25x_nssp, NSSP, 3686400, 0);
-static DEFINE_CKEN(pxa25x_assp, ASSP, 3686400, 0);
-static DEFINE_CKEN(pxa25x_pwm0, PWM0, 3686400, 0);
-static DEFINE_CKEN(pxa25x_pwm1, PWM1, 3686400, 0);
-static DEFINE_CKEN(pxa25x_ac97, AC97, 24576000, 0);
-static DEFINE_CKEN(pxa25x_i2s, I2S, 14745600, 0);
-static DEFINE_CKEN(pxa25x_ficp, FICP, 47923000, 0);
+static DEFINE_CLK(pxa25x_mem, &clk_pxa25x_mem_ops, 0, 0);
 
 static struct clk_lookup pxa25x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa25x_lcd, "pxa2xx-fb", NULL),
@@ -205,7 +204,11 @@ static struct clk_lookup pxa25x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa25x_ac97, NULL, "AC97CLK"),
 	INIT_CLKREG(&clk_pxa25x_gpio11, NULL, "GPIO11_CLK"),
 	INIT_CLKREG(&clk_pxa25x_gpio12, NULL, "GPIO12_CLK"),
+	INIT_CLKREG(&clk_pxa25x_mem, "pxa2xx-pcmcia", NULL),
 };
+
+static struct clk_lookup pxa25x_hwuart_clkreg =
+	INIT_CLKREG(&clk_pxa25x_hwuart, "pxa2xx-uart.3", NULL);
 
 #ifdef CONFIG_PM
 
@@ -219,20 +222,17 @@ static struct clk_lookup pxa25x_clkregs[] = {
  */
 enum {
 	SLEEP_SAVE_PSTR,
-	SLEEP_SAVE_CKEN,
 	SLEEP_SAVE_COUNT
 };
 
 
 static void pxa25x_cpu_pm_save(unsigned long *sleep_save)
 {
-	SAVE(CKEN);
 	SAVE(PSTR);
 }
 
 static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 {
-	RESTORE(CKEN);
 	RESTORE(PSTR);
 }
 
@@ -320,6 +320,22 @@ void __init pxa26x_init_irq(void)
 }
 #endif
 
+static struct map_desc pxa25x_io_desc[] __initdata = {
+	{	/* Mem Ctl */
+		.virtual	= SMEMC_VIRT,
+		.pfn		= __phys_to_pfn(PXA2XX_SMEMC_BASE),
+		.length		= 0x00200000,
+		.type		= MT_DEVICE
+	},
+};
+
+void __init pxa25x_map_io(void)
+{
+	pxa_map_io();
+	iotable_init(ARRAY_AND_SIZE(pxa25x_io_desc));
+	pxa25x_get_clk_frequency_khz(1);
+}
+
 static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_udc,
 	&pxa_device_pmu,
@@ -339,7 +355,9 @@ static struct sys_device pxa25x_sysdev[] = {
 		.cls	= &pxa2xx_mfp_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
-	},
+	}, {
+		.cls	= &pxa2xx_clock_sysclass,
+	}
 };
 
 static int __init pxa25x_init(void)

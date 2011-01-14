@@ -2174,7 +2174,7 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 	u8 css, cso;
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
-		css = (u8) (skb->csum_start - skb_headroom(skb));
+		css = skb_checksum_start_offset(skb);
 		cso = css + (u8) skb->csum_offset;
 		if (unlikely(css & 0x1)) {
 			/* L1 hardware requires an even number here */
@@ -3504,6 +3504,8 @@ static int atl1_set_ringparam(struct net_device *netdev,
 	struct atl1_rfd_ring rfd_old, rfd_new;
 	struct atl1_rrd_ring rrd_old, rrd_new;
 	struct atl1_ring_header rhdr_old, rhdr_new;
+	struct atl1_smb smb;
+	struct atl1_cmb cmb;
 	int err;
 
 	tpd_old = adapter->tpd_ring;
@@ -3544,11 +3546,19 @@ static int atl1_set_ringparam(struct net_device *netdev,
 		adapter->rrd_ring = rrd_old;
 		adapter->tpd_ring = tpd_old;
 		adapter->ring_header = rhdr_old;
+		/*
+		 * Save SMB and CMB, since atl1_free_ring_resources
+		 * will clear them.
+		 */
+		smb = adapter->smb;
+		cmb = adapter->cmb;
 		atl1_free_ring_resources(adapter);
 		adapter->rfd_ring = rfd_new;
 		adapter->rrd_ring = rrd_new;
 		adapter->tpd_ring = tpd_new;
 		adapter->ring_header = rhdr_new;
+		adapter->smb = smb;
+		adapter->cmb = cmb;
 
 		err = atl1_up(adapter);
 		if (err)

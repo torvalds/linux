@@ -215,7 +215,8 @@ config PCMCIA_PXA2XX
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
 		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
 		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2 \
-		    || MACH_VPAC270 || MACH_BALLOON3)
+		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
+		    || MACH_COLIBRI320)
 	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller

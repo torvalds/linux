@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/spi/spi.h>
 
+#include <mach/camera.h>
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
@@ -287,6 +288,9 @@ static inline void omap_init_audio(void) {}
  */
 static int __init omap1_init_devices(void)
 {
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
@@ -321,10 +325,9 @@ static struct platform_device omap_wdt_device = {
 static int __init omap_init_wdt(void)
 {
 	if (!cpu_is_omap16xx())
-		return;
+		return -ENODEV;
 
-	platform_device_register(&omap_wdt_device);
-	return 0;
+	return platform_device_register(&omap_wdt_device);
 }
 subsys_initcall(omap_init_wdt);
 #endif

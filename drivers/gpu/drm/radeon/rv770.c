@@ -915,8 +915,8 @@ static int rv770_vram_scratch_init(struct radeon_device *rdev)
 
 	if (rdev->vram_scratch.robj == NULL) {
 		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE,
-					true, RADEON_GEM_DOMAIN_VRAM,
-					&rdev->vram_scratch.robj);
+				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
+				     &rdev->vram_scratch.robj);
 		if (r) {
 			return r;
 		}

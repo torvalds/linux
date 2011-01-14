@@ -190,14 +190,20 @@ generic_acl_chmod(struct inode *inode)
 }
 
 int
-generic_check_acl(struct inode *inode, int mask)
+generic_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			return -ECHILD;
+	} else {
+		struct posix_acl *acl;
 
-	if (acl) {
-		int error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return error;
+		acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
+		if (acl) {
+			int error = posix_acl_permission(inode, acl, mask);
+			posix_acl_release(acl);
+			return error;
+		}
 	}
 	return -EAGAIN;
 }

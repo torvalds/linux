@@ -167,9 +167,16 @@ static struct inode *hfs_alloc_inode(struct super_block *sb)
 	return i ? &i->vfs_inode : NULL;
 }
 
+static void hfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(hfs_inode_cachep, HFS_I(inode));
+}
+
 static void hfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(hfs_inode_cachep, HFS_I(inode));
+	call_rcu(&inode->i_rcu, hfs_i_callback);
 }
 
 static const struct super_operations hfs_super_operations = {
@@ -427,7 +434,7 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		goto bail_iput;
 
-	sb->s_root->d_op = &hfs_dentry_operations;
+	d_set_d_op(sb->s_root, &hfs_dentry_operations);
 
 	/* everything's okay */
 	return 0;

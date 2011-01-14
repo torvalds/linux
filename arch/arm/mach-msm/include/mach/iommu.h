@@ -20,13 +20,26 @@
 
 #include <linux/interrupt.h>
 
+/* Sharability attributes of MSM IOMMU mappings */
+#define MSM_IOMMU_ATTR_NON_SH		0x0
+#define MSM_IOMMU_ATTR_SH		0x4
+
+/* Cacheability attributes of MSM IOMMU mappings */
+#define MSM_IOMMU_ATTR_NONCACHED	0x0
+#define MSM_IOMMU_ATTR_CACHED_WB_WA	0x1
+#define MSM_IOMMU_ATTR_CACHED_WB_NWA	0x2
+#define MSM_IOMMU_ATTR_CACHED_WT	0x3
+
+/* Mask for the cache policy attribute */
+#define MSM_IOMMU_CP_MASK		0x03
+
 /* Maximum number of Machine IDs that we are allowing to be mapped to the same
  * context bank. The number of MIDs mapped to the same CB does not affect
  * performance, but there is a practical limit on how many distinct MIDs may
  * be present. These mappings are typically determined at design time and are
  * not expected to change at run time.
  */
-#define MAX_NUM_MIDS	16
+#define MAX_NUM_MIDS	32
 
 /**
  * struct msm_iommu_dev - a single IOMMU hardware instance

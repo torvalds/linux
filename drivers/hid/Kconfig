@@ -154,7 +154,8 @@ config HID_EGALAX
 	tristate "eGalax multi-touch panel"
 	depends on USB_HID
 	---help---
-	Support for the eGalax dual-touch panel.
+	Support for the eGalax dual-touch panels, including the
+	Joojoo and Wetab tablets.
 
 config HID_ELECOM
 	tristate "ELECOM BM084 bluetooth mouse"

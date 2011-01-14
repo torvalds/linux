@@ -180,64 +180,68 @@
 
 /* Keyboard definition */
 
-static int htc_herald_keymap[] = {
+static const unsigned int htc_herald_keymap[] = {
 	KEY(0, 0, KEY_RECORD), /* Mail button */
-	KEY(0, 1, KEY_CAMERA), /* Camera */
-	KEY(0, 2, KEY_PHONE), /* Send key */
-	KEY(0, 3, KEY_VOLUMEUP), /* Volume up */
-	KEY(0, 4, KEY_F2),  /* Right bar (landscape) */
-	KEY(0, 5, KEY_MAIL), /* Win key (portrait) */
-	KEY(0, 6, KEY_DIRECTORY), /* Right bar (protrait) */
-	KEY(1, 0, KEY_LEFTCTRL), /* Windows key */
+	KEY(1, 0, KEY_CAMERA), /* Camera */
+	KEY(2, 0, KEY_PHONE), /* Send key */
+	KEY(3, 0, KEY_VOLUMEUP), /* Volume up */
+	KEY(4, 0, KEY_F2),  /* Right bar (landscape) */
+	KEY(5, 0, KEY_MAIL), /* Win key (portrait) */
+	KEY(6, 0, KEY_DIRECTORY), /* Right bar (protrait) */
+	KEY(0, 1, KEY_LEFTCTRL), /* Windows key */
 	KEY(1, 1, KEY_COMMA),
-	KEY(1, 2, KEY_M),
-	KEY(1, 3, KEY_K),
-	KEY(1, 4, KEY_SLASH), /* OK key */
-	KEY(1, 5, KEY_I),
-	KEY(1, 6, KEY_U),
-	KEY(2, 0, KEY_LEFTALT),
-	KEY(2, 1, KEY_TAB),
+	KEY(2, 1, KEY_M),
+	KEY(3, 1, KEY_K),
+	KEY(4, 1, KEY_SLASH), /* OK key */
+	KEY(5, 1, KEY_I),
+	KEY(6, 1, KEY_U),
+	KEY(0, 2, KEY_LEFTALT),
+	KEY(1, 2, KEY_TAB),
 	KEY(2, 2, KEY_N),
-	KEY(2, 3, KEY_J),
-	KEY(2, 4, KEY_ENTER),
-	KEY(2, 5, KEY_H),
-	KEY(2, 6, KEY_Y),
-	KEY(3, 0, KEY_SPACE),
-	KEY(3, 1, KEY_L),
-	KEY(3, 2, KEY_B),
+	KEY(3, 2, KEY_J),
+	KEY(4, 2, KEY_ENTER),
+	KEY(5, 2, KEY_H),
+	KEY(6, 2, KEY_Y),
+	KEY(0, 3, KEY_SPACE),
+	KEY(1, 3, KEY_L),
+	KEY(2, 3, KEY_B),
 	KEY(3, 3, KEY_V),
-	KEY(3, 4, KEY_BACKSPACE),
-	KEY(3, 5, KEY_G),
-	KEY(3, 6, KEY_T),
-	KEY(4, 0, KEY_CAPSLOCK), /* Shift */
-	KEY(4, 1, KEY_C),
-	KEY(4, 2, KEY_F),
-	KEY(4, 3, KEY_R),
+	KEY(4, 3, KEY_BACKSPACE),
+	KEY(5, 3, KEY_G),
+	KEY(6, 3, KEY_T),
+	KEY(0, 4, KEY_CAPSLOCK), /* Shift */
+	KEY(1, 4, KEY_C),
+	KEY(2, 4, KEY_F),
+	KEY(3, 4, KEY_R),
 	KEY(4, 4, KEY_O),
-	KEY(4, 5, KEY_E),
-	KEY(4, 6, KEY_D),
-	KEY(5, 0, KEY_X),
-	KEY(5, 1, KEY_Z),
-	KEY(5, 2, KEY_S),
-	KEY(5, 3, KEY_W),
-	KEY(5, 4, KEY_P),
+	KEY(5, 4, KEY_E),
+	KEY(6, 4, KEY_D),
+	KEY(0, 5, KEY_X),
+	KEY(1, 5, KEY_Z),
+	KEY(2, 5, KEY_S),
+	KEY(3, 5, KEY_W),
+	KEY(4, 5, KEY_P),
 	KEY(5, 5, KEY_Q),
-	KEY(5, 6, KEY_A),
-	KEY(6, 0, KEY_CONNECT), /* Voice button */
-	KEY(6, 2, KEY_CANCEL), /* End key */
-	KEY(6, 3, KEY_VOLUMEDOWN), /* Volume down */
-	KEY(6, 4, KEY_F1), /* Left bar (landscape) */
-	KEY(6, 5, KEY_WWW), /* OK button (portrait) */
+	KEY(6, 5, KEY_A),
+	KEY(0, 6, KEY_CONNECT), /* Voice button */
+	KEY(2, 6, KEY_CANCEL), /* End key */
+	KEY(3, 6, KEY_VOLUMEDOWN), /* Volume down */
+	KEY(4, 6, KEY_F1), /* Left bar (landscape) */
+	KEY(5, 6, KEY_WWW), /* OK button (portrait) */
 	KEY(6, 6, KEY_CALENDAR), /* Left bar (portrait) */
-	0
 };
 
-struct omap_kp_platform_data htcherald_kp_data = {
+static const struct matrix_keymap_data htc_herald_keymap_data = {
+	.keymap		= htc_herald_keymap,
+	.keymap_size	= ARRAY_SIZE(htc_herald_keymap),
+};
+
+static struct omap_kp_platform_data htcherald_kp_data = {
 	.rows	= 7,
 	.cols	= 7,
 	.delay = 20,
-	.rep = 1,
-	.keymap = htc_herald_keymap,
+	.rep = true,
+	.keymap_data = &htc_herald_keymap_data,
 };
 
 static struct resource kp_resources[] = {
@@ -278,7 +282,7 @@ static struct gpio_keys_button herald_gpio_keys_table[] = {
 static struct gpio_keys_platform_data herald_gpio_keys_data = {
 	.buttons	= herald_gpio_keys_table,
 	.nbuttons	= ARRAY_SIZE(herald_gpio_keys_table),
-	.rep		= 1,
+	.rep		= true,
 };
 
 static struct platform_device herald_gpiokeys_device = {
@@ -439,7 +443,7 @@ static const struct ads7846_platform_data htcherald_ts_platform_data = {
 	.keep_vref_on		= 1,
 	.x_plate_ohms		= 496,
 	.gpio_pendown		= HTCHERALD_GPIO_TS,
-	.pressure_max		= 100000,
+	.pressure_max		= 10000,
 	.pressure_min		= 5000,
 	.x_min			= 528,
 	.x_max			= 3760,
@@ -577,8 +581,6 @@ static void __init htcherald_init(void)
 	printk(KERN_INFO "HTC Herald init.\n");
 
 	/* Do board initialization before we register all the devices */
-	omap_gpio_init();
-
 	omap_board_config = htcherald_config;
 	omap_board_config_size = ARRAY_SIZE(htcherald_config);
 	platform_add_devices(devices, ARRAY_SIZE(devices));

@@ -125,16 +125,22 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
-	if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS) {
-		dprintk(DBGLVL_ENC, "%s() type=V4L2_MPEG_STREAM_TYPE_MPEG2_PS\n", __func__);
+	if (port->encoder_params.stream_type ==
+		V4L2_MPEG_STREAM_TYPE_MPEG2_PS) {
+		dprintk(DBGLVL_ENC,
+			"%s() type=V4L2_MPEG_STREAM_TYPE_MPEG2_PS\n",
+			__func__);
 		params->samplesperline = 128;
 		params->numberoflines = 256;
 		params->pitch = 128;
 		params->numpagetables = 2 +
 			((SAA7164_PS_NUMBER_OF_LINES * 128) / PAGE_SIZE);
 	} else
-	if (port->encoder_params.stream_type == V4L2_MPEG_STREAM_TYPE_MPEG2_TS) {
-		dprintk(DBGLVL_ENC, "%s() type=V4L2_MPEG_STREAM_TYPE_MPEG2_TS\n", __func__);
+	if (port->encoder_params.stream_type ==
+		V4L2_MPEG_STREAM_TYPE_MPEG2_TS) {
+		dprintk(DBGLVL_ENC,
+			"%s() type=V4L2_MPEG_STREAM_TYPE_MPEG2_TS\n",
+			__func__);
 		params->samplesperline = 188;
 		params->numberoflines = 312;
 		params->pitch = 188;
@@ -826,7 +832,8 @@ static int fill_queryctrl(struct saa7164_encoder_params *params,
 		return v4l2_ctrl_query_fill(c, 1, 255, 1, 15);
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
 		return v4l2_ctrl_query_fill(c,
-			V4L2_MPEG_VIDEO_BITRATE_MODE_VBR, V4L2_MPEG_VIDEO_BITRATE_MODE_CBR,
+			V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
+			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR,
 			1, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
 	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
 		return v4l2_ctrl_query_fill(c,
@@ -1113,7 +1120,9 @@ struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 		if (crc_checking) {
 			crc = crc32(0, ubuf->data, ubuf->actual_size);
 			if (crc != ubuf->crc) {
-				printk(KERN_ERR "%s() ubuf %p crc became invalid, was 0x%x became 0x%x\n", __func__,
+				printk(KERN_ERR
+		"%s() ubuf %p crc became invalid, was 0x%x became 0x%x\n",
+					__func__,
 					ubuf, ubuf->crc, crc);
 			}
 		}
@@ -1201,9 +1210,8 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 		buffer += cnt;
 		ret += cnt;
 
-		if (ubuf->pos > ubuf->actual_size) {
+		if (ubuf->pos > ubuf->actual_size)
 			printk(KERN_ERR "read() pos > actual, huh?\n");
-		}
 
 		if (ubuf->pos == ubuf->actual_size) {
 
@@ -1227,16 +1235,16 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 		}
 	}
 err:
-	if (!ret && !ubuf) {
+	if (!ret && !ubuf)
 		ret = -EAGAIN;
-	}
 
 	return ret;
 }
 
 static unsigned int fops_poll(struct file *file, poll_table *wait)
 {
-	struct saa7164_encoder_fh *fh = (struct saa7164_encoder_fh *)file->private_data;
+	struct saa7164_encoder_fh *fh =
+		(struct saa7164_encoder_fh *)file->private_data;
 	struct saa7164_port *port = fh->port;
 	struct saa7164_user_buffer *ubuf;
 	unsigned int mask = 0;
@@ -1249,9 +1257,8 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	saa7164_histogram_update(&port->poll_interval,
 		port->last_poll_msecs_diff);
 
-	if (!video_is_registered(port->v4l_device)) {
+	if (!video_is_registered(port->v4l_device))
 		return -EIO;
-	}
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {

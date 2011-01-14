@@ -110,6 +110,8 @@ static unsigned long dn_rt_deadline;
 
 static int dn_dst_gc(struct dst_ops *ops);
 static struct dst_entry *dn_dst_check(struct dst_entry *, __u32);
+static unsigned int dn_dst_default_advmss(const struct dst_entry *dst);
+static unsigned int dn_dst_default_mtu(const struct dst_entry *dst);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu);
@@ -129,6 +131,8 @@ static struct dst_ops dn_dst_ops = {
 	.gc_thresh =		128,
 	.gc =			dn_dst_gc,
 	.check =		dn_dst_check,
+	.default_advmss =	dn_dst_default_advmss,
+	.default_mtu =		dn_dst_default_mtu,
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
@@ -240,13 +244,14 @@ static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
 
 	if (dst_metric(dst, RTAX_MTU) > mtu && mtu >= min_mtu) {
 		if (!(dst_metric_locked(dst, RTAX_MTU))) {
-			dst->metrics[RTAX_MTU-1] = mtu;
+			dst_metric_set(dst, RTAX_MTU, mtu);
 			dst_set_expires(dst, dn_rt_mtu_expires);
 		}
 		if (!(dst_metric_locked(dst, RTAX_ADVMSS))) {
 			u32 mss = mtu - DN_MAX_NSP_DATA_HEADER;
-			if (dst_metric(dst, RTAX_ADVMSS) > mss)
-				dst->metrics[RTAX_ADVMSS-1] = mss;
+			u32 existing_mss = dst_metric_raw(dst, RTAX_ADVMSS);
+			if (!existing_mss || existing_mss > mss)
+				dst_metric_set(dst, RTAX_ADVMSS, mss);
 		}
 	}
 }
@@ -271,10 +276,10 @@ static void dn_dst_link_failure(struct sk_buff *skb)
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return ((fl1->nl_u.dn_u.daddr ^ fl2->nl_u.dn_u.daddr) |
-		(fl1->nl_u.dn_u.saddr ^ fl2->nl_u.dn_u.saddr) |
+	return ((fl1->fld_dst ^ fl2->fld_dst) |
+		(fl1->fld_src ^ fl2->fld_src) |
 		(fl1->mark ^ fl2->mark) |
-		(fl1->nl_u.dn_u.scope ^ fl2->nl_u.dn_u.scope) |
+		(fl1->fld_scope ^ fl2->fld_scope) |
 		(fl1->oif ^ fl2->oif) |
 		(fl1->iif ^ fl2->iif)) == 0;
 }
@@ -795,19 +800,28 @@ static int dn_rt_bug(struct sk_buff *skb)
 	return NET_RX_DROP;
 }
 
+static unsigned int dn_dst_default_advmss(const struct dst_entry *dst)
+{
+	return dn_mss_from_pmtu(dst->dev, dst_mtu(dst));
+}
+
+static unsigned int dn_dst_default_mtu(const struct dst_entry *dst)
+{
+	return dst->dev->mtu;
+}
+
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 {
 	struct dn_fib_info *fi = res->fi;
 	struct net_device *dev = rt->dst.dev;
 	struct neighbour *n;
-	unsigned mss;
+	unsigned int metric;
 
 	if (fi) {
 		if (DN_FIB_RES_GW(*res) &&
 		    DN_FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = DN_FIB_RES_GW(*res);
-		memcpy(rt->dst.metrics, fi->fib_metrics,
-		       sizeof(rt->dst.metrics));
+		dst_import_metrics(&rt->dst, fi->fib_metrics);
 	}
 	rt->rt_type = res->type;
 
@@ -818,13 +832,14 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 		rt->dst.neighbour = n;
 	}
 
-	if (dst_metric(&rt->dst, RTAX_MTU) == 0 ||
-	    dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
-		rt->dst.metrics[RTAX_MTU-1] = rt->dst.dev->mtu;
-	mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->dst));
-	if (dst_metric(&rt->dst, RTAX_ADVMSS) == 0 ||
-	    dst_metric(&rt->dst, RTAX_ADVMSS) > mss)
-		rt->dst.metrics[RTAX_ADVMSS-1] = mss;
+	if (dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
+		dst_metric_set(&rt->dst, RTAX_MTU, rt->dst.dev->mtu);
+	metric = dst_metric_raw(&rt->dst, RTAX_ADVMSS);
+	if (metric) {
+		unsigned int mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->dst));
+		if (metric > mss)
+			dst_metric_set(&rt->dst, RTAX_ADVMSS, mss);
+	}
 	return 0;
 }
 
@@ -882,11 +897,9 @@ static inline __le16 dn_fib_rules_map_destination(__le16 daddr, struct dn_fib_re
 
 static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *oldflp, int try_hard)
 {
-	struct flowi fl = { .nl_u = { .dn_u =
-				      { .daddr = oldflp->fld_dst,
-					.saddr = oldflp->fld_src,
-					.scope = RT_SCOPE_UNIVERSE,
-				     } },
+	struct flowi fl = { .fld_dst = oldflp->fld_dst,
+			    .fld_src = oldflp->fld_src,
+			    .fld_scope = RT_SCOPE_UNIVERSE,
 			    .mark = oldflp->mark,
 			    .iif = init_net.loopback_dev->ifindex,
 			    .oif = oldflp->oif };
@@ -1230,11 +1243,9 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	int flags = 0;
 	__le16 gateway = 0;
 	__le16 local_src = 0;
-	struct flowi fl = { .nl_u = { .dn_u =
-				     { .daddr = cb->dst,
-				       .saddr = cb->src,
-				       .scope = RT_SCOPE_UNIVERSE,
-				    } },
+	struct flowi fl = { .fld_dst = cb->dst,
+			    .fld_src = cb->src,
+			    .fld_scope = RT_SCOPE_UNIVERSE,
 			    .mark = skb->mark,
 			    .iif = skb->dev->ifindex };
 	struct dn_fib_res res = { .fi = NULL, .type = RTN_UNREACHABLE };
@@ -1506,7 +1517,7 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	RTA_PUT(skb, RTA_PREFSRC, 2, &rt->rt_local_src);
 	if (rt->rt_daddr != rt->rt_gateway)
 		RTA_PUT(skb, RTA_GATEWAY, 2, &rt->rt_gateway);
-	if (rtnetlink_put_metrics(skb, rt->dst.metrics) < 0)
+	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
 		goto rtattr_failure;
 	expires = rt->dst.expires ? rt->dst.expires - jiffies : 0;
 	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, 0, 0, expires,

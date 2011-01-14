@@ -281,6 +281,13 @@ static void __cpuinit smp_callin(void)
 	 */
 	smp_store_cpu_info(cpuid);
 
+	/*
+	 * This must be done before setting cpu_online_mask
+	 * or calling notify_cpu_starting.
+	 */
+	set_cpu_sibling_map(raw_smp_processor_id());
+	wmb();
+
 	notify_cpu_starting(cpuid);
 
 	/*
@@ -315,16 +322,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	 * Check TSC synchronization with the BP:
 	 */
 	check_tsc_sync_target();
-
-	if (nmi_watchdog == NMI_IO_APIC) {
-		legacy_pic->mask(0);
-		enable_NMI_through_LVT0();
-		legacy_pic->unmask(0);
-	}
-
-	/* This must be done before setting cpu_online_mask */
-	set_cpu_sibling_map(raw_smp_processor_id());
-	wmb();
 
 	/*
 	 * We need to hold call_lock, so there is no inconsistency
@@ -430,7 +427,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 
 	cpumask_set_cpu(cpu, c->llc_shared_map);
 
-	if (current_cpu_data.x86_max_cores == 1) {
+	if (__this_cpu_read(cpu_info.x86_max_cores) == 1) {
 		cpumask_copy(cpu_core_mask(cpu), cpu_sibling_mask(cpu));
 		c->booted_cores = 1;
 		return;
@@ -1061,8 +1058,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		printk(KERN_INFO "SMP mode deactivated.\n");
 		smpboot_clear_io_apic();
 
-		localise_nmi_watchdog();
-
 		connect_bsp_APIC();
 		setup_local_APIC();
 		end_local_APIC_setup();
@@ -1094,7 +1089,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	preempt_disable();
 	smp_cpu_index_default();
-	current_cpu_data = boot_cpu_data;
+	memcpy(__this_cpu_ptr(&cpu_info), &boot_cpu_data, sizeof(cpu_info));
 	cpumask_copy(cpu_callin_mask, cpumask_of(0));
 	mb();
 	/*
@@ -1166,6 +1161,20 @@ out:
 	preempt_enable();
 }
 
+void arch_disable_nonboot_cpus_begin(void)
+{
+	/*
+	 * Avoid the smp alternatives switch during the disable_nonboot_cpus().
+	 * In the suspend path, we will be back in the SMP mode shortly anyways.
+	 */
+	skip_smp_alternatives = true;
+}
+
+void arch_disable_nonboot_cpus_end(void)
+{
+	skip_smp_alternatives = false;
+}
+
 void arch_enable_nonboot_cpus_begin(void)
 {
 	set_mtrr_aps_delayed_init();
@@ -1196,7 +1205,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
 #endif
-	check_nmi_watchdog();
 	mtrr_aps_init();
 }
 
@@ -1341,8 +1349,6 @@ int native_cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		stop_apic_nmi_watchdog(NULL);
 	clear_local_APIC();
 
 	cpu_disable_common();
@@ -1377,7 +1383,7 @@ void play_dead_common(void)
 
 	mb();
 	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	__this_cpu_write(cpu_state, CPU_DEAD);
 
 	/*
 	 * With physical CPU hotplug, we should halt the cpu
@@ -1397,11 +1403,11 @@ static inline void mwait_play_dead(void)
 	int i;
 	void *mwait_ptr;
 
-	if (!cpu_has(&current_cpu_data, X86_FEATURE_MWAIT))
+	if (!cpu_has(__this_cpu_ptr(&cpu_info), X86_FEATURE_MWAIT))
 		return;
-	if (!cpu_has(&current_cpu_data, X86_FEATURE_CLFLSH))
+	if (!cpu_has(__this_cpu_ptr(&cpu_info), X86_FEATURE_CLFLSH))
 		return;
-	if (current_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
+	if (__this_cpu_read(cpu_info.cpuid_level) < CPUID_MWAIT_LEAF)
 		return;
 
 	eax = CPUID_MWAIT_LEAF;
@@ -1452,7 +1458,7 @@ static inline void mwait_play_dead(void)
 
 static inline void hlt_play_dead(void)
 {
-	if (current_cpu_data.x86 >= 4)
+	if (__this_cpu_read(cpu_info.x86) >= 4)
 		wbinvd();
 
 	while (1) {

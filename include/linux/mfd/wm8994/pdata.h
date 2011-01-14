@@ -29,7 +29,7 @@ struct wm8994_ldo_pdata {
 #define WM8994_CONFIGURE_GPIO 0x8000
 
 #define WM8994_DRC_REGS 5
-#define WM8994_EQ_REGS  19
+#define WM8994_EQ_REGS  20
 
 /**
  * DRC configurations are specified with a label and a set of register

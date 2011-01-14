@@ -365,7 +365,7 @@ static int bu21013_init_chip(struct bu21013_ts_data *data)
 	}
 
 	retval = i2c_smbus_write_byte_data(i2c, BU21013_TH_OFF_REG,
-				BU21013_TH_OFF_4 || BU21013_TH_OFF_3);
+				BU21013_TH_OFF_4 | BU21013_TH_OFF_3);
 	if (retval < 0) {
 		dev_err(&i2c->dev, "BU21013_TH_OFF reg write failed\n");
 		return retval;

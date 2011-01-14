@@ -1153,6 +1153,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_bus = mdiobus_alloc();
 	if (!lp->mii_bus) {
 		dev_err(&pdev->dev, "mdiobus_alloc() failed\n");
+		err = -ENOMEM;
 		goto err_out_unmap;
 	}
 
@@ -1165,6 +1166,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	if (!lp->mii_bus->irq) {
 		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
+		err = -ENOMEM;
 		goto err_out_mdio;
 	}
 

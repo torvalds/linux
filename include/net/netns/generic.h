@@ -30,7 +30,7 @@ struct net_generic {
 	void *ptr[0];
 };
 
-static inline void *net_generic(struct net *net, int id)
+static inline void *net_generic(const struct net *net, int id)
 {
 	struct net_generic *ng;
 	void *ptr;

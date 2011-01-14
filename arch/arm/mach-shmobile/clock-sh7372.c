@@ -20,8 +20,8 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/sh_clk.h>
+#include <linux/clkdev.h>
 #include <mach/common.h>
-#include <asm/clkdev.h>
 
 /* SH7372 registers */
 #define FRQCRA		0xe6150000
@@ -220,8 +220,7 @@ static void pllc2_disable(struct clk *clk)
 	__raw_writel(__raw_readl(PLLC2CR) & ~0x80000000, PLLC2CR);
 }
 
-static int pllc2_set_rate(struct clk *clk,
-			  unsigned long rate, int algo_id)
+static int pllc2_set_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long value;
 	int idx;
@@ -230,20 +229,12 @@ static int pllc2_set_rate(struct clk *clk,
 	if (idx < 0)
 		return idx;
 
-	if (rate == clk->parent->rate) {
-		pllc2_disable(clk);
-		return 0;
-	}
+	if (rate == clk->parent->rate)
+		return -EINVAL;
 
 	value = __raw_readl(PLLC2CR) & ~(0x3f << 24);
 
-	if (value & 0x80000000)
-		pllc2_disable(clk);
-
 	__raw_writel((value & ~0x80000000) | ((idx + 19) << 24), PLLC2CR);
-
-	if (value & 0x80000000)
-		return pllc2_enable(clk);
 
 	return 0;
 }
@@ -453,32 +444,24 @@ static int fsidiv_enable(struct clk *clk)
 	unsigned long value;
 
 	value  = __raw_readl(clk->mapping->base) >> 16;
-	if (value < 2) {
-		fsidiv_disable(clk);
-		return -ENOENT;
-	}
+	if (value < 2)
+		return -EIO;
 
 	__raw_writel((value << 16) | 0x3, clk->mapping->base);
 
 	return 0;
 }
 
-static int fsidiv_set_rate(struct clk *clk,
-			   unsigned long rate, int algo_id)
+static int fsidiv_set_rate(struct clk *clk, unsigned long rate)
 {
 	int idx;
 
-	if (clk->parent->rate == rate) {
-		fsidiv_disable(clk);
-		return 0;
-	}
-
 	idx = (clk->parent->rate / rate) & 0xffff;
 	if (idx < 2)
-		return -ENOENT;
+		return -EINVAL;
 
 	__raw_writel(idx << 16, clk->mapping->base);
-	return fsidiv_enable(clk);
+	return 0;
 }
 
 static struct clk_ops fsidiv_clk_ops = {
@@ -524,7 +507,7 @@ enum { MSTP001,
        MSTP223,
        MSTP207, MSTP206, MSTP204, MSTP203, MSTP202, MSTP201, MSTP200,
        MSTP329, MSTP328, MSTP323, MSTP322, MSTP314, MSTP313, MSTP312,
-       MSTP415, MSTP413, MSTP411, MSTP410, MSTP406, MSTP403,
+       MSTP423, MSTP415, MSTP413, MSTP411, MSTP410, MSTP406, MSTP403,
        MSTP_NR };
 
 #define MSTP(_parent, _reg, _bit, _flags) \
@@ -560,6 +543,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP314] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 14, 0), /* SDHI0 */
 	[MSTP313] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 13, 0), /* SDHI1 */
 	[MSTP312] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 12, 0), /* MMC */
+	[MSTP423] = MSTP(&div4_clks[DIV4_B], SMSTPCR4, 23, 0), /* DSITX1 */
 	[MSTP415] = MSTP(&div4_clks[DIV4_HP], SMSTPCR4, 15, 0), /* SDHI2 */
 	[MSTP413] = MSTP(&pllc1_div2_clk, SMSTPCR4, 13, 0), /* HDMI */
 	[MSTP411] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR4, 11, 0), /* IIC3 */
@@ -609,15 +593,14 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("vck3_clk", &div6_clks[DIV6_VCK3]),
 	CLKDEV_CON_ID("fmsi_clk", &div6_clks[DIV6_FMSI]),
 	CLKDEV_CON_ID("fmso_clk", &div6_clks[DIV6_FMSO]),
-	CLKDEV_CON_ID("fsia_clk", &div6_reparent_clks[DIV6_FSIA]),
-	CLKDEV_CON_ID("fsib_clk", &div6_reparent_clks[DIV6_FSIB]),
 	CLKDEV_CON_ID("sub_clk", &div6_clks[DIV6_SUB]),
 	CLKDEV_CON_ID("spu_clk", &div6_clks[DIV6_SPU]),
 	CLKDEV_CON_ID("vou_clk", &div6_clks[DIV6_VOU]),
 	CLKDEV_CON_ID("hdmi_clk", &div6_reparent_clks[DIV6_HDMI]),
-	CLKDEV_CON_ID("dsit_clk", &div6_clks[DIV6_DSIT]),
-	CLKDEV_CON_ID("dsi0p_clk", &div6_clks[DIV6_DSI0P]),
-	CLKDEV_CON_ID("dsi1p_clk", &div6_clks[DIV6_DSI1P]),
+	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSIT]),
+	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSIT]),
+	CLKDEV_ICK_ID("dsi0p_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSI0P]),
+	CLKDEV_ICK_ID("dsi1p_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSI1P]),
 
 	/* MSTP32 clocks */
 	CLKDEV_DEV_ID("i2c-sh_mobile.2", &mstp_clks[MSTP001]), /* IIC2 */
@@ -629,7 +612,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-mobile-csi2.0", &mstp_clks[MSTP126]), /* CSI2 */
 	CLKDEV_DEV_ID("sh_tmu.0", &mstp_clks[MSTP125]), /* TMU00 */
 	CLKDEV_DEV_ID("sh_tmu.1", &mstp_clks[MSTP125]), /* TMU01 */
-	CLKDEV_DEV_ID("sh-mipi-dsi.0", &mstp_clks[MSTP118]), /* DSITX */
+	CLKDEV_DEV_ID("sh-mipi-dsi.0", &mstp_clks[MSTP118]), /* DSITX0 */
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.1", &mstp_clks[MSTP117]), /* LCDC1 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.0", &mstp_clks[MSTP116]), /* IIC0 */
 	CLKDEV_DEV_ID("uio_pdrv_genirq.5", &mstp_clks[MSTP106]), /* JPU */
@@ -647,11 +630,12 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_cmt.10", &mstp_clks[MSTP329]), /* CMT10 */
 	CLKDEV_DEV_ID("sh_fsi2", &mstp_clks[MSTP328]), /* FSI2 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.1", &mstp_clks[MSTP323]), /* IIC1 */
-	CLKDEV_DEV_ID("r8a66597_hcd.0", &mstp_clks[MSTP323]), /* USB0 */
-	CLKDEV_DEV_ID("r8a66597_udc.0", &mstp_clks[MSTP323]), /* USB0 */
+	CLKDEV_DEV_ID("r8a66597_hcd.0", &mstp_clks[MSTP322]), /* USB0 */
+	CLKDEV_DEV_ID("r8a66597_udc.0", &mstp_clks[MSTP322]), /* USB0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.0", &mstp_clks[MSTP314]), /* SDHI0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP313]), /* SDHI1 */
 	CLKDEV_DEV_ID("sh_mmcif.0", &mstp_clks[MSTP312]), /* MMC */
+	CLKDEV_DEV_ID("sh-mipi-dsi.1", &mstp_clks[MSTP423]), /* DSITX1 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.2", &mstp_clks[MSTP415]), /* SDHI2 */
 	CLKDEV_DEV_ID("sh-mobile-hdmi", &mstp_clks[MSTP413]), /* HDMI */
 	CLKDEV_DEV_ID("i2c-sh_mobile.3", &mstp_clks[MSTP411]), /* IIC3 */

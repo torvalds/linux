@@ -1537,13 +1537,9 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	if (vif->flags & VIFF_TUNNEL) {
 		struct flowi fl = {
 			.oif = vif->link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = vif->remote,
-					.saddr = vif->local,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = vif->remote,
+			.fl4_src = vif->local,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
 
@@ -1553,12 +1549,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	} else {
 		struct flowi fl = {
 			.oif = vif->link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = iph->daddr,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
 

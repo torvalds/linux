@@ -96,12 +96,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		if (!(rt = (struct rtable *)
 		      __ip_vs_dst_check(dest, rtos))) {
 			struct flowi fl = {
-				.oif = 0,
-				.nl_u = {
-					.ip4_u = {
-						.daddr = dest->addr.ip,
-						.saddr = 0,
-						.tos = rtos, } },
+				.fl4_dst = dest->addr.ip,
+				.fl4_tos = rtos,
 			};
 
 			if (ip_route_output_key(net, &rt, &fl)) {
@@ -118,12 +114,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		spin_unlock(&dest->dst_lock);
 	} else {
 		struct flowi fl = {
-			.oif = 0,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = daddr,
-					.saddr = 0,
-					.tos = rtos, } },
+			.fl4_dst = daddr,
+			.fl4_tos = rtos,
 		};
 
 		if (ip_route_output_key(net, &rt, &fl)) {
@@ -178,14 +170,9 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 		refdst_drop(orefdst);
 	} else {
 		struct flowi fl = {
-			.oif = 0,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.saddr = iph->saddr,
-					.tos = RT_TOS(iph->tos),
-				}
-			},
+			.fl4_dst = iph->daddr,
+			.fl4_src = iph->saddr,
+			.fl4_tos = RT_TOS(iph->tos),
 			.mark = skb->mark,
 		};
 
@@ -215,12 +202,7 @@ __ip_vs_route_output_v6(struct net *net, struct in6_addr *daddr,
 {
 	struct dst_entry *dst;
 	struct flowi fl = {
-		.oif = 0,
-		.nl_u = {
-			.ip6_u = {
-				.daddr = *daddr,
-			},
-		},
+		.fl6_dst = *daddr,
 	};
 
 	dst = ip6_route_output(net, NULL, &fl);

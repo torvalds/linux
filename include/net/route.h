@@ -114,7 +114,7 @@ extern int		ip_rt_init(void);
 extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
 				       __be32 src, struct net_device *dev);
 extern void		rt_cache_flush(struct net *net, int how);
-extern void		rt_cache_flush_batch(void);
+extern void		rt_cache_flush_batch(struct net *net);
 extern int		__ip_route_output_key(struct net *, struct rtable **, const struct flowi *flp);
 extern int		ip_route_output_key(struct net *, struct rtable **, struct flowi *flp);
 extern int		ip_route_output_flow(struct net *, struct rtable **rp, struct flowi *flp, struct sock *sk, int flags);
@@ -169,14 +169,12 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 {
 	struct flowi fl = { .oif = oif,
 			    .mark = sk->sk_mark,
-			    .nl_u = { .ip4_u = { .daddr = dst,
-						 .saddr = src,
-						 .tos   = tos } },
+			    .fl4_dst = dst,
+			    .fl4_src = src,
+			    .fl4_tos = tos,
 			    .proto = protocol,
-			    .uli_u = { .ports =
-				       { .sport = sport,
-					 .dport = dport } } };
-
+			    .fl_ip_sport = sport,
+			    .fl_ip_dport = dport };
 	int err;
 	struct net *net = sock_net(sk);
 
@@ -231,6 +229,17 @@ static inline struct inet_peer *rt_get_peer(struct rtable *rt)
 static inline int inet_iif(const struct sk_buff *skb)
 {
 	return skb_rtable(skb)->rt_iif;
+}
+
+extern int sysctl_ip_default_ttl;
+
+static inline int ip4_dst_hoplimit(const struct dst_entry *dst)
+{
+	int hoplimit = dst_metric_raw(dst, RTAX_HOPLIMIT);
+
+	if (hoplimit == 0)
+		hoplimit = sysctl_ip_default_ttl;
+	return hoplimit;
 }
 
 #endif	/* _ROUTE_H */

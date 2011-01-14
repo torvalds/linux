@@ -17,6 +17,9 @@
 /* Require clock free running */
 #define PXA_FLAG_DISABLE_CLOCK_GATING (1<<0)
 
+/* Board design supports 8-bit data on SD/SDIO BUS */
+#define PXA_FLAG_SD_8_BIT_CAPABLE_SLOT (1<<2)
+
 /*
  * struct pxa_sdhci_platdata() - Platform device data for PXA SDHCI
  * @max_speed: the maximum speed supported

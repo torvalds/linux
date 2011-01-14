@@ -34,6 +34,7 @@
 #include <media/cx25840.h>
 #include "dvb-usb-ids.h"
 #include "xc5000.h"
+#include "tda18271.h"
 
 #include "cx231xx.h"
 
@@ -395,14 +396,51 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = 0,
 		} },
 	},
+	[CX231XX_BOARD_PV_PLAYTV_USB_HYBRID] = {
+		.name = "Pixelview PlayTV USB Hybrid",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x00,	/* According with PV cxPolaris.inf file */
+		.tuner_sif_gpio = -1,
+		.tuner_scl_gpio = -1,
+		.tuner_sda_gpio = -1,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 2,
+		.demod_i2c_master = 1,
+		.ir_i2c_master = 2,
+		.rc_map_name = RC_MAP_PIXELVIEW_002T,
+		.has_dvb = 1,
+		.demod_addr = 0x10,
+		.norm = V4L2_STD_PAL_M,
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id cx231xx_id_table[] = {
 	{USB_DEVICE(0x0572, 0x5A3C),
-	 .driver_info = CX231XX_BOARD_UNKNOWN},
-	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000,0x4fff),
 	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{USB_DEVICE(0x0572, 0x58A2),
 	 .driver_info = CX231XX_BOARD_CNXT_CARRAERA},
@@ -424,6 +462,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{USB_DEVICE(0x2040, 0xc200),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USBLIVE2},
+	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000, 0x4001),
+	 .driver_info = CX231XX_BOARD_PV_PLAYTV_USB_HYBRID},
 	{},
 };
 
@@ -452,6 +492,16 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg)
 			cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,
 					       1);
 			msleep(10);
+		}
+	} else if (dev->tuner_type == TUNER_NXP_TDA18271) {
+		switch (command) {
+		case TDA18271_CALLBACK_CMD_AGC_ENABLE:
+			if (dev->model == CX231XX_BOARD_PV_PLAYTV_USB_HYBRID)
+				rc = cx231xx_set_agc_analog_digital_mux_select(dev, arg);
+			break;
+		default:
+			rc = -EINVAL;
+			break;
 		}
 	}
 	return rc;
@@ -560,7 +610,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	if (dev->board.decoder == CX231XX_AVDECODER) {
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 					&dev->i2c_bus[0].i2c_adap,
-					NULL, "cx25840", 0x88 >> 1, NULL);
+					"cx25840", 0x88 >> 1, NULL);
 		if (dev->sd_cx25840 == NULL)
 			cx231xx_info("cx25840 subdev registration failure\n");
 		cx25840_call(dev, core, load_fw);
@@ -571,7 +621,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		dev->sd_tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 						    &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
-						    NULL, "tuner",
+						    "tuner",
 						    dev->tuner_addr, NULL);
 		if (dev->sd_tuner == NULL)
 			cx231xx_info("tuner subdev registration failure\n");
@@ -615,7 +665,10 @@ void cx231xx_release_resources(struct cx231xx *dev)
 
 	cx231xx_remove_from_devlist(dev);
 
+	/* Release I2C buses */
 	cx231xx_dev_uninit(dev);
+
+	cx231xx_ir_exit(dev);
 
 	usb_put_dev(dev->udev);
 
@@ -731,16 +784,14 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	retval = cx231xx_register_analog_devices(dev);
 	if (retval < 0) {
 		cx231xx_release_resources(dev);
-		goto fail_reg_devices;
+		return retval;
 	}
+
+	cx231xx_ir_init(dev);
 
 	cx231xx_init_extension(dev);
 
 	return 0;
-
-fail_reg_devices:
-	mutex_unlock(&dev->lock);
-	return retval;
 }
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
@@ -762,8 +813,14 @@ static void request_modules(struct cx231xx *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx231xx *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 /*
@@ -1095,6 +1152,8 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 
 	if (!dev->udev)
 		return;
+
+	flush_request_modules(dev);
 
 	/* delete v4l2 device */
 	v4l2_device_unregister(&dev->v4l2_dev);

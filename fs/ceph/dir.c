@@ -40,12 +40,13 @@ int ceph_init_dentry(struct dentry *dentry)
 	if (dentry->d_fsdata)
 		return 0;
 
-	if (ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
-		dentry->d_op = &ceph_dentry_ops;
+	if (dentry->d_parent == NULL ||   /* nfs fh_to_dentry */
+	    ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
+		d_set_d_op(dentry, &ceph_dentry_ops);
 	else if (ceph_snap(dentry->d_parent->d_inode) == CEPH_SNAPDIR)
-		dentry->d_op = &ceph_snapdir_dentry_ops;
+		d_set_d_op(dentry, &ceph_snapdir_dentry_ops);
 	else
-		dentry->d_op = &ceph_snap_dentry_ops;
+		d_set_d_op(dentry, &ceph_snap_dentry_ops);
 
 	di = kmem_cache_alloc(ceph_dentry_cachep, GFP_NOFS | __GFP_ZERO);
 	if (!di)
@@ -111,11 +112,11 @@ static int __dcache_readdir(struct file *filp,
 	dout("__dcache_readdir %p at %llu (last %p)\n", dir, filp->f_pos,
 	     last);
 
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 
 	/* start at beginning? */
-	if (filp->f_pos == 2 || (last &&
-				 filp->f_pos < ceph_dentry(last)->offset)) {
+	if (filp->f_pos == 2 || last == NULL ||
+	    filp->f_pos < ceph_dentry(last)->offset) {
 		if (list_empty(&parent->d_subdirs))
 			goto out_unlock;
 		p = parent->d_subdirs.prev;
@@ -135,6 +136,7 @@ more:
 			fi->at_end = 1;
 			goto out_unlock;
 		}
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 		if (!d_unhashed(dentry) && dentry->d_inode &&
 		    ceph_snap(dentry->d_inode) != CEPH_SNAPDIR &&
 		    ceph_ino(dentry->d_inode) != CEPH_INO_CEPH &&
@@ -144,13 +146,15 @@ more:
 		     dentry->d_name.len, dentry->d_name.name, di->offset,
 		     filp->f_pos, d_unhashed(dentry) ? " unhashed" : "",
 		     !dentry->d_inode ? " null" : "");
+		spin_unlock(&dentry->d_lock);
 		p = p->prev;
 		dentry = list_entry(p, struct dentry, d_u.d_child);
 		di = ceph_dentry(dentry);
 	}
 
-	atomic_inc(&dentry->d_count);
-	spin_unlock(&dcache_lock);
+	dget_dlock(dentry);
+	spin_unlock(&dentry->d_lock);
+	spin_unlock(&parent->d_lock);
 
 	dout(" %llu (%llu) dentry %p %.*s %p\n", di->offset, filp->f_pos,
 	     dentry, dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
@@ -176,19 +180,19 @@ more:
 
 	filp->f_pos++;
 
-	/* make sure a dentry wasn't dropped while we didn't have dcache_lock */
+	/* make sure a dentry wasn't dropped while we didn't have parent lock */
 	if (!ceph_i_test(dir, CEPH_I_COMPLETE)) {
 		dout(" lost I_COMPLETE on %p; falling back to mds\n", dir);
 		err = -EAGAIN;
 		goto out;
 	}
 
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	p = p->prev;	/* advance to next dentry */
 	goto more;
 
 out_unlock:
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 out:
 	if (last)
 		dput(last);
@@ -336,7 +340,10 @@ more:
 		if (req->r_reply_info.dir_end) {
 			kfree(fi->last_name);
 			fi->last_name = NULL;
-			fi->next_offset = 2;
+			if (ceph_frag_is_rightmost(frag))
+				fi->next_offset = 2;
+			else
+				fi->next_offset = 0;
 		} else {
 			rinfo = &req->r_reply_info;
 			err = note_last_dentry(fi,
@@ -355,18 +362,22 @@ more:
 		u64 pos = ceph_make_fpos(frag, off);
 		struct ceph_mds_reply_inode *in =
 			rinfo->dir_in[off - fi->offset].in;
+		struct ceph_vino vino;
+		ino_t ino;
+
 		dout("readdir off %d (%d/%d) -> %lld '%.*s' %p\n",
 		     off, off - fi->offset, rinfo->dir_nr, pos,
 		     rinfo->dir_dname_len[off - fi->offset],
 		     rinfo->dir_dname[off - fi->offset], in);
 		BUG_ON(!in);
 		ftype = le32_to_cpu(in->mode) >> 12;
+		vino.ino = le64_to_cpu(in->ino);
+		vino.snap = le64_to_cpu(in->snapid);
+		ino = ceph_vino_to_ino(vino);
 		if (filldir(dirent,
 			    rinfo->dir_dname[off - fi->offset],
 			    rinfo->dir_dname_len[off - fi->offset],
-			    pos,
-			    le64_to_cpu(in->ino),
-			    ftype) < 0) {
+			    pos, ino, ftype) < 0) {
 			dout("filldir stopping us...\n");
 			return 0;
 		}
@@ -414,6 +425,7 @@ static void reset_readdir(struct ceph_file_info *fi)
 		fi->last_readdir = NULL;
 	}
 	kfree(fi->last_name);
+	fi->last_name = NULL;
 	fi->next_offset = 2;  /* compensate for . and .. */
 	if (fi->dentry) {
 		dput(fi->dentry);
@@ -978,7 +990,12 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
  */
 static int ceph_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	dir = dentry->d_parent->d_inode;
 
 	dout("d_revalidate %p '%.*s' inode %p offset %lld\n", dentry,
 	     dentry->d_name.len, dentry->d_name.name, dentry->d_inode,

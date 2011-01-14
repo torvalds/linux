@@ -97,14 +97,8 @@ u32 rv6xx_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
-	u32 actual_temp = 0;
 
-	if ((temp >> 7) & 1)
-		actual_temp = 0;
-	else
-		actual_temp = (temp >> 1) & 0xff;
-
-	return actual_temp * 1000;
+	return temp * 1000;
 }
 
 void r600_pm_get_dynpm_state(struct radeon_device *rdev)
@@ -884,12 +878,15 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	u32 tmp;
 
 	/* flush hdp cache so updates hit vram */
-	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
+	    !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
 		u32 tmp;
 
 		/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
 		 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+		 * This seems to cause problems on some AGP cards. Just use the old
+		 * method for them.
 		 */
 		WREG32(HDP_DEBUG1, 0);
 		tmp = readl((void __iomem *)ptr);
@@ -919,7 +916,7 @@ int r600_pcie_gart_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj) {
-		WARN(1, "R600 PCIE GART already initialized.\n");
+		WARN(1, "R600 PCIE GART already initialized\n");
 		return 0;
 	}
 	/* Initialize common gart structure */
@@ -1201,8 +1198,10 @@ void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 				mc->vram_end, mc->real_vram_size >> 20);
 	} else {
 		u64 base = 0;
-		if (rdev->flags & RADEON_IS_IGP)
-			base = (RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
+		if (rdev->flags & RADEON_IS_IGP) {
+			base = RREG32(MC_VM_FB_LOCATION) & 0xFFFF;
+			base <<= 24;
+		}
 		radeon_vram_location(rdev, &rdev->mc, base);
 		rdev->mc.gtt_base_align = 0;
 		radeon_gtt_location(rdev, mc);
@@ -1343,13 +1342,19 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status2;
+	struct r100_gpu_lockup *lockup;
 	int r;
+
+	if (rdev->family >= CHIP_RV770)
+		lockup = &rdev->config.rv770.lockup;
+	else
+		lockup = &rdev->config.r600.lockup;
 
 	srbm_status = RREG32(R_000E50_SRBM_STATUS);
 	grbm_status = RREG32(R_008010_GRBM_STATUS);
 	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
 	if (!G_008010_GUI_ACTIVE(grbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r300.lockup, &rdev->cp);
+		r100_gpu_lockup_update(lockup, &rdev->cp);
 		return false;
 	}
 	/* force CP activities */
@@ -1361,7 +1366,7 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 		radeon_ring_unlock_commit(rdev);
 	}
 	rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, &rdev->cp);
+	return r100_gpu_cp_is_lockup(rdev, lockup, &rdev->cp);
 }
 
 int r600_asic_reset(struct radeon_device *rdev)
@@ -2724,7 +2729,7 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev)
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
 		r = radeon_bo_create(rdev, NULL, rdev->ih.ring_size,
-				     true,
+				     PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_GTT,
 				     &rdev->ih.ring_obj);
 		if (r) {
@@ -2995,7 +3000,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 hdmi1, hdmi2;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
@@ -3489,10 +3494,12 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
 void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
 {
 	/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
-	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL.
+	 * This seems to cause problems on some AGP cards. Just use the old
+	 * method for them.
 	 */
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
-	    rdev->vram_scratch.ptr) {
+	    rdev->vram_scratch.ptr && !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->vram_scratch.ptr;
 		u32 tmp;
 

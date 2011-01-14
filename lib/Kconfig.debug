@@ -173,7 +173,8 @@ config LOCKUP_DETECTOR
 	  An NMI is generated every 60 seconds or so to check for hardlockups.
 
 config HARDLOCKUP_DETECTOR
-	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI
+	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI && \
+		 !ARCH_HAS_NMI_WATCHDOG
 
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"

@@ -46,7 +46,11 @@
  * RF2020 2.4G B/G
  * RF3021 2.4G 1T2R
  * RF3022 2.4G 2T2R
- * RF3052 2.4G 2T2R
+ * RF3052 2.4G/5G 2T2R
+ * RF2853 2.4G/5G 3T3R
+ * RF3320 2.4G 1T1R(RT3350/RT3370/RT3390)
+ * RF3322 2.4G 2T2R(RT3352/RT3371/RT3372/RT3391/RT3392)
+ * RF3853 2.4G/5G 3T3R(RT3883/RT3563/RT3573/RT3593/RT3662)
  */
 #define RF2820				0x0001
 #define RF2850				0x0002
@@ -57,7 +61,10 @@
 #define RF3021				0x0007
 #define RF3022				0x0008
 #define RF3052				0x0009
+#define RF2853				0x000a
 #define RF3320				0x000b
+#define RF3322				0x000c
+#define RF3853				0x000d
 
 /*
  * Chipset revisions.
@@ -206,10 +213,10 @@
 
 /*
  * WMM_AIFSN_CFG: Aifsn for each EDCA AC
- * AIFSN0: AC_BE
- * AIFSN1: AC_BK
- * AIFSN2: AC_VI
- * AIFSN3: AC_VO
+ * AIFSN0: AC_VO
+ * AIFSN1: AC_VI
+ * AIFSN2: AC_BE
+ * AIFSN3: AC_BK
  */
 #define WMM_AIFSN_CFG			0x0214
 #define WMM_AIFSN_CFG_AIFSN0		FIELD32(0x0000000f)
@@ -219,10 +226,10 @@
 
 /*
  * WMM_CWMIN_CSR: CWmin for each EDCA AC
- * CWMIN0: AC_BE
- * CWMIN1: AC_BK
- * CWMIN2: AC_VI
- * CWMIN3: AC_VO
+ * CWMIN0: AC_VO
+ * CWMIN1: AC_VI
+ * CWMIN2: AC_BE
+ * CWMIN3: AC_BK
  */
 #define WMM_CWMIN_CFG			0x0218
 #define WMM_CWMIN_CFG_CWMIN0		FIELD32(0x0000000f)
@@ -232,10 +239,10 @@
 
 /*
  * WMM_CWMAX_CSR: CWmax for each EDCA AC
- * CWMAX0: AC_BE
- * CWMAX1: AC_BK
- * CWMAX2: AC_VI
- * CWMAX3: AC_VO
+ * CWMAX0: AC_VO
+ * CWMAX1: AC_VI
+ * CWMAX2: AC_BE
+ * CWMAX3: AC_BK
  */
 #define WMM_CWMAX_CFG			0x021c
 #define WMM_CWMAX_CFG_CWMAX0		FIELD32(0x0000000f)
@@ -244,18 +251,18 @@
 #define WMM_CWMAX_CFG_CWMAX3		FIELD32(0x0000f000)
 
 /*
- * AC_TXOP0: AC_BK/AC_BE TXOP register
- * AC0TXOP: AC_BK in unit of 32us
- * AC1TXOP: AC_BE in unit of 32us
+ * AC_TXOP0: AC_VO/AC_VI TXOP register
+ * AC0TXOP: AC_VO in unit of 32us
+ * AC1TXOP: AC_VI in unit of 32us
  */
 #define WMM_TXOP0_CFG			0x0220
 #define WMM_TXOP0_CFG_AC0TXOP		FIELD32(0x0000ffff)
 #define WMM_TXOP0_CFG_AC1TXOP		FIELD32(0xffff0000)
 
 /*
- * AC_TXOP1: AC_VO/AC_VI TXOP register
- * AC2TXOP: AC_VI in unit of 32us
- * AC3TXOP: AC_VO in unit of 32us
+ * AC_TXOP1: AC_BE/AC_BK TXOP register
+ * AC2TXOP: AC_BE in unit of 32us
+ * AC3TXOP: AC_BK in unit of 32us
  */
 #define WMM_TXOP1_CFG			0x0224
 #define WMM_TXOP1_CFG_AC2TXOP		FIELD32(0x0000ffff)
@@ -281,7 +288,7 @@
 #define MCU_CMD_CFG			0x022c
 
 /*
- * AC_BK register offsets
+ * AC_VO register offsets
  */
 #define TX_BASE_PTR0			0x0230
 #define TX_MAX_CNT0			0x0234
@@ -289,7 +296,7 @@
 #define TX_DTX_IDX0			0x023c
 
 /*
- * AC_BE register offsets
+ * AC_VI register offsets
  */
 #define TX_BASE_PTR1			0x0240
 #define TX_MAX_CNT1			0x0244
@@ -297,7 +304,7 @@
 #define TX_DTX_IDX1			0x024c
 
 /*
- * AC_VI register offsets
+ * AC_BE register offsets
  */
 #define TX_BASE_PTR2			0x0250
 #define TX_MAX_CNT2			0x0254
@@ -305,7 +312,7 @@
 #define TX_DTX_IDX2			0x025c
 
 /*
- * AC_VO register offsets
+ * AC_BK register offsets
  */
 #define TX_BASE_PTR3			0x0260
 #define TX_MAX_CNT3			0x0264
@@ -412,10 +419,22 @@
 #define BCN_OFFSET1_BCN7		FIELD32(0xff000000)
 
 /*
- * PBF registers
- * Most are for debug. Driver doesn't touch PBF register.
+ * TXRXQ_PCNT: PBF register
+ * PCNT_TX0Q: Page count for TX hardware queue 0
+ * PCNT_TX1Q: Page count for TX hardware queue 1
+ * PCNT_TX2Q: Page count for TX hardware queue 2
+ * PCNT_RX0Q: Page count for RX hardware queue
  */
 #define TXRXQ_PCNT			0x0438
+#define TXRXQ_PCNT_TX0Q			FIELD32(0x000000ff)
+#define TXRXQ_PCNT_TX1Q			FIELD32(0x0000ff00)
+#define TXRXQ_PCNT_TX2Q			FIELD32(0x00ff0000)
+#define TXRXQ_PCNT_RX0Q			FIELD32(0xff000000)
+
+/*
+ * PBF register
+ * Debug. Driver doesn't touch PBF register.
+ */
 #define PBF_DBG				0x043c
 
 /*
@@ -686,8 +705,18 @@
 
 /*
  * CH_TIME_CFG: count as channel busy
+ * EIFS_BUSY: Count EIFS as channel busy
+ * NAV_BUSY: Count NAS as channel busy
+ * RX_BUSY: Count RX as channel busy
+ * TX_BUSY: Count TX as channel busy
+ * TMR_EN: Enable channel statistics timer
  */
 #define CH_TIME_CFG     	        0x110c
+#define CH_TIME_CFG_EIFS_BUSY		FIELD32(0x00000010)
+#define CH_TIME_CFG_NAV_BUSY		FIELD32(0x00000008)
+#define CH_TIME_CFG_RX_BUSY		FIELD32(0x00000004)
+#define CH_TIME_CFG_TX_BUSY		FIELD32(0x00000002)
+#define CH_TIME_CFG_TMR_EN		FIELD32(0x00000001)
 
 /*
  * PBF_LIFE_TIMER: TX/RX MPDU timestamp timer (free run) Unit: 1us
@@ -960,8 +989,31 @@
 
 /*
  * TXOP_CTRL_CFG:
+ * TIMEOUT_TRUN_EN: Enable/Disable TXOP timeout truncation
+ * AC_TRUN_EN: Enable/Disable truncation for AC change
+ * TXRATEGRP_TRUN_EN: Enable/Disable truncation for TX rate group change
+ * USER_MODE_TRUN_EN: Enable/Disable truncation for user TXOP mode
+ * MIMO_PS_TRUN_EN: Enable/Disable truncation for MIMO PS RTS/CTS
+ * RESERVED_TRUN_EN: Reserved
+ * LSIG_TXOP_EN: Enable/Disable L-SIG TXOP protection
+ * EXT_CCA_EN: Enable/Disable extension channel CCA reference (Defer 40Mhz
+ *	       transmissions if extension CCA is clear).
+ * EXT_CCA_DLY: Extension CCA signal delay time (unit: us)
+ * EXT_CWMIN: CwMin for extension channel backoff
+ *	      0: Disabled
+ *
  */
 #define TXOP_CTRL_CFG			0x1340
+#define TXOP_CTRL_CFG_TIMEOUT_TRUN_EN	FIELD32(0x00000001)
+#define TXOP_CTRL_CFG_AC_TRUN_EN	FIELD32(0x00000002)
+#define TXOP_CTRL_CFG_TXRATEGRP_TRUN_EN	FIELD32(0x00000004)
+#define TXOP_CTRL_CFG_USER_MODE_TRUN_EN	FIELD32(0x00000008)
+#define TXOP_CTRL_CFG_MIMO_PS_TRUN_EN	FIELD32(0x00000010)
+#define TXOP_CTRL_CFG_RESERVED_TRUN_EN	FIELD32(0x00000020)
+#define TXOP_CTRL_CFG_LSIG_TXOP_EN	FIELD32(0x00000040)
+#define TXOP_CTRL_CFG_EXT_CCA_EN	FIELD32(0x00000080)
+#define TXOP_CTRL_CFG_EXT_CCA_DLY	FIELD32(0x0000ff00)
+#define TXOP_CTRL_CFG_EXT_CWMIN		FIELD32(0x000f0000)
 
 /*
  * TX_RTS_CFG:
@@ -1485,17 +1537,17 @@
 #define SHARED_KEY_MODE_BASE		0x7000
 
 #define MAC_WCID_ENTRY(__idx) \
-	( MAC_WCID_BASE + ((__idx) * sizeof(struct mac_wcid_entry)) )
+	(MAC_WCID_BASE + ((__idx) * sizeof(struct mac_wcid_entry)))
 #define PAIRWISE_KEY_ENTRY(__idx) \
-	( PAIRWISE_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)) )
+	(PAIRWISE_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)))
 #define MAC_IVEIV_ENTRY(__idx) \
-	( MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)) )
+	(MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)))
 #define MAC_WCID_ATTR_ENTRY(__idx) \
-	( MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)) )
+	(MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)))
 #define SHARED_KEY_ENTRY(__idx) \
-	( SHARED_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)) )
+	(SHARED_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)))
 #define SHARED_KEY_MODE_ENTRY(__idx) \
-	( SHARED_KEY_MODE_BASE + ((__idx) * sizeof(u32)) )
+	(SHARED_KEY_MODE_BASE + ((__idx) * sizeof(u32)))
 
 struct mac_wcid_entry {
 	u8 mac[6];
@@ -1635,9 +1687,9 @@ struct mac_iveiv_entry {
 #define HW_BEACON_BASE7			0x5bc0
 
 #define HW_BEACON_OFFSET(__index) \
-	( ((__index) < 4) ? ( HW_BEACON_BASE0 + (__index * 0x0200) ) : \
-	  (((__index) < 6) ? ( HW_BEACON_BASE4 + ((__index - 4) * 0x0200) ) : \
-	  (HW_BEACON_BASE6 - ((__index - 6) * 0x0200))) )
+	(((__index) < 4) ? (HW_BEACON_BASE0 + (__index * 0x0200)) : \
+	  (((__index) < 6) ? (HW_BEACON_BASE4 + ((__index - 4) * 0x0200)) : \
+	  (HW_BEACON_BASE6 - ((__index - 6) * 0x0200))))
 
 /*
  * BBP registers.
@@ -1805,32 +1857,51 @@ struct mac_iveiv_entry {
 #define EEPROM_MAC_ADDR_BYTE5		FIELD16(0xff00)
 
 /*
- * EEPROM ANTENNA config
+ * EEPROM NIC Configuration 0
  * RXPATH: 1: 1R, 2: 2R, 3: 3R
- * TXPATH: 1: 1T, 2: 2T
+ * TXPATH: 1: 1T, 2: 2T, 3: 3T
+ * RF_TYPE: RFIC type
  */
-#define	EEPROM_ANTENNA			0x001a
-#define EEPROM_ANTENNA_RXPATH		FIELD16(0x000f)
-#define EEPROM_ANTENNA_TXPATH		FIELD16(0x00f0)
-#define EEPROM_ANTENNA_RF_TYPE		FIELD16(0x0f00)
+#define	EEPROM_NIC_CONF0		0x001a
+#define EEPROM_NIC_CONF0_RXPATH		FIELD16(0x000f)
+#define EEPROM_NIC_CONF0_TXPATH		FIELD16(0x00f0)
+#define EEPROM_NIC_CONF0_RF_TYPE		FIELD16(0x0f00)
 
 /*
- * EEPROM NIC config
- * CARDBUS_ACCEL: 0 - enable, 1 - disable
+ * EEPROM NIC Configuration 1
+ * HW_RADIO: 0: disable, 1: enable
+ * EXTERNAL_TX_ALC: 0: disable, 1: enable
+ * EXTERNAL_LNA_2G: 0: disable, 1: enable
+ * EXTERNAL_LNA_5G: 0: disable, 1: enable
+ * CARDBUS_ACCEL: 0: enable, 1: disable
+ * BW40M_SB_2G: 0: disable, 1: enable
+ * BW40M_SB_5G: 0: disable, 1: enable
+ * WPS_PBC: 0: disable, 1: enable
+ * BW40M_2G: 0: enable, 1: disable
+ * BW40M_5G: 0: enable, 1: disable
+ * BROADBAND_EXT_LNA: 0: disable, 1: enable
+ * ANT_DIVERSITY: 00: Disable, 01: Diversity,
+ * 				  10: Main antenna, 11: Aux antenna
+ * INTERNAL_TX_ALC: 0: disable, 1: enable
+ * BT_COEXIST: 0: disable, 1: enable
+ * DAC_TEST: 0: disable, 1: enable
  */
-#define	EEPROM_NIC			0x001b
-#define EEPROM_NIC_HW_RADIO		FIELD16(0x0001)
-#define EEPROM_NIC_DYNAMIC_TX_AGC	FIELD16(0x0002)
-#define EEPROM_NIC_EXTERNAL_LNA_BG	FIELD16(0x0004)
-#define EEPROM_NIC_EXTERNAL_LNA_A	FIELD16(0x0008)
-#define EEPROM_NIC_CARDBUS_ACCEL	FIELD16(0x0010)
-#define EEPROM_NIC_BW40M_SB_BG		FIELD16(0x0020)
-#define EEPROM_NIC_BW40M_SB_A		FIELD16(0x0040)
-#define EEPROM_NIC_WPS_PBC		FIELD16(0x0080)
-#define EEPROM_NIC_BW40M_BG		FIELD16(0x0100)
-#define EEPROM_NIC_BW40M_A		FIELD16(0x0200)
-#define EEPROM_NIC_ANT_DIVERSITY	FIELD16(0x0800)
-#define EEPROM_NIC_DAC_TEST		FIELD16(0x8000)
+#define	EEPROM_NIC_CONF1		0x001b
+#define EEPROM_NIC_CONF1_HW_RADIO		FIELD16(0x0001)
+#define EEPROM_NIC_CONF1_EXTERNAL_TX_ALC		FIELD16(0x0002)
+#define EEPROM_NIC_CONF1_EXTERNAL_LNA_2G		FIELD16(0x0004)
+#define EEPROM_NIC_CONF1_EXTERNAL_LNA_5G		FIELD16(0x0008)
+#define EEPROM_NIC_CONF1_CARDBUS_ACCEL		FIELD16(0x0010)
+#define EEPROM_NIC_CONF1_BW40M_SB_2G		FIELD16(0x0020)
+#define EEPROM_NIC_CONF1_BW40M_SB_5G		FIELD16(0x0040)
+#define EEPROM_NIC_CONF1_WPS_PBC		FIELD16(0x0080)
+#define EEPROM_NIC_CONF1_BW40M_2G		FIELD16(0x0100)
+#define EEPROM_NIC_CONF1_BW40M_5G		FIELD16(0x0200)
+#define EEPROM_NIC_CONF1_BROADBAND_EXT_LNA		FIELD16(0x400)
+#define EEPROM_NIC_CONF1_ANT_DIVERSITY		FIELD16(0x1800)
+#define EEPROM_NIC_CONF1_INTERNAL_TX_ALC		FIELD16(0x2000)
+#define EEPROM_NIC_CONF1_BT_COEXIST		FIELD16(0x4000)
+#define EEPROM_NIC_CONF1_DAC_TEST		FIELD16(0x8000)
 
 /*
  * EEPROM frequency
@@ -1852,9 +1923,9 @@ struct mac_iveiv_entry {
  * POLARITY_GPIO_4: Polarity GPIO4 setting.
  * LED_MODE: Led mode.
  */
-#define EEPROM_LED1			0x001e
-#define EEPROM_LED2			0x001f
-#define EEPROM_LED3			0x0020
+#define EEPROM_LED_AG_CONF		0x001e
+#define EEPROM_LED_ACT_CONF		0x001f
+#define EEPROM_LED_POLARITY		0x0020
 #define EEPROM_LED_POLARITY_RDY_BG	FIELD16(0x0001)
 #define EEPROM_LED_POLARITY_RDY_A	FIELD16(0x0002)
 #define EEPROM_LED_POLARITY_ACT		FIELD16(0x0004)
@@ -1864,6 +1935,17 @@ struct mac_iveiv_entry {
 #define EEPROM_LED_POLARITY_GPIO_3	FIELD16(0x0040)
 #define EEPROM_LED_POLARITY_GPIO_4	FIELD16(0x0080)
 #define EEPROM_LED_LED_MODE		FIELD16(0x1f00)
+
+/*
+ * EEPROM NIC Configuration 2
+ * RX_STREAM: 0: Reserved, 1: 1 Stream, 2: 2 Stream
+ * TX_STREAM: 0: Reserved, 1: 1 Stream, 2: 2 Stream
+ * CRYSTAL: 00: Reserved, 01: One crystal, 10: Two crystal, 11: Reserved
+ */
+#define EEPROM_NIC_CONF2		0x0021
+#define EEPROM_NIC_CONF2_RX_STREAM		FIELD16(0x000f)
+#define EEPROM_NIC_CONF2_TX_STREAM		FIELD16(0x00f0)
+#define EEPROM_NIC_CONF2_CRYSTAL		FIELD16(0x0600)
 
 /*
  * EEPROM LNA
@@ -1915,7 +1997,7 @@ struct mac_iveiv_entry {
 
 /*
  * EEPROM TXpower delta: 20MHZ AND 40 MHZ use different power.
- *	This is delta in 40MHZ.
+ * This is delta in 40MHZ.
  * VALUE: Tx Power dalta value (MAX=4)
  * TYPE: 1: Plus the delta value, 0: minus the delta value
  * TXPOWER: Enable:
@@ -1971,9 +2053,9 @@ struct mac_iveiv_entry {
 #define MCU_CURRENT			0x36
 #define MCU_LED				0x50
 #define MCU_LED_STRENGTH		0x51
-#define MCU_LED_1			0x52
-#define MCU_LED_2			0x53
-#define MCU_LED_3			0x54
+#define MCU_LED_AG_CONF		0x52
+#define MCU_LED_ACT_CONF		0x53
+#define MCU_LED_LED_POLARITY		0x54
 #define MCU_RADAR			0x60
 #define MCU_BOOT_SIGNAL			0x72
 #define MCU_BBP_SIGNAL			0x80
@@ -1987,8 +2069,8 @@ struct mac_iveiv_entry {
 /*
  * DMA descriptor defines.
  */
-#define TXWI_DESC_SIZE			( 4 * sizeof(__le32) )
-#define RXWI_DESC_SIZE			( 4 * sizeof(__le32) )
+#define TXWI_DESC_SIZE			(4 * sizeof(__le32))
+#define RXWI_DESC_SIZE			(4 * sizeof(__le32))
 
 /*
  * TX WI structure
