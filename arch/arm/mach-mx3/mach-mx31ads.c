@@ -476,7 +476,6 @@ static struct wm8350_platform_data __initdata mx31_wm8350_pdata = {
 };
 #endif
 
-#if defined(CONFIG_I2C_IMX) || defined(CONFIG_I2C_IMX_MODULE)
 static struct i2c_board_info __initdata mx31ads_i2c1_devices[] = {
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
 	{
@@ -497,11 +496,6 @@ static void mxc_init_i2c(void)
 
 	imx31_add_imx_i2c1(NULL);
 }
-#else
-static void mxc_init_i2c(void)
-{
-}
-#endif
 
 static unsigned int ssi_pins[] = {
 	MX31_PIN_SFS5__SFS5,
