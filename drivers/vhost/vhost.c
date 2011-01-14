@@ -97,22 +97,26 @@ void vhost_poll_stop(struct vhost_poll *poll)
 	remove_wait_queue(poll->wqh, &poll->wait);
 }
 
+static bool vhost_work_seq_done(struct vhost_dev *dev, struct vhost_work *work,
+				unsigned seq)
+{
+	int left;
+	spin_lock_irq(&dev->work_lock);
+	left = seq - work->done_seq;
+	spin_unlock_irq(&dev->work_lock);
+	return left <= 0;
+}
+
 static void vhost_work_flush(struct vhost_dev *dev, struct vhost_work *work)
 {
 	unsigned seq;
-	int left;
 	int flushing;
 
 	spin_lock_irq(&dev->work_lock);
 	seq = work->queue_seq;
 	work->flushing++;
 	spin_unlock_irq(&dev->work_lock);
-	wait_event(work->done, ({
-		   spin_lock_irq(&dev->work_lock);
-		   left = seq - work->done_seq <= 0;
-		   spin_unlock_irq(&dev->work_lock);
-		   left;
-	}));
+	wait_event(work->done, vhost_work_seq_done(dev, work, seq));
 	spin_lock_irq(&dev->work_lock);
 	flushing = --work->flushing;
 	spin_unlock_irq(&dev->work_lock);
