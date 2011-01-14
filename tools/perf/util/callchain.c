@@ -26,10 +26,10 @@ bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event)
 }
 
 #define chain_for_each_child(child, parent)	\
-	list_for_each_entry(child, &parent->children, brothers)
+	list_for_each_entry(child, &parent->children, siblings)
 
 #define chain_for_each_child_safe(child, next, parent)	\
-	list_for_each_entry_safe(child, next, &parent->children, brothers)
+	list_for_each_entry_safe(child, next, &parent->children, siblings)
 
 static void
 rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
@@ -189,7 +189,7 @@ create_child(struct callchain_node *parent, bool inherit_children)
 		chain_for_each_child(next, new)
 			next->parent = new;
 	}
-	list_add_tail(&new->brothers, &parent->children);
+	list_add_tail(&new->siblings, &parent->children);
 
 	return new;
 }
@@ -419,7 +419,7 @@ merge_chain_branch(struct callchain_cursor *cursor,
 		if (err)
 			break;
 
-		list_del(&child->brothers);
+		list_del(&child->siblings);
 		free(child);
 	}
 

@@ -16,7 +16,7 @@ enum chain_mode {
 
 struct callchain_node {
 	struct callchain_node	*parent;
-	struct list_head	brothers;
+	struct list_head	siblings;
 	struct list_head	children;
 	struct list_head	val;
 	struct rb_node		rb_node; /* to sort nodes in an rbtree */
@@ -72,7 +72,7 @@ struct callchain_cursor {
 
 static inline void callchain_init(struct callchain_root *root)
 {
-	INIT_LIST_HEAD(&root->node.brothers);
+	INIT_LIST_HEAD(&root->node.siblings);
 	INIT_LIST_HEAD(&root->node.children);
 	INIT_LIST_HEAD(&root->node.val);
 
