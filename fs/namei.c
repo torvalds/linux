@@ -2122,11 +2122,13 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		dir = nd->path.dentry;
 	case LAST_DOT:
 		if (need_reval_dot(dir)) {
-			error = d_revalidate(nd->path.dentry, nd);
-			if (!error)
-				error = -ESTALE;
-			if (error < 0)
+			int status = d_revalidate(nd->path.dentry, nd);
+			if (!status)
+				status = -ESTALE;
+			if (status < 0) {
+				error = status;
 				goto exit;
+			}
 		}
 		/* fallthrough */
 	case LAST_ROOT:
