@@ -236,12 +236,37 @@ static struct tda18271_std_map mb86a20s_tda18271_std_map = {
 
 static struct tda18271_config kworld_tda18271_config = {
 	.std_map = &mb86a20s_tda18271_std_map,
-	.gate    = TDA18271_GATE_ANALOG,
+	.gate    = TDA18271_GATE_DIGITAL,
 };
 
 static const struct mb86a20s_config kworld_mb86a20s_config = {
 	.demod_address = 0x10,
 };
+
+static int kworld_sbtvd_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+
+	unsigned char initmsg[] = {0x45, 0x97};
+	unsigned char msg_enable[] = {0x45, 0xc1};
+	unsigned char msg_disable[] = {0x45, 0x81};
+	struct i2c_msg msg = {.addr = 0x4b, .flags = 0, .buf = initmsg, .len = 2};
+
+	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
+		wprintk("could not access the I2C gate\n");
+		return -EIO;
+	}
+	if (enable)
+		msg.buf = msg_enable;
+	else
+		msg.buf = msg_disable;
+	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
+		wprintk("could not access the I2C gate\n");
+		return -EIO;
+	}
+	msleep(20);
+	return 0;
+}
 
 /* ==================================================================
  * tda1004x based DVB-T cards, helper functions
@@ -1639,10 +1664,21 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &kworld_mb86a20s_config,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend != NULL) {
+#if 0
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b,
+				   &tda829x_no_probe);
+#else
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b, NULL);
+#endif
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &kworld_tda18271_config);
+			fe0->dvb.frontend->ops.i2c_gate_ctrl = kworld_sbtvd_gate_ctrl;
 		}
+
+		/* mb86a20s need to use the I2C gateway */
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");

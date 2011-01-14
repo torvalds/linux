@@ -5179,7 +5179,11 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG] = {
 		.name           = "Kworld PCI SBTVD/ISDB-T Full-Seg Hybrid",
 		.audio_clock    = 0x00187de7,
+#if 0
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
+#else
+		.tuner_type	= UNSET,
+#endif
 		.tuner_addr     = ADDR_UNSET,
 		.radio_type     = UNSET,
 		.radio_addr	= ADDR_UNSET,
@@ -5191,7 +5195,6 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux   = 1,
 			.amux   = TV,
 			.tv     = 1,
-			.gpio	= 0x4000,
 #if 0	/* FIXME */
 		}, {
 			.name   = name_comp1,
