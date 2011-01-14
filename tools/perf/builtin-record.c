@@ -30,6 +30,7 @@
 #include <sys/mman.h>
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+#define SID(e, x, y) xyarray__entry(e->id, x, y)
 
 enum write_mode_t {
 	WRITE_FORCE,
@@ -77,8 +78,6 @@ static off_t			post_processing_offset;
 
 static struct perf_session	*session;
 static const char		*cpu_list;
-
-static struct perf_mmap		mmap_array[MAX_NR_CPUS];
 
 static void advance_output(size_t size)
 {
@@ -196,20 +195,14 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(struct perf_evlist *evlist,
-			   struct perf_evsel *evsel, int cpu)
+static void create_counter(struct perf_evsel *evsel, int cpu)
 {
 	char *filter = evsel->filter;
 	struct perf_event_attr *attr = &evsel->attr;
 	struct perf_header_attr *h_attr;
+	struct perf_sample_id *sid;
 	int thread_index;
 	int ret;
-	struct {
-		u64 count;
-		u64 time_enabled;
-		u64 time_running;
-		u64 id;
-	} read_data;
 
 	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
 		h_attr = get_header_attr(attr, evsel->idx);
@@ -223,43 +216,10 @@ static void create_counter(struct perf_evlist *evlist,
 			}
 		}
 
-		if (read(FD(evsel, cpu, thread_index), &read_data, sizeof(read_data)) == -1) {
-			perror("Unable to read perf file descriptor");
-			exit(-1);
-		}
-
-		if (perf_header_attr__add_id(h_attr, read_data.id) < 0) {
+		sid = SID(evsel, cpu, thread_index);
+		if (perf_header_attr__add_id(h_attr, sid->id) < 0) {
 			pr_warning("Not enough memory to add id\n");
 			exit(-1);
-		}
-
-		assert(FD(evsel, cpu, thread_index) >= 0);
-		fcntl(FD(evsel, cpu, thread_index), F_SETFL, O_NONBLOCK);
-
-		if (evsel->idx || thread_index) {
-			struct perf_evsel *first;
-			first = list_entry(evlist->entries.next, struct perf_evsel, node);
-			ret = ioctl(FD(evsel, cpu, thread_index),
-				    PERF_EVENT_IOC_SET_OUTPUT,
-				    FD(first, cpu, 0));
-			if (ret) {
-				error("failed to set output: %d (%s)\n", errno,
-						strerror(errno));
-				exit(-1);
-			}
-		} else {
-			mmap_array[cpu].prev = 0;
-			mmap_array[cpu].mask = mmap_pages*page_size - 1;
-			mmap_array[cpu].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ | PROT_WRITE, MAP_SHARED, FD(evsel, cpu, thread_index), 0);
-			if (mmap_array[cpu].base == MAP_FAILED) {
-				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
-				exit(-1);
-			}
-
-			evlist->pollfd[evlist->nr_fds].fd = FD(evsel, cpu, thread_index);
-			evlist->pollfd[evlist->nr_fds].events = POLLIN;
-			evlist->nr_fds++;
 		}
 
 		if (filter != NULL) {
@@ -423,9 +383,12 @@ try_again:
 		}
 	}
 
+	if (perf_evlist__mmap(evlist, cpus, threads, mmap_pages, false) < 0)
+		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
+
 	for (cpu = 0; cpu < cpus->nr; ++cpu) {
 		list_for_each_entry(pos, &evlist->entries, node)
-			create_counter(evlist, pos, cpu);
+			create_counter(pos, cpu);
 	}
 }
 
@@ -502,8 +465,8 @@ static void mmap_read_all(void)
 	int i;
 
 	for (i = 0; i < cpus->nr; i++) {
-		if (mmap_array[i].base)
-			mmap_read(&mmap_array[i]);
+		if (evsel_list->mmap[i].base)
+			mmap_read(&evsel_list->mmap[i]);
 	}
 
 	if (perf_header__has_feat(&session->header, HEADER_TRACE_INFO))
