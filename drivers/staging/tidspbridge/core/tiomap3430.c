@@ -786,10 +786,7 @@ static int bridge_dev_create(struct bridge_dev_context
 
 	pt_attrs = kzalloc(sizeof(struct pg_table_attrs), GFP_KERNEL);
 	if (pt_attrs != NULL) {
-		/* Assuming that we use only DSP's memory map
-		 * until 0x4000:0000 , we would need only 1024
-		 * L1 enties i.e L1 size = 4K */
-		pt_attrs->l1_size = 0x1000;
+		pt_attrs->l1_size = SZ_16K; /* 4096 entries of 32 bits */
 		align_size = pt_attrs->l1_size;
 		/* Align sizes are expected to be power of 2 */
 		/* we like to get aligned on L1 table size */
