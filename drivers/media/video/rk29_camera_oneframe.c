@@ -306,7 +306,6 @@ static void rk29_videobuf_free(struct videobuf_queue *vq, struct rk29_buffer *bu
 static int rk29_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb, enum v4l2_field field)
 {
     struct soc_camera_device *icd = vq->priv_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_buffer *buf;
     int ret;
 
@@ -734,6 +733,7 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
     /* ddl@rock-chips.com : v4l2_subdev is not created when ici->ops->add called in soc_camera_probe  */
     if (control) {
         sd = dev_get_drvdata(control);
+		v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_IOREQUEST,(void*)pcdev->pdata);
         ret = v4l2_subdev_call(sd,core, init, 0);
         if (ret)
             goto ebusy;
@@ -1541,7 +1541,8 @@ static int __devexit rk29_camera_remove(struct platform_device *pdev)
     release_mem_region(res->start, res->end - res->start + 1);
 
     if (pcdev->pdata && pcdev->pdata->io_deinit) {         /* ddl@rock-chips.com : Free IO in deinit function */
-        pcdev->pdata->io_deinit();
+        pcdev->pdata->io_deinit(0);
+		pcdev->pdata->io_deinit(1);
     }
 
     kfree(pcdev);

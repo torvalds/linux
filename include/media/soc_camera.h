@@ -119,6 +119,7 @@ struct soc_camera_link {
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
+	int (*powerdown)(struct device *, int);		/* ddl@rock-chisp.com : support sensor powerdown  */
 	/*
 	 * some platforms may support different data widths than the sensors
 	 * native ones due to different data line routing. Let the board code

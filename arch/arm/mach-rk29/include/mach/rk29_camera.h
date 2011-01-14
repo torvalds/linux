@@ -26,6 +26,12 @@
 #define RK29_CAM_DRV_NAME "rk29xx-camera"
 #define RK29_CAM_PLATFORM_DEV_ID 33
 
+#define INVALID_GPIO -1
+
+#define RK29_CAM_IO_SUCCESS 0
+#define RK29_CAM_EIO_INVALID -1
+#define RK29_CAM_EIO_REQUESTFAIL -2
+
 #define RK29_CAM_SENSOR_NAME_OV9650 "ov9650"
 #define RK29_CAM_SENSOR_NAME_OV2655 "ov2655"
 #define RK29_CAM_SENSOR_NAME_OV2659 "ov2659"
@@ -42,14 +48,43 @@
 #define RK29_CAM_RESETACTIVE_H	(0x01<<RK29_CAM_RESETACTIVE_BITPOS)
 #define RK29_CAM_RESETACTIVE_L  (0x00<<RK29_CAM_RESETACTIVE_BITPOS)
 
+#define RK29_CAM_POWERDNACTIVE_BITPOS	0x00
+#define RK29_CAM_POWERDNACTIVE_MASK	(1<<RK29_CAM_POWERDNACTIVE_BITPOS)
+#define RK29_CAM_POWERDNACTIVE_H	(0x01<<RK29_CAM_POWERDNACTIVE_BITPOS)
+#define RK29_CAM_POWERDNACTIVE_L	(0x00<<RK29_CAM_POWERDNACTIVE_BITPOS)
+
+#define RK29_CAM_FLASHACTIVE_BITPOS	0x01
+#define RK29_CAM_FLASHACTIVE_MASK	(1<<RK29_CAM_FLASHACTIVE_BITPOS)
+#define RK29_CAM_FLASHACTIVE_H	(0x01<<RK29_CAM_FLASHACTIVE_BITPOS)
+#define RK29_CAM_FLASHACTIVE_L  (0x00<<RK29_CAM_FLASHACTIVE_BITPOS)
+
 /* v4l2_subdev_core_ops.ioctl  ioctl_cmd macro */
 #define RK29_CAM_SUBDEV_ACTIVATE            0x00
 #define RK29_CAM_SUBDEV_DEACTIVATE          0x01
+#define RK29_CAM_SUBDEV_IOREQUEST			0x02
+
+enum rk29camera_ioctrl_cmd
+{
+	Cam_Power,
+	Cam_Reset,
+	Cam_PowerDown,
+	Cam_Flash
+};
+
+enum rk29sensor_power_cmd
+{
+	Sensor_Reset,
+	Sensor_PowerDown,
+	Sensor_Flash
+};
 
 struct rk29camera_gpio_res {
     unsigned int gpio_reset;
     unsigned int gpio_power;
+	unsigned int gpio_powerdown;
+	unsigned int gpio_flash;
     unsigned int gpio_flag;
+	unsigned int gpio_init;
     const char *dev_name;
 };
 
@@ -60,7 +95,8 @@ struct rk29camera_mem_res {
 };
 struct rk29camera_platform_data {
     int (*io_init)(void);
-    int (*io_deinit)(void);
+    int (*io_deinit)(int sensor);
+	int (*sensor_ioctrl)(struct device *dev,enum rk29camera_ioctrl_cmd cmd,int on);
     struct rk29camera_gpio_res gpio_res[2];
 	struct rk29camera_mem_res meminfo;
 };

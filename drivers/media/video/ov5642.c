@@ -3162,7 +3162,11 @@ struct sensor
 #if CONFIG_SENSOR_I2C_NOSCHED
 	atomic_t tasklock_cnt;
 #endif
+	struct rk29camera_platform_data *sensor_io_request;
 };
+
+static int sensor_deactivate(struct i2c_client *client);
+
 
 static struct sensor* to_sensor(const struct i2c_client *client)
 {
@@ -3765,7 +3769,51 @@ int sensor_ae_transfer(struct i2c_client *client)
 	mdelay(100);
 	return 0;
 }
+static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
+{
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	int ret = 0;
 
+
+	switch (cmd)
+	{
+		case Sensor_PowerDown:
+		{
+			if (icl->powerdown) {
+				ret = icl->powerdown(icd->pdev, on);
+				if (ret == RK29_CAM_IO_SUCCESS) {
+					if (on == 0) {
+						mdelay(2);
+						if (icl->reset)
+							icl->reset(icd->pdev);
+					}
+				} else if (ret == RK29_CAM_EIO_REQUESTFAIL) {
+					ret = -ENODEV;
+					goto sensor_power_end;
+				}
+			}
+			break;
+		}
+		case Sensor_Flash:
+		{
+			struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+    		struct sensor *sensor = to_sensor(client);
+
+			if (sensor->sensor_io_request && sensor->sensor_io_request->sensor_ioctrl) {
+				sensor->sensor_io_request->sensor_ioctrl(icd->pdev,Cam_Flash, on);
+			}
+			break;
+		}
+		default:
+		{
+			SENSOR_TR("%s power cmd(0x%x) is unknown!",SENSOR_NAME_STRING(),cmd);
+			break;
+		}
+	}
+
+sensor_power_end:
+	return ret;
+}
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
     struct i2c_client *client = sd->priv;
@@ -3776,6 +3824,11 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     int ret,pid = 0;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
+
+	if (sensor_ioctrl(icd, Sensor_PowerDown, 0) < 0) {
+		ret = -ENODEV;
+		goto sensor_INIT_ERR;
+	}
 
     /* soft reset */
 	sensor_task_lock(client,1);
@@ -3874,12 +3927,12 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 
     return 0;
 sensor_INIT_ERR:
+	sensor_deactivate(client);
     return ret;
 }
-static int sensor_deactivate(struct v4l2_subdev *sd)
+static int sensor_deactivate(struct i2c_client *client)
 {
-	struct i2c_client *client = sd->priv;
-
+	struct soc_camera_device *icd = client->dev.platform_data;
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
 	sensor_task_lock(client, 1);
     sensor_write(client, 0x3017, 0x00);  // FREX,VSYNC,HREF,PCLK,D9-D6
@@ -3888,6 +3941,10 @@ static int sensor_deactivate(struct v4l2_subdev *sd)
 	SENSOR_DG("\n%s..%s exit \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	sensor_task_lock(client, 0);
+
+	sensor_ioctrl(icd, Sensor_PowerDown, 1);
+
+	msleep(100);
 	return 0;
 }
 static  struct reginfo sensor_power_down_sequence[]=
@@ -3898,56 +3955,40 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg)
 {
     int ret;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct soc_camera_link *icl;
 
-
-    if (pm_msg.event == PM_EVENT_SUSPEND)
-    {
+    if (pm_msg.event == PM_EVENT_SUSPEND) {
         SENSOR_DG("\n %s Enter Suspend.. \n", SENSOR_NAME_STRING());
         ret = sensor_write_array(client, sensor_power_down_sequence) ;
-        if (ret != 0)
-        {
+        if (ret != 0) {
             SENSOR_TR("\n %s..%s WriteReg Fail.. \n", SENSOR_NAME_STRING(),__FUNCTION__);
             return ret;
-        }
-        else
-        {
-            icl = to_soc_camera_link(icd);
-            if (icl->power) {
-                ret = icl->power(icd->pdev, 0);
-                if (ret < 0) {
-				    SENSOR_TR("\n %s suspend fail for turn on power!\n", SENSOR_NAME_STRING());
-                    return -EINVAL;
-                }
+        } else {
+            ret = sensor_ioctrl(icd, Sensor_PowerDown, 1);
+            if (ret < 0) {
+			    SENSOR_TR("\n %s suspend fail for turn on power!\n", SENSOR_NAME_STRING());
+                return -EINVAL;
             }
         }
-    }
-    else
-    {
+    } else {
         SENSOR_TR("\n %s cann't suppout Suspend..\n",SENSOR_NAME_STRING());
         return -EINVAL;
     }
+
     return 0;
 }
 
 static int sensor_resume(struct soc_camera_device *icd)
 {
-    struct soc_camera_link *icl;
-    int ret;
+	int ret;
 
-    icl = to_soc_camera_link(icd);
-    if (icl->power) {
-        ret = icl->power(icd->pdev, 1);
-        if (ret < 0) {
-			SENSOR_TR("\n %s resume fail for turn on power!\n", SENSOR_NAME_STRING());
-            return -EINVAL;
-        }
+    ret = sensor_ioctrl(icd, Sensor_PowerDown, 0);
+    if (ret < 0) {
+		SENSOR_TR("\n %s resume fail for turn on power!\n", SENSOR_NAME_STRING());
+        return -EINVAL;
     }
 
 	SENSOR_DG("\n %s Enter Resume.. \n", SENSOR_NAME_STRING());
-
-    return 0;
-
+	return 0;
 }
 
 static int sensor_set_bus_param(struct soc_camera_device *icd,
@@ -5049,12 +5090,16 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
 		return -ENODEV;
 
+	if (sensor_ioctrl(icd, Sensor_PowerDown, 0) < 0) {
+		ret = -ENODEV;
+		goto sensor_video_probe_err;
+	}
     /* soft reset */
     ret = sensor_write(client, 0x3012, 0x80);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         SENSOR_TR("soft reset %s failed\n",SENSOR_NAME_STRING());
-        return -ENODEV;
+        ret = -ENODEV;
+		goto sensor_video_probe_err;
     }
     mdelay(5);          //delay 5 microseconds
 
@@ -5091,21 +5136,31 @@ static int sensor_video_probe(struct soc_camera_device *icd,
     return 0;
 
 sensor_video_probe_err:
-
     return ret;
 }
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
+	struct i2c_client *client = sd->priv;
+    struct sensor *sensor = to_sensor(client);
+
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
 	{
 		case RK29_CAM_SUBDEV_DEACTIVATE:
 		{
-			sensor_deactivate(sd);
+			sensor_deactivate(client);
+			break;
+		}
+		case RK29_CAM_SUBDEV_IOREQUEST:
+		{
+			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;
 			break;
 		}
 		default:
+		{
+			SENSOR_TR("%s %s cmd(0x%x) is unknown !\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 			break;
+		}
 	}
 
 	return 0;
