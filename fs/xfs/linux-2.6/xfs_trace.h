@@ -1759,6 +1759,39 @@ DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_recover);
 DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_cancel);
 DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_skip);
 
+DECLARE_EVENT_CLASS(xfs_discard_class,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+		 xfs_agblock_t agbno, xfs_extlen_t len),
+	TP_ARGS(mp, agno, agbno, len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, len)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->agbno = agbno;
+		__entry->len = len;
+	),
+	TP_printk("dev %d:%d agno %u agbno %u len %u\n",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->len)
+)
+
+#define DEFINE_DISCARD_EVENT(name) \
+DEFINE_EVENT(xfs_discard_class, name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
+		 xfs_agblock_t agbno, xfs_extlen_t len), \
+	TP_ARGS(mp, agno, agbno, len))
+DEFINE_DISCARD_EVENT(xfs_discard_extent);
+DEFINE_DISCARD_EVENT(xfs_discard_toosmall);
+DEFINE_DISCARD_EVENT(xfs_discard_exclude);
+DEFINE_DISCARD_EVENT(xfs_discard_busy);
+
 #endif /* _TRACE_XFS_H */
 
 #undef TRACE_INCLUDE_PATH

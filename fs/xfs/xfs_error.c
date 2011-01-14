@@ -152,37 +152,6 @@ xfs_errortag_clearall(xfs_mount_t *mp, int loud)
 }
 #endif /* DEBUG */
 
-
-void
-xfs_fs_cmn_err(int level, xfs_mount_t *mp, char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	xfs_fs_vcmn_err(level, mp, fmt, ap);
-	va_end(ap);
-}
-
-void
-xfs_cmn_err(int panic_tag, int level, xfs_mount_t *mp, char *fmt, ...)
-{
-	va_list ap;
-
-#ifdef DEBUG
-	xfs_panic_mask |= (XFS_PTAG_SHUTDOWN_CORRUPT | XFS_PTAG_LOGRES);
-#endif
-
-	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)
-	    && (level & CE_ALERT)) {
-		level &= ~CE_ALERT;
-		level |= CE_PANIC;
-		cmn_err(CE_ALERT, "XFS: Transforming an alert into a BUG.");
-	}
-	va_start(ap, fmt);
-	xfs_fs_vcmn_err(level, mp, fmt, ap);
-	va_end(ap);
-}
-
 void
 xfs_error_report(
 	const char		*tag,

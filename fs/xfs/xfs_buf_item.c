@@ -141,7 +141,6 @@ xfs_buf_item_log_check(
 #define		xfs_buf_item_log_check(x)
 #endif
 
-STATIC void	xfs_buf_error_relse(xfs_buf_t *bp);
 STATIC void	xfs_buf_do_callbacks(struct xfs_buf *bp);
 
 /*
@@ -959,127 +958,75 @@ xfs_buf_do_callbacks(
  */
 void
 xfs_buf_iodone_callbacks(
-	xfs_buf_t	*bp)
+	struct xfs_buf		*bp)
 {
-	xfs_log_item_t	*lip;
-	static ulong	lasttime;
-	static xfs_buftarg_t *lasttarg;
-	xfs_mount_t	*mp;
+	struct xfs_log_item	*lip = bp->b_fspriv;
+	struct xfs_mount	*mp = lip->li_mountp;
+	static ulong		lasttime;
+	static xfs_buftarg_t	*lasttarg;
 
-	ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
-	lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
+	if (likely(!XFS_BUF_GETERROR(bp)))
+		goto do_callbacks;
 
-	if (XFS_BUF_GETERROR(bp) != 0) {
-		/*
-		 * If we've already decided to shutdown the filesystem
-		 * because of IO errors, there's no point in giving this
-		 * a retry.
-		 */
-		mp = lip->li_mountp;
-		if (XFS_FORCED_SHUTDOWN(mp)) {
-			ASSERT(XFS_BUF_TARGET(bp) == mp->m_ddev_targp);
-			XFS_BUF_SUPER_STALE(bp);
-			trace_xfs_buf_item_iodone(bp, _RET_IP_);
-			xfs_buf_do_callbacks(bp);
-			XFS_BUF_SET_FSPRIVATE(bp, NULL);
-			XFS_BUF_CLR_IODONE_FUNC(bp);
-			xfs_buf_ioend(bp, 0);
-			return;
-		}
+	/*
+	 * If we've already decided to shutdown the filesystem because of
+	 * I/O errors, there's no point in giving this a retry.
+	 */
+	if (XFS_FORCED_SHUTDOWN(mp)) {
+		XFS_BUF_SUPER_STALE(bp);
+		trace_xfs_buf_item_iodone(bp, _RET_IP_);
+		goto do_callbacks;
+	}
 
-		if ((XFS_BUF_TARGET(bp) != lasttarg) ||
-		    (time_after(jiffies, (lasttime + 5*HZ)))) {
-			lasttime = jiffies;
-			cmn_err(CE_ALERT, "Device %s, XFS metadata write error"
-					" block 0x%llx in %s",
-				XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
-			      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
-		}
-		lasttarg = XFS_BUF_TARGET(bp);
+	if (XFS_BUF_TARGET(bp) != lasttarg ||
+	    time_after(jiffies, (lasttime + 5*HZ))) {
+		lasttime = jiffies;
+		cmn_err(CE_ALERT, "Device %s, XFS metadata write error"
+				" block 0x%llx in %s",
+			XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
+		      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
+	}
+	lasttarg = XFS_BUF_TARGET(bp);
 
-		if (XFS_BUF_ISASYNC(bp)) {
-			/*
-			 * If the write was asynchronous then noone will be
-			 * looking for the error.  Clear the error state
-			 * and write the buffer out again delayed write.
-			 *
-			 * XXXsup This is OK, so long as we catch these
-			 * before we start the umount; we don't want these
-			 * DELWRI metadata bufs to be hanging around.
-			 */
-			XFS_BUF_ERROR(bp,0); /* errno of 0 unsets the flag */
+	/*
+	 * If the write was asynchronous then noone will be looking for the
+	 * error.  Clear the error state and write the buffer out again.
+	 *
+	 * During sync or umount we'll write all pending buffers again
+	 * synchronous, which will catch these errors if they keep hanging
+	 * around.
+	 */
+	if (XFS_BUF_ISASYNC(bp)) {
+		XFS_BUF_ERROR(bp, 0); /* errno of 0 unsets the flag */
 
-			if (!(XFS_BUF_ISSTALE(bp))) {
-				XFS_BUF_DELAYWRITE(bp);
-				XFS_BUF_DONE(bp);
-				XFS_BUF_SET_START(bp);
-			}
-			ASSERT(XFS_BUF_IODONE_FUNC(bp));
-			trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
-			xfs_buf_relse(bp);
-		} else {
-			/*
-			 * If the write of the buffer was not asynchronous,
-			 * then we want to make sure to return the error
-			 * to the caller of bwrite().  Because of this we
-			 * cannot clear the B_ERROR state at this point.
-			 * Instead we install a callback function that
-			 * will be called when the buffer is released, and
-			 * that routine will clear the error state and
-			 * set the buffer to be written out again after
-			 * some delay.
-			 */
-			/* We actually overwrite the existing b-relse
-			   function at times, but we're gonna be shutting down
-			   anyway. */
-			XFS_BUF_SET_BRELSE_FUNC(bp,xfs_buf_error_relse);
+		if (!XFS_BUF_ISSTALE(bp)) {
+			XFS_BUF_DELAYWRITE(bp);
 			XFS_BUF_DONE(bp);
-			XFS_BUF_FINISH_IOWAIT(bp);
+			XFS_BUF_SET_START(bp);
 		}
+		ASSERT(XFS_BUF_IODONE_FUNC(bp));
+		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
+		xfs_buf_relse(bp);
 		return;
 	}
 
+	/*
+	 * If the write of the buffer was synchronous, we want to make
+	 * sure to return the error to the caller of xfs_bwrite().
+	 */
+	XFS_BUF_STALE(bp);
+	XFS_BUF_DONE(bp);
+	XFS_BUF_UNDELAYWRITE(bp);
+
+	trace_xfs_buf_error_relse(bp, _RET_IP_);
+	xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+
+do_callbacks:
 	xfs_buf_do_callbacks(bp);
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
 	xfs_buf_ioend(bp, 0);
 }
-
-/*
- * This is a callback routine attached to a buffer which gets an error
- * when being written out synchronously.
- */
-STATIC void
-xfs_buf_error_relse(
-	xfs_buf_t	*bp)
-{
-	xfs_log_item_t	*lip;
-	xfs_mount_t	*mp;
-
-	lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
-	mp = (xfs_mount_t *)lip->li_mountp;
-	ASSERT(XFS_BUF_TARGET(bp) == mp->m_ddev_targp);
-
-	XFS_BUF_STALE(bp);
-	XFS_BUF_DONE(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_ERROR(bp,0);
-
-	trace_xfs_buf_error_relse(bp, _RET_IP_);
-
-	if (! XFS_FORCED_SHUTDOWN(mp))
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-	/*
-	 * We have to unpin the pinned buffers so do the
-	 * callbacks.
-	 */
-	xfs_buf_do_callbacks(bp);
-	XFS_BUF_SET_FSPRIVATE(bp, NULL);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_SET_BRELSE_FUNC(bp,NULL);
-	xfs_buf_relse(bp);
-}
-
 
 /*
  * This is the iodone() function for buffers which have been

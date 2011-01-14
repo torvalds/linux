@@ -41,10 +41,6 @@
 #define	XFSA_FIXUP_BNO_OK	1
 #define	XFSA_FIXUP_CNT_OK	2
 
-static int
-xfs_alloc_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
-		    xfs_agblock_t bno, xfs_extlen_t len);
-
 /*
  * Prototypes for per-ag allocation routines
  */
@@ -94,7 +90,7 @@ xfs_alloc_lookup_ge(
  * Lookup the first record less than or equal to [bno, len]
  * in the btree given by cur.
  */
-STATIC int				/* error */
+int					/* error */
 xfs_alloc_lookup_le(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agblock_t		bno,	/* starting block of extent */
@@ -127,7 +123,7 @@ xfs_alloc_update(
 /*
  * Get the data from the pointed-to record.
  */
-STATIC int				/* error */
+int					/* error */
 xfs_alloc_get_rec(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agblock_t		*bno,	/* output: starting block of extent */
@@ -2615,7 +2611,7 @@ restart:
  * will require a synchronous transaction, but it can still be
  * used to distinguish between a partial or exact match.
  */
-static int
+int
 xfs_alloc_busy_search(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,

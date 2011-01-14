@@ -362,7 +362,7 @@ xfs_quiesce_data(
 
 	/* mark the log as covered if needed */
 	if (xfs_log_need_covered(mp))
-		error2 = xfs_fs_log_dummy(mp, SYNC_WAIT);
+		error2 = xfs_fs_log_dummy(mp);
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
@@ -503,13 +503,14 @@ xfs_sync_worker(
 	int		error;
 
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		xfs_log_force(mp, 0);
-		xfs_reclaim_inodes(mp, 0);
 		/* dgc: errors ignored here */
-		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
 		if (mp->m_super->s_frozen == SB_UNFROZEN &&
 		    xfs_log_need_covered(mp))
-			error = xfs_fs_log_dummy(mp, 0);
+			error = xfs_fs_log_dummy(mp);
+		else
+			xfs_log_force(mp, 0);
+		xfs_reclaim_inodes(mp, 0);
+		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
 	}
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);

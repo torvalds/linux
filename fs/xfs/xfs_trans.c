@@ -1137,7 +1137,7 @@ out_undo_fdblocks:
 	if (blkdelta)
 		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS, -blkdelta, rsvd);
 out:
-	ASSERT(error = 0);
+	ASSERT(error == 0);
 	return;
 }
 
