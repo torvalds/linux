@@ -310,13 +310,13 @@ static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
+#endif
 
 static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
 };
-#endif
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -382,9 +382,9 @@ static void __init mxc_board_init(void)
 
 		imx35_add_mxc_ehci_otg(&otg_pdata);
 	}
-
-	imx35_add_mxc_ehci_hs(&usbh1_pdata);
 #endif
+	imx35_add_mxc_ehci_hs(&usbh1_pdata);
+
 	if (!otg_mode_host)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
