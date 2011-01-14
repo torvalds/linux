@@ -639,9 +639,12 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 		if (!nfsd41_cb_get_slot(clp, task))
 			return;
 	}
-	cb->cb_done = false;
 	spin_lock(&clp->cl_lock);
-	list_add(&cb->cb_per_client, &clp->cl_callbacks);
+	if (list_empty(&cb->cb_per_client)) {
+		/* This is the first call, not a restart */
+		cb->cb_done = false;
+		list_add(&cb->cb_per_client, &clp->cl_callbacks);
+	}
 	spin_unlock(&clp->cl_lock);
 	rpc_call_start(task);
 }
@@ -678,10 +681,10 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 
 	nfsd4_cb_done(task, calldata);
 
-	if (current_rpc_client == NULL) {
-		/* We're shutting down; give up. */
-		/* XXX: err, or is it ok just to fall through
-		 * and rpc_restart_call? */
+	if (current_rpc_client != task->tk_client) {
+		/* We're shutting down or changing cl_cb_client; leave
+		 * it to nfsd4_process_cb_update to restart the call if
+		 * necessary. */
 		return;
 	}
 
@@ -699,12 +702,6 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 	default:
 		/* Network partition? */
 		nfsd4_mark_cb_down(clp, task->tk_status);
-		if (current_rpc_client != task->tk_client) {
-			/* queue a callback on the new connection: */
-			atomic_inc(&dp->dl_count);
-			run_nfsd4_cb(&dp->dl_recall);
-			return;
-		}
 	}
 	if (dp->dl_retries--) {
 		rpc_delay(task, 2*HZ);
