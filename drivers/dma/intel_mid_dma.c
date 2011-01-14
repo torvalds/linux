@@ -1060,8 +1060,8 @@ static irqreturn_t intel_mid_dma_interrupt2(int irq, void *data)
  * mid_setup_dma -	Setup the DMA controller
  * @pdev: Controller PCI device structure
  *
- * Initilize the DMA controller, channels, registers with DMA engine,
- * ISR. Initilize DMA controller channels.
+ * Initialize the DMA controller, channels, registers with DMA engine,
+ * ISR. Initialize DMA controller channels.
  */
 static int mid_setup_dma(struct pci_dev *pdev)
 {
@@ -1217,7 +1217,7 @@ static void middma_shutdown(struct pci_dev *pdev)
  * @pdev: Controller PCI device structure
  * @id: pci device id structure
  *
- * Initilize the PCI device, map BARs, query driver data.
+ * Initialize the PCI device, map BARs, query driver data.
  * Call setup_dma to complete contoller and chan initilzation
  */
 static int __devinit intel_mid_dma_probe(struct pci_dev *pdev,

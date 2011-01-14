@@ -15,6 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/cs5535.h>
+#include <asm/msr.h>
 
 #define DRV_NAME "cs5535-gpio"
 #define GPIO_BAR 1
@@ -143,6 +144,57 @@ int cs5535_gpio_isset(unsigned offset, unsigned int reg)
 	return (val & (1 << offset)) ? 1 : 0;
 }
 EXPORT_SYMBOL_GPL(cs5535_gpio_isset);
+
+int cs5535_gpio_set_irq(unsigned group, unsigned irq)
+{
+	uint32_t lo, hi;
+
+	if (group > 7 || irq > 15)
+		return -EINVAL;
+
+	rdmsr(MSR_PIC_ZSEL_HIGH, lo, hi);
+
+	lo &= ~(0xF << (group * 4));
+	lo |= (irq & 0xF) << (group * 4);
+
+	wrmsr(MSR_PIC_ZSEL_HIGH, lo, hi);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs5535_gpio_set_irq);
+
+void cs5535_gpio_setup_event(unsigned offset, int pair, int pme)
+{
+	struct cs5535_gpio_chip *chip = &cs5535_gpio_chip;
+	uint32_t shift = (offset % 8) * 4;
+	unsigned long flags;
+	uint32_t val;
+
+	if (offset >= 24)
+		offset = GPIO_MAP_W;
+	else if (offset >= 16)
+		offset = GPIO_MAP_Z;
+	else if (offset >= 8)
+		offset = GPIO_MAP_Y;
+	else
+		offset = GPIO_MAP_X;
+
+	spin_lock_irqsave(&chip->lock, flags);
+	val = inl(chip->base + offset);
+
+	/* Clear whatever was there before */
+	val &= ~(0xF << shift);
+
+	/* Set the new value */
+	val |= ((pair & 7) << shift);
+
+	/* Set the PME bit if this is a PME event */
+	if (pme)
+		val |= (1 << (shift + 3));
+
+	outl(val, chip->base + offset);
+	spin_unlock_irqrestore(&chip->lock, flags);
+}
+EXPORT_SYMBOL_GPL(cs5535_gpio_setup_event);
 
 /*
  * Generic gpio_chip API support.

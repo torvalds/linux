@@ -4439,7 +4439,7 @@ skip_key:
         for (i = assoc_req_ie_pos; i < assoc_req_ie_pos + assocReqLen - 4; i++) {
             AR_DEBUG_PRINTF(ATH_DEBUG_WLAN_CONNECT,("%2.2x ", assocInfo[i]));
             sprintf(pos, "%2.2x", assocInfo[i]);
-            pos += 2;;
+            pos += 2;
         }
         AR_DEBUG_PRINTF(ATH_DEBUG_WLAN_CONNECT,("\n"));
 

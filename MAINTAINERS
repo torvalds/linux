@@ -285,6 +285,41 @@ L:	linux-parisc@vger.kernel.org
 S:	Maintained
 F:	sound/pci/ad1889.*
 
+AD525X ANALOG DEVICES DIGITAL POTENTIOMETERS DRIVER
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD5254
+S:	Supported
+F:	drivers/misc/ad525x_dpot.c
+
+AD5398 CURRENT REGULATOR DRIVER (AD5398/AD5821)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD5398
+S:	Supported
+F:	drivers/regulator/ad5398.c
+
+AD714X CAPACITANCE TOUCH SENSOR DRIVER (AD7142/3/7/8/7A)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD7142
+S:	Supported
+F:	drivers/input/misc/ad714x.c
+
+AD7877 TOUCHSCREEN DRIVER
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD7877
+S:	Supported
+F:	drivers/input/touchscreen/ad7877.c
+
+AD7879 TOUCHSCREEN DRIVER (AD7879/AD7889)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD7879
+S:	Supported
+F:	drivers/input/touchscreen/ad7879.c
+
 ADM1025 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <khali@linux-fr.org>
 L:	lm-sensors@lm-sensors.org
@@ -304,6 +339,32 @@ W:	http://linuxwireless.org/
 S:	Orphan
 F:	drivers/net/wireless/adm8211.*
 
+ADP5520 BACKLIGHT DRIVER WITH IO EXPANDER (ADP5520/ADP5501)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADP5520
+S:	Supported
+F:	drivers/mfd/adp5520.c
+F:	drivers/video/backlight/adp5520_bl.c
+F:	drivers/led/leds-adp5520.c
+F:	drivers/gpio/adp5520-gpio.c
+F:	drivers/input/keyboard/adp5520-keys.c
+
+ADP5588 QWERTY KEYPAD AND IO EXPANDER DRIVER (ADP5588/ADP5587)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADP5588
+S:	Supported
+F:	drivers/input/keyboard/adp5588-keys.c
+F:	drivers/gpio/adp5588-gpio.c
+
+ADP8860 BACKLIGHT DRIVER (ADP8860/ADP8861/ADP8863)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADP8860
+S:	Supported
+F:	drivers/video/backlight/adp8860_bl.c
+
 ADT746X FAN DRIVER
 M:	Colin Leroy <colin@colino.net>
 S:	Maintained
@@ -315,6 +376,13 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/adt7475
 F:	drivers/hwmon/adt7475.c
+
+ADXL34X THREE-AXIS DIGITAL ACCELEROMETER DRIVER (ADXL345/ADXL346)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADXL345
+S:	Supported
+F:	drivers/input/misc/adxl34x.c
 
 ADVANSYS SCSI DRIVER
 M:	Matthew Wilcox <matthew@wil.cx>
@@ -428,7 +496,6 @@ S:	Supported
 F:	arch/x86/kernel/microcode_amd.c
 
 AMS (Apple Motion Sensor) DRIVER
-M:	Stelian Pop <stelian@popies.net>
 M:	Michael Hanselmann <linux-kernel@hansmi.ch>
 S:	Supported
 F:	drivers/macintosh/ams/
@@ -440,16 +507,22 @@ L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	drivers/infiniband/hw/amso1100/
 
+ANALOG DEVICES INC ASOC CODEC DRIVERS
+L:	device-driver-devel@blackfin.uclinux.org
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+W:	http://wiki-analog.com/
+S:	Supported
+F:	sound/soc/codecs/ad1*
+F:	sound/soc/codecs/adau*
+F:	sound/soc/codecs/adav*
+F:	sound/soc/codecs/ssm*
+
 ANALOG DEVICES INC ASOC DRIVERS
 L:	uclinux-dist-devel@blackfin.uclinux.org
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	sound/soc/blackfin/*
-F:	sound/soc/codecs/ad1*
-F:	sound/soc/codecs/adau*
-F:	sound/soc/codecs/adav*
-F:	sound/soc/codecs/ssm*
 
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
@@ -1423,7 +1496,9 @@ F:	drivers/net/tg3.*
 BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
 M:	Brett Rudley <brudley@broadcom.com>
 M:	Henry Ptasinski <henryp@broadcom.com>
-M:	Nohee Ko <noheek@broadcom.com>
+M:	Dowan Kim <dowan@broadcom.com>
+M:	Roland Vossen <rvossen@broadcom.com>
+M:	Arend van Spriel <arend@broadcom.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 F:	drivers/staging/brcm80211/
@@ -1447,6 +1522,14 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	block/bsg.c
 F:	include/linux/bsg.h
+
+BT87X AUDIO DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	Documentation/sound/alsa/Bt87x.txt
+F:	sound/pci/bt87x.c
 
 BT8XXGPIO DRIVER
 M:	Michael Buesch <mb@bu3sch.de>
@@ -1472,6 +1555,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/video/bt8xx/bttv*
+
+C-MEDIA CMI8788 DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/pci/oxygen/
 
 CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
@@ -1709,7 +1799,8 @@ S:	Maintained
 F:	drivers/usb/atm/cxacru.c
 
 CONFIGFS
-M:	Joel Becker <joel.becker@oracle.com>
+M:	Joel Becker <jlbec@evilplan.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/configfs.git
 S:	Supported
 F:	fs/configfs/
 F:	include/linux/configfs.h
@@ -1931,7 +2022,7 @@ F:	drivers/scsi/dc395x.*
 DCCP PROTOCOL
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 L:	dccp@vger.kernel.org
-W:	http://linux-net.osdl.org/index.php/DCCP
+W:	http://www.linuxfoundation.org/collaborate/workgroups/networking/dccp
 S:	Maintained
 F:	include/linux/dccp.h
 F:	include/linux/tfrc.h
@@ -2263,6 +2354,13 @@ W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/r82600_edac.c
 
+EDIROL UA-101/UA-1000 DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/usb/misc/ua101.c
+
 EEEPC LAPTOP EXTRAS DRIVER
 M:	Corentin Chary <corentincj@iksaif.net>
 L:	acpi4asus-user@lists.sourceforge.net
@@ -2270,6 +2368,14 @@ L:	platform-driver-x86@vger.kernel.org
 W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/eeepc-laptop.c
+
+EEEPC WMI EXTRAS DRIVER
+M:	Corentin Chary <corentincj@iksaif.net>
+L:	acpi4asus-user@lists.sourceforge.net
+L:	platform-driver-x86@vger.kernel.org
+W:	http://acpi4asus.sf.net
+S:	Maintained
+F:	drivers/platform/x86/eeepc-wmi.c
 
 EFIFB FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
@@ -2345,7 +2451,7 @@ ETHERNET BRIDGE
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
 L:	bridge@lists.linux-foundation.org
 L:	netdev@vger.kernel.org
-W:	http://www.linux-foundation.org/en/Net:Bridge
+W:	http://www.linuxfoundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/
 F:	net/bridge/
@@ -2607,6 +2713,14 @@ M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
 S:	Supported
 F:	drivers/i2c/busses/i2c-gpio.c
 F:	include/linux/i2c-gpio.h
+
+GENERIC GPIO I2C MULTIPLEXER DRIVER
+M:	Peter Korsgaard <peter.korsgaard@barco.com>
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/muxes/gpio-i2cmux.c
+F:	include/linux/gpio-i2cmux.h
+F:	Documentation/i2c/muxes/gpio-i2cmux
 
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>
@@ -3415,6 +3529,13 @@ L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/serial/jsm/
 
+K10TEMP HARDWARE MONITORING DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/k10temp
+F:	drivers/hwmon/k10temp.c
+
 K8TEMP HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
 L:	lm-sensors@lm-sensors.org
@@ -4000,9 +4121,8 @@ F:	include/linux/module.h
 F:	kernel/module.c
 
 MOTION EYE VAIO PICTUREBOOK CAMERA DRIVER
-M:	Stelian Pop <stelian@popies.net>
 W:	http://popies.net/meye/
-S:	Maintained
+S:	Orphan
 F:	Documentation/video4linux/meye.txt
 F:	drivers/media/video/meye.*
 F:	include/linux/meye.h
@@ -4290,11 +4410,11 @@ F:	Documentation/scsi/NinjaSCSI.txt
 F:	drivers/scsi/nsp32*
 
 NTFS FILESYSTEM
-M:	Anton Altaparmakov <aia21@cantab.net>
+M:	Anton Altaparmakov <anton@tuxera.com>
 L:	linux-ntfs-dev@lists.sourceforge.net
-W:	http://www.linux-ntfs.org/
+W:	http://www.tuxera.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aia21/ntfs-2.6.git
-S:	Maintained
+S:	Supported
 F:	Documentation/filesystems/ntfs.txt
 F:	fs/ntfs/
 
@@ -4446,6 +4566,13 @@ F:	drivers/of
 F:	include/linux/of*.h
 K:	of_get_property
 
+OPL4 DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/drivers/opl4/
+
 OPROFILE
 M:	Robert Richter <robert.richter@amd.com>
 L:	oprofile-list@lists.sf.net
@@ -4457,7 +4584,7 @@ F:	include/linux/oprofile.h
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mfasheh@suse.com>
-M:	Joel Becker <joel.becker@oracle.com>
+M:	Joel Becker <jlbec@evilplan.org>
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/ocfs2.git
@@ -4542,7 +4669,7 @@ M:	Jeremy Fitzhardinge <jeremy@xensource.com>
 M:	Chris Wright <chrisw@sous-sol.org>
 M:	Alok Kataria <akataria@vmware.com>
 M:	Rusty Russell <rusty@rustcorp.com.au>
-L:	virtualization@lists.osdl.org
+L:	virtualization@lists.linux-foundation.org
 S:	Supported
 F:	Documentation/ia64/paravirt_ops.txt
 F:	arch/*/kernel/paravirt*
@@ -5040,11 +5167,6 @@ F:	kernel/rcu*
 F:	kernel/srcu*
 X:	kernel/rcutorture.c
 
-REAL TIME CLOCK DRIVER (LEGACY)
-M:	Paul Gortmaker <p_gortmaker@yahoo.com>
-S:	Maintained
-F:	drivers/char/rtc.c
-
 REAL TIME CLOCK (RTC) SUBSYSTEM
 M:	Alessandro Zummo <a.zummo@towertech.it>
 L:	rtc-linux@googlegroups.com
@@ -5197,7 +5319,7 @@ SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Jassi Brar <jassi.brar@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
-F:	sound/soc/s3c24xx
+F:	sound/soc/samsung
 
 TIMEKEEPING, NTP
 M:	John Stultz <johnstul@us.ibm.com>
@@ -6205,6 +6327,13 @@ S:	Maintained
 W:	http://www.one-eyed-alien.net/~mdharm/linux-usb/
 F:	drivers/usb/storage/
 
+USB MIDI DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/usb/midi.*
+
 USB OHCI DRIVER
 M:	David Brownell <dbrownell@users.sourceforge.net>
 L:	linux-usb@vger.kernel.org
@@ -6444,7 +6573,7 @@ F:	include/linux/virtio_console.h
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	kvm@vger.kernel.org
-L:	virtualization@lists.osdl.org
+L:	virtualization@lists.linux-foundation.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/vhost/
@@ -6463,13 +6592,12 @@ F:	Documentation/i2c/busses/i2c-viapro
 F:	drivers/i2c/busses/i2c-viapro.c
 
 VIA SD/MMC CARD CONTROLLER DRIVER
-M:	Joseph Chan <JosephChan@via.com.tw>
+M:	Bruce Chang <brucechang@via.com.tw>
 M:	Harald Welte <HaraldWelte@viatech.com>
 S:	Maintained
 F:	drivers/mmc/host/via-sdmmc.c
 
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
-M:	Joseph Chan <JosephChan@via.com.tw>
 M:	Florian Tobias Schandinat <FlorianSchandinat@gmx.de>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
@@ -6494,7 +6622,7 @@ F:	net/8021q/
 
 VLYNQ BUS
 M:	Florian Fainelli <florian@openwrt.org>
-L:	openwrt-devel@lists.openwrt.org
+L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Maintained
 F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
@@ -6714,7 +6842,7 @@ XEN HYPERVISOR INTERFACE
 M:	Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
-L:	virtualization@lists.osdl.org
+L:	virtualization@lists.linux-foundation.org
 S:	Supported
 F:	arch/x86/xen/
 F:	drivers/*/xen-*front.c

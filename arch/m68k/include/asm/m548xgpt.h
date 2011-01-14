@@ -59,11 +59,13 @@
 #define MCF_GPT_GMS_GPIO_INPUT     (0x00000000)
 #define MCF_GPT_GMS_GPIO_OUTLO     (0x00000020)
 #define MCF_GPT_GMS_GPIO_OUTHI     (0x00000030)
+#define MCF_GPT_GMS_GPIO_MASK      (0x00000030)
 #define MCF_GPT_GMS_TMS_DISABLE    (0x00000000)
 #define MCF_GPT_GMS_TMS_INCAPT     (0x00000001)
 #define MCF_GPT_GMS_TMS_OUTCAPT    (0x00000002)
 #define MCF_GPT_GMS_TMS_PWM        (0x00000003)
 #define MCF_GPT_GMS_TMS_GPIO       (0x00000004)
+#define MCF_GPT_GMS_TMS_MASK       (0x00000007)
 
 /* Bit definitions and macros for MCF_GPT_GCIR */
 #define MCF_GPT_GCIR_CNT(x)        (((x)&0x0000FFFF)<<0)

@@ -515,6 +515,9 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_magic = JFS_SUPER_MAGIC;
 
+	if (sbi->mntflag & JFS_OS2)
+		sb->s_d_op = &jfs_ci_dentry_operations;
+
 	inode = jfs_iget(sb, ROOT_I);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
@@ -523,9 +526,6 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = d_alloc_root(inode);
 	if (!sb->s_root)
 		goto out_no_root;
-
-	if (sbi->mntflag & JFS_OS2)
-		d_set_d_op(sb->s_root, &jfs_ci_dentry_operations);
 
 	/* logical blocks are represented by 40 bits in pxd_t, etc. */
 	sb->s_maxbytes = ((u64) sb->s_blocksize) << 40;

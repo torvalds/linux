@@ -1944,18 +1944,11 @@ config 68360_ENET
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on M523x || M527x || M5272 || M528x || M520x || M532x || \
-		MACH_MX27 || ARCH_MX35 || ARCH_MX25 || ARCH_MX5
+		MACH_MX27 || ARCH_MX35 || ARCH_MX25 || ARCH_MX5 || SOC_IMX28
 	select PHYLIB
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.
-
-config FEC2
-	bool "Second FEC ethernet controller (on some ColdFire CPUs)"
-	depends on FEC
-	help
-	  Say Y here if you want to use the second built-in 10/100 Fast
-	  ethernet controller on some Motorola ColdFire processors.
 
 config FEC_MPC52xx
 	tristate "MPC52xx FEC driver"
@@ -2970,6 +2963,7 @@ config TILE_NET
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
 	depends on XEN
+	select XEN_XENBUS_FRONTEND
 	default y
 	help
 	  The network device frontend driver allows the kernel to

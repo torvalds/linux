@@ -679,7 +679,7 @@ EXPORT_SYMBOL_GPL(__clocksource_updatefreq_scale);
 int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
 
-	/* Intialize mult/shift and max_idle_ns */
+	/* Initialize mult/shift and max_idle_ns */
 	__clocksource_updatefreq_scale(cs, scale, freq);
 
 	/* Add clocksource to the clcoksource list */

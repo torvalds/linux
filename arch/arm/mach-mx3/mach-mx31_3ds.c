@@ -140,10 +140,10 @@ static struct regulator_init_data gpo_init = {
 
 static struct mc13783_regulator_init_data mx31_3ds_regulators[] = {
 	{
-		.id = MC13783_REGU_PWGT1SPI, /* Power Gate for ARM core. */
+		.id = MC13783_REG_PWGT1SPI, /* Power Gate for ARM core. */
 		.init_data = &pwgtx_init,
 	}, {
-		.id = MC13783_REGU_PWGT2SPI, /* Power Gate for L2 Cache. */
+		.id = MC13783_REG_PWGT2SPI, /* Power Gate for L2 Cache. */
 		.init_data = &pwgtx_init,
 	}, {
 

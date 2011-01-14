@@ -12,18 +12,6 @@ menuconfig INPUT_KEYBOARD
 
 if INPUT_KEYBOARD
 
-config KEYBOARD_AAED2000
-	tristate "AAED-2000 keyboard"
-	depends on MACH_AAED2000
-	select INPUT_POLLDEV
-	default y
-	help
-	  Say Y here to enable the keyboard on the Agilent AAED-2000
-	  development board.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called aaed2000_kbd.
-
 config KEYBOARD_ADP5520
 	tristate "Keypad Support for ADP5520 PMIC"
 	depends on PMIC_ADP5520

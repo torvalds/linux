@@ -232,7 +232,7 @@ int i2400m_check_mac_addr(struct i2400m *i2400m)
 			result);
 		goto error;
 	}
-	/* Extract MAC addresss */
+	/* Extract MAC address */
 	ddi = (void *) skb->data;
 	BUILD_BUG_ON(ETH_ALEN != sizeof(ddi->mac_address));
 	d_printf(2, dev, "GET DEVICE INFO: mac addr %pM\n",

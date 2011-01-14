@@ -152,14 +152,18 @@ struct sock_common {
 	 * fields between dontcopy_begin/dontcopy_end
 	 * are not copied in sock_copy()
 	 */
+	/* private: */
 	int			skc_dontcopy_begin[0];
+	/* public: */
 	union {
 		struct hlist_node	skc_node;
 		struct hlist_nulls_node skc_nulls_node;
 	};
 	int			skc_tx_queue_mapping;
 	atomic_t		skc_refcnt;
+	/* private: */
 	int                     skc_dontcopy_end[0];
+	/* public: */
 };
 
 /**

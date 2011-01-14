@@ -2236,11 +2236,8 @@ struct sky2_port {
 	u16		     rx_pending;
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
-
-#ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
-	struct vlan_group    *vlgrp;
-#endif
+
 	struct {
 		unsigned long last;
 		u32	mac_rp;
@@ -2284,6 +2281,7 @@ struct sky2_hw {
 #define SKY2_HW_AUTO_TX_SUM	0x00000040	/* new IP decode for Tx */
 #define SKY2_HW_ADV_POWER_CTL	0x00000080	/* additional PHY power regs */
 #define SKY2_HW_RSS_BROKEN	0x00000100
+#define SKY2_HW_VLAN_BROKEN     0x00000200
 
 	u8	     	     chip_id;
 	u8		     chip_rev;

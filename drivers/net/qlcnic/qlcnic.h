@@ -34,8 +34,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 14
-#define QLCNIC_LINUX_VERSIONID  "5.0.14"
+#define _QLCNIC_LINUX_SUBVERSION 15
+#define QLCNIC_LINUX_VERSIONID  "5.0.15"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -287,6 +287,26 @@ struct uni_data_desc{
 	u32	findex;
 	u32	size;
 	u32	reserved[5];
+};
+
+/* Flash Defines and Structures */
+#define QLCNIC_FLT_LOCATION	0x3F1000
+#define QLCNIC_FW_IMAGE_REGION	0x74
+struct qlcnic_flt_header {
+	u16 version;
+	u16 len;
+	u16 checksum;
+	u16 reserved;
+};
+
+struct qlcnic_flt_entry {
+	u8 region;
+	u8 reserved0;
+	u8 attrib;
+	u8 reserved1;
+	u32 size;
+	u32 start_addr;
+	u32 end_add;
 };
 
 /* Magic number to let user know flash is programmed */

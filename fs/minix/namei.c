@@ -23,8 +23,6 @@ static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, st
 	struct inode * inode = NULL;
 	ino_t ino;
 
-	d_set_d_op(dentry, dir->i_sb->s_root->d_op);
-
 	if (dentry->d_name.len > minix_sb(dir->i_sb)->s_namelen)
 		return ERR_PTR(-ENAMETOOLONG);
 

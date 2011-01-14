@@ -1,5 +1,5 @@
 /*
- *	iPAQ h1930/h1940/rx1950 battery controler driver
+ *	iPAQ h1930/h1940/rx1950 battery controller driver
  *	Copyright (c) Vasily Khoruzhick
  *	Based on h1940_battery.c by Arnaud Patard
  *
@@ -427,5 +427,5 @@ static void __exit s3c_adc_bat_exit(void)
 module_exit(s3c_adc_bat_exit);
 
 MODULE_AUTHOR("Vasily Khoruzhick <anarsoul@gmail.com>");
-MODULE_DESCRIPTION("iPAQ H1930/H1940/RX1950 battery controler driver");
+MODULE_DESCRIPTION("iPAQ H1930/H1940/RX1950 battery controller driver");
 MODULE_LICENSE("GPL");

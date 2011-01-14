@@ -479,6 +479,14 @@ static int nameidata_dentry_drop_rcu(struct nameidata *nd, struct dentry *dentry
 	struct fs_struct *fs = current->fs;
 	struct dentry *parent = nd->path.dentry;
 
+	/*
+	 * It can be possible to revalidate the dentry that we started
+	 * the path walk with. force_reval_path may also revalidate the
+	 * dentry already committed to the nameidata.
+	 */
+	if (unlikely(parent == dentry))
+		return nameidata_drop_rcu(nd);
+
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
 	if (nd->root.mnt) {
 		spin_lock(&fs->lock);
@@ -583,6 +591,13 @@ void release_open_intent(struct nameidata *nd)
 		fput(nd->intent.open.file);
 }
 
+/*
+ * Call d_revalidate and handle filesystems that request rcu-walk
+ * to be dropped. This may be called and return in rcu-walk mode,
+ * regardless of success or error. If -ECHILD is returned, the caller
+ * must return -ECHILD back up the path walk stack so path walk may
+ * be restarted in ref-walk mode.
+ */
 static int d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	int status;
@@ -673,6 +688,9 @@ force_reval_path(struct path *path, struct nameidata *nd)
 		return 0;
 
 	if (!status) {
+		/* Don't d_invalidate in rcu-walk mode */
+		if (nameidata_drop_rcu(nd))
+			return -ECHILD;
 		d_invalidate(dentry);
 		status = -ESTALE;
 	}
@@ -1950,8 +1968,9 @@ int may_open(struct path *path, int acc_mode, int flag)
 	return break_lease(inode, flag);
 }
 
-static int handle_truncate(struct path *path)
+static int handle_truncate(struct file *filp)
 {
+	struct path *path = &filp->f_path;
 	struct inode *inode = path->dentry->d_inode;
 	int error = get_write_access(inode);
 	if (error)
@@ -1965,7 +1984,7 @@ static int handle_truncate(struct path *path)
 	if (!error) {
 		error = do_truncate(path->dentry, 0,
 				    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
-				    NULL);
+				    filp);
 	}
 	put_write_access(inode);
 	return error;
@@ -2063,7 +2082,7 @@ static struct file *finish_open(struct nameidata *nd,
 	}
 	if (!IS_ERR(filp)) {
 		if (will_truncate) {
-			error = handle_truncate(&nd->path);
+			error = handle_truncate(filp);
 			if (error) {
 				fput(filp);
 				filp = ERR_PTR(error);
@@ -2104,11 +2123,13 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		dir = nd->path.dentry;
 	case LAST_DOT:
 		if (need_reval_dot(dir)) {
-			error = d_revalidate(nd->path.dentry, nd);
-			if (!error)
-				error = -ESTALE;
-			if (error < 0)
+			int status = d_revalidate(nd->path.dentry, nd);
+			if (!status)
+				status = -ESTALE;
+			if (status < 0) {
+				error = status;
 				goto exit;
+			}
 		}
 		/* fallthrough */
 	case LAST_ROOT:

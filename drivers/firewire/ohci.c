@@ -961,7 +961,7 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 	for (i = 0; i < AR_WRAPAROUND_PAGES; i++)
 		pages[AR_BUFFERS + i] = ctx->pages[i];
 	ctx->buffer = vm_map_ram(pages, AR_BUFFERS + AR_WRAPAROUND_PAGES,
-				 -1, PAGE_KERNEL_RO);
+				 -1, PAGE_KERNEL);
 	if (!ctx->buffer)
 		goto out_of_memory;
 

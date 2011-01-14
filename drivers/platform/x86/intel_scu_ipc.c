@@ -497,7 +497,7 @@ int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data)
 			"intel_scu_ipc: I2C INVALID_CMD = 0x%x\n", cmd);
 
 		mutex_unlock(&ipclock);
-		return -1;
+		return -EIO;
 	}
 	mutex_unlock(&ipclock);
 	return 0;
@@ -642,7 +642,7 @@ update_end:
 
 	if (status == IPC_FW_UPDATE_SUCCESS)
 		return 0;
-	return -1;
+	return -EIO;
 }
 EXPORT_SYMBOL(intel_scu_ipc_fw_update);
 

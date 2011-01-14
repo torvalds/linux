@@ -415,8 +415,8 @@ otherwise noted.
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
 
-	May be called in rcu-walk mode (flags & IPERM_RCU). If in rcu-walk
-	mode, the filesystem must check the permission without blocking or
+	May be called in rcu-walk mode (flags & IPERM_FLAG_RCU). If in rcu-walk
+        mode, the filesystem must check the permission without blocking or
 	storing to the inode.
 
 	If a situation is encountered that rcu-walk cannot handle, return

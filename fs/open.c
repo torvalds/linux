@@ -223,7 +223,12 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 		return -EINVAL;
 
 	/* Return error if mode is not supported */
-	if (mode && !(mode & FALLOC_FL_KEEP_SIZE))
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+		return -EOPNOTSUPP;
+
+	/* Punch hole must have keep size set */
+	if ((mode & FALLOC_FL_PUNCH_HOLE) &&
+	    !(mode & FALLOC_FL_KEEP_SIZE))
 		return -EOPNOTSUPP;
 
 	if (!(file->f_mode & FMODE_WRITE))

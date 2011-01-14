@@ -30,9 +30,8 @@ struct device_private;
 struct device_driver;
 struct driver_private;
 struct class;
-struct class_private;
+struct subsys_private;
 struct bus_type;
-struct bus_type_private;
 struct device_node;
 
 struct bus_attribute {
@@ -65,7 +64,7 @@ struct bus_type {
 
 	const struct dev_pm_ops *pm;
 
-	struct bus_type_private *p;
+	struct subsys_private *p;
 };
 
 extern int __must_check bus_register(struct bus_type *bus);
@@ -214,7 +213,7 @@ struct class {
 
 	const struct dev_pm_ops *pm;
 
-	struct class_private *p;
+	struct subsys_private *p;
 };
 
 struct class_dev_iter {

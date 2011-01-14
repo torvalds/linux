@@ -108,6 +108,12 @@ struct iio_const_attr {
 	IIO_DEVICE_ATTR(name, S_IRUGO, _show, NULL, 0)
 
 /**
+ * IIO_DEV_ATTR_RESET: resets the device
+ **/
+#define IIO_DEV_ATTR_RESET(_store)			\
+	IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, _store, 0)
+
+/**
  * IIO_CONST_ATTR_NAME - constant identifier
  * @_string: the name
  **/

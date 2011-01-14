@@ -32,8 +32,9 @@
 	Revision History:
 	Who			When			What
 	--------	----------		----------------------------------------------
-	John Chang	2004-09-01      modified for rt2561/2661
-	Jan Lee		2006-08-01      modified for rt2860 for 802.11n
+	John Chang		2004-09-01      	modified for rt2561/2661
+	Jan Lee			2006-08-01      	modified for rt2860 for 802.11n
+	Justin P. Mattock	11/07/2010		Fix typos
 */
 #include "../rt_config.h"
 
@@ -233,9 +234,9 @@ void MlmeScanReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 		RTMPSuspendMsduTransmission(pAd);
 
 		/* */
-		/* To prevent data lost. */
-		/* Send an NULL data with turned PSM bit on to current associated AP before SCAN progress. */
-		/* And should send an NULL data with turned PSM bit off to AP, when scan progress done */
+		/* To prevent data loss. */
+		/* Send a NULL data with turned PSM bit on to current associated AP before SCAN progress. */
+		/* And should send a NULL data with turned PSM bit off to AP, when scan progress done */
 		/* */
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 		    && (INFRA_ON(pAd))) {
@@ -283,7 +284,7 @@ void MlmeScanReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 		DBGPRINT(RT_DEBUG_TRACE, ("SYNC - BBP R4 to 20MHz.l\n"));
 		ScanNextChannel(pAd);
 	} else {
-		DBGPRINT_ERR(("SYNC - MlmeScanReqAction() sanity check fail\n"));
+		DBGPRINT_ERR("SYNC - MlmeScanReqAction() sanity check fail\n");
 		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 		Status = MLME_INVALID_FORMAT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_SCAN_CONF, 2,
@@ -535,7 +536,7 @@ void MlmeStartReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_START_CONF, 2,
 			    &Status);
 	} else {
-		DBGPRINT_ERR(("SYNC - MlmeStartReqAction() sanity check fail.\n"));
+		DBGPRINT_ERR("SYNC - MlmeStartReqAction() sanity check fail.\n");
 		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 		Status = MLME_INVALID_FORMAT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_START_CONF, 2,
@@ -750,9 +751,9 @@ void PeerBeaconAtJoinAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_el
 
 		/* BEACON from desired BSS/IBSS found. We should be able to decide most */
 		/* BSS parameters here. */
-		/* Q. But what happen if this JOIN doesn't conclude a successful ASSOCIATEION? */
-		/*    Do we need to receover back all parameters belonging to previous BSS? */
-		/* A. Should be not. There's no back-door recover to previous AP. It still need */
+		/* Q. But what happen if this JOIN doesn't conclude a successful ASSOCIATION? */
+		/*    Do we need to recover back all parameters belonging to previous BSS? */
+		/* A. Should be not. There's no back-door recover to previous AP. It still needs */
 		/*    a new JOIN-AUTH-ASSOC sequence. */
 		if (MAC_ADDR_EQUAL(pAd->MlmeAux.Bssid, Bssid)) {
 			DBGPRINT(RT_DEBUG_TRACE,
@@ -876,7 +877,7 @@ void PeerBeaconAtJoinAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_el
 			pAd->MlmeAux.CfpMaxDuration = Cf.CfpMaxDuration;
 			pAd->MlmeAux.APRalinkIe = RalinkIe;
 
-			/* Copy AP's supported rate to MlmeAux for creating assoication request */
+			/* Copy AP's supported rate to MlmeAux for creating association request */
 			/* Also filter out not supported rate */
 			pAd->MlmeAux.SupRateLen = SupRateLen;
 			NdisMoveMemory(pAd->MlmeAux.SupRate, SupRate,
@@ -1207,7 +1208,7 @@ void PeerBeacon(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 			}
 
 			if (index >= pAd->ChannelListNum) {
-				DBGPRINT_ERR(("PeerBeacon(can not find New Channel=%d in ChannelList[%d]\n", pAd->CommonCfg.Channel, pAd->ChannelListNum));
+				DBGPRINT_ERR("PeerBeacon(can not find New Channel=%d in ChannelList[%d]\n", pAd->CommonCfg.Channel, pAd->ChannelListNum);
 			}
 		}
 		/* if the ssid matched & bssid unmatched, we should select the bssid with large value. */

@@ -27,7 +27,6 @@
 #include <asm/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
-#include <linux/gpio.h>
 #include <asm/tsc.h>
 #include <asm/olpc.h>
 
@@ -49,7 +48,7 @@ struct dcon_platform_data {
 	int (*init)(void);
 	void (*bus_stabilize_wiggle)(void);
 	void (*set_dconload)(int);
-	int (*read_status)(void);
+	u8 (*read_status)(void);
 };
 
 static struct dcon_platform_data *pdata;
@@ -615,7 +614,7 @@ static struct device_attribute dcon_device_files[] = {
 	__ATTR(resumeline, 0644, dcon_resumeline_show, dcon_resumeline_store),
 };
 
-static struct backlight_ops dcon_bl_ops = {
+static const struct backlight_ops dcon_bl_ops = {
 	.get_brightness = dconbl_get,
 	.update_status = dconbl_set
 };

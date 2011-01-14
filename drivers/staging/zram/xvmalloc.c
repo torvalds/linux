@@ -187,7 +187,7 @@ static void insert_block(struct xv_pool *pool, struct page *page, u32 offset,
 	slindex = get_index_for_insert(block->size);
 	flindex = slindex / BITS_PER_LONG;
 
-	block->link.prev_page = 0;
+	block->link.prev_page = NULL;
 	block->link.prev_offset = 0;
 	block->link.next_page = pool->freelist[slindex].page;
 	block->link.next_offset = pool->freelist[slindex].offset;
@@ -217,7 +217,7 @@ static void remove_block_head(struct xv_pool *pool,
 
 	pool->freelist[slindex].page = block->link.next_page;
 	pool->freelist[slindex].offset = block->link.next_offset;
-	block->link.prev_page = 0;
+	block->link.prev_page = NULL;
 	block->link.prev_offset = 0;
 
 	if (!pool->freelist[slindex].page) {
@@ -232,7 +232,7 @@ static void remove_block_head(struct xv_pool *pool,
 		 */
 		tmpblock = get_ptr_atomic(pool->freelist[slindex].page,
 				pool->freelist[slindex].offset, KM_USER1);
-		tmpblock->link.prev_page = 0;
+		tmpblock->link.prev_page = NULL;
 		tmpblock->link.prev_offset = 0;
 		put_ptr_atomic(tmpblock, KM_USER1);
 	}

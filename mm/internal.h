@@ -39,6 +39,15 @@ static inline void __put_page(struct page *page)
 
 extern unsigned long highest_memmap_pfn;
 
+#ifdef CONFIG_SMP
+extern int putback_active_lru_page(struct zone *zone, struct page *page);
+#else
+static inline int putback_active_lru_page(struct zone *zone, struct page *page)
+{
+	return 0;
+}
+#endif
+
 /*
  * in mm/vmscan.c:
  */
@@ -134,6 +143,10 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
 	}
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+extern unsigned long vma_address(struct page *page,
+				 struct vm_area_struct *vma);
+#endif
 #else /* !CONFIG_MMU */
 static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
 {
@@ -243,7 +256,8 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		     unsigned long start, int len, unsigned int foll_flags,
-		     struct page **pages, struct vm_area_struct **vmas);
+		     struct page **pages, struct vm_area_struct **vmas,
+		     int *nonblocking);
 
 #define ZONE_RECLAIM_NOSCAN	-2
 #define ZONE_RECLAIM_FULL	-1

@@ -46,6 +46,7 @@
 #include <plat/nand.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
@@ -149,23 +150,32 @@ static struct regulator_consumer_supply devkit8000_vmmc1_supply =
 static struct regulator_consumer_supply devkit8000_vio_supply =
 	REGULATOR_SUPPLY("vcc", "spi2.0");
 
-static struct omap_dss_device devkit8000_lcd_device = {
-	.name                   = "lcd",
-	.driver_name            = "generic_panel",
-	.type                   = OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines     = 24,
-	.reset_gpio             = -EINVAL, /* will be replaced */
+static struct panel_generic_dpi_data lcd_panel = {
+	.name			= "generic",
 	.platform_enable        = devkit8000_panel_enable_lcd,
 	.platform_disable       = devkit8000_panel_disable_lcd,
 };
-static struct omap_dss_device devkit8000_dvi_device = {
-	.name                   = "dvi",
-	.driver_name            = "generic_panel",
+
+static struct omap_dss_device devkit8000_lcd_device = {
+	.name                   = "lcd",
 	.type                   = OMAP_DISPLAY_TYPE_DPI,
+	.driver_name            = "generic_dpi_panel",
+	.data			= &lcd_panel,
 	.phy.dpi.data_lines     = 24,
-	.reset_gpio             = -EINVAL, /* will be replaced */
+};
+
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
 	.platform_enable        = devkit8000_panel_enable_dvi,
 	.platform_disable       = devkit8000_panel_disable_dvi,
+};
+
+static struct omap_dss_device devkit8000_dvi_device = {
+	.name                   = "dvi",
+	.type                   = OMAP_DISPLAY_TYPE_DPI,
+	.driver_name            = "generic_dpi_panel",
+	.data			= &dvi_panel,
+	.phy.dpi.data_lines     = 24,
 };
 
 static struct omap_dss_device devkit8000_tv_device = {

@@ -61,13 +61,11 @@ static int __init early_init_dt_scan_serial(unsigned long node,
 	char *p;
 	int *addr;
 
-	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
+	pr_debug("search \"serial\", depth: %d, uname: %s\n", depth, uname);
 
 /* find all serial nodes */
 	if (strncmp(uname, "serial", 6) != 0)
 		return 0;
-
-	early_init_dt_check_for_initrd(node);
 
 /* find compatible node with uartlite */
 	p = of_get_flat_dt_prop(node, "compatible", &l);

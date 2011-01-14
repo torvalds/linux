@@ -13,6 +13,7 @@
  * your option) any later version.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -20,8 +21,12 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/mmc/host.h>
+#ifdef CONFIG_PPC
 #include <asm/machdep.h>
+#endif
 #include "sdhci-of.h"
 #include "sdhci.h"
 
@@ -112,7 +117,11 @@ static bool __devinit sdhci_of_wp_inverted(struct device_node *np)
 		return true;
 
 	/* Old device trees don't have the wp-inverted property. */
+#ifdef CONFIG_PPC
 	return machine_is(mpc837x_rdb) || machine_is(mpc837x_mds);
+#else
+	return false;
+#endif
 }
 
 static int __devinit sdhci_of_probe(struct platform_device *ofdev,

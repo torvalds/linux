@@ -34,7 +34,8 @@ typedef struct wlc_bsscfg wlc_bsscfg_t;
 #define MAXMACLIST		64	/* max # source MAC matches */
 #define BCN_TEMPLATE_COUNT 	2
 
-/* Iterator for "associated" STA bss configs:  (wlc_info_t *wlc, int idx, wlc_bsscfg_t *cfg) */
+/* Iterator for "associated" STA bss configs:
+   (struct wlc_info *wlc, int idx, wlc_bsscfg_t *cfg) */
 #define FOREACH_AS_STA(wlc, idx, cfg) \
 	for (idx = 0; (int) idx < WLC_MAXBSSCFG; idx++) \
 		if ((cfg = (wlc)->bsscfg[idx]) && BSSCFG_STA(cfg) && cfg->associated)

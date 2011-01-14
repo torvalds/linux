@@ -112,22 +112,6 @@ ENTRY(sys_clone)
 	RESTORE_SWITCH_STACK
 	rts
 
-ENTRY(sys_sigsuspend)
-	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	do_sigsuspend
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
-	rts
-
-ENTRY(sys_rt_sigsuspend)
-	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	do_rt_sigsuspend
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
-	rts
-
 ENTRY(sys_sigreturn)
 	SAVE_SWITCH_STACK
 	jbsr	do_sigreturn

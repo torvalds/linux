@@ -288,6 +288,49 @@ void ktime_get_ts(struct timespec *ts)
 }
 EXPORT_SYMBOL_GPL(ktime_get_ts);
 
+#ifdef CONFIG_NTP_PPS
+
+/**
+ * getnstime_raw_and_real - get day and raw monotonic time in timespec format
+ * @ts_raw:	pointer to the timespec to be set to raw monotonic time
+ * @ts_real:	pointer to the timespec to be set to the time of day
+ *
+ * This function reads both the time of day and raw monotonic time at the
+ * same time atomically and stores the resulting timestamps in timespec
+ * format.
+ */
+void getnstime_raw_and_real(struct timespec *ts_raw, struct timespec *ts_real)
+{
+	unsigned long seq;
+	s64 nsecs_raw, nsecs_real;
+
+	WARN_ON_ONCE(timekeeping_suspended);
+
+	do {
+		u32 arch_offset;
+
+		seq = read_seqbegin(&xtime_lock);
+
+		*ts_raw = raw_time;
+		*ts_real = xtime;
+
+		nsecs_raw = timekeeping_get_ns_raw();
+		nsecs_real = timekeeping_get_ns();
+
+		/* If arch requires, add in gettimeoffset() */
+		arch_offset = arch_gettimeoffset();
+		nsecs_raw += arch_offset;
+		nsecs_real += arch_offset;
+
+	} while (read_seqretry(&xtime_lock, seq));
+
+	timespec_add_ns(ts_raw, nsecs_raw);
+	timespec_add_ns(ts_real, nsecs_real);
+}
+EXPORT_SYMBOL(getnstime_raw_and_real);
+
+#endif /* CONFIG_NTP_PPS */
+
 /**
  * do_gettimeofday - Returns the time of day in a timeval
  * @tv:		pointer to the timeval to be set

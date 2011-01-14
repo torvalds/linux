@@ -92,28 +92,19 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		return NULL;
 	}
 
-	mutex_lock(&sbi->s_alloc_mutex);
 	if (sbi->s_lvid_bh) {
-		struct logicalVolIntegrityDesc *lvid =
-			(struct logicalVolIntegrityDesc *)
-			sbi->s_lvid_bh->b_data;
-		struct logicalVolIntegrityDescImpUse *lvidiu =
-							udf_sb_lvidiu(sbi);
-		struct logicalVolHeaderDesc *lvhd;
-		uint64_t uniqueID;
-		lvhd = (struct logicalVolHeaderDesc *)
-				(lvid->logicalVolContentsUse);
+		struct logicalVolIntegrityDescImpUse *lvidiu;
+
+		iinfo->i_unique = lvid_get_unique_id(sb);
+		mutex_lock(&sbi->s_alloc_mutex);
+		lvidiu = udf_sb_lvidiu(sbi);
 		if (S_ISDIR(mode))
 			le32_add_cpu(&lvidiu->numDirs, 1);
 		else
 			le32_add_cpu(&lvidiu->numFiles, 1);
-		iinfo->i_unique = uniqueID = le64_to_cpu(lvhd->uniqueID);
-		if (!(++uniqueID & 0x00000000FFFFFFFFUL))
-			uniqueID += 16;
-		lvhd->uniqueID = cpu_to_le64(uniqueID);
 		udf_updated_lvid(sb);
+		mutex_unlock(&sbi->s_alloc_mutex);
 	}
-	mutex_unlock(&sbi->s_alloc_mutex);
 
 	inode_init_owner(inode, dir, mode);
 

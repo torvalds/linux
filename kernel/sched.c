@@ -2505,7 +2505,7 @@ out:
  * try_to_wake_up_local - try to wake up a local task with rq lock held
  * @p: the thread to be awakened
  *
- * Put @p on the run-queue if it's not alredy there.  The caller must
+ * Put @p on the run-queue if it's not already there.  The caller must
  * ensure that this_rq() is locked, @p is bound to this_rq() and not
  * the current task.  this_rq() stays locked over invocation.
  */

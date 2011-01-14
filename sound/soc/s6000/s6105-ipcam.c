@@ -18,11 +18,9 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <variant/dmac.h>
 
-#include "../codecs/tlv320aic3x.h"
 #include "s6000-pcm.h"
 #include "s6000-i2s.h"
 
@@ -107,6 +105,7 @@ static int output_type_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = kcontrol->private_data;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	unsigned int val = (ucontrol->value.enumerated.item[0] != 0);
 	char *differential = "Audio Out Differential";
 	char *stereo = "Audio Out Stereo";
@@ -114,10 +113,10 @@ static int output_type_put(struct snd_kcontrol *kcontrol,
 	if (kcontrol->private_value == val)
 		return 0;
 	kcontrol->private_value = val;
-	snd_soc_dapm_disable_pin(codec, val ? differential : stereo);
-	snd_soc_dapm_sync(codec);
-	snd_soc_dapm_enable_pin(codec, val ? stereo : differential);
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_disable_pin(dapm, val ? differential : stereo);
+	snd_soc_dapm_sync(dapm);
+	snd_soc_dapm_enable_pin(dapm, val ? stereo : differential);
+	snd_soc_dapm_sync(dapm);
 
 	return 1;
 }
@@ -137,35 +136,36 @@ static const struct snd_kcontrol_new audio_out_mux = {
 static int s6105_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	/* Add s6105 specific widgets */
-	snd_soc_dapm_new_controls(codec, aic3x_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, aic3x_dapm_widgets,
 				  ARRAY_SIZE(aic3x_dapm_widgets));
 
 	/* Set up s6105 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* not present */
-	snd_soc_dapm_nc_pin(codec, "MONO_LOUT");
-	snd_soc_dapm_nc_pin(codec, "LINE2L");
-	snd_soc_dapm_nc_pin(codec, "LINE2R");
+	snd_soc_dapm_nc_pin(dapm, "MONO_LOUT");
+	snd_soc_dapm_nc_pin(dapm, "LINE2L");
+	snd_soc_dapm_nc_pin(dapm, "LINE2R");
 
 	/* not connected */
-	snd_soc_dapm_nc_pin(codec, "MIC3L"); /* LINE2L on this chip */
-	snd_soc_dapm_nc_pin(codec, "MIC3R"); /* LINE2R on this chip */
-	snd_soc_dapm_nc_pin(codec, "LLOUT");
-	snd_soc_dapm_nc_pin(codec, "RLOUT");
-	snd_soc_dapm_nc_pin(codec, "HPRCOM");
+	snd_soc_dapm_nc_pin(dapm, "MIC3L"); /* LINE2L on this chip */
+	snd_soc_dapm_nc_pin(dapm, "MIC3R"); /* LINE2R on this chip */
+	snd_soc_dapm_nc_pin(dapm, "LLOUT");
+	snd_soc_dapm_nc_pin(dapm, "RLOUT");
+	snd_soc_dapm_nc_pin(dapm, "HPRCOM");
 
 	/* always connected */
-	snd_soc_dapm_enable_pin(codec, "Audio In");
+	snd_soc_dapm_enable_pin(dapm, "Audio In");
 
 	/* must correspond to audio_out_mux.private_value initializer */
-	snd_soc_dapm_disable_pin(codec, "Audio Out Differential");
-	snd_soc_dapm_sync(codec);
-	snd_soc_dapm_enable_pin(codec, "Audio Out Stereo");
+	snd_soc_dapm_disable_pin(dapm, "Audio Out Differential");
+	snd_soc_dapm_sync(dapm);
+	snd_soc_dapm_enable_pin(dapm, "Audio Out Stereo");
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	snd_ctl_add(codec->card->snd_card, snd_ctl_new1(&audio_out_mux, codec));
 

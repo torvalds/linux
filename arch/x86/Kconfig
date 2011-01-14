@@ -51,6 +51,7 @@ config X86
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_XZ
 	select HAVE_KERNEL_LZO
 	select HAVE_HW_BREAKPOINT
 	select HAVE_MIXED_BREAKPOINTS_REGS
@@ -65,6 +66,7 @@ config X86
 	select HAVE_SPARSE_IRQ
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
+	select USE_GENERIC_SMP_HELPERS if SMP
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -202,10 +204,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config HAVE_INTEL_TXT
 	def_bool y
 	depends on EXPERIMENTAL && DMAR && ACPI
-
-config USE_GENERIC_SMP_HELPERS
-	def_bool y
-	depends on SMP
 
 config X86_32_SMP
 	def_bool y
@@ -2078,10 +2076,16 @@ config OLPC_OPENFIRMWARE
 	bool "Support for OLPC's Open Firmware"
 	depends on !X86_64 && !X86_PAE
 	default n
+	select OF
 	help
 	  This option adds support for the implementation of Open Firmware
 	  that is used on the OLPC XO-1 Children's Machine.
 	  If unsure, say N here.
+
+config OLPC_OPENFIRMWARE_DT
+	bool
+	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
+	select OF_PROMTREE
 
 endif # X86_32
 

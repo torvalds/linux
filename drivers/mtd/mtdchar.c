@@ -1134,7 +1134,7 @@ static const struct file_operations mtd_fops = {
 static struct dentry *mtd_inodefs_mount(struct file_system_type *fs_type,
 				int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "mtd_inode:", NULL, MTD_INODE_FS_MAGIC);
+	return mount_pseudo(fs_type, "mtd_inode:", NULL, NULL, MTD_INODE_FS_MAGIC);
 }
 
 static struct file_system_type mtd_inodefs_type = {

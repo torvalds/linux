@@ -44,7 +44,7 @@ struct vpss_pg_frame_size {
 	short pplen;
 };
 
-/* Used for enable/diable VPSS Clock */
+/* Used for enable/disable VPSS Clock */
 enum vpss_clock_sel {
 	/* DM355/DM365 */
 	VPSS_CCDC_CLOCK,

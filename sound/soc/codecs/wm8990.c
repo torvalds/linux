@@ -23,7 +23,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <asm/div64.h>
@@ -914,11 +913,12 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8990_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8990_dapm_widgets,
-				  ARRAY_SIZE(wm8990_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
+	snd_soc_dapm_new_controls(dapm, wm8990_dapm_widgets,
+				  ARRAY_SIZE(wm8990_dapm_widgets));
 	/* set up the WM8990 audio map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -1170,7 +1170,7 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable all output discharge bits */
 			snd_soc_write(codec, WM8990_ANTIPOP1, WM8990_DIS_LLINE |
 				WM8990_DIS_RLINE | WM8990_DIS_OUT3 |
@@ -1266,7 +1266,7 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

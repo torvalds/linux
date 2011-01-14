@@ -20,6 +20,7 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
+#include <mach/setup.h>
 
 /*
  * control for which core is the next to come out of the secondary
@@ -38,6 +39,18 @@ static void write_pen_release(int val)
 	smp_wmb();
 	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
 	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+}
+
+static void __iomem *scu_base_addr(void)
+{
+	if (cpu_is_u5500())
+		return __io_address(U5500_SCU_BASE);
+	else if (cpu_is_u8500())
+		return __io_address(U8500_SCU_BASE);
+	else
+		ux500_unknown_soc();
+
+	return NULL;
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -100,21 +113,28 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init wakeup_secondary(void)
 {
+	void __iomem *backupram;
+
+	if (cpu_is_u5500())
+		backupram = __io_address(U5500_BACKUPRAM0_BASE);
+	else if (cpu_is_u8500())
+		backupram = __io_address(U8500_BACKUPRAM0_BASE);
+	else
+		ux500_unknown_soc();
+
 	/*
 	 * write the address of secondary startup into the backup ram register
 	 * at offset 0x1FF4, then write the magic number 0xA1FEED01 to the
 	 * backup ram register at offset 0x1FF0, which is what boot rom code
 	 * is waiting for. This would wake up the secondary core from WFE
 	 */
-#define U8500_CPU1_JUMPADDR_OFFSET 0x1FF4
+#define UX500_CPU1_JUMPADDR_OFFSET 0x1FF4
 	__raw_writel(virt_to_phys(u8500_secondary_startup),
-		__io_address(UX500_BACKUPRAM0_BASE) +
-		U8500_CPU1_JUMPADDR_OFFSET);
+		     backupram + UX500_CPU1_JUMPADDR_OFFSET);
 
-#define U8500_CPU1_WAKEMAGIC_OFFSET 0x1FF0
+#define UX500_CPU1_WAKEMAGIC_OFFSET 0x1FF0
 	__raw_writel(0xA1FEED01,
-		__io_address(UX500_BACKUPRAM0_BASE) +
-		U8500_CPU1_WAKEMAGIC_OFFSET);
+		     backupram + UX500_CPU1_WAKEMAGIC_OFFSET);
 
 	/* make sure write buffer is drained */
 	mb();
@@ -126,9 +146,10 @@ static void __init wakeup_secondary(void)
  */
 void __init smp_init_cpus(void)
 {
+	void __iomem *scu_base = scu_base_addr();
 	unsigned int i, ncores;
 
-	ncores = scu_get_core_count(__io_address(UX500_SCU_BASE));
+	ncores = scu_base ? scu_get_core_count(scu_base) : 1;
 
 	/* sanity check */
 	if (ncores > NR_CPUS) {
@@ -154,6 +175,6 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
 
-	scu_enable(__io_address(UX500_SCU_BASE));
+	scu_enable(scu_base_addr());
 	wakeup_secondary();
 }
