@@ -5333,7 +5333,7 @@ again:
 	return 0;
 }
 
-static int stac92hd83xxx_set_system_btl_amp(struct hda_codec *codec)
+static int hp_bnb2011_with_dock(struct hda_codec *codec)
 {
 	if (codec->vendor_id != 0x111d7605 &&
 	    codec->vendor_id != 0x111d76d1)
@@ -5348,10 +5348,6 @@ static int stac92hd83xxx_set_system_btl_amp(struct hda_codec *codec)
 	case 0x103c161d:
 	case 0x103c161e:
 	case 0x103c161f:
-	case 0x103c1620:
-	case 0x103c1621:
-	case 0x103c1622:
-	case 0x103c1623:
 
 	case 0x103c162a:
 	case 0x103c162b:
@@ -5360,40 +5356,8 @@ static int stac92hd83xxx_set_system_btl_amp(struct hda_codec *codec)
 	case 0x103c1631:
 
 	case 0x103c1633:
-
+	case 0x103c1634:
 	case 0x103c1635:
-
-	case 0x103c164f:
-
-	case 0x103c1676:
-	case 0x103c1677:
-	case 0x103c1678:
-	case 0x103c1679:
-	case 0x103c167a:
-	case 0x103c167b:
-	case 0x103c167c:
-	case 0x103c167d:
-	case 0x103c167e:
-	case 0x103c167f:
-	case 0x103c1680:
-	case 0x103c1681:
-	case 0x103c1682:
-	case 0x103c1683:
-	case 0x103c1684:
-	case 0x103c1685:
-	case 0x103c1686:
-	case 0x103c1687:
-	case 0x103c1688:
-	case 0x103c1689:
-	case 0x103c168a:
-	case 0x103c168b:
-	case 0x103c168c:
-	case 0x103c168d:
-	case 0x103c168e:
-	case 0x103c168f:
-	case 0x103c1690:
-	case 0x103c1691:
-	case 0x103c1692:
 
 	case 0x103c3587:
 	case 0x103c3588:
@@ -5402,9 +5366,9 @@ static int stac92hd83xxx_set_system_btl_amp(struct hda_codec *codec)
 
 	case 0x103c3667:
 	case 0x103c3668:
-		/* set BTL amp level to 13.43dB for louder speaker output */
-		return snd_hda_codec_write_cache(codec, codec->afg, 0,
-						 0x7F4, 0x14);
+	case 0x103c3669:
+
+		return 1;
 	}
 	return 0;
 }
@@ -5419,6 +5383,11 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	if (hp_bnb2011_with_dock(codec)) {
+		snd_hda_codec_set_pincfg(codec, 0xa, 0x2101201f);
+		snd_hda_codec_set_pincfg(codec, 0xf, 0x2181205e);
+	}
 
 	/* reset pin power-down; Windows may leave these bits after reboot */
 	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7EC, 0);
@@ -5545,8 +5514,6 @@ again:
 		snd_hda_codec_write_cache(codec, 0xF, 0,
 			AC_VERB_SET_CONNECT_SEL, num_dacs);
 	}
-
-	stac92hd83xxx_set_system_btl_amp(codec);
 
 	codec->proc_widget_hook = stac92hd_proc_hook;
 
