@@ -1691,6 +1691,8 @@ struct alc_model_fixup {
 
 struct alc_fixup {
 	int type;
+	bool chained;
+	int chain_id;
 	union {
 		unsigned int sku;
 		const struct alc_pincfg *pins;
@@ -1699,8 +1701,6 @@ struct alc_fixup {
 			     const struct alc_fixup *fix,
 			     int action);
 	} v;
-	bool chained;
-	int chain_id;
 };
 
 enum {
