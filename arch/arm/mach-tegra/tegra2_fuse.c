@@ -656,8 +656,8 @@ long tegra_fuse_ioctl(struct file *file, unsigned int ioctl_num,
 
 	case TEGRA_FUSE_IOCTL_GET_UID:
 		tegra_fuse_get_uid(uid_buff);
-		if (copy_to_user((void *)uid_buff,
-				 (void __user *)ioctl_param, SIZE_OF_UID)) {
+		if (copy_to_user((void __user *)ioctl_param,
+				 (void *)uid_buff, SIZE_OF_UID)) {
 			ret_val = -EFAULT;
 		}
 		break;
