@@ -365,8 +365,8 @@ must be done in the RCU callback.
 [recommended]
 	vfs now tries to do path walking in "rcu-walk mode", which avoids
 atomic operations and scalability hazards on dentries and inodes (see
-Documentation/filesystems/path-walk.txt). d_hash and d_compare changes (above)
-are examples of the changes required to support this. For more complex
+Documentation/filesystems/path-lookup.txt). d_hash and d_compare changes
+(above) are examples of the changes required to support this. For more complex
 filesystem callbacks, the vfs drops out of rcu-walk mode before the fs call, so
 no changes are required to the filesystem. However, this is costly and loses
 the benefits of rcu-walk mode. We will begin to add filesystem callbacks that
@@ -383,5 +383,5 @@ Documentation/filesystems/vfs.txt for more details.
 
 	permission and check_acl are inode permission checks that are called
 on many or all directory inodes on the way down a path walk (to check for
-exec permission). These must now be rcu-walk aware (flags & IPERM_RCU). See
-Documentation/filesystems/vfs.txt for more details.
+exec permission). These must now be rcu-walk aware (flags & IPERM_FLAG_RCU).
+See Documentation/filesystems/vfs.txt for more details.
