@@ -800,12 +800,8 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 	touch_atime(link->mnt, dentry);
 	nd_set_link(nd, NULL);
 
-	if (link->mnt != nd->path.mnt) {
-		path_to_nameidata(link, nd);
-		nd->inode = nd->path.dentry->d_inode;
-		dget(dentry);
-	}
-	mntget(link->mnt);
+	if (link->mnt == nd->path.mnt)
+		mntget(link->mnt);
 
 	nd->last_type = LAST_BIND;
 	*p = dentry->d_inode->i_op->follow_link(dentry, nd);
