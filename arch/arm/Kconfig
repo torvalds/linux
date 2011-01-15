@@ -1281,7 +1281,7 @@ config SMP
 config SMP_ON_UP
 	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on SMP && !XIP
+	depends on SMP && !XIP_KERNEL
 	default y
 	help
 	  SMP kernels contain instructions which fail on non-SMP processors.

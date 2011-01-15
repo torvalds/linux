@@ -22,7 +22,6 @@
 
 #include <mach/hardware.h>
 #include <asm/system.h>
-#include <asm/pgtable.h>
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
 

@@ -115,4 +115,6 @@ static inline void init_fixed_sched_clock(struct clock_data *cd,
 	}
 }
 
+extern void sched_clock_postinit(void);
+
 #endif
