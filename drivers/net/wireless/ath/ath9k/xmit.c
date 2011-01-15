@@ -1224,12 +1224,14 @@ void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_atx_ac *ac;
-	struct ath_atx_tid *tid;
+	struct ath_atx_tid *tid, *last;
 
-	if (list_empty(&txq->axq_acq))
+	if (list_empty(&txq->axq_acq) ||
+	    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
 		return;
 
 	ac = list_first_entry(&txq->axq_acq, struct ath_atx_ac, list);
+	last = list_entry(ac->tid_q.prev, struct ath_atx_tid, list);
 	list_del(&ac->list);
 	ac->sched = false;
 
@@ -1253,7 +1255,8 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 		if (!list_empty(&tid->buf_q))
 			ath_tx_queue_tid(txq, tid);
 
-		break;
+		if (tid == last || txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
+			break;
 	} while (!list_empty(&ac->tid_q));
 
 	if (!list_empty(&ac->tid_q)) {
