@@ -118,7 +118,7 @@ struct pl08x_txd {
 	dma_addr_t dst_addr;
 	size_t len;
 	dma_addr_t llis_bus;
-	void *llis_va;
+	struct pl08x_lli *llis_va;
 	bool active;
 	/* Default cctl value for LLIs */
 	u32 cctl;
