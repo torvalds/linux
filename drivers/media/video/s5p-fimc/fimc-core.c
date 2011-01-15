@@ -804,15 +804,33 @@ int fimc_vidioc_g_fmt_mplane(struct file *file, void *priv,
 {
 	struct fimc_ctx *ctx = priv;
 	struct fimc_frame *frame;
+	struct v4l2_pix_format_mplane *pixm;
+	int i;
 
 	frame = ctx_get_frame(ctx, f->type);
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
 
-	f->fmt.pix.width	= frame->width;
-	f->fmt.pix.height	= frame->height;
-	f->fmt.pix.field	= V4L2_FIELD_NONE;
-	f->fmt.pix.pixelformat	= frame->fmt->fourcc;
+	pixm = &f->fmt.pix_mp;
+
+	pixm->width		= frame->width;
+	pixm->height		= frame->height;
+	pixm->field		= V4L2_FIELD_NONE;
+	pixm->pixelformat	= frame->fmt->fourcc;
+	pixm->colorspace	= V4L2_COLORSPACE_JPEG;
+	pixm->num_planes	= frame->fmt->memplanes;
+
+	for (i = 0; i < pixm->num_planes; ++i) {
+		int bpl = frame->o_width;
+
+		if (frame->fmt->colplanes == 1) /* packed formats */
+			bpl = (bpl * frame->fmt->depth[0]) / 8;
+
+		pixm->plane_fmt[i].bytesperline = bpl;
+
+		pixm->plane_fmt[i].sizeimage = (frame->o_width *
+			frame->o_height * frame->fmt->depth[i]) / 8;
+	}
 
 	return 0;
 }
@@ -907,6 +925,7 @@ int fimc_vidioc_try_fmt_mplane(struct file *file, void *priv,
 		&pix->height, 8, variant->pix_limit->scaler_dis_w, mod_y, 0);
 
 	pix->num_planes = fmt->memplanes;
+	pix->colorspace	= V4L2_COLORSPACE_JPEG;
 
 	for (i = 0; i < pix->num_planes; ++i) {
 		int bpl = pix->plane_fmt[i].bytesperline;
