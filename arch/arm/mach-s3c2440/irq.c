@@ -69,27 +69,27 @@ static void s3c_irq_demux_wdtac97(unsigned int irq,
 #define INTMSK_WDT	 (1UL << (IRQ_WDT - IRQ_EINT0))
 
 static void
-s3c_irq_wdtac97_mask(unsigned int irqno)
+s3c_irq_wdtac97_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_WDT, 3<<13);
+	s3c_irqsub_mask(data->irq, INTMSK_WDT, 3 << 13);
 }
 
 static void
-s3c_irq_wdtac97_unmask(unsigned int irqno)
+s3c_irq_wdtac97_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_WDT);
+	s3c_irqsub_unmask(data->irq, INTMSK_WDT);
 }
 
 static void
-s3c_irq_wdtac97_ack(unsigned int irqno)
+s3c_irq_wdtac97_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_WDT, 3<<13);
+	s3c_irqsub_maskack(data->irq, INTMSK_WDT, 3 << 13);
 }
 
 static struct irq_chip s3c_irq_wdtac97 = {
-	.mask	    = s3c_irq_wdtac97_mask,
-	.unmask	    = s3c_irq_wdtac97_unmask,
-	.ack	    = s3c_irq_wdtac97_ack,
+	.irq_mask	= s3c_irq_wdtac97_mask,
+	.irq_unmask	= s3c_irq_wdtac97_unmask,
+	.irq_ack	= s3c_irq_wdtac97_ack,
 };
 
 static int s3c2440_irq_add(struct sys_device *sysdev)

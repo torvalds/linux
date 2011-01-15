@@ -21,34 +21,34 @@
 
   /* CPU IRQ handling */
 
-static void lh7a400_mask_irq (u32 irq)
+static void lh7a400_mask_irq(struct irq_data *d)
 {
-	INTC_INTENC = (1 << irq);
+	INTC_INTENC = (1 << d->irq);
 }
 
-static void lh7a400_unmask_irq (u32 irq)
+static void lh7a400_unmask_irq(struct irq_data *d)
 {
-	INTC_INTENS = (1 << irq);
+	INTC_INTENS = (1 << d->irq);
 }
 
-static void lh7a400_ack_gpio_irq (u32 irq)
+static void lh7a400_ack_gpio_irq(struct irq_data *d)
 {
-	GPIO_GPIOFEOI = (1 << IRQ_TO_GPIO (irq));
-	INTC_INTENC = (1 << irq);
+	GPIO_GPIOFEOI = (1 << IRQ_TO_GPIO (d->irq));
+	INTC_INTENC = (1 << d->irq);
 }
 
 static struct irq_chip lh7a400_internal_chip = {
-	.name	= "MPU",
-	.ack	= lh7a400_mask_irq, /* Level triggering -> mask is ack */
-	.mask	= lh7a400_mask_irq,
-	.unmask	= lh7a400_unmask_irq,
+	.name		= "MPU",
+	.irq_ack	= lh7a400_mask_irq, /* Level triggering -> mask is ack */
+	.irq_mask	= lh7a400_mask_irq,
+	.irq_unmask	= lh7a400_unmask_irq,
 };
 
 static struct irq_chip lh7a400_gpio_chip = {
-	.name	= "GPIO",
-	.ack	= lh7a400_ack_gpio_irq,
-	.mask	= lh7a400_mask_irq,
-	.unmask	= lh7a400_unmask_irq,
+	.name		= "GPIO",
+	.irq_ack	= lh7a400_ack_gpio_irq,
+	.irq_mask	= lh7a400_mask_irq,
+	.irq_unmask	= lh7a400_unmask_irq,
 };
 
 

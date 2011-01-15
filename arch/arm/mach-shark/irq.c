@@ -30,35 +30,35 @@ static unsigned char cached_irq_mask[2] = { 0xfb, 0xff };
  * These have to be protected by the irq controller spinlock
  * before being called.
  */
-static void shark_disable_8259A_irq(unsigned int irq)
+static void shark_disable_8259A_irq(struct irq_data *d)
 {
 	unsigned int mask;
-	if (irq<8) {
-	  mask = 1 << irq;
+	if (d->irq<8) {
+	  mask = 1 << d->irq;
 	  cached_irq_mask[0] |= mask;
 	  outb(cached_irq_mask[1],0xA1);
 	} else {
-	  mask = 1 << (irq-8);
+	  mask = 1 << (d->irq-8);
 	  cached_irq_mask[1] |= mask;
 	  outb(cached_irq_mask[0],0x21);
 	}
 }
 
-static void shark_enable_8259A_irq(unsigned int irq)
+static void shark_enable_8259A_irq(struct irq_data *d)
 {
 	unsigned int mask;
-	if (irq<8) {
-	  mask = ~(1 << irq);
+	if (d->irq<8) {
+	  mask = ~(1 << d->irq);
 	  cached_irq_mask[0] &= mask;
 	  outb(cached_irq_mask[0],0x21);
 	} else {
-	  mask = ~(1 << (irq-8));
+	  mask = ~(1 << (d->irq-8));
 	  cached_irq_mask[1] &= mask;
 	  outb(cached_irq_mask[1],0xA1);
 	}
 }
 
-static void shark_ack_8259A_irq(unsigned int irq){}
+static void shark_ack_8259A_irq(struct irq_data *d){}
 
 static irqreturn_t bogus_int(int irq, void *dev_id)
 {
@@ -69,10 +69,10 @@ static irqreturn_t bogus_int(int irq, void *dev_id)
 static struct irqaction cascade;
 
 static struct irq_chip fb_chip = {
-	.name	= "XT-PIC",
-	.ack	= shark_ack_8259A_irq,
-	.mask	= shark_disable_8259A_irq,
-	.unmask = shark_enable_8259A_irq,
+	.name		= "XT-PIC",
+	.irq_ack	= shark_ack_8259A_irq,
+	.irq_mask	= shark_disable_8259A_irq,
+	.irq_unmask	= shark_enable_8259A_irq,
 };
 
 void __init shark_init_irq(void)

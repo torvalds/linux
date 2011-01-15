@@ -59,7 +59,7 @@ void __init cmx2xx_pci_adjust_zones(unsigned long *zone_size,
 static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	/* clear our parent irq */
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	it8152_irq_demux(irq, desc);
 }

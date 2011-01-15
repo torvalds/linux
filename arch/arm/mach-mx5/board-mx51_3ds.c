@@ -12,7 +12,6 @@
 
 #include <linux/irq.h>
 #include <linux/platform_device.h>
-#include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
 
 #include <asm/mach-types.h>
@@ -120,14 +119,14 @@ static int mx51_3ds_board_keymap[] = {
 	KEY(3, 5, KEY_BACK)
 };
 
-static struct matrix_keymap_data mx51_3ds_map_data = {
+static const struct matrix_keymap_data mx51_3ds_map_data __initconst = {
 	.keymap		= mx51_3ds_board_keymap,
 	.keymap_size	= ARRAY_SIZE(mx51_3ds_board_keymap),
 };
 
 static void mxc_init_keypad(void)
 {
-	mxc_register_device(&mxc_keypad_device, &mx51_3ds_map_data);
+	imx51_add_imx_keypad(&mx51_3ds_map_data);
 }
 #else
 static inline void mxc_init_keypad(void)

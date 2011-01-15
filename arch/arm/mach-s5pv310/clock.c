@@ -244,7 +244,7 @@ static struct clksrc_clk clk_mout_corebus = {
 		.id		= -1,
 	},
 	.sources	= &clkset_mout_corebus,
-	.reg_src	= { .reg = S5P_CLKSRC_CORE, .shift = 4, .size = 1 },
+	.reg_src	= { .reg = S5P_CLKSRC_DMC, .shift = 4, .size = 1 },
 };
 
 static struct clksrc_clk clk_sclk_dmc = {
@@ -253,7 +253,7 @@ static struct clksrc_clk clk_sclk_dmc = {
 		.id		= -1,
 		.parent		= &clk_mout_corebus.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 12, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 12, .size = 3 },
 };
 
 static struct clksrc_clk clk_aclk_cored = {
@@ -262,7 +262,7 @@ static struct clksrc_clk clk_aclk_cored = {
 		.id		= -1,
 		.parent		= &clk_sclk_dmc.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 16, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 16, .size = 3 },
 };
 
 static struct clksrc_clk clk_aclk_corep = {
@@ -271,7 +271,7 @@ static struct clksrc_clk clk_aclk_corep = {
 		.id		= -1,
 		.parent		= &clk_aclk_cored.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 20, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 20, .size = 3 },
 };
 
 static struct clksrc_clk clk_aclk_acp = {
@@ -280,7 +280,7 @@ static struct clksrc_clk clk_aclk_acp = {
 		.id		= -1,
 		.parent		= &clk_mout_corebus.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 0, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 0, .size = 3 },
 };
 
 static struct clksrc_clk clk_pclk_acp = {
@@ -289,7 +289,7 @@ static struct clksrc_clk clk_pclk_acp = {
 		.id		= -1,
 		.parent		= &clk_aclk_acp.clk,
 	},
-	.reg_div	= { .reg = S5P_CLKDIV_CORE0, .shift = 4, .size = 3 },
+	.reg_div	= { .reg = S5P_CLKDIV_DMC0, .shift = 4, .size = 3 },
 };
 
 /* Core list of CMU_TOP side */
@@ -384,7 +384,7 @@ static struct clksrc_clk clk_sclk_vpll = {
 	.reg_src	= { .reg = S5P_CLKSRC_TOP0, .shift = 8, .size = 1 },
 };
 
-static struct clk init_clocks_disable[] = {
+static struct clk init_clocks_off[] = {
 	{
 		.name		= "timers",
 		.id		= -1,
@@ -467,6 +467,16 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5pv310_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 10),
 	}, {
+		.name		= "pdma",
+		.id		= 0,
+		.enable		= s5pv310_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 0),
+	}, {
+		.name		= "pdma",
+		.id		= 1,
+		.enable		= s5pv310_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 1),
+	}, {
 		.name		= "adc",
 		.id		= -1,
 		.enable		= s5pv310_clk_ip_peril_ctrl,
@@ -506,6 +516,26 @@ static struct clk init_clocks_disable[] = {
 		.id		= 2,
 		.enable		= s5pv310_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 18),
+	}, {
+		.name		= "iis",
+		.id		= 0,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 19),
+	}, {
+		.name		= "iis",
+		.id		= 1,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 20),
+	}, {
+		.name		= "iis",
+		.id		= 2,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 21),
+	}, {
+		.name		= "ac97",
+		.id		= -1,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 27),
 	}, {
 		.name		= "fimg2d",
 		.id		= -1,
@@ -990,6 +1020,17 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_dout_mmc4,
 };
 
+static int xtal_rate;
+
+static unsigned long s5pv310_fout_apll_get_rate(struct clk *clk)
+{
+	return s5p_get_pll45xx(xtal_rate, __raw_readl(S5P_APLL_CON0), pll_4508);
+}
+
+static struct clk_ops s5pv310_fout_apll_ops = {
+	.get_rate = s5pv310_fout_apll_get_rate,
+};
+
 void __init_or_cpufreq s5pv310_setup_clocks(void)
 {
 	struct clk *xtal_clk;
@@ -1013,6 +1054,9 @@ void __init_or_cpufreq s5pv310_setup_clocks(void)
 	BUG_ON(IS_ERR(xtal_clk));
 
 	xtal = clk_get_rate(xtal_clk);
+
+	xtal_rate = xtal;
+
 	clk_put(xtal_clk);
 
 	printk(KERN_DEBUG "%s: xtal is %ld\n", __func__, xtal);
@@ -1026,7 +1070,7 @@ void __init_or_cpufreq s5pv310_setup_clocks(void)
 	vpll = s5p_get_pll46xx(vpllsrc, __raw_readl(S5P_VPLL_CON0),
 				__raw_readl(S5P_VPLL_CON1), pll_4650);
 
-	clk_fout_apll.rate = apll;
+	clk_fout_apll.ops = &s5pv310_fout_apll_ops;
 	clk_fout_mpll.rate = mpll;
 	clk_fout_epll.rate = epll;
 	clk_fout_vpll.rate = vpll;
@@ -1061,13 +1105,9 @@ static struct clk *clks[] __initdata = {
 
 void __init s5pv310_register_clocks(void)
 {
-	struct clk *clkp;
-	int ret;
 	int ptr;
 
-	ret = s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
-	if (ret > 0)
-		printk(KERN_ERR "Failed to register %u clocks\n", ret);
+	s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
 
 	for (ptr = 0; ptr < ARRAY_SIZE(sysclks); ptr++)
 		s3c_register_clksrc(sysclks[ptr], 1);
@@ -1075,15 +1115,8 @@ void __init s5pv310_register_clocks(void)
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
-	clkp = init_clocks_disable;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks_disable); ptr++, clkp++) {
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-		(clkp->enable)(clkp, 0);
-	}
+	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
 	s3c_pwmclk_init();
 }
