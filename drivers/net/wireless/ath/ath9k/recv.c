@@ -588,8 +588,14 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		return;
 
 	mgmt = (struct ieee80211_mgmt *)skb->data;
-	if (memcmp(common->curbssid, mgmt->bssid, ETH_ALEN) != 0)
+	if (memcmp(common->curbssid, mgmt->bssid, ETH_ALEN) != 0) {
+		/* TODO:  This doesn't work well if you have stations
+		 * associated to two different APs because curbssid
+		 * is just the last AP that any of the stations associated
+		 * with.
+		 */
 		return; /* not from our current AP */
+	}
 
 	sc->ps_flags &= ~PS_WAIT_FOR_BEACON;
 
@@ -984,8 +990,14 @@ static void ath9k_process_rssi(struct ath_common *common,
 
 	fc = hdr->frame_control;
 	if (!ieee80211_is_beacon(fc) ||
-	    compare_ether_addr(hdr->addr3, common->curbssid))
+	    compare_ether_addr(hdr->addr3, common->curbssid)) {
+		/* TODO:  This doesn't work well if you have stations
+		 * associated to two different APs because curbssid
+		 * is just the last AP that any of the stations associated
+		 * with.
+		 */
 		return;
+	}
 
 	if (rx_stats->rs_rssi != ATH9K_RSSI_BAD && !rx_stats->rs_moreaggr)
 		ATH_RSSI_LPF(aphy->last_rssi, rx_stats->rs_rssi);

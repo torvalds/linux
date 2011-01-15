@@ -244,9 +244,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 						 struct ath_buf, list);
 		list_del(&avp->av_bcbuf->list);
 
-		if (sc->sc_ah->opmode == NL80211_IFTYPE_AP ||
-		    sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC ||
-		    sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT) {
+		if (ath9k_uses_beacons(vif->type)) {
 			int slot;
 			/*
 			 * Assign the vif to a beacon xmit slot. As
@@ -282,7 +280,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 	/* NB: the beacon data buffer must be 32-bit aligned. */
 	skb = ieee80211_beacon_get(sc->hw, vif);
 	if (skb == NULL) {
-		ath_dbg(common, ATH_DBG_BEACON, "cannot get skb\n");
+		ath_err(common, "ieee80211_beacon_get failed\n");
 		return -ENOMEM;
 	}
 
@@ -720,10 +718,10 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 		iftype = sc->sc_ah->opmode;
 	}
 
-		cur_conf->listen_interval = 1;
-		cur_conf->dtim_count = 1;
-		cur_conf->bmiss_timeout =
-			ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
+	cur_conf->listen_interval = 1;
+	cur_conf->dtim_count = 1;
+	cur_conf->bmiss_timeout =
+		ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
 
 	/*
 	 * It looks like mac80211 may end up using beacon interval of zero in

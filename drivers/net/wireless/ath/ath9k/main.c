@@ -1352,87 +1352,16 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath_dbg(common, ATH_DBG_CONFIG, "Driver halt\n");
 }
 
-static int ath9k_add_interface(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif)
+bool ath9k_uses_beacons(int type)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_vif *avp = (void *)vif->drv_priv;
-	enum nl80211_iftype ic_opmode = NL80211_IFTYPE_UNSPECIFIED;
-	int ret = 0;
-
-	mutex_lock(&sc->mutex);
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_STATION:
-		ic_opmode = NL80211_IFTYPE_STATION;
-		break;
-	case NL80211_IFTYPE_WDS:
-		ic_opmode = NL80211_IFTYPE_WDS;
-		break;
-	case NL80211_IFTYPE_ADHOC:
+	switch (type) {
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
-		if (sc->nbcnvifs >= ATH_BCBUF) {
-			ret = -ENOBUFS;
-			goto out;
-		}
-		ic_opmode = vif->type;
-		break;
+		return true;
 	default:
-		ath_err(common, "Interface type %d not yet supported\n",
-			vif->type);
-		ret = -EOPNOTSUPP;
-		goto out;
+		return false;
 	}
-
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"Attach a VIF of type: %d\n", ic_opmode);
-
-	/* Set the VIF opmode */
-	avp->av_opmode = ic_opmode;
-	avp->av_bslot = -1;
-
-	sc->nvifs++;
-
-	ath9k_set_bssid_mask(hw, vif);
-
-	if (sc->nvifs > 1)
-		goto out; /* skip global settings for secondary vif */
-
-	if (ic_opmode == NL80211_IFTYPE_AP) {
-		ath9k_hw_set_tsfadjust(ah, 1);
-		sc->sc_flags |= SC_OP_TSF_RESET;
-	}
-
-	/* Set the device opmode */
-	ah->opmode = ic_opmode;
-
-	/*
-	 * Enable MIB interrupts when there are hardware phy counters.
-	 * Note we only do this (at the moment) for station mode.
-	 */
-	if ((vif->type == NL80211_IFTYPE_STATION) ||
-	    (vif->type == NL80211_IFTYPE_ADHOC) ||
-	    (vif->type == NL80211_IFTYPE_MESH_POINT)) {
-		if (ah->config.enable_ani)
-			ah->imask |= ATH9K_INT_MIB;
-		ah->imask |= ATH9K_INT_TSFOOR;
-	}
-
-	ath9k_hw_set_interrupts(ah, ah->imask);
-
-	if (vif->type == NL80211_IFTYPE_AP    ||
-	    vif->type == NL80211_IFTYPE_ADHOC) {
-		sc->sc_flags |= SC_OP_ANI_RUN;
-		ath_start_ani(common);
-	}
-
-out:
-	mutex_unlock(&sc->mutex);
-	return ret;
 }
 
 static void ath9k_reclaim_beacon(struct ath_softc *sc,
@@ -1460,6 +1389,216 @@ static void ath9k_reclaim_beacon(struct ath_softc *sc,
 	}
 }
 
+static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath9k_vif_iter_data *iter_data = data;
+	int i;
+
+	if (iter_data->hw_macaddr)
+		for (i = 0; i < ETH_ALEN; i++)
+			iter_data->mask[i] &=
+				~(iter_data->hw_macaddr[i] ^ mac[i]);
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+		iter_data->naps++;
+		break;
+	case NL80211_IFTYPE_STATION:
+		iter_data->nstations++;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		iter_data->nadhocs++;
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		iter_data->nmeshes++;
+		break;
+	case NL80211_IFTYPE_WDS:
+		iter_data->nwds++;
+		break;
+	default:
+		iter_data->nothers++;
+		break;
+	}
+}
+
+/* Called with sc->mutex held. */
+void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ath9k_vif_iter_data *iter_data)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	int i;
+
+	/*
+	 * Use the hardware MAC address as reference, the hardware uses it
+	 * together with the BSSID mask when matching addresses.
+	 */
+	memset(iter_data, 0, sizeof(*iter_data));
+	iter_data->hw_macaddr = common->macaddr;
+	memset(&iter_data->mask, 0xff, ETH_ALEN);
+
+	if (vif)
+		ath9k_vif_iter(iter_data, vif->addr, vif);
+
+	/* Get list of all active MAC addresses */
+	spin_lock_bh(&sc->wiphy_lock);
+	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath9k_vif_iter,
+						   iter_data);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		if (sc->sec_wiphy[i] == NULL)
+			continue;
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->sec_wiphy[i]->hw, ath9k_vif_iter, iter_data);
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
+}
+
+/* Called with sc->mutex held. */
+static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_vif_iter_data iter_data;
+
+	ath9k_calculate_iter_data(hw, vif, &iter_data);
+
+	/* Set BSSID mask. */
+	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
+	ath_hw_setbssidmask(common);
+
+	/* Set op-mode & TSF */
+	if (iter_data.naps > 0) {
+		ath9k_hw_set_tsfadjust(ah, 1);
+		sc->sc_flags |= SC_OP_TSF_RESET;
+		ah->opmode = NL80211_IFTYPE_AP;
+	} else {
+		ath9k_hw_set_tsfadjust(ah, 0);
+		sc->sc_flags &= ~SC_OP_TSF_RESET;
+
+		if (iter_data.nwds + iter_data.nmeshes)
+			ah->opmode = NL80211_IFTYPE_AP;
+		else if (iter_data.nadhocs)
+			ah->opmode = NL80211_IFTYPE_ADHOC;
+		else
+			ah->opmode = NL80211_IFTYPE_STATION;
+	}
+
+	/*
+	 * Enable MIB interrupts when there are hardware phy counters.
+	 */
+	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0) {
+		if (ah->config.enable_ani)
+			ah->imask |= ATH9K_INT_MIB;
+		ah->imask |= ATH9K_INT_TSFOOR;
+	} else {
+		ah->imask &= ~ATH9K_INT_MIB;
+		ah->imask &= ~ATH9K_INT_TSFOOR;
+	}
+
+	ath9k_hw_set_interrupts(ah, ah->imask);
+
+	/* Set up ANI */
+	if ((iter_data.naps + iter_data.nadhocs) > 0) {
+		sc->sc_flags |= SC_OP_ANI_RUN;
+		ath_start_ani(common);
+	} else {
+		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		del_timer_sync(&common->ani.timer);
+	}
+}
+
+/* Called with sc->mutex held, vif counts set up properly. */
+static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+
+	ath9k_calculate_summary_state(hw, vif);
+
+	if (ath9k_uses_beacons(vif->type)) {
+		int error;
+		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+		/* This may fail because upper levels do not have beacons
+		 * properly configured yet.  That's OK, we assume it
+		 * will be properly configured and then we will be notified
+		 * in the info_changed method and set up beacons properly
+		 * there.
+		 */
+		error = ath_beacon_alloc(aphy, vif);
+		if (error)
+			ath9k_reclaim_beacon(sc, vif);
+		else
+			ath_beacon_config(sc, vif);
+	}
+}
+
+
+static int ath9k_add_interface(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	int ret = 0;
+
+	mutex_lock(&sc->mutex);
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
+		break;
+	default:
+		ath_err(common, "Interface type %d not yet supported\n",
+			vif->type);
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (ath9k_uses_beacons(vif->type)) {
+		if (sc->nbcnvifs >= ATH_BCBUF) {
+			ath_err(common, "Not enough beacon buffers when adding"
+				" new interface of type: %i\n",
+				vif->type);
+			ret = -ENOBUFS;
+			goto out;
+		}
+	}
+
+	if ((vif->type == NL80211_IFTYPE_ADHOC) &&
+	    sc->nvifs > 0) {
+		ath_err(common, "Cannot create ADHOC interface when other"
+			" interfaces already exist.\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"Attach a VIF of type: %d\n", vif->type);
+
+	/* Set the VIF opmode */
+	avp->av_opmode = vif->type;
+	avp->av_bslot = -1;
+
+	sc->nvifs++;
+
+	ath9k_do_vif_add_setup(hw, vif);
+out:
+	mutex_unlock(&sc->mutex);
+	return ret;
+}
+
 static int ath9k_change_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  enum nl80211_iftype new_type,
@@ -1473,32 +1612,33 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	ath_dbg(common, ATH_DBG_CONFIG, "Change Interface\n");
 	mutex_lock(&sc->mutex);
 
-	switch (new_type) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_ADHOC:
+	/* See if new interface type is valid. */
+	if ((new_type == NL80211_IFTYPE_ADHOC) &&
+	    (sc->nvifs > 1)) {
+		ath_err(common, "When using ADHOC, it must be the only"
+			" interface.\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (ath9k_uses_beacons(new_type) &&
+	    !ath9k_uses_beacons(vif->type)) {
 		if (sc->nbcnvifs >= ATH_BCBUF) {
 			ath_err(common, "No beacon slot available\n");
 			ret = -ENOBUFS;
 			goto out;
 		}
-		break;
-	case NL80211_IFTYPE_STATION:
-		/* Stop ANI */
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
-		del_timer_sync(&common->ani.timer);
-		if ((vif->type == NL80211_IFTYPE_AP) ||
-		    (vif->type == NL80211_IFTYPE_ADHOC))
-			ath9k_reclaim_beacon(sc, vif);
-		break;
-	default:
-		ath_err(common, "Interface type %d not yet supported\n",
-				vif->type);
-		ret = -ENOTSUPP;
-		goto out;
 	}
+
+	/* Clean up old vif stuff */
+	if (ath9k_uses_beacons(vif->type))
+		ath9k_reclaim_beacon(sc, vif);
+
+	/* Add new settings */
 	vif->type = new_type;
 	vif->p2p = p2p;
 
+	ath9k_do_vif_add_setup(hw, vif);
 out:
 	mutex_unlock(&sc->mutex);
 	return ret;
@@ -1515,17 +1655,13 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 
-	/* Stop ANI */
-	sc->sc_flags &= ~SC_OP_ANI_RUN;
-	del_timer_sync(&common->ani.timer);
+	sc->nvifs--;
 
 	/* Reclaim beacon resources */
-	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC) ||
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT))
+	if (ath9k_uses_beacons(vif->type))
 		ath9k_reclaim_beacon(sc, vif);
 
-	sc->nvifs--;
+	ath9k_calculate_summary_state(hw, NULL);
 
 	mutex_unlock(&sc->mutex);
 }

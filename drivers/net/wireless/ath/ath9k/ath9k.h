@@ -560,6 +560,20 @@ struct ath_ant_comb {
 struct ath_wiphy;
 struct ath_rate_table;
 
+struct ath9k_vif_iter_data {
+	const u8 *hw_macaddr; /* phy's hardware address, set
+			       * before starting iteration for
+			       * valid bssid mask.
+			       */
+	u8 mask[ETH_ALEN]; /* bssid mask */
+	int naps;      /* number of AP vifs */
+	int nmeshes;   /* number of mesh vifs */
+	int nstations; /* number of station vifs */
+	int nwds;      /* number of nwd vifs */
+	int nadhocs;   /* number of adhoc vifs */
+	int nothers;   /* number of vifs not specified above. */
+};
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -599,10 +613,10 @@ struct ath_softc {
 	u32 sc_flags; /* SC_OP_* */
 	u16 ps_flags; /* PS_* */
 	u16 curtxpow;
-	u8 nbcnvifs;
-	u16 nvifs;
 	bool ps_enabled;
 	bool ps_idle;
+	short nbcnvifs;
+	short nvifs;
 	unsigned long ps_usecount;
 
 	struct ath_config config;
@@ -683,6 +697,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw);
 bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode);
+bool ath9k_uses_beacons(int type);
 
 #ifdef CONFIG_PCI
 int ath_pci_init(void);
@@ -727,5 +742,9 @@ bool ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
 
 void ath_start_rfkill_poll(struct ath_softc *sc);
 extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);
+void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ath9k_vif_iter_data *iter_data);
+
 
 #endif /* ATH9K_H */
