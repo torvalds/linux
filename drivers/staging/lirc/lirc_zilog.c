@@ -62,7 +62,7 @@
 
 struct IR_rx {
 	/* RX device */
-	struct i2c_client c_rx;
+	struct i2c_client *c;
 
 	/* RX device buffer & lock */
 	struct lirc_buffer buf;
@@ -81,7 +81,7 @@ struct IR_rx {
 
 struct IR_tx {
 	/* TX device */
-	struct i2c_client c_tx;
+	struct i2c_client *c;
 
 	/* TX additional actions needed */
 	int need_boot;
@@ -132,9 +132,6 @@ static struct mutex tx_data_lock;
 					## args)
 #define zilog_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
 
-#define ZILOG_HAUPPAUGE_IR_RX_NAME "Zilog/Hauppauge IR RX"
-#define ZILOG_HAUPPAUGE_IR_TX_NAME "Zilog/Hauppauge IR TX"
-
 /* module parameters */
 static int debug;	/* debug output */
 static int disable_rx;	/* disable RX device */
@@ -181,7 +178,7 @@ static int add_to_buf(struct IR *ir)
 		 * Send random "poll command" (?)  Windows driver does this
 		 * and it is a good point to detect chip failure.
 		 */
-		ret = i2c_master_send(&rx->c_rx, sendbuf, 1);
+		ret = i2c_master_send(rx->c, sendbuf, 1);
 		if (ret != 1) {
 			zilog_error("i2c_master_send failed with %d\n",	ret);
 			if (failures >= 3) {
@@ -205,7 +202,7 @@ static int add_to_buf(struct IR *ir)
 			continue;
 		}
 
-		ret = i2c_master_recv(&rx->c_rx, keybuf, sizeof(keybuf));
+		ret = i2c_master_recv(rx->c, keybuf, sizeof(keybuf));
 		mutex_unlock(&ir->ir_lock);
 		if (ret != sizeof(keybuf)) {
 			zilog_error("i2c_master_recv failed with %d -- "
@@ -315,9 +312,9 @@ static int set_use_inc(void *data)
 	 * must be possible even when the device is open
 	 */
 	if (ir->rx != NULL)
-		i2c_use_client(&ir->rx->c_rx);
+		i2c_use_client(ir->rx->c);
 	if (ir->tx != NULL)
-		i2c_use_client(&ir->tx->c_tx);
+		i2c_use_client(ir->tx->c);
 
 	return 0;
 }
@@ -327,9 +324,9 @@ static void set_use_dec(void *data)
 	struct IR *ir = data;
 
 	if (ir->rx)
-		i2c_release_client(&ir->rx->c_rx);
+		i2c_release_client(ir->rx->c);
 	if (ir->tx)
-		i2c_release_client(&ir->tx->c_tx);
+		i2c_release_client(ir->tx->c);
 	if (ir->l.owner != NULL)
 		module_put(ir->l.owner);
 }
@@ -482,7 +479,7 @@ static int send_data_block(struct IR_tx *tx, unsigned char *data_block)
 			buf[1 + j] = data_block[i + j];
 		dprintk("%02x %02x %02x %02x %02x",
 			buf[0], buf[1], buf[2], buf[3], buf[4]);
-		ret = i2c_master_send(&tx->c_tx, buf, tosend + 1);
+		ret = i2c_master_send(tx->c, buf, tosend + 1);
 		if (ret != tosend + 1) {
 			zilog_error("i2c_master_send failed with %d\n", ret);
 			return ret < 0 ? ret : -EFAULT;
@@ -506,19 +503,19 @@ static int send_boot_data(struct IR_tx *tx)
 	/* kick it off? */
 	buf[0] = 0x00;
 	buf[1] = 0x20;
-	ret = i2c_master_send(&tx->c_tx, buf, 2);
+	ret = i2c_master_send(tx->c, buf, 2);
 	if (ret != 2) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
-	ret = i2c_master_send(&tx->c_tx, buf, 1);
+	ret = i2c_master_send(tx->c, buf, 1);
 	if (ret != 1) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
 
 	/* Here comes the firmware version... (hopefully) */
-	ret = i2c_master_recv(&tx->c_tx, buf, 4);
+	ret = i2c_master_recv(tx->c, buf, 4);
 	if (ret != 4) {
 		zilog_error("i2c_master_recv failed with %d\n", ret);
 		return 0;
@@ -573,7 +570,7 @@ static int fw_load(struct IR_tx *tx)
 	}
 
 	/* Request codeset data file */
-	ret = request_firmware(&fw_entry, "haup-ir-blaster.bin", &tx->c_tx.dev);
+	ret = request_firmware(&fw_entry, "haup-ir-blaster.bin", &tx->c->dev);
 	if (ret != 0) {
 		zilog_error("firmware haup-ir-blaster.bin not available "
 			    "(%d)\n", ret);
@@ -822,19 +819,19 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 	/* Send data block length? */
 	buf[0] = 0x00;
 	buf[1] = 0x40;
-	ret = i2c_master_send(&tx->c_tx, buf, 2);
+	ret = i2c_master_send(tx->c, buf, 2);
 	if (ret != 2) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
-	ret = i2c_master_send(&tx->c_tx, buf, 1);
+	ret = i2c_master_send(tx->c, buf, 1);
 	if (ret != 1) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
 
 	/* Send finished download? */
-	ret = i2c_master_recv(&tx->c_tx, buf, 1);
+	ret = i2c_master_recv(tx->c, buf, 1);
 	if (ret != 1) {
 		zilog_error("i2c_master_recv failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
@@ -848,7 +845,7 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 	/* Send prepare command? */
 	buf[0] = 0x00;
 	buf[1] = 0x80;
-	ret = i2c_master_send(&tx->c_tx, buf, 2);
+	ret = i2c_master_send(tx->c, buf, 2);
 	if (ret != 2) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
@@ -873,7 +870,7 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 	for (i = 0; i < 20; ++i) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout((50 * HZ + 999) / 1000);
-		ret = i2c_master_send(&tx->c_tx, buf, 1);
+		ret = i2c_master_send(tx->c, buf, 1);
 		if (ret == 1)
 			break;
 		dprintk("NAK expected: i2c_master_send "
@@ -886,7 +883,7 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 	}
 
 	/* Seems to be an 'ok' response */
-	i = i2c_master_recv(&tx->c_tx, buf, 1);
+	i = i2c_master_recv(tx->c, buf, 1);
 	if (i != 1) {
 		zilog_error("i2c_master_recv failed with %d\n", ret);
 		return -EFAULT;
@@ -1214,7 +1211,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct IR *ir = NULL;
 	struct i2c_adapter *adap = client->adapter;
-	char buf;
 	int ret;
 	int have_rx = 0, have_tx = 0;
 
@@ -1239,24 +1235,13 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * The external IR receiver is at i2c address 0x71.
 	 * The IR transmitter is at 0x70.
 	 */
-	client->addr = 0x70;
 
-	if (i2c_master_recv(client, &buf, 1) == 1)
+	if (id->driver_data & ID_FLAG_TX) {
 		have_tx = 1;
-	dprintk("probe 0x70 @ %s: %s\n",
-		adap->name, have_tx ? "success" : "failed");
-
-	if (!disable_rx) {
-		client->addr = 0x71;
-		if (i2c_master_recv(client, &buf, 1) == 1)
-			have_rx = 1;
-		dprintk("probe 0x71 @ %s: %s\n",
-			adap->name, have_rx ? "success" : "failed");
-	}
-
-	if (!(have_rx || have_tx)) {
-		zilog_error("%s: no devices found\n", adap->name);
-		goto out_nodev;
+	} else if (!disable_rx) {
+		have_rx = 1;
+	} else {
+		return -ENXIO;
 	}
 
 	printk(KERN_INFO "lirc_zilog: chip found with %s\n",
@@ -1270,6 +1255,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (have_tx) {
 		ir->tx = kzalloc(sizeof(struct IR_tx), GFP_KERNEL);
 		if (ir->tx != NULL) {
+			ir->tx->c = client;
 			ir->tx->need_boot = 1;
 			ir->tx->post_tx_ready_poll =
 			       (id->driver_data & ID_FLAG_HDPVR) ? false : true;
@@ -1282,6 +1268,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		if (ir->rx == NULL) {
 			ret = -ENOMEM;
 		} else {
+			ir->rx->c = client;
 			ir->rx->hdpvr_data_fmt =
 			       (id->driver_data & ID_FLAG_HDPVR) ? true : false;
 			mutex_init(&ir->rx->buf_lock);
@@ -1305,11 +1292,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* initialise RX device */
 	if (ir->rx != NULL) {
 		DECLARE_COMPLETION(tn);
-		memcpy(&ir->rx->c_rx, client, sizeof(struct i2c_client));
-
-		ir->rx->c_rx.addr = 0x71;
-		strlcpy(ir->rx->c_rx.name, ZILOG_HAUPPAUGE_IR_RX_NAME,
-			I2C_NAME_SIZE);
 
 		/* try to fire up polling thread */
 		ir->rx->t_notify = &tn;
@@ -1322,14 +1304,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 		wait_for_completion(&tn);
 		ir->rx->t_notify = NULL;
-	}
-
-	/* initialise TX device */
-	if (ir->tx) {
-		memcpy(&ir->tx->c_tx, client, sizeof(struct i2c_client));
-		ir->tx->c_tx.addr = 0x70;
-		strlcpy(ir->tx->c_tx.name, ZILOG_HAUPPAUGE_IR_TX_NAME,
-			I2C_NAME_SIZE);
 	}
 
 	/* set lirc_dev stuff */
@@ -1371,15 +1345,10 @@ err:
 	/* FIXME - memory deallocation for all error cases needs work */
 	/* undo everything, hopefully... */
 	if (ir->rx != NULL)
-		ir_remove(&ir->rx->c_rx);
+		ir_remove(ir->rx->c);
 	if (ir->tx != NULL)
-		ir_remove(&ir->tx->c_tx);
+		ir_remove(ir->tx->c);
 	return ret;
-
-out_nodev:
-	/* FIXME - memory deallocation for all error cases needs work */
-	zilog_error("no device found\n");
-	return -ENODEV;
 
 out_nomem:
 	/* FIXME - memory deallocation for all error cases needs work */
