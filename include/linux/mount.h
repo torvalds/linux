@@ -60,7 +60,7 @@ struct vfsmount {
 	struct super_block *mnt_sb;	/* pointer to superblock */
 #ifdef CONFIG_SMP
 	struct mnt_pcp __percpu *mnt_pcp;
-	atomic_t mnt_longrefs;
+	atomic_t mnt_longterm;		/* how many of the refs are longterm */
 #else
 	int mnt_count;
 	int mnt_writers;
@@ -96,8 +96,6 @@ extern int mnt_clone_write(struct vfsmount *mnt);
 extern void mnt_drop_write(struct vfsmount *mnt);
 extern void mntput(struct vfsmount *mnt);
 extern struct vfsmount *mntget(struct vfsmount *mnt);
-extern void mntput_long(struct vfsmount *mnt);
-extern struct vfsmount *mntget_long(struct vfsmount *mnt);
 extern void mnt_pin(struct vfsmount *mnt);
 extern void mnt_unpin(struct vfsmount *mnt);
 extern int __mnt_is_readonly(struct vfsmount *mnt);

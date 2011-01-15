@@ -183,7 +183,7 @@ static inline void mnt_dec_count(struct vfsmount *mnt)
 unsigned int mnt_get_count(struct vfsmount *mnt)
 {
 #ifdef CONFIG_SMP
-	unsigned int count = atomic_read(&mnt->mnt_longrefs);
+	unsigned int count = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
@@ -217,7 +217,7 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 		if (!mnt->mnt_pcp)
 			goto out_free_devname;
 
-		atomic_set(&mnt->mnt_longrefs, 1);
+		this_cpu_add(mnt->mnt_pcp->mnt_count, 1);
 #else
 		mnt->mnt_count = 1;
 		mnt->mnt_writers = 0;
@@ -624,8 +624,11 @@ static void commit_tree(struct vfsmount *mnt)
 	BUG_ON(parent == mnt);
 
 	list_add_tail(&head, &mnt->mnt_list);
-	list_for_each_entry(m, &head, mnt_list)
+	list_for_each_entry(m, &head, mnt_list) {
 		m->mnt_ns = n;
+		atomic_inc(&m->mnt_longterm);
+	}
+
 	list_splice(&head, n->list.prev);
 
 	list_add_tail(&mnt->mnt_hash, mount_hashtable +
@@ -734,51 +737,30 @@ static inline void mntfree(struct vfsmount *mnt)
 	deactivate_super(sb);
 }
 
-#ifdef CONFIG_SMP
-static inline void __mntput(struct vfsmount *mnt, int longrefs)
+static void mntput_no_expire(struct vfsmount *mnt)
 {
-	if (!longrefs) {
 put_again:
-		br_read_lock(vfsmount_lock);
-		if (likely(atomic_read(&mnt->mnt_longrefs))) {
-			mnt_dec_count(mnt);
-			br_read_unlock(vfsmount_lock);
-			return;
-		}
+#ifdef CONFIG_SMP
+	br_read_lock(vfsmount_lock);
+	if (likely(atomic_read(&mnt->mnt_longterm))) {
+		mnt_dec_count(mnt);
 		br_read_unlock(vfsmount_lock);
-	} else {
-		BUG_ON(!atomic_read(&mnt->mnt_longrefs));
-		if (atomic_add_unless(&mnt->mnt_longrefs, -1, 1))
-			return;
+		return;
 	}
+	br_read_unlock(vfsmount_lock);
 
 	br_write_lock(vfsmount_lock);
-	if (!longrefs)
-		mnt_dec_count(mnt);
-	else
-		atomic_dec(&mnt->mnt_longrefs);
+	mnt_dec_count(mnt);
 	if (mnt_get_count(mnt)) {
 		br_write_unlock(vfsmount_lock);
 		return;
 	}
-	if (unlikely(mnt->mnt_pinned)) {
-		mnt_add_count(mnt, mnt->mnt_pinned + 1);
-		mnt->mnt_pinned = 0;
-		br_write_unlock(vfsmount_lock);
-		acct_auto_close_mnt(mnt);
-		goto put_again;
-	}
-	br_write_unlock(vfsmount_lock);
-	mntfree(mnt);
-}
 #else
-static inline void __mntput(struct vfsmount *mnt, int longrefs)
-{
-put_again:
 	mnt_dec_count(mnt);
 	if (likely(mnt_get_count(mnt)))
 		return;
 	br_write_lock(vfsmount_lock);
+#endif
 	if (unlikely(mnt->mnt_pinned)) {
 		mnt_add_count(mnt, mnt->mnt_pinned + 1);
 		mnt->mnt_pinned = 0;
@@ -788,12 +770,6 @@ put_again:
 	}
 	br_write_unlock(vfsmount_lock);
 	mntfree(mnt);
-}
-#endif
-
-static void mntput_no_expire(struct vfsmount *mnt)
-{
-	__mntput(mnt, 0);
 }
 
 void mntput(struct vfsmount *mnt)
@@ -802,7 +778,7 @@ void mntput(struct vfsmount *mnt)
 		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
 		if (unlikely(mnt->mnt_expiry_mark))
 			mnt->mnt_expiry_mark = 0;
-		__mntput(mnt, 0);
+		mntput_no_expire(mnt);
 	}
 }
 EXPORT_SYMBOL(mntput);
@@ -814,33 +790,6 @@ struct vfsmount *mntget(struct vfsmount *mnt)
 	return mnt;
 }
 EXPORT_SYMBOL(mntget);
-
-void mntput_long(struct vfsmount *mnt)
-{
-#ifdef CONFIG_SMP
-	if (mnt) {
-		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
-		if (unlikely(mnt->mnt_expiry_mark))
-			mnt->mnt_expiry_mark = 0;
-		__mntput(mnt, 1);
-	}
-#else
-	mntput(mnt);
-#endif
-}
-EXPORT_SYMBOL(mntput_long);
-
-struct vfsmount *mntget_long(struct vfsmount *mnt)
-{
-#ifdef CONFIG_SMP
-	if (mnt)
-		atomic_inc(&mnt->mnt_longrefs);
-	return mnt;
-#else
-	return mntget(mnt);
-#endif
-}
-EXPORT_SYMBOL(mntget_long);
 
 void mnt_pin(struct vfsmount *mnt)
 {
@@ -1216,7 +1165,7 @@ void release_mounts(struct list_head *head)
 			dput(dentry);
 			mntput(m);
 		}
-		mntput_long(mnt);
+		mntput(mnt);
 	}
 }
 
@@ -1240,6 +1189,7 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
 		p->mnt_ns = NULL;
+		atomic_dec(&p->mnt_longterm);
 		list_del_init(&p->mnt_child);
 		if (p->mnt_parent != p) {
 			p->mnt_parent->mnt_ghosts++;
@@ -1969,7 +1919,7 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 
 unlock:
 	up_write(&namespace_sem);
-	mntput_long(newmnt);
+	mntput(newmnt);
 	return err;
 }
 
@@ -2291,6 +2241,20 @@ static struct mnt_namespace *alloc_mnt_ns(void)
 	return new_ns;
 }
 
+void mnt_make_longterm(struct vfsmount *mnt)
+{
+	atomic_inc(&mnt->mnt_longterm);
+}
+
+void mnt_make_shortterm(struct vfsmount *mnt)
+{
+	if (atomic_add_unless(&mnt->mnt_longterm, -1, 1))
+		return;
+	br_write_lock(vfsmount_lock);
+	atomic_dec(&mnt->mnt_longterm);
+	br_write_unlock(vfsmount_lock);
+}
+
 /*
  * Allocate a new namespace structure and populate it with contents
  * copied from the namespace of the passed in task structure.
@@ -2328,14 +2292,19 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	q = new_ns->root;
 	while (p) {
 		q->mnt_ns = new_ns;
+		atomic_inc(&q->mnt_longterm);
 		if (fs) {
 			if (p == fs->root.mnt) {
+				fs->root.mnt = mntget(q);
+				atomic_inc(&q->mnt_longterm);
+				mnt_make_shortterm(p);
 				rootmnt = p;
-				fs->root.mnt = mntget_long(q);
 			}
 			if (p == fs->pwd.mnt) {
+				fs->pwd.mnt = mntget(q);
+				atomic_inc(&q->mnt_longterm);
+				mnt_make_shortterm(p);
 				pwdmnt = p;
-				fs->pwd.mnt = mntget_long(q);
 			}
 		}
 		p = next_mnt(p, mnt_ns->root);
@@ -2344,9 +2313,9 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	up_write(&namespace_sem);
 
 	if (rootmnt)
-		mntput_long(rootmnt);
+		mntput(rootmnt);
 	if (pwdmnt)
-		mntput_long(pwdmnt);
+		mntput(pwdmnt);
 
 	return new_ns;
 }
@@ -2379,6 +2348,7 @@ struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 	new_ns = alloc_mnt_ns();
 	if (!IS_ERR(new_ns)) {
 		mnt->mnt_ns = new_ns;
+		atomic_inc(&mnt->mnt_longterm);
 		new_ns->root = mnt;
 		list_add(&new_ns->list, &new_ns->root->mnt_list);
 	}

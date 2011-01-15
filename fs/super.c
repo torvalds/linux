@@ -1141,7 +1141,7 @@ static struct vfsmount *fs_set_subtype(struct vfsmount *mnt, const char *fstype)
 	return mnt;
 
  err:
-	mntput_long(mnt);
+	mntput(mnt);
 	return ERR_PTR(err);
 }
 
