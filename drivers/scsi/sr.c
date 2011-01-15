@@ -249,10 +249,6 @@ skip_tur:
 		cd->device->changed = 0;
 	}
 
-	/* for backward compatibility */
-	if (events & DISK_EVENT_MEDIA_CHANGE)
-		sdev_evt_send_simple(cd->device, SDEV_EVT_MEDIA_CHANGE,
-				     GFP_KERNEL);
 	return events;
 }
 
