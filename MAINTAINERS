@@ -3684,7 +3684,7 @@ F:	kernel/debug/
 
 KMEMCHECK
 M:	Vegard Nossum <vegardno@ifi.uio.no>
-M:	Pekka Enberg <penberg@cs.helsinki.fi>
+M:	Pekka Enberg <penberg@kernel.org>
 S:	Maintained
 F:	Documentation/kmemcheck.txt
 F:	arch/x86/include/asm/kmemcheck.h
@@ -5646,7 +5646,7 @@ F:	drivers/net/sky2.*
 
 SLAB ALLOCATOR
 M:	Christoph Lameter <cl@linux-foundation.org>
-M:	Pekka Enberg <penberg@cs.helsinki.fi>
+M:	Pekka Enberg <penberg@kernel.org>
 M:	Matt Mackall <mpm@selenic.com>
 L:	linux-mm@kvack.org
 S:	Maintained
