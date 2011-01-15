@@ -2068,6 +2068,7 @@ config OLPC
 	bool "One Laptop Per Child support"
 	select GPIOLIB
 	select OLPC_OPENFIRMWARE
+	depends on !X86_64 && !X86_PAE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
