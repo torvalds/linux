@@ -737,6 +737,12 @@ static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 
 	if (sort[a->id] != sort[b->id])
 		return sort[a->id] - sort[b->id];
+	if (a->subseq != b->subseq) {
+		if (power_up)
+			return a->subseq - b->subseq;
+		else
+			return b->subseq - a->subseq;
+	}
 	if (a->reg != b->reg)
 		return a->reg - b->reg;
 	if (a->dapm != b->dapm)
@@ -869,6 +875,7 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 	struct snd_soc_dapm_widget *w, *n;
 	LIST_HEAD(pending);
 	int cur_sort = -1;
+	int cur_subseq = -1;
 	int cur_reg = SND_SOC_NOPM;
 	struct snd_soc_dapm_context *cur_dapm = NULL;
 	int ret;
@@ -884,12 +891,13 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 
 		/* Do we need to apply any queued changes? */
 		if (sort[w->id] != cur_sort || w->reg != cur_reg ||
-		    w->dapm != cur_dapm) {
+		    w->dapm != cur_dapm || w->subseq != cur_subseq) {
 			if (!list_empty(&pending))
 				dapm_seq_run_coalesced(cur_dapm, &pending);
 
 			INIT_LIST_HEAD(&pending);
 			cur_sort = -1;
+			cur_subseq = -1;
 			cur_reg = SND_SOC_NOPM;
 			cur_dapm = NULL;
 		}
@@ -934,6 +942,7 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 		default:
 			/* Queue it up for application */
 			cur_sort = sort[w->id];
+			cur_subseq = w->subseq;
 			cur_reg = w->reg;
 			cur_dapm = w->dapm;
 			list_move(&w->power_list, &pending);

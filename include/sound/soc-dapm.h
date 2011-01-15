@@ -157,6 +157,18 @@
 	.invert = winvert, .kcontrols = wcontrols, .num_kcontrols = 1, \
 	.event = wevent, .event_flags = wflags}
 
+/* additional sequencing control within an event type */
+#define SND_SOC_DAPM_PGA_S(wname, wsubseq, wreg, wshift, winvert, wcontrols, \
+	wncontrols, wevent, wflags) \
+{	.id = snd_soc_dapm_pga, .name = wname, .reg = wreg, .shift = wshift, \
+	.invert = winvert, .kcontrols = wcontrols, .num_kcontrols = wncontrols, \
+	.event = wevent, .event_flags = wflags, .subseq = wsubseq}
+#define SND_SOC_DAPM_SUPPLY_S(wname, wsubseq, wreg, wshift, winvert, wevent, \
+	wflags)	\
+{	.id = snd_soc_dapm_supply, .name = wname, .reg = wreg,	\
+	.shift = wshift, .invert = winvert, .event = wevent, \
+	.event_flags = wflags, .subseq = wsubseq}
+
 /* Simplified versions of above macros, assuming wncontrols = ARRAY_SIZE(wcontrols) */
 #define SOC_PGA_E_ARRAY(wname, wreg, wshift, winvert, wcontrols, \
 	wevent, wflags) \
@@ -450,6 +462,7 @@ struct snd_soc_dapm_widget {
 	unsigned char ext:1;			/* has external widgets */
 	unsigned char force:1;			/* force state */
 	unsigned char ignore_suspend:1;         /* kept enabled over suspend */
+	int subseq;				/* sort within widget type */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);
 
