@@ -462,8 +462,12 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 	if (palive->is_valid == UCODE_VALID_OK)
 		queue_delayed_work(priv->workqueue, pwork,
 				   msecs_to_jiffies(5));
-	else
-		IWL_WARN(priv, "uCode did not respond OK.\n");
+	else {
+		IWL_WARN(priv, "%s uCode did not respond OK.\n",
+			(palive->ver_subtype == INITIALIZE_SUBTYPE) ?
+			"init" : "runtime");
+		queue_work(priv->workqueue, &priv->restart);
+	}
 }
 
 static void iwl_bg_beacon_update(struct work_struct *work)
@@ -2647,13 +2651,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
 	IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
-
-	if (priv->card_alive.is_valid != UCODE_VALID_OK) {
-		/* We had an error bringing up the hardware, so take it
-		 * all the way back down so we can try again */
-		IWL_DEBUG_INFO(priv, "Alive failed.\n");
-		goto restart;
-	}
 
 	/* Initialize uCode has loaded Runtime uCode ... verify inst image.
 	 * This is a paranoid check, because we would not have gotten the
