@@ -66,13 +66,7 @@ const struct inode_operations autofs4_dir_inode_operations = {
 	.rmdir		= autofs4_dir_rmdir,
 };
 
-/* For dentries that don't initiate mounting */
 const struct dentry_operations autofs4_dentry_operations = {
-	.d_release	= autofs4_dentry_release,
-};
-
-/* For dentries that do initiate mounting */
-const struct dentry_operations autofs4_mount_dentry_operations = {
 	.d_automount	= autofs4_d_automount,
 	.d_manage	= autofs4_d_manage,
 	.d_release	= autofs4_dentry_release,
@@ -500,8 +494,6 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 	if (active) {
 		return active;
 	} else {
-		d_set_d_op(dentry, &autofs4_dentry_operations);
-
 		/*
 		 * A dentry that is not within the root can never trigger a
 		 * mount operation, unless the directory already exists, so we
@@ -512,10 +504,8 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			return ERR_PTR(-ENOENT);
 
 		/* Mark entries in the root as mount triggers */
-		if (autofs_type_indirect(sbi->type) && IS_ROOT(dentry->d_parent)) {
-			d_set_d_op(dentry, &autofs4_mount_dentry_operations);
+		if (autofs_type_indirect(sbi->type) && IS_ROOT(dentry->d_parent))
 			__managed_dentry_set_managed(dentry);
-		}
 
 		ino = autofs4_init_ino(NULL, sbi, 0555);
 		if (!ino)
@@ -571,8 +561,6 @@ static int autofs4_dir_symlink(struct inode *dir,
 		return -ENOMEM;
 	}
 	d_add(dentry, inode);
-
-	d_set_d_op(dentry, &autofs4_dentry_operations);
 
 	dentry->d_fsdata = ino;
 	ino->dentry = dget(dentry);
@@ -848,8 +836,7 @@ static inline int autofs4_ask_umount(struct vfsmount *mnt, int __user *p)
 int is_autofs4_dentry(struct dentry *dentry)
 {
 	return dentry && dentry->d_inode &&
-		(dentry->d_op == &autofs4_mount_dentry_operations ||
-		 dentry->d_op == &autofs4_dentry_operations) &&
+		dentry->d_op == &autofs4_dentry_operations &&
 		dentry->d_fsdata != NULL;
 }
 

@@ -207,7 +207,6 @@ extern const struct inode_operations autofs4_dir_inode_operations;
 extern const struct file_operations autofs4_dir_operations;
 extern const struct file_operations autofs4_root_operations;
 extern const struct dentry_operations autofs4_dentry_operations;
-extern const struct dentry_operations autofs4_mount_dentry_operations;
 
 /* VFS automount flags management functions */
 
