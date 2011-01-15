@@ -94,11 +94,13 @@ struct IR {
 	struct mutex ir_lock;
 	int open;
 
+	struct i2c_adapter *adapter;
 	struct IR_rx *rx;
 	struct IR_tx *tx;
 };
 
 /* Minor -> data mapping */
+static struct mutex ir_devices_lock;
 static struct IR *ir_devices[MAX_IRCTL_DEVICES];
 
 /* Block size for IR transmitter */
@@ -131,10 +133,11 @@ static struct mutex tx_data_lock;
 #define zilog_notify(s, args...) printk(KERN_NOTICE KBUILD_MODNAME ": " s, \
 					## args)
 #define zilog_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
+#define zilog_info(s, args...) printk(KERN_INFO KBUILD_MODNAME ": " s, ## args)
 
 /* module parameters */
 static int debug;	/* debug output */
-static int disable_rx;	/* disable RX device */
+static int tx_only;	/* only handle the IR Tx function */
 static int minor = -1;	/* minor number */
 
 #define dprintk(fmt, args...)						\
@@ -252,9 +255,6 @@ static int lirc_thread(void *arg)
 	struct IR *ir = arg;
 	struct IR_rx *rx = ir->rx;
 
-	if (rx == NULL)
-		return -ENXIO;
-
 	if (rx->t_notify != NULL)
 		complete(rx->t_notify);
 
@@ -296,6 +296,7 @@ static int lirc_thread(void *arg)
 		complete(rx->t_notify);
 
 	dprintk("poll thread ended\n");
+	/* FIXME - investigate if this is the proper way to shutdown a kthread*/
 	return 0;
 }
 
@@ -1058,6 +1059,15 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	return result;
 }
 
+/* ir_devices_lock must be held */
+static struct IR *find_ir_device_by_minor(unsigned int minor)
+{
+	if (minor >= MAX_IRCTL_DEVICES)
+		return NULL;
+
+	return ir_devices[minor];
+}
+
 /*
  * Open the IR device.  Get hold of our IR structure and
  * stash it in private_data for the file
@@ -1066,15 +1076,15 @@ static int open(struct inode *node, struct file *filep)
 {
 	struct IR *ir;
 	int ret;
+	unsigned int minor = MINOR(node->i_rdev);
 
 	/* find our IR struct */
-	unsigned minor = MINOR(node->i_rdev);
-	if (minor >= MAX_IRCTL_DEVICES) {
-		dprintk("minor %d: open result = -ENODEV\n",
-			minor);
+	mutex_lock(&ir_devices_lock);
+	ir = find_ir_device_by_minor(minor);
+	mutex_unlock(&ir_devices_lock);
+
+	if (ir == NULL)
 		return -ENODEV;
-	}
-	ir = ir_devices[minor];
 
 	/* increment in use count */
 	mutex_lock(&ir->ir_lock);
@@ -1159,135 +1169,202 @@ static const struct file_operations lirc_fops = {
 	.release	= close
 };
 
+/* FIXME - investigate if this is the proper way to shutdown a kthread */
+static void destroy_rx_kthread(struct IR_rx *rx)
+{
+	DECLARE_COMPLETION(tn);
+	DECLARE_COMPLETION(tn2);
+
+	if (rx == NULL)
+		return;
+
+	/* end up polling thread */
+	if (rx->task && !IS_ERR(rx->task)) {
+		rx->t_notify = &tn;
+		rx->t_notify2 = &tn2;
+		rx->shutdown = 1;
+		wake_up_process(rx->task);
+		complete(&tn2);
+		wait_for_completion(&tn);
+		rx->t_notify = NULL;
+		rx->t_notify2 = NULL;
+	}
+}
+
+/* ir_devices_lock must be held */
+static int add_ir_device(struct IR *ir)
+{
+	int i;
+
+	for (i = 0; i < MAX_IRCTL_DEVICES; i++)
+		if (ir_devices[i] == NULL) {
+			ir_devices[i] = ir;
+			break;
+		}
+
+	return i == MAX_IRCTL_DEVICES ? -ENOMEM : i;
+}
+
+/* ir_devices_lock must be held */
+static void del_ir_device(struct IR *ir)
+{
+	int i;
+
+	for (i = 0; i < MAX_IRCTL_DEVICES; i++)
+		if (ir_devices[i] == ir) {
+			ir_devices[i] = NULL;
+			break;
+		}
+}
+
 static int ir_remove(struct i2c_client *client)
 {
 	struct IR *ir = i2c_get_clientdata(client);
-	struct IR_rx *rx = ir->rx;
-	struct IR_tx *tx = ir->tx;
 
-	/* FIXME make tx, rx senitive */
-	mutex_lock(&ir->ir_lock);
+	mutex_lock(&ir_devices_lock);
 
-	if (rx != NULL || tx != NULL) {
-		DECLARE_COMPLETION(tn);
-		DECLARE_COMPLETION(tn2);
-
-		/* end up polling thread */
-		if (rx->task && !IS_ERR(rx->task)) {
-			rx->t_notify = &tn;
-			rx->t_notify2 = &tn2;
-			rx->shutdown = 1;
-			wake_up_process(rx->task);
-			complete(&tn2);
-			wait_for_completion(&tn);
-			rx->t_notify = NULL;
-			rx->t_notify2 = NULL;
-		}
-
-	} else {
-		mutex_unlock(&ir->ir_lock);
-		zilog_error("%s: detached from something we didn't "
-			    "attach to\n", __func__);
-		return -ENODEV;
+	if (ir == NULL) {
+		/* We destroyed everything when the first client came through */
+		mutex_unlock(&ir_devices_lock);
+		return 0;
 	}
 
-	/* unregister lirc driver */
-	/* FIXME make tx, rx senitive */
-	if (ir->l.minor >= 0 && ir->l.minor < MAX_IRCTL_DEVICES) {
-		lirc_unregister_driver(ir->l.minor);
-		ir_devices[ir->l.minor] = NULL;
+	/* Good-bye LIRC */
+	lirc_unregister_driver(ir->l.minor);
+
+	/* Good-bye Rx */
+	destroy_rx_kthread(ir->rx);
+	if (ir->rx != NULL) {
+		if (ir->rx->buf.fifo_initialized)
+			lirc_buffer_free(&ir->rx->buf);
+		i2c_set_clientdata(ir->rx->c, NULL);
+		kfree(ir->rx);
 	}
 
-	/* free memory */
-	/* FIXME make tx, rx senitive */
-	lirc_buffer_free(&rx->buf);
-	mutex_unlock(&ir->ir_lock);
+	/* Good-bye Tx */
+	i2c_set_clientdata(ir->tx->c, NULL);
+	kfree(ir->tx);
+
+	/* Good-bye IR */
+	del_ir_device(ir);
 	kfree(ir);
 
+	mutex_unlock(&ir_devices_lock);
 	return 0;
+}
+
+
+/* ir_devices_lock must be held */
+static struct IR *find_ir_device_by_adapter(struct i2c_adapter *adapter)
+{
+	int i;
+	struct IR *ir = NULL;
+
+	for (i = 0; i < MAX_IRCTL_DEVICES; i++)
+		if (ir_devices[i] != NULL &&
+		    ir_devices[i]->adapter == adapter) {
+			ir = ir_devices[i];
+			break;
+		}
+
+	return ir;
 }
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	struct IR *ir = NULL;
+	struct IR *ir;
 	struct i2c_adapter *adap = client->adapter;
 	int ret;
-	int have_rx = 0, have_tx = 0;
+	bool tx_probe = false;
 
 	dprintk("%s: %s on i2c-%d (%s), client addr=0x%02x\n",
 		__func__, id->name, adap->nr, adap->name, client->addr);
 
 	/*
-	 * FIXME - This probe function probes both the Tx and Rx
-	 * addresses of the IR microcontroller.
-	 *
-	 * However, the I2C subsystem is passing along one I2C client at a
-	 * time, based on matches to the ir_transceiver_id[] table above.
-	 * The expectation is that each i2c_client address will be probed
-	 * individually by drivers so the I2C subsystem can mark all client
-	 * addresses as claimed or not.
-	 *
-	 * This probe routine causes only one of the client addresses, TX or RX,
-	 * to be claimed.  This will cause a problem if the I2C subsystem is
-	 * subsequently triggered to probe unclaimed clients again.
-	 */
-	/*
-	 * The external IR receiver is at i2c address 0x71.
-	 * The IR transmitter is at 0x70.
+	 * The IR receiver    is at i2c address 0x71.
+	 * The IR transmitter is at i2c address 0x70.
 	 */
 
-	if (id->driver_data & ID_FLAG_TX) {
-		have_tx = 1;
-	} else if (!disable_rx) {
-		have_rx = 1;
-	} else {
+	if (id->driver_data & ID_FLAG_TX)
+		tx_probe = true;
+	else if (tx_only) /* module option */
 		return -ENXIO;
-	}
 
-	printk(KERN_INFO "lirc_zilog: chip found with %s\n",
-		have_rx && have_tx ? "RX and TX" :
-			have_rx ? "RX only" : "TX only");
+	zilog_info("%s: probing IR %s on %s (i2c-%d)\n",
+		   __func__, tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
 
-	ir = kzalloc(sizeof(struct IR), GFP_KERNEL);
-	if (!ir)
-		goto out_nomem;
+	mutex_lock(&ir_devices_lock);
 
-	if (have_tx) {
-		ir->tx = kzalloc(sizeof(struct IR_tx), GFP_KERNEL);
-		if (ir->tx != NULL) {
-			ir->tx->c = client;
-			ir->tx->need_boot = 1;
-			ir->tx->post_tx_ready_poll =
-			       (id->driver_data & ID_FLAG_HDPVR) ? false : true;
+	/* Use a single struct IR instance for both the Rx and Tx functions */
+	ir = find_ir_device_by_adapter(adap);
+	if (ir == NULL) {
+		ir = kzalloc(sizeof(struct IR), GFP_KERNEL);
+		if (ir == NULL) {
+			ret = -ENOMEM;
+			goto out_no_ir;
 		}
+		/* store for use in ir_probe() again, and open() later on */
+		ret = add_ir_device(ir);
+		if (ret)
+			goto out_free_ir;
+
+		ir->adapter = adap;
+		mutex_init(&ir->ir_lock);
+
+		/* set lirc_dev stuff */
+		memcpy(&ir->l, &lirc_template, sizeof(struct lirc_driver));
+		ir->l.minor       = minor; /* module option */
+		ir->l.code_length = 13;
+		ir->l.rbuf	  = NULL;
+		ir->l.fops	  = &lirc_fops;
+		ir->l.data	  = ir;
+		ir->l.dev         = &adap->dev;
+		ir->l.sample_rate = 0;
 	}
 
-	if (have_rx) {
-		ir->rx = kzalloc(sizeof(struct IR_rx), GFP_KERNEL);
+	if (tx_probe) {
+		/* Set up a struct IR_tx instance */
+		ir->tx = kzalloc(sizeof(struct IR_tx), GFP_KERNEL);
+		if (ir->tx == NULL) {
+			ret = -ENOMEM;
+			goto out_free_xx;
+		}
 
+		ir->tx->c = client;
+		ir->tx->need_boot = 1;
+		ir->tx->post_tx_ready_poll =
+			       (id->driver_data & ID_FLAG_HDPVR) ? false : true;
+	} else {
+		/* Set up a struct IR_rx instance */
+		ir->rx = kzalloc(sizeof(struct IR_rx), GFP_KERNEL);
 		if (ir->rx == NULL) {
 			ret = -ENOMEM;
-		} else {
-			ir->rx->c = client;
-			ir->rx->hdpvr_data_fmt =
-			       (id->driver_data & ID_FLAG_HDPVR) ? true : false;
-			mutex_init(&ir->rx->buf_lock);
-			ret = lirc_buffer_init(&ir->rx->buf, 2, BUFLEN / 2);
+			goto out_free_xx;
 		}
 
-		if (ret && (ir->rx != NULL)) {
-			kfree(ir->rx);
-			ir->rx = NULL;
-		}
+		ret = lirc_buffer_init(&ir->rx->buf, 2, BUFLEN / 2);
+		if (ret)
+			goto out_free_xx;
+
+		mutex_init(&ir->rx->buf_lock);
+		ir->rx->c = client;
+		ir->rx->hdpvr_data_fmt =
+			       (id->driver_data & ID_FLAG_HDPVR) ? true : false;
+
+		/* set lirc_dev stuff */
+		ir->l.rbuf = &ir->rx->buf;
 	}
 
-	mutex_init(&ir->ir_lock);
-
-	memcpy(&ir->l, &lirc_template, sizeof(struct lirc_driver));
-	ir->l.minor = -1;
-
-	/* I2C attach to device */
 	i2c_set_clientdata(client, ir);
+
+	/* Proceed only if we have the required Tx and Rx clients ready to go */
+	if (ir->tx == NULL ||
+	    (ir->rx == NULL && !tx_only)) {
+		zilog_info("%s: probe of IR %s on %s (i2c-%d) done, waiting on "
+			   "IR %s\n", __func__, tx_probe ? "Tx" : "Rx",
+			   adap->name, adap->nr, tx_probe ? "Rx" : "Tx");
+		goto out_ok;
+	}
 
 	/* initialise RX device */
 	if (ir->rx != NULL) {
@@ -1298,34 +1375,22 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->rx->task = kthread_run(lirc_thread, ir, "lirc_zilog");
 		if (IS_ERR(ir->rx->task)) {
 			ret = PTR_ERR(ir->rx->task);
-			zilog_error("lirc_register_driver: cannot run "
-				    "poll thread %d\n", ret);
-			goto err;
+			zilog_error("%s: could not start IR Rx polling thread"
+				    "\n", __func__);
+			goto out_free_xx;
 		}
 		wait_for_completion(&tn);
 		ir->rx->t_notify = NULL;
 	}
 
-	/* set lirc_dev stuff */
-	ir->l.code_length = 13;
-	ir->l.rbuf	  = (ir->rx == NULL) ? NULL : &ir->rx->buf;
-	ir->l.fops	  = &lirc_fops;
-	ir->l.data	  = ir;
-	ir->l.minor       = minor;
-	ir->l.dev         = &adap->dev;
-	ir->l.sample_rate = 0;
-
 	/* register with lirc */
 	ir->l.minor = lirc_register_driver(&ir->l);
 	if (ir->l.minor < 0 || ir->l.minor >= MAX_IRCTL_DEVICES) {
-		zilog_error("ir_attach: \"minor\" must be between 0 and %d "
-			    "(%d)!\n", MAX_IRCTL_DEVICES-1, ir->l.minor);
+		zilog_error("%s: \"minor\" must be between 0 and %d (%d)!\n",
+			    __func__, MAX_IRCTL_DEVICES-1, ir->l.minor);
 		ret = -EBADRQC;
-		goto err;
+		goto out_free_thread;
 	}
-
-	/* store this for getting back in open() later on */
-	ir_devices[ir->l.minor] = ir;
 
 	/*
 	 * if we have the tx device, load the 'firmware'.  We do this
@@ -1336,25 +1401,39 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		/* Special TX init */
 		ret = tx_init(ir->tx);
 		if (ret != 0)
-			goto err;
+			goto out_unregister;
 	}
 
+out_ok:
+	mutex_unlock(&ir_devices_lock);
 	return 0;
 
-err:
-	/* FIXME - memory deallocation for all error cases needs work */
-	/* undo everything, hopefully... */
-	if (ir->rx != NULL)
-		ir_remove(ir->rx->c);
-	if (ir->tx != NULL)
-		ir_remove(ir->tx->c);
-	return ret;
-
-out_nomem:
-	/* FIXME - memory deallocation for all error cases needs work */
-	zilog_error("memory allocation failure\n");
+out_unregister:
+	lirc_unregister_driver(ir->l.minor);
+out_free_thread:
+	destroy_rx_kthread(ir->rx);
+out_free_xx:
+	if (ir->rx != NULL) {
+		if (ir->rx->buf.fifo_initialized)
+			lirc_buffer_free(&ir->rx->buf);
+		if (ir->rx->c != NULL)
+			i2c_set_clientdata(ir->rx->c, NULL);
+		kfree(ir->rx);
+	}
+	if (ir->tx != NULL) {
+		if (ir->tx->c != NULL)
+			i2c_set_clientdata(ir->tx->c, NULL);
+		kfree(ir->tx);
+	}
+out_free_ir:
+	del_ir_device(ir);
 	kfree(ir);
-	return -ENOMEM;
+out_no_ir:
+	zilog_error("%s: probing IR %s on %s (i2c-%d) failed with %d\n",
+		    __func__, tx_probe ? "Tx" : "Rx", adap->name, adap->nr,
+		   ret);
+	mutex_unlock(&ir_devices_lock);
+	return ret;
 }
 
 static int ir_command(struct i2c_client *client, unsigned int cmd, void *arg)
@@ -1370,6 +1449,7 @@ static int __init zilog_init(void)
 	zilog_notify("Zilog/Hauppauge IR driver initializing\n");
 
 	mutex_init(&tx_data_lock);
+	mutex_init(&ir_devices_lock);
 
 	request_module("firmware_class");
 
@@ -1406,5 +1486,5 @@ MODULE_PARM_DESC(minor, "Preferred minor device number");
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Enable debugging messages");
 
-module_param(disable_rx, bool, 0644);
-MODULE_PARM_DESC(disable_rx, "Disable the IR receiver device");
+module_param(tx_only, bool, 0644);
+MODULE_PARM_DESC(tx_only, "Only handle the IR transmit function");
