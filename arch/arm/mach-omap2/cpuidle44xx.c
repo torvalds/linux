@@ -14,6 +14,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/export.h>
+#include <linux/clockchips.h>
 
 #include <asm/proc-fns.h>
 
@@ -65,6 +66,7 @@ static int omap4_enter_idle(struct cpuidle_device *dev,
 	u32 cpu1_state;
 	int idle_time;
 	int new_state_idx;
+	int cpu_id = smp_processor_id();
 
 	/* Used to keep track of the total time in idle */
 	getnstimeofday(&ts_preidle);
@@ -85,6 +87,9 @@ static int omap4_enter_idle(struct cpuidle_device *dev,
 		new_state_idx = drv->safe_state_index;
 		cx = cpuidle_get_statedata(&dev->states_usage[new_state_idx]);
 	}
+
+	if (index > 0)
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu_id);
 
 	/*
 	 * Call idle CPU PM enter notifier chain so that
@@ -120,6 +125,9 @@ static int omap4_enter_idle(struct cpuidle_device *dev,
 	 */
 	if (omap4_mpuss_read_prev_context_state())
 		cpu_cluster_pm_exit();
+
+	if (index > 0)
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu_id);
 
 	getnstimeofday(&ts_postidle);
 	ts_idle = timespec_sub(ts_postidle, ts_preidle);
