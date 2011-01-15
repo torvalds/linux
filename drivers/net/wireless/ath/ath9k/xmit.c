@@ -429,7 +429,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	ath_tx_count_frames(sc, bf, ts, txok, &nframes, &nbad);
 	while (bf) {
-		txfail = txpending = 0;
+		txfail = txpending = sendbar = 0;
 		bf_next = bf->bf_next;
 
 		skb = bf->bf_mpdu;
