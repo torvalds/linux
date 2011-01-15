@@ -1,8 +1,7 @@
 /*
  * Common code for Palm LD, T5, TX, Z72
  *
- * Copyright (C) 2010
- * Marek Vasut <marek.vasut@gmail.com>
+ * Copyright (C) 2010-2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

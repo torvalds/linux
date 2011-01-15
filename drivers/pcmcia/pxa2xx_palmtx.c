@@ -3,7 +3,7 @@
  *
  * Driver for Palm T|X PCMCIA
  *
- * Copyright (C) 2007-2008 Marek Vasut <marek.vasut@gmail.com>
+ * Copyright (C) 2007-2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
