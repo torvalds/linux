@@ -95,3 +95,65 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 			return sid->evsel;
 	return NULL;
 }
+
+event_t *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
+{
+	/* XXX Move this to perf.c, making it generally available */
+	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
+	struct perf_mmap *md = &evlist->mmap[cpu];
+	unsigned int head = perf_mmap__read_head(md);
+	unsigned int old = md->prev;
+	unsigned char *data = md->base + page_size;
+	event_t *event = NULL;
+	int diff;
+
+	/*
+	 * If we're further behind than half the buffer, there's a chance
+	 * the writer will bite our tail and mess up the samples under us.
+	 *
+	 * If we somehow ended up ahead of the head, we got messed up.
+	 *
+	 * In either case, truncate and restart at head.
+	 */
+	diff = head - old;
+	if (diff > md->mask / 2 || diff < 0) {
+		fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
+
+		/*
+		 * head points to a known good entry, start there.
+		 */
+		old = head;
+	}
+
+	if (old != head) {
+		size_t size;
+
+		event = (event_t *)&data[old & md->mask];
+		size = event->header.size;
+
+		/*
+		 * Event straddles the mmap boundary -- header should always
+		 * be inside due to u64 alignment of output.
+		 */
+		if ((old & md->mask) + size != ((old + size) & md->mask)) {
+			unsigned int offset = old;
+			unsigned int len = min(sizeof(*event), size), cpy;
+			void *dst = &evlist->event_copy;
+
+			do {
+				cpy = min(md->mask + 1 - (offset & md->mask), len);
+				memcpy(dst, &data[offset & md->mask], cpy);
+				offset += cpy;
+				dst += cpy;
+				len -= cpy;
+			} while (len);
+
+			event = &evlist->event_copy;
+		}
+
+		old += size;
+	}
+
+	md->prev = old;
+	return event;
+}

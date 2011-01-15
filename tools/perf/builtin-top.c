@@ -1100,67 +1100,17 @@ static void event__process_sample(const event_t *self,
 
 static void perf_session__mmap_read_cpu(struct perf_session *self, int cpu)
 {
-	struct perf_mmap *md = &evsel_list->mmap[cpu];
-	unsigned int head = perf_mmap__read_head(md);
-	unsigned int old = md->prev;
-	unsigned char *data = md->base + page_size;
 	struct sample_data sample;
-	int diff;
+	event_t *event;
 
-	/*
-	 * If we're further behind than half the buffer, there's a chance
-	 * the writer will bite our tail and mess up the samples under us.
-	 *
-	 * If we somehow ended up ahead of the head, we got messed up.
-	 *
-	 * In either case, truncate and restart at head.
-	 */
-	diff = head - old;
-	if (diff > md->mask / 2 || diff < 0) {
-		fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
-
-		/*
-		 * head points to a known good entry, start there.
-		 */
-		old = head;
-	}
-
-	for (; old != head;) {
-		event_t *event = (event_t *)&data[old & md->mask];
-
-		event_t event_copy;
-
-		size_t size = event->header.size;
-
-		/*
-		 * Event straddles the mmap boundary -- header should always
-		 * be inside due to u64 alignment of output.
-		 */
-		if ((old & md->mask) + size != ((old + size) & md->mask)) {
-			unsigned int offset = old;
-			unsigned int len = min(sizeof(*event), size), cpy;
-			void *dst = &event_copy;
-
-			do {
-				cpy = min(md->mask + 1 - (offset & md->mask), len);
-				memcpy(dst, &data[offset & md->mask], cpy);
-				offset += cpy;
-				dst += cpy;
-				len -= cpy;
-			} while (len);
-
-			event = &event_copy;
-		}
-
+	while ((event = perf_evlist__read_on_cpu(evsel_list, cpu)) != NULL) {
 		event__parse_sample(event, self, &sample);
+
 		if (event->header.type == PERF_RECORD_SAMPLE)
 			event__process_sample(event, &sample, self);
 		else
 			event__process(event, &sample, self);
-		old += size;
 	}
-
-	md->prev = old;
 }
 
 static void perf_session__mmap_read(struct perf_session *self)

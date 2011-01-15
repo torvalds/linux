@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include "../perf.h"
+#include "event.h"
 
 struct pollfd;
 
@@ -15,6 +16,7 @@ struct perf_evlist {
 	int		 nr_entries;
 	int		 nr_fds;
 	int		 mmap_len;
+	event_t		 event_copy;
 	struct perf_mmap *mmap;
 	struct pollfd	 *pollfd;
 };
@@ -31,5 +33,7 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist, int ncpus, int nthread
 void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
+
+event_t *perf_evlist__read_on_cpu(struct perf_evlist *self, int cpu);
 
 #endif /* __PERF_EVLIST_H */
