@@ -71,7 +71,10 @@ enum {
 
 	SRP_FMR_SIZE		= 256,
 	SRP_FMR_POOL_SIZE	= 1024,
-	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4
+	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4,
+
+	SRP_MAP_ALLOW_FMR	= 0,
+	SRP_MAP_NO_FMR		= 1,
 };
 
 enum srp_target_state {
@@ -93,9 +96,9 @@ struct srp_device {
 	struct ib_pd	       *pd;
 	struct ib_mr	       *mr;
 	struct ib_fmr_pool     *fmr_pool;
-	int			fmr_page_shift;
-	int			fmr_page_size;
 	u64			fmr_page_mask;
+	int			fmr_page_size;
+	int			fmr_max_size;
 };
 
 struct srp_host {
@@ -112,7 +115,9 @@ struct srp_request {
 	struct list_head	list;
 	struct scsi_cmnd       *scmnd;
 	struct srp_iu	       *cmd;
-	struct ib_pool_fmr     *fmr;
+	struct ib_pool_fmr    **fmr_list;
+	u64		       *map_page;
+	short			nfmr;
 	short			index;
 };
 
@@ -179,6 +184,21 @@ struct srp_iu {
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
+};
+
+struct srp_map_state {
+	struct ib_pool_fmr    **next_fmr;
+	struct srp_direct_buf  *desc;
+	u64		       *pages;
+	dma_addr_t		base_dma_addr;
+	u32			fmr_len;
+	u32			total_len;
+	unsigned int		npages;
+	unsigned int		nfmr;
+	unsigned int		ndesc;
+	struct scatterlist     *unmapped_sg;
+	int			unmapped_index;
+	dma_addr_t		unmapped_addr;
 };
 
 #endif /* IB_SRP_H */
