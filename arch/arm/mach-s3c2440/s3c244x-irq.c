@@ -68,27 +68,27 @@ static void s3c_irq_demux_cam(unsigned int irq,
 #define INTMSK_CAM (1UL << (IRQ_CAM - IRQ_EINT0))
 
 static void
-s3c_irq_cam_mask(unsigned int irqno)
+s3c_irq_cam_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_CAM, 3<<11);
+	s3c_irqsub_mask(data->irq, INTMSK_CAM, 3 << 11);
 }
 
 static void
-s3c_irq_cam_unmask(unsigned int irqno)
+s3c_irq_cam_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_CAM);
+	s3c_irqsub_unmask(data->irq, INTMSK_CAM);
 }
 
 static void
-s3c_irq_cam_ack(unsigned int irqno)
+s3c_irq_cam_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_CAM, 3<<11);
+	s3c_irqsub_maskack(data->irq, INTMSK_CAM, 3 << 11);
 }
 
 static struct irq_chip s3c_irq_cam = {
-	.mask	    = s3c_irq_cam_mask,
-	.unmask	    = s3c_irq_cam_unmask,
-	.ack	    = s3c_irq_cam_ack,
+	.irq_mask	= s3c_irq_cam_mask,
+	.irq_unmask	= s3c_irq_cam_unmask,
+	.irq_ack	= s3c_irq_cam_ack,
 };
 
 static int s3c244x_irq_add(struct sys_device *sysdev)
