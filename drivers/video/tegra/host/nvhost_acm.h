@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 
-#define NVHOST_MODULE_MAX_CLOCKS 2
+#define NVHOST_MODULE_MAX_CLOCKS 3
 
 struct nvhost_module;
 
