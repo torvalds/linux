@@ -830,8 +830,8 @@ static void __init zeus_init(void)
 	pr_info("Zeus CPLD V%dI%d\n", (system_rev & 0xf0) >> 4, (system_rev & 0x0f));
 
 	/* Fix timings for dm9000s (CS1/CS2)*/
-	msc0 = __raw_readl(MSC0) & 0x0000ffff | (dm9000_msc << 16);
-	msc1 = __raw_readl(MSC1) & 0xffff0000 | dm9000_msc;
+	msc0 = (__raw_readl(MSC0) & 0x0000ffff) | (dm9000_msc << 16);
+	msc1 = (__raw_readl(MSC1) & 0xffff0000) | dm9000_msc;
 	__raw_writel(msc0, MSC0);
 	__raw_writel(msc1, MSC1);
 
