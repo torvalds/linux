@@ -1245,6 +1245,11 @@ static int tegra_clk_shared_bus_set_rate(struct clk *c, unsigned long rate)
 	return 0;
 }
 
+static long tegra_clk_shared_bus_round_rate(struct clk *c, unsigned long rate)
+{
+	return clk_round_rate(c->parent, rate);
+}
+
 static int tegra_clk_shared_bus_enable(struct clk *c)
 {
 	c->u.shared_bus_user.enabled = true;
@@ -1263,6 +1268,7 @@ static struct clk_ops tegra_clk_shared_bus_ops = {
 	.enable = tegra_clk_shared_bus_enable,
 	.disable = tegra_clk_shared_bus_disable,
 	.set_rate = tegra_clk_shared_bus_set_rate,
+	.round_rate = tegra_clk_shared_bus_round_rate,
 };
 
 
@@ -2018,6 +2024,7 @@ struct clk tegra_list_clks[] = {
 	SHARED_CLK("disp1.emc",	"tegradc.0",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("disp2.emc",	"tegradc.1",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("hdmi.emc",	"hdmi",			"emc",	&tegra_clk_emc),
+	SHARED_CLK("host.emc",	"tegra_grhost",		"emc",	&tegra_clk_emc),
 };
 
 #define CLK_DUPLICATE(_name, _dev, _con)		\
