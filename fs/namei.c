@@ -1089,6 +1089,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		nd->seq = seq;
 		if (dentry->d_flags & DCACHE_OP_REVALIDATE)
 			goto need_revalidate;
+done2:
 		path->mnt = mnt;
 		path->dentry = dentry;
 		__follow_mount_rcu(nd, path, inode);
@@ -1143,6 +1144,8 @@ need_revalidate:
 		goto need_lookup;
 	if (IS_ERR(dentry))
 		goto fail;
+	if (nd->flags & LOOKUP_RCU)
+		goto done2;
 	goto done;
 
 fail:
