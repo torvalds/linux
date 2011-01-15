@@ -1362,27 +1362,27 @@ static long effective_load(struct task_group *tg, int cpu, long wl, long wg)
 		return wl;
 
 	for_each_sched_entity(se) {
-		long S, rw, s, a, b;
+		long lw, w;
 
-		S = se->my_q->tg->shares;
-		s = se->load.weight;
-		rw = se->my_q->load.weight;
+		tg = se->my_q->tg;
+		w = se->my_q->load.weight;
 
-		a = S*(rw + wl);
-		b = S*rw + s*wg;
+		/* use this cpu's instantaneous contribution */
+		lw = atomic_read(&tg->load_weight);
+		lw -= se->my_q->load_contribution;
+		lw += w + wg;
 
-		wl = s*(a-b);
+		wl += w;
 
-		if (likely(b))
-			wl /= b;
+		if (lw > 0 && wl < lw)
+			wl = (wl * tg->shares) / lw;
+		else
+			wl = tg->shares;
 
-		/*
-		 * Assume the group is already running and will
-		 * thus already be accounted for in the weight.
-		 *
-		 * That is, moving shares between CPUs, does not
-		 * alter the group weight.
-		 */
+		/* zero point is MIN_SHARES */
+		if (wl < MIN_SHARES)
+			wl = MIN_SHARES;
+		wl -= se->load.weight;
 		wg = 0;
 	}
 
