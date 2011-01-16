@@ -112,6 +112,10 @@ do
 	    # this relies on some vendor-specific commands
 	    echo "test 14: control writes"
 	    do_test -t 14 -c 15000 -s 256 -v 1
+
+	    echo "test 21: control writes, unaligned"
+	    do_test -t 21 -c 100 -s 256 -v 1
+
 	    ;;
 
 	out)
@@ -122,6 +126,13 @@ do
 	    do_test -t 1
 	    echo "test 3: $COUNT transfers, variable/short size"
 	    do_test -t 3 -v 421
+
+	    COUNT=100
+	    echo "test 17: $COUNT transfers, unaligned DMA map by core"
+	    do_test -t 17
+
+	    echo "test 19: $COUNT transfers, unaligned DMA map by usb_alloc_coherent"
+	    do_test -t 19
 
 	    COUNT=2000
 	    echo "test 5: $COUNT scatterlists, same size entries"
@@ -159,6 +170,10 @@ do
 	    # FIXME it'd make sense to have an iso OUT test issuing
 	    # short writes on more packets than the last one
 
+	    COUNT=100
+	    echo "test 22: $COUNT transfers, non aligned"
+	    do_test -t 22 -g 8 -v 0
+
 	    ;;
 
 	in)
@@ -172,6 +187,13 @@ do
 	    do_test -t 2
 	    echo "test 4: $COUNT transfers, variable size"
 	    do_test -t 4
+
+	    COUNT=100
+	    echo "test 18: $COUNT transfers, unaligned DMA map by core"
+	    do_test -t 18
+
+	    echo "test 20: $COUNT transfers, unaligned DMA map by usb_alloc_coherent"
+	    do_test -t 20
 
 	    COUNT=2000
 	    echo "test 6: $COUNT scatterlists, same size entries"
@@ -200,6 +222,10 @@ do
 
 	    # FIXME since iso expects faults, it'd make sense
 	    # to have an iso IN test issuing short reads ...
+
+	    COUNT=100
+	    echo "test 23: $COUNT transfers, unaligned"
+	    do_test -t 23 -g 8 -v 0
 
 	    ;;
 
