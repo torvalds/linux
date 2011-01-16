@@ -206,8 +206,7 @@ static int add_to_buf(struct IR *ir)
 				return -ENODATA;
 			}
 			schedule_timeout((100 * HZ + 999) / 1000);
-			if (ir->tx != NULL)
-				ir->tx->need_boot = 1;
+			ir->tx->need_boot = 1;
 
 			++failures;
 			mutex_unlock(&ir->ir_lock);
@@ -1010,10 +1009,9 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	int result;
 	unsigned long mode, features = 0;
 
+	features |= LIRC_CAN_SEND_PULSE;
 	if (ir->rx != NULL)
 		features |= LIRC_CAN_REC_LIRCCODE;
-	if (ir->tx != NULL)
-		features |= LIRC_CAN_SEND_PULSE;
 
 	switch (cmd) {
 	case LIRC_GET_LENGTH:
@@ -1040,15 +1038,9 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			result = -EINVAL;
 		break;
 	case LIRC_GET_SEND_MODE:
-		if (!(features&LIRC_CAN_SEND_MASK))
-			return -ENOSYS;
-
 		result = put_user(LIRC_MODE_PULSE, (unsigned long *) arg);
 		break;
 	case LIRC_SET_SEND_MODE:
-		if (!(features&LIRC_CAN_SEND_MASK))
-			return -ENOSYS;
-
 		result = get_user(mode, (unsigned long *) arg);
 		if (!result && mode != LIRC_MODE_PULSE)
 			return -EINVAL;
@@ -1380,12 +1372,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * after registering with lirc as otherwise hotplug seems to take
 	 * 10s to create the lirc device.
 	 */
-	if (ir->tx != NULL) {
-		/* Special TX init */
-		ret = tx_init(ir->tx);
-		if (ret != 0)
-			goto out_unregister;
-	}
+	ret = tx_init(ir->tx);
+	if (ret != 0)
+		goto out_unregister;
 
 	zilog_info("probe of IR %s on %s (i2c-%d) done. IR unit ready.\n",
 		   tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
