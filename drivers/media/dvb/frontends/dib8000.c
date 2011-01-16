@@ -2134,54 +2134,54 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 			 ((state->fe[0]->dtv_property_cache.layer[1].segment_count == 0) ||
 			  ((state->fe[0]->dtv_property_cache.isdbt_layer_enabled & (2 << 0)) == 0)) &&
 			 ((state->fe[0]->dtv_property_cache.layer[2].segment_count == 0) || ((state->fe[0]->dtv_property_cache.isdbt_layer_enabled & (3 << 0)) == 0)))) {
-				 int i = 80000;
-				 u8 found = 0;
-				 u8 tune_failed = 0;
+		int i = 80000;
+		u8 found = 0;
+		u8 tune_failed = 0;
 
-				 for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
-					 dib8000_set_bandwidth(state->fe[index_frontend], fe->dtv_property_cache.bandwidth_hz / 1000);
-					 dib8000_autosearch_start(state->fe[index_frontend]);
-				 }
+		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+			dib8000_set_bandwidth(state->fe[index_frontend], fe->dtv_property_cache.bandwidth_hz / 1000);
+			dib8000_autosearch_start(state->fe[index_frontend]);
+		}
 
-				 do {
-					 msleep(20);
-					 nbr_pending = 0;
-					 exit_condition = 0; /* 0: tune pending; 1: tune failed; 2:tune success */
-					 for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
-						 if (((tune_failed >> index_frontend) & 0x1) == 0) {
-							 found = dib8000_autosearch_irq(state->fe[index_frontend]);
-							 switch (found) {
-							 case 0: /* tune pending */
-									 nbr_pending++;
-									 break;
-							 case 2:
-									 dprintk("autosearch succeed on the frontend%i", index_frontend);
-									 exit_condition = 2;
-									 index_frontend_success = index_frontend;
-									 break;
-							 default:
-									 dprintk("unhandled autosearch result");
-							 case 1:
-									 dprintk("autosearch failed for the frontend%i", index_frontend);
-									 break;
-							 }
-						 }
-					 }
+		do {
+			msleep(20);
+			nbr_pending = 0;
+			exit_condition = 0; /* 0: tune pending; 1: tune failed; 2:tune success */
+			for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+				if (((tune_failed >> index_frontend) & 0x1) == 0) {
+					found = dib8000_autosearch_irq(state->fe[index_frontend]);
+					switch (found) {
+					case 0: /* tune pending */
+						 nbr_pending++;
+						 break;
+					case 2:
+						 dprintk("autosearch succeed on the frontend%i", index_frontend);
+						 exit_condition = 2;
+						 index_frontend_success = index_frontend;
+						 break;
+					default:
+						 dprintk("unhandled autosearch result");
+					case 1:
+						 dprintk("autosearch failed for the frontend%i", index_frontend);
+						 break;
+					}
+				}
+			}
 
-					 /* if all tune are done and no success, exit: tune failed */
-					 if ((nbr_pending == 0) && (exit_condition == 0))
-						 exit_condition = 1;
-				 } while ((exit_condition == 0) && i--);
+			/* if all tune are done and no success, exit: tune failed */
+			if ((nbr_pending == 0) && (exit_condition == 0))
+				exit_condition = 1;
+		} while ((exit_condition == 0) && i--);
 
-				 if (exit_condition == 1) { /* tune failed */
-					 dprintk("tune failed");
-					 return 0;
-				 }
+		if (exit_condition == 1) { /* tune failed */
+			dprintk("tune failed");
+			return 0;
+		}
 
-				 dprintk("tune success on frontend%i", index_frontend_success);
+		dprintk("tune success on frontend%i", index_frontend_success);
 
-				 dib8000_get_frontend(fe, fep);
-			 }
+		dib8000_get_frontend(fe, fep);
+	}
 
 	for (index_frontend = 0, ret = 0; (ret >= 0) && (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		ret = dib8000_tune(state->fe[index_frontend]);
