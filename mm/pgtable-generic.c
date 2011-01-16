@@ -92,32 +92,29 @@ pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
 #endif
 
 #ifndef __HAVE_ARCH_PMDP_CLEAR_FLUSH
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
 		       pmd_t *pmdp)
 {
 	pmd_t pmd;
-#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-	BUG();
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 	pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	return pmd;
 }
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
 
 #ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 pmd_t pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
 			   pmd_t *pmdp)
 {
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pmd_t pmd = pmd_mksplitting(*pmdp);
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
 	/* tlb flush only to serialize against gup-fast */
 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-	BUG();
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 }
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
