@@ -1344,7 +1344,10 @@ int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc)
 
 	ctrl = ref->ctrl;
 	memset(qc, 0, sizeof(*qc));
-	qc->id = ctrl->id;
+	if (id >= V4L2_CID_PRIVATE_BASE)
+		qc->id = id;
+	else
+		qc->id = ctrl->id;
 	strlcpy(qc->name, ctrl->name, sizeof(qc->name));
 	qc->minimum = ctrl->minimum;
 	qc->maximum = ctrl->maximum;
