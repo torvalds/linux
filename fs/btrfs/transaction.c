@@ -910,6 +910,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	u64 to_reserve = 0;
 	u64 index = 0;
 	u64 objectid;
+	u64 root_flags;
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
 	if (!new_root_item) {
@@ -966,6 +967,13 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	record_root_in_trans(trans, root);
 	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
+
+	root_flags = btrfs_root_flags(new_root_item);
+	if (pending->readonly)
+		root_flags |= BTRFS_ROOT_SUBVOL_RDONLY;
+	else
+		root_flags &= ~BTRFS_ROOT_SUBVOL_RDONLY;
+	btrfs_set_root_flags(new_root_item, root_flags);
 
 	old = btrfs_lock_root_node(root);
 	btrfs_cow_block(trans, root, old, NULL, 0, &old);

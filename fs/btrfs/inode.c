@@ -3671,7 +3671,11 @@ static int btrfs_setattr_size(struct inode *inode, struct iattr *attr)
 static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int err;
+
+	if (btrfs_root_readonly(root))
+		return -EROFS;
 
 	err = inode_change_ok(inode, attr);
 	if (err)
@@ -7206,6 +7210,10 @@ static int btrfs_set_page_dirty(struct page *page)
 
 static int btrfs_permission(struct inode *inode, int mask)
 {
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	if (btrfs_root_readonly(root) && (mask & MAY_WRITE))
+		return -EROFS;
 	if ((BTRFS_I(inode)->flags & BTRFS_INODE_READONLY) && (mask & MAY_WRITE))
 		return -EACCES;
 	return generic_permission(inode, mask, btrfs_check_acl);

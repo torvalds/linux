@@ -597,6 +597,8 @@ struct btrfs_dir_item {
 	u8 type;
 } __attribute__ ((__packed__));
 
+#define BTRFS_ROOT_SUBVOL_RDONLY	(1ULL << 0)
+
 struct btrfs_root_item {
 	struct btrfs_inode_item inode;
 	__le64 generation;
@@ -1892,6 +1894,11 @@ BTRFS_SETGET_STACK_FUNCS(root_used, struct btrfs_root_item, bytes_used, 64);
 BTRFS_SETGET_STACK_FUNCS(root_limit, struct btrfs_root_item, byte_limit, 64);
 BTRFS_SETGET_STACK_FUNCS(root_last_snapshot, struct btrfs_root_item,
 			 last_snapshot, 64);
+
+static inline bool btrfs_root_readonly(struct btrfs_root *root)
+{
+	return root->root_item.flags & BTRFS_ROOT_SUBVOL_RDONLY;
+}
 
 /* struct btrfs_super_block */
 
