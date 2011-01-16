@@ -69,9 +69,6 @@ struct IR_rx {
 	struct mutex buf_lock;
 
 	/* RX polling thread data */
-	struct completion *t_notify;
-	struct completion *t_notify2;
-	int shutdown;
 	struct task_struct *task;
 
 	/* RX read data */
@@ -171,11 +168,19 @@ static int add_to_buf(struct IR *ir)
 	 * data and we have space
 	 */
 	do {
+		if (kthread_should_stop())
+			return -ENODATA;
+
 		/*
 		 * Lock i2c bus for the duration.  RX/TX chips interfere so
 		 * this is worth it
 		 */
 		mutex_lock(&ir->ir_lock);
+
+		if (kthread_should_stop()) {
+			mutex_unlock(&ir->ir_lock);
+			return -ENODATA;
+		}
 
 		/*
 		 * Send random "poll command" (?)  Windows driver does this
@@ -196,6 +201,10 @@ static int add_to_buf(struct IR *ir)
 				    "trying reset\n");
 
 			set_current_state(TASK_UNINTERRUPTIBLE);
+			if (kthread_should_stop()) {
+				mutex_unlock(&ir->ir_lock);
+				return -ENODATA;
+			}
 			schedule_timeout((100 * HZ + 999) / 1000);
 			if (ir->tx != NULL)
 				ir->tx->need_boot = 1;
@@ -205,6 +214,10 @@ static int add_to_buf(struct IR *ir)
 			continue;
 		}
 
+		if (kthread_should_stop()) {
+			mutex_unlock(&ir->ir_lock);
+			return -ENODATA;
+		}
 		ret = i2c_master_recv(rx->c, keybuf, sizeof(keybuf));
 		mutex_unlock(&ir->ir_lock);
 		if (ret != sizeof(keybuf)) {
@@ -255,48 +268,35 @@ static int lirc_thread(void *arg)
 	struct IR *ir = arg;
 	struct IR_rx *rx = ir->rx;
 
-	if (rx->t_notify != NULL)
-		complete(rx->t_notify);
-
 	dprintk("poll thread started\n");
 
-	do {
-		if (ir->open) {
-			set_current_state(TASK_INTERRUPTIBLE);
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
 
-			/*
-			 * This is ~113*2 + 24 + jitter (2*repeat gap +
-			 * code length).  We use this interval as the chip
-			 * resets every time you poll it (bad!).  This is
-			 * therefore just sufficient to catch all of the
-			 * button presses.  It makes the remote much more
-			 * responsive.  You can see the difference by
-			 * running irw and holding down a button.  With
-			 * 100ms, the old polling interval, you'll notice
-			 * breaks in the repeat sequence corresponding to
-			 * lost keypresses.
-			 */
-			schedule_timeout((260 * HZ) / 1000);
-			if (rx->shutdown)
-				break;
-			if (!add_to_buf(ir))
-				wake_up_interruptible(&rx->buf.wait_poll);
-		} else {
-			/* if device not opened so we can sleep half a second */
-			set_current_state(TASK_INTERRUPTIBLE);
+		/* if device not opened, we can sleep half a second */
+		if (!ir->open) {
 			schedule_timeout(HZ/2);
+			continue;
 		}
-	} while (!rx->shutdown);
 
-	if (rx->t_notify2 != NULL)
-		wait_for_completion(rx->t_notify2);
-
-	rx->task = NULL;
-	if (rx->t_notify != NULL)
-		complete(rx->t_notify);
+		/*
+		 * This is ~113*2 + 24 + jitter (2*repeat gap + code length).
+		 * We use this interval as the chip resets every time you poll
+		 * it (bad!).  This is therefore just sufficient to catch all
+		 * of the button presses.  It makes the remote much more
+		 * responsive.  You can see the difference by running irw and
+		 * holding down a button.  With 100ms, the old polling
+		 * interval, you'll notice breaks in the repeat sequence
+		 * corresponding to lost keypresses.
+		 */
+		schedule_timeout((260 * HZ) / 1000);
+		if (kthread_should_stop())
+			break;
+		if (!add_to_buf(ir))
+			wake_up_interruptible(&rx->buf.wait_poll);
+	}
 
 	dprintk("poll thread ended\n");
-	/* FIXME - investigate if this is the proper way to shutdown a kthread*/
 	return 0;
 }
 
@@ -1169,25 +1169,12 @@ static const struct file_operations lirc_fops = {
 	.release	= close
 };
 
-/* FIXME - investigate if this is the proper way to shutdown a kthread */
 static void destroy_rx_kthread(struct IR_rx *rx)
 {
-	DECLARE_COMPLETION(tn);
-	DECLARE_COMPLETION(tn2);
-
-	if (rx == NULL)
-		return;
-
 	/* end up polling thread */
-	if (rx->task && !IS_ERR(rx->task)) {
-		rx->t_notify = &tn;
-		rx->t_notify2 = &tn2;
-		rx->shutdown = 1;
-		wake_up_process(rx->task);
-		complete(&tn2);
-		wait_for_completion(&tn);
-		rx->t_notify = NULL;
-		rx->t_notify2 = NULL;
+	if (rx != NULL && !IS_ERR_OR_NULL(rx->task)) {
+		kthread_stop(rx->task);
+		rx->task = NULL;
 	}
 }
 
@@ -1290,8 +1277,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	else if (tx_only) /* module option */
 		return -ENXIO;
 
-	zilog_info("%s: probing IR %s on %s (i2c-%d)\n",
-		   __func__, tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
+	zilog_info("probing IR %s on %s (i2c-%d)\n",
+		   tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
 
 	mutex_lock(&ir_devices_lock);
 
@@ -1360,27 +1347,23 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Proceed only if we have the required Tx and Rx clients ready to go */
 	if (ir->tx == NULL ||
 	    (ir->rx == NULL && !tx_only)) {
-		zilog_info("%s: probe of IR %s on %s (i2c-%d) done, waiting on "
-			   "IR %s\n", __func__, tx_probe ? "Tx" : "Rx",
-			   adap->name, adap->nr, tx_probe ? "Rx" : "Tx");
+		zilog_info("probe of IR %s on %s (i2c-%d) done. Waiting on "
+			   "IR %s.\n", tx_probe ? "Tx" : "Rx", adap->name,
+			   adap->nr, tx_probe ? "Rx" : "Tx");
 		goto out_ok;
 	}
 
 	/* initialise RX device */
 	if (ir->rx != NULL) {
-		DECLARE_COMPLETION(tn);
-
 		/* try to fire up polling thread */
-		ir->rx->t_notify = &tn;
-		ir->rx->task = kthread_run(lirc_thread, ir, "lirc_zilog");
+		ir->rx->task = kthread_run(lirc_thread, ir,
+					   "zilog-rx-i2c-%d", adap->nr);
 		if (IS_ERR(ir->rx->task)) {
 			ret = PTR_ERR(ir->rx->task);
 			zilog_error("%s: could not start IR Rx polling thread"
 				    "\n", __func__);
 			goto out_free_xx;
 		}
-		wait_for_completion(&tn);
-		ir->rx->t_notify = NULL;
 	}
 
 	/* register with lirc */
@@ -1404,6 +1387,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto out_unregister;
 	}
 
+	zilog_info("probe of IR %s on %s (i2c-%d) done. IR unit ready.\n",
+		   tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
 out_ok:
 	mutex_unlock(&ir_devices_lock);
 	return 0;
