@@ -323,6 +323,12 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		rc_type     = RC_TYPE_OTHER;
 		ir_codes    = RC_MAP_AVERMEDIA_CARDBUS;
 		break;
+	case 0x71:
+		name        = "Hauppauge/Zilog Z8";
+		ir->get_key = get_key_haup_xvr;
+		rc_type     = RC_TYPE_RC5;
+		ir_codes    = hauppauge ? RC_MAP_HAUPPAUGE_NEW : RC_MAP_RC5_TV;
+		break;
 	}
 
 	/* Let the caller override settings */
