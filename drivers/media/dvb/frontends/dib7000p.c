@@ -880,7 +880,7 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 	case TRANSMISSION_MODE_2K:
 		value |= (0 << 7);
 		break;
-    case TRANSMISSION_MODE_4K:
+	case TRANSMISSION_MODE_4K:
 		value |= (2 << 7);
 		break;
 	default:
@@ -1207,7 +1207,7 @@ static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	case TRANSMISSION_MODE_2K:
 		tmp |= (2 << 12);
 		break;
-    case TRANSMISSION_MODE_4K:
+	case TRANSMISSION_MODE_4K:
 		tmp |= (3 << 12);
 		break;
 	default:
@@ -1223,7 +1223,7 @@ static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	case TRANSMISSION_MODE_2K:
 		tmp |= 0x6;
 		break;
-    case TRANSMISSION_MODE_4K:
+	case TRANSMISSION_MODE_4K:
 		tmp |= 0x7;
 		break;
 	default:
@@ -1325,7 +1325,7 @@ static int dib7000p_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_pa
 	case 1:
 		fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_8K;
 		break;
-		/* case 2: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_4K; break; */
+	/* case 2: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_4K; break; */
 	}
 
 	switch (tps & 0x3) {
