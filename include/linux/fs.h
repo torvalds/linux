@@ -1483,8 +1483,8 @@ struct fiemap_extent_info {
 	unsigned int fi_flags;		/* Flags as passed from user */
 	unsigned int fi_extents_mapped;	/* Number of mapped extents */
 	unsigned int fi_extents_max;	/* Size of fiemap_extent array */
-	struct fiemap_extent *fi_extents_start; /* Start of fiemap_extent
-						 * array */
+	struct fiemap_extent __user *fi_extents_start; /* Start of
+							fiemap_extent array */
 };
 int fiemap_fill_next_extent(struct fiemap_extent_info *info, u64 logical,
 			    u64 phys, u64 len, u32 flags);
