@@ -215,17 +215,6 @@ static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
 	return (*pipefd < 0);
 }
 
-static struct autofs_info *autofs4_mkroot(struct autofs_sb_info *sbi)
-{
-	struct autofs_info *ino;
-
-	ino = autofs4_init_ino(NULL, sbi, S_IFDIR | 0755);
-	if (!ino)
-		return NULL;
-
-	return ino;
-}
-
 int autofs4_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode * root_inode;
@@ -269,7 +258,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * Get the root inode and dentry, but defer checking for errors.
 	 */
-	ino = autofs4_mkroot(sbi);
+	ino = autofs4_init_ino(NULL, sbi, S_IFDIR | 0755);
 	if (!ino)
 		goto fail_free;
 	root_inode = autofs4_get_inode(s, ino);
