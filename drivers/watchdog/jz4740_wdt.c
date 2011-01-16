@@ -130,11 +130,18 @@ static ssize_t jz4740_wdt_write(struct file *file, const char *data,
 		size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (data[len-1] == 'V')
-			set_bit(WDT_OK_TO_CLOSE, &jz4740_wdt.status);
-		else
-			clear_bit(WDT_OK_TO_CLOSE, &jz4740_wdt.status);
+		size_t i;
 
+		clear_bit(WDT_OK_TO_CLOSE, &jz4740_wdt.status);
+		for (i = 0; i != len; i++) {
+			char c;
+
+			if (get_user(c, data + i))
+				return -EFAULT;
+
+			if (c == 'V')
+				set_bit(WDT_OK_TO_CLOSE, &jz4740_wdt.status);
+		}
 		jz4740_wdt_service();
 	}
 
