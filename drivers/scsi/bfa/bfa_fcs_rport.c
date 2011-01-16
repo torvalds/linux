@@ -1968,7 +1968,7 @@ bfa_fcs_rport_alloc(struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 rpid)
 	/*
 	 * allocate FC-4s
 	 */
-	bfa_assert(bfa_fcs_lport_is_initiator(port));
+	WARN_ON(!bfa_fcs_lport_is_initiator(port));
 
 	if (bfa_fcs_lport_is_initiator(port)) {
 		rport->itnim = bfa_fcs_itnim_create(rport);
@@ -2897,7 +2897,7 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		num_ents = be16_to_cpu(rpsc2_acc->num_pids);
 		bfa_trc(rport->fcs, num_ents);
 		if (num_ents > 0) {
-			bfa_assert(rpsc2_acc->port_info[0].pid != rport->pid);
+			WARN_ON(rpsc2_acc->port_info[0].pid == rport->pid);
 			bfa_trc(rport->fcs,
 				be16_to_cpu(rpsc2_acc->port_info[0].pid));
 			bfa_trc(rport->fcs,

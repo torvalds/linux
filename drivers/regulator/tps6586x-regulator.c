@@ -85,7 +85,8 @@ static int tps6586x_ldo_list_voltage(struct regulator_dev *rdev,
 
 static int __tps6586x_ldo_set_voltage(struct device *parent,
 				      struct tps6586x_regulator *ri,
-				      int min_uV, int max_uV)
+				      int min_uV, int max_uV,
+				      unsigned *selector)
 {
 	int val, uV;
 	uint8_t mask;
@@ -100,6 +101,8 @@ static int __tps6586x_ldo_set_voltage(struct device *parent,
 		/* use the first in-range value */
 		if (min_uV <= uV && uV <= max_uV) {
 
+			*selector = val;
+
 			val <<= ri->volt_shift;
 			mask = ((1 << ri->volt_nbits) - 1) << ri->volt_shift;
 
@@ -111,12 +114,13 @@ static int __tps6586x_ldo_set_voltage(struct device *parent,
 }
 
 static int tps6586x_ldo_set_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV)
+				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_tps6586x_dev(rdev);
 
-	return __tps6586x_ldo_set_voltage(parent, ri, min_uV, max_uV);
+	return __tps6586x_ldo_set_voltage(parent, ri, min_uV, max_uV,
+					  selector);
 }
 
 static int tps6586x_ldo_get_voltage(struct regulator_dev *rdev)
@@ -140,13 +144,14 @@ static int tps6586x_ldo_get_voltage(struct regulator_dev *rdev)
 }
 
 static int tps6586x_dvm_set_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV)
+				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_tps6586x_dev(rdev);
 	int ret;
 
-	ret = __tps6586x_ldo_set_voltage(parent, ri, min_uV, max_uV);
+	ret = __tps6586x_ldo_set_voltage(parent, ri, min_uV, max_uV,
+					 selector);
 	if (ret)
 		return ret;
 

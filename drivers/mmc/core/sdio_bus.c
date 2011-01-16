@@ -197,44 +197,12 @@ out:
 
 #ifdef CONFIG_PM_RUNTIME
 
-static int sdio_bus_pm_prepare(struct device *dev)
-{
-	struct sdio_func *func = dev_to_sdio_func(dev);
-
-	/*
-	 * Resume an SDIO device which was suspended at run time at this
-	 * point, in order to allow standard SDIO suspend/resume paths
-	 * to keep working as usual.
-	 *
-	 * Ultimately, the SDIO driver itself will decide (in its
-	 * suspend handler, or lack thereof) whether the card should be
-	 * removed or kept, and if kept, at what power state.
-	 *
-	 * At this point, PM core have increased our use count, so it's
-	 * safe to directly resume the device. After system is resumed
-	 * again, PM core will drop back its runtime PM use count, and if
-	 * needed device will be suspended again.
-	 *
-	 * The end result is guaranteed to be a power state that is
-	 * coherent with the device's runtime PM use count.
-	 *
-	 * The return value of pm_runtime_resume is deliberately unchecked
-	 * since there is little point in failing system suspend if a
-	 * device can't be resumed.
-	 */
-	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
-		pm_runtime_resume(dev);
-
-	return 0;
-}
-
 static const struct dev_pm_ops sdio_bus_pm_ops = {
 	SET_RUNTIME_PM_OPS(
 		pm_generic_runtime_suspend,
 		pm_generic_runtime_resume,
 		pm_generic_runtime_idle
 	)
-	.prepare = sdio_bus_pm_prepare,
 };
 
 #define SDIO_PM_OPS_PTR	(&sdio_bus_pm_ops)

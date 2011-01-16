@@ -25,21 +25,11 @@ static const int pll1rate[]={8,12,16,0};
 static const int pfc_divisors[]={1,2,3,4,6,8,12};
 #define ifc_divisors pfc_divisors
 
-#if (CONFIG_SH_CLK_MD == 0)
-#define PLL2 (1)
-#elif (CONFIG_SH_CLK_MD == 1)
-#define PLL2 (2)
-#elif (CONFIG_SH_CLK_MD == 2)
-#define PLL2 (4)
-#elif (CONFIG_SH_CLK_MD == 3)
-#define PLL2 (4)
-#else
-#error "Illegal Clock Mode!"
-#endif
+static unsigned int pll2_mult;
 
 static void master_clk_init(struct clk *clk)
 {
-	clk->rate *= pll1rate[(__raw_readw(FREQCR) >> 8) & 0x0003] * PLL2 ;
+	clk->rate *= pll1rate[(__raw_readw(FREQCR) >> 8) & 0x0003] * pll2_mult;
 }
 
 static struct clk_ops sh7203_master_clk_ops = {
@@ -79,6 +69,13 @@ static struct clk_ops *sh7203_clk_ops[] = {
 
 void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 {
+	if (test_mode_pin(MODE_PIN1))
+		pll2_mult = 4;
+	else if (test_mode_pin(MODE_PIN0))
+		pll2_mult = 2;
+	else
+		pll2_mult = 1;
+
 	if (idx < ARRAY_SIZE(sh7203_clk_ops))
 		*ops = sh7203_clk_ops[idx];
 }

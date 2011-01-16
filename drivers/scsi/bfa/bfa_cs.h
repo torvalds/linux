@@ -107,13 +107,6 @@ bfa_trc_stop(struct bfa_trc_mod_s *trcm)
 	trcm->stopped = 1;
 }
 
-#ifdef FWTRC
-extern void dc_flush(void *data);
-#else
-#define dc_flush(data)
-#endif
-
-
 static inline void
 __bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
 {
@@ -127,12 +120,10 @@ __bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
 	trc->line = (u16) line;
 	trc->data.u64 = data;
 	trc->timestamp = BFA_TRC_TS(trcm);
-	dc_flush(trc);
 
 	trcm->tail = (trcm->tail + 1) & (BFA_TRC_MAX - 1);
 	if (trcm->tail == trcm->head)
 		trcm->head = (trcm->head + 1) & (BFA_TRC_MAX - 1);
-	dc_flush(trcm);
 }
 
 
@@ -149,41 +140,17 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 	trc->line = (u16) line;
 	trc->data.u32.u32 = data;
 	trc->timestamp = BFA_TRC_TS(trcm);
-	dc_flush(trc);
 
 	trcm->tail = (trcm->tail + 1) & (BFA_TRC_MAX - 1);
 	if (trcm->tail == trcm->head)
 		trcm->head = (trcm->head + 1) & (BFA_TRC_MAX - 1);
-	dc_flush(trcm);
 }
-
-#ifndef BFA_PERF_BUILD
-#define bfa_trc_fp(_trcp, _data)	bfa_trc(_trcp, _data)
-#else
-#define bfa_trc_fp(_trcp, _data)
-#endif
-
-/*
- * @ BFA LOG interfaces
- */
-#define bfa_assert(__cond)	do {					\
-	if (!(__cond)) {						\
-		printk(KERN_ERR "assert(%s) failed at %s:%d\\n",         \
-		#__cond, __FILE__, __LINE__);				\
-	}								\
-} while (0)
 
 #define bfa_sm_fault(__mod, __event)	do {				\
 	bfa_trc(__mod, (((u32)0xDEAD << 16) | __event));		\
 	printk(KERN_ERR	"Assertion failure: %s:%d: %d",			\
 		__FILE__, __LINE__, (__event));				\
 } while (0)
-
-#ifndef BFA_PERF_BUILD
-#define bfa_assert_fp(__cond)	bfa_assert(__cond)
-#else
-#define bfa_assert_fp(__cond)
-#endif
 
 /* BFA queue definitions */
 #define bfa_q_first(_q) ((void *)(((struct list_head *) (_q))->next))
@@ -207,7 +174,6 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 		bfa_q_prev(bfa_q_next(*((struct list_head **) _qe))) =	\
 				(struct list_head *) (_q);		\
 		bfa_q_next(_q) = bfa_q_next(*((struct list_head **) _qe));\
-		BFA_Q_DBG_INIT(*((struct list_head **) _qe));		\
 	} else {							\
 		*((struct list_head **) (_qe)) = (struct list_head *) NULL;\
 	}								\
@@ -222,7 +188,6 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 		bfa_q_next(bfa_q_prev(*((struct list_head **) _qe))) =	\
 			(struct list_head *) (_q);			\
 		bfa_q_prev(_q) = bfa_q_prev(*(struct list_head **) _qe);\
-		BFA_Q_DBG_INIT(*((struct list_head **) _qe));		\
 	} else {							\
 		*((struct list_head **) (_qe)) = (struct list_head *) NULL;\
 	}								\
@@ -243,16 +208,6 @@ bfa_q_is_on_q_func(struct list_head *q, struct list_head *qe)
 	}
 	return 0;
 }
-
-/*
- * #ifdef BFA_DEBUG (Using bfa_assert to check for debug_build is not
- * consistent across modules)
- */
-#ifndef BFA_PERF_BUILD
-#define BFA_Q_DBG_INIT(_qe) bfa_q_qe_init(_qe)
-#else
-#define BFA_Q_DBG_INIT(_qe)
-#endif
 
 #define bfa_q_is_on_q(_q, _qe)      \
 	bfa_q_is_on_q_func(_q, (struct list_head *)(_qe))

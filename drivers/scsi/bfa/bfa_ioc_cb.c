@@ -61,7 +61,7 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 	ioc->ioc_hwif = &hwif_cb;
 }
 
-/**
+/*
  * Return true if firmware of current driver matches the running firmware.
  */
 static bfa_boolean_t
@@ -70,8 +70,7 @@ bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc)
 	struct bfi_ioc_image_hdr_s fwhdr;
 	uint32_t fwstate = readl(ioc->ioc_regs.ioc_fwstate);
 
-	if ((fwstate == BFI_IOC_UNINIT) || bfa_ioc_is_uefi(ioc) ||
-				bfa_ioc_is_bios_optrom(ioc))
+	if (fwstate == BFI_IOC_UNINIT)
 		return BFA_TRUE;
 
 	bfa_ioc_fwver_get(ioc, &fwhdr);
@@ -211,7 +210,7 @@ bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc)
 	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
-/**
+/*
  * Synchronized IOC failure processing routines
  */
 static void
@@ -236,7 +235,7 @@ bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc)
 	uint32_t fwstate, alt_fwstate;
 	fwstate = readl(ioc->ioc_regs.ioc_fwstate);
 
-	/**
+	/*
 	 * At this point, this IOC is hoding the hw sem in the
 	 * start path (fwcheck) OR in the disable/enable path
 	 * OR to check if the other IOC has acknowledged failure.

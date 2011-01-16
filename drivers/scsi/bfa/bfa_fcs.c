@@ -920,7 +920,7 @@ bfa_fcs_fabric_attach(struct bfa_fcs_s *fcs)
 	INIT_LIST_HEAD(&fabric->vport_q);
 	INIT_LIST_HEAD(&fabric->vf_q);
 	fabric->lps = bfa_lps_alloc(fcs->bfa);
-	bfa_assert(fabric->lps);
+	WARN_ON(!fabric->lps);
 
 	/*
 	 * Initialize fabric delete completion handler. Fabric deletion is
@@ -1317,7 +1317,7 @@ bfa_fcs_port_event_handler(void *cbarg, enum bfa_port_linkstate event)
 		break;
 
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 }
 
@@ -1364,7 +1364,7 @@ bfa_fcs_uf_recv(void *cbarg, struct bfa_uf_s *uf)
 		 * drop frame if vfid is unknown
 		 */
 		if (!fabric) {
-			bfa_assert(0);
+			WARN_ON(1);
 			bfa_stats(fcs, uf.vfid_unknown);
 			bfa_uf_free(uf);
 			return;

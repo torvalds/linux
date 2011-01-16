@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.6.8"
+#define DRV_VERSION	"0.6.9"
 
 struct hpt_clock {
 	u8	xfer_mode;
@@ -110,18 +110,23 @@ static const struct hpt_clock hpt366_25[] = {
 	{	0,		0x01208585	}
 };
 
-static const char *bad_ata33[] = {
-	"Maxtor 92720U8", "Maxtor 92040U6", "Maxtor 91360U4", "Maxtor 91020U3", "Maxtor 90845U3", "Maxtor 90650U2",
-	"Maxtor 91360D8", "Maxtor 91190D7", "Maxtor 91020D6", "Maxtor 90845D5", "Maxtor 90680D4", "Maxtor 90510D3", "Maxtor 90340D2",
-	"Maxtor 91152D8", "Maxtor 91008D7", "Maxtor 90845D6", "Maxtor 90840D6", "Maxtor 90720D5", "Maxtor 90648D5", "Maxtor 90576D4",
+static const char * const bad_ata33[] = {
+	"Maxtor 92720U8", "Maxtor 92040U6", "Maxtor 91360U4", "Maxtor 91020U3",
+	"Maxtor 90845U3", "Maxtor 90650U2",
+	"Maxtor 91360D8", "Maxtor 91190D7", "Maxtor 91020D6", "Maxtor 90845D5",
+	"Maxtor 90680D4", "Maxtor 90510D3", "Maxtor 90340D2",
+	"Maxtor 91152D8", "Maxtor 91008D7", "Maxtor 90845D6", "Maxtor 90840D6",
+	"Maxtor 90720D5", "Maxtor 90648D5", "Maxtor 90576D4",
 	"Maxtor 90510D4",
 	"Maxtor 90432D3", "Maxtor 90288D2", "Maxtor 90256D2",
-	"Maxtor 91000D8", "Maxtor 90910D8", "Maxtor 90875D7", "Maxtor 90840D7", "Maxtor 90750D6", "Maxtor 90625D5", "Maxtor 90500D4",
-	"Maxtor 91728D8", "Maxtor 91512D7", "Maxtor 91303D6", "Maxtor 91080D5", "Maxtor 90845D4", "Maxtor 90680D4", "Maxtor 90648D3", "Maxtor 90432D2",
+	"Maxtor 91000D8", "Maxtor 90910D8", "Maxtor 90875D7", "Maxtor 90840D7",
+	"Maxtor 90750D6", "Maxtor 90625D5", "Maxtor 90500D4",
+	"Maxtor 91728D8", "Maxtor 91512D7", "Maxtor 91303D6", "Maxtor 91080D5",
+	"Maxtor 90845D4", "Maxtor 90680D4", "Maxtor 90648D3", "Maxtor 90432D2",
 	NULL
 };
 
-static const char *bad_ata66_4[] = {
+static const char * const bad_ata66_4[] = {
 	"IBM-DTLA-307075",
 	"IBM-DTLA-307060",
 	"IBM-DTLA-307045",
@@ -140,12 +145,13 @@ static const char *bad_ata66_4[] = {
 	NULL
 };
 
-static const char *bad_ata66_3[] = {
+static const char * const bad_ata66_3[] = {
 	"WDC AC310200R",
 	NULL
 };
 
-static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr, const char *list[])
+static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
+			       const char * const list[])
 {
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 	int i = 0;
@@ -288,6 +294,7 @@ static struct ata_port_operations hpt366_port_ops = {
 static void hpt36x_init_chipset(struct pci_dev *dev)
 {
 	u8 drive_fast;
+
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, (L1_CACHE_BYTES / 4));
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x78);
 	pci_write_config_byte(dev, PCI_MIN_GNT, 0x08);
@@ -349,16 +356,16 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* PCI clocking determines the ATA timing values to use */
 	/* info_hpt366 is safe against re-entry so we can scribble on it */
-	switch((reg1 & 0x700) >> 8) {
-		case 9:
-			hpriv = &hpt366_40;
-			break;
-		case 5:
-			hpriv = &hpt366_25;
-			break;
-		default:
-			hpriv = &hpt366_33;
-			break;
+	switch ((reg1 & 0x700) >> 8) {
+	case 9:
+		hpriv = &hpt366_40;
+		break;
+	case 5:
+		hpriv = &hpt366_25;
+		break;
+	default:
+		hpriv = &hpt366_33;
+		break;
 	}
 	/* Now kick off ATA set up */
 	return ata_pci_bmdma_init_one(dev, ppi, &hpt36x_sht, hpriv, 0);
@@ -385,9 +392,9 @@ static const struct pci_device_id hpt36x[] = {
 };
 
 static struct pci_driver hpt36x_pci_driver = {
-	.name 		= DRV_NAME,
+	.name		= DRV_NAME,
 	.id_table	= hpt36x,
-	.probe 		= hpt36x_init_one,
+	.probe		= hpt36x_init_one,
 	.remove		= ata_pci_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,

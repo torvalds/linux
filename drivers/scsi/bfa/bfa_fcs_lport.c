@@ -351,7 +351,7 @@ bfa_fcs_lport_plogi(struct bfa_fcs_lport_s *port,
 		 * This is a different device with the same pid. Old device
 		 * disappeared. Send implicit LOGO to old device.
 		 */
-		bfa_assert(rport->pwwn != plogi->port_name);
+		WARN_ON(rport->pwwn == plogi->port_name);
 		bfa_sm_send_event(rport, RPSM_EVENT_LOGO_IMP);
 
 		/*
@@ -364,7 +364,7 @@ bfa_fcs_lport_plogi(struct bfa_fcs_lport_s *port,
 	/*
 	 * PLOGI crossing each other.
 	 */
-	bfa_assert(rport->pwwn == WWN_NULL);
+	WARN_ON(rport->pwwn != WWN_NULL);
 	bfa_fcs_rport_plogi(rport, rx_fchs, plogi);
 }
 
@@ -532,19 +532,19 @@ bfa_fcs_lport_offline_actions(struct bfa_fcs_lport_s *port)
 static void
 bfa_fcs_lport_unknown_init(struct bfa_fcs_lport_s *port)
 {
-	bfa_assert(0);
+	WARN_ON(1);
 }
 
 static void
 bfa_fcs_lport_unknown_online(struct bfa_fcs_lport_s *port)
 {
-	bfa_assert(0);
+	WARN_ON(1);
 }
 
 static void
 bfa_fcs_lport_unknown_offline(struct bfa_fcs_lport_s *port)
 {
-	bfa_assert(0);
+	WARN_ON(1);
 }
 
 static void
@@ -777,7 +777,7 @@ bfa_fcs_lport_del_rport(
 	struct bfa_fcs_lport_s *port,
 	struct bfa_fcs_rport_s *rport)
 {
-	bfa_assert(bfa_q_is_on_q(&port->rport_q, rport));
+	WARN_ON(!bfa_q_is_on_q(&port->rport_q, rport));
 	list_del(&rport->qe);
 	port->num_rports--;
 
@@ -1005,7 +1005,7 @@ bfa_fcs_lport_n2n_online(struct bfa_fcs_lport_s *port)
 		 */
 		if (port->num_rports > 0) {
 			rport = bfa_fcs_lport_get_rport_by_pid(port, 0);
-			bfa_assert(rport != NULL);
+			WARN_ON(rport == NULL);
 			if (rport) {
 				bfa_trc(port->fcs, rport->pwwn);
 				bfa_sm_send_event(rport, RPSM_EVENT_DELETE);
@@ -4153,7 +4153,7 @@ bfa_fcs_lport_ns_boot_target_disc(bfa_fcs_lport_t *port)
 
 	for (ii = 0 ; ii < nwwns; ++ii) {
 		rport = bfa_fcs_rport_create_by_wwn(port, wwns[ii]);
-		bfa_assert(rport);
+		WARN_ON(!rport);
 	}
 }
 
@@ -4616,7 +4616,7 @@ bfa_fcs_lport_scn_process_rscn(struct bfa_fcs_lport_s *port,
 
 
 		default:
-			bfa_assert(0);
+			WARN_ON(1);
 			nsquery = BFA_TRUE;
 		}
 	}
@@ -4797,7 +4797,7 @@ bfa_fcs_lookup_port(struct bfa_fcs_s *fcs, u16 vf_id, wwn_t lpwwn)
 	struct bfa_fcs_vport_s *vport;
 	bfa_fcs_vf_t   *vf;
 
-	bfa_assert(fcs != NULL);
+	WARN_ON(fcs == NULL);
 
 	vf = bfa_fcs_vf_lookup(fcs, vf_id);
 	if (vf == NULL) {
@@ -5646,7 +5646,7 @@ bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status)
 	switch (status) {
 	case BFA_STATUS_OK:
 		/*
-		 * Initialiaze the V-Port fields
+		 * Initialize the V-Port fields
 		 */
 		__vport_fcid(vport) = vport->lps->lp_pid;
 		vport->vport_stats.fdisc_accepts++;

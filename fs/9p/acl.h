@@ -16,7 +16,7 @@
 
 #ifdef CONFIG_9P_FS_POSIX_ACL
 extern int v9fs_get_acl(struct inode *, struct p9_fid *);
-extern int v9fs_check_acl(struct inode *inode, int mask);
+extern int v9fs_check_acl(struct inode *inode, int mask, unsigned int flags);
 extern int v9fs_acl_chmod(struct dentry *);
 extern int v9fs_set_create_acl(struct dentry *,
 			       struct posix_acl *, struct posix_acl *);

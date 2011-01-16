@@ -355,7 +355,7 @@ static void s3c_pm_finish(void)
 	s3c_pm_check_cleanup();
 }
 
-static struct platform_suspend_ops s3c_pm_ops = {
+static const struct platform_suspend_ops s3c_pm_ops = {
 	.enter		= s3c_pm_enter,
 	.prepare	= s3c_pm_prepare,
 	.finish		= s3c_pm_finish,

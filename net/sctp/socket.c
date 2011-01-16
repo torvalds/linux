@@ -5053,7 +5053,7 @@ static int sctp_getsockopt_partial_delivery_point(struct sock *sk, int len,
 	if (copy_to_user(optval, &val, len))
 		return -EFAULT;
 
-	return -ENOTSUPP;
+	return 0;
 }
 
 /*
@@ -6055,7 +6055,7 @@ static struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 		 * will suddenly eat the receive_queue.
 		 *
 		 *  Look at current nfs client by the way...
-		 *  However, this function was corrent in any case. 8)
+		 *  However, this function was correct in any case. 8)
 		 */
 		if (flags & MSG_PEEK) {
 			spin_lock_bh(&sk->sk_receive_queue.lock);

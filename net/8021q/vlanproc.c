@@ -280,7 +280,6 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 	struct rtnl_link_stats64 temp;
 	const struct rtnl_link_stats64 *stats;
-	static const char fmt[] = "%30s %12lu\n";
 	static const char fmt64[] = "%30s %12llu\n";
 	int i;
 
@@ -299,10 +298,6 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	seq_puts(seq, "\n");
 	seq_printf(seq, fmt64, "total frames transmitted", stats->tx_packets);
 	seq_printf(seq, fmt64, "total bytes transmitted", stats->tx_bytes);
-	seq_printf(seq, fmt, "total headroom inc",
-		   dev_info->cnt_inc_headroom_on_tx);
-	seq_printf(seq, fmt, "total encap on xmit",
-		   dev_info->cnt_encap_on_xmit);
 	seq_printf(seq, "Device: %s", dev_info->real_dev->name);
 	/* now show all PRIORITY mappings relating to this VLAN */
 	seq_printf(seq, "\nINGRESS priority mappings: "

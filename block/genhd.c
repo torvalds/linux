@@ -1264,6 +1264,8 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 		}
 		disk->part_tbl->part[0] = &disk->part0;
 
+		hd_ref_init(&disk->part0);
+
 		disk->minors = minors;
 		rand_initialize_disk(disk);
 		disk_to_dev(disk)->class = &block_class;

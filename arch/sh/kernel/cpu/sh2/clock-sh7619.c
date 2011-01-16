@@ -14,24 +14,18 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
 #include <asm/clock.h>
 #include <asm/freq.h>
-#include <asm/io.h>
+#include <asm/processor.h>
 
 static const int pll1rate[] = {1,2};
 static const int pfc_divisors[] = {1,2,0,4};
-
-#if (CONFIG_SH_CLK_MD == 1) || (CONFIG_SH_CLK_MD == 2)
-#define PLL2 (4)
-#elif (CONFIG_SH_CLK_MD == 5) || (CONFIG_SH_CLK_MD == 6)
-#define PLL2 (2)
-#else
-#error "Illigal Clock Mode!"
-#endif
+static unsigned int pll2_mult;
 
 static void master_clk_init(struct clk *clk)
 {
-	clk->rate *= PLL2 * pll1rate[(__raw_readw(FREQCR) >> 8) & 7];
+	clk->rate *= pll2_mult * pll1rate[(__raw_readw(FREQCR) >> 8) & 7];
 }
 
 static struct clk_ops sh7619_master_clk_ops = {
@@ -70,6 +64,14 @@ static struct clk_ops *sh7619_clk_ops[] = {
 
 void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 {
+	if (test_mode_pin(MODE_PIN2 | MODE_PIN0) ||
+	    test_mode_pin(MODE_PIN2 | MODE_PIN1))
+		pll2_mult = 2;
+	else if (test_mode_pin(MODE_PIN0) || test_mode_pin(MODE_PIN1))
+		pll2_mult = 4;
+
+	BUG_ON(!pll2_mult);
+
 	if (idx < ARRAY_SIZE(sh7619_clk_ops))
 		*ops = sh7619_clk_ops[idx];
 }

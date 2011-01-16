@@ -102,7 +102,7 @@ static struct fsg_module_parameters mod_data = {
 };
 FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
 
-static unsigned long msg_registered = 0;
+static unsigned long msg_registered;
 static void msg_cleanup(void);
 
 static int msg_thread_exits(struct fsg_common *common)

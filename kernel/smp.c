@@ -13,6 +13,7 @@
 #include <linux/smp.h>
 #include <linux/cpu.h>
 
+#ifdef CONFIG_USE_GENERIC_SMP_HELPERS
 static struct {
 	struct list_head	queue;
 	raw_spinlock_t		lock;
@@ -529,3 +530,21 @@ void ipi_call_unlock_irq(void)
 {
 	raw_spin_unlock_irq(&call_function.lock);
 }
+#endif /* USE_GENERIC_SMP_HELPERS */
+
+/*
+ * Call a function on all processors
+ */
+int on_each_cpu(void (*func) (void *info), void *info, int wait)
+{
+	int ret = 0;
+
+	preempt_disable();
+	ret = smp_call_function(func, info, wait);
+	local_irq_disable();
+	func(info);
+	local_irq_enable();
+	preempt_enable();
+	return ret;
+}
+EXPORT_SYMBOL(on_each_cpu);

@@ -1658,7 +1658,7 @@ static int imx21_hc_reset(struct usb_hcd *hcd)
 
 	spin_lock_irqsave(&imx21->lock, flags);
 
-	/* Reset the Host controler modules */
+	/* Reset the Host controller modules */
 	writel(USBOTG_RST_RSTCTRL | USBOTG_RST_RSTRH |
 		USBOTG_RST_RSTHSIE | USBOTG_RST_RSTHC,
 		imx21->regs + USBOTG_RST_CTRL);

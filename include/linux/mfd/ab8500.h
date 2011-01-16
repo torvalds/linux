@@ -99,8 +99,6 @@
 #define AB8500_NR_IRQS			104
 #define AB8500_NUM_IRQ_REGS		13
 
-#define AB8500_NUM_REGULATORS   15
-
 /**
  * struct ab8500 - ab8500 internal structure
  * @dev: parent device
@@ -145,7 +143,8 @@ struct regulator_init_data;
 struct ab8500_platform_data {
 	int irq_base;
 	void (*init) (struct ab8500 *);
-	struct regulator_init_data *regulator[AB8500_NUM_REGULATORS];
+	int num_regulator;
+	struct regulator_init_data *regulator;
 };
 
 extern int __devinit ab8500_init(struct ab8500 *ab8500);

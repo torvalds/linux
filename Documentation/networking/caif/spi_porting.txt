@@ -32,7 +32,7 @@ the physical hardware, both with regard to SPI and to GPIOs.
 	This function is called by the CAIF SPI interface to give
 	you a chance to set up your hardware to be ready to receive
 	a stream of data from the master. The xfer structure contains
-	both physical and logical adresses, as well as the total length
+	both physical and logical addresses, as well as the total length
 	of the transfer in both directions.The dev parameter can be used
 	to map to different CAIF SPI slave devices.
 

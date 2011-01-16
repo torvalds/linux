@@ -53,65 +53,30 @@
 
 void ret_from_user_signal(void);
 void ret_from_user_rt_signal(void);
-asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs);
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-asmlinkage int do_sigsuspend(struct pt_regs *regs)
+asmlinkage int
+sys_sigsuspend(int unused0, int unused1, old_sigset_t mask)
 {
-	old_sigset_t mask = regs->d3;
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	regs->d0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs))
-			return -EINTR;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_restore_sigmask();
+
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage int
-do_rt_sigsuspend(struct pt_regs *regs)
-{
-	sigset_t *unewset = (sigset_t *)regs->d1;
-	size_t sigsetsize = (size_t)regs->d2;
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	regs->d0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs))
-			return -EINTR;
-	}
-}
-
-asmlinkage int 
-sys_sigaction(int sig, const struct old_sigaction *act,
-	      struct old_sigaction *oact)
+sys_sigaction(int sig, const struct old_sigaction __user *act,
+	      struct old_sigaction __user *oact)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -120,10 +85,10 @@ sys_sigaction(int sig, const struct old_sigaction *act,
 		old_sigset_t mask;
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 	}
 
@@ -132,17 +97,17 @@ sys_sigaction(int sig, const struct old_sigaction *act,
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
 }
 
 asmlinkage int
-sys_sigaltstack(const stack_t *uss, stack_t *uoss)
+sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
 	return do_sigaltstack(uss, uoss, rdusp());
 }
@@ -157,10 +122,10 @@ sys_sigaltstack(const stack_t *uss, stack_t *uoss)
 
 struct sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
 	int code;
-	struct sigcontext *psc;
+	struct sigcontext __user *psc;
 	char retcode[8];
 	unsigned long extramask[_NSIG_WORDS-1];
 	struct sigcontext sc;
@@ -168,10 +133,10 @@ struct sigframe
 
 struct rt_sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
-	struct siginfo *pinfo;
-	void *puc;
+	struct siginfo __user *pinfo;
+	void __user *puc;
 	char retcode[8];
 	struct siginfo info;
 	struct ucontext uc;
@@ -198,8 +163,8 @@ static inline int restore_fpu_state(struct sigcontext *sc)
 		goto out;
 
 	    __asm__ volatile (".chip 68k/68881\n\t"
-			      "fmovemx %0,%/fp0-%/fp1\n\t"
-			      "fmoveml %1,%/fpcr/%/fpsr/%/fpiar\n\t"
+			      "fmovemx %0,%%fp0-%%fp1\n\t"
+			      "fmoveml %1,%%fpcr/%%fpsr/%%fpiar\n\t"
 			      ".chip 68k"
 			      : /* no outputs */
 			      : "m" (*sc->sc_fpregs), "m" (*sc->sc_fpcntl));
@@ -218,7 +183,7 @@ out:
 #define uc_formatvec	uc_filler[FPCONTEXT_SIZE/4]
 #define uc_extra	uc_filler[FPCONTEXT_SIZE/4+1]
 
-static inline int rt_restore_fpu_state(struct ucontext *uc)
+static inline int rt_restore_fpu_state(struct ucontext __user *uc)
 {
 	unsigned char fpstate[FPCONTEXT_SIZE];
 	int context_size = 0;
@@ -228,7 +193,7 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 	if (FPU_IS_EMU) {
 		/* restore fpu control register */
 		if (__copy_from_user(current->thread.fpcntl,
-				&uc->uc_mcontext.fpregs.f_pcr, 12))
+				uc->uc_mcontext.fpregs.f_fpcntl, 12))
 			goto out;
 		/* restore all other fpu register */
 		if (__copy_from_user(current->thread.fp,
@@ -237,7 +202,7 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 		return 0;
 	}
 
-	if (__get_user(*(long *)fpstate, (long *)&uc->uc_fpstate))
+	if (__get_user(*(long *)fpstate, (long __user *)&uc->uc_fpstate))
 		goto out;
 	if (fpstate[0]) {
 		context_size = fpstate[1];
@@ -249,15 +214,15 @@ static inline int rt_restore_fpu_state(struct ucontext *uc)
 		     sizeof(fpregs)))
 			goto out;
 		__asm__ volatile (".chip 68k/68881\n\t"
-				  "fmovemx %0,%/fp0-%/fp7\n\t"
-				  "fmoveml %1,%/fpcr/%/fpsr/%/fpiar\n\t"
+				  "fmovemx %0,%%fp0-%%fp7\n\t"
+				  "fmoveml %1,%%fpcr/%%fpsr/%%fpiar\n\t"
 				  ".chip 68k"
 				  : /* no outputs */
 				  : "m" (*fpregs.f_fpregs),
-				    "m" (fpregs.f_pcr));
+				    "m" (*fpregs.f_fpcntl));
 	}
 	if (context_size &&
-	    __copy_from_user(fpstate + 4, (long *)&uc->uc_fpstate + 1,
+	    __copy_from_user(fpstate + 4, (long __user *)&uc->uc_fpstate + 1,
 			     context_size))
 		goto out;
 	__asm__ volatile (".chip 68k/68881\n\t"
@@ -272,7 +237,7 @@ out:
 #endif
 
 static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp,
+restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __user *fp,
 		   int *pd0)
 {
 	int formatvec;
@@ -312,10 +277,10 @@ badframe:
 
 static inline int
 rt_restore_ucontext(struct pt_regs *regs, struct switch_stack *sw,
-		    struct ucontext *uc, int *pd0)
+		    struct ucontext __user *uc, int *pd0)
 {
 	int temp;
-	greg_t *gregs = uc->uc_mcontext.gregs;
+	greg_t __user *gregs = uc->uc_mcontext.gregs;
 	unsigned long usp;
 	int err;
 
@@ -365,7 +330,7 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 	struct switch_stack *sw = (struct switch_stack *) &__unused;
 	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
-	struct sigframe *frame = (struct sigframe *)(usp - 4);
+	struct sigframe __user *frame = (struct sigframe __user *)(usp - 4);
 	sigset_t set;
 	int d0;
 
@@ -397,7 +362,7 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	struct switch_stack *sw = (struct switch_stack *) &__unused;
 	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
-	struct rt_sigframe *frame = (struct rt_sigframe *)(usp - 4);
+	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(usp - 4);
 	sigset_t set;
 	int d0;
 
@@ -443,17 +408,17 @@ static inline void save_fpu_state(struct sigcontext *sc, struct pt_regs *regs)
 	if (sc->sc_fpstate[0]) {
 		fpu_version = sc->sc_fpstate[0];
 		__asm__ volatile (".chip 68k/68881\n\t"
-				  "fmovemx %/fp0-%/fp1,%0\n\t"
-				  "fmoveml %/fpcr/%/fpsr/%/fpiar,%1\n\t"
+				  "fmovemx %%fp0-%%fp1,%0\n\t"
+				  "fmoveml %%fpcr/%%fpsr/%%fpiar,%1\n\t"
 				  ".chip 68k"
-				  : /* no outputs */
-				  : "m" (*sc->sc_fpregs),
-				    "m" (*sc->sc_fpcntl)
+				  : "=m" (*sc->sc_fpregs),
+				    "=m" (*sc->sc_fpcntl)
+				  : /* no inputs */
 				  : "memory");
 	}
 }
 
-static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
+static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *regs)
 {
 	unsigned char fpstate[FPCONTEXT_SIZE];
 	int context_size = 0;
@@ -461,7 +426,7 @@ static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
 
 	if (FPU_IS_EMU) {
 		/* save fpu control register */
-		err |= copy_to_user(&uc->uc_mcontext.fpregs.f_pcr,
+		err |= copy_to_user(uc->uc_mcontext.fpregs.f_pcntl,
 				current->thread.fpcntl, 12);
 		/* save all other fpu register */
 		err |= copy_to_user(uc->uc_mcontext.fpregs.f_fpregs,
@@ -474,24 +439,24 @@ static inline int rt_save_fpu_state(struct ucontext *uc, struct pt_regs *regs)
 			  ".chip 68k"
 			  : : "m" (*fpstate) : "memory");
 
-	err |= __put_user(*(long *)fpstate, (long *)&uc->uc_fpstate);
+	err |= __put_user(*(long *)fpstate, (long __user *)&uc->uc_fpstate);
 	if (fpstate[0]) {
 		fpregset_t fpregs;
 		context_size = fpstate[1];
 		fpu_version = fpstate[0];
 		__asm__ volatile (".chip 68k/68881\n\t"
-				  "fmovemx %/fp0-%/fp7,%0\n\t"
-				  "fmoveml %/fpcr/%/fpsr/%/fpiar,%1\n\t"
+				  "fmovemx %%fp0-%%fp7,%0\n\t"
+				  "fmoveml %%fpcr/%%fpsr/%%fpiar,%1\n\t"
 				  ".chip 68k"
-				  : /* no outputs */
-				  : "m" (*fpregs.f_fpregs),
-				    "m" (fpregs.f_pcr)
+				  : "=m" (*fpregs.f_fpregs),
+				    "=m" (*fpregs.f_fpcntl)
+				  : /* no inputs */
 				  : "memory");
 		err |= copy_to_user(&uc->uc_mcontext.fpregs, &fpregs,
 				    sizeof(fpregs));
 	}
 	if (context_size)
-		err |= copy_to_user((long *)&uc->uc_fpstate + 1, fpstate + 4,
+		err |= copy_to_user((long __user *)&uc->uc_fpstate + 1, fpstate + 4,
 				    context_size);
 	return err;
 }
@@ -516,10 +481,10 @@ static void setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 #endif
 }
 
-static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
+static inline int rt_setup_ucontext(struct ucontext __user *uc, struct pt_regs *regs)
 {
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	greg_t *gregs = uc->uc_mcontext.gregs;
+	greg_t __user *gregs = uc->uc_mcontext.gregs;
 	int err = 0;
 
 	err |= __put_user(MCONTEXT_VERSION, &uc->uc_mcontext.version);
@@ -547,7 +512,7 @@ static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 	return err;
 }
 
-static inline void *
+static inline void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 {
 	unsigned long usp;
@@ -560,13 +525,13 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 		if (!sas_ss_flags(usp))
 			usp = current->sas_ss_sp + current->sas_ss_size;
 	}
-	return (void *)((usp - frame_size) & -8UL);
+	return (void __user *)((usp - frame_size) & -8UL);
 }
 
-static void setup_frame (int sig, struct k_sigaction *ka,
+static int setup_frame (int sig, struct k_sigaction *ka,
 			 sigset_t *set, struct pt_regs *regs)
 {
-	struct sigframe *frame;
+	struct sigframe __user *frame;
 	struct sigcontext context;
 	int err = 0;
 
@@ -617,17 +582,17 @@ adjust_stack:
 		tregs->pc = regs->pc;
 		tregs->sr = regs->sr;
 	}
-	return;
+	return err;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
 	goto adjust_stack;
 }
 
-static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 			    sigset_t *set, struct pt_regs *regs)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe __user *frame;
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
@@ -644,8 +609,8 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
+	err |= __put_user(NULL, &frame->uc.uc_link);
+	err |= __put_user((void __user *)current->sas_ss_sp,
 			  &frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(rdusp()),
 			  &frame->uc.uc_stack.ss_flags);
@@ -681,7 +646,7 @@ adjust_stack:
 		tregs->pc = regs->pc;
 		tregs->sr = regs->sr;
 	}
-	return;
+	return err;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
@@ -728,6 +693,7 @@ static void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs)
 {
+	int err;
 	/* are we from a system call? */
 	if (regs->orig_d0 >= 0)
 		/* If so, check system call restarting.. */
@@ -735,12 +701,12 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		err = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		err = setup_frame(sig, ka, oldset, regs);
 
-	if (ka->sa.sa_flags & SA_ONESHOT)
-		ka->sa.sa_handler = SIG_DFL;
+	if (err)
+		return;
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -748,6 +714,8 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 /*
@@ -755,11 +723,12 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
+asmlinkage void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
+	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -768,16 +737,18 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &ka, &info, oldset, regs);
-		return 1;
+		return;
 	}
 
 	/* Did we come from a system call? */
@@ -785,5 +756,10 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		/* Restart the system call - no handlers present */
 		handle_restart(regs, NULL, 0);
 	}
-	return 0;
+
+	/* If there's no signal to deliver, we just restore the saved mask.  */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }

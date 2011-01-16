@@ -181,7 +181,7 @@ static void __init e330_init(void)
 MACHINE_START(E330, "Toshiba e330")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
@@ -230,7 +230,7 @@ static void __init e350_init(void)
 MACHINE_START(E350, "Toshiba e350")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
@@ -352,7 +352,7 @@ static void __init e400_init(void)
 MACHINE_START(E400, "Toshiba e400")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
@@ -540,7 +540,7 @@ static void __init e740_init(void)
 MACHINE_START(E740, "Toshiba e740")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
@@ -731,7 +731,7 @@ static void __init e750_init(void)
 MACHINE_START(E750, "Toshiba e750")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
@@ -926,7 +926,7 @@ static void __init e800_init(void)
 MACHINE_START(E800, "Toshiba e800")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,

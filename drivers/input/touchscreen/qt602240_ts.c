@@ -969,7 +969,7 @@ static int qt602240_initialize(struct qt602240_data *data)
 		return error;
 
 	data->object_table = kcalloc(info->object_num,
-				     sizeof(struct qt602240_data),
+				     sizeof(struct qt602240_object),
 				     GFP_KERNEL);
 	if (!data->object_table) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
@@ -1324,8 +1324,9 @@ static int __devexit qt602240_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int qt602240_suspend(struct i2c_client *client, pm_message_t mesg)
+static int qt602240_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct qt602240_data *data = i2c_get_clientdata(client);
 	struct input_dev *input_dev = data->input_dev;
 
@@ -1339,8 +1340,9 @@ static int qt602240_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-static int qt602240_resume(struct i2c_client *client)
+static int qt602240_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct qt602240_data *data = i2c_get_clientdata(client);
 	struct input_dev *input_dev = data->input_dev;
 
@@ -1359,9 +1361,11 @@ static int qt602240_resume(struct i2c_client *client)
 
 	return 0;
 }
-#else
-#define qt602240_suspend	NULL
-#define qt602240_resume		NULL
+
+static const struct dev_pm_ops qt602240_pm_ops = {
+	.suspend	= qt602240_suspend,
+	.resume		= qt602240_resume,
+};
 #endif
 
 static const struct i2c_device_id qt602240_id[] = {
@@ -1374,11 +1378,12 @@ static struct i2c_driver qt602240_driver = {
 	.driver = {
 		.name	= "qt602240_ts",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &qt602240_pm_ops,
+#endif
 	},
 	.probe		= qt602240_probe,
 	.remove		= __devexit_p(qt602240_remove),
-	.suspend	= qt602240_suspend,
-	.resume		= qt602240_resume,
 	.id_table	= qt602240_id,
 };
 

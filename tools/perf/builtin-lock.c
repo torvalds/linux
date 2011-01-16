@@ -834,22 +834,18 @@ static void dump_info(void)
 		die("Unknown type of information\n");
 }
 
-static int process_sample_event(event_t *self, struct perf_session *s)
+static int process_sample_event(event_t *self, struct sample_data *sample,
+				struct perf_session *s)
 {
-	struct sample_data data;
-	struct thread *thread;
+	struct thread *thread = perf_session__findnew(s, sample->tid);
 
-	bzero(&data, sizeof(data));
-	event__parse_sample(self, s->sample_type, &data);
-
-	thread = perf_session__findnew(s, data.tid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			self->header.type);
 		return -1;
 	}
 
-	process_raw_event(data.raw_data, data.cpu, data.time, thread);
+	process_raw_event(sample->raw_data, sample->cpu, sample->time, thread);
 
 	return 0;
 }
@@ -862,7 +858,7 @@ static struct perf_event_ops eops = {
 
 static int read_events(void)
 {
-	session = perf_session__new(input_name, O_RDONLY, 0, false);
+	session = perf_session__new(input_name, O_RDONLY, 0, false, &eops);
 	if (!session)
 		die("Initializing perf session failed\n");
 
@@ -947,6 +943,9 @@ static int __cmd_record(int argc, const char **argv)
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
+	if (rec_argv == NULL)
+		return -ENOMEM;
+
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
 
@@ -982,9 +981,9 @@ int cmd_lock(int argc, const char **argv, const char *prefix __used)
 				usage_with_options(report_usage, report_options);
 		}
 		__cmd_report();
-	} else if (!strcmp(argv[0], "trace")) {
-		/* Aliased to 'perf trace' */
-		return cmd_trace(argc, argv, prefix);
+	} else if (!strcmp(argv[0], "script")) {
+		/* Aliased to 'perf script' */
+		return cmd_script(argc, argv, prefix);
 	} else if (!strcmp(argv[0], "info")) {
 		if (argc) {
 			argc = parse_options(argc, argv,

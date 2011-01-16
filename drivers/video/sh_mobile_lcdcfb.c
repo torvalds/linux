@@ -54,8 +54,8 @@ static int lcdc_shared_regs[] = {
 };
 #define NR_SHARED_REGS ARRAY_SIZE(lcdc_shared_regs)
 
-#define DEFAULT_XRES 1280
-#define DEFAULT_YRES 1024
+#define MAX_XRES 1920
+#define MAX_YRES 1080
 
 static unsigned long lcdc_offs_mainlcd[NR_CH_REGS] = {
 	[LDDCKPAT1R] = 0x400,
@@ -139,6 +139,7 @@ struct sh_mobile_lcdc_priv {
 	struct notifier_block notifier;
 	unsigned long saved_shared_regs[NR_SHARED_REGS];
 	int started;
+	int forced_bpp; /* 2 channel LCDC must share bpp setting */
 };
 
 static bool banked(int reg_nr)
@@ -461,13 +462,18 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	struct sh_mobile_lcdc_chan *ch;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg;
 	unsigned long tmp;
+	int bpp = 0;
 	int k, m;
 	int ret = 0;
 
 	/* enable clocks before accessing the hardware */
-	for (k = 0; k < ARRAY_SIZE(priv->ch); k++)
-		if (priv->ch[k].enabled)
+	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
+		if (priv->ch[k].enabled) {
 			sh_mobile_lcdc_clk_on(priv);
+			if (!bpp)
+				bpp = priv->ch[k].info->var.bits_per_pixel;
+		}
+	}
 
 	/* reset */
 	lcdc_write(priv, _LDCNT2R, lcdc_read(priv, _LDCNT2R) | LCDC_RESET);
@@ -535,7 +541,17 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	}
 
 	/* word and long word swap */
-	lcdc_write(priv, _LDDDSR, lcdc_read(priv, _LDDDSR) | 6);
+	switch (bpp) {
+	case 16:
+		lcdc_write(priv, _LDDDSR, lcdc_read(priv, _LDDDSR) | 6);
+		break;
+	case 24:
+		lcdc_write(priv, _LDDDSR, lcdc_read(priv, _LDDDSR) | 7);
+		break;
+	case 32:
+		lcdc_write(priv, _LDDDSR, lcdc_read(priv, _LDDDSR) | 4);
+		break;
+	}
 
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		ch = &priv->ch[k];
@@ -546,7 +562,16 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		/* set bpp format in PKF[4:0] */
 		tmp = lcdc_read_chan(ch, LDDFR);
 		tmp &= ~0x0001001f;
-		tmp |= (ch->info->var.bits_per_pixel == 16) ? 3 : 0;
+		switch (ch->info->var.bits_per_pixel) {
+		case 16:
+			tmp |= 0x03;
+			break;
+		case 24:
+			tmp |= 0x0b;
+			break;
+		case 32:
+			break;
+		}
 		lcdc_write_chan(ch, LDDFR, tmp);
 
 		/* point out our frame buffer */
@@ -913,25 +938,30 @@ static int sh_mobile_open(struct fb_info *info, int user)
 static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_priv *p = ch->lcdc;
 
-	if (var->xres < 160 || var->xres > 1920 ||
-	    var->yres < 120 || var->yres > 1080 ||
-	    var->left_margin < 32 || var->left_margin > 320 ||
-	    var->right_margin < 12 || var->right_margin > 240 ||
-	    var->upper_margin < 12 || var->upper_margin > 120 ||
-	    var->lower_margin < 1 || var->lower_margin > 64 ||
-	    var->hsync_len < 32 || var->hsync_len > 240 ||
-	    var->vsync_len < 2 || var->vsync_len > 64 ||
-	    var->pixclock < 6000 || var->pixclock > 40000 ||
+	if (var->xres > MAX_XRES || var->yres > MAX_YRES ||
 	    var->xres * var->yres * (ch->cfg.bpp / 8) * 2 > info->fix.smem_len) {
-		dev_warn(info->dev, "Invalid info: %u %u %u %u %u %u %u %u %u!\n",
-			 var->xres, var->yres,
-			 var->left_margin, var->right_margin,
-			 var->upper_margin, var->lower_margin,
-			 var->hsync_len, var->vsync_len,
-			 var->pixclock);
+		dev_warn(info->dev, "Invalid info: %u-%u-%u-%u x %u-%u-%u-%u @ %lukHz!\n",
+			 var->left_margin, var->xres, var->right_margin, var->hsync_len,
+			 var->upper_margin, var->yres, var->lower_margin, var->vsync_len,
+			 PICOS2KHZ(var->pixclock));
 		return -EINVAL;
 	}
+
+	/* only accept the forced_bpp for dual channel configurations */
+	if (p->forced_bpp && p->forced_bpp != var->bits_per_pixel)
+		return -EINVAL;
+
+	switch (var->bits_per_pixel) {
+	case 16: /* PKF[4:0] = 00011 - RGB 565 */
+	case 24: /* PKF[4:0] = 01011 - RGB 888 */
+	case 32: /* PKF[4:0] = 00000 - RGBA 888 */
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -964,18 +994,26 @@ static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp)
 		var->transp.length = 0;
 		break;
 
-	case 32: /* PKF[4:0] = 00000 - RGB 888
-		  * sh7722 pdf says 00RRGGBB but reality is GGBB00RR
-		  * this may be because LDDDSR has word swap enabled..
-		  */
-		var->red.offset = 0;
+	case 24: /* PKF[4:0] = 01011 - RGB 888 */
+		var->red.offset = 16;
 		var->red.length = 8;
-		var->green.offset = 24;
+		var->green.offset = 8;
 		var->green.length = 8;
-		var->blue.offset = 16;
+		var->blue.offset = 0;
 		var->blue.length = 8;
 		var->transp.offset = 0;
 		var->transp.length = 0;
+		break;
+
+	case 32: /* PKF[4:0] = 00000 - RGBA 888 */
+		var->red.offset = 16;
+		var->red.length = 8;
+		var->green.offset = 8;
+		var->green.length = 8;
+		var->blue.offset = 0;
+		var->blue.length = 8;
+		var->transp.offset = 24;
+		var->transp.length = 8;
 		break;
 	default:
 		return -EINVAL;
@@ -1180,6 +1218,10 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	/* for dual channel LCDC (MAIN + SUB) force shared bpp setting */
+	if (j == 2)
+		priv->forced_bpp = pdata->ch[0].bpp;
+
 	priv->base = ioremap_nocache(res->start, resource_size(res));
 	if (!priv->base)
 		goto err1;
@@ -1226,7 +1268,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		}
 
 		if (!mode)
-			max_size = DEFAULT_XRES * DEFAULT_YRES;
+			max_size = MAX_XRES * MAX_YRES;
 		else if (max_cfg)
 			dev_dbg(&pdev->dev, "Found largest videomode %ux%u\n",
 				max_cfg->xres, max_cfg->yres);
@@ -1238,12 +1280,14 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			mode = &default_720p;
 			num_cfg = 1;
 		} else {
-			num_cfg = ch->cfg.num_cfg;
+			num_cfg = cfg->num_cfg;
 		}
 
 		fb_videomode_to_modelist(mode, num_cfg, &info->modelist);
 
 		fb_videomode_to_var(var, mode);
+		var->width = cfg->lcd_size_cfg.width;
+		var->height = cfg->lcd_size_cfg.height;
 		/* Default Y virtual resolution is 2x panel size */
 		var->yres_virtual = var->yres * 2;
 		var->activate = FB_ACTIVATE_NOW;

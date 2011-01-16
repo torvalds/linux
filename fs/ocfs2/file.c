@@ -1307,9 +1307,12 @@ bail:
 	return err;
 }
 
-int ocfs2_permission(struct inode *inode, int mask)
+int ocfs2_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	int ret;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	mlog_entry_void();
 
@@ -1320,7 +1323,7 @@ int ocfs2_permission(struct inode *inode, int mask)
 		goto out;
 	}
 
-	ret = generic_permission(inode, mask, ocfs2_check_acl);
+	ret = generic_permission(inode, mask, flags, ocfs2_check_acl);
 
 	ocfs2_inode_unlock(inode, 0);
 out:
@@ -1992,6 +1995,7 @@ static long ocfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_space_resv sr;
 	int change_size = 1;
+	int cmd = OCFS2_IOC_RESVSP64;
 
 	if (!ocfs2_writes_unwritten_extents(osb))
 		return -EOPNOTSUPP;
@@ -2002,12 +2006,15 @@ static long ocfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	if (mode & FALLOC_FL_KEEP_SIZE)
 		change_size = 0;
 
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		cmd = OCFS2_IOC_UNRESVSP64;
+
 	sr.l_whence = 0;
 	sr.l_start = (s64)offset;
 	sr.l_len = (s64)len;
 
-	return __ocfs2_change_file_space(NULL, inode, offset,
-					 OCFS2_IOC_RESVSP64, &sr, change_size);
+	return __ocfs2_change_file_space(NULL, inode, offset, cmd, &sr,
+					 change_size);
 }
 
 int ocfs2_check_range_for_refcount(struct inode *inode, loff_t pos,
@@ -2241,11 +2248,15 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 
 	mutex_lock(&inode->i_mutex);
 
+	ocfs2_iocb_clear_sem_locked(iocb);
+
 relock:
 	/* to match setattr's i_mutex -> i_alloc_sem -> rw_lock ordering */
 	if (direct_io) {
 		down_read(&inode->i_alloc_sem);
 		have_alloc_sem = 1;
+		/* communicate with ocfs2_dio_end_io */
+		ocfs2_iocb_set_sem_locked(iocb);
 	}
 
 	/*
@@ -2382,8 +2393,10 @@ out:
 		ocfs2_rw_unlock(inode, rw_level);
 
 out_sems:
-	if (have_alloc_sem)
+	if (have_alloc_sem) {
 		up_read(&inode->i_alloc_sem);
+		ocfs2_iocb_clear_sem_locked(iocb);
+	}
 
 	mutex_unlock(&inode->i_mutex);
 
@@ -2527,6 +2540,8 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 		goto bail;
 	}
 
+	ocfs2_iocb_clear_sem_locked(iocb);
+
 	/*
 	 * buffered reads protect themselves in ->readpage().  O_DIRECT reads
 	 * need locks to protect pending reads from racing with truncate.
@@ -2534,6 +2549,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	if (filp->f_flags & O_DIRECT) {
 		down_read(&inode->i_alloc_sem);
 		have_alloc_sem = 1;
+		ocfs2_iocb_set_sem_locked(iocb);
 
 		ret = ocfs2_rw_lock(inode, 0);
 		if (ret < 0) {
@@ -2575,8 +2591,10 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	}
 
 bail:
-	if (have_alloc_sem)
+	if (have_alloc_sem) {
 		up_read(&inode->i_alloc_sem);
+		ocfs2_iocb_clear_sem_locked(iocb);
+	}
 	if (rw_level != -1)
 		ocfs2_rw_unlock(inode, rw_level);
 	mlog_exit(ret);

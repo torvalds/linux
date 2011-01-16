@@ -2213,6 +2213,9 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 static int fcu_of_probe(struct platform_device* dev, const struct of_device_id *match)
 {
 	state = state_detached;
+	of_dev = dev;
+
+	dev_info(&dev->dev, "PowerMac G5 Thermal control driver %s\n", VERSION);
 
 	/* Lookup the fans in the device tree */
 	fcu_lookup_fans(dev->dev.of_node);
@@ -2235,6 +2238,7 @@ static const struct of_device_id fcu_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, fcu_match);
 
 static struct of_platform_driver fcu_of_platform_driver = 
 {
@@ -2252,8 +2256,6 @@ static struct of_platform_driver fcu_of_platform_driver =
  */
 static int __init therm_pm72_init(void)
 {
-	struct device_node *np;
-
 	rackmac = of_machine_is_compatible("RackMac3,1");
 
 	if (!of_machine_is_compatible("PowerMac7,2") &&
@@ -2261,34 +2263,12 @@ static int __init therm_pm72_init(void)
 	    !rackmac)
 	    	return -ENODEV;
 
-	printk(KERN_INFO "PowerMac G5 Thermal control driver %s\n", VERSION);
-
-	np = of_find_node_by_type(NULL, "fcu");
-	if (np == NULL) {
-		/* Some machines have strangely broken device-tree */
-		np = of_find_node_by_path("/u3@0,f8000000/i2c@f8001000/fan@15e");
-		if (np == NULL) {
-			    printk(KERN_ERR "Can't find FCU in device-tree !\n");
-			    return -ENODEV;
-		}
-	}
-	of_dev = of_platform_device_create(np, "temperature", NULL);
-	if (of_dev == NULL) {
-		printk(KERN_ERR "Can't register FCU platform device !\n");
-		return -ENODEV;
-	}
-
-	of_register_platform_driver(&fcu_of_platform_driver);
-	
-	return 0;
+	return of_register_platform_driver(&fcu_of_platform_driver);
 }
 
 static void __exit therm_pm72_exit(void)
 {
 	of_unregister_platform_driver(&fcu_of_platform_driver);
-
-	if (of_dev)
-		of_device_unregister(of_dev);
 }
 
 module_init(therm_pm72_init);

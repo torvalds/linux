@@ -120,8 +120,8 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 									\
 		struct list_head *waitq = bfa_reqq(__bfa, __reqq);      \
 									\
-		bfa_assert(((__reqq) < BFI_IOC_MAX_CQS));      \
-		bfa_assert((__wqe)->qresume && (__wqe)->cbarg);      \
+		WARN_ON(((__reqq) >= BFI_IOC_MAX_CQS));			\
+		WARN_ON(!((__wqe)->qresume && (__wqe)->cbarg));		\
 									\
 		list_add_tail(&(__wqe)->qe, waitq);      \
 	} while (0)
@@ -334,8 +334,6 @@ void bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns);
 wwn_t bfa_iocfc_get_pwwn(struct bfa_s *bfa);
 wwn_t bfa_iocfc_get_nwwn(struct bfa_s *bfa);
-void bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa,
-				struct bfa_boot_pbc_s *pbcfg);
 int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 				struct bfi_pbc_vport_s *pbc_vport);
 

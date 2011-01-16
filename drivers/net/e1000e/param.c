@@ -421,7 +421,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		static const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "CRC Stripping",
-			.err  = "defaulting to enabled",
+			.err  = "defaulting to Enabled",
 			.def  = OPTION_ENABLED
 		};
 

@@ -19,7 +19,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include <sound/uda134x.h>
@@ -389,7 +388,7 @@ static int uda134x_set_bias_level(struct snd_soc_codec *codec,
 			pd->power(0);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

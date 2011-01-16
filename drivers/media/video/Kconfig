@@ -7,11 +7,6 @@ config VIDEO_V4L2
 	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
 	default VIDEO_DEV && VIDEO_V4L2_COMMON
 
-config VIDEO_V4L1
-	tristate
-	depends on VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
-	default VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
-
 config VIDEOBUF_GEN
 	tristate
 
@@ -96,7 +91,7 @@ config VIDEO_HELPER_CHIPS_AUTO
 
 config VIDEO_IR_I2C
 	tristate "I2C module for IR" if !VIDEO_HELPER_CHIPS_AUTO
-	depends on I2C && VIDEO_IR
+	depends on I2C && RC_CORE
 	default y
 	---help---
 	  Most boards have an IR chip directly connected via GPIO. However,
@@ -666,6 +661,16 @@ config VIDEO_HEXIUM_GEMINI
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.
 
+config VIDEO_TIMBERDALE
+	tristate "Support for timberdale Video In/LogiWIN"
+	depends on VIDEO_V4L2 && I2C
+	select DMA_ENGINE
+	select TIMB_DMA
+	select VIDEO_ADV7180
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	Add support for the Video In peripherial of the timberdale FPGA.
+
 source "drivers/media/video/cx88/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
@@ -789,6 +794,12 @@ config SOC_CAMERA_PLATFORM
 	help
 	  This is a generic SoC camera platform driver, useful for testing
 
+config SOC_CAMERA_OV2640
+	tristate "ov2640 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov2640 camera driver
+
 config SOC_CAMERA_OV6650
 	tristate "ov6650 sensor support"
 	depends on SOC_CAMERA && I2C
@@ -905,20 +916,7 @@ source "drivers/media/video/cx231xx/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
-source "drivers/media/video/usbvideo/Kconfig"
-
 source "drivers/media/video/et61x251/Kconfig"
-
-config USB_SE401
-	tristate "USB SE401 Camera support"
-	depends on VIDEO_V4L1
-	---help---
-	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. See <file:Documentation/video4linux/se401.txt>
-	  for more information and for a list of supported cameras.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called se401.
 
 source "drivers/media/video/sn9c102/Kconfig"
 

@@ -152,6 +152,7 @@ clocks_calc_mult_shift(u32 *mult, u32 *shift, u32 from, u32 to, u32 minsec)
 	 */
 	for (sft = 32; sft > 0; sft--) {
 		tmp = (u64) to << sft;
+		tmp += from / 2;
 		do_div(tmp, from);
 		if ((tmp >> sftacc) == 0)
 			break;
@@ -678,7 +679,7 @@ EXPORT_SYMBOL_GPL(__clocksource_updatefreq_scale);
 int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
 
-	/* Intialize mult/shift and max_idle_ns */
+	/* Initialize mult/shift and max_idle_ns */
 	__clocksource_updatefreq_scale(cs, scale, freq);
 
 	/* Add clocksource to the clcoksource list */

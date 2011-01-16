@@ -113,7 +113,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	/*
 	 * Use count cannot be non-zero and chip in uninitialized state.
 	 */
-	bfa_assert(ioc_fwstate != BFI_IOC_UNINIT);
+	WARN_ON(ioc_fwstate == BFI_IOC_UNINIT);
 
 	/*
 	 * Check if another driver with a different firmware is active
@@ -158,7 +158,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 	 */
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
-	bfa_assert(usecnt > 0);
+	WARN_ON(usecnt <= 0);
 
 	usecnt--;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
@@ -351,7 +351,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
-/**
+/*
  * Synchronized IOC failure processing routines
  */
 static void
@@ -393,7 +393,7 @@ bfa_ioc_ct_sync_complete(struct bfa_ioc_s *ioc)
 	if (sync_ackd == 0)
 		return BFA_TRUE;
 
-	/**
+	/*
 	 * The check below is to see whether any other PCI fn
 	 * has reinitialized the ASIC (reset sync_ackd bits)
 	 * and failed again while this IOC was waiting for hw
@@ -412,7 +412,7 @@ bfa_ioc_ct_sync_complete(struct bfa_ioc_s *ioc)
 		return BFA_TRUE;
 	}
 
-	/**
+	/*
 	 * If another PCI fn reinitialized and failed again while
 	 * this IOC was waiting for hw sem, the sync_ackd bit for
 	 * this IOC need to be set again to allow reinitialization.

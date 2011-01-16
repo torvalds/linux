@@ -29,6 +29,27 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 
+void
+nv30_fb_init_tile_region(struct drm_device *dev, int i, uint32_t addr,
+			 uint32_t size, uint32_t pitch, uint32_t flags)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	tile->addr = addr | 1;
+	tile->limit = max(1u, addr + size) - 1;
+	tile->pitch = pitch;
+}
+
+void
+nv30_fb_free_tile_region(struct drm_device *dev, int i)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	tile->addr = tile->limit = tile->pitch = 0;
+}
+
 static int
 calc_bias(struct drm_device *dev, int k, int i, int j)
 {
@@ -65,7 +86,7 @@ nv30_fb_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)
-		pfb->set_region_tiling(dev, i, 0, 0, 0);
+		pfb->set_tile_region(dev, i);
 
 	/* Init the memory timing regs at 0x10037c/0x1003ac */
 	if (dev_priv->chipset == 0x30 ||

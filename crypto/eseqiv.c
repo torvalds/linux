@@ -62,20 +62,6 @@ out:
 	skcipher_givcrypt_complete(req, err);
 }
 
-static void eseqiv_chain(struct scatterlist *head, struct scatterlist *sg,
-			 int chain)
-{
-	if (chain) {
-		head->length += sg->length;
-		sg = scatterwalk_sg_next(sg);
-	}
-
-	if (sg)
-		scatterwalk_sg_chain(head, 2, sg);
-	else
-		sg_mark_end(head);
-}
-
 static int eseqiv_givencrypt(struct skcipher_givcrypt_request *req)
 {
 	struct crypto_ablkcipher *geniv = skcipher_givcrypt_reqtfm(req);
@@ -124,13 +110,13 @@ static int eseqiv_givencrypt(struct skcipher_givcrypt_request *req)
 
 	sg_init_table(reqctx->src, 2);
 	sg_set_buf(reqctx->src, giv, ivsize);
-	eseqiv_chain(reqctx->src, osrc, vsrc == giv + ivsize);
+	scatterwalk_crypto_chain(reqctx->src, osrc, vsrc == giv + ivsize, 2);
 
 	dst = reqctx->src;
 	if (osrc != odst) {
 		sg_init_table(reqctx->dst, 2);
 		sg_set_buf(reqctx->dst, giv, ivsize);
-		eseqiv_chain(reqctx->dst, odst, vdst == giv + ivsize);
+		scatterwalk_crypto_chain(reqctx->dst, odst, vdst == giv + ivsize, 2);
 
 		dst = reqctx->dst;
 	}

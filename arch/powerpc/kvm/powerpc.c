@@ -145,18 +145,12 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = kvmppc_core_check_processor_compat();
 }
 
-struct kvm *kvm_arch_create_vm(void)
+int kvm_arch_init_vm(struct kvm *kvm)
 {
-	struct kvm *kvm;
-
-	kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
-	if (!kvm)
-		return ERR_PTR(-ENOMEM);
-
-	return kvm;
+	return 0;
 }
 
-static void kvmppc_free_vcpus(struct kvm *kvm)
+void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	unsigned int i;
 	struct kvm_vcpu *vcpu;
@@ -174,14 +168,6 @@ static void kvmppc_free_vcpus(struct kvm *kvm)
 
 void kvm_arch_sync_events(struct kvm *kvm)
 {
-}
-
-void kvm_arch_destroy_vm(struct kvm *kvm)
-{
-	kvmppc_free_vcpus(kvm);
-	kvm_free_physmem(kvm);
-	cleanup_srcu_struct(&kvm->srcu);
-	kfree(kvm);
 }
 
 int kvm_dev_ioctl_check_extension(long ext)

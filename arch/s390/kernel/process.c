@@ -32,6 +32,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
+#include <linux/kprobes.h>
 #include <asm/compat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -41,6 +42,7 @@
 #include <asm/irq.h>
 #include <asm/timer.h>
 #include <asm/nmi.h>
+#include <asm/smp.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
@@ -75,13 +77,8 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  */
 static void default_idle(void)
 {
-	/* CPU is going idle. */
-#ifdef CONFIG_HOTPLUG_CPU
-	if (cpu_is_offline(smp_processor_id())) {
-		preempt_enable_no_resched();
+	if (cpu_is_offline(smp_processor_id()))
 		cpu_die();
-	}
-#endif
 	local_irq_disable();
 	if (need_resched()) {
 		local_irq_enable();
@@ -116,15 +113,17 @@ void cpu_idle(void)
 	}
 }
 
-extern void kernel_thread_starter(void);
+extern void __kprobes kernel_thread_starter(void);
 
 asm(
-	".align 4\n"
+	".section .kprobes.text, \"ax\"\n"
+	".global kernel_thread_starter\n"
 	"kernel_thread_starter:\n"
 	"    la    2,0(10)\n"
 	"    basr  14,9\n"
 	"    la    2,0\n"
-	"    br    11\n");
+	"    br    11\n"
+	".previous\n");
 
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
@@ -214,8 +213,10 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	/* start new process with ar4 pointing to the correct address space */
 	p->thread.mm_segment = get_fs();
 	/* Don't copy debug registers */
-	memset(&p->thread.per_info, 0, sizeof(p->thread.per_info));
+	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
+	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
 	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(p, TIF_PER_TRAP);
 	/* Initialize per thread user and system timer values */
 	ti = task_thread_info(p);
 	ti->user_timer = 0;

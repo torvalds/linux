@@ -22,6 +22,9 @@
 #error "This file is PCI bus glue.  CONFIG_PCI must be defined."
 #endif
 
+/* defined here to avoid adding to pci_ids.h for single instance use */
+#define PCI_DEVICE_ID_INTEL_CE4100_USB	0x2e70
+
 /*-------------------------------------------------------------------------*/
 
 /* called after powerup, by probe or system-pm "wakeup" */
@@ -39,6 +42,35 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 		ehci_dbg(ehci, "MWI active\n");
 
 	return 0;
+}
+
+static int ehci_quirk_amd_SB800(struct ehci_hcd *ehci)
+{
+	struct pci_dev *amd_smbus_dev;
+	u8 rev = 0;
+
+	amd_smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
+	if (!amd_smbus_dev)
+		return 0;
+
+	pci_read_config_byte(amd_smbus_dev, PCI_REVISION_ID, &rev);
+	if (rev < 0x40) {
+		pci_dev_put(amd_smbus_dev);
+		amd_smbus_dev = NULL;
+		return 0;
+	}
+
+	if (!amd_nb_dev)
+		amd_nb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1510, NULL);
+	if (!amd_nb_dev)
+		ehci_err(ehci, "QUIRK: unable to get AMD NB device\n");
+
+	ehci_info(ehci, "QUIRK: Enable AMD SB800 L1 fix\n");
+
+	pci_dev_put(amd_smbus_dev);
+	amd_smbus_dev = NULL;
+
+	return 1;
 }
 
 /* called during probe() after chip reset completes */
@@ -99,6 +131,9 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
+	if (ehci_quirk_amd_SB800(ehci))
+		ehci->amd_l1_fix = 1;
+
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -136,6 +171,10 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 				|| pdev->device == 0x0829) {
 			ehci_info(ehci, "disable lpm for langwell/penwell\n");
 			ehci->has_lpm = 0;
+		}
+		if (pdev->device == PCI_DEVICE_ID_INTEL_CE4100_USB) {
+			hcd->has_tt = 1;
+			tdi_reset(ehci);
 		}
 		break;
 	case PCI_VENDOR_ID_TDI:

@@ -19,7 +19,7 @@ config FIREWIRE
 
 config FIREWIRE_OHCI
 	tristate "OHCI-1394 controllers"
-	depends on PCI && FIREWIRE
+	depends on PCI && FIREWIRE && MMU
 	help
 	  Enable this driver if you have a FireWire controller based
 	  on the OHCI specification.  For all practical purposes, this

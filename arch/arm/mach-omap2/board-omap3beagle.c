@@ -41,6 +41,7 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
@@ -194,14 +195,19 @@ static void beagle_disable_dvi(struct omap_dss_device *dssdev)
 		gpio_set_value(dssdev->reset_gpio, 0);
 }
 
+static struct panel_generic_dpi_data dvi_panel = {
+	.name = "generic",
+	.platform_enable = beagle_enable_dvi,
+	.platform_disable = beagle_disable_dvi,
+};
+
 static struct omap_dss_device beagle_dvi_device = {
 	.type = OMAP_DISPLAY_TYPE_DPI,
 	.name = "dvi",
-	.driver_name = "generic_panel",
+	.driver_name = "generic_dpi_panel",
+	.data = &dvi_panel,
 	.phy.dpi.data_lines = 24,
 	.reset_gpio = 170,
-	.platform_enable = beagle_enable_dvi,
-	.platform_disable = beagle_disable_dvi,
 };
 
 static struct omap_dss_device beagle_tv_device = {
@@ -484,13 +490,13 @@ static struct platform_device keys_gpio = {
 
 static void __init omap3_beagle_init_irq(void)
 {
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
 #endif
-	omap_gpio_init();
 }
 
 static struct platform_device *omap3_beagle_devices[] __initdata = {
@@ -548,8 +554,6 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static struct omap_musb_board_data musb_board_data = {

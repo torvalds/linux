@@ -89,7 +89,7 @@ u32 rt_global_debug_component =
                         // 	COMP_INTR       |
 				COMP_ERR ; //always open err flags on
 
-static const struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(rtl8192_pci_id_tbl) = {
 #ifdef RTL8190P
 	/* Realtek */
 	/* Dlink */
@@ -2283,9 +2283,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 				IMR_TXFOVW | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 
 	priv->AcmControl = 0;
-	priv->pFirmware = (rt_firmware*)vmalloc(sizeof(rt_firmware));
-	if (priv->pFirmware)
-	memset(priv->pFirmware, 0, sizeof(rt_firmware));
+	priv->pFirmware = vzalloc(sizeof(rt_firmware));
 
 	/* rx related queue */
         skb_queue_head_init(&priv->rx_queue);

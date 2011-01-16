@@ -263,8 +263,7 @@ static void vt1708_stop_hp_work(struct via_spec *spec)
 		return;
 	snd_hda_codec_write(spec->codec, 0x1, 0, 0xf81,
 			    !spec->vt1708_jack_detectect);
-	cancel_delayed_work(&spec->vt1708_hp_work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&spec->vt1708_hp_work);
 }
 
 

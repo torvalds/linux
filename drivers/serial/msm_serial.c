@@ -686,7 +686,7 @@ static int __init msm_serial_probe(struct platform_device *pdev)
 	msm_port = UART_TO_MSM(port);
 
 	msm_port->clk = clk_get(&pdev->dev, "uart_clk");
-	if (unlikely(IS_ERR(msm_port->clk)))
+	if (IS_ERR(msm_port->clk))
 		return PTR_ERR(msm_port->clk);
 	port->uartclk = clk_get_rate(msm_port->clk);
 	printk(KERN_INFO "uartclk = %d\n", port->uartclk);

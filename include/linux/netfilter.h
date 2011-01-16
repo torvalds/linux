@@ -33,6 +33,8 @@
 
 #define NF_QUEUE_NR(x) ((((x) << NF_VERDICT_BITS) & NF_VERDICT_QMASK) | NF_QUEUE)
 
+#define NF_DROP_ERR(x) (((-x) << NF_VERDICT_BITS) | NF_DROP)
+
 /* only for userspace compatibility */
 #ifndef __KERNEL__
 /* Generic cache responses from hook functions.

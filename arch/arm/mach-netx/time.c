@@ -114,7 +114,6 @@ static struct clocksource clocksource_netx = {
 	.rating		= 200,
 	.read		= netx_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -151,9 +150,7 @@ static void __init netx_timer_init(void)
 	writel(NETX_GPIO_COUNTER_CTRL_RUN,
 			NETX_GPIO_COUNTER_CTRL(TIMER_CLOCKSOURCE));
 
-	clocksource_netx.mult =
-		clocksource_hz2mult(CLOCK_TICK_RATE, clocksource_netx.shift);
-	clocksource_register(&clocksource_netx);
+	clocksource_register_hz(&clocksource_netx, CLOCK_TICK_RATE);
 
 	netx_clockevent.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC,
 			netx_clockevent.shift);

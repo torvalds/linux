@@ -398,18 +398,16 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 	return container_of(v4l2_dev, struct cx88_core, v4l2_dev);
 }
 
-#define call_hw(core, grpid, o, f, args...) \
+#define call_all(core, o, f, args...) 				\
 	do {							\
 		if (!core->i2c_rc) {				\
 			if (core->gate_ctrl)			\
 				core->gate_ctrl(core, 1);	\
-			v4l2_device_call_all(&core->v4l2_dev, grpid, o, f, ##args); \
+			v4l2_device_call_all(&core->v4l2_dev, 0, o, f, ##args); \
 			if (core->gate_ctrl)			\
 				core->gate_ctrl(core, 0);	\
 		}						\
 	} while (0)
-
-#define call_all(core, o, f, args...) call_hw(core, 0, o, f, ##args)
 
 struct cx8800_dev;
 struct cx8802_dev;

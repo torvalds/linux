@@ -356,7 +356,7 @@ static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask,
 
 static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain,
 				     int depth, int depth_mask, int period,
-				     u64 total_samples, int hits,
+				     u64 total_samples, u64 hits,
 				     int left_margin)
 {
 	int i;
@@ -1092,6 +1092,12 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head,
 	FILE *file;
 	int err = 0;
 	u64 len;
+	char symfs_filename[PATH_MAX];
+
+	if (filename) {
+		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
+			 symbol_conf.symfs, filename);
+	}
 
 	if (filename == NULL) {
 		if (dso->has_build_id) {
@@ -1100,9 +1106,9 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head,
 			return -ENOMEM;
 		}
 		goto fallback;
-	} else if (readlink(filename, command, sizeof(command)) < 0 ||
+	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
 		   strstr(command, "[kernel.kallsyms]") ||
-		   access(filename, R_OK)) {
+		   access(symfs_filename, R_OK)) {
 		free(filename);
 fallback:
 		/*
@@ -1111,6 +1117,8 @@ fallback:
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		filename = dso->long_name;
+		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
+			 symbol_conf.symfs, filename);
 		free_filename = false;
 	}
 
@@ -1137,7 +1145,7 @@ fallback:
 		 "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS -C %s|grep -v %s|expand",
 		 map__rip_2objdump(map, sym->start),
 		 map__rip_2objdump(map, sym->end),
-		 filename, filename);
+		 symfs_filename, filename);
 
 	pr_debug("Executing: %s\n", command);
 
@@ -1168,10 +1176,13 @@ size_t hists__fprintf_nr_events(struct hists *self, FILE *fp)
 	size_t ret = 0;
 
 	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
-		if (!event__name[i])
+		const char *name = event__get_event_name(i);
+
+		if (!strcmp(name, "UNKNOWN"))
 			continue;
-		ret += fprintf(fp, "%10s events: %10d\n",
-			       event__name[i], self->stats.nr_events[i]);
+
+		ret += fprintf(fp, "%16s events: %10d\n", name,
+			       self->stats.nr_events[i]);
 	}
 
 	return ret;

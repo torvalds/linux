@@ -532,7 +532,7 @@ bfad_hal_mem_release(struct bfad_s *bfad)
 					(dma_addr_t) meminfo_elem->dma);
 				break;
 			default:
-				bfa_assert(0);
+				WARN_ON(1);
 				break;
 			}
 		}
@@ -1166,7 +1166,6 @@ bfad_intx(int irq, void *dev_id)
 		spin_lock_irqsave(&bfad->bfad_lock, flags);
 		bfa_comp_free(&bfad->bfa, &doneq);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		bfa_trc_fp(bfad, irq);
 	}
 
 	return IRQ_HANDLED;

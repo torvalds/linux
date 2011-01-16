@@ -304,7 +304,7 @@ static int max8998_get_voltage(struct regulator_dev *rdev)
 }
 
 static int max8998_set_voltage_ldo(struct regulator_dev *rdev,
-				int min_uV, int max_uV)
+				   int min_uV, int max_uV, unsigned *selector)
 {
 	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
 	struct i2c_client *i2c = max8998->iodev->i2c;
@@ -331,6 +331,8 @@ static int max8998_set_voltage_ldo(struct regulator_dev *rdev,
 	if (desc->min + desc->step*i > max_vol)
 		return -EINVAL;
 
+	*selector = i;
+
 	ret = max8998_get_voltage_register(rdev, &reg, &shift, &mask);
 	if (ret)
 		return ret;
@@ -352,7 +354,7 @@ static inline void buck2_gpio_set(int gpio, int v)
 }
 
 static int max8998_set_voltage_buck(struct regulator_dev *rdev,
-				    int min_uV, int max_uV)
+				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
 	struct max8998_platform_data *pdata =
@@ -383,6 +385,8 @@ static int max8998_set_voltage_buck(struct regulator_dev *rdev,
 
 	if (desc->min + desc->step*i > max_vol)
 		return -EINVAL;
+
+	*selector = i;
 
 	ret = max8998_get_voltage_register(rdev, &reg, &shift, &mask);
 	if (ret)

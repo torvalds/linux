@@ -296,15 +296,6 @@ struct bfa_ioc_hwif_s {
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
 
-#ifdef BFA_IOC_IS_UEFI
-#define bfa_ioc_is_bios_optrom(__ioc) (0)
-#define bfa_ioc_is_uefi(__ioc) BFA_IOC_IS_UEFI
-#else
-#define bfa_ioc_is_bios_optrom(__ioc)   \
-	(bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(__ioc)) < BFA_IOC_FWIMG_MINSZ)
-#define bfa_ioc_is_uefi(__ioc) (0)
-#endif
-
 /*
  * IOC mailbox interface
  */

@@ -401,26 +401,22 @@ void nsm_release(struct nsm_handle *nsm)
  * Status Monitor wire protocol.
  */
 
-static int encode_nsm_string(struct xdr_stream *xdr, const char *string)
+static void encode_nsm_string(struct xdr_stream *xdr, const char *string)
 {
 	const u32 len = strlen(string);
 	__be32 *p;
 
-	if (unlikely(len > SM_MAXSTRLEN))
-		return -EIO;
-	p = xdr_reserve_space(xdr, sizeof(u32) + len);
-	if (unlikely(p == NULL))
-		return -EIO;
+	BUG_ON(len > SM_MAXSTRLEN);
+	p = xdr_reserve_space(xdr, 4 + len);
 	xdr_encode_opaque(p, string, len);
-	return 0;
 }
 
 /*
  * "mon_name" specifies the host to be monitored.
  */
-static int encode_mon_name(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_mon_name(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
-	return encode_nsm_string(xdr, argp->mon_name);
+	encode_nsm_string(xdr, argp->mon_name);
 }
 
 /*
@@ -429,35 +425,25 @@ static int encode_mon_name(struct xdr_stream *xdr, const struct nsm_args *argp)
  * (via the NLMPROC_SM_NOTIFY call) that the state of host "mon_name"
  * has changed.
  */
-static int encode_my_id(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_my_id(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
-	int status;
 	__be32 *p;
 
-	status = encode_nsm_string(xdr, utsname()->nodename);
-	if (unlikely(status != 0))
-		return status;
-	p = xdr_reserve_space(xdr, 3 * sizeof(u32));
-	if (unlikely(p == NULL))
-		return -EIO;
-	*p++ = htonl(argp->prog);
-	*p++ = htonl(argp->vers);
-	*p++ = htonl(argp->proc);
-	return 0;
+	encode_nsm_string(xdr, utsname()->nodename);
+	p = xdr_reserve_space(xdr, 4 + 4 + 4);
+	*p++ = cpu_to_be32(argp->prog);
+	*p++ = cpu_to_be32(argp->vers);
+	*p = cpu_to_be32(argp->proc);
 }
 
 /*
  * The "mon_id" argument specifies the non-private arguments
  * of an NSMPROC_MON or NSMPROC_UNMON call.
  */
-static int encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
-	int status;
-
-	status = encode_mon_name(xdr, argp);
-	if (unlikely(status != 0))
-		return status;
-	return encode_my_id(xdr, argp);
+	encode_mon_name(xdr, argp);
+	encode_my_id(xdr, argp);
 }
 
 /*
@@ -465,68 +451,56 @@ static int encode_mon_id(struct xdr_stream *xdr, const struct nsm_args *argp)
  * by the NSMPROC_MON call. This information will be supplied in the
  * NLMPROC_SM_NOTIFY call.
  */
-static int encode_priv(struct xdr_stream *xdr, const struct nsm_args *argp)
+static void encode_priv(struct xdr_stream *xdr, const struct nsm_args *argp)
 {
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, SM_PRIV_SIZE);
+	xdr_encode_opaque_fixed(p, argp->priv->data, SM_PRIV_SIZE);
+}
+
+static void nsm_xdr_enc_mon(struct rpc_rqst *req, struct xdr_stream *xdr,
+			    const struct nsm_args *argp)
+{
+	encode_mon_id(xdr, argp);
+	encode_priv(xdr, argp);
+}
+
+static void nsm_xdr_enc_unmon(struct rpc_rqst *req, struct xdr_stream *xdr,
+			      const struct nsm_args *argp)
+{
+	encode_mon_id(xdr, argp);
+}
+
+static int nsm_xdr_dec_stat_res(struct rpc_rqst *rqstp,
+				struct xdr_stream *xdr,
+				struct nsm_res *resp)
+{
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, 4 + 4);
 	if (unlikely(p == NULL))
 		return -EIO;
-	xdr_encode_opaque_fixed(p, argp->priv->data, SM_PRIV_SIZE);
+	resp->status = be32_to_cpup(p++);
+	resp->state = be32_to_cpup(p);
+
+	dprintk("lockd: %s status %d state %d\n",
+		__func__, resp->status, resp->state);
 	return 0;
 }
 
-static int xdr_enc_mon(struct rpc_rqst *req, __be32 *p,
-		       const struct nsm_args *argp)
-{
-	struct xdr_stream xdr;
-	int status;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	status = encode_mon_id(&xdr, argp);
-	if (unlikely(status))
-		return status;
-	return encode_priv(&xdr, argp);
-}
-
-static int xdr_enc_unmon(struct rpc_rqst *req, __be32 *p,
-			 const struct nsm_args *argp)
-{
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	return encode_mon_id(&xdr, argp);
-}
-
-static int xdr_dec_stat_res(struct rpc_rqst *rqstp, __be32 *p,
+static int nsm_xdr_dec_stat(struct rpc_rqst *rqstp,
+			    struct xdr_stream *xdr,
 			    struct nsm_res *resp)
 {
-	struct xdr_stream xdr;
+	__be32 *p;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
-	p = xdr_inline_decode(&xdr, 2 * sizeof(u32));
+	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
 		return -EIO;
-	resp->status = ntohl(*p++);
-	resp->state = ntohl(*p);
+	resp->state = be32_to_cpup(p);
 
-	dprintk("lockd: xdr_dec_stat_res status %d state %d\n",
-			resp->status, resp->state);
-	return 0;
-}
-
-static int xdr_dec_stat(struct rpc_rqst *rqstp, __be32 *p,
-			struct nsm_res *resp)
-{
-	struct xdr_stream xdr;
-
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
-	p = xdr_inline_decode(&xdr, sizeof(u32));
-	if (unlikely(p == NULL))
-		return -EIO;
-	resp->state = ntohl(*p);
-
-	dprintk("lockd: xdr_dec_stat state %d\n", resp->state);
+	dprintk("lockd: %s state %d\n", __func__, resp->state);
 	return 0;
 }
 
@@ -542,8 +516,8 @@ static int xdr_dec_stat(struct rpc_rqst *rqstp, __be32 *p,
 static struct rpc_procinfo	nsm_procedures[] = {
 [NSMPROC_MON] = {
 		.p_proc		= NSMPROC_MON,
-		.p_encode	= (kxdrproc_t)xdr_enc_mon,
-		.p_decode	= (kxdrproc_t)xdr_dec_stat_res,
+		.p_encode	= (kxdreproc_t)nsm_xdr_enc_mon,
+		.p_decode	= (kxdrdproc_t)nsm_xdr_dec_stat_res,
 		.p_arglen	= SM_mon_sz,
 		.p_replen	= SM_monres_sz,
 		.p_statidx	= NSMPROC_MON,
@@ -551,8 +525,8 @@ static struct rpc_procinfo	nsm_procedures[] = {
 	},
 [NSMPROC_UNMON] = {
 		.p_proc		= NSMPROC_UNMON,
-		.p_encode	= (kxdrproc_t)xdr_enc_unmon,
-		.p_decode	= (kxdrproc_t)xdr_dec_stat,
+		.p_encode	= (kxdreproc_t)nsm_xdr_enc_unmon,
+		.p_decode	= (kxdrdproc_t)nsm_xdr_dec_stat,
 		.p_arglen	= SM_mon_id_sz,
 		.p_replen	= SM_unmonres_sz,
 		.p_statidx	= NSMPROC_UNMON,

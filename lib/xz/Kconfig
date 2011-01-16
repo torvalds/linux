@@ -1,0 +1,59 @@
+config XZ_DEC
+	tristate "XZ decompression support"
+	select CRC32
+	help
+	  LZMA2 compression algorithm and BCJ filters are supported using
+	  the .xz file format as the container. For integrity checking,
+	  CRC32 is supported. See Documentation/xz.txt for more information.
+
+config XZ_DEC_X86
+	bool "x86 BCJ filter decoder" if EMBEDDED
+	default y
+	depends on XZ_DEC
+	select XZ_DEC_BCJ
+
+config XZ_DEC_POWERPC
+	bool "PowerPC BCJ filter decoder" if EMBEDDED
+	default y
+	depends on XZ_DEC
+	select XZ_DEC_BCJ
+
+config XZ_DEC_IA64
+	bool "IA-64 BCJ filter decoder" if EMBEDDED
+	default y
+	depends on XZ_DEC
+	select XZ_DEC_BCJ
+
+config XZ_DEC_ARM
+	bool "ARM BCJ filter decoder" if EMBEDDED
+	default y
+	depends on XZ_DEC
+	select XZ_DEC_BCJ
+
+config XZ_DEC_ARMTHUMB
+	bool "ARM-Thumb BCJ filter decoder" if EMBEDDED
+	default y
+	depends on XZ_DEC
+	select XZ_DEC_BCJ
+
+config XZ_DEC_SPARC
+	bool "SPARC BCJ filter decoder" if EMBEDDED
+	default y
+	depends on XZ_DEC
+	select XZ_DEC_BCJ
+
+config XZ_DEC_BCJ
+	bool
+	default n
+
+config XZ_DEC_TEST
+	tristate "XZ decompressor tester"
+	default n
+	depends on XZ_DEC
+	help
+	  This allows passing .xz files to the in-kernel XZ decoder via
+	  a character special file. It calculates CRC32 of the decompressed
+	  data and writes diagnostics to the system log.
+
+	  Unless you are developing the XZ decoder, you don't need this
+	  and should say N.

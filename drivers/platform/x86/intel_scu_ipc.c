@@ -26,6 +26,7 @@
 #include <linux/sfi.h>
 #include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
+#include <asm/mrst.h>
 
 /* IPC defines the following message types */
 #define IPCMSG_WATCHDOG_TIMER 0xF8 /* Set Kernel Watchdog Threshold */
@@ -496,7 +497,7 @@ int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data)
 			"intel_scu_ipc: I2C INVALID_CMD = 0x%x\n", cmd);
 
 		mutex_unlock(&ipclock);
-		return -1;
+		return -EIO;
 	}
 	mutex_unlock(&ipclock);
 	return 0;
@@ -641,7 +642,7 @@ update_end:
 
 	if (status == IPC_FW_UPDATE_SUCCESS)
 		return 0;
-	return -1;
+	return -EIO;
 }
 EXPORT_SYMBOL(intel_scu_ipc_fw_update);
 
@@ -699,6 +700,9 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		iounmap(ipcdev.ipc_base);
 		return -ENOMEM;
 	}
+
+	intel_scu_devices_create();
+
 	return 0;
 }
 
@@ -720,6 +724,7 @@ static void ipc_remove(struct pci_dev *pdev)
 	iounmap(ipcdev.ipc_base);
 	iounmap(ipcdev.i2c_base);
 	ipcdev.pdev = NULL;
+	intel_scu_devices_destroy();
 }
 
 static const struct pci_device_id pci_ids[] = {

@@ -107,7 +107,7 @@ write_wakeup()	-	May be called at any point between open and close.
 
 dcd_change()	-	Report to the tty line the current DCD pin status
 			changes and the relative timestamp. The timestamp
-			can be NULL.
+			cannot be NULL.
 
 
 Driver Access

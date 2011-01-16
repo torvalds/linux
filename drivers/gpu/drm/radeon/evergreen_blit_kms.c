@@ -147,7 +147,9 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, SQ_TEX_VTX_VALID_BUFFER << 30);
 
-	if (rdev->family == CHIP_CEDAR)
+	if ((rdev->family == CHIP_CEDAR) ||
+	    (rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_CAICOS))
 		cp_set_surface_sync(rdev,
 				    PACKET3_TC_ACTION_ENA, 48, gpu_addr);
 	else
@@ -331,9 +333,95 @@ set_default_state(struct radeon_device *rdev)
 		num_hs_stack_entries = 85;
 		num_ls_stack_entries = 85;
 		break;
+	case CHIP_PALM:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 96;
+		num_vs_threads = 16;
+		num_gs_threads = 16;
+		num_es_threads = 16;
+		num_hs_threads = 16;
+		num_ls_threads = 16;
+		num_ps_stack_entries = 42;
+		num_vs_stack_entries = 42;
+		num_gs_stack_entries = 42;
+		num_es_stack_entries = 42;
+		num_hs_stack_entries = 42;
+		num_ls_stack_entries = 42;
+		break;
+	case CHIP_BARTS:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 128;
+		num_vs_threads = 20;
+		num_gs_threads = 20;
+		num_es_threads = 20;
+		num_hs_threads = 20;
+		num_ls_threads = 20;
+		num_ps_stack_entries = 85;
+		num_vs_stack_entries = 85;
+		num_gs_stack_entries = 85;
+		num_es_stack_entries = 85;
+		num_hs_stack_entries = 85;
+		num_ls_stack_entries = 85;
+		break;
+	case CHIP_TURKS:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 128;
+		num_vs_threads = 20;
+		num_gs_threads = 20;
+		num_es_threads = 20;
+		num_hs_threads = 20;
+		num_ls_threads = 20;
+		num_ps_stack_entries = 42;
+		num_vs_stack_entries = 42;
+		num_gs_stack_entries = 42;
+		num_es_stack_entries = 42;
+		num_hs_stack_entries = 42;
+		num_ls_stack_entries = 42;
+		break;
+	case CHIP_CAICOS:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 128;
+		num_vs_threads = 10;
+		num_gs_threads = 10;
+		num_es_threads = 10;
+		num_hs_threads = 10;
+		num_ls_threads = 10;
+		num_ps_stack_entries = 42;
+		num_vs_stack_entries = 42;
+		num_gs_stack_entries = 42;
+		num_es_stack_entries = 42;
+		num_hs_stack_entries = 42;
+		num_ls_stack_entries = 42;
+		break;
 	}
 
-	if (rdev->family == CHIP_CEDAR)
+	if ((rdev->family == CHIP_CEDAR) ||
+	    (rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_CAICOS))
 		sq_config = 0;
 	else
 		sq_config = VC_ENABLE;

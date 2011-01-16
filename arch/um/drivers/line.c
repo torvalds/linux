@@ -821,12 +821,12 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty,
 
 static void unregister_winch(struct tty_struct *tty)
 {
-	struct list_head *ele;
+	struct list_head *ele, *next;
 	struct winch *winch;
 
 	spin_lock(&winch_handler_lock);
 
-	list_for_each(ele, &winch_handlers) {
+	list_for_each_safe(ele, next, &winch_handlers) {
 		winch = list_entry(ele, struct winch, list);
 		if (winch->tty == tty) {
 			free_winch(winch, 1);

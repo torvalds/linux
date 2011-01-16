@@ -13,6 +13,7 @@
 #ifndef _LINUX_SUNRPC_CACHE_H_
 #define _LINUX_SUNRPC_CACHE_H_
 
+#include <linux/kref.h>
 #include <linux/slab.h>
 #include <asm/atomic.h>
 #include <linux/proc_fs.h>

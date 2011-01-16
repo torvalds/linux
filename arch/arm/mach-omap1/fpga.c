@@ -143,7 +143,7 @@ static struct irq_chip omap_fpga_irq = {
  */
 void omap1510_fpga_init_irq(void)
 {
-	int i;
+	int i, res;
 
 	__raw_writeb(0, OMAP1510_FPGA_IMR_LO);
 	__raw_writeb(0, OMAP1510_FPGA_IMR_HI);
@@ -177,10 +177,12 @@ void omap1510_fpga_init_irq(void)
 	 * NOTE: For general GPIO/MPUIO access and interrupts, please see
 	 * gpio.[ch]
 	 */
-	gpio_request(13, "FPGA irq");
+	res = gpio_request(13, "FPGA irq");
+	if (res) {
+		pr_err("%s failed to get gpio\n", __func__);
+		return;
+	}
 	gpio_direction_input(13);
 	set_irq_type(gpio_to_irq(13), IRQ_TYPE_EDGE_RISING);
 	set_irq_chained_handler(OMAP1510_INT_FPGA, innovator_fpga_IRQ_demux);
 }
-
-EXPORT_SYMBOL(omap1510_fpga_init_irq);

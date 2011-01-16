@@ -135,24 +135,24 @@ static void do_stolen_accounting(void)
 
 	/* Add the appropriate number of ticks of stolen time,
 	   including any left-overs from last time. */
-	stolen = runnable + offline + __get_cpu_var(xen_residual_stolen);
+	stolen = runnable + offline + __this_cpu_read(xen_residual_stolen);
 
 	if (stolen < 0)
 		stolen = 0;
 
 	ticks = iter_div_u64_rem(stolen, NS_PER_TICK, &stolen);
-	__get_cpu_var(xen_residual_stolen) = stolen;
+	__this_cpu_write(xen_residual_stolen, stolen);
 	account_steal_ticks(ticks);
 
 	/* Add the appropriate number of ticks of blocked time,
 	   including any left-overs from last time. */
-	blocked += __get_cpu_var(xen_residual_blocked);
+	blocked += __this_cpu_read(xen_residual_blocked);
 
 	if (blocked < 0)
 		blocked = 0;
 
 	ticks = iter_div_u64_rem(blocked, NS_PER_TICK, &blocked);
-	__get_cpu_var(xen_residual_blocked) = blocked;
+	__this_cpu_write(xen_residual_blocked, blocked);
 	account_idle_ticks(ticks);
 }
 

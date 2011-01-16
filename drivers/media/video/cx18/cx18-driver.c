@@ -156,6 +156,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 6 = Toshiba Qosmio DVB-T/Analog\n"
 		 "\t\t\t 7 = Leadtek WinFast PVR2100\n"
 		 "\t\t\t 8 = Leadtek WinFast DVR3100 H\n"
+		 "\t\t\t 9 = GoTView PCI DVD3 Hybrid\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -266,8 +267,14 @@ static void request_modules(struct cx18 *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx18 *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 /* Generic utility functions */
@@ -333,6 +340,7 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 		tveeprom_hauppauge_analog(&c, tv, eedata);
 		break;
 	case CX18_CARD_YUAN_MPC718:
+	case CX18_CARD_GOTVIEW_PCI_DVD3:
 		tv->model = 0x718;
 		cx18_eeprom_dump(cx, eedata, sizeof(eedata));
 		CX18_INFO("eeprom PCI ID: %02x%02x:%02x%02x\n",
@@ -923,8 +931,13 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
 	if (!cx->enc_mem) {
-		CX18_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		CX18_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+		CX18_ERR("ioremap failed. Can't get a window into CX23418 "
+			 "memory and register space\n");
+		CX18_ERR("Each capture card with a CX23418 needs 64 MB of "
+			 "vmalloc address space for the window\n");
+		CX18_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+		CX18_ERR("Use the vmalloc= kernel command line option to set "
+			 "VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
@@ -1225,6 +1238,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	int i;
 
 	CX18_DEBUG_INFO("Removing Card\n");
+
+	flush_request_modules(cx);
 
 	/* Stop all captures */
 	CX18_DEBUG_INFO("Stopping all streams\n");

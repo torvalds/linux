@@ -264,7 +264,7 @@ cleanup_queue:
 void
 tapeblock_cleanup_device(struct tape_device *device)
 {
-	flush_scheduled_work();
+	flush_work_sync(&device->blk_data.requeue_task);
 	tape_put_device(device);
 
 	if (!device->blk_data.disk) {

@@ -39,10 +39,12 @@
  * Severity difinition for error_severity in struct cper_record_header
  * and section_severity in struct cper_section_descriptor
  */
-#define CPER_SEV_RECOVERABLE			0x0
-#define CPER_SEV_FATAL				0x1
-#define CPER_SEV_CORRECTED			0x2
-#define CPER_SEV_INFORMATIONAL			0x3
+enum {
+	CPER_SEV_RECOVERABLE,
+	CPER_SEV_FATAL,
+	CPER_SEV_CORRECTED,
+	CPER_SEV_INFORMATIONAL,
+};
 
 /*
  * Validation bits difinition for validation_bits in struct
@@ -201,6 +203,47 @@
 	UUID_LE(0x036F84E1, 0x7F37, 0x428c, 0xA7, 0x9E, 0x57, 0x5F,	\
 		0xDF, 0xAA, 0x84, 0xEC)
 
+#define CPER_PROC_VALID_TYPE			0x0001
+#define CPER_PROC_VALID_ISA			0x0002
+#define CPER_PROC_VALID_ERROR_TYPE		0x0004
+#define CPER_PROC_VALID_OPERATION		0x0008
+#define CPER_PROC_VALID_FLAGS			0x0010
+#define CPER_PROC_VALID_LEVEL			0x0020
+#define CPER_PROC_VALID_VERSION			0x0040
+#define CPER_PROC_VALID_BRAND_INFO		0x0080
+#define CPER_PROC_VALID_ID			0x0100
+#define CPER_PROC_VALID_TARGET_ADDRESS		0x0200
+#define CPER_PROC_VALID_REQUESTOR_ID		0x0400
+#define CPER_PROC_VALID_RESPONDER_ID		0x0800
+#define CPER_PROC_VALID_IP			0x1000
+
+#define CPER_MEM_VALID_ERROR_STATUS		0x0001
+#define CPER_MEM_VALID_PHYSICAL_ADDRESS		0x0002
+#define CPER_MEM_VALID_PHYSICAL_ADDRESS_MASK	0x0004
+#define CPER_MEM_VALID_NODE			0x0008
+#define CPER_MEM_VALID_CARD			0x0010
+#define CPER_MEM_VALID_MODULE			0x0020
+#define CPER_MEM_VALID_BANK			0x0040
+#define CPER_MEM_VALID_DEVICE			0x0080
+#define CPER_MEM_VALID_ROW			0x0100
+#define CPER_MEM_VALID_COLUMN			0x0200
+#define CPER_MEM_VALID_BIT_POSITION		0x0400
+#define CPER_MEM_VALID_REQUESTOR_ID		0x0800
+#define CPER_MEM_VALID_RESPONDER_ID		0x1000
+#define CPER_MEM_VALID_TARGET_ID		0x2000
+#define CPER_MEM_VALID_ERROR_TYPE		0x4000
+
+#define CPER_PCIE_VALID_PORT_TYPE		0x0001
+#define CPER_PCIE_VALID_VERSION			0x0002
+#define CPER_PCIE_VALID_COMMAND_STATUS		0x0004
+#define CPER_PCIE_VALID_DEVICE_ID		0x0008
+#define CPER_PCIE_VALID_SERIAL_NUMBER		0x0010
+#define CPER_PCIE_VALID_BRIDGE_CONTROL_STATUS	0x0020
+#define CPER_PCIE_VALID_CAPABILITY		0x0040
+#define CPER_PCIE_VALID_AER_INFO		0x0080
+
+#define CPER_PCIE_SLOT_SHIFT			3
+
 /*
  * All tables and structs must be byte-packed to match CPER
  * specification, since the tables are provided by the system BIOS
@@ -304,6 +347,41 @@ struct cper_sec_mem_err {
 	__u64	responder_id;
 	__u64	target_id;
 	__u8	error_type;
+};
+
+struct cper_sec_pcie {
+	__u64		validation_bits;
+	__u32		port_type;
+	struct {
+		__u8	minor;
+		__u8	major;
+		__u8	reserved[2];
+	}		version;
+	__u16		command;
+	__u16		status;
+	__u32		reserved;
+	struct {
+		__u16	vendor_id;
+		__u16	device_id;
+		__u8	class_code[3];
+		__u8	function;
+		__u8	device;
+		__u16	segment;
+		__u8	bus;
+		__u8	secondary_bus;
+		__u16	slot;
+		__u8	reserved;
+	}		device_id;
+	struct {
+		__u32	lower;
+		__u32	upper;
+	}		serial_number;
+	struct {
+		__u16	secondary_status;
+		__u16	control;
+	}		bridge;
+	__u8	capability[60];
+	__u8	aer_info[96];
 };
 
 /* Reset to default packing */

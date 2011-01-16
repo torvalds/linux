@@ -253,11 +253,6 @@
 #define STATE_ERROR			((void *) -1)
 
 /*
- * Queue State
- */
-#define QUEUE_RUNNING			(0)
-#define QUEUE_STOPPED			(1)
-/*
  * SSP State - Whether Enabled or Disabled
  */
 #define SSP_DISABLED			(0)
@@ -344,7 +339,7 @@ struct vendor_data {
  * @lock: spinlock to syncronise access to driver data
  * @workqueue: a workqueue on which any spi_message request is queued
  * @busy: workqueue is busy
- * @run: workqueue is running
+ * @running: workqueue is running
  * @pump_transfers: Tasklet used in Interrupt Transfer mode
  * @cur_msg: Pointer to current spi_message being processed
  * @cur_transfer: Pointer to current spi_transfer
@@ -369,8 +364,8 @@ struct pl022 {
 	struct work_struct		pump_messages;
 	spinlock_t			queue_lock;
 	struct list_head		queue;
-	int				busy;
-	int				run;
+	bool				busy;
+	bool				running;
 	/* Message transfer pump */
 	struct tasklet_struct		pump_transfers;
 	struct spi_message		*cur_msg;
@@ -782,9 +777,9 @@ static void *next_transfer(struct pl022 *pl022)
 static void unmap_free_dma_scatter(struct pl022 *pl022)
 {
 	/* Unmap and free the SG tables */
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_tx.sgl,
+	dma_unmap_sg(pl022->dma_tx_channel->device->dev, pl022->sgt_tx.sgl,
 		     pl022->sgt_tx.nents, DMA_TO_DEVICE);
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_rx.sgl,
+	dma_unmap_sg(pl022->dma_rx_channel->device->dev, pl022->sgt_rx.sgl,
 		     pl022->sgt_rx.nents, DMA_FROM_DEVICE);
 	sg_free_table(&pl022->sgt_rx);
 	sg_free_table(&pl022->sgt_tx);
@@ -917,7 +912,7 @@ static int configure_dma(struct pl022 *pl022)
 	};
 	unsigned int pages;
 	int ret;
-	int sglen;
+	int rx_sglen, tx_sglen;
 	struct dma_chan *rxchan = pl022->dma_rx_channel;
 	struct dma_chan *txchan = pl022->dma_tx_channel;
 	struct dma_async_tx_descriptor *rxdesc;
@@ -956,7 +951,7 @@ static int configure_dma(struct pl022 *pl022)
 		tx_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 	case WRITING_U32:
-		tx_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;;
+		tx_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 	}
 
@@ -991,20 +986,20 @@ static int configure_dma(struct pl022 *pl022)
 			  pl022->cur_transfer->len, &pl022->sgt_tx);
 
 	/* Map DMA buffers */
-	sglen = dma_map_sg(&pl022->adev->dev, pl022->sgt_rx.sgl,
+	rx_sglen = dma_map_sg(rxchan->device->dev, pl022->sgt_rx.sgl,
 			   pl022->sgt_rx.nents, DMA_FROM_DEVICE);
-	if (!sglen)
+	if (!rx_sglen)
 		goto err_rx_sgmap;
 
-	sglen = dma_map_sg(&pl022->adev->dev, pl022->sgt_tx.sgl,
+	tx_sglen = dma_map_sg(txchan->device->dev, pl022->sgt_tx.sgl,
 			   pl022->sgt_tx.nents, DMA_TO_DEVICE);
-	if (!sglen)
+	if (!tx_sglen)
 		goto err_tx_sgmap;
 
 	/* Send both scatterlists */
 	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
 				      pl022->sgt_rx.sgl,
-				      pl022->sgt_rx.nents,
+				      rx_sglen,
 				      DMA_FROM_DEVICE,
 				      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
@@ -1012,7 +1007,7 @@ static int configure_dma(struct pl022 *pl022)
 
 	txdesc = txchan->device->device_prep_slave_sg(txchan,
 				      pl022->sgt_tx.sgl,
-				      pl022->sgt_tx.nents,
+				      tx_sglen,
 				      DMA_TO_DEVICE,
 				      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
@@ -1040,10 +1035,10 @@ err_txdesc:
 	txchan->device->device_control(txchan, DMA_TERMINATE_ALL, 0);
 err_rxdesc:
 	rxchan->device->device_control(rxchan, DMA_TERMINATE_ALL, 0);
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_tx.sgl,
+	dma_unmap_sg(txchan->device->dev, pl022->sgt_tx.sgl,
 		     pl022->sgt_tx.nents, DMA_TO_DEVICE);
 err_tx_sgmap:
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_rx.sgl,
+	dma_unmap_sg(rxchan->device->dev, pl022->sgt_rx.sgl,
 		     pl022->sgt_tx.nents, DMA_FROM_DEVICE);
 err_rx_sgmap:
 	sg_free_table(&pl022->sgt_tx);
@@ -1460,8 +1455,8 @@ static void pump_messages(struct work_struct *work)
 
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&pl022->queue_lock, flags);
-	if (list_empty(&pl022->queue) || pl022->run == QUEUE_STOPPED) {
-		pl022->busy = 0;
+	if (list_empty(&pl022->queue) || !pl022->running) {
+		pl022->busy = false;
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return;
 	}
@@ -1475,7 +1470,7 @@ static void pump_messages(struct work_struct *work)
 	    list_entry(pl022->queue.next, struct spi_message, queue);
 
 	list_del_init(&pl022->cur_msg->queue);
-	pl022->busy = 1;
+	pl022->busy = true;
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 
 	/* Initial message state */
@@ -1507,8 +1502,8 @@ static int __init init_queue(struct pl022 *pl022)
 	INIT_LIST_HEAD(&pl022->queue);
 	spin_lock_init(&pl022->queue_lock);
 
-	pl022->run = QUEUE_STOPPED;
-	pl022->busy = 0;
+	pl022->running = false;
+	pl022->busy = false;
 
 	tasklet_init(&pl022->pump_transfers,
 			pump_transfers,	(unsigned long)pl022);
@@ -1529,12 +1524,12 @@ static int start_queue(struct pl022 *pl022)
 
 	spin_lock_irqsave(&pl022->queue_lock, flags);
 
-	if (pl022->run == QUEUE_RUNNING || pl022->busy) {
+	if (pl022->running || pl022->busy) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return -EBUSY;
 	}
 
-	pl022->run = QUEUE_RUNNING;
+	pl022->running = true;
 	pl022->cur_msg = NULL;
 	pl022->cur_transfer = NULL;
 	pl022->cur_chip = NULL;
@@ -1566,7 +1561,8 @@ static int stop_queue(struct pl022 *pl022)
 
 	if (!list_empty(&pl022->queue) || pl022->busy)
 		status = -EBUSY;
-	else pl022->run = QUEUE_STOPPED;
+	else
+		pl022->running = false;
 
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 
@@ -1684,7 +1680,7 @@ static int pl022_transfer(struct spi_device *spi, struct spi_message *msg)
 
 	spin_lock_irqsave(&pl022->queue_lock, flags);
 
-	if (pl022->run == QUEUE_STOPPED) {
+	if (!pl022->running) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return -ESHUTDOWN;
 	}
@@ -1693,7 +1689,7 @@ static int pl022_transfer(struct spi_device *spi, struct spi_message *msg)
 	msg->state = STATE_START;
 
 	list_add_tail(&msg->queue, &pl022->queue);
-	if (pl022->run == QUEUE_RUNNING && !pl022->busy)
+	if (pl022->running && !pl022->busy)
 		queue_work(pl022->workqueue, &pl022->pump_messages);
 
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);

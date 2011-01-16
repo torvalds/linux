@@ -86,7 +86,7 @@ static u32 reg_offset[16];
 
 static int __init init_reg_offset(struct net_device *dev,unsigned long base_addr)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	int i;
 	unsigned char bus_width;
 
@@ -218,7 +218,7 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	int start_page, stop_page;
 	int reg0, ret;
 	static unsigned version_printed;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	unsigned char bus_width;
 
 	if (!request_region(ioaddr, NE_IO_EXTENT, DRV_NAME))
@@ -371,7 +371,7 @@ static int ne_close(struct net_device *dev)
 static void ne_reset_8390(struct net_device *dev)
 {
 	unsigned long reset_start_time = jiffies;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 
 	if (ei_debug > 1)
 		printk(KERN_DEBUG "resetting the 8390 t=%ld...", jiffies);
@@ -397,7 +397,7 @@ static void ne_reset_8390(struct net_device *dev)
 
 static void ne_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_page)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	/* This *shouldn't* happen. If it does, it's the last thing you'll see */
 
 	if (ei_status.dmaing)
@@ -437,7 +437,7 @@ static void ne_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, i
 
 static void ne_block_input(struct net_device *dev, int count, struct sk_buff *skb, int ring_offset)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 #ifdef NE_SANITY_CHECK
 	int xfer_count = count;
 #endif
@@ -507,7 +507,7 @@ static void ne_block_input(struct net_device *dev, int count, struct sk_buff *sk
 static void ne_block_output(struct net_device *dev, int count,
 		const unsigned char *buf, const int start_page)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	unsigned long dma_start;
 #ifdef NE_SANITY_CHECK
 	int retries = 0;

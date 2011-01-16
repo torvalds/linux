@@ -154,12 +154,14 @@ enum {
 	TRACE_EVENT_FL_ENABLED_BIT,
 	TRACE_EVENT_FL_FILTERED_BIT,
 	TRACE_EVENT_FL_RECORDED_CMD_BIT,
+	TRACE_EVENT_FL_CAP_ANY_BIT,
 };
 
 enum {
 	TRACE_EVENT_FL_ENABLED		= (1 << TRACE_EVENT_FL_ENABLED_BIT),
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
 	TRACE_EVENT_FL_RECORDED_CMD	= (1 << TRACE_EVENT_FL_RECORDED_CMD_BIT),
+	TRACE_EVENT_FL_CAP_ANY		= (1 << TRACE_EVENT_FL_CAP_ANY_BIT),
 };
 
 struct ftrace_event_call {
@@ -196,6 +198,14 @@ struct ftrace_event_call {
 #endif
 };
 
+#define __TRACE_EVENT_FLAGS(name, value)				\
+	static int __init trace_init_flags_##name(void)			\
+	{								\
+		event_##name.flags = value;				\
+		return 0;						\
+	}								\
+	early_initcall(trace_init_flags_##name);
+
 #define PERF_MAX_TRACE_SIZE	2048
 
 #define MAX_FILTER_PRED		32
@@ -214,6 +224,10 @@ enum {
 	FILTER_DYN_STRING,
 	FILTER_PTR_STRING,
 };
+
+#define EVENT_STORAGE_SIZE 128
+extern struct mutex event_storage_mutex;
+extern char event_storage[EVENT_STORAGE_SIZE];
 
 extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,

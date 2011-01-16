@@ -20,7 +20,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <linux/slab.h>
@@ -40,7 +39,6 @@ struct max98088_cdata {
 };
 
 struct max98088_priv {
-       u8 reg_cache[M98088_REG_CNT];
        enum max98088_type devtype;
        void *control_data;
        struct max98088_pdata *pdata;
@@ -1230,15 +1228,17 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int max98088_add_widgets(struct snd_soc_codec *codec)
 {
-       snd_soc_dapm_new_controls(codec, max98088_dapm_widgets,
+       struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+       snd_soc_dapm_new_controls(dapm, max98088_dapm_widgets,
                                  ARRAY_SIZE(max98088_dapm_widgets));
 
-       snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+       snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
        snd_soc_add_controls(codec, max98088_snd_controls,
                             ARRAY_SIZE(max98088_snd_controls));
 
-       snd_soc_dapm_new_widgets(codec);
+       snd_soc_dapm_new_widgets(dapm);
        return 0;
 }
 
@@ -1588,7 +1588,7 @@ static int max98088_dai2_set_fmt(struct snd_soc_dai *codec_dai,
 
 static void max98088_sync_cache(struct snd_soc_codec *codec)
 {
-       struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
+       u16 *reg_cache = codec->reg_cache;
        int i;
 
        if (!codec->cache_sync)
@@ -1599,14 +1599,14 @@ static void max98088_sync_cache(struct snd_soc_codec *codec)
        /* write back cached values if they're writeable and
         * different from the hardware default.
         */
-       for (i = 1; i < ARRAY_SIZE(max98088->reg_cache); i++) {
+       for (i = 1; i < codec->driver->reg_cache_size; i++) {
                if (!max98088_access[i].writable)
                        continue;
 
-               if (max98088->reg_cache[i] == max98088_reg[i])
+               if (reg_cache[i] == max98088_reg[i])
                        continue;
 
-               snd_soc_write(codec, i, max98088->reg_cache[i]);
+               snd_soc_write(codec, i, reg_cache[i]);
        }
 
        codec->cache_sync = 0;
@@ -1623,7 +1623,7 @@ static int max98088_set_bias_level(struct snd_soc_codec *codec,
                break;
 
        case SND_SOC_BIAS_STANDBY:
-               if (codec->bias_level == SND_SOC_BIAS_OFF)
+               if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
                        max98088_sync_cache(codec);
 
                snd_soc_update_bits(codec, M98088_REG_4C_PWR_EN_IN,
@@ -1636,7 +1636,7 @@ static int max98088_set_bias_level(struct snd_soc_codec *codec,
                codec->cache_sync = 1;
                break;
        }
-       codec->bias_level = level;
+       codec->dapm.bias_level = level;
        return 0;
 }
 
@@ -1951,7 +1951,6 @@ static int max98088_probe(struct snd_soc_codec *codec)
        int ret = 0;
 
        codec->cache_sync = 1;
-       memcpy(codec->reg_cache, max98088_reg, sizeof(max98088_reg));
 
        ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
        if (ret != 0) {
@@ -1959,7 +1958,7 @@ static int max98088_probe(struct snd_soc_codec *codec)
                return ret;
        }
 
-       /* initalize private data */
+       /* initialize private data */
 
        max98088->sysclk = (unsigned)-1;
        max98088->eq_textcnt = 0;

@@ -97,7 +97,7 @@ char        SBEid_pmcc4_musyccc[] =
 /* global driver variables */
 extern ci_t *c4_list;
 extern int  drvr_state;
-extern int  log_level;
+extern int  cxt1e1_log_level;
 
 extern int  cxt1e1_max_mru;
 extern int  cxt1e1_max_mtu;
@@ -627,7 +627,7 @@ rewrite:
 
     if ((r != req) && (req != SR_CHIP_RESET) && (++rcnt <= MUSYCC_SR_RETRY_CNT))
     {
-        if (log_level >= LOG_MONITOR)
+        if (cxt1e1_log_level >= LOG_MONITOR)
             pr_info("%s: %d - reissue srv req/last %x/%x (hdw reads %x), Chan %d.\n",
                     pi->up->devname, rcnt, req, pi->sr_last, r,
                     (pi->portnum * MUSYCC_NCHANS) + (req & 0x1f));
@@ -951,7 +951,7 @@ musycc_bh_tx_eom (mpi_t * pi, int gchan)
     ch = pi->chan[gchan];
     if (ch == 0 || ch->state != UP)
     {
-        if (log_level >= LOG_ERROR)
+        if (cxt1e1_log_level >= LOG_ERROR)
             pr_info("%s: intr: xmit EOM on uninitialized channel %d\n",
                     pi->up->devname, gchan);
     }
@@ -1002,7 +1002,7 @@ musycc_bh_tx_eom (mpi_t * pi, int gchan)
             }
             if (status & MUSYCC_TX_OWNED)
             {
-                if (log_level >= LOG_MONITOR)
+                if (cxt1e1_log_level >= LOG_MONITOR)
                 {
                     pr_info("%s: Port %d Chan %2d - unexpected TX msg ownership intr (md %p sts %x)\n",
                             pi->up->devname, pi->portnum, ch->channum,
@@ -1016,7 +1016,7 @@ musycc_bh_tx_eom (mpi_t * pi, int gchan)
                 break;              /* Not our mdesc, done */
             } else
             {
-                if (log_level >= LOG_MONITOR)
+                if (cxt1e1_log_level >= LOG_MONITOR)
                     pr_info("%s: Port %d Chan %2d - recovered TX msg ownership [%d] (md %p sts %x)\n",
                             pi->up->devname, pi->portnum, ch->channum, readCount, md, status);
             }
@@ -1054,7 +1054,7 @@ musycc_bh_tx_eom (mpi_t * pi, int gchan)
         }
         md->status = 0;
 #ifdef RLD_TXFULL_DEBUG
-        if (log_level >= LOG_MONITOR2)
+        if (cxt1e1_log_level >= LOG_MONITOR2)
             pr_info("~~ tx_eom: tx_full %x  txd_free %d -> %d\n",
                     ch->tx_full, ch->txd_free, ch->txd_free + 1);
 #endif
@@ -1063,7 +1063,7 @@ musycc_bh_tx_eom (mpi_t * pi, int gchan)
 
         if ((ch->p.chan_mode != CFG_CH_PROTO_TRANS) && (status & EOBIRQ_ENABLE))
         {
-            if (log_level >= LOG_MONITOR)
+            if (cxt1e1_log_level >= LOG_MONITOR)
                 pr_info("%s: Mode (%x) incorrect EOB status (%x)\n",
                         pi->up->devname, ch->p.chan_mode, status);
             if ((status & EOMIRQ_ENABLE) == 0)
@@ -1094,7 +1094,7 @@ musycc_bh_tx_eom (mpi_t * pi, int gchan)
         {
 
 #ifdef RLD_TXFULL_DEBUG
-            if (log_level >= LOG_MONITOR2)
+            if (cxt1e1_log_level >= LOG_MONITOR2)
                 pr_info("tx_eom[%d]: enable xmit tx_full no more, txd_free %d txd_num/2 %d\n",
                         ch->channum,
                         ch->txd_free, ch->txd_num / 2);
@@ -1108,7 +1108,7 @@ musycc_bh_tx_eom (mpi_t * pi, int gchan)
 #ifdef RLD_TXFULL_DEBUG
     else if (ch->tx_full)
     {
-        if (log_level >= LOG_MONITOR2)
+        if (cxt1e1_log_level >= LOG_MONITOR2)
             pr_info("tx_eom[%d]: bypass TX enable though room available? (txd_free %d txd_num/2 %d)\n",
                     ch->channum,
                     ch->txd_free, ch->txd_num / 2);
@@ -1138,7 +1138,7 @@ musycc_bh_rx_eom (mpi_t * pi, int gchan)
     ch = pi->chan[gchan];
     if (ch == 0 || ch->state != UP)
     {
-        if (log_level > LOG_ERROR)
+        if (cxt1e1_log_level > LOG_ERROR)
             pr_info("%s: intr: receive EOM on uninitialized channel %d\n",
                     pi->up->devname, gchan);
         return;
@@ -1269,7 +1269,7 @@ musycc_intr_th_handler (void *devp)
 
     if (nextInt != INTRPTS_NEXTINT (ci->intlog.this_status_new))
     {
-        if (log_level >= LOG_MONITOR)
+        if (cxt1e1_log_level >= LOG_MONITOR)
         {
             pr_info("%s: note - updated ISD from %08x to %08x\n",
                     ci->devname, status,
@@ -1337,11 +1337,11 @@ musycc_intr_th_handler (void *devp)
     ci->intlog.last_status_new = ci->intlog.this_status_new;
     ci->intlog.this_status_new = currInt;
 
-    if ((log_level >= LOG_WARN) && (status & INTRPTS_INTFULL_M))
+    if ((cxt1e1_log_level >= LOG_WARN) && (status & INTRPTS_INTFULL_M))
     {
         pr_info("%s: Interrupt queue full condition occurred\n", ci->devname);
     }
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("%s: interrupts pending, isd @ 0x%p: %x curr %d cnt %d NEXT %d\n",
                 ci->devname, &ci->reg->isd,
         status, nextInt, intCnt, (intCnt + nextInt) & (INT_QUEUE_SIZE - 1));
@@ -1448,7 +1448,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
         if ((currInt == badInt) || (currInt == badInt2))        /* catch failure of Bug
                                                                  * Fix checking */
         {
-            if (log_level >= LOG_WARN)
+            if (cxt1e1_log_level >= LOG_WARN)
                 pr_info("%s: Illegal Interrupt Detected @ 0x%p, mod %d.)\n",
                         ci->devname, &ci->iqd_p[headx], headx);
 
@@ -1483,7 +1483,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
         ci->iqd_p[headx] = __constant_cpu_to_le32 (INT_EMPTY_ENTRY);
         FLUSH_MEM_WRITE ();
 
-        if (log_level >= LOG_DEBUG)
+        if (cxt1e1_log_level >= LOG_DEBUG)
         {
             if (err != 0)
                 pr_info(" %08x -> err: %2d,", currInt, err);
@@ -1497,7 +1497,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
         switch (event)
         {
         case EVE_SACK:              /* Service Request Acknowledge */
-            if (log_level >= LOG_DEBUG)
+            if (cxt1e1_log_level >= LOG_DEBUG)
             {
                 volatile u_int32_t r;
 
@@ -1534,7 +1534,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
             }
             break;
         default:
-            if (log_level >= LOG_WARN)
+            if (cxt1e1_log_level >= LOG_WARN)
                 pr_info("%s: unexpected interrupt event: %d, iqd[%d]: %08x, port: %d\n", ci->devname,
                         event, headx, currInt, group);
             break;
@@ -1573,9 +1573,9 @@ musycc_intr_bh_tasklet (ci_t * ci)
 
                 {
 #ifdef RLD_TRANS_DEBUG
-                    if (1 || log_level >= LOG_MONITOR)
+                    if (1 || cxt1e1_log_level >= LOG_MONITOR)
 #else
-                    if (log_level >= LOG_MONITOR)
+                    if (cxt1e1_log_level >= LOG_MONITOR)
 #endif
                     {
                         pr_info("%s: TX buffer underflow [ONR] on channel %d, mode %x QStopped %x free %d\n",
@@ -1605,7 +1605,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
                 ch->s.rx_over_errors++;
                 ch->ch_start_rx = CH_START_RX_ONR;
 
-                if (log_level >= LOG_WARN)
+                if (cxt1e1_log_level >= LOG_WARN)
                 {
                     pr_info("%s: RX buffer overflow [ONR] on channel %d, mode %x\n",
                             ci->devname, ch->channum, ch->p.chan_mode);
@@ -1623,7 +1623,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
                  * Per MUSYCC manual, Section  6.4.8.3 [Transmit Errors],
                  * this BUFF error requires Transmit channel reactivation.
                  */
-                if (log_level >= LOG_MONITOR)
+                if (cxt1e1_log_level >= LOG_MONITOR)
                     pr_info("%s: TX buffer underrun [BUFF] on channel %d, mode %x\n",
                             ci->devname, ch->channum, ch->p.chan_mode);
             } else                  /* RX buffer overrun */
@@ -1636,7 +1636,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
                  * space for this channel.  Receive channel reactivation is
                  * not required, but data has been lost.
                  */
-                if (log_level >= LOG_WARN)
+                if (cxt1e1_log_level >= LOG_WARN)
                     pr_info("%s: RX buffer overrun [BUFF] on channel %d, mode %x\n",
                             ci->devname, ch->channum, ch->p.chan_mode);
                 /*
@@ -1658,7 +1658,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
         }                           /* switch on err */
 
         /* Check for interrupt lost condition */
-        if ((currInt & INTRPT_ILOST_M) && (log_level >= LOG_ERROR))
+        if ((currInt & INTRPT_ILOST_M) && (cxt1e1_log_level >= LOG_ERROR))
         {
             pr_info("%s: Interrupt queue overflow - ILOST asserted\n",
                     ci->devname);
@@ -1667,7 +1667,7 @@ musycc_intr_bh_tasklet (ci_t * ci)
         FLUSH_MEM_WRITE ();
         FLUSH_MEM_READ ();
     }                               /* while */
-    if ((log_level >= LOG_MONITOR2) && (ci->iqp_headx != ci->iqp_tailx))
+    if ((cxt1e1_log_level >= LOG_MONITOR2) && (ci->iqp_headx != ci->iqp_tailx))
     {
         int         bh;
 
@@ -1821,9 +1821,9 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
         return EROFS;               /* how else to flag unwritable state ? */
 
 #ifdef RLD_TRANS_DEBUGx
-    if (1 || log_level >= LOG_MONITOR2)
+    if (1 || cxt1e1_log_level >= LOG_MONITOR2)
 #else
-    if (log_level >= LOG_MONITOR2)
+    if (cxt1e1_log_level >= LOG_MONITOR2)
 #endif
     {
         pr_info("++ start_xmt[%d]: state %x start %x full %d free %d required %d stopped %x\n",
@@ -1846,7 +1846,7 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
 
     if (txd_need_cnt == 0)
     {
-        if (log_level >= LOG_MONITOR2)
+        if (cxt1e1_log_level >= LOG_MONITOR2)
             pr_info("%s channel %d: no TX data in User buffer\n", ci->devname, channum);
         OS_mem_token_free (mem_token);
         return 0;                   /* no data to send */
@@ -1857,7 +1857,7 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
     if (txd_need_cnt > ch->txd_num) /* never enough descriptors for this
                                      * large a buffer */
     {
-        if (log_level >= LOG_DEBUG)
+        if (cxt1e1_log_level >= LOG_DEBUG)
         {
             pr_info("start_xmit: discarding buffer, insufficient descriptor cnt %d, need %d.\n",
                     ch->txd_num, txd_need_cnt + 1);
@@ -1874,7 +1874,7 @@ musycc_start_xmit (ci_t * ci, int channum, void *mem_token)
     /************************************************************/
     if (txd_need_cnt > ch->txd_free)
     {
-        if (log_level >= LOG_MONITOR2)
+        if (cxt1e1_log_level >= LOG_MONITOR2)
         {
             pr_info("start_xmit[%d]: EBUSY - need more descriptors, have %d of %d need %d\n",
                     channum, ch->txd_free, ch->txd_num, txd_need_cnt);

@@ -449,7 +449,7 @@ bfa_fcb_itnim_free(struct bfad_s *bfad, struct bfad_itnim_s *itnim_drv)
 	struct bfad_im_s	*im = itnim_drv->im;
 
 	/* online to free state transtion should not happen */
-	bfa_assert(itnim_drv->state != ITNIM_STATE_ONLINE);
+	WARN_ON(itnim_drv->state == ITNIM_STATE_ONLINE);
 
 	itnim_drv->queue_work = 1;
 	/* offline request is not yet done, use the same request to free */
@@ -664,7 +664,7 @@ bfad_im_port_clean(struct bfad_im_port_s *im_port)
 	}
 
 	/* the itnim_mapped_list must be empty at this time */
-	bfa_assert(list_empty(&im_port->itnim_mapped_list));
+	WARN_ON(!list_empty(&im_port->itnim_mapped_list));
 
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
@@ -1111,7 +1111,7 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 		kfree(itnim);
 		break;
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 		break;
 	}
 
@@ -1174,7 +1174,6 @@ bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd 
 	}
 
 	cmnd->host_scribble = (char *)hal_io;
-	bfa_trc_fp(bfad, hal_io->iotag);
 	bfa_ioim_start(hal_io);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 

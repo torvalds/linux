@@ -186,7 +186,7 @@ bfa_port_isr(void *cbarg, struct bfi_mbmsg_s *m)
 		break;
 
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 }
 
@@ -435,7 +435,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 {
 	struct timeval tv;
 
-	bfa_assert(port);
+	WARN_ON(!port);
 
 	port->dev    = dev;
 	port->ioc    = ioc;

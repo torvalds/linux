@@ -189,8 +189,11 @@ static int pnp_bus_resume(struct device *dev)
 	if (!pnp_drv)
 		return 0;
 
-	if (pnp_dev->protocol->resume)
-		pnp_dev->protocol->resume(pnp_dev);
+	if (pnp_dev->protocol->resume) {
+		error = pnp_dev->protocol->resume(pnp_dev);
+		if (error)
+			return error;
+	}
 
 	if (pnp_can_write(pnp_dev)) {
 		error = pnp_start_dev(pnp_dev);
