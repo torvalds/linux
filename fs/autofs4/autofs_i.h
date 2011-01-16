@@ -99,7 +99,6 @@ struct autofs_info {
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
-#define AUTOFS_INF_MOUNTPOINT	(1<<1) /* mountpoint status for direct expire */
 #define AUTOFS_INF_PENDING	(1<<2) /* dentry pending mount */
 
 struct autofs_wait_queue {
@@ -176,13 +175,6 @@ static inline int autofs4_ispending(struct dentry *dentry)
 	return 0;
 }
 
-static inline void autofs4_copy_atime(struct file *src, struct file *dst)
-{
-	dst->f_path.dentry->d_inode->i_atime =
-		src->f_path.dentry->d_inode->i_atime;
-	return;
-}
-
 struct inode *autofs4_get_inode(struct super_block *, struct autofs_info *);
 void autofs4_free_ino(struct autofs_info *);
 
@@ -212,11 +204,83 @@ void autofs_dev_ioctl_exit(void);
 
 extern const struct inode_operations autofs4_symlink_inode_operations;
 extern const struct inode_operations autofs4_dir_inode_operations;
-extern const struct inode_operations autofs4_root_inode_operations;
-extern const struct inode_operations autofs4_indirect_root_inode_operations;
-extern const struct inode_operations autofs4_direct_root_inode_operations;
 extern const struct file_operations autofs4_dir_operations;
 extern const struct file_operations autofs4_root_operations;
+extern const struct dentry_operations autofs4_dentry_operations;
+
+/* VFS automount flags management functions */
+
+static inline void __managed_dentry_set_automount(struct dentry *dentry)
+{
+	dentry->d_flags |= DCACHE_NEED_AUTOMOUNT;
+}
+
+static inline void managed_dentry_set_automount(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_set_automount(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_clear_automount(struct dentry *dentry)
+{
+	dentry->d_flags &= ~DCACHE_NEED_AUTOMOUNT;
+}
+
+static inline void managed_dentry_clear_automount(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_clear_automount(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_set_transit(struct dentry *dentry)
+{
+	dentry->d_flags |= DCACHE_MANAGE_TRANSIT;
+}
+
+static inline void managed_dentry_set_transit(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_set_transit(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_clear_transit(struct dentry *dentry)
+{
+	dentry->d_flags &= ~DCACHE_MANAGE_TRANSIT;
+}
+
+static inline void managed_dentry_clear_transit(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_clear_transit(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_set_managed(struct dentry *dentry)
+{
+	dentry->d_flags |= (DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT);
+}
+
+static inline void managed_dentry_set_managed(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_set_managed(dentry);
+	spin_unlock(&dentry->d_lock);
+}
+
+static inline void __managed_dentry_clear_managed(struct dentry *dentry)
+{
+	dentry->d_flags &= ~(DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT);
+}
+
+static inline void managed_dentry_clear_managed(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	__managed_dentry_clear_managed(dentry);
+	spin_unlock(&dentry->d_lock);
+}
 
 /* Initializing function */
 
@@ -228,19 +292,6 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *, struct autofs_sb_info
 int autofs4_wait(struct autofs_sb_info *,struct dentry *, enum autofs_notify);
 int autofs4_wait_release(struct autofs_sb_info *,autofs_wqt_t,int);
 void autofs4_catatonic_mode(struct autofs_sb_info *);
-
-static inline int autofs4_follow_mount(struct path *path)
-{
-	int res = 0;
-
-	while (d_mountpoint(path->dentry)) {
-		int followed = follow_down(path);
-		if (!followed)
-			break;
-		res = 1;
-	}
-	return res;
-}
 
 static inline u32 autofs4_get_dev(struct autofs_sb_info *sbi)
 {
