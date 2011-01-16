@@ -48,7 +48,7 @@ static unsigned int		user_freq 			= UINT_MAX;
 static int			freq				=   1000;
 static int			output;
 static int			pipe_output			=      0;
-static const char		*output_name			= "perf.data";
+static const char		*output_name			= NULL;
 static int			group				=      0;
 static int			realtime_prio			=      0;
 static bool			nodelay				=  false;
@@ -497,18 +497,26 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	if (!strcmp(output_name, "-"))
-		pipe_output = 1;
-	else if (!stat(output_name, &st) && st.st_size) {
-		if (write_mode == WRITE_FORCE) {
-			char oldname[PATH_MAX];
-			snprintf(oldname, sizeof(oldname), "%s.old",
-				 output_name);
-			unlink(oldname);
-			rename(output_name, oldname);
+	if (!output_name) {
+		if (!fstat(STDOUT_FILENO, &st) && S_ISFIFO(st.st_mode))
+			pipe_output = 1;
+		else
+			output_name = "perf.data";
+	}
+	if (output_name) {
+		if (!strcmp(output_name, "-"))
+			pipe_output = 1;
+		else if (!stat(output_name, &st) && st.st_size) {
+			if (write_mode == WRITE_FORCE) {
+				char oldname[PATH_MAX];
+				snprintf(oldname, sizeof(oldname), "%s.old",
+					 output_name);
+				unlink(oldname);
+				rename(output_name, oldname);
+			}
+		} else if (write_mode == WRITE_APPEND) {
+			write_mode = WRITE_FORCE;
 		}
-	} else if (write_mode == WRITE_APPEND) {
-		write_mode = WRITE_FORCE;
 	}
 
 	flags = O_CREAT|O_RDWR;
