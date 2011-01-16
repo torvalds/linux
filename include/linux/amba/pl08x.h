@@ -12,7 +12,6 @@
  *
  * Please credit ARM.com
  * Documentation: ARM DDI 0196D
- *
  */
 
 #ifndef AMBA_PL08X_H
@@ -55,8 +54,8 @@ enum {
  * @circular_buffer: whether the buffer passed in is circular and
  * shall simply be looped round round (like a record baby round
  * round round round)
- * @single: the device connected to this channel will request single
- * DMA transfers, not bursts. (Bursts are default.)
+ * @single: the device connected to this channel will request single DMA
+ * transfers, not bursts. (Bursts are default.)
  * @periph_buses: the device connected to this channel is accessible via
  * these buses (use PL08X_AHB1 | PL08X_AHB2).
  */
@@ -78,8 +77,7 @@ struct pl08x_channel_data {
  * @addr: current address
  * @maxwidth: the maximum width of a transfer on this bus
  * @buswidth: the width of this bus in bytes: 1, 2 or 4
- * @fill_bytes: bytes required to fill to the next bus memory
- * boundary
+ * @fill_bytes: bytes required to fill to the next bus memory boundary
  */
 struct pl08x_bus_data {
 	dma_addr_t addr;
@@ -92,10 +90,10 @@ struct pl08x_bus_data {
  * struct pl08x_phy_chan - holder for the physical channels
  * @id: physical index to this channel
  * @lock: a lock to use when altering an instance of this struct
- * @signal: the physical signal (aka channel) serving this
- * physical channel right now
- * @serving: the virtual channel currently being served by this
- * physical channel
+ * @signal: the physical signal (aka channel) serving this physical channel
+ * right now
+ * @serving: the virtual channel currently being served by this physical
+ * channel
  */
 struct pl08x_phy_chan {
 	unsigned int id;
@@ -119,7 +117,6 @@ struct pl08x_txd {
 	size_t len;
 	dma_addr_t llis_bus;
 	struct pl08x_lli *llis_va;
-	bool active;
 	/* Default cctl value for LLIs */
 	u32 cctl;
 	/*
@@ -130,8 +127,8 @@ struct pl08x_txd {
 };
 
 /**
- * struct pl08x_dma_chan_state - holds the PL08x specific virtual
- * channel states
+ * struct pl08x_dma_chan_state - holds the PL08x specific virtual channel
+ * states
  * @PL08X_CHAN_IDLE: the channel is idle
  * @PL08X_CHAN_RUNNING: the channel has allocated a physical transport
  * channel and is running a transfer on it
@@ -152,7 +149,7 @@ enum pl08x_dma_chan_state {
  * @chan: wrappped abstract channel
  * @phychan: the physical channel utilized by this channel, if there is one
  * @phychan_hold: if non-zero, hold on to the physical channel even if we
- *  have no pending entries
+ * have no pending entries
  * @tasklet: tasklet scheduled by the IRQ to handle actual work etc
  * @name: name of channel
  * @cd: channel platform data
@@ -166,8 +163,8 @@ enum pl08x_dma_chan_state {
  * @host: a pointer to the host (internal use)
  * @state: whether the channel is idle, paused, running etc
  * @slave: whether this channel is a device (slave) or for memcpy
- * @waiting: a TX descriptor on this channel which is waiting for
- * a physical channel to become available
+ * @waiting: a TX descriptor on this channel which is waiting for a physical
+ * channel to become available
  */
 struct pl08x_dma_chan {
 	struct dma_chan chan;
@@ -189,16 +186,16 @@ struct pl08x_dma_chan {
 };
 
 /**
- * struct pl08x_platform_data - the platform configuration for the
- * PL08x PrimeCells.
+ * struct pl08x_platform_data - the platform configuration for the PL08x
+ * PrimeCells.
  * @slave_channels: the channels defined for the different devices on the
  * platform, all inclusive, including multiplexed channels. The available
- * physical channels will be multiplexed around these signals as they
- * are requested, just enumerate all possible channels.
- * @get_signal: request a physical signal to be used for a DMA
- * transfer immediately: if there is some multiplexing or similar blocking
- * the use of the channel the transfer can be denied by returning
- * less than zero, else it returns the allocated signal number
+ * physical channels will be multiplexed around these signals as they are
+ * requested, just enumerate all possible channels.
+ * @get_signal: request a physical signal to be used for a DMA transfer
+ * immediately: if there is some multiplexing or similar blocking the use
+ * of the channel the transfer can be denied by returning less than zero,
+ * else it returns the allocated signal number
  * @put_signal: indicate to the platform that this physical signal is not
  * running any DMA transfer and multiplexing can be recycled
  * @lli_buses: buses which LLIs can be fetched from: PL08X_AHB1 | PL08X_AHB2
