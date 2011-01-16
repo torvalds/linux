@@ -201,13 +201,13 @@ void __init acpi_hest_init(void)
 	int rc = -ENODEV;
 	unsigned int ghes_count = 0;
 
-	if (acpi_disabled)
-		return;
-
 	if (hest_disable) {
 		pr_info(HEST_PFX "Table parsing disabled.\n");
 		return;
 	}
+
+	if (acpi_disabled)
+		goto err;
 
 	status = acpi_get_table(ACPI_SIG_HEST, 0,
 				(struct acpi_table_header **)&hest_tab);
