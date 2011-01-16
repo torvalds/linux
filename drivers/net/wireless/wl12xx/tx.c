@@ -195,9 +195,9 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
 	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d hlid: %d "
-		"tx_attr: 0x%x len: %d life: %d mem: %d", pad, (int)desc->hlid,
-		(int)desc->tx_attr, (int)desc->length, (int)desc->life_time,
-		(int)desc->total_mem_blocks);
+		"tx_attr: 0x%x len: %d life: %d mem: %d", pad, desc->hlid,
+		le16_to_cpu(desc->tx_attr), le16_to_cpu(desc->length),
+		le16_to_cpu(desc->life_time), desc->total_mem_blocks);
 }
 
 /* caller must hold wl->mutex */
