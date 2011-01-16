@@ -539,18 +539,15 @@ static int autofs4_dir_symlink(struct inode *dir,
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
 
-	ino = autofs4_init_ino(ino, sbi);
-	if (!ino)
-		return -ENOMEM;
+	BUG_ON(!ino);
+
+	autofs4_init_ino(ino, sbi);
 
 	autofs4_del_active(dentry);
 
 	cp = kmalloc(size + 1, GFP_KERNEL);
-	if (!cp) {
-		if (!dentry->d_fsdata)
-			kfree(ino);
+	if (!cp)
 		return -ENOMEM;
-	}
 
 	strcpy(cp, symname);
 
@@ -565,8 +562,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	inode->i_size = size;
 	d_add(dentry, inode);
 
-	dentry->d_fsdata = ino;
-	ino->dentry = dget(dentry);
+	dget(dentry);
 	atomic_inc(&ino->count);
 	p_ino = autofs4_dentry_ino(dentry->d_parent);
 	if (p_ino && dentry->d_parent != dentry)
@@ -734,25 +730,21 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	DPRINTK("dentry %p, creating %.*s",
 		dentry, dentry->d_name.len, dentry->d_name.name);
 
-	ino = autofs4_init_ino(ino, sbi);
-	if (!ino)
-		return -ENOMEM;
+	BUG_ON(!ino);
+
+	autofs4_init_ino(ino, sbi);
 
 	autofs4_del_active(dentry);
 
 	inode = autofs4_get_inode(dir->i_sb, S_IFDIR | 0555);
-	if (!inode) {
-		if (!dentry->d_fsdata)
-			kfree(ino);
+	if (!inode)
 		return -ENOMEM;
-	}
 	d_add(dentry, inode);
 
 	if (sbi->version < 5)
 		autofs_set_leaf_automount_flags(dentry);
 
-	dentry->d_fsdata = ino;
-	ino->dentry = dget(dentry);
+	dget(dentry);
 	atomic_inc(&ino->count);
 	p_ino = autofs4_dentry_ino(dentry->d_parent);
 	if (p_ino && dentry->d_parent != dentry)
