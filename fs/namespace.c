@@ -1226,15 +1226,16 @@ void release_mounts(struct list_head *head)
  */
 void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 {
+	LIST_HEAD(tmp_list);
 	struct vfsmount *p;
 
 	for (p = mnt; p; p = next_mnt(p, mnt))
-		list_move(&p->mnt_hash, kill);
+		list_move(&p->mnt_hash, &tmp_list);
 
 	if (propagate)
-		propagate_umount(kill);
+		propagate_umount(&tmp_list);
 
-	list_for_each_entry(p, kill, mnt_hash) {
+	list_for_each_entry(p, &tmp_list, mnt_hash) {
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
@@ -1246,6 +1247,7 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
+	list_splice(&tmp_list, kill);
 }
 
 static void shrink_submounts(struct vfsmount *mnt, struct list_head *umounts);
