@@ -20,6 +20,9 @@
  *
  * parts are cut&pasted from the lirc_i2c.c driver
  *
+ * Numerous changes updating lirc_zilog.c in kernel 2.6.38 and later are
+ * Copyright (C) 2011 Andy Walls <awalls@md.metrocast.net>
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -1441,7 +1444,8 @@ module_exit(zilog_exit);
 
 MODULE_DESCRIPTION("Zilog/Hauppauge infrared transmitter driver (i2c stack)");
 MODULE_AUTHOR("Gerd Knorr, Michal Kochanowicz, Christoph Bartelmus, "
-	      "Ulrich Mueller, Stefan Jahn, Jerome Brock, Mark Weaver");
+	      "Ulrich Mueller, Stefan Jahn, Jerome Brock, Mark Weaver, "
+	      "Andy Walls");
 MODULE_LICENSE("GPL");
 /* for compat with old name, which isn't all that accurate anymore */
 MODULE_ALIAS("lirc_pvr150");
