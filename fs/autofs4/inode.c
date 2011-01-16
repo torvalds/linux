@@ -22,35 +22,23 @@
 #include "autofs_i.h"
 #include <linux/module.h>
 
-struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
-				     struct autofs_sb_info *sbi)
+struct autofs_info *autofs4_new_ino(struct autofs_sb_info *sbi)
 {
-	int reinit = 1;
-
-	if (ino == NULL) {
-		reinit = 0;
-		ino = kmalloc(sizeof(*ino), GFP_KERNEL);
-	}
-
-	if (ino == NULL)
-		return NULL;
-
-	if (!reinit) {
-		ino->flags = 0;
-		ino->dentry = NULL;
+	struct autofs_info *ino = kzalloc(sizeof(*ino), GFP_KERNEL);
+	if (ino) {
 		INIT_LIST_HEAD(&ino->active);
-		ino->active_count = 0;
 		INIT_LIST_HEAD(&ino->expiring);
-		atomic_set(&ino->count, 0);
+		ino->last_used = jiffies;
+		ino->sbi = sbi;
 	}
+	return ino;
+}
 
+void autofs4_clean_ino(struct autofs_info *ino)
+{
 	ino->uid = 0;
 	ino->gid = 0;
 	ino->last_used = jiffies;
-
-	ino->sbi = sbi;
-
-	return ino;
 }
 
 void autofs4_free_ino(struct autofs_info *ino)
@@ -256,7 +244,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * Get the root inode and dentry, but defer checking for errors.
 	 */
-	ino = autofs4_init_ino(NULL, sbi);
+	ino = autofs4_new_ino(sbi);
 	if (!ino)
 		goto fail_free;
 	root_inode = autofs4_get_inode(s, S_IFDIR | 0755);

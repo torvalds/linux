@@ -508,7 +508,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		if (autofs_type_indirect(sbi->type) && IS_ROOT(dentry->d_parent))
 			__managed_dentry_set_managed(dentry);
 
-		ino = autofs4_init_ino(NULL, sbi);
+		ino = autofs4_new_ino(sbi);
 		if (!ino)
 			return ERR_PTR(-ENOMEM);
 
@@ -541,7 +541,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 
 	BUG_ON(!ino);
 
-	autofs4_init_ino(ino, sbi);
+	autofs4_clean_ino(ino);
 
 	autofs4_del_active(dentry);
 
@@ -732,7 +732,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	BUG_ON(!ino);
 
-	autofs4_init_ino(ino, sbi);
+	autofs4_clean_ino(ino);
 
 	autofs4_del_active(dentry);
 
