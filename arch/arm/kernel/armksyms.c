@@ -140,24 +140,18 @@ EXPORT_SYMBOL(__aeabi_ulcmp);
 #endif
 
 	/* bitops */
-EXPORT_SYMBOL(_set_bit_le);
-EXPORT_SYMBOL(_test_and_set_bit_le);
-EXPORT_SYMBOL(_clear_bit_le);
-EXPORT_SYMBOL(_test_and_clear_bit_le);
-EXPORT_SYMBOL(_change_bit_le);
-EXPORT_SYMBOL(_test_and_change_bit_le);
+EXPORT_SYMBOL(_set_bit);
+EXPORT_SYMBOL(_test_and_set_bit);
+EXPORT_SYMBOL(_clear_bit);
+EXPORT_SYMBOL(_test_and_clear_bit);
+EXPORT_SYMBOL(_change_bit);
+EXPORT_SYMBOL(_test_and_change_bit);
 EXPORT_SYMBOL(_find_first_zero_bit_le);
 EXPORT_SYMBOL(_find_next_zero_bit_le);
 EXPORT_SYMBOL(_find_first_bit_le);
 EXPORT_SYMBOL(_find_next_bit_le);
 
 #ifdef __ARMEB__
-EXPORT_SYMBOL(_set_bit_be);
-EXPORT_SYMBOL(_test_and_set_bit_be);
-EXPORT_SYMBOL(_clear_bit_be);
-EXPORT_SYMBOL(_test_and_clear_bit_be);
-EXPORT_SYMBOL(_change_bit_be);
-EXPORT_SYMBOL(_test_and_change_bit_be);
 EXPORT_SYMBOL(_find_first_zero_bit_be);
 EXPORT_SYMBOL(_find_next_zero_bit_be);
 EXPORT_SYMBOL(_find_first_bit_be);
