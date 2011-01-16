@@ -643,9 +643,11 @@ static int btrfs_defrag_file(struct file *file,
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_ordered_extent *ordered;
 	struct page *page;
+	struct btrfs_super_block *disk_super;
 	unsigned long last_index;
 	unsigned long ra_pages = root->fs_info->bdi.ra_pages;
 	unsigned long total_read = 0;
+	u64 features;
 	u64 page_start;
 	u64 page_end;
 	u64 last_len = 0;
@@ -653,6 +655,14 @@ static int btrfs_defrag_file(struct file *file,
 	u64 defrag_end = 0;
 	unsigned long i;
 	int ret;
+	int compress_type = BTRFS_COMPRESS_ZLIB;
+
+	if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS) {
+		if (range->compress_type > BTRFS_COMPRESS_TYPES)
+			return -EINVAL;
+		if (range->compress_type)
+			compress_type = range->compress_type;
+	}
 
 	if (inode->i_size == 0)
 		return 0;
@@ -688,7 +698,7 @@ static int btrfs_defrag_file(struct file *file,
 		total_read++;
 		mutex_lock(&inode->i_mutex);
 		if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)
-			BTRFS_I(inode)->force_compress = 1;
+			BTRFS_I(inode)->force_compress = compress_type;
 
 		ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
 		if (ret)
@@ -786,8 +796,15 @@ loop_unlock:
 		atomic_dec(&root->fs_info->async_submit_draining);
 
 		mutex_lock(&inode->i_mutex);
-		BTRFS_I(inode)->force_compress = 0;
+		BTRFS_I(inode)->force_compress = BTRFS_COMPRESS_NONE;
 		mutex_unlock(&inode->i_mutex);
+	}
+
+	disk_super = &root->fs_info->super_copy;
+	features = btrfs_super_incompat_flags(disk_super);
+	if (range->compress_type == BTRFS_COMPRESS_LZO) {
+		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
+		btrfs_set_super_incompat_flags(disk_super, features);
 	}
 
 	return 0;
