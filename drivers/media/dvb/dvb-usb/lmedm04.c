@@ -659,7 +659,7 @@ static int lme2510_download_firmware(struct usb_device *dev,
 }
 
 /* Default firmware for LME2510C */
-const char lme_firmware[50] = "dvb-usb-lme2510c-s7395.fw";
+char lme_firmware[50] = "dvb-usb-lme2510c-s7395.fw";
 
 static void lme_coldreset(struct usb_device *dev)
 {
@@ -1006,7 +1006,7 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.download_firmware = lme2510_download_firmware,
-	.firmware = lme_firmware,
+	.firmware = (const char *)&lme_firmware,
 	.size_of_priv = sizeof(struct lme2510_state),
 	.num_adapters = 1,
 	.adapter = {
@@ -1109,5 +1109,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.74");
+MODULE_VERSION("1.75");
 MODULE_LICENSE("GPL");
