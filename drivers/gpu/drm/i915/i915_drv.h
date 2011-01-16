@@ -111,6 +111,7 @@ struct intel_opregion {
 	struct opregion_swsci *swsci;
 	struct opregion_asle *asle;
 	void *vbt;
+	u32 __iomem *lid_state;
 };
 #define OPREGION_SIZE            (8*1024)
 

@@ -472,7 +472,14 @@ static enum drm_connector_status
 intel_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum drm_connector_status status = connector_status_connected;
+
+	/* Assume that the BIOS does not lie through the OpRegion... */
+	if (dev_priv->opregion.lid_state)
+		return ioread32(dev_priv->opregion.lid_state) & 0x1 ?
+			connector_status_connected :
+			connector_status_disconnected;
 
 	/* ACPI lid methods were generally unreliable in this generation, so
 	 * don't even bother.

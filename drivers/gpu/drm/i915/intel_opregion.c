@@ -488,6 +488,8 @@ int intel_opregion_setup(struct drm_device *dev)
 	opregion->header = base;
 	opregion->vbt = base + OPREGION_VBT_OFFSET;
 
+	opregion->lid_state = base + 0x01ac;
+
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
