@@ -1,6 +1,8 @@
 
 #if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_CPU_32v6K)
 	.macro	bitop, instr
+	ands	ip, r1, #3
+	strneb	r1, [ip]		@ assert word-aligned
 	mov	r2, #1
 	and	r3, r0, #7		@ Get bit offset
 	add	r1, r1, r0, lsr #3	@ Get byte offset
@@ -14,6 +16,8 @@
 	.endm
 
 	.macro	testop, instr, store
+	ands	ip, r1, #3
+	strneb	r1, [ip]		@ assert word-aligned
 	and	r3, r0, #7		@ Get bit offset
 	mov	r2, #1
 	add	r1, r1, r0, lsr #3	@ Get byte offset
@@ -32,6 +36,8 @@
 	.endm
 #else
 	.macro	bitop, instr
+	ands	ip, r1, #3
+	strneb	r1, [ip]		@ assert word-aligned
 	and	r2, r0, #7
 	mov	r3, #1
 	mov	r3, r3, lsl r2
@@ -52,6 +58,8 @@
  * to avoid dirtying the data cache.
  */
 	.macro	testop, instr, store
+	ands	ip, r1, #3
+	strneb	r1, [ip]		@ assert word-aligned
 	add	r1, r1, r0, lsr #3
 	and	r3, r0, #7
 	mov	r0, #1
