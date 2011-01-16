@@ -160,46 +160,18 @@ static int lp8550_write_reg(struct lp8550_data *led_data, uint8_t reg,
 
 static int ld_lp8550_init_registers(struct lp8550_data *led_data)
 {
-	unsigned i, n, reg_count, reg_addr;
+	unsigned i, reg_addr;
 	uint8_t value = 0;
 
-	/* Check the EEPROM values and update if neccessary */
-	reg_count = 8;
-	reg_addr = LP8550_EEPROM_A0;
-	for (i = 0, n = 0; i < reg_count; i++) {
-		lp8550_read_reg(led_data, reg_addr, &value);
-		if (lp8550_debug)
-			pr_info("%s:Register 0x%x value 0x%X\n", __func__,
-				reg_addr, value);
-		if (value != led_data->led_pdata->eeprom_table[n].eeprom_data) {
-			if (lp8550_debug)
-				pr_info("%s:Writing 0x%x to 0x%X\n", __func__,
-				led_data->led_pdata->eeprom_table[n].eeprom_data,
-				reg_addr);
-			if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-					0x05))
-				pr_err("%s:Register initialization failed\n",
+	if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL, 0x05))
+		pr_err("%s:Register initialization failed\n",
 					__func__);
-			if (lp8550_write_reg(led_data, reg_addr,
-				led_data->led_pdata->eeprom_table[n].eeprom_data))
-				pr_err("%s:Register initialization failed\n",
-					__func__);
-			if (lp8550_write_reg(led_data, LP8550_EEPROM_CTRL,
-					0x04))
-				pr_err("%s:Register initialization failed\n",
-					__func__);
-			if (lp8550_write_reg(led_data, LP8550_EEPROM_CTRL,
-					0x02))
-				pr_err("%s:Register initialization failed\n",
-					__func__);
-			msleep(200);
-			if (lp8550_write_reg(led_data, LP8550_EEPROM_CTRL,
-					0x00))
-				pr_err("%s:Register initialization failed\n",
-					__func__);
-		}
-		n++;
-		reg_addr++;
+
+	for (i = 0; i < led_data->led_pdata->eeprom_tbl_sz; i++) {
+		reg_addr = LP8550_EEPROM_A0 + i;
+		value = led_data->led_pdata->eeprom_table[i].eeprom_data;
+		if (lp8550_write_reg(led_data, reg_addr, value))
+			pr_err("%s:Register initialization failed\n", __func__);
 	}
 
 	if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
