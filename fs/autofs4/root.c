@@ -530,6 +530,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 	struct inode *inode;
+	size_t size = strlen(symname);
 	char *cp;
 
 	DPRINTK("%s <- %.*s", symname,
@@ -544,8 +545,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 
 	autofs4_del_active(dentry);
 
-	ino->size = strlen(symname);
-	cp = kmalloc(ino->size + 1, GFP_KERNEL);
+	cp = kmalloc(size + 1, GFP_KERNEL);
 	if (!cp) {
 		if (!dentry->d_fsdata)
 			kfree(ino);
@@ -562,6 +562,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 		return -ENOMEM;
 	}
 	inode->i_private = cp;
+	inode->i_size = size;
 	d_add(dentry, inode);
 
 	dentry->d_fsdata = ino;

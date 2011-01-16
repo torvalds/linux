@@ -38,7 +38,6 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 	if (!reinit) {
 		ino->flags = 0;
 		ino->dentry = NULL;
-		ino->size = 0;
 		INIT_LIST_HEAD(&ino->active);
 		ino->active_count = 0;
 		INIT_LIST_HEAD(&ino->expiring);
@@ -365,7 +364,6 @@ struct inode *autofs4_get_inode(struct super_block *sb,
 		inode->i_op = &autofs4_dir_inode_operations;
 		inode->i_fop = &autofs4_dir_operations;
 	} else if (S_ISLNK(mode)) {
-		inode->i_size = inf->size;
 		inode->i_op = &autofs4_symlink_inode_operations;
 	}
 

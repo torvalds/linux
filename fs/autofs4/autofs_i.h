@@ -88,8 +88,6 @@ struct autofs_info {
 
 	uid_t uid;
 	gid_t gid;
-
-	size_t	size;
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
