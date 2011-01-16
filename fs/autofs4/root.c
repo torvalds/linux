@@ -554,7 +554,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 
 	strcpy(cp, symname);
 
-	inode = autofs4_get_inode(dir->i_sb, ino, S_IFLNK | 0555);
+	inode = autofs4_get_inode(dir->i_sb, S_IFLNK | 0555);
 	if (!inode) {
 		kfree(cp);
 		if (!dentry->d_fsdata)
@@ -740,7 +740,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	autofs4_del_active(dentry);
 
-	inode = autofs4_get_inode(dir->i_sb, ino, S_IFDIR | 0555);
+	inode = autofs4_get_inode(dir->i_sb, S_IFDIR | 0555);
 	if (!inode) {
 		if (!dentry->d_fsdata)
 			kfree(ino);

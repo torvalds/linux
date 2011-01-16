@@ -167,7 +167,7 @@ static inline int autofs4_ispending(struct dentry *dentry)
 	return 0;
 }
 
-struct inode *autofs4_get_inode(struct super_block *, struct autofs_info *, mode_t);
+struct inode *autofs4_get_inode(struct super_block *, mode_t);
 void autofs4_free_ino(struct autofs_info *);
 
 /* Expiration */

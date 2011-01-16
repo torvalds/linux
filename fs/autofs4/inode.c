@@ -259,7 +259,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	ino = autofs4_init_ino(NULL, sbi);
 	if (!ino)
 		goto fail_free;
-	root_inode = autofs4_get_inode(s, ino, S_IFDIR | 0755);
+	root_inode = autofs4_get_inode(s, S_IFDIR | 0755);
 	if (!root_inode)
 		goto fail_ino;
 
@@ -342,9 +342,7 @@ fail_unlock:
 	return -EINVAL;
 }
 
-struct inode *autofs4_get_inode(struct super_block *sb,
-				struct autofs_info *inf,
-				mode_t mode)
+struct inode *autofs4_get_inode(struct super_block *sb, mode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 
