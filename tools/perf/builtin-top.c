@@ -933,6 +933,7 @@ repeat:
 /* Tag samples to be skipped. */
 static const char *skip_symbols[] = {
 	"default_idle",
+	"native_safe_halt",
 	"cpu_idle",
 	"enter_idle",
 	"exit_idle",
