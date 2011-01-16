@@ -1123,7 +1123,6 @@ static struct lirc_driver lirc_template = {
 
 static int ir_remove(struct i2c_client *client);
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id);
-static int ir_command(struct i2c_client *client, unsigned int cmd, void *arg);
 
 #define ID_FLAG_TX	0x01
 #define ID_FLAG_HDPVR	0x02
@@ -1143,7 +1142,6 @@ static struct i2c_driver driver = {
 	},
 	.probe		= ir_probe,
 	.remove		= ir_remove,
-	.command	= ir_command,
 	.id_table	= ir_transceiver_id,
 };
 
@@ -1408,12 +1406,6 @@ out_no_ir:
 		   ret);
 	mutex_unlock(&ir_devices_lock);
 	return ret;
-}
-
-static int ir_command(struct i2c_client *client, unsigned int cmd, void *arg)
-{
-	/* nothing */
-	return 0;
 }
 
 static int __init zilog_init(void)
