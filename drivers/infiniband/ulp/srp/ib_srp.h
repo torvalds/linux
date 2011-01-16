@@ -117,6 +117,8 @@ struct srp_request {
 	struct srp_iu	       *cmd;
 	struct ib_pool_fmr    **fmr_list;
 	u64		       *map_page;
+	struct srp_direct_buf  *indirect_desc;
+	dma_addr_t		indirect_dma_addr;
 	short			nfmr;
 	short			index;
 };
@@ -137,6 +139,8 @@ struct srp_target_port {
 	enum srp_target_state	state;
 	unsigned int		max_iu_len;
 	unsigned int		cmd_sg_cnt;
+	unsigned int		indirect_size;
+	bool			allow_ext_sg;
 
 	/* Everything above this point is used in the hot path of
 	 * command processing. Try to keep them packed into cachelines.
@@ -151,6 +155,7 @@ struct srp_target_port {
 	struct Scsi_Host       *scsi_host;
 	char			target_name[32];
 	unsigned int		scsi_id;
+	unsigned int		sg_tablesize;
 
 	struct ib_sa_path_rec	path;
 	__be16			orig_dgid[8];
