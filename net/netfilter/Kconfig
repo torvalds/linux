@@ -326,6 +326,16 @@ config NETFILTER_XT_CONNMARK
 
 comment "Xtables targets"
 
+config NETFILTER_XT_TARGET_AUDIT
+	tristate "AUDIT target support"
+	depends on AUDIT
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option adds a 'AUDIT' target, which can be used to create
+	  audit records for packets dropped/accepted.
+
+	  To compileit as a module, choose M here. If unsure, say N.
+
 config NETFILTER_XT_TARGET_CHECKSUM
 	tristate "CHECKSUM target support"
 	depends on IP_NF_MANGLE || IP6_NF_MANGLE
