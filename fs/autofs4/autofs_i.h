@@ -89,7 +89,6 @@ struct autofs_info {
 	uid_t uid;
 	gid_t gid;
 
-	mode_t	mode;
 	size_t	size;
 };
 
@@ -170,7 +169,7 @@ static inline int autofs4_ispending(struct dentry *dentry)
 	return 0;
 }
 
-struct inode *autofs4_get_inode(struct super_block *, struct autofs_info *);
+struct inode *autofs4_get_inode(struct super_block *, struct autofs_info *, mode_t);
 void autofs4_free_ino(struct autofs_info *);
 
 /* Expiration */
@@ -280,7 +279,7 @@ static inline void managed_dentry_clear_managed(struct dentry *dentry)
 /* Initializing function */
 
 int autofs4_fill_super(struct super_block *, void *, int);
-struct autofs_info *autofs4_init_ino(struct autofs_info *, struct autofs_sb_info *sbi, mode_t mode);
+struct autofs_info *autofs4_init_ino(struct autofs_info *, struct autofs_sb_info *sbi);
 
 /* Queue management functions */
 

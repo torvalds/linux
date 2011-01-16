@@ -508,7 +508,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		if (autofs_type_indirect(sbi->type) && IS_ROOT(dentry->d_parent))
 			__managed_dentry_set_managed(dentry);
 
-		ino = autofs4_init_ino(NULL, sbi, 0555);
+		ino = autofs4_init_ino(NULL, sbi);
 		if (!ino)
 			return ERR_PTR(-ENOMEM);
 
@@ -538,7 +538,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
 
-	ino = autofs4_init_ino(ino, sbi, S_IFLNK | 0555);
+	ino = autofs4_init_ino(ino, sbi);
 	if (!ino)
 		return -ENOMEM;
 
@@ -554,7 +554,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 
 	strcpy(cp, symname);
 
-	inode = autofs4_get_inode(dir->i_sb, ino);
+	inode = autofs4_get_inode(dir->i_sb, ino, S_IFLNK | 0555);
 	if (!inode) {
 		kfree(cp);
 		if (!dentry->d_fsdata)
@@ -733,13 +733,13 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	DPRINTK("dentry %p, creating %.*s",
 		dentry, dentry->d_name.len, dentry->d_name.name);
 
-	ino = autofs4_init_ino(ino, sbi, S_IFDIR | 0555);
+	ino = autofs4_init_ino(ino, sbi);
 	if (!ino)
 		return -ENOMEM;
 
 	autofs4_del_active(dentry);
 
-	inode = autofs4_get_inode(dir->i_sb, ino);
+	inode = autofs4_get_inode(dir->i_sb, ino, S_IFDIR | 0555);
 	if (!inode) {
 		if (!dentry->d_fsdata)
 			kfree(ino);

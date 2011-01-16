@@ -23,7 +23,7 @@
 #include <linux/module.h>
 
 struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
-				     struct autofs_sb_info *sbi, mode_t mode)
+				     struct autofs_sb_info *sbi)
 {
 	int reinit = 1;
 
@@ -47,7 +47,6 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 
 	ino->uid = 0;
 	ino->gid = 0;
-	ino->mode = mode;
 	ino->last_used = jiffies;
 
 	ino->sbi = sbi;
@@ -258,10 +257,10 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * Get the root inode and dentry, but defer checking for errors.
 	 */
-	ino = autofs4_init_ino(NULL, sbi, S_IFDIR | 0755);
+	ino = autofs4_init_ino(NULL, sbi);
 	if (!ino)
 		goto fail_free;
-	root_inode = autofs4_get_inode(s, ino);
+	root_inode = autofs4_get_inode(s, ino, S_IFDIR | 0755);
 	if (!root_inode)
 		goto fail_ino;
 
@@ -345,14 +344,15 @@ fail_unlock:
 }
 
 struct inode *autofs4_get_inode(struct super_block *sb,
-				struct autofs_info *inf)
+				struct autofs_info *inf,
+				mode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 
 	if (inode == NULL)
 		return NULL;
 
-	inode->i_mode = inf->mode;
+	inode->i_mode = mode;
 	if (sb->s_root) {
 		inode->i_uid = sb->s_root->d_inode->i_uid;
 		inode->i_gid = sb->s_root->d_inode->i_gid;
@@ -360,11 +360,11 @@ struct inode *autofs4_get_inode(struct super_block *sb,
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_ino = get_next_ino();
 
-	if (S_ISDIR(inf->mode)) {
+	if (S_ISDIR(mode)) {
 		inode->i_nlink = 2;
 		inode->i_op = &autofs4_dir_inode_operations;
 		inode->i_fop = &autofs4_dir_operations;
-	} else if (S_ISLNK(inf->mode)) {
+	} else if (S_ISLNK(mode)) {
 		inode->i_size = inf->size;
 		inode->i_op = &autofs4_symlink_inode_operations;
 	}
