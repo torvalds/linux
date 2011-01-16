@@ -129,6 +129,7 @@ applications. -->
 
       <revision>
 	<revnumber>2.6.38</revnumber>
+	<date>2011-01-16</date>
 	<authorinitials>po</authorinitials>
 	<revremark>Added the <link linkend="planar-apis">multi-planar API</link>.
 	</revremark>

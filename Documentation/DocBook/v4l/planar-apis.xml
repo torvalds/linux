@@ -53,28 +53,28 @@
     <variablelist>
       <varlistentry>
         <term>&VIDIOC-QUERYCAP;</term>
-        <listitem>Two additional multi-planar capabilities are added. They can
+        <listitem><para>Two additional multi-planar capabilities are added. They can
         be set together with non-multi-planar ones for devices that handle
-        both single- and multi-planar formats.</listitem>
+        both single- and multi-planar formats.</para></listitem>
       </varlistentry>
       <varlistentry>
         <term>&VIDIOC-G-FMT;, &VIDIOC-S-FMT;, &VIDIOC-TRY-FMT;</term>
-        <listitem>New structures for describing multi-planar formats are added:
+        <listitem><para>New structures for describing multi-planar formats are added:
         &v4l2-pix-format-mplane; and &v4l2-plane-pix-format;. Drivers may
         define new multi-planar formats, which have distinct FourCC codes from
-        the existing single-planar ones.
+        the existing single-planar ones.</para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>&VIDIOC-QBUF;, &VIDIOC-DQBUF;, &VIDIOC-QUERYBUF;</term>
-        <listitem>A new &v4l2-plane; structure for describing planes is added.
+        <listitem><para>A new &v4l2-plane; structure for describing planes is added.
         Arrays of this structure are passed in the new
-        <structfield>m.planes</structfield> field of &v4l2-buffer;.
+        <structfield>m.planes</structfield> field of &v4l2-buffer;.</para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>&VIDIOC-REQBUFS;</term>
-        <listitem>Will allocate multi-planar buffers as requested.</listitem>
+        <listitem><para>Will allocate multi-planar buffers as requested.</para></listitem>
       </varlistentry>
     </variablelist>
   </section>
