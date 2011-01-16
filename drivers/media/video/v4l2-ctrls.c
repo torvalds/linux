@@ -1824,6 +1824,9 @@ static int set_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
 	int ret;
 	int i;
 
+	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
+		return -EACCES;
+
 	v4l2_ctrl_lock(ctrl);
 
 	/* Reset the 'is_new' flags of the cluster */
