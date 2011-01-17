@@ -150,17 +150,15 @@ static int TSS_authhmac(unsigned char *digest, const unsigned char *key,
 		data = va_arg(argp, unsigned char *);
 		if (!data) {
 			ret = -EINVAL;
-			va_end(argp);
-			goto out;
+			break;
 		}
 		ret = crypto_shash_update(&sdesc->shash, data, dlen);
-		if (ret < 0) {
-			va_end(argp);
-			goto out;
-		}
+		if (ret < 0)
+			break;
 	}
 	va_end(argp);
-	ret = crypto_shash_final(&sdesc->shash, paramdigest);
+	if (!ret)
+		ret = crypto_shash_final(&sdesc->shash, paramdigest);
 	if (!ret)
 		ret = TSS_rawhmac(digest, key, keylen, SHA1_DIGEST_SIZE,
 				  paramdigest, TPM_NONCE_SIZE, h1,
@@ -229,13 +227,12 @@ static int TSS_checkhmac1(unsigned char *buffer,
 			break;
 		dpos = va_arg(argp, unsigned int);
 		ret = crypto_shash_update(&sdesc->shash, buffer + dpos, dlen);
-		if (ret < 0) {
-			va_end(argp);
-			goto out;
-		}
+		if (ret < 0)
+			break;
 	}
 	va_end(argp);
-	ret = crypto_shash_final(&sdesc->shash, paramdigest);
+	if (!ret)
+		ret = crypto_shash_final(&sdesc->shash, paramdigest);
 	if (ret < 0)
 		goto out;
 
@@ -323,13 +320,12 @@ static int TSS_checkhmac2(unsigned char *buffer,
 			break;
 		dpos = va_arg(argp, unsigned int);
 		ret = crypto_shash_update(&sdesc->shash, buffer + dpos, dlen);
-		if (ret < 0) {
-			va_end(argp);
-			goto out;
-		}
+		if (ret < 0)
+			break;
 	}
 	va_end(argp);
-	ret = crypto_shash_final(&sdesc->shash, paramdigest);
+	if (!ret)
+		ret = crypto_shash_final(&sdesc->shash, paramdigest);
 	if (ret < 0)
 		goto out;
 
