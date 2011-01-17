@@ -561,6 +561,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 			kfree(ino);
 		return -ENOMEM;
 	}
+	inode->i_private = cp;
 	d_add(dentry, inode);
 
 	dentry->d_fsdata = ino;
@@ -570,7 +571,6 @@ static int autofs4_dir_symlink(struct inode *dir,
 	if (p_ino && dentry->d_parent != dentry)
 		atomic_inc(&p_ino->count);
 
-	ino->u.symlink = cp;
 	dir->i_mtime = CURRENT_TIME;
 
 	return 0;

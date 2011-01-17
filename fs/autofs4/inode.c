@@ -22,14 +22,6 @@
 #include "autofs_i.h"
 #include <linux/module.h>
 
-static void ino_lnkfree(struct autofs_info *ino)
-{
-	if (ino->u.symlink) {
-		kfree(ino->u.symlink);
-		ino->u.symlink = NULL;
-	}
-}
-
 struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 				     struct autofs_sb_info *sbi, mode_t mode)
 {
@@ -60,16 +52,6 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 
 	ino->sbi = sbi;
 
-	if (reinit && ino->free)
-		(ino->free)(ino);
-
-	memset(&ino->u, 0, sizeof(ino->u));
-
-	ino->free = NULL;
-
-	if (S_ISLNK(mode))
-		ino->free = ino_lnkfree;
-
 	return ino;
 }
 
@@ -79,8 +61,6 @@ void autofs4_free_ino(struct autofs_info *ino)
 		ino->dentry->d_fsdata = NULL;
 		ino->dentry = NULL;
 	}
-	if (ino->free)
-		(ino->free)(ino);
 	kfree(ino);
 }
 
@@ -136,9 +116,16 @@ static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
+static void autofs4_evict_inode(struct inode *inode)
+{
+	end_writeback(inode);
+	kfree(inode->i_private);
+}
+
 static const struct super_operations autofs4_sops = {
 	.statfs		= simple_statfs,
 	.show_options	= autofs4_show_options,
+	.evict_inode	= autofs4_evict_inode,
 };
 
 enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto,

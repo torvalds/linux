@@ -91,11 +91,6 @@ struct autofs_info {
 
 	mode_t	mode;
 	size_t	size;
-
-	void (*free)(struct autofs_info *);
-	union {
-		const char *symlink;
-	} u;
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
