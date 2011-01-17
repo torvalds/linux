@@ -1261,8 +1261,13 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
 		drbd_resume_al(mdev);
 
-	if (os.conn == C_AHEAD && ns.conn != C_AHEAD)
+	/* Start a new epoch in case we start to mirror write requests */
+	if (!drbd_should_do_remote(os) && drbd_should_do_remote(ns))
 		tl_forget(mdev);
+
+	/* Do not add local-only requests to an epoch with mirrored requests */
+	if (drbd_should_do_remote(os) && !drbd_should_do_remote(ns))
+		set_bit(CREATE_BARRIER, &mdev->flags);
 
 	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
 	if (ascw) {
