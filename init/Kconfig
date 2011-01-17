@@ -745,7 +745,7 @@ config BLK_CGROUP
 	One needs to also enable actual IO controlling logic/policy. For
 	enabling proportional weight division of disk bandwidth in CFQ, set
 	CONFIG_CFQ_GROUP_IOSCHED=y; for enabling throttling policy, set
-	CONFIG_BLK_THROTTLE=y.
+	CONFIG_BLK_DEV_THROTTLING=y.
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
 
