@@ -1633,9 +1633,6 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 	u32 dp_flags;
 
 	if (!get_ldev(mdev)) {
-		if (__ratelimit(&drbd_ratelimit_state))
-			dev_err(DEV, "Can not write mirrored data block "
-			    "to local disk.\n");
 		spin_lock(&mdev->peer_seq_lock);
 		if (mdev->peer_seq+1 == be32_to_cpu(p->seq_num))
 			mdev->peer_seq++;
@@ -4247,8 +4244,6 @@ static struct drbd_request *_ack_id_to_req(struct drbd_conf *mdev,
 			return req;
 		}
 	}
-	dev_err(DEV, "_ack_id_to_req: failed to find req %p, sector %llus in list\n",
-		(void *)(unsigned long)id, (unsigned long long)sector);
 	return NULL;
 }
 
@@ -4266,7 +4261,9 @@ static int validate_req_change_req_state(struct drbd_conf *mdev,
 	req = validator(mdev, id, sector);
 	if (unlikely(!req)) {
 		spin_unlock_irq(&mdev->req_lock);
-		dev_err(DEV, "%s: got a corrupt block_id/sector pair\n", func);
+
+		dev_err(DEV, "%s: failed to find req %p, sector %llus\n", func,
+			(void *)(unsigned long)id, (unsigned long long)sector);
 		return false;
 	}
 	__req_mod(req, what, &m);
@@ -4321,20 +4318,44 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
 {
 	struct p_block_ack *p = (struct p_block_ack *)h;
 	sector_t sector = be64_to_cpu(p->sector);
-
-	if (__ratelimit(&drbd_ratelimit_state))
-		dev_warn(DEV, "Got NegAck packet. Peer is in troubles?\n");
+	int size = be32_to_cpu(p->blksize);
+	struct drbd_request *req;
+	struct bio_and_error m;
 
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
 
 	if (is_syncer_block_id(p->block_id)) {
-		int size = be32_to_cpu(p->blksize);
 		dec_rs_pending(mdev);
 		drbd_rs_failed_io(mdev, sector, size);
 		return true;
 	}
-	return validate_req_change_req_state(mdev, p->block_id, sector,
-		_ack_id_to_req, __func__ , neg_acked);
+
+	spin_lock_irq(&mdev->req_lock);
+	req = _ack_id_to_req(mdev, p->block_id, sector);
+	if (!req) {
+		spin_unlock_irq(&mdev->req_lock);
+		if (mdev->net_conf->wire_protocol == DRBD_PROT_A ||
+		    mdev->net_conf->wire_protocol == DRBD_PROT_B) {
+			/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
+			   The master bio might already be completed, therefore the
+			   request is no longer in the collision hash.
+			   => Do not try to validate block_id as request. */
+			/* In Protocol B we might already have got a P_RECV_ACK
+			   but then get a P_NEG_ACK after wards. */
+			drbd_set_out_of_sync(mdev, sector, size);
+			return true;
+		} else {
+			dev_err(DEV, "%s: failed to find req %p, sector %llus\n", __func__,
+				(void *)(unsigned long)p->block_id, (unsigned long long)sector);
+			return false;
+		}
+	}
+	__req_mod(req, neg_acked, &m);
+	spin_unlock_irq(&mdev->req_lock);
+
+	if (m.bio)
+		complete_master_bio(mdev, &m);
+	return true;
 }
 
 static int got_NegDReply(struct drbd_conf *mdev, struct p_header80 *h)
