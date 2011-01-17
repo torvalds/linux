@@ -101,11 +101,13 @@ static int TSS_rawhmac(unsigned char *digest, const unsigned char *key,
 		if (dlen == 0)
 			break;
 		data = va_arg(argp, unsigned char *);
-		if (data == NULL)
-			return -EINVAL;
+		if (data == NULL) {
+			ret = -EINVAL;
+			break;
+		}
 		ret = crypto_shash_update(&sdesc->shash, data, dlen);
 		if (ret < 0)
-			goto out;
+			break;
 	}
 	va_end(argp);
 	if (!ret)
