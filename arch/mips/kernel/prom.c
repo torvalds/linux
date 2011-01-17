@@ -45,11 +45,9 @@ void __init free_mem_mach(unsigned long addr, unsigned long size)
 	return free_bootmem(addr, size);
 }
 
-u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return virt_to_phys(
-		__alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS))
-		);
+	return __alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS));
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
