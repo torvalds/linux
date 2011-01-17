@@ -770,15 +770,15 @@ static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 	__raw_writel(1 << channel, sdma->regs + SDMA_H_START);
 }
 
-static dma_cookie_t sdma_assign_cookie(struct sdma_channel *sdma)
+static dma_cookie_t sdma_assign_cookie(struct sdma_channel *sdmac)
 {
-	dma_cookie_t cookie = sdma->chan.cookie;
+	dma_cookie_t cookie = sdmac->chan.cookie;
 
 	if (++cookie < 0)
 		cookie = 1;
 
-	sdma->chan.cookie = cookie;
-	sdma->desc.cookie = cookie;
+	sdmac->chan.cookie = cookie;
+	sdmac->desc.cookie = cookie;
 
 	return cookie;
 }
