@@ -970,6 +970,88 @@ int hci_uuids_clear(struct hci_dev *hdev)
 	return 0;
 }
 
+int hci_link_keys_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->link_keys) {
+		struct link_key *key;
+
+		key = list_entry(p, struct link_key, list);
+
+		list_del(p);
+		kfree(key);
+	}
+
+	return 0;
+}
+
+struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct list_head *p;
+
+	list_for_each(p, &hdev->link_keys) {
+		struct link_key *k;
+
+		k = list_entry(p, struct link_key, list);
+
+		if (bacmp(bdaddr, &k->bdaddr) == 0)
+			return k;
+	}
+
+	return NULL;
+}
+
+int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
+						u8 *val, u8 type, u8 pin_len)
+{
+	struct link_key *key, *old_key;
+	u8 old_key_type;
+
+	old_key = hci_find_link_key(hdev, bdaddr);
+	if (old_key) {
+		old_key_type = old_key->type;
+		key = old_key;
+	} else {
+		old_key_type = 0xff;
+		key = kzalloc(sizeof(*key), GFP_ATOMIC);
+		if (!key)
+			return -ENOMEM;
+		list_add(&key->list, &hdev->link_keys);
+	}
+
+	BT_DBG("%s key for %s type %u", hdev->name, batostr(bdaddr), type);
+
+	bacpy(&key->bdaddr, bdaddr);
+	memcpy(key->val, val, 16);
+	key->type = type;
+	key->pin_len = pin_len;
+
+	if (new_key)
+		mgmt_new_key(hdev->id, key, old_key_type);
+
+	if (type == 0x06)
+		key->type = old_key_type;
+
+	return 0;
+}
+
+int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct link_key *key;
+
+	key = hci_find_link_key(hdev, bdaddr);
+	if (!key)
+		return -ENOENT;
+
+	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+
+	list_del(&key->list);
+	kfree(key);
+
+	return 0;
+}
+
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
@@ -1028,6 +1110,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	INIT_LIST_HEAD(&hdev->blacklist);
 
 	INIT_LIST_HEAD(&hdev->uuids);
+
+	INIT_LIST_HEAD(&hdev->link_keys);
 
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_WORK(&hdev->power_off, hci_power_off);
@@ -1105,6 +1189,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	hci_dev_lock_bh(hdev);
 	hci_blacklist_clear(hdev);
 	hci_uuids_clear(hdev);
+	hci_link_keys_clear(hdev);
 	hci_dev_unlock_bh(hdev);
 
 	__hci_dev_put(hdev);

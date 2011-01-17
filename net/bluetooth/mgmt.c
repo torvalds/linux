@@ -794,6 +794,99 @@ static int set_service_cache(struct sock *sk, unsigned char *data, u16 len)
 	return err;
 }
 
+static int load_keys(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_load_keys *cp;
+	u16 dev_id, key_count, expected_len;
+	int i;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+	key_count = get_unaligned_le16(&cp->key_count);
+
+	expected_len = sizeof(*cp) + key_count * sizeof(struct mgmt_key_info);
+	if (expected_len != len) {
+		BT_ERR("load_keys: expected %u bytes, got %u bytes",
+							len, expected_len);
+		return -EINVAL;
+	}
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_LOAD_KEYS, ENODEV);
+
+	BT_DBG("hci%u debug_keys %u key_count %u", dev_id, cp->debug_keys,
+								key_count);
+
+	hci_dev_lock_bh(hdev);
+
+	hci_link_keys_clear(hdev);
+
+	set_bit(HCI_LINK_KEYS, &hdev->flags);
+
+	if (cp->debug_keys)
+		set_bit(HCI_DEBUG_KEYS, &hdev->flags);
+	else
+		clear_bit(HCI_DEBUG_KEYS, &hdev->flags);
+
+	for (i = 0; i < key_count; i++) {
+		struct mgmt_key_info *key = &cp->keys[i];
+
+		hci_add_link_key(hdev, 0, &key->bdaddr, key->val, key->type,
+								key->pin_len);
+	}
+
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return 0;
+}
+
+static int remove_key(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_remove_key *cp;
+	struct hci_conn *conn;
+	u16 dev_id;
+	int err;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_REMOVE_KEY, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	err = hci_remove_link_key(hdev, &cp->bdaddr);
+	if (err < 0) {
+		err = cmd_status(sk, MGMT_OP_REMOVE_KEY, -err);
+		goto unlock;
+	}
+
+	err = 0;
+
+	if (!test_bit(HCI_UP, &hdev->flags) || !cp->disconnect)
+		goto unlock;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (conn) {
+		struct hci_cp_disconnect dc;
+
+		put_unaligned_le16(conn->handle, &dc.handle);
+		dc.reason = 0x13; /* Remote User Terminated Connection */
+		err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, 0, NULL);
+	}
+
+unlock:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -857,6 +950,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_SET_SERVICE_CACHE:
 		err = set_service_cache(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_LOAD_KEYS:
+		err = load_keys(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_REMOVE_KEY:
+		err = remove_key(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
@@ -973,4 +1072,21 @@ int mgmt_connectable(u16 index, u8 connectable)
 		sock_put(match.sk);
 
 	return ret;
+}
+
+int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type)
+{
+	struct mgmt_ev_new_key ev;
+
+	memset(&ev, 0, sizeof(ev));
+
+	put_unaligned_le16(index, &ev.index);
+
+	bacpy(&ev.key.bdaddr, &key->bdaddr);
+	ev.key.type = key->type;
+	memcpy(ev.key.val, key->val, 16);
+	ev.key.pin_len = key->pin_len;
+	ev.old_key_type = old_key_type;
+
+	return mgmt_event(MGMT_EV_NEW_KEY, &ev, sizeof(ev), NULL);
 }

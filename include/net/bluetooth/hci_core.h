@@ -73,6 +73,14 @@ struct bt_uuid {
 	u8 svc_hint;
 };
 
+struct link_key {
+	struct list_head list;
+	bdaddr_t bdaddr;
+	u8 type;
+	u8 val[16];
+	u8 pin_len;
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -152,6 +160,8 @@ struct hci_dev {
 	struct list_head	blacklist;
 
 	struct list_head	uuids;
+
+	struct list_head	link_keys;
 
 	struct hci_dev_stats	stat;
 
@@ -461,6 +471,12 @@ int hci_blacklist_clear(struct hci_dev *hdev);
 
 int hci_uuids_clear(struct hci_dev *hdev);
 
+int hci_link_keys_clear(struct hci_dev *hdev);
+struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
+						u8 *key, u8 type, u8 pin_len);
+int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
+
 void hci_del_off_timer(struct hci_dev *hdev);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
@@ -697,6 +713,7 @@ int mgmt_index_removed(u16 index);
 int mgmt_powered(u16 index, u8 powered);
 int mgmt_discoverable(u16 index, u8 discoverable);
 int mgmt_connectable(u16 index, u8 connectable);
+int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)

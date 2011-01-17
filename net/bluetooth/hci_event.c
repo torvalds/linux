@@ -1810,13 +1810,60 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 
 static inline void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	struct hci_ev_link_key_req *ev = (void *) skb->data;
+	struct hci_cp_link_key_reply cp;
+	struct hci_conn *conn;
+	struct link_key *key;
+
 	BT_DBG("%s", hdev->name);
+
+	if (!test_bit(HCI_LINK_KEYS, &hdev->flags))
+		return;
+
+	hci_dev_lock(hdev);
+
+	key = hci_find_link_key(hdev, &ev->bdaddr);
+	if (!key) {
+		BT_DBG("%s link key not found for %s", hdev->name,
+							batostr(&ev->bdaddr));
+		goto not_found;
+	}
+
+	BT_DBG("%s found key type %u for %s", hdev->name, key->type,
+							batostr(&ev->bdaddr));
+
+	if (!test_bit(HCI_DEBUG_KEYS, &hdev->flags) && key->type == 0x03) {
+		BT_DBG("%s ignoring debug key", hdev->name);
+		goto not_found;
+	}
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+
+	if (key->type == 0x04 && conn && conn->auth_type != 0xff &&
+						(conn->auth_type & 0x01)) {
+		BT_DBG("%s ignoring unauthenticated key", hdev->name);
+		goto not_found;
+	}
+
+	bacpy(&cp.bdaddr, &ev->bdaddr);
+	memcpy(cp.link_key, key->val, 16);
+
+	hci_send_cmd(hdev, HCI_OP_LINK_KEY_REPLY, sizeof(cp), &cp);
+
+	hci_dev_unlock(hdev);
+
+	return;
+
+not_found:
+	hci_send_cmd(hdev, HCI_OP_LINK_KEY_NEG_REPLY, 6, &ev->bdaddr);
+	hci_dev_unlock(hdev);
 }
 
 static inline void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_link_key_notify *ev = (void *) skb->data;
 	struct hci_conn *conn;
+	u8 pin_len = 0;
 
 	BT_DBG("%s", hdev->name);
 
@@ -1828,6 +1875,10 @@ static inline void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff 
 		conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 		hci_conn_put(conn);
 	}
+
+	if (test_bit(HCI_LINK_KEYS, &hdev->flags))
+		hci_add_link_key(hdev, 1, &ev->bdaddr, ev->link_key,
+							ev->key_type, pin_len);
 
 	hci_dev_unlock(hdev);
 }
