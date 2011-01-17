@@ -6,6 +6,10 @@ Supported chips:
     Prefix 'lm93'
     Addresses scanned: I2C 0x2c-0x2e
     Datasheet: http://www.national.com/ds.cgi/LM/LM93.pdf
+  * National Semiconductor LM94
+    Prefix 'lm94'
+    Addresses scanned: I2C 0x2c-0x2e
+    Datasheet: http://www.national.com/ds.cgi/LM/LM94.pdf
 
 Authors:
 	Mark M. Hoffman <mhoffman@lightlink.com>
@@ -55,6 +59,9 @@ previous motherboard management ASICs and uses some of the LM85's features
 (i.e. smart tachometer mode). It also adds measurement and control support
 for dynamic Vccp monitoring and PROCHOT. It is designed to monitor a dual
 processor Xeon class motherboard with a minimum of external components.
+
+LM94 is also supported in LM93 compatible mode. Extra sensors and features of
+LM94 are not supported.
 
 
 User Interface
