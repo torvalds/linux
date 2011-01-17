@@ -236,7 +236,6 @@
 #define dct_ganging_enabled(pvt)	((boot_cpu_data.x86 == 0x10) && ((pvt)->dct_sel_lo & BIT(4)))
 
 #define dct_data_intlv_enabled(pvt)	((pvt)->dct_sel_lo & BIT(5))
-#define dct_dram_enabled(pvt)		((pvt)->dct_sel_lo & BIT(8))
 #define dct_memory_cleared(pvt)		((pvt)->dct_sel_lo & BIT(10))
 
 #define SWAP_INTLV_REG			0x10c
@@ -444,7 +443,6 @@ extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
  */
 struct low_ops {
 	int (*early_channel_count)	(struct amd64_pvt *pvt);
-	void (*read_dram_ctl_register)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
 					 u16 syndrome);
 	int (*dbam_to_cs)		(struct amd64_pvt *pvt, int cs_mode);
