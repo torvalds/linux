@@ -50,6 +50,7 @@ struct coordinate_map {
 	int y_data;
 	int z_data;
 	int w_data;
+	int vector;
 	int down;
 };
 
@@ -869,6 +870,7 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 	ts->finger_data[finger].x_data = x;
 	ts->finger_data[finger].y_data = y;
 	ts->finger_data[finger].w_data = width;
+	ts->finger_data[finger].vector = msg->touch_vect;
 
 	/* The touch IC will not give back a pressure of zero
 	   so send a 0 when a liftoff is produced */
@@ -890,6 +892,8 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 				 ts->finger_data[i].x_data);
 		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
 				 ts->finger_data[i].y_data);
+		input_report_abs(ts->input_dev, ABS_MT_ORIENTATION,
+				 ts->finger_data[i].vector);
 		input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID,
 				 i);
 		input_mt_sync(ts->input_dev);
@@ -1115,6 +1119,8 @@ static int qtouch_ts_register_input(struct qtouch_ts_data *ts)
 		input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR,
 				     ts->pdata->abs_min_w, ts->pdata->abs_max_w,
 				     ts->pdata->fuzz_w, 0);
+		input_set_abs_params(ts->input_dev, ABS_MT_ORIENTATION,
+				     0, 255, 0, 0);
 		input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID,
 				     0, ts->pdata->multi_touch_cfg.num_touch, 1, 0);
 	}
