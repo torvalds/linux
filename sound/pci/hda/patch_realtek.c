@@ -2916,7 +2916,7 @@ static struct snd_kcontrol_new alc880_uniwill_p53_mixer[] = {
 /*
  * slave controls for virtual master
  */
-static const char *alc_slave_vols[] = {
+static const char * const alc_slave_vols[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -2930,7 +2930,7 @@ static const char *alc_slave_vols[] = {
 	NULL,
 };
 
-static const char *alc_slave_sws[] = {
+static const char * const alc_slave_sws[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -4611,7 +4611,7 @@ static struct hda_verb alc880_test_init_verbs[] = {
 /*
  */
 
-static const char *alc880_models[ALC880_MODEL_LAST] = {
+static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_3ST]		= "3stack",
 	[ALC880_TCL_S700]	= "tcl",
 	[ALC880_3ST_DIG]	= "3stack-digout",
@@ -5144,7 +5144,7 @@ static const char *alc_get_line_out_pfx(const struct auto_pin_cfg *cfg,
 static int alc880_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
-	static const char *chname[4] = {
+	static const char * const chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
 	const char *pfx = alc_get_line_out_pfx(cfg, false);
@@ -7158,7 +7158,7 @@ static struct snd_pci_quirk alc260_fixup_tbl[] = {
 /*
  * ALC260 configurations
  */
-static const char *alc260_models[ALC260_MODEL_LAST] = {
+static const char * const alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_BASIC]		= "basic",
 	[ALC260_HP]		= "hp",
 	[ALC260_HP_3013]	= "hp-3013",
@@ -9781,7 +9781,7 @@ static hda_nid_t alc1200_slave_dig_outs[] = {
 /*
  * configuration and preset
  */
-static const char *alc882_models[ALC882_MODEL_LAST] = {
+static const char * const alc882_models[ALC882_MODEL_LAST] = {
 	[ALC882_3ST_DIG]	= "3stack-dig",
 	[ALC882_6ST_DIG]	= "6stack-dig",
 	[ALC882_ARIMA]		= "arima",
@@ -12601,7 +12601,7 @@ static void alc262_auto_init(struct hda_codec *codec)
 /*
  * configuration and preset
  */
-static const char *alc262_models[ALC262_MODEL_LAST] = {
+static const char * const alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_BASIC]		= "basic",
 	[ALC262_HIPPO]		= "hippo",
 	[ALC262_HIPPO_1]	= "hippo_1",
@@ -13789,7 +13789,7 @@ static void alc268_auto_init(struct hda_codec *codec)
 /*
  * configuration and preset
  */
-static const char *alc268_models[ALC268_MODEL_LAST] = {
+static const char * const alc268_models[ALC268_MODEL_LAST] = {
 	[ALC267_QUANTA_IL1]	= "quanta-il1",
 	[ALC268_3ST]		= "3stack",
 	[ALC268_TOSHIBA]	= "toshiba",
@@ -14961,7 +14961,7 @@ static struct snd_pci_quirk alc269_fixup_tbl[] = {
 /*
  * configuration and preset
  */
-static const char *alc269_models[ALC269_MODEL_LAST] = {
+static const char * const alc269_models[ALC269_MODEL_LAST] = {
 	[ALC269_BASIC]			= "basic",
 	[ALC269_QUANTA_FL1]		= "quanta",
 	[ALC269_AMIC]			= "laptop-amic",
@@ -16004,7 +16004,7 @@ static int alc861_auto_create_multi_out_ctls(struct hda_codec *codec,
 					     const struct auto_pin_cfg *cfg)
 {
 	struct alc_spec *spec = codec->spec;
-	static const char *chname[4] = {
+	static const char * const chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
 	const char *pfx = alc_get_line_out_pfx(cfg, true);
@@ -16210,7 +16210,7 @@ static struct hda_amp_list alc861_loopbacks[] = {
 /*
  * configuration and preset
  */
-static const char *alc861_models[ALC861_MODEL_LAST] = {
+static const char * const alc861_models[ALC861_MODEL_LAST] = {
 	[ALC861_3ST]		= "3stack",
 	[ALC660_3ST]		= "3stack-660",
 	[ALC861_3ST_DIG]	= "3stack-dig",
@@ -16913,7 +16913,7 @@ static void alc861vd_dallas_setup(struct hda_codec *codec)
 /*
  * configuration and preset
  */
-static const char *alc861vd_models[ALC861VD_MODEL_LAST] = {
+static const char * const alc861vd_models[ALC861VD_MODEL_LAST] = {
 	[ALC660VD_3ST]		= "3stack-660",
 	[ALC660VD_3ST_DIG]	= "3stack-660-digout",
 	[ALC660VD_ASUS_V1S]	= "asus-v1s",
@@ -17133,7 +17133,9 @@ static void alc861vd_auto_init_analog_input(struct hda_codec *codec)
 static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
-	static const char *chname[4] = {"Front", "Surround", "CLFE", "Side"};
+	static const char * const chname[4] = {
+		"Front", "Surround", "CLFE", "Side"
+	};
 	const char *pfx = alc_get_line_out_pfx(cfg, true);
 	hda_nid_t nid_v, nid_s;
 	int i, err;
@@ -18688,7 +18690,7 @@ static struct snd_kcontrol_new alc272_nc10_mixer[] = {
 /*
  * configuration and preset
  */
-static const char *alc662_models[ALC662_MODEL_LAST] = {
+static const char * const alc662_models[ALC662_MODEL_LAST] = {
 	[ALC662_3ST_2ch_DIG]	= "3stack-dig",
 	[ALC662_3ST_6ch_DIG]	= "3stack-6ch-dig",
 	[ALC662_3ST_6ch]	= "3stack-6ch",
@@ -19203,7 +19205,7 @@ static int alc662_auto_create_multi_out_ctls(struct hda_codec *codec,
 					     const struct auto_pin_cfg *cfg)
 {
 	struct alc_spec *spec = codec->spec;
-	static const char *chname[4] = {
+	static const char * const chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
 	const char *pfx = alc_get_line_out_pfx(cfg, true);
@@ -19978,7 +19980,7 @@ static void alc680_auto_init(struct hda_codec *codec)
 /*
  * configuration and preset
  */
-static const char *alc680_models[ALC680_MODEL_LAST] = {
+static const char * const alc680_models[ALC680_MODEL_LAST] = {
 	[ALC680_BASE]		= "base",
 	[ALC680_AUTO]		= "auto",
 };

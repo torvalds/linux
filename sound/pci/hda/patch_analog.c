@@ -84,8 +84,8 @@ struct ad198x_spec {
 #endif
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
-	const char **slave_vols;
-	const char **slave_sws;
+	const char * const *slave_vols;
+	const char * const *slave_sws;
 };
 
 /*
@@ -133,7 +133,7 @@ static int ad198x_init(struct hda_codec *codec)
 	return 0;
 }
 
-static const char *ad_slave_vols[] = {
+static const char * const ad_slave_vols[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -146,7 +146,7 @@ static const char *ad_slave_vols[] = {
 	NULL
 };
 
-static const char *ad_slave_sws[] = {
+static const char * const ad_slave_sws[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -159,7 +159,7 @@ static const char *ad_slave_sws[] = {
 	NULL
 };
 
-static const char *ad1988_6stack_fp_slave_vols[] = {
+static const char * const ad1988_6stack_fp_slave_vols[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -169,7 +169,7 @@ static const char *ad1988_6stack_fp_slave_vols[] = {
 	NULL
 };
 
-static const char *ad1988_6stack_fp_slave_sws[] = {
+static const char * const ad1988_6stack_fp_slave_sws[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -1134,7 +1134,7 @@ enum {
 	AD1986A_MODELS
 };
 
-static const char *ad1986a_models[AD1986A_MODELS] = {
+static const char * const ad1986a_models[AD1986A_MODELS] = {
 	[AD1986A_6STACK]	= "6stack",
 	[AD1986A_3STACK]	= "3stack",
 	[AD1986A_LAPTOP]	= "laptop",
@@ -1878,7 +1878,7 @@ enum {
 	AD1981_MODELS
 };
 
-static const char *ad1981_models[AD1981_MODELS] = {
+static const char * const ad1981_models[AD1981_MODELS] = {
 	[AD1981_HP]		= "hp",
 	[AD1981_THINKPAD]	= "thinkpad",
 	[AD1981_BASIC]		= "basic",
@@ -2953,7 +2953,9 @@ static int ad1988_auto_create_multi_out_ctls(struct ad198x_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
 	char name[32];
-	static const char *chname[4] = { "Front", "Surround", NULL /*CLFE*/, "Side" };
+	static const char * const chname[4] = {
+		"Front", "Surround", NULL /*CLFE*/, "Side"
+	};
 	hda_nid_t nid;
 	int i, err;
 
@@ -3238,7 +3240,7 @@ static int ad1988_auto_init(struct hda_codec *codec)
 /*
  */
 
-static const char *ad1988_models[AD1988_MODEL_LAST] = {
+static const char * const ad1988_models[AD1988_MODEL_LAST] = {
 	[AD1988_6STACK]		= "6stack",
 	[AD1988_6STACK_DIG]	= "6stack-dig",
 	[AD1988_6STACK_DIG_FP]	= "6stack-dig-fp",
@@ -3573,7 +3575,7 @@ static struct hda_amp_list ad1884_loopbacks[] = {
 };
 #endif
 
-static const char *ad1884_slave_vols[] = {
+static const char * const ad1884_slave_vols[] = {
 	"PCM Playback Volume",
 	"Mic Playback Volume",
 	"Mono Playback Volume",
@@ -3811,7 +3813,7 @@ enum {
 	AD1984_MODELS
 };
 
-static const char *ad1984_models[AD1984_MODELS] = {
+static const char * const ad1984_models[AD1984_MODELS] = {
 	[AD1984_BASIC]		= "basic",
 	[AD1984_THINKPAD]	= "thinkpad",
 	[AD1984_DELL_DESKTOP]	= "dell_desktop",
@@ -4482,7 +4484,7 @@ enum {
 	AD1884A_MODELS
 };
 
-static const char *ad1884a_models[AD1884A_MODELS] = {
+static const char * const ad1884a_models[AD1884A_MODELS] = {
 	[AD1884A_DESKTOP]	= "desktop",
 	[AD1884A_LAPTOP]	= "laptop",
 	[AD1884A_MOBILE]	= "mobile",
@@ -4870,7 +4872,7 @@ enum {
 	AD1882_MODELS
 };
 
-static const char *ad1882_models[AD1986A_MODELS] = {
+static const char * const ad1882_models[AD1986A_MODELS] = {
 	[AD1882_3STACK]		= "3stack",
 	[AD1882_6STACK]		= "6stack",
 };

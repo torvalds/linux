@@ -266,7 +266,7 @@ struct sigmatel_spec {
 	struct sigmatel_mic_route int_mic;
 	struct sigmatel_mic_route dock_mic;
 
-	const char **spdif_labels;
+	const char * const *spdif_labels;
 
 	hda_nid_t dig_in_nid;
 	hda_nid_t mono_nid;
@@ -524,7 +524,7 @@ static unsigned long stac927x_capsws[] = {
 	HDA_COMPOSE_AMP_VAL(0x1d, 3, 0, HDA_OUTPUT),
 };
 
-static const char *stac927x_spdif_labels[5] = {
+static const char * const stac927x_spdif_labels[5] = {
 	"Digital Playback", "ADAT", "Analog Mux 1",
 	"Analog Mux 2", "Analog Mux 3"
 };
@@ -1062,7 +1062,7 @@ static struct snd_kcontrol_new stac_smux_mixer = {
 	.put = stac92xx_smux_enum_put,
 };
 
-static const char *slave_vols[] = {
+static const char * const slave_vols[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -1073,7 +1073,7 @@ static const char *slave_vols[] = {
 	NULL
 };
 
-static const char *slave_sws[] = {
+static const char * const slave_sws[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -1354,7 +1354,7 @@ static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 	[STAC_9200_PANASONIC] = ref9200_pin_configs,
 };
 
-static const char *stac9200_models[STAC_9200_MODELS] = {
+static const char * const stac9200_models[STAC_9200_MODELS] = {
 	[STAC_AUTO] = "auto",
 	[STAC_REF] = "ref",
 	[STAC_9200_OQO] = "oqo",
@@ -1500,7 +1500,7 @@ static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
 	[STAC_M6] = stac925xM6_pin_configs,
 };
 
-static const char *stac925x_models[STAC_925x_MODELS] = {
+static const char * const stac925x_models[STAC_925x_MODELS] = {
 	[STAC_925x_AUTO] = "auto",
 	[STAC_REF] = "ref",
 	[STAC_M1] = "m1",
@@ -1574,7 +1574,7 @@ static unsigned int *stac92hd73xx_brd_tbl[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_INTEL]	= intel_dg45id_pin_configs,
 };
 
-static const char *stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
+static const char * const stac92hd73xx_models[STAC_92HD73XX_MODELS] = {
 	[STAC_92HD73XX_AUTO] = "auto",
 	[STAC_92HD73XX_NO_JD] = "no-jd",
 	[STAC_92HD73XX_REF] = "ref",
@@ -1660,7 +1660,7 @@ static unsigned int *stac92hd83xxx_brd_tbl[STAC_92HD83XXX_MODELS] = {
 	[STAC_HP_DV7_4000] = hp_dv7_4000_pin_configs,
 };
 
-static const char *stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
+static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_AUTO] = "auto",
 	[STAC_92HD83XXX_REF] = "ref",
 	[STAC_92HD83XXX_PWR_REF] = "mic-ref",
@@ -1722,7 +1722,7 @@ static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
 	[STAC_HP_DV4_1222NR]	= NULL,
 };
 
-static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
+static const char * const stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
 	[STAC_92HD71BXX_AUTO] = "auto",
 	[STAC_92HD71BXX_REF] = "ref",
 	[STAC_DELL_M4_1] = "dell-m4-1",
@@ -1915,7 +1915,7 @@ static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_922X_DELL_M82] = dell_922x_m82_pin_configs,	
 };
 
-static const char *stac922x_models[STAC_922X_MODELS] = {
+static const char * const stac922x_models[STAC_922X_MODELS] = {
 	[STAC_922X_AUTO] = "auto",
 	[STAC_D945_REF]	= "ref",
 	[STAC_D945GTP5]	= "5stack",
@@ -2077,7 +2077,7 @@ static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
 	[STAC_927X_VOLKNOB] = NULL,
 };
 
-static const char *stac927x_models[STAC_927X_MODELS] = {
+static const char * const stac927x_models[STAC_927X_MODELS] = {
 	[STAC_927X_AUTO]	= "auto",
 	[STAC_D965_REF_NO_JD]	= "ref-no-jd",
 	[STAC_D965_REF]		= "ref",
@@ -2180,7 +2180,7 @@ static unsigned int *stac9205_brd_tbl[STAC_9205_MODELS] = {
 	[STAC_9205_EAPD] = NULL,
 };
 
-static const char *stac9205_models[STAC_9205_MODELS] = {
+static const char * const stac9205_models[STAC_9205_MODELS] = {
 	[STAC_9205_AUTO] = "auto",
 	[STAC_9205_REF] = "ref",
 	[STAC_9205_DELL_M42] = "dell-m42",
@@ -3123,7 +3123,7 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 				 int type)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	static const char *chname[4] = {
+	static const char * const chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
 	hda_nid_t nid;
@@ -3256,7 +3256,7 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 }
 
 /* labels for mono mux outputs */
-static const char *stac92xx_mono_labels[4] = {
+static const char * const stac92xx_mono_labels[4] = {
 	"DAC0", "DAC1", "Mixer", "DAC2"
 };
 
@@ -3380,7 +3380,7 @@ static int stac92xx_auto_create_mux_input_ctls(struct hda_codec *codec)
 	return 0;
 };
 
-static const char *stac92xx_spdif_labels[3] = {
+static const char * const stac92xx_spdif_labels[3] = {
 	"Digital Playback", "Analog Mux 1", "Analog Mux 2",
 };
 
@@ -3388,7 +3388,7 @@ static int stac92xx_auto_create_spdif_mux_ctls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct hda_input_mux *spdif_mux = &spec->private_smux;
-	const char **labels = spec->spdif_labels;
+	const char * const *labels = spec->spdif_labels;
 	int i, num_cons;
 	hda_nid_t con_lst[HDA_MAX_NUM_INPUTS];
 
@@ -3409,7 +3409,7 @@ static int stac92xx_auto_create_spdif_mux_ctls(struct hda_codec *codec)
 }
 
 /* labels for dmic mux inputs */
-static const char *stac92xx_dmic_labels[5] = {
+static const char * const stac92xx_dmic_labels[5] = {
 	"Analog Inputs", "Digital Mic 1", "Digital Mic 2",
 	"Digital Mic 3", "Digital Mic 4"
 };
@@ -6270,7 +6270,7 @@ static unsigned int stac9872_vaio_pin_configs[9] = {
 	0x90a7013e
 };
 
-static const char *stac9872_models[STAC_9872_MODELS] = {
+static const char * const stac9872_models[STAC_9872_MODELS] = {
 	[STAC_9872_AUTO] = "auto",
 	[STAC_9872_VAIO] = "vaio",
 };
