@@ -405,7 +405,7 @@ _sys_sysmips(nabi_no_regargs struct pt_regs regs)
 		if (arg1 & 2)
 			set_thread_flag(TIF_LOGADE);
 		else
-			clear_thread_flag(TIF_FIXADE);
+			clear_thread_flag(TIF_LOGADE);
 
 		return 0;
 
