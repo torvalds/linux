@@ -68,7 +68,7 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_NOCOW 2 /* set when we want to write in place */
 
-#define BTRFS_ORDERED_COMPRESSED 3 /* writing a compressed extent */
+#define BTRFS_ORDERED_COMPRESSED 3 /* writing a zlib compressed extent */
 
 #define BTRFS_ORDERED_PREALLOC 4 /* set when writing to prealloced extent */
 
@@ -92,6 +92,9 @@ struct btrfs_ordered_extent {
 
 	/* flags (described above) */
 	unsigned long flags;
+
+	/* compression algorithm */
+	int compress_type;
 
 	/* reference count */
 	atomic_t refs;
@@ -148,6 +151,9 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 			     u64 start, u64 len, u64 disk_len, int type);
 int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
 				 u64 start, u64 len, u64 disk_len, int type);
+int btrfs_add_ordered_extent_compress(struct inode *inode, u64 file_offset,
+				      u64 start, u64 len, u64 disk_len,
+				      int type, int compress_type);
 int btrfs_add_ordered_sum(struct inode *inode,
 			  struct btrfs_ordered_extent *entry,
 			  struct btrfs_ordered_sum *sum);

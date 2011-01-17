@@ -225,6 +225,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 
 			split->bdev = em->bdev;
 			split->flags = flags;
+			split->compress_type = em->compress_type;
 			ret = add_extent_mapping(em_tree, split);
 			BUG_ON(ret);
 			free_extent_map(split);
@@ -239,6 +240,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->len = em->start + em->len - (start + len);
 			split->bdev = em->bdev;
 			split->flags = flags;
+			split->compress_type = em->compress_type;
 
 			if (compressed) {
 				split->block_len = em->block_len;
@@ -890,6 +892,17 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
+
+	/*
+	 * If BTRFS flips readonly due to some impossible error
+	 * (fs_info->fs_state now has BTRFS_SUPER_FLAG_ERROR),
+	 * although we have opened a file as writable, we have
+	 * to stop this write operation to ensure FS consistency.
+	 */
+	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		err = -EROFS;
+		goto out;
+	}
 
 	file_update_time(file);
 	BTRFS_I(inode)->sequence++;
