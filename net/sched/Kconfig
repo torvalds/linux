@@ -205,6 +205,18 @@ config NET_SCH_DRR
 
 	  If unsure, say N.
 
+config NET_SCH_MQPRIO
+	tristate "Multi-queue priority scheduler (MQPRIO)"
+	help
+	  Say Y here if you want to use the Multi-queue Priority scheduler.
+	  This scheduler allows QOS to be offloaded on NICs that have support
+	  for offloading QOS schedulers.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sch_mqprio.
+
+	  If unsure, say N.
+
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
 	depends on NET_CLS_ACT

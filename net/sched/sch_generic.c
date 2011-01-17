@@ -540,6 +540,7 @@ struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.dump		=	pfifo_fast_dump,
 	.owner		=	THIS_MODULE,
 };
+EXPORT_SYMBOL(pfifo_fast_ops);
 
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  struct Qdisc_ops *ops)
@@ -674,6 +675,7 @@ struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 
 	return oqdisc;
 }
+EXPORT_SYMBOL(dev_graft_qdisc);
 
 static void attach_one_default_qdisc(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
@@ -761,6 +763,7 @@ void dev_activate(struct net_device *dev)
 		dev_watchdog_up(dev);
 	}
 }
+EXPORT_SYMBOL(dev_activate);
 
 static void dev_deactivate_queue(struct net_device *dev,
 				 struct netdev_queue *dev_queue,
@@ -840,6 +843,7 @@ void dev_deactivate(struct net_device *dev)
 	list_add(&dev->unreg_list, &single);
 	dev_deactivate_many(&single);
 }
+EXPORT_SYMBOL(dev_deactivate);
 
 static void dev_init_scheduler_queue(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
