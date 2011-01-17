@@ -1593,6 +1593,48 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_unlock();
 }
 
+/* netif_setup_tc - Handle tc mappings on real_num_tx_queues change
+ * @dev: Network device
+ * @txq: number of queues available
+ *
+ * If real_num_tx_queues is changed the tc mappings may no longer be
+ * valid. To resolve this verify the tc mapping remains valid and if
+ * not NULL the mapping. With no priorities mapping to this
+ * offset/count pair it will no longer be used. In the worst case TC0
+ * is invalid nothing can be done so disable priority mappings. If is
+ * expected that drivers will fix this mapping if they can before
+ * calling netif_set_real_num_tx_queues.
+ */
+void netif_setup_tc(struct net_device *dev, unsigned int txq)
+{
+	int i;
+	struct netdev_tc_txq *tc = &dev->tc_to_txq[0];
+
+	/* If TC0 is invalidated disable TC mapping */
+	if (tc->offset + tc->count > txq) {
+		pr_warning("Number of in use tx queues changed "
+			   "invalidating tc mappings. Priority "
+			   "traffic classification disabled!\n");
+		dev->num_tc = 0;
+		return;
+	}
+
+	/* Invalidated prio to tc mappings set to TC0 */
+	for (i = 1; i < TC_BITMASK + 1; i++) {
+		int q = netdev_get_prio_tc_map(dev, i);
+
+		tc = &dev->tc_to_txq[q];
+		if (tc->offset + tc->count > txq) {
+			pr_warning("Number of in use tx queues "
+				   "changed. Priority %i to tc "
+				   "mapping %i is no longer valid "
+				   "setting map to 0\n",
+				   i, q);
+			netdev_set_prio_tc_map(dev, i, 0);
+		}
+	}
+}
+
 /*
  * Routine to help set real_num_tx_queues. To avoid skbs mapped to queues
  * greater then real_num_tx_queues stale skbs on the qdisc must be flushed.
@@ -1611,6 +1653,9 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 						  txq);
 		if (rc)
 			return rc;
+
+		if (dev->num_tc)
+			netif_setup_tc(dev, txq);
 
 		if (txq < dev->real_num_tx_queues)
 			qdisc_reset_all_tx_gt(dev, txq);
@@ -2161,6 +2206,8 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 		  unsigned int num_tx_queues)
 {
 	u32 hash;
+	u16 qoffset = 0;
+	u16 qcount = num_tx_queues;
 
 	if (skb_rx_queue_recorded(skb)) {
 		hash = skb_get_rx_queue(skb);
@@ -2169,13 +2216,19 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 		return hash;
 	}
 
+	if (dev->num_tc) {
+		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
+		qoffset = dev->tc_to_txq[tc].offset;
+		qcount = dev->tc_to_txq[tc].count;
+	}
+
 	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
 	else
 		hash = (__force u16) skb->protocol ^ skb->rxhash;
 	hash = jhash_1word(hash, hashrnd);
 
-	return (u16) (((u64) hash * num_tx_queues) >> 32);
+	return (u16) (((u64) hash * qcount) >> 32) + qoffset;
 }
 EXPORT_SYMBOL(__skb_tx_hash);
 

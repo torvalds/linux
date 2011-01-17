@@ -646,6 +646,14 @@ struct xps_dev_maps {
     (nr_cpu_ids * sizeof(struct xps_map *)))
 #endif /* CONFIG_XPS */
 
+#define TC_MAX_QUEUE	16
+#define TC_BITMASK	15
+/* HW offloaded queuing disciplines txq count and offset maps */
+struct netdev_tc_txq {
+	u16 count;
+	u16 offset;
+};
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -756,6 +764,11 @@ struct xps_dev_maps {
  * int (*ndo_set_vf_port)(struct net_device *dev, int vf,
  *			  struct nlattr *port[]);
  * int (*ndo_get_vf_port)(struct net_device *dev, int vf, struct sk_buff *skb);
+ * int (*ndo_setup_tc)(struct net_device *dev, u8 tc)
+ * 	Called to setup 'tc' number of traffic classes in the net device. This
+ * 	is always called from the stack with the rtnl lock held and netif tx
+ * 	queues stopped. This allows the netdevice to perform queue management
+ * 	safely.
  */
 #define HAVE_NET_DEVICE_OPS
 struct net_device_ops {
@@ -814,6 +827,7 @@ struct net_device_ops {
 						   struct nlattr *port[]);
 	int			(*ndo_get_vf_port)(struct net_device *dev,
 						   int vf, struct sk_buff *skb);
+	int			(*ndo_setup_tc)(struct net_device *dev, u8 tc);
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	int			(*ndo_fcoe_enable)(struct net_device *dev);
 	int			(*ndo_fcoe_disable)(struct net_device *dev);
@@ -1146,6 +1160,9 @@ struct net_device {
 	/* Data Center Bridging netlink ops */
 	const struct dcbnl_rtnl_ops *dcbnl_ops;
 #endif
+	u8 num_tc;
+	struct netdev_tc_txq tc_to_txq[TC_MAX_QUEUE];
+	u8 prio_tc_map[TC_BITMASK + 1];
 
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	/* max exchange id for FCoE LRO by ddp */
@@ -1163,6 +1180,57 @@ struct net_device {
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
 #define	NETDEV_ALIGN		32
+
+static inline
+int netdev_get_prio_tc_map(const struct net_device *dev, u32 prio)
+{
+	return dev->prio_tc_map[prio & TC_BITMASK];
+}
+
+static inline
+int netdev_set_prio_tc_map(struct net_device *dev, u8 prio, u8 tc)
+{
+	if (tc >= dev->num_tc)
+		return -EINVAL;
+
+	dev->prio_tc_map[prio & TC_BITMASK] = tc & TC_BITMASK;
+	return 0;
+}
+
+static inline
+void netdev_reset_tc(struct net_device *dev)
+{
+	dev->num_tc = 0;
+	memset(dev->tc_to_txq, 0, sizeof(dev->tc_to_txq));
+	memset(dev->prio_tc_map, 0, sizeof(dev->prio_tc_map));
+}
+
+static inline
+int netdev_set_tc_queue(struct net_device *dev, u8 tc, u16 count, u16 offset)
+{
+	if (tc >= dev->num_tc)
+		return -EINVAL;
+
+	dev->tc_to_txq[tc].count = count;
+	dev->tc_to_txq[tc].offset = offset;
+	return 0;
+}
+
+static inline
+int netdev_set_num_tc(struct net_device *dev, u8 num_tc)
+{
+	if (num_tc > TC_MAX_QUEUE)
+		return -EINVAL;
+
+	dev->num_tc = num_tc;
+	return 0;
+}
+
+static inline
+int netdev_get_num_tc(struct net_device *dev)
+{
+	return dev->num_tc;
+}
 
 static inline
 struct netdev_queue *netdev_get_tx_queue(const struct net_device *dev,
