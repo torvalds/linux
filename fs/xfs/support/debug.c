@@ -75,11 +75,11 @@ xfs_cmn_err(
 {
 	struct va_format	vaf;
 	va_list			args;
-	int			panic = 0;
+	int			do_panic = 0;
 
 	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)) {
 		printk(KERN_ALERT "XFS: Transforming an alert into a BUG.");
-		panic = 1;
+		do_panic = 1;
 	}
 
 	va_start(args, fmt);
@@ -89,7 +89,7 @@ xfs_cmn_err(
 	printk(KERN_ALERT "Filesystem %s: %pV", mp->m_fsname, &vaf);
 	va_end(args);
 
-	BUG_ON(panic);
+	BUG_ON(do_panic);
 }
 
 void
