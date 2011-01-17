@@ -6286,7 +6286,9 @@ void intel_enable_clock_gating(struct drm_device *dev)
 
 		if (IS_GEN5(dev)) {
 			/* Required for FBC */
-			dspclk_gate |= DPFDUNIT_CLOCK_GATE_DISABLE;
+			dspclk_gate |= DPFCUNIT_CLOCK_GATE_DISABLE |
+				DPFCRUNIT_CLOCK_GATE_DISABLE |
+				DPFDUNIT_CLOCK_GATE_DISABLE;
 			/* Required for CxSR */
 			dspclk_gate |= DPARBUNIT_CLOCK_GATE_DISABLE;
 
