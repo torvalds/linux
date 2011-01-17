@@ -3002,31 +3002,6 @@ int evergreen_copy_blit(struct radeon_device *rdev,
 	return 0;
 }
 
-static bool evergreen_card_posted(struct radeon_device *rdev)
-{
-	u32 reg;
-
-	/* first check CRTCs */
-	if (rdev->flags & RADEON_IS_IGP)
-		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET);
-	else
-		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET);
-	if (reg & EVERGREEN_CRTC_MASTER_EN)
-		return true;
-
-	/* then check MEM_SIZE, in case the crtcs are off */
-	if (RREG32(CONFIG_MEMSIZE))
-		return true;
-
-	return false;
-}
-
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
  * do nothing more than calling asic specific function. This
@@ -3063,7 +3038,7 @@ int evergreen_init(struct radeon_device *rdev)
 	if (radeon_asic_reset(rdev))
 		dev_warn(rdev->dev, "GPU reset failed !\n");
 	/* Post card if necessary */
-	if (!evergreen_card_posted(rdev)) {
+	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
 			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
 			return -EINVAL;
@@ -3157,6 +3132,9 @@ void evergreen_fini(struct radeon_device *rdev)
 static void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 {
 	u32 link_width_cntl, speed_cntl;
+
+	if (radeon_pcie_gen2 == 0)
+		return;
 
 	if (rdev->flags & RADEON_IS_IGP)
 		return;

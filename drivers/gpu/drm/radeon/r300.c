@@ -405,12 +405,13 @@ int r300_asic_reset(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
 	u32 status, tmp;
+	int ret = 0;
 
-	r100_mc_stop(rdev, &save);
 	status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(status)) {
 		return 0;
 	}
+	r100_mc_stop(rdev, &save);
 	status = RREG32(R_000E40_RBBM_STATUS);
 	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* stop CP */
@@ -451,11 +452,11 @@ int r300_asic_reset(struct radeon_device *rdev)
 	if (G_000E40_GA_BUSY(status) || G_000E40_VAP_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
 		rdev->gpu_lockup = true;
-		return -1;
-	}
+		ret = -1;
+	} else
+		dev_info(rdev->dev, "GPU reset succeed\n");
 	r100_mc_resume(rdev, &save);
-	dev_info(rdev->dev, "GPU reset succeed\n");
-	return 0;
+	return ret;
 }
 
 /*

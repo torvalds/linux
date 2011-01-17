@@ -1268,7 +1268,7 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Post card if necessary */
-	if (!r600_card_posted(rdev)) {
+	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
 			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
 			return -EINVAL;
@@ -1371,6 +1371,9 @@ static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 {
 	u32 link_width_cntl, lanes, speed_cntl, tmp;
 	u16 link_cntl2;
+
+	if (radeon_pcie_gen2 == 0)
+		return;
 
 	if (rdev->flags & RADEON_IS_IGP)
 		return;
