@@ -1169,9 +1169,8 @@ struct ubifs_debug_info;
  * @empty: %1 if the UBI device is empty
  * @need_recovery: %1 if the file-system needs recovery
  * @replaying: %1 during journal replay
+ * @mounting: %1 while mounting
  * @remounting_rw: %1 while re-mounting from R/O mode to R/W mode
- * @always_chk_crc: always check CRCs (while mounting and remounting to R/W
- *                  mode)
  * @replay_tree: temporary tree used during journal replay
  * @replay_list: temporary list used during journal replay
  * @replay_buds: list of buds to replay
@@ -1405,8 +1404,8 @@ struct ubifs_info {
 	unsigned int empty:1;
 	unsigned int need_recovery:1;
 	unsigned int replaying:1;
+	unsigned int mounting:1;
 	unsigned int remounting_rw:1;
-	unsigned int always_chk_crc:1;
 	struct rb_root replay_tree;
 	struct list_head replay_list;
 	struct list_head replay_buds;

@@ -88,8 +88,12 @@ void ubifs_ro_mode(struct ubifs_info *c, int err)
  * This function may skip data nodes CRC checking if @c->no_chk_data_crc is
  * true, which is controlled by corresponding UBIFS mount option. However, if
  * @must_chk_crc is true, then @c->no_chk_data_crc is ignored and CRC is
- * checked. Similarly, if @c->always_chk_crc is true, @c->no_chk_data_crc is
- * ignored and CRC is checked.
+ * checked. Similarly, if @c->mounting or @c->remounting_rw is true (we are
+ * mounting or re-mounting to R/W mode), @c->no_chk_data_crc is ignored and CRC
+ * is checked. This is because during mounting or re-mounting from R/O mode to
+ * R/W mode we may read journal nodes (when replying the journal or doing the
+ * recovery) and the journal nodes may potentially be corrupted, so checking is
+ * required.
  *
  * This function returns zero in case of success and %-EUCLEAN in case of bad
  * CRC or magic.
@@ -131,8 +135,8 @@ int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 		   node_len > c->ranges[type].max_len)
 		goto out_len;
 
-	if (!must_chk_crc && type == UBIFS_DATA_NODE && !c->always_chk_crc &&
-	     c->no_chk_data_crc)
+	if (!must_chk_crc && type == UBIFS_DATA_NODE && !c->mounting &&
+	    !c->remounting_rw && c->no_chk_data_crc)
 		return 0;
 
 	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
