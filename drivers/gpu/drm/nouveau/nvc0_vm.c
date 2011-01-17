@@ -48,8 +48,8 @@ nvc0_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 	phys >>= 8;
 
 	phys |= 0x00000001; /* present */
-//	if (vma->access & NV_MEM_ACCESS_SYS)
-//		phys |= 0x00000002;
+	if (vma->access & NV_MEM_ACCESS_SYS)
+		phys |= 0x00000002;
 
 	phys |= ((u64)target  << 32);
 	phys |= ((u64)memtype << 36);

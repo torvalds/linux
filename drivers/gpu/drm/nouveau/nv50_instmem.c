@@ -332,8 +332,11 @@ nv50_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
 	gpuobj->vinst = node->vram->offset;
 
 	if (gpuobj->flags & NVOBJ_FLAG_VM) {
-		ret = nouveau_vm_get(dev_priv->chan_vm, size, 12,
-				     NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
+		u32 flags = NV_MEM_ACCESS_RW;
+		if (!(gpuobj->flags & NVOBJ_FLAG_VM_USER))
+			flags |= NV_MEM_ACCESS_SYS;
+
+		ret = nouveau_vm_get(dev_priv->chan_vm, size, 12, flags,
 				     &node->chan_vma);
 		if (ret) {
 			vram->put(dev, &node->vram);

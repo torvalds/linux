@@ -160,6 +160,7 @@ enum nouveau_flags {
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
 #define NVOBJ_FLAG_VM			(1 << 3)
+#define NVOBJ_FLAG_VM_USER		(1 << 4)
 
 #define NVOBJ_CINST_GLOBAL	0xdeadbeef
 
@@ -1574,6 +1575,20 @@ nv_match_device(struct drm_device *dev, unsigned device,
 	return dev->pdev->device == device &&
 		dev->pdev->subsystem_vendor == sub_vendor &&
 		dev->pdev->subsystem_device == sub_device;
+}
+
+/* returns 1 if device is one of the nv4x using the 0x4497 object class,
+ * helpful to determine a number of other hardware features
+ */
+static inline int
+nv44_graph_class(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if ((dev_priv->chipset & 0xf0) == 0x60)
+		return 1;
+
+	return !(0x0baf & (1 << (dev_priv->chipset & 0x0f)));
 }
 
 /* memory type/access flags, do not match hardware values */

@@ -30,9 +30,7 @@ struct nouveau_mm_node {
 	struct list_head fl_entry;
 	struct list_head rl_entry;
 
-	bool free;
-	int  type;
-
+	u8  type;
 	u32 offset;
 	u32 length;
 };
