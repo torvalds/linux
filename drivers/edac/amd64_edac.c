@@ -1380,9 +1380,20 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 	debugf1("(range %d) SystemAddr= 0x%llx Limit=0x%llx\n",
 		range, sys_addr, get_dram_limit(pvt, range));
 
-	if (intlv_en &&
-	    (intlv_sel != ((sys_addr >> 12) & intlv_en)))
+	if (dhar_valid(pvt) &&
+	    dhar_base(pvt) <= sys_addr &&
+	    sys_addr < BIT_64(32)) {
+		amd64_warn("Huh? Address is in the MMIO hole: 0x%016llx\n",
+			    sys_addr);
 		return -EINVAL;
+	}
+
+	if (intlv_en &&
+	    (intlv_sel != ((sys_addr >> 12) & intlv_en))) {
+		amd64_warn("Botched intlv bits, en: 0x%x, sel: 0x%x\n",
+			   intlv_en, intlv_sel);
+		return -EINVAL;
+	}
 
 	sys_addr = f10_swap_interleaved_region(pvt, sys_addr);
 
