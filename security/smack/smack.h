@@ -52,13 +52,16 @@ struct socket_smack {
 struct inode_smack {
 	char		*smk_inode;	/* label of the fso */
 	char		*smk_task;	/* label of the task */
+	char		*smk_mmap;	/* label of the mmap domain */
 	struct mutex	smk_lock;	/* initialization lock */
 	int		smk_flags;	/* smack inode flags */
 };
 
 struct task_smack {
-	char		*smk_task;	/* label used for access control */
-	char		*smk_forked;	/* label when forked */
+	char			*smk_task;	/* label for access control */
+	char			*smk_forked;	/* label when forked */
+	struct list_head	smk_rules;	/* per task access rules */
+	struct mutex		smk_rules_lock;	/* lock for the rules */
 };
 
 #define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
@@ -202,7 +205,7 @@ struct inode_smack *new_inode_smack(char *);
 /*
  * These functions are in smack_access.c
  */
-int smk_access_entry(char *, char *);
+int smk_access_entry(char *, char *, struct list_head *);
 int smk_access(char *, char *, int, struct smk_audit_info *);
 int smk_curacc(char *, u32, struct smk_audit_info *);
 int smack_to_cipso(const char *, struct smack_cipso *);
