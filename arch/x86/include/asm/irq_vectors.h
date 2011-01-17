@@ -17,8 +17,8 @@
  *  Vectors   0 ...  31 : system traps and exceptions - hardcoded events
  *  Vectors  32 ... 127 : device interrupts
  *  Vector  128         : legacy int80 syscall interface
- *  Vectors 129 ... 229 : device interrupts
- *  Vectors 230 ... 255 : special interrupts
+ *  Vectors 129 ... INVALIDATE_TLB_VECTOR_START-1 : device interrupts
+ *  Vectors INVALIDATE_TLB_VECTOR_START ... 255 : special interrupts
  *
  * 64-bit x86 has per CPU IDT tables, 32-bit has one shared IDT table.
  *
@@ -124,8 +124,13 @@
  */
 #define LOCAL_TIMER_VECTOR		0xef
 
-/* f0-f7 used for spreading out TLB flushes: */
-#define NUM_INVALIDATE_TLB_VECTORS	   8
+/* up to 32 vectors used for spreading out TLB flushes: */
+#if NR_CPUS <= 32
+# define NUM_INVALIDATE_TLB_VECTORS NR_CPUS
+#else
+# define NUM_INVALIDATE_TLB_VECTORS 32
+#endif
+
 #define INVALIDATE_TLB_VECTOR_END	0xee
 #define INVALIDATE_TLB_VECTOR_START	\
 	(INVALIDATE_TLB_VECTOR_END - NUM_INVALIDATE_TLB_VECTORS + 1)
