@@ -1872,6 +1872,8 @@ out:
 	return err;
 }
 
+static int do_add_mount(struct vfsmount *, struct path *, int);
+
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
@@ -1909,25 +1911,31 @@ int finish_automount(struct vfsmount *m, struct path *path)
 
 	if (m->mnt_sb == path->mnt->mnt_sb &&
 	    m->mnt_root == path->dentry) {
-		mnt_clear_expiry(m);
-		mntput(m);
-		mntput(m);
-		return -ELOOP;
+		err = -ELOOP;
+		goto fail;
 	}
 
 	err = do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
-	if (err) {
-		mnt_clear_expiry(m);
-		mntput(m);
-		mntput(m);
+	if (!err)
+		return 0;
+fail:
+	/* remove m from any expiration list it may be on */
+	if (!list_empty(&m->mnt_expire)) {
+		down_write(&namespace_sem);
+		br_write_lock(vfsmount_lock);
+		list_del_init(&m->mnt_expire);
+		br_write_unlock(vfsmount_lock);
+		up_write(&namespace_sem);
 	}
+	mntput(m);
+	mntput(m);
 	return err;
 }
 
 /*
  * add a mount into a namespace's mount tree
  */
-int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
+static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 {
 	int err;
 
@@ -1954,11 +1962,7 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 		goto unlock;
 
 	newmnt->mnt_flags = mnt_flags;
-	if ((err = graft_tree(newmnt, path)))
-		goto unlock;
-
-	up_write(&namespace_sem);
-	return 0;
+	err = graft_tree(newmnt, path);
 
 unlock:
 	up_write(&namespace_sem);
@@ -1981,20 +1985,6 @@ void mnt_set_expiry(struct vfsmount *mnt, struct list_head *expiry_list)
 	up_write(&namespace_sem);
 }
 EXPORT_SYMBOL(mnt_set_expiry);
-
-/*
- * Remove a vfsmount from any expiration list it may be on
- */
-void mnt_clear_expiry(struct vfsmount *mnt)
-{
-	if (!list_empty(&mnt->mnt_expire)) {
-		down_write(&namespace_sem);
-		br_write_lock(vfsmount_lock);
-		list_del_init(&mnt->mnt_expire);
-		br_write_unlock(vfsmount_lock);
-		up_write(&namespace_sem);
-	}
-}
 
 /*
  * process a list of expirable mountpoints with the intent of discarding any
