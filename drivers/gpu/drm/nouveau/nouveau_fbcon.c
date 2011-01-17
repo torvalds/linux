@@ -352,8 +352,8 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 			      FBINFO_HWACCEL_IMAGEBLIT;
 	info->flags |= FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &nouveau_fbcon_sw_ops;
-	info->fix.smem_start = dev->mode_config.fb_base +
-			       (nvbo->bo.mem.start << PAGE_SHIFT);
+	info->fix.smem_start = nvbo->bo.mem.bus.base +
+			       nvbo->bo.mem.bus.offset;
 	info->fix.smem_len = size;
 
 	info->screen_base = nvbo_kmap_obj_iovirtual(nouveau_fb->nvbo);
