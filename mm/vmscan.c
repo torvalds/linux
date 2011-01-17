@@ -1271,16 +1271,14 @@ putback_lru_pages(struct zone *zone, struct scan_control *sc,
 			spin_lock_irq(&zone->lru_lock);
 			continue;
 		}
+		SetPageLRU(page);
 		lru = page_lru(page);
+		add_page_to_lru_list(zone, page, lru);
 		if (is_active_lru(lru)) {
 			int file = is_file_lru(lru);
 			int numpages = hpage_nr_pages(page);
 			reclaim_stat->recent_rotated[file] += numpages;
-			if (putback_active_lru_page(zone, page))
-				continue;
 		}
-		SetPageLRU(page);
-		add_page_to_lru_list(zone, page, lru);
 		if (!pagevec_add(&pvec, page)) {
 			spin_unlock_irq(&zone->lru_lock);
 			__pagevec_release(&pvec);
