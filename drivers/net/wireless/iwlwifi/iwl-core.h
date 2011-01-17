@@ -305,7 +305,6 @@ struct iwl_base_params {
 	u16 led_compensation;
 	const bool broken_powersave;
 	int chain_noise_num_beacons;
-	const bool supports_idle;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
 	const bool support_wimax_coexist;
