@@ -1166,22 +1166,22 @@ struct ubifs_debug_info;
  * @rp_uid: reserved pool user ID
  * @rp_gid: reserved pool group ID
  *
- * @empty: if the UBI device is empty
+ * @empty: %1 if the UBI device is empty
+ * @need_recovery: %1 if the file-system needs recovery
+ * @replaying: %1 during journal replay
+ * @remounting_rw: %1 while re-mounting from R/O mode to R/W mode
+ * @always_chk_crc: always check CRCs (while mounting and remounting to R/W
+ *                  mode)
  * @replay_tree: temporary tree used during journal replay
  * @replay_list: temporary list used during journal replay
  * @replay_buds: list of buds to replay
  * @cs_sqnum: sequence number of first node in the log (commit start node)
  * @replay_sqnum: sequence number of node currently being replayed
- * @need_recovery: file-system needs recovery
- * @replaying: set to %1 during journal replay
  * @unclean_leb_list: LEBs to recover when re-mounting R/O mounted FS to R/W
  *                    mode
  * @rcvrd_mst_node: recovered master node to write when re-mounting R/O mounted
  *                  FS to R/W mode
  * @size_tree: inode size information for recovery
- * @remounting_rw: set while re-mounting from R/O mode to R/W mode
- * @always_chk_crc: always check CRCs (while mounting and remounting to R/W
- *                  mode)
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg: debugging-related information
@@ -1402,19 +1402,19 @@ struct ubifs_info {
 	gid_t rp_gid;
 
 	/* The below fields are used only during mounting and re-mounting */
-	int empty;
+	unsigned int empty:1;
+	unsigned int need_recovery:1;
+	unsigned int replaying:1;
+	unsigned int remounting_rw:1;
+	unsigned int always_chk_crc:1;
 	struct rb_root replay_tree;
 	struct list_head replay_list;
 	struct list_head replay_buds;
 	unsigned long long cs_sqnum;
 	unsigned long long replay_sqnum;
-	int need_recovery;
-	int replaying;
 	struct list_head unclean_leb_list;
 	struct ubifs_mst_node *rcvrd_mst_node;
 	struct rb_root size_tree;
-	int remounting_rw;
-	int always_chk_crc;
 	struct ubifs_mount_opts mount_opts;
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
