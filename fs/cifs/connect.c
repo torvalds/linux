@@ -1113,6 +1113,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if (!strnicmp(data, "uid", 3) && value && *value) {
 			vol->linux_uid = simple_strtoul(value, &value, 0);
 			uid_specified = true;
+		} else if (!strnicmp(data, "cruid", 5) && value && *value) {
+			vol->cred_uid = simple_strtoul(value, &value, 0);
 		} else if (!strnicmp(data, "forceuid", 8)) {
 			override_uid = 1;
 		} else if (!strnicmp(data, "noforceuid", 10)) {
