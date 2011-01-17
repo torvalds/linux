@@ -227,7 +227,8 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 		geo_ch = &sband->channels[sband->n_channels++];
 
 		geo_ch->center_freq =
-				ieee80211_channel_to_frequency(ch->channel);
+				ieee80211_channel_to_frequency(ch->channel,
+							       sband->band);
 		geo_ch->max_power = ch->max_power_avg;
 		geo_ch->max_antenna_gain = 0xff;
 		geo_ch->hw_value = ch->channel;

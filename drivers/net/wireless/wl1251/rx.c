@@ -78,7 +78,8 @@ static void wl1251_rx_status(struct wl1251 *wl,
 	 */
 	wl->noise = desc->rssi - desc->snr / 2;
 
-	status->freq = ieee80211_channel_to_frequency(desc->channel);
+	status->freq = ieee80211_channel_to_frequency(desc->channel,
+						      status->band);
 
 	status->flag |= RX_FLAG_TSFT;
 
