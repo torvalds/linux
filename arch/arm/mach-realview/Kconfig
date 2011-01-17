@@ -19,7 +19,7 @@ config REALVIEW_EB_A9MP
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore Tile"
 	depends on MACH_REALVIEW_EB
-	select CPU_V6
+	select CPU_V6K
 	select ARCH_HAS_BARRIERS if SMP
 	help
 	  Enable support for the ARM11MPCore tile fitted to the Realview(R)
@@ -36,7 +36,7 @@ config REALVIEW_EB_ARM11MP_REVB
 
 config MACH_REALVIEW_PB11MP
 	bool "Support RealView(R) Platform Baseboard for ARM11MPCore"
-	select CPU_V6
+	select CPU_V6K
 	select ARM_GIC
 	select HAVE_PATA_PLATFORM
 	select ARCH_HAS_BARRIERS if SMP
@@ -45,6 +45,7 @@ config MACH_REALVIEW_PB11MP
 	  the ARM11MPCore.  This platform has an on-board ARM11MPCore and has
 	  support for PCI-E and Compact Flash.
 
+# ARMv6 CPU without K extensions, but does have the new exclusive ops
 config MACH_REALVIEW_PB1176
 	bool "Support RealView(R) Platform Baseboard for ARM1176JZF-S"
 	select CPU_V6
