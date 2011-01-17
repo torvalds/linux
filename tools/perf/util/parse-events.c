@@ -555,7 +555,7 @@ static enum event_result parse_tracepoint_event(const char **strp,
 	if (evt_length >= MAX_EVENT_LENGTH)
 		return EVT_FAILED;
 	if (strpbrk(evt_name, "*?")) {
-		*strp += strlen(sys_name) + evt_length;
+		*strp += strlen(sys_name) + evt_length + 1; /* 1 == the ':' */
 		return parse_multiple_tracepoint_event(sys_name, evt_name,
 						       flags);
 	} else {
