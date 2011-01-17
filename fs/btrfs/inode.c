@@ -7098,116 +7098,6 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
 					   min_size, actual_len, alloc_hint, trans);
 }
 
-static long btrfs_fallocate(struct inode *inode, int mode,
-			    loff_t offset, loff_t len)
-{
-	struct extent_state *cached_state = NULL;
-	u64 cur_offset;
-	u64 last_byte;
-	u64 alloc_start;
-	u64 alloc_end;
-	u64 alloc_hint = 0;
-	u64 locked_end;
-	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
-	struct extent_map *em;
-	int ret;
-
-	alloc_start = offset & ~mask;
-	alloc_end =  (offset + len + mask) & ~mask;
-
-	/* We only support the FALLOC_FL_KEEP_SIZE mode */
-	if (mode && (mode != FALLOC_FL_KEEP_SIZE))
-		return -EOPNOTSUPP;
-
-	/*
-	 * wait for ordered IO before we have any locks.  We'll loop again
-	 * below with the locks held.
-	 */
-	btrfs_wait_ordered_range(inode, alloc_start, alloc_end - alloc_start);
-
-	mutex_lock(&inode->i_mutex);
-	ret = inode_newsize_ok(inode, alloc_end);
-	if (ret)
-		goto out;
-
-	if (alloc_start > inode->i_size) {
-		ret = btrfs_cont_expand(inode, alloc_start);
-		if (ret)
-			goto out;
-	}
-
-	ret = btrfs_check_data_free_space(inode, alloc_end - alloc_start);
-	if (ret)
-		goto out;
-
-	locked_end = alloc_end - 1;
-	while (1) {
-		struct btrfs_ordered_extent *ordered;
-
-		/* the extent lock is ordered inside the running
-		 * transaction
-		 */
-		lock_extent_bits(&BTRFS_I(inode)->io_tree, alloc_start,
-				 locked_end, 0, &cached_state, GFP_NOFS);
-		ordered = btrfs_lookup_first_ordered_extent(inode,
-							    alloc_end - 1);
-		if (ordered &&
-		    ordered->file_offset + ordered->len > alloc_start &&
-		    ordered->file_offset < alloc_end) {
-			btrfs_put_ordered_extent(ordered);
-			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
-					     alloc_start, locked_end,
-					     &cached_state, GFP_NOFS);
-			/*
-			 * we can't wait on the range with the transaction
-			 * running or with the extent lock held
-			 */
-			btrfs_wait_ordered_range(inode, alloc_start,
-						 alloc_end - alloc_start);
-		} else {
-			if (ordered)
-				btrfs_put_ordered_extent(ordered);
-			break;
-		}
-	}
-
-	cur_offset = alloc_start;
-	while (1) {
-		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
-				      alloc_end - cur_offset, 0);
-		BUG_ON(IS_ERR(em) || !em);
-		last_byte = min(extent_map_end(em), alloc_end);
-		last_byte = (last_byte + mask) & ~mask;
-		if (em->block_start == EXTENT_MAP_HOLE ||
-		    (cur_offset >= inode->i_size &&
-		     !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
-			ret = btrfs_prealloc_file_range(inode, mode, cur_offset,
-							last_byte - cur_offset,
-							1 << inode->i_blkbits,
-							offset + len,
-							&alloc_hint);
-			if (ret < 0) {
-				free_extent_map(em);
-				break;
-			}
-		}
-		free_extent_map(em);
-
-		cur_offset = last_byte;
-		if (cur_offset >= alloc_end) {
-			ret = 0;
-			break;
-		}
-	}
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
-			     &cached_state, GFP_NOFS);
-
-	btrfs_free_reserved_data_space(inode, alloc_end - alloc_start);
-out:
-	mutex_unlock(&inode->i_mutex);
-	return ret;
-}
-
 static int btrfs_set_page_dirty(struct page *page)
 {
 	return __set_page_dirty_nobuffers(page);
@@ -7310,7 +7200,6 @@ static const struct inode_operations btrfs_file_inode_operations = {
 	.listxattr      = btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
-	.fallocate	= btrfs_fallocate,
 	.fiemap		= btrfs_fiemap,
 };
 static const struct inode_operations btrfs_special_inode_operations = {

@@ -1872,6 +1872,8 @@ out:
 	return err;
 }
 
+static int do_add_mount(struct vfsmount *, struct path *, int);
+
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
@@ -1880,6 +1882,7 @@ static int do_new_mount(struct path *path, char *type, int flags,
 			int mnt_flags, char *name, void *data)
 {
 	struct vfsmount *mnt;
+	int err;
 
 	if (!type)
 		return -EINVAL;
@@ -1892,14 +1895,47 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
-	return do_add_mount(mnt, path, mnt_flags);
+	err = do_add_mount(mnt, path, mnt_flags);
+	if (err)
+		mntput(mnt);
+	return err;
+}
+
+int finish_automount(struct vfsmount *m, struct path *path)
+{
+	int err;
+	/* The new mount record should have at least 2 refs to prevent it being
+	 * expired before we get a chance to add it
+	 */
+	BUG_ON(mnt_get_count(m) < 2);
+
+	if (m->mnt_sb == path->mnt->mnt_sb &&
+	    m->mnt_root == path->dentry) {
+		err = -ELOOP;
+		goto fail;
+	}
+
+	err = do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
+	if (!err)
+		return 0;
+fail:
+	/* remove m from any expiration list it may be on */
+	if (!list_empty(&m->mnt_expire)) {
+		down_write(&namespace_sem);
+		br_write_lock(vfsmount_lock);
+		list_del_init(&m->mnt_expire);
+		br_write_unlock(vfsmount_lock);
+		up_write(&namespace_sem);
+	}
+	mntput(m);
+	mntput(m);
+	return err;
 }
 
 /*
  * add a mount into a namespace's mount tree
- * - this unconditionally eats one of the caller's references to newmnt.
  */
-int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
+static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 {
 	int err;
 
@@ -1926,15 +1962,10 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 		goto unlock;
 
 	newmnt->mnt_flags = mnt_flags;
-	if ((err = graft_tree(newmnt, path)))
-		goto unlock;
-
-	up_write(&namespace_sem);
-	return 0;
+	err = graft_tree(newmnt, path);
 
 unlock:
 	up_write(&namespace_sem);
-	mntput(newmnt);
 	return err;
 }
 
@@ -1954,20 +1985,6 @@ void mnt_set_expiry(struct vfsmount *mnt, struct list_head *expiry_list)
 	up_write(&namespace_sem);
 }
 EXPORT_SYMBOL(mnt_set_expiry);
-
-/*
- * Remove a vfsmount from any expiration list it may be on
- */
-void mnt_clear_expiry(struct vfsmount *mnt)
-{
-	if (!list_empty(&mnt->mnt_expire)) {
-		down_write(&namespace_sem);
-		br_write_lock(vfsmount_lock);
-		list_del_init(&mnt->mnt_expire);
-		br_write_unlock(vfsmount_lock);
-		up_write(&namespace_sem);
-	}
-}
 
 /*
  * process a list of expirable mountpoints with the intent of discarding any
