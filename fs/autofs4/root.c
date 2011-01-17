@@ -37,6 +37,7 @@ static int autofs4_dir_open(struct inode *inode, struct file *file);
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
 static struct vfsmount *autofs4_d_automount(struct path *);
 static int autofs4_d_manage(struct dentry *, bool, bool);
+static void autofs4_dentry_release(struct dentry *);
 
 const struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
@@ -138,25 +139,26 @@ out:
 	return dcache_dir_open(inode, file);
 }
 
-void autofs4_dentry_release(struct dentry *de)
+static void autofs4_dentry_release(struct dentry *de)
 {
-	struct autofs_info *inf;
+	struct autofs_info *ino = autofs4_dentry_ino(de);
+	struct autofs_sb_info *sbi = autofs4_sbi(de->d_sb);
 
 	DPRINTK("releasing %p", de);
 
-	inf = autofs4_dentry_ino(de);
-	if (inf) {
-		struct autofs_sb_info *sbi = autofs4_sbi(de->d_sb);
-		if (sbi) {
-			spin_lock(&sbi->lookup_lock);
-			if (!list_empty(&inf->active))
-				list_del(&inf->active);
-			if (!list_empty(&inf->expiring))
-				list_del(&inf->expiring);
-			spin_unlock(&sbi->lookup_lock);
-		}
-		autofs4_free_ino(inf);
+	if (!ino)
+		return;
+
+	if (sbi) {
+		spin_lock(&sbi->lookup_lock);
+		if (!list_empty(&ino->active))
+			list_del(&ino->active);
+		if (!list_empty(&ino->expiring))
+			list_del(&ino->expiring);
+		spin_unlock(&sbi->lookup_lock);
 	}
+
+	autofs4_free_ino(ino);
 }
 
 static struct dentry *autofs4_lookup_active(struct dentry *dentry)

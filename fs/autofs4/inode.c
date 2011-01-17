@@ -43,10 +43,6 @@ void autofs4_clean_ino(struct autofs_info *ino)
 
 void autofs4_free_ino(struct autofs_info *ino)
 {
-	if (ino->dentry) {
-		ino->dentry->d_fsdata = NULL;
-		ino->dentry = NULL;
-	}
 	kfree(ino);
 }
 

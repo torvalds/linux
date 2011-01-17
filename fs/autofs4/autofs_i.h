@@ -338,5 +338,4 @@ static inline void autofs4_del_expiring(struct dentry *dentry)
 	return;
 }
 
-void autofs4_dentry_release(struct dentry *);
 extern void autofs4_kill_sb(struct super_block *);
