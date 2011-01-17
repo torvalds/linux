@@ -1029,8 +1029,10 @@ fec_enet_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	fec_stop(dev);
 
-	if (fep->phy_dev)
+	if (fep->phy_dev) {
+		phy_stop(fep->phy_dev);
 		phy_disconnect(fep->phy_dev);
+	}
 
         fec_enet_free_buffers(dev);
 
