@@ -25,7 +25,7 @@
 		.macro	addruart, rp, rv
 		.endm
 
-#if defined(CONFIG_CPU_V6)
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
 
 		.macro	senduart, rd, rx
 		mcr	p14, 0, \rd, c0, c5, 0

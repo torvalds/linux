@@ -31,7 +31,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long start_addr;
-#ifdef CONFIG_CPU_V6
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
 	unsigned int cache_type;
 	int do_align = 0, aliasing = 0;
 
