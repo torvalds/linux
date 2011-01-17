@@ -59,14 +59,13 @@ static void set_curr_task_stop(struct rq *rq)
 {
 }
 
-static void switched_to_stop(struct rq *rq, struct task_struct *p,
-			     int running)
+static void switched_to_stop(struct rq *rq, struct task_struct *p)
 {
 	BUG(); /* its impossible to change to this class */
 }
 
-static void prio_changed_stop(struct rq *rq, struct task_struct *p,
-			      int oldprio, int running)
+static void
+prio_changed_stop(struct rq *rq, struct task_struct *p, int oldprio)
 {
 	BUG(); /* how!?, what priority? */
 }

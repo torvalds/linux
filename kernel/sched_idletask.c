@@ -52,14 +52,13 @@ static void set_curr_task_idle(struct rq *rq)
 {
 }
 
-static void
-switched_to_idle(struct rq *rq, struct task_struct *p, int running)
+static void switched_to_idle(struct rq *rq, struct task_struct *p)
 {
 	BUG();
 }
 
-static void prio_changed_idle(struct rq *rq, struct task_struct *p,
-			      int oldprio, int running)
+static void
+prio_changed_idle(struct rq *rq, struct task_struct *p, int oldprio)
 {
 	BUG();
 }
