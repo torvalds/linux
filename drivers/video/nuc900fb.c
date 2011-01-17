@@ -723,7 +723,7 @@ static int nuc900fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct fb_info	   *fbinfo = platform_get_drvdata(dev);
 	struct nuc900fb_info *info = fbinfo->par;
 
-	nuc900fb_stop_lcd();
+	nuc900fb_stop_lcd(fbinfo);
 	msleep(1);
 	clk_disable(info->clk);
 	return 0;
@@ -740,7 +740,7 @@ static int nuc900fb_resume(struct platform_device *dev)
 	msleep(1);
 
 	nuc900fb_init_registers(fbinfo);
-	nuc900fb_activate_var(bfinfo);
+	nuc900fb_activate_var(fbinfo);
 
 	return 0;
 }
