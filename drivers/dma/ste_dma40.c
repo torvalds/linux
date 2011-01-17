@@ -1,5 +1,6 @@
 /*
- * Copyright (C) ST-Ericsson SA 2007-2010
+ * Copyright (C) Ericsson AB 2007-2008
+ * Copyright (C) ST-Ericsson SA 2008-2010
  * Author: Per Forlin <per.forlin@stericsson.com> for ST-Ericsson
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
@@ -554,8 +555,66 @@ static struct d40_desc *d40_last_queued(struct d40_chan *d40c)
 	return d;
 }
 
-/* Support functions for logical channels */
+static int d40_psize_2_burst_size(bool is_log, int psize)
+{
+	if (is_log) {
+		if (psize == STEDMA40_PSIZE_LOG_1)
+			return 1;
+	} else {
+		if (psize == STEDMA40_PSIZE_PHY_1)
+			return 1;
+	}
 
+	return 2 << psize;
+}
+
+/*
+ * The dma only supports transmitting packages up to
+ * STEDMA40_MAX_SEG_SIZE << data_width. Calculate the total number of
+ * dma elements required to send the entire sg list
+ */
+static int d40_size_2_dmalen(int size, u32 data_width1, u32 data_width2)
+{
+	int dmalen;
+	u32 max_w = max(data_width1, data_width2);
+	u32 min_w = min(data_width1, data_width2);
+	u32 seg_max = ALIGN(STEDMA40_MAX_SEG_SIZE << min_w, 1 << max_w);
+
+	if (seg_max > STEDMA40_MAX_SEG_SIZE)
+		seg_max -= (1 << max_w);
+
+	if (!IS_ALIGNED(size, 1 << max_w))
+		return -EINVAL;
+
+	if (size <= seg_max)
+		dmalen = 1;
+	else {
+		dmalen = size / seg_max;
+		if (dmalen * seg_max < size)
+			dmalen++;
+	}
+	return dmalen;
+}
+
+static int d40_sg_2_dmalen(struct scatterlist *sgl, int sg_len,
+			   u32 data_width1, u32 data_width2)
+{
+	struct scatterlist *sg;
+	int i;
+	int len = 0;
+	int ret;
+
+	for_each_sg(sgl, sg, sg_len, i) {
+		ret = d40_size_2_dmalen(sg_dma_len(sg),
+					data_width1, data_width2);
+		if (ret < 0)
+			return ret;
+		len += ret;
+	}
+	return len;
+}
+
+/* Support functions for logical channels */
 
 static int d40_channel_execute_command(struct d40_chan *d40c,
 				       enum d40_command command)
@@ -1241,6 +1300,21 @@ static int d40_validate_conf(struct d40_chan *d40c,
 		res = -EINVAL;
 	}
 
+	if (d40_psize_2_burst_size(is_log, conf->src_info.psize) *
+	    (1 << conf->src_info.data_width) !=
+	    d40_psize_2_burst_size(is_log, conf->dst_info.psize) *
+	    (1 << conf->dst_info.data_width)) {
+		/*
+		 * The DMAC hardware only supports
+		 * src (burst x width) == dst (burst x width)
+		 */
+
+		dev_err(&d40c->chan.dev->device,
+			"[%s] src (burst x width) != dst (burst x width)\n",
+			__func__);
+		res = -EINVAL;
+	}
+
 	return res;
 }
 
@@ -1638,13 +1712,21 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 	if (d40d == NULL)
 		goto err;
 
-	d40d->lli_len = sgl_len;
+	d40d->lli_len = d40_sg_2_dmalen(sgl_dst, sgl_len,
+					d40c->dma_cfg.src_info.data_width,
+					d40c->dma_cfg.dst_info.data_width);
+	if (d40d->lli_len < 0) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Unaligned size\n", __func__);
+		goto err;
+	}
+
 	d40d->lli_current = 0;
 	d40d->txd.flags = dma_flags;
 
 	if (d40c->log_num != D40_PHY_CHAN) {
 
-		if (d40_pool_lli_alloc(d40d, sgl_len, true) < 0) {
+		if (d40_pool_lli_alloc(d40d, d40d->lli_len, true) < 0) {
 			dev_err(&d40c->chan.dev->device,
 				"[%s] Out of memory\n", __func__);
 			goto err;
@@ -1654,15 +1736,17 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					 sgl_len,
 					 d40d->lli_log.src,
 					 d40c->log_def.lcsp1,
-					 d40c->dma_cfg.src_info.data_width);
+					 d40c->dma_cfg.src_info.data_width,
+					 d40c->dma_cfg.dst_info.data_width);
 
 		(void) d40_log_sg_to_lli(sgl_dst,
 					 sgl_len,
 					 d40d->lli_log.dst,
 					 d40c->log_def.lcsp3,
-					 d40c->dma_cfg.dst_info.data_width);
+					 d40c->dma_cfg.dst_info.data_width,
+					 d40c->dma_cfg.src_info.data_width);
 	} else {
-		if (d40_pool_lli_alloc(d40d, sgl_len, false) < 0) {
+		if (d40_pool_lli_alloc(d40d, d40d->lli_len, false) < 0) {
 			dev_err(&d40c->chan.dev->device,
 				"[%s] Out of memory\n", __func__);
 			goto err;
@@ -1675,6 +1759,7 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					virt_to_phys(d40d->lli_phy.src),
 					d40c->src_def_cfg,
 					d40c->dma_cfg.src_info.data_width,
+					d40c->dma_cfg.dst_info.data_width,
 					d40c->dma_cfg.src_info.psize);
 
 		if (res < 0)
@@ -1687,6 +1772,7 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					virt_to_phys(d40d->lli_phy.dst),
 					d40c->dst_def_cfg,
 					d40c->dma_cfg.dst_info.data_width,
+					d40c->dma_cfg.src_info.data_width,
 					d40c->dma_cfg.dst_info.psize);
 
 		if (res < 0)
@@ -1826,7 +1912,6 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 	struct d40_chan *d40c = container_of(chan, struct d40_chan,
 					     chan);
 	unsigned long flags;
-	int err = 0;
 
 	if (d40c->phy_chan == NULL) {
 		dev_err(&d40c->chan.dev->device,
@@ -1844,6 +1929,15 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 	}
 
 	d40d->txd.flags = dma_flags;
+	d40d->lli_len = d40_size_2_dmalen(size,
+					  d40c->dma_cfg.src_info.data_width,
+					  d40c->dma_cfg.dst_info.data_width);
+	if (d40d->lli_len < 0) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Unaligned size\n", __func__);
+		goto err;
+	}
+
 
 	dma_async_tx_descriptor_init(&d40d->txd, chan);
 
@@ -1851,37 +1945,40 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 
 	if (d40c->log_num != D40_PHY_CHAN) {
 
-		if (d40_pool_lli_alloc(d40d, 1, true) < 0) {
+		if (d40_pool_lli_alloc(d40d, d40d->lli_len, true) < 0) {
 			dev_err(&d40c->chan.dev->device,
 				"[%s] Out of memory\n", __func__);
 			goto err;
 		}
-		d40d->lli_len = 1;
 		d40d->lli_current = 0;
 
-		d40_log_fill_lli(d40d->lli_log.src,
-				 src,
-				 size,
-				 d40c->log_def.lcsp1,
-				 d40c->dma_cfg.src_info.data_width,
-				 true);
+		if (d40_log_buf_to_lli(d40d->lli_log.src,
+				       src,
+				       size,
+				       d40c->log_def.lcsp1,
+				       d40c->dma_cfg.src_info.data_width,
+				       d40c->dma_cfg.dst_info.data_width,
+				       true) == NULL)
+			goto err;
 
-		d40_log_fill_lli(d40d->lli_log.dst,
-				 dst,
-				 size,
-				 d40c->log_def.lcsp3,
-				 d40c->dma_cfg.dst_info.data_width,
-				 true);
+		if (d40_log_buf_to_lli(d40d->lli_log.dst,
+				       dst,
+				       size,
+				       d40c->log_def.lcsp3,
+				       d40c->dma_cfg.dst_info.data_width,
+				       d40c->dma_cfg.src_info.data_width,
+				       true) == NULL)
+			goto err;
 
 	} else {
 
-		if (d40_pool_lli_alloc(d40d, 1, false) < 0) {
+		if (d40_pool_lli_alloc(d40d, d40d->lli_len, false) < 0) {
 			dev_err(&d40c->chan.dev->device,
 				"[%s] Out of memory\n", __func__);
 			goto err;
 		}
 
-		err = d40_phy_fill_lli(d40d->lli_phy.src,
+		if (d40_phy_buf_to_lli(d40d->lli_phy.src,
 				       src,
 				       size,
 				       d40c->dma_cfg.src_info.psize,
@@ -1889,11 +1986,11 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 				       d40c->src_def_cfg,
 				       true,
 				       d40c->dma_cfg.src_info.data_width,
-				       false);
-		if (err)
-			goto err_fill_lli;
+				       d40c->dma_cfg.dst_info.data_width,
+				       false) == NULL)
+			goto err;
 
-		err = d40_phy_fill_lli(d40d->lli_phy.dst,
+		if (d40_phy_buf_to_lli(d40d->lli_phy.dst,
 				       dst,
 				       size,
 				       d40c->dma_cfg.dst_info.psize,
@@ -1901,10 +1998,9 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 				       d40c->dst_def_cfg,
 				       true,
 				       d40c->dma_cfg.dst_info.data_width,
-				       false);
-
-		if (err)
-			goto err_fill_lli;
+				       d40c->dma_cfg.src_info.data_width,
+				       false) == NULL)
+			goto err;
 
 		(void) dma_map_single(d40c->base->dev, d40d->lli_phy.src,
 				      d40d->lli_pool.size, DMA_TO_DEVICE);
@@ -1913,9 +2009,6 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return &d40d->txd;
 
-err_fill_lli:
-	dev_err(&d40c->chan.dev->device,
-		"[%s] Failed filling in PHY LLI\n", __func__);
 err:
 	if (d40d)
 		d40_desc_free(d40c, d40d);
@@ -1945,13 +2038,21 @@ static int d40_prep_slave_sg_log(struct d40_desc *d40d,
 	dma_addr_t dev_addr = 0;
 	int total_size;
 
-	if (d40_pool_lli_alloc(d40d, sg_len, true) < 0) {
+	d40d->lli_len = d40_sg_2_dmalen(sgl, sg_len,
+					d40c->dma_cfg.src_info.data_width,
+					d40c->dma_cfg.dst_info.data_width);
+	if (d40d->lli_len < 0) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Unaligned size\n", __func__);
+		return -EINVAL;
+	}
+
+	if (d40_pool_lli_alloc(d40d, d40d->lli_len, true) < 0) {
 		dev_err(&d40c->chan.dev->device,
 			"[%s] Out of memory\n", __func__);
 		return -ENOMEM;
 	}
 
-	d40d->lli_len = sg_len;
 	d40d->lli_current = 0;
 
 	if (direction == DMA_FROM_DEVICE)
@@ -1993,13 +2094,21 @@ static int d40_prep_slave_sg_phy(struct d40_desc *d40d,
 	dma_addr_t dst_dev_addr;
 	int res;
 
-	if (d40_pool_lli_alloc(d40d, sgl_len, false) < 0) {
+	d40d->lli_len = d40_sg_2_dmalen(sgl, sgl_len,
+					d40c->dma_cfg.src_info.data_width,
+					d40c->dma_cfg.dst_info.data_width);
+	if (d40d->lli_len < 0) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Unaligned size\n", __func__);
+		return -EINVAL;
+	}
+
+	if (d40_pool_lli_alloc(d40d, d40d->lli_len, false) < 0) {
 		dev_err(&d40c->chan.dev->device,
 			"[%s] Out of memory\n", __func__);
 		return -ENOMEM;
 	}
 
-	d40d->lli_len = sgl_len;
 	d40d->lli_current = 0;
 
 	if (direction == DMA_FROM_DEVICE) {
@@ -2024,6 +2133,7 @@ static int d40_prep_slave_sg_phy(struct d40_desc *d40d,
 				virt_to_phys(d40d->lli_phy.src),
 				d40c->src_def_cfg,
 				d40c->dma_cfg.src_info.data_width,
+				d40c->dma_cfg.dst_info.data_width,
 				d40c->dma_cfg.src_info.psize);
 	if (res < 0)
 		return res;
@@ -2035,6 +2145,7 @@ static int d40_prep_slave_sg_phy(struct d40_desc *d40d,
 				virt_to_phys(d40d->lli_phy.dst),
 				d40c->dst_def_cfg,
 				d40c->dma_cfg.dst_info.data_width,
+				d40c->dma_cfg.src_info.data_width,
 				d40c->dma_cfg.dst_info.psize);
 	if (res < 0)
 		return res;
@@ -2244,6 +2355,8 @@ static void d40_set_runtime_config(struct dma_chan *chan,
 			psize = STEDMA40_PSIZE_PHY_8;
 		else if (config_maxburst >= 4)
 			psize = STEDMA40_PSIZE_PHY_4;
+		else if (config_maxburst >= 2)
+			psize = STEDMA40_PSIZE_PHY_2;
 		else
 			psize = STEDMA40_PSIZE_PHY_1;
 	}
