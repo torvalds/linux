@@ -588,6 +588,7 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+#ifndef CONFIG_S390
 /*
  * Allocation size is twice as large as the actual dirty bitmap size.
  * This makes it possible to do double buffering: see x86's
@@ -608,6 +609,7 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
 	return 0;
 }
+#endif /* !CONFIG_S390 */
 
 /*
  * Allocate some memory and give it an address in the guest physical address
