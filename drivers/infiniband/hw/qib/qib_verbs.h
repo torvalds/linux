@@ -805,7 +805,6 @@ static inline int qib_send_ok(struct qib_qp *qp)
 		 !(qp->s_flags & QIB_S_ANY_WAIT_SEND));
 }
 
-extern struct workqueue_struct *qib_wq;
 extern struct workqueue_struct *qib_cq_wq;
 
 /*
@@ -814,7 +813,7 @@ extern struct workqueue_struct *qib_cq_wq;
 static inline void qib_schedule_send(struct qib_qp *qp)
 {
 	if (qib_send_ok(qp))
-		queue_work(qib_wq, &qp->s_work);
+		queue_work(ib_wq, &qp->s_work);
 }
 
 static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)

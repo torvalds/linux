@@ -1692,8 +1692,7 @@ static void qib_7220_quiet_serdes(struct qib_pportdata *ppd)
 	ppd->lflags &= ~QIBL_IB_AUTONEG_INPROG;
 	spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 	wake_up(&ppd->cpspec->autoneg_wait);
-	cancel_delayed_work(&ppd->cpspec->autoneg_work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&ppd->cpspec->autoneg_work);
 
 	shutdown_7220_relock_poll(ppd->dd);
 	val = qib_read_kreg64(ppd->dd, kr_xgxs_cfg);
@@ -3515,8 +3514,8 @@ static void try_7220_autoneg(struct qib_pportdata *ppd)
 
 	toggle_7220_rclkrls(ppd->dd);
 	/* 2 msec is minimum length of a poll cycle */
-	schedule_delayed_work(&ppd->cpspec->autoneg_work,
-			      msecs_to_jiffies(2));
+	queue_delayed_work(ib_wq, &ppd->cpspec->autoneg_work,
+			   msecs_to_jiffies(2));
 }
 
 /*
