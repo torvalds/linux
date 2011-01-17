@@ -1895,6 +1895,39 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	return do_add_mount(mnt, path, mnt_flags);
 }
 
+int finish_automount(struct vfsmount *m, struct path *path)
+{
+	int err;
+	/* The new mount record should have at least 2 refs to prevent it being
+	 * expired before we get a chance to add it
+	 */
+	BUG_ON(mnt_get_count(m) < 2);
+
+	if (m->mnt_sb == path->mnt->mnt_sb &&
+	    m->mnt_root == path->dentry) {
+		mnt_clear_expiry(m);
+		mntput(m);
+		mntput(m);
+		return -ELOOP;
+	}
+
+	/* We need to add the mountpoint to the parent.  The filesystem may
+	 * have placed it on an expiry list, and so we need to make sure it
+	 * won't be expired under us if do_add_mount() fails (do_add_mount()
+	 * will eat a reference unconditionally).
+	 */
+	mntget(m);
+	err = do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
+	if (err) {
+		mnt_clear_expiry(m);
+		mntput(m);
+		mntput(m);
+	} else {
+		mntput(m);
+	}
+	return err;
+}
+
 /*
  * add a mount into a namespace's mount tree
  * - this unconditionally eats one of the caller's references to newmnt.

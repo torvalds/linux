@@ -70,6 +70,7 @@ extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 extern void release_mounts(struct list_head *);
 extern void umount_tree(struct vfsmount *, int, struct list_head *);
 extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
+extern int finish_automount(struct vfsmount *, struct path *);
 extern int do_add_mount(struct vfsmount *, struct path *, int);
 extern void mnt_clear_expiry(struct vfsmount *);
 
