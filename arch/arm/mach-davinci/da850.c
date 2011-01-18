@@ -572,21 +572,6 @@ static const struct mux_config da850_pins[] = {
 #endif
 };
 
-const short da850_uart0_pins[] __initdata = {
-	DA850_NUART0_CTS, DA850_NUART0_RTS, DA850_UART0_RXD, DA850_UART0_TXD,
-	-1
-};
-
-const short da850_uart1_pins[] __initdata = {
-	DA850_UART1_RXD, DA850_UART1_TXD,
-	-1
-};
-
-const short da850_uart2_pins[] __initdata = {
-	DA850_UART2_RXD, DA850_UART2_TXD,
-	-1
-};
-
 const short da850_i2c0_pins[] __initdata = {
 	DA850_I2C0_SDA, DA850_I2C0_SCL,
 	-1
