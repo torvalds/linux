@@ -132,16 +132,16 @@
 #define MSM_UART2DM_PHYS      0xA0900000
 
 
-#define MSM_SDC1_PHYS          0xA0400000
+#define MSM_SDC1_PHYS          0xA0300000
 #define MSM_SDC1_SIZE          SZ_4K
 
-#define MSM_SDC2_PHYS          0xA0500000
+#define MSM_SDC2_PHYS          0xA0400000
 #define MSM_SDC2_SIZE          SZ_4K
 
-#define MSM_SDC3_PHYS          0xA0600000
+#define MSM_SDC3_PHYS          0xA0500000
 #define MSM_SDC3_SIZE           SZ_4K
 
-#define MSM_SDC4_PHYS          0xA0700000
+#define MSM_SDC4_PHYS          0xA0600000
 #define MSM_SDC4_SIZE          SZ_4K
 
 #endif
