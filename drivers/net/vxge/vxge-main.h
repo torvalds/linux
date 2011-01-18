@@ -59,11 +59,13 @@
 #define VXGE_TTI_LTIMER_VAL	1000
 #define VXGE_T1A_TTI_LTIMER_VAL	80
 #define VXGE_TTI_RTIMER_VAL	0
+#define VXGE_TTI_RTIMER_ADAPT_VAL	10
 #define VXGE_T1A_TTI_RTIMER_VAL	400
 #define VXGE_RTI_BTIMER_VAL	250
 #define VXGE_RTI_LTIMER_VAL	100
 #define VXGE_RTI_RTIMER_VAL	0
-#define VXGE_FIFO_INDICATE_MAX_PKTS VXGE_DEF_FIFO_LENGTH
+#define VXGE_RTI_RTIMER_ADAPT_VAL	15
+#define VXGE_FIFO_INDICATE_MAX_PKTS	VXGE_DEF_FIFO_LENGTH
 #define VXGE_ISR_POLLING_CNT 	8
 #define VXGE_MAX_CONFIG_DEV	0xFF
 #define VXGE_EXEC_MODE_DISABLE	0
@@ -107,6 +109,14 @@
 #define RTI_T1A_RX_UFC_C	50
 #define RTI_T1A_RX_UFC_D	60
 
+/*
+ * The interrupt rate is maintained at 3k per second with the moderation
+ * parameters for most traffic but not all. This is the maximum interrupt
+ * count allowed per function with INTA or per vector in the case of
+ * MSI-X in a 10 millisecond time period. Enabled only for Titan 1A.
+ */
+#define VXGE_T1A_MAX_INTERRUPT_COUNT	100
+#define VXGE_T1A_MAX_TX_INTERRUPT_COUNT	200
 
 /* Milli secs timer period */
 #define VXGE_TIMER_DELAY		10000
@@ -247,6 +257,11 @@ struct vxge_fifo {
 	int tx_steering_type;
 	int indicate_max_pkts;
 
+	/* Adaptive interrupt moderation parameters used in T1A */
+	unsigned long interrupt_count;
+	unsigned long jiffies;
+
+	u32 tx_vector_no;
 	/* Tx stats */
 	struct vxge_fifo_stats stats;
 } ____cacheline_aligned;
@@ -271,6 +286,10 @@ struct vxge_ring {
 	 */
 	int driver_id;
 
+	/* Adaptive interrupt moderation parameters used in T1A */
+	unsigned long interrupt_count;
+	unsigned long jiffies;
+
 	/* copy of the flag indicating whether rx_csum is to be used */
 	u32 rx_csum:1,
 	    rx_hwts:1;
@@ -286,7 +305,7 @@ struct vxge_ring {
 
 	int vlan_tag_strip;
 	struct vlan_group *vlgrp;
-	int rx_vector_no;
+	u32 rx_vector_no;
 	enum vxge_hw_status last_status;
 
 	/* Rx stats */

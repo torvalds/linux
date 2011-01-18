@@ -371,9 +371,6 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 	struct vxge_hw_ring_rxd_info ext_info;
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d",
 		ring->ndev->name, __func__, __LINE__);
-	ring->pkts_processed = 0;
-
-	vxge_hw_ring_replenish(ringh);
 
 	do {
 		prefetch((char *)dtr + L1_CACHE_BYTES);
@@ -1588,6 +1585,36 @@ static int vxge_reset_vpath(struct vxgedev *vdev, int vp_id)
 	return ret;
 }
 
+/* Configure CI */
+static void vxge_config_ci_for_tti_rti(struct vxgedev *vdev)
+{
+	int i = 0;
+
+	/* Enable CI for RTI */
+	if (vdev->config.intr_type == MSI_X) {
+		for (i = 0; i < vdev->no_of_vpath; i++) {
+			struct __vxge_hw_ring *hw_ring;
+
+			hw_ring = vdev->vpaths[i].ring.handle;
+			vxge_hw_vpath_dynamic_rti_ci_set(hw_ring);
+		}
+	}
+
+	/* Enable CI for TTI */
+	for (i = 0; i < vdev->no_of_vpath; i++) {
+		struct __vxge_hw_fifo *hw_fifo = vdev->vpaths[i].fifo.handle;
+		vxge_hw_vpath_tti_ci_set(hw_fifo);
+		/*
+		 * For Inta (with or without napi), Set CI ON for only one
+		 * vpath. (Have only one free running timer).
+		 */
+		if ((vdev->config.intr_type == INTA) && (i == 0))
+			break;
+	}
+
+	return;
+}
+
 static int do_vxge_reset(struct vxgedev *vdev, int event)
 {
 	enum vxge_hw_status status;
@@ -1753,6 +1780,9 @@ static int do_vxge_reset(struct vxgedev *vdev, int event)
 		netif_tx_wake_all_queues(vdev->ndev);
 	}
 
+	/* configure CI */
+	vxge_config_ci_for_tti_rti(vdev);
+
 out:
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s:%d  Exiting...", __func__, __LINE__);
@@ -1793,22 +1823,29 @@ static void vxge_reset(struct work_struct *work)
  */
 static int vxge_poll_msix(struct napi_struct *napi, int budget)
 {
-	struct vxge_ring *ring =
-		container_of(napi, struct vxge_ring, napi);
+	struct vxge_ring *ring = container_of(napi, struct vxge_ring, napi);
+	int pkts_processed;
 	int budget_org = budget;
-	ring->budget = budget;
 
+	ring->budget = budget;
+	ring->pkts_processed = 0;
 	vxge_hw_vpath_poll_rx(ring->handle);
+	pkts_processed = ring->pkts_processed;
 
 	if (ring->pkts_processed < budget_org) {
 		napi_complete(napi);
+
 		/* Re enable the Rx interrupts for the vpath */
 		vxge_hw_channel_msix_unmask(
 				(struct __vxge_hw_channel *)ring->handle,
 				ring->rx_vector_no);
+		mmiowb();
 	}
 
-	return ring->pkts_processed;
+	/* We are copying and returning the local variable, in case if after
+	 * clearing the msix interrupt above, if the interrupt fires right
+	 * away which can preempt this NAPI thread */
+	return pkts_processed;
 }
 
 static int vxge_poll_inta(struct napi_struct *napi, int budget)
@@ -1824,6 +1861,7 @@ static int vxge_poll_inta(struct napi_struct *napi, int budget)
 	for (i = 0; i < vdev->no_of_vpath; i++) {
 		ring = &vdev->vpaths[i].ring;
 		ring->budget = budget;
+		ring->pkts_processed = 0;
 		vxge_hw_vpath_poll_rx(ring->handle);
 		pkts_processed += ring->pkts_processed;
 		budget -= ring->pkts_processed;
@@ -2054,6 +2092,7 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 					netdev_get_tx_queue(vdev->ndev, 0);
 			vpath->fifo.indicate_max_pkts =
 				vdev->config.fifo_indicate_max_pkts;
+			vpath->fifo.tx_vector_no = 0;
 			vpath->ring.rx_vector_no = 0;
 			vpath->ring.rx_csum = vdev->rx_csum;
 			vpath->ring.rx_hwts = vdev->rx_hwts;
@@ -2077,6 +2116,61 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 	}
 
 	return VXGE_HW_OK;
+}
+
+/**
+ *  adaptive_coalesce_tx_interrupts - Changes the interrupt coalescing
+ *  if the interrupts are not within a range
+ *  @fifo: pointer to transmit fifo structure
+ *  Description: The function changes boundary timer and restriction timer
+ *  value depends on the traffic
+ *  Return Value: None
+ */
+static void adaptive_coalesce_tx_interrupts(struct vxge_fifo *fifo)
+{
+	fifo->interrupt_count++;
+	if (jiffies > fifo->jiffies + HZ / 100) {
+		struct __vxge_hw_fifo *hw_fifo = fifo->handle;
+
+		fifo->jiffies = jiffies;
+		if (fifo->interrupt_count > VXGE_T1A_MAX_TX_INTERRUPT_COUNT &&
+		    hw_fifo->rtimer != VXGE_TTI_RTIMER_ADAPT_VAL) {
+			hw_fifo->rtimer = VXGE_TTI_RTIMER_ADAPT_VAL;
+			vxge_hw_vpath_dynamic_tti_rtimer_set(hw_fifo);
+		} else if (hw_fifo->rtimer != 0) {
+			hw_fifo->rtimer = 0;
+			vxge_hw_vpath_dynamic_tti_rtimer_set(hw_fifo);
+		}
+		fifo->interrupt_count = 0;
+	}
+}
+
+/**
+ *  adaptive_coalesce_rx_interrupts - Changes the interrupt coalescing
+ *  if the interrupts are not within a range
+ *  @ring: pointer to receive ring structure
+ *  Description: The function increases of decreases the packet counts within
+ *  the ranges of traffic utilization, if the interrupts due to this ring are
+ *  not within a fixed range.
+ *  Return Value: Nothing
+ */
+static void adaptive_coalesce_rx_interrupts(struct vxge_ring *ring)
+{
+	ring->interrupt_count++;
+	if (jiffies > ring->jiffies + HZ / 100) {
+		struct __vxge_hw_ring *hw_ring = ring->handle;
+
+		ring->jiffies = jiffies;
+		if (ring->interrupt_count > VXGE_T1A_MAX_INTERRUPT_COUNT &&
+		    hw_ring->rtimer != VXGE_RTI_RTIMER_ADAPT_VAL) {
+			hw_ring->rtimer = VXGE_RTI_RTIMER_ADAPT_VAL;
+			vxge_hw_vpath_dynamic_rti_rtimer_set(hw_ring);
+		} else if (hw_ring->rtimer != 0) {
+			hw_ring->rtimer = 0;
+			vxge_hw_vpath_dynamic_rti_rtimer_set(hw_ring);
+		}
+		ring->interrupt_count = 0;
+	}
 }
 
 /*
@@ -2139,24 +2233,39 @@ static irqreturn_t vxge_isr_napi(int irq, void *dev_id)
 
 #ifdef CONFIG_PCI_MSI
 
-static irqreturn_t
-vxge_tx_msix_handle(int irq, void *dev_id)
+static irqreturn_t vxge_tx_msix_handle(int irq, void *dev_id)
 {
 	struct vxge_fifo *fifo = (struct vxge_fifo *)dev_id;
 
+	adaptive_coalesce_tx_interrupts(fifo);
+
+	vxge_hw_channel_msix_mask((struct __vxge_hw_channel *)fifo->handle,
+				  fifo->tx_vector_no);
+
+	vxge_hw_channel_msix_clear((struct __vxge_hw_channel *)fifo->handle,
+				   fifo->tx_vector_no);
+
 	VXGE_COMPLETE_VPATH_TX(fifo);
+
+	vxge_hw_channel_msix_unmask((struct __vxge_hw_channel *)fifo->handle,
+				    fifo->tx_vector_no);
+
+	mmiowb();
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t
-vxge_rx_msix_napi_handle(int irq, void *dev_id)
+static irqreturn_t vxge_rx_msix_napi_handle(int irq, void *dev_id)
 {
 	struct vxge_ring *ring = (struct vxge_ring *)dev_id;
 
-	/* MSIX_IDX for Rx is 1 */
+	adaptive_coalesce_rx_interrupts(ring);
+
 	vxge_hw_channel_msix_mask((struct __vxge_hw_channel *)ring->handle,
-					ring->rx_vector_no);
+				  ring->rx_vector_no);
+
+	vxge_hw_channel_msix_clear((struct __vxge_hw_channel *)ring->handle,
+				   ring->rx_vector_no);
 
 	napi_schedule(&ring->napi);
 	return IRQ_HANDLED;
@@ -2173,14 +2282,20 @@ vxge_alarm_msix_handle(int irq, void *dev_id)
 		VXGE_HW_VPATH_MSIX_ACTIVE) + VXGE_ALARM_MSIX_ID;
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
+		/* Reduce the chance of loosing alarm interrupts by masking
+		 * the vector. A pending bit will be set if an alarm is
+		 * generated and on unmask the interrupt will be fired.
+		 */
 		vxge_hw_vpath_msix_mask(vdev->vpaths[i].handle, msix_id);
+		vxge_hw_vpath_msix_clear(vdev->vpaths[i].handle, msix_id);
+		mmiowb();
 
 		status = vxge_hw_vpath_alarm_process(vdev->vpaths[i].handle,
 			vdev->exec_mode);
 		if (status == VXGE_HW_OK) {
-
 			vxge_hw_vpath_msix_unmask(vdev->vpaths[i].handle,
-					msix_id);
+						  msix_id);
+			mmiowb();
 			continue;
 		}
 		vxge_debug_intr(VXGE_ERR,
@@ -2298,6 +2413,9 @@ static int vxge_enable_msix(struct vxgedev *vdev)
 			 */
 			vpath->ring.rx_vector_no = (vpath->device_id *
 						VXGE_HW_VPATH_MSIX_ACTIVE) + 1;
+
+			vpath->fifo.tx_vector_no = (vpath->device_id *
+						VXGE_HW_VPATH_MSIX_ACTIVE);
 
 			vxge_hw_vpath_msix_set(vpath->handle, tim_msix_id,
 					       VXGE_ALARM_MSIX_ID);
@@ -2474,8 +2592,9 @@ INTA_MODE:
 			"%s:vxge:INTA", vdev->ndev->name);
 		vxge_hw_device_set_intr_type(vdev->devh,
 			VXGE_HW_INTR_MODE_IRQLINE);
-		vxge_hw_vpath_tti_ci_set(vdev->devh,
-			vdev->vpaths[0].device_id);
+
+		vxge_hw_vpath_tti_ci_set(vdev->vpaths[0].fifo.handle);
+
 		ret = request_irq((int) vdev->pdev->irq,
 			vxge_isr_napi,
 			IRQF_SHARED, vdev->desc[0], vdev);
@@ -2745,6 +2864,10 @@ static int vxge_open(struct net_device *dev)
 	}
 
 	netif_tx_start_all_queues(vdev->ndev);
+
+	/* configure CI */
+	vxge_config_ci_for_tti_rti(vdev);
+
 	goto out0;
 
 out2:
@@ -3804,7 +3927,7 @@ static void __devinit vxge_device_config_init(
 		break;
 
 	case MSI_X:
-		device_config->intr_mode = VXGE_HW_INTR_MODE_MSIX;
+		device_config->intr_mode = VXGE_HW_INTR_MODE_MSIX_ONE_SHOT;
 		break;
 	}
 
