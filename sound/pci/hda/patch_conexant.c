@@ -537,13 +537,13 @@ static struct snd_kcontrol_new cxt_beep_mixer[] = {
 };
 #endif
 
-static const char *slave_vols[] = {
+static const char * const slave_vols[] = {
 	"Headphone Playback Volume",
 	"Speaker Playback Volume",
 	NULL
 };
 
-static const char *slave_sws[] = {
+static const char * const slave_sws[] = {
 	"Headphone Playback Switch",
 	"Speaker Playback Switch",
 	NULL
@@ -1134,7 +1134,7 @@ enum {
 	CXT5045_MODELS
 };
 
-static const char *cxt5045_models[CXT5045_MODELS] = {
+static const char * const cxt5045_models[CXT5045_MODELS] = {
 	[CXT5045_LAPTOP_HPSENSE]	= "laptop-hpsense",
 	[CXT5045_LAPTOP_MICSENSE]	= "laptop-micsense",
 	[CXT5045_LAPTOP_HPMICSENSE]	= "laptop-hpmicsense",
@@ -1579,7 +1579,7 @@ enum {
 	CXT5047_MODELS
 };
 
-static const char *cxt5047_models[CXT5047_MODELS] = {
+static const char * const cxt5047_models[CXT5047_MODELS] = {
 	[CXT5047_LAPTOP]	= "laptop",
 	[CXT5047_LAPTOP_HP]	= "laptop-hp",
 	[CXT5047_LAPTOP_EAPD]	= "laptop-eapd",
@@ -1995,7 +1995,7 @@ enum {
 	CXT5051_MODELS
 };
 
-static const char *cxt5051_models[CXT5051_MODELS] = {
+static const char *const cxt5051_models[CXT5051_MODELS] = {
 	[CXT5051_LAPTOP]	= "laptop",
 	[CXT5051_HP]		= "hp",
 	[CXT5051_HP_DV6736]	= "hp-dv6736",
@@ -3084,7 +3084,7 @@ enum {
 	CXT5066_MODELS
 };
 
-static const char *cxt5066_models[CXT5066_MODELS] = {
+static const char * const cxt5066_models[CXT5066_MODELS] = {
 	[CXT5066_LAPTOP]	= "laptop",
 	[CXT5066_DELL_LAPTOP]	= "dell-laptop",
 	[CXT5066_OLPC_XO_1_5]	= "olpc-xo-1_5",
@@ -3746,7 +3746,7 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	int i, err;
 	int num_line = 0, num_hp = 0, num_spk = 0;
-	static const char *texts[3] = { "Front", "Surround", "CLFE" };
+	static const char * const texts[3] = { "Front", "Surround", "CLFE" };
 
 	if (spec->dac_info_filled == 1)
 		return cx_auto_add_pb_volume(codec, spec->dac_info[0].dac,
