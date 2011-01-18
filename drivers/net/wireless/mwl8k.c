@@ -4356,7 +4356,8 @@ static int mwl8k_get_survey(struct ieee80211_hw *hw, int idx,
 static int
 mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   enum ieee80211_ampdu_mlme_action action,
-		   struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+		   struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+		   u8 buf_size)
 {
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:

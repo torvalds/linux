@@ -784,9 +784,9 @@ TRACE_EVENT(drv_ampdu_action,
 		 struct ieee80211_sub_if_data *sdata,
 		 enum ieee80211_ampdu_mlme_action action,
 		 struct ieee80211_sta *sta, u16 tid,
-		 u16 *ssn),
+		 u16 *ssn, u8 buf_size),
 
-	TP_ARGS(local, sdata, action, sta, tid, ssn),
+	TP_ARGS(local, sdata, action, sta, tid, ssn, buf_size),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -794,6 +794,7 @@ TRACE_EVENT(drv_ampdu_action,
 		__field(u32, action)
 		__field(u16, tid)
 		__field(u16, ssn)
+		__field(u8, buf_size)
 		VIF_ENTRY
 	),
 
@@ -804,11 +805,13 @@ TRACE_EVENT(drv_ampdu_action,
 		__entry->action = action;
 		__entry->tid = tid;
 		__entry->ssn = ssn ? *ssn : 0;
+		__entry->buf_size = buf_size;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " action:%d tid:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->action, __entry->tid
+		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " action:%d tid:%d buf:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->action,
+		__entry->tid, __entry->buf_size
 	)
 );
 

@@ -1731,6 +1731,10 @@ enum ieee80211_ampdu_mlme_action {
  * 	ieee80211_ampdu_mlme_action. Starting sequence number (@ssn)
  * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
+ *	The @buf_size parameter is only valid when the action is set to
+ *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's reorder
+ *	buffer size (number of subframes) for this session -- aggregates
+ *	containing more subframes than this may not be transmitted to the peer.
  *	Returns a negative error code on failure.
  *	The callback can sleep.
  *
@@ -1833,7 +1837,8 @@ struct ieee80211_ops {
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
-			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			    u8 buf_size);
 	int (*get_survey)(struct ieee80211_hw *hw, int idx,
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
