@@ -243,6 +243,7 @@ struct msmsdcc_host {
 	unsigned int		cmd_datactrl;
 	struct mmc_command	*cmd_cmd;
 	u32			cmd_c;
+	bool			gpio_config_status;
 
 	bool prog_scan;
 	bool prog_enable;
