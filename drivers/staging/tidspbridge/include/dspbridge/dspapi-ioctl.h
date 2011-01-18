@@ -156,7 +156,7 @@ union trapped_args {
 		void *processor;
 		void *mpu_addr;
 		u32 size;
-		u32 ul_flags;
+		u32 flags;
 	} args_proc_flushmemory;
 
 	struct {
@@ -171,13 +171,13 @@ union trapped_args {
 		struct dsp_uuid __user *node_id_ptr;
 		struct dsp_cbdata __user *args;
 		struct dsp_nodeattrin __user *attr_in;
-		void *__user *ph_node;
+		void *__user *node;
 	} args_node_allocate;
 
 	struct {
 		void *node;
-		u32 usize;
-		struct dsp_bufferattr __user *pattr;
+		u32 size;
+		struct dsp_bufferattr __user *attr;
 		u8 *__user *buffer;
 	} args_node_allocmsgbuf;
 
@@ -191,7 +191,7 @@ union trapped_args {
 		u32 stream_id;
 		void *other_node;
 		u32 other_stream;
-		struct dsp_strmattr __user *pattrs;
+		struct dsp_strmattr __user *attrs;
 		struct dsp_cbdata __user *conn_param;
 	} args_node_connect;
 
@@ -205,13 +205,13 @@ union trapped_args {
 
 	struct {
 		void *node;
-		struct dsp_bufferattr __user *pattr;
+		struct dsp_bufferattr __user *attr;
 		u8 *buffer;
 	} args_node_freemsgbuf;
 
 	struct {
 		void *node;
-		struct dsp_nodeattr __user *pattr;
+		struct dsp_nodeattr __user *attr;
 		u32 attr_size;
 	} args_node_getattr;
 
@@ -244,7 +244,7 @@ union trapped_args {
 
 	struct {
 		void *node;
-		int __user *pstatus;
+		int __user *status;
 	} args_node_terminate;
 
 	struct {
@@ -257,7 +257,7 @@ union trapped_args {
 
 	struct {
 		void *stream;
-		u32 usize;
+		u32 size;
 		u8 *__user *ap_buffer;
 		u32 num_bufs;
 	} args_strm_allocatebuffer;
@@ -274,7 +274,7 @@ union trapped_args {
 
 	struct {
 		void *stream;
-		void **ph_event;
+		void **event;
 	} args_strm_geteventhandle;
 
 	struct {
@@ -291,8 +291,8 @@ union trapped_args {
 	struct {
 		void *stream;
 		u8 *buffer;
-		u32 dw_bytes;
-		u32 dw_buf_size;
+		u32 bytes;
+		u32 buf_size;
 		u32 arg;
 	} args_strm_issue;
 
@@ -301,7 +301,7 @@ union trapped_args {
 		u32 direction;
 		u32 index;
 		struct strm_attr __user *attr_in;
-		void *__user *ph_stream;
+		void *__user *stream;
 	} args_strm_open;
 
 	struct {
@@ -309,7 +309,7 @@ union trapped_args {
 		u8 *__user *buf_ptr;
 		u32 __user *bytes;
 		u32 __user *buf_size_ptr;
-		u32 __user *pdw_arg;
+		u32 __user *arg;
 	} args_strm_reclaim;
 
 	struct {
@@ -322,27 +322,27 @@ union trapped_args {
 	struct {
 		void *__user *stream_tab;
 		u32 strm_num;
-		u32 __user *pmask;
+		u32 __user *mask;
 		u32 timeout;
 	} args_strm_select;
 
 	/* CMM Module */
 	struct {
 		struct cmm_object *cmm_mgr;
-		u32 usize;
-		struct cmm_attrs *pattrs;
-		void **pp_buf_va;
+		u32 size;
+		struct cmm_attrs *attrs;
+		void **buf_va;
 	} args_cmm_allocbuf;
 
 	struct {
 		struct cmm_object *cmm_mgr;
 		void *buf_pa;
-		u32 ul_seg_id;
+		u32 seg_id;
 	} args_cmm_freebuf;
 
 	struct {
 		void *processor;
-		struct cmm_object *__user *ph_cmm_mgr;
+		struct cmm_object *__user *cmm_mgr;
 	} args_cmm_gethandle;
 
 	struct {
@@ -353,7 +353,7 @@ union trapped_args {
 	/* UTIL module */
 	struct {
 		s32 util_argc;
-		char **pp_argv;
+		char **argv;
 	} args_util_testdll;
 };
 

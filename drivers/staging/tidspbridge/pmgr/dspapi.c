@@ -721,14 +721,14 @@ u32 procwrap_flush_memory(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
 
-	if (args->args_proc_flushmemory.ul_flags >
+	if (args->args_proc_flushmemory.flags >
 	    PROC_WRITEBACK_INVALIDATE_MEM)
 		return -EINVAL;
 
 	status = proc_flush_memory(pr_ctxt,
 				   args->args_proc_flushmemory.mpu_addr,
 				   args->args_proc_flushmemory.size,
-				   args->args_proc_flushmemory.ul_flags);
+				   args->args_proc_flushmemory.flags);
 	return status;
 }
 
@@ -1129,7 +1129,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 	}
 	if (!status) {
 		nodeid = node_res->id + 1;
-		CP_TO_USR(args->args_node_allocate.ph_node, &nodeid,
+		CP_TO_USR(args->args_node_allocate.node, &nodeid,
 			status, 1);
 		if (status) {
 			status = -EFAULT;
@@ -1159,11 +1159,11 @@ u32 nodewrap_alloc_msg_buf(union trapped_args *args, void *pr_ctxt)
 	if (!node_res)
 		return -EFAULT;
 
-	if (!args->args_node_allocmsgbuf.usize)
+	if (!args->args_node_allocmsgbuf.size)
 		return -EINVAL;
 
-	if (args->args_node_allocmsgbuf.pattr) {	/* Optional argument */
-		CP_FM_USR(&attr, args->args_node_allocmsgbuf.pattr, status, 1);
+	if (args->args_node_allocmsgbuf.attr) {	/* Optional argument */
+		CP_FM_USR(&attr, args->args_node_allocmsgbuf.attr, status, 1);
 		if (!status)
 			pattr = &attr;
 
@@ -1172,7 +1172,7 @@ u32 nodewrap_alloc_msg_buf(union trapped_args *args, void *pr_ctxt)
 	CP_FM_USR(&pbuffer, args->args_node_allocmsgbuf.buffer, status, 1);
 	if (!status) {
 		status = node_alloc_msg_buf(node_res->node,
-					    args->args_node_allocmsgbuf.usize,
+					    args->args_node_allocmsgbuf.size,
 					    pattr, &pbuffer);
 	}
 	CP_TO_USR(args->args_node_allocmsgbuf.buffer, &pbuffer, status, 1);
@@ -1253,8 +1253,8 @@ u32 nodewrap_connect(union trapped_args *args, void *pr_ctxt)
 		if (status)
 			goto func_cont;
 	}
-	if (args->args_node_connect.pattrs) {	/* Optional argument */
-		CP_FM_USR(&attrs, args->args_node_connect.pattrs, status, 1);
+	if (args->args_node_connect.attrs) {	/* Optional argument */
+		CP_FM_USR(&attrs, args->args_node_connect.attrs, status, 1);
 		if (!status)
 			pattrs = &attrs;
 
@@ -1323,8 +1323,8 @@ u32 nodewrap_free_msg_buf(union trapped_args *args, void *pr_ctxt)
 	if (!node_res)
 		return -EFAULT;
 
-	if (args->args_node_freemsgbuf.pattr) {	/* Optional argument */
-		CP_FM_USR(&attr, args->args_node_freemsgbuf.pattr, status, 1);
+	if (args->args_node_freemsgbuf.attr) {	/* Optional argument */
+		CP_FM_USR(&attr, args->args_node_freemsgbuf.attr, status, 1);
 		if (!status)
 			pattr = &attr;
 
@@ -1358,7 +1358,7 @@ u32 nodewrap_get_attr(union trapped_args *args, void *pr_ctxt)
 
 	status = node_get_attr(node_res->node, &attr,
 			       args->args_node_getattr.attr_size);
-	CP_TO_USR(args->args_node_getattr.pattr, &attr, status, 1);
+	CP_TO_USR(args->args_node_getattr.attr, &attr, status, 1);
 
 	return status;
 }
@@ -1495,7 +1495,7 @@ u32 nodewrap_terminate(union trapped_args *args, void *pr_ctxt)
 
 	status = node_terminate(node_res->node, &tempstatus);
 
-	CP_TO_USR(args->args_node_terminate.pstatus, &tempstatus, status, 1);
+	CP_TO_USR(args->args_node_terminate.status, &tempstatus, status, 1);
 
 	return status;
 }
@@ -1564,7 +1564,7 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 		return -ENOMEM;
 
 	status = strm_allocate_buffer(strm_res,
-				      args->args_strm_allocatebuffer.usize,
+				      args->args_strm_allocatebuffer.size,
 				      ap_buffer, num_bufs, pr_ctxt);
 	if (!status) {
 		CP_TO_USR(args->args_strm_allocatebuffer.ap_buffer, ap_buffer,
@@ -1715,8 +1715,8 @@ u32 strmwrap_issue(union trapped_args *args, void *pr_ctxt)
 	   in chnl_sm.c */
 	status = strm_issue(strm_res->stream,
 			    args->args_strm_issue.buffer,
-			    args->args_strm_issue.dw_bytes,
-			    args->args_strm_issue.dw_buf_size,
+			    args->args_strm_issue.bytes,
+			    args->args_strm_issue.buf_size,
 			    args->args_strm_issue.arg);
 
 	return status;
@@ -1756,7 +1756,7 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 			   pr_ctxt);
 	if (!status) {
 		strmid = strm_res_obj->id + 1;
-		CP_TO_USR(args->args_strm_open.ph_stream, &strmid, status, 1);
+		CP_TO_USR(args->args_strm_open.stream, &strmid, status, 1);
 	}
 	return status;
 }
@@ -1782,7 +1782,7 @@ u32 strmwrap_reclaim(union trapped_args *args, void *pr_ctxt)
 			      &ul_bytes, &ul_buf_size, &dw_arg);
 	CP_TO_USR(args->args_strm_reclaim.buf_ptr, &buf_ptr, status, 1);
 	CP_TO_USR(args->args_strm_reclaim.bytes, &ul_bytes, status, 1);
-	CP_TO_USR(args->args_strm_reclaim.pdw_arg, &dw_arg, status, 1);
+	CP_TO_USR(args->args_strm_reclaim.arg, &dw_arg, status, 1);
 
 	if (args->args_strm_reclaim.buf_size_ptr != NULL) {
 		CP_TO_USR(args->args_strm_reclaim.buf_size_ptr, &ul_buf_size,
@@ -1855,7 +1855,7 @@ u32 strmwrap_select(union trapped_args *args, void *pr_ctxt)
 		status = strm_select(strm_tab, args->args_strm_select.strm_num,
 				     &mask, args->args_strm_select.timeout);
 	}
-	CP_TO_USR(args->args_strm_select.pmask, &mask, status, 1);
+	CP_TO_USR(args->args_strm_select.mask, &mask, status, 1);
 	return status;
 }
 
@@ -1892,7 +1892,7 @@ u32 cmmwrap_get_handle(union trapped_args *args, void *pr_ctxt)
 
 	status = cmm_get_handle(hprocessor, &hcmm_mgr);
 
-	CP_TO_USR(args->args_cmm_gethandle.ph_cmm_mgr, &hcmm_mgr, status, 1);
+	CP_TO_USR(args->args_cmm_gethandle.cmm_mgr, &hcmm_mgr, status, 1);
 
 	return status;
 }
