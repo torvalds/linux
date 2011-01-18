@@ -1873,6 +1873,10 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 {
 	int retcode;
 
+	/* If there is still bitmap IO pending, probably because of a previous
+	 * resync just being finished, wait for it before requesting a new resync. */
+	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T), CS_ORDERED);
 
 	if (retcode < SS_SUCCESS && retcode != SS_NEED_CONNECTION)
@@ -1908,6 +1912,10 @@ static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_re
 {
 	int retcode;
 
+	/* If there is still bitmap IO pending, probably because of a previous
+	 * resync just being finished, wait for it before requesting a new resync. */
+	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
 
 	if (retcode < SS_SUCCESS) {
@@ -1916,7 +1924,6 @@ static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_re
 			   into a full resync. */
 			retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
 			if (retcode >= SS_SUCCESS) {
-				/* open coded drbd_bitmap_io() */
 				if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
 						   "set_n_write from invalidate_peer"))
 					retcode = ERR_IO_MD_DISK;
