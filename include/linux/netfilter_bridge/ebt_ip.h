@@ -31,12 +31,12 @@ struct ebt_ip_info {
 	__be32 daddr;
 	__be32 smsk;
 	__be32 dmsk;
-	uint8_t  tos;
-	uint8_t  protocol;
-	uint8_t  bitmask;
-	uint8_t  invflags;
-	uint16_t sport[2];
-	uint16_t dport[2];
+	__u8  tos;
+	__u8  protocol;
+	__u8  bitmask;
+	__u8  invflags;
+	__u16 sport[2];
+	__u16 dport[2];
 };
 
 #endif

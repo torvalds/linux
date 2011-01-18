@@ -6,8 +6,8 @@
 #define EBT_MARK_MASK (EBT_MARK_AND | EBT_MARK_OR)
 struct ebt_mark_m_info {
 	unsigned long mark, mask;
-	uint8_t invert;
-	uint8_t bitmask;
+	__u8 invert;
+	__u8 bitmask;
 };
 #define EBT_MARK_MATCH "mark_m"
 

@@ -10,7 +10,7 @@
 #define EBT_ULOG_VERSION 1
 
 struct ebt_ulog_info {
-	uint32_t nlgroup;
+	__u32 nlgroup;
 	unsigned int cprange;
 	unsigned int qthreshold;
 	char prefix[EBT_ULOG_PREFIX_LEN];
