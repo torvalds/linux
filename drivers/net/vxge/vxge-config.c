@@ -387,8 +387,8 @@ vxge_hw_vpath_eprom_img_ver_get(struct __vxge_hw_device *hldev,
 		data1 = steer_ctrl = 0;
 
 		status = vxge_hw_vpath_fw_api(vpath,
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
 			VXGE_HW_FW_API_GET_EPROM_REV,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
 			0, &data0, &data1, &steer_ctrl);
 		if (status != VXGE_HW_OK)
 			break;

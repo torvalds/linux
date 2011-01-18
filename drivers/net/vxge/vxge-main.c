@@ -4451,7 +4451,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 			if (!img[i].is_valid)
 				break;
 			vxge_debug_init(VXGE_TRACE, "%s: EPROM %d, version "
-					"%d.%d.%d.%d\n", VXGE_DRIVER_NAME, i,
+					"%d.%d.%d.%d", VXGE_DRIVER_NAME, i,
 					VXGE_EPROM_IMG_MAJOR(img[i].version),
 					VXGE_EPROM_IMG_MINOR(img[i].version),
 					VXGE_EPROM_IMG_FIX(img[i].version),
