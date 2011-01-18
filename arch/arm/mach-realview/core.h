@@ -42,7 +42,6 @@ static struct amba_device name##_device = {			\
 	},							\
 	.dma_mask	= ~0,					\
 	.irq		= base##_IRQ,				\
-	/* .dma		= base##_DMA,*/				\
 }
 
 struct machine_desc;
