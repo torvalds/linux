@@ -977,32 +977,32 @@ struct bridge_drv_interface {
 	u32 brd_api_minor_version;	/* Set to BRD_API_MINOR_VERSION. */
 	fxn_dev_create pfn_dev_create;	/* Create device context */
 	fxn_dev_destroy pfn_dev_destroy;	/* Destroy device context */
-	fxn_dev_ctrl pfn_dev_cntrl;	/* Optional vendor interface */
+	fxn_dev_ctrl dev_cntrl;	/* Optional vendor interface */
 	fxn_brd_monitor brd_monitor;	/* Load and/or start monitor */
-	fxn_brd_start pfn_brd_start;	/* Start DSP program. */
-	fxn_brd_stop pfn_brd_stop;	/* Stop/reset board. */
-	fxn_brd_status pfn_brd_status;	/* Get current board status. */
+	fxn_brd_start brd_start;	/* Start DSP program. */
+	fxn_brd_stop brd_stop;	/* Stop/reset board. */
+	fxn_brd_status brd_status;	/* Get current board status. */
 	fxn_brd_read brd_read;	/* Read board memory */
-	fxn_brd_write pfn_brd_write;	/* Write board memory. */
-	fxn_brd_setstate pfn_brd_set_state;	/* Sets the Board State */
+	fxn_brd_write brd_write;	/* Write board memory. */
+	fxn_brd_setstate brd_set_state;	/* Sets the Board State */
 	fxn_brd_memcopy brd_mem_copy;	/* Copies DSP Memory */
 	fxn_brd_memwrite brd_mem_write;	/* Write DSP Memory w/o halt */
 	fxn_brd_memmap brd_mem_map;	/* Maps MPU mem to DSP mem */
 	fxn_brd_memunmap brd_mem_un_map;	/* Unmaps MPU mem to DSP mem */
-	fxn_chnl_create pfn_chnl_create;	/* Create channel manager. */
-	fxn_chnl_destroy pfn_chnl_destroy;	/* Destroy channel manager. */
-	fxn_chnl_open pfn_chnl_open;	/* Create a new channel. */
-	fxn_chnl_close pfn_chnl_close;	/* Close a channel. */
-	fxn_chnl_addioreq pfn_chnl_add_io_req;	/* Req I/O on a channel. */
-	fxn_chnl_getioc pfn_chnl_get_ioc;	/* Wait for I/O completion. */
-	fxn_chnl_cancelio pfn_chnl_cancel_io;	/* Cancl I/O on a channel. */
-	fxn_chnl_flushio pfn_chnl_flush_io;	/* Flush I/O. */
-	fxn_chnl_getinfo pfn_chnl_get_info;	/* Get channel specific info */
+	fxn_chnl_create chnl_create;	/* Create channel manager. */
+	fxn_chnl_destroy chnl_destroy;	/* Destroy channel manager. */
+	fxn_chnl_open chnl_open;	/* Create a new channel. */
+	fxn_chnl_close chnl_close;	/* Close a channel. */
+	fxn_chnl_addioreq chnl_add_io_req;	/* Req I/O on a channel. */
+	fxn_chnl_getioc chnl_get_ioc;	/* Wait for I/O completion. */
+	fxn_chnl_cancelio chnl_cancel_io;	/* Cancl I/O on a channel. */
+	fxn_chnl_flushio chnl_flush_io;	/* Flush I/O. */
+	fxn_chnl_getinfo chnl_get_info;	/* Get channel specific info */
 	/* Get channel manager info. */
-	fxn_chnl_getmgrinfo pfn_chnl_get_mgr_info;
-	fxn_chnl_idle pfn_chnl_idle;	/* Idle the channel */
+	fxn_chnl_getmgrinfo chnl_get_mgr_info;
+	fxn_chnl_idle chnl_idle;	/* Idle the channel */
 	/* Register for notif. */
-	fxn_chnl_registernotify pfn_chnl_register_notify;
+	fxn_chnl_registernotify chnl_register_notify;
 	fxn_io_create pfn_io_create;	/* Create IO manager */
 	fxn_io_destroy pfn_io_destroy;	/* Destroy IO manager */
 	fxn_io_onloaded pfn_io_on_loaded;	/* Notify of program loaded */

@@ -281,8 +281,8 @@ typedef int(*nldr_unloadfxn) (struct nldr_nodeobject *nldr_node_obj,
  */
 struct node_ldr_fxns {
 	nldr_allocatefxn allocate;
-	nldr_createfxn pfn_create;
-	nldr_deletefxn pfn_delete;
+	nldr_createfxn create;
+	nldr_deletefxn delete;
 	nldr_exitfxn pfn_exit;
 	nldr_getfxnaddrfxn pfn_get_fxn_addr;
 	nldr_initfxn pfn_init;

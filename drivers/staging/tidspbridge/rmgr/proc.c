@@ -540,7 +540,7 @@ int proc_ctrl(void *hprocessor, u32 dw_cmd, struct dsp_cbdata * arg)
 			/* timeout = arg->cb_data; */
 			status = pwr_wake_dsp(timeout);
 		} else
-		    if (!((*p_proc_object->intf_fxns->pfn_dev_cntrl)
+		    if (!((*p_proc_object->intf_fxns->dev_cntrl)
 				      (p_proc_object->hbridge_context, dw_cmd,
 				       arg))) {
 			status = 0;
@@ -995,7 +995,7 @@ int proc_get_state(void *hprocessor,
 
 	if (p_proc_object) {
 		/* First, retrieve BRD state information */
-		status = (*p_proc_object->intf_fxns->pfn_brd_status)
+		status = (*p_proc_object->intf_fxns->brd_status)
 		    (p_proc_object->hbridge_context, &brd_status);
 		if (!status) {
 			switch (brd_status) {
@@ -1262,7 +1262,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	}
 	if (!status) {
 		/* Update the Processor status to loaded */
-		status = (*p_proc_object->intf_fxns->pfn_brd_set_state)
+		status = (*p_proc_object->intf_fxns->brd_set_state)
 		    (p_proc_object->hbridge_context, BRD_LOADED);
 		if (!status) {
 			p_proc_object->proc_state = PROC_LOADED;
@@ -1304,7 +1304,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	kfree(new_envp);
 	user_args[0] = pargv0;
 	if (!status) {
-		if (!((*p_proc_object->intf_fxns->pfn_brd_status)
+		if (!((*p_proc_object->intf_fxns->brd_status)
 				(p_proc_object->hbridge_context, &brd_state))) {
 			pr_info("%s: Processor Loaded %s\n", __func__, pargv0);
 			kfree(drv_datap->base_img);
@@ -1580,7 +1580,7 @@ int proc_start(void *hprocessor)
 	if (status)
 		goto func_cont;
 
-	status = (*p_proc_object->intf_fxns->pfn_brd_start)
+	status = (*p_proc_object->intf_fxns->brd_start)
 	    (p_proc_object->hbridge_context, dw_dsp_addr);
 	if (status)
 		goto func_cont;
@@ -1601,12 +1601,12 @@ int proc_start(void *hprocessor)
 		/* Failed to Create Node Manager and DISP Object
 		 * Stop the Processor from running. Put it in STOPPED State */
 		(void)(*p_proc_object->intf_fxns->
-		       pfn_brd_stop) (p_proc_object->hbridge_context);
+		       brd_stop) (p_proc_object->hbridge_context);
 		p_proc_object->proc_state = PROC_STOPPED;
 	}
 func_cont:
 	if (!status) {
-		if (!((*p_proc_object->intf_fxns->pfn_brd_status)
+		if (!((*p_proc_object->intf_fxns->brd_status)
 				(p_proc_object->hbridge_context, &brd_state))) {
 			pr_info("%s: dsp in running state\n", __func__);
 			DBC_ASSERT(brd_state != BRD_HIBERNATION);
@@ -1659,7 +1659,7 @@ int proc_stop(void *hprocessor)
 	/* It is OK to stop a device that does n't have nodes OR not started */
 	status =
 	    (*p_proc_object->intf_fxns->
-	     pfn_brd_stop) (p_proc_object->hbridge_context);
+	     brd_stop) (p_proc_object->hbridge_context);
 	if (!status) {
 		dev_dbg(bridge, "%s: processor in standby mode\n", __func__);
 		p_proc_object->proc_state = PROC_STOPPED;
@@ -1672,7 +1672,7 @@ int proc_stop(void *hprocessor)
 				dev_set_msg_mgr(p_proc_object->hdev_obj, NULL);
 			}
 			if (!((*p_proc_object->
-			      intf_fxns->pfn_brd_status) (p_proc_object->
+			      intf_fxns->brd_status) (p_proc_object->
 							  hbridge_context,
 							  &brd_state)))
 				DBC_ASSERT(brd_state == BRD_STOPPED);
@@ -1831,7 +1831,7 @@ static int proc_monitor(struct proc_object *proc_obj)
 	if (!((*proc_obj->intf_fxns->brd_monitor)
 			  (proc_obj->hbridge_context))) {
 		status = 0;
-		if (!((*proc_obj->intf_fxns->pfn_brd_status)
+		if (!((*proc_obj->intf_fxns->brd_status)
 				  (proc_obj->hbridge_context, &brd_state)))
 			DBC_ASSERT(brd_state == BRD_IDLE);
 	}

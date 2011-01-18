@@ -111,7 +111,7 @@ u32 dev_brd_write_fxn(void *arb, u32 dsp_add, void *host_buf,
 	if (dev_obj) {
 		/* Require of BrdWrite() */
 		DBC_ASSERT(dev_obj->hbridge_context != NULL);
-		status = (*dev_obj->bridge_interface.pfn_brd_write) (
+		status = (*dev_obj->bridge_interface.brd_write) (
 					dev_obj->hbridge_context, host_buf,
 					dsp_add, ul_num_bytes, mem_space);
 		/* Special case of getting the address only */
@@ -1081,30 +1081,30 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 	if (bridge_version > 0) {
 		STORE_FXN(fxn_dev_create, pfn_dev_create);
 		STORE_FXN(fxn_dev_destroy, pfn_dev_destroy);
-		STORE_FXN(fxn_dev_ctrl, pfn_dev_cntrl);
+		STORE_FXN(fxn_dev_ctrl, dev_cntrl);
 		STORE_FXN(fxn_brd_monitor, brd_monitor);
-		STORE_FXN(fxn_brd_start, pfn_brd_start);
-		STORE_FXN(fxn_brd_stop, pfn_brd_stop);
-		STORE_FXN(fxn_brd_status, pfn_brd_status);
+		STORE_FXN(fxn_brd_start, brd_start);
+		STORE_FXN(fxn_brd_stop, brd_stop);
+		STORE_FXN(fxn_brd_status, brd_status);
 		STORE_FXN(fxn_brd_read, brd_read);
-		STORE_FXN(fxn_brd_write, pfn_brd_write);
-		STORE_FXN(fxn_brd_setstate, pfn_brd_set_state);
+		STORE_FXN(fxn_brd_write, brd_write);
+		STORE_FXN(fxn_brd_setstate, brd_set_state);
 		STORE_FXN(fxn_brd_memcopy, brd_mem_copy);
 		STORE_FXN(fxn_brd_memwrite, brd_mem_write);
 		STORE_FXN(fxn_brd_memmap, brd_mem_map);
 		STORE_FXN(fxn_brd_memunmap, brd_mem_un_map);
-		STORE_FXN(fxn_chnl_create, pfn_chnl_create);
-		STORE_FXN(fxn_chnl_destroy, pfn_chnl_destroy);
-		STORE_FXN(fxn_chnl_open, pfn_chnl_open);
-		STORE_FXN(fxn_chnl_close, pfn_chnl_close);
-		STORE_FXN(fxn_chnl_addioreq, pfn_chnl_add_io_req);
-		STORE_FXN(fxn_chnl_getioc, pfn_chnl_get_ioc);
-		STORE_FXN(fxn_chnl_cancelio, pfn_chnl_cancel_io);
-		STORE_FXN(fxn_chnl_flushio, pfn_chnl_flush_io);
-		STORE_FXN(fxn_chnl_getinfo, pfn_chnl_get_info);
-		STORE_FXN(fxn_chnl_getmgrinfo, pfn_chnl_get_mgr_info);
-		STORE_FXN(fxn_chnl_idle, pfn_chnl_idle);
-		STORE_FXN(fxn_chnl_registernotify, pfn_chnl_register_notify);
+		STORE_FXN(fxn_chnl_create, chnl_create);
+		STORE_FXN(fxn_chnl_destroy, chnl_destroy);
+		STORE_FXN(fxn_chnl_open, chnl_open);
+		STORE_FXN(fxn_chnl_close, chnl_close);
+		STORE_FXN(fxn_chnl_addioreq, chnl_add_io_req);
+		STORE_FXN(fxn_chnl_getioc, chnl_get_ioc);
+		STORE_FXN(fxn_chnl_cancelio, chnl_cancel_io);
+		STORE_FXN(fxn_chnl_flushio, chnl_flush_io);
+		STORE_FXN(fxn_chnl_getinfo, chnl_get_info);
+		STORE_FXN(fxn_chnl_getmgrinfo, chnl_get_mgr_info);
+		STORE_FXN(fxn_chnl_idle, chnl_idle);
+		STORE_FXN(fxn_chnl_registernotify, chnl_register_notify);
 		STORE_FXN(fxn_io_create, pfn_io_create);
 		STORE_FXN(fxn_io_destroy, pfn_io_destroy);
 		STORE_FXN(fxn_io_onloaded, pfn_io_on_loaded);
@@ -1122,25 +1122,25 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 	/* Ensure postcondition: */
 	DBC_ENSURE(intf_fxns->pfn_dev_create != NULL);
 	DBC_ENSURE(intf_fxns->pfn_dev_destroy != NULL);
-	DBC_ENSURE(intf_fxns->pfn_dev_cntrl != NULL);
+	DBC_ENSURE(intf_fxns->dev_cntrl != NULL);
 	DBC_ENSURE(intf_fxns->brd_monitor != NULL);
-	DBC_ENSURE(intf_fxns->pfn_brd_start != NULL);
-	DBC_ENSURE(intf_fxns->pfn_brd_stop != NULL);
-	DBC_ENSURE(intf_fxns->pfn_brd_status != NULL);
+	DBC_ENSURE(intf_fxns->brd_start != NULL);
+	DBC_ENSURE(intf_fxns->brd_stop != NULL);
+	DBC_ENSURE(intf_fxns->brd_status != NULL);
 	DBC_ENSURE(intf_fxns->brd_read != NULL);
-	DBC_ENSURE(intf_fxns->pfn_brd_write != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_create != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_destroy != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_open != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_close != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_add_io_req != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_get_ioc != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_cancel_io != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_flush_io != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_get_info != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_get_mgr_info != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_idle != NULL);
-	DBC_ENSURE(intf_fxns->pfn_chnl_register_notify != NULL);
+	DBC_ENSURE(intf_fxns->brd_write != NULL);
+	DBC_ENSURE(intf_fxns->chnl_create != NULL);
+	DBC_ENSURE(intf_fxns->chnl_destroy != NULL);
+	DBC_ENSURE(intf_fxns->chnl_open != NULL);
+	DBC_ENSURE(intf_fxns->chnl_close != NULL);
+	DBC_ENSURE(intf_fxns->chnl_add_io_req != NULL);
+	DBC_ENSURE(intf_fxns->chnl_get_ioc != NULL);
+	DBC_ENSURE(intf_fxns->chnl_cancel_io != NULL);
+	DBC_ENSURE(intf_fxns->chnl_flush_io != NULL);
+	DBC_ENSURE(intf_fxns->chnl_get_info != NULL);
+	DBC_ENSURE(intf_fxns->chnl_get_mgr_info != NULL);
+	DBC_ENSURE(intf_fxns->chnl_idle != NULL);
+	DBC_ENSURE(intf_fxns->chnl_register_notify != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_create != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_destroy != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_on_loaded != NULL);

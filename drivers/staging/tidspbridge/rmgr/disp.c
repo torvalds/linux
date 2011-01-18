@@ -141,7 +141,7 @@ int disp_create(struct disp_object **dispatch_obj,
 	chnl_attr_obj.uio_reqs = CHNLIOREQS;
 	chnl_attr_obj.event_obj = NULL;
 	ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLTORMSOFFSET;
-	status = (*intf_fxns->pfn_chnl_open) (&(disp_obj->chnl_to_dsp),
+	status = (*intf_fxns->chnl_open) (&(disp_obj->chnl_to_dsp),
 					      disp_obj->hchnl_mgr,
 					      CHNL_MODETODSP, ul_chnl_id,
 					      &chnl_attr_obj);
@@ -149,7 +149,7 @@ int disp_create(struct disp_object **dispatch_obj,
 	if (!status) {
 		ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLFROMRMSOFFSET;
 		status =
-		    (*intf_fxns->pfn_chnl_open) (&(disp_obj->chnl_from_dsp),
+		    (*intf_fxns->chnl_open) (&(disp_obj->chnl_from_dsp),
 						 disp_obj->hchnl_mgr,
 						 CHNL_MODEFROMDSP, ul_chnl_id,
 						 &chnl_attr_obj);
@@ -566,7 +566,7 @@ static void delete_disp(struct disp_object *disp_obj)
 		if (disp_obj->chnl_from_dsp) {
 			/* Channel close can fail only if the channel handle
 			 * is invalid. */
-			status = (*intf_fxns->pfn_chnl_close)
+			status = (*intf_fxns->chnl_close)
 			    (disp_obj->chnl_from_dsp);
 			if (status) {
 				dev_dbg(bridge, "%s: Failed to close channel "
@@ -575,7 +575,7 @@ static void delete_disp(struct disp_object *disp_obj)
 		}
 		if (disp_obj->chnl_to_dsp) {
 			status =
-			    (*intf_fxns->pfn_chnl_close) (disp_obj->
+			    (*intf_fxns->chnl_close) (disp_obj->
 							  chnl_to_dsp);
 			if (status) {
 				dev_dbg(bridge, "%s: Failed to close channel to"
@@ -667,13 +667,13 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 	pbuf = disp_obj->pbuf;
 
 	/* Send the command */
-	status = (*intf_fxns->pfn_chnl_add_io_req) (chnl_obj, pbuf, ul_bytes, 0,
+	status = (*intf_fxns->chnl_add_io_req) (chnl_obj, pbuf, ul_bytes, 0,
 						    0L, dw_arg);
 	if (status)
 		goto func_end;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
+	    (*intf_fxns->chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
 	if (!status) {
 		if (!CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
 			if (CHNL_IS_TIMED_OUT(chnl_ioc_obj))
@@ -688,13 +688,13 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 
 	chnl_obj = disp_obj->chnl_from_dsp;
 	ul_bytes = REPLYSIZE;
-	status = (*intf_fxns->pfn_chnl_add_io_req) (chnl_obj, pbuf, ul_bytes,
+	status = (*intf_fxns->chnl_add_io_req) (chnl_obj, pbuf, ul_bytes,
 						    0, 0L, dw_arg);
 	if (status)
 		goto func_end;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
+	    (*intf_fxns->chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
 	if (!status) {
 		if (CHNL_IS_TIMED_OUT(chnl_ioc_obj)) {
 			status = -ETIME;

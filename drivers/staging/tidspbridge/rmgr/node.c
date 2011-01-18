@@ -1367,7 +1367,7 @@ int node_create_mgr(struct node_mgr **node_man,
 	nldr_attrs_obj.us_dsp_word_size = node_mgr_obj->udsp_word_size;
 	nldr_attrs_obj.us_dsp_mau_size = node_mgr_obj->udsp_mau_size;
 	node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.pfn_init();
-	status = node_mgr_obj->nldr_fxns.pfn_create(&node_mgr_obj->nldr_obj,
+	status = node_mgr_obj->nldr_fxns.create(&node_mgr_obj->nldr_obj,
 			hdev_obj,
 			&nldr_attrs_obj);
 	if (status)
@@ -2608,7 +2608,7 @@ static void delete_node_mgr(struct node_mgr *hnode_mgr)
 
 		/* Delete the loader */
 		if (hnode_mgr->nldr_obj)
-			hnode_mgr->nldr_fxns.pfn_delete(hnode_mgr->nldr_obj);
+			hnode_mgr->nldr_fxns.delete(hnode_mgr->nldr_obj);
 
 		if (hnode_mgr->loader_init)
 			hnode_mgr->nldr_fxns.pfn_exit();

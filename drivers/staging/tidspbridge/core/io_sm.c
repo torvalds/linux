@@ -683,7 +683,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		 */
 
 		status =
-		    hio_mgr->intf_fxns->pfn_dev_cntrl(hio_mgr->hbridge_context,
+		    hio_mgr->intf_fxns->dev_cntrl(hio_mgr->hbridge_context,
 						      BRDIOCTL_SETMMUCONFIG,
 						      ae_proc);
 		if (status)
@@ -829,7 +829,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
 	if (parg[0] == MBX_PM_HIBERNATE_EN) {
 		dev_dbg(bridge, "PM: Hibernate command\n");
 		status = pio_mgr->intf_fxns->
-				pfn_dev_cntrl(pio_mgr->hbridge_context,
+				dev_cntrl(pio_mgr->hbridge_context,
 					      BRDIOCTL_PWR_HIBERNATE, parg);
 		if (status)
 			pr_err("%s: hibernate cmd failed 0x%x\n",
@@ -838,7 +838,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
 		parg[1] = pio_mgr->shared_mem->opp_request.rqst_opp_pt;
 		dev_dbg(bridge, "PM: Requested OPP = 0x%x\n", parg[1]);
 		status = pio_mgr->intf_fxns->
-				pfn_dev_cntrl(pio_mgr->hbridge_context,
+				dev_cntrl(pio_mgr->hbridge_context,
 					BRDIOCTL_CONSTRAINT_REQUEST, parg);
 		if (status)
 			dev_dbg(bridge, "PM: Failed to set constraint "
@@ -847,7 +847,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
 		dev_dbg(bridge, "PM: clk control value of msg = 0x%x\n",
 			parg[0]);
 		status = pio_mgr->intf_fxns->
-				pfn_dev_cntrl(pio_mgr->hbridge_context,
+				dev_cntrl(pio_mgr->hbridge_context,
 					      BRDIOCTL_CLK_CTRL, parg);
 		if (status)
 			dev_dbg(bridge, "PM: Failed to ctrl the DSP clk"

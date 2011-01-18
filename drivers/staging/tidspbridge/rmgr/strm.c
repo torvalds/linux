@@ -165,7 +165,7 @@ int strm_close(struct strm_res_object *strmres,
 		 * -EPIPE */
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 		status =
-		    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
+		    (*intf_fxns->chnl_get_info) (stream_obj->chnl_obj,
 						     &chnl_info_obj);
 		DBC_ASSERT(!status);
 
@@ -323,7 +323,7 @@ int strm_get_info(struct strm_object *stream_obj,
 
 	intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 	status =
-	    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
+	    (*intf_fxns->chnl_get_info) (stream_obj->chnl_obj,
 						  &chnl_info_obj);
 	if (status)
 		goto func_end;
@@ -377,7 +377,7 @@ int strm_idle(struct strm_object *stream_obj, bool flush_data)
 	} else {
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
-		status = (*intf_fxns->pfn_chnl_idle) (stream_obj->chnl_obj,
+		status = (*intf_fxns->chnl_idle) (stream_obj->chnl_obj,
 						      stream_obj->utimeout,
 						      flush_data);
 	}
@@ -435,7 +435,7 @@ int strm_issue(struct strm_object *stream_obj, u8 *pbuf, u32 ul_bytes,
 
 		}
 		if (!status) {
-			status = (*intf_fxns->pfn_chnl_add_io_req)
+			status = (*intf_fxns->chnl_add_io_req)
 			    (stream_obj->chnl_obj, pbuf, ul_bytes, ul_buf_size,
 			     (u32) tmp_buf, dw_arg);
 		}
@@ -557,7 +557,7 @@ func_cont:
 		chnl_mode = (dir == DSP_TONODE) ?
 		    CHNL_MODETODSP : CHNL_MODEFROMDSP;
 		intf_fxns = strm_mgr_obj->intf_fxns;
-		status = (*intf_fxns->pfn_chnl_open) (&(strm_obj->chnl_obj),
+		status = (*intf_fxns->chnl_open) (&(strm_obj->chnl_obj),
 						      strm_mgr_obj->hchnl_mgr,
 						      chnl_mode, ul_chnl_id,
 						      &chnl_attr_obj);
@@ -631,7 +631,7 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 	intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (stream_obj->chnl_obj,
+	    (*intf_fxns->chnl_get_ioc) (stream_obj->chnl_obj,
 					    stream_obj->utimeout,
 					    &chnl_ioc_obj);
 	if (!status) {
@@ -719,7 +719,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 		status =
-		    (*intf_fxns->pfn_chnl_register_notify) (stream_obj->
+		    (*intf_fxns->chnl_register_notify) (stream_obj->
 							    chnl_obj,
 							    event_mask,
 							    notify_type,
@@ -765,7 +765,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 	/* Determine which channels have IO ready */
 	for (i = 0; i < strms; i++) {
 		intf_fxns = strm_tab[i]->strm_mgr_obj->intf_fxns;
-		status = (*intf_fxns->pfn_chnl_get_info) (strm_tab[i]->chnl_obj,
+		status = (*intf_fxns->chnl_get_info) (strm_tab[i]->chnl_obj,
 							  &chnl_info_obj);
 		if (status) {
 			break;
@@ -786,7 +786,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 			for (i = 0; i < strms; i++) {
 				intf_fxns =
 				    strm_tab[i]->strm_mgr_obj->intf_fxns;
-				status = (*intf_fxns->pfn_chnl_get_info)
+				status = (*intf_fxns->chnl_get_info)
 				    (strm_tab[i]->chnl_obj, &chnl_info_obj);
 				if (status)
 					break;
@@ -832,7 +832,7 @@ static int delete_strm(struct strm_object *stream_obj)
 			intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 			/* Channel close can fail only if the channel handle
 			 * is invalid. */
-			status = (*intf_fxns->pfn_chnl_close)
+			status = (*intf_fxns->chnl_close)
 					(stream_obj->chnl_obj);
 		}
 		/* Free all SM address translator resources */
