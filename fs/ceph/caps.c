@@ -2817,8 +2817,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	case CEPH_CAP_OP_IMPORT:
 		handle_cap_import(mdsc, inode, h, session,
 				  snaptrace, snaptrace_len);
-		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_NODELAY,
-				session);
+		ceph_check_caps(ceph_inode(inode), 0, session);
 		goto done_unlocked;
 	}
 
