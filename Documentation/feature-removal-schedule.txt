@@ -576,3 +576,10 @@ Why:	The functions have been superceded by cancel_delayed_work_sync()
 Who:	Tejun Heo <tj@kernel.org>
 
 ----------------------------
+
+What:	xt_connlimit rev 0
+When:	2012
+Who:	Jan Engelhardt <jengelh@medozas.de>
+Files:	net/netfilter/xt_connlimit.c
+
+----------------------------

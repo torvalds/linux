@@ -193,10 +193,12 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	if (par->family == NFPROTO_IPV6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
-		memcpy(&addr.ip6, &iph->saddr, sizeof(iph->saddr));
+		memcpy(&addr.ip6, (info->flags & XT_CONNLIMIT_DADDR) ?
+		       &iph->daddr : &iph->saddr, sizeof(addr.ip6));
 	} else {
 		const struct iphdr *iph = ip_hdr(skb);
-		addr.ip = iph->saddr;
+		addr.ip = (info->flags & XT_CONNLIMIT_DADDR) ?
+			  iph->daddr : iph->saddr;
 	}
 
 	spin_lock_bh(&info->data->lock);
@@ -208,7 +210,8 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* kmalloc failed, drop it entirely */
 		goto hotdrop;
 
-	return (connections > info->limit) ^ info->inverse;
+	return (connections > info->limit) ^
+	       !!(info->flags & XT_CONNLIMIT_INVERT);
 
  hotdrop:
 	par->hotdrop = true;
@@ -266,25 +269,38 @@ static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 	kfree(info->data);
 }
 
-static struct xt_match connlimit_mt_reg __read_mostly = {
-	.name       = "connlimit",
-	.revision   = 0,
-	.family     = NFPROTO_UNSPEC,
-	.checkentry = connlimit_mt_check,
-	.match      = connlimit_mt,
-	.matchsize  = sizeof(struct xt_connlimit_info),
-	.destroy    = connlimit_mt_destroy,
-	.me         = THIS_MODULE,
+static struct xt_match connlimit_mt_reg[] __read_mostly = {
+	{
+		.name       = "connlimit",
+		.revision   = 0,
+		.family     = NFPROTO_UNSPEC,
+		.checkentry = connlimit_mt_check,
+		.match      = connlimit_mt,
+		.matchsize  = sizeof(struct xt_connlimit_info),
+		.destroy    = connlimit_mt_destroy,
+		.me         = THIS_MODULE,
+	},
+	{
+		.name       = "connlimit",
+		.revision   = 1,
+		.family     = NFPROTO_UNSPEC,
+		.checkentry = connlimit_mt_check,
+		.match      = connlimit_mt,
+		.matchsize  = sizeof(struct xt_connlimit_info),
+		.destroy    = connlimit_mt_destroy,
+		.me         = THIS_MODULE,
+	},
 };
 
 static int __init connlimit_mt_init(void)
 {
-	return xt_register_match(&connlimit_mt_reg);
+	return xt_register_matches(connlimit_mt_reg,
+	       ARRAY_SIZE(connlimit_mt_reg));
 }
 
 static void __exit connlimit_mt_exit(void)
 {
-	xt_unregister_match(&connlimit_mt_reg);
+	xt_unregister_matches(connlimit_mt_reg, ARRAY_SIZE(connlimit_mt_reg));
 }
 
 module_init(connlimit_mt_init);
