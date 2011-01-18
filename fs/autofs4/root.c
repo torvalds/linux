@@ -488,7 +488,8 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 	sbi = autofs4_sbi(dir->i_sb);
 
 	DPRINTK("pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d",
-		current->pid, task_pgrp_nr(current), sbi->catatonic, oz_mode);
+		current->pid, task_pgrp_nr(current), sbi->catatonic,
+		autofs4_oz_mode(sbi));
 
 	active = autofs4_lookup_active(dentry);
 	if (active) {
