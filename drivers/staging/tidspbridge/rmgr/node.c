@@ -1795,12 +1795,12 @@ int node_get_message(struct node_object *hnode,
 	status =
 	    (*intf_fxns->pfn_msg_get) (hnode->msg_queue_obj, message, utimeout);
 	/* Check if message contains SM descriptor */
-	if (status || !(message->dw_cmd & DSP_RMSBUFDESC))
+	if (status || !(message->cmd & DSP_RMSBUFDESC))
 		goto func_end;
 
 	/* Translate DSP byte addr to GPP Va. */
 	tmp_buf = cmm_xlator_translate(hnode->xlator,
-				       (void *)(message->dw_arg1 *
+				       (void *)(message->arg1 *
 						hnode->hnode_mgr->
 						udsp_word_size), CMM_DSPPA2PA);
 	if (tmp_buf != NULL) {
@@ -1809,8 +1809,8 @@ int node_get_message(struct node_object *hnode,
 					       CMM_PA2VA);
 		if (tmp_buf != NULL) {
 			/* Adjust SM size in msg */
-			message->dw_arg1 = (u32) tmp_buf;
-			message->dw_arg2 *= hnode->hnode_mgr->udsp_word_size;
+			message->arg1 = (u32) tmp_buf;
+			message->arg2 *= hnode->hnode_mgr->udsp_word_size;
 		} else {
 			status = -ESRCH;
 		}
@@ -2100,19 +2100,19 @@ int node_put_message(struct node_object *hnode,
 	/* assign pmsg values to new msg */
 	new_msg = *pmsg;
 	/* Now, check if message contains a SM buffer descriptor */
-	if (pmsg->dw_cmd & DSP_RMSBUFDESC) {
+	if (pmsg->cmd & DSP_RMSBUFDESC) {
 		/* Translate GPP Va to DSP physical buf Ptr. */
 		tmp_buf = cmm_xlator_translate(hnode->xlator,
-					       (void *)new_msg.dw_arg1,
+					       (void *)new_msg.arg1,
 					       CMM_VA2DSPPA);
 		if (tmp_buf != NULL) {
 			/* got translation, convert to MAUs in msg */
 			if (hnode->hnode_mgr->udsp_word_size != 0) {
-				new_msg.dw_arg1 =
+				new_msg.arg1 =
 				    (u32) tmp_buf /
 				    hnode->hnode_mgr->udsp_word_size;
 				/* MAUs */
-				new_msg.dw_arg2 /= hnode->hnode_mgr->
+				new_msg.arg2 /= hnode->hnode_mgr->
 				    udsp_word_size;
 			} else {
 				pr_err("%s: udsp_word_size is zero!\n",
@@ -2378,10 +2378,10 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 			goto func_cont;
 		}
 
-		msg.dw_cmd = RMS_EXIT;
-		msg.dw_arg1 = hnode->node_env;
-		killmsg.dw_cmd = RMS_KILLTASK;
-		killmsg.dw_arg1 = hnode->node_env;
+		msg.cmd = RMS_EXIT;
+		msg.arg1 = hnode->node_env;
+		killmsg.cmd = RMS_KILLTASK;
+		killmsg.arg1 = hnode->node_env;
 		intf_fxns = hnode_mgr->intf_fxns;
 
 		if (hnode->utimeout > MAXTIMEOUT)
@@ -2902,8 +2902,8 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
 		host_res = pbridge_context->resources;
 		if (!host_res)
 			return -EPERM;
-		hnode_mgr->ul_chnl_offset = host_res->dw_chnl_offset;
-		hnode_mgr->ul_chnl_buf_size = host_res->dw_chnl_buf_size;
+		hnode_mgr->ul_chnl_offset = host_res->chnl_offset;
+		hnode_mgr->ul_chnl_buf_size = host_res->chnl_buf_size;
 		hnode_mgr->ul_num_chnls = host_res->dw_num_chnls;
 
 		/*

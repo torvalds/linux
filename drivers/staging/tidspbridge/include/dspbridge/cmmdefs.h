@@ -54,9 +54,9 @@ struct cmm_seginfo {
 	u32 dw_seg_base_pa;	/* Start Phys address of SM segment */
 	/* Total size in bytes of segment: DSP+GPP */
 	u32 ul_total_seg_size;
-	u32 dw_gpp_base_pa;	/* Start Phys addr of Gpp SM seg */
+	u32 gpp_base_pa;	/* Start Phys addr of Gpp SM seg */
 	u32 ul_gpp_size;	/* Size of Gpp SM seg in bytes */
-	u32 dw_dsp_base_va;	/* DSP virt base byte address */
+	u32 dsp_base_va;	/* DSP virt base byte address */
 	u32 ul_dsp_size;	/* DSP seg size in bytes */
 	/* # of current GPP allocations from this segment */
 	u32 ul_in_use_cnt;
@@ -79,8 +79,8 @@ struct cmm_info {
 /* XlatorCreate attributes */
 struct cmm_xlatorattrs {
 	u32 ul_seg_id;		/* segment Id used for SM allocations */
-	u32 dw_dsp_bufs;	/* # of DSP-side bufs */
-	u32 dw_dsp_buf_size;	/* size of DSP-side bufs in GPP bytes */
+	u32 dsp_bufs;		/* # of DSP-side bufs */
+	u32 dsp_buf_size;	/* size of DSP-side bufs in GPP bytes */
 	/* Vm base address alloc'd in client process context */
 	void *vm_base;
 	/* dw_vm_size must be >= (dwMaxNumBufs * dwMaxSize) */

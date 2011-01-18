@@ -254,7 +254,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 	}
 
 	/* Filter subsequent notifications when an error occurs */
-	if (dev_context->dw_brd_state != BRD_ERROR) {
+	if (dev_context->brd_state != BRD_ERROR) {
 		ntfy_notify(deh->ntfy_obj, event);
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 		bridge_recover_schedule();
@@ -262,7 +262,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 	}
 
 	/* Set the Board state as ERROR */
-	dev_context->dw_brd_state = BRD_ERROR;
+	dev_context->brd_state = BRD_ERROR;
 	/* Disable all the clocks that were enabled by DSP */
 	dsp_clock_disable_all(dev_context->dsp_per_clks);
 	/*

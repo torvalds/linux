@@ -639,7 +639,7 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 		if (buff_size)
 			*buff_size = chnl_ioc_obj.buf_size;
 
-		*pdw_arg = chnl_ioc_obj.dw_arg;
+		*pdw_arg = chnl_ioc_obj.arg;
 		if (!CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
 			if (CHNL_IS_TIMED_OUT(chnl_ioc_obj)) {
 				status = -ETIME;

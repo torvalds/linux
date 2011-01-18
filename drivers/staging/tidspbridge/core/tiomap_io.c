@@ -61,7 +61,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 	u32 ul_tlb_base_virt = 0;
 	u32 ul_shm_offset_virt = 0;
 	u32 dw_ext_prog_virt_mem;
-	u32 dw_base_addr = dev_context->dw_dsp_ext_base_addr;
+	u32 dw_base_addr = dev_context->dsp_ext_base_addr;
 	bool trace_read = false;
 
 	if (!ul_shm_base_virt) {
@@ -92,7 +92,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 	/* If reading from TRACE, force remap/unmap */
 	if (trace_read && dw_base_addr) {
 		dw_base_addr = 0;
-		dev_context->dw_dsp_ext_base_addr = 0;
+		dev_context->dsp_ext_base_addr = 0;
 	}
 
 	if (!dw_base_addr) {
@@ -148,14 +148,14 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 				dw_ext_prog_virt_mem -= ul_shm_offset_virt;
 				dw_ext_prog_virt_mem +=
 				    (ul_ext_base - ul_dyn_ext_base);
-				dev_context->dw_dsp_ext_base_addr =
+				dev_context->dsp_ext_base_addr =
 				    dw_ext_prog_virt_mem;
 
 				/*
-				 * This dw_dsp_ext_base_addr will get cleared
+				 * This dsp_ext_base_addr will get cleared
 				 * only when the board is stopped.
 				*/
-				if (!dev_context->dw_dsp_ext_base_addr)
+				if (!dev_context->dsp_ext_base_addr)
 					status = -EPERM;
 			}
 
@@ -184,7 +184,7 @@ int write_dsp_data(struct bridge_dev_context *dev_context,
 			  u32 mem_type)
 {
 	u32 offset;
-	u32 dw_base_addr = dev_context->dw_dsp_base_addr;
+	u32 dw_base_addr = dev_context->dsp_base_addr;
 	struct cfg_hostres *resources = dev_context->resources;
 	int status = 0;
 	u32 base1, base2, base3;
@@ -195,7 +195,7 @@ int write_dsp_data(struct bridge_dev_context *dev_context,
 	if (!resources)
 		return -EPERM;
 
-	offset = dsp_addr - dev_context->dw_dsp_start_add;
+	offset = dsp_addr - dev_context->dsp_start_add;
 	if (offset < base1) {
 		dw_base_addr = MEM_LINEAR_ADDRESS(resources->dw_mem_base[2],
 						  resources->dw_mem_length[2]);
@@ -230,7 +230,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			      u32 ul_num_bytes, u32 mem_type,
 			      bool dynamic_load)
 {
-	u32 dw_base_addr = dev_context->dw_dsp_ext_base_addr;
+	u32 dw_base_addr = dev_context->dsp_ext_base_addr;
 	u32 dw_offset = 0;
 	u8 temp_byte1, temp_byte2;
 	u8 remain_byte[4];
@@ -263,8 +263,8 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 	if ((dynamic_load || trace_load) && dw_base_addr) {
 		dw_base_addr = 0;
 		MEM_UNMAP_LINEAR_ADDRESS((void *)
-					 dev_context->dw_dsp_ext_base_addr);
-		dev_context->dw_dsp_ext_base_addr = 0x0;
+					 dev_context->dsp_ext_base_addr);
+		dev_context->dsp_ext_base_addr = 0x0;
 	}
 	if (!dw_base_addr) {
 		if (symbols_reloaded)
@@ -344,14 +344,14 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 				    (ul_ext_base - ul_dyn_ext_base);
 			}
 
-			dev_context->dw_dsp_ext_base_addr =
+			dev_context->dsp_ext_base_addr =
 			    (u32) MEM_LINEAR_ADDRESS((void *)
 						     dw_ext_prog_virt_mem,
 						     ul_ext_end - ul_ext_base);
-			dw_base_addr += dev_context->dw_dsp_ext_base_addr;
-			/* This dw_dsp_ext_base_addr will get cleared only when
+			dw_base_addr += dev_context->dsp_ext_base_addr;
+			/* This dsp_ext_base_addr will get cleared only when
 			 * the board is stopped. */
-			if (!dev_context->dw_dsp_ext_base_addr)
+			if (!dev_context->dsp_ext_base_addr)
 				ret = -EPERM;
 		}
 	}
@@ -375,10 +375,10 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			*((u32 *) host_buff) = dw_base_addr + dw_offset;
 	}
 	/* Unmap here to force remap for other Ext loads */
-	if ((dynamic_load || trace_load) && dev_context->dw_dsp_ext_base_addr) {
+	if ((dynamic_load || trace_load) && dev_context->dsp_ext_base_addr) {
 		MEM_UNMAP_LINEAR_ADDRESS((void *)
-					 dev_context->dw_dsp_ext_base_addr);
-		dev_context->dw_dsp_ext_base_addr = 0x0;
+					 dev_context->dsp_ext_base_addr);
+		dev_context->dsp_ext_base_addr = 0x0;
 	}
 	symbols_reloaded = false;
 	return ret;
@@ -401,8 +401,8 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 	if (!resources)
 		return -EPERM;
 
-	if (dev_context->dw_brd_state == BRD_DSP_HIBERNATION ||
-	    dev_context->dw_brd_state == BRD_HIBERNATION) {
+	if (dev_context->brd_state == BRD_DSP_HIBERNATION ||
+	    dev_context->brd_state == BRD_HIBERNATION) {
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 		if (pdata->dsp_get_opp)
 			opplevel = (*pdata->dsp_get_opp) ();
@@ -439,8 +439,8 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 		/* Access MMU SYS CONFIG register to generate a short wakeup */
 		temp = readl(resources->dw_dmmu_base + 0x10);
 
-		dev_context->dw_brd_state = BRD_RUNNING;
-	} else if (dev_context->dw_brd_state == BRD_RETENTION) {
+		dev_context->brd_state = BRD_RUNNING;
+	} else if (dev_context->brd_state == BRD_RETENTION) {
 		/* Restart the peripheral clocks */
 		dsp_clock_enable_all(dev_context->dsp_per_clks);
 	}

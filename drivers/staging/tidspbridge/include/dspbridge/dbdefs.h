@@ -244,9 +244,9 @@ struct dsp_cbdata {
 
 /* The dsp_msg structure */
 struct dsp_msg {
-	u32 dw_cmd;
-	u32 dw_arg1;
-	u32 dw_arg2;
+	u32 cmd;
+	u32 arg1;
+	u32 arg2;
 };
 
 /* The dsp_resourcereqmts structure for node's resource requirements */
@@ -368,7 +368,7 @@ struct dsp_processorinfo {
 
 /* Error information of last DSP exception signalled to the GPP */
 struct dsp_errorinfo {
-	u32 dw_err_mask;
+	u32 err_mask;
 	u32 dw_val1;
 	u32 dw_val2;
 	u32 dw_val3;

@@ -196,7 +196,7 @@ func_cont:
 	chnl_packet_obj->byte_size = byte_size;
 	chnl_packet_obj->buf_size = buf_size;
 	/* Only valid for output channel */
-	chnl_packet_obj->dw_arg = dw_arg;
+	chnl_packet_obj->arg = dw_arg;
 	chnl_packet_obj->status = (is_eos ? CHNL_IOCSTATEOS :
 			CHNL_IOCSTATCOMPLETE);
 	list_add_tail(&chnl_packet_obj->link, &pchnl->pio_requests);
@@ -607,7 +607,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 		ioc.pbuf = chnl_packet_obj->host_user_buf;
 		ioc.byte_size = chnl_packet_obj->byte_size;
 		ioc.buf_size = chnl_packet_obj->buf_size;
-		ioc.dw_arg = chnl_packet_obj->dw_arg;
+		ioc.arg = chnl_packet_obj->arg;
 		ioc.status |= chnl_packet_obj->status;
 		/* Place the used chirp on the free list: */
 		list_add_tail(&chnl_packet_obj->link,
@@ -615,7 +615,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 	} else {
 		ioc.pbuf = NULL;
 		ioc.byte_size = 0;
-		ioc.dw_arg = 0;
+		ioc.arg = 0;
 		ioc.buf_size = 0;
 	}
 	/* Ensure invariant: If any IOC's are queued for this channel... */

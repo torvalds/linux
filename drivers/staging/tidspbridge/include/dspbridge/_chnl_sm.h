@@ -171,7 +171,7 @@ struct chnl_irp {
 	u8 *host_user_buf;
 	/* Buffer to be filled/emptied. (System) */
 	u8 *host_sys_buf;
-	u32 dw_arg;		/* Issue/Reclaim argument. */
+	u32 arg;		/* Issue/Reclaim argument. */
 	u32 dsp_tx_addr;	/* Transfer address on DSP side. */
 	u32 byte_size;		/* Bytes transferred. */
 	u32 buf_size;		/* Actual buffer size when allocated. */

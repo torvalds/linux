@@ -66,10 +66,10 @@ struct cmm_allocator {		/* sma */
 	u32 ul_sm_size;		/* Size of SM block in bytes */
 	unsigned int dw_vm_base;	/* Start of VM block. (Dev driver
 					 * context for 'sma') */
-	u32 dw_dsp_phys_addr_offset;	/* DSP PA to GPP PA offset for this
+	u32 dsp_phys_addr_offset;	/* DSP PA to GPP PA offset for this
 					 * SM space */
 	s8 c_factor;		/* DSPPa to GPPPa Conversion Factor */
-	unsigned int dw_dsp_base;	/* DSP virt base byte address */
+	unsigned int dsp_base;	/* DSP virt base byte address */
 	u32 ul_dsp_size;	/* DSP seg size in bytes */
 	struct cmm_object *hcmm_mgr;	/* back ref to parent mgr */
 	/* node list of available memory */
@@ -119,8 +119,8 @@ static struct cmm_attrs cmm_dfltalctattrs = {
 static struct cmm_xlatorattrs cmm_dfltxlatorattrs = {
 	/* ul_seg_id, does not have to match cmm_dfltalctattrs ul_seg_id */
 	1,
-	0,			/* dw_dsp_bufs */
-	0,			/* dw_dsp_buf_size */
+	0,			/* dsp_bufs */
+	0,			/* dsp_buf_size */
 	NULL,			/* vm_base */
 	0,			/* dw_vm_size */
 };
@@ -442,12 +442,12 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 			altr->shm_base - altr->ul_dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_total_seg_size =
 			altr->ul_dsp_size + altr->ul_sm_size;
-		cmm_info_obj->seg_info[ul_seg - 1].dw_gpp_base_pa =
+		cmm_info_obj->seg_info[ul_seg - 1].gpp_base_pa =
 			altr->shm_base;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_gpp_size =
 			altr->ul_sm_size;
-		cmm_info_obj->seg_info[ul_seg - 1].dw_dsp_base_va =
-			altr->dw_dsp_base;
+		cmm_info_obj->seg_info[ul_seg - 1].dsp_base_va =
+			altr->dsp_base;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_dsp_size =
 			altr->ul_dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_va =
@@ -540,9 +540,9 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	psma->shm_base = dw_gpp_base_pa;	/* SM Base phys */
 	psma->ul_sm_size = ul_size;	/* SM segment size in bytes */
 	psma->dw_vm_base = gpp_base_va;
-	psma->dw_dsp_phys_addr_offset = dsp_addr_offset;
+	psma->dsp_phys_addr_offset = dsp_addr_offset;
 	psma->c_factor = c_factor;
-	psma->dw_dsp_base = dw_dsp_base;
+	psma->dsp_base = dw_dsp_base;
 	psma->ul_dsp_size = ul_dsp_size;
 	if (psma->dw_vm_base == 0) {
 		status = -EPERM;
@@ -994,14 +994,14 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 		dw_addr_xlate =
 		    GPPPA2DSPPA((allocator->shm_base - allocator->ul_dsp_size),
 				dw_addr_xlate,
-				allocator->dw_dsp_phys_addr_offset *
+				allocator->dsp_phys_addr_offset *
 				allocator->c_factor);
 	} else if (xtype == CMM_DSPPA2PA) {
 		/* Got DSP Pa, convert to GPP Pa */
 		dw_addr_xlate =
 		    DSPPA2GPPPA(allocator->shm_base - allocator->ul_dsp_size,
 				dw_addr_xlate,
-				allocator->dw_dsp_phys_addr_offset *
+				allocator->dsp_phys_addr_offset *
 				allocator->c_factor);
 	}
 loop_cont:

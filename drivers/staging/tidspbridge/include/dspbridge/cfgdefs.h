@@ -43,18 +43,18 @@ struct cfg_hostres {
 					 * dw_mem_base + this offset */
 	/*
 	 *  Info needed by NODE for allocating channels to communicate with RMS:
-	 *      dw_chnl_offset:       Offset of RMS channels. Lower channels are
+	 *      chnl_offset:       Offset of RMS channels. Lower channels are
 	 *                          reserved.
-	 *      dw_chnl_buf_size:      Size of channel buffer to send to RMS
+	 *      chnl_buf_size:      Size of channel buffer to send to RMS
 	 *      dw_num_chnls:		Total number of channels
 	 *      			(including reserved).
 	 */
-	u32 dw_chnl_offset;
-	u32 dw_chnl_buf_size;
+	u32 chnl_offset;
+	u32 chnl_buf_size;
 	u32 dw_num_chnls;
 	void __iomem *dw_per_base;
 	u32 dw_per_pm_base;
-	u32 dw_core_pm_base;
+	u32 core_pm_base;
 	void __iomem *dw_dmmu_base;
 };
 

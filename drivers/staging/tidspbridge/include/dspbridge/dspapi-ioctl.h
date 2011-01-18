@@ -68,7 +68,7 @@ union trapped_args {
 
 	struct {
 		void *hprocessor;
-		u32 dw_cmd;
+		u32 cmd;
 		struct dsp_cbdata __user *pargs;
 	} args_proc_ctrl;
 
@@ -293,7 +293,7 @@ union trapped_args {
 		u8 *pbuffer;
 		u32 dw_bytes;
 		u32 dw_buf_size;
-		u32 dw_arg;
+		u32 arg;
 	} args_strm_issue;
 
 	struct {

@@ -1113,7 +1113,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 						pio_mgr->input, bytes);
 				pchnl->bytes_moved += bytes;
 				chnl_packet_obj->byte_size = bytes;
-				chnl_packet_obj->dw_arg = dw_arg;
+				chnl_packet_obj->arg = dw_arg;
 				chnl_packet_obj->status = CHNL_IOCSTATCOMPLETE;
 
 				if (bytes == 0) {
@@ -1200,14 +1200,14 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 	msg_input = pio_mgr->msg_input;
 	for (i = 0; i < num_msgs; i++) {
 		/* Read the next message */
-		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.dw_cmd);
-		msg.msg.dw_cmd =
+		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.cmd);
+		msg.msg.cmd =
 			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
-		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.dw_arg1);
-		msg.msg.dw_arg1 =
+		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.arg1);
+		msg.msg.arg1 =
 			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
-		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.dw_arg2);
-		msg.msg.dw_arg2 =
+		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.arg2);
+		msg.msg.arg2 =
 			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msgq_id);
 		msg.msgq_id =
@@ -1215,9 +1215,9 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		msg_input += sizeof(struct msg_dspmsg);
 
 		/* Determine which queue to put the message in */
-		dev_dbg(bridge,	"input msg: dw_cmd=0x%x dw_arg1=0x%x "
-				"dw_arg2=0x%x msgq_id=0x%x\n", msg.msg.dw_cmd,
-				msg.msg.dw_arg1, msg.msg.dw_arg2, msg.msgq_id);
+		dev_dbg(bridge,	"input msg: cmd=0x%x arg1=0x%x "
+				"arg2=0x%x msgq_id=0x%x\n", msg.msg.cmd,
+				msg.msg.arg1, msg.msg.arg2, msg.msgq_id);
 		/*
 		 * Interrupt may occur before shared memory and message
 		 * input locations have been set up. If all nodes were
@@ -1228,14 +1228,14 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 			if (msg.msgq_id != msg_queue_obj->msgq_id)
 				continue;
 			/* Found it */
-			if (msg.msg.dw_cmd == RMS_EXITACK) {
+			if (msg.msg.cmd == RMS_EXITACK) {
 				/*
 				 * Call the node exit notification.
 				 * The exit message does not get
 				 * queued.
 				 */
 				(*hmsg_mgr->on_exit)(msg_queue_obj->arg,
-						msg.msg.dw_arg1);
+						msg.msg.arg1);
 				break;
 			}
 			/*
@@ -1367,7 +1367,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 					chnl_packet_obj->byte_size);
 	pchnl->bytes_moved += chnl_packet_obj->byte_size;
 	/* Write all 32 bits of arg */
-	sm->arg = chnl_packet_obj->dw_arg;
+	sm->arg = chnl_packet_obj->arg;
 #if _CHNL_WORDSIZE == 2
 	/* Access can be different SM access word size (e.g. 16/32 bit words) */
 	sm->output_id = (u16) chnl_id;
@@ -1430,16 +1430,16 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		addr = (u32) &msg_output->msgq_id;
 		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
 
-		val = (pmsg->msg_data).msg.dw_cmd;
-		addr = (u32) &msg_output->msg.dw_cmd;
+		val = (pmsg->msg_data).msg.cmd;
+		addr = (u32) &msg_output->msg.cmd;
 		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
 
-		val = (pmsg->msg_data).msg.dw_arg1;
-		addr = (u32) &msg_output->msg.dw_arg1;
+		val = (pmsg->msg_data).msg.arg1;
+		addr = (u32) &msg_output->msg.arg1;
 		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
 
-		val = (pmsg->msg_data).msg.dw_arg2;
-		addr = (u32) &msg_output->msg.dw_arg2;
+		val = (pmsg->msg_data).msg.arg2;
+		addr = (u32) &msg_output->msg.arg2;
 		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
 
 		msg_output++;

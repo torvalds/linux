@@ -57,7 +57,7 @@ struct chnl_ioc {
 	u32 byte_size;		/* Bytes transferred. */
 	u32 buf_size;		/* Actual buffer size in bytes */
 	u32 status;		/* Status of IO completion. */
-	u32 dw_arg;		/* User argument associated with pbuf. */
+	u32 arg;		/* User argument associated with pbuf. */
 };
 
 #endif /* CHNLDEFS_ */

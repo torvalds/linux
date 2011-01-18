@@ -699,10 +699,10 @@ static int request_bridge_resources(struct cfg_hostres *res)
 	host_res->birq_registers = 0;
 	host_res->birq_attrib = 0;
 	host_res->dw_offset_for_monitor = 0;
-	host_res->dw_chnl_offset = 0;
+	host_res->chnl_offset = 0;
 	/* CHNL_MAXCHANNELS */
 	host_res->dw_num_chnls = CHNL_MAXCHANNELS;
-	host_res->dw_chnl_buf_size = 0x400;
+	host_res->chnl_buf_size = 0x400;
 
 	return 0;
 }
@@ -741,7 +741,7 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 						OMAP_PER_CM_SIZE);
 		host_res->dw_per_pm_base = (u32) ioremap(OMAP_PER_PRM_BASE,
 							 OMAP_PER_PRM_SIZE);
-		host_res->dw_core_pm_base = (u32) ioremap(OMAP_CORE_PRM_BASE,
+		host_res->core_pm_base = (u32) ioremap(OMAP_CORE_PRM_BASE,
 							  OMAP_CORE_PRM_SIZE);
 		host_res->dw_dmmu_base = ioremap(OMAP_DMMU_BASE,
 						 OMAP_DMMU_SIZE);
@@ -783,10 +783,10 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 			host_res->birq_registers = 0;
 			host_res->birq_attrib = 0;
 			host_res->dw_offset_for_monitor = 0;
-			host_res->dw_chnl_offset = 0;
+			host_res->chnl_offset = 0;
 			/* CHNL_MAXCHANNELS */
 			host_res->dw_num_chnls = CHNL_MAXCHANNELS;
-			host_res->dw_chnl_buf_size = 0x400;
+			host_res->chnl_buf_size = 0x400;
 			dw_buff_size = sizeof(struct cfg_hostres);
 		}
 		*phost_resources = host_res;

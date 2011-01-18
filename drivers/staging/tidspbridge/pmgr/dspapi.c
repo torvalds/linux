@@ -639,7 +639,7 @@ u32 procwrap_ctrl(union trapped_args *args, void *pr_ctxt)
 	}
 	if (!status) {
 		status = proc_ctrl(hprocessor,
-				   args->args_proc_ctrl.dw_cmd,
+				   args->args_proc_ctrl.cmd,
 				   (struct dsp_cbdata *)pargs);
 	}
 
@@ -1717,7 +1717,7 @@ u32 strmwrap_issue(union trapped_args *args, void *pr_ctxt)
 			    args->args_strm_issue.pbuffer,
 			    args->args_strm_issue.dw_bytes,
 			    args->args_strm_issue.dw_buf_size,
-			    args->args_strm_issue.dw_arg);
+			    args->args_strm_issue.arg);
 
 	return status;
 }
