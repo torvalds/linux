@@ -67,7 +67,7 @@ int io_create(struct io_mgr **io_man, struct dev_object *hdev_obj,
 		dev_get_intf_fxns(hdev_obj, &intf_fxns);
 
 		/* Let Bridge channel module finish the create: */
-		status = (*intf_fxns->pfn_io_create) (&hio_mgr, hdev_obj,
+		status = (*intf_fxns->io_create) (&hio_mgr, hdev_obj,
 						      mgr_attrts);
 
 		if (!status) {
@@ -99,7 +99,7 @@ int io_destroy(struct io_mgr *hio_mgr)
 	intf_fxns = pio_mgr->intf_fxns;
 
 	/* Let Bridge channel module destroy the io_mgr: */
-	status = (*intf_fxns->pfn_io_destroy) (hio_mgr);
+	status = (*intf_fxns->io_destroy) (hio_mgr);
 
 	return status;
 }

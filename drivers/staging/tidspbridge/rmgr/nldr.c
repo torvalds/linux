@@ -429,7 +429,7 @@ int nldr_create(struct nldr_object **nldr,
 	DBC_REQUIRE(nldr != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
 	DBC_REQUIRE(pattrs != NULL);
-	DBC_REQUIRE(pattrs->pfn_ovly != NULL);
+	DBC_REQUIRE(pattrs->ovly != NULL);
 	DBC_REQUIRE(pattrs->pfn_write != NULL);
 
 	/* Allocate dynamic loader object */
@@ -534,7 +534,7 @@ int nldr_create(struct nldr_object **nldr,
 		new_attrs.sym_lookup = (dbll_sym_lookup) get_symbol_value;
 		new_attrs.sym_handle = nldr_obj;
 		new_attrs.write = (dbll_write_fxn) pattrs->pfn_write;
-		nldr_obj->ovly_fxn = pattrs->pfn_ovly;
+		nldr_obj->ovly_fxn = pattrs->ovly;
 		nldr_obj->write_fxn = pattrs->pfn_write;
 		nldr_obj->ldr_attrs = new_attrs;
 	}

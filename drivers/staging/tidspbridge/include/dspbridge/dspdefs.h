@@ -975,8 +975,8 @@ typedef void (*fxn_msg_setqueueid) (struct msg_queue *msg_queue_obj,
 struct bridge_drv_interface {
 	u32 brd_api_major_version;	/* Set to BRD_API_MAJOR_VERSION. */
 	u32 brd_api_minor_version;	/* Set to BRD_API_MINOR_VERSION. */
-	fxn_dev_create pfn_dev_create;	/* Create device context */
-	fxn_dev_destroy pfn_dev_destroy;	/* Destroy device context */
+	fxn_dev_create dev_create;	/* Create device context */
+	fxn_dev_destroy dev_destroy;	/* Destroy device context */
 	fxn_dev_ctrl dev_cntrl;	/* Optional vendor interface */
 	fxn_brd_monitor brd_monitor;	/* Load and/or start monitor */
 	fxn_brd_start brd_start;	/* Start DSP program. */
@@ -1003,23 +1003,23 @@ struct bridge_drv_interface {
 	fxn_chnl_idle chnl_idle;	/* Idle the channel */
 	/* Register for notif. */
 	fxn_chnl_registernotify chnl_register_notify;
-	fxn_io_create pfn_io_create;	/* Create IO manager */
-	fxn_io_destroy pfn_io_destroy;	/* Destroy IO manager */
-	fxn_io_onloaded pfn_io_on_loaded;	/* Notify of program loaded */
+	fxn_io_create io_create;	/* Create IO manager */
+	fxn_io_destroy io_destroy;	/* Destroy IO manager */
+	fxn_io_onloaded io_on_loaded;	/* Notify of program loaded */
 	/* Get Processor's current and predicted load */
-	fxn_io_getprocload pfn_io_get_proc_load;
-	fxn_msg_create pfn_msg_create;	/* Create message manager */
+	fxn_io_getprocload io_get_proc_load;
+	fxn_msg_create msg_create;	/* Create message manager */
 	/* Create message queue */
-	fxn_msg_createqueue pfn_msg_create_queue;
-	fxn_msg_delete pfn_msg_delete;	/* Delete message manager */
+	fxn_msg_createqueue msg_create_queue;
+	fxn_msg_delete msg_delete;	/* Delete message manager */
 	/* Delete message queue */
-	fxn_msg_deletequeue pfn_msg_delete_queue;
-	fxn_msg_get pfn_msg_get;	/* Get a message */
-	fxn_msg_put pfn_msg_put;	/* Send a message */
+	fxn_msg_deletequeue msg_delete_queue;
+	fxn_msg_get msg_get;	/* Get a message */
+	fxn_msg_put msg_put;	/* Send a message */
 	/* Register for notif. */
-	fxn_msg_registernotify pfn_msg_register_notify;
+	fxn_msg_registernotify msg_register_notify;
 	/* Set message queue id */
-	fxn_msg_setqueueid pfn_msg_set_queue_id;
+	fxn_msg_setqueueid msg_set_queue_id;
 };
 
 /*

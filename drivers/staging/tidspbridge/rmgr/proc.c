@@ -917,7 +917,7 @@ int proc_get_resource_info(void *hprocessor, u32 resource_type,
 		if (hio_mgr)
 			status =
 			    p_proc_object->intf_fxns->
-			    pfn_io_get_proc_load(hio_mgr,
+			    io_get_proc_load(hio_mgr,
 						 (struct dsp_procloadstat *)
 						 &(resource_info->result.
 						   proc_load_stat));
@@ -1227,7 +1227,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 		/* Set the Device object's message manager */
 		status = dev_get_io_mgr(p_proc_object->hdev_obj, &hio_mgr);
 		if (hio_mgr)
-			status = (*p_proc_object->intf_fxns->pfn_io_on_loaded)
+			status = (*p_proc_object->intf_fxns->io_on_loaded)
 								(hio_mgr);
 		else
 			status = -EFAULT;

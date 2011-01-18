@@ -188,7 +188,7 @@ int dev_create_device(struct dev_object **device_obj,
 
 			/* Call fxn_dev_create() to get the Bridge's device
 			 * context handle. */
-			status = (dev_obj->bridge_interface.pfn_dev_create)
+			status = (dev_obj->bridge_interface.dev_create)
 			    (&dev_obj->hbridge_context, dev_obj,
 			     host_res);
 			/* Assert bridge_dev_create()'s ensure clause: */
@@ -382,7 +382,7 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 		/* Call the driver's bridge_dev_destroy() function: */
 		/* Require of DevDestroy */
 		if (dev_obj->hbridge_context) {
-			status = (*dev_obj->bridge_interface.pfn_dev_destroy)
+			status = (*dev_obj->bridge_interface.dev_destroy)
 			    (dev_obj->hbridge_context);
 			dev_obj->hbridge_context = NULL;
 		} else
@@ -1079,8 +1079,8 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 	intf_fxns->brd_api_minor_version = drv_fxns->brd_api_minor_version;
 	/* Install functions up to DSP API version .80 (first alpha): */
 	if (bridge_version > 0) {
-		STORE_FXN(fxn_dev_create, pfn_dev_create);
-		STORE_FXN(fxn_dev_destroy, pfn_dev_destroy);
+		STORE_FXN(fxn_dev_create, dev_create);
+		STORE_FXN(fxn_dev_destroy, dev_destroy);
 		STORE_FXN(fxn_dev_ctrl, dev_cntrl);
 		STORE_FXN(fxn_brd_monitor, brd_monitor);
 		STORE_FXN(fxn_brd_start, brd_start);
@@ -1105,23 +1105,23 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 		STORE_FXN(fxn_chnl_getmgrinfo, chnl_get_mgr_info);
 		STORE_FXN(fxn_chnl_idle, chnl_idle);
 		STORE_FXN(fxn_chnl_registernotify, chnl_register_notify);
-		STORE_FXN(fxn_io_create, pfn_io_create);
-		STORE_FXN(fxn_io_destroy, pfn_io_destroy);
-		STORE_FXN(fxn_io_onloaded, pfn_io_on_loaded);
-		STORE_FXN(fxn_io_getprocload, pfn_io_get_proc_load);
-		STORE_FXN(fxn_msg_create, pfn_msg_create);
-		STORE_FXN(fxn_msg_createqueue, pfn_msg_create_queue);
-		STORE_FXN(fxn_msg_delete, pfn_msg_delete);
-		STORE_FXN(fxn_msg_deletequeue, pfn_msg_delete_queue);
-		STORE_FXN(fxn_msg_get, pfn_msg_get);
-		STORE_FXN(fxn_msg_put, pfn_msg_put);
-		STORE_FXN(fxn_msg_registernotify, pfn_msg_register_notify);
-		STORE_FXN(fxn_msg_setqueueid, pfn_msg_set_queue_id);
+		STORE_FXN(fxn_io_create, io_create);
+		STORE_FXN(fxn_io_destroy, io_destroy);
+		STORE_FXN(fxn_io_onloaded, io_on_loaded);
+		STORE_FXN(fxn_io_getprocload, io_get_proc_load);
+		STORE_FXN(fxn_msg_create, msg_create);
+		STORE_FXN(fxn_msg_createqueue, msg_create_queue);
+		STORE_FXN(fxn_msg_delete, msg_delete);
+		STORE_FXN(fxn_msg_deletequeue, msg_delete_queue);
+		STORE_FXN(fxn_msg_get, msg_get);
+		STORE_FXN(fxn_msg_put, msg_put);
+		STORE_FXN(fxn_msg_registernotify, msg_register_notify);
+		STORE_FXN(fxn_msg_setqueueid, msg_set_queue_id);
 	}
 	/* Add code for any additional functions in newerBridge versions here */
 	/* Ensure postcondition: */
-	DBC_ENSURE(intf_fxns->pfn_dev_create != NULL);
-	DBC_ENSURE(intf_fxns->pfn_dev_destroy != NULL);
+	DBC_ENSURE(intf_fxns->dev_create != NULL);
+	DBC_ENSURE(intf_fxns->dev_destroy != NULL);
 	DBC_ENSURE(intf_fxns->dev_cntrl != NULL);
 	DBC_ENSURE(intf_fxns->brd_monitor != NULL);
 	DBC_ENSURE(intf_fxns->brd_start != NULL);
@@ -1141,11 +1141,11 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 	DBC_ENSURE(intf_fxns->chnl_get_mgr_info != NULL);
 	DBC_ENSURE(intf_fxns->chnl_idle != NULL);
 	DBC_ENSURE(intf_fxns->chnl_register_notify != NULL);
-	DBC_ENSURE(intf_fxns->pfn_io_create != NULL);
-	DBC_ENSURE(intf_fxns->pfn_io_destroy != NULL);
-	DBC_ENSURE(intf_fxns->pfn_io_on_loaded != NULL);
-	DBC_ENSURE(intf_fxns->pfn_io_get_proc_load != NULL);
-	DBC_ENSURE(intf_fxns->pfn_msg_set_queue_id != NULL);
+	DBC_ENSURE(intf_fxns->io_create != NULL);
+	DBC_ENSURE(intf_fxns->io_destroy != NULL);
+	DBC_ENSURE(intf_fxns->io_on_loaded != NULL);
+	DBC_ENSURE(intf_fxns->io_get_proc_load != NULL);
+	DBC_ENSURE(intf_fxns->msg_set_queue_id != NULL);
 
 #undef  STORE_FXN
 }

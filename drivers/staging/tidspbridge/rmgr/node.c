@@ -564,7 +564,7 @@ func_cont:
 		/* Create a message queue for this node */
 		intf_fxns = hnode_mgr->intf_fxns;
 		status =
-		    (*intf_fxns->pfn_msg_create_queue) (hnode_mgr->msg_mgr_obj,
+		    (*intf_fxns->msg_create_queue) (hnode_mgr->msg_mgr_obj,
 							&pnode->msg_queue_obj,
 							0,
 							pnode->create_args.asa.
@@ -596,7 +596,7 @@ func_cont:
 			   stack_seg_name, STACKSEGLABEL) == 0) {
 			status =
 			    hnode_mgr->nldr_fxns.
-			    pfn_get_fxn_addr(pnode->nldr_node_obj, "DYNEXT_BEG",
+			    get_fxn_addr(pnode->nldr_node_obj, "DYNEXT_BEG",
 					     &dynext_base);
 			if (status)
 				pr_err("%s: Failed to get addr for DYNEXT_BEG"
@@ -604,7 +604,7 @@ func_cont:
 
 			status =
 			    hnode_mgr->nldr_fxns.
-			    pfn_get_fxn_addr(pnode->nldr_node_obj,
+			    get_fxn_addr(pnode->nldr_node_obj,
 					     "L1DSRAM_HEAP", &pul_value);
 
 			if (status)
@@ -1190,7 +1190,7 @@ int node_create(struct node_object *hnode)
 		if (pdata->cpu_set_freq)
 			(*pdata->cpu_set_freq) (pdata->mpu_speed[VDD1_OPP3]);
 #endif
-		status = hnode_mgr->nldr_fxns.pfn_load(hnode->nldr_node_obj,
+		status = hnode_mgr->nldr_fxns.load(hnode->nldr_node_obj,
 						       NLDR_CREATE);
 		/* Get address of node's create function */
 		if (!status) {
@@ -1211,7 +1211,7 @@ int node_create(struct node_object *hnode)
 		/* Get address of iAlg functions, if socket node */
 		if (!status) {
 			if (node_type == NODE_DAISSOCKET) {
-				status = hnode_mgr->nldr_fxns.pfn_get_fxn_addr
+				status = hnode_mgr->nldr_fxns.get_fxn_addr
 				    (hnode->nldr_node_obj,
 				     hnode->dcd_props.obj_data.node_obj.
 				     pstr_i_alg_name,
@@ -1232,7 +1232,7 @@ int node_create(struct node_object *hnode)
 				/* Set the message queue id to the node env
 				 * pointer */
 				intf_fxns = hnode_mgr->intf_fxns;
-				(*intf_fxns->pfn_msg_set_queue_id) (hnode->
+				(*intf_fxns->msg_set_queue_id) (hnode->
 							msg_queue_obj,
 							hnode->node_env);
 			}
@@ -1243,7 +1243,7 @@ int node_create(struct node_object *hnode)
 	if (hnode->loaded && hnode->phase_split) {
 		/* If create code was dynamically loaded, we can now unload
 		 * it. */
-		status1 = hnode_mgr->nldr_fxns.pfn_unload(hnode->nldr_node_obj,
+		status1 = hnode_mgr->nldr_fxns.unload(hnode->nldr_node_obj,
 							  NLDR_CREATE);
 		hnode->loaded = false;
 	}
@@ -1362,11 +1362,11 @@ int node_create_mgr(struct node_mgr **node_man,
 	/* Get loader functions and create loader */
 	node_mgr_obj->nldr_fxns = nldr_fxns;	/* Dyn loader funcs */
 
-	nldr_attrs_obj.pfn_ovly = ovly;
+	nldr_attrs_obj.ovly = ovly;
 	nldr_attrs_obj.pfn_write = mem_write;
 	nldr_attrs_obj.us_dsp_word_size = node_mgr_obj->udsp_word_size;
 	nldr_attrs_obj.us_dsp_mau_size = node_mgr_obj->udsp_mau_size;
-	node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.pfn_init();
+	node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.init();
 	status = node_mgr_obj->nldr_fxns.create(&node_mgr_obj->nldr_obj,
 			hdev_obj,
 			&nldr_attrs_obj);
@@ -1450,7 +1450,7 @@ int node_delete(struct node_res_object *noderes,
 				 * is not * running */
 				status1 =
 				    hnode_mgr->nldr_fxns.
-				    pfn_unload(pnode->nldr_node_obj,
+				    unload(pnode->nldr_node_obj,
 					       NLDR_EXECUTE);
 				pnode->loaded = false;
 				NODE_SET_STATE(pnode, NODE_DONE);
@@ -1461,7 +1461,7 @@ int node_delete(struct node_res_object *noderes,
 			    pnode->phase_split) {
 				status =
 				    hnode_mgr->nldr_fxns.
-				    pfn_load(pnode->nldr_node_obj, NLDR_DELETE);
+				    load(pnode->nldr_node_obj, NLDR_DELETE);
 				if (!status)
 					pnode->loaded = true;
 				else
@@ -1502,7 +1502,7 @@ func_cont1:
 				    pnode->phase_split) {
 					status1 =
 					    hnode_mgr->nldr_fxns.
-					    pfn_unload(pnode->nldr_node_obj,
+					    unload(pnode->nldr_node_obj,
 						       NLDR_EXECUTE);
 				}
 				if (status1)
@@ -1510,7 +1510,7 @@ func_cont1:
 					       " 0x%x\n", __func__, status1);
 
 				status1 =
-				    hnode_mgr->nldr_fxns.pfn_unload(pnode->
+				    hnode_mgr->nldr_fxns.unload(pnode->
 							    nldr_node_obj,
 							    NLDR_DELETE);
 				pnode->loaded = false;
@@ -1793,7 +1793,7 @@ int node_get_message(struct node_object *hnode,
 	 *  available. */
 	intf_fxns = hnode_mgr->intf_fxns;
 	status =
-	    (*intf_fxns->pfn_msg_get) (hnode->msg_queue_obj, message, utimeout);
+	    (*intf_fxns->msg_get) (hnode->msg_queue_obj, message, utimeout);
 	/* Check if message contains SM descriptor */
 	if (status || !(message->cmd & DSP_RMSBUFDESC))
 		goto func_end;
@@ -1942,7 +1942,7 @@ void node_on_exit(struct node_object *hnode, s32 node_status)
 	NODE_SET_STATE(hnode, NODE_DONE);
 	hnode->exit_status = node_status;
 	if (hnode->loaded && hnode->phase_split) {
-		(void)hnode->hnode_mgr->nldr_fxns.pfn_unload(hnode->
+		(void)hnode->hnode_mgr->nldr_fxns.unload(hnode->
 							     nldr_node_obj,
 							     NLDR_EXECUTE);
 		hnode->loaded = false;
@@ -2125,7 +2125,7 @@ int node_put_message(struct node_object *hnode,
 	}
 	if (!status) {
 		intf_fxns = hnode_mgr->intf_fxns;
-		status = (*intf_fxns->pfn_msg_put) (hnode->msg_queue_obj,
+		status = (*intf_fxns->msg_put) (hnode->msg_queue_obj,
 						    &new_msg, utimeout);
 	}
 func_end:
@@ -2173,7 +2173,7 @@ int node_register_notify(struct node_object *hnode, u32 event_mask,
 		} else {
 			/* Send Message part of event mask to msg_ctrl */
 			intf_fxns = hnode->hnode_mgr->intf_fxns;
-			status = (*intf_fxns->pfn_msg_register_notify)
+			status = (*intf_fxns->msg_register_notify)
 			    (hnode->msg_queue_obj,
 			     event_mask & DSP_NODEMESSAGEREADY, notify_type,
 			     hnotification);
@@ -2255,7 +2255,7 @@ int node_run(struct node_object *hnode)
 		/* If node's execute function is not loaded, load it */
 		if (!(hnode->loaded) && hnode->phase_split) {
 			status =
-			    hnode_mgr->nldr_fxns.pfn_load(hnode->nldr_node_obj,
+			    hnode_mgr->nldr_fxns.load(hnode->nldr_node_obj,
 							  NLDR_EXECUTE);
 			if (!status) {
 				hnode->loaded = true;
@@ -2389,7 +2389,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		else
 			kill_time_out = (hnode->utimeout) * 2;
 
-		status = (*intf_fxns->pfn_msg_put) (hnode->msg_queue_obj, &msg,
+		status = (*intf_fxns->msg_put) (hnode->msg_queue_obj, &msg,
 						    hnode->utimeout);
 		if (status)
 			goto func_cont;
@@ -2405,7 +2405,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		if (status != ETIME)
 			goto func_cont;
 
-		status = (*intf_fxns->pfn_msg_put)(hnode->msg_queue_obj,
+		status = (*intf_fxns->msg_put)(hnode->msg_queue_obj,
 						&killmsg, hnode->utimeout);
 		if (status)
 			goto func_cont;
@@ -2477,7 +2477,7 @@ static void delete_node(struct node_object *hnode,
 		/* Free msg_ctrl queue */
 		if (hnode->msg_queue_obj) {
 			intf_fxns = hnode_mgr->intf_fxns;
-			(*intf_fxns->pfn_msg_delete_queue) (hnode->
+			(*intf_fxns->msg_delete_queue) (hnode->
 							    msg_queue_obj);
 			hnode->msg_queue_obj = NULL;
 		}
@@ -2611,7 +2611,7 @@ static void delete_node_mgr(struct node_mgr *hnode_mgr)
 			hnode_mgr->nldr_fxns.delete(hnode_mgr->nldr_obj);
 
 		if (hnode_mgr->loader_init)
-			hnode_mgr->nldr_fxns.pfn_exit();
+			hnode_mgr->nldr_fxns.exit();
 
 		kfree(hnode_mgr);
 	}
@@ -2772,7 +2772,7 @@ static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
 	}
 
 	status =
-	    hnode_mgr->nldr_fxns.pfn_get_fxn_addr(hnode->nldr_node_obj,
+	    hnode_mgr->nldr_fxns.get_fxn_addr(hnode->nldr_node_obj,
 						  pstr_fxn_name, fxn_addr);
 
 	return status;
