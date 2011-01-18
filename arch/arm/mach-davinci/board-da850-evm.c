@@ -664,6 +664,13 @@ static struct snd_platform_data da850_evm_snd_data = {
 	.rxnumevt	= 1,
 };
 
+static const short da850_evm_mcasp_pins[] __initconst = {
+	DA850_AHCLKX, DA850_ACLKX, DA850_AFSX,
+	DA850_AHCLKR, DA850_ACLKR, DA850_AFSR, DA850_AMUTE,
+	DA850_AXR_11, DA850_AXR_12,
+	-1
+};
+
 static int da850_evm_mmc_get_ro(int index)
 {
 	return gpio_get_value(DA850_MMCSD_WP_PIN);
@@ -1106,7 +1113,7 @@ static __init void da850_evm_init(void)
 	__raw_writel(0, IO_ADDRESS(DA8XX_UART1_BASE) + 0x30);
 	__raw_writel(0, IO_ADDRESS(DA8XX_UART0_BASE) + 0x30);
 
-	ret = davinci_cfg_reg_list(da850_mcasp_pins);
+	ret = davinci_cfg_reg_list(da850_evm_mcasp_pins);
 	if (ret)
 		pr_warning("da850_evm_init: mcasp mux setup failed: %d\n",
 				ret);
