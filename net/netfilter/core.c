@@ -184,6 +184,9 @@ next_hook:
 		if (ret < 0) {
 			if (ret == -ECANCELED)
 				goto next_hook;
+			if (ret == -ESRCH &&
+			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
+				goto next_hook;
 			kfree_skb(skb);
 		}
 		ret = 0;

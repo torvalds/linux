@@ -138,8 +138,10 @@ static int __nf_queue(struct sk_buff *skb,
 	rcu_read_lock();
 
 	qh = rcu_dereference(queue_handler[pf]);
-	if (!qh)
+	if (!qh) {
+		status = -ESRCH;
 		goto err_unlock;
+	}
 
 	afinfo = nf_get_afinfo(pf);
 	if (!afinfo)
@@ -302,6 +304,9 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 				 verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
 			if (err == -ECANCELED)
+				goto next_hook;
+			if (err == -ESRCH &&
+			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
 				goto next_hook;
 			kfree_skb(skb);
 		}

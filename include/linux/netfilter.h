@@ -29,6 +29,7 @@
 #define NF_VERDICT_MASK 0x000000ff
 
 /* extra verdict flags have mask 0x0000ff00 */
+#define NF_VERDICT_FLAG_QUEUE_BYPASS	0x00008000
 
 /* queue number (NF_QUEUE) or errno (NF_DROP) */
 #define NF_VERDICT_QMASK 0xffff0000

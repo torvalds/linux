@@ -83,9 +83,20 @@ nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 	return NF_QUEUE_NR(queue);
 }
 
-static int nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
+static unsigned int
+nfqueue_tg_v2(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	const struct xt_NFQ_info_v1 *info = par->targinfo;
+	const struct xt_NFQ_info_v2 *info = par->targinfo;
+	unsigned int ret = nfqueue_tg_v1(skb, par);
+
+	if (info->bypass)
+		ret |= NF_VERDICT_FLAG_QUEUE_BYPASS;
+	return ret;
+}
+
+static int nfqueue_tg_check(const struct xt_tgchk_param *par)
+{
+	const struct xt_NFQ_info_v2 *info = par->targinfo;
 	u32 maxid;
 
 	if (unlikely(!rnd_inited)) {
@@ -102,6 +113,8 @@ static int nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
 		       info->queues_total, maxid);
 		return -ERANGE;
 	}
+	if (par->target->revision == 2 && info->bypass > 1)
+		return -EINVAL;
 	return 0;
 }
 
@@ -117,9 +130,18 @@ static struct xt_target nfqueue_tg_reg[] __read_mostly = {
 		.name		= "NFQUEUE",
 		.revision	= 1,
 		.family		= NFPROTO_UNSPEC,
-		.checkentry	= nfqueue_tg_v1_check,
+		.checkentry	= nfqueue_tg_check,
 		.target		= nfqueue_tg_v1,
 		.targetsize	= sizeof(struct xt_NFQ_info_v1),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "NFQUEUE",
+		.revision	= 2,
+		.family		= NFPROTO_UNSPEC,
+		.checkentry	= nfqueue_tg_check,
+		.target		= nfqueue_tg_v2,
+		.targetsize	= sizeof(struct xt_NFQ_info_v2),
 		.me		= THIS_MODULE,
 	},
 };
