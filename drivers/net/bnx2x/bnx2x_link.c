@@ -7958,12 +7958,23 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
 			 u32 shmem2_base_path[], u32 chip_id)
 {
 	u8 rc = 0;
+	u32 phy_ver;
 	u8 phy_index;
 	u32 ext_phy_type, ext_phy_config;
 	DP(NETIF_MSG_LINK, "Begin common phy init\n");
 
 	if (CHIP_REV_IS_EMUL(bp))
 		return 0;
+
+	/* Check if common init was already done */
+	phy_ver = REG_RD(bp, shmem_base_path[0] +
+			 offsetof(struct shmem_region,
+				  port_mb[PORT_0].ext_phy_fw_version));
+	if (phy_ver) {
+		DP(NETIF_MSG_LINK, "Not doing common init; phy ver is 0x%x\n",
+			       phy_ver);
+		return 0;
+	}
 
 	/* Read the ext_phy_type for arbitrary port(0) */
 	for (phy_index = EXT_PHY1; phy_index < MAX_PHYS;
