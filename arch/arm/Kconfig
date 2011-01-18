@@ -256,6 +256,7 @@ config ARCH_VERSATILE
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	help
 	  This enables support for ARM Ltd Versatile board.
