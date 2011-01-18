@@ -163,8 +163,9 @@ static struct platform_device *smdkc210_devices[] __initdata = {
 	&s5pv310_device_pd[PD_CAM],
 	&s5pv310_device_pd[PD_TV],
 	&s5pv310_device_pd[PD_GPS],
-	&smdkc210_smsc911x,
 	&s5pv310_device_sysmmu,
+	&samsung_asoc_dma,
+	&smdkc210_smsc911x,
 };
 
 static void __init smdkc210_smsc911x_init(void)
