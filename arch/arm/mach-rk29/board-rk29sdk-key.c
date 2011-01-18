@@ -55,6 +55,7 @@ static struct rk29_keys_button key_button[] = {
 		.code	= KEY_POWER,
 		.gpio	= RK29_PIN6_PA7,
 		.active_low = PRESS_LEV_LOW,
+		.wakeup	= 1,
 	},
 #if 0
 	{
