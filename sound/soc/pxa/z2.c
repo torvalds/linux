@@ -193,7 +193,7 @@ static struct snd_soc_dai_link z2_dai = {
 	.cpu_dai_name	= "pxa2xx-i2s",
 	.codec_dai_name	= "wm8750-hifi",
 	.platform_name = "pxa-pcm-audio",
-	.codec_name	= "wm8750-codec.0-001a",
+	.codec_name	= "wm8750-codec.0-001b",
 	.init		= z2_wm8750_init,
 	.ops		= &z2_ops,
 };
