@@ -1283,24 +1283,22 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	if (!error && !clone->errors)
 		return 0;	/* I/O complete */
 
-	if (error == -EOPNOTSUPP)
-		return error;
-
-	if (clone->cmd_flags & REQ_DISCARD)
-		/*
-		 * Pass all discard request failures up.
-		 * FIXME: only fail_path if the discard failed due to a
-		 * transport problem.  This requires precise understanding
-		 * of the underlying failure (e.g. the SCSI sense).
-		 */
+	if (error == -EOPNOTSUPP || error == -EREMOTEIO)
 		return error;
 
 	if (mpio->pgpath)
 		fail_path(mpio->pgpath);
 
 	spin_lock_irqsave(&m->lock, flags);
-	if (!m->nr_valid_paths && !m->queue_if_no_path && !__must_push_back(m))
-		r = -EIO;
+	if (!m->nr_valid_paths) {
+		if (!m->queue_if_no_path) {
+			if (!__must_push_back(m))
+				r = -EIO;
+		} else {
+			if (error == -EBADE)
+				r = error;
+		}
+	}
 	spin_unlock_irqrestore(&m->lock, flags);
 
 	return r;
