@@ -460,7 +460,7 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 		return 0;
 	}
 
-	carrier = (count * 1000000) / duration;
+	carrier = MS_TO_NS(count) / duration;
 
 	if ((carrier > MAX_CARRIER) || (carrier < MIN_CARRIER))
 		nvt_dbg("WTF? Carrier frequency out of range!");
@@ -612,8 +612,8 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 		sample = nvt->buf[i];
 
 		rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
-		rawir.duration = (sample & BUF_LEN_MASK)
-					* SAMPLE_PERIOD * 1000;
+		rawir.duration = US_TO_NS((sample & BUF_LEN_MASK)
+					  * SAMPLE_PERIOD);
 
 		if ((sample & BUF_LEN_MASK) == BUF_LEN_MASK) {
 			if (nvt->rawir.pulse == rawir.pulse)

@@ -164,7 +164,7 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 				sz->signal_start.tv_usec -
 				sz->signal_last.tv_usec);
 			rawir.duration -= sz->sum;
-			rawir.duration *= 1000;
+			rawir.duration = US_TO_NS(rawir.duration);
 			rawir.duration &= IR_MAX_DURATION;
 		}
 		sz_push(sz, rawir);
@@ -177,7 +177,7 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 	rawir.duration = ((int) value) * SZ_RESOLUTION;
 	rawir.duration += SZ_RESOLUTION / 2;
 	sz->sum += rawir.duration;
-	rawir.duration *= 1000;
+	rawir.duration = US_TO_NS(rawir.duration);
 	rawir.duration &= IR_MAX_DURATION;
 	sz_push(sz, rawir);
 }
@@ -197,7 +197,7 @@ static void sz_push_full_space(struct streamzap_ir *sz,
 	rawir.duration = ((int) value) * SZ_RESOLUTION;
 	rawir.duration += SZ_RESOLUTION / 2;
 	sz->sum += rawir.duration;
-	rawir.duration *= 1000;
+	rawir.duration = US_TO_NS(rawir.duration);
 	sz_push(sz, rawir);
 }
 
@@ -430,13 +430,13 @@ static int __devinit streamzap_probe(struct usb_interface *intf,
 	sz->decoder_state = PulseSpace;
 	/* FIXME: don't yet have a way to set this */
 	sz->timeout_enabled = true;
-	sz->rdev->timeout = (((SZ_TIMEOUT * SZ_RESOLUTION * 1000) &
+	sz->rdev->timeout = ((US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION) &
 				IR_MAX_DURATION) | 0x03000000);
 	#if 0
 	/* not yet supported, depends on patches from maxim */
 	/* see also: LIRC_GET_REC_RESOLUTION and LIRC_SET_REC_TIMEOUT */
-	sz->min_timeout = SZ_TIMEOUT * SZ_RESOLUTION * 1000;
-	sz->max_timeout = SZ_TIMEOUT * SZ_RESOLUTION * 1000;
+	sz->min_timeout = US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION);
+	sz->max_timeout = US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION);
 	#endif
 
 	do_gettimeofday(&sz->signal_start);
