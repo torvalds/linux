@@ -246,9 +246,6 @@ static void link_timeout(struct link *l_ptr)
 	l_ptr->stats.accu_queue_sz += l_ptr->out_queue_size;
 	l_ptr->stats.queue_sz_counts++;
 
-	if (l_ptr->out_queue_size > l_ptr->stats.max_queue_sz)
-		l_ptr->stats.max_queue_sz = l_ptr->out_queue_size;
-
 	if (l_ptr->first_out) {
 		struct tipc_msg *msg = buf_msg(l_ptr->first_out);
 		u32 length = msg_size(msg);
@@ -824,7 +821,10 @@ static void link_add_to_outqueue(struct link *l_ptr,
 		l_ptr->last_out = buf;
 	} else
 		l_ptr->first_out = l_ptr->last_out = buf;
+
 	l_ptr->out_queue_size++;
+	if (l_ptr->out_queue_size > l_ptr->stats.max_queue_sz)
+		l_ptr->stats.max_queue_sz = l_ptr->out_queue_size;
 }
 
 /*
@@ -866,9 +866,6 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 		return link_send_long_buf(l_ptr, buf);
 
 	/* Packet can be queued or sent: */
-
-	if (queue_size > l_ptr->stats.max_queue_sz)
-		l_ptr->stats.max_queue_sz = queue_size;
 
 	if (likely(!tipc_bearer_congested(l_ptr->b_ptr, l_ptr) &&
 		   !link_congested(l_ptr))) {

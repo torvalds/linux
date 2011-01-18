@@ -196,18 +196,12 @@ struct link {
 		u32 bearer_congs;
 		u32 deferred_recv;
 		u32 duplicates;
-
-		/* for statistical profiling of send queue size */
-
-		u32 max_queue_sz;
-		u32 accu_queue_sz;
-		u32 queue_sz_counts;
-
-		/* for statistical profiling of message lengths */
-
-		u32 msg_length_counts;
-		u32 msg_lengths_total;
-		u32 msg_length_profile[7];
+		u32 max_queue_sz;	/* send queue size high water mark */
+		u32 accu_queue_sz;	/* used for send queue size profiling */
+		u32 queue_sz_counts;	/* used for send queue size profiling */
+		u32 msg_length_counts;	/* used for message length profiling */
+		u32 msg_lengths_total;	/* used for message length profiling */
+		u32 msg_length_profile[7]; /* used for msg. length profiling */
 	} stats;
 };
 
