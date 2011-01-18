@@ -29,7 +29,7 @@
 #include <linux/tpm.h>
 #include <linux/tpm_command.h>
 
-#include "trusted_defined.h"
+#include "trusted.h"
 
 static const char hmac_alg[] = "hmac(sha1)";
 static const char hash_alg[] = "sha1";
