@@ -1475,6 +1475,12 @@ restart:
 			goto out_free;
 	}
 
+	if (sk_filter(other, skb) < 0) {
+		/* Toss the packet but do not return any error to the sender */
+		err = len;
+		goto out_free;
+	}
+
 	unix_state_lock(other);
 	err = -EPERM;
 	if (!unix_may_send(sk, other))
