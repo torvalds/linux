@@ -179,9 +179,11 @@ next_hook:
 		if (ret == 0)
 			ret = -EPERM;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
-		if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
-			      verdict >> NF_VERDICT_BITS))
+		ret = nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
+			       verdict >> NF_VERDICT_BITS);
+		if (ret == -ECANCELED)
 			goto next_hook;
+		ret = 0;
 	}
 	rcu_read_unlock();
 	return ret;
