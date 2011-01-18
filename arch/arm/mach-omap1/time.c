@@ -57,6 +57,8 @@
 
 #include <plat/common.h>
 
+#ifdef CONFIG_OMAP_MPU_TIMER
+
 #define OMAP_MPU_TIMER_BASE		OMAP_MPU_TIMER1_BASE
 #define OMAP_MPU_TIMER_OFFSET		0x100
 
@@ -236,12 +238,7 @@ static void __init omap_init_clocksource(unsigned long rate)
 		printk(err, clocksource_mpu.name);
 }
 
-/*
- * ---------------------------------------------------------------------------
- * Timer initialization
- * ---------------------------------------------------------------------------
- */
-static void __init omap_timer_init(void)
+static void __init omap_mpu_timer_init(void)
 {
 	struct clk	*ck_ref = clk_get(NULL, "ck_ref");
 	unsigned long	rate;
@@ -256,13 +253,38 @@ static void __init omap_timer_init(void)
 
 	omap_init_mpu_timer(rate);
 	omap_init_clocksource(rate);
-	/*
-	 * XXX Since this file seems to deal mostly with the MPU timer,
-	 * this doesn't seem like the correct place for the sync timer
-	 * clocksource init.
-	 */
-	if (!cpu_is_omap7xx() && !cpu_is_omap15xx())
-		omap_init_clocksource_32k();
+}
+
+#else
+static inline void omap_mpu_timer_init(void)
+{
+	pr_err("Bogus timer, should not happen\n");
+}
+#endif	/* CONFIG_OMAP_MPU_TIMER */
+
+static inline int omap_32k_timer_usable(void)
+{
+	int res = false;
+
+	if (cpu_is_omap730() || cpu_is_omap15xx())
+		return res;
+
+#ifdef CONFIG_OMAP_32K_TIMER
+	res = omap_32k_timer_init();
+#endif
+
+	return res;
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Timer initialization
+ * ---------------------------------------------------------------------------
+ */
+static void __init omap_timer_init(void)
+{
+	if (!omap_32k_timer_usable())
+		omap_mpu_timer_init();
 }
 
 struct sys_timer omap_timer = {

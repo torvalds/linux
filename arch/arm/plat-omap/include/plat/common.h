@@ -35,6 +35,7 @@ struct sys_timer;
 
 extern void omap_map_common_io(void);
 extern struct sys_timer omap_timer;
+extern bool omap_32k_timer_init(void);
 extern int __init omap_init_clocksource_32k(void);
 
 extern void omap_reserve(void);

@@ -36,8 +36,6 @@
 
 #define OMAP16XX_TIMER_32K_SYNCHRONIZED		0xfffbc410
 
-#if !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX))
-
 #include <linux/clocksource.h>
 
 /*
@@ -195,6 +193,3 @@ int __init omap_init_clocksource_32k(void)
 	}
 	return 0;
 }
-
-#endif	/* !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX)) */
-

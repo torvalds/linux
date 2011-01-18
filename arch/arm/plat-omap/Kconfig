@@ -144,12 +144,9 @@ config OMAP_IOMMU_DEBUG
 config OMAP_IOMMU_IVA2
 	bool
 
-choice
-	prompt "System timer"
-	default OMAP_32K_TIMER if !ARCH_OMAP15XX
-
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"
+	depends on ARCH_OMAP1
 	help
 	  Select this option if you want to use the OMAP mpu timer. This
 	  timer provides more intra-tick resolution than the 32KHz timer,
@@ -158,14 +155,13 @@ config OMAP_MPU_TIMER
 config OMAP_32K_TIMER
 	bool "Use 32KHz timer"
 	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
+	default y if (ARCH_OMAP16XX || ARCH_OMAP2PLUS)
 	help
 	  Select this option if you want to enable the OMAP 32KHz timer.
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
 	  support for no tick during idle. The 32KHz timer provides less
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
 	  currently only available for OMAP16XX, 24XX, 34XX and OMAP4.
-
-endchoice
 
 config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"

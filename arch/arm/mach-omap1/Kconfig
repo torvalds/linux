@@ -9,6 +9,7 @@ config ARCH_OMAP730
 	depends on ARCH_OMAP1
 	bool "OMAP730 Based System"
 	select CPU_ARM926T
+	select OMAP_MPU_TIMER
 	select ARCH_OMAP_OTG
 
 config ARCH_OMAP850
@@ -22,6 +23,7 @@ config ARCH_OMAP15XX
 	default y
 	bool "OMAP15xx Based System"
 	select CPU_ARM925T
+	select OMAP_MPU_TIMER
 
 config ARCH_OMAP16XX
 	depends on ARCH_OMAP1
