@@ -50,10 +50,14 @@
 #include <asm/io-unit.h>
 #include <asm/leon.h>
 
-#ifdef CONFIG_SPARC_LEON
-#define mmu_inval_dma_area(p, l) leon_flush_dcache_all()
-#else
+#ifndef CONFIG_SPARC_LEON
 #define mmu_inval_dma_area(p, l)	/* Anton pulled it out for 2.4.0-xx */
+#else
+static inline void mmu_inval_dma_area(unsigned long va, unsigned long len)
+{
+	if (!sparc_leon3_snooping_enabled())
+		leon_flush_dcache_all();
+}
 #endif
 
 static struct resource *_sparc_find_resource(struct resource *r,
