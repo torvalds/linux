@@ -156,6 +156,13 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	chip->unmask(irq);
 }
 
+#if defined(CONFIG_PM) && defined(CONFIG_ARCH_RK29)
+static int gic_set_wake(unsigned int irq, unsigned int on)
+{
+	return 0;
+}
+#endif
+
 static struct irq_chip gic_chip = {
 	.name		= "GIC",
 	.ack		= gic_ack_irq,
@@ -163,6 +170,9 @@ static struct irq_chip gic_chip = {
 	.unmask		= gic_unmask_irq,
 #ifdef CONFIG_SMP
 	.set_affinity	= gic_set_cpu,
+#endif
+#if defined(CONFIG_PM) && defined(CONFIG_ARCH_RK29)
+	.set_wake	= gic_set_wake,
 #endif
 };
 
