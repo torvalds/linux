@@ -80,6 +80,7 @@
 #define HIDP_VIRTUAL_CABLE_UNPLUG	0
 #define HIDP_BOOT_PROTOCOL_MODE		1
 #define HIDP_BLUETOOTH_VENDOR_ID	9
+#define HIDP_WAITING_FOR_SEND_ACK	11
 
 struct hidp_connadd_req {
 	int   ctrl_sock;	// Connected control socket
@@ -153,6 +154,9 @@ struct hidp_session {
 
 	struct sk_buff_head ctrl_transmit;
 	struct sk_buff_head intr_transmit;
+
+	/* Used in hidp_output_raw_report() */
+	int output_report_success; /* boolean */
 
 	/* Report descriptor */
 	__u8 *rd_data;
