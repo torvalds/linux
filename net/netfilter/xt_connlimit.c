@@ -204,11 +204,9 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	                         &info->mask, par->family);
 	spin_unlock_bh(&info->data->lock);
 
-	if (connections < 0) {
+	if (connections < 0)
 		/* kmalloc failed, drop it entirely */
-		par->hotdrop = true;
-		return false;
-	}
+		goto hotdrop;
 
 	return (connections > info->limit) ^ info->inverse;
 
