@@ -33,7 +33,7 @@
 
 int easycap_debug;
 static int easycap_bars = 1;
-int easycap_gain = 16;
+static int easycap_gain = 16;
 module_param_named(debug, easycap_debug, int, S_IRUGO | S_IWUSR);
 module_param_named(bars, easycap_bars, int, S_IRUGO | S_IWUSR);
 module_param_named(gain, easycap_gain, int, S_IRUGO | S_IWUSR);
@@ -3412,6 +3412,8 @@ struct v4l2_device *pv4l2_device;
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
+/* setup modules params */
+
 if ((struct usb_interface *)NULL == pusb_interface) {
 	SAY("ERROR: pusb_interface is NULL\n");
 	return -EFAULT;
@@ -3546,6 +3548,9 @@ if (0 == bInterfaceNumber) {
 	JOM(8, "intf[%i]: after kref_init(..._video) " \
 			"%i=peasycap->kref.refcount.counter\n", \
 			bInterfaceNumber, peasycap->kref.refcount.counter);
+
+	/* module params */
+	peasycap->gain = (s8)clamp(easycap_gain, 0, 31);
 
 	init_waitqueue_head(&peasycap->wq_video);
 	init_waitqueue_head(&peasycap->wq_audio);

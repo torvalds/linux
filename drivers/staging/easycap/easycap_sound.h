@@ -27,8 +27,6 @@
 #if !defined(EASYCAP_SOUND_H)
 #define EASYCAP_SOUND_H
 
-extern int easycap_debug;
-extern int easycap_gain;
 extern struct easycap_dongle easycapdc60_dongle[];
 extern struct easycap *peasycap;
 extern struct usb_driver easycap_usb_driver;

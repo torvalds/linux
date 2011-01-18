@@ -27,8 +27,6 @@
 #if !defined(EASYCAP_LOW_H)
 #define EASYCAP_LOW_H
 
-extern int easycap_debug;
-extern int easycap_gain;
 extern struct easycap_dongle easycapdc60_dongle[];
 
 #endif /*EASYCAP_LOW_H*/

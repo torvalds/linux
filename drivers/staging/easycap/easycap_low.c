@@ -1091,11 +1091,7 @@ SAM("0x%04X:0x%04X is audio vendor id\n", id1, id2);
  *  SELECT AUDIO SOURCE "LINE IN" AND SET THE AUDIO GAIN.
 */
 /*---------------------------------------------------------------------------*/
-if (31 < easycap_gain)
-	easycap_gain = 31;
-if (0 > easycap_gain)
-	easycap_gain = 0;
-if (0 != audio_gainset(pusb_device, (__s8)easycap_gain))
+if (0 != audio_gainset(pusb_device, peasycap->gain))
 	SAY("ERROR: audio_gainset() failed\n");
 check_vt(pusb_device);
 return 0;

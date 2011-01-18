@@ -475,6 +475,7 @@ int audio_idle;
 int audio_eof;
 int volume;
 int mute;
+s8 gain;
 
 struct data_buffer audio_isoc_buffer[AUDIO_ISOC_BUFFER_MANY];
 
@@ -639,6 +640,8 @@ struct signed_div_result {
 long long int quotient;
 unsigned long long int remainder;
 } signed_div(long long int, long long int);
+
+
 /*---------------------------------------------------------------------------*/
 /*
  *  MACROS
@@ -668,6 +671,7 @@ unsigned long long int remainder;
  *  IMMEDIATELY OBVIOUS FROM A CASUAL READING OF THE SOURCE CODE.  BEWARE.
 */
 /*---------------------------------------------------------------------------*/
+extern int easycap_debug;
 #define SAY(format, args...) do { \
 	printk(KERN_DEBUG "easycap:: %s: " \
 			format, __func__, ##args); \
