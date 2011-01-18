@@ -493,6 +493,8 @@ static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
 	if (likely(dest->addr.name.name.type != TIPC_CFG_SRV))
 		return -EACCES;
 
+	if (!m->msg_iovlen || (m->msg_iov[0].iov_len < sizeof(hdr)))
+		return -EMSGSIZE;
 	if (copy_from_user(&hdr, m->msg_iov[0].iov_base, sizeof(hdr)))
 		return -EFAULT;
 	if ((ntohs(hdr.tcm_type) & 0xC000) && (!capable(CAP_NET_ADMIN)))
