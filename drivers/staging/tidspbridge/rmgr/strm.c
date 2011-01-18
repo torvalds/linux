@@ -68,7 +68,7 @@ struct strm_object {
 	struct strm_mgr *strm_mgr_obj;
 	struct chnl_object *chnl_obj;
 	u32 dir;		/* DSP_TONODE or DSP_FROMNODE */
-	u32 utimeout;
+	u32 timeout;
 	u32 num_bufs;		/* Max # of bufs allowed in stream */
 	u32 un_bufs_in_strm;	/* Current # of bufs in stream */
 	u32 bytes;		/* bytes transferred since idled */
@@ -77,7 +77,7 @@ struct strm_object {
 	void *user_event;	/* Saved for strm_get_info() */
 	enum dsp_strmmode strm_mode;	/* STRMMODE_[PROCCOPY][ZEROCOPY]... */
 	u32 udma_chnl_id;	/* DMA chnl id */
-	u32 udma_priority;	/* DMA priority:DMAPRI_[LOW][HIGH] */
+	u32 dma_priority;	/* DMA priority:DMAPRI_[LOW][HIGH] */
 	u32 segment_id;		/* >0 is SM segment.=0 is local heap */
 	u32 buf_alignment;	/* Alignment for stream bufs */
 	/* Stream's SM address translator */
@@ -378,7 +378,7 @@ int strm_idle(struct strm_object *stream_obj, bool flush_data)
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 		status = (*intf_fxns->chnl_idle) (stream_obj->chnl_obj,
-						      stream_obj->utimeout,
+						      stream_obj->timeout,
 						      flush_data);
 	}
 
@@ -494,8 +494,8 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 			strm_obj->strm_state = STREAM_IDLE;
 			strm_obj->user_event = pattr->user_event;
 			if (pattr->stream_attr_in != NULL) {
-				strm_obj->utimeout =
-				    pattr->stream_attr_in->utimeout;
+				strm_obj->timeout =
+				    pattr->stream_attr_in->timeout;
 				strm_obj->num_bufs =
 				    pattr->stream_attr_in->num_bufs;
 				strm_obj->strm_mode =
@@ -506,23 +506,23 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 				    pattr->stream_attr_in->buf_alignment;
 				strm_obj->udma_chnl_id =
 				    pattr->stream_attr_in->udma_chnl_id;
-				strm_obj->udma_priority =
-				    pattr->stream_attr_in->udma_priority;
+				strm_obj->dma_priority =
+				    pattr->stream_attr_in->dma_priority;
 				chnl_attr_obj.uio_reqs =
 				    pattr->stream_attr_in->num_bufs;
 			} else {
-				strm_obj->utimeout = DEFAULTTIMEOUT;
+				strm_obj->timeout = DEFAULTTIMEOUT;
 				strm_obj->num_bufs = DEFAULTNUMBUFS;
 				strm_obj->strm_mode = STRMMODE_PROCCOPY;
 				strm_obj->segment_id = 0;	/* local mem */
 				strm_obj->buf_alignment = 0;
 				strm_obj->udma_chnl_id = 0;
-				strm_obj->udma_priority = 0;
+				strm_obj->dma_priority = 0;
 				chnl_attr_obj.uio_reqs = DEFAULTNUMBUFS;
 			}
 			chnl_attr_obj.reserved1 = NULL;
 			/* DMA chnl flush timeout */
-			chnl_attr_obj.reserved2 = strm_obj->utimeout;
+			chnl_attr_obj.reserved2 = strm_obj->timeout;
 			chnl_attr_obj.event_obj = NULL;
 			if (pattr->user_event != NULL)
 				chnl_attr_obj.event_obj = pattr->user_event;
@@ -632,7 +632,7 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 
 	status =
 	    (*intf_fxns->chnl_get_ioc) (stream_obj->chnl_obj,
-					    stream_obj->utimeout,
+					    stream_obj->timeout,
 					    &chnl_ioc_obj);
 	if (!status) {
 		*nbytes = chnl_ioc_obj.byte_size;

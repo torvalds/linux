@@ -129,7 +129,7 @@ struct process_context {
 	enum gpp_proc_res_state res_state;
 
 	/* Handle to Processor */
-	void *hprocessor;
+	void *processor;
 
 	/* DSP Node resources */
 	struct idr *node_id;

@@ -85,7 +85,7 @@ struct proc_object {
 	struct mgr_object *mgr_obj;	/* Manager Object Handle */
 	u32 attach_count;	/* Processor attach count */
 	u32 processor_id;	/* Processor number */
-	u32 utimeout;		/* Time out count */
+	u32 timeout;		/* Time out count */
 	enum dsp_procstate proc_state;	/* Processor state */
 	u32 unit;		/* DDSP unit number */
 	bool is_already_attached;	/*
@@ -284,8 +284,8 @@ proc_attach(u32 processor_id,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ph_processor != NULL);
 
-	if (pr_ctxt->hprocessor) {
-		*ph_processor = pr_ctxt->hprocessor;
+	if (pr_ctxt->processor) {
+		*ph_processor = pr_ctxt->processor;
 		return status;
 	}
 
@@ -324,9 +324,9 @@ proc_attach(u32 processor_id,
 	INIT_LIST_HEAD(&p_proc_object->proc_list);
 
 	if (attr_in)
-		p_proc_object->utimeout = attr_in->utimeout;
+		p_proc_object->timeout = attr_in->timeout;
 	else
-		p_proc_object->utimeout = PROC_DFLT_TIMEOUT;
+		p_proc_object->timeout = PROC_DFLT_TIMEOUT;
 
 	status = dev_get_intf_fxns(hdev_obj, &p_proc_object->intf_fxns);
 	if (!status) {
@@ -373,7 +373,7 @@ proc_attach(u32 processor_id,
 		}
 		if (!status) {
 			*ph_processor = (void *)p_proc_object;
-			pr_ctxt->hprocessor = *ph_processor;
+			pr_ctxt->processor = *ph_processor;
 			(void)proc_notify_clients(p_proc_object,
 						  DSP_PROCESSORATTACH);
 		}
@@ -567,7 +567,7 @@ int proc_detach(struct process_context *pr_ctxt)
 
 	DBC_REQUIRE(refs > 0);
 
-	p_proc_object = (struct proc_object *)pr_ctxt->hprocessor;
+	p_proc_object = (struct proc_object *)pr_ctxt->processor;
 
 	if (p_proc_object) {
 		/* Notify the Client */
@@ -585,7 +585,7 @@ int proc_detach(struct process_context *pr_ctxt)
 					     (u32) p_proc_object);
 		/* Free the Processor Object */
 		kfree(p_proc_object);
-		pr_ctxt->hprocessor = NULL;
+		pr_ctxt->processor = NULL;
 	} else {
 		status = -EFAULT;
 	}

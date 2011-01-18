@@ -56,7 +56,7 @@ union trapped_args {
 		struct dsp_notification __user *__user *anotifications;
 		u32 count;
 		u32 __user *pu_index;
-		u32 utimeout;
+		u32 timeout;
 	} args_mgr_wait;
 
 	/* PROC Module */
@@ -67,17 +67,17 @@ union trapped_args {
 	} args_proc_attach;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 cmd;
 		struct dsp_cbdata __user *pargs;
 	} args_proc_ctrl;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 	} args_proc_detach;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		void *__user *node_tab;
 		u32 node_tab_size;
 		u32 __user *pu_num_nodes;
@@ -85,53 +85,53 @@ union trapped_args {
 	} args_proc_enumnode_info;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 resource_type;
 		struct dsp_resourceinfo *resource_info;
 		u32 resource_info_size;
 	} args_proc_enumresources;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		struct dsp_processorstate __user *proc_state_obj;
 		u32 state_info_size;
 	} args_proc_getstate;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u8 __user *pbuf;
 		u8 __user *psize;
 		u32 max_size;
 	} args_proc_gettrace;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		s32 argc_index;
 		char __user *__user *user_args;
 		char *__user *user_envp;
 	} args_proc_load;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 event_mask;
 		u32 notify_type;
 		struct dsp_notification __user *hnotification;
 	} args_proc_register_notify;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 size;
 		void *__user *pp_rsv_addr;
 	} args_proc_rsvmem;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 size;
 		void *prsv_addr;
 	} args_proc_unrsvmem;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		void *pmpu_addr;
 		u32 size;
 		void *req_addr;
@@ -140,34 +140,34 @@ union trapped_args {
 	} args_proc_mapmem;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 size;
 		void *map_addr;
 	} args_proc_unmapmem;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		void *pmpu_addr;
 		u32 size;
 		u32 dir;
 	} args_proc_dma;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		void *pmpu_addr;
 		u32 size;
 		u32 ul_flags;
 	} args_proc_flushmemory;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		void *pmpu_addr;
 		u32 size;
 	} args_proc_invalidatememory;
 
 	/* NODE Module */
 	struct {
-		void *hprocessor;
+		void *processor;
 		struct dsp_uuid __user *node_id_ptr;
 		struct dsp_cbdata __user *pargs;
 		struct dsp_nodeattrin __user *attr_in;
@@ -218,7 +218,7 @@ union trapped_args {
 	struct {
 		void *hnode;
 		struct dsp_msg __user *message;
-		u32 utimeout;
+		u32 timeout;
 	} args_node_getmessage;
 
 	struct {
@@ -228,7 +228,7 @@ union trapped_args {
 	struct {
 		void *hnode;
 		struct dsp_msg __user *message;
-		u32 utimeout;
+		u32 timeout;
 	} args_node_putmessage;
 
 	struct {
@@ -248,7 +248,7 @@ union trapped_args {
 	} args_node_terminate;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		struct dsp_uuid __user *node_id_ptr;
 		struct dsp_ndbprops __user *node_props;
 	} args_node_getuuidprops;
@@ -323,7 +323,7 @@ union trapped_args {
 		void *__user *stream_tab;
 		u32 strm_num;
 		u32 __user *pmask;
-		u32 utimeout;
+		u32 timeout;
 	} args_strm_select;
 
 	/* CMM Module */
@@ -341,7 +341,7 @@ union trapped_args {
 	} args_cmm_freebuf;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		struct cmm_object *__user *ph_cmm_mgr;
 	} args_cmm_gethandle;
 

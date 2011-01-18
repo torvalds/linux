@@ -151,9 +151,9 @@ struct node_mgr {
 	u32 chnl_buf_size;	/* Buffer size for data to RMS */
 	int proc_family;	/* eg, 5000 */
 	int proc_type;		/* eg, 5510 */
-	u32 udsp_word_size;	/* Size of DSP word on host bytes */
-	u32 udsp_data_mau_size;	/* Size of DSP data MAU */
-	u32 udsp_mau_size;	/* Size of MAU */
+	u32 dsp_word_size;	/* Size of DSP word on host bytes */
+	u32 dsp_data_mau_size;	/* Size of DSP data MAU */
+	u32 dsp_mau_size;	/* Size of MAU */
 	s32 min_pri;		/* Minimum runtime priority for node */
 	s32 max_pri;		/* Maximum runtime priority for node */
 
@@ -189,13 +189,13 @@ struct stream_chnl {
 struct node_object {
 	struct list_head list_elem;
 	struct node_mgr *node_mgr;	/* The manager of this node */
-	struct proc_object *hprocessor;	/* Back pointer to processor */
+	struct proc_object *processor;	/* Back pointer to processor */
 	struct dsp_uuid node_uuid;	/* Node's ID */
 	s32 prio;		/* Node's current priority */
-	u32 utimeout;		/* Timeout for blocking NODE calls */
+	u32 timeout;		/* Timeout for blocking NODE calls */
 	u32 heap_size;		/* Heap Size */
-	u32 udsp_heap_virt_addr;	/* Heap Size */
-	u32 ugpp_heap_virt_addr;	/* Heap Size */
+	u32 dsp_heap_virt_addr;	/* Heap Size */
+	u32 gpp_heap_virt_addr;	/* Heap Size */
 	enum node_type ntype;	/* Type of node: message, task, etc */
 	enum node_state node_state;	/* NODE_ALLOCATED, NODE_CREATED, ... */
 	u32 num_inputs;		/* Current number of inputs */
@@ -400,17 +400,17 @@ int node_allocate(struct proc_object *hprocessor,
 		goto func_cont;
 
 	pnode->node_uuid = *node_uuid;
-	pnode->hprocessor = hprocessor;
+	pnode->processor = hprocessor;
 	pnode->ntype = pnode->dcd_props.obj_data.node_obj.ndb_props.ntype;
-	pnode->utimeout = pnode->dcd_props.obj_data.node_obj.ndb_props.utimeout;
+	pnode->timeout = pnode->dcd_props.obj_data.node_obj.ndb_props.timeout;
 	pnode->prio = pnode->dcd_props.obj_data.node_obj.ndb_props.prio;
 
 	/* Currently only C64 DSP builds support Node Dynamic * heaps */
 	/* Allocate memory for node heap */
 	pnode->create_args.asa.task_arg_obj.heap_size = 0;
-	pnode->create_args.asa.task_arg_obj.udsp_heap_addr = 0;
-	pnode->create_args.asa.task_arg_obj.udsp_heap_res_addr = 0;
-	pnode->create_args.asa.task_arg_obj.ugpp_heap_addr = 0;
+	pnode->create_args.asa.task_arg_obj.dsp_heap_addr = 0;
+	pnode->create_args.asa.task_arg_obj.dsp_heap_res_addr = 0;
+	pnode->create_args.asa.task_arg_obj.gpp_heap_addr = 0;
 	if (!attr_in)
 		goto func_cont;
 
@@ -426,7 +426,7 @@ int node_allocate(struct proc_object *hprocessor,
 	} else {
 		pnode->create_args.asa.task_arg_obj.heap_size =
 		    attr_in->heap_size;
-		pnode->create_args.asa.task_arg_obj.ugpp_heap_addr =
+		pnode->create_args.asa.task_arg_obj.gpp_heap_addr =
 		    (u32) attr_in->pgpp_virt_addr;
 	}
 	if (status)
@@ -436,7 +436,7 @@ int node_allocate(struct proc_object *hprocessor,
 				     pnode->create_args.asa.task_arg_obj.
 				     heap_size + PAGE_SIZE,
 				     (void **)&(pnode->create_args.asa.
-					task_arg_obj.udsp_heap_res_addr),
+					task_arg_obj.dsp_heap_res_addr),
 				     pr_ctxt);
 	if (status) {
 		pr_err("%s: Failed to reserve memory for heap: 0x%x\n",
@@ -459,20 +459,20 @@ int node_allocate(struct proc_object *hprocessor,
 	status = proc_map(hprocessor, (void *)attr_in->pgpp_virt_addr,
 			  pnode->create_args.asa.task_arg_obj.heap_size,
 			  (void *)pnode->create_args.asa.task_arg_obj.
-			  udsp_heap_res_addr, (void **)&mapped_addr, map_attrs,
+			  dsp_heap_res_addr, (void **)&mapped_addr, map_attrs,
 			  pr_ctxt);
 	if (status)
 		pr_err("%s: Failed to map memory for Heap: 0x%x\n",
 		       __func__, status);
 	else
-		pnode->create_args.asa.task_arg_obj.udsp_heap_addr =
+		pnode->create_args.asa.task_arg_obj.dsp_heap_addr =
 		    (u32) mapped_addr;
 
 func_cont:
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
 	if (attr_in != NULL) {
 		/* Overrides of NBD properties */
-		pnode->utimeout = attr_in->utimeout;
+		pnode->timeout = attr_in->timeout;
 		pnode->prio = attr_in->prio;
 	}
 	/* Create object to manage notifications */
@@ -712,7 +712,7 @@ DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
 	if (pattr == NULL)
 		pattr = &node_dfltbufattrs;	/* set defaults */
 
-	status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+	status = proc_get_processor_id(pnode->processor, &proc_id);
 	if (proc_id != DSP_UNIT) {
 		DBC_ASSERT(NULL);
 		goto func_end;
@@ -808,7 +808,7 @@ int node_change_priority(struct node_object *hnode, s32 prio)
 			status = -EBADR;
 			goto func_cont;
 		}
-		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+		status = proc_get_processor_id(pnode->processor, &proc_id);
 		if (proc_id == DSP_UNIT) {
 			status =
 			    disp_node_change_priority(hnode_mgr->disp_obj,
@@ -1144,7 +1144,7 @@ int node_create(struct node_object *hnode)
 		status = -EFAULT;
 		goto func_end;
 	}
-	hprocessor = hnode->hprocessor;
+	hprocessor = hnode->processor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
 	if (status)
@@ -1168,7 +1168,7 @@ int node_create(struct node_object *hnode)
 		status = -EBADR;
 
 	if (!status)
-		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+		status = proc_get_processor_id(pnode->processor, &proc_id);
 
 	if (status)
 		goto func_cont2;
@@ -1266,7 +1266,7 @@ func_cont:
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
 func_end:
 	if (status >= 0) {
-		proc_notify_clients(hnode->hprocessor, DSP_NODESTATECHANGE);
+		proc_notify_clients(hnode->processor, DSP_NODESTATECHANGE);
 		ntfy_notify(hnode->ntfy_obj, DSP_NODESTATECHANGE);
 	}
 
@@ -1364,8 +1364,8 @@ int node_create_mgr(struct node_mgr **node_man,
 
 	nldr_attrs_obj.ovly = ovly;
 	nldr_attrs_obj.write = mem_write;
-	nldr_attrs_obj.dsp_word_size = node_mgr_obj->udsp_word_size;
-	nldr_attrs_obj.dsp_mau_size = node_mgr_obj->udsp_mau_size;
+	nldr_attrs_obj.dsp_word_size = node_mgr_obj->dsp_word_size;
+	nldr_attrs_obj.dsp_mau_size = node_mgr_obj->dsp_mau_size;
 	node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.init();
 	status = node_mgr_obj->nldr_fxns.create(&node_mgr_obj->nldr_obj,
 			hdev_obj,
@@ -1418,7 +1418,7 @@ int node_delete(struct node_res_object *noderes,
 	/* create struct dsp_cbdata struct for PWR call */
 	cb_data.cb_data = PWR_TIMEOUT;
 	hnode_mgr = pnode->node_mgr;
-	hprocessor = pnode->hprocessor;
+	hprocessor = pnode->processor;
 	disp_obj = hnode_mgr->disp_obj;
 	node_type = node_get_type(pnode);
 	intf_fxns = hnode_mgr->intf_fxns;
@@ -1433,7 +1433,7 @@ int node_delete(struct node_res_object *noderes,
 	 *  code must be  executed. */
 	if (!(state == NODE_ALLOCATED && pnode->node_env == (u32) NULL) &&
 	    node_type != NODE_DEVICE) {
-		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+		status = proc_get_processor_id(pnode->processor, &proc_id);
 		if (status)
 			goto func_cont1;
 
@@ -1638,7 +1638,7 @@ int node_free_msg_buf(struct node_object *hnode, u8 * pbuffer,
 		status = -EFAULT;
 		goto func_end;
 	}
-	status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+	status = proc_get_processor_id(pnode->processor, &proc_id);
 	if (proc_id == DSP_UNIT) {
 		if (!status) {
 			if (pattr == NULL) {
@@ -1686,11 +1686,11 @@ int node_get_attr(struct node_object *hnode,
 	pattr->in_node_attr_in.cb_struct =
 		sizeof(struct dsp_nodeattrin);
 	pattr->in_node_attr_in.prio = hnode->prio;
-	pattr->in_node_attr_in.utimeout = hnode->utimeout;
+	pattr->in_node_attr_in.timeout = hnode->timeout;
 	pattr->in_node_attr_in.heap_size =
 		hnode->create_args.asa.task_arg_obj.heap_size;
 	pattr->in_node_attr_in.pgpp_virt_addr = (void *)
-		hnode->create_args.asa.task_arg_obj.ugpp_heap_addr;
+		hnode->create_args.asa.task_arg_obj.gpp_heap_addr;
 	pattr->node_attr_inputs = hnode->num_gpp_inputs;
 	pattr->node_attr_outputs = hnode->num_gpp_outputs;
 	/* dsp_nodeinfo */
@@ -1768,7 +1768,7 @@ int node_get_message(struct node_object *hnode,
 		status = -EFAULT;
 		goto func_end;
 	}
-	hprocessor = hnode->hprocessor;
+	hprocessor = hnode->processor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
 	if (status)
@@ -1802,7 +1802,7 @@ int node_get_message(struct node_object *hnode,
 	tmp_buf = cmm_xlator_translate(hnode->xlator,
 				       (void *)(message->arg1 *
 						hnode->node_mgr->
-						udsp_word_size), CMM_DSPPA2PA);
+						dsp_word_size), CMM_DSPPA2PA);
 	if (tmp_buf != NULL) {
 		/* now convert this GPP Pa to Va */
 		tmp_buf = cmm_xlator_translate(hnode->xlator, tmp_buf,
@@ -1810,7 +1810,7 @@ int node_get_message(struct node_object *hnode,
 		if (tmp_buf != NULL) {
 			/* Adjust SM size in msg */
 			message->arg1 = (u32) tmp_buf;
-			message->arg2 *= hnode->node_mgr->udsp_word_size;
+			message->arg2 *= hnode->node_mgr->dsp_word_size;
 		} else {
 			status = -ESRCH;
 		}
@@ -1873,7 +1873,7 @@ enum nldr_loadtype node_get_load_type(struct node_object *hnode)
 		dev_dbg(bridge, "%s: Failed. hnode: %p\n", __func__, hnode);
 		return -1;
 	} else {
-		return hnode->dcd_props.obj_data.node_obj.us_load_type;
+		return hnode->dcd_props.obj_data.node_obj.load_type;
 	}
 }
 
@@ -1890,7 +1890,7 @@ u32 node_get_timeout(struct node_object *hnode)
 		dev_dbg(bridge, "%s: failed. hnode: %p\n", __func__, hnode);
 		return 0;
 	} else {
-		return hnode->utimeout;
+		return hnode->timeout;
 	}
 }
 
@@ -1950,7 +1950,7 @@ void node_on_exit(struct node_object *hnode, s32 node_status)
 	/* Unblock call to node_terminate */
 	(void)sync_set_event(hnode->sync_done);
 	/* Notify clients */
-	proc_notify_clients(hnode->hprocessor, DSP_NODESTATECHANGE);
+	proc_notify_clients(hnode->processor, DSP_NODESTATECHANGE);
 	ntfy_notify(hnode->ntfy_obj, DSP_NODESTATECHANGE);
 }
 
@@ -1982,7 +1982,7 @@ int node_pause(struct node_object *hnode)
 	if (status)
 		goto func_end;
 
-	status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+	status = proc_get_processor_id(pnode->processor, &proc_id);
 
 	if (proc_id == IVA_UNIT)
 		status = -ENOSYS;
@@ -1999,7 +1999,7 @@ int node_pause(struct node_object *hnode)
 
 		if (status)
 			goto func_cont;
-		hprocessor = hnode->hprocessor;
+		hprocessor = hnode->processor;
 		status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
 		if (status)
@@ -2024,7 +2024,7 @@ func_cont:
 		/* Leave critical section */
 		mutex_unlock(&hnode_mgr->node_mgr_lock);
 		if (status >= 0) {
-			proc_notify_clients(hnode->hprocessor,
+			proc_notify_clients(hnode->processor,
 					    DSP_NODESTATECHANGE);
 			ntfy_notify(hnode->ntfy_obj, DSP_NODESTATECHANGE);
 		}
@@ -2061,7 +2061,7 @@ int node_put_message(struct node_object *hnode,
 		status = -EFAULT;
 		goto func_end;
 	}
-	hprocessor = hnode->hprocessor;
+	hprocessor = hnode->processor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
 	if (status)
@@ -2107,15 +2107,15 @@ int node_put_message(struct node_object *hnode,
 					       CMM_VA2DSPPA);
 		if (tmp_buf != NULL) {
 			/* got translation, convert to MAUs in msg */
-			if (hnode->node_mgr->udsp_word_size != 0) {
+			if (hnode->node_mgr->dsp_word_size != 0) {
 				new_msg.arg1 =
 				    (u32) tmp_buf /
-				    hnode->node_mgr->udsp_word_size;
+				    hnode->node_mgr->dsp_word_size;
 				/* MAUs */
 				new_msg.arg2 /= hnode->node_mgr->
-				    udsp_word_size;
+				    dsp_word_size;
 			} else {
-				pr_err("%s: udsp_word_size is zero!\n",
+				pr_err("%s: dsp_word_size is zero!\n",
 				       __func__);
 				status = -EPERM;	/* bad DSPWordSize */
 			}
@@ -2213,7 +2213,7 @@ int node_run(struct node_object *hnode)
 		status = -EFAULT;
 		goto func_end;
 	}
-	hprocessor = hnode->hprocessor;
+	hprocessor = hnode->processor;
 	status = proc_get_state(hprocessor, &proc_state,
 				sizeof(struct dsp_processorstate));
 	if (status)
@@ -2243,7 +2243,7 @@ int node_run(struct node_object *hnode)
 		status = -EBADR;
 
 	if (!status)
-		status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+		status = proc_get_processor_id(pnode->processor, &proc_id);
 
 	if (status)
 		goto func_cont1;
@@ -2299,7 +2299,7 @@ func_cont1:
 	/* Exit critical section */
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
 	if (status >= 0) {
-		proc_notify_clients(hnode->hprocessor, DSP_NODESTATECHANGE);
+		proc_notify_clients(hnode->processor, DSP_NODESTATECHANGE);
 		ntfy_notify(hnode->ntfy_obj, DSP_NODESTATECHANGE);
 	}
 func_end:
@@ -2333,11 +2333,11 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		status = -EFAULT;
 		goto func_end;
 	}
-	if (pnode->hprocessor == NULL) {
+	if (pnode->processor == NULL) {
 		status = -EFAULT;
 		goto func_end;
 	}
-	status = proc_get_processor_id(pnode->hprocessor, &proc_id);
+	status = proc_get_processor_id(pnode->processor, &proc_id);
 
 	if (!status) {
 		hnode_mgr = hnode->node_mgr;
@@ -2367,7 +2367,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		 *  Send exit message. Do not change state to NODE_DONE
 		 *  here. That will be done in callback.
 		 */
-		status = proc_get_state(pnode->hprocessor, &proc_state,
+		status = proc_get_state(pnode->processor, &proc_state,
 					sizeof(struct dsp_processorstate));
 		if (status)
 			goto func_cont;
@@ -2384,13 +2384,13 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 		killmsg.arg1 = hnode->node_env;
 		intf_fxns = hnode_mgr->intf_fxns;
 
-		if (hnode->utimeout > MAXTIMEOUT)
+		if (hnode->timeout > MAXTIMEOUT)
 			kill_time_out = MAXTIMEOUT;
 		else
-			kill_time_out = (hnode->utimeout) * 2;
+			kill_time_out = (hnode->timeout) * 2;
 
 		status = (*intf_fxns->msg_put) (hnode->msg_queue_obj, &msg,
-						    hnode->utimeout);
+						    hnode->timeout);
 		if (status)
 			goto func_cont;
 
@@ -2406,7 +2406,7 @@ int node_terminate(struct node_object *hnode, int *pstatus)
 			goto func_cont;
 
 		status = (*intf_fxns->msg_put)(hnode->msg_queue_obj,
-						&killmsg, hnode->utimeout);
+						&killmsg, hnode->timeout);
 		if (status)
 			goto func_cont;
 		status = sync_wait_on_event(hnode->sync_done,
@@ -2460,7 +2460,7 @@ static void delete_node(struct node_object *hnode,
 #ifdef DSP_DMM_DEBUG
 	struct dmm_object *dmm_mgr;
 	struct proc_object *p_proc_object =
-	    (struct proc_object *)hnode->hprocessor;
+	    (struct proc_object *)hnode->processor;
 #endif
 	int status;
 	if (!hnode)
@@ -2518,15 +2518,15 @@ static void delete_node(struct node_object *hnode,
 			kfree(task_arg_obj.strm_out_def);
 			task_arg_obj.strm_out_def = NULL;
 		}
-		if (task_arg_obj.udsp_heap_res_addr) {
-			status = proc_un_map(hnode->hprocessor, (void *)
-					     task_arg_obj.udsp_heap_addr,
+		if (task_arg_obj.dsp_heap_res_addr) {
+			status = proc_un_map(hnode->processor, (void *)
+					     task_arg_obj.dsp_heap_addr,
 					     pr_ctxt);
 
-			status = proc_un_reserve_memory(hnode->hprocessor,
+			status = proc_un_reserve_memory(hnode->processor,
 							(void *)
 							task_arg_obj.
-							udsp_heap_res_addr,
+							dsp_heap_res_addr,
 							pr_ctxt);
 #ifdef DSP_DMM_DEBUG
 			status = dmm_get_handle(p_proc_object, &dmm_mgr);
@@ -2691,17 +2691,17 @@ static void fill_stream_def(struct node_object *hnode,
 	if (pattrs != NULL) {
 		pstrm_def->num_bufs = pattrs->num_bufs;
 		pstrm_def->buf_size =
-		    pattrs->buf_size / hnode_mgr->udsp_data_mau_size;
+		    pattrs->buf_size / hnode_mgr->dsp_data_mau_size;
 		pstrm_def->seg_id = pattrs->seg_id;
 		pstrm_def->buf_alignment = pattrs->buf_alignment;
-		pstrm_def->utimeout = pattrs->utimeout;
+		pstrm_def->timeout = pattrs->timeout;
 	} else {
 		pstrm_def->num_bufs = DEFAULTNBUFS;
 		pstrm_def->buf_size =
-		    DEFAULTBUFSIZE / hnode_mgr->udsp_data_mau_size;
+		    DEFAULTBUFSIZE / hnode_mgr->dsp_data_mau_size;
 		pstrm_def->seg_id = DEFAULTSEGID;
 		pstrm_def->buf_alignment = DEFAULTALIGNMENT;
-		pstrm_def->utimeout = DEFAULTTIMEOUT;
+		pstrm_def->timeout = DEFAULTTIMEOUT;
 	}
 }
 
@@ -2915,9 +2915,9 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
 		hnode_mgr->proc_type = 6410;
 		hnode_mgr->min_pri = DSP_NODE_MIN_PRIORITY;
 		hnode_mgr->max_pri = DSP_NODE_MAX_PRIORITY;
-		hnode_mgr->udsp_word_size = DSPWORDSIZE;
-		hnode_mgr->udsp_data_mau_size = DSPWORDSIZE;
-		hnode_mgr->udsp_mau_size = 1;
+		hnode_mgr->dsp_word_size = DSPWORDSIZE;
+		hnode_mgr->dsp_data_mau_size = DSPWORDSIZE;
+		hnode_mgr->dsp_mau_size = 1;
 
 	}
 	return status;
@@ -3067,8 +3067,8 @@ static u32 ovly(void *priv_ref, u32 dsp_run_addr, u32 dsp_load_addr,
 
 	hnode_mgr = hnode->node_mgr;
 
-	ul_size = ul_num_bytes / hnode_mgr->udsp_word_size;
-	ul_timeout = hnode->utimeout;
+	ul_size = ul_num_bytes / hnode_mgr->dsp_word_size;
+	ul_timeout = hnode->timeout;
 
 	/* Call new MemCopy function */
 	intf_fxns = hnode_mgr->intf_fxns;
@@ -3111,7 +3111,7 @@ static u32 mem_write(void *priv_ref, u32 dsp_add, void *pbuf,
 
 	hnode_mgr = hnode->node_mgr;
 
-	ul_timeout = hnode->utimeout;
+	ul_timeout = hnode->timeout;
 	mem_sect_type = (mem_space & DBLL_CODE) ? RMS_CODE : RMS_DATA;
 
 	/* Call new MemWrite function */

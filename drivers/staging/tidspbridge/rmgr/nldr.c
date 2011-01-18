@@ -336,7 +336,7 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 		 *  Determine if node is a dynamically loaded node from
 		 *  ndb_props.
 		 */
-		if (node_props->us_load_type == NLDR_DYNAMICLOAD) {
+		if (node_props->load_type == NLDR_DYNAMICLOAD) {
 			/* Dynamic node */
 			nldr_node_obj->dynamic = true;
 			/*
@@ -388,7 +388,7 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 			 * base image */
 			nldr_node_obj->root.lib = nldr_obj->base_lib;
 			/* Check for overlay node */
-			if (node_props->us_load_type == NLDR_OVLYLOAD)
+			if (node_props->load_type == NLDR_OVLYLOAD)
 				nldr_node_obj->overlay = true;
 
 		}
@@ -1011,7 +1011,7 @@ static int add_ovly_node(struct dsp_uuid *uuid_obj,
 		goto func_end;
 
 	/* If overlay node, add to the list */
-	if (obj_def.obj_data.node_obj.us_load_type == NLDR_OVLYLOAD) {
+	if (obj_def.obj_data.node_obj.load_type == NLDR_OVLYLOAD) {
 		if (nldr_obj->ovly_table == NULL) {
 			nldr_obj->ovly_nodes++;
 		} else {

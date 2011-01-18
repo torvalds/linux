@@ -57,7 +57,7 @@ int io_create(struct io_mgr **io_man, struct dev_object *hdev_obj,
 	*io_man = NULL;
 
 	/* A memory base of 0 implies no memory base: */
-	if ((mgr_attrts->shm_base != 0) && (mgr_attrts->usm_length == 0))
+	if ((mgr_attrts->shm_base != 0) && (mgr_attrts->sm_length == 0))
 		status = -EINVAL;
 
 	if (mgr_attrts->word_size == 0)

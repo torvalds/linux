@@ -569,7 +569,7 @@ u32 mgrwrap_wait_for_bridge_events(union trapped_args *args, void *pr_ctxt)
 		status = mgr_wait_for_bridge_events(anotifications, count,
 							 &index,
 							 args->args_mgr_wait.
-							 utimeout);
+							 timeout);
 	}
 	CP_TO_USR(args->args_mgr_wait.pu_index, &index, status, 1);
 	return status;
@@ -620,7 +620,7 @@ u32 procwrap_ctrl(union trapped_args *args, void *pr_ctxt)
 	    args->args_proc_ctrl.pargs;
 	u8 *pargs = NULL;
 	int status = 0;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if (psize) {
 		if (get_user(cb_data_size, psize)) {
@@ -668,7 +668,7 @@ u32 procwrap_enum_node_info(union trapped_args *args, void *pr_ctxt)
 	void *node_tab[MAX_NODES];
 	u32 num_nodes;
 	u32 alloc_cnt;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if (!args->args_proc_enumnode_info.node_tab_size)
 		return -EINVAL;
@@ -753,7 +753,7 @@ u32 procwrap_enum_resources(union trapped_args *args, void *pr_ctxt)
 {
 	int status = 0;
 	struct dsp_resourceinfo resource_info;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if (args->args_proc_enumresources.resource_info_size <
 	    sizeof(struct dsp_resourceinfo))
@@ -780,7 +780,7 @@ u32 procwrap_get_state(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
 	struct dsp_processorstate proc_state;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if (args->args_proc_getstate.state_info_size <
 	    sizeof(struct dsp_processorstate))
@@ -801,7 +801,7 @@ u32 procwrap_get_trace(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
 	u8 *pbuf;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if (args->args_proc_gettrace.max_size > MAX_TRACEBUFLEN)
 		return -EINVAL;
@@ -830,7 +830,7 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 	char *temp;
 	s32 count = args->args_proc_load.argc_index;
 	u8 **argv = NULL, **envp = NULL;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if (count <= 0 || count > MAX_LOADARGS) {
 		status = -EINVAL;
@@ -948,12 +948,12 @@ u32 procwrap_map(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
 	void *map_addr;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if (!args->args_proc_mapmem.size)
 		return -EINVAL;
 
-	status = proc_map(args->args_proc_mapmem.hprocessor,
+	status = proc_map(args->args_proc_mapmem.processor,
 			  args->args_proc_mapmem.pmpu_addr,
 			  args->args_proc_mapmem.size,
 			  args->args_proc_mapmem.req_addr, &map_addr,
@@ -975,7 +975,7 @@ u32 procwrap_register_notify(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
 	struct dsp_notification notification;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	/* Initialize the notification data structure */
 	notification.ps_name = NULL;
@@ -997,7 +997,7 @@ u32 procwrap_reserve_memory(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
 	void *prsv_addr;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	if ((args->args_proc_rsvmem.size <= 0) ||
 	    (args->args_proc_rsvmem.size & (PG_SIZE4K - 1)) != 0)
@@ -1010,7 +1010,7 @@ u32 procwrap_reserve_memory(union trapped_args *args, void *pr_ctxt)
 		if (put_user(prsv_addr, args->args_proc_rsvmem.pp_rsv_addr)) {
 			status = -EINVAL;
 			proc_un_reserve_memory(args->args_proc_rsvmem.
-					       hprocessor, prsv_addr, pr_ctxt);
+					       processor, prsv_addr, pr_ctxt);
 		}
 	}
 	return status;
@@ -1023,7 +1023,7 @@ u32 procwrap_start(union trapped_args *args, void *pr_ctxt)
 {
 	u32 ret;
 
-	ret = proc_start(((struct process_context *)pr_ctxt)->hprocessor);
+	ret = proc_start(((struct process_context *)pr_ctxt)->processor);
 	return ret;
 }
 
@@ -1034,7 +1034,7 @@ u32 procwrap_un_map(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
 
-	status = proc_un_map(((struct process_context *)pr_ctxt)->hprocessor,
+	status = proc_un_map(((struct process_context *)pr_ctxt)->processor,
 			     args->args_proc_unmapmem.map_addr, pr_ctxt);
 	return status;
 }
@@ -1045,7 +1045,7 @@ u32 procwrap_un_map(union trapped_args *args, void *pr_ctxt)
 u32 procwrap_un_reserve_memory(union trapped_args *args, void *pr_ctxt)
 {
 	int status;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	status = proc_un_reserve_memory(hprocessor,
 					args->args_proc_unrsvmem.prsv_addr,
@@ -1060,7 +1060,7 @@ u32 procwrap_stop(union trapped_args *args, void *pr_ctxt)
 {
 	u32 ret;
 
-	ret = proc_stop(((struct process_context *)pr_ctxt)->hprocessor);
+	ret = proc_stop(((struct process_context *)pr_ctxt)->processor);
 
 	return ret;
 }
@@ -1092,7 +1092,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 	struct dsp_nodeattrin proc_attr_in, *attr_in = NULL;
 	struct node_res_object *node_res;
 	int nodeid;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	/* Optional argument */
 	if (psize) {
@@ -1378,7 +1378,7 @@ u32 nodewrap_get_message(union trapped_args *args, void *pr_ctxt)
 		return -EFAULT;
 
 	status = node_get_message(node_res->hnode, &msg,
-				  args->args_node_getmessage.utimeout);
+				  args->args_node_getmessage.timeout);
 
 	CP_TO_USR(args->args_node_getmessage.message, &msg, status, 1);
 
@@ -1422,7 +1422,7 @@ u32 nodewrap_put_message(union trapped_args *args, void *pr_ctxt)
 	if (!status) {
 		status =
 		    node_put_message(node_res->hnode, &msg,
-				     args->args_node_putmessage.utimeout);
+				     args->args_node_putmessage.timeout);
 	}
 
 	return status;
@@ -1508,7 +1508,7 @@ u32 nodewrap_get_uuid_props(union trapped_args *args, void *pr_ctxt)
 	int status = 0;
 	struct dsp_uuid node_uuid;
 	struct dsp_ndbprops *pnode_props = NULL;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	CP_FM_USR(&node_uuid, args->args_node_getuuidprops.node_id_ptr, status,
 		  1);
@@ -1853,7 +1853,7 @@ u32 strmwrap_select(union trapped_args *args, void *pr_ctxt)
 
 	if (!status) {
 		status = strm_select(strm_tab, args->args_strm_select.strm_num,
-				     &mask, args->args_strm_select.utimeout);
+				     &mask, args->args_strm_select.timeout);
 	}
 	CP_TO_USR(args->args_strm_select.pmask, &mask, status, 1);
 	return status;
@@ -1888,7 +1888,7 @@ u32 cmmwrap_get_handle(union trapped_args *args, void *pr_ctxt)
 {
 	int status = 0;
 	struct cmm_object *hcmm_mgr;
-	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
+	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	status = cmm_get_handle(hprocessor, &hcmm_mgr);
 

@@ -300,7 +300,7 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *      mgr_attrts->irq_shared:   TRUE if the IRQ is shareable.
  *      mgr_attrts->word_size: DSP Word size in equivalent PC bytes..
  *      mgr_attrts->shm_base:  Base physical address of shared memory, if any.
- *      mgr_attrts->usm_length: Bytes of shared memory block.
+ *      mgr_attrts->sm_length: Bytes of shared memory block.
  *  Returns:
  *      0:            Success;
  *      -ENOMEM:        Insufficient memory for requested resources.

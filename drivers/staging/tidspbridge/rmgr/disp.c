@@ -402,7 +402,7 @@ int disp_node_create(struct disp_object *disp_obj,
 			more_task_args->sysstack_size =
 			    task_arg_obj.sys_stack_size;
 			more_task_args->stack_seg = task_arg_obj.stack_seg;
-			more_task_args->heap_addr = task_arg_obj.udsp_heap_addr;
+			more_task_args->heap_addr = task_arg_obj.dsp_heap_addr;
 			more_task_args->heap_size = task_arg_obj.heap_size;
 			more_task_args->misc = task_arg_obj.dais_arg;
 			more_task_args->num_input_streams =
@@ -410,8 +410,8 @@ int disp_node_create(struct disp_object *disp_obj,
 			total +=
 			    sizeof(struct rms_more_task_args) /
 			    sizeof(rms_word);
-			dev_dbg(bridge, "%s: udsp_heap_addr %x, heap_size %x\n",
-				__func__, task_arg_obj.udsp_heap_addr,
+			dev_dbg(bridge, "%s: dsp_heap_addr %x, heap_size %x\n",
+				__func__, task_arg_obj.dsp_heap_addr,
 				task_arg_obj.heap_size);
 			/* Keep track of pSIOInDef[] and pSIOOutDef[]
 			 * positions in the buffer, since this needs to be
@@ -611,7 +611,7 @@ static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
 		strm_def_obj->nbufs = strm_def.num_bufs;
 		strm_def_obj->segid = strm_def.seg_id;
 		strm_def_obj->align = strm_def.buf_alignment;
-		strm_def_obj->timeout = strm_def.utimeout;
+		strm_def_obj->timeout = strm_def.timeout;
 	}
 
 	if (!status) {

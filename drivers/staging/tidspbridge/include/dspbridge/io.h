@@ -31,7 +31,7 @@ struct io_attrs {
 	bool irq_shared;	/* TRUE if the IRQ is shareable. */
 	u32 word_size;		/* DSP Word size. */
 	u32 shm_base;		/* Physical base address of shared memory. */
-	u32 usm_length;		/* Size (in bytes) of shared memory. */
+	u32 sm_length;		/* Size (in bytes) of shared memory. */
 };
 
 

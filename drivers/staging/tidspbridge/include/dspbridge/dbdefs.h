@@ -100,11 +100,11 @@ static inline bool is_valid_proc_event(u32 x)
 /* The Node UUID structure */
 struct dsp_uuid {
 	u32 data1;
-	u16 us_data2;
-	u16 us_data3;
-	u8 uc_data4;
-	u8 uc_data5;
-	u8 uc_data6[6];
+	u16 data2;
+	u16 data3;
+	u8 data4;
+	u8 data5;
+	u8 data6[6];
 };
 
 /* DCD types */
@@ -229,11 +229,11 @@ struct dsp_strmattr {
 	u32 buf_size;		/* Buffer size (DSP words) */
 	u32 num_bufs;		/* Number of buffers */
 	u32 buf_alignment;	/* Buffer alignment */
-	u32 utimeout;		/* Timeout for blocking STRM calls */
+	u32 timeout;		/* Timeout for blocking STRM calls */
 	enum dsp_strmmode strm_mode;	/* mode of stream when opened */
 	/* DMA chnl id if dsp_strmmode is LDMA or RDMA */
 	u32 udma_chnl_id;
-	u32 udma_priority;	/* DMA channel priority 0=lowest, >0=high */
+	u32 dma_priority;	/* DMA channel priority 0=lowest, >0=high */
 };
 
 /* The dsp_cbdata structure */
@@ -255,9 +255,9 @@ struct dsp_resourcereqmts {
 	u32 static_data_size;
 	u32 global_data_size;
 	u32 program_mem_size;
-	u32 uwc_execution_time;
-	u32 uwc_period;
-	u32 uwc_deadline;
+	u32 wc_execution_time;
+	u32 wc_period;
+	u32 wc_deadline;
 	u32 avg_exection_time;
 	u32 minimum_period;
 };
@@ -294,7 +294,7 @@ struct dsp_ndbprops {
 	u32 message_depth;
 	u32 num_input_streams;
 	u32 num_output_streams;
-	u32 utimeout;
+	u32 timeout;
 	u32 count_profiles;	/* Number of supported profiles */
 	/* Array of profiles */
 	struct dsp_nodeprofs node_profiles[MAX_PROFILES];
@@ -306,7 +306,7 @@ struct dsp_ndbprops {
 struct dsp_nodeattrin {
 	u32 cb_struct;
 	s32 prio;
-	u32 utimeout;
+	u32 timeout;
 	u32 profile_id;
 	/* Reserved, for Bridge Internal use only */
 	u32 heap_size;
@@ -347,7 +347,7 @@ struct dsp_notification {
 /* The dsp_processorattrin structure describes the attributes of a processor */
 struct dsp_processorattrin {
 	u32 cb_struct;
-	u32 utimeout;
+	u32 timeout;
 };
 /*
  * The dsp_processorinfo structure describes basic capabilities of a
@@ -401,13 +401,13 @@ struct dsp_resourceinfo {
  */
 struct dsp_streamattrin {
 	u32 cb_struct;
-	u32 utimeout;
+	u32 timeout;
 	u32 segment_id;
 	u32 buf_alignment;
 	u32 num_bufs;
 	enum dsp_strmmode strm_mode;
 	u32 udma_chnl_id;
-	u32 udma_priority;
+	u32 dma_priority;
 };
 
 /* The dsp_bufferattr structure describes the attributes of a data buffer */

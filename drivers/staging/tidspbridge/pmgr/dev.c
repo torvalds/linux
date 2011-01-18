@@ -215,12 +215,12 @@ int dev_create_device(struct dev_object **device_obj,
 			/* Assume last memory window is for CHNL */
 			io_mgr_attrs.shm_base = host_res->mem_base[1] +
 			    host_res->offset_for_monitor;
-			io_mgr_attrs.usm_length =
+			io_mgr_attrs.sm_length =
 			    host_res->mem_length[1] -
 			    host_res->offset_for_monitor;
 		} else {
 			io_mgr_attrs.shm_base = 0;
-			io_mgr_attrs.usm_length = 0;
+			io_mgr_attrs.sm_length = 0;
 			pr_err("%s: No memory reserved for shared structures\n",
 			       __func__);
 		}

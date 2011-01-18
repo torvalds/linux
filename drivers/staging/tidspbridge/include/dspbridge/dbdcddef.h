@@ -54,7 +54,7 @@ struct dcd_nodeprops {
 	char *pstr_i_alg_name;
 
 	/* Dynamic load properties */
-	u16 us_load_type;	/* Static, dynamic, overlay */
+	u16 load_type;	/* Static, dynamic, overlay */
 	u32 data_mem_seg_mask;		/* Data memory requirements */
 	u32 code_mem_seg_mask;		/* Code memory requirements */
 };

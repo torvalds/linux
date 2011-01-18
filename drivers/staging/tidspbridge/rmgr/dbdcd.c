@@ -1112,14 +1112,14 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		    dsp_resource_reqmts.program_mem_size = atoi(token);
 		token = strsep(&psz_cur, seps);
 		gen_obj->obj_data.node_obj.ndb_props.
-		    dsp_resource_reqmts.uwc_execution_time = atoi(token);
+		    dsp_resource_reqmts.wc_execution_time = atoi(token);
 		token = strsep(&psz_cur, seps);
 		gen_obj->obj_data.node_obj.ndb_props.
-		    dsp_resource_reqmts.uwc_period = atoi(token);
+		    dsp_resource_reqmts.wc_period = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		gen_obj->obj_data.node_obj.ndb_props.
-		    dsp_resource_reqmts.uwc_deadline = atoi(token);
+		    dsp_resource_reqmts.wc_deadline = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		gen_obj->obj_data.node_obj.ndb_props.
@@ -1162,8 +1162,8 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		    atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		/* u32 utimeout */
-		gen_obj->obj_data.node_obj.ndb_props.utimeout = atoi(token);
+		/* u32 timeout */
+		gen_obj->obj_data.node_obj.ndb_props.timeout = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* char *pstr_create_phase_fxn */
@@ -1221,7 +1221,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 
 		/* Load type (static, dynamic, or overlay) */
 		if (token) {
-			gen_obj->obj_data.node_obj.us_load_type = atoi(token);
+			gen_obj->obj_data.node_obj.load_type = atoi(token);
 			token = strsep(&psz_cur, seps);
 		}
 
