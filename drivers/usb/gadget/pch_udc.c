@@ -2718,7 +2718,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 
-	/* Assues that there are no pending requets with this driver */
+	/* Assures that there are no pending requests with this driver */
+	driver->disconnect(&dev->gadget);
 	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
