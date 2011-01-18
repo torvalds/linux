@@ -817,6 +817,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_eld *eld;
 	struct hda_pcm_stream *codec_pars;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int idx;
 
 	for (idx = 0; idx < spec->num_cvts; idx++)
@@ -844,6 +845,14 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 		hinfo->formats = codec_pars->formats;
 		hinfo->maxbps = codec_pars->maxbps;
 	}
+	/* store the updated parameters */
+	runtime->hw.channels_min = hinfo->channels_min;
+	runtime->hw.channels_max = hinfo->channels_max;
+	runtime->hw.formats = hinfo->formats;
+	runtime->hw.rates = hinfo->rates;
+
+	snd_pcm_hw_constraint_step(substream->runtime, 0,
+				   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 	return 0;
 }
 
@@ -1238,6 +1247,9 @@ static int simple_playback_pcm_open(struct hda_pcm_stream *hinfo,
 		snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_CHANNELS,
 				hw_constraints_channels);
+	} else {
+		snd_pcm_hw_constraint_step(substream->runtime, 0,
+					   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 	}
 
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
