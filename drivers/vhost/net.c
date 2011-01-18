@@ -128,8 +128,7 @@ static void handle_tx(struct vhost_net *net)
 	size_t hdr_size;
 	struct socket *sock;
 
-	/* TODO: check that we are running from vhost_worker?
-	 * Not sure it's worth it, it's straight-forward enough. */
+	/* TODO: check that we are running from vhost_worker? */
 	sock = rcu_dereference_check(vq->private_data, 1);
 	if (!sock)
 		return;
@@ -306,7 +305,8 @@ static void handle_rx_big(struct vhost_net *net)
 	size_t len, total_len = 0;
 	int err;
 	size_t hdr_size;
-	struct socket *sock = rcu_dereference(vq->private_data);
+	/* TODO: check that we are running from vhost_worker? */
+	struct socket *sock = rcu_dereference_check(vq->private_data, 1);
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
@@ -415,7 +415,8 @@ static void handle_rx_mergeable(struct vhost_net *net)
 	int err, headcount;
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
-	struct socket *sock = rcu_dereference(vq->private_data);
+	/* TODO: check that we are running from vhost_worker? */
+	struct socket *sock = rcu_dereference_check(vq->private_data, 1);
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
