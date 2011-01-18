@@ -176,6 +176,18 @@ config USB_FSL_USB2
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_FUSB300
+	boolean "Faraday FUSB300 USB Peripheral Controller"
+	select USB_GADGET_DUALSPEED
+	help
+	   Faraday usb device controller FUSB300 driver
+
+config USB_FUSB300
+	tristate
+	depends on USB_GADGET_FUSB300
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_LH7A40X
 	boolean "LH7A40X"
 	depends on ARCH_LH7A40X
