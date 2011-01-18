@@ -44,7 +44,7 @@
 #define ZLDLLNAME               ""
 
 struct mgr_object {
-	struct dcd_manager *hdcd_mgr;	/* Proc/Node data manager */
+	struct dcd_manager *dcd_mgr;	/* Proc/Node data manager */
 };
 
 /*  ----------------------------------- Globals */
@@ -67,7 +67,7 @@ int mgr_create(struct mgr_object **mgr_obj,
 
 	pmgr_obj = kzalloc(sizeof(struct mgr_object), GFP_KERNEL);
 	if (pmgr_obj) {
-		status = dcd_create_manager(ZLDLLNAME, &pmgr_obj->hdcd_mgr);
+		status = dcd_create_manager(ZLDLLNAME, &pmgr_obj->dcd_mgr);
 		if (!status) {
 			/* If succeeded store the handle in the MGR Object */
 			if (drv_datap) {
@@ -81,7 +81,7 @@ int mgr_create(struct mgr_object **mgr_obj,
 			if (!status) {
 				*mgr_obj = pmgr_obj;
 			} else {
-				dcd_destroy_manager(pmgr_obj->hdcd_mgr);
+				dcd_destroy_manager(pmgr_obj->dcd_mgr);
 				kfree(pmgr_obj);
 			}
 		} else {
@@ -110,8 +110,8 @@ int mgr_destroy(struct mgr_object *hmgr_obj)
 	DBC_REQUIRE(hmgr_obj);
 
 	/* Free resources */
-	if (hmgr_obj->hdcd_mgr)
-		dcd_destroy_manager(hmgr_obj->hdcd_mgr);
+	if (hmgr_obj->dcd_mgr)
+		dcd_destroy_manager(hmgr_obj->dcd_mgr);
 
 	kfree(pmgr_obj);
 	/* Update the driver data with NULL for MGR Object */
@@ -163,7 +163,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 			break;
 		*pu_num_nodes = node_index;
 		if (node_id == (node_index - 1)) {
-			status = dcd_get_object_def(pmgr_obj->hdcd_mgr,
+			status = dcd_get_object_def(pmgr_obj->dcd_mgr,
 					&node_uuid, DSP_DCDNODETYPE, &gen_obj);
 			if (status)
 				break;
@@ -258,7 +258,7 @@ int mgr_enum_processor_info(u32 processor_id,
 		if (proc_detect != false)
 			continue;
 
-		status2 = dcd_get_object_def(pmgr_obj->hdcd_mgr,
+		status2 = dcd_get_object_def(pmgr_obj->dcd_mgr,
 					     (struct dsp_uuid *)&temp_uuid,
 					     DSP_DCDPROCESSORTYPE, &gen_obj);
 		if (!status2) {
@@ -333,7 +333,7 @@ int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 
 	*dcd_handle = (u32) NULL;
 	if (pmgr_obj) {
-		*dcd_handle = (u32) pmgr_obj->hdcd_mgr;
+		*dcd_handle = (u32) pmgr_obj->dcd_mgr;
 		status = 0;
 	}
 	DBC_ENSURE((!status && *dcd_handle != (u32) NULL) ||

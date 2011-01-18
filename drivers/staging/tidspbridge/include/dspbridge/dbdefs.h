@@ -208,8 +208,8 @@ enum dsp_flushtype {
 
 /* Memory Segment Status Values */
 struct dsp_memstat {
-	u32 ul_size;
-	u32 ul_total_free_size;
+	u32 size;
+	u32 total_free_size;
 	u32 len_max_free_block;
 	u32 num_free_blocks;
 	u32 num_alloc_blocks;
@@ -388,7 +388,7 @@ struct dsp_resourceinfo {
 	u32 cb_struct;
 	enum dsp_resourceinfotype resource_type;
 	union {
-		u32 ul_resource;
+		u32 resource;
 		struct dsp_memstat mem_stat;
 		struct dsp_procloadstat proc_load_stat;
 	} result;

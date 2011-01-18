@@ -120,20 +120,20 @@ union trapped_args {
 
 	struct {
 		void *hprocessor;
-		u32 ul_size;
+		u32 size;
 		void *__user *pp_rsv_addr;
 	} args_proc_rsvmem;
 
 	struct {
 		void *hprocessor;
-		u32 ul_size;
+		u32 size;
 		void *prsv_addr;
 	} args_proc_unrsvmem;
 
 	struct {
 		void *hprocessor;
 		void *pmpu_addr;
-		u32 ul_size;
+		u32 size;
 		void *req_addr;
 		void *__user *pp_map_addr;
 		u32 ul_map_attr;
@@ -141,28 +141,28 @@ union trapped_args {
 
 	struct {
 		void *hprocessor;
-		u32 ul_size;
+		u32 size;
 		void *map_addr;
 	} args_proc_unmapmem;
 
 	struct {
 		void *hprocessor;
 		void *pmpu_addr;
-		u32 ul_size;
+		u32 size;
 		u32 dir;
 	} args_proc_dma;
 
 	struct {
 		void *hprocessor;
 		void *pmpu_addr;
-		u32 ul_size;
+		u32 size;
 		u32 ul_flags;
 	} args_proc_flushmemory;
 
 	struct {
 		void *hprocessor;
 		void *pmpu_addr;
-		u32 ul_size;
+		u32 size;
 	} args_proc_invalidatememory;
 
 	/* NODE Module */
@@ -328,14 +328,14 @@ union trapped_args {
 
 	/* CMM Module */
 	struct {
-		struct cmm_object *hcmm_mgr;
+		struct cmm_object *cmm_mgr;
 		u32 usize;
 		struct cmm_attrs *pattrs;
 		void **pp_buf_va;
 	} args_cmm_allocbuf;
 
 	struct {
-		struct cmm_object *hcmm_mgr;
+		struct cmm_object *cmm_mgr;
 		void *buf_pa;
 		u32 ul_seg_id;
 	} args_cmm_freebuf;
@@ -346,7 +346,7 @@ union trapped_args {
 	} args_cmm_gethandle;
 
 	struct {
-		struct cmm_object *hcmm_mgr;
+		struct cmm_object *cmm_mgr;
 		struct cmm_info __user *cmm_info_obj;
 	} args_cmm_getinfo;
 

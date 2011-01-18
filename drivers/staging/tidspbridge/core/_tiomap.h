@@ -319,7 +319,7 @@ static const struct bpwr_clk_t bpwr_clks[] = {
 
 /* This Bridge driver's device context: */
 struct bridge_dev_context {
-	struct dev_object *hdev_obj;	/* Handle to Bridge device object. */
+	struct dev_object *dev_obj;	/* Handle to Bridge device object. */
 	u32 dsp_base_addr;	/* Arm's API to DSP virt base addr */
 	/*
 	 * DSP External memory prog address as seen virtually by the OS on

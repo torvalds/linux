@@ -121,7 +121,7 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr, struct msg_queue **msgq,
 		return -ENOMEM;
 
 	msg_q->max_msgs = max_msgs;
-	msg_q->hmsg_mgr = hmsg_mgr;
+	msg_q->msg_mgr = hmsg_mgr;
 	msg_q->arg = arg;	/* Node handle */
 	msg_q->msgq_id = msgq_id;	/* Node env (not valid yet) */
 	/* Queues of Message frames for messages from the DSP */
@@ -214,10 +214,10 @@ void bridge_msg_delete_queue(struct msg_queue *msg_queue_obj)
 	struct msg_mgr *hmsg_mgr;
 	u32 io_msg_pend;
 
-	if (!msg_queue_obj || !msg_queue_obj->hmsg_mgr)
+	if (!msg_queue_obj || !msg_queue_obj->msg_mgr)
 		return;
 
-	hmsg_mgr = msg_queue_obj->hmsg_mgr;
+	hmsg_mgr = msg_queue_obj->msg_mgr;
 	msg_queue_obj->done = true;
 	/*  Unblock all threads blocked in MSG_Get() or MSG_Put(). */
 	io_msg_pend = msg_queue_obj->io_msg_pend;
@@ -254,7 +254,7 @@ int bridge_msg_get(struct msg_queue *msg_queue_obj,
 	if (!msg_queue_obj || pmsg == NULL)
 		return -ENOMEM;
 
-	hmsg_mgr = msg_queue_obj->hmsg_mgr;
+	hmsg_mgr = msg_queue_obj->msg_mgr;
 
 	spin_lock_bh(&hmsg_mgr->msg_mgr_lock);
 	/* If a message is already there, get it */
@@ -331,10 +331,10 @@ int bridge_msg_put(struct msg_queue *msg_queue_obj,
 	u32 index;
 	int status;
 
-	if (!msg_queue_obj || !pmsg || !msg_queue_obj->hmsg_mgr)
+	if (!msg_queue_obj || !pmsg || !msg_queue_obj->msg_mgr)
 		return -EFAULT;
 
-	hmsg_mgr = msg_queue_obj->hmsg_mgr;
+	hmsg_mgr = msg_queue_obj->msg_mgr;
 
 	spin_lock_bh(&hmsg_mgr->msg_mgr_lock);
 
@@ -521,10 +521,10 @@ static void delete_msg_queue(struct msg_queue *msg_queue_obj, u32 num_to_dsp)
 	struct msg_frame *pmsg, *tmp;
 	u32 i;
 
-	if (!msg_queue_obj || !msg_queue_obj->hmsg_mgr)
+	if (!msg_queue_obj || !msg_queue_obj->msg_mgr)
 		return;
 
-	hmsg_mgr = msg_queue_obj->hmsg_mgr;
+	hmsg_mgr = msg_queue_obj->msg_mgr;
 
 	/* Pull off num_to_dsp message frames from Msg manager and free */
 	i = 0;

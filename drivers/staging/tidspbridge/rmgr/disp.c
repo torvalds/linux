@@ -58,10 +58,10 @@
  *  ======== disp_object ========
  */
 struct disp_object {
-	struct dev_object *hdev_obj;	/* Device for this processor */
+	struct dev_object *dev_obj;	/* Device for this processor */
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
-	struct chnl_mgr *hchnl_mgr;	/* Channel manager */
+	struct chnl_mgr *chnl_mgr;	/* Channel manager */
 	struct chnl_object *chnl_to_dsp;	/* Chnl for commands to RMS */
 	struct chnl_object *chnl_from_dsp;	/* Chnl for replies from RMS */
 	u8 *pbuf;		/* Buffer for commands, replies */
@@ -108,11 +108,11 @@ int disp_create(struct disp_object **dispatch_obj,
 	if (disp_obj == NULL)
 		status = -ENOMEM;
 	else
-		disp_obj->hdev_obj = hdev_obj;
+		disp_obj->dev_obj = hdev_obj;
 
 	/* Get Channel manager and Bridge function interface */
 	if (!status) {
-		status = dev_get_chnl_mgr(hdev_obj, &(disp_obj->hchnl_mgr));
+		status = dev_get_chnl_mgr(hdev_obj, &(disp_obj->chnl_mgr));
 		if (!status) {
 			(void)dev_get_intf_fxns(hdev_obj, &intf_fxns);
 			disp_obj->intf_fxns = intf_fxns;
@@ -142,7 +142,7 @@ int disp_create(struct disp_object **dispatch_obj,
 	chnl_attr_obj.event_obj = NULL;
 	ul_chnl_id = disp_attrs->chnl_offset + CHNLTORMSOFFSET;
 	status = (*intf_fxns->chnl_open) (&(disp_obj->chnl_to_dsp),
-					      disp_obj->hchnl_mgr,
+					      disp_obj->chnl_mgr,
 					      CHNL_MODETODSP, ul_chnl_id,
 					      &chnl_attr_obj);
 
@@ -150,7 +150,7 @@ int disp_create(struct disp_object **dispatch_obj,
 		ul_chnl_id = disp_attrs->chnl_offset + CHNLFROMRMSOFFSET;
 		status =
 		    (*intf_fxns->chnl_open) (&(disp_obj->chnl_from_dsp),
-						 disp_obj->hchnl_mgr,
+						 disp_obj->chnl_mgr,
 						 CHNL_MODEFROMDSP, ul_chnl_id,
 						 &chnl_attr_obj);
 	}
@@ -282,7 +282,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	DBC_REQUIRE(node_get_type(hnode) != NODE_DEVICE);
 	DBC_REQUIRE(node_env != NULL);
 
-	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
+	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (status)
 		goto func_end;
@@ -484,7 +484,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 	DBC_REQUIRE(disp_obj);
 	DBC_REQUIRE(hnode != NULL);
 
-	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
+	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (!status) {
 
@@ -525,7 +525,7 @@ int disp_node_run(struct disp_object *disp_obj,
 	DBC_REQUIRE(disp_obj);
 	DBC_REQUIRE(hnode != NULL);
 
-	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
+	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (!status) {
 

@@ -695,7 +695,7 @@ u32 procwrap_end_dma(union trapped_args *args, void *pr_ctxt)
 
 	status = proc_end_dma(pr_ctxt,
 				   args->args_proc_dma.pmpu_addr,
-				   args->args_proc_dma.ul_size,
+				   args->args_proc_dma.size,
 				   args->args_proc_dma.dir);
 	return status;
 }
@@ -709,7 +709,7 @@ u32 procwrap_begin_dma(union trapped_args *args, void *pr_ctxt)
 
 	status = proc_begin_dma(pr_ctxt,
 				   args->args_proc_dma.pmpu_addr,
-				   args->args_proc_dma.ul_size,
+				   args->args_proc_dma.size,
 				   args->args_proc_dma.dir);
 	return status;
 }
@@ -727,7 +727,7 @@ u32 procwrap_flush_memory(union trapped_args *args, void *pr_ctxt)
 
 	status = proc_flush_memory(pr_ctxt,
 				   args->args_proc_flushmemory.pmpu_addr,
-				   args->args_proc_flushmemory.ul_size,
+				   args->args_proc_flushmemory.size,
 				   args->args_proc_flushmemory.ul_flags);
 	return status;
 }
@@ -742,7 +742,7 @@ u32 procwrap_invalidate_memory(union trapped_args *args, void *pr_ctxt)
 	status =
 	    proc_invalidate_memory(pr_ctxt,
 				   args->args_proc_invalidatememory.pmpu_addr,
-				   args->args_proc_invalidatememory.ul_size);
+				   args->args_proc_invalidatememory.size);
 	return status;
 }
 
@@ -950,12 +950,12 @@ u32 procwrap_map(union trapped_args *args, void *pr_ctxt)
 	void *map_addr;
 	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
 
-	if (!args->args_proc_mapmem.ul_size)
+	if (!args->args_proc_mapmem.size)
 		return -EINVAL;
 
 	status = proc_map(args->args_proc_mapmem.hprocessor,
 			  args->args_proc_mapmem.pmpu_addr,
-			  args->args_proc_mapmem.ul_size,
+			  args->args_proc_mapmem.size,
 			  args->args_proc_mapmem.req_addr, &map_addr,
 			  args->args_proc_mapmem.ul_map_attr, pr_ctxt);
 	if (!status) {
@@ -999,12 +999,12 @@ u32 procwrap_reserve_memory(union trapped_args *args, void *pr_ctxt)
 	void *prsv_addr;
 	void *hprocessor = ((struct process_context *)pr_ctxt)->hprocessor;
 
-	if ((args->args_proc_rsvmem.ul_size <= 0) ||
-	    (args->args_proc_rsvmem.ul_size & (PG_SIZE4K - 1)) != 0)
+	if ((args->args_proc_rsvmem.size <= 0) ||
+	    (args->args_proc_rsvmem.size & (PG_SIZE4K - 1)) != 0)
 		return -EINVAL;
 
 	status = proc_reserve_memory(hprocessor,
-				     args->args_proc_rsvmem.ul_size, &prsv_addr,
+				     args->args_proc_rsvmem.size, &prsv_addr,
 				     pr_ctxt);
 	if (!status) {
 		if (put_user(prsv_addr, args->args_proc_rsvmem.pp_rsv_addr)) {
@@ -1905,7 +1905,7 @@ u32 cmmwrap_get_info(union trapped_args *args, void *pr_ctxt)
 	int status = 0;
 	struct cmm_info cmm_info_obj;
 
-	status = cmm_get_info(args->args_cmm_getinfo.hcmm_mgr, &cmm_info_obj);
+	status = cmm_get_info(args->args_cmm_getinfo.cmm_mgr, &cmm_info_obj);
 
 	CP_TO_USR(args->args_cmm_getinfo.cmm_info_obj, &cmm_info_obj, status,
 		  1);

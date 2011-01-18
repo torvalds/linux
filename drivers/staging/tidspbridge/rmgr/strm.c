@@ -55,7 +55,7 @@
  */
 struct strm_mgr {
 	struct dev_object *dev_obj;	/* Device for this processor */
-	struct chnl_mgr *hchnl_mgr;	/* Channel manager */
+	struct chnl_mgr *chnl_mgr;	/* Channel manager */
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
 };
@@ -213,7 +213,7 @@ int strm_create(struct strm_mgr **strm_man,
 
 	/* Get Channel manager and Bridge function interface */
 	if (!status) {
-		status = dev_get_chnl_mgr(dev_obj, &(strm_mgr_obj->hchnl_mgr));
+		status = dev_get_chnl_mgr(dev_obj, &(strm_mgr_obj->chnl_mgr));
 		if (!status) {
 			(void)dev_get_intf_fxns(dev_obj,
 						&(strm_mgr_obj->intf_fxns));
@@ -532,7 +532,7 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 	if (status)
 		goto func_cont;
 
-	if ((pattr->virt_base == NULL) || !(pattr->ul_virt_size > 0))
+	if ((pattr->virt_base == NULL) || !(pattr->virt_size > 0))
 		goto func_cont;
 
 	/* No System DMA */
@@ -547,7 +547,7 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 			/*  Set translators Virt Addr attributes */
 			status = cmm_xlator_info(strm_obj->xlator,
 						 (u8 **) &pattr->virt_base,
-						 pattr->ul_virt_size,
+						 pattr->virt_size,
 						 strm_obj->segment_id, true);
 		}
 	}
@@ -558,7 +558,7 @@ func_cont:
 		    CHNL_MODETODSP : CHNL_MODEFROMDSP;
 		intf_fxns = strm_mgr_obj->intf_fxns;
 		status = (*intf_fxns->chnl_open) (&(strm_obj->chnl_obj),
-						      strm_mgr_obj->hchnl_mgr,
+						      strm_mgr_obj->chnl_mgr,
 						      chnl_mode, ul_chnl_id,
 						      &chnl_attr_obj);
 		if (status) {
@@ -572,7 +572,7 @@ func_cont:
 				 * We got a status that's not return-able.
 				 * Assert that we got something we were
 				 * expecting (-EFAULT isn't acceptable,
-				 * strm_mgr_obj->hchnl_mgr better be valid or we
+				 * strm_mgr_obj->chnl_mgr better be valid or we
 				 * assert here), and then return -EPERM.
 				 */
 				DBC_ASSERT(status == -ENOSR ||

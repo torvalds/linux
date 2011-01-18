@@ -52,7 +52,7 @@ static irqreturn_t mmu_fault_isr(int irq, void *data)
 	if (!deh)
 		return IRQ_HANDLED;
 
-	resources = deh->hbridge_context->resources;
+	resources = deh->bridge_context->resources;
 	if (!resources) {
 		dev_dbg(bridge, "%s: Failed to get Host Resources\n",
 				__func__);
@@ -113,7 +113,7 @@ int bridge_deh_create(struct deh_mgr **ret_deh,
 	tasklet_init(&deh->dpc_tasklet, mmu_fault_dpc, (u32) deh);
 
 	/* Fill in context structure */
-	deh->hbridge_context = hbridge_context;
+	deh->bridge_context = hbridge_context;
 
 	/* Install ISR function for DSP MMU fault */
 	status = request_irq(INT_DSP_MMU_IRQ, mmu_fault_isr, 0,
@@ -228,7 +228,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 		return;
 
 	dev_dbg(bridge, "%s: device exception", __func__);
-	dev_context = deh->hbridge_context;
+	dev_context = deh->bridge_context;
 
 	switch (event) {
 	case DSP_SYSERROR:

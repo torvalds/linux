@@ -109,8 +109,8 @@ extern int dev_create_device(struct dev_object
  *      DEV Initialized
  *      Valid hdev_obj
  *  Ensures:
- *      0 and hdev_obj->hnode_mgr != NULL
- *      else    hdev_obj->hnode_mgr == NULL
+ *      0 and hdev_obj->node_mgr != NULL
+ *      else    hdev_obj->node_mgr == NULL
  */
 extern int dev_create2(struct dev_object *hdev_obj);
 
@@ -127,7 +127,7 @@ extern int dev_create2(struct dev_object *hdev_obj);
  *      DEV Initialized
  *      Valid hdev_obj
  *  Ensures:
- *      0 and hdev_obj->hnode_mgr == NULL
+ *      0 and hdev_obj->node_mgr == NULL
  *      else    -EPERM.
  */
 extern int dev_destroy2(struct dev_object *hdev_obj);

@@ -121,7 +121,7 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 			dev_context->brd_state = BRD_DSP_HIBERNATION;
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 			status =
-			    dev_get_io_mgr(dev_context->hdev_obj, &hio_mgr);
+			    dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 			if (!hio_mgr) {
 				status = DSP_EHANDLE;
 				return status;
@@ -216,7 +216,7 @@ int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 		pr_err("%s: Timed out waiting for DSP off mode, state %x\n",
 		       __func__, pwr_state);
 #ifdef CONFIG_TIDSPBRIDGE_NTFY_PWRERR
-		dev_get_deh_mgr(dev_context->hdev_obj, &hdeh_mgr);
+		dev_get_deh_mgr(dev_context->dev_obj, &hdeh_mgr);
 		bridge_deh_notify(hdeh_mgr, DSP_PWRERROR, 0);
 #endif /* CONFIG_TIDSPBRIDGE_NTFY_PWRERR */
 		return -ETIMEDOUT;
@@ -382,7 +382,7 @@ int post_scale_dsp(struct bridge_dev_context *dev_context,
 	u32 voltage_domain;
 	struct io_mgr *hio_mgr;
 
-	status = dev_get_io_mgr(dev_context->hdev_obj, &hio_mgr);
+	status = dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 	if (!hio_mgr)
 		return -EFAULT;
 

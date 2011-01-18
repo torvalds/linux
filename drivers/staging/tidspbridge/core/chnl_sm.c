@@ -388,7 +388,7 @@ int bridge_chnl_create(struct chnl_mgr **channel_mgr,
 			chnl_mgr_obj->open_channels = 0;
 			chnl_mgr_obj->output_mask = 0;
 			chnl_mgr_obj->last_output = 0;
-			chnl_mgr_obj->hdev_obj = hdev_obj;
+			chnl_mgr_obj->dev_obj = hdev_obj;
 			spin_lock_init(&chnl_mgr_obj->chnl_mgr_lock);
 		} else {
 			status = -ENOMEM;
@@ -434,7 +434,7 @@ int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr)
 		kfree(chnl_mgr_obj->ap_channel);
 
 		/* Set hchnl_mgr to NULL in device object. */
-		dev_set_chnl_mgr(chnl_mgr_obj->hdev_obj, NULL);
+		dev_set_chnl_mgr(chnl_mgr_obj->dev_obj, NULL);
 		/* Free this Chnl Mgr object: */
 		kfree(hchnl_mgr);
 	} else {
@@ -508,7 +508,7 @@ int bridge_chnl_get_info(struct chnl_object *chnl_obj,
 	if (channel_info != NULL) {
 		if (pchnl) {
 			/* Return the requested information: */
-			channel_info->hchnl_mgr = pchnl->chnl_mgr_obj;
+			channel_info->chnl_mgr = pchnl->chnl_mgr_obj;
 			channel_info->event_obj = pchnl->user_event;
 			channel_info->cnhl_id = pchnl->chnl_id;
 			channel_info->mode = pchnl->chnl_mode;

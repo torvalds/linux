@@ -73,7 +73,7 @@ int io_create(struct io_mgr **io_man, struct dev_object *hdev_obj,
 		if (!status) {
 			pio_mgr = (struct io_mgr_ *)hio_mgr;
 			pio_mgr->intf_fxns = intf_fxns;
-			pio_mgr->hdev_obj = hdev_obj;
+			pio_mgr->dev_obj = hdev_obj;
 
 			/* Return the new channel manager handle: */
 			*io_man = hio_mgr;

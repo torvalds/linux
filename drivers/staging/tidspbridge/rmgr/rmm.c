@@ -369,13 +369,13 @@ bool rmm_stat(struct rmm_target_obj *target, enum dsp_memtype segid,
 		}
 
 		/* ul_size */
-		mem_stat_buf->ul_size = target->seg_tab[segid].length;
+		mem_stat_buf->size = target->seg_tab[segid].length;
 
 		/* num_free_blocks */
 		mem_stat_buf->num_free_blocks = free_blocks;
 
-		/* ul_total_free_size */
-		mem_stat_buf->ul_total_free_size = total_free_size;
+		/* total_free_size */
+		mem_stat_buf->total_free_size = total_free_size;
 
 		/* len_max_free_block */
 		mem_stat_buf->len_max_free_block = max_free_size;

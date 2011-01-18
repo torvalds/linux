@@ -59,7 +59,7 @@ struct bridge_ioctl_extproc {
 	u32 gpp_pa;		/* GPP physical address */
 	/* GPP virtual address. __va does not work for ioremapped addresses */
 	u32 gpp_va;
-	u32 ul_size;		/* Size of the mapped memory in bytes */
+	u32 size;		/* Size of the mapped memory in bytes */
 	enum hw_endianism_t endianism;
 	enum hw_mmu_mixed_size_t mixed_mode;
 	enum hw_element_size_t elem_size;

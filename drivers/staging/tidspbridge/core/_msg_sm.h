@@ -108,7 +108,7 @@ struct msg_mgr {
  */
 struct msg_queue {
 	struct list_head list_elem;
-	struct msg_mgr *hmsg_mgr;
+	struct msg_mgr *msg_mgr;
 	u32 max_msgs;		/* Node message depth */
 	u32 msgq_id;		/* Node environment pointer */
 	struct list_head msg_free_list;	/* Free MsgFrames ready to be filled */

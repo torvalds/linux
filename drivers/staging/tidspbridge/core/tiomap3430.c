@@ -396,7 +396,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	 * last dsp base image was loaded. The first entry is always
 	 * SHMMEM base. */
 	/* Get SHM_BEG - convert to byte address */
-	(void)dev_get_symbol(dev_context->hdev_obj, SHMBASENAME,
+	(void)dev_get_symbol(dev_context->dev_obj, SHMBASENAME,
 			     &ul_shm_base_virt);
 	ul_shm_base_virt *= DSPWORDSIZE;
 	DBC_ASSERT(ul_shm_base_virt != 0);
@@ -474,12 +474,12 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 					itmp_entry_ndx,
 					e->gpp_pa,
 					e->dsp_va,
-					e->ul_size);
+					e->size);
 
 			hw_mmu_tlb_add(dev_context->dsp_mmu_base,
 					e->gpp_pa,
 					e->dsp_va,
-					e->ul_size,
+					e->size,
 					itmp_entry_ndx,
 					&map_attrs, 1, 1);
 
@@ -505,9 +505,9 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		hw_mmu_enable(resources->dmmu_base);
 
 		/* Enable the BIOS clock */
-		(void)dev_get_symbol(dev_context->hdev_obj,
+		(void)dev_get_symbol(dev_context->dev_obj,
 				     BRIDGEINIT_BIOSGPTIMER, &ul_bios_gp_timer);
-		(void)dev_get_symbol(dev_context->hdev_obj,
+		(void)dev_get_symbol(dev_context->dev_obj,
 				     BRIDGEINIT_LOADMON_GPTIMER,
 				     &ul_load_monitor_timer);
 	}
@@ -536,7 +536,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 
 	if (!status) {
 		/* Set the DSP clock rate */
-		(void)dev_get_symbol(dev_context->hdev_obj,
+		(void)dev_get_symbol(dev_context->dev_obj,
 				     "_BRIDGEINIT_DSP_FREQ", &ul_dsp_clk_addr);
 		/*Set Autoidle Mode for IVA2 PLL */
 		(*pdata->dsp_cm_write)(1 << OMAP3430_AUTO_IVA2_DPLL_SHIFT,
@@ -607,7 +607,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		dsp_wdt_sm_set((void *)ul_shm_base);
 		dsp_wdt_enable(true);
 
-		status = dev_get_io_mgr(dev_context->hdev_obj, &hio_mgr);
+		status = dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 		if (hio_mgr) {
 			io_sh_msetting(hio_mgr, SHM_OPPINFO, NULL);
 			/* Write the synchronization bit to indicate the
@@ -872,7 +872,7 @@ static int bridge_dev_create(struct bridge_dev_context
 		dev_context->dsp_mmu_base = resources->dmmu_base;
 	}
 	if (!status) {
-		dev_context->hdev_obj = hdev_obj;
+		dev_context->dev_obj = hdev_obj;
 		/* Store current board state. */
 		dev_context->brd_state = BRD_UNKNOWN;
 		dev_context->resources = resources;

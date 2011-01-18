@@ -53,7 +53,7 @@
 
 /* Channel info. */
 struct chnl_info {
-	struct chnl_mgr *hchnl_mgr;	/* Owning channel manager. */
+	struct chnl_mgr *chnl_mgr;	/* Owning channel manager. */
 	u32 cnhl_id;		/* Channel ID. */
 	void *event_obj;	/* Channel I/O completion event. */
 	/*Abstraction of I/O completion event. */

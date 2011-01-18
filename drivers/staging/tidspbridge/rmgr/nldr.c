@@ -190,8 +190,8 @@ struct ovly_node {
  *  Overlay loader object.
  */
 struct nldr_object {
-	struct dev_object *hdev_obj;	/* Device object */
-	struct dcd_manager *hdcd_mgr;	/* Proc/Node data manager */
+	struct dev_object *dev_obj;	/* Device object */
+	struct dcd_manager *dcd_mgr;	/* Proc/Node data manager */
 	struct dbll_tar_obj *dbll;	/* The DBL loader */
 	struct dbll_library_obj *base_lib;	/* Base image library */
 	struct rmm_target_obj *rmm;	/* Remote memory manager for DSP */
@@ -206,8 +206,8 @@ struct nldr_object {
 	u32 *seg_table;		/* memtypes of dynamic memory segs
 				 * indexed by segid
 				 */
-	u16 us_dsp_mau_size;	/* Size of DSP MAU */
-	u16 us_dsp_word_size;	/* Size of DSP word */
+	u16 dsp_mau_size;	/* Size of DSP MAU */
+	u16 dsp_word_size;	/* Size of DSP word */
 };
 
 /*
@@ -435,7 +435,7 @@ int nldr_create(struct nldr_object **nldr,
 	/* Allocate dynamic loader object */
 	nldr_obj = kzalloc(sizeof(struct nldr_object), GFP_KERNEL);
 	if (nldr_obj) {
-		nldr_obj->hdev_obj = hdev_obj;
+		nldr_obj->dev_obj = hdev_obj;
 		/* warning, lazy status checking alert! */
 		dev_get_cod_mgr(hdev_obj, &cod_mgr);
 		if (cod_mgr) {
@@ -450,8 +450,8 @@ int nldr_create(struct nldr_object **nldr,
 		}
 		status = 0;
 		/* end lazy status checking */
-		nldr_obj->us_dsp_mau_size = pattrs->us_dsp_mau_size;
-		nldr_obj->us_dsp_word_size = pattrs->us_dsp_word_size;
+		nldr_obj->dsp_mau_size = pattrs->dsp_mau_size;
+		nldr_obj->dsp_word_size = pattrs->dsp_word_size;
 		nldr_obj->ldr_fxns = ldr_fxns;
 		if (!(nldr_obj->ldr_fxns.init_fxn()))
 			status = -ENOMEM;
@@ -461,7 +461,7 @@ int nldr_create(struct nldr_object **nldr,
 	}
 	/* Create the DCD Manager */
 	if (!status)
-		status = dcd_create_manager(NULL, &nldr_obj->hdcd_mgr);
+		status = dcd_create_manager(NULL, &nldr_obj->dcd_mgr);
 
 	/* Get dynamic loading memory sections from base lib */
 	if (!status) {
@@ -471,7 +471,7 @@ int nldr_create(struct nldr_object **nldr,
 						    &ul_len);
 		if (!status) {
 			psz_coff_buf =
-				kzalloc(ul_len * nldr_obj->us_dsp_mau_size,
+				kzalloc(ul_len * nldr_obj->dsp_mau_size,
 								GFP_KERNEL);
 			if (!psz_coff_buf)
 				status = -ENOMEM;
@@ -550,7 +550,7 @@ int nldr_create(struct nldr_object **nldr,
 		DBC_ASSERT(!status);
 		/* First count number of overlay nodes */
 		status =
-		    dcd_get_objects(nldr_obj->hdcd_mgr, sz_zl_file,
+		    dcd_get_objects(nldr_obj->dcd_mgr, sz_zl_file,
 				    add_ovly_node, (void *)nldr_obj);
 		/* Now build table of overlay nodes */
 		if (!status && nldr_obj->ovly_nodes > 0) {
@@ -560,7 +560,7 @@ int nldr_create(struct nldr_object **nldr,
 					nldr_obj->ovly_nodes, GFP_KERNEL);
 			/* Put overlay nodes in the table */
 			nldr_obj->ovly_nid = 0;
-			status = dcd_get_objects(nldr_obj->hdcd_mgr, sz_zl_file,
+			status = dcd_get_objects(nldr_obj->dcd_mgr, sz_zl_file,
 						 add_ovly_node,
 						 (void *)nldr_obj);
 		}
@@ -604,8 +604,8 @@ void nldr_delete(struct nldr_object *nldr_obj)
 
 	kfree(nldr_obj->seg_table);
 
-	if (nldr_obj->hdcd_mgr)
-		dcd_destroy_manager(nldr_obj->hdcd_mgr);
+	if (nldr_obj->dcd_mgr)
+		dcd_destroy_manager(nldr_obj->dcd_mgr);
 
 	/* Free overlay node information */
 	if (nldr_obj->ovly_table) {
@@ -1005,7 +1005,7 @@ static int add_ovly_node(struct dsp_uuid *uuid_obj,
 		goto func_end;
 
 	status =
-	    dcd_get_object_def(nldr_obj->hdcd_mgr, uuid_obj, obj_type,
+	    dcd_get_object_def(nldr_obj->dcd_mgr, uuid_obj, obj_type,
 			       &obj_def);
 	if (status)
 		goto func_end;
@@ -1262,14 +1262,14 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 		if (depth == 0) {
 			status =
 			    dcd_get_library_name(nldr_node_obj->nldr_obj->
-						 hdcd_mgr, &uuid, psz_file_name,
+						 dcd_mgr, &uuid, psz_file_name,
 						 &dw_buf_size, phase,
 						 nldr_node_obj->phase_split);
 		} else {
 			/* Dependent libraries are registered with a phase */
 			status =
 			    dcd_get_library_name(nldr_node_obj->nldr_obj->
-						 hdcd_mgr, &uuid, psz_file_name,
+						 dcd_mgr, &uuid, psz_file_name,
 						 &dw_buf_size, NLDR_NOPHASE,
 						 NULL);
 		}
@@ -1309,7 +1309,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 		depth++;
 		/* Get number of dependent libraries */
 		status =
-		    dcd_get_num_dep_libs(nldr_node_obj->nldr_obj->hdcd_mgr,
+		    dcd_get_num_dep_libs(nldr_node_obj->nldr_obj->dcd_mgr,
 					 &uuid, &nd_libs, &np_libs, phase);
 	}
 	DBC_ASSERT(nd_libs >= np_libs);
@@ -1342,7 +1342,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 				/* Get the dependent library UUIDs */
 				status =
 				    dcd_get_dep_libs(nldr_node_obj->
-						     nldr_obj->hdcd_mgr, &uuid,
+						     nldr_obj->dcd_mgr, &uuid,
 						     nd_libs, dep_lib_uui_ds,
 						     persistent_dep_libs,
 						     phase);
@@ -1630,8 +1630,8 @@ static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 	rmm = nldr_obj->rmm;
 	/* Convert size to DSP words */
 	word_size =
-	    (size + nldr_obj->us_dsp_word_size -
-	     1) / nldr_obj->us_dsp_word_size;
+	    (size + nldr_obj->dsp_word_size -
+	     1) / nldr_obj->dsp_word_size;
 	/* Modify memory 'align' to account for DSP cache line size */
 	align = lcm(GEM_CACHE_LINE_SIZE, align);
 	dev_dbg(bridge, "%s: memory align to 0x%x\n", __func__, align);
@@ -1742,8 +1742,8 @@ static int remote_free(void **ref, u16 space, u32 dsp_address,
 
 	/* Convert size to DSP words */
 	word_size =
-	    (size + nldr_obj->us_dsp_word_size -
-	     1) / nldr_obj->us_dsp_word_size;
+	    (size + nldr_obj->dsp_word_size -
+	     1) / nldr_obj->dsp_word_size;
 
 	if (rmm_free(rmm, space, dsp_address, word_size, reserve))
 		status = 0;

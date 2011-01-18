@@ -61,22 +61,22 @@ struct dev_object {
 	u8 dev_type;		/* Device Type */
 	struct cfg_devnode *dev_node_obj;	/* Platform specific dev id */
 	/* Bridge Context Handle */
-	struct bridge_dev_context *hbridge_context;
+	struct bridge_dev_context *bridge_context;
 	/* Function interface to Bridge driver. */
 	struct bridge_drv_interface bridge_interface;
 	struct brd_object *lock_owner;	/* Client with exclusive access. */
 	struct cod_manager *cod_mgr;	/* Code manager handle. */
-	struct chnl_mgr *hchnl_mgr;	/* Channel manager. */
-	struct deh_mgr *hdeh_mgr;	/* DEH manager. */
-	struct msg_mgr *hmsg_mgr;	/* Message manager. */
+	struct chnl_mgr *chnl_mgr;	/* Channel manager. */
+	struct deh_mgr *deh_mgr;	/* DEH manager. */
+	struct msg_mgr *msg_mgr;	/* Message manager. */
 	struct io_mgr *hio_mgr;	/* IO manager (CHNL, msg_ctrl) */
-	struct cmm_object *hcmm_mgr;	/* SM memory manager. */
+	struct cmm_object *cmm_mgr;	/* SM memory manager. */
 	struct dmm_object *dmm_mgr;	/* Dynamic memory manager. */
 	u32 word_size;		/* DSP word size: quick access. */
-	struct drv_object *hdrv_obj;	/* Driver Object */
+	struct drv_object *drv_obj;	/* Driver Object */
 	/* List of Processors attached to this device */
 	struct list_head proc_list;
-	struct node_mgr *hnode_mgr;
+	struct node_mgr *node_mgr;
 };
 
 struct drv_ext {
@@ -110,9 +110,9 @@ u32 dev_brd_write_fxn(void *arb, u32 dsp_add, void *host_buf,
 	DBC_REQUIRE(host_buf != NULL);	/* Required of BrdWrite(). */
 	if (dev_obj) {
 		/* Require of BrdWrite() */
-		DBC_ASSERT(dev_obj->hbridge_context != NULL);
+		DBC_ASSERT(dev_obj->bridge_context != NULL);
 		status = (*dev_obj->bridge_interface.brd_write) (
-					dev_obj->hbridge_context, host_buf,
+					dev_obj->bridge_context, host_buf,
 					dsp_add, ul_num_bytes, mem_space);
 		/* Special case of getting the address only */
 		if (ul_num_bytes == 0)
@@ -175,11 +175,11 @@ int dev_create_device(struct dev_object **device_obj,
 			/* Fill out the rest of the Dev Object structure: */
 			dev_obj->dev_node_obj = dev_node_obj;
 			dev_obj->cod_mgr = NULL;
-			dev_obj->hchnl_mgr = NULL;
-			dev_obj->hdeh_mgr = NULL;
+			dev_obj->chnl_mgr = NULL;
+			dev_obj->deh_mgr = NULL;
 			dev_obj->lock_owner = NULL;
 			dev_obj->word_size = DSPWORDSIZE;
-			dev_obj->hdrv_obj = hdrv_obj;
+			dev_obj->drv_obj = hdrv_obj;
 			dev_obj->dev_type = DSP_UNIT;
 			/* Store this Bridge's interface functions, based on its
 			 * version. */
@@ -189,11 +189,11 @@ int dev_create_device(struct dev_object **device_obj,
 			/* Call fxn_dev_create() to get the Bridge's device
 			 * context handle. */
 			status = (dev_obj->bridge_interface.dev_create)
-			    (&dev_obj->hbridge_context, dev_obj,
+			    (&dev_obj->bridge_context, dev_obj,
 			     host_res);
 			/* Assert bridge_dev_create()'s ensure clause: */
 			DBC_ASSERT(status
-				   || (dev_obj->hbridge_context != NULL));
+				   || (dev_obj->bridge_context != NULL));
 		} else {
 			status = -ENOMEM;
 		}
@@ -224,24 +224,24 @@ int dev_create_device(struct dev_object **device_obj,
 			pr_err("%s: No memory reserved for shared structures\n",
 			       __func__);
 		}
-		status = chnl_create(&dev_obj->hchnl_mgr, dev_obj, &mgr_attrs);
+		status = chnl_create(&dev_obj->chnl_mgr, dev_obj, &mgr_attrs);
 		if (status == -ENOSYS) {
 			/* It's OK for a device not to have a channel
 			 * manager: */
 			status = 0;
 		}
 		/* Create CMM mgr even if Msg Mgr not impl. */
-		status = cmm_create(&dev_obj->hcmm_mgr,
+		status = cmm_create(&dev_obj->cmm_mgr,
 				    (struct dev_object *)dev_obj, NULL);
 		/* Only create IO manager if we have a channel manager */
-		if (!status && dev_obj->hchnl_mgr) {
+		if (!status && dev_obj->chnl_mgr) {
 			status = io_create(&dev_obj->hio_mgr, dev_obj,
 					   &io_mgr_attrs);
 		}
 		/* Only create DEH manager if we have an IO manager */
 		if (!status) {
 			/* Instantiate the DEH module */
-			status = bridge_deh_create(&dev_obj->hdeh_mgr, dev_obj);
+			status = bridge_deh_create(&dev_obj->deh_mgr, dev_obj);
 		}
 		/* Create DMM mgr . */
 		status = dmm_create(&dev_obj->dmm_mgr,
@@ -291,13 +291,13 @@ int dev_create2(struct dev_object *hdev_obj)
 	DBC_REQUIRE(hdev_obj);
 
 	/* There can be only one Node Manager per DEV object */
-	DBC_ASSERT(!dev_obj->hnode_mgr);
-	status = node_create_mgr(&dev_obj->hnode_mgr, hdev_obj);
+	DBC_ASSERT(!dev_obj->node_mgr);
+	status = node_create_mgr(&dev_obj->node_mgr, hdev_obj);
 	if (status)
-		dev_obj->hnode_mgr = NULL;
+		dev_obj->node_mgr = NULL;
 
-	DBC_ENSURE((!status && dev_obj->hnode_mgr != NULL)
-		   || (status && dev_obj->hnode_mgr == NULL));
+	DBC_ENSURE((!status && dev_obj->node_mgr != NULL)
+		   || (status && dev_obj->node_mgr == NULL));
 	return status;
 }
 
@@ -314,15 +314,15 @@ int dev_destroy2(struct dev_object *hdev_obj)
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hdev_obj);
 
-	if (dev_obj->hnode_mgr) {
-		if (node_delete_mgr(dev_obj->hnode_mgr))
+	if (dev_obj->node_mgr) {
+		if (node_delete_mgr(dev_obj->node_mgr))
 			status = -EPERM;
 		else
-			dev_obj->hnode_mgr = NULL;
+			dev_obj->node_mgr = NULL;
 
 	}
 
-	DBC_ENSURE((!status && dev_obj->hnode_mgr == NULL) || status);
+	DBC_ENSURE((!status && dev_obj->node_mgr == NULL) || status);
 	return status;
 }
 
@@ -345,9 +345,9 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 			dev_obj->cod_mgr = NULL;
 		}
 
-		if (dev_obj->hnode_mgr) {
-			node_delete_mgr(dev_obj->hnode_mgr);
-			dev_obj->hnode_mgr = NULL;
+		if (dev_obj->node_mgr) {
+			node_delete_mgr(dev_obj->node_mgr);
+			dev_obj->node_mgr = NULL;
 		}
 
 		/* Free the io, channel, and message managers for this board: */
@@ -355,23 +355,23 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 			io_destroy(dev_obj->hio_mgr);
 			dev_obj->hio_mgr = NULL;
 		}
-		if (dev_obj->hchnl_mgr) {
-			chnl_destroy(dev_obj->hchnl_mgr);
-			dev_obj->hchnl_mgr = NULL;
+		if (dev_obj->chnl_mgr) {
+			chnl_destroy(dev_obj->chnl_mgr);
+			dev_obj->chnl_mgr = NULL;
 		}
-		if (dev_obj->hmsg_mgr) {
-			msg_delete(dev_obj->hmsg_mgr);
-			dev_obj->hmsg_mgr = NULL;
+		if (dev_obj->msg_mgr) {
+			msg_delete(dev_obj->msg_mgr);
+			dev_obj->msg_mgr = NULL;
 		}
 
-		if (dev_obj->hdeh_mgr) {
+		if (dev_obj->deh_mgr) {
 			/* Uninitialize DEH module. */
-			bridge_deh_destroy(dev_obj->hdeh_mgr);
-			dev_obj->hdeh_mgr = NULL;
+			bridge_deh_destroy(dev_obj->deh_mgr);
+			dev_obj->deh_mgr = NULL;
 		}
-		if (dev_obj->hcmm_mgr) {
-			cmm_destroy(dev_obj->hcmm_mgr, true);
-			dev_obj->hcmm_mgr = NULL;
+		if (dev_obj->cmm_mgr) {
+			cmm_destroy(dev_obj->cmm_mgr, true);
+			dev_obj->cmm_mgr = NULL;
 		}
 
 		if (dev_obj->dmm_mgr) {
@@ -381,15 +381,15 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 
 		/* Call the driver's bridge_dev_destroy() function: */
 		/* Require of DevDestroy */
-		if (dev_obj->hbridge_context) {
+		if (dev_obj->bridge_context) {
 			status = (*dev_obj->bridge_interface.dev_destroy)
-			    (dev_obj->hbridge_context);
-			dev_obj->hbridge_context = NULL;
+			    (dev_obj->bridge_context);
+			dev_obj->bridge_context = NULL;
 		} else
 			status = -EPERM;
 		if (!status) {
 			/* Remove this DEV_Object from the global list: */
-			drv_remove_dev_object(dev_obj->hdrv_obj, dev_obj);
+			drv_remove_dev_object(dev_obj->drv_obj, dev_obj);
 			/* Free The library * LDR_FreeModule
 			 * (dev_obj->module_obj); */
 			/* Free this dev object: */
@@ -419,7 +419,7 @@ int dev_get_chnl_mgr(struct dev_object *hdev_obj,
 	DBC_REQUIRE(mgr != NULL);
 
 	if (hdev_obj) {
-		*mgr = dev_obj->hchnl_mgr;
+		*mgr = dev_obj->chnl_mgr;
 	} else {
 		*mgr = NULL;
 		status = -EFAULT;
@@ -445,7 +445,7 @@ int dev_get_cmm_mgr(struct dev_object *hdev_obj,
 	DBC_REQUIRE(mgr != NULL);
 
 	if (hdev_obj) {
-		*mgr = dev_obj->hcmm_mgr;
+		*mgr = dev_obj->cmm_mgr;
 	} else {
 		*mgr = NULL;
 		status = -EFAULT;
@@ -518,7 +518,7 @@ int dev_get_deh_mgr(struct dev_object *hdev_obj,
 	DBC_REQUIRE(deh_manager != NULL);
 	DBC_REQUIRE(hdev_obj);
 	if (hdev_obj) {
-		*deh_manager = hdev_obj->hdeh_mgr;
+		*deh_manager = hdev_obj->deh_mgr;
 	} else {
 		*deh_manager = NULL;
 		status = -EFAULT;
@@ -642,7 +642,7 @@ void dev_get_msg_mgr(struct dev_object *hdev_obj, struct msg_mgr **msg_man)
 	DBC_REQUIRE(msg_man != NULL);
 	DBC_REQUIRE(hdev_obj);
 
-	*msg_man = hdev_obj->hmsg_mgr;
+	*msg_man = hdev_obj->msg_mgr;
 }
 
 /*
@@ -660,7 +660,7 @@ int dev_get_node_manager(struct dev_object *hdev_obj,
 	DBC_REQUIRE(node_man != NULL);
 
 	if (hdev_obj) {
-		*node_man = dev_obj->hnode_mgr;
+		*node_man = dev_obj->node_mgr;
 	} else {
 		*node_man = NULL;
 		status = -EFAULT;
@@ -710,7 +710,7 @@ int dev_get_bridge_context(struct dev_object *hdev_obj,
 	DBC_REQUIRE(phbridge_context != NULL);
 
 	if (hdev_obj) {
-		*phbridge_context = dev_obj->hbridge_context;
+		*phbridge_context = dev_obj->bridge_context;
 	} else {
 		*phbridge_context = NULL;
 		status = -EFAULT;
@@ -844,11 +844,11 @@ int dev_set_chnl_mgr(struct dev_object *hdev_obj,
 	DBC_REQUIRE(refs > 0);
 
 	if (hdev_obj)
-		dev_obj->hchnl_mgr = hmgr;
+		dev_obj->chnl_mgr = hmgr;
 	else
 		status = -EFAULT;
 
-	DBC_ENSURE(status || (dev_obj->hchnl_mgr == hmgr));
+	DBC_ENSURE(status || (dev_obj->chnl_mgr == hmgr));
 	return status;
 }
 
@@ -862,7 +862,7 @@ void dev_set_msg_mgr(struct dev_object *hdev_obj, struct msg_mgr *hmgr)
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hdev_obj);
 
-	hdev_obj->hmsg_mgr = hmgr;
+	hdev_obj->msg_mgr = hmgr;
 }
 
 /*

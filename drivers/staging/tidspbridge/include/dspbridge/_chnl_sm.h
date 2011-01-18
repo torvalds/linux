@@ -116,7 +116,7 @@ struct chnl_mgr {
 	struct bridge_drv_interface *intf_fxns;
 	struct io_mgr *hio_mgr;	/* IO manager */
 	/* Device this board represents */
-	struct dev_object *hdev_obj;
+	struct dev_object *dev_obj;
 
 	/* These fields initialized in bridge_chnl_create(): */
 	u32 output_mask;	/* Host output channels w/ full buffers */

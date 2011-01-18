@@ -89,17 +89,17 @@
 struct io_mgr {
 	/* These four fields must be the first fields in a io_mgr_ struct */
 	/* Bridge device context */
-	struct bridge_dev_context *hbridge_context;
+	struct bridge_dev_context *bridge_context;
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
-	struct dev_object *hdev_obj;	/* Device this board represents */
+	struct dev_object *dev_obj;	/* Device this board represents */
 
 	/* These fields initialized in bridge_io_create() */
-	struct chnl_mgr *hchnl_mgr;
+	struct chnl_mgr *chnl_mgr;
 	struct shm *shared_mem;	/* Shared Memory control */
 	u8 *input;		/* Address of input channel */
 	u8 *output;		/* Address of output channel */
-	struct msg_mgr *hmsg_mgr;	/* Message manager */
+	struct msg_mgr *msg_mgr;	/* Message manager */
 	/* Msg control for from DSP messages */
 	struct msg_ctrl *msg_input_ctrl;
 	/* Msg control for to DSP messages */
@@ -112,12 +112,12 @@ struct io_mgr {
 	u16 intr_val;		/* Interrupt value */
 	/* Private extnd proc info; mmu setup */
 	struct mgr_processorextinfo ext_proc_info;
-	struct cmm_object *hcmm_mgr;	/* Shared Mem Mngr */
+	struct cmm_object *cmm_mgr;	/* Shared Mem Mngr */
 	struct work_struct io_workq;	/* workqueue */
 #if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
-	u32 ul_trace_buffer_begin;	/* Trace message start address */
-	u32 ul_trace_buffer_end;	/* Trace message end address */
-	u32 ul_trace_buffer_current;	/* Trace message current address */
+	u32 trace_buffer_begin;	/* Trace message start address */
+	u32 trace_buffer_end;	/* Trace message end address */
+	u32 trace_buffer_current;	/* Trace message current address */
 	u32 gpp_read_pointer;		/* GPP Read pointer to Trace buffer */
 	u8 *pmsg;
 	u32 gpp_va;
@@ -201,7 +201,7 @@ int bridge_io_create(struct io_mgr **io_man,
 		return -ENOMEM;
 
 	/* Initialize chnl_mgr object */
-	pio_mgr->hchnl_mgr = hchnl_mgr;
+	pio_mgr->chnl_mgr = hchnl_mgr;
 	pio_mgr->word_size = mgr_attrts->word_size;
 
 	if (dev_type == DSP_UNIT) {
@@ -220,7 +220,7 @@ int bridge_io_create(struct io_mgr **io_man,
 		}
 	}
 
-	pio_mgr->hbridge_context = hbridge_context;
+	pio_mgr->bridge_context = hbridge_context;
 	pio_mgr->shared_irq = mgr_attrts->irq_shared;
 	if (dsp_wdt_init()) {
 		bridge_io_destroy(pio_mgr);
@@ -306,7 +306,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		HW_PAGE_SIZE64KB, HW_PAGE_SIZE4KB
 	};
 
-	status = dev_get_bridge_context(hio_mgr->hdev_obj, &pbridge_context);
+	status = dev_get_bridge_context(hio_mgr->dev_obj, &pbridge_context);
 	if (!pbridge_context) {
 		status = -EFAULT;
 		goto func_end;
@@ -317,15 +317,15 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		status = -EFAULT;
 		goto func_end;
 	}
-	status = dev_get_cod_mgr(hio_mgr->hdev_obj, &cod_man);
+	status = dev_get_cod_mgr(hio_mgr->dev_obj, &cod_man);
 	if (!cod_man) {
 		status = -EFAULT;
 		goto func_end;
 	}
-	hchnl_mgr = hio_mgr->hchnl_mgr;
+	hchnl_mgr = hio_mgr->chnl_mgr;
 	/* The message manager is destroyed when the board is stopped. */
-	dev_get_msg_mgr(hio_mgr->hdev_obj, &hio_mgr->hmsg_mgr);
-	hmsg_mgr = hio_mgr->hmsg_mgr;
+	dev_get_msg_mgr(hio_mgr->dev_obj, &hio_mgr->msg_mgr);
+	hmsg_mgr = hio_mgr->msg_mgr;
 	if (!hchnl_mgr || !hmsg_mgr) {
 		status = -EFAULT;
 		goto func_end;
@@ -483,7 +483,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 							      1)) == 0)) {
 				status =
 				    hio_mgr->intf_fxns->
-				    brd_mem_map(hio_mgr->hbridge_context,
+				    brd_mem_map(hio_mgr->bridge_context,
 						    pa_curr, va_curr,
 						    page_size[i], map_attrs,
 						    NULL);
@@ -535,7 +535,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 				ae_proc[ndx].gpp_va = gpp_va_curr;
 				ae_proc[ndx].dsp_va =
 				    va_curr / hio_mgr->word_size;
-				ae_proc[ndx].ul_size = page_size[i];
+				ae_proc[ndx].size = page_size[i];
 				ae_proc[ndx].endianism = HW_LITTLE_ENDIAN;
 				ae_proc[ndx].elem_size = HW_ELEM_SIZE16BIT;
 				ae_proc[ndx].mixed_mode = HW_MMU_CPUES;
@@ -549,7 +549,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 			} else {
 				status =
 				    hio_mgr->intf_fxns->
-				    brd_mem_map(hio_mgr->hbridge_context,
+				    brd_mem_map(hio_mgr->bridge_context,
 						    pa_curr, va_curr,
 						    page_size[i], map_attrs,
 						    NULL);
@@ -609,14 +609,14 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 				    gpp_phys;
 				ae_proc[ndx].gpp_va = 0;
 				/* 1 MB */
-				ae_proc[ndx].ul_size = 0x100000;
+				ae_proc[ndx].size = 0x100000;
 				dev_dbg(bridge, "shm MMU entry PA %x "
 					"DSP_VA 0x%x\n", ae_proc[ndx].gpp_pa,
 					ae_proc[ndx].dsp_va);
 				ndx++;
 			} else {
 				status = hio_mgr->intf_fxns->brd_mem_map
-				    (hio_mgr->hbridge_context,
+				    (hio_mgr->bridge_context,
 				     hio_mgr->ext_proc_info.ty_tlb[i].
 				     gpp_phys,
 				     hio_mgr->ext_proc_info.ty_tlb[i].
@@ -638,7 +638,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	i = 0;
 	while (l4_peripheral_table[i].phys_addr) {
 		status = hio_mgr->intf_fxns->brd_mem_map
-		    (hio_mgr->hbridge_context, l4_peripheral_table[i].phys_addr,
+		    (hio_mgr->bridge_context, l4_peripheral_table[i].phys_addr,
 		     l4_peripheral_table[i].dsp_virt_addr, HW_PAGE_SIZE4KB,
 		     map_attrs, NULL);
 		if (status)
@@ -650,7 +650,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		ae_proc[i].dsp_va = 0;
 		ae_proc[i].gpp_pa = 0;
 		ae_proc[i].gpp_va = 0;
-		ae_proc[i].ul_size = 0;
+		ae_proc[i].size = 0;
 	}
 	/*
 	 * Set the shm physical address entry (grayed out in CDB file)
@@ -683,7 +683,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		 */
 
 		status =
-		    hio_mgr->intf_fxns->dev_cntrl(hio_mgr->hbridge_context,
+		    hio_mgr->intf_fxns->dev_cntrl(hio_mgr->bridge_context,
 						      BRDIOCTL_SETMMUCONFIG,
 						      ae_proc);
 		if (status)
@@ -734,39 +734,39 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 #if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 	/* Get the start address of trace buffer */
 	status = cod_get_sym_value(cod_man, SYS_PUTCBEG,
-				   &hio_mgr->ul_trace_buffer_begin);
+				   &hio_mgr->trace_buffer_begin);
 	if (status) {
 		status = -EFAULT;
 		goto func_end;
 	}
 
-	hio_mgr->gpp_read_pointer = hio_mgr->ul_trace_buffer_begin =
+	hio_mgr->gpp_read_pointer = hio_mgr->trace_buffer_begin =
 	    (ul_gpp_va + ul_seg1_size + ul_pad_size) +
-	    (hio_mgr->ul_trace_buffer_begin - ul_dsp_va);
+	    (hio_mgr->trace_buffer_begin - ul_dsp_va);
 	/* Get the end address of trace buffer */
 	status = cod_get_sym_value(cod_man, SYS_PUTCEND,
-				   &hio_mgr->ul_trace_buffer_end);
+				   &hio_mgr->trace_buffer_end);
 	if (status) {
 		status = -EFAULT;
 		goto func_end;
 	}
-	hio_mgr->ul_trace_buffer_end =
+	hio_mgr->trace_buffer_end =
 	    (ul_gpp_va + ul_seg1_size + ul_pad_size) +
-	    (hio_mgr->ul_trace_buffer_end - ul_dsp_va);
+	    (hio_mgr->trace_buffer_end - ul_dsp_va);
 	/* Get the current address of DSP write pointer */
 	status = cod_get_sym_value(cod_man, BRIDGE_SYS_PUTC_CURRENT,
-				   &hio_mgr->ul_trace_buffer_current);
+				   &hio_mgr->trace_buffer_current);
 	if (status) {
 		status = -EFAULT;
 		goto func_end;
 	}
-	hio_mgr->ul_trace_buffer_current =
+	hio_mgr->trace_buffer_current =
 	    (ul_gpp_va + ul_seg1_size + ul_pad_size) +
-	    (hio_mgr->ul_trace_buffer_current - ul_dsp_va);
+	    (hio_mgr->trace_buffer_current - ul_dsp_va);
 	/* Calculate the size of trace buffer */
 	kfree(hio_mgr->pmsg);
-	hio_mgr->pmsg = kmalloc(((hio_mgr->ul_trace_buffer_end -
-				hio_mgr->ul_trace_buffer_begin) *
+	hio_mgr->pmsg = kmalloc(((hio_mgr->trace_buffer_end -
+				hio_mgr->trace_buffer_begin) *
 				hio_mgr->word_size) + 2, GFP_KERNEL);
 	if (!hio_mgr->pmsg)
 		status = -ENOMEM;
@@ -807,7 +807,7 @@ void io_cancel_chnl(struct io_mgr *hio_mgr, u32 chnl)
 	/* Inform DSP that we have no more buffers on this channel */
 	set_chnl_free(sm, chnl);
 
-	sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
+	sm_interrupt_dsp(pio_mgr->bridge_context, MBX_PCPY_CLASS);
 func_end:
 	return;
 }
@@ -829,7 +829,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
 	if (parg[0] == MBX_PM_HIBERNATE_EN) {
 		dev_dbg(bridge, "PM: Hibernate command\n");
 		status = pio_mgr->intf_fxns->
-				dev_cntrl(pio_mgr->hbridge_context,
+				dev_cntrl(pio_mgr->bridge_context,
 					      BRDIOCTL_PWR_HIBERNATE, parg);
 		if (status)
 			pr_err("%s: hibernate cmd failed 0x%x\n",
@@ -838,7 +838,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
 		parg[1] = pio_mgr->shared_mem->opp_request.rqst_opp_pt;
 		dev_dbg(bridge, "PM: Requested OPP = 0x%x\n", parg[1]);
 		status = pio_mgr->intf_fxns->
-				dev_cntrl(pio_mgr->hbridge_context,
+				dev_cntrl(pio_mgr->bridge_context,
 					BRDIOCTL_CONSTRAINT_REQUEST, parg);
 		if (status)
 			dev_dbg(bridge, "PM: Failed to set constraint "
@@ -847,7 +847,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
 		dev_dbg(bridge, "PM: clk control value of msg = 0x%x\n",
 			parg[0]);
 		status = pio_mgr->intf_fxns->
-				dev_cntrl(pio_mgr->hbridge_context,
+				dev_cntrl(pio_mgr->bridge_context,
 					      BRDIOCTL_CLK_CTRL, parg);
 		if (status)
 			dev_dbg(bridge, "PM: Failed to ctrl the DSP clk"
@@ -872,9 +872,9 @@ void io_dpc(unsigned long ref_data)
 
 	if (!pio_mgr)
 		goto func_end;
-	chnl_mgr_obj = pio_mgr->hchnl_mgr;
-	dev_get_msg_mgr(pio_mgr->hdev_obj, &msg_mgr_obj);
-	dev_get_deh_mgr(pio_mgr->hdev_obj, &hdeh_mgr);
+	chnl_mgr_obj = pio_mgr->chnl_mgr;
+	dev_get_msg_mgr(pio_mgr->dev_obj, &msg_mgr_obj);
+	dev_get_deh_mgr(pio_mgr->dev_obj, &hdeh_mgr);
 	if (!chnl_mgr_obj)
 		goto func_end;
 
@@ -970,7 +970,7 @@ void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
 
 	if (!pchnl || !mbx_val)
 		goto func_end;
-	chnl_mgr_obj = io_manager->hchnl_mgr;
+	chnl_mgr_obj = io_manager->chnl_mgr;
 	sm = io_manager->shared_mem;
 	if (io_mode == IO_INPUT) {
 		/*
@@ -1076,7 +1076,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	bool notify_client = false;
 
 	sm = pio_mgr->shared_mem;
-	chnl_mgr_obj = pio_mgr->hchnl_mgr;
+	chnl_mgr_obj = pio_mgr->chnl_mgr;
 
 	/* Attempt to perform input */
 	if (!sm->input_full)
@@ -1164,7 +1164,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	if (clear_chnl) {
 		/* Indicate to the DSP we have read the input */
 		sm->input_full = 0;
-		sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
+		sm_interrupt_dsp(pio_mgr->bridge_context, MBX_PCPY_CLASS);
 	}
 	if (notify_client) {
 		/* Notify client with IO completion record */
@@ -1202,16 +1202,16 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		/* Read the next message */
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.cmd);
 		msg.msg.cmd =
-			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->bridge_context, addr);
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.arg1);
 		msg.msg.arg1 =
-			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->bridge_context, addr);
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.arg2);
 		msg.msg.arg2 =
-			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->bridge_context, addr);
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msgq_id);
 		msg.msgq_id =
-			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->bridge_context, addr);
 		msg_input += sizeof(struct msg_dspmsg);
 
 		/* Determine which queue to put the message in */
@@ -1269,7 +1269,7 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		/* Tell the DSP we've read the messages */
 		msg_ctr_obj->buf_empty = true;
 		msg_ctr_obj->post_swi = true;
-		sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
+		sm_interrupt_dsp(pio_mgr->bridge_context, MBX_PCPY_CLASS);
 	}
 }
 
@@ -1323,7 +1323,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	struct chnl_irp *chnl_packet_obj;
 	u32 dw_dsp_f_mask;
 
-	chnl_mgr_obj = pio_mgr->hchnl_mgr;
+	chnl_mgr_obj = pio_mgr->chnl_mgr;
 	sm = pio_mgr->shared_mem;
 	/* Attempt to perform output */
 	if (sm->output_full)
@@ -1381,7 +1381,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 #endif
 	sm->output_full =  1;
 	/* Indicate to the DSP we have written the output */
-	sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
+	sm_interrupt_dsp(pio_mgr->bridge_context, MBX_PCPY_CLASS);
 	/* Notify client with IO completion record (keep EOS) */
 	chnl_packet_obj->status &= CHNL_IOCSTATEOS;
 	notify_chnl_complete(pchnl, chnl_packet_obj);
@@ -1428,19 +1428,19 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 
 		val = (pmsg->msg_data).msgq_id;
 		addr = (u32) &msg_output->msgq_id;
-		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+		write_ext32_bit_dsp_data(pio_mgr->bridge_context, addr, val);
 
 		val = (pmsg->msg_data).msg.cmd;
 		addr = (u32) &msg_output->msg.cmd;
-		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+		write_ext32_bit_dsp_data(pio_mgr->bridge_context, addr, val);
 
 		val = (pmsg->msg_data).msg.arg1;
 		addr = (u32) &msg_output->msg.arg1;
-		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+		write_ext32_bit_dsp_data(pio_mgr->bridge_context, addr, val);
 
 		val = (pmsg->msg_data).msg.arg2;
 		addr = (u32) &msg_output->msg.arg2;
-		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+		write_ext32_bit_dsp_data(pio_mgr->bridge_context, addr, val);
 
 		msg_output++;
 		list_add_tail(&pmsg->list_elem, &hmsg_mgr->msg_free_list);
@@ -1462,7 +1462,7 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		/* Set the post SWI flag */
 		msg_ctr_obj->post_swi = true;
 		/* Tell the DSP we have written the output. */
-		sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
+		sm_interrupt_dsp(pio_mgr->bridge_context, MBX_PCPY_CLASS);
 	}
 }
 
@@ -1518,9 +1518,9 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
 	}
 	/* Register with CMM */
 	if (!status) {
-		status = dev_get_cmm_mgr(hio_mgr->hdev_obj, &hio_mgr->hcmm_mgr);
+		status = dev_get_cmm_mgr(hio_mgr->dev_obj, &hio_mgr->cmm_mgr);
 		if (!status) {
-			status = cmm_un_register_gppsm_seg(hio_mgr->hcmm_mgr,
+			status = cmm_un_register_gppsm_seg(hio_mgr->cmm_mgr,
 							   CMM_ALLSEGMENTS);
 		}
 	}
@@ -1575,7 +1575,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
 		    ul_dsp_virt;
 		/* Register SM Segment 0. */
 		status =
-		    cmm_register_gppsm_seg(hio_mgr->hcmm_mgr, dw_gpp_base_pa,
+		    cmm_register_gppsm_seg(hio_mgr->cmm_mgr, dw_gpp_base_pa,
 					   ul_rsrvd_size, dw_offset,
 					   (dw_gpp_base_pa >
 					    ul_dsp_virt) ? CMM_ADDTODSPPA :
@@ -1691,7 +1691,7 @@ void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 	while (true) {
 		/* Get the DSP current pointer */
 		ul_gpp_cur_pointer =
-		    *(u32 *) (hio_mgr->ul_trace_buffer_current);
+		    *(u32 *) (hio_mgr->trace_buffer_current);
 		ul_gpp_cur_pointer =
 		    hio_mgr->gpp_va + (ul_gpp_cur_pointer -
 					  hio_mgr->dsp_va);
@@ -1719,15 +1719,15 @@ void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 			/* Handle trace buffer wraparound */
 			memcpy(hio_mgr->pmsg,
 			       (char *)hio_mgr->gpp_read_pointer,
-			       hio_mgr->ul_trace_buffer_end -
+			       hio_mgr->trace_buffer_end -
 			       hio_mgr->gpp_read_pointer);
 			ul_new_message_length =
-			    ul_gpp_cur_pointer - hio_mgr->ul_trace_buffer_begin;
-			memcpy(&hio_mgr->pmsg[hio_mgr->ul_trace_buffer_end -
+			    ul_gpp_cur_pointer - hio_mgr->trace_buffer_begin;
+			memcpy(&hio_mgr->pmsg[hio_mgr->trace_buffer_end -
 					      hio_mgr->gpp_read_pointer],
-			       (char *)hio_mgr->ul_trace_buffer_begin,
+			       (char *)hio_mgr->trace_buffer_begin,
 			       ul_new_message_length);
-			hio_mgr->pmsg[hio_mgr->ul_trace_buffer_end -
+			hio_mgr->pmsg[hio_mgr->trace_buffer_end -
 				      hio_mgr->gpp_read_pointer +
 				      ul_new_message_length] = '\0';
 			/*
@@ -1735,7 +1735,7 @@ void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 			 * pointer.
 			 */
 			hio_mgr->gpp_read_pointer =
-			    hio_mgr->ul_trace_buffer_begin +
+			    hio_mgr->trace_buffer_begin +
 			    ul_new_message_length;
 			/* Print the trace messages */
 			pr_info("DSPTrace: %s\n", hio_mgr->pmsg);
@@ -1776,7 +1776,7 @@ int print_dsp_trace_buffer(struct bridge_dev_context *hbridge_context)
 	struct bridge_dev_context *pbridge_context = hbridge_context;
 	struct bridge_drv_interface *intf_fxns;
 	struct dev_object *dev_obj = (struct dev_object *)
-	    pbridge_context->hdev_obj;
+	    pbridge_context->dev_obj;
 
 	status = dev_get_cod_mgr(dev_obj, &cod_mgr);
 
@@ -1949,7 +1949,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 				"ILC", "RILC", "IER", "CSR"};
 	const char *exec_ctxt[] = {"Task", "SWI", "HWI", "Unknown"};
 	struct bridge_drv_interface *intf_fxns;
-	struct dev_object *dev_object = bridge_context->hdev_obj;
+	struct dev_object *dev_object = bridge_context->dev_obj;
 
 	status = dev_get_cod_mgr(dev_object, &code_mgr);
 	if (!code_mgr) {
@@ -2155,7 +2155,7 @@ void dump_dl_modules(struct bridge_dev_context *bridge_context)
 	struct cod_manager *code_mgr;
 	struct bridge_drv_interface *intf_fxns;
 	struct bridge_dev_context *bridge_ctxt = bridge_context;
-	struct dev_object *dev_object = bridge_ctxt->hdev_obj;
+	struct dev_object *dev_object = bridge_ctxt->dev_obj;
 	struct modules_header modules_hdr;
 	struct dll_module *module_struct = NULL;
 	u32 module_dsp_addr;

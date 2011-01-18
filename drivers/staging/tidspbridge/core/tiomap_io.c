@@ -65,20 +65,20 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 	bool trace_read = false;
 
 	if (!ul_shm_base_virt) {
-		status = dev_get_symbol(dev_context->hdev_obj,
+		status = dev_get_symbol(dev_context->dev_obj,
 					SHMBASENAME, &ul_shm_base_virt);
 	}
 	DBC_ASSERT(ul_shm_base_virt != 0);
 
 	/* Check if it is a read of Trace section */
 	if (!status && !ul_trace_sec_beg) {
-		status = dev_get_symbol(dev_context->hdev_obj,
+		status = dev_get_symbol(dev_context->dev_obj,
 					DSP_TRACESEC_BEG, &ul_trace_sec_beg);
 	}
 	DBC_ASSERT(ul_trace_sec_beg != 0);
 
 	if (!status && !ul_trace_sec_end) {
-		status = dev_get_symbol(dev_context->hdev_obj,
+		status = dev_get_symbol(dev_context->dev_obj,
 					DSP_TRACESEC_END, &ul_trace_sec_end);
 	}
 	DBC_ASSERT(ul_trace_sec_end != 0);
@@ -102,19 +102,19 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 
 		/* Get DYNEXT_BEG, EXT_BEG and EXT_END. */
 		if (!status && !ul_dyn_ext_base) {
-			status = dev_get_symbol(dev_context->hdev_obj,
+			status = dev_get_symbol(dev_context->dev_obj,
 						DYNEXTBASE, &ul_dyn_ext_base);
 		}
 		DBC_ASSERT(ul_dyn_ext_base != 0);
 
 		if (!status) {
-			status = dev_get_symbol(dev_context->hdev_obj,
+			status = dev_get_symbol(dev_context->dev_obj,
 						EXTBASE, &ul_ext_base);
 		}
 		DBC_ASSERT(ul_ext_base != 0);
 
 		if (!status) {
-			status = dev_get_symbol(dev_context->hdev_obj,
+			status = dev_get_symbol(dev_context->dev_obj,
 						EXTEND, &ul_ext_end);
 		}
 		DBC_ASSERT(ul_ext_end != 0);
@@ -246,10 +246,10 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 
 	if (symbols_reloaded) {
 		/* Check if it is a load to Trace section */
-		ret = dev_get_symbol(dev_context->hdev_obj,
+		ret = dev_get_symbol(dev_context->dev_obj,
 				     DSP_TRACESEC_BEG, &ul_trace_sec_beg);
 		if (!ret)
-			ret = dev_get_symbol(dev_context->hdev_obj,
+			ret = dev_get_symbol(dev_context->dev_obj,
 					     DSP_TRACESEC_END,
 					     &ul_trace_sec_end);
 	}
@@ -269,7 +269,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 	if (!dw_base_addr) {
 		if (symbols_reloaded)
 			/* Get SHM_BEG  EXT_BEG and EXT_END. */
-			ret = dev_get_symbol(dev_context->hdev_obj,
+			ret = dev_get_symbol(dev_context->dev_obj,
 					     SHMBASENAME, &ul_shm_base_virt);
 		DBC_ASSERT(ul_shm_base_virt != 0);
 		if (dynamic_load) {
@@ -277,7 +277,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 				if (symbols_reloaded)
 					ret =
 					    dev_get_symbol
-					    (dev_context->hdev_obj, DYNEXTBASE,
+					    (dev_context->dev_obj, DYNEXTBASE,
 					     &ul_ext_base);
 			}
 			DBC_ASSERT(ul_ext_base != 0);
@@ -289,7 +289,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 				if (symbols_reloaded)
 					ret =
 					    dev_get_symbol
-					    (dev_context->hdev_obj, EXTEND,
+					    (dev_context->dev_obj, EXTEND,
 					     &ul_ext_end);
 			}
 		} else {
@@ -297,13 +297,13 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 				if (!ret)
 					ret =
 					    dev_get_symbol
-					    (dev_context->hdev_obj, EXTBASE,
+					    (dev_context->dev_obj, EXTBASE,
 					     &ul_ext_base);
 				DBC_ASSERT(ul_ext_base != 0);
 				if (!ret)
 					ret =
 					    dev_get_symbol
-					    (dev_context->hdev_obj, EXTEND,
+					    (dev_context->dev_obj, EXTEND,
 					     &ul_ext_end);
 			}
 		}
@@ -324,12 +324,12 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 
 			if (symbols_reloaded) {
 				ret = dev_get_symbol
-					    (dev_context->hdev_obj,
+					    (dev_context->dev_obj,
 					     DSP_TRACESEC_END, &shm0_end);
 				if (!ret) {
 					ret =
 					    dev_get_symbol
-					    (dev_context->hdev_obj, DYNEXTBASE,
+					    (dev_context->dev_obj, DYNEXTBASE,
 					     &ul_dyn_ext_base);
 				}
 			}

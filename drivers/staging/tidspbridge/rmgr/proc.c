@@ -80,24 +80,24 @@ extern struct device *bridge;
 /* The proc_object structure. */
 struct proc_object {
 	struct list_head link;	/* Link to next proc_object */
-	struct dev_object *hdev_obj;	/* Device this PROC represents */
+	struct dev_object *dev_obj;	/* Device this PROC represents */
 	u32 process;		/* Process owning this Processor */
-	struct mgr_object *hmgr_obj;	/* Manager Object Handle */
+	struct mgr_object *mgr_obj;	/* Manager Object Handle */
 	u32 attach_count;	/* Processor attach count */
 	u32 processor_id;	/* Processor number */
 	u32 utimeout;		/* Time out count */
 	enum dsp_procstate proc_state;	/* Processor state */
-	u32 ul_unit;		/* DDSP unit number */
+	u32 unit;		/* DDSP unit number */
 	bool is_already_attached;	/*
 					 * True if the Device below has
 					 * GPP Client attached
 					 */
 	struct ntfy_object *ntfy_obj;	/* Manages  notifications */
 	/* Bridge Context Handle */
-	struct bridge_dev_context *hbridge_context;
+	struct bridge_dev_context *bridge_context;
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
-	char *psz_last_coff;
+	char *last_coff;
 	struct list_head proc_list;
 };
 
@@ -315,8 +315,8 @@ proc_attach(u32 processor_id,
 		status = -ENOMEM;
 		goto func_end;
 	}
-	p_proc_object->hdev_obj = hdev_obj;
-	p_proc_object->hmgr_obj = hmgr_obj;
+	p_proc_object->dev_obj = hdev_obj;
+	p_proc_object->mgr_obj = hmgr_obj;
 	p_proc_object->processor_id = dev_type;
 	/* Store TGID instead of process handle */
 	p_proc_object->process = current->tgid;
@@ -331,7 +331,7 @@ proc_attach(u32 processor_id,
 	status = dev_get_intf_fxns(hdev_obj, &p_proc_object->intf_fxns);
 	if (!status) {
 		status = dev_get_bridge_context(hdev_obj,
-					     &p_proc_object->hbridge_context);
+					     &p_proc_object->bridge_context);
 		if (status)
 			kfree(p_proc_object);
 	} else
@@ -356,7 +356,7 @@ proc_attach(u32 processor_id,
 		 * Return handle to this Processor Object:
 		 * Find out if the Device is already attached to a
 		 * Processor. If so, return AlreadyAttached status */
-		status = dev_insert_proc_object(p_proc_object->hdev_obj,
+		status = dev_insert_proc_object(p_proc_object->dev_obj,
 						(u32) p_proc_object,
 						&p_proc_object->
 						is_already_attached);
@@ -463,12 +463,12 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 		status = -ENOMEM;
 		goto func_end;
 	}
-	p_proc_object->hdev_obj = hdev_obj;
-	p_proc_object->hmgr_obj = hmgr_obj;
+	p_proc_object->dev_obj = hdev_obj;
+	p_proc_object->mgr_obj = hmgr_obj;
 	status = dev_get_intf_fxns(hdev_obj, &p_proc_object->intf_fxns);
 	if (!status)
 		status = dev_get_bridge_context(hdev_obj,
-					     &p_proc_object->hbridge_context);
+					     &p_proc_object->bridge_context);
 	if (status)
 		goto func_cont;
 
@@ -491,8 +491,8 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 		if (!status)
 			status = proc_start(p_proc_object);
 	}
-	kfree(p_proc_object->psz_last_coff);
-	p_proc_object->psz_last_coff = NULL;
+	kfree(p_proc_object->last_coff);
+	p_proc_object->last_coff = NULL;
 func_cont:
 	kfree(p_proc_object);
 func_end:
@@ -541,7 +541,7 @@ int proc_ctrl(void *hprocessor, u32 dw_cmd, struct dsp_cbdata * arg)
 			status = pwr_wake_dsp(timeout);
 		} else
 		    if (!((*p_proc_object->intf_fxns->dev_cntrl)
-				      (p_proc_object->hbridge_context, dw_cmd,
+				      (p_proc_object->bridge_context, dw_cmd,
 				       arg))) {
 			status = 0;
 		} else {
@@ -578,10 +578,10 @@ int proc_detach(struct process_context *pr_ctxt)
 			kfree(p_proc_object->ntfy_obj);
 		}
 
-		kfree(p_proc_object->psz_last_coff);
-		p_proc_object->psz_last_coff = NULL;
+		kfree(p_proc_object->last_coff);
+		p_proc_object->last_coff = NULL;
 		/* Remove the Proc from the DEV List */
-		(void)dev_remove_proc_object(p_proc_object->hdev_obj,
+		(void)dev_remove_proc_object(p_proc_object->dev_obj,
 					     (u32) p_proc_object);
 		/* Free the Processor Object */
 		kfree(p_proc_object);
@@ -613,7 +613,7 @@ int proc_enum_nodes(void *hprocessor, void **node_tab,
 	DBC_REQUIRE(pu_allocated != NULL);
 
 	if (p_proc_object) {
-		if (!(dev_get_node_manager(p_proc_object->hdev_obj,
+		if (!(dev_get_node_manager(p_proc_object->dev_obj,
 						       &hnode_mgr))) {
 			if (hnode_mgr) {
 				status = node_enum_nodes(hnode_mgr, node_tab,
@@ -890,7 +890,7 @@ int proc_get_resource_info(void *hprocessor, u32 resource_type,
 	case DSP_RESOURCE_DYNSARAM:
 	case DSP_RESOURCE_DYNEXTERNAL:
 	case DSP_RESOURCE_DYNSRAM:
-		status = dev_get_node_manager(p_proc_object->hdev_obj,
+		status = dev_get_node_manager(p_proc_object->dev_obj,
 					      &hnode_mgr);
 		if (!hnode_mgr) {
 			status = -EFAULT;
@@ -913,7 +913,7 @@ int proc_get_resource_info(void *hprocessor, u32 resource_type,
 		}
 		break;
 	case DSP_RESOURCE_PROCLOAD:
-		status = dev_get_io_mgr(p_proc_object->hdev_obj, &hio_mgr);
+		status = dev_get_io_mgr(p_proc_object->dev_obj, &hio_mgr);
 		if (hio_mgr)
 			status =
 			    p_proc_object->intf_fxns->
@@ -963,7 +963,7 @@ int proc_get_dev_object(void *hprocessor,
 	DBC_REQUIRE(device_obj != NULL);
 
 	if (p_proc_object) {
-		*device_obj = p_proc_object->hdev_obj;
+		*device_obj = p_proc_object->dev_obj;
 		status = 0;
 	} else {
 		*device_obj = NULL;
@@ -996,7 +996,7 @@ int proc_get_state(void *hprocessor,
 	if (p_proc_object) {
 		/* First, retrieve BRD state information */
 		status = (*p_proc_object->intf_fxns->brd_status)
-		    (p_proc_object->hbridge_context, &brd_status);
+		    (p_proc_object->bridge_context, &brd_status);
 		if (!status) {
 			switch (brd_status) {
 			case BRD_STOPPED:
@@ -1115,7 +1115,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 		status = -EFAULT;
 		goto func_end;
 	}
-	dev_get_cod_mgr(p_proc_object->hdev_obj, &cod_mgr);
+	dev_get_cod_mgr(p_proc_object->dev_obj, &cod_mgr);
 	if (!cod_mgr) {
 		status = -EPERM;
 		goto func_end;
@@ -1147,7 +1147,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 			    prepend_envp(new_envp, (char **)user_envp,
 					 envp_elems, cnew_envp, sz_proc_id);
 			/* Get the DCD Handle */
-			status = mgr_get_dcd_handle(p_proc_object->hmgr_obj,
+			status = mgr_get_dcd_handle(p_proc_object->mgr_obj,
 						    (u32 *) &hdcd_handle);
 			if (!status) {
 				/*  Before proceeding with new load,
@@ -1156,16 +1156,16 @@ int proc_load(void *hprocessor, const s32 argc_index,
 				 *  If yes, unregister nodes in previously
 				 *  registered COFF.  If any error occurred,
 				 *  set previously registered COFF to NULL. */
-				if (p_proc_object->psz_last_coff != NULL) {
+				if (p_proc_object->last_coff != NULL) {
 					status =
 					    dcd_auto_unregister(hdcd_handle,
 								p_proc_object->
-								psz_last_coff);
+								last_coff);
 					/* Regardless of auto unregister status,
 					 *  free previously allocated
 					 *  memory. */
-					kfree(p_proc_object->psz_last_coff);
-					p_proc_object->psz_last_coff = NULL;
+					kfree(p_proc_object->last_coff);
+					p_proc_object->last_coff = NULL;
 				}
 			}
 			/* On success, do cod_open_base() */
@@ -1178,7 +1178,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	if (!status) {
 		/* Auto-register data base */
 		/* Get the DCD Handle */
-		status = mgr_get_dcd_handle(p_proc_object->hmgr_obj,
+		status = mgr_get_dcd_handle(p_proc_object->mgr_obj,
 					    (u32 *) &hdcd_handle);
 		if (!status) {
 			/*  Auto register nodes in specified COFF
@@ -1195,15 +1195,15 @@ int proc_load(void *hprocessor, const s32 argc_index,
 			if (status) {
 				status = -EPERM;
 			} else {
-				DBC_ASSERT(p_proc_object->psz_last_coff ==
+				DBC_ASSERT(p_proc_object->last_coff ==
 					   NULL);
 				/* Allocate memory for pszLastCoff */
-				p_proc_object->psz_last_coff =
+				p_proc_object->last_coff =
 						kzalloc((strlen(user_args[0]) +
 						1), GFP_KERNEL);
 				/* If memory allocated, save COFF file name */
-				if (p_proc_object->psz_last_coff) {
-					strncpy(p_proc_object->psz_last_coff,
+				if (p_proc_object->last_coff) {
+					strncpy(p_proc_object->last_coff,
 						(char *)user_args[0],
 						(strlen((char *)user_args[0]) +
 						 1));
@@ -1215,17 +1215,17 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	if (!status) {
 		/*  Create the message manager. This must be done
 		 *  before calling the IOOnLoaded function. */
-		dev_get_msg_mgr(p_proc_object->hdev_obj, &hmsg_mgr);
+		dev_get_msg_mgr(p_proc_object->dev_obj, &hmsg_mgr);
 		if (!hmsg_mgr) {
-			status = msg_create(&hmsg_mgr, p_proc_object->hdev_obj,
+			status = msg_create(&hmsg_mgr, p_proc_object->dev_obj,
 					    (msg_onexit) node_on_exit);
 			DBC_ASSERT(!status);
-			dev_set_msg_mgr(p_proc_object->hdev_obj, hmsg_mgr);
+			dev_set_msg_mgr(p_proc_object->dev_obj, hmsg_mgr);
 		}
 	}
 	if (!status) {
 		/* Set the Device object's message manager */
-		status = dev_get_io_mgr(p_proc_object->hdev_obj, &hio_mgr);
+		status = dev_get_io_mgr(p_proc_object->dev_obj, &hio_mgr);
 		if (hio_mgr)
 			status = (*p_proc_object->intf_fxns->io_on_loaded)
 								(hio_mgr);
@@ -1242,7 +1242,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 #endif
 		status = cod_load_base(cod_mgr, argc_index, (char **)user_args,
 				       dev_brd_write_fxn,
-				       p_proc_object->hdev_obj, NULL);
+				       p_proc_object->dev_obj, NULL);
 		if (status) {
 			if (status == -EBADF) {
 				dev_dbg(bridge, "%s: Failure to Load the EXE\n",
@@ -1263,7 +1263,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	if (!status) {
 		/* Update the Processor status to loaded */
 		status = (*p_proc_object->intf_fxns->brd_set_state)
-		    (p_proc_object->hbridge_context, BRD_LOADED);
+		    (p_proc_object->bridge_context, BRD_LOADED);
 		if (!status) {
 			p_proc_object->proc_state = PROC_LOADED;
 			if (p_proc_object->ntfy_obj)
@@ -1283,7 +1283,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 			/* Reset DMM structs and add an initial free chunk */
 			if (!status) {
 				status =
-				    dev_get_dmm_mgr(p_proc_object->hdev_obj,
+				    dev_get_dmm_mgr(p_proc_object->dev_obj,
 						    &dmm_mgr);
 				if (dmm_mgr) {
 					/* Set dw_ext_end to DMM START u8
@@ -1305,7 +1305,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	user_args[0] = pargv0;
 	if (!status) {
 		if (!((*p_proc_object->intf_fxns->brd_status)
-				(p_proc_object->hbridge_context, &brd_state))) {
+				(p_proc_object->bridge_context, &brd_state))) {
 			pr_info("%s: Processor Loaded %s\n", __func__, pargv0);
 			kfree(drv_datap->base_img);
 			drv_datap->base_img = kmalloc(strlen(pargv0) + 1,
@@ -1398,7 +1398,7 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 			status = -ENOMEM;
 		else
 			status = (*p_proc_object->intf_fxns->brd_mem_map)
-			    (p_proc_object->hbridge_context, pa_align, va_align,
+			    (p_proc_object->bridge_context, pa_align, va_align,
 			     size_align, ul_map_attr, map_obj->pages);
 	}
 	if (!status) {
@@ -1475,7 +1475,7 @@ int proc_register_notify(void *hprocessor, u32 event_mask,
 			 */
 			if ((event_mask == 0) && status) {
 				status =
-				    dev_get_deh_mgr(p_proc_object->hdev_obj,
+				    dev_get_deh_mgr(p_proc_object->dev_obj,
 						    &hdeh_mgr);
 				status =
 					bridge_deh_register_notify(hdeh_mgr,
@@ -1484,7 +1484,7 @@ int proc_register_notify(void *hprocessor, u32 event_mask,
 							hnotification);
 			}
 		} else {
-			status = dev_get_deh_mgr(p_proc_object->hdev_obj,
+			status = dev_get_deh_mgr(p_proc_object->dev_obj,
 						 &hdeh_mgr);
 			status =
 			    bridge_deh_register_notify(hdeh_mgr,
@@ -1570,7 +1570,7 @@ int proc_start(void *hprocessor)
 		status = -EBADR;
 		goto func_end;
 	}
-	status = dev_get_cod_mgr(p_proc_object->hdev_obj, &cod_mgr);
+	status = dev_get_cod_mgr(p_proc_object->dev_obj, &cod_mgr);
 	if (!cod_mgr) {
 		status = -EFAULT;
 		goto func_cont;
@@ -1581,12 +1581,12 @@ int proc_start(void *hprocessor)
 		goto func_cont;
 
 	status = (*p_proc_object->intf_fxns->brd_start)
-	    (p_proc_object->hbridge_context, dw_dsp_addr);
+	    (p_proc_object->bridge_context, dw_dsp_addr);
 	if (status)
 		goto func_cont;
 
 	/* Call dev_create2 */
-	status = dev_create2(p_proc_object->hdev_obj);
+	status = dev_create2(p_proc_object->dev_obj);
 	if (!status) {
 		p_proc_object->proc_state = PROC_RUNNING;
 		/* Deep sleep switces off the peripheral clocks.
@@ -1601,13 +1601,13 @@ int proc_start(void *hprocessor)
 		/* Failed to Create Node Manager and DISP Object
 		 * Stop the Processor from running. Put it in STOPPED State */
 		(void)(*p_proc_object->intf_fxns->
-		       brd_stop) (p_proc_object->hbridge_context);
+		       brd_stop) (p_proc_object->bridge_context);
 		p_proc_object->proc_state = PROC_STOPPED;
 	}
 func_cont:
 	if (!status) {
 		if (!((*p_proc_object->intf_fxns->brd_status)
-				(p_proc_object->hbridge_context, &brd_state))) {
+				(p_proc_object->bridge_context, &brd_state))) {
 			pr_info("%s: dsp in running state\n", __func__);
 			DBC_ASSERT(brd_state != BRD_HIBERNATION);
 		}
@@ -1645,7 +1645,7 @@ int proc_stop(void *hprocessor)
 		goto func_end;
 	}
 	/* check if there are any running nodes */
-	status = dev_get_node_manager(p_proc_object->hdev_obj, &hnode_mgr);
+	status = dev_get_node_manager(p_proc_object->dev_obj, &hnode_mgr);
 	if (!status && hnode_mgr) {
 		status = node_enum_nodes(hnode_mgr, &hnode, node_tab_size,
 					 &num_nodes, &nodes_allocated);
@@ -1659,21 +1659,21 @@ int proc_stop(void *hprocessor)
 	/* It is OK to stop a device that does n't have nodes OR not started */
 	status =
 	    (*p_proc_object->intf_fxns->
-	     brd_stop) (p_proc_object->hbridge_context);
+	     brd_stop) (p_proc_object->bridge_context);
 	if (!status) {
 		dev_dbg(bridge, "%s: processor in standby mode\n", __func__);
 		p_proc_object->proc_state = PROC_STOPPED;
 		/* Destory the Node Manager, msg_ctrl Manager */
-		if (!(dev_destroy2(p_proc_object->hdev_obj))) {
+		if (!(dev_destroy2(p_proc_object->dev_obj))) {
 			/* Destroy the msg_ctrl by calling msg_delete */
-			dev_get_msg_mgr(p_proc_object->hdev_obj, &hmsg_mgr);
+			dev_get_msg_mgr(p_proc_object->dev_obj, &hmsg_mgr);
 			if (hmsg_mgr) {
 				msg_delete(hmsg_mgr);
-				dev_set_msg_mgr(p_proc_object->hdev_obj, NULL);
+				dev_set_msg_mgr(p_proc_object->dev_obj, NULL);
 			}
 			if (!((*p_proc_object->
 			      intf_fxns->brd_status) (p_proc_object->
-							  hbridge_context,
+							  bridge_context,
 							  &brd_state)))
 				DBC_ASSERT(brd_state == BRD_STOPPED);
 		}
@@ -1721,7 +1721,7 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	/* Remove mapping from the page tables. */
 	if (!status) {
 		status = (*p_proc_object->intf_fxns->brd_mem_un_map)
-		    (p_proc_object->hbridge_context, va_align, size_align);
+		    (p_proc_object->bridge_context, va_align, size_align);
 	}
 
 	mutex_unlock(&proc_lock);
@@ -1819,20 +1819,20 @@ static int proc_monitor(struct proc_object *proc_obj)
 	/* This is needed only when Device is loaded when it is
 	 * already 'ACTIVE' */
 	/* Destory the Node Manager, msg_ctrl Manager */
-	if (!dev_destroy2(proc_obj->hdev_obj)) {
+	if (!dev_destroy2(proc_obj->dev_obj)) {
 		/* Destroy the msg_ctrl by calling msg_delete */
-		dev_get_msg_mgr(proc_obj->hdev_obj, &hmsg_mgr);
+		dev_get_msg_mgr(proc_obj->dev_obj, &hmsg_mgr);
 		if (hmsg_mgr) {
 			msg_delete(hmsg_mgr);
-			dev_set_msg_mgr(proc_obj->hdev_obj, NULL);
+			dev_set_msg_mgr(proc_obj->dev_obj, NULL);
 		}
 	}
 	/* Place the Board in the Monitor State */
 	if (!((*proc_obj->intf_fxns->brd_monitor)
-			  (proc_obj->hbridge_context))) {
+			  (proc_obj->bridge_context))) {
 		status = 0;
 		if (!((*proc_obj->intf_fxns->brd_status)
-				  (proc_obj->hbridge_context, &brd_state)))
+				  (proc_obj->bridge_context, &brd_state)))
 			DBC_ASSERT(brd_state == BRD_IDLE);
 	}
 
@@ -1929,7 +1929,7 @@ int proc_notify_all_clients(void *proc, u32 events)
 		goto func_end;
 	}
 
-	dev_notify_clients(p_proc_object->hdev_obj, events);
+	dev_notify_clients(p_proc_object->dev_obj, events);
 
 func_end:
 	return status;
