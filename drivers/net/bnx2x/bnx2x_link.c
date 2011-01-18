@@ -3166,7 +3166,23 @@ u8 bnx2x_set_led(struct link_params *params,
 		if (!vars->link_up)
 			break;
 	case LED_MODE_ON:
-		if (SINGLE_MEDIA_DIRECT(params)) {
+		if (params->phy[EXT_PHY1].type ==
+		    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727 &&
+		    CHIP_IS_E2(bp) && params->num_phys == 2) {
+			/**
+			* This is a work-around for E2+8727 Configurations
+			*/
+			if (mode == LED_MODE_ON ||
+				speed == SPEED_10000){
+				REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4, 0);
+				REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 1);
+
+				tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
+				EMAC_WR(bp, EMAC_REG_EMAC_LED,
+					(tmp | EMAC_LED_OVERRIDE));
+				return rc;
+			}
+		} else if (SINGLE_MEDIA_DIRECT(params)) {
 			/**
 			* This is a work-around for HW issue found when link
 			* is up in CL73
