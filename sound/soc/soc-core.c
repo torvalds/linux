@@ -1470,7 +1470,6 @@ static int soc_post_component_init(struct snd_soc_card *card,
 
 	/* Make sure all DAPM widgets are instantiated */
 	snd_soc_dapm_new_widgets(&codec->dapm);
-	snd_soc_dapm_sync(&codec->dapm);
 
 	/* register the rtd device */
 	rtd->codec = codec;
