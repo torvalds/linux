@@ -193,6 +193,10 @@
 #define TIPC_DEF_LINK_TOL 1500
 #define TIPC_MAX_LINK_TOL 30000
 
+#if (TIPC_MIN_LINK_TOL < 16)
+#error "TIPC_MIN_LINK_TOL is too small (abort limit may be NaN)"
+#endif
+
 /*
  * Link window limits (min, default, max), in packets
  */

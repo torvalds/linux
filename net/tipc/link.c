@@ -2617,6 +2617,9 @@ static void link_check_defragm_bufs(struct link *l_ptr)
 
 static void link_set_supervision_props(struct link *l_ptr, u32 tolerance)
 {
+	if ((tolerance < TIPC_MIN_LINK_TOL) || (tolerance > TIPC_MAX_LINK_TOL))
+		return;
+
 	l_ptr->tolerance = tolerance;
 	l_ptr->continuity_interval =
 		((tolerance / 4) > 500) ? 500 : tolerance / 4;
