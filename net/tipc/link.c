@@ -2983,9 +2983,9 @@ static void link_print(struct link *l_ptr, const char *str)
 		     != (l_ptr->out_queue_size - 1)) ||
 		    (l_ptr->last_out->next != NULL)) {
 			tipc_printf(buf, "\nSend queue inconsistency\n");
-			tipc_printf(buf, "first_out= %x ", l_ptr->first_out);
-			tipc_printf(buf, "next_out= %x ", l_ptr->next_out);
-			tipc_printf(buf, "last_out= %x ", l_ptr->last_out);
+			tipc_printf(buf, "first_out= %p ", l_ptr->first_out);
+			tipc_printf(buf, "next_out= %p ", l_ptr->next_out);
+			tipc_printf(buf, "last_out= %p ", l_ptr->last_out);
 		}
 	} else
 		tipc_printf(buf, "[]");
