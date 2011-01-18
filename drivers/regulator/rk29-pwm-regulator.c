@@ -60,12 +60,13 @@ const static int pwm_voltage_map[] = {
 	950, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225, 1250, 1275, 1300, 1325, 1350, 1375, 1400
 };
 
+static struct clk *pwm_clk;
+
 static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 {
     u32 divh,divTotal;
     int id = pdata->pwm_id;
     unsigned long clkrate;
-    struct clk *pwm_clk = clk_get(NULL, "pwm");
 
     clkrate = clk_get_rate(pwm_clk);
 	
@@ -110,21 +111,6 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 	
 	
     return (0);
-}
-
-static int pwm_init(struct pwm_platform_data *pdata, int nHz, int rate)
-{
-
-	struct clk *pwm_clk = clk_get(NULL, "pwm");
-	   
-	// pwm2 clk enable
-	clk_enable(pwm_clk);
-
-	if(pwm_set_rate(pdata,nHz,rate)!=0)
-		return -1;		
-
-
-	return 0;
 }
 
 static int pwm_regulator_list_voltage(struct regulator_dev *dev,unsigned int index)
@@ -237,8 +223,9 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 			goto err_gpio;
 		}
 
-	//pwm_init(pdata,1000*1000,PWM_VCORE_130);
-	
+	pwm_clk = clk_get(NULL, "pwm");
+	clk_enable(pwm_clk);
+
 
 	platform_set_drvdata(pdev, rdev);
 	printk(KERN_INFO "pwm_regulator: driver initialized\n");
