@@ -1946,6 +1946,7 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		msg_set_ack(msg, mod(l_ptr->reset_checkpoint - 1));
 		msg_set_seq_gap(msg, 0);
 		msg_set_next_sent(msg, 1);
+		msg_set_probe(msg, 0);
 		msg_set_link_tolerance(msg, l_ptr->tolerance);
 		msg_set_linkprio(msg, l_ptr->priority);
 		msg_set_max_pkt(msg, l_ptr->max_pkt_target);
