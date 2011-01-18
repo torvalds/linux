@@ -4108,6 +4108,25 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 
 	DP(NETIF_MSG_LINK, "Before rom RX_ALARM(port1): 0x%x\n", tmp1);
 
+	/**
+	 * If this is forced speed, set to KR or KX (all other are not
+	 * supported)
+	 */
+	/* Swap polarity if required - Must be done only in non-1G mode */
+	if (params->lane_config & PORT_HW_CFG_SWAP_PHY_POLARITY_ENABLED) {
+		/* Configure the 8073 to swap _P and _N of the KR lines */
+		DP(NETIF_MSG_LINK, "Swapping polarity for the 8073\n");
+		/* 10G Rx/Tx and 1G Tx signal polarity swap */
+		bnx2x_cl45_read(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_8073_OPT_DIGITAL_CTRL, &val);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD,
+				 MDIO_PMA_REG_8073_OPT_DIGITAL_CTRL,
+				 (val | (3<<9)));
+	}
+
+
 	/* Enable CL37 BAM */
 	if (REG_RD(bp, params->shmem_base +
 			 offsetof(struct shmem_region, dev_info.
@@ -4314,6 +4333,29 @@ static u8 bnx2x_8073_read_status(struct bnx2x_phy *phy,
 	}
 
 	if (link_up) {
+		/* Swap polarity if required */
+		if (params->lane_config &
+		    PORT_HW_CFG_SWAP_PHY_POLARITY_ENABLED) {
+			/* Configure the 8073 to swap P and N of the KR lines */
+			bnx2x_cl45_read(bp, phy,
+					MDIO_XS_DEVAD,
+					MDIO_XS_REG_8073_RX_CTRL_PCIE, &val1);
+			/**
+			* Set bit 3 to invert Rx in 1G mode and clear this bit
+			* when it`s in 10G mode.
+			*/
+			if (vars->line_speed == SPEED_1000) {
+				DP(NETIF_MSG_LINK, "Swapping 1G polarity for"
+					      "the 8073\n");
+				val1 |= (1<<3);
+			} else
+				val1 &= ~(1<<3);
+
+			bnx2x_cl45_write(bp, phy,
+					 MDIO_XS_DEVAD,
+					 MDIO_XS_REG_8073_RX_CTRL_PCIE,
+					 val1);
+		}
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
 		bnx2x_8073_resolve_fc(phy, params, vars);
 	}
