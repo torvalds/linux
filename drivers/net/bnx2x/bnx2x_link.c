@@ -1573,7 +1573,7 @@ static void bnx2x_set_aer_mmd_xgxs(struct link_params *params,
 
 	offset = phy->addr + ser_lane;
 	if (CHIP_IS_E2(bp))
-		aer_val = 0x2800 + offset - 1;
+		aer_val = 0x3800 + offset - 1;
 	else
 		aer_val = 0x3800 + offset;
 	CL45_WR_OVER_CL22(bp, phy,
