@@ -81,6 +81,17 @@ config MFD_DM355EVM_MSP
 	  boards.  MSP430 firmware manages resets and power sequencing,
 	  inputs from buttons and the IR remote, LEDs, an RTC, and more.
 
+config MFD_TI_SSP
+	tristate "TI Sequencer Serial Port support"
+	depends on ARCH_DAVINCI_TNETV107X
+	select MFD_CORE
+	---help---
+	  Say Y here if you want support for the Sequencer Serial Port
+	  in a Texas Instruments TNETV107X SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti-ssp.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
