@@ -185,9 +185,13 @@ config NF_CONNTRACK_IRC
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CONNTRACK_BROADCAST
+	tristate
+
 config NF_CONNTRACK_NETBIOS_NS
 	tristate "NetBIOS name service protocol support"
 	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_BROADCAST
 	help
 	  NetBIOS name service requests are sent as broadcast messages from an
 	  unprivileged port and responded to with unicast messages to the
@@ -201,6 +205,21 @@ config NF_CONNTRACK_NETBIOS_NS
 	  $ ip -4 address show eth0
 	  4: eth0: <BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast qlen 1000
 	      inet 172.16.2.252/24 brd 172.16.2.255 scope global eth0
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_SNMP
+	tristate "SNMP service protocol support"
+	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_BROADCAST
+	help
+	  SNMP service requests are sent as broadcast messages from an
+	  unprivileged port and responded to with unicast messages to the
+	  same port. This make them hard to firewall properly because connection
+	  tracking doesn't deal with broadcasts. This helper tracks locally
+	  originating SNMP service requests and the corresponding
+	  responses. It relies on correct IP address configuration, specifically
+	  netmask and broadcast address.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
