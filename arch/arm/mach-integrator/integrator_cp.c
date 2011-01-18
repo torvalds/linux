@@ -42,6 +42,8 @@
 
 #include <asm/hardware/timer-sp.h>
 
+#include <plat/clcd.h>
+
 #include "common.h"
 
 #define INTCP_PA_FLASH_BASE		0x24000000
@@ -449,30 +451,6 @@ static struct amba_device aaci_device = {
 /*
  * CLCD support
  */
-static struct clcd_panel vga = {
-	.mode		= {
-		.name		= "VGA",
-		.refresh	= 60,
-		.xres		= 640,
-		.yres		= 480,
-		.pixclock	= 39721,
-		.left_margin	= 40,
-		.right_margin	= 24,
-		.upper_margin	= 32,
-		.lower_margin	= 11,
-		.hsync_len	= 96,
-		.vsync_len	= 2,
-		.sync		= 0,
-		.vmode		= FB_VMODE_NONINTERLACED,
-	},
-	.width		= -1,
-	.height		= -1,
-	.tim2		= TIM2_BCD | TIM2_IPC,
-	.cntl		= CNTL_LCDTFT | CNTL_LCDVCOMP(1),
-	.bpp		= 16,
-	.grayscale	= 0,
-};
-
 /*
  * Ensure VGA is selected.
  */
@@ -500,49 +478,24 @@ static void cp_clcd_enable(struct clcd_fb *fb)
 		   CM_CTRL_n24BITEN, val);
 }
 
-static unsigned long framesize = SZ_1M;
-
 static int cp_clcd_setup(struct clcd_fb *fb)
 {
-	dma_addr_t dma;
+	fb->panel = versatile_clcd_get_panel("VGA");
+	if (!fb->panel)
+		return -EINVAL;
 
-	fb->panel = &vga;
-
-	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-						    &dma, GFP_KERNEL);
-	if (!fb->fb.screen_base) {
-		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
-		return -ENOMEM;
-	}
-
-	fb->fb.fix.smem_start	= dma;
-	fb->fb.fix.smem_len	= framesize;
-
-	return 0;
-}
-
-static int cp_clcd_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
-{
-	return dma_mmap_writecombine(&fb->dev->dev, vma,
-				     fb->fb.screen_base,
-				     fb->fb.fix.smem_start,
-				     fb->fb.fix.smem_len);
-}
-
-static void cp_clcd_remove(struct clcd_fb *fb)
-{
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-			      fb->fb.screen_base, fb->fb.fix.smem_start);
+	return versatile_clcd_setup_dma(fb, SZ_1M);
 }
 
 static struct clcd_board clcd_data = {
 	.name		= "Integrator/CP",
+	.caps		= CLCD_CAP_5551 | CLCD_CAP_RGB565 | CLCD_CAP_888,
 	.check		= clcdfb_check,
 	.decode		= clcdfb_decode,
 	.enable		= cp_clcd_enable,
 	.setup		= cp_clcd_setup,
-	.mmap		= cp_clcd_mmap,
-	.remove		= cp_clcd_remove,
+	.mmap		= versatile_clcd_mmap_dma,
+	.remove		= versatile_clcd_remove_dma,
 };
 
 static struct amba_device clcd_device = {
