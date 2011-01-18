@@ -14,15 +14,20 @@
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define SID(e, x, y) xyarray__entry(e->id, x, y)
 
+void perf_evsel__init(struct perf_evsel *evsel,
+		      struct perf_event_attr *attr, int idx)
+{
+	evsel->idx	   = idx;
+	evsel->attr	   = *attr;
+	INIT_LIST_HEAD(&evsel->node);
+}
+
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 {
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
-	if (evsel != NULL) {
-		evsel->idx	   = idx;
-		evsel->attr	   = *attr;
-		INIT_LIST_HEAD(&evsel->node);
-	}
+	if (evsel != NULL)
+		perf_evsel__init(evsel, attr, idx);
 
 	return evsel;
 }
@@ -87,11 +92,16 @@ int perf_evlist__alloc_mmap(struct perf_evlist *evlist, int ncpus)
 	return evlist->mmap != NULL ? 0 : -ENOMEM;
 }
 
-void perf_evsel__delete(struct perf_evsel *evsel)
+void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	xyarray__delete(evsel->fd);
 	xyarray__delete(evsel->id);
+}
+
+void perf_evsel__delete(struct perf_evsel *evsel)
+{
+	perf_evsel__exit(evsel);
 	free(evsel);
 }
 

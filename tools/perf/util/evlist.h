@@ -24,6 +24,8 @@ struct perf_evlist {
 struct perf_evsel;
 
 struct perf_evlist *perf_evlist__new(void);
+void perf_evlist__init(struct perf_evlist *evlist);
+void perf_evlist__exit(struct perf_evlist *evlist);
 void perf_evlist__delete(struct perf_evlist *evlist);
 
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry);

@@ -6,17 +6,21 @@
 #include <linux/bitops.h>
 #include <linux/hash.h>
 
+void perf_evlist__init(struct perf_evlist *evlist)
+{
+	int i;
+
+	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
+		INIT_HLIST_HEAD(&evlist->heads[i]);
+	INIT_LIST_HEAD(&evlist->entries);
+}
+
 struct perf_evlist *perf_evlist__new(void)
 {
 	struct perf_evlist *evlist = zalloc(sizeof(*evlist));
 
-	if (evlist != NULL) {
-		int i;
-
-		for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
-			INIT_HLIST_HEAD(&evlist->heads[i]);
-		INIT_LIST_HEAD(&evlist->entries);
-	}
+	if (evlist != NULL)
+		perf_evlist__init(evlist);
 
 	return evlist;
 }
@@ -33,11 +37,18 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 	evlist->nr_entries = 0;
 }
 
+void perf_evlist__exit(struct perf_evlist *evlist)
+{
+	free(evlist->mmap);
+	free(evlist->pollfd);
+	evlist->mmap = NULL;
+	evlist->pollfd = NULL;
+}
+
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
 	perf_evlist__purge(evlist);
-	free(evlist->mmap);
-	free(evlist->pollfd);
+	perf_evlist__exit(evlist);
 	free(evlist);
 }
 

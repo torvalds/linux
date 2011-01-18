@@ -52,6 +52,9 @@ struct thread_map;
 struct perf_evlist;
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
+void perf_evsel__init(struct perf_evsel *evsel,
+		      struct perf_event_attr *attr, int idx);
+void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
