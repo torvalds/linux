@@ -487,6 +487,7 @@ config NETFILTER_XT_TARGET_NFLOG
 config NETFILTER_XT_TARGET_NFQUEUE
 	tristate '"NFQUEUE" target Support'
 	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_QUEUE
 	help
 	  This target replaced the old obsolete QUEUE target.
 
