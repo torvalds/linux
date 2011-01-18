@@ -69,7 +69,7 @@ struct dev_object {
 	struct chnl_mgr *chnl_mgr;	/* Channel manager. */
 	struct deh_mgr *deh_mgr;	/* DEH manager. */
 	struct msg_mgr *msg_mgr;	/* Message manager. */
-	struct io_mgr *hio_mgr;	/* IO manager (CHNL, msg_ctrl) */
+	struct io_mgr *iomgr;	/* IO manager (CHNL, msg_ctrl) */
 	struct cmm_object *cmm_mgr;	/* SM memory manager. */
 	struct dmm_object *dmm_mgr;	/* Dynamic memory manager. */
 	u32 word_size;		/* DSP word size: quick access. */
@@ -235,7 +235,7 @@ int dev_create_device(struct dev_object **device_obj,
 				    (struct dev_object *)dev_obj, NULL);
 		/* Only create IO manager if we have a channel manager */
 		if (!status && dev_obj->chnl_mgr) {
-			status = io_create(&dev_obj->hio_mgr, dev_obj,
+			status = io_create(&dev_obj->iomgr, dev_obj,
 					   &io_mgr_attrs);
 		}
 		/* Only create DEH manager if we have an IO manager */
@@ -351,9 +351,9 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 		}
 
 		/* Free the io, channel, and message managers for this board: */
-		if (dev_obj->hio_mgr) {
-			io_destroy(dev_obj->hio_mgr);
-			dev_obj->hio_mgr = NULL;
+		if (dev_obj->iomgr) {
+			io_destroy(dev_obj->iomgr);
+			dev_obj->iomgr = NULL;
 		}
 		if (dev_obj->chnl_mgr) {
 			chnl_destroy(dev_obj->chnl_mgr);
@@ -605,7 +605,7 @@ int dev_get_io_mgr(struct dev_object *hdev_obj,
 	DBC_REQUIRE(hdev_obj);
 
 	if (hdev_obj) {
-		*io_man = hdev_obj->hio_mgr;
+		*io_man = hdev_obj->iomgr;
 	} else {
 		*io_man = NULL;
 		status = -EFAULT;

@@ -29,22 +29,22 @@ union trapped_args {
 	/* MGR Module */
 	struct {
 		u32 node_id;
-		struct dsp_ndbprops __user *pndb_props;
-		u32 undb_props_size;
-		u32 __user *pu_num_nodes;
+		struct dsp_ndbprops __user *ndb_props;
+		u32 ndb_props_size;
+		u32 __user *num_nodes;
 	} args_mgr_enumnode_info;
 
 	struct {
 		u32 processor_id;
 		struct dsp_processorinfo __user *processor_info;
 		u32 processor_info_size;
-		u32 __user *pu_num_procs;
+		u32 __user *num_procs;
 	} args_mgr_enumproc_info;
 
 	struct {
 		struct dsp_uuid *uuid_obj;
 		enum dsp_dcdobjtype obj_type;
-		char *psz_path_name;
+		char *sz_path_name;
 	} args_mgr_registerobject;
 
 	struct {
@@ -55,7 +55,7 @@ union trapped_args {
 	struct {
 		struct dsp_notification __user *__user *anotifications;
 		u32 count;
-		u32 __user *pu_index;
+		u32 __user *index;
 		u32 timeout;
 	} args_mgr_wait;
 
@@ -69,7 +69,7 @@ union trapped_args {
 	struct {
 		void *processor;
 		u32 cmd;
-		struct dsp_cbdata __user *pargs;
+		struct dsp_cbdata __user *args;
 	} args_proc_ctrl;
 
 	struct {
@@ -80,8 +80,8 @@ union trapped_args {
 		void *processor;
 		void *__user *node_tab;
 		u32 node_tab_size;
-		u32 __user *pu_num_nodes;
-		u32 __user *pu_allocated;
+		u32 __user *num_nodes;
+		u32 __user *allocated;
 	} args_proc_enumnode_info;
 
 	struct {
@@ -100,7 +100,7 @@ union trapped_args {
 	struct {
 		void *processor;
 		u8 __user *buf;
-		u8 __user *psize;
+		u8 __user *size;
 		u32 max_size;
 	} args_proc_gettrace;
 
@@ -115,28 +115,28 @@ union trapped_args {
 		void *processor;
 		u32 event_mask;
 		u32 notify_type;
-		struct dsp_notification __user *hnotification;
+		struct dsp_notification __user *notification;
 	} args_proc_register_notify;
 
 	struct {
 		void *processor;
 		u32 size;
-		void *__user *pp_rsv_addr;
+		void *__user *rsv_addr;
 	} args_proc_rsvmem;
 
 	struct {
 		void *processor;
 		u32 size;
-		void *prsv_addr;
+		void *rsv_addr;
 	} args_proc_unrsvmem;
 
 	struct {
 		void *processor;
-		void *pmpu_addr;
+		void *mpu_addr;
 		u32 size;
 		void *req_addr;
-		void *__user *pp_map_addr;
-		u32 ul_map_attr;
+		void *__user *map_addr;
+		u32 map_attr;
 	} args_proc_mapmem;
 
 	struct {
@@ -147,21 +147,21 @@ union trapped_args {
 
 	struct {
 		void *processor;
-		void *pmpu_addr;
+		void *mpu_addr;
 		u32 size;
 		u32 dir;
 	} args_proc_dma;
 
 	struct {
 		void *processor;
-		void *pmpu_addr;
+		void *mpu_addr;
 		u32 size;
 		u32 ul_flags;
 	} args_proc_flushmemory;
 
 	struct {
 		void *processor;
-		void *pmpu_addr;
+		void *mpu_addr;
 		u32 size;
 	} args_proc_invalidatememory;
 
@@ -169,7 +169,7 @@ union trapped_args {
 	struct {
 		void *processor;
 		struct dsp_uuid __user *node_id_ptr;
-		struct dsp_cbdata __user *pargs;
+		struct dsp_cbdata __user *args;
 		struct dsp_nodeattrin __user *attr_in;
 		void *__user *ph_node;
 	} args_node_allocate;
@@ -235,7 +235,7 @@ union trapped_args {
 		void *node;
 		u32 event_mask;
 		u32 notify_type;
-		struct dsp_notification __user *hnotification;
+		struct dsp_notification __user *notification;
 	} args_node_registernotify;
 
 	struct {
@@ -316,7 +316,7 @@ union trapped_args {
 		void *stream;
 		u32 event_mask;
 		u32 notify_type;
-		struct dsp_notification __user *hnotification;
+		struct dsp_notification __user *notification;
 	} args_strm_registernotify;
 
 	struct {

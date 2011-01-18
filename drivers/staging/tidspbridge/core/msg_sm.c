@@ -69,7 +69,7 @@ int bridge_msg_create(struct msg_mgr **msg_man,
 		return -ENOMEM;
 
 	msg_mgr_obj->on_exit = msg_callback;
-	msg_mgr_obj->hio_mgr = hio_mgr;
+	msg_mgr_obj->iomgr = hio_mgr;
 	/* List of MSG_QUEUEs */
 	INIT_LIST_HEAD(&msg_mgr_obj->queue_list);
 	/*
@@ -356,7 +356,7 @@ int bridge_msg_put(struct msg_queue *msg_queue_obj,
 		/* Release critical section before scheduling DPC */
 		spin_unlock_bh(&hmsg_mgr->msg_mgr_lock);
 		/* Schedule a DPC, to do the actual data transfer: */
-		iosm_schedule(hmsg_mgr->hio_mgr);
+		iosm_schedule(hmsg_mgr->iomgr);
 		return 0;
 	}
 
@@ -410,7 +410,7 @@ int bridge_msg_put(struct msg_queue *msg_queue_obj,
 	 * Schedule a DPC, to do the actual
 	 * data transfer.
 	 */
-	iosm_schedule(hmsg_mgr->hio_mgr);
+	iosm_schedule(hmsg_mgr->iomgr);
 
 	msg_queue_obj->io_msg_pend--;
 	/* Reset event if there are still frames available */

@@ -181,7 +181,7 @@ int bridge_io_create(struct io_mgr **io_man,
 	*io_man = NULL;
 
 	dev_get_chnl_mgr(hdev_obj, &hchnl_mgr);
-	if (!hchnl_mgr || hchnl_mgr->hio_mgr)
+	if (!hchnl_mgr || hchnl_mgr->iomgr)
 		return -EFAULT;
 
 	/*
@@ -228,7 +228,7 @@ int bridge_io_create(struct io_mgr **io_man,
 	}
 
 	/* Return IO manager object to caller... */
-	hchnl_mgr->hio_mgr = pio_mgr;
+	hchnl_mgr->iomgr = pio_mgr;
 	*io_man = pio_mgr;
 
 	return 0;
@@ -1090,16 +1090,16 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		DBC_ASSERT(chnl_id);
 		goto func_end;
 	}
-	pchnl = chnl_mgr_obj->ap_channel[chnl_id];
+	pchnl = chnl_mgr_obj->channels[chnl_id];
 	if ((pchnl != NULL) && CHNL_IS_INPUT(pchnl->chnl_mode)) {
 		if ((pchnl->state & ~CHNL_STATEEOS) == CHNL_STATEREADY) {
 			/* Get the I/O request, and attempt a transfer */
-			if (!list_empty(&pchnl->pio_requests)) {
+			if (!list_empty(&pchnl->io_requests)) {
 				if (!pchnl->cio_reqs)
 					goto func_end;
 
 				chnl_packet_obj = list_first_entry(
-						&pchnl->pio_requests,
+						&pchnl->io_requests,
 						struct chnl_irp, link);
 				list_del(&chnl_packet_obj->link);
 				pchnl->cio_reqs--;
@@ -1140,7 +1140,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 							DSP_STREAMDONE);
 				}
 				/* Tell DSP if no more I/O buffers available */
-				if (list_empty(&pchnl->pio_requests))
+				if (list_empty(&pchnl->io_requests))
 					set_chnl_free(sm, pchnl->chnl_id);
 				clear_chnl = true;
 				notify_client = true;
@@ -1292,9 +1292,9 @@ static void notify_chnl_complete(struct chnl_object *pchnl,
 	 * signalled by the only IO completion list consumer:
 	 * bridge_chnl_get_ioc().
 	 */
-	signal_event = list_empty(&pchnl->pio_completions);
+	signal_event = list_empty(&pchnl->io_completions);
 	/* Enqueue the IO completion info for the client */
-	list_add_tail(&chnl_packet_obj->link, &pchnl->pio_completions);
+	list_add_tail(&chnl_packet_obj->link, &pchnl->io_completions);
 	pchnl->cio_cs++;
 
 	if (pchnl->cio_cs > pchnl->chnl_packets)
@@ -1340,8 +1340,8 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	if (chnl_id == OUTPUTNOTREADY)
 		goto func_end;
 
-	pchnl = chnl_mgr_obj->ap_channel[chnl_id];
-	if (!pchnl || list_empty(&pchnl->pio_requests)) {
+	pchnl = chnl_mgr_obj->channels[chnl_id];
+	if (!pchnl || list_empty(&pchnl->io_requests)) {
 		/* Shouldn't get here */
 		goto func_end;
 	}
@@ -1350,14 +1350,14 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		goto func_end;
 
 	/* Get the I/O request, and attempt a transfer */
-	chnl_packet_obj = list_first_entry(&pchnl->pio_requests,
+	chnl_packet_obj = list_first_entry(&pchnl->io_requests,
 			struct chnl_irp, link);
 	list_del(&chnl_packet_obj->link);
 
 	pchnl->cio_reqs--;
 
 	/* Record fact that no more I/O buffers available */
-	if (list_empty(&pchnl->pio_requests))
+	if (list_empty(&pchnl->io_requests))
 		chnl_mgr_obj->output_mask &= ~(1 << chnl_id);
 
 	/* Transfer buffer to DSP side */

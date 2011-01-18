@@ -207,7 +207,7 @@ struct node_object {
 	struct node_createargs create_args;	/* Args for node create func */
 	nodeenv node_env;	/* Environment returned by RMS */
 	struct dcd_genericobj dcd_props;	/* Node properties from DCD */
-	struct dsp_cbdata *pargs;	/* Optional args to pass to node */
+	struct dsp_cbdata *args;	/* Optional args to pass to node */
 	struct ntfy_object *ntfy_obj;	/* Manages registered notifications */
 	char *str_dev_name;	/* device name, if device node */
 	struct sync_object *sync_done;	/* Synchronize node_terminate */

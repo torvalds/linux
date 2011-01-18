@@ -85,7 +85,7 @@ struct msg_mgr {
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
 
-	struct io_mgr *hio_mgr;	/* IO manager */
+	struct io_mgr *iomgr;		/* IO manager */
 	struct list_head queue_list;	/* List of MSG_QUEUEs */
 	spinlock_t msg_mgr_lock;	/* For critical sections */
 	/* Signalled when MsgFrame is available */

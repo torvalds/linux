@@ -416,7 +416,7 @@ u32 mgrwrap_enum_node_info(union trapped_args *args, void *pr_ctxt)
 	u8 *pndb_props;
 	u32 num_nodes;
 	int status = 0;
-	u32 size = args->args_mgr_enumnode_info.undb_props_size;
+	u32 size = args->args_mgr_enumnode_info.ndb_props_size;
 
 	if (size < sizeof(struct dsp_ndbprops))
 		return -EINVAL;
@@ -431,9 +431,9 @@ u32 mgrwrap_enum_node_info(union trapped_args *args, void *pr_ctxt)
 				       (struct dsp_ndbprops *)pndb_props, size,
 				       &num_nodes);
 	}
-	CP_TO_USR(args->args_mgr_enumnode_info.pndb_props, pndb_props, status,
+	CP_TO_USR(args->args_mgr_enumnode_info.ndb_props, pndb_props, status,
 		  size);
-	CP_TO_USR(args->args_mgr_enumnode_info.pu_num_nodes, &num_nodes, status,
+	CP_TO_USR(args->args_mgr_enumnode_info.num_nodes, &num_nodes, status,
 		  1);
 	kfree(pndb_props);
 
@@ -466,7 +466,7 @@ u32 mgrwrap_enum_proc_info(union trapped_args *args, void *pr_ctxt)
 	}
 	CP_TO_USR(args->args_mgr_enumproc_info.processor_info, processor_info,
 		  status, size);
-	CP_TO_USR(args->args_mgr_enumproc_info.pu_num_procs, &num_procs,
+	CP_TO_USR(args->args_mgr_enumproc_info.num_procs, &num_procs,
 		  status, 1);
 	kfree(processor_info);
 
@@ -490,7 +490,7 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 		goto func_end;
 	/* path_size is increased by 1 to accommodate NULL */
 	path_size = strlen_user((char *)
-				args->args_mgr_registerobject.psz_path_name) +
+				args->args_mgr_registerobject.sz_path_name) +
 	    1;
 	psz_path_name = kmalloc(path_size, GFP_KERNEL);
 	if (!psz_path_name) {
@@ -499,7 +499,7 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 	}
 	ret = strncpy_from_user(psz_path_name,
 				(char *)args->args_mgr_registerobject.
-				psz_path_name, path_size);
+				sz_path_name, path_size);
 	if (!ret) {
 		status = -EFAULT;
 		goto func_end;
@@ -571,7 +571,7 @@ u32 mgrwrap_wait_for_bridge_events(union trapped_args *args, void *pr_ctxt)
 							 args->args_mgr_wait.
 							 timeout);
 	}
-	CP_TO_USR(args->args_mgr_wait.pu_index, &index, status, 1);
+	CP_TO_USR(args->args_mgr_wait.index, &index, status, 1);
 	return status;
 }
 
@@ -617,7 +617,7 @@ func_end:
 u32 procwrap_ctrl(union trapped_args *args, void *pr_ctxt)
 {
 	u32 cb_data_size, __user * psize = (u32 __user *)
-	    args->args_proc_ctrl.pargs;
+	    args->args_proc_ctrl.args;
 	u8 *pargs = NULL;
 	int status = 0;
 	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
@@ -634,7 +634,7 @@ u32 procwrap_ctrl(union trapped_args *args, void *pr_ctxt)
 			goto func_end;
 		}
 
-		CP_FM_USR(pargs, args->args_proc_ctrl.pargs, status,
+		CP_FM_USR(pargs, args->args_proc_ctrl.args, status,
 			  cb_data_size);
 	}
 	if (!status) {
@@ -643,7 +643,7 @@ u32 procwrap_ctrl(union trapped_args *args, void *pr_ctxt)
 				   (struct dsp_cbdata *)pargs);
 	}
 
-	/* CP_TO_USR(args->args_proc_ctrl.pargs, pargs, status, 1); */
+	/* CP_TO_USR(args->args_proc_ctrl.args, pargs, status, 1); */
 	kfree(pargs);
 func_end:
 	return status;
@@ -679,9 +679,9 @@ u32 procwrap_enum_node_info(union trapped_args *args, void *pr_ctxt)
 				 &num_nodes, &alloc_cnt);
 	CP_TO_USR(args->args_proc_enumnode_info.node_tab, node_tab, status,
 		  num_nodes);
-	CP_TO_USR(args->args_proc_enumnode_info.pu_num_nodes, &num_nodes,
+	CP_TO_USR(args->args_proc_enumnode_info.num_nodes, &num_nodes,
 		  status, 1);
-	CP_TO_USR(args->args_proc_enumnode_info.pu_allocated, &alloc_cnt,
+	CP_TO_USR(args->args_proc_enumnode_info.allocated, &alloc_cnt,
 		  status, 1);
 	return status;
 }
@@ -694,7 +694,7 @@ u32 procwrap_end_dma(union trapped_args *args, void *pr_ctxt)
 		return -EINVAL;
 
 	status = proc_end_dma(pr_ctxt,
-				   args->args_proc_dma.pmpu_addr,
+				   args->args_proc_dma.mpu_addr,
 				   args->args_proc_dma.size,
 				   args->args_proc_dma.dir);
 	return status;
@@ -708,7 +708,7 @@ u32 procwrap_begin_dma(union trapped_args *args, void *pr_ctxt)
 		return -EINVAL;
 
 	status = proc_begin_dma(pr_ctxt,
-				   args->args_proc_dma.pmpu_addr,
+				   args->args_proc_dma.mpu_addr,
 				   args->args_proc_dma.size,
 				   args->args_proc_dma.dir);
 	return status;
@@ -726,7 +726,7 @@ u32 procwrap_flush_memory(union trapped_args *args, void *pr_ctxt)
 		return -EINVAL;
 
 	status = proc_flush_memory(pr_ctxt,
-				   args->args_proc_flushmemory.pmpu_addr,
+				   args->args_proc_flushmemory.mpu_addr,
 				   args->args_proc_flushmemory.size,
 				   args->args_proc_flushmemory.ul_flags);
 	return status;
@@ -741,7 +741,7 @@ u32 procwrap_invalidate_memory(union trapped_args *args, void *pr_ctxt)
 
 	status =
 	    proc_invalidate_memory(pr_ctxt,
-				   args->args_proc_invalidatememory.pmpu_addr,
+				   args->args_proc_invalidatememory.mpu_addr,
 				   args->args_proc_invalidatememory.size);
 	return status;
 }
@@ -954,12 +954,12 @@ u32 procwrap_map(union trapped_args *args, void *pr_ctxt)
 		return -EINVAL;
 
 	status = proc_map(args->args_proc_mapmem.processor,
-			  args->args_proc_mapmem.pmpu_addr,
+			  args->args_proc_mapmem.mpu_addr,
 			  args->args_proc_mapmem.size,
 			  args->args_proc_mapmem.req_addr, &map_addr,
-			  args->args_proc_mapmem.ul_map_attr, pr_ctxt);
+			  args->args_proc_mapmem.map_attr, pr_ctxt);
 	if (!status) {
-		if (put_user(map_addr, args->args_proc_mapmem.pp_map_addr)) {
+		if (put_user(map_addr, args->args_proc_mapmem.map_addr)) {
 			status = -EINVAL;
 			proc_un_map(hprocessor, map_addr, pr_ctxt);
 		}
@@ -985,7 +985,7 @@ u32 procwrap_register_notify(union trapped_args *args, void *pr_ctxt)
 				 args->args_proc_register_notify.event_mask,
 				 args->args_proc_register_notify.notify_type,
 				 &notification);
-	CP_TO_USR(args->args_proc_register_notify.hnotification, &notification,
+	CP_TO_USR(args->args_proc_register_notify.notification, &notification,
 		  status, 1);
 	return status;
 }
@@ -1007,7 +1007,7 @@ u32 procwrap_reserve_memory(union trapped_args *args, void *pr_ctxt)
 				     args->args_proc_rsvmem.size, &prsv_addr,
 				     pr_ctxt);
 	if (!status) {
-		if (put_user(prsv_addr, args->args_proc_rsvmem.pp_rsv_addr)) {
+		if (put_user(prsv_addr, args->args_proc_rsvmem.rsv_addr)) {
 			status = -EINVAL;
 			proc_un_reserve_memory(args->args_proc_rsvmem.
 					       processor, prsv_addr, pr_ctxt);
@@ -1048,7 +1048,7 @@ u32 procwrap_un_reserve_memory(union trapped_args *args, void *pr_ctxt)
 	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	status = proc_un_reserve_memory(hprocessor,
-					args->args_proc_unrsvmem.prsv_addr,
+					args->args_proc_unrsvmem.rsv_addr,
 					pr_ctxt);
 	return status;
 }
@@ -1087,7 +1087,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 	int status = 0;
 	struct dsp_uuid node_uuid;
 	u32 cb_data_size = 0;
-	u32 __user *psize = (u32 __user *) args->args_node_allocate.pargs;
+	u32 __user *psize = (u32 __user *) args->args_node_allocate.args;
 	u8 *pargs = NULL;
 	struct dsp_nodeattrin proc_attr_in, *attr_in = NULL;
 	struct node_res_object *node_res;
@@ -1106,7 +1106,7 @@ u32 nodewrap_allocate(union trapped_args *args, void *pr_ctxt)
 				status = -ENOMEM;
 
 		}
-		CP_FM_USR(pargs, args->args_node_allocate.pargs, status,
+		CP_FM_USR(pargs, args->args_node_allocate.args, status,
 			  cb_data_size);
 	}
 	CP_FM_USR(&node_uuid, args->args_node_allocate.node_id_ptr, status, 1);
@@ -1449,14 +1449,14 @@ u32 nodewrap_register_notify(union trapped_args *args, void *pr_ctxt)
 
 	if (!args->args_proc_register_notify.event_mask)
 		CP_FM_USR(&notification,
-			  args->args_proc_register_notify.hnotification,
+			  args->args_proc_register_notify.notification,
 			  status, 1);
 
 	status = node_register_notify(node_res->node,
 				      args->args_node_registernotify.event_mask,
 				      args->args_node_registernotify.
 				      notify_type, &notification);
-	CP_TO_USR(args->args_node_registernotify.hnotification, &notification,
+	CP_TO_USR(args->args_node_registernotify.notification, &notification,
 		  status, 1);
 	return status;
 }
@@ -1815,7 +1815,7 @@ u32 strmwrap_register_notify(union trapped_args *args, void *pr_ctxt)
 				      args->args_strm_registernotify.event_mask,
 				      args->args_strm_registernotify.
 				      notify_type, &notification);
-	CP_TO_USR(args->args_strm_registernotify.hnotification, &notification,
+	CP_TO_USR(args->args_strm_registernotify.notification, &notification,
 		  status, 1);
 
 	return status;
