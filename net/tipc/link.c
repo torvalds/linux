@@ -1441,7 +1441,7 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 		info("Outstanding acks: %lu\n",
 		     (unsigned long) TIPC_SKB_CB(buf)->handle);
 
-		n_ptr = l_ptr->owner->next;
+		n_ptr = tipc_bclink_retransmit_to();
 		tipc_node_lock(n_ptr);
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);

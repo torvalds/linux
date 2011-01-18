@@ -93,6 +93,7 @@ struct bcbearer {
  * struct bclink - link used for broadcast messages
  * @link: (non-standard) broadcast link structure
  * @node: (non-standard) node structure representing b'cast link's peer node
+ * @retransmit_to: node that most recently requested a retransmit
  *
  * Handles sequence numbering, fragmentation, bundling, etc.
  */
@@ -100,6 +101,7 @@ struct bcbearer {
 struct bclink {
 	struct link link;
 	struct tipc_node node;
+	struct tipc_node *retransmit_to;
 };
 
 
@@ -182,6 +184,17 @@ static int bclink_ack_allowed(u32 n)
 	return (n % TIPC_MIN_LINK_WIN) == tipc_own_tag;
 }
 
+
+/**
+ * tipc_bclink_retransmit_to - get most recent node to request retransmission
+ *
+ * Called with bc_lock locked
+ */
+
+struct tipc_node *tipc_bclink_retransmit_to(void)
+{
+	return bclink->retransmit_to;
+}
 
 /**
  * bclink_retransmit_pkt - retransmit broadcast packets
@@ -444,10 +457,9 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 			tipc_node_unlock(node);
 			spin_lock_bh(&bc_lock);
 			bcl->stats.recv_nacks++;
-			bcl->owner->next = node;   /* remember requestor */
+			bclink->retransmit_to = node;
 			bclink_retransmit_pkt(msg_bcgap_after(msg),
 					      msg_bcgap_to(msg));
-			bcl->owner->next = NULL;
 			spin_unlock_bh(&bc_lock);
 		} else {
 			tipc_bclink_peek_nack(msg_destnode(msg),
