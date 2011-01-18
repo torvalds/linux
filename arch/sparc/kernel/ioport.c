@@ -302,9 +302,9 @@ static void *sbus_alloc_coherent(struct device *dev, size_t len,
 err_noiommu:
 	release_resource(res);
 err_nova:
-	free_pages(va, order);
-err_nomem:
 	kfree(res);
+err_nomem:
+	free_pages(va, order);
 err_nopages:
 	return NULL;
 }
