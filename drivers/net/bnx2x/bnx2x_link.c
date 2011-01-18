@@ -5972,10 +5972,26 @@ static void bnx2x_848xx_set_led(struct bnx2x *bp,
 			 MDIO_PMA_REG_8481_LED2_MASK,
 			 0x18);
 
+	/* Select activity source by Tx and Rx, as suggested by PHY AE */
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
 			 MDIO_PMA_REG_8481_LED3_MASK,
-			 0x0040);
+			 0x0006);
+
+	/* Select the closest activity blink rate to that in 10/100/1000 */
+	bnx2x_cl45_write(bp, phy,
+			MDIO_PMA_DEVAD,
+			MDIO_PMA_REG_8481_LED3_BLINK,
+			0);
+
+	bnx2x_cl45_read(bp, phy,
+			MDIO_PMA_DEVAD,
+			MDIO_PMA_REG_84823_CTL_LED_CTL_1, &val);
+	val |= MDIO_PMA_REG_84823_LED3_STRETCH_EN; /* stretch_en for LED3*/
+
+	bnx2x_cl45_write(bp, phy,
+			 MDIO_PMA_DEVAD,
+			 MDIO_PMA_REG_84823_CTL_LED_CTL_1, val);
 
 	/* 'Interrupt Mask' */
 	bnx2x_cl45_write(bp, phy,
