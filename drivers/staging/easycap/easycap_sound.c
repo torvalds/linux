@@ -107,21 +107,12 @@ if (true == peasycap->microphone) {
 	peasycap->alsa_hardware.rate_max = 48000;
 }
 
-#if defined(EASYCAP_NEEDS_CARD_CREATE)
 	if (0 != snd_card_create(SNDRV_DEFAULT_IDX1, "easycap_alsa",
 					THIS_MODULE, 0,
 					&psnd_card)) {
 		SAY("ERROR: Cannot do ALSA snd_card_create()\n");
 		return -EFAULT;
 	}
-#else
-	psnd_card = snd_card_new(SNDRV_DEFAULT_IDX1, "easycap_alsa",
-							THIS_MODULE, 0);
-	if (NULL == psnd_card) {
-		SAY("ERROR: Cannot do ALSA snd_card_new()\n");
-		return -EFAULT;
-	}
-#endif /*EASYCAP_NEEDS_CARD_CREATE*/
 
 	sprintf(&psnd_card->id[0], "EasyALSA%i", peasycap->minor);
 	strcpy(&psnd_card->driver[0], EASYCAP_DRIVER_DESCRIPTION);
