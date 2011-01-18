@@ -157,6 +157,9 @@ struct hidp_session {
 	/* Report descriptor */
 	__u8 *rd_data;
 	uint rd_size;
+
+	wait_queue_head_t startup_queue;
+	int waiting_for_startup;
 };
 
 static inline void hidp_schedule(struct hidp_session *session)
