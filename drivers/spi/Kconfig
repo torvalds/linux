@@ -350,6 +350,16 @@ config SPI_TEGRA
 	help
 	  SPI driver for NVidia Tegra SoCs
 
+config SPI_TI_SSP
+	tristate "TI Sequencer Serial Port - SPI Support"
+	depends on MFD_TI_SSP
+	help
+	  This selects an SPI master implementation using a TI sequencer
+	  serial port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti-ssp-spi.
+
 config SPI_TOPCLIFF_PCH
 	tristate "Topcliff PCH SPI Controller"
 	depends on PCI

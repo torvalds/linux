@@ -32,6 +32,12 @@ struct ti_ssp_data {
 	struct ti_ssp_dev_data	dev_data[2];
 };
 
+struct ti_ssp_spi_data {
+	unsigned long	iosel;
+	int		num_cs;
+	void		(*select)(int cs);
+};
+
 /*
  * Sequencer port IO pin configuration bits.  These do not correlate 1-1 with
  * the hardware.  The iosel field in the port data combines iosel1 and iosel2,
