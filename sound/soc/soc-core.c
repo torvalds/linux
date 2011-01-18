@@ -3496,6 +3496,7 @@ int snd_soc_register_codec(struct device *dev,
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	codec->dapm.dev = dev;
 	codec->dapm.codec = codec;
+	codec->dapm.seq_notifier = codec_drv->seq_notifier;
 	codec->dev = dev;
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;

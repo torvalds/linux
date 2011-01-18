@@ -878,7 +878,7 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 	int cur_subseq = -1;
 	int cur_reg = SND_SOC_NOPM;
 	struct snd_soc_dapm_context *cur_dapm = NULL;
-	int ret;
+	int ret, i;
 	int *sort;
 
 	if (power_up)
@@ -894,6 +894,13 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 		    w->dapm != cur_dapm || w->subseq != cur_subseq) {
 			if (!list_empty(&pending))
 				dapm_seq_run_coalesced(cur_dapm, &pending);
+
+			if (cur_dapm && cur_dapm->seq_notifier) {
+				for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
+					if (sort[i] == cur_sort)
+						cur_dapm->seq_notifier(cur_dapm,
+								       i);
+			}
 
 			INIT_LIST_HEAD(&pending);
 			cur_sort = -1;
@@ -956,6 +963,13 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 
 	if (!list_empty(&pending))
 		dapm_seq_run_coalesced(dapm, &pending);
+
+	if (cur_dapm && cur_dapm->seq_notifier) {
+		for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
+			if (sort[i] == cur_sort)
+				cur_dapm->seq_notifier(cur_dapm,
+						       i);
+	}
 }
 
 static void dapm_widget_update(struct snd_soc_dapm_context *dapm)

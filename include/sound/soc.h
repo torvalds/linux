@@ -546,6 +546,9 @@ struct snd_soc_codec_driver {
 	/* codec bias level */
 	int (*set_bias_level)(struct snd_soc_codec *,
 			      enum snd_soc_bias_level level);
+
+	void (*seq_notifier)(struct snd_soc_dapm_context *,
+			     enum snd_soc_dapm_type);
 };
 
 /* SoC platform interface */
