@@ -36,10 +36,12 @@
 
 struct rk29_gpio_chip {
 	struct gpio_chip        chip;
-	struct rk29_gpio_chip	*next;		/* Bank sharing same clock */
-	struct rk29_gpio_bank	*bank;		/* Bank definition */
+	unsigned short id;
+	short irq;
 	unsigned char  __iomem	*regbase;	/* Base of register bank */
 	struct clk *clk;
+	u32 suspend_wakeup;
+	u32 saved_wakeup;
 };
 
 static struct lock_class_key gpio_lock_class;
@@ -52,30 +54,33 @@ static int rk29_gpiolib_direction_input(struct gpio_chip *chip,unsigned offset);
 static int rk29_gpiolib_PullUpDown(struct gpio_chip *chip, unsigned offset, unsigned enable);
 static int rk29_gpiolib_to_irq(struct gpio_chip *chip,unsigned offset);
 
-#define RK29_GPIO_CHIP(name, base_gpio, nr_gpio)			\
+#define RK29_GPIO_CHIP(ID)			\
 	{								\
 		.chip = {						\
-			.label		  = name,			\
+			.label            = "gpio" #ID,			\
 			.direction_input  = rk29_gpiolib_direction_input, \
 			.direction_output = rk29_gpiolib_direction_output, \
-			.get		  = rk29_gpiolib_get,		\
-			.set		  = rk29_gpiolib_set,		\
-			.pull_updown  = rk29_gpiolib_PullUpDown,         \
-			.dbg_show	  = rk29_gpiolib_dbg_show,	\
-			.to_irq       = rk29_gpiolib_to_irq,     \
-			.base		  = base_gpio,			\
-			.ngpio		  = nr_gpio,			\
+			.get              = rk29_gpiolib_get,		\
+			.set              = rk29_gpiolib_set,		\
+			.pull_updown      = rk29_gpiolib_PullUpDown,	\
+			.dbg_show         = rk29_gpiolib_dbg_show,	\
+			.to_irq           = rk29_gpiolib_to_irq,	\
+			.base             = PIN_BASE + ID*NUM_GROUP,	\
+			.ngpio            = NUM_GROUP,			\
 		},							\
+		.id = ID, \
+		.irq = IRQ_GPIO##ID, \
+		.regbase = (unsigned char __iomem *) RK29_GPIO##ID##_BASE, \
 	}
 
 static struct rk29_gpio_chip rk29gpio_chip[] = {
-	RK29_GPIO_CHIP("gpio0", PIN_BASE + 0*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("gpio1", PIN_BASE + 1*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("gpio2", PIN_BASE + 2*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("gpio3", PIN_BASE + 3*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("gpio4", PIN_BASE + 4*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("gpio5", PIN_BASE + 5*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("gpio6", PIN_BASE + 6*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP(0),
+	RK29_GPIO_CHIP(1),
+	RK29_GPIO_CHIP(2),
+	RK29_GPIO_CHIP(3),
+	RK29_GPIO_CHIP(4),
+	RK29_GPIO_CHIP(5),
+	RK29_GPIO_CHIP(6),
 };
 
 static inline void rk29_gpio_write(unsigned char  __iomem	*regbase, unsigned int regOff,unsigned int val)
@@ -135,14 +140,18 @@ static int GPIOSetPinLevel(struct gpio_chip *chip, unsigned int mask,eGPIOPinLev
 {
 	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
 	unsigned char  __iomem	*gpioRegBase = rk29_gpio->regbase;
+	unsigned long flags;
 
 	if(!rk29_gpio || !gpioRegBase)
 	{
 		return -1;
 	}
-	
+
+	local_irq_save(flags);
 	rk29_gpio_bitOp(gpioRegBase,GPIO_SWPORT_DDR,mask,1);
 	rk29_gpio_bitOp(gpioRegBase,GPIO_SWPORT_DR,mask,level);
+	local_irq_restore(flags);
+
 	return 0;
 }
 
@@ -165,17 +174,19 @@ static int GPIOSetPinDirection(struct gpio_chip *chip, unsigned int mask,eGPIOPi
 {
 	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
 	unsigned char  __iomem	*gpioRegBase = rk29_gpio->regbase;
+	unsigned long flags;
 
 	if(!rk29_gpio || !gpioRegBase)
 	{
 		return -1;
 	}
-	
+
+	local_irq_save(flags);
 	rk29_gpio_bitOp(gpioRegBase,GPIO_SWPORT_DDR,mask,direction);
 	rk29_gpio_bitOp(gpioRegBase,GPIO_DEBOUNCE,mask,1); 
+	local_irq_restore(flags);
 
 	return 0;
-
 }
 
 static int GPIOEnableIntr(struct gpio_chip *chip, unsigned int mask)
@@ -189,6 +200,22 @@ static int GPIOEnableIntr(struct gpio_chip *chip, unsigned int mask)
 	}
 	
 	rk29_gpio_bitOp(gpioRegBase,GPIO_INTEN,mask,1);
+
+	return 0;
+}
+
+static int GPIODisableIntr(struct gpio_chip *chip, unsigned int mask)
+{
+	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
+	unsigned char  __iomem	*gpioRegBase = rk29_gpio->regbase;
+
+	if(!rk29_gpio || !gpioRegBase)
+	{
+		return -1;
+	}
+
+	rk29_gpio_bitOp(gpioRegBase,GPIO_INTEN,mask,0);
+
 	return 0;
 }
 
@@ -226,44 +253,24 @@ static int GPIOSetIntrType(struct gpio_chip *chip, unsigned int mask, eGPIOIntTy
 	 return(0);
 }
 
-static int gpio_irq_set_wake(unsigned irq, unsigned state)
-{	
+static int gpio_irq_set_wake(unsigned int irq, unsigned int on)
+{
 	unsigned int pin = irq_to_gpio(irq);
-	unsigned	bank = (pin - PIN_BASE) / NUM_GROUP;
-	unsigned int irq_number;
+	unsigned bank = (pin - PIN_BASE) / NUM_GROUP;
+	struct rk29_gpio_chip *rk29_gpio;
+	unsigned mask = pin_to_mask(pin);
 
 	if (unlikely(bank >= MAX_BANK))
 		return -EINVAL;
-	
-	switch ( rk29gpio_chip[bank].bank->id )
-	{
-		case RK29_ID_GPIO0:
-			irq_number = IRQ_GPIO0;
-			break;
-		case RK29_ID_GPIO1:
-			irq_number = IRQ_GPIO1;
-			break;
-		case RK29_ID_GPIO2:
-			irq_number = IRQ_GPIO2;
-			break;
-		case RK29_ID_GPIO3:
-			irq_number = IRQ_GPIO3;
-			break;
-		case RK29_ID_GPIO4:
-			irq_number = IRQ_GPIO4;
-			break;
-		case RK29_ID_GPIO5:
-			irq_number = IRQ_GPIO5;
-			break;
-		case RK29_ID_GPIO6:
-			irq_number = IRQ_GPIO6;
-			break;	
-		default:
-			return 0;	
-	}
-	
-	set_irq_wake(irq_number, state);
-	
+
+	rk29_gpio = &rk29gpio_chip[bank];
+	if (on)
+		rk29_gpio->suspend_wakeup |= mask;
+	else
+		rk29_gpio->suspend_wakeup &= ~mask;
+
+	set_irq_wake(rk29_gpio->irq, on);
+
 	return 0;
 }
 
@@ -298,34 +305,12 @@ static int gpio_irq_type(unsigned irq, unsigned type)
 		default:
 			return -EINVAL;
 	}
-	return 0;
-}
 
-static int GPIOUnInmarkIntr(struct gpio_chip *chip, unsigned int mask)
-{
-	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
-	unsigned char  __iomem	*gpioRegBase = rk29_gpio->regbase;
+	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+		__set_irq_handler_unlocked(irq, handle_level_irq);
+	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
+		__set_irq_handler_unlocked(irq, handle_edge_irq);
 
-	if(!rk29_gpio || !gpioRegBase)
-	{
-		return -1;
-	}
-	
-	rk29_gpio_bitOp(gpioRegBase,GPIO_INTMASK,mask,0);
-	return 0;
-}
-
-static int GPIOInmarkIntr(struct gpio_chip *chip, unsigned int mask)
-{
-	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
-	unsigned char  __iomem	*gpioRegBase = rk29_gpio->regbase;
-
-	if(!rk29_gpio || !gpioRegBase)
-	{
-		return -1;
-	}
-	
-	rk29_gpio_bitOp(gpioRegBase,GPIO_INTMASK,mask,1);
 	return 0;
 }
 
@@ -349,8 +334,8 @@ static void gpio_irq_unmask(unsigned irq)
 	struct gpio_chip *chip = pin_to_gpioChip(pin);
 	unsigned	mask = pin_to_mask(pin);
 
-	if (chip && mask)
-		GPIOUnInmarkIntr(chip,mask);
+	if(chip && mask)
+		GPIOEnableIntr(chip,mask);
 }
 
 static void gpio_irq_mask(unsigned irq)
@@ -360,7 +345,7 @@ static void gpio_irq_mask(unsigned irq)
 	unsigned	mask = pin_to_mask(pin);
 
 	if(chip && mask)
-		GPIOInmarkIntr(chip,mask);
+		GPIODisableIntr(chip,mask);
 }
 
 static void gpio_ack_irq(u32 irq)
@@ -373,45 +358,12 @@ static void gpio_ack_irq(u32 irq)
 		GPIOAckIntr(chip,mask);
 }
 
-static int GPIODisableIntr(struct gpio_chip *chip, unsigned int mask)
-{
-	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
-	unsigned char  __iomem	*gpioRegBase = rk29_gpio->regbase;
-
-	if(!rk29_gpio || !gpioRegBase)
-	{
-		return -1;
-	}
-	
-	rk29_gpio_bitOp(gpioRegBase,GPIO_INTEN,mask,0);
-	return 0;
-}
-
-static void gpio_irq_disable(unsigned irq)
-{
-	unsigned int pin = irq_to_gpio(irq);
-	struct gpio_chip *chip = pin_to_gpioChip(pin);
-	unsigned	mask = pin_to_mask(pin);
-
-	if(chip && mask)
-		GPIODisableIntr(chip,mask);
-}
-
-static void gpio_irq_enable(unsigned irq)
-{
-	unsigned int pin = irq_to_gpio(irq);
-	struct gpio_chip *chip = pin_to_gpioChip(pin);
-	unsigned	mask = pin_to_mask(pin);
-
-	if(chip && mask)
-		GPIOEnableIntr(chip,mask);
-}
-
 static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, unsigned enable)
 {
 	unsigned char temp=0;
 	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
 	unsigned char  __iomem *pGrfRegBase = (unsigned char  __iomem *)RK29_GRF_BASE;
+	unsigned long flags;
 
 	if(!rk29_gpio || !pGrfRegBase)
 	{
@@ -422,14 +374,16 @@ static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, unsigned 
 	{
 		return -1;
 	}
-	temp = __raw_readl(pGrfRegBase + 0x78 +(rk29_gpio->bank->id)*4);
+
+	local_irq_save(flags);
+	temp = __raw_readl(pGrfRegBase + 0x78 +(rk29_gpio->id)*4);
 	if(!enable)
 		temp |= 1<<offset;
 	else
 		temp &= ~(1<<offset);
-	//temp = (temp & (~(1 << offset)))| ((~enable) << offset);	
-	__raw_writel(temp,pGrfRegBase + 0x78 +(rk29_gpio->bank->id)*4);
-	
+	__raw_writel(temp,pGrfRegBase + 0x78 +(rk29_gpio->id)*4);
+	local_irq_restore(flags);
+
 	return 0;
 }
 
@@ -581,83 +535,103 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 }
 
 static struct irq_chip rk29gpio_irqchip = {
-	.name		= "RK29_GPIOIRQ",
+	.name		= "GPIO",
 	.ack 		= gpio_ack_irq,
-	.enable 	= gpio_irq_enable,
-	.disable	= gpio_irq_disable,
 	.mask		= gpio_irq_mask,
 	.unmask		= gpio_irq_unmask,
 	.set_type	= gpio_irq_type,
 	.set_wake	= gpio_irq_set_wake,
 };
 
-void __init rk29_gpio_irq_setup(void)
+static void __init rk29_gpio_irq_setup(void)
 {
-	unsigned	int	i,j, pin,irq=IRQ_GPIO0;
+	unsigned int i, j, pin;
 	struct rk29_gpio_chip *this;
-	
+
 	this = rk29gpio_chip;
 	pin = NR_AIC_IRQS;
-	for(i=0;i<MAX_BANK;i++)
-	{
+	for (i = 0; i < MAX_BANK; i++) {
 		rk29_gpio_write(this->regbase,GPIO_INTEN,0);
-		for (j = 0; j < 32; j++) 
-		{
+		for (j = 0; j < 32; j++) {
 			lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
 			set_irq_chip(pin+j, &rk29gpio_irqchip);
 			set_irq_handler(pin+j, handle_edge_irq);
 			set_irq_flags(pin+j, IRQF_VALID);
 		}
-		
-		switch ( this->bank->id )
-		{
-			case RK29_ID_GPIO0:
-				irq = IRQ_GPIO0;
-				break;
-			case RK29_ID_GPIO1:
-				irq = IRQ_GPIO1;
-				break;
-			case RK29_ID_GPIO2:
-				irq = IRQ_GPIO2;
-				break;
-			case RK29_ID_GPIO3:
-				irq = IRQ_GPIO3;
-				break;
-			case RK29_ID_GPIO4:
-				irq = IRQ_GPIO4;
-				break;
-			case RK29_ID_GPIO5:
-				irq = IRQ_GPIO5;
-				break;
-			case RK29_ID_GPIO6:
-				irq = IRQ_GPIO6;
-				break;		
-		}
 
-		set_irq_chip_data(NR_AIC_IRQS+this->bank->id,this);
-		set_irq_chained_handler(irq, gpio_irq_handler);
+		set_irq_chip_data(NR_AIC_IRQS + this->id, this);
+		set_irq_chained_handler(this->irq, gpio_irq_handler);
 		this += 1; 
 		pin += 32;
 	}
 	printk("rk29_gpio_irq_setup: %d gpio irqs in 7 banks\n", pin - PIN_BASE);
 }
 
-void __init rk29_gpio_init(struct rk29_gpio_bank *data, int nr_banks)
+void __init rk29_gpio_init(void)
 {
-	unsigned	i;
-	struct rk29_gpio_chip *rk29_gpio, *last = NULL;
-	
-	for (i = 0; i < nr_banks; i++) {		
+	unsigned i;
+	struct rk29_gpio_chip *rk29_gpio;
+
+	for (i = 0; i < MAX_BANK; i++) {
 		rk29_gpio = &rk29gpio_chip[i];
-		rk29_gpio->bank = &data[i];
-		rk29_gpio->regbase = (unsigned char  __iomem *)rk29_gpio->bank->offset;		
 		rk29_gpio->clk = clk_get(NULL, rk29_gpio->chip.label);
 		clk_enable(rk29_gpio->clk);
-		if(last)
-			last->next = rk29_gpio;
-		last = rk29_gpio;
-
 		gpiochip_add(&rk29_gpio->chip);
 	}
-	printk("rk29_gpio_init:nr_banks=%d\n",nr_banks);
+	rk29_gpio_irq_setup();
 }
+
+#ifdef CONFIG_PM
+static int rk29_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
+{
+	unsigned i;
+
+	for (i = 0; i < MAX_BANK; i++) {
+		struct rk29_gpio_chip *rk29_gpio = &rk29gpio_chip[i];
+
+		rk29_gpio->saved_wakeup = rk29_gpio_read(rk29_gpio->regbase, GPIO_INTEN);
+		rk29_gpio_write(rk29_gpio->regbase, GPIO_INTEN, rk29_gpio->suspend_wakeup);
+
+		if (!rk29_gpio->suspend_wakeup)
+			clk_disable(rk29_gpio->clk);
+	}
+
+	return 0;
+}
+
+static int rk29_gpio_resume(struct sys_device *dev)
+{
+	unsigned i;
+
+	for (i = 0; i < MAX_BANK; i++) {
+		struct rk29_gpio_chip *rk29_gpio = &rk29gpio_chip[i];
+
+		if (!rk29_gpio->suspend_wakeup)
+			clk_enable(rk29_gpio->clk);
+
+		rk29_gpio_write(rk29_gpio->regbase, GPIO_INTEN, rk29_gpio->saved_wakeup);
+	}
+
+	return 0;
+}
+
+static struct sysdev_class rk29_gpio_sysclass = {
+        .name           = "gpio",
+        .suspend        = rk29_gpio_suspend,
+        .resume         = rk29_gpio_resume,
+};
+
+static struct sys_device rk29_gpio_device = {
+        .cls            = &rk29_gpio_sysclass,
+};
+
+static int __init rk29_gpio_sysinit(void)
+{
+        int ret = sysdev_class_register(&rk29_gpio_sysclass);
+        if (ret == 0)
+                ret = sysdev_register(&rk29_gpio_device);
+        return ret;
+}
+
+arch_initcall(rk29_gpio_sysinit);
+#endif

@@ -92,37 +92,6 @@ struct rk29_nand_platform_data rk29_nand_data = {
     .io_init   = rk29_nand_io_init,
 };
 
-static struct rk29_gpio_bank rk29_gpiobankinit[] = {
-	{
-		.id		= RK29_ID_GPIO0,
-		.offset	= RK29_GPIO0_BASE,
-	},
-	{
-		.id		= RK29_ID_GPIO1,
-		.offset	= RK29_GPIO1_BASE,
-	},
-	{
-		.id		= RK29_ID_GPIO2,
-		.offset	= RK29_GPIO2_BASE,
-	},
-	{
-		.id		= RK29_ID_GPIO3,
-		.offset	= RK29_GPIO3_BASE,
-	},
-	{
-		.id		= RK29_ID_GPIO4,
-		.offset	= RK29_GPIO4_BASE,
-	},
-	{
-		.id		= RK29_ID_GPIO5,
-		.offset	= RK29_GPIO5_BASE,
-	},
-	{
-		.id		= RK29_ID_GPIO6,
-		.offset	= RK29_GPIO6_BASE,
-	},
-};
-
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
@@ -1767,8 +1736,7 @@ static void __init rk29_gic_init_irq(void)
 static void __init machine_rk29_init_irq(void)
 {
 	rk29_gic_init_irq();
-	rk29_gpio_init(rk29_gpiobankinit, MAX_BANK);
-	rk29_gpio_irq_setup();
+	rk29_gpio_init();
 }
 
 #define POWER_ON_PIN RK29_PIN4_PA4

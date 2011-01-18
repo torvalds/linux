@@ -303,14 +303,8 @@ typedef enum GPIOIntType {
                                            
 #define ARCH_NR_GPIOS 		(NUM_GROUP*MAX_BANK)
                                            
-struct rk29_gpio_bank {                                                          
-	unsigned short id;			                          
-	unsigned long offset;		                                     
-};                                                                               
-     
 #ifndef __ASSEMBLY__
-extern void __init rk29_gpio_init(struct rk29_gpio_bank *data, int nr_banks);  
-extern void __init rk29_gpio_irq_setup(void); 
+extern void __init rk29_gpio_init(void);
 /*-------------------------------------------------------------------------*/
 
 /* wrappers for "new style" GPIO calls. the old RK2818-specfic ones should
