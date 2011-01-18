@@ -1658,6 +1658,8 @@ ack:
 
 		if (cap == ci->i_auth_cap && ci->i_dirty_caps)
 			flushing = __mark_caps_flushing(inode, session);
+		else
+			flushing = 0;
 
 		mds = cap->mds;  /* remember mds, so we don't repeat */
 		sent++;
