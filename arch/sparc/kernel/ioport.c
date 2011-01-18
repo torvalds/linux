@@ -524,6 +524,13 @@ static dma_addr_t pci32_map_page(struct device *dev, struct page *page,
 	return page_to_phys(page) + offset;
 }
 
+static void pci32_unmap_page(struct device *dev, dma_addr_t ba, size_t size,
+			     enum dma_data_direction dir, struct dma_attrs *attrs)
+{
+	if (dir != PCI_DMA_TODEVICE)
+		mmu_inval_dma_area((unsigned long)phys_to_virt(ba), PAGE_ALIGN(size));
+}
+
 /* Map a set of buffers described by scatterlist in streaming
  * mode for DMA.  This is the scather-gather version of the
  * above pci_map_single interface.  Here the scatter gather list
@@ -646,6 +653,7 @@ struct dma_map_ops pci32_dma_ops = {
 	.alloc_coherent		= pci32_alloc_coherent,
 	.free_coherent		= pci32_free_coherent,
 	.map_page		= pci32_map_page,
+	.unmap_page		= pci32_unmap_page,
 	.map_sg			= pci32_map_sg,
 	.unmap_sg		= pci32_unmap_sg,
 	.sync_single_for_cpu	= pci32_sync_single_for_cpu,
