@@ -265,7 +265,7 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 		goto restart;
 	}
 
-	tegra_ehci_phy_restore_start(tegra->phy);
+	tegra_ehci_phy_restore_start(tegra->phy, context->port_speed);
 
 	/* Check if the phy resume from LP0. When the phy resume from LP0
 	 * USB register will be reset. */
@@ -341,10 +341,13 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 	}
 
 	tegra_ehci_phy_restore_end(tegra->phy);
+
 	return 0;
 
 restart:
-	tegra_ehci_phy_restore_end(tegra->phy);
+	if (context->valid)
+		tegra_ehci_phy_restore_end(tegra->phy);
+
 	tegra_ehci_restart(hcd);
 	return 0;
 }
