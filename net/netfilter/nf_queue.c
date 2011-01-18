@@ -299,7 +299,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	case NF_QUEUE:
 		err = __nf_queue(skb, elem, entry->pf, entry->hook,
 				 entry->indev, entry->outdev, entry->okfn,
-				 verdict >> NF_VERDICT_BITS);
+				 verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
 			if (err == -ECANCELED)
 				goto next_hook;

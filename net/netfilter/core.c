@@ -175,12 +175,12 @@ next_hook:
 		ret = 1;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_DROP) {
 		kfree_skb(skb);
-		ret = -(verdict >> NF_VERDICT_BITS);
+		ret = NF_DROP_GETERR(verdict);
 		if (ret == 0)
 			ret = -EPERM;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
 		ret = nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
-			       verdict >> NF_VERDICT_BITS);
+			       verdict >> NF_VERDICT_QBITS);
 		if (ret < 0) {
 			if (ret == -ECANCELED)
 				goto next_hook;
