@@ -604,7 +604,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 		 * translated to user's virtual addr later.
 		 */
 		host_sys_buf = chnl_packet_obj->host_sys_buf;
-		ioc.pbuf = chnl_packet_obj->host_user_buf;
+		ioc.buf = chnl_packet_obj->host_user_buf;
 		ioc.byte_size = chnl_packet_obj->byte_size;
 		ioc.buf_size = chnl_packet_obj->buf_size;
 		ioc.arg = chnl_packet_obj->arg;
@@ -613,7 +613,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 		list_add_tail(&chnl_packet_obj->link,
 				&pchnl->free_packets_list);
 	} else {
-		ioc.pbuf = NULL;
+		ioc.buf = NULL;
 		ioc.byte_size = 0;
 		ioc.arg = 0;
 		ioc.buf_size = 0;
@@ -640,11 +640,11 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 	spin_unlock_bh(&pchnl->chnl_mgr_obj->chnl_mgr_lock);
 	if (dequeue_ioc
 	    && (pchnl->chnl_type == CHNL_PCPY && pchnl->chnl_id > 1)) {
-		if (!(ioc.pbuf < (void *)USERMODE_ADDR))
+		if (!(ioc.buf < (void *)USERMODE_ADDR))
 			goto func_cont;
 
 		/* If the addr is in user mode, then copy it */
-		if (!host_sys_buf || !ioc.pbuf) {
+		if (!host_sys_buf || !ioc.buf) {
 			status = -EFAULT;
 			goto func_cont;
 		}
@@ -652,7 +652,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 			goto func_cont1;
 
 		/*host_user_buf */
-		status = copy_to_user(ioc.pbuf, host_sys_buf, ioc.byte_size);
+		status = copy_to_user(ioc.buf, host_sys_buf, ioc.byte_size);
 		if (status) {
 			if (current->flags & PF_EXITING)
 				status = 0;
@@ -806,7 +806,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 	pchnl->sync_event = sync_event;
 	/* Get the process handle */
 	pchnl->process = current->tgid;
-	pchnl->pcb_arg = 0;
+	pchnl->cb_arg = 0;
 	pchnl->bytes_moved = 0;
 	/* Default to proc-copy */
 	pchnl->chnl_type = CHNL_PCPY;

@@ -89,7 +89,7 @@ int drv_insert_node_res_element(void *hnode, void *node_resource,
 		goto func_end;
 	}
 
-	(*node_res_obj)->hnode = hnode;
+	(*node_res_obj)->node = hnode;
 	retval = idr_get_new(ctxt->node_id, *node_res_obj,
 						&(*node_res_obj)->id);
 	if (retval == -EAGAIN) {
@@ -123,13 +123,13 @@ static int drv_proc_free_node_res(int id, void *p, void *data)
 	u32 node_state;
 
 	if (node_res_obj->node_allocated) {
-		node_state = node_get_state(node_res_obj->hnode);
+		node_state = node_get_state(node_res_obj->node);
 		if (node_state <= NODE_DELETING) {
 			if ((node_state == NODE_RUNNING) ||
 			    (node_state == NODE_PAUSED) ||
 			    (node_state == NODE_TERMINATING))
 				node_terminate
-				    (node_res_obj->hnode, &status);
+				    (node_res_obj->node, &status);
 
 			node_delete(node_res_obj, ctxt);
 		}
@@ -216,7 +216,7 @@ int drv_proc_insert_strm_res_element(void *stream_obj,
 		goto func_end;
 	}
 
-	(*pstrm_res)->hstream = stream_obj;
+	(*pstrm_res)->stream = stream_obj;
 	retval = idr_get_new(ctxt->stream_id, *pstrm_res,
 						&(*pstrm_res)->id);
 	if (retval == -EAGAIN) {
@@ -263,9 +263,9 @@ static int drv_proc_free_strm_res(int id, void *p, void *process_ctxt)
 	}
 	strm_info.user_strm = &user;
 	user.number_bufs_in_stream = 0;
-	strm_get_info(strm_res->hstream, &strm_info, sizeof(strm_info));
+	strm_get_info(strm_res->stream, &strm_info, sizeof(strm_info));
 	while (user.number_bufs_in_stream--)
-		strm_reclaim(strm_res->hstream, &buf_ptr, &ul_bytes,
+		strm_reclaim(strm_res->stream, &buf_ptr, &ul_bytes,
 			     (u32 *) &ul_buf_size, &dw_arg);
 	strm_close(strm_res, ctxt);
 	return 0;

@@ -209,7 +209,7 @@ struct node_object {
 	struct dcd_genericobj dcd_props;	/* Node properties from DCD */
 	struct dsp_cbdata *pargs;	/* Optional args to pass to node */
 	struct ntfy_object *ntfy_obj;	/* Manages registered notifications */
-	char *pstr_dev_name;	/* device name, if device node */
+	char *str_dev_name;	/* device name, if device node */
 	struct sync_object *sync_done;	/* Synchronize node_terminate */
 	s32 exit_status;	/* execute function return status */
 
@@ -1060,7 +1060,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 		}
 		/* Set up create args */
 		pstream->type = DEVICECONNECT;
-		dw_length = strlen(dev_node_obj->pstr_dev_name);
+		dw_length = strlen(dev_node_obj->str_dev_name);
 		if (conn_param)
 			pstrm_def->sz_device = kzalloc(dw_length + 1 +
 					conn_param->cb_data,
@@ -1074,7 +1074,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 		}
 		/* Copy device name */
 		strncpy(pstrm_def->sz_device,
-				dev_node_obj->pstr_dev_name, dw_length);
+				dev_node_obj->str_dev_name, dw_length);
 		if (conn_param)
 			strncat(pstrm_def->sz_device,
 					(char *)conn_param->node_data,
@@ -1214,7 +1214,7 @@ int node_create(struct node_object *hnode)
 				status = hnode_mgr->nldr_fxns.get_fxn_addr
 				    (hnode->nldr_node_obj,
 				     hnode->dcd_props.obj_data.node_obj.
-				     pstr_i_alg_name,
+				     str_i_alg_name,
 				     &hnode->create_args.asa.
 				     task_arg_obj.dais_arg);
 			}
@@ -1393,7 +1393,7 @@ out_err:
 int node_delete(struct node_res_object *noderes,
 		       struct process_context *pr_ctxt)
 {
-	struct node_object *pnode = noderes->hnode;
+	struct node_object *pnode = noderes->node;
 	struct node_mgr *hnode_mgr;
 	struct proc_object *hprocessor;
 	struct disp_object *disp_obj;
@@ -2541,8 +2541,8 @@ static void delete_node(struct node_object *hnode,
 		kfree(hnode->stream_connect);
 		hnode->stream_connect = NULL;
 	}
-	kfree(hnode->pstr_dev_name);
-	hnode->pstr_dev_name = NULL;
+	kfree(hnode->str_dev_name);
+	hnode->str_dev_name = NULL;
 
 	if (hnode->ntfy_obj) {
 		ntfy_delete(hnode->ntfy_obj);
@@ -2551,17 +2551,17 @@ static void delete_node(struct node_object *hnode,
 	}
 
 	/* These were allocated in dcd_get_object_def (via node_allocate) */
-	kfree(hnode->dcd_props.obj_data.node_obj.pstr_create_phase_fxn);
-	hnode->dcd_props.obj_data.node_obj.pstr_create_phase_fxn = NULL;
+	kfree(hnode->dcd_props.obj_data.node_obj.str_create_phase_fxn);
+	hnode->dcd_props.obj_data.node_obj.str_create_phase_fxn = NULL;
 
-	kfree(hnode->dcd_props.obj_data.node_obj.pstr_execute_phase_fxn);
-	hnode->dcd_props.obj_data.node_obj.pstr_execute_phase_fxn = NULL;
+	kfree(hnode->dcd_props.obj_data.node_obj.str_execute_phase_fxn);
+	hnode->dcd_props.obj_data.node_obj.str_execute_phase_fxn = NULL;
 
-	kfree(hnode->dcd_props.obj_data.node_obj.pstr_delete_phase_fxn);
-	hnode->dcd_props.obj_data.node_obj.pstr_delete_phase_fxn = NULL;
+	kfree(hnode->dcd_props.obj_data.node_obj.str_delete_phase_fxn);
+	hnode->dcd_props.obj_data.node_obj.str_delete_phase_fxn = NULL;
 
-	kfree(hnode->dcd_props.obj_data.node_obj.pstr_i_alg_name);
-	hnode->dcd_props.obj_data.node_obj.pstr_i_alg_name = NULL;
+	kfree(hnode->dcd_props.obj_data.node_obj.str_i_alg_name);
+	hnode->dcd_props.obj_data.node_obj.str_i_alg_name = NULL;
 
 	/* Free all SM address translator resources */
 	kfree(hnode->xlator);
@@ -2755,15 +2755,15 @@ static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
 	switch (phase) {
 	case CREATEPHASE:
 		pstr_fxn_name =
-		    hnode->dcd_props.obj_data.node_obj.pstr_create_phase_fxn;
+		    hnode->dcd_props.obj_data.node_obj.str_create_phase_fxn;
 		break;
 	case EXECUTEPHASE:
 		pstr_fxn_name =
-		    hnode->dcd_props.obj_data.node_obj.pstr_execute_phase_fxn;
+		    hnode->dcd_props.obj_data.node_obj.str_execute_phase_fxn;
 		break;
 	case DELETEPHASE:
 		pstr_fxn_name =
-		    hnode->dcd_props.obj_data.node_obj.pstr_delete_phase_fxn;
+		    hnode->dcd_props.obj_data.node_obj.str_delete_phase_fxn;
 		break;
 	default:
 		/* Should never get here */
@@ -2851,11 +2851,11 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 			DBC_REQUIRE(pndb_props->ac_name);
 			len = strlen(pndb_props->ac_name);
 			DBC_ASSERT(len < MAXDEVNAMELEN);
-			hnode->pstr_dev_name = kzalloc(len + 1, GFP_KERNEL);
-			if (hnode->pstr_dev_name == NULL) {
+			hnode->str_dev_name = kzalloc(len + 1, GFP_KERNEL);
+			if (hnode->str_dev_name == NULL) {
 				status = -ENOMEM;
 			} else {
-				strncpy(hnode->pstr_dev_name,
+				strncpy(hnode->str_dev_name,
 					pndb_props->ac_name, len);
 			}
 		}
@@ -2974,10 +2974,10 @@ int node_get_uuid_props(void *hprocessor,
 	 */
 	mutex_lock(&hnode_mgr->node_mgr_lock);
 
-	dcd_node_props.pstr_create_phase_fxn = NULL;
-	dcd_node_props.pstr_execute_phase_fxn = NULL;
-	dcd_node_props.pstr_delete_phase_fxn = NULL;
-	dcd_node_props.pstr_i_alg_name = NULL;
+	dcd_node_props.str_create_phase_fxn = NULL;
+	dcd_node_props.str_execute_phase_fxn = NULL;
+	dcd_node_props.str_delete_phase_fxn = NULL;
+	dcd_node_props.str_i_alg_name = NULL;
 
 	status = dcd_get_object_def(hnode_mgr->dcd_mgr,
 		(struct dsp_uuid *)node_uuid, DSP_DCDNODETYPE,
@@ -2985,13 +2985,13 @@ int node_get_uuid_props(void *hprocessor,
 
 	if (!status) {
 		*node_props = dcd_node_props.ndb_props;
-		kfree(dcd_node_props.pstr_create_phase_fxn);
+		kfree(dcd_node_props.str_create_phase_fxn);
 
-		kfree(dcd_node_props.pstr_execute_phase_fxn);
+		kfree(dcd_node_props.str_execute_phase_fxn);
 
-		kfree(dcd_node_props.pstr_delete_phase_fxn);
+		kfree(dcd_node_props.str_delete_phase_fxn);
 
-		kfree(dcd_node_props.pstr_i_alg_name);
+		kfree(dcd_node_props.str_i_alg_name);
 	}
 	/*  Leave the critical section, we're done. */
 	mutex_unlock(&hnode_mgr->node_mgr_lock);

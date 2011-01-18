@@ -45,7 +45,7 @@
 struct chnl_attr {
 	u32 uio_reqs;		/* Max # of preallocated I/O requests. */
 	void *event_obj;	/* User supplied auto-reset event object. */
-	char *pstr_event_name;	/* Ptr to name of user event object. */
+	char *str_event_name;	/* Ptr to name of user event object. */
 	void *reserved1;	/* Reserved for future use. */
 	u32 reserved2;		/* Reserved for future use. */
 
@@ -53,11 +53,11 @@ struct chnl_attr {
 
 /* I/O completion record: */
 struct chnl_ioc {
-	void *pbuf;		/* Buffer to be filled/emptied. */
+	void *buf;		/* Buffer to be filled/emptied. */
 	u32 byte_size;		/* Bytes transferred. */
 	u32 buf_size;		/* Actual buffer size in bytes */
 	u32 status;		/* Status of IO completion. */
-	u32 arg;		/* User argument associated with pbuf. */
+	u32 arg;		/* User argument associated with buf. */
 };
 
 #endif /* CHNLDEFS_ */

@@ -106,7 +106,7 @@ struct io_mgr {
 	struct msg_ctrl *msg_output_ctrl;
 	u8 *msg_input;		/* Address of input messages */
 	u8 *msg_output;		/* Address of output messages */
-	u32 usm_buf_size;	/* Size of a shared memory I/O channel */
+	u32 sm_buf_size;	/* Size of a shared memory I/O channel */
 	bool shared_irq;	/* Is this IRQ shared? */
 	u32 word_size;		/* Size in bytes of DSP word */
 	u16 intr_val;		/* Interrupt value */
@@ -119,7 +119,7 @@ struct io_mgr {
 	u32 trace_buffer_end;	/* Trace message end address */
 	u32 trace_buffer_current;	/* Trace message current address */
 	u32 gpp_read_pointer;		/* GPP Read pointer to Trace buffer */
-	u8 *pmsg;
+	u8 *msg;
 	u32 gpp_va;
 	u32 dsp_va;
 #endif
@@ -247,7 +247,7 @@ int bridge_io_destroy(struct io_mgr *hio_mgr)
 		tasklet_kill(&hio_mgr->dpc_tasklet);
 
 #if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
-		kfree(hio_mgr->pmsg);
+		kfree(hio_mgr->msg);
 #endif
 		dsp_wdt_exit();
 		/* Free this IO manager object */
@@ -705,7 +705,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	hio_mgr->input = (u8 *) hio_mgr->shared_mem + sizeof(struct shm);
 	hio_mgr->output = hio_mgr->input + (ul_shm_length -
 					    sizeof(struct shm)) / 2;
-	hio_mgr->usm_buf_size = hio_mgr->output - hio_mgr->input;
+	hio_mgr->sm_buf_size = hio_mgr->output - hio_mgr->input;
 
 	/*  Set up Shared memory addresses for messaging. */
 	hio_mgr->msg_input_ctrl = (struct msg_ctrl *)((u8 *) hio_mgr->shared_mem
@@ -764,11 +764,11 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	    (ul_gpp_va + ul_seg1_size + ul_pad_size) +
 	    (hio_mgr->trace_buffer_current - ul_dsp_va);
 	/* Calculate the size of trace buffer */
-	kfree(hio_mgr->pmsg);
-	hio_mgr->pmsg = kmalloc(((hio_mgr->trace_buffer_end -
+	kfree(hio_mgr->msg);
+	hio_mgr->msg = kmalloc(((hio_mgr->trace_buffer_end -
 				hio_mgr->trace_buffer_begin) *
 				hio_mgr->word_size) + 2, GFP_KERNEL);
-	if (!hio_mgr->pmsg)
+	if (!hio_mgr->msg)
 		status = -ENOMEM;
 
 	hio_mgr->dsp_va = ul_dsp_va;
@@ -786,7 +786,7 @@ func_end:
 u32 io_buf_size(struct io_mgr *hio_mgr)
 {
 	if (hio_mgr)
-		return hio_mgr->usm_buf_size;
+		return hio_mgr->sm_buf_size;
 	else
 		return 0;
 }
@@ -1361,7 +1361,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		chnl_mgr_obj->output_mask &= ~(1 << chnl_id);
 
 	/* Transfer buffer to DSP side */
-	chnl_packet_obj->byte_size = min(pio_mgr->usm_buf_size,
+	chnl_packet_obj->byte_size = min(pio_mgr->sm_buf_size,
 					chnl_packet_obj->byte_size);
 	memcpy(pio_mgr->output,	chnl_packet_obj->host_sys_buf,
 					chnl_packet_obj->byte_size);
@@ -1704,30 +1704,30 @@ void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 			ul_new_message_length =
 			    ul_gpp_cur_pointer - hio_mgr->gpp_read_pointer;
 
-			memcpy(hio_mgr->pmsg,
+			memcpy(hio_mgr->msg,
 			       (char *)hio_mgr->gpp_read_pointer,
 			       ul_new_message_length);
-			hio_mgr->pmsg[ul_new_message_length] = '\0';
+			hio_mgr->msg[ul_new_message_length] = '\0';
 			/*
 			 * Advance the GPP trace pointer to DSP current
 			 * pointer.
 			 */
 			hio_mgr->gpp_read_pointer += ul_new_message_length;
 			/* Print the trace messages */
-			pr_info("DSPTrace: %s\n", hio_mgr->pmsg);
+			pr_info("DSPTrace: %s\n", hio_mgr->msg);
 		} else if (ul_gpp_cur_pointer < hio_mgr->gpp_read_pointer) {
 			/* Handle trace buffer wraparound */
-			memcpy(hio_mgr->pmsg,
+			memcpy(hio_mgr->msg,
 			       (char *)hio_mgr->gpp_read_pointer,
 			       hio_mgr->trace_buffer_end -
 			       hio_mgr->gpp_read_pointer);
 			ul_new_message_length =
 			    ul_gpp_cur_pointer - hio_mgr->trace_buffer_begin;
-			memcpy(&hio_mgr->pmsg[hio_mgr->trace_buffer_end -
+			memcpy(&hio_mgr->msg[hio_mgr->trace_buffer_end -
 					      hio_mgr->gpp_read_pointer],
 			       (char *)hio_mgr->trace_buffer_begin,
 			       ul_new_message_length);
-			hio_mgr->pmsg[hio_mgr->trace_buffer_end -
+			hio_mgr->msg[hio_mgr->trace_buffer_end -
 				      hio_mgr->gpp_read_pointer +
 				      ul_new_message_length] = '\0';
 			/*
@@ -1738,7 +1738,7 @@ void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 			    hio_mgr->trace_buffer_begin +
 			    ul_new_message_length;
 			/* Print the trace messages */
-			pr_info("DSPTrace: %s\n", hio_mgr->pmsg);
+			pr_info("DSPTrace: %s\n", hio_mgr->msg);
 		}
 	}
 }

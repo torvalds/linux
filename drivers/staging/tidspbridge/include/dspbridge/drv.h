@@ -62,7 +62,7 @@ struct drv_object;
 
 /* New structure (member of process context) abstracts NODE resource info */
 struct node_res_object {
-	void *hnode;
+	void *node;
 	s32 node_allocated;	/* Node status */
 	s32 heap_allocated;	/* Heap status */
 	s32 streams_allocated;	/* Streams status */
@@ -101,7 +101,7 @@ struct dmm_rsv_object {
 /* New structure (member of process context) abstracts stream resource info */
 struct strm_res_object {
 	s32 stream_allocated;	/* Stream status */
-	void *hstream;
+	void *stream;
 	u32 num_bufs;
 	u32 dir;
 	int id;

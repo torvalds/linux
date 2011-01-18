@@ -813,7 +813,7 @@ u32 procwrap_get_trace(union trapped_args *args, void *pr_ctxt)
 	} else {
 		status = -ENOMEM;
 	}
-	CP_TO_USR(args->args_proc_gettrace.pbuf, pbuf, status,
+	CP_TO_USR(args->args_proc_gettrace.buf, pbuf, status,
 		  args->args_proc_gettrace.max_size);
 	kfree(pbuf);
 
@@ -978,7 +978,7 @@ u32 procwrap_register_notify(union trapped_args *args, void *pr_ctxt)
 	void *hprocessor = ((struct process_context *)pr_ctxt)->processor;
 
 	/* Initialize the notification data structure */
-	notification.ps_name = NULL;
+	notification.name = NULL;
 	notification.handle = NULL;
 
 	status = proc_register_notify(hprocessor,
@@ -1154,7 +1154,7 @@ u32 nodewrap_alloc_msg_buf(union trapped_args *args, void *pr_ctxt)
 	struct node_res_object *node_res;
 
 	find_node_handle(&node_res,  pr_ctxt,
-				args->args_node_allocmsgbuf.hnode);
+				args->args_node_allocmsgbuf.node);
 
 	if (!node_res)
 		return -EFAULT;
@@ -1169,13 +1169,13 @@ u32 nodewrap_alloc_msg_buf(union trapped_args *args, void *pr_ctxt)
 
 	}
 	/* argument */
-	CP_FM_USR(&pbuffer, args->args_node_allocmsgbuf.pbuffer, status, 1);
+	CP_FM_USR(&pbuffer, args->args_node_allocmsgbuf.buffer, status, 1);
 	if (!status) {
-		status = node_alloc_msg_buf(node_res->hnode,
+		status = node_alloc_msg_buf(node_res->node,
 					    args->args_node_allocmsgbuf.usize,
 					    pattr, &pbuffer);
 	}
-	CP_TO_USR(args->args_node_allocmsgbuf.pbuffer, &pbuffer, status, 1);
+	CP_TO_USR(args->args_node_allocmsgbuf.buffer, &pbuffer, status, 1);
 	return status;
 }
 
@@ -1188,12 +1188,12 @@ u32 nodewrap_change_priority(union trapped_args *args, void *pr_ctxt)
 	struct node_res_object *node_res;
 
 	find_node_handle(&node_res, pr_ctxt,
-				args->args_node_changepriority.hnode);
+				args->args_node_changepriority.node);
 
 	if (!node_res)
 		return -EFAULT;
 
-	ret = node_change_priority(node_res->hnode,
+	ret = node_change_priority(node_res->node,
 				   args->args_node_changepriority.prio);
 
 	return ret;
@@ -1213,20 +1213,20 @@ u32 nodewrap_connect(union trapped_args *args, void *pr_ctxt)
 	struct node_res_object *node_res1, *node_res2;
 	struct node_object *node1 = NULL, *node2 = NULL;
 
-	if ((int)args->args_node_connect.hnode != DSP_HGPPNODE) {
+	if ((int)args->args_node_connect.node != DSP_HGPPNODE) {
 		find_node_handle(&node_res1, pr_ctxt,
-				args->args_node_connect.hnode);
+				args->args_node_connect.node);
 		if (node_res1)
-			node1 = node_res1->hnode;
+			node1 = node_res1->node;
 	} else {
-		node1 = args->args_node_connect.hnode;
+		node1 = args->args_node_connect.node;
 	}
 
 	if ((int)args->args_node_connect.other_node != DSP_HGPPNODE) {
 		find_node_handle(&node_res2, pr_ctxt,
 				args->args_node_connect.other_node);
 		if (node_res2)
-			node2 = node_res2->hnode;
+			node2 = node_res2->node;
 	} else {
 		node2 = args->args_node_connect.other_node;
 	}
@@ -1280,12 +1280,12 @@ u32 nodewrap_create(union trapped_args *args, void *pr_ctxt)
 	u32 ret;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_create.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_create.node);
 
 	if (!node_res)
 		return -EFAULT;
 
-	ret = node_create(node_res->hnode);
+	ret = node_create(node_res->node);
 
 	return ret;
 }
@@ -1298,7 +1298,7 @@ u32 nodewrap_delete(union trapped_args *args, void *pr_ctxt)
 	u32 ret;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_delete.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_delete.node);
 
 	if (!node_res)
 		return -EFAULT;
@@ -1318,7 +1318,7 @@ u32 nodewrap_free_msg_buf(union trapped_args *args, void *pr_ctxt)
 	struct dsp_bufferattr attr;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_freemsgbuf.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_freemsgbuf.node);
 
 	if (!node_res)
 		return -EFAULT;
@@ -1330,12 +1330,12 @@ u32 nodewrap_free_msg_buf(union trapped_args *args, void *pr_ctxt)
 
 	}
 
-	if (!args->args_node_freemsgbuf.pbuffer)
+	if (!args->args_node_freemsgbuf.buffer)
 		return -EFAULT;
 
 	if (!status) {
-		status = node_free_msg_buf(node_res->hnode,
-					   args->args_node_freemsgbuf.pbuffer,
+		status = node_free_msg_buf(node_res->node,
+					   args->args_node_freemsgbuf.buffer,
 					   pattr);
 	}
 
@@ -1351,12 +1351,12 @@ u32 nodewrap_get_attr(union trapped_args *args, void *pr_ctxt)
 	struct dsp_nodeattr attr;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_getattr.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_getattr.node);
 
 	if (!node_res)
 		return -EFAULT;
 
-	status = node_get_attr(node_res->hnode, &attr,
+	status = node_get_attr(node_res->node, &attr,
 			       args->args_node_getattr.attr_size);
 	CP_TO_USR(args->args_node_getattr.pattr, &attr, status, 1);
 
@@ -1372,12 +1372,12 @@ u32 nodewrap_get_message(union trapped_args *args, void *pr_ctxt)
 	struct dsp_msg msg;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_getmessage.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_getmessage.node);
 
 	if (!node_res)
 		return -EFAULT;
 
-	status = node_get_message(node_res->hnode, &msg,
+	status = node_get_message(node_res->node, &msg,
 				  args->args_node_getmessage.timeout);
 
 	CP_TO_USR(args->args_node_getmessage.message, &msg, status, 1);
@@ -1393,12 +1393,12 @@ u32 nodewrap_pause(union trapped_args *args, void *pr_ctxt)
 	u32 ret;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_pause.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_pause.node);
 
 	if (!node_res)
 		return -EFAULT;
 
-	ret = node_pause(node_res->hnode);
+	ret = node_pause(node_res->node);
 
 	return ret;
 }
@@ -1412,7 +1412,7 @@ u32 nodewrap_put_message(union trapped_args *args, void *pr_ctxt)
 	struct dsp_msg msg;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_putmessage.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_putmessage.node);
 
 	if (!node_res)
 		return -EFAULT;
@@ -1421,7 +1421,7 @@ u32 nodewrap_put_message(union trapped_args *args, void *pr_ctxt)
 
 	if (!status) {
 		status =
-		    node_put_message(node_res->hnode, &msg,
+		    node_put_message(node_res->node, &msg,
 				     args->args_node_putmessage.timeout);
 	}
 
@@ -1438,13 +1438,13 @@ u32 nodewrap_register_notify(union trapped_args *args, void *pr_ctxt)
 	struct node_res_object *node_res;
 
 	find_node_handle(&node_res, pr_ctxt,
-			args->args_node_registernotify.hnode);
+			args->args_node_registernotify.node);
 
 	if (!node_res)
 		return -EFAULT;
 
 	/* Initialize the notification data structure */
-	notification.ps_name = NULL;
+	notification.name = NULL;
 	notification.handle = NULL;
 
 	if (!args->args_proc_register_notify.event_mask)
@@ -1452,7 +1452,7 @@ u32 nodewrap_register_notify(union trapped_args *args, void *pr_ctxt)
 			  args->args_proc_register_notify.hnotification,
 			  status, 1);
 
-	status = node_register_notify(node_res->hnode,
+	status = node_register_notify(node_res->node,
 				      args->args_node_registernotify.event_mask,
 				      args->args_node_registernotify.
 				      notify_type, &notification);
@@ -1469,12 +1469,12 @@ u32 nodewrap_run(union trapped_args *args, void *pr_ctxt)
 	u32 ret;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_run.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_run.node);
 
 	if (!node_res)
 		return -EFAULT;
 
-	ret = node_run(node_res->hnode);
+	ret = node_run(node_res->node);
 
 	return ret;
 }
@@ -1488,12 +1488,12 @@ u32 nodewrap_terminate(union trapped_args *args, void *pr_ctxt)
 	int tempstatus;
 	struct node_res_object *node_res;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_node_terminate.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_node_terminate.node);
 
 	if (!node_res)
 		return -EFAULT;
 
-	status = node_terminate(node_res->hnode, &tempstatus);
+	status = node_terminate(node_res->node, &tempstatus);
 
 	CP_TO_USR(args->args_node_terminate.pstatus, &tempstatus, status, 1);
 
@@ -1551,7 +1551,7 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 	struct strm_res_object *strm_res;
 
 	find_strm_handle(&strm_res, pr_ctxt,
-		args->args_strm_allocatebuffer.hstream);
+		args->args_strm_allocatebuffer.stream);
 
 	if (!strm_res)
 		return -EFAULT;
@@ -1587,7 +1587,7 @@ u32 strmwrap_close(union trapped_args *args, void *pr_ctxt)
 {
 	struct strm_res_object *strm_res;
 
-	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_close.hstream);
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_close.stream);
 
 	if (!strm_res)
 		return -EFAULT;
@@ -1606,7 +1606,7 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 	struct strm_res_object *strm_res;
 
 	find_strm_handle(&strm_res, pr_ctxt,
-			args->args_strm_freebuffer.hstream);
+			args->args_strm_freebuffer.stream);
 
 	if (!strm_res)
 		return -EFAULT;
@@ -1654,7 +1654,7 @@ u32 strmwrap_get_info(union trapped_args *args, void *pr_ctxt)
 	struct strm_res_object *strm_res;
 
 	find_strm_handle(&strm_res, pr_ctxt,
-			args->args_strm_getinfo.hstream);
+			args->args_strm_getinfo.stream);
 
 	if (!strm_res)
 		return -EFAULT;
@@ -1665,7 +1665,7 @@ u32 strmwrap_get_info(union trapped_args *args, void *pr_ctxt)
 	strm_info.user_strm = &user;
 
 	if (!status) {
-		status = strm_get_info(strm_res->hstream,
+		status = strm_get_info(strm_res->stream,
 				       &strm_info,
 				       args->args_strm_getinfo.
 				       stream_info_size);
@@ -1684,12 +1684,12 @@ u32 strmwrap_idle(union trapped_args *args, void *pr_ctxt)
 	u32 ret;
 	struct strm_res_object *strm_res;
 
-	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_idle.hstream);
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_idle.stream);
 
 	if (!strm_res)
 		return -EFAULT;
 
-	ret = strm_idle(strm_res->hstream, args->args_strm_idle.flush_flag);
+	ret = strm_idle(strm_res->stream, args->args_strm_idle.flush_flag);
 
 	return ret;
 }
@@ -1702,19 +1702,19 @@ u32 strmwrap_issue(union trapped_args *args, void *pr_ctxt)
 	int status = 0;
 	struct strm_res_object *strm_res;
 
-	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_issue.hstream);
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_issue.stream);
 
 	if (!strm_res)
 		return -EFAULT;
 
-	if (!args->args_strm_issue.pbuffer)
+	if (!args->args_strm_issue.buffer)
 		return -EFAULT;
 
 	/* No need of doing CP_FM_USR for the user buffer (pbuffer)
 	   as this is done in Bridge internal function bridge_chnl_add_io_req
 	   in chnl_sm.c */
-	status = strm_issue(strm_res->hstream,
-			    args->args_strm_issue.pbuffer,
+	status = strm_issue(strm_res->stream,
+			    args->args_strm_issue.buffer,
 			    args->args_strm_issue.dw_bytes,
 			    args->args_strm_issue.dw_buf_size,
 			    args->args_strm_issue.arg);
@@ -1734,7 +1734,7 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 	struct node_res_object *node_res;
 	int strmid;
 
-	find_node_handle(&node_res, pr_ctxt, args->args_strm_open.hnode);
+	find_node_handle(&node_res, pr_ctxt, args->args_strm_open.node);
 
 	if (!node_res)
 		return -EFAULT;
@@ -1750,7 +1750,7 @@ u32 strmwrap_open(union trapped_args *args, void *pr_ctxt)
 		}
 
 	}
-	status = strm_open(node_res->hnode,
+	status = strm_open(node_res->node,
 			   args->args_strm_open.direction,
 			   args->args_strm_open.index, &attr, &strm_res_obj,
 			   pr_ctxt);
@@ -1773,12 +1773,12 @@ u32 strmwrap_reclaim(union trapped_args *args, void *pr_ctxt)
 	u32 ul_buf_size;
 	struct strm_res_object *strm_res;
 
-	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_reclaim.hstream);
+	find_strm_handle(&strm_res, pr_ctxt, args->args_strm_reclaim.stream);
 
 	if (!strm_res)
 		return -EFAULT;
 
-	status = strm_reclaim(strm_res->hstream, &buf_ptr,
+	status = strm_reclaim(strm_res->stream, &buf_ptr,
 			      &ul_bytes, &ul_buf_size, &dw_arg);
 	CP_TO_USR(args->args_strm_reclaim.buf_ptr, &buf_ptr, status, 1);
 	CP_TO_USR(args->args_strm_reclaim.bytes, &ul_bytes, status, 1);
@@ -1802,16 +1802,16 @@ u32 strmwrap_register_notify(union trapped_args *args, void *pr_ctxt)
 	struct strm_res_object *strm_res;
 
 	find_strm_handle(&strm_res, pr_ctxt,
-			args->args_strm_registernotify.hstream);
+			args->args_strm_registernotify.stream);
 
 	if (!strm_res)
 		return -EFAULT;
 
 	/* Initialize the notification data structure */
-	notification.ps_name = NULL;
+	notification.name = NULL;
 	notification.handle = NULL;
 
-	status = strm_register_notify(strm_res->hstream,
+	status = strm_register_notify(strm_res->stream,
 				      args->args_strm_registernotify.event_mask,
 				      args->args_strm_registernotify.
 				      notify_type, &notification);
@@ -1848,7 +1848,7 @@ u32 strmwrap_select(union trapped_args *args, void *pr_ctxt)
 		if (!strm_res)
 			return -EFAULT;
 
-		strm_tab[i] = strm_res->hstream;
+		strm_tab[i] = strm_res->stream;
 	}
 
 	if (!status) {

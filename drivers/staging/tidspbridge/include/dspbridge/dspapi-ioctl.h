@@ -99,7 +99,7 @@ union trapped_args {
 
 	struct {
 		void *processor;
-		u8 __user *pbuf;
+		u8 __user *buf;
 		u8 __user *psize;
 		u32 max_size;
 	} args_proc_gettrace;
@@ -175,19 +175,19 @@ union trapped_args {
 	} args_node_allocate;
 
 	struct {
-		void *hnode;
+		void *node;
 		u32 usize;
 		struct dsp_bufferattr __user *pattr;
-		u8 *__user *pbuffer;
+		u8 *__user *buffer;
 	} args_node_allocmsgbuf;
 
 	struct {
-		void *hnode;
+		void *node;
 		s32 prio;
 	} args_node_changepriority;
 
 	struct {
-		void *hnode;
+		void *node;
 		u32 stream_id;
 		void *other_node;
 		u32 other_stream;
@@ -196,54 +196,54 @@ union trapped_args {
 	} args_node_connect;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_create;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_delete;
 
 	struct {
-		void *hnode;
+		void *node;
 		struct dsp_bufferattr __user *pattr;
-		u8 *pbuffer;
+		u8 *buffer;
 	} args_node_freemsgbuf;
 
 	struct {
-		void *hnode;
+		void *node;
 		struct dsp_nodeattr __user *pattr;
 		u32 attr_size;
 	} args_node_getattr;
 
 	struct {
-		void *hnode;
+		void *node;
 		struct dsp_msg __user *message;
 		u32 timeout;
 	} args_node_getmessage;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_pause;
 
 	struct {
-		void *hnode;
+		void *node;
 		struct dsp_msg __user *message;
 		u32 timeout;
 	} args_node_putmessage;
 
 	struct {
-		void *hnode;
+		void *node;
 		u32 event_mask;
 		u32 notify_type;
 		struct dsp_notification __user *hnotification;
 	} args_node_registernotify;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_run;
 
 	struct {
-		void *hnode;
+		void *node;
 		int __user *pstatus;
 	} args_node_terminate;
 
@@ -256,48 +256,48 @@ union trapped_args {
 	/* STRM module */
 
 	struct {
-		void *hstream;
+		void *stream;
 		u32 usize;
 		u8 *__user *ap_buffer;
 		u32 num_bufs;
 	} args_strm_allocatebuffer;
 
 	struct {
-		void *hstream;
+		void *stream;
 	} args_strm_close;
 
 	struct {
-		void *hstream;
+		void *stream;
 		u8 *__user *ap_buffer;
 		u32 num_bufs;
 	} args_strm_freebuffer;
 
 	struct {
-		void *hstream;
+		void *stream;
 		void **ph_event;
 	} args_strm_geteventhandle;
 
 	struct {
-		void *hstream;
+		void *stream;
 		struct stream_info __user *stream_info;
 		u32 stream_info_size;
 	} args_strm_getinfo;
 
 	struct {
-		void *hstream;
+		void *stream;
 		bool flush_flag;
 	} args_strm_idle;
 
 	struct {
-		void *hstream;
-		u8 *pbuffer;
+		void *stream;
+		u8 *buffer;
 		u32 dw_bytes;
 		u32 dw_buf_size;
 		u32 arg;
 	} args_strm_issue;
 
 	struct {
-		void *hnode;
+		void *node;
 		u32 direction;
 		u32 index;
 		struct strm_attr __user *attr_in;
@@ -305,7 +305,7 @@ union trapped_args {
 	} args_strm_open;
 
 	struct {
-		void *hstream;
+		void *stream;
 		u8 *__user *buf_ptr;
 		u32 __user *bytes;
 		u32 __user *buf_size_ptr;
@@ -313,7 +313,7 @@ union trapped_args {
 	} args_strm_reclaim;
 
 	struct {
-		void *hstream;
+		void *stream;
 		u32 event_mask;
 		u32 notify_type;
 		struct dsp_notification __user *hnotification;

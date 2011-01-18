@@ -232,7 +232,7 @@ struct dsp_strmattr {
 	u32 timeout;		/* Timeout for blocking STRM calls */
 	enum dsp_strmmode strm_mode;	/* mode of stream when opened */
 	/* DMA chnl id if dsp_strmmode is LDMA or RDMA */
-	u32 udma_chnl_id;
+	u32 dma_chnl_id;
 	u32 dma_priority;	/* DMA channel priority 0=lowest, >0=high */
 };
 
@@ -340,7 +340,7 @@ struct dsp_nodeattr {
  *  window handle.
  */
 struct dsp_notification {
-	char *ps_name;
+	char *name;
 	void *handle;
 };
 
@@ -406,7 +406,7 @@ struct dsp_streamattrin {
 	u32 buf_alignment;
 	u32 num_bufs;
 	enum dsp_strmmode strm_mode;
-	u32 udma_chnl_id;
+	u32 dma_chnl_id;
 	u32 dma_priority;
 };
 

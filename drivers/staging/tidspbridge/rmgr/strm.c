@@ -70,13 +70,13 @@ struct strm_object {
 	u32 dir;		/* DSP_TONODE or DSP_FROMNODE */
 	u32 timeout;
 	u32 num_bufs;		/* Max # of bufs allowed in stream */
-	u32 un_bufs_in_strm;	/* Current # of bufs in stream */
+	u32 bufs_in_strm;	/* Current # of bufs in stream */
 	u32 bytes;		/* bytes transferred since idled */
 	/* STREAM_IDLE, STREAM_READY, ... */
 	enum dsp_streamstate strm_state;
 	void *user_event;	/* Saved for strm_get_info() */
 	enum dsp_strmmode strm_mode;	/* STRMMODE_[PROCCOPY][ZEROCOPY]... */
-	u32 udma_chnl_id;	/* DMA chnl id */
+	u32 dma_chnl_id;	/* DMA chnl id */
 	u32 dma_priority;	/* DMA priority:DMAPRI_[LOW][HIGH] */
 	u32 segment_id;		/* >0 is SM segment.=0 is local heap */
 	u32 buf_alignment;	/* Alignment for stream bufs */
@@ -102,7 +102,7 @@ int strm_allocate_buffer(struct strm_res_object *strmres, u32 usize,
 	int status = 0;
 	u32 alloc_cnt = 0;
 	u32 i;
-	struct strm_object *stream_obj = strmres->hstream;
+	struct strm_object *stream_obj = strmres->stream;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ap_buffer != NULL);
@@ -154,7 +154,7 @@ int strm_close(struct strm_res_object *strmres,
 	struct bridge_drv_interface *intf_fxns;
 	struct chnl_info chnl_info_obj;
 	int status = 0;
-	struct strm_object *stream_obj = strmres->hstream;
+	struct strm_object *stream_obj = strmres->stream;
 
 	DBC_REQUIRE(refs > 0);
 
@@ -268,7 +268,7 @@ int strm_free_buffer(struct strm_res_object *strmres, u8 ** ap_buffer,
 {
 	int status = 0;
 	u32 i = 0;
-	struct strm_object *stream_obj = strmres->hstream;
+	struct strm_object *stream_obj = strmres->stream;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ap_buffer != NULL);
@@ -504,8 +504,8 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 				    pattr->stream_attr_in->segment_id;
 				strm_obj->buf_alignment =
 				    pattr->stream_attr_in->buf_alignment;
-				strm_obj->udma_chnl_id =
-				    pattr->stream_attr_in->udma_chnl_id;
+				strm_obj->dma_chnl_id =
+				    pattr->stream_attr_in->dma_chnl_id;
 				strm_obj->dma_priority =
 				    pattr->stream_attr_in->dma_priority;
 				chnl_attr_obj.uio_reqs =
@@ -516,7 +516,7 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 				strm_obj->strm_mode = STRMMODE_PROCCOPY;
 				strm_obj->segment_id = 0;	/* local mem */
 				strm_obj->buf_alignment = 0;
-				strm_obj->udma_chnl_id = 0;
+				strm_obj->dma_chnl_id = 0;
 				strm_obj->dma_priority = 0;
 				chnl_attr_obj.uio_reqs = DEFAULTNUMBUFS;
 			}
@@ -655,14 +655,14 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 		    && (!CHNL_IS_IO_CANCELLED(chnl_ioc_obj))
 		    && (stream_obj->strm_mode == STRMMODE_ZEROCOPY)) {
 			/*
-			 *  This is a zero-copy channel so chnl_ioc_obj.pbuf
+			 *  This is a zero-copy channel so chnl_ioc_obj.buf
 			 *  contains the DSP address of SM. We need to
 			 *  translate it to a virtual address for the user
 			 *  thread to access.
 			 *  Note: Could add CMM_DSPPA2VA to CMM in the future.
 			 */
 			tmp_buf = cmm_xlator_translate(stream_obj->xlator,
-						       chnl_ioc_obj.pbuf,
+						       chnl_ioc_obj.buf,
 						       CMM_DSPPA2PA);
 			if (tmp_buf != NULL) {
 				/* now convert this GPP Pa to Va */
@@ -674,9 +674,9 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 			if (tmp_buf == NULL)
 				status = -ESRCH;
 
-			chnl_ioc_obj.pbuf = tmp_buf;
+			chnl_ioc_obj.buf = tmp_buf;
 		}
-		*buf_ptr = chnl_ioc_obj.pbuf;
+		*buf_ptr = chnl_ioc_obj.buf;
 	}
 func_end:
 	/* ensure we return a documented return code */

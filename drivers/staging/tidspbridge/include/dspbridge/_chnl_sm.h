@@ -147,7 +147,7 @@ struct chnl_object {
 	/* Abstract syncronization object */
 	struct sync_object *sync_event;
 	u32 process;		/* Process which created this channel */
-	u32 pcb_arg;		/* Argument to use with callback */
+	u32 cb_arg;		/* Argument to use with callback */
 	struct list_head pio_requests;	/* List of IOR's to driver */
 	s32 cio_cs;		/* Number of IOC's in queue */
 	s32 cio_reqs;		/* Number of IORequests in queue */

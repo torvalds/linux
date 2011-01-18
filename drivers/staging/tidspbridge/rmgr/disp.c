@@ -64,7 +64,7 @@ struct disp_object {
 	struct chnl_mgr *chnl_mgr;	/* Channel manager */
 	struct chnl_object *chnl_to_dsp;	/* Chnl for commands to RMS */
 	struct chnl_object *chnl_from_dsp;	/* Chnl for replies from RMS */
-	u8 *pbuf;		/* Buffer for commands, replies */
+	u8 *buf;		/* Buffer for commands, replies */
 	u32 bufsize;		/* buf size in bytes */
 	u32 bufsize_rms;	/* buf size in RMS words */
 	u32 char_size;		/* Size of DSP character */
@@ -158,8 +158,8 @@ int disp_create(struct disp_object **dispatch_obj,
 		/* Allocate buffer for commands, replies */
 		disp_obj->bufsize = disp_attrs->chnl_buf_size;
 		disp_obj->bufsize_rms = RMS_COMMANDBUFSIZE;
-		disp_obj->pbuf = kzalloc(disp_obj->bufsize, GFP_KERNEL);
-		if (disp_obj->pbuf == NULL)
+		disp_obj->buf = kzalloc(disp_obj->bufsize, GFP_KERNEL);
+		if (disp_obj->buf == NULL)
 			status = -ENOMEM;
 	}
 func_cont:
@@ -232,7 +232,7 @@ int disp_node_change_priority(struct disp_object *disp_obj,
 	DBC_REQUIRE(hnode != NULL);
 
 	/* Send message to RMS to change priority */
-	rms_cmd = (struct rms_command *)(disp_obj->pbuf);
+	rms_cmd = (struct rms_command *)(disp_obj->buf);
 	rms_cmd->fxn = (rms_word) (rms_fxn);
 	rms_cmd->arg1 = (rms_word) node_env;
 	rms_cmd->arg2 = prio;
@@ -347,7 +347,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	 */
 	if (!status) {
 		total = 0;	/* Total number of words in buffer so far */
-		pdw_buf = (rms_word *) disp_obj->pbuf;
+		pdw_buf = (rms_word *) disp_obj->buf;
 		rms_cmd = (struct rms_command *)pdw_buf;
 		rms_cmd->fxn = (rms_word) (rms_fxn);
 		rms_cmd->arg1 = (rms_word) (ul_create_fxn);
@@ -493,7 +493,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 			/*
 			 *  Fill in buffer to send to RMS
 			 */
-			rms_cmd = (struct rms_command *)disp_obj->pbuf;
+			rms_cmd = (struct rms_command *)disp_obj->buf;
 			rms_cmd->fxn = (rms_word) (rms_fxn);
 			rms_cmd->arg1 = (rms_word) node_env;
 			rms_cmd->arg2 = (rms_word) (ul_delete_fxn);
@@ -534,7 +534,7 @@ int disp_node_run(struct disp_object *disp_obj,
 			/*
 			 *  Fill in buffer to send to RMS.
 			 */
-			rms_cmd = (struct rms_command *)disp_obj->pbuf;
+			rms_cmd = (struct rms_command *)disp_obj->buf;
 			rms_cmd->fxn = (rms_word) (rms_fxn);
 			rms_cmd->arg1 = (rms_word) node_env;
 			rms_cmd->arg2 = (rms_word) (ul_execute_fxn);
@@ -582,7 +582,7 @@ static void delete_disp(struct disp_object *disp_obj)
 					" RMS: 0x%x\n", __func__, status);
 			}
 		}
-		kfree(disp_obj->pbuf);
+		kfree(disp_obj->buf);
 
 		kfree(disp_obj);
 	}
@@ -664,7 +664,7 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 	*pdw_arg = (u32) NULL;
 	intf_fxns = disp_obj->intf_fxns;
 	chnl_obj = disp_obj->chnl_to_dsp;
-	pbuf = disp_obj->pbuf;
+	pbuf = disp_obj->buf;
 
 	/* Send the command */
 	status = (*intf_fxns->chnl_add_io_req) (chnl_obj, pbuf, ul_bytes, 0,
@@ -703,8 +703,8 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 			status = -EPERM;
 		} else {
 			if (CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
-				DBC_ASSERT(chnl_ioc_obj.pbuf == pbuf);
-				if (*((int *)chnl_ioc_obj.pbuf) < 0) {
+				DBC_ASSERT(chnl_ioc_obj.buf == pbuf);
+				if (*((int *)chnl_ioc_obj.buf) < 0) {
 					/* Translate DSP's to kernel error */
 					status = -EREMOTEIO;
 					dev_dbg(bridge, "%s: DSP-side failed:"
@@ -713,7 +713,7 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 						*(int *)pbuf, status);
 				}
 				*pdw_arg =
-				    (((rms_word *) (chnl_ioc_obj.pbuf))[1]);
+				    (((rms_word *) (chnl_ioc_obj.buf))[1]);
 			} else {
 				status = -EPERM;
 			}

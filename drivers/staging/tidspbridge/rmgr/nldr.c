@@ -1035,13 +1035,13 @@ static int add_ovly_node(struct dsp_uuid *uuid_obj,
 		}
 	}
 	/* These were allocated in dcd_get_object_def */
-	kfree(obj_def.obj_data.node_obj.pstr_create_phase_fxn);
+	kfree(obj_def.obj_data.node_obj.str_create_phase_fxn);
 
-	kfree(obj_def.obj_data.node_obj.pstr_execute_phase_fxn);
+	kfree(obj_def.obj_data.node_obj.str_execute_phase_fxn);
 
-	kfree(obj_def.obj_data.node_obj.pstr_delete_phase_fxn);
+	kfree(obj_def.obj_data.node_obj.str_delete_phase_fxn);
 
-	kfree(obj_def.obj_data.node_obj.pstr_i_alg_name);
+	kfree(obj_def.obj_data.node_obj.str_i_alg_name);
 
 func_end:
 	return status;
