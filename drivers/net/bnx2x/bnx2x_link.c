@@ -4408,6 +4408,7 @@ static u8 bnx2x_8073_read_status(struct bnx2x_phy *phy,
 		}
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
 		bnx2x_8073_resolve_fc(phy, params, vars);
+		vars->duplex = DUPLEX_FULL;
 	}
 	return link_up;
 }
@@ -5154,6 +5155,7 @@ static u8 bnx2x_8706_8726_read_status(struct bnx2x_phy *phy,
 		else
 			vars->line_speed = SPEED_10000;
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+		vars->duplex = DUPLEX_FULL;
 	}
 	return link_up;
 }
@@ -5850,8 +5852,11 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK, "port %x: External link is down\n",
 			   params->port);
 	}
-	if (link_up)
+	if (link_up) {
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+		vars->duplex = DUPLEX_FULL;
+		DP(NETIF_MSG_LINK, "duplex = 0x%x\n", vars->duplex);
+	}
 
 	if ((DUAL_MEDIA(params)) &&
 	    (phy->req_line_speed == SPEED_1000)) {
@@ -6218,6 +6223,7 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 	/* Check link 10G */
 	if (val2 & (1<<11)) {
 		vars->line_speed = SPEED_10000;
+		vars->duplex = DUPLEX_FULL;
 		link_up = 1;
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
 	} else { /* Check Legacy speed link */
@@ -6581,6 +6587,7 @@ static u8 bnx2x_7101_read_status(struct bnx2x_phy *phy,
 				MDIO_AN_DEVAD, MDIO_AN_REG_MASTER_STATUS,
 				&val2);
 		vars->line_speed = SPEED_10000;
+		vars->duplex = DUPLEX_FULL;
 		DP(NETIF_MSG_LINK, "SFX7101 AN status 0x%x->Master=%x\n",
 			   val2, (val2 & (1<<14)));
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
