@@ -74,7 +74,6 @@ struct ceph_osd_request {
 	char              r_oid[40];          /* object name */
 	int               r_oid_len;
 	unsigned long     r_stamp;            /* send OR check time */
-	bool              r_resend;           /* msg send failed, needs retry */
 
 	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
@@ -104,7 +103,9 @@ struct ceph_osd_client {
 	u64                    timeout_tid;   /* tid of timeout triggering rq */
 	u64                    last_tid;      /* tid of last request */
 	struct rb_root         requests;      /* pending requests */
-	struct list_head       req_lru;	      /* pending requests lru */
+	struct list_head       req_lru;	      /* in-flight lru */
+	struct list_head       req_unsent;    /* unsent/need-resend queue */
+	struct list_head       req_notarget;  /* map to no osd */
 	int                    num_requests;
 	struct delayed_work    timeout_work;
 	struct delayed_work    osds_timeout_work;
