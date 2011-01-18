@@ -221,7 +221,7 @@
 #define DCLR0				0x90
 #define DCLR1				0x190
 #define REVE_WIDTH_128			BIT(16)
-#define F10_WIDTH_128			BIT(11)
+#define WIDTH_128			BIT(11)
 
 #define DCHR0				0x94
 #define DCHR1				0x194
@@ -445,7 +445,7 @@ struct low_ops {
 	int (*early_channel_count)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
 					 u16 syndrome);
-	int (*dbam_to_cs)		(struct amd64_pvt *pvt, int cs_mode);
+	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct, unsigned cs_mode);
 	int (*read_dct_pci_cfg)		(struct amd64_pvt *pvt, int offset,
 					 u32 *val, const char *func);
 };
