@@ -768,8 +768,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 			if (s || ++try >= 3)
 				break;
 			/* give the other side time to call bind() & listen() */
-			__set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ / 10);
+			schedule_timeout_interruptible(HZ / 10);
 		}
 
 		if (s) {
@@ -788,8 +787,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 		}
 
 		if (sock && msock) {
-			__set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ / 10);
+			schedule_timeout_interruptible(HZ / 10);
 			ok = drbd_socket_okay(mdev, &sock);
 			ok = drbd_socket_okay(mdev, &msock) && ok;
 			if (ok)
@@ -4142,8 +4140,7 @@ int drbdd_init(struct drbd_thread *thi)
 		h = drbd_connect(mdev);
 		if (h == 0) {
 			drbd_disconnect(mdev);
-			__set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ);
+			schedule_timeout_interruptible(HZ);
 		}
 		if (h == -1) {
 			dev_warn(DEV, "Discarding network configuration.\n");

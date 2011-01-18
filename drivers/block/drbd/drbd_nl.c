@@ -360,8 +360,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		if (rv == SS_TWO_PRIMARIES) {
 			/* Maybe the peer is detected as dead very soon...
 			   retry at most once more in this case. */
-			__set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout((mdev->net_conf->ping_timeo+1)*HZ/10);
+			schedule_timeout_interruptible((mdev->net_conf->ping_timeo+1)*HZ/10);
 			if (try < max_tries)
 				try = max_tries - 1;
 			continue;
