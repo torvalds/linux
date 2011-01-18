@@ -359,12 +359,11 @@ static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex)
 
 		if(PacketToDrop)
 		{
-			struct netdev_queue *txq = netdev_get_tx_queue(Adapter->dev, iIndex);
 			if (netif_msg_tx_err(Adapter))
 				pr_info(PFX "%s: tx queue %d overlimit\n", 
 					Adapter->dev->name, iIndex);
 
-			txq->tx_dropped++;
+			netstats->tx_dropped++;
 
 			DEQUEUEPACKET(Adapter->PackInfo[iIndex].FirstTxQueue,
 						Adapter->PackInfo[iIndex].LastTxQueue);
@@ -404,7 +403,7 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 //	down(&Adapter->data_packet_queue_lock);
 	for(iQIndex=LowPriority; iQIndex<HiPriority; iQIndex++)
 	{
-		struct netdev_queue *txq = netdev_get_tx_queue(Adapter->dev, iQIndex);
+		struct net_device_stats *netstats = &Adapter->dev->stats;
 
 		spin_lock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
 		while(Adapter->PackInfo[iQIndex].FirstTxQueue)
@@ -413,7 +412,7 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 			if(PacketToDrop)
 			{
 				uiTotalPacketLength = PacketToDrop->len;
-				txq->tx_dropped++;
+				netstats->tx_dropped++;
 			}
 			else
 				uiTotalPacketLength = 0;
