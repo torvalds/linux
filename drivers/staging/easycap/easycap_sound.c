@@ -48,7 +48,7 @@ static const struct snd_pcm_hardware alsa_hardware = {
 	.rate_max = 48000,
 	.channels_min = 2,
 	.channels_max = 2,
-	.buffer_bytes_max = PAGE_SIZE * PAGES_PER_AUDIO_FRAGMENT * \
+	.buffer_bytes_max = PAGE_SIZE * PAGES_PER_AUDIO_FRAGMENT *
 						AUDIO_FRAGMENT_MANY,
 	.period_bytes_min = PAGE_SIZE * PAGES_PER_AUDIO_FRAGMENT,
 	.period_bytes_max = PAGE_SIZE * PAGES_PER_AUDIO_FRAGMENT * 2,
@@ -108,14 +108,14 @@ if (true == peasycap->microphone) {
 }
 
 #if defined(EASYCAP_NEEDS_CARD_CREATE)
-	if (0 != snd_card_create(SNDRV_DEFAULT_IDX1, "easycap_alsa", \
-					THIS_MODULE, 0, \
+	if (0 != snd_card_create(SNDRV_DEFAULT_IDX1, "easycap_alsa",
+					THIS_MODULE, 0,
 					&psnd_card)) {
 		SAY("ERROR: Cannot do ALSA snd_card_create()\n");
 		return -EFAULT;
 	}
 #else
-	psnd_card = snd_card_new(SNDRV_DEFAULT_IDX1, "easycap_alsa", \
+	psnd_card = snd_card_new(SNDRV_DEFAULT_IDX1, "easycap_alsa",
 							THIS_MODULE, 0);
 	if (NULL == psnd_card) {
 		SAY("ERROR: Cannot do ALSA snd_card_new()\n");
@@ -139,7 +139,7 @@ if (true == peasycap->microphone) {
 		return -EFAULT;
 	}
 
-	snd_pcm_set_ops(psnd_pcm, SNDRV_PCM_STREAM_CAPTURE, \
+	snd_pcm_set_ops(psnd_pcm, SNDRV_PCM_STREAM_CAPTURE,
 							&easycap_alsa_pcm_ops);
 	psnd_pcm->info_flags = 0;
 	strcpy(&psnd_pcm->name[0], &psnd_card->id[0]);
@@ -199,7 +199,7 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 }
 much = 0;
 if (peasycap->audio_idle) {
-	JOM(16, "%i=audio_idle  %i=audio_isoc_streaming\n", \
+	JOM(16, "%i=audio_idle  %i=audio_isoc_streaming\n",
 			peasycap->audio_idle, peasycap->audio_isoc_streaming);
 	if (peasycap->audio_isoc_streaming)
 		goto resubmit;
@@ -410,12 +410,12 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 			peasycap->audio_mt++;
 		else {
 			if (peasycap->audio_mt) {
-				JOM(12, "%4i empty audio urb frames\n", \
+				JOM(12, "%4i empty audio urb frames\n",
 							peasycap->audio_mt);
 				peasycap->audio_mt = 0;
 			}
 
-			p1 = (__u8 *)(purb->transfer_buffer + \
+			p1 = (__u8 *)(purb->transfer_buffer +
 					purb->iso_frame_desc[i].offset);
 
 /*---------------------------------------------------------------------------*/
@@ -442,39 +442,39 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				if (false == peasycap->microphone) {
 					if (much > more)
 						much = more;
-					memcpy(prt->dma_area + \
-						peasycap->dma_fill, \
+					memcpy(prt->dma_area +
+						peasycap->dma_fill,
 								p1, much);
 					p1 += much;
 					more -= much;
 				} else {
 #if defined(UPSAMPLE)
 					if (much % 16)
-						JOM(8, "MISTAKE? much" \
+						JOM(8, "MISTAKE? much"
 						" is not divisible by 16\n");
-					if (much > (16 * \
+					if (much > (16 *
 							more))
-						much = 16 * \
+						much = 16 *
 							more;
-					p2 = (__u8 *)(prt->dma_area + \
+					p2 = (__u8 *)(prt->dma_area +
 						peasycap->dma_fill);
 
 					for (j = 0;  j < (much/16);  j++) {
 						newaudio =  ((int) *p1) - 128;
-						newaudio = 128 * \
+						newaudio = 128 *
 								newaudio;
 
-						delta = (newaudio - oldaudio) \
+						delta = (newaudio - oldaudio)
 									/ 4;
 						s16 = oldaudio + delta;
 
 						for (k = 0;  k < 4;  k++) {
 							*p2 = (0x00FF & s16);
-							*(p2 + 1) = (0xFF00 & \
+							*(p2 + 1) = (0xFF00 &
 								s16) >> 8;
 							p2 += 2;
 							*p2 = (0x00FF & s16);
-							*(p2 + 1) = (0xFF00 & \
+							*(p2 + 1) = (0xFF00 &
 								s16) >> 8;
 							p2 += 2;
 							s16 += delta;
@@ -486,15 +486,15 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 #else /*!UPSAMPLE*/
 					if (much > (2 * more))
 						much = 2 * more;
-					p2 = (__u8 *)(prt->dma_area + \
+					p2 = (__u8 *)(prt->dma_area +
 						peasycap->dma_fill);
 
 					for (j = 0;  j < (much / 2);  j++) {
 						s16 =  ((int) *p1) - 128;
-						s16 = 128 * \
+						s16 = 128 *
 								s16;
 						*p2 = (0x00FF & s16);
-						*(p2 + 1) = (0xFF00 & s16) >> \
+						*(p2 + 1) = (0xFF00 & s16) >>
 									8;
 						p1++;  p2 += 2;
 						more--;
@@ -503,25 +503,25 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				}
 				peasycap->dma_fill += much;
 				if (peasycap->dma_fill >= peasycap->dma_next) {
-					isfragment = peasycap->dma_fill / \
+					isfragment = peasycap->dma_fill /
 						fragment_bytes;
 					if (0 > isfragment) {
-						SAM("MISTAKE: isfragment is " \
+						SAM("MISTAKE: isfragment is "
 							"negative\n");
 						return;
 					}
-					peasycap->dma_read = (isfragment \
+					peasycap->dma_read = (isfragment
 						- 1) * fragment_bytes;
-					peasycap->dma_next = (isfragment \
+					peasycap->dma_next = (isfragment
 						+ 1) * fragment_bytes;
 					if (dma_bytes < peasycap->dma_next) {
-						peasycap->dma_next = \
+						peasycap->dma_next =
 								fragment_bytes;
 					}
 					if (0 <= peasycap->dma_read) {
-						JOM(8, "snd_pcm_period_elap" \
-							"sed(), %i=" \
-							"isfragment\n", \
+						JOM(8, "snd_pcm_period_elap"
+							"sed(), %i="
+							"isfragment\n",
 							isfragment);
 						snd_pcm_period_elapsed(pss);
 					}
@@ -529,8 +529,8 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 			}
 		}
 	} else {
-		JOM(12, "discarding audio samples because " \
-			"%i=purb->iso_frame_desc[i].status\n", \
+		JOM(12, "discarding audio samples because "
+			"%i=purb->iso_frame_desc[i].status\n",
 				purb->iso_frame_desc[i].status);
 	}
 
@@ -549,8 +549,8 @@ if (peasycap->audio_isoc_streaming) {
 	rc = usb_submit_urb(purb, GFP_ATOMIC);
 	if (0 != rc) {
 		if ((-ENODEV != rc) && (-ENOENT != rc)) {
-			SAM("ERROR: while %i=audio_idle, " \
-				"usb_submit_urb() failed " \
+			SAM("ERROR: while %i=audio_idle, "
+				"usb_submit_urb() failed "
 				"with rc:\n", peasycap->audio_idle);
 		}
 		switch (rc) {
@@ -685,7 +685,7 @@ return 0;
 }
 /*****************************************************************************/
 int
-easycap_alsa_hw_params(struct snd_pcm_substream *pss, \
+easycap_alsa_hw_params(struct snd_pcm_substream *pss,
 						struct snd_pcm_hw_params *phw)
 {
 int rc;
@@ -785,7 +785,7 @@ JOM(16, "ALSA decides %8i   =sample_bits\n", (int)pss->runtime->sample_bits);
 JOM(16, "ALSA decides %8i   =frame_bits\n", (int)pss->runtime->frame_bits);
 JOM(16, "ALSA decides %8i   =min_align\n", (int)pss->runtime->min_align);
 JOM(12, "ALSA decides %8i   =hw_ptr_base\n", (int)pss->runtime->hw_ptr_base);
-JOM(12, "ALSA decides %8i   =hw_ptr_interrupt\n", \
+JOM(12, "ALSA decides %8i   =hw_ptr_interrupt\n",
 					(int)pss->runtime->hw_ptr_interrupt);
 if (prt->dma_bytes != 4 * ((int)prt->period_size) * ((int)prt->periods)) {
 	SAY("MISTAKE:  unexpected ALSA parameters\n");
@@ -806,7 +806,7 @@ easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 struct easycap *peasycap;
 int retval;
 
-JOT(4, "%i=cmd cf %i=START %i=STOP\n", cmd, SNDRV_PCM_TRIGGER_START, \
+JOT(4, "%i=cmd cf %i=START %i=STOP\n", cmd, SNDRV_PCM_TRIGGER_START,
 						SNDRV_PCM_TRIGGER_STOP);
 if (NULL == pss) {
 	SAY("ERROR:  pss is NULL\n");
@@ -858,8 +858,8 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 	return -EFAULT;
 }
 if ((0 != peasycap->audio_eof) || (0 != peasycap->audio_idle)) {
-	JOM(8, "returning -EIO because  " \
-			"%i=audio_idle  %i=audio_eof\n", \
+	JOM(8, "returning -EIO because  "
+			"%i=audio_idle  %i=audio_eof\n",
 			peasycap->audio_idle, peasycap->audio_eof);
 	return -EIO;
 }
@@ -870,9 +870,9 @@ if (0 > peasycap->dma_read) {
 }
 offset = ((snd_pcm_uframes_t)peasycap->dma_read)/4;
 JOM(8, "ALSA decides %8i   =hw_ptr_base\n", (int)pss->runtime->hw_ptr_base);
-JOM(8, "ALSA decides %8i   =hw_ptr_interrupt\n", \
+JOM(8, "ALSA decides %8i   =hw_ptr_interrupt\n",
 					(int)pss->runtime->hw_ptr_interrupt);
-JOM(8, "%7i=offset %7i=dma_read %7i=dma_next\n", \
+JOM(8, "%7i=offset %7i=dma_read %7i=dma_next\n",
 			(int)offset, peasycap->dma_read, peasycap->dma_next);
 return offset;
 }
@@ -951,14 +951,14 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 }
 much = 0;
 if (peasycap->audio_idle) {
-	JOM(16, "%i=audio_idle  %i=audio_isoc_streaming\n", \
+	JOM(16, "%i=audio_idle  %i=audio_isoc_streaming\n",
 			peasycap->audio_idle, peasycap->audio_isoc_streaming);
 	if (peasycap->audio_isoc_streaming) {
 		rc = usb_submit_urb(purb, GFP_ATOMIC);
 		if (0 != rc) {
 			if (-ENODEV != rc && -ENOENT != rc) {
-				SAM("ERROR: while %i=audio_idle, " \
-					"usb_submit_urb() failed with rc:\n", \
+				SAM("ERROR: while %i=audio_idle, "
+					"usb_submit_urb() failed with rc:\n",
 							peasycap->audio_idle);
 			}
 			switch (rc) {
@@ -1212,12 +1212,12 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 			peasycap->audio_mt++;
 		else {
 			if (peasycap->audio_mt) {
-				JOM(12, "%4i empty audio urb frames\n", \
+				JOM(12, "%4i empty audio urb frames\n",
 							peasycap->audio_mt);
 				peasycap->audio_mt = 0;
 			}
 
-			p1 = (__u8 *)(purb->transfer_buffer + \
+			p1 = (__u8 *)(purb->transfer_buffer +
 					purb->iso_frame_desc[i].offset);
 
 			leap = 0;
@@ -1234,64 +1234,64 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 					SAM("MISTAKE: more is negative\n");
 					return;
 				}
-				if (peasycap->audio_buffer_page_many <= \
+				if (peasycap->audio_buffer_page_many <=
 							peasycap->audio_fill) {
-					SAM("ERROR: bad " \
+					SAM("ERROR: bad "
 						"peasycap->audio_fill\n");
 					return;
 				}
 
-				paudio_buffer = &peasycap->audio_buffer\
+				paudio_buffer = &peasycap->audio_buffer
 							[peasycap->audio_fill];
-				if (PAGE_SIZE < (paudio_buffer->pto - \
+				if (PAGE_SIZE < (paudio_buffer->pto -
 						paudio_buffer->pgo)) {
 					SAM("ERROR: bad paudio_buffer->pto\n");
 					return;
 				}
-				if (PAGE_SIZE == (paudio_buffer->pto - \
+				if (PAGE_SIZE == (paudio_buffer->pto -
 							paudio_buffer->pgo)) {
 
 #if defined(TESTTONE)
-					easyoss_testtone(peasycap, \
+					easyoss_testtone(peasycap,
 							peasycap->audio_fill);
 #endif /*TESTTONE*/
 
-					paudio_buffer->pto = \
+					paudio_buffer->pto =
 							paudio_buffer->pgo;
 					(peasycap->audio_fill)++;
-					if (peasycap->\
-						audio_buffer_page_many <= \
+					if (peasycap->
+						audio_buffer_page_many <=
 							peasycap->audio_fill)
 						peasycap->audio_fill = 0;
 
-					JOM(8, "bumped peasycap->" \
-							"audio_fill to %i\n", \
+					JOM(8, "bumped peasycap->"
+							"audio_fill to %i\n",
 							peasycap->audio_fill);
 
-					paudio_buffer = &peasycap->\
-							audio_buffer\
+					paudio_buffer = &peasycap->
+							audio_buffer
 							[peasycap->audio_fill];
-					paudio_buffer->pto = \
+					paudio_buffer->pto =
 							paudio_buffer->pgo;
 
-					if (!(peasycap->audio_fill % \
-						peasycap->\
+					if (!(peasycap->audio_fill %
+						peasycap->
 						audio_pages_per_fragment)) {
-						JOM(12, "wakeup call on wq_" \
-						"audio, %i=frag reading  %i" \
-						"=fragment fill\n", \
-						(peasycap->audio_read / \
-						peasycap->\
-						audio_pages_per_fragment), \
-						(peasycap->audio_fill / \
-						peasycap->\
+						JOM(12, "wakeup call on wq_"
+						"audio, %i=frag reading  %i"
+						"=fragment fill\n",
+						(peasycap->audio_read /
+						peasycap->
+						audio_pages_per_fragment),
+						(peasycap->audio_fill /
+						peasycap->
 						audio_pages_per_fragment));
-						wake_up_interruptible\
+						wake_up_interruptible
 						(&(peasycap->wq_audio));
 					}
 				}
 
-				much = PAGE_SIZE - (int)(paudio_buffer->pto -\
+				much = PAGE_SIZE - (int)(paudio_buffer->pto -
 							 paudio_buffer->pgo);
 
 				if (false == peasycap->microphone) {
@@ -1304,30 +1304,30 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				} else {
 #if defined(UPSAMPLE)
 					if (much % 16)
-						JOM(8, "MISTAKE? much" \
+						JOM(8, "MISTAKE? much"
 						" is not divisible by 16\n");
-					if (much > (16 * \
+					if (much > (16 *
 							more))
-						much = 16 * \
+						much = 16 *
 							more;
 					p2 = (__u8 *)paudio_buffer->pto;
 
 					for (j = 0;  j < (much/16);  j++) {
 						newaudio =  ((int) *p1) - 128;
-						newaudio = 128 * \
+						newaudio = 128 *
 								newaudio;
 
-						delta = (newaudio - oldaudio) \
+						delta = (newaudio - oldaudio)
 									/ 4;
 						s16 = oldaudio + delta;
 
 						for (k = 0;  k < 4;  k++) {
 							*p2 = (0x00FF & s16);
-							*(p2 + 1) = (0xFF00 & \
+							*(p2 + 1) = (0xFF00 &
 								s16) >> 8;
 							p2 += 2;
 							*p2 = (0x00FF & s16);
-							*(p2 + 1) = (0xFF00 & \
+							*(p2 + 1) = (0xFF00 &
 								s16) >> 8;
 							p2 += 2;
 
@@ -1344,10 +1344,10 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 
 					for (j = 0;  j < (much / 2);  j++) {
 						s16 =  ((int) *p1) - 128;
-						s16 = 128 * \
+						s16 = 128 *
 								s16;
 						*p2 = (0x00FF & s16);
-						*(p2 + 1) = (0xFF00 & s16) >> \
+						*(p2 + 1) = (0xFF00 & s16) >>
 									8;
 						p1++;  p2 += 2;
 						more--;
@@ -1358,8 +1358,8 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 			}
 		}
 	} else {
-		JOM(12, "discarding audio samples because " \
-			"%i=purb->iso_frame_desc[i].status\n", \
+		JOM(12, "discarding audio samples because "
+			"%i=purb->iso_frame_desc[i].status\n",
 				purb->iso_frame_desc[i].status);
 	}
 
@@ -1378,8 +1378,8 @@ if (peasycap->audio_isoc_streaming) {
 	rc = usb_submit_urb(purb, GFP_ATOMIC);
 	if (0 != rc) {
 		if (-ENODEV != rc && -ENOENT != rc) {
-			SAM("ERROR: while %i=audio_idle, " \
-				"usb_submit_urb() failed " \
+			SAM("ERROR: while %i=audio_idle, "
+				"usb_submit_urb() failed "
 				"with rc:\n", peasycap->audio_idle);
 		}
 		switch (rc) {
@@ -1489,7 +1489,7 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 		SAY("ERROR: pv4l2_device is NULL\n");
 		return -EFAULT;
 	}
-	peasycap = (struct easycap *) \
+	peasycap = (struct easycap *)
 		container_of(pv4l2_device, struct easycap, v4l2_device);
 }
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
@@ -1537,7 +1537,7 @@ return 0;
 }
 /*****************************************************************************/
 ssize_t
-easyoss_read(struct file *file, char __user *puserspacebuffer, \
+easyoss_read(struct file *file, char __user *puserspacebuffer,
 						size_t kount, loff_t *poff)
 {
 struct timeval timeval;
@@ -1609,7 +1609,7 @@ if (0 <= kd && DONGLE_MANY > kd) {
 		return -ERESTARTSYS;
 	}
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: 0x%08lX\n", \
+		SAY("ERROR: bad peasycap: 0x%08lX\n",
 						(unsigned long int) peasycap);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
@@ -1634,7 +1634,7 @@ if (file->f_flags & O_NONBLOCK)
 else
 	JOT(8, "BLOCKING  kount=%i, *poff=%i\n", (int)kount, (int)(*poff));
 
-if ((0 > peasycap->audio_read) || \
+if ((0 > peasycap->audio_read) ||
 		(peasycap->audio_buffer_page_many <= peasycap->audio_read)) {
 	SAM("ERROR: peasycap->audio_read out of range\n");
 	mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
@@ -1646,22 +1646,22 @@ if ((struct data_buffer *)NULL == pdata_buffer) {
 	mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 	return -EFAULT;
 }
-JOM(12, "before wait, %i=frag read  %i=frag fill\n", \
-		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
+JOM(12, "before wait, %i=frag read  %i=frag fill\n",
+		(peasycap->audio_read / peasycap->audio_pages_per_fragment),
 		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 fragment = (peasycap->audio_read / peasycap->audio_pages_per_fragment);
-while ((fragment == (peasycap->audio_fill / \
-				peasycap->audio_pages_per_fragment)) || \
+while ((fragment == (peasycap->audio_fill /
+				peasycap->audio_pages_per_fragment)) ||
 		(0 == (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo)))) {
 	if (file->f_flags & O_NONBLOCK) {
 		JOM(16, "returning -EAGAIN as instructed\n");
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return -EAGAIN;
 	}
-	rc = wait_event_interruptible(peasycap->wq_audio, \
-		(peasycap->audio_idle  || peasycap->audio_eof   || \
-		((fragment != (peasycap->audio_fill / \
-				peasycap->audio_pages_per_fragment)) && \
+	rc = wait_event_interruptible(peasycap->wq_audio,
+		(peasycap->audio_idle  || peasycap->audio_eof   ||
+		((fragment != (peasycap->audio_fill /
+				peasycap->audio_pages_per_fragment)) &&
 		(0 < (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo))))));
 	if (0 != rc) {
 		SAM("aborted by signal\n");
@@ -1669,14 +1669,14 @@ while ((fragment == (peasycap->audio_fill / \
 		return -ERESTARTSYS;
 	}
 	if (peasycap->audio_eof) {
-		JOM(8, "returning 0 because  %i=audio_eof\n", \
+		JOM(8, "returning 0 because  %i=audio_eof\n",
 							peasycap->audio_eof);
 		kill_audio_urbs(peasycap);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return 0;
 	}
 	if (peasycap->audio_idle) {
-		JOM(16, "returning 0 because  %i=audio_idle\n", \
+		JOM(16, "returning 0 because  %i=audio_idle\n",
 							peasycap->audio_idle);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return 0;
@@ -1687,12 +1687,12 @@ while ((fragment == (peasycap->audio_fill / \
 		return 0;
 	}
 }
-JOM(12, "after  wait, %i=frag read  %i=frag fill\n", \
-		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
+JOM(12, "after  wait, %i=frag read  %i=frag fill\n",
+		(peasycap->audio_read / peasycap->audio_pages_per_fragment),
 		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 szret = (size_t)0;
 fragment = (peasycap->audio_read / peasycap->audio_pages_per_fragment);
-while (fragment == (peasycap->audio_read / \
+while (fragment == (peasycap->audio_read /
 				peasycap->audio_pages_per_fragment)) {
 	if (NULL == pdata_buffer->pgo) {
 		SAM("ERROR: pdata_buffer->pgo is NULL\n");
@@ -1714,15 +1714,15 @@ while (fragment == (peasycap->audio_read / \
 		(peasycap->audio_read)++;
 		if (peasycap->audio_buffer_page_many <= peasycap->audio_read)
 			peasycap->audio_read = 0;
-		JOM(12, "bumped peasycap->audio_read to %i\n", \
+		JOM(12, "bumped peasycap->audio_read to %i\n",
 						peasycap->audio_read);
 
-		if (fragment != (peasycap->audio_read / \
+		if (fragment != (peasycap->audio_read /
 					peasycap->audio_pages_per_fragment))
 			break;
 
-		if ((0 > peasycap->audio_read) || \
-			(peasycap->audio_buffer_page_many <= \
+		if ((0 > peasycap->audio_read) ||
+			(peasycap->audio_buffer_page_many <=
 					peasycap->audio_read)) {
 			SAM("ERROR: peasycap->audio_read out of range\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
@@ -1751,7 +1751,7 @@ while (fragment == (peasycap->audio_read / \
 	more = kount1;
 	if (more > kount)
 		more = kount;
-	JOM(12, "agreed to send %li bytes from page %i\n", \
+	JOM(12, "agreed to send %li bytes from page %i\n",
 						more, peasycap->audio_read);
 	if (!more)
 		break;
@@ -1763,7 +1763,7 @@ while (fragment == (peasycap->audio_read / \
 /*---------------------------------------------------------------------------*/
 	p0 = (unsigned char *)pdata_buffer->pgo;  l0 = 0;  lm = more/2;
 	while (l0 < lm) {
-		SUMMER(p0, &peasycap->audio_sample, &peasycap->audio_niveau, \
+		SUMMER(p0, &peasycap->audio_sample, &peasycap->audio_niveau,
 				&peasycap->audio_square);  l0++;  p0 += 2;
 	}
 /*---------------------------------------------------------------------------*/
@@ -1779,11 +1779,11 @@ while (fragment == (peasycap->audio_read / \
 	puserspacebuffer += more;
 	kount -= (size_t)more;
 }
-JOM(12, "after  read, %i=frag read  %i=frag fill\n", \
-		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
+JOM(12, "after  read, %i=frag read  %i=frag fill\n",
+		(peasycap->audio_read / peasycap->audio_pages_per_fragment),
 		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 if (kount < 0) {
-	SAM("MISTAKE:  %li=kount  %li=szret\n", \
+	SAM("MISTAKE:  %li=kount  %li=szret\n",
 					(long int)kount, (long int)szret);
 }
 /*---------------------------------------------------------------------------*/
@@ -1799,7 +1799,7 @@ if (peasycap->audio_sample) {
 	mean = peasycap->audio_niveau;
 	sdr = signed_div(mean, peasycap->audio_sample);
 
-	JOM(8, "%8lli=mean  %8lli=meansquare after %lli samples, =>\n", \
+	JOM(8, "%8lli=mean  %8lli=meansquare after %lli samples, =>\n",
 				sdr.quotient, above, peasycap->audio_sample);
 
 	sdr = signed_div(above, 32768);
@@ -1818,9 +1818,9 @@ if (!peasycap->timeval1.tv_sec) {
 	sdr.quotient = 192000;
 } else {
 	peasycap->audio_bytes += (long long int) szret;
-	below = ((long long int)(1000000)) * \
-		((long long int)(timeval.tv_sec  - \
-						peasycap->timeval3.tv_sec)) + \
+	below = ((long long int)(1000000)) *
+		((long long int)(timeval.tv_sec  -
+						peasycap->timeval3.tv_sec)) +
 		(long long int)(timeval.tv_usec - peasycap->timeval3.tv_usec);
 	above = 1000000 * ((long long int) peasycap->audio_bytes);
 
@@ -1881,9 +1881,9 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device has become NULL\n");
 	return -ENODEV;
 }
-rc = usb_set_interface(peasycap->pusb_device, peasycap->audio_interface, \
+rc = usb_set_interface(peasycap->pusb_device, peasycap->audio_interface,
 					peasycap->audio_altsetting_on);
-JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface, \
+JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface,
 					peasycap->audio_altsetting_on, rc);
 
 rc = wakeup_device(peasycap->pusb_device);
@@ -1930,10 +1930,10 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 if (!peasycap->audio_isoc_streaming) {
 	JOM(4, "initial submission of all audio urbs\n");
 	rc = usb_set_interface(peasycap->pusb_device,
-					peasycap->audio_interface, \
+					peasycap->audio_interface,
 					peasycap->audio_altsetting_on);
-	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", \
-					peasycap->audio_interface, \
+	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n",
+					peasycap->audio_interface,
 					peasycap->audio_altsetting_on, rc);
 
 	isbad = 0;  nospc = 0;  m = 0;
@@ -1946,13 +1946,13 @@ if (!peasycap->audio_isoc_streaming) {
 
 				purb->interval = 1;
 				purb->dev = peasycap->pusb_device;
-				purb->pipe = \
-					usb_rcvisocpipe(peasycap->pusb_device,\
+				purb->pipe =
+					usb_rcvisocpipe(peasycap->pusb_device,
 					peasycap->audio_endpointnumber);
 				purb->transfer_flags = URB_ISO_ASAP;
-				purb->transfer_buffer = \
+				purb->transfer_buffer =
 					peasycap->audio_isoc_buffer[isbuf].pgo;
-				purb->transfer_buffer_length = \
+				purb->transfer_buffer_length =
 					peasycap->audio_isoc_buffer_size;
 #if defined(EASYCAP_NEEDS_ALSA)
 				purb->complete = easycap_alsa_complete;
@@ -1961,23 +1961,23 @@ if (!peasycap->audio_isoc_streaming) {
 #endif /*EASYCAP_NEEDS_ALSA*/
 				purb->context = peasycap;
 				purb->start_frame = 0;
-				purb->number_of_packets = \
+				purb->number_of_packets =
 					peasycap->audio_isoc_framesperdesc;
-				for (j = 0;  j < peasycap->\
-						audio_isoc_framesperdesc; \
+				for (j = 0;  j < peasycap->
+						audio_isoc_framesperdesc;
 									j++) {
-					purb->iso_frame_desc[j].offset = j * \
-						peasycap->\
+					purb->iso_frame_desc[j].offset = j *
+						peasycap->
 						audio_isoc_maxframesize;
-					purb->iso_frame_desc[j].length = \
-						peasycap->\
+					purb->iso_frame_desc[j].length =
+						peasycap->
 						audio_isoc_maxframesize;
 				}
 
 				rc = usb_submit_urb(purb, GFP_KERNEL);
 				if (0 != rc) {
 					isbad++;
-					SAM("ERROR: usb_submit_urb() failed" \
+					SAM("ERROR: usb_submit_urb() failed"
 							" for urb with rc:\n");
 					switch (rc) {
 					case -ENODEV: {
@@ -2047,7 +2047,7 @@ if (!peasycap->audio_isoc_streaming) {
 	if (isbad) {
 		JOM(4, "attempting cleanup instead of submitting\n");
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
-			pdata_urb = list_entry(plist_head, struct data_urb, \
+			pdata_urb = list_entry(plist_head, struct data_urb,
 								list_head);
 			if (NULL != pdata_urb) {
 				purb = pdata_urb->purb;
@@ -2103,7 +2103,7 @@ if (peasycap->audio_isoc_streaming) {
 		return -EFAULT;
 	}
 } else {
-	JOM(8, "%i=audio_isoc_streaming, no audio urbs killed\n", \
+	JOM(8, "%i=audio_isoc_streaming, no audio urbs killed\n",
 					peasycap->audio_isoc_streaming);
 }
 return 0;

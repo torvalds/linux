@@ -384,9 +384,9 @@ int    video_eof;
 int    video_junk;
 
 struct data_buffer video_isoc_buffer[VIDEO_ISOC_BUFFER_MANY];
-struct data_buffer \
+struct data_buffer
 	     field_buffer[FIELD_BUFFER_MANY][(FIELD_BUFFER_SIZE/PAGE_SIZE)];
-struct data_buffer \
+struct data_buffer
 	     frame_buffer[FRAME_BUFFER_MANY][(FRAME_BUFFER_SIZE/PAGE_SIZE)];
 
 struct list_head urb_video_head;
@@ -518,9 +518,9 @@ struct data_buffer audio_buffer[];
 void             easycap_complete(struct urb *);
 int              easycap_open(struct inode *, struct file *);
 int              easycap_release(struct inode *, struct file *);
-long             easycap_ioctl_noinode(struct file *, unsigned int, \
+long             easycap_ioctl_noinode(struct file *, unsigned int,
 								unsigned long);
-int              easycap_ioctl(struct inode *, struct file *, unsigned int, \
+int              easycap_ioctl(struct inode *, struct file *, unsigned int,
 								unsigned long);
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
@@ -532,7 +532,7 @@ int              videodev_release(struct video_device *);
 
 unsigned int     easycap_poll(struct file *, poll_table *);
 int              easycap_mmap(struct file *, struct vm_area_struct *);
-int              easycap_usb_probe(struct usb_interface *, \
+int              easycap_usb_probe(struct usb_interface *,
 						const struct usb_device_id *);
 void             easycap_usb_disconnect(struct usb_interface *);
 void             easycap_delete(struct kref *);
@@ -544,14 +544,14 @@ int              easycap_dqbuf(struct easycap *, int);
 int              submit_video_urbs(struct easycap *);
 int              kill_video_urbs(struct easycap *);
 int              field2frame(struct easycap *);
-int              redaub(struct easycap *, void *, void *, \
+int              redaub(struct easycap *, void *, void *,
 						int, int, __u8, __u8, bool);
 void             easycap_testcard(struct easycap *, int);
 int              fillin_formats(void);
 int              reset(struct easycap *);
 int              newinput(struct easycap *, int);
 int              adjust_standard(struct easycap *, v4l2_std_id);
-int              adjust_format(struct easycap *, __u32, __u32, __u32, \
+int              adjust_format(struct easycap *, __u32, __u32, __u32,
 								int, bool);
 int              adjust_brightness(struct easycap *, int);
 int              adjust_contrast(struct easycap *, int);
@@ -569,15 +569,14 @@ int		easycap_alsa_probe(struct easycap *);
 void            easycap_alsa_complete(struct urb *);
 int		easycap_alsa_open(struct snd_pcm_substream *);
 int		easycap_alsa_close(struct snd_pcm_substream *);
-int		easycap_alsa_hw_params(struct snd_pcm_substream *, \
+int		easycap_alsa_hw_params(struct snd_pcm_substream *,
 						struct snd_pcm_hw_params *);
 int             easycap_alsa_vmalloc(struct snd_pcm_substream *, size_t);
 int		easycap_alsa_hw_free(struct snd_pcm_substream *);
 int		easycap_alsa_prepare(struct snd_pcm_substream *);
 int		easycap_alsa_ack(struct snd_pcm_substream *);
 int		easycap_alsa_trigger(struct snd_pcm_substream *, int);
-snd_pcm_uframes_t \
-		easycap_alsa_pointer(struct snd_pcm_substream *);
+snd_pcm_uframes_t easycap_alsa_pointer(struct snd_pcm_substream *);
 struct page	*easycap_alsa_page(struct snd_pcm_substream *, unsigned long);
 
 #else
@@ -585,9 +584,9 @@ void             easyoss_complete(struct urb *);
 ssize_t          easyoss_read(struct file *, char __user *, size_t, loff_t *);
 int              easyoss_open(struct inode *, struct file *);
 int              easyoss_release(struct inode *, struct file *);
-long             easyoss_ioctl_noinode(struct file *, unsigned int, \
+long             easyoss_ioctl_noinode(struct file *, unsigned int,
 								unsigned long);
-int              easyoss_ioctl(struct inode *, struct file *, unsigned int, \
+int              easyoss_ioctl(struct inode *, struct file *, unsigned int,
 								unsigned long);
 unsigned int     easyoss_poll(struct file *, poll_table *);
 void             easyoss_delete(struct kref *);
@@ -619,7 +618,7 @@ int              ready_saa(struct usb_device *);
 int              merit_saa(struct usb_device *);
 int              check_vt(struct usb_device *);
 int              select_input(struct usb_device *, int, int);
-int              set_resolution(struct usb_device *, \
+int              set_resolution(struct usb_device *,
 						__u16, __u16, __u16, __u16);
 
 int              read_saa(struct usb_device *, __u16);

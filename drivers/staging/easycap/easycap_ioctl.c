@@ -72,13 +72,13 @@ if (0xFFFF == peasycap_standard->mask) {
 	}
 }
 if (0xFFFF == peasycap_standard->mask) {
-	SAM("ERROR: 0x%08X=std_id: standard not found\n", \
+	SAM("ERROR: 0x%08X=std_id: standard not found\n",
 							(unsigned int)std_id);
 	return -EINVAL;
 }
-SAM("selected standard: %s\n", \
+SAM("selected standard: %s\n",
 			&(peasycap_standard->v4l2_standard.name[0]));
-if (peasycap->standard_offset == \
+if (peasycap->standard_offset ==
 			(int)(peasycap_standard - &easycap_standard[0])) {
 	SAM("requested standard already in effect\n");
 	return 0;
@@ -86,17 +86,17 @@ if (peasycap->standard_offset == \
 peasycap->standard_offset = (int)(peasycap_standard - &easycap_standard[0]);
 for (k = 0; k < INPUT_MANY;  k++) {
 	if (!peasycap->inputset[k].standard_offset_ok) {
-			peasycap->inputset[k].standard_offset = \
+			peasycap->inputset[k].standard_offset =
 						peasycap->standard_offset;
 	}
 }
 if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
-	peasycap->inputset[peasycap->input].standard_offset = \
+	peasycap->inputset[peasycap->input].standard_offset =
 						peasycap->standard_offset;
 	peasycap->inputset[peasycap->input].standard_offset_ok = 1;
 } else
 	JOM(8, "%i=peasycap->input\n", peasycap->input);
-peasycap->fps = peasycap_standard->v4l2_standard.frameperiod.denominator / \
+peasycap->fps = peasycap_standard->v4l2_standard.frameperiod.denominator /
 		peasycap_standard->v4l2_standard.frameperiod.numerator;
 switch (peasycap->fps) {
 case 6:
@@ -145,15 +145,15 @@ case NTSC_M_JP: {
 		itwas = (unsigned int)ir;
 	rc = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != rc)
-		SAM("ERROR: failed to set SAA register " \
+		SAM("ERROR: failed to set SAA register "
 			"0x%02X to 0x%02X for JP standard\n", reg, set);
 	else {
 		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
 		if (0 > ir)
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"to 0x%02X\n", reg, isnow);
 		else
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 
@@ -165,15 +165,15 @@ case NTSC_M_JP: {
 		itwas = (unsigned int)ir;
 	rc = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != rc)
-		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X " \
+		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X "
 						"for JP standard\n", reg, set);
 	else {
 		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
 		if (0 > ir)
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"to 0x%02X\n", reg, isnow);
 		else
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 /*--------------------------------------------------------------------------*/
@@ -213,15 +213,15 @@ if (need) {
 		itwas = (unsigned int)ir;
 	rc = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != write_saa(peasycap->pusb_device, reg, set)) {
-		SAM("ERROR: failed to set SAA register " \
+		SAM("ERROR: failed to set SAA register "
 			"0x%02X to 0x%02X for table 42\n", reg, set);
 	} else {
 		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
 		if (0 > ir)
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"to 0x%02X\n", reg, isnow);
 		else
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 }
@@ -233,7 +233,7 @@ if (need) {
 reg = 0x08;
 ir = read_saa(peasycap->pusb_device, reg);
 if (0 > ir)
-	SAM("ERROR: failed to read SAA register 0x%02X " \
+	SAM("ERROR: failed to read SAA register 0x%02X "
 						"so cannot reset\n", reg);
 else {
 	itwas = (unsigned int)ir;
@@ -243,15 +243,15 @@ else {
 		set = itwas & ~0x40 ;
 	rc  = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != rc)
-		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", \
+		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n",
 								reg, set);
 	else {
 		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
 		if (0 > ir)
-			JOM(8, "SAA register 0x%02X changed to 0x%02X\n", \
+			JOM(8, "SAA register 0x%02X changed to 0x%02X\n",
 								reg, isnow);
 		else
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 }
@@ -263,7 +263,7 @@ else {
 reg = 0x40;
 ir = read_saa(peasycap->pusb_device, reg);
 if (0 > ir)
-	SAM("ERROR: failed to read SAA register 0x%02X " \
+	SAM("ERROR: failed to read SAA register 0x%02X "
 						"so cannot reset\n", reg);
 else {
 	itwas = (unsigned int)ir;
@@ -273,15 +273,15 @@ else {
 		set = itwas & ~0x80 ;
 	rc = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != rc)
-		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", \
+		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n",
 								reg, set);
 	else {
 		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
 		if (0 > ir)
-			JOM(8, "SAA register 0x%02X changed to 0x%02X\n", \
+			JOM(8, "SAA register 0x%02X changed to 0x%02X\n",
 								reg, isnow);
 		else
-			JOM(8, "SAA register 0x%02X changed " \
+			JOM(8, "SAA register 0x%02X changed "
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 }
@@ -300,7 +300,7 @@ if (0 > ir)
 	else
 		set = 0x07 ;
 	if (0 != write_saa(peasycap->pusb_device, reg, set))
-		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", \
+		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n",
 								reg, set);
 	else {
 		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
@@ -340,7 +340,7 @@ return 0;
  *  ERRORS RETURN A NEGATIVE NUMBER.
  */
 /*--------------------------------------------------------------------------*/
-int adjust_format(struct easycap *peasycap, \
+int adjust_format(struct easycap *peasycap,
 	__u32 width, __u32 height, __u32 pixelformat, int field, bool try)
 {
 struct easycap_format *peasycap_format, *peasycap_best_format;
@@ -369,7 +369,7 @@ uc = pixelformat;
 memcpy((void *)pc, (void *)(&uc), 4);
 bf[4] = 0;
 mask = 0xFF & easycap_standard[peasycap->standard_offset].mask;
-SAM("sought:    %ix%i,%s(0x%08X),%i=field,0x%02X=std mask\n", \
+SAM("sought:    %ix%i,%s(0x%08X),%i=field,0x%02X=std mask\n",
 				width, height, pc, pixelformat, field, mask);
 switch (field) {
 case V4L2_FIELD_ANY: {
@@ -425,18 +425,18 @@ if (V4L2_FIELD_ANY == field) {
 peasycap_best_format = (struct easycap_format *)NULL;
 peasycap_format = &easycap_format[0];
 while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
-	JOM(16, ".> %i %i 0x%08X %ix%i\n", \
+	JOM(16, ".> %i %i 0x%08X %ix%i\n",
 		peasycap_format->mask & 0x01,
 		peasycap_format->v4l2_format.fmt.pix.field,
 		peasycap_format->v4l2_format.fmt.pix.pixelformat,
 		peasycap_format->v4l2_format.fmt.pix.width,
 		peasycap_format->v4l2_format.fmt.pix.height);
 
-	if (((peasycap_format->mask & 0x1F) == (mask & 0x1F)) && \
-		(peasycap_format->v4l2_format.fmt.pix.field == field) && \
-		(peasycap_format->v4l2_format.fmt.pix.pixelformat == \
-							pixelformat) && \
-		(peasycap_format->v4l2_format.fmt.pix.width  == width) && \
+	if (((peasycap_format->mask & 0x1F) == (mask & 0x1F)) &&
+		(peasycap_format->v4l2_format.fmt.pix.field == field) &&
+		(peasycap_format->v4l2_format.fmt.pix.pixelformat ==
+							pixelformat) &&
+		(peasycap_format->v4l2_format.fmt.pix.width  == width) &&
 		(peasycap_format->v4l2_format.fmt.pix.height == height)) {
 			peasycap_best_format = peasycap_format;
 			break;
@@ -444,16 +444,16 @@ while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
 	peasycap_format++;
 }
 if (0 == peasycap_format->v4l2_format.fmt.pix.width) {
-	SAM("cannot do: %ix%i with standard mask 0x%02X\n", \
+	SAM("cannot do: %ix%i with standard mask 0x%02X\n",
 							width, height, mask);
 	peasycap_format = &easycap_format[0];  best = -1;
 	while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
-		if (((peasycap_format->mask & 0x1F) == (mask & 0x1F)) && \
-				 (peasycap_format->v4l2_format.fmt.pix\
-						.field == field) && \
-				 (peasycap_format->v4l2_format.fmt.pix\
+		if (((peasycap_format->mask & 0x1F) == (mask & 0x1F)) &&
+				 (peasycap_format->v4l2_format.fmt.pix
+						.field == field) &&
+				 (peasycap_format->v4l2_format.fmt.pix
 						.pixelformat == pixelformat)) {
-			miss = abs(peasycap_format->\
+			miss = abs(peasycap_format->
 					v4l2_format.fmt.pix.width  - width);
 			if ((best > miss) || (best < 0)) {
 				best = miss;
@@ -465,9 +465,9 @@ if (0 == peasycap_format->v4l2_format.fmt.pix.width) {
 		peasycap_format++;
 	}
 	if (-1 == best) {
-		SAM("cannot do %ix... with standard mask 0x%02X\n", \
+		SAM("cannot do %ix... with standard mask 0x%02X\n",
 								width, mask);
-		SAM("cannot do ...x%i with standard mask 0x%02X\n", \
+		SAM("cannot do ...x%i with standard mask 0x%02X\n",
 								height, mask);
 		SAM("           %ix%i unmatched\n", width, height);
 		return peasycap->format_offset;
@@ -488,8 +488,8 @@ if (false != try) {
 	SAM("MISTAKE: true==try where is should be false\n");
 	return -EINVAL;
 }
-SAM("actioning: %ix%i %s\n", \
-			peasycap_format->v4l2_format.fmt.pix.width, \
+SAM("actioning: %ix%i %s\n",
+			peasycap_format->v4l2_format.fmt.pix.width,
 			peasycap_format->v4l2_format.fmt.pix.height,
 			&peasycap_format->name[0]);
 peasycap->height        = peasycap_format->v4l2_format.fmt.pix.height;
@@ -500,12 +500,12 @@ peasycap->format_offset = (int)(peasycap_format - &easycap_format[0]);
 
 for (k = 0; k < INPUT_MANY; k++) {
 	if (!peasycap->inputset[k].format_offset_ok) {
-		peasycap->inputset[k].format_offset = \
+		peasycap->inputset[k].format_offset =
 						peasycap->format_offset;
 	}
 }
 if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
-	peasycap->inputset[peasycap->input].format_offset = \
+	peasycap->inputset[peasycap->input].format_offset =
 						peasycap->format_offset;
 	peasycap->inputset[peasycap->input].format_offset_ok = 1;
 } else
@@ -534,9 +534,9 @@ if (true == peasycap->decimatepixel)
 	multiplier = 2;
 else
 	multiplier = 1;
-peasycap->videofieldamount = multiplier * peasycap->width * \
+peasycap->videofieldamount = multiplier * peasycap->width *
 					multiplier * peasycap->height;
-peasycap->frame_buffer_used = peasycap->bytesperpixel * \
+peasycap->frame_buffer_used = peasycap->bytesperpixel *
 					peasycap->width * peasycap->height;
 if (peasycap->video_isoc_streaming) {
 	resubmit = true;
@@ -549,29 +549,29 @@ if (peasycap->video_isoc_streaming) {
  */
 /*---------------------------------------------------------------------------*/
 if (0 == (0x01 & peasycap_format->mask)) {
-	if (((720 == peasycap_format->v4l2_format.fmt.pix.width) && \
-			(576 == \
-			peasycap_format->v4l2_format.fmt.pix.height)) || \
-			((360 == \
-			peasycap_format->v4l2_format.fmt.pix.width) && \
-			(288 == \
+	if (((720 == peasycap_format->v4l2_format.fmt.pix.width) &&
+			(576 ==
+			peasycap_format->v4l2_format.fmt.pix.height)) ||
+			((360 ==
+			peasycap_format->v4l2_format.fmt.pix.width) &&
+			(288 ==
 			peasycap_format->v4l2_format.fmt.pix.height))) {
 		if (0 != set_resolution(p, 0x0000, 0x0001, 0x05A0, 0x0121)) {
 			SAM("ERROR: set_resolution() failed\n");
 			return -EINVAL;
 		}
-	} else if ((704 == peasycap_format->v4l2_format.fmt.pix.width) && \
+	} else if ((704 == peasycap_format->v4l2_format.fmt.pix.width) &&
 			(576 == peasycap_format->v4l2_format.fmt.pix.height)) {
 		if (0 != set_resolution(p, 0x0004, 0x0001, 0x0584, 0x0121)) {
 			SAM("ERROR: set_resolution() failed\n");
 			return -EINVAL;
 		}
-	} else if (((640 == peasycap_format->v4l2_format.fmt.pix.width) && \
-			(480 == \
-			peasycap_format->v4l2_format.fmt.pix.height)) || \
-			((320 == \
-			peasycap_format->v4l2_format.fmt.pix.width) && \
-			(240 == \
+	} else if (((640 == peasycap_format->v4l2_format.fmt.pix.width) &&
+			(480 ==
+			peasycap_format->v4l2_format.fmt.pix.height)) ||
+			((320 ==
+			peasycap_format->v4l2_format.fmt.pix.width) &&
+			(240 ==
 			peasycap_format->v4l2_format.fmt.pix.height))) {
 		if (0 != set_resolution(p, 0x0014, 0x0020, 0x0514, 0x0110)) {
 			SAM("ERROR: set_resolution() failed\n");
@@ -587,23 +587,23 @@ if (0 == (0x01 & peasycap_format->mask)) {
  */
 /*---------------------------------------------------------------------------*/
 } else {
-	if (((720 == peasycap_format->v4l2_format.fmt.pix.width) && \
-			(480 == \
-			peasycap_format->v4l2_format.fmt.pix.height)) || \
-			((360 == \
-			peasycap_format->v4l2_format.fmt.pix.width) && \
-			(240 == \
+	if (((720 == peasycap_format->v4l2_format.fmt.pix.width) &&
+			(480 ==
+			peasycap_format->v4l2_format.fmt.pix.height)) ||
+			((360 ==
+			peasycap_format->v4l2_format.fmt.pix.width) &&
+			(240 ==
 			peasycap_format->v4l2_format.fmt.pix.height))) {
 		if (0 != set_resolution(p, 0x0000, 0x0003, 0x05A0, 0x00F3)) {
 			SAM("ERROR: set_resolution() failed\n");
 			return -EINVAL;
 		}
-	} else if (((640 == peasycap_format->v4l2_format.fmt.pix.width) && \
-			(480 == \
-			peasycap_format->v4l2_format.fmt.pix.height)) || \
-			((320 == \
-			peasycap_format->v4l2_format.fmt.pix.width) && \
-			(240 == \
+	} else if (((640 == peasycap_format->v4l2_format.fmt.pix.width) &&
+			(480 ==
+			peasycap_format->v4l2_format.fmt.pix.height)) ||
+			((320 ==
+			peasycap_format->v4l2_format.fmt.pix.width) &&
+			(240 ==
 			peasycap_format->v4l2_format.fmt.pix.height))) {
 		if (0 != set_resolution(p, 0x0014, 0x0003, 0x0514, 0x00F3)) {
 			SAM("ERROR: set_resolution() failed\n");
@@ -636,15 +636,15 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 i1 = 0;
 while (0xFFFFFFFF != easycap_control[i1].id) {
 	if (V4L2_CID_BRIGHTNESS == easycap_control[i1].id) {
-		if ((easycap_control[i1].minimum > value) || \
+		if ((easycap_control[i1].minimum > value) ||
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
 
-		if ((easycap_control[i1].minimum <= peasycap->brightness) && \
-					(easycap_control[i1].maximum >= \
+		if ((easycap_control[i1].minimum <= peasycap->brightness) &&
+					(easycap_control[i1].maximum >=
 						peasycap->brightness)) {
 			if (peasycap->brightness == value) {
-				SAM("unchanged brightness at  0x%02X\n", \
+				SAM("unchanged brightness at  0x%02X\n",
 								value);
 				return 0;
 			}
@@ -652,11 +652,11 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		peasycap->brightness = value;
 		for (k = 0; k < INPUT_MANY; k++) {
 			if (!peasycap->inputset[k].brightness_ok)
-				peasycap->inputset[k].brightness = \
+				peasycap->inputset[k].brightness =
 							peasycap->brightness;
 		}
 		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
-			peasycap->inputset[peasycap->input].brightness = \
+			peasycap->inputset[peasycap->input].brightness =
 							peasycap->brightness;
 			peasycap->inputset[peasycap->input].brightness_ok = 1;
 		} else
@@ -666,7 +666,7 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 			SAM("adjusting brightness to  0x%02X\n", mood);
 			return 0;
 		} else {
-			SAM("WARNING: failed to adjust brightness " \
+			SAM("WARNING: failed to adjust brightness "
 							"to 0x%02X\n", mood);
 			return -ENOENT;
 		}
@@ -694,14 +694,14 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 i1 = 0;
 while (0xFFFFFFFF != easycap_control[i1].id) {
 	if (V4L2_CID_CONTRAST == easycap_control[i1].id) {
-		if ((easycap_control[i1].minimum > value) || \
+		if ((easycap_control[i1].minimum > value) ||
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
 
 
 
-		if ((easycap_control[i1].minimum <= peasycap->contrast) && \
-				(easycap_control[i1].maximum >= \
+		if ((easycap_control[i1].minimum <= peasycap->contrast) &&
+				(easycap_control[i1].maximum >=
 							peasycap->contrast)) {
 			if (peasycap->contrast == value) {
 				SAM("unchanged contrast at  0x%02X\n", value);
@@ -711,12 +711,12 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		peasycap->contrast = value;
 		for (k = 0; k < INPUT_MANY; k++) {
 			if (!peasycap->inputset[k].contrast_ok) {
-				peasycap->inputset[k].contrast = \
+				peasycap->inputset[k].contrast =
 							peasycap->contrast;
 			}
 		}
 		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
-			peasycap->inputset[peasycap->input].contrast = \
+			peasycap->inputset[peasycap->input].contrast =
 							peasycap->contrast;
 			peasycap->inputset[peasycap->input].contrast_ok = 1;
 		} else
@@ -726,7 +726,7 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 			SAM("adjusting contrast to  0x%02X\n", mood);
 			return 0;
 		} else {
-			SAM("WARNING: failed to adjust contrast to " \
+			SAM("WARNING: failed to adjust contrast to "
 							"0x%02X\n", mood);
 			return -ENOENT;
 		}
@@ -754,16 +754,16 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 i1 = 0;
 while (0xFFFFFFFF != easycap_control[i1].id) {
 	if (V4L2_CID_SATURATION == easycap_control[i1].id) {
-		if ((easycap_control[i1].minimum > value) || \
+		if ((easycap_control[i1].minimum > value) ||
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
 
 
-		if ((easycap_control[i1].minimum <= peasycap->saturation) && \
-					(easycap_control[i1].maximum >= \
+		if ((easycap_control[i1].minimum <= peasycap->saturation) &&
+					(easycap_control[i1].maximum >=
 						peasycap->saturation)) {
 			if (peasycap->saturation == value) {
-				SAM("unchanged saturation at  0x%02X\n", \
+				SAM("unchanged saturation at  0x%02X\n",
 								value);
 				return 0;
 			}
@@ -771,12 +771,12 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		peasycap->saturation = value;
 		for (k = 0; k < INPUT_MANY; k++) {
 			if (!peasycap->inputset[k].saturation_ok) {
-				peasycap->inputset[k].saturation = \
+				peasycap->inputset[k].saturation =
 							peasycap->saturation;
 			}
 		}
 		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
-			peasycap->inputset[peasycap->input].saturation = \
+			peasycap->inputset[peasycap->input].saturation =
 							peasycap->saturation;
 			peasycap->inputset[peasycap->input].saturation_ok = 1;
 		} else
@@ -786,7 +786,7 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 			SAM("adjusting saturation to  0x%02X\n", mood);
 			return 0;
 		} else {
-			SAM("WARNING: failed to adjust saturation to " \
+			SAM("WARNING: failed to adjust saturation to "
 							"0x%02X\n", mood);
 			return -ENOENT;
 		}
@@ -814,12 +814,12 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 i1 = 0;
 while (0xFFFFFFFF != easycap_control[i1].id) {
 	if (V4L2_CID_HUE == easycap_control[i1].id) {
-		if ((easycap_control[i1].minimum > value) || \
+		if ((easycap_control[i1].minimum > value) ||
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
 
-		if ((easycap_control[i1].minimum <= peasycap->hue) && \
-					(easycap_control[i1].maximum >= \
+		if ((easycap_control[i1].minimum <= peasycap->hue) &&
+					(easycap_control[i1].maximum >=
 							peasycap->hue)) {
 			if (peasycap->hue == value) {
 				SAM("unchanged hue at  0x%02X\n", value);
@@ -832,7 +832,7 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 				peasycap->inputset[k].hue = peasycap->hue;
 		}
 		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
-			peasycap->inputset[peasycap->input].hue = \
+			peasycap->inputset[peasycap->input].hue =
 							peasycap->hue;
 			peasycap->inputset[peasycap->input].hue_ok = 1;
 		} else
@@ -870,11 +870,11 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 i1 = 0;
 while (0xFFFFFFFF != easycap_control[i1].id) {
 	if (V4L2_CID_AUDIO_VOLUME == easycap_control[i1].id) {
-		if ((easycap_control[i1].minimum > value) || \
+		if ((easycap_control[i1].minimum > value) ||
 				(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
-		if ((easycap_control[i1].minimum <= peasycap->volume) && \
-					(easycap_control[i1].maximum >= \
+		if ((easycap_control[i1].minimum <= peasycap->volume) &&
+					(easycap_control[i1].maximum >=
 							peasycap->volume)) {
 			if (peasycap->volume == value) {
 				SAM("unchanged volume at  0x%02X\n", value);
@@ -882,14 +882,14 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 			}
 		}
 		peasycap->volume = value;
-		mood = (16 > peasycap->volume) ? 16 : \
-			((31 < peasycap->volume) ? 31 : \
+		mood = (16 > peasycap->volume) ? 16 :
+			((31 < peasycap->volume) ? 31 :
 			(__s8) peasycap->volume);
 		if (!audio_gainset(peasycap->pusb_device, mood)) {
 			SAM("adjusting volume to 0x%02X\n", mood);
 			return 0;
 		} else {
-			SAM("WARNING: failed to adjust volume to " \
+			SAM("WARNING: failed to adjust volume to "
 							"0x%2X\n", mood);
 			return -ENOENT;
 		}
@@ -904,8 +904,8 @@ return -ENOENT;
 /*---------------------------------------------------------------------------*/
 /*
  *  AN ALTERNATIVE METHOD OF MUTING MIGHT SEEM TO BE:
- *            usb_set_interface(peasycap->pusb_device, \
- *                              peasycap->audio_interface, \
+ *            usb_set_interface(peasycap->pusb_device,
+ *                              peasycap->audio_interface,
  *                              peasycap->audio_altsetting_off);
  *  HOWEVER, AFTER THIS COMMAND IS ISSUED ALL SUBSEQUENT URBS RECEIVE STATUS
  *  -ESHUTDOWN.  THE HANDLER ROUTINE easyxxx_complete() DECLINES TO RESUBMIT
@@ -932,13 +932,13 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		case 1: {
 			peasycap->audio_idle = 1;
 			peasycap->timeval0.tv_sec = 0;
-			SAM("adjusting mute: %i=peasycap->audio_idle\n", \
+			SAM("adjusting mute: %i=peasycap->audio_idle\n",
 							peasycap->audio_idle);
 			return 0;
 		}
 		default: {
 			peasycap->audio_idle = 0;
-			SAM("adjusting mute: %i=peasycap->audio_idle\n", \
+			SAM("adjusting mute: %i=peasycap->audio_idle\n",
 							peasycap->audio_idle);
 			return 0;
 		}
@@ -990,7 +990,7 @@ if (NULL == p) {
 kd = isdongle(peasycap);
 if (0 <= kd && DONGLE_MANY > kd) {
 	if (mutex_lock_interruptible(&easycapdc60_dongle[kd].mutex_video)) {
-		SAY("ERROR: cannot lock " \
+		SAY("ERROR: cannot lock "
 				"easycapdc60_dongle[%i].mutex_video\n", kd);
 		return -ERESTARTSYS;
 	}
@@ -1063,9 +1063,9 @@ case VIDIOC_QUERYCAP: {
 		if (3 > i) {
 			rc = (int) strict_strtol(p1, 10, &lng);
 			if (0 != rc) {
-				SAM("ERROR: %i=strict_strtol(%s,.,,)\n", \
+				SAM("ERROR: %i=strict_strtol(%s,.,,)\n",
 								rc, p1);
-				mutex_unlock(&easycapdc60_dongle[kd].\
+				mutex_unlock(&easycapdc60_dongle[kd].
 								mutex_video);
 				return -EINVAL;
 			}
@@ -1075,27 +1075,27 @@ case VIDIOC_QUERYCAP: {
 	}
 
 	memset(&v4l2_capability, 0, sizeof(struct v4l2_capability));
-	strlcpy(&v4l2_capability.driver[0], "easycap", \
+	strlcpy(&v4l2_capability.driver[0], "easycap",
 					sizeof(v4l2_capability.driver));
 
-	v4l2_capability.capabilities = \
-				V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING | \
+	v4l2_capability.capabilities =
+				V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 				V4L2_CAP_AUDIO         | V4L2_CAP_READWRITE;
 
 	v4l2_capability.version = KERNEL_VERSION(k[0], k[1], k[2]);
 	JOM(8, "v4l2_capability.version=(%i,%i,%i)\n", k[0], k[1], k[2]);
 
-	strlcpy(&v4l2_capability.card[0], "EasyCAP DC60", \
+	strlcpy(&v4l2_capability.card[0], "EasyCAP DC60",
 		sizeof(v4l2_capability.card));
 
-	if (usb_make_path(peasycap->pusb_device, &v4l2_capability.bus_info[0],\
+	if (usb_make_path(peasycap->pusb_device, &v4l2_capability.bus_info[0],
 				sizeof(v4l2_capability.bus_info)) < 0) {
-		strlcpy(&v4l2_capability.bus_info[0], "EasyCAP bus_info", \
+		strlcpy(&v4l2_capability.bus_info[0], "EasyCAP bus_info",
 					sizeof(v4l2_capability.bus_info));
-		JOM(8, "%s=v4l2_capability.bus_info\n", \
+		JOM(8, "%s=v4l2_capability.bus_info\n",
 					&v4l2_capability.bus_info[0]);
 	}
-	if (0 != copy_to_user((void __user *)arg, &v4l2_capability, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_capability,
 					sizeof(struct v4l2_capability))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1109,7 +1109,7 @@ case VIDIOC_ENUMINPUT: {
 
 	JOM(8, "VIDIOC_ENUMINPUT\n");
 
-	if (0 != copy_from_user(&v4l2_input, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_input, (void __user *)arg,
 					sizeof(struct v4l2_input))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1125,7 +1125,7 @@ case VIDIOC_ENUMINPUT: {
 		v4l2_input.type = V4L2_INPUT_TYPE_CAMERA;
 		v4l2_input.audioset = 0x01;
 		v4l2_input.tuner = 0;
-		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM | \
+		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM |
 				V4L2_STD_NTSC ;
 		v4l2_input.status = 0;
 		JOM(8, "%i=index: %s\n", index, &v4l2_input.name[0]);
@@ -1137,7 +1137,7 @@ case VIDIOC_ENUMINPUT: {
 		v4l2_input.type = V4L2_INPUT_TYPE_CAMERA;
 		v4l2_input.audioset = 0x01;
 		v4l2_input.tuner = 0;
-		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM | \
+		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM |
 				V4L2_STD_NTSC ;
 		v4l2_input.status = 0;
 		JOM(8, "%i=index: %s\n", index, &v4l2_input.name[0]);
@@ -1149,7 +1149,7 @@ case VIDIOC_ENUMINPUT: {
 		v4l2_input.type = V4L2_INPUT_TYPE_CAMERA;
 		v4l2_input.audioset = 0x01;
 		v4l2_input.tuner = 0;
-		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM | \
+		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM |
 				V4L2_STD_NTSC ;
 		v4l2_input.status = 0;
 		JOM(8, "%i=index: %s\n", index, &v4l2_input.name[0]);
@@ -1161,7 +1161,7 @@ case VIDIOC_ENUMINPUT: {
 		v4l2_input.type = V4L2_INPUT_TYPE_CAMERA;
 		v4l2_input.audioset = 0x01;
 		v4l2_input.tuner = 0;
-		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM | \
+		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM |
 				V4L2_STD_NTSC ;
 		v4l2_input.status = 0;
 		JOM(8, "%i=index: %s\n", index, &v4l2_input.name[0]);
@@ -1173,7 +1173,7 @@ case VIDIOC_ENUMINPUT: {
 		v4l2_input.type = V4L2_INPUT_TYPE_CAMERA;
 		v4l2_input.audioset = 0x01;
 		v4l2_input.tuner = 0;
-		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM | \
+		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM |
 				V4L2_STD_NTSC ;
 		v4l2_input.status = 0;
 		JOM(8, "%i=index: %s\n", index, &v4l2_input.name[0]);
@@ -1185,7 +1185,7 @@ case VIDIOC_ENUMINPUT: {
 		v4l2_input.type = V4L2_INPUT_TYPE_CAMERA;
 		v4l2_input.audioset = 0x01;
 		v4l2_input.tuner = 0;
-		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM | \
+		v4l2_input.std = V4L2_STD_PAL | V4L2_STD_SECAM |
 				V4L2_STD_NTSC ;
 		v4l2_input.status = 0;
 		JOM(8, "%i=index: %s\n", index, &v4l2_input.name[0]);
@@ -1198,7 +1198,7 @@ case VIDIOC_ENUMINPUT: {
 	}
 	}
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_input, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_input,
 						sizeof(struct v4l2_input))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1266,7 +1266,7 @@ case VIDIOC_ENUMAUDOUT: {
 
 	JOM(8, "VIDIOC_ENUMAUDOUT\n");
 
-	if (0 != copy_from_user(&v4l2_audioout, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_audioout, (void __user *)arg,
 					sizeof(struct v4l2_audioout))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1280,7 +1280,7 @@ case VIDIOC_ENUMAUDOUT: {
 	v4l2_audioout.index = 0;
 	strcpy(&v4l2_audioout.name[0], "Soundtrack");
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_audioout, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_audioout,
 					sizeof(struct v4l2_audioout))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1294,7 +1294,7 @@ case VIDIOC_QUERYCTRL: {
 
 	JOM(8, "VIDIOC_QUERYCTRL\n");
 
-	if (0 != copy_from_user(&v4l2_queryctrl, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_queryctrl, (void __user *)arg,
 					sizeof(struct v4l2_queryctrl))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1303,9 +1303,9 @@ case VIDIOC_QUERYCTRL: {
 	i1 = 0;
 	while (0xFFFFFFFF != easycap_control[i1].id) {
 		if (easycap_control[i1].id == v4l2_queryctrl.id) {
-			JOM(8, "VIDIOC_QUERYCTRL  %s=easycap_control[%i]" \
+			JOM(8, "VIDIOC_QUERYCTRL  %s=easycap_control[%i]"
 				".name\n", &easycap_control[i1].name[0], i1);
-			memcpy(&v4l2_queryctrl, &easycap_control[i1], \
+			memcpy(&v4l2_queryctrl, &easycap_control[i1],
 						sizeof(struct v4l2_queryctrl));
 			break;
 		}
@@ -1316,7 +1316,7 @@ case VIDIOC_QUERYCTRL: {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EINVAL;
 	}
-	if (0 != copy_to_user((void __user *)arg, &v4l2_queryctrl, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_queryctrl,
 					sizeof(struct v4l2_queryctrl))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1340,7 +1340,7 @@ case VIDIOC_G_CTRL: {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -ENOMEM;
 	}
-	if (0 != copy_from_user(pv4l2_control, (void __user *)arg, \
+	if (0 != copy_from_user(pv4l2_control, (void __user *)arg,
 					sizeof(struct v4l2_control))) {
 		kfree(pv4l2_control);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
@@ -1382,14 +1382,14 @@ case VIDIOC_G_CTRL: {
 		break;
 	}
 	default: {
-		SAM("ERROR: unknown V4L2 control: 0x%08X=id\n", \
+		SAM("ERROR: unknown V4L2 control: 0x%08X=id\n",
 							pv4l2_control->id);
 		kfree(pv4l2_control);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EINVAL;
 	}
 	}
-	if (0 != copy_to_user((void __user *)arg, pv4l2_control, \
+	if (0 != copy_to_user((void __user *)arg, pv4l2_control,
 					sizeof(struct v4l2_control))) {
 		kfree(pv4l2_control);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
@@ -1410,7 +1410,7 @@ case VIDIOC_S_CTRL:
 
 	JOM(8, "VIDIOC_S_CTRL\n");
 
-	if (0 != copy_from_user(&v4l2_control, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_control, (void __user *)arg,
 					sizeof(struct v4l2_control))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1461,7 +1461,7 @@ case VIDIOC_S_CTRL:
 		break;
 	}
 	default: {
-		SAM("ERROR: unknown V4L2 control: 0x%08X=id\n", \
+		SAM("ERROR: unknown V4L2 control: 0x%08X=id\n",
 							v4l2_control.id);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EINVAL;
@@ -1482,7 +1482,7 @@ case VIDIOC_ENUM_FMT: {
 
 	JOM(8, "VIDIOC_ENUM_FMT\n");
 
-	if (0 != copy_from_user(&v4l2_fmtdesc, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_fmtdesc, (void __user *)arg,
 					sizeof(struct v4l2_fmtdesc))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1543,7 +1543,7 @@ case VIDIOC_ENUM_FMT: {
 		return -EINVAL;
 	}
 	}
-	if (0 != copy_to_user((void __user *)arg, &v4l2_fmtdesc, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_fmtdesc,
 					sizeof(struct v4l2_fmtdesc))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1562,7 +1562,7 @@ case VIDIOC_ENUM_FRAMESIZES: {
 
 	JOM(8, "VIDIOC_ENUM_FRAMESIZES\n");
 
-	if (0 != copy_from_user(&v4l2_frmsizeenum, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_frmsizeenum, (void __user *)arg,
 					sizeof(struct v4l2_frmsizeenum))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1577,40 +1577,40 @@ case VIDIOC_ENUM_FRAMESIZES: {
 		case 0: {
 			v4l2_frmsizeenum.discrete.width = 640;
 			v4l2_frmsizeenum.discrete.height = 480;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						 discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						 discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
 		case 1: {
 			v4l2_frmsizeenum.discrete.width = 320;
 			v4l2_frmsizeenum.discrete.height = 240;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
 		case 2: {
 			v4l2_frmsizeenum.discrete.width = 720;
 			v4l2_frmsizeenum.discrete.height = 480;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
 		case 3: {
 			v4l2_frmsizeenum.discrete.width = 360;
 			v4l2_frmsizeenum.discrete.height = 240;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
@@ -1625,50 +1625,50 @@ case VIDIOC_ENUM_FRAMESIZES: {
 		case 0: {
 			v4l2_frmsizeenum.discrete.width = 640;
 			v4l2_frmsizeenum.discrete.height = 480;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
 		case 1: {
 			v4l2_frmsizeenum.discrete.width = 320;
 			v4l2_frmsizeenum.discrete.height = 240;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
 		case 2: {
 			v4l2_frmsizeenum.discrete.width = 704;
 			v4l2_frmsizeenum.discrete.height = 576;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
 		case 3: {
 			v4l2_frmsizeenum.discrete.width = 720;
 			v4l2_frmsizeenum.discrete.height = 576;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
 		case 4: {
 			v4l2_frmsizeenum.discrete.width = 360;
 			v4l2_frmsizeenum.discrete.height = 288;
-			JOM(8, "%i=index: %ix%i\n", index, \
-					(int)(v4l2_frmsizeenum.\
-						discrete.width), \
-					(int)(v4l2_frmsizeenum.\
+			JOM(8, "%i=index: %ix%i\n", index,
+					(int)(v4l2_frmsizeenum.
+						discrete.width),
+					(int)(v4l2_frmsizeenum.
 						discrete.height));
 			break;
 		}
@@ -1679,7 +1679,7 @@ case VIDIOC_ENUM_FRAMESIZES: {
 		}
 		}
 	}
-	if (0 != copy_to_user((void __user *)arg, &v4l2_frmsizeenum, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_frmsizeenum,
 					sizeof(struct v4l2_frmsizeenum))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1708,7 +1708,7 @@ case VIDIOC_ENUM_FRAMEINTERVALS: {
 			denominator = 25;
 	}
 
-	if (0 != copy_from_user(&v4l2_frmivalenum, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_frmivalenum, (void __user *)arg,
 					sizeof(struct v4l2_frmivalenum))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1722,16 +1722,16 @@ case VIDIOC_ENUM_FRAMEINTERVALS: {
 	case 0: {
 		v4l2_frmivalenum.discrete.numerator = 1;
 		v4l2_frmivalenum.discrete.denominator = denominator;
-		JOM(8, "%i=index: %i/%i\n", index, \
-			(int)(v4l2_frmivalenum.discrete.numerator), \
+		JOM(8, "%i=index: %i/%i\n", index,
+			(int)(v4l2_frmivalenum.discrete.numerator),
 			(int)(v4l2_frmivalenum.discrete.denominator));
 		break;
 	}
 	case 1: {
 		v4l2_frmivalenum.discrete.numerator = 1;
 		v4l2_frmivalenum.discrete.denominator = denominator/5;
-		JOM(8, "%i=index: %i/%i\n", index, \
-			(int)(v4l2_frmivalenum.discrete.numerator), \
+		JOM(8, "%i=index: %i/%i\n", index,
+			(int)(v4l2_frmivalenum.discrete.numerator),
 			(int)(v4l2_frmivalenum.discrete.denominator));
 		break;
 	}
@@ -1741,7 +1741,7 @@ case VIDIOC_ENUM_FRAMEINTERVALS: {
 		return -EINVAL;
 	}
 	}
-	if (0 != copy_to_user((void __user *)arg, &v4l2_frmivalenum, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_frmivalenum,
 					sizeof(struct v4l2_frmivalenum))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1767,7 +1767,7 @@ case VIDIOC_G_FMT: {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -ENOMEM;
 	}
-	if (0 != copy_from_user(pv4l2_format, (void __user *)arg, \
+	if (0 != copy_from_user(pv4l2_format, (void __user *)arg,
 					sizeof(struct v4l2_format))) {
 		kfree(pv4l2_format);
 		kfree(pv4l2_pix_format);
@@ -1784,13 +1784,13 @@ case VIDIOC_G_FMT: {
 
 	memset(pv4l2_pix_format, 0, sizeof(struct v4l2_pix_format));
 	pv4l2_format->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	memcpy(&pv4l2_format->fmt.pix, \
-			 &easycap_format[peasycap->format_offset]\
+	memcpy(&pv4l2_format->fmt.pix,
+			 &easycap_format[peasycap->format_offset]
 			.v4l2_format.fmt.pix, sizeof(struct v4l2_pix_format));
-	JOM(8, "user is told: %s\n", \
+	JOM(8, "user is told: %s\n",
 			&easycap_format[peasycap->format_offset].name[0]);
 
-	if (0 != copy_to_user((void __user *)arg, pv4l2_format, \
+	if (0 != copy_to_user((void __user *)arg, pv4l2_format,
 					sizeof(struct v4l2_format))) {
 		kfree(pv4l2_format);
 		kfree(pv4l2_pix_format);
@@ -1817,17 +1817,17 @@ case VIDIOC_S_FMT: {
 		try = false;
 	}
 
-	if (0 != copy_from_user(&v4l2_format, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_format, (void __user *)arg,
 					sizeof(struct v4l2_format))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
 	}
 
-	best_format = adjust_format(peasycap, \
-					v4l2_format.fmt.pix.width, \
-					v4l2_format.fmt.pix.height, \
-					v4l2_format.fmt.pix.pixelformat, \
-					v4l2_format.fmt.pix.field, \
+	best_format = adjust_format(peasycap,
+					v4l2_format.fmt.pix.width,
+					v4l2_format.fmt.pix.height,
+					v4l2_format.fmt.pix.pixelformat,
+					v4l2_format.fmt.pix.field,
 					try);
 	if (0 > best_format) {
 		if (-EBUSY == best_format) {
@@ -1842,11 +1842,11 @@ case VIDIOC_S_FMT: {
 	memset(&v4l2_pix_format, 0, sizeof(struct v4l2_pix_format));
 	v4l2_format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-	memcpy(&(v4l2_format.fmt.pix), &(easycap_format[best_format]\
+	memcpy(&(v4l2_format.fmt.pix), &(easycap_format[best_format]
 			.v4l2_format.fmt.pix), sizeof(v4l2_pix_format));
 	JOM(8, "user is told: %s\n", &easycap_format[best_format].name[0]);
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_format, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_format,
 					sizeof(struct v4l2_format))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1859,7 +1859,7 @@ case VIDIOC_CROPCAP: {
 
 	JOM(8, "VIDIOC_CROPCAP\n");
 
-	if (0 != copy_from_user(&v4l2_cropcap, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_cropcap, (void __user *)arg,
 					sizeof(struct v4l2_cropcap))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1883,7 +1883,7 @@ case VIDIOC_CROPCAP: {
 
 	JOM(8, "user is told: %ix%i\n", peasycap->width, peasycap->height);
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_cropcap, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_cropcap,
 					sizeof(struct v4l2_cropcap))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1899,7 +1899,7 @@ case VIDIOC_S_CROP: {
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_QUERYSTD: {
-	JOM(8, "VIDIOC_QUERYSTD: " \
+	JOM(8, "VIDIOC_QUERYSTD: "
 			"EasyCAP is incapable of detecting standard\n");
 	mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 	return -EINVAL;
@@ -1921,7 +1921,7 @@ case VIDIOC_ENUMSTD: {
 
 	JOM(8, "VIDIOC_ENUMSTD\n");
 
-	if (0 != copy_from_user(&v4l2_standard, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_standard, (void __user *)arg,
 					sizeof(struct v4l2_standard))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1929,7 +1929,7 @@ case VIDIOC_ENUMSTD: {
 	index = v4l2_standard.index;
 
 	last3 = last2; last2 = last1; last1 = last0; last0 = index;
-	if ((index == last3) && (index == last2) && \
+	if ((index == last3) && (index == last2) &&
 			(index == last1) && (index == last0)) {
 		index++;
 		last3 = last2; last2 = last1; last1 = last0; last0 = index;
@@ -1948,14 +1948,14 @@ case VIDIOC_ENUMSTD: {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EINVAL;
 	}
-	JOM(8, "%i=index: %s\n", index, \
+	JOM(8, "%i=index: %s\n", index,
 				&(peasycap_standard->v4l2_standard.name[0]));
-	memcpy(&v4l2_standard, &(peasycap_standard->v4l2_standard), \
+	memcpy(&v4l2_standard, &(peasycap_standard->v4l2_standard),
 					sizeof(struct v4l2_standard));
 
 	v4l2_standard.index = index;
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_standard, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_standard,
 					sizeof(struct v4l2_standard))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1970,13 +1970,13 @@ case VIDIOC_G_STD: {
 	JOM(8, "VIDIOC_G_STD\n");
 
 	if (0 > peasycap->standard_offset) {
-		JOM(8, "%i=peasycap->standard_offset\n", \
+		JOM(8, "%i=peasycap->standard_offset\n",
 					peasycap->standard_offset);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EBUSY;
 	}
 
-	if (0 != copy_from_user(&std_id, (void __user *)arg, \
+	if (0 != copy_from_user(&std_id, (void __user *)arg,
 						sizeof(v4l2_std_id))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -1985,10 +1985,10 @@ case VIDIOC_G_STD: {
 	peasycap_standard = &easycap_standard[peasycap->standard_offset];
 	std_id = peasycap_standard->v4l2_standard.id;
 
-	JOM(8, "user is told: %s\n", \
+	JOM(8, "user is told: %s\n",
 				&peasycap_standard->v4l2_standard.name[0]);
 
-	if (0 != copy_to_user((void __user *)arg, &std_id, \
+	if (0 != copy_to_user((void __user *)arg, &std_id,
 						sizeof(v4l2_std_id))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2002,14 +2002,14 @@ case VIDIOC_S_STD: {
 
 	JOM(8, "VIDIOC_S_STD\n");
 
-	if (0 != copy_from_user(&std_id, (void __user *)arg, \
+	if (0 != copy_from_user(&std_id, (void __user *)arg,
 						sizeof(v4l2_std_id))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
 	}
 
-	JOM(8, "User requests standard: 0x%08X%08X\n", \
-		(int)((std_id & (((v4l2_std_id)0xFFFFFFFF) << 32)) >> 32), \
+	JOM(8, "User requests standard: 0x%08X%08X\n",
+		(int)((std_id & (((v4l2_std_id)0xFFFFFFFF) << 32)) >> 32),
 		(int)(std_id & ((v4l2_std_id)0xFFFFFFFF)));
 
 	rc = adjust_standard(peasycap, std_id);
@@ -2027,7 +2027,7 @@ case VIDIOC_REQBUFS: {
 
 	JOM(8, "VIDIOC_REQBUFS\n");
 
-	if (0 != copy_from_user(&v4l2_requestbuffers, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_requestbuffers, (void __user *)arg,
 				sizeof(struct v4l2_requestbuffers))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2048,16 +2048,16 @@ case VIDIOC_REQBUFS: {
 	if (nbuffers > FRAME_BUFFER_MANY)
 		nbuffers = FRAME_BUFFER_MANY;
 	if (v4l2_requestbuffers.count == nbuffers) {
-		JOM(8, "                   ... agree to  %i buffers\n", \
+		JOM(8, "                   ... agree to  %i buffers\n",
 								nbuffers);
 	} else {
-		JOM(8, "                  ... insist on  %i buffers\n", \
+		JOM(8, "                  ... insist on  %i buffers\n",
 								nbuffers);
 		v4l2_requestbuffers.count = nbuffers;
 	}
 	peasycap->frame_buffer_many = nbuffers;
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_requestbuffers, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_requestbuffers,
 				sizeof(struct v4l2_requestbuffers))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2072,13 +2072,13 @@ case VIDIOC_QUERYBUF: {
 	JOM(8, "VIDIOC_QUERYBUF\n");
 
 	if (peasycap->video_eof) {
-		JOM(8, "returning -EIO because  %i=video_eof\n", \
+		JOM(8, "returning -EIO because  %i=video_eof\n",
 							peasycap->video_eof);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EIO;
 	}
 
-	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg,
 					sizeof(struct v4l2_buffer))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2095,8 +2095,8 @@ case VIDIOC_QUERYBUF: {
 	v4l2_buffer.index = index;
 	v4l2_buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	v4l2_buffer.bytesused = peasycap->frame_buffer_used;
-	v4l2_buffer.flags = V4L2_BUF_FLAG_MAPPED | \
-						peasycap->done[index] | \
+	v4l2_buffer.flags = V4L2_BUF_FLAG_MAPPED |
+						peasycap->done[index] |
 						peasycap->queued[index];
 	v4l2_buffer.field = V4L2_FIELD_NONE;
 	v4l2_buffer.memory = V4L2_MEMORY_MMAP;
@@ -2108,14 +2108,14 @@ case VIDIOC_QUERYBUF: {
 	JOM(16, "  %10i=bytesused\n", v4l2_buffer.bytesused);
 	JOM(16, "  0x%08X=flags\n", v4l2_buffer.flags);
 	JOM(16, "  %10i=field\n", v4l2_buffer.field);
-	JOM(16, "  %10li=timestamp.tv_usec\n", \
+	JOM(16, "  %10li=timestamp.tv_usec\n",
 					 (long)v4l2_buffer.timestamp.tv_usec);
 	JOM(16, "  %10i=sequence\n", v4l2_buffer.sequence);
 	JOM(16, "  0x%08X=memory\n", v4l2_buffer.memory);
 	JOM(16, "  %10i=m.offset\n", v4l2_buffer.m.offset);
 	JOM(16, "  %10i=length\n", v4l2_buffer.length);
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer,
 					sizeof(struct v4l2_buffer))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2128,7 +2128,7 @@ case VIDIOC_QBUF: {
 
 	JOM(8, "VIDIOC_QBUF\n");
 
-	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg,
 					sizeof(struct v4l2_buffer))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2142,7 +2142,7 @@ case VIDIOC_QBUF: {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EINVAL;
 	}
-	if (v4l2_buffer.index < 0 || \
+	if (v4l2_buffer.index < 0 ||
 		 (v4l2_buffer.index >= peasycap->frame_buffer_many)) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EINVAL;
@@ -2152,13 +2152,13 @@ case VIDIOC_QBUF: {
 	peasycap->done[v4l2_buffer.index]   = 0;
 	peasycap->queued[v4l2_buffer.index] = V4L2_BUF_FLAG_QUEUED;
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer,
 					sizeof(struct v4l2_buffer))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
 	}
 
-	JOM(8, ".....   user queueing frame buffer %i\n", \
+	JOM(8, ".....   user queueing frame buffer %i\n",
 						(int)v4l2_buffer.index);
 
 	peasycap->frame_lock = 0;
@@ -2184,14 +2184,14 @@ case VIDIOC_DQBUF:
 	JOM(8, "VIDIOC_DQBUF\n");
 
 	if ((peasycap->video_idle) || (peasycap->video_eof)) {
-		JOM(8, "returning -EIO because  " \
-				"%i=video_idle  %i=video_eof\n", \
+		JOM(8, "returning -EIO because  "
+				"%i=video_idle  %i=video_eof\n",
 				peasycap->video_idle, peasycap->video_eof);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EIO;
 	}
 
-	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg, \
+	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg,
 					sizeof(struct v4l2_buffer))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2216,7 +2216,7 @@ case VIDIOC_DQBUF:
 		else if (V4L2_FIELD_ANY == v4l2_buffer.field)
 			JOM(8, "user wants V4L2_FIELD_ANY\n");
 		else
-			JOM(8, "user wants V4L2_FIELD_...UNKNOWN: %i\n", \
+			JOM(8, "user wants V4L2_FIELD_...UNKNOWN: %i\n",
 							v4l2_buffer.field);
 	}
 
@@ -2237,9 +2237,9 @@ case VIDIOC_DQBUF:
 		do {
 			rcdq = easycap_dqbuf(peasycap, 0);
 			if (-EIO == rcdq) {
-				JOM(8, "returning -EIO because " \
+				JOM(8, "returning -EIO because "
 						"dqbuf() returned -EIO\n");
-				mutex_unlock(&easycapdc60_dongle[kd].\
+				mutex_unlock(&easycapdc60_dongle[kd].
 								mutex_video);
 				return -EIO;
 			}
@@ -2251,7 +2251,7 @@ case VIDIOC_DQBUF:
 		}
 	}
 	if (V4L2_BUF_FLAG_DONE != peasycap->done[peasycap->frame_read]) {
-		JOM(8, "V4L2_BUF_FLAG_DONE != 0x%08X\n", \
+		JOM(8, "V4L2_BUF_FLAG_DONE != 0x%08X\n",
 					peasycap->done[peasycap->frame_read]);
 	}
 	peasycap->polled = 0;
@@ -2264,7 +2264,7 @@ case VIDIOC_DQBUF:
 		for (i = 0; i < 180; i++)
 			j += peasycap->merit[i];
 		if (90 < j) {
-			SAM("easycap driver shutting down " \
+			SAM("easycap driver shutting down "
 							"on condition blue\n");
 			peasycap->video_eof = 1; peasycap->audio_eof = 1;
 		}
@@ -2303,10 +2303,10 @@ case VIDIOC_DQBUF:
 		timeval2.tv_sec = timeval1.tv_sec + sdr.quotient;
 	}
 	if (!(peasycap->isequence % 500)) {
-		fudge = ((long long int)(1000000)) * \
-				((long long int)(timeval.tv_sec - \
-						timeval2.tv_sec)) + \
-				(long long int)(timeval.tv_usec - \
+		fudge = ((long long int)(1000000)) *
+				((long long int)(timeval.tv_sec -
+						timeval2.tv_sec)) +
+				(long long int)(timeval.tv_usec -
 						timeval2.tv_usec);
 		sdr = signed_div(fudge, 1000);
 		sll = sdr.quotient;
@@ -2327,16 +2327,16 @@ case VIDIOC_DQBUF:
 	JOM(16, "  %10i=bytesused\n", v4l2_buffer.bytesused);
 	JOM(16, "  0x%08X=flags\n", v4l2_buffer.flags);
 	JOM(16, "  %10i=field\n", v4l2_buffer.field);
-	JOM(16, "  %10li=timestamp.tv_sec\n", \
+	JOM(16, "  %10li=timestamp.tv_sec\n",
 					(long)v4l2_buffer.timestamp.tv_sec);
-	JOM(16, "  %10li=timestamp.tv_usec\n", \
+	JOM(16, "  %10li=timestamp.tv_usec\n",
 					(long)v4l2_buffer.timestamp.tv_usec);
 	JOM(16, "  %10i=sequence\n", v4l2_buffer.sequence);
 	JOM(16, "  0x%08X=memory\n", v4l2_buffer.memory);
 	JOM(16, "  %10i=m.offset\n", v4l2_buffer.m.offset);
 	JOM(16, "  %10i=length\n", v4l2_buffer.length);
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer, \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer,
 						sizeof(struct v4l2_buffer))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -EFAULT;
@@ -2344,17 +2344,17 @@ case VIDIOC_DQBUF:
 
 	input = peasycap->frame_buffer[peasycap->frame_read][0].input;
 	if (0x08 & input) {
-		JOM(8, "user is offered frame buffer %i, input %i\n", \
+		JOM(8, "user is offered frame buffer %i, input %i\n",
 					peasycap->frame_read, (0x07 & input));
 	} else {
-		JOM(8, "user is offered frame buffer %i\n", \
+		JOM(8, "user is offered frame buffer %i\n",
 							peasycap->frame_read);
 	}
 	peasycap->frame_lock = 1;
 	JOM(8, "%i=peasycap->frame_fill\n", peasycap->frame_fill);
 	if (peasycap->frame_read == peasycap->frame_fill) {
 		if (peasycap->frame_lock) {
-			JOM(8, "WORRY:  filling frame buffer " \
+			JOM(8, "WORRY:  filling frame buffer "
 						"while offered to user\n");
 		}
 	}
@@ -2421,7 +2421,7 @@ case VIDIOC_G_PARM: {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -ENOMEM;
 	}
-	if (0 != copy_from_user(pv4l2_streamparm, (void __user *)arg, \
+	if (0 != copy_from_user(pv4l2_streamparm, (void __user *)arg,
 					sizeof(struct v4l2_streamparm))) {
 		kfree(pv4l2_streamparm);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
@@ -2438,22 +2438,22 @@ case VIDIOC_G_PARM: {
 	pv4l2_streamparm->parm.capture.timeperframe.numerator = 1;
 
 	if (peasycap->fps) {
-		pv4l2_streamparm->parm.capture.timeperframe.\
+		pv4l2_streamparm->parm.capture.timeperframe.
 						denominator = peasycap->fps;
 	} else {
 		if (true == peasycap->ntsc) {
-			pv4l2_streamparm->parm.capture.timeperframe.\
+			pv4l2_streamparm->parm.capture.timeperframe.
 						denominator = 30;
 		} else {
-			pv4l2_streamparm->parm.capture.timeperframe.\
+			pv4l2_streamparm->parm.capture.timeperframe.
 						denominator = 25;
 		}
 	}
 
-	pv4l2_streamparm->parm.capture.readbuffers = \
+	pv4l2_streamparm->parm.capture.readbuffers =
 						peasycap->frame_buffer_many;
 	pv4l2_streamparm->parm.capture.extendedmode = 0;
-	if (0 != copy_to_user((void __user *)arg, pv4l2_streamparm, \
+	if (0 != copy_to_user((void __user *)arg, pv4l2_streamparm,
 					sizeof(struct v4l2_streamparm))) {
 		kfree(pv4l2_streamparm);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
@@ -2520,7 +2520,7 @@ return 0;
 /*****************************************************************************/
 #if !defined(EASYCAP_NEEDS_ALSA)
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) || \
+#if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) ||
 	(defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)))
 long
 easyoss_ioctl_noinode(struct file *file, unsigned int cmd, unsigned long arg) {
@@ -2674,7 +2674,7 @@ case SNDCTL_DSP_SETFMT: {
 		JOM(8, "........... %i=outgoing\n", outgoing);
 		JOM(8, "        cf. %i=AFMT_S16_LE\n", AFMT_S16_LE);
 		JOM(8, "        cf. %i=AFMT_U8\n", AFMT_U8);
-		if (0 != copy_to_user((void __user *)arg, &outgoing, \
+		if (0 != copy_to_user((void __user *)arg, &outgoing,
 								sizeof(int))) {
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -EFAULT;
@@ -2762,8 +2762,8 @@ case SNDCTL_DSP_SETTRIGGER: {
 		return -EFAULT;
 	}
 	JOM(8, "........... %i=incoming\n", incoming);
-	JOM(8, "........... cf 0x%x=PCM_ENABLE_INPUT " \
-				"0x%x=PCM_ENABLE_OUTPUT\n", \
+	JOM(8, "........... cf 0x%x=PCM_ENABLE_INPUT "
+				"0x%x=PCM_ENABLE_OUTPUT\n",
 					PCM_ENABLE_INPUT, PCM_ENABLE_OUTPUT);
 	;
 	;
@@ -2796,7 +2796,7 @@ case SNDCTL_DSP_GETISPACE: {
 	audio_buf_info.fragsize   = 0;
 	audio_buf_info.fragstotal = 0;
 
-	if (0 != copy_to_user((void __user *)arg, &audio_buf_info, \
+	if (0 != copy_to_user((void __user *)arg, &audio_buf_info,
 								sizeof(int))) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return -EFAULT;

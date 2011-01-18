@@ -186,7 +186,7 @@ if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 } else {
-	JOM(16, "0x%08lX=peasycap->pusb_device\n", \
+	JOM(16, "0x%08lX=peasycap->pusb_device\n",
 					(long int)peasycap->pusb_device);
 }
 file->private_data = peasycap;
@@ -272,7 +272,7 @@ else {
 rate = ready_saa(peasycap->pusb_device);
 if (0 > rate) {
 	JOM(8, "not ready to capture after %i ms ...\n", PATIENCE);
-	JOM(8, "... saa register 0x1F has 0x%02X\n", \
+	JOM(8, "... saa register 0x1F has 0x%02X\n",
 				read_saa(peasycap->pusb_device, 0x1F));
 	ntsc = peasycap->ntsc;
 	} else {
@@ -323,17 +323,17 @@ if (true == other) {
 	peasycap_standard = &easycap_standard[0];
 	while (0xFFFF != peasycap_standard->mask) {
 		if (true == ntsc) {
-			if (NTSC_M == \
+			if (NTSC_M ==
 				peasycap_standard->v4l2_standard.index) {
-				peasycap->inputset[input].standard_offset = \
-						peasycap_standard - \
+				peasycap->inputset[input].standard_offset =
+						peasycap_standard -
 							&easycap_standard[0];
 				break;
 			}
 		} else {
-			if (PAL_BGHIN == \
+			if (PAL_BGHIN ==
 				peasycap_standard->v4l2_standard.index) {
-				peasycap->inputset[input].standard_offset = \
+				peasycap->inputset[input].standard_offset =
 						peasycap_standard -
 							&easycap_standard[0];
 				break;
@@ -345,7 +345,7 @@ if (true == other) {
 		SAM("ERROR: standard not found\n");
 		return -EINVAL;
 	}
-JOM(8, "%i=peasycap->inputset[%i].standard_offset\n", \
+JOM(8, "%i=peasycap->inputset[%i].standard_offset\n",
 		peasycap->inputset[input].standard_offset, input);
 }
 peasycap->format_offset = -8192;
@@ -372,12 +372,12 @@ if (0 > peasycap->input) {
 	return -ENOENT;
 }
 if (0 > peasycap->standard_offset) {
-	SAM("MISTAKE:  %i=peasycap->standard_offset\n", \
+	SAM("MISTAKE:  %i=peasycap->standard_offset\n",
 						peasycap->standard_offset);
 	return -ENOENT;
 }
 if (0 > peasycap->format_offset) {
-	SAM("MISTAKE:  %i=peasycap->format_offset\n", \
+	SAM("MISTAKE:  %i=peasycap->format_offset\n",
 						peasycap->format_offset);
 	return -ENOENT;
 }
@@ -458,7 +458,7 @@ if (NULL == peasycap->pusb_device) {
 	return -ENODEV;
 }
 rc = usb_set_interface(peasycap->pusb_device,
-			peasycap->video_interface, \
+			peasycap->video_interface,
 			peasycap->video_altsetting_off);
 if (0 != rc) {
 	SAM("ERROR: usb_set_interface() returned %i\n", rc);
@@ -494,24 +494,24 @@ select_input(peasycap->pusb_device, peasycap->input, 9);
 if (input == peasycap->inputset[input].input) {
 	off = peasycap->inputset[input].standard_offset;
 	if (off != peasycap->standard_offset) {
-		rc = adjust_standard(peasycap, \
+		rc = adjust_standard(peasycap,
 				easycap_standard[off].v4l2_standard.id);
 		if (0 != rc) {
 			SAM("ERROR: adjust_standard() returned %i\n", rc);
 			return -EFAULT;
 		}
-		JOM(8, "%i=peasycap->standard_offset\n", \
+		JOM(8, "%i=peasycap->standard_offset\n",
 						peasycap->standard_offset);
 	} else {
-		JOM(8, "%i=peasycap->standard_offset unchanged\n", \
+		JOM(8, "%i=peasycap->standard_offset unchanged\n",
 						peasycap->standard_offset);
 	}
 	off = peasycap->inputset[input].format_offset;
 	if (off != peasycap->format_offset) {
-		rc = adjust_format(peasycap, \
-			easycap_format[off].v4l2_format.fmt.pix.width, \
-			easycap_format[off].v4l2_format.fmt.pix.height, \
-			easycap_format[off].v4l2_format.fmt.pix.pixelformat, \
+		rc = adjust_format(peasycap,
+			easycap_format[off].v4l2_format.fmt.pix.width,
+			easycap_format[off].v4l2_format.fmt.pix.height,
+			easycap_format[off].v4l2_format.fmt.pix.pixelformat,
 			easycap_format[off].v4l2_format.fmt.pix.field, false);
 		if (0 > rc) {
 			SAM("ERROR: adjust_format() returned %i\n", rc);
@@ -519,7 +519,7 @@ if (input == peasycap->inputset[input].input) {
 		}
 		JOM(8, "%i=peasycap->format_offset\n", peasycap->format_offset);
 	} else {
-		JOM(8, "%i=peasycap->format_offset unchanged\n", \
+		JOM(8, "%i=peasycap->format_offset unchanged\n",
 						peasycap->format_offset);
 	}
 	mood = peasycap->inputset[input].brightness;
@@ -568,7 +568,7 @@ if (NULL == peasycap->pusb_device) {
 	return -ENODEV;
 }
 rc = usb_set_interface(peasycap->pusb_device,
-			peasycap->video_interface, \
+			peasycap->video_interface,
 			peasycap->video_altsetting_on);
 if (0 != rc) {
 	SAM("ERROR: usb_set_interface() returned %i\n", rc);
@@ -623,74 +623,74 @@ if (!peasycap->video_isoc_streaming) {
 				isbuf = pdata_urb->isbuf;
 				purb->interval = 1;
 				purb->dev = peasycap->pusb_device;
-				purb->pipe = \
-					usb_rcvisocpipe(peasycap->pusb_device,\
+				purb->pipe =
+					usb_rcvisocpipe(peasycap->pusb_device,
 					peasycap->video_endpointnumber);
 				purb->transfer_flags = URB_ISO_ASAP;
-				purb->transfer_buffer = \
+				purb->transfer_buffer =
 					peasycap->video_isoc_buffer[isbuf].pgo;
-				purb->transfer_buffer_length = \
+				purb->transfer_buffer_length =
 					peasycap->video_isoc_buffer_size;
 				purb->complete = easycap_complete;
 				purb->context = peasycap;
 				purb->start_frame = 0;
-				purb->number_of_packets = \
+				purb->number_of_packets =
 					peasycap->video_isoc_framesperdesc;
 
-				for (j = 0;  j < peasycap->\
+				for (j = 0;  j < peasycap->
 					video_isoc_framesperdesc; j++) {
-						purb->iso_frame_desc[j].\
-						offset = j * \
-						peasycap->\
+						purb->iso_frame_desc[j].
+						offset = j *
+						peasycap->
 						video_isoc_maxframesize;
-						purb->iso_frame_desc[j].\
-						length = peasycap->\
+						purb->iso_frame_desc[j].
+						length = peasycap->
 						video_isoc_maxframesize;
 					}
 
 				rc = usb_submit_urb(purb, GFP_KERNEL);
 				if (0 != rc) {
 					isbad++;
-					SAM("ERROR: usb_submit_urb() failed " \
+					SAM("ERROR: usb_submit_urb() failed "
 							"for urb with rc:\n");
 					switch (rc) {
 					case -ENOMEM: {
-						SAM("ERROR: -ENOMEM=" \
+						SAM("ERROR: -ENOMEM="
 							"usb_submit_urb()\n");
 						break;
 					}
 					case -ENODEV: {
-						SAM("ERROR: -ENODEV=" \
+						SAM("ERROR: -ENODEV="
 							"usb_submit_urb()\n");
 						break;
 					}
 					case -ENXIO: {
-						SAM("ERROR: -ENXIO=" \
+						SAM("ERROR: -ENXIO="
 							"usb_submit_urb()\n");
 						break;
 					}
 					case -EINVAL: {
-						SAM("ERROR: -EINVAL=" \
+						SAM("ERROR: -EINVAL="
 							"usb_submit_urb()\n");
 						break;
 					}
 					case -EAGAIN: {
-						SAM("ERROR: -EAGAIN=" \
+						SAM("ERROR: -EAGAIN="
 							"usb_submit_urb()\n");
 						break;
 					}
 					case -EFBIG: {
-						SAM("ERROR: -EFBIG=" \
+						SAM("ERROR: -EFBIG="
 							"usb_submit_urb()\n");
 						break;
 					}
 					case -EPIPE: {
-						SAM("ERROR: -EPIPE=" \
+						SAM("ERROR: -EPIPE="
 							"usb_submit_urb()\n");
 						break;
 					}
 					case -EMSGSIZE: {
-						SAM("ERROR: -EMSGSIZE=" \
+						SAM("ERROR: -EMSGSIZE="
 							"usb_submit_urb()\n");
 						break;
 					}
@@ -699,8 +699,8 @@ if (!peasycap->video_isoc_streaming) {
 						break;
 					}
 					default: {
-						SAM("ERROR: %i=" \
-							"usb_submit_urb()\n",\
+						SAM("ERROR: %i="
+							"usb_submit_urb()\n",
 							rc);
 						break;
 					}
@@ -724,7 +724,7 @@ if (!peasycap->video_isoc_streaming) {
 	if (isbad) {
 		JOM(4, "attempting cleanup instead of submitting\n");
 		list_for_each(plist_head, (peasycap->purb_video_head)) {
-			pdata_urb = list_entry(plist_head, struct data_urb, \
+			pdata_urb = list_entry(plist_head, struct data_urb,
 								list_head);
 			if (NULL != pdata_urb) {
 				purb = pdata_urb->purb;
@@ -760,7 +760,7 @@ if (peasycap->video_isoc_streaming) {
 		JOM(4, "killing video urbs\n");
 		m = 0;
 		list_for_each(plist_head, (peasycap->purb_video_head)) {
-			pdata_urb = list_entry(plist_head, struct data_urb, \
+			pdata_urb = list_entry(plist_head, struct data_urb,
 								list_head);
 			if (NULL != pdata_urb) {
 				if (NULL != pdata_urb->purb) {
@@ -775,7 +775,7 @@ if (peasycap->video_isoc_streaming) {
 		return -EFAULT;
 	}
 } else {
-	JOM(8, "%i=video_isoc_streaming, no video urbs killed\n", \
+	JOM(8, "%i=video_isoc_streaming, no video urbs killed\n",
 					peasycap->video_isoc_streaming);
 }
 return 0;
@@ -914,7 +914,7 @@ if ((struct list_head *)NULL != peasycap->purb_video_head) {
 		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
 		if ((struct data_urb *)NULL != pdata_urb) {
 			kfree(pdata_urb);  pdata_urb = (struct data_urb *)NULL;
-			peasycap->allocation_video_struct -= \
+			peasycap->allocation_video_struct -=
 						sizeof(struct data_urb);
 			m++;
 		}
@@ -928,11 +928,11 @@ JOM(4, "freeing video isoc buffers.\n");
 m = 0;
 for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY;  k++) {
 	if ((void *)NULL != peasycap->video_isoc_buffer[k].pgo) {
-		free_pages((unsigned long)\
-				(peasycap->video_isoc_buffer[k].pgo), \
+		free_pages((unsigned long)
+				(peasycap->video_isoc_buffer[k].pgo),
 				VIDEO_ISOC_ORDER);
 		peasycap->video_isoc_buffer[k].pgo = (void *)NULL;
-		peasycap->allocation_video_page -= \
+		peasycap->allocation_video_page -=
 				((unsigned int)(0x01 << VIDEO_ISOC_ORDER));
 		m++;
 	}
@@ -944,7 +944,7 @@ gone = 0;
 for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
 	for (m = 0;  m < FIELD_BUFFER_SIZE/PAGE_SIZE;  m++) {
 		if ((void *)NULL != peasycap->field_buffer[k][m].pgo) {
-			free_page((unsigned long)\
+			free_page((unsigned long)
 					(peasycap->field_buffer[k][m].pgo));
 			peasycap->field_buffer[k][m].pgo = (void *)NULL;
 			peasycap->allocation_video_page -= 1;
@@ -959,7 +959,7 @@ gone = 0;
 for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
 	for (m = 0;  m < FRAME_BUFFER_SIZE/PAGE_SIZE;  m++) {
 		if ((void *)NULL != peasycap->frame_buffer[k][m].pgo) {
-			free_page((unsigned long)\
+			free_page((unsigned long)
 					(peasycap->frame_buffer[k][m].pgo));
 			peasycap->frame_buffer[k][m].pgo = (void *)NULL;
 			peasycap->allocation_video_page -= 1;
@@ -997,7 +997,7 @@ if ((struct list_head *)NULL != peasycap->purb_audio_head) {
 		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
 		if ((struct data_urb *)NULL != pdata_urb) {
 			kfree(pdata_urb);  pdata_urb = (struct data_urb *)NULL;
-			peasycap->allocation_audio_struct -= \
+			peasycap->allocation_audio_struct -=
 						sizeof(struct data_urb);
 			m++;
 		}
@@ -1011,16 +1011,16 @@ JOM(4, "freeing audio isoc buffers.\n");
 m = 0;
 for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
 	if ((void *)NULL != peasycap->audio_isoc_buffer[k].pgo) {
-		free_pages((unsigned long)\
-				(peasycap->audio_isoc_buffer[k].pgo), \
+		free_pages((unsigned long)
+				(peasycap->audio_isoc_buffer[k].pgo),
 				AUDIO_ISOC_ORDER);
 		peasycap->audio_isoc_buffer[k].pgo = (void *)NULL;
-		peasycap->allocation_audio_page -= \
+		peasycap->allocation_audio_page -=
 				((unsigned int)(0x01 << AUDIO_ISOC_ORDER));
 		m++;
 	}
 }
-JOM(4, "easyoss_delete(): isoc audio buffers freed: %i pages\n", \
+JOM(4, "easyoss_delete(): isoc audio buffers freed: %i pages\n",
 					m * (0x01 << AUDIO_ISOC_ORDER));
 /*---------------------------------------------------------------------------*/
 #if !defined(EASYCAP_NEEDS_ALSA)
@@ -1133,7 +1133,7 @@ if (0 <= kd && DONGLE_MANY > kd) {
 		return -ERESTARTSYS;
 	}
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: 0x%08lX\n", \
+		SAY("ERROR: bad peasycap: 0x%08lX\n",
 						(unsigned long int) peasycap);
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 		return -ERESTARTSYS;
@@ -1220,30 +1220,30 @@ if (0 <= input && INPUT_MANY > input) {
  */
 /*---------------------------------------------------------------------------*/
 miss = 0;
-while ((peasycap->field_read == peasycap->field_fill) || \
-				(0 != (0xFF00 & peasycap->field_buffer\
-					[peasycap->field_read][0].kount)) || \
-				(ifield != (0x00FF & peasycap->field_buffer\
+while ((peasycap->field_read == peasycap->field_fill) ||
+				(0 != (0xFF00 & peasycap->field_buffer
+					[peasycap->field_read][0].kount)) ||
+				(ifield != (0x00FF & peasycap->field_buffer
 					[peasycap->field_read][0].kount))) {
 	if (mode)
 		return -EAGAIN;
 
-	JOM(8, "first wait  on wq_video, " \
-				"%i=field_read  %i=field_fill\n", \
+	JOM(8, "first wait  on wq_video, "
+				"%i=field_read  %i=field_fill\n",
 				peasycap->field_read, peasycap->field_fill);
 
-	if (0 != (wait_event_interruptible(peasycap->wq_video, \
-			(peasycap->video_idle || peasycap->video_eof  || \
-			((peasycap->field_read != peasycap->field_fill) && \
-				(0 == (0xFF00 & peasycap->field_buffer\
-					[peasycap->field_read][0].kount)) && \
-				(ifield == (0x00FF & peasycap->field_buffer\
+	if (0 != (wait_event_interruptible(peasycap->wq_video,
+			(peasycap->video_idle || peasycap->video_eof  ||
+			((peasycap->field_read != peasycap->field_fill) &&
+				(0 == (0xFF00 & peasycap->field_buffer
+					[peasycap->field_read][0].kount)) &&
+				(ifield == (0x00FF & peasycap->field_buffer
 					[peasycap->field_read][0].kount))))))) {
 		SAM("aborted by signal\n");
 		return -EIO;
 		}
 	if (peasycap->video_idle) {
-		JOM(8, "%i=peasycap->video_idle ... returning -EAGAIN\n", \
+		JOM(8, "%i=peasycap->video_idle ... returning -EAGAIN\n",
 							peasycap->video_idle);
 		return -EAGAIN;
 	}
@@ -1289,30 +1289,30 @@ if (ifield)
 else
 	ifield = 1;
 miss = 0;
-while ((peasycap->field_read == peasycap->field_fill) || \
-				(0 != (0xFF00 & peasycap->field_buffer\
-					[peasycap->field_read][0].kount)) || \
-				(ifield != (0x00FF & peasycap->field_buffer\
+while ((peasycap->field_read == peasycap->field_fill) ||
+				(0 != (0xFF00 & peasycap->field_buffer
+					[peasycap->field_read][0].kount)) ||
+				(ifield != (0x00FF & peasycap->field_buffer
 					[peasycap->field_read][0].kount))) {
 	if (mode)
 		return -EAGAIN;
 
-	JOM(8, "second wait on wq_video, " \
-				"%i=field_read  %i=field_fill\n", \
+	JOM(8, "second wait on wq_video, "
+				"%i=field_read  %i=field_fill\n",
 				peasycap->field_read, peasycap->field_fill);
-	if (0 != (wait_event_interruptible(peasycap->wq_video, \
-			(peasycap->video_idle || peasycap->video_eof  || \
-			((peasycap->field_read != peasycap->field_fill) && \
-				(0 == (0xFF00 & peasycap->field_buffer\
-					[peasycap->field_read][0].kount)) && \
-				(ifield == (0x00FF & peasycap->field_buffer\
-					[peasycap->field_read][0].\
+	if (0 != (wait_event_interruptible(peasycap->wq_video,
+			(peasycap->video_idle || peasycap->video_eof  ||
+			((peasycap->field_read != peasycap->field_fill) &&
+				(0 == (0xFF00 & peasycap->field_buffer
+					[peasycap->field_read][0].kount)) &&
+				(ifield == (0x00FF & peasycap->field_buffer
+					[peasycap->field_read][0].
 								kount))))))) {
 		SAM("aborted by signal\n");
 		return -EIO;
 	}
 	if (peasycap->video_idle) {
-		JOM(8, "%i=peasycap->video_idle ... returning -EAGAIN\n", \
+		JOM(8, "%i=peasycap->video_idle ... returning -EAGAIN\n",
 							peasycap->video_idle);
 		return -EAGAIN;
 	}
@@ -1369,10 +1369,10 @@ if (peasycap->frame_buffer_many <= peasycap->frame_fill)
 	peasycap->frame_fill = 0;
 
 if (0x01 & easycap_standard[peasycap->standard_offset].mask) {
-	peasycap->frame_buffer[peasycap->frame_read][0].kount = \
+	peasycap->frame_buffer[peasycap->frame_read][0].kount =
 							V4L2_FIELD_TOP;
 } else {
-	peasycap->frame_buffer[peasycap->frame_read][0].kount = \
+	peasycap->frame_buffer[peasycap->frame_read][0].kount =
 							V4L2_FIELD_BOTTOM;
 }
 
@@ -1417,10 +1417,10 @@ if (NULL == peasycap) {
 badinput = false;
 input = 0x07 & peasycap->field_buffer[peasycap->field_read][0].input;
 
-JOM(8, "=====  parity %i, input 0x%02X, field buffer %i --> " \
-						"frame buffer %i\n", \
-			peasycap->field_buffer[peasycap->field_read][0].kount,\
-			peasycap->field_buffer[peasycap->field_read][0].input,\
+JOM(8, "=====  parity %i, input 0x%02X, field buffer %i --> "
+						"frame buffer %i\n",
+			peasycap->field_buffer[peasycap->field_read][0].kount,
+			peasycap->field_buffer[peasycap->field_read][0].input,
 			peasycap->field_read, peasycap->frame_fill);
 JOM(8, "=====  %i=bytesperpixel\n", peasycap->bytesperpixel);
 if (true == peasycap->offerfields)
@@ -1432,7 +1432,7 @@ if (true == peasycap->offerfields)
  */
 /*---------------------------------------------------------------------------*/
 if (peasycap->field_read == peasycap->field_fill) {
-	SAM("ERROR: on entry, still filling field buffer %i\n", \
+	SAM("ERROR: on entry, still filling field buffer %i\n",
 							peasycap->field_read);
 	return 0;
 }
@@ -1450,8 +1450,8 @@ offerfields = peasycap->offerfields;
 bytesperpixel = peasycap->bytesperpixel;
 decimatepixel = peasycap->decimatepixel;
 
-if ((2 != bytesperpixel) && \
-			(3 != bytesperpixel) && \
+if ((2 != bytesperpixel) &&
+			(3 != bytesperpixel) &&
 			(4 != bytesperpixel)) {
 	SAM("MISTAKE: %i=bytesperpixel\n", bytesperpixel);
 	return -EFAULT;
@@ -1462,12 +1462,12 @@ else
 	multiplier = 1;
 
 w2 = 2 * multiplier * (peasycap->width);
-w3 = bytesperpixel * \
-		multiplier * \
+w3 = bytesperpixel *
+		multiplier *
 		(peasycap->width);
-wz = multiplier * \
-		(peasycap->height) * \
-		multiplier * \
+wz = multiplier *
+		(peasycap->height) *
+		multiplier *
 		(peasycap->width);
 
 kex = peasycap->field_read;  mex = 0;
@@ -1481,7 +1481,7 @@ else
 	odd = false;
 
 if ((true == odd) && (false == decimatepixel)) {
-	JOM(8, "  initial skipping    %4i          bytes p.%4i\n", \
+	JOM(8, "  initial skipping    %4i          bytes p.%4i\n",
 							w3/multiplier, mad);
 	pad += (w3 / multiplier);  rad -= (w3 / multiplier);
 }
@@ -1510,7 +1510,7 @@ while (cz < wz) {
 				return -EFAULT;
 			}
 
-			more = (bytesperpixel * \
+			more = (bytesperpixel *
 					much) / 2;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			if (1 < bytesperpixel) {
@@ -1521,9 +1521,9 @@ while (cz < wz) {
 					**   BREAKAGE.  BEWARE.
 					**/
 					rad2 = rad + bytesperpixel - 1;
-					much = ((((2 * \
+					much = ((((2 *
 						rad2)/bytesperpixel)/2) * 2);
-					rump = ((bytesperpixel * \
+					rump = ((bytesperpixel *
 							much) / 2) - rad;
 					more = rad;
 					}
@@ -1531,17 +1531,17 @@ while (cz < wz) {
 				margin = 0;
 				if (much == rex) {
 					mask |= 0x04;
-					if ((mex + 1) < FIELD_BUFFER_SIZE/ \
+					if ((mex + 1) < FIELD_BUFFER_SIZE/
 								PAGE_SIZE) {
-						margin = *((__u8 *)(peasycap->\
-							field_buffer\
+						margin = *((__u8 *)(peasycap->
+							field_buffer
 							[kex][mex + 1].pgo));
 					} else
 						mask |= 0x08;
 				}
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			} else {
-				SAM("MISTAKE: %i=bytesperpixel\n", \
+				SAM("MISTAKE: %i=bytesperpixel\n",
 						bytesperpixel);
 				return -EFAULT;
 			}
@@ -1549,14 +1549,14 @@ while (cz < wz) {
 			if (rump)
 				caches++;
 				if (true == badinput) {
-					JOM(8, "ERROR: 0x%02X=->field_buffer" \
-						"[%i][%i].input, " \
-						"0x%02X=(0x08|->input)\n", \
-						peasycap->field_buffer\
-						[kex][mex].input, kex, mex, \
+					JOM(8, "ERROR: 0x%02X=->field_buffer"
+						"[%i][%i].input, "
+						"0x%02X=(0x08|->input)\n",
+						peasycap->field_buffer
+						[kex][mex].input, kex, mex,
 						(0x08|peasycap->input));
 				}
-			rc = redaub(peasycap, pad, pex, much, more, \
+			rc = redaub(peasycap, pad, pex, much, more,
 							mask, margin, isuy);
 			if (0 > rc) {
 				SAM("ERROR: redaub() failed\n");
@@ -1574,7 +1574,7 @@ while (cz < wz) {
 				mex++;
 				pex = peasycap->field_buffer[kex][mex].pgo;
 				rex = PAGE_SIZE;
-				if (peasycap->field_buffer[kex][mex].input != \
+				if (peasycap->field_buffer[kex][mex].input !=
 						(0x08|peasycap->input))
 					badinput = true;
 			}
@@ -1601,7 +1601,7 @@ while (cz < wz) {
 			do {
 				if (!rad) {
 					mad++;
-					pad = peasycap->frame_buffer\
+					pad = peasycap->frame_buffer
 						[kad][mad].pgo;
 					rad = PAGE_SIZE;
 				}
@@ -1634,7 +1634,7 @@ while (cz < wz) {
 				return -EFAULT;
 			}
 
-			more = (bytesperpixel * \
+			more = (bytesperpixel *
 					much) / 4;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			if (1 < bytesperpixel) {
@@ -1645,9 +1645,9 @@ while (cz < wz) {
 					**   BREAKAGE.  BEWARE.
 					**/
 					rad2 = rad + bytesperpixel - 1;
-					much = ((((2 * rad2)/bytesperpixel)/2)\
+					much = ((((2 * rad2)/bytesperpixel)/2)
 									* 4);
-					rump = ((bytesperpixel * \
+					rump = ((bytesperpixel *
 							much) / 4) - rad;
 					more = rad;
 					}
@@ -1655,10 +1655,10 @@ while (cz < wz) {
 				margin = 0;
 				if (much == rex) {
 					mask |= 0x04;
-					if ((mex + 1) < FIELD_BUFFER_SIZE/ \
+					if ((mex + 1) < FIELD_BUFFER_SIZE/
 								PAGE_SIZE) {
-						margin = *((__u8 *)(peasycap->\
-							field_buffer\
+						margin = *((__u8 *)(peasycap->
+							field_buffer
 							[kex][mex + 1].pgo));
 						}
 					else
@@ -1666,7 +1666,7 @@ while (cz < wz) {
 					}
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 				} else {
-					SAM("MISTAKE: %i=bytesperpixel\n", \
+					SAM("MISTAKE: %i=bytesperpixel\n",
 						bytesperpixel);
 					return -EFAULT;
 				}
@@ -1675,14 +1675,14 @@ while (cz < wz) {
 				caches++;
 
 				if (true == badinput) {
-					JOM(8, "ERROR: 0x%02X=->field_buffer" \
-						"[%i][%i].input, " \
-						"0x%02X=(0x08|->input)\n", \
-						peasycap->field_buffer\
-						[kex][mex].input, kex, mex, \
+					JOM(8, "ERROR: 0x%02X=->field_buffer"
+						"[%i][%i].input, "
+						"0x%02X=(0x08|->input)\n",
+						peasycap->field_buffer
+						[kex][mex].input, kex, mex,
 						(0x08|peasycap->input));
 				}
-			rc = redaub(peasycap, pad, pex, much, more, \
+			rc = redaub(peasycap, pad, pex, much, more,
 							mask, margin, isuy);
 			if (0 > rc) {
 				SAM("ERROR: redaub() failed\n");
@@ -1694,7 +1694,7 @@ while (cz < wz) {
 				mex++;
 				pex = peasycap->field_buffer[kex][mex].pgo;
 				rex = PAGE_SIZE;
-				if (peasycap->field_buffer[kex][mex].input != \
+				if (peasycap->field_buffer[kex][mex].input !=
 						(0x08|peasycap->input))
 					badinput = true;
 			}
@@ -1723,13 +1723,13 @@ while (cz < wz) {
 				mex++;
 				pex = peasycap->field_buffer[kex][mex].pgo;
 				rex = PAGE_SIZE;
-				if (peasycap->field_buffer[kex][mex].input != \
+				if (peasycap->field_buffer[kex][mex].input !=
 						(0x08|peasycap->input)) {
-					JOM(8, "ERROR: 0x%02X=->field_buffer"\
-						"[%i][%i].input, " \
-						"0x%02X=(0x08|->input)\n", \
-						peasycap->field_buffer\
-						[kex][mex].input, kex, mex, \
+					JOM(8, "ERROR: 0x%02X=->field_buffer"
+						"[%i][%i].input, "
+						"0x%02X=(0x08|->input)\n",
+						peasycap->field_buffer
+						[kex][mex].input, kex, mex,
 						(0x08|peasycap->input));
 					badinput = true;
 				}
@@ -1755,21 +1755,21 @@ if (cz != c2)
 c3 = (mad + 1)*PAGE_SIZE - rad;
 
 if (false == decimatepixel) {
-	if (bytesperpixel * \
-		cz != c3) \
-		SAM("ERROR: discrepancy %i in bytes written\n", \
-						c3 - (bytesperpixel * \
+	if (bytesperpixel *
+		cz != c3)
+		SAM("ERROR: discrepancy %i in bytes written\n",
+						c3 - (bytesperpixel *
 									cz));
 } else {
 	if (false == odd) {
-		if (bytesperpixel * \
+		if (bytesperpixel *
 			cz != (4 * c3))
-			SAM("ERROR: discrepancy %i in bytes written\n", \
-						(2*c3)-(bytesperpixel * \
+			SAM("ERROR: discrepancy %i in bytes written\n",
+						(2*c3)-(bytesperpixel *
 									cz));
 		} else {
 			if (0 != c3)
-				SAM("ERROR: discrepancy %i " \
+				SAM("ERROR: discrepancy %i "
 						"in bytes written\n", c3);
 		}
 }
@@ -1783,7 +1783,7 @@ if (true == odd)
 	JOM(8, "+++++ field2frame():  frame buffer %i is full\n", kad);
 
 if (peasycap->field_read == peasycap->field_fill)
-	SAM("WARNING: on exit, filling field buffer %i\n", \
+	SAM("WARNING: on exit, filling field buffer %i\n",
 							peasycap->field_read);
 /*---------------------------------------------------------------------------*/
 /*
@@ -1792,9 +1792,9 @@ if (peasycap->field_read == peasycap->field_fill)
 /*---------------------------------------------------------------------------*/
 do_gettimeofday(&timeval);
 if (peasycap->timeval6.tv_sec) {
-	below = ((long long int)(1000000)) * \
-		((long long int)(timeval.tv_sec - \
-					peasycap->timeval6.tv_sec)) + \
+	below = ((long long int)(1000000)) *
+		((long long int)(timeval.tv_sec -
+					peasycap->timeval6.tv_sec)) +
 		 (long long int)(timeval.tv_usec - peasycap->timeval6.tv_usec);
 	above = (long long int)1000000;
 
@@ -1802,7 +1802,7 @@ if (peasycap->timeval6.tv_sec) {
 	above = sdr.quotient;
 	remainder = (__u32)sdr.remainder;
 
-	JOM(8, "video streaming at %3lli.%03i fields per second\n", above, \
+	JOM(8, "video streaming at %3lli.%03i fields per second\n", above,
 							(remainder/1000));
 }
 peasycap->timeval6 = timeval;
@@ -1857,7 +1857,7 @@ return sdr;
  */
 /*---------------------------------------------------------------------------*/
 int
-redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more, \
+redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					__u8 mask, __u8 margin, bool isuy)
 {
 static __s32 ay[256], bu[256], rv[256], gu[256], gv[256];
@@ -2037,13 +2037,13 @@ case 3:
 				}
 
 				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ? \
+				r = (255 < s32) ? 255 : ((0 > s32) ?
 							0 : (__u8)s32);
 				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ? \
+				g = (255 < s32) ? 255 : ((0 > s32) ?
 							0 : (__u8)s32);
 				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ? \
+				b = (255 < s32) ? 255 : ((0 > s32) ?
 							0 : (__u8)s32);
 
 				if ((true == last) && rump) {
@@ -2062,7 +2062,7 @@ case 3:
 						break;
 					}
 					default: {
-						SAM("MISTAKE: %i=rump\n", \
+						SAM("MISTAKE: %i=rump\n",
 							bytesperpixel - rump);
 						return -EFAULT;
 					}
@@ -2110,13 +2110,13 @@ case 3:
 				}
 
 				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ? \
+				r = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ? \
+				g = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ? \
+				b = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 
 				if ((true == last) && rump) {
@@ -2135,7 +2135,7 @@ case 3:
 						break;
 					}
 					default: {
-						SAM("MISTAKE: %i=rump\n", \
+						SAM("MISTAKE: %i=rump\n",
 							bytesperpixel - rump);
 						return -EFAULT;
 					}
@@ -2185,14 +2185,14 @@ case 3:
 
 				if (true == isuy) {
 					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ? \
+					r = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] - \
+					s32 = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ? \
+					g = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ? \
+					b = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 
 					if ((true == last) && rump) {
@@ -2211,8 +2211,8 @@ case 3:
 							break;
 						}
 						default: {
-							SAM("MISTAKE: " \
-							"%i=rump\n", \
+							SAM("MISTAKE: "
+							"%i=rump\n",
 							bytesperpixel - rump);
 							return -EFAULT;
 						}
@@ -2261,14 +2261,14 @@ case 3:
 				if (true == isuy) {
 
 					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ? \
+					r = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] - \
+					s32 = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ? \
+					g = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ? \
+					b = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 
 					if ((true == last) && rump) {
@@ -2287,8 +2287,8 @@ case 3:
 							break;
 						}
 						default: {
-							SAM("MISTAKE: " \
-							"%i=rump\n", \
+							SAM("MISTAKE: "
+							"%i=rump\n",
 							bytesperpixel - rump);
 							return -EFAULT;
 						}
@@ -2342,13 +2342,13 @@ case 4:
 				}
 
 				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ? \
+				r = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ? \
+				g = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ? \
+				b = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 
 				if ((true == last) && rump) {
@@ -2376,7 +2376,7 @@ case 4:
 						break;
 					}
 					default: {
-						SAM("MISTAKE: %i=rump\n", \
+						SAM("MISTAKE: %i=rump\n",
 							bytesperpixel - rump);
 						return -EFAULT;
 					}
@@ -2424,13 +2424,13 @@ case 4:
 				}
 
 				s32 = ay[(int)y] + rv[(int)v];
-				r = (255 < s32) ? 255 : ((0 > s32) ? \
+				r = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 				s32 = ay[(int)y] - gu[(int)u] - gv[(int)v];
-				g = (255 < s32) ? 255 : ((0 > s32) ? \
+				g = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 				s32 = ay[(int)y] + bu[(int)u];
-				b = (255 < s32) ? 255 : ((0 > s32) ? \
+				b = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 
 				if ((true == last) && rump) {
@@ -2458,7 +2458,7 @@ case 4:
 						break;
 					}
 					default: {
-						SAM("MISTAKE: %i=rump\n", \
+						SAM("MISTAKE: %i=rump\n",
 							bytesperpixel - rump);
 						return -EFAULT;
 					}
@@ -2510,14 +2510,14 @@ case 4:
 				if (true == isuy) {
 
 					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ? \
+					r = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] - \
+					s32 = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ? \
+					g = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ? \
+					b = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 
 					if ((true == last) && rump) {
@@ -2545,9 +2545,9 @@ case 4:
 							break;
 						}
 						default: {
-							SAM("MISTAKE: " \
-							"%i=rump\n", \
-							bytesperpixel - \
+							SAM("MISTAKE: "
+							"%i=rump\n",
+							bytesperpixel -
 							rump);
 							return -EFAULT;
 							}
@@ -2595,14 +2595,14 @@ case 4:
 
 				if (true == isuy) {
 					s32 = ay[(int)y] + rv[(int)v];
-					r = (255 < s32) ? 255 : ((0 > s32) ? \
+					r = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
-					s32 = ay[(int)y] - gu[(int)u] - \
+					s32 = ay[(int)y] - gu[(int)u] -
 								gv[(int)v];
-					g = (255 < s32) ? 255 : ((0 > s32) ? \
+					g = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 					s32 = ay[(int)y] + bu[(int)u];
-					b = (255 < s32) ? 255 : ((0 > s32) ? \
+					b = (255 < s32) ? 255 : ((0 > s32) ?
 								0 : (__u8)s32);
 
 					if ((true == last) && rump) {
@@ -2630,8 +2630,8 @@ case 4:
 							break;
 						}
 						default: {
-							SAM("MISTAKE: " \
-							"%i=rump\n", \
+							SAM("MISTAKE: "
+							"%i=rump\n",
 							bytesperpixel - rump);
 							return -EFAULT;
 						}
@@ -2840,16 +2840,16 @@ for (i = 0; i < VIDEO_ISOC_BUFFER_MANY; i++)
 		break;
 JOM(16, "%2i=urb\n", i);
 last = peasycap->video_isoc_sequence;
-if ((((VIDEO_ISOC_BUFFER_MANY - 1) == last) && \
-						(0 != i)) || \
-	(((VIDEO_ISOC_BUFFER_MANY - 1) != last) && \
+if ((((VIDEO_ISOC_BUFFER_MANY - 1) == last) &&
+						(0 != i)) ||
+	(((VIDEO_ISOC_BUFFER_MANY - 1) != last) &&
 						((last + 1) != i))) {
 	JOM(16, "ERROR: out-of-order urbs %i,%i ... continuing\n", last, i);
 }
 peasycap->video_isoc_sequence = i;
 
 if (peasycap->video_idle) {
-	JOM(16, "%i=video_idle  %i=video_isoc_streaming\n", \
+	JOM(16, "%i=video_idle  %i=video_isoc_streaming\n",
 			peasycap->video_idle, peasycap->video_isoc_streaming);
 	if (peasycap->video_isoc_streaming) {
 		rc = usb_submit_urb(purb, GFP_ATOMIC);
@@ -2896,10 +2896,10 @@ if (peasycap->video_idle) {
 				break;
 			}
 			}
-			if (-ENODEV != rc) \
-				SAM("ERROR: while %i=video_idle, " \
-							"usb_submit_urb() " \
-							"failed with rc:\n", \
+			if (-ENODEV != rc)
+				SAM("ERROR: while %i=video_idle, "
+							"usb_submit_urb() "
+							"failed with rc:\n",
 							peasycap->video_idle);
 		}
 	}
@@ -2988,7 +2988,7 @@ if (purb->status) {
 } else {
 	for (i = 0;  i < purb->number_of_packets; i++) {
 		if (0 != purb->iso_frame_desc[i].status) {
-			(peasycap->field_buffer\
+			(peasycap->field_buffer
 				[peasycap->field_fill][0].kount) |= 0x8000 ;
 			switch (purb->iso_frame_desc[i].status) {
 			case  0: {
@@ -3055,24 +3055,24 @@ if (purb->status) {
 		frameactual = purb->iso_frame_desc[i].actual_length;
 		frameoffset = purb->iso_frame_desc[i].offset;
 
-		JOM(16, "frame[%2i]:" \
-				"%4i=status "  \
-				"%4i=actual "  \
-				"%4i=length "  \
-				"%5i=offset\n", \
+		JOM(16, "frame[%2i]:"
+				"%4i=status "
+				"%4i=actual "
+				"%4i=length "
+				"%5i=offset\n",
 			i, framestatus, frameactual, framelength, frameoffset);
 		if (!purb->iso_frame_desc[i].status) {
 			more = purb->iso_frame_desc[i].actual_length;
-			pfield_buffer = &peasycap->field_buffer\
+			pfield_buffer = &peasycap->field_buffer
 				  [peasycap->field_fill][peasycap->field_page];
-			videofieldamount = (peasycap->field_page * \
-				PAGE_SIZE) + \
+			videofieldamount = (peasycap->field_page *
+				PAGE_SIZE) +
 				(int)(pfield_buffer->pto - pfield_buffer->pgo);
 		if (4 == more)
 			peasycap->video_mt++;
 		if (4 < more) {
 			if (peasycap->video_mt) {
-				JOM(8, "%4i empty video urb frames\n", \
+				JOM(8, "%4i empty video urb frames\n",
 							peasycap->video_mt);
 				peasycap->video_mt = 0;
 			}
@@ -3080,14 +3080,14 @@ if (purb->status) {
 				SAM("ERROR: bad peasycap->field_fill\n");
 				return;
 			}
-			if (FIELD_BUFFER_SIZE/PAGE_SIZE <= \
+			if (FIELD_BUFFER_SIZE/PAGE_SIZE <=
 							peasycap->field_page) {
 				SAM("ERROR: bad peasycap->field_page\n");
 				return;
 			}
-			pfield_buffer = &peasycap->field_buffer\
+			pfield_buffer = &peasycap->field_buffer
 				[peasycap->field_fill][peasycap->field_page];
-			pu = (__u8 *)(purb->transfer_buffer + \
+			pu = (__u8 *)(purb->transfer_buffer +
 					purb->iso_frame_desc[i].offset);
 			if (0x80 & *pu)
 				leap = 8;
@@ -3111,124 +3111,124 @@ if (purb->status) {
  */
 /*---------------------------------------------------------------------------*/
 			if ((8 == more) || override) {
-				if (videofieldamount > \
+				if (videofieldamount >
 						peasycap->videofieldamount) {
-					if (2 == videofieldamount - \
-							peasycap->\
+					if (2 == videofieldamount -
+							peasycap->
 							videofieldamount) {
-						(peasycap->field_buffer\
-						[peasycap->field_fill]\
+						(peasycap->field_buffer
+						[peasycap->field_fill]
 							[0].kount) |= 0x0100;
-						peasycap->video_junk += (1 + \
+						peasycap->video_junk += (1 +
 							VIDEO_JUNK_TOLERATE);
 					} else
-						(peasycap->field_buffer\
-						[peasycap->field_fill]\
+						(peasycap->field_buffer
+						[peasycap->field_fill]
 							[0].kount) |= 0x4000;
-					} else if (videofieldamount < \
-							peasycap->\
+					} else if (videofieldamount <
+							peasycap->
 							videofieldamount) {
-						(peasycap->field_buffer\
-						[peasycap->field_fill]\
+						(peasycap->field_buffer
+						[peasycap->field_fill]
 							[0].kount) |= 0x2000;
 					}
-					bad = 0xFF00 & peasycap->field_buffer\
-						[peasycap->field_fill]\
+					bad = 0xFF00 & peasycap->field_buffer
+						[peasycap->field_fill]
 						[0].kount;
 					if (!bad) {
 						(peasycap->video_junk)--;
-						if (-VIDEO_JUNK_TOLERATE > \
-							peasycap->video_junk) \
-							peasycap->video_junk =\
+						if (-VIDEO_JUNK_TOLERATE >
+							peasycap->video_junk)
+							peasycap->video_junk =
 							-VIDEO_JUNK_TOLERATE;
-						peasycap->field_read = \
-							(peasycap->\
+						peasycap->field_read =
+							(peasycap->
 								field_fill)++;
-						if (FIELD_BUFFER_MANY <= \
-								peasycap->\
+						if (FIELD_BUFFER_MANY <=
+								peasycap->
 								field_fill)
-							peasycap->\
+							peasycap->
 								field_fill = 0;
 						peasycap->field_page = 0;
-						pfield_buffer = &peasycap->\
-							field_buffer\
-							[peasycap->\
-							field_fill]\
-							[peasycap->\
+						pfield_buffer = &peasycap->
+							field_buffer
+							[peasycap->
+							field_fill]
+							[peasycap->
 							field_page];
-						pfield_buffer->pto = \
+						pfield_buffer->pto =
 							pfield_buffer->pgo;
-						JOM(8, "bumped to: %i="\
-							"peasycap->" \
-							"field_fill  %i="\
-							"parity\n", \
-							peasycap->field_fill, \
-							0x00FF & \
+						JOM(8, "bumped to: %i="
+							"peasycap->"
+							"field_fill  %i="
+							"parity\n",
+							peasycap->field_fill,
+							0x00FF &
 							pfield_buffer->kount);
-						JOM(8, "field buffer %i has "\
-							"%i bytes fit to be "\
-							"read\n", \
-							peasycap->field_read, \
+						JOM(8, "field buffer %i has "
+							"%i bytes fit to be "
+							"read\n",
+							peasycap->field_read,
 							videofieldamount);
-						JOM(8, "wakeup call to "\
-							"wq_video, " \
-							"%i=field_read "\
-							"%i=field_fill "\
-							"%i=parity\n", \
-							peasycap->field_read, \
-							peasycap->field_fill, \
-							0x00FF & peasycap->\
-							field_buffer\
-							[peasycap->\
+						JOM(8, "wakeup call to "
+							"wq_video, "
+							"%i=field_read "
+							"%i=field_fill "
+							"%i=parity\n",
+							peasycap->field_read,
+							peasycap->field_fill,
+							0x00FF & peasycap->
+							field_buffer
+							[peasycap->
 							field_read][0].kount);
-						wake_up_interruptible\
-							(&(peasycap->\
+						wake_up_interruptible
+							(&(peasycap->
 								 wq_video));
-						do_gettimeofday\
+						do_gettimeofday
 							(&peasycap->timeval7);
 					} else {
 					peasycap->video_junk++;
-					if (bad & 0x0010) \
-						peasycap->video_junk += \
+					if (bad & 0x0010)
+						peasycap->video_junk +=
 						(1 + VIDEO_JUNK_TOLERATE/2);
-					JOM(8, "field buffer %i had %i " \
-						"bytes, now discarded: "\
-						"0x%04X\n", \
-						peasycap->field_fill, \
-						videofieldamount,\
-						(0xFF00 & \
-						peasycap->field_buffer\
-						[peasycap->field_fill][0].\
+					JOM(8, "field buffer %i had %i "
+						"bytes, now discarded: "
+						"0x%04X\n",
+						peasycap->field_fill,
+						videofieldamount,
+						(0xFF00 &
+						peasycap->field_buffer
+						[peasycap->field_fill][0].
 						kount));
 					(peasycap->field_fill)++;
 
-					if (FIELD_BUFFER_MANY <= \
+					if (FIELD_BUFFER_MANY <=
 							peasycap->field_fill)
 						peasycap->field_fill = 0;
 					peasycap->field_page = 0;
-					pfield_buffer = \
-						&peasycap->field_buffer\
-						[peasycap->field_fill]\
+					pfield_buffer =
+						&peasycap->field_buffer
+						[peasycap->field_fill]
 						[peasycap->field_page];
-					pfield_buffer->pto = \
+					pfield_buffer->pto =
 							pfield_buffer->pgo;
 
-					JOM(8, "bumped to: %i=peasycap->" \
-						"field_fill  %i=parity\n", \
-						peasycap->field_fill, \
+					JOM(8, "bumped to: %i=peasycap->"
+						"field_fill  %i=parity\n",
+						peasycap->field_fill,
 						0x00FF & pfield_buffer->kount);
 				}
 				if (8 == more) {
-					JOM(8, "end-of-field: received " \
-						"parity byte 0x%02X\n", \
+					JOM(8, "end-of-field: received "
+						"parity byte 0x%02X\n",
 						(0xFF & *pu));
 					if (0x40 & *pu)
 						pfield_buffer->kount = 0x0000;
 					else
 						pfield_buffer->kount = 0x0001;
-					pfield_buffer->input = 0x08 | \
+					pfield_buffer->input = 0x08 |
 						(0x07 & peasycap->input);
-					JOM(8, "end-of-field: 0x%02X=kount\n",\
+					JOM(8, "end-of-field: 0x%02X=kount\n",
 						0xFF & pfield_buffer->kount);
 				}
 			}
@@ -3244,49 +3244,49 @@ if (purb->status) {
 				SAM("ERROR: bad peasycap->field_fill\n");
 				return;
 			}
-			if (FIELD_BUFFER_SIZE/PAGE_SIZE <= \
+			if (FIELD_BUFFER_SIZE/PAGE_SIZE <=
 							peasycap->field_page) {
 				SAM("ERROR: bad peasycap->field_page\n");
 				return;
 			}
-			pfield_buffer = &peasycap->field_buffer\
+			pfield_buffer = &peasycap->field_buffer
 				[peasycap->field_fill][peasycap->field_page];
 			while (more) {
-				pfield_buffer = &peasycap->field_buffer\
-						[peasycap->field_fill]\
+				pfield_buffer = &peasycap->field_buffer
+						[peasycap->field_fill]
 						[peasycap->field_page];
-				if (PAGE_SIZE < (pfield_buffer->pto - \
+				if (PAGE_SIZE < (pfield_buffer->pto -
 							pfield_buffer->pgo)) {
 					SAM("ERROR: bad pfield_buffer->pto\n");
 					return;
 				}
-				if (PAGE_SIZE == (pfield_buffer->pto - \
+				if (PAGE_SIZE == (pfield_buffer->pto -
 							pfield_buffer->pgo)) {
 					(peasycap->field_page)++;
-					if (FIELD_BUFFER_SIZE/PAGE_SIZE <= \
+					if (FIELD_BUFFER_SIZE/PAGE_SIZE <=
 							peasycap->field_page) {
-						JOM(16, "wrapping peasycap->" \
+						JOM(16, "wrapping peasycap->"
 							"field_page\n");
 						peasycap->field_page = 0;
 					}
-					pfield_buffer = &peasycap->\
-							field_buffer\
-							[peasycap->field_fill]\
+					pfield_buffer = &peasycap->
+							field_buffer
+							[peasycap->field_fill]
 							[peasycap->field_page];
-					pfield_buffer->pto = \
+					pfield_buffer->pto =
 							pfield_buffer->pgo;
-					pfield_buffer->input = 0x08 | \
+					pfield_buffer->input = 0x08 |
 						(0x07 & peasycap->input);
-					if ((peasycap->field_buffer[peasycap->\
-							field_fill][0]).\
-								input != \
+					if ((peasycap->field_buffer[peasycap->
+							field_fill][0]).
+								input !=
 							pfield_buffer->input)
-						(peasycap->field_buffer\
-							[peasycap->field_fill]\
+						(peasycap->field_buffer
+							[peasycap->field_fill]
 							[0]).kount |= 0x1000;
 				}
 
-				much = PAGE_SIZE - (int)(pfield_buffer->pto - \
+				much = PAGE_SIZE - (int)(pfield_buffer->pto -
 							pfield_buffer->pgo);
 
 				if (much > more)
@@ -3355,10 +3355,10 @@ if (peasycap->video_isoc_streaming) {
 			SAM("0x%08X\n", rc); break;
 		}
 		}
-		if (-ENODEV != rc) \
-			SAM("ERROR: while %i=video_idle, " \
-						"usb_submit_urb() " \
-						"failed with rc:\n", \
+		if (-ENODEV != rc)
+			SAM("ERROR: while %i=video_idle, "
+						"usb_submit_urb() "
+						"failed with rc:\n",
 						peasycap->video_idle);
 	}
 }
@@ -3372,7 +3372,7 @@ return;
  */
 /*---------------------------------------------------------------------------*/
 int
-easycap_usb_probe(struct usb_interface *pusb_interface, \
+easycap_usb_probe(struct usb_interface *pusb_interface,
 				const struct usb_device_id *pusb_device_id)
 {
 struct usb_device *pusb_device, *pusb_device1;
@@ -3424,7 +3424,7 @@ peasycap = (struct easycap *)NULL;
  *  GET POINTER TO STRUCTURE usb_device
  */
 /*---------------------------------------------------------------------------*/
-pusb_device1 = container_of(pusb_interface->dev.parent, \
+pusb_device1 = container_of(pusb_interface->dev.parent,
 						struct usb_device, dev);
 if ((struct usb_device *)NULL == pusb_device1) {
 	SAY("ERROR: pusb_device1 is NULL\n");
@@ -3460,23 +3460,23 @@ bInterfaceNumber = pusb_interface_descriptor->bInterfaceNumber;
 bInterfaceClass = pusb_interface_descriptor->bInterfaceClass;
 bInterfaceSubClass = pusb_interface_descriptor->bInterfaceSubClass;
 
-JOT(4, "intf[%i]: pusb_interface->num_altsetting=%i\n", \
+JOT(4, "intf[%i]: pusb_interface->num_altsetting=%i\n",
 			bInterfaceNumber, pusb_interface->num_altsetting);
-JOT(4, "intf[%i]: pusb_interface->cur_altsetting - " \
-			"pusb_interface->altsetting=%li\n", bInterfaceNumber, \
-			(long int)(pusb_interface->cur_altsetting - \
+JOT(4, "intf[%i]: pusb_interface->cur_altsetting - "
+			"pusb_interface->altsetting=%li\n", bInterfaceNumber,
+			(long int)(pusb_interface->cur_altsetting -
 						pusb_interface->altsetting));
 switch (bInterfaceClass) {
 case USB_CLASS_AUDIO: {
-	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_AUDIO\n", \
+	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_AUDIO\n",
 				bInterfaceNumber, bInterfaceClass); break;
 	}
 case USB_CLASS_VIDEO: {
-	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VIDEO\n", \
+	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VIDEO\n",
 				bInterfaceNumber, bInterfaceClass); break;
 	}
 case USB_CLASS_VENDOR_SPEC: {
-	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VENDOR_SPEC\n", \
+	JOT(4, "intf[%i]: bInterfaceClass=0x%02X=USB_CLASS_VENDOR_SPEC\n",
 				bInterfaceNumber, bInterfaceClass); break;
 	}
 default:
@@ -3484,15 +3484,15 @@ default:
 }
 switch (bInterfaceSubClass) {
 case 0x01: {
-	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOCONTROL\n", \
+	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOCONTROL\n",
 			bInterfaceNumber, bInterfaceSubClass); break;
 }
 case 0x02: {
-	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOSTREAMING\n", \
+	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=AUDIOSTREAMING\n",
 			bInterfaceNumber, bInterfaceSubClass); break;
 }
 case 0x03: {
-	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=MIDISTREAMING\n", \
+	JOT(4, "intf[%i]: bInterfaceSubClass=0x%02X=MIDISTREAMING\n",
 			bInterfaceNumber, bInterfaceSubClass); break;
 }
 default:
@@ -3501,12 +3501,12 @@ default:
 /*---------------------------------------------------------------------------*/
 pusb_interface_assoc_descriptor = pusb_interface->intf_assoc;
 if (NULL != pusb_interface_assoc_descriptor) {
-	JOT(4, "intf[%i]: bFirstInterface=0x%02X  bInterfaceCount=0x%02X\n", \
-			bInterfaceNumber, \
-			pusb_interface_assoc_descriptor->bFirstInterface, \
+	JOT(4, "intf[%i]: bFirstInterface=0x%02X  bInterfaceCount=0x%02X\n",
+			bInterfaceNumber,
+			pusb_interface_assoc_descriptor->bFirstInterface,
 			pusb_interface_assoc_descriptor->bInterfaceCount);
 } else {
-JOT(4, "intf[%i]: pusb_interface_assoc_descriptor is NULL\n", \
+JOT(4, "intf[%i]: pusb_interface_assoc_descriptor is NULL\n",
 							bInterfaceNumber);
 }
 /*---------------------------------------------------------------------------*/
@@ -3529,10 +3529,10 @@ if (0 == bInterfaceNumber) {
 	SAM("allocated 0x%08lX=peasycap\n", (unsigned long int) peasycap);
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-	SAM("where     0x%08lX=&peasycap->video_device\n", \
+	SAM("where     0x%08lX=&peasycap->video_device\n",
 				(unsigned long int) &peasycap->video_device);
 #if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
-	SAM("and       0x%08lX=&peasycap->v4l2_device\n", \
+	SAM("and       0x%08lX=&peasycap->v4l2_device\n",
 				(unsigned long int) &peasycap->v4l2_device);
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
@@ -3545,8 +3545,8 @@ if (0 == bInterfaceNumber) {
 	peasycap->minor = -1;
 	strcpy(&peasycap->telltale[0], TELLTALE);
 	kref_init(&peasycap->kref);
-	JOM(8, "intf[%i]: after kref_init(..._video) " \
-			"%i=peasycap->kref.refcount.counter\n", \
+	JOM(8, "intf[%i]: after kref_init(..._video) "
+			"%i=peasycap->kref.refcount.counter\n",
 			bInterfaceNumber, peasycap->kref.refcount.counter);
 
 	/* module params */
@@ -3571,15 +3571,15 @@ if (0 == bInterfaceNumber) {
 		*/
 /*---------------------------------------------------------------------------*/
 		for (ndong = 0; ndong < DONGLE_MANY; ndong++) {
-			if ((NULL == easycapdc60_dongle[ndong].peasycap) && \
-					(!mutex_is_locked(&easycapdc60_dongle\
-						[ndong].mutex_video)) && \
-					(!mutex_is_locked(&easycapdc60_dongle\
+			if ((NULL == easycapdc60_dongle[ndong].peasycap) &&
+					(!mutex_is_locked(&easycapdc60_dongle
+						[ndong].mutex_video)) &&
+					(!mutex_is_locked(&easycapdc60_dongle
 						[ndong].mutex_audio))) {
 				easycapdc60_dongle[ndong].peasycap = peasycap;
 				peasycap->isdongle = ndong;
-				JOM(8, "intf[%i]: peasycap-->easycap" \
-						"_dongle[%i].peasycap\n", \
+				JOM(8, "intf[%i]: peasycap-->easycap"
+						"_dongle[%i].peasycap\n",
 						bInterfaceNumber, ndong);
 				break;
 			}
@@ -3660,11 +3660,11 @@ if (0 == bInterfaceNumber) {
 		m = 0;
 		mask = 0;
 		while (0xFFFF != easycap_standard[i].mask) {
-			if (NTSC_M == easycap_standard[i].\
+			if (NTSC_M == easycap_standard[i].
 							v4l2_standard.index) {
 				m++;
 				for (k = 0; k < INPUT_MANY; k++) {
-					peasycap->inputset[k].\
+					peasycap->inputset[k].
 							standard_offset = i;
 				}
 			mask = easycap_standard[i].mask;
@@ -3676,11 +3676,11 @@ if (0 == bInterfaceNumber) {
 		m = 0;
 		mask = 0;
 		while (0xFFFF != easycap_standard[i].mask) {
-			if (PAL_BGHIN == easycap_standard[i].\
+			if (PAL_BGHIN == easycap_standard[i].
 							v4l2_standard.index) {
 				m++;
 				for (k = 0; k < INPUT_MANY; k++) {
-					peasycap->inputset[k].\
+					peasycap->inputset[k].
 							standard_offset = i;
 				}
 			mask = easycap_standard[i].mask;
@@ -3690,7 +3690,7 @@ if (0 == bInterfaceNumber) {
 	}
 
 	if (1 != m) {
-		SAM("MISTAKE: easycap.inputset[].standard_offset " \
+		SAM("MISTAKE: easycap.inputset[].standard_offset "
 						"unpopulated, %i=m\n", m);
 		return -ENOENT;
 	}
@@ -3699,17 +3699,17 @@ if (0 == bInterfaceNumber) {
 	i = 0;
 	m = 0;
 	while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
-		if (((peasycap_format->mask & 0x0F) == (mask & 0x0F)) && \
-				(peasycap_format->\
-					v4l2_format.fmt.pix.field == \
-							V4L2_FIELD_NONE) && \
-				(peasycap_format->\
-					v4l2_format.fmt.pix.pixelformat == \
-							V4L2_PIX_FMT_UYVY) && \
-				(peasycap_format->\
-					v4l2_format.fmt.pix.width  == \
-							640) && \
-				(peasycap_format->\
+		if (((peasycap_format->mask & 0x0F) == (mask & 0x0F)) &&
+				(peasycap_format->
+					v4l2_format.fmt.pix.field ==
+							V4L2_FIELD_NONE) &&
+				(peasycap_format->
+					v4l2_format.fmt.pix.pixelformat ==
+							V4L2_PIX_FMT_UYVY) &&
+				(peasycap_format->
+					v4l2_format.fmt.pix.width  ==
+							640) &&
+				(peasycap_format->
 					v4l2_format.fmt.pix.height == 480)) {
 			m++;
 			for (k = 0; k < INPUT_MANY; k++)
@@ -3748,7 +3748,7 @@ if (0 == bInterfaceNumber) {
 		i++;
 	}
 	if (4 != m) {
-		SAM("MISTAKE: easycap.inputset[].brightness,... " \
+		SAM("MISTAKE: easycap.inputset[].brightness,... "
 						"underpopulated\n");
 		return -ENOENT;
 	}
@@ -3766,21 +3766,21 @@ if (0 == bInterfaceNumber) {
  */
 /*---------------------------------------------------------------------------*/
 	for (ndong = 0; ndong < DONGLE_MANY; ndong++) {
-		if (pusb_device == easycapdc60_dongle[ndong].peasycap->\
+		if (pusb_device == easycapdc60_dongle[ndong].peasycap->
 								pusb_device) {
 			peasycap = easycapdc60_dongle[ndong].peasycap;
-			JOT(8, "intf[%i]: easycapdc60_dongle[%i].peasycap-->" \
+			JOT(8, "intf[%i]: easycapdc60_dongle[%i].peasycap-->"
 					"peasycap\n", bInterfaceNumber, ndong);
 			break;
 		}
 	}
 	if (DONGLE_MANY <= ndong) {
-		SAY("ERROR: peasycap is unknown when probing interface %i\n", \
+		SAY("ERROR: peasycap is unknown when probing interface %i\n",
 							bInterfaceNumber);
 		return -ENODEV;
 	}
 	if (NULL == peasycap) {
-		SAY("ERROR: peasycap is NULL when probing interface %i\n", \
+		SAY("ERROR: peasycap is NULL when probing interface %i\n",
 							bInterfaceNumber);
 		return -ENODEV;
 	}
@@ -3803,40 +3803,40 @@ if (0 == bInterfaceNumber) {
 			SAY("ERROR: pv4l2_device is NULL\n");
 			return -ENODEV;
 		}
-		peasycap = (struct easycap *) \
+		peasycap = (struct easycap *)
 			container_of(pv4l2_device, struct easycap, v4l2_device);
 	}
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 }
 /*---------------------------------------------------------------------------*/
-if ((USB_CLASS_VIDEO == bInterfaceClass) || \
+if ((USB_CLASS_VIDEO == bInterfaceClass) ||
 		(USB_CLASS_VENDOR_SPEC == bInterfaceClass)) {
 	if (-1 == peasycap->video_interface) {
 		peasycap->video_interface = bInterfaceNumber;
-		JOM(4, "setting peasycap->video_interface=%i\n", \
+		JOM(4, "setting peasycap->video_interface=%i\n",
 						peasycap->video_interface);
 	} else {
 		if (peasycap->video_interface != bInterfaceNumber) {
-			SAM("ERROR: attempting to reset " \
+			SAM("ERROR: attempting to reset "
 					"peasycap->video_interface\n");
-			SAM("...... continuing with " \
-					"%i=peasycap->video_interface\n", \
+			SAM("...... continuing with "
+					"%i=peasycap->video_interface\n",
 					peasycap->video_interface);
 		}
 	}
-} else if ((USB_CLASS_AUDIO == bInterfaceClass) && \
+} else if ((USB_CLASS_AUDIO == bInterfaceClass) &&
 						(0x02 == bInterfaceSubClass)) {
 	if (-1 == peasycap->audio_interface) {
 		peasycap->audio_interface = bInterfaceNumber;
-		JOM(4, "setting peasycap->audio_interface=%i\n", \
+		JOM(4, "setting peasycap->audio_interface=%i\n",
 						 peasycap->audio_interface);
 	} else {
 		if (peasycap->audio_interface != bInterfaceNumber) {
-			SAM("ERROR: attempting to reset " \
+			SAM("ERROR: attempting to reset "
 					"peasycap->audio_interface\n");
-			SAM("...... continuing with " \
-					"%i=peasycap->audio_interface\n", \
+			SAM("...... continuing with "
+					"%i=peasycap->audio_interface\n",
 					peasycap->audio_interface);
 		}
 	}
@@ -3856,27 +3856,27 @@ for (i = 0; i < pusb_interface->num_altsetting; i++) {
 		return -EFAULT;
 	}
 	pusb_interface_descriptor = &(pusb_host_interface->desc);
-	if ((struct usb_interface_descriptor *)NULL == \
+	if ((struct usb_interface_descriptor *)NULL ==
 						pusb_interface_descriptor) {
 		SAM("ERROR: pusb_interface_descriptor is NULL\n");
 		return -EFAULT;
 	}
 
-	JOM(4, "intf[%i]alt[%i]: desc.bDescriptorType=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.bDescriptorType=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->bDescriptorType);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceNumber=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceNumber=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceNumber);
-	JOM(4, "intf[%i]alt[%i]: desc.bAlternateSetting=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.bAlternateSetting=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->bAlternateSetting);
-	JOM(4, "intf[%i]alt[%i]: desc.bNumEndpoints=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.bNumEndpoints=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->bNumEndpoints);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceClass=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceClass=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceClass);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceSubClass=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceSubClass=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceSubClass);
-	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceProtocol=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.bInterfaceProtocol=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->bInterfaceProtocol);
-	JOM(4, "intf[%i]alt[%i]: desc.iInterface=0x%02X\n", \
+	JOM(4, "intf[%i]alt[%i]: desc.iInterface=0x%02X\n",
 	bInterfaceNumber, i, pusb_interface_descriptor->iInterface);
 
 	ISOCwMaxPacketSize = -1;
@@ -3887,7 +3887,7 @@ for (i = 0; i < pusb_interface->num_altsetting; i++) {
 	INTbEndpointAddress = 0;
 
 	if (0 == pusb_interface_descriptor->bNumEndpoints)
-				JOM(4, "intf[%i]alt[%i] has no endpoints\n", \
+				JOM(4, "intf[%i]alt[%i] has no endpoints\n",
 							bInterfaceNumber, i);
 /*---------------------------------------------------------------------------*/
 	for (j = 0; j < pusb_interface_descriptor->bNumEndpoints; j++) {
@@ -3900,88 +3900,88 @@ for (i = 0; i < pusb_interface->num_altsetting; i++) {
 		wMaxPacketSize = le16_to_cpu(pepd->wMaxPacketSize);
 		bEndpointAddress = pepd->bEndpointAddress;
 
-		JOM(4, "intf[%i]alt[%i]end[%i]: bEndpointAddress=0x%X\n", \
-				bInterfaceNumber, i, j, \
+		JOM(4, "intf[%i]alt[%i]end[%i]: bEndpointAddress=0x%X\n",
+				bInterfaceNumber, i, j,
 				pepd->bEndpointAddress);
-		JOM(4, "intf[%i]alt[%i]end[%i]: bmAttributes=0x%X\n", \
-				bInterfaceNumber, i, j, \
+		JOM(4, "intf[%i]alt[%i]end[%i]: bmAttributes=0x%X\n",
+				bInterfaceNumber, i, j,
 				pepd->bmAttributes);
-		JOM(4, "intf[%i]alt[%i]end[%i]: wMaxPacketSize=%i\n", \
-				bInterfaceNumber, i, j, \
+		JOM(4, "intf[%i]alt[%i]end[%i]: wMaxPacketSize=%i\n",
+				bInterfaceNumber, i, j,
 				pepd->wMaxPacketSize);
 		JOM(4, "intf[%i]alt[%i]end[%i]: bInterval=%i\n",
-				bInterfaceNumber, i, j, \
+				bInterfaceNumber, i, j,
 				pepd->bInterval);
 
 		if (pepd->bEndpointAddress & USB_DIR_IN) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an  IN  endpoint\n",\
+			JOM(4, "intf[%i]alt[%i]end[%i] is an  IN  endpoint\n",
 						bInterfaceNumber, i, j);
 			isin = 1;
 		} else {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an  OUT endpoint\n",\
+			JOM(4, "intf[%i]alt[%i]end[%i] is an  OUT endpoint\n",
 						bInterfaceNumber, i, j);
 			SAM("ERROR: OUT endpoint unexpected\n");
 			SAM("...... continuing\n");
 			isin = 0;
 		}
-		if ((pepd->bmAttributes & \
-				USB_ENDPOINT_XFERTYPE_MASK) == \
+		if ((pepd->bmAttributes &
+				USB_ENDPOINT_XFERTYPE_MASK) ==
 				USB_ENDPOINT_XFER_ISOC) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an ISOC endpoint\n",\
+			JOM(4, "intf[%i]alt[%i]end[%i] is an ISOC endpoint\n",
 						bInterfaceNumber, i, j);
 			if (isin) {
 				switch (bInterfaceClass) {
 				case USB_CLASS_VIDEO:
 				case USB_CLASS_VENDOR_SPEC: {
 					if (!peasycap) {
-						SAM("MISTAKE: " \
+						SAM("MISTAKE: "
 							"peasycap is NULL\n");
 						return -EFAULT;
 					}
 					if (pepd->wMaxPacketSize) {
 						if (8 > isokalt) {
 							okalt[isokalt] = i;
-							JOM(4,\
-							"%i=okalt[%i]\n", \
-							okalt[isokalt], \
+							JOM(4,
+							"%i=okalt[%i]\n",
+							okalt[isokalt],
 							isokalt);
-							okepn[isokalt] = \
-							pepd->\
-							bEndpointAddress & \
+							okepn[isokalt] =
+							pepd->
+							bEndpointAddress &
 							0x0F;
-							JOM(4,\
-							"%i=okepn[%i]\n", \
-							okepn[isokalt], \
+							JOM(4,
+							"%i=okepn[%i]\n",
+							okepn[isokalt],
 							isokalt);
-							okmps[isokalt] = \
-							le16_to_cpu(pepd->\
+							okmps[isokalt] =
+							le16_to_cpu(pepd->
 							wMaxPacketSize);
-							JOM(4,\
-							"%i=okmps[%i]\n", \
-							okmps[isokalt], \
+							JOM(4,
+							"%i=okmps[%i]\n",
+							okmps[isokalt],
 							isokalt);
 							isokalt++;
 						}
 					} else {
-						if (-1 == peasycap->\
+						if (-1 == peasycap->
 							video_altsetting_off) {
-							peasycap->\
-							video_altsetting_off =\
+							peasycap->
+							video_altsetting_off =
 									 i;
-							JOM(4, "%i=video_" \
-							"altsetting_off " \
-								"<====\n", \
-							peasycap->\
+							JOM(4, "%i=video_"
+							"altsetting_off "
+								"<====\n",
+							peasycap->
 							video_altsetting_off);
 						} else {
-							SAM("ERROR: peasycap" \
-							"->video_altsetting_" \
+							SAM("ERROR: peasycap"
+							"->video_altsetting_"
 							"off already set\n");
-							SAM("...... " \
-							"continuing with " \
-							"%i=peasycap->video_" \
-							"altsetting_off\n", \
-							peasycap->\
+							SAM("...... "
+							"continuing with "
+							"%i=peasycap->video_"
+							"altsetting_off\n",
+							peasycap->
 							video_altsetting_off);
 						}
 					}
@@ -3991,55 +3991,55 @@ for (i = 0; i < pusb_interface->num_altsetting; i++) {
 					if (0x02 != bInterfaceSubClass)
 						break;
 					if (!peasycap) {
-						SAM("MISTAKE: " \
+						SAM("MISTAKE: "
 						"peasycap is NULL\n");
 						return -EFAULT;
 					}
 					if (pepd->wMaxPacketSize) {
 						if (8 > isokalt) {
 							okalt[isokalt] = i ;
-							JOM(4,\
-							"%i=okalt[%i]\n", \
-							okalt[isokalt], \
+							JOM(4,
+							"%i=okalt[%i]\n",
+							okalt[isokalt],
 							isokalt);
-							okepn[isokalt] = \
-							pepd->\
-							bEndpointAddress & \
+							okepn[isokalt] =
+							pepd->
+							bEndpointAddress &
 							0x0F;
-							JOM(4,\
-							"%i=okepn[%i]\n", \
-							okepn[isokalt], \
+							JOM(4,
+							"%i=okepn[%i]\n",
+							okepn[isokalt],
 							isokalt);
-							okmps[isokalt] = \
-							le16_to_cpu(pepd->\
+							okmps[isokalt] =
+							le16_to_cpu(pepd->
 							wMaxPacketSize);
-							JOM(4,\
-							"%i=okmps[%i]\n",\
-							okmps[isokalt], \
+							JOM(4,
+							"%i=okmps[%i]\n",
+							okmps[isokalt],
 							isokalt);
 							isokalt++;
 						}
 					} else {
-						if (-1 == peasycap->\
+						if (-1 == peasycap->
 							audio_altsetting_off) {
-							peasycap->\
-							audio_altsetting_off =\
+							peasycap->
+							audio_altsetting_off =
 									 i;
-							JOM(4, "%i=audio_" \
-							"altsetting_off " \
-							"<====\n", \
-							peasycap->\
+							JOM(4, "%i=audio_"
+							"altsetting_off "
+							"<====\n",
+							peasycap->
 							audio_altsetting_off);
 						} else {
-							SAM("ERROR: peasycap" \
-							"->audio_altsetting_" \
+							SAM("ERROR: peasycap"
+							"->audio_altsetting_"
 							"off already set\n");
-							SAM("...... " \
-							"continuing with " \
-							"%i=peasycap->\
-							audio_altsetting_" \
+							SAM("...... "
+							"continuing with "
+							"%i=peasycap->"
+							"audio_altsetting_"
 							"off\n",
-							peasycap->\
+							peasycap->
 							audio_altsetting_off);
 						}
 					}
@@ -4049,23 +4049,23 @@ for (i = 0; i < pusb_interface->num_altsetting; i++) {
 					break;
 				}
 			}
-		} else if ((pepd->bmAttributes & \
-						USB_ENDPOINT_XFERTYPE_MASK) ==\
+		} else if ((pepd->bmAttributes &
+						USB_ENDPOINT_XFERTYPE_MASK) ==
 						USB_ENDPOINT_XFER_BULK) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is a  BULK endpoint\n",\
+			JOM(4, "intf[%i]alt[%i]end[%i] is a  BULK endpoint\n",
 						bInterfaceNumber, i, j);
-		} else if ((pepd->bmAttributes & \
-						USB_ENDPOINT_XFERTYPE_MASK) ==\
+		} else if ((pepd->bmAttributes &
+						USB_ENDPOINT_XFERTYPE_MASK) ==
 						USB_ENDPOINT_XFER_INT) {
-			JOM(4, "intf[%i]alt[%i]end[%i] is an  INT endpoint\n",\
+			JOM(4, "intf[%i]alt[%i]end[%i] is an  INT endpoint\n",
 						bInterfaceNumber, i, j);
 		} else {
-			JOM(4, "intf[%i]alt[%i]end[%i] is a  CTRL endpoint\n",\
+			JOM(4, "intf[%i]alt[%i]end[%i] is a  CTRL endpoint\n",
 						bInterfaceNumber, i, j);
 		}
 		if (0 == pepd->wMaxPacketSize) {
-			JOM(4, "intf[%i]alt[%i]end[%i] " \
-						"has zero packet size\n", \
+			JOM(4, "intf[%i]alt[%i]end[%i] "
+						"has zero packet size\n",
 						bInterfaceNumber, i, j);
 		}
 	}
@@ -4075,7 +4075,7 @@ for (i = 0; i < pusb_interface->num_altsetting; i++) {
  *  PERFORM INITIALIZATION OF THE PROBED INTERFACE
  */
 /*---------------------------------------------------------------------------*/
-JOM(4, "initialization begins for interface %i\n", \
+JOM(4, "initialization begins for interface %i\n",
 				pusb_interface_descriptor->bInterfaceNumber);
 switch (bInterfaceNumber) {
 /*---------------------------------------------------------------------------*/
@@ -4093,7 +4093,7 @@ case 0: {
 		return -ENOENT;
 	} else {
 		peasycap->video_altsetting_on = okalt[isokalt - 1];
-		JOM(4, "%i=video_altsetting_on <====\n", \
+		JOM(4, "%i=video_altsetting_on <====\n",
 					peasycap->video_altsetting_on);
 	}
 /*---------------------------------------------------------------------------*/
@@ -4107,10 +4107,10 @@ case 0: {
 	if (USB_2_0_MAXPACKETSIZE > maxpacketsize) {
 		peasycap->video_isoc_maxframesize = maxpacketsize;
 	} else {
-		peasycap->video_isoc_maxframesize = \
+		peasycap->video_isoc_maxframesize =
 						USB_2_0_MAXPACKETSIZE;
 	}
-	JOM(4, "%i=video_isoc_maxframesize\n", \
+	JOM(4, "%i=video_isoc_maxframesize\n",
 				peasycap->video_isoc_maxframesize);
 	if (0 >= peasycap->video_isoc_maxframesize) {
 		SAM("ERROR:  bad video_isoc_maxframesize\n");
@@ -4118,18 +4118,18 @@ case 0: {
 		return -ENOENT;
 	}
 	peasycap->video_isoc_framesperdesc = VIDEO_ISOC_FRAMESPERDESC;
-	JOM(4, "%i=video_isoc_framesperdesc\n", \
+	JOM(4, "%i=video_isoc_framesperdesc\n",
 				peasycap->video_isoc_framesperdesc);
 	if (0 >= peasycap->video_isoc_framesperdesc) {
 		SAM("ERROR:  bad video_isoc_framesperdesc\n");
 		return -ENOENT;
 	}
-	peasycap->video_isoc_buffer_size = \
-				peasycap->video_isoc_maxframesize * \
+	peasycap->video_isoc_buffer_size =
+				peasycap->video_isoc_maxframesize *
 				peasycap->video_isoc_framesperdesc;
-	JOM(4, "%i=video_isoc_buffer_size\n", \
+	JOM(4, "%i=video_isoc_buffer_size\n",
 				peasycap->video_isoc_buffer_size);
-	if ((PAGE_SIZE << VIDEO_ISOC_ORDER) < \
+	if ((PAGE_SIZE << VIDEO_ISOC_ORDER) <
 				peasycap->video_isoc_buffer_size) {
 		SAM("MISTAKE: peasycap->video_isoc_buffer_size too big\n");
 		return -EFAULT;
@@ -4167,50 +4167,50 @@ case 0: {
 	INIT_LIST_HEAD(&(peasycap->urb_video_head));
 	peasycap->purb_video_head = &(peasycap->urb_video_head);
 /*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i frame buffers of size %li\n",  \
+	JOM(4, "allocating %i frame buffers of size %li\n",
 			FRAME_BUFFER_MANY, (long int)FRAME_BUFFER_SIZE);
-	JOM(4, ".... each scattered over %li pages\n", \
+	JOM(4, ".... each scattered over %li pages\n",
 						FRAME_BUFFER_SIZE/PAGE_SIZE);
 
 	for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
 		for (m = 0;  m < FRAME_BUFFER_SIZE/PAGE_SIZE;  m++) {
 			if ((void *)NULL != peasycap->frame_buffer[k][m].pgo)
-				SAM("attempting to reallocate frame " \
+				SAM("attempting to reallocate frame "
 								" buffers\n");
 			else {
 				pbuf = (void *)__get_free_page(GFP_KERNEL);
 				if ((void *)NULL == pbuf) {
-					SAM("ERROR: Could not allocate frame "\
+					SAM("ERROR: Could not allocate frame "
 						"buffer %i page %i\n", k, m);
 					return -ENOMEM;
 				} else
 					peasycap->allocation_video_page += 1;
 				peasycap->frame_buffer[k][m].pgo = pbuf;
 			}
-			peasycap->frame_buffer[k][m].pto = \
+			peasycap->frame_buffer[k][m].pto =
 					peasycap->frame_buffer[k][m].pgo;
 		}
 	}
 
 	peasycap->frame_fill = 0;
 	peasycap->frame_read = 0;
-	JOM(4, "allocation of frame buffers done:  %i pages\n", k * \
+	JOM(4, "allocation of frame buffers done:  %i pages\n", k *
 								m);
 /*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i field buffers of size %li\n",  \
+	JOM(4, "allocating %i field buffers of size %li\n",
 			FIELD_BUFFER_MANY, (long int)FIELD_BUFFER_SIZE);
-	JOM(4, ".... each scattered over %li pages\n", \
+	JOM(4, ".... each scattered over %li pages\n",
 					FIELD_BUFFER_SIZE/PAGE_SIZE);
 
 	for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
 		for (m = 0;  m < FIELD_BUFFER_SIZE/PAGE_SIZE;  m++) {
 			if ((void *)NULL != peasycap->field_buffer[k][m].pgo) {
-				SAM("ERROR: attempting to reallocate " \
+				SAM("ERROR: attempting to reallocate "
 							"field buffers\n");
 			} else {
 				pbuf = (void *) __get_free_page(GFP_KERNEL);
 				if ((void *)NULL == pbuf) {
-					SAM("ERROR: Could not allocate field" \
+					SAM("ERROR: Could not allocate field"
 						" buffer %i page %i\n", k, m);
 					return -ENOMEM;
 					}
@@ -4218,7 +4218,7 @@ case 0: {
 					peasycap->allocation_video_page += 1;
 				peasycap->field_buffer[k][m].pgo = pbuf;
 				}
-			peasycap->field_buffer[k][m].pto = \
+			peasycap->field_buffer[k][m].pto =
 					peasycap->field_buffer[k][m].pgo;
 		}
 		peasycap->field_buffer[k][0].kount = 0x0200;
@@ -4226,30 +4226,30 @@ case 0: {
 	peasycap->field_fill = 0;
 	peasycap->field_page = 0;
 	peasycap->field_read = 0;
-	JOM(4, "allocation of field buffers done:  %i pages\n", k * \
+	JOM(4, "allocation of field buffers done:  %i pages\n", k *
 								m);
 /*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i isoc video buffers of size %i\n",  \
-					VIDEO_ISOC_BUFFER_MANY, \
+	JOM(4, "allocating %i isoc video buffers of size %i\n",
+					VIDEO_ISOC_BUFFER_MANY,
 					peasycap->video_isoc_buffer_size);
 	JOM(4, ".... each occupying contiguous memory pages\n");
 
 	for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
 		pbuf = (void *)__get_free_pages(GFP_KERNEL, VIDEO_ISOC_ORDER);
 		if (NULL == pbuf) {
-			SAM("ERROR: Could not allocate isoc video buffer " \
+			SAM("ERROR: Could not allocate isoc video buffer "
 								"%i\n", k);
 			return -ENOMEM;
 		} else
-			peasycap->allocation_video_page += \
+			peasycap->allocation_video_page +=
 				((unsigned int)(0x01 << VIDEO_ISOC_ORDER));
 
 		peasycap->video_isoc_buffer[k].pgo = pbuf;
-		peasycap->video_isoc_buffer[k].pto = pbuf + \
+		peasycap->video_isoc_buffer[k].pto = pbuf +
 					peasycap->video_isoc_buffer_size;
 		peasycap->video_isoc_buffer[k].kount = k;
 	}
-	JOM(4, "allocation of isoc video buffers done: %i pages\n", \
+	JOM(4, "allocation of isoc video buffers done: %i pages\n",
 					k * (0x01 << VIDEO_ISOC_ORDER));
 /*---------------------------------------------------------------------------*/
 /*
@@ -4257,18 +4257,18 @@ case 0: {
  */
 /*---------------------------------------------------------------------------*/
 	JOM(4, "allocating %i struct urb.\n", VIDEO_ISOC_BUFFER_MANY);
-	JOM(4, "using %i=peasycap->video_isoc_framesperdesc\n", \
+	JOM(4, "using %i=peasycap->video_isoc_framesperdesc\n",
 					peasycap->video_isoc_framesperdesc);
-	JOM(4, "using %i=peasycap->video_isoc_maxframesize\n", \
+	JOM(4, "using %i=peasycap->video_isoc_maxframesize\n",
 					peasycap->video_isoc_maxframesize);
-	JOM(4, "using %i=peasycap->video_isoc_buffer_sizen", \
+	JOM(4, "using %i=peasycap->video_isoc_buffer_sizen",
 					peasycap->video_isoc_buffer_size);
 
 	for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
-		purb = usb_alloc_urb(peasycap->video_isoc_framesperdesc, \
+		purb = usb_alloc_urb(peasycap->video_isoc_framesperdesc,
 								GFP_KERNEL);
 		if (NULL == purb) {
-			SAM("ERROR: usb_alloc_urb returned NULL for buffer " \
+			SAM("ERROR: usb_alloc_urb returned NULL for buffer "
 								"%i\n", k);
 			return -ENOMEM;
 		} else
@@ -4279,13 +4279,13 @@ case 0: {
 			SAM("ERROR: Could not allocate struct data_urb.\n");
 			return -ENOMEM;
 		} else
-			peasycap->allocation_video_struct += \
+			peasycap->allocation_video_struct +=
 						sizeof(struct data_urb);
 
 		pdata_urb->purb = purb;
 		pdata_urb->isbuf = k;
 		pdata_urb->length = 0;
-		list_add_tail(&(pdata_urb->list_head), \
+		list_add_tail(&(pdata_urb->list_head),
 						peasycap->purb_video_head);
 /*---------------------------------------------------------------------------*/
 /*
@@ -4296,45 +4296,45 @@ case 0: {
 			JOM(4, "initializing video urbs thus:\n");
 			JOM(4, "  purb->interval = 1;\n");
 			JOM(4, "  purb->dev = peasycap->pusb_device;\n");
-			JOM(4, "  purb->pipe = usb_rcvisocpipe" \
-					"(peasycap->pusb_device,%i);\n", \
+			JOM(4, "  purb->pipe = usb_rcvisocpipe"
+					"(peasycap->pusb_device,%i);\n",
 					peasycap->video_endpointnumber);
 			JOM(4, "  purb->transfer_flags = URB_ISO_ASAP;\n");
-			JOM(4, "  purb->transfer_buffer = peasycap->" \
+			JOM(4, "  purb->transfer_buffer = peasycap->"
 					"video_isoc_buffer[.].pgo;\n");
-			JOM(4, "  purb->transfer_buffer_length = %i;\n", \
+			JOM(4, "  purb->transfer_buffer_length = %i;\n",
 					peasycap->video_isoc_buffer_size);
 			JOM(4, "  purb->complete = easycap_complete;\n");
 			JOM(4, "  purb->context = peasycap;\n");
 			JOM(4, "  purb->start_frame = 0;\n");
-			JOM(4, "  purb->number_of_packets = %i;\n", \
+			JOM(4, "  purb->number_of_packets = %i;\n",
 					peasycap->video_isoc_framesperdesc);
-			JOM(4, "  for (j = 0; j < %i; j++)\n", \
+			JOM(4, "  for (j = 0; j < %i; j++)\n",
 					peasycap->video_isoc_framesperdesc);
 			JOM(4, "    {\n");
-			JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",\
+			JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",
 					peasycap->video_isoc_maxframesize);
-			JOM(4, "    purb->iso_frame_desc[j].length = %i;\n", \
+			JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
 					peasycap->video_isoc_maxframesize);
 			JOM(4, "    }\n");
 		}
 
 		purb->interval = 1;
 		purb->dev = peasycap->pusb_device;
-		purb->pipe = usb_rcvisocpipe(peasycap->pusb_device, \
+		purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
 					peasycap->video_endpointnumber);
 		purb->transfer_flags = URB_ISO_ASAP;
 		purb->transfer_buffer = peasycap->video_isoc_buffer[k].pgo;
-		purb->transfer_buffer_length = \
+		purb->transfer_buffer_length =
 					peasycap->video_isoc_buffer_size;
 		purb->complete = easycap_complete;
 		purb->context = peasycap;
 		purb->start_frame = 0;
 		purb->number_of_packets = peasycap->video_isoc_framesperdesc;
 		for (j = 0;  j < peasycap->video_isoc_framesperdesc; j++) {
-			purb->iso_frame_desc[j].offset = j * \
+			purb->iso_frame_desc[j].offset = j *
 					peasycap->video_isoc_maxframesize;
-			purb->iso_frame_desc[j].length = \
+			purb->iso_frame_desc[j].length =
 					peasycap->video_isoc_maxframesize;
 		}
 	}
@@ -4384,12 +4384,12 @@ case 0: {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
 #if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
-	if (0 != (v4l2_device_register(&(pusb_interface->dev), \
+	if (0 != (v4l2_device_register(&(pusb_interface->dev),
 						&(peasycap->v4l2_device)))) {
 		SAM("v4l2_device_register() failed\n");
 		return -ENODEV;
 	} else {
-		JOM(4, "registered device instance: %s\n", \
+		JOM(4, "registered device instance: %s\n",
 					&(peasycap->v4l2_device.name[0]));
 	}
 /*---------------------------------------------------------------------------*/
@@ -4416,14 +4416,14 @@ case 0: {
 
 	video_set_drvdata(&(peasycap->video_device), (void *)peasycap);
 
-	if (0 != (video_register_device(&(peasycap->video_device), \
+	if (0 != (video_register_device(&(peasycap->video_device),
 						VFL_TYPE_GRABBER, -1))) {
 		err("Not able to register with videodev");
 		videodev_release(&(peasycap->video_device));
 		return -ENODEV;
 	} else {
 		(peasycap->registered_video)++;
-		SAM("registered with videodev: %i=minor\n", \
+		SAM("registered with videodev: %i=minor\n",
 						peasycap->video_device.minor);
 		peasycap->minor = peasycap->video_device.minor;
 	}
@@ -4452,7 +4452,7 @@ case 1: {
  */
 /*--------------------------------------------------------------------------*/
 	usb_set_intfdata(pusb_interface, peasycap);
-	JOM(4, "no initialization required for interface %i\n", \
+	JOM(4, "no initialization required for interface %i\n",
 				pusb_interface_descriptor->bInterfaceNumber);
 	break;
 }
@@ -4470,7 +4470,7 @@ case 2: {
 		return -ENOENT;
 	} else {
 		peasycap->audio_altsetting_on = okalt[isokalt - 1];
-		JOM(4, "%i=audio_altsetting_on <====\n", \
+		JOM(4, "%i=audio_altsetting_on <====\n",
 						peasycap->audio_altsetting_on);
 	}
 
@@ -4478,7 +4478,7 @@ case 2: {
 	JOM(4, "%i=audio_endpointnumber\n", peasycap->audio_endpointnumber);
 
 	peasycap->audio_isoc_maxframesize = okmps[isokalt - 1];
-	JOM(4, "%i=audio_isoc_maxframesize\n", \
+	JOM(4, "%i=audio_isoc_maxframesize\n",
 					peasycap->audio_isoc_maxframesize);
 	if (0 >= peasycap->audio_isoc_maxframesize) {
 		SAM("ERROR:  bad audio_isoc_maxframesize\n");
@@ -4496,42 +4496,42 @@ case 2: {
 		peasycap->audio_pages_per_fragment = PAGES_PER_AUDIO_FRAGMENT;
 	} else {
 		SAM("hardware is unidentified:\n");
-		SAM("%i=audio_isoc_maxframesize\n", \
+		SAM("%i=audio_isoc_maxframesize\n",
 					peasycap->audio_isoc_maxframesize);
 		return -ENOENT;
 	}
 
-	peasycap->audio_bytes_per_fragment = \
-					peasycap->audio_pages_per_fragment * \
+	peasycap->audio_bytes_per_fragment =
+					peasycap->audio_pages_per_fragment *
 								PAGE_SIZE ;
-	peasycap->audio_buffer_page_many = (AUDIO_FRAGMENT_MANY * \
+	peasycap->audio_buffer_page_many = (AUDIO_FRAGMENT_MANY *
 					peasycap->audio_pages_per_fragment);
 
 	JOM(4, "%6i=AUDIO_FRAGMENT_MANY\n", AUDIO_FRAGMENT_MANY);
-	JOM(4, "%6i=audio_pages_per_fragment\n", \
+	JOM(4, "%6i=audio_pages_per_fragment\n",
 					peasycap->audio_pages_per_fragment);
-	JOM(4, "%6i=audio_bytes_per_fragment\n", \
+	JOM(4, "%6i=audio_bytes_per_fragment\n",
 					peasycap->audio_bytes_per_fragment);
-	JOM(4, "%6i=audio_buffer_page_many\n", \
+	JOM(4, "%6i=audio_buffer_page_many\n",
 					peasycap->audio_buffer_page_many);
 
 	peasycap->audio_isoc_framesperdesc = AUDIO_ISOC_FRAMESPERDESC;
 
-	JOM(4, "%i=audio_isoc_framesperdesc\n", \
+	JOM(4, "%i=audio_isoc_framesperdesc\n",
 					peasycap->audio_isoc_framesperdesc);
 	if (0 >= peasycap->audio_isoc_framesperdesc) {
 		SAM("ERROR:  bad audio_isoc_framesperdesc\n");
 		return -ENOENT;
 	}
 
-	peasycap->audio_isoc_buffer_size = \
-				peasycap->audio_isoc_maxframesize * \
+	peasycap->audio_isoc_buffer_size =
+				peasycap->audio_isoc_maxframesize *
 				peasycap->audio_isoc_framesperdesc;
-	JOM(4, "%i=audio_isoc_buffer_size\n", \
+	JOM(4, "%i=audio_isoc_buffer_size\n",
 					peasycap->audio_isoc_buffer_size);
 	if (AUDIO_ISOC_BUFFER_SIZE < peasycap->audio_isoc_buffer_size) {
 			SAM("MISTAKE:  audio_isoc_buffer_size bigger "
-			"than %li=AUDIO_ISOC_BUFFER_SIZE\n", \
+			"than %li=AUDIO_ISOC_BUFFER_SIZE\n",
 						AUDIO_ISOC_BUFFER_SIZE);
 		return -EFAULT;
 	}
@@ -4569,7 +4569,7 @@ case 2: {
 
 #if !defined(EASYCAP_NEEDS_ALSA)
 	JOM(4, "allocating an audio buffer\n");
-	JOM(4, ".... scattered over %i pages\n", \
+	JOM(4, ".... scattered over %i pages\n",
 					peasycap->audio_buffer_page_many);
 
 	for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
@@ -4578,7 +4578,7 @@ case 2: {
 		} else {
 			pbuf = (void *) __get_free_page(GFP_KERNEL);
 			if ((void *)NULL == pbuf) {
-				SAM("ERROR: Could not allocate audio " \
+				SAM("ERROR: Could not allocate audio "
 							"buffer page %i\n", k);
 				return -ENOMEM;
 			} else
@@ -4594,22 +4594,22 @@ case 2: {
 	JOM(4, "allocation of audio buffer done:  %i pages\n", k);
 #endif /*!EASYCAP_NEEDS_ALSA*/
 /*---------------------------------------------------------------------------*/
-	JOM(4, "allocating %i isoc audio buffers of size %i\n",  \
+	JOM(4, "allocating %i isoc audio buffers of size %i\n",
 		AUDIO_ISOC_BUFFER_MANY, peasycap->audio_isoc_buffer_size);
 	JOM(4, ".... each occupying contiguous memory pages\n");
 
 	for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
 		pbuf = (void *)__get_free_pages(GFP_KERNEL, AUDIO_ISOC_ORDER);
 		if (NULL == pbuf) {
-			SAM("ERROR: Could not allocate isoc audio buffer " \
+			SAM("ERROR: Could not allocate isoc audio buffer "
 							"%i\n", k);
 			return -ENOMEM;
 		} else
-			peasycap->allocation_audio_page += \
+			peasycap->allocation_audio_page +=
 				((unsigned int)(0x01 << AUDIO_ISOC_ORDER));
 
 		peasycap->audio_isoc_buffer[k].pgo = pbuf;
-		peasycap->audio_isoc_buffer[k].pto = pbuf + \
+		peasycap->audio_isoc_buffer[k].pto = pbuf +
 		peasycap->audio_isoc_buffer_size;
 		peasycap->audio_isoc_buffer[k].kount = k;
 	}
@@ -4620,18 +4620,18 @@ case 2: {
  */
 /*---------------------------------------------------------------------------*/
 	JOM(4, "allocating %i struct urb.\n", AUDIO_ISOC_BUFFER_MANY);
-	JOM(4, "using %i=peasycap->audio_isoc_framesperdesc\n", \
+	JOM(4, "using %i=peasycap->audio_isoc_framesperdesc\n",
 					peasycap->audio_isoc_framesperdesc);
-	JOM(4, "using %i=peasycap->audio_isoc_maxframesize\n", \
+	JOM(4, "using %i=peasycap->audio_isoc_maxframesize\n",
 					peasycap->audio_isoc_maxframesize);
-	JOM(4, "using %i=peasycap->audio_isoc_buffer_size\n", \
+	JOM(4, "using %i=peasycap->audio_isoc_buffer_size\n",
 					peasycap->audio_isoc_buffer_size);
 
 	for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY; k++) {
-		purb = usb_alloc_urb(peasycap->audio_isoc_framesperdesc, \
+		purb = usb_alloc_urb(peasycap->audio_isoc_framesperdesc,
 								GFP_KERNEL);
 		if (NULL == purb) {
-			SAM("ERROR: usb_alloc_urb returned NULL for buffer " \
+			SAM("ERROR: usb_alloc_urb returned NULL for buffer "
 							"%i\n", k);
 			return -ENOMEM;
 		} else
@@ -4642,13 +4642,13 @@ case 2: {
 			SAM("ERROR: Could not allocate struct data_urb.\n");
 			return -ENOMEM;
 		} else
-			peasycap->allocation_audio_struct += \
+			peasycap->allocation_audio_struct +=
 						sizeof(struct data_urb);
 
 		pdata_urb->purb = purb;
 		pdata_urb->isbuf = k;
 		pdata_urb->length = 0;
-		list_add_tail(&(pdata_urb->list_head), \
+		list_add_tail(&(pdata_urb->list_head),
 						peasycap->purb_audio_head);
 /*---------------------------------------------------------------------------*/
 /*
@@ -4659,13 +4659,13 @@ case 2: {
 			JOM(4, "initializing audio urbs thus:\n");
 			JOM(4, "  purb->interval = 1;\n");
 			JOM(4, "  purb->dev = peasycap->pusb_device;\n");
-			JOM(4, "  purb->pipe = usb_rcvisocpipe(peasycap->" \
-					"pusb_device,%i);\n", \
+			JOM(4, "  purb->pipe = usb_rcvisocpipe(peasycap->"
+					"pusb_device,%i);\n",
 					peasycap->audio_endpointnumber);
 			JOM(4, "  purb->transfer_flags = URB_ISO_ASAP;\n");
-			JOM(4, "  purb->transfer_buffer = " \
+			JOM(4, "  purb->transfer_buffer = "
 				"peasycap->audio_isoc_buffer[.].pgo;\n");
-			JOM(4, "  purb->transfer_buffer_length = %i;\n", \
+			JOM(4, "  purb->transfer_buffer_length = %i;\n",
 					peasycap->audio_isoc_buffer_size);
 #if defined(EASYCAP_NEEDS_ALSA)
 			JOM(4, "  purb->complete = easycap_alsa_complete;\n");
@@ -4674,25 +4674,25 @@ case 2: {
 #endif /*EASYCAP_NEEDS_ALSA*/
 			JOM(4, "  purb->context = peasycap;\n");
 			JOM(4, "  purb->start_frame = 0;\n");
-			JOM(4, "  purb->number_of_packets = %i;\n", \
+			JOM(4, "  purb->number_of_packets = %i;\n",
 					peasycap->audio_isoc_framesperdesc);
-			JOM(4, "  for (j = 0; j < %i; j++)\n", \
+			JOM(4, "  for (j = 0; j < %i; j++)\n",
 					peasycap->audio_isoc_framesperdesc);
 			JOM(4, "    {\n");
-			JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",\
+			JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",
 					peasycap->audio_isoc_maxframesize);
-			JOM(4, "    purb->iso_frame_desc[j].length = %i;\n", \
+			JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
 					peasycap->audio_isoc_maxframesize);
 			JOM(4, "    }\n");
 			}
 
 		purb->interval = 1;
 		purb->dev = peasycap->pusb_device;
-		purb->pipe = usb_rcvisocpipe(peasycap->pusb_device, \
+		purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
 					peasycap->audio_endpointnumber);
 		purb->transfer_flags = URB_ISO_ASAP;
 		purb->transfer_buffer = peasycap->audio_isoc_buffer[k].pgo;
-		purb->transfer_buffer_length = \
+		purb->transfer_buffer_length =
 					peasycap->audio_isoc_buffer_size;
 #if defined(EASYCAP_NEEDS_ALSA)
 		purb->complete = easycap_alsa_complete;
@@ -4703,9 +4703,9 @@ case 2: {
 		purb->start_frame = 0;
 		purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
 		for (j = 0;  j < peasycap->audio_isoc_framesperdesc; j++) {
-			purb->iso_frame_desc[j].offset = j * \
+			purb->iso_frame_desc[j].offset = j *
 					peasycap->audio_isoc_maxframesize;
-			purb->iso_frame_desc[j].length = \
+			purb->iso_frame_desc[j].length =
 					peasycap->audio_isoc_maxframesize;
 		}
 	}
@@ -4729,7 +4729,7 @@ case 2: {
 		err("easycap_alsa_probe() returned %i\n", rc);
 		return -ENODEV;
 	} else {
-		JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",\
+		JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
 					(int)peasycap->kref.refcount.counter);
 		kref_get(&peasycap->kref);
 		(peasycap->registered_audio)++;
@@ -4742,7 +4742,7 @@ case 2: {
 		usb_set_intfdata(pusb_interface, NULL);
 		return -ENODEV;
 	} else {
-		JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",\
+		JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
 					(int)peasycap->kref.refcount.counter);
 		kref_get(&peasycap->kref);
 		(peasycap->registered_audio)++;
@@ -4767,7 +4767,7 @@ default: {
 	return -EINVAL;
 }
 }
-SAM("ends successfully for interface %i\n", \
+SAM("ends successfully for interface %i\n",
 				pusb_interface_descriptor->bInterfaceNumber);
 return 0;
 }
@@ -4847,7 +4847,7 @@ if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 		SAY("ERROR: pv4l2_device is NULL\n");
 		return;
 	}
-	peasycap = (struct easycap *) \
+	peasycap = (struct easycap *)
 		container_of(pv4l2_device, struct easycap, v4l2_device);
 }
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
@@ -4876,10 +4876,10 @@ case 0: {
 		m = 0;
 		list_for_each(plist_head, (peasycap->purb_video_head))
 			{
-			pdata_urb = list_entry(plist_head, \
+			pdata_urb = list_entry(plist_head,
 					struct data_urb, list_head);
 			if ((struct data_urb *)NULL != pdata_urb) {
-				if ((struct urb *)NULL != \
+				if ((struct urb *)NULL !=
 						pdata_urb->purb) {
 					usb_kill_urb(pdata_urb->purb);
 					m++;
@@ -4895,12 +4895,12 @@ case 2: {
 	if ((struct list_head *)NULL != peasycap->purb_audio_head) {
 		JOM(4, "killing audio urbs\n");
 		m = 0;
-		list_for_each(plist_head, \
+		list_for_each(plist_head,
 					(peasycap->purb_audio_head)) {
-			pdata_urb = list_entry(plist_head, \
+			pdata_urb = list_entry(plist_head,
 					struct data_urb, list_head);
 			if ((struct data_urb *)NULL != pdata_urb) {
-				if ((struct urb *)NULL != \
+				if ((struct urb *)NULL !=
 						pdata_urb->purb) {
 					usb_kill_urb(pdata_urb->purb);
 					m++;
@@ -4929,11 +4929,11 @@ switch (bInterfaceNumber) {
 case 0: {
 	if (0 <= kd && DONGLE_MANY > kd) {
 		wake_up_interruptible(&peasycap->wq_video);
-		JOM(4, "about to lock easycapdc60_dongle[%i].mutex_video\n", \
+		JOM(4, "about to lock easycapdc60_dongle[%i].mutex_video\n",
 									kd);
-		if (mutex_lock_interruptible(&easycapdc60_dongle[kd].\
+		if (mutex_lock_interruptible(&easycapdc60_dongle[kd].
 								mutex_video)) {
-			SAY("ERROR: cannot lock easycapdc60_dongle[%i]." \
+			SAY("ERROR: cannot lock easycapdc60_dongle[%i]."
 							"mutex_video\n", kd);
 			return;
 		}
@@ -4981,11 +4981,11 @@ case 0: {
 case 2: {
 	if (0 <= kd && DONGLE_MANY > kd) {
 		wake_up_interruptible(&peasycap->wq_audio);
-		JOM(4, "about to lock easycapdc60_dongle[%i].mutex_audio\n", \
+		JOM(4, "about to lock easycapdc60_dongle[%i].mutex_audio\n",
 									kd);
-		if (mutex_lock_interruptible(&easycapdc60_dongle[kd].\
+		if (mutex_lock_interruptible(&easycapdc60_dongle[kd].
 								mutex_audio)) {
-			SAY("ERROR: cannot lock easycapdc60_dongle[%i]." \
+			SAY("ERROR: cannot lock easycapdc60_dongle[%i]."
 							"mutex_audio\n", kd);
 			return;
 		}
@@ -5052,7 +5052,7 @@ if (0 <= kd && DONGLE_MANY > kd) {
 	}
 	JOM(4, "locked easycapdc60_dongle[%i].mutex_audio\n", kd);
 }
-JOM(4, "intf[%i]: %i=peasycap->kref.refcount.counter\n", \
+JOM(4, "intf[%i]: %i=peasycap->kref.refcount.counter\n",
 		bInterfaceNumber, (int)peasycap->kref.refcount.counter);
 kref_put(&peasycap->kref, easycap_delete);
 JOT(4, "intf[%i]: kref_put() done.\n", bInterfaceNumber);
@@ -5073,7 +5073,7 @@ easycap_module_init(void)
 int k, rc;
 
 SAY("========easycap=======\n");
-JOT(4, "begins.  %i=debug %i=bars %i=gain\n", easycap_debug, easycap_bars, \
+JOT(4, "begins.  %i=debug %i=bars %i=gain\n", easycap_debug, easycap_bars,
 						easycap_gain);
 SAY("version: " EASYCAP_DRIVER_VERSION "\n");
 
@@ -5123,7 +5123,7 @@ MODULE_VERSION(EASYCAP_DRIVER_VERSION);
 #if defined(EASYCAP_DEBUG)
 MODULE_PARM_DESC(debug, "Debug level: 0(default),1,2,...,9");
 #endif /*EASYCAP_DEBUG*/
-MODULE_PARM_DESC(bars, \
+MODULE_PARM_DESC(bars,
 	"Testcard bars on input signal failure: 0=>no, 1=>yes(default)");
 MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
 /*****************************************************************************/
