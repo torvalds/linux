@@ -244,6 +244,13 @@ static void __init omap_timer_init(void)
 
 	omap_init_mpu_timer(rate);
 	omap_init_clocksource(rate);
+	/*
+	 * XXX Since this file seems to deal mostly with the MPU timer,
+	 * this doesn't seem like the correct place for the sync timer
+	 * clocksource init.
+	 */
+	if (!cpu_is_omap7xx() && !cpu_is_omap15xx())
+		omap_init_clocksource_32k();
 }
 
 struct sys_timer omap_timer = {

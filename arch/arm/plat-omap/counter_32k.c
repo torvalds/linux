@@ -160,7 +160,7 @@ void read_persistent_clock(struct timespec *ts)
 	*ts = *tsp;
 }
 
-static int __init omap_init_clocksource_32k(void)
+int __init omap_init_clocksource_32k(void)
 {
 	static char err[] __initdata = KERN_ERR
 			"%s: can't register clocksource!\n";
@@ -195,7 +195,6 @@ static int __init omap_init_clocksource_32k(void)
 	}
 	return 0;
 }
-arch_initcall(omap_init_clocksource_32k);
 
 #endif	/* !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX)) */
 
