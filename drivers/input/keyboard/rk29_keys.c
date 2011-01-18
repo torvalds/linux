@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/workqueue.h>
 #include <linux/adc.h>
 
 #include <asm/gpio.h>
@@ -45,7 +44,6 @@ struct rk29_button_data {
 	struct rk29_keys_button *button;
 	struct input_dev *input;
 	struct timer_list timer;
-	struct work_struct work;
 };
 
 struct rk29_keys_drvdata {
@@ -56,15 +54,6 @@ struct rk29_keys_drvdata {
 	struct timer_list timer;
 	struct rk29_button_data data[0];
 };
-
-static void keys_do_something(struct work_struct *work)
-{
-	struct rk29_button_data *bdata =
-		container_of(work, struct rk29_button_data, work);
-
-	key_dbg(bdata, "do what?\n");
-	return;
-}
 
 static void keys_long_press_timer(unsigned long _data)
 {
@@ -145,8 +134,6 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 	struct rk29_button_data *bdata = dev_id;
 	struct rk29_keys_button *button = bdata->button;
 	BUG_ON(irq != gpio_to_irq(button->gpio));
-	if(button->wakeup)
-		schedule_work(&bdata->work);
 	bdata->long_press_count = 0;
 	mod_timer(&bdata->timer,
 				jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
@@ -250,7 +237,6 @@ static int __devinit keys_probe(struct platform_device *pdev)
 		else if(button->code)
 			setup_timer(&bdata->timer,
 			    	keys_timer, (unsigned long)bdata);
-		INIT_WORK(&bdata->work, keys_do_something);
 		if(button->gpio) {
 			error = gpio_request(button->gpio, button->desc ?: "keys");
 			if (error < 0) {
@@ -310,7 +296,6 @@ static int __devinit keys_probe(struct platform_device *pdev)
 	while (--i >= 0) {
 		free_irq(gpio_to_irq(pdata->buttons[i].gpio), &ddata->data[i]);
 		del_timer_sync(&ddata->data[i].timer);
-		cancel_work_sync(&ddata->data[i].work);
 		gpio_free(pdata->buttons[i].gpio);
 	}
 	if(pdata->chn >= 0 && ddata->client);
@@ -337,7 +322,6 @@ static int __devexit keys_remove(struct platform_device *pdev)
 		int irq = gpio_to_irq(pdata->buttons[i].gpio);
 		free_irq(irq, &ddata->data[i]);
 		del_timer_sync(&ddata->data[i].timer);
-		cancel_work_sync(&ddata->data[i].work);
 		gpio_free(pdata->buttons[i].gpio);
 	}
 	if(pdata->chn >= 0 && ddata->client);
