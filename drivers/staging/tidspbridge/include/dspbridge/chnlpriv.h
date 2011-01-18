@@ -58,7 +58,7 @@ struct chnl_info {
 	void *event_obj;	/* Channel I/O completion event. */
 	/*Abstraction of I/O completion event. */
 	struct sync_object *sync_event;
-	s8 dw_mode;		/* Channel mode. */
+	s8 mode;		/* Channel mode. */
 	u8 dw_state;		/* Current channel state. */
 	u32 bytes_tx;		/* Total bytes transferred. */
 	u32 cio_cs;		/* Number of IOCs in queue. */

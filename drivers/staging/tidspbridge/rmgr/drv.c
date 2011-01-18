@@ -687,9 +687,9 @@ static int request_bridge_resources(struct cfg_hostres *res)
 	host_res->num_mem_windows = 2;
 
 	/* First window is for DSP internal memory */
-	dev_dbg(bridge, "dw_mem_base[0] 0x%x\n", host_res->dw_mem_base[0]);
-	dev_dbg(bridge, "dw_mem_base[3] 0x%x\n", host_res->dw_mem_base[3]);
-	dev_dbg(bridge, "dw_dmmu_base %p\n", host_res->dw_dmmu_base);
+	dev_dbg(bridge, "mem_base[0] 0x%x\n", host_res->mem_base[0]);
+	dev_dbg(bridge, "mem_base[3] 0x%x\n", host_res->mem_base[3]);
+	dev_dbg(bridge, "dmmu_base %p\n", host_res->dmmu_base);
 
 	/* for 24xx base port is not mapping the mamory for DSP
 	 * internal memory TODO Do a ioremap here */
@@ -698,10 +698,10 @@ static int request_bridge_resources(struct cfg_hostres *res)
 	/* These are hard-coded values */
 	host_res->birq_registers = 0;
 	host_res->birq_attrib = 0;
-	host_res->dw_offset_for_monitor = 0;
+	host_res->offset_for_monitor = 0;
 	host_res->chnl_offset = 0;
 	/* CHNL_MAXCHANNELS */
-	host_res->dw_num_chnls = CHNL_MAXCHANNELS;
+	host_res->num_chnls = CHNL_MAXCHANNELS;
 	host_res->chnl_buf_size = 0x400;
 
 	return 0;
@@ -730,51 +730,51 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 		/* num_mem_windows must not be more than CFG_MAXMEMREGISTERS */
 		host_res->num_mem_windows = 4;
 
-		host_res->dw_mem_base[0] = 0;
-		host_res->dw_mem_base[2] = (u32) ioremap(OMAP_DSP_MEM1_BASE,
+		host_res->mem_base[0] = 0;
+		host_res->mem_base[2] = (u32) ioremap(OMAP_DSP_MEM1_BASE,
 							 OMAP_DSP_MEM1_SIZE);
-		host_res->dw_mem_base[3] = (u32) ioremap(OMAP_DSP_MEM2_BASE,
+		host_res->mem_base[3] = (u32) ioremap(OMAP_DSP_MEM2_BASE,
 							 OMAP_DSP_MEM2_SIZE);
-		host_res->dw_mem_base[4] = (u32) ioremap(OMAP_DSP_MEM3_BASE,
+		host_res->mem_base[4] = (u32) ioremap(OMAP_DSP_MEM3_BASE,
 							 OMAP_DSP_MEM3_SIZE);
-		host_res->dw_per_base = ioremap(OMAP_PER_CM_BASE,
+		host_res->per_base = ioremap(OMAP_PER_CM_BASE,
 						OMAP_PER_CM_SIZE);
-		host_res->dw_per_pm_base = (u32) ioremap(OMAP_PER_PRM_BASE,
+		host_res->per_pm_base = (u32) ioremap(OMAP_PER_PRM_BASE,
 							 OMAP_PER_PRM_SIZE);
 		host_res->core_pm_base = (u32) ioremap(OMAP_CORE_PRM_BASE,
 							  OMAP_CORE_PRM_SIZE);
-		host_res->dw_dmmu_base = ioremap(OMAP_DMMU_BASE,
+		host_res->dmmu_base = ioremap(OMAP_DMMU_BASE,
 						 OMAP_DMMU_SIZE);
 
-		dev_dbg(bridge, "dw_mem_base[0] 0x%x\n",
-			host_res->dw_mem_base[0]);
-		dev_dbg(bridge, "dw_mem_base[1] 0x%x\n",
-			host_res->dw_mem_base[1]);
-		dev_dbg(bridge, "dw_mem_base[2] 0x%x\n",
-			host_res->dw_mem_base[2]);
-		dev_dbg(bridge, "dw_mem_base[3] 0x%x\n",
-			host_res->dw_mem_base[3]);
-		dev_dbg(bridge, "dw_mem_base[4] 0x%x\n",
-			host_res->dw_mem_base[4]);
-		dev_dbg(bridge, "dw_dmmu_base %p\n", host_res->dw_dmmu_base);
+		dev_dbg(bridge, "mem_base[0] 0x%x\n",
+			host_res->mem_base[0]);
+		dev_dbg(bridge, "mem_base[1] 0x%x\n",
+			host_res->mem_base[1]);
+		dev_dbg(bridge, "mem_base[2] 0x%x\n",
+			host_res->mem_base[2]);
+		dev_dbg(bridge, "mem_base[3] 0x%x\n",
+			host_res->mem_base[3]);
+		dev_dbg(bridge, "mem_base[4] 0x%x\n",
+			host_res->mem_base[4]);
+		dev_dbg(bridge, "dmmu_base %p\n", host_res->dmmu_base);
 
 		shm_size = drv_datap->shm_size;
 		if (shm_size >= 0x10000) {
 			/* Allocate Physically contiguous,
 			 * non-cacheable  memory */
-			host_res->dw_mem_base[1] =
+			host_res->mem_base[1] =
 			    (u32) mem_alloc_phys_mem(shm_size, 0x100000,
 						     &dma_addr);
-			if (host_res->dw_mem_base[1] == 0) {
+			if (host_res->mem_base[1] == 0) {
 				status = -ENOMEM;
 				pr_err("shm reservation Failed\n");
 			} else {
-				host_res->dw_mem_length[1] = shm_size;
-				host_res->dw_mem_phys[1] = dma_addr;
+				host_res->mem_length[1] = shm_size;
+				host_res->mem_phys[1] = dma_addr;
 
 				dev_dbg(bridge, "%s: Bridge shm address 0x%x "
 					"dma_addr %x size %x\n", __func__,
-					host_res->dw_mem_base[1],
+					host_res->mem_base[1],
 					dma_addr, shm_size);
 			}
 		}
@@ -782,10 +782,10 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 			/* These are hard-coded values */
 			host_res->birq_registers = 0;
 			host_res->birq_attrib = 0;
-			host_res->dw_offset_for_monitor = 0;
+			host_res->offset_for_monitor = 0;
 			host_res->chnl_offset = 0;
 			/* CHNL_MAXCHANNELS */
-			host_res->dw_num_chnls = CHNL_MAXCHANNELS;
+			host_res->num_chnls = CHNL_MAXCHANNELS;
 			host_res->chnl_buf_size = 0x400;
 			dw_buff_size = sizeof(struct cfg_hostres);
 		}

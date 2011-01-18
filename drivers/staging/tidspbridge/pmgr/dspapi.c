@@ -68,7 +68,7 @@
 /* Device IOCtl function pointer */
 struct api_cmd {
 	u32(*fxn) (union trapped_args *args, void *pr_ctxt);
-	u32 dw_index;
+	u32 index;
 };
 
 /*  ----------------------------------- Globals */

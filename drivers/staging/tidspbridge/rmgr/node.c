@@ -621,7 +621,7 @@ func_cont:
 				goto func_end;
 			}
 
-			ul_gpp_mem_base = (u32) host_res->dw_mem_base[1];
+			ul_gpp_mem_base = (u32) host_res->mem_base[1];
 			off_set = pul_value - dynext_base;
 			ul_stack_seg_addr = ul_gpp_mem_base + off_set;
 			ul_stack_seg_val = readl(ul_stack_seg_addr);
@@ -2904,7 +2904,7 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
 			return -EPERM;
 		hnode_mgr->ul_chnl_offset = host_res->chnl_offset;
 		hnode_mgr->ul_chnl_buf_size = host_res->chnl_buf_size;
-		hnode_mgr->ul_num_chnls = host_res->dw_num_chnls;
+		hnode_mgr->ul_num_chnls = host_res->num_chnls;
 
 		/*
 		 *  PROC will add an API to get dsp_processorinfo.

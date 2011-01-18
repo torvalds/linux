@@ -49,7 +49,7 @@
 #include <dspbridge/cmm.h>
 
 /*  ----------------------------------- Defines, Data Structures, Typedefs */
-#define NEXT_PA(pnode)   (pnode->dw_pa + pnode->ul_size)
+#define NEXT_PA(pnode)   (pnode->pa + pnode->ul_size)
 
 /* Other bus/platform translations */
 #define DSPPA2GPPPA(base, x, y)  ((x)+(y))
@@ -99,7 +99,7 @@ struct cmm_object {
 	struct mutex cmm_lock;	/* Lock to access cmm mgr */
 	struct list_head node_free_list;	/* Free list of memory nodes */
 	u32 ul_min_block_size;	/* Min SM block; default 16 bytes */
-	u32 dw_page_size;	/* Memory Page size (1k/4k) */
+	u32 page_size;	/* Memory Page size (1k/4k) */
 	/* GPP SM segment ptrs */
 	struct cmm_allocator *pa_gppsm_seg_tab[CMM_MAXGPPSEGS];
 };
@@ -128,7 +128,7 @@ static struct cmm_xlatorattrs cmm_dfltxlatorattrs = {
 /* SM node representing a block of memory. */
 struct cmm_mnode {
 	struct list_head link;	/* must be 1st element */
-	u32 dw_pa;		/* Phys addr */
+	u32 pa;		/* Phys addr */
 	u32 dw_va;		/* Virtual address in device process context */
 	u32 ul_size;		/* SM block size in bytes */
 	u32 client_proc;	/* Process that allocated this mem block */
@@ -199,7 +199,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
 				/* create a new block with the leftovers and
 				 * add to freelist */
 				new_node =
-				    get_node(cmm_mgr_obj, pnode->dw_pa + usize,
+				    get_node(cmm_mgr_obj, pnode->pa + usize,
 					     pnode->dw_va + usize,
 					     (u32) delta_size);
 				/* leftovers go free */
@@ -216,7 +216,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
 
 			/* put our node on InUse list */
 			list_add_tail(&pnode->link, &allocator->in_use_list);
-			buf_pa = (void *)pnode->dw_pa;	/* physical address */
+			buf_pa = (void *)pnode->pa;	/* physical address */
 			/* clear mem */
 			pbyte = (u8 *) pnode->dw_va;
 			for (cnt = 0; cnt < (s32) usize; cnt++, pbyte++)
@@ -260,7 +260,7 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 	DBC_ASSERT(mgr_attrts->ul_min_block_size >= 4);
 	/* save away smallest block allocation for this cmm mgr */
 	cmm_obj->ul_min_block_size = mgr_attrts->ul_min_block_size;
-	cmm_obj->dw_page_size = PAGE_SIZE;
+	cmm_obj->page_size = PAGE_SIZE;
 
 	/* create node free list */
 	INIT_LIST_HEAD(&cmm_obj->node_free_list);
@@ -369,7 +369,7 @@ int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa, u32 ul_seg_id)
 
 	mutex_lock(&cmm_mgr_obj->cmm_lock);
 	list_for_each_entry_safe(curr, tmp, &allocator->in_use_list, link) {
-		if (curr->dw_pa == (u32) buf_pa) {
+		if (curr->pa == (u32) buf_pa) {
 			list_del(&curr->link);
 			add_to_free_list(allocator, curr);
 			status = 0;
@@ -438,7 +438,7 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 		if (!altr)
 			continue;
 		cmm_info_obj->ul_num_gppsm_segs++;
-		cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_pa =
+		cmm_info_obj->seg_info[ul_seg - 1].seg_base_pa =
 			altr->shm_base - altr->ul_dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_total_seg_size =
 			altr->ul_dsp_size + altr->ul_sm_size;
@@ -704,7 +704,7 @@ static struct cmm_mnode *get_node(struct cmm_object *cmm_mgr_obj, u32 dw_pa,
 		list_del_init(&pnode->link);
 	}
 
-	pnode->dw_pa = dw_pa;
+	pnode->pa = dw_pa;
 	pnode->dw_va = dw_va;
 	pnode->ul_size = ul_size;
 
@@ -763,13 +763,13 @@ static void add_to_free_list(struct cmm_allocator *allocator,
 	}
 
 	list_for_each_entry(curr, &allocator->free_list, link) {
-		if (NEXT_PA(curr) == node->dw_pa) {
+		if (NEXT_PA(curr) == node->pa) {
 			curr->ul_size += node->ul_size;
 			delete_node(allocator->hcmm_mgr, node);
 			return;
 		}
-		if (curr->dw_pa == NEXT_PA(node)) {
-			curr->dw_pa = node->dw_pa;
+		if (curr->pa == NEXT_PA(node)) {
+			curr->pa = node->pa;
 			curr->dw_va = node->dw_va;
 			curr->ul_size += node->ul_size;
 			delete_node(allocator->hcmm_mgr, node);

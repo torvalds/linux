@@ -272,7 +272,7 @@ int bridge_chnl_cancel_io(struct chnl_object *chnl_obj)
 		} else {
 			/* Record that we no longer have output buffers
 			 * available: */
-			chnl_mgr_obj->dw_output_mask &= ~(1 << chnl_id);
+			chnl_mgr_obj->output_mask &= ~(1 << chnl_id);
 		}
 	}
 	/* Move all IOR's to IOC queue: */
@@ -386,8 +386,8 @@ int bridge_chnl_create(struct chnl_mgr **channel_mgr,
 			/* Total # chnls supported */
 			chnl_mgr_obj->max_channels = max_channels;
 			chnl_mgr_obj->open_channels = 0;
-			chnl_mgr_obj->dw_output_mask = 0;
-			chnl_mgr_obj->dw_last_output = 0;
+			chnl_mgr_obj->output_mask = 0;
+			chnl_mgr_obj->last_output = 0;
 			chnl_mgr_obj->hdev_obj = hdev_obj;
 			spin_lock_init(&chnl_mgr_obj->chnl_mgr_lock);
 		} else {
@@ -511,7 +511,7 @@ int bridge_chnl_get_info(struct chnl_object *chnl_obj,
 			channel_info->hchnl_mgr = pchnl->chnl_mgr_obj;
 			channel_info->event_obj = pchnl->user_event;
 			channel_info->cnhl_id = pchnl->chnl_id;
-			channel_info->dw_mode = pchnl->chnl_mode;
+			channel_info->mode = pchnl->chnl_mode;
 			channel_info->bytes_tx = pchnl->bytes_moved;
 			channel_info->process = pchnl->process;
 			channel_info->sync_event = pchnl->sync_event;

@@ -51,7 +51,7 @@ struct cmm_attrs {
  */
 
 struct cmm_seginfo {
-	u32 dw_seg_base_pa;	/* Start Phys address of SM segment */
+	u32 seg_base_pa;	/* Start Phys address of SM segment */
 	/* Total size in bytes of segment: DSP+GPP */
 	u32 ul_total_seg_size;
 	u32 gpp_base_pa;	/* Start Phys addr of Gpp SM seg */

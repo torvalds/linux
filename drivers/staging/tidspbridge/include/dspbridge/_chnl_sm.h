@@ -119,8 +119,8 @@ struct chnl_mgr {
 	struct dev_object *hdev_obj;
 
 	/* These fields initialized in bridge_chnl_create(): */
-	u32 dw_output_mask;	/* Host output channels w/ full buffers */
-	u32 dw_last_output;	/* Last output channel fired from DPC */
+	u32 output_mask;	/* Host output channels w/ full buffers */
+	u32 last_output;	/* Last output channel fired from DPC */
 	/* Critical section object handle */
 	spinlock_t chnl_mgr_lock;
 	u32 word_size;		/* Size in bytes of DSP word */

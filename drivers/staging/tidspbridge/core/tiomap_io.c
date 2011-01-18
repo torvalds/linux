@@ -197,16 +197,16 @@ int write_dsp_data(struct bridge_dev_context *dev_context,
 
 	offset = dsp_addr - dev_context->dsp_start_add;
 	if (offset < base1) {
-		dw_base_addr = MEM_LINEAR_ADDRESS(resources->dw_mem_base[2],
-						  resources->dw_mem_length[2]);
+		dw_base_addr = MEM_LINEAR_ADDRESS(resources->mem_base[2],
+						  resources->mem_length[2]);
 	} else if (offset > base1 && offset < base2 + OMAP_DSP_MEM2_SIZE) {
-		dw_base_addr = MEM_LINEAR_ADDRESS(resources->dw_mem_base[3],
-						  resources->dw_mem_length[3]);
+		dw_base_addr = MEM_LINEAR_ADDRESS(resources->mem_base[3],
+						  resources->mem_length[3]);
 		offset = offset - base2;
 	} else if (offset >= base2 + OMAP_DSP_MEM2_SIZE &&
 		   offset < base3 + OMAP_DSP_MEM3_SIZE) {
-		dw_base_addr = MEM_LINEAR_ADDRESS(resources->dw_mem_base[4],
-						  resources->dw_mem_length[4]);
+		dw_base_addr = MEM_LINEAR_ADDRESS(resources->mem_base[4],
+						  resources->mem_length[4]);
 		offset = offset - base3;
 	} else {
 		return -EPERM;
@@ -339,7 +339,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 				dw_ext_prog_virt_mem =
 				    dev_context->atlb_entry[0].ul_gpp_va;
 			} else {
-				dw_ext_prog_virt_mem = host_res->dw_mem_base[1];
+				dw_ext_prog_virt_mem = host_res->mem_base[1];
 				dw_ext_prog_virt_mem +=
 				    (ul_ext_base - ul_dyn_ext_base);
 			}
@@ -437,7 +437,7 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 		omap_mbox_restore_ctx(dev_context->mbox);
 
 		/* Access MMU SYS CONFIG register to generate a short wakeup */
-		temp = readl(resources->dw_dmmu_base + 0x10);
+		temp = readl(resources->dmmu_base + 0x10);
 
 		dev_context->brd_state = BRD_RUNNING;
 	} else if (dev_context->brd_state == BRD_RETENTION) {

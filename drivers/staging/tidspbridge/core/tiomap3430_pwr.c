@@ -434,8 +434,8 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 
 	switch (clock_id) {
 	case BPWR_GP_TIMER5:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT5_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT5_MASK;
@@ -443,12 +443,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT5_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT5_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_GP_TIMER6:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT6_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT6_MASK;
@@ -456,12 +456,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT6_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT6_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_GP_TIMER7:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT7_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT7_MASK;
@@ -469,12 +469,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT7_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT7_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_GP_TIMER8:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_GPT8_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_GPT8_MASK;
@@ -482,8 +482,8 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_GPT8_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_GPT8_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP1:
 		iva2_grpsel = readl(resources->core_pm_base + 0xA8);
@@ -499,8 +499,8 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 		writel(mpu_grpsel, resources->core_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP2:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP2_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP2_MASK;
@@ -508,12 +508,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP2_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP2_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP3:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP3_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP3_MASK;
@@ -521,12 +521,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP3_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP3_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP4:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP4_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP4_MASK;
@@ -534,12 +534,12 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP4_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP4_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	case BPWR_MCBSP5:
-		iva2_grpsel = readl(resources->dw_per_pm_base + 0xA8);
-		mpu_grpsel = readl(resources->dw_per_pm_base + 0xA4);
+		iva2_grpsel = readl(resources->per_pm_base + 0xA8);
+		mpu_grpsel = readl(resources->per_pm_base + 0xA4);
 		if (enable) {
 			iva2_grpsel |= OMAP3430_GRPSEL_MCBSP5_MASK;
 			mpu_grpsel &= ~OMAP3430_GRPSEL_MCBSP5_MASK;
@@ -547,8 +547,8 @@ void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 			mpu_grpsel |= OMAP3430_GRPSEL_MCBSP5_MASK;
 			iva2_grpsel &= ~OMAP3430_GRPSEL_MCBSP5_MASK;
 		}
-		writel(iva2_grpsel, resources->dw_per_pm_base + 0xA8);
-		writel(mpu_grpsel, resources->dw_per_pm_base + 0xA4);
+		writel(iva2_grpsel, resources->per_pm_base + 0xA8);
+		writel(mpu_grpsel, resources->per_pm_base + 0xA4);
 		break;
 	}
 }

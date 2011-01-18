@@ -327,16 +327,16 @@ struct bridge_dev_context {
 	 */
 	u32 dsp_ext_base_addr;	/* See the comment above */
 	u32 api_reg_base;	/* API mem map'd registers */
-	void __iomem *dw_dsp_mmu_base;	/* DSP MMU Mapped registers */
+	void __iomem *dsp_mmu_base;	/* DSP MMU Mapped registers */
 	u32 api_clk_base;	/* CLK Registers */
 	u32 dsp_clk_m2_base;	/* DSP Clock Module m2 */
-	u32 dw_public_rhea;	/* Pub Rhea */
-	u32 dw_int_addr;	/* MB INTR reg */
+	u32 public_rhea;	/* Pub Rhea */
+	u32 int_addr;		/* MB INTR reg */
 	u32 dw_tc_endianism;	/* TC Endianism register */
 	u32 dw_test_base;	/* DSP MMU Mapped registers */
 	u32 dw_self_loop;	/* Pointer to the selfloop */
 	u32 dsp_start_add;	/* API Boot vector */
-	u32 dw_internal_size;	/* Internal memory size */
+	u32 internal_size;	/* Internal memory size */
 
 	struct omap_mbox *mbox;		/* Mail box handle */
 

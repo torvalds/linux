@@ -417,8 +417,8 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 
 		/* The first MMU TLB entry(TLB_0) in DCD is ShmBase. */
 		ndx = 0;
-		ul_gpp_pa = host_res->dw_mem_phys[1];
-		ul_gpp_va = host_res->dw_mem_base[1];
+		ul_gpp_pa = host_res->mem_phys[1];
+		ul_gpp_va = host_res->mem_base[1];
 		/* This is the virtual uncached ioremapped address!!! */
 		/* Why can't we directly take the DSPVA from the symbols? */
 		ul_dsp_va = hio_mgr->ext_proc_info.ty_tlb[0].ul_dsp_virt;
@@ -441,9 +441,9 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 			ul_dyn_ext_base, ul_ext_end, ul_seg_size, ul_seg1_size);
 
 		if ((ul_seg_size + ul_seg1_size + ul_pad_size) >
-		    host_res->dw_mem_length[1]) {
+		    host_res->mem_length[1]) {
 			pr_err("%s: shm Error, reserved 0x%x required 0x%x\n",
-			       __func__, host_res->dw_mem_length[1],
+			       __func__, host_res->mem_length[1],
 			       ul_seg_size + ul_seg1_size + ul_pad_size);
 			status = -ENOMEM;
 		}
@@ -993,7 +993,7 @@ void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
 		 * Record the fact that we have a buffer available for
 		 * output.
 		 */
-		chnl_mgr_obj->dw_output_mask |= (1 << pchnl->chnl_id);
+		chnl_mgr_obj->output_mask |= (1 << pchnl->chnl_id);
 	} else {
 		DBC_ASSERT(io_mode);	/* Shouldn't get here. */
 	}
@@ -1036,7 +1036,7 @@ static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
 	u32 shift;
 
 	id = (pchnl !=
-	      NULL ? pchnl->chnl_id : (chnl_mgr_obj->dw_last_output + 1));
+	      NULL ? pchnl->chnl_id : (chnl_mgr_obj->last_output + 1));
 	id = ((id == CHNL_MAXCHANNELS) ? 0 : id);
 	if (id >= CHNL_MAXCHANNELS)
 		goto func_end;
@@ -1047,7 +1047,7 @@ static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
 			if (mask & shift) {
 				ret = id;
 				if (pchnl == NULL)
-					chnl_mgr_obj->dw_last_output = id;
+					chnl_mgr_obj->last_output = id;
 				break;
 			}
 			id = id + 1;
@@ -1336,7 +1336,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	dw_dsp_f_mask = sm->dsp_free_mask;
 	chnl_id =
 	    find_ready_output(chnl_mgr_obj, pchnl,
-			      (chnl_mgr_obj->dw_output_mask & dw_dsp_f_mask));
+			      (chnl_mgr_obj->output_mask & dw_dsp_f_mask));
 	if (chnl_id == OUTPUTNOTREADY)
 		goto func_end;
 
@@ -1358,7 +1358,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 
 	/* Record fact that no more I/O buffers available */
 	if (list_empty(&pchnl->pio_requests))
-		chnl_mgr_obj->dw_output_mask &= ~(1 << chnl_id);
+		chnl_mgr_obj->output_mask &= ~(1 << chnl_id);
 
 	/* Transfer buffer to DSP side */
 	chnl_packet_obj->byte_size = min(pio_mgr->usm_buf_size,

@@ -213,11 +213,11 @@ int dev_create_device(struct dev_object **device_obj,
 		num_windows = host_res->num_mem_windows;
 		if (num_windows) {
 			/* Assume last memory window is for CHNL */
-			io_mgr_attrs.shm_base = host_res->dw_mem_base[1] +
-			    host_res->dw_offset_for_monitor;
+			io_mgr_attrs.shm_base = host_res->mem_base[1] +
+			    host_res->offset_for_monitor;
 			io_mgr_attrs.usm_length =
-			    host_res->dw_mem_length[1] -
-			    host_res->dw_offset_for_monitor;
+			    host_res->mem_length[1] -
+			    host_res->offset_for_monitor;
 		} else {
 			io_mgr_attrs.shm_base = 0;
 			io_mgr_attrs.usm_length = 0;
