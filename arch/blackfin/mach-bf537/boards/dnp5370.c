@@ -128,30 +128,11 @@ static struct platform_device asmb_flash_device = {
 
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 
-#define MMC_SPI_CARD_DETECT_INT IRQ_PF5
-
-static int bfin_mmc_spi_init(struct device *dev,
-	irqreturn_t (*detect_int)(int, void *), void *data)
-{
-	return request_irq(MMC_SPI_CARD_DETECT_INT, detect_int,
-		IRQF_TRIGGER_FALLING, "mmc-spi-detect", data);
-}
-
-static void bfin_mmc_spi_exit(struct device *dev, void *data)
-{
-	free_irq(MMC_SPI_CARD_DETECT_INT, data);
-}
-
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 	.enable_dma    = 0,	 /* use no dma transfer with this chip*/
 	.bits_per_word = 8,
 };
 
-static struct mmc_spi_platform_data bfin_mmc_spi_pdata = {
-	.init = bfin_mmc_spi_init,
-	.exit = bfin_mmc_spi_exit,
-	.detect_delay = 100, /* msecs */
-};
 #endif
 
 #if defined(CONFIG_MTD_DATAFLASH) || defined(CONFIG_MTD_DATAFLASH_MODULE)
@@ -192,7 +173,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.max_speed_hz    = 20000000,
 		.bus_num	 = 0,
 		.chip_select     = 1,
-		.platform_data   = &bfin_mmc_spi_pdata,
 		.controller_data = &mmc_spi_chip_info,
 		.mode	         = SPI_MODE_3,
 	},
