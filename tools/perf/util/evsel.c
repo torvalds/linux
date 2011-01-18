@@ -3,7 +3,7 @@
 #include "../perf.h"
 #include "util.h"
 #include "cpumap.h"
-#include "thread.h"
+#include "thread_map.h"
 
 #include <unistd.h>
 #include <sys/mman.h>

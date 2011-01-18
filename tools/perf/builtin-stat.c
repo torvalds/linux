@@ -49,6 +49,7 @@
 #include "util/header.h"
 #include "util/cpumap.h"
 #include "util/thread.h"
+#include "util/thread_map.h"
 
 #include <sys/prctl.h>
 #include <math.h>

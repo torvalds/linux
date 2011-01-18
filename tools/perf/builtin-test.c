@@ -12,7 +12,7 @@
 #include "util/parse-events.h"
 #include "util/session.h"
 #include "util/symbol.h"
-#include "util/thread.h"
+#include "util/thread_map.h"
 
 static long page_size;
 

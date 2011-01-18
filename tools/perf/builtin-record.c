@@ -24,6 +24,7 @@
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/cpumap.h"
+#include "util/thread_map.h"
 
 #include <unistd.h>
 #include <sched.h>
