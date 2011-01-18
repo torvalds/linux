@@ -97,6 +97,10 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
+	if (priv->cfg->iq_invert)
+		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
+
 }
 
 static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
@@ -428,7 +432,8 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
-	.led_mode = IWL_LED_RF_STATE				\
+	.led_mode = IWL_LED_RF_STATE,				\
+	.iq_invert = true					\
 
 struct iwl_cfg iwl2000_2bgn_cfg = {
 	.name = "2000 Series 2x2 BGN",
@@ -454,7 +459,8 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.adv_pm = true						\
+	.adv_pm = true,						\
+	.iq_invert = true					\
 
 struct iwl_cfg iwl2030_2bgn_cfg = {
 	.name = "2000 Series 2x2 BGN/BT",
