@@ -137,7 +137,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 			    dev_context->atlb_entry[0].dsp_va * DSPWORDSIZE;
 			DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
 			dw_ext_prog_virt_mem =
-			    dev_context->atlb_entry[0].ul_gpp_va;
+			    dev_context->atlb_entry[0].gpp_va;
 
 			if (!trace_read) {
 				ul_shm_offset_virt =
@@ -337,7 +337,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			    ul_shm_base_virt - ul_tlb_base_virt;
 			if (trace_load) {
 				dw_ext_prog_virt_mem =
-				    dev_context->atlb_entry[0].ul_gpp_va;
+				    dev_context->atlb_entry[0].gpp_va;
 			} else {
 				dw_ext_prog_virt_mem = host_res->mem_base[1];
 				dw_ext_prog_virt_mem +=

@@ -98,7 +98,7 @@ struct cmm_object {
 	 */
 	struct mutex cmm_lock;	/* Lock to access cmm mgr */
 	struct list_head node_free_list;	/* Free list of memory nodes */
-	u32 ul_min_block_size;	/* Min SM block; default 16 bytes */
+	u32 min_block_size;	/* Min SM block; default 16 bytes */
 	u32 page_size;	/* Memory Page size (1k/4k) */
 	/* GPP SM segment ptrs */
 	struct cmm_allocator *pa_gppsm_seg_tab[CMM_MAXGPPSEGS];
@@ -106,7 +106,7 @@ struct cmm_object {
 
 /* Default CMM Mgr attributes */
 static struct cmm_mgrattrs cmm_dfltmgrattrs = {
-	/* ul_min_block_size, min block size(bytes) allocated by cmm mgr */
+	/* min_block_size, min block size(bytes) allocated by cmm mgr */
 	16
 };
 
@@ -185,17 +185,17 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
 			/* get the allocator object for this segment id */
 			allocator =
 			    get_allocator(cmm_mgr_obj, pattrs->ul_seg_id);
-			/* keep block size a multiple of ul_min_block_size */
+			/* keep block size a multiple of min_block_size */
 			usize =
-			    ((usize - 1) & ~(cmm_mgr_obj->ul_min_block_size -
+			    ((usize - 1) & ~(cmm_mgr_obj->min_block_size -
 					     1))
-			    + cmm_mgr_obj->ul_min_block_size;
+			    + cmm_mgr_obj->min_block_size;
 			mutex_lock(&cmm_mgr_obj->cmm_lock);
 			pnode = get_free_block(allocator, usize);
 		}
 		if (pnode) {
 			delta_size = (pnode->ul_size - usize);
-			if (delta_size >= cmm_mgr_obj->ul_min_block_size) {
+			if (delta_size >= cmm_mgr_obj->min_block_size) {
 				/* create a new block with the leftovers and
 				 * add to freelist */
 				new_node =
@@ -257,9 +257,9 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 		mgr_attrts = &cmm_dfltmgrattrs;	/* set defaults */
 
 	/* 4 bytes minimum */
-	DBC_ASSERT(mgr_attrts->ul_min_block_size >= 4);
+	DBC_ASSERT(mgr_attrts->min_block_size >= 4);
 	/* save away smallest block allocation for this cmm mgr */
-	cmm_obj->ul_min_block_size = mgr_attrts->ul_min_block_size;
+	cmm_obj->min_block_size = mgr_attrts->min_block_size;
 	cmm_obj->page_size = PAGE_SIZE;
 
 	/* create node free list */
@@ -426,25 +426,25 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 		return status;
 	}
 	mutex_lock(&cmm_mgr_obj->cmm_lock);
-	cmm_info_obj->ul_num_gppsm_segs = 0;	/* # of SM segments */
+	cmm_info_obj->num_gppsm_segs = 0;	/* # of SM segments */
 	/* Total # of outstanding alloc */
 	cmm_info_obj->ul_total_in_use_cnt = 0;
 	/* min block size */
-	cmm_info_obj->ul_min_block_size = cmm_mgr_obj->ul_min_block_size;
+	cmm_info_obj->min_block_size = cmm_mgr_obj->min_block_size;
 	/* check SM memory segments */
 	for (ul_seg = 1; ul_seg <= CMM_MAXGPPSEGS; ul_seg++) {
 		/* get the allocator object for this segment id */
 		altr = get_allocator(cmm_mgr_obj, ul_seg);
 		if (!altr)
 			continue;
-		cmm_info_obj->ul_num_gppsm_segs++;
+		cmm_info_obj->num_gppsm_segs++;
 		cmm_info_obj->seg_info[ul_seg - 1].seg_base_pa =
 			altr->shm_base - altr->dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_total_seg_size =
 			altr->dsp_size + altr->ul_sm_size;
 		cmm_info_obj->seg_info[ul_seg - 1].gpp_base_pa =
 			altr->shm_base;
-		cmm_info_obj->seg_info[ul_seg - 1].ul_gpp_size =
+		cmm_info_obj->seg_info[ul_seg - 1].gpp_size =
 			altr->ul_sm_size;
 		cmm_info_obj->seg_info[ul_seg - 1].dsp_base_va =
 			altr->dsp_base;
@@ -452,11 +452,11 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 			altr->dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].seg_base_va =
 			altr->vm_base - altr->dsp_size;
-		cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt = 0;
+		cmm_info_obj->seg_info[ul_seg - 1].in_use_cnt = 0;
 
 		list_for_each_entry(curr, &altr->in_use_list, link) {
 			cmm_info_obj->ul_total_in_use_cnt++;
-			cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt++;
+			cmm_info_obj->seg_info[ul_seg - 1].in_use_cnt++;
 		}
 	}
 	mutex_unlock(&cmm_mgr_obj->cmm_lock);
@@ -524,7 +524,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	}
 
 	/* Check if input ul_size is big enough to alloc at least one block */
-	if (ul_size < cmm_mgr_obj->ul_min_block_size) {
+	if (ul_size < cmm_mgr_obj->min_block_size) {
 		status = -EINVAL;
 		goto func_end;
 	}

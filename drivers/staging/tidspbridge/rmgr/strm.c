@@ -71,7 +71,7 @@ struct strm_object {
 	u32 utimeout;
 	u32 num_bufs;		/* Max # of bufs allowed in stream */
 	u32 un_bufs_in_strm;	/* Current # of bufs in stream */
-	u32 ul_n_bytes;		/* bytes transferred since idled */
+	u32 bytes;		/* bytes transferred since idled */
 	/* STREAM_IDLE, STREAM_READY, ... */
 	enum dsp_streamstate strm_state;
 	void *user_event;	/* Saved for strm_get_info() */
@@ -341,7 +341,7 @@ int strm_get_info(struct strm_object *stream_obj,
 	stream_info->user_strm->number_bufs_in_stream = chnl_info_obj.cio_cs +
 	    chnl_info_obj.cio_reqs;
 	/* # of bytes transferred since last call to DSPStream_Idle() */
-	stream_info->user_strm->ul_number_bytes = chnl_info_obj.bytes_tx;
+	stream_info->user_strm->number_bytes = chnl_info_obj.bytes_tx;
 	stream_info->user_strm->sync_object_handle = chnl_info_obj.event_obj;
 	/* Determine stream state based on channel state and info */
 	if (chnl_info_obj.state & CHNL_STATEEOS) {

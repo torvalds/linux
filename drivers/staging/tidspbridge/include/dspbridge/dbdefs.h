@@ -210,9 +210,9 @@ enum dsp_flushtype {
 struct dsp_memstat {
 	u32 ul_size;
 	u32 ul_total_free_size;
-	u32 ul_len_max_free_block;
-	u32 ul_num_free_blocks;
-	u32 ul_num_alloc_blocks;
+	u32 len_max_free_block;
+	u32 num_free_blocks;
+	u32 num_alloc_blocks;
 };
 
 /* Processor Load information Values */
@@ -276,7 +276,7 @@ struct dsp_streamconnect {
 };
 
 struct dsp_nodeprofs {
-	u32 ul_heap_size;
+	u32 heap_size;
 };
 
 /* The dsp_ndbprops structure reports the attributes of a node */
@@ -358,7 +358,7 @@ struct dsp_processorinfo {
 	int processor_family;
 	int processor_type;
 	u32 clock_rate;
-	u32 ul_internal_mem_size;
+	u32 internal_mem_size;
 	u32 external_mem_size;
 	u32 processor_id;
 	int ty_running_rtos;
@@ -425,7 +425,7 @@ struct dsp_streaminfo {
 	u32 cb_struct;
 	u32 number_bufs_allowed;
 	u32 number_bufs_in_stream;
-	u32 ul_number_bytes;
+	u32 number_bytes;
 	void *sync_object_handle;
 	enum dsp_streamstate ss_stream_state;
 };

@@ -123,7 +123,7 @@ struct dbll_library_obj {
 	u32 open_ref;		/* Number of times opened */
 	u32 load_ref;		/* Number of times loaded */
 	struct gh_t_hash_tab *sym_tab;	/* Hash table of symbols */
-	u32 ul_pos;
+	u32 pos;
 };
 
 /*
@@ -398,7 +398,7 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
 
 		} else {
 			(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp,
-							      zl_lib->ul_pos,
+							      zl_lib->pos,
 							      SEEK_SET);
 		}
 	} else {
@@ -522,7 +522,7 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 
 		}
 		if (!status) {
-			zl_lib->ul_pos = (*(zl_lib->target_obj->attrs.ftell))
+			zl_lib->pos = (*(zl_lib->target_obj->attrs.ftell))
 			    (zl_lib->fp);
 			/* Reset file cursor */
 			(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp,
@@ -599,7 +599,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 		if (zl_lib == NULL) {
 			status = -ENOMEM;
 		} else {
-			zl_lib->ul_pos = 0;
+			zl_lib->pos = 0;
 			/* Increment ref count to allow close on failure
 			 * later on */
 			zl_lib->open_ref++;
@@ -649,7 +649,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 	if (!status && zl_lib->fp == NULL)
 		status = dof_open(zl_lib);
 
-	zl_lib->ul_pos = (*(zl_lib->target_obj->attrs.ftell)) (zl_lib->fp);
+	zl_lib->pos = (*(zl_lib->target_obj->attrs.ftell)) (zl_lib->fp);
 	(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp, (long)0, SEEK_SET);
 	/* Create a hash table for symbols if flag is set */
 	if (zl_lib->sym_tab != NULL || !(flags & DBLL_SYMB))
@@ -738,7 +738,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 
 		} else {
 			(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp,
-							      zl_lib->ul_pos,
+							      zl_lib->pos,
 							      SEEK_SET);
 		}
 	} else {

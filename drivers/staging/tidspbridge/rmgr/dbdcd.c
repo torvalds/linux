@@ -1253,7 +1253,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 					/* Heap Size for the node */
 					gen_obj->obj_data.node_obj.
 					    ndb_props.node_profiles[i].
-					    ul_heap_size = atoi(token);
+					    heap_size = atoi(token);
 				}
 			}
 		}
@@ -1285,7 +1285,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		gen_obj->obj_data.proc_info.clock_rate = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		gen_obj->obj_data.proc_info.ul_internal_mem_size = atoi(token);
+		gen_obj->obj_data.proc_info.internal_mem_size = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		gen_obj->obj_data.proc_info.external_mem_size = atoi(token);
@@ -1308,7 +1308,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		for (entry_id = 0; entry_id < 7; entry_id++) {
 			token = strsep(&psz_cur, seps);
 			gen_obj->obj_data.ext_proc_obj.ty_tlb[entry_id].
-			    ul_gpp_phys = atoi(token);
+			    gpp_phys = atoi(token);
 
 			token = strsep(&psz_cur, seps);
 			gen_obj->obj_data.ext_proc_obj.ty_tlb[entry_id].

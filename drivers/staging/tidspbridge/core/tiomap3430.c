@@ -406,7 +406,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	ul_shm_offset_virt =
 	    ul_shm_base_virt - (ul_tlb_base_virt * DSPWORDSIZE);
 	/* Kernel logical address */
-	ul_shm_base = dev_context->atlb_entry[0].ul_gpp_va + ul_shm_offset_virt;
+	ul_shm_base = dev_context->atlb_entry[0].gpp_va + ul_shm_offset_virt;
 
 	DBC_ASSERT(ul_shm_base != 0);
 	/* 2nd wd is used as sync field */

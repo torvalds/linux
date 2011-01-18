@@ -146,7 +146,7 @@ struct node_mgr {
 	struct msg_mgr *msg_mgr_obj;
 
 	/* Processor properties needed by Node Dispatcher */
-	u32 ul_num_chnls;	/* Total number of channels */
+	u32 num_chnls;		/* Total number of channels */
 	u32 chnl_offset;	/* Offset of chnl ids rsvd for RMS */
 	u32 chnl_buf_size;	/* Buffer size for data to RMS */
 	int proc_family;	/* eg, 5000 */
@@ -1003,7 +1003,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 				set_bit(chnl_id, hnode_mgr->dma_chnl_map);
 				/* dma chans are 2nd transport chnl set
 				 * ids(e.g. 16-31) */
-				chnl_id = chnl_id + hnode_mgr->ul_num_chnls;
+				chnl_id = chnl_id + hnode_mgr->num_chnls;
 			}
 			break;
 		case STRMMODE_ZEROCOPY:
@@ -1014,7 +1014,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 				/* zero-copy chans are 3nd transport set
 				 * (e.g. 32-47) */
 				chnl_id = chnl_id +
-					(2 * hnode_mgr->ul_num_chnls);
+					(2 * hnode_mgr->num_chnls);
 			}
 			break;
 		case STRMMODE_PROCCOPY:
@@ -2723,15 +2723,15 @@ static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream)
 			set_bit(stream.dev_id, hnode_mgr->pipe_done_map);
 		}
 	} else if (stream.type == HOSTCONNECT) {
-		if (stream.dev_id < hnode_mgr->ul_num_chnls) {
+		if (stream.dev_id < hnode_mgr->num_chnls) {
 			clear_bit(stream.dev_id, hnode_mgr->chnl_map);
-		} else if (stream.dev_id < (2 * hnode_mgr->ul_num_chnls)) {
+		} else if (stream.dev_id < (2 * hnode_mgr->num_chnls)) {
 			/* dsp-dma */
-			clear_bit(stream.dev_id - (1 * hnode_mgr->ul_num_chnls),
+			clear_bit(stream.dev_id - (1 * hnode_mgr->num_chnls),
 					hnode_mgr->dma_chnl_map);
-		} else if (stream.dev_id < (3 * hnode_mgr->ul_num_chnls)) {
+		} else if (stream.dev_id < (3 * hnode_mgr->num_chnls)) {
 			/* zero-copy */
-			clear_bit(stream.dev_id - (2 * hnode_mgr->ul_num_chnls),
+			clear_bit(stream.dev_id - (2 * hnode_mgr->num_chnls),
 					hnode_mgr->zc_chnl_map);
 		}
 	}
@@ -2904,7 +2904,7 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
 			return -EPERM;
 		hnode_mgr->chnl_offset = host_res->chnl_offset;
 		hnode_mgr->chnl_buf_size = host_res->chnl_buf_size;
-		hnode_mgr->ul_num_chnls = host_res->num_chnls;
+		hnode_mgr->num_chnls = host_res->num_chnls;
 
 		/*
 		 *  PROC will add an API to get dsp_processorinfo.
