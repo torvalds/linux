@@ -1154,6 +1154,10 @@ enum ieee80211_hw_flags {
  *	This is only relevant if the device has restrictions on the
  *	number of subframes, if it relies on mac80211 to do reordering
  *	it shouldn't be set.
+ *
+ * @max_tx_aggregation_subframes: maximum number of subframes in an
+ *	aggregate an HT driver will transmit, used by the peer as a
+ *	hint to size its reorder buffer.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1173,6 +1177,7 @@ struct ieee80211_hw {
 	u8 max_report_rates;
 	u8 max_rate_tries;
 	u8 max_rx_aggregation_subframes;
+	u8 max_tx_aggregation_subframes;
 };
 
 /**
