@@ -523,11 +523,11 @@ static inline unsigned int run_filter(const struct sk_buff *skb,
 {
 	struct sk_filter *filter;
 
-	rcu_read_lock_bh();
-	filter = rcu_dereference_bh(sk->sk_filter);
+	rcu_read_lock();
+	filter = rcu_dereference(sk->sk_filter);
 	if (filter != NULL)
 		res = sk_run_filter(skb, filter->insns);
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return res;
 }

@@ -142,14 +142,14 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	rcu_read_lock_bh();
-	filter = rcu_dereference_bh(sk->sk_filter);
+	rcu_read_lock();
+	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
 		unsigned int pkt_len = sk_run_filter(skb, filter->insns);
 
 		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
 	}
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return err;
 }
