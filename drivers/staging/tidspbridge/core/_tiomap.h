@@ -332,9 +332,9 @@ struct bridge_dev_context {
 	u32 dsp_clk_m2_base;	/* DSP Clock Module m2 */
 	u32 public_rhea;	/* Pub Rhea */
 	u32 int_addr;		/* MB INTR reg */
-	u32 dw_tc_endianism;	/* TC Endianism register */
-	u32 dw_test_base;	/* DSP MMU Mapped registers */
-	u32 dw_self_loop;	/* Pointer to the selfloop */
+	u32 tc_endianism;	/* TC Endianism register */
+	u32 test_base;		/* DSP MMU Mapped registers */
+	u32 self_loop;		/* Pointer to the selfloop */
 	u32 dsp_start_add;	/* API Boot vector */
 	u32 internal_size;	/* Internal memory size */
 

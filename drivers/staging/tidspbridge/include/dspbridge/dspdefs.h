@@ -978,17 +978,17 @@ struct bridge_drv_interface {
 	fxn_dev_create pfn_dev_create;	/* Create device context */
 	fxn_dev_destroy pfn_dev_destroy;	/* Destroy device context */
 	fxn_dev_ctrl pfn_dev_cntrl;	/* Optional vendor interface */
-	fxn_brd_monitor pfn_brd_monitor;	/* Load and/or start monitor */
+	fxn_brd_monitor brd_monitor;	/* Load and/or start monitor */
 	fxn_brd_start pfn_brd_start;	/* Start DSP program. */
 	fxn_brd_stop pfn_brd_stop;	/* Stop/reset board. */
 	fxn_brd_status pfn_brd_status;	/* Get current board status. */
-	fxn_brd_read pfn_brd_read;	/* Read board memory */
+	fxn_brd_read brd_read;	/* Read board memory */
 	fxn_brd_write pfn_brd_write;	/* Write board memory. */
 	fxn_brd_setstate pfn_brd_set_state;	/* Sets the Board State */
-	fxn_brd_memcopy pfn_brd_mem_copy;	/* Copies DSP Memory */
-	fxn_brd_memwrite pfn_brd_mem_write;	/* Write DSP Memory w/o halt */
-	fxn_brd_memmap pfn_brd_mem_map;	/* Maps MPU mem to DSP mem */
-	fxn_brd_memunmap pfn_brd_mem_un_map;	/* Unmaps MPU mem to DSP mem */
+	fxn_brd_memcopy brd_mem_copy;	/* Copies DSP Memory */
+	fxn_brd_memwrite brd_mem_write;	/* Write DSP Memory w/o halt */
+	fxn_brd_memmap brd_mem_map;	/* Maps MPU mem to DSP mem */
+	fxn_brd_memunmap brd_mem_un_map;	/* Unmaps MPU mem to DSP mem */
 	fxn_chnl_create pfn_chnl_create;	/* Create channel manager. */
 	fxn_chnl_destroy pfn_chnl_destroy;	/* Destroy channel manager. */
 	fxn_chnl_open pfn_chnl_open;	/* Create a new channel. */

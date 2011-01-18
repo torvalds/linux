@@ -1397,7 +1397,7 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 		if (!map_obj)
 			status = -ENOMEM;
 		else
-			status = (*p_proc_object->intf_fxns->pfn_brd_mem_map)
+			status = (*p_proc_object->intf_fxns->brd_mem_map)
 			    (p_proc_object->hbridge_context, pa_align, va_align,
 			     size_align, ul_map_attr, map_obj->pages);
 	}
@@ -1720,7 +1720,7 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	status = dmm_un_map_memory(dmm_mgr, (u32) va_align, &size_align);
 	/* Remove mapping from the page tables. */
 	if (!status) {
-		status = (*p_proc_object->intf_fxns->pfn_brd_mem_un_map)
+		status = (*p_proc_object->intf_fxns->brd_mem_un_map)
 		    (p_proc_object->hbridge_context, va_align, size_align);
 	}
 
@@ -1828,7 +1828,7 @@ static int proc_monitor(struct proc_object *proc_obj)
 		}
 	}
 	/* Place the Board in the Monitor State */
-	if (!((*proc_obj->intf_fxns->pfn_brd_monitor)
+	if (!((*proc_obj->intf_fxns->brd_monitor)
 			  (proc_obj->hbridge_context))) {
 		status = 0;
 		if (!((*proc_obj->intf_fxns->pfn_brd_status)

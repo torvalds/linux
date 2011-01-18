@@ -765,7 +765,7 @@ static int bridge_dev_create(struct bridge_dev_context
 	}
 
 	dev_context->dsp_start_add = (u32) OMAP_GEM_BASE;
-	dev_context->dw_self_loop = (u32) NULL;
+	dev_context->self_loop = (u32) NULL;
 	dev_context->dsp_per_clks = 0;
 	dev_context->internal_size = OMAP_DSP_SIZE;
 	/*  Clear dev context MMU table entries.

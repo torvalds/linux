@@ -344,7 +344,7 @@ int strm_get_info(struct strm_object *stream_obj,
 	stream_info->user_strm->ul_number_bytes = chnl_info_obj.bytes_tx;
 	stream_info->user_strm->sync_object_handle = chnl_info_obj.event_obj;
 	/* Determine stream state based on channel state and info */
-	if (chnl_info_obj.dw_state & CHNL_STATEEOS) {
+	if (chnl_info_obj.state & CHNL_STATEEOS) {
 		stream_info->user_strm->ss_stream_state = STREAM_DONE;
 	} else {
 		if (chnl_info_obj.cio_cs > 0)

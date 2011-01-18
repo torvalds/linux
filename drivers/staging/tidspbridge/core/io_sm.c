@@ -483,7 +483,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 							      1)) == 0)) {
 				status =
 				    hio_mgr->intf_fxns->
-				    pfn_brd_mem_map(hio_mgr->hbridge_context,
+				    brd_mem_map(hio_mgr->hbridge_context,
 						    pa_curr, va_curr,
 						    page_size[i], map_attrs,
 						    NULL);
@@ -549,7 +549,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 			} else {
 				status =
 				    hio_mgr->intf_fxns->
-				    pfn_brd_mem_map(hio_mgr->hbridge_context,
+				    brd_mem_map(hio_mgr->hbridge_context,
 						    pa_curr, va_curr,
 						    page_size[i], map_attrs,
 						    NULL);
@@ -615,7 +615,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 					ae_proc[ndx].ul_dsp_va);
 				ndx++;
 			} else {
-				status = hio_mgr->intf_fxns->pfn_brd_mem_map
+				status = hio_mgr->intf_fxns->brd_mem_map
 				    (hio_mgr->hbridge_context,
 				     hio_mgr->ext_proc_info.ty_tlb[i].
 				     ul_gpp_phys,
@@ -637,7 +637,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	/* Map the L4 peripherals */
 	i = 0;
 	while (l4_peripheral_table[i].phys_addr) {
-		status = hio_mgr->intf_fxns->pfn_brd_mem_map
+		status = hio_mgr->intf_fxns->brd_mem_map
 		    (hio_mgr->hbridge_context, l4_peripheral_table[i].phys_addr,
 		     l4_peripheral_table[i].dsp_virt_addr, HW_PAGE_SIZE4KB,
 		     map_attrs, NULL);
@@ -977,8 +977,8 @@ void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
 		 * Assertion fires if CHNL_AddIOReq() called on a stream
 		 * which was cancelled, or attached to a dead board.
 		 */
-		DBC_ASSERT((pchnl->dw_state == CHNL_STATEREADY) ||
-			   (pchnl->dw_state == CHNL_STATEEOS));
+		DBC_ASSERT((pchnl->state == CHNL_STATEREADY) ||
+			   (pchnl->state == CHNL_STATEEOS));
 		/* Indicate to the DSP we have a buffer available for input */
 		set_chnl_busy(sm, pchnl->chnl_id);
 		*mbx_val = MBX_PCPY_CLASS;
@@ -987,7 +987,7 @@ void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
 		 * This assertion fails if CHNL_AddIOReq() was called on a
 		 * stream which was cancelled, or attached to a dead board.
 		 */
-		DBC_ASSERT((pchnl->dw_state & ~CHNL_STATEEOS) ==
+		DBC_ASSERT((pchnl->state & ~CHNL_STATEEOS) ==
 			   CHNL_STATEREADY);
 		/*
 		 * Record the fact that we have a buffer available for
@@ -1092,7 +1092,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	}
 	pchnl = chnl_mgr_obj->ap_channel[chnl_id];
 	if ((pchnl != NULL) && CHNL_IS_INPUT(pchnl->chnl_mode)) {
-		if ((pchnl->dw_state & ~CHNL_STATEEOS) == CHNL_STATEREADY) {
+		if ((pchnl->state & ~CHNL_STATEEOS) == CHNL_STATEREADY) {
 			/* Get the I/O request, and attempt a transfer */
 			if (!list_empty(&pchnl->pio_requests)) {
 				if (!pchnl->cio_reqs)
@@ -1122,7 +1122,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 					 * sends EOS more than once on this
 					 * channel.
 					 */
-					if (pchnl->dw_state & CHNL_STATEEOS)
+					if (pchnl->state & CHNL_STATEEOS)
 						goto func_end;
 					/*
 					 * Zero bytes indicates EOS. Update
@@ -1131,7 +1131,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 					 */
 					chnl_packet_obj->status |=
 						CHNL_IOCSTATEOS;
-					pchnl->dw_state |= CHNL_STATEEOS;
+					pchnl->state |= CHNL_STATEEOS;
 					/*
 					 * Notify that end of stream has
 					 * occurred.
@@ -1329,7 +1329,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	if (sm->output_full)
 		goto func_end;
 
-	if (pchnl && !((pchnl->dw_state & ~CHNL_STATEEOS) == CHNL_STATEREADY))
+	if (pchnl && !((pchnl->state & ~CHNL_STATEEOS) == CHNL_STATEREADY))
 		goto func_end;
 
 	/* Look to see if both a PC and DSP output channel are ready */
@@ -1810,7 +1810,7 @@ int print_dsp_trace_buffer(struct bridge_dev_context *hbridge_context)
 	psz_buf = kzalloc(ul_num_bytes + 2, GFP_ATOMIC);
 	if (psz_buf != NULL) {
 		/* Read trace buffer data */
-		status = (*intf_fxns->pfn_brd_read)(pbridge_context,
+		status = (*intf_fxns->brd_read)(pbridge_context,
 			(u8 *)psz_buf, (u32)ul_trace_begin,
 			ul_num_bytes, 0);
 
@@ -1825,7 +1825,7 @@ int print_dsp_trace_buffer(struct bridge_dev_context *hbridge_context)
 			__func__, psz_buf);
 
 		/* Read the value at the DSP address in trace_cur_pos. */
-		status = (*intf_fxns->pfn_brd_read)(pbridge_context,
+		status = (*intf_fxns->brd_read)(pbridge_context,
 				(u8 *)&trace_cur_pos, (u32)trace_cur_pos,
 				4, 0);
 		if (status)
@@ -1992,7 +1992,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 			poll_cnt < POLL_MAX) {
 
 			/* Read DSP dump size from the DSP trace buffer... */
-			status = (*intf_fxns->pfn_brd_read)(bridge_context,
+			status = (*intf_fxns->brd_read)(bridge_context,
 				(u8 *)&mmu_fault_dbg_info, (u32)trace_begin,
 				sizeof(mmu_fault_dbg_info), 0);
 
@@ -2028,7 +2028,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context)
 		buffer_end =  buffer + total_size / 4;
 
 		/* Read bytes from the DSP trace buffer... */
-		status = (*intf_fxns->pfn_brd_read)(bridge_context,
+		status = (*intf_fxns->brd_read)(bridge_context,
 				(u8 *)buffer, (u32)trace_begin,
 				total_size, 0);
 		if (status) {
@@ -2189,7 +2189,7 @@ void dump_dl_modules(struct bridge_dev_context *bridge_context)
 	pr_debug("%s: _DLModules at 0x%x\n", __func__, module_dsp_addr);
 
 	/* Copy the modules_header structure from DSP memory. */
-	status = (*intf_fxns->pfn_brd_read)(bridge_context, (u8 *) &modules_hdr,
+	status = (*intf_fxns->brd_read)(bridge_context, (u8 *) &modules_hdr,
 				(u32) module_dsp_addr, sizeof(modules_hdr), 0);
 
 	if (status) {
@@ -2224,7 +2224,7 @@ void dump_dl_modules(struct bridge_dev_context *bridge_context)
 				goto func_end;
 		}
 		/* Copy the dll_module structure from DSP memory */
-		status = (*intf_fxns->pfn_brd_read)(bridge_context,
+		status = (*intf_fxns->brd_read)(bridge_context,
 			(u8 *)module_struct, module_dsp_addr, module_size, 0);
 
 		if (status) {

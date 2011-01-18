@@ -115,7 +115,7 @@ int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *host_buf,
 	 * Check the channel state: only queue chirp if channel state
 	 * allows it.
 	 */
-	dw_state = pchnl->dw_state;
+	dw_state = pchnl->state;
 	if (dw_state != CHNL_STATEREADY) {
 		if (dw_state & CHNL_STATECANCEL)
 			return -ECANCELED;
@@ -207,7 +207,7 @@ func_cont:
 	 * more IOR's.
 	 */
 	if (is_eos)
-		pchnl->dw_state |= CHNL_STATEEOS;
+		pchnl->state |= CHNL_STATEEOS;
 
 	/* Legacy DSM Processor-Copy */
 	DBC_ASSERT(pchnl->chnl_type == CHNL_PCPY);
@@ -258,7 +258,7 @@ int bridge_chnl_cancel_io(struct chnl_object *chnl_obj)
 	 *  IORequests or dispatching. */
 	spin_lock_bh(&chnl_mgr_obj->chnl_mgr_lock);
 
-	pchnl->dw_state |= CHNL_STATECANCEL;
+	pchnl->state |= CHNL_STATECANCEL;
 
 	if (list_empty(&pchnl->pio_requests)) {
 		spin_unlock_bh(&chnl_mgr_obj->chnl_mgr_lock);
@@ -312,7 +312,7 @@ int bridge_chnl_close(struct chnl_object *chnl_obj)
 	if (status)
 		return status;
 	/* Assert I/O on this channel is now cancelled: Protects from io_dpc */
-	DBC_ASSERT((pchnl->dw_state & CHNL_STATECANCEL));
+	DBC_ASSERT((pchnl->state & CHNL_STATECANCEL));
 	/* Invalidate channel object: Protects from CHNL_GetIOCompletion() */
 	/* Free the slot in the channel manager: */
 	pchnl->chnl_mgr_obj->ap_channel[pchnl->chnl_id] = NULL;
@@ -381,7 +381,7 @@ int bridge_chnl_create(struct chnl_mgr **channel_mgr,
 						* max_channels, GFP_KERNEL);
 		if (chnl_mgr_obj->ap_channel) {
 			/* Initialize chnl_mgr object */
-			chnl_mgr_obj->dw_type = CHNL_TYPESM;
+			chnl_mgr_obj->type = CHNL_TYPESM;
 			chnl_mgr_obj->word_size = mgr_attrts->word_size;
 			/* Total # chnls supported */
 			chnl_mgr_obj->max_channels = max_channels;
@@ -488,7 +488,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 		} else {
 			status = bridge_chnl_cancel_io(chnl_obj);
 			/* Now, leave the channel in the ready state: */
-			pchnl->dw_state &= ~CHNL_STATECANCEL;
+			pchnl->state &= ~CHNL_STATECANCEL;
 		}
 	}
 	DBC_ENSURE(status || list_empty(&pchnl->pio_requests));
@@ -517,7 +517,7 @@ int bridge_chnl_get_info(struct chnl_object *chnl_obj,
 			channel_info->sync_event = pchnl->sync_event;
 			channel_info->cio_cs = pchnl->cio_cs;
 			channel_info->cio_reqs = pchnl->cio_reqs;
-			channel_info->dw_state = pchnl->dw_state;
+			channel_info->state = pchnl->state;
 		} else {
 			status = -EFAULT;
 		}
@@ -687,7 +687,7 @@ int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr, u32 ch_id,
 	/* Return the requested information: */
 	mgr_info->chnl_obj = chnl_mgr_obj->ap_channel[ch_id];
 	mgr_info->open_channels = chnl_mgr_obj->open_channels;
-	mgr_info->dw_type = chnl_mgr_obj->dw_type;
+	mgr_info->type = chnl_mgr_obj->type;
 	/* total # of chnls */
 	mgr_info->max_channels = chnl_mgr_obj->max_channels;
 
@@ -718,7 +718,7 @@ int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 timeout,
 
 		/* Reset the byte count and put channel back in ready state. */
 		chnl_obj->bytes_moved = 0;
-		chnl_obj->dw_state &= ~CHNL_STATECANCEL;
+		chnl_obj->state &= ~CHNL_STATECANCEL;
 	}
 
 	return status;
@@ -769,7 +769,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 		return -ENOMEM;
 
 	/* Protect queues from io_dpc: */
-	pchnl->dw_state = CHNL_STATECANCEL;
+	pchnl->state = CHNL_STATECANCEL;
 
 	/* Allocate initial IOR and IOC queues: */
 	status = create_chirp_list(&pchnl->free_packets_list,
@@ -817,7 +817,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 	chnl_mgr_obj->open_channels++;
 	spin_unlock_bh(&chnl_mgr_obj->chnl_mgr_lock);
 	/* Return result... */
-	pchnl->dw_state = CHNL_STATEREADY;
+	pchnl->state = CHNL_STATEREADY;
 	*chnl = pchnl;
 
 	return status;

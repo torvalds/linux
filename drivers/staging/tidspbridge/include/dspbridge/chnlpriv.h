@@ -59,7 +59,7 @@ struct chnl_info {
 	/*Abstraction of I/O completion event. */
 	struct sync_object *sync_event;
 	s8 mode;		/* Channel mode. */
-	u8 dw_state;		/* Current channel state. */
+	u8 state;		/* Current channel state. */
 	u32 bytes_tx;		/* Total bytes transferred. */
 	u32 cio_cs;		/* Number of IOCs in queue. */
 	u32 cio_reqs;		/* Number of IO Requests in queue. */
@@ -68,7 +68,7 @@ struct chnl_info {
 
 /* Channel manager info: */
 struct chnl_mgrinfo {
-	u8 dw_type;		/* Type of channel class library. */
+	u8 type;		/* Type of channel class library. */
 	/* Channel handle, given the channel id. */
 	struct chnl_object *chnl_obj;
 	u8 open_channels;	/* Number of open channels. */

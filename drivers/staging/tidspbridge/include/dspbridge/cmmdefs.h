@@ -60,7 +60,7 @@ struct cmm_seginfo {
 	u32 ul_dsp_size;	/* DSP seg size in bytes */
 	/* # of current GPP allocations from this segment */
 	u32 ul_in_use_cnt;
-	u32 dw_seg_base_va;	/* Start Virt address of SM seg */
+	u32 seg_base_va;	/* Start Virt address of SM seg */
 
 };
 
@@ -83,8 +83,8 @@ struct cmm_xlatorattrs {
 	u32 dsp_buf_size;	/* size of DSP-side bufs in GPP bytes */
 	/* Vm base address alloc'd in client process context */
 	void *vm_base;
-	/* dw_vm_size must be >= (dwMaxNumBufs * dwMaxSize) */
-	u32 dw_vm_size;
+	/* vm_size must be >= (dwMaxNumBufs * dwMaxSize) */
+	u32 vm_size;
 };
 
 /*

@@ -575,7 +575,7 @@ func_cont:
 	if (!status) {
 		/* Create object for dynamic loading */
 
-		status = hnode_mgr->nldr_fxns.pfn_allocate(hnode_mgr->nldr_obj,
+		status = hnode_mgr->nldr_fxns.allocate(hnode_mgr->nldr_obj,
 							   (void *)pnode,
 							   &pnode->dcd_props.
 							   obj_data.node_obj,
@@ -3075,7 +3075,7 @@ static u32 ovly(void *priv_ref, u32 dsp_run_addr, u32 dsp_load_addr,
 	status = dev_get_bridge_context(hnode_mgr->hdev_obj, &hbridge_context);
 	if (!status) {
 		status =
-		    (*intf_fxns->pfn_brd_mem_copy) (hbridge_context,
+		    (*intf_fxns->brd_mem_copy) (hbridge_context,
 						dsp_run_addr, dsp_load_addr,
 						ul_num_bytes, (u32) mem_space);
 		if (!status)
@@ -3117,7 +3117,7 @@ static u32 mem_write(void *priv_ref, u32 dsp_add, void *pbuf,
 	/* Call new MemWrite function */
 	intf_fxns = hnode_mgr->intf_fxns;
 	status = dev_get_bridge_context(hnode_mgr->hdev_obj, &hbridge_context);
-	status = (*intf_fxns->pfn_brd_mem_write) (hbridge_context, pbuf,
+	status = (*intf_fxns->brd_mem_write) (hbridge_context, pbuf,
 					dsp_add, ul_num_bytes, mem_sect_type);
 
 	return ul_num_bytes;

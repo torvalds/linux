@@ -280,7 +280,7 @@ typedef int(*nldr_unloadfxn) (struct nldr_nodeobject *nldr_node_obj,
  *  ======== node_ldr_fxns ========
  */
 struct node_ldr_fxns {
-	nldr_allocatefxn pfn_allocate;
+	nldr_allocatefxn allocate;
 	nldr_createfxn pfn_create;
 	nldr_deletefxn pfn_delete;
 	nldr_exitfxn pfn_exit;

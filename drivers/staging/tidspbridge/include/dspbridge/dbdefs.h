@@ -369,9 +369,9 @@ struct dsp_processorinfo {
 /* Error information of last DSP exception signalled to the GPP */
 struct dsp_errorinfo {
 	u32 err_mask;
-	u32 dw_val1;
-	u32 dw_val2;
-	u32 dw_val3;
+	u32 val1;
+	u32 val2;
+	u32 val3;
 };
 
 /* The dsp_processorstate structure describes the state of a DSP processor */

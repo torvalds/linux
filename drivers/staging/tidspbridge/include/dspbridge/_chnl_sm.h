@@ -127,7 +127,7 @@ struct chnl_mgr {
 	u8 max_channels;	/* Total number of channels */
 	u8 open_channels;	/* Total number of open channels */
 	struct chnl_object **ap_channel;	/* Array of channels */
-	u8 dw_type;		/* Type of channel class library */
+	u8 type;		/* Type of channel class library */
 	/* If no shm syms, return for CHNL_Open */
 	int chnl_open_status;
 };
@@ -140,7 +140,7 @@ struct chnl_object {
 	/* Pointer back to channel manager */
 	struct chnl_mgr *chnl_mgr_obj;
 	u32 chnl_id;		/* Channel id */
-	u8 dw_state;		/* Current channel state */
+	u8 state;		/* Current channel state */
 	s8 chnl_mode;		/* Chnl mode and attributes */
 	/* Chnl I/O completion event (user mode) */
 	void *user_event;

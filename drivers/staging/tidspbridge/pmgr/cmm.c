@@ -64,7 +64,7 @@
 struct cmm_allocator {		/* sma */
 	unsigned int shm_base;	/* Start of physical SM block */
 	u32 ul_sm_size;		/* Size of SM block in bytes */
-	unsigned int dw_vm_base;	/* Start of VM block. (Dev driver
+	unsigned int vm_base;	/* Start of VM block. (Dev driver
 					 * context for 'sma') */
 	u32 dsp_phys_addr_offset;	/* DSP PA to GPP PA offset for this
 					 * SM space */
@@ -86,7 +86,7 @@ struct cmm_xlator {		/* Pa<->Va translator object */
 	 *  base address for translator's ul_seg_id.
 	 *  Only 1 segment ID currently supported.
 	 */
-	unsigned int dw_virt_base;	/* virtual base address */
+	unsigned int virt_base;	/* virtual base address */
 	u32 ul_virt_size;	/* size of virt space in bytes */
 	u32 ul_seg_id;		/* Segment Id */
 };
@@ -122,14 +122,14 @@ static struct cmm_xlatorattrs cmm_dfltxlatorattrs = {
 	0,			/* dsp_bufs */
 	0,			/* dsp_buf_size */
 	NULL,			/* vm_base */
-	0,			/* dw_vm_size */
+	0,			/* vm_size */
 };
 
 /* SM node representing a block of memory. */
 struct cmm_mnode {
 	struct list_head link;	/* must be 1st element */
 	u32 pa;		/* Phys addr */
-	u32 dw_va;		/* Virtual address in device process context */
+	u32 va;			/* Virtual address in device process context */
 	u32 ul_size;		/* SM block size in bytes */
 	u32 client_proc;	/* Process that allocated this mem block */
 };
@@ -200,7 +200,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
 				 * add to freelist */
 				new_node =
 				    get_node(cmm_mgr_obj, pnode->pa + usize,
-					     pnode->dw_va + usize,
+					     pnode->va + usize,
 					     (u32) delta_size);
 				/* leftovers go free */
 				add_to_free_list(allocator, new_node);
@@ -218,13 +218,13 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
 			list_add_tail(&pnode->link, &allocator->in_use_list);
 			buf_pa = (void *)pnode->pa;	/* physical address */
 			/* clear mem */
-			pbyte = (u8 *) pnode->dw_va;
+			pbyte = (u8 *) pnode->va;
 			for (cnt = 0; cnt < (s32) usize; cnt++, pbyte++)
 				*pbyte = 0;
 
 			if (pp_buf_va != NULL) {
 				/* Virtual address */
-				*pp_buf_va = (void *)pnode->dw_va;
+				*pp_buf_va = (void *)pnode->va;
 			}
 		}
 		mutex_unlock(&cmm_mgr_obj->cmm_lock);
@@ -450,8 +450,8 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 			altr->dsp_base;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_dsp_size =
 			altr->ul_dsp_size;
-		cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_va =
-			altr->dw_vm_base - altr->ul_dsp_size;
+		cmm_info_obj->seg_info[ul_seg - 1].seg_base_va =
+			altr->vm_base - altr->ul_dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt = 0;
 
 		list_for_each_entry(curr, &altr->in_use_list, link) {
@@ -539,12 +539,12 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	psma->hcmm_mgr = hcmm_mgr;	/* ref to parent */
 	psma->shm_base = dw_gpp_base_pa;	/* SM Base phys */
 	psma->ul_sm_size = ul_size;	/* SM segment size in bytes */
-	psma->dw_vm_base = gpp_base_va;
+	psma->vm_base = gpp_base_va;
 	psma->dsp_phys_addr_offset = dsp_addr_offset;
 	psma->c_factor = c_factor;
 	psma->dsp_base = dw_dsp_base;
 	psma->ul_dsp_size = ul_dsp_size;
-	if (psma->dw_vm_base == 0) {
+	if (psma->vm_base == 0) {
 		status = -EPERM;
 		goto func_end;
 	}
@@ -556,7 +556,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 
 	/* Get a mem node for this hunk-o-memory */
 	new_node = get_node(cmm_mgr_obj, dw_gpp_base_pa,
-			psma->dw_vm_base, ul_size);
+			psma->vm_base, ul_size);
 	/* Place node on the SM allocator's free list */
 	if (new_node) {
 		list_add_tail(&new_node->link, &psma->free_list);
@@ -649,8 +649,8 @@ static void un_register_gppsm_seg(struct cmm_allocator *psma)
 		kfree(curr);
 	}
 
-	if ((void *)psma->dw_vm_base != NULL)
-		MEM_UNMAP_LINEAR_ADDRESS((void *)psma->dw_vm_base);
+	if ((void *)psma->vm_base != NULL)
+		MEM_UNMAP_LINEAR_ADDRESS((void *)psma->vm_base);
 
 	/* Free allocator itself */
 	kfree(psma);
@@ -705,7 +705,7 @@ static struct cmm_mnode *get_node(struct cmm_object *cmm_mgr_obj, u32 dw_pa,
 	}
 
 	pnode->pa = dw_pa;
-	pnode->dw_va = dw_va;
+	pnode->va = dw_va;
 	pnode->ul_size = ul_size;
 
 	return pnode;
@@ -770,7 +770,7 @@ static void add_to_free_list(struct cmm_allocator *allocator,
 		}
 		if (curr->pa == NEXT_PA(node)) {
 			curr->pa = node->pa;
-			curr->dw_va = node->dw_va;
+			curr->va = node->va;
 			curr->ul_size += node->ul_size;
 			delete_node(allocator->hcmm_mgr, node);
 			return;
@@ -925,10 +925,10 @@ int cmm_xlator_info(struct cmm_xlatorobject *xlator, u8 ** paddr,
 	if (xlator_obj) {
 		if (set_info) {
 			/* set translators virtual address range */
-			xlator_obj->dw_virt_base = (u32) *paddr;
+			xlator_obj->virt_base = (u32) *paddr;
 			xlator_obj->ul_virt_size = ul_size;
 		} else {	/* return virt base address */
-			*paddr = (u8 *) xlator_obj->dw_virt_base;
+			*paddr = (u8 *) xlator_obj->virt_base;
 		}
 	} else {
 		status = -EFAULT;
@@ -969,18 +969,18 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 			dw_offset = (u8 *) paddr - (u8 *) (allocator->shm_base -
 							   allocator->
 							   ul_dsp_size);
-			dw_addr_xlate = xlator_obj->dw_virt_base + dw_offset;
+			dw_addr_xlate = xlator_obj->virt_base + dw_offset;
 			/* Check if translated Va base is in range */
-			if ((dw_addr_xlate < xlator_obj->dw_virt_base) ||
+			if ((dw_addr_xlate < xlator_obj->virt_base) ||
 			    (dw_addr_xlate >=
-			     (xlator_obj->dw_virt_base +
+			     (xlator_obj->virt_base +
 			      xlator_obj->ul_virt_size))) {
 				dw_addr_xlate = 0;	/* bad address */
 			}
 		} else {
 			/* Gpp PA =  Gpp Base + offset */
 			dw_offset =
-			    (u8 *) paddr - (u8 *) xlator_obj->dw_virt_base;
+			    (u8 *) paddr - (u8 *) xlator_obj->virt_base;
 			dw_addr_xlate =
 			    allocator->shm_base - allocator->ul_dsp_size +
 			    dw_offset;
