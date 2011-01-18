@@ -1272,8 +1272,10 @@ done:
 	path->mnt = mnt;
 	path->dentry = dentry;
 	err = follow_managed(path, nd->flags);
-	if (unlikely(err < 0))
+	if (unlikely(err < 0)) {
+		path_put_conditional(path, nd);
 		return err;
+	}
 	*inode = path->dentry->d_inode;
 	return 0;
 

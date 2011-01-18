@@ -96,7 +96,7 @@ static struct dentry *get_next_positive_dentry(struct dentry *prev,
 	struct dentry *p, *ret;
 
 	if (prev == NULL)
-		return dget(prev);
+		return dget(root);
 
 	spin_lock(&autofs4_lock);
 relock:
@@ -133,7 +133,7 @@ again:
 	spin_lock_nested(&ret->d_lock, DENTRY_D_LOCK_NESTED);
 	/* Negative dentry - try next */
 	if (!simple_positive(ret)) {
-		spin_unlock(&ret->d_lock);
+		spin_unlock(&p->d_lock);
 		p = ret;
 		goto again;
 	}

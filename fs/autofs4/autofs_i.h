@@ -88,14 +88,6 @@ struct autofs_info {
 
 	uid_t uid;
 	gid_t gid;
-
-	mode_t	mode;
-	size_t	size;
-
-	void (*free)(struct autofs_info *);
-	union {
-		const char *symlink;
-	} u;
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
@@ -175,7 +167,7 @@ static inline int autofs4_ispending(struct dentry *dentry)
 	return 0;
 }
 
-struct inode *autofs4_get_inode(struct super_block *, struct autofs_info *);
+struct inode *autofs4_get_inode(struct super_block *, mode_t);
 void autofs4_free_ino(struct autofs_info *);
 
 /* Expiration */
@@ -285,7 +277,8 @@ static inline void managed_dentry_clear_managed(struct dentry *dentry)
 /* Initializing function */
 
 int autofs4_fill_super(struct super_block *, void *, int);
-struct autofs_info *autofs4_init_ino(struct autofs_info *, struct autofs_sb_info *sbi, mode_t mode);
+struct autofs_info *autofs4_new_ino(struct autofs_sb_info *);
+void autofs4_clean_ino(struct autofs_info *);
 
 /* Queue management functions */
 
@@ -345,5 +338,4 @@ static inline void autofs4_del_expiring(struct dentry *dentry)
 	return;
 }
 
-void autofs4_dentry_release(struct dentry *);
 extern void autofs4_kill_sb(struct super_block *);
