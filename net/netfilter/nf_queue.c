@@ -163,9 +163,8 @@ static int __nf_queue(struct sk_buff *skb,
 
 	/* If it's going away, ignore hook. */
 	if (!try_module_get(entry->elem->owner)) {
-		rcu_read_unlock();
-		kfree(entry);
-		return -ECANCELED;
+		status = -ECANCELED;
+		goto err_unlock;
 	}
 	/* Bump dev refs so they don't vanish while packet is out */
 	if (indev)
@@ -198,7 +197,6 @@ static int __nf_queue(struct sk_buff *skb,
 err_unlock:
 	rcu_read_unlock();
 err:
-	kfree_skb(skb);
 	kfree(entry);
 	return status;
 }
@@ -229,7 +227,6 @@ int nf_queue(struct sk_buff *skb,
 	}
 
 	segs = skb_gso_segment(skb, 0);
-	kfree_skb(skb);
 	/* Does not use PTR_ERR to limit the number of error codes that can be
 	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to mean
 	 * 'ignore this hook'.
@@ -253,8 +250,11 @@ int nf_queue(struct sk_buff *skb,
 		segs = nskb;
 	} while (segs);
 
+	/* also free orig skb if only some segments were queued */
 	if (unlikely(err && queued))
 		err = 0;
+	if (err == 0)
+		kfree_skb(skb);
 	return err;
 }
 
@@ -300,8 +300,11 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		err = __nf_queue(skb, elem, entry->pf, entry->hook,
 				 entry->indev, entry->outdev, entry->okfn,
 				 verdict >> NF_VERDICT_BITS);
-		if (err == -ECANCELED)
-			goto next_hook;
+		if (err < 0) {
+			if (err == -ECANCELED)
+				goto next_hook;
+			kfree_skb(skb);
+		}
 		break;
 	case NF_STOLEN:
 	default:

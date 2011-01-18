@@ -181,8 +181,11 @@ next_hook:
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
 		ret = nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
 			       verdict >> NF_VERDICT_BITS);
-		if (ret == -ECANCELED)
-			goto next_hook;
+		if (ret < 0) {
+			if (ret == -ECANCELED)
+				goto next_hook;
+			kfree_skb(skb);
+		}
 		ret = 0;
 	}
 	rcu_read_unlock();
