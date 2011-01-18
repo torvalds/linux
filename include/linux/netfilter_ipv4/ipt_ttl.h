@@ -13,8 +13,8 @@ enum {
 
 
 struct ipt_ttl_info {
-	u_int8_t	mode;
-	u_int8_t	ttl;
+	__u8	mode;
+	__u8	ttl;
 };
 
 

@@ -3,8 +3,8 @@
 
 /* MH matching stuff */
 struct ip6t_mh {
-	u_int8_t types[2];	/* MH type range */
-	u_int8_t invflags;	/* Inverse flags */
+	__u8 types[2];	/* MH type range */
+	__u8 invflags;	/* Inverse flags */
 };
 
 /* Values for "invflags" field in struct ip6t_mh. */

@@ -30,7 +30,7 @@
  */
 
 struct ebt_mac_wormhash_tuple {
-	uint32_t cmp[2];
+	__u32 cmp[2];
 	__be32 ip;
 };
 

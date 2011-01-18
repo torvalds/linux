@@ -7,9 +7,9 @@
 
 struct ipt_same_info {
 	unsigned char info;
-	u_int32_t rangesize;
-	u_int32_t ipnum;
-	u_int32_t *iparray;
+	__u32 rangesize;
+	__u32 ipnum;
+	__u32 *iparray;
 
 	/* hangs off end. */
 	struct nf_nat_range range[IPT_SAME_MAX_RANGE];

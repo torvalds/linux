@@ -31,17 +31,17 @@ struct ebt_ip6_info {
 	struct in6_addr daddr;
 	struct in6_addr smsk;
 	struct in6_addr dmsk;
-	uint8_t  tclass;
-	uint8_t  protocol;
-	uint8_t  bitmask;
-	uint8_t  invflags;
+	__u8  tclass;
+	__u8  protocol;
+	__u8  bitmask;
+	__u8  invflags;
 	union {
-		uint16_t sport[2];
-		uint8_t icmpv6_type[2];
+		__u16 sport[2];
+		__u8 icmpv6_type[2];
 	};
 	union {
-		uint16_t dport[2];
-		uint8_t icmpv6_code[2];
+		__u16 dport[2];
+		__u8 icmpv6_code[2];
 	};
 };
 
