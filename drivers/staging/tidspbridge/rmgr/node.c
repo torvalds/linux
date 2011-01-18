@@ -142,13 +142,13 @@ struct node_mgr {
 	DECLARE_BITMAP(zc_chnl_map, CHNL_MAXCHANNELS);
 	struct ntfy_object *ntfy_obj;	/* Manages registered notifications */
 	struct mutex node_mgr_lock;	/* For critical sections */
-	u32 ul_fxn_addrs[NUMRMSFXNS];	/* RMS function addresses */
+	u32 fxn_addrs[NUMRMSFXNS];	/* RMS function addresses */
 	struct msg_mgr *msg_mgr_obj;
 
 	/* Processor properties needed by Node Dispatcher */
 	u32 ul_num_chnls;	/* Total number of channels */
-	u32 ul_chnl_offset;	/* Offset of chnl ids rsvd for RMS */
-	u32 ul_chnl_buf_size;	/* Buffer size for data to RMS */
+	u32 chnl_offset;	/* Offset of chnl ids rsvd for RMS */
+	u32 chnl_buf_size;	/* Buffer size for data to RMS */
 	int proc_family;	/* eg, 5000 */
 	int proc_type;		/* eg, 5510 */
 	u32 udsp_word_size;	/* Size of DSP word on host bytes */
@@ -367,7 +367,7 @@ int node_allocate(struct proc_object *hprocessor,
 	}
 
 	/* Assuming that 0 is not a valid function address */
-	if (hnode_mgr->ul_fxn_addrs[0] == 0) {
+	if (hnode_mgr->fxn_addrs[0] == 0) {
 		/* No RMS on target - we currently can't handle this */
 		pr_err("%s: Failed, no RMS in base image\n", __func__);
 		status = -EPERM;
@@ -813,7 +813,7 @@ int node_change_priority(struct node_object *hnode, s32 prio)
 			status =
 			    disp_node_change_priority(hnode_mgr->disp_obj,
 						      hnode,
-						      hnode_mgr->ul_fxn_addrs
+						      hnode_mgr->fxn_addrs
 						      [RMSCHANGENODEPRIORITY],
 						      hnode->node_env, prio);
 		}
@@ -1216,14 +1216,14 @@ int node_create(struct node_object *hnode)
 				     hnode->dcd_props.obj_data.node_obj.
 				     pstr_i_alg_name,
 				     &hnode->create_args.asa.
-				     task_arg_obj.ul_dais_arg);
+				     task_arg_obj.dais_arg);
 			}
 		}
 	}
 	if (!status) {
 		if (node_type != NODE_DEVICE) {
 			status = disp_node_create(hnode_mgr->disp_obj, hnode,
-						  hnode_mgr->ul_fxn_addrs
+						  hnode_mgr->fxn_addrs
 						  [RMSCREATENODE],
 						  ul_create_fxn,
 						  &(hnode->create_args),
@@ -1324,8 +1324,8 @@ int node_create_mgr(struct node_mgr **node_man,
 		goto out_err;
 
 	/* Create NODE Dispatcher */
-	disp_attr_obj.ul_chnl_offset = node_mgr_obj->ul_chnl_offset;
-	disp_attr_obj.ul_chnl_buf_size = node_mgr_obj->ul_chnl_buf_size;
+	disp_attr_obj.chnl_offset = node_mgr_obj->chnl_offset;
+	disp_attr_obj.chnl_buf_size = node_mgr_obj->chnl_buf_size;
 	disp_attr_obj.proc_family = node_mgr_obj->proc_family;
 	disp_attr_obj.proc_type = node_mgr_obj->proc_type;
 
@@ -1344,12 +1344,12 @@ int node_create_mgr(struct node_mgr **node_man,
 	mutex_init(&node_mgr_obj->node_mgr_lock);
 
 	/* Block out reserved channels */
-	for (i = 0; i < node_mgr_obj->ul_chnl_offset; i++)
+	for (i = 0; i < node_mgr_obj->chnl_offset; i++)
 		set_bit(i, node_mgr_obj->chnl_map);
 
 	/* Block out channels reserved for RMS */
-	set_bit(node_mgr_obj->ul_chnl_offset, node_mgr_obj->chnl_map);
-	set_bit(node_mgr_obj->ul_chnl_offset + 1, node_mgr_obj->chnl_map);
+	set_bit(node_mgr_obj->chnl_offset, node_mgr_obj->chnl_map);
+	set_bit(node_mgr_obj->chnl_offset + 1, node_mgr_obj->chnl_map);
 
 	/* NO RM Server on the IVA */
 	if (dev_type != IVA_UNIT) {
@@ -1363,7 +1363,7 @@ int node_create_mgr(struct node_mgr **node_man,
 	node_mgr_obj->nldr_fxns = nldr_fxns;	/* Dyn loader funcs */
 
 	nldr_attrs_obj.ovly = ovly;
-	nldr_attrs_obj.pfn_write = mem_write;
+	nldr_attrs_obj.write = mem_write;
 	nldr_attrs_obj.us_dsp_word_size = node_mgr_obj->udsp_word_size;
 	nldr_attrs_obj.us_dsp_mau_size = node_mgr_obj->udsp_mau_size;
 	node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.init();
@@ -1489,7 +1489,7 @@ func_cont1:
 					status =
 					    disp_node_delete(disp_obj, pnode,
 							     hnode_mgr->
-							     ul_fxn_addrs
+							     fxn_addrs
 							     [RMSDELETENODE],
 							     ul_delete_fxn,
 							     pnode->node_env);
@@ -2012,7 +2012,7 @@ int node_pause(struct node_object *hnode)
 		}
 
 		status = disp_node_change_priority(hnode_mgr->disp_obj, hnode,
-			hnode_mgr->ul_fxn_addrs[RMSCHANGENODEPRIORITY],
+			hnode_mgr->fxn_addrs[RMSCHANGENODEPRIORITY],
 			hnode->node_env, NODE_SUSPENDEDPRI);
 
 		/* Update state */
@@ -2274,14 +2274,14 @@ int node_run(struct node_object *hnode)
 			}
 		}
 		if (!status) {
-			ul_fxn_addr = hnode_mgr->ul_fxn_addrs[RMSEXECUTENODE];
+			ul_fxn_addr = hnode_mgr->fxn_addrs[RMSEXECUTENODE];
 			status =
 			    disp_node_run(hnode_mgr->disp_obj, hnode,
 					  ul_fxn_addr, ul_execute_fxn,
 					  hnode->node_env);
 		}
 	} else if (state == NODE_PAUSED) {
-		ul_fxn_addr = hnode_mgr->ul_fxn_addrs[RMSCHANGENODEPRIORITY];
+		ul_fxn_addr = hnode_mgr->fxn_addrs[RMSCHANGENODEPRIORITY];
 		status = disp_node_change_priority(hnode_mgr->disp_obj, hnode,
 						   ul_fxn_addr, hnode->node_env,
 						   NODE_GET_PRIORITY(hnode));
@@ -2902,8 +2902,8 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
 		host_res = pbridge_context->resources;
 		if (!host_res)
 			return -EPERM;
-		hnode_mgr->ul_chnl_offset = host_res->chnl_offset;
-		hnode_mgr->ul_chnl_buf_size = host_res->chnl_buf_size;
+		hnode_mgr->chnl_offset = host_res->chnl_offset;
+		hnode_mgr->chnl_buf_size = host_res->chnl_buf_size;
 		hnode_mgr->ul_num_chnls = host_res->num_chnls;
 
 		/*
@@ -3024,7 +3024,7 @@ static int get_rms_fxns(struct node_mgr *hnode_mgr)
 
 	for (i = 0; i < NUMRMSFXNS; i++) {
 		status = dev_get_symbol(dev_obj, psz_fxns[i],
-					&(hnode_mgr->ul_fxn_addrs[i]));
+					&(hnode_mgr->fxn_addrs[i]));
 		if (status) {
 			if (status == -ESPIPE) {
 				/*

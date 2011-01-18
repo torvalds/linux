@@ -99,7 +99,7 @@ static inline bool is_valid_proc_event(u32 x)
 
 /* The Node UUID structure */
 struct dsp_uuid {
-	u32 ul_data1;
+	u32 data1;
 	u16 us_data2;
 	u16 us_data3;
 	u8 uc_data4;
@@ -359,7 +359,7 @@ struct dsp_processorinfo {
 	int processor_type;
 	u32 clock_rate;
 	u32 ul_internal_mem_size;
-	u32 ul_external_mem_size;
+	u32 external_mem_size;
 	u32 processor_id;
 	int ty_running_rtos;
 	s32 node_min_priority;

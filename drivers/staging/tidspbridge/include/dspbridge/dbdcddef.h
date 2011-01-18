@@ -55,8 +55,8 @@ struct dcd_nodeprops {
 
 	/* Dynamic load properties */
 	u16 us_load_type;	/* Static, dynamic, overlay */
-	u32 ul_data_mem_seg_mask;	/* Data memory requirements */
-	u32 ul_code_mem_seg_mask;	/* Code memory requirements */
+	u32 data_mem_seg_mask;		/* Data memory requirements */
+	u32 code_mem_seg_mask;		/* Code memory requirements */
 };
 
 /* DCD Generic Object Type */

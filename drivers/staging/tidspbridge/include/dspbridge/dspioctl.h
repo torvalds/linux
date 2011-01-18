@@ -55,8 +55,8 @@
 #define BRDIOCTL_NUMOFMMUTLB        32
 
 struct bridge_ioctl_extproc {
-	u32 ul_dsp_va;		/* DSP virtual address */
-	u32 ul_gpp_pa;		/* GPP physical address */
+	u32 dsp_va;		/* DSP virtual address */
+	u32 gpp_pa;		/* GPP physical address */
 	/* GPP virtual address. __va does not work for ioremapped addresses */
 	u32 ul_gpp_va;
 	u32 ul_size;		/* Size of the mapped memory in bytes */

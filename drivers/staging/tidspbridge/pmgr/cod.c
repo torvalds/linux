@@ -47,7 +47,7 @@ struct cod_manager {
 	struct dbll_tar_obj *target;
 	struct dbll_library_obj *base_lib;
 	bool loaded;		/* Base library loaded? */
-	u32 ul_entry;
+	u32 entry;
 	struct dbll_fxns fxns;
 	struct dbll_attrs attrs;
 	char sz_zl_file[COD_MAXPATHLENGTH];
@@ -346,7 +346,7 @@ int cod_get_entry(struct cod_manager *cod_mgr_obj, u32 *entry_pt)
 	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(entry_pt != NULL);
 
-	*entry_pt = cod_mgr_obj->ul_entry;
+	*entry_pt = cod_mgr_obj->entry;
 
 	return 0;
 }
@@ -516,7 +516,7 @@ int cod_load_base(struct cod_manager *cod_mgr_obj, u32 num_argc, char *args[],
 	flags = DBLL_CODE | DBLL_DATA | DBLL_SYMB;
 	status = cod_mgr_obj->fxns.load_fxn(cod_mgr_obj->base_lib, flags,
 					    &new_attrs,
-					    &cod_mgr_obj->ul_entry);
+					    &cod_mgr_obj->entry);
 	if (status)
 		cod_mgr_obj->fxns.close_fxn(cod_mgr_obj->base_lib);
 

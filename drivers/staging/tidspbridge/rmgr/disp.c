@@ -65,8 +65,8 @@ struct disp_object {
 	struct chnl_object *chnl_to_dsp;	/* Chnl for commands to RMS */
 	struct chnl_object *chnl_from_dsp;	/* Chnl for replies from RMS */
 	u8 *pbuf;		/* Buffer for commands, replies */
-	u32 ul_bufsize;		/* pbuf size in bytes */
-	u32 ul_bufsize_rms;	/* pbuf size in RMS words */
+	u32 bufsize;		/* buf size in bytes */
+	u32 bufsize_rms;	/* buf size in RMS words */
 	u32 char_size;		/* Size of DSP character */
 	u32 word_size;		/* Size of DSP word */
 	u32 data_mau_size;	/* Size of DSP Data MAU */
@@ -140,14 +140,14 @@ int disp_create(struct disp_object **dispatch_obj,
 	/* Open channels for communicating with the RMS */
 	chnl_attr_obj.uio_reqs = CHNLIOREQS;
 	chnl_attr_obj.event_obj = NULL;
-	ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLTORMSOFFSET;
+	ul_chnl_id = disp_attrs->chnl_offset + CHNLTORMSOFFSET;
 	status = (*intf_fxns->chnl_open) (&(disp_obj->chnl_to_dsp),
 					      disp_obj->hchnl_mgr,
 					      CHNL_MODETODSP, ul_chnl_id,
 					      &chnl_attr_obj);
 
 	if (!status) {
-		ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLFROMRMSOFFSET;
+		ul_chnl_id = disp_attrs->chnl_offset + CHNLFROMRMSOFFSET;
 		status =
 		    (*intf_fxns->chnl_open) (&(disp_obj->chnl_from_dsp),
 						 disp_obj->hchnl_mgr,
@@ -156,9 +156,9 @@ int disp_create(struct disp_object **dispatch_obj,
 	}
 	if (!status) {
 		/* Allocate buffer for commands, replies */
-		disp_obj->ul_bufsize = disp_attrs->ul_chnl_buf_size;
-		disp_obj->ul_bufsize_rms = RMS_COMMANDBUFSIZE;
-		disp_obj->pbuf = kzalloc(disp_obj->ul_bufsize, GFP_KERNEL);
+		disp_obj->bufsize = disp_attrs->chnl_buf_size;
+		disp_obj->bufsize_rms = RMS_COMMANDBUFSIZE;
+		disp_obj->pbuf = kzalloc(disp_obj->bufsize, GFP_KERNEL);
 		if (disp_obj->pbuf == NULL)
 			status = -ENOMEM;
 	}
@@ -295,7 +295,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	DBC_REQUIRE(pargs != NULL);
 	node_type = node_get_type(hnode);
 	node_msg_args = pargs->asa.node_msg_args;
-	max = disp_obj->ul_bufsize_rms;	/*Max # of RMS words that can be sent */
+	max = disp_obj->bufsize_rms;	/*Max # of RMS words that can be sent */
 	DBC_ASSERT(max == RMS_COMMANDBUFSIZE);
 	chars_in_rms_word = sizeof(rms_word) / disp_obj->char_size;
 	/* Number of RMS words needed to hold arg data */
@@ -404,7 +404,7 @@ int disp_node_create(struct disp_object *disp_obj,
 			more_task_args->stack_seg = task_arg_obj.stack_seg;
 			more_task_args->heap_addr = task_arg_obj.udsp_heap_addr;
 			more_task_args->heap_size = task_arg_obj.heap_size;
-			more_task_args->misc = task_arg_obj.ul_dais_arg;
+			more_task_args->misc = task_arg_obj.dais_arg;
 			more_task_args->num_input_streams =
 			    task_arg_obj.num_inputs;
 			total +=

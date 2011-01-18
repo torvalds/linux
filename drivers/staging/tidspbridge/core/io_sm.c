@@ -121,7 +121,7 @@ struct io_mgr {
 	u32 ul_gpp_read_pointer;	/* GPP Read pointer to Trace buffer */
 	u8 *pmsg;
 	u32 ul_gpp_va;
-	u32 ul_dsp_va;
+	u32 dsp_va;
 #endif
 	/* IO Dpc */
 	u32 dpc_req;		/* Number of requested DPC's. */
@@ -421,7 +421,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		ul_gpp_va = host_res->mem_base[1];
 		/* This is the virtual uncached ioremapped address!!! */
 		/* Why can't we directly take the DSPVA from the symbols? */
-		ul_dsp_va = hio_mgr->ext_proc_info.ty_tlb[0].ul_dsp_virt;
+		ul_dsp_va = hio_mgr->ext_proc_info.ty_tlb[0].dsp_virt;
 		ul_seg_size = (shm0_end - ul_dsp_va) * hio_mgr->word_size;
 		ul_seg1_size =
 		    (ul_ext_end - ul_dyn_ext_base) * hio_mgr->word_size;
@@ -527,13 +527,13 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 				 * This is the physical address written to
 				 * DSP MMU.
 				 */
-				ae_proc[ndx].ul_gpp_pa = pa_curr;
+				ae_proc[ndx].gpp_pa = pa_curr;
 				/*
 				 * This is the virtual uncached ioremapped
 				 * address!!!
 				 */
 				ae_proc[ndx].ul_gpp_va = gpp_va_curr;
-				ae_proc[ndx].ul_dsp_va =
+				ae_proc[ndx].dsp_va =
 				    va_curr / hio_mgr->word_size;
 				ae_proc[ndx].ul_size = page_size[i];
 				ae_proc[ndx].endianism = HW_LITTLE_ENDIAN;
@@ -541,9 +541,9 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 				ae_proc[ndx].mixed_mode = HW_MMU_CPUES;
 				dev_dbg(bridge, "shm MMU TLB entry PA %x"
 					" VA %x DSP_VA %x Size %x\n",
-					ae_proc[ndx].ul_gpp_pa,
+					ae_proc[ndx].gpp_pa,
 					ae_proc[ndx].ul_gpp_va,
-					ae_proc[ndx].ul_dsp_va *
+					ae_proc[ndx].dsp_va *
 					hio_mgr->word_size, page_size[i]);
 				ndx++;
 			} else {
@@ -556,9 +556,9 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 				dev_dbg(bridge,
 					"shm MMU PTE entry PA %x"
 					" VA %x DSP_VA %x Size %x\n",
-					ae_proc[ndx].ul_gpp_pa,
+					ae_proc[ndx].gpp_pa,
 					ae_proc[ndx].ul_gpp_va,
-					ae_proc[ndx].ul_dsp_va *
+					ae_proc[ndx].dsp_va *
 					hio_mgr->word_size, page_size[i]);
 				if (status)
 					goto func_end;
@@ -587,32 +587,32 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		     ul_gpp_pa - 0x100000
 		     && hio_mgr->ext_proc_info.ty_tlb[i].ul_gpp_phys <=
 		     ul_gpp_pa + ul_seg_size)
-		    || (hio_mgr->ext_proc_info.ty_tlb[i].ul_dsp_virt >
+		    || (hio_mgr->ext_proc_info.ty_tlb[i].dsp_virt >
 			ul_dsp_va - 0x100000 / hio_mgr->word_size
-			&& hio_mgr->ext_proc_info.ty_tlb[i].ul_dsp_virt <=
+			&& hio_mgr->ext_proc_info.ty_tlb[i].dsp_virt <=
 			ul_dsp_va + ul_seg_size / hio_mgr->word_size)) {
 			dev_dbg(bridge,
 				"CDB MMU entry %d conflicts with "
 				"shm.\n\tCDB: GppPa %x, DspVa %x.\n\tSHM: "
 				"GppPa %x, DspVa %x, Bytes %x.\n", i,
 				hio_mgr->ext_proc_info.ty_tlb[i].ul_gpp_phys,
-				hio_mgr->ext_proc_info.ty_tlb[i].ul_dsp_virt,
+				hio_mgr->ext_proc_info.ty_tlb[i].dsp_virt,
 				ul_gpp_pa, ul_dsp_va, ul_seg_size);
 			status = -EPERM;
 		} else {
 			if (ndx < MAX_LOCK_TLB_ENTRIES) {
-				ae_proc[ndx].ul_dsp_va =
+				ae_proc[ndx].dsp_va =
 				    hio_mgr->ext_proc_info.ty_tlb[i].
-				    ul_dsp_virt;
-				ae_proc[ndx].ul_gpp_pa =
+				    dsp_virt;
+				ae_proc[ndx].gpp_pa =
 				    hio_mgr->ext_proc_info.ty_tlb[i].
 				    ul_gpp_phys;
 				ae_proc[ndx].ul_gpp_va = 0;
 				/* 1 MB */
 				ae_proc[ndx].ul_size = 0x100000;
 				dev_dbg(bridge, "shm MMU entry PA %x "
-					"DSP_VA 0x%x\n", ae_proc[ndx].ul_gpp_pa,
-					ae_proc[ndx].ul_dsp_va);
+					"DSP_VA 0x%x\n", ae_proc[ndx].gpp_pa,
+					ae_proc[ndx].dsp_va);
 				ndx++;
 			} else {
 				status = hio_mgr->intf_fxns->brd_mem_map
@@ -620,7 +620,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 				     hio_mgr->ext_proc_info.ty_tlb[i].
 				     ul_gpp_phys,
 				     hio_mgr->ext_proc_info.ty_tlb[i].
-				     ul_dsp_virt, 0x100000, map_attrs,
+				     dsp_virt, 0x100000, map_attrs,
 				     NULL);
 			}
 		}
@@ -647,8 +647,8 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	}
 
 	for (i = ndx; i < BRDIOCTL_NUMOFMMUTLB; i++) {
-		ae_proc[i].ul_dsp_va = 0;
-		ae_proc[i].ul_gpp_pa = 0;
+		ae_proc[i].dsp_va = 0;
+		ae_proc[i].gpp_pa = 0;
 		ae_proc[i].ul_gpp_va = 0;
 		ae_proc[i].ul_size = 0;
 	}
@@ -668,12 +668,12 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		status = -EFAULT;
 		goto func_end;
 	} else {
-		if (ae_proc[0].ul_dsp_va > ul_shm_base) {
+		if (ae_proc[0].dsp_va > ul_shm_base) {
 			status = -EPERM;
 			goto func_end;
 		}
 		/* ul_shm_base may not be at ul_dsp_va address */
-		ul_shm_base_offset = (ul_shm_base - ae_proc[0].ul_dsp_va) *
+		ul_shm_base_offset = (ul_shm_base - ae_proc[0].dsp_va) *
 		    hio_mgr->word_size;
 		/*
 		 * bridge_dev_ctrl() will set dev context dsp-mmu info. In
@@ -698,7 +698,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		}
 		/* Register SM */
 		status =
-		    register_shm_segs(hio_mgr, cod_man, ae_proc[0].ul_gpp_pa);
+		    register_shm_segs(hio_mgr, cod_man, ae_proc[0].gpp_pa);
 	}
 
 	hio_mgr->shared_mem = (struct shm *)ul_shm_base;
@@ -771,7 +771,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	if (!hio_mgr->pmsg)
 		status = -ENOMEM;
 
-	hio_mgr->ul_dsp_va = ul_dsp_va;
+	hio_mgr->dsp_va = ul_dsp_va;
 	hio_mgr->ul_gpp_va = (ul_gpp_va + ul_seg1_size + ul_pad_size);
 
 #endif
@@ -1544,7 +1544,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
 		ul_gpp_phys = hio_mgr->ext_proc_info.ty_tlb[0].ul_gpp_phys;
 		/* Get size in bytes */
 		ul_dsp_virt =
-		    hio_mgr->ext_proc_info.ty_tlb[0].ul_dsp_virt *
+		    hio_mgr->ext_proc_info.ty_tlb[0].dsp_virt *
 		    hio_mgr->word_size;
 		/*
 		 * Calc byte offset used to convert GPP phys <-> DSP byte
@@ -1694,7 +1694,7 @@ void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 		    *(u32 *) (hio_mgr->ul_trace_buffer_current);
 		ul_gpp_cur_pointer =
 		    hio_mgr->ul_gpp_va + (ul_gpp_cur_pointer -
-					  hio_mgr->ul_dsp_va);
+					  hio_mgr->dsp_va);
 
 		/* No new debug messages available yet */
 		if (ul_gpp_cur_pointer == hio_mgr->ul_gpp_read_pointer) {

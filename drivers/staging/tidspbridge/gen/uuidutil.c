@@ -45,7 +45,7 @@ void uuid_uuid_to_string(struct dsp_uuid *uuid_obj, char *sz_uuid,
 
 	i = snprintf(sz_uuid, size,
 		     "%.8X_%.4X_%.4X_%.2X%.2X_%.2X%.2X%.2X%.2X%.2X%.2X",
-		     uuid_obj->ul_data1, uuid_obj->us_data2, uuid_obj->us_data3,
+		     uuid_obj->data1, uuid_obj->us_data2, uuid_obj->us_data3,
 		     uuid_obj->uc_data4, uuid_obj->uc_data5,
 		     uuid_obj->uc_data6[0], uuid_obj->uc_data6[1],
 		     uuid_obj->uc_data6[2], uuid_obj->uc_data6[3],
@@ -79,7 +79,7 @@ void uuid_uuid_from_string(char *sz_uuid, struct dsp_uuid *uuid_obj)
 {
 	s32 j;
 
-	uuid_obj->ul_data1 = uuid_hex_to_bin(sz_uuid, 8);
+	uuid_obj->data1 = uuid_hex_to_bin(sz_uuid, 8);
 	sz_uuid += 8;
 
 	/* Step over underscore */

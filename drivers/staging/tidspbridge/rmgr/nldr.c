@@ -220,7 +220,7 @@ struct nldr_nodeobject {
 	struct dsp_uuid uuid;	/* Node's UUID */
 	bool dynamic;		/* Dynamically loaded node? */
 	bool overlay;		/* Overlay node? */
-	bool *pf_phase_split;	/* Multiple phase libraries? */
+	bool *phase_split;	/* Multiple phase libraries? */
 	struct lib_node root;	/* Library containing node phase */
 	struct lib_node create_lib;	/* Library with create phase lib */
 	struct lib_node execute_lib;	/* Library with execute phase lib */
@@ -326,7 +326,7 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 	if (nldr_node_obj == NULL) {
 		status = -ENOMEM;
 	} else {
-		nldr_node_obj->pf_phase_split = pf_phase_split;
+		nldr_node_obj->phase_split = pf_phase_split;
 		nldr_node_obj->pers_libs = 0;
 		nldr_node_obj->nldr_obj = nldr_obj;
 		nldr_node_obj->priv_ref = priv_ref;
@@ -344,44 +344,44 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 			 */
 			/* Create phase */
 			nldr_node_obj->seg_id[CREATEDATAFLAGBIT] = (u16)
-			    (node_props->ul_data_mem_seg_mask >> CREATEBIT) &
+			    (node_props->data_mem_seg_mask >> CREATEBIT) &
 			    SEGMASK;
 			nldr_node_obj->code_data_flag_mask |=
-			    ((node_props->ul_data_mem_seg_mask >>
+			    ((node_props->data_mem_seg_mask >>
 			      (CREATEBIT + FLAGBIT)) & 1) << CREATEDATAFLAGBIT;
 			nldr_node_obj->seg_id[CREATECODEFLAGBIT] = (u16)
-			    (node_props->ul_code_mem_seg_mask >>
+			    (node_props->code_mem_seg_mask >>
 			     CREATEBIT) & SEGMASK;
 			nldr_node_obj->code_data_flag_mask |=
-			    ((node_props->ul_code_mem_seg_mask >>
+			    ((node_props->code_mem_seg_mask >>
 			      (CREATEBIT + FLAGBIT)) & 1) << CREATECODEFLAGBIT;
 			/* Execute phase */
 			nldr_node_obj->seg_id[EXECUTEDATAFLAGBIT] = (u16)
-			    (node_props->ul_data_mem_seg_mask >>
+			    (node_props->data_mem_seg_mask >>
 			     EXECUTEBIT) & SEGMASK;
 			nldr_node_obj->code_data_flag_mask |=
-			    ((node_props->ul_data_mem_seg_mask >>
+			    ((node_props->data_mem_seg_mask >>
 			      (EXECUTEBIT + FLAGBIT)) & 1) <<
 			    EXECUTEDATAFLAGBIT;
 			nldr_node_obj->seg_id[EXECUTECODEFLAGBIT] = (u16)
-			    (node_props->ul_code_mem_seg_mask >>
+			    (node_props->code_mem_seg_mask >>
 			     EXECUTEBIT) & SEGMASK;
 			nldr_node_obj->code_data_flag_mask |=
-			    ((node_props->ul_code_mem_seg_mask >>
+			    ((node_props->code_mem_seg_mask >>
 			      (EXECUTEBIT + FLAGBIT)) & 1) <<
 			    EXECUTECODEFLAGBIT;
 			/* Delete phase */
 			nldr_node_obj->seg_id[DELETEDATAFLAGBIT] = (u16)
-			    (node_props->ul_data_mem_seg_mask >> DELETEBIT) &
+			    (node_props->data_mem_seg_mask >> DELETEBIT) &
 			    SEGMASK;
 			nldr_node_obj->code_data_flag_mask |=
-			    ((node_props->ul_data_mem_seg_mask >>
+			    ((node_props->data_mem_seg_mask >>
 			      (DELETEBIT + FLAGBIT)) & 1) << DELETEDATAFLAGBIT;
 			nldr_node_obj->seg_id[DELETECODEFLAGBIT] = (u16)
-			    (node_props->ul_code_mem_seg_mask >>
+			    (node_props->code_mem_seg_mask >>
 			     DELETEBIT) & SEGMASK;
 			nldr_node_obj->code_data_flag_mask |=
-			    ((node_props->ul_code_mem_seg_mask >>
+			    ((node_props->code_mem_seg_mask >>
 			      (DELETEBIT + FLAGBIT)) & 1) << DELETECODEFLAGBIT;
 		} else {
 			/* Non-dynamically loaded nodes are part of the
@@ -430,7 +430,7 @@ int nldr_create(struct nldr_object **nldr,
 	DBC_REQUIRE(hdev_obj != NULL);
 	DBC_REQUIRE(pattrs != NULL);
 	DBC_REQUIRE(pattrs->ovly != NULL);
-	DBC_REQUIRE(pattrs->pfn_write != NULL);
+	DBC_REQUIRE(pattrs->write != NULL);
 
 	/* Allocate dynamic loader object */
 	nldr_obj = kzalloc(sizeof(struct nldr_object), GFP_KERNEL);
@@ -533,9 +533,9 @@ int nldr_create(struct nldr_object **nldr,
 		new_attrs.free = (dbll_free_fxn) remote_free;
 		new_attrs.sym_lookup = (dbll_sym_lookup) get_symbol_value;
 		new_attrs.sym_handle = nldr_obj;
-		new_attrs.write = (dbll_write_fxn) pattrs->pfn_write;
+		new_attrs.write = (dbll_write_fxn) pattrs->write;
 		nldr_obj->ovly_fxn = pattrs->ovly;
-		nldr_obj->write_fxn = pattrs->pfn_write;
+		nldr_obj->write_fxn = pattrs->write;
 		nldr_obj->ldr_attrs = new_attrs;
 	}
 	kfree(rmm_segs);
@@ -678,7 +678,7 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 
 	nldr_obj = nldr_node_obj->nldr_obj;
 	/* Called from node_create(), node_delete(), or node_run(). */
-	if (nldr_node_obj->dynamic && *nldr_node_obj->pf_phase_split) {
+	if (nldr_node_obj->dynamic && *nldr_node_obj->phase_split) {
 		switch (nldr_node_obj->phase) {
 		case NLDR_CREATE:
 			root = nldr_node_obj->create_lib;
@@ -821,7 +821,7 @@ int nldr_load(struct nldr_nodeobject *nldr_node_obj,
 			     false, nldr_node_obj->lib_path, phase, 0);
 
 		if (!status) {
-			if (*nldr_node_obj->pf_phase_split) {
+			if (*nldr_node_obj->phase_split) {
 				switch (phase) {
 				case NLDR_CREATE:
 					nldr_node_obj->create_lib =
@@ -868,7 +868,7 @@ int nldr_unload(struct nldr_nodeobject *nldr_node_obj,
 
 	if (nldr_node_obj != NULL) {
 		if (nldr_node_obj->dynamic) {
-			if (*nldr_node_obj->pf_phase_split) {
+			if (*nldr_node_obj->phase_split) {
 				switch (phase) {
 				case NLDR_CREATE:
 					root_lib = &nldr_node_obj->create_lib;
@@ -1264,7 +1264,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			    dcd_get_library_name(nldr_node_obj->nldr_obj->
 						 hdcd_mgr, &uuid, psz_file_name,
 						 &dw_buf_size, phase,
-						 nldr_node_obj->pf_phase_split);
+						 nldr_node_obj->phase_split);
 		} else {
 			/* Dependent libraries are registered with a phase */
 			status =
@@ -1314,7 +1314,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 	}
 	DBC_ASSERT(nd_libs >= np_libs);
 	if (!status) {
-		if (!(*nldr_node_obj->pf_phase_split))
+		if (!(*nldr_node_obj->phase_split))
 			np_libs = 0;
 
 		/* nd_libs = #of dependent libraries */
@@ -1359,7 +1359,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			 * is, then record it.  If root library IS persistent,
 			 * the deplib is already included */
 			if (!root_prstnt && persistent_dep_libs[i] &&
-			    *nldr_node_obj->pf_phase_split) {
+			    *nldr_node_obj->phase_split) {
 				if ((nldr_node_obj->pers_libs) >= MAXLIBS) {
 					status = -EILSEQ;
 					break;
@@ -1385,11 +1385,11 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			if (!status) {
 				if ((status != 0) &&
 				    !root_prstnt && persistent_dep_libs[i] &&
-				    *nldr_node_obj->pf_phase_split) {
+				    *nldr_node_obj->phase_split) {
 					(nldr_node_obj->pers_libs)++;
 				} else {
 					if (!persistent_dep_libs[i] ||
-					    !(*nldr_node_obj->pf_phase_split)) {
+					    !(*nldr_node_obj->phase_split)) {
 						nd_libs_loaded++;
 					}
 				}
@@ -1903,7 +1903,7 @@ int nldr_find_addr(struct nldr_nodeobject *nldr_node, u32 sym_addr,
 	pr_debug("%s(0x%x, 0x%x, 0x%x, 0x%x,  %s)\n", __func__, (u32) nldr_node,
 			sym_addr, offset_range, (u32) offset_output, sym_name);
 
-	if (nldr_node->dynamic && *nldr_node->pf_phase_split) {
+	if (nldr_node->dynamic && *nldr_node->phase_split) {
 		switch (nldr_node->phase) {
 		case NLDR_CREATE:
 			root = nldr_node->create_lib;

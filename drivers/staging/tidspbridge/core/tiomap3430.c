@@ -401,7 +401,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	ul_shm_base_virt *= DSPWORDSIZE;
 	DBC_ASSERT(ul_shm_base_virt != 0);
 	/* DSP Virtual address */
-	ul_tlb_base_virt = dev_context->atlb_entry[0].ul_dsp_va;
+	ul_tlb_base_virt = dev_context->atlb_entry[0].dsp_va;
 	DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
 	ul_shm_offset_virt =
 	    ul_shm_base_virt - (ul_tlb_base_virt * DSPWORDSIZE);
@@ -466,19 +466,19 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 				.mixed_size = e->mixed_mode,
 			};
 
-			if (!e->ul_gpp_pa || !e->ul_dsp_va)
+			if (!e->gpp_pa || !e->dsp_va)
 				continue;
 
 			dev_dbg(bridge,
 					"MMU %d, pa: 0x%x, va: 0x%x, size: 0x%x",
 					itmp_entry_ndx,
-					e->ul_gpp_pa,
-					e->ul_dsp_va,
+					e->gpp_pa,
+					e->dsp_va,
 					e->ul_size);
 
 			hw_mmu_tlb_add(dev_context->dsp_mmu_base,
-					e->ul_gpp_pa,
-					e->ul_dsp_va,
+					e->gpp_pa,
+					e->dsp_va,
 					e->ul_size,
 					itmp_entry_ndx,
 					&map_attrs, 1, 1);
@@ -771,8 +771,8 @@ static int bridge_dev_create(struct bridge_dev_context
 	/*  Clear dev context MMU table entries.
 	 *  These get set on bridge_io_on_loaded() call after program loaded. */
 	for (entry_ndx = 0; entry_ndx < BRDIOCTL_NUMOFMMUTLB; entry_ndx++) {
-		dev_context->atlb_entry[entry_ndx].ul_gpp_pa =
-		    dev_context->atlb_entry[entry_ndx].ul_dsp_va = 0;
+		dev_context->atlb_entry[entry_ndx].gpp_pa =
+		    dev_context->atlb_entry[entry_ndx].dsp_va = 0;
 	}
 	dev_context->dsp_base_addr = (u32) MEM_LINEAR_ADDRESS((void *)
 								 (config_param->

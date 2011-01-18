@@ -70,7 +70,7 @@ struct cmm_allocator {		/* sma */
 					 * SM space */
 	s8 c_factor;		/* DSPPa to GPPPa Conversion Factor */
 	unsigned int dsp_base;	/* DSP virt base byte address */
-	u32 ul_dsp_size;	/* DSP seg size in bytes */
+	u32 dsp_size;	/* DSP seg size in bytes */
 	struct cmm_object *hcmm_mgr;	/* back ref to parent mgr */
 	/* node list of available memory */
 	struct list_head free_list;
@@ -439,19 +439,19 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 			continue;
 		cmm_info_obj->ul_num_gppsm_segs++;
 		cmm_info_obj->seg_info[ul_seg - 1].seg_base_pa =
-			altr->shm_base - altr->ul_dsp_size;
+			altr->shm_base - altr->dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_total_seg_size =
-			altr->ul_dsp_size + altr->ul_sm_size;
+			altr->dsp_size + altr->ul_sm_size;
 		cmm_info_obj->seg_info[ul_seg - 1].gpp_base_pa =
 			altr->shm_base;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_gpp_size =
 			altr->ul_sm_size;
 		cmm_info_obj->seg_info[ul_seg - 1].dsp_base_va =
 			altr->dsp_base;
-		cmm_info_obj->seg_info[ul_seg - 1].ul_dsp_size =
-			altr->ul_dsp_size;
+		cmm_info_obj->seg_info[ul_seg - 1].dsp_size =
+			altr->dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].seg_base_va =
-			altr->vm_base - altr->ul_dsp_size;
+			altr->vm_base - altr->dsp_size;
 		cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt = 0;
 
 		list_for_each_entry(curr, &altr->in_use_list, link) {
@@ -543,7 +543,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	psma->dsp_phys_addr_offset = dsp_addr_offset;
 	psma->c_factor = c_factor;
 	psma->dsp_base = dw_dsp_base;
-	psma->ul_dsp_size = ul_dsp_size;
+	psma->dsp_size = ul_dsp_size;
 	if (psma->vm_base == 0) {
 		status = -EPERM;
 		goto func_end;
@@ -968,7 +968,7 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 			/* Gpp Va = Va Base + offset */
 			dw_offset = (u8 *) paddr - (u8 *) (allocator->shm_base -
 							   allocator->
-							   ul_dsp_size);
+							   dsp_size);
 			dw_addr_xlate = xlator_obj->virt_base + dw_offset;
 			/* Check if translated Va base is in range */
 			if ((dw_addr_xlate < xlator_obj->virt_base) ||
@@ -982,7 +982,7 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 			dw_offset =
 			    (u8 *) paddr - (u8 *) xlator_obj->virt_base;
 			dw_addr_xlate =
-			    allocator->shm_base - allocator->ul_dsp_size +
+			    allocator->shm_base - allocator->dsp_size +
 			    dw_offset;
 		}
 	} else {
@@ -992,14 +992,14 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 	if ((xtype == CMM_VA2DSPPA) || (xtype == CMM_PA2DSPPA)) {
 		/* Got Gpp Pa now, convert to DSP Pa */
 		dw_addr_xlate =
-		    GPPPA2DSPPA((allocator->shm_base - allocator->ul_dsp_size),
+		    GPPPA2DSPPA((allocator->shm_base - allocator->dsp_size),
 				dw_addr_xlate,
 				allocator->dsp_phys_addr_offset *
 				allocator->c_factor);
 	} else if (xtype == CMM_DSPPA2PA) {
 		/* Got DSP Pa, convert to GPP Pa */
 		dw_addr_xlate =
-		    DSPPA2GPPPA(allocator->shm_base - allocator->ul_dsp_size,
+		    DSPPA2GPPPA(allocator->shm_base - allocator->dsp_size,
 				dw_addr_xlate,
 				allocator->dsp_phys_addr_offset *
 				allocator->c_factor);

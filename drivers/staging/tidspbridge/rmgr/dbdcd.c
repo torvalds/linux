@@ -1227,14 +1227,14 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 
 		/* Dynamic load data requirements */
 		if (token) {
-			gen_obj->obj_data.node_obj.ul_data_mem_seg_mask =
+			gen_obj->obj_data.node_obj.data_mem_seg_mask =
 			    atoi(token);
 			token = strsep(&psz_cur, seps);
 		}
 
 		/* Dynamic load code requirements */
 		if (token) {
-			gen_obj->obj_data.node_obj.ul_code_mem_seg_mask =
+			gen_obj->obj_data.node_obj.code_mem_seg_mask =
 			    atoi(token);
 			token = strsep(&psz_cur, seps);
 		}
@@ -1288,7 +1288,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		gen_obj->obj_data.proc_info.ul_internal_mem_size = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		gen_obj->obj_data.proc_info.ul_external_mem_size = atoi(token);
+		gen_obj->obj_data.proc_info.external_mem_size = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		gen_obj->obj_data.proc_info.processor_id = atoi(token);
@@ -1312,7 +1312,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 
 			token = strsep(&psz_cur, seps);
 			gen_obj->obj_data.ext_proc_obj.ty_tlb[entry_id].
-			    ul_dsp_virt = atoi(token);
+			    dsp_virt = atoi(token);
 		}
 #endif
 

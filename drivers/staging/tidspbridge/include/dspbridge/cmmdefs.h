@@ -29,7 +29,7 @@ struct cmm_mgrattrs {
 /* Attributes for CMM_AllocBuf() & CMM_AllocDesc() */
 struct cmm_attrs {
 	u32 ul_seg_id;		/*  1,2... are SM segments. 0 is not. */
-	u32 ul_alignment;	/*  0,1,2,4....ul_min_block_size */
+	u32 alignment;		/*  0,1,2,4....ul_min_block_size */
 };
 
 /*
@@ -57,7 +57,7 @@ struct cmm_seginfo {
 	u32 gpp_base_pa;	/* Start Phys addr of Gpp SM seg */
 	u32 ul_gpp_size;	/* Size of Gpp SM seg in bytes */
 	u32 dsp_base_va;	/* DSP virt base byte address */
-	u32 ul_dsp_size;	/* DSP seg size in bytes */
+	u32 dsp_size;		/* DSP seg size in bytes */
 	/* # of current GPP allocations from this segment */
 	u32 ul_in_use_cnt;
 	u32 seg_base_va;	/* Start Virt address of SM seg */

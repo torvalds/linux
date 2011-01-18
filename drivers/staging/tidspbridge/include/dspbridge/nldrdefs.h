@@ -83,7 +83,7 @@ typedef u32(*nldr_writefxn) (void *priv_ref,
  */
 struct nldr_attrs {
 	nldr_ovlyfxn ovly;
-	nldr_writefxn pfn_write;
+	nldr_writefxn write;
 	u16 us_dsp_word_size;
 	u16 us_dsp_mau_size;
 };

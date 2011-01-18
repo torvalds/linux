@@ -62,7 +62,7 @@ struct node_taskargs {
 	u32 profile_id;		/* Profile ID */
 	u32 num_inputs;
 	u32 num_outputs;
-	u32 ul_dais_arg;	/* Address of iAlg object */
+	u32 dais_arg;	/* Address of iAlg object */
 	struct node_strmdef *strm_in_def;
 	struct node_strmdef *strm_out_def;
 };
