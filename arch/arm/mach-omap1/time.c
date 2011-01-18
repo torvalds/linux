@@ -44,11 +44,14 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
+#include <linux/sched.h>
 
 #include <asm/system.h>
 #include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/irq.h>
+#include <asm/sched_clock.h>
+
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
@@ -67,7 +70,7 @@ typedef struct {
 ((volatile omap_mpu_timer_regs_t*)OMAP1_IO_ADDRESS(OMAP_MPU_TIMER_BASE +	\
 				 (n)*OMAP_MPU_TIMER_OFFSET))
 
-static inline unsigned long omap_mpu_timer_read(int nr)
+static inline unsigned long notrace omap_mpu_timer_read(int nr)
 {
 	volatile omap_mpu_timer_regs_t* timer = omap_mpu_timer_base(nr);
 	return timer->read_tim;
@@ -212,6 +215,14 @@ static struct clocksource clocksource_mpu = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+static DEFINE_CLOCK_DATA(cd);
+
+static void notrace mpu_update_sched_clock(void)
+{
+	u32 cyc = mpu_read(&clocksource_mpu);
+	update_sched_clock(&cd, cyc, (u32)~0);
+}
+
 static void __init omap_init_clocksource(unsigned long rate)
 {
 	static char err[] __initdata = KERN_ERR
@@ -219,6 +230,7 @@ static void __init omap_init_clocksource(unsigned long rate)
 
 	setup_irq(INT_TIMER2, &omap_mpu_timer2_irq);
 	omap_mpu_timer_start(1, ~0, 1);
+	init_sched_clock(&cd, mpu_update_sched_clock, 32, rate);
 
 	if (clocksource_register_hz(&clocksource_mpu, rate))
 		printk(err, clocksource_mpu.name);
