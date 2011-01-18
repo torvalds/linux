@@ -936,6 +936,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	list_for_each_entry(pos, &evsel_list, node) {
 		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
+		if (perf_header__push_event(pos->attr.config, event_name(pos)))
+			goto out_free_fd;
 	}
 	event_array = malloc((sizeof(struct pollfd) * MAX_NR_CPUS *
 			      MAX_COUNTERS * threads->nr));
