@@ -129,6 +129,5 @@ extern const short da850_uart2_pins[];
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
 extern const short da850_lcdcntl_pins[];
-extern const short da850_mmcsd0_pins[];
 
 #endif /* __ASM_ARCH_DAVINCI_DA8XX_H */

@@ -606,13 +606,6 @@ const short da850_lcdcntl_pins[] __initdata = {
 	-1
 };
 
-const short da850_mmcsd0_pins[] __initdata = {
-	DA850_MMCSD0_DAT_0, DA850_MMCSD0_DAT_1, DA850_MMCSD0_DAT_2,
-	DA850_MMCSD0_DAT_3, DA850_MMCSD0_CLK, DA850_MMCSD0_CMD,
-	DA850_GPIO4_0, DA850_GPIO4_1,
-	-1
-};
-
 /* FIQ are pri 0-1; otherwise 2-7, with 7 lowest priority */
 static u8 da850_default_priorities[DA850_N_CP_INTC_IRQ] = {
 	[IRQ_DA8XX_COMMTX]		= 7,

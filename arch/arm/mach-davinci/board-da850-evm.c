@@ -690,6 +690,13 @@ static struct davinci_mmc_config da850_mmc_config = {
 	.version	= MMC_CTLR_VERSION_2,
 };
 
+static const short da850_evm_mmcsd0_pins[] __initconst = {
+	DA850_MMCSD0_DAT_0, DA850_MMCSD0_DAT_1, DA850_MMCSD0_DAT_2,
+	DA850_MMCSD0_DAT_3, DA850_MMCSD0_CLK, DA850_MMCSD0_CMD,
+	DA850_GPIO4_0, DA850_GPIO4_1,
+	-1
+};
+
 static void da850_panel_power_ctrl(int val)
 {
 	/* lcd backlight */
@@ -1077,7 +1084,7 @@ static __init void da850_evm_init(void)
 				ret);
 
 	if (HAS_MMC) {
-		ret = davinci_cfg_reg_list(da850_mmcsd0_pins);
+		ret = davinci_cfg_reg_list(da850_evm_mmcsd0_pins);
 		if (ret)
 			pr_warning("da850_evm_init: mmcsd0 mux setup failed:"
 					" %d\n", ret);
