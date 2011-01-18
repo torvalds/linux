@@ -179,8 +179,8 @@ void __init init_IRQ(void)
 	IMR = ~0;
 
 	for (i = 0; (i < NR_IRQS); i++) {
-		set_irq_chip(irq, &intc_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		set_irq_chip(i, &intc_irq_chip);
+		set_irq_handler(i, handle_level_irq);
 	}
 }
 
