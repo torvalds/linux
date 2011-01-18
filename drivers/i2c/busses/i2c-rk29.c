@@ -768,16 +768,18 @@ static int rk29_i2c_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-
-static int rk29_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+static int rk29_i2c_suspend_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct rk29_i2c_data *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 1;
 	return 0;
 }
-static int rk29_i2c_resume(struct platform_device *pdev)
+
+static int rk29_i2c_resume_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct rk29_i2c_data *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
@@ -785,20 +787,22 @@ static int rk29_i2c_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define rk29_i2c_suspend		NULL
-#define rk29_i2c_resume		NULL
-#endif
 
+static struct dev_pm_ops rk29_i2c_pm_ops = {
+	.suspend_noirq	= rk29_i2c_suspend_noirq,
+	.resume_noirq	= rk29_i2c_resume_noirq,
+};
+#endif
 
 static struct platform_driver rk29_i2c_driver = {
 	.probe		= rk29_i2c_probe,
 	.remove		= rk29_i2c_remove,
-	.suspend	= rk29_i2c_suspend,
-	.resume		= rk29_i2c_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
+#ifdef CONFIG_PM
+		.pm	= &rk29_i2c_pm_ops,
+#endif
 	},
 };
 
