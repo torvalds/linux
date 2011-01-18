@@ -281,7 +281,7 @@ static void delay_500ns(void)
 {
 	int delay = 2000;
 	while (delay--)
-           barrier();
+		barrier();
 }
 
 static void delay_300us(void)
@@ -2266,6 +2266,7 @@ static void __init clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_dma1);
 	clk_enable_nolock(&clk_emem);
 	clk_enable_nolock(&clk_intmem);
+	clk_enable_nolock(&clk_ddr);
 #ifdef CONFIG_DEBUG_LL
 	clk_enable_nolock(&clk_uart1);
 #endif
