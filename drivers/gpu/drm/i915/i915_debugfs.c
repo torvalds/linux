@@ -862,19 +862,44 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+		u32 rpstat;
+		u32 rpupei, rpcurup, rpprevup;
+		u32 rpdownei, rpcurdown, rpprevdown;
 		int max_freq;
 
 		/* RPSTAT1 is in the GT power well */
 		__gen6_force_wake_get(dev_priv);
 
+		rpstat = I915_READ(GEN6_RPSTAT1);
+		rpupei = I915_READ(GEN6_RP_CUR_UP_EI);
+		rpcurup = I915_READ(GEN6_RP_CUR_UP);
+		rpprevup = I915_READ(GEN6_RP_PREV_UP);
+		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
+		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
+		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
+
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
-		seq_printf(m, "RPSTAT1: 0x%08x\n", I915_READ(GEN6_RPSTAT1));
+		seq_printf(m, "RPSTAT1: 0x%08x\n", rpstat);
 		seq_printf(m, "Render p-state ratio: %d\n",
 			   (gt_perf_status & 0xff00) >> 8);
 		seq_printf(m, "Render p-state VID: %d\n",
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
 			   rp_state_limits & 0xff);
+		seq_printf(m, "CAGF: %dMHz\n", ((rpstat & GEN6_CAGF_MASK) >>
+						GEN6_CAGF_SHIFT) * 100);
+		seq_printf(m, "RP CUR UP EI: %dus\n", rpupei &
+			   GEN6_CURICONT_MASK);
+		seq_printf(m, "RP CUR UP: %dus\n", rpcurup &
+			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP PREV UP: %dus\n", rpprevup &
+			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP CUR DOWN EI: %dus\n", rpdownei &
+			   GEN6_CURIAVG_MASK);
+		seq_printf(m, "RP CUR DOWN: %dus\n", rpcurdown &
+			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP PREV DOWN: %dus\n", rpprevdown &
+			   GEN6_CURBSYTAVG_MASK);
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
