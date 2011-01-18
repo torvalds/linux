@@ -1,0 +1,6 @@
+if PLAT_VERSATILE
+
+config PLAT_VERSATILE_CLCD
+	bool
+
+endif
