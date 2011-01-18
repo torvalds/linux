@@ -104,6 +104,7 @@ static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 		.name		= "hsdet-gpio",
 		.report		= SND_JACK_HEADSET,
 		.debounce_time	= 200,
+		.invert		= 1,
 	},
 };
 
