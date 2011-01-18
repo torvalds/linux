@@ -433,6 +433,7 @@ int init_lcdc(struct fb_info *info)
     LcdWrReg(inf, SYS_CONFIG, 0x60000000);
     LcdWrReg(inf, SWAP_CTRL, 0);
     LcdWrReg(inf, FIFO_WATER_MARK, 0x00000864);//68
+    LcdWrReg(inf, AXI_MS_ID, 0x54321);
 
 	// and mcu holdmode; and set win1 top.
     LcdMskReg(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_SELECT | m_MCU_HOLDMODE_FRAME_ST | m_MCU_BYPASSMODE_SELECT ,
@@ -1918,7 +1919,7 @@ void suspend(struct early_suspend *h)
         if(inf->clk){
             clk_disable(inf->aclk);
         }
-        pmu_set_power_domain(PD_DISPLAY, 0);
+       // pmu_set_power_domain(PD_DISPLAY, 0);
 		inf->in_suspend = 1;
 	}
 
@@ -1940,7 +1941,7 @@ void resume(struct early_suspend *h)
 	if(inf->in_suspend)
 	{
 	    inf->in_suspend = 0;
-        pmu_set_power_domain(PD_DISPLAY, 1);
+       // pmu_set_power_domain(PD_DISPLAY, 1);
     	fbprintk(">>>>>> enable the lcdc clk! \n");
         clk_enable(inf->aclk_ddr_lcdc);
         clk_enable(inf->aclk_disp_matrix);
