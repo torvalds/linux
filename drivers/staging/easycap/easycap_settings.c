@@ -506,39 +506,39 @@ for (i = 0, n = 0; i < STANDARD_MANY; i++) {
 			mask3 = 0x0000;
 			switch (k) {
 			case FMT_UYVY: {
-				strcpy(&name3[0], "_" STRINGIZE(FMT_UYVY));
+				strcpy(&name3[0], "_" __stringify(FMT_UYVY));
 				pixelformat = V4L2_PIX_FMT_UYVY;
 				mask3 |= (0x02 << 5);
 				break;
 			}
 			case FMT_YUY2: {
-				strcpy(&name3[0], "_" STRINGIZE(FMT_YUY2));
+				strcpy(&name3[0], "_" __stringify(FMT_YUY2));
 				pixelformat = V4L2_PIX_FMT_YUYV;
 				mask3 |= (0x02 << 5);
 				mask3 |= 0x0100;
 				break;
 			}
 			case FMT_RGB24: {
-				strcpy(&name3[0], "_" STRINGIZE(FMT_RGB24));
+				strcpy(&name3[0], "_" __stringify(FMT_RGB24));
 				pixelformat = V4L2_PIX_FMT_RGB24;
 				mask3 |= (0x03 << 5);
 				break;
 			}
 			case FMT_RGB32: {
-				strcpy(&name3[0], "_" STRINGIZE(FMT_RGB32));
+				strcpy(&name3[0], "_" __stringify(FMT_RGB32));
 				pixelformat = V4L2_PIX_FMT_RGB32;
 				mask3 |= (0x04 << 5);
 				break;
 			}
 			case FMT_BGR24: {
-				strcpy(&name3[0], "_" STRINGIZE(FMT_BGR24));
+				strcpy(&name3[0], "_" __stringify(FMT_BGR24));
 				pixelformat = V4L2_PIX_FMT_BGR24;
 				mask3 |= (0x03 << 5);
 				mask3 |= 0x0100;
 				break;
 			}
 			case FMT_BGR32: {
-				strcpy(&name3[0], "_" STRINGIZE(FMT_BGR32));
+				strcpy(&name3[0], "_" __stringify(FMT_BGR32));
 				pixelformat = V4L2_PIX_FMT_BGR32;
 				mask3 |= (0x04 << 5);
 				mask3 |= 0x0100;

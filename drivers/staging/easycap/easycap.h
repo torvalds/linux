@@ -109,8 +109,6 @@
 #error "PAGE_SIZE not defined"
 #endif
 
-#define STRINGIZE_AGAIN(x) #x
-#define STRINGIZE(x) STRINGIZE_AGAIN(x)
 /*---------------------------------------------------------------------------*/
 /*  VENDOR, PRODUCT:  Syntek Semiconductor Co., Ltd
  *
