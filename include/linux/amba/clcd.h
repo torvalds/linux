@@ -212,12 +212,12 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 		break;
 	case 16:
 		/*
-		 * PL110 cannot choose between 5551 and 565 modes in
-		 * its control register
+		 * PL110 cannot choose between 5551 and 565 modes in its
+		 * control register.  It is possible to use 565 with
+		 * custom external wiring.
 		 */
-		if ((fb->dev->periphid & 0x000fffff) == 0x00041110)
-			val |= CNTL_LCDBPP16;
-		else if (fb->fb.var.green.length == 5)
+		if (amba_part(fb->dev) == 0x110 ||
+		    fb->fb.var.green.length == 5)
 			val |= CNTL_LCDBPP16;
 		else
 			val |= CNTL_LCDBPP16_565;
