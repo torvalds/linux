@@ -445,18 +445,6 @@ ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	return ath5k_reset(sc, chan, true);
 }
 
-static void
-ath5k_setcurmode(struct ath5k_softc *sc, unsigned int mode)
-{
-	sc->curmode = mode;
-
-	if (mode == AR5K_MODE_11A) {
-		sc->curband = &sc->sbands[IEEE80211_BAND_5GHZ];
-	} else {
-		sc->curband = &sc->sbands[IEEE80211_BAND_2GHZ];
-	}
-}
-
 struct ath_vif_iter_data {
 	const u8	*hw_macaddr;
 	u8		mask[ETH_ALEN];
@@ -2777,12 +2765,6 @@ ath5k_init(struct ieee80211_hw *hw)
 		ATH5K_ERR(sc, "can't get channels\n");
 		goto err;
 	}
-
-	/* NB: setup here so ath5k_rate_update is happy */
-	if (test_bit(AR5K_MODE_11A, ah->ah_modes))
-		ath5k_setcurmode(sc, AR5K_MODE_11A);
-	else
-		ath5k_setcurmode(sc, AR5K_MODE_11B);
 
 	/*
 	 * Allocate tx+rx descriptors and populate the lists.
