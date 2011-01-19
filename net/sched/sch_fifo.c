@@ -19,12 +19,11 @@
 
 /* 1 band FIFO pseudo-"scheduler" */
 
-struct fifo_sched_data
-{
+struct fifo_sched_data {
 	u32 limit;
 };
 
-static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
@@ -34,7 +33,7 @@ static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	return qdisc_reshape_fail(skb, sch);
 }
 
-static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
@@ -44,7 +43,7 @@ static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	return qdisc_reshape_fail(skb, sch);
 }
 
-static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct sk_buff *skb_head;
 	struct fifo_sched_data *q = qdisc_priv(sch);

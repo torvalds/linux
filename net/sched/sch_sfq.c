@@ -92,8 +92,7 @@ typedef unsigned char sfq_index;
  * while following values [SFQ_SLOTS ... SFQ_SLOTS + SFQ_DEPTH - 1]
  * are 'pointers' to dep[] array
  */
-struct sfq_head
-{
+struct sfq_head {
 	sfq_index	next;
 	sfq_index	prev;
 };
@@ -108,11 +107,10 @@ struct sfq_slot {
 	short		allot; /* credit for this slot */
 };
 
-struct sfq_sched_data
-{
+struct sfq_sched_data {
 /* Parameters */
 	int		perturb_period;
-	unsigned	quantum;	/* Allotment per round: MUST BE >= MTU */
+	unsigned int	quantum;	/* Allotment per round: MUST BE >= MTU */
 	int		limit;
 
 /* Variables */
@@ -137,12 +135,12 @@ static inline struct sfq_head *sfq_dep_head(struct sfq_sched_data *q, sfq_index 
 	return &q->dep[val - SFQ_SLOTS];
 }
 
-static __inline__ unsigned sfq_fold_hash(struct sfq_sched_data *q, u32 h, u32 h1)
+static unsigned int sfq_fold_hash(struct sfq_sched_data *q, u32 h, u32 h1)
 {
 	return jhash_2words(h, h1, q->perturbation) & (SFQ_HASH_DIVISOR - 1);
 }
 
-static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
+static unsigned int sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 {
 	u32 h, h2;
 
@@ -157,13 +155,13 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		iph = ip_hdr(skb);
 		h = (__force u32)iph->daddr;
 		h2 = (__force u32)iph->saddr ^ iph->protocol;
-		if (iph->frag_off & htons(IP_MF|IP_OFFSET))
+		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&
 		    pskb_network_may_pull(skb, iph->ihl * 4 + 4 + poff)) {
 			iph = ip_hdr(skb);
-			h2 ^= *(u32*)((void *)iph + iph->ihl * 4 + poff);
+			h2 ^= *(u32 *)((void *)iph + iph->ihl * 4 + poff);
 		}
 		break;
 	}
@@ -181,7 +179,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		if (poff >= 0 &&
 		    pskb_network_may_pull(skb, sizeof(*iph) + 4 + poff)) {
 			iph = ipv6_hdr(skb);
-			h2 ^= *(u32*)((void *)iph + sizeof(*iph) + poff);
+			h2 ^= *(u32 *)((void *)iph + sizeof(*iph) + poff);
 		}
 		break;
 	}

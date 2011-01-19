@@ -156,7 +156,7 @@ static unsigned int multiq_drop(struct Qdisc *sch)
 	unsigned int len;
 	struct Qdisc *qdisc;
 
-	for (band = q->bands-1; band >= 0; band--) {
+	for (band = q->bands - 1; band >= 0; band--) {
 		qdisc = q->queues[band];
 		if (qdisc->ops->drop) {
 			len = qdisc->ops->drop(qdisc);
@@ -265,7 +265,7 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt)
 	for (i = 0; i < q->max_bands; i++)
 		q->queues[i] = &noop_qdisc;
 
-	err = multiq_tune(sch,opt);
+	err = multiq_tune(sch, opt);
 
 	if (err)
 		kfree(q->queues);
@@ -346,7 +346,7 @@ static int multiq_dump_class(struct Qdisc *sch, unsigned long cl,
 	struct multiq_sched_data *q = qdisc_priv(sch);
 
 	tcm->tcm_handle |= TC_H_MIN(cl);
-	tcm->tcm_info = q->queues[cl-1]->handle;
+	tcm->tcm_info = q->queues[cl - 1]->handle;
 	return 0;
 }
 
@@ -378,7 +378,7 @@ static void multiq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 			arg->count++;
 			continue;
 		}
-		if (arg->fn(sch, band+1, arg) < 0) {
+		if (arg->fn(sch, band + 1, arg) < 0) {
 			arg->stop = 1;
 			break;
 		}

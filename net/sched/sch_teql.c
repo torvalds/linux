@@ -53,8 +53,7 @@
       which will not break load balancing, though native slave
       traffic will have the highest priority.  */
 
-struct teql_master
-{
+struct teql_master {
 	struct Qdisc_ops qops;
 	struct net_device *dev;
 	struct Qdisc *slaves;
@@ -65,22 +64,21 @@ struct teql_master
 	unsigned long	tx_dropped;
 };
 
-struct teql_sched_data
-{
+struct teql_sched_data {
 	struct Qdisc *next;
 	struct teql_master *m;
 	struct neighbour *ncache;
 	struct sk_buff_head q;
 };
 
-#define NEXT_SLAVE(q) (((struct teql_sched_data*)qdisc_priv(q))->next)
+#define NEXT_SLAVE(q) (((struct teql_sched_data *)qdisc_priv(q))->next)
 
-#define FMASK (IFF_BROADCAST|IFF_POINTOPOINT)
+#define FMASK (IFF_BROADCAST | IFF_POINTOPOINT)
 
 /* "teql*" qdisc routines */
 
 static int
-teql_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+teql_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct teql_sched_data *q = qdisc_priv(sch);
@@ -97,7 +95,7 @@ teql_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 }
 
 static struct sk_buff *
-teql_dequeue(struct Qdisc* sch)
+teql_dequeue(struct Qdisc *sch)
 {
 	struct teql_sched_data *dat = qdisc_priv(sch);
 	struct netdev_queue *dat_queue;
@@ -117,13 +115,13 @@ teql_dequeue(struct Qdisc* sch)
 }
 
 static struct sk_buff *
-teql_peek(struct Qdisc* sch)
+teql_peek(struct Qdisc *sch)
 {
 	/* teql is meant to be used as root qdisc */
 	return NULL;
 }
 
-static __inline__ void
+static inline void
 teql_neigh_release(struct neighbour *n)
 {
 	if (n)
@@ -131,7 +129,7 @@ teql_neigh_release(struct neighbour *n)
 }
 
 static void
-teql_reset(struct Qdisc* sch)
+teql_reset(struct Qdisc *sch)
 {
 	struct teql_sched_data *dat = qdisc_priv(sch);
 
@@ -141,13 +139,14 @@ teql_reset(struct Qdisc* sch)
 }
 
 static void
-teql_destroy(struct Qdisc* sch)
+teql_destroy(struct Qdisc *sch)
 {
 	struct Qdisc *q, *prev;
 	struct teql_sched_data *dat = qdisc_priv(sch);
 	struct teql_master *master = dat->m;
 
-	if ((prev = master->slaves) != NULL) {
+	prev = master->slaves;
+	if (prev) {
 		do {
 			q = NEXT_SLAVE(prev);
 			if (q == sch) {
@@ -179,7 +178,7 @@ teql_destroy(struct Qdisc* sch)
 static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct net_device *dev = qdisc_dev(sch);
-	struct teql_master *m = (struct teql_master*)sch->ops;
+	struct teql_master *m = (struct teql_master *)sch->ops;
 	struct teql_sched_data *q = qdisc_priv(sch);
 
 	if (dev->hard_header_len > m->dev->hard_header_len)
@@ -290,7 +289,8 @@ restart:
 	nores = 0;
 	busy = 0;
 
-	if ((q = start) == NULL)
+	q = start;
+	if (!q)
 		goto drop;
 
 	do {
@@ -355,10 +355,10 @@ drop:
 
 static int teql_master_open(struct net_device *dev)
 {
-	struct Qdisc * q;
+	struct Qdisc *q;
 	struct teql_master *m = netdev_priv(dev);
 	int mtu = 0xFFFE;
-	unsigned flags = IFF_NOARP|IFF_MULTICAST;
+	unsigned int flags = IFF_NOARP | IFF_MULTICAST;
 
 	if (m->slaves == NULL)
 		return -EUNATCH;
@@ -426,7 +426,7 @@ static int teql_master_mtu(struct net_device *dev, int new_mtu)
 		do {
 			if (new_mtu > qdisc_dev(q)->mtu)
 				return -EINVAL;
-		} while ((q=NEXT_SLAVE(q)) != m->slaves);
+		} while ((q = NEXT_SLAVE(q)) != m->slaves);
 	}
 
 	dev->mtu = new_mtu;

@@ -211,8 +211,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	cb = netem_skb_cb(skb);
-	if (q->gap == 0 || 		/* not doing reordering */
-	    q->counter < q->gap || 	/* inside last reordering gap */
+	if (q->gap == 0 ||		/* not doing reordering */
+	    q->counter < q->gap ||	/* inside last reordering gap */
 	    q->reorder < get_crandom(&q->reorder_cor)) {
 		psched_time_t now;
 		psched_tdiff_t delay;
@@ -249,7 +249,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	return ret;
 }
 
-static unsigned int netem_drop(struct Qdisc* sch)
+static unsigned int netem_drop(struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 	unsigned int len = 0;

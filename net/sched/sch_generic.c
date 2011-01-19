@@ -87,8 +87,8 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 		 */
 		kfree_skb(skb);
 		if (net_ratelimit())
-			printk(KERN_WARNING "Dead loop on netdevice %s, "
-			       "fix it urgently!\n", dev_queue->dev->name);
+			pr_warning("Dead loop on netdevice %s, fix it urgently!\n",
+				   dev_queue->dev->name);
 		ret = qdisc_qlen(q);
 	} else {
 		/*
@@ -137,8 +137,8 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 	} else {
 		/* Driver returned NETDEV_TX_BUSY - requeue skb */
 		if (unlikely (ret != NETDEV_TX_BUSY && net_ratelimit()))
-			printk(KERN_WARNING "BUG %s code %d qlen %d\n",
-			       dev->name, ret, q->q.qlen);
+			pr_warning("BUG %s code %d qlen %d\n",
+				   dev->name, ret, q->q.qlen);
 
 		ret = dev_requeue_skb(skb, q);
 	}
@@ -412,8 +412,9 @@ static struct Qdisc noqueue_qdisc = {
 };
 
 
-static const u8 prio2band[TC_PRIO_MAX+1] =
-	{ 1, 2, 2, 2, 1, 2, 0, 0 , 1, 1, 1, 1, 1, 1, 1, 1 };
+static const u8 prio2band[TC_PRIO_MAX + 1] = {
+	1, 2, 2, 2, 1, 2, 0, 0 , 1, 1, 1, 1, 1, 1, 1, 1
+};
 
 /* 3-band FIFO queue: old style, but should be a bit faster than
    generic prio+fifo combination.
@@ -445,7 +446,7 @@ static inline struct sk_buff_head *band2list(struct pfifo_fast_priv *priv,
 	return priv->q + band;
 }
 
-static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
+static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc)
 {
 	if (skb_queue_len(&qdisc->q) < qdisc_dev(qdisc)->tx_queue_len) {
 		int band = prio2band[skb->priority & TC_PRIO_MAX];
@@ -460,7 +461,7 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
 	return qdisc_drop(skb, qdisc);
 }
 
-static struct sk_buff *pfifo_fast_dequeue(struct Qdisc* qdisc)
+static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 {
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
 	int band = bitmap2band[priv->bitmap];
@@ -479,7 +480,7 @@ static struct sk_buff *pfifo_fast_dequeue(struct Qdisc* qdisc)
 	return NULL;
 }
 
-static struct sk_buff *pfifo_fast_peek(struct Qdisc* qdisc)
+static struct sk_buff *pfifo_fast_peek(struct Qdisc *qdisc)
 {
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
 	int band = bitmap2band[priv->bitmap];
@@ -493,7 +494,7 @@ static struct sk_buff *pfifo_fast_peek(struct Qdisc* qdisc)
 	return NULL;
 }
 
-static void pfifo_fast_reset(struct Qdisc* qdisc)
+static void pfifo_fast_reset(struct Qdisc *qdisc)
 {
 	int prio;
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
@@ -510,7 +511,7 @@ static int pfifo_fast_dump(struct Qdisc *qdisc, struct sk_buff *skb)
 {
 	struct tc_prio_qopt opt = { .bands = PFIFO_FAST_BANDS };
 
-	memcpy(&opt.priomap, prio2band, TC_PRIO_MAX+1);
+	memcpy(&opt.priomap, prio2band, TC_PRIO_MAX + 1);
 	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 	return skb->len;
 
@@ -681,20 +682,18 @@ static void attach_one_default_qdisc(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
 				     void *_unused)
 {
-	struct Qdisc *qdisc;
+	struct Qdisc *qdisc = &noqueue_qdisc;
 
 	if (dev->tx_queue_len) {
 		qdisc = qdisc_create_dflt(dev_queue,
 					  &pfifo_fast_ops, TC_H_ROOT);
 		if (!qdisc) {
-			printk(KERN_INFO "%s: activation failed\n", dev->name);
+			netdev_info(dev, "activation failed\n");
 			return;
 		}
 
 		/* Can by-pass the queue discipline for default qdisc */
 		qdisc->flags |= TCQ_F_CAN_BYPASS;
-	} else {
-		qdisc =  &noqueue_qdisc;
 	}
 	dev_queue->qdisc_sleeping = qdisc;
 }

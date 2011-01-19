@@ -33,40 +33,41 @@ static int em_cmp_match(struct sk_buff *skb, struct tcf_ematch *em,
 		return 0;
 
 	switch (cmp->align) {
-		case TCF_EM_ALIGN_U8:
-			val = *ptr;
-			break;
+	case TCF_EM_ALIGN_U8:
+		val = *ptr;
+		break;
 
-		case TCF_EM_ALIGN_U16:
-			val = get_unaligned_be16(ptr);
+	case TCF_EM_ALIGN_U16:
+		val = get_unaligned_be16(ptr);
 
-			if (cmp_needs_transformation(cmp))
-				val = be16_to_cpu(val);
-			break;
+		if (cmp_needs_transformation(cmp))
+			val = be16_to_cpu(val);
+		break;
 
-		case TCF_EM_ALIGN_U32:
-			/* Worth checking boundries? The branching seems
-			 * to get worse. Visit again. */
-			val = get_unaligned_be32(ptr);
+	case TCF_EM_ALIGN_U32:
+		/* Worth checking boundries? The branching seems
+		 * to get worse. Visit again.
+		 */
+		val = get_unaligned_be32(ptr);
 
-			if (cmp_needs_transformation(cmp))
-				val = be32_to_cpu(val);
-			break;
+		if (cmp_needs_transformation(cmp))
+			val = be32_to_cpu(val);
+		break;
 
-		default:
-			return 0;
+	default:
+		return 0;
 	}
 
 	if (cmp->mask)
 		val &= cmp->mask;
 
 	switch (cmp->opnd) {
-		case TCF_EM_OPND_EQ:
-			return val == cmp->val;
-		case TCF_EM_OPND_LT:
-			return val < cmp->val;
-		case TCF_EM_OPND_GT:
-			return val > cmp->val;
+	case TCF_EM_OPND_EQ:
+		return val == cmp->val;
+	case TCF_EM_OPND_LT:
+		return val < cmp->val;
+	case TCF_EM_OPND_GT:
+		return val > cmp->val;
 	}
 
 	return 0;
