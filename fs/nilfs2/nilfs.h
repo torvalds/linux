@@ -212,6 +212,23 @@ static inline int nilfs_init_acl(struct inode *inode, struct inode *dir)
 
 #define NILFS_ATIME_DISABLE
 
+/* Flags that should be inherited by new inodes from their parent. */
+#define NILFS_FL_INHERITED						\
+	(FS_SECRM_FL | FS_UNRM_FL | FS_COMPR_FL | FS_SYNC_FL |		\
+	 FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL | FS_NOATIME_FL |\
+	 FS_COMPRBLK_FL | FS_NOCOMP_FL | FS_NOTAIL_FL | FS_DIRSYNC_FL)
+
+/* Mask out flags that are inappropriate for the given type of inode. */
+static inline __u32 nilfs_mask_flags(umode_t mode, __u32 flags)
+{
+	if (S_ISDIR(mode))
+		return flags;
+	else if (S_ISREG(mode))
+		return flags & ~(FS_DIRSYNC_FL | FS_TOPDIR_FL);
+	else
+		return flags & (FS_NODUMP_FL | FS_NOATIME_FL);
+}
+
 /* dir.c */
 extern int nilfs_add_link(struct dentry *, struct inode *);
 extern ino_t nilfs_inode_by_name(struct inode *, const struct qstr *);

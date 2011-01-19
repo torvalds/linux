@@ -315,11 +315,8 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 		/* No lock is needed; iget() ensures it. */
 	}
 
-	ii->i_flags = NILFS_I(dir)->i_flags;
-	if (S_ISLNK(mode))
-		ii->i_flags &= ~(FS_IMMUTABLE_FL | FS_APPEND_FL);
-	if (!S_ISDIR(mode))
-		ii->i_flags &= ~FS_DIRSYNC_FL;
+	ii->i_flags = nilfs_mask_flags(
+		mode, NILFS_I(dir)->i_flags & NILFS_FL_INHERITED);
 
 	/* ii->i_file_acl = 0; */
 	/* ii->i_dir_acl = 0; */
