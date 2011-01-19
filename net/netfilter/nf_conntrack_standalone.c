@@ -141,29 +141,24 @@ static inline int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
-static u_int64_t ct_delta_time(u_int64_t time_now, const struct nf_conn *ct)
-{
-	struct nf_conn_tstamp *tstamp;
-
-	tstamp = nf_conn_tstamp_find(ct);
-	if (tstamp) {
-		u_int64_t delta_time = time_now - tstamp->start;
-		return delta_time > 0 ? div_s64(delta_time, NSEC_PER_SEC) : 0;
-	}
-	return -1;
-}
-
 static int ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 {
 	struct ct_iter_state *st = s->private;
-	u_int64_t delta_time;
+	struct nf_conn_tstamp *tstamp;
+	s64 delta_time;
 
-	delta_time = ct_delta_time(st->time_now, ct);
-	if (delta_time < 0)
-		return 0;
+	tstamp = nf_conn_tstamp_find(ct);
+	if (tstamp) {
+		delta_time = st->time_now - tstamp->start;
+		if (delta_time > 0)
+			delta_time = div_s64(delta_time, NSEC_PER_SEC);
+		else
+			delta_time = 0;
 
-	return seq_printf(s, "delta-time=%llu ",
-			  (unsigned long long)delta_time);
+		return seq_printf(s, "delta-time=%llu ",
+				  (unsigned long long)delta_time);
+	}
+	return 0;
 }
 #else
 static inline int
