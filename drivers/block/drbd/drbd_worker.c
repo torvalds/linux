@@ -1224,7 +1224,7 @@ int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * dec_ap_pending will be done in got_BarrierAck
 	 * or (on connection loss) in w_clear_epoch.  */
 	ok = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_BARRIER,
-				(struct p_header80 *)p, sizeof(*p), 0);
+			    &p->head, sizeof(*p), 0);
 	drbd_put_data_sock(mdev);
 
 	return ok;

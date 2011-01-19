@@ -338,7 +338,6 @@ struct p_header80 {
 	u32	  magic;
 	u16	  command;
 	u16	  length;	/* bytes of data after this header */
-	u8	  payload[0];
 } __packed;
 
 /* Header for big packets, Used for data packets exceeding 64kB */
@@ -349,9 +348,12 @@ struct p_header95 {
 	u8	  payload[0];
 } __packed;
 
-union p_header {
-	struct p_header80 h80;
-	struct p_header95 h95;
+struct p_header {
+	union {
+		struct p_header80 h80;
+		struct p_header95 h95;
+	};
+	u8	  payload[0];
 };
 
 /*
@@ -380,7 +382,7 @@ union p_header {
 #define DP_DISCARD           64 /* equals REQ_DISCARD */
 
 struct p_data {
-	union p_header head;
+	struct p_header head;
 	u64	    sector;    /* 64 bits sector number */
 	u64	    block_id;  /* to identify the request in protocol B&C */
 	u32	    seq_num;
@@ -396,7 +398,7 @@ struct p_data {
  *   P_DATA_REQUEST, P_RS_DATA_REQUEST
  */
 struct p_block_ack {
-	struct p_header80 head;
+	struct p_header head;
 	u64	    sector;
 	u64	    block_id;
 	u32	    blksize;
@@ -405,7 +407,7 @@ struct p_block_ack {
 
 
 struct p_block_req {
-	struct p_header80 head;
+	struct p_header head;
 	u64 sector;
 	u64 block_id;
 	u32 blksize;
@@ -422,7 +424,7 @@ struct p_block_req {
  */
 
 struct p_handshake {
-	struct p_header80 head;	/* 8 bytes */
+	struct p_header head;	/* Note: You must always use a h80 here */
 	u32 protocol_min;
 	u32 feature_flags;
 	u32 protocol_max;
@@ -437,19 +439,19 @@ struct p_handshake {
 /* 80 bytes, FIXED for the next century */
 
 struct p_barrier {
-	struct p_header80 head;
+	struct p_header head;
 	u32 barrier;	/* barrier number _handle_ only */
 	u32 pad;	/* to multiple of 8 Byte */
 } __packed;
 
 struct p_barrier_ack {
-	struct p_header80 head;
+	struct p_header head;
 	u32 barrier;
 	u32 set_size;
 } __packed;
 
 struct p_rs_param {
-	struct p_header80 head;
+	struct p_header head;
 	u32 rate;
 
 	      /* Since protocol version 88 and higher. */
@@ -457,7 +459,7 @@ struct p_rs_param {
 } __packed;
 
 struct p_rs_param_89 {
-	struct p_header80 head;
+	struct p_header head;
 	u32 rate;
         /* protocol version 89: */
 	char verify_alg[SHARED_SECRET_MAX];
@@ -465,7 +467,7 @@ struct p_rs_param_89 {
 } __packed;
 
 struct p_rs_param_95 {
-	struct p_header80 head;
+	struct p_header head;
 	u32 rate;
 	char verify_alg[SHARED_SECRET_MAX];
 	char csums_alg[SHARED_SECRET_MAX];
@@ -481,7 +483,7 @@ enum drbd_conn_flags {
 };
 
 struct p_protocol {
-	struct p_header80 head;
+	struct p_header head;
 	u32 protocol;
 	u32 after_sb_0p;
 	u32 after_sb_1p;
@@ -495,17 +497,17 @@ struct p_protocol {
 } __packed;
 
 struct p_uuids {
-	struct p_header80 head;
+	struct p_header head;
 	u64 uuid[UI_EXTENDED_SIZE];
 } __packed;
 
 struct p_rs_uuid {
-	struct p_header80 head;
+	struct p_header head;
 	u64	    uuid;
 } __packed;
 
 struct p_sizes {
-	struct p_header80 head;
+	struct p_header head;
 	u64	    d_size;  /* size of disk */
 	u64	    u_size;  /* user requested size */
 	u64	    c_size;  /* current exported size */
@@ -515,18 +517,18 @@ struct p_sizes {
 } __packed;
 
 struct p_state {
-	struct p_header80 head;
+	struct p_header head;
 	u32	    state;
 } __packed;
 
 struct p_req_state {
-	struct p_header80 head;
+	struct p_header head;
 	u32	    mask;
 	u32	    val;
 } __packed;
 
 struct p_req_state_reply {
-	struct p_header80 head;
+	struct p_header head;
 	u32	    retcode;
 } __packed;
 
@@ -541,14 +543,14 @@ struct p_drbd06_param {
 } __packed;
 
 struct p_discard {
-	struct p_header80 head;
+	struct p_header head;
 	u64	    block_id;
 	u32	    seq_num;
 	u32	    pad;
 } __packed;
 
 struct p_block_desc {
-	struct p_header80 head;
+	struct p_header head;
 	u64 sector;
 	u32 blksize;
 	u32 pad;	/* to multiple of 8 Byte */
@@ -564,7 +566,7 @@ enum drbd_bitmap_code {
 };
 
 struct p_compressed_bm {
-	struct p_header80 head;
+	struct p_header head;
 	/* (encoding & 0x0f): actual encoding, see enum drbd_bitmap_code
 	 * (encoding & 0x80): polarity (set/unset) of first runlength
 	 * ((encoding >> 4) & 0x07): pad_bits, number of trailing zero bits
@@ -576,7 +578,7 @@ struct p_compressed_bm {
 } __packed;
 
 struct p_delay_probe93 {
-	struct p_header80 head;
+	struct p_header head;
 	u32     seq_num; /* sequence number to match the two probe packets */
 	u32     offset;  /* usecs the probe got sent after the reference time point */
 } __packed;
@@ -625,7 +627,7 @@ DCBP_set_pad_bits(struct p_compressed_bm *p, int n)
  * so we need to use the fixed size 4KiB page size
  * most architectures have used for a long time.
  */
-#define BM_PACKET_PAYLOAD_BYTES (4096 - sizeof(struct p_header80))
+#define BM_PACKET_PAYLOAD_BYTES (4096 - sizeof(struct p_header))
 #define BM_PACKET_WORDS (BM_PACKET_PAYLOAD_BYTES/sizeof(long))
 #define BM_PACKET_VLI_BYTES_MAX (4096 - sizeof(struct p_compressed_bm))
 #if (PAGE_SIZE < 4096)
@@ -634,7 +636,7 @@ DCBP_set_pad_bits(struct p_compressed_bm *p, int n)
 #endif
 
 union p_polymorph {
-        union p_header           header;
+        struct p_header           header;
         struct p_handshake       handshake;
         struct p_data            data;
         struct p_block_ack       block_ack;
@@ -1245,12 +1247,12 @@ extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_f
 extern int _drbd_send_state(struct drbd_conf *mdev);
 extern int drbd_send_state(struct drbd_conf *mdev);
 extern int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
-			enum drbd_packets cmd, struct p_header80 *h,
+			enum drbd_packets cmd, struct p_header *h,
 			size_t size, unsigned msg_flags);
 #define USE_DATA_SOCKET 1
 #define USE_META_SOCKET 0
 extern int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
-			enum drbd_packets cmd, struct p_header80 *h,
+			enum drbd_packets cmd, struct p_header *h,
 			size_t size);
 extern int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packets cmd,
 			char *data, size_t size);
@@ -2019,19 +2021,19 @@ static inline void request_ping(struct drbd_conf *mdev)
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 	enum drbd_packets cmd)
 {
-	struct p_header80 h;
+	struct p_header h;
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, cmd, &h, sizeof(h));
 }
 
 static inline int drbd_send_ping(struct drbd_conf *mdev)
 {
-	struct p_header80 h;
+	struct p_header h;
 	return drbd_send_cmd(mdev, USE_META_SOCKET, P_PING, &h, sizeof(h));
 }
 
 static inline int drbd_send_ping_ack(struct drbd_conf *mdev)
 {
-	struct p_header80 h;
+	struct p_header h;
 	return drbd_send_cmd(mdev, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
 }
 

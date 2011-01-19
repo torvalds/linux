@@ -700,7 +700,7 @@ out:
 static int drbd_send_fp(struct drbd_conf *mdev,
 	struct socket *sock, enum drbd_packets cmd)
 {
-	struct p_header80 *h = &mdev->tconn->data.sbuf.header.h80;
+	struct p_header *h = &mdev->tconn->data.sbuf.header;
 
 	return _drbd_send_cmd(mdev, sock, cmd, h, sizeof(*h), 0);
 }
@@ -925,7 +925,7 @@ out_release_sockets:
 
 static int drbd_recv_header(struct drbd_conf *mdev, enum drbd_packets *cmd, unsigned int *packet_size)
 {
-	union p_header *h = &mdev->tconn->data.rbuf.header;
+	struct p_header *h = &mdev->tconn->data.rbuf.header;
 	int r;
 
 	r = drbd_recv(mdev, h, sizeof(*h));
@@ -3477,7 +3477,7 @@ void INFO_bm_xfer_stats(struct drbd_conf *mdev,
 		const char *direction, struct bm_xfer_ctx *c)
 {
 	/* what would it take to transfer it "plaintext" */
-	unsigned plain = sizeof(struct p_header80) *
+	unsigned plain = sizeof(struct p_header) *
 		((c->bm_words+BM_PACKET_WORDS-1)/BM_PACKET_WORDS+1)
 		+ c->bm_words * sizeof(long);
 	unsigned total = c->bytes[0] + c->bytes[1];
@@ -3699,7 +3699,7 @@ static struct data_cmd drbd_cmd_handler[] = {
 
 static void drbdd(struct drbd_conf *mdev)
 {
-	union p_header *header = &mdev->tconn->data.rbuf.header;
+	struct p_header *header = &mdev->tconn->data.rbuf.header;
 	unsigned int packet_size;
 	enum drbd_packets cmd;
 	size_t shs; /* sub header size */
@@ -3715,14 +3715,14 @@ static void drbdd(struct drbd_conf *mdev)
 			goto err_out;
 		}
 
-		shs = drbd_cmd_handler[cmd].pkt_size - sizeof(union p_header);
+		shs = drbd_cmd_handler[cmd].pkt_size - sizeof(struct p_header);
 		if (packet_size - shs > 0 && !drbd_cmd_handler[cmd].expect_payload) {
 			dev_err(DEV, "No payload expected %s l:%d\n", cmdname(cmd), packet_size);
 			goto err_out;
 		}
 
 		if (shs) {
-			rv = drbd_recv(mdev, &header->h80.payload, shs);
+			rv = drbd_recv(mdev, &header->payload, shs);
 			if (unlikely(rv != shs)) {
 				if (!signal_pending(current))
 					dev_warn(DEV, "short read while reading sub header: rv=%d\n", rv);
@@ -3909,8 +3909,8 @@ static int drbd_send_handshake(struct drbd_conf *mdev)
 	memset(p, 0, sizeof(*p));
 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
-	ok = _drbd_send_cmd( mdev, mdev->tconn->data.socket, P_HAND_SHAKE,
-			     (struct p_header80 *)p, sizeof(*p), 0 );
+	ok = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_HAND_SHAKE,
+			    &p->head, sizeof(*p), 0 );
 	mutex_unlock(&mdev->tconn->data.mutex);
 	return ok;
 }
