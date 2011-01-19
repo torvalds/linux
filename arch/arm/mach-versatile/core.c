@@ -51,6 +51,7 @@
 #include <asm/hardware/timer-sp.h>
 
 #include <plat/clcd.h>
+#include <plat/fpga-irq.h>
 #include <plat/sched_clock.h>
 
 #include "core.h"
@@ -64,46 +65,11 @@
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
-static void sic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-
-	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
-}
-
-static void sic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-
-	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_SET);
-}
-
-static struct irq_chip sic_chip = {
-	.name		= "SIC",
-	.irq_ack	= sic_mask_irq,
-	.irq_mask	= sic_mask_irq,
-	.irq_unmask	= sic_unmask_irq,
+static struct fpga_irq_data sic_irq = {
+	.base		= VA_SIC_BASE,
+	.irq_start	= IRQ_SIC_START,
+	.chip.name	= "SIC",
 };
-
-static void
-sic_handle_irq(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned long status = readl(VA_SIC_BASE + SIC_IRQ_STATUS);
-
-	if (status == 0) {
-		do_bad_IRQ(irq, desc);
-		return;
-	}
-
-	do {
-		irq = ffs(status) - 1;
-		status &= ~(1 << irq);
-
-		irq += IRQ_SIC_START;
-
-		generic_handle_irq(irq);
-	} while (status);
-}
 
 #if 1
 #define IRQ_MMCI0A	IRQ_VICSOURCE22
@@ -119,22 +85,11 @@ sic_handle_irq(unsigned int irq, struct irq_desc *desc)
 
 void __init versatile_init_irq(void)
 {
-	unsigned int i;
-
 	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0);
 
-	set_irq_chained_handler(IRQ_VICSOURCE31, sic_handle_irq);
-
-	/* Do second interrupt controller */
 	writel(~0, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 
-	for (i = IRQ_SIC_START; i <= IRQ_SIC_END; i++) {
-		if ((PIC_MASK & (1 << (i - IRQ_SIC_START))) == 0) {
-			set_irq_chip(i, &sic_chip);
-			set_irq_handler(i, handle_level_irq);
-			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-		}
-	}
+	fpga_irq_init(IRQ_VICSOURCE31, ~PIC_MASK, &sic_irq);
 
 	/*
 	 * Interrupts on secondary controller from 0 to 8 are routed to

@@ -43,6 +43,7 @@
 #include <asm/hardware/timer-sp.h>
 
 #include <plat/clcd.h>
+#include <plat/fpga-irq.h>
 
 #include "common.h"
 
@@ -51,9 +52,9 @@
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CIC_BASE		IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x40)
-#define INTCP_VA_PIC_BASE		IO_ADDRESS(INTEGRATOR_IC_BASE)
-#define INTCP_VA_SIC_BASE		IO_ADDRESS(INTEGRATOR_CP_SIC_BASE)
+#define INTCP_VA_CIC_BASE		__io_address(INTEGRATOR_HDR_BASE + 0x40)
+#define INTCP_VA_PIC_BASE		__io_address(INTEGRATOR_IC_BASE)
+#define INTCP_VA_SIC_BASE		__io_address(INTEGRATOR_CP_SIC_BASE)
 
 #define INTCP_ETH_SIZE			0x10
 
@@ -141,129 +142,48 @@ static void __init intcp_map_io(void)
 	iotable_init(intcp_io_desc, ARRAY_SIZE(intcp_io_desc));
 }
 
-#define cic_writel	__raw_writel
-#define cic_readl	__raw_readl
-#define pic_writel	__raw_writel
-#define pic_readl	__raw_readl
-#define sic_writel	__raw_writel
-#define sic_readl	__raw_readl
-
-static void cic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_CIC_START;
-	cic_writel(1 << irq, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void cic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_CIC_START;
-	cic_writel(1 << irq, INTCP_VA_CIC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip cic_chip = {
-	.name		= "CIC",
-	.irq_ack	= cic_mask_irq,
-	.irq_mask	= cic_mask_irq,
-	.irq_unmask	= cic_unmask_irq,
+static struct fpga_irq_data cic_irq_data = {
+	.base		= INTCP_VA_CIC_BASE,
+	.irq_start	= IRQ_CIC_START,
+	.chip.name	= "CIC",
 };
 
-static void pic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_PIC_START;
-	pic_writel(1 << irq, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void pic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_PIC_START;
-	pic_writel(1 << irq, INTCP_VA_PIC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip pic_chip = {
-	.name		= "PIC",
-	.irq_ack	= pic_mask_irq,
-	.irq_mask	= pic_mask_irq,
-	.irq_unmask	= pic_unmask_irq,
+static struct fpga_irq_data pic_irq_data = {
+	.base		= INTCP_VA_PIC_BASE,
+	.irq_start	= IRQ_PIC_START,
+	.chip.name	= "PIC",
 };
 
-static void sic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-	sic_writel(1 << irq, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void sic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-	sic_writel(1 << irq, INTCP_VA_SIC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip sic_chip = {
-	.name		= "SIC",
-	.irq_ack	= sic_mask_irq,
-	.irq_mask	= sic_mask_irq,
-	.irq_unmask	= sic_unmask_irq,
+static struct fpga_irq_data sic_irq_data = {
+	.base		= INTCP_VA_SIC_BASE,
+	.irq_start	= IRQ_SIC_START,
+	.chip.name	= "SIC",
 };
-
-static void
-sic_handle_irq(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned long status = sic_readl(INTCP_VA_SIC_BASE + IRQ_STATUS);
-
-	if (status == 0) {
-		do_bad_IRQ(irq, desc);
-		return;
-	}
-
-	do {
-		irq = ffs(status) - 1;
-		status &= ~(1 << irq);
-
-		irq += IRQ_SIC_START;
-
-		generic_handle_irq(irq);
-	} while (status);
-}
 
 static void __init intcp_init_irq(void)
 {
-	unsigned int i;
+	u32 pic_mask, sic_mask;
+
+	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
+	pic_mask |= (~((~0u) << (29 - 22))) << 22;
+	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
 
 	/*
 	 * Disable all interrupt sources
 	 */
-	pic_writel(0xffffffff, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
-	pic_writel(0xffffffff, INTCP_VA_PIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_PIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_CIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(sic_mask, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(sic_mask, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
 
-	for (i = IRQ_PIC_START; i <= IRQ_PIC_END; i++) {
-		if (i == 11)
-			i = 22;
-		if (i == 29)
-			break;
-		set_irq_chip(i, &pic_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-	}
+	fpga_irq_init(-1, pic_mask, &pic_irq_data);
 
-	cic_writel(0xffffffff, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
-	cic_writel(0xffffffff, INTCP_VA_CIC_BASE + FIQ_ENABLE_CLEAR);
+	fpga_irq_init(-1, ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START)),
+		&cic_irq_data);
 
-	for (i = IRQ_CIC_START; i <= IRQ_CIC_END; i++) {
-		set_irq_chip(i, &cic_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
-	}
-
-	sic_writel(0x00000fff, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
-	sic_writel(0x00000fff, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
-
-	for (i = IRQ_SIC_START; i <= IRQ_SIC_END; i++) {
-		set_irq_chip(i, &sic_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-	}
-
-	set_irq_chained_handler(IRQ_CP_CPPLDINT, sic_handle_irq);
+	fpga_irq_init(IRQ_CP_CPPLDINT, sic_mask, &sic_irq_data);
 }
 
 /*
