@@ -226,42 +226,33 @@ static void enable_m32700ut_lcdpld_irq(unsigned int irq)
 	outw(data, port);
 }
 
-static void mask_and_ack_m32700ut_lcdpld(unsigned int irq)
+static void mask_m32700ut_lcdpld(struct irq_data *data)
 {
-	disable_m32700ut_lcdpld_irq(irq);
+	disable_m32700ut_lcdpld_irq(data->irq);
 }
 
-static void end_m32700ut_lcdpld_irq(unsigned int irq)
+static void unmask_m32700ut_lcdpld(struct irq_data *data)
 {
-	enable_m32700ut_lcdpld_irq(irq);
+	enable_m32700ut_lcdpld_irq(data->irq);
 	enable_m32700ut_irq(M32R_IRQ_INT2);
 }
 
-static unsigned int startup_m32700ut_lcdpld_irq(unsigned int irq)
-{
-	enable_m32700ut_lcdpld_irq(irq);
-	return (0);
-}
-
-static void shutdown_m32700ut_lcdpld_irq(unsigned int irq)
+static void shutdown_m32700ut_lcdpld(struct irq_data *data)
 {
 	unsigned long port;
 	unsigned int pldirq;
 
-	pldirq = irq2lcdpldirq(irq);
+	pldirq = irq2lcdpldirq(data->irq);
 	port = lcdpldirq2port(pldirq);
 	outw(PLD_ICUCR_ILEVEL7, port);
 }
 
 static struct irq_chip m32700ut_lcdpld_irq_type =
 {
-	.name = "M32700UT-PLD-LCD-IRQ",
-	.startup = startup_m32700ut_lcdpld_irq,
-	.shutdown = shutdown_m32700ut_lcdpld_irq,
-	.enable = enable_m32700ut_lcdpld_irq,
-	.disable = disable_m32700ut_lcdpld_irq,
-	.ack = mask_and_ack_m32700ut_lcdpld,
-	.end = end_m32700ut_lcdpld_irq
+	.name		= "M32700UT-PLD-LCD-IRQ",
+	.irq_shutdown	= shutdown_m32700ut_lcdpld,
+	.irq_mask	= mask_m32700ut_lcdpld,
+	.irq_unmask	= unmask_m32700ut_lcdpld,
 };
 
 void __init init_IRQ(void)
@@ -358,7 +349,8 @@ void __init init_IRQ(void)
 
 #if defined(CONFIG_USB)
 	outw(USBCR_OTGS, USBCR); 	/* USBCR: non-OTG */
-	set_irq_chip(M32700UT_LCD_IRQ_USB_INT1, &m32700ut_lcdpld_irq_type);
+	set_irq_chip_and_handler(M32700UT_LCD_IRQ_USB_INT1,
+				 &m32700ut_lcdpld_irq_type, handle_level_irq);
 
 	lcdpld_icu_data[irq2lcdpldirq(M32700UT_LCD_IRQ_USB_INT1)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD01;	/* "L" level sense */
 	disable_m32700ut_lcdpld_irq(M32700UT_LCD_IRQ_USB_INT1);
