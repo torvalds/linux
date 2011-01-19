@@ -163,10 +163,7 @@ struct TCP_Server_Info {
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
-	union {
-		struct sockaddr_in sockAddr;
-		struct sockaddr_in6 sockAddr6;
-	} addr;
+	struct sockaddr_storage dstaddr;
 	struct sockaddr_storage srcaddr; /* locally bind to this IP */
 	wait_queue_head_t response_q;
 	wait_queue_head_t request_q; /* if more than maxmpx to srvr must block*/
@@ -210,7 +207,7 @@ struct TCP_Server_Info {
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
-	__u32 sequence_number; /* needed for CIFS PDU signature */
+	__u32 sequence_number; /* for signing, protected by srv_mutex */
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	u16 dialect; /* dialect index that server chose */
@@ -456,6 +453,7 @@ struct cifsInodeInfo {
 	bool invalid_mapping:1;		/* pagecache is invalid */
 	u64  server_eof;		/* current file size on server */
 	u64  uniqueid;			/* server inode number */
+	u64  createtime;		/* creation time on server */
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie *fscache;
 #endif
@@ -576,6 +574,7 @@ struct cifs_fattr {
 	u64		cf_uniqueid;
 	u64		cf_eof;
 	u64		cf_bytes;
+	u64		cf_createtime;
 	uid_t		cf_uid;
 	gid_t		cf_gid;
 	umode_t		cf_mode;

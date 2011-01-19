@@ -15,27 +15,17 @@
     defined(CONFIG_CPU_SUBTYPE_SH7709)
 # define SCPCR  0xA4000116 /* 16 bit SCI and SCIF */
 # define SCPDR  0xA4000136 /* 8  bit SCI and SCIF */
-# define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
 # define SCIF0		0xA4400000
 # define SCIF2		0xA4410000
-# define SCSMR_Ir	0xA44A0000
-# define IRDA_SCIF	SCIF0
 # define SCPCR 0xA4000116
 # define SCPDR 0xA4000136
-
-/* Set the clock source,
- * SCIF2 (0xA4410000) -> External clock, SCK pin used as clock input
- * SCIF0 (0xA4400000) -> Internal clock, SCK pin as serial clock output
- */
-# define SCSCR_INIT(port) (port->mapbase == SCIF2) ? 0xF3 : 0xF0
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
       defined(CONFIG_CPU_SUBTYPE_SH7721) || \
       defined(CONFIG_ARCH_SH73A0) || \
       defined(CONFIG_ARCH_SH7367) || \
       defined(CONFIG_ARCH_SH7377) || \
       defined(CONFIG_ARCH_SH7372)
-# define SCSCR_INIT(port)  0x0030 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define PORT_PTCR	   0xA405011EUL
 # define PORT_PVCR	   0xA4050122UL
 # define SCIF_ORER	   0x0200   /* overrun error bit */
@@ -43,7 +33,6 @@
 # define SCSPTR1 0xFFE0001C /* 8 bit SCIF */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
-# define SCSCR_INIT(port) 0x3a /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
       defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
       defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
@@ -53,39 +42,31 @@
 # define SCSPTR1 0xffe0001c /* 8  bit SCI */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
-# define SCSCR_INIT(port) (((port)->type == PORT_SCI) ? \
-	0x30 /* TIE=0,RIE=0,TE=1,RE=1 */ : \
-	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */ )
 #elif defined(CONFIG_CPU_SUBTYPE_SH7760)
 # define SCSPTR0 0xfe600024 /* 16 bit SCIF */
 # define SCSPTR1 0xfe610024 /* 16 bit SCIF */
 # define SCSPTR2 0xfe620024 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001  /* overrun error bit */
-# define SCSCR_INIT(port)          0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 # define SCSPTR0 0xA4400000	  /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define PACR 0xa4050100
 # define PBCR 0xa4050102
-# define SCSCR_INIT(port)          0x3B
 #elif defined(CONFIG_CPU_SUBTYPE_SH7343)
 # define SCSPTR0 0xffe00010	/* 16 bit SCIF */
 # define SCSPTR1 0xffe10010	/* 16 bit SCIF */
 # define SCSPTR2 0xffe20010	/* 16 bit SCIF */
 # define SCSPTR3 0xffe30010	/* 16 bit SCIF */
-# define SCSCR_INIT(port) 0x32	/* TIE=0,RIE=0,TE=1,RE=1,REIE=0,CKE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
 # define PADR			0xA4050120
 # define PSDR			0xA405013e
 # define PWDR			0xA4050166
 # define PSCR			0xA405011E
 # define SCIF_ORER		0x0001	/* overrun error bit */
-# define SCSCR_INIT(port)	0x0038	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7366)
 # define SCPDR0			0xA405013E      /* 16 bit SCIF0 PSDR */
 # define SCSPTR0		SCPDR0
 # define SCIF_ORER		0x0001  /* overrun error bit */
-# define SCSCR_INIT(port)	0x0038  /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
 # define SCSPTR0                0xa4050160
 # define SCSPTR1                0xa405013e
@@ -94,62 +75,38 @@
 # define SCSPTR4                0xa4050128
 # define SCSPTR5                0xa4050128
 # define SCIF_ORER              0x0001  /* overrun error bit */
-# define SCSCR_INIT(port)       0x0038  /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7724)
 # define SCIF_ORER              0x0001  /* overrun error bit */
-# define SCSCR_INIT(port) ((port)->type == PORT_SCIFA ? \
-	0x30 /* TIE=0,RIE=0,TE=1,RE=1 */ : \
-	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */ )
 #elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
 # define SCSPTR2 0xffe80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
-# define SCSCR_INIT(port) 0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH5_101) || defined(CONFIG_CPU_SUBTYPE_SH5_103)
-# define SCIF_BASE_ADDR    0x01030000
-# define SCIF_ADDR_SH5     PHYS_PERIPHERAL_BLOCK+SCIF_BASE_ADDR
 # define SCIF_PTR2_OFFS    0x0000020
-# define SCIF_LSR2_OFFS    0x0000024
 # define SCSPTR2           ((port->mapbase)+SCIF_PTR2_OFFS) /* 16 bit SCIF */
-# define SCLSR2            ((port->mapbase)+SCIF_LSR2_OFFS) /* 16 bit SCIF */
-# define SCSCR_INIT(port)  0x38		/* TIE=0,RIE=0, TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_H83007) || defined(CONFIG_H83068)
-# define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
 #elif defined(CONFIG_H8S2678)
-# define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7757)
 # define SCSPTR0 0xfe4b0020
 # define SCSPTR1 0xfe4b0020
 # define SCSPTR2 0xfe4b0020
 # define SCIF_ORER 0x0001
-# define SCSCR_INIT(port)	0x38
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 # define SCSPTR0 0xffe00024 /* 16 bit SCIF */
 # define SCSPTR1 0xffe08024 /* 16 bit SCIF */
 # define SCSPTR2 0xffe10020 /* 16 bit SCIF/IRDA */
 # define SCIF_ORER 0x0001  /* overrun error bit */
-# define SCSCR_INIT(port)	0x38	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7770)
 # define SCSPTR0 0xff923020 /* 16 bit SCIF */
 # define SCSPTR1 0xff924020 /* 16 bit SCIF */
 # define SCSPTR2 0xff925020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001  /* overrun error bit */
-# define SCSCR_INIT(port)	0x3c /* TIE=0,RIE=0,TE=1,RE=1,REIE=1,cke=2 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 # define SCSPTR0	0xffe00024	/* 16 bit SCIF */
 # define SCSPTR1	0xffe10024	/* 16 bit SCIF */
 # define SCIF_ORER	0x0001		/* Overrun error bit */
-
-#if defined(CONFIG_SH_SH2007)
-/* TIE=0,RIE=0,TE=1,RE=1,REIE=1,CKE1=0 */
-# define SCSCR_INIT(port)	0x38
-#else
-/* TIE=0,RIE=0,TE=1,RE=1,REIE=1,CKE1=1 */
-# define SCSCR_INIT(port)	0x3a
-#endif
-
 #elif defined(CONFIG_CPU_SUBTYPE_SH7785) || \
       defined(CONFIG_CPU_SUBTYPE_SH7786)
 # define SCSPTR0	0xffea0024	/* 16 bit SCIF */
@@ -159,7 +116,6 @@
 # define SCSPTR4	0xffee0024	/* 16 bit SCIF */
 # define SCSPTR5	0xffef0024	/* 16 bit SCIF */
 # define SCIF_ORER	0x0001		/* Overrun error bit */
-# define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7201) || \
       defined(CONFIG_CPU_SUBTYPE_SH7203) || \
       defined(CONFIG_CPU_SUBTYPE_SH7206) || \
@@ -174,51 +130,20 @@
 #  define SCSPTR6 0xfffeB020 /* 16 bit SCIF */
 #  define SCSPTR7 0xfffeB820 /* 16 bit SCIF */
 # endif
-# define SCSCR_INIT(port)	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)
 # define SCSPTR0 0xf8400020 /* 16 bit SCIF */
 # define SCSPTR1 0xf8410020 /* 16 bit SCIF */
 # define SCSPTR2 0xf8420020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001  /* overrun error bit */
-# define SCSCR_INIT(port)	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SHX3)
 # define SCSPTR0 0xffc30020		/* 16 bit SCIF */
 # define SCSPTR1 0xffc40020		/* 16 bit SCIF */
 # define SCSPTR2 0xffc50020		/* 16 bit SCIF */
 # define SCSPTR3 0xffc60020		/* 16 bit SCIF */
 # define SCIF_ORER 0x0001		/* Overrun error bit */
-# define SCSCR_INIT(port)	0x38	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #else
 # error CPU subtype not defined
 #endif
-
-/* SCSCR */
-#define SCI_CTRL_FLAGS_TIE  0x80 /* all */
-#define SCI_CTRL_FLAGS_RIE  0x40 /* all */
-#define SCI_CTRL_FLAGS_TE   0x20 /* all */
-#define SCI_CTRL_FLAGS_RE   0x10 /* all */
-#if defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7722)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7751R) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7763)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7780)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7785)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7786)  || \
-    defined(CONFIG_CPU_SUBTYPE_SHX3)
-#define SCI_CTRL_FLAGS_REIE 0x08 /* 7750 SCIF */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7724)
-#define SCI_CTRL_FLAGS_REIE ((port)->type == PORT_SCIFA ? 0 : 8)
-#else
-#define SCI_CTRL_FLAGS_REIE 0
-#endif
-/*      SCI_CTRL_FLAGS_MPIE 0x08  * 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-/*      SCI_CTRL_FLAGS_TEIE 0x04  * 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-/*      SCI_CTRL_FLAGS_CKE1 0x02  * all */
-/*      SCI_CTRL_FLAGS_CKE0 0x01  * 7707 SCI/SCIF, 7708 SCI, 7709 SCI/SCIF, 7750 SCI */
 
 /* SCxSR SCI */
 #define SCI_TDRE  0x80 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
@@ -300,22 +225,10 @@
 /* SCFCR */
 #define SCFCR_RFRST 0x0002
 #define SCFCR_TFRST 0x0004
-#define SCFCR_TCRST 0x4000
 #define SCFCR_MCE   0x0008
 
 #define SCI_MAJOR		204
 #define SCI_MINOR_START		8
-
-/* Generic serial flags */
-#define SCI_RX_THROTTLE		0x0000001
-
-#define SCI_MAGIC 0xbabeface
-
-/*
- * Events are used to schedule things to happen at timer-interrupt
- * time, instead of at rs interrupt time.
- */
-#define SCI_EVENT_WRITE_WAKEUP	0
 
 #define SCI_IN(size, offset)					\
   if ((size) == 8) {						\
@@ -445,8 +358,6 @@
 SCIF_FNS(SCSMR,  0x00, 16)
 SCIF_FNS(SCBRR,  0x04,  8)
 SCIF_FNS(SCSCR,  0x08, 16)
-SCIF_FNS(SCTDSR, 0x0c,  8)
-SCIF_FNS(SCFER,  0x10, 16)
 SCIF_FNS(SCxSR,  0x14, 16)
 SCIF_FNS(SCFCR,  0x18, 16)
 SCIF_FNS(SCFDR,  0x1c, 16)
@@ -476,8 +387,6 @@ SCIx_FNS(SCxTDR, 0x20,  8, 0x0c,  8)
 SCIx_FNS(SCxSR,  0x14, 16, 0x10, 16)
 SCIx_FNS(SCxRDR, 0x24,  8, 0x14,  8)
 SCIx_FNS(SCSPTR, 0,     0,    0,  0)
-SCIF_FNS(SCTDSR, 0x0c,  8)
-SCIF_FNS(SCFER,  0x10, 16)
 SCIF_FNS(SCFCR,  0x18, 16)
 SCIF_FNS(SCFDR,  0x1c, 16)
 SCIF_FNS(SCLSR,  0x24, 16)
@@ -503,7 +412,6 @@ SCIF_FNS(SCLSR,				0,  0, 0x28, 16)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 SCIF_FNS(SCFDR,				0,  0, 0x1C, 16)
 SCIF_FNS(SCSPTR2,			0,  0, 0x20, 16)
-SCIF_FNS(SCLSR2,			0,  0, 0x24, 16)
 SCIF_FNS(SCTFDR,		     0x0e, 16, 0x1C, 16)
 SCIF_FNS(SCRFDR,		     0x0e, 16, 0x20, 16)
 SCIF_FNS(SCSPTR,			0,  0, 0x24, 16)
@@ -596,65 +504,4 @@ static inline int sci_rxd_in(struct uart_port *port)
 {
 	return 1;
 }
-#endif
-
-/*
- * Values for the BitRate Register (SCBRR)
- *
- * The values are actually divisors for a frequency which can
- * be internal to the SH3 (14.7456MHz) or derived from an external
- * clock source.  This driver assumes the internal clock is used;
- * to support using an external clock source, config options or
- * possibly command-line options would need to be added.
- *
- * Also, to support speeds below 2400 (why?) the lower 2 bits of
- * the SCSMR register would also need to be set to non-zero values.
- *
- * -- Greg Banks 27Feb2000
- *
- * Answer: The SCBRR register is only eight bits, and the value in
- * it gets larger with lower baud rates. At around 2400 (depending on
- * the peripherial module clock) you run out of bits. However the
- * lower two bits of SCSMR allow the module clock to be divided down,
- * scaling the value which is needed in SCBRR.
- *
- * -- Stuart Menefy - 23 May 2000
- *
- * I meant, why would anyone bother with bitrates below 2400.
- *
- * -- Greg Banks - 7Jul2000
- *
- * You "speedist"!  How will I use my 110bps ASR-33 teletype with paper
- * tape reader as a console!
- *
- * -- Mitch Davis - 15 Jul 2000
- */
-
-#if (defined(CONFIG_CPU_SUBTYPE_SH7780)  || \
-     defined(CONFIG_CPU_SUBTYPE_SH7785)  || \
-     defined(CONFIG_CPU_SUBTYPE_SH7786)) && \
-    !defined(CONFIG_SH_SH2007)
-#define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(16*bps)-1)
-#elif defined(CONFIG_CPU_SUBTYPE_SH7705) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7721) || \
-      defined(CONFIG_ARCH_SH73A0) || \
-      defined(CONFIG_ARCH_SH7367) || \
-      defined(CONFIG_ARCH_SH7377) || \
-      defined(CONFIG_ARCH_SH7372)
-#define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(32*bps)-1)
-#elif defined(CONFIG_CPU_SUBTYPE_SH7723) ||\
-      defined(CONFIG_CPU_SUBTYPE_SH7724)
-static inline int scbrr_calc(struct uart_port *port, int bps, int clk)
-{
-	if (port->type == PORT_SCIF)
-		return (clk+16*bps)/(32*bps)-1;
-	else
-		return ((clk*2)+16*bps)/(16*bps)-1;
-}
-#define SCBRR_VALUE(bps, clk) scbrr_calc(port, bps, clk)
-#elif defined(__H8300H__) || defined(__H8300S__)
-#define SCBRR_VALUE(bps, clk) (((clk*1000/32)/bps)-1)
-#else /* Generic SH */
-#define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(32*bps)-1)
 #endif

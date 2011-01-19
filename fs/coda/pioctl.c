@@ -19,9 +19,9 @@
 #include <asm/uaccess.h>
 
 #include <linux/coda.h>
-#include <linux/coda_linux.h>
-#include <linux/coda_fs_i.h>
 #include <linux/coda_psdev.h>
+
+#include "coda_linux.h"
 
 /* pioctl ops */
 static int coda_ioctl_permission(struct inode *inode, int mask, unsigned int flags);

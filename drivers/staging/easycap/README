@@ -24,6 +24,9 @@ Two kinds of EasyCAP have this USB ID, namely:
 BUILD OPTIONS AND DEPENDENCIES
 ------------------------------
 
+Unless EASYCAP_DEBUG is defined during compilation it will not be possible
+to select a debug level at the time of module installation.
+
 If the parameter EASYCAP_IS_VIDEODEV_CLIENT is undefined during compilation
 the built module is entirely independent of the videodev module, and when
 the EasyCAP is physically plugged into a USB port the special files
@@ -33,41 +36,54 @@ respectively.
 If the parameter EASYCAP_IS_VIDEODEV_CLIENT is defined during compilation
 the built easycap module is configured to register with the videodev module,
 in which case the special files created when the EasyCAP is plugged in are
-/dev/video0 and /dev/easysnd0.  Use of the easycap module as a client of
-the videodev module has received very little testing as of June 2010.
+/dev/video0 and /dev/easysnd0.
 
+During in-tree builds the following should should be defined whenever the
+parameter EASYCAP_IS_VIDEODEV_CLIENT is defined:
 
-KNOWN BUILD PROBLEMS
---------------------
+EASYCAP_NEEDS_V4L2_DEVICE_H
+EASYCAP_NEEDS_V4L2_FOPS
+EASYCAP_NEEDS_UNLOCKED_IOCTL
 
-(1) Recent gcc versions may generate the message:
-
-     warning: the frame size of .... bytes is larger than 1024 bytes
-
-This warning can be suppressed by specifying in the Makefile:
-
-     EXTRA_CFLAGS += -Wframe-larger-than=8192
-
-but it would be preferable to remove the cause of the warning.
+If the build is performed out-of-tree against older kernels the parameters
+to be defined depend on the kernel version in a way which will not be
+discussed here.
 
 
 KNOWN RUNTIME ISSUES
 --------------------
 
-(1) Randomly (maybe 5 to 10% of occasions) the driver fails to produce any
-output at start-up.  Closing mplayer (or whatever the user program is) and
-restarting it restores normal performance without any other remedial action
-being necessary.  The reason for this is not known.
+(1) Intentionally, this driver will not stream material which is unambiguously
+identified by the hardware as copy-protected.  Normal video output will be
+present for about a minute but will then freeze when this situation arises.
 
-(2) Intentionally, this driver will not stream material which is unambiguously
-identified by the hardware as copy-protected.  The video output will freeze
-within about a minute when this situation arises.
-
-(3) The controls for luminance, contrast, saturation, hue and volume may not
+(2) The controls for luminance, contrast, saturation, hue and volume may not
 always work properly.
 
-(4) Reduced-resolution S-Video seems to suffer from moire artefacts.  No
-attempt has yet been made to rememdy this.
+(3) Reduced-resolution S-Video seems to suffer from moire artefacts.
+
+
+INPUT NUMBERING
+---------------
+
+For the EasyCAP with S-VIDEO input cable the driver regards a request for
+inputs numbered 0 or 1 as referring to CVBS and a request for input
+numbered 5 as referring to S-VIDEO.
+
+For the EasyCAP with four CVBS inputs the driver expects to be asked for
+any one of inputs numbered 1,2,3,4.  If input 0 is asked for, it is
+interpreted as input 1.
+
+
+MODULE PARAMETERS
+-----------------
+
+Three module parameters are defined:
+
+debug      the easycap module is configured at diagnostic level n (0 to 9)
+gain       audio gain level n (0 to 31, default is 16)
+bars       0 =>  testcard bars when incoming video signal is lost
+           1 =>  testcard bars when incoming video signal is lost (default)
 
 
 SUPPORTED TV STANDARDS AND RESOLUTIONS
@@ -82,18 +98,29 @@ usable as (for example) the "norm=" parameter in the mplayer command:
     PAL_60,       NTSC_443,
     PAL_M.
 
+In addition, the driver offers "custom" pseudo-standards with a framerate
+which is 20% of the usual framerate.  These pseudo-standards are named:
+
+    PAL_BGHIN_SLOW,    NTSC_N_443_SLOW,
+    PAL_Nc_SLOW,       NTSC_N_SLOW,
+    SECAM_SLOW,        NTSC_M_SLOW,        NTSC_M_JP_SLOW,
+    PAL_60_SLOW,       NTSC_443_SLOW,
+    PAL_M_SLOW.
+
+
 The available picture sizes are:
 
      at 25 frames per second:   720x576, 704x576, 640x480, 360x288, 320x240;
-     at 30 frames per second:   720x480, 640x480, 360x240, 320x240;
+     at 30 frames per second:   720x480, 640x480, 360x240, 320x240.
 
 
 WHAT'S TESTED AND WHAT'S NOT
 ----------------------------
 
-This driver is known to work with mplayer, mencoder, tvtime and sufficiently
-recent versions of vlc.  An interface to ffmpeg is implemented, but serious
-audio-video synchronization problems remain.
+This driver is known to work with mplayer, mencoder, tvtime, zoneminder,
+xawtv, gstreamer and sufficiently recent versions of vlc.  An interface
+to ffmpeg is implemented, but serious audio-video synchronization problems
+remain.
 
 The driver is designed to support all the TV standards accepted by the
 hardware, but as yet it has actually been tested on only a few of these.
@@ -101,10 +128,7 @@ hardware, but as yet it has actually been tested on only a few of these.
 I have been unable to test and calibrate the S-video input myself because I
 do not possess any equipment with S-video output.
 
-This driver does not understand the V4L1 IOCTL commands, so programs such
-as camorama are not compatible.  There are reports that the driver does
-work with sufficiently recent (V4L2) versions of zoneminder, but I have not
-attempted to confirm this myself.
+This driver does not understand the V4L1 IOCTL commands.
 
 
 UDEV RULES
@@ -118,6 +142,17 @@ ACTION!="add|change", GOTO="easycap_rules_end"
 ATTRS{idVendor}=="05e1", ATTRS{idProduct}=="0408", \
 	MODE="0666", OWNER="root", GROUP="root"
 LABEL="easycap_rules_end"
+
+
+MODPROBE CONFIGURATION
+----------------------
+
+The easycap module is in competition with the module snd-usb-audio for the
+EasyCAP's audio channel, and its installation can be aided by providing a
+file in directory /etc/modprobe.d with content:
+
+options easycap  gain=16 bars=1
+install easycap /sbin/rmmod snd-usb-audio; /sbin/modprobe --ignore-install easycap
 
 
 ACKNOWLEGEMENTS AND REFERENCES

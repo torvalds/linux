@@ -112,7 +112,7 @@
  * Disable rx-data:
  * If cmx is realized in hardware, rx data will be disabled if requested by
  * the upper layer. If dtmf decoding is done by software and enabled, rx data
- * will not be diabled but blocked to the upper layer.
+ * will not be disabled but blocked to the upper layer.
  *
  * HFC conference engine:
  * If it is possible to realize all features using hardware, hardware will be

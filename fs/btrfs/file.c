@@ -24,6 +24,7 @@
 #include <linux/string.h>
 #include <linux/backing-dev.h>
 #include <linux/mpage.h>
+#include <linux/falloc.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/statfs.h>
@@ -224,6 +225,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 
 			split->bdev = em->bdev;
 			split->flags = flags;
+			split->compress_type = em->compress_type;
 			ret = add_extent_mapping(em_tree, split);
 			BUG_ON(ret);
 			free_extent_map(split);
@@ -238,6 +240,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->len = em->start + em->len - (start + len);
 			split->bdev = em->bdev;
 			split->flags = flags;
+			split->compress_type = em->compress_type;
 
 			if (compressed) {
 				split->block_len = em->block_len;
@@ -890,6 +893,17 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	if (err)
 		goto out;
 
+	/*
+	 * If BTRFS flips readonly due to some impossible error
+	 * (fs_info->fs_state now has BTRFS_SUPER_FLAG_ERROR),
+	 * although we have opened a file as writable, we have
+	 * to stop this write operation to ensure FS consistency.
+	 */
+	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		err = -EROFS;
+		goto out;
+	}
+
 	file_update_time(file);
 	BTRFS_I(inode)->sequence++;
 
@@ -1237,6 +1251,117 @@ static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
 	return 0;
 }
 
+static long btrfs_fallocate(struct file *file, int mode,
+			    loff_t offset, loff_t len)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct extent_state *cached_state = NULL;
+	u64 cur_offset;
+	u64 last_byte;
+	u64 alloc_start;
+	u64 alloc_end;
+	u64 alloc_hint = 0;
+	u64 locked_end;
+	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
+	struct extent_map *em;
+	int ret;
+
+	alloc_start = offset & ~mask;
+	alloc_end =  (offset + len + mask) & ~mask;
+
+	/* We only support the FALLOC_FL_KEEP_SIZE mode */
+	if (mode & ~FALLOC_FL_KEEP_SIZE)
+		return -EOPNOTSUPP;
+
+	/*
+	 * wait for ordered IO before we have any locks.  We'll loop again
+	 * below with the locks held.
+	 */
+	btrfs_wait_ordered_range(inode, alloc_start, alloc_end - alloc_start);
+
+	mutex_lock(&inode->i_mutex);
+	ret = inode_newsize_ok(inode, alloc_end);
+	if (ret)
+		goto out;
+
+	if (alloc_start > inode->i_size) {
+		ret = btrfs_cont_expand(inode, alloc_start);
+		if (ret)
+			goto out;
+	}
+
+	ret = btrfs_check_data_free_space(inode, alloc_end - alloc_start);
+	if (ret)
+		goto out;
+
+	locked_end = alloc_end - 1;
+	while (1) {
+		struct btrfs_ordered_extent *ordered;
+
+		/* the extent lock is ordered inside the running
+		 * transaction
+		 */
+		lock_extent_bits(&BTRFS_I(inode)->io_tree, alloc_start,
+				 locked_end, 0, &cached_state, GFP_NOFS);
+		ordered = btrfs_lookup_first_ordered_extent(inode,
+							    alloc_end - 1);
+		if (ordered &&
+		    ordered->file_offset + ordered->len > alloc_start &&
+		    ordered->file_offset < alloc_end) {
+			btrfs_put_ordered_extent(ordered);
+			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
+					     alloc_start, locked_end,
+					     &cached_state, GFP_NOFS);
+			/*
+			 * we can't wait on the range with the transaction
+			 * running or with the extent lock held
+			 */
+			btrfs_wait_ordered_range(inode, alloc_start,
+						 alloc_end - alloc_start);
+		} else {
+			if (ordered)
+				btrfs_put_ordered_extent(ordered);
+			break;
+		}
+	}
+
+	cur_offset = alloc_start;
+	while (1) {
+		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
+				      alloc_end - cur_offset, 0);
+		BUG_ON(IS_ERR(em) || !em);
+		last_byte = min(extent_map_end(em), alloc_end);
+		last_byte = (last_byte + mask) & ~mask;
+		if (em->block_start == EXTENT_MAP_HOLE ||
+		    (cur_offset >= inode->i_size &&
+		     !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
+			ret = btrfs_prealloc_file_range(inode, mode, cur_offset,
+							last_byte - cur_offset,
+							1 << inode->i_blkbits,
+							offset + len,
+							&alloc_hint);
+			if (ret < 0) {
+				free_extent_map(em);
+				break;
+			}
+		}
+		free_extent_map(em);
+
+		cur_offset = last_byte;
+		if (cur_offset >= alloc_end) {
+			ret = 0;
+			break;
+		}
+	}
+	unlock_extent_cached(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
+			     &cached_state, GFP_NOFS);
+
+	btrfs_free_reserved_data_space(inode, alloc_end - alloc_start);
+out:
+	mutex_unlock(&inode->i_mutex);
+	return ret;
+}
+
 const struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
@@ -1248,6 +1373,7 @@ const struct file_operations btrfs_file_operations = {
 	.open		= generic_file_open,
 	.release	= btrfs_release_file,
 	.fsync		= btrfs_sync_file,
+	.fallocate	= btrfs_fallocate,
 	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_ioctl,

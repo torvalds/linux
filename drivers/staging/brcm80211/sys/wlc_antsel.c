@@ -19,18 +19,23 @@
 #ifdef WLANTSEL
 
 #include <linux/kernel.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <wlioctl.h>
 
+#include <bcmdevs.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <d11.h>
 #include <wlc_rate.h>
 #include <wlc_key.h>
 #include <wlc_pub.h>
 #include <wl_dbg.h>
+#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_bmac.h>
 #include <wlc_phy_hal.h>
@@ -58,10 +63,11 @@
 #define ANT_SELCFG_DEF_2x4	0x02	/* default antenna configuration */
 
 /* static functions */
-static int wlc_antsel_cfgupd(antsel_info_t *asi, wlc_antselcfg_t *antsel);
-static u8 wlc_antsel_id2antcfg(antsel_info_t *asi, u8 id);
-static u16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg);
-static void wlc_antsel_init_cfg(antsel_info_t *asi, wlc_antselcfg_t *antsel,
+static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel);
+static u8 wlc_antsel_id2antcfg(struct antsel_info *asi, u8 id);
+static u16 wlc_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg);
+static void wlc_antsel_init_cfg(struct antsel_info *asi,
+				wlc_antselcfg_t *antsel,
 				bool auto_sel);
 
 const u16 mimo_2x4_div_antselpat_tbl[] = {
@@ -88,14 +94,15 @@ const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };
 
-antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
-						  wlc_pub_t *pub,
-						  wlc_hw_info_t *wlc_hw) {
-	antsel_info_t *asi;
+struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc,
+				      struct osl_info *osh,
+				      struct wlc_pub *pub,
+				      struct wlc_hw_info *wlc_hw) {
+	struct antsel_info *asi;
 
-	asi = kzalloc(sizeof(antsel_info_t), GFP_ATOMIC);
+	asi = kzalloc(sizeof(struct antsel_info), GFP_ATOMIC);
 	if (!asi) {
-		WL_ERROR(("wl%d: wlc_antsel_attach: out of mem\n", pub->unit));
+		WL_ERROR("wl%d: wlc_antsel_attach: out of mem\n", pub->unit);
 		return NULL;
 	}
 
@@ -124,7 +131,7 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 				asi->antsel_avail = false;
 			} else {
 				asi->antsel_avail = false;
-				WL_ERROR(("wlc_antsel_attach: 2o3 board cfg invalid\n"));
+				WL_ERROR("wlc_antsel_attach: 2o3 board cfg invalid\n");
 				ASSERT(0);
 			}
 			break;
@@ -152,7 +159,7 @@ antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
 	return asi;
 }
 
-void wlc_antsel_detach(antsel_info_t *asi)
+void wlc_antsel_detach(struct antsel_info *asi)
 {
 	if (!asi)
 		return;
@@ -160,7 +167,7 @@ void wlc_antsel_detach(antsel_info_t *asi)
 	kfree(asi);
 }
 
-void wlc_antsel_init(antsel_info_t *asi)
+void wlc_antsel_init(struct antsel_info *asi)
 {
 	if ((asi->antsel_type == ANTSEL_2x3) ||
 	    (asi->antsel_type == ANTSEL_2x4))
@@ -169,7 +176,7 @@ void wlc_antsel_init(antsel_info_t *asi)
 
 /* boardlevel antenna selection: init antenna selection structure */
 static void
-wlc_antsel_init_cfg(antsel_info_t *asi, wlc_antselcfg_t *antsel,
+wlc_antsel_init_cfg(struct antsel_info *asi, wlc_antselcfg_t *antsel,
 		    bool auto_sel)
 {
 	if (asi->antsel_type == ANTSEL_2x3) {
@@ -200,7 +207,7 @@ wlc_antsel_init_cfg(antsel_info_t *asi, wlc_antselcfg_t *antsel,
 }
 
 void BCMFASTPATH
-wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,
+wlc_antsel_antcfg_get(struct antsel_info *asi, bool usedef, bool sel,
 		      u8 antselid, u8 fbantselid, u8 *antcfg,
 		      u8 *fbantcfg)
 {
@@ -232,7 +239,7 @@ wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,
 }
 
 /* boardlevel antenna selection: convert mimo_antsel (ucode interface) to id */
-u8 wlc_antsel_antsel2id(antsel_info_t *asi, u16 antsel)
+u8 wlc_antsel_antsel2id(struct antsel_info *asi, u16 antsel)
 {
 	u8 antselid = 0;
 
@@ -251,7 +258,7 @@ u8 wlc_antsel_antsel2id(antsel_info_t *asi, u16 antsel)
 }
 
 /* boardlevel antenna selection: convert id to ant_cfg */
-static u8 wlc_antsel_id2antcfg(antsel_info_t *asi, u8 id)
+static u8 wlc_antsel_id2antcfg(struct antsel_info *asi, u8 id)
 {
 	u8 antcfg = ANT_SELCFG_DEF_2x2;
 
@@ -270,7 +277,7 @@ static u8 wlc_antsel_id2antcfg(antsel_info_t *asi, u8 id)
 }
 
 /* boardlevel antenna selection: convert ant_cfg to mimo_antsel (ucode interface) */
-static u16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg)
+static u16 wlc_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg)
 {
 	u8 idx = WLC_ANTIDX_11N(WLC_ANTSEL_11N(ant_cfg));
 	u16 mimo_antsel = 0;
@@ -290,9 +297,9 @@ static u16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg)
 }
 
 /* boardlevel antenna selection: ucode interface control */
-static int wlc_antsel_cfgupd(antsel_info_t *asi, wlc_antselcfg_t *antsel)
+static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel)
 {
-	wlc_info_t *wlc = asi->wlc;
+	struct wlc_info *wlc = asi->wlc;
 	u8 ant_cfg;
 	u16 mimo_antsel;
 

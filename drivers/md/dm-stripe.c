@@ -39,12 +39,10 @@ struct stripe_c {
 	struct dm_target *ti;
 
 	/* Work struct used for triggering events*/
-	struct work_struct kstriped_ws;
+	struct work_struct trigger_event;
 
 	struct stripe stripe[0];
 };
-
-static struct workqueue_struct *kstriped;
 
 /*
  * An event is triggered whenever a drive
@@ -52,10 +50,9 @@ static struct workqueue_struct *kstriped;
  */
 static void trigger_event(struct work_struct *work)
 {
-	struct stripe_c *sc = container_of(work, struct stripe_c, kstriped_ws);
-
+	struct stripe_c *sc = container_of(work, struct stripe_c,
+					   trigger_event);
 	dm_table_event(sc->ti->table);
-
 }
 
 static inline struct stripe_c *alloc_context(unsigned int stripes)
@@ -160,7 +157,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -ENOMEM;
 	}
 
-	INIT_WORK(&sc->kstriped_ws, trigger_event);
+	INIT_WORK(&sc->trigger_event, trigger_event);
 
 	/* Set pointer to dm target; used in trigger_event */
 	sc->ti = ti;
@@ -211,7 +208,7 @@ static void stripe_dtr(struct dm_target *ti)
 	for (i = 0; i < sc->stripes; i++)
 		dm_put_device(ti, sc->stripe[i].dev);
 
-	flush_workqueue(kstriped);
+	flush_work_sync(&sc->trigger_event);
 	kfree(sc);
 }
 
@@ -367,7 +364,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 			atomic_inc(&(sc->stripe[i].error_count));
 			if (atomic_read(&(sc->stripe[i].error_count)) <
 			    DM_IO_ERROR_THRESHOLD)
-				queue_work(kstriped, &sc->kstriped_ws);
+				schedule_work(&sc->trigger_event);
 		}
 
 	return error;
@@ -401,7 +398,7 @@ static void stripe_io_hints(struct dm_target *ti,
 
 static struct target_type stripe_target = {
 	.name   = "striped",
-	.version = {1, 3, 0},
+	.version = {1, 3, 1},
 	.module = THIS_MODULE,
 	.ctr    = stripe_ctr,
 	.dtr    = stripe_dtr,
@@ -422,20 +419,10 @@ int __init dm_stripe_init(void)
 		return r;
 	}
 
-	kstriped = create_singlethread_workqueue("kstriped");
-	if (!kstriped) {
-		DMERR("failed to create workqueue kstriped");
-		dm_unregister_target(&stripe_target);
-		return -ENOMEM;
-	}
-
 	return r;
 }
 
 void dm_stripe_exit(void)
 {
 	dm_unregister_target(&stripe_target);
-	destroy_workqueue(kstriped);
-
-	return;
 }

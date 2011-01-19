@@ -253,7 +253,7 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	/* move myself to free_list */
 	list_move(&desc->desc_node, &atchan->free_list);
 
-	/* unmap dma addresses */
+	/* unmap dma addresses (not on slave channels) */
 	if (!atchan->chan_common.private) {
 		struct device *parent = chan2parent(&atchan->chan_common);
 		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
@@ -583,7 +583,6 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		desc->lli.ctrlb = ctrlb;
 
 		desc->txd.cookie = 0;
-		async_tx_ack(&desc->txd);
 
 		if (!first) {
 			first = desc;
@@ -604,7 +603,7 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	/* set end-of-link to the last link descriptor of list*/
 	set_desc_eol(desc);
 
-	desc->txd.flags = flags; /* client is in control of this ack */
+	first->txd.flags = flags; /* client is in control of this ack */
 
 	return &first->txd;
 
@@ -670,7 +669,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			if (!desc)
 				goto err_desc_get;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 			mem_width = 2;
 			if (unlikely(mem & 3 || len & 3))
@@ -712,7 +711,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			if (!desc)
 				goto err_desc_get;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 			mem_width = 2;
 			if (unlikely(mem & 3 || len & 3))
@@ -749,8 +748,8 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	first->txd.cookie = -EBUSY;
 	first->len = total_len;
 
-	/* last link descriptor of list is responsible of flags */
-	prev->txd.flags = flags; /* client is in control of this ack */
+	/* first link descriptor of list is responsible of flags */
+	first->txd.flags = flags; /* client is in control of this ack */
 
 	return &first->txd;
 
@@ -854,11 +853,11 @@ static void atc_issue_pending(struct dma_chan *chan)
 
 	dev_vdbg(chan2dev(chan), "issue_pending\n");
 
+	spin_lock_bh(&atchan->lock);
 	if (!atc_chan_is_enabled(atchan)) {
-		spin_lock_bh(&atchan->lock);
 		atc_advance_work(atchan);
-		spin_unlock_bh(&atchan->lock);
 	}
+	spin_unlock_bh(&atchan->lock);
 }
 
 /**
@@ -1210,7 +1209,7 @@ static int __init at_dma_init(void)
 {
 	return platform_driver_probe(&at_dma_driver, at_dma_probe);
 }
-module_init(at_dma_init);
+subsys_initcall(at_dma_init);
 
 static void __exit at_dma_exit(void)
 {

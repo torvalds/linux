@@ -1732,6 +1732,11 @@ static int __devinit atmel_serial_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 	platform_set_drvdata(pdev, port);
 
+	if (port->rs485.flags & SER_RS485_ENABLED) {
+		UART_PUT_MR(&port->uart, ATMEL_US_USMODE_NORMAL);
+		UART_PUT_CR(&port->uart, ATMEL_US_RTSEN);
+	}
+
 	return 0;
 
 err_add_port:

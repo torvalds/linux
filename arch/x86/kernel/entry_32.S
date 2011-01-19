@@ -1406,6 +1406,16 @@ ENTRY(general_protection)
 	CFI_ENDPROC
 END(general_protection)
 
+#ifdef CONFIG_KVM_GUEST
+ENTRY(async_page_fault)
+	RING0_EC_FRAME
+	pushl $do_async_page_fault
+	CFI_ADJUST_CFA_OFFSET 4
+	jmp error_code
+	CFI_ENDPROC
+END(apf_page_fault)
+#endif
+
 /*
  * End of kprobes section
  */

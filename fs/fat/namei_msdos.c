@@ -227,11 +227,7 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 	}
 out:
 	unlock_super(sb);
-	d_set_d_op(dentry, &msdos_dentry_operations);
-	dentry = d_splice_alias(inode, dentry);
-	if (dentry)
-		d_set_d_op(dentry, &msdos_dentry_operations);
-	return dentry;
+	return d_splice_alias(inode, dentry);
 
 error:
 	unlock_super(sb);
@@ -661,21 +657,16 @@ static const struct inode_operations msdos_dir_inode_operations = {
 	.getattr	= fat_getattr,
 };
 
+static void setup(struct super_block *sb)
+{
+	sb->s_d_op = &msdos_dentry_operations;
+	sb->s_flags |= MS_NOATIME;
+}
+
 static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 {
-	int res;
-
-	lock_super(sb);
-	res = fat_fill_super(sb, data, silent, &msdos_dir_inode_operations, 0);
-	if (res) {
-		unlock_super(sb);
-		return res;
-	}
-
-	sb->s_flags |= MS_NOATIME;
-	d_set_d_op(sb->s_root, &msdos_dentry_operations);
-	unlock_super(sb);
-	return 0;
+	return fat_fill_super(sb, data, silent, &msdos_dir_inode_operations,
+			     0, setup);
 }
 
 static struct dentry *msdos_mount(struct file_system_type *fs_type,

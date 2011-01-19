@@ -195,24 +195,24 @@ static int __init setup_hest_disable(char *str)
 
 __setup("hest_disable", setup_hest_disable);
 
-static int __init hest_init(void)
+void __init acpi_hest_init(void)
 {
 	acpi_status status;
 	int rc = -ENODEV;
 	unsigned int ghes_count = 0;
 
+	if (hest_disable) {
+		pr_info(HEST_PFX "Table parsing disabled.\n");
+		return;
+	}
+
 	if (acpi_disabled)
 		goto err;
-
-	if (hest_disable) {
-		pr_info(HEST_PFX "HEST tabling parsing is disabled.\n");
-		goto err;
-	}
 
 	status = acpi_get_table(ACPI_SIG_HEST, 0,
 				(struct acpi_table_header **)&hest_tab);
 	if (status == AE_NOT_FOUND) {
-		pr_info(HEST_PFX "Table is not found!\n");
+		pr_info(HEST_PFX "Table not found.\n");
 		goto err;
 	} else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
@@ -226,15 +226,11 @@ static int __init hest_init(void)
 		goto err;
 
 	rc = hest_ghes_dev_register(ghes_count);
-	if (rc)
-		goto err;
+	if (!rc) {
+		pr_info(HEST_PFX "Table parsing has been initialized.\n");
+		return;
+	}
 
-	pr_info(HEST_PFX "HEST table parsing is initialized.\n");
-
-	return 0;
 err:
 	hest_disable = 1;
-	return rc;
 }
-
-subsys_initcall(hest_init);

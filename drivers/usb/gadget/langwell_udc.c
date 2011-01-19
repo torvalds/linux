@@ -3086,7 +3086,7 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 
 	kfree(dev->ep);
 
-	/* diable IRQ handler */
+	/* disable IRQ handler */
 	if (dev->got_irq)
 		free_irq(pdev->irq, dev);
 
@@ -3406,7 +3406,7 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* disable interrupt and set controller to stop state */
 	langwell_udc_stop(dev);
 
-	/* diable IRQ handler */
+	/* disable IRQ handler */
 	if (dev->got_irq)
 		free_irq(pdev->irq, dev);
 	dev->got_irq = 0;

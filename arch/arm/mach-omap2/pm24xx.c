@@ -350,7 +350,7 @@ static void omap2_pm_end(void)
 	enable_hlt();
 }
 
-static struct platform_suspend_ops omap_pm_ops = {
+static const struct platform_suspend_ops omap_pm_ops = {
 	.begin		= omap2_pm_begin,
 	.enter		= omap2_pm_enter,
 	.end		= omap2_pm_end,

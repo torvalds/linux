@@ -1530,7 +1530,7 @@ static int init_subports(struct ipath_devdata *dd,
 	}
 
 	num_subports = uinfo->spu_subport_cnt;
-	pd->subport_uregbase = vmalloc(PAGE_SIZE * num_subports);
+	pd->subport_uregbase = vzalloc(PAGE_SIZE * num_subports);
 	if (!pd->subport_uregbase) {
 		ret = -ENOMEM;
 		goto bail;
@@ -1538,13 +1538,13 @@ static int init_subports(struct ipath_devdata *dd,
 	/* Note: pd->port_rcvhdrq_size isn't initialized yet. */
 	size = ALIGN(dd->ipath_rcvhdrcnt * dd->ipath_rcvhdrentsize *
 		     sizeof(u32), PAGE_SIZE) * num_subports;
-	pd->subport_rcvhdr_base = vmalloc(size);
+	pd->subport_rcvhdr_base = vzalloc(size);
 	if (!pd->subport_rcvhdr_base) {
 		ret = -ENOMEM;
 		goto bail_ureg;
 	}
 
-	pd->subport_rcvegrbuf = vmalloc(pd->port_rcvegrbuf_chunks *
+	pd->subport_rcvegrbuf = vzalloc(pd->port_rcvegrbuf_chunks *
 					pd->port_rcvegrbuf_size *
 					num_subports);
 	if (!pd->subport_rcvegrbuf) {
@@ -1556,11 +1556,6 @@ static int init_subports(struct ipath_devdata *dd,
 	pd->port_subport_id = uinfo->spu_subport_id;
 	pd->active_slaves = 1;
 	set_bit(IPATH_PORT_MASTER_UNINIT, &pd->port_flag);
-	memset(pd->subport_uregbase, 0, PAGE_SIZE * num_subports);
-	memset(pd->subport_rcvhdr_base, 0, size);
-	memset(pd->subport_rcvegrbuf, 0, pd->port_rcvegrbuf_chunks *
-				         pd->port_rcvegrbuf_size *
-				         num_subports);
 	goto bail;
 
 bail_rhdr:

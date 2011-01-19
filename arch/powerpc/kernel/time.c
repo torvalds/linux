@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(rtc_lock);
 
 static u64 tb_to_ns_scale __read_mostly;
 static unsigned tb_to_ns_shift __read_mostly;
-static unsigned long boot_tb __read_mostly;
+static u64 boot_tb __read_mostly;
 
 extern struct timezone sys_tz;
 static long timezone_offset;

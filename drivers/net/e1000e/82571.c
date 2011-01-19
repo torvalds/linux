@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -78,6 +78,8 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82573(struct e1000_hw *hw);
 static s32 e1000_get_hw_semaphore_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw);
+static s32 e1000_set_d0_lplu_state_82574(struct e1000_hw *hw, bool active);
+static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active);
 
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
@@ -113,6 +115,8 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		phy->type		 = e1000_phy_bm;
 		phy->ops.acquire = e1000_get_hw_semaphore_82574;
 		phy->ops.release = e1000_put_hw_semaphore_82574;
+		phy->ops.set_d0_lplu_state = e1000_set_d0_lplu_state_82574;
+		phy->ops.set_d3_lplu_state = e1000_set_d3_lplu_state_82574;
 		break;
 	default:
 		return -E1000_ERR_PHY;
@@ -121,29 +125,36 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 
 	/* This can only be done after all function pointers are setup. */
 	ret_val = e1000_get_phy_id_82571(hw);
+	if (ret_val) {
+		e_dbg("Error getting PHY ID\n");
+		return ret_val;
+	}
 
 	/* Verify phy id */
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
 		if (phy->id != IGP01E1000_I_PHY_ID)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	case e1000_82573:
 		if (phy->id != M88E1111_I_PHY_ID)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	case e1000_82574:
 	case e1000_82583:
 		if (phy->id != BME1000_E_PHY_ID_R2)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	default:
-		return -E1000_ERR_PHY;
+		ret_val = -E1000_ERR_PHY;
 		break;
 	}
 
-	return 0;
+	if (ret_val)
+		e_dbg("PHY ID unknown: type = 0x%08x\n", phy->id);
+
+	return ret_val;
 }
 
 /**
@@ -317,7 +328,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 
 	/*
 	 * Ensure that the inter-port SWSM.SMBI lock bit is clear before
-	 * first NVM or PHY acess. This should be done for single-port
+	 * first NVM or PHY access. This should be done for single-port
 	 * devices, and for one port only on dual-port devices so that
 	 * for those devices we can still use the SMBI lock to synchronize
 	 * inter-port accesses to the PHY & NVM.
@@ -649,6 +660,58 @@ static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_set_d0_lplu_state_82574 - Set Low Power Linkup D0 state
+ *  @hw: pointer to the HW structure
+ *  @active: true to enable LPLU, false to disable
+ *
+ *  Sets the LPLU D0 state according to the active flag.
+ *  LPLU will not be activated unless the
+ *  device autonegotiation advertisement meets standards of
+ *  either 10 or 10/100 or 10/100/1000 at all duplexes.
+ *  This is a function pointer entry point only called by
+ *  PHY setup routines.
+ **/
+static s32 e1000_set_d0_lplu_state_82574(struct e1000_hw *hw, bool active)
+{
+	u16 data = er32(POEMB);
+
+	if (active)
+		data |= E1000_PHY_CTRL_D0A_LPLU;
+	else
+		data &= ~E1000_PHY_CTRL_D0A_LPLU;
+
+	ew32(POEMB, data);
+	return 0;
+}
+
+/**
+ *  e1000_set_d3_lplu_state_82574 - Sets low power link up state for D3
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
+ *
+ *  The low power link up (lplu) state is set to the power management level D3
+ *  when active is true, else clear lplu for D3. LPLU
+ *  is used during Dx states where the power conservation is most important.
+ *  During driver activity, SmartSpeed should be enabled so performance is
+ *  maintained.
+ **/
+static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active)
+{
+	u16 data = er32(POEMB);
+
+	if (!active) {
+		data &= ~E1000_PHY_CTRL_NOND0A_LPLU;
+	} else if ((hw->phy.autoneg_advertised == E1000_ALL_SPEED_DUPLEX) ||
+		   (hw->phy.autoneg_advertised == E1000_ALL_NOT_GIG) ||
+		   (hw->phy.autoneg_advertised == E1000_ALL_10_SPEED)) {
+		data |= E1000_PHY_CTRL_NOND0A_LPLU;
+	}
+
+	ew32(POEMB, data);
+	return 0;
+}
+
+/**
  *  e1000_acquire_nvm_82571 - Request for access to the EEPROM
  *  @hw: pointer to the HW structure
  *
@@ -956,7 +1019,7 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl, ctrl_ext, icr;
+	u32 ctrl, ctrl_ext;
 	s32 ret_val;
 
 	/*
@@ -1040,7 +1103,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	ew32(IMC, 0xffffffff);
-	icr = er32(ICR);
+	er32(ICR);
 
 	if (hw->mac.type == e1000_82571) {
 		/* Install any alternate MAC address into RAR0 */
@@ -1247,7 +1310,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		 * apply workaround for hardware errata documented in errata
 		 * docs Fixes issue where some error prone or unreliable PCIe
 		 * completions are occurring, particularly with ASPM enabled.
-		 * Without fix, issue can cause tx timeouts.
+		 * Without fix, issue can cause Tx timeouts.
 		 */
 		reg = er32(GCR2);
 		reg |= 1;

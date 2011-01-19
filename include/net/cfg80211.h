@@ -1103,6 +1103,8 @@ struct cfg80211_pmksa {
  * @change_mpath: change a given mesh path
  * @get_mpath: get a mesh path for the given parameters
  * @dump_mpath: dump mesh path callback -- resume dump at index @idx
+ * @join_mesh: join the mesh network with the specified parameters
+ * @leave_mesh: leave the current mesh network
  *
  * @get_mesh_config: Get the current mesh configuration
  *

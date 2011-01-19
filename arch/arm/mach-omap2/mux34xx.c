@@ -703,7 +703,7 @@ static struct omap_mux __initdata omap3_muxmodes[] = {
  * Signals different on CBC package compared to the superset
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_OMAP_PACKAGE_CBC)
-struct omap_mux __initdata omap3_cbc_subset[] = {
+static struct omap_mux __initdata omap3_cbc_subset[] = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
@@ -721,7 +721,7 @@ struct omap_mux __initdata omap3_cbc_subset[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)	\
 		&& defined(CONFIG_OMAP_PACKAGE_CBC)
-struct omap_ball __initdata omap3_cbc_ball[] = {
+static struct omap_ball __initdata omap3_cbc_ball[] = {
 	_OMAP3_BALLENTRY(CAM_D0, "ae16", NULL),
 	_OMAP3_BALLENTRY(CAM_D1, "ae15", NULL),
 	_OMAP3_BALLENTRY(CAM_D10, "d25", NULL),

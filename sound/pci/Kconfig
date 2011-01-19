@@ -209,7 +209,7 @@ config SND_OXYGEN_LIB
         tristate
 
 config SND_OXYGEN
-	tristate "C-Media 8788 (Oxygen)"
+	tristate "C-Media 8786, 8787, 8788 (Oxygen)"
 	select SND_OXYGEN_LIB
 	select SND_PCM
 	select SND_MPU401_UART
@@ -217,13 +217,18 @@ config SND_OXYGEN
 	  Say Y here to include support for sound cards based on the
 	  C-Media CMI8788 (Oxygen HD Audio) chip:
 	   * Asound A-8788
+	   * Asus Xonar DG
 	   * AuzenTech X-Meridian
+	   * AuzenTech X-Meridian 2G
 	   * Bgears b-Enspirer
 	   * Club3D Theatron DTS
 	   * HT-Omega Claro (plus)
 	   * HT-Omega Claro halo (XT)
+	   * Kuroutoshikou CMI8787-HG2PCI
 	   * Razer Barracuda AC-1
 	   * Sondigo Inferno
+	   * TempoTec/MediaTek HiFier Fantasia
+	   * TempoTec/MediaTek HiFier Serenade
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxygen.
@@ -578,18 +583,6 @@ config SND_HDSPM
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hdspm.
 
-config SND_HIFIER
-	tristate "TempoTec HiFier Fantasia"
-	select SND_OXYGEN_LIB
-	select SND_PCM
-	select SND_MPU401_UART
-	help
-	  Say Y here to include support for the MediaTek/TempoTec HiFier
-	  Fantasia sound card.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-hifier.
-
 config SND_ICE1712
 	tristate "ICEnsemble ICE1712 (Envy24)"
 	select SND_MPU401_UART
@@ -826,8 +819,8 @@ config SND_VIRTUOSO
 	  Say Y here to include support for sound cards based on the
 	  Asus AV66/AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X, DS,
 	  Essence ST (Deluxe), and Essence STX.
-	  Support for the HDAV1.3 (Deluxe) is incomplete; for the
-	  HDAV1.3 Slim and Xense, missing.
+	  Support for the HDAV1.3 (Deluxe) and HDAV1.3 Slim is experimental;
+	  for the Xense, missing.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-virtuoso.

@@ -39,7 +39,7 @@
 #define EINJ_PFX "EINJ: "
 
 #define SPIN_UNIT		100			/* 100ns */
-/* Firmware should respond within 1 miliseconds */
+/* Firmware should respond within 1 milliseconds */
 #define FIRMWARE_TIMEOUT	(1 * NSEC_PER_MSEC)
 
 /*

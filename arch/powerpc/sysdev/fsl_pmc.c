@@ -53,7 +53,7 @@ static int pmc_suspend_valid(suspend_state_t state)
 	return 1;
 }
 
-static struct platform_suspend_ops pmc_suspend_ops = {
+static const struct platform_suspend_ops pmc_suspend_ops = {
 	.valid = pmc_suspend_valid,
 	.enter = pmc_suspend_enter,
 };

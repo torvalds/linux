@@ -46,6 +46,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 #include <plat/mcspi.h>
 
 #include <mach/hardware.h>
@@ -351,22 +352,32 @@ static void cm_t35_panel_disable_tv(struct omap_dss_device *dssdev)
 {
 }
 
-static struct omap_dss_device cm_t35_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "toppoly_tdo35s_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 18,
+static struct panel_generic_dpi_data lcd_panel = {
+	.name			= "toppoly_tdo35s",
 	.platform_enable	= cm_t35_panel_enable_lcd,
 	.platform_disable	= cm_t35_panel_disable_lcd,
 };
 
-static struct omap_dss_device cm_t35_dvi_device = {
-	.name			= "dvi",
-	.driver_name		= "generic_panel",
+static struct omap_dss_device cm_t35_lcd_device = {
+	.name			= "lcd",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 24,
+	.driver_name		= "generic_dpi_panel",
+	.data			= &lcd_panel,
+	.phy.dpi.data_lines	= 18,
+};
+
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
 	.platform_enable	= cm_t35_panel_enable_dvi,
 	.platform_disable	= cm_t35_panel_disable_dvi,
+};
+
+static struct omap_dss_device cm_t35_dvi_device = {
+	.name			= "dvi",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.driver_name		= "generic_dpi_panel",
+	.data			= &dvi_panel,
+	.phy.dpi.data_lines	= 24,
 };
 
 static struct omap_dss_device cm_t35_tv_device = {

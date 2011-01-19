@@ -229,7 +229,7 @@ config SERIO_PS2MULT
 	tristate "TQC PS/2 multiplexer"
 	help
 	  Say Y here if you have the PS/2 line multiplexer like the one
-	  present on TQC boads.
+	  present on TQC boards.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ps2mult.

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
+#include <linux/crc32.h>
 
 #include "hw.h"
 
@@ -496,6 +497,8 @@ extern void e1000e_free_tx_resources(struct e1000_adapter *adapter);
 extern void e1000e_update_stats(struct e1000_adapter *adapter);
 extern void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
 extern void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
+extern void e1000e_get_hw_control(struct e1000_adapter *adapter);
+extern void e1000e_release_hw_control(struct e1000_adapter *adapter);
 extern void e1000e_disable_aspm(struct pci_dev *pdev, u16 state);
 
 extern unsigned int copybreak;

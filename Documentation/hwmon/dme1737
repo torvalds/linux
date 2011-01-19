@@ -42,7 +42,7 @@ Description
 This driver implements support for the hardware monitoring capabilities of the
 SMSC DME1737 and Asus A8000 (which are the same), SMSC SCH5027, SCH311x,
 and SCH5127 Super-I/O chips. These chips feature monitoring of 3 temp sensors
-temp[1-3] (2 remote diodes and 1 internal), 7 voltages in[0-6] (6 external and
+temp[1-3] (2 remote diodes and 1 internal), 8 voltages in[0-7] (7 external and
 1 internal) and up to 6 fan speeds fan[1-6]. Additionally, the chips implement
 up to 5 PWM outputs pwm[1-3,5-6] for controlling fan speeds both manually and
 automatically.
@@ -105,6 +105,7 @@ SCH5127:
 	in4: V1_IN				0V - 1.5V
 	in5: VTR	(+3.3V standby)		0V - 4.38V
 	in6: Vbat	(+3.0V)			0V - 4.38V
+	in7: Vtrip	(+1.5V)			0V - 1.99V
 
 Each voltage input has associated min and max limits which trigger an alarm
 when crossed.
@@ -217,10 +218,10 @@ cpu0_vid			RO	CPU core reference voltage in
 vrm				RW	Voltage regulator module version
 					number.
 
-in[0-6]_input			RO	Measured voltage in millivolts.
-in[0-6]_min			RW	Low limit for voltage input.
-in[0-6]_max			RW	High limit for voltage input.
-in[0-6]_alarm			RO	Voltage input alarm. Returns 1 if
+in[0-7]_input			RO	Measured voltage in millivolts.
+in[0-7]_min			RW	Low limit for voltage input.
+in[0-7]_max			RW	High limit for voltage input.
+in[0-7]_alarm			RO	Voltage input alarm. Returns 1 if
 					voltage input is or went outside the
 					associated min-max range, 0 otherwise.
 
@@ -324,3 +325,4 @@ fan5			opt		opt
 pwm5			opt		opt
 fan6			opt		opt
 pwm6			opt		opt
+in7						yes

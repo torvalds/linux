@@ -31,8 +31,9 @@ static inline bool is_quota_modification(struct inode *inode, struct iattr *ia)
 #define quota_error(sb, fmt, args...) \
 	__quota_error((sb), __func__, fmt , ## args)
 
-extern void __quota_error(struct super_block *sb, const char *func,
-			 const char *fmt, ...);
+extern __attribute__((format (printf, 3, 4)))
+void __quota_error(struct super_block *sb, const char *func,
+		   const char *fmt, ...);
 
 /*
  * declaration of quota_function calls in kernel.

@@ -3024,6 +3024,36 @@ static void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 	}
 }
 
+void ixgbe_disable_rx_queue(struct ixgbe_adapter *adapter,
+			    struct ixgbe_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int wait_loop = IXGBE_MAX_RX_DESC_POLL;
+	u32 rxdctl;
+	u8 reg_idx = ring->reg_idx;
+
+	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
+	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
+
+	/* write value back with RXDCTL.ENABLE bit cleared */
+	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
+
+	if (hw->mac.type == ixgbe_mac_82598EB &&
+	    !(IXGBE_READ_REG(hw, IXGBE_LINKS) & IXGBE_LINKS_UP))
+		return;
+
+	/* the hardware may take up to 100us to really disable the rx queue */
+	do {
+		udelay(10);
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
+	} while (--wait_loop && (rxdctl & IXGBE_RXDCTL_ENABLE));
+
+	if (!wait_loop) {
+		e_err(drv, "RXDCTL.ENABLE on Rx queue %d not cleared within "
+		      "the polling period\n", reg_idx);
+	}
+}
+
 void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 			     struct ixgbe_ring *ring)
 {
@@ -3034,9 +3064,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 
 	/* disable queue to avoid issues while updating state */
 	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
-	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx),
-			rxdctl & ~IXGBE_RXDCTL_ENABLE);
-	IXGBE_WRITE_FLUSH(hw);
+	ixgbe_disable_rx_queue(adapter, ring);
 
 	IXGBE_WRITE_REG(hw, IXGBE_RDBAL(reg_idx), (rdba & DMA_BIT_MASK(32)));
 	IXGBE_WRITE_REG(hw, IXGBE_RDBAH(reg_idx), (rdba >> 32));
@@ -4064,7 +4092,11 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl & ~IXGBE_RXCTRL_RXEN);
 
-	IXGBE_WRITE_FLUSH(hw);
+	/* disable all enabled rx queues */
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		/* this call also flushes the previous write */
+		ixgbe_disable_rx_queue(adapter, adapter->rx_ring[i]);
+
 	msleep(10);
 
 	netif_tx_stop_all_queues(netdev);
@@ -4789,6 +4821,12 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 	adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
+	if (adapter->flags & (IXGBE_FLAG_FDIR_HASH_CAPABLE |
+			      IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+		e_err(probe,
+		      "Flow Director is not supported while multiple "
+		      "queues are disabled.  Disabling Flow Director\n");
+	}
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 	adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 	adapter->atr_sample_rate = 0;
@@ -5094,16 +5132,11 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
 		if (hw->device_id == IXGBE_DEV_ID_82599_T3_LOM)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
-		if (dev->features & NETIF_F_NTUPLE) {
-			/* Flow Director perfect filter enabled */
-			adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-			adapter->atr_sample_rate = 0;
-			spin_lock_init(&adapter->fdir_perfect_lock);
-		} else {
-			/* Flow Director hash filters enabled */
-			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
-			adapter->atr_sample_rate = 20;
-		}
+		/* n-tuple support exists, always init our spinlock */
+		spin_lock_init(&adapter->fdir_perfect_lock);
+		/* Flow Director hash filters enabled */
+		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+		adapter->atr_sample_rate = 20;
 		adapter->ring_feature[RING_F_FDIR].indices =
 							 IXGBE_MAX_FDIR_INDICES;
 		adapter->fdir_pballoc = 0;
@@ -6474,38 +6507,92 @@ static void ixgbe_tx_queue(struct ixgbe_ring *tx_ring,
 	writel(i, tx_ring->tail);
 }
 
-static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
-		      u8 queue, u32 tx_flags, __be16 protocol)
+static void ixgbe_atr(struct ixgbe_ring *ring, struct sk_buff *skb,
+		      u32 tx_flags, __be16 protocol)
 {
-	struct ixgbe_atr_input atr_input;
-	struct iphdr *iph = ip_hdr(skb);
-	struct ethhdr *eth = (struct ethhdr *)skb->data;
+	struct ixgbe_q_vector *q_vector = ring->q_vector;
+	union ixgbe_atr_hash_dword input = { .dword = 0 };
+	union ixgbe_atr_hash_dword common = { .dword = 0 };
+	union {
+		unsigned char *network;
+		struct iphdr *ipv4;
+		struct ipv6hdr *ipv6;
+	} hdr;
 	struct tcphdr *th;
-	u16 vlan_id;
+	__be16 vlan_id;
 
-	/* Right now, we support IPv4 w/ TCP only */
-	if (protocol != htons(ETH_P_IP) ||
-	    iph->protocol != IPPROTO_TCP)
+	/* if ring doesn't have a interrupt vector, cannot perform ATR */
+	if (!q_vector)
 		return;
 
-	memset(&atr_input, 0, sizeof(struct ixgbe_atr_input));
+	/* do nothing if sampling is disabled */
+	if (!ring->atr_sample_rate)
+		return;
 
-	vlan_id = (tx_flags & IXGBE_TX_FLAGS_VLAN_MASK) >>
-		   IXGBE_TX_FLAGS_VLAN_SHIFT;
+	ring->atr_count++;
+
+	/* snag network header to get L4 type and address */
+	hdr.network = skb_network_header(skb);
+
+	/* Currently only IPv4/IPv6 with TCP is supported */
+	if ((protocol != __constant_htons(ETH_P_IPV6) ||
+	     hdr.ipv6->nexthdr != IPPROTO_TCP) &&
+	    (protocol != __constant_htons(ETH_P_IP) ||
+	     hdr.ipv4->protocol != IPPROTO_TCP))
+		return;
 
 	th = tcp_hdr(skb);
 
-	ixgbe_atr_set_vlan_id_82599(&atr_input, vlan_id);
-	ixgbe_atr_set_src_port_82599(&atr_input, th->dest);
-	ixgbe_atr_set_dst_port_82599(&atr_input, th->source);
-	ixgbe_atr_set_flex_byte_82599(&atr_input, eth->h_proto);
-	ixgbe_atr_set_l4type_82599(&atr_input, IXGBE_ATR_L4TYPE_TCP);
-	/* src and dst are inverted, think how the receiver sees them */
-	ixgbe_atr_set_src_ipv4_82599(&atr_input, iph->daddr);
-	ixgbe_atr_set_dst_ipv4_82599(&atr_input, iph->saddr);
+	/* skip this packet since the socket is closing */
+	if (th->fin)
+		return;
+
+	/* sample on all syn packets or once every atr sample count */
+	if (!th->syn && (ring->atr_count < ring->atr_sample_rate))
+		return;
+
+	/* reset sample count */
+	ring->atr_count = 0;
+
+	vlan_id = htons(tx_flags >> IXGBE_TX_FLAGS_VLAN_SHIFT);
+
+	/*
+	 * src and dst are inverted, think how the receiver sees them
+	 *
+	 * The input is broken into two sections, a non-compressed section
+	 * containing vm_pool, vlan_id, and flow_type.  The rest of the data
+	 * is XORed together and stored in the compressed dword.
+	 */
+	input.formatted.vlan_id = vlan_id;
+
+	/*
+	 * since src port and flex bytes occupy the same word XOR them together
+	 * and write the value to source port portion of compressed dword
+	 */
+	if (vlan_id)
+		common.port.src ^= th->dest ^ __constant_htons(ETH_P_8021Q);
+	else
+		common.port.src ^= th->dest ^ protocol;
+	common.port.dst ^= th->source;
+
+	if (protocol == __constant_htons(ETH_P_IP)) {
+		input.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_TCPV4;
+		common.ip ^= hdr.ipv4->saddr ^ hdr.ipv4->daddr;
+	} else {
+		input.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_TCPV6;
+		common.ip ^= hdr.ipv6->saddr.s6_addr32[0] ^
+			     hdr.ipv6->saddr.s6_addr32[1] ^
+			     hdr.ipv6->saddr.s6_addr32[2] ^
+			     hdr.ipv6->saddr.s6_addr32[3] ^
+			     hdr.ipv6->daddr.s6_addr32[0] ^
+			     hdr.ipv6->daddr.s6_addr32[1] ^
+			     hdr.ipv6->daddr.s6_addr32[2] ^
+			     hdr.ipv6->daddr.s6_addr32[3];
+	}
 
 	/* This assumes the Rx queue and Tx queue are bound to the same CPU */
-	ixgbe_fdir_add_signature_filter_82599(&adapter->hw, &atr_input, queue);
+	ixgbe_fdir_add_signature_filter_82599(&q_vector->adapter->hw,
+					      input, common, ring->queue_index);
 }
 
 static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
@@ -6580,8 +6667,6 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 			  struct ixgbe_adapter *adapter,
 			  struct ixgbe_ring *tx_ring)
 {
-	struct net_device *netdev = tx_ring->netdev;
-	struct netdev_queue *txq;
 	unsigned int first;
 	unsigned int tx_flags = 0;
 	u8 hdr_len = 0;
@@ -6676,19 +6761,8 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	count = ixgbe_tx_map(adapter, tx_ring, skb, tx_flags, first, hdr_len);
 	if (count) {
 		/* add the ATR filter if ATR is on */
-		if (tx_ring->atr_sample_rate) {
-			++tx_ring->atr_count;
-			if ((tx_ring->atr_count >= tx_ring->atr_sample_rate) &&
-			     test_bit(__IXGBE_TX_FDIR_INIT_DONE,
-				      &tx_ring->state)) {
-				ixgbe_atr(adapter, skb, tx_ring->queue_index,
-					  tx_flags, protocol);
-				tx_ring->atr_count = 0;
-			}
-		}
-		txq = netdev_get_tx_queue(netdev, tx_ring->queue_index);
-		txq->tx_bytes += skb->len;
-		txq->tx_packets++;
+		if (test_bit(__IXGBE_TX_FDIR_INIT_DONE, &tx_ring->state))
+			ixgbe_atr(tx_ring, skb, tx_flags, protocol);
 		ixgbe_tx_queue(tx_ring, tx_flags, count, skb->len, hdr_len);
 		ixgbe_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
@@ -6846,8 +6920,6 @@ static struct rtnl_link_stats64 *ixgbe_get_stats64(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int i;
 
-	/* accurate rx/tx bytes/packets stats */
-	dev_txq_stats_fold(netdev, stats);
 	rcu_read_lock();
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct ixgbe_ring *ring = ACCESS_ONCE(adapter->rx_ring[i]);
@@ -6862,6 +6934,22 @@ static struct rtnl_link_stats64 *ixgbe_get_stats64(struct net_device *netdev,
 			} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
 			stats->rx_packets += packets;
 			stats->rx_bytes   += bytes;
+		}
+	}
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct ixgbe_ring *ring = ACCESS_ONCE(adapter->tx_ring[i]);
+		u64 bytes, packets;
+		unsigned int start;
+
+		if (ring) {
+			do {
+				start = u64_stats_fetch_begin_bh(&ring->syncp);
+				packets = ring->stats.packets;
+				bytes   = ring->stats.bytes;
+			} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+			stats->tx_packets += packets;
+			stats->tx_bytes   += bytes;
 		}
 	}
 	rcu_read_unlock();

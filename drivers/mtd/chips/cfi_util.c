@@ -156,7 +156,7 @@ void cfi_fixup(struct mtd_info *mtd, struct cfi_fixup *fixups)
 	for (f=fixups; f->fixup; f++) {
 		if (((f->mfr == CFI_MFR_ANY) || (f->mfr == cfi->mfr)) &&
 		    ((f->id  == CFI_ID_ANY)  || (f->id  == cfi->id))) {
-			f->fixup(mtd, f->param);
+			f->fixup(mtd);
 		}
 	}
 }

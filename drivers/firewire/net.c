@@ -9,6 +9,7 @@
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/highmem.h>
@@ -179,6 +180,7 @@ struct fwnet_device {
 	/* Number of tx datagrams that have been queued but not yet acked */
 	int queued_datagrams;
 
+	int peer_count;
 	struct list_head peer_list;
 	struct fw_card *card;
 	struct net_device *netdev;
@@ -996,15 +998,23 @@ static void fwnet_transmit_packet_failed(struct fwnet_packet_task *ptask)
 static void fwnet_write_complete(struct fw_card *card, int rcode,
 				 void *payload, size_t length, void *data)
 {
-	struct fwnet_packet_task *ptask;
-
-	ptask = data;
+	struct fwnet_packet_task *ptask = data;
+	static unsigned long j;
+	static int last_rcode, errors_skipped;
 
 	if (rcode == RCODE_COMPLETE) {
 		fwnet_transmit_packet_done(ptask);
 	} else {
-		fw_error("fwnet_write_complete: failed: %x\n", rcode);
 		fwnet_transmit_packet_failed(ptask);
+
+		if (printk_timed_ratelimit(&j,  1000) || rcode != last_rcode) {
+			fw_error("fwnet_write_complete: "
+				"failed: %x (skipped %d)\n", rcode, errors_skipped);
+
+			errors_skipped = 0;
+			last_rcode = rcode;
+		} else
+			errors_skipped++;
 	}
 }
 
@@ -1213,6 +1223,14 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	return retval;
 }
 
+static void set_carrier_state(struct fwnet_device *dev)
+{
+	if (dev->peer_count > 1)
+		netif_carrier_on(dev->netdev);
+	else
+		netif_carrier_off(dev->netdev);
+}
+
 /* ifup */
 static int fwnet_open(struct net_device *net)
 {
@@ -1225,6 +1243,10 @@ static int fwnet_open(struct net_device *net)
 			return ret;
 	}
 	netif_start_queue(net);
+
+	spin_lock_irq(&dev->lock);
+	set_carrier_state(dev);
+	spin_unlock_irq(&dev->lock);
 
 	return 0;
 }
@@ -1397,6 +1419,10 @@ static int fwnet_change_mtu(struct net_device *net, int new_mtu)
 	return 0;
 }
 
+static const struct ethtool_ops fwnet_ethtool_ops = {
+	.get_link	= ethtool_op_get_link,
+};
+
 static const struct net_device_ops fwnet_netdev_ops = {
 	.ndo_open       = fwnet_open,
 	.ndo_stop	= fwnet_stop,
@@ -1415,6 +1441,7 @@ static void fwnet_init_dev(struct net_device *net)
 	net->hard_header_len	= FWNET_HLEN;
 	net->type		= ARPHRD_IEEE1394;
 	net->tx_queue_len	= FWNET_TX_QUEUE_LEN;
+	net->ethtool_ops	= &fwnet_ethtool_ops;
 }
 
 /* caller must hold fwnet_device_mutex */
@@ -1455,6 +1482,8 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 
 	spin_lock_irq(&dev->lock);
 	list_add_tail(&peer->peer_link, &dev->peer_list);
+	dev->peer_count++;
+	set_carrier_state(dev);
 	spin_unlock_irq(&dev->lock);
 
 	return 0;
@@ -1535,13 +1564,15 @@ static int fwnet_probe(struct device *_dev)
 	return ret;
 }
 
-static void fwnet_remove_peer(struct fwnet_peer *peer)
+static void fwnet_remove_peer(struct fwnet_peer *peer, struct fwnet_device *dev)
 {
 	struct fwnet_partial_datagram *pd, *pd_next;
 
-	spin_lock_irq(&peer->dev->lock);
+	spin_lock_irq(&dev->lock);
 	list_del(&peer->peer_link);
-	spin_unlock_irq(&peer->dev->lock);
+	dev->peer_count--;
+	set_carrier_state(dev);
+	spin_unlock_irq(&dev->lock);
 
 	list_for_each_entry_safe(pd, pd_next, &peer->pd_list, pd_link)
 		fwnet_pd_delete(pd);
@@ -1558,7 +1589,7 @@ static int fwnet_remove(struct device *_dev)
 
 	mutex_lock(&fwnet_device_mutex);
 
-	fwnet_remove_peer(peer);
+	fwnet_remove_peer(peer, dev);
 
 	if (list_empty(&dev->peer_list)) {
 		net = dev->netdev;

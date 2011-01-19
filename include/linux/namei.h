@@ -45,6 +45,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
  *  - ending slashes ok even for nonexistent files
  *  - internal "there are more path components" flag
  *  - dentry cache is untrusted; force a real lookup
+ *  - suppress terminal automount
  */
 #define LOOKUP_FOLLOW		0x0001
 #define LOOKUP_DIRECTORY	0x0002
@@ -53,6 +54,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_PARENT		0x0010
 #define LOOKUP_REVAL		0x0020
 #define LOOKUP_RCU		0x0040
+#define LOOKUP_NO_AUTOMOUNT	0x0080
 /*
  * Intent data
  */
@@ -79,7 +81,8 @@ extern struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry 
 
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 
-extern int follow_down(struct path *);
+extern int follow_down_one(struct path *);
+extern int follow_down(struct path *, bool);
 extern int follow_up(struct path *);
 
 extern struct dentry *lock_rename(struct dentry *, struct dentry *);

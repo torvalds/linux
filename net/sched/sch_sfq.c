@@ -403,8 +403,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		slot->allot = q->scaled_quantum;
 	}
 	if (++sch->q.qlen <= q->limit) {
-		sch->bstats.bytes += qdisc_pkt_len(skb);
-		sch->bstats.packets++;
+		qdisc_bstats_update(sch, skb);
 		return NET_XMIT_SUCCESS;
 	}
 

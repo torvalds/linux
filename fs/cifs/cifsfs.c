@@ -174,6 +174,12 @@ cifs_read_super(struct super_block *sb, void *data,
 		goto out_no_root;
 	}
 
+	/* do that *after* d_alloc_root() - we want NULL ->d_op for root here */
+	if (cifs_sb_master_tcon(cifs_sb)->nocase)
+		sb->s_d_op = &cifs_ci_dentry_ops;
+	else
+		sb->s_d_op = &cifs_dentry_ops;
+
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cFYI(1, "export ops supported");
@@ -329,6 +335,8 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->invalid_mapping = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
+	cifs_inode->uniqueid = 0;
+	cifs_inode->createtime = 0;
 
 	/* Can not set i_flags here - they get immediately overwritten
 	   to zero by the VFS */
@@ -361,18 +369,19 @@ cifs_evict_inode(struct inode *inode)
 static void
 cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 {
+	struct sockaddr_in *sa = (struct sockaddr_in *) &server->dstaddr;
+	struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *) &server->dstaddr;
+
 	seq_printf(s, ",addr=");
 
-	switch (server->addr.sockAddr.sin_family) {
+	switch (server->dstaddr.ss_family) {
 	case AF_INET:
-		seq_printf(s, "%pI4", &server->addr.sockAddr.sin_addr.s_addr);
+		seq_printf(s, "%pI4", &sa->sin_addr.s_addr);
 		break;
 	case AF_INET6:
-		seq_printf(s, "%pI6",
-			   &server->addr.sockAddr6.sin6_addr.s6_addr);
-		if (server->addr.sockAddr6.sin6_scope_id)
-			seq_printf(s, "%%%u",
-				   server->addr.sockAddr6.sin6_scope_id);
+		seq_printf(s, "%pI6", &sa6->sin6_addr.s6_addr);
+		if (sa6->sin6_scope_id)
+			seq_printf(s, "%%%u", sa6->sin6_scope_id);
 		break;
 	default:
 		seq_printf(s, "(unknown)");

@@ -63,23 +63,25 @@
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
-static void sic_mask_irq(unsigned int irq)
+static void sic_mask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
+
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 }
 
-static void sic_unmask_irq(unsigned int irq)
+static void sic_unmask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
+
 	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_SET);
 }
 
 static struct irq_chip sic_chip = {
-	.name	= "SIC",
-	.ack	= sic_mask_irq,
-	.mask	= sic_mask_irq,
-	.unmask	= sic_unmask_irq,
+	.name		= "SIC",
+	.irq_ack	= sic_mask_irq,
+	.irq_mask	= sic_mask_irq,
+	.irq_unmask	= sic_unmask_irq,
 };
 
 static void

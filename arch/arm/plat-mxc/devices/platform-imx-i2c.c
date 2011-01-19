@@ -78,6 +78,15 @@ const struct imx_imx_i2c_data imx51_imx_i2c_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX51 */
 
+#ifdef CONFIG_SOC_IMX53
+const struct imx_imx_i2c_data imx53_imx_i2c_data[] __initconst = {
+#define imx53_imx_i2c_data_entry(_id, _hwid)				\
+	imx_imx_i2c_data_entry(MX53, _id, _hwid, SZ_4K)
+	imx53_imx_i2c_data_entry(0, 1),
+	imx53_imx_i2c_data_entry(1, 2),
+};
+#endif /* ifdef CONFIG_SOC_IMX51 */
+
 struct platform_device *__init imx_add_imx_i2c(
 		const struct imx_imx_i2c_data *data,
 		const struct imxi2c_platform_data *pdata)

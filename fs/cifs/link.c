@@ -524,10 +524,6 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 			cFYI(1, "Create symlink ok, getinodeinfo fail rc = %d",
 			      rc);
 		} else {
-			if (pTcon->nocase)
-				d_set_d_op(direntry, &cifs_ci_dentry_ops);
-			else
-				d_set_d_op(direntry, &cifs_dentry_ops);
 			d_instantiate(direntry, newinode);
 		}
 	}

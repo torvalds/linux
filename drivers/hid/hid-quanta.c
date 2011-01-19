@@ -195,7 +195,7 @@ static int quanta_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	td = kmalloc(sizeof(struct quanta_data), GFP_KERNEL);
 	if (!td) {
-		dev_err(&hdev->dev, "cannot allocate Quanta Touch data\n");
+		hid_err(hdev, "cannot allocate Quanta Touch data\n");
 		return -ENOMEM;
 	}
 	td->valid = false;

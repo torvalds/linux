@@ -899,8 +899,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 	}
 	/* else ERRHRD class errors or junk  - return EIO */
 
-	cFYI(1, "Mapping smb error code %d to POSIX err %d",
-		 smberrcode, rc);
+	cFYI(1, "Mapping smb error code 0x%x to POSIX err %d",
+		 le32_to_cpu(smb->Status.CifsError), rc);
 
 	/* generic corrective action e.g. reconnect SMB session on
 	 * ERRbaduid could be added */

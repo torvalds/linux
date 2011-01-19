@@ -133,16 +133,20 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_data_lock);
 EXPORT_SYMBOL(dq_data_lock);
 
 void __quota_error(struct super_block *sb, const char *func,
-		  const char *fmt, ...)
+		   const char *fmt, ...)
 {
-	va_list args;
-
 	if (printk_ratelimit()) {
+		va_list args;
+		struct va_format vaf;
+
 		va_start(args, fmt);
-		printk(KERN_ERR "Quota error (device %s): %s: ",
-		       sb->s_id, func);
-		vprintk(fmt, args);
-		printk("\n");
+
+		vaf.fmt = fmt;
+		vaf.va = &args;
+
+		printk(KERN_ERR "Quota error (device %s): %s: %pV\n",
+		       sb->s_id, func, &vaf);
+
 		va_end(args);
 	}
 }

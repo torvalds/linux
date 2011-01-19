@@ -27,6 +27,10 @@
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
 
+#ifdef CONFIG_ACPI
+#include <linux/acpi.h>
+#endif
+#include <linux/power_supply.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
@@ -418,8 +422,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return ret;
 	}
 	dev_set_drvdata(hwmon_dev, dev);
-	ret = sysfs_create_group(&hwmon_dev->kobj,
-					&hwmon_attrgroup);
+	ret = sysfs_create_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
 	if (ret) {
 		NV_ERROR(dev,
 			"Unable to create hwmon sysfs file: %d\n", ret);
@@ -445,6 +448,25 @@ nouveau_hwmon_fini(struct drm_device *dev)
 	}
 #endif
 }
+
+#ifdef CONFIG_ACPI
+static int
+nouveau_pm_acpi_event(struct notifier_block *nb, unsigned long val, void *data)
+{
+	struct drm_nouveau_private *dev_priv =
+		container_of(nb, struct drm_nouveau_private, engine.pm.acpi_nb);
+	struct drm_device *dev = dev_priv->dev;
+	struct acpi_bus_event *entry = (struct acpi_bus_event *)data;
+
+	if (strcmp(entry->device_class, "ac_adapter") == 0) {
+		bool ac = power_supply_is_system_supplied();
+
+		NV_DEBUG(dev, "power supply changed: %s\n", ac ? "AC" : "DC");
+	}
+
+	return NOTIFY_OK;
+}
+#endif
 
 int
 nouveau_pm_init(struct drm_device *dev)
@@ -485,6 +507,10 @@ nouveau_pm_init(struct drm_device *dev)
 
 	nouveau_sysfs_init(dev);
 	nouveau_hwmon_init(dev);
+#ifdef CONFIG_ACPI
+	pm->acpi_nb.notifier_call = nouveau_pm_acpi_event;
+	register_acpi_notifier(&pm->acpi_nb);
+#endif
 
 	return 0;
 }
@@ -503,6 +529,9 @@ nouveau_pm_fini(struct drm_device *dev)
 	nouveau_perf_fini(dev);
 	nouveau_volt_fini(dev);
 
+#ifdef CONFIG_ACPI
+	unregister_acpi_notifier(&pm->acpi_nb);
+#endif
 	nouveau_hwmon_fini(dev);
 	nouveau_sysfs_fini(dev);
 }

@@ -46,7 +46,7 @@
  */
 struct fcp_cmnd {
 	__u8		fc_lun[8];	/* logical unit number */
-	__u8		fc_cmdref;	/* commmand reference number */
+	__u8		fc_cmdref;	/* command reference number */
 	__u8		fc_pri_ta;	/* priority and task attribute */
 	__u8		fc_tm_flags;	/* task management flags */
 	__u8		fc_flags;	/* additional len & flags */
@@ -58,7 +58,7 @@ struct fcp_cmnd {
 
 struct fcp_cmnd32 {
 	__u8		fc_lun[8];	/* logical unit number */
-	__u8		fc_cmdref;	/* commmand reference number */
+	__u8		fc_cmdref;	/* command reference number */
 	__u8		fc_pri_ta;	/* priority and task attribute */
 	__u8		fc_tm_flags;	/* task management flags */
 	__u8		fc_flags;	/* additional len & flags */

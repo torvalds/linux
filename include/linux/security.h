@@ -1058,8 +1058,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@cred points to the credentials to provide the context against which to
  *	evaluate the security data on the key.
  *	@perm describes the combination of permissions required of this key.
- *	Return 1 if permission granted, 0 if permission denied and -ve it the
- *	normal permissions model should be effected.
+ *	Return 0 if permission is granted, -ve error otherwise.
  * @key_getsecurity:
  *	Get a textual representation of the security context attached to a key
  *	for the purposes of honouring KEYCTL_GETSECURITY.  This function

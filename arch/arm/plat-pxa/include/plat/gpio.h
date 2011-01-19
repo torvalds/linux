@@ -1,6 +1,8 @@
 #ifndef __PLAT_GPIO_H
 #define __PLAT_GPIO_H
 
+struct irq_data;
+
 /*
  * We handle the GPIOs by banks, each bank covers up to 32 GPIOs with
  * one set of registers. The register offsets are organized below:
@@ -56,7 +58,7 @@ static inline void gpio_set_value(unsigned gpio, int value)
  */
 extern int pxa_last_gpio;
 
-typedef int (*set_wake_t)(unsigned int irq, unsigned int on);
+typedef int (*set_wake_t)(struct irq_data *d, unsigned int on);
 
 extern void pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn);
 #endif /* __PLAT_GPIO_H */

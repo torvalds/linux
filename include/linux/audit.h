@@ -374,6 +374,7 @@ struct audit_buffer;
 struct audit_context;
 struct inode;
 struct netlink_skb_parms;
+struct path;
 struct linux_binprm;
 struct mq_attr;
 struct mqstat;

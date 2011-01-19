@@ -306,20 +306,6 @@ static const struct super_operations sockfs_ops = {
 	.statfs		= simple_statfs,
 };
 
-static struct dentry *sockfs_mount(struct file_system_type *fs_type,
-			 int flags, const char *dev_name, void *data)
-{
-	return mount_pseudo(fs_type, "socket:", &sockfs_ops, SOCKFS_MAGIC);
-}
-
-static struct vfsmount *sock_mnt __read_mostly;
-
-static struct file_system_type sock_fs_type = {
-	.name =		"sockfs",
-	.mount =	sockfs_mount,
-	.kill_sb =	kill_anon_super,
-};
-
 /*
  * sockfs_dname() is called from d_path().
  */
@@ -331,6 +317,21 @@ static char *sockfs_dname(struct dentry *dentry, char *buffer, int buflen)
 
 static const struct dentry_operations sockfs_dentry_operations = {
 	.d_dname  = sockfs_dname,
+};
+
+static struct dentry *sockfs_mount(struct file_system_type *fs_type,
+			 int flags, const char *dev_name, void *data)
+{
+	return mount_pseudo(fs_type, "socket:", &sockfs_ops,
+		&sockfs_dentry_operations, SOCKFS_MAGIC);
+}
+
+static struct vfsmount *sock_mnt __read_mostly;
+
+static struct file_system_type sock_fs_type = {
+	.name =		"sockfs",
+	.mount =	sockfs_mount,
+	.kill_sb =	kill_anon_super,
 };
 
 /*
@@ -368,7 +369,6 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 	}
 	path.mnt = mntget(sock_mnt);
 
-	d_set_d_op(path.dentry, &sockfs_dentry_operations);
 	d_instantiate(path.dentry, SOCK_INODE(sock));
 	SOCK_INODE(sock)->i_fop = &socket_file_ops;
 

@@ -13,14 +13,12 @@
 #include <linux/pci.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/videobuf-dma-sg.h>
-#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_qos_params.h>

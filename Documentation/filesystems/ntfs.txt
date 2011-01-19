@@ -457,6 +457,9 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.30:
+	- Fix writev() (it kept writing the first segment over and over again
+	  instead of moving onto subsequent segments).
 2.1.29:
 	- Fix a deadlock when mounting read-write.
 2.1.28:

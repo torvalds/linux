@@ -763,9 +763,8 @@ EXPORT_SYMBOL_GPL(cgroup_unlock);
  * -> cgroup_mkdir.
  */
 
-static struct dentry *cgroup_lookup(struct inode *dir,
-			struct dentry *dentry, struct nameidata *nd);
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
+static struct dentry *cgroup_lookup(struct inode *, struct dentry *, struct nameidata *);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
 static const struct inode_operations cgroup_dir_inode_operations;
@@ -862,6 +861,11 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 	iput(inode);
 }
 
+static int cgroup_delete(const struct dentry *d)
+{
+	return 1;
+}
+
 static void remove_dir(struct dentry *d)
 {
 	struct dentry *parent = dget(d->d_parent);
@@ -912,7 +916,7 @@ static void cgroup_d_remove_dir(struct dentry *dentry)
 
 	parent = dentry->d_parent;
 	spin_lock(&parent->d_lock);
-	spin_lock(&dentry->d_lock);
+	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	list_del_init(&dentry->d_u.d_child);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&parent->d_lock);
@@ -1451,6 +1455,11 @@ static int cgroup_set_super(struct super_block *sb, void *data)
 
 static int cgroup_get_rootdir(struct super_block *sb)
 {
+	static const struct dentry_operations cgroup_dops = {
+		.d_iput = cgroup_diput,
+		.d_delete = cgroup_delete,
+	};
+
 	struct inode *inode =
 		cgroup_new_inode(S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR, sb);
 	struct dentry *dentry;
@@ -1468,6 +1477,8 @@ static int cgroup_get_rootdir(struct super_block *sb)
 		return -ENOMEM;
 	}
 	sb->s_root = dentry;
+	/* for everything else we want ->d_op set */
+	sb->s_d_op = &cgroup_dops;
 	return 0;
 }
 
@@ -2197,6 +2208,14 @@ static const struct inode_operations cgroup_dir_inode_operations = {
 	.rename = cgroup_rename,
 };
 
+static struct dentry *cgroup_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+{
+	if (dentry->d_name.len > NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+	d_add(dentry, NULL);
+	return NULL;
+}
+
 /*
  * Check if a file is a control file
  */
@@ -2205,26 +2224,6 @@ static inline struct cftype *__file_cft(struct file *file)
 	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
 		return ERR_PTR(-EINVAL);
 	return __d_cft(file->f_dentry);
-}
-
-static int cgroup_delete_dentry(const struct dentry *dentry)
-{
-	return 1;
-}
-
-static struct dentry *cgroup_lookup(struct inode *dir,
-			struct dentry *dentry, struct nameidata *nd)
-{
-	static const struct dentry_operations cgroup_dentry_operations = {
-		.d_delete = cgroup_delete_dentry,
-		.d_iput = cgroup_diput,
-	};
-
-	if (dentry->d_name.len > NAME_MAX)
-		return ERR_PTR(-ENAMETOOLONG);
-	d_set_d_op(dentry, &cgroup_dentry_operations);
-	d_add(dentry, NULL);
-	return NULL;
 }
 
 static int cgroup_create_file(struct dentry *dentry, mode_t mode,

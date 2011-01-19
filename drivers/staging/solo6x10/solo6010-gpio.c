@@ -92,8 +92,8 @@ static void solo_gpio_config(struct solo6010_dev *solo_dev)
 
 int solo_gpio_init(struct solo6010_dev *solo_dev)
 {
-        solo_gpio_config(solo_dev);
-        return 0;
+	solo_gpio_config(solo_dev);
+	return 0;
 }
 
 void solo_gpio_exit(struct solo6010_dev *solo_dev)

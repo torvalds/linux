@@ -16,7 +16,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <mach/audio.h>
 #include <mach/eseries-gpio.h>
@@ -74,23 +73,24 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int e750_ac97_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_nc_pin(codec, "LOUT");
-	snd_soc_dapm_nc_pin(codec, "ROUT");
-	snd_soc_dapm_nc_pin(codec, "PHONE");
-	snd_soc_dapm_nc_pin(codec, "LINEINL");
-	snd_soc_dapm_nc_pin(codec, "LINEINR");
-	snd_soc_dapm_nc_pin(codec, "CDINL");
-	snd_soc_dapm_nc_pin(codec, "CDINR");
-	snd_soc_dapm_nc_pin(codec, "PCBEEP");
-	snd_soc_dapm_nc_pin(codec, "MIC2");
+	snd_soc_dapm_nc_pin(dapm, "LOUT");
+	snd_soc_dapm_nc_pin(dapm, "ROUT");
+	snd_soc_dapm_nc_pin(dapm, "PHONE");
+	snd_soc_dapm_nc_pin(dapm, "LINEINL");
+	snd_soc_dapm_nc_pin(dapm, "LINEINR");
+	snd_soc_dapm_nc_pin(dapm, "CDINL");
+	snd_soc_dapm_nc_pin(dapm, "CDINR");
+	snd_soc_dapm_nc_pin(dapm, "PCBEEP");
+	snd_soc_dapm_nc_pin(dapm, "MIC2");
 
-	snd_soc_dapm_new_controls(codec, e750_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, e750_dapm_widgets,
 					ARRAY_SIZE(e750_dapm_widgets));
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

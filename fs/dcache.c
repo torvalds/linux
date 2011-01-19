@@ -1320,6 +1320,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 		__dget_dlock(parent);
 		dentry->d_parent = parent;
 		dentry->d_sb = parent->d_sb;
+		d_set_d_op(dentry, dentry->d_sb->s_d_op);
 		list_add(&dentry->d_u.d_child, &parent->d_subdirs);
 		spin_unlock(&parent->d_lock);
 	}
@@ -1335,6 +1336,7 @@ struct dentry *d_alloc_pseudo(struct super_block *sb, const struct qstr *name)
 	struct dentry *dentry = d_alloc(NULL, name);
 	if (dentry) {
 		dentry->d_sb = sb;
+		d_set_d_op(dentry, dentry->d_sb->s_d_op);
 		dentry->d_parent = dentry;
 		dentry->d_flags |= DCACHE_DISCONNECTED;
 	}
@@ -1355,8 +1357,8 @@ EXPORT_SYMBOL(d_alloc_name);
 
 void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 {
-	BUG_ON(dentry->d_op);
-	BUG_ON(dentry->d_flags & (DCACHE_OP_HASH	|
+	WARN_ON_ONCE(dentry->d_op);
+	WARN_ON_ONCE(dentry->d_flags & (DCACHE_OP_HASH	|
 				DCACHE_OP_COMPARE	|
 				DCACHE_OP_REVALIDATE	|
 				DCACHE_OP_DELETE ));
@@ -1378,8 +1380,11 @@ EXPORT_SYMBOL(d_set_d_op);
 static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	spin_lock(&dentry->d_lock);
-	if (inode)
+	if (inode) {
+		if (unlikely(IS_AUTOMOUNT(inode)))
+			dentry->d_flags |= DCACHE_NEED_AUTOMOUNT;
 		list_add(&dentry->d_alias, &inode->i_dentry);
+	}
 	dentry->d_inode = inode;
 	dentry_rcuwalk_barrier(dentry);
 	spin_unlock(&dentry->d_lock);
@@ -1507,6 +1512,7 @@ struct dentry * d_alloc_root(struct inode * root_inode)
 		res = d_alloc(NULL, &name);
 		if (res) {
 			res->d_sb = root_inode->i_sb;
+			d_set_d_op(res, res->d_sb->s_d_op);
 			res->d_parent = res;
 			d_instantiate(res, root_inode);
 		}
@@ -1567,6 +1573,7 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	/* attach a disconnected dentry */
 	spin_lock(&tmp->d_lock);
 	tmp->d_sb = inode->i_sb;
+	d_set_d_op(tmp, tmp->d_sb->s_d_op);
 	tmp->d_inode = inode;
 	tmp->d_flags |= DCACHE_DISCONNECTED;
 	list_add(&tmp->d_alias, &inode->i_dentry);
@@ -1966,7 +1973,7 @@ out:
 /**
  * d_validate - verify dentry provided from insecure source (deprecated)
  * @dentry: The dentry alleged to be valid child of @dparent
- * @dparent: The parent dentry (known to be valid)
+ * @parent: The parent dentry (known to be valid)
  *
  * An insecure source has sent us a dentry, here we verify it and dget() it.
  * This is used by ncpfs in its readdir implementation.
@@ -2449,8 +2456,7 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
 }
 
 /**
- * Prepend path string to a buffer
- *
+ * prepend_path - Prepend path string to a buffer
  * @path: the dentry/vfsmount to report
  * @root: root vfsmnt/dentry (may be modified by this function)
  * @buffer: pointer to the end of the buffer

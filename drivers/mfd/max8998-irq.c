@@ -102,16 +102,16 @@ irq_to_max8998_irq(struct max8998_dev *max8998, int irq)
 	return &max8998_irqs[irq - max8998->irq_base];
 }
 
-static void max8998_irq_lock(unsigned int irq)
+static void max8998_irq_lock(struct irq_data *data)
 {
-	struct max8998_dev *max8998 = get_irq_chip_data(irq);
+	struct max8998_dev *max8998 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&max8998->irqlock);
 }
 
-static void max8998_irq_sync_unlock(unsigned int irq)
+static void max8998_irq_sync_unlock(struct irq_data *data)
 {
-	struct max8998_dev *max8998 = get_irq_chip_data(irq);
+	struct max8998_dev *max8998 = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(max8998->irq_masks_cur); i++) {
@@ -129,28 +129,30 @@ static void max8998_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&max8998->irqlock);
 }
 
-static void max8998_irq_unmask(unsigned int irq)
+static void max8998_irq_unmask(struct irq_data *data)
 {
-	struct max8998_dev *max8998 = get_irq_chip_data(irq);
-	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998, irq);
+	struct max8998_dev *max8998 = irq_data_get_irq_chip_data(data);
+	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998,
+							       data->irq);
 
 	max8998->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
-static void max8998_irq_mask(unsigned int irq)
+static void max8998_irq_mask(struct irq_data *data)
 {
-	struct max8998_dev *max8998 = get_irq_chip_data(irq);
-	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998, irq);
+	struct max8998_dev *max8998 = irq_data_get_irq_chip_data(data);
+	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998,
+							       data->irq);
 
 	max8998->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
 
 static struct irq_chip max8998_irq_chip = {
 	.name = "max8998",
-	.bus_lock = max8998_irq_lock,
-	.bus_sync_unlock = max8998_irq_sync_unlock,
-	.mask = max8998_irq_mask,
-	.unmask = max8998_irq_unmask,
+	.irq_bus_lock = max8998_irq_lock,
+	.irq_bus_sync_unlock = max8998_irq_sync_unlock,
+	.irq_mask = max8998_irq_mask,
+	.irq_unmask = max8998_irq_unmask,
 };
 
 static irqreturn_t max8998_irq_thread(int irq, void *data)
@@ -179,6 +181,13 @@ static irqreturn_t max8998_irq_thread(int irq, void *data)
 	}
 
 	return IRQ_HANDLED;
+}
+
+int max8998_irq_resume(struct max8998_dev *max8998)
+{
+	if (max8998->irq && max8998->irq_base)
+		max8998_irq_thread(max8998->irq_base, max8998);
+	return 0;
 }
 
 int max8998_irq_init(struct max8998_dev *max8998)

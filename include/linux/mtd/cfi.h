@@ -527,8 +527,7 @@ struct cfi_extquery *cfi_read_pri(struct map_info *map, uint16_t adr, uint16_t s
 struct cfi_fixup {
 	uint16_t mfr;
 	uint16_t id;
-	void (*fixup)(struct mtd_info *mtd, void* param);
-	void* param;
+	void (*fixup)(struct mtd_info *mtd);
 };
 
 #define CFI_MFR_ANY		0xFFFF

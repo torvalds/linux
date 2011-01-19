@@ -520,9 +520,6 @@ struct netdev_queue {
 	 * please use this field instead of dev->trans_start
 	 */
 	unsigned long		trans_start;
-	u64			tx_bytes;
-	u64			tx_packets;
-	u64			tx_dropped;
 } ____cacheline_aligned_in_smp;
 
 static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
@@ -2191,11 +2188,15 @@ static inline void netif_addr_unlock_bh(struct net_device *dev)
 extern void		ether_setup(struct net_device *dev);
 
 /* Support for loadable net-drivers */
-extern struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
+extern struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 				       void (*setup)(struct net_device *),
-				       unsigned int queue_count);
+				       unsigned int txqs, unsigned int rxqs);
 #define alloc_netdev(sizeof_priv, name, setup) \
-	alloc_netdev_mq(sizeof_priv, name, setup, 1)
+	alloc_netdev_mqs(sizeof_priv, name, setup, 1, 1)
+
+#define alloc_netdev_mq(sizeof_priv, name, setup, count) \
+	alloc_netdev_mqs(sizeof_priv, name, setup, count, count)
+
 extern int		register_netdev(struct net_device *dev);
 extern void		unregister_netdev(struct net_device *dev);
 
@@ -2261,8 +2262,6 @@ extern void		dev_load(struct net *net, const char *name);
 extern void		dev_mcast_init(void);
 extern struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 					       struct rtnl_link_stats64 *storage);
-extern void		dev_txq_stats_fold(const struct net_device *dev,
-					   struct rtnl_link_stats64 *stats);
 
 extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;
@@ -2303,7 +2302,7 @@ unsigned long netdev_fix_features(unsigned long features, const char *name);
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);
 
-int netif_get_vlan_features(struct sk_buff *skb, struct net_device *dev);
+int netif_skb_features(struct sk_buff *skb);
 
 static inline int net_gso_ok(int features, int gso_type)
 {
@@ -2317,16 +2316,10 @@ static inline int skb_gso_ok(struct sk_buff *skb, int features)
 	       (!skb_has_frag_list(skb) || (features & NETIF_F_FRAGLIST));
 }
 
-static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
+static inline int netif_needs_gso(struct sk_buff *skb, int features)
 {
-	if (skb_is_gso(skb)) {
-		int features = netif_get_vlan_features(skb, dev);
-
-		return (!skb_gso_ok(skb, features) ||
-			unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
-	}
-
-	return 0;
+	return skb_is_gso(skb) && (!skb_gso_ok(skb, features) ||
+		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
 }
 
 static inline void netif_set_gso_max_size(struct net_device *dev,

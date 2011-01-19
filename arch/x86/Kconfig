@@ -51,6 +51,7 @@ config X86
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_XZ
 	select HAVE_KERNEL_LZO
 	select HAVE_HW_BREAKPOINT
 	select HAVE_MIXED_BREAKPOINTS_REGS
@@ -65,6 +66,7 @@ config X86
 	select HAVE_SPARSE_IRQ
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
+	select USE_GENERIC_SMP_HELPERS if SMP
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -202,10 +204,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config HAVE_INTEL_TXT
 	def_bool y
 	depends on EXPERIMENTAL && DMAR && ACPI
-
-config USE_GENERIC_SMP_HELPERS
-	def_bool y
-	depends on SMP
 
 config X86_32_SMP
 	def_bool y
@@ -1936,12 +1934,18 @@ config PCI_MMCONFIG
 	depends on X86_64 && PCI && ACPI
 
 config PCI_CNB20LE_QUIRK
-	bool "Read CNB20LE Host Bridge Windows"
-	depends on PCI
+	bool "Read CNB20LE Host Bridge Windows" if EMBEDDED
+	default n
+	depends on PCI && EXPERIMENTAL
 	help
 	  Read the PCI windows out of the CNB20LE host bridge. This allows
 	  PCI hotplug to work on systems with the CNB20LE chipset which do
 	  not have ACPI.
+
+	  There's no public spec for this chipset, and this functionality
+	  is known to be incomplete.
+
+	  You should say N unless you know you need this.
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
@@ -2064,13 +2068,14 @@ config OLPC
 	bool "One Laptop Per Child support"
 	select GPIOLIB
 	select OLPC_OPENFIRMWARE
+	depends on !X86_64 && !X86_PAE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
 
 config OLPC_XO1
 	tristate "OLPC XO-1 support"
-	depends on OLPC && PCI
+	depends on OLPC && MFD_CS5535
 	---help---
 	  Add support for non-essential features of the OLPC XO-1 laptop.
 
@@ -2078,10 +2083,16 @@ config OLPC_OPENFIRMWARE
 	bool "Support for OLPC's Open Firmware"
 	depends on !X86_64 && !X86_PAE
 	default n
+	select OF
 	help
 	  This option adds support for the implementation of Open Firmware
 	  that is used on the OLPC XO-1 Children's Machine.
 	  If unsure, say N here.
+
+config OLPC_OPENFIRMWARE_DT
+	bool
+	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
+	select OF_PROMTREE
 
 endif # X86_32
 

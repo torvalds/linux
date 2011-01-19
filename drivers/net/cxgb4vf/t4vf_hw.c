@@ -147,9 +147,20 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	/*
 	 * Write the command array into the Mailbox Data register array and
 	 * transfer ownership of the mailbox to the firmware.
+	 *
+	 * For the VFs, the Mailbox Data "registers" are actually backed by
+	 * T4's "MA" interface rather than PL Registers (as is the case for
+	 * the PFs).  Because these are in different coherency domains, the
+	 * write to the VF's PL-register-backed Mailbox Control can race in
+	 * front of the writes to the MA-backed VF Mailbox Data "registers".
+	 * So we need to do a read-back on at least one byte of the VF Mailbox
+	 * Data registers before doing the write to the VF Mailbox Control
+	 * register.
 	 */
 	for (i = 0, p = cmd; i < size; i += 8)
 		t4_write_reg64(adapter, mbox_data + i, be64_to_cpu(*p++));
+	t4_read_reg(adapter, mbox_data);         /* flush write */
+
 	t4_write_reg(adapter, mbox_ctl,
 		     MBMSGVALID | MBOWNER(MBOX_OWNER_FW));
 	t4_read_reg(adapter, mbox_ctl);          /* flush write */
