@@ -2514,7 +2514,7 @@ struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, s
 		return NULL;
 	fe = kzalloc(sizeof(struct dvb_frontend), GFP_KERNEL);
 	if (fe == NULL)
-		return NULL;
+		goto error;
 
 	memcpy(&state->cfg, cfg, sizeof(struct dib8000_config));
 	state->i2c.adap = i2c_adap;
