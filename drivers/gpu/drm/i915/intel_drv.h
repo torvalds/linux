@@ -217,6 +217,13 @@ intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 	return dev_priv->pipe_to_crtc_mapping[pipe];
 }
 
+static inline struct drm_crtc *
+intel_get_crtc_for_plane(struct drm_device *dev, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return dev_priv->plane_to_crtc_mapping[plane];
+}
+
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_device *dev;

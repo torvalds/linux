@@ -3604,89 +3604,177 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 	}
 }
 
-static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
-			  int planeb_clock, int sr_hdisplay, int sr_htotal,
-			  int pixel_size)
+static bool g4x_compute_wm0(struct drm_device *dev,
+			    int plane,
+			    const struct intel_watermark_params *display,
+			    int display_latency_ns,
+			    const struct intel_watermark_params *cursor,
+			    int cursor_latency_ns,
+			    int *plane_wm,
+			    int *cursor_wm)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int total_size, cacheline_size;
-	int planea_wm, planeb_wm, cursora_wm, cursorb_wm, cursor_sr;
-	struct intel_watermark_params planea_params, planeb_params;
-	unsigned long line_time_us;
-	int sr_clock, sr_entries = 0, entries_required;
+	struct drm_crtc *crtc;
+	int htotal, hdisplay, clock, pixel_size;
+	int line_time_us, line_count;
+	int entries, tlb_miss;
 
-	/* Create copies of the base settings for each pipe */
-	planea_params = planeb_params = g4x_wm_info;
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	if (crtc->fb == NULL || !crtc->enabled)
+		return false;
 
-	/* Grab a couple of global values before we overwrite them */
-	total_size = planea_params.fifo_size;
-	cacheline_size = planea_params.cacheline_size;
+	htotal = crtc->mode.htotal;
+	hdisplay = crtc->mode.hdisplay;
+	clock = crtc->mode.clock;
+	pixel_size = crtc->fb->bits_per_pixel / 8;
 
-	/*
-	 * Note: we need to make sure we don't overflow for various clock &
-	 * latency values.
-	 * clocks go from a few thousand to several hundred thousand.
-	 * latency is usually a few thousand
-	 */
-	entries_required = ((planea_clock / 1000) * pixel_size * latency_ns) /
-		1000;
-	entries_required = DIV_ROUND_UP(entries_required, G4X_FIFO_LINE_SIZE);
-	planea_wm = entries_required + planea_params.guard_size;
+	/* Use the small buffer method to calculate plane watermark */
+	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
+	tlb_miss = display->fifo_size*display->cacheline_size - hdisplay * 8;
+	if (tlb_miss > 0)
+		entries += tlb_miss;
+	entries = DIV_ROUND_UP(entries, display->cacheline_size);
+	*plane_wm = entries + display->guard_size;
+	if (*plane_wm > (int)display->max_wm)
+		*plane_wm = display->max_wm;
 
-	entries_required = ((planeb_clock / 1000) * pixel_size * latency_ns) /
-		1000;
-	entries_required = DIV_ROUND_UP(entries_required, G4X_FIFO_LINE_SIZE);
-	planeb_wm = entries_required + planeb_params.guard_size;
+	/* Use the large buffer method to calculate cursor watermark */
+	line_time_us = ((htotal * 1000) / clock);
+	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
+	entries = line_count * 64 * pixel_size;
+	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
+	if (tlb_miss > 0)
+		entries += tlb_miss;
+	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
+	*cursor_wm = entries + cursor->guard_size;
+	if (*cursor_wm > (int)cursor->max_wm)
+		*cursor_wm = (int)cursor->max_wm;
 
-	cursora_wm = cursorb_wm = 16;
-	cursor_sr = 32;
+	return true;
+}
 
-	DRM_DEBUG("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
+/*
+ * Check the wm result.
+ *
+ * If any calculated watermark values is larger than the maximum value that
+ * can be programmed into the associated watermark register, that watermark
+ * must be disabled.
+ */
+static bool g4x_check_srwm(struct drm_device *dev,
+			   int display_wm, int cursor_wm,
+			   const struct intel_watermark_params *display,
+			   const struct intel_watermark_params *cursor)
+{
+	DRM_DEBUG_KMS("SR watermark: display plane %d, cursor %d\n",
+		      display_wm, cursor_wm);
 
-	/* Calc sr entries for one plane configs */
-	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
-		/* self-refresh has much higher latency */
-		static const int sr_latency_ns = 12000;
-
-		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_htotal * 1000) / sr_clock);
-
-		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * sr_hdisplay;
-		sr_entries = DIV_ROUND_UP(sr_entries, cacheline_size);
-
-		entries_required = (((sr_latency_ns / line_time_us) +
-				     1000) / 1000) * pixel_size * 64;
-		entries_required = DIV_ROUND_UP(entries_required,
-						g4x_cursor_wm_info.cacheline_size);
-		cursor_sr = entries_required + g4x_cursor_wm_info.guard_size;
-
-		if (cursor_sr > g4x_cursor_wm_info.max_wm)
-			cursor_sr = g4x_cursor_wm_info.max_wm;
-		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
-			      "cursor %d\n", sr_entries, cursor_sr);
-
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
-	} else {
-		/* Turn off self refresh if both pipes are enabled */
-		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
-			   & ~FW_BLC_SELF_EN);
+	if (display_wm > display->max_wm) {
+		DRM_DEBUG_KMS("display watermark is too large(%d), disabling\n",
+			      display_wm, display->max_wm);
+		return false;
 	}
 
-	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, SR %d\n",
-		  planea_wm, planeb_wm, sr_entries);
+	if (cursor_wm > cursor->max_wm) {
+		DRM_DEBUG_KMS("cursor watermark is too large(%d), disabling\n",
+			      cursor_wm, cursor->max_wm);
+		return false;
+	}
 
-	planea_wm &= 0x3f;
-	planeb_wm &= 0x3f;
+	if (!(display_wm || cursor_wm)) {
+		DRM_DEBUG_KMS("SR latency is 0, disabling\n");
+		return false;
+	}
 
-	I915_WRITE(DSPFW1, (sr_entries << DSPFW_SR_SHIFT) |
+	return true;
+}
+
+static bool g4x_compute_srwm(struct drm_device *dev,
+			     int hdisplay, int htotal,
+			     int pixel_size, int clock, int latency_ns,
+			     const struct intel_watermark_params *display,
+			     const struct intel_watermark_params *cursor,
+			     int *display_wm, int *cursor_wm)
+{
+	unsigned long line_time_us;
+	int line_count, line_size;
+	int small, large;
+	int entries;
+
+	if (!latency_ns) {
+		*display_wm = *cursor_wm = 0;
+		return false;
+	}
+
+	line_time_us = (htotal * 1000) / clock;
+	line_count = (latency_ns / line_time_us + 1000) / 1000;
+	line_size = hdisplay * pixel_size;
+
+	/* Use the minimum of the small and large buffer method for primary */
+	small = ((clock * pixel_size / 1000) * latency_ns) / 1000;
+	large = line_count * line_size;
+
+	entries = DIV_ROUND_UP(min(small, large), display->cacheline_size);
+	*display_wm = entries + display->guard_size;
+
+	/* calculate the self-refresh watermark for display cursor */
+	entries = line_count * pixel_size * 64;
+	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
+	*cursor_wm = entries + cursor->guard_size;
+
+	return g4x_check_srwm(dev,
+			      *display_wm, *cursor_wm,
+			      display, cursor);
+}
+
+static void g4x_update_wm(struct drm_device *dev,
+			  int planea_clock, int planeb_clock,
+			  int hdisplay, int htotal, int pixel_size)
+{
+	static const int sr_latency_ns = 12000;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
+	int enabled = 0, plane_sr, cursor_sr, clock;
+
+	if (g4x_compute_wm0(dev, 0,
+			    &g4x_wm_info, latency_ns,
+			    &g4x_cursor_wm_info, latency_ns,
+			    &planea_wm, &cursora_wm))
+		enabled++;
+
+	if (g4x_compute_wm0(dev, 1,
+			    &g4x_wm_info, latency_ns,
+			    &g4x_cursor_wm_info, latency_ns,
+			    &planeb_wm, &cursorb_wm))
+		enabled++;
+
+	plane_sr = cursor_sr = 0;
+	clock = planea_clock ? planea_clock : planeb_clock;
+	if (enabled == 1 &&
+	    g4x_compute_srwm(dev, hdisplay, htotal, pixel_size,
+			     clock, sr_latency_ns,
+			     &g4x_wm_info,
+			     &g4x_cursor_wm_info,
+			     &plane_sr, &cursor_sr))
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+	else
+		I915_WRITE(FW_BLC_SELF,
+			   I915_READ(FW_BLC_SELF) & ~FW_BLC_SELF_EN);
+
+	DRM_DEBUG("Setting FIFO watermarks - A: plane=%d, cursor=%d, B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
+		  planea_wm, cursora_wm,
+		  planeb_wm, cursorb_wm,
+		  plane_sr, cursor_sr);
+
+	I915_WRITE(DSPFW1,
+		   (plane_sr << DSPFW_SR_SHIFT) |
 		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
-		   (planeb_wm << DSPFW_PLANEB_SHIFT) | planea_wm);
-	I915_WRITE(DSPFW2, (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
+		   planea_wm);
+	I915_WRITE(DSPFW2,
+		   (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
 	/* HPLL off in SR has some issues on G4x... disable it */
-	I915_WRITE(DSPFW3, (I915_READ(DSPFW3) & ~DSPFW_HPLL_SR_EN) |
+	I915_WRITE(DSPFW3,
+		   (I915_READ(DSPFW3) & ~DSPFW_HPLL_SR_EN) |
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
@@ -3743,8 +3831,8 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 		      srwm);
 
 	/* 965 has limitations... */
-	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) | (8 << 16) | (8 << 8) |
-		   (8 << 0));
+	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) |
+		   (8 << 16) | (8 << 8) | (8 << 0));
 	I915_WRITE(DSPFW2, (8 << 8) | (8 << 0));
 	/* update cursor SR watermark */
 	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
