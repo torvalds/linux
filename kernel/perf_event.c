@@ -5380,6 +5380,8 @@ free_dev:
 	goto out;
 }
 
+static struct lock_class_key cpuctx_mutex;
+
 int perf_pmu_register(struct pmu *pmu, char *name, int type)
 {
 	int cpu, ret;
@@ -5428,6 +5430,7 @@ skip_type:
 
 		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
 		__perf_event_init_context(&cpuctx->ctx);
+		lockdep_set_class(&cpuctx->ctx.mutex, &cpuctx_mutex);
 		cpuctx->ctx.type = cpu_context;
 		cpuctx->ctx.pmu = pmu;
 		cpuctx->jiffies_interval = 1;
