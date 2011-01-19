@@ -150,21 +150,21 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 	snprintf(mb, 12, "minor-%d", mdev_to_minor(mdev));
 
 	if (get_net_conf(mdev)) {
-		switch (((struct sockaddr *)mdev->net_conf->peer_addr)->sa_family) {
+		switch (((struct sockaddr *)mdev->tconn->net_conf->peer_addr)->sa_family) {
 		case AF_INET6:
 			afs = "ipv6";
 			snprintf(ad, 60, "DRBD_PEER_ADDRESS=%pI6",
-				 &((struct sockaddr_in6 *)mdev->net_conf->peer_addr)->sin6_addr);
+				 &((struct sockaddr_in6 *)mdev->tconn->net_conf->peer_addr)->sin6_addr);
 			break;
 		case AF_INET:
 			afs = "ipv4";
 			snprintf(ad, 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)mdev->net_conf->peer_addr)->sin_addr);
+				 &((struct sockaddr_in *)mdev->tconn->net_conf->peer_addr)->sin_addr);
 			break;
 		default:
 			afs = "ssocks";
 			snprintf(ad, 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)mdev->net_conf->peer_addr)->sin_addr);
+				 &((struct sockaddr_in *)mdev->tconn->net_conf->peer_addr)->sin_addr);
 		}
 		snprintf(af, 20, "DRBD_PEER_AF=%s", afs);
 		envp[3]=af;
@@ -379,7 +379,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		if (rv == SS_TWO_PRIMARIES) {
 			/* Maybe the peer is detected as dead very soon...
 			   retry at most once more in this case. */
-			schedule_timeout_interruptible((mdev->net_conf->ping_timeo+1)*HZ/10);
+			schedule_timeout_interruptible((mdev->tconn->net_conf->ping_timeo+1)*HZ/10);
 			if (try < max_tries)
 				try = max_tries - 1;
 			continue;
@@ -410,7 +410,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		}
 	} else {
 		if (get_net_conf(mdev)) {
-			mdev->net_conf->want_lose = 0;
+			mdev->tconn->net_conf->want_lose = 0;
 			put_net_conf(mdev);
 		}
 		set_disk_ro(mdev->vdisk, false);
@@ -972,7 +972,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	}
 
 	if (get_net_conf(mdev)) {
-		int prot = mdev->net_conf->wire_protocol;
+		int prot = mdev->tconn->net_conf->wire_protocol;
 		put_net_conf(mdev);
 		if (nbc->dc.fencing == FP_STONITH && prot == DRBD_PROT_A) {
 			retcode = ERR_STONITH_AND_PROT_A;
@@ -1439,13 +1439,13 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		if (!odev || odev == mdev)
 			continue;
 		if (get_net_conf(odev)) {
-			taken_addr = (struct sockaddr *)&odev->net_conf->my_addr;
-			if (new_conf->my_addr_len == odev->net_conf->my_addr_len &&
+			taken_addr = (struct sockaddr *)&odev->tconn->net_conf->my_addr;
+			if (new_conf->my_addr_len == odev->tconn->net_conf->my_addr_len &&
 			    !memcmp(new_my_addr, taken_addr, new_conf->my_addr_len))
 				retcode = ERR_LOCAL_ADDR;
 
-			taken_addr = (struct sockaddr *)&odev->net_conf->peer_addr;
-			if (new_conf->peer_addr_len == odev->net_conf->peer_addr_len &&
+			taken_addr = (struct sockaddr *)&odev->tconn->net_conf->peer_addr;
+			if (new_conf->peer_addr_len == odev->tconn->net_conf->peer_addr_len &&
 			    !memcmp(new_peer_addr, taken_addr, new_conf->peer_addr_len))
 				retcode = ERR_PEER_ADDR;
 
@@ -1522,12 +1522,12 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 
 	drbd_flush_workqueue(mdev);
 	spin_lock_irq(&mdev->req_lock);
-	if (mdev->net_conf != NULL) {
+	if (mdev->tconn->net_conf != NULL) {
 		retcode = ERR_NET_CONFIGURED;
 		spin_unlock_irq(&mdev->req_lock);
 		goto fail;
 	}
-	mdev->net_conf = new_conf;
+	mdev->tconn->net_conf = new_conf;
 
 	mdev->send_cnt = 0;
 	mdev->recv_cnt = 0;
@@ -2051,7 +2051,7 @@ static int drbd_nl_get_config(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	}
 
 	if (get_net_conf(mdev)) {
-		tl = net_conf_to_tags(mdev, mdev->net_conf, tl);
+		tl = net_conf_to_tags(mdev, mdev->tconn->net_conf, tl);
 		put_net_conf(mdev);
 	}
 	tl = syncer_conf_to_tags(mdev, &mdev->sync_conf, tl);

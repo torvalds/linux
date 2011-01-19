@@ -1590,8 +1590,8 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 			 * the race considerably, but does not solve it. */
 			if (side == C_SYNC_SOURCE)
 				schedule_timeout_interruptible(
-					mdev->net_conf->ping_int * HZ +
-					mdev->net_conf->ping_timeo*HZ/9);
+					mdev->tconn->net_conf->ping_int * HZ +
+					mdev->tconn->net_conf->ping_timeo*HZ/9);
 			drbd_resync_finished(mdev);
 		}
 
@@ -1623,14 +1623,14 @@ int drbd_worker(struct drbd_thread *thi)
 
 		if (down_trylock(&mdev->data.work.s)) {
 			mutex_lock(&mdev->data.mutex);
-			if (mdev->data.socket && !mdev->net_conf->no_cork)
+			if (mdev->data.socket && !mdev->tconn->net_conf->no_cork)
 				drbd_tcp_uncork(mdev->data.socket);
 			mutex_unlock(&mdev->data.mutex);
 
 			intr = down_interruptible(&mdev->data.work.s);
 
 			mutex_lock(&mdev->data.mutex);
-			if (mdev->data.socket  && !mdev->net_conf->no_cork)
+			if (mdev->data.socket  && !mdev->tconn->net_conf->no_cork)
 				drbd_tcp_cork(mdev->data.socket);
 			mutex_unlock(&mdev->data.mutex);
 		}

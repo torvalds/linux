@@ -693,7 +693,7 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 	}
 
 	if (get_net_conf(mdev)) {
-		if (!mdev->net_conf->two_primaries &&
+		if (!mdev->tconn->net_conf->two_primaries &&
 		    ns.role == R_PRIMARY && ns.peer == R_PRIMARY)
 			rv = SS_TWO_PRIMARIES;
 		put_net_conf(mdev);
@@ -1952,7 +1952,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 	size = sizeof(struct p_protocol);
 
 	if (mdev->agreed_pro_version >= 87)
-		size += strlen(mdev->net_conf->integrity_alg) + 1;
+		size += strlen(mdev->tconn->net_conf->integrity_alg) + 1;
 
 	/* we must not recurse into our own queue,
 	 * as that is blocked during handshake */
@@ -1960,16 +1960,16 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 	if (p == NULL)
 		return 0;
 
-	p->protocol      = cpu_to_be32(mdev->net_conf->wire_protocol);
-	p->after_sb_0p   = cpu_to_be32(mdev->net_conf->after_sb_0p);
-	p->after_sb_1p   = cpu_to_be32(mdev->net_conf->after_sb_1p);
-	p->after_sb_2p   = cpu_to_be32(mdev->net_conf->after_sb_2p);
-	p->two_primaries = cpu_to_be32(mdev->net_conf->two_primaries);
+	p->protocol      = cpu_to_be32(mdev->tconn->net_conf->wire_protocol);
+	p->after_sb_0p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_0p);
+	p->after_sb_1p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_1p);
+	p->after_sb_2p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_2p);
+	p->two_primaries = cpu_to_be32(mdev->tconn->net_conf->two_primaries);
 
 	cf = 0;
-	if (mdev->net_conf->want_lose)
+	if (mdev->tconn->net_conf->want_lose)
 		cf |= CF_WANT_LOSE;
-	if (mdev->net_conf->dry_run) {
+	if (mdev->tconn->net_conf->dry_run) {
 		if (mdev->agreed_pro_version >= 92)
 			cf |= CF_DRY_RUN;
 		else {
@@ -1981,7 +1981,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 	p->conn_flags    = cpu_to_be32(cf);
 
 	if (mdev->agreed_pro_version >= 87)
-		strcpy(p->integrity_alg, mdev->net_conf->integrity_alg);
+		strcpy(p->integrity_alg, mdev->tconn->net_conf->integrity_alg);
 
 	rv = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_PROTOCOL,
 			   (struct p_header80 *)p, size);
@@ -2002,7 +2002,7 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 
 	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
 	p.uuid[UI_SIZE] = cpu_to_be64(mdev->comm_bm_set);
-	uuid_flags |= mdev->net_conf->want_lose ? 1 : 0;
+	uuid_flags |= mdev->tconn->net_conf->want_lose ? 1 : 0;
 	uuid_flags |= test_bit(CRASHED_PRIMARY, &mdev->flags) ? 2 : 0;
 	uuid_flags |= mdev->new_state_tmp.disk == D_INCONSISTENT ? 4 : 0;
 	p.uuid[UI_FLAGS] = cpu_to_be64(uuid_flags);
@@ -2717,7 +2717,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		 * out ok after sending on this side, but does not fit on the
 		 * receiving side, we sure have detected corruption elsewhere.
 		 */
-		if (mdev->net_conf->wire_protocol == DRBD_PROT_A || dgs)
+		if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A || dgs)
 			ok = _drbd_send_bio(mdev, req->master_bio);
 		else
 			ok = _drbd_send_zc_bio(mdev, req->master_bio);
@@ -2843,7 +2843,7 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
 	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
 
 	if (sock == mdev->data.socket) {
-		mdev->ko_count = mdev->net_conf->ko_count;
+		mdev->ko_count = mdev->tconn->net_conf->ko_count;
 		drbd_update_congested(mdev);
 	}
 	do {
@@ -3073,7 +3073,7 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 		mdev->rs_mark_left[i] = 0;
 		mdev->rs_mark_time[i] = 0;
 	}
-	D_ASSERT(mdev->net_conf == NULL);
+	D_ASSERT(mdev->tconn->net_conf == NULL);
 
 	drbd_set_my_capacity(mdev, 0);
 	if (mdev->bitmap) {

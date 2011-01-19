@@ -977,7 +977,6 @@ struct drbd_conf {
 	unsigned long flags;
 
 	/* configured by drbdsetup */
-	struct net_conf *net_conf; /* protected by get_net_conf() and put_net_conf() */
 	struct syncer_conf sync_conf;
 	struct drbd_backing_dev *ldev __protected_by(local);
 
@@ -2134,10 +2133,10 @@ static inline void put_net_conf(struct drbd_conf *mdev)
 }
 
 /**
- * get_net_conf() - Increase ref count on mdev->net_conf; Returns 0 if nothing there
+ * get_net_conf() - Increase ref count on mdev->tconn->net_conf; Returns 0 if nothing there
  * @mdev:	DRBD device.
  *
- * You have to call put_net_conf() when finished working with mdev->net_conf.
+ * You have to call put_net_conf() when finished working with mdev->tconn->net_conf.
  */
 static inline int get_net_conf(struct drbd_conf *mdev)
 {
@@ -2253,7 +2252,7 @@ static inline int drbd_get_max_buffers(struct drbd_conf *mdev)
 {
 	int mxb = 1000000; /* arbitrary limit on open requests */
 	if (get_net_conf(mdev)) {
-		mxb = mdev->net_conf->max_buffers;
+		mxb = mdev->tconn->net_conf->max_buffers;
 		put_net_conf(mdev);
 	}
 	return mxb;
