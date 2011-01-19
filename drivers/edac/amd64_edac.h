@@ -368,9 +368,6 @@ struct amd64_pvt {
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
 
-	/* DCT per-family scrubrate setting */
-	u32 min_scrubrate;
-
 	/* family name this instance is running on */
 	const char *ctl_name;
 
@@ -467,13 +464,6 @@ int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
 
 #define amd64_read_dct_pci_cfg(pvt, offset, val) \
 	pvt->ops->read_dct_pci_cfg(pvt, offset, val, __func__)
-
-/*
- * For future CPU versions, verify the following as new 'slow' rates appear and
- * modify the necessary skip values for the supported CPU.
- */
-#define K8_MIN_SCRUB_RATE_BITS	0x0
-#define F10_MIN_SCRUB_RATE_BITS	0x5
 
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);

@@ -193,8 +193,12 @@ static int __amd64_set_scrub_rate(struct pci_dev *ctl, u32 new_bw, u32 min_rate)
 static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
+	u32 min_scrubrate = 0x5;
 
-	return __amd64_set_scrub_rate(pvt->F3, bw, pvt->min_scrubrate);
+	if (boot_cpu_data.x86 == 0xf)
+		min_scrubrate = 0x0;
+
+	return __amd64_set_scrub_rate(pvt->F3, bw, min_scrubrate);
 }
 
 static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
@@ -2399,13 +2403,11 @@ static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
 		fam_type		= &amd64_family_types[K8_CPUS];
 		pvt->ops		= &amd64_family_types[K8_CPUS].ops;
 		pvt->ctl_name		= fam_type->ctl_name;
-		pvt->min_scrubrate	= K8_MIN_SCRUB_RATE_BITS;
 		break;
 	case 0x10:
 		fam_type		= &amd64_family_types[F10_CPUS];
 		pvt->ops		= &amd64_family_types[F10_CPUS].ops;
 		pvt->ctl_name		= fam_type->ctl_name;
-		pvt->min_scrubrate	= F10_MIN_SCRUB_RATE_BITS;
 		break;
 
 	default:
