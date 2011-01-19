@@ -337,13 +337,6 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	}
 
 	aes_writel(dd, cmdq[qlen - 1], ICMDQUE_WR);
-	do {
-		value = aes_readl(dd, INTR_STATUS);
-		eng_busy = value & (0x1);
-		icq_empty = value & (0x1<<3);
-		dma_busy = value & (0x1<<23);
-	} while (eng_busy & (!icq_empty) & dma_busy);
-
 	return 0;
 }
 
@@ -419,15 +412,16 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 		(AES_HW_KEY_TABLE_LENGTH_BYTES/sizeof(u32))
 			<< MEMDMABITSHIFT_NUM_WORDS;
 	cmdq[1] = (u32)dd->ivkey_phys_base;
-	for (i = 0; i < ARRAY_SIZE(cmdq); i++) {
+
+	for (i = 0; i < ARRAY_SIZE(cmdq); i++)
 		aes_writel(dd, cmdq[i], ICMDQUE_WR);
-		do {
-			value = aes_readl(dd, INTR_STATUS);
-			eng_busy = value & (0x1);
-			icq_empty = value & (0x1<<3);
-			dma_busy = value & (0x1<<23);
-		} while (eng_busy & (!icq_empty) & dma_busy);
-	}
+
+	do {
+		value = aes_readl(dd, INTR_STATUS);
+		eng_busy = value & (0x1);
+		icq_empty = value & (0x1<<3);
+		dma_busy = value & (0x1<<23);
+	} while (eng_busy & (!icq_empty) & dma_busy);
 
 	/* settable command to get key into internal registers */
 	value = 0;
@@ -537,12 +531,7 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 
 	/* set iv to the aes hw slot */
 	memset(dd->buf_in, 0 , AES_BLOCK_SIZE);
-	ret = copy_from_user((void *)dd->buf_in, (void __user *)dd->iv,
-		dd->ivlen);
-	if (ret < 0) {
-		dev_err(dd->dev, "copy_from_user fail(%d)\n", ret);
-		goto out;
-	}
+	memcpy(dd->buf_in, dd->iv, dd->ivlen);
 
 	ret = aes_start_crypt(dd, (u32)dd->dma_buf_in,
 	  (u32)dd->dma_buf_out, 1, FLAGS_CBC, false);
@@ -550,7 +539,6 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 		dev_err(dd->dev, "aes_start_crypt fail(%d)\n", ret);
 		goto out;
 	}
-	memset(dd->buf_in, 0, AES_BLOCK_SIZE);
 
 	while (total) {
 		dev_dbg(dd->dev, "remain: 0x%x\n", total);
