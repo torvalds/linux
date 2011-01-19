@@ -972,6 +972,9 @@ struct drbd_tconn {			/* is a resource from the config file */
 
 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
+	int agreed_pro_version;		/* actually used protocol version */
+	unsigned long last_received;	/* in jiffies, either socket */
+	unsigned int ko_count;
 
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
@@ -994,9 +997,6 @@ struct drbd_conf {
 	struct block_device *this_bdev;
 	struct gendisk	    *vdisk;
 
-	int agreed_pro_version;  /* actually used protocol version */
-	unsigned long last_received; /* in jiffies, either socket */
-	unsigned int ko_count;
 	struct drbd_work  resync_work,
 			  unplug_work,
 			  go_diskless,
@@ -2297,7 +2297,7 @@ static inline int drbd_state_is_stable(struct drbd_conf *mdev)
 
 		/* Allow IO in BM exchange states with new protocols */
 	case C_WF_BITMAP_S:
-		if (mdev->agreed_pro_version < 96)
+		if (mdev->tconn->agreed_pro_version < 96)
 			return 0;
 		break;
 

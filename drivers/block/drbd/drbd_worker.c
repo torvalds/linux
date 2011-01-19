@@ -616,7 +616,7 @@ next_sector:
 		/* adjust very last sectors, in case we are oddly sized */
 		if (sector + (size>>9) > capacity)
 			size = (capacity-sector)<<9;
-		if (mdev->agreed_pro_version >= 89 && mdev->csums_tfm) {
+		if (mdev->tconn->agreed_pro_version >= 89 && mdev->csums_tfm) {
 			switch (read_for_csum(mdev, sector, size)) {
 			case -EIO: /* Disk failure */
 				put_ldev(mdev);
@@ -1574,10 +1574,10 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		 * drbd_resync_finished from here in that case.
 		 * We drbd_gen_and_send_sync_uuid here for protocol < 96,
 		 * and from after_state_ch otherwise. */
-		if (side == C_SYNC_SOURCE && mdev->agreed_pro_version < 96)
+		if (side == C_SYNC_SOURCE && mdev->tconn->agreed_pro_version < 96)
 			drbd_gen_and_send_sync_uuid(mdev);
 
-		if (mdev->agreed_pro_version < 95 && mdev->rs_total == 0) {
+		if (mdev->tconn->agreed_pro_version < 95 && mdev->rs_total == 0) {
 			/* This still has a race (about when exactly the peers
 			 * detect connection loss) that can lead to a full sync
 			 * on next handshake. In 8.3.9 we fixed this with explicit

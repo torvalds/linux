@@ -951,7 +951,7 @@ allocate_barrier:
 		_req_mod(req, QUEUE_FOR_SEND_OOS);
 
 	if (remote &&
-	    mdev->tconn->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96) {
+	    mdev->tconn->net_conf->on_congestion != OC_BLOCK && mdev->tconn->agreed_pro_version >= 96) {
 		int congested = 0;
 
 		if (mdev->tconn->net_conf->cong_fill &&

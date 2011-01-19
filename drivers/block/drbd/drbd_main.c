@@ -735,7 +735,7 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 		rv = SS_NO_VERIFY_ALG;
 
 	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
-		  mdev->agreed_pro_version < 88)
+		  mdev->tconn->agreed_pro_version < 88)
 		rv = SS_NOT_SUPPORTED;
 
 	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
@@ -993,7 +993,7 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 /* helper for __drbd_set_state */
 static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
 {
-	if (mdev->agreed_pro_version < 90)
+	if (mdev->tconn->agreed_pro_version < 90)
 		mdev->ov_start_sector = 0;
 	mdev->rs_total = drbd_bm_bits(mdev);
 	mdev->ov_position = 0;
@@ -1393,7 +1393,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	 * which is unexpected. */
 	if ((os.conn != C_SYNC_SOURCE && os.conn != C_PAUSED_SYNC_S) &&
 	    (ns.conn == C_SYNC_SOURCE || ns.conn == C_PAUSED_SYNC_S) &&
-	    mdev->agreed_pro_version >= 96 && get_ldev(mdev)) {
+	    mdev->tconn->agreed_pro_version >= 96 && get_ldev(mdev)) {
 		drbd_gen_and_send_sync_uuid(mdev);
 		put_ldev(mdev);
 	}
@@ -1902,7 +1902,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 	struct p_rs_param_95 *p;
 	struct socket *sock;
 	int size, rv;
-	const int apv = mdev->agreed_pro_version;
+	const int apv = mdev->tconn->agreed_pro_version;
 
 	size = apv <= 87 ? sizeof(struct p_rs_param)
 		: apv == 88 ? sizeof(struct p_rs_param)
@@ -1951,7 +1951,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 
 	size = sizeof(struct p_protocol);
 
-	if (mdev->agreed_pro_version >= 87)
+	if (mdev->tconn->agreed_pro_version >= 87)
 		size += strlen(mdev->tconn->net_conf->integrity_alg) + 1;
 
 	/* we must not recurse into our own queue,
@@ -1970,7 +1970,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 	if (mdev->tconn->net_conf->want_lose)
 		cf |= CF_WANT_LOSE;
 	if (mdev->tconn->net_conf->dry_run) {
-		if (mdev->agreed_pro_version >= 92)
+		if (mdev->tconn->agreed_pro_version >= 92)
 			cf |= CF_DRY_RUN;
 		else {
 			dev_err(DEV, "--dry-run is not supported by peer");
@@ -1980,7 +1980,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 	}
 	p->conn_flags    = cpu_to_be32(cf);
 
-	if (mdev->agreed_pro_version >= 87)
+	if (mdev->tconn->agreed_pro_version >= 87)
 		strcpy(p->integrity_alg, mdev->tconn->net_conf->integrity_alg);
 
 	rv = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_PROTOCOL,
@@ -2158,7 +2158,7 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 
 	/* may we use this feature? */
 	if ((mdev->sync_conf.use_rle == 0) ||
-		(mdev->agreed_pro_version < 90))
+		(mdev->tconn->agreed_pro_version < 90))
 			return 0;
 
 	if (c->bit_offset >= c->bm_bits)
@@ -2404,7 +2404,7 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
 int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packets cmd,
 		     struct p_data *dp, int data_size)
 {
-	data_size -= (mdev->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
+	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_r_tfm) : 0;
 	return _drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
 			      dp->block_id);
@@ -2514,10 +2514,10 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 	if (drop_it)
 		return true;
 
-	drop_it = !--mdev->ko_count;
+	drop_it = !--mdev->tconn->ko_count;
 	if (!drop_it) {
 		dev_err(DEV, "[%s/%d] sock_sendmsg time expired, ko = %u\n",
-		       current->comm, current->pid, mdev->ko_count);
+		       current->comm, current->pid, mdev->tconn->ko_count);
 		request_ping(mdev);
 	}
 
@@ -2647,7 +2647,7 @@ static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
 
 static u32 bio_flags_to_wire(struct drbd_conf *mdev, unsigned long bi_rw)
 {
-	if (mdev->agreed_pro_version >= 95)
+	if (mdev->tconn->agreed_pro_version >= 95)
 		return  (bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
 			(bi_rw & REQ_FUA ? DP_FUA : 0) |
 			(bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
@@ -2670,7 +2670,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	if (!drbd_get_data_sock(mdev))
 		return 0;
 
-	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
 	if (req->i.size <= DRBD_MAX_SIZE_H80_PACKET) {
@@ -2755,7 +2755,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	void *dgb;
 	int dgs;
 
-	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
 	if (e->i.size <= DRBD_MAX_SIZE_H80_PACKET) {
@@ -2843,7 +2843,7 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
 	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
 
 	if (sock == mdev->tconn->data.socket) {
-		mdev->ko_count = mdev->tconn->net_conf->ko_count;
+		mdev->tconn->ko_count = mdev->tconn->net_conf->ko_count;
 		drbd_update_congested(mdev);
 	}
 	do {
@@ -3038,7 +3038,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	drbd_thread_init(mdev, &mdev->tconn->worker, drbd_worker);
 	drbd_thread_init(mdev, &mdev->tconn->asender, drbd_asender);
 
-	mdev->agreed_pro_version = PRO_VERSION_MAX;
+	mdev->tconn->agreed_pro_version = PRO_VERSION_MAX;
 	mdev->write_ordering = WO_bdev_flush;
 	mdev->resync_wenr = LC_FREE;
 	mdev->peer_max_bio_size = DRBD_MAX_BIO_SIZE_SAFE;
