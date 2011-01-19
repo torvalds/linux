@@ -2300,7 +2300,7 @@ static void srp_add_one(struct ib_device *device)
 	struct ib_device_attr *dev_attr;
 	struct ib_fmr_pool_param fmr_param;
 	struct srp_host *host;
-	int fmr_page_shift, s, e, p;
+	int max_pages_per_fmr, fmr_page_shift, s, e, p;
 
 	dev_attr = kmalloc(sizeof *dev_attr, GFP_KERNEL);
 	if (!dev_attr)
@@ -2340,17 +2340,24 @@ static void srp_add_one(struct ib_device *device)
 	if (IS_ERR(srp_dev->mr))
 		goto err_pd;
 
-	memset(&fmr_param, 0, sizeof fmr_param);
-	fmr_param.pool_size	    = SRP_FMR_POOL_SIZE;
-	fmr_param.dirty_watermark   = SRP_FMR_DIRTY_SIZE;
-	fmr_param.cache		    = 1;
-	fmr_param.max_pages_per_fmr = SRP_FMR_SIZE;
-	fmr_param.page_shift	    = fmr_page_shift;
-	fmr_param.access	    = (IB_ACCESS_LOCAL_WRITE |
-				       IB_ACCESS_REMOTE_WRITE |
-				       IB_ACCESS_REMOTE_READ);
+	for (max_pages_per_fmr = SRP_FMR_SIZE;
+			max_pages_per_fmr >= SRP_FMR_MIN_SIZE;
+			max_pages_per_fmr /= 2, srp_dev->fmr_max_size /= 2) {
+		memset(&fmr_param, 0, sizeof fmr_param);
+		fmr_param.pool_size	    = SRP_FMR_POOL_SIZE;
+		fmr_param.dirty_watermark   = SRP_FMR_DIRTY_SIZE;
+		fmr_param.cache		    = 1;
+		fmr_param.max_pages_per_fmr = max_pages_per_fmr;
+		fmr_param.page_shift	    = fmr_page_shift;
+		fmr_param.access	    = (IB_ACCESS_LOCAL_WRITE |
+					       IB_ACCESS_REMOTE_WRITE |
+					       IB_ACCESS_REMOTE_READ);
 
-	srp_dev->fmr_pool = ib_create_fmr_pool(srp_dev->pd, &fmr_param);
+		srp_dev->fmr_pool = ib_create_fmr_pool(srp_dev->pd, &fmr_param);
+		if (!IS_ERR(srp_dev->fmr_pool))
+			break;
+	}
+
 	if (IS_ERR(srp_dev->fmr_pool))
 		srp_dev->fmr_pool = NULL;
 
