@@ -200,19 +200,17 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 	int faulted;
 
 	/*
-	 * For module, move the ip from calling site of mcount to the
-	 * instruction "lui v1, hi_16bit_of_mcount"(offset is 20), but for
-	 * kernel, move to the instruction "move ra, at"(offset is 12)
+	 * For module, move the ip from calling site of mcount after the
+	 * instruction "lui v1, hi_16bit_of_mcount"(offset is 24), but for
+	 * kernel, move after the instruction "move ra, at"(offset is 16)
 	 */
-	ip = self_addr - (in_module(self_addr) ? 20 : 12);
+	ip = self_addr - (in_module(self_addr) ? 24 : 16);
 
 	/*
 	 * search the text until finding the non-store instruction or "s{d,w}
 	 * ra, offset(sp)" instruction
 	 */
 	do {
-		ip -= 4;
-
 		/* get the code at "ip": code = *(unsigned int *)ip; */
 		safe_load_code(code, ip, faulted);
 
@@ -226,7 +224,9 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 		if ((code & S_R_SP) != S_R_SP)
 			return parent_addr;
 
-	} while (((code & S_RA_SP) != S_RA_SP));
+		/* Move to the next instruction */
+		ip -= 4;
+	} while ((code & S_RA_SP) != S_RA_SP);
 
 	sp = fp + (code & OFFSET_MASK);
 
