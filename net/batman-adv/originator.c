@@ -75,6 +75,14 @@ static void neigh_node_free_rcu(struct rcu_head *rcu)
 	kref_put(&neigh_node->refcount, neigh_node_free_ref);
 }
 
+void neigh_node_free_rcu_bond(struct rcu_head *rcu)
+{
+	struct neigh_node *neigh_node;
+
+	neigh_node = container_of(rcu, struct neigh_node, rcu_bond);
+	kref_put(&neigh_node->refcount, neigh_node_free_ref);
+}
+
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
 				   uint8_t *neigh,
@@ -91,6 +99,7 @@ struct neigh_node *create_neighbor(struct orig_node *orig_node,
 		return NULL;
 
 	INIT_HLIST_NODE(&neigh_node->list);
+	INIT_LIST_HEAD(&neigh_node->bonding_list);
 
 	memcpy(neigh_node->addr, neigh, ETH_ALEN);
 	neigh_node->orig_node = orig_neigh_node;
@@ -106,12 +115,19 @@ struct neigh_node *create_neighbor(struct orig_node *orig_node,
 void orig_node_free_ref(struct kref *refcount)
 {
 	struct hlist_node *node, *node_tmp;
-	struct neigh_node *neigh_node;
+	struct neigh_node *neigh_node, *tmp_neigh_node;
 	struct orig_node *orig_node;
 
 	orig_node = container_of(refcount, struct orig_node, refcount);
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
+
+	/* for all bonding members ... */
+	list_for_each_entry_safe(neigh_node, tmp_neigh_node,
+				 &orig_node->bond_list, bonding_list) {
+		list_del_rcu(&neigh_node->bonding_list);
+		call_rcu(&neigh_node->rcu_bond, neigh_node_free_rcu_bond);
+	}
 
 	/* for all neighbors towards this originator ... */
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
@@ -207,6 +223,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 		return NULL;
 
 	INIT_HLIST_HEAD(&orig_node->neigh_list);
+	INIT_LIST_HEAD(&orig_node->bond_list);
 	spin_lock_init(&orig_node->ogm_cnt_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
 	kref_init(&orig_node->refcount);
@@ -219,6 +236,8 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 					- msecs_to_jiffies(RESET_PROTECTION_MS);
 	orig_node->batman_seqno_reset = jiffies - 1
 					- msecs_to_jiffies(RESET_PROTECTION_MS);
+
+	atomic_set(&orig_node->bond_candidates, 0);
 
 	size = bat_priv->num_ifaces * sizeof(unsigned long) * NUM_WORDS;
 
@@ -295,6 +314,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 			neigh_purged = true;
 
 			hlist_del_rcu(&neigh_node->list);
+			bonding_candidate_del(orig_node, neigh_node);
 			call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
 		} else {
 			if ((!*best_neigh_node) ||
@@ -326,9 +346,6 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 				      best_neigh_node,
 				      orig_node->hna_buff,
 				      orig_node->hna_buff_len);
-			/* update bonding candidates, we could have lost
-			 * some candidates. */
-			update_bonding_candidates(orig_node);
 		}
 	}
 

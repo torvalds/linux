@@ -271,7 +271,7 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 static void hardif_deactivate_interface(struct batman_if *batman_if)
 {
 	if ((batman_if->if_status != IF_ACTIVE) &&
-	   (batman_if->if_status != IF_TO_BE_ACTIVATED))
+	    (batman_if->if_status != IF_TO_BE_ACTIVATED))
 		return;
 
 	batman_if->if_status = IF_INACTIVE;

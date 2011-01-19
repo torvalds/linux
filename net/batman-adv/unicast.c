@@ -299,6 +299,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	if (!orig_node)
 		orig_node = transtable_search(bat_priv, ethhdr->h_dest);
 
+	/* find_router() increases neigh_nodes refcount if found. */
 	router = find_router(bat_priv, orig_node, NULL);
 
 	if (!router)
@@ -306,7 +307,6 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 
 	/* don't lock while sending the packets ... we therefore
 		* copy the required data before sending */
-
 	batman_if = router->if_incoming;
 	memcpy(dstaddr, router->addr, ETH_ALEN);
 

@@ -90,10 +90,8 @@ struct orig_node {
 	struct bat_priv *bat_priv;
 	unsigned long last_frag_packet;
 	spinlock_t ogm_cnt_lock; /* protects ogm counter */
-	struct {
-		uint8_t candidates;
-		struct neigh_node *selected;
-	} bond;
+	atomic_t bond_candidates;
+	struct list_head bond_list;
 };
 
 struct gw_node {
@@ -116,11 +114,12 @@ struct neigh_node {
 	uint8_t tq_index;
 	uint8_t tq_avg;
 	uint8_t last_ttl;
-	struct neigh_node *next_bond_candidate;
+	struct list_head bonding_list;
 	unsigned long last_valid;
 	unsigned long real_bits[NUM_WORDS];
 	struct kref refcount;
 	struct rcu_head rcu;
+	struct rcu_head rcu_bond;
 	struct orig_node *orig_node;
 	struct batman_if *if_incoming;
 };

@@ -39,7 +39,9 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *recv_if);
 int recv_vis_packet(struct sk_buff *skb, struct batman_if *recv_if);
 int recv_bat_packet(struct sk_buff *skb, struct batman_if *recv_if);
 struct neigh_node *find_router(struct bat_priv *bat_priv,
-		struct orig_node *orig_node, struct batman_if *recv_if);
-void update_bonding_candidates(struct orig_node *orig_node);
+			       struct orig_node *orig_node,
+			       struct batman_if *recv_if);
+void bonding_candidate_del(struct orig_node *orig_node,
+			   struct neigh_node *neigh_node);
 
 #endif /* _NET_BATMAN_ADV_ROUTING_H_ */
