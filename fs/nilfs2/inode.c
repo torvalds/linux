@@ -365,9 +365,7 @@ void nilfs_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_APPEND;
 	if (flags & FS_IMMUTABLE_FL)
 		inode->i_flags |= S_IMMUTABLE;
-#ifndef NILFS_ATIME_DISABLE
 	if (flags & FS_NOATIME_FL)
-#endif
 		inode->i_flags |= S_NOATIME;
 	if (flags & FS_DIRSYNC_FL)
 		inode->i_flags |= S_DIRSYNC;
