@@ -17,21 +17,7 @@
 #include <asm/cacheflush.h>
 #include <asm/uasm.h>
 
-/*
- * If the Instruction Pointer is in module space (0xc0000000), return true;
- * otherwise, it is in kernel space (0x80000000), return false.
- *
- * FIXME: This will not work when the kernel space and module space are the
- * same. If they are the same, we need to modify scripts/recordmcount.pl,
- * ftrace_make_nop/call() and the other related parts to ensure the
- * enabling/disabling of the calling site to _mcount is right for both kernel
- * and module.
- */
-
-static inline int in_module(unsigned long ip)
-{
-	return ip & 0x40000000;
-}
+#include <asm-generic/sections.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
@@ -69,6 +55,20 @@ static inline void ftrace_dyn_arch_init_insns(void)
 #endif
 }
 
+/*
+ * Check if the address is in kernel space
+ *
+ * Clone core_kernel_text() from kernel/extable.c, but doesn't call
+ * init_kernel_text() for Ftrace doesn't trace functions in init sections.
+ */
+static inline int in_kernel_space(unsigned long ip)
+{
+	if (ip >= (unsigned long)_stext &&
+	    ip <= (unsigned long)_etext)
+		return 1;
+	return 0;
+}
+
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
 	int faulted;
@@ -91,10 +91,16 @@ int ftrace_make_nop(struct module *mod,
 	unsigned long ip = rec->ip;
 
 	/*
-	 * We have compiled module with -mlong-calls, but compiled the kernel
-	 * without it, we need to cope with them respectively.
+	 * If ip is in kernel space, no long call, otherwise, long call is
+	 * needed.
 	 */
-	if (in_module(ip)) {
+	if (in_kernel_space(ip)) {
+		/*
+		 * move at, ra
+		 * jal _mcount		--> nop
+		 */
+		new = INSN_NOP;
+	} else {
 #if defined(KBUILD_MCOUNT_RA_ADDRESS) && defined(CONFIG_32BIT)
 		/*
 		 * lui v1, hi_16bit_of_mcount        --> b 1f (0x10000005)
@@ -117,12 +123,6 @@ int ftrace_make_nop(struct module *mod,
 		 */
 		new = INSN_B_1F_4;
 #endif
-	} else {
-		/*
-		 * move at, ra
-		 * jal _mcount		--> nop
-		 */
-		new = INSN_NOP;
 	}
 	return ftrace_modify_code(ip, new);
 }
@@ -132,8 +132,8 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned int new;
 	unsigned long ip = rec->ip;
 
-	/* ip, module: 0xc0000000, kernel: 0x80000000 */
-	new = in_module(ip) ? insn_lui_v1_hi16_mcount : insn_jal_ftrace_caller;
+	new = in_kernel_space(ip) ? insn_jal_ftrace_caller :
+		insn_lui_v1_hi16_mcount;
 
 	return ftrace_modify_code(ip, new);
 }
@@ -204,7 +204,7 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 	 * instruction "lui v1, hi_16bit_of_mcount"(offset is 24), but for
 	 * kernel, move after the instruction "move ra, at"(offset is 16)
 	 */
-	ip = self_addr - (in_module(self_addr) ? 24 : 16);
+	ip = self_addr - (in_kernel_space(self_addr) ? 16 : 24);
 
 	/*
 	 * search the text until finding the non-store instruction or "s{d,w}
