@@ -50,10 +50,6 @@ static void h8300_disable_irq(struct irq_data *data)
 		IER_REGS &= ~(1 << (data->irq - EXT_IRQ0));
 }
 
-static void h8300_end_irq(unsigned int irq)
-{
-}
-
 static unsigned int h8300_startup_irq(struct irq_data *data)
 {
 	if (is_ext_irq(data->irq))
@@ -77,7 +73,6 @@ struct irq_chip h8300irq_chip = {
 	.irq_shutdown	= h8300_shutdown_irq,
 	.irq_enable	= h8300_enable_irq,
 	.irq_disable	= h8300_disable_irq,
-	.end		= h8300_end_irq,
 };
 
 #if defined(CONFIG_RAMKERNEL)
@@ -159,18 +154,14 @@ void __init init_IRQ(void)
 
 	setup_vector();
 
-	for (c = 0; c < NR_IRQS; c++) {
-		irq_desc[c].status = IRQ_DISABLED;
-		irq_desc[c].action = NULL;
-		irq_desc[c].depth = 1;
-		irq_desc[c].chip = &h8300irq_chip;
-	}
+	for (c = 0; c < NR_IRQS; c++)
+		set_irq_chip_and_handler(c, &h8300irq_chip, handle_simple_irq);
 }
 
 asmlinkage void do_IRQ(int irq)
 {
 	irq_enter();
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
 	irq_exit();
 }
 
