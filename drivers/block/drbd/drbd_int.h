@@ -969,6 +969,9 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
 	atomic_t net_cnt;		/* Users of net_conf */
 	wait_queue_head_t net_cnt_wait;
+
+	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
+	struct drbd_socket meta;	/* ping/ack (metadata) packets */
 };
 
 struct drbd_conf {
@@ -987,8 +990,6 @@ struct drbd_conf {
 	struct block_device *this_bdev;
 	struct gendisk	    *vdisk;
 
-	struct drbd_socket data; /* data/barrier/cstate/parameter packets */
-	struct drbd_socket meta; /* ping/ack (metadata) packets */
 	int agreed_pro_version;  /* actually used protocol version */
 	unsigned long last_received; /* in jiffies, either socket */
 	unsigned int ko_count;
@@ -1167,11 +1168,11 @@ static inline unsigned int mdev_to_minor(struct drbd_conf *mdev)
  */
 static inline int drbd_get_data_sock(struct drbd_conf *mdev)
 {
-	mutex_lock(&mdev->data.mutex);
+	mutex_lock(&mdev->tconn->data.mutex);
 	/* drbd_disconnect() could have called drbd_free_sock()
 	 * while we were waiting in down()... */
-	if (unlikely(mdev->data.socket == NULL)) {
-		mutex_unlock(&mdev->data.mutex);
+	if (unlikely(mdev->tconn->data.socket == NULL)) {
+		mutex_unlock(&mdev->tconn->data.mutex);
 		return 0;
 	}
 	return 1;
@@ -1179,7 +1180,7 @@ static inline int drbd_get_data_sock(struct drbd_conf *mdev)
 
 static inline void drbd_put_data_sock(struct drbd_conf *mdev)
 {
-	mutex_unlock(&mdev->data.mutex);
+	mutex_unlock(&mdev->tconn->data.mutex);
 }
 
 /*
@@ -2399,7 +2400,7 @@ static inline void dec_ap_bio(struct drbd_conf *mdev)
 		wake_up(&mdev->misc_wait);
 	if (ap_bio == 0 && test_bit(BITMAP_IO, &mdev->flags)) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
-			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
+			drbd_queue_work(&mdev->tconn->data.work, &mdev->bm_io_work.w);
 	}
 }
 
@@ -2439,7 +2440,7 @@ static inline void update_peer_seq(struct drbd_conf *mdev, unsigned int new_seq)
 
 static inline void drbd_update_congested(struct drbd_conf *mdev)
 {
-	struct sock *sk = mdev->data.socket->sk;
+	struct sock *sk = mdev->tconn->data.socket->sk;
 	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
 		set_bit(NET_CONGESTED, &mdev->flags);
 }

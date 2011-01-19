@@ -371,7 +371,7 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 					set_bit(CREATE_BARRIER, &mdev->flags);
 				}
 
-				drbd_queue_work(&mdev->data.work, &b->w);
+				drbd_queue_work(&mdev->tconn->data.work, &b->w);
 			}
 			pn = &b->next;
 		} else {
@@ -1251,7 +1251,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		ascw->flags = flags;
 		ascw->w.cb = w_after_state_ch;
 		ascw->done = done;
-		drbd_queue_work(&mdev->data.work, &ascw->w);
+		drbd_queue_work(&mdev->tconn->data.work, &ascw->w);
 	} else {
 		dev_warn(DEV, "Could not kmalloc an ascw\n");
 	}
@@ -1855,11 +1855,11 @@ int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
 	struct socket *sock;
 
 	if (use_data_socket) {
-		mutex_lock(&mdev->data.mutex);
-		sock = mdev->data.socket;
+		mutex_lock(&mdev->tconn->data.mutex);
+		sock = mdev->tconn->data.socket;
 	} else {
-		mutex_lock(&mdev->meta.mutex);
-		sock = mdev->meta.socket;
+		mutex_lock(&mdev->tconn->meta.mutex);
+		sock = mdev->tconn->meta.socket;
 	}
 
 	/* drbd_disconnect() could have called drbd_free_sock()
@@ -1868,9 +1868,9 @@ int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
 		ok = _drbd_send_cmd(mdev, sock, cmd, h, size, 0);
 
 	if (use_data_socket)
-		mutex_unlock(&mdev->data.mutex);
+		mutex_unlock(&mdev->tconn->data.mutex);
 	else
-		mutex_unlock(&mdev->meta.mutex);
+		mutex_unlock(&mdev->tconn->meta.mutex);
 	return ok;
 }
 
@@ -1888,9 +1888,9 @@ int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packets cmd, char *data,
 		return 0;
 
 	ok = (sizeof(h) ==
-		drbd_send(mdev, mdev->data.socket, &h, sizeof(h), 0));
+		drbd_send(mdev, mdev->tconn->data.socket, &h, sizeof(h), 0));
 	ok = ok && (size ==
-		drbd_send(mdev, mdev->data.socket, data, size, 0));
+		drbd_send(mdev, mdev->tconn->data.socket, data, size, 0));
 
 	drbd_put_data_sock(mdev);
 
@@ -1913,13 +1913,13 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 	/* used from admin command context and receiver/worker context.
 	 * to avoid kmalloc, grab the socket right here,
 	 * then use the pre-allocated sbuf there */
-	mutex_lock(&mdev->data.mutex);
-	sock = mdev->data.socket;
+	mutex_lock(&mdev->tconn->data.mutex);
+	sock = mdev->tconn->data.socket;
 
 	if (likely(sock != NULL)) {
 		enum drbd_packets cmd = apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
 
-		p = &mdev->data.sbuf.rs_param_95;
+		p = &mdev->tconn->data.sbuf.rs_param_95;
 
 		/* initialize verify_alg and csums_alg */
 		memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
@@ -1939,7 +1939,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 	} else
 		rv = 0; /* not ok */
 
-	mutex_unlock(&mdev->data.mutex);
+	mutex_unlock(&mdev->tconn->data.mutex);
 
 	return rv;
 }
@@ -2106,17 +2106,17 @@ int drbd_send_state(struct drbd_conf *mdev)
 	 * of a cluster wide state change on another thread */
 	drbd_state_lock(mdev);
 
-	mutex_lock(&mdev->data.mutex);
+	mutex_lock(&mdev->tconn->data.mutex);
 
 	p.state = cpu_to_be32(mdev->state.i); /* Within the send mutex */
-	sock = mdev->data.socket;
+	sock = mdev->tconn->data.socket;
 
 	if (likely(sock != NULL)) {
 		ok = _drbd_send_cmd(mdev, sock, P_STATE,
 				    (struct p_header80 *)&p, sizeof(p), 0);
 	}
 
-	mutex_unlock(&mdev->data.mutex);
+	mutex_unlock(&mdev->tconn->data.mutex);
 
 	drbd_state_unlock(mdev);
 	return ok;
@@ -2260,7 +2260,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 
 	if (len) {
 		DCBP_set_code(p, RLE_VLI_Bits);
-		ok = _drbd_send_cmd(mdev, mdev->data.socket, P_COMPRESSED_BITMAP, h,
+		ok = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_COMPRESSED_BITMAP, h,
 			sizeof(*p) + len, 0);
 
 		c->packets[0]++;
@@ -2275,7 +2275,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 		len = num_words * sizeof(long);
 		if (len)
 			drbd_bm_get_lel(mdev, c->word_offset, num_words, (unsigned long*)h->payload);
-		ok = _drbd_send_cmd(mdev, mdev->data.socket, P_BITMAP,
+		ok = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_BITMAP,
 				   h, sizeof(struct p_header80) + len, 0);
 		c->word_offset += num_words;
 		c->bit_offset = c->word_offset * BITS_PER_LONG;
@@ -2391,7 +2391,7 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
 	p.blksize  = blksize;
 	p.seq_num  = cpu_to_be32(atomic_add_return(1, &mdev->packet_seq));
 
-	if (!mdev->meta.socket || mdev->state.conn < C_CONNECTED)
+	if (!mdev->tconn->meta.socket || mdev->state.conn < C_CONNECTED)
 		return false;
 	ok = drbd_send_cmd(mdev, USE_META_SOCKET, cmd,
 				(struct p_header80 *)&p, sizeof(p));
@@ -2473,12 +2473,12 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev,
 	p.head.command = cpu_to_be16(cmd);
 	p.head.length  = cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + digest_size);
 
-	mutex_lock(&mdev->data.mutex);
+	mutex_lock(&mdev->tconn->data.mutex);
 
-	ok = (sizeof(p) == drbd_send(mdev, mdev->data.socket, &p, sizeof(p), 0));
-	ok = ok && (digest_size == drbd_send(mdev, mdev->data.socket, digest, digest_size, 0));
+	ok = (sizeof(p) == drbd_send(mdev, mdev->tconn->data.socket, &p, sizeof(p), 0));
+	ok = ok && (digest_size == drbd_send(mdev, mdev->tconn->data.socket, digest, digest_size, 0));
 
-	mutex_unlock(&mdev->data.mutex);
+	mutex_unlock(&mdev->tconn->data.mutex);
 
 	return ok;
 }
@@ -2506,7 +2506,7 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 	int drop_it;
 	/* long elapsed = (long)(jiffies - mdev->last_received); */
 
-	drop_it =   mdev->meta.socket == sock
+	drop_it =   mdev->tconn->meta.socket == sock
 		|| !mdev->asender.task
 		|| get_t_state(&mdev->asender) != RUNNING
 		|| mdev->state.conn < C_CONNECTED;
@@ -2548,7 +2548,7 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 static int _drbd_no_send_page(struct drbd_conf *mdev, struct page *page,
 		   int offset, size_t size, unsigned msg_flags)
 {
-	int sent = drbd_send(mdev, mdev->data.socket, kmap(page) + offset, size, msg_flags);
+	int sent = drbd_send(mdev, mdev->tconn->data.socket, kmap(page) + offset, size, msg_flags);
 	kunmap(page);
 	if (sent == size)
 		mdev->send_cnt += size>>9;
@@ -2575,12 +2575,12 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 	drbd_update_congested(mdev);
 	set_fs(KERNEL_DS);
 	do {
-		sent = mdev->data.socket->ops->sendpage(mdev->data.socket, page,
+		sent = mdev->tconn->data.socket->ops->sendpage(mdev->tconn->data.socket, page,
 							offset, len,
 							msg_flags);
 		if (sent == -EAGAIN) {
 			if (we_should_drop_the_connection(mdev,
-							  mdev->data.socket))
+							  mdev->tconn->data.socket))
 				break;
 			else
 				continue;
@@ -2699,11 +2699,11 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	p.dp_flags = cpu_to_be32(dp_flags);
 	set_bit(UNPLUG_REMOTE, &mdev->flags);
 	ok = (sizeof(p) ==
-		drbd_send(mdev, mdev->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0));
+		drbd_send(mdev, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0));
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
 		drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, dgb);
-		ok = dgs == drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
+		ok = dgs == drbd_send(mdev, mdev->tconn->data.socket, dgb, dgs, 0);
 	}
 	if (ok) {
 		/* For protocol A, we have to memcpy the payload into
@@ -2781,11 +2781,11 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	if (!drbd_get_data_sock(mdev))
 		return 0;
 
-	ok = sizeof(p) == drbd_send(mdev, mdev->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
+	ok = sizeof(p) == drbd_send(mdev, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
 		drbd_csum_ee(mdev, mdev->integrity_w_tfm, e, dgb);
-		ok = dgs == drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
+		ok = dgs == drbd_send(mdev, mdev->tconn->data.socket, dgb, dgs, 0);
 	}
 	if (ok)
 		ok = _drbd_send_zc_ee(mdev, e);
@@ -2842,7 +2842,7 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
 	msg.msg_controllen = 0;
 	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
 
-	if (sock == mdev->data.socket) {
+	if (sock == mdev->tconn->data.socket) {
 		mdev->ko_count = mdev->tconn->net_conf->ko_count;
 		drbd_update_congested(mdev);
 	}
@@ -2875,13 +2875,13 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
 		iov.iov_len  -= rv;
 	} while (sent < size);
 
-	if (sock == mdev->data.socket)
+	if (sock == mdev->tconn->data.socket)
 		clear_bit(NET_CONGESTED, &mdev->flags);
 
 	if (rv <= 0) {
 		if (rv != -EAGAIN) {
 			dev_err(DEV, "%s_sendmsg returned %d\n",
-			    sock == mdev->meta.socket ? "msock" : "sock",
+			    sock == mdev->tconn->meta.socket ? "msock" : "sock",
 			    rv);
 			drbd_force_state(mdev, NS(conn, C_BROKEN_PIPE));
 		} else
@@ -2980,14 +2980,14 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->ap_in_flight, 0);
 
 	mutex_init(&mdev->md_io_mutex);
-	mutex_init(&mdev->data.mutex);
-	mutex_init(&mdev->meta.mutex);
-	sema_init(&mdev->data.work.s, 0);
-	sema_init(&mdev->meta.work.s, 0);
+	mutex_init(&mdev->tconn->data.mutex);
+	mutex_init(&mdev->tconn->meta.mutex);
+	sema_init(&mdev->tconn->data.work.s, 0);
+	sema_init(&mdev->tconn->meta.work.s, 0);
 	mutex_init(&mdev->state_mutex);
 
-	spin_lock_init(&mdev->data.work.q_lock);
-	spin_lock_init(&mdev->meta.work.q_lock);
+	spin_lock_init(&mdev->tconn->data.work.q_lock);
+	spin_lock_init(&mdev->tconn->meta.work.q_lock);
 
 	spin_lock_init(&mdev->al_lock);
 	spin_lock_init(&mdev->req_lock);
@@ -3000,8 +3000,8 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	INIT_LIST_HEAD(&mdev->read_ee);
 	INIT_LIST_HEAD(&mdev->net_ee);
 	INIT_LIST_HEAD(&mdev->resync_reads);
-	INIT_LIST_HEAD(&mdev->data.work.q);
-	INIT_LIST_HEAD(&mdev->meta.work.q);
+	INIT_LIST_HEAD(&mdev->tconn->data.work.q);
+	INIT_LIST_HEAD(&mdev->tconn->meta.work.q);
 	INIT_LIST_HEAD(&mdev->resync_work.list);
 	INIT_LIST_HEAD(&mdev->unplug_work.list);
 	INIT_LIST_HEAD(&mdev->go_diskless.list);
@@ -3093,8 +3093,8 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	D_ASSERT(list_empty(&mdev->read_ee));
 	D_ASSERT(list_empty(&mdev->net_ee));
 	D_ASSERT(list_empty(&mdev->resync_reads));
-	D_ASSERT(list_empty(&mdev->data.work.q));
-	D_ASSERT(list_empty(&mdev->meta.work.q));
+	D_ASSERT(list_empty(&mdev->tconn->data.work.q));
+	D_ASSERT(list_empty(&mdev->tconn->meta.work.q));
 	D_ASSERT(list_empty(&mdev->resync_work.list));
 	D_ASSERT(list_empty(&mdev->unplug_work.list));
 	D_ASSERT(list_empty(&mdev->go_diskless.list));
@@ -3254,7 +3254,7 @@ static void drbd_delete_device(unsigned int minor)
 
 	/* paranoia asserts */
 	D_ASSERT(mdev->open_cnt == 0);
-	D_ASSERT(list_empty(&mdev->data.work.q));
+	D_ASSERT(list_empty(&mdev->tconn->data.work.q));
 	/* end paranoia asserts */
 
 	del_gendisk(mdev->vdisk);
@@ -3606,19 +3606,19 @@ void drbd_free_bc(struct drbd_backing_dev *ldev)
 
 void drbd_free_sock(struct drbd_conf *mdev)
 {
-	if (mdev->data.socket) {
-		mutex_lock(&mdev->data.mutex);
-		kernel_sock_shutdown(mdev->data.socket, SHUT_RDWR);
-		sock_release(mdev->data.socket);
-		mdev->data.socket = NULL;
-		mutex_unlock(&mdev->data.mutex);
+	if (mdev->tconn->data.socket) {
+		mutex_lock(&mdev->tconn->data.mutex);
+		kernel_sock_shutdown(mdev->tconn->data.socket, SHUT_RDWR);
+		sock_release(mdev->tconn->data.socket);
+		mdev->tconn->data.socket = NULL;
+		mutex_unlock(&mdev->tconn->data.mutex);
 	}
-	if (mdev->meta.socket) {
-		mutex_lock(&mdev->meta.mutex);
-		kernel_sock_shutdown(mdev->meta.socket, SHUT_RDWR);
-		sock_release(mdev->meta.socket);
-		mdev->meta.socket = NULL;
-		mutex_unlock(&mdev->meta.mutex);
+	if (mdev->tconn->meta.socket) {
+		mutex_lock(&mdev->tconn->meta.mutex);
+		kernel_sock_shutdown(mdev->tconn->meta.socket, SHUT_RDWR);
+		sock_release(mdev->tconn->meta.socket);
+		mdev->tconn->meta.socket = NULL;
+		mutex_unlock(&mdev->tconn->meta.mutex);
 	}
 }
 
@@ -4012,7 +4012,7 @@ void drbd_go_diskless(struct drbd_conf *mdev)
 {
 	D_ASSERT(mdev->state.disk == D_FAILED);
 	if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
-		drbd_queue_work(&mdev->data.work, &mdev->go_diskless);
+		drbd_queue_work(&mdev->tconn->data.work, &mdev->go_diskless);
 }
 
 /**
@@ -4050,7 +4050,7 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 	set_bit(BITMAP_IO, &mdev->flags);
 	if (atomic_read(&mdev->ap_bio_cnt) == 0) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
-			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
+			drbd_queue_work(&mdev->tconn->data.work, &mdev->bm_io_work.w);
 	}
 	spin_unlock_irq(&mdev->req_lock);
 }
@@ -4108,7 +4108,7 @@ static void md_sync_timer_fn(unsigned long data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 
-	drbd_queue_work_front(&mdev->data.work, &mdev->md_sync_work);
+	drbd_queue_work_front(&mdev->tconn->data.work, &mdev->md_sync_work);
 }
 
 static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused)

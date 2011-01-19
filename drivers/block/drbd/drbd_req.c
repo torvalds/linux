@@ -127,7 +127,7 @@ static void queue_barrier(struct drbd_conf *mdev)
 	 * dec_ap_pending will be done in got_BarrierAck
 	 * or (on connection loss) in tl_clear.  */
 	inc_ap_pending(mdev);
-	drbd_queue_work(&mdev->data.work, &b->w);
+	drbd_queue_work(&mdev->tconn->data.work, &b->w);
 	set_bit(CREATE_BARRIER, &mdev->flags);
 }
 
@@ -483,7 +483,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->w.cb = (req->rq_state & RQ_LOCAL_MASK)
 			? w_read_retry_remote
 			: w_send_read_req;
-		drbd_queue_work(&mdev->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->data.work, &req->w);
 		break;
 
 	case QUEUE_FOR_NET_WRITE:
@@ -525,7 +525,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		req->rq_state |= RQ_NET_QUEUED;
 		req->w.cb =  w_send_dblock;
-		drbd_queue_work(&mdev->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->data.work, &req->w);
 
 		/* close the epoch, in case it outgrew the limit */
 		if (mdev->newest_tle->n_writes >= mdev->tconn->net_conf->max_epoch_size)
@@ -536,7 +536,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 	case QUEUE_FOR_SEND_OOS:
 		req->rq_state |= RQ_NET_QUEUED;
 		req->w.cb =  w_send_oos;
-		drbd_queue_work(&mdev->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->data.work, &req->w);
 		break;
 
 	case OOS_HANDED_TO_NETWORK:
@@ -667,7 +667,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		get_ldev(mdev);
 		req->w.cb = w_restart_disk_io;
-		drbd_queue_work(&mdev->data.work, &req->w);
+		drbd_queue_work(&mdev->tconn->data.work, &req->w);
 		break;
 
 	case RESEND:
@@ -677,7 +677,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		   We ensure that the peer was not rebooted */
 		if (!(req->rq_state & RQ_NET_OK)) {
 			if (req->w.cb) {
-				drbd_queue_work(&mdev->data.work, &req->w);
+				drbd_queue_work(&mdev->tconn->data.work, &req->w);
 				rv = req->rq_state & RQ_WRITE ? MR_WRITE : MR_READ;
 			}
 			break;

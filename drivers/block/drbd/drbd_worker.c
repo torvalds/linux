@@ -94,7 +94,7 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 		__drbd_chk_io_error(mdev, false);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
-	drbd_queue_work(&mdev->data.work, &e->w);
+	drbd_queue_work(&mdev->tconn->data.work, &e->w);
 	put_ldev(mdev);
 }
 
@@ -400,7 +400,7 @@ void resync_timer_fn(unsigned long data)
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 
 	if (list_empty(&mdev->resync_work.list))
-		drbd_queue_work(&mdev->data.work, &mdev->resync_work);
+		drbd_queue_work(&mdev->tconn->data.work, &mdev->resync_work);
 }
 
 static void fifo_set(struct fifo_buffer *fb, int value)
@@ -538,15 +538,15 @@ static int w_make_resync_request(struct drbd_conf *mdev,
 
 	for (i = 0; i < number; i++) {
 		/* Stop generating RS requests, when half of the send buffer is filled */
-		mutex_lock(&mdev->data.mutex);
-		if (mdev->data.socket) {
-			queued = mdev->data.socket->sk->sk_wmem_queued;
-			sndbuf = mdev->data.socket->sk->sk_sndbuf;
+		mutex_lock(&mdev->tconn->data.mutex);
+		if (mdev->tconn->data.socket) {
+			queued = mdev->tconn->data.socket->sk->sk_wmem_queued;
+			sndbuf = mdev->tconn->data.socket->sk->sk_sndbuf;
 		} else {
 			queued = 1;
 			sndbuf = 0;
 		}
-		mutex_unlock(&mdev->data.mutex);
+		mutex_unlock(&mdev->tconn->data.mutex);
 		if (queued > sndbuf / 2)
 			goto requeue;
 
@@ -710,7 +710,7 @@ void start_resync_timer_fn(unsigned long data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 
-	drbd_queue_work(&mdev->data.work, &mdev->start_resync_work);
+	drbd_queue_work(&mdev->tconn->data.work, &mdev->start_resync_work);
 }
 
 int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
@@ -775,7 +775,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 		w = kmalloc(sizeof(struct drbd_work), GFP_ATOMIC);
 		if (w) {
 			w->cb = w_resync_finished;
-			drbd_queue_work(&mdev->data.work, w);
+			drbd_queue_work(&mdev->tconn->data.work, w);
 			return 1;
 		}
 		dev_err(DEV, "Warn failed to drbd_rs_del_all() and to kmalloc(w).\n");
@@ -1202,7 +1202,7 @@ int w_prev_work_done(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	struct drbd_tl_epoch *b = container_of(w, struct drbd_tl_epoch, w);
-	struct p_barrier *p = &mdev->data.sbuf.barrier;
+	struct p_barrier *p = &mdev->tconn->data.sbuf.barrier;
 	int ok = 1;
 
 	/* really avoid racing with tl_clear.  w.cb may have been referenced
@@ -1223,7 +1223,7 @@ int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	/* inc_ap_pending was done where this was queued.
 	 * dec_ap_pending will be done in got_BarrierAck
 	 * or (on connection loss) in w_clear_epoch.  */
-	ok = _drbd_send_cmd(mdev, mdev->data.socket, P_BARRIER,
+	ok = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_BARRIER,
 				(struct p_header80 *)p, sizeof(*p), 0);
 	drbd_put_data_sock(mdev);
 
@@ -1621,18 +1621,18 @@ int drbd_worker(struct drbd_thread *thi)
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(mdev);
 
-		if (down_trylock(&mdev->data.work.s)) {
-			mutex_lock(&mdev->data.mutex);
-			if (mdev->data.socket && !mdev->tconn->net_conf->no_cork)
-				drbd_tcp_uncork(mdev->data.socket);
-			mutex_unlock(&mdev->data.mutex);
+		if (down_trylock(&mdev->tconn->data.work.s)) {
+			mutex_lock(&mdev->tconn->data.mutex);
+			if (mdev->tconn->data.socket && !mdev->tconn->net_conf->no_cork)
+				drbd_tcp_uncork(mdev->tconn->data.socket);
+			mutex_unlock(&mdev->tconn->data.mutex);
 
-			intr = down_interruptible(&mdev->data.work.s);
+			intr = down_interruptible(&mdev->tconn->data.work.s);
 
-			mutex_lock(&mdev->data.mutex);
-			if (mdev->data.socket  && !mdev->tconn->net_conf->no_cork)
-				drbd_tcp_cork(mdev->data.socket);
-			mutex_unlock(&mdev->data.mutex);
+			mutex_lock(&mdev->tconn->data.mutex);
+			if (mdev->tconn->data.socket  && !mdev->tconn->net_conf->no_cork)
+				drbd_tcp_cork(mdev->tconn->data.socket);
+			mutex_unlock(&mdev->tconn->data.mutex);
 		}
 
 		if (intr) {
@@ -1650,8 +1650,8 @@ int drbd_worker(struct drbd_thread *thi)
 		   this...   */
 
 		w = NULL;
-		spin_lock_irq(&mdev->data.work.q_lock);
-		if (!expect(!list_empty(&mdev->data.work.q))) {
+		spin_lock_irq(&mdev->tconn->data.work.q_lock);
+		if (!expect(!list_empty(&mdev->tconn->data.work.q))) {
 			/* something terribly wrong in our logic.
 			 * we were able to down() the semaphore,
 			 * but the list is empty... doh.
@@ -1663,12 +1663,12 @@ int drbd_worker(struct drbd_thread *thi)
 			 *
 			 * I'll try to get away just starting over this loop.
 			 */
-			spin_unlock_irq(&mdev->data.work.q_lock);
+			spin_unlock_irq(&mdev->tconn->data.work.q_lock);
 			continue;
 		}
-		w = list_entry(mdev->data.work.q.next, struct drbd_work, list);
+		w = list_entry(mdev->tconn->data.work.q.next, struct drbd_work, list);
 		list_del_init(&w->list);
-		spin_unlock_irq(&mdev->data.work.q_lock);
+		spin_unlock_irq(&mdev->tconn->data.work.q_lock);
 
 		if (!w->cb(mdev, w, mdev->state.conn < C_CONNECTED)) {
 			/* dev_warn(DEV, "worker: a callback failed! \n"); */
@@ -1680,11 +1680,11 @@ int drbd_worker(struct drbd_thread *thi)
 	D_ASSERT(test_bit(DEVICE_DYING, &mdev->flags));
 	D_ASSERT(test_bit(CONFIG_PENDING, &mdev->flags));
 
-	spin_lock_irq(&mdev->data.work.q_lock);
+	spin_lock_irq(&mdev->tconn->data.work.q_lock);
 	i = 0;
-	while (!list_empty(&mdev->data.work.q)) {
-		list_splice_init(&mdev->data.work.q, &work_list);
-		spin_unlock_irq(&mdev->data.work.q_lock);
+	while (!list_empty(&mdev->tconn->data.work.q)) {
+		list_splice_init(&mdev->tconn->data.work.q, &work_list);
+		spin_unlock_irq(&mdev->tconn->data.work.q_lock);
 
 		while (!list_empty(&work_list)) {
 			w = list_entry(work_list.next, struct drbd_work, list);
@@ -1693,15 +1693,15 @@ int drbd_worker(struct drbd_thread *thi)
 			i++; /* dead debugging code */
 		}
 
-		spin_lock_irq(&mdev->data.work.q_lock);
+		spin_lock_irq(&mdev->tconn->data.work.q_lock);
 	}
-	sema_init(&mdev->data.work.s, 0);
+	sema_init(&mdev->tconn->data.work.s, 0);
 	/* DANGEROUS race: if someone did queue his work within the spinlock,
 	 * but up() ed outside the spinlock, we could get an up() on the
 	 * semaphore without corresponding list entry.
 	 * So don't do that.
 	 */
-	spin_unlock_irq(&mdev->data.work.q_lock);
+	spin_unlock_irq(&mdev->tconn->data.work.q_lock);
 
 	D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
 	/* _drbd_set_state only uses stop_nowait.
