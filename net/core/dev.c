@@ -1285,7 +1285,7 @@ static int __dev_close(struct net_device *dev)
 	return __dev_close_many(&single);
 }
 
-int dev_close_many(struct list_head *head)
+static int dev_close_many(struct list_head *head)
 {
 	struct net_device *dev, *tmp;
 	LIST_HEAD(tmp_list);
