@@ -3747,13 +3747,13 @@ static void drbdd(struct drbd_conf *mdev)
 	drbd_md_sync(mdev);
 }
 
-void drbd_flush_workqueue(struct drbd_conf *mdev)
+void drbd_flush_workqueue(struct drbd_tconn *tconn)
 {
 	struct drbd_wq_barrier barr;
 
 	barr.w.cb = w_prev_work_done;
 	init_completion(&barr.done);
-	drbd_queue_work(&mdev->tconn->data.work, &barr.w);
+	drbd_queue_work(&tconn->data.work, &barr.w);
 	wait_for_completion(&barr.done);
 }
 
@@ -3803,7 +3803,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	/* wait for all w_e_end_data_req, w_e_end_rsdata_req, w_send_barrier,
 	 * w_make_resync_request etc. which may still be on the worker queue
 	 * to be "canceled" */
-	drbd_flush_workqueue(mdev);
+	drbd_flush_workqueue(mdev->tconn);
 
 	/* This also does reclaim_net_ee().  If we do this too early, we might
 	 * miss some resync ee and pages.*/

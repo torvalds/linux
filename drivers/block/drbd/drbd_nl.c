@@ -876,7 +876,7 @@ static void drbd_reconfig_start(struct drbd_conf *mdev)
 	wait_event(mdev->state_wait, !test_and_set_bit(CONFIG_PENDING, &mdev->flags));
 	wait_event(mdev->state_wait, !test_bit(DEVICE_DYING, &mdev->flags));
 	drbd_thread_start(&mdev->tconn->worker);
-	drbd_flush_workqueue(mdev);
+	drbd_flush_workqueue(mdev->tconn);
 }
 
 /* if still unconfigured, stops worker again.
@@ -1076,7 +1076,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	/* also wait for the last barrier ack. */
 	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt) || is_susp(mdev->state));
 	/* and for any other previously queued work */
-	drbd_flush_workqueue(mdev);
+	drbd_flush_workqueue(mdev->tconn);
 
 	rv = _drbd_request_state(mdev, NS(disk, D_ATTACHING), CS_VERBOSE);
 	retcode = rv;  /* FIXME: Type mismatch. */
@@ -1520,7 +1520,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		}
 	}
 
-	drbd_flush_workqueue(mdev);
+	drbd_flush_workqueue(mdev->tconn);
 	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->tconn->net_conf != NULL) {
 		retcode = ERR_NET_CONFIGURED;
