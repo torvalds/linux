@@ -227,42 +227,32 @@ static void enable_opsput_lcdpld_irq(unsigned int irq)
 	outw(data, port);
 }
 
-static void mask_and_ack_opsput_lcdpld(unsigned int irq)
+static void mask_opsput_lcdpld(struct irq_data *data)
 {
-	disable_opsput_lcdpld_irq(irq);
+	disable_opsput_lcdpld_irq(data->irq);
 }
 
-static void end_opsput_lcdpld_irq(unsigned int irq)
+static void unmask_opsput_lcdpld(struct irq_data *data)
 {
-	enable_opsput_lcdpld_irq(irq);
+	enable_opsput_lcdpld_irq(data->irq);
 	enable_opsput_irq(M32R_IRQ_INT2);
 }
 
-static unsigned int startup_opsput_lcdpld_irq(unsigned int irq)
-{
-	enable_opsput_lcdpld_irq(irq);
-	return (0);
-}
-
-static void shutdown_opsput_lcdpld_irq(unsigned int irq)
+static void shutdown_opsput_lcdpld(struct irq_data *data)
 {
 	unsigned long port;
 	unsigned int pldirq;
 
-	pldirq = irq2lcdpldirq(irq);
+	pldirq = irq2lcdpldirq(data->irq);
 	port = lcdpldirq2port(pldirq);
 	outw(PLD_ICUCR_ILEVEL7, port);
 }
 
-static struct irq_chip opsput_lcdpld_irq_type =
-{
-	"OPSPUT-PLD-LCD-IRQ",
-	startup_opsput_lcdpld_irq,
-	shutdown_opsput_lcdpld_irq,
-	enable_opsput_lcdpld_irq,
-	disable_opsput_lcdpld_irq,
-	mask_and_ack_opsput_lcdpld,
-	end_opsput_lcdpld_irq
+static struct irq_chip opsput_lcdpld_irq_type = {
+	.name		= "OPSPUT-PLD-LCD-IRQ",
+	.irq_shutdown	= shutdown_opsput_lcdpld,
+	.irq_mask	= mask_opsput_lcdpld,
+	.irq_unmask	= unmask_opsput_lcdpld,
 };
 
 void __init init_IRQ(void)
@@ -358,11 +348,11 @@ void __init init_IRQ(void)
 	enable_opsput_irq(M32R_IRQ_INT1);
 
 #if defined(CONFIG_USB)
-	outw(USBCR_OTGS, USBCR); 	/* USBCR: non-OTG */
-
-    set_irq_chip(OPSPUT_LCD_IRQ_USB_INT1, &opsput_lcdpld_irq_type);
-    lcdpld_icu_data[irq2lcdpldirq(OPSPUT_LCD_IRQ_USB_INT1)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD01;	/* "L" level sense */
-    disable_opsput_lcdpld_irq(OPSPUT_LCD_IRQ_USB_INT1);
+	outw(USBCR_OTGS, USBCR);	/* USBCR: non-OTG */
+	set_irq_chip_and_handler(OPSPUT_LCD_IRQ_USB_INT1,
+				 &opsput_lcdpld_irq_type, handle_level_irq);
+	lcdpld_icu_data[irq2lcdpldirq(OPSPUT_LCD_IRQ_USB_INT1)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD01;	/* "L" level sense */
+	disable_opsput_lcdpld_irq(OPSPUT_LCD_IRQ_USB_INT1);
 #endif
 	/*
 	 * INT2# is used for BAT, USB, AUDIO
