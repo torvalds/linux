@@ -4506,44 +4506,50 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	 * ignoring this setting.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
+		/*XXX BIOS treats 16:31 as a mask for 0:15 */
+
 		temp = I915_READ(PCH_DREF_CONTROL);
-		/* Always enable nonspread source */
+
+		/* First clear the current state for output switching */
+		temp &= ~DREF_SSC1_ENABLE;
+		temp &= ~DREF_SSC4_ENABLE;
+		temp &= ~DREF_SUPERSPREAD_SOURCE_MASK;
 		temp &= ~DREF_NONSPREAD_SOURCE_MASK;
-		temp |= DREF_NONSPREAD_SOURCE_ENABLE;
 		temp &= ~DREF_SSC_SOURCE_MASK;
-		temp |= DREF_SSC_SOURCE_ENABLE;
+		temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 		I915_WRITE(PCH_DREF_CONTROL, temp);
 
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 
-		if (has_edp_encoder) {
-			if (intel_panel_use_ssc(dev_priv)) {
-				temp |= DREF_SSC1_ENABLE;
-				I915_WRITE(PCH_DREF_CONTROL, temp);
-
-				POSTING_READ(PCH_DREF_CONTROL);
-				udelay(200);
-			}
-			temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-
-			/* Enable CPU source on CPU attached eDP */
-			if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-				if (intel_panel_use_ssc(dev_priv))
+		if ((is_lvds || has_edp_encoder) &&
+		    intel_panel_use_ssc(dev_priv)) {
+			temp |= DREF_SSC_SOURCE_ENABLE;
+			if (has_edp_encoder) {
+				if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+					/* Enable CPU source on CPU attached eDP */
 					temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
-				else
-					temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
-			} else {
-				/* Enable SSC on PCH eDP if needed */
-				if (intel_panel_use_ssc(dev_priv)) {
-					DRM_ERROR("enabling SSC on PCH\n");
+				} else {
+					/* Enable SSC on PCH eDP if needed */
 					temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
 				}
+				I915_WRITE(PCH_DREF_CONTROL, temp);
 			}
-			I915_WRITE(PCH_DREF_CONTROL, temp);
-			POSTING_READ(PCH_DREF_CONTROL);
-			udelay(200);
+			if (!dev_priv->display_clock_mode)
+				temp |= DREF_SSC1_ENABLE;
+		} else {
+			if (dev_priv->display_clock_mode)
+				temp |= DREF_NONSPREAD_CK505_ENABLE;
+			else
+				temp |= DREF_NONSPREAD_SOURCE_ENABLE;
+			if (has_edp_encoder &&
+			    !intel_encoder_is_pch_edp(&has_edp_encoder->base))
+				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 		}
+
+		I915_WRITE(PCH_DREF_CONTROL, temp);
+		POSTING_READ(PCH_DREF_CONTROL);
+		udelay(200);
 	}
 
 	if (IS_PINEVIEW(dev)) {

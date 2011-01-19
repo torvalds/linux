@@ -279,6 +279,7 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		dev_priv->lvds_use_ssc = general->enable_ssc;
 		dev_priv->lvds_ssc_freq =
 			intel_bios_ssc_frequency(dev, general->ssc_freq);
+		dev_priv->display_clock_mode = general->display_clock_mode;
 	}
 }
 
