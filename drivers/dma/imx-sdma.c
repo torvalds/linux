@@ -1061,14 +1061,12 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	dma_cookie_t last_used;
-	enum dma_status ret;
 
 	last_used = chan->cookie;
 
-	ret = dma_async_is_complete(cookie, sdmac->last_completed, last_used);
 	dma_set_tx_state(txstate, sdmac->last_completed, last_used, 0);
 
-	return ret;
+	return sdmac->status;
 }
 
 static void sdma_issue_pending(struct dma_chan *chan)
