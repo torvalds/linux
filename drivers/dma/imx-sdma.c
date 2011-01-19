@@ -1348,7 +1348,7 @@ err_clk:
 err_request_region:
 err_irq:
 	kfree(sdma);
-	return 0;
+	return ret;
 }
 
 static int __exit sdma_remove(struct platform_device *pdev)
