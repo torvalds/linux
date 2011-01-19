@@ -256,7 +256,7 @@ static bool ath5k_is_standard_channel(short chan)
 }
 
 static unsigned int
-ath5k_copy_channels(struct ath5k_hw *ah,
+ath5k_setup_channels(struct ath5k_hw *ah,
 		struct ieee80211_channel *channels,
 		unsigned int mode,
 		unsigned int max)
@@ -357,7 +357,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 		sband->n_bitrates = 12;
 
 		sband->channels = sc->channels;
-		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
+		sband->n_channels = ath5k_setup_channels(ah, sband->channels,
 					AR5K_MODE_11G, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
@@ -383,7 +383,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 		}
 
 		sband->channels = sc->channels;
-		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
+		sband->n_channels = ath5k_setup_channels(ah, sband->channels,
 					AR5K_MODE_11B, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
@@ -403,7 +403,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 		sband->n_bitrates = 8;
 
 		sband->channels = &sc->channels[count_c];
-		sband->n_channels = ath5k_copy_channels(ah, sband->channels,
+		sband->n_channels = ath5k_setup_channels(ah, sband->channels,
 					AR5K_MODE_11A, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
