@@ -65,11 +65,8 @@
 struct sci_port {
 	struct uart_port	port;
 
-	/* Port type */
-	unsigned int		type;
-
-	/* Port IRQs: ERI, RXI, TXI, BRI (optional) */
-	unsigned int		irqs[SCIx_NR_IRQS];
+	/* Platform configuration */
+	struct plat_sci_port	*cfg;
 
 	/* Port enable callback */
 	void			(*enable)(struct uart_port *port);
@@ -80,12 +77,6 @@ struct sci_port {
 	/* Break timer */
 	struct timer_list	break_timer;
 	int			break_flag;
-
-	/* SCSCR initialization */
-	unsigned int		scscr;
-
-	/* SCBRR calculation algo */
-	unsigned int		scbrr_algo_id;
 
 	/* Interface clock */
 	struct clk		*iclk;
@@ -98,9 +89,6 @@ struct sci_port {
 	struct dma_chan			*chan_rx;
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-	struct device			*dma_dev;
-	unsigned int			slave_tx;
-	unsigned int			slave_rx;
 	struct dma_async_tx_descriptor	*desc_tx;
 	struct dma_async_tx_descriptor	*desc_rx[2];
 	dma_cookie_t			cookie_tx;
@@ -794,7 +782,7 @@ static inline unsigned long port_rx_irq_mask(struct uart_port *port)
 	 * it's unset, it's logically inferred that there's no point in
 	 * testing for it.
 	 */
-	return SCSCR_RIE | (to_sci_port(port)->scscr & SCSCR_REIE);
+	return SCSCR_RIE | (to_sci_port(port)->cfg->scscr & SCSCR_REIE);
 }
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
@@ -882,21 +870,21 @@ static int sci_request_irq(struct sci_port *port)
 	const char *desc[] = { "SCI Receive Error", "SCI Receive Data Full",
 			       "SCI Transmit Data Empty", "SCI Break" };
 
-	if (port->irqs[0] == port->irqs[1]) {
-		if (unlikely(!port->irqs[0]))
+	if (port->cfg->irqs[0] == port->cfg->irqs[1]) {
+		if (unlikely(!port->cfg->irqs[0]))
 			return -ENODEV;
 
-		if (request_irq(port->irqs[0], sci_mpxed_interrupt,
+		if (request_irq(port->cfg->irqs[0], sci_mpxed_interrupt,
 				IRQF_DISABLED, "sci", port)) {
 			dev_err(port->port.dev, "Can't allocate IRQ\n");
 			return -ENODEV;
 		}
 	} else {
 		for (i = 0; i < ARRAY_SIZE(handlers); i++) {
-			if (unlikely(!port->irqs[i]))
+			if (unlikely(!port->cfg->irqs[i]))
 				continue;
 
-			if (request_irq(port->irqs[i], handlers[i],
+			if (request_irq(port->cfg->irqs[i], handlers[i],
 					IRQF_DISABLED, desc[i], port)) {
 				dev_err(port->port.dev, "Can't allocate IRQ\n");
 				return -ENODEV;
@@ -911,14 +899,14 @@ static void sci_free_irq(struct sci_port *port)
 {
 	int i;
 
-	if (port->irqs[0] == port->irqs[1])
-		free_irq(port->irqs[0], port);
+	if (port->cfg->irqs[0] == port->cfg->irqs[1])
+		free_irq(port->cfg->irqs[0], port);
 	else {
-		for (i = 0; i < ARRAY_SIZE(port->irqs); i++) {
-			if (!port->irqs[i])
+		for (i = 0; i < ARRAY_SIZE(port->cfg->irqs); i++) {
+			if (!port->cfg->irqs[i])
 				continue;
 
-			free_irq(port->irqs[i], port);
+			free_irq(port->cfg->irqs[i], port);
 		}
 	}
 }
@@ -1325,7 +1313,7 @@ static void rx_timer_fn(unsigned long arg)
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 		scr &= ~0x4000;
-		enable_irq(s->irqs[1]);
+		enable_irq(s->cfg->irqs[1]);
 	}
 	sci_out(port, SCSCR, scr | SCSCR_RIE);
 	dev_dbg(port->dev, "DMA Rx timed out\n");
@@ -1341,9 +1329,9 @@ static void sci_request_dma(struct uart_port *port)
 	int nent;
 
 	dev_dbg(port->dev, "%s: port %d DMA %p\n", __func__,
-		port->line, s->dma_dev);
+		port->line, s->cfg->dma_dev);
 
-	if (!s->dma_dev)
+	if (!s->cfg->dma_dev)
 		return;
 
 	dma_cap_zero(mask);
@@ -1352,8 +1340,8 @@ static void sci_request_dma(struct uart_port *port)
 	param = &s->param_tx;
 
 	/* Slave ID, e.g., SHDMA_SLAVE_SCIF0_TX */
-	param->slave_id = s->slave_tx;
-	param->dma_dev = s->dma_dev;
+	param->slave_id = s->cfg->dma_slave_tx;
+	param->dma_dev = s->cfg->dma_dev;
 
 	s->cookie_tx = -EINVAL;
 	chan = dma_request_channel(mask, filter, param);
@@ -1381,8 +1369,8 @@ static void sci_request_dma(struct uart_port *port)
 	param = &s->param_rx;
 
 	/* Slave ID, e.g., SHDMA_SLAVE_SCIF0_RX */
-	param->slave_id = s->slave_rx;
-	param->dma_dev = s->dma_dev;
+	param->slave_id = s->cfg->dma_slave_rx;
+	param->dma_dev = s->cfg->dma_dev;
 
 	chan = dma_request_channel(mask, filter, param);
 	dev_dbg(port->dev, "%s: RX: got channel %p\n", __func__, chan);
@@ -1427,7 +1415,7 @@ static void sci_free_dma(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
 
-	if (!s->dma_dev)
+	if (!s->cfg->dma_dev)
 		return;
 
 	if (s->chan_tx)
@@ -1514,7 +1502,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 	if (likely(baud && port->uartclk))
-		t = sci_scbrr_calc(s->scbrr_algo_id, baud, port->uartclk);
+		t = sci_scbrr_calc(s->cfg->scbrr_algo_id, baud, port->uartclk);
 
 	do {
 		status = sci_in(port, SCxSR);
@@ -1540,7 +1528,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	sci_out(port, SCSMR, smr_val);
 
 	dev_dbg(port->dev, "%s: SMR %x, t %x, SCSCR %x\n", __func__, smr_val, t,
-		s->scscr);
+		s->cfg->scscr);
 
 	if (t > 0) {
 		if (t >= 256) {
@@ -1556,7 +1544,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	sci_init_pins(port, termios->c_cflag);
 	sci_out(port, SCFCR, scfcr | ((termios->c_cflag & CRTSCTS) ? SCFCR_MCE : 0));
 
-	sci_out(port, SCSCR, s->scscr);
+	sci_out(port, SCSCR, s->cfg->scscr);
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
@@ -1617,7 +1605,7 @@ static void sci_config_port(struct uart_port *port, int flags)
 {
 	struct sci_port *s = to_sci_port(port);
 
-	port->type = s->type;
+	port->type = s->cfg->type;
 
 	if (port->flags & UPF_IOREMAP) {
 		port->membase = ioremap_nocache(port->mapbase, 0x40);
@@ -1638,7 +1626,7 @@ static int sci_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	struct sci_port *s = to_sci_port(port);
 
-	if (ser->irq != s->irqs[SCIx_TXI_IRQ] || ser->irq > nr_irqs)
+	if (ser->irq != s->cfg->irqs[SCIx_TXI_IRQ] || ser->irq > nr_irqs)
 		return -EINVAL;
 	if (ser->baud_base < 2400)
 		/* No paper tape reader for Mitch.. */
@@ -1723,24 +1711,27 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	sci_port->break_timer.function = sci_break_timer;
 	init_timer(&sci_port->break_timer);
 
-	port->mapbase	= p->mapbase;
+	sci_port->cfg		= p;
 
-	port->irq		= p->irqs[SCIx_TXI_IRQ];
+	port->mapbase		= p->mapbase;
+	port->type		= p->type;
 	port->flags		= p->flags;
-	sci_port->type		= port->type = p->type;
-	sci_port->scscr		= p->scscr;
-	sci_port->scbrr_algo_id	= p->scbrr_algo_id;
+
+	/*
+	 * The UART port needs an IRQ value, so we peg this to the TX IRQ
+	 * for the multi-IRQ ports, which is where we are primarily
+	 * concerned with the shutdown path synchronization.
+	 *
+	 * For the muxed case there's nothing more to do.
+	 */
+	port->irq		= p->irqs[SCIx_TXI_IRQ];
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-	sci_port->dma_dev	= p->dma_dev;
-	sci_port->slave_tx	= p->dma_slave_tx;
-	sci_port->slave_rx	= p->dma_slave_rx;
-
-	dev_dbg(port->dev, "%s: DMA device %p, tx %d, rx %d\n", __func__,
-		p->dma_dev, p->dma_slave_tx, p->dma_slave_rx);
+	if (p->dma_dev)
+		dev_dbg(port->dev, "DMA device %p, tx %d, rx %d\n",
+			p->dma_dev, p->dma_slave_tx, p->dma_slave_rx);
 #endif
 
-	memcpy(&sci_port->irqs, &p->irqs, sizeof(p->irqs));
 	return 0;
 }
 
