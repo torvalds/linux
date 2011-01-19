@@ -2266,6 +2266,29 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
+static void iwl4965_rx_beacon_notif(struct iwl_priv *priv,
+				    struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl4965_beacon_notif *beacon = (void *)pkt->u.raw;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
+
+	IWL_DEBUG_RX(priv, "beacon status %#x, retries:%d ibssmgr:%d "
+		"tsf:0x%.8x%.8x rate:%d\n",
+		le32_to_cpu(beacon->beacon_notify_hdr.u.status) & TX_STATUS_MSK,
+		beacon->beacon_notify_hdr.failure_frame,
+		le32_to_cpu(beacon->ibss_mgr_status),
+		le32_to_cpu(beacon->high_tsf),
+		le32_to_cpu(beacon->low_tsf), rate);
+#endif
+
+	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
+
+	if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
+		queue_work(priv->workqueue, &priv->beacon_update);
+}
+
 static int iwl4965_calc_rssi(struct iwl_priv *priv,
 			     struct iwl_rx_phy_res *rx_resp)
 {
@@ -2308,6 +2331,7 @@ static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_RX] = iwlagn_rx_reply_rx;
 	/* Tx response */
 	priv->rx_handlers[REPLY_TX] = iwl4965_rx_reply_tx;
+	priv->rx_handlers[BEACON_NOTIFICATION] = iwl4965_rx_beacon_notif;
 
 	/* set up notification wait support */
 	spin_lock_init(&priv->_agn.notif_wait_lock);

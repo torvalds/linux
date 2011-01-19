@@ -704,18 +704,18 @@ static void iwl_bg_ucode_trace(unsigned long data)
 	}
 }
 
-static void iwl_rx_beacon_notif(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb)
+static void iwlagn_rx_beacon_notif(struct iwl_priv *priv,
+				   struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl4965_beacon_notif *beacon =
-		(struct iwl4965_beacon_notif *)pkt->u.raw;
+	struct iwlagn_beacon_notif *beacon = (void *)pkt->u.raw;
 #ifdef CONFIG_IWLWIFI_DEBUG
+	u16 status = le16_to_cpu(beacon->beacon_notify_hdr.status.status);
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
-	IWL_DEBUG_RX(priv, "beacon status %x retries %d iss %d "
-		"tsf %d %d rate %d\n",
-		le32_to_cpu(beacon->beacon_notify_hdr.u.status) & TX_STATUS_MSK,
+	IWL_DEBUG_RX(priv, "beacon status %#x, retries:%d ibssmgr:%d "
+		"tsf:0x%.8x%.8x rate:%d\n",
+		status & TX_STATUS_MSK,
 		beacon->beacon_notify_hdr.failure_frame,
 		le32_to_cpu(beacon->ibss_mgr_status),
 		le32_to_cpu(beacon->high_tsf),
@@ -818,7 +818,7 @@ static void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[PM_SLEEP_NOTIFICATION] = iwl_rx_pm_sleep_notif;
 	priv->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
 	    iwl_rx_pm_debug_statistics_notif;
-	priv->rx_handlers[BEACON_NOTIFICATION] = iwl_rx_beacon_notif;
+	priv->rx_handlers[BEACON_NOTIFICATION] = iwlagn_rx_beacon_notif;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete

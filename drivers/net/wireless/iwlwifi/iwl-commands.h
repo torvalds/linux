@@ -3083,6 +3083,13 @@ struct iwl4965_beacon_notif {
 	__le32 ibss_mgr_status;
 } __packed;
 
+struct iwlagn_beacon_notif {
+	struct iwlagn_tx_resp beacon_notify_hdr;
+	__le32 low_tsf;
+	__le32 high_tsf;
+	__le32 ibss_mgr_status;
+} __packed;
+
 /*
  * REPLY_TX_BEACON = 0x91 (command, has simple generic response)
  */
