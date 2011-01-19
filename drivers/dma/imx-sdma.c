@@ -947,6 +947,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 	return &sdmac->desc;
 err_out:
+	sdmac->status = DMA_ERROR;
 	return NULL;
 }
 
