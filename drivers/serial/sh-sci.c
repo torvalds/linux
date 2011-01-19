@@ -830,6 +830,7 @@ static int sci_notifier(struct notifier_block *self,
 	if ((phase == CPUFREQ_POSTCHANGE) ||
 	    (phase == CPUFREQ_RESUMECHANGE)) {
 		struct uart_port *port = &sci_port->port;
+
 		spin_lock_irqsave(&port->lock, flags);
 		port->uartclk = clk_get_rate(sci_port->iclk);
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -1428,14 +1429,19 @@ static inline void sci_free_dma(struct uart_port *port)
 static int sci_startup(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
+	int ret;
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
 	if (s->enable)
 		s->enable(port);
 
-	sci_request_irq(s);
+	ret = sci_request_irq(s);
+	if (unlikely(ret < 0))
+		return ret;
+
 	sci_request_dma(port);
+
 	sci_start_tx(port);
 	sci_start_rx(port);
 
@@ -1450,6 +1456,7 @@ static void sci_shutdown(struct uart_port *port)
 
 	sci_stop_rx(port);
 	sci_stop_tx(port);
+
 	sci_free_dma(port);
 	sci_free_irq(s);
 
