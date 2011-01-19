@@ -91,7 +91,8 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	}
 	bd->bd_ail = ai;
 	list_add(&bd->bd_ail_st_list, &ai->ai_ail1_list);
-	clear_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
+	if (test_and_clear_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags))
+		gfs2_glock_schedule_for_reclaim(bd->bd_gl);
 	trace_gfs2_pin(bd, 0);
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
