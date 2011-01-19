@@ -166,42 +166,33 @@ static void enable_m32700ut_lanpld_irq(unsigned int irq)
 	outw(data, port);
 }
 
-static void mask_and_ack_m32700ut_lanpld(unsigned int irq)
+static void mask_m32700ut_lanpld(struct irq_data *data)
 {
-	disable_m32700ut_lanpld_irq(irq);
+	disable_m32700ut_lanpld_irq(data->irq);
 }
 
-static void end_m32700ut_lanpld_irq(unsigned int irq)
+static void unmask_m32700ut_lanpld(struct irq_data *data)
 {
-	enable_m32700ut_lanpld_irq(irq);
+	enable_m32700ut_lanpld_irq(data->irq);
 	enable_m32700ut_irq(M32R_IRQ_INT0);
 }
 
-static unsigned int startup_m32700ut_lanpld_irq(unsigned int irq)
-{
-	enable_m32700ut_lanpld_irq(irq);
-	return (0);
-}
-
-static void shutdown_m32700ut_lanpld_irq(unsigned int irq)
+static void shutdown_m32700ut_lanpld(struct irq_data *data)
 {
 	unsigned long port;
 	unsigned int pldirq;
 
-	pldirq = irq2lanpldirq(irq);
+	pldirq = irq2lanpldirq(data->irq);
 	port = lanpldirq2port(pldirq);
 	outw(PLD_ICUCR_ILEVEL7, port);
 }
 
 static struct irq_chip m32700ut_lanpld_irq_type =
 {
-	.name = "M32700UT-PLD-LAN-IRQ",
-	.startup = startup_m32700ut_lanpld_irq,
-	.shutdown = shutdown_m32700ut_lanpld_irq,
-	.enable = enable_m32700ut_lanpld_irq,
-	.disable = disable_m32700ut_lanpld_irq,
-	.ack = mask_and_ack_m32700ut_lanpld,
-	.end = end_m32700ut_lanpld_irq
+	.name		= "M32700UT-PLD-LAN-IRQ",
+	.irq_shutdown	= shutdown_m32700ut_lanpld,
+	.irq_mask	= mask_m32700ut_lanpld,
+	.irq_unmask	= unmask_m32700ut_lanpld,
 };
 
 /*
@@ -277,7 +268,8 @@ void __init init_IRQ(void)
 {
 #if defined(CONFIG_SMC91X)
 	/* INT#0: LAN controller on M32700UT-LAN (SMC91C111)*/
-	set_irq_chip(M32700UT_LAN_IRQ_LAN, &m32700ut_lanpld_irq_type);
+	set_irq_chip_and_handler(M32700UT_LAN_IRQ_LAN,
+				 &m32700ut_lanpld_irq_type, handle_level_irq);
 	lanpld_icu_data[irq2lanpldirq(M32700UT_LAN_IRQ_LAN)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD02;	/* "H" edge sense */
 	disable_m32700ut_lanpld_irq(M32700UT_LAN_IRQ_LAN);
 #endif  /* CONFIG_SMC91X */
