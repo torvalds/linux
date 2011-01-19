@@ -129,6 +129,7 @@ static int tegra_ehci_hub_control(
 		if (handshake(ehci, status_reg, PORT_SUSPEND,
 						PORT_SUSPEND, 5000))
 			pr_err("%s: timeout waiting for PORT_SUSPEND\n", __func__);
+		set_bit((wIndex & 0xff) - 1, &ehci->suspended_ports);
 		goto done;
 	}
 
