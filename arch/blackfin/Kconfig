@@ -50,9 +50,6 @@ config GENERIC_HARDIRQS
 config GENERIC_IRQ_PROBE
 	def_bool y
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config GENERIC_GPIO
 	def_bool y
 

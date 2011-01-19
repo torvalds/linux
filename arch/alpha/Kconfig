@@ -68,9 +68,6 @@ config GENERIC_IOMAP
 	bool
 	default n
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config GENERIC_HARDIRQS
 	bool
 	default y

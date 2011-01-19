@@ -52,9 +52,6 @@ config GENERIC_TIME_VSYSCALL
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config GENERIC_GPIO
 	def_bool y
 

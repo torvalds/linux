@@ -40,10 +40,6 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
-	default y
-
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool PPC64
 

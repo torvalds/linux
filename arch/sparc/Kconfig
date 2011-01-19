@@ -107,10 +107,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	def_bool y if SPARC64
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
-	def_bool y if SPARC64
-
 config MMU
 	bool
 	default y

@@ -53,9 +53,6 @@ config GENERIC_CLOCKEVENTS
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	def_bool y
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config GENERIC_SYSCALL_TABLE
 	def_bool y
 

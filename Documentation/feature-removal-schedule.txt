@@ -357,14 +357,6 @@ Who:	Dave Jones <davej@redhat.com>, Matthew Garrett <mjg@redhat.com>
 
 -----------------------------
 
-What:	__do_IRQ all in one fits nothing interrupt handler
-When:	2.6.32
-Why:	__do_IRQ was kept for easy migration to the type flow handlers.
-	More than two years of migration time is enough.
-Who:	Thomas Gleixner <tglx@linutronix.de>
-
------------------------------
-
 What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
 When:	2011
 Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
