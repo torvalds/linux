@@ -1,6 +1,7 @@
 config MN10300
 	def_bool y
 	select HAVE_OPROFILE
+	select GENERIC_HARDIRQS
 
 config AM33_2
 	def_bool n
@@ -74,10 +75,6 @@ config QUICKLIST
 	def_bool y
 
 config ARCH_HAS_ILOG2_U32
-	def_bool y
-
-# Use the generic interrupt handling code in kernel/irq/
-config GENERIC_HARDIRQS
 	def_bool y
 
 config HOTPLUG_CPU
