@@ -967,6 +967,8 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct drbd_conf *volume0;	/* TODO: Remove me again */
 
 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
+	atomic_t net_cnt;		/* Users of net_conf */
+	wait_queue_head_t net_cnt_wait;
 };
 
 struct drbd_conf {
@@ -1012,7 +1014,6 @@ struct drbd_conf {
 	union drbd_state state;
 	wait_queue_head_t misc_wait;
 	wait_queue_head_t state_wait;  /* upon each state change. */
-	wait_queue_head_t net_cnt_wait;
 	unsigned int send_cnt;
 	unsigned int recv_cnt;
 	unsigned int read_cnt;
@@ -1024,7 +1025,7 @@ struct drbd_conf {
 	atomic_t rs_pending_cnt; /* RS request/data packets on the wire */
 	atomic_t unacked_cnt;	 /* Need to send replys for */
 	atomic_t local_cnt;	 /* Waiting for local completion */
-	atomic_t net_cnt;	 /* Users of net_conf */
+
 	spinlock_t req_lock;
 	struct drbd_tl_epoch *unused_spare_tle; /* for pre-allocation */
 	struct drbd_tl_epoch *newest_tle;
@@ -2126,10 +2127,10 @@ static inline void inc_unacked(struct drbd_conf *mdev)
 	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt); } while (0)
 
 
-static inline void put_net_conf(struct drbd_conf *mdev)
+static inline void put_net_conf(struct drbd_tconn *tconn)
 {
-	if (atomic_dec_and_test(&mdev->net_cnt))
-		wake_up(&mdev->net_cnt_wait);
+	if (atomic_dec_and_test(&tconn->net_cnt))
+		wake_up(&tconn->net_cnt_wait);
 }
 
 /**
@@ -2138,14 +2139,14 @@ static inline void put_net_conf(struct drbd_conf *mdev)
  *
  * You have to call put_net_conf() when finished working with mdev->tconn->net_conf.
  */
-static inline int get_net_conf(struct drbd_conf *mdev)
+static inline int get_net_conf(struct drbd_tconn *tconn)
 {
 	int have_net_conf;
 
-	atomic_inc(&mdev->net_cnt);
-	have_net_conf = mdev->state.conn >= C_UNCONNECTED;
+	atomic_inc(&tconn->net_cnt);
+	have_net_conf = tconn->volume0->state.conn >= C_UNCONNECTED;
 	if (!have_net_conf)
-		put_net_conf(mdev);
+		put_net_conf(tconn);
 	return have_net_conf;
 }
 
@@ -2251,9 +2252,9 @@ static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
 static inline int drbd_get_max_buffers(struct drbd_conf *mdev)
 {
 	int mxb = 1000000; /* arbitrary limit on open requests */
-	if (get_net_conf(mdev)) {
+	if (get_net_conf(mdev->tconn)) {
 		mxb = mdev->tconn->net_conf->max_buffers;
-		put_net_conf(mdev);
+		put_net_conf(mdev->tconn);
 	}
 	return mxb;
 }

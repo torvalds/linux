@@ -692,11 +692,11 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 		put_ldev(mdev);
 	}
 
-	if (get_net_conf(mdev)) {
+	if (get_net_conf(mdev->tconn)) {
 		if (!mdev->tconn->net_conf->two_primaries &&
 		    ns.role == R_PRIMARY && ns.peer == R_PRIMARY)
 			rv = SS_TWO_PRIMARIES;
-		put_net_conf(mdev);
+		put_net_conf(mdev->tconn);
 	}
 
 	if (rv <= 0)
@@ -2972,7 +2972,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->rs_pending_cnt, 0);
 	atomic_set(&mdev->unacked_cnt, 0);
 	atomic_set(&mdev->local_cnt, 0);
-	atomic_set(&mdev->net_cnt, 0);
 	atomic_set(&mdev->packet_seq, 0);
 	atomic_set(&mdev->pp_in_use, 0);
 	atomic_set(&mdev->pp_in_use_by_net, 0);
@@ -3031,7 +3030,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 
 	init_waitqueue_head(&mdev->misc_wait);
 	init_waitqueue_head(&mdev->state_wait);
-	init_waitqueue_head(&mdev->net_cnt_wait);
 	init_waitqueue_head(&mdev->ee_wait);
 	init_waitqueue_head(&mdev->al_wait);
 	init_waitqueue_head(&mdev->seq_wait);
@@ -3371,6 +3369,9 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	tconn->name = kstrdup(name, GFP_KERNEL);
 	if (!tconn->name)
 		goto fail;
+
+	atomic_set(&tconn->net_cnt, 0);
+	init_waitqueue_head(&tconn->net_cnt_wait);
 
 	write_lock_irq(&global_state_lock);
 	list_add(&tconn->all_tconn, &drbd_tconns);

@@ -149,7 +149,7 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 
 	snprintf(mb, 12, "minor-%d", mdev_to_minor(mdev));
 
-	if (get_net_conf(mdev)) {
+	if (get_net_conf(mdev->tconn)) {
 		switch (((struct sockaddr *)mdev->tconn->net_conf->peer_addr)->sa_family) {
 		case AF_INET6:
 			afs = "ipv6";
@@ -169,7 +169,7 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 		snprintf(af, 20, "DRBD_PEER_AF=%s", afs);
 		envp[3]=af;
 		envp[4]=ad;
-		put_net_conf(mdev);
+		put_net_conf(mdev->tconn);
 	}
 
 	/* The helper may take some time.
@@ -409,9 +409,9 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 			put_ldev(mdev);
 		}
 	} else {
-		if (get_net_conf(mdev)) {
+		if (get_net_conf(mdev->tconn)) {
 			mdev->tconn->net_conf->want_lose = 0;
-			put_net_conf(mdev);
+			put_net_conf(mdev->tconn);
 		}
 		set_disk_ro(mdev->vdisk, false);
 		if (get_ldev(mdev)) {
@@ -971,9 +971,9 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		goto fail;
 	}
 
-	if (get_net_conf(mdev)) {
+	if (get_net_conf(mdev->tconn)) {
 		int prot = mdev->tconn->net_conf->wire_protocol;
-		put_net_conf(mdev);
+		put_net_conf(mdev->tconn);
 		if (nbc->dc.fencing == FP_STONITH && prot == DRBD_PROT_A) {
 			retcode = ERR_STONITH_AND_PROT_A;
 			goto fail;
@@ -1438,7 +1438,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		odev = minor_to_mdev(i);
 		if (!odev || odev == mdev)
 			continue;
-		if (get_net_conf(odev)) {
+		if (get_net_conf(odev->tconn)) {
 			taken_addr = (struct sockaddr *)&odev->tconn->net_conf->my_addr;
 			if (new_conf->my_addr_len == odev->tconn->net_conf->my_addr_len &&
 			    !memcmp(new_my_addr, taken_addr, new_conf->my_addr_len))
@@ -1449,7 +1449,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			    !memcmp(new_peer_addr, taken_addr, new_conf->peer_addr_len))
 				retcode = ERR_PEER_ADDR;
 
-			put_net_conf(odev);
+			put_net_conf(odev->tconn);
 			if (retcode != NO_ERROR)
 				goto fail;
 		}
@@ -2050,9 +2050,9 @@ static int drbd_nl_get_config(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 		put_ldev(mdev);
 	}
 
-	if (get_net_conf(mdev)) {
+	if (get_net_conf(mdev->tconn)) {
 		tl = net_conf_to_tags(mdev, mdev->tconn->net_conf, tl);
-		put_net_conf(mdev);
+		put_net_conf(mdev->tconn);
 	}
 	tl = syncer_conf_to_tags(mdev, &mdev->sync_conf, tl);
 

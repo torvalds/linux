@@ -323,7 +323,7 @@ static int _req_conflicts(struct drbd_request *req)
 
 	D_ASSERT(drbd_interval_empty(&req->i));
 
-	if (!get_net_conf(mdev))
+	if (!get_net_conf(mdev->tconn))
 		return 0;
 
 	i = drbd_find_overlap(&mdev->write_requests, sector, size);
@@ -359,11 +359,11 @@ static int _req_conflicts(struct drbd_request *req)
 
 	/* this is like it should be, and what we expected.
 	 * our users do behave after all... */
-	put_net_conf(mdev);
+	put_net_conf(mdev->tconn);
 	return 0;
 
 out_conflict:
-	put_net_conf(mdev);
+	put_net_conf(mdev->tconn);
 	return 1;
 }
 
@@ -1181,9 +1181,9 @@ void request_timer_fn(unsigned long data)
 	struct list_head *le;
 	unsigned long et = 0; /* effective timeout = ko_count * timeout */
 
-	if (get_net_conf(mdev)) {
+	if (get_net_conf(mdev->tconn)) {
 		et = mdev->tconn->net_conf->timeout*HZ/10 * mdev->tconn->net_conf->ko_count;
-		put_net_conf(mdev);
+		put_net_conf(mdev->tconn);
 	}
 	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
 		return; /* Recurring timer stopped */

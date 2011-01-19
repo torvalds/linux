@@ -578,7 +578,7 @@ static struct socket *drbd_try_connect(struct drbd_conf *mdev)
 	int err;
 	int disconnect_on_error = 1;
 
-	if (!get_net_conf(mdev))
+	if (!get_net_conf(mdev->tconn))
 		return NULL;
 
 	what = "sock_create_kern";
@@ -644,7 +644,7 @@ out:
 		if (disconnect_on_error)
 			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 	}
-	put_net_conf(mdev);
+	put_net_conf(mdev->tconn);
 	return sock;
 }
 
@@ -654,7 +654,7 @@ static struct socket *drbd_wait_for_connect(struct drbd_conf *mdev)
 	struct socket *s_estab = NULL, *s_listen;
 	const char *what;
 
-	if (!get_net_conf(mdev))
+	if (!get_net_conf(mdev->tconn))
 		return NULL;
 
 	what = "sock_create_kern";
@@ -692,7 +692,7 @@ out:
 			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 		}
 	}
-	put_net_conf(mdev);
+	put_net_conf(mdev->tconn);
 
 	return s_estab;
 }
@@ -3839,7 +3839,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	spin_unlock_irq(&mdev->req_lock);
 
 	if (os.conn == C_DISCONNECTING) {
-		wait_event(mdev->net_cnt_wait, atomic_read(&mdev->net_cnt) == 0);
+		wait_event(mdev->tconn->net_cnt_wait, atomic_read(&mdev->tconn->net_cnt) == 0);
 
 		crypto_free_hash(mdev->cram_hmac_tfm);
 		mdev->cram_hmac_tfm = NULL;
@@ -4166,9 +4166,9 @@ int drbdd_init(struct drbd_thread *thi)
 	} while (h == 0);
 
 	if (h > 0) {
-		if (get_net_conf(mdev)) {
+		if (get_net_conf(mdev->tconn)) {
 			drbdd(mdev);
-			put_net_conf(mdev);
+			put_net_conf(mdev->tconn);
 		}
 	}
 
