@@ -43,13 +43,6 @@ enum tegra_usb_phy_port_speed {
 	TEGRA_USB_PHY_PORT_HIGH,
 };
 
-struct tegra_utmip_context {
-	bool valid;
-	u32 regs[USB_PHY_MAX_CONTEXT_REGS];
-	int regs_count;
-	enum tegra_usb_phy_port_speed port_speed;
-};
-
 enum tegra_usb_phy_mode {
 	TEGRA_USB_PHY_MODE_DEVICE,
 	TEGRA_USB_PHY_MODE_HOST,
@@ -65,7 +58,6 @@ struct tegra_usb_phy {
 	struct clk *pad_clk;
 	enum tegra_usb_phy_mode mode;
 	void *config;
-	struct tegra_utmip_context context;
 };
 
 struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
@@ -83,7 +75,8 @@ int tegra_usb_phy_preresume(struct tegra_usb_phy *phy);
 
 int tegra_usb_phy_postresume(struct tegra_usb_phy *phy);
 
-int tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy);
+int tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy,
+				 enum tegra_usb_phy_port_speed port_speed);
 
 int tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy);
 
