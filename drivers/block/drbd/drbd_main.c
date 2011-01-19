@@ -613,7 +613,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	if (f & CS_WAIT_COMPLETE && rv == SS_SUCCESS) {
-		D_ASSERT(current != mdev->worker.task);
+		D_ASSERT(current != mdev->tconn->worker.task);
 		wait_for_completion(&done);
 	}
 
@@ -1229,16 +1229,16 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 
 	/* Receiver should clean up itself */
 	if (os.conn != C_DISCONNECTING && ns.conn == C_DISCONNECTING)
-		drbd_thread_stop_nowait(&mdev->receiver);
+		drbd_thread_stop_nowait(&mdev->tconn->receiver);
 
 	/* Now the receiver finished cleaning up itself, it should die */
 	if (os.conn != C_STANDALONE && ns.conn == C_STANDALONE)
-		drbd_thread_stop_nowait(&mdev->receiver);
+		drbd_thread_stop_nowait(&mdev->tconn->receiver);
 
 	/* Upon network failure, we need to restart the receiver. */
 	if (os.conn > C_TEAR_DOWN &&
 	    ns.conn <= C_TEAR_DOWN && ns.conn >= C_TIMEOUT)
-		drbd_thread_restart_nowait(&mdev->receiver);
+		drbd_thread_restart_nowait(&mdev->tconn->receiver);
 
 	/* Resume AL writing if we get a connection */
 	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
@@ -1297,7 +1297,7 @@ int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
 {
 	int rv;
 
-	D_ASSERT(current == mdev->worker.task);
+	D_ASSERT(current == mdev->tconn->worker.task);
 
 	/* open coded non-blocking drbd_suspend_io(mdev); */
 	set_bit(SUSPEND_IO, &mdev->flags);
@@ -1598,7 +1598,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	/* Upon network connection, we need to start the receiver */
 	if (os.conn == C_STANDALONE && ns.conn == C_UNCONNECTED)
-		drbd_thread_start(&mdev->receiver);
+		drbd_thread_start(&mdev->tconn->receiver);
 
 	/* Terminate worker thread if we are unconfigured - it will be
 	   restarted as needed... */
@@ -1609,7 +1609,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			resume_next_sg(mdev);
 		/* set in __drbd_set_state, unless CONFIG_PENDING was set */
 		if (test_bit(DEVICE_DYING, &mdev->flags))
-			drbd_thread_stop_nowait(&mdev->worker);
+			drbd_thread_stop_nowait(&mdev->tconn->worker);
 	}
 
 	drbd_md_sync(mdev);
@@ -1675,9 +1675,9 @@ int drbd_thread_start(struct drbd_thread *thi)
 	unsigned long flags;
 
 	const char *me =
-		thi == &mdev->receiver ? "receiver" :
-		thi == &mdev->asender  ? "asender"  :
-		thi == &mdev->worker   ? "worker"   : "NONSENSE";
+		thi == &mdev->tconn->receiver ? "receiver" :
+		thi == &mdev->tconn->asender  ? "asender"  :
+		thi == &mdev->tconn->worker   ? "worker"   : "NONSENSE";
 
 	/* is used from state engine doing drbd_thread_stop_nowait,
 	 * while holding the req lock irqsave */
@@ -1807,9 +1807,9 @@ void drbd_thread_current_set_cpu(struct drbd_conf *mdev)
 {
 	struct task_struct *p = current;
 	struct drbd_thread *thi =
-		p == mdev->asender.task  ? &mdev->asender  :
-		p == mdev->receiver.task ? &mdev->receiver :
-		p == mdev->worker.task   ? &mdev->worker   :
+		p == mdev->tconn->asender.task  ? &mdev->tconn->asender  :
+		p == mdev->tconn->receiver.task ? &mdev->tconn->receiver :
+		p == mdev->tconn->worker.task   ? &mdev->tconn->worker   :
 		NULL;
 	if (!expect(thi != NULL))
 		return;
@@ -2507,8 +2507,8 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 	/* long elapsed = (long)(jiffies - mdev->last_received); */
 
 	drop_it =   mdev->tconn->meta.socket == sock
-		|| !mdev->asender.task
-		|| get_t_state(&mdev->asender) != RUNNING
+		|| !mdev->tconn->asender.task
+		|| get_t_state(&mdev->tconn->asender) != RUNNING
 		|| mdev->state.conn < C_CONNECTED;
 
 	if (drop_it)
@@ -3034,9 +3034,9 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	init_waitqueue_head(&mdev->al_wait);
 	init_waitqueue_head(&mdev->seq_wait);
 
-	drbd_thread_init(mdev, &mdev->receiver, drbdd_init);
-	drbd_thread_init(mdev, &mdev->worker, drbd_worker);
-	drbd_thread_init(mdev, &mdev->asender, drbd_asender);
+	drbd_thread_init(mdev, &mdev->tconn->receiver, drbdd_init);
+	drbd_thread_init(mdev, &mdev->tconn->worker, drbd_worker);
+	drbd_thread_init(mdev, &mdev->tconn->asender, drbd_asender);
 
 	mdev->agreed_pro_version = PRO_VERSION_MAX;
 	mdev->write_ordering = WO_bdev_flush;
@@ -3048,9 +3048,9 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 void drbd_mdev_cleanup(struct drbd_conf *mdev)
 {
 	int i;
-	if (mdev->receiver.t_state != NONE)
+	if (mdev->tconn->receiver.t_state != NONE)
 		dev_err(DEV, "ASSERT FAILED: receiver t_state == %d expected 0.\n",
-				mdev->receiver.t_state);
+				mdev->tconn->receiver.t_state);
 
 	/* no need to lock it, I'm the only thread alive */
 	if (atomic_read(&mdev->current_epoch->epoch_size) !=  0)
@@ -4032,7 +4032,7 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 			  void (*done)(struct drbd_conf *, int),
 			  char *why, enum bm_flag flags)
 {
-	D_ASSERT(current == mdev->worker.task);
+	D_ASSERT(current == mdev->tconn->worker.task);
 
 	D_ASSERT(!test_bit(BITMAP_IO_QUEUED, &mdev->flags));
 	D_ASSERT(!test_bit(BITMAP_IO, &mdev->flags));
@@ -4069,7 +4069,7 @@ int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *),
 {
 	int rv;
 
-	D_ASSERT(current != mdev->worker.task);
+	D_ASSERT(current != mdev->tconn->worker.task);
 
 	if ((flags & BM_LOCKED_SET_ALLOWED) == 0)
 		drbd_suspend_io(mdev);

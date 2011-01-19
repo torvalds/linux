@@ -972,6 +972,10 @@ struct drbd_tconn {			/* is a resource from the config file */
 
 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
+
+	struct drbd_thread receiver;
+	struct drbd_thread worker;
+	struct drbd_thread asender;
 };
 
 struct drbd_conf {
@@ -1068,9 +1072,6 @@ struct drbd_conf {
 	struct crypto_hash *csums_tfm;
 	struct crypto_hash *verify_tfm;
 
-	struct drbd_thread receiver;
-	struct drbd_thread worker;
-	struct drbd_thread asender;
 	struct drbd_bitmap *bitmap;
 	unsigned long bm_resync_fo; /* bit offset for drbd_bm_find_next */
 
@@ -2005,7 +2006,7 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 static inline void wake_asender(struct drbd_conf *mdev)
 {
 	if (test_bit(SIGNAL_ASENDER, &mdev->flags))
-		force_sig(DRBD_SIG, mdev->asender.task);
+		force_sig(DRBD_SIG, mdev->tconn->asender.task);
 }
 
 static inline void request_ping(struct drbd_conf *mdev)

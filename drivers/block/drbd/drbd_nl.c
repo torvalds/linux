@@ -875,7 +875,7 @@ static void drbd_reconfig_start(struct drbd_conf *mdev)
 {
 	wait_event(mdev->state_wait, !test_and_set_bit(CONFIG_PENDING, &mdev->flags));
 	wait_event(mdev->state_wait, !test_bit(DEVICE_DYING, &mdev->flags));
-	drbd_thread_start(&mdev->worker);
+	drbd_thread_start(&mdev->tconn->worker);
 	drbd_flush_workqueue(mdev);
 }
 
@@ -889,7 +889,7 @@ static void drbd_reconfig_done(struct drbd_conf *mdev)
 	    mdev->state.conn == C_STANDALONE &&
 	    mdev->state.role == R_SECONDARY) {
 		set_bit(DEVICE_DYING, &mdev->flags);
-		drbd_thread_stop_nowait(&mdev->worker);
+		drbd_thread_stop_nowait(&mdev->tconn->worker);
 	} else
 		clear_bit(CONFIG_PENDING, &mdev->flags);
 	spin_unlock_irq(&mdev->req_lock);
@@ -1887,9 +1887,9 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	if (!cpumask_equal(mdev->cpu_mask, new_cpu_mask)) {
 		cpumask_copy(mdev->cpu_mask, new_cpu_mask);
 		drbd_calc_cpu_mask(mdev);
-		mdev->receiver.reset_cpu_mask = 1;
-		mdev->asender.reset_cpu_mask = 1;
-		mdev->worker.reset_cpu_mask = 1;
+		mdev->tconn->receiver.reset_cpu_mask = 1;
+		mdev->tconn->asender.reset_cpu_mask = 1;
+		mdev->tconn->worker.reset_cpu_mask = 1;
 	}
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);

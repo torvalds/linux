@@ -833,7 +833,7 @@ retry:
 		if (signal_pending(current)) {
 			flush_signals(current);
 			smp_rmb();
-			if (get_t_state(&mdev->receiver) == EXITING)
+			if (get_t_state(&mdev->tconn->receiver) == EXITING)
 				goto out_release_sockets;
 		}
 
@@ -874,7 +874,7 @@ retry:
 	mdev->tconn->meta.socket = msock;
 	mdev->last_received = jiffies;
 
-	D_ASSERT(mdev->asender.task == NULL);
+	D_ASSERT(mdev->tconn->asender.task == NULL);
 
 	h = drbd_do_handshake(mdev);
 	if (h <= 0)
@@ -901,7 +901,7 @@ retry:
 	atomic_set(&mdev->packet_seq, 0);
 	mdev->peer_seq = 0;
 
-	drbd_thread_start(&mdev->asender);
+	drbd_thread_start(&mdev->tconn->asender);
 
 	if (drbd_send_protocol(mdev) == -1)
 		return -1;
@@ -3704,7 +3704,7 @@ static void drbdd(struct drbd_conf *mdev)
 	size_t shs; /* sub header size */
 	int rv;
 
-	while (get_t_state(&mdev->receiver) == RUNNING) {
+	while (get_t_state(&mdev->tconn->receiver) == RUNNING) {
 		drbd_thread_current_set_cpu(mdev);
 		if (!drbd_recv_header(mdev, &cmd, &packet_size))
 			goto err_out;
@@ -3768,7 +3768,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 		return;
 
 	/* asender does not clean up anything. it must not interfere, either */
-	drbd_thread_stop(&mdev->asender);
+	drbd_thread_stop(&mdev->tconn->asender);
 	drbd_free_sock(mdev);
 
 	/* wait for current activity to cease. */
@@ -3891,7 +3891,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
  */
 static int drbd_send_handshake(struct drbd_conf *mdev)
 {
-	/* ASSERT current == mdev->receiver ... */
+	/* ASSERT current == mdev->tconn->receiver ... */
 	struct p_handshake *p = &mdev->tconn->data.sbuf.handshake;
 	int ok;
 
@@ -3923,7 +3923,7 @@ static int drbd_send_handshake(struct drbd_conf *mdev)
  */
 static int drbd_do_handshake(struct drbd_conf *mdev)
 {
-	/* ASSERT current == mdev->receiver ... */
+	/* ASSERT current == mdev->tconn->receiver ... */
 	struct p_handshake *p = &mdev->tconn->data.rbuf.handshake;
 	const int expect = sizeof(struct p_handshake) - sizeof(struct p_header80);
 	unsigned int length;

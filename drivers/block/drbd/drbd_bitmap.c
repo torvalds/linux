@@ -119,13 +119,13 @@ static void __bm_print_lock_info(struct drbd_conf *mdev, const char *func)
 	if (!__ratelimit(&drbd_ratelimit_state))
 		return;
 	dev_err(DEV, "FIXME %s in %s, bitmap locked for '%s' by %s\n",
-	    current == mdev->receiver.task ? "receiver" :
-	    current == mdev->asender.task  ? "asender"  :
-	    current == mdev->worker.task   ? "worker"   : current->comm,
+	    current == mdev->tconn->receiver.task ? "receiver" :
+	    current == mdev->tconn->asender.task  ? "asender"  :
+	    current == mdev->tconn->worker.task   ? "worker"   : current->comm,
 	    func, b->bm_why ?: "?",
-	    b->bm_task == mdev->receiver.task ? "receiver" :
-	    b->bm_task == mdev->asender.task  ? "asender"  :
-	    b->bm_task == mdev->worker.task   ? "worker"   : "?");
+	    b->bm_task == mdev->tconn->receiver.task ? "receiver" :
+	    b->bm_task == mdev->tconn->asender.task  ? "asender"  :
+	    b->bm_task == mdev->tconn->worker.task   ? "worker"   : "?");
 }
 
 void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags)
@@ -142,13 +142,13 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags)
 
 	if (trylock_failed) {
 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
-		    current == mdev->receiver.task ? "receiver" :
-		    current == mdev->asender.task  ? "asender"  :
-		    current == mdev->worker.task   ? "worker"   : current->comm,
+		    current == mdev->tconn->receiver.task ? "receiver" :
+		    current == mdev->tconn->asender.task  ? "asender"  :
+		    current == mdev->tconn->worker.task   ? "worker"   : current->comm,
 		    why, b->bm_why ?: "?",
-		    b->bm_task == mdev->receiver.task ? "receiver" :
-		    b->bm_task == mdev->asender.task  ? "asender"  :
-		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
+		    b->bm_task == mdev->tconn->receiver.task ? "receiver" :
+		    b->bm_task == mdev->tconn->asender.task  ? "asender"  :
+		    b->bm_task == mdev->tconn->worker.task   ? "worker"   : "?");
 		mutex_lock(&b->bm_change);
 	}
 	if (BM_LOCKED_MASK & b->bm_flags)

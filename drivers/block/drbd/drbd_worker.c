@@ -1705,8 +1705,8 @@ int drbd_worker(struct drbd_thread *thi)
 
 	D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
 	/* _drbd_set_state only uses stop_nowait.
-	 * wait here for the EXITING receiver. */
-	drbd_thread_stop(&mdev->receiver);
+	 * wait here for the exiting receiver. */
+	drbd_thread_stop(&mdev->tconn->receiver);
 	drbd_mdev_cleanup(mdev);
 
 	dev_info(DEV, "worker terminated\n");
