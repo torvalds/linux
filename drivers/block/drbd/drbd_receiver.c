@@ -761,6 +761,9 @@ static int drbd_connect(struct drbd_conf *mdev)
 		return -2;
 
 	clear_bit(DISCARD_CONCURRENT, &mdev->flags);
+	mdev->tconn->agreed_pro_version = 99;
+	/* agreed_pro_version must be smaller than 100 so we send the old
+	   header (h80) in the first packet and in the handshake packet. */
 
 	sock  = NULL;
 	msock = NULL;
@@ -935,12 +938,12 @@ static int drbd_recv_header(struct drbd_conf *mdev, enum drbd_packets *cmd, unsi
 		return false;
 	}
 
-	if (likely(h->h80.magic == cpu_to_be32(DRBD_MAGIC))) {
+	if (h->h80.magic == cpu_to_be32(DRBD_MAGIC)) {
 		*cmd = be16_to_cpu(h->h80.command);
 		*packet_size = be16_to_cpu(h->h80.length);
 	} else if (h->h95.magic == cpu_to_be16(DRBD_MAGIC_BIG)) {
 		*cmd = be16_to_cpu(h->h95.command);
-		*packet_size = be32_to_cpu(h->h95.length);
+		*packet_size = be32_to_cpu(h->h95.length) & 0x00ffffff;
 	} else {
 		dev_err(DEV, "magic?? on data m: 0x%08x c: %d l: %d\n",
 		    be32_to_cpu(h->h80.magic),
