@@ -29,6 +29,7 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_acct.h>
 #include <net/netfilter/nf_conntrack_zones.h>
+#include <net/netfilter/nf_conntrack_timestamp.h>
 #include <linux/rculist_nulls.h>
 
 MODULE_LICENSE("GPL");
@@ -46,6 +47,7 @@ EXPORT_SYMBOL_GPL(print_tuple);
 struct ct_iter_state {
 	struct seq_net_private p;
 	unsigned int bucket;
+	u_int64_t time_now;
 };
 
 static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
@@ -96,6 +98,9 @@ static struct hlist_nulls_node *ct_get_idx(struct seq_file *seq, loff_t pos)
 static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
+	struct ct_iter_state *st = seq->private;
+
+	st->time_now = ktime_to_ns(ktime_get_real());
 	rcu_read_lock();
 	return ct_get_idx(seq, *pos);
 }
@@ -130,6 +135,39 @@ static int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 }
 #else
 static inline int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+static u_int64_t ct_delta_time(u_int64_t time_now, const struct nf_conn *ct)
+{
+	struct nf_conn_tstamp *tstamp;
+
+	tstamp = nf_conn_tstamp_find(ct);
+	if (tstamp) {
+		u_int64_t delta_time = time_now - tstamp->start;
+		return delta_time > 0 ? div_s64(delta_time, NSEC_PER_SEC) : 0;
+	}
+	return -1;
+}
+
+static int ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
+{
+	struct ct_iter_state *st = s->private;
+	u_int64_t delta_time;
+
+	delta_time = ct_delta_time(st->time_now, ct);
+	if (delta_time < 0)
+		return 0;
+
+	return seq_printf(s, "delta-time=%llu ",
+			  (unsigned long long)delta_time);
+}
+#else
+static inline int
+ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 {
 	return 0;
 }
@@ -202,6 +240,9 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (seq_printf(s, "zone=%u ", nf_ct_zone(ct)))
 		goto release;
 #endif
+
+	if (ct_show_delta_time(s, ct))
+		goto release;
 
 	if (seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use)))
 		goto release;
