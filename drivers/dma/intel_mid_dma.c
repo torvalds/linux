@@ -664,10 +664,19 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 	/*calculate CTL_LO*/
 	ctl_lo.ctl_lo = 0;
 	ctl_lo.ctlx.int_en = 1;
-	ctl_lo.ctlx.dst_tr_width = mids->dma_slave.dst_addr_width;
-	ctl_lo.ctlx.src_tr_width = mids->dma_slave.src_addr_width;
 	ctl_lo.ctlx.dst_msize = mids->dma_slave.src_maxburst;
 	ctl_lo.ctlx.src_msize = mids->dma_slave.dst_maxburst;
+
+	/*
+	 * Here we need some translation from "enum dma_slave_buswidth"
+	 * to the format for our dma controller
+	 *		standard	intel_mid_dmac's format
+	 *		 1 Byte			0b000
+	 *		 2 Bytes		0b001
+	 *		 4 Bytes		0b010
+	 */
+	ctl_lo.ctlx.dst_tr_width = mids->dma_slave.dst_addr_width / 2;
+	ctl_lo.ctlx.src_tr_width = mids->dma_slave.src_addr_width / 2;
 
 	if (mids->cfg_mode == LNW_DMA_MEM_TO_MEM) {
 		ctl_lo.ctlx.tt_fc = 0;
@@ -746,8 +755,18 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 	BUG_ON(!mids);
 
 	if (!midc->dma->pimr_mask) {
-		pr_debug("MDMA: SG list is not supported by this controller\n");
-		return  NULL;
+		/* We can still handle sg list with only one item */
+		if (sg_len == 1) {
+			txd = intel_mid_dma_prep_memcpy(chan,
+						mids->dma_slave.dst_addr,
+						mids->dma_slave.src_addr,
+						sgl->length,
+						flags);
+			return txd;
+		} else {
+			pr_warn("MDMA: SG list is not supported by this controller\n");
+			return  NULL;
+		}
 	}
 
 	pr_debug("MDMA: SG Length = %d, direction = %d, Flags = %#lx\n",
@@ -758,6 +777,7 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 		pr_err("MDMA: Prep memcpy failed\n");
 		return NULL;
 	}
+
 	desc = to_intel_mid_dma_desc(txd);
 	desc->dirn = direction;
 	ctl_lo.ctl_lo = desc->ctl_lo;
@@ -1021,11 +1041,6 @@ static irqreturn_t intel_mid_dma_interrupt(int irq, void *data)
 
 	/*DMA Interrupt*/
 	pr_debug("MDMA:Got an interrupt on irq %d\n", irq);
-	if (!mid) {
-		pr_err("ERR_MDMA:null pointer mid\n");
-		return -EINVAL;
-	}
-
 	pr_debug("MDMA: Status %x, Mask %x\n", tfr_status, mid->intr_mask);
 	tfr_status &= mid->intr_mask;
 	if (tfr_status) {
@@ -1060,8 +1075,8 @@ static irqreturn_t intel_mid_dma_interrupt2(int irq, void *data)
  * mid_setup_dma -	Setup the DMA controller
  * @pdev: Controller PCI device structure
  *
- * Initilize the DMA controller, channels, registers with DMA engine,
- * ISR. Initilize DMA controller channels.
+ * Initialize the DMA controller, channels, registers with DMA engine,
+ * ISR. Initialize DMA controller channels.
  */
 static int mid_setup_dma(struct pci_dev *pdev)
 {
@@ -1075,7 +1090,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 	if (NULL == dma->dma_pool) {
 		pr_err("ERR_MDMA:pci_pool_create failed\n");
 		err = -ENOMEM;
-		kfree(dma);
 		goto err_dma_pool;
 	}
 
@@ -1186,7 +1200,6 @@ err_engine:
 	free_irq(pdev->irq, dma);
 err_irq:
 	pci_pool_destroy(dma->dma_pool);
-	kfree(dma);
 err_dma_pool:
 	pr_err("ERR_MDMA:setup_dma failed: %d\n", err);
 	return err;
@@ -1219,7 +1232,7 @@ static void middma_shutdown(struct pci_dev *pdev)
  * @pdev: Controller PCI device structure
  * @id: pci device id structure
  *
- * Initilize the PCI device, map BARs, query driver data.
+ * Initialize the PCI device, map BARs, query driver data.
  * Call setup_dma to complete contoller and chan initilzation
  */
 static int __devinit intel_mid_dma_probe(struct pci_dev *pdev,
@@ -1413,7 +1426,7 @@ static const struct dev_pm_ops intel_mid_dma_pm = {
 	.runtime_idle = dma_runtime_idle,
 };
 
-static struct pci_driver intel_mid_dma_pci = {
+static struct pci_driver intel_mid_dma_pci_driver = {
 	.name		=	"Intel MID DMA",
 	.id_table	=	intel_mid_dma_ids,
 	.probe		=	intel_mid_dma_probe,
@@ -1431,13 +1444,13 @@ static int __init intel_mid_dma_init(void)
 {
 	pr_debug("INFO_MDMA: LNW DMA Driver Version %s\n",
 			INTEL_MID_DMA_DRIVER_VERSION);
-	return pci_register_driver(&intel_mid_dma_pci);
+	return pci_register_driver(&intel_mid_dma_pci_driver);
 }
 fs_initcall(intel_mid_dma_init);
 
 static void __exit intel_mid_dma_exit(void)
 {
-	pci_unregister_driver(&intel_mid_dma_pci);
+	pci_unregister_driver(&intel_mid_dma_pci_driver);
 }
 module_exit(intel_mid_dma_exit);
 

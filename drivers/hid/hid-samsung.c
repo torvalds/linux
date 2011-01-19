@@ -57,8 +57,8 @@
 static inline void samsung_irda_dev_trace(struct hid_device *hdev,
 		unsigned int rsize)
 {
-	dev_info(&hdev->dev, "fixing up Samsung IrDA %d byte report "
-			"descriptor\n", rsize);
+	hid_info(hdev, "fixing up Samsung IrDA %d byte report descriptor\n",
+		 rsize);
 }
 
 static __u8 *samsung_irda_report_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -160,7 +160,7 @@ static int samsung_probe(struct hid_device *hdev,
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
@@ -174,7 +174,7 @@ static int samsung_probe(struct hid_device *hdev,
 
 	ret = hid_hw_start(hdev, cmask);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 

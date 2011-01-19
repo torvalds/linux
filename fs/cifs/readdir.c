@@ -79,7 +79,7 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 	cFYI(1, "For %s", name->name);
 
 	if (parent->d_op && parent->d_op->d_hash)
-		parent->d_op->d_hash(parent, name);
+		parent->d_op->d_hash(parent, parent->d_inode, name);
 	else
 		name->hash = full_name_hash(name->name, name->len);
 
@@ -101,11 +101,6 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 		dput(dentry);
 		return NULL;
 	}
-
-	if (cifs_sb_master_tcon(CIFS_SB(sb))->nocase)
-		dentry->d_op = &cifs_ci_dentry_ops;
-	else
-		dentry->d_op = &cifs_dentry_ops;
 
 	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
@@ -160,6 +155,7 @@ cifs_dir_info_to_fattr(struct cifs_fattr *fattr, FILE_DIRECTORY_INFO *info,
 	fattr->cf_cifsattrs = le32_to_cpu(info->ExtFileAttributes);
 	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
+	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
 	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
 	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
@@ -759,18 +755,6 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 	rc = filldir(direntry, qstring.name, qstring.len, file->f_pos,
 		     ino, fattr.cf_dtype);
 
-	/*
-	 * we can not return filldir errors to the caller since they are
-	 * "normal" when the stat blocksize is too small - we return remapped
-	 * error instead
-	 *
-	 * FIXME: This looks bogus. filldir returns -EOVERFLOW in the above
-	 * case already. Why should we be clobbering other errors from it?
-	 */
-	if (rc) {
-		cFYI(1, "filldir rc = %d", rc);
-		rc = -EOVERFLOW;
-	}
 	dput(tmp_dentry);
 	return rc;
 }

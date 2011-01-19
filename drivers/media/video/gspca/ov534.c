@@ -1243,33 +1243,25 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 }
 
 /* get stream parameters (framerate) */
-static int sd_get_streamparm(struct gspca_dev *gspca_dev,
+static void sd_get_streamparm(struct gspca_dev *gspca_dev,
 			     struct v4l2_streamparm *parm)
 {
 	struct v4l2_captureparm *cp = &parm->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	cp->capability |= V4L2_CAP_TIMEPERFRAME;
 	tpf->numerator = 1;
 	tpf->denominator = sd->frame_rate;
-
-	return 0;
 }
 
 /* set stream parameters (framerate) */
-static int sd_set_streamparm(struct gspca_dev *gspca_dev,
+static void sd_set_streamparm(struct gspca_dev *gspca_dev,
 			     struct v4l2_streamparm *parm)
 {
 	struct v4l2_captureparm *cp = &parm->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	/* Set requested framerate */
 	sd->frame_rate = tpf->denominator / tpf->numerator;
@@ -1279,8 +1271,6 @@ static int sd_set_streamparm(struct gspca_dev *gspca_dev,
 	/* Return the actual framerate */
 	tpf->numerator = 1;
 	tpf->denominator = sd->frame_rate;
-
-	return 0;
 }
 
 /* sub-driver description */

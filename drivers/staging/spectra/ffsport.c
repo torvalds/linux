@@ -28,6 +28,7 @@
 #include <linux/log2.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/async.h>
 
 /**** Helper functions used for Div, Remainder operation on u64 ****/
 
@@ -729,34 +730,16 @@ static void create_sysfs_entry(struct device *dev)
 }
 */
 
-static int GLOB_SBD_init(void)
+static void register_spectra_ftl_async(void *unused, async_cookie_t cookie)
 {
 	int i;
-
-	/* Set debug output level (0~3) here. 3 is most verbose */
-	printk(KERN_ALERT "Spectra: %s\n", GLOB_version);
-
-	mutex_init(&spectra_lock);
-
-	GLOB_SBD_majornum = register_blkdev(0, GLOB_SBD_NAME);
-	if (GLOB_SBD_majornum <= 0) {
-		printk(KERN_ERR "Unable to get the major %d for Spectra",
-		       GLOB_SBD_majornum);
-		return -EBUSY;
-	}
-
-	if (PASS != GLOB_FTL_Flash_Init()) {
-		printk(KERN_ERR "Spectra: Unable to Initialize Flash Device. "
-		       "Aborting\n");
-		goto out_flash_register;
-	}
 
 	/* create_sysfs_entry(&dev->dev); */
 
 	if (PASS != GLOB_FTL_IdentifyDevice(&IdentifyDeviceData)) {
 		printk(KERN_ERR "Spectra: Unable to Read Flash Device. "
 		       "Aborting\n");
-		goto out_flash_register;
+		return;
 	} else {
 		nand_dbg_print(NAND_DBG_WARN, "In GLOB_SBD_init: "
 			       "Num blocks=%d, pagesperblock=%d, "
@@ -775,24 +758,50 @@ static int GLOB_SBD_init(void)
 	}
 	printk(KERN_ALERT "Spectra: block table has been found.\n");
 
+	GLOB_SBD_majornum = register_blkdev(0, GLOB_SBD_NAME);
+	if (GLOB_SBD_majornum <= 0) {
+		printk(KERN_ERR "Unable to get the major %d for Spectra",
+		       GLOB_SBD_majornum);
+		goto out_ftl_flash_register;
+	}
+
 	for (i = 0; i < NUM_DEVICES; i++)
 		if (SBD_setup_device(&nand_device[i], i) == -ENOMEM)
-			goto out_ftl_flash_register;
+			goto out_blk_register;
 
 	nand_dbg_print(NAND_DBG_DEBUG,
 		       "Spectra: module loaded with major number %d\n",
 		       GLOB_SBD_majornum);
 
-	return 0;
+	return;
 
+out_blk_register:
+	unregister_blkdev(GLOB_SBD_majornum, GLOB_SBD_NAME);
 out_ftl_flash_register:
 	GLOB_FTL_Cache_Release();
-out_flash_register:
-	GLOB_FTL_Flash_Release();
-	unregister_blkdev(GLOB_SBD_majornum, GLOB_SBD_NAME);
 	printk(KERN_ERR "Spectra: Module load failed.\n");
+}
 
-	return -ENOMEM;
+int register_spectra_ftl()
+{
+	async_schedule(register_spectra_ftl_async, NULL);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(register_spectra_ftl);
+
+static int GLOB_SBD_init(void)
+{
+	/* Set debug output level (0~3) here. 3 is most verbose */
+	printk(KERN_ALERT "Spectra: %s\n", GLOB_version);
+
+	mutex_init(&spectra_lock);
+
+	if (PASS != GLOB_FTL_Flash_Init()) {
+		printk(KERN_ERR "Spectra: Unable to Initialize Flash Device. "
+		       "Aborting\n");
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static void __exit GLOB_SBD_exit(void)

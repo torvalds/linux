@@ -13,11 +13,11 @@ static int legacy_dvb_usb_getkeycode(struct input_dev *dev,
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 
-	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
+	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
 	int i;
 
 	/* See if we can match the raw key code. */
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (keymap[i].scancode == scancode) {
 			*keycode = keymap[i].keycode;
 			return 0;
@@ -28,7 +28,7 @@ static int legacy_dvb_usb_getkeycode(struct input_dev *dev,
 	 * otherwise, input core won't let legacy_dvb_usb_setkeycode
 	 * to work
 	 */
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (keymap[i].keycode == KEY_RESERVED ||
 		    keymap[i].keycode == KEY_UNKNOWN) {
 			*keycode = KEY_RESERVED;
@@ -43,18 +43,18 @@ static int legacy_dvb_usb_setkeycode(struct input_dev *dev,
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 
-	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
+	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
 	int i;
 
 	/* Search if it is replacing an existing keycode */
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (keymap[i].scancode == scancode) {
 			keymap[i].keycode = keycode;
 			return 0;
 		}
 
 	/* Search if is there a clean entry. If so, use it */
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
+	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (keymap[i].keycode == KEY_RESERVED ||
 		    keymap[i].keycode == KEY_UNKNOWN) {
 			keymap[i].scancode = scancode;
@@ -106,10 +106,10 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 			d->last_event = event;
 		case REMOTE_KEY_REPEAT:
 			deb_rc("key repeated\n");
-			input_event(d->rc_input_dev, EV_KEY, event, 1);
-			input_sync(d->rc_input_dev);
-			input_event(d->rc_input_dev, EV_KEY, d->last_event, 0);
-			input_sync(d->rc_input_dev);
+			input_event(d->input_dev, EV_KEY, event, 1);
+			input_sync(d->input_dev);
+			input_event(d->input_dev, EV_KEY, d->last_event, 0);
+			input_sync(d->input_dev);
 			break;
 		default:
 			break;
@@ -154,20 +154,32 @@ schedule:
 	schedule_delayed_work(&d->rc_query_work,msecs_to_jiffies(d->props.rc.legacy.rc_interval));
 }
 
-static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d,
-				      struct input_dev *input_dev)
+static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
 {
 	int i, err, rc_interval;
+	struct input_dev *input_dev;
+
+	input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
+
+	input_dev->evbit[0] = BIT_MASK(EV_KEY);
+	input_dev->name = "IR-receiver inside an USB DVB receiver";
+	input_dev->phys = d->rc_phys;
+	usb_to_input_id(d->udev, &input_dev->id);
+	input_dev->dev.parent = &d->udev->dev;
+	d->input_dev = input_dev;
+	d->rc_dev = NULL;
 
 	input_dev->getkeycode = legacy_dvb_usb_getkeycode;
 	input_dev->setkeycode = legacy_dvb_usb_setkeycode;
 
 	/* set the bits for the keys */
-	deb_rc("key map size: %d\n", d->props.rc.legacy.rc_key_map_size);
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
+	deb_rc("key map size: %d\n", d->props.rc.legacy.rc_map_size);
+	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
 		deb_rc("setting bit for event %d item %d\n",
-			d->props.rc.legacy.rc_key_map[i].keycode, i);
-		set_bit(d->props.rc.legacy.rc_key_map[i].keycode, input_dev->keybit);
+			d->props.rc.legacy.rc_map_table[i].keycode, i);
+		set_bit(d->props.rc.legacy.rc_map_table[i].keycode, input_dev->keybit);
 	}
 
 	/* setting these two values to non-zero, we have to manage key repeats */
@@ -221,18 +233,34 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 			      msecs_to_jiffies(d->props.rc.core.rc_interval));
 }
 
-static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d,
-				       struct input_dev *input_dev)
+static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 {
 	int err, rc_interval;
+	struct rc_dev *dev;
 
-	d->props.rc.core.rc_props.priv = d;
-	err = ir_input_register(input_dev,
-				 d->props.rc.core.rc_codes,
-				 &d->props.rc.core.rc_props,
-				 d->props.rc.core.module_name);
-	if (err < 0)
+	dev = rc_allocate_device();
+	if (!dev)
+		return -ENOMEM;
+
+	dev->driver_name = d->props.rc.core.module_name;
+	dev->map_name = d->props.rc.core.rc_codes;
+	dev->change_protocol = d->props.rc.core.change_protocol;
+	dev->allowed_protos = d->props.rc.core.allowed_protos;
+	dev->driver_type = RC_DRIVER_SCANCODE;
+	usb_to_input_id(d->udev, &dev->input_id);
+	dev->input_name = "IR-receiver inside an USB DVB receiver";
+	dev->input_phys = d->rc_phys;
+	dev->dev.parent = &d->udev->dev;
+	dev->priv = d;
+
+	err = rc_register_device(dev);
+	if (err < 0) {
+		rc_free_device(dev);
 		return err;
+	}
+
+	d->input_dev = NULL;
+	d->rc_dev = dev;
 
 	if (!d->props.rc.core.rc_query || d->props.rc.core.bulk_mode)
 		return 0;
@@ -251,13 +279,12 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d,
 
 int dvb_usb_remote_init(struct dvb_usb_device *d)
 {
-	struct input_dev *input_dev;
 	int err;
 
 	if (dvb_usb_disable_rc_polling)
 		return 0;
 
-	if (d->props.rc.legacy.rc_key_map && d->props.rc.legacy.rc_query)
+	if (d->props.rc.legacy.rc_map_table && d->props.rc.legacy.rc_query)
 		d->props.rc.mode = DVB_RC_LEGACY;
 	else if (d->props.rc.core.rc_codes)
 		d->props.rc.mode = DVB_RC_CORE;
@@ -267,26 +294,14 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
 	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
 
-	input_dev = input_allocate_device();
-	if (!input_dev)
-		return -ENOMEM;
-
-	input_dev->evbit[0] = BIT_MASK(EV_KEY);
-	input_dev->name = "IR-receiver inside an USB DVB receiver";
-	input_dev->phys = d->rc_phys;
-	usb_to_input_id(d->udev, &input_dev->id);
-	input_dev->dev.parent = &d->udev->dev;
-
 	/* Start the remote-control polling. */
 	if (d->props.rc.legacy.rc_interval < 40)
 		d->props.rc.legacy.rc_interval = 100; /* default */
 
-	d->rc_input_dev = input_dev;
-
 	if (d->props.rc.mode == DVB_RC_LEGACY)
-		err = legacy_dvb_usb_remote_init(d, input_dev);
+		err = legacy_dvb_usb_remote_init(d);
 	else
-		err = rc_core_dvb_usb_remote_init(d, input_dev);
+		err = rc_core_dvb_usb_remote_init(d);
 	if (err)
 		return err;
 
@@ -298,12 +313,11 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 int dvb_usb_remote_exit(struct dvb_usb_device *d)
 {
 	if (d->state & DVB_USB_STATE_REMOTE) {
-		cancel_rearming_delayed_work(&d->rc_query_work);
-		flush_scheduled_work();
+		cancel_delayed_work_sync(&d->rc_query_work);
 		if (d->props.rc.mode == DVB_RC_LEGACY)
-			input_unregister_device(d->rc_input_dev);
+			input_unregister_device(d->input_dev);
 		else
-			ir_input_unregister(d->rc_input_dev);
+			rc_unregister_device(d->rc_dev);
 	}
 	d->state &= ~DVB_USB_STATE_REMOTE;
 	return 0;
@@ -316,7 +330,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 		u8 keybuf[5], u32 *event, int *state)
 {
 	int i;
-	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
+	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 	switch (keybuf[0]) {
@@ -329,7 +343,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 				break;
 			}
 			/* See if we can match the raw key code. */
-			for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++)
+			for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 				if (rc5_custom(&keymap[i]) == keybuf[1] &&
 					rc5_data(&keymap[i]) == keybuf[3]) {
 					*event = keymap[i].keycode;

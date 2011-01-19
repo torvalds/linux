@@ -170,6 +170,9 @@ static struct irq_info *info_for_irq(unsigned irq)
 
 static unsigned int evtchn_from_irq(unsigned irq)
 {
+	if (unlikely(WARN(irq < 0 || irq >= nr_irqs, "Invalid irq %d!\n", irq)))
+		return 0;
+
 	return info_for_irq(irq)->evtchn;
 }
 
@@ -355,7 +358,7 @@ static void unmask_evtchn(int port)
 		struct evtchn_unmask unmask = { .port = port };
 		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
 	} else {
-		struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
+		struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
 
 		sync_clear_bit(port, &s->evtchn_mask[0]);
 
@@ -405,15 +408,21 @@ static int find_unbound_irq(void)
 {
 	struct irq_data *data;
 	int irq, res;
-	int start = get_nr_hw_irqs();
+	int bottom = get_nr_hw_irqs();
+	int top = nr_irqs-1;
 
-	if (start == nr_irqs)
+	if (bottom == nr_irqs)
 		goto no_irqs;
 
-	/* nr_irqs is a magic value. Must not use it.*/
-	for (irq = nr_irqs-1; irq > start; irq--) {
+	/* This loop starts from the top of IRQ space and goes down.
+	 * We need this b/c if we have a PCI device in a Xen PV guest
+	 * we do not have an IO-APIC (though the backend might have them)
+	 * mapped in. To not have a collision of physical IRQs with the Xen
+	 * event channels start at the top of the IRQ space for virtual IRQs.
+	 */
+	for (irq = top; irq > bottom; irq--) {
 		data = irq_get_irq_data(irq);
-		/* only 0->15 have init'd desc; handle irq > 16 */
+		/* only 15->0 have init'd desc; handle irq > 16 */
 		if (!data)
 			break;
 		if (data->chip == &no_irq_chip)
@@ -424,7 +433,7 @@ static int find_unbound_irq(void)
 			return irq;
 	}
 
-	if (irq == start)
+	if (irq == bottom)
 		goto no_irqs;
 
 	res = irq_alloc_desc_at(irq, -1);
@@ -1101,7 +1110,7 @@ static void __xen_evtchn_do_upcall(void)
 {
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
-	struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
+	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
  	unsigned count;
 
 	do {
@@ -1109,7 +1118,7 @@ static void __xen_evtchn_do_upcall(void)
 
 		vcpu_info->evtchn_upcall_pending = 0;
 
-		if (__get_cpu_var(xed_nesting_count)++)
+		if (__this_cpu_inc_return(xed_nesting_count) - 1)
 			goto out;
 
 #ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
@@ -1141,8 +1150,8 @@ static void __xen_evtchn_do_upcall(void)
 
 		BUG_ON(!irqs_disabled());
 
-		count = __get_cpu_var(xed_nesting_count);
-		__get_cpu_var(xed_nesting_count) = 0;
+		count = __this_cpu_read(xed_nesting_count);
+		__this_cpu_write(xed_nesting_count, 0);
 	} while (count != 1 || vcpu_info->evtchn_upcall_pending);
 
 out:

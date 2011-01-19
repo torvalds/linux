@@ -281,7 +281,7 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	    attr->ia_size != i_size_read(inode)) {
 		error = vmtruncate(inode, attr->ia_size);
 		if (error)
-			return error;
+			goto out_unlock;
 	}
 
 	setattr_copy(inode, attr);

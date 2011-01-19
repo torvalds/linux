@@ -1,25 +1,8 @@
 /*
- * Copyright (C) 2009 - QLogic Corporation.
- * All rights reserved.
+ * QLogic qlcnic NIC Driver
+ * Copyright (c)  2009-2010 QLogic Corporation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called "COPYING".
- *
+ * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #include <linux/slab.h>
@@ -48,15 +31,15 @@ static const char qlcnic_driver_string[] = "QLogic 1/10 GbE "
 
 static struct workqueue_struct *qlcnic_wq;
 static int qlcnic_mac_learn;
-module_param(qlcnic_mac_learn, int, 0644);
+module_param(qlcnic_mac_learn, int, 0444);
 MODULE_PARM_DESC(qlcnic_mac_learn, "Mac Filter (0=disabled, 1=enabled)");
 
 static int use_msi = 1;
-module_param(use_msi, int, 0644);
+module_param(use_msi, int, 0444);
 MODULE_PARM_DESC(use_msi, "MSI interrupt (0=disabled, 1=enabled");
 
 static int use_msi_x = 1;
-module_param(use_msi_x, int, 0644);
+module_param(use_msi_x, int, 0444);
 MODULE_PARM_DESC(use_msi_x, "MSI-X interrupt (0=disabled, 1=enabled");
 
 static int auto_fw_reset = AUTO_FW_RESET_ENABLED;
@@ -64,11 +47,11 @@ module_param(auto_fw_reset, int, 0644);
 MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled");
 
 static int load_fw_file;
-module_param(load_fw_file, int, 0644);
+module_param(load_fw_file, int, 0444);
 MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file");
 
 static int qlcnic_config_npars;
-module_param(qlcnic_config_npars, int, 0644);
+module_param(qlcnic_config_npars, int, 0444);
 MODULE_PARM_DESC(qlcnic_config_npars, "Configure NPARs (0=disabled, 1=enabled");
 
 static int __devinit qlcnic_probe(struct pci_dev *pdev,
@@ -1546,6 +1529,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_out_iounmap;
 
+	adapter->flags |= QLCNIC_NEED_FLR;
+
 	err = adapter->nic_ops->start_firmware(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "Loading fw failed.Please Reboot\n");
@@ -2854,61 +2839,6 @@ qlcnic_set_npar_non_operational(struct qlcnic_adapter *adapter)
 	qlcnic_api_unlock(adapter);
 }
 
-/* Caller should held RESETTING bit.
- * This should be call in sync with qlcnic_request_quiscent_mode.
- */
-void qlcnic_clear_quiscent_mode(struct qlcnic_adapter *adapter)
-{
-	qlcnic_clr_drv_state(adapter);
-	qlcnic_api_lock(adapter);
-	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
-	qlcnic_api_unlock(adapter);
-}
-
-/* Caller should held RESETTING bit.
- */
-int qlcnic_request_quiscent_mode(struct qlcnic_adapter *adapter)
-{
-	u8 timeo = adapter->dev_init_timeo / 2;
-	u32 state;
-
-	if (qlcnic_api_lock(adapter))
-		return -EIO;
-
-	state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
-	if (state != QLCNIC_DEV_READY)
-		return -EIO;
-
-	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_QUISCENT);
-	qlcnic_api_unlock(adapter);
-	QLCDB(adapter, DRV, "NEED QUISCENT state set\n");
-	qlcnic_idc_debug_info(adapter, 0);
-
-	qlcnic_set_drv_state(adapter, QLCNIC_DEV_NEED_QUISCENT);
-
-	do {
-		msleep(2000);
-		state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
-		if (state == QLCNIC_DEV_QUISCENT)
-			return 0;
-		if (!qlcnic_check_drv_state(adapter)) {
-			if (qlcnic_api_lock(adapter))
-				return -EIO;
-			QLCWR32(adapter, QLCNIC_CRB_DEV_STATE,
-							QLCNIC_DEV_QUISCENT);
-			qlcnic_api_unlock(adapter);
-			QLCDB(adapter, DRV, "QUISCENT mode set\n");
-			return 0;
-		}
-	} while (--timeo);
-
-	dev_err(&adapter->pdev->dev, "Failed to quiesce device, DRV_STATE=%08x"
-		" DRV_ACTIVE=%08x\n", QLCRD32(adapter, QLCNIC_CRB_DRV_STATE),
-		QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE));
-	qlcnic_clear_quiscent_mode(adapter);
-	return -EIO;
-}
-
 /*Transit to RESET state from READY state only */
 static void
 qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
@@ -3587,9 +3517,12 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 		case QLCNIC_PORT_DEFAULTS:
 			if (QLC_DEV_GET_DRV(op_mode, pci_func) !=
 						QLCNIC_NON_PRIV_FUNC) {
-				esw_cfg[i].mac_anti_spoof = 0;
-				esw_cfg[i].mac_override = 1;
-				esw_cfg[i].promisc_mode = 1;
+				if (esw_cfg[i].mac_anti_spoof != 0)
+					return QL_STATUS_INVALID_PARAM;
+				if (esw_cfg[i].mac_override != 1)
+					return QL_STATUS_INVALID_PARAM;
+				if (esw_cfg[i].promisc_mode != 1)
+					return QL_STATUS_INVALID_PARAM;
 			}
 			break;
 		case QLCNIC_ADD_VLAN:

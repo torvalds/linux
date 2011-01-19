@@ -273,14 +273,8 @@ void intel_opregion_enable_asle(struct drm_device *dev)
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 
 	if (asle) {
-		if (IS_MOBILE(dev)) {
-			unsigned long irqflags;
-
-			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+		if (IS_MOBILE(dev))
 			intel_enable_asle(dev);
-			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
-					       irqflags);
-		}
 
 		asle->tche = ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN |
 			ASLE_PFMB_EN;

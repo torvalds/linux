@@ -1,9 +1,8 @@
 config VIDEO_IVTV
 	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
 	depends on VIDEO_V4L2 && PCI && I2C
-	depends on INPUT   # due to VIDEO_IR
 	select I2C_ALGOBIT
-	depends on VIDEO_IR
+	depends on RC_CORE
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X

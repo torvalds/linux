@@ -20,15 +20,20 @@
 /* wl_msg_level is a bit vector with defs in wlioctl.h */
 extern u32 wl_msg_level;
 
-#define WL_PRINT(args)		printf args
-#define WL_NONE(args)
+#define WL_NONE(fmt, args...) no_printk(fmt, ##args)
+
+#define WL_PRINT(level, fmt, args...)		\
+do {						\
+	if (wl_msg_level & level)		\
+		printk(fmt, ##args);		\
+} while (0)
 
 #ifdef BCMDBG
 
-#define	WL_ERROR(args)		do {if ((wl_msg_level & WL_ERROR_VAL)) WL_PRINT(args); } while (0)
-#define	WL_TRACE(args)		do {if (wl_msg_level & WL_TRACE_VAL) WL_PRINT(args); } while (0)
-#define WL_AMPDU(args)		do {if (wl_msg_level & WL_AMPDU_VAL) WL_PRINT(args); } while (0)
-#define WL_FFPLD(args)		do {if (wl_msg_level & WL_FFPLD_VAL) WL_PRINT(args); } while (0)
+#define	WL_ERROR(fmt, args...)	WL_PRINT(WL_ERROR_VAL, fmt, ##args)
+#define	WL_TRACE(fmt, args...)	WL_PRINT(WL_TRACE_VAL, fmt, ##args)
+#define WL_AMPDU(fmt, args...)	WL_PRINT(WL_AMPDU_VAL, fmt, ##args)
+#define WL_FFPLD(fmt, args...)	WL_PRINT(WL_FFPLD_VAL, fmt, ##args)
 
 #define WL_ERROR_ON()		(wl_msg_level & WL_ERROR_VAL)
 
@@ -44,35 +49,50 @@ extern u32 wl_msg_level;
 
 extern u32 wl_ampdu_dbg;
 
-#define WL_AMPDU_UPDN(args) do {if (wl_ampdu_dbg & WL_AMPDU_UPDN_VAL) {WL_AMPDU(args); } } while (0)
-#define WL_AMPDU_RX(args) do {if (wl_ampdu_dbg & WL_AMPDU_RX_VAL) {WL_AMPDU(args); } } while (0)
-#define WL_AMPDU_ERR(args) do {if (wl_ampdu_dbg & WL_AMPDU_ERR_VAL) {WL_AMPDU(args); } } while (0)
-#define WL_AMPDU_TX(args) do {if (wl_ampdu_dbg & WL_AMPDU_TX_VAL) {WL_AMPDU(args); } } while (0)
-#define WL_AMPDU_CTL(args) do {if (wl_ampdu_dbg & WL_AMPDU_CTL_VAL) {WL_AMPDU(args); } } while (0)
-#define WL_AMPDU_HW(args) do {if (wl_ampdu_dbg & WL_AMPDU_HW_VAL) {WL_AMPDU(args); } } while (0)
-#define WL_AMPDU_HWTXS(args) do {if (wl_ampdu_dbg & WL_AMPDU_HWTXS_VAL) {WL_AMPDU(args); } } while (0)
-#define WL_AMPDU_HWDBG(args) do {if (wl_ampdu_dbg & WL_AMPDU_HWDBG_VAL) {WL_AMPDU(args); } } while (0)
+#define WL_AMPDU_PRINT(level, fmt, args...)	\
+do {						\
+	if (wl_ampdu_dbg & level) {		\
+		WL_AMPDU(fmt, ##args);		\
+	}					\
+} while (0)
+
+#define WL_AMPDU_UPDN(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_UPDN_VAL, fmt, ##args)
+#define WL_AMPDU_RX(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_RX_VAL, fmt, ##args)
+#define WL_AMPDU_ERR(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_ERR_VAL, fmt, ##args)
+#define WL_AMPDU_TX(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_TX_VAL, fmt, ##args)
+#define WL_AMPDU_CTL(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_CTL_VAL, fmt, ##args)
+#define WL_AMPDU_HW(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_HW_VAL, fmt, ##args)
+#define WL_AMPDU_HWTXS(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_HWTXS_VAL, fmt, ##args)
+#define WL_AMPDU_HWDBG(fmt, args...)			\
+	WL_AMPDU_PRINT(WL_AMPDU_HWDBG_VAL, fmt, ##args)
 #define WL_AMPDU_ERR_ON() (wl_ampdu_dbg & WL_AMPDU_ERR_VAL)
 #define WL_AMPDU_HW_ON() (wl_ampdu_dbg & WL_AMPDU_HW_VAL)
 #define WL_AMPDU_HWTXS_ON() (wl_ampdu_dbg & WL_AMPDU_HWTXS_VAL)
 
 #else				/* BCMDBG */
 
-#define	WL_ERROR(args)
-#define	WL_TRACE(args)
-#define WL_AMPDU(args)
-#define WL_FFPLD(args)
+#define	WL_ERROR(fmt, args...)		no_printk(fmt, ##args)
+#define	WL_TRACE(fmt, args...)		no_printk(fmt, ##args)
+#define WL_AMPDU(fmt, args...)		no_printk(fmt, ##args)
+#define WL_FFPLD(fmt, args...)		no_printk(fmt, ##args)
 
 #define WL_ERROR_ON()		0
 
-#define WL_AMPDU_UPDN(args)
-#define WL_AMPDU_RX(args)
-#define WL_AMPDU_ERR(args)
-#define WL_AMPDU_TX(args)
-#define WL_AMPDU_CTL(args)
-#define WL_AMPDU_HW(args)
-#define WL_AMPDU_HWTXS(args)
-#define WL_AMPDU_HWDBG(args)
+#define WL_AMPDU_UPDN(fmt, args...)	no_printk(fmt, ##args)
+#define WL_AMPDU_RX(fmt, args...)	no_printk(fmt, ##args)
+#define WL_AMPDU_ERR(fmt, args...)	no_printk(fmt, ##args)
+#define WL_AMPDU_TX(fmt, args...)	no_printk(fmt, ##args)
+#define WL_AMPDU_CTL(fmt, args...)	no_printk(fmt, ##args)
+#define WL_AMPDU_HW(fmt, args...)	no_printk(fmt, ##args)
+#define WL_AMPDU_HWTXS(fmt, args...)	no_printk(fmt, ##args)
+#define WL_AMPDU_HWDBG(fmt, args...)	no_printk(fmt, ##args)
 #define WL_AMPDU_ERR_ON()       0
 #define WL_AMPDU_HW_ON()        0
 #define WL_AMPDU_HWTXS_ON()     0

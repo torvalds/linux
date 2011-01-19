@@ -1,7 +1,6 @@
 config OCFS2_FS
 	tristate "OCFS2 file system support"
-	depends on NET && SYSFS
-	select CONFIGFS_FS
+	depends on NET && SYSFS && CONFIGFS_FS
 	select JBD2
 	select CRC32
 	select QUOTA
@@ -51,7 +50,7 @@ config OCFS2_FS_USERSPACE_CLUSTER
 
 config OCFS2_FS_STATS
 	bool "OCFS2 statistics"
-	depends on OCFS2_FS
+	depends on OCFS2_FS && DEBUG_FS
 	default y
 	help
 	  This option allows some fs statistics to be captured. Enabling

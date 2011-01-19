@@ -19,7 +19,7 @@
 #define __BFA_DEFS_H__
 
 #include "bfa_fc.h"
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 
 #define BFA_MFG_SERIALNUM_SIZE                  11
 #define STRSZ(_n)                               (((_n) + 4) & ~3)
@@ -446,8 +446,8 @@ enum bfa_boot_bootopt {
  * Boot lun information.
  */
 struct bfa_boot_bootlun_s {
-	wwn_t   pwwn;   /*  port wwn of target */
-	lun_t   lun;    /*  64-bit lun */
+	wwn_t   pwwn;		/*  port wwn of target */
+	struct scsi_lun   lun;  /*  64-bit lun */
 };
 #pragma pack()
 

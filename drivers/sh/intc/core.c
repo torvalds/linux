@@ -198,6 +198,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	list_add_tail(&d->list, &intc_list);
 
 	raw_spin_lock_init(&d->lock);
+	INIT_RADIX_TREE(&d->tree, GFP_ATOMIC);
 
 	d->index = nr_intc_controllers;
 

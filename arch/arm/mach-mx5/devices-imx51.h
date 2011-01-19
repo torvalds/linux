@@ -31,6 +31,11 @@ extern const struct imx_mxc_nand_data imx51_mxc_nand_data __initconst;
 #define imx51_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand(&imx51_mxc_nand_data, pdata)
 
+extern const struct imx_sdhci_esdhc_imx_data
+imx51_sdhci_esdhc_imx_data[] __initconst;
+#define imx51_add_sdhci_esdhc_imx(id, pdata)	\
+	imx_add_sdhci_esdhc_imx(&imx51_sdhci_esdhc_imx_data[id], pdata)
+
 extern const struct imx_spi_imx_data imx51_cspi_data __initconst;
 #define imx51_add_cspi(pdata)	\
 	imx_add_spi_imx(&imx51_cspi_data, pdata)
@@ -39,6 +44,14 @@ extern const struct imx_spi_imx_data imx51_ecspi_data[] __initconst;
 #define imx51_add_ecspi(id, pdata)	\
 	imx_add_spi_imx(&imx51_ecspi_data[id], pdata)
 
-extern const struct imx_esdhc_imx_data imx51_esdhc_data[] __initconst;
-#define imx51_add_esdhc(id, pdata)	\
-	imx_add_esdhc(&imx51_esdhc_data[id], pdata)
+extern const struct imx_imx2_wdt_data imx51_imx2_wdt_data[] __initconst;
+#define imx51_add_imx2_wdt(id, pdata)	\
+	imx_add_imx2_wdt(&imx51_imx2_wdt_data[id])
+
+extern const struct imx_mxc_pwm_data imx51_mxc_pwm_data[] __initconst;
+#define imx51_add_mxc_pwm(id)	\
+	imx_add_mxc_pwm(&imx51_mxc_pwm_data[id])
+
+extern const struct imx_imx_keypad_data imx51_imx_keypad_data __initconst;
+#define imx51_add_imx_keypad(pdata)	\
+	imx_add_imx_keypad(&imx51_imx_keypad_data, pdata)

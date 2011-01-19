@@ -1689,7 +1689,7 @@
 #define		PHY_START_CAL		0x01
 
 /*
- * HST_PCIX2 Registers, Addresss Range: (0x00-0xFC)
+ * HST_PCIX2 Registers, Address Range: (0x00-0xFC)
  */
 #define PCIX_REG_BASE_ADR		0xB8040000
 
@@ -1802,7 +1802,7 @@
 #define PCIC_TP_CTRL	0xFC
 
 /*
- * EXSI Registers, Addresss Range: (0x00-0xFC)
+ * EXSI Registers, Address Range: (0x00-0xFC)
  */
 #define EXSI_REG_BASE_ADR		REG_BASE_ADDR_EXSI
 

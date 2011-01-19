@@ -57,7 +57,7 @@ struct irq_desc {
 #endif
 
 	struct timer_rand_state *timer_rand_state;
-	unsigned int		*kstat_irqs;
+	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
 	struct irqaction	*action;	/* IRQ action list */
 	unsigned int		status;		/* IRQ status */

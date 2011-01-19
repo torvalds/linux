@@ -71,16 +71,14 @@ struct drm_nouveau_gpuobj_free {
 #define NOUVEAU_GETPARAM_PCI_VENDOR      3
 #define NOUVEAU_GETPARAM_PCI_DEVICE      4
 #define NOUVEAU_GETPARAM_BUS_TYPE        5
-#define NOUVEAU_GETPARAM_FB_PHYSICAL     6
-#define NOUVEAU_GETPARAM_AGP_PHYSICAL    7
 #define NOUVEAU_GETPARAM_FB_SIZE         8
 #define NOUVEAU_GETPARAM_AGP_SIZE        9
-#define NOUVEAU_GETPARAM_PCI_PHYSICAL    10
 #define NOUVEAU_GETPARAM_CHIPSET_ID      11
 #define NOUVEAU_GETPARAM_VM_VRAM_BASE    12
 #define NOUVEAU_GETPARAM_GRAPH_UNITS     13
 #define NOUVEAU_GETPARAM_PTIMER_TIME     14
 #define NOUVEAU_GETPARAM_HAS_BO_USAGE    15
+#define NOUVEAU_GETPARAM_HAS_PAGEFLIP    16
 struct drm_nouveau_getparam {
 	uint64_t param;
 	uint64_t value;
@@ -171,7 +169,6 @@ struct drm_nouveau_gem_pushbuf {
 };
 
 #define NOUVEAU_GEM_CPU_PREP_NOWAIT                                  0x00000001
-#define NOUVEAU_GEM_CPU_PREP_NOBLOCK                                 0x00000002
 #define NOUVEAU_GEM_CPU_PREP_WRITE                                   0x00000004
 struct drm_nouveau_gem_cpu_prep {
 	uint32_t handle;

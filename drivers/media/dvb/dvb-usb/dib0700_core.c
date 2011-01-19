@@ -471,19 +471,19 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return dib0700_ctrl_wr(adap->dev, b, 4);
 }
 
-int dib0700_change_protocol(void *priv, u64 ir_type)
+int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
 {
-	struct dvb_usb_device *d = priv;
+	struct dvb_usb_device *d = rc->priv;
 	struct dib0700_state *st = d->priv;
 	u8 rc_setup[3] = { REQUEST_SET_RC, 0, 0 };
 	int new_proto, ret;
 
 	/* Set the IR mode */
-	if (ir_type == IR_TYPE_RC5)
+	if (rc_type == RC_TYPE_RC5)
 		new_proto = 1;
-	else if (ir_type == IR_TYPE_NEC)
+	else if (rc_type == RC_TYPE_NEC)
 		new_proto = 0;
-	else if (ir_type == IR_TYPE_RC6) {
+	else if (rc_type == RC_TYPE_RC6) {
 		if (st->fw_version < 0x10200)
 			return -EINVAL;
 
@@ -499,7 +499,7 @@ int dib0700_change_protocol(void *priv, u64 ir_type)
 		return ret;
 	}
 
-	d->props.rc.core.protocol = ir_type;
+	d->props.rc.core.protocol = rc_type;
 
 	return ret;
 }
@@ -535,7 +535,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	if (d == NULL)
 		return;
 
-	if (d->rc_input_dev == NULL) {
+	if (d->rc_dev == NULL) {
 		/* This will occur if disable_rc_polling=1 */
 		usb_free_urb(purb);
 		return;
@@ -562,7 +562,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		 purb->actual_length);
 
 	switch (d->props.rc.core.protocol) {
-	case IR_TYPE_NEC:
+	case RC_TYPE_NEC:
 		toggle = 0;
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */
@@ -600,7 +600,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		goto resubmit;
 	}
 
-	ir_keydown(d->rc_input_dev, keycode, toggle);
+	rc_keydown(d->rc_dev, keycode, toggle);
 
 resubmit:
 	/* Clean the buffer before we requeue */

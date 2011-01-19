@@ -171,7 +171,7 @@ MODULE_PARM_DESC(resend_igmp, "Number of IGMP membership reports to send on link
 /*----------------------------- Global variables ----------------------------*/
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-cpumask_var_t netpoll_block_tx;
+atomic_t netpoll_block_tx = ATOMIC_INIT(0);
 #endif
 
 static const char * const version =
@@ -418,36 +418,11 @@ struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr)
  * @bond: bond device that got this skb for tx.
  * @skb: hw accel VLAN tagged skb to transmit
  * @slave_dev: slave that is supposed to xmit this skbuff
- *
- * When the bond gets an skb to transmit that is
- * already hardware accelerated VLAN tagged, and it
- * needs to relay this skb to a slave that is not
- * hw accel capable, the skb needs to be "unaccelerated",
- * i.e. strip the hwaccel tag and re-insert it as part
- * of the payload.
  */
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 			struct net_device *slave_dev)
 {
-	unsigned short uninitialized_var(vlan_id);
-
-	/* Test vlan_list not vlgrp to catch and handle 802.1p tags */
-	if (!list_empty(&bond->vlan_list) &&
-	    !(slave_dev->features & NETIF_F_HW_VLAN_TX) &&
-	    vlan_get_tag(skb, &vlan_id) == 0) {
-		skb->dev = slave_dev;
-		skb = vlan_put_tag(skb, vlan_id);
-		if (!skb) {
-			/* vlan_put_tag() frees the skb in case of error,
-			 * so return success here so the calling functions
-			 * won't attempt to free is again.
-			 */
-			return 0;
-		}
-	} else {
-		skb->dev = slave_dev;
-	}
-
+	skb->dev = slave_dev;
 	skb->priority = 1;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	if (unlikely(bond->dev->priv_flags & IFF_IN_NETPOLL)) {
@@ -873,17 +848,11 @@ static void bond_mc_del(struct bonding *bond, void *addr)
 static void __bond_resend_igmp_join_requests(struct net_device *dev)
 {
 	struct in_device *in_dev;
-	struct ip_mc_list *im;
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
-	if (in_dev) {
-		read_lock(&in_dev->mc_list_lock);
-		for (im = in_dev->mc_list; im; im = im->next)
-			ip_mc_rejoin_group(im);
-		read_unlock(&in_dev->mc_list_lock);
-	}
-
+	if (in_dev)
+		ip_mc_rejoin_groups(in_dev);
 	rcu_read_unlock();
 }
 
@@ -1203,11 +1172,13 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 				bond_do_fail_over_mac(bond, new_active,
 						      old_active);
 
-			bond->send_grat_arp = bond->params.num_grat_arp;
-			bond_send_gratuitous_arp(bond);
+			if (netif_running(bond->dev)) {
+				bond->send_grat_arp = bond->params.num_grat_arp;
+				bond_send_gratuitous_arp(bond);
 
-			bond->send_unsol_na = bond->params.num_unsol_na;
-			bond_send_unsolicited_na(bond);
+				bond->send_unsol_na = bond->params.num_unsol_na;
+				bond_send_unsolicited_na(bond);
+			}
 
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
@@ -1221,8 +1192,9 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 	/* resend IGMP joins since active slave has changed or
 	 * all were sent on curr_active_slave */
-	if ((USES_PRIMARY(bond->params.mode) && new_active) ||
-	    bond->params.mode == BOND_MODE_ROUNDROBIN) {
+	if (((USES_PRIMARY(bond->params.mode) && new_active) ||
+	     bond->params.mode == BOND_MODE_ROUNDROBIN) &&
+	    netif_running(bond->dev)) {
 		bond->igmp_retrans = bond->params.resend_igmp;
 		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
 	}
@@ -1576,7 +1548,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* If this is the first slave, then we need to set the master's hardware
 	 * address to be the same as the slave's. */
-	if (bond->slave_cnt == 0)
+	if (is_zero_ether_addr(bond->dev->dev_addr))
 		memcpy(bond->dev->dev_addr, slave_dev->dev_addr,
 		       slave_dev->addr_len);
 
@@ -3211,7 +3183,7 @@ out:
 #ifdef CONFIG_PROC_FS
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(&dev_base_lock)
+	__acquires(RCU)
 	__acquires(&bond->lock)
 {
 	struct bonding *bond = seq->private;
@@ -3220,7 +3192,7 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	int i;
 
 	/* make sure the bond won't be taken away */
-	read_lock(&dev_base_lock);
+	rcu_read_lock();
 	read_lock(&bond->lock);
 
 	if (*pos == 0)
@@ -3250,12 +3222,12 @@ static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void bond_info_seq_stop(struct seq_file *seq, void *v)
 	__releases(&bond->lock)
-	__releases(&dev_base_lock)
+	__releases(RCU)
 {
 	struct bonding *bond = seq->private;
 
 	read_unlock(&bond->lock);
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
 static void bond_info_show_master(struct seq_file *seq)
@@ -3508,6 +3480,8 @@ static int bond_event_changename(struct bonding *bond)
 {
 	bond_remove_proc_entry(bond);
 	bond_create_proc_entry(bond);
+
+	bond_debug_reregister(bond);
 
 	return NOTIFY_DONE;
 }
@@ -4791,6 +4765,8 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	bond_remove_proc_entry(bond);
 
+	bond_debug_unregister(bond);
+
 	__hw_addr_flush(&bond->mc_list);
 
 	list_for_each_entry_safe(vlan, tmp, &bond->vlan_list, vlan_list) {
@@ -5193,6 +5169,8 @@ static int bond_init(struct net_device *bond_dev)
 
 	bond_prepare_sysfs_group(bond);
 
+	bond_debug_register(bond);
+
 	__hw_addr_init(&bond->mc_list);
 	return 0;
 }
@@ -5299,13 +5277,6 @@ static int __init bonding_init(void)
 	if (res)
 		goto out;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	if (!alloc_cpumask_var(&netpoll_block_tx, GFP_KERNEL)) {
-		res = -ENOMEM;
-		goto out;
-	}
-#endif
-
 	res = register_pernet_subsys(&bond_net_ops);
 	if (res)
 		goto out;
@@ -5313,6 +5284,8 @@ static int __init bonding_init(void)
 	res = rtnl_link_register(&bond_link_ops);
 	if (res)
 		goto err_link;
+
+	bond_create_debugfs();
 
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(&init_net, NULL);
@@ -5324,7 +5297,6 @@ static int __init bonding_init(void)
 	if (res)
 		goto err;
 
-
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
 	bond_register_ipv6_notifier();
@@ -5334,9 +5306,6 @@ err:
 	rtnl_link_unregister(&bond_link_ops);
 err_link:
 	unregister_pernet_subsys(&bond_net_ops);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	free_cpumask_var(netpoll_block_tx);
-#endif
 	goto out;
 
 }
@@ -5348,12 +5317,16 @@ static void __exit bonding_exit(void)
 	bond_unregister_ipv6_notifier();
 
 	bond_destroy_sysfs();
+	bond_destroy_debugfs();
 
 	rtnl_link_unregister(&bond_link_ops);
 	unregister_pernet_subsys(&bond_net_ops);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	free_cpumask_var(netpoll_block_tx);
+	/*
+	 * Make sure we don't have an imbalance on our netpoll blocking
+	 */
+	WARN_ON(atomic_read(&netpoll_block_tx));
 #endif
 }
 

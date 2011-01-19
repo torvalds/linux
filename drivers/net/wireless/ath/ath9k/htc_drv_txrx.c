@@ -20,8 +20,15 @@
 /* TX */
 /******/
 
+static const int subtype_txq_to_hwq[] = {
+	[WME_AC_BE] = ATH_TXQ_AC_BE,
+	[WME_AC_BK] = ATH_TXQ_AC_BK,
+	[WME_AC_VI] = ATH_TXQ_AC_VI,
+	[WME_AC_VO] = ATH_TXQ_AC_VO,
+};
+
 #define ATH9K_HTC_INIT_TXQ(subtype) do {			\
-		qi.tqi_subtype = subtype;			\
+		qi.tqi_subtype = subtype_txq_to_hwq[subtype];	\
 		qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;		\
 		qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;		\
 		qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;		\
@@ -62,8 +69,8 @@ int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 	qi.tqi_readyTime = qinfo->tqi_readyTime;
 
 	if (!ath9k_hw_set_txq_props(ah, qnum, &qi)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Unable to update hardware queue %u!\n", qnum);
+		ath_err(ath9k_hw_common(ah),
+			"Unable to update hardware queue %u!\n", qnum);
 		error = -EIO;
 	} else {
 		ath9k_hw_resettxqueue(ah, qnum);
@@ -244,7 +251,7 @@ void ath9k_tx_tasklet(unsigned long data)
 				ista = (struct ath9k_htc_sta *)sta->drv_priv;
 
 				if (ath9k_htc_check_tx_aggr(priv, ista, tid)) {
-					ieee80211_start_tx_ba_session(sta, tid);
+					ieee80211_start_tx_ba_session(sta, tid, 0);
 					spin_lock_bh(&priv->tx_lock);
 					ista->tid_state[tid] = AGGR_PROGRESS;
 					spin_unlock_bh(&priv->tx_lock);
@@ -263,8 +270,8 @@ void ath9k_tx_tasklet(unsigned long data)
 	if (priv->tx_queues_stop) {
 		priv->tx_queues_stop = false;
 		spin_unlock_bh(&priv->tx_lock);
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-			  "Waking up TX queues\n");
+		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+			"Waking up TX queues\n");
 		ieee80211_wake_queues(priv->hw);
 		return;
 	}
@@ -289,8 +296,7 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 		   (ep_id == priv->data_vo_ep)) {
 		skb_pull(skb, sizeof(struct tx_frame_hdr));
 	} else {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unsupported TX EPID: %d\n", ep_id);
+		ath_err(common, "Unsupported TX EPID: %d\n", ep_id);
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -330,9 +336,8 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv, int subtype)
 		return false;
 
 	if (qnum >= ARRAY_SIZE(priv->hwq_map)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "qnum %u out of range, max %u!\n",
-			  qnum, (unsigned int)ARRAY_SIZE(priv->hwq_map));
+		ath_err(common, "qnum %u out of range, max %zu!\n",
+			qnum, ARRAY_SIZE(priv->hwq_map));
 		ath9k_hw_releasetxqueue(ah, qnum);
 		return false;
 	}
@@ -483,8 +488,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	__le16 fc;
 
 	if (skb->len <= HTC_RX_FRAME_HEADER_SIZE) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Corrupted RX frame, dropping\n");
+		ath_err(common, "Corrupted RX frame, dropping\n");
 		goto rx_next;
 	}
 
@@ -492,10 +496,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 
 	if (be16_to_cpu(rxstatus->rs_datalen) -
 	    (skb->len - HTC_RX_FRAME_HEADER_SIZE) != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Corrupted RX data len, dropping "
-			  "(dlen: %d, skblen: %d)\n",
-			  rxstatus->rs_datalen, skb->len);
+		ath_err(common,
+			"Corrupted RX data len, dropping (dlen: %d, skblen: %d)\n",
+			rxstatus->rs_datalen, skb->len);
 		goto rx_next;
 	}
 
@@ -678,8 +681,8 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_unlock(&priv->rx.rxbuflock);
 
 	if (rxbuf == NULL) {
-		ath_print(common, ATH_DBG_ANY,
-			  "No free RX buffer\n");
+		ath_dbg(common, ATH_DBG_ANY,
+			"No free RX buffer\n");
 		goto err;
 	}
 
@@ -721,8 +724,7 @@ int ath9k_rx_init(struct ath9k_htc_priv *priv)
 	for (i = 0; i < ATH9K_HTC_RXBUF; i++) {
 		rxbuf = kzalloc(sizeof(struct ath9k_htc_rxbuf), GFP_KERNEL);
 		if (rxbuf == NULL) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unable to allocate RX buffers\n");
+			ath_err(common, "Unable to allocate RX buffers\n");
 			goto err;
 		}
 		list_add_tail(&rxbuf->list, &priv->rx.rxbuf);

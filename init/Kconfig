@@ -130,13 +130,16 @@ config HAVE_KERNEL_BZIP2
 config HAVE_KERNEL_LZMA
 	bool
 
+config HAVE_KERNEL_XZ
+	bool
+
 config HAVE_KERNEL_LZO
 	bool
 
 choice
 	prompt "Kernel compression mode"
 	default KERNEL_GZIP
-	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_LZO
+	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO
 	help
 	  The linux kernel is a kind of self-extracting executable.
 	  Several compression algorithms are available, which differ
@@ -180,6 +183,21 @@ config KERNEL_LZMA
 	  Its ratio is best, decompression speed is between the other
 	  two. Compression is slowest.	The kernel size is about 33%
 	  smaller with LZMA in comparison to gzip.
+
+config KERNEL_XZ
+	bool "XZ"
+	depends on HAVE_KERNEL_XZ
+	help
+	  XZ uses the LZMA2 algorithm and instruction set specific
+	  BCJ filters which can improve compression ratio of executable
+	  code. The size of the kernel is about 30% smaller with XZ in
+	  comparison to gzip. On architectures for which there is a BCJ
+	  filter (i386, x86_64, ARM, IA-64, PowerPC, and SPARC), XZ
+	  will create a few percent smaller kernel than plain LZMA.
+
+	  The speed is about the same as with LZMA: The decompression
+	  speed of XZ is better than that of bzip2 but worse than gzip
+	  and LZO. Compression is slow.
 
 config KERNEL_LZO
 	bool "LZO"
@@ -393,7 +411,6 @@ config PREEMPT_RCU
 
 config RCU_TRACE
 	bool "Enable tracing for RCU"
-	depends on TREE_RCU || TREE_PREEMPT_RCU
 	help
 	  This option provides tracing in RCU which presents stats
 	  in debugfs for debugging RCU implementation.
@@ -458,6 +475,45 @@ config TREE_RCU_TRACE
 	  This option provides tracing for the TREE_RCU and
 	  TREE_PREEMPT_RCU implementations, permitting Makefile to
 	  trivially select kernel/rcutree_trace.c.
+
+config RCU_BOOST
+	bool "Enable RCU priority boosting"
+	depends on RT_MUTEXES && TINY_PREEMPT_RCU
+	default n
+	help
+	  This option boosts the priority of preempted RCU readers that
+	  block the current preemptible RCU grace period for too long.
+	  This option also prevents heavy loads from blocking RCU
+	  callback invocation for all flavors of RCU.
+
+	  Say Y here if you are working with real-time apps or heavy loads
+	  Say N here if you are unsure.
+
+config RCU_BOOST_PRIO
+	int "Real-time priority to boost RCU readers to"
+	range 1 99
+	depends on RCU_BOOST
+	default 1
+	help
+	  This option specifies the real-time priority to which preempted
+	  RCU readers are to be boosted.  If you are working with CPU-bound
+	  real-time applications, you should specify a priority higher then
+	  the highest-priority CPU-bound application.
+
+	  Specify the real-time priority, or take the default if unsure.
+
+config RCU_BOOST_DELAY
+	int "Milliseconds to delay boosting after RCU grace-period start"
+	range 0 3000
+	depends on RCU_BOOST
+	default 500
+	help
+	  This option specifies the time to wait after the beginning of
+	  a given grace period before priority-boosting preempted RCU
+	  readers blocking that grace period.  Note that any RCU reader
+	  blocking an expedited RCU grace period is boosted immediately.
+
+	  Accept the default if unsure.
 
 endmenu # "RCU Subsystem"
 
@@ -620,7 +676,7 @@ config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
 	help
 	  Memory Resource Controller Swap Extension comes with its price in
 	  a bigger memory consumption. General purpose distribution kernels
-	  which want to enable the feautre but keep it disabled by default
+	  which want to enable the feature but keep it disabled by default
 	  and let the user enable it by swapaccount boot command line
 	  parameter should have this option unselected.
 	  For those who want to have the feature enabled by default should
@@ -740,6 +796,19 @@ config NET_NS
 	  of the network stack.
 
 endif # NAMESPACES
+
+config SCHED_AUTOGROUP
+	bool "Automatic process group scheduling"
+	select EVENTFD
+	select CGROUPS
+	select CGROUP_SCHED
+	select FAIR_GROUP_SCHED
+	help
+	  This option optimizes the scheduler for common desktop workloads by
+	  automatically creating and populating task groups.  This separation
+	  of workloads isolates aggressive CPU burners (like build jobs) from
+	  desktop applications.  Task group autogeneration is currently based
+	  upon task session.
 
 config MM_OWNER
 	bool

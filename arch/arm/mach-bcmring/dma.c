@@ -671,7 +671,7 @@ static int ConfigChannel(DMA_Handle_t handle)
 
 /****************************************************************************/
 /**
-*   Intializes all of the data structures associated with the DMA.
+*   Initializes all of the data structures associated with the DMA.
 *   @return
 *       >= 0    - Initialization was successfull.
 *

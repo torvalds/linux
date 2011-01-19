@@ -703,7 +703,7 @@ static struct omap_mux __initdata omap3_muxmodes[] = {
  * Signals different on CBC package compared to the superset
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_OMAP_PACKAGE_CBC)
-struct omap_mux __initdata omap3_cbc_subset[] = {
+static struct omap_mux __initdata omap3_cbc_subset[] = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
@@ -721,7 +721,7 @@ struct omap_mux __initdata omap3_cbc_subset[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)	\
 		&& defined(CONFIG_OMAP_PACKAGE_CBC)
-struct omap_ball __initdata omap3_cbc_ball[] = {
+static struct omap_ball __initdata omap3_cbc_ball[] = {
 	_OMAP3_BALLENTRY(CAM_D0, "ae16", NULL),
 	_OMAP3_BALLENTRY(CAM_D1, "ae15", NULL),
 	_OMAP3_BALLENTRY(CAM_D10, "d25", NULL),
@@ -2049,12 +2049,13 @@ int __init omap3_mux_init(struct omap_board_mux *board_subset, int flags)
 		package_balls = omap36xx_cbp_ball;
 		break;
 	default:
-		printk(KERN_ERR "mux: Unknown omap package, mux disabled\n");
+		pr_err("%s Unknown omap package, mux disabled\n", __func__);
 		return -EINVAL;
 	}
 
-	return omap_mux_init(OMAP3_CONTROL_PADCONF_MUX_PBASE,
+	return omap_mux_init("core", 0,
+			     OMAP3_CONTROL_PADCONF_MUX_PBASE,
 			     OMAP3_CONTROL_PADCONF_MUX_SIZE,
-				omap3_muxmodes, package_subset, board_subset,
-				package_balls);
+			     omap3_muxmodes, package_subset, board_subset,
+			     package_balls);
 }

@@ -309,9 +309,9 @@ static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static int ixp2000_GPIO_irq_type(unsigned int irq, unsigned int type)
+static int ixp2000_GPIO_irq_type(struct irq_data *d, unsigned int type)
 {
-	int line = irq - IRQ_IXP2000_GPIO0;
+	int line = d->irq - IRQ_IXP2000_GPIO0;
 
 	/*
 	 * First, configure this GPIO line as an input.
@@ -342,8 +342,10 @@ static int ixp2000_GPIO_irq_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static void ixp2000_GPIO_irq_mask_ack(unsigned int irq)
+static void ixp2000_GPIO_irq_mask_ack(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	ixp2000_reg_write(IXP2000_GPIO_INCR, (1 << (irq - IRQ_IXP2000_GPIO0)));
 
 	ixp2000_reg_write(IXP2000_GPIO_EDSR, (1 << (irq - IRQ_IXP2000_GPIO0)));
@@ -351,38 +353,42 @@ static void ixp2000_GPIO_irq_mask_ack(unsigned int irq)
 	ixp2000_reg_wrb(IXP2000_GPIO_INST, (1 << (irq - IRQ_IXP2000_GPIO0)));
 }
 
-static void ixp2000_GPIO_irq_mask(unsigned int irq)
+static void ixp2000_GPIO_irq_mask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	ixp2000_reg_wrb(IXP2000_GPIO_INCR, (1 << (irq - IRQ_IXP2000_GPIO0)));
 }
 
-static void ixp2000_GPIO_irq_unmask(unsigned int irq)
+static void ixp2000_GPIO_irq_unmask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	ixp2000_reg_write(IXP2000_GPIO_INSR, (1 << (irq - IRQ_IXP2000_GPIO0)));
 }
 
 static struct irq_chip ixp2000_GPIO_irq_chip = {
-	.ack		= ixp2000_GPIO_irq_mask_ack,
-	.mask		= ixp2000_GPIO_irq_mask,
-	.unmask		= ixp2000_GPIO_irq_unmask,
-	.set_type	= ixp2000_GPIO_irq_type,
+	.irq_ack	= ixp2000_GPIO_irq_mask_ack,
+	.irq_mask	= ixp2000_GPIO_irq_mask,
+	.irq_unmask	= ixp2000_GPIO_irq_unmask,
+	.irq_set_type	= ixp2000_GPIO_irq_type,
 };
 
-static void ixp2000_pci_irq_mask(unsigned int irq)
+static void ixp2000_pci_irq_mask(struct irq_data *d)
 {
 	unsigned long temp = *IXP2000_PCI_XSCALE_INT_ENABLE;
-	if (irq == IRQ_IXP2000_PCIA)
+	if (d->irq == IRQ_IXP2000_PCIA)
 		ixp2000_reg_wrb(IXP2000_PCI_XSCALE_INT_ENABLE, (temp & ~(1 << 26)));
-	else if (irq == IRQ_IXP2000_PCIB)
+	else if (d->irq == IRQ_IXP2000_PCIB)
 		ixp2000_reg_wrb(IXP2000_PCI_XSCALE_INT_ENABLE, (temp & ~(1 << 27)));
 }
 
-static void ixp2000_pci_irq_unmask(unsigned int irq)
+static void ixp2000_pci_irq_unmask(struct irq_data *d)
 {
 	unsigned long temp = *IXP2000_PCI_XSCALE_INT_ENABLE;
-	if (irq == IRQ_IXP2000_PCIA)
+	if (d->irq == IRQ_IXP2000_PCIA)
 		ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, (temp | (1 << 26)));
-	else if (irq == IRQ_IXP2000_PCIB)
+	else if (d->irq == IRQ_IXP2000_PCIB)
 		ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, (temp | (1 << 27)));
 }
 
@@ -401,44 +407,44 @@ static void ixp2000_err_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void ixp2000_err_irq_mask(unsigned int irq)
+static void ixp2000_err_irq_mask(struct irq_data *d)
 {
 	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_CLR,
-			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+			(1 << (d->irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
 }
 
-static void ixp2000_err_irq_unmask(unsigned int irq)
+static void ixp2000_err_irq_unmask(struct irq_data *d)
 {
 	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_SET,
-			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+			(1 << (d->irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
 }
 
 static struct irq_chip ixp2000_err_irq_chip = {
-	.ack	= ixp2000_err_irq_mask,
-	.mask	= ixp2000_err_irq_mask,
-	.unmask	= ixp2000_err_irq_unmask
+	.irq_ack	= ixp2000_err_irq_mask,
+	.irq_mask	= ixp2000_err_irq_mask,
+	.irq_unmask	= ixp2000_err_irq_unmask
 };
 
 static struct irq_chip ixp2000_pci_irq_chip = {
-	.ack	= ixp2000_pci_irq_mask,
-	.mask	= ixp2000_pci_irq_mask,
-	.unmask	= ixp2000_pci_irq_unmask
+	.irq_ack	= ixp2000_pci_irq_mask,
+	.irq_mask	= ixp2000_pci_irq_mask,
+	.irq_unmask	= ixp2000_pci_irq_unmask
 };
 
-static void ixp2000_irq_mask(unsigned int irq)
+static void ixp2000_irq_mask(struct irq_data *d)
 {
-	ixp2000_reg_wrb(IXP2000_IRQ_ENABLE_CLR, (1 << irq));
+	ixp2000_reg_wrb(IXP2000_IRQ_ENABLE_CLR, (1 << d->irq));
 }
 
-static void ixp2000_irq_unmask(unsigned int irq)
+static void ixp2000_irq_unmask(struct irq_data *d)
 {
-	ixp2000_reg_write(IXP2000_IRQ_ENABLE_SET, (1 << irq));
+	ixp2000_reg_write(IXP2000_IRQ_ENABLE_SET, (1 << d->irq));
 }
 
 static struct irq_chip ixp2000_irq_chip = {
-	.ack	= ixp2000_irq_mask,
-	.mask	= ixp2000_irq_mask,
-	.unmask	= ixp2000_irq_unmask
+	.irq_ack	= ixp2000_irq_mask,
+	.irq_mask	= ixp2000_irq_mask,
+	.irq_unmask	= ixp2000_irq_unmask
 };
 
 void __init ixp2000_init_irq(void)

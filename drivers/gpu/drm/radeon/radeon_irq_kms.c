@@ -64,15 +64,15 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	struct radeon_device *rdev = dev->dev_private;
 	unsigned i;
 
-	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
-
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
 	rdev->irq.gui_idle = false;
 	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++) {
 		rdev->irq.hpd[i] = false;
+		rdev->irq.pflip[i] = false;
+	}
 	radeon_irq_set(rdev);
 	/* Clear bits */
 	radeon_irq_process(rdev);
@@ -101,14 +101,18 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	rdev->irq.gui_idle = false;
 	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++) {
 		rdev->irq.hpd[i] = false;
+		rdev->irq.pflip[i] = false;
+	}
 	radeon_irq_set(rdev);
 }
 
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int r = 0;
+
+	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
 
 	spin_lock_init(&rdev->irq.sw_lock);
 	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
@@ -121,7 +125,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	 * chips.  Disable MSI on them for now.
 	 */
 	if ((rdev->family >= CHIP_RV380) &&
-	    (!(rdev->flags & RADEON_IS_IGP)) &&
+	    ((!(rdev->flags & RADEON_IS_IGP)) || (rdev->family >= CHIP_PALM)) &&
 	    (!(rdev->flags & RADEON_IS_AGP))) {
 		int ret = pci_enable_msi(rdev->pdev);
 		if (!ret) {
@@ -148,6 +152,7 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 		if (rdev->msi_enabled)
 			pci_disable_msi(rdev->pdev);
 	}
+	flush_work_sync(&rdev->hotplug_work);
 }
 
 void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev)
@@ -173,5 +178,36 @@ void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev)
 		radeon_irq_set(rdev);
 	}
 	spin_unlock_irqrestore(&rdev->irq.sw_lock, irqflags);
+}
+
+void radeon_irq_kms_pflip_irq_get(struct radeon_device *rdev, int crtc)
+{
+	unsigned long irqflags;
+
+	if (crtc < 0 || crtc >= rdev->num_crtc)
+		return;
+
+	spin_lock_irqsave(&rdev->irq.pflip_lock[crtc], irqflags);
+	if (rdev->ddev->irq_enabled && (++rdev->irq.pflip_refcount[crtc] == 1)) {
+		rdev->irq.pflip[crtc] = true;
+		radeon_irq_set(rdev);
+	}
+	spin_unlock_irqrestore(&rdev->irq.pflip_lock[crtc], irqflags);
+}
+
+void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc)
+{
+	unsigned long irqflags;
+
+	if (crtc < 0 || crtc >= rdev->num_crtc)
+		return;
+
+	spin_lock_irqsave(&rdev->irq.pflip_lock[crtc], irqflags);
+	BUG_ON(rdev->ddev->irq_enabled && rdev->irq.pflip_refcount[crtc] <= 0);
+	if (rdev->ddev->irq_enabled && (--rdev->irq.pflip_refcount[crtc] == 0)) {
+		rdev->irq.pflip[crtc] = false;
+		radeon_irq_set(rdev);
+	}
+	spin_unlock_irqrestore(&rdev->irq.pflip_lock[crtc], irqflags);
 }
 

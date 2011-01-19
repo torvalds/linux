@@ -1958,7 +1958,7 @@ static int max98088_probe(struct snd_soc_codec *codec)
                return ret;
        }
 
-       /* initalize private data */
+       /* initialize private data */
 
        max98088->sysclk = (unsigned)-1;
        max98088->eq_textcnt = 0;

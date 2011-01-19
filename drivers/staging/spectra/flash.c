@@ -1258,9 +1258,7 @@ int GLOB_FTL_Flash_Init(void)
 
 	g_SBDCmdIndex = 0;
 
-	GLOB_LLD_Flash_Init();
-
-	status = GLOB_LLD_Read_Device_ID();
+	status = GLOB_LLD_Flash_Init();
 
 	return status;
 }

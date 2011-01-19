@@ -1,7 +1,6 @@
 config EASYCAP
 	tristate "EasyCAP USB ID 05e1:0408 support"
 	depends on USB && VIDEO_DEV
-	depends on BKL # please fix
 
 	---help---
 	  This is an integrated audio/video driver for EasyCAP cards with

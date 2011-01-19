@@ -183,6 +183,11 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 			&mmc_clock_fops))
 		goto err_node;
 
+#ifdef CONFIG_MMC_CLKGATE
+	if (!debugfs_create_u32("clk_delay", (S_IRUSR | S_IWUSR),
+				root, &host->clk_delay))
+		goto err_node;
+#endif
 	return;
 
 err_node:

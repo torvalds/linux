@@ -2,6 +2,14 @@
 # SATA/PATA driver configuration
 #
 
+config HAVE_PATA_PLATFORM
+	bool
+	help
+	  This is an internal configuration node for any machine that
+	  uses pata-platform driver to enable the relevant driver in the
+	  configuration structure without having to submit endless patches
+	  to update the PATA_PLATFORM entry.
+
 menuconfig ATA
 	tristate "Serial ATA and Parallel ATA drivers"
 	depends on HAS_IOMEM
@@ -90,6 +98,14 @@ config SATA_INIC162X
 	help
 	  This option enables support for Initio 162x Serial ATA.
 
+config SATA_ACARD_AHCI
+	tristate "ACard AHCI variant (ATP 8620)"
+	depends on PCI
+	help
+	  This option enables support for Acard.
+
+	  If unsure, say N.
+
 config SATA_SIL24
 	tristate "Silicon Image 3124/3132 SATA support"
 	depends on PCI
@@ -125,16 +141,6 @@ config PDC_ADMA
 	depends on PCI
 	help
 	  This option enables support for Pacific Digital ADMA controllers
-
-	  If unsure, say N.
-
-config PATA_MPC52xx
-	tristate "Freescale MPC52xx SoC internal IDE"
-	depends on PPC_MPC52xx && PPC_BESTCOMM
-	select PPC_BESTCOMM_ATA
-	help
-	  This option enables support for integrated IDE controller
-	  of the Freescale MPC52xx SoC.
 
 	  If unsure, say N.
 
@@ -366,7 +372,7 @@ config PATA_CS5535
 
 config PATA_CS5536
 	tristate "CS5536 PATA support"
-	depends on PCI && X86 && !X86_64
+	depends on PCI
 	help
 	  This option enables support for the AMD CS5536
 	  companion chip used with the Geode LX processor family.
@@ -410,11 +416,11 @@ config PATA_HPT37X
 	  If unsure, say N.
 
 config PATA_HPT3X2N
-	tristate "HPT 372N/302N PATA support"
+	tristate "HPT 371N/372N/302N PATA support"
 	depends on PCI
 	help
 	  This option enables support for the N variant HPT PATA
-	  controllers via the new ATA layer
+	  controllers via the new ATA layer.
 
 	  If unsure, say N.
 
@@ -488,6 +494,16 @@ config PATA_MARVELL
 	  controllers. If you wish to use only the SATA ports then select
 	  the AHCI driver alone. If you wish to the use the PATA port or
 	  both SATA and PATA include this driver.
+
+	  If unsure, say N.
+
+config PATA_MPC52xx
+	tristate "Freescale MPC52xx SoC internal IDE"
+	depends on PPC_MPC52xx && PPC_BESTCOMM
+	select PPC_BESTCOMM_ATA
+	help
+	  This option enables support for integrated IDE controller
+	  of the Freescale MPC52xx SoC.
 
 	  If unsure, say N.
 
@@ -764,14 +780,6 @@ config PATA_PCMCIA
 	  compact flash card adapters via the new ATA layer.
 
 	  If unsure, say N.
-
-config HAVE_PATA_PLATFORM
-	bool
-	help
-	  This is an internal configuration node for any machine that
-	  uses pata-platform driver to enable the relevant driver in the
-	  configuration structure without having to submit endless patches
-	  to update the PATA_PLATFORM entry.
 
 config PATA_PLATFORM
 	tristate "Generic platform device PATA support"

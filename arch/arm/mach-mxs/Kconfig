@@ -1,0 +1,34 @@
+if ARCH_MXS
+
+source "arch/arm/mach-mxs/devices/Kconfig"
+
+config SOC_IMX23
+	bool
+	select CPU_ARM926T
+
+config SOC_IMX28
+	bool
+	select CPU_ARM926T
+
+comment "MXS platforms:"
+
+config MACH_MX23EVK
+	bool "Support MX23EVK Platform"
+	select SOC_IMX23
+	select MXS_HAVE_AMBA_DUART
+	default y
+	help
+	  Include support for MX23EVK platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX28EVK
+	bool "Support MX28EVK Platform"
+	select SOC_IMX28
+	select MXS_HAVE_AMBA_DUART
+	select MXS_HAVE_PLATFORM_FEC
+	default y
+	help
+	  Include support for MX28EVK platform. This includes specific
+	  configurations for the board and its peripherals.
+
+endif

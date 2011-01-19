@@ -735,7 +735,7 @@ static int sr030pc30_s_power(struct v4l2_subdev *sd, int on)
 	const struct sr030pc30_platform_data *pdata = info->pdata;
 	int ret;
 
-	if (WARN(pdata == NULL, "No platform data!"))
+	if (WARN(pdata == NULL, "No platform data!\n"))
 		return -ENOMEM;
 
 	/*

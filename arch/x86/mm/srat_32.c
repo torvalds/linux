@@ -92,6 +92,7 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *cpu_affinity)
 	/* mark this node as "seen" in node bitmap */
 	BMAP_SET(pxm_bitmap, cpu_affinity->proximity_domain_lo);
 
+	/* don't need to check apic_id here, because it is always 8 bits */
 	apicid_to_pxm[cpu_affinity->apic_id] = cpu_affinity->proximity_domain_lo;
 
 	printk(KERN_DEBUG "CPU %02x in proximity domain %02x\n",

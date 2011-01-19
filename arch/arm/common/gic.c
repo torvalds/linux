@@ -35,6 +35,9 @@
 
 static DEFINE_SPINLOCK(irq_controller_lock);
 
+/* Address of GIC 0 CPU interface */
+void __iomem *gic_cpu_base_addr __read_mostly;
+
 struct gic_chip_data {
 	unsigned int irq_offset;
 	void __iomem *dist_base;
@@ -45,59 +48,58 @@ struct gic_chip_data {
 #define MAX_GIC_NR	1
 #endif
 
-static struct gic_chip_data gic_data[MAX_GIC_NR];
+static struct gic_chip_data gic_data[MAX_GIC_NR] __read_mostly;
 
-static inline void __iomem *gic_dist_base(unsigned int irq)
+static inline void __iomem *gic_dist_base(struct irq_data *d)
 {
-	struct gic_chip_data *gic_data = get_irq_chip_data(irq);
+	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
 	return gic_data->dist_base;
 }
 
-static inline void __iomem *gic_cpu_base(unsigned int irq)
+static inline void __iomem *gic_cpu_base(struct irq_data *d)
 {
-	struct gic_chip_data *gic_data = get_irq_chip_data(irq);
+	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
 	return gic_data->cpu_base;
 }
 
-static inline unsigned int gic_irq(unsigned int irq)
+static inline unsigned int gic_irq(struct irq_data *d)
 {
-	struct gic_chip_data *gic_data = get_irq_chip_data(irq);
-	return irq - gic_data->irq_offset;
+	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
+	return d->irq - gic_data->irq_offset;
 }
 
 /*
  * Routines to acknowledge, disable and enable interrupts
  */
-static void gic_ack_irq(unsigned int irq)
+static void gic_ack_irq(struct irq_data *d)
 {
-
 	spin_lock(&irq_controller_lock);
-	writel(gic_irq(irq), gic_cpu_base(irq) + GIC_CPU_EOI);
+	writel(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
 	spin_unlock(&irq_controller_lock);
 }
 
-static void gic_mask_irq(unsigned int irq)
+static void gic_mask_irq(struct irq_data *d)
 {
-	u32 mask = 1 << (irq % 32);
+	u32 mask = 1 << (d->irq % 32);
 
 	spin_lock(&irq_controller_lock);
-	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_CLEAR + (gic_irq(irq) / 32) * 4);
+	writel(mask, gic_dist_base(d) + GIC_DIST_ENABLE_CLEAR + (gic_irq(d) / 32) * 4);
 	spin_unlock(&irq_controller_lock);
 }
 
-static void gic_unmask_irq(unsigned int irq)
+static void gic_unmask_irq(struct irq_data *d)
 {
-	u32 mask = 1 << (irq % 32);
+	u32 mask = 1 << (d->irq % 32);
 
 	spin_lock(&irq_controller_lock);
-	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_SET + (gic_irq(irq) / 32) * 4);
+	writel(mask, gic_dist_base(d) + GIC_DIST_ENABLE_SET + (gic_irq(d) / 32) * 4);
 	spin_unlock(&irq_controller_lock);
 }
 
-static int gic_set_type(unsigned int irq, unsigned int type)
+static int gic_set_type(struct irq_data *d, unsigned int type)
 {
-	void __iomem *base = gic_dist_base(irq);
-	unsigned int gicirq = gic_irq(irq);
+	void __iomem *base = gic_dist_base(d);
+	unsigned int gicirq = gic_irq(d);
 	u32 enablemask = 1 << (gicirq % 32);
 	u32 enableoff = (gicirq / 32) * 4;
 	u32 confmask = 0x2 << ((gicirq % 16) * 2);
@@ -140,21 +142,22 @@ static int gic_set_type(unsigned int irq, unsigned int type)
 }
 
 #ifdef CONFIG_SMP
-static int gic_set_cpu(unsigned int irq, const struct cpumask *mask_val)
+static int
+gic_set_cpu(struct irq_data *d, const struct cpumask *mask_val, bool force)
 {
-	void __iomem *reg = gic_dist_base(irq) + GIC_DIST_TARGET + (gic_irq(irq) & ~3);
-	unsigned int shift = (irq % 4) * 8;
+	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
+	unsigned int shift = (d->irq % 4) * 8;
 	unsigned int cpu = cpumask_first(mask_val);
 	u32 val;
 	struct irq_desc *desc;
 
 	spin_lock(&irq_controller_lock);
-	desc = irq_to_desc(irq);
+	desc = irq_to_desc(d->irq);
 	if (desc == NULL) {
 		spin_unlock(&irq_controller_lock);
 		return -EINVAL;
 	}
-	desc->node = cpu;
+	d->node = cpu;
 	val = readl(reg) & ~(0xff << shift);
 	val |= 1 << (cpu + shift);
 	writel(val, reg);
@@ -172,7 +175,7 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	unsigned long status;
 
 	/* primary controller ack'ing */
-	chip->ack(irq);
+	chip->irq_ack(&desc->irq_data);
 
 	spin_lock(&irq_controller_lock);
 	status = readl(chip_data->cpu_base + GIC_CPU_INTACK);
@@ -190,17 +193,17 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 
  out:
 	/* primary controller unmasking */
-	chip->unmask(irq);
+	chip->irq_unmask(&desc->irq_data);
 }
 
 static struct irq_chip gic_chip = {
-	.name		= "GIC",
-	.ack		= gic_ack_irq,
-	.mask		= gic_mask_irq,
-	.unmask		= gic_unmask_irq,
-	.set_type	= gic_set_type,
+	.name			= "GIC",
+	.irq_ack		= gic_ack_irq,
+	.irq_mask		= gic_mask_irq,
+	.irq_unmask		= gic_unmask_irq,
+	.irq_set_type		= gic_set_type,
 #ifdef CONFIG_SMP
-	.set_affinity	= gic_set_cpu,
+	.irq_set_affinity	= gic_set_cpu,
 #endif
 };
 
@@ -213,20 +216,15 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 	set_irq_chained_handler(irq, gic_handle_cascade_irq);
 }
 
-void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
-			  unsigned int irq_start)
+static void __init gic_dist_init(struct gic_chip_data *gic,
+	unsigned int irq_start)
 {
 	unsigned int gic_irqs, irq_limit, i;
+	void __iomem *base = gic->dist_base;
 	u32 cpumask = 1 << smp_processor_id();
-
-	if (gic_nr >= MAX_GIC_NR)
-		BUG();
 
 	cpumask |= cpumask << 8;
 	cpumask |= cpumask << 16;
-
-	gic_data[gic_nr].dist_base = base;
-	gic_data[gic_nr].irq_offset = (irq_start - 1) & ~31;
 
 	writel(0, base + GIC_DIST_CTRL);
 
@@ -267,7 +265,7 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 	/*
 	 * Limit number of interrupts registered to the platform maximum
 	 */
-	irq_limit = gic_data[gic_nr].irq_offset + gic_irqs;
+	irq_limit = gic->irq_offset + gic_irqs;
 	if (WARN_ON(irq_limit > NR_IRQS))
 		irq_limit = NR_IRQS;
 
@@ -276,7 +274,7 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 	 */
 	for (i = irq_start; i < irq_limit; i++) {
 		set_irq_chip(i, &gic_chip);
-		set_irq_chip_data(i, &gic_data[gic_nr]);
+		set_irq_chip_data(i, gic);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
@@ -284,18 +282,11 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 	writel(1, base + GIC_DIST_CTRL);
 }
 
-void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
+static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
 {
-	void __iomem *dist_base;
+	void __iomem *dist_base = gic->dist_base;
+	void __iomem *base = gic->cpu_base;
 	int i;
-
-	if (gic_nr >= MAX_GIC_NR)
-		BUG();
-
-	dist_base = gic_data[gic_nr].dist_base;
-	BUG_ON(!dist_base);
-
-	gic_data[gic_nr].cpu_base = base;
 
 	/*
 	 * Deal with the banked PPI and SGI interrupts - disable all
@@ -312,6 +303,42 @@ void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
 
 	writel(0xf0, base + GIC_CPU_PRIMASK);
 	writel(1, base + GIC_CPU_CTRL);
+}
+
+void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
+	void __iomem *dist_base, void __iomem *cpu_base)
+{
+	struct gic_chip_data *gic;
+
+	BUG_ON(gic_nr >= MAX_GIC_NR);
+
+	gic = &gic_data[gic_nr];
+	gic->dist_base = dist_base;
+	gic->cpu_base = cpu_base;
+	gic->irq_offset = (irq_start - 1) & ~31;
+
+	if (gic_nr == 0)
+		gic_cpu_base_addr = cpu_base;
+
+	gic_dist_init(gic, irq_start);
+	gic_cpu_init(gic);
+}
+
+void __cpuinit gic_secondary_init(unsigned int gic_nr)
+{
+	BUG_ON(gic_nr >= MAX_GIC_NR);
+
+	gic_cpu_init(&gic_data[gic_nr]);
+}
+
+void __cpuinit gic_enable_ppi(unsigned int irq)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	irq_to_desc(irq)->status |= IRQ_NOPROBE;
+	gic_unmask_irq(irq_get_irq_data(irq));
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_SMP

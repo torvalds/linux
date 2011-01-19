@@ -1776,11 +1776,8 @@ static void ray_update_multi_list(struct net_device *dev, int all)
 		/* Copy the kernel's list of MC addresses to card */
 		netdev_for_each_mc_addr(ha, dev) {
 			memcpy_toio(p, ha->addr, ETH_ALEN);
-			dev_dbg(&link->dev,
-			      "ray_update_multi add addr %02x%02x%02x%02x%02x%02x\n",
-			      ha->addr[0], ha->addr[1],
-			      ha->addr[2], ha->addr[3],
-			      ha->addr[4], ha->addr[5]);
+			dev_dbg(&link->dev, "ray_update_multi add addr %pm\n",
+				ha->addr);
 			p += ETH_ALEN;
 			i++;
 		}
@@ -2015,11 +2012,8 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 				memcpy_fromio(&local->bss_id,
 					      prcs->var.rejoin_net_complete.
 					      bssid, ADDRLEN);
-				dev_dbg(&link->dev,
-				      "ray_cs new BSSID = %02x%02x%02x%02x%02x%02x\n",
-				      local->bss_id[0], local->bss_id[1],
-				      local->bss_id[2], local->bss_id[3],
-				      local->bss_id[4], local->bss_id[5]);
+				dev_dbg(&link->dev, "ray_cs new BSSID = %pm\n",
+					local->bss_id);
 				if (!sniffer)
 					authenticate(local);
 			}
@@ -2286,8 +2280,8 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 	struct ethhdr *peth;
 	UCHAR srcaddr[ADDRLEN];
 	UCHAR destaddr[ADDRLEN];
-	static UCHAR org_bridge[3] = { 0, 0, 0xf8 };
-	static UCHAR org_1042[3] = { 0, 0, 0 };
+	static const UCHAR org_bridge[3] = { 0, 0, 0xf8 };
+	static const UCHAR org_1042[3] = { 0, 0, 0 };
 
 	memcpy(destaddr, ieee80211_get_DA(pmac), ADDRLEN);
 	memcpy(srcaddr, ieee80211_get_SA(pmac), ADDRLEN);

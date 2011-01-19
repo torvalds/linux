@@ -46,105 +46,6 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
-/*
- * Routine to poll RTC seconds field for change as often as possible,
- * after first RTC_UIE use timer to reduce polling
- */
-static void rtc_uie_task(struct work_struct *work)
-{
-	struct rtc_device *rtc =
-		container_of(work, struct rtc_device, uie_task);
-	struct rtc_time tm;
-	int num = 0;
-	int err;
-
-	err = rtc_read_time(rtc, &tm);
-
-	spin_lock_irq(&rtc->irq_lock);
-	if (rtc->stop_uie_polling || err) {
-		rtc->uie_task_active = 0;
-	} else if (rtc->oldsecs != tm.tm_sec) {
-		num = (tm.tm_sec + 60 - rtc->oldsecs) % 60;
-		rtc->oldsecs = tm.tm_sec;
-		rtc->uie_timer.expires = jiffies + HZ - (HZ/10);
-		rtc->uie_timer_active = 1;
-		rtc->uie_task_active = 0;
-		add_timer(&rtc->uie_timer);
-	} else if (schedule_work(&rtc->uie_task) == 0) {
-		rtc->uie_task_active = 0;
-	}
-	spin_unlock_irq(&rtc->irq_lock);
-	if (num)
-		rtc_update_irq(rtc, num, RTC_UF | RTC_IRQF);
-}
-static void rtc_uie_timer(unsigned long data)
-{
-	struct rtc_device *rtc = (struct rtc_device *)data;
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtc->irq_lock, flags);
-	rtc->uie_timer_active = 0;
-	rtc->uie_task_active = 1;
-	if ((schedule_work(&rtc->uie_task) == 0))
-		rtc->uie_task_active = 0;
-	spin_unlock_irqrestore(&rtc->irq_lock, flags);
-}
-
-static int clear_uie(struct rtc_device *rtc)
-{
-	spin_lock_irq(&rtc->irq_lock);
-	if (rtc->uie_irq_active) {
-		rtc->stop_uie_polling = 1;
-		if (rtc->uie_timer_active) {
-			spin_unlock_irq(&rtc->irq_lock);
-			del_timer_sync(&rtc->uie_timer);
-			spin_lock_irq(&rtc->irq_lock);
-			rtc->uie_timer_active = 0;
-		}
-		if (rtc->uie_task_active) {
-			spin_unlock_irq(&rtc->irq_lock);
-			flush_scheduled_work();
-			spin_lock_irq(&rtc->irq_lock);
-		}
-		rtc->uie_irq_active = 0;
-	}
-	spin_unlock_irq(&rtc->irq_lock);
-	return 0;
-}
-
-static int set_uie(struct rtc_device *rtc)
-{
-	struct rtc_time tm;
-	int err;
-
-	err = rtc_read_time(rtc, &tm);
-	if (err)
-		return err;
-	spin_lock_irq(&rtc->irq_lock);
-	if (!rtc->uie_irq_active) {
-		rtc->uie_irq_active = 1;
-		rtc->stop_uie_polling = 0;
-		rtc->oldsecs = tm.tm_sec;
-		rtc->uie_task_active = 1;
-		if (schedule_work(&rtc->uie_task) == 0)
-			rtc->uie_task_active = 0;
-	}
-	rtc->irq_data = 0;
-	spin_unlock_irq(&rtc->irq_lock);
-	return 0;
-}
-
-int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc, unsigned int enabled)
-{
-	if (enabled)
-		return set_uie(rtc);
-	else
-		return clear_uie(rtc);
-}
-EXPORT_SYMBOL(rtc_dev_update_irq_enable_emul);
-
-#endif /* CONFIG_RTC_INTF_DEV_UIE_EMUL */
 
 static ssize_t
 rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
@@ -492,11 +393,6 @@ void rtc_dev_prepare(struct rtc_device *rtc)
 	}
 
 	rtc->dev.devt = MKDEV(MAJOR(rtc_devt), rtc->id);
-
-#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
-	INIT_WORK(&rtc->uie_task, rtc_uie_task);
-	setup_timer(&rtc->uie_timer, rtc_uie_timer, (unsigned long)rtc);
-#endif
 
 	cdev_init(&rtc->char_dev, &rtc_dev_fops);
 	rtc->char_dev.owner = rtc->owner;

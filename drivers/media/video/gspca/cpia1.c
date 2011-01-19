@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 /* constant value's */
 #define MAGIC_0		0x19
 #define MAGIC_1		0x68
-#define DATA_IN		0xC0
+#define DATA_IN		0xc0
 #define DATA_OUT	0x40
 #define VIDEOSIZE_QCIF	0	/* 176x144 */
 #define VIDEOSIZE_CIF	1	/* 352x288 */
@@ -660,9 +660,9 @@ static int do_command(struct gspca_dev *gspca_dev, u16 command,
 		if (sd->params.qx3.button) {
 			/* button pressed - unlock the latch */
 			do_command(gspca_dev, CPIA_COMMAND_WriteMCPort,
-				   3, 0xDF, 0xDF, 0);
+				   3, 0xdf, 0xdf, 0);
 			do_command(gspca_dev, CPIA_COMMAND_WriteMCPort,
-				   3, 0xFF, 0xFF, 0);
+				   3, 0xff, 0xff, 0);
 		}
 
 		/* test whether microscope is cradled */
@@ -829,7 +829,7 @@ static int goto_low_power(struct gspca_dev *gspca_dev)
 	if (ret)
 		return ret;
 
-	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
+	ret = do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
 	if (ret)
 		return ret;
 
@@ -1110,12 +1110,12 @@ static int command_setlights(struct gspca_dev *gspca_dev)
 	p2 = (sd->params.qx3.toplight == 0) << 3;
 
 	ret = do_command(gspca_dev, CPIA_COMMAND_WriteVCReg,
-			 0x90, 0x8F, 0x50, 0);
+			 0x90, 0x8f, 0x50, 0);
 	if (ret)
 		return ret;
 
 	return do_command(gspca_dev, CPIA_COMMAND_WriteMCPort, 2, 0,
-			  p1 | p2 | 0xE0, 0);
+			  p1 | p2 | 0xe0, 0);
 }
 
 static int set_flicker(struct gspca_dev *gspca_dev, int on, int apply)

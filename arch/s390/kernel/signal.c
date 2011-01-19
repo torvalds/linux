@@ -505,7 +505,7 @@ void do_signal(struct pt_regs *regs)
 			 * Let tracing know that we've done the handler setup.
 			 */
 			tracehook_signal_handler(signr, &info, &ka, regs,
-					current->thread.per_info.single_step);
+					test_thread_flag(TIF_SINGLE_STEP));
 		}
 		return;
 	}

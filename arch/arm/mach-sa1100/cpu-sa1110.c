@@ -16,28 +16,24 @@
  *
  * The SDRAM type can be passed on the command line as cpu_sa1110.sdram=type
  */
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/moduleparam.h>
+#include <linux/types.h>
 
-#include <mach/hardware.h>
 #include <asm/cputype.h>
 #include <asm/mach-types.h>
-#include <asm/system.h>
+
+#include <mach/hardware.h>
 
 #include "generic.h"
 
 #undef DEBUG
 
-static struct cpufreq_driver sa1110_driver;
-
 struct sdram_params {
-	const char name[16];
+	const char name[20];
 	u_char  rows;		/* bits				 */
 	u_char  cas_latency;	/* cycles			 */
 	u_char  tck;		/* clock cycle time (ns)	 */
@@ -101,6 +97,15 @@ static struct sdram_params sdram_tbl[] __initdata = {
 	}, {	/* Winbond W982516AH75L CL3 */
 		.name		= "W982516AH75L",
 		.rows		= 16,
+		.tck		= 8,
+		.trcd		= 20,
+		.trp		= 20,
+		.twr		= 8,
+		.refresh	= 64000,
+		.cas_latency	= 3,
+	}, {	/* Micron MT48LC8M16A2TG-75 */
+		.name		= "MT48LC8M16A2TG-75",
+		.rows		= 12,
 		.tck		= 8,
 		.trcd		= 20,
 		.trp		= 20,
@@ -180,11 +185,13 @@ sdram_calculate_timing(struct sdram_info *sd, u_int cpu_khz,
 		sd->mdrefr |= MDREFR_K1DB2;
 
 	/* initial number of '1's in MDCAS + 1 */
-	set_mdcas(sd->mdcas, sd_khz >= 62000, ns_to_cycles(sdram->trcd, mem_khz));
+	set_mdcas(sd->mdcas, sd_khz >= 62000,
+		ns_to_cycles(sdram->trcd, mem_khz));
 
 #ifdef DEBUG
-	printk("MDCNFG: %08x MDREFR: %08x MDCAS0: %08x MDCAS1: %08x MDCAS2: %08x\n",
-		sd->mdcnfg, sd->mdrefr, sd->mdcas[0], sd->mdcas[1], sd->mdcas[2]);
+	printk(KERN_DEBUG "MDCNFG: %08x MDREFR: %08x MDCAS0: %08x MDCAS1: %08x MDCAS2: %08x\n",
+		sd->mdcnfg, sd->mdrefr, sd->mdcas[0], sd->mdcas[1],
+		sd->mdcas[2]);
 #endif
 }
 
@@ -213,7 +220,7 @@ sdram_update_refresh(u_int cpu_khz, struct sdram_params *sdram)
 
 #ifdef DEBUG
 	mdelay(250);
-	printk("new dri value = %d\n", dri);
+	printk(KERN_DEBUG "new dri value = %d\n", dri);
 #endif
 
 	sdram_set_refresh(dri);
@@ -232,7 +239,7 @@ static int sa1110_target(struct cpufreq_policy *policy,
 	unsigned long flags;
 	unsigned int ppcr, unused;
 
-	switch(relation){
+	switch (relation) {
 	case CPUFREQ_RELATION_L:
 		ppcr = sa11x0_freq_to_ppcr(target_freq);
 		if (sa11x0_ppcr_to_freq(ppcr) > policy->max)
@@ -280,11 +287,10 @@ static int sa1110_target(struct cpufreq_policy *policy,
 	 * We wait 20ms to be safe.
 	 */
 	sdram_set_refresh(2);
-	if (!irqs_disabled()) {
+	if (!irqs_disabled())
 		msleep(20);
-	} else {
+	else
 		mdelay(20);
-	}
 
 	/*
 	 * Reprogram the DRAM timings with interrupts disabled, and
@@ -295,7 +301,7 @@ static int sa1110_target(struct cpufreq_policy *policy,
 	local_irq_save(flags);
 	asm("mcr p15, 0, %0, c7, c10, 4" : : "r" (0));
 	udelay(10);
-	__asm__ __volatile__("					\n\
+	__asm__ __volatile__("\n\
 		b	2f					\n\
 		.align	5					\n\
 1:		str	%3, [%1, #0]		@ MDCNFG	\n\
@@ -336,7 +342,9 @@ static int __init sa1110_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct cpufreq_driver sa1110_driver = {
+/* sa1110_driver needs __refdata because it must remain after init registers
+ * it with cpufreq_register_driver() */
+static struct cpufreq_driver sa1110_driver __refdata = {
 	.flags		= CPUFREQ_STICKY,
 	.verify		= sa11x0_verify_speed,
 	.target		= sa1110_target,
@@ -349,7 +357,8 @@ static struct sdram_params *sa1110_find_sdram(const char *name)
 {
 	struct sdram_params *sdram;
 
-	for (sdram = sdram_tbl; sdram < sdram_tbl + ARRAY_SIZE(sdram_tbl); sdram++)
+	for (sdram = sdram_tbl; sdram < sdram_tbl + ARRAY_SIZE(sdram_tbl);
+	     sdram++)
 		if (strcmp(name, sdram->name) == 0)
 			return sdram;
 
@@ -369,14 +378,14 @@ static int __init sa1110_clk_init(void)
 	if (!name[0]) {
 		if (machine_is_assabet())
 			name = "TC59SM716-CL3";
-
 		if (machine_is_pt_system3())
 			name = "K4S641632D";
-
 		if (machine_is_h3100())
 			name = "KM416S4030CT";
 		if (machine_is_jornada720())
-		        name = "K4S281632B-1H";
+			name = "K4S281632B-1H";
+		if (machine_is_nanoengine())
+			name = "MT48LC8M16A2TG-75";
 	}
 
 	sdram = sa1110_find_sdram(name);

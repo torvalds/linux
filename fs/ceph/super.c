@@ -428,7 +428,8 @@ struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		goto fail;
 	}
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
-	fsc->client->supported_features |= CEPH_FEATURE_FLOCK;
+	fsc->client->supported_features |= CEPH_FEATURE_FLOCK |
+		CEPH_FEATURE_DIRLAYOUTHASH;
 	fsc->client->monc.want_mdsmap = 1;
 
 	fsc->mount_options = fsopt;
@@ -443,13 +444,17 @@ struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		goto fail_client;
 
 	err = -ENOMEM;
-	fsc->wb_wq = create_workqueue("ceph-writeback");
+	/*
+	 * The number of concurrent works can be high but they don't need
+	 * to be processed in parallel, limit concurrency.
+	 */
+	fsc->wb_wq = alloc_workqueue("ceph-writeback", 0, 1);
 	if (fsc->wb_wq == NULL)
 		goto fail_bdi;
-	fsc->pg_inv_wq = create_singlethread_workqueue("ceph-pg-invalid");
+	fsc->pg_inv_wq = alloc_workqueue("ceph-pg-invalid", 0, 1);
 	if (fsc->pg_inv_wq == NULL)
 		goto fail_wb_wq;
-	fsc->trunc_wq = create_singlethread_workqueue("ceph-trunc");
+	fsc->trunc_wq = alloc_workqueue("ceph-trunc", 0, 1);
 	if (fsc->trunc_wq == NULL)
 		goto fail_pg_inv_wq;
 

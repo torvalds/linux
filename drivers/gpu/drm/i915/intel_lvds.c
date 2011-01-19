@@ -68,7 +68,7 @@ static struct intel_lvds *intel_attached_lvds(struct drm_connector *connector)
 /**
  * Sets the power state for the panel.
  */
-static void intel_lvds_set_power(struct intel_lvds *intel_lvds, bool on)
+static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 {
 	struct drm_device *dev = intel_lvds->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -82,26 +82,60 @@ static void intel_lvds_set_power(struct intel_lvds *intel_lvds, bool on)
 		lvds_reg = LVDS;
 	}
 
-	if (on) {
-		I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
-		I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
-		intel_panel_set_backlight(dev, dev_priv->backlight_level);
-	} else {
-		dev_priv->backlight_level = intel_panel_get_backlight(dev);
+	I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
 
-		intel_panel_set_backlight(dev, 0);
-		I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
-
-		if (intel_lvds->pfit_control) {
-			if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
-				DRM_ERROR("timed out waiting for panel to power off\n");
-			I915_WRITE(PFIT_CONTROL, 0);
-			intel_lvds->pfit_control = 0;
+	if (intel_lvds->pfit_dirty) {
+		/*
+		 * Enable automatic panel scaling so that non-native modes
+		 * fill the screen.  The panel fitter should only be
+		 * adjusted whilst the pipe is disabled, according to
+		 * register description and PRM.
+		 */
+		DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
+			      intel_lvds->pfit_control,
+			      intel_lvds->pfit_pgm_ratios);
+		if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000)) {
+			DRM_ERROR("timed out waiting for panel to power off\n");
+		} else {
+			I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
+			I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
 			intel_lvds->pfit_dirty = false;
 		}
-
-		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 	}
+
+	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
+	POSTING_READ(lvds_reg);
+
+	intel_panel_enable_backlight(dev);
+}
+
+static void intel_lvds_disable(struct intel_lvds *intel_lvds)
+{
+	struct drm_device *dev = intel_lvds->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 ctl_reg, lvds_reg;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		ctl_reg = PCH_PP_CONTROL;
+		lvds_reg = PCH_LVDS;
+	} else {
+		ctl_reg = PP_CONTROL;
+		lvds_reg = LVDS;
+	}
+
+	intel_panel_disable_backlight(dev);
+
+	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
+
+	if (intel_lvds->pfit_control) {
+		if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
+			DRM_ERROR("timed out waiting for panel to power off\n");
+
+		I915_WRITE(PFIT_CONTROL, 0);
+		intel_lvds->pfit_dirty = true;
+	}
+
+	I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 	POSTING_READ(lvds_reg);
 }
 
@@ -110,9 +144,9 @@ static void intel_lvds_dpms(struct drm_encoder *encoder, int mode)
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 
 	if (mode == DRM_MODE_DPMS_ON)
-		intel_lvds_set_power(intel_lvds, true);
+		intel_lvds_enable(intel_lvds);
 	else
-		intel_lvds_set_power(intel_lvds, false);
+		intel_lvds_disable(intel_lvds);
 
 	/* XXX: We never power down the LVDS pairs. */
 }
@@ -269,14 +303,13 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
 
-			pfit_control |= PFIT_ENABLE;
 			/* 965+ is easy, it does everything in hw */
 			if (scaled_width > scaled_height)
-				pfit_control |= PFIT_SCALING_PILLAR;
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_PILLAR;
 			else if (scaled_width < scaled_height)
-				pfit_control |= PFIT_SCALING_LETTER;
-			else
-				pfit_control |= PFIT_SCALING_AUTO;
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_LETTER;
+			else if (adjusted_mode->hdisplay != mode->hdisplay)
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_AUTO;
 		} else {
 			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
@@ -323,13 +356,17 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		 * Full scaling, even if it changes the aspect ratio.
 		 * Fortunately this is all done for us in hw.
 		 */
-		pfit_control |= PFIT_ENABLE;
-		if (INTEL_INFO(dev)->gen >= 4)
-			pfit_control |= PFIT_SCALING_AUTO;
-		else
-			pfit_control |= (VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-					 VERT_INTERP_BILINEAR |
-					 HORIZ_INTERP_BILINEAR);
+		if (mode->vdisplay != adjusted_mode->vdisplay ||
+		    mode->hdisplay != adjusted_mode->hdisplay) {
+			pfit_control |= PFIT_ENABLE;
+			if (INTEL_INFO(dev)->gen >= 4)
+				pfit_control |= PFIT_SCALING_AUTO;
+			else
+				pfit_control |= (VERT_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_AUTO_SCALE |
+						 HORIZ_INTERP_BILINEAR);
+		}
 		break;
 
 	default:
@@ -337,6 +374,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 out:
+	if ((pfit_control & PFIT_ENABLE) == 0) {
+		pfit_control = 0;
+		pfit_pgm_ratios = 0;
+	}
 	if (pfit_control != intel_lvds->pfit_control ||
 	    pfit_pgm_ratios != intel_lvds->pfit_pgm_ratios) {
 		intel_lvds->pfit_control = pfit_control;
@@ -359,8 +400,6 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
-	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 
 	/* We try to do the minimum that is necessary in order to unlock
 	 * the registers for mode setting.
@@ -392,9 +431,6 @@ static void intel_lvds_commit(struct drm_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 
-	if (dev_priv->backlight_level == 0)
-		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
-
 	/* Undo any unlocking done in prepare to prevent accidental
 	 * adjustment of the registers.
 	 */
@@ -411,43 +447,18 @@ static void intel_lvds_commit(struct drm_encoder *encoder)
 	/* Always do a full power on as we do not know what state
 	 * we were left in.
 	 */
-	intel_lvds_set_power(intel_lvds, true);
+	intel_lvds_enable(intel_lvds);
 }
 
 static void intel_lvds_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
 	/*
 	 * The LVDS pin pair will already have been turned on in the
 	 * intel_crtc_mode_set since it has a large impact on the DPLL
 	 * settings.
 	 */
-
-	if (HAS_PCH_SPLIT(dev))
-		return;
-
-	if (!intel_lvds->pfit_dirty)
-		return;
-
-	/*
-	 * Enable automatic panel scaling so that non-native modes fill the
-	 * screen.  Should be enabled before the pipe is enabled, according to
-	 * register description and PRM.
-	 */
-	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
-		      intel_lvds->pfit_control,
-		      intel_lvds->pfit_pgm_ratios);
-	if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
-		DRM_ERROR("timed out waiting for panel to power off\n");
-
-	I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
-	I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
-	intel_lvds->pfit_dirty = false;
 }
 
 /**
@@ -693,6 +704,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	},
 	{
 		.callback = intel_no_lvds_dmi_callback,
+		.ident = "AOpen i915GMm-HFS",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+			DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
 		.ident = "Aopen i945GTt-VFA",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
@@ -904,6 +923,8 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
 	intel_encoder->crtc_mask = (1 << 1);
+	if (INTEL_INFO(dev)->gen >= 5)
+		intel_encoder->crtc_mask |= (1 << 0);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
@@ -1009,10 +1030,18 @@ bool intel_lvds_init(struct drm_device *dev)
 out:
 	if (HAS_PCH_SPLIT(dev)) {
 		u32 pwm;
-		/* make sure PWM is enabled */
+
+		pipe = (I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT) ? 1 : 0;
+
+		/* make sure PWM is enabled and locked to the LVDS pipe */
 		pwm = I915_READ(BLC_PWM_CPU_CTL2);
-		pwm |= (PWM_ENABLE | PWM_PIPE_B);
-		I915_WRITE(BLC_PWM_CPU_CTL2, pwm);
+		if (pipe == 0 && (pwm & PWM_PIPE_B))
+			I915_WRITE(BLC_PWM_CPU_CTL2, pwm & ~PWM_ENABLE);
+		if (pipe)
+			pwm |= PWM_PIPE_B;
+		else
+			pwm &= ~PWM_PIPE_B;
+		I915_WRITE(BLC_PWM_CPU_CTL2, pwm | PWM_ENABLE);
 
 		pwm = I915_READ(BLC_PWM_PCH_CTL1);
 		pwm |= PWM_PCH_ENABLE;

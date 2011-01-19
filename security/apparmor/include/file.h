@@ -15,12 +15,11 @@
 #ifndef __AA_FILE_H
 #define __AA_FILE_H
 
-#include <linux/path.h>
-
 #include "domain.h"
 #include "match.h"
 
 struct aa_profile;
+struct path;
 
 /*
  * We use MAY_EXEC, MAY_WRITE, MAY_READ, MAY_APPEND and the following flags

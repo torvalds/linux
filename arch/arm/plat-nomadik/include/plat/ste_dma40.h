@@ -13,6 +13,14 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
+/*
+ * Maxium size for a single dma descriptor
+ * Size is limited to 16 bits.
+ * Size is in the units of addr-widths (1,2,4,8 bytes)
+ * Larger transfers will be split up to multiple linked desc
+ */
+#define STEDMA40_MAX_SEG_SIZE 0xFFFF
+
 /* dev types for memcpy */
 #define STEDMA40_DEV_DST_MEMORY (-1)
 #define	STEDMA40_DEV_SRC_MEMORY (-1)

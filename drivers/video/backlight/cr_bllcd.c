@@ -242,6 +242,7 @@ static int cr_backlight_remove(struct platform_device *pdev)
 	backlight_device_unregister(crp->cr_backlight_device);
 	lcd_device_unregister(crp->cr_lcd_device);
 	pci_dev_put(lpc_dev);
+	kfree(crp);
 
 	return 0;
 }
