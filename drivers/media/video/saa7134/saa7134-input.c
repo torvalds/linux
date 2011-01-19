@@ -681,6 +681,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
+	case SAA7134_BOARD_ENCORE_ENLTV_FM3:
 		ir_codes     = RC_MAP_ENCORE_ENLTV_FM53;
 		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
 		mask_keyup   = 0x0040000;
