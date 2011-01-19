@@ -1038,17 +1038,34 @@ xfs_bmap_add_extent_delay_real(
 		 * Filling in the middle part of a previous delayed allocation.
 		 * Contiguity is impossible here.
 		 * This case is avoided almost all the time.
+		 *
+		 * We start with a delayed allocation:
+		 *
+		 * +ddddddddddddddddddddddddddddddddddddddddddddddddddddddd+
+		 *  PREV @ idx
+		 *
+	         * and we are allocating:
+		 *                     +rrrrrrrrrrrrrrrrr+
+		 *			      new
+		 *
+		 * and we set it up for insertion as:
+		 * +ddddddddddddddddddd+rrrrrrrrrrrrrrrrr+ddddddddddddddddd+
+		 *                            new
+		 *  PREV @ idx          LEFT              RIGHT
+		 *                      inserted at idx + 1
 		 */
 		temp = new->br_startoff - PREV.br_startoff;
-		trace_xfs_bmap_pre_update(ip, idx, 0, _THIS_IP_);
-		xfs_bmbt_set_blockcount(ep, temp);
-		r[0] = *new;
-		r[1].br_state = PREV.br_state;
-		r[1].br_startblock = 0;
-		r[1].br_startoff = new_endoff;
 		temp2 = PREV.br_startoff + PREV.br_blockcount - new_endoff;
-		r[1].br_blockcount = temp2;
-		xfs_iext_insert(ip, idx + 1, 2, &r[0], state);
+		trace_xfs_bmap_pre_update(ip, idx, 0, _THIS_IP_);
+		xfs_bmbt_set_blockcount(ep, temp);	/* truncate PREV */
+		LEFT = *new;
+		RIGHT.br_state = PREV.br_state;
+		RIGHT.br_startblock = nullstartblock(
+				(int)xfs_bmap_worst_indlen(ip, temp2));
+		RIGHT.br_startoff = new_endoff;
+		RIGHT.br_blockcount = temp2;
+		/* insert LEFT (r[0]) and RIGHT (r[1]) at the same time */
+		xfs_iext_insert(ip, idx + 1, 2, &LEFT, state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
