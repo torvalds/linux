@@ -132,6 +132,7 @@
 #include <trace/events/skb.h>
 #include <linux/pci.h>
 #include <linux/inetdevice.h>
+#include <linux/cpu_rmap.h>
 
 #include "net-sysfs.h"
 
@@ -2588,6 +2589,53 @@ EXPORT_SYMBOL(__skb_get_rxhash);
 struct rps_sock_flow_table __rcu *rps_sock_flow_table __read_mostly;
 EXPORT_SYMBOL(rps_sock_flow_table);
 
+static struct rps_dev_flow *
+set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
+	    struct rps_dev_flow *rflow, u16 next_cpu)
+{
+	u16 tcpu;
+
+	tcpu = rflow->cpu = next_cpu;
+	if (tcpu != RPS_NO_CPU) {
+#ifdef CONFIG_RFS_ACCEL
+		struct netdev_rx_queue *rxqueue;
+		struct rps_dev_flow_table *flow_table;
+		struct rps_dev_flow *old_rflow;
+		u32 flow_id;
+		u16 rxq_index;
+		int rc;
+
+		/* Should we steer this flow to a different hardware queue? */
+		if (!skb_rx_queue_recorded(skb) || !dev->rx_cpu_rmap)
+			goto out;
+		rxq_index = cpu_rmap_lookup_index(dev->rx_cpu_rmap, next_cpu);
+		if (rxq_index == skb_get_rx_queue(skb))
+			goto out;
+
+		rxqueue = dev->_rx + rxq_index;
+		flow_table = rcu_dereference(rxqueue->rps_flow_table);
+		if (!flow_table)
+			goto out;
+		flow_id = skb->rxhash & flow_table->mask;
+		rc = dev->netdev_ops->ndo_rx_flow_steer(dev, skb,
+							rxq_index, flow_id);
+		if (rc < 0)
+			goto out;
+		old_rflow = rflow;
+		rflow = &flow_table->flows[flow_id];
+		rflow->cpu = next_cpu;
+		rflow->filter = rc;
+		if (old_rflow->filter == rflow->filter)
+			old_rflow->filter = RPS_NO_FILTER;
+	out:
+#endif
+		rflow->last_qtail =
+			per_cpu(softnet_data, tcpu).input_queue_head;
+	}
+
+	return rflow;
+}
+
 /*
  * get_rps_cpu is called from netif_receive_skb and returns the target
  * CPU from the RPS map of the receiving queue for a given skb.
@@ -2658,12 +2706,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		if (unlikely(tcpu != next_cpu) &&
 		    (tcpu == RPS_NO_CPU || !cpu_online(tcpu) ||
 		     ((int)(per_cpu(softnet_data, tcpu).input_queue_head -
-		      rflow->last_qtail)) >= 0)) {
-			tcpu = rflow->cpu = next_cpu;
-			if (tcpu != RPS_NO_CPU)
-				rflow->last_qtail = per_cpu(softnet_data,
-				    tcpu).input_queue_head;
-		}
+		      rflow->last_qtail)) >= 0))
+			rflow = set_rps_cpu(dev, skb, rflow, next_cpu);
+
 		if (tcpu != RPS_NO_CPU && cpu_online(tcpu)) {
 			*rflowp = rflow;
 			cpu = tcpu;
@@ -2683,6 +2728,46 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 done:
 	return cpu;
 }
+
+#ifdef CONFIG_RFS_ACCEL
+
+/**
+ * rps_may_expire_flow - check whether an RFS hardware filter may be removed
+ * @dev: Device on which the filter was set
+ * @rxq_index: RX queue index
+ * @flow_id: Flow ID passed to ndo_rx_flow_steer()
+ * @filter_id: Filter ID returned by ndo_rx_flow_steer()
+ *
+ * Drivers that implement ndo_rx_flow_steer() should periodically call
+ * this function for each installed filter and remove the filters for
+ * which it returns %true.
+ */
+bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index,
+			 u32 flow_id, u16 filter_id)
+{
+	struct netdev_rx_queue *rxqueue = dev->_rx + rxq_index;
+	struct rps_dev_flow_table *flow_table;
+	struct rps_dev_flow *rflow;
+	bool expire = true;
+	int cpu;
+
+	rcu_read_lock();
+	flow_table = rcu_dereference(rxqueue->rps_flow_table);
+	if (flow_table && flow_id <= flow_table->mask) {
+		rflow = &flow_table->flows[flow_id];
+		cpu = ACCESS_ONCE(rflow->cpu);
+		if (rflow->filter == filter_id && cpu != RPS_NO_CPU &&
+		    ((int)(per_cpu(softnet_data, cpu).input_queue_head -
+			   rflow->last_qtail) <
+		     (int)(10 * flow_table->mask)))
+			expire = false;
+	}
+	rcu_read_unlock();
+	return expire;
+}
+EXPORT_SYMBOL(rps_may_expire_flow);
+
+#endif /* CONFIG_RFS_ACCEL */
 
 /* Called from hardirq (IPI) context */
 static void rps_trigger_softirq(void *data)
