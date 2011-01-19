@@ -890,7 +890,9 @@ static int snd_soc_rbtree_cache_sync(struct snd_soc_codec *codec)
 		ret = snd_soc_cache_read(codec, rbnode->reg, &val);
 		if (ret)
 			return ret;
+		codec->cache_bypass = 1;
 		ret = snd_soc_write(codec, rbnode->reg, val);
+		codec->cache_bypass = 0;
 		if (ret)
 			return ret;
 		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
@@ -1148,7 +1150,9 @@ static int snd_soc_lzo_cache_sync(struct snd_soc_codec *codec)
 		ret = snd_soc_cache_read(codec, i, &val);
 		if (ret)
 			return ret;
+		codec->cache_bypass = 1;
 		ret = snd_soc_write(codec, i, val);
+		codec->cache_bypass = 0;
 		if (ret)
 			return ret;
 		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
