@@ -2,6 +2,7 @@ config M68K
 	bool
 	default y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
 
 config MMU
 	bool
@@ -45,10 +46,6 @@ config GENERIC_GPIO
 	default n
 
 config GENERIC_HWEIGHT
-	bool
-	default y
-
-config GENERIC_HARDIRQS
 	bool
 	default y
 
