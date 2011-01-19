@@ -931,8 +931,11 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 		param = BD_DONE | BD_EXTD | BD_CONT;
 
-		if (i + 1 == sg_len)
+		if (i + 1 == sg_len) {
 			param |= BD_INTR;
+			param |= BD_LAST;
+			param &= ~BD_CONT;
+		}
 
 		dev_dbg(sdma->dev, "entry %d: count: %d dma: 0x%08x %s%s\n",
 				i, count, sg->dma_address,
