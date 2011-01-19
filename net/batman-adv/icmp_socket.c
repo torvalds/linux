@@ -220,9 +220,11 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 		goto dst_unreach;
 
 	spin_lock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
 						   compare_orig, choose_orig,
 						   icmp_packet->dst));
+	rcu_read_unlock();
 
 	if (!orig_node)
 		goto unlock;

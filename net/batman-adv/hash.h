@@ -39,10 +39,12 @@ typedef void (*hashdata_free_cb)(void *, void *);
 struct element_t {
 	void *data;		/* pointer to the data */
 	struct hlist_node hlist;	/* bucket list pointer */
+	struct rcu_head rcu;
 };
 
 struct hashtable_t {
-	struct hlist_head *table;   /* the hashtable itself, with the buckets */
+	struct hlist_head *table;   /* the hashtable itself with the buckets */
+	spinlock_t *list_locks;     /* spinlock for each hash list entry */
 	int size;		    /* size of hashtable */
 };
 
@@ -51,6 +53,8 @@ struct hashtable_t *hash_new(int size);
 
 /* free only the hashtable and the hash itself. */
 void hash_destroy(struct hashtable_t *hash);
+
+void bucket_free_rcu(struct rcu_head *rcu);
 
 /* remove the hash structure. if hashdata_free_cb != NULL, this function will be
  * called to remove the elements inside of the hash.  if you don't remove the
@@ -61,19 +65,22 @@ static inline void hash_delete(struct hashtable_t *hash,
 	struct hlist_head *head;
 	struct hlist_node *walk, *safe;
 	struct element_t *bucket;
+	spinlock_t *list_lock; /* spinlock to protect write access */
 	int i;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
+		list_lock = &hash->list_locks[i];
 
-		hlist_for_each_safe(walk, safe, head) {
-			bucket = hlist_entry(walk, struct element_t, hlist);
+		spin_lock_bh(list_lock);
+		hlist_for_each_entry_safe(bucket, walk, safe, head, hlist) {
 			if (free_cb)
 				free_cb(bucket->data, arg);
 
-			hlist_del(walk);
-			kfree(bucket);
+			hlist_del_rcu(walk);
+			call_rcu(&bucket->rcu, bucket_free_rcu);
 		}
+		spin_unlock_bh(list_lock);
 	}
 
 	hash_destroy(hash);
@@ -88,29 +95,39 @@ static inline int hash_add(struct hashtable_t *hash,
 	struct hlist_head *head;
 	struct hlist_node *walk, *safe;
 	struct element_t *bucket;
+	spinlock_t *list_lock; /* spinlock to protect write access */
 
 	if (!hash)
-		return -1;
+		goto err;
 
 	index = choose(data, hash->size);
 	head = &hash->table[index];
+	list_lock = &hash->list_locks[index];
 
-	hlist_for_each_safe(walk, safe, head) {
-		bucket = hlist_entry(walk, struct element_t, hlist);
+	rcu_read_lock();
+	hlist_for_each_entry_safe(bucket, walk, safe, head, hlist) {
 		if (compare(bucket->data, data))
-			return -1;
+			goto err_unlock;
 	}
+	rcu_read_unlock();
 
 	/* no duplicate found in list, add new element */
 	bucket = kmalloc(sizeof(struct element_t), GFP_ATOMIC);
-
 	if (!bucket)
-		return -1;
+		goto err;
 
 	bucket->data = data;
-	hlist_add_head(&bucket->hlist, head);
+
+	spin_lock_bh(list_lock);
+	hlist_add_head_rcu(&bucket->hlist, head);
+	spin_unlock_bh(list_lock);
 
 	return 0;
+
+err_unlock:
+	rcu_read_unlock();
+err:
+	return -1;
 }
 
 /* removes data from hash, if found. returns pointer do data on success, so you
@@ -125,25 +142,31 @@ static inline void *hash_remove(struct hashtable_t *hash,
 	struct hlist_node *walk;
 	struct element_t *bucket;
 	struct hlist_head *head;
-	void *data_save;
+	void *data_save = NULL;
 
 	index = choose(data, hash->size);
 	head = &hash->table[index];
 
+	spin_lock_bh(&hash->list_locks[index]);
 	hlist_for_each_entry(bucket, walk, head, hlist) {
 		if (compare(bucket->data, data)) {
 			data_save = bucket->data;
-			hlist_del(walk);
-			kfree(bucket);
-			return data_save;
+			hlist_del_rcu(walk);
+			call_rcu(&bucket->rcu, bucket_free_rcu);
+			break;
 		}
 	}
+	spin_unlock_bh(&hash->list_locks[index]);
 
-	return NULL;
+	return data_save;
 }
 
-/* finds data, based on the key in keydata. returns the found data on success,
- * or NULL on error */
+/**
+ * finds data, based on the key in keydata. returns the found data on success,
+ * or NULL on error
+ *
+ * caller must lock with rcu_read_lock() / rcu_read_unlock()
+ **/
 static inline void *hash_find(struct hashtable_t *hash,
 			      hashdata_compare_cb compare,
 			      hashdata_choose_cb choose, void *keydata)
@@ -152,6 +175,7 @@ static inline void *hash_find(struct hashtable_t *hash,
 	struct hlist_head *head;
 	struct hlist_node *walk;
 	struct element_t *bucket;
+	void *bucket_data = NULL;
 
 	if (!hash)
 		return NULL;
@@ -159,13 +183,14 @@ static inline void *hash_find(struct hashtable_t *hash,
 	index = choose(keydata , hash->size);
 	head = &hash->table[index];
 
-	hlist_for_each(walk, head) {
-		bucket = hlist_entry(walk, struct element_t, hlist);
-		if (compare(bucket->data, keydata))
-			return bucket->data;
+	hlist_for_each_entry(bucket, walk, head, hlist) {
+		if (compare(bucket->data, keydata)) {
+			bucket_data = bucket->data;
+			break;
+		}
 	}
 
-	return NULL;
+	return bucket_data;
 }
 
 #endif /* _NET_BATMAN_ADV_HASH_H_ */

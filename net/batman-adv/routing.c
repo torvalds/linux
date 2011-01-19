@@ -52,7 +52,8 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
 			orig_node = bucket->data;
 			word_index = batman_if->if_num * NUM_WORDS;
 			word = &(orig_node->bcast_own[word_index]);
@@ -61,6 +62,7 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 			orig_node->bcast_own_sum[batman_if->if_num] =
 				bit_packet_count(word);
 		}
+		rcu_read_unlock();
 	}
 
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
@@ -873,9 +875,11 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 	/* answer echo request (ping) */
 	/* get routing information */
 	spin_lock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
 						   compare_orig, choose_orig,
 						   icmp_packet->orig));
+	rcu_read_unlock();
 	ret = NET_RX_DROP;
 
 	if ((orig_node) && (orig_node->router)) {
@@ -931,9 +935,11 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 
 	/* get routing information */
 	spin_lock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)
 		     hash_find(bat_priv->orig_hash, compare_orig, choose_orig,
 			       icmp_packet->orig));
+	rcu_read_unlock();
 	ret = NET_RX_DROP;
 
 	if ((orig_node) && (orig_node->router)) {
@@ -1023,9 +1029,11 @@ int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
 
 	/* get routing information */
 	spin_lock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)
 		     hash_find(bat_priv->orig_hash, compare_orig, choose_orig,
 			       icmp_packet->dst));
+	rcu_read_unlock();
 
 	if ((orig_node) && (orig_node->router)) {
 
@@ -1094,9 +1102,11 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 				router_orig->orig, ETH_ALEN) == 0) {
 		primary_orig_node = router_orig;
 	} else {
+		rcu_read_lock();
 		primary_orig_node = hash_find(bat_priv->orig_hash, compare_orig,
 					       choose_orig,
 					       router_orig->primary_addr);
+		rcu_read_unlock();
 
 		if (!primary_orig_node)
 			return orig_node->router;
@@ -1199,9 +1209,11 @@ int route_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if,
 
 	/* get routing information */
 	spin_lock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)
 		     hash_find(bat_priv->orig_hash, compare_orig, choose_orig,
 			       unicast_packet->dest));
+	rcu_read_unlock();
 
 	router = find_router(bat_priv, orig_node, recv_if);
 
@@ -1345,9 +1357,11 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 		return NET_RX_DROP;
 
 	spin_lock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)
 		     hash_find(bat_priv->orig_hash, compare_orig, choose_orig,
 			       bcast_packet->orig));
+	rcu_read_unlock();
 
 	if (!orig_node) {
 		spin_unlock_bh(&bat_priv->orig_hash_lock);

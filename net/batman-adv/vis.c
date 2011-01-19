@@ -380,8 +380,10 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 						     sizeof(struct vis_packet));
 
 	memcpy(search_packet->vis_orig, vis_packet->vis_orig, ETH_ALEN);
+	rcu_read_lock();
 	old_info = hash_find(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
 			     &search_elem);
+	rcu_read_unlock();
 	kfree_skb(search_elem.skb_packet);
 
 	if (old_info) {
@@ -540,7 +542,8 @@ static int find_best_vis_server(struct bat_priv *bat_priv,
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
 			orig_node = bucket->data;
 			if ((orig_node) && (orig_node->router) &&
 			(orig_node->flags & VIS_SERVER) &&
@@ -550,6 +553,7 @@ static int find_best_vis_server(struct bat_priv *bat_priv,
 				       ETH_ALEN);
 			}
 		}
+		rcu_read_unlock();
 	}
 
 	return best_tq;
@@ -605,7 +609,8 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
 			orig_node = bucket->data;
 			neigh_node = orig_node->router;
 
@@ -632,10 +637,12 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 			packet->entries++;
 
 			if (vis_packet_full(info)) {
+				rcu_read_unlock();
 				spin_unlock_bh(&bat_priv->orig_hash_lock);
 				return 0;
 			}
 		}
+		rcu_read_unlock();
 	}
 
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
@@ -721,7 +728,8 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
 			orig_node = bucket->data;
 
 			/* if it's a vis server and reachable, send it. */
@@ -746,7 +754,7 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 
 			spin_lock_bh(&bat_priv->orig_hash_lock);
 		}
-
+		rcu_read_unlock();
 	}
 
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
@@ -763,9 +771,11 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->orig_hash_lock);
 	packet = (struct vis_packet *)info->skb_packet->data;
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
 						   compare_orig, choose_orig,
 						   packet->target_orig));
+	rcu_read_unlock();
 
 	if ((!orig_node) || (!orig_node->router))
 		goto out;

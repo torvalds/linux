@@ -179,9 +179,11 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 	*new_skb = NULL;
 	spin_lock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_lock();
 	orig_node = ((struct orig_node *)
 		    hash_find(bat_priv->orig_hash, compare_orig, choose_orig,
 			      unicast_packet->orig));
+	rcu_read_unlock();
 
 	if (!orig_node) {
 		pr_debug("couldn't find originator in orig_hash\n");
