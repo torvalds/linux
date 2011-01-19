@@ -505,13 +505,18 @@ static void utmi_phy_postresume(struct tegra_usb_phy *phy)
 	writel(val, base + UTMIP_TX_CFG0);
 }
 
-static void utmi_phy_restore_start(struct tegra_usb_phy *phy)
+static void utmi_phy_restore_start(struct tegra_usb_phy *phy,
+				   enum tegra_usb_phy_port_speed port_speed)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
 
 	val = readl(base + UTMIP_MISC_CFG0);
-	val |= UTMIP_DPDM_OBSERVE_SEL_FS_J;
+	val &= ~UTMIP_DPDM_OBSERVE_SEL(~0);
+	if (port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
+		val |= UTMIP_DPDM_OBSERVE_SEL_FS_K;
+	else
+		val |= UTMIP_DPDM_OBSERVE_SEL_FS_J;
 	writel(val, base + UTMIP_MISC_CFG0);
 	udelay(1);
 
@@ -643,7 +648,6 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	phy->instance = instance;
 	phy->regs = regs;
 	phy->config = config;
-	phy->context.valid = false;
 	phy->mode = phy_mode;
 
 	if (!phy->config) {
@@ -737,10 +741,11 @@ int tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
 	return 0;
 }
 
-int tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy)
+int tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy,
+				 enum tegra_usb_phy_port_speed port_speed)
 {
 	if (phy->instance != 1)
-		utmi_phy_restore_start(phy);
+		utmi_phy_restore_start(phy, port_speed);
 	return 0;
 }
 
