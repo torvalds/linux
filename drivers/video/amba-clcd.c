@@ -443,8 +443,8 @@ static int clcdfb_register(struct clcd_fb *fb)
 
 	fb_set_var(&fb->fb, &fb->fb.var);
 
-        printk(KERN_INFO "CLCD: %s hardware, %s display\n",
-               fb->board->name, fb->panel->mode.name);
+	dev_info(&fb->dev->dev, "%s hardware, %s display\n",
+	         fb->board->name, fb->panel->mode.name);
 
 	ret = register_framebuffer(&fb->fb);
 	if (ret == 0)
@@ -485,6 +485,10 @@ static int clcdfb_probe(struct amba_device *dev, struct amba_id *id)
 
 	fb->dev = dev;
 	fb->board = board;
+
+	dev_info(&fb->dev->dev, "PL%03x rev%u at 0x%08llx\n",
+		amba_part(dev), amba_rev(dev),
+		(unsigned long long)dev->res.start);
 
 	ret = fb->board->setup(fb);
 	if (ret)
