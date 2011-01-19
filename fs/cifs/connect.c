@@ -2927,7 +2927,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr++;              /* skip password */
 		/* already aligned so no need to do it below */
 	} else {
-		pSMB->PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);
+		pSMB->PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 		/* BB FIXME add code to fail this if NTLMv2 or Kerberos
 		   specified as required (when that support is added to
 		   the vfs in the future) as only NTLM or the much
@@ -2945,7 +2945,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 #endif /* CIFS_WEAK_PW_HASH */
 		SMBNTencrypt(tcon->password, ses->server->cryptkey, bcc_ptr);
 
-		bcc_ptr += CIFS_SESS_KEY_SIZE;
+		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {
 			/* must align unicode strings */
 			*bcc_ptr = 0; /* null byte password */
