@@ -880,7 +880,7 @@ retry:
 	if (h <= 0)
 		return h;
 
-	if (mdev->cram_hmac_tfm) {
+	if (mdev->tconn->cram_hmac_tfm) {
 		/* drbd_request_state(mdev, NS(conn, WFAuth)); */
 		switch (drbd_do_auth(mdev)) {
 		case -1:
@@ -1240,12 +1240,12 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	struct drbd_epoch_entry *e;
 	struct page *page;
 	int dgs, ds, rr;
-	void *dig_in = mdev->int_dig_in;
-	void *dig_vv = mdev->int_dig_vv;
+	void *dig_in = mdev->tconn->int_dig_in;
+	void *dig_vv = mdev->tconn->int_dig_vv;
 	unsigned long *data;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
-		crypto_hash_digestsize(mdev->integrity_r_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
 
 	if (dgs) {
 		rr = drbd_recv(mdev, dig_in, dgs);
@@ -1306,7 +1306,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	}
 
 	if (dgs) {
-		drbd_csum_ee(mdev, mdev->integrity_r_tfm, e, dig_vv);
+		drbd_csum_ee(mdev, mdev->tconn->integrity_r_tfm, e, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED: %llus +%u\n",
 				(unsigned long long)sector, data_size);
@@ -1358,11 +1358,11 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 	struct bio_vec *bvec;
 	struct bio *bio;
 	int dgs, rr, i, expect;
-	void *dig_in = mdev->int_dig_in;
-	void *dig_vv = mdev->int_dig_vv;
+	void *dig_in = mdev->tconn->int_dig_in;
+	void *dig_vv = mdev->tconn->int_dig_vv;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
-		crypto_hash_digestsize(mdev->integrity_r_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
 
 	if (dgs) {
 		rr = drbd_recv(mdev, dig_in, dgs);
@@ -1401,7 +1401,7 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 	}
 
 	if (dgs) {
-		drbd_csum_bio(mdev, mdev->integrity_r_tfm, bio, dig_vv);
+		drbd_csum_bio(mdev, mdev->tconn->integrity_r_tfm, bio, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED. Broken NICs?\n");
 			return 0;
@@ -3841,8 +3841,8 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	if (os.conn == C_DISCONNECTING) {
 		wait_event(mdev->tconn->net_cnt_wait, atomic_read(&mdev->tconn->net_cnt) == 0);
 
-		crypto_free_hash(mdev->cram_hmac_tfm);
-		mdev->cram_hmac_tfm = NULL;
+		crypto_free_hash(mdev->tconn->cram_hmac_tfm);
+		mdev->tconn->cram_hmac_tfm = NULL;
 
 		kfree(mdev->tconn->net_conf);
 		mdev->tconn->net_conf = NULL;
@@ -4012,10 +4012,10 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 	unsigned int length;
 	int rv;
 
-	desc.tfm = mdev->cram_hmac_tfm;
+	desc.tfm = mdev->tconn->cram_hmac_tfm;
 	desc.flags = 0;
 
-	rv = crypto_hash_setkey(mdev->cram_hmac_tfm,
+	rv = crypto_hash_setkey(mdev->tconn->cram_hmac_tfm,
 				(u8 *)mdev->tconn->net_conf->shared_secret, key_len);
 	if (rv) {
 		dev_err(DEV, "crypto_hash_setkey() failed with %d\n", rv);
@@ -4062,7 +4062,7 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 		goto fail;
 	}
 
-	resp_size = crypto_hash_digestsize(mdev->cram_hmac_tfm);
+	resp_size = crypto_hash_digestsize(mdev->tconn->cram_hmac_tfm);
 	response = kmalloc(resp_size, GFP_NOIO);
 	if (response == NULL) {
 		dev_err(DEV, "kmalloc of response failed\n");

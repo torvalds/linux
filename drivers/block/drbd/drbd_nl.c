@@ -1532,21 +1532,21 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	mdev->send_cnt = 0;
 	mdev->recv_cnt = 0;
 
-	crypto_free_hash(mdev->cram_hmac_tfm);
-	mdev->cram_hmac_tfm = tfm;
+	crypto_free_hash(mdev->tconn->cram_hmac_tfm);
+	mdev->tconn->cram_hmac_tfm = tfm;
 
-	crypto_free_hash(mdev->integrity_w_tfm);
-	mdev->integrity_w_tfm = integrity_w_tfm;
+	crypto_free_hash(mdev->tconn->integrity_w_tfm);
+	mdev->tconn->integrity_w_tfm = integrity_w_tfm;
 
-	crypto_free_hash(mdev->integrity_r_tfm);
-	mdev->integrity_r_tfm = integrity_r_tfm;
+	crypto_free_hash(mdev->tconn->integrity_r_tfm);
+	mdev->tconn->integrity_r_tfm = integrity_r_tfm;
 
-	kfree(mdev->int_dig_out);
-	kfree(mdev->int_dig_in);
-	kfree(mdev->int_dig_vv);
-	mdev->int_dig_out=int_dig_out;
-	mdev->int_dig_in=int_dig_in;
-	mdev->int_dig_vv=int_dig_vv;
+	kfree(mdev->tconn->int_dig_out);
+	kfree(mdev->tconn->int_dig_in);
+	kfree(mdev->tconn->int_dig_vv);
+	mdev->tconn->int_dig_out=int_dig_out;
+	mdev->tconn->int_dig_in=int_dig_in;
+	mdev->tconn->int_dig_vv=int_dig_vv;
 	retcode = _drbd_set_state(_NS(mdev, conn, C_UNCONNECTED), CS_VERBOSE, NULL);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 

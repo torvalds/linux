@@ -982,6 +982,13 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct drbd_tl_epoch *oldest_tle;
 	struct list_head out_of_sequence_requests;
 
+	struct crypto_hash *cram_hmac_tfm;
+	struct crypto_hash *integrity_w_tfm; /* to be used by the worker thread */
+	struct crypto_hash *integrity_r_tfm; /* to be used by the receiver thread */
+	void *int_dig_out;
+	void *int_dig_in;
+	void *int_dig_vv;
+
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
@@ -1114,12 +1121,6 @@ struct drbd_conf {
 	unsigned int al_tr_number;
 	int al_tr_cycle;
 	int al_tr_pos;   /* position of the next transaction in the journal */
-	struct crypto_hash *cram_hmac_tfm;
-	struct crypto_hash *integrity_w_tfm; /* to be used by the worker thread */
-	struct crypto_hash *integrity_r_tfm; /* to be used by the receiver thread */
-	void *int_dig_out;
-	void *int_dig_in;
-	void *int_dig_vv;
 	wait_queue_head_t seq_wait;
 	atomic_t packet_seq;
 	unsigned int peer_seq;

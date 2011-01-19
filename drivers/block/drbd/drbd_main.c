@@ -2404,8 +2404,8 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
 int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packets cmd,
 		     struct p_data *dp, int data_size)
 {
-	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
-		crypto_hash_digestsize(mdev->integrity_r_tfm) : 0;
+	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
 	return _drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
 			      dp->block_id);
 }
@@ -2670,8 +2670,8 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	if (!drbd_get_data_sock(mdev))
 		return 0;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
-		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
 
 	if (req->i.size <= DRBD_MAX_SIZE_H80_PACKET) {
 		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
@@ -2701,8 +2701,8 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	ok = (sizeof(p) ==
 		drbd_send(mdev, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0));
 	if (ok && dgs) {
-		dgb = mdev->int_dig_out;
-		drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, dgb);
+		dgb = mdev->tconn->int_dig_out;
+		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, dgb);
 		ok = dgs == drbd_send(mdev, mdev->tconn->data.socket, dgb, dgs, 0);
 	}
 	if (ok) {
@@ -2727,8 +2727,8 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 			/* 64 byte, 512 bit, is the largest digest size
 			 * currently supported in kernel crypto. */
 			unsigned char digest[64];
-			drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, digest);
-			if (memcmp(mdev->int_dig_out, digest, dgs)) {
+			drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, digest);
+			if (memcmp(mdev->tconn->int_dig_out, digest, dgs)) {
 				dev_warn(DEV,
 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
 					(unsigned long long)req->i.sector, req->i.size);
@@ -2755,8 +2755,8 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	void *dgb;
 	int dgs;
 
-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
-		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
+		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
 
 	if (e->i.size <= DRBD_MAX_SIZE_H80_PACKET) {
 		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
@@ -2783,8 +2783,8 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 
 	ok = sizeof(p) == drbd_send(mdev, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
 	if (ok && dgs) {
-		dgb = mdev->int_dig_out;
-		drbd_csum_ee(mdev, mdev->integrity_w_tfm, e, dgb);
+		dgb = mdev->tconn->int_dig_out;
+		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, e, dgb);
 		ok = dgs == drbd_send(mdev, mdev->tconn->data.socket, dgb, dgs, 0);
 	}
 	if (ok)
@@ -3276,9 +3276,9 @@ static void drbd_delete_device(unsigned int minor)
 	kfree(mdev->p_uuid);
 	/* mdev->p_uuid = NULL; */
 
-	kfree(mdev->int_dig_out);
-	kfree(mdev->int_dig_in);
-	kfree(mdev->int_dig_vv);
+	kfree(mdev->tconn->int_dig_out);
+	kfree(mdev->tconn->int_dig_in);
+	kfree(mdev->tconn->int_dig_vv);
 
 	/* cleanup the rest that has been
 	 * allocated from drbd_new_device
@@ -3629,12 +3629,12 @@ void drbd_free_resources(struct drbd_conf *mdev)
 	mdev->csums_tfm = NULL;
 	crypto_free_hash(mdev->verify_tfm);
 	mdev->verify_tfm = NULL;
-	crypto_free_hash(mdev->cram_hmac_tfm);
-	mdev->cram_hmac_tfm = NULL;
-	crypto_free_hash(mdev->integrity_w_tfm);
-	mdev->integrity_w_tfm = NULL;
-	crypto_free_hash(mdev->integrity_r_tfm);
-	mdev->integrity_r_tfm = NULL;
+	crypto_free_hash(mdev->tconn->cram_hmac_tfm);
+	mdev->tconn->cram_hmac_tfm = NULL;
+	crypto_free_hash(mdev->tconn->integrity_w_tfm);
+	mdev->tconn->integrity_w_tfm = NULL;
+	crypto_free_hash(mdev->tconn->integrity_r_tfm);
+	mdev->tconn->integrity_r_tfm = NULL;
 
 	drbd_free_sock(mdev);
 
