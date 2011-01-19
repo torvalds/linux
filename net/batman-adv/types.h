@@ -89,6 +89,7 @@ struct orig_node {
 	struct kref refcount;
 	struct bat_priv *bat_priv;
 	unsigned long last_frag_packet;
+	spinlock_t ogm_cnt_lock; /* protects ogm counter */
 	struct {
 		uint8_t candidates;
 		struct neigh_node *selected;

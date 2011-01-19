@@ -55,12 +55,14 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
 			orig_node = bucket->data;
+			spin_lock_bh(&orig_node->ogm_cnt_lock);
 			word_index = batman_if->if_num * NUM_WORDS;
 			word = &(orig_node->bcast_own[word_index]);
 
 			bit_get_packet(bat_priv, word, 1, 0);
 			orig_node->bcast_own_sum[batman_if->if_num] =
 				bit_packet_count(word);
+			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 		}
 		rcu_read_unlock();
 	}
@@ -278,8 +280,10 @@ static void update_orig(struct bat_priv *bat_priv,
 			char is_duplicate)
 {
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
+	struct orig_node *orig_node_tmp;
 	struct hlist_node *node;
 	int tmp_hna_buff_len;
+	uint8_t bcast_own_sum_orig, bcast_own_sum_neigh;
 
 	bat_dbg(DBG_BATMAN, bat_priv, "update_originator(): "
 		"Searching and updating originator entry of received packet\n");
@@ -351,10 +355,22 @@ static void update_orig(struct bat_priv *bat_priv,
 	/* if the TQ is the same and the link not more symetric we
 	 * won't consider it either */
 	if ((orig_node->router) &&
-	     ((neigh_node->tq_avg == orig_node->router->tq_avg) &&
-	     (orig_node->router->orig_node->bcast_own_sum[if_incoming->if_num]
-	      >= neigh_node->orig_node->bcast_own_sum[if_incoming->if_num])))
-		goto update_hna;
+	     (neigh_node->tq_avg == orig_node->router->tq_avg)) {
+		orig_node_tmp = orig_node->router->orig_node;
+		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
+		bcast_own_sum_orig =
+			orig_node_tmp->bcast_own_sum[if_incoming->if_num];
+		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
+
+		orig_node_tmp = neigh_node->orig_node;
+		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
+		bcast_own_sum_neigh =
+			orig_node_tmp->bcast_own_sum[if_incoming->if_num];
+		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
+
+		if (bcast_own_sum_orig >= bcast_own_sum_neigh)
+			goto update_hna;
+	}
 
 	update_routes(bat_priv, orig_node, neigh_node,
 		      hna_buff, tmp_hna_buff_len);
@@ -705,10 +721,13 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 				 batman_packet->orig) &&
 		    (batman_packet->seqno - if_incoming_seqno + 2 == 0)) {
 			offset = if_incoming->if_num * NUM_WORDS;
+
+			spin_lock_bh(&orig_neigh_node->ogm_cnt_lock);
 			word = &(orig_neigh_node->bcast_own[offset]);
 			bit_mark(word, 0);
 			orig_neigh_node->bcast_own_sum[if_incoming->if_num] =
 				bit_packet_count(word);
+			spin_unlock_bh(&orig_neigh_node->ogm_cnt_lock);
 		}
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Drop packet: "

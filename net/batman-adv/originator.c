@@ -207,6 +207,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 		return NULL;
 
 	INIT_HLIST_HEAD(&orig_node->neigh_list);
+	spin_lock_init(&orig_node->ogm_cnt_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
 	kref_init(&orig_node->refcount);
 
@@ -517,7 +518,7 @@ int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
 	struct hlist_head *head;
 	struct element_t *bucket;
 	struct orig_node *orig_node;
-	int i;
+	int i, ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
@@ -530,7 +531,11 @@ int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
 		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
 			orig_node = bucket->data;
 
-			if (orig_node_add_if(orig_node, max_if_num) == -1)
+			spin_lock_bh(&orig_node->ogm_cnt_lock);
+			ret = orig_node_add_if(orig_node, max_if_num);
+			spin_unlock_bh(&orig_node->ogm_cnt_lock);
+
+			if (ret == -1)
 				goto err;
 		}
 		rcu_read_unlock();
@@ -619,8 +624,10 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
 			orig_node = bucket->data;
 
+			spin_lock_bh(&orig_node->ogm_cnt_lock);
 			ret = orig_node_del_if(orig_node, max_if_num,
 					batman_if->if_num);
+			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
 			if (ret == -1)
 				goto err;
