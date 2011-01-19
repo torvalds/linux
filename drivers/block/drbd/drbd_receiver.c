@@ -3393,7 +3393,8 @@ receive_bitmap_plain(struct drbd_conf *mdev, unsigned int data_size,
 static int
 recv_bm_rle_bits(struct drbd_conf *mdev,
 		struct p_compressed_bm *p,
-		struct bm_xfer_ctx *c)
+		 struct bm_xfer_ctx *c,
+		 unsigned int len)
 {
 	struct bitstream bs;
 	u64 look_ahead;
@@ -3401,7 +3402,6 @@ recv_bm_rle_bits(struct drbd_conf *mdev,
 	u64 tmp;
 	unsigned long s = c->bit_offset;
 	unsigned long e;
-	int len = be16_to_cpu(p->head.length) - (sizeof(*p) - sizeof(p->head));
 	int toggle = DCBP_get_start(p);
 	int have;
 	int bits;
@@ -3458,10 +3458,11 @@ recv_bm_rle_bits(struct drbd_conf *mdev,
 static int
 decode_bitmap_c(struct drbd_conf *mdev,
 		struct p_compressed_bm *p,
-		struct bm_xfer_ctx *c)
+		struct bm_xfer_ctx *c,
+		unsigned int len)
 {
 	if (DCBP_get_code(p) == RLE_VLI_Bits)
-		return recv_bm_rle_bits(mdev, p, c);
+		return recv_bm_rle_bits(mdev, p, c, len);
 
 	/* other variants had been implemented for evaluation,
 	 * but have been dropped as this one turned out to be "best"
@@ -3560,7 +3561,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packets cmd, unsigne
 				dev_err(DEV, "ReportCBitmap packet too small (l:%u)\n", data_size);
 				goto out;
 			}
-			err = decode_bitmap_c(mdev, p, &c);
+			err = decode_bitmap_c(mdev, p, &c, data_size);
 		} else {
 			dev_warn(DEV, "receive_bitmap: cmd neither ReportBitMap nor ReportCBitMap (is 0x%x)", cmd);
 			goto out;
