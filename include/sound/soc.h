@@ -488,6 +488,7 @@ struct snd_soc_codec {
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int active;
+	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int cache_only:1;  /* Suppress writes to hardware */
 	unsigned int cache_sync:1; /* Cache needs to be synced to hardware */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
