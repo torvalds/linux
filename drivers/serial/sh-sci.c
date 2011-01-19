@@ -1423,6 +1423,14 @@ static void sci_free_dma(struct uart_port *port)
 	if (s->chan_rx)
 		sci_rx_dma_release(s, false);
 }
+#else
+static inline void sci_request_dma(struct uart_port *port)
+{
+}
+
+static inline void sci_free_dma(struct uart_port *port)
+{
+}
 #endif
 
 static int sci_startup(struct uart_port *port)
@@ -1435,9 +1443,7 @@ static int sci_startup(struct uart_port *port)
 		s->enable(port);
 
 	sci_request_irq(s);
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	sci_request_dma(port);
-#endif
 	sci_start_tx(port);
 	sci_start_rx(port);
 
@@ -1452,9 +1458,7 @@ static void sci_shutdown(struct uart_port *port)
 
 	sci_stop_rx(port);
 	sci_stop_tx(port);
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	sci_free_dma(port);
-#endif
 	sci_free_irq(s);
 
 	if (s->disable)
@@ -1726,11 +1730,9 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	 */
 	port->irq		= p->irqs[SCIx_TXI_IRQ];
 
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	if (p->dma_dev)
 		dev_dbg(port->dev, "DMA device %p, tx %d, rx %d\n",
 			p->dma_dev, p->dma_slave_tx, p->dma_slave_rx);
-#endif
 
 	return 0;
 }

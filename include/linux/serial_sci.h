@@ -58,10 +58,8 @@ struct plat_sci_port {
 
 	struct device	*dma_dev;
 
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
-	unsigned int dma_slave_tx;
-	unsigned int dma_slave_rx;
-#endif
+	unsigned int	dma_slave_tx;
+	unsigned int	dma_slave_rx;
 };
 
 #endif /* __LINUX_SERIAL_SCI_H */
