@@ -151,6 +151,7 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	struct hlist_node *node;
 	unsigned char total_count;
+	int ret = 0;
 
 	if (orig_node == orig_neigh_node) {
 		rcu_read_lock();
@@ -162,7 +163,6 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 			    (tmp_neigh_node->if_incoming == if_incoming))
 				neigh_node = tmp_neigh_node;
 		}
-		rcu_read_unlock();
 
 		if (!neigh_node)
 			neigh_node = create_neighbor(orig_node,
@@ -171,7 +171,10 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 						     if_incoming);
 		/* create_neighbor failed, return 0 */
 		if (!neigh_node)
-			return 0;
+			goto unlock;
+
+		kref_get(&neigh_node->refcount);
+		rcu_read_unlock();
 
 		neigh_node->last_valid = jiffies;
 	} else {
@@ -185,7 +188,6 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 			    (tmp_neigh_node->if_incoming == if_incoming))
 				neigh_node = tmp_neigh_node;
 		}
-		rcu_read_unlock();
 
 		if (!neigh_node)
 			neigh_node = create_neighbor(orig_neigh_node,
@@ -194,7 +196,10 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 						     if_incoming);
 		/* create_neighbor failed, return 0 */
 		if (!neigh_node)
-			return 0;
+			goto unlock;
+
+		kref_get(&neigh_node->refcount);
+		rcu_read_unlock();
 	}
 
 	orig_node->last_valid = jiffies;
@@ -250,9 +255,16 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	/* if link has the minimum required transmission quality
 	 * consider it bidirectional */
 	if (batman_packet->tq >= TQ_TOTAL_BIDRECT_LIMIT)
-		return 1;
+		ret = 1;
 
-	return 0;
+	goto out;
+
+unlock:
+	rcu_read_unlock();
+out:
+	if (neigh_node)
+		kref_put(&neigh_node->refcount, neigh_node_free_ref);
+	return ret;
 }
 
 static void update_orig(struct bat_priv *bat_priv,
@@ -287,22 +299,24 @@ static void update_orig(struct bat_priv *bat_priv,
 		tmp_neigh_node->tq_avg =
 			ring_buffer_avg(tmp_neigh_node->tq_recv);
 	}
-	rcu_read_unlock();
 
 	if (!neigh_node) {
 		struct orig_node *orig_tmp;
 
 		orig_tmp = get_orig_node(bat_priv, ethhdr->h_source);
 		if (!orig_tmp)
-			return;
+			goto unlock;
 
 		neigh_node = create_neighbor(orig_node, orig_tmp,
 					     ethhdr->h_source, if_incoming);
 		if (!neigh_node)
-			return;
+			goto unlock;
 	} else
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Updating existing last-hop neighbor of originator\n");
+
+	kref_get(&neigh_node->refcount);
+	rcu_read_unlock();
 
 	orig_node->flags = batman_packet->flags;
 	neigh_node->last_valid = jiffies;
@@ -357,6 +371,14 @@ update_gw:
 	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_CLIENT) &&
 	    (atomic_read(&bat_priv->gw_sel_class) > 2))
 		gw_check_election(bat_priv, orig_node);
+
+	goto out;
+
+unlock:
+	rcu_read_unlock();
+out:
+	if (neigh_node)
+		kref_put(&neigh_node->refcount, neigh_node_free_ref);
 }
 
 /* checks whether the host restarted and is in the protection time.
