@@ -242,18 +242,6 @@ static int ath5k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *re
 \********************/
 
 /*
- * Convert IEEE channel number to MHz frequency.
- */
-static inline short
-ath5k_ieee2mhz(short chan)
-{
-	if (chan <= 14 || chan >= 27)
-		return ieee80211chan2mhz(chan);
-	else
-		return 2212 + chan * 20;
-}
-
-/*
  * Returns true for the channel numbers used without all_channels modparam.
  */
 static bool ath5k_is_standard_channel(short chan)
@@ -274,6 +262,7 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 		unsigned int max)
 {
 	unsigned int i, count, size, chfreq, freq, ch;
+	enum ieee80211_band band;
 
 	if (!test_bit(mode, ah->ah_modes))
 		return 0;
@@ -283,11 +272,13 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 		/* 1..220, but 2GHz frequencies are filtered by check_channel */
 		size = 220 ;
 		chfreq = CHANNEL_5GHZ;
+		band = IEEE80211_BAND_5GHZ;
 		break;
 	case AR5K_MODE_11B:
 	case AR5K_MODE_11G:
 		size = 26;
 		chfreq = CHANNEL_2GHZ;
+		band = IEEE80211_BAND_2GHZ;
 		break;
 	default:
 		ATH5K_WARN(ah->ah_sc, "bad mode, not copying channels\n");
@@ -296,7 +287,10 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 
 	for (i = 0, count = 0; i < size && max > 0; i++) {
 		ch = i + 1 ;
-		freq = ath5k_ieee2mhz(ch);
+		freq = ieee80211_channel_to_frequency(ch, band);
+
+		if (freq == 0) /* mapping failed - not a standard channel */
+			continue;
 
 		/* Check if channel is supported by the chipset */
 		if (!ath5k_channel_ok(ah, freq, chfreq))
@@ -307,8 +301,7 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 
 		/* Write channel info and increment counter */
 		channels[count].center_freq = freq;
-		channels[count].band = (chfreq == CHANNEL_2GHZ) ?
-			IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+		channels[count].band = band;
 		switch (mode) {
 		case AR5K_MODE_11A:
 		case AR5K_MODE_11G:
