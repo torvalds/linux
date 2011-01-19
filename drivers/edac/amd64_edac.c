@@ -1604,6 +1604,8 @@ static struct amd64_family_type amd64_family_types[] = {
 	},
 	[F15_CPUS] = {
 		.ctl_name = "F15h",
+		.f1_id = PCI_DEVICE_ID_AMD_15H_NB_F1,
+		.f3_id = PCI_DEVICE_ID_AMD_15H_NB_F3,
 		.ops = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
@@ -2363,7 +2365,8 @@ static void set_mc_sysfs_attrs(struct mem_ctl_info *mci)
 	mci->mc_driver_sysfs_attributes = sysfs_attrs;
 }
 
-static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
+static void setup_mci_misc_attrs(struct mem_ctl_info *mci,
+				 struct amd64_family_type *fam)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 
@@ -2379,7 +2382,7 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	mci->edac_cap		= amd64_determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
 	mci->mod_ver		= EDAC_AMD64_VERSION;
-	mci->ctl_name		= pvt->ctl_name;
+	mci->ctl_name		= fam->ctl_name;
 	mci->dev_name		= pci_name(pvt->F2);
 	mci->ctl_page_to_phys	= NULL;
 
@@ -2400,12 +2403,16 @@ static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
 	case 0xf:
 		fam_type		= &amd64_family_types[K8_CPUS];
 		pvt->ops		= &amd64_family_types[K8_CPUS].ops;
-		pvt->ctl_name		= fam_type->ctl_name;
 		break;
+
 	case 0x10:
 		fam_type		= &amd64_family_types[F10_CPUS];
 		pvt->ops		= &amd64_family_types[F10_CPUS].ops;
-		pvt->ctl_name		= fam_type->ctl_name;
+		break;
+
+	case 0x15:
+		fam_type		= &amd64_family_types[F15_CPUS];
+		pvt->ops		= &amd64_family_types[F15_CPUS].ops;
 		break;
 
 	default:
@@ -2415,7 +2422,7 @@ static struct amd64_family_type *amd64_per_family_init(struct amd64_pvt *pvt)
 
 	pvt->ext_model = boot_cpu_data.x86_model >> 4;
 
-	amd64_info("%s %sdetected (node %d).\n", pvt->ctl_name,
+	amd64_info("%s %sdetected (node %d).\n", fam_type->ctl_name,
 		     (fam == 0xf ?
 				(pvt->ext_model >= K8_REV_F  ? "revF or later "
 							     : "revE or earlier ")
@@ -2469,7 +2476,7 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 	mci->pvt_info = pvt;
 	mci->dev = &pvt->F2->dev;
 
-	setup_mci_misc_attrs(mci);
+	setup_mci_misc_attrs(mci, fam_type);
 
 	if (init_csrows(mci))
 		mci->edac_cap = EDAC_FLAG_NONE;
@@ -2612,6 +2619,15 @@ static const struct pci_device_id amd64_pci_table[] __devinitdata = {
 		.class		= 0,
 		.class_mask	= 0,
 	},
+	{
+		.vendor		= PCI_VENDOR_ID_AMD,
+		.device		= PCI_DEVICE_ID_AMD_15H_NB_F2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.class		= 0,
+		.class_mask	= 0,
+	},
+
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, amd64_pci_table);
@@ -2652,7 +2668,7 @@ static int __init amd64_edac_init(void)
 {
 	int err = -ENODEV;
 
-	edac_printk(KERN_INFO, EDAC_MOD_STR, EDAC_AMD64_VERSION "\n");
+	printk(KERN_INFO "AMD64 EDAC driver v%s\n", EDAC_AMD64_VERSION);
 
 	opstate_init();
 

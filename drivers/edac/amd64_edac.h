@@ -144,7 +144,7 @@
  *         sections 3.5.4 and 3.5.5 for more information.
  */
 
-#define EDAC_AMD64_VERSION		"v3.3.0"
+#define EDAC_AMD64_VERSION		"3.4.0"
 #define EDAC_MOD_STR			"amd64_edac"
 
 /* Extended Model from CPUID, for CPU Revision numbers */
@@ -170,6 +170,8 @@
 /*
  * PCI-defined configuration space registers
  */
+#define PCI_DEVICE_ID_AMD_15H_NB_F1	0x1601
+#define PCI_DEVICE_ID_AMD_15H_NB_F2	0x1602
 
 
 /*
@@ -367,10 +369,6 @@ struct amd64_pvt {
 
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
-
-	/* family name this instance is running on */
-	const char *ctl_name;
-
 };
 
 static inline u64 get_dram_base(struct amd64_pvt *pvt, unsigned i)
