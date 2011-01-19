@@ -8,6 +8,7 @@
  * For now it's included from <linux/irq.h>
  */
 
+struct irq_affinity_notify;
 struct proc_dir_entry;
 struct timer_rand_state;
 /**
@@ -24,6 +25,7 @@ struct timer_rand_state;
  * @last_unhandled:	aging timer for unhandled count
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @lock:		locking for SMP
+ * @affinity_notify:	context for notification of affinity changes
  * @pending_mask:	pending rebalanced interrupts
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
@@ -70,6 +72,7 @@ struct irq_desc {
 	raw_spinlock_t		lock;
 #ifdef CONFIG_SMP
 	const struct cpumask	*affinity_hint;
+	struct irq_affinity_notify *affinity_notify;
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_var_t		pending_mask;
 #endif
