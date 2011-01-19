@@ -509,6 +509,7 @@ struct iwl_station_priv {
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
+	u8 max_agg_bufsize;
 };
 
 /**
