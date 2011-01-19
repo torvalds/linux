@@ -224,10 +224,15 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 		if ((time_after(jiffies,
 			neigh_node->last_valid + PURGE_TIMEOUT * HZ)) ||
 		    (neigh_node->if_incoming->if_status == IF_INACTIVE) ||
+		    (neigh_node->if_incoming->if_status == IF_NOT_IN_USE) ||
 		    (neigh_node->if_incoming->if_status == IF_TO_BE_REMOVED)) {
 
-			if (neigh_node->if_incoming->if_status ==
-							IF_TO_BE_REMOVED)
+			if ((neigh_node->if_incoming->if_status ==
+								IF_INACTIVE) ||
+			    (neigh_node->if_incoming->if_status ==
+							IF_NOT_IN_USE) ||
+			    (neigh_node->if_incoming->if_status ==
+							IF_TO_BE_REMOVED))
 				bat_dbg(DBG_BATMAN, bat_priv,
 					"neighbor purge: originator %pM, "
 					"neighbor: %pM, iface: %s\n",
