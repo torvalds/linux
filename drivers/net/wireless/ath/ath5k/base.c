@@ -244,15 +244,21 @@ static int ath5k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *re
 /*
  * Returns true for the channel numbers used without all_channels modparam.
  */
-static bool ath5k_is_standard_channel(short chan)
+static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
 {
-	return ((chan <= 14) ||
-		/* UNII 1,2 */
-		((chan & 3) == 0 && chan >= 36 && chan <= 64) ||
+	if (band == IEEE80211_BAND_2GHZ && chan <= 14)
+		return true;
+
+	return	/* UNII 1,2 */
+		(((chan & 3) == 0 && chan >= 36 && chan <= 64) ||
 		/* midband */
 		((chan & 3) == 0 && chan >= 100 && chan <= 140) ||
 		/* UNII-3 */
-		((chan & 3) == 1 && chan >= 149 && chan <= 165));
+		((chan & 3) == 1 && chan >= 149 && chan <= 165) ||
+		/* 802.11j 5.030-5.080 GHz (20MHz) */
+		(chan == 8 || chan == 12 || chan == 16) ||
+		/* 802.11j 4.9GHz (20MHz) */
+		(chan == 184 || chan == 188 || chan == 192 || chan == 196));
 }
 
 static unsigned int
@@ -296,7 +302,8 @@ ath5k_setup_channels(struct ath5k_hw *ah,
 		if (!ath5k_channel_ok(ah, freq, chfreq))
 			continue;
 
-		if (!modparam_all_channels && !ath5k_is_standard_channel(ch))
+		if (!modparam_all_channels &&
+		    !ath5k_is_standard_channel(ch, band))
 			continue;
 
 		/* Write channel info and increment counter */
