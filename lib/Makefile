@@ -110,6 +110,8 @@ obj-$(CONFIG_ATOMIC64_SELFTEST) += atomic64_test.o
 
 obj-$(CONFIG_AVERAGE) += average.o
 
+obj-$(CONFIG_CPU_RMAP) += cpu_rmap.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 
