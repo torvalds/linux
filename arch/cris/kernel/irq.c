@@ -93,8 +93,8 @@ asmlinkage void do_IRQ(int irq, struct pt_regs * regs)
 		printk("do_IRQ: stack overflow: %lX\n", sp);
 		show_stack(NULL, (unsigned long *)sp);
 	}
-	__do_IRQ(irq);
-        irq_exit();
+	generic_handle_irq(irq);
+	irq_exit();
 	set_irq_regs(old_regs);
 }
 
