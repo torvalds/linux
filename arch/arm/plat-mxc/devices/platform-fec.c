@@ -62,7 +62,7 @@ struct platform_device *__init imx_add_fec(
 		},
 	};
 
-	return imx_add_platform_device("fec", 0 /* -1? */,
+	return imx_add_platform_device_dmamask("fec", 0,
 			res, ARRAY_SIZE(res),
-			pdata, sizeof(*pdata));
+			pdata, sizeof(*pdata), DMA_BIT_MASK(32));
 }
