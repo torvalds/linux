@@ -191,6 +191,7 @@ int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)
 	struct cflayer *servl = NULL;
 	struct cfcnfg_phyinfo *phyinfo = NULL;
 	u8 phyid = 0;
+
 	caif_assert(adap_layer != NULL);
 	channel_id = adap_layer->id;
 	if (adap_layer->dn == NULL || channel_id == 0) {
@@ -199,16 +200,16 @@ int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)
 		goto end;
 	}
 	servl = cfmuxl_remove_uplayer(cnfg->mux, channel_id);
-	if (servl == NULL)
-		goto end;
-	layer_set_up(servl, NULL);
-	ret = cfctrl_linkdown_req(cnfg->ctrl, channel_id, adap_layer);
 	if (servl == NULL) {
 		pr_err("PROTOCOL ERROR - Error removing service_layer Channel_Id(%d)",
 		       channel_id);
 		ret = -EINVAL;
 		goto end;
 	}
+	layer_set_up(servl, NULL);
+	ret = cfctrl_linkdown_req(cnfg->ctrl, channel_id, adap_layer);
+	if (ret)
+		goto end;
 	caif_assert(channel_id == servl->id);
 	if (adap_layer->dn != NULL) {
 		phyid = cfsrvl_getphyid(adap_layer->dn);
