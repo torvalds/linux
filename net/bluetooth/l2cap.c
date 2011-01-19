@@ -1106,7 +1106,8 @@ static int l2cap_do_connect(struct sock *sk)
 		if (sk->sk_type != SOCK_SEQPACKET &&
 				sk->sk_type != SOCK_STREAM) {
 			l2cap_sock_clear_timer(sk);
-			sk->sk_state = BT_CONNECTED;
+			if (l2cap_check_security(sk))
+				sk->sk_state = BT_CONNECTED;
 		} else
 			l2cap_do_start(sk);
 	}
