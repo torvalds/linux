@@ -34,6 +34,14 @@ enum {
 	SCIx_NR_IRQS,
 };
 
+#define SCIx_IRQ_MUXED(irq)		\
+{					\
+	[SCIx_ERI_IRQ]	= (irq),	\
+	[SCIx_RXI_IRQ]	= (irq),	\
+	[SCIx_TXI_IRQ]	= (irq),	\
+	[SCIx_BRI_IRQ]	= (irq),	\
+}
+
 struct device;
 
 /*
