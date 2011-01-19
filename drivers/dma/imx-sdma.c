@@ -931,12 +931,6 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 		param = BD_DONE | BD_EXTD | BD_CONT;
 
-		if (sdmac->flags & IMX_DMA_SG_LOOP) {
-			param |= BD_INTR;
-			if (i + 1 == sg_len)
-				param |= BD_WRAP;
-		}
-
 		if (i + 1 == sg_len)
 			param |= BD_INTR;
 
