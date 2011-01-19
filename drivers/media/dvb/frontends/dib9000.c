@@ -486,10 +486,11 @@ static int dib9000_mbx_host_init(struct dib9000_state *state, u8 risc_id)
 #define MAX_MAILBOX_TRY 100
 static int dib9000_mbx_send_attr(struct dib9000_state *state, u8 id, u16 * data, u8 len, u16 attr)
 {
-	u8 ret = 0, *d, b[2];
+	u8 *d, b[2];
 	u16 tmp;
 	u16 size;
 	u32 i;
+	int ret = 0;
 
 	if (!state->platform.risc.fw_is_running)
 		return -EINVAL;
