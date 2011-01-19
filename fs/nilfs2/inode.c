@@ -317,9 +317,9 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 
 	ii->i_flags = NILFS_I(dir)->i_flags;
 	if (S_ISLNK(mode))
-		ii->i_flags &= ~(NILFS_IMMUTABLE_FL | NILFS_APPEND_FL);
+		ii->i_flags &= ~(FS_IMMUTABLE_FL | FS_APPEND_FL);
 	if (!S_ISDIR(mode))
-		ii->i_flags &= ~NILFS_DIRSYNC_FL;
+		ii->i_flags &= ~FS_DIRSYNC_FL;
 
 	/* ii->i_file_acl = 0; */
 	/* ii->i_dir_acl = 0; */
@@ -359,17 +359,17 @@ void nilfs_set_inode_flags(struct inode *inode)
 
 	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_NOATIME |
 			    S_DIRSYNC);
-	if (flags & NILFS_SYNC_FL)
+	if (flags & FS_SYNC_FL)
 		inode->i_flags |= S_SYNC;
-	if (flags & NILFS_APPEND_FL)
+	if (flags & FS_APPEND_FL)
 		inode->i_flags |= S_APPEND;
-	if (flags & NILFS_IMMUTABLE_FL)
+	if (flags & FS_IMMUTABLE_FL)
 		inode->i_flags |= S_IMMUTABLE;
 #ifndef NILFS_ATIME_DISABLE
-	if (flags & NILFS_NOATIME_FL)
+	if (flags & FS_NOATIME_FL)
 #endif
 		inode->i_flags |= S_NOATIME;
-	if (flags & NILFS_DIRSYNC_FL)
+	if (flags & FS_DIRSYNC_FL)
 		inode->i_flags |= S_DIRSYNC;
 	mapping_set_gfp_mask(inode->i_mapping,
 			     mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
