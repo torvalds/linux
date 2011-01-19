@@ -1619,9 +1619,6 @@ static void sci_config_port(struct uart_port *port, int flags)
 
 	port->type = s->type;
 
-	if (port->membase)
-		return;
-
 	if (port->flags & UPF_IOREMAP) {
 		port->membase = ioremap_nocache(port->mapbase, 0x40);
 
@@ -1727,7 +1724,6 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	init_timer(&sci_port->break_timer);
 
 	port->mapbase	= p->mapbase;
-	port->membase	= p->membase;
 
 	port->irq		= p->irqs[SCIx_TXI_IRQ];
 	port->flags		= p->flags;
