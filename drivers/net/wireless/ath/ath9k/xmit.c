@@ -1222,49 +1222,59 @@ void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
 	sc->tx.txqsetup &= ~(1<<txq->axq_qnum);
 }
 
+/* For each axq_acq entry, for each tid, try to schedule packets
+ * for transmit until ampdu_depth has reached min Q depth.
+ */
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_atx_ac *ac;
-	struct ath_atx_tid *tid, *last;
+	struct ath_atx_ac *ac, *ac_tmp, *last_ac;
+	struct ath_atx_tid *tid, *last_tid;
 
 	if (list_empty(&txq->axq_acq) ||
 	    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
 		return;
 
 	ac = list_first_entry(&txq->axq_acq, struct ath_atx_ac, list);
-	last = list_entry(ac->tid_q.prev, struct ath_atx_tid, list);
-	list_del(&ac->list);
-	ac->sched = false;
+	last_ac = list_entry(txq->axq_acq.prev, struct ath_atx_ac, list);
 
-	do {
-		if (list_empty(&ac->tid_q))
-			return;
+	list_for_each_entry_safe(ac, ac_tmp, &txq->axq_acq, list) {
+		last_tid = list_entry(ac->tid_q.prev, struct ath_atx_tid, list);
+		list_del(&ac->list);
+		ac->sched = false;
 
-		tid = list_first_entry(&ac->tid_q, struct ath_atx_tid, list);
-		list_del(&tid->list);
-		tid->sched = false;
+		while (!list_empty(&ac->tid_q)) {
+			tid = list_first_entry(&ac->tid_q, struct ath_atx_tid,
+					       list);
+			list_del(&tid->list);
+			tid->sched = false;
 
-		if (tid->paused)
-			continue;
+			if (tid->paused)
+				continue;
 
-		ath_tx_sched_aggr(sc, txq, tid);
+			ath_tx_sched_aggr(sc, txq, tid);
 
-		/*
-		 * add tid to round-robin queue if more frames
-		 * are pending for the tid
-		 */
-		if (!list_empty(&tid->buf_q))
-			ath_tx_queue_tid(txq, tid);
+			/*
+			 * add tid to round-robin queue if more frames
+			 * are pending for the tid
+			 */
+			if (!list_empty(&tid->buf_q))
+				ath_tx_queue_tid(txq, tid);
 
-		if (tid == last || txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
-			break;
-	} while (!list_empty(&ac->tid_q));
-
-	if (!list_empty(&ac->tid_q)) {
-		if (!ac->sched) {
-			ac->sched = true;
-			list_add_tail(&ac->list, &txq->axq_acq);
+			if (tid == last_tid ||
+			    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
+				break;
 		}
+
+		if (!list_empty(&ac->tid_q)) {
+			if (!ac->sched) {
+				ac->sched = true;
+				list_add_tail(&ac->list, &txq->axq_acq);
+			}
+		}
+
+		if (ac == last_ac ||
+		    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
+			return;
 	}
 }
 
