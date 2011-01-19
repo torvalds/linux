@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-realview/localtimer.c
+ *  linux/arch/arm/plat-versatile/localtimer.c
  *
  *  Copyright (C) 2002 ARM Ltd.
  *  All Rights Reserved
@@ -12,9 +12,9 @@
 #include <linux/smp.h>
 #include <linux/clockchips.h>
 
-#include <asm/irq.h>
 #include <asm/smp_twd.h>
 #include <asm/localtimer.h>
+#include <mach/irqs.h>
 
 /*
  * Setup the local clock events for a CPU.
