@@ -158,9 +158,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 
 	struct orig_node *orig_node = NULL;
 	struct neigh_node *neigh_node = NULL;
-	struct batman_if *batman_if;
 	size_t packet_len = sizeof(struct icmp_packet);
-	uint8_t dstaddr[ETH_ALEN];
 
 	if (len < sizeof(struct icmp_packet)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
@@ -220,7 +218,6 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto dst_unreach;
 
-	spin_lock_bh(&bat_priv->orig_hash_lock);
 	rcu_read_lock();
 	orig_node = orig_hash_find(bat_priv, icmp_packet->dst);
 
@@ -239,14 +236,10 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 
 	rcu_read_unlock();
 
-	batman_if = orig_node->router->if_incoming;
-	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
-
-	if (!batman_if)
+	if (!neigh_node->if_incoming)
 		goto dst_unreach;
 
-	if (batman_if->if_status != IF_ACTIVE)
+	if (neigh_node->if_incoming->if_status != IF_ACTIVE)
 		goto dst_unreach;
 
 	memcpy(icmp_packet->orig,
@@ -254,14 +247,13 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 
 	if (packet_len == sizeof(struct icmp_packet_rr))
 		memcpy(icmp_packet->rr,
-		       batman_if->net_dev->dev_addr, ETH_ALEN);
+		       neigh_node->if_incoming->net_dev->dev_addr, ETH_ALEN);
 
-	send_skb_packet(skb, batman_if, dstaddr);
+	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	goto out;
 
 unlock:
 	rcu_read_unlock();
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 dst_unreach:
 	icmp_packet->msg_type = DESTINATION_UNREACHABLE;
 	bat_socket_add_packet(socket_client, icmp_packet, packet_len);

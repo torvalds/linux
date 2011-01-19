@@ -179,10 +179,9 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 	*new_skb = NULL;
 
-	spin_lock_bh(&bat_priv->orig_hash_lock);
 	orig_node = orig_hash_find(bat_priv, unicast_packet->orig);
 	if (!orig_node)
-		goto unlock;
+		goto out;
 
 	orig_node->last_frag_packet = jiffies;
 
@@ -207,8 +206,6 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	if (*new_skb)
 		ret = NET_RX_SUCCESS;
 
-unlock:
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 out:
 	if (orig_node)
 		orig_node_free_ref(orig_node);
@@ -281,13 +278,9 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct unicast_packet *unicast_packet;
 	struct orig_node *orig_node;
-	struct batman_if *batman_if;
 	struct neigh_node *neigh_node;
 	int data_len = skb->len;
-	uint8_t dstaddr[6];
 	int ret = 1;
-
-	spin_lock_bh(&bat_priv->orig_hash_lock);
 
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
@@ -300,23 +293,21 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	orig_node = transtable_search(bat_priv, ethhdr->h_dest);
 
 find_router:
-	/* find_router() increases neigh_nodes refcount if found. */
+	/**
+	 * find_router():
+	 *  - if orig_node is NULL it returns NULL
+	 *  - increases neigh_nodes refcount if found.
+	 */
 	neigh_node = find_router(bat_priv, orig_node, NULL);
 
 	if (!neigh_node)
-		goto unlock;
+		goto out;
 
 	if (neigh_node->if_incoming->if_status != IF_ACTIVE)
-		goto unlock;
+		goto out;
 
 	if (my_skb_head_push(skb, sizeof(struct unicast_packet)) < 0)
-		goto unlock;
-
-	/* don't lock while sending the packets ... we therefore
-	 * copy the required data before sending */
-	batman_if = neigh_node->if_incoming;
-	memcpy(dstaddr, neigh_node->addr, ETH_ALEN);
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
+		goto out;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
@@ -330,19 +321,18 @@ find_router:
 
 	if (atomic_read(&bat_priv->fragmentation) &&
 	    data_len + sizeof(struct unicast_packet) >
-						batman_if->net_dev->mtu) {
+				neigh_node->if_incoming->net_dev->mtu) {
 		/* send frag skb decreases ttl */
 		unicast_packet->ttl++;
-		ret = frag_send_skb(skb, bat_priv, batman_if, dstaddr);
+		ret = frag_send_skb(skb, bat_priv,
+				    neigh_node->if_incoming, neigh_node->addr);
 		goto out;
 	}
 
-	send_skb_packet(skb, batman_if, dstaddr);
+	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = 0;
 	goto out;
 
-unlock:
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
