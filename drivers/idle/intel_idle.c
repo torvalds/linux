@@ -62,6 +62,7 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <asm/mwait.h>
+#include <asm/msr.h>
 
 #define INTEL_IDLE_VERSION "0.4"
 #define PREFIX "intel_idle: "
@@ -83,6 +84,12 @@ static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state);
 
 static struct cpuidle_state *cpuidle_state_table;
+
+/*
+ * Hardware C-state auto-demotion may not always be optimal.
+ * Indicate which enable bits to clear here.
+ */
+static unsigned long long auto_demotion_disable_flags;
 
 /*
  * Set this flag for states where the HW flushes the TLB for us
@@ -281,6 +288,15 @@ static struct notifier_block setup_broadcast_notifier = {
 	.notifier_call = setup_broadcast_cpuhp_notify,
 };
 
+static void auto_demotion_disable(void *dummy)
+{
+	unsigned long long msr_bits;
+
+	rdmsrl(MSR_NHM_SNB_PKG_CST_CFG_CTL, msr_bits);
+	msr_bits &= ~auto_demotion_disable_flags;
+	wrmsrl(MSR_NHM_SNB_PKG_CST_CFG_CTL, msr_bits);
+}
+
 /*
  * intel_idle_probe()
  */
@@ -324,6 +340,8 @@ static int intel_idle_probe(void)
 	case 0x25:	/* Westmere */
 	case 0x2C:	/* Westmere */
 		cpuidle_state_table = nehalem_cstates;
+		auto_demotion_disable_flags =
+			(NHM_C1_AUTO_DEMOTE | NHM_C3_AUTO_DEMOTE);
 		break;
 
 	case 0x1C:	/* 28 - Atom Processor */
@@ -436,6 +454,8 @@ static int intel_idle_cpuidle_devices_init(void)
 			return -EIO;
 		}
 	}
+	if (auto_demotion_disable_flags)
+		smp_call_function(auto_demotion_disable, NULL, 1);
 
 	return 0;
 }
