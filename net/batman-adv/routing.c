@@ -311,6 +311,8 @@ static void update_orig(struct bat_priv *bat_priv,
 
 		neigh_node = create_neighbor(orig_node, orig_tmp,
 					     ethhdr->h_source, if_incoming);
+
+		kref_put(&orig_tmp->refcount, orig_node_free_ref);
 		if (!neigh_node)
 			goto unlock;
 	} else
@@ -438,7 +440,7 @@ static char count_real_packets(struct ethhdr *ethhdr,
 	/* signalize caller that the packet is to be dropped. */
 	if (window_protected(bat_priv, seq_diff,
 			     &orig_node->batman_seqno_reset))
-		return -1;
+		goto err;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
@@ -471,7 +473,12 @@ static char count_real_packets(struct ethhdr *ethhdr,
 		orig_node->last_real_seqno = batman_packet->seqno;
 	}
 
+	kref_put(&orig_node->refcount, orig_node_free_ref);
 	return is_duplicate;
+
+err:
+	kref_put(&orig_node->refcount, orig_node_free_ref);
+	return -1;
 }
 
 /* copy primary address for bonding */
@@ -686,7 +693,6 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		int offset;
 
 		orig_neigh_node = get_orig_node(bat_priv, ethhdr->h_source);
-
 		if (!orig_neigh_node)
 			return;
 
@@ -707,6 +713,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Drop packet: "
 			"originator packet from myself (via neighbor)\n");
+		kref_put(&orig_neigh_node->refcount, orig_node_free_ref);
 		return;
 	}
 
@@ -727,13 +734,13 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: packet within seqno protection time "
 			"(sender: %pM)\n", ethhdr->h_source);
-		return;
+		goto out;
 	}
 
 	if (batman_packet->tq == 0) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: originator packet with tq equal 0\n");
-		return;
+		goto out;
 	}
 
 	/* avoid temporary routing loops */
@@ -747,7 +754,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: ignoring all rebroadcast packets that "
 			"may make me loop (sender: %pM)\n", ethhdr->h_source);
-		return;
+		goto out;
 	}
 
 	/* if sender is a direct neighbor the sender mac equals
@@ -756,14 +763,14 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 			   orig_node :
 			   get_orig_node(bat_priv, ethhdr->h_source));
 	if (!orig_neigh_node)
-		return;
+		goto out_neigh;
 
 	/* drop packet if sender is not a direct neighbor and if we
 	 * don't route towards it */
 	if (!is_single_hop_neigh && (!orig_neigh_node->router)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: OGM via unknown neighbor!\n");
-		return;
+		goto out_neigh;
 	}
 
 	is_bidirectional = is_bidirectional_neigh(orig_node, orig_neigh_node,
@@ -790,26 +797,32 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Forwarding packet: "
 			"rebroadcast neighbor packet with direct link flag\n");
-		return;
+		goto out_neigh;
 	}
 
 	/* multihop originator */
 	if (!is_bidirectional) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: not received via bidirectional link\n");
-		return;
+		goto out_neigh;
 	}
 
 	if (is_duplicate) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: duplicate packet received\n");
-		return;
+		goto out_neigh;
 	}
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Forwarding packet: rebroadcast originator packet\n");
 	schedule_forward_packet(orig_node, ethhdr, batman_packet,
 				0, hna_buff_len, if_incoming);
+
+out_neigh:
+	if (!is_single_hop_neigh)
+		kref_put(&orig_neigh_node->refcount, orig_node_free_ref);
+out:
+	kref_put(&orig_node->refcount, orig_node_free_ref);
 }
 
 int recv_bat_packet(struct sk_buff *skb, struct batman_if *batman_if)

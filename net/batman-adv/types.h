@@ -86,6 +86,8 @@ struct orig_node {
 	struct hlist_head neigh_list;
 	struct list_head frag_list;
 	spinlock_t neigh_list_lock; /* protects neighbor list */
+	struct kref refcount;
+	struct bat_priv *bat_priv;
 	unsigned long last_frag_packet;
 	struct {
 		uint8_t candidates;
