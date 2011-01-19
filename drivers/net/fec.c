@@ -182,7 +182,7 @@ struct fec_enet_private {
 	struct bufdesc	*rx_bd_base;
 	struct bufdesc	*tx_bd_base;
 	/* The next free ring entry */
-	struct bufdesc	*cur_rx, *cur_tx; 
+	struct bufdesc	*cur_rx, *cur_tx;
 	/* The ring entries to be free()ed */
 	struct bufdesc	*dirty_tx;
 
@@ -190,15 +190,15 @@ struct fec_enet_private {
 	/* hold while accessing the HW like ringbuffer for tx/rx but not MAC */
 	spinlock_t hw_lock;
 
-	struct  platform_device *pdev;
+	struct	platform_device *pdev;
 
 	int	opened;
 
 	/* Phylib and MDIO interface */
-	struct  mii_bus *mii_bus;
-	struct  phy_device *phy_dev;
-	int     mii_timeout;
-	uint    phy_speed;
+	struct	mii_bus *mii_bus;
+	struct	phy_device *phy_dev;
+	int	mii_timeout;
+	uint	phy_speed;
 	phy_interface_t	phy_interface;
 	int	link;
 	int	full_duplex;
@@ -525,8 +525,8 @@ fec_enet_rx(struct net_device *ndev)
 		ndev->stats.rx_bytes += pkt_len;
 		data = (__u8*)__va(bdp->cbd_bufaddr);
 
-	        dma_unmap_single(NULL, bdp->cbd_bufaddr, bdp->cbd_datlen,
-        			DMA_FROM_DEVICE);
+		dma_unmap_single(NULL, bdp->cbd_bufaddr, bdp->cbd_datlen,
+				DMA_FROM_DEVICE);
 
 		if (id_entry->driver_data & FEC_QUIRK_SWAP_FRAME)
 			swap_buffer(data, pkt_len);
@@ -550,7 +550,7 @@ fec_enet_rx(struct net_device *ndev)
 			netif_rx(skb);
 		}
 
-        	bdp->cbd_bufaddr = dma_map_single(NULL, data, bdp->cbd_datlen,
+		bdp->cbd_bufaddr = dma_map_single(NULL, data, bdp->cbd_datlen,
 			DMA_FROM_DEVICE);
 rx_processing_done:
 		/* Clear the status flags for this buffer */
@@ -1034,7 +1034,7 @@ fec_enet_close(struct net_device *ndev)
 		phy_disconnect(fep->phy_dev);
 	}
 
-        fec_enet_free_buffers(ndev);
+	fec_enet_free_buffers(ndev);
 
 	return 0;
 }
@@ -1147,7 +1147,7 @@ static const struct net_device_ops fec_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= fec_timeout,
 	.ndo_set_mac_address	= fec_set_mac_address,
-	.ndo_do_ioctl           = fec_enet_ioctl,
+	.ndo_do_ioctl		= fec_enet_ioctl,
 };
 
  /*
