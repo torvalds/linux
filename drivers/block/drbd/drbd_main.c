@@ -132,6 +132,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
  * as member "struct gendisk *vdisk;"
  */
 struct drbd_conf **minor_table;
+struct list_head drbd_tconns;  /* list of struct drbd_tconn */
 
 struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* epoch entries */
@@ -3267,6 +3268,7 @@ static void drbd_delete_device(unsigned int minor)
 		bdput(mdev->this_bdev);
 
 	drbd_free_resources(mdev);
+	drbd_free_tconn(mdev->tconn);
 
 	drbd_release_ee_lists(mdev);
 
@@ -3358,6 +3360,41 @@ out:
 	return r;
 }
 
+struct drbd_tconn *drbd_new_tconn(char *name)
+{
+	struct drbd_tconn *tconn;
+
+	tconn = kzalloc(sizeof(struct drbd_tconn), GFP_KERNEL);
+	if (!tconn)
+		return NULL;
+
+	tconn->name = kstrdup(name, GFP_KERNEL);
+	if (!tconn->name)
+		goto fail;
+
+	write_lock_irq(&global_state_lock);
+	list_add(&tconn->all_tconn, &drbd_tconns);
+	write_unlock_irq(&global_state_lock);
+
+	return tconn;
+
+fail:
+	kfree(tconn->name);
+	kfree(tconn);
+
+	return NULL;
+}
+
+void drbd_free_tconn(struct drbd_tconn *tconn)
+{
+	write_lock_irq(&global_state_lock);
+	list_del(&tconn->all_tconn);
+	write_unlock_irq(&global_state_lock);
+
+	kfree(tconn->name);
+	kfree(tconn);
+}
+
 struct drbd_conf *drbd_new_device(unsigned int minor)
 {
 	struct drbd_conf *mdev;
@@ -3368,9 +3405,14 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	mdev = kzalloc(sizeof(struct drbd_conf), GFP_KERNEL);
 	if (!mdev)
 		return NULL;
+	mdev->tconn = drbd_new_tconn("dummy");
+	if (!mdev->tconn)
+		goto out_no_tconn;
+
 	if (!zalloc_cpumask_var(&mdev->cpu_mask, GFP_KERNEL))
 		goto out_no_cpumask;
 
+	mdev->tconn->volume0 = mdev;
 	mdev->minor = minor;
 
 	drbd_init_set_defaults(mdev);
@@ -3447,6 +3489,8 @@ out_no_disk:
 out_no_q:
 	free_cpumask_var(mdev->cpu_mask);
 out_no_cpumask:
+	drbd_free_tconn(mdev->tconn);
+out_no_tconn:
 	kfree(mdev);
 	return NULL;
 }
@@ -3526,6 +3570,7 @@ int __init drbd_init(void)
 	}
 
 	rwlock_init(&global_state_lock);
+	INIT_LIST_HEAD(&drbd_tconns);
 
 	printk(KERN_INFO "drbd: initialized. "
 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",

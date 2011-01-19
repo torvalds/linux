@@ -94,6 +94,7 @@ extern char usermode_helper[];
 #define UUID_NEW_BM_OFFSET ((u64)0x0001000000000000ULL)
 
 struct drbd_conf;
+struct drbd_tconn;
 
 
 /* to shorten dev_warn(DEV, "msg"); and relatives statements */
@@ -960,7 +961,18 @@ struct fifo_buffer {
 	unsigned int size;
 };
 
+struct drbd_tconn {			/* is a resource from the config file */
+	char *name;			/* Resource name */
+	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
+	struct drbd_conf *volume0;	/* TODO: Remove me again */
+
+	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
+};
+
 struct drbd_conf {
+	struct drbd_tconn *tconn;
+	int vnr;			/* volume number within the connection */
+
 	/* things that are stored as / read from meta data on disk */
 	unsigned long flags;
 
@@ -1495,6 +1507,9 @@ extern rwlock_t global_state_lock;
 
 extern struct drbd_conf *drbd_new_device(unsigned int minor);
 extern void drbd_free_mdev(struct drbd_conf *mdev);
+
+struct drbd_tconn *drbd_new_tconn(char *name);
+extern void drbd_free_tconn(struct drbd_tconn *tconn);
 
 extern int proc_details;
 
