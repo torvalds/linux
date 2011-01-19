@@ -210,9 +210,9 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
 	LIST_HEAD(reclaimed);
 	struct drbd_epoch_entry *e, *t;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	reclaim_net_ee(mdev, &reclaimed);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	list_for_each_entry_safe(e, t, &reclaimed, w.list)
 		drbd_free_net_ee(mdev, e);
@@ -269,7 +269,7 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool 
 }
 
 /* Must not be used from irq, as that may deadlock: see drbd_pp_alloc.
- * Is also used from inside an other spin_lock_irq(&mdev->req_lock);
+ * Is also used from inside an other spin_lock_irq(&mdev->tconn->req_lock);
  * Either links the page chain back to the global pool,
  * or returns all pages to the system. */
 static void drbd_pp_free(struct drbd_conf *mdev, struct page *page, int is_net)
@@ -371,9 +371,9 @@ int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list)
 	int count = 0;
 	int is_net = list == &mdev->net_ee;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_splice_init(list, &work_list);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	list_for_each_entry_safe(e, t, &work_list, w.list) {
 		drbd_free_some_ee(mdev, e, is_net);
@@ -399,10 +399,10 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 	struct drbd_epoch_entry *e, *t;
 	int ok = (mdev->state.conn >= C_WF_REPORT_PARAMS);
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	reclaim_net_ee(mdev, &reclaimed);
 	list_splice_init(&mdev->done_ee, &work_list);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	list_for_each_entry_safe(e, t, &reclaimed, w.list)
 		drbd_free_net_ee(mdev, e);
@@ -429,18 +429,18 @@ void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
 	 * and calling prepare_to_wait in the fast path */
 	while (!list_empty(head)) {
 		prepare_to_wait(&mdev->ee_wait, &wait, TASK_UNINTERRUPTIBLE);
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 		io_schedule();
 		finish_wait(&mdev->ee_wait, &wait);
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 	}
 }
 
 void drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
 {
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	_drbd_wait_ee_list_empty(mdev, head);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 }
 
 /* see also kernel_accept; which is only present since 2.6.18.
@@ -1452,9 +1452,9 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
 
 	e->w.cb = e_end_resync_block;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_add(&e->w.list, &mdev->sync_ee);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	atomic_add(data_size >> 9, &mdev->rs_sect_ev);
 	if (drbd_submit_ee(mdev, e, WRITE, DRBD_FAULT_RS_WR) == 0)
@@ -1462,9 +1462,9 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
 
 	/* don't care for the reason here */
 	dev_err(DEV, "submit failed, triggering re-connect\n");
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_del(&e->w.list);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	drbd_free_ee(mdev, e);
 fail:
@@ -1498,9 +1498,9 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 
 	sector = be64_to_cpu(p->sector);
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	req = find_request(mdev, &mdev->read_requests, p->block_id, sector, false, __func__);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	if (unlikely(!req))
 		return false;
 
@@ -1574,11 +1574,11 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	/* we delete from the conflict detection hash _after_ we sent out the
 	 * P_WRITE_ACK / P_NEG_ACK, to get the sequence number right.  */
 	if (mdev->tconn->net_conf->two_primaries) {
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 		D_ASSERT(!drbd_interval_empty(&e->i));
 		drbd_remove_interval(&mdev->epoch_entries, &e->i);
 		drbd_clear_interval(&e->i);
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 	} else
 		D_ASSERT(drbd_interval_empty(&e->i));
 
@@ -1595,11 +1595,11 @@ static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int u
 	D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
 	ok = drbd_send_ack(mdev, P_DISCARD_ACK, e);
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	D_ASSERT(!drbd_interval_empty(&e->i));
 	drbd_remove_interval(&mdev->epoch_entries, &e->i);
 	drbd_clear_interval(&e->i);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	dec_unacked(mdev);
 
@@ -1718,7 +1718,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 	/* I'm the receiver, I do hold a net_cnt reference. */
 	if (!mdev->tconn->net_conf->two_primaries) {
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 	} else {
 		/* don't get the req_lock yet,
 		 * we may sleep in drbd_wait_peer_seq */
@@ -1765,7 +1765,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 		if (drbd_wait_peer_seq(mdev, be32_to_cpu(p->seq_num)))
 			goto out_interrupted;
 
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 
 		drbd_insert_interval(&mdev->epoch_entries, &e->i);
 
@@ -1805,7 +1805,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 				e->w.cb = e_send_discard_ack;
 				list_add_tail(&e->w.list, &mdev->done_ee);
 
-				spin_unlock_irq(&mdev->req_lock);
+				spin_unlock_irq(&mdev->tconn->req_lock);
 
 				/* we could probably send that P_DISCARD_ACK ourselves,
 				 * but I don't like the receiver using the msock */
@@ -1820,13 +1820,13 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 				drbd_remove_interval(&mdev->epoch_entries, &e->i);
 				drbd_clear_interval(&e->i);
 
-				spin_unlock_irq(&mdev->req_lock);
+				spin_unlock_irq(&mdev->tconn->req_lock);
 
 				finish_wait(&mdev->misc_wait, &wait);
 				goto out_interrupted;
 			}
 
-			spin_unlock_irq(&mdev->req_lock);
+			spin_unlock_irq(&mdev->tconn->req_lock);
 			if (first) {
 				first = 0;
 				dev_alert(DEV, "Concurrent write! [W AFTERWARDS] "
@@ -1837,13 +1837,13 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 				D_ASSERT(have_unacked == 0);
 			}
 			schedule();
-			spin_lock_irq(&mdev->req_lock);
+			spin_lock_irq(&mdev->tconn->req_lock);
 		}
 		finish_wait(&mdev->misc_wait, &wait);
 	}
 
 	list_add(&e->w.list, &mdev->active_ee);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	switch (mdev->tconn->net_conf->wire_protocol) {
 	case DRBD_PROT_C:
@@ -1874,11 +1874,11 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 	/* don't care for the reason here */
 	dev_err(DEV, "submit failed, triggering re-connect\n");
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_del(&e->w.list);
 	drbd_remove_interval(&mdev->epoch_entries, &e->i);
 	drbd_clear_interval(&e->i);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	if (e->flags & EE_CALL_AL_COMPLETE_IO)
 		drbd_al_complete_io(mdev, e->i.sector);
 
@@ -2122,18 +2122,18 @@ submit_for_resync:
 
 submit:
 	inc_unacked(mdev);
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_add_tail(&e->w.list, &mdev->read_ee);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (drbd_submit_ee(mdev, e, READ, fault_type) == 0)
 		return true;
 
 	/* don't care for the reason here */
 	dev_err(DEV, "submit failed, triggering re-connect\n");
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_del(&e->w.list);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	/* no drbd_rs_complete_io(), we are dropping the connection anyways */
 
 out_free_e:
@@ -3183,10 +3183,10 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		dev_info(DEV, "real peer disk state = %s\n", drbd_disk_str(real_peer_disk));
 	}
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
  retry:
 	os = ns = mdev->state;
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	/* peer says his disk is uptodate, while we think it is inconsistent,
 	 * and this happens while we think we have a sync going on. */
@@ -3270,7 +3270,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		}
 	}
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->state.i != os.i)
 		goto retry;
 	clear_bit(CONSIDER_RESYNC, &mdev->flags);
@@ -3284,7 +3284,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
 		/* Do not allow tl_restart(RESEND) for a rebooted peer. We can only allow this
 		   for temporal network outages! */
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 		dev_err(DEV, "Aborting Connect, can not thaw IO with an only Consistent peer\n");
 		tl_clear(mdev);
 		drbd_uuid_new_current(mdev);
@@ -3294,7 +3294,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	}
 	rv = _drbd_set_state(mdev, ns, cs_flags, NULL);
 	ns = mdev->state;
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (rv < SS_SUCCESS) {
 		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
@@ -3772,11 +3772,11 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	drbd_free_sock(mdev);
 
 	/* wait for current activity to cease. */
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	_drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
 	_drbd_wait_ee_list_empty(mdev, &mdev->sync_ee);
 	_drbd_wait_ee_list_empty(mdev, &mdev->read_ee);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	/* We do not have data structures that would allow us to
 	 * get the rs_pending_cnt down to 0 again.
@@ -3828,7 +3828,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	if (mdev->state.role == R_PRIMARY && fp >= FP_RESOURCE && mdev->state.pdsk >= D_UNKNOWN)
 		drbd_try_outdate_peer_async(mdev);
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	os = mdev->state;
 	if (os.conn >= C_UNCONNECTED) {
 		/* Do not restart in case we are C_DISCONNECTING */
@@ -3836,7 +3836,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 		ns.conn = C_UNCONNECTED;
 		rv = _drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
 	}
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (os.conn == C_DISCONNECTING) {
 		wait_event(mdev->tconn->net_cnt_wait, atomic_read(&mdev->tconn->net_cnt) == 0);
@@ -4245,14 +4245,14 @@ validate_req_change_req_state(struct drbd_conf *mdev, u64 id, sector_t sector,
 	struct drbd_request *req;
 	struct bio_and_error m;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	req = find_request(mdev, root, id, sector, missing_ok, func);
 	if (unlikely(!req)) {
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 		return false;
 	}
 	__req_mod(req, what, &m);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
@@ -4518,9 +4518,9 @@ int drbd_asender(struct drbd_thread *thi)
 				goto reconnect;
 			/* to avoid race with newly queued ACKs */
 			set_bit(SIGNAL_ASENDER, &mdev->flags);
-			spin_lock_irq(&mdev->req_lock);
+			spin_lock_irq(&mdev->tconn->req_lock);
 			empty = list_empty(&mdev->done_ee);
-			spin_unlock_irq(&mdev->req_lock);
+			spin_unlock_irq(&mdev->tconn->req_lock);
 			/* new ack may have been queued right here,
 			 * but then there is also a signal pending,
 			 * and we start over... */

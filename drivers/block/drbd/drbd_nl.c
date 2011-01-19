@@ -287,13 +287,13 @@ static int _try_outdate_peer_async(void *data)
 	   pdsk == D_INCONSISTENT while conn >= C_CONNECTED is valid,
 	   therefore we have to have the pre state change check here.
 	*/
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	ns = mdev->state;
 	if (ns.conn < C_WF_REPORT_PARAMS) {
 		ns.pdsk = nps;
 		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
 	}
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	return 0;
 }
@@ -884,7 +884,7 @@ static void drbd_reconfig_start(struct drbd_conf *mdev)
  * wakes potential waiters */
 static void drbd_reconfig_done(struct drbd_conf *mdev)
 {
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->state.disk == D_DISKLESS &&
 	    mdev->state.conn == C_STANDALONE &&
 	    mdev->state.role == R_SECONDARY) {
@@ -892,7 +892,7 @@ static void drbd_reconfig_done(struct drbd_conf *mdev)
 		drbd_thread_stop_nowait(&mdev->tconn->worker);
 	} else
 		clear_bit(CONFIG_PENDING, &mdev->flags);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	wake_up(&mdev->state_wait);
 }
 
@@ -909,11 +909,11 @@ static void drbd_suspend_al(struct drbd_conf *mdev)
 		return;
 	}
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->state.conn < C_CONNECTED)
 		s = !test_and_set_bit(AL_SUSPENDED, &mdev->flags);
 
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (s)
 		dev_info(DEV, "Suspended AL updates\n");
@@ -1240,7 +1240,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (_drbd_bm_total_weight(mdev) == drbd_bm_bits(mdev))
 		drbd_suspend_al(mdev); /* IO is still suspended here... */
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	os = mdev->state;
 	ns.i = os.i;
 	/* If MDF_CONSISTENT is not set go into inconsistent state,
@@ -1285,7 +1285,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	rv = _drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
 	ns = mdev->state;
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (rv < SS_SUCCESS)
 		goto force_diskless_dec;
@@ -1521,10 +1521,10 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	drbd_flush_workqueue(mdev);
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->tconn->net_conf != NULL) {
 		retcode = ERR_NET_CONFIGURED;
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 		goto fail;
 	}
 	mdev->tconn->net_conf = new_conf;
@@ -1548,7 +1548,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	mdev->int_dig_in=int_dig_in;
 	mdev->int_dig_vv=int_dig_vv;
 	retcode = _drbd_set_state(_NS(mdev, conn, C_UNCONNECTED), CS_VERBOSE, NULL);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 	reply->ret_code = retcode;
@@ -1582,10 +1582,10 @@ static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	}
 
 	if (dc.force) {
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 		if (mdev->state.conn >= C_WF_CONNECTION)
 			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), CS_HARD, NULL);
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 		goto done;
 	}
 
@@ -1917,10 +1917,10 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 		retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T));
 
 	while (retcode == SS_NEED_CONNECTION) {
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 		if (mdev->state.conn < C_CONNECTED)
 			retcode = _drbd_set_state(_NS(mdev, disk, D_INCONSISTENT), CS_VERBOSE, NULL);
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 
 		if (retcode != SS_NEED_CONNECTION)
 			break;
@@ -2193,10 +2193,10 @@ static int drbd_nl_new_c_uuid(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 			drbd_send_uuids_skip_initial_sync(mdev);
 			_drbd_uuid_set(mdev, UI_BITMAP, 0);
 			drbd_print_uuids(mdev, "cleared bitmap UUID");
-			spin_lock_irq(&mdev->req_lock);
+			spin_lock_irq(&mdev->tconn->req_lock);
 			_drbd_set_state(_NS2(mdev, disk, D_UP_TO_DATE, pdsk, D_UP_TO_DATE),
 					CS_VERBOSE, NULL);
-			spin_unlock_irq(&mdev->req_lock);
+			spin_unlock_irq(&mdev->tconn->req_lock);
 		}
 	}
 

@@ -85,14 +85,14 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 	unsigned long flags = 0;
 	struct drbd_conf *mdev = e->mdev;
 
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	mdev->read_cnt += e->i.size >> 9;
 	list_del(&e->w.list);
 	if (list_empty(&mdev->read_ee))
 		wake_up(&mdev->ee_wait);
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
 		__drbd_chk_io_error(mdev, false);
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	drbd_queue_work(&mdev->tconn->data.work, &e->w);
 	put_ldev(mdev);
@@ -117,7 +117,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 	do_al_complete_io = e->flags & EE_CALL_AL_COMPLETE_IO;
 	block_id = e->block_id;
 
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	mdev->writ_cnt += e->i.size >> 9;
 	list_del(&e->w.list); /* has been on active_ee or sync_ee */
 	list_add_tail(&e->w.list, &mdev->done_ee);
@@ -134,7 +134,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
 		__drbd_chk_io_error(mdev, false);
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	if (block_id == ID_SYNCER)
 		drbd_rs_complete_io(mdev, e_sector);
@@ -220,9 +220,9 @@ void drbd_endio_pri(struct bio *bio, int error)
 	req->private_bio = ERR_PTR(error);
 
 	/* not req_mod(), we need irqsave here! */
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	__req_mod(req, what, &m);
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
@@ -236,13 +236,13 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * but try to WRITE the P_DATA_REPLY to the failed location,
 	 * to give the disk the chance to relocate that block */
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	if (cancel || mdev->state.pdsk != D_UP_TO_DATE) {
 		_req_mod(req, READ_RETRY_REMOTE_CANCELED);
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 		return 1;
 	}
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	return w_send_read_req(mdev, w, 0);
 }
@@ -359,9 +359,9 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 		goto defer;
 
 	e->w.cb = w_e_send_csum;
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_add(&e->w.list, &mdev->read_ee);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	atomic_add(size >> 9, &mdev->rs_sect_ev);
 	if (drbd_submit_ee(mdev, e, READ, DRBD_FAULT_RS_RD) == 0)
@@ -371,9 +371,9 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 	 * because bio_add_page failed (probably broken lower level driver),
 	 * retry may or may not help.
 	 * If it does not, you may need to force disconnect. */
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	list_del(&e->w.list);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	drbd_free_ee(mdev, e);
 defer:
@@ -793,7 +793,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 
 	ping_peer(mdev);
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	os = mdev->state;
 
 	verify_done = (os.conn == C_VERIFY_S || os.conn == C_VERIFY_T);
@@ -882,7 +882,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 
 	_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
 out_unlock:
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	put_ldev(mdev);
 out:
 	mdev->rs_total  = 0;
@@ -907,9 +907,9 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_epoch_ent
 		int i = (e->i.size + PAGE_SIZE -1) >> PAGE_SHIFT;
 		atomic_add(i, &mdev->pp_in_use_by_net);
 		atomic_sub(i, &mdev->pp_in_use);
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 		list_add_tail(&e->w.list, &mdev->net_ee);
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 		wake_up(&drbd_pp_wait);
 	} else
 		drbd_free_ee(mdev, e);
@@ -1210,10 +1210,10 @@ int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * actually, this race was harmless, since we only try to send the
 	 * barrier packet here, and otherwise do nothing with the object.
 	 * but compare with the head of w_clear_epoch */
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	if (w->cb != w_send_barrier || mdev->state.conn < C_CONNECTED)
 		cancel = 1;
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	if (cancel)
 		return 1;
 

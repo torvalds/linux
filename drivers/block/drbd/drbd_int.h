@@ -976,6 +976,12 @@ struct drbd_tconn {			/* is a resource from the config file */
 	unsigned long last_received;	/* in jiffies, either socket */
 	unsigned int ko_count;
 
+	spinlock_t req_lock;
+	struct drbd_tl_epoch *unused_spare_tle; /* for pre-allocation */
+	struct drbd_tl_epoch *newest_tle;
+	struct drbd_tl_epoch *oldest_tle;
+	struct list_head out_of_sequence_requests;
+
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
@@ -1030,12 +1036,6 @@ struct drbd_conf {
 	atomic_t rs_pending_cnt; /* RS request/data packets on the wire */
 	atomic_t unacked_cnt;	 /* Need to send replys for */
 	atomic_t local_cnt;	 /* Waiting for local completion */
-
-	spinlock_t req_lock;
-	struct drbd_tl_epoch *unused_spare_tle; /* for pre-allocation */
-	struct drbd_tl_epoch *newest_tle;
-	struct drbd_tl_epoch *oldest_tle;
-	struct list_head out_of_sequence_requests;
 
 	/* Interval tree of pending local requests */
 	struct rb_root read_requests;
@@ -1868,9 +1868,9 @@ static inline void drbd_chk_io_error_(struct drbd_conf *mdev,
 {
 	if (error) {
 		unsigned long flags;
-		spin_lock_irqsave(&mdev->req_lock, flags);
+		spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 		__drbd_chk_io_error_(mdev, forcedetach, where);
-		spin_unlock_irqrestore(&mdev->req_lock, flags);
+		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 	}
 }
 
@@ -2366,11 +2366,11 @@ static inline bool inc_ap_bio_cond(struct drbd_conf *mdev, int count)
 {
 	bool rv = false;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	rv = may_inc_ap_bio(mdev);
 	if (rv)
 		atomic_add(count, &mdev->ap_bio_cnt);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	return rv;
 }

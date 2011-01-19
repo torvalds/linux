@@ -185,7 +185,7 @@ int _get_ldev_if_state(struct drbd_conf *mdev, enum drbd_disk_state mins)
  * DOC: The transfer log
  *
  * The transfer log is a single linked list of &struct drbd_tl_epoch objects.
- * mdev->newest_tle points to the head, mdev->oldest_tle points to the tail
+ * mdev->tconn->newest_tle points to the head, mdev->tconn->oldest_tle points to the tail
  * of the list. There is always at least one &struct drbd_tl_epoch object.
  *
  * Each &struct drbd_tl_epoch has a circular double linked list of requests
@@ -206,21 +206,21 @@ static int tl_init(struct drbd_conf *mdev)
 	b->n_writes = 0;
 	b->w.cb = NULL; /* if this is != NULL, we need to dec_ap_pending in tl_clear */
 
-	mdev->oldest_tle = b;
-	mdev->newest_tle = b;
-	INIT_LIST_HEAD(&mdev->out_of_sequence_requests);
+	mdev->tconn->oldest_tle = b;
+	mdev->tconn->newest_tle = b;
+	INIT_LIST_HEAD(&mdev->tconn->out_of_sequence_requests);
 
 	return 1;
 }
 
 static void tl_cleanup(struct drbd_conf *mdev)
 {
-	D_ASSERT(mdev->oldest_tle == mdev->newest_tle);
-	D_ASSERT(list_empty(&mdev->out_of_sequence_requests));
-	kfree(mdev->oldest_tle);
-	mdev->oldest_tle = NULL;
-	kfree(mdev->unused_spare_tle);
-	mdev->unused_spare_tle = NULL;
+	D_ASSERT(mdev->tconn->oldest_tle == mdev->tconn->newest_tle);
+	D_ASSERT(list_empty(&mdev->tconn->out_of_sequence_requests));
+	kfree(mdev->tconn->oldest_tle);
+	mdev->tconn->oldest_tle = NULL;
+	kfree(mdev->tconn->unused_spare_tle);
+	mdev->tconn->unused_spare_tle = NULL;
 }
 
 /**
@@ -240,13 +240,13 @@ void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
 	new->next = NULL;
 	new->n_writes = 0;
 
-	newest_before = mdev->newest_tle;
+	newest_before = mdev->tconn->newest_tle;
 	/* never send a barrier number == 0, because that is special-cased
 	 * when using TCQ for our write ordering code */
 	new->br_number = (newest_before->br_number+1) ?: 1;
-	if (mdev->newest_tle != new) {
-		mdev->newest_tle->next = new;
-		mdev->newest_tle = new;
+	if (mdev->tconn->newest_tle != new) {
+		mdev->tconn->newest_tle->next = new;
+		mdev->tconn->newest_tle = new;
 	}
 }
 
@@ -267,9 +267,9 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 	struct list_head *le, *tle;
 	struct drbd_request *r;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 
-	b = mdev->oldest_tle;
+	b = mdev->tconn->oldest_tle;
 
 	/* first some paranoia code */
 	if (b == NULL) {
@@ -312,22 +312,22 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 	if (test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
 		_tl_add_barrier(mdev, b);
 		if (nob)
-			mdev->oldest_tle = nob;
+			mdev->tconn->oldest_tle = nob;
 		/* if nob == NULL b was the only barrier, and becomes the new
-		   barrier. Therefore mdev->oldest_tle points already to b */
+		   barrier. Therefore mdev->tconn->oldest_tle points already to b */
 	} else {
 		D_ASSERT(nob != NULL);
-		mdev->oldest_tle = nob;
+		mdev->tconn->oldest_tle = nob;
 		kfree(b);
 	}
 
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	dec_ap_pending(mdev);
 
 	return;
 
 bail:
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 	drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
 }
 
@@ -347,8 +347,8 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 	struct drbd_request *req;
 	int rv, n_writes, n_reads;
 
-	b = mdev->oldest_tle;
-	pn = &mdev->oldest_tle;
+	b = mdev->tconn->oldest_tle;
+	pn = &mdev->tconn->oldest_tle;
 	while (b) {
 		n_writes = 0;
 		n_reads = 0;
@@ -387,7 +387,7 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 			if (b->w.cb != NULL)
 				dec_ap_pending(mdev);
 
-			if (b == mdev->newest_tle) {
+			if (b == mdev->tconn->newest_tle) {
 				/* recycle, but reinit! */
 				D_ASSERT(tmp == NULL);
 				INIT_LIST_HEAD(&b->requests);
@@ -422,15 +422,15 @@ void tl_clear(struct drbd_conf *mdev)
 	struct list_head *le, *tle;
 	struct drbd_request *r;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 
 	_tl_restart(mdev, CONNECTION_LOST_WHILE_PENDING);
 
 	/* we expect this list to be empty. */
-	D_ASSERT(list_empty(&mdev->out_of_sequence_requests));
+	D_ASSERT(list_empty(&mdev->tconn->out_of_sequence_requests));
 
 	/* but just in case, clean it up anyways! */
-	list_for_each_safe(le, tle, &mdev->out_of_sequence_requests) {
+	list_for_each_safe(le, tle, &mdev->tconn->out_of_sequence_requests) {
 		r = list_entry(le, struct drbd_request, tl_requests);
 		/* It would be nice to complete outside of spinlock.
 		 * But this is easier for now. */
@@ -440,14 +440,14 @@ void tl_clear(struct drbd_conf *mdev)
 	/* ensure bit indicating barrier is required is clear */
 	clear_bit(CREATE_BARRIER, &mdev->flags);
 
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 }
 
 void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 {
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	_tl_restart(mdev, what);
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 }
 
 /**
@@ -476,12 +476,12 @@ drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
 	union drbd_state os, ns;
 	enum drbd_state_rv rv;
 
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	os = mdev->state;
 	ns.i = (os.i & ~mask.i) | val.i;
 	rv = _drbd_set_state(mdev, ns, f, NULL);
 	ns = mdev->state;
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	return rv;
 }
@@ -522,7 +522,7 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 		return SS_CW_FAILED_BY_PEER;
 
 	rv = 0;
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	os = mdev->state;
 	ns.i = (os.i & ~mask.i) | val.i;
 	ns = sanitize_state(mdev, os, ns, NULL);
@@ -537,7 +537,7 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
 		}
 	}
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	return rv;
 }
@@ -566,7 +566,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 	if (f & CS_SERIALIZE)
 		mutex_lock(&mdev->state_mutex);
 
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	os = mdev->state;
 	ns.i = (os.i & ~mask.i) | val.i;
 	ns = sanitize_state(mdev, os, ns, NULL);
@@ -575,7 +575,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 		rv = is_valid_state(mdev, ns);
 		if (rv == SS_SUCCESS)
 			rv = is_valid_state_transition(mdev, ns, os);
-		spin_unlock_irqrestore(&mdev->req_lock, flags);
+		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 		if (rv < SS_SUCCESS) {
 			if (f & CS_VERBOSE)
@@ -601,7 +601,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 				print_st_err(mdev, os, ns, rv);
 			goto abort;
 		}
-		spin_lock_irqsave(&mdev->req_lock, flags);
+		spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 		os = mdev->state;
 		ns.i = (os.i & ~mask.i) | val.i;
 		rv = _drbd_set_state(mdev, ns, f, &done);
@@ -610,7 +610,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 		rv = _drbd_set_state(mdev, ns, f, &done);
 	}
 
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	if (f & CS_WAIT_COMPLETE && rv == SS_SUCCESS) {
 		D_ASSERT(current != mdev->tconn->worker.task);
@@ -1367,9 +1367,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				drbd_uuid_new_current(mdev);
 				clear_bit(NEW_CUR_UUID, &mdev->flags);
 			}
-			spin_lock_irq(&mdev->req_lock);
+			spin_lock_irq(&mdev->tconn->req_lock);
 			_drbd_set_state(_NS(mdev, susp_fen, 0), CS_VERBOSE, NULL);
-			spin_unlock_irq(&mdev->req_lock);
+			spin_unlock_irq(&mdev->tconn->req_lock);
 		}
 		/* case2: The connection was established again: */
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
@@ -1380,11 +1380,11 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	}
 
 	if (what != NOTHING) {
-		spin_lock_irq(&mdev->req_lock);
+		spin_lock_irq(&mdev->tconn->req_lock);
 		_tl_restart(mdev, what);
 		nsm.i &= mdev->state.i;
 		_drbd_set_state(mdev, nsm, CS_VERBOSE, NULL);
-		spin_unlock_irq(&mdev->req_lock);
+		spin_unlock_irq(&mdev->tconn->req_lock);
 	}
 
 	/* Became sync source.  With protocol >= 96, we still need to send out
@@ -2898,7 +2898,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	int rv = 0;
 
 	mutex_lock(&drbd_main_mutex);
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	/* to have a stable mdev->state.role
 	 * and no race with updating open_cnt */
 
@@ -2911,7 +2911,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 
 	if (!rv)
 		mdev->open_cnt++;
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 	mutex_unlock(&drbd_main_mutex);
 
 	return rv;
@@ -2990,7 +2990,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	spin_lock_init(&mdev->tconn->meta.work.q_lock);
 
 	spin_lock_init(&mdev->al_lock);
-	spin_lock_init(&mdev->req_lock);
+	spin_lock_init(&mdev->tconn->req_lock);
 	spin_lock_init(&mdev->peer_seq_lock);
 	spin_lock_init(&mdev->epoch_lock);
 
@@ -3451,7 +3451,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE_SAFE >> 8);
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(q, drbd_merge_bvec);
-	q->queue_lock = &mdev->req_lock;
+	q->queue_lock = &mdev->tconn->req_lock; /* needed since we use */
 
 	mdev->md_io_page = alloc_page(GFP_KERNEL);
 	if (!mdev->md_io_page)
@@ -3784,14 +3784,14 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	mdev->sync_conf.al_extents = be32_to_cpu(buffer->al_nr_extents);
 	bdev->md.device_uuid = be64_to_cpu(buffer->device_uuid);
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->state.conn < C_CONNECTED) {
 		int peer;
 		peer = be32_to_cpu(buffer->la_peer_max_bio_size);
 		peer = max_t(int, peer, DRBD_MAX_BIO_SIZE_SAFE);
 		mdev->peer_max_bio_size = peer;
 	}
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (mdev->sync_conf.al_extents < 7)
 		mdev->sync_conf.al_extents = 127;
@@ -4046,13 +4046,13 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 	mdev->bm_io_work.why = why;
 	mdev->bm_io_work.flags = flags;
 
-	spin_lock_irq(&mdev->req_lock);
+	spin_lock_irq(&mdev->tconn->req_lock);
 	set_bit(BITMAP_IO, &mdev->flags);
 	if (atomic_read(&mdev->ap_bio_cnt) == 0) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
 			drbd_queue_work(&mdev->tconn->data.work, &mdev->bm_io_work.w);
 	}
-	spin_unlock_irq(&mdev->req_lock);
+	spin_unlock_irq(&mdev->tconn->req_lock);
 }
 
 /**

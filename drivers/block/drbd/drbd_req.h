@@ -305,9 +305,9 @@ static inline int req_mod(struct drbd_request *req,
 	struct bio_and_error m;
 	int rv;
 
-	spin_lock_irqsave(&mdev->req_lock, flags);
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	rv = __req_mod(req, what, &m);
-	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
