@@ -262,21 +262,16 @@ static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
 }
 
 static unsigned int
-ath5k_setup_channels(struct ath5k_hw *ah,
-		struct ieee80211_channel *channels,
-		unsigned int mode,
-		unsigned int max)
+ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
+		unsigned int mode, unsigned int max)
 {
 	unsigned int count, size, chfreq, freq, ch;
 	enum ieee80211_band band;
 
-	if (!test_bit(mode, ah->ah_modes))
-		return 0;
-
 	switch (mode) {
 	case AR5K_MODE_11A:
 		/* 1..220, but 2GHz frequencies are filtered by check_channel */
-		size = 220 ;
+		size = 220;
 		chfreq = CHANNEL_5GHZ;
 		band = IEEE80211_BAND_5GHZ;
 		break;
