@@ -219,6 +219,24 @@ static struct clocksource clocksource_mpu = {
 
 static DEFINE_CLOCK_DATA(cd);
 
+static inline unsigned long long notrace _omap_mpu_sched_clock(void)
+{
+	u32 cyc = mpu_read(&clocksource_mpu);
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
+}
+
+#ifndef CONFIG_OMAP_32K_TIMER
+unsigned long long notrace sched_clock(void)
+{
+	return _omap_mpu_sched_clock();
+}
+#else
+static unsigned long long notrace omap_mpu_sched_clock(void)
+{
+	return _omap_mpu_sched_clock();
+}
+#endif
+
 static void notrace mpu_update_sched_clock(void)
 {
 	u32 cyc = mpu_read(&clocksource_mpu);
@@ -262,6 +280,30 @@ static inline void omap_mpu_timer_init(void)
 }
 #endif	/* CONFIG_OMAP_MPU_TIMER */
 
+#if defined(CONFIG_OMAP_MPU_TIMER) && defined(CONFIG_OMAP_32K_TIMER)
+static unsigned long long (*preferred_sched_clock)(void);
+
+unsigned long long notrace sched_clock(void)
+{
+	if (!preferred_sched_clock)
+		return 0;
+
+	return preferred_sched_clock();
+}
+
+static inline void preferred_sched_clock_init(bool use_32k_sched_clock)
+{
+	if (use_32k_sched_clock)
+		preferred_sched_clock = omap_32k_sched_clock;
+	else
+		preferred_sched_clock = omap_mpu_sched_clock;
+}
+#else
+static inline void preferred_sched_clock_init(bool use_32k_sched_clcok)
+{
+}
+#endif
+
 static inline int omap_32k_timer_usable(void)
 {
 	int res = false;
@@ -283,8 +325,12 @@ static inline int omap_32k_timer_usable(void)
  */
 static void __init omap_timer_init(void)
 {
-	if (!omap_32k_timer_usable())
+	if (omap_32k_timer_usable()) {
+		preferred_sched_clock_init(1);
+	} else {
 		omap_mpu_timer_init();
+		preferred_sched_clock_init(0);
+	}
 }
 
 struct sys_timer omap_timer = {

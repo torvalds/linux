@@ -120,11 +120,23 @@ static DEFINE_CLOCK_DATA(cd);
 #define SC_MULT		4000000000u
 #define SC_SHIFT	17
 
-unsigned long long notrace sched_clock(void)
+static inline unsigned long long notrace _omap_32k_sched_clock(void)
 {
 	u32 cyc = clocksource_32k.read(&clocksource_32k);
 	return cyc_to_fixed_sched_clock(&cd, cyc, (u32)~0, SC_MULT, SC_SHIFT);
 }
+
+#ifndef CONFIG_OMAP_MPU_TIMER
+unsigned long long notrace sched_clock(void)
+{
+	return _omap_32k_sched_clock();
+}
+#else
+unsigned long long notrace omap_32k_sched_clock(void)
+{
+	return _omap_32k_sched_clock();
+}
+#endif
 
 static void notrace omap_update_sched_clock(void)
 {
