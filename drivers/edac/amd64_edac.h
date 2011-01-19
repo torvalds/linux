@@ -363,7 +363,7 @@ struct amd64_pvt {
 	u32 online_spare;	/* On-Line spare Reg */
 
 	/* x4 or x8 syndromes in use */
-	u8 syn_type;
+	u8 ecc_sym_sz;
 
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
