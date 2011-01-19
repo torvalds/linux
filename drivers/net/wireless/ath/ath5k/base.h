@@ -183,8 +183,6 @@ struct ath5k_softc {
 	enum nl80211_iftype	opmode;
 	struct ath5k_hw		*ah;		/* Atheros HW */
 
-	struct ieee80211_supported_band		*curband;
-
 #ifdef CONFIG_ATH5K_DEBUG
 	struct ath5k_dbg_info	debug;		/* debug info */
 #endif /* CONFIG_ATH5K_DEBUG */

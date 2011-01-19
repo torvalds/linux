@@ -557,7 +557,7 @@ ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix)
 			"hw_rix out of bounds: %x\n", hw_rix))
 		return 0;
 
-	rix = sc->rate_idx[sc->curband->band][hw_rix];
+	rix = sc->rate_idx[sc->curchan->band][hw_rix];
 	if (WARN(rix < 0, "invalid hw_rix: %x\n", hw_rix))
 		rix = 0;
 
@@ -1367,7 +1367,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	rxs->flag |= RX_FLAG_TSFT;
 
 	rxs->freq = sc->curchan->center_freq;
-	rxs->band = sc->curband->band;
+	rxs->band = sc->curchan->band;
 
 	rxs->signal = sc->ah->ah_noise_floor + rs->rs_rssi;
 
@@ -1382,7 +1382,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	rxs->flag |= ath5k_rx_decrypted(sc, skb, rs);
 
 	if (rxs->rate_idx >= 0 && rs->rs_rate ==
-	    sc->curband->bitrates[rxs->rate_idx].hw_value_short)
+	    sc->sbands[sc->curchan->band].bitrates[rxs->rate_idx].hw_value_short)
 		rxs->flag |= RX_FLAG_SHORTPRE;
 
 	ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
@@ -2538,7 +2538,6 @@ ath5k_init_hw(struct ath5k_softc *sc)
 	 * and then setup of the interrupt mask.
 	 */
 	sc->curchan = sc->hw->conf.channel;
-	sc->curband = &sc->sbands[sc->curchan->band];
 	sc->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
 		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
 		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
@@ -2665,10 +2664,8 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	 * so we should also free any remaining
 	 * tx buffers */
 	ath5k_drain_tx_buffs(sc);
-	if (chan) {
+	if (chan)
 		sc->curchan = chan;
-		sc->curband = &sc->sbands[chan->band];
-	}
 	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, chan != NULL,
 								skip_pcu);
 	if (ret) {
