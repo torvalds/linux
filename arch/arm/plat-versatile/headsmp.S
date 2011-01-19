@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-vexpress/headsmp.S
+ *  linux/arch/arm/plat-versatile/headsmp.S
  *
  *  Copyright (c) 2003 ARM Limited
  *  All Rights Reserved
@@ -14,11 +14,11 @@
 	__INIT
 
 /*
- * Versatile Express specific entry point for secondary CPUs.  This
- * provides a "holding pen" into which all secondary cores are held
+ * Realview/Versatile Express specific entry point for secondary CPUs.
+ * This provides a "holding pen" into which all secondary cores are held
  * until we're ready for them to initialise.
  */
-ENTRY(vexpress_secondary_startup)
+ENTRY(versatile_secondary_startup)
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, r0, #15
 	adr	r4, 1f
