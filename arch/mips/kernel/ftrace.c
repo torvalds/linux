@@ -190,21 +190,19 @@ int ftrace_disable_ftrace_graph_caller(void)
 #define S_R_SP	(0xafb0 << 16)  /* s{d,w} R, offset(sp) */
 #define OFFSET_MASK	0xffff	/* stack offset range: 0 ~ PT_SIZE */
 
-unsigned long ftrace_get_parent_addr(unsigned long self_addr,
-				     unsigned long parent,
-				     unsigned long parent_addr,
-				     unsigned long fp)
+unsigned long ftrace_get_parent_ra_addr(unsigned long self_ra, unsigned long
+		old_parent_ra, unsigned long parent_ra_addr, unsigned long fp)
 {
-	unsigned long sp, ip, ra;
+	unsigned long sp, ip, tmp;
 	unsigned int code;
 	int faulted;
 
 	/*
-	 * For module, move the ip from calling site of mcount after the
+	 * For module, move the ip from the return address after the
 	 * instruction "lui v1, hi_16bit_of_mcount"(offset is 24), but for
 	 * kernel, move after the instruction "move ra, at"(offset is 16)
 	 */
-	ip = self_addr - (in_kernel_space(self_addr) ? 16 : 24);
+	ip = self_ra - (in_kernel_space(self_ra) ? 16 : 24);
 
 	/*
 	 * search the text until finding the non-store instruction or "s{d,w}
@@ -222,7 +220,7 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 		 * store the ra on the stack
 		 */
 		if ((code & S_R_SP) != S_R_SP)
-			return parent_addr;
+			return parent_ra_addr;
 
 		/* Move to the next instruction */
 		ip -= 4;
@@ -230,12 +228,12 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 
 	sp = fp + (code & OFFSET_MASK);
 
-	/* ra = *(unsigned long *)sp; */
-	safe_load_stack(ra, sp, faulted);
+	/* tmp = *(unsigned long *)sp; */
+	safe_load_stack(tmp, sp, faulted);
 	if (unlikely(faulted))
 		return 0;
 
-	if (ra == parent)
+	if (tmp == old_parent_ra)
 		return sp;
 	return 0;
 }
@@ -246,10 +244,10 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
  */
-void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
+void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 			   unsigned long fp)
 {
-	unsigned long old;
+	unsigned long old_parent_ra;
 	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 	    &return_to_handler;
@@ -259,8 +257,8 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 
 	/*
-	 * "parent" is the stack address saved the return address of the caller
-	 * of _mcount.
+	 * "parent_ra_addr" is the stack address saved the return address of
+	 * the caller of _mcount.
 	 *
 	 * if the gcc < 4.5, a leaf function does not save the return address
 	 * in the stack address, so, we "emulate" one in _mcount's stack space,
@@ -275,37 +273,37 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 * do it in ftrace_graph_caller of mcount.S.
 	 */
 
-	/* old = *parent; */
-	safe_load_stack(old, parent, faulted);
+	/* old_parent_ra = *parent_ra_addr; */
+	safe_load_stack(old_parent_ra, parent_ra_addr, faulted);
 	if (unlikely(faulted))
 		goto out;
 #ifndef KBUILD_MCOUNT_RA_ADDRESS
-	parent = (unsigned long *)ftrace_get_parent_addr(self_addr, old,
-			(unsigned long)parent, fp);
+	parent_ra_addr = (unsigned long *)ftrace_get_parent_ra_addr(self_ra,
+			old_parent_ra, (unsigned long)parent_ra_addr, fp);
 	/*
 	 * If fails when getting the stack address of the non-leaf function's
 	 * ra, stop function graph tracer and return
 	 */
-	if (parent == 0)
+	if (parent_ra_addr == 0)
 		goto out;
 #endif
-	/* *parent = return_hooker; */
-	safe_store_stack(return_hooker, parent, faulted);
+	/* *parent_ra_addr = return_hooker; */
+	safe_store_stack(return_hooker, parent_ra_addr, faulted);
 	if (unlikely(faulted))
 		goto out;
 
-	if (ftrace_push_return_trace(old, self_addr, &trace.depth, fp) ==
-	    -EBUSY) {
-		*parent = old;
+	if (ftrace_push_return_trace(old_parent_ra, self_ra, &trace.depth, fp)
+	    == -EBUSY) {
+		*parent_ra_addr = old_parent_ra;
 		return;
 	}
 
-	trace.func = self_addr;
+	trace.func = self_ra;
 
 	/* Only trace if the calling function expects to */
 	if (!ftrace_graph_entry(&trace)) {
 		current->curr_ret_stack--;
-		*parent = old;
+		*parent_ra_addr = old_parent_ra;
 	}
 	return;
 out:
