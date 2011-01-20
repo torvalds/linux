@@ -311,7 +311,7 @@ config MMC_MSM
 
 config MMC_MXC
 	tristate "Freescale i.MX2/3 Multimedia Card Interface support"
-	depends on ARCH_MXC
+	depends on MACH_MX21 || MACH_MX27 || ARCH_MX31
 	help
 	  This selects the Freescale i.MX2/3 Multimedia card Interface.
 	  If you have a i.MX platform with a Multimedia Card slot,
