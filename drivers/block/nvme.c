@@ -979,6 +979,7 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 	dma_set_mask(&dev->pci_dev->dev, DMA_BIT_MASK(64));
 	nvme_set_instance(dev);
+	dev->entry[0].vector = pdev->irq;
 
 	dev->bar = ioremap(pci_resource_start(pdev, 0), 8192);
 	if (!dev->bar) {
