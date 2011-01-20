@@ -1605,7 +1605,7 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
  * expected that drivers will fix this mapping if they can before
  * calling netif_set_real_num_tx_queues.
  */
-void netif_setup_tc(struct net_device *dev, unsigned int txq)
+static void netif_setup_tc(struct net_device *dev, unsigned int txq)
 {
 	int i;
 	struct netdev_tc_txq *tc = &dev->tc_to_txq[0];
