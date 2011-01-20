@@ -18,7 +18,7 @@ struct xt_connlimit_info {
 		};
 #endif
 	};
-	unsigned int limit, inverse;
+	unsigned int limit;
 	union {
 		/* revision 0 */
 		unsigned int inverse;
