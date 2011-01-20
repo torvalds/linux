@@ -439,11 +439,11 @@ struct cifsInodeInfo {
 	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
-	unsigned long time;	/* jiffies of last update/check of inode */
-	bool clientCanCacheRead:1;	/* read oplock */
-	bool clientCanCacheAll:1;	/* read and writebehind oplock */
-	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
-	bool invalid_mapping:1;		/* pagecache is invalid */
+	bool clientCanCacheRead;	/* read oplock */
+	bool clientCanCacheAll;		/* read and writebehind oplock */
+	bool delete_pending;		/* DELETE_ON_CLOSE is set */
+	bool invalid_mapping;		/* pagecache is invalid */
+	unsigned long time;		/* jiffies of last update of inode */
 	u64  server_eof;		/* current file size on server */
 	u64  uniqueid;			/* server inode number */
 	u64  createtime;		/* creation time on server */
