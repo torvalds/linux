@@ -45,6 +45,7 @@
 #include "util/probe-event.h"
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
+#define DEFAULT_FUNC_FILTER "!_*"
 #define MAX_PATH_LEN 256
 
 /* Session management structure */
@@ -159,6 +160,7 @@ static int opt_show_vars(const struct option *opt __used,
 
 	return ret;
 }
+#endif
 
 static int opt_set_filter(const struct option *opt __used,
 			  const char *str, int unset __used)
@@ -180,7 +182,6 @@ static int opt_set_filter(const struct option *opt __used,
 
 	return 0;
 }
-#endif
 
 static const char * const probe_usage[] = {
 	"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
@@ -236,10 +237,6 @@ static const struct option options[] = {
 		     "Show accessible variables on PROBEDEF", opt_show_vars),
 	OPT_BOOLEAN('\0', "externs", &params.show_ext_vars,
 		    "Show external variables too (with --vars only)"),
-	OPT_CALLBACK('\0', "filter", NULL,
-		     "[!]FILTER", "Set a variable filter (with --vars only)\n"
-		     "\t\t\t(default: \"" DEFAULT_VAR_FILTER "\")",
-		     opt_set_filter),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
@@ -252,6 +249,11 @@ static const struct option options[] = {
 		 "Set how many probe points can be found for a probe."),
 	OPT_BOOLEAN('F', "funcs", &params.show_funcs,
 		    "Show potential probe-able functions."),
+	OPT_CALLBACK('\0', "filter", NULL,
+		     "[!]FILTER", "Set a filter (with --vars/funcs only)\n"
+		     "\t\t\t(default: \"" DEFAULT_VAR_FILTER "\" for --vars,\n"
+		     "\t\t\t \"" DEFAULT_FUNC_FILTER "\" for --funcs)",
+		     opt_set_filter),
 	OPT_END()
 };
 
@@ -322,7 +324,12 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			pr_err("  Error: Don't use --funcs with --vars.\n");
 			usage_with_options(probe_usage, options);
 		}
-		ret = show_available_funcs(params.target_module);
+		if (!params.filter)
+			params.filter = strfilter__new(DEFAULT_FUNC_FILTER,
+						       NULL);
+		ret = show_available_funcs(params.target_module,
+					   params.filter);
+		strfilter__delete(params.filter);
 		if (ret < 0)
 			pr_err("  Error: Failed to show functions."
 			       " (%d)\n", ret);

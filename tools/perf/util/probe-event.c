@@ -1951,21 +1951,23 @@ int del_perf_probe_events(struct strlist *dellist)
 
 	return ret;
 }
+/* TODO: don't use a global variable for filter ... */
+static struct strfilter *available_func_filter;
 
 /*
- * If a symbol corresponds to a function with global binding return 0.
- * For all others return 1.
+ * If a symbol corresponds to a function with global binding and
+ * matches filter return 0. For all others return 1.
  */
-static int filter_non_global_functions(struct map *map __unused,
-					struct symbol *sym)
+static int filter_available_functions(struct map *map __unused,
+				      struct symbol *sym)
 {
-	if (sym->binding != STB_GLOBAL)
-		return 1;
-
-	return 0;
+	if (sym->binding == STB_GLOBAL &&
+	    strfilter__compare(available_func_filter, sym->name))
+		return 0;
+	return 1;
 }
 
-int show_available_funcs(const char *module)
+int show_available_funcs(const char *module, struct strfilter *_filter)
 {
 	struct map *map;
 	int ret;
@@ -1981,7 +1983,8 @@ int show_available_funcs(const char *module)
 		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
 		return -EINVAL;
 	}
-	if (map__load(map, filter_non_global_functions)) {
+	available_func_filter = _filter;
+	if (map__load(map, filter_available_functions)) {
 		pr_err("Failed to load map.\n");
 		return -EINVAL;
 	}

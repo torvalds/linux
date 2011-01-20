@@ -78,10 +78,11 @@ OPTIONS
 	Show available functions in given module or kernel.
 
 --filter=FILTER::
-	(Only for --vars) Set filter for variables. FILTER is a combination of
-	glob pattern, see FILTER PATTERN for details.
-	Default FILTER is "!__k???tab_* & !__crc_*".
-	If several filters are specified, only the last filter is valid.
+	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
+	pattern, see FILTER PATTERN for detail.
+	Default FILTER is "!__k???tab_* & !__crc_*" for --vars, and "!_*"
+	for --funcs.
+	If several filters are specified, only the last filter is used.
 
 -f::
 --force::
