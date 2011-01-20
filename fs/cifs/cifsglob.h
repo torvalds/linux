@@ -161,6 +161,7 @@ struct TCP_Server_Info {
 	int srv_count; /* reference counter */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
+	enum statusEnum tcpStatus; /* what we think the status is */
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
 	struct sockaddr_storage dstaddr;
@@ -168,25 +169,16 @@ struct TCP_Server_Info {
 	wait_queue_head_t response_q;
 	wait_queue_head_t request_q; /* if more than maxmpx to srvr must block*/
 	struct list_head pending_mid_q;
-	void *Server_NlsInfo;	/* BB - placeholder for future NLS info  */
-	unsigned short server_codepage;	/* codepage for the server    */
-	enum protocolEnum protocolType;
-	char versionMajor;
-	char versionMinor;
-	bool svlocal:1;			/* local server or remote */
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
 	bool tcp_nodelay;
 	atomic_t inFlight;  /* number of requests on the wire to server */
-#ifdef CONFIG_CIFS_STATS2
-	atomic_t inSend; /* requests trying to send */
-	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
-#endif
-	enum statusEnum tcpStatus; /* what we think the status is */
 	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
 	char secMode;
+	bool session_estab; /* mark when very first sess is established */
+	u16 dialect; /* dialect index that server chose */
 	enum securityEnum secType;
 	unsigned int maxReq;	/* Clients should submit no more */
 	/* than maxReq distinct unanswered SMBs to the server when using  */
@@ -199,8 +191,6 @@ struct TCP_Server_Info {
 	unsigned int max_vcs;	/* maximum number of smb sessions, at least
 				   those that can be specified uniquely with
 				   vcnumbers */
-	char sessid[4];		/* unique token id for this session */
-	/* (returned on Negotiate */
 	int capabilities; /* allow selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u16 CurrentMid;         /* multiplex id - rotating counter */
@@ -210,17 +200,19 @@ struct TCP_Server_Info {
 	__u32 sequence_number; /* for signing, protected by srv_mutex */
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
-	u16 dialect; /* dialect index that server chose */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
 	/* extended security flavors that server supports */
+	bool	sec_ntlmssp;		/* supports NTLMSSP */
+	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
-	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
-	bool	sec_ntlmssp;		/* supports NTLMSSP */
-	bool session_estab; /* mark when very first sess is established */
 	struct delayed_work	echo; /* echo ping workqueue job */
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie   *fscache; /* client index cache cookie */
+#endif
+#ifdef CONFIG_CIFS_STATS2
+	atomic_t inSend; /* requests trying to send */
+	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #endif
 };
 

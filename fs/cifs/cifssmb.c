@@ -452,7 +452,6 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		server->maxBuf = min((__u32)le16_to_cpu(rsp->MaxBufSize),
 				(__u32)CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
 		server->max_vcs = le16_to_cpu(rsp->MaxNumberVcs);
-		GETU32(server->sessid) = le32_to_cpu(rsp->SessionKey);
 		/* even though we do not use raw we might as well set this
 		accurately, in case we ever find a need for it */
 		if ((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
@@ -566,7 +565,6 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			(__u32) CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
 	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
 	cFYI(DBG2, "Max buf = %d", ses->server->maxBuf);
-	GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
 	server->timeAdj *= 60;
