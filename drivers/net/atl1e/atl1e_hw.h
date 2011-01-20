@@ -629,127 +629,24 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /***************************** MII definition ***************************************/
 /* PHY Common Register */
-#define MII_BMCR                        0x00
-#define MII_BMSR                        0x01
-#define MII_PHYSID1                     0x02
-#define MII_PHYSID2                     0x03
-#define MII_ADVERTISE                   0x04
-#define MII_LPA                         0x05
-#define MII_EXPANSION                   0x06
-#define MII_AT001_CR                    0x09
-#define MII_AT001_SR                    0x0A
-#define MII_AT001_ESR                   0x0F
 #define MII_AT001_PSCR                  0x10
 #define MII_AT001_PSSR                  0x11
 #define MII_INT_CTRL                    0x12
 #define MII_INT_STATUS                  0x13
 #define MII_SMARTSPEED                  0x14
-#define MII_RERRCOUNTER                 0x15
-#define MII_SREVISION                   0x16
-#define MII_RESV1                       0x17
 #define MII_LBRERROR                    0x18
-#define MII_PHYADDR                     0x19
 #define MII_RESV2                       0x1a
-#define MII_TPISTATUS                   0x1b
-#define MII_NCONFIG                     0x1c
 
 #define MII_DBG_ADDR			0x1D
 #define MII_DBG_DATA			0x1E
 
-
-/* PHY Control Register */
-#define MII_CR_SPEED_SELECT_MSB                  0x0040  /* bits 6,13: 10=1000, 01=100, 00=10 */
-#define MII_CR_COLL_TEST_ENABLE                  0x0080  /* Collision test enable */
-#define MII_CR_FULL_DUPLEX                       0x0100  /* FDX =1, half duplex =0 */
-#define MII_CR_RESTART_AUTO_NEG                  0x0200  /* Restart auto negotiation */
-#define MII_CR_ISOLATE                           0x0400  /* Isolate PHY from MII */
-#define MII_CR_POWER_DOWN                        0x0800  /* Power down */
-#define MII_CR_AUTO_NEG_EN                       0x1000  /* Auto Neg Enable */
-#define MII_CR_SPEED_SELECT_LSB                  0x2000  /* bits 6,13: 10=1000, 01=100, 00=10 */
-#define MII_CR_LOOPBACK                          0x4000  /* 0 = normal, 1 = loopback */
-#define MII_CR_RESET                             0x8000  /* 0 = normal, 1 = PHY reset */
-#define MII_CR_SPEED_MASK                        0x2040
-#define MII_CR_SPEED_1000                        0x0040
-#define MII_CR_SPEED_100                         0x2000
-#define MII_CR_SPEED_10                          0x0000
-
-
-/* PHY Status Register */
-#define MII_SR_EXTENDED_CAPS                     0x0001  /* Extended register capabilities */
-#define MII_SR_JABBER_DETECT                     0x0002  /* Jabber Detected */
-#define MII_SR_LINK_STATUS                       0x0004  /* Link Status 1 = link */
-#define MII_SR_AUTONEG_CAPS                      0x0008  /* Auto Neg Capable */
-#define MII_SR_REMOTE_FAULT                      0x0010  /* Remote Fault Detect */
-#define MII_SR_AUTONEG_COMPLETE                  0x0020  /* Auto Neg Complete */
-#define MII_SR_PREAMBLE_SUPPRESS                 0x0040  /* Preamble may be suppressed */
-#define MII_SR_EXTENDED_STATUS                   0x0100  /* Ext. status info in Reg 0x0F */
-#define MII_SR_100T2_HD_CAPS                     0x0200  /* 100T2 Half Duplex Capable */
-#define MII_SR_100T2_FD_CAPS                     0x0400  /* 100T2 Full Duplex Capable */
-#define MII_SR_10T_HD_CAPS                       0x0800  /* 10T   Half Duplex Capable */
-#define MII_SR_10T_FD_CAPS                       0x1000  /* 10T   Full Duplex Capable */
-#define MII_SR_100X_HD_CAPS                      0x2000  /* 100X  Half Duplex Capable */
-#define MII_SR_100X_FD_CAPS                      0x4000  /* 100X  Full Duplex Capable */
-#define MII_SR_100T4_CAPS                        0x8000  /* 100T4 Capable */
-
-/* Link partner ability register. */
-#define MII_LPA_SLCT                             0x001f  /* Same as advertise selector  */
-#define MII_LPA_10HALF                           0x0020  /* Can do 10mbps half-duplex   */
-#define MII_LPA_10FULL                           0x0040  /* Can do 10mbps full-duplex   */
-#define MII_LPA_100HALF                          0x0080  /* Can do 100mbps half-duplex  */
-#define MII_LPA_100FULL                          0x0100  /* Can do 100mbps full-duplex  */
-#define MII_LPA_100BASE4                         0x0200  /* 100BASE-T4  */
-#define MII_LPA_PAUSE                            0x0400  /* PAUSE */
-#define MII_LPA_ASYPAUSE                         0x0800  /* Asymmetrical PAUSE */
-#define MII_LPA_RFAULT                           0x2000  /* Link partner faulted        */
-#define MII_LPA_LPACK                            0x4000  /* Link partner acked us       */
-#define MII_LPA_NPAGE                            0x8000  /* Next page bit               */
-
 /* Autoneg Advertisement Register */
-#define MII_AR_SELECTOR_FIELD                   0x0001  /* indicates IEEE 802.3 CSMA/CD */
-#define MII_AR_10T_HD_CAPS                      0x0020  /* 10T   Half Duplex Capable */
-#define MII_AR_10T_FD_CAPS                      0x0040  /* 10T   Full Duplex Capable */
-#define MII_AR_100TX_HD_CAPS                    0x0080  /* 100TX Half Duplex Capable */
-#define MII_AR_100TX_FD_CAPS                    0x0100  /* 100TX Full Duplex Capable */
-#define MII_AR_100T4_CAPS                       0x0200  /* 100T4 Capable */
-#define MII_AR_PAUSE                            0x0400  /* Pause operation desired */
-#define MII_AR_ASM_DIR                          0x0800  /* Asymmetric Pause Direction bit */
-#define MII_AR_REMOTE_FAULT                     0x2000  /* Remote Fault detected */
-#define MII_AR_NEXT_PAGE                        0x8000  /* Next Page ability supported */
-#define MII_AR_SPEED_MASK                       0x01E0
-#define MII_AR_DEFAULT_CAP_MASK                 0x0DE0
+#define MII_AR_DEFAULT_CAP_MASK                 0
 
 /* 1000BASE-T Control Register */
-#define MII_AT001_CR_1000T_HD_CAPS              0x0100  /* Advertise 1000T HD capability */
-#define MII_AT001_CR_1000T_FD_CAPS              0x0200  /* Advertise 1000T FD capability  */
-#define MII_AT001_CR_1000T_REPEATER_DTE         0x0400  /* 1=Repeater/switch device port */
-/* 0=DTE device */
-#define MII_AT001_CR_1000T_MS_VALUE             0x0800  /* 1=Configure PHY as Master */
-/* 0=Configure PHY as Slave */
-#define MII_AT001_CR_1000T_MS_ENABLE            0x1000  /* 1=Master/Slave manual config value */
-/* 0=Automatic Master/Slave config */
-#define MII_AT001_CR_1000T_TEST_MODE_NORMAL     0x0000  /* Normal Operation */
-#define MII_AT001_CR_1000T_TEST_MODE_1          0x2000  /* Transmit Waveform test */
-#define MII_AT001_CR_1000T_TEST_MODE_2          0x4000  /* Master Transmit Jitter test */
-#define MII_AT001_CR_1000T_TEST_MODE_3          0x6000  /* Slave Transmit Jitter test */
-#define MII_AT001_CR_1000T_TEST_MODE_4          0x8000  /* Transmitter Distortion test */
-#define MII_AT001_CR_1000T_SPEED_MASK           0x0300
-#define MII_AT001_CR_1000T_DEFAULT_CAP_MASK     0x0300
-
-/* 1000BASE-T Status Register */
-#define MII_AT001_SR_1000T_LP_HD_CAPS           0x0400  /* LP is 1000T HD capable */
-#define MII_AT001_SR_1000T_LP_FD_CAPS           0x0800  /* LP is 1000T FD capable */
-#define MII_AT001_SR_1000T_REMOTE_RX_STATUS     0x1000  /* Remote receiver OK */
-#define MII_AT001_SR_1000T_LOCAL_RX_STATUS      0x2000  /* Local receiver OK */
-#define MII_AT001_SR_1000T_MS_CONFIG_RES        0x4000  /* 1=Local TX is Master, 0=Slave */
-#define MII_AT001_SR_1000T_MS_CONFIG_FAULT      0x8000  /* Master/Slave config fault */
-#define MII_AT001_SR_1000T_REMOTE_RX_STATUS_SHIFT   12
-#define MII_AT001_SR_1000T_LOCAL_RX_STATUS_SHIFT    13
-
-/* Extended Status Register */
-#define MII_AT001_ESR_1000T_HD_CAPS             0x1000  /* 1000T HD capable */
-#define MII_AT001_ESR_1000T_FD_CAPS             0x2000  /* 1000T FD capable */
-#define MII_AT001_ESR_1000X_HD_CAPS             0x4000  /* 1000X HD capable */
-#define MII_AT001_ESR_1000X_FD_CAPS             0x8000  /* 1000X FD capable */
+#define MII_AT001_CR_1000T_SPEED_MASK \
+	(ADVERTISE_1000FULL | ADVERTISE_1000HALF)
+#define MII_AT001_CR_1000T_DEFAULT_CAP_MASK	MII_AT001_CR_1000T_SPEED_MASK
 
 /* AT001 PHY Specific Control Register */
 #define MII_AT001_PSCR_JABBER_DISABLE           0x0001  /* 1=Jabber Function disabled */
