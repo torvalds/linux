@@ -36,6 +36,7 @@ enum qdisc___state_t {
 };
 
 struct qdisc_size_table {
+	struct rcu_head		rcu;
 	struct list_head	list;
 	struct tc_sizespec	szopts;
 	int			refcnt;
@@ -53,7 +54,7 @@ struct Qdisc {
 #define TCQ_F_WARN_NONWC	(1 << 16)
 	int			padded;
 	struct Qdisc_ops	*ops;
-	struct qdisc_size_table	*stab;
+	struct qdisc_size_table	__rcu *stab;
 	struct list_head	list;
 	u32			handle;
 	u32			parent;
@@ -349,8 +350,8 @@ extern struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 				 struct Qdisc_ops *ops);
 extern struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 				       struct Qdisc_ops *ops, u32 parentid);
-extern void qdisc_calculate_pkt_len(struct sk_buff *skb,
-				   struct qdisc_size_table *stab);
+extern void __qdisc_calculate_pkt_len(struct sk_buff *skb,
+				      const struct qdisc_size_table *stab);
 extern void tcf_destroy(struct tcf_proto *tp);
 extern void tcf_destroy_chain(struct tcf_proto **fl);
 
@@ -429,12 +430,20 @@ enum net_xmit_qdisc_t {
 #define net_xmit_drop_count(e)	(1)
 #endif
 
-static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static inline void qdisc_calculate_pkt_len(struct sk_buff *skb,
+					   const struct Qdisc *sch)
 {
 #ifdef CONFIG_NET_SCHED
-	if (sch->stab)
-		qdisc_calculate_pkt_len(skb, sch->stab);
+	struct qdisc_size_table *stab = rcu_dereference_bh(sch->stab);
+
+	if (stab)
+		__qdisc_calculate_pkt_len(skb, stab);
 #endif
+}
+
+static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+{
+	qdisc_calculate_pkt_len(skb, sch);
 	return sch->enqueue(skb, sch);
 }
 

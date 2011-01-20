@@ -398,6 +398,11 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	return stab;
 }
 
+static void stab_kfree_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct qdisc_size_table, rcu));
+}
+
 void qdisc_put_stab(struct qdisc_size_table *tab)
 {
 	if (!tab)
@@ -407,7 +412,7 @@ void qdisc_put_stab(struct qdisc_size_table *tab)
 
 	if (--tab->refcnt == 0) {
 		list_del(&tab->list);
-		kfree(tab);
+		call_rcu_bh(&tab->rcu, stab_kfree_rcu);
 	}
 
 	spin_unlock(&qdisc_stab_lock);
@@ -430,7 +435,7 @@ nla_put_failure:
 	return -1;
 }
 
-void qdisc_calculate_pkt_len(struct sk_buff *skb, struct qdisc_size_table *stab)
+void __qdisc_calculate_pkt_len(struct sk_buff *skb, const struct qdisc_size_table *stab)
 {
 	int pkt_len, slot;
 
@@ -456,7 +461,7 @@ out:
 		pkt_len = 1;
 	qdisc_skb_cb(skb)->pkt_len = pkt_len;
 }
-EXPORT_SYMBOL(qdisc_calculate_pkt_len);
+EXPORT_SYMBOL(__qdisc_calculate_pkt_len);
 
 void qdisc_warn_nonwc(char *txt, struct Qdisc *qdisc)
 {
@@ -835,7 +840,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				err = PTR_ERR(stab);
 				goto err_out4;
 			}
-			sch->stab = stab;
+			rcu_assign_pointer(sch->stab, stab);
 		}
 		if (tca[TCA_RATE]) {
 			spinlock_t *root_lock;
@@ -875,7 +880,7 @@ err_out4:
 	 * Any broken qdiscs that would require a ops->reset() here?
 	 * The qdisc was never in action so it shouldn't be necessary.
 	 */
-	qdisc_put_stab(sch->stab);
+	qdisc_put_stab(rtnl_dereference(sch->stab));
 	if (ops->destroy)
 		ops->destroy(sch);
 	goto err_out3;
@@ -883,7 +888,7 @@ err_out4:
 
 static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 {
-	struct qdisc_size_table *stab = NULL;
+	struct qdisc_size_table *ostab, *stab = NULL;
 	int err = 0;
 
 	if (tca[TCA_OPTIONS]) {
@@ -900,8 +905,9 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 			return PTR_ERR(stab);
 	}
 
-	qdisc_put_stab(sch->stab);
-	sch->stab = stab;
+	ostab = rtnl_dereference(sch->stab);
+	rcu_assign_pointer(sch->stab, stab);
+	qdisc_put_stab(ostab);
 
 	if (tca[TCA_RATE]) {
 		/* NB: ignores errors from replace_estimator
@@ -1180,6 +1186,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	struct nlmsghdr  *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct gnet_dump d;
+	struct qdisc_size_table *stab;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*tcm), flags);
 	tcm = NLMSG_DATA(nlh);
@@ -1195,7 +1202,8 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 		goto nla_put_failure;
 	q->qstats.qlen = q->q.qlen;
 
-	if (q->stab && qdisc_dump_stab(skb, q->stab) < 0)
+	stab = rtnl_dereference(q->stab);
+	if (stab && qdisc_dump_stab(skb, stab) < 0)
 		goto nla_put_failure;
 
 	if (gnet_stats_start_copy_compat(skb, TCA_STATS2, TCA_STATS, TCA_XSTATS,
