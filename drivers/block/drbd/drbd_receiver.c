@@ -1237,6 +1237,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 
 	data_size -= dgs;
 
+	ERR_IF(data_size == 0) return NULL;
 	ERR_IF(data_size &  0x1ff) return NULL;
 	ERR_IF(data_size >  DRBD_MAX_BIO_SIZE) return NULL;
 
