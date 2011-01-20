@@ -167,4 +167,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev);
 u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
 
+/* DRI warts */
+int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size);
+
 #endif /* _INTEL_RINGBUFFER_H_ */

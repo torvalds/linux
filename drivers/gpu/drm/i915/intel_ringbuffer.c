@@ -1291,6 +1291,48 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	return intel_init_ring_buffer(dev, ring);
 }
 
+int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+
+	*ring = render_ring;
+	if (INTEL_INFO(dev)->gen >= 6) {
+		ring->add_request = gen6_add_request;
+		ring->irq_get = gen6_render_ring_get_irq;
+		ring->irq_put = gen6_render_ring_put_irq;
+	} else if (IS_GEN5(dev)) {
+		ring->add_request = pc_render_add_request;
+		ring->get_seqno = pc_render_get_seqno;
+	}
+
+	ring->dev = dev;
+	INIT_LIST_HEAD(&ring->active_list);
+	INIT_LIST_HEAD(&ring->request_list);
+	INIT_LIST_HEAD(&ring->gpu_write_list);
+
+	ring->size = size;
+	ring->effective_size = ring->size;
+	if (IS_I830(ring->dev))
+		ring->effective_size -= 128;
+
+	ring->map.offset = start;
+	ring->map.size = size;
+	ring->map.type = 0;
+	ring->map.flags = 0;
+	ring->map.mtrr = 0;
+
+	drm_core_ioremap_wc(&ring->map, dev);
+	if (ring->map.handle == NULL) {
+		DRM_ERROR("can not ioremap virtual address for"
+			  " ring buffer\n");
+		return -ENOMEM;
+	}
+
+	ring->virtual_start = (void __force __iomem *)ring->map.handle;
+	return 0;
+}
+
 int intel_init_bsd_ring_buffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
