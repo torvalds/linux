@@ -29,17 +29,25 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
-
 #include <mach/rk29_camera.h>
 #include <mach/rk29_iomap.h>
 #include <mach/iomux.h>
-
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/videobuf-dma-contig.h>
 #include <media/soc_camera.h>
-
 #include <mach/rk29-ipp.h>
+
+
+static int debug;
+module_param(debug, int, S_IRUGO|S_IWUSR);
+
+#define dprintk(level, fmt, arg...) do {			\
+	if (debug >= level) 					\
+	printk(KERN_DEBUG "rk29xx_camera: " fmt , ## arg); } while (0)
+
+#define RK29CAMERA_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
+#define RK29CAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
 
 // VIP Reg Offset
 #define RK29_VIP_AHBR_CTRL                0x00
@@ -118,20 +126,6 @@
 #define mask_grf_reg(addr, msk, val)    write_vip_reg(addr, (val)|((~(msk))&read_vip_reg(addr)))
 
 //Configure Macro
-#define CONFIG_RK29CAMERA_TR      1
-#define CONFIG_RK29CAMERA_DEBUG	  1
-#if (CONFIG_RK29CAMERA_TR)
-	#define RK29CAMERA_TR(format, ...)      printk(format, ## __VA_ARGS__)
-	#if (CONFIG_RK29CAMERA_DEBUG)
-	#define RK29CAMERA_DG(format, ...)      printk(format, ## __VA_ARGS__)
-	#else
-	#define RK29CAMERA_DG(format, ...)
-	#endif
-#else
-	#define RK29CAMERA_TR(format, ...)
-	#define RK29CAMERA_DG(format, ...)
-#endif
-
 #define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 1)
 
 /* limit to rk29 hardware capabilities */
@@ -280,7 +274,7 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	if ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height))
 		BUG_ON(pcdev->vipmem_bsize*(*count) > pcdev->vipmem_size);
 
-    RK29CAMERA_DG("\n%s..%d.. videobuf size:%d, vipmem_buf size:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_bsize);
+    RK29CAMERA_DG("%s..%d.. videobuf size:%d, vipmem_buf size:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_bsize);
 
     return 0;
 }
@@ -596,7 +590,7 @@ static int rk29_camera_activate(struct rk29_camera_dev *pcdev, struct soc_camera
     unsigned long sensor_bus_flags = SOCAM_MCLK_24MHZ;
     struct clk *parent;
 
-    RK29CAMERA_DG("\n%s..%d.. \n",__FUNCTION__,__LINE__);
+    RK29CAMERA_DG("%s..%d.. \n",__FUNCTION__,__LINE__);
     if (!pcdev->aclk_ddr_lcdc || !pcdev->aclk_disp_matrix ||  !pcdev->hclk_cpu_display ||
 		!pcdev->vip_slave || !pcdev->vip || !pcdev->vip_input || !pcdev->vip_bus ||
 		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) ||
@@ -793,7 +787,7 @@ static int rk29_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
     unsigned int vip_ctrl_val = 0;
     int ret = 0;
 
-    RK29CAMERA_DG("\n%s..%d..\n",__FUNCTION__,__LINE__);
+    RK29CAMERA_DG("%s..%d..\n",__FUNCTION__,__LINE__);
 
     bus_flags = RK29_CAM_BUS_PARAM;
 	if (icd->ops->query_bus_param)
@@ -838,7 +832,7 @@ static int rk29_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt
     //vip_ctrl_val |= ENABLE_CAPTURE;
 
     write_vip_reg(RK29_VIP_CTRL, vip_ctrl_val);
-    RK29CAMERA_DG("\n%s..ctrl:0x%x CtrReg=%x AXI_AHB:0x%x aclk_hclk:0x%x \n",__FUNCTION__,vip_ctrl_val,read_vip_reg(RK29_VIP_CTRL),
+    RK29CAMERA_DG("%s..ctrl:0x%x CtrReg=%x AXI_AHB:0x%x aclk_hclk:0x%x \n",__FUNCTION__,vip_ctrl_val,read_vip_reg(RK29_VIP_CTRL),
 		read_grf_reg(GRF_SOC_CON0_Reg)&VIP_AHBMASTER, read_grf_reg(GRF_OS_REG0)&VIP_ACLK_DIV_HCLK_2);
 
 RK29_CAMERA_SET_BUS_PARAM_END:
@@ -947,7 +941,7 @@ static void rk29_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
 	pcdev->host_width = rect->width;
 	pcdev->host_height = rect->height;
 
-    RK29CAMERA_DG("\n%s.. crop:0x%x fs:0x%x ctrl:0x%x CtrlReg:0x%x\n",__FUNCTION__,vip_crop,vip_fs,vip_ctrl_val,read_vip_reg(RK29_VIP_CTRL));
+    RK29CAMERA_DG("%s.. crop:0x%x fs:0x%x ctrl:0x%x CtrlReg:0x%x\n",__FUNCTION__,vip_crop,vip_fs,vip_ctrl_val,read_vip_reg(RK29_VIP_CTRL));
 	return;
 }
 
@@ -1064,7 +1058,7 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
 
 	usr_w = pix->width;
 	usr_h = pix->height;
-    RK29CAMERA_DG("\n%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
+    RK29CAMERA_DG("%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
     if (!xlate) {
@@ -1093,7 +1087,7 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
         rect.width = cam_f.fmt.pix.width;
         rect.height = cam_f.fmt.pix.height;
 
-        RK29CAMERA_DG("\n%s..%s..%s icd width:%d  host width:%d \n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name,
+        RK29CAMERA_DG("%s..%s..%s icd width:%d  host width:%d \n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name,
 			           rect.width, pix->width);
         rk29_camera_setup_format(icd, pix->pixelformat, cam_fmt->fourcc, &rect);
         icd->buswidth = xlate->buswidth;
@@ -1123,7 +1117,7 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
 
 	usr_w = pix->width;
 	usr_h = pix->height;
-	RK29CAMERA_DG("\n%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
+	RK29CAMERA_DG("%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
     if (!xlate) {
@@ -1353,7 +1347,7 @@ static int rk29_camera_probe(struct platform_device *pdev)
     int irq;
     int err = 0;
 
-    RK29CAMERA_DG("\n%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
+    RK29CAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
     irq = platform_get_irq(pdev, 0);
     if (!res || irq < 0) {
@@ -1411,7 +1405,7 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	if (pcdev->pdata && (strcmp(pcdev->pdata->meminfo.name,"camera_ipp_mem")==0)) {
 		pcdev->vipmem_phybase = pcdev->pdata->meminfo.start;
 		pcdev->vipmem_size = pcdev->pdata->meminfo.size;
-		RK29CAMERA_TR("\n%s Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
+		RK29CAMERA_DG("\n%s Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
 	} else {
 		RK29CAMERA_TR("\n%s Memory for IPP have not obtain! IPP Function is fail\n",__FUNCTION__);
 		pcdev->vipmem_phybase = 0;
@@ -1466,7 +1460,7 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	hrtimer_init(&pcdev->fps_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pcdev->fps_timer.function = rk29_camera_fps_func;
 
-    RK29CAMERA_DG("\n%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
+    RK29CAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     return 0;
 
 exit_free_irq:
@@ -1564,7 +1558,7 @@ static struct platform_driver rk29_camera_driver =
 
 static int __devinit rk29_camera_init(void)
 {
-    RK29CAMERA_DG("\n%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
+    RK29CAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     return platform_driver_register(&rk29_camera_driver);
 }
 

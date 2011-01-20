@@ -22,12 +22,25 @@
 #include <mach/rk29_camera.h>
 #include "ov5642.h"
 
+static int debug;
+module_param(debug, int, S_IRUGO|S_IWUSR);
+
+#define dprintk(level, fmt, arg...) do {			\
+	if (debug >= level) 					\
+	printk(KERN_DEBUG fmt , ## arg); } while (0)
+
+#define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
+
 #define _CONS(a,b) a##b
 #define CONS(a,b) _CONS(a,b)
 
 #define __STR(x) #x
 #define _STR(x) __STR(x)
 #define STR(x) _STR(x)
+
+#define MIN(x,y)   ((x<y) ? x: y)
+#define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
 #define SENSOR_NAME ov5642
@@ -65,25 +78,6 @@
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   1
 
-#define CONFIG_SENSOR_TR      1
-#define CONFIG_SENSOR_DEBUG	  1
-
-#define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
-#define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
-
-#define MIN(x,y)   ((x<y) ? x: y)
-#define MAX(x,y)    ((x>y) ? x: y)
-
-#if (CONFIG_SENSOR_TR)
-	#define SENSOR_TR(format, ...)      printk(format, ## __VA_ARGS__)
-	#if (CONFIG_SENSOR_DEBUG)
-	#define SENSOR_DG(format, ...)      printk(format, ## __VA_ARGS__)
-	#else
-	#define SENSOR_DG(format, ...)
-	#endif
-#else
-	#define SENSOR_TR(format, ...)
-#endif
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
@@ -97,6 +91,9 @@
 #define COLOR_TEMPERATURE_OFFICE_UP     5000
 #define COLOR_TEMPERATURE_HOME_DN       2500
 #define COLOR_TEMPERATURE_HOME_UP       3500
+
+#define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
+#define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
 
 #define SENSOR_AF_IS_ERR    (0x00<<0)
 #define SENSOR_AF_IS_OK		(0x01<<0)
@@ -3368,7 +3365,7 @@ static int sensor_af_cmdset(struct i2c_client *client, int cmd_main, struct af_c
 					SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
 					goto sensor_af_cmdset_err;
 				}
-				SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
+				SENSOR_DG("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
 			}
 		}
 	} else {
@@ -4194,7 +4191,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     }
     else
     {
-        SENSOR_TR("\n %s .. Current Format is validate. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),set_w,set_h);
+        SENSOR_DG("\n %s .. Current Format is validate. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),set_w,set_h);
     }
 
 	pix->width = set_w;
