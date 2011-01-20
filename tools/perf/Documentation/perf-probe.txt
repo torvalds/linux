@@ -77,6 +77,12 @@ OPTIONS
 --funcs::
 	Show available functions in given module or kernel.
 
+--filter=FILTER::
+	(Only for --vars) Set filter for variables. FILTER is a combination of
+	glob pattern, see FILTER PATTERN for details.
+	Default FILTER is "!__k???tab_* & !__crc_*".
+	If several filters are specified, only the last filter is valid.
+
 -f::
 --force::
 	Forcibly add events with existing name.
@@ -139,6 +145,14 @@ e.g.
 
 This provides some sort of flexibility and robustness to probe point definitions against minor code changes. For example, actual 10th line of schedule() can be moved easily by modifying schedule(), but the same line matching 'rq=cpu_rq*' may still exist in the function.)
 
+FILTER PATTERN
+--------------
+ The filter pattern is a glob matching pattern(s) to filter variables.
+ In addition, you can use "!" for specifying filter-out rule. You also can give several rules combined with "&" or "|", and fold those rules as one rule by using "(" ")".
+
+e.g.
+ With --filter "foo* | bar*", perf probe -V shows variables which start with "foo" or "bar".
+ With --filter "!foo* & *bar", perf probe -V shows variables which don't start with "foo" and end with "bar", like "fizzbar". But "foobar" is filtered out.
 
 EXAMPLES
 --------

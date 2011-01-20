@@ -36,6 +36,7 @@
 #include "builtin.h"
 #include "util/util.h"
 #include "util/strlist.h"
+#include "util/strfilter.h"
 #include "util/symbol.h"
 #include "util/debug.h"
 #include "util/debugfs.h"
@@ -43,6 +44,7 @@
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
 
+#define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
 #define MAX_PATH_LEN 256
 
 /* Session management structure */
@@ -60,6 +62,7 @@ static struct {
 	struct line_range line_range;
 	const char *target_module;
 	int max_probe_points;
+	struct strfilter *filter;
 } params;
 
 /* Parse an event definition. Note that any error must die. */
@@ -156,6 +159,27 @@ static int opt_show_vars(const struct option *opt __used,
 
 	return ret;
 }
+
+static int opt_set_filter(const struct option *opt __used,
+			  const char *str, int unset __used)
+{
+	const char *err;
+
+	if (str) {
+		pr_debug2("Set filter: %s\n", str);
+		if (params.filter)
+			strfilter__delete(params.filter);
+		params.filter = strfilter__new(str, &err);
+		if (!params.filter) {
+			pr_err("Filter parse error at %ld.\n", err - str + 1);
+			pr_err("Source: \"%s\"\n", str);
+			pr_err("         %*c\n", (int)(err - str + 1), '^');
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
 #endif
 
 static const char * const probe_usage[] = {
@@ -212,6 +236,10 @@ static const struct option options[] = {
 		     "Show accessible variables on PROBEDEF", opt_show_vars),
 	OPT_BOOLEAN('\0', "externs", &params.show_ext_vars,
 		    "Show external variables too (with --vars only)"),
+	OPT_CALLBACK('\0', "filter", NULL,
+		     "[!]FILTER", "Set a variable filter (with --vars only)\n"
+		     "\t\t\t(default: \"" DEFAULT_VAR_FILTER "\")",
+		     opt_set_filter),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
@@ -324,10 +352,16 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			       " --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
+		if (!params.filter)
+			params.filter = strfilter__new(DEFAULT_VAR_FILTER,
+						       NULL);
+
 		ret = show_available_vars(params.events, params.nevents,
 					  params.max_probe_points,
 					  params.target_module,
+					  params.filter,
 					  params.show_ext_vars);
+		strfilter__delete(params.filter);
 		if (ret < 0)
 			pr_err("  Error: Failed to show vars. (%d)\n", ret);
 		return ret;
