@@ -194,6 +194,7 @@ void generic_smp_call_function_interrupt(void)
 	 */
 	list_for_each_entry_rcu(data, &call_function.queue, csd.list) {
 		int refs;
+		void (*func) (void *info);
 
 		/*
 		 * Since we walk the list without any locks, we might
@@ -213,23 +214,31 @@ void generic_smp_call_function_interrupt(void)
 		if (atomic_read(&data->refs) == 0)
 			continue;
 
-		if (!cpumask_test_and_clear_cpu(cpu, data->cpumask))
-			continue;
-
+		func = data->csd.func;			/* for later warn */
 		data->csd.func(data->csd.info);
+
+		/*
+		 * If the cpu mask is not still set then it enabled interrupts,
+		 * we took another smp interrupt, and executed the function
+		 * twice on this cpu.  In theory that copy decremented refs.
+		 */
+		if (!cpumask_test_and_clear_cpu(cpu, data->cpumask)) {
+			WARN(1, "%pS enabled interrupts and double executed\n",
+			     func);
+			continue;
+		}
 
 		refs = atomic_dec_return(&data->refs);
 		WARN_ON(refs < 0);
-		if (!refs) {
-			WARN_ON(!cpumask_empty(data->cpumask));
-
-			raw_spin_lock(&call_function.lock);
-			list_del_rcu(&data->csd.list);
-			raw_spin_unlock(&call_function.lock);
-		}
 
 		if (refs)
 			continue;
+
+		WARN_ON(!cpumask_empty(data->cpumask));
+
+		raw_spin_lock(&call_function.lock);
+		list_del_rcu(&data->csd.list);
+		raw_spin_unlock(&call_function.lock);
 
 		csd_unlock(&data->csd);
 	}
