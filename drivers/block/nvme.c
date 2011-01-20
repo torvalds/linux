@@ -172,11 +172,17 @@ static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
 {
-	return ns->dev->queues[1];
+	int qid, cpu = get_cpu();
+	if (cpu < ns->dev->queue_count)
+		qid = cpu + 1;
+	else
+		qid = (cpu % rounddown_pow_of_two(ns->dev->queue_count)) + 1;
+	return ns->dev->queues[qid];
 }
 
 static void put_nvmeq(struct nvme_queue *nvmeq)
 {
+	put_cpu();
 }
 
 /**
@@ -795,19 +801,51 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 	return min(result & 0xffff, result >> 16) + 1;
 }
 
-/* XXX: Create per-CPU queues */
 static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 {
-	int this_cpu;
+	int result, cpu, i, nr_queues;
 
-	set_queue_count(dev, 1);
+	nr_queues = num_online_cpus();
+	result = set_queue_count(dev, nr_queues);
+	if (result < 0)
+		return result;
+	if (result < nr_queues)
+		nr_queues = result;
 
-	this_cpu = get_cpu();
-	dev->queues[1] = nvme_create_queue(dev, 1, NVME_Q_DEPTH, this_cpu);
-	put_cpu();
-	if (!dev->queues[1])
-		return -ENOMEM;
-	dev->queue_count++;
+	/* Deregister the admin queue's interrupt */
+	free_irq(dev->entry[0].vector, dev->queues[0]);
+
+	for (i = 0; i < nr_queues; i++)
+		dev->entry[i].entry = i;
+	for (;;) {
+		result = pci_enable_msix(dev->pci_dev, dev->entry, nr_queues);
+		if (result == 0) {
+			break;
+		} else if (result > 0) {
+			nr_queues = result;
+			continue;
+		} else {
+			nr_queues = 1;
+			break;
+		}
+	}
+
+	result = queue_request_irq(dev, dev->queues[0], "nvme admin");
+	/* XXX: handle failure here */
+
+	cpu = cpumask_first(cpu_online_mask);
+	for (i = 0; i < nr_queues; i++) {
+		irq_set_affinity_hint(dev->entry[i].vector, get_cpu_mask(cpu));
+		cpu = cpumask_next(cpu, cpu_online_mask);
+	}
+
+	for (i = 0; i < nr_queues; i++) {
+		dev->queues[i + 1] = nvme_create_queue(dev, i + 1,
+							NVME_Q_DEPTH, i);
+		if (!dev->queues[i + 1])
+			return -ENOMEM;
+		dev->queue_count++;
+	}
 
 	return 0;
 }
@@ -931,7 +969,8 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 								GFP_KERNEL);
 	if (!dev->entry)
 		goto free;
-	dev->queues = kcalloc(2, sizeof(void *), GFP_KERNEL);
+	dev->queues = kcalloc(num_possible_cpus() + 1, sizeof(void *),
+								GFP_KERNEL);
 	if (!dev->queues)
 		goto free;
 
