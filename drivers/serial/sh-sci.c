@@ -1595,27 +1595,43 @@ static const char *sci_type(struct uart_port *port)
 	return NULL;
 }
 
+static inline unsigned long sci_port_size(struct uart_port *port)
+{
+	/*
+	 * Pick an arbitrary size that encapsulates all of the base
+	 * registers by default. This can be optimized later, or derived
+	 * from platform resource data at such a time that ports begin to
+	 * behave more erratically.
+	 */
+	return 64;
+}
+
 static void sci_release_port(struct uart_port *port)
 {
-	/* Nothing here yet .. */
+	if (port->flags & UPF_IOREMAP) {
+		iounmap(port->membase);
+		port->membase = NULL;
+	}
+
+	release_mem_region(port->mapbase, sci_port_size(port));
 }
 
 static int sci_request_port(struct uart_port *port)
 {
-	/* Nothing here yet .. */
-	return 0;
-}
+	unsigned long size = sci_port_size(port);
+	struct resource *res;
 
-static void sci_config_port(struct uart_port *port, int flags)
-{
-	struct sci_port *s = to_sci_port(port);
-
-	port->type = s->cfg->type;
+	res = request_mem_region(port->mapbase, size, sci_type(port));
+	if (unlikely(res == NULL))
+		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = ioremap_nocache(port->mapbase, 0x40);
-		if (unlikely(!port->membase))
+		port->membase = ioremap_nocache(port->mapbase, size);
+		if (unlikely(!port->membase)) {
 			dev_err(port->dev, "can't remap port#%d\n", port->line);
+			release_resource(res);
+			return -ENXIO;
+		}
 	} else {
 		/*
 		 * For the simple (and majority of) cases where we don't
@@ -1623,6 +1639,18 @@ static void sci_config_port(struct uart_port *port, int flags)
 		 * directly.
 		 */
 		port->membase = (void __iomem *)port->mapbase;
+	}
+
+	return 0;
+}
+
+static void sci_config_port(struct uart_port *port, int flags)
+{
+	if (flags & UART_CONFIG_TYPE) {
+		struct sci_port *sport = to_sci_port(port);
+
+		port->type = sport->cfg->type;
+		sci_request_port(port);
 	}
 }
 
