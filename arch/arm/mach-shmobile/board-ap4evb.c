@@ -674,8 +674,6 @@ static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
 
 static struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
-		       SH_FSI_OUT_SLAVE_MODE |
-		       SH_FSI_IN_SLAVE_MODE |
 		       SH_FSI_OFMT(PCM) |
 		       SH_FSI_IFMT(PCM),
 

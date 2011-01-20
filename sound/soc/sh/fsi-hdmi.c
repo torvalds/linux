@@ -12,6 +12,16 @@
 #include <linux/platform_device.h>
 #include <sound/sh_fsi.h>
 
+static int fsi_hdmi_dai_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *cpu = rtd->cpu_dai;
+	int ret;
+
+	ret = snd_soc_dai_set_fmt(cpu, SND_SOC_DAIFMT_CBM_CFM);
+
+	return ret;
+}
+
 static struct snd_soc_dai_link fsi_dai_link = {
 	.name		= "HDMI",
 	.stream_name	= "HDMI",
@@ -19,6 +29,7 @@ static struct snd_soc_dai_link fsi_dai_link = {
 	.codec_dai_name	= "sh_mobile_hdmi-hifi",
 	.platform_name	= "sh_fsi2",
 	.codec_name	= "sh-mobile-hdmi",
+	.init		= fsi_hdmi_dai_init,
 };
 
 static struct snd_soc_card fsi_soc_card  = {

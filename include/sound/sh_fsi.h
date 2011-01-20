@@ -17,12 +17,11 @@
 
 /* flags format
 
- * 0xABCDEEFF
+ * 0xABC0EEFF
  *
  * A:  channel size for TDM (input)
  * B:  channel size for TDM (ooutput)
  * C:  inversion
- * D:  mode
  * E:  input format
  * F:  output format
  */
@@ -45,11 +44,6 @@
 #define SH_FSI_BRM_INV		(1 << 21)
 #define SH_FSI_LRS_INV		(1 << 22)
 #define SH_FSI_BRS_INV		(1 << 23)
-
-/* mode */
-#define SH_FSI_MODE_MASK	0x000F0000
-#define SH_FSI_IN_SLAVE_MODE	(1 << 16)  /* default master mode */
-#define SH_FSI_OUT_SLAVE_MODE	(1 << 17)  /* default master mode */
 
 /* DI format */
 #define SH_FSI_FMT_MASK		0x000000FF

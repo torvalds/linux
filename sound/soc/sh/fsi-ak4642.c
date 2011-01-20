@@ -23,15 +23,20 @@ struct fsi_ak4642_data {
 
 static int fsi_ak4642_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *dai = rtd->codec_dai;
+	struct snd_soc_dai *codec = rtd->codec_dai;
+	struct snd_soc_dai *cpu = rtd->cpu_dai;
 	int ret;
 
-	ret = snd_soc_dai_set_fmt(dai, SND_SOC_DAIFMT_LEFT_J |
-				       SND_SOC_DAIFMT_CBM_CFM);
+	ret = snd_soc_dai_set_fmt(codec, SND_SOC_DAIFMT_LEFT_J |
+					 SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_sysclk(dai, 0, 11289600, 0);
+	ret = snd_soc_dai_set_sysclk(codec, 0, 11289600, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_fmt(cpu, SND_SOC_DAIFMT_CBS_CFS);
 
 	return ret;
 }

@@ -119,9 +119,7 @@ static struct platform_device keysc_device = {
 
 /* FSI A */
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags = SH_FSI_OUT_SLAVE_MODE	|
-		       SH_FSI_IN_SLAVE_MODE	|
-		       SH_FSI_OFMT(I2S)		|
+	.porta_flags = SH_FSI_OFMT(I2S)		|
 		       SH_FSI_IFMT(I2S),
 };
 
