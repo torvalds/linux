@@ -1148,7 +1148,7 @@ int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
 	msg.flags = client->flags;
 	msg.len = count;
 	msg.buf = (char *)buf;
-	msg.scl_rate = 400 * 1000;
+	msg.scl_rate = 100 * 1000;
 
 	ret = i2c_transfer(adap, &msg, 1);
 	return (ret == 1) ? count : ret;
