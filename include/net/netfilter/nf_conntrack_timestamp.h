@@ -47,7 +47,19 @@ static inline void nf_ct_set_tstamp(struct net *net, bool enable)
 	net->ct.sysctl_tstamp = enable;
 }
 
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
 extern int nf_conntrack_tstamp_init(struct net *net);
 extern void nf_conntrack_tstamp_fini(struct net *net);
+#else
+static inline int nf_conntrack_tstamp_init(struct net *net)
+{
+	return 0;
+}
+
+static inline void nf_conntrack_tstamp_fini(struct net *net)
+{
+	return;
+}
+#endif /* CONFIG_NF_CONNTRACK_TIMESTAMP */
 
 #endif /* _NF_CONNTRACK_TSTAMP_H */
