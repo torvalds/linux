@@ -380,13 +380,18 @@ static int test__open_syscall_event_on_all_cpus(void)
 	for (cpu = 0; cpu < cpus->nr; ++cpu) {
 		unsigned int ncalls = nr_open_calls + cpu;
 
-		CPU_SET(cpu, cpu_set);
-		sched_setaffinity(0, cpu_set_size, cpu_set);
+		CPU_SET_S(cpus->map[cpu], cpu_set_size, cpu_set);
+		if (sched_setaffinity(0, cpu_set_size, cpu_set) < 0) {
+			pr_debug("sched_setaffinity() failed on CPU %d: %s ",
+				 cpus->map[cpu],
+				 strerror(errno));
+			goto out_close_fd;
+		}
 		for (i = 0; i < ncalls; ++i) {
 			fd = open("/etc/passwd", O_RDONLY);
 			close(fd);
 		}
-		CPU_CLR(cpu, cpu_set);
+		CPU_CLR_S(cpus->map[cpu], cpu_set_size, cpu_set);
 	}
 
 	/*
@@ -410,7 +415,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 		expected = nr_open_calls + cpu;
 		if (evsel->counts->cpu[cpu].val != expected) {
 			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %Ld\n",
-				 expected, cpu, evsel->counts->cpu[cpu].val);
+				 expected, cpus->map[cpu], evsel->counts->cpu[cpu].val);
 			goto out_close_fd;
 		}
 	}
