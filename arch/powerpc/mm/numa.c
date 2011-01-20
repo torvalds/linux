@@ -1289,7 +1289,7 @@ u64 memory_hotplug_max(void)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-/* Vrtual Processor Home Node (VPHN) support */
+/* Virtual Processor Home Node (VPHN) support */
 #ifdef CONFIG_PPC_SPLPAR
 #define VPHN_NR_CHANGE_CTRS (8)
 static u8 vphn_cpu_change_counts[NR_CPUS][VPHN_NR_CHANGE_CTRS];
