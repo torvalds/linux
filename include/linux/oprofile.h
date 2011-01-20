@@ -16,6 +16,8 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
+#include <linux/errno.h>
+#include <linux/printk.h>
 #include <asm/atomic.h>
  
 /* Each escaped entry is prefixed by ESCAPE_CODE
@@ -190,6 +192,13 @@ int oprofile_write_commit(struct op_entry *entry);
 int __init oprofile_perf_init(struct oprofile_operations *ops);
 void oprofile_perf_exit(void);
 char *op_name_from_perf_id(void);
+#else
+static inline int __init oprofile_perf_init(struct oprofile_operations *ops)
+{
+	pr_info("oprofile: hardware counters not available\n");
+	return -ENODEV;
+}
+static inline void oprofile_perf_exit(void) { }
 #endif /* CONFIG_HW_PERF_EVENTS */
 
 #endif /* OPROFILE_H */
