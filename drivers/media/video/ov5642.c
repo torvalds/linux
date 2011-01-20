@@ -3110,7 +3110,7 @@ enum sensor_work_state
 struct sensor_work
 {
 	struct i2c_client *client;
-	struct work_struct work;
+	struct delayed_work dwork;
 	enum sensor_work_state state;
 };
 
@@ -3571,11 +3571,8 @@ sensor_af_init_end:
 	return ret;
 }
 
-static void sensor_af_workqueue(struct work_struct *work)
+static int sensor_af_wq_function(struct i2c_client *client)
 {
-#if CONFIG_SENSOR_Focus
-	struct sensor_work *sensor_work = container_of(work, struct sensor_work, work);
-	struct i2c_client *client = sensor_work->client;
 	struct sensor *sensor = to_sensor(client);
 	struct af_cmdinfo cmdinfo;
 	int ret=0, focus_pos = 0xfe;
@@ -3585,6 +3582,7 @@ static void sensor_af_workqueue(struct work_struct *work)
 	mutex_lock(&sensor->wq_lock);
 	if (sensor_af_init(client)) {
 		sensor->info_priv.funmodule_state &= (~SENSOR_AF_IS_OK);
+		ret = -1;
 	} else {
 		sensor->info_priv.funmodule_state |= SENSOR_AF_IS_OK;
 
@@ -3625,12 +3623,23 @@ static void sensor_af_workqueue(struct work_struct *work)
 				SENSOR_DG("%s focus mode(0x%x) is unkonwn\n",SENSOR_NAME_STRING(),sensor->info_priv.auto_focus);
 		}
 
-		SENSOR_DG("%s sensor_af_workqueue set focus mode(0x%x) ret:0x%x\n",SENSOR_NAME_STRING(), sensor->info_priv.auto_focus,ret);
+		SENSOR_DG("%s sensor_af_wq_function set focus mode(0x%x) ret:0x%x\n",SENSOR_NAME_STRING(), sensor->info_priv.auto_focus,ret);
 	}
 
+sensor_af_wq_function_end:
 	sensor->sensor_wk.state = sensor_work_ready;
 	mutex_unlock(&sensor->wq_lock);
-#endif
+	return ret;
+}
+static void sensor_af_workqueue(struct work_struct *work)
+{
+	struct sensor_work *sensor_work = container_of(work, struct sensor_work, dwork.work);
+	struct i2c_client *client = sensor_work->client;
+	struct sensor *sensor = to_sensor(client);
+
+	if (sensor_af_wq_function(client) < 0) {
+		SENSOR_TR("%s af workqueue return false\n",SENSOR_NAME_STRING());
+	}
 }
 #endif
 int sensor_parameter_record(struct i2c_client *client)
@@ -4031,7 +4040,7 @@ static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
 		ret = true;
 	} else if ((f->fmt.pix.width == 2048) && (f->fmt.pix.height == 1536)) {
 		ret = true;
-	} else if ((f->fmt.pix.width == 2536) && (f->fmt.pix.height == 1944)) {
+	} else if ((f->fmt.pix.width == 2592) && (f->fmt.pix.height == 1944)) {
 		ret = true;
 	}
 
@@ -5040,31 +5049,38 @@ int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
+	struct v4l2_format fmt;
 
 	if (enable == 1) {
 		sensor->info_priv.enable = 1;
 		#if CONFIG_SENSOR_Focus
-		if (sensor->info_priv.affm_reinit == 1) {
-			if (sensor->sensor_wq != NULL) {
-				mutex_lock(&sensor->wq_lock);
-				if (sensor->sensor_wk.state == sensor_working) {
-					SENSOR_DG("%s sensor af firmware thread is runing, Ingore current work",SENSOR_NAME_STRING());
+		fmt.fmt.pix.width = icd->user_width;
+		fmt.fmt.pix.height = icd->user_height;
+		/* If auto focus firmware haven't download success, must download firmware again when in video or preview stream on */
+		if (sensor_fmt_capturechk(sd, &fmt) == false) {
+			if ((sensor->info_priv.affm_reinit == 1) || ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)==0)) {
+				if (sensor->sensor_wq != NULL) {
+					mutex_lock(&sensor->wq_lock);
+					if (sensor->sensor_wk.state == sensor_working) {
+						SENSOR_DG("%s sensor af firmware thread is runing, Ingore current work",SENSOR_NAME_STRING());
+						mutex_unlock(&sensor->wq_lock);
+						goto sensor_s_stream_end;
+					}
+					sensor->sensor_wk.state = sensor_working;
 					mutex_unlock(&sensor->wq_lock);
-					goto sensor_s_stream_end;
+					sensor->sensor_wk.client = client;
+					INIT_WORK(&(sensor->sensor_wk.dwork.work), sensor_af_workqueue);
+					queue_delayed_work(sensor->sensor_wq,&(sensor->sensor_wk.dwork.work), 0);
 				}
-				sensor->sensor_wk.state = sensor_working;
-				mutex_unlock(&sensor->wq_lock);
-				sensor->sensor_wk.client = client;
-				INIT_WORK(&(sensor->sensor_wk.work), sensor_af_workqueue);
-				queue_work(sensor->sensor_wq,&(sensor->sensor_wk.work));
+				sensor->info_priv.affm_reinit = 0;
 			}
-			sensor->info_priv.affm_reinit = 0;
 		}
 		#endif
 	} else if (enable == 0) {
 		sensor->info_priv.enable = 0;
 		#if CONFIG_SENSOR_Focus
-		flush_work(&(sensor->sensor_wk.work));
+		flush_work(&(sensor->sensor_wk.dwork.work));
 		mutex_lock(&sensor->wq_lock);
 		sensor->sensor_wk.state = sensor_work_ready;
 		mutex_unlock(&sensor->wq_lock);
