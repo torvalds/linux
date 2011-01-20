@@ -1137,6 +1137,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->state = BT_CONFIG;
 			hci_conn_hold(conn);
 			conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+			mgmt_connected(hdev->id, &ev->bdaddr);
 		} else
 			conn->state = BT_CONNECTED;
 
@@ -1269,13 +1270,18 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn) {
-		conn->state = BT_CLOSED;
+	if (!conn)
+		goto unlock;
 
-		hci_proto_disconn_cfm(conn, ev->reason);
-		hci_conn_del(conn);
-	}
+	conn->state = BT_CLOSED;
 
+	if (conn->type == ACL_LINK)
+		mgmt_disconnected(hdev->id, &conn->dst);
+
+	hci_proto_disconn_cfm(conn, ev->reason);
+	hci_conn_del(conn);
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 

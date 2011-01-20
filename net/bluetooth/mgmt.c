@@ -1090,3 +1090,23 @@ int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type)
 
 	return mgmt_event(MGMT_EV_NEW_KEY, &ev, sizeof(ev), NULL);
 }
+
+int mgmt_connected(u16 index, bdaddr_t *bdaddr)
+{
+	struct mgmt_ev_connected ev;
+
+	put_unaligned_le16(index, &ev.index);
+	bacpy(&ev.bdaddr, bdaddr);
+
+	return mgmt_event(MGMT_EV_CONNECTED, &ev, sizeof(ev), NULL);
+}
+
+int mgmt_disconnected(u16 index, bdaddr_t *bdaddr)
+{
+	struct mgmt_ev_disconnected ev;
+
+	put_unaligned_le16(index, &ev.index);
+	bacpy(&ev.bdaddr, bdaddr);
+
+	return mgmt_event(MGMT_EV_DISCONNECTED, &ev, sizeof(ev), NULL);
+}

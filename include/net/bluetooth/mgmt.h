@@ -162,3 +162,15 @@ struct mgmt_ev_new_key {
 	struct mgmt_key_info key;
 	__u8 old_key_type;
 } __packed;
+
+#define MGMT_EV_CONNECTED		0x000B
+struct mgmt_ev_connected {
+	__le16 index;
+	bdaddr_t bdaddr;
+} __packed;
+
+#define MGMT_EV_DISCONNECTED		0x000C
+struct mgmt_ev_disconnected {
+	__le16 index;
+	bdaddr_t bdaddr;
+} __packed;

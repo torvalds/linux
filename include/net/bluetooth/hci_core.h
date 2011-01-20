@@ -714,6 +714,8 @@ int mgmt_powered(u16 index, u8 powered);
 int mgmt_discoverable(u16 index, u8 discoverable);
 int mgmt_connectable(u16 index, u8 connectable);
 int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type);
+int mgmt_connected(u16 index, bdaddr_t *bdaddr);
+int mgmt_disconnected(u16 index, bdaddr_t *bdaddr);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
