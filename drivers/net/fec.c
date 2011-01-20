@@ -297,7 +297,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
 	 */
-	bdp->cbd_bufaddr = dma_map_single(&ndev->dev, bufaddr,
+	bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, bufaddr,
 			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
 
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
@@ -497,7 +497,8 @@ fec_enet_tx(struct net_device *ndev)
 		if (bdp == fep->cur_tx && fep->tx_full == 0)
 			break;
 
-		dma_unmap_single(&ndev->dev, bdp->cbd_bufaddr, FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
+		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
+				FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
 		bdp->cbd_bufaddr = 0;
 
 		skb = fep->tx_skbuff[fep->skb_dirty];
@@ -624,8 +625,8 @@ fec_enet_rx(struct net_device *ndev)
 		ndev->stats.rx_bytes += pkt_len;
 		data = (__u8*)__va(bdp->cbd_bufaddr);
 
-		dma_unmap_single(NULL, bdp->cbd_bufaddr, bdp->cbd_datlen,
-				DMA_FROM_DEVICE);
+		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
+				FEC_ENET_TX_FRSIZE, DMA_FROM_DEVICE);
 
 		if (id_entry->driver_data & FEC_QUIRK_SWAP_FRAME)
 			swap_buffer(data, pkt_len);
@@ -649,8 +650,8 @@ fec_enet_rx(struct net_device *ndev)
 			netif_rx(skb);
 		}
 
-		bdp->cbd_bufaddr = dma_map_single(NULL, data, bdp->cbd_datlen,
-			DMA_FROM_DEVICE);
+		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, data,
+				FEC_ENET_TX_FRSIZE, DMA_FROM_DEVICE);
 rx_processing_done:
 		/* Clear the status flags for this buffer */
 		status &= ~BD_ENET_RX_STATS;
@@ -1075,7 +1076,7 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 		skb = fep->rx_skbuff[i];
 
 		if (bdp->cbd_bufaddr)
-			dma_unmap_single(&ndev->dev, bdp->cbd_bufaddr,
+			dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
 					FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
 		if (skb)
 			dev_kfree_skb(skb);
@@ -1103,7 +1104,7 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 		}
 		fep->rx_skbuff[i] = skb;
 
-		bdp->cbd_bufaddr = dma_map_single(&ndev->dev, skb->data,
+		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, skb->data,
 				FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
 		bdp->cbd_sc = BD_ENET_RX_EMPTY;
 		bdp++;
