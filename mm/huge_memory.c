@@ -1203,6 +1203,8 @@ static void __split_huge_page_refcount(struct page *page)
 		BUG_ON(!PageDirty(page_tail));
 		BUG_ON(!PageSwapBacked(page_tail));
 
+		mem_cgroup_split_huge_fixup(page, page_tail);
+
 		lru_add_page_tail(zone, page, page_tail);
 	}
 
