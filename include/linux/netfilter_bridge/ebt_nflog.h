@@ -10,11 +10,11 @@
 #define EBT_NFLOG_DEFAULT_THRESHOLD	1
 
 struct ebt_nflog_info {
-	u_int32_t len;
-	u_int16_t group;
-	u_int16_t threshold;
-	u_int16_t flags;
-	u_int16_t pad;
+	__u32 len;
+	__u16 group;
+	__u16 threshold;
+	__u16 flags;
+	__u16 pad;
 	char prefix[EBT_NFLOG_PREFIX_SIZE];
 };
 

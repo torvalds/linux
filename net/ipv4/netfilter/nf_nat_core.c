@@ -323,9 +323,9 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 	/* It's done. */
 	if (maniptype == IP_NAT_MANIP_DST)
-		set_bit(IPS_DST_NAT_DONE_BIT, &ct->status);
+		ct->status |= IPS_DST_NAT_DONE;
 	else
-		set_bit(IPS_SRC_NAT_DONE_BIT, &ct->status);
+		ct->status |= IPS_SRC_NAT_DONE;
 
 	return NF_ACCEPT;
 }
@@ -502,7 +502,10 @@ int nf_nat_protocol_register(const struct nf_nat_protocol *proto)
 	int ret = 0;
 
 	spin_lock_bh(&nf_nat_lock);
-	if (nf_nat_protos[proto->protonum] != &nf_nat_unknown_protocol) {
+	if (rcu_dereference_protected(
+			nf_nat_protos[proto->protonum],
+			lockdep_is_held(&nf_nat_lock)
+			) != &nf_nat_unknown_protocol) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -679,8 +682,7 @@ static int __net_init nf_nat_net_init(struct net *net)
 {
 	/* Leave them the same for the moment. */
 	net->ipv4.nat_htable_size = net->ct.htable_size;
-	net->ipv4.nat_bysource = nf_ct_alloc_hashtable(&net->ipv4.nat_htable_size,
-						       &net->ipv4.nat_vmalloced, 0);
+	net->ipv4.nat_bysource = nf_ct_alloc_hashtable(&net->ipv4.nat_htable_size, 0);
 	if (!net->ipv4.nat_bysource)
 		return -ENOMEM;
 	return 0;
@@ -702,8 +704,7 @@ static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	nf_ct_iterate_cleanup(net, &clean_nat, NULL);
 	synchronize_rcu();
-	nf_ct_free_hashtable(net->ipv4.nat_bysource, net->ipv4.nat_vmalloced,
-			     net->ipv4.nat_htable_size);
+	nf_ct_free_hashtable(net->ipv4.nat_bysource, net->ipv4.nat_htable_size);
 }
 
 static struct pernet_operations nf_nat_net_ops = {

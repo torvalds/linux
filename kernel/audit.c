@@ -74,6 +74,8 @@ static int	audit_initialized;
 int		audit_enabled;
 int		audit_ever_enabled;
 
+EXPORT_SYMBOL_GPL(audit_enabled);
+
 /* Default state when kernel boots without any parameters. */
 static int	audit_default;
 

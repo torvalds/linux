@@ -255,7 +255,7 @@ config NET_CLS_TCINDEX
 
 config NET_CLS_ROUTE4
 	tristate "Routing decision (ROUTE)"
-	select NET_CLS_ROUTE
+	select IP_ROUTE_CLASSID
 	select NET_CLS
 	---help---
 	  If you say Y here, you will be able to classify packets
@@ -263,9 +263,6 @@ config NET_CLS_ROUTE4
 
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_route.
-
-config NET_CLS_ROUTE
-	bool
 
 config NET_CLS_FW
 	tristate "Netfilter mark (FW)"

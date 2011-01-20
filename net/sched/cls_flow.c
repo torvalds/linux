@@ -276,7 +276,7 @@ fallback:
 
 static u32 flow_get_rtclassid(const struct sk_buff *skb)
 {
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	if (skb_dst(skb))
 		return skb_dst(skb)->tclassid;
 #endif

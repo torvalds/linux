@@ -252,7 +252,7 @@ META_COLLECTOR(int_rtclassid)
 	if (unlikely(skb_dst(skb) == NULL))
 		*err = -1;
 	else
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 		dst->value = skb_dst(skb)->tclassid;
 #else
 		dst->value = 0;

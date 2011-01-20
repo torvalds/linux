@@ -206,8 +206,9 @@ config IP_NF_TARGET_REDIRECT
 
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"
-	depends on NF_NAT
+	depends on NF_CONNTRACK_SNMP && NF_NAT
 	depends on NETFILTER_ADVANCED
+	default NF_NAT && NF_CONNTRACK_SNMP
 	---help---
 
 	  This module implements an Application Layer Gateway (ALG) for

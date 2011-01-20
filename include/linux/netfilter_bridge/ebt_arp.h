@@ -27,8 +27,8 @@ struct ebt_arp_info
 	unsigned char smmsk[ETH_ALEN];
 	unsigned char dmaddr[ETH_ALEN];
 	unsigned char dmmsk[ETH_ALEN];
-	uint8_t  bitmask;
-	uint8_t  invflags;
+	__u8  bitmask;
+	__u8  invflags;
 };
 
 #endif

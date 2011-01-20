@@ -413,6 +413,7 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	    test_bit(SCTP_CID_COOKIE_ACK, map))
 		return false;
 
+	memset(&ct->proto.sctp, 0, sizeof(ct->proto.sctp));
 	new_state = SCTP_CONNTRACK_MAX;
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
 		/* Don't need lock here: this conntrack not in circulation yet */
