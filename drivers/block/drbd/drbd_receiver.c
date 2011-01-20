@@ -1733,9 +1733,6 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 		const int size = e->size;
 		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->flags);
 		DEFINE_WAIT(wait);
-		struct drbd_request *i;
-		struct hlist_node *n;
-		struct hlist_head *slot;
 		int first;
 
 		D_ASSERT(mdev->net_conf->wire_protocol == DRBD_PROT_C);
@@ -1783,30 +1780,31 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 		hlist_add_head(&e->collision, ee_hash_slot(mdev, sector));
 
-#define OVERLAPS overlaps(i->i.sector, i->i.size, sector, size)
-		slot = tl_hash_slot(mdev, sector);
 		first = 1;
 		for (;;) {
+			struct drbd_interval *i;
 			int have_unacked = 0;
 			int have_conflict = 0;
 			prepare_to_wait(&mdev->misc_wait, &wait,
 				TASK_INTERRUPTIBLE);
-			hlist_for_each_entry(i, n, slot, collision) {
-				if (OVERLAPS) {
-					/* only ALERT on first iteration,
-					 * we may be woken up early... */
-					if (first)
-						dev_alert(DEV, "%s[%u] Concurrent local write detected!"
-						      "	new: %llus +%u; pending: %llus +%u\n",
-						      current->comm, current->pid,
-						      (unsigned long long)sector, size,
-						      (unsigned long long)i->i.sector, i->i.size);
-					if (i->rq_state & RQ_NET_PENDING)
-						++have_unacked;
-					++have_conflict;
-				}
+
+			i = drbd_find_overlap(&mdev->write_requests, sector, size);
+			if (i) {
+				struct drbd_request *req2 =
+					container_of(i, struct drbd_request, i);
+
+				/* only ALERT on first iteration,
+				 * we may be woken up early... */
+				if (first)
+					dev_alert(DEV, "%s[%u] Concurrent local write detected!"
+					      "	new: %llus +%u; pending: %llus +%u\n",
+					      current->comm, current->pid,
+					      (unsigned long long)sector, size,
+					      (unsigned long long)req2->i.sector, req2->i.size);
+				if (req2->rq_state & RQ_NET_PENDING)
+					++have_unacked;
+				++have_conflict;
 			}
-#undef OVERLAPS
 			if (!have_conflict)
 				break;
 

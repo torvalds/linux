@@ -3473,6 +3473,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	/* no need to lock access, we are still initializing this minor device. */
 	if (!tl_init(mdev))
 		goto out_no_tl;
+	mdev->write_requests = RB_ROOT;
 
 	mdev->app_reads_hash = kzalloc(APP_R_HSIZE*sizeof(void *), GFP_KERNEL);
 	if (!mdev->app_reads_hash)

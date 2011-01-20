@@ -275,6 +275,7 @@ static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 		req->i.sector     = bio_src->bi_sector;
 		req->i.size      = bio_src->bi_size;
 		INIT_HLIST_NODE(&req->collision);
+		drbd_clear_interval(&req->i);
 		INIT_LIST_HEAD(&req->tl_requests);
 		INIT_LIST_HEAD(&req->w.list);
 	}

@@ -135,7 +135,6 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	struct drbd_request *req)
 {
 	const unsigned long s = req->rq_state;
-	struct drbd_request *i;
 	struct drbd_epoch_entry *e;
 	struct hlist_node *n;
 	struct hlist_head *slot;
@@ -157,19 +156,21 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	if ((s & RQ_NET_DONE) && mdev->ee_hash != NULL) {
 		const sector_t sector = req->i.sector;
 		const int size = req->i.size;
+		struct drbd_interval *i;
 
 		/* ASSERT:
 		 * there must be no conflicting requests, since
 		 * they must have been failed on the spot */
-#define OVERLAPS overlaps(sector, size, i->i.sector, i->i.size)
-		slot = tl_hash_slot(mdev, sector);
-		hlist_for_each_entry(i, n, slot, collision) {
-			if (OVERLAPS) {
-				dev_alert(DEV, "LOGIC BUG: completed: %p %llus +%u; "
-				      "other: %p %llus +%u\n",
-				      req, (unsigned long long)sector, size,
-				      i, (unsigned long long)i->i.sector, i->i.size);
-			}
+
+		i = drbd_find_overlap(&mdev->write_requests, sector, size);
+		if (i) {
+			struct drbd_request *req2 =
+				container_of(i, struct drbd_request, i);
+
+			dev_alert(DEV, "LOGIC BUG: completed: %p %llus +%u; "
+			      "other: %p %llus +%u\n",
+			      req, (unsigned long long)sector, size,
+			      i, (unsigned long long)req2->i.sector, req2->i.size);
 		}
 
 		/* maybe "wake" those conflicting epoch entries
@@ -184,7 +185,6 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 		 *
 		 * anyways, if we found one,
 		 * we just have to do a wake_up.  */
-#undef OVERLAPS
 #define OVERLAPS overlaps(sector, size, e->sector, e->size)
 		slot = ee_hash_slot(mdev, req->i.sector);
 		hlist_for_each_entry(e, n, slot, collision) {
@@ -260,9 +260,11 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 
 		/* remove the request from the conflict detection
 		 * respective block_id verification hash */
-		if (!hlist_unhashed(&req->collision))
+		if (!hlist_unhashed(&req->collision)) {
 			hlist_del(&req->collision);
-		else
+			if (!drbd_interval_empty(&req->i))
+				drbd_remove_interval(&mdev->write_requests, &req->i);
+		} else
 			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
 
 		/* for writes we need to do some extra housekeeping */
@@ -324,7 +326,7 @@ static int _req_conflicts(struct drbd_request *req)
 	struct drbd_conf *mdev = req->mdev;
 	const sector_t sector = req->i.sector;
 	const int size = req->i.size;
-	struct drbd_request *i;
+	struct drbd_interval *i;
 	struct drbd_epoch_entry *e;
 	struct hlist_node *n;
 	struct hlist_head *slot;
@@ -339,24 +341,23 @@ static int _req_conflicts(struct drbd_request *req)
 		goto out_no_conflict;
 	BUG_ON(mdev->tl_hash == NULL);
 
-#define OVERLAPS overlaps(i->i.sector, i->i.size, sector, size)
-	slot = tl_hash_slot(mdev, sector);
-	hlist_for_each_entry(i, n, slot, collision) {
-		if (OVERLAPS) {
-			dev_alert(DEV, "%s[%u] Concurrent local write detected! "
-			      "[DISCARD L] new: %llus +%u; "
-			      "pending: %llus +%u\n",
-			      current->comm, current->pid,
-			      (unsigned long long)sector, size,
-			      (unsigned long long)i->i.sector, i->i.size);
-			goto out_conflict;
-		}
+	i = drbd_find_overlap(&mdev->write_requests, sector, size);
+	if (i) {
+		struct drbd_request *req2 =
+			container_of(i, struct drbd_request, i);
+
+		dev_alert(DEV, "%s[%u] Concurrent local write detected! "
+		      "[DISCARD L] new: %llus +%u; "
+		      "pending: %llus +%u\n",
+		      current->comm, current->pid,
+		      (unsigned long long)sector, size,
+		      (unsigned long long)req2->i.sector, req2->i.size);
+		goto out_conflict;
 	}
 
 	if (mdev->ee_hash_s) {
 		/* now, check for overlapping requests with remote origin */
 		BUG_ON(mdev->ee_hash == NULL);
-#undef OVERLAPS
 #define OVERLAPS overlaps(e->sector, e->size, sector, size)
 		slot = ee_hash_slot(mdev, sector);
 		hlist_for_each_entry(e, n, slot, collision) {
@@ -509,6 +510,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		hlist_add_head(&req->collision, tl_hash_slot(mdev, req->i.sector));
 		/* corresponding hlist_del is in _req_may_be_done() */
+		drbd_insert_interval(&mdev->write_requests, &req->i);
 
 		/* NOTE
 		 * In case the req ended up on the transfer log before being
