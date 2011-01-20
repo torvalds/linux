@@ -606,7 +606,6 @@ ring_add_request(struct intel_ring_buffer *ring,
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
-	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
 	*result = seqno;
 	return 0;
 }
