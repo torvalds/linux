@@ -44,10 +44,14 @@ cifs_ucs2_bytes(const __le16 *from, int maxbytes,
 	int charlen, outlen = 0;
 	int maxwords = maxbytes / 2;
 	char tmp[NLS_MAX_CHARSET_SIZE];
+	__u16 ftmp;
 
-	for (i = 0; i < maxwords && from[i]; i++) {
-		charlen = codepage->uni2char(le16_to_cpu(from[i]), tmp,
-					     NLS_MAX_CHARSET_SIZE);
+	for (i = 0; i < maxwords; i++) {
+		ftmp = get_unaligned_le16(&from[i]);
+		if (ftmp == 0)
+			break;
+
+		charlen = codepage->uni2char(ftmp, tmp, NLS_MAX_CHARSET_SIZE);
 		if (charlen > 0)
 			outlen += charlen;
 		else
@@ -58,9 +62,9 @@ cifs_ucs2_bytes(const __le16 *from, int maxbytes,
 }
 
 /*
- * cifs_mapchar - convert a little-endian char to proper char in codepage
+ * cifs_mapchar - convert a host-endian char to proper char in codepage
  * @target - where converted character should be copied
- * @src_char - 2 byte little-endian source character
+ * @src_char - 2 byte host-endian source character
  * @cp - codepage to which character should be converted
  * @mapchar - should character be mapped according to mapchars mount option?
  *
@@ -69,7 +73,7 @@ cifs_ucs2_bytes(const __le16 *from, int maxbytes,
  * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
  */
 static int
-cifs_mapchar(char *target, const __le16 src_char, const struct nls_table *cp,
+cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
 	     bool mapchar)
 {
 	int len = 1;
@@ -82,7 +86,7 @@ cifs_mapchar(char *target, const __le16 src_char, const struct nls_table *cp,
 	 *     build_path_from_dentry are modified, as they use slash as
 	 *     separator.
 	 */
-	switch (le16_to_cpu(src_char)) {
+	switch (src_char) {
 	case UNI_COLON:
 		*target = ':';
 		break;
@@ -109,8 +113,7 @@ out:
 	return len;
 
 cp_convert:
-	len = cp->uni2char(le16_to_cpu(src_char), target,
-			   NLS_MAX_CHARSET_SIZE);
+	len = cp->uni2char(src_char, target, NLS_MAX_CHARSET_SIZE);
 	if (len <= 0) {
 		*target = '?';
 		len = 1;
@@ -149,6 +152,7 @@ cifs_from_ucs2(char *to, const __le16 *from, int tolen, int fromlen,
 	int nullsize = nls_nullsize(codepage);
 	int fromwords = fromlen / 2;
 	char tmp[NLS_MAX_CHARSET_SIZE];
+	__u16 ftmp;
 
 	/*
 	 * because the chars can be of varying widths, we need to take care
@@ -158,19 +162,23 @@ cifs_from_ucs2(char *to, const __le16 *from, int tolen, int fromlen,
 	 */
 	safelen = tolen - (NLS_MAX_CHARSET_SIZE + nullsize);
 
-	for (i = 0; i < fromwords && from[i]; i++) {
+	for (i = 0; i < fromwords; i++) {
+		ftmp = get_unaligned_le16(&from[i]);
+		if (ftmp == 0)
+			break;
+
 		/*
 		 * check to see if converting this character might make the
 		 * conversion bleed into the null terminator
 		 */
 		if (outlen >= safelen) {
-			charlen = cifs_mapchar(tmp, from[i], codepage, mapchar);
+			charlen = cifs_mapchar(tmp, ftmp, codepage, mapchar);
 			if ((outlen + charlen) > (tolen - nullsize))
 				break;
 		}
 
 		/* put converted char into 'to' buffer */
-		charlen = cifs_mapchar(&to[outlen], from[i], codepage, mapchar);
+		charlen = cifs_mapchar(&to[outlen], ftmp, codepage, mapchar);
 		outlen += charlen;
 	}
 
@@ -193,24 +201,21 @@ cifs_strtoUCS(__le16 *to, const char *from, int len,
 {
 	int charlen;
 	int i;
-	wchar_t *wchar_to = (wchar_t *)to; /* needed to quiet sparse */
+	wchar_t wchar_to; /* needed to quiet sparse */
 
 	for (i = 0; len && *from; i++, from += charlen, len -= charlen) {
-
-		/* works for 2.4.0 kernel or later */
-		charlen = codepage->char2uni(from, len, &wchar_to[i]);
+		charlen = codepage->char2uni(from, len, &wchar_to);
 		if (charlen < 1) {
-			cERROR(1, "strtoUCS: char2uni of %d returned %d",
-				(int)*from, charlen);
+			cERROR(1, "strtoUCS: char2uni of 0x%x returned %d",
+				*from, charlen);
 			/* A question mark */
-			to[i] = cpu_to_le16(0x003f);
+			wchar_to = 0x003f;
 			charlen = 1;
-		} else
-			to[i] = cpu_to_le16(wchar_to[i]);
-
+		}
+		put_unaligned_le16(wchar_to, &to[i]);
 	}
 
-	to[i] = 0;
+	put_unaligned_le16(0, &to[i]);
 	return i;
 }
 
