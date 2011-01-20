@@ -2287,9 +2287,14 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 	spin_lock_init(&adapter->stats64_lock);
 #ifdef CONFIG_PCI_IOV
-	if (hw->mac.type == e1000_82576)
+	switch (hw->mac.type) {
+	case e1000_82576:
+	case e1000_i350:
 		adapter->vfs_allocated_count = (max_vfs > 7) ? 7 : max_vfs;
-
+		break;
+	default:
+		break;
+	}
 #endif /* CONFIG_PCI_IOV */
 	adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
 
