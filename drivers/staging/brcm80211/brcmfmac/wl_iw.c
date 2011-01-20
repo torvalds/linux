@@ -3419,8 +3419,6 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 		if (!(flags & WLC_EVENT_MSG_LINK)) {
 			memset(wrqu.addr.sa_data, 0, ETH_ALEN);
 			memset(&extra, 0, ETH_ALEN);
-			WAKE_LOCK_TIMEOUT(iw->pub, WAKE_LOCK_LINK_DOWN_TMOUT,
-					  20 * HZ);
 		} else {
 			memcpy(wrqu.addr.sa_data, &e->addr, ETH_ALEN);
 			WL_TRACE("Link UP\n");
@@ -3533,8 +3531,6 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 			WL_ERROR("%s Event WLC_E_PFN_NET_FOUND, send %s up : find %s len=%d\n",
 				 __func__, PNO_EVENT_UP,
 				 ssid->SSID, ssid->SSID_len);
-			WAKE_LOCK_TIMEOUT(iw->pub, WAKE_LOCK_PNO_FIND_TMOUT,
-					  20 * HZ);
 			cmd = IWEVCUSTOM;
 			memset(&wrqu, 0, sizeof(wrqu));
 			strcpy(extra, PNO_EVENT_UP);
