@@ -1310,9 +1310,8 @@ static void setup_cpu_associativity_change_counters(void)
 		u8 *counts = vphn_cpu_change_counts[cpu];
 		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
 
-		for (i = 0; i < VPHN_NR_CHANGE_CTRS; i++) {
+		for (i = 0; i < VPHN_NR_CHANGE_CTRS; i++)
 			counts[i] = hypervisor_counts[i];
-		}
 	}
 }
 
@@ -1379,14 +1378,12 @@ static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
 			 */
 			unpacked[i] = *((u32*)field);
 			field += 2;
-		}
-		else if (*field & VPHN_FIELD_MSB) {
+		} else if (*field & VPHN_FIELD_MSB) {
 			/* Data is in the lower 15 bits of this field */
 			unpacked[i] = *field & VPHN_FIELD_MASK;
 			field++;
 			nr_assoc_doms++;
-		}
-		else {
+		} else {
 			/* Data is in the lower 15 bits of this field
 			 * concatenated with the next 16 bit field
 			 */
