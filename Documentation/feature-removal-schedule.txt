@@ -611,3 +611,10 @@ Why:	The adm9240, w83792d and w83793 hardware monitoring drivers have
 Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
+
+What:	xt_connlimit rev 0
+When:	2012
+Who:	Jan Engelhardt <jengelh@medozas.de>
+Files:	net/netfilter/xt_connlimit.c
+
+----------------------------
