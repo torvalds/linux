@@ -30,22 +30,11 @@
 #include <linux/platform_device.h>
 #include "wlan_config.h"
 
-#ifdef CONFIG_HAS_WAKELOCK
-#include <linux/wakelock.h>
-#endif
-
 #define WOW_ENABLE_MAX_INTERVAL 0
 #define WOW_SET_SCAN_PARAMS     0
 
 extern unsigned int wmitimeout;
 extern wait_queue_head_t arEvent;
-
-#ifdef CONFIG_PM
-#ifdef CONFIG_HAS_WAKELOCK
-struct wake_lock ar6k_suspend_wake_lock;
-struct wake_lock ar6k_wow_wake_lock;
-#endif
-#endif /* CONFIG_PM */
 
 #ifdef ANDROID_ENV
 extern void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, A_BOOL isEvent);
@@ -89,9 +78,6 @@ static void ar6000_wow_resume(AR_SOFTC_T *ar)
         A_UINT16 bg_period = (ar->scParams.bg_period==0) ? 60 : ar->scParams.bg_period;
         WMI_SET_HOST_SLEEP_MODE_CMD hostSleepMode = {TRUE, FALSE};
         ar->arWowState = WLAN_WOW_STATE_NONE;
-#ifdef CONFIG_HAS_WAKELOCK
-        wake_lock_timeout(&ar6k_wow_wake_lock, 3*HZ);
-#endif
         if (wmi_set_host_sleep_mode_cmd(ar->arWmi, &hostSleepMode)!=A_OK) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Fail to setup restore host awake\n"));
         }
@@ -267,9 +253,6 @@ A_STATUS ar6000_resume_ev(void *context)
     AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
     A_UINT16 powerState = ar->arWlanPowerState;
 
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_lock(&ar6k_suspend_wake_lock);
-#endif
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: enter previous state %d wowState %d\n", __func__, powerState, ar->arWowState));
     switch (powerState) {
     case WLAN_POWER_STATE_WOW:
@@ -287,9 +270,6 @@ A_STATUS ar6000_resume_ev(void *context)
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Strange SDIO bus power mode!!\n"));
         break;
     }
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_unlock(&ar6k_suspend_wake_lock);
-#endif
     return A_OK;
 }
 
@@ -704,10 +684,6 @@ void ar6000_pm_init()
 {
     A_REGISTER_MODULE_DEBUG_INFO(pm);
 #ifdef CONFIG_PM
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_lock_init(&ar6k_suspend_wake_lock, WAKE_LOCK_SUSPEND, "ar6k_suspend");
-    wake_lock_init(&ar6k_wow_wake_lock, WAKE_LOCK_SUSPEND, "ar6k_wow");
-#endif
     /*
      * Register ar6000_pm_device into system.
      * We should also add platform_device into the first item of array
@@ -723,9 +699,5 @@ void ar6000_pm_exit()
 {
 #ifdef CONFIG_PM
     platform_driver_unregister(&ar6000_pm_device);
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_lock_destroy(&ar6k_suspend_wake_lock);
-    wake_lock_destroy(&ar6k_wow_wake_lock);
-#endif
 #endif /* CONFIG_PM */
 }
