@@ -32,8 +32,8 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"1.4.1.10"
-#define DRV_COPYRIGHT		"Copyright 2008-2010 Cisco Systems, Inc"
+#define DRV_VERSION		"2.1.1.2"
+#define DRV_COPYRIGHT		"Copyright 2008-2011 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
 
@@ -49,7 +49,7 @@ struct enic_msix_entry {
 	void *devid;
 };
 
-#define ENIC_SET_APPLIED		(1 << 0)
+#define ENIC_PORT_REQUEST_APPLIED	(1 << 0)
 #define ENIC_SET_REQUEST		(1 << 1)
 #define ENIC_SET_NAME			(1 << 2)
 #define ENIC_SET_INSTANCE		(1 << 3)

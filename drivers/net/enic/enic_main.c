@@ -1318,17 +1318,19 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 		vic_provinfo_free(vp);
 		if (err)
 			return err;
-
-		enic->pp.set |= ENIC_SET_APPLIED;
 		break;
 
 	case PORT_REQUEST_DISASSOCIATE:
-		enic->pp.set &= ~ENIC_SET_APPLIED;
 		break;
 
 	default:
 		return -EINVAL;
 	}
+
+	/* Set flag to indicate that the port assoc/disassoc
+	 * request has been sent out to fw
+	 */
+	enic->pp.set |= ENIC_PORT_REQUEST_APPLIED;
 
 	return 0;
 }
@@ -1411,7 +1413,7 @@ static int enic_get_vf_port(struct net_device *netdev, int vf,
 	int err, error, done;
 	u16 response = PORT_PROFILE_RESPONSE_SUCCESS;
 
-	if (!(enic->pp.set & ENIC_SET_APPLIED))
+	if (!(enic->pp.set & ENIC_PORT_REQUEST_APPLIED))
 		return -ENODATA;
 
 	err = enic_dev_init_done(enic, &done, &error);
