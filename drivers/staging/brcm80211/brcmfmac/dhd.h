@@ -33,9 +33,6 @@
 #include <linux/ethtool.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
-#if defined(CONFIG_HAS_WAKELOCK)
-#include <linux/wakelock.h>
-#endif			/* defined (CONFIG_HAS_WAKELOCK) */
 /* The kernel threading is sdio-specific */
 
 #include <wlioctl.h>
@@ -145,9 +142,6 @@ typedef struct dhd_pub {
 	u8 country_code[WLC_CNTRY_BUF_SZ];
 	char eventmask[WL_EVENTING_MASK_LEN];
 
-#if defined(CONFIG_HAS_WAKELOCK)
-	struct wake_lock wakelock[WAKE_LOCK_MAX];
-#endif		/*  defined (CONFIG_HAS_WAKELOCK) */
 } dhd_pub_t;
 
 #if defined(CONFIG_PM_SLEEP)
@@ -228,41 +222,6 @@ static inline void MUTEX_LOCK_WL_SCAN_SET(void)
 
 static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
 {
-}
-
-static inline void WAKE_LOCK_INIT(dhd_pub_t *dhdp, int index, char *y)
-{
-#if defined(CONFIG_HAS_WAKELOCK)
-	wake_lock_init(&dhdp->wakelock[index], WAKE_LOCK_SUSPEND, y);
-#endif	/* defined (CONFIG_HAS_WAKELOCK) */
-}
-
-static inline void WAKE_LOCK(dhd_pub_t *dhdp, int index)
-{
-#if defined(CONFIG_HAS_WAKELOCK)
-	wake_lock(&dhdp->wakelock[index]);
-#endif	/* defined (CONFIG_HAS_WAKELOCK) */
-}
-
-static inline void WAKE_UNLOCK(dhd_pub_t *dhdp, int index)
-{
-#if defined(CONFIG_HAS_WAKELOCK)
-	wake_unlock(&dhdp->wakelock[index]);
-#endif	/* defined (CONFIG_HAS_WAKELOCK) */
-}
-
-static inline void WAKE_LOCK_TIMEOUT(dhd_pub_t *dhdp, int index, long time)
-{
-#if defined(CONFIG_HAS_WAKELOCK)
-	wake_lock_timeout(&dhdp->wakelock[index], time);
-#endif	/* defined (CONFIG_HAS_WAKELOCK) */
-}
-
-static inline void WAKE_LOCK_DESTROY(dhd_pub_t *dhdp, int index)
-{
-#if defined(CONFIG_HAS_WAKELOCK)
-	wake_lock_destroy(&dhdp->wakelock[index]);
-#endif /* defined (CONFIG_HAS_WAKELOCK) */
 }
 
 typedef struct dhd_if_event {
