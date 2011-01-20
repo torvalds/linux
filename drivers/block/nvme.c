@@ -568,6 +568,13 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	return NULL;
 }
 
+static int queue_request_irq(struct nvme_dev *dev, struct nvme_queue *nvmeq,
+							const char *name)
+{
+	return request_irq(dev->entry[nvmeq->cq_vector].vector, nvme_irq,
+				IRQF_DISABLED | IRQF_SHARED, name, nvmeq);
+}
+
 static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
 					int qid, int cq_size, int vector)
 {
@@ -582,8 +589,7 @@ static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
 	if (result < 0)
 		goto release_cq;
 
-	result = request_irq(dev->entry[vector].vector, nvme_irq,
-				IRQF_DISABLED | IRQF_SHARED, "nvme", nvmeq);
+	result = queue_request_irq(dev, nvmeq, "nvme");
 	if (result < 0)
 		goto release_sq;
 
@@ -630,8 +636,7 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 			return -EINTR;
 	}
 
-	result = request_irq(dev->entry[0].vector, nvme_irq,
-			IRQF_DISABLED | IRQF_SHARED, "nvme admin", nvmeq);
+	result = queue_request_irq(dev, nvmeq, "nvme admin");
 	dev->queues[0] = nvmeq;
 	return result;
 }
