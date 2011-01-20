@@ -412,7 +412,7 @@ static void prl_list_destroy_rcu(struct rcu_head *head)
 
 	p = container_of(head, struct ip_tunnel_prl_entry, rcu_head);
 	do {
-		n = p->next;
+		n = rcu_dereference_protected(p->next, 1);
 		kfree(p);
 		p = n;
 	} while (p);
@@ -421,15 +421,17 @@ static void prl_list_destroy_rcu(struct rcu_head *head)
 static int
 ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 {
-	struct ip_tunnel_prl_entry *x, **p;
+	struct ip_tunnel_prl_entry *x;
+	struct ip_tunnel_prl_entry __rcu **p;
 	int err = 0;
 
 	ASSERT_RTNL();
 
 	if (a && a->addr != htonl(INADDR_ANY)) {
-		for (p = &t->prl; *p; p = &(*p)->next) {
-			if ((*p)->addr == a->addr) {
-				x = *p;
+		for (p = &t->prl;
+		     (x = rtnl_dereference(*p)) != NULL;
+		     p = &x->next) {
+			if (x->addr == a->addr) {
 				*p = x->next;
 				call_rcu(&x->rcu_head, prl_entry_destroy_rcu);
 				t->prl_count--;
@@ -438,9 +440,9 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 		}
 		err = -ENXIO;
 	} else {
-		if (t->prl) {
+		x = rtnl_dereference(t->prl);
+		if (x) {
 			t->prl_count = 0;
-			x = t->prl;
 			call_rcu(&x->rcu_head, prl_list_destroy_rcu);
 			t->prl = NULL;
 		}
@@ -1179,7 +1181,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 	dev_hold(dev);
-	sitn->tunnels_wc[0]	= tunnel;
+	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
 	return 0;
 }
 
@@ -1196,11 +1198,12 @@ static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_hea
 	for (prio = 1; prio < 4; prio++) {
 		int h;
 		for (h = 0; h < HASH_SIZE; h++) {
-			struct ip_tunnel *t = sitn->tunnels[prio][h];
+			struct ip_tunnel *t;
 
+			t = rtnl_dereference(sitn->tunnels[prio][h]);
 			while (t != NULL) {
 				unregister_netdevice_queue(t->dev, head);
-				t = t->next;
+				t = rtnl_dereference(t->next);
 			}
 		}
 	}
