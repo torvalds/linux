@@ -186,6 +186,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	kfree(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
+	server->lstrp = jiffies;
 	mutex_unlock(&server->srv_mutex);
 
 	/* mark submitted MIDs for retry and issue callback */
@@ -420,7 +421,20 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		smb_msg.msg_control = NULL;
 		smb_msg.msg_controllen = 0;
 		pdu_length = 4; /* enough to get RFC1001 header */
+
 incomplete_rcv:
+		if (echo_retries > 0 &&
+		    time_after(jiffies, server->lstrp +
+					(echo_retries * SMB_ECHO_INTERVAL))) {
+			cERROR(1, "Server %s has not responded in %d seconds. "
+				  "Reconnecting...", server->hostname,
+				  (echo_retries * SMB_ECHO_INTERVAL / HZ));
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			wake_up(&server->response_q);
+			continue;
+		}
+
 		length =
 		    kernel_recvmsg(csocket, &smb_msg,
 				&iov, 1, pdu_length, 0 /* BB other flags? */);
@@ -581,6 +595,8 @@ incomplete_rcv:
 		}
 
 		mid_entry = NULL;
+		server->lstrp = jiffies;
+
 		spin_lock(&GlobalMid_Lock);
 		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
@@ -629,10 +645,6 @@ multi_t2_fnd:
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
-				/* so we do not time out requests to  server
-				which is still responding (since server could
-				be busy but not dead) */
-				server->lstrp = jiffies;
 				break;
 			}
 			mid_entry = NULL;
@@ -1685,6 +1697,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		volume_info->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
+	tcp_ses->lstrp = jiffies;
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
 	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
