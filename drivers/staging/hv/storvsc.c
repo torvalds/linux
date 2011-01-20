@@ -437,7 +437,7 @@ static void stor_vsc_on_channel_callback(void *context)
 	struct storvsc_device *stor_device;
 	u32 bytes_recvd;
 	u64 request_id;
-	unsigned char packet[ALIGN_UP(sizeof(struct vstor_packet), 8)];
+	unsigned char packet[ALIGN(sizeof(struct vstor_packet), 8)];
 	struct storvsc_request_extension *request;
 	int ret;
 
@@ -452,7 +452,7 @@ static void stor_vsc_on_channel_callback(void *context)
 
 	do {
 		ret = vmbus_recvpacket(device->channel, packet,
-				       ALIGN_UP(sizeof(struct vstor_packet), 8),
+				       ALIGN(sizeof(struct vstor_packet), 8),
 				       &bytes_recvd, &request_id);
 		if (ret == 0 && bytes_recvd > 0) {
 			DPRINT_DBG(STORVSC, "receive %d bytes - tid %llx",
@@ -802,7 +802,7 @@ int stor_vsc_initialize(struct hv_driver *driver)
 	 */
 	stor_driver->max_outstanding_req_per_channel =
 		((stor_driver->ring_buffer_size - PAGE_SIZE) /
-		  ALIGN_UP(MAX_MULTIPAGE_BUFFER_PACKET +
+		  ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
 			   sizeof(struct vstor_packet) + sizeof(u64),
 			   sizeof(u64)));
 

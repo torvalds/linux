@@ -434,7 +434,7 @@ static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
 	struct scatterlist *bounce_sgl;
 	struct page *page_buf;
 
-	num_pages = ALIGN_UP(len, PAGE_SIZE) >> PAGE_SHIFT;
+	num_pages = ALIGN(len, PAGE_SIZE) >> PAGE_SHIFT;
 
 	bounce_sgl = kcalloc(num_pages, sizeof(struct scatterlist), GFP_ATOMIC);
 	if (!bounce_sgl)
@@ -720,7 +720,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 			}
 
 			cmd_request->bounce_sgl_count =
-				ALIGN_UP(scsi_bufflen(scmnd), PAGE_SIZE) >>
+				ALIGN(scsi_bufflen(scmnd), PAGE_SIZE) >>
 					PAGE_SHIFT;
 
 			/*

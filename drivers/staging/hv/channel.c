@@ -726,7 +726,7 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 {
 	struct vmpacket_descriptor desc;
 	u32 packetlen = sizeof(struct vmpacket_descriptor) + bufferlen;
-	u32 packetlen_aligned = ALIGN_UP(packetlen, sizeof(u64));
+	u32 packetlen_aligned = ALIGN(packetlen, sizeof(u64));
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
 	int ret;
@@ -793,7 +793,7 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 			  ((MAX_PAGE_BUFFER_COUNT - pagecount) *
 			  sizeof(struct hv_page_buffer));
 	packetlen = descsize + bufferlen;
-	packetlen_aligned = ALIGN_UP(packetlen, sizeof(u64));
+	packetlen_aligned = ALIGN(packetlen, sizeof(u64));
 
 	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 
@@ -862,7 +862,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 			  ((MAX_MULTIPAGE_BUFFER_COUNT - pfncount) *
 			  sizeof(u64));
 	packetlen = descsize + bufferlen;
-	packetlen_aligned = ALIGN_UP(packetlen, sizeof(u64));
+	packetlen_aligned = ALIGN(packetlen, sizeof(u64));
 
 	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 

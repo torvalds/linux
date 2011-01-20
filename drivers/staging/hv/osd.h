@@ -25,16 +25,12 @@
 #ifndef _OSD_H_
 #define _OSD_H_
 
+#include <linux/kernel.h>
 #include <linux/workqueue.h>
 
 /* Defines */
-#define ALIGN_UP(value, align)	(((value) & (align-1)) ?		\
-				 (((value) + (align-1)) & ~(align-1)) :	\
-				 (value))
-#define ALIGN_DOWN(value, align)	((value) & ~(align-1))
-#define NUM_PAGES_SPANNED(addr, len)	((ALIGN_UP(addr+len, PAGE_SIZE) - \
-					 ALIGN_DOWN(addr, PAGE_SIZE)) >>  \
-					 PAGE_SHIFT)
+#define NUM_PAGES_SPANNED(addr, len)	((PAGE_ALIGN(addr + len) >> PAGE_SHIFT) - \
+					(addr >> PAGE_SHIFT))
 
 #define LOWORD(dw)	((unsigned short)(dw))
 #define HIWORD(dw)	((unsigned short)(((unsigned int) (dw) >> 16) & 0xFFFF))

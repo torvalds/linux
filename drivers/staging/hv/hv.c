@@ -267,7 +267,7 @@ int hv_init(void)
 
 	hv_context.signal_event_param =
 		(struct hv_input_signal_event *)
-			(ALIGN_UP((unsigned long)
+			(ALIGN((unsigned long)
 				  hv_context.signal_event_buffer,
 				  HV_HYPERCALL_PARAM_ALIGN));
 	hv_context.signal_event_param->connectionid.asu32 = 0;
@@ -338,7 +338,7 @@ u16 hv_post_message(union hv_connection_id connection_id,
 		return -1;
 
 	aligned_msg = (struct hv_input_post_message *)
-			(ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
+			(ALIGN(addr, HV_HYPERCALL_PARAM_ALIGN));
 
 	aligned_msg->connectionid = connection_id;
 	aligned_msg->message_type = message_type;
