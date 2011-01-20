@@ -333,7 +333,6 @@ static int validate_t2(struct smb_t2_rsp *pSMB)
 {
 	int rc = -EINVAL;
 	int total_size;
-	char *pBCC;
 
 	/* check for plausible wct, bcc and t2 data and parm sizes */
 	/* check for parm and data offset going beyond end of smb */
@@ -346,13 +345,9 @@ static int validate_t2(struct smb_t2_rsp *pSMB)
 			if (total_size < 512) {
 				total_size +=
 					le16_to_cpu(pSMB->t2_rsp.DataCount);
-				/* BCC le converted in SendReceive */
-				pBCC = (pSMB->hdr.WordCount * 2) +
-					sizeof(struct smb_hdr) +
-					(char *)pSMB;
-				if ((total_size <= (*(u16 *)pBCC)) &&
-				   (total_size <
-					CIFSMaxBufSize+MAX_CIFS_HDR_SIZE)) {
+				if (total_size <= get_bcc(&pSMB->hdr) &&
+				    total_size <
+					CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 					return 0;
 				}
 			}
@@ -362,6 +357,7 @@ static int validate_t2(struct smb_t2_rsp *pSMB)
 		sizeof(struct smb_t2_rsp) + 16);
 	return rc;
 }
+
 int
 CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 {
@@ -5609,7 +5605,7 @@ QAllEAsRetry:
 	}
 
 	/* make sure list_len doesn't go past end of SMB */
-	end_of_smb = (char *)pByteArea(&pSMBr->hdr) + BCC(&pSMBr->hdr);
+	end_of_smb = (char *)pByteArea(&pSMBr->hdr) + get_bcc(&pSMBr->hdr);
 	if ((char *)ea_response_data + list_len > end_of_smb) {
 		cFYI(1, "EA list appears to go beyond SMB");
 		rc = -EIO;
