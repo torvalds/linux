@@ -186,10 +186,10 @@ int oprofile_add_data(struct op_entry *entry, unsigned long val);
 int oprofile_add_data64(struct op_entry *entry, u64 val);
 int oprofile_write_commit(struct op_entry *entry);
 
-#ifdef CONFIG_PERF_EVENTS
+#ifdef CONFIG_HW_PERF_EVENTS
 int __init oprofile_perf_init(struct oprofile_operations *ops);
 void oprofile_perf_exit(void);
 char *op_name_from_perf_id(void);
-#endif /* CONFIG_PERF_EVENTS */
+#endif /* CONFIG_HW_PERF_EVENTS */
 
 #endif /* OPROFILE_H */
