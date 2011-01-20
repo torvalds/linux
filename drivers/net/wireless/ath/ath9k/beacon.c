@@ -279,10 +279,8 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 
 	/* NB: the beacon data buffer must be 32-bit aligned. */
 	skb = ieee80211_beacon_get(sc->hw, vif);
-	if (skb == NULL) {
-		ath_err(common, "ieee80211_beacon_get failed\n");
+	if (skb == NULL)
 		return -ENOMEM;
-	}
 
 	tstamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
 	sc->beacon.bc_tstamp = le64_to_cpu(tstamp);
