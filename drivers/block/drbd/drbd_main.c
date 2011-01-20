@@ -1593,8 +1593,18 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
 		drbd_send_state(mdev);
 
-	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED)
+	/* This triggers bitmap writeout of potentially still unwritten pages
+	 * if the resync finished cleanly, or aborted because of peer disk
+	 * failure.  Resync aborted because of connection failure does bitmap
+	 * writeout from drbd_disconnect.
+	 * For resync aborted because of local disk failure, we cannot do
+	 * any bitmap writeout anymore.
+	 */
+	if (os.conn > C_CONNECTED && ns.conn == C_CONNECTED &&
+	    mdev->state.conn == C_CONNECTED && get_ldev(mdev)) {
 		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
+		put_ldev(mdev);
+	}
 
 	/* free tl_hash if we Got thawed and are C_STANDALONE */
 	if (ns.conn == C_STANDALONE && !is_susp(ns) && mdev->tl_hash)

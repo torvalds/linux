@@ -3811,6 +3811,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
+		drbd_bitmap_io(mdev, &drbd_bm_write, "write from disconnect");
 		fp = mdev->ldev->dc.fencing;
 		put_ldev(mdev);
 	}
