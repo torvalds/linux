@@ -1303,10 +1303,10 @@ static void set_topology_timer(void);
  */
 static void setup_cpu_associativity_change_counters(void)
 {
-	int cpu = 0;
+	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		int i = 0;
+		int i;
 		u8 *counts = vphn_cpu_change_counts[cpu];
 		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
 
@@ -1328,7 +1328,7 @@ static void setup_cpu_associativity_change_counters(void)
  */
 static int update_cpu_associativity_changes_mask(void)
 {
-	int cpu = 0, nr_cpus = 0;
+	int cpu, nr_cpus = 0;
 	cpumask_t *changes = &cpu_associativity_changes_mask;
 
 	cpumask_clear(changes);
@@ -1362,8 +1362,7 @@ static int update_cpu_associativity_changes_mask(void)
  */
 static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
 {
-	int i = 0;
-	int nr_assoc_doms = 0;
+	int i, nr_assoc_doms = 0;
 	const u16 *field = (const u16*) packed;
 
 #define VPHN_FIELD_UNUSED	(0xffff)
@@ -1402,7 +1401,7 @@ static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
  */
 static long hcall_vphn(unsigned long cpu, unsigned int *associativity)
 {
-	long rc = 0;
+	long rc;
 	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
 	u64 flags = 1;
 	int hwcpu = get_hard_smp_processor_id(cpu);
@@ -1416,7 +1415,7 @@ static long hcall_vphn(unsigned long cpu, unsigned int *associativity)
 static long vphn_get_associativity(unsigned long cpu,
 					unsigned int *associativity)
 {
-	long rc = 0;
+	long rc;
 
 	rc = hcall_vphn(cpu, associativity);
 
@@ -1442,9 +1441,9 @@ static long vphn_get_associativity(unsigned long cpu,
  */
 int arch_update_cpu_topology(void)
 {
-	int cpu = 0, nid = 0, old_nid = 0;
+	int cpu, nid, old_nid;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
-	struct sys_device *sysdev = NULL;
+	struct sys_device *sysdev;
 
 	for_each_cpu_mask(cpu, cpu_associativity_changes_mask) {
 		vphn_get_associativity(cpu, associativity);
