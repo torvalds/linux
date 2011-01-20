@@ -1,6 +1,8 @@
 #ifndef __LINUX_BRIDGE_EBT_NFLOG_H
 #define __LINUX_BRIDGE_EBT_NFLOG_H
 
+#include <linux/types.h>
+
 #define EBT_NFLOG_MASK 0x0
 
 #define EBT_NFLOG_PREFIX_SIZE 64

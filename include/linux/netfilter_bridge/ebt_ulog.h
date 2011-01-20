@@ -1,6 +1,8 @@
 #ifndef _EBT_ULOG_H
 #define _EBT_ULOG_H
 
+#include <linux/types.h>
+
 #define EBT_ULOG_DEFAULT_NLGROUP 0
 #define EBT_ULOG_DEFAULT_QTHRESHOLD 1
 #define EBT_ULOG_MAXNLGROUPS 32 /* hardcoded netlink max */

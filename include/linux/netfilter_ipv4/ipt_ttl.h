@@ -4,6 +4,8 @@
 #ifndef _IPT_TTL_H
 #define _IPT_TTL_H
 
+#include <linux/types.h>
+
 enum {
 	IPT_TTL_EQ = 0,		/* equals */
 	IPT_TTL_NE,		/* not equals */

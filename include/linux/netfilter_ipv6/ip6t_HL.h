@@ -5,6 +5,8 @@
 #ifndef _IP6T_HL_H
 #define _IP6T_HL_H
 
+#include <linux/types.h>
+
 enum {
 	IP6T_HL_SET = 0,
 	IP6T_HL_INC,

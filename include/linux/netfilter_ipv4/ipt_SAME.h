@@ -1,6 +1,8 @@
 #ifndef _IPT_SAME_H
 #define _IPT_SAME_H
 
+#include <linux/types.h>
+
 #define IPT_SAME_MAX_RANGE	10
 
 #define IPT_SAME_NODST		0x01

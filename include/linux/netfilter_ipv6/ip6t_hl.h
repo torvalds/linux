@@ -5,6 +5,8 @@
 #ifndef _IP6T_HL_H
 #define _IP6T_HL_H
 
+#include <linux/types.h>
+
 enum {
 	IP6T_HL_EQ = 0,		/* equals */
 	IP6T_HL_NE,		/* not equals */

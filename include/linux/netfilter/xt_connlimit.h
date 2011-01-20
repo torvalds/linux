@@ -1,6 +1,8 @@
 #ifndef _XT_CONNLIMIT_H
 #define _XT_CONNLIMIT_H
 
+#include <linux/types.h>
+
 struct xt_connlimit_data;
 
 enum {

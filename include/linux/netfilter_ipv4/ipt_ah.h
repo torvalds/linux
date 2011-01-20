@@ -1,6 +1,8 @@
 #ifndef _IPT_AH_H
 #define _IPT_AH_H
 
+#include <linux/types.h>
+
 struct ipt_ah {
 	__u32 spis[2];			/* Security Parameter Index */
 	__u8  invflags;			/* Inverse flags */

@@ -1,6 +1,8 @@
 #ifndef _XT_CLUSTER_MATCH_H
 #define _XT_CLUSTER_MATCH_H
 
+#include <linux/types.h>
+
 enum xt_cluster_flags {
 	XT_CLUSTER_F_INV	= (1 << 0)
 };

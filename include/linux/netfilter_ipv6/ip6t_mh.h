@@ -1,6 +1,8 @@
 #ifndef _IP6T_MH_H
 #define _IP6T_MH_H
 
+#include <linux/types.h>
+
 /* MH matching stuff */
 struct ip6t_mh {
 	__u8 types[2];	/* MH type range */

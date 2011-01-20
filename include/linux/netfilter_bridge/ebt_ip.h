@@ -15,6 +15,8 @@
 #ifndef __LINUX_BRIDGE_EBT_IP_H
 #define __LINUX_BRIDGE_EBT_IP_H
 
+#include <linux/types.h>
+
 #define EBT_IP_SOURCE 0x01
 #define EBT_IP_DEST 0x02
 #define EBT_IP_TOS 0x04

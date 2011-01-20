@@ -1,6 +1,8 @@
 #ifndef _XT_TIME_H
 #define _XT_TIME_H 1
 
+#include <linux/types.h>
+
 struct xt_time_info {
 	__u32 date_start;
 	__u32 date_stop;

@@ -1,6 +1,8 @@
 #ifndef _IPT_ADDRTYPE_H
 #define _IPT_ADDRTYPE_H
 
+#include <linux/types.h>
+
 enum {
 	IPT_ADDRTYPE_INVERT_SOURCE	= 0x0001,
 	IPT_ADDRTYPE_INVERT_DEST	= 0x0002,

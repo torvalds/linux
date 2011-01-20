@@ -1,6 +1,8 @@
 #ifndef _IPT_CLUSTERIP_H_target
 #define _IPT_CLUSTERIP_H_target
 
+#include <linux/types.h>
+
 enum clusterip_hashmode {
     CLUSTERIP_HASHMODE_SIP = 0,
     CLUSTERIP_HASHMODE_SIP_SPT,

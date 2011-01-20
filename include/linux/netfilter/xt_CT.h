@@ -1,6 +1,8 @@
 #ifndef _XT_CT_H
 #define _XT_CT_H
 
+#include <linux/types.h>
+
 #define XT_CT_NOTRACK	0x1
 
 struct xt_ct_target_info {

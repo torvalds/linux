@@ -1,6 +1,8 @@
 #ifndef __LINUX_BRIDGE_EBT_802_3_H
 #define __LINUX_BRIDGE_EBT_802_3_H
 
+#include <linux/types.h>
+
 #define EBT_802_3_SAP 0x01
 #define EBT_802_3_TYPE 0x02
 
