@@ -2399,12 +2399,6 @@ unsigned int kmem_cache_size(struct kmem_cache *s)
 }
 EXPORT_SYMBOL(kmem_cache_size);
 
-const char *kmem_cache_name(struct kmem_cache *s)
-{
-	return s->name;
-}
-EXPORT_SYMBOL(kmem_cache_name);
-
 static void list_slab_objects(struct kmem_cache *s, struct page *page,
 							const char *text)
 {

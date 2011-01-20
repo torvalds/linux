@@ -2147,8 +2147,6 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
  *
  * @name must be valid until the cache is destroyed. This implies that
  * the module calling this has to destroy the cache before getting unloaded.
- * Note that kmem_cache_name() is not guaranteed to return the same pointer,
- * therefore applications must manage it themselves.
  *
  * The flags are
  *
@@ -3839,12 +3837,6 @@ unsigned int kmem_cache_size(struct kmem_cache *cachep)
 	return obj_size(cachep);
 }
 EXPORT_SYMBOL(kmem_cache_size);
-
-const char *kmem_cache_name(struct kmem_cache *cachep)
-{
-	return cachep->name;
-}
-EXPORT_SYMBOL_GPL(kmem_cache_name);
 
 /*
  * This initializes kmem_list3 or resizes various caches for all nodes.
