@@ -34,6 +34,14 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+static inline int ring_space(struct intel_ring_buffer *ring)
+{
+	int space = (ring->head & HEAD_ADDR) - (ring->tail + 8);
+	if (space < 0)
+		space += ring->size;
+	return space;
+}
+
 static u32 i915_gem_get_seqno(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -204,11 +212,9 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	if (!drm_core_check_feature(ring->dev, DRIVER_MODESET))
 		i915_kernel_lost_context(ring->dev);
 	else {
-		ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
+		ring->head = I915_READ_HEAD(ring);
 		ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-		ring->space = ring->head - (ring->tail + 8);
-		if (ring->space < 0)
-			ring->space += ring->size;
+		ring->space = ring_space(ring);
 	}
 
 	return 0;
@@ -921,7 +927,7 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 	}
 
 	ring->tail = 0;
-	ring->space = ring->head - 8;
+	ring->space = ring_space(ring);
 
 	return 0;
 }
@@ -933,20 +939,22 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	unsigned long end;
 	u32 head;
 
+	/* If the reported head position has wrapped or hasn't advanced,
+	 * fallback to the slow and accurate path.
+	 */
+	head = intel_read_status_page(ring, 4);
+	if (head > ring->head) {
+		ring->head = head;
+		ring->space = ring_space(ring);
+		if (ring->space >= n)
+			return 0;
+	}
+
 	trace_i915_ring_wait_begin (dev);
 	end = jiffies + 3 * HZ;
 	do {
-		/* If the reported head position has wrapped or hasn't advanced,
-		 * fallback to the slow and accurate path.
-		 */
-		head = intel_read_status_page(ring, 4);
-		if (head < ring->actual_head)
-			head = I915_READ_HEAD(ring);
-		ring->actual_head = head;
-		ring->head = head & HEAD_ADDR;
-		ring->space = ring->head - (ring->tail + 8);
-		if (ring->space < 0)
-			ring->space += ring->size;
+		ring->head = I915_READ_HEAD(ring);
+		ring->space = ring_space(ring);
 		if (ring->space >= n) {
 			trace_i915_ring_wait_end(dev);
 			return 0;
