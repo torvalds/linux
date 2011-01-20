@@ -228,7 +228,7 @@ generic_secondary_common_init:
 	mr	r3,r24			/* not found, copy phys to r3	 */
 	b	.kexec_wait		/* next kernel might do better	 */
 
-2:	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG */
+2:	SET_PACA(r13)
 #ifdef CONFIG_PPC_BOOK3E
 	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in another  */
 	mtspr	SPRN_SPRG_TLB_EXFRAME,r12
@@ -534,7 +534,7 @@ _GLOBAL(pmac_secondary_start)
 	ld	r4,0(r4)		/* Get base vaddr of paca array	*/
 	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
-	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG*/
+	SET_PACA(r13)			/* Save vaddr of paca in an SPRG*/
 
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)

@@ -53,7 +53,7 @@ data_access_pSeries:
 	DO_KVM	0x300
 	mtspr	SPRN_SPRG_SCRATCH0,r13
 BEGIN_FTR_SECTION
-	mfspr	r13,SPRN_SPRG_PACA
+	GET_PACA(r13)
 	std	r9,PACA_EXSLB+EX_R9(r13)
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	mfspr	r10,SPRN_DAR
@@ -82,7 +82,7 @@ data_access_slb_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x380
 	mtspr	SPRN_SPRG_SCRATCH0,r13
-	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
+	GET_PACA(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
@@ -121,7 +121,7 @@ instruction_access_slb_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x480
 	mtspr	SPRN_SPRG_SCRATCH0,r13
-	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
+	GET_PACA(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
@@ -165,7 +165,7 @@ BEGIN_FTR_SECTION
 	beq-	1f
 END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	mr	r9,r13
-	mfspr	r13,SPRN_SPRG_PACA
+	GET_PACA(r13)
 	mfspr	r11,SPRN_SRR0
 	ld	r12,PACAKBASE(r13)
 	ld	r10,PACAKMSR(r13)

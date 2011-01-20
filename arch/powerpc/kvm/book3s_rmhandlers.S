@@ -35,9 +35,7 @@
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 
-#define LOAD_SHADOW_VCPU(reg)				\
-	mfspr	reg, SPRN_SPRG_PACA
-
+#define LOAD_SHADOW_VCPU(reg)	GET_PACA(reg)					
 #define SHADOW_VCPU_OFF		PACA_KVM_SVCPU
 #define MSR_NOIRQ		MSR_KERNEL & ~(MSR_IR | MSR_DR)
 #define FUNC(name) 		GLUE(.,name)

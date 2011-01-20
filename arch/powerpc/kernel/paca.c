@@ -156,11 +156,22 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 /* Put the paca pointer into r13 and SPRG_PACA */
 void setup_paca(struct paca_struct *new_paca)
 {
+	/* Setup r13 */
 	local_paca = new_paca;
-	mtspr(SPRN_SPRG_PACA, local_paca);
+
 #ifdef CONFIG_PPC_BOOK3E
+	/* On Book3E, initialize the TLB miss exception frames */
 	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
+#else
+	/* In HV mode, we setup both HPACA and PACA to avoid problems
+	 * if we do a GET_PACA() before the feature fixups have been
+	 * applied
+	 */
+	if (cpu_has_feature(CPU_FTR_HVMODE_206))
+		mtspr(SPRN_SPRG_HPACA, local_paca);
 #endif
+	mtspr(SPRN_SPRG_PACA, local_paca);
+
 }
 
 static int __initdata paca_size;

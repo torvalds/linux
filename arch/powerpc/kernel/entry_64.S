@@ -838,7 +838,7 @@ _GLOBAL(enter_rtas)
 
 _STATIC(rtas_return_loc)
 	/* relocation is off at this point */
-	mfspr	r4,SPRN_SPRG_PACA	/* Get PACA */
+	GET_PACA(r4)
 	clrldi	r4,r4,2			/* convert to realmode address */
 
 	bcl	20,31,$+4
@@ -869,7 +869,7 @@ _STATIC(rtas_restore_regs)
 	REST_8GPRS(14, r1)		/* Restore the non-volatiles */
 	REST_10GPRS(22, r1)		/* ditto */
 
-	mfspr	r13,SPRN_SPRG_PACA
+	GET_PACA(r13)
 
 	ld	r4,_CCR(r1)
 	mtcr	r4

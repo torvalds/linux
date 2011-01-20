@@ -715,12 +715,15 @@
  * SPRG usage:
  *
  * All 64-bit:
- *	- SPRG1 stores PACA pointer
+ *	- SPRG1 stores PACA pointer except 64-bit server in
+ *        HV mode in which case it is HSPRG0
  *
  * 64-bit server:
  *	- SPRG0 unused (reserved for HV on Power4)
  *	- SPRG2 scratch for exception vectors
  *	- SPRG3 unused (user visible)
+ *      - HSPRG0 stores PACA in HV mode
+ *      - HSPRG1 scratch for "HV" exceptions
  *
  * 64-bit embedded
  *	- SPRG0 generic exception scratch
@@ -783,6 +786,22 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG2
+#define SPRN_SPRG_HPACA		SPRN_HSPRG0
+#define SPRN_SPRG_HSCRATCH0	SPRN_HSPRG1
+
+#define GET_PACA(rX)					\
+	BEGIN_FTR_SECTION_NESTED(66);			\
+	mfspr	rX,SPRN_SPRG_PACA;			\
+	FTR_SECTION_ELSE_NESTED(66);			\
+	mfspr	rX,SPRN_SPRG_HPACA;			\
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+
+#define SET_PACA(rX)					\
+	BEGIN_FTR_SECTION_NESTED(66);			\
+	mtspr	SPRN_SPRG_PACA,rX;			\
+	FTR_SECTION_ELSE_NESTED(66);			\
+	mtspr	SPRN_SPRG_HPACA,rX;			\
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
 #endif
 
 #ifdef CONFIG_PPC_BOOK3E_64
@@ -792,6 +811,10 @@
 #define SPRN_SPRG_TLB_EXFRAME	SPRN_SPRG2
 #define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6
 #define SPRN_SPRG_GEN_SCRATCH	SPRN_SPRG0
+
+#define SET_PACA(rX)	mtspr	SPRN_SPRG_PACA,rX
+#define GET_PACA(rX)	mfspr	rX,SPRN_SPRG_PACA
+
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -841,6 +864,8 @@
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
 #endif
+
+
 
 /*
  * An mtfsf instruction with the L bit set. On CPUs that support this a

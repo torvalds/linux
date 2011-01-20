@@ -56,8 +56,8 @@
 #define LOAD_HANDLER(reg, label)					\
 	addi	reg,reg,(label)-_stext;	/* virt addr of handler ... */
 
-#define EXCEPTION_PROLOG_1(area)				\
-	mfspr	r13,SPRN_SPRG_PACA;	/* get paca address into r13 */	\
+#define EXCEPTION_PROLOG_1(area)					\
+	GET_PACA(r13);							\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
 	std	r10,area+EX_R10(r13);					\
 	std	r11,area+EX_R11(r13);					\
@@ -174,7 +174,7 @@ label##_pSeries:							\
 	HMT_MEDIUM;							\
 	DO_KVM	n;							\
 	mtspr	SPRN_SPRG_SCRATCH0,r13;	/* save r13 */			\
-	mfspr	r13,SPRN_SPRG_PACA;	/* get paca address into r13 */	\
+	GET_PACA(r13);							\
 	std	r9,PACA_EXGEN+EX_R9(r13);	/* save r9, r10 */	\
 	std	r10,PACA_EXGEN+EX_R10(r13);				\
 	lbz	r10,PACASOFTIRQEN(r13);					\
