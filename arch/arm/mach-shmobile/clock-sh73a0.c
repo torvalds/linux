@@ -118,8 +118,16 @@ static unsigned long pll_recalc(struct clk *clk)
 {
 	unsigned long mult = 1;
 
-	if (__raw_readl(PLLECR) & (1 << clk->enable_bit))
+	if (__raw_readl(PLLECR) & (1 << clk->enable_bit)) {
 		mult = (((__raw_readl(clk->enable_reg) >> 24) & 0x3f) + 1);
+		/* handle CFG bit for PLL1 and PLL2 */
+		switch (clk->enable_bit) {
+		case 1:
+		case 2:
+			if (__raw_readl(clk->enable_reg) & (1 << 20))
+				mult *= 2;
+		}
+	}
 
 	return clk->parent->rate * mult;
 }
