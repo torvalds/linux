@@ -56,7 +56,6 @@ header-y += xt_rateest.h
 header-y += xt_realm.h
 header-y += xt_recent.h
 header-y += xt_sctp.h
-header-y += xt_secmark.h
 header-y += xt_socket.h
 header-y += xt_state.h
 header-y += xt_statistic.h
