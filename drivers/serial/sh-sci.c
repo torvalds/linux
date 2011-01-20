@@ -125,12 +125,6 @@ to_sci_port(struct uart_port *uart)
 #if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
 
 #ifdef CONFIG_CONSOLE_POLL
-static inline void handle_error(struct uart_port *port)
-{
-	/* Clear error flags */
-	sci_out(port, SCxSR, SCxSR_ERROR_CLEAR(port));
-}
-
 static int sci_poll_get_char(struct uart_port *port)
 {
 	unsigned short status;
@@ -139,7 +133,7 @@ static int sci_poll_get_char(struct uart_port *port)
 	do {
 		status = sci_in(port, SCxSR);
 		if (status & SCxSR_ERRORS(port)) {
-			handle_error(port);
+			sci_out(port, SCxSR, SCxSR_ERROR_CLEAR(port));
 			continue;
 		}
 		break;
@@ -458,7 +452,7 @@ static void sci_transmit_chars(struct uart_port *port)
 /* On SH3, SCIF may read end-of-break as a space->mark char */
 #define STEPFN(c)  ({int __c = (c); (((__c-1)|(__c)) == -1); })
 
-static inline void sci_receive_chars(struct uart_port *port)
+static void sci_receive_chars(struct uart_port *port)
 {
 	struct sci_port *sci_port = to_sci_port(port);
 	struct tty_struct *tty = port->state->port.tty;
@@ -549,18 +543,21 @@ static inline void sci_receive_chars(struct uart_port *port)
 }
 
 #define SCI_BREAK_JIFFIES (HZ/20)
-/* The sci generates interrupts during the break,
+
+/*
+ * The sci generates interrupts during the break,
  * 1 per millisecond or so during the break period, for 9600 baud.
  * So dont bother disabling interrupts.
  * But dont want more than 1 break event.
  * Use a kernel timer to periodically poll the rx line until
  * the break is finished.
  */
-static void sci_schedule_break_timer(struct sci_port *port)
+static inline void sci_schedule_break_timer(struct sci_port *port)
 {
 	port->break_timer.expires = jiffies + SCI_BREAK_JIFFIES;
 	add_timer(&port->break_timer);
 }
+
 /* Ensure that two consecutive samples find the break over. */
 static void sci_break_timer(unsigned long data)
 {
@@ -577,7 +574,7 @@ static void sci_break_timer(unsigned long data)
 		port->break_flag = 0;
 }
 
-static inline int sci_handle_errors(struct uart_port *port)
+static int sci_handle_errors(struct uart_port *port)
 {
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
@@ -633,7 +630,7 @@ static inline int sci_handle_errors(struct uart_port *port)
 	return copied;
 }
 
-static inline int sci_handle_fifo_overrun(struct uart_port *port)
+static int sci_handle_fifo_overrun(struct uart_port *port)
 {
 	struct tty_struct *tty = port->state->port.tty;
 	int copied = 0;
@@ -654,7 +651,7 @@ static inline int sci_handle_fifo_overrun(struct uart_port *port)
 	return copied;
 }
 
-static inline int sci_handle_breaks(struct uart_port *port)
+static int sci_handle_breaks(struct uart_port *port)
 {
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
