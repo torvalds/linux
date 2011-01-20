@@ -777,12 +777,12 @@ static void nvme_ns_free(struct nvme_ns *ns)
 	kfree(ns);
 }
 
-static int set_queue_count(struct nvme_dev *dev, int sq_count, int cq_count)
+static int set_queue_count(struct nvme_dev *dev, int count)
 {
 	int status;
 	u32 result;
 	struct nvme_command c;
-	u32 q_count = (sq_count - 1) | ((cq_count - 1) << 16);
+	u32 q_count = (count - 1) | ((count - 1) << 16);
 
 	memset(&c, 0, sizeof(c));
 	c.features.opcode = nvme_admin_get_features;
@@ -800,7 +800,7 @@ static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 {
 	int this_cpu;
 
-	set_queue_count(dev, 1, 1);
+	set_queue_count(dev, 1);
 
 	this_cpu = get_cpu();
 	dev->queues[1] = nvme_create_queue(dev, 1, NVME_Q_DEPTH, this_cpu);
