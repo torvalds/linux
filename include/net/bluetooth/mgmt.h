@@ -120,6 +120,16 @@ struct mgmt_cp_remove_key {
 	__u8 disconnect;
 } __packed;
 
+#define MGMT_OP_DISCONNECT		0x000F
+struct mgmt_cp_disconnect {
+	__le16 index;
+	bdaddr_t bdaddr;
+} __packed;
+struct mgmt_rp_disconnect {
+	__le16 index;
+	bdaddr_t bdaddr;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;

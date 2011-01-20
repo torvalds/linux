@@ -887,6 +887,60 @@ unlock:
 	return err;
 }
 
+static int disconnect(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_disconnect *cp;
+	struct hci_cp_disconnect dc;
+	struct hci_conn *conn;
+	u16 dev_id;
+	int err;
+
+	BT_DBG("");
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_DISCONNECT, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = cmd_status(sk, MGMT_OP_DISCONNECT, ENETDOWN);
+		goto failed;
+	}
+
+	if (mgmt_pending_find(MGMT_OP_DISCONNECT, dev_id)) {
+		err = cmd_status(sk, MGMT_OP_DISCONNECT, EBUSY);
+		goto failed;
+	}
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (!conn) {
+		err = cmd_status(sk, MGMT_OP_DISCONNECT, ENOTCONN);
+		goto failed;
+	}
+
+	err = mgmt_pending_add(sk, MGMT_OP_DISCONNECT, dev_id, data, len);
+	if (err < 0)
+		goto failed;
+
+	put_unaligned_le16(conn->handle, &dc.handle);
+	dc.reason = 0x13; /* Remote User Terminated Connection */
+
+	err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
+	if (err < 0)
+		mgmt_pending_remove(MGMT_OP_DISCONNECT, dev_id);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -956,6 +1010,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_REMOVE_KEY:
 		err = remove_key(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_DISCONNECT:
+		err = disconnect(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
@@ -1101,12 +1158,72 @@ int mgmt_connected(u16 index, bdaddr_t *bdaddr)
 	return mgmt_event(MGMT_EV_CONNECTED, &ev, sizeof(ev), NULL);
 }
 
+static void disconnect_rsp(struct pending_cmd *cmd, void *data)
+{
+	struct mgmt_cp_disconnect *cp = cmd->cmd;
+	struct sock **sk = data;
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+	struct mgmt_ev_cmd_complete *ev;
+	struct mgmt_rp_disconnect *rp;
+
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
+
+	ev = (void *) skb_put(skb, sizeof(*ev));
+	put_unaligned_le16(MGMT_OP_DISCONNECT, &ev->opcode);
+
+	rp = (void *) skb_put(skb, sizeof(*rp));
+	put_unaligned_le16(cmd->index, &rp->index);
+	bacpy(&rp->bdaddr, &cp->bdaddr);
+
+	if (sock_queue_rcv_skb(cmd->sk, skb) < 0)
+		kfree_skb(skb);
+
+	*sk = cmd->sk;
+	sock_hold(*sk);
+
+	list_del(&cmd->list);
+	mgmt_pending_free(cmd);
+}
+
 int mgmt_disconnected(u16 index, bdaddr_t *bdaddr)
 {
 	struct mgmt_ev_disconnected ev;
+	struct sock *sk = NULL;
+	int err;
+
+	mgmt_pending_foreach(MGMT_OP_DISCONNECT, index, disconnect_rsp, &sk);
 
 	put_unaligned_le16(index, &ev.index);
 	bacpy(&ev.bdaddr, bdaddr);
 
-	return mgmt_event(MGMT_EV_DISCONNECTED, &ev, sizeof(ev), NULL);
+	err = mgmt_event(MGMT_EV_DISCONNECTED, &ev, sizeof(ev), sk);
+
+	if (sk)
+		sock_put(sk);
+
+	return err;
+}
+
+int mgmt_disconnect_failed(u16 index)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_find(MGMT_OP_DISCONNECT, index);
+	if (!cmd)
+		return -ENOENT;
+
+	err = cmd_status(cmd->sk, MGMT_OP_DISCONNECT, EIO);
+
+	list_del(&cmd->list);
+	mgmt_pending_free(cmd);
+
+	return err;
 }
