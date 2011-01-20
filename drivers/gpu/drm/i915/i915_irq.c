@@ -348,8 +348,12 @@ static void notify_ring(struct drm_device *dev,
 			struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 seqno = ring->get_seqno(ring);
+	u32 seqno;
 
+	if (ring->obj == NULL)
+		return;
+
+	seqno = ring->get_seqno(ring);
 	trace_i915_gem_request_complete(dev, seqno);
 
 	ring->irq_seqno = seqno;
