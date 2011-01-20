@@ -56,7 +56,6 @@ void __key_check(const struct key *key)
 }
 #endif
 
-/*****************************************************************************/
 /*
  * get the key quota record for a user, allocating a new record if one doesn't
  * already exist
@@ -130,10 +129,8 @@ struct key_user *key_user_lookup(uid_t uid, struct user_namespace *user_ns)
 	kfree(candidate);
  out:
 	return user;
+}
 
-} /* end key_user_lookup() */
-
-/*****************************************************************************/
 /*
  * dispose of a user structure
  */
@@ -146,10 +143,8 @@ void key_user_put(struct key_user *user)
 
 		kfree(user);
 	}
+}
 
-} /* end key_user_put() */
-
-/*****************************************************************************/
 /*
  * assign a key the next unique serial number
  * - these are assigned randomly to avoid security issues through covert
@@ -211,10 +206,8 @@ serial_exists:
 		if (key->serial < xkey->serial)
 			goto attempt_insertion;
 	}
+}
 
-} /* end key_alloc_serial() */
-
-/*****************************************************************************/
 /*
  * allocate a key of the specified type
  * - update the user's quota to reflect the existence of the key
@@ -344,12 +337,10 @@ no_quota:
 	key_user_put(user);
 	key = ERR_PTR(-EDQUOT);
 	goto error;
-
-} /* end key_alloc() */
+}
 
 EXPORT_SYMBOL(key_alloc);
 
-/*****************************************************************************/
 /*
  * reserve an amount of quota for the key's payload
  */
@@ -384,12 +375,10 @@ int key_payload_reserve(struct key *key, size_t datalen)
 		key->datalen = datalen;
 
 	return ret;
-
-} /* end key_payload_reserve() */
+}
 
 EXPORT_SYMBOL(key_payload_reserve);
 
-/*****************************************************************************/
 /*
  * instantiate a key and link it into the target keyring atomically
  * - called with the target keyring's semaphore writelocked
@@ -441,10 +430,8 @@ static int __key_instantiate_and_link(struct key *key,
 		wake_up_bit(&key->flags, KEY_FLAG_USER_CONSTRUCT);
 
 	return ret;
+}
 
-} /* end __key_instantiate_and_link() */
-
-/*****************************************************************************/
 /*
  * instantiate a key and link it into the target keyring atomically
  */
@@ -471,12 +458,10 @@ int key_instantiate_and_link(struct key *key,
 		__key_link_end(keyring, key->type, prealloc);
 
 	return ret;
-
-} /* end key_instantiate_and_link() */
+}
 
 EXPORT_SYMBOL(key_instantiate_and_link);
 
-/*****************************************************************************/
 /*
  * negatively instantiate a key and link it into the target keyring atomically
  */
@@ -535,12 +520,10 @@ int key_negate_and_link(struct key *key,
 		wake_up_bit(&key->flags, KEY_FLAG_USER_CONSTRUCT);
 
 	return ret == 0 ? link_ret : ret;
-
-} /* end key_negate_and_link() */
+}
 
 EXPORT_SYMBOL(key_negate_and_link);
 
-/*****************************************************************************/
 /*
  * do cleaning up in process context so that we don't have to disable
  * interrupts all over the place
@@ -601,10 +584,8 @@ static void key_cleanup(struct work_struct *work)
 
 	/* there may, of course, be more than one key to destroy */
 	goto go_again;
+}
 
-} /* end key_cleanup() */
-
-/*****************************************************************************/
 /*
  * dispose of a reference to a key
  * - when all the references are gone, we schedule the cleanup task to come and
@@ -618,12 +599,10 @@ void key_put(struct key *key)
 		if (atomic_dec_and_test(&key->usage))
 			schedule_work(&key_cleanup_task);
 	}
-
-} /* end key_put() */
+}
 
 EXPORT_SYMBOL(key_put);
 
-/*****************************************************************************/
 /*
  * find a key by its serial number
  */
@@ -664,10 +643,8 @@ struct key *key_lookup(key_serial_t id)
  error:
 	spin_unlock(&key_serial_lock);
 	return key;
+}
 
-} /* end key_lookup() */
-
-/*****************************************************************************/
 /*
  * find and lock the specified key type against removal
  * - we return with the sem readlocked
@@ -690,20 +667,16 @@ struct key_type *key_type_lookup(const char *type)
 
  found_kernel_type:
 	return ktype;
+}
 
-} /* end key_type_lookup() */
-
-/*****************************************************************************/
 /*
  * unlock a key type
  */
 void key_type_put(struct key_type *ktype)
 {
 	up_read(&key_types_sem);
+}
 
-} /* end key_type_put() */
-
-/*****************************************************************************/
 /*
  * attempt to update an existing key
  * - the key has an incremented refcount
@@ -742,10 +715,8 @@ error:
 	key_put(key);
 	key_ref = ERR_PTR(ret);
 	goto out;
+}
 
-} /* end __key_update() */
-
-/*****************************************************************************/
 /*
  * search the specified keyring for a key of the same description; if one is
  * found, update it, otherwise add a new one
@@ -855,12 +826,10 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 
 	key_ref = __key_update(key_ref, payload, plen);
 	goto error;
-
-} /* end key_create_or_update() */
+}
 
 EXPORT_SYMBOL(key_create_or_update);
 
-/*****************************************************************************/
 /*
  * update a key
  */
@@ -891,12 +860,10 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 
  error:
 	return ret;
-
-} /* end key_update() */
+}
 
 EXPORT_SYMBOL(key_update);
 
-/*****************************************************************************/
 /*
  * revoke a key
  */
@@ -926,12 +893,10 @@ void key_revoke(struct key *key)
 	}
 
 	up_write(&key->sem);
-
-} /* end key_revoke() */
+}
 
 EXPORT_SYMBOL(key_revoke);
 
-/*****************************************************************************/
 /*
  * register a type of key
  */
@@ -956,12 +921,10 @@ int register_key_type(struct key_type *ktype)
  out:
 	up_write(&key_types_sem);
 	return ret;
-
-} /* end register_key_type() */
+}
 
 EXPORT_SYMBOL(register_key_type);
 
-/*****************************************************************************/
 /*
  * unregister a type of key
  */
@@ -1010,12 +973,10 @@ void unregister_key_type(struct key_type *ktype)
 	up_write(&key_types_sem);
 
 	key_schedule_gc(0);
-
-} /* end unregister_key_type() */
+}
 
 EXPORT_SYMBOL(unregister_key_type);
 
-/*****************************************************************************/
 /*
  * initialise the key management stuff
  */
@@ -1037,5 +998,4 @@ void __init key_init(void)
 
 	rb_insert_color(&root_key_user.node,
 			&key_user_tree);
-
-} /* end key_init() */
+}

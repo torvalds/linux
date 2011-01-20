@@ -14,7 +14,6 @@
 #include <linux/compat.h>
 #include "internal.h"
 
-/*****************************************************************************/
 /*
  * the key control system call, 32-bit compatibility version for 64-bit archs
  * - this should only be called if the 64-bit arch uses weird pointers in
@@ -88,5 +87,4 @@ asmlinkage long compat_sys_keyctl(u32 option,
 	default:
 		return -EOPNOTSUPP;
 	}
-
-} /* end compat_sys_keyctl() */
+}

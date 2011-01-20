@@ -13,7 +13,6 @@
 #include <linux/security.h>
 #include "internal.h"
 
-/*****************************************************************************/
 /**
  * key_task_permission - Check a key can be used
  * @key_ref: The key to check
@@ -79,12 +78,10 @@ use_these_perms:
 
 	/* let LSM be the final arbiter */
 	return security_key_permission(key_ref, cred, perm);
-
-} /* end key_task_permission() */
+}
 
 EXPORT_SYMBOL(key_task_permission);
 
-/*****************************************************************************/
 /*
  * validate a key
  */
@@ -111,7 +108,6 @@ int key_validate(struct key *key)
 
 error:
 	return ret;
-
-} /* end key_validate() */
+}
 
 EXPORT_SYMBOL(key_validate);

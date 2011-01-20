@@ -80,7 +80,6 @@ EXPORT_SYMBOL(key_type_keyring);
  */
 static DECLARE_RWSEM(keyring_serialise_link_sem);
 
-/*****************************************************************************/
 /*
  * publish the name of a keyring so that it can be found by name (if it has
  * one)
@@ -102,10 +101,8 @@ static void keyring_publish_name(struct key *keyring)
 
 		write_unlock(&keyring_name_lock);
 	}
+}
 
-} /* end keyring_publish_name() */
-
-/*****************************************************************************/
 /*
  * initialise a keyring
  * - we object if we were given any data
@@ -123,10 +120,8 @@ static int keyring_instantiate(struct key *keyring,
 	}
 
 	return ret;
+}
 
-} /* end keyring_instantiate() */
-
-/*****************************************************************************/
 /*
  * match keyrings on their name
  */
@@ -134,10 +129,8 @@ static int keyring_match(const struct key *keyring, const void *description)
 {
 	return keyring->description &&
 		strcmp(keyring->description, description) == 0;
+}
 
-} /* end keyring_match() */
-
-/*****************************************************************************/
 /*
  * dispose of the data dangling from the corpse of a keyring
  */
@@ -164,10 +157,8 @@ static void keyring_destroy(struct key *keyring)
 			key_put(klist->keys[loop]);
 		kfree(klist);
 	}
+}
 
-} /* end keyring_destroy() */
-
-/*****************************************************************************/
 /*
  * describe the keyring
  */
@@ -187,10 +178,8 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 	else
 		seq_puts(m, ": empty");
 	rcu_read_unlock();
+}
 
-} /* end keyring_describe() */
-
-/*****************************************************************************/
 /*
  * read a list of key IDs from the keyring's contents
  * - the keyring's semaphore is read-locked
@@ -241,10 +230,8 @@ static long keyring_read(const struct key *keyring,
 
 error:
 	return ret;
+}
 
-} /* end keyring_read() */
-
-/*****************************************************************************/
 /*
  * allocate a keyring and link into the destination keyring
  */
@@ -269,10 +256,8 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 	}
 
 	return keyring;
+}
 
-} /* end keyring_alloc() */
-
-/*****************************************************************************/
 /*
  * search the supplied keyring tree for a key that matches the criterion
  * - perform a breadth-then-depth search up to the prescribed limit
@@ -444,10 +429,8 @@ error_2:
 	rcu_read_unlock();
 error:
 	return key_ref;
+}
 
-} /* end keyring_search_aux() */
-
-/*****************************************************************************/
 /*
  * search the supplied keyring tree for a key that matches the criterion
  * - perform a breadth-then-depth search up to the prescribed limit
@@ -465,12 +448,10 @@ key_ref_t keyring_search(key_ref_t keyring,
 
 	return keyring_search_aux(keyring, current->cred,
 				  type, description, type->match);
-
-} /* end keyring_search() */
+}
 
 EXPORT_SYMBOL(keyring_search);
 
-/*****************************************************************************/
 /*
  * search the given keyring only (no recursion)
  * - keyring must be locked by caller
@@ -514,10 +495,8 @@ found:
 	atomic_inc(&key->usage);
 	rcu_read_unlock();
 	return make_key_ref(key, possessed);
+}
 
-} /* end __keyring_search_one() */
-
-/*****************************************************************************/
 /*
  * find a keyring with the specified name
  * - all named keyrings are searched
@@ -569,10 +548,8 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 out:
 	read_unlock(&keyring_name_lock);
 	return keyring;
+}
 
-} /* end find_keyring_by_name() */
-
-/*****************************************************************************/
 /*
  * see if a cycle will will be created by inserting acyclic tree B in acyclic
  * tree A at the topmost level (ie: as a direct child of A)
@@ -657,8 +634,7 @@ too_deep:
 cycle_detected:
 	ret = -EDEADLK;
 	goto error;
-
-} /* end keyring_detect_cycle() */
+}
 
 /*
  * dispose of a keyring list after the RCU grace period, freeing the unlinked
@@ -898,7 +874,6 @@ int key_link(struct key *keyring, struct key *key)
 
 EXPORT_SYMBOL(key_link);
 
-/*****************************************************************************/
 /*
  * unlink the first link to a key from a keyring
  */
@@ -968,12 +943,10 @@ nomem:
 	ret = -ENOMEM;
 	up_write(&keyring->sem);
 	goto error;
-
-} /* end key_unlink() */
+}
 
 EXPORT_SYMBOL(key_unlink);
 
-/*****************************************************************************/
 /*
  * dispose of a keyring list after the RCU grace period, releasing the keys it
  * links to
@@ -989,10 +962,8 @@ static void keyring_clear_rcu_disposal(struct rcu_head *rcu)
 		key_put(klist->keys[loop]);
 
 	kfree(klist);
+}
 
-} /* end keyring_clear_rcu_disposal() */
-
-/*****************************************************************************/
 /*
  * clear the specified process keyring
  * - implements keyctl(KEYCTL_CLEAR)
@@ -1027,12 +998,10 @@ int keyring_clear(struct key *keyring)
 	}
 
 	return ret;
-
-} /* end keyring_clear() */
+}
 
 EXPORT_SYMBOL(keyring_clear);
 
-/*****************************************************************************/
 /*
  * dispose of the links from a revoked keyring
  * - called with the key sem write-locked
@@ -1050,8 +1019,7 @@ static void keyring_revoke(struct key *keyring)
 		rcu_assign_pointer(keyring->payload.subscriptions, NULL);
 		call_rcu(&klist->rcu, keyring_clear_rcu_disposal);
 	}
-
-} /* end keyring_revoke() */
+}
 
 /*
  * Determine whether a key is dead
