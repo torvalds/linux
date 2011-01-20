@@ -1548,6 +1548,8 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
 	if (tb[IFLA_LINKMODE])
 		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
+	if (tb[IFLA_GROUP])
+		dev_set_group(dev, nla_get_u32(tb[IFLA_GROUP]));
 
 	return dev;
 
@@ -1606,10 +1608,6 @@ replay:
 	else {
 		if (ifname[0])
 			dev = __dev_get_by_name(net, ifname);
-		else if (tb[IFLA_GROUP])
-			return rtnl_group_changelink(net,
-					nla_get_u32(tb[IFLA_GROUP]),
-					ifm, tb);
 		else
 			dev = NULL;
 	}
@@ -1676,8 +1674,13 @@ replay:
 			return do_setlink(dev, ifm, tb, ifname, modified);
 		}
 
-		if (!(nlh->nlmsg_flags & NLM_F_CREATE))
+		if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
+			if (ifm->ifi_index == 0 && tb[IFLA_GROUP])
+				return rtnl_group_changelink(net,
+						nla_get_u32(tb[IFLA_GROUP]),
+						ifm, tb);
 			return -ENODEV;
+		}
 
 		if (ifm->ifi_index)
 			return -EOPNOTSUPP;
