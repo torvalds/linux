@@ -1870,13 +1870,40 @@ static int __init sci_console_init(void)
 console_initcall(sci_console_init);
 
 static struct sci_port early_serial_port;
+
 static struct console early_serial_console = {
 	.name           = "early_ttySC",
 	.write          = serial_console_write,
 	.flags          = CON_PRINTBUFFER,
 };
+
 static char early_serial_buf[32];
 
+static int __devinit sci_probe_earlyprintk(struct platform_device *pdev)
+{
+	struct plat_sci_port *cfg = pdev->dev.platform_data;
+
+	if (early_serial_console.data)
+		return -EEXIST;
+
+	early_serial_console.index = pdev->id;
+	early_serial_console.data = &early_serial_port.port;
+
+	sci_init_single(NULL, &early_serial_port, pdev->id, cfg);
+
+	serial_console_setup(&early_serial_console, early_serial_buf);
+
+	if (!strstr(early_serial_buf, "keep"))
+		early_serial_console.flags |= CON_BOOT;
+
+	register_console(&early_serial_console);
+	return 0;
+}
+#else
+static inline int __devinit sci_probe_earlyprintk(struct platform_device *pdev)
+{
+	return -EINVAL;
+}
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
 #if defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
@@ -1937,34 +1964,19 @@ static int __devinit sci_probe_single(struct platform_device *dev,
 	return uart_add_one_port(&sci_uart_driver, &sciport->port);
 }
 
-/*
- * Register a set of serial devices attached to a platform device.  The
- * list is terminated with a zero flags entry, which means we expect
- * all entries to have at least UPF_BOOT_AUTOCONF set. Platforms that need
- * remapping (such as sh64) should also set UPF_IOREMAP.
- */
 static int __devinit sci_probe(struct platform_device *dev)
 {
 	struct plat_sci_port *p = dev->dev.platform_data;
 	struct sci_port *sp = &sci_ports[dev->id];
-	int ret = -EINVAL;
+	int ret;
 
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-	if (is_early_platform_device(dev)) {
-		early_serial_console.index = dev->id;
-		early_serial_console.data = &early_serial_port.port;
-
-		sci_init_single(NULL, &early_serial_port, dev->id, p);
-
-		serial_console_setup(&early_serial_console, early_serial_buf);
-
-		if (!strstr(early_serial_buf, "keep"))
-			early_serial_console.flags |= CON_BOOT;
-
-		register_console(&early_serial_console);
-		return 0;
-	}
-#endif
+	/*
+	 * If we've come here via earlyprintk initialization, head off to
+	 * the special early probe. We don't have sufficient device state
+	 * to make it beyond this yet.
+	 */
+	if (is_early_platform_device(dev))
+		return sci_probe_earlyprintk(dev);
 
 	platform_set_drvdata(dev, sp);
 
