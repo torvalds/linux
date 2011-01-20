@@ -93,7 +93,7 @@ struct nvme_queue {
 	u16 sq_head;
 	u16 sq_tail;
 	u16 cq_head;
-	u16 cq_cycle;
+	u16 cq_phase;
 	unsigned long cmdid_data[];
 };
 
@@ -364,7 +364,7 @@ typedef void (*completion_fn)(struct nvme_queue *, void *,
 
 static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 {
-	u16 head, cycle;
+	u16 head, phase;
 
 	static const completion_fn completions[4] = {
 		[sync_completion_id] = sync_completion,
@@ -372,19 +372,19 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 	};
 
 	head = nvmeq->cq_head;
-	cycle = nvmeq->cq_cycle;
+	phase = nvmeq->cq_phase;
 
 	for (;;) {
 		unsigned long data;
 		void *ptr;
 		unsigned char handler;
 		struct nvme_completion cqe = nvmeq->cqes[head];
-		if ((le16_to_cpu(cqe.status) & 1) != cycle)
+		if ((le16_to_cpu(cqe.status) & 1) != phase)
 			break;
 		nvmeq->sq_head = le16_to_cpu(cqe.sq_head);
 		if (++head == nvmeq->q_depth) {
 			head = 0;
-			cycle = !cycle;
+			phase = !phase;
 		}
 
 		data = free_cmdid(nvmeq, cqe.command_id);
@@ -399,12 +399,12 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 	 * requires that 0.1% of your interrupts are handled, so this isn't
 	 * a big problem.
 	 */
-	if (head == nvmeq->cq_head && cycle == nvmeq->cq_cycle)
+	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
 		return IRQ_NONE;
 
 	writel(head, nvmeq->q_db + 1);
 	nvmeq->cq_head = head;
-	nvmeq->cq_cycle = cycle;
+	nvmeq->cq_phase = phase;
 
 	return IRQ_HANDLED;
 }
@@ -557,7 +557,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->q_dmadev = dmadev;
 	spin_lock_init(&nvmeq->q_lock);
 	nvmeq->cq_head = 0;
-	nvmeq->cq_cycle = 1;
+	nvmeq->cq_phase = 1;
 	init_waitqueue_head(&nvmeq->sq_full);
 	bio_list_init(&nvmeq->sq_cong);
 	nvmeq->q_db = &dev->dbs[qid * 2];
