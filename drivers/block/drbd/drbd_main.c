@@ -1428,8 +1428,13 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		drbd_send_uuids(mdev);
 		drbd_send_state(mdev);
 	}
-	if (os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S)
-		drbd_queue_bitmap_io(mdev, &drbd_send_bitmap, NULL, "send_bitmap (WFBitMapS)");
+	/* No point in queuing send_bitmap if we don't have a connection
+	 * anymore, so check also the _current_ state, not only the new state
+	 * at the time this work was queued. */
+	if (os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S &&
+	    mdev->state.conn == C_WF_BITMAP_S)
+		drbd_queue_bitmap_io(mdev, &drbd_send_bitmap, NULL,
+				"send_bitmap (WFBitMapS)");
 
 	/* Lost contact to peer's copy of the data */
 	if ((os.pdsk >= D_INCONSISTENT &&
