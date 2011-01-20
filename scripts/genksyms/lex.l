@@ -55,10 +55,6 @@ CHAR			L?\'([^\\\']*\\.)*[^\\\']*\'
 
 MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
-/* Version 2 checksumming does proper tokenization; version 1 wasn't
-   quite so pedantic.  */
-%s V2_TOKENS
-
 /* We don't do multiple input files.  */
 %option noyywrap
 
@@ -84,9 +80,9 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
     recognized as tokens.  We don't actually use them since we don't
     parse expressions, but we do want whitespace to be arranged
     around them properly.  */
-<V2_TOKENS>{MC_TOKEN}			return OTHER;
-<V2_TOKENS>{INT}			return INT;
-<V2_TOKENS>{REAL}			return REAL;
+{MC_TOKEN}				return OTHER;
+{INT}					return INT;
+{REAL}					return REAL;
 
 "..."					return DOTS;
 
@@ -134,7 +130,6 @@ yylex(void)
 
   if (lexstate == ST_NOTSTARTED)
     {
-      BEGIN(V2_TOKENS);
       next_node = xmalloc(sizeof(*next_node));
       next_node->next = NULL;
       lexstate = ST_NORMAL;
