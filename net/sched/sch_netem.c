@@ -266,7 +266,7 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
 
-	if (sch->flags & TCQ_F_THROTTLED)
+	if (qdisc_is_throttled(sch))
 		return NULL;
 
 	skb = q->qdisc->ops->peek(q->qdisc);

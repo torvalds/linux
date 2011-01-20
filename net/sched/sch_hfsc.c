@@ -1664,7 +1664,7 @@ hfsc_dequeue(struct Qdisc *sch)
 		set_passive(cl);
 	}
 
-	sch->flags &= ~TCQ_F_THROTTLED;
+	qdisc_unthrottled(sch);
 	sch->q.qlen--;
 
 	return skb;

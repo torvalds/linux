@@ -351,7 +351,7 @@ cbq_mark_toplevel(struct cbq_sched_data *q, struct cbq_class *cl)
 {
 	int toplevel = q->toplevel;
 
-	if (toplevel > cl->level && !(cl->q->flags & TCQ_F_THROTTLED)) {
+	if (toplevel > cl->level && !(qdisc_is_throttled(cl->q))) {
 		psched_time_t now;
 		psched_tdiff_t incr;
 
@@ -625,7 +625,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS);
 	}
 
-	sch->flags &= ~TCQ_F_THROTTLED;
+	qdisc_unthrottled(sch);
 	__netif_schedule(qdisc_root(sch));
 	return HRTIMER_NORESTART;
 }
@@ -974,7 +974,7 @@ cbq_dequeue(struct Qdisc *sch)
 		skb = cbq_dequeue_1(sch);
 		if (skb) {
 			sch->q.qlen--;
-			sch->flags &= ~TCQ_F_THROTTLED;
+			qdisc_unthrottled(sch);
 			return skb;
 		}
 

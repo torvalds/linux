@@ -31,7 +31,8 @@ enum qdisc_state_t {
  * following bits are only changed while qdisc lock is held
  */
 enum qdisc___state_t {
-	__QDISC___STATE_RUNNING,
+	__QDISC___STATE_RUNNING = 1,
+	__QDISC___STATE_THROTTLED = 2,
 };
 
 struct qdisc_size_table {
@@ -46,10 +47,9 @@ struct Qdisc {
 	struct sk_buff *	(*dequeue)(struct Qdisc *dev);
 	unsigned		flags;
 #define TCQ_F_BUILTIN		1
-#define TCQ_F_THROTTLED		2
-#define TCQ_F_INGRESS		4
-#define TCQ_F_CAN_BYPASS	8
-#define TCQ_F_MQROOT		16
+#define TCQ_F_INGRESS		2
+#define TCQ_F_CAN_BYPASS	4
+#define TCQ_F_MQROOT		8
 #define TCQ_F_WARN_NONWC	(1 << 16)
 	int			padded;
 	struct Qdisc_ops	*ops;
@@ -78,25 +78,43 @@ struct Qdisc {
 	unsigned long		state;
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
-	unsigned long		__state;
+	unsigned int		__state;
 	struct gnet_stats_queue	qstats;
 	struct rcu_head		rcu_head;
 	spinlock_t		busylock;
 };
 
-static inline bool qdisc_is_running(struct Qdisc *qdisc)
+static inline bool qdisc_is_running(const struct Qdisc *qdisc)
 {
-	return test_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+	return (qdisc->__state & __QDISC___STATE_RUNNING) ? true : false;
 }
 
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
-	return !__test_and_set_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+	if (qdisc_is_running(qdisc))
+		return false;
+	qdisc->__state |= __QDISC___STATE_RUNNING;
+	return true;
 }
 
 static inline void qdisc_run_end(struct Qdisc *qdisc)
 {
-	__clear_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+	qdisc->__state &= ~__QDISC___STATE_RUNNING;
+}
+
+static inline bool qdisc_is_throttled(const struct Qdisc *qdisc)
+{
+	return (qdisc->__state & __QDISC___STATE_THROTTLED) ? true : false;
+}
+
+static inline void qdisc_throttled(struct Qdisc *qdisc)
+{
+	qdisc->__state |= __QDISC___STATE_THROTTLED;
+}
+
+static inline void qdisc_unthrottled(struct Qdisc *qdisc)
+{
+	qdisc->__state &= ~__QDISC___STATE_THROTTLED;
 }
 
 struct Qdisc_class_ops {

@@ -473,7 +473,7 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
 						 timer);
 
-	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
+	qdisc_unthrottled(wd->qdisc);
 	__netif_schedule(qdisc_root(wd->qdisc));
 
 	return HRTIMER_NORESTART;
@@ -495,7 +495,7 @@ void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
 		     &qdisc_root_sleeping(wd->qdisc)->state))
 		return;
 
-	wd->qdisc->flags |= TCQ_F_THROTTLED;
+	qdisc_throttled(wd->qdisc);
 	time = ktime_set(0, 0);
 	time = ktime_add_ns(time, PSCHED_TICKS2NS(expires));
 	hrtimer_start(&wd->timer, time, HRTIMER_MODE_ABS);
@@ -505,7 +505,7 @@ EXPORT_SYMBOL(qdisc_watchdog_schedule);
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 {
 	hrtimer_cancel(&wd->timer);
-	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
+	qdisc_unthrottled(wd->qdisc);
 }
 EXPORT_SYMBOL(qdisc_watchdog_cancel);
 

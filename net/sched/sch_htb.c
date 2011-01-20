@@ -865,7 +865,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 	/* try to dequeue direct packets as high prio (!) to minimize cpu work */
 	skb = __skb_dequeue(&q->direct_queue);
 	if (skb != NULL) {
-		sch->flags &= ~TCQ_F_THROTTLED;
+		qdisc_unthrottled(sch);
 		sch->q.qlen--;
 		return skb;
 	}
@@ -901,7 +901,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 			skb = htb_dequeue_tree(q, prio, level);
 			if (likely(skb != NULL)) {
 				sch->q.qlen--;
-				sch->flags &= ~TCQ_F_THROTTLED;
+				qdisc_unthrottled(sch);
 				goto fin;
 			}
 		}

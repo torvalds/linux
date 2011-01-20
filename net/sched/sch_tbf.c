@@ -185,7 +185,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 			q->tokens = toks;
 			q->ptokens = ptoks;
 			sch->q.qlen--;
-			sch->flags &= ~TCQ_F_THROTTLED;
+			qdisc_unthrottled(sch);
 			return skb;
 		}
 
