@@ -6271,6 +6271,8 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	BUG_ON(!wc);
 
 	trans = btrfs_start_transaction(tree_root, 0);
+	BUG_ON(IS_ERR(trans));
+
 	if (block_rsv)
 		trans->block_rsv = block_rsv;
 
@@ -6368,6 +6370,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 
 			btrfs_end_transaction_throttle(trans, tree_root);
 			trans = btrfs_start_transaction(tree_root, 0);
+			BUG_ON(IS_ERR(trans));
 			if (block_rsv)
 				trans->block_rsv = block_rsv;
 		}
@@ -7587,7 +7590,7 @@ int btrfs_cleanup_reloc_trees(struct btrfs_root *root)
 
 	if (found) {
 		trans = btrfs_start_transaction(root, 1);
-		BUG_ON(!trans);
+		BUG_ON(IS_ERR(trans));
 		ret = btrfs_commit_transaction(trans, root);
 		BUG_ON(ret);
 	}
@@ -7831,7 +7834,7 @@ static noinline int relocate_one_extent(struct btrfs_root *extent_root,
 
 
 	trans = btrfs_start_transaction(extent_root, 1);
-	BUG_ON(!trans);
+	BUG_ON(IS_ERR(trans));
 
 	if (extent_key->objectid == 0) {
 		ret = del_extent_zero(trans, extent_root, path, extent_key);

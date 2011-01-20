@@ -2028,6 +2028,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 
 	while (1) {
 		trans = btrfs_start_transaction(root, 0);
+		BUG_ON(IS_ERR(trans));
 		trans->block_rsv = rc->block_rsv;
 
 		ret = btrfs_block_rsv_check(trans, root, rc->block_rsv,
@@ -3665,6 +3666,7 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 
 	while (1) {
 		trans = btrfs_start_transaction(rc->extent_root, 0);
+		BUG_ON(IS_ERR(trans));
 
 		if (update_backref_cache(trans, &rc->backref_cache)) {
 			btrfs_end_transaction(trans, rc->extent_root);
@@ -4033,6 +4035,7 @@ static noinline_for_stack int mark_garbage_root(struct btrfs_root *root)
 	int ret;
 
 	trans = btrfs_start_transaction(root->fs_info->tree_root, 0);
+	BUG_ON(IS_ERR(trans));
 
 	memset(&root->root_item.drop_progress, 0,
 		sizeof(root->root_item.drop_progress));

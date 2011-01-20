@@ -3112,6 +3112,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	BUG_ON(!path);
 
 	trans = btrfs_start_transaction(fs_info->tree_root, 0);
+	BUG_ON(IS_ERR(trans));
 
 	wc.trans = trans;
 	wc.pin = 1;

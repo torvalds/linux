@@ -2357,6 +2357,7 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		 */
 		if (is_bad_inode(inode)) {
 			trans = btrfs_start_transaction(root, 0);
+			BUG_ON(IS_ERR(trans));
 			btrfs_orphan_del(trans, inode);
 			btrfs_end_transaction(trans, root);
 			iput(inode);
