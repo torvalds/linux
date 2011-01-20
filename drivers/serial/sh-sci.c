@@ -554,8 +554,7 @@ static void sci_receive_chars(struct uart_port *port)
  */
 static inline void sci_schedule_break_timer(struct sci_port *port)
 {
-	port->break_timer.expires = jiffies + SCI_BREAK_JIFFIES;
-	add_timer(&port->break_timer);
+	mod_timer(&port->break_timer, jiffies + SCI_BREAK_JIFFIES);
 }
 
 /* Ensure that two consecutive samples find the break over. */
