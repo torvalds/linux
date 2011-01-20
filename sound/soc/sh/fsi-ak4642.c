@@ -26,7 +26,8 @@ static int fsi_ak4642_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *dai = rtd->codec_dai;
 	int ret;
 
-	ret = snd_soc_dai_set_fmt(dai, SND_SOC_DAIFMT_CBM_CFM);
+	ret = snd_soc_dai_set_fmt(dai, SND_SOC_DAIFMT_LEFT_J |
+				       SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
