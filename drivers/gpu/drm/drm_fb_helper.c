@@ -1533,11 +1533,11 @@ bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
 
-/* The Kconfig DRM_KMS_HELPER selects FRAMEBUFFER_CONSOLE (if !EMBEDDED)
+/* The Kconfig DRM_KMS_HELPER selects FRAMEBUFFER_CONSOLE (if !EXPERT)
  * but the module doesn't depend on any fb console symbols.  At least
  * attempt to load fbcon to avoid leaving the system without a usable console.
  */
-#if defined(CONFIG_FRAMEBUFFER_CONSOLE_MODULE) && !defined(CONFIG_EMBEDDED)
+#if defined(CONFIG_FRAMEBUFFER_CONSOLE_MODULE) && !defined(CONFIG_EXPERT)
 static int __init drm_fb_helper_modinit(void)
 {
 	const char *name = "fbcon";
