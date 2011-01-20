@@ -1494,14 +1494,6 @@ find_request(struct drbd_conf *mdev,
 	return NULL;
 }
 
-/* when we receive the answer for a read request,
- * verify that we actually know about it */
-static struct drbd_request *ar_id_to_req(struct drbd_conf *mdev, u64 id,
-					 sector_t sector)
-{
-	return find_request(mdev, ar_hash_slot, id, sector, __func__);
-}
-
 static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
 {
 	struct drbd_request *req;
@@ -1512,7 +1504,7 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 	sector = be64_to_cpu(p->sector);
 
 	spin_lock_irq(&mdev->req_lock);
-	req = ar_id_to_req(mdev, p->block_id, sector);
+	req = find_request(mdev, ar_hash_slot, p->block_id, sector, __func__);
 	spin_unlock_irq(&mdev->req_lock);
 	if (unlikely(!req)) {
 		dev_err(DEV, "Got a corrupt block_id/sector pair(1).\n");
@@ -4253,24 +4245,16 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
 	return true;
 }
 
-/* when we receive the ACK for a write request,
- * verify that we actually know about it */
-static struct drbd_request *ack_id_to_req(struct drbd_conf *mdev, u64 id,
-					  sector_t sector)
-{
-	return find_request(mdev, tl_hash_slot, id, sector, __func__);
-}
-
 static int validate_req_change_req_state(struct drbd_conf *mdev,
 	u64 id, sector_t sector,
-	struct drbd_request *(*validator)(struct drbd_conf *, u64, sector_t),
+	struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
 	const char *func, enum drbd_req_event what)
 {
 	struct drbd_request *req;
 	struct bio_and_error m;
 
 	spin_lock_irq(&mdev->req_lock);
-	req = validator(mdev, id, sector);
+	req = find_request(mdev, hash_slot, id, sector, func);
 	if (unlikely(!req)) {
 		spin_unlock_irq(&mdev->req_lock);
 
@@ -4323,7 +4307,7 @@ static int got_BlockAck(struct drbd_conf *mdev, struct p_header80 *h)
 	}
 
 	return validate_req_change_req_state(mdev, p->block_id, sector,
-					     ack_id_to_req, __func__, what);
+					     tl_hash_slot, __func__, what);
 }
 
 static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
@@ -4343,7 +4327,7 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
 	}
 
 	spin_lock_irq(&mdev->req_lock);
-	req = ack_id_to_req(mdev, p->block_id, sector);
+	req = find_request(mdev, tl_hash_slot, p->block_id, sector, __func__);
 	if (!req) {
 		spin_unlock_irq(&mdev->req_lock);
 		if (mdev->net_conf->wire_protocol == DRBD_PROT_A ||
@@ -4380,7 +4364,7 @@ static int got_NegDReply(struct drbd_conf *mdev, struct p_header80 *h)
 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
 
 	return validate_req_change_req_state(mdev, p->block_id, sector,
-					     ar_id_to_req, __func__ , neg_acked);
+					     ar_hash_slot, __func__, neg_acked);
 }
 
 static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header80 *h)
