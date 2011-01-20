@@ -379,7 +379,7 @@ static int ts0710_pkt_send(struct ts0710_con *ts0710, u8 *data)
 	if (!ts27010mux_tty) {
 		pr_warning("ts27010: ldisc closed.  discarding %d bytes\n",
 			   TS0710_FRAME_SIZE(len));
-		return TS0710_FRAME_SIZE(len);
+		return -ENODEV;
 	}
 
 	res = ts27010_ldisc_send(ts27010mux_tty, data,
@@ -951,7 +951,10 @@ static int ts0710_close_channel(u8 dlci)
 	/* Reducing retry to improve recovery times on BP panic/powercycle */
 	try = 1;
 	while (try--) {
-		ts27010_send_disc(ts0710, dlci);
+		retval = ts27010_send_disc(ts0710, dlci);
+		if (retval < 0)
+			break;
+
 		mutex_unlock(&d->lock);
 		retval = wait_event_interruptible_timeout(d->close_wait,
 							  d->state !=
