@@ -112,7 +112,7 @@ int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
 {
 	ktime_t			now;
 	s64			delta; /* ns */
-	struct ir_raw_event	ev;
+	DEFINE_IR_RAW_EVENT(ev);
 	int			rc = 0;
 
 	if (!dev->raw)
@@ -125,7 +125,6 @@ int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
 	 * being called for the first time, note that delta can't
 	 * possibly be negative.
 	 */
-	ev.duration = 0;
 	if (delta > IR_MAX_DURATION || !dev->raw->last_type)
 		type |= IR_START_EVENT;
 	else
