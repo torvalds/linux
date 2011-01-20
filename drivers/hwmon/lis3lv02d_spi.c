@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/spi/spi.h>
+#include <linux/pm.h>
 
 #include "lis3lv02d.h"
 
@@ -88,9 +89,10 @@ static int __devexit lis302dl_spi_remove(struct spi_device *spi)
 	return lis3lv02d_remove_fs(&lis3_dev);
 }
 
-#ifdef CONFIG_PM
-static int lis3lv02d_spi_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int lis3lv02d_spi_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
 	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
@@ -99,8 +101,9 @@ static int lis3lv02d_spi_suspend(struct spi_device *spi, pm_message_t mesg)
 	return 0;
 }
 
-static int lis3lv02d_spi_resume(struct spi_device *spi)
+static int lis3lv02d_spi_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
 	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
@@ -108,21 +111,19 @@ static int lis3lv02d_spi_resume(struct spi_device *spi)
 
 	return 0;
 }
-
-#else
-#define lis3lv02d_spi_suspend	NULL
-#define lis3lv02d_spi_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(lis3lv02d_spi_pm, lis3lv02d_spi_suspend,
+			 lis3lv02d_spi_resume);
 
 static struct spi_driver lis302dl_spi_driver = {
 	.driver	 = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
+		.pm	= &lis3lv02d_spi_pm,
 	},
 	.probe	= lis302dl_spi_probe,
 	.remove	= __devexit_p(lis302dl_spi_remove),
-	.suspend = lis3lv02d_spi_suspend,
-	.resume  = lis3lv02d_spi_resume,
 };
 
 static int __init lis302dl_init(void)
