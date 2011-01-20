@@ -135,9 +135,6 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	struct drbd_request *req)
 {
 	const unsigned long s = req->rq_state;
-	struct drbd_epoch_entry *e;
-	struct hlist_node *n;
-	struct hlist_head *slot;
 
 	/* Before we can signal completion to the upper layers,
 	 * we may need to close the current epoch.
@@ -185,16 +182,10 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 		 *
 		 * anyways, if we found one,
 		 * we just have to do a wake_up.  */
-#define OVERLAPS overlaps(sector, size, e->i.sector, e->i.size)
-		slot = ee_hash_slot(mdev, req->i.sector);
-		hlist_for_each_entry(e, n, slot, collision) {
-			if (OVERLAPS) {
-				wake_up(&mdev->misc_wait);
-				break;
-			}
-		}
+		i = drbd_find_overlap(&mdev->epoch_entries, sector, size);
+		if (i)
+			wake_up(&mdev->misc_wait);
 	}
-#undef OVERLAPS
 }
 
 void complete_master_bio(struct drbd_conf *mdev,
@@ -332,9 +323,6 @@ static int _req_conflicts(struct drbd_request *req)
 	const sector_t sector = req->i.sector;
 	const int size = req->i.size;
 	struct drbd_interval *i;
-	struct drbd_epoch_entry *e;
-	struct hlist_node *n;
-	struct hlist_head *slot;
 
 	D_ASSERT(hlist_unhashed(&req->collision));
 	D_ASSERT(drbd_interval_empty(&req->i));
@@ -364,21 +352,21 @@ static int _req_conflicts(struct drbd_request *req)
 	if (mdev->ee_hash_s) {
 		/* now, check for overlapping requests with remote origin */
 		BUG_ON(mdev->ee_hash == NULL);
-#define OVERLAPS overlaps(e->i.sector, e->i.size, sector, size)
-		slot = ee_hash_slot(mdev, sector);
-		hlist_for_each_entry(e, n, slot, collision) {
-			if (OVERLAPS) {
-				dev_alert(DEV, "%s[%u] Concurrent remote write detected!"
-				      " [DISCARD L] new: %llus +%u; "
-				      "pending: %llus +%u\n",
-				      current->comm, current->pid,
-				      (unsigned long long)sector, size,
-				      (unsigned long long)e->i.sector, e->i.size);
-				goto out_conflict;
-			}
+
+		i = drbd_find_overlap(&mdev->epoch_entries, sector, size);
+		if (i) {
+			struct drbd_epoch_entry *e =
+				container_of(i, struct drbd_epoch_entry, i);
+
+			dev_alert(DEV, "%s[%u] Concurrent remote write detected!"
+			      " [DISCARD L] new: %llus +%u; "
+			      "pending: %llus +%u\n",
+			      current->comm, current->pid,
+			      (unsigned long long)sector, size,
+			      (unsigned long long)e->i.sector, e->i.size);
+			goto out_conflict;
 		}
 	}
-#undef OVERLAPS
 
 out_no_conflict:
 	/* this is like it should be, and what we expected.

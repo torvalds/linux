@@ -3475,6 +3475,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 		goto out_no_tl;
 	mdev->read_requests = RB_ROOT;
 	mdev->write_requests = RB_ROOT;
+	mdev->epoch_entries = RB_ROOT;
 
 	mdev->app_reads_hash = kzalloc(APP_R_HSIZE*sizeof(void *), GFP_KERNEL);
 	if (!mdev->app_reads_hash)

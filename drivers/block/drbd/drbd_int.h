@@ -1080,6 +1080,9 @@ struct drbd_conf {
 	struct hlist_head *ee_hash; /* is proteced by req_lock! */
 	unsigned int ee_hash_s;
 
+	/* Interval tree of pending remote write requests (struct drbd_epoch_entry) */
+	struct rb_root epoch_entries;
+
 	/* this one is protected by ee_lock, single thread */
 	struct drbd_epoch_entry *last_write_w_barrier;
 
