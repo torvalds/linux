@@ -19460,6 +19460,7 @@ enum {
 	ALC662_FIXUP_ASPIRE,
 	ALC662_FIXUP_IDEAPAD,
 	ALC272_FIXUP_MARIO,
+	ALC662_FIXUP_CZC_P10T,
 };
 
 static const struct alc_fixup alc662_fixups[] = {
@@ -19480,7 +19481,14 @@ static const struct alc_fixup alc662_fixups[] = {
 	[ALC272_FIXUP_MARIO] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc272_fixup_mario,
-	}
+	},
+	[ALC662_FIXUP_CZC_P10T] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{0x14, AC_VERB_SET_EAPD_BTLENABLE, 0},
+			{}
+		}
+	},
 };
 
 static struct snd_pci_quirk alc662_fixup_tbl[] = {
@@ -19488,6 +19496,7 @@ static struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
+	SND_PCI_QUIRK(0x1b35, 0x2206, "CZC P10T", ALC662_FIXUP_CZC_P10T),
 	{}
 };
 
