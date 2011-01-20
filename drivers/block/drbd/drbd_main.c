@@ -1159,6 +1159,10 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		atomic_inc(&mdev->local_cnt);
 
 	mdev->state = ns;
+
+	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
+		drbd_print_uuids(mdev, "attached to UUIDs");
+
 	wake_up(&mdev->misc_wait);
 	wake_up(&mdev->state_wait);
 
@@ -2035,6 +2039,24 @@ int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev)
 	return _drbd_send_uuids(mdev, 8);
 }
 
+void drbd_print_uuids(struct drbd_conf *mdev, const char *text)
+{
+	if (get_ldev_if_state(mdev, D_NEGOTIATING)) {
+		u64 *uuid = mdev->ldev->md.uuid;
+		dev_info(DEV, "%s %016llX:%016llX:%016llX:%016llX\n",
+		     text,
+		     (unsigned long long)uuid[UI_CURRENT],
+		     (unsigned long long)uuid[UI_BITMAP],
+		     (unsigned long long)uuid[UI_HISTORY_START],
+		     (unsigned long long)uuid[UI_HISTORY_END]);
+		put_ldev(mdev);
+	} else {
+		dev_info(DEV, "%s effective data uuid: %016llX\n",
+				text,
+				(unsigned long long)mdev->ed_uuid);
+	}
+}
+
 int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 {
 	struct p_rs_uuid p;
@@ -2044,6 +2066,7 @@ int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 
 	uuid = mdev->ldev->md.uuid[UI_BITMAP] + UUID_NEW_BM_OFFSET;
 	drbd_uuid_set(mdev, UI_BITMAP, uuid);
+	drbd_print_uuids(mdev, "updated sync UUID");
 	drbd_md_sync(mdev);
 	p.uuid = cpu_to_be64(uuid);
 
@@ -3749,28 +3772,6 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	return rv;
 }
 
-static void debug_drbd_uuid(struct drbd_conf *mdev, enum drbd_uuid_index index)
-{
-	static char *uuid_str[UI_EXTENDED_SIZE] = {
-		[UI_CURRENT] = "CURRENT",
-		[UI_BITMAP] = "BITMAP",
-		[UI_HISTORY_START] = "HISTORY_START",
-		[UI_HISTORY_END] = "HISTORY_END",
-		[UI_SIZE] = "SIZE",
-		[UI_FLAGS] = "FLAGS",
-	};
-
-	if (index >= UI_EXTENDED_SIZE) {
-		dev_warn(DEV, " uuid_index >= EXTENDED_SIZE\n");
-		return;
-	}
-
-	dynamic_dev_dbg(DEV, " uuid[%s] now %016llX\n",
-		 uuid_str[index],
-		 (unsigned long long)mdev->ldev->md.uuid[index]);
-}
-
-
 /**
  * drbd_md_mark_dirty() - Mark meta data super block as dirty
  * @mdev:	DRBD device.
@@ -3800,10 +3801,8 @@ static void drbd_uuid_move_history(struct drbd_conf *mdev) __must_hold(local)
 {
 	int i;
 
-	for (i = UI_HISTORY_START; i < UI_HISTORY_END; i++) {
+	for (i = UI_HISTORY_START; i < UI_HISTORY_END; i++)
 		mdev->ldev->md.uuid[i+1] = mdev->ldev->md.uuid[i];
-		debug_drbd_uuid(mdev, i+1);
-	}
 }
 
 void _drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
@@ -3818,7 +3817,6 @@ void _drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
 	}
 
 	mdev->ldev->md.uuid[idx] = val;
-	debug_drbd_uuid(mdev, idx);
 	drbd_md_mark_dirty(mdev);
 }
 
@@ -3828,7 +3826,6 @@ void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
 	if (mdev->ldev->md.uuid[idx]) {
 		drbd_uuid_move_history(mdev);
 		mdev->ldev->md.uuid[UI_HISTORY_START] = mdev->ldev->md.uuid[idx];
-		debug_drbd_uuid(mdev, UI_HISTORY_START);
 	}
 	_drbd_uuid_set(mdev, idx, val);
 }
@@ -3843,14 +3840,16 @@ void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
 void drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local)
 {
 	u64 val;
+	unsigned long long bm_uuid = mdev->ldev->md.uuid[UI_BITMAP];
 
-	dev_info(DEV, "Creating new current UUID\n");
-	D_ASSERT(mdev->ldev->md.uuid[UI_BITMAP] == 0);
+	if (bm_uuid)
+		dev_warn(DEV, "bm UUID was already set: %llX\n", bm_uuid);
+
 	mdev->ldev->md.uuid[UI_BITMAP] = mdev->ldev->md.uuid[UI_CURRENT];
-	debug_drbd_uuid(mdev, UI_BITMAP);
 
 	get_random_bytes(&val, sizeof(u64));
 	_drbd_uuid_set(mdev, UI_CURRENT, val);
+	drbd_print_uuids(mdev, "new current UUID");
 	/* get it to stable storage _now_ */
 	drbd_md_sync(mdev);
 }
@@ -3864,16 +3863,12 @@ void drbd_uuid_set_bm(struct drbd_conf *mdev, u64 val) __must_hold(local)
 		drbd_uuid_move_history(mdev);
 		mdev->ldev->md.uuid[UI_HISTORY_START] = mdev->ldev->md.uuid[UI_BITMAP];
 		mdev->ldev->md.uuid[UI_BITMAP] = 0;
-		debug_drbd_uuid(mdev, UI_HISTORY_START);
-		debug_drbd_uuid(mdev, UI_BITMAP);
 	} else {
-		if (mdev->ldev->md.uuid[UI_BITMAP])
-			dev_warn(DEV, "bm UUID already set");
+		unsigned long long bm_uuid = mdev->ldev->md.uuid[UI_BITMAP];
+		if (bm_uuid)
+			dev_warn(DEV, "bm UUID was already set: %llX\n", bm_uuid);
 
-		mdev->ldev->md.uuid[UI_BITMAP] = val;
-		mdev->ldev->md.uuid[UI_BITMAP] &= ~((u64)1);
-
-		debug_drbd_uuid(mdev, UI_BITMAP);
+		mdev->ldev->md.uuid[UI_BITMAP] = val & ~((u64)1);
 	}
 	drbd_md_mark_dirty(mdev);
 }

@@ -871,14 +871,18 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 			}
 		}
 
-		drbd_uuid_set_bm(mdev, 0UL);
-
-		if (mdev->p_uuid) {
-			/* Now the two UUID sets are equal, update what we
-			 * know of the peer. */
-			int i;
-			for (i = UI_CURRENT ; i <= UI_HISTORY_END ; i++)
-				mdev->p_uuid[i] = mdev->ldev->md.uuid[i];
+		if (!(os.conn == C_VERIFY_S || os.conn == C_VERIFY_T)) {
+			/* for verify runs, we don't update uuids here,
+			 * so there would be nothing to report. */
+			drbd_uuid_set_bm(mdev, 0UL);
+			drbd_print_uuids(mdev, "updated UUIDs");
+			if (mdev->p_uuid) {
+				/* Now the two UUID sets are equal, update what we
+				 * know of the peer. */
+				int i;
+				for (i = UI_CURRENT ; i <= UI_HISTORY_END ; i++)
+					mdev->p_uuid[i] = mdev->ldev->md.uuid[i];
+			}
 		}
 	}
 

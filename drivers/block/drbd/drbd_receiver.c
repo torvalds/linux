@@ -3024,7 +3024,7 @@ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 {
 	struct p_uuids *p = &mdev->data.rbuf.uuids;
 	u64 *p_uuid;
-	int i;
+	int i, updated_uuids = 0;
 
 	p_uuid = kmalloc(sizeof(u64)*UI_EXTENDED_SIZE, GFP_NOIO);
 
@@ -3059,13 +3059,14 @@ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 			_drbd_set_state(_NS2(mdev, disk, D_UP_TO_DATE, pdsk, D_UP_TO_DATE),
 					CS_VERBOSE, NULL);
 			drbd_md_sync(mdev);
+			updated_uuids = 1;
 		}
 		put_ldev(mdev);
 	} else if (mdev->state.disk < D_INCONSISTENT &&
 		   mdev->state.role == R_PRIMARY) {
 		/* I am a diskless primary, the peer just created a new current UUID
 		   for me. */
-		drbd_set_ed_uuid(mdev, p_uuid[UI_CURRENT]);
+		updated_uuids = drbd_set_ed_uuid(mdev, p_uuid[UI_CURRENT]);
 	}
 
 	/* Before we test for the disk state, we should wait until an eventually
@@ -3074,7 +3075,10 @@ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	   new disk state... */
 	wait_event(mdev->misc_wait, !test_bit(CLUSTER_ST_CHANGE, &mdev->flags));
 	if (mdev->state.conn >= C_CONNECTED && mdev->state.disk < D_INCONSISTENT)
-		drbd_set_ed_uuid(mdev, p_uuid[UI_CURRENT]);
+		updated_uuids |= drbd_set_ed_uuid(mdev, p_uuid[UI_CURRENT]);
+
+	if (updated_uuids)
+		drbd_print_uuids(mdev, "receiver updated UUIDs to");
 
 	return true;
 }
@@ -3305,6 +3309,7 @@ static int receive_sync_uuid(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 		_drbd_uuid_set(mdev, UI_CURRENT, be64_to_cpu(p->uuid));
 		_drbd_uuid_set(mdev, UI_BITMAP, 0UL);
 
+		drbd_print_uuids(mdev, "updated sync uuid");
 		drbd_start_resync(mdev, C_SYNC_TARGET);
 
 		put_ldev(mdev);

@@ -1240,11 +1240,11 @@ extern int _drbd_send_bitmap(struct drbd_conf *mdev);
 extern int drbd_send_sr_reply(struct drbd_conf *mdev, enum drbd_state_rv retcode);
 extern void drbd_free_bc(struct drbd_backing_dev *ldev);
 extern void drbd_mdev_cleanup(struct drbd_conf *mdev);
+void drbd_print_uuids(struct drbd_conf *mdev, const char *text);
 
 /* drbd_meta-data.c (still in drbd_main.c) */
 extern void drbd_md_sync(struct drbd_conf *mdev);
 extern int  drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev);
-/* maybe define them below as inline? */
 extern void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
 extern void _drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
 extern void drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local);
@@ -2360,9 +2360,11 @@ static inline void dec_ap_bio(struct drbd_conf *mdev)
 	}
 }
 
-static inline void drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)
+static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)
 {
+	int changed = mdev->ed_uuid != val;
 	mdev->ed_uuid = val;
+	return changed;
 }
 
 static inline int seq_cmp(u32 a, u32 b)
