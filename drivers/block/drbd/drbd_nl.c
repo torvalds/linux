@@ -1952,9 +1952,17 @@ static int drbd_nl_resume_sync(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 			       struct drbd_nl_cfg_reply *reply)
 {
 	int retcode = NO_ERROR;
+	union drbd_state s;
 
-	if (drbd_request_state(mdev, NS(user_isp, 0)) == SS_NOTHING_TO_DO)
-		retcode = ERR_PAUSE_IS_CLEAR;
+	if (drbd_request_state(mdev, NS(user_isp, 0)) == SS_NOTHING_TO_DO) {
+		s = mdev->state;
+		if (s.conn == C_PAUSED_SYNC_S || s.conn == C_PAUSED_SYNC_T) {
+			retcode = s.aftr_isp ? ERR_PIC_AFTER_DEP :
+				  s.peer_isp ? ERR_PIC_PEER_DEP : ERR_PAUSE_IS_CLEAR;
+		} else {
+			retcode = ERR_PAUSE_IS_CLEAR;
+		}
+	}
 
 	reply->ret_code = retcode;
 	return 0;

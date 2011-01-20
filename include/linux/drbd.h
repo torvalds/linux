@@ -153,6 +153,8 @@ enum drbd_ret_code {
 	ERR_NEED_APV_93		= 153,
 	ERR_STONITH_AND_PROT_A  = 154,
 	ERR_CONG_NOT_PROTO_A	= 155,
+	ERR_PIC_AFTER_DEP	= 156,
+	ERR_PIC_PEER_DEP	= 157,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE
