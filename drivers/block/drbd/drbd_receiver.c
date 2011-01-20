@@ -1469,22 +1469,37 @@ fail:
 	return false;
 }
 
+static struct drbd_request *
+find_request(struct drbd_conf *mdev,
+	     struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
+	     u64 id, sector_t sector, const char *func)
+{
+	struct hlist_head *slot = hash_slot(mdev, sector);
+	struct hlist_node *n;
+	struct drbd_request *req;
+
+	hlist_for_each_entry(req, n, slot, collision) {
+		if ((unsigned long)req != (unsigned long)id)
+			continue;
+		if (req->sector != sector) {
+			dev_err(DEV, "%s: found request %lu but it has "
+				"wrong sector (%llus versus %llus)\n",
+				func, (unsigned long)req,
+				(unsigned long long)req->sector,
+				(unsigned long long)sector);
+			break;
+		}
+		return req;
+	}
+	return NULL;
+}
+
 /* when we receive the answer for a read request,
  * verify that we actually know about it */
 static struct drbd_request *ar_id_to_req(struct drbd_conf *mdev, u64 id,
 					 sector_t sector)
 {
-	struct hlist_head *slot = ar_hash_slot(mdev, sector);
-	struct hlist_node *n;
-	struct drbd_request *req;
-
-	hlist_for_each_entry(req, n, slot, collision) {
-		if ((unsigned long)req == (unsigned long)id) {
-			D_ASSERT(req->sector == sector);
-			return req;
-		}
-	}
-	return NULL;
+	return find_request(mdev, ar_hash_slot, id, sector, __func__);
 }
 
 static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
@@ -4243,23 +4258,7 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
 static struct drbd_request *ack_id_to_req(struct drbd_conf *mdev, u64 id,
 					  sector_t sector)
 {
-	struct hlist_head *slot = tl_hash_slot(mdev, sector);
-	struct hlist_node *n;
-	struct drbd_request *req;
-
-	hlist_for_each_entry(req, n, slot, collision) {
-		if ((unsigned long)req == (unsigned long)id) {
-			if (req->sector != sector) {
-				dev_err(DEV, "ack_id_to_req: found req %p but it has "
-				    "wrong sector (%llus versus %llus)\n", req,
-				    (unsigned long long)req->sector,
-				    (unsigned long long)sector);
-				break;
-			}
-			return req;
-		}
-	}
-	return NULL;
+	return find_request(mdev, tl_hash_slot, id, sector, __func__);
 }
 
 static int validate_req_change_req_state(struct drbd_conf *mdev,
