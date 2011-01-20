@@ -252,15 +252,19 @@ static struct snd_soc_dai *fsi_get_dai(struct snd_pcm_substream *substream)
 	return  rtd->cpu_dai;
 }
 
-static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
+static struct fsi_priv *fsi_get_priv_frm_dai(struct snd_soc_dai *dai)
 {
-	struct snd_soc_dai *dai = fsi_get_dai(substream);
 	struct fsi_master *master = snd_soc_dai_get_drvdata(dai);
 
 	if (dai->id == 0)
 		return &master->fsia;
 	else
 		return &master->fsib;
+}
+
+static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
+{
+	return fsi_get_priv_frm_dai(fsi_get_dai(substream));
 }
 
 static u32 fsi_get_info_flags(struct fsi_priv *fsi)
