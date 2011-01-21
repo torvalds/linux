@@ -242,14 +242,14 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 }
 
 static int mtdblock_readsect(struct mtd_blktrans_dev *dev,
-			      unsigned long block, char *buf)
+			      unsigned long block,unsigned long nsect, char *buf)
 {
 	struct mtdblk_dev *mtdblk = mtdblks[dev->devnum];
-	return do_cached_read(mtdblk, block<<9, 512, buf);
+	return do_cached_read(mtdblk, block<<9, 512*nsect, buf);
 }
 
 static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
-			      unsigned long block, char *buf)
+			      unsigned long block,unsigned long nsect, char *buf)
 {
 	struct mtdblk_dev *mtdblk = mtdblks[dev->devnum];
 	if (unlikely(!mtdblk->cache_data && mtdblk->cache_size)) {
@@ -261,7 +261,7 @@ static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
 		 * return -EAGAIN sometimes, but why bother?
 		 */
 	}
-	return do_cached_write(mtdblk, block<<9, 512, buf);
+	return do_cached_write(mtdblk, block<<9, 512*nsect, buf);
 }
 
 static int mtdblock_open(struct mtd_blktrans_dev *mbd)
