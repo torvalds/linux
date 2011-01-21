@@ -168,6 +168,7 @@
  *
  *	v1.15a Dec 15 2008   - Remove bbuf support, it doesn't work anyway.
  *	v1.16  Jan 6  2011   - Make checkpatch.pl happy.
+ *	v1.17  Jan 6  2011   - Add suspend/resume support.
  *
  ******************************************************************************/
 
@@ -219,7 +220,7 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "ThunderLAN debug mask");
 
 static	const char tlan_signature[] = "TLAN";
-static  const char tlan_banner[] = "ThunderLAN driver v1.16\n";
+static  const char tlan_banner[] = "ThunderLAN driver v1.17\n";
 static  int tlan_have_pci;
 static  int tlan_have_eisa;
 
@@ -462,11 +463,79 @@ static void __devexit tlan_remove_one(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
+static void tlan_start(struct net_device *dev)
+{
+	tlan_reset_lists(dev);
+	/* NOTE: It might not be necessary to read the stats before a
+	   reset if you don't care what the values are.
+	*/
+	tlan_read_and_clear_stats(dev, TLAN_IGNORE);
+	tlan_reset_adapter(dev);
+	netif_wake_queue(dev);
+}
+
+static void tlan_stop(struct net_device *dev)
+{
+	struct tlan_priv *priv = netdev_priv(dev);
+
+	tlan_read_and_clear_stats(dev, TLAN_RECORD);
+	outl(TLAN_HC_AD_RST, dev->base_addr + TLAN_HOST_CMD);
+	/* Reset and power down phy */
+	tlan_reset_adapter(dev);
+	if (priv->timer.function != NULL) {
+		del_timer_sync(&priv->timer);
+		priv->timer.function = NULL;
+	}
+}
+
+#ifdef CONFIG_PM
+
+static int tlan_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (netif_running(dev))
+		tlan_stop(dev);
+
+	netif_device_detach(dev);
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_wake_from_d3(pdev, false);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
+}
+
+static int tlan_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_wake(pdev, 0, 0);
+	netif_device_attach(dev);
+
+	if (netif_running(dev))
+		tlan_start(dev);
+
+	return 0;
+}
+
+#else /* CONFIG_PM */
+
+#define tlan_suspend   NULL
+#define tlan_resume    NULL
+
+#endif /* CONFIG_PM */
+
+
 static struct pci_driver tlan_driver = {
 	.name		= "tlan",
 	.id_table	= tlan_pci_tbl,
 	.probe		= tlan_init_one,
 	.remove		= __devexit_p(tlan_remove_one),
+	.suspend	= tlan_suspend,
+	.resume		= tlan_resume,
 };
 
 static int __init tlan_probe(void)
@@ -965,14 +1034,8 @@ static int tlan_open(struct net_device *dev)
 	}
 
 	init_timer(&priv->timer);
-	netif_start_queue(dev);
 
-	/* NOTE: It might not be necessary to read the stats before a
-	   reset if you don't care what the values are.
-	*/
-	tlan_reset_lists(dev);
-	tlan_read_and_clear_stats(dev, TLAN_IGNORE);
-	tlan_reset_adapter(dev);
+	tlan_start(dev);
 
 	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Opened.  TLAN Chip Rev: %x\n",
 		 dev->name, priv->tlan_rev);
@@ -1243,15 +1306,8 @@ static int tlan_close(struct net_device *dev)
 {
 	struct tlan_priv *priv = netdev_priv(dev);
 
-	netif_stop_queue(dev);
 	priv->neg_be_verbose = 0;
-
-	tlan_read_and_clear_stats(dev, TLAN_RECORD);
-	outl(TLAN_HC_AD_RST, dev->base_addr + TLAN_HOST_CMD);
-	if (priv->timer.function != NULL) {
-		del_timer_sync(&priv->timer);
-		priv->timer.function = NULL;
-	}
+	tlan_stop(dev);
 
 	free_irq(dev->irq, dev);
 	tlan_free_lists(dev);
