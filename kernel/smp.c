@@ -459,7 +459,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	 * can't happen.
 	 */
 	WARN_ON_ONCE(cpu_online(this_cpu) && irqs_disabled()
-		     && !oops_in_progress);
+		     && !oops_in_progress && !early_boot_irqs_disabled);
 
 	/* So, what's a CPU they want? Ignoring this one. */
 	cpu = cpumask_first_and(mask, cpu_online_mask);
@@ -572,17 +572,20 @@ void ipi_call_unlock_irq(void)
 #endif /* USE_GENERIC_SMP_HELPERS */
 
 /*
- * Call a function on all processors
+ * Call a function on all processors.  May be used during early boot while
+ * early_boot_irqs_disabled is set.  Use local_irq_save/restore() instead
+ * of local_irq_disable/enable().
  */
 int on_each_cpu(void (*func) (void *info), void *info, int wait)
 {
+	unsigned long flags;
 	int ret = 0;
 
 	preempt_disable();
 	ret = smp_call_function(func, info, wait);
-	local_irq_disable();
+	local_irq_save(flags);
 	func(info);
-	local_irq_enable();
+	local_irq_restore(flags);
 	preempt_enable();
 	return ret;
 }
