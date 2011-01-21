@@ -658,44 +658,9 @@ void wlc_channel_mgr_detach(wlc_cm_info_t *wlc_cm)
 		kfree(wlc_cm);
 }
 
-const char *wlc_channel_country_abbrev(wlc_cm_info_t *wlc_cm)
-{
-	return wlc_cm->country_abbrev;
-}
-
-u8 wlc_channel_locale_flags(wlc_cm_info_t *wlc_cm)
-{
-	struct wlc_info *wlc = wlc_cm->wlc;
-
-	return wlc_cm->bandstate[wlc->band->bandunit].locale_flags;
-}
-
 u8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm, uint bandunit)
 {
 	return wlc_cm->bandstate[bandunit].locale_flags;
-}
-
-/* return chanvec for a given country code and band */
-bool
-wlc_channel_get_chanvec(struct wlc_info *wlc, const char *country_abbrev,
-			int bandtype, chanvec_t *channels)
-{
-	const country_info_t *country;
-	const locale_info_t *locale = NULL;
-
-	country = wlc_country_lookup(wlc, country_abbrev);
-	if (country == NULL)
-		return false;
-
-	if (bandtype == WLC_BAND_2G)
-		locale = wlc_get_locale_2g(country->locale_2G);
-	else if (bandtype == WLC_BAND_5G)
-		locale = wlc_get_locale_5g(country->locale_5G);
-	if (locale == NULL)
-		return false;
-
-	wlc_locale_get_channels(locale, channels);
-	return true;
 }
 
 /* set the driver's current country and regulatory information using a country code
@@ -1071,16 +1036,6 @@ bool wlc_valid_channel20(wlc_cm_info_t *wlc_cm, uint val)
 		      val));
 }
 
-/* Is the 40 MHz allowed for the current locale and specified band? */
-bool wlc_valid_40chanspec_in_band(wlc_cm_info_t *wlc_cm, uint bandunit)
-{
-	struct wlc_info *wlc = wlc_cm->wlc;
-
-	return (((wlc_cm->bandstate[bandunit].
-		  locale_flags & (WLC_NO_MIMO | WLC_NO_40MHZ)) == 0)
-		&& wlc->bandstate[bandunit]->mimo_cap_40);
-}
-
 static void
 wlc_channel_min_txpower_limits_with_local_constraint(wlc_cm_info_t *wlc_cm,
 						     struct txpwr_limits *txpwr,
@@ -1183,23 +1138,6 @@ wlc_channel_set_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	wlc_bmac_set_chanspec(wlc->hw, chanspec,
 			      (wlc_quiet_chanspec(wlc_cm, chanspec) != 0),
 			      &txpwr);
-}
-
-int
-wlc_channel_set_txpower_limit(wlc_cm_info_t *wlc_cm,
-			      u8 local_constraint_qdbm)
-{
-	struct wlc_info *wlc = wlc_cm->wlc;
-	struct txpwr_limits txpwr;
-
-	wlc_channel_reg_limits(wlc_cm, wlc->chanspec, &txpwr);
-
-	wlc_channel_min_txpower_limits_with_local_constraint(wlc_cm, &txpwr,
-							     local_constraint_qdbm);
-
-	wlc_phy_txpower_limit_set(wlc->band->pi, &txpwr, wlc->chanspec);
-
-	return 0;
 }
 
 #ifdef POWER_DBG
@@ -1596,11 +1534,6 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 #endif				/* 40 MHZ */
 
 	return false;
-}
-
-bool wlc_valid_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
-{
-	return wlc_valid_chanspec_ext(wlc_cm, chspec, false);
 }
 
 bool wlc_valid_chanspec_db(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
