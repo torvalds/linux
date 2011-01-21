@@ -131,7 +131,7 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 		 * fragmenting the file system's free space.  Maybe we
 		 * should have some hueristics or some way to allow
 		 * userspace to pass a hint to file system,
-		 * especiially if the latter case turns out to be
+		 * especially if the latter case turns out to be
 		 * common.
 		 */
 		ex = path[depth].p_ext;
