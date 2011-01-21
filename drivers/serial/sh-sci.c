@@ -1781,13 +1781,6 @@ static int __devinit sci_init_single(struct platform_device *dev,
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-static struct tty_driver *serial_console_device(struct console *co, int *index)
-{
-	struct uart_driver *p = &sci_uart_driver;
-	*index = co->index;
-	return p->tty_driver;
-}
-
 static void serial_console_putchar(struct uart_port *port, int ch)
 {
 	sci_poll_put_char(port, ch);
@@ -1800,8 +1793,8 @@ static void serial_console_putchar(struct uart_port *port, int ch)
 static void serial_console_write(struct console *co, const char *s,
 				 unsigned count)
 {
-	struct uart_port *port = co->data;
-	struct sci_port *sci_port = to_sci_port(port);
+	struct sci_port *sci_port = &sci_ports[co->index];
+	struct uart_port *port = &sci_port->port;
 	unsigned short bits;
 
 	if (sci_port->enable)
@@ -1829,30 +1822,13 @@ static int __devinit serial_console_setup(struct console *co, char *options)
 	int ret;
 
 	/*
-	 * Check whether an invalid uart number has been specified, and
-	 * if so, search for the first available port that does have
-	 * console support.
+	 * Refuse to handle any bogus ports.
 	 */
-	if (co->index >= SCI_NPORTS)
-		co->index = 0;
-
-	if (co->data) {
-		port = co->data;
-		sci_port = to_sci_port(port);
-	} else {
-		sci_port = &sci_ports[co->index];
-		port = &sci_port->port;
-		co->data = port;
-	}
-
-	/*
-	 * Also need to check port->type, we don't actually have any
-	 * UPIO_PORT ports, but uart_report_port() handily misreports
-	 * it anyways if we don't have a port available by the time this is
-	 * called.
-	 */
-	if (!port->type)
+	if (co->index < 0 || co->index >= SCI_NPORTS)
 		return -ENODEV;
+
+	sci_port = &sci_ports[co->index];
+	port = &sci_port->port;
 
 	ret = sci_remap_port(port);
 	if (unlikely(ret != 0))
@@ -1876,11 +1852,12 @@ static int __devinit serial_console_setup(struct console *co, char *options)
 
 static struct console serial_console = {
 	.name		= "ttySC",
-	.device		= serial_console_device,
+	.device		= uart_console_device,
 	.write		= serial_console_write,
 	.setup		= serial_console_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
+	.data		= &sci_uart_driver,
 };
 
 static int __init sci_console_init(void)
@@ -1890,12 +1867,11 @@ static int __init sci_console_init(void)
 }
 console_initcall(sci_console_init);
 
-static struct sci_port early_serial_port;
-
 static struct console early_serial_console = {
 	.name           = "early_ttySC",
 	.write          = serial_console_write,
 	.flags          = CON_PRINTBUFFER,
+	.index		= -1,
 };
 
 static char early_serial_buf[32];
@@ -1908,9 +1884,8 @@ static int __devinit sci_probe_earlyprintk(struct platform_device *pdev)
 		return -EEXIST;
 
 	early_serial_console.index = pdev->id;
-	early_serial_console.data = &early_serial_port.port;
 
-	sci_init_single(NULL, &early_serial_port, pdev->id, cfg);
+	sci_init_single(NULL, &sci_ports[pdev->id], pdev->id, cfg);
 
 	serial_console_setup(&early_serial_console, early_serial_buf);
 
@@ -2001,7 +1976,7 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, sp);
 
-	ret = sci_probe_single(dev, dev->id, p, &sci_ports[dev->id]);
+	ret = sci_probe_single(dev, dev->id, p, sp);
 	if (ret)
 		goto err_unreg;
 
