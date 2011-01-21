@@ -892,7 +892,7 @@ void check_cpuid()
 	 * this check is valid for both Intel and AMD
 	 */
 	asm("cpuid" : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) : "a" (0x80000007));
-	has_invariant_tsc = edx && (1 << 8);
+	has_invariant_tsc = edx & (1 << 8);
 
 	if (!has_invariant_tsc) {
 		fprintf(stderr, "No invariant TSC\n");
@@ -905,7 +905,7 @@ void check_cpuid()
 	 */
 
 	asm("cpuid" : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx) : "a" (0x6));
-	has_aperf = ecx && (1 << 0);
+	has_aperf = ecx & (1 << 0);
 	if (!has_aperf) {
 		fprintf(stderr, "No APERF MSR\n");
 		exit(1);
