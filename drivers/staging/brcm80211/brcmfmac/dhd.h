@@ -308,7 +308,6 @@ extern int dhd_ifname2idx(struct dhd_info *dhd, char *name);
 extern u8 *dhd_bssidx2bssid(dhd_pub_t *dhd, int idx);
 extern int wl_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
 			 wl_event_msg_t *, void **data_ptr);
-extern void wl_event_to_host_order(wl_event_msg_t *evt);
 
 extern void dhd_common_init(void);
 
@@ -332,8 +331,6 @@ extern void dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event,
 extern int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag);
 extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int dhd_bus_start(dhd_pub_t *dhdp);
-
-extern void print_buf(void *pbuf, int len, int bytes_per_line);
 
 typedef enum cust_gpio_modes {
 	WLAN_RESET_ON,

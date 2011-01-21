@@ -312,21 +312,6 @@ exit:
 	return bcmerror;
 }
 
-/* Store the status of a connection attempt for later retrieval by an iovar */
-void dhd_store_conn_status(u32 event, u32 status, u32 reason)
-{
-	/* Do not overwrite a WLC_E_PRUNE with a WLC_E_SET_SSID
-	 * because an encryption/rsn mismatch results in both events, and
-	 * the important information is in the WLC_E_PRUNE.
-	 */
-	if (!(event == WLC_E_SET_SSID && status == WLC_E_STATUS_FAIL &&
-	      dhd_conn_event == WLC_E_PRUNE)) {
-		dhd_conn_event = event;
-		dhd_conn_status = status;
-		dhd_conn_reason = reason;
-	}
-}
-
 bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 		  int prec)
 {
@@ -924,42 +909,6 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 #endif				/* SHOW_EVENTS */
 
 	return BCME_OK;
-}
-
-void wl_event_to_host_order(wl_event_msg_t *evt)
-{
-	/* Event struct members passed from dongle to host are stored
-	 * in network
-	 * byte order. Convert all members to host-order.
-	 */
-	evt->event_type = ntoh32(evt->event_type);
-	evt->flags = ntoh16(evt->flags);
-	evt->status = ntoh32(evt->status);
-	evt->reason = ntoh32(evt->reason);
-	evt->auth_type = ntoh32(evt->auth_type);
-	evt->datalen = ntoh32(evt->datalen);
-	evt->version = ntoh16(evt->version);
-}
-
-void print_buf(void *pbuf, int len, int bytes_per_line)
-{
-	int i, j = 0;
-	unsigned char *buf = pbuf;
-
-	if (bytes_per_line == 0)
-		bytes_per_line = len;
-
-	for (i = 0; i < len; i++) {
-		printf("%2.2x", *buf++);
-		j++;
-		if (j == bytes_per_line) {
-			printf("\n");
-			j = 0;
-		} else {
-			printf(":");
-		}
-	}
-	printf("\n");
 }
 
 /* Convert user's input in hex pattern to byte-size mask */
