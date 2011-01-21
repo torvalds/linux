@@ -1991,6 +1991,7 @@ ext3_grpblk_t ext3_trim_all_free(struct super_block *sb, unsigned int group,
 		spin_unlock(sb_bgl_lock(sbi, group));
 		percpu_counter_sub(&sbi->s_freeblocks_counter, next - start);
 
+		free_blocks -= next - start;
 		/* Do not issue a TRIM on extents smaller than minblocks */
 		if ((next - start) < minblocks)
 			goto free_extent;
@@ -2040,7 +2041,7 @@ free_extent:
 		cond_resched();
 
 		/* No more suitable extents */
-		if ((free_blocks - count) < minblocks)
+		if (free_blocks < minblocks)
 			break;
 	}
 
