@@ -580,6 +580,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 {
 	int err;
 	struct snd_akm4xxx *ak;
+	unsigned char tmp;
 
 	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DELTA1010 &&
 	    ice->eeprom.gpiodir == 0x7b)
@@ -621,6 +622,12 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		ice->num_total_adcs = 4;
 		break;
 	}
+
+	/* initialize the SPI clock to high */
+	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
+	tmp |= ICE1712_DELTA_AP_CCLK;
+	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
+	udelay(5);
 
 	/* initialize spdif */
 	switch (ice->eeprom.subvendor) {
