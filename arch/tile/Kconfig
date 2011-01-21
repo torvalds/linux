@@ -220,7 +220,7 @@ config FORCE_MAX_ZONEORDER
 
 choice
 	depends on !TILEGX
-	prompt "Memory split" if EMBEDDED
+	prompt "Memory split" if EXPERT
 	default VMSPLIT_3G
 	---help---
 	  Select the desired split between kernel and user memory.

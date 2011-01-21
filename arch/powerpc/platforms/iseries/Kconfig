@@ -2,7 +2,7 @@ config PPC_ISERIES
 	bool "IBM Legacy iSeries"
 	depends on PPC64 && PPC_BOOK3S
 	select PPC_INDIRECT_IO
-	select PPC_PCI_CHOICE if EMBEDDED
+	select PPC_PCI_CHOICE if EXPERT
 
 menu "iSeries device drivers"
 	depends on PPC_ISERIES
