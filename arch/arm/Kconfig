@@ -212,15 +212,6 @@ choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
 
-config ARCH_AAEC2000
-	bool "Agilent AAEC-2000 based"
-	select CPU_ARM920T
-	select ARM_AMBA
-	select HAVE_CLK
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  This enables support for systems based on the Agilent AAEC-2000
-
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
@@ -871,8 +862,6 @@ endchoice
 # Kconfigs may be included either alphabetically (according to the
 # plat- suffix) or along side the corresponding mach-* source.
 #
-source "arch/arm/mach-aaec2000/Kconfig"
-
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-bcmring/Kconfig"
