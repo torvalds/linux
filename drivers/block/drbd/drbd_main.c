@@ -1320,7 +1320,9 @@ static void abw_start_sync(struct drbd_conf *mdev, int rv)
 	}
 }
 
-int drbd_bitmap_io_from_worker(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *), char *why)
+int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
+		int (*io_fn)(struct drbd_conf *),
+		char *why, enum bm_flag flags)
 {
 	int rv;
 
@@ -1328,10 +1330,8 @@ int drbd_bitmap_io_from_worker(struct drbd_conf *mdev, int (*io_fn)(struct drbd_
 
 	/* open coded non-blocking drbd_suspend_io(mdev); */
 	set_bit(SUSPEND_IO, &mdev->flags);
-	if (!is_susp(mdev->state))
-		D_ASSERT(atomic_read(&mdev->ap_bio_cnt) == 0);
 
-	drbd_bm_lock(mdev, why);
+	drbd_bm_lock(mdev, why, flags);
 	rv = io_fn(mdev);
 	drbd_bm_unlock(mdev);
 
@@ -1438,7 +1438,8 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S &&
 	    mdev->state.conn == C_WF_BITMAP_S)
 		drbd_queue_bitmap_io(mdev, &drbd_send_bitmap, NULL,
-				"send_bitmap (WFBitMapS)");
+				"send_bitmap (WFBitMapS)",
+				BM_LOCKED_TEST_ALLOWED);
 
 	/* Lost contact to peer's copy of the data */
 	if ((os.pdsk >= D_INCONSISTENT &&
@@ -1469,7 +1470,11 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 		/* D_DISKLESS Peer becomes secondary */
 		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
-			drbd_bitmap_io_from_worker(mdev, &drbd_bm_write, "demote diskless peer");
+			/* We may still be Primary ourselves.
+			 * No harm done if the bitmap still changes,
+			 * redirtied pages will follow later. */
+			drbd_bitmap_io_from_worker(mdev, &drbd_bm_write,
+				"demote diskless peer", BM_LOCKED_SET_ALLOWED);
 		put_ldev(mdev);
 	}
 
@@ -1478,7 +1483,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	 * if there is a resync going on still */
 	if (os.role == R_PRIMARY && ns.role == R_SECONDARY &&
 		mdev->state.conn <= C_CONNECTED && get_ldev(mdev)) {
-		drbd_bitmap_io_from_worker(mdev, &drbd_bm_write, "demote");
+		/* No changes to the bitmap expected this time, so assert that,
+		 * even though no harm was done if it did change. */
+		drbd_bitmap_io_from_worker(mdev, &drbd_bm_write,
+				"demote", BM_LOCKED_TEST_ALLOWED);
 		put_ldev(mdev);
 	}
 
@@ -1512,12 +1520,17 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* We are in the progress to start a full sync... */
 	if ((os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
 	    (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S))
-		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, &abw_start_sync, "set_n_write from StartingSync");
+		/* no other bitmap changes expected during this phase */
+		drbd_queue_bitmap_io(mdev,
+			&drbd_bmio_set_n_write, &abw_start_sync,
+			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED);
 
 	/* We are invalidating our self... */
 	if (os.conn < C_CONNECTED && ns.conn < C_CONNECTED &&
 	    os.disk > D_INCONSISTENT && ns.disk == D_INCONSISTENT)
-		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL, "set_n_write from invalidate");
+		/* other bitmap operation expected during this phase */
+		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL,
+			"set_n_write from invalidate", BM_LOCKED_MASK);
 
 	/* first half of local IO error, failure to attach,
 	 * or administrative detach */
@@ -1599,14 +1612,14 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	/* This triggers bitmap writeout of potentially still unwritten pages
 	 * if the resync finished cleanly, or aborted because of peer disk
-	 * failure.  Resync aborted because of connection failure does bitmap
-	 * writeout from drbd_disconnect.
+	 * failure, or because of connection loss.
 	 * For resync aborted because of local disk failure, we cannot do
 	 * any bitmap writeout anymore.
+	 * No harm done if some bits change during this phase.
 	 */
-	if (os.conn > C_CONNECTED && ns.conn == C_CONNECTED &&
-	    mdev->state.conn == C_CONNECTED && get_ldev(mdev)) {
-		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
+	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED && get_ldev(mdev)) {
+		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL,
+			"write from resync_finished", BM_LOCKED_SET_ALLOWED);
 		put_ldev(mdev);
 	}
 
@@ -3929,7 +3942,7 @@ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 	D_ASSERT(atomic_read(&mdev->ap_bio_cnt) == 0);
 
 	if (get_ldev(mdev)) {
-		drbd_bm_lock(mdev, work->why);
+		drbd_bm_lock(mdev, work->why, work->flags);
 		rv = work->io_fn(mdev);
 		drbd_bm_unlock(mdev);
 		put_ldev(mdev);
@@ -3944,6 +3957,7 @@ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 
 	clear_bit(BITMAP_IO_QUEUED, &mdev->flags);
 	work->why = NULL;
+	work->flags = 0;
 
 	return 1;
 }
@@ -3998,7 +4012,7 @@ void drbd_go_diskless(struct drbd_conf *mdev)
 void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 			  int (*io_fn)(struct drbd_conf *),
 			  void (*done)(struct drbd_conf *, int),
-			  char *why)
+			  char *why, enum bm_flag flags)
 {
 	D_ASSERT(current == mdev->worker.task);
 
@@ -4012,6 +4026,7 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 	mdev->bm_io_work.io_fn = io_fn;
 	mdev->bm_io_work.done = done;
 	mdev->bm_io_work.why = why;
+	mdev->bm_io_work.flags = flags;
 
 	spin_lock_irq(&mdev->req_lock);
 	set_bit(BITMAP_IO, &mdev->flags);
@@ -4031,19 +4046,22 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
  * freezes application IO while that the actual IO operations runs. This
  * functions MAY NOT be called from worker context.
  */
-int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *), char *why)
+int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *),
+		char *why, enum bm_flag flags)
 {
 	int rv;
 
 	D_ASSERT(current != mdev->worker.task);
 
-	drbd_suspend_io(mdev);
+	if ((flags & BM_LOCKED_SET_ALLOWED) == 0)
+		drbd_suspend_io(mdev);
 
-	drbd_bm_lock(mdev, why);
+	drbd_bm_lock(mdev, why, flags);
 	rv = io_fn(mdev);
 	drbd_bm_unlock(mdev);
 
-	drbd_resume_io(mdev);
+	if ((flags & BM_LOCKED_SET_ALLOWED) == 0)
+		drbd_resume_io(mdev);
 
 	return rv;
 }

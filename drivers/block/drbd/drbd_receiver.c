@@ -2599,7 +2599,8 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 
 	if (abs(hg) >= 2) {
 		dev_info(DEV, "Writing the whole bitmap, full sync required after drbd_sync_handshake.\n");
-		if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write, "set_n_write from sync_handshake"))
+		if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write, "set_n_write from sync_handshake",
+					BM_LOCKED_SET_ALLOWED))
 			return C_MASK;
 	}
 
@@ -3053,7 +3054,8 @@ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		if (skip_initial_sync) {
 			dev_info(DEV, "Accepted new current UUID, preparing to skip initial sync\n");
 			drbd_bitmap_io(mdev, &drbd_bmio_clear_n_write,
-					"clear_n_write from receive_uuids");
+					"clear_n_write from receive_uuids",
+					BM_LOCKED_TEST_ALLOWED);
 			_drbd_uuid_set(mdev, UI_CURRENT, p_uuid[UI_CURRENT]);
 			_drbd_uuid_set(mdev, UI_BITMAP, 0);
 			_drbd_set_state(_NS2(mdev, disk, D_UP_TO_DATE, pdsk, D_UP_TO_DATE),
@@ -3494,7 +3496,9 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packets cmd, unsigne
 	int ok = false;
 	struct p_header80 *h = &mdev->data.rbuf.header.h80;
 
-	/* drbd_bm_lock(mdev, "receive bitmap"); By intention no bm_lock */
+	drbd_bm_lock(mdev, "receive bitmap", BM_LOCKED_SET_ALLOWED);
+	/* you are supposed to send additional out-of-sync information
+	 * if you actually set bits during this phase */
 
 	/* maybe we should use some per thread scratch page,
 	 * and allocate that during initial device creation? */
@@ -3568,7 +3572,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packets cmd, unsigne
 
 	ok = true;
  out:
-	/* drbd_bm_unlock(mdev); by intention no lock */
+	drbd_bm_unlock(mdev);
 	if (ok && mdev->state.conn == C_WF_BITMAP_S)
 		drbd_start_resync(mdev, C_SYNC_SOURCE);
 	free_page((unsigned long) buffer);
@@ -3817,7 +3821,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
-		drbd_bitmap_io(mdev, &drbd_bm_write, "write from disconnect");
 		fp = mdev->ldev->dc.fencing;
 		put_ldev(mdev);
 	}
@@ -3845,6 +3848,10 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 		mdev->net_conf = NULL;
 		drbd_request_state(mdev, NS(conn, C_STANDALONE));
 	}
+
+	/* serialize with bitmap writeout triggered by the state change,
+	 * if any. */
+	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
 
 	/* tcp_close and release of sendpage pages can be deferred.  I don't
 	 * want to use SO_LINGER, because apparently it can be deferred for

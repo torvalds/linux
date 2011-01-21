@@ -104,25 +104,15 @@ struct drbd_bitmap {
 
 	wait_queue_head_t bm_io_wait; /* used to serialize IO of single pages */
 
-	unsigned long  bm_flags;
+	enum bm_flag bm_flags;
 
 	/* debugging aid, in case we are still racy somewhere */
 	char          *bm_why;
 	struct task_struct *bm_task;
 };
 
-/* definition of bits in bm_flags */
-#define BM_LOCKED       0
-// #define BM_MD_IO_ERROR  1 unused now.
-#define BM_P_VMALLOCED  2
-
 static int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 			       unsigned long e, int val, const enum km_type km);
-
-static int bm_is_locked(struct drbd_bitmap *b)
-{
-	return test_bit(BM_LOCKED, &b->bm_flags);
-}
 
 #define bm_print_lock_info(m) __bm_print_lock_info(m, __func__)
 static void __bm_print_lock_info(struct drbd_conf *mdev, const char *func)
@@ -140,7 +130,7 @@ static void __bm_print_lock_info(struct drbd_conf *mdev, const char *func)
 	    b->bm_task == mdev->worker.task   ? "worker"   : "?");
 }
 
-void drbd_bm_lock(struct drbd_conf *mdev, char *why)
+void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
 	int trylock_failed;
@@ -163,8 +153,9 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why)
 		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
 		mutex_lock(&b->bm_change);
 	}
-	if (__test_and_set_bit(BM_LOCKED, &b->bm_flags))
+	if (BM_LOCKED_MASK & b->bm_flags)
 		dev_err(DEV, "FIXME bitmap already locked in bm_lock\n");
+	b->bm_flags |= flags & BM_LOCKED_MASK;
 
 	b->bm_why  = why;
 	b->bm_task = current;
@@ -178,9 +169,10 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 		return;
 	}
 
-	if (!__test_and_clear_bit(BM_LOCKED, &mdev->bitmap->bm_flags))
+	if (!(BM_LOCKED_MASK & mdev->bitmap->bm_flags))
 		dev_err(DEV, "FIXME bitmap not locked in bm_unlock\n");
 
+	b->bm_flags &= ~BM_LOCKED_MASK;
 	b->bm_why  = NULL;
 	b->bm_task = NULL;
 	mutex_unlock(&b->bm_change);
@@ -421,9 +413,9 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 	}
 
 	if (vmalloced)
-		set_bit(BM_P_VMALLOCED, &b->bm_flags);
+		b->bm_flags |= BM_P_VMALLOCED;
 	else
-		clear_bit(BM_P_VMALLOCED, &b->bm_flags);
+		b->bm_flags &= ~BM_P_VMALLOCED;
 
 	return new_pages;
 }
@@ -460,7 +452,7 @@ void drbd_bm_cleanup(struct drbd_conf *mdev)
 {
 	ERR_IF (!mdev->bitmap) return;
 	bm_free_pages(mdev->bitmap->bm_pages, mdev->bitmap->bm_number_of_pages);
-	bm_vk_free(mdev->bitmap->bm_pages, test_bit(BM_P_VMALLOCED, &mdev->bitmap->bm_flags));
+	bm_vk_free(mdev->bitmap->bm_pages, (BM_P_VMALLOCED & mdev->bitmap->bm_flags));
 	kfree(mdev->bitmap);
 	mdev->bitmap = NULL;
 }
@@ -623,7 +615,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 
 	ERR_IF(!b) return -ENOMEM;
 
-	drbd_bm_lock(mdev, "resize");
+	drbd_bm_lock(mdev, "resize", BM_LOCKED_MASK);
 
 	dev_info(DEV, "drbd_bm_resize called with capacity == %llu\n",
 			(unsigned long long)capacity);
@@ -631,7 +623,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 	if (capacity == b->bm_dev_capacity)
 		goto out;
 
-	opages_vmalloced = test_bit(BM_P_VMALLOCED, &b->bm_flags);
+	opages_vmalloced = (BM_P_VMALLOCED & b->bm_flags);
 
 	if (capacity == 0) {
 		spin_lock_irq(&b->bm_lock);
@@ -1030,7 +1022,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	 * as we submit copies of pages anyways.
 	 */
 	if (!ctx.flags)
-		WARN_ON(!bm_is_locked(b));
+		WARN_ON(!(BM_LOCKED_MASK & b->bm_flags));
 
 	num_pages = b->bm_number_of_pages;
 
@@ -1220,7 +1212,7 @@ static unsigned long bm_find_next(struct drbd_conf *mdev,
 	ERR_IF(!b->bm_pages) return i;
 
 	spin_lock_irq(&b->bm_lock);
-	if (bm_is_locked(b))
+	if (BM_DONT_TEST & b->bm_flags)
 		bm_print_lock_info(mdev);
 
 	i = __bm_find_next(mdev, bm_fo, find_zero_bit, KM_IRQ1);
@@ -1246,13 +1238,13 @@ unsigned long drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo
  * you must take drbd_bm_lock() first */
 unsigned long _drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo)
 {
-	/* WARN_ON(!bm_is_locked(mdev)); */
+	/* WARN_ON(!(BM_DONT_SET & mdev->b->bm_flags)); */
 	return __bm_find_next(mdev, bm_fo, 0, KM_USER1);
 }
 
 unsigned long _drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo)
 {
-	/* WARN_ON(!bm_is_locked(mdev)); */
+	/* WARN_ON(!(BM_DONT_SET & mdev->b->bm_flags)); */
 	return __bm_find_next(mdev, bm_fo, 1, KM_USER1);
 }
 
@@ -1322,7 +1314,7 @@ static int bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 	ERR_IF(!b->bm_pages) return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
-	if (bm_is_locked(b))
+	if ((val ? BM_DONT_SET : BM_DONT_CLEAR) & b->bm_flags)
 		bm_print_lock_info(mdev);
 
 	c = __bm_change_bits_to(mdev, s, e, val, KM_IRQ1);
@@ -1439,7 +1431,7 @@ int drbd_bm_test_bit(struct drbd_conf *mdev, const unsigned long bitnr)
 	ERR_IF(!b->bm_pages) return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
-	if (bm_is_locked(b))
+	if (BM_DONT_TEST & b->bm_flags)
 		bm_print_lock_info(mdev);
 	if (bitnr < b->bm_bits) {
 		p_addr = bm_map_pidx(b, bm_bit_to_page_idx(b, bitnr));
@@ -1474,7 +1466,7 @@ int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 	ERR_IF(!b->bm_pages) return 1;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
-	if (bm_is_locked(b))
+	if (BM_DONT_TEST & b->bm_flags)
 		bm_print_lock_info(mdev);
 	for (bitnr = s; bitnr <= e; bitnr++) {
 		unsigned int idx = bm_bit_to_page_idx(b, bitnr);
@@ -1522,7 +1514,7 @@ int drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr)
 	ERR_IF(!b->bm_pages) return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
-	if (bm_is_locked(b))
+	if (BM_DONT_TEST & b->bm_flags)
 		bm_print_lock_info(mdev);
 
 	s = S2W(enr);
@@ -1555,7 +1547,7 @@ unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev, unsigned long al_enr)
 	ERR_IF(!b->bm_pages) return 0;
 
 	spin_lock_irq(&b->bm_lock);
-	if (bm_is_locked(b))
+	if (BM_DONT_SET & b->bm_flags)
 		bm_print_lock_info(mdev);
 	weight = b->bm_set;
 

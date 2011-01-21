@@ -648,7 +648,9 @@ enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, enum dds_
 		dev_info(DEV, "Writing the whole bitmap, %s\n",
 			 la_size_changed && md_moved ? "size changed and md moved" :
 			 la_size_changed ? "size changed" : "md moved");
-		err = drbd_bitmap_io(mdev, &drbd_bm_write, "size changed"); /* does drbd_resume_io() ! */
+		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
+		err = drbd_bitmap_io(mdev, &drbd_bm_write,
+				"size changed", BM_LOCKED_MASK);
 		if (err) {
 			rv = dev_size_error;
 			goto out;
@@ -1160,12 +1162,14 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (drbd_md_test_flag(mdev->ldev, MDF_FULL_SYNC)) {
 		dev_info(DEV, "Assuming that all blocks are out of sync "
 		     "(aka FullSync)\n");
-		if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write, "set_n_write from attaching")) {
+		if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write,
+			"set_n_write from attaching", BM_LOCKED_MASK)) {
 			retcode = ERR_IO_MD_DISK;
 			goto force_diskless_dec;
 		}
 	} else {
-		if (drbd_bitmap_io(mdev, &drbd_bm_read, "read from attaching") < 0) {
+		if (drbd_bitmap_io(mdev, &drbd_bm_read,
+			"read from attaching", BM_LOCKED_MASK) < 0) {
 			retcode = ERR_IO_MD_DISK;
 			goto force_diskless_dec;
 		}
@@ -1173,7 +1177,8 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	if (cp_discovered) {
 		drbd_al_apply_to_bm(mdev);
-		if (drbd_bitmap_io(mdev, &drbd_bm_write, "crashed primary apply AL")) {
+		if (drbd_bitmap_io(mdev, &drbd_bm_write,
+			"crashed primary apply AL", BM_LOCKED_MASK)) {
 			retcode = ERR_IO_MD_DISK;
 			goto force_diskless_dec;
 		}
@@ -1925,7 +1930,8 @@ static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_re
 			retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
 			if (retcode >= SS_SUCCESS) {
 				if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
-						   "set_n_write from invalidate_peer"))
+					"set_n_write from invalidate_peer",
+					BM_LOCKED_SET_ALLOWED))
 					retcode = ERR_IO_MD_DISK;
 			}
 		} else
@@ -2143,7 +2149,8 @@ static int drbd_nl_new_c_uuid(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	drbd_uuid_new_current(mdev); /* New current, previous to UI_BITMAP */
 
 	if (args.clear_bm) {
-		err = drbd_bitmap_io(mdev, &drbd_bmio_clear_n_write, "clear_n_write from new_c_uuid");
+		err = drbd_bitmap_io(mdev, &drbd_bmio_clear_n_write,
+			"clear_n_write from new_c_uuid", BM_LOCKED_MASK);
 		if (err) {
 			dev_err(DEV, "Writing bitmap failed with %d\n",err);
 			retcode = ERR_IO_MD_DISK;

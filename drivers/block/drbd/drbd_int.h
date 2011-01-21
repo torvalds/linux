@@ -855,6 +855,32 @@ enum {
 
 struct drbd_bitmap; /* opaque for drbd_conf */
 
+/* definition of bits in bm_flags to be used in drbd_bm_lock
+ * and drbd_bitmap_io and friends. */
+enum bm_flag {
+	/* do we need to kfree, or vfree bm_pages? */
+	BM_P_VMALLOCED = 0x10000, /* internal use only, will be masked out */
+
+	/* currently locked for bulk operation */
+	BM_LOCKED_MASK = 0x7,
+
+	/* in detail, that is: */
+	BM_DONT_CLEAR = 0x1,
+	BM_DONT_SET   = 0x2,
+	BM_DONT_TEST  = 0x4,
+
+	/* (test bit, count bit) allowed (common case) */
+	BM_LOCKED_TEST_ALLOWED = 0x3,
+
+	/* testing bits, as well as setting new bits allowed, but clearing bits
+	 * would be unexpected.  Used during bitmap receive.  Setting new bits
+	 * requires sending of "out-of-sync" information, though. */
+	BM_LOCKED_SET_ALLOWED = 0x1,
+
+	/* clear is not expected while bitmap is locked for bulk operation */
+};
+
+
 /* TODO sort members for performance
  * MAYBE group them further */
 
@@ -920,6 +946,7 @@ struct drbd_md_io {
 struct bm_io_work {
 	struct drbd_work w;
 	char *why;
+	enum bm_flag flags;
 	int (*io_fn)(struct drbd_conf *mdev);
 	void (*done)(struct drbd_conf *mdev, int rv);
 };
@@ -1242,7 +1269,6 @@ extern void drbd_free_bc(struct drbd_backing_dev *ldev);
 extern void drbd_mdev_cleanup(struct drbd_conf *mdev);
 void drbd_print_uuids(struct drbd_conf *mdev, const char *text);
 
-/* drbd_meta-data.c (still in drbd_main.c) */
 extern void drbd_md_sync(struct drbd_conf *mdev);
 extern int  drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev);
 extern void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
@@ -1263,10 +1289,12 @@ extern void drbd_md_mark_dirty_(struct drbd_conf *mdev,
 extern void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 				 int (*io_fn)(struct drbd_conf *),
 				 void (*done)(struct drbd_conf *, int),
-				 char *why);
+				 char *why, enum bm_flag flags);
+extern int drbd_bitmap_io(struct drbd_conf *mdev,
+		int (*io_fn)(struct drbd_conf *),
+		char *why, enum bm_flag flags);
 extern int drbd_bmio_set_n_write(struct drbd_conf *mdev);
 extern int drbd_bmio_clear_n_write(struct drbd_conf *mdev);
-extern int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *), char *why);
 extern void drbd_go_diskless(struct drbd_conf *mdev);
 extern void drbd_ldev_destroy(struct drbd_conf *mdev);
 
@@ -1452,7 +1480,7 @@ extern void drbd_bm_merge_lel(struct drbd_conf *mdev, size_t offset,
 extern void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset,
 		size_t number, unsigned long *buffer);
 
-extern void drbd_bm_lock(struct drbd_conf *mdev, char *why);
+extern void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags);
 extern void drbd_bm_unlock(struct drbd_conf *mdev);
 /* drbd_main.c */
 
