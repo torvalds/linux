@@ -472,8 +472,6 @@ static void subscr_named_msg_event(void *usr_handle,
 				   struct tipc_portid const *orig,
 				   struct tipc_name_seq const *dest)
 {
-	static struct iovec msg_sect = {NULL, 0};
-
 	struct subscriber *subscriber;
 	u32 server_port_ref;
 
@@ -523,7 +521,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Send an ACK- to complete connection handshaking */
 
-	tipc_send(server_port_ref, 1, &msg_sect);
+	tipc_send(server_port_ref, 0, NULL);
 
 	/* Handle optional subscription request */
 
