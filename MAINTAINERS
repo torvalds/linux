@@ -162,7 +162,7 @@ L:	linux-serial@vger.kernel.org
 W:	http://serial.sourceforge.net
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty-2.6.git
-F:	drivers/serial/8250*
+F:	drivers/tty/serial/8250*
 F:	include/linux/serial_8250.h
 
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
@@ -888,8 +888,8 @@ F:	arch/arm/mach-msm/
 F:	drivers/video/msm/
 F:	drivers/mmc/host/msm_sdcc.c
 F:	drivers/mmc/host/msm_sdcc.h
-F:	drivers/serial/msm_serial.h
-F:	drivers/serial/msm_serial.c
+F:	drivers/tty/serial/msm_serial.h
+F:	drivers/tty/serial/msm_serial.c
 T:	git git://codeaurora.org/quic/kernel/davidb/linux-msm.git
 S:	Maintained
 
@@ -1256,7 +1256,7 @@ F:	drivers/mmc/host/atmel-mci-regs.h
 ATMEL AT91 / AT32 SERIAL DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
-F:	drivers/serial/atmel_serial.c
+F:	drivers/tty/serial/atmel_serial.c
 
 ATMEL LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
@@ -1412,7 +1412,7 @@ M:	Sonic Zhang <sonic.zhang@analog.com>
 L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
-F:	drivers/serial/bfin_5xx.c
+F:	drivers/tty/serial/bfin_5xx.c
 
 BLACKFIN WATCHDOG DRIVER
 M:	Mike Frysinger <vapier.adi@gmail.com>
@@ -1877,7 +1877,7 @@ L:	linux-cris-kernel@axis.com
 W:	http://developer.axis.com
 S:	Maintained
 F:	arch/cris/
-F:	drivers/serial/crisv10.*
+F:	drivers/tty/serial/crisv10.*
 
 CRYPTO API
 M:	Herbert Xu <herbert@gondor.apana.org.au>
@@ -2216,7 +2216,7 @@ F:	drivers/net/wan/dscc4.c
 DZ DECSTATION DZ11 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
-F:	drivers/serial/dz.*
+F:	drivers/tty/serial/dz.*
 
 EATA-DMA SCSI DRIVER
 M:	Michael Neuffer <mike@i-Connect.Net>
@@ -2643,7 +2643,7 @@ FREESCALE QUICC ENGINE UCC UART DRIVER
 M:	Timur Tabi <timur@freescale.com>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
-F:	drivers/serial/ucc_uart.c
+F:	drivers/tty/serial/ucc_uart.c
 
 FREESCALE SOC SOUND DRIVERS
 M:	Timur Tabi <timur@freescale.com>
@@ -3350,7 +3350,7 @@ IOC3 SERIAL DRIVER
 M:	Pat Gefre <pfg@sgi.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
-F:	drivers/serial/ioc3_serial.c
+F:	drivers/tty/serial/ioc3_serial.c
 
 IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
@@ -3527,7 +3527,7 @@ JSM Neo PCI based serial card
 M:	Breno Leitao <leitao@linux.vnet.ibm.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
-F:	drivers/serial/jsm/
+F:	drivers/tty/serial/jsm/
 
 K10TEMP HARDWARE MONITORING DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
@@ -3677,7 +3677,7 @@ L:	kgdb-bugreport@lists.sourceforge.net
 S:	Maintained
 F:	Documentation/DocBook/kgdb.tmpl
 F:	drivers/misc/kgdbts.c
-F:	drivers/serial/kgdboc.c
+F:	drivers/tty/serial/kgdboc.c
 F:	include/linux/kdb.h
 F:	include/linux/kgdb.h
 F:	kernel/debug/
@@ -5545,7 +5545,7 @@ M:	Pat Gefre <pfg@sgi.com>
 L:	linux-ia64@vger.kernel.org
 S:	Supported
 F:	Documentation/ia64/serial.txt
-F:	drivers/serial/ioc?_serial.c
+F:	drivers/tty/serial/ioc?_serial.c
 F:	include/linux/ioc?.h
 
 SGI VISUAL WORKSTATION 320 AND 540
@@ -5567,7 +5567,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/arm/Sharp-LH/ADC-LH7-Touchscreen
 F:	arch/arm/mach-lh7a40x/
-F:	drivers/serial/serial_lh7a40x.c
+F:	drivers/tty/serial/serial_lh7a40x.c
 F:	drivers/usb/gadget/lh7a40*
 F:	drivers/usb/host/ohci-lh7a40*
 
@@ -5787,14 +5787,14 @@ L:	sparclinux@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
-F:	drivers/serial/suncore.c
-F:	drivers/serial/suncore.h
-F:	drivers/serial/sunhv.c
-F:	drivers/serial/sunsab.c
-F:	drivers/serial/sunsab.h
-F:	drivers/serial/sunsu.c
-F:	drivers/serial/sunzilog.c
-F:	drivers/serial/sunzilog.h
+F:	drivers/tty/serial/suncore.c
+F:	drivers/tty/serial/suncore.h
+F:	drivers/tty/serial/sunhv.c
+F:	drivers/tty/serial/sunsab.c
+F:	drivers/tty/serial/sunsab.h
+F:	drivers/tty/serial/sunsu.c
+F:	drivers/tty/serial/sunzilog.c
+F:	drivers/tty/serial/sunzilog.h
 
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
@@ -6124,8 +6124,8 @@ TTY LAYER
 M:	Greg Kroah-Hartman <gregkh@suse.de>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty-2.6.git
-F:	drivers/char/tty_*
-F:	drivers/serial/serial_core.c
+F:	drivers/tty/*
+F:	drivers/tty/serial/serial_core.c
 F:	include/linux/serial_core.h
 F:	include/linux/serial.h
 F:	include/linux/tty.h
@@ -6870,7 +6870,7 @@ XILINX UARTLITE SERIAL DRIVER
 M:	Peter Korsgaard <jacmet@sunsite.dk>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
-F:	drivers/serial/uartlite.c
+F:	drivers/tty/serial/uartlite.c
 
 YAM DRIVER FOR AX.25
 M:	Jean-Paul Roubelat <jpr@f6fbb.org>
@@ -6916,7 +6916,7 @@ F:	drivers/media/video/zoran/
 ZS DECSTATION Z85C30 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
-F:	drivers/serial/zs.*
+F:	drivers/tty/serial/zs.*
 
 GRE DEMULTIPLEXER DRIVER
 M:	Dmitry Kozlov <xeb@mail.ru>

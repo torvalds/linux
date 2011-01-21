@@ -426,7 +426,7 @@ config SGI_MBCS
          If you have an SGI Altix with an attached SABrick
          say Y or M here, otherwise say N.
 
-source "drivers/serial/Kconfig"
+source "drivers/tty/serial/Kconfig"
 
 config UNIX98_PTYS
 	bool "Unix98 PTY support" if EMBEDDED
