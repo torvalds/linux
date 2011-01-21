@@ -109,6 +109,9 @@ struct wm831x_pdata {
 	/** Called after subdevices are set up */
 	int (*post_init)(struct wm831x *wm831x);
 
+	/** Put the /IRQ line into CMOS mode */
+	bool irq_cmos;
+
 	int irq_base;
 	int gpio_base;
 	struct wm831x_backlight_pdata *backlight;
