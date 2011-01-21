@@ -44,7 +44,6 @@
 #define WLC_STF_SS_STBC_RX(wlc) (WLCISNPHY(wlc->band) && \
 	NREV_GT(wlc->band->phyrev, 3) && NREV_LE(wlc->band->phyrev, 6))
 
-static s8 wlc_stf_stbc_rx_get(struct wlc_info *wlc);
 static bool wlc_stf_stbc_tx_set(struct wlc_info *wlc, s32 int_val);
 static int wlc_stf_txcore_set(struct wlc_info *wlc, u8 Nsts, u8 val);
 static int wlc_stf_spatial_policy_set(struct wlc_info *wlc, int val);
@@ -149,12 +148,6 @@ wlc_stf_ss_algo_channel_get(struct wlc_info *wlc, u16 *ss_algo_channel,
 	 */
 	if (power.target[siso_mcs_id] <= (power.target[stbc_mcs_id] + 12))
 		setbit(ss_algo_channel, PHY_TXC1_MODE_STBC);
-}
-
-static s8 wlc_stf_stbc_rx_get(struct wlc_info *wlc)
-{
-	return (wlc->ht_cap.cap_info & HT_CAP_RX_STBC_MASK)
-		>> HT_CAP_RX_STBC_SHIFT;
 }
 
 static bool wlc_stf_stbc_tx_set(struct wlc_info *wlc, s32 int_val)
@@ -306,69 +299,6 @@ int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++)
 		wlc_stf_txcore_set(wlc, (u8) i, txcore_default[i]);
-
-	return BCME_OK;
-}
-
-int wlc_stf_rxchain_set(struct wlc_info *wlc, s32 int_val)
-{
-	u8 rxchain_cnt;
-	u8 rxchain = (u8) int_val;
-	u8 mimops_mode;
-	u8 old_rxchain, old_rxchain_cnt;
-
-	if (wlc->stf->rxchain == rxchain)
-		return BCME_OK;
-
-	if ((rxchain & ~wlc->stf->hw_rxchain)
-	    || !(rxchain & wlc->stf->hw_rxchain))
-		return BCME_RANGE;
-
-	rxchain_cnt = (u8) WLC_BITSCNT(rxchain);
-	if (WLC_STF_SS_STBC_RX(wlc)) {
-		if ((rxchain_cnt == 1)
-		    && (wlc_stf_stbc_rx_get(wlc) != HT_CAP_RX_STBC_NO))
-			return BCME_RANGE;
-	}
-
-	if (APSTA_ENAB(wlc->pub) && (wlc->pub->associated))
-		return BCME_ASSOCIATED;
-
-	old_rxchain = wlc->stf->rxchain;
-	old_rxchain_cnt = wlc->stf->rxstreams;
-
-	wlc->stf->rxchain = rxchain;
-	wlc->stf->rxstreams = rxchain_cnt;
-
-	if (rxchain_cnt != old_rxchain_cnt) {
-		mimops_mode =
-		    (rxchain_cnt == 1) ? HT_CAP_MIMO_PS_ON : HT_CAP_MIMO_PS_OFF;
-		wlc->mimops_PM = mimops_mode;
-		if (AP_ENAB(wlc->pub)) {
-			wlc_phy_stf_chain_set(wlc->band->pi, wlc->stf->txchain,
-					      wlc->stf->rxchain);
-			wlc_ht_mimops_cap_update(wlc, mimops_mode);
-			if (wlc->pub->associated)
-				wlc_mimops_action_ht_send(wlc, wlc->cfg,
-							  mimops_mode);
-			return BCME_OK;
-		}
-		if (wlc->pub->associated) {
-			if (mimops_mode == HT_CAP_MIMO_PS_OFF) {
-				/* if mimops is off, turn on the Rx chain first */
-				wlc_phy_stf_chain_set(wlc->band->pi,
-						      wlc->stf->txchain,
-						      wlc->stf->rxchain);
-				wlc_ht_mimops_cap_update(wlc, mimops_mode);
-			}
-		} else {
-			wlc_phy_stf_chain_set(wlc->band->pi, wlc->stf->txchain,
-					      wlc->stf->rxchain);
-			wlc_ht_mimops_cap_update(wlc, mimops_mode);
-		}
-	} else if (old_rxchain != rxchain)
-		wlc_phy_stf_chain_set(wlc->band->pi, wlc->stf->txchain,
-				      wlc->stf->rxchain);
 
 	return BCME_OK;
 }

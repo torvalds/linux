@@ -30,7 +30,6 @@ extern void wlc_stf_ss_algo_channel_get(struct wlc_info *wlc,
 extern int wlc_stf_ss_update(struct wlc_info *wlc, struct wlcband *band);
 extern void wlc_stf_phy_txant_upd(struct wlc_info *wlc);
 extern int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force);
-extern int wlc_stf_rxchain_set(struct wlc_info *wlc, s32 int_val);
 extern bool wlc_stf_stbc_rx_set(struct wlc_info *wlc, s32 int_val);
 
 extern int wlc_stf_ant_txant_validate(struct wlc_info *wlc, s8 val);
