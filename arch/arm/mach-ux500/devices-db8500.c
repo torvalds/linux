@@ -69,10 +69,30 @@ struct stedma40_chan_cfg dma40_memcpy_conf_log = {
  * Mapping between destination event lines and physical device address.
  * The event line is tied to a device and therefor the address is constant.
  */
-static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV];
+static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV] = {
+	/* MUSB - these will be runtime-reconfigured */
+	[DB8500_DMA_DEV39_USB_OTG_OEP_8] = -1,
+	[DB8500_DMA_DEV16_USB_OTG_OEP_7_15] = -1,
+	[DB8500_DMA_DEV17_USB_OTG_OEP_6_14] = -1,
+	[DB8500_DMA_DEV18_USB_OTG_OEP_5_13] = -1,
+	[DB8500_DMA_DEV19_USB_OTG_OEP_4_12] = -1,
+	[DB8500_DMA_DEV36_USB_OTG_OEP_3_11] = -1,
+	[DB8500_DMA_DEV37_USB_OTG_OEP_2_10] = -1,
+	[DB8500_DMA_DEV38_USB_OTG_OEP_1_9] = -1,
+};
 
 /* Mapping between source event lines and physical device address */
-static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV];
+static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV] = {
+	/* MUSB - these will be runtime-reconfigured */
+	[DB8500_DMA_DEV39_USB_OTG_IEP_8] = -1,
+	[DB8500_DMA_DEV16_USB_OTG_IEP_7_15] = -1,
+	[DB8500_DMA_DEV17_USB_OTG_IEP_6_14] = -1,
+	[DB8500_DMA_DEV18_USB_OTG_IEP_5_13] = -1,
+	[DB8500_DMA_DEV19_USB_OTG_IEP_4_12] = -1,
+	[DB8500_DMA_DEV36_USB_OTG_IEP_3_11] = -1,
+	[DB8500_DMA_DEV37_USB_OTG_IEP_2_10] = -1,
+	[DB8500_DMA_DEV38_USB_OTG_IEP_1_9] = -1,
+};
 
 /* Reserved event lines for memcpy only */
 static int dma40_memcpy_event[] = {

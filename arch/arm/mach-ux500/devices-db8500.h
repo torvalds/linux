@@ -61,6 +61,9 @@ db8500_add_ssp(const char *name, resource_size_t base, int irq,
 #define db8500_add_rtc() \
 	dbx500_add_rtc(U8500_RTC_BASE, IRQ_DB8500_RTC);
 
+#define db8500_add_usb(rx_cfg, tx_cfg) \
+	ux500_add_usb(U8500_USBOTG_BASE, IRQ_DB8500_USBOTG, rx_cfg, tx_cfg)
+
 #define db8500_add_sdi0(pdata) \
 	dbx500_add_sdi("sdi0", U8500_SDI0_BASE, IRQ_DB8500_SDMMC0, pdata)
 #define db8500_add_sdi1(pdata) \
