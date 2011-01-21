@@ -156,6 +156,9 @@ static void sdhci_reset(struct sdhci_host *host, u8 mask)
 	if (host->quirks & SDHCI_QUIRK_RESTORE_IRQS_AFTER_RESET)
 		ier = sdhci_readl(host, SDHCI_INT_ENABLE);
 
+	if (host->ops->platform_reset_enter)
+		host->ops->platform_reset_enter(host, mask);
+
 	sdhci_writeb(host, mask, SDHCI_SOFTWARE_RESET);
 
 	if (mask & SDHCI_RESET_ALL)
@@ -175,6 +178,9 @@ static void sdhci_reset(struct sdhci_host *host, u8 mask)
 		timeout--;
 		mdelay(1);
 	}
+
+	if (host->ops->platform_reset_exit)
+		host->ops->platform_reset_exit(host, mask);
 
 	if (host->quirks & SDHCI_QUIRK_RESTORE_IRQS_AFTER_RESET)
 		sdhci_clear_set_irqs(host, SDHCI_INT_ALL_MASK, ier);
