@@ -267,6 +267,26 @@ static void sh_msiof_spi_write_fifo_32u(struct sh_msiof_spi_priv *p,
 		sh_msiof_write(p, TFDR, get_unaligned(&buf_32[k]) << fs);
 }
 
+static void sh_msiof_spi_write_fifo_s32(struct sh_msiof_spi_priv *p,
+					const void *tx_buf, int words, int fs)
+{
+	const u32 *buf_32 = tx_buf;
+	int k;
+
+	for (k = 0; k < words; k++)
+		sh_msiof_write(p, TFDR, swab32(buf_32[k] << fs));
+}
+
+static void sh_msiof_spi_write_fifo_s32u(struct sh_msiof_spi_priv *p,
+					 const void *tx_buf, int words, int fs)
+{
+	const u32 *buf_32 = tx_buf;
+	int k;
+
+	for (k = 0; k < words; k++)
+		sh_msiof_write(p, TFDR, swab32(get_unaligned(&buf_32[k]) << fs));
+}
+
 static void sh_msiof_spi_read_fifo_8(struct sh_msiof_spi_priv *p,
 				     void *rx_buf, int words, int fs)
 {
@@ -315,6 +335,26 @@ static void sh_msiof_spi_read_fifo_32u(struct sh_msiof_spi_priv *p,
 
 	for (k = 0; k < words; k++)
 		put_unaligned(sh_msiof_read(p, RFDR) >> fs, &buf_32[k]);
+}
+
+static void sh_msiof_spi_read_fifo_s32(struct sh_msiof_spi_priv *p,
+				       void *rx_buf, int words, int fs)
+{
+	u32 *buf_32 = rx_buf;
+	int k;
+
+	for (k = 0; k < words; k++)
+		buf_32[k] = swab32(sh_msiof_read(p, RFDR) >> fs);
+}
+
+static void sh_msiof_spi_read_fifo_s32u(struct sh_msiof_spi_priv *p,
+				       void *rx_buf, int words, int fs)
+{
+	u32 *buf_32 = rx_buf;
+	int k;
+
+	for (k = 0; k < words; k++)
+		put_unaligned(swab32(sh_msiof_read(p, RFDR) >> fs), &buf_32[k]);
 }
 
 static int sh_msiof_spi_bits(struct spi_device *spi, struct spi_transfer *t)
@@ -468,8 +508,16 @@ static int sh_msiof_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 	int bytes_done;
 	int words;
 	int n;
+	bool swab;
 
 	bits = sh_msiof_spi_bits(spi, t);
+
+	if (bits <= 8 && t->len > 15 && !(t->len & 3)) {
+		bits = 32;
+		swab = true;
+	} else {
+		swab = false;
+	}
 
 	/* setup bytes per word and fifo read/write functions */
 	if (bits <= 8) {
@@ -487,6 +535,17 @@ static int sh_msiof_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 			rx_fifo = sh_msiof_spi_read_fifo_16u;
 		else
 			rx_fifo = sh_msiof_spi_read_fifo_16;
+	} else if (swab) {
+		bytes_per_word = 4;
+		if ((unsigned long)t->tx_buf & 0x03)
+			tx_fifo = sh_msiof_spi_write_fifo_s32u;
+		else
+			tx_fifo = sh_msiof_spi_write_fifo_s32;
+
+		if ((unsigned long)t->rx_buf & 0x03)
+			rx_fifo = sh_msiof_spi_read_fifo_s32u;
+		else
+			rx_fifo = sh_msiof_spi_read_fifo_s32;
 	} else {
 		bytes_per_word = 4;
 		if ((unsigned long)t->tx_buf & 0x03)
