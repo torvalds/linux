@@ -557,12 +557,10 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			iwl_led_associate(priv);
 			priv->timestamp = bss_conf->timestamp;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-			iwl_led_disassociate(priv);
 		}
 	}
 

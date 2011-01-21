@@ -668,29 +668,6 @@ static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
-				  size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	int pos = 0;
-	char buf[256];
-	const size_t bufsz = sizeof(buf);
-
-	pos += scnprintf(buf + pos, bufsz - pos,
-			 "allow blinking: %s\n",
-			 (priv->allow_blinking) ? "True" : "False");
-	if (priv->allow_blinking) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "Led blinking rate: %u\n",
-				 priv->last_blink_rate);
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "Last blink time: %lu\n",
-				 priv->last_blink_time);
-	}
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
 static ssize_t iwl_dbgfs_thermal_throttling_read(struct file *file,
 				char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -856,7 +833,6 @@ DEBUGFS_READ_FILE_OPS(channels);
 DEBUGFS_READ_FILE_OPS(status);
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(qos);
-DEBUGFS_READ_FILE_OPS(led);
 DEBUGFS_READ_FILE_OPS(thermal_throttling);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
 DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
@@ -1725,7 +1701,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(led, dir_data, S_IRUSR);
 	if (!priv->cfg->base_params->broken_powersave) {
 		DEBUGFS_ADD_FILE(sleep_level_override, dir_data,
 				 S_IWUSR | S_IRUSR);

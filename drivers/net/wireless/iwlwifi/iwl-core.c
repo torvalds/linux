@@ -1676,7 +1676,6 @@ void iwl_clear_traffic_stats(struct iwl_priv *priv)
 {
 	memset(&priv->tx_stats, 0, sizeof(struct traffic_stats));
 	memset(&priv->rx_stats, 0, sizeof(struct traffic_stats));
-	priv->led_tpt = 0;
 }
 
 /*
@@ -1769,7 +1768,6 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 		stats->data_cnt++;
 		stats->data_bytes += len;
 	}
-	iwl_leds_background(priv);
 }
 EXPORT_SYMBOL(iwl_update_stats);
 #endif

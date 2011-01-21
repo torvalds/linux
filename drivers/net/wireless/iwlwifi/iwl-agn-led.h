@@ -28,5 +28,6 @@
 #define __iwl_agn_led_h__
 
 extern const struct iwl_led_ops iwlagn_led_ops;
+void iwlagn_led_enable(struct iwl_priv *priv);
 
 #endif /* __iwl_agn_led_h__ */

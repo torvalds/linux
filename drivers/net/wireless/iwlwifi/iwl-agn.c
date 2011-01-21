@@ -59,6 +59,7 @@
 #include "iwl-sta.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
+#include "iwl-agn-led.h"
 
 
 /******************************************************************************
@@ -2741,8 +2742,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	/* At this point, the NIC is initialized and operational */
 	iwl_rf_kill_ct_config(priv);
 
-	iwl_leds_init(priv);
-
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
 	wake_up_interruptible(&priv->wait_command_queue);
 
@@ -3234,6 +3233,8 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->bands[IEEE80211_BAND_5GHZ];
 
+	iwl_leds_init(priv);
+
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
@@ -3278,7 +3279,7 @@ int iwlagn_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
-	iwl_led_start(priv);
+	iwlagn_led_enable(priv);
 
 out:
 	priv->is_open = 1;
@@ -4288,6 +4289,9 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	 * we need to set STATUS_EXIT_PENDING bit.
 	 */
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
+
+	iwl_leds_exit(priv);
+
 	if (priv->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);
 		priv->mac80211_registered = 0;

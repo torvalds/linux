@@ -2540,8 +2540,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 
 	iwl3945_reg_txpower_periodic(priv);
 
-	iwl_leds_init(priv);
-
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
@@ -3169,8 +3167,6 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 	/* ucode is running and will send rfkill notifications,
 	 * no need to poll the killswitch state anymore */
 	cancel_delayed_work(&priv->_3945.rfkill_poll);
-
-	iwl_led_start(priv);
 
 	priv->is_open = 1;
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -3935,6 +3931,8 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->bands[IEEE80211_BAND_5GHZ];
 
+	iwl_leds_init(priv);
+
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
@@ -4193,6 +4191,8 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	iwl_dbgfs_unregister(priv);
 
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
+
+	iwl_leds_exit(priv);
 
 	if (priv->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);

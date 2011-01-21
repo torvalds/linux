@@ -2,6 +2,10 @@ config IWLWIFI
 	tristate "Intel Wireless Wifi"
 	depends on PCI && MAC80211
 	select FW_LOADER
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
 
 menu "Debugging Options"
 	depends on IWLWIFI

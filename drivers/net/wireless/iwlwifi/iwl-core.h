@@ -227,8 +227,6 @@ struct iwl_lib_ops {
 
 struct iwl_led_ops {
 	int (*cmd)(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd);
-	int (*on)(struct iwl_priv *priv);
-	int (*off)(struct iwl_priv *priv);
 };
 
 /* NIC specific ops */
@@ -494,18 +492,6 @@ static inline void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 				    __le16 fc, u16 len)
 {
-	struct traffic_stats	*stats;
-
-	if (is_tx)
-		stats = &priv->tx_stats;
-	else
-		stats = &priv->rx_stats;
-
-	if (ieee80211_is_data(fc)) {
-		/* data */
-		stats->data_bytes += len;
-	}
-	iwl_leds_background(priv);
 }
 #endif
 /*****************************************************
