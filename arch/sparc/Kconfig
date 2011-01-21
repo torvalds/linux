@@ -50,6 +50,7 @@ config SPARC64
 	select RTC_DRV_STARFIRE
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
+	select HAVE_GENERIC_HARDIRQS
 
 config ARCH_DEFCONFIG
 	string
@@ -105,10 +106,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 	def_bool y if SPARC64
 
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
-	def_bool y if SPARC64
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
 	def_bool y if SPARC64
 
 config MMU
@@ -275,10 +272,6 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
-
-config GENERIC_HARDIRQS
-	bool
-	default y if SPARC64
 
 source "kernel/time/Kconfig"
 
