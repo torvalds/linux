@@ -520,7 +520,7 @@ static struct clk_lookup u8500_ed_clks[] = {
 	CLK(ssp0_ed,	"ssp0",		NULL),
 
 	/* Peripheral Cluster #5 */
-	CLK(usb_ed,	"musb_hdrc.0",	"usb"),
+	CLK(usb_ed,	"musb-ux500.0",	"usb"),
 
 	/* Peripheral Cluster #6 */
 	CLK(dmc_ed,	"dmc",		NULL),
@@ -561,7 +561,7 @@ static struct clk_lookup u8500_v1_clks[] = {
 	CLK(ssp0_v1,	"ssp0",		NULL),
 
 	/* Peripheral Cluster #5 */
-	CLK(usb_v1,	"musb_hdrc.0",	"usb"),
+	CLK(usb_v1,	"musb-ux500.0",	"usb"),
 
 	/* Peripheral Cluster #6 */
 	CLK(mtu1_v1,	"mtu1",		NULL),
