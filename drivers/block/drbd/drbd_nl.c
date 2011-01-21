@@ -2106,6 +2106,11 @@ static int drbd_nl_start_ov(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		reply->ret_code = ERR_MANDATORY_TAG;
 		return 0;
 	}
+
+	/* If there is still bitmap IO pending, e.g. previous resync or verify
+	 * just being finished, wait for it before requesting a new resync. */
+	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+
 	/* w_make_ov_request expects position to be aligned */
 	mdev->ov_start_sector = args.start_sector & ~BM_SECT_PER_BIT;
 	reply->ret_code = drbd_request_state(mdev,NS(conn,C_VERIFY_S));
