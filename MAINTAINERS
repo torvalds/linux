@@ -3150,7 +3150,7 @@ S:	Orphan
 F:	drivers/video/imsttfb.c
 
 INFINIBAND SUBSYSTEM
-M:	Roland Dreier <rolandd@cisco.com>
+M:	Roland Dreier <roland@kernel.org>
 M:	Sean Hefty <sean.hefty@intel.com>
 M:	Hal Rosenstock <hal.rosenstock@gmail.com>
 L:	linux-rdma@vger.kernel.org
