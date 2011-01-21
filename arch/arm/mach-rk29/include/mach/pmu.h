@@ -47,6 +47,7 @@ static inline bool pmu_power_domain_is_on(enum pmu_power_domain pd)
 
 static inline void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
+#if 0
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -58,6 +59,7 @@ static inline void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 
 	while (pmu_power_domain_is_on(pd) != on)
 		;
+#endif
 }
 
 #endif
