@@ -712,10 +712,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			dev_err(DEV, "FIXME (barrier_acked but pending)\n");
 			list_move(&req->tl_requests, &mdev->out_of_sequence_requests);
 		}
-		D_ASSERT(req->rq_state & RQ_NET_SENT);
-		req->rq_state |= RQ_NET_DONE;
-		if (mdev->net_conf->wire_protocol == DRBD_PROT_A)
-			atomic_sub(req->size>>9, &mdev->ap_in_flight);
+		if ((req->rq_state & RQ_NET_MASK) != 0) {
+			req->rq_state |= RQ_NET_DONE;
+			if (mdev->net_conf->wire_protocol == DRBD_PROT_A)
+				atomic_sub(req->size>>9, &mdev->ap_in_flight);
+		}
 		_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
