@@ -1184,14 +1184,14 @@ static void wl_remove(struct pci_dev *pdev)
 }
 
 static struct pci_driver wl_pci_driver = {
- .name  = "brcm80211",
- .probe = wl_pci_probe,
+	.name  = KBUILD_MODNAME,
+	.probe = wl_pci_probe,
 #ifdef LINUXSTA_PS
- .suspend = wl_suspend,
- .resume  = wl_resume,
+	.suspend = wl_suspend,
+	.resume  = wl_resume,
 #endif				/* LINUXSTA_PS */
- .remove   = __devexit_p(wl_remove),
- .id_table = wl_id_table,
+	.remove   = __devexit_p(wl_remove),
+	.id_table = wl_id_table,
 };
 
 /**

@@ -149,7 +149,7 @@ static struct platform_driver wifi_device = {
 	.suspend = wifi_suspend,
 	.resume = wifi_resume,
 	.driver = {
-		   .name = "bcm4329_wlan",
+		   .name = KBUILD_MODNAME,
 		   }
 };
 
