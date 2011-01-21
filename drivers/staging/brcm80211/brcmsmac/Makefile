@@ -16,7 +16,6 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y :=					\
-	-DBCMDBG				\
 	-DWLC_HIGH				\
 	-DWLC_LOW				\
 	-DSTA					\
@@ -25,25 +24,24 @@ ccflags-y :=					\
 	-DDBAND					\
 	-DBCMDMA32				\
 	-DBCMNVRAMR				\
-	-Idrivers/staging/brcm80211/brcmsmac    \
-	-Idrivers/staging/brcm80211/brcmsmac/sys \
+	-Idrivers/staging/brcm80211/brcmsmac \
 	-Idrivers/staging/brcm80211/brcmsmac/phy \
 	-Idrivers/staging/brcm80211/util \
 	-Idrivers/staging/brcm80211/include
 
 BRCMSMAC_OFILES := \
-	sys/wl_mac80211.o \
-	sys/wl_ucode_loader.o \
-	sys/wlc_alloc.o \
-	sys/wlc_ampdu.o \
-	sys/wlc_antsel.o \
-	sys/wlc_bmac.o \
-	sys/wlc_channel.o \
-	sys/wlc_event.o \
-	sys/wlc_mac80211.o \
-	sys/wlc_phy_shim.o \
-	sys/wlc_rate.o \
-	sys/wlc_stf.o \
+	wl_mac80211.o \
+	wl_ucode_loader.o \
+	wlc_alloc.o \
+	wlc_ampdu.o \
+	wlc_antsel.o \
+	wlc_bmac.o \
+	wlc_channel.o \
+	wlc_event.o \
+	wlc_mac80211.o \
+	wlc_phy_shim.o \
+	wlc_rate.o \
+	wlc_stf.o \
 	phy/wlc_phy_cmn.o \
 	phy/wlc_phy_lcn.o \
 	phy/wlc_phy_n.o \

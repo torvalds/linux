@@ -17,7 +17,6 @@
 
 ccflags-y :=			\
 	-DARP_OFFLOAD_SUPPORT	\
-	-DBCMDBG		\
 	-DBCMLXSDMMC		\
 	-DBCMPLATFORM_BUS	\
 	-DBCMSDIO		\
@@ -60,4 +59,3 @@ DHDOFILES = \
 
 obj-m += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
-
