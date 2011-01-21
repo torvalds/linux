@@ -91,7 +91,7 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * Guest has changed.
 	 */
 	if (__this_cpu_read(lg_last_cpu) != cpu || cpu->last_pages != pages) {
-		__this_cpu_read(lg_last_cpu) = cpu;
+		__this_cpu_write(lg_last_cpu, cpu);
 		cpu->last_pages = pages;
 		cpu->changed = CHANGED_ALL;
 	}
