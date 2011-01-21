@@ -983,13 +983,7 @@ allocate_barrier:
 		}
 
 		if (congested) {
-			/* rs_pending_cnt must be zero, otherwise the two peers
-			   might get different bitmaps. With sane configurations
-			   the resync stalls long before we might want to go into
-			   AHEAD mode.
-			   We could force the resync into PAUSE mode here if
-			   rs_pending_cnt is > 0 ... */
-			queue_barrier(mdev);
+			queue_barrier(mdev); /* last barrier, after mirrored writes */
 
 			if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
 				_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
