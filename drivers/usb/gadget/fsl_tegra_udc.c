@@ -15,6 +15,7 @@
 
 static struct tegra_usb_phy *phy;
 static struct clk *udc_clk;
+static struct clk *emc_clk;
 static void *udc_base;
 
 int fsl_udc_clk_init(struct platform_device *pdev)
@@ -32,6 +33,16 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 	}
 
 	clk_enable(udc_clk);
+
+	emc_clk = clk_get(&pdev->dev, "emc");
+	if (IS_ERR(emc_clk)) {
+		dev_err(&pdev->dev, "Can't get emc clock\n");
+		err = PTR_ERR(emc_clk);
+		goto err_emc;
+	}
+
+	clk_enable(emc_clk);
+	clk_set_rate(emc_clk, 240000000);
 
 	/* we have to remap the registers ourselves as fsl_udc does not
 	 * export them for us.
@@ -65,6 +76,9 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 err1:
 	iounmap(udc_base);
 err0:
+	clk_disable(emc_clk);
+	clk_put(emc_clk);
+err_emc:
 	clk_disable(udc_clk);
 	clk_put(udc_clk);
 	return err;
@@ -82,16 +96,21 @@ void fsl_udc_clk_release(void)
 
 	clk_disable(udc_clk);
 	clk_put(udc_clk);
+
+	clk_disable(emc_clk);
+	clk_put(emc_clk);
 }
 
 void fsl_udc_clk_suspend(void)
 {
 	tegra_usb_phy_power_off(phy);
 	clk_disable(udc_clk);
+	clk_disable(emc_clk);
 }
 
 void fsl_udc_clk_resume(void)
 {
+	clk_enable(emc_clk);
 	clk_enable(udc_clk);
 	tegra_usb_phy_power_on(phy);
 }
