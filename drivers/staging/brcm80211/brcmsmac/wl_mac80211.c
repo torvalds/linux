@@ -142,6 +142,7 @@ static int wl_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static int wl_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   enum ieee80211_ampdu_mlme_action action,
 			   struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+static void wl_ops_rfkill_poll(struct ieee80211_hw *hw);
 
 static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -162,6 +163,7 @@ static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 static int wl_ops_start(struct ieee80211_hw *hw)
 {
 	struct wl_info *wl = hw->priv;
+	bool blocked;
 	/*
 	  struct ieee80211_channel *curchan = hw->conf.channel;
 	  WL_NONE("%s : Initial channel: %d\n", __func__, curchan->hw_value);
@@ -170,6 +172,9 @@ static int wl_ops_start(struct ieee80211_hw *hw)
 	WL_LOCK(wl);
 	ieee80211_wake_queues(hw);
 	WL_UNLOCK(wl);
+	blocked = wl_rfkill_set_hw_state(wl);
+	if (!blocked)
+		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 
 	return 0;
 }
@@ -205,8 +210,9 @@ wl_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	err = wl_up(wl);
 	WL_UNLOCK(wl);
 
-	if (err != 0)
+	if (err != 0) {
 		WL_ERROR("%s: wl_up() returned %d\n", __func__, err);
+	}
 	return err;
 }
 
@@ -583,6 +589,19 @@ wl_ampdu_action(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void wl_ops_rfkill_poll(struct ieee80211_hw *hw)
+{
+	struct wl_info *wl = HW_TO_WL(hw);
+	bool blocked;
+
+	WL_LOCK(wl);
+	blocked = wlc_check_radio_disabled(wl->wlc);
+	WL_UNLOCK(wl);
+
+	WL_ERROR("wl: rfkill_poll: %d\n", blocked);
+	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
+}
+
 static const struct ieee80211_ops wl_ops = {
 	.tx = wl_ops_tx,
 	.start = wl_ops_start,
@@ -604,6 +623,7 @@ static const struct ieee80211_ops wl_ops = {
 	.sta_add = wl_sta_add,
 	.sta_remove = wl_sta_remove,
 	.ampdu_action = wl_ampdu_action,
+	.rfkill_poll = wl_ops_rfkill_poll,
 };
 
 static int wl_set_hint(struct wl_info *wl, char *abbrev)
@@ -1137,6 +1157,11 @@ static void wl_remove(struct pci_dev *pdev)
 		WL_ERROR("wl: wl_remove: pci_get_drvdata failed\n");
 		return;
 	}
+
+	/* make sure rfkill is not using driver */
+	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
+	wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
+
 	if (!wlc_chipmatch(pdev->vendor, pdev->device)) {
 		WL_ERROR("wl: wl_remove: wlc_chipmatch failed\n");
 		return;
@@ -1815,3 +1840,13 @@ int wl_check_firmwares(struct wl_info *wl)
 	return rc;
 }
 
+bool wl_rfkill_set_hw_state(struct wl_info *wl)
+{
+	bool blocked = wlc_check_radio_disabled(wl->wlc);
+
+	WL_ERROR("%s: update hw state: blocked=%s\n", __func__, blocked ? "true" : "false");
+	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
+	if (blocked)
+		wiphy_rfkill_start_polling(wl->pub->ieee_hw->wiphy);
+	return blocked;
+}

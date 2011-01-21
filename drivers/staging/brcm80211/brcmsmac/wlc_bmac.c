@@ -428,14 +428,10 @@ bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
 	}
 
 	if (macintstatus & MI_RFDISABLE) {
-#if defined(BCMDBG)
-		u32 rfd = R_REG(wlc_hw->osh, &regs->phydebug) & PDBG_RFD;
-#endif
-
-		WL_ERROR("wl%d: MAC Detected a change on the RF Disable Input 0x%x\n",
-			 wlc_hw->unit, rfd);
+		WL_TRACE("wl%d: BMAC Detected a change on the RF Disable Input\n", wlc_hw->unit);
 
 		WLCNTINCR(wlc->pub->_cnt->rfdisable);
+		wl_rfkill_set_hw_state(wlc->wl);
 	}
 
 	/* send any enq'd tx packets. Just makes sure to jump start tx */

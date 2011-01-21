@@ -598,6 +598,7 @@ extern void wlc_getrand(struct wlc_info *wlc, u8 *buf, int len);
 struct scb;
 extern void wlc_ps_on(struct wlc_info *wlc, struct scb *scb);
 extern void wlc_ps_off(struct wlc_info *wlc, struct scb *scb, bool discard);
+extern bool wlc_check_radio_disabled(struct wlc_info *wlc);
 extern bool wlc_radio_monitor_stop(struct wlc_info *wlc);
 
 #if defined(BCMDBG)

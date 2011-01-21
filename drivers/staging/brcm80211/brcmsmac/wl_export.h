@@ -34,6 +34,7 @@ extern void wl_down(struct wl_info *wl);
 extern void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,
 			     int prio);
 extern bool wl_alloc_dma_resources(struct wl_info *wl, uint dmaddrwidth);
+extern bool wl_rfkill_set_hw_state(struct wl_info *wl);
 
 /* timer functions */
 struct wl_timer;
