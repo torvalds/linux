@@ -130,6 +130,8 @@ EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 
+DEFINE_PER_CPU(cpumask_var_t, cpu_llc_shared_map);
+
 /* Per CPU bogomips and other parameters */
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
@@ -355,23 +357,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	cpu_idle();
 }
 
-#ifdef CONFIG_CPUMASK_OFFSTACK
-/* In this case, llc_shared_map is a pointer to a cpumask. */
-static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
-				    const struct cpuinfo_x86 *src)
-{
-	struct cpumask *llc = dst->llc_shared_map;
-	*dst = *src;
-	dst->llc_shared_map = llc;
-}
-#else
-static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
-				    const struct cpuinfo_x86 *src)
-{
-	*dst = *src;
-}
-#endif /* CONFIG_CPUMASK_OFFSTACK */
-
 /*
  * The bootstrap kernel entry code has set these up. Save them for
  * a given CPU
@@ -381,7 +366,7 @@ void __cpuinit smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = &cpu_data(id);
 
-	copy_cpuinfo_x86(c, &boot_cpu_data);
+	*c = boot_cpu_data;
 	c->cpu_index = id;
 	if (id != 0)
 		identify_secondary_cpu(c);
@@ -389,15 +374,12 @@ void __cpuinit smp_store_cpu_info(int id)
 
 static void __cpuinit link_thread_siblings(int cpu1, int cpu2)
 {
-	struct cpuinfo_x86 *c1 = &cpu_data(cpu1);
-	struct cpuinfo_x86 *c2 = &cpu_data(cpu2);
-
 	cpumask_set_cpu(cpu1, cpu_sibling_mask(cpu2));
 	cpumask_set_cpu(cpu2, cpu_sibling_mask(cpu1));
 	cpumask_set_cpu(cpu1, cpu_core_mask(cpu2));
 	cpumask_set_cpu(cpu2, cpu_core_mask(cpu1));
-	cpumask_set_cpu(cpu1, c2->llc_shared_map);
-	cpumask_set_cpu(cpu2, c1->llc_shared_map);
+	cpumask_set_cpu(cpu1, cpu_llc_shared_mask(cpu2));
+	cpumask_set_cpu(cpu2, cpu_llc_shared_mask(cpu1));
 }
 
 
@@ -425,7 +407,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
 	}
 
-	cpumask_set_cpu(cpu, c->llc_shared_map);
+	cpumask_set_cpu(cpu, cpu_llc_shared_mask(cpu));
 
 	if (__this_cpu_read(cpu_info.x86_max_cores) == 1) {
 		cpumask_copy(cpu_core_mask(cpu), cpu_sibling_mask(cpu));
@@ -436,8 +418,8 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
 		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
-			cpumask_set_cpu(i, c->llc_shared_map);
-			cpumask_set_cpu(cpu, cpu_data(i).llc_shared_map);
+			cpumask_set_cpu(i, cpu_llc_shared_mask(cpu));
+			cpumask_set_cpu(cpu, cpu_llc_shared_mask(i));
 		}
 		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
 			cpumask_set_cpu(i, cpu_core_mask(cpu));
@@ -476,7 +458,7 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 	    !(cpu_has(c, X86_FEATURE_AMD_DCM)))
 		return cpu_core_mask(cpu);
 	else
-		return c->llc_shared_map;
+		return cpu_llc_shared_mask(cpu);
 }
 
 static void impress_friends(void)
@@ -1103,7 +1085,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	for_each_possible_cpu(i) {
 		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
 		zalloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&cpu_data(i).llc_shared_map, GFP_KERNEL);
+		zalloc_cpumask_var(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL);
 	}
 	set_cpu_sibling_map(0);
 
