@@ -222,32 +222,6 @@ enum drbd_req_state_bits {
 #define MR_READ_SHIFT  1
 #define MR_READ        (1 << MR_READ_SHIFT)
 
-/* epoch entries */
-static inline
-struct hlist_head *ee_hash_slot(struct drbd_conf *mdev, sector_t sector)
-{
-	BUG_ON(mdev->ee_hash_s == 0);
-	return mdev->ee_hash +
-		((unsigned int)(sector>>HT_SHIFT) % mdev->ee_hash_s);
-}
-
-/* transfer log (drbd_request objects) */
-static inline
-struct hlist_head *tl_hash_slot(struct drbd_conf *mdev, sector_t sector)
-{
-	BUG_ON(mdev->tl_hash_s == 0);
-	return mdev->tl_hash +
-		((unsigned int)(sector>>HT_SHIFT) % mdev->tl_hash_s);
-}
-
-/* application reads (drbd_request objects) */
-static inline
-struct hlist_head *ar_hash_slot(struct drbd_conf *mdev, sector_t sector)
-{
-	return mdev->app_reads_hash
-		+ ((unsigned int)(sector) % APP_R_HSIZE);
-}
-
 static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
 {
 	struct bio *bio;
@@ -274,7 +248,6 @@ static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 		req->epoch       = 0;
 		req->i.sector     = bio_src->bi_sector;
 		req->i.size      = bio_src->bi_size;
-		INIT_HLIST_NODE(&req->collision);
 		drbd_clear_interval(&req->i);
 		INIT_LIST_HEAD(&req->tl_requests);
 		INIT_LIST_HEAD(&req->w.list);

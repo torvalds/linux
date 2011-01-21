@@ -209,9 +209,6 @@ static int tl_init(struct drbd_conf *mdev)
 	mdev->newest_tle = b;
 	INIT_LIST_HEAD(&mdev->out_of_sequence_requests);
 
-	mdev->tl_hash = NULL;
-	mdev->tl_hash_s = 0;
-
 	return 1;
 }
 
@@ -223,39 +220,6 @@ static void tl_cleanup(struct drbd_conf *mdev)
 	mdev->oldest_tle = NULL;
 	kfree(mdev->unused_spare_tle);
 	mdev->unused_spare_tle = NULL;
-	kfree(mdev->tl_hash);
-	mdev->tl_hash = NULL;
-	mdev->tl_hash_s = 0;
-}
-
-static void drbd_free_tl_hash(struct drbd_conf *mdev)
-{
-	struct hlist_head *h;
-
-	spin_lock_irq(&mdev->req_lock);
-
-	if (!mdev->tl_hash || mdev->state.conn != C_STANDALONE) {
-		spin_unlock_irq(&mdev->req_lock);
-		return;
-	}
-	/* paranoia code */
-	for (h = mdev->ee_hash; h < mdev->ee_hash + mdev->ee_hash_s; h++)
-		if (h->first)
-			dev_err(DEV, "ASSERT FAILED ee_hash[%u].first == %p, expected NULL\n",
-				(int)(h - mdev->ee_hash), h->first);
-	kfree(mdev->ee_hash);
-	mdev->ee_hash = NULL;
-	mdev->ee_hash_s = 0;
-
-	/* paranoia code */
-	for (h = mdev->tl_hash; h < mdev->tl_hash + mdev->tl_hash_s; h++)
-		if (h->first)
-			dev_err(DEV, "ASSERT FAILED tl_hash[%u] == %p, expected NULL\n",
-				(int)(h - mdev->tl_hash), h->first);
-	kfree(mdev->tl_hash);
-	mdev->tl_hash = NULL;
-	mdev->tl_hash_s = 0;
-	spin_unlock_irq(&mdev->req_lock);
 }
 
 /**
@@ -474,8 +438,6 @@ void tl_clear(struct drbd_conf *mdev)
 
 	/* ensure bit indicating barrier is required is clear */
 	clear_bit(CREATE_BARRIER, &mdev->flags);
-
-	memset(mdev->app_reads_hash, 0, APP_R_HSIZE*sizeof(void *));
 
 	spin_unlock_irq(&mdev->req_lock);
 }
@@ -1632,10 +1594,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			"write from resync_finished", BM_LOCKED_SET_ALLOWED);
 		put_ldev(mdev);
 	}
-
-	/* free tl_hash if we Got thawed and are C_STANDALONE */
-	if (ns.conn == C_STANDALONE && !is_susp(ns) && mdev->tl_hash)
-		drbd_free_tl_hash(mdev);
 
 	/* Upon network connection, we need to start the receiver */
 	if (os.conn == C_STANDALONE && ns.conn == C_UNCONNECTED)
@@ -3317,13 +3275,6 @@ static void drbd_delete_device(unsigned int minor)
 
 	drbd_release_ee_lists(mdev);
 
-	/* should be freed on disconnect? */
-	kfree(mdev->ee_hash);
-	/*
-	mdev->ee_hash_s = 0;
-	mdev->ee_hash = NULL;
-	*/
-
 	lc_destroy(mdev->act_log);
 	lc_destroy(mdev->resync);
 
@@ -3477,10 +3428,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	mdev->write_requests = RB_ROOT;
 	mdev->epoch_entries = RB_ROOT;
 
-	mdev->app_reads_hash = kzalloc(APP_R_HSIZE*sizeof(void *), GFP_KERNEL);
-	if (!mdev->app_reads_hash)
-		goto out_no_app_reads;
-
 	mdev->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
 	if (!mdev->current_epoch)
 		goto out_no_epoch;
@@ -3493,8 +3440,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 /* out_whatever_else:
 	kfree(mdev->current_epoch); */
 out_no_epoch:
-	kfree(mdev->app_reads_hash);
-out_no_app_reads:
 	tl_cleanup(mdev);
 out_no_tl:
 	drbd_bm_cleanup(mdev);
@@ -3516,7 +3461,6 @@ out_no_cpumask:
 void drbd_free_mdev(struct drbd_conf *mdev)
 {
 	kfree(mdev->current_epoch);
-	kfree(mdev->app_reads_hash);
 	tl_cleanup(mdev);
 	if (mdev->bitmap) /* should no longer be there. */
 		drbd_bm_cleanup(mdev);
@@ -3524,7 +3468,6 @@ void drbd_free_mdev(struct drbd_conf *mdev)
 	put_disk(mdev->vdisk);
 	blk_cleanup_queue(mdev->rq_queue);
 	free_cpumask_var(mdev->cpu_mask);
-	drbd_free_tl_hash(mdev);
 	kfree(mdev);
 }
 

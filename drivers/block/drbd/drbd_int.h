@@ -694,7 +694,6 @@ struct drbd_request {
 	 * see drbd_endio_pri(). */
 	struct bio *private_bio;
 
-	struct hlist_node collision;
 	struct drbd_interval i;
 	unsigned int epoch; /* barrier_nr */
 
@@ -759,7 +758,6 @@ struct digest_info {
 
 struct drbd_epoch_entry {
 	struct drbd_work w;
-	struct hlist_node collision;
 	struct drbd_epoch *epoch; /* for writes */
 	struct drbd_conf *mdev;
 	struct page *pages;
@@ -1015,8 +1013,6 @@ struct drbd_conf {
 	struct drbd_tl_epoch *newest_tle;
 	struct drbd_tl_epoch *oldest_tle;
 	struct list_head out_of_sequence_requests;
-	struct hlist_head *tl_hash;
-	unsigned int tl_hash_s;
 
 	/* Interval tree of pending local requests */
 	struct rb_root read_requests;
@@ -1077,8 +1073,6 @@ struct drbd_conf {
 	struct list_head done_ee;   /* send ack */
 	struct list_head read_ee;   /* IO in progress (any read) */
 	struct list_head net_ee;    /* zero-copy network send in progress */
-	struct hlist_head *ee_hash; /* is proteced by req_lock! */
-	unsigned int ee_hash_s;
 
 	/* Interval tree of pending remote write requests (struct drbd_epoch_entry) */
 	struct rb_root epoch_entries;
@@ -1087,7 +1081,6 @@ struct drbd_conf {
 	struct drbd_epoch_entry *last_write_w_barrier;
 
 	int next_barrier_nr;
-	struct hlist_head *app_reads_hash; /* is proteced by req_lock */
 	struct list_head resync_reads;
 	atomic_t pp_in_use;		/* allocated from page pool */
 	atomic_t pp_in_use_by_net;	/* sendpage()d, still referenced by tcp */
@@ -1428,17 +1421,11 @@ struct bm_extent {
 #endif
 #endif
 
-/* Sector shift value for the "hash" functions of tl_hash and ee_hash tables.
- * With a value of 8 all IO in one 128K block make it to the same slot of the
- * hash table. */
 #define HT_SHIFT 8
 #define DRBD_MAX_BIO_SIZE (1U<<(9+HT_SHIFT))
 #define DRBD_MAX_BIO_SIZE_SAFE (1 << 12)       /* Works always = 4k */
 
 #define DRBD_MAX_SIZE_H80_PACKET (1 << 15) /* The old header only allows packets up to 32Kib data */
-
-/* Number of elements in the app_reads_hash */
-#define APP_R_HSIZE 15
 
 extern int  drbd_bm_init(struct drbd_conf *mdev);
 extern int  drbd_bm_resize(struct drbd_conf *mdev, sector_t sectors, int set_new_bits);

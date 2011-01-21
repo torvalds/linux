@@ -1353,14 +1353,12 @@ static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			    struct drbd_nl_cfg_reply *reply)
 {
-	int i, ns;
+	int i;
 	enum drbd_ret_code retcode;
 	struct net_conf *new_conf = NULL;
 	struct crypto_hash *tfm = NULL;
 	struct crypto_hash *integrity_w_tfm = NULL;
 	struct crypto_hash *integrity_r_tfm = NULL;
-	struct hlist_head *new_tl_hash = NULL;
-	struct hlist_head *new_ee_hash = NULL;
 	struct drbd_conf *odev;
 	char hmac_name[CRYPTO_MAX_ALG_NAME];
 	void *int_dig_out = NULL;
@@ -1494,24 +1492,6 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		}
 	}
 
-	ns = new_conf->max_epoch_size/8;
-	if (mdev->tl_hash_s != ns) {
-		new_tl_hash = kzalloc(ns*sizeof(void *), GFP_KERNEL);
-		if (!new_tl_hash) {
-			retcode = ERR_NOMEM;
-			goto fail;
-		}
-	}
-
-	ns = new_conf->max_buffers/8;
-	if (new_conf->two_primaries && (mdev->ee_hash_s != ns)) {
-		new_ee_hash = kzalloc(ns*sizeof(void *), GFP_KERNEL);
-		if (!new_ee_hash) {
-			retcode = ERR_NOMEM;
-			goto fail;
-		}
-	}
-
 	((char *)new_conf->shared_secret)[SHARED_SECRET_MAX-1] = 0;
 
 	if (integrity_w_tfm) {
@@ -1552,18 +1532,6 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	mdev->send_cnt = 0;
 	mdev->recv_cnt = 0;
 
-	if (new_tl_hash) {
-		kfree(mdev->tl_hash);
-		mdev->tl_hash_s = mdev->net_conf->max_epoch_size/8;
-		mdev->tl_hash = new_tl_hash;
-	}
-
-	if (new_ee_hash) {
-		kfree(mdev->ee_hash);
-		mdev->ee_hash_s = mdev->net_conf->max_buffers/8;
-		mdev->ee_hash = new_ee_hash;
-	}
-
 	crypto_free_hash(mdev->cram_hmac_tfm);
 	mdev->cram_hmac_tfm = tfm;
 
@@ -1594,8 +1562,6 @@ fail:
 	crypto_free_hash(tfm);
 	crypto_free_hash(integrity_w_tfm);
 	crypto_free_hash(integrity_r_tfm);
-	kfree(new_tl_hash);
-	kfree(new_ee_hash);
 	kfree(new_conf);
 
 	reply->ret_code = retcode;
