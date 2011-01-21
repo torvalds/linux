@@ -72,9 +72,20 @@ xdr_nfsace_encode(struct xdr_array2_desc *desc, void *elem)
 	return 0;
 }
 
-unsigned int
-nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
-	      struct posix_acl *acl, int encode_entries, int typeflag)
+/**
+ * nfsacl_encode - Encode an NFSv3 ACL
+ *
+ * @buf: destination xdr_buf to contain XDR encoded ACL
+ * @base: byte offset in xdr_buf where XDR'd ACL begins
+ * @inode: inode of file whose ACL this is
+ * @acl: posix_acl to encode
+ * @encode_entries: whether to encode ACEs as well
+ * @typeflag: ACL type: NFS_ACL_DEFAULT or zero
+ *
+ * Returns size of encoded ACL in bytes or a negative errno value.
+ */
+int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
+		  struct posix_acl *acl, int encode_entries, int typeflag)
 {
 	int entries = (acl && acl->a_count) ? max_t(int, acl->a_count, 4) : 0;
 	struct nfsacl_encode_desc nfsacl_desc = {
@@ -224,9 +235,18 @@ posix_acl_from_nfsacl(struct posix_acl *acl)
 	return 0;
 }
 
-unsigned int
-nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
-	      struct posix_acl **pacl)
+/**
+ * nfsacl_decode - Decode an NFSv3 ACL
+ *
+ * @buf: xdr_buf containing XDR'd ACL data to decode
+ * @base: byte offset in xdr_buf where XDR'd ACL begins
+ * @aclcnt: count of ACEs in decoded posix_acl
+ * @pacl: buffer in which to place decoded posix_acl
+ *
+ * Returns the length of the decoded ACL in bytes, or a negative errno value.
+ */
+int nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
+		  struct posix_acl **pacl)
 {
 	struct nfsacl_decode_desc nfsacl_desc = {
 		.desc = {
