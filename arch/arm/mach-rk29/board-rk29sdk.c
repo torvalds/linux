@@ -507,7 +507,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_SENSORS_AK8975)
 	{
 		.type    		= "ak8975",
-		.addr           = 0x1d,
+		.addr           = 0x0d,
 		.flags			= 0,
 		.irq			= RK29_PIN0_PA4,
 	},
