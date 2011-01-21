@@ -548,6 +548,7 @@ err_req_irq_failed:
 err_reg_init_failed:
 	input_unregister_device(als_data->idev);
 error_input_register_failed:
+	misc_deregister(&max9635_misc_device);
 error_misc_register_failed:
 	input_free_device(als_data->idev);
 error_input_allocate_failed:
