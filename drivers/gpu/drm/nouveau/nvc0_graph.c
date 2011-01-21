@@ -512,8 +512,8 @@ nvc0_graph_init_gpc_1(struct drm_device *dev)
 			nv_wr32(dev, TP_UNIT(gpc, tp, 0x224), 0xc0000000);
 			nv_wr32(dev, TP_UNIT(gpc, tp, 0x48c), 0xc0000000);
 			nv_wr32(dev, TP_UNIT(gpc, tp, 0x084), 0xc0000000);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0xe44), 0x001ffffe);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0xe4c), 0x0000000f);
+			nv_wr32(dev, TP_UNIT(gpc, tp, 0x644), 0x001ffffe);
+			nv_wr32(dev, TP_UNIT(gpc, tp, 0x64c), 0x0000000f);
 		}
 		nv_wr32(dev, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
 		nv_wr32(dev, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
