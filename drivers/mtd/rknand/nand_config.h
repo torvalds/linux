@@ -19,10 +19,17 @@ Revision:   1.00
 #include    <linux/string.h>
 #include    <linux/sched.h>
 #include    <linux/delay.h>
-//#include 	<asm/arch-rockchip/hardware.h>
+#include    <linux/irq.h>
+#include    <mach/board.h>
+#include    <mach/gpio.h>
+#include    <asm/dma.h>
+#include    <mach/rk29-dma-pl330.h>
 #include    "typedef.h"
 #include    <mach/rk29_iomap.h>
 #include    <mach/iomux.h>
+#include    <linux/interrupt.h>
+#include    "epphal.h"
+
 //#include    "epphal.h"
 #ifndef 	TRUE
 #define 	TRUE    1

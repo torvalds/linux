@@ -1,11 +1,9 @@
 #
 # linux/drivers/nand/Makefile
 #
-# $Id: Makefile,v 1.2.4.1 2010/07/14 02:28:12 Administrator Exp $
+# $Id: Makefile,v 1.2 2010/12/27 08:46:52 Administrator Exp $
 #
-obj-$(CONFIG_MTD_NAND_RK29XX)		+= flash.o
-obj-$(CONFIG_MTD_NAND_RK29XX)		+= ftl.o
-obj-$(CONFIG_MTD_NAND_RK29XX)		+= rknand_base.o
+obj-$(CONFIG_MTD_NAND_RK29XX)		+= flash.o ftl.o rknand_base.o emmc.o
 obj-$(CONFIG_MTD_RKNAND_BUFFER)		+= rknand_buffer.o
 
 #obj-$(CONFIG_MTD_UBI)		+= ubi/
