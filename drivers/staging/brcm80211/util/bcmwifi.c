@@ -79,29 +79,6 @@ u8 wf_chspec_ctlchan(chanspec_t chspec)
 	return ctl_chan;
 }
 
-chanspec_t wf_chspec_ctlchspec(chanspec_t chspec)
-{
-	chanspec_t ctl_chspec = 0;
-	u8 channel;
-
-	ASSERT(!wf_chspec_malformed(chspec));
-
-	/* Is there a sideband ? */
-	if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_NONE) {
-		return chspec;
-	} else {
-		if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_UPPER) {
-			channel = UPPER_20_SB(CHSPEC_CHANNEL(chspec));
-		} else {
-			channel = LOWER_20_SB(CHSPEC_CHANNEL(chspec));
-		}
-		ctl_chspec =
-		    channel | WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE;
-		ctl_chspec |= CHSPEC_BAND(chspec);
-	}
-	return ctl_chspec;
-}
-
 /*
  * Return the channel number for a given frequency and base frequency.
  * The returned channel number is relative to the given base frequency.

@@ -144,13 +144,6 @@ extern bool wf_chspec_malformed(chanspec_t chanspec);
 extern u8 wf_chspec_ctlchan(chanspec_t chspec);
 
 /*
- * This function returns the chanspec that control traffic is being sent on, for legacy
- * channels this is just the chanspec, for 40MHZ channels it is the upper or lowre 20MHZ
- * sideband depending on the chanspec selected
- */
-extern chanspec_t wf_chspec_ctlchspec(chanspec_t chspec);
-
-/*
  * Return the channel number for a given frequency and base frequency.
  * The returned channel number is relative to the given base frequency.
  * If the given base frequency is zero, a base frequency of 5 GHz is assumed for
