@@ -13,6 +13,8 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef _hndrte_cons_h
+#define _hndrte_cons_h
 
 #define CBUF_LEN	(128)
 
@@ -55,3 +57,6 @@ typedef struct {
 	uint cbuf_idx;
 	char cbuf[CBUF_LEN];
 } hndrte_cons_t;
+
+#endif /* _hndrte_cons_h */
+

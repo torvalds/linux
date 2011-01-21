@@ -49,13 +49,6 @@ enum dhd_bus_state {
 	DHD_BUS_DATA		/* Ready for frame transfers */
 };
 
-enum dhd_prealloc_index {
-	DHD_PREALLOC_PROT = 0,
-	DHD_PREALLOC_RXBUF,
-	DHD_PREALLOC_DATABUF,
-	DHD_PREALLOC_OSL_BUF
-};
-
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
@@ -332,12 +325,12 @@ extern int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag);
 extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int dhd_bus_start(dhd_pub_t *dhdp);
 
-typedef enum cust_gpio_modes {
+enum cust_gpio_modes {
 	WLAN_RESET_ON,
 	WLAN_RESET_OFF,
 	WLAN_POWER_ON,
 	WLAN_POWER_OFF
-} cust_gpio_modes_t;
+};
 /*
  * Insmod parameters for debug/test
  */

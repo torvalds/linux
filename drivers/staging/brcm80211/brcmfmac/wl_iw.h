@@ -139,10 +139,4 @@ extern int dhd_dev_get_pno_status(struct net_device *dev);
 #define PNO_TLV_TYPE_TIME		'T'
 #define  PNO_EVENT_UP			"PNO_EVENT"
 
-typedef struct cmd_tlv {
-	char prefix;
-	char version;
-	char subver;
-	char reserved;
-} cmd_tlv_t;
 #endif				/* _wl_iw_h_ */

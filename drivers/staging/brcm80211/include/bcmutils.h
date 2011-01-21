@@ -54,12 +54,12 @@
 #define PKTQ_MAX_PREC           16	/* Maximum precedence levels */
 #endif
 
-	typedef struct pktq_prec {
+	struct pktq_prec {
 		struct sk_buff *head;	/* first packet to dequeue */
 		struct sk_buff *tail;	/* last packet to dequeue */
 		u16 len;		/* number of queued packets */
 		u16 max;		/* maximum number of queued packets */
-	} pktq_prec_t;
+	};
 
 /* multi-priority pkt queue */
 	struct pktq {
@@ -69,16 +69,6 @@
 		u16 len;	/* total number of packets */
 		/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
 		struct pktq_prec q[PKTQ_MAX_PREC];
-	};
-
-/* simple, non-priority pkt queue */
-	struct spktq {
-		u16 num_prec;	/* number of precedences in use (always 1) */
-		u16 hi_prec;	/* rapid dequeue hint (>= highest non-empty prec) */
-		u16 max;	/* total max packets */
-		u16 len;	/* total number of packets */
-		/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
-		struct pktq_prec q[1];
 	};
 
 #define PKTQ_PREC_ITER(pq, prec)        for (prec = (pq)->num_prec - 1; prec >= 0; prec--)
@@ -491,18 +481,8 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 	extern u16 bcm_qdbm_to_mw(u8 qdbm);
 	extern u8 bcm_mw_to_qdbm(u16 mw);
 
-/* generic datastruct to help dump routines */
-	struct fielddesc {
-		const char *nameandfmt;
-		u32 offset;
-		u32 len;
-	};
-
 	extern void bcm_binit(struct bcmstrbuf *b, char *buf, uint size);
 	extern int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...);
-
-	typedef u32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
-					   u32 offset);
 
 	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
 				uint len);

@@ -346,9 +346,6 @@ struct wlcband {
 	u16 bcntsfoff;	/* beacon tsf offset */
 };
 
-/* generic function callback takes just one arg */
-typedef void (*cb_fn_t) (void *);
-
 /* tx completion callback takes 3 args */
 typedef void (*pkcb_fn_t) (struct wlc_info *wlc, uint txstatus, void *arg);
 

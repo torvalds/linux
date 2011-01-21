@@ -68,36 +68,6 @@ static int wl_linux_watchdog(void *ctx);
 
 static int wl_found;
 
-struct ieee80211_tkip_data {
-#define TKIP_KEY_LEN 32
-	u8 key[TKIP_KEY_LEN];
-	int key_set;
-
-	u32 tx_iv32;
-	u16 tx_iv16;
-	u16 tx_ttak[5];
-	int tx_phase1_done;
-
-	u32 rx_iv32;
-	u16 rx_iv16;
-	u16 rx_ttak[5];
-	int rx_phase1_done;
-	u32 rx_iv32_new;
-	u16 rx_iv16_new;
-
-	u32 dot11RSNAStatsTKIPReplays;
-	u32 dot11RSNAStatsTKIPICVErrors;
-	u32 dot11RSNAStatsTKIPLocalMICFailures;
-
-	int key_idx;
-
-	struct crypto_tfm *tfm_arc4;
-	struct crypto_tfm *tfm_michael;
-
-	/* scratch buffers for virt_to_page() (crypto API) */
-	u8 rx_hdr[16], tx_hdr[16];
-};
-
 #define WL_DEV_IF(dev)		((struct wl_if *)netdev_priv(dev))
 #define	WL_INFO(dev)		((struct wl_info *)(WL_DEV_IF(dev)->wl))
 static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev);

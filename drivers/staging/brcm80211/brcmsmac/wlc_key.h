@@ -106,9 +106,6 @@ typedef struct wsec_key {
 } wsec_key_t;
 
 #define broken_roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
-typedef struct {
-	u8 vec[broken_roundup(WSEC_MAX_KEYS, NBBY) / NBBY];	/* bitvec of wsec_key indexes */
-} wsec_key_vec_t;
 
 /* For use with wsec_key_t.flags */
 

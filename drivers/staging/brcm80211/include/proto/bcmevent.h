@@ -191,14 +191,6 @@ extern const int bcmevent_names_size;
 #define WLC_E_SUP_SEND_FAIL		13
 #define WLC_E_SUP_DEAUTH		14
 
-typedef struct wl_event_data_if {
-	u8 ifidx;
-	u8 opcode;
-	u8 reserved;
-	u8 bssidx;
-	u8 role;
-} wl_event_data_if_t;
-
 #define WLC_E_IF_ADD		1
 #define WLC_E_IF_DEL		2
 #define WLC_E_IF_CHANGE		3

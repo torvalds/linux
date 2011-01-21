@@ -149,9 +149,6 @@ struct rsn_parms {
 	IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |\
 	HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
 
-/* WLC packet type is a void * */
-typedef void *wlc_pkt_t;
-
 /* Event data type */
 typedef struct wlc_event {
 	wl_event_msg_t event;	/* encapsulated event */

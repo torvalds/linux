@@ -25,38 +25,6 @@
  *  create wrappers in wlc.c if needed
  */
 
-/* Revision and other info required from BMAC driver for functioning of high ONLY driver */
-typedef struct wlc_bmac_revinfo {
-	uint vendorid;		/* PCI vendor id */
-	uint deviceid;		/* device id of chip */
-
-	uint boardrev;		/* version # of particular board */
-	uint corerev;		/* core revision */
-	uint sromrev;		/* srom revision */
-	uint chiprev;		/* chip revision */
-	uint chip;		/* chip number */
-	uint chippkg;		/* chip package */
-	uint boardtype;		/* board type */
-	uint boardvendor;	/* board vendor */
-	uint bustype;		/* SB_BUS, PCI_BUS  */
-	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
-	uint buscorerev;	/* buscore rev */
-	u32 issim;		/* chip is in simulation or emulation */
-
-	uint nbands;
-
-	struct band_info {
-		uint bandunit;	/* To match on both sides */
-		uint bandtype;	/* To match on both sides */
-		uint radiorev;
-		uint phytype;
-		uint phyrev;
-		uint anarev;
-		uint radioid;
-		bool abgphy_encore;
-	} band[MAXBANDS];
-} wlc_bmac_revinfo_t;
-
 /* dup state between BMAC(struct wlc_hw_info) and HIGH(struct wlc_info)
    driver */
 typedef struct wlc_bmac_state {
@@ -122,14 +90,6 @@ typedef enum {
 	BMAC_DUMP_PHY_RADIOREG_ID,
 	BMAC_DUMP_LAST
 } wlc_bmac_dump_id_t;
-
-typedef enum {
-	WLCHW_STATE_ATTACH,
-	WLCHW_STATE_CLK,
-	WLCHW_STATE_UP,
-	WLCHW_STATE_ASSOC,
-	WLCHW_STATE_LAST
-} wlc_bmac_state_id_t;
 
 extern int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device,
 			   uint unit, bool piomode, struct osl_info *osh,

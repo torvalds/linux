@@ -37,15 +37,6 @@ typedef struct wl_timer {
 #endif
 } wl_timer_t;
 
-/* contortion to call functions at safe time */
-/* In 2.6.20 kernels work functions get passed a pointer to the struct work, so things
- * will continue to work as long as the work structure is the first component of the task structure.
- */
-typedef struct wl_task {
-	struct work_struct work;
-	void *context;
-} wl_task_t;
-
 struct wl_if {
 	uint subunit;		/* WDS/BSS unit */
 	struct pci_dev *pci_dev;
