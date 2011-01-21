@@ -77,6 +77,9 @@ static pin_cfg_t mop500_pins[] = {
 
 	/* STMPE1601 IRQ */
 	GPIO218_GPIO    | PIN_INPUT_PULLUP,
+
+	/* touch screen */
+	GPIO84_GPIO	| PIN_INPUT_PULLUP,
 };
 
 static struct ab8500_platform_data ab8500_platdata = {
