@@ -1045,6 +1045,8 @@ init_hw_perf_events(void)
 			"CPU, irq %d%s\n", mipspmu->name, counters, irq,
 			irq < 0 ? " (share with timer interrupt)" : "");
 
+	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
+
 	return 0;
 }
 early_initcall(init_hw_perf_events);
