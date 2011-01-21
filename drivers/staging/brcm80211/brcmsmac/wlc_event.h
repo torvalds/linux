@@ -27,8 +27,6 @@ extern wlc_eventq_t *wlc_eventq_attach(struct wlc_pub *pub,
 extern int wlc_eventq_detach(wlc_eventq_t *eq);
 extern int wlc_eventq_down(wlc_eventq_t *eq);
 extern void wlc_event_free(wlc_eventq_t *eq, wlc_event_t *e);
-extern wlc_event_t *wlc_eventq_next(wlc_eventq_t *eq, wlc_event_t *e);
-extern int wlc_eventq_cnt(wlc_eventq_t *eq);
 extern bool wlc_eventq_avail(wlc_eventq_t *eq);
 extern wlc_event_t *wlc_eventq_deq(wlc_eventq_t *eq);
 extern void wlc_eventq_enq(wlc_eventq_t *eq, wlc_event_t *e);

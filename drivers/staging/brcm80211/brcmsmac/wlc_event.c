@@ -176,32 +176,6 @@ wlc_event_t *wlc_eventq_deq(wlc_eventq_t *eq)
 	return e;
 }
 
-wlc_event_t *wlc_eventq_next(wlc_eventq_t *eq, wlc_event_t *e)
-{
-#ifdef BCMDBG
-	wlc_event_t *etmp;
-
-	for (etmp = eq->head; etmp; etmp = etmp->next) {
-		if (etmp == e)
-			break;
-	}
-	ASSERT(etmp != NULL);
-#endif
-
-	return e->next;
-}
-
-int wlc_eventq_cnt(wlc_eventq_t *eq)
-{
-	wlc_event_t *etmp;
-	int cnt = 0;
-
-	for (etmp = eq->head; etmp; etmp = etmp->next)
-		cnt++;
-
-	return cnt;
-}
-
 bool wlc_eventq_avail(wlc_eventq_t *eq)
 {
 	return (eq->head != NULL);
