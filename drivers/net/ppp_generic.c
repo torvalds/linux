@@ -2055,16 +2055,6 @@ ppp_mp_reconstruct(struct ppp *ppp)
 				netdev_printk(KERN_DEBUG, ppp->dev,
 					      "PPP: reconstructed packet"
 					      " is too long (%d)\n", len);
-			} else if (p == head) {
-				/* fragment is complete packet - reuse skb */
-				tail = p;
-				skb = skb_get(p);
-				break;
-			} else if ((skb = dev_alloc_skb(len)) == NULL) {
-				++ppp->dev->stats.rx_missed_errors;
-				netdev_printk(KERN_DEBUG, ppp->dev,
-					      "PPP: no memory for "
-					      "reconstructed packet");
 			} else {
 				tail = p;
 				break;
@@ -2097,16 +2087,33 @@ ppp_mp_reconstruct(struct ppp *ppp)
 			ppp_receive_error(ppp);
 		}
 
-		if (head != tail)
-			/* copy to a single skb */
-			for (p = head; p != tail->next; p = p->next)
-				skb_copy_bits(p, 0, skb_put(skb, p->len), p->len);
+		skb = head;
+		if (head != tail) {
+			struct sk_buff **fragpp = &skb_shinfo(skb)->frag_list;
+			p = skb_queue_next(list, head);
+			__skb_unlink(skb, list);
+			skb_queue_walk_from_safe(list, p, tmp) {
+				__skb_unlink(p, list);
+				*fragpp = p;
+				p->next = NULL;
+				fragpp = &p->next;
+
+				skb->len += p->len;
+				skb->data_len += p->len;
+				skb->truesize += p->len;
+
+				if (p == tail)
+					break;
+			}
+		} else {
+			__skb_unlink(skb, list);
+		}
+
 		ppp->nextseq = PPP_MP_CB(tail)->sequence + 1;
 		head = tail->next;
 	}
 
-	/* Discard all the skbuffs that we have copied the data out of
-	   or that we can't use. */
+	/* Discard all the skbuffs that we can't use. */
 	while ((p = list->next) != head) {
 		__skb_unlink(p, list);
 		kfree_skb(p);
