@@ -1602,6 +1602,34 @@ static inline unsigned long sci_port_size(struct uart_port *port)
 	return 64;
 }
 
+static int sci_remap_port(struct uart_port *port)
+{
+	unsigned long size = sci_port_size(port);
+
+	/*
+	 * Nothing to do if there's already an established membase.
+	 */
+	if (port->membase)
+		return 0;
+
+	if (port->flags & UPF_IOREMAP) {
+		port->membase = ioremap_nocache(port->mapbase, size);
+		if (unlikely(!port->membase)) {
+			dev_err(port->dev, "can't remap port#%d\n", port->line);
+			return -ENXIO;
+		}
+	} else {
+		/*
+		 * For the simple (and majority of) cases where we don't
+		 * need to do any remapping, just cast the cookie
+		 * directly.
+		 */
+		port->membase = (void __iomem *)port->mapbase;
+	}
+
+	return 0;
+}
+
 static void sci_release_port(struct uart_port *port)
 {
 	if (port->flags & UPF_IOREMAP) {
@@ -1616,25 +1644,16 @@ static int sci_request_port(struct uart_port *port)
 {
 	unsigned long size = sci_port_size(port);
 	struct resource *res;
+	int ret;
 
 	res = request_mem_region(port->mapbase, size, sci_type(port));
 	if (unlikely(res == NULL))
 		return -EBUSY;
 
-	if (port->flags & UPF_IOREMAP) {
-		port->membase = ioremap_nocache(port->mapbase, size);
-		if (unlikely(!port->membase)) {
-			dev_err(port->dev, "can't remap port#%d\n", port->line);
-			release_resource(res);
-			return -ENXIO;
-		}
-	} else {
-		/*
-		 * For the simple (and majority of) cases where we don't
-		 * need to do any remapping, just cast the cookie
-		 * directly.
-		 */
-		port->membase = (void __iomem *)port->mapbase;
+	ret = sci_remap_port(port);
+	if (unlikely(ret != 0)) {
+		release_resource(res);
+		return ret;
 	}
 
 	return 0;
@@ -1835,7 +1854,9 @@ static int __devinit serial_console_setup(struct console *co, char *options)
 	if (!port->type)
 		return -ENODEV;
 
-	sci_config_port(port, 0);
+	ret = sci_remap_port(port);
+	if (unlikely(ret != 0))
+		return ret;
 
 	if (sci_port->enable)
 		sci_port->enable(port);
