@@ -182,14 +182,10 @@ extern void wlc_bmac_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask,
 			 u16 val, int bands);
 extern void wlc_bmac_mctrl(struct wlc_hw_info *wlc_hw, u32 mask, u32 val);
 extern u16 wlc_bmac_mhf_get(struct wlc_hw_info *wlc_hw, u8 idx, int bands);
-extern int wlc_bmac_xmtfifo_sz_set(struct wlc_hw_info *wlc_hw, uint fifo,
-				   uint blocks);
 extern void wlc_bmac_txant_set(struct wlc_hw_info *wlc_hw, u16 phytxant);
 extern u16 wlc_bmac_get_txant(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_antsel_type_set(struct wlc_hw_info *wlc_hw,
 				     u8 antsel_type);
-extern int wlc_bmac_revinfo_get(struct wlc_hw_info *wlc_hw,
-				wlc_bmac_revinfo_t *revinfo);
 extern int wlc_bmac_state_get(struct wlc_hw_info *wlc_hw,
 			      wlc_bmac_state_t *state);
 extern void wlc_bmac_write_shm(struct wlc_hw_info *wlc_hw, uint offset, u16 v);
@@ -205,14 +201,11 @@ extern void wlc_bmac_process_ps_switch(struct wlc_hw_info *wlc,
 				       struct ether_addr *ea, s8 ps_on);
 extern void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw,
 				  u8 *ea);
-extern void wlc_bmac_set_hw_etheraddr(struct wlc_hw_info *wlc_hw,
-				      u8 *ea);
 extern bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw);
 
 extern bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_set_shortslot(struct wlc_hw_info *wlc_hw, bool shortslot);
 extern void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool want, mbool flags);
-extern void wlc_bmac_set_deaf(struct wlc_hw_info *wlc_hw, bool user_flag);
 extern void wlc_bmac_band_stf_ss_set(struct wlc_hw_info *wlc_hw, u8 stf_mode);
 
 extern void wlc_bmac_wait_for_wake(struct wlc_hw_info *wlc_hw);
@@ -239,8 +232,6 @@ extern void wlc_bmac_read_tsf(struct wlc_hw_info *wlc_hw, u32 *tsf_l_ptr,
 extern void wlc_bmac_set_cwmin(struct wlc_hw_info *wlc_hw, u16 newmin);
 extern void wlc_bmac_set_cwmax(struct wlc_hw_info *wlc_hw, u16 newmax);
 extern void wlc_bmac_set_noreset(struct wlc_hw_info *wlc, bool noreset_flag);
-extern void wlc_bmac_set_ucode_loaded(struct wlc_hw_info *wlc,
-				      bool ucode_loaded);
 
 extern void wlc_bmac_retrylimit_upd(struct wlc_hw_info *wlc_hw, u16 SRL,
 				    u16 LRL);
@@ -253,21 +244,15 @@ extern void wlc_bmac_fifoerrors(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_bw_set(struct wlc_hw_info *wlc_hw, u16 bw);
 extern void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set,
 			    mbool req_bit);
-extern void wlc_bmac_set_clk(struct wlc_hw_info *wlc_hw, bool on);
 extern bool wlc_bmac_taclear(struct wlc_hw_info *wlc_hw, bool ta_ok);
 extern void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw);
 
 extern void wlc_bmac_dump(struct wlc_hw_info *wlc_hw, struct bcmstrbuf *b,
 			  wlc_bmac_dump_id_t dump_id);
-extern void wlc_gpio_fast_deinit(struct wlc_hw_info *wlc_hw);
 
-extern bool wlc_bmac_radio_hw(struct wlc_hw_info *wlc_hw, bool enable);
 extern u16 wlc_bmac_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate);
 
 extern void wlc_bmac_assert_type_set(struct wlc_hw_info *wlc_hw, u32 type);
-extern void wlc_bmac_set_txpwr_percent(struct wlc_hw_info *wlc_hw, u8 val);
 extern void wlc_bmac_blink_sync(struct wlc_hw_info *wlc_hw, u32 led_pins);
-extern void wlc_bmac_ifsctl_edcrs_set(struct wlc_hw_info *wlc_hw, bool abie,
-				      bool isht);
 
 extern void wlc_bmac_antsel_set(struct wlc_hw_info *wlc_hw, u32 antsel_avail);

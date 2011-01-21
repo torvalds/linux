@@ -175,7 +175,7 @@ void wlc_bmac_set_shortslot(struct wlc_hw_info *wlc_hw, bool shortslot)
 {
 	wlc_hw->shortslot = shortslot;
 
-	if (BAND_2G(wlc_hw->band->bandtype) && wlc_hw->up) {
+	if (BAND_2G(wlc_bmac_bandtype(wlc_hw)) && wlc_hw->up) {
 		wlc_suspend_mac_and_wait(wlc_hw->wlc);
 		wlc_bmac_update_slot_timing(wlc_hw, shortslot);
 		wlc_enable_mac(wlc_hw->wlc);
@@ -524,45 +524,6 @@ wlc_bmac_set_chanspec(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 		/* Update muting of the channel */
 		wlc_bmac_mute(wlc_hw, mute, 0);
 	}
-}
-
-int wlc_bmac_revinfo_get(struct wlc_hw_info *wlc_hw,
-			 wlc_bmac_revinfo_t *revinfo)
-{
-	si_t *sih = wlc_hw->sih;
-	uint idx;
-
-	revinfo->vendorid = wlc_hw->vendorid;
-	revinfo->deviceid = wlc_hw->deviceid;
-
-	revinfo->boardrev = wlc_hw->boardrev;
-	revinfo->corerev = wlc_hw->corerev;
-	revinfo->sromrev = wlc_hw->sromrev;
-	revinfo->chiprev = sih->chiprev;
-	revinfo->chip = sih->chip;
-	revinfo->chippkg = sih->chippkg;
-	revinfo->boardtype = sih->boardtype;
-	revinfo->boardvendor = sih->boardvendor;
-	revinfo->bustype = sih->bustype;
-	revinfo->buscoretype = sih->buscoretype;
-	revinfo->buscorerev = sih->buscorerev;
-	revinfo->issim = sih->issim;
-
-	revinfo->nbands = NBANDS_HW(wlc_hw);
-
-	for (idx = 0; idx < NBANDS_HW(wlc_hw); idx++) {
-		wlc_hwband_t *band = wlc_hw->bandstate[idx];
-		revinfo->band[idx].bandunit = band->bandunit;
-		revinfo->band[idx].bandtype = band->bandtype;
-		revinfo->band[idx].phytype = band->phytype;
-		revinfo->band[idx].phyrev = band->phyrev;
-		revinfo->band[idx].radioid = band->radioid;
-		revinfo->band[idx].radiorev = band->radiorev;
-		revinfo->band[idx].abgphy_encore = band->abgphy_encore;
-		revinfo->band[idx].anarev = 0;
-
-	}
-	return 0;
 }
 
 int wlc_bmac_state_get(struct wlc_hw_info *wlc_hw, wlc_bmac_state_t *state)
@@ -938,7 +899,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 
 		/* Get a phy for this band */
 		wlc_hw->band->pi = wlc_phy_attach(wlc_hw->phy_sh,
-			(void *)regs, wlc_hw->band->bandtype, vars);
+			(void *)regs, wlc_bmac_bandtype(wlc_hw), vars);
 		if (wlc_hw->band->pi == NULL) {
 			WL_ERROR("wl%d: wlc_bmac_attach: wlc_phy_attach failed\n",
 				 unit);
@@ -1353,21 +1314,9 @@ void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw, u8 *ea)
 	bcopy(wlc_hw->etheraddr, ea, ETH_ALEN);
 }
 
-void wlc_bmac_set_hw_etheraddr(struct wlc_hw_info *wlc_hw,
-			       u8 *ea)
-{
-	bcopy(ea, wlc_hw->etheraddr, ETH_ALEN);
-}
-
 int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw)
 {
 	return wlc_hw->band->bandtype;
-}
-
-void *wlc_cur_phy(struct wlc_info *wlc)
-{
-	struct wlc_hw_info *wlc_hw = wlc->hw;
-	return (void *)wlc_hw->band->pi;
 }
 
 /* control chip clock to save power, enable dynamic clock or force fast clock */
@@ -3075,28 +3024,12 @@ void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 		wlc_ucode_mute_override_clear(wlc_hw);
 }
 
-void wlc_bmac_set_deaf(struct wlc_hw_info *wlc_hw, bool user_flag)
-{
-	wlc_phy_set_deaf(wlc_hw->band->pi, user_flag);
-}
-
 int wlc_bmac_xmtfifo_sz_get(struct wlc_hw_info *wlc_hw, uint fifo, uint *blocks)
 {
 	if (fifo >= NFIFO)
 		return BCME_RANGE;
 
 	*blocks = wlc_hw->xmtfifo_sz[fifo];
-
-	return 0;
-}
-
-int wlc_bmac_xmtfifo_sz_set(struct wlc_hw_info *wlc_hw, uint fifo, uint blocks)
-{
-	if (fifo >= NFIFO || blocks > 299)
-		return BCME_RANGE;
-
-	/* BMAC_NOTE, change blocks to u16 */
-	wlc_hw->xmtfifo_sz[fifo] = (u16) blocks;
 
 	return 0;
 }
@@ -3559,42 +3492,6 @@ void wlc_enable_mac(struct wlc_info *wlc)
 	ASSERT(!(mi & MI_MACSSPNDD));
 
 	wlc_ucode_wake_override_clear(wlc_hw, WLC_WAKE_OVERRIDE_MACSUSPEND);
-}
-
-void wlc_bmac_ifsctl_edcrs_set(struct wlc_hw_info *wlc_hw, bool abie, bool isht)
-{
-	if (!(WLCISNPHY(wlc_hw->band) && (D11REV_GE(wlc_hw->corerev, 16))))
-		return;
-
-	if (isht) {
-		if (WLCISNPHY(wlc_hw->band) && NREV_LT(wlc_hw->band->phyrev, 3)) {
-			AND_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1,
-				~IFS_CTL1_EDCRS);
-		}
-	} else {
-		/* enable EDCRS for non-11n association */
-		OR_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1, IFS_CTL1_EDCRS);
-	}
-
-	if (WLCISNPHY(wlc_hw->band) && NREV_GE(wlc_hw->band->phyrev, 3)) {
-		if (CHSPEC_IS20(wlc_hw->chanspec)) {
-			/* 20 mhz, use 20U ED only */
-			OR_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1,
-			       IFS_CTL1_EDCRS);
-			AND_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1,
-				~IFS_CTL1_EDCRS_20L);
-			AND_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1,
-				~IFS_CTL1_EDCRS_40);
-		} else {
-			/* 40 mhz, use 20U 20L and 40 ED */
-			OR_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1,
-			       IFS_CTL1_EDCRS);
-			OR_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1,
-			       IFS_CTL1_EDCRS_20L);
-			OR_REG(wlc_hw->osh, &wlc_hw->regs->ifs_ctl1,
-			       IFS_CTL1_EDCRS_40);
-		}
-	}
 }
 
 static void wlc_upd_ofdm_pctl1_table(struct wlc_hw_info *wlc_hw)
@@ -4081,11 +3978,6 @@ void wlc_bmac_set_noreset(struct wlc_hw_info *wlc_hw, bool noreset_flag)
 	wlc_hw->noreset = noreset_flag;
 }
 
-void wlc_bmac_set_ucode_loaded(struct wlc_hw_info *wlc_hw, bool ucode_loaded)
-{
-	wlc_hw->ucode_loaded = ucode_loaded;
-}
-
 void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set, mbool req_bit)
 {
 	ASSERT(req_bit);
@@ -4117,86 +4009,9 @@ void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set, mbool req_bit)
 	return;
 }
 
-void wlc_bmac_set_clk(struct wlc_hw_info *wlc_hw, bool on)
-{
-	if (on) {
-		/* power up pll and oscillator */
-		wlc_bmac_xtal(wlc_hw, ON);
-
-		/* enable core(s), ignore bandlocked
-		 * Leave with the same band selected as we entered
-		 */
-		wlc_bmac_corereset(wlc_hw, WLC_USE_COREFLAGS);
-	} else {
-		/* if already down, must skip the core disable */
-		if (wlc_hw->clk) {
-			/* disable core(s), ignore bandlocked */
-			wlc_coredisable(wlc_hw);
-		}
-		/* power down pll and oscillator */
-		wlc_bmac_xtal(wlc_hw, OFF);
-	}
-}
-
 /* this will be true for all ai chips */
 bool wlc_bmac_taclear(struct wlc_hw_info *wlc_hw, bool ta_ok)
 {
-	return true;
-}
-
-/* Lower down relevant GPIOs like LED when going down w/o
- * doing PCI config cycles or touching interrupts
- */
-void wlc_gpio_fast_deinit(struct wlc_hw_info *wlc_hw)
-{
-	if ((wlc_hw == NULL) || (wlc_hw->sih == NULL))
-		return;
-
-	/* Only chips with internal bus or PCIE cores or certain PCI cores
-	 * are able to switch cores w/o disabling interrupts
-	 */
-	if (!((wlc_hw->sih->bustype == SI_BUS) ||
-	      ((wlc_hw->sih->bustype == PCI_BUS) &&
-	       ((wlc_hw->sih->buscoretype == PCIE_CORE_ID) ||
-		(wlc_hw->sih->buscorerev >= 13)))))
-		return;
-
-	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
-	return;
-}
-
-bool wlc_bmac_radio_hw(struct wlc_hw_info *wlc_hw, bool enable)
-{
-	/* Do not access Phy registers if core is not up */
-	if (si_iscoreup(wlc_hw->sih) == false)
-		return false;
-
-	if (enable) {
-		if (PMUCTL_ENAB(wlc_hw->sih)) {
-			AND_REG(wlc_hw->osh, &wlc_hw->regs->clk_ctl_st,
-				~CCS_FORCEHWREQOFF);
-			si_pmu_radio_enable(wlc_hw->sih, true);
-		}
-
-		wlc_phy_anacore(wlc_hw->band->pi, ON);
-		wlc_phy_switch_radio(wlc_hw->band->pi, ON);
-
-		/* resume d11 core */
-		wlc_enable_mac(wlc_hw->wlc);
-	} else {
-		/* suspend d11 core */
-		wlc_suspend_mac_and_wait(wlc_hw->wlc);
-
-		wlc_phy_switch_radio(wlc_hw->band->pi, OFF);
-		wlc_phy_anacore(wlc_hw->band->pi, OFF);
-
-		if (PMUCTL_ENAB(wlc_hw->sih)) {
-			si_pmu_radio_enable(wlc_hw->sih, false);
-			OR_REG(wlc_hw->osh, &wlc_hw->regs->clk_ctl_st,
-			       CCS_FORCEHWREQOFF);
-		}
-	}
-
 	return true;
 }
 
@@ -4222,11 +4037,6 @@ u16 wlc_bmac_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate)
 	 * Direct-map Table
 	 */
 	return 2 * wlc_bmac_read_shm(wlc_hw, table_ptr + (index * 2));
-}
-
-void wlc_bmac_set_txpwr_percent(struct wlc_hw_info *wlc_hw, u8 val)
-{
-	wlc_phy_txpwr_percent_set(wlc_hw->band->pi, val);
 }
 
 void wlc_bmac_antsel_set(struct wlc_hw_info *wlc_hw, u32 antsel_avail)
