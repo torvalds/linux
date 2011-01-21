@@ -173,10 +173,6 @@ extern void si_sdio_init(si_t *sih);
 #define si_eci_init(sih) (0)
 #define si_eci_notify_bt(sih, type, val)  (0)
 #define si_seci(sih) 0
-static inline void *si_seci_init(si_t *sih, u8 use_seci)
-{
-	return NULL;
-}
 
 /* OTP status */
 extern bool si_is_otp_disabled(si_t *sih);
