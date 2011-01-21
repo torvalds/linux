@@ -95,9 +95,9 @@ struct ath_config {
  * @BUF_XRETRY: To denote excessive retries of the buffer
  */
 enum buffer_type {
-	BUF_AMPDU		= BIT(2),
-	BUF_AGGR		= BIT(3),
-	BUF_XRETRY		= BIT(5),
+	BUF_AMPDU		= BIT(0),
+	BUF_AGGR		= BIT(1),
+	BUF_XRETRY		= BIT(2),
 };
 
 #define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
@@ -137,7 +137,6 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 	 (((_tid) == 4) || ((_tid) == 5)) ? WME_AC_VI :	\
 	 WME_AC_VO)
 
-#define ADDBA_EXCHANGE_ATTEMPTS    10
 #define ATH_AGGR_DELIM_SZ          4
 #define ATH_AGGR_MINPLEN           256 /* in bytes, minimum packet length */
 /* number of delimiters for encryption padding */
