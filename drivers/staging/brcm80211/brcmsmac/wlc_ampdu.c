@@ -152,15 +152,6 @@ static void wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu,
 					  struct sk_buff *p, tx_status_t *txs,
 					  u32 frmtxstatus, u32 frmtxstatus2);
 
-static inline u16 pkt_txh_seqnum(struct wlc_info *wlc, struct sk_buff *p)
-{
-	d11txh_t *txh;
-	struct ieee80211_hdr *h;
-	txh = (d11txh_t *) p->data;
-	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
-	return ltoh16(h->seq_ctrl) >> SEQNUM_SHIFT;
-}
-
 struct ampdu_info *wlc_ampdu_attach(struct wlc_info *wlc)
 {
 	struct ampdu_info *ampdu;
