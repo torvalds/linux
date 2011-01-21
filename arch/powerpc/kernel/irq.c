@@ -678,16 +678,15 @@ void irq_set_virq_count(unsigned int count)
 static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 			    irq_hw_number_t hwirq)
 {
-	struct irq_desc *desc;
+	int res;
 
-	desc = irq_to_desc_alloc_node(virq, 0);
-	if (!desc) {
+	res = irq_alloc_desc_at(virq, 0);
+	if (res != virq) {
 		pr_debug("irq: -> allocating desc failed\n");
 		goto error;
 	}
 
-	/* Clear IRQ_NOREQUEST flag */
-	desc->status &= ~IRQ_NOREQUEST;
+	irq_clear_status_flags(virq, IRQ_NOREQUEST);
 
 	/* map it */
 	smp_wmb();
@@ -696,11 +695,13 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 
 	if (host->ops->map(host, virq, hwirq)) {
 		pr_debug("irq: -> mapping failed, freeing\n");
-		goto error;
+		goto errdesc;
 	}
 
 	return 0;
 
+errdesc:
+	irq_free_descs(virq, 1);
 error:
 	irq_free_virt(virq, 1);
 	return -1;
@@ -879,9 +880,9 @@ void irq_dispose_mapping(unsigned int virq)
 	smp_mb();
 	irq_map[virq].hwirq = host->inval_irq;
 
-	/* Set some flags */
-	irq_to_desc(virq)->status |= IRQ_NOREQUEST;
+	irq_set_status_flags(virq, IRQ_NOREQUEST);
 
+	irq_free_descs(virq, 1);
 	/* Free it */
 	irq_free_virt(virq, 1);
 }
