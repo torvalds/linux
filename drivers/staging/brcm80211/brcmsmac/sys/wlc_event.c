@@ -33,9 +33,6 @@
 #include <d11.h>
 #include <wlc_rate.h>
 #include <wlc_mac80211.h>
-#ifdef MSGTRACE
-#include <msgtrace.h>
-#endif
 #include <wl_dbg.h>
 
 /* Local prototypes */

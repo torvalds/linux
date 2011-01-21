@@ -25,6 +25,7 @@ ccflags-y :=					\
 	-DDBAND					\
 	-DBCMDMA32				\
 	-DBCMNVRAMR				\
+	-Idrivers/staging/brcm80211/brcmsmac    \
 	-Idrivers/staging/brcm80211/brcmsmac/sys \
 	-Idrivers/staging/brcm80211/brcmsmac/phy \
 	-Idrivers/staging/brcm80211/util \
