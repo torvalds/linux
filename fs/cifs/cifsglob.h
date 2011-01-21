@@ -218,6 +218,7 @@ struct TCP_Server_Info {
 	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
 	bool	sec_ntlmssp;		/* supports NTLMSSP */
 	bool session_estab; /* mark when very first sess is established */
+	struct delayed_work	echo; /* echo ping workqueue job */
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie   *fscache; /* client index cache cookie */
 #endif
@@ -508,6 +509,18 @@ static inline void cifs_stats_bytes_read(struct cifsTconInfo *tcon,
 
 #endif
 
+struct mid_q_entry;
+
+/*
+ * This is the prototype for the mid callback function. When creating one,
+ * take special care to avoid deadlocks. Things to bear in mind:
+ *
+ * - it will be called by cifsd
+ * - the GlobalMid_Lock will be held
+ * - the mid will be removed from the pending_mid_q list
+ */
+typedef void (mid_callback_t)(struct mid_q_entry *mid);
+
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
@@ -519,7 +532,8 @@ struct mid_q_entry {
 	unsigned long when_sent; /* time when smb send finished */
 	unsigned long when_received; /* when demux complete (taken off wire) */
 #endif
-	struct task_struct *tsk;	/* task waiting for response */
+	mid_callback_t *callback; /* call completion callback */
+	void *callback_data;	  /* general purpose pointer for callback */
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */
 	__u8 command;	/* smb command code */
@@ -622,12 +636,9 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_IOVEC            4    /* array of response buffers */
 
 /* Type of Request to SendReceive2 */
-#define   CIFS_STD_OP	        0    /* normal request timeout */
-#define   CIFS_LONG_OP          1    /* long op (up to 45 sec, oplock time) */
-#define   CIFS_VLONG_OP         2    /* sloow op - can take up to 180 seconds */
-#define   CIFS_BLOCKING_OP      4    /* operation can block */
-#define   CIFS_ASYNC_OP         8    /* do not wait for response */
-#define   CIFS_TIMEOUT_MASK 0x00F    /* only one of 5 above set in req */
+#define   CIFS_BLOCKING_OP      1    /* operation can block */
+#define   CIFS_ASYNC_OP         2    /* do not wait for response */
+#define   CIFS_TIMEOUT_MASK 0x003    /* only one of above set in req */
 #define   CIFS_LOG_ERROR    0x010    /* log NT STATUS if non-zero */
 #define   CIFS_LARGE_BUF_OP 0x020    /* large request buffer */
 #define   CIFS_NO_RESP      0x040    /* no response buffer required */
@@ -789,6 +800,9 @@ GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
 GLOBAL_EXTERN unsigned int cifs_min_small;  /* min size of small buf pool */
 GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
+
+/* reconnect after this many failed echo attempts */
+GLOBAL_EXTERN unsigned short echo_retries;
 
 void cifs_oplock_break(struct work_struct *work);
 void cifs_oplock_break_get(struct cifsFileInfo *cfile);

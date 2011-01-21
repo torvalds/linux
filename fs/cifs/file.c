@@ -726,12 +726,12 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 
 		/* BB we could chain these into one lock request BB */
 		rc = CIFSSMBLock(xid, tcon, netfid, length, pfLock->fl_start,
-				 0, 1, lockType, 0 /* wait flag */ );
+				 0, 1, lockType, 0 /* wait flag */, 0);
 		if (rc == 0) {
 			rc = CIFSSMBLock(xid, tcon, netfid, length,
 					 pfLock->fl_start, 1 /* numUnlock */ ,
 					 0 /* numLock */ , lockType,
-					 0 /* wait flag */ );
+					 0 /* wait flag */, 0);
 			pfLock->fl_type = F_UNLCK;
 			if (rc != 0)
 				cERROR(1, "Error unlocking previously locked "
@@ -748,13 +748,13 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 				rc = CIFSSMBLock(xid, tcon, netfid, length,
 					pfLock->fl_start, 0, 1,
 					lockType | LOCKING_ANDX_SHARED_LOCK,
-					0 /* wait flag */);
+					0 /* wait flag */, 0);
 				if (rc == 0) {
 					rc = CIFSSMBLock(xid, tcon, netfid,
 						length, pfLock->fl_start, 1, 0,
 						lockType |
 						LOCKING_ANDX_SHARED_LOCK,
-						0 /* wait flag */);
+						0 /* wait flag */, 0);
 					pfLock->fl_type = F_RDLCK;
 					if (rc != 0)
 						cERROR(1, "Error unlocking "
@@ -797,8 +797,8 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 
 		if (numLock) {
 			rc = CIFSSMBLock(xid, tcon, netfid, length,
-					pfLock->fl_start,
-					0, numLock, lockType, wait_flag);
+					 pfLock->fl_start, 0, numLock, lockType,
+					 wait_flag, 0);
 
 			if (rc == 0) {
 				/* For Windows locks we must store them. */
@@ -818,9 +818,9 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 						(pfLock->fl_start + length) >=
 						(li->offset + li->length)) {
 					stored_rc = CIFSSMBLock(xid, tcon,
-							netfid,
-							li->length, li->offset,
-							1, 0, li->type, false);
+							netfid, li->length,
+							li->offset, 1, 0,
+							li->type, false, 0);
 					if (stored_rc)
 						rc = stored_rc;
 					else {
@@ -837,29 +837,6 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		posix_lock_file_wait(file, pfLock);
 	FreeXid(xid);
 	return rc;
-}
-
-/*
- * Set the timeout on write requests past EOF. For some servers (Windows)
- * these calls can be very long.
- *
- * If we're writing >10M past the EOF we give a 180s timeout. Anything less
- * than that gets a 45s timeout. Writes not past EOF get 15s timeouts.
- * The 10M cutoff is totally arbitrary. A better scheme for this would be
- * welcome if someone wants to suggest one.
- *
- * We may be able to do a better job with this if there were some way to
- * declare that a file should be sparse.
- */
-static int
-cifs_write_timeout(struct cifsInodeInfo *cifsi, loff_t offset)
-{
-	if (offset <= cifsi->server_eof)
-		return CIFS_STD_OP;
-	else if (offset > (cifsi->server_eof + (10 * 1024 * 1024)))
-		return CIFS_VLONG_OP;
-	else
-		return CIFS_LONG_OP;
 }
 
 /* update the file size (if needed) after a write */
@@ -882,7 +859,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	unsigned int total_written;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	int xid, long_op;
+	int xid;
 	struct cifsFileInfo *open_file;
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 
@@ -903,7 +880,6 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 	xid = GetXid();
 
-	long_op = cifs_write_timeout(cifsi, *poffset);
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
 		rc = -EAGAIN;
@@ -931,7 +907,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 				min_t(const int, cifs_sb->wsize,
 				      write_size - total_written),
 				*poffset, &bytes_written,
-				NULL, write_data + total_written, long_op);
+				NULL, write_data + total_written, 0);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -944,8 +920,6 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 			cifs_update_eof(cifsi, *poffset, bytes_written);
 			*poffset += bytes_written;
 		}
-		long_op = CIFS_STD_OP; /* subsequent writes fast -
-				    15 seconds is plenty */
 	}
 
 	cifs_stats_bytes_written(pTcon, total_written);
@@ -974,7 +948,7 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 	unsigned int total_written;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	int xid, long_op;
+	int xid;
 	struct dentry *dentry = open_file->dentry;
 	struct cifsInodeInfo *cifsi = CIFS_I(dentry->d_inode);
 
@@ -987,7 +961,6 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 
 	xid = GetXid();
 
-	long_op = cifs_write_timeout(cifsi, *poffset);
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
 		rc = -EAGAIN;
@@ -1017,7 +990,7 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 				rc = CIFSSMBWrite2(xid, pTcon,
 						open_file->netfid, len,
 						*poffset, &bytes_written,
-						iov, 1, long_op);
+						iov, 1, 0);
 			} else
 				rc = CIFSSMBWrite(xid, pTcon,
 					 open_file->netfid,
@@ -1025,7 +998,7 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 					       write_size - total_written),
 					 *poffset, &bytes_written,
 					 write_data + total_written,
-					 NULL, long_op);
+					 NULL, 0);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -1038,8 +1011,6 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 			cifs_update_eof(cifsi, *poffset, bytes_written);
 			*poffset += bytes_written;
 		}
-		long_op = CIFS_STD_OP; /* subsequent writes fast -
-				    15 seconds is plenty */
 	}
 
 	cifs_stats_bytes_written(pTcon, total_written);
@@ -1239,7 +1210,7 @@ static int cifs_writepages(struct address_space *mapping,
 	struct pagevec pvec;
 	int rc = 0;
 	int scanned = 0;
-	int xid, long_op;
+	int xid;
 
 	cifs_sb = CIFS_SB(mapping->host->i_sb);
 
@@ -1377,43 +1348,67 @@ retry:
 				break;
 		}
 		if (n_iov) {
+retry_write:
 			open_file = find_writable_file(CIFS_I(mapping->host),
 							false);
 			if (!open_file) {
 				cERROR(1, "No writable handles for inode");
 				rc = -EBADF;
 			} else {
-				long_op = cifs_write_timeout(cifsi, offset);
 				rc = CIFSSMBWrite2(xid, tcon, open_file->netfid,
 						   bytes_to_write, offset,
 						   &bytes_written, iov, n_iov,
-						   long_op);
+						   0);
 				cifsFileInfo_put(open_file);
-				cifs_update_eof(cifsi, offset, bytes_written);
 			}
 
-			if (rc || bytes_written < bytes_to_write) {
-				cERROR(1, "Write2 ret %d, wrote %d",
-					  rc, bytes_written);
-				mapping_set_error(mapping, rc);
-			} else {
+			cFYI(1, "Write2 rc=%d, wrote=%u", rc, bytes_written);
+
+			/*
+			 * For now, treat a short write as if nothing got
+			 * written. A zero length write however indicates
+			 * ENOSPC or EFBIG. We have no way to know which
+			 * though, so call it ENOSPC for now. EFBIG would
+			 * get translated to AS_EIO anyway.
+			 *
+			 * FIXME: make it take into account the data that did
+			 *	  get written
+			 */
+			if (rc == 0) {
+				if (bytes_written == 0)
+					rc = -ENOSPC;
+				else if (bytes_written < bytes_to_write)
+					rc = -EAGAIN;
+			}
+
+			/* retry on data-integrity flush */
+			if (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN)
+				goto retry_write;
+
+			/* fix the stats and EOF */
+			if (bytes_written > 0) {
 				cifs_stats_bytes_written(tcon, bytes_written);
+				cifs_update_eof(cifsi, offset, bytes_written);
 			}
 
 			for (i = 0; i < n_iov; i++) {
 				page = pvec.pages[first + i];
-				/* Should we also set page error on
-				success rc but too little data written? */
-				/* BB investigate retry logic on temporary
-				server crash cases and how recovery works
-				when page marked as error */
-				if (rc)
+				/* on retryable write error, redirty page */
+				if (rc == -EAGAIN)
+					redirty_page_for_writepage(wbc, page);
+				else if (rc != 0)
 					SetPageError(page);
 				kunmap(page);
 				unlock_page(page);
 				end_page_writeback(page);
 				page_cache_release(page);
 			}
+
+			if (rc != -EAGAIN)
+				mapping_set_error(mapping, rc);
+			else
+				rc = 0;
+
 			if ((wbc->nr_to_write -= n_iov) <= 0)
 				done = 1;
 			index = next;
@@ -2192,7 +2187,8 @@ void cifs_oplock_break(struct work_struct *work)
 	 */
 	if (!cfile->oplock_break_cancelled) {
 		rc = CIFSSMBLock(0, tlink_tcon(cfile->tlink), cfile->netfid, 0,
-				 0, 0, 0, LOCKING_ANDX_OPLOCK_RELEASE, false);
+				 0, 0, 0, LOCKING_ANDX_OPLOCK_RELEASE, false,
+				 cinode->clientCanCacheRead ? 1 : 0);
 		cFYI(1, "Oplock release rc = %d", rc);
 	}
 

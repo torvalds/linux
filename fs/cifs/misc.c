@@ -571,7 +571,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 
 				cifs_set_oplock_level(pCifsInode,
-						      pSMB->OplockLevel);
+					pSMB->OplockLevel ? OPLOCK_READ : 0);
 				/*
 				 * cifs_oplock_break_put() can't be called
 				 * from here.  Get reference after queueing

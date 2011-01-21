@@ -77,7 +77,11 @@ unsigned int cifs_max_pending = CIFS_MAX_REQ;
 module_param(cifs_max_pending, int, 0);
 MODULE_PARM_DESC(cifs_max_pending, "Simultaneous requests to server. "
 				   "Default: 50 Range: 2 to 256");
-
+unsigned short echo_retries = 5;
+module_param(echo_retries, ushort, 0644);
+MODULE_PARM_DESC(echo_retries, "Number of echo attempts before giving up and "
+			       "reconnecting server. Default: 5. 0 means "
+			       "never reconnect.");
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;

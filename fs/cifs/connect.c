@@ -52,6 +52,9 @@
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
 
+/* SMB echo "timeout" -- FIXME: tunable? */
+#define SMB_ECHO_INTERVAL (60 * HZ)
+
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
 			 unsigned char *p24);
 
@@ -152,6 +155,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 
 	/* before reconnecting the tcp session, mark the smb session (uid)
 		and the tid bad so they are not used until reconnected */
+	cFYI(1, "%s: marking sessions and tcons for reconnect", __func__);
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &server->smb_ses_list) {
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
@@ -163,7 +167,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
+
 	/* do not want to be sending data on a socket we are freeing */
+	cFYI(1, "%s: tearing down socket", __func__);
 	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
 		cFYI(1, "State: 0x%x Flags: 0x%lx", server->ssocket->state,
@@ -180,22 +186,20 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	kfree(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
+	server->lstrp = jiffies;
+	mutex_unlock(&server->srv_mutex);
 
+	/* mark submitted MIDs for retry and issue callback */
+	cFYI(1, "%s: issuing mid callbacks", __func__);
 	spin_lock(&GlobalMid_Lock);
-	list_for_each(tmp, &server->pending_mid_q) {
-		mid_entry = list_entry(tmp, struct
-					mid_q_entry,
-					qhead);
-		if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				/* Mark other intransit requests as needing
-				   retry so we do not immediately mark the
-				   session bad again (ie after we reconnect
-				   below) as they timeout too */
+	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
+		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+		if (mid_entry->midState == MID_REQUEST_SUBMITTED)
 			mid_entry->midState = MID_RETRY_NEEDED;
-		}
+		list_del_init(&mid_entry->qhead);
+		mid_entry->callback(mid_entry);
 	}
 	spin_unlock(&GlobalMid_Lock);
-	mutex_unlock(&server->srv_mutex);
 
 	while ((server->tcpStatus != CifsExiting) &&
 	       (server->tcpStatus != CifsGood)) {
@@ -212,10 +216,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsGood;
 			spin_unlock(&GlobalMid_Lock);
-	/*		atomic_set(&server->inFlight,0);*/
-			wake_up(&server->response_q);
 		}
 	}
+
 	return rc;
 }
 
@@ -334,6 +337,26 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 
 }
 
+static void
+cifs_echo_request(struct work_struct *work)
+{
+	int rc;
+	struct TCP_Server_Info *server = container_of(work,
+					struct TCP_Server_Info, echo.work);
+
+	/* no need to ping if we got a response recently */
+	if (time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
+		goto requeue_echo;
+
+	rc = CIFSSMBEcho(server);
+	if (rc)
+		cFYI(1, "Unable to send echo request to server: %s",
+			server->hostname);
+
+requeue_echo:
+	queue_delayed_work(system_nrt_wq, &server->echo, SMB_ECHO_INTERVAL);
+}
+
 static int
 cifs_demultiplex_thread(struct TCP_Server_Info *server)
 {
@@ -345,8 +368,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	struct msghdr smb_msg;
 	struct kvec iov;
 	struct socket *csocket = server->ssocket;
-	struct list_head *tmp;
-	struct cifsSesInfo *ses;
+	struct list_head *tmp, *tmp2;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 	char temp;
@@ -399,7 +421,20 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		smb_msg.msg_control = NULL;
 		smb_msg.msg_controllen = 0;
 		pdu_length = 4; /* enough to get RFC1001 header */
+
 incomplete_rcv:
+		if (echo_retries > 0 &&
+		    time_after(jiffies, server->lstrp +
+					(echo_retries * SMB_ECHO_INTERVAL))) {
+			cERROR(1, "Server %s has not responded in %d seconds. "
+				  "Reconnecting...", server->hostname,
+				  (echo_retries * SMB_ECHO_INTERVAL / HZ));
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			wake_up(&server->response_q);
+			continue;
+		}
+
 		length =
 		    kernel_recvmsg(csocket, &smb_msg,
 				&iov, 1, pdu_length, 0 /* BB other flags? */);
@@ -559,10 +594,11 @@ incomplete_rcv:
 			continue;
 		}
 
+		mid_entry = NULL;
+		server->lstrp = jiffies;
 
-		task_to_wake = NULL;
 		spin_lock(&GlobalMid_Lock);
-		list_for_each(tmp, &server->pending_mid_q) {
+		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 
 			if ((mid_entry->mid == smb_buffer->Mid) &&
@@ -603,20 +639,19 @@ incomplete_rcv:
 				mid_entry->resp_buf = smb_buffer;
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
-				task_to_wake = mid_entry->tsk;
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
+				list_del_init(&mid_entry->qhead);
+				mid_entry->callback(mid_entry);
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
-				/* so we do not time out requests to  server
-				which is still responding (since server could
-				be busy but not dead) */
-				server->lstrp = jiffies;
 				break;
 			}
+			mid_entry = NULL;
 		}
 		spin_unlock(&GlobalMid_Lock);
-		if (task_to_wake) {
+
+		if (mid_entry != NULL) {
 			/* Was previous buf put in mpx struct for multi-rsp? */
 			if (!isMultiRsp) {
 				/* smb buffer will be freed by user thread */
@@ -625,11 +660,10 @@ multi_t2_fnd:
 				else
 					smallbuf = NULL;
 			}
-			wake_up_process(task_to_wake);
 		} else if (!is_valid_oplock_break(smb_buffer, server) &&
 			   !isMultiRsp) {
 			cERROR(1, "No task to wake, unknown frame received! "
-				   "NumMids %d", midCount.counter);
+				   "NumMids %d", atomic_read(&midCount));
 			cifs_dump_mem("Received Data is: ", (char *)smb_buffer,
 				      sizeof(struct smb_hdr));
 #ifdef CONFIG_CIFS_DEBUG2
@@ -677,44 +711,16 @@ multi_t2_fnd:
 	if (smallbuf) /* no sense logging a debug message if NULL */
 		cifs_small_buf_release(smallbuf);
 
-	/*
-	 * BB: we shouldn't have to do any of this. It shouldn't be
-	 * possible to exit from the thread with active SMB sessions
-	 */
-	spin_lock(&cifs_tcp_ses_lock);
-	if (list_empty(&server->pending_mid_q)) {
-		/* loop through server session structures attached to this and
-		    mark them dead */
-		list_for_each(tmp, &server->smb_ses_list) {
-			ses = list_entry(tmp, struct cifsSesInfo,
-					 smb_ses_list);
-			ses->status = CifsExiting;
-			ses->server = NULL;
-		}
-		spin_unlock(&cifs_tcp_ses_lock);
-	} else {
-		/* although we can not zero the server struct pointer yet,
-		since there are active requests which may depnd on them,
-		mark the corresponding SMB sessions as exiting too */
-		list_for_each(tmp, &server->smb_ses_list) {
-			ses = list_entry(tmp, struct cifsSesInfo,
-					 smb_ses_list);
-			ses->status = CifsExiting;
-		}
-
+	if (!list_empty(&server->pending_mid_q)) {
 		spin_lock(&GlobalMid_Lock);
-		list_for_each(tmp, &server->pending_mid_q) {
-		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				cFYI(1, "Clearing Mid 0x%x - waking up ",
+		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
+			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+			cFYI(1, "Clearing Mid 0x%x - issuing callback",
 					 mid_entry->mid);
-				task_to_wake = mid_entry->tsk;
-				if (task_to_wake)
-					wake_up_process(task_to_wake);
-			}
+			list_del_init(&mid_entry->qhead);
+			mid_entry->callback(mid_entry);
 		}
 		spin_unlock(&GlobalMid_Lock);
-		spin_unlock(&cifs_tcp_ses_lock);
 		/* 1/8th of sec is more than enough time for them to exit */
 		msleep(125);
 	}
@@ -731,18 +737,6 @@ multi_t2_fnd:
 		/* if threads still have not exited they are probably never
 		coming home not much else we can do but free the memory */
 	}
-
-	/* last chance to mark ses pointers invalid
-	if there are any pointing to this (e.g
-	if a crazy root user tried to kill cifsd
-	kernel thread explicitly this might happen) */
-	/* BB: This shouldn't be necessary, see above */
-	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &server->smb_ses_list) {
-		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
-		ses->server = NULL;
-	}
-	spin_unlock(&cifs_tcp_ses_lock);
 
 	kfree(server->hostname);
 	task_to_wake = xchg(&server->tsk, NULL);
@@ -1612,6 +1606,8 @@ cifs_put_tcp_session(struct TCP_Server_Info *server)
 	list_del_init(&server->tcp_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
+	cancel_delayed_work_sync(&server->echo);
+
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
 	spin_unlock(&GlobalMid_Lock);
@@ -1701,8 +1697,10 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		volume_info->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
+	tcp_ses->lstrp = jiffies;
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
+	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
 
 	/*
 	 * at this point we are the only ones with the pointer
@@ -1750,6 +1748,9 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	cifs_fscache_get_client_cookie(tcp_ses);
+
+	/* queue echo request delayed work */
+	queue_delayed_work(system_nrt_wq, &tcp_ses->echo, SMB_ECHO_INTERVAL);
 
 	return tcp_ses;
 
@@ -2965,7 +2966,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr++;              /* skip password */
 		/* already aligned so no need to do it below */
 	} else {
-		pSMB->PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);
+		pSMB->PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 		/* BB FIXME add code to fail this if NTLMv2 or Kerberos
 		   specified as required (when that support is added to
 		   the vfs in the future) as only NTLM or the much
@@ -2983,7 +2984,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 #endif /* CIFS_WEAK_PW_HASH */
 		SMBNTencrypt(tcon->password, ses->server->cryptkey, bcc_ptr);
 
-		bcc_ptr += CIFS_SESS_KEY_SIZE;
+		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {
 			/* must align unicode strings */
 			*bcc_ptr = 0; /* null byte password */
@@ -3021,7 +3022,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	pSMB->ByteCount = cpu_to_le16(count);
 
 	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response, &length,
-			 CIFS_STD_OP);
+			 0);
 
 	/* above now done in SendReceive */
 	if ((rc == 0) && (tcon != NULL)) {

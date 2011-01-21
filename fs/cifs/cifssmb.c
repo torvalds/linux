@@ -706,6 +706,53 @@ CIFSSMBTDis(const int xid, struct cifsTconInfo *tcon)
 	return rc;
 }
 
+/*
+ * This is a no-op for now. We're not really interested in the reply, but
+ * rather in the fact that the server sent one and that server->lstrp
+ * gets updated.
+ *
+ * FIXME: maybe we should consider checking that the reply matches request?
+ */
+static void
+cifs_echo_callback(struct mid_q_entry *mid)
+{
+	struct TCP_Server_Info *server = mid->callback_data;
+
+	DeleteMidQEntry(mid);
+	atomic_dec(&server->inFlight);
+	wake_up(&server->request_q);
+}
+
+int
+CIFSSMBEcho(struct TCP_Server_Info *server)
+{
+	ECHO_REQ *smb;
+	int rc = 0;
+
+	cFYI(1, "In echo request");
+
+	rc = small_smb_init(SMB_COM_ECHO, 0, NULL, (void **)&smb);
+	if (rc)
+		return rc;
+
+	/* set up echo request */
+	smb->hdr.Tid = cpu_to_le16(0xffff);
+	smb->hdr.WordCount = cpu_to_le16(1);
+	smb->EchoCount = cpu_to_le16(1);
+	smb->ByteCount = cpu_to_le16(1);
+	smb->Data[0] = 'a';
+	smb->hdr.smb_buf_length += 3;
+
+	rc = cifs_call_async(server, (struct smb_hdr *)smb,
+				cifs_echo_callback, server);
+	if (rc)
+		cFYI(1, "Echo request failed: %d", rc);
+
+	cifs_small_buf_release(smb);
+
+	return rc;
+}
+
 int
 CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 {
@@ -1193,7 +1240,7 @@ OldOpenRetry:
 	pSMB->ByteCount = cpu_to_le16(count);
 	/* long_op set to 1 to allow for oplock break timeouts */
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			(struct smb_hdr *)pSMBr, &bytes_returned, CIFS_LONG_OP);
+			(struct smb_hdr *)pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->num_opens);
 	if (rc) {
 		cFYI(1, "Error in Open = %d", rc);
@@ -1306,7 +1353,7 @@ openRetry:
 	pSMB->ByteCount = cpu_to_le16(count);
 	/* long_op set to 1 to allow for oplock break timeouts */
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			(struct smb_hdr *)pSMBr, &bytes_returned, CIFS_LONG_OP);
+			(struct smb_hdr *)pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->num_opens);
 	if (rc) {
 		cFYI(1, "Error in Open = %d", rc);
@@ -1388,7 +1435,7 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 	iov[0].iov_base = (char *)pSMB;
 	iov[0].iov_len = pSMB->hdr.smb_buf_length + 4;
 	rc = SendReceive2(xid, tcon->ses, iov, 1 /* num iovecs */,
-			 &resp_buf_type, CIFS_STD_OP | CIFS_LOG_ERROR);
+			 &resp_buf_type, CIFS_LOG_ERROR);
 	cifs_stats_inc(&tcon->num_reads);
 	pSMBr = (READ_RSP *)iov[0].iov_base;
 	if (rc) {
@@ -1663,7 +1710,8 @@ int
 CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	    const __u16 smb_file_id, const __u64 len,
 	    const __u64 offset, const __u32 numUnlock,
-	    const __u32 numLock, const __u8 lockType, const bool waitFlag)
+	    const __u32 numLock, const __u8 lockType,
+	    const bool waitFlag, const __u8 oplock_level)
 {
 	int rc = 0;
 	LOCK_REQ *pSMB = NULL;
@@ -1691,6 +1739,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	pSMB->NumberOfLocks = cpu_to_le16(numLock);
 	pSMB->NumberOfUnlocks = cpu_to_le16(numUnlock);
 	pSMB->LockType = lockType;
+	pSMB->OplockLevel = oplock_level;
 	pSMB->AndXCommand = 0xFF;	/* none */
 	pSMB->Fid = smb_file_id; /* netfid stays le */
 
@@ -3087,7 +3136,7 @@ CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
 	iov[0].iov_len = pSMB->hdr.smb_buf_length + 4;
 
 	rc = SendReceive2(xid, tcon->ses, iov, 1 /* num iovec */, &buf_type,
-			 CIFS_STD_OP);
+			 0);
 	cifs_stats_inc(&tcon->num_acl_get);
 	if (rc) {
 		cFYI(1, "Send error in QuerySecDesc = %d", rc);

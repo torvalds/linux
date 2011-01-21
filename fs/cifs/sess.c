@@ -879,7 +879,7 @@ ssetup_ntlmssp_authenticate:
 	BCC_LE(smb_buf) = cpu_to_le16(count);
 
 	rc = SendReceive2(xid, ses, iov, 3 /* num_iovecs */, &resp_buf_type,
-			  CIFS_STD_OP /* not long */ | CIFS_LOG_ERROR);
+			  CIFS_LOG_ERROR);
 	/* SMB request buf freed in SendReceive2 */
 
 	pSMB = (SESSION_SETUP_ANDX *)iov[0].iov_base;
