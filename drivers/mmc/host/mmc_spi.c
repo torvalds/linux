@@ -1516,21 +1516,17 @@ static int __devexit mmc_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-#if defined(CONFIG_OF)
 static struct of_device_id mmc_spi_of_match_table[] __devinitdata = {
 	{ .compatible = "mmc-spi-slot", },
 	{},
 };
-#endif
 
 static struct spi_driver mmc_spi_driver = {
 	.driver = {
 		.name =		"mmc_spi",
 		.bus =		&spi_bus_type,
 		.owner =	THIS_MODULE,
-#if defined(CONFIG_OF)
 		.of_match_table = mmc_spi_of_match_table,
-#endif
 	},
 	.probe =	mmc_spi_probe,
 	.remove =	__devexit_p(mmc_spi_remove),

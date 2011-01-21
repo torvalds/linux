@@ -128,9 +128,7 @@ struct device_driver {
 
 	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
 
-#if defined(CONFIG_OF)
 	const struct of_device_id	*of_match_table;
-#endif
 
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
@@ -441,9 +439,8 @@ struct device {
 					     override */
 	/* arch specific additions */
 	struct dev_archdata	archdata;
-#ifdef CONFIG_OF
-	struct device_node	*of_node;
-#endif
+
+	struct device_node	*of_node; /* associated device tree node */
 
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 
