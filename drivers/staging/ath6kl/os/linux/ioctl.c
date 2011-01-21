@@ -440,7 +440,7 @@ ar6000_ioctl_set_rssi_threshold(struct net_device *dev, struct ifreq *rq)
             if (ar->rssi_map[j+1].rssi < ar->rssi_map[j].rssi) {
                 SWAP_THOLD(ar->rssi_map[j+1], ar->rssi_map[j]);
             } else if (ar->rssi_map[j+1].rssi == ar->rssi_map[j].rssi) {
-                return EFAULT;
+                return -EFAULT;
             }
         }
     }
@@ -449,7 +449,7 @@ ar6000_ioctl_set_rssi_threshold(struct net_device *dev, struct ifreq *rq)
             if (ar->rssi_map[j+1].rssi < ar->rssi_map[j].rssi) {
                 SWAP_THOLD(ar->rssi_map[j+1], ar->rssi_map[j]);
             } else if (ar->rssi_map[j+1].rssi == ar->rssi_map[j].rssi) {
-                return EFAULT;
+                return -EFAULT;
             }
         }
     }
@@ -2870,7 +2870,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                              gpio_output_set_cmd.enable_mask,
                                              gpio_output_set_cmd.disable_mask);
                 if (ret != A_OK) {
-                    ret = EIO;
+                    ret = -EIO;
                 }
             }
             up(&ar->arSem);
@@ -2950,7 +2950,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                                gpio_register_cmd.gpioreg_id,
                                                gpio_register_cmd.value);
                 if (ret != A_OK) {
-                    ret = EIO;
+                    ret = -EIO;
                 }
 
                 /* Wait for acknowledgement from Target */
@@ -3041,7 +3041,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             } else {
                 ret = ar6000_gpio_intr_ack(dev, gpio_intr_ack_cmd.ack_mask);
                 if (ret != A_OK) {
-                    ret = EIO;
+                    ret = -EIO;
                 }
             }
             up(&ar->arSem);

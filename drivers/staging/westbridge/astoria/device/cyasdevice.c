@@ -389,7 +389,7 @@ EXPORT_SYMBOL(cyasdevice_gethaltag);
 static int __init cyasdevice_init(void)
 {
 	if (cyasdevice_initialize() != 0)
-		return ENODEV;
+		return -ENODEV;
 
 	return 0;
 }

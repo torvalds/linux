@@ -1368,7 +1368,7 @@ wl_iw_iscan_set_scan(struct net_device *dev,
 	if (g_scan_specified_ssid) {
 		WL_TRACE("%s Specific SCAN already running ignoring BC scan\n",
 			 __func__);
-		return EBUSY;
+		return -EBUSY;
 	}
 
 	memset(&ssid, 0, sizeof(ssid));
