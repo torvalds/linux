@@ -2090,7 +2090,8 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	ext3_fsblk_t max_blks = le32_to_cpu(es->s_blocks_count);
 	int ret = 0;
 
-	start = range->start >> sb->s_blocksize_bits;
+	start = (range->start >> sb->s_blocksize_bits) +
+		le32_to_cpu(es->s_first_data_block);
 	len = range->len >> sb->s_blocksize_bits;
 	minlen = range->minlen >> sb->s_blocksize_bits;
 	trimmed = 0;
@@ -2099,10 +2100,6 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		return -EINVAL;
 	if (start >= max_blks)
 		goto out;
-	if (start < le32_to_cpu(es->s_first_data_block)) {
-		len -= le32_to_cpu(es->s_first_data_block) - start;
-		start = le32_to_cpu(es->s_first_data_block);
-	}
 	if (start + len > max_blks)
 		len = max_blks - start;
 
