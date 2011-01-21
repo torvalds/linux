@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/earlysuspend.h>
 #include <linux/delay.h>
+#include <linux/keyreset.h>
+#include <linux/input.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -230,39 +232,65 @@ static void stingray_panel_early_reg_enable(struct work_struct *work)
 
 static DECLARE_WORK(stingray_panel_early_reg_enable_work,
 	stingray_panel_early_reg_enable);
+static bool stingray_panel_early_reg_in_resume;
 
 static int stingray_panel_early_reg_resume_noirq(struct device *dev)
 {
-	/* Start the bridge chip powering up during early resume */
-	schedule_work(&stingray_panel_early_reg_enable_work);
-
+	stingray_panel_early_reg_in_resume = true;
+	smp_wmb();
 	return 0;
+}
+
+static void stingray_panel_early_reg_resume_complete(struct device *dev)
+{
+	stingray_panel_early_reg_in_resume = false;
+	smp_wmb();
 }
 
 static int stingray_panel_early_reg_suspend(struct device *dev)
 {
 	cancel_work_sync(&stingray_panel_early_reg_enable_work);
+	flush_delayed_work(&stingray_panel_early_reg_disable_work);
 
-	/*
-	 * If the delayed disable work was pending when it was cancelled,
-	 * do the disable immediately.
-	 */
-	if (cancel_delayed_work_sync(&stingray_panel_early_reg_disable_work))
-		stingray_panel_disable();
+	return 0;
+}
+
+/*
+ * If the power button key event is detected during the resume process,
+ * the screen will get turned on later.  Immediately start the LVDS bridge chip
+ * turning on to reduce time spent waiting for it later in resume.
+ */
+static int stingray_panel_early_reg_power(void)
+{
+	smp_rmb();
+	if (stingray_panel_early_reg_in_resume)
+		schedule_work(&stingray_panel_early_reg_enable_work);
 
 	return 0;
 }
 
 static struct dev_pm_ops stingray_panel_early_reg_pm_ops = {
 	.resume_noirq = stingray_panel_early_reg_resume_noirq,
+	.complete = stingray_panel_early_reg_resume_complete,
 	.suspend = stingray_panel_early_reg_suspend,
 };
 
-/*
- * This driver uses a resume_noirq handler to start the bridge chip powering up
- * as soon as possible during resume to avoid waiting for 200 ms after all the
- * other resume handlers have finished.
- */
+static struct keyreset_platform_data stingray_panel_early_reg_keyreset = {
+	.reset_fn = stingray_panel_early_reg_power,
+	.keys_down = {
+		KEY_END,
+		0
+	},
+};
+
+struct platform_device stingray_panel_early_reg_keyreset_device = {
+	.name	= KEYRESET_NAME,
+	.id	= -1,
+	.dev	= {
+		.platform_data = &stingray_panel_early_reg_keyreset,
+	},
+};
+
 static struct platform_driver stingray_panel_early_reg_driver = {
 	.driver = {
 		.name	= "stingray-panel-early-reg",
@@ -463,6 +491,7 @@ int __init stingray_panel_init(void)
 
 	platform_driver_register(&stingray_panel_early_reg_driver);
 	platform_device_register(&stingray_panel_early_reg_device);
+	platform_device_register(&stingray_panel_early_reg_keyreset_device);
 
 	stingray_hdmi_init();
 
