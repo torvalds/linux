@@ -1585,8 +1585,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 		if (drbd_send_state(mdev))
 			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
-		else
-			dev_err(DEV, "Sending state for being diskless failed\n");
 		/* corresponding get_ldev in __drbd_set_state
 		 * this may finaly trigger drbd_ldev_destroy. */
 		put_ldev(mdev);
@@ -1868,8 +1866,8 @@ int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 	sent = drbd_send(mdev, sock, h, size, msg_flags);
 
 	ok = (sent == size);
-	if (!ok)
-		dev_err(DEV, "short sent %s size=%d sent=%d\n",
+	if (!ok && !signal_pending(current))
+		dev_warn(DEV, "short sent %s size=%d sent=%d\n",
 		    cmdname(cmd), (int)size, sent);
 	return ok;
 }
