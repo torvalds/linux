@@ -16,9 +16,12 @@
 /**
  * struct dw_dma_platform_data - Controller configuration parameters
  * @nr_channels: Number of channels supported by hardware (max 8)
+ * @is_private: The device channels should be marked as private and not for
+ *	by the general purpose DMA channel allocator.
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
+	bool		is_private;
 };
 
 /**
