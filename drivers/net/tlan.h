@@ -20,8 +20,8 @@
  ********************************************************************/
 
 
-#include <asm/io.h>
-#include <asm/types.h>
+#include <linux/io.h>
+#include <linux/types.h>
 #include <linux/netdevice.h>
 
 
@@ -40,8 +40,11 @@
 #define TLAN_IGNORE		0
 #define TLAN_RECORD		1
 
-#define TLAN_DBG(lvl, format, args...)	\
-	do { if (debug&lvl) printk(KERN_DEBUG "TLAN: " format, ##args ); } while(0)
+#define TLAN_DBG(lvl, format, args...)					\
+	do {								\
+		if (debug&lvl)						\
+			printk(KERN_DEBUG "TLAN: " format, ##args);	\
+	} while (0)
 
 #define TLAN_DEBUG_GNRL		0x0001
 #define TLAN_DEBUG_TX		0x0002
@@ -50,7 +53,8 @@
 #define TLAN_DEBUG_PROBE	0x0010
 
 #define TX_TIMEOUT		(10*HZ)	 /* We need time for auto-neg */
-#define MAX_TLAN_BOARDS		8	 /* Max number of boards installed at a time */
+#define MAX_TLAN_BOARDS		8	 /* Max number of boards installed
+					    at a time */
 
 
 	/*****************************************************************
@@ -70,13 +74,13 @@
 #define PCI_DEVICE_ID_OLICOM_OC2326			0x0014
 #endif
 
-typedef struct tlan_adapter_entry {
-	u16	vendorId;
-	u16	deviceId;
-	char	*deviceLabel;
+struct tlan_adapter_entry {
+	u16	vendor_id;
+	u16	device_id;
+	char	*device_label;
 	u32	flags;
-	u16	addrOfs;
-} TLanAdapterEntry;
+	u16	addr_ofs;
+};
 
 #define TLAN_ADAPTER_NONE		0x00000000
 #define TLAN_ADAPTER_UNMANAGED_PHY	0x00000001
@@ -129,18 +133,18 @@ typedef struct tlan_adapter_entry {
 #define TLAN_CSTAT_DP_PR	0x0100
 
 
-typedef struct tlan_buffer_ref_tag {
+struct tlan_buffer {
 	u32	count;
 	u32	address;
-} TLanBufferRef;
+};
 
 
-typedef struct tlan_list_tag {
+struct tlan_list {
 	u32		forward;
-	u16		cStat;
-	u16		frameSize;
-	TLanBufferRef	buffer[TLAN_BUFFERS_PER_LIST];
-} TLanList;
+	u16		c_stat;
+	u16		frame_size;
+	struct tlan_buffer buffer[TLAN_BUFFERS_PER_LIST];
+};
 
 
 typedef u8 TLanBuffer[TLAN_MAX_FRAME_SIZE];
@@ -164,49 +168,49 @@ typedef u8 TLanBuffer[TLAN_MAX_FRAME_SIZE];
 	 *
 	 ****************************************************************/
 
-typedef struct tlan_private_tag {
-	struct net_device       *nextDevice;
-	struct pci_dev		*pciDev;
+struct tlan_priv {
+	struct net_device       *next_device;
+	struct pci_dev		*pci_dev;
 	struct net_device       *dev;
-	void			*dmaStorage;
-	dma_addr_t		dmaStorageDMA;
-	unsigned int		dmaSize;
-	u8			*padBuffer;
-	TLanList                *rxList;
-	dma_addr_t		rxListDMA;
-	u8			*rxBuffer;
-	dma_addr_t		rxBufferDMA;
-	u32                     rxHead;
-	u32                     rxTail;
-	u32			rxEocCount;
-	TLanList                *txList;
-	dma_addr_t		txListDMA;
-	u8			*txBuffer;
-	dma_addr_t		txBufferDMA;
-	u32                     txHead;
-	u32                     txInProgress;
-	u32                     txTail;
-	u32			txBusyCount;
-	u32                     phyOnline;
-	u32			timerSetAt;
-	u32			timerType;
+	void			*dma_storage;
+	dma_addr_t		dma_storage_dma;
+	unsigned int		dma_size;
+	u8			*pad_buffer;
+	struct tlan_list	*rx_list;
+	dma_addr_t		rx_list_dma;
+	u8			*rx_buffer;
+	dma_addr_t		rx_buffer_dma;
+	u32			rx_head;
+	u32			rx_tail;
+	u32			rx_eoc_count;
+	struct tlan_list	*tx_list;
+	dma_addr_t		tx_list_dma;
+	u8			*tx_buffer;
+	dma_addr_t		tx_buffer_dma;
+	u32			tx_head;
+	u32			tx_in_progress;
+	u32			tx_tail;
+	u32			tx_busy_count;
+	u32			phy_online;
+	u32			timer_set_at;
+	u32			timer_type;
 	struct timer_list	timer;
 	struct board		*adapter;
-	u32			adapterRev;
+	u32			adapter_rev;
 	u32			aui;
 	u32			debug;
 	u32			duplex;
 	u32			phy[2];
-	u32			phyNum;
+	u32			phy_num;
 	u32			speed;
-	u8			tlanRev;
-	u8			tlanFullDuplex;
+	u8			tlan_rev;
+	u8			tlan_full_duplex;
 	spinlock_t		lock;
 	u8			link;
 	u8			is_eisa;
 	struct work_struct			tlan_tqueue;
 	u8			neg_be_verbose;
-} TLanPrivateInfo;
+};
 
 
 
@@ -247,7 +251,7 @@ typedef struct tlan_private_tag {
 	 ****************************************************************/
 
 #define TLAN_HOST_CMD			0x00
-#define 	TLAN_HC_GO		0x80000000
+#define	TLAN_HC_GO		0x80000000
 #define		TLAN_HC_STOP		0x40000000
 #define		TLAN_HC_ACK		0x20000000
 #define		TLAN_HC_CS_MASK		0x1FE00000
@@ -283,7 +287,7 @@ typedef struct tlan_private_tag {
 #define		TLAN_NET_CMD_TRFRAM	0x02
 #define		TLAN_NET_CMD_TXPACE	0x01
 #define TLAN_NET_SIO			0x01
-#define 	TLAN_NET_SIO_MINTEN	0x80
+#define	TLAN_NET_SIO_MINTEN	0x80
 #define		TLAN_NET_SIO_ECLOK	0x40
 #define		TLAN_NET_SIO_ETXEN	0x20
 #define		TLAN_NET_SIO_EDATA	0x10
@@ -304,7 +308,7 @@ typedef struct tlan_private_tag {
 #define		TLAN_NET_MASK_MASK4	0x10
 #define		TLAN_NET_MASK_RSRVD	0x0F
 #define TLAN_NET_CONFIG			0x04
-#define 	TLAN_NET_CFG_RCLK	0x8000
+#define	TLAN_NET_CFG_RCLK	0x8000
 #define		TLAN_NET_CFG_TCLK	0x4000
 #define		TLAN_NET_CFG_BIT	0x2000
 #define		TLAN_NET_CFG_RXCRC	0x1000
@@ -372,7 +376,7 @@ typedef struct tlan_private_tag {
 /* Generic MII/PHY Registers */
 
 #define MII_GEN_CTL			0x00
-#define 	MII_GC_RESET		0x8000
+#define	MII_GC_RESET		0x8000
 #define		MII_GC_LOOPBK		0x4000
 #define		MII_GC_SPEEDSEL		0x2000
 #define		MII_GC_AUTOENB		0x1000
@@ -397,9 +401,9 @@ typedef struct tlan_private_tag {
 #define		MII_GS_EXTCAP		0x0001
 #define MII_GEN_ID_HI			0x02
 #define MII_GEN_ID_LO			0x03
-#define 	MII_GIL_OUI		0xFC00
-#define 	MII_GIL_MODEL		0x03F0
-#define 	MII_GIL_REVISION	0x000F
+#define	MII_GIL_OUI		0xFC00
+#define	MII_GIL_MODEL		0x03F0
+#define	MII_GIL_REVISION	0x000F
 #define MII_AN_ADV			0x04
 #define MII_AN_LPA			0x05
 #define MII_AN_EXP			0x06
@@ -408,7 +412,7 @@ typedef struct tlan_private_tag {
 
 #define TLAN_TLPHY_ID			0x10
 #define TLAN_TLPHY_CTL			0x11
-#define 	TLAN_TC_IGLINK		0x8000
+#define	TLAN_TC_IGLINK		0x8000
 #define		TLAN_TC_SWAPOL		0x4000
 #define		TLAN_TC_AUISEL		0x2000
 #define		TLAN_TC_SQEEN		0x1000
@@ -435,41 +439,41 @@ typedef struct tlan_private_tag {
 #define LEVEL1_ID1			0x7810
 #define LEVEL1_ID2			0x0000
 
-#define CIRC_INC( a, b ) if ( ++a >= b ) a = 0
+#define CIRC_INC(a, b) if (++a >= b) a = 0
 
 /* Routines to access internal registers. */
 
-static inline u8 TLan_DioRead8(u16 base_addr, u16 internal_addr)
+static inline u8 tlan_dio_read8(u16 base_addr, u16 internal_addr)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
 	return inb((base_addr + TLAN_DIO_DATA) + (internal_addr & 0x3));
 
-} /* TLan_DioRead8 */
+}
 
 
 
 
-static inline u16 TLan_DioRead16(u16 base_addr, u16 internal_addr)
+static inline u16 tlan_dio_read16(u16 base_addr, u16 internal_addr)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
 	return inw((base_addr + TLAN_DIO_DATA) + (internal_addr & 0x2));
 
-} /* TLan_DioRead16 */
+}
 
 
 
 
-static inline u32 TLan_DioRead32(u16 base_addr, u16 internal_addr)
+static inline u32 tlan_dio_read32(u16 base_addr, u16 internal_addr)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
 	return inl(base_addr + TLAN_DIO_DATA);
 
-} /* TLan_DioRead32 */
+}
 
 
 
 
-static inline void TLan_DioWrite8(u16 base_addr, u16 internal_addr, u8 data)
+static inline void tlan_dio_write8(u16 base_addr, u16 internal_addr, u8 data)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
 	outb(data, base_addr + TLAN_DIO_DATA + (internal_addr & 0x3));
@@ -479,7 +483,7 @@ static inline void TLan_DioWrite8(u16 base_addr, u16 internal_addr, u8 data)
 
 
 
-static inline void TLan_DioWrite16(u16 base_addr, u16 internal_addr, u16 data)
+static inline void tlan_dio_write16(u16 base_addr, u16 internal_addr, u16 data)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
 	outw(data, base_addr + TLAN_DIO_DATA + (internal_addr & 0x2));
@@ -489,16 +493,16 @@ static inline void TLan_DioWrite16(u16 base_addr, u16 internal_addr, u16 data)
 
 
 
-static inline void TLan_DioWrite32(u16 base_addr, u16 internal_addr, u32 data)
+static inline void tlan_dio_write32(u16 base_addr, u16 internal_addr, u32 data)
 {
 	outw(internal_addr, base_addr + TLAN_DIO_ADR);
 	outl(data, base_addr + TLAN_DIO_DATA + (internal_addr & 0x2));
 
 }
 
-#define TLan_ClearBit( bit, port )	outb_p(inb_p(port) & ~bit, port)
-#define TLan_GetBit( bit, port )	((int) (inb_p(port) & bit))
-#define TLan_SetBit( bit, port )	outb_p(inb_p(port) | bit, port)
+#define tlan_clear_bit(bit, port)	outb_p(inb_p(port) & ~bit, port)
+#define tlan_get_bit(bit, port)	((int) (inb_p(port) & bit))
+#define tlan_set_bit(bit, port)	outb_p(inb_p(port) | bit, port)
 
 /*
  * given 6 bytes, view them as 8 6-bit numbers and return the XOR of those
@@ -506,37 +510,37 @@ static inline void TLan_DioWrite32(u16 base_addr, u16 internal_addr, u32 data)
  *
  * The original code was:
  *
- * u32	xor( u32 a, u32 b ) {	return ( ( a && ! b ) || ( ! a && b ) ); }
+ * u32	xor(u32 a, u32 b) {	return ((a && !b ) || (! a && b )); }
  *
- * #define XOR8( a, b, c, d, e, f, g, h )	\
- * 	xor( a, xor( b, xor( c, xor( d, xor( e, xor( f, xor( g, h ) ) ) ) ) ) )
- * #define DA( a, bit )		( ( (u8) a[bit/8] ) & ( (u8) ( 1 << bit%8 ) ) )
+ * #define XOR8(a, b, c, d, e, f, g, h)	\
+ *	xor(a, xor(b, xor(c, xor(d, xor(e, xor(f, xor(g, h)) ) ) ) ) )
+ * #define DA(a, bit)		(( (u8) a[bit/8] ) & ( (u8) (1 << bit%8)) )
  *
- * 	hash  = XOR8( DA(a,0), DA(a, 6), DA(a,12), DA(a,18), DA(a,24),
- * 	              DA(a,30), DA(a,36), DA(a,42) );
- * 	hash |= XOR8( DA(a,1), DA(a, 7), DA(a,13), DA(a,19), DA(a,25),
- * 		      DA(a,31), DA(a,37), DA(a,43) ) << 1;
- * 	hash |= XOR8( DA(a,2), DA(a, 8), DA(a,14), DA(a,20), DA(a,26),
- * 		      DA(a,32), DA(a,38), DA(a,44) ) << 2;
- * 	hash |= XOR8( DA(a,3), DA(a, 9), DA(a,15), DA(a,21), DA(a,27),
- * 		      DA(a,33), DA(a,39), DA(a,45) ) << 3;
- * 	hash |= XOR8( DA(a,4), DA(a,10), DA(a,16), DA(a,22), DA(a,28),
- * 	              DA(a,34), DA(a,40), DA(a,46) ) << 4;
- * 	hash |= XOR8( DA(a,5), DA(a,11), DA(a,17), DA(a,23), DA(a,29),
- * 	              DA(a,35), DA(a,41), DA(a,47) ) << 5;
+ *	hash  = XOR8(DA(a,0), DA(a, 6), DA(a,12), DA(a,18), DA(a,24),
+ *		      DA(a,30), DA(a,36), DA(a,42));
+ *	hash |= XOR8(DA(a,1), DA(a, 7), DA(a,13), DA(a,19), DA(a,25),
+ *		      DA(a,31), DA(a,37), DA(a,43)) << 1;
+ *	hash |= XOR8(DA(a,2), DA(a, 8), DA(a,14), DA(a,20), DA(a,26),
+ *		      DA(a,32), DA(a,38), DA(a,44)) << 2;
+ *	hash |= XOR8(DA(a,3), DA(a, 9), DA(a,15), DA(a,21), DA(a,27),
+ *		      DA(a,33), DA(a,39), DA(a,45)) << 3;
+ *	hash |= XOR8(DA(a,4), DA(a,10), DA(a,16), DA(a,22), DA(a,28),
+ *		      DA(a,34), DA(a,40), DA(a,46)) << 4;
+ *	hash |= XOR8(DA(a,5), DA(a,11), DA(a,17), DA(a,23), DA(a,29),
+ *		      DA(a,35), DA(a,41), DA(a,47)) << 5;
  *
  */
-static inline u32 TLan_HashFunc( const u8 *a )
+static inline u32 tlan_hash_func(const u8 *a)
 {
-        u8     hash;
+	u8     hash;
 
-        hash = (a[0]^a[3]);             /* & 077 */
-        hash ^= ((a[0]^a[3])>>6);       /* & 003 */
-        hash ^= ((a[1]^a[4])<<2);       /* & 074 */
-        hash ^= ((a[1]^a[4])>>4);       /* & 017 */
-        hash ^= ((a[2]^a[5])<<4);       /* & 060 */
-        hash ^= ((a[2]^a[5])>>2);       /* & 077 */
+	hash = (a[0]^a[3]);		/* & 077 */
+	hash ^= ((a[0]^a[3])>>6);	/* & 003 */
+	hash ^= ((a[1]^a[4])<<2);	/* & 074 */
+	hash ^= ((a[1]^a[4])>>4);	/* & 017 */
+	hash ^= ((a[2]^a[5])<<4);	/* & 060 */
+	hash ^= ((a[2]^a[5])>>2);	/* & 077 */
 
-        return hash & 077;
+	return hash & 077;
 }
 #endif
