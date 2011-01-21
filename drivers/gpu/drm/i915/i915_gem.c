@@ -1857,7 +1857,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 
 	seqno = ring->get_seqno(ring);
 
-	for (i = 0; i < I915_NUM_RINGS; i++)
+	for (i = 0; i < ARRAY_SIZE(ring->sync_seqno); i++)
 		if (seqno >= ring->sync_seqno[i])
 			ring->sync_seqno[i] = 0;
 
