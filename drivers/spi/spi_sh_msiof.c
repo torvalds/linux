@@ -509,9 +509,11 @@ static int sh_msiof_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 	bytes_done = 0;
 
 	while (bytes_done < t->len) {
+		void *rx_buf = t->rx_buf ? t->rx_buf + bytes_done : NULL;
+		const void *tx_buf = t->tx_buf ? t->tx_buf + bytes_done : NULL;
 		n = sh_msiof_spi_txrx_once(p, tx_fifo, rx_fifo,
-					   t->tx_buf + bytes_done,
-					   t->rx_buf + bytes_done,
+					   tx_buf,
+					   rx_buf,
 					   words, bits);
 		if (n < 0)
 			break;
