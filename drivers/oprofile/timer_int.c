@@ -97,14 +97,13 @@ static struct notifier_block __refdata oprofile_cpu_notifier = {
 	.notifier_call = oprofile_cpu_notify,
 };
 
-int __init oprofile_timer_init(struct oprofile_operations *ops)
+int  __oprofile_timer_init(struct oprofile_operations *ops)
 {
 	int rc;
 
 	rc = register_hotcpu_notifier(&oprofile_cpu_notifier);
 	if (rc)
 		return rc;
-	ops->create_files = NULL;
 	ops->setup = NULL;
 	ops->shutdown = NULL;
 	ops->start = oprofile_hrtimer_start;
@@ -113,7 +112,17 @@ int __init oprofile_timer_init(struct oprofile_operations *ops)
 	return 0;
 }
 
-void __exit oprofile_timer_exit(void)
+int __init oprofile_timer_init(struct oprofile_operations *ops)
+{
+	return __oprofile_timer_init(ops);
+}
+
+void __oprofile_timer_exit(void)
 {
 	unregister_hotcpu_notifier(&oprofile_cpu_notifier);
+}
+
+void __exit oprofile_timer_exit(void)
+{
+	__oprofile_timer_exit();
 }
