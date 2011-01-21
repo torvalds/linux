@@ -267,7 +267,7 @@ ath5k_setup_channels(struct ath5k_hw *ah,
 		unsigned int mode,
 		unsigned int max)
 {
-	unsigned int i, count, size, chfreq, freq, ch;
+	unsigned int count, size, chfreq, freq, ch;
 	enum ieee80211_band band;
 
 	if (!test_bit(mode, ah->ah_modes))
@@ -291,8 +291,8 @@ ath5k_setup_channels(struct ath5k_hw *ah,
 		return 0;
 	}
 
-	for (i = 0, count = 0; i < size && max > 0; i++) {
-		ch = i + 1 ;
+	count = 0;
+	for (ch = 1; ch <= size && count < max; ch++) {
 		freq = ieee80211_channel_to_frequency(ch, band);
 
 		if (freq == 0) /* mapping failed - not a standard channel */
@@ -319,7 +319,6 @@ ath5k_setup_channels(struct ath5k_hw *ah,
 		}
 
 		count++;
-		max--;
 	}
 
 	return count;
