@@ -2062,7 +2062,9 @@ static const struct file_operations ip_vs_stats_percpu_fops = {
  */
 static int ip_vs_set_timeout(struct net *net, struct ip_vs_timeout_user *u)
 {
+#if defined(CONFIG_IP_VS_PROTO_TCP) || defined(CONFIG_IP_VS_PROTO_UDP)
 	struct ip_vs_proto_data *pd;
+#endif
 
 	IP_VS_DBG(2, "Setting timeout tcp:%d tcpfin:%d udp:%d\n",
 		  u->tcp_timeout,
@@ -2405,7 +2407,9 @@ __ip_vs_get_dest_entries(struct net *net, const struct ip_vs_get_dests *get,
 static inline void
 __ip_vs_get_timeouts(struct net *net, struct ip_vs_timeout_user *u)
 {
+#if defined(CONFIG_IP_VS_PROTO_TCP) || defined(CONFIG_IP_VS_PROTO_UDP)
 	struct ip_vs_proto_data *pd;
+#endif
 
 #ifdef CONFIG_IP_VS_PROTO_TCP
 	pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
