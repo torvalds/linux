@@ -260,10 +260,15 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 
 		/* remove the request from the conflict detection
 		 * respective block_id verification hash */
-		if (!hlist_unhashed(&req->collision)) {
+		if (!drbd_interval_empty(&req->i)) {
+			struct rb_root *root;
+
 			hlist_del(&req->collision);
-			if (!drbd_interval_empty(&req->i))
-				drbd_remove_interval(&mdev->write_requests, &req->i);
+			if (rw == WRITE)
+				root = &mdev->write_requests;
+			else
+				root = &mdev->read_requests;
+			drbd_remove_interval(root, &req->i);
 		} else
 			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
 
@@ -332,6 +337,7 @@ static int _req_conflicts(struct drbd_request *req)
 	struct hlist_head *slot;
 
 	D_ASSERT(hlist_unhashed(&req->collision));
+	D_ASSERT(drbd_interval_empty(&req->i));
 
 	if (!get_net_conf(mdev))
 		return 0;
@@ -493,6 +499,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* so we can verify the handle in the answer packet
 		 * corresponding hlist_del is in _req_may_be_done() */
 		hlist_add_head(&req->collision, ar_hash_slot(mdev, req->i.sector));
+		drbd_insert_interval(&mdev->read_requests, &req->i);
 
 		set_bit(UNPLUG_REMOTE, &mdev->flags);
 
