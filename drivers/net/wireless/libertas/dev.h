@@ -90,6 +90,7 @@ struct lbs_private {
 	void *card;
 	u8 fw_ready;
 	u8 surpriseremoved;
+	u8 setup_fw_on_resume;
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
 	void (*reset_card) (struct lbs_private *priv);
 	int (*enter_deep_sleep) (struct lbs_private *priv);
@@ -101,6 +102,7 @@ struct lbs_private {
 	u32 fwcapinfo;
 	u16 regioncode;
 	u8 current_addr[ETH_ALEN];
+	u8 copied_hwaddr;
 
 	/* Command download */
 	u8 dnld_sent;

@@ -145,9 +145,13 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	if (priv->current_addr[0] == 0xff)
 		memmove(priv->current_addr, cmd.permanentaddr, ETH_ALEN);
 
-	memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
-	if (priv->mesh_dev)
-		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
+	if (!priv->copied_hwaddr) {
+		memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
+		if (priv->mesh_dev)
+			memcpy(priv->mesh_dev->dev_addr,
+				priv->current_addr, ETH_ALEN);
+		priv->copied_hwaddr = 1;
+	}
 
 out:
 	lbs_deb_leave(LBS_DEB_CMD);
