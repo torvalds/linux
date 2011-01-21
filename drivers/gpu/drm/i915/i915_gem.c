@@ -140,12 +140,16 @@ void i915_gem_do_init(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	drm_mm_init(&dev_priv->mm.gtt_space, start,
-		    end - start);
+	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start);
 
+	dev_priv->mm.gtt_start = start;
+	dev_priv->mm.gtt_mappable_end = mappable_end;
+	dev_priv->mm.gtt_end = end;
 	dev_priv->mm.gtt_total = end - start;
 	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;
-	dev_priv->mm.gtt_mappable_end = mappable_end;
+
+	/* Take over this portion of the GTT */
+	intel_gtt_clear_range(start / PAGE_SIZE, (end-start) / PAGE_SIZE);
 }
 
 int
