@@ -26,6 +26,7 @@ iwlagn-$(CONFIG_IWL5000) += iwl-agn-rxon.o iwl-agn-hcmd.o iwl-agn-ict.o
 iwlagn-$(CONFIG_IWL5000) += iwl-5000.o
 iwlagn-$(CONFIG_IWL5000) += iwl-6000.o
 iwlagn-$(CONFIG_IWL5000) += iwl-1000.o
+iwlagn-$(CONFIG_IWL5000) += iwl-2000.o
 
 # 3945
 obj-$(CONFIG_IWL3945)	+= iwl3945.o
