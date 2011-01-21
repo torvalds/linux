@@ -301,12 +301,18 @@ static void *map_zeroed_pages(unsigned int num)
 
 	/*
 	 * We use a private mapping (ie. if we write to the page, it will be
-	 * copied).
+	 * copied). We allocate an extra two pages PROT_NONE to act as guard
+	 * pages against read/write attempts that exceed allocated space.
 	 */
-	addr = mmap(NULL, getpagesize() * num,
-		    PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, fd, 0);
+	addr = mmap(NULL, getpagesize() * (num+2),
+		    PROT_NONE, MAP_PRIVATE, fd, 0);
+
 	if (addr == MAP_FAILED)
 		err(1, "Mmapping %u pages of /dev/zero", num);
+
+	if (mprotect(addr + getpagesize(), getpagesize() * num,
+		     PROT_READ|PROT_WRITE) == -1)
+		err(1, "mprotect rw %u pages failed", num);
 
 	/*
 	 * One neat mmap feature is that you can close the fd, and it
@@ -314,7 +320,8 @@ static void *map_zeroed_pages(unsigned int num)
 	 */
 	close(fd);
 
-	return addr;
+	/* Return address after PROT_NONE page */
+	return addr + getpagesize();
 }
 
 /* Get some more pages for a device. */
@@ -346,7 +353,7 @@ static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
 	 * done to it.  This allows us to share untouched memory between
 	 * Guests.
 	 */
-	if (mmap(addr, len, PROT_READ|PROT_WRITE|PROT_EXEC,
+	if (mmap(addr, len, PROT_READ|PROT_WRITE,
 		 MAP_FIXED|MAP_PRIVATE, fd, offset) != MAP_FAILED)
 		return;
 
@@ -576,10 +583,10 @@ static void *_check_pointer(unsigned long addr, unsigned int size,
 			    unsigned int line)
 {
 	/*
-	 * We have to separately check addr and addr+size, because size could
-	 * be huge and addr + size might wrap around.
+	 * Check if the requested address and size exceeds the allocated memory,
+	 * or addr + size wraps around.
 	 */
-	if (addr >= guest_limit || addr + size >= guest_limit)
+	if ((addr + size) > guest_limit || (addr + size) < addr)
 		errx(1, "%s:%i: Invalid address %#lx", __FILE__, line, addr);
 	/*
 	 * We return a pointer for the caller's convenience, now we know it's
