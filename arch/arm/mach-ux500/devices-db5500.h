@@ -34,6 +34,9 @@
 #define db5500_add_rtc() \
 	dbx500_add_rtc(U5500_RTC_BASE, IRQ_DB5500_RTC);
 
+#define db5500_add_usb(rx_cfg, tx_cfg) \
+	ux500_add_usb(U5500_USBOTG_BASE, IRQ_DB5500_USBOTG, rx_cfg, tx_cfg)
+
 #define db5500_add_sdi0(pdata) \
 	dbx500_add_sdi("sdi0", U5500_SDI0_BASE, IRQ_DB5500_SDMMC0, pdata)
 #define db5500_add_sdi1(pdata) \
