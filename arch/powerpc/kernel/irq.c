@@ -1074,21 +1074,6 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 
 int arch_early_irq_init(void)
 {
-	struct irq_desc *desc;
-	int i;
-
-	for (i = 0; i < NR_IRQS; i++) {
-		desc = irq_to_desc(i);
-		if (desc)
-			desc->status |= IRQ_NOREQUEST;
-	}
-
-	return 0;
-}
-
-int arch_init_chip_data(struct irq_desc *desc, int node)
-{
-	desc->status |= IRQ_NOREQUEST;
 	return 0;
 }
 
