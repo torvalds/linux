@@ -130,6 +130,16 @@ struct mgmt_rp_disconnect {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define MGMT_OP_GET_CONNECTIONS		0x0010
+struct mgmt_cp_get_connections {
+	__le16 index;
+} __packed;
+struct mgmt_rp_get_connections {
+	__le16 index;
+	__le16 conn_count;
+	bdaddr_t conn[0];
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;

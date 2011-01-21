@@ -941,6 +941,75 @@ failed:
 	return err;
 }
 
+static int get_connections(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+	struct mgmt_cp_get_connections *cp;
+	struct mgmt_ev_cmd_complete *ev;
+	struct mgmt_rp_get_connections *rp;
+	struct hci_dev *hdev;
+	struct list_head *p;
+	size_t body_len;
+	u16 dev_id, count;
+	int i, err;
+
+	BT_DBG("");
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_GET_CONNECTIONS, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	count = 0;
+	list_for_each(p, &hdev->conn_hash.list) {
+		count++;
+	}
+
+	body_len = sizeof(*ev) + sizeof(*rp) + (count * sizeof(bdaddr_t));
+	skb = alloc_skb(sizeof(*hdr) + body_len, GFP_ATOMIC);
+	if (!skb) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->len = cpu_to_le16(body_len);
+
+	ev = (void *) skb_put(skb, sizeof(*ev));
+	put_unaligned_le16(MGMT_OP_GET_CONNECTIONS, &ev->opcode);
+
+	rp = (void *) skb_put(skb, sizeof(*rp) + (count * sizeof(bdaddr_t)));
+	put_unaligned_le16(dev_id, &rp->index);
+	put_unaligned_le16(count, &rp->conn_count);
+
+	read_lock(&hci_dev_list_lock);
+
+	i = 0;
+	list_for_each(p, &hdev->conn_hash.list) {
+		struct hci_conn *c = list_entry(p, struct hci_conn, list);
+
+		bacpy(&rp->conn[i++], &c->dst);
+	}
+
+	read_unlock(&hci_dev_list_lock);
+
+	if (sock_queue_rcv_skb(sk, skb) < 0)
+		kfree_skb(skb);
+
+	err = 0;
+
+unlock:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1013,6 +1082,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_DISCONNECT:
 		err = disconnect(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_GET_CONNECTIONS:
+		err = get_connections(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
