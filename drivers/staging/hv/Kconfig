@@ -31,6 +31,7 @@ config HYPERV_NET
 
 config HYPERV_UTILS
 	tristate "Microsoft Hyper-V Utilities driver"
+	depends on CONNECTOR
 	default HYPERV
 	help
 	  Select this option to enable the Hyper-V Utilities.
