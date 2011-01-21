@@ -1646,7 +1646,7 @@ static int sci_request_port(struct uart_port *port)
 	struct resource *res;
 	int ret;
 
-	res = request_mem_region(port->mapbase, size, sci_type(port));
+	res = request_mem_region(port->mapbase, size, dev_name(port->dev));
 	if (unlikely(res == NULL))
 		return -EBUSY;
 
