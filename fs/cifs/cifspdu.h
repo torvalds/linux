@@ -23,6 +23,7 @@
 #define _CIFSPDU_H
 
 #include <net/sock.h>
+#include <asm/unaligned.h>
 #include "smbfsctl.h"
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
@@ -426,11 +427,49 @@ struct smb_hdr {
 	__u16 Mid;
 	__u8 WordCount;
 } __attribute__((packed));
-/* given a pointer to an smb_hdr retrieve the value of byte count */
-#define BCC(smb_var) (*(__u16 *)((char *)(smb_var) + sizeof(struct smb_hdr) + (2 * (smb_var)->WordCount)))
-#define BCC_LE(smb_var) (*(__le16 *)((char *)(smb_var) + sizeof(struct smb_hdr) + (2 * (smb_var)->WordCount)))
+
+/* given a pointer to an smb_hdr retrieve a char pointer to the byte count */
+#define BCC(smb_var) ((unsigned char *)(smb_var) + sizeof(struct smb_hdr) + \
+			 (2 * (smb_var)->WordCount))
+
 /* given a pointer to an smb_hdr retrieve the pointer to the byte area */
-#define pByteArea(smb_var) ((unsigned char *)(smb_var) + sizeof(struct smb_hdr) + (2 * (smb_var)->WordCount) + 2)
+#define pByteArea(smb_var) (BCC(smb_var) + 2)
+
+/* get the converted ByteCount for a SMB packet and return it */
+static inline __u16
+get_bcc(struct smb_hdr *hdr)
+{
+	__u16 *bc_ptr = (__u16 *)BCC(hdr);
+
+	return get_unaligned(bc_ptr);
+}
+
+/* get the unconverted ByteCount for a SMB packet and return it */
+static inline __u16
+get_bcc_le(struct smb_hdr *hdr)
+{
+	__le16 *bc_ptr = (__le16 *)BCC(hdr);
+
+	return get_unaligned_le16(bc_ptr);
+}
+
+/* set the ByteCount for a SMB packet in host-byte order */
+static inline void
+put_bcc(__u16 count, struct smb_hdr *hdr)
+{
+	__u16 *bc_ptr = (__u16 *)BCC(hdr);
+
+	put_unaligned(count, bc_ptr);
+}
+
+/* set the ByteCount for a SMB packet in little-endian */
+static inline void
+put_bcc_le(__u16 count, struct smb_hdr *hdr)
+{
+	__le16 *bc_ptr = (__le16 *)BCC(hdr);
+
+	put_unaligned_le16(count, bc_ptr);
+}
 
 /*
  * Computer Name Length (since Netbios name was length 16 with last byte 0x20)
