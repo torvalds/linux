@@ -269,6 +269,7 @@ config ARCH_VEXPRESS
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	select HAVE_SCHED_CLOCK
+	select HAVE_PATA_PLATFORM
 	select ICST
 	select PLAT_VERSATILE
 	help
