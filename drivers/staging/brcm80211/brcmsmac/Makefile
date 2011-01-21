@@ -15,49 +15,53 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-ccflags-y :=			\
-	-DARP_OFFLOAD_SUPPORT	\
-	-DBCMDBG		\
-	-DBCMLXSDMMC		\
-	-DBCMPLATFORM_BUS	\
-	-DBCMSDIO		\
-	-DBDC			\
-	-DBRCM_FULLMAC		\
-	-DDHD_DEBUG		\
-	-DDHD_FIRSTREAD=64	\
-	-DDHD_SCHED		\
-	-DDHD_SDALIGN=64	\
-	-DEMBEDDED_PLATFORM	\
-	-DMAX_HDR_READ=64	\
-	-DMMC_SDIO_ABORT	\
-	-DPKT_FILTER_SUPPORT	\
-	-DSHOW_EVENTS		\
-	-DTOE			\
-	-Idrivers/staging/brcm80211/brcmfmac		\
-	-Idrivers/staging/brcm80211/include		\
-	-Idrivers/staging/brcm80211/util
+ccflags-y :=					\
+	-DBCMDBG				\
+	-DWLC_HIGH				\
+	-DWLC_LOW				\
+	-DSTA					\
+	-DWME					\
+	-DWL11N					\
+	-DDBAND					\
+	-DBCMDMA32				\
+	-DBCMNVRAMR				\
+	-Idrivers/staging/brcm80211/brcmsmac/sys \
+	-Idrivers/staging/brcm80211/brcmsmac/phy \
+	-Idrivers/staging/brcm80211/util \
+	-Idrivers/staging/brcm80211/include
 
-DHDOFILES = \
-	wl_cfg80211.o \
-	wl_iw.o \
-	dhd_cdc.o \
-	dhd_common.o \
-	dhd_custom_gpio.o \
-	dhd_sdio.o	\
-	dhd_linux.o \
-	dhd_linux_sched.o \
-	bcmsdh.o \
-	bcmsdh_linux.o	\
-	bcmsdh_sdmmc.o \
-	bcmsdh_sdmmc_linux.o \
+BRCMSMAC_OFILES := \
+	sys/wl_mac80211.o \
+	sys/wl_ucode_loader.o \
+	sys/wlc_alloc.o \
+	sys/wlc_ampdu.o \
+	sys/wlc_antsel.o \
+	sys/wlc_bmac.o \
+	sys/wlc_channel.o \
+	sys/wlc_event.o \
+	sys/wlc_mac80211.o \
+	sys/wlc_phy_shim.o \
+	sys/wlc_rate.o \
+	sys/wlc_stf.o \
+	phy/wlc_phy_cmn.o \
+	phy/wlc_phy_lcn.o \
+	phy/wlc_phy_n.o \
+	phy/wlc_phytbl_lcn.o \
+	phy/wlc_phytbl_n.o \
 	../util/linux_osl.o \
 	../util/aiutils.o \
 	../util/siutils.o \
-	../util/sbutils.o \
 	../util/bcmutils.o \
 	../util/bcmwifi.o \
-	../util/hndpmu.o
+	../util/bcmotp.o \
+	../util/bcmsrom.o \
+	../util/hnddma.o \
+	../util/hndpmu.o \
+	../util/nicpci.o \
+	../util/qmath.o \
+	../util/nvram/nvram_ro.o
 
-obj-m += brcmfmac.o
-brcmfmac-objs += $(DHDOFILES)
+MODULEPFX := brcmsmac
 
+obj-m	+= $(MODULEPFX).o
+$(MODULEPFX)-objs	= $(BRCMSMAC_OFILES)

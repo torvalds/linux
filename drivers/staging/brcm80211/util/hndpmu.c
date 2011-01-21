@@ -18,9 +18,6 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#ifdef BRCM_FULLMAC
-#include <linux/netdevice.h>
-#endif
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
