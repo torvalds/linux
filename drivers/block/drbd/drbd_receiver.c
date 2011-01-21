@@ -1470,27 +1470,15 @@ fail:
 }
 
 static struct drbd_request *
-find_request(struct drbd_conf *mdev,
-	     struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
-	     u64 id, sector_t sector, bool missing_ok, const char *func)
+find_request(struct drbd_conf *mdev, struct rb_root *root, u64 id,
+	     sector_t sector, bool missing_ok, const char *func)
 {
-	struct hlist_head *slot = hash_slot(mdev, sector);
-	struct hlist_node *n;
 	struct drbd_request *req;
 
-	hlist_for_each_entry(req, n, slot, collision) {
-		if ((unsigned long)req != (unsigned long)id)
-			continue;
-		if (req->i.sector != sector) {
-			dev_err(DEV, "%s: found request %lu but it has "
-				"wrong sector (%llus versus %llus)\n",
-				func, (unsigned long)req,
-				(unsigned long long)req->i.sector,
-				(unsigned long long)sector);
-			return NULL;
-		}
+	/* Request object according to our peer */
+	req = (struct drbd_request *)(unsigned long)id;
+	if (drbd_contains_interval(root, sector, &req->i))
 		return req;
-	}
 	if (!missing_ok) {
 		dev_err(DEV, "%s: failed to find request %lu, sector %llus\n", func,
 			(unsigned long)id, (unsigned long long)sector);
@@ -1508,7 +1496,7 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 	sector = be64_to_cpu(p->sector);
 
 	spin_lock_irq(&mdev->req_lock);
-	req = find_request(mdev, ar_hash_slot, p->block_id, sector, false, __func__);
+	req = find_request(mdev, &mdev->read_requests, p->block_id, sector, false, __func__);
 	spin_unlock_irq(&mdev->req_lock);
 	if (unlikely(!req))
 		return false;
@@ -4245,16 +4233,16 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
 	return true;
 }
 
-static int validate_req_change_req_state(struct drbd_conf *mdev,
-	u64 id, sector_t sector,
-	struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
-	const char *func, enum drbd_req_event what, bool missing_ok)
+static int
+validate_req_change_req_state(struct drbd_conf *mdev, u64 id, sector_t sector,
+			      struct rb_root *root, const char *func,
+			      enum drbd_req_event what, bool missing_ok)
 {
 	struct drbd_request *req;
 	struct bio_and_error m;
 
 	spin_lock_irq(&mdev->req_lock);
-	req = find_request(mdev, hash_slot, id, sector, missing_ok, func);
+	req = find_request(mdev, root, id, sector, missing_ok, func);
 	if (unlikely(!req)) {
 		spin_unlock_irq(&mdev->req_lock);
 		return false;
@@ -4304,8 +4292,8 @@ static int got_BlockAck(struct drbd_conf *mdev, struct p_header80 *h)
 	}
 
 	return validate_req_change_req_state(mdev, p->block_id, sector,
-					     tl_hash_slot, __func__, what,
-					     false);
+					     &mdev->write_requests, __func__,
+					     what, false);
 }
 
 static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
@@ -4326,7 +4314,7 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
 	}
 
 	found = validate_req_change_req_state(mdev, p->block_id, sector,
-					      tl_hash_slot, __func__,
+					      &mdev->write_requests, __func__,
 					      neg_acked, missing_ok);
 	if (!found) {
 		/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
@@ -4351,8 +4339,8 @@ static int got_NegDReply(struct drbd_conf *mdev, struct p_header80 *h)
 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
 
 	return validate_req_change_req_state(mdev, p->block_id, sector,
-					     ar_hash_slot, __func__, neg_acked,
-					     false);
+					     &mdev->read_requests, __func__,
+					     neg_acked, false);
 }
 
 static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header80 *h)

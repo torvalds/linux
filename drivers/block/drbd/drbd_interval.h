@@ -22,8 +22,7 @@ static inline bool drbd_interval_empty(struct drbd_interval *i)
 }
 
 bool drbd_insert_interval(struct rb_root *, struct drbd_interval *);
-struct drbd_interval *drbd_find_interval(struct rb_root *, sector_t,
-					 struct drbd_interval *);
+bool drbd_contains_interval(struct rb_root *, sector_t, struct drbd_interval *);
 void drbd_remove_interval(struct rb_root *, struct drbd_interval *);
 struct drbd_interval *drbd_find_overlap(struct rb_root *, sector_t,
 					unsigned int);
