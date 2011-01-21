@@ -2387,6 +2387,21 @@ static void cxt5066_hp_automute(struct hda_codec *codec)
 	cxt5066_update_speaker(codec);
 }
 
+/* Dispatch the right mic autoswitch function */
+static void cxt5066_automic(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+
+	if (spec->dell_vostro)
+		cxt5066_vostro_automic(codec);
+	else if (spec->ideapad)
+		cxt5066_ideapad_automic(codec);
+	else if (spec->thinkpad)
+		cxt5066_thinkpad_automic(codec);
+	else if (spec->hp_laptop)
+		cxt5066_hp_laptop_automic(codec);
+}
+
 /* unsolicited event for jack sensing */
 static void cxt5066_olpc_unsol_event(struct hda_codec *codec, unsigned int res)
 {
@@ -2405,60 +2420,19 @@ static void cxt5066_olpc_unsol_event(struct hda_codec *codec, unsigned int res)
 }
 
 /* unsolicited event for jack sensing */
-static void cxt5066_vostro_event(struct hda_codec *codec, unsigned int res)
+static void cxt5066_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	snd_printdd("CXT5066_vostro: unsol event %x (%x)\n", res, res >> 26);
+	snd_printdd("CXT5066: unsol event %x (%x)\n", res, res >> 26);
 	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cxt5066_hp_automute(codec);
 		break;
 	case CONEXANT_MIC_EVENT:
-		cxt5066_vostro_automic(codec);
+		cxt5066_automic(codec);
 		break;
 	}
 }
 
-/* unsolicited event for jack sensing */
-static void cxt5066_ideapad_event(struct hda_codec *codec, unsigned int res)
-{
-	snd_printdd("CXT5066_ideapad: unsol event %x (%x)\n", res, res >> 26);
-	switch (res >> 26) {
-	case CONEXANT_HP_EVENT:
-		cxt5066_hp_automute(codec);
-		break;
-	case CONEXANT_MIC_EVENT:
-		cxt5066_ideapad_automic(codec);
-		break;
-	}
-}
-
-/* unsolicited event for jack sensing */
-static void cxt5066_hp_laptop_event(struct hda_codec *codec, unsigned int res)
-{
-	snd_printdd("CXT5066_hp_laptop: unsol event %x (%x)\n", res, res >> 26);
-	switch (res >> 26) {
-	case CONEXANT_HP_EVENT:
-		cxt5066_hp_automute(codec);
-		break;
-	case CONEXANT_MIC_EVENT:
-		cxt5066_hp_laptop_automic(codec);
-		break;
-	}
-}
-
-/* unsolicited event for jack sensing */
-static void cxt5066_thinkpad_event(struct hda_codec *codec, unsigned int res)
-{
-	snd_printdd("CXT5066_thinkpad: unsol event %x (%x)\n", res, res >> 26);
-	switch (res >> 26) {
-	case CONEXANT_HP_EVENT:
-		cxt5066_hp_automute(codec);
-		break;
-	case CONEXANT_MIC_EVENT:
-		cxt5066_thinkpad_automic(codec);
-		break;
-	}
-}
 
 static const struct hda_input_mux cxt5066_analog_mic_boost = {
 	.num_items = 5,
@@ -3039,20 +3013,11 @@ static struct hda_verb cxt5066_init_verbs_hp_laptop[] = {
 /* initialize jack-sensing, too */
 static int cxt5066_init(struct hda_codec *codec)
 {
-	struct conexant_spec *spec = codec->spec;
-
 	snd_printdd("CXT5066: init\n");
 	conexant_init(codec);
 	if (codec->patch_ops.unsol_event) {
 		cxt5066_hp_automute(codec);
-		if (spec->dell_vostro)
-			cxt5066_vostro_automic(codec);
-		else if (spec->ideapad)
-			cxt5066_ideapad_automic(codec);
-		else if (spec->thinkpad)
-			cxt5066_thinkpad_automic(codec);
-		else if (spec->hp_laptop)
-			cxt5066_hp_laptop_automic(codec);
+		cxt5066_automic(codec);
 	}
 	cxt5066_set_mic_boost(codec);
 	return 0;
@@ -3169,7 +3134,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 		break;
 	case CXT5066_HP_LAPTOP:
 		codec->patch_ops.init = cxt5066_init;
-		codec->patch_ops.unsol_event = cxt5066_hp_laptop_event;
+		codec->patch_ops.unsol_event = cxt5066_unsol_event;
 		spec->init_verbs[spec->num_init_verbs] =
 			cxt5066_init_verbs_hp_laptop;
 		spec->num_init_verbs++;
@@ -3207,7 +3172,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 		break;
 	case CXT5066_DELL_VOSTRO:
 		codec->patch_ops.init = cxt5066_init;
-		codec->patch_ops.unsol_event = cxt5066_vostro_event;
+		codec->patch_ops.unsol_event = cxt5066_unsol_event;
 		spec->init_verbs[0] = cxt5066_init_verbs_vostro;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master_olpc;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
@@ -3224,7 +3189,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 		break;
 	case CXT5066_IDEAPAD:
 		codec->patch_ops.init = cxt5066_init;
-		codec->patch_ops.unsol_event = cxt5066_ideapad_event;
+		codec->patch_ops.unsol_event = cxt5066_unsol_event;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
 		spec->init_verbs[0] = cxt5066_init_verbs_ideapad;
@@ -3240,7 +3205,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 		break;
 	case CXT5066_THINKPAD:
 		codec->patch_ops.init = cxt5066_init;
-		codec->patch_ops.unsol_event = cxt5066_thinkpad_event;
+		codec->patch_ops.unsol_event = cxt5066_unsol_event;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
 		spec->init_verbs[0] = cxt5066_init_verbs_thinkpad;
