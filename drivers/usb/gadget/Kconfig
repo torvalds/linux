@@ -176,18 +176,6 @@ config USB_FSL_USB2
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
-config USB_GADGET_LH7A40X
-	boolean "LH7A40X"
-	depends on ARCH_LH7A40X
-	help
-	   This driver provides USB Device Controller driver for LH7A40x
-
-config USB_LH7A40X
-	tristate
-	depends on USB_GADGET_LH7A40X
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
 config USB_GADGET_OMAP
 	boolean "OMAP USB Device Controller"
 	depends on ARCH_OMAP

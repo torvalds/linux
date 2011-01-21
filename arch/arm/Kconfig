@@ -795,17 +795,6 @@ config ARCH_TCC_926
 	help
 	  Support for Telechips TCC ARM926-based systems.
 
-config ARCH_LH7A40X
-	bool "Sharp LH7A40X"
-	select CPU_ARM922T
-	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  Say Y here for systems based on one of the Sharp LH7A40X
-	  System on a Chip processors.  These CPUs include an ARM922T
-	  core with a wide array of integrated devices for
-	  hand-held and low-power applications.
-
 config ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on MMU
@@ -921,8 +910,6 @@ source "arch/arm/mach-ixp23xx/Kconfig"
 source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
-
-source "arch/arm/mach-lh7a40x/Kconfig"
 
 source "arch/arm/mach-loki/Kconfig"
 

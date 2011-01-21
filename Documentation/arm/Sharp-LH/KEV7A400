@@ -1,8 +1,0 @@
-README on Implementing Linux for Sharp's KEV7a400
-=================================================
-
-This product has been discontinued by Sharp.  For the time being, the
-partially implemented code remains in the kernel.  At some point in
-the future, either the code will be finished or it will be removed
-completely.  This depends primarily on how many of the development
-boards are in the field.

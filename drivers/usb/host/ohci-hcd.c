@@ -1023,11 +1023,6 @@ MODULE_LICENSE ("GPL");
 #define OMAP3_PLATFORM_DRIVER	ohci_hcd_omap3_driver
 #endif
 
-#ifdef CONFIG_ARCH_LH7A404
-#include "ohci-lh7a404.c"
-#define PLATFORM_DRIVER		ohci_hcd_lh7a404_driver
-#endif
-
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #include "ohci-pxa27x.c"
 #define PLATFORM_DRIVER		ohci_hcd_pxa27x_driver
