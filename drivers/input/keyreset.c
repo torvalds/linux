@@ -88,10 +88,10 @@ static void keyreset_event(struct input_handle *handle, unsigned int type,
 		state->restart_disabled = 1;
 		if (restart_requested)
 			panic("keyboard reset failed, %d", restart_requested);
-		pr_info("keyboard reset\n");
 		if (state->reset_fn) {
 			restart_requested = state->reset_fn();
 		} else {
+			pr_info("keyboard reset\n");
 			schedule_work(&restart_work);
 			restart_requested = 1;
 		}
