@@ -207,8 +207,6 @@ static void __init u8500_init_machine(void)
 	mop500_spi_init();
 	mop500_uart_init();
 
-	mop500_keypad_init();
-
 	platform_device_register(&ab8500_device);
 
 	i2c_register_board_info(0, mop500_i2c0_devices,
