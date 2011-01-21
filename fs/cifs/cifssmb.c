@@ -733,9 +733,9 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 
 	/* set up echo request */
 	smb->hdr.Tid = cpu_to_le16(0xffff);
-	smb->hdr.WordCount = cpu_to_le16(1);
-	smb->EchoCount = cpu_to_le16(1);
-	smb->ByteCount = cpu_to_le16(1);
+	smb->hdr.WordCount = 1;
+	put_unaligned_le16(1, &smb->EchoCount);
+	put_bcc_le(1, &smb->hdr);
 	smb->Data[0] = 'a';
 	smb->hdr.smb_buf_length += 3;
 
