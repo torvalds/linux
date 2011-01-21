@@ -159,6 +159,13 @@ struct it7260_platform_data {
 };
 
 
+struct akm8975_platform_data {
+	char layouts[3][3];
+	char project_name[64];
+	int gpio_DRDY;
+};
+
+
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
 
