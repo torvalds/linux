@@ -924,10 +924,8 @@ static int __devinit synaptics_rmi4_probe
 		goto err_input;
 	}
 
-	dev_set_name(&client->dev, platformdata->name);
-
 	if (platformdata->regulator_en) {
-		rmi4_data->regulator = regulator_get(&client->dev, "v-touch");
+		rmi4_data->regulator = regulator_get(&client->dev, "vdd");
 		if (IS_ERR(rmi4_data->regulator)) {
 			dev_err(&client->dev, "%s:get regulator failed\n",
 								__func__);
@@ -999,7 +997,7 @@ static int __devinit synaptics_rmi4_probe
 	retval = request_threaded_irq(platformdata->irq_number, NULL,
 					synaptics_rmi4_irq,
 					platformdata->irq_type,
-					platformdata->name, rmi4_data);
+					DRIVER_NAME, rmi4_data);
 	if (retval) {
 		dev_err(&client->dev, "%s:Unable to get attn irq %d\n",
 				__func__, platformdata->irq_number);
