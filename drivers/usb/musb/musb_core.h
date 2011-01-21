@@ -488,6 +488,18 @@ struct musb {
 	unsigned		set_address:1;
 	unsigned		test_mode:1;
 	unsigned		softconnect:1;
+	/*
+	 * FIXME: Remove this flag.
+	 *
+	 * This is only added to allow Blackfin to work
+	 * with current driver. For some unknown reason
+	 * Blackfin doesn't work with double buffering
+	 * and that's enabled by default.
+	 *
+	 * We added this flag to forcefully disable double
+	 * buffering until we get it working.
+	 */
+	unsigned                double_buffer_not_ok:1 __deprecated;
 
 	u8			address;
 	u8			test_mode_nr;
