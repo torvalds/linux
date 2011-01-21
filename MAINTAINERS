@@ -2334,7 +2334,7 @@ F:	include/linux/edac_mce.h
 
 EDAC-I82975X
 M:	Ranganathan Desikan <ravi@jetztechnologies.com>
-M:	"Arvind R." <arvind@jetztechnologies.com>
+M:	"Arvind R." <arvino55@gmail.com>
 L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained

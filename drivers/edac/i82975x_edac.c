@@ -664,7 +664,7 @@ module_init(i82975x_init);
 module_exit(i82975x_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arvind R. <arvind@acarlab.com>");
+MODULE_AUTHOR("Arvind R. <arvino55@gmail.com>");
 MODULE_DESCRIPTION("MC support for Intel 82975 memory hub controllers");
 
 module_param(edac_op_state, int, 0444);
