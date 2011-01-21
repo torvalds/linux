@@ -3345,8 +3345,10 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	u64 reserved;
 	u64 max_reclaim;
 	u64 reclaimed = 0;
+	long time_left;
 	int pause = 1;
 	int nr_pages = (2 * 1024 * 1024) >> PAGE_CACHE_SHIFT;
+	int loops = 0;
 
 	block_rsv = &root->fs_info->delalloc_block_rsv;
 	space_info = block_rsv->space_info;
@@ -3359,7 +3361,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 
 	max_reclaim = min(reserved, to_reclaim);
 
-	while (1) {
+	while (loops < 1024) {
 		/* have the flusher threads jump in and do some IO */
 		smp_mb();
 		nr_pages = min_t(unsigned long, nr_pages,
@@ -3367,8 +3369,12 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		writeback_inodes_sb_nr_if_idle(root->fs_info->sb, nr_pages);
 
 		spin_lock(&space_info->lock);
-		if (reserved > space_info->bytes_reserved)
+		if (reserved > space_info->bytes_reserved) {
+			loops = 0;
 			reclaimed += reserved - space_info->bytes_reserved;
+		} else {
+			loops++;
+		}
 		reserved = space_info->bytes_reserved;
 		spin_unlock(&space_info->lock);
 
@@ -3379,7 +3385,12 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 			return -EAGAIN;
 
 		__set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(pause);
+		time_left = schedule_timeout(pause);
+
+		/* We were interrupted, exit */
+		if (time_left)
+			break;
+
 		pause <<= 1;
 		if (pause > HZ / 10)
 			pause = HZ / 10;
