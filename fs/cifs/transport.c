@@ -484,7 +484,7 @@ send_nt_cancel(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
 	in_buf->smb_buf_length = sizeof(struct smb_hdr) - 4  + 2;
 	in_buf->Command = SMB_COM_NT_CANCEL;
 	in_buf->WordCount = 0;
-	BCC_LE(in_buf) = 0;
+	put_bcc_le(0, in_buf);
 
 	mutex_lock(&server->srv_mutex);
 	rc = cifs_sign_smb(in_buf, server, &mid->sequence_number);
@@ -632,8 +632,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		if (receive_len >= sizeof(struct smb_hdr) - 4
 		    /* do not count RFC1001 header */  +
 		    (2 * midQ->resp_buf->WordCount) + 2 /* bcc */ )
-			BCC(midQ->resp_buf) =
-				le16_to_cpu(BCC_LE(midQ->resp_buf));
+			put_bcc(get_bcc_le(midQ->resp_buf), midQ->resp_buf);
 		if ((flags & CIFS_NO_RESP) == 0)
 			midQ->resp_buf = NULL;  /* mark it so buf will
 						   not be freed by
@@ -776,7 +775,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		if (receive_len >= sizeof(struct smb_hdr) - 4
 		    /* do not count RFC1001 header */  +
 		    (2 * out_buf->WordCount) + 2 /* bcc */ )
-			BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
+			put_bcc(get_bcc_le(midQ->resp_buf), midQ->resp_buf);
 	} else {
 		rc = -EIO;
 		cERROR(1, "Bad MID state?");
@@ -977,7 +976,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	if (receive_len >= sizeof(struct smb_hdr) - 4
 	    /* do not count RFC1001 header */  +
 	    (2 * out_buf->WordCount) + 2 /* bcc */ )
-		BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
+		put_bcc(get_bcc_le(out_buf), out_buf);
 
 out:
 	delete_mid(midQ);

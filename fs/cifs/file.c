@@ -287,6 +287,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	struct inode *inode = cifs_file->dentry->d_inode;
 	struct cifsTconInfo *tcon = tlink_tcon(cifs_file->tlink);
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsLockInfo *li, *tmp;
 
 	spin_lock(&cifs_file_list_lock);
@@ -302,6 +303,13 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	if (list_empty(&cifsi->openFileList)) {
 		cFYI(1, "closing last open instance for inode %p",
 			cifs_file->dentry->d_inode);
+
+		/* in strict cache mode we need invalidate mapping on the last
+		   close  because it may cause a error when we open this file
+		   again and get at least level II oplock */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO)
+			CIFS_I(inode)->invalid_mapping = true;
+
 		cifs_set_oplock_level(cifsi, 0);
 	}
 	spin_unlock(&cifs_file_list_lock);
@@ -1520,27 +1528,47 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 	return rc;
 }
 
-int cifs_fsync(struct file *file, int datasync)
+int cifs_strict_fsync(struct file *file, int datasync)
 {
 	int xid;
 	int rc = 0;
 	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct inode *inode = file->f_path.dentry->d_inode;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	xid = GetXid();
 
 	cFYI(1, "Sync file - name: %s datasync: 0x%x",
 		file->f_path.dentry->d_name.name, datasync);
 
-	rc = filemap_write_and_wait(inode->i_mapping);
-	if (rc == 0) {
-		struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	if (!CIFS_I(inode)->clientCanCacheRead)
+		cifs_invalidate_mapping(inode);
 
-		tcon = tlink_tcon(smbfile->tlink);
-		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
-			rc = CIFSSMBFlush(xid, tcon, smbfile->netfid);
-	}
+	tcon = tlink_tcon(smbfile->tlink);
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
+		rc = CIFSSMBFlush(xid, tcon, smbfile->netfid);
+
+	FreeXid(xid);
+	return rc;
+}
+
+int cifs_fsync(struct file *file, int datasync)
+{
+	int xid;
+	int rc = 0;
+	struct cifsTconInfo *tcon;
+	struct cifsFileInfo *smbfile = file->private_data;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+
+	xid = GetXid();
+
+	cFYI(1, "Sync file - name: %s datasync: 0x%x",
+		file->f_path.dentry->d_name.name, datasync);
+
+	tcon = tlink_tcon(smbfile->tlink);
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
+		rc = CIFSSMBFlush(xid, tcon, smbfile->netfid);
 
 	FreeXid(xid);
 	return rc;
@@ -1591,42 +1619,42 @@ int cifs_flush(struct file *file, fl_owner_t id)
 	return rc;
 }
 
-ssize_t cifs_user_read(struct file *file, char __user *read_data,
-	size_t read_size, loff_t *poffset)
+static ssize_t
+cifs_iovec_read(struct file *file, const struct iovec *iov,
+		 unsigned long nr_segs, loff_t *poffset)
 {
-	int rc = -EACCES;
-	unsigned int bytes_read = 0;
-	unsigned int total_read = 0;
-	unsigned int current_read_size;
+	int rc;
+	int xid;
+	unsigned int total_read, bytes_read = 0;
+	size_t len, cur_len;
+	int iov_offset = 0;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	int xid;
 	struct cifsFileInfo *open_file;
-	char *smb_read_data;
-	char __user *current_offset;
 	struct smb_com_read_rsp *pSMBr;
+	char *read_data;
+
+	if (!nr_segs)
+		return 0;
+
+	len = iov_length(iov, nr_segs);
+	if (!len)
+		return 0;
 
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
-	if (file->private_data == NULL) {
-		rc = -EBADF;
-		FreeXid(xid);
-		return rc;
-	}
 	open_file = file->private_data;
 	pTcon = tlink_tcon(open_file->tlink);
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
 
-	for (total_read = 0, current_offset = read_data;
-	     read_size > total_read;
-	     total_read += bytes_read, current_offset += bytes_read) {
-		current_read_size = min_t(const int, read_size - total_read,
-					  cifs_sb->rsize);
+	for (total_read = 0; total_read < len; total_read += bytes_read) {
+		cur_len = min_t(const size_t, len - total_read, cifs_sb->rsize);
 		rc = -EAGAIN;
-		smb_read_data = NULL;
+		read_data = NULL;
+
 		while (rc == -EAGAIN) {
 			int buf_type = CIFS_NO_BUFFER;
 			if (open_file->invalidHandle) {
@@ -1634,27 +1662,25 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 				if (rc != 0)
 					break;
 			}
-			rc = CIFSSMBRead(xid, pTcon,
-					 open_file->netfid,
-					 current_read_size, *poffset,
-					 &bytes_read, &smb_read_data,
-					 &buf_type);
-			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
-			if (smb_read_data) {
-				if (copy_to_user(current_offset,
-						smb_read_data +
-						4 /* RFC1001 length field */ +
-						le16_to_cpu(pSMBr->DataOffset),
-						bytes_read))
+			rc = CIFSSMBRead(xid, pTcon, open_file->netfid,
+					 cur_len, *poffset, &bytes_read,
+					 &read_data, &buf_type);
+			pSMBr = (struct smb_com_read_rsp *)read_data;
+			if (read_data) {
+				char *data_offset = read_data + 4 +
+						le16_to_cpu(pSMBr->DataOffset);
+				if (memcpy_toiovecend(iov, data_offset,
+						      iov_offset, bytes_read))
 					rc = -EFAULT;
-
 				if (buf_type == CIFS_SMALL_BUFFER)
-					cifs_small_buf_release(smb_read_data);
+					cifs_small_buf_release(read_data);
 				else if (buf_type == CIFS_LARGE_BUFFER)
-					cifs_buf_release(smb_read_data);
-				smb_read_data = NULL;
+					cifs_buf_release(read_data);
+				read_data = NULL;
+				iov_offset += bytes_read;
 			}
 		}
+
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
 				break;
@@ -1667,13 +1693,57 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 			*poffset += bytes_read;
 		}
 	}
+
 	FreeXid(xid);
 	return total_read;
 }
 
+ssize_t cifs_user_read(struct file *file, char __user *read_data,
+		       size_t read_size, loff_t *poffset)
+{
+	struct iovec iov;
+	iov.iov_base = read_data;
+	iov.iov_len = read_size;
+
+	return cifs_iovec_read(file, &iov, 1, poffset);
+}
+
+static ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t pos)
+{
+	ssize_t read;
+
+	read = cifs_iovec_read(iocb->ki_filp, iov, nr_segs, &pos);
+	if (read > 0)
+		iocb->ki_pos = pos;
+
+	return read;
+}
+
+ssize_t cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
+			  unsigned long nr_segs, loff_t pos)
+{
+	struct inode *inode;
+
+	inode = iocb->ki_filp->f_path.dentry->d_inode;
+
+	if (CIFS_I(inode)->clientCanCacheRead)
+		return generic_file_aio_read(iocb, iov, nr_segs, pos);
+
+	/*
+	 * In strict cache mode we need to read from the server all the time
+	 * if we don't have level II oplock because the server can delay mtime
+	 * change - so we can't make a decision about inode invalidating.
+	 * And we can also fail with pagereading if there are mandatory locks
+	 * on pages affected by this read but not on the region from pos to
+	 * pos+len-1.
+	 */
+
+	return cifs_user_readv(iocb, iov, nr_segs, pos);
+}
 
 static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
-	loff_t *poffset)
+			 loff_t *poffset)
 {
 	int rc = -EACCES;
 	unsigned int bytes_read = 0;
@@ -1739,6 +1809,21 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	}
 	FreeXid(xid);
 	return total_read;
+}
+
+int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int rc, xid;
+	struct inode *inode = file->f_path.dentry->d_inode;
+
+	xid = GetXid();
+
+	if (!CIFS_I(inode)->clientCanCacheRead)
+		cifs_invalidate_mapping(inode);
+
+	rc = generic_file_mmap(file, vma);
+	FreeXid(xid);
+	return rc;
 }
 
 int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
