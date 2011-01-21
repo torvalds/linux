@@ -1071,13 +1071,13 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	preempt_disable();
 	smp_cpu_index_default();
-	memcpy(__this_cpu_ptr(&cpu_info), &boot_cpu_data, sizeof(cpu_info));
-	cpumask_copy(cpu_callin_mask, cpumask_of(0));
-	mb();
+
 	/*
 	 * Setup boot CPU information
 	 */
 	smp_store_cpu_info(0); /* Final full version of the data */
+	cpumask_copy(cpu_callin_mask, cpumask_of(0));
+	mb();
 #ifdef CONFIG_X86_32
 	boot_cpu_logical_apicid = logical_smp_processor_id();
 #endif
