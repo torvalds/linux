@@ -32,15 +32,18 @@
  * which does not support descriptor writeback.
  */
 
-/* NOTE:  DMS+SMS is system-specific. We should get this information
- * from the platform code somehow.
- */
-#define DWC_DEFAULT_CTLLO	(DWC_CTLL_DST_MSIZE(0)		\
-				| DWC_CTLL_SRC_MSIZE(0)		\
-				| DWC_CTLL_DMS(0)		\
-				| DWC_CTLL_SMS(1)		\
-				| DWC_CTLL_LLP_D_EN		\
-				| DWC_CTLL_LLP_S_EN)
+#define DWC_DEFAULT_CTLLO(private) ({				\
+		struct dw_dma_slave *__slave = (private);	\
+		int dms = __slave ? __slave->dst_master : 0;	\
+		int sms = __slave ? __slave->src_master : 1;	\
+								\
+		(DWC_CTLL_DST_MSIZE(0)				\
+		 | DWC_CTLL_SRC_MSIZE(0)			\
+		 | DWC_CTLL_LLP_D_EN				\
+		 | DWC_CTLL_LLP_S_EN				\
+		 | DWC_CTLL_DMS(dms)				\
+		 | DWC_CTLL_SMS(sms));				\
+	})
 
 /*
  * This is configuration-dependent and usually a funny size like 4095.
@@ -591,7 +594,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	else
 		src_width = dst_width = 0;
 
-	ctllo = DWC_DEFAULT_CTLLO
+	ctllo = DWC_DEFAULT_CTLLO(chan->private)
 			| DWC_CTLL_DST_WIDTH(dst_width)
 			| DWC_CTLL_SRC_WIDTH(src_width)
 			| DWC_CTLL_DST_INC
@@ -672,7 +675,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	switch (direction) {
 	case DMA_TO_DEVICE:
-		ctllo = (DWC_DEFAULT_CTLLO
+		ctllo = (DWC_DEFAULT_CTLLO(chan->private)
 				| DWC_CTLL_DST_WIDTH(reg_width)
 				| DWC_CTLL_DST_FIX
 				| DWC_CTLL_SRC_INC
@@ -717,7 +720,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		}
 		break;
 	case DMA_FROM_DEVICE:
-		ctllo = (DWC_DEFAULT_CTLLO
+		ctllo = (DWC_DEFAULT_CTLLO(chan->private)
 				| DWC_CTLL_SRC_WIDTH(reg_width)
 				| DWC_CTLL_DST_INC
 				| DWC_CTLL_SRC_FIX
@@ -1129,7 +1132,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 		case DMA_TO_DEVICE:
 			desc->lli.dar = dws->tx_reg;
 			desc->lli.sar = buf_addr + (period_len * i);
-			desc->lli.ctllo = (DWC_DEFAULT_CTLLO
+			desc->lli.ctllo = (DWC_DEFAULT_CTLLO(chan->private)
 					| DWC_CTLL_DST_WIDTH(reg_width)
 					| DWC_CTLL_SRC_WIDTH(reg_width)
 					| DWC_CTLL_DST_FIX
@@ -1140,7 +1143,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 		case DMA_FROM_DEVICE:
 			desc->lli.dar = buf_addr + (period_len * i);
 			desc->lli.sar = dws->rx_reg;
-			desc->lli.ctllo = (DWC_DEFAULT_CTLLO
+			desc->lli.ctllo = (DWC_DEFAULT_CTLLO(chan->private)
 					| DWC_CTLL_SRC_WIDTH(reg_width)
 					| DWC_CTLL_DST_WIDTH(reg_width)
 					| DWC_CTLL_DST_INC

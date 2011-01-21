@@ -52,6 +52,8 @@ struct dw_dma_slave {
 	enum dw_dma_slave_width	reg_width;
 	u32			cfg_hi;
 	u32			cfg_lo;
+	int			src_master;
+	int			dst_master;
 };
 
 /* Platform-configurable bits in CFG_HI */
