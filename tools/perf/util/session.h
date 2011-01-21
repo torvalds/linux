@@ -155,4 +155,13 @@ size_t perf_session__fprintf_nr_events(struct perf_session *self, FILE *fp)
 {
 	return hists__fprintf_nr_events(&self->hists, fp);
 }
+
+static inline int perf_session__parse_sample(struct perf_session *session,
+					     const event_t *event,
+					     struct sample_data *sample)
+{
+	return event__parse_sample(event, session->sample_type,
+				   session->sample_id_all, sample);
+}
+
 #endif /* __PERF_SESSION_H */

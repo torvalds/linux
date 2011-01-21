@@ -496,7 +496,7 @@ static void flush_sample_queue(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		event__parse_sample(iter->event, s, &sample);
+		perf_session__parse_sample(s, iter->event, &sample);
 		perf_session_deliver_event(s, iter->event, &sample, ops,
 					   iter->file_offset);
 
@@ -806,7 +806,7 @@ static int perf_session__process_event(struct perf_session *session,
 	/*
 	 * For all kernel events we get the sample data
 	 */
-	event__parse_sample(event, session, &sample);
+	perf_session__parse_sample(session, event, &sample);
 
 	/* Preprocess sample records - precheck callchains */
 	if (perf_session__preprocess_sample(session, event, &sample))

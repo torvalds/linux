@@ -10,7 +10,6 @@
 #include "util/evlist.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
-#include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread_map.h"
 
@@ -457,7 +456,6 @@ static int test__basic_mmap(void)
 	int err = -1;
 	event_t *event;
 	struct thread_map *threads;
-	struct perf_session session;
 	struct cpu_map *cpus;
 	struct perf_evlist *evlist;
 	struct perf_event_attr attr = {
@@ -521,13 +519,6 @@ static int test__basic_mmap(void)
 	attr.wakeup_events = 1;
 	attr.sample_period = 1;
 
-	/*
- 	 * FIXME: use evsel->attr.sample_type in event__parse_sample.
- 	 * 	  This will nicely remove the requirement that we have
- 	 * 	  all the events with the same sample_type.
- 	 */
-	session.sample_type = attr.sample_type;
-
 	for (i = 0; i < nsyscalls; ++i) {
 		attr.config = ids[i];
 		evsels[i] = perf_evsel__new(&attr, i);
@@ -567,7 +558,7 @@ static int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
-		event__parse_sample(event, &session, &sample);
+		event__parse_sample(event, attr.sample_type, false, &sample);
 		evsel = perf_evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64

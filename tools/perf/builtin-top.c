@@ -1106,7 +1106,7 @@ static void perf_session__mmap_read_cpu(struct perf_session *self, int cpu)
 	event_t *event;
 
 	while ((event = perf_evlist__read_on_cpu(evsel_list, cpu)) != NULL) {
-		event__parse_sample(event, self, &sample);
+		perf_session__parse_sample(self, event, &sample);
 
 		if (event->header.type == PERF_RECORD_SAMPLE)
 			event__process_sample(event, &sample, self);

@@ -169,9 +169,10 @@ struct addr_location;
 int event__preprocess_sample(const event_t *self, struct perf_session *session,
 			     struct addr_location *al, struct sample_data *data,
 			     symbol_filter_t filter);
-int event__parse_sample(const event_t *event, struct perf_session *session,
-			struct sample_data *sample);
 
 const char *event__get_event_name(unsigned int id);
+
+int event__parse_sample(const event_t *event, u64 type, bool sample_id_all,
+			struct sample_data *sample);
 
 #endif /* __PERF_RECORD_H */
