@@ -46,6 +46,7 @@ struct tegra_ehci_hcd {
 	struct ehci_hcd *ehci;
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
+	struct clk *emc_clk;
 	struct otg_transceiver *transceiver;
 	int host_resumed;
 	int bus_suspended;
@@ -58,6 +59,7 @@ static void tegra_ehci_power_up(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
+	clk_enable(tegra->emc_clk);
 	clk_enable(tegra->clk);
 	tegra_usb_phy_power_on(tegra->phy);
 	tegra->host_resumed = 1;
@@ -70,6 +72,7 @@ static void tegra_ehci_power_down(struct usb_hcd *hcd)
 	tegra->host_resumed = 0;
 	tegra_usb_phy_power_off(tegra->phy);
 	clk_disable(tegra->clk);
+	clk_disable(tegra->emc_clk);
 }
 
 static int tegra_ehci_hub_control(
@@ -537,6 +540,16 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_clken;
 
+	tegra->emc_clk = clk_get(&pdev->dev, "emc");
+	if (IS_ERR(tegra->emc_clk)) {
+		dev_err(&pdev->dev, "Can't get emc clock\n");
+		err = PTR_ERR(tegra->emc_clk);
+		goto fail_emc_clk;
+	}
+
+	clk_enable(tegra->emc_clk);
+	clk_set_rate(tegra->emc_clk, 240000000);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "Failed to get I/O memory\n");
@@ -611,6 +624,9 @@ fail:
 fail_phy:
 	iounmap(hcd->regs);
 fail_io:
+	clk_disable(tegra->emc_clk);
+	clk_put(tegra->emc_clk);
+fail_emc_clk:
 	clk_disable(tegra->clk);
 fail_clken:
 	clk_put(tegra->clk);
@@ -671,6 +687,9 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 
 	clk_disable(tegra->clk);
 	clk_put(tegra->clk);
+
+	clk_disable(tegra->emc_clk);
+	clk_put(tegra->emc_clk);
 
 	kfree(tegra);
 	return 0;
