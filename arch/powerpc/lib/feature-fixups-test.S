@@ -172,6 +172,25 @@ globl(ftr_fixup_test6_expected)
 3:	or	3,3,3
 
 
+#if 0
+/* Test that if we have a larger else case the assembler spots it and
+ * reports an error. #if 0'ed so as not to break the build normally.
+ */
+ftr_fixup_test7:
+	or	1,1,1
+BEGIN_FTR_SECTION
+	or	2,2,2
+	or	2,2,2
+	or	2,2,2
+FTR_SECTION_ELSE
+	or	3,3,3
+	or	3,3,3
+	or	3,3,3
+	or	3,3,3
+ALT_FTR_SECTION_END(0, 1)
+	or	1,1,1
+#endif
+
 #define	MAKE_MACRO_TEST(TYPE)						\
 globl(ftr_fixup_test_ ##TYPE##_macros)					\
 	or	1,1,1;							\
