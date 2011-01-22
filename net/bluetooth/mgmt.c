@@ -69,29 +69,26 @@ static int cmd_status(struct sock *sk, u16 cmd, u8 status)
 	return 0;
 }
 
-static int read_version(struct sock *sk)
+static int cmd_complete(struct sock *sk, u16 cmd, void *rp, size_t rp_len)
 {
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
 	struct mgmt_ev_cmd_complete *ev;
-	struct mgmt_rp_read_version *rp;
 
 	BT_DBG("sock %p", sk);
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + rp_len, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
+
 	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
+	hdr->len = cpu_to_le16(sizeof(*ev) + rp_len);
 
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(MGMT_OP_READ_VERSION, &ev->opcode);
-
-	rp = (void *) skb_put(skb, sizeof(*rp));
-	rp->version = MGMT_VERSION;
-	put_unaligned_le16(MGMT_REVISION, &rp->revision);
+	ev = (void *) skb_put(skb, sizeof(*ev) + rp_len);
+	put_unaligned_le16(cmd, &ev->opcode);
+	memcpy(ev->data, rp, rp_len);
 
 	if (sock_queue_rcv_skb(sk, skb) < 0)
 		kfree_skb(skb);
@@ -99,16 +96,25 @@ static int read_version(struct sock *sk)
 	return 0;
 }
 
+static int read_version(struct sock *sk)
+{
+	struct mgmt_rp_read_version rp;
+
+	BT_DBG("sock %p", sk);
+
+	rp.version = MGMT_VERSION;
+	put_unaligned_le16(MGMT_REVISION, &rp.revision);
+
+	return cmd_complete(sk, MGMT_OP_READ_VERSION, &rp, sizeof(rp));
+}
+
 static int read_index_list(struct sock *sk)
 {
-	struct sk_buff *skb;
-	struct mgmt_hdr *hdr;
-	struct mgmt_ev_cmd_complete *ev;
 	struct mgmt_rp_read_index_list *rp;
 	struct list_head *p;
-	size_t body_len;
+	size_t rp_len;
 	u16 count;
-	int i;
+	int i, err;
 
 	BT_DBG("sock %p", sk);
 
@@ -119,21 +125,13 @@ static int read_index_list(struct sock *sk)
 		count++;
 	}
 
-	body_len = sizeof(*ev) + sizeof(*rp) + (2 * count);
-	skb = alloc_skb(sizeof(*hdr) + body_len, GFP_ATOMIC);
-	if (!skb) {
+	rp_len = sizeof(*rp) + (2 * count);
+	rp = kmalloc(rp_len, GFP_ATOMIC);
+	if (!rp) {
 		read_unlock(&hci_dev_list_lock);
 		return -ENOMEM;
 	}
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(body_len);
-
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(MGMT_OP_READ_INDEX_LIST, &ev->opcode);
-
-	rp = (void *) skb_put(skb, sizeof(*rp) + (2 * count));
 	put_unaligned_le16(count, &rp->num_controllers);
 
 	i = 0;
@@ -153,19 +151,17 @@ static int read_index_list(struct sock *sk)
 
 	read_unlock(&hci_dev_list_lock);
 
-	if (sock_queue_rcv_skb(sk, skb) < 0)
-		kfree_skb(skb);
+	err = cmd_complete(sk, MGMT_OP_READ_INDEX_LIST, rp, rp_len);
 
-	return 0;
+	kfree(rp);
+
+	return err;
 }
 
 static int read_controller_info(struct sock *sk, unsigned char *data, u16 len)
 {
-	struct sk_buff *skb;
-	struct mgmt_hdr *hdr;
-	struct mgmt_ev_cmd_complete *ev;
-	struct mgmt_rp_read_info *rp;
-	struct mgmt_cp_read_info *cp;
+	struct mgmt_rp_read_info rp;
+	struct mgmt_cp_read_info *cp = (void *) data;
 	struct hci_dev *hdev;
 	u16 dev_id;
 
@@ -174,29 +170,13 @@ static int read_controller_info(struct sock *sk, unsigned char *data, u16 len)
 	if (len != 2)
 		return cmd_status(sk, MGMT_OP_READ_INFO, EINVAL);
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
-
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
-
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(MGMT_OP_READ_INFO, &ev->opcode);
-
-	rp = (void *) skb_put(skb, sizeof(*rp));
-
-	cp = (void *) data;
 	dev_id = get_unaligned_le16(&cp->index);
 
 	BT_DBG("request for hci%u", dev_id);
 
 	hdev = hci_dev_get(dev_id);
-	if (!hdev) {
-		kfree_skb(skb);
+	if (!hdev)
 		return cmd_status(sk, MGMT_OP_READ_INFO, ENODEV);
-	}
 
 	hci_del_off_timer(hdev);
 
@@ -204,35 +184,32 @@ static int read_controller_info(struct sock *sk, unsigned char *data, u16 len)
 
 	set_bit(HCI_MGMT, &hdev->flags);
 
-	put_unaligned_le16(hdev->id, &rp->index);
-	rp->type = hdev->dev_type;
+	put_unaligned_le16(hdev->id, &rp.index);
+	rp.type = hdev->dev_type;
 
-	rp->powered = test_bit(HCI_UP, &hdev->flags);
-	rp->connectable = test_bit(HCI_PSCAN, &hdev->flags);
-	rp->discoverable = test_bit(HCI_ISCAN, &hdev->flags);
-	rp->pairable = test_bit(HCI_PSCAN, &hdev->flags);
+	rp.powered = test_bit(HCI_UP, &hdev->flags);
+	rp.connectable = test_bit(HCI_PSCAN, &hdev->flags);
+	rp.discoverable = test_bit(HCI_ISCAN, &hdev->flags);
+	rp.pairable = test_bit(HCI_PSCAN, &hdev->flags);
 
 	if (test_bit(HCI_AUTH, &hdev->flags))
-		rp->sec_mode = 3;
+		rp.sec_mode = 3;
 	else if (hdev->ssp_mode > 0)
-		rp->sec_mode = 4;
+		rp.sec_mode = 4;
 	else
-		rp->sec_mode = 2;
+		rp.sec_mode = 2;
 
-	bacpy(&rp->bdaddr, &hdev->bdaddr);
-	memcpy(rp->features, hdev->features, 8);
-	memcpy(rp->dev_class, hdev->dev_class, 3);
-	put_unaligned_le16(hdev->manufacturer, &rp->manufacturer);
-	rp->hci_ver = hdev->hci_ver;
-	put_unaligned_le16(hdev->hci_rev, &rp->hci_rev);
+	bacpy(&rp.bdaddr, &hdev->bdaddr);
+	memcpy(rp.features, hdev->features, 8);
+	memcpy(rp.dev_class, hdev->dev_class, 3);
+	put_unaligned_le16(hdev->manufacturer, &rp.manufacturer);
+	rp.hci_ver = hdev->hci_ver;
+	put_unaligned_le16(hdev->hci_rev, &rp.hci_rev);
 
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
-	if (sock_queue_rcv_skb(sk, skb) < 0)
-		kfree_skb(skb);
-
-	return 0;
+	return cmd_complete(sk, MGMT_OP_READ_INFO, &rp, sizeof(rp));
 }
 
 static void mgmt_pending_free(struct pending_cmd *cmd)
@@ -506,30 +483,12 @@ static int mgmt_event(u16 event, void *data, u16 data_len, struct sock *skip_sk)
 
 static int send_mode_rsp(struct sock *sk, u16 opcode, u16 index, u8 val)
 {
-	struct mgmt_hdr *hdr;
-	struct mgmt_ev_cmd_complete *ev;
-	struct mgmt_mode *rp;
-	struct sk_buff *skb;
+	struct mgmt_mode rp;
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
+	put_unaligned_le16(index, &rp.index);
+	rp.val = val;
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
-
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(opcode, &ev->opcode);
-
-	rp = (void *) skb_put(skb, sizeof(*rp));
-	put_unaligned_le16(index, &rp->index);
-	rp->val = val;
-
-	if (sock_queue_rcv_skb(sk, skb) < 0)
-		kfree_skb(skb);
-
-	return 0;
+	return cmd_complete(sk, opcode, &rp, sizeof(rp));
 }
 
 static int set_pairable(struct sock *sk, unsigned char *data, u16 len)
@@ -569,31 +528,6 @@ failed:
 	hci_dev_put(hdev);
 
 	return err;
-}
-
-static int index_rsp(struct sock *sk, u16 opcode, u16 index)
-{
-	struct mgmt_hdr *hdr;
-	struct mgmt_ev_cmd_complete *ev;
-	struct sk_buff *skb;
-
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(index), GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
-
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(index));
-
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(opcode, &ev->opcode);
-
-	put_unaligned_le16(index, skb_put(skb, sizeof(index)));
-
-	if (sock_queue_rcv_skb(sk, skb) < 0)
-		kfree_skb(skb);
-
-	return 0;
 }
 
 static u8 get_service_classes(struct hci_dev *hdev)
@@ -663,7 +597,7 @@ static int add_uuid(struct sock *sk, unsigned char *data, u16 len)
 	if (err < 0)
 		goto failed;
 
-	err = index_rsp(sk, MGMT_OP_ADD_UUID, dev_id);
+	err = cmd_complete(sk, MGMT_OP_ADD_UUID, &dev_id, sizeof(dev_id));
 
 failed:
 	hci_dev_unlock_bh(hdev);
@@ -718,7 +652,7 @@ static int remove_uuid(struct sock *sk, unsigned char *data, u16 len)
 	if (err < 0)
 		goto unlock;
 
-	err = index_rsp(sk, MGMT_OP_REMOVE_UUID, dev_id);
+	err = cmd_complete(sk, MGMT_OP_REMOVE_UUID, &dev_id, sizeof(dev_id));
 
 unlock:
 	hci_dev_unlock_bh(hdev);
@@ -751,7 +685,8 @@ static int set_dev_class(struct sock *sk, unsigned char *data, u16 len)
 	err = update_class(hdev);
 
 	if (err == 0)
-		err = index_rsp(sk, MGMT_OP_SET_DEV_CLASS, dev_id);
+		err = cmd_complete(sk, MGMT_OP_SET_DEV_CLASS, &dev_id,
+							sizeof(dev_id));
 
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
@@ -786,7 +721,8 @@ static int set_service_cache(struct sock *sk, unsigned char *data, u16 len)
 	}
 
 	if (err == 0)
-		err = index_rsp(sk, MGMT_OP_SET_SERVICE_CACHE, dev_id);
+		err = cmd_complete(sk, MGMT_OP_SET_SERVICE_CACHE, &dev_id,
+							sizeof(dev_id));
 
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
@@ -943,14 +879,11 @@ failed:
 
 static int get_connections(struct sock *sk, unsigned char *data, u16 len)
 {
-	struct sk_buff *skb;
-	struct mgmt_hdr *hdr;
 	struct mgmt_cp_get_connections *cp;
-	struct mgmt_ev_cmd_complete *ev;
 	struct mgmt_rp_get_connections *rp;
 	struct hci_dev *hdev;
 	struct list_head *p;
-	size_t body_len;
+	size_t rp_len;
 	u16 dev_id, count;
 	int i, err;
 
@@ -970,21 +903,13 @@ static int get_connections(struct sock *sk, unsigned char *data, u16 len)
 		count++;
 	}
 
-	body_len = sizeof(*ev) + sizeof(*rp) + (count * sizeof(bdaddr_t));
-	skb = alloc_skb(sizeof(*hdr) + body_len, GFP_ATOMIC);
-	if (!skb) {
+	rp_len = sizeof(*rp) + (count * sizeof(bdaddr_t));
+	rp = kmalloc(rp_len, GFP_ATOMIC);
+	if (!rp) {
 		err = -ENOMEM;
 		goto unlock;
 	}
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(body_len);
-
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(MGMT_OP_GET_CONNECTIONS, &ev->opcode);
-
-	rp = (void *) skb_put(skb, sizeof(*rp) + (count * sizeof(bdaddr_t)));
 	put_unaligned_le16(dev_id, &rp->index);
 	put_unaligned_le16(count, &rp->conn_count);
 
@@ -999,12 +924,10 @@ static int get_connections(struct sock *sk, unsigned char *data, u16 len)
 
 	read_unlock(&hci_dev_list_lock);
 
-	if (sock_queue_rcv_skb(sk, skb) < 0)
-		kfree_skb(skb);
-
-	err = 0;
+	err = cmd_complete(sk, MGMT_OP_GET_CONNECTIONS, rp, rp_len);
 
 unlock:
+	kfree(rp);
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 	return err;
@@ -1234,28 +1157,12 @@ static void disconnect_rsp(struct pending_cmd *cmd, void *data)
 {
 	struct mgmt_cp_disconnect *cp = cmd->cmd;
 	struct sock **sk = data;
-	struct sk_buff *skb;
-	struct mgmt_hdr *hdr;
-	struct mgmt_ev_cmd_complete *ev;
-	struct mgmt_rp_disconnect *rp;
+	struct mgmt_rp_disconnect rp;
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
-	if (!skb)
-		return;
+	put_unaligned_le16(cmd->index, &rp.index);
+	bacpy(&rp.bdaddr, &cp->bdaddr);
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
-	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
-
-	ev = (void *) skb_put(skb, sizeof(*ev));
-	put_unaligned_le16(MGMT_OP_DISCONNECT, &ev->opcode);
-
-	rp = (void *) skb_put(skb, sizeof(*rp));
-	put_unaligned_le16(cmd->index, &rp->index);
-	bacpy(&rp->bdaddr, &cp->bdaddr);
-
-	if (sock_queue_rcv_skb(cmd->sk, skb) < 0)
-		kfree_skb(skb);
+	cmd_complete(cmd->sk, MGMT_OP_DISCONNECT, &rp, sizeof(rp));
 
 	*sk = cmd->sk;
 	sock_hold(*sk);
