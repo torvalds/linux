@@ -55,6 +55,24 @@ static struct map_desc tegra_io_desc[] __initdata = {
 		.length = IO_IRAM_SIZE,
 		.type = MT_DEVICE,
 	},
+	{
+		.virtual = IO_HOST1X_VIRT,
+		.pfn = __phys_to_pfn(IO_HOST1X_PHYS),
+		.length = IO_HOST1X_SIZE,
+		.type = MT_DEVICE,
+	},
+	{
+		.virtual = IO_USB_VIRT,
+		.pfn = __phys_to_pfn(IO_USB_PHYS),
+		.length = IO_USB_SIZE,
+		.type = MT_DEVICE,
+	},
+	{
+		.virtual = IO_SDMMC_VIRT,
+		.pfn = __phys_to_pfn(IO_SDMMC_PHYS),
+		.length = IO_SDMMC_SIZE,
+		.type = MT_DEVICE,
+	},
 };
 
 void __init tegra_map_common_io(void)
