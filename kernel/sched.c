@@ -8510,7 +8510,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 		/* Propagate contribution to hierarchy */
 		raw_spin_lock_irqsave(&rq->lock, flags);
 		for_each_sched_entity(se)
-			update_cfs_shares(group_cfs_rq(se), 0);
+			update_cfs_shares(group_cfs_rq(se));
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 	}
 
