@@ -331,6 +331,7 @@ static void mdm6600_disconnect(struct usb_serial *serial)
 	if (modem->number == MODEM_INTERFACE_NUM) {
 		disable_irq_wake(mdm6600_wake_irq);
 		free_irq(mdm6600_wake_irq, modem);
+		mdm6600_wake_irq_enabled = false;
 		cancel_work_sync(&modem->wake_work);
 	}
 
