@@ -725,7 +725,7 @@ static void update_cfs_load(struct cfs_rq *cfs_rq, int global_update)
 	if (cfs_rq->tg == &root_task_group)
 		return;
 
-	now = rq_of(cfs_rq)->clock;
+	now = rq_of(cfs_rq)->clock_task;
 	delta = now - cfs_rq->load_stamp;
 
 	/* truncate load history at 4 idle periods */
