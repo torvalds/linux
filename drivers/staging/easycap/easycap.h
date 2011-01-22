@@ -218,28 +218,28 @@
  */
 /*---------------------------------------------------------------------------*/
 enum {
-AT_720x576,
-AT_704x576,
-AT_640x480,
-AT_720x480,
-AT_360x288,
-AT_320x240,
-AT_360x240,
-RESOLUTION_MANY
+	AT_720x576,
+	AT_704x576,
+	AT_640x480,
+	AT_720x480,
+	AT_360x288,
+	AT_320x240,
+	AT_360x240,
+	RESOLUTION_MANY
 };
 enum {
-FMT_UYVY,
-FMT_YUY2,
-FMT_RGB24,
-FMT_RGB32,
-FMT_BGR24,
-FMT_BGR32,
-PIXELFORMAT_MANY
+	FMT_UYVY,
+	FMT_YUY2,
+	FMT_RGB24,
+	FMT_RGB32,
+	FMT_BGR24,
+	FMT_BGR32,
+	PIXELFORMAT_MANY
 };
 enum {
-FIELD_NONE,
-FIELD_INTERLACED,
-INTERLACE_MANY
+	FIELD_NONE,
+	FIELD_INTERLACED,
+	INTERLACE_MANY
 };
 #define SETTINGS_MANY	(STANDARD_MANY * \
 			RESOLUTION_MANY * \
@@ -252,50 +252,50 @@ INTERLACE_MANY
  */
 /*---------------------------------------------------------------------------*/
 struct easycap_dongle {
-struct easycap *peasycap;
-struct mutex mutex_video;
-struct mutex mutex_audio;
+	struct easycap *peasycap;
+	struct mutex mutex_video;
+	struct mutex mutex_audio;
 };
 /*---------------------------------------------------------------------------*/
 struct data_buffer {
-struct list_head list_head;
-void *pgo;
-void *pto;
-__u16 kount;
-__u16 input;
+	struct list_head list_head;
+	void *pgo;
+	void *pto;
+	__u16 kount;
+	__u16 input;
 };
 /*---------------------------------------------------------------------------*/
 struct data_urb {
-struct list_head list_head;
-struct urb *purb;
-int isbuf;
-int length;
+	struct list_head list_head;
+	struct urb *purb;
+	int isbuf;
+	int length;
 };
 /*---------------------------------------------------------------------------*/
 struct easycap_standard {
-__u16 mask;
+	__u16 mask;
 struct v4l2_standard v4l2_standard;
 };
 struct easycap_format {
-__u16 mask;
-char name[128];
+	__u16 mask;
+	char name[128];
 struct v4l2_format v4l2_format;
 };
 struct inputset {
-int input;
-int input_ok;
-int standard_offset;
-int standard_offset_ok;
-int format_offset;
-int format_offset_ok;
-int brightness;
-int brightness_ok;
-int contrast;
-int contrast_ok;
-int saturation;
-int saturation_ok;
-int hue;
-int hue_ok;
+	int input;
+	int input_ok;
+	int standard_offset;
+	int standard_offset_ok;
+	int format_offset;
+	int format_offset_ok;
+	int brightness;
+	int brightness_ok;
+	int contrast;
+	int contrast_ok;
+	int saturation;
+	int saturation_ok;
+	int hue;
+	int hue_ok;
 };
 /*---------------------------------------------------------------------------*/
 /*
@@ -306,187 +306,186 @@ int hue_ok;
 /*---------------------------------------------------------------------------*/
 struct easycap {
 #define TELLTALE "expectedstring"
-char telltale[16];
-int isdongle;
-int minor;
+	char telltale[16];
+	int isdongle;
+	int minor;
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-struct video_device video_device;
+	struct video_device video_device;
 #if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
-struct v4l2_device v4l2_device;
+	struct v4l2_device v4l2_device;
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-int status;
-unsigned int audio_pages_per_fragment;
-unsigned int audio_bytes_per_fragment;
-unsigned int audio_buffer_page_many;
+	int status;
+	unsigned int audio_pages_per_fragment;
+	unsigned int audio_bytes_per_fragment;
+	unsigned int audio_buffer_page_many;
 
 #define UPSAMPLE
 #if defined(UPSAMPLE)
 __s16 oldaudio;
 #endif /*UPSAMPLE*/
 
-int ilk;
-bool microphone;
+	int ilk;
+	bool microphone;
 
-struct usb_device *pusb_device;
-struct usb_interface *pusb_interface;
+	struct usb_device *pusb_device;
+	struct usb_interface *pusb_interface;
 
-struct kref kref;
+	struct kref kref;
 
-int queued[FRAME_BUFFER_MANY];
-int done[FRAME_BUFFER_MANY];
+	int queued[FRAME_BUFFER_MANY];
+	int done[FRAME_BUFFER_MANY];
 
-wait_queue_head_t wq_video;
-wait_queue_head_t wq_audio;
-wait_queue_head_t wq_trigger;
+	wait_queue_head_t wq_video;
+	wait_queue_head_t wq_audio;
+	wait_queue_head_t wq_trigger;
 
-int input;
-int polled;
-int standard_offset;
-int format_offset;
-struct inputset inputset[INPUT_MANY];
+	int input;
+	int polled;
+	int standard_offset;
+	int format_offset;
+	struct inputset inputset[INPUT_MANY];
 
-bool ntsc;
-int fps;
-int usec;
-int tolerate;
-int skip;
-int skipped;
-int lost[INPUT_MANY];
-int merit[180];
+	bool ntsc;
+	int fps;
+	int usec;
+	int tolerate;
+	int skip;
+	int skipped;
+	int lost[INPUT_MANY];
+	int merit[180];
 
-struct timeval timeval0;
-struct timeval timeval1;
-struct timeval timeval2;
-struct timeval timeval3;
-struct timeval timeval6;
-struct timeval timeval7;
-struct timeval timeval8;
-long long int dnbydt;
+	struct timeval timeval0;
+	struct timeval timeval1;
+	struct timeval timeval2;
+	struct timeval timeval3;
+	struct timeval timeval6;
+	struct timeval timeval7;
+	struct timeval timeval8;
+	long long int dnbydt;
 
-int    video_interface;
-int    video_altsetting_on;
-int    video_altsetting_off;
-int    video_endpointnumber;
-int    video_isoc_maxframesize;
-int    video_isoc_buffer_size;
-int    video_isoc_framesperdesc;
+	int    video_interface;
+	int    video_altsetting_on;
+	int    video_altsetting_off;
+	int    video_endpointnumber;
+	int    video_isoc_maxframesize;
+	int    video_isoc_buffer_size;
+	int    video_isoc_framesperdesc;
 
-int    video_isoc_streaming;
-int    video_isoc_sequence;
-int    video_idle;
-int    video_eof;
-int    video_junk;
+	int    video_isoc_streaming;
+	int    video_isoc_sequence;
+	int    video_idle;
+	int    video_eof;
+	int    video_junk;
 
-struct data_buffer video_isoc_buffer[VIDEO_ISOC_BUFFER_MANY];
-struct data_buffer
-	     field_buffer[FIELD_BUFFER_MANY][(FIELD_BUFFER_SIZE/PAGE_SIZE)];
-struct data_buffer
-	     frame_buffer[FRAME_BUFFER_MANY][(FRAME_BUFFER_SIZE/PAGE_SIZE)];
+	struct data_buffer video_isoc_buffer[VIDEO_ISOC_BUFFER_MANY];
+	struct data_buffer field_buffer[FIELD_BUFFER_MANY]
+					[(FIELD_BUFFER_SIZE/PAGE_SIZE)];
+	struct data_buffer frame_buffer[FRAME_BUFFER_MANY]
+					[(FRAME_BUFFER_SIZE/PAGE_SIZE)];
 
-struct list_head urb_video_head;
-struct list_head *purb_video_head;
+	struct list_head urb_video_head;
+	struct list_head *purb_video_head;
 
-__u8 cache[8];
-__u8 *pcache;
-int video_mt;
-int audio_mt;
-long long audio_bytes;
-__u32 isequence;
+	__u8 cache[8];
+	__u8 *pcache;
+	int video_mt;
+	int audio_mt;
+	long long audio_bytes;
+	__u32 isequence;
 
-int vma_many;
-
+	int vma_many;
 /*---------------------------------------------------------------------------*/
 /*
  *  BUFFER INDICATORS
  */
 /*---------------------------------------------------------------------------*/
-int field_fill;		/* Field buffer being filled by easycap_complete().  */
+	int field_fill;	/* Field buffer being filled by easycap_complete().  */
 			/*   Bumped only by easycap_complete().              */
-int field_page;		/* Page of field buffer page being filled by         */
+	int field_page;	/* Page of field buffer page being filled by         */
 			/*   easycap_complete().                             */
-int field_read;		/* Field buffer to be read by field2frame().         */
+	int field_read;	/* Field buffer to be read by field2frame().         */
 			/*   Bumped only by easycap_complete().              */
-int frame_fill;		/* Frame buffer being filled by field2frame().       */
+	int frame_fill;	/* Frame buffer being filled by field2frame().       */
 			/*   Bumped only by easycap_dqbuf() when             */
 			/*   field2frame() has created a complete frame.     */
-int frame_read;		/* Frame buffer offered to user by DQBUF.            */
+	int frame_read;	/* Frame buffer offered to user by DQBUF.            */
 			/*   Set only by easycap_dqbuf() to trail frame_fill.*/
-int frame_lock;		/* Flag set to 1 by DQBUF and cleared by QBUF        */
+	int frame_lock;	/* Flag set to 1 by DQBUF and cleared by QBUF        */
 /*---------------------------------------------------------------------------*/
 /*
  *  IMAGE PROPERTIES
  */
 /*---------------------------------------------------------------------------*/
-__u32                   pixelformat;
-int                     width;
-int                     height;
-int                     bytesperpixel;
-bool                    byteswaporder;
-bool                    decimatepixel;
-bool                    offerfields;
-int                     frame_buffer_used;
-int                     frame_buffer_many;
-int                     videofieldamount;
+	__u32                   pixelformat;
+	int                     width;
+	int                     height;
+	int                     bytesperpixel;
+	bool                    byteswaporder;
+	bool                    decimatepixel;
+	bool                    offerfields;
+	int                     frame_buffer_used;
+	int                     frame_buffer_many;
+	int                     videofieldamount;
 
-int                     brightness;
-int                     contrast;
-int                     saturation;
-int                     hue;
+	int                     brightness;
+	int                     contrast;
+	int                     saturation;
+	int                     hue;
 
-int allocation_video_urb;
-int allocation_video_page;
-int allocation_video_struct;
-int registered_video;
+	int allocation_video_urb;
+	int allocation_video_page;
+	int allocation_video_struct;
+	int registered_video;
 /*---------------------------------------------------------------------------*/
 /*
  *  ALSA
  */
 /*---------------------------------------------------------------------------*/
 #if defined(EASYCAP_NEEDS_ALSA)
-struct snd_pcm_hardware alsa_hardware;
-struct snd_card *psnd_card;
-struct snd_pcm *psnd_pcm;
-struct snd_pcm_substream *psubstream;
-int dma_fill;
-int dma_next;
-int dma_read;
+	struct snd_pcm_hardware alsa_hardware;
+	struct snd_card *psnd_card;
+	struct snd_pcm *psnd_pcm;
+	struct snd_pcm_substream *psubstream;
+	int dma_fill;
+	int dma_next;
+	int dma_read;
 #endif /*EASYCAP_NEEDS_ALSA*/
 /*---------------------------------------------------------------------------*/
 /*
  *  SOUND PROPERTIES
  */
 /*---------------------------------------------------------------------------*/
-int audio_interface;
-int audio_altsetting_on;
-int audio_altsetting_off;
-int audio_endpointnumber;
-int audio_isoc_maxframesize;
-int audio_isoc_buffer_size;
-int audio_isoc_framesperdesc;
+	int audio_interface;
+	int audio_altsetting_on;
+	int audio_altsetting_off;
+	int audio_endpointnumber;
+	int audio_isoc_maxframesize;
+	int audio_isoc_buffer_size;
+	int audio_isoc_framesperdesc;
 
-int audio_isoc_streaming;
-int audio_idle;
-int audio_eof;
-int volume;
-int mute;
-s8 gain;
+	int audio_isoc_streaming;
+	int audio_idle;
+	int audio_eof;
+	int volume;
+	int mute;
+	s8 gain;
 
-struct data_buffer audio_isoc_buffer[AUDIO_ISOC_BUFFER_MANY];
+	struct data_buffer audio_isoc_buffer[AUDIO_ISOC_BUFFER_MANY];
 
-struct list_head urb_audio_head;
-struct list_head *purb_audio_head;
+	struct list_head urb_audio_head;
+	struct list_head *purb_audio_head;
 /*---------------------------------------------------------------------------*/
 /*
  *  BUFFER INDICATORS
  */
 /*---------------------------------------------------------------------------*/
-int audio_fill;		/* Audio buffer being filled by easycap_complete().  */
+	int audio_fill;	/* Audio buffer being filled by easycap_complete().  */
 			/*   Bumped only by easycap_complete().              */
-int audio_read;		/* Audio buffer page being read by easycap_read().   */
+	int audio_read;	/* Audio buffer page being read by easycap_read().   */
 			/*   Set by easycap_read() to trail audio_fill by    */
 			/*   one fragment.                                   */
 /*---------------------------------------------------------------------------*/
@@ -495,18 +494,18 @@ int audio_read;		/* Audio buffer page being read by easycap_read().   */
  */
 /*---------------------------------------------------------------------------*/
 
-int audio_buffer_many;
+	int audio_buffer_many;
 
-int allocation_audio_urb;
-int allocation_audio_page;
-int allocation_audio_struct;
-int registered_audio;
+	int allocation_audio_urb;
+	int allocation_audio_page;
+	int allocation_audio_struct;
+	int registered_audio;
 
-long long int audio_sample;
-long long int audio_niveau;
-long long int audio_square;
+	long long int audio_sample;
+	long long int audio_niveau;
+	long long int audio_square;
 
-struct data_buffer audio_buffer[];
+	struct data_buffer audio_buffer[];
 };
 /*---------------------------------------------------------------------------*/
 /*
