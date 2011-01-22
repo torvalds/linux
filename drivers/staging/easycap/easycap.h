@@ -42,8 +42,8 @@
  */
 /*---------------------------------------------------------------------------*/
 
-#if (!defined(EASYCAP_H))
-#define EASYCAP_H
+#ifndef __EASYCAP_H__
+#define __EASYCAP_H__
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -746,4 +746,4 @@ extern struct usb_class_driver easyoss_class;
 extern const struct file_operations easyoss_fops;
 #endif /*EASYCAP_NEEDS_ALSA*/
 
-#endif /*EASYCAP_H*/
+#endif /* !__EASYCAP_H__  */
