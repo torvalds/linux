@@ -151,8 +151,6 @@ static int pwc_video_close(struct file *file);
 static ssize_t pwc_video_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos);
 static unsigned int pwc_video_poll(struct file *file, poll_table *wait);
-static long  pwc_video_ioctl(struct file *file,
-			    unsigned int ioctlnr, unsigned long arg);
 static int  pwc_video_mmap(struct file *file, struct vm_area_struct *vma);
 
 static const struct v4l2_file_operations pwc_fops = {
@@ -162,7 +160,7 @@ static const struct v4l2_file_operations pwc_fops = {
 	.read =		pwc_video_read,
 	.poll =		pwc_video_poll,
 	.mmap =		pwc_video_mmap,
-	.unlocked_ioctl = pwc_video_ioctl,
+	.unlocked_ioctl = video_ioctl2,
 };
 static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
@@ -1378,23 +1376,6 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static long pwc_video_ioctl(struct file *file,
-			   unsigned int cmd, unsigned long arg)
-{
-	struct video_device *vdev = file->private_data;
-	struct pwc_device *pdev;
-	long r = -ENODEV;
-
-	if (!vdev)
-		goto out;
-	pdev = video_get_drvdata(vdev);
-
-	if (!pdev->unplugged)
-		r = video_usercopy(file, cmd, arg, pwc_video_do_ioctl);
-out:
-	return r;
-}
-
 static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct video_device *vdev = file->private_data;
@@ -1744,6 +1725,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	memcpy(pdev->vdev, &pwc_template, sizeof(pwc_template));
 	pdev->vdev->parent = &intf->dev;
 	pdev->vdev->lock = &pdev->modlock;
+	pdev->vdev->ioctl_ops = &pwc_ioctl_ops;
 	strcpy(pdev->vdev->name, name);
 	video_set_drvdata(pdev->vdev, pdev);
 
