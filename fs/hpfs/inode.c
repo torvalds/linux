@@ -6,7 +6,6 @@
  *  inode VFS functions
  */
 
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include "hpfs_fn.h"
 
@@ -267,7 +266,7 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	int error = -EINVAL;
 
-	lock_kernel();
+	hpfs_lock(inode->i_sb);
 	if (inode->i_ino == hpfs_sb(inode->i_sb)->sb_root)
 		goto out_unlock;
 	if ((attr->ia_valid & ATTR_SIZE) && attr->ia_size > inode->i_size)
@@ -290,7 +289,7 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	hpfs_write_inode(inode);
 
  out_unlock:
-	unlock_kernel();
+	hpfs_unlock(inode->i_sb);
 	return error;
 }
 
@@ -307,8 +306,8 @@ void hpfs_evict_inode(struct inode *inode)
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
 	if (!inode->i_nlink) {
-		lock_kernel();
+		hpfs_lock(inode->i_sb);
 		hpfs_remove_fnode(inode->i_sb, inode->i_ino);
-		unlock_kernel();
+		hpfs_unlock(inode->i_sb);
 	}
 }

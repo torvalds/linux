@@ -342,3 +342,25 @@ static inline time32_t gmt_to_local(struct super_block *s, time_t t)
 	extern struct timezone sys_tz;
 	return t - sys_tz.tz_minuteswest * 60 - hpfs_sb(s)->sb_timeshift;
 }
+
+/*
+ * Locking:
+ *
+ * hpfs_lock() is a leftover from the big kernel lock.
+ * Right now, these functions are empty and only left
+ * for documentation purposes. The file system no longer
+ * works on SMP systems, so the lock is not needed
+ * any more.
+ *
+ * If someone is interested in making it work again, this
+ * would be the place to start by adding a per-superblock
+ * mutex and fixing all the bugs and performance issues
+ * caused by that.
+ */
+static inline void hpfs_lock(struct super_block *s)
+{
+}
+
+static inline void hpfs_unlock(struct super_block *s)
+{
+}
