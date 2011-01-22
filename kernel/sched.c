@@ -7796,6 +7796,8 @@ static void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
 	INIT_LIST_HEAD(&cfs_rq->tasks);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	cfs_rq->rq = rq;
+	/* allow initial update_cfs_load() to truncate */
+	cfs_rq->load_stamp = 1;
 #endif
 	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
 }

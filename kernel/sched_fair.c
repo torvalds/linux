@@ -733,6 +733,7 @@ static void update_cfs_load(struct cfs_rq *cfs_rq, int global_update)
 	    now - cfs_rq->load_last > 4 * period) {
 		cfs_rq->load_period = 0;
 		cfs_rq->load_avg = 0;
+		delta = period - 1;
 	}
 
 	cfs_rq->load_stamp = now;
