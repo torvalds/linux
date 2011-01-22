@@ -23,6 +23,7 @@
 #include <mach/rk29_iomap.h>
 #include <mach/rk29-dma-pl330.h> 
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
+#include <mach/board.h>
 #include "devices.h"
 #ifdef CONFIG_ADC_RK29
 static struct resource rk29_adc_resource[] = {
@@ -717,4 +718,30 @@ struct platform_device rk29_device_usb20_host = {
     .resource         = usb20_host_resource,
 };
 #endif
+
+static int boot_mode;
+static int __init boot_mode_init(char *s)
+{
+	if (!strcmp(s, "normal"))
+		boot_mode = BOOT_MODE_NORMAL;
+	else if (!strcmp(s, "factory2"))
+		boot_mode = BOOT_MODE_FACTORY2;
+	else if (!strcmp(s, "recovery"))
+		boot_mode = BOOT_MODE_RECOVERY;
+	else if (!strcmp(s, "charge"))
+		boot_mode = BOOT_MODE_CHARGE;
+	else if (!strcmp(s, "power_test"))
+		boot_mode = BOOT_MODE_POWER_TEST;
+	else if (!strcmp(s, "offmode_charging"))
+		boot_mode = BOOT_MODE_OFFMODE_CHARGING;
+
+	return 1;
+}
+__setup("androidboot.mode=", boot_mode_init);
+
+int board_boot_mode(void)
+{
+	return boot_mode;
+}
+EXPORT_SYMBOL(board_boot_mode);
 
