@@ -747,7 +747,8 @@ static void fw_device_shutdown(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	int minor = MINOR(device->device.devt);
 
-	if (time_is_after_jiffies(device->card->reset_jiffies + SHUTDOWN_DELAY)
+	if (time_before64(get_jiffies_64(),
+			  device->card->reset_jiffies + SHUTDOWN_DELAY)
 	    && !list_empty(&device->card->link)) {
 		schedule_delayed_work(&device->work, SHUTDOWN_DELAY);
 		return;
