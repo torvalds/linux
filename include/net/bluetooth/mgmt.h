@@ -184,3 +184,10 @@ struct mgmt_ev_disconnected {
 	__le16 index;
 	bdaddr_t bdaddr;
 } __packed;
+
+#define MGMT_EV_CONNECT_FAILED		0x000D
+struct mgmt_ev_connect_failed {
+	__le16 index;
+	bdaddr_t bdaddr;
+	__u8 status;
+} __packed;

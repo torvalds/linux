@@ -1166,8 +1166,11 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			hci_send_cmd(hdev, HCI_OP_CHANGE_CONN_PTYPE,
 							sizeof(cp), &cp);
 		}
-	} else
+	} else {
 		conn->state = BT_CLOSED;
+		if (conn->type == ACL_LINK)
+			mgmt_connect_failed(hdev->id, &ev->bdaddr, ev->status);
+	}
 
 	if (conn->type == ACL_LINK)
 		hci_sco_setup(conn, ev->status);

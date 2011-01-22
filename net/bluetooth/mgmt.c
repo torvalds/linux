@@ -1227,3 +1227,14 @@ int mgmt_disconnect_failed(u16 index)
 
 	return err;
 }
+
+int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status)
+{
+	struct mgmt_ev_connect_failed ev;
+
+	put_unaligned_le16(index, &ev.index);
+	bacpy(&ev.bdaddr, bdaddr);
+	ev.status = status;
+
+	return mgmt_event(MGMT_EV_CONNECT_FAILED, &ev, sizeof(ev), NULL);
+}

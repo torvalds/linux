@@ -717,6 +717,7 @@ int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type);
 int mgmt_connected(u16 index, bdaddr_t *bdaddr);
 int mgmt_disconnected(u16 index, bdaddr_t *bdaddr);
 int mgmt_disconnect_failed(u16 index);
+int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
