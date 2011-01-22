@@ -662,6 +662,13 @@ init:
 			goto unlock;
 	}
 
+	if (ar->fw.tx_seq_table) {
+		err = carl9170_write_reg(ar, ar->fw.tx_seq_table + vif_id * 4,
+					 0);
+		if (err)
+			goto unlock;
+	}
+
 unlock:
 	if (err && (vif_id >= 0)) {
 		vif_priv->active = false;

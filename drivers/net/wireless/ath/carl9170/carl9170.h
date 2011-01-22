@@ -283,6 +283,7 @@ struct ar9170 {
 		unsigned int mem_blocks;
 		unsigned int mem_block_size;
 		unsigned int rx_size;
+		unsigned int tx_seq_table;
 	} fw;
 
 	/* reset / stuck frames/queue detection */
