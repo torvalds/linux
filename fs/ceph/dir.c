@@ -161,7 +161,7 @@ more:
 	filp->f_pos = di->offset;
 	err = filldir(dirent, dentry->d_name.name,
 		      dentry->d_name.len, di->offset,
-		      dentry->d_inode->i_ino,
+		      ceph_translate_ino(dentry->d_sb, dentry->d_inode->i_ino),
 		      dentry->d_inode->i_mode >> 12);
 
 	if (last) {
@@ -245,15 +245,17 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		dout("readdir off 0 -> '.'\n");
 		if (filldir(dirent, ".", 1, ceph_make_fpos(0, 0),
-			    inode->i_ino, inode->i_mode >> 12) < 0)
+			    ceph_translate_ino(inode->i_sb, inode->i_ino),
+			    inode->i_mode >> 12) < 0)
 			return 0;
 		filp->f_pos = 1;
 		off = 1;
 	}
 	if (filp->f_pos == 1) {
+		ino_t ino = filp->f_dentry->d_parent->d_inode->i_ino;
 		dout("readdir off 1 -> '..'\n");
 		if (filldir(dirent, "..", 2, ceph_make_fpos(0, 1),
-			    filp->f_dentry->d_parent->d_inode->i_ino,
+			    ceph_translate_ino(inode->i_sb, ino),
 			    inode->i_mode >> 12) < 0)
 			return 0;
 		filp->f_pos = 2;
@@ -377,7 +379,8 @@ more:
 		if (filldir(dirent,
 			    rinfo->dir_dname[off - fi->offset],
 			    rinfo->dir_dname_len[off - fi->offset],
-			    pos, ino, ftype) < 0) {
+			    pos,
+			    ceph_translate_ino(inode->i_sb, ino), ftype) < 0) {
 			dout("filldir stopping us...\n");
 			return 0;
 		}

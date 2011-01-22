@@ -27,6 +27,7 @@
 #define CEPH_MOUNT_OPT_DIRSTAT         (1<<4) /* `cat dirname` for stats */
 #define CEPH_MOUNT_OPT_RBYTES          (1<<5) /* dir st_bytes = rbytes */
 #define CEPH_MOUNT_OPT_NOASYNCREADDIR  (1<<7) /* no dcache readdir */
+#define CEPH_MOUNT_OPT_INO32           (1<<8) /* 32 bit inos */
 
 #define CEPH_MOUNT_OPT_DEFAULT    (CEPH_MOUNT_OPT_RBYTES)
 
@@ -319,6 +320,16 @@ static inline struct ceph_inode_info *ceph_inode(struct inode *inode)
 	return container_of(inode, struct ceph_inode_info, vfs_inode);
 }
 
+static inline struct ceph_fs_client *ceph_inode_to_client(struct inode *inode)
+{
+	return (struct ceph_fs_client *)inode->i_sb->s_fs_info;
+}
+
+static inline struct ceph_fs_client *ceph_sb_to_client(struct super_block *sb)
+{
+	return (struct ceph_fs_client *)sb->s_fs_info;
+}
+
 static inline struct ceph_vino ceph_vino(struct inode *inode)
 {
 	return ceph_inode(inode)->i_vino;
@@ -327,18 +338,48 @@ static inline struct ceph_vino ceph_vino(struct inode *inode)
 /*
  * ino_t is <64 bits on many architectures, blech.
  *
- * don't include snap in ino hash, at least for now.
+ *               i_ino (kernel inode)   st_ino (userspace)
+ * i386          32                     32
+ * x86_64+ino32  64                     32
+ * x86_64        64                     64
+ */
+static inline u32 ceph_ino_to_ino32(ino_t ino)
+{
+	ino ^= ino >> (sizeof(ino) * 8 - 32);
+	if (!ino)
+		ino = 1;
+	return ino;
+}
+
+/*
+ * kernel i_ino value
  */
 static inline ino_t ceph_vino_to_ino(struct ceph_vino vino)
 {
 	ino_t ino = (ino_t)vino.ino;  /* ^ (vino.snap << 20); */
 #if BITS_PER_LONG == 32
-	ino ^= vino.ino >> (sizeof(u64)-sizeof(ino_t)) * 8;
-	if (!ino)
-		ino = 1;
+	ino = ceph_ino_to_ino32(ino);
 #endif
 	return ino;
 }
+
+/*
+ * user-visible ino (stat, filldir)
+ */
+#if BITS_PER_LONG == 32
+static inline ino_t ceph_translate_ino(struct super_block *sb, ino_t ino)
+{
+	return ino;
+}
+#else
+static inline ino_t ceph_translate_ino(struct super_block *sb, ino_t ino)
+{
+	if (ceph_test_mount_opt(ceph_sb_to_client(sb), INO32))
+		ino = ceph_ino_to_ino32(ino);
+	return ino;
+}
+#endif
+
 
 /* for printf-style formatting */
 #define ceph_vinop(i) ceph_inode(i)->i_vino.ino, ceph_inode(i)->i_vino.snap
@@ -428,13 +469,6 @@ static inline loff_t ceph_make_fpos(unsigned frag, unsigned off)
 	return ((loff_t)frag << 32) | (loff_t)off;
 }
 
-static inline int ceph_set_ino_cb(struct inode *inode, void *data)
-{
-	ceph_inode(inode)->i_vino = *(struct ceph_vino *)data;
-	inode->i_ino = ceph_vino_to_ino(*(struct ceph_vino *)data);
-	return 0;
-}
-
 /*
  * caps helpers
  */
@@ -503,15 +537,6 @@ extern void ceph_reservation_status(struct ceph_fs_client *client,
 				    int *total, int *avail, int *used,
 				    int *reserved, int *min);
 
-static inline struct ceph_fs_client *ceph_inode_to_client(struct inode *inode)
-{
-	return (struct ceph_fs_client *)inode->i_sb->s_fs_info;
-}
-
-static inline struct ceph_fs_client *ceph_sb_to_client(struct super_block *sb)
-{
-	return (struct ceph_fs_client *)sb->s_fs_info;
-}
 
 
 /*

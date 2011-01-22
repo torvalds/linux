@@ -131,6 +131,7 @@ enum {
 	Opt_rbytes,
 	Opt_norbytes,
 	Opt_noasyncreaddir,
+	Opt_ino32,
 };
 
 static match_table_t fsopt_tokens = {
@@ -150,6 +151,7 @@ static match_table_t fsopt_tokens = {
 	{Opt_rbytes, "rbytes"},
 	{Opt_norbytes, "norbytes"},
 	{Opt_noasyncreaddir, "noasyncreaddir"},
+	{Opt_ino32, "ino32"},
 	{-1, NULL}
 };
 
@@ -224,6 +226,9 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_noasyncreaddir:
 		fsopt->flags |= CEPH_MOUNT_OPT_NOASYNCREADDIR;
+		break;
+	case Opt_ino32:
+		fsopt->flags |= CEPH_MOUNT_OPT_INO32;
 		break;
 	default:
 		BUG_ON(token);

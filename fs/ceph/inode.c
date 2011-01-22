@@ -36,6 +36,13 @@ static void ceph_vmtruncate_work(struct work_struct *work);
 /*
  * find or create an inode, given the ceph ino number
  */
+static int ceph_set_ino_cb(struct inode *inode, void *data)
+{
+	ceph_inode(inode)->i_vino = *(struct ceph_vino *)data;
+	inode->i_ino = ceph_vino_to_ino(*(struct ceph_vino *)data);
+	return 0;
+}
+
 struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino)
 {
 	struct inode *inode;
@@ -1809,7 +1816,7 @@ int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	err = ceph_do_getattr(inode, CEPH_STAT_CAP_INODE_ALL);
 	if (!err) {
 		generic_fillattr(inode, stat);
-		stat->ino = inode->i_ino;
+		stat->ino = ceph_translate_ino(inode->i_sb, inode->i_ino);
 		if (ceph_snap(inode) != CEPH_NOSNAP)
 			stat->dev = ceph_snap(inode);
 		else
