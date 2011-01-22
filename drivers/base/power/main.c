@@ -48,6 +48,10 @@ static pm_message_t pm_transition;
 
 static void dpm_drv_timeout(unsigned long data);
 static DEFINE_TIMER(dpm_drv_wd, dpm_drv_timeout, 0, 0);
+static struct {
+	struct device *dev;
+	struct task_struct *tsk;
+} dpm_drv_wd_data;
 
 /*
  * Set once the preparation of devices for a PM transition has started, reset
@@ -601,10 +605,15 @@ static bool is_async(struct device *dev)
  */
 static void dpm_drv_timeout(unsigned long data)
 {
-	struct device *dev = (struct device *) data;
+	struct device *dev = dpm_drv_wd_data.dev;
+	struct task_struct *tsk = dpm_drv_wd_data.tsk;
 
 	printk(KERN_EMERG "**** DPM device timeout: %s (%s)\n", dev_name(dev),
 	       (dev->driver ? dev->driver->name : "no driver"));
+
+	printk(KERN_EMERG "dpm suspend stack:\n");
+	show_stack(tsk, NULL);
+
 	BUG();
 }
 
@@ -615,7 +624,9 @@ static void dpm_drv_timeout(unsigned long data)
  */
 static void dpm_drv_wdset(struct device *dev)
 {
-	dpm_drv_wd.data = (unsigned long) dev;
+	dpm_drv_wd_data.dev = dev;
+	dpm_drv_wd_data.tsk = get_current();
+	dpm_drv_wd.data = (unsigned long) &dpm_drv_wd_data;
 	mod_timer(&dpm_drv_wd, jiffies + (HZ * 3));
 }
 

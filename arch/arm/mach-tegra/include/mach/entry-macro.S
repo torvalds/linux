@@ -20,7 +20,7 @@
 #include <asm/hardware/gic.h>
 
 	/* Uses the GIC interrupt controller built into the cpu */
-#define ICTRL_BASE (IO_CPU_VIRT + 0x100)
+#define ICTRL_BASE (IO_CPU_VIRT + 0x40100)
 
 	.macro	disable_fiq
 	.endm
