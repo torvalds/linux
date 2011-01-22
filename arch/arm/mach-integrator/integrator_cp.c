@@ -478,14 +478,16 @@ static struct clcd_panel vga = {
  */
 static void cp_clcd_enable(struct clcd_fb *fb)
 {
-	u32 val;
+	struct fb_var_screeninfo *var = &fb->fb.var;
+	u32 val = CM_CTRL_STATIC1 | CM_CTRL_STATIC2;
 
-	if (fb->fb.var.bits_per_pixel <= 8)
-		val = CM_CTRL_LCDMUXSEL_VGA_8421BPP;
+	if (var->bits_per_pixel <= 8 ||
+	    (var->bits_per_pixel == 16 && var->green.length == 5))
+		/* Pseudocolor, RGB555, BGR555 */
+		val |= CM_CTRL_LCDMUXSEL_VGA555_TFT555;
 	else if (fb->fb.var.bits_per_pixel <= 16)
-		val = CM_CTRL_LCDMUXSEL_VGA_16BPP
-			| CM_CTRL_LCDEN0 | CM_CTRL_LCDEN1
-			| CM_CTRL_STATIC1 | CM_CTRL_STATIC2;
+		/* truecolor RGB565 */
+		val |= CM_CTRL_LCDMUXSEL_VGA565_TFT555;
 	else
 		val = 0; /* no idea for this, don't trust the docs */
 
