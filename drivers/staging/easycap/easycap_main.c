@@ -46,7 +46,7 @@ static struct mutex mutex_dongle;
  *  PARAMETERS APPLICABLE TO ENTIRE DRIVER, I.E. BOTH VIDEO AND AUDIO
  */
 /*---------------------------------------------------------------------------*/
-struct usb_device_id easycap_usb_device_id_table[] = {
+static struct usb_device_id easycap_usb_device_id_table[] = {
 { USB_DEVICE(USB_EASYCAP_VENDOR_ID, USB_EASYCAP_PRODUCT_ID) },
 { }
 };
@@ -66,7 +66,7 @@ struct usb_driver easycap_usb_driver = {
  *        THIS IS THE CASE FOR OpenSUSE.
  */
 /*---------------------------------------------------------------------------*/
-const struct file_operations easycap_fops = {
+static const struct file_operations easycap_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open,
 	.release	= easycap_release,
@@ -79,12 +79,12 @@ const struct file_operations easycap_fops = {
 	.mmap		= easycap_mmap,
 	.llseek		= no_llseek,
 };
-struct vm_operations_struct easycap_vm_ops = {
+static const struct vm_operations_struct easycap_vm_ops = {
 	.open  = easycap_vma_open,
 	.close = easycap_vma_close,
 	.fault = easycap_vma_fault,
 };
-struct usb_class_driver easycap_class = {
+static const struct usb_class_driver easycap_class = {
 	.name = "usb/easycap%d",
 	.fops = &easycap_fops,
 	.minor_base = USB_SKEL_MINOR_BASE,
@@ -92,7 +92,7 @@ struct usb_class_driver easycap_class = {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 #if defined(EASYCAP_NEEDS_V4L2_FOPS)
-const struct v4l2_file_operations v4l2_fops = {
+static const struct v4l2_file_operations v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open_noinode,
 	.release	= easycap_release_noinode,
@@ -5067,8 +5067,7 @@ JOM(4, "ends\n");
 return;
 }
 /*****************************************************************************/
-int __init
-easycap_module_init(void)
+static int __init easycap_module_init(void)
 {
 int k, rc;
 
@@ -5097,8 +5096,7 @@ JOT(4, "ends\n");
 return rc;
 }
 /*****************************************************************************/
-void __exit
-easycap_module_exit(void)
+static void __exit easycap_module_exit(void)
 {
 JOT(4, "begins\n");
 

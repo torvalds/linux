@@ -27,6 +27,9 @@
 #if !defined(EASYCAP_SETTINGS_H)
 #define EASYCAP_SETTINGS_H
 
+extern const struct easycap_standard easycap_standard[];
+extern struct v4l2_queryctrl easycap_control[];
+extern struct easycap_format easycap_format[];
 extern struct easycap_dongle easycapdc60_dongle[];
 
 #endif /*EASYCAP_SETTINGS_H*/

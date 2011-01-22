@@ -912,7 +912,7 @@ return -ENOENT;
  *  THE URB AND THE PIPELINE COLLAPSES IRRETRIEVABLY.  BEWARE.
  */
 /*---------------------------------------------------------------------------*/
-int adjust_mute(struct easycap *peasycap, int value)
+static int adjust_mute(struct easycap *peasycap, int value)
 {
 int i1;
 

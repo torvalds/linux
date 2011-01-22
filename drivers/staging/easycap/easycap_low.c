@@ -42,7 +42,10 @@
 #include "easycap_low.h"
 
 /*--------------------------------------------------------------------------*/
-const struct stk1160config { int reg; int set; } stk1160configPAL[256] = {
+static const struct stk1160config {
+	int reg;
+	int set;
+} stk1160configPAL[256] = {
 		{0x000, 0x0098},
 		{0x002, 0x0093},
 
@@ -84,7 +87,7 @@ const struct stk1160config { int reg; int set; } stk1160configPAL[256] = {
 		{0xFFF, 0xFFFF}
 };
 /*--------------------------------------------------------------------------*/
-const struct stk1160config stk1160configNTSC[256] = {
+static const struct stk1160config stk1160configNTSC[256] = {
 		{0x000, 0x0098},
 		{0x002, 0x0093},
 
@@ -126,7 +129,10 @@ const struct stk1160config stk1160configNTSC[256] = {
 		{0xFFF, 0xFFFF}
 };
 /*--------------------------------------------------------------------------*/
-const struct saa7113config { int reg; int set; } saa7113configPAL[256] = {
+static const struct saa7113config{
+	int reg;
+	int set;
+} saa7113configPAL[256] = {
 		{0x01, 0x08},
 #if defined(ANTIALIAS)
 		{0x02, 0xC0},
@@ -184,7 +190,7 @@ const struct saa7113config { int reg; int set; } saa7113configPAL[256] = {
 		{0xFF, 0xFF}
 };
 /*--------------------------------------------------------------------------*/
-const struct saa7113config saa7113configNTSC[256] = {
+static const struct saa7113config saa7113configNTSC[256] = {
 		{0x01, 0x08},
 #if defined(ANTIALIAS)
 		{0x02, 0xC0},

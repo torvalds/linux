@@ -31,6 +31,7 @@ extern struct easycap_standard easycap_standard[];
 extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];
 extern struct usb_driver easycap_usb_driver;
+extern struct easycap_dongle easycapdc60_dongle[];
 #if defined(EASYCAP_NEEDS_ALSA)
 extern struct snd_pcm_ops easycap_alsa_ops;
 extern struct snd_pcm_hardware easycap_pcm_hardware;
