@@ -190,7 +190,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %9s", irq_desc[i].chip->name);
+		seq_printf(p, " %9s", irq_desc[i].irq_data.chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -284,7 +284,7 @@ static void sun4u_irq_enable(unsigned int virt_irq)
 		unsigned int tid;
 
 		cpuid = irq_choose_cpu(virt_irq,
-				       irq_desc[virt_irq].affinity);
+				       irq_desc[virt_irq].irq_data.affinity);
 		imap = data->imap;
 
 		tid = sun4u_compute_tid(imap, cpuid);
@@ -360,7 +360,7 @@ static void sun4v_irq_enable(unsigned int virt_irq)
 {
 	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	unsigned long cpuid = irq_choose_cpu(virt_irq,
-					     irq_desc[virt_irq].affinity);
+					     irq_desc[virt_irq].irq_data.affinity);
 	int err;
 
 	err = sun4v_intr_settarget(ino, cpuid);
@@ -423,7 +423,7 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 	unsigned long cpuid, dev_handle, dev_ino;
 	int err;
 
-	cpuid = irq_choose_cpu(virt_irq, irq_desc[virt_irq].affinity);
+	cpuid = irq_choose_cpu(virt_irq, irq_desc[virt_irq].irq_data.affinity);
 
 	dev_handle = virt_irq_table[virt_irq].dev_handle;
 	dev_ino = virt_irq_table[virt_irq].dev_ino;
@@ -798,9 +798,9 @@ void fixup_irqs(void)
 		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
 		if (irq_desc[irq].action &&
 		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
-			if (irq_desc[irq].chip->set_affinity)
-				irq_desc[irq].chip->set_affinity(irq,
-					irq_desc[irq].affinity);
+			if (irq_desc[irq].irq_data.chip->set_affinity)
+				irq_desc[irq].irq_data.chip->set_affinity(irq,
+					irq_desc[irq].irq_data.affinity);
 		}
 		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	}
