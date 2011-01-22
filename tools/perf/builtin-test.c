@@ -146,7 +146,7 @@ next_pair:
 				if (llabs(skew) < page_size)
 					continue;
 
-				pr_debug("%#Lx: diff end addr for %s v: %#Lx k: %#Lx\n",
+				pr_debug("%#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
 					 sym->start, sym->name, sym->end, pair->end);
 			} else {
 				struct rb_node *nnd;
@@ -168,11 +168,11 @@ detour:
 					goto detour;
 				}
 
-				pr_debug("%#Lx: diff name v: %s k: %s\n",
+				pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
 					 sym->start, sym->name, pair->name);
 			}
 		} else
-			pr_debug("%#Lx: %s not on kallsyms\n", sym->start, sym->name);
+			pr_debug("%#" PRIx64 ": %s not on kallsyms\n", sym->start, sym->name);
 
 		err = -1;
 	}
@@ -211,10 +211,10 @@ detour:
 
 		if (pair->start == pos->start) {
 			pair->priv = 1;
-			pr_info(" %Lx-%Lx %Lx %s in kallsyms as",
+			pr_info(" %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
 				pos->start, pos->end, pos->pgoff, pos->dso->name);
 			if (pos->pgoff != pair->pgoff || pos->end != pair->end)
-				pr_info(": \n*%Lx-%Lx %Lx",
+				pr_info(": \n*%" PRIx64 "-%" PRIx64 " %" PRIx64 "",
 					pair->start, pair->end, pair->pgoff);
 			pr_info(" %s\n", pair->dso->name);
 			pair->priv = 1;
@@ -307,7 +307,7 @@ static int test__open_syscall_event(void)
 	}
 
 	if (evsel->counts->cpu[0].val != nr_open_calls) {
-		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %Ld\n",
+		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %" PRIu64 "\n",
 			 nr_open_calls, evsel->counts->cpu[0].val);
 		goto out_close_fd;
 	}
@@ -421,7 +421,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 
 		expected = nr_open_calls + cpu;
 		if (evsel->counts->cpu[cpu].val != expected) {
-			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %Ld\n",
+			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
 				 expected, cpus->map[cpu], evsel->counts->cpu[cpu].val);
 			goto out_close_fd;
 		}

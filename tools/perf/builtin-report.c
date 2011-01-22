@@ -197,7 +197,7 @@ static int process_read_event(event_t *event, struct sample_data *sample __used,
 					   event->read.value);
 	}
 
-	dump_printf(": %d %d %s %Lu\n", event->read.pid, event->read.tid,
+	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
 		    attr ? __event_name(attr->type, attr->config) : "FAIL",
 		    event->read.value);
 

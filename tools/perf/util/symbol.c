@@ -11,6 +11,7 @@
 #include <sys/param.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include "build-id.h"
 #include "debug.h"
 #include "symbol.h"
@@ -153,7 +154,7 @@ static struct symbol *symbol__new(u64 start, u64 len, u8 binding,
 	self->binding = binding;
 	self->namelen = namelen - 1;
 
-	pr_debug4("%s: %s %#Lx-%#Lx\n", __func__, name, start, self->end);
+	pr_debug4("%s: %s %#" PRIx64 "-%#" PRIx64 "\n", __func__, name, start, self->end);
 
 	memcpy(self->name, name, namelen);
 
@@ -167,7 +168,7 @@ void symbol__delete(struct symbol *self)
 
 static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 {
-	return fprintf(fp, " %llx-%llx %c %s\n",
+	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %c %s\n",
 		       self->start, self->end,
 		       self->binding == STB_GLOBAL ? 'g' :
 		       self->binding == STB_LOCAL  ? 'l' : 'w',
@@ -1215,8 +1216,8 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		}
 
 		if (curr_dso->adjust_symbols) {
-			pr_debug4("%s: adjusting symbol: st_value: %#Lx "
-				  "sh_addr: %#Lx sh_offset: %#Lx\n", __func__,
+			pr_debug4("%s: adjusting symbol: st_value: %#" PRIx64 " "
+				  "sh_addr: %#" PRIx64 " sh_offset: %#" PRIx64 "\n", __func__,
 				  (u64)sym.st_value, (u64)shdr.sh_addr,
 				  (u64)shdr.sh_offset);
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
