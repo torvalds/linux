@@ -148,6 +148,10 @@ struct ixgbe_dcb_config {
 
 /* DCB driver APIs */
 void ixgbe_dcb_unpack_pfc(struct ixgbe_dcb_config *cfg, u8 *pfc_en);
+void ixgbe_dcb_unpack_refill(struct ixgbe_dcb_config *, int, u16 *);
+void ixgbe_dcb_unpack_max(struct ixgbe_dcb_config *, u16 *);
+void ixgbe_dcb_unpack_bwgid(struct ixgbe_dcb_config *, int, u8 *);
+void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *, int, u8 *);
 
 /* DCB credits calculation */
 s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame);

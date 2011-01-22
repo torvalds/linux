@@ -225,10 +225,8 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[0].bwg_percent !=
 	     adapter->dcb_cfg.tc_config[tc].path[0].bwg_percent) ||
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap !=
-	     adapter->dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap)) {
+	     adapter->dcb_cfg.tc_config[tc].path[0].up_to_tc_bitmap))
 		adapter->dcb_set_bitmap |= BIT_PG_TX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
@@ -239,10 +237,8 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 	adapter->temp_dcb_cfg.bw_percentage[0][bwg_id] = bw_pct;
 
 	if (adapter->temp_dcb_cfg.bw_percentage[0][bwg_id] !=
-	    adapter->dcb_cfg.bw_percentage[0][bwg_id]) {
+	    adapter->dcb_cfg.bw_percentage[0][bwg_id])
 		adapter->dcb_set_bitmap |= BIT_PG_TX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
@@ -269,10 +265,8 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[1].bwg_percent !=
 	     adapter->dcb_cfg.tc_config[tc].path[1].bwg_percent) ||
 	    (adapter->temp_dcb_cfg.tc_config[tc].path[1].up_to_tc_bitmap !=
-	     adapter->dcb_cfg.tc_config[tc].path[1].up_to_tc_bitmap)) {
+	     adapter->dcb_cfg.tc_config[tc].path[1].up_to_tc_bitmap))
 		adapter->dcb_set_bitmap |= BIT_PG_RX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
@@ -283,10 +277,8 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
 	adapter->temp_dcb_cfg.bw_percentage[1][bwg_id] = bw_pct;
 
 	if (adapter->temp_dcb_cfg.bw_percentage[1][bwg_id] !=
-	    adapter->dcb_cfg.bw_percentage[1][bwg_id]) {
+	    adapter->dcb_cfg.bw_percentage[1][bwg_id])
 		adapter->dcb_set_bitmap |= BIT_PG_RX;
-		adapter->dcb_set_bitmap |= BIT_RESETLINK;
-	}
 }
 
 static void ixgbe_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int tc,
@@ -421,7 +413,9 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 				ixgbe_up(adapter);
 		}
 		ret = DCB_HW_CHG_RST;
-	} else if (adapter->dcb_set_bitmap & BIT_PFC) {
+	}
+
+	if (adapter->dcb_set_bitmap & BIT_PFC) {
 		u8 pfc_en;
 		ixgbe_dcb_unpack_pfc(&adapter->dcb_cfg, &pfc_en);
 
@@ -431,6 +425,34 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 			ixgbe_dcb_config_pfc_82599(&adapter->hw, pfc_en);
 		ret = DCB_HW_CHG;
 	}
+
+	if (adapter->dcb_set_bitmap & (BIT_PG_TX|BIT_PG_RX)) {
+		u16 refill[MAX_TRAFFIC_CLASS], max[MAX_TRAFFIC_CLASS];
+		u8 bwg_id[MAX_TRAFFIC_CLASS], prio_type[MAX_TRAFFIC_CLASS];
+		int max_frame = adapter->netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+
+#ifdef CONFIG_FCOE
+		if (adapter->netdev->features & NETIF_F_FCOE_MTU)
+			max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
+#endif
+
+		ixgbe_dcb_calculate_tc_credits(&adapter->hw, &adapter->dcb_cfg,
+					       max_frame, DCB_TX_CONFIG);
+		ixgbe_dcb_calculate_tc_credits(&adapter->hw, &adapter->dcb_cfg,
+					       max_frame, DCB_RX_CONFIG);
+
+		ixgbe_dcb_unpack_refill(&adapter->dcb_cfg,
+					DCB_TX_CONFIG, refill);
+		ixgbe_dcb_unpack_max(&adapter->dcb_cfg, max);
+		ixgbe_dcb_unpack_bwgid(&adapter->dcb_cfg,
+				       DCB_TX_CONFIG, bwg_id);
+		ixgbe_dcb_unpack_prio(&adapter->dcb_cfg,
+				      DCB_TX_CONFIG, prio_type);
+
+		ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
+					bwg_id, prio_type);
+	}
+
 	if (adapter->dcb_cfg.pfc_mode_enable)
 		adapter->hw.fc.current_mode = ixgbe_fc_pfc;
 
