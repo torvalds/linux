@@ -130,7 +130,6 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 			err = -ENOMEM;
 			goto err;
 		}
-		qdisc->flags |= TCQ_F_CAN_BYPASS;
 		priv->qdiscs[i] = qdisc;
 	}
 

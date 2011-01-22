@@ -527,6 +527,8 @@ static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
 	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++)
 		skb_queue_head_init(band2list(priv, prio));
 
+	/* Can by-pass the queue discipline */
+	qdisc->flags |= TCQ_F_CAN_BYPASS;
 	return 0;
 }
 
@@ -691,9 +693,6 @@ static void attach_one_default_qdisc(struct net_device *dev,
 			netdev_info(dev, "activation failed\n");
 			return;
 		}
-
-		/* Can by-pass the queue discipline for default qdisc */
-		qdisc->flags |= TCQ_F_CAN_BYPASS;
 	}
 	dev_queue->qdisc_sleeping = qdisc;
 }

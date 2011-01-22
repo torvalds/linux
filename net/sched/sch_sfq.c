@@ -560,6 +560,10 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 		slot_queue_init(&q->slots[i]);
 		sfq_link(q, i);
 	}
+	if (q->limit >= 1)
+		sch->flags |= TCQ_F_CAN_BYPASS;
+	else
+		sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
 }
 
@@ -611,6 +615,8 @@ static unsigned long sfq_get(struct Qdisc *sch, u32 classid)
 static unsigned long sfq_bind(struct Qdisc *sch, unsigned long parent,
 			      u32 classid)
 {
+	/* we cannot bypass queue discipline anymore */
+	sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
 }
 

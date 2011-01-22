@@ -64,11 +64,13 @@ static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
+	bool bypass;
+	bool is_bfifo = sch->ops == &bfifo_qdisc_ops;
 
 	if (opt == NULL) {
 		u32 limit = qdisc_dev(sch)->tx_queue_len ? : 1;
 
-		if (sch->ops == &bfifo_qdisc_ops)
+		if (is_bfifo)
 			limit *= psched_mtu(qdisc_dev(sch));
 
 		q->limit = limit;
@@ -81,6 +83,15 @@ static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
 		q->limit = ctl->limit;
 	}
 
+	if (is_bfifo)
+		bypass = q->limit >= psched_mtu(qdisc_dev(sch));
+	else
+		bypass = q->limit >= 1;
+
+	if (bypass)
+		sch->flags |= TCQ_F_CAN_BYPASS;
+	else
+		sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
 }
 
