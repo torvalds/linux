@@ -7,7 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include "adfs.h"
@@ -316,8 +315,6 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	unsigned int ia_valid = attr->ia_valid;
 	int error;
 	
-	lock_kernel();
-
 	error = inode_change_ok(inode, attr);
 
 	/*
@@ -359,7 +356,6 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (ia_valid & (ATTR_SIZE | ATTR_MTIME | ATTR_MODE))
 		mark_inode_dirty(inode);
 out:
-	unlock_kernel();
 	return error;
 }
 
@@ -374,7 +370,6 @@ int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct object_info obj;
 	int ret;
 
-	lock_kernel();
 	obj.file_id	= inode->i_ino;
 	obj.name_len	= 0;
 	obj.parent_id	= ADFS_I(inode)->parent_id;
@@ -384,6 +379,5 @@ int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	obj.size	= inode->i_size;
 
 	ret = adfs_dir_update(sb, &obj, wbc->sync_mode == WB_SYNC_ALL);
-	unlock_kernel();
 	return ret;
 }

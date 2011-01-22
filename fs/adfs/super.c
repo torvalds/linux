@@ -14,7 +14,6 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/statfs.h>
 #include "adfs.h"
 #include "dir_f.h"
@@ -120,15 +119,11 @@ static void adfs_put_super(struct super_block *sb)
 	int i;
 	struct adfs_sb_info *asb = ADFS_SB(sb);
 
-	lock_kernel();
-
 	for (i = 0; i < asb->s_map_size; i++)
 		brelse(asb->s_map[i].dm_bh);
 	kfree(asb->s_map);
 	kfree(asb);
 	sb->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 static int adfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
@@ -359,15 +354,11 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct adfs_sb_info *asb;
 	struct inode *root;
 
-	lock_kernel();
-
 	sb->s_flags |= MS_NODIRATIME;
 
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
-	if (!asb) {
-		unlock_kernel();
+	if (!asb)
 		return -ENOMEM;
-	}
 	sb->s_fs_info = asb;
 
 	/* set default options */
@@ -485,7 +476,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		adfs_error(sb, "get root inode failed\n");
 		goto error;
 	}
-	unlock_kernel();
 	return 0;
 
 error_free_bh:
@@ -493,7 +483,6 @@ error_free_bh:
 error:
 	sb->s_fs_info = NULL;
 	kfree(asb);
-	unlock_kernel();
 	return -EINVAL;
 }
 
