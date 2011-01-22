@@ -844,9 +844,9 @@ static int pci_sun4v_msiq_build_irq(struct pci_pbm_info *pbm,
 				    unsigned long msiqid,
 				    unsigned long devino)
 {
-	unsigned int virt_irq = sun4v_build_irq(pbm->devhandle, devino);
+	unsigned int irq = sun4v_build_irq(pbm->devhandle, devino);
 
-	if (!virt_irq)
+	if (!irq)
 		return -ENOMEM;
 
 	if (pci_sun4v_msiq_setstate(pbm->devhandle, msiqid, HV_MSIQSTATE_IDLE))
@@ -854,7 +854,7 @@ static int pci_sun4v_msiq_build_irq(struct pci_pbm_info *pbm,
 	if (pci_sun4v_msiq_setvalid(pbm->devhandle, msiqid, HV_MSIQ_VALID))
 		return -EINVAL;
 
-	return virt_irq;
+	return irq;
 }
 
 static const struct sparc64_msiq_ops pci_sun4v_msiq_ops = {
