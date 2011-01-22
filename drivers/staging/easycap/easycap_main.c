@@ -29,7 +29,6 @@
 /*****************************************************************************/
 
 #include "easycap.h"
-#include "easycap_main.h"
 
 int easycap_debug;
 static int easycap_bars = 1;
