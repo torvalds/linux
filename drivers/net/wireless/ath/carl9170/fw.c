@@ -264,6 +264,9 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 			FIF_PROMISC_IN_BSS;
 	}
 
+	if (SUPP(CARL9170FW_WOL))
+		device_set_wakeup_enable(&ar->udev->dev, true);
+
 	ar->fw.vif_num = otus_desc->vif_num;
 	ar->fw.cmd_bufs = otus_desc->cmd_bufs;
 	ar->fw.address = le32_to_cpu(otus_desc->fw_address);
