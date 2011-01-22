@@ -86,8 +86,20 @@ void __init tegra_map_common_io(void)
 void __iomem *tegra_ioremap(unsigned long p, size_t size, unsigned int type)
 {
 	void __iomem *v = IO_ADDRESS(p);
-	if (v == NULL)
+
+	/*
+	 * __arm_ioremap fails to set the domain of ioremapped memory
+	 * correctly, only use it on physical memory.
+	 */
+	if (v == NULL && p < SZ_1G)
 		v = __arm_ioremap(p, size, type);
+
+	/*
+	 * If the physical address was not physical memory or statically
+	 * mapped, there's nothing we can do to map it safely.
+	 */
+	BUG_ON(v == NULL);
+
 	return v;
 }
 EXPORT_SYMBOL(tegra_ioremap);
