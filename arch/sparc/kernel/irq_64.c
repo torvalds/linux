@@ -714,13 +714,13 @@ void ack_bad_irq(unsigned int virt_irq)
 void *hardirq_stack[NR_CPUS];
 void *softirq_stack[NR_CPUS];
 
-void __irq_entry handler_irq(int irq, struct pt_regs *regs)
+void __irq_entry handler_irq(int pil, struct pt_regs *regs)
 {
 	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;
 	void *orig_sp;
 
-	clear_softint(1 << irq);
+	clear_softint(1 << pil);
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();

@@ -205,28 +205,28 @@ out_unlock:
 
 extern void unexpected_irq(int, void *, struct pt_regs *);
 
-void sun4d_handler_irq(int irq, struct pt_regs * regs)
+void sun4d_handler_irq(int pil, struct pt_regs * regs)
 {
 	struct pt_regs *old_regs;
 	struct irqaction * action;
 	int cpu = smp_processor_id();
 	/* SBUS IRQ level (1 - 7) */
-	int sbusl = pil_to_sbus[irq];
+	int sbusl = pil_to_sbus[pil];
 	
 	/* FIXME: Is this necessary?? */
 	cc_get_ipen();
 	
-	cc_set_iclr(1 << irq);
+	cc_set_iclr(1 << pil);
 	
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-	kstat_cpu(cpu).irqs[irq]++;
+	kstat_cpu(cpu).irqs[pil]++;
 	if (!sbusl) {
-		action = *(irq + irq_action);
+		action = *(pil + irq_action);
 		if (!action)
-			unexpected_irq(irq, NULL, regs);
+			unexpected_irq(pil, NULL, regs);
 		do {
-			action->handler(irq, action->dev_id);
+			action->handler(pil, action->dev_id);
 			action = action->next;
 		} while (action);
 	} else {
@@ -251,9 +251,9 @@ void sun4d_handler_irq(int irq, struct pt_regs * regs)
 						action = actionp->action;
 						
 						if (!action)
-							unexpected_irq(irq, NULL, regs);
+							unexpected_irq(pil, NULL, regs);
 						do {
-							action->handler(irq, action->dev_id);
+							action->handler(pil, action->dev_id);
 							action = action->next;
 						} while (action);
 						release_sbi(SBI2DEVID(sbino), slot);

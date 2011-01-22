@@ -320,7 +320,7 @@ void unexpected_irq(int irq, void *dev_id, struct pt_regs * regs)
 	panic("bogus interrupt received");
 }
 
-void handler_irq(int irq, struct pt_regs * regs)
+void handler_irq(int pil, struct pt_regs * regs)
 {
 	struct pt_regs *old_regs;
 	struct irqaction * action;
@@ -331,23 +331,23 @@ void handler_irq(int irq, struct pt_regs * regs)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-	disable_pil_irq(irq);
+	disable_pil_irq(pil);
 #ifdef CONFIG_SMP
 	/* Only rotate on lower priority IRQs (scsi, ethernet, etc.). */
-	if((sparc_cpu_model==sun4m) && (irq < 10))
+	if((sparc_cpu_model==sun4m) && (pil < 10))
 		smp4m_irq_rotate(cpu);
 #endif
-	action = sparc_irq[irq].action;
-	sparc_irq[irq].flags |= SPARC_IRQ_INPROGRESS;
-	kstat_cpu(cpu).irqs[irq]++;
+	action = sparc_irq[pil].action;
+	sparc_irq[pil].flags |= SPARC_IRQ_INPROGRESS;
+	kstat_cpu(cpu).irqs[pil]++;
 	do {
 		if (!action || !action->handler)
-			unexpected_irq(irq, NULL, regs);
-		action->handler(irq, action->dev_id);
+			unexpected_irq(pil, NULL, regs);
+		action->handler(pil, action->dev_id);
 		action = action->next;
 	} while (action);
-	sparc_irq[irq].flags &= ~SPARC_IRQ_INPROGRESS;
-	enable_pil_irq(irq);
+	sparc_irq[pil].flags &= ~SPARC_IRQ_INPROGRESS;
+	enable_pil_irq(pil);
 	irq_exit();
 	set_irq_regs(old_regs);
 }
