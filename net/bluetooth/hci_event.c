@@ -743,6 +743,40 @@ static void hci_cc_set_event_flt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_req_complete(hdev, HCI_OP_SET_EVENT_FLT, status);
 }
 
+static void hci_cc_pin_code_reply(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_pin_code_reply *rp = (void *) skb->data;
+	struct hci_cp_pin_code_reply *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_pin_code_reply_complete(hdev->id, &rp->bdaddr, rp->status);
+
+	if (rp->status != 0)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_PIN_CODE_REPLY);
+	if (!cp)
+		return;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (conn)
+		conn->pin_length = cp->pin_len;
+}
+
+static void hci_cc_pin_code_neg_reply(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_pin_code_neg_reply *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_pin_code_neg_reply_complete(hdev->id, &rp->bdaddr,
+								rp->status);
+}
+
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -1619,6 +1653,14 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 		hci_cc_set_event_flt(hdev, skb);
 		break;
 
+	case HCI_OP_PIN_CODE_REPLY:
+		hci_cc_pin_code_reply(hdev, skb);
+		break;
+
+	case HCI_OP_PIN_CODE_NEG_REPLY:
+		hci_cc_pin_code_neg_reply(hdev, skb);
+		break;
+
 	default:
 		BT_DBG("%s opcode 0x%x", hdev->name, opcode);
 		break;
@@ -1821,6 +1863,9 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 					sizeof(ev->bdaddr), &ev->bdaddr);
 
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_pin_code_request(hdev->id, &ev->bdaddr);
+
 	hci_dev_unlock(hdev);
 }
 
@@ -1889,6 +1934,7 @@ static inline void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff 
 	if (conn) {
 		hci_conn_hold(conn);
 		conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+		pin_len = conn->pin_length;
 		hci_conn_put(conn);
 	}
 

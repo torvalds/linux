@@ -933,6 +933,89 @@ unlock:
 	return err;
 }
 
+static int pin_code_reply(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_pin_code_reply *cp;
+	struct hci_cp_pin_code_reply reply;
+	u16 dev_id;
+	int err;
+
+	BT_DBG("");
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_DISCONNECT, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = cmd_status(sk, MGMT_OP_PIN_CODE_REPLY, ENETDOWN);
+		goto failed;
+	}
+
+	err = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_REPLY, dev_id, data, len);
+	if (err < 0)
+		goto failed;
+
+	bacpy(&reply.bdaddr, &cp->bdaddr);
+	reply.pin_len = cp->pin_len;
+	memcpy(reply.pin_code, cp->pin_code, 16);
+
+	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_REPLY, sizeof(reply), &reply);
+	if (err < 0)
+		mgmt_pending_remove(MGMT_OP_PIN_CODE_REPLY, dev_id);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int pin_code_neg_reply(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_pin_code_neg_reply *cp;
+	u16 dev_id;
+	int err;
+
+	BT_DBG("");
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_PIN_CODE_NEG_REPLY, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = cmd_status(sk, MGMT_OP_PIN_CODE_NEG_REPLY, ENETDOWN);
+		goto failed;
+	}
+
+	err = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_NEG_REPLY, dev_id,
+								data, len);
+	if (err < 0)
+		goto failed;
+
+	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY, sizeof(bdaddr_t),
+								&cp->bdaddr);
+	if (err < 0)
+		mgmt_pending_remove(MGMT_OP_PIN_CODE_NEG_REPLY, dev_id);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1008,6 +1091,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_GET_CONNECTIONS:
 		err = get_connections(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_PIN_CODE_REPLY:
+		err = pin_code_reply(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_PIN_CODE_NEG_REPLY:
+		err = pin_code_neg_reply(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
@@ -1216,4 +1305,56 @@ int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status)
 	ev.status = status;
 
 	return mgmt_event(MGMT_EV_CONNECT_FAILED, &ev, sizeof(ev), NULL);
+}
+
+int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr)
+{
+	struct mgmt_ev_pin_code_request ev;
+
+	put_unaligned_le16(index, &ev.index);
+	bacpy(&ev.bdaddr, bdaddr);
+
+	return mgmt_event(MGMT_EV_PIN_CODE_REQUEST, &ev, sizeof(ev), NULL);
+}
+
+int mgmt_pin_code_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_REPLY, index);
+	if (!cmd)
+		return -ENOENT;
+
+	if (status != 0)
+		err = cmd_status(cmd->sk, MGMT_OP_PIN_CODE_REPLY, status);
+	else
+		err = cmd_complete(cmd->sk, MGMT_OP_PIN_CODE_REPLY,
+						bdaddr, sizeof(*bdaddr));
+
+	list_del(&cmd->list);
+	mgmt_pending_free(cmd);
+
+	return err;
+}
+
+int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_NEG_REPLY, index);
+	if (!cmd)
+		return -ENOENT;
+
+	if (status != 0)
+		err = cmd_status(cmd->sk, MGMT_OP_PIN_CODE_NEG_REPLY, status);
+	else
+		err = cmd_complete(cmd->sk, MGMT_OP_PIN_CODE_NEG_REPLY,
+						bdaddr, sizeof(*bdaddr));
+
+	list_del(&cmd->list);
+	mgmt_pending_free(cmd);
+
+	return err;
 }

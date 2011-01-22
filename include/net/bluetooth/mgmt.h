@@ -140,6 +140,20 @@ struct mgmt_rp_get_connections {
 	bdaddr_t conn[0];
 } __packed;
 
+#define MGMT_OP_PIN_CODE_REPLY		0x0011
+struct mgmt_cp_pin_code_reply {
+	__le16 index;
+	bdaddr_t bdaddr;
+	__u8 pin_len;
+	__u8 pin_code[16];
+} __packed;
+
+#define MGMT_OP_PIN_CODE_NEG_REPLY	0x0012
+struct mgmt_cp_pin_code_neg_reply {
+	__le16 index;
+	bdaddr_t bdaddr;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
@@ -200,4 +214,10 @@ struct mgmt_ev_connect_failed {
 	__le16 index;
 	bdaddr_t bdaddr;
 	__u8 status;
+} __packed;
+
+#define MGMT_EV_PIN_CODE_REQUEST	0x000E
+struct mgmt_ev_pin_code_request {
+	__le16 index;
+	bdaddr_t bdaddr;
 } __packed;

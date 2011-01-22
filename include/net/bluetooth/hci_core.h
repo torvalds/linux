@@ -213,6 +213,7 @@ struct hci_conn {
 	__u8             auth_type;
 	__u8             sec_level;
 	__u8		 pending_sec_level;
+	__u8		 pin_length;
 	__u8             power_save;
 	__u16            disc_timeout;
 	unsigned long	 pend;
@@ -718,6 +719,9 @@ int mgmt_connected(u16 index, bdaddr_t *bdaddr);
 int mgmt_disconnected(u16 index, bdaddr_t *bdaddr);
 int mgmt_disconnect_failed(u16 index);
 int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr);
+int mgmt_pin_code_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)

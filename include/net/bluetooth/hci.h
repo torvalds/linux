@@ -309,9 +309,17 @@ struct hci_cp_pin_code_reply {
 	__u8     pin_len;
 	__u8     pin_code[16];
 } __packed;
+struct hci_rp_pin_code_reply {
+	__u8     status;
+	bdaddr_t bdaddr;
+} __packed;
 
 #define HCI_OP_PIN_CODE_NEG_REPLY	0x040e
 struct hci_cp_pin_code_neg_reply {
+	bdaddr_t bdaddr;
+} __packed;
+struct hci_rp_pin_code_neg_reply {
+	__u8     status;
 	bdaddr_t bdaddr;
 } __packed;
 
