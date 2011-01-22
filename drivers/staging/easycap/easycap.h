@@ -668,7 +668,6 @@ unsigned long long int remainder;
  *  IMMEDIATELY OBVIOUS FROM A CASUAL READING OF THE SOURCE CODE.  BEWARE.
 */
 /*---------------------------------------------------------------------------*/
-extern int easycap_debug;
 #define SAY(format, args...) do { \
 	printk(KERN_DEBUG "easycap:: %s: " \
 			format, __func__, ##args); \
@@ -678,7 +677,8 @@ extern int easycap_debug;
 			format, peasycap->isdongle, __func__, ##args);\
 } while (0)
 
-#if defined(EASYCAP_DEBUG)
+#ifdef CONFIG_EASYCAP_DEBUG
+extern int easycap_debug;
 #define JOT(n, format, args...) do { \
 	if (n <= easycap_debug) { \
 		printk(KERN_DEBUG "easycap:: %s: " \
@@ -695,7 +695,7 @@ extern int easycap_debug;
 #else
 #define JOT(n, format, args...) do {} while (0)
 #define JOM(n, format, args...) do {} while (0)
-#endif /*EASYCAP_DEBUG*/
+#endif /* CONFIG_EASYCAP_DEBUG */
 
 #define MICROSECONDS(X, Y) \
 			((1000000*((long long int)(X.tv_sec - Y.tv_sec))) + \

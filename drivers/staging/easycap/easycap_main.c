@@ -30,13 +30,26 @@
 
 #include "easycap.h"
 
-int easycap_debug;
-static int easycap_bars = 1;
-static int easycap_gain = 16;
-module_param_named(debug, easycap_debug, int, S_IRUGO | S_IWUSR);
-module_param_named(bars, easycap_bars, int, S_IRUGO | S_IWUSR);
-module_param_named(gain, easycap_gain, int, S_IRUGO | S_IWUSR);
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("R.M. Thomas <rmthomas@sciolus.org>");
+MODULE_DESCRIPTION(EASYCAP_DRIVER_DESCRIPTION);
+MODULE_VERSION(EASYCAP_DRIVER_VERSION);
+
+#ifdef CONFIG_EASYCAP_DEBUG
+int easycap_debug;
+module_param_named(debug, easycap_debug, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug, "Debug level: 0(default),1,2,...,9");
+#endif /* CONFIG_EASYCAP_DEBUG */
+
+static int easycap_bars = 1;
+module_param_named(bars, easycap_bars, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bars,
+	"Testcard bars on input signal failure: 0=>no, 1=>yes(default)");
+
+static int easycap_gain = 16;
+module_param_named(gain, easycap_gain, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
 struct easycap_dongle easycapdc60_dongle[DONGLE_MANY];
 static struct mutex mutex_dongle;
 
@@ -5113,14 +5126,4 @@ JOT(4, "ends\n");
 module_init(easycap_module_init);
 module_exit(easycap_module_exit);
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("R.M. Thomas <rmthomas@sciolus.org>");
-MODULE_DESCRIPTION(EASYCAP_DRIVER_DESCRIPTION);
-MODULE_VERSION(EASYCAP_DRIVER_VERSION);
-#if defined(EASYCAP_DEBUG)
-MODULE_PARM_DESC(debug, "Debug level: 0(default),1,2,...,9");
-#endif /*EASYCAP_DEBUG*/
-MODULE_PARM_DESC(bars,
-	"Testcard bars on input signal failure: 0=>no, 1=>yes(default)");
-MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
 /*****************************************************************************/
