@@ -50,25 +50,14 @@ MODULE_PARM_DESC(bars,
 static int easycap_gain = 16;
 module_param_named(gain, easycap_gain, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
+
+
+
 struct easycap_dongle easycapdc60_dongle[DONGLE_MANY];
 static struct mutex mutex_dongle;
+static void easycap_complete(struct urb *purb);
+static int reset(struct easycap *peasycap);
 
-/*---------------------------------------------------------------------------*/
-/*
- *  PARAMETERS APPLICABLE TO ENTIRE DRIVER, I.E. BOTH VIDEO AND AUDIO
- */
-/*---------------------------------------------------------------------------*/
-static struct usb_device_id easycap_usb_device_id_table[] = {
-{ USB_DEVICE(USB_EASYCAP_VENDOR_ID, USB_EASYCAP_PRODUCT_ID) },
-{ }
-};
-MODULE_DEVICE_TABLE(usb, easycap_usb_device_id_table);
-struct usb_driver easycap_usb_driver = {
-.name = "easycap",
-.id_table = easycap_usb_device_id_table,
-.probe = easycap_usb_probe,
-.disconnect = easycap_usb_disconnect,
-};
 /*---------------------------------------------------------------------------*/
 /*
  *  PARAMETERS USED WHEN REGISTERING THE VIDEO INTERFACE
@@ -78,46 +67,6 @@ struct usb_driver easycap_usb_driver = {
  *        THIS IS THE CASE FOR OpenSUSE.
  */
 /*---------------------------------------------------------------------------*/
-static const struct file_operations easycap_fops = {
-	.owner		= THIS_MODULE,
-	.open		= easycap_open,
-	.release	= easycap_release,
-#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
-	.unlocked_ioctl	= easycap_ioctl_noinode,
-#else
-	.ioctl		= easycap_ioctl,
-#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
-	.poll		= easycap_poll,
-	.mmap		= easycap_mmap,
-	.llseek		= no_llseek,
-};
-static const struct vm_operations_struct easycap_vm_ops = {
-	.open  = easycap_vma_open,
-	.close = easycap_vma_close,
-	.fault = easycap_vma_fault,
-};
-static const struct usb_class_driver easycap_class = {
-	.name = "usb/easycap%d",
-	.fops = &easycap_fops,
-	.minor_base = USB_SKEL_MINOR_BASE,
-};
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-#if defined(EASYCAP_NEEDS_V4L2_FOPS)
-static const struct v4l2_file_operations v4l2_fops = {
-	.owner		= THIS_MODULE,
-	.open		= easycap_open_noinode,
-	.release	= easycap_release_noinode,
-#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
-	.unlocked_ioctl	= easycap_ioctl_noinode,
-#else
-	.ioctl		= easycap_ioctl,
-#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
-	.poll		= easycap_poll,
-	.mmap		= easycap_mmap,
-};
-#endif /*EASYCAP_NEEDS_V4L2_FOPS*/
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /****************************************************************************/
 /*---------------------------------------------------------------------------*/
@@ -139,18 +88,8 @@ for (k = 0; k < DONGLE_MANY; k++) {
 }
 return -1;
 }
-/*****************************************************************************/
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-int
-easycap_open_noinode(struct file *file)
-{
-return easycap_open((struct inode *)NULL, file);
-}
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-int
-easycap_open(struct inode *inode, struct file *file)
+static int easycap_open(struct inode *inode, struct file *file)
 {
 #if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
 struct usb_interface *pusb_interface;
@@ -221,6 +160,7 @@ if (0 != rc) {
 }
 return 0;
 }
+
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
@@ -230,8 +170,7 @@ return 0;
  *  A BAD VIDEO FRAME SIZE.
 */
 /*---------------------------------------------------------------------------*/
-int
-reset(struct easycap *peasycap)
+static int reset(struct easycap *peasycap)
 {
 struct easycap_standard const *peasycap_standard;
 int i, rc, input, rate;
@@ -602,8 +541,7 @@ peasycap->video_junk = 0;
 return 0;
 }
 /*****************************************************************************/
-int
-submit_video_urbs(struct easycap *peasycap)
+int submit_video_urbs(struct easycap *peasycap)
 {
 struct data_urb *pdata_urb;
 struct urb *purb;
@@ -793,18 +731,9 @@ if (peasycap->video_isoc_streaming) {
 return 0;
 }
 /****************************************************************************/
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-int
-easycap_release_noinode(struct file *file)
-{
-return easycap_release((struct inode *)NULL, file);
-}
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*--------------------------------------------------------------------------*/
-int
-easycap_release(struct inode *inode, struct file *file)
+static int easycap_release(struct inode *inode, struct file *file)
 {
 #if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
 struct easycap *peasycap;
@@ -834,11 +763,17 @@ JOM(4, "ending successfully\n");
 
 return 0;
 }
-/****************************************************************************/
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-int
-videodev_release(struct video_device *pvideo_device)
+static int easycap_open_noinode(struct file *file)
+{
+	return easycap_open(NULL, file);
+}
+
+static int easycap_release_noinode(struct file *file)
+{
+	return easycap_release(NULL, file);
+}
+static int videodev_release(struct video_device *pvideo_device)
 {
 struct easycap *peasycap;
 
@@ -873,8 +808,7 @@ return 0;
  *  peasycap->pusb_device IS NO LONGER VALID.
  */
 /*---------------------------------------------------------------------------*/
-void
-easycap_delete(struct kref *pkref)
+static void easycap_delete(struct kref *pkref)
 {
 int k, m, gone, kd;
 int allocation_video_urb, allocation_video_page, allocation_video_struct;
@@ -1089,7 +1023,7 @@ JOT(4, "ending.\n");
 return;
 }
 /*****************************************************************************/
-unsigned int easycap_poll(struct file *file, poll_table *wait)
+static unsigned int easycap_poll(struct file *file, poll_table *wait)
 {
 struct easycap *peasycap;
 int rc, kd;
@@ -2678,21 +2612,8 @@ return 0;
  *  SEE CORBET ET AL. "LINUX DEVICE DRIVERS", 3rd EDITION, PAGES 430-434
  */
 /*---------------------------------------------------------------------------*/
-int easycap_mmap(struct file *file, struct vm_area_struct *pvma)
-{
-
-JOT(8, "\n");
-
-pvma->vm_ops = &easycap_vm_ops;
-pvma->vm_flags |= VM_RESERVED;
-if (NULL != file)
-	pvma->vm_private_data = file->private_data;
-easycap_vma_open(pvma);
-return 0;
-}
 /*****************************************************************************/
-void
-easycap_vma_open(struct vm_area_struct *pvma)
+static void easycap_vma_open(struct vm_area_struct *pvma)
 {
 struct easycap *peasycap;
 
@@ -2710,8 +2631,7 @@ JOT(8, "%i=peasycap->vma_many\n", peasycap->vma_many);
 return;
 }
 /*****************************************************************************/
-void
-easycap_vma_close(struct vm_area_struct *pvma)
+static void easycap_vma_close(struct vm_area_struct *pvma)
 {
 struct easycap *peasycap;
 
@@ -2729,8 +2649,7 @@ JOT(8, "%i=peasycap->vma_many\n", peasycap->vma_many);
 return;
 }
 /*****************************************************************************/
-int
-easycap_vma_fault(struct vm_area_struct *pvma, struct vm_fault *pvmf)
+static int easycap_vma_fault(struct vm_area_struct *pvma, struct vm_fault *pvmf)
 {
 int k, m, retcode;
 void *pbuf;
@@ -2793,6 +2712,24 @@ if (NULL == page) {
 }
 return retcode;
 }
+
+static const struct vm_operations_struct easycap_vm_ops = {
+	.open  = easycap_vma_open,
+	.close = easycap_vma_close,
+	.fault = easycap_vma_fault,
+};
+
+static int easycap_mmap(struct file *file, struct vm_area_struct *pvma)
+{
+	JOT(8, "\n");
+
+	pvma->vm_ops = &easycap_vm_ops;
+	pvma->vm_flags |= VM_RESERVED;
+	if (NULL != file)
+		pvma->vm_private_data = file->private_data;
+	easycap_vma_open(pvma);
+	return 0;
+}
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
@@ -2820,8 +2757,7 @@ return retcode;
  *      0 != (kount & 0x0100)   => BUFFER HAS TWO EXTRA BYTES - WHY?
  */
 /*---------------------------------------------------------------------------*/
-void
-easycap_complete(struct urb *purb)
+static void easycap_complete(struct urb *purb)
 {
 struct easycap *peasycap;
 struct data_buffer *pfield_buffer;
@@ -3376,6 +3312,41 @@ if (peasycap->video_isoc_streaming) {
 }
 return;
 }
+static const struct file_operations easycap_fops = {
+	.owner		= THIS_MODULE,
+	.open		= easycap_open,
+	.release	= easycap_release,
+#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
+	.unlocked_ioctl	= easycap_ioctl_noinode,
+#else
+	.ioctl		= easycap_ioctl,
+#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
+	.poll		= easycap_poll,
+	.mmap		= easycap_mmap,
+	.llseek		= no_llseek,
+};
+static const struct usb_class_driver easycap_class = {
+	.name = "usb/easycap%d",
+	.fops = &easycap_fops,
+	.minor_base = USB_SKEL_MINOR_BASE,
+};
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#if defined(EASYCAP_NEEDS_V4L2_FOPS)
+static const struct v4l2_file_operations v4l2_fops = {
+	.owner		= THIS_MODULE,
+	.open		= easycap_open_noinode,
+	.release	= easycap_release_noinode,
+#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
+	.unlocked_ioctl	= easycap_ioctl_noinode,
+#else
+	.ioctl		= easycap_ioctl,
+#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
+	.poll		= easycap_poll,
+	.mmap		= easycap_mmap,
+};
+#endif /*EASYCAP_NEEDS_V4L2_FOPS*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
@@ -3383,9 +3354,8 @@ return;
  *  TIMES, ONCE FOR EACH OF THE THREE INTERFACES.  BEWARE.
  */
 /*---------------------------------------------------------------------------*/
-int
-easycap_usb_probe(struct usb_interface *pusb_interface,
-				const struct usb_device_id *pusb_device_id)
+static int easycap_usb_probe(struct usb_interface *pusb_interface,
+			    const struct usb_device_id *pusb_device_id)
 {
 struct usb_device *pusb_device, *pusb_device1;
 struct usb_host_interface *pusb_host_interface;
@@ -4792,8 +4762,7 @@ return 0;
  *  THIS FUNCTION AFFECTS BOTH OSS AND ALSA.  BEWARE.
  */
 /*---------------------------------------------------------------------------*/
-void
-easycap_usb_disconnect(struct usb_interface *pusb_interface)
+static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 {
 struct usb_host_interface *pusb_host_interface;
 struct usb_interface_descriptor *pusb_interface_descriptor;
@@ -5079,47 +5048,56 @@ JOM(4, "ends\n");
 return;
 }
 /*****************************************************************************/
-static int __init easycap_module_init(void)
-{
-int k, rc;
 
-SAY("========easycap=======\n");
-JOT(4, "begins.  %i=debug %i=bars %i=gain\n", easycap_debug, easycap_bars,
-						easycap_gain);
-SAY("version: " EASYCAP_DRIVER_VERSION "\n");
-
-mutex_init(&mutex_dongle);
-for (k = 0; k < DONGLE_MANY; k++) {
-	easycapdc60_dongle[k].peasycap = (struct easycap *)NULL;
-	mutex_init(&easycapdc60_dongle[k].mutex_video);
-	mutex_init(&easycapdc60_dongle[k].mutex_audio);
-}
 /*---------------------------------------------------------------------------*/
 /*
- *  REGISTER THIS DRIVER WITH THE USB SUBSYTEM.
+ *  PARAMETERS APPLICABLE TO ENTIRE DRIVER, I.E. BOTH VIDEO AND AUDIO
  */
 /*---------------------------------------------------------------------------*/
-JOT(4, "registering driver easycap\n");
-rc = usb_register(&easycap_usb_driver);
-if (0 != rc)
-	SAY("ERROR:  usb_register returned %i\n", rc);
+static struct usb_device_id easycap_usb_device_id_table[] = {
+	{USB_DEVICE(USB_EASYCAP_VENDOR_ID, USB_EASYCAP_PRODUCT_ID)},
+	{ }
+};
 
-JOT(4, "ends\n");
-return rc;
+MODULE_DEVICE_TABLE(usb, easycap_usb_device_id_table);
+struct usb_driver easycap_usb_driver = {
+	.name = "easycap",
+	.id_table = easycap_usb_device_id_table,
+	.probe = easycap_usb_probe,
+	.disconnect = easycap_usb_disconnect,
+};
+
+static int __init easycap_module_init(void)
+{
+	int k, rc;
+
+	SAY("========easycap=======\n");
+	JOT(4, "begins.  %i=debug %i=bars %i=gain\n",
+		easycap_debug, easycap_bars, easycap_gain);
+	SAY("version: " EASYCAP_DRIVER_VERSION "\n");
+
+	mutex_init(&mutex_dongle);
+	for (k = 0; k < DONGLE_MANY; k++) {
+		easycapdc60_dongle[k].peasycap = (struct easycap *)NULL;
+		mutex_init(&easycapdc60_dongle[k].mutex_video);
+		mutex_init(&easycapdc60_dongle[k].mutex_audio);
+	}
+	JOT(4, "registering driver easycap\n");
+	rc = usb_register(&easycap_usb_driver);
+	if (0 != rc)
+		SAY("ERROR:  usb_register returned %i\n", rc);
+
+	JOT(4, "ends\n");
+	return rc;
 }
 /*****************************************************************************/
 static void __exit easycap_module_exit(void)
 {
-JOT(4, "begins\n");
+	JOT(4, "begins\n");
 
-/*---------------------------------------------------------------------------*/
-/*
- *  DEREGISTER THIS DRIVER WITH THE USB SUBSYTEM.
- */
-/*---------------------------------------------------------------------------*/
-usb_deregister(&easycap_usb_driver);
+	usb_deregister(&easycap_usb_driver);
 
-JOT(4, "ends\n");
+	JOT(4, "ends\n");
 }
 /*****************************************************************************/
 

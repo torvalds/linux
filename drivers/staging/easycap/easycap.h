@@ -512,32 +512,10 @@ struct data_buffer audio_buffer[];
 /*
  *  VIDEO FUNCTION PROTOTYPES
  */
-/*---------------------------------------------------------------------------*/
-void             easycap_complete(struct urb *);
-int              easycap_open(struct inode *, struct file *);
-int              easycap_release(struct inode *, struct file *);
-long             easycap_ioctl_noinode(struct file *, unsigned int,
-								unsigned long);
-int              easycap_ioctl(struct inode *, struct file *, unsigned int,
-								unsigned long);
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-int              easycap_open_noinode(struct file *);
-int              easycap_release_noinode(struct file *);
-int              videodev_release(struct video_device *);
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+long easycap_ioctl_noinode(struct file *, unsigned int, unsigned long);
+int easycap_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
 
-unsigned int     easycap_poll(struct file *, poll_table *);
-int              easycap_mmap(struct file *, struct vm_area_struct *);
-int              easycap_usb_probe(struct usb_interface *,
-						const struct usb_device_id *);
-void             easycap_usb_disconnect(struct usb_interface *);
-void             easycap_delete(struct kref *);
-
-void             easycap_vma_open(struct vm_area_struct *);
-void             easycap_vma_close(struct vm_area_struct *);
-int              easycap_vma_fault(struct vm_area_struct *, struct vm_fault *);
 int              easycap_dqbuf(struct easycap *, int);
 int              submit_video_urbs(struct easycap *);
 int              kill_video_urbs(struct easycap *);
@@ -546,7 +524,6 @@ int              redaub(struct easycap *, void *, void *,
 						int, int, __u8, __u8, bool);
 void             easycap_testcard(struct easycap *, int);
 int              fillin_formats(void);
-int              reset(struct easycap *);
 int              newinput(struct easycap *, int);
 int              adjust_standard(struct easycap *, v4l2_std_id);
 int              adjust_format(struct easycap *, __u32, __u32, __u32,
