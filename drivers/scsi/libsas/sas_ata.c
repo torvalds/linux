@@ -71,13 +71,13 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 		case SAS_SG_ERR:
 			return AC_ERR_INVALID;
 
-		case SAM_STAT_CHECK_CONDITION:
 		case SAS_OPEN_TO:
 		case SAS_OPEN_REJECT:
 			SAS_DPRINTK("%s: Saw error %d.  What to do?\n",
 				    __func__, ts->stat);
 			return AC_ERR_OTHER;
 
+		case SAM_STAT_CHECK_CONDITION:
 		case SAS_ABORTED_TASK:
 			return AC_ERR_DEV;
 
@@ -107,13 +107,15 @@ static void sas_ata_task_done(struct sas_task *task)
 	sas_ha = dev->port->ha;
 
 	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
-	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD) {
+	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD ||
+	    ((stat->stat == SAM_STAT_CHECK_CONDITION &&
+	      dev->sata_dev.command_set == ATAPI_COMMAND_SET))) {
 		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
 		qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
 		dev->sata_dev.sstatus = resp->sstatus;
 		dev->sata_dev.serror = resp->serror;
 		dev->sata_dev.scontrol = resp->scontrol;
-	} else if (stat->stat != SAM_STAT_GOOD) {
+	} else {
 		ac = sas_to_ata_err(stat);
 		if (ac) {
 			SAS_DPRINTK("%s: SAS error %x\n", __func__,
