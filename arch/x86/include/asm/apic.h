@@ -354,6 +354,20 @@ struct apic {
 	void (*icr_write)(u32 low, u32 high);
 	void (*wait_icr_idle)(void);
 	u32 (*safe_wait_icr_idle)(void);
+
+#ifdef CONFIG_X86_32
+	/*
+	 * Called very early during boot from get_smp_config().  It should
+	 * return the logical apicid.  x86_[bios]_cpu_to_apicid is
+	 * initialized before this function is called.
+	 *
+	 * If logical apicid can't be determined that early, the function
+	 * may return BAD_APICID.  Logical apicid will be configured after
+	 * init_apic_ldr() while bringing up CPUs.  Note that NUMA affinity
+	 * won't be applied properly during early boot in this case.
+	 */
+	int (*x86_32_early_logical_apicid)(int cpu);
+#endif
 };
 
 /*
@@ -500,6 +514,11 @@ extern struct apic apic_noop;
 #ifdef CONFIG_X86_32
 
 extern struct apic apic_default;
+
+static inline int noop_x86_32_early_logical_apicid(int cpu)
+{
+	return BAD_APICID;
+}
 
 /*
  * Set up the logical destination ID.
