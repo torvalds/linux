@@ -247,7 +247,7 @@ void __init amd_fake_nodes(const struct bootnode *nodes, int nr_nodes)
 		__acpi_map_pxm_to_node(nid, i);
 #endif
 	}
-	memcpy(apicid_to_node, fake_apicid_to_node, sizeof(apicid_to_node));
+	memcpy(__apicid_to_node, fake_apicid_to_node, sizeof(__apicid_to_node));
 }
 #endif /* CONFIG_NUMA_EMU */
 
@@ -285,7 +285,7 @@ int __init amd_scan_nodes(void)
 				nodes[i].start >> PAGE_SHIFT,
 				nodes[i].end >> PAGE_SHIFT);
 		for (j = apicid_base; j < cores + apicid_base; j++)
-			apicid_to_node[(i << bits) + j] = i;
+			set_apicid_to_node((i << bits) + j, i);
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 	}
 

@@ -110,6 +110,12 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
 static unsigned long kva_start_pfn;
 static unsigned long kva_pages;
+
+int __cpuinit numa_cpu_node(int cpu)
+{
+	return apic->x86_32_numa_cpu_node(cpu);
+}
+
 /*
  * FLAT - support for basic PC memory model with discontig enabled, essentially
  *        a single node with all available processors in it with a flat

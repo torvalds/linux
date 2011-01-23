@@ -2026,7 +2026,7 @@ int default_x86_32_numa_cpu_node(int cpu)
 	int apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
 
 	if (apicid != BAD_APICID)
-		return apicid_2_node[apicid];
+		return __apicid_to_node[apicid];
 	return NUMA_NO_NODE;
 #else
 	return 0;

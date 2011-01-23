@@ -71,10 +71,6 @@
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
 
-#ifdef CONFIG_X86_32
-u8 apicid_2_node[MAX_LOCAL_APIC];
-#endif
-
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
@@ -170,7 +166,7 @@ static void map_cpu_to_logical_apicid(void)
 	int cpu = smp_processor_id();
 	int node;
 
-	node = apic->x86_32_numa_cpu_node(cpu);
+	node = numa_cpu_node(cpu);
 	if (!node_online(node))
 		node = first_online_node;
 

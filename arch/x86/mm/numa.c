@@ -26,8 +26,12 @@ static __init int numa_setup(char *opt)
 early_param("numa", numa_setup);
 
 /*
- * Which logical CPUs are on which nodes
+ * apicid, cpu, node mappings
  */
+s16 __apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+};
+
 cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 EXPORT_SYMBOL(node_to_cpumask_map);
 

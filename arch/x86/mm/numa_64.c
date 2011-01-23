@@ -26,10 +26,6 @@ EXPORT_SYMBOL(node_data);
 
 struct memnode memnode;
 
-s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
-	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-};
-
 static unsigned long __initdata nodemap_addr;
 static unsigned long __initdata nodemap_size;
 
@@ -716,12 +712,8 @@ void __init init_cpu_to_node(void)
 	BUG_ON(cpu_to_apicid == NULL);
 
 	for_each_possible_cpu(cpu) {
-		int node;
-		u16 apicid = cpu_to_apicid[cpu];
+		int node = numa_cpu_node(cpu);
 
-		if (apicid == BAD_APICID)
-			continue;
-		node = apicid_to_node[apicid];
 		if (node == NUMA_NO_NODE)
 			continue;
 		if (!node_online(node))
@@ -731,6 +723,14 @@ void __init init_cpu_to_node(void)
 }
 #endif
 
+int __cpuinit numa_cpu_node(int cpu)
+{
+	int apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
+
+	if (apicid != BAD_APICID)
+		return __apicid_to_node[apicid];
+	return NUMA_NO_NODE;
+}
 
 void __cpuinit numa_set_node(int cpu, int node)
 {
@@ -776,13 +776,9 @@ void __cpuinit numa_remove_cpu(int cpu)
 void __cpuinit numa_add_cpu(int cpu)
 {
 	unsigned long addr;
-	u16 apicid;
-	int physnid;
-	int nid = NUMA_NO_NODE;
+	int physnid, nid;
 
-	apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
-	if (apicid != BAD_APICID)
-		nid = apicid_to_node[apicid];
+	nid = numa_cpu_node(cpu);
 	if (nid == NUMA_NO_NODE)
 		nid = early_cpu_to_node(cpu);
 	BUG_ON(nid == NUMA_NO_NODE || !node_online(nid));

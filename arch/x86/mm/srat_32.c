@@ -255,7 +255,7 @@ int __init get_memcfg_from_srat(void)
 			 num_memory_chunks);
 
 	for (i = 0; i < MAX_LOCAL_APIC; i++)
-		apicid_2_node[i] = pxm_to_node(apicid_to_pxm[i]);
+		set_apicid_to_node(i, pxm_to_node(apicid_to_pxm[i]));
 
 	for (j = 0; j < num_memory_chunks; j++){
 		struct node_memory_chunk_s * chunk = &node_memory_chunk[j];
