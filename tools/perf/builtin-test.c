@@ -332,8 +332,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 	struct perf_evsel *evsel;
 	struct perf_event_attr attr;
 	unsigned int nr_open_calls = 111, i;
-	cpu_set_t *cpu_set;
-	size_t cpu_set_size;
+	cpu_set_t cpu_set;
 	int id = trace_event__id("sys_enter_open");
 
 	if (id < 0) {
@@ -353,13 +352,8 @@ static int test__open_syscall_event_on_all_cpus(void)
 		return -1;
 	}
 
-	cpu_set = CPU_ALLOC(cpus->nr);
 
-	if (cpu_set == NULL)
-		goto out_thread_map_delete;
-
-	cpu_set_size = CPU_ALLOC_SIZE(cpus->nr);
-	CPU_ZERO_S(cpu_set_size, cpu_set);
+	CPU_ZERO(&cpu_set);
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = PERF_TYPE_TRACEPOINT;
@@ -367,7 +361,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 	evsel = perf_evsel__new(&attr, 0);
 	if (evsel == NULL) {
 		pr_debug("perf_evsel__new\n");
-		goto out_cpu_free;
+		goto out_thread_map_delete;
 	}
 
 	if (perf_evsel__open(evsel, cpus, threads) < 0) {
@@ -379,9 +373,19 @@ static int test__open_syscall_event_on_all_cpus(void)
 
 	for (cpu = 0; cpu < cpus->nr; ++cpu) {
 		unsigned int ncalls = nr_open_calls + cpu;
+		/*
+		 * XXX eventually lift this restriction in a way that
+		 * keeps perf building on older glibc installations
+		 * without CPU_ALLOC. 1024 cpus in 2010 still seems
+		 * a reasonable upper limit tho :-)
+		 */
+		if (cpus->map[cpu] >= CPU_SETSIZE) {
+			pr_debug("Ignoring CPU %d\n", cpus->map[cpu]);
+			continue;
+		}
 
-		CPU_SET_S(cpus->map[cpu], cpu_set_size, cpu_set);
-		if (sched_setaffinity(0, cpu_set_size, cpu_set) < 0) {
+		CPU_SET(cpus->map[cpu], &cpu_set);
+		if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 			pr_debug("sched_setaffinity() failed on CPU %d: %s ",
 				 cpus->map[cpu],
 				 strerror(errno));
@@ -391,7 +395,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 			fd = open("/etc/passwd", O_RDONLY);
 			close(fd);
 		}
-		CPU_CLR_S(cpus->map[cpu], cpu_set_size, cpu_set);
+		CPU_CLR(cpus->map[cpu], &cpu_set);
 	}
 
 	/*
@@ -406,6 +410,9 @@ static int test__open_syscall_event_on_all_cpus(void)
 
 	for (cpu = 0; cpu < cpus->nr; ++cpu) {
 		unsigned int expected;
+
+		if (cpus->map[cpu] >= CPU_SETSIZE)
+			continue;
 
 		if (perf_evsel__read_on_cpu(evsel, cpu, 0) < 0) {
 			pr_debug("perf_evsel__open_read_on_cpu\n");
@@ -425,8 +432,6 @@ out_close_fd:
 	perf_evsel__close_fd(evsel, 1, threads->nr);
 out_evsel_delete:
 	perf_evsel__delete(evsel);
-out_cpu_free:
-	CPU_FREE(cpu_set);
 out_thread_map_delete:
 	thread_map__delete(threads);
 	return err;
