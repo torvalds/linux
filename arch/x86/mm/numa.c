@@ -38,11 +38,7 @@ EXPORT_SYMBOL(node_to_cpumask_map);
 /*
  * Map cpu index to node index
  */
-#ifdef CONFIG_X86_32
-DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, 0);
-#else
 DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
-#endif
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
 
 void __cpuinit numa_set_node(int cpu, int node)
@@ -97,6 +93,78 @@ void __init setup_node_to_cpumask_map(void)
 
 	/* cpumask_of_node() will now work */
 	pr_debug("Node to cpumask map for %d nodes\n", nr_node_ids);
+}
+
+/*
+ * There are unfortunately some poorly designed mainboards around that
+ * only connect memory to a single CPU. This breaks the 1:1 cpu->node
+ * mapping. To avoid this fill in the mapping for all possible CPUs,
+ * as the number of CPUs is not known yet. We round robin the existing
+ * nodes.
+ */
+void __init numa_init_array(void)
+{
+	int rr, i;
+
+	rr = first_node(node_online_map);
+	for (i = 0; i < nr_cpu_ids; i++) {
+		if (early_cpu_to_node(i) != NUMA_NO_NODE)
+			continue;
+		numa_set_node(i, rr);
+		rr = next_node(rr, node_online_map);
+		if (rr == MAX_NUMNODES)
+			rr = first_node(node_online_map);
+	}
+}
+
+static __init int find_near_online_node(int node)
+{
+	int n, val;
+	int min_val = INT_MAX;
+	int best_node = -1;
+
+	for_each_online_node(n) {
+		val = node_distance(node, n);
+
+		if (val < min_val) {
+			min_val = val;
+			best_node = n;
+		}
+	}
+
+	return best_node;
+}
+
+/*
+ * Setup early cpu_to_node.
+ *
+ * Populate cpu_to_node[] only if x86_cpu_to_apicid[],
+ * and apicid_to_node[] tables have valid entries for a CPU.
+ * This means we skip cpu_to_node[] initialisation for NUMA
+ * emulation and faking node case (when running a kernel compiled
+ * for NUMA on a non NUMA box), which is OK as cpu_to_node[]
+ * is already initialized in a round robin manner at numa_init_array,
+ * prior to this call, and this initialization is good enough
+ * for the fake NUMA cases.
+ *
+ * Called before the per_cpu areas are setup.
+ */
+void __init init_cpu_to_node(void)
+{
+	int cpu;
+	u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
+
+	BUG_ON(cpu_to_apicid == NULL);
+
+	for_each_possible_cpu(cpu) {
+		int node = numa_cpu_node(cpu);
+
+		if (node == NUMA_NO_NODE)
+			continue;
+		if (!node_online(node))
+			node = find_near_online_node(node);
+		numa_set_node(cpu, node);
+	}
 }
 
 #ifndef CONFIG_DEBUG_PER_CPU_MAPS

@@ -367,6 +367,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 	 */
 
 	get_memcfg_numa();
+	numa_init_array();
 
 	kva_pages = roundup(calculate_numa_remap_pages(), PTRS_PER_PTE);
 

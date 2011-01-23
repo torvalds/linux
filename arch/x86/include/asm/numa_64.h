@@ -13,7 +13,6 @@ extern int compute_hash_shift(struct bootnode *nodes, int numblks,
 
 #define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
 
-extern void numa_init_array(void);
 extern int numa_off;
 
 extern unsigned long numa_free_all_bootmem(void);
@@ -28,7 +27,6 @@ extern void setup_node_bootmem(int nodeid, unsigned long start,
  */
 #define NODE_MIN_SIZE (4*1024*1024)
 
-extern void __init init_cpu_to_node(void);
 extern int __cpuinit numa_cpu_node(int cpu);
 
 #ifdef CONFIG_NUMA_EMU
@@ -37,7 +35,6 @@ extern int __cpuinit numa_cpu_node(int cpu);
 void numa_emu_cmdline(char *);
 #endif /* CONFIG_NUMA_EMU */
 #else
-static inline void init_cpu_to_node(void)		{ }
 static inline int numa_cpu_node(int cpu)		{ return NUMA_NO_NODE; }
 #endif
 
