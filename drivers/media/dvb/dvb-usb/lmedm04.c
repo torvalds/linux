@@ -204,7 +204,7 @@ static int lme2510_stream_restart(struct dvb_usb_device *d)
 			rbuff, sizeof(rbuff));
 	return ret;
 }
-static int lme2510_remote_keypress(struct dvb_usb_adapter *adap, u16 keypress)
+static int lme2510_remote_keypress(struct dvb_usb_adapter *adap, u32 keypress)
 {
 	struct dvb_usb_device *d = adap->dev;
 
@@ -250,7 +250,8 @@ static void lme2510_int_response(struct urb *lme_urb)
 		case 0xaa:
 			debug_data_snipet(1, "INT Remote data snipet in", ibuf);
 			lme2510_remote_keypress(adap,
-				(u16)(ibuf[4]<<8)+ibuf[5]);
+				(u32)(ibuf[2] << 24) + (ibuf[3] << 16) +
+				(ibuf[4] << 8) + ibuf[5]);
 			break;
 		case 0xbb:
 			switch (st->tuner_config) {
