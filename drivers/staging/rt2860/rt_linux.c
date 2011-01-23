@@ -118,8 +118,7 @@ void RTMP_OS_Mod_Timer(struct timer_list *pTimer,
 	mod_timer(pTimer, jiffies + timeout);
 }
 
-void RTMP_OS_Del_Timer(struct timer_list *pTimer,
-		       OUT BOOLEAN * pCancelled)
+void RTMP_OS_Del_Timer(struct timer_list *pTimer, OUT BOOLEAN *pCancelled)
 {
 	if (timer_pending(pTimer)) {
 		*pCancelled = del_timer_sync(pTimer);
