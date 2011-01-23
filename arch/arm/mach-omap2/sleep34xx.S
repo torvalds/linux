@@ -214,66 +214,29 @@ save_context_wfi:
 	beq	clean_caches
 
 l1_logic_lost:
-	/* Store sp and spsr to SDRAM */
-	mov	r4, sp
-	mrs	r5, spsr
-	mov	r6, lr
+	mov	r4, sp			@ Store sp
+	mrs	r5, spsr		@ Store spsr
+	mov	r6, lr			@ Store lr
 	stmia	r8!, {r4-r6}
-	/* Save all ARM registers */
-	/* Coprocessor access control register */
-	mrc	p15, 0, r6, c1, c0, 2
-	stmia	r8!, {r6}
-	/* TTBR0, TTBR1 and Translation table base control */
-	mrc	p15, 0, r4, c2, c0, 0
-	mrc	p15, 0, r5, c2, c0, 1
-	mrc	p15, 0, r6, c2, c0, 2
-	stmia	r8!, {r4-r6}
-	/*
-	 * Domain access control register, data fault status register,
-	 * and instruction fault status register
-	 */
-	mrc	p15, 0, r4, c3, c0, 0
-	mrc	p15, 0, r5, c5, c0, 0
-	mrc	p15, 0, r6, c5, c0, 1
-	stmia	r8!, {r4-r6}
-	/*
-	 * Data aux fault status register, instruction aux fault status,
-	 * data fault address register and instruction fault address register
-	 */
-	mrc	p15, 0, r4, c5, c1, 0
-	mrc	p15, 0, r5, c5, c1, 1
-	mrc	p15, 0, r6, c6, c0, 0
-	mrc	p15, 0, r7, c6, c0, 2
-	stmia	r8!, {r4-r7}
-	/*
-	 * user r/w thread and process ID, user r/o thread and process ID,
-	 * priv only thread and process ID, cache size selection
-	 */
-	mrc	p15, 0, r4, c13, c0, 2
-	mrc	p15, 0, r5, c13, c0, 3
-	mrc	p15, 0, r6, c13, c0, 4
-	mrc	p15, 2, r7, c0, c0, 0
-	stmia	r8!, {r4-r7}
-	/* Data TLB lockdown, instruction TLB lockdown registers */
-	mrc	p15, 0, r5, c10, c0, 0
-	mrc	p15, 0, r6, c10, c0, 1
-	stmia	r8!, {r5-r6}
-	/* Secure or non secure vector base address, FCSE PID, Context PID*/
-	mrc	p15, 0, r4, c12, c0, 0
-	mrc	p15, 0, r5, c13, c0, 0
-	mrc	p15, 0, r6, c13, c0, 1
-	stmia	r8!, {r4-r6}
-	/* Primary remap, normal remap registers */
-	mrc	p15, 0, r4, c10, c2, 0
-	mrc	p15, 0, r5, c10, c2, 1
-	stmia	r8!,{r4-r5}
 
-	/* Store current cpsr*/
-	mrs	r2, cpsr
-	stmia	r8!, {r2}
+	mrc	p15, 0, r4, c1, c0, 2	@ Coprocessor access control register
+	mrc	p15, 0, r5, c2, c0, 0	@ TTBR0
+	mrc	p15, 0, r6, c2, c0, 1	@ TTBR1
+	mrc	p15, 0, r7, c2, c0, 2	@ TTBCR
+	stmia	r8!, {r4-r7}
 
-	mrc	p15, 0, r4, c1, c0, 0
-	/* save control register */
+	mrc	p15, 0, r4, c3, c0, 0	@ Domain access Control Register
+	mrc	p15, 0, r5, c10, c2, 0	@ PRRR
+	mrc	p15, 0, r6, c10, c2, 1	@ NMRR
+	stmia	r8!,{r4-r6}
+
+	mrc	p15, 0, r4, c13, c0, 1	@ Context ID
+	mrc	p15, 0, r5, c13, c0, 2	@ User r/w thread and process ID
+	mrc	p15, 0, r6, c12, c0, 0	@ Secure or NS vector base address
+	mrs	r7, cpsr		@ Store current cpsr
+	stmia	r8!, {r4-r7}
+
+	mrc	p15, 0, r4, c1, c0, 0	@ save control register
 	stmia	r8!, {r4}
 
 clean_caches:
@@ -489,68 +452,29 @@ skipl2reen:
 	ldr	r4, scratchpad_base
 	ldr	r3, [r4,#0xBC]
 	adds	r3, r3, #16
+
 	ldmia	r3!, {r4-r6}
-	mov	sp, r4
-	msr	spsr_cxsf, r5
-	mov	lr, r6
+	mov	sp, r4			@ Restore sp
+	msr	spsr_cxsf, r5		@ Restore spsr
+	mov	lr, r6			@ Restore lr
 
-	ldmia	r3!, {r4-r9}
-	/* Coprocessor access Control Register */
-	mcr p15, 0, r4, c1, c0, 2
+	ldmia	r3!, {r4-r7}
+	mcr	p15, 0, r4, c1, c0, 2	@ Coprocessor access Control Register
+	mcr	p15, 0, r5, c2, c0, 0	@ TTBR0
+	mcr	p15, 0, r6, c2, c0, 1	@ TTBR1
+	mcr	p15, 0, r7, c2, c0, 2	@ TTBCR
 
-	/* TTBR0 */
-	MCR p15, 0, r5, c2, c0, 0
-	/* TTBR1 */
-	MCR p15, 0, r6, c2, c0, 1
-	/* Translation table base control register */
-	MCR p15, 0, r7, c2, c0, 2
-	/* Domain access Control Register */
-	MCR p15, 0, r8, c3, c0, 0
-	/* Data fault status Register */
-	MCR p15, 0, r9, c5, c0, 0
+	ldmia	r3!,{r4-r6}
+	mcr	p15, 0, r4, c3, c0, 0	@ Domain access Control Register
+	mcr	p15, 0, r5, c10, c2, 0	@ PRRR
+	mcr	p15, 0, r6, c10, c2, 1	@ NMRR
 
-	ldmia	r3!,{r4-r8}
-	/* Instruction fault status Register */
-	MCR p15, 0, r4, c5, c0, 1
-	/* Data Auxiliary Fault Status Register */
-	MCR p15, 0, r5, c5, c1, 0
-	/* Instruction Auxiliary Fault Status Register*/
-	MCR p15, 0, r6, c5, c1, 1
-	/* Data Fault Address Register */
-	MCR p15, 0, r7, c6, c0, 0
-	/* Instruction Fault Address Register*/
-	MCR p15, 0, r8, c6, c0, 2
+
 	ldmia	r3!,{r4-r7}
-
-	/* User r/w thread and process ID */
-	MCR p15, 0, r4, c13, c0, 2
-	/* User ro thread and process ID */
-	MCR p15, 0, r5, c13, c0, 3
-	/* Privileged only thread and process ID */
-	MCR p15, 0, r6, c13, c0, 4
-	/* Cache size selection */
-	MCR p15, 2, r7, c0, c0, 0
-	ldmia	r3!,{r4-r8}
-	/* Data TLB lockdown registers */
-	MCR p15, 0, r4, c10, c0, 0
-	/* Instruction TLB lockdown registers */
-	MCR p15, 0, r5, c10, c0, 1
-	/* Secure or Nonsecure Vector Base Address */
-	MCR p15, 0, r6, c12, c0, 0
-	/* FCSE PID */
-	MCR p15, 0, r7, c13, c0, 0
-	/* Context PID */
-	MCR p15, 0, r8, c13, c0, 1
-
-	ldmia	r3!,{r4-r5}
-	/* Primary memory remap register */
-	MCR p15, 0, r4, c10, c2, 0
-	/* Normal memory remap register */
-	MCR p15, 0, r5, c10, c2, 1
-
-	/* Restore cpsr */
-	ldmia	r3!,{r4}		@ load CPSR from SDRAM
-	msr	cpsr, r4		@ store cpsr
+	mcr	p15, 0, r4, c13, c0, 1	@ Context ID
+	mcr	p15, 0, r5, c13, c0, 2	@ User r/w thread and process ID
+	mrc	p15, 0, r6, c12, c0, 0	@ Secure or NS vector base address
+	msr	cpsr, r7		@ store cpsr
 
 	/* Enabling MMU here */
 	mrc	p15, 0, r7, c2, c0, 2 	@ Read TTBRControl
