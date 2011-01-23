@@ -1032,6 +1032,7 @@ static int trusted_update(struct key *key, const void *data, size_t datalen)
 	ret = datablob_parse(datablob, new_p, new_o);
 	if (ret != Opt_update) {
 		ret = -EINVAL;
+		kfree(new_p);
 		goto out;
 	}
 	/* copy old key values, and reseal with new pcrs */
