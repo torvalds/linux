@@ -1095,6 +1095,25 @@ struct wl1271_acx_ba_session_policy {
 	u8 padding[3];
 } __packed;
 
+struct wl1271_acx_ba_receiver_setup {
+	struct acx_header header;
+
+	/* Specifies Link Id, Range 0-31, 0xFF means ANY  Link Id */
+	u8 link_id;
+
+	u8 tid;
+
+	u8 enable;
+
+	u8 padding[1];
+
+	/* Windows size in number of packets */
+	u16 win_size;
+
+	/* BA session starting sequence number.  RANGE 0-FFF */
+	u16 ssn;
+} __packed;
+
 struct wl1271_acx_fw_tsf_information {
 	struct acx_header header;
 
@@ -1244,8 +1263,10 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 int wl1271_acx_set_ht_information(struct wl1271 *wl,
 				   u16 ht_operation_mode);
 int wl1271_acx_set_ba_session(struct wl1271 *wl,
-			       enum ieee80211_back_parties direction,
-			       u8 tid_index, u8 policy);
+			      enum ieee80211_back_parties direction,
+			      u8 tid_index, u8 policy);
+int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
+				       bool enable);
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
 int wl1271_acx_max_tx_retry(struct wl1271 *wl);
 

@@ -473,7 +473,6 @@ static int wl1271_set_ba_policies(struct wl1271 *wl)
 	u8 ret = 0;
 
 	/* Reset the BA RX indicators */
-	wl->ba_allowed = true;
 	wl->ba_rx_bitmap = 0;
 
 	/* validate that FW support BA */
