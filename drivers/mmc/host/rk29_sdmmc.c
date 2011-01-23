@@ -962,10 +962,8 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 			old_len = len;
 		if (likely(offset + len <= sg->length)) {
 			rk29_sdmmc_pull_data(host, (void *)(buf + offset),len);
-
 			offset += len;
 			nbytes += len;
-
 			if (offset == sg->length) {
 				flush_dcache_page(sg_page(sg));
 				host->sg = sg = sg_next(sg);
@@ -993,7 +991,8 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 		rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_RXDR); // clear RXDR interrupt
 		if (status & RK29_SDMMC_DATA_ERROR_FLAGS) {
 			host->data_status = status;
-			data->bytes_xfered += nbytes;
+			if(data)
+				data->bytes_xfered += nbytes;
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
@@ -1003,11 +1002,13 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 	} while (status & SDMMC_INT_RXDR); // if the RXDR is ready let read again
 	len = SDMMC_GET_FCNT(rk29_sdmmc_read(host->regs, SDMMC_STATUS));
 	host->pio_offset = offset;
-	data->bytes_xfered += nbytes;
+	if(data)
+		data->bytes_xfered += nbytes;
 	return;
 
 done:
-	data->bytes_xfered += nbytes;
+	if(data)
+		data->bytes_xfered += nbytes;
 	smp_wmb();
 	rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 }
@@ -1057,7 +1058,8 @@ static void rk29_sdmmc_write_data_pio(struct rk29_sdmmc *host)
 		rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_TXDR); // clear RXDR interrupt
 		if (status & RK29_SDMMC_DATA_ERROR_FLAGS) {
 			host->data_status = status;
-			data->bytes_xfered += nbytes;
+			if(data)
+				data->bytes_xfered += nbytes;
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
@@ -1066,12 +1068,13 @@ static void rk29_sdmmc_write_data_pio(struct rk29_sdmmc *host)
 	} while (status & SDMMC_INT_TXDR); // if TXDR, let write again
 
 	host->pio_offset = offset;
-	data->bytes_xfered += nbytes;
-
+	if(data)
+		data->bytes_xfered += nbytes;
 	return;
 
 done:
-	data->bytes_xfered += nbytes;
+	if(data)
+		data->bytes_xfered += nbytes;
 	smp_wmb();
 	rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 }
