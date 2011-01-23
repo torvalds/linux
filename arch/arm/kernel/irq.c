@@ -185,7 +185,7 @@ static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
 
 	raw_spin_lock_irq(&desc->lock);
 	desc->irq_data.chip->irq_set_affinity(&desc->irq_data,
-					      cpumask_of(cpu), false);
+					      cpumask_of(cpu), true);
 	raw_spin_unlock_irq(&desc->lock);
 }
 
