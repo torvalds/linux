@@ -685,7 +685,7 @@ static int check_firmware(struct dvb_frontend *fe, unsigned int type,
 {
 	struct xc2028_data         *priv = fe->tuner_priv;
 	struct firmware_properties new_fw;
-	int			   rc = 0, is_retry = 0;
+	int			   rc = 0, retry_count = 0;
 	u16			   version, hwmodel;
 	v4l2_std_id		   std0;
 
@@ -855,9 +855,9 @@ read_not_reliable:
 
 fail:
 	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
-	if (!is_retry) {
+	if (retry_count < 8) {
 		msleep(50);
-		is_retry = 1;
+		retry_count++;
 		tuner_dbg("Retrying firmware load\n");
 		goto retry;
 	}
