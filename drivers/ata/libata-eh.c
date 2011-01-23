@@ -589,8 +589,13 @@ void ata_scsi_error(struct Scsi_Host *host)
 	struct ata_port *ap = ata_shost_to_port(host);
 	int i;
 	unsigned long flags;
+	LIST_HEAD(eh_work_q);
 
 	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(host->host_lock, flags);
+	list_splice_init(&host->eh_cmd_q, &eh_work_q);
+	spin_unlock_irqrestore(host->host_lock, flags);
 
 	/* make sure sff pio task is not running */
 	ata_sff_flush_pio_task(ap);
@@ -627,7 +632,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		if (ap->ops->lost_interrupt)
 			ap->ops->lost_interrupt(ap);
 
-		list_for_each_entry_safe(scmd, tmp, &host->eh_cmd_q, eh_entry) {
+		list_for_each_entry_safe(scmd, tmp, &eh_work_q, eh_entry) {
 			struct ata_queued_cmd *qc;
 
 			for (i = 0; i < ATA_MAX_QUEUE; i++) {
@@ -762,7 +767,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	}
 
 	/* finish or retry handled scmd's and clean up */
-	WARN_ON(host->host_failed || !list_empty(&host->eh_cmd_q));
+	WARN_ON(host->host_failed || !list_empty(&eh_work_q));
 
 	scsi_eh_flush_done_q(&ap->eh_done_q);
 
