@@ -30,4 +30,12 @@ static inline void set_apicid_to_node(int apicid, s16 node)
 # include "numa_64.h"
 #endif
 
+#ifdef CONFIG_NUMA
+extern void __cpuinit numa_set_node(int cpu, int node);
+extern void __cpuinit numa_clear_node(int cpu);
+#else	/* CONFIG_NUMA */
+static inline void numa_set_node(int cpu, int node)	{ }
+static inline void numa_clear_node(int cpu)		{ }
+#endif	/* CONFIG_NUMA */
+
 #endif	/* _ASM_X86_NUMA_H */

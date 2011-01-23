@@ -590,12 +590,7 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 	if (nid == -1 || !node_online(nid))
 		return;
 	set_apicid_to_node(physid, nid);
-#ifdef CONFIG_X86_64
 	numa_set_node(cpu, nid);
-#else /* CONFIG_X86_32 */
-	cpu_to_node_map[cpu] = nid;
-#endif
-
 #endif
 }
 

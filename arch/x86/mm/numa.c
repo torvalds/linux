@@ -36,6 +36,44 @@ cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 EXPORT_SYMBOL(node_to_cpumask_map);
 
 /*
+ * Map cpu index to node index
+ */
+#ifdef CONFIG_X86_32
+DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, 0);
+#else
+DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
+#endif
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+
+void __cpuinit numa_set_node(int cpu, int node)
+{
+	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
+
+	/* early setting, no percpu area yet */
+	if (cpu_to_node_map) {
+		cpu_to_node_map[cpu] = node;
+		return;
+	}
+
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+	if (cpu >= nr_cpu_ids || !cpu_possible(cpu)) {
+		printk(KERN_ERR "numa_set_node: invalid cpu# (%d)\n", cpu);
+		dump_stack();
+		return;
+	}
+#endif
+	per_cpu(x86_cpu_to_node_map, cpu) = node;
+
+	if (node != NUMA_NO_NODE)
+		set_cpu_numa_node(cpu, node);
+}
+
+void __cpuinit numa_clear_node(int cpu)
+{
+	numa_set_node(cpu, NUMA_NO_NODE);
+}
+
+/*
  * Allocate node_to_cpumask_map based on number of available nodes
  * Requires node_possible_map to be valid.
  *
@@ -62,6 +100,37 @@ void __init setup_node_to_cpumask_map(void)
 }
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
+
+int __cpu_to_node(int cpu)
+{
+	if (early_per_cpu_ptr(x86_cpu_to_node_map)) {
+		printk(KERN_WARNING
+			"cpu_to_node(%d): usage too early!\n", cpu);
+		dump_stack();
+		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+	}
+	return per_cpu(x86_cpu_to_node_map, cpu);
+}
+EXPORT_SYMBOL(__cpu_to_node);
+
+/*
+ * Same function as cpu_to_node() but used if called before the
+ * per_cpu areas are setup.
+ */
+int early_cpu_to_node(int cpu)
+{
+	if (early_per_cpu_ptr(x86_cpu_to_node_map))
+		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+
+	if (!cpu_possible(cpu)) {
+		printk(KERN_WARNING
+			"early_cpu_to_node(%d): no per_cpu area!\n", cpu);
+		dump_stack();
+		return NUMA_NO_NODE;
+	}
+	return per_cpu(x86_cpu_to_node_map, cpu);
+}
+
 /*
  * Returns a pointer to the bitmask of CPUs on Node 'node'.
  */
@@ -84,4 +153,5 @@ const struct cpumask *cpumask_of_node(int node)
 	return node_to_cpumask_map[node];
 }
 EXPORT_SYMBOL(cpumask_of_node);
-#endif
+
+#endif	/* CONFIG_DEBUG_PER_CPU_MAPS */

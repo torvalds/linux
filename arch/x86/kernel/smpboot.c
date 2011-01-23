@@ -133,16 +133,11 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 atomic_t init_deasserted;
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
-/* which node each logical CPU is on */
-int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
-EXPORT_SYMBOL(cpu_to_node_map);
-
 /* set up a mapping between cpu and node. */
 static void map_cpu_to_node(int cpu, int node)
 {
 	printk(KERN_INFO "Mapping cpu %d to node %d\n", cpu, node);
 	cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = node;
 }
 
 /* undo a mapping between cpu and node. */
@@ -153,7 +148,6 @@ static void unmap_cpu_to_node(int cpu)
 	printk(KERN_INFO "Unmapping cpu %d from all nodes\n", cpu);
 	for (node = 0; node < MAX_NUMNODES; node++)
 		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = 0;
 }
 #else /* !(CONFIG_NUMA && CONFIG_X86_32) */
 #define map_cpu_to_node(cpu, node)	({})
