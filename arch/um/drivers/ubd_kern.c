@@ -185,7 +185,7 @@ struct ubd {
 	.no_cow =               0, \
 	.shared =		0, \
 	.cow =			DEFAULT_COW, \
-	.lock =			SPIN_LOCK_UNLOCKED,	\
+	.lock =			__SPIN_LOCK_UNLOCKED(ubd_devs.lock), \
 	.request =		NULL, \
 	.start_sg =		0, \
 	.end_sg =		0, \
