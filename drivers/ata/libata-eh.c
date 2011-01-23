@@ -587,7 +587,6 @@ static void ata_eh_unload(struct ata_port *ap)
 void ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap = ata_shost_to_port(host);
-	int i;
 	unsigned long flags;
 	LIST_HEAD(eh_work_q);
 
@@ -596,6 +595,34 @@ void ata_scsi_error(struct Scsi_Host *host)
 	spin_lock_irqsave(host->host_lock, flags);
 	list_splice_init(&host->eh_cmd_q, &eh_work_q);
 	spin_unlock_irqrestore(host->host_lock, flags);
+
+	ata_scsi_cmd_error_handler(host, ap, &eh_work_q);
+
+	/* If we timed raced normal completion and there is nothing to
+	   recover nr_timedout == 0 why exactly are we doing error recovery ? */
+	ata_scsi_port_error_handler(host, ap);
+
+	/* finish or retry handled scmd's and clean up */
+	WARN_ON(host->host_failed || !list_empty(&eh_work_q));
+
+	DPRINTK("EXIT\n");
+}
+
+/**
+ * ata_scsi_cmd_error_handler - error callback for a list of commands
+ * @host:	scsi host containing the port
+ * @ap:		ATA port within the host
+ * @eh_work_q:	list of commands to process
+ *
+ * process the given list of commands and return those finished to the
+ * ap->eh_done_q.  This function is the first part of the libata error
+ * handler which processes a given list of failed commands.
+ */
+void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
+				struct list_head *eh_work_q)
+{
+	int i;
+	unsigned long flags;
 
 	/* make sure sff pio task is not running */
 	ata_sff_flush_pio_task(ap);
@@ -632,7 +659,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		if (ap->ops->lost_interrupt)
 			ap->ops->lost_interrupt(ap);
 
-		list_for_each_entry_safe(scmd, tmp, &eh_work_q, eh_entry) {
+		list_for_each_entry_safe(scmd, tmp, eh_work_q, eh_entry) {
 			struct ata_queued_cmd *qc;
 
 			for (i = 0; i < ATA_MAX_QUEUE; i++) {
@@ -676,8 +703,20 @@ void ata_scsi_error(struct Scsi_Host *host)
 	} else
 		spin_unlock_wait(ap->lock);
 
-	/* If we timed raced normal completion and there is nothing to
-	   recover nr_timedout == 0 why exactly are we doing error recovery ? */
+}
+EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
+
+/**
+ * ata_scsi_port_error_handler - recover the port after the commands
+ * @host:	SCSI host containing the port
+ * @ap:		the ATA port
+ *
+ * Handle the recovery of the port @ap after all the commands
+ * have been recovered.
+ */
+void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
+{
+	unsigned long flags;
 
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
@@ -766,9 +805,6 @@ void ata_scsi_error(struct Scsi_Host *host)
 		ap->ops->eng_timeout(ap);
 	}
 
-	/* finish or retry handled scmd's and clean up */
-	WARN_ON(host->host_failed || !list_empty(&eh_work_q));
-
 	scsi_eh_flush_done_q(&ap->eh_done_q);
 
 	/* clean up */
@@ -789,9 +825,8 @@ void ata_scsi_error(struct Scsi_Host *host)
 	wake_up_all(&ap->eh_wait_q);
 
 	spin_unlock_irqrestore(ap->lock, flags);
-
-	DPRINTK("EXIT\n");
 }
+EXPORT_SYMBOL_GPL(ata_scsi_port_error_handler);
 
 /**
  *	ata_port_wait_eh - Wait for the currently pending EH to complete
