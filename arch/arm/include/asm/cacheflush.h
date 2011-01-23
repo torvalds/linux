@@ -116,20 +116,20 @@
 # define MULTI_CACHE 1
 #endif
 
-#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
-//# ifdef _CACHE
+#if defined(CONFIG_CPU_CACHE_V6)
+# ifdef _CACHE
 #  define MULTI_CACHE 1
-//# else
-//#  define _CACHE v6
-//# endif
+# else
+#  define _CACHE v6
+# endif
 #endif
 
-#if defined(CONFIG_CPU_V7)
-//# ifdef _CACHE
+#if defined(CONFIG_CPU_CACHE_V7)
+# ifdef _CACHE
 #  define MULTI_CACHE 1
-//# else
-//#  define _CACHE v7
-//# endif
+# else
+#  define _CACHE v7
+# endif
 #endif
 
 #if !defined(_CACHE) && !defined(MULTI_CACHE)
