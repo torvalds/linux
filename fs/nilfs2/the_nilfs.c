@@ -475,10 +475,13 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 			return -EIO;
 		}
 		printk(KERN_WARNING
-		       "NILFS warning: unable to read primary superblock\n");
-	} else if (!sbp[1])
+		       "NILFS warning: unable to read primary superblock "
+		       "(blocksize = %d)\n", blocksize);
+	} else if (!sbp[1]) {
 		printk(KERN_WARNING
-		       "NILFS warning: unable to read secondary superblock\n");
+		       "NILFS warning: unable to read secondary superblock "
+		       "(blocksize = %d)\n", blocksize);
+	}
 
 	/*
 	 * Compare two super blocks and set 1 in swp if the secondary
@@ -505,7 +508,7 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 
 	if (!valid[!swp])
 		printk(KERN_WARNING "NILFS warning: broken superblock. "
-		       "using spare superblock.\n");
+		       "using spare superblock (blocksize = %d).\n", blocksize);
 	if (swp)
 		nilfs_swap_super_block(nilfs);
 
