@@ -64,7 +64,7 @@ struct kthread_work {
 };
 
 #define KTHREAD_WORKER_INIT(worker)	{				\
-	.lock = SPIN_LOCK_UNLOCKED,					\
+	.lock = __SPIN_LOCK_UNLOCKED((worker).lock),			\
 	.work_list = LIST_HEAD_INIT((worker).work_list),		\
 	}
 
