@@ -36,23 +36,11 @@ config GENERIC_TIME_VSYSCALL
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
-	default y
-
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool PPC64
 
 config NEED_PER_CPU_EMBED_FIRST_CHUNK
 	def_bool PPC64
-
-config IRQ_PER_CPU
-	bool
-	default y
 
 config NR_IRQS
 	int "Number of virtual interrupt numbers"
@@ -143,6 +131,9 @@ config PPC
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_SPARSE_IRQ
+	select IRQ_PER_CPU
 
 config EARLY_PRINTK
 	bool
@@ -391,19 +382,6 @@ config IRQ_ALL_CPUS
 	  multiple CPUs.  Saying N here will route all IRQs to the first
 	  CPU.  Generally saying Y is safe, although some problems have been
 	  reported with SMP Power Macintoshes with this option enabled.
-
-config SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	default n
-	help
-	  This enables support for sparse irqs. This is useful for distro
-	  kernels that want to define a high CONFIG_NR_CPUS value but still
-	  want to have low kernel memory footprint on smaller machines.
-
-	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
-	    out the irq_desc[] array in a more NUMA-friendly way. )
-
-	  If you don't know what to do here, say N.
 
 config NUMA
 	bool "NUMA support"

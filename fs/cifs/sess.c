@@ -277,7 +277,7 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 }
 
 static void
-decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
+decode_unicode_ssetup(char **pbcc_area, __u16 bleft, struct cifsSesInfo *ses,
 		      const struct nls_table *nls_cp)
 {
 	int len;
@@ -323,7 +323,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 	return;
 }
 
-static int decode_ascii_ssetup(char **pbcc_area, int bleft,
+static int decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 			       struct cifsSesInfo *ses,
 			       const struct nls_table *nls_cp)
 {
@@ -575,12 +575,11 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	char *str_area;
 	SESSION_SETUP_ANDX *pSMB;
 	__u32 capabilities;
-	int count;
+	__u16 count;
 	int resp_buf_type;
 	struct kvec iov[3];
 	enum securityEnum type;
-	__u16 action;
-	int bytes_remaining;
+	__u16 action, bytes_remaining;
 	struct key *spnego_key = NULL;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
 	u16 blob_len;
@@ -876,10 +875,10 @@ ssetup_ntlmssp_authenticate:
 	count = iov[1].iov_len + iov[2].iov_len;
 	smb_buf->smb_buf_length += count;
 
-	BCC_LE(smb_buf) = cpu_to_le16(count);
+	put_bcc_le(count, smb_buf);
 
 	rc = SendReceive2(xid, ses, iov, 3 /* num_iovecs */, &resp_buf_type,
-			  CIFS_STD_OP /* not long */ | CIFS_LOG_ERROR);
+			  CIFS_LOG_ERROR);
 	/* SMB request buf freed in SendReceive2 */
 
 	pSMB = (SESSION_SETUP_ANDX *)iov[0].iov_base;
@@ -910,7 +909,7 @@ ssetup_ntlmssp_authenticate:
 	cFYI(1, "UID = %d ", ses->Suid);
 	/* response can have either 3 or 4 word count - Samba sends 3 */
 	/* and lanman response is 3 */
-	bytes_remaining = BCC(smb_buf);
+	bytes_remaining = get_bcc(smb_buf);
 	bcc_ptr = pByteArea(smb_buf);
 
 	if (smb_buf->WordCount == 4) {

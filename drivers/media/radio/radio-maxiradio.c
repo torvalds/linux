@@ -77,8 +77,8 @@ MODULE_PARM_DESC(debug, "activates debug info");
 /* TEA5757 pin mappings */
 static const int clk = 1, data = 2, wren = 4, mo_st = 8, power = 16;
 
-#define FREQ_LO		(50 * 16000)
-#define FREQ_HI		(150 * 16000)
+#define FREQ_LO		(87 * 16000)
+#define FREQ_HI		(108 * 16000)
 
 #define FREQ_IF         171200 /* 10.7*16000   */
 #define FREQ_STEP       200    /* 12.5*16      */

@@ -45,6 +45,7 @@ static int
 vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	unsigned long flags;
 
 	if (adapter->rxcsum != val) {
 		adapter->rxcsum = val;
@@ -56,8 +57,10 @@ vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
 				adapter->shared->devRead.misc.uptFeatures &=
 				~UPT1_F_RXCSUM;
 
+			spin_lock_irqsave(&adapter->cmd_lock, flags);
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);
+			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 		}
 	}
 	return 0;
@@ -68,76 +71,78 @@ vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
 static const struct vmxnet3_stat_desc
 vmxnet3_tq_dev_stats[] = {
 	/* description,         offset */
-	{ "TSO pkts tx",        offsetof(struct UPT1_TxStats, TSOPktsTxOK) },
-	{ "TSO bytes tx",       offsetof(struct UPT1_TxStats, TSOBytesTxOK) },
-	{ "ucast pkts tx",      offsetof(struct UPT1_TxStats, ucastPktsTxOK) },
-	{ "ucast bytes tx",     offsetof(struct UPT1_TxStats, ucastBytesTxOK) },
-	{ "mcast pkts tx",      offsetof(struct UPT1_TxStats, mcastPktsTxOK) },
-	{ "mcast bytes tx",     offsetof(struct UPT1_TxStats, mcastBytesTxOK) },
-	{ "bcast pkts tx",      offsetof(struct UPT1_TxStats, bcastPktsTxOK) },
-	{ "bcast bytes tx",     offsetof(struct UPT1_TxStats, bcastBytesTxOK) },
-	{ "pkts tx err",        offsetof(struct UPT1_TxStats, pktsTxError) },
-	{ "pkts tx discard",    offsetof(struct UPT1_TxStats, pktsTxDiscard) },
+	{ "Tx Queue#",        0 },
+	{ "  TSO pkts tx",	offsetof(struct UPT1_TxStats, TSOPktsTxOK) },
+	{ "  TSO bytes tx",	offsetof(struct UPT1_TxStats, TSOBytesTxOK) },
+	{ "  ucast pkts tx",	offsetof(struct UPT1_TxStats, ucastPktsTxOK) },
+	{ "  ucast bytes tx",	offsetof(struct UPT1_TxStats, ucastBytesTxOK) },
+	{ "  mcast pkts tx",	offsetof(struct UPT1_TxStats, mcastPktsTxOK) },
+	{ "  mcast bytes tx",	offsetof(struct UPT1_TxStats, mcastBytesTxOK) },
+	{ "  bcast pkts tx",	offsetof(struct UPT1_TxStats, bcastPktsTxOK) },
+	{ "  bcast bytes tx",	offsetof(struct UPT1_TxStats, bcastBytesTxOK) },
+	{ "  pkts tx err",	offsetof(struct UPT1_TxStats, pktsTxError) },
+	{ "  pkts tx discard",	offsetof(struct UPT1_TxStats, pktsTxDiscard) },
 };
 
 /* per tq stats maintained by the driver */
 static const struct vmxnet3_stat_desc
 vmxnet3_tq_driver_stats[] = {
 	/* description,         offset */
-	{"drv dropped tx total", offsetof(struct vmxnet3_tq_driver_stats,
-					drop_total) },
-	{ "   too many frags",  offsetof(struct vmxnet3_tq_driver_stats,
-					drop_too_many_frags) },
-	{ "   giant hdr",       offsetof(struct vmxnet3_tq_driver_stats,
-					drop_oversized_hdr) },
-	{ "   hdr err",         offsetof(struct vmxnet3_tq_driver_stats,
-					drop_hdr_inspect_err) },
-	{ "   tso",             offsetof(struct vmxnet3_tq_driver_stats,
-					drop_tso) },
-	{ "ring full",          offsetof(struct vmxnet3_tq_driver_stats,
-					tx_ring_full) },
-	{ "pkts linearized",    offsetof(struct vmxnet3_tq_driver_stats,
-					linearized) },
-	{ "hdr cloned",         offsetof(struct vmxnet3_tq_driver_stats,
-					copy_skb_header) },
-	{ "giant hdr",          offsetof(struct vmxnet3_tq_driver_stats,
-					oversized_hdr) },
+	{"  drv dropped tx total",	offsetof(struct vmxnet3_tq_driver_stats,
+						 drop_total) },
+	{ "     too many frags", offsetof(struct vmxnet3_tq_driver_stats,
+					  drop_too_many_frags) },
+	{ "     giant hdr",	offsetof(struct vmxnet3_tq_driver_stats,
+					 drop_oversized_hdr) },
+	{ "     hdr err",	offsetof(struct vmxnet3_tq_driver_stats,
+					 drop_hdr_inspect_err) },
+	{ "     tso",		offsetof(struct vmxnet3_tq_driver_stats,
+					 drop_tso) },
+	{ "  ring full",	offsetof(struct vmxnet3_tq_driver_stats,
+					 tx_ring_full) },
+	{ "  pkts linearized",	offsetof(struct vmxnet3_tq_driver_stats,
+					 linearized) },
+	{ "  hdr cloned",	offsetof(struct vmxnet3_tq_driver_stats,
+					 copy_skb_header) },
+	{ "  giant hdr",	offsetof(struct vmxnet3_tq_driver_stats,
+					 oversized_hdr) },
 };
 
 /* per rq stats maintained by the device */
 static const struct vmxnet3_stat_desc
 vmxnet3_rq_dev_stats[] = {
-	{ "LRO pkts rx",        offsetof(struct UPT1_RxStats, LROPktsRxOK) },
-	{ "LRO byte rx",        offsetof(struct UPT1_RxStats, LROBytesRxOK) },
-	{ "ucast pkts rx",      offsetof(struct UPT1_RxStats, ucastPktsRxOK) },
-	{ "ucast bytes rx",     offsetof(struct UPT1_RxStats, ucastBytesRxOK) },
-	{ "mcast pkts rx",      offsetof(struct UPT1_RxStats, mcastPktsRxOK) },
-	{ "mcast bytes rx",     offsetof(struct UPT1_RxStats, mcastBytesRxOK) },
-	{ "bcast pkts rx",      offsetof(struct UPT1_RxStats, bcastPktsRxOK) },
-	{ "bcast bytes rx",     offsetof(struct UPT1_RxStats, bcastBytesRxOK) },
-	{ "pkts rx out of buf", offsetof(struct UPT1_RxStats, pktsRxOutOfBuf) },
-	{ "pkts rx err",        offsetof(struct UPT1_RxStats, pktsRxError) },
+	{ "Rx Queue#",        0 },
+	{ "  LRO pkts rx",	offsetof(struct UPT1_RxStats, LROPktsRxOK) },
+	{ "  LRO byte rx",	offsetof(struct UPT1_RxStats, LROBytesRxOK) },
+	{ "  ucast pkts rx",	offsetof(struct UPT1_RxStats, ucastPktsRxOK) },
+	{ "  ucast bytes rx",	offsetof(struct UPT1_RxStats, ucastBytesRxOK) },
+	{ "  mcast pkts rx",	offsetof(struct UPT1_RxStats, mcastPktsRxOK) },
+	{ "  mcast bytes rx",	offsetof(struct UPT1_RxStats, mcastBytesRxOK) },
+	{ "  bcast pkts rx",	offsetof(struct UPT1_RxStats, bcastPktsRxOK) },
+	{ "  bcast bytes rx",	offsetof(struct UPT1_RxStats, bcastBytesRxOK) },
+	{ "  pkts rx OOB",	offsetof(struct UPT1_RxStats, pktsRxOutOfBuf) },
+	{ "  pkts rx err",	offsetof(struct UPT1_RxStats, pktsRxError) },
 };
 
 /* per rq stats maintained by the driver */
 static const struct vmxnet3_stat_desc
 vmxnet3_rq_driver_stats[] = {
 	/* description,         offset */
-	{ "drv dropped rx total", offsetof(struct vmxnet3_rq_driver_stats,
-					   drop_total) },
-	{ "   err",            offsetof(struct vmxnet3_rq_driver_stats,
-					drop_err) },
-	{ "   fcs",            offsetof(struct vmxnet3_rq_driver_stats,
-					drop_fcs) },
-	{ "rx buf alloc fail", offsetof(struct vmxnet3_rq_driver_stats,
-					rx_buf_alloc_failure) },
+	{ "  drv dropped rx total", offsetof(struct vmxnet3_rq_driver_stats,
+					     drop_total) },
+	{ "     err",		offsetof(struct vmxnet3_rq_driver_stats,
+					 drop_err) },
+	{ "     fcs",		offsetof(struct vmxnet3_rq_driver_stats,
+					 drop_fcs) },
+	{ "  rx buf alloc fail", offsetof(struct vmxnet3_rq_driver_stats,
+					  rx_buf_alloc_failure) },
 };
 
 /* gloabl stats maintained by the driver */
 static const struct vmxnet3_stat_desc
 vmxnet3_global_stats[] = {
 	/* description,         offset */
-	{ "tx timeout count",   offsetof(struct vmxnet3_adapter,
+	{ "tx timeout count",	offsetof(struct vmxnet3_adapter,
 					 tx_timeout_count) }
 };
 
@@ -151,12 +156,15 @@ vmxnet3_get_stats(struct net_device *netdev)
 	struct UPT1_TxStats *devTxStats;
 	struct UPT1_RxStats *devRxStats;
 	struct net_device_stats *net_stats = &netdev->stats;
+	unsigned long flags;
 	int i;
 
 	adapter = netdev_priv(netdev);
 
 	/* Collect the dev stats into the shared area */
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_STATS);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	memset(net_stats, 0, sizeof(*net_stats));
 	for (i = 0; i < adapter->num_tx_queues; i++) {
@@ -193,12 +201,15 @@ vmxnet3_get_stats(struct net_device *netdev)
 static int
 vmxnet3_get_sset_count(struct net_device *netdev, int sset)
 {
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(vmxnet3_tq_dev_stats) +
-			ARRAY_SIZE(vmxnet3_tq_driver_stats) +
-			ARRAY_SIZE(vmxnet3_rq_dev_stats) +
-			ARRAY_SIZE(vmxnet3_rq_driver_stats) +
+		return (ARRAY_SIZE(vmxnet3_tq_dev_stats) +
+			ARRAY_SIZE(vmxnet3_tq_driver_stats)) *
+		       adapter->num_tx_queues +
+		       (ARRAY_SIZE(vmxnet3_rq_dev_stats) +
+			ARRAY_SIZE(vmxnet3_rq_driver_stats)) *
+		       adapter->num_rx_queues +
 			ARRAY_SIZE(vmxnet3_global_stats);
 	default:
 		return -EOPNOTSUPP;
@@ -206,10 +217,16 @@ vmxnet3_get_sset_count(struct net_device *netdev, int sset)
 }
 
 
+/* Should be multiple of 4 */
+#define NUM_TX_REGS	8
+#define NUM_RX_REGS	12
+
 static int
 vmxnet3_get_regs_len(struct net_device *netdev)
 {
-	return 20 * sizeof(u32);
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	return (adapter->num_tx_queues * NUM_TX_REGS * sizeof(u32) +
+		adapter->num_rx_queues * NUM_RX_REGS * sizeof(u32));
 }
 
 
@@ -240,29 +257,37 @@ vmxnet3_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 static void
 vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 {
+	 struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	if (stringset == ETH_SS_STATS) {
-		int i;
+		int i, j;
+		for (j = 0; j < adapter->num_tx_queues; j++) {
+			for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++) {
+				memcpy(buf, vmxnet3_tq_dev_stats[i].desc,
+				       ETH_GSTRING_LEN);
+				buf += ETH_GSTRING_LEN;
+			}
+			for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats);
+			     i++) {
+				memcpy(buf, vmxnet3_tq_driver_stats[i].desc,
+				       ETH_GSTRING_LEN);
+				buf += ETH_GSTRING_LEN;
+			}
+		}
 
-		for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++) {
-			memcpy(buf, vmxnet3_tq_dev_stats[i].desc,
-			       ETH_GSTRING_LEN);
-			buf += ETH_GSTRING_LEN;
+		for (j = 0; j < adapter->num_rx_queues; j++) {
+			for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++) {
+				memcpy(buf, vmxnet3_rq_dev_stats[i].desc,
+				       ETH_GSTRING_LEN);
+				buf += ETH_GSTRING_LEN;
+			}
+			for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats);
+			     i++) {
+				memcpy(buf, vmxnet3_rq_driver_stats[i].desc,
+				       ETH_GSTRING_LEN);
+				buf += ETH_GSTRING_LEN;
+			}
 		}
-		for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats); i++) {
-			memcpy(buf, vmxnet3_tq_driver_stats[i].desc,
-			       ETH_GSTRING_LEN);
-			buf += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++) {
-			memcpy(buf, vmxnet3_rq_dev_stats[i].desc,
-			       ETH_GSTRING_LEN);
-			buf += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats); i++) {
-			memcpy(buf, vmxnet3_rq_driver_stats[i].desc,
-			       ETH_GSTRING_LEN);
-			buf += ETH_GSTRING_LEN;
-		}
+
 		for (i = 0; i < ARRAY_SIZE(vmxnet3_global_stats); i++) {
 			memcpy(buf, vmxnet3_global_stats[i].desc,
 				ETH_GSTRING_LEN);
@@ -277,6 +302,7 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data)
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u8 lro_requested = (data & ETH_FLAG_LRO) == 0 ? 0 : 1;
 	u8 lro_present = (netdev->features & NETIF_F_LRO) == 0 ? 0 : 1;
+	unsigned long flags;
 
 	if (data & ~ETH_FLAG_LRO)
 		return -EOPNOTSUPP;
@@ -292,8 +318,10 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data)
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
 							~UPT1_F_LRO;
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_FEATURE);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	}
 	return 0;
 }
@@ -303,30 +331,41 @@ vmxnet3_get_ethtool_stats(struct net_device *netdev,
 			  struct ethtool_stats *stats, u64  *buf)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	unsigned long flags;
 	u8 *base;
 	int i;
 	int j = 0;
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_STATS);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	/* this does assume each counter is 64-bit wide */
-/* TODO change this for multiple queues */
+	for (j = 0; j < adapter->num_tx_queues; j++) {
+		base = (u8 *)&adapter->tqd_start[j].stats;
+		*buf++ = (u64)j;
+		for (i = 1; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++)
+			*buf++ = *(u64 *)(base +
+					  vmxnet3_tq_dev_stats[i].offset);
 
-	base = (u8 *)&adapter->tqd_start[j].stats;
-	for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++)
-		*buf++ = *(u64 *)(base + vmxnet3_tq_dev_stats[i].offset);
+		base = (u8 *)&adapter->tx_queue[j].stats;
+		for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats); i++)
+			*buf++ = *(u64 *)(base +
+					  vmxnet3_tq_driver_stats[i].offset);
+	}
 
-	base = (u8 *)&adapter->tx_queue[j].stats;
-	for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats); i++)
-		*buf++ = *(u64 *)(base + vmxnet3_tq_driver_stats[i].offset);
+	for (j = 0; j < adapter->num_tx_queues; j++) {
+		base = (u8 *)&adapter->rqd_start[j].stats;
+		*buf++ = (u64) j;
+		for (i = 1; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
+			*buf++ = *(u64 *)(base +
+					  vmxnet3_rq_dev_stats[i].offset);
 
-	base = (u8 *)&adapter->rqd_start[j].stats;
-	for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
-		*buf++ = *(u64 *)(base + vmxnet3_rq_dev_stats[i].offset);
-
-	base = (u8 *)&adapter->rx_queue[j].stats;
-	for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats); i++)
-		*buf++ = *(u64 *)(base + vmxnet3_rq_driver_stats[i].offset);
+		base = (u8 *)&adapter->rx_queue[j].stats;
+		for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats); i++)
+			*buf++ = *(u64 *)(base +
+					  vmxnet3_rq_driver_stats[i].offset);
+	}
 
 	base = (u8 *)adapter;
 	for (i = 0; i < ARRAY_SIZE(vmxnet3_global_stats); i++)
@@ -339,7 +378,7 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 *buf = p;
-	int i = 0;
+	int i = 0, j = 0;
 
 	memset(p, 0, vmxnet3_get_regs_len(netdev));
 
@@ -348,31 +387,35 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	/* Update vmxnet3_get_regs_len if we want to dump more registers */
 
 	/* make each ring use multiple of 16 bytes */
-/* TODO change this for multiple queues */
-	buf[0] = adapter->tx_queue[i].tx_ring.next2fill;
-	buf[1] = adapter->tx_queue[i].tx_ring.next2comp;
-	buf[2] = adapter->tx_queue[i].tx_ring.gen;
-	buf[3] = 0;
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		buf[j++] = adapter->tx_queue[i].tx_ring.next2fill;
+		buf[j++] = adapter->tx_queue[i].tx_ring.next2comp;
+		buf[j++] = adapter->tx_queue[i].tx_ring.gen;
+		buf[j++] = 0;
 
-	buf[4] = adapter->tx_queue[i].comp_ring.next2proc;
-	buf[5] = adapter->tx_queue[i].comp_ring.gen;
-	buf[6] = adapter->tx_queue[i].stopped;
-	buf[7] = 0;
+		buf[j++] = adapter->tx_queue[i].comp_ring.next2proc;
+		buf[j++] = adapter->tx_queue[i].comp_ring.gen;
+		buf[j++] = adapter->tx_queue[i].stopped;
+		buf[j++] = 0;
+	}
 
-	buf[8] = adapter->rx_queue[i].rx_ring[0].next2fill;
-	buf[9] = adapter->rx_queue[i].rx_ring[0].next2comp;
-	buf[10] = adapter->rx_queue[i].rx_ring[0].gen;
-	buf[11] = 0;
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		buf[j++] = adapter->rx_queue[i].rx_ring[0].next2fill;
+		buf[j++] = adapter->rx_queue[i].rx_ring[0].next2comp;
+		buf[j++] = adapter->rx_queue[i].rx_ring[0].gen;
+		buf[j++] = 0;
 
-	buf[12] = adapter->rx_queue[i].rx_ring[1].next2fill;
-	buf[13] = adapter->rx_queue[i].rx_ring[1].next2comp;
-	buf[14] = adapter->rx_queue[i].rx_ring[1].gen;
-	buf[15] = 0;
+		buf[j++] = adapter->rx_queue[i].rx_ring[1].next2fill;
+		buf[j++] = adapter->rx_queue[i].rx_ring[1].next2comp;
+		buf[j++] = adapter->rx_queue[i].rx_ring[1].gen;
+		buf[j++] = 0;
 
-	buf[16] = adapter->rx_queue[i].comp_ring.next2proc;
-	buf[17] = adapter->rx_queue[i].comp_ring.gen;
-	buf[18] = 0;
-	buf[19] = 0;
+		buf[j++] = adapter->rx_queue[i].comp_ring.next2proc;
+		buf[j++] = adapter->rx_queue[i].comp_ring.gen;
+		buf[j++] = 0;
+		buf[j++] = 0;
+	}
+
 }
 
 
@@ -574,6 +617,7 @@ vmxnet3_set_rss_indir(struct net_device *netdev,
 		      const struct ethtool_rxfh_indir *p)
 {
 	unsigned int i;
+	unsigned long flags;
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 
@@ -592,8 +636,10 @@ vmxnet3_set_rss_indir(struct net_device *netdev,
 	for (i = 0; i < rssConf->indTableSize; i++)
 		rssConf->indTable[i] = p->ring_index[i];
 
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_RSSIDT);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 	return 0;
 

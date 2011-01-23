@@ -127,7 +127,8 @@ int mpc831x_usb_cfg(void)
 
 	/* Configure clock */
 	immr_node = of_get_parent(np);
-	if (immr_node && of_device_is_compatible(immr_node, "fsl,mpc8315-immr"))
+	if (immr_node && (of_device_is_compatible(immr_node, "fsl,mpc8315-immr") ||
+			of_device_is_compatible(immr_node, "fsl,mpc8308-immr")))
 		clrsetbits_be32(immap + MPC83XX_SCCR_OFFS,
 		                MPC8315_SCCR_USB_MASK,
 		                MPC8315_SCCR_USB_DRCM_01);
@@ -138,7 +139,11 @@ int mpc831x_usb_cfg(void)
 
 	/* Configure pin mux for ULPI.  There is no pin mux for UTMI */
 	if (prop && !strcmp(prop, "ulpi")) {
-		if (of_device_is_compatible(immr_node, "fsl,mpc8315-immr")) {
+		if (of_device_is_compatible(immr_node, "fsl,mpc8308-immr")) {
+			clrsetbits_be32(immap + MPC83XX_SICRH_OFFS,
+					MPC8308_SICRH_USB_MASK,
+					MPC8308_SICRH_USB_ULPI);
+		} else if (of_device_is_compatible(immr_node, "fsl,mpc8315-immr")) {
 			clrsetbits_be32(immap + MPC83XX_SICRL_OFFS,
 					MPC8315_SICRL_USB_MASK,
 					MPC8315_SICRL_USB_ULPI);
@@ -173,6 +178,9 @@ int mpc831x_usb_cfg(void)
 		     !strcmp(prop, "utmi"))) {
 		u32 refsel;
 
+		if (of_device_is_compatible(immr_node, "fsl,mpc8308-immr"))
+			goto out;
+
 		if (of_device_is_compatible(immr_node, "fsl,mpc8315-immr"))
 			refsel = CONTROL_REFSEL_24MHZ;
 		else
@@ -186,9 +194,11 @@ int mpc831x_usb_cfg(void)
 		temp = CONTROL_PHY_CLK_SEL_ULPI;
 #ifdef CONFIG_USB_OTG
 		/* Set OTG_PORT */
-		dr_mode = of_get_property(np, "dr_mode", NULL);
-		if (dr_mode && !strcmp(dr_mode, "otg"))
-			temp |= CONTROL_OTG_PORT;
+		if (!of_device_is_compatible(immr_node, "fsl,mpc8308-immr")) {
+			dr_mode = of_get_property(np, "dr_mode", NULL);
+			if (dr_mode && !strcmp(dr_mode, "otg"))
+				temp |= CONTROL_OTG_PORT;
+		}
 #endif /* CONFIG_USB_OTG */
 		out_be32(usb_regs + FSL_USB2_CONTROL_OFFS, temp);
 	} else {
@@ -196,6 +206,7 @@ int mpc831x_usb_cfg(void)
 		ret = -EINVAL;
 	}
 
+out:
 	iounmap(usb_regs);
 	of_node_put(np);
 	return ret;

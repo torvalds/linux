@@ -1449,47 +1449,6 @@ static int ov7670_g_chip_ident(struct v4l2_subdev *sd,
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_OV7670, 0);
 }
 
-static int ov7670_s_config(struct v4l2_subdev *sd, int dumb, void *data)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov7670_config *config = data;
-	struct ov7670_info *info = to_state(sd);
-	int ret;
-
-	info->clock_speed = 30; /* default: a guess */
-
-	/*
-	 * Must apply configuration before initializing device, because it
-	 * selects I/O method.
-	 */
-	if (config) {
-		info->min_width = config->min_width;
-		info->min_height = config->min_height;
-		info->use_smbus = config->use_smbus;
-
-		if (config->clock_speed)
-			info->clock_speed = config->clock_speed;
-	}
-
-	/* Make sure it's an ov7670 */
-	ret = ov7670_detect(sd);
-	if (ret) {
-		v4l_dbg(1, debug, client,
-			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
-			client->addr << 1, client->adapter->name);
-		kfree(info);
-		return ret;
-	}
-	v4l_info(client, "chip found @ 0x%02x (%s)\n",
-			client->addr << 1, client->adapter->name);
-
-	info->fmt = &ov7670_formats[0];
-	info->sat = 128;	/* Review this */
-	info->clkrc = info->clock_speed / 30;
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ov7670_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
@@ -1528,7 +1487,6 @@ static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 	.s_ctrl = ov7670_s_ctrl,
 	.queryctrl = ov7670_queryctrl,
 	.reset = ov7670_reset,
-	.s_config = ov7670_s_config,
 	.init = ov7670_init,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ov7670_g_register,
@@ -1558,6 +1516,7 @@ static int ov7670_probe(struct i2c_client *client,
 {
 	struct v4l2_subdev *sd;
 	struct ov7670_info *info;
+	int ret;
 
 	info = kzalloc(sizeof(struct ov7670_info), GFP_KERNEL);
 	if (info == NULL)
@@ -1565,6 +1524,37 @@ static int ov7670_probe(struct i2c_client *client,
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &ov7670_ops);
 
+	info->clock_speed = 30; /* default: a guess */
+	if (client->dev.platform_data) {
+		struct ov7670_config *config = client->dev.platform_data;
+
+		/*
+		 * Must apply configuration before initializing device, because it
+		 * selects I/O method.
+		 */
+		info->min_width = config->min_width;
+		info->min_height = config->min_height;
+		info->use_smbus = config->use_smbus;
+
+		if (config->clock_speed)
+			info->clock_speed = config->clock_speed;
+	}
+
+	/* Make sure it's an ov7670 */
+	ret = ov7670_detect(sd);
+	if (ret) {
+		v4l_dbg(1, debug, client,
+			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
+			client->addr << 1, client->adapter->name);
+		kfree(info);
+		return ret;
+	}
+	v4l_info(client, "chip found @ 0x%02x (%s)\n",
+			client->addr << 1, client->adapter->name);
+
+	info->fmt = &ov7670_formats[0];
+	info->sat = 128;	/* Review this */
+	info->clkrc = info->clock_speed / 30;
 	return 0;
 }
 

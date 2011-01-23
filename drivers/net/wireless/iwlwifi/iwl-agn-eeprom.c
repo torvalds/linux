@@ -168,7 +168,7 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 		/* not using .cfg overwrite */
 		radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
 		priv->cfg->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
-		priv->cfg->valid_rx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+		priv->cfg->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
 		if (!priv->cfg->valid_tx_ant || !priv->cfg->valid_rx_ant) {
 			IWL_ERR(priv, "Invalid chain (0X%x, 0X%x)\n",
 				priv->cfg->valid_tx_ant,

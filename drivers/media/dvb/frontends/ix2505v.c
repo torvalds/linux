@@ -311,7 +311,7 @@ struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 	return fe;
 
 error:
-	ix2505v_release(fe);
+	kfree(state);
 	return NULL;
 }
 EXPORT_SYMBOL(ix2505v_attach);
