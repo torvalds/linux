@@ -330,8 +330,6 @@ typedef struct drm_i915_private {
 	int cfb_plane;
 	int cfb_y;
 
-	int irq_enabled;
-
 	struct intel_opregion opregion;
 
 	/* overlay */
@@ -1001,7 +999,6 @@ extern int i915_irq_emit(struct drm_device *dev, void *data,
 extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 void i915_trace_irq_get(struct drm_device *dev, u32 seqno);
-extern void i915_enable_interrupt (struct drm_device *dev);
 
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);

@@ -1412,16 +1412,6 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-void i915_enable_interrupt (struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_PCH_SPLIT(dev))
-		intel_opregion_enable_asle(dev);
-	dev_priv->irq_enabled = 1;
-}
-
-
 /* Set the vblank monitor pipe
  */
 int i915_vblank_pipe_set(struct drm_device *dev, void *data,
