@@ -72,7 +72,7 @@
 #include <asm/i8259.h>
 
 #ifdef CONFIG_X86_32
-u8 apicid_2_node[MAX_APICID];
+u8 apicid_2_node[MAX_LOCAL_APIC];
 #endif
 
 /* State of each CPU */
