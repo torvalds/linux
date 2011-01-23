@@ -188,12 +188,12 @@ ENTRY(omap34xx_cpu_suspend)
 	stmfd	sp!, {r0-r12, lr}	@ save registers on stack
 
 	/*
-	 * r0 contains restore pointer in sdram
+	 * r0 contains CPU context save/restore pointer in sdram
 	 * r1 contains information about saving context:
 	 *   0 - No context lost
 	 *   1 - Only L1 and logic lost
-	 *   2 - Only L2 lost
-	 *   3 - Both L1 and L2 lost
+	 *   2 - Only L2 lost (Even L1 is retained we clean it along with L2)
+	 *   3 - Both L1 and L2 lost and logic lost
 	 */
 
 	/* Directly jump to WFI is the context save is not required */
@@ -277,15 +277,6 @@ l1_logic_lost:
 	stmia	r8!, {r4}
 
 clean_caches:
-	/*
-	 * Clean Data or unified cache to POU
-	 * How to invalidate only L1 cache???? - #FIX_ME#
-	 * mcr	p15, 0, r11, c7, c11, 1
-	 */
-	cmp	r1, #0x1 		@ Check whether L2 inval is required
-	beq	omap3_do_wfi
-
-clean_l2:
 	/*
 	 * jump out to kernel flush routine
 	 *  - reuse that code is better
