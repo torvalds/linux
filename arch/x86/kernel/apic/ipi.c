@@ -56,6 +56,8 @@ void default_send_IPI_mask_allbutself_phys(const struct cpumask *mask,
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_X86_32
+
 void default_send_IPI_mask_sequence_logical(const struct cpumask *mask,
 						 int vector)
 {
@@ -95,8 +97,6 @@ void default_send_IPI_mask_allbutself_logical(const struct cpumask *mask,
 		}
 	local_irq_restore(flags);
 }
-
-#ifdef CONFIG_X86_32
 
 /*
  * This is only used on smaller machines.
