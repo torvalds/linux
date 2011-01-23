@@ -30,3 +30,12 @@ config SND_EP93XX_SOC_SIMONE
 	help
 	  Say Y or M here if you want to add support for AC97 audio on the
 	  Simplemachines Sim.One board.
+
+config SND_EP93XX_SOC_EDB93XX
+	tristate "SoC Audio support for Cirrus Logic EDB93xx boards"
+	depends on SND_EP93XX_SOC && (MACH_EDB9301 || MACH_EDB9302 || MACH_EDB9302A || MACH_EDB9307A || MACH_EDB9315A)
+	select SND_EP93XX_SOC_I2S
+	select SND_SOC_CS4271
+	help
+	  Say Y or M here if you want to add support for I2S audio on the
+	  Cirrus Logic EDB93xx boards.
