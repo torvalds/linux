@@ -274,7 +274,7 @@ static struct conf_drv_settings default_conf = {
 		.avg_weight_rssi_beacon       = 20,
 		.avg_weight_rssi_data         = 10,
 		.avg_weight_snr_beacon        = 20,
-		.avg_weight_snr_data          = 10
+		.avg_weight_snr_data          = 10,
 	},
 	.scan = {
 		.min_dwell_time_active        = 7500,
@@ -292,6 +292,10 @@ static struct conf_drv_settings default_conf = {
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		},
+	},
+	.ht = {
+		.tx_ba_win_size = 64,
+		.inactivity_timeout = 10000,
 	},
 };
 
@@ -890,7 +894,7 @@ int wl1271_plt_start(struct wl1271 *wl)
 
 		wl->state = WL1271_STATE_PLT;
 		wl1271_notice("firmware booted in PLT mode (%s)",
-			      wl->chip.fw_ver);
+			      wl->chip.fw_ver_str);
 		goto out;
 
 irq_disable:
@@ -1138,11 +1142,11 @@ power_off:
 
 	wl->vif = vif;
 	wl->state = WL1271_STATE_ON;
-	wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
+	wl1271_info("firmware booted (%s)", wl->chip.fw_ver_str);
 
 	/* update hw/fw version info in wiphy struct */
 	wiphy->hw_version = wl->chip.id;
-	strncpy(wiphy->fw_version, wl->chip.fw_ver,
+	strncpy(wiphy->fw_version, wl->chip.fw_ver_str,
 		sizeof(wiphy->fw_version));
 
 	/*

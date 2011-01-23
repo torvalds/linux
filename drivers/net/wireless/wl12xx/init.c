@@ -455,6 +455,43 @@ static int wl1271_ap_hw_init_post_mem(struct wl1271 *wl)
 	return 0;
 }
 
+static void wl1271_check_ba_support(struct wl1271 *wl)
+{
+	/* validate FW cose ver x.x.x.50-60.x */
+	if ((wl->chip.fw_ver[3] >= WL12XX_BA_SUPPORT_FW_COST_VER2_START) &&
+	    (wl->chip.fw_ver[3] < WL12XX_BA_SUPPORT_FW_COST_VER2_END)) {
+		wl->ba_support = true;
+		return;
+	}
+
+	wl->ba_support = false;
+}
+
+static int wl1271_set_ba_policies(struct wl1271 *wl)
+{
+	u8 tid_index;
+	u8 ret = 0;
+
+	/* Reset the BA RX indicators */
+	wl->ba_allowed = true;
+	wl->ba_rx_bitmap = 0;
+
+	/* validate that FW support BA */
+	wl1271_check_ba_support(wl);
+
+	if (wl->ba_support)
+		/* 802.11n initiator BA session setting */
+		for (tid_index = 0; tid_index < CONF_TX_MAX_TID_COUNT;
+		     ++tid_index) {
+			ret = wl1271_acx_set_ba_session(wl, WLAN_BACK_INITIATOR,
+							tid_index, true);
+			if (ret < 0)
+				break;
+		}
+
+	return ret;
+}
+
 int wl1271_hw_init(struct wl1271 *wl)
 {
 	struct conf_tx_ac_category *conf_ac;
@@ -565,6 +602,11 @@ int wl1271_hw_init(struct wl1271 *wl)
 	else
 		ret = wl1271_sta_hw_init_post_mem(wl);
 
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Configure initiator BA sessions policies */
+	ret = wl1271_set_ba_policies(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

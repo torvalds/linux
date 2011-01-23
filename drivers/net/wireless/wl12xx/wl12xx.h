@@ -38,6 +38,13 @@
 #define DRIVER_NAME "wl1271"
 #define DRIVER_PREFIX DRIVER_NAME ": "
 
+/*
+ * FW versions support BA 11n
+ * versions marks x.x.x.50-60.x
+ */
+#define WL12XX_BA_SUPPORT_FW_COST_VER2_START    50
+#define WL12XX_BA_SUPPORT_FW_COST_VER2_END      60
+
 enum {
 	DEBUG_NONE	= 0,
 	DEBUG_IRQ	= BIT(0),
@@ -182,10 +189,13 @@ struct wl1271_partition_set {
 
 struct wl1271;
 
+#define WL12XX_NUM_FW_VER 5
+
 /* FIXME: I'm not sure about this structure name */
 struct wl1271_chip {
 	u32 id;
-	char fw_ver[21];
+	char fw_ver_str[ETHTOOL_BUSINFO_LEN];
+	unsigned int fw_ver[WL12XX_NUM_FW_VER];
 };
 
 struct wl1271_stats {
@@ -460,6 +470,11 @@ struct wl1271 {
 
 	/* bands supported by this instance of wl12xx */
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
+
+	/* RX BA constraint value */
+	bool ba_support;
+	u8 ba_allowed;
+	u8 ba_rx_bitmap;
 };
 
 struct wl1271_station {
