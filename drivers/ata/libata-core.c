@@ -5887,21 +5887,9 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 	host->ops = ops;
 }
 
-
-static void async_port_probe(void *data, async_cookie_t cookie)
+int ata_port_probe(struct ata_port *ap)
 {
-	int rc;
-	struct ata_port *ap = data;
-
-	/*
-	 * If we're not allowed to scan this host in parallel,
-	 * we need to wait until all previous scans have completed
-	 * before going further.
-	 * Jeff Garzik says this is only within a controller, so we
-	 * don't need to wait for port 0, only for later ports.
-	 */
-	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0)
-		async_synchronize_cookie(cookie);
+	int rc = 0;
 
 	/* probe */
 	if (ap->ops->error_handler) {
@@ -5927,23 +5915,33 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 		DPRINTK("ata%u: bus probe begin\n", ap->print_id);
 		rc = ata_bus_probe(ap);
 		DPRINTK("ata%u: bus probe end\n", ap->print_id);
-
-		if (rc) {
-			/* FIXME: do something useful here?
-			 * Current libata behavior will
-			 * tear down everything when
-			 * the module is removed
-			 * or the h/w is unplugged.
-			 */
-		}
 	}
+	return rc;
+}
+
+
+static void async_port_probe(void *data, async_cookie_t cookie)
+{
+	struct ata_port *ap = data;
+	
+	/*
+	 * If we're not allowed to scan this host in parallel,
+	 * we need to wait until all previous scans have completed
+	 * before going further.
+	 * Jeff Garzik says this is only within a controller, so we
+	 * don't need to wait for port 0, only for later ports.
+	 */
+	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0)
+		async_synchronize_cookie(cookie);
+
+	(void)ata_port_probe(ap);
 
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
 
 	ata_scsi_scan_host(ap, 1);
-
 }
+
 /**
  *	ata_host_register - register initialized ATA host
  *	@host: ATA host to register

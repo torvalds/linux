@@ -3821,7 +3821,7 @@ int ata_sas_port_init(struct ata_port *ap)
 
 	if (!rc) {
 		ap->print_id = ata_print_id++;
-		rc = ata_bus_probe(ap);
+		rc = ata_port_probe(ap);
 	}
 
 	return rc;
