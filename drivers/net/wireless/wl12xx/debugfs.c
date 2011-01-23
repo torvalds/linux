@@ -261,27 +261,25 @@ static ssize_t gpio_power_write(struct file *file,
 	unsigned long value;
 	int ret;
 
-	mutex_lock(&wl->mutex);
-
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len)) {
-		ret = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 	buf[len] = '\0';
 
 	ret = strict_strtoul(buf, 0, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value in gpio_power");
-		goto out;
+		return -EINVAL;
 	}
+
+	mutex_lock(&wl->mutex);
 
 	if (value)
 		wl1271_power_on(wl);
 	else
 		wl1271_power_off(wl);
 
-out:
 	mutex_unlock(&wl->mutex);
 	return count;
 }
