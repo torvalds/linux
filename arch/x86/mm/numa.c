@@ -99,7 +99,21 @@ void __init setup_node_to_cpumask_map(void)
 	pr_debug("Node to cpumask map for %d nodes\n", nr_node_ids);
 }
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+#ifndef CONFIG_DEBUG_PER_CPU_MAPS
+
+# ifndef CONFIG_NUMA_EMU
+void __cpuinit numa_add_cpu(int cpu)
+{
+	cpumask_set_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+}
+
+void __cpuinit numa_remove_cpu(int cpu)
+{
+	cpumask_clear_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+}
+# endif	/* !CONFIG_NUMA_EMU */
+
+#else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 
 int __cpu_to_node(int cpu)
 {
@@ -131,6 +145,52 @@ int early_cpu_to_node(int cpu)
 	return per_cpu(x86_cpu_to_node_map, cpu);
 }
 
+struct cpumask __cpuinit *debug_cpumask_set_cpu(int cpu, int enable)
+{
+	int node = early_cpu_to_node(cpu);
+	struct cpumask *mask;
+	char buf[64];
+
+	mask = node_to_cpumask_map[node];
+	if (!mask) {
+		pr_err("node_to_cpumask_map[%i] NULL\n", node);
+		dump_stack();
+		return NULL;
+	}
+
+	cpulist_scnprintf(buf, sizeof(buf), mask);
+	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
+		enable ? "numa_add_cpu" : "numa_remove_cpu",
+		cpu, node, buf);
+	return mask;
+}
+
+# ifndef CONFIG_NUMA_EMU
+static void __cpuinit numa_set_cpumask(int cpu, int enable)
+{
+	struct cpumask *mask;
+
+	mask = debug_cpumask_set_cpu(cpu, enable);
+	if (!mask)
+		return;
+
+	if (enable)
+		cpumask_set_cpu(cpu, mask);
+	else
+		cpumask_clear_cpu(cpu, mask);
+}
+
+void __cpuinit numa_add_cpu(int cpu)
+{
+	numa_set_cpumask(cpu, 1);
+}
+
+void __cpuinit numa_remove_cpu(int cpu)
+{
+	numa_set_cpumask(cpu, 0);
+}
+# endif	/* !CONFIG_NUMA_EMU */
+
 /*
  * Returns a pointer to the bitmask of CPUs on Node 'node'.
  */
@@ -154,4 +214,4 @@ const struct cpumask *cpumask_of_node(int node)
 }
 EXPORT_SYMBOL(cpumask_of_node);
 
-#endif	/* CONFIG_DEBUG_PER_CPU_MAPS */
+#endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */

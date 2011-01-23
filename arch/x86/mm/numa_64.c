@@ -726,19 +726,18 @@ int __cpuinit numa_cpu_node(int cpu)
 	return NUMA_NO_NODE;
 }
 
-#ifndef CONFIG_DEBUG_PER_CPU_MAPS
-
-#ifndef CONFIG_NUMA_EMU
-void __cpuinit numa_add_cpu(int cpu)
-{
-	cpumask_set_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
-}
-
-void __cpuinit numa_remove_cpu(int cpu)
-{
-	cpumask_clear_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
-}
-#else
+/*
+ * UGLINESS AHEAD: Currently, CONFIG_NUMA_EMU is 64bit only and makes use
+ * of 64bit specific data structures.  The distinction is artificial and
+ * should be removed.  numa_{add|remove}_cpu() are implemented in numa.c
+ * for both 32 and 64bit when CONFIG_NUMA_EMU is disabled but here when
+ * enabled.
+ *
+ * NUMA emulation is planned to be made generic and the following and other
+ * related code should be moved to numa.c.
+ */
+#ifdef CONFIG_NUMA_EMU
+# ifndef CONFIG_DEBUG_PER_CPU_MAPS
 void __cpuinit numa_add_cpu(int cpu)
 {
 	unsigned long addr;
@@ -778,47 +777,7 @@ void __cpuinit numa_remove_cpu(int cpu)
 	for_each_online_node(i)
 		cpumask_clear_cpu(cpu, node_to_cpumask_map[i]);
 }
-#endif /* !CONFIG_NUMA_EMU */
-
-#else /* CONFIG_DEBUG_PER_CPU_MAPS */
-static struct cpumask __cpuinit *debug_cpumask_set_cpu(int cpu, int enable)
-{
-	int node = early_cpu_to_node(cpu);
-	struct cpumask *mask;
-	char buf[64];
-
-	mask = node_to_cpumask_map[node];
-	if (!mask) {
-		pr_err("node_to_cpumask_map[%i] NULL\n", node);
-		dump_stack();
-		return NULL;
-	}
-
-	cpulist_scnprintf(buf, sizeof(buf), mask);
-	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
-		enable ? "numa_add_cpu" : "numa_remove_cpu",
-		cpu, node, buf);
-	return mask;
-}
-
-/*
- * --------- debug versions of the numa functions ---------
- */
-#ifndef CONFIG_NUMA_EMU
-static void __cpuinit numa_set_cpumask(int cpu, int enable)
-{
-	struct cpumask *mask;
-
-	mask = debug_cpumask_set_cpu(cpu, enable);
-	if (!mask)
-		return;
-
-	if (enable)
-		cpumask_set_cpu(cpu, mask);
-	else
-		cpumask_clear_cpu(cpu, mask);
-}
-#else
+# else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 static void __cpuinit numa_set_cpumask(int cpu, int enable)
 {
 	int node = early_cpu_to_node(cpu);
@@ -842,7 +801,6 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 			cpumask_clear_cpu(cpu, mask);
 	}
 }
-#endif /* CONFIG_NUMA_EMU */
 
 void __cpuinit numa_add_cpu(int cpu)
 {
@@ -853,8 +811,5 @@ void __cpuinit numa_remove_cpu(int cpu)
 {
 	numa_set_cpumask(cpu, 0);
 }
-/*
- * --------- end of debug versions of the numa functions ---------
- */
-
-#endif /* CONFIG_DEBUG_PER_CPU_MAPS */
+# endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+#endif	/* CONFIG_NUMA_EMU */

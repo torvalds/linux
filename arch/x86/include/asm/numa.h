@@ -1,6 +1,7 @@
 #ifndef _ASM_X86_NUMA_H
 #define _ASM_X86_NUMA_H
 
+#include <asm/topology.h>
 #include <asm/apicdef.h>
 
 #ifdef CONFIG_NUMA
@@ -33,9 +34,17 @@ static inline void set_apicid_to_node(int apicid, s16 node)
 #ifdef CONFIG_NUMA
 extern void __cpuinit numa_set_node(int cpu, int node);
 extern void __cpuinit numa_clear_node(int cpu);
+extern void __cpuinit numa_add_cpu(int cpu);
+extern void __cpuinit numa_remove_cpu(int cpu);
 #else	/* CONFIG_NUMA */
 static inline void numa_set_node(int cpu, int node)	{ }
 static inline void numa_clear_node(int cpu)		{ }
+static inline void numa_add_cpu(int cpu)		{ }
+static inline void numa_remove_cpu(int cpu)		{ }
 #endif	/* CONFIG_NUMA */
+
+#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+struct cpumask __cpuinit *debug_cpumask_set_cpu(int cpu, int enable);
+#endif
 
 #endif	/* _ASM_X86_NUMA_H */
