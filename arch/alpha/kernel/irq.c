@@ -44,7 +44,7 @@ static char irq_user_affinity[NR_IRQS];
 
 int irq_select_affinity(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc[irq];
+	struct irq_desc *desc = irq_to_desc(irq);
 	static int last_cpu;
 	int cpu = last_cpu + 1;
 
