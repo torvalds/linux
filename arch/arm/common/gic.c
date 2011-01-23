@@ -142,25 +142,24 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 }
 
 #ifdef CONFIG_SMP
-static int
-gic_set_cpu(struct irq_data *d, const struct cpumask *mask_val, bool force)
+static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+			    bool force)
 {
 	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
 	unsigned int shift = (d->irq % 4) * 8;
 	unsigned int cpu = cpumask_first(mask_val);
-	u32 val;
-	struct irq_desc *desc;
+	u32 val, mask, bit;
+
+	if (cpu >= 8)
+		return -EINVAL;
+
+	mask = 0xff << shift;
+	bit = 1 << (cpu + shift);
 
 	spin_lock(&irq_controller_lock);
-	desc = irq_to_desc(d->irq);
-	if (desc == NULL) {
-		spin_unlock(&irq_controller_lock);
-		return -EINVAL;
-	}
 	d->node = cpu;
-	val = readl(reg) & ~(0xff << shift);
-	val |= 1 << (cpu + shift);
-	writel(val, reg);
+	val = readl(reg) & ~mask;
+	writel(val | bit, reg);
 	spin_unlock(&irq_controller_lock);
 
 	return 0;
@@ -203,7 +202,7 @@ static struct irq_chip gic_chip = {
 	.irq_unmask		= gic_unmask_irq,
 	.irq_set_type		= gic_set_type,
 #ifdef CONFIG_SMP
-	.irq_set_affinity	= gic_set_cpu,
+	.irq_set_affinity	= gic_set_affinity,
 #endif
 };
 
