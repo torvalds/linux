@@ -307,7 +307,6 @@ struct apic {
 	void (*setup_apic_routing)(void);
 	int (*multi_timer_check)(int apic, int irq);
 	int (*apicid_to_node)(int logical_apicid);
-	int (*cpu_to_logical_apicid)(int cpu);
 	int (*cpu_present_to_apicid)(int mps_cpu);
 	void (*apicid_to_cpu_present)(int phys_apicid, physid_mask_t *retmap);
 	void (*setup_portio_remap)(void);
@@ -555,12 +554,6 @@ static inline unsigned long default_check_apicid_present(int bit)
 static inline void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
 	*retmap = *phys_map;
-}
-
-/* Mapping from cpu number to logical apicid */
-static inline int default_cpu_to_logical_apicid(int cpu)
-{
-	return 1 << cpu;
 }
 
 static inline int __default_cpu_present_to_apicid(int mps_cpu)
