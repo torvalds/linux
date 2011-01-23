@@ -993,6 +993,8 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 			host->data_status = status;
 			if(data)
 				data->bytes_xfered += nbytes;
+			else
+				printk("%s %d host data NULL err",__FUNCTION__,__LINE__);
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
@@ -1004,11 +1006,15 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 	host->pio_offset = offset;
 	if(data)
 		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	return;
 
 done:
 	if(data)
 		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	smp_wmb();
 	rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 }
@@ -1060,6 +1066,8 @@ static void rk29_sdmmc_write_data_pio(struct rk29_sdmmc *host)
 			host->data_status = status;
 			if(data)
 				data->bytes_xfered += nbytes;
+			else
+				printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
@@ -1070,11 +1078,15 @@ static void rk29_sdmmc_write_data_pio(struct rk29_sdmmc *host)
 	host->pio_offset = offset;
 	if(data)
 		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	return;
 
 done:
 	if(data)
 		data->bytes_xfered += nbytes;
+	else
+		printk("%s %d host data NULL err",__FUNCTION__,__LINE__);	
 	smp_wmb();
 	rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 }
