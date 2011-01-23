@@ -617,12 +617,17 @@ usettbr0:
 	ldr	r2, cache_pred_disable_mask
 	and	r4, r2
 	mcr	p15, 0, r4, c1, c0, 0
+	dsb
+	isb
+	ldr     r0, =restoremmu_on
+	bx      r0
 
 /*
  * ==============================
  * == Exit point from OFF mode ==
  * ==============================
  */
+restoremmu_on:
 	ldmfd	sp!, {r0-r12, pc}	@ restore regs and return
 
 
