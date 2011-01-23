@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/acpi_io.h>
 #include <acpi/acpiosxf.h>
 
 /*
@@ -80,7 +81,7 @@ void suspend_nvs_free(void)
 			free_page((unsigned long)entry->data);
 			entry->data = NULL;
 			if (entry->kaddr) {
-				acpi_os_unmap_memory(entry->kaddr, entry->size);
+				iounmap(entry->kaddr);
 				entry->kaddr = NULL;
 			}
 		}
@@ -114,8 +115,8 @@ int suspend_nvs_save(void)
 
 	list_for_each_entry(entry, &nvs_list, node)
 		if (entry->data) {
-			entry->kaddr = acpi_os_map_memory(entry->phys_start,
-							  entry->size);
+			entry->kaddr = acpi_os_ioremap(entry->phys_start,
+						    entry->size);
 			if (!entry->kaddr) {
 				suspend_nvs_free();
 				return -ENOMEM;

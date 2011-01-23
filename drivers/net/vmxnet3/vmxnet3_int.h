@@ -68,10 +68,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.0.16.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.0.25.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01001000
+#define VMXNET3_DRIVER_VERSION_NUM      0x01001900
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -289,7 +289,7 @@ struct vmxnet3_rx_queue {
 
 #define VMXNET3_LINUX_MAX_MSIX_VECT     (VMXNET3_DEVICE_MAX_TX_QUEUES + \
 					 VMXNET3_DEVICE_MAX_RX_QUEUES + 1)
-#define VMXNET3_LINUX_MIN_MSIX_VECT     3    /* 1 for each : tx, rx and event */
+#define VMXNET3_LINUX_MIN_MSIX_VECT     2 /* 1 for tx-rx pair and 1 for event */
 
 
 struct vmxnet3_intr {
@@ -317,6 +317,7 @@ struct vmxnet3_adapter {
 	struct vmxnet3_rx_queue		rx_queue[VMXNET3_DEVICE_MAX_RX_QUEUES];
 	struct vlan_group		*vlan_grp;
 	struct vmxnet3_intr		intr;
+	spinlock_t			cmd_lock;
 	struct Vmxnet3_DriverShared	*shared;
 	struct Vmxnet3_PMConf		*pm_conf;
 	struct Vmxnet3_TxQueueDesc	*tqd_start;     /* all tx queue desc */

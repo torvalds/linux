@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/548x/config.c
+ *	linux/arch/m68knommu/platform/54xx/config.c
  *
  *	Copyright (C) 2010, Philippe De Muyter <phdm@macqel.be>
  */
@@ -15,13 +15,13 @@
 #include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
-#include <asm/m548xsim.h>
+#include <asm/m54xxsim.h>
 #include <asm/mcfuart.h>
-#include <asm/m548xgpt.h>
+#include <asm/m54xxgpt.h>
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m548x_uart_platform[] = {
+static struct mcf_platform_uart m54xx_uart_platform[] = {
 	{
 		.mapbase	= MCF_MBAR + MCFUART_BASE1,
 		.irq		= 64 + 35,
@@ -40,20 +40,20 @@ static struct mcf_platform_uart m548x_uart_platform[] = {
 	},
 };
 
-static struct platform_device m548x_uart = {
+static struct platform_device m54xx_uart = {
 	.name			= "mcfuart",
 	.id			= 0,
-	.dev.platform_data	= m548x_uart_platform,
+	.dev.platform_data	= m54xx_uart_platform,
 };
 
-static struct platform_device *m548x_devices[] __initdata = {
-	&m548x_uart,
+static struct platform_device *m54xx_devices[] __initdata = {
+	&m54xx_uart,
 };
 
 
 /***************************************************************************/
 
-static void __init m548x_uart_init_line(int line, int irq)
+static void __init m54xx_uart_init_line(int line, int irq)
 {
 	int rts_cts;
 
@@ -72,18 +72,18 @@ static void __init m548x_uart_init_line(int line, int irq)
 						MCF_MBAR + MCF_PAR_PSC(line));
 }
 
-static void __init m548x_uarts_init(void)
+static void __init m54xx_uarts_init(void)
 {
-	const int nrlines = ARRAY_SIZE(m548x_uart_platform);
+	const int nrlines = ARRAY_SIZE(m54xx_uart_platform);
 	int line;
 
 	for (line = 0; (line < nrlines); line++)
-		m548x_uart_init_line(line, m548x_uart_platform[line].irq);
+		m54xx_uart_init_line(line, m54xx_uart_platform[line].irq);
 }
 
 /***************************************************************************/
 
-static void mcf548x_reset(void)
+static void mcf54xx_reset(void)
 {
 	/* disable interrupts and enable the watchdog */
 	asm("movew #0x2700, %sr\n");
@@ -97,8 +97,8 @@ static void mcf548x_reset(void)
 
 void __init config_BSP(char *commandp, int size)
 {
-	mach_reset = mcf548x_reset;
-	m548x_uarts_init();
+	mach_reset = mcf54xx_reset;
+	m54xx_uarts_init();
 }
 
 /***************************************************************************/
@@ -106,7 +106,7 @@ void __init config_BSP(char *commandp, int size)
 static int __init init_BSP(void)
 {
 
-	platform_add_devices(m548x_devices, ARRAY_SIZE(m548x_devices));
+	platform_add_devices(m54xx_devices, ARRAY_SIZE(m54xx_devices));
 	return 0;
 }
 

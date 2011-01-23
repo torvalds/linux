@@ -1,11 +1,16 @@
 /*
- *	m548xsim.h -- ColdFire 547x/548x System Integration Unit support.
+ *	m54xxsim.h -- ColdFire 547x/548x System Integration Unit support.
  */
 
-#ifndef	m548xsim_h
-#define m548xsim_h
+#ifndef	m54xxsim_h
+#define m54xxsim_h
 
-#define MCFINT_VECBASE      64
+#define	CPU_NAME		"COLDFIRE(m54xx)"
+#define	CPU_INSTR_PER_JIFFY	2
+
+#include <asm/m54xxacr.h>
+
+#define MCFINT_VECBASE		64
 
 /*
  *      Interrupt Controller Registers
@@ -20,6 +25,14 @@
 #define MCFINTC_IRLR		0x18		/* */
 #define MCFINTC_IACKL		0x19		/* */
 #define MCFINTC_ICR0		0x40		/* Base ICR register */
+
+/*
+ *	UART module.
+ */
+#define MCFUART_BASE1		0x8600		/* Base address of UART1 */
+#define MCFUART_BASE2		0x8700		/* Base address of UART2 */
+#define MCFUART_BASE3		0x8800		/* Base address of UART3 */
+#define MCFUART_BASE4		0x8900		/* Base address of UART4 */
 
 /*
  *	Define system peripheral IRQ usage.
@@ -52,4 +65,4 @@
 #define MCF_PAR_PSC_RTS_RTS	(0x30)
 #define MCF_PAR_PSC_CANRX	(0x40)
 
-#endif	/* m548xsim_h */
+#endif	/* m54xxsim_h */

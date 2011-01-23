@@ -59,7 +59,6 @@ static struct node_memory_chunk_s __initdata node_memory_chunk[MAXCHUNKS];
 static int __initdata num_memory_chunks; /* total number of memory chunks */
 static u8 __initdata apicid_to_pxm[MAX_APICID];
 
-int numa_off __initdata;
 int acpi_numa __initdata;
 
 static __init void bad_srat(void)

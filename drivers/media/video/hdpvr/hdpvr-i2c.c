@@ -13,6 +13,8 @@
  *
  */
 
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
@@ -28,106 +30,78 @@
 #define Z8F0811_IR_TX_I2C_ADDR	0x70
 #define Z8F0811_IR_RX_I2C_ADDR	0x71
 
-static const u8 ir_i2c_addrs[] = {
-	Z8F0811_IR_TX_I2C_ADDR,
-	Z8F0811_IR_RX_I2C_ADDR,
+
+static struct i2c_board_info hdpvr_i2c_board_info = {
+	I2C_BOARD_INFO("ir_tx_z8f0811_hdpvr", Z8F0811_IR_TX_I2C_ADDR),
+	I2C_BOARD_INFO("ir_rx_z8f0811_hdpvr", Z8F0811_IR_RX_I2C_ADDR),
 };
-
-static const char * const ir_devicenames[] = {
-	"ir_tx_z8f0811_hdpvr",
-	"ir_rx_z8f0811_hdpvr",
-};
-
-static int hdpvr_new_i2c_ir(struct hdpvr_device *dev, struct i2c_adapter *adap,
-			    const char *type, u8 addr)
-{
-	struct i2c_board_info info;
-	struct IR_i2c_init_data *init_data = &dev->ir_i2c_init_data;
-	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, type, I2C_NAME_SIZE);
-
-	/* Our default information for ir-kbd-i2c.c to use */
-	switch (addr) {
-	case Z8F0811_IR_RX_I2C_ADDR:
-		init_data->ir_codes = RC_MAP_HAUPPAUGE_NEW;
-		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type = RC_TYPE_RC5;
-		init_data->name = "HD PVR";
-		info.platform_data = init_data;
-		break;
-	}
-
-	return i2c_new_probed_device(adap, &info, addr_list, NULL) == NULL ?
-	       -1 : 0;
-}
 
 int hdpvr_register_i2c_ir(struct hdpvr_device *dev)
 {
-	int i;
-	int ret = 0;
+	struct i2c_client *c;
+	struct IR_i2c_init_data *init_data = &dev->ir_i2c_init_data;
 
-	for (i = 0; i < ARRAY_SIZE(ir_i2c_addrs); i++)
-		ret += hdpvr_new_i2c_ir(dev, dev->i2c_adapter,
-					ir_devicenames[i], ir_i2c_addrs[i]);
+	/* Our default information for ir-kbd-i2c.c to use */
+	init_data->ir_codes = RC_MAP_HAUPPAUGE_NEW;
+	init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
+	init_data->type = RC_TYPE_RC5;
+	init_data->name = "HD PVR";
+	hdpvr_i2c_board_info.platform_data = init_data;
 
-	return ret;
+	c = i2c_new_device(&dev->i2c_adapter, &hdpvr_i2c_board_info);
+
+	return (c == NULL) ? -ENODEV : 0;
 }
 
-static int hdpvr_i2c_read(struct hdpvr_device *dev, unsigned char addr,
-			  char *data, int len)
+static int hdpvr_i2c_read(struct hdpvr_device *dev, int bus,
+			  unsigned char addr, char *data, int len)
 {
 	int ret;
-	char *buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+
+	if (len > sizeof(dev->i2c_buf))
+		return -EINVAL;
 
 	ret = usb_control_msg(dev->udev,
 			      usb_rcvctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_READ, CTRL_READ_REQUEST,
-			      0x100|addr, 0, buf, len, 1000);
+			      (bus << 8) | addr, 0, &dev->i2c_buf, len, 1000);
 
 	if (ret == len) {
-		memcpy(data, buf, len);
+		memcpy(data, &dev->i2c_buf, len);
 		ret = 0;
 	} else if (ret >= 0)
 		ret = -EIO;
 
-	kfree(buf);
-
 	return ret;
 }
 
-static int hdpvr_i2c_write(struct hdpvr_device *dev, unsigned char addr,
-			   char *data, int len)
+static int hdpvr_i2c_write(struct hdpvr_device *dev, int bus,
+			   unsigned char addr, char *data, int len)
 {
 	int ret;
-	char *buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 
-	memcpy(buf, data, len);
+	if (len > sizeof(dev->i2c_buf))
+		return -EINVAL;
+
+	memcpy(&dev->i2c_buf, data, len);
 	ret = usb_control_msg(dev->udev,
 			      usb_sndctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_WRITE, CTRL_WRITE_REQUEST,
-			      0x100|addr, 0, buf, len, 1000);
+			      (bus << 8) | addr, 0, &dev->i2c_buf, len, 1000);
 
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	ret = usb_control_msg(dev->udev,
 			      usb_rcvctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_WRITE_STATT, CTRL_READ_REQUEST,
-			      0, 0, buf, 2, 1000);
+			      0, 0, &dev->i2c_buf, 2, 1000);
 
-	if (ret == 2)
+	if ((ret == 2) && (dev->i2c_buf[1] == (len - 1)))
 		ret = 0;
 	else if (ret >= 0)
 		ret = -EIO;
 
-error:
-	kfree(buf);
 	return ret;
 }
 
@@ -146,10 +120,10 @@ static int hdpvr_transfer(struct i2c_adapter *i2c_adapter, struct i2c_msg *msgs,
 		addr = msgs[i].addr << 1;
 
 		if (msgs[i].flags & I2C_M_RD)
-			retval = hdpvr_i2c_read(dev, addr, msgs[i].buf,
+			retval = hdpvr_i2c_read(dev, 1, addr, msgs[i].buf,
 						msgs[i].len);
 		else
-			retval = hdpvr_i2c_write(dev, addr, msgs[i].buf,
+			retval = hdpvr_i2c_write(dev, 1, addr, msgs[i].buf,
 						 msgs[i].len);
 	}
 
@@ -168,30 +142,47 @@ static struct i2c_algorithm hdpvr_algo = {
 	.functionality = hdpvr_functionality,
 };
 
+static struct i2c_adapter hdpvr_i2c_adapter_template = {
+	.name   = "Hauppage HD PVR I2C",
+	.owner  = THIS_MODULE,
+	.algo   = &hdpvr_algo,
+};
+
+static int hdpvr_activate_ir(struct hdpvr_device *dev)
+{
+	char buffer[8];
+
+	mutex_lock(&dev->i2c_mutex);
+
+	hdpvr_i2c_read(dev, 0, 0x54, buffer, 1);
+
+	buffer[0] = 0;
+	buffer[1] = 0x8;
+	hdpvr_i2c_write(dev, 1, 0x54, buffer, 2);
+
+	buffer[1] = 0x18;
+	hdpvr_i2c_write(dev, 1, 0x54, buffer, 2);
+
+	mutex_unlock(&dev->i2c_mutex);
+
+	return 0;
+}
+
 int hdpvr_register_i2c_adapter(struct hdpvr_device *dev)
 {
-	struct i2c_adapter *i2c_adap;
 	int retval = -ENOMEM;
 
-	i2c_adap = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
-	if (i2c_adap == NULL)
-		goto error;
+	hdpvr_activate_ir(dev);
 
-	strlcpy(i2c_adap->name, "Hauppauge HD PVR I2C",
-		sizeof(i2c_adap->name));
-	i2c_adap->algo  = &hdpvr_algo;
-	i2c_adap->owner = THIS_MODULE;
-	i2c_adap->dev.parent = &dev->udev->dev;
+	memcpy(&dev->i2c_adapter, &hdpvr_i2c_adapter_template,
+	       sizeof(struct i2c_adapter));
+	dev->i2c_adapter.dev.parent = &dev->udev->dev;
 
-	i2c_set_adapdata(i2c_adap, dev);
+	i2c_set_adapdata(&dev->i2c_adapter, dev);
 
-	retval = i2c_add_adapter(i2c_adap);
+	retval = i2c_add_adapter(&dev->i2c_adapter);
 
-	if (!retval)
-		dev->i2c_adapter = i2c_adap;
-	else
-		kfree(i2c_adap);
-
-error:
 	return retval;
 }
+
+#endif

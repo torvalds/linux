@@ -100,6 +100,7 @@ Remote Controller chapter.</contrib>
       <year>2008</year>
       <year>2009</year>
       <year>2010</year>
+      <year>2011</year>
       <holder>Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin
 Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab</holder>
     </copyright>
@@ -381,7 +382,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 2.6.33</subtitle>
+ <subtitle>Revision 2.6.38</subtitle>
 
   <chapter id="common">
     &sub-common;
