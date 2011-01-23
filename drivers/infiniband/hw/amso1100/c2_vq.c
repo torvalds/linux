@@ -107,7 +107,7 @@ struct c2_vq_req *vq_req_alloc(struct c2_dev *c2dev)
 	r = kmalloc(sizeof(struct c2_vq_req), GFP_KERNEL);
 	if (r) {
 		init_waitqueue_head(&r->wait_object);
-		r->reply_msg = (u64) NULL;
+		r->reply_msg = 0;
 		r->event = 0;
 		r->cm_id = NULL;
 		r->qp = NULL;
@@ -123,7 +123,7 @@ struct c2_vq_req *vq_req_alloc(struct c2_dev *c2dev)
  */
 void vq_req_free(struct c2_dev *c2dev, struct c2_vq_req *r)
 {
-	r->reply_msg = (u64) NULL;
+	r->reply_msg = 0;
 	if (atomic_dec_and_test(&r->refcnt)) {
 		kfree(r);
 	}
@@ -151,7 +151,7 @@ void vq_req_get(struct c2_dev *c2dev, struct c2_vq_req *r)
 void vq_req_put(struct c2_dev *c2dev, struct c2_vq_req *r)
 {
 	if (atomic_dec_and_test(&r->refcnt)) {
-		if (r->reply_msg != (u64) NULL)
+		if (r->reply_msg != 0)
 			vq_repbuf_free(c2dev,
 				       (void *) (unsigned long) r->reply_msg);
 		kfree(r);
