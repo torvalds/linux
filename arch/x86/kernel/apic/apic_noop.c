@@ -108,12 +108,6 @@ static void noop_vector_allocation_domain(int cpu, struct cpumask *retmask)
 	cpumask_set_cpu(cpu, retmask);
 }
 
-int noop_apicid_to_node(int logical_apicid)
-{
-	/* we're always on node 0 */
-	return 0;
-}
-
 static u32 noop_apic_read(u32 reg)
 {
 	WARN_ON_ONCE((cpu_has_apic && !disable_apic));
@@ -124,6 +118,14 @@ static void noop_apic_write(u32 reg, u32 v)
 {
 	WARN_ON_ONCE(cpu_has_apic && !disable_apic);
 }
+
+#ifdef CONFIG_X86_32
+static int noop_x86_32_numa_cpu_node(int cpu)
+{
+	/* we're always on node 0 */
+	return 0;
+}
+#endif
 
 struct apic apic_noop = {
 	.name				= "noop",
@@ -148,7 +150,6 @@ struct apic apic_noop = {
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.setup_apic_routing		= NULL,
 	.multi_timer_check		= NULL,
-	.apicid_to_node			= noop_apicid_to_node,
 
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
 	.apicid_to_cpu_present		= physid_set_mask_of_physid,
@@ -194,5 +195,6 @@ struct apic apic_noop = {
 
 #ifdef CONFIG_X86_32
 	.x86_32_early_logical_apicid	= noop_x86_32_early_logical_apicid,
+	.x86_32_numa_cpu_node		= noop_x86_32_numa_cpu_node,
 #endif
 };

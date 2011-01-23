@@ -168,10 +168,9 @@ static void unmap_cpu_to_node(int cpu)
 static void map_cpu_to_logical_apicid(void)
 {
 	int cpu = smp_processor_id();
-	int logical_apicid = early_per_cpu(x86_cpu_to_logical_apicid, cpu);
 	int node;
 
-	node = apic->apicid_to_node(logical_apicid);
+	node = apic->x86_32_numa_cpu_node(cpu);
 	if (!node_online(node))
 		node = first_online_node;
 
