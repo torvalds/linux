@@ -205,12 +205,20 @@ of the characters:
 
 The flags are:
 
+f
+    Include the function name in the printed message
+l
+    Include line number in the printed message
+m
+    Include module name in the printed message
 p
     Causes a printk() message to be emitted to dmesg
+t
+    Include thread ID in messages not generated from interrupt context
 
-Note the regexp ^[-+=][scp]+$ matches a flags specification.
+Note the regexp ^[-+=][flmpt]+$ matches a flags specification.
 Note also that there is no convenient syntax to remove all
-the flags at once, you need to use "-psc".
+the flags at once, you need to use "-flmpt".
 
 
 Debug messages during boot process
