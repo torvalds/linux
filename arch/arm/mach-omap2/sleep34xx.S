@@ -246,6 +246,27 @@ clean_caches:
 	 *  - it executes in a cached space so is faster than refetch per-block
 	 *  - should be faster and will change with kernel
 	 *  - 'might' have to copy address, load and jump to it
+	 * Flush all data from the L1 data cache before disabling
+	 * SCTLR.C bit.
+	 */
+	ldr	r1, kernel_flush
+	mov	lr, pc
+	bx	r1
+
+	/*
+	 * Clear the SCTLR.C bit to prevent further data cache
+	 * allocation. Clearing SCTLR.C would make all the data accesses
+	 * strongly ordered and would not hit the cache.
+	 */
+	mrc	p15, 0, r0, c1, c0, 0
+	bic	r0, r0, #(1 << 2)	@ Disable the C bit
+	mcr	p15, 0, r0, c1, c0, 0
+	isb
+
+	/*
+	 * Invalidate L1 data cache. Even though only invalidate is
+	 * necessary exported flush API is used here. Doing clean
+	 * on already clean cache would be almost NOP.
 	 */
 	ldr	r1, kernel_flush
 	blx	r1
@@ -294,6 +315,12 @@ omap3_do_wfi:
 	nop
 	nop
 	bl wait_sdrc_ok
+
+	mrc	p15, 0, r0, c1, c0, 0
+	tst	r0, #(1 << 2)		@ Check C bit enabled?
+	orreq	r0, r0, #(1 << 2)	@ Enable the C bit if cleared
+	mcreq	p15, 0, r0, c1, c0, 0
+	isb
 
 /*
  * ===================================
