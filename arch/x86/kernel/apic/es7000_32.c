@@ -534,7 +534,7 @@ static int es7000_cpu_to_logical_apicid(int cpu)
 #ifdef CONFIG_SMP
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
-	return cpu_2_logical_apicid[cpu];
+	return early_per_cpu(x86_cpu_to_logical_apicid, cpu);
 #else
 	return logical_smp_processor_id();
 #endif

@@ -377,7 +377,7 @@ static inline int numaq_cpu_to_logical_apicid(int cpu)
 {
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
-	return cpu_2_logical_apicid[cpu];
+	return early_per_cpu(x86_cpu_to_logical_apicid, cpu);
 }
 
 /*
