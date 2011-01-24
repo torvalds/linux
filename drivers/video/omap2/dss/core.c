@@ -623,7 +623,6 @@ static int omap_dss_remove(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int i;
-	int c;
 
 	dss_uninitialize_debugfs();
 
@@ -638,44 +637,13 @@ static int omap_dss_remove(struct platform_device *pdev)
 
 	dss_exit();
 
-	/* these should be removed at some point */
-	c = core.dss_ick->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss_ick usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss_ick);
-	}
-
-	c = core.dss1_fck->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss1_fck usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss1_fck);
-	}
-
-	c = core.dss2_fck->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss2_fck usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss2_fck);
-	}
-
-	c = core.dss_54m_fck->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss_54m_fck usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss_54m_fck);
-	}
-
-	if (core.dss_96m_fck) {
-		c = core.dss_96m_fck->usecount;
-		if (c > 0) {
-			DSSERR("warning: dss_96m_fck usecount %d, disabling\n",
-					c);
-			while (c-- > 0)
-				clk_disable(core.dss_96m_fck);
-		}
-	}
+	/*
+	 * As part of hwmod changes, DSS is not the only controller of dss
+	 * clocks; hwmod framework itself will also enable clocks during hwmod
+	 * init for dss, and autoidle is set in h/w for DSS. Hence, there's no
+	 * need to disable clocks if their usecounts > 1.
+	 */
+	WARN_ON(core.num_clks_enabled > 0);
 
 	dss_put_clocks();
 
