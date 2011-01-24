@@ -647,33 +647,57 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	return result;
 }
 
-static int nvme_identify(struct nvme_ns *ns, void __user *addr, int cns)
+static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
 {
 	struct nvme_dev *dev = ns->dev;
-	int status;
+	int i, err, count, nents, offset;
 	struct nvme_command c;
-	void *page;
-	dma_addr_t dma_addr;
+	struct scatterlist sg[2];
+	struct page *pages[2];
 
-	page = dma_alloc_coherent(&dev->pci_dev->dev, 4096, &dma_addr,
-								GFP_KERNEL);
+	if (addr & 3)
+		return -EINVAL;
+	offset = offset_in_page(addr);
+	count = offset ? 2 : 1;
+
+	err = get_user_pages_fast(addr, count, 1, pages);
+	if (err < count) {
+		count = err;
+		err = -EFAULT;
+		goto put_pages;
+	}
+	sg_init_table(sg, count);
+	for (i = 0; i < count; i++)
+		sg_set_page(&sg[i], pages[i], PAGE_SIZE, 0);
+	nents = dma_map_sg(&dev->pci_dev->dev, sg, count, DMA_FROM_DEVICE);
+	if (!nents)
+		goto put_pages;
 
 	memset(&c, 0, sizeof(c));
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.nsid = cns ? 0 : cpu_to_le32(ns->ns_id);
-	c.identify.prp1 = cpu_to_le64(dma_addr);
+	c.identify.prp1 = cpu_to_le64(sg_dma_address(&sg[0]) + offset);
+	if (count > 1) {
+		u64 dma_addr;
+		if (nents > 1)
+			dma_addr = sg_dma_address(&sg[1]);
+		else
+			dma_addr = sg_dma_address(&sg[0]) + PAGE_SIZE;
+		c.identify.prp2 = cpu_to_le64(dma_addr);
+	}
 	c.identify.cns = cpu_to_le32(cns);
 
-	status = nvme_submit_admin_cmd(dev, &c, NULL);
+	err = nvme_submit_admin_cmd(dev, &c, NULL);
 
-	if (status)
-		status = -EIO;
-	else if (copy_to_user(addr, page, 4096))
-		status = -EFAULT;
+	if (err)
+		err = -EIO;
 
-	dma_free_coherent(&dev->pci_dev->dev, 4096, page, dma_addr);
+	dma_unmap_sg(&dev->pci_dev->dev, sg, nents, DMA_FROM_DEVICE);
+ put_pages:
+	for (i = 0; i < count; i++)
+		put_page(pages[i]);
 
-	return status;
+	return err;
 }
 
 static int nvme_get_range_type(struct nvme_ns *ns, void __user *addr)
@@ -713,9 +737,9 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 
 	switch (cmd) {
 	case NVME_IOCTL_IDENTIFY_NS:
-		return nvme_identify(ns, (void __user *)arg, 0);
+		return nvme_identify(ns, arg, 0);
 	case NVME_IOCTL_IDENTIFY_CTRL:
-		return nvme_identify(ns, (void __user *)arg, 1);
+		return nvme_identify(ns, arg, 1);
 	case NVME_IOCTL_GET_RANGE_TYPE:
 		return nvme_get_range_type(ns, (void __user *)arg);
 	default:
