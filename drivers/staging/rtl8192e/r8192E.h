@@ -1261,7 +1261,7 @@ typedef struct r8192_priv
 	rate_adaptive rate_adaptive;
 	//Add by amy for TX power tracking
 	//2008/05/15  Mars OPEN/CLOSE TX POWER TRACKING
-       txbbgain_struct txbbgain_table[TxBBGainTableLength];
+	const txbbgain_struct * txbbgain_table;
 	u8			   txpower_count;//For 6 sec do tracking again
 	bool			   btxpower_trackingInit;
 	u8			   OFDM_index;
