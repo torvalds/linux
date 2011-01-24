@@ -40,7 +40,6 @@
 #include <linux/time.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
@@ -467,7 +466,6 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 
 	block_truncate_page(inode->i_mapping, inode->i_size, ufs_getfrag_block);
 
-	lock_kernel();
 	while (1) {
 		retry = ufs_trunc_direct(inode);
 		retry |= ufs_trunc_indirect(inode, UFS_IND_BLOCK,
@@ -487,7 +485,6 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
-	unlock_kernel();
 	mark_inode_dirty(inode);
 out:
 	UFSD("EXIT: err %d\n", err);
@@ -510,7 +507,9 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 		/* XXX(truncate): truncate_setsize should be called last */
 		truncate_setsize(inode, attr->ia_size);
 
+		lock_ufs(inode->i_sb);
 		error = ufs_truncate(inode, old_i_size);
+		unlock_ufs(inode->i_sb);
 		if (error)
 			return error;
 	}
