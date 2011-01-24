@@ -2569,11 +2569,11 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 	}
 
 done:
+	if (pi->imtu != L2CAP_DEFAULT_MTU)
+		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->imtu);
+
 	switch (pi->mode) {
 	case L2CAP_MODE_BASIC:
-		if (pi->imtu != L2CAP_DEFAULT_MTU)
-			l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->imtu);
-
 		if (!(pi->conn->feat_mask & L2CAP_FEAT_ERTM) &&
 				!(pi->conn->feat_mask & L2CAP_FEAT_STREAMING))
 			break;
