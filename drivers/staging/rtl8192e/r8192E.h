@@ -43,7 +43,7 @@
 
 
 #define RTL819xE_MODULE_NAME "rtl819xE"
-//added for HW security, john.0629
+
 #define FALSE 0
 #define TRUE 1
 #define MAX_KEY_LEN     61
@@ -295,11 +295,6 @@ typedef struct _tx_fwinfo_819x_pci {
         //u32                Reserved;
 }tx_fwinfo_819x_pci, *ptx_fwinfo_819x_pci;
 
-typedef struct rtl8192_rx_info {
-	struct urb *urb;
-	struct net_device *dev;
-	u8 out_pipe;
-}rtl8192_rx_info ;
 typedef struct _rx_desc_819x_pci{
 	//DOWRD 0
 	u16			Length:14;
@@ -370,11 +365,6 @@ typedef enum _desc_packet_type_e{
 	DESC_PACKET_TYPE_NORMAL = 1,
 }desc_packet_type_e;
 
-typedef enum _firmware_source{
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,		//from header file
-}firmware_source_e, *pfirmware_source_e;
-
 typedef enum _firmware_status{
 	FW_STATUS_0_INIT = 0,
 	FW_STATUS_1_MOVE_BOOT_CODE = 1,
@@ -383,11 +373,6 @@ typedef enum _firmware_status{
 	FW_STATUS_4_MOVE_DATA_CODE = 4,
 	FW_STATUS_5_READY = 5,
 }firmware_status_e;
-
-typedef struct _rt_firmare_seg_container {
-	u16	seg_size;
-	u8	*seg_ptr;
-}fw_seg_container, *pfw_seg_container;
 
 typedef struct _rt_firmware{
 	firmware_status_e firmware_status;
@@ -435,12 +420,9 @@ typedef struct _rt_firmware{
 #define DEFAULT_FRAG_THRESHOLD 2342U
 #define MIN_FRAG_THRESHOLD     256U
 #define DEFAULT_BEACONINTERVAL 0x64U
-#define DEFAULT_BEACON_ESSID "Rtl819xU"
 
-#define DEFAULT_SSID ""
 #define DEFAULT_RETRY_RTS 7
 #define DEFAULT_RETRY_DATA 7
-#define PRISM_HDR_SIZE 64
 
 #define		PHY_RSSI_SLID_WIN_MAX				100
 
@@ -464,17 +446,6 @@ typedef struct buffer
 	dma_addr_t dma;
 
 } buffer;
-
-typedef struct rtl_reg_debug{
-        unsigned int  cmd;
-        struct {
-                unsigned char type;
-                unsigned char addr;
-                unsigned char page;
-                unsigned char length;
-        } head;
-        unsigned char buf[0xff];
-}rtl_reg_debug;
 
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
