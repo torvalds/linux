@@ -781,6 +781,10 @@ static struct platform_device hdmi_device = {
 	},
 };
 
+static struct platform_device fsi_hdmi_device = {
+	.name		= "sh_fsi2_b_hdmi",
+};
+
 static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
 				unsigned long *parent_freq)
 {
@@ -934,6 +938,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&usb1_host_device,
 	&fsi_device,
 	&fsi_ak4643_device,
+	&fsi_hdmi_device,
 	&sh_mmcif_device,
 	&lcdc1_device,
 	&lcdc_device,
