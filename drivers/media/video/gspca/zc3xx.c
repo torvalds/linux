@@ -5830,7 +5830,7 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 		[SENSOR_GC0305] =	gc0305_matrix,
 		[SENSOR_HDCS2020b] =	NULL,
 		[SENSOR_HV7131B] =	NULL,
-		[SENSOR_HV7131R] =	NULL,
+		[SENSOR_HV7131R] =	po2030_matrix,
 		[SENSOR_ICM105A] =	po2030_matrix,
 		[SENSOR_MC501CB] =	NULL,
 		[SENSOR_MT9V111_1] =	gc0305_matrix,
@@ -5936,6 +5936,7 @@ static void setquality(struct gspca_dev *gspca_dev)
 	case SENSOR_ADCM2700:
 	case SENSOR_GC0305:
 	case SENSOR_HV7131B:
+	case SENSOR_HV7131R:
 	case SENSOR_OV7620:
 	case SENSOR_PAS202B:
 	case SENSOR_PO2030:
@@ -6108,11 +6109,13 @@ static void send_unknown(struct gspca_dev *gspca_dev, int sensor)
 		reg_w(gspca_dev, 0x02, 0x003b);
 		reg_w(gspca_dev, 0x00, 0x0038);
 		break;
+	case SENSOR_HV7131R:
 	case SENSOR_PAS202B:
 		reg_w(gspca_dev, 0x03, 0x003b);
 		reg_w(gspca_dev, 0x0c, 0x003a);
 		reg_w(gspca_dev, 0x0b, 0x0039);
-		reg_w(gspca_dev, 0x0b, 0x0038);
+		if (sensor == SENSOR_PAS202B)
+			reg_w(gspca_dev, 0x0b, 0x0038);
 		break;
 	}
 }
@@ -6704,10 +6707,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x02, 0x003b);
 		reg_w(gspca_dev, 0x00, 0x0038);
 		break;
+	case SENSOR_HV7131R:
 	case SENSOR_PAS202B:
 		reg_w(gspca_dev, 0x03, 0x003b);
 		reg_w(gspca_dev, 0x0c, 0x003a);
 		reg_w(gspca_dev, 0x0b, 0x0039);
+		if (sd->sensor == SENSOR_HV7131R)
+			reg_w(gspca_dev, 0x50, ZC3XX_R11D_GLOBALGAIN);
 		break;
 	}
 
@@ -6720,6 +6726,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_PAS202B:
 	case SENSOR_GC0305:
+	case SENSOR_HV7131R:
 	case SENSOR_TAS5130C:
 		reg_r(gspca_dev, 0x0008);
 		/* fall thru */
@@ -6759,6 +6766,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x02, 0x0180);
 						/* ms-win + */
 		reg_w(gspca_dev, 0x40, 0x0117);
+		break;
+	case SENSOR_HV7131R:
+		i2c_write(gspca_dev, 0x25, 0x04, 0x00);	/* exposure */
+		i2c_write(gspca_dev, 0x26, 0x93, 0x00);
+		i2c_write(gspca_dev, 0x27, 0xe0, 0x00);
+		reg_w(gspca_dev, 0x00, ZC3XX_R1A7_CALCGLOBALMEAN);
 		break;
 	case SENSOR_GC0305:
 	case SENSOR_TAS5130C:
