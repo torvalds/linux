@@ -279,8 +279,8 @@ static struct conf_drv_settings default_conf = {
 	.scan = {
 		.min_dwell_time_active        = 7500,
 		.max_dwell_time_active        = 30000,
-		.min_dwell_time_passive       = 30000,
-		.max_dwell_time_passive       = 60000,
+		.min_dwell_time_passive       = 100000,
+		.max_dwell_time_passive       = 100000,
 		.num_probe_reqs               = 2,
 	},
 	.rf = {

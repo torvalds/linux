@@ -1084,30 +1084,30 @@ struct conf_scan_settings {
 	/*
 	 * The minimum time to wait on each channel for active scans
 	 *
-	 * Range: 0 - 65536 tu
+	 * Range: u32 tu/1000
 	 */
-	u16 min_dwell_time_active;
+	u32 min_dwell_time_active;
 
 	/*
 	 * The maximum time to wait on each channel for active scans
 	 *
-	 * Range: 0 - 65536 tu
+	 * Range: u32 tu/1000
 	 */
-	u16 max_dwell_time_active;
+	u32 max_dwell_time_active;
+
+	/*
+	 * The minimum time to wait on each channel for passive scans
+	 *
+	 * Range: u32 tu/1000
+	 */
+	u32 min_dwell_time_passive;
 
 	/*
 	 * The maximum time to wait on each channel for passive scans
 	 *
-	 * Range: 0 - 65536 tu
+	 * Range: u32 tu/1000
 	 */
-	u16 min_dwell_time_passive;
-
-	/*
-	 * The maximum time to wait on each channel for passive scans
-	 *
-	 * Range: 0 - 65536 tu
-	 */
-	u16 max_dwell_time_passive;
+	u32 max_dwell_time_passive;
 
 	/*
 	 * Number of probe requests to transmit on each active scan channel
