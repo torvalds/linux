@@ -42,7 +42,7 @@ static struct rc_map_table hauppauge_new[] = {
 	{ 0x15, KEY_DOWN },
 	{ 0x16, KEY_LEFT },
 	{ 0x17, KEY_RIGHT },
-	{ 0x18, KEY_VIDEO },		/* Videos */
+	{ 0x18, KEY_VCR },		/* Videos */
 	{ 0x19, KEY_AUDIO },		/* Music */
 	/* 0x1a: Pictures - presume this means
 	   "Multimedia Home Platform" -
@@ -56,7 +56,7 @@ static struct rc_map_table hauppauge_new[] = {
 	{ 0x1f, KEY_EXIT },		/* back/exit */
 	{ 0x20, KEY_CHANNELUP },	/* channel / program + */
 	{ 0x21, KEY_CHANNELDOWN },	/* channel / program - */
-	{ 0x22, KEY_CHANNEL },		/* source (old black remote) */
+	{ 0x22, KEY_VIDEO },		/* source (old black remote) */
 	{ 0x24, KEY_PREVIOUSSONG },	/* replay |< */
 	{ 0x25, KEY_ENTER },		/* OK */
 	{ 0x26, KEY_SLEEP },		/* minimize (old black remote) */

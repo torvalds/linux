@@ -26,12 +26,12 @@ static struct rc_map_table avermedia_dvbt[] = {
 	{ 0x16, KEY_8 },		/* '8' / 'down arrow' */
 	{ 0x36, KEY_9 },		/* '9' */
 
-	{ 0x20, KEY_LIST },		/* 'source' */
+	{ 0x20, KEY_VIDEO },		/* 'source' */
 	{ 0x10, KEY_TEXT },		/* 'teletext' */
 	{ 0x00, KEY_POWER },		/* 'power' */
 	{ 0x04, KEY_AUDIO },		/* 'audio' */
 	{ 0x06, KEY_ZOOM },		/* 'full screen' */
-	{ 0x18, KEY_VIDEO },		/* 'display' */
+	{ 0x18, KEY_SWITCHVIDEOMODE },	/* 'display' */
 	{ 0x38, KEY_SEARCH },		/* 'loop' */
 	{ 0x08, KEY_INFO },		/* 'preview' */
 	{ 0x2a, KEY_REWIND },		/* 'backward <<' */
