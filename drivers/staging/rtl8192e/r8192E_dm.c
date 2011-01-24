@@ -1014,220 +1014,44 @@ static const txbbgain_struct rtl8192_txbbgain_table[] = {
 	{ -24,	0x10000040 },
 };
 
+/*
+ * ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
+ * This Table is for CH1~CH13
+ */
+static const ccktxbbgain_struct rtl8192_cck_txbbgain_table[] = {
+	{{ 0x36, 0x35, 0x2e, 0x25, 0x1c, 0x12, 0x09, 0x04 }},
+	{{ 0x33, 0x32, 0x2b, 0x23, 0x1a, 0x11, 0x08, 0x04 }},
+	{{ 0x30, 0x2f, 0x29, 0x21, 0x19, 0x10, 0x08, 0x03 }},
+	{{ 0x2d, 0x2d, 0x27, 0x1f, 0x18, 0x0f, 0x08, 0x03 }},
+	{{ 0x2b, 0x2a, 0x25, 0x1e, 0x16, 0x0e, 0x07, 0x03 }},
+	{{ 0x28, 0x28, 0x22, 0x1c, 0x15, 0x0d, 0x07, 0x03 }},
+	{{ 0x26, 0x25, 0x21, 0x1b, 0x14, 0x0d, 0x06, 0x03 }},
+	{{ 0x24, 0x23, 0x1f, 0x19, 0x13, 0x0c, 0x06, 0x03 }},
+	{{ 0x22, 0x21, 0x1d, 0x18, 0x11, 0x0b, 0x06, 0x02 }},
+	{{ 0x20, 0x20, 0x1b, 0x16, 0x11, 0x08, 0x05, 0x02 }},
+	{{ 0x1f, 0x1e, 0x1a, 0x15, 0x10, 0x0a, 0x05, 0x02 }},
+	{{ 0x1d, 0x1c, 0x18, 0x14, 0x0f, 0x0a, 0x05, 0x02 }},
+	{{ 0x1b, 0x1a, 0x17, 0x13, 0x0e, 0x09, 0x04, 0x02 }},
+	{{ 0x1a, 0x19, 0x16, 0x12, 0x0d, 0x09, 0x04, 0x02 }},
+	{{ 0x18, 0x17, 0x15, 0x11, 0x0c, 0x08, 0x04, 0x02 }},
+	{{ 0x17, 0x16, 0x13, 0x10, 0x0c, 0x08, 0x04, 0x02 }},
+	{{ 0x16, 0x15, 0x12, 0x0f, 0x0b, 0x07, 0x04, 0x01 }},
+	{{ 0x14, 0x14, 0x11, 0x0e, 0x0b, 0x07, 0x03, 0x02 }},
+	{{ 0x13, 0x13, 0x10, 0x0d, 0x0a, 0x06, 0x03, 0x01 }},
+	{{ 0x12, 0x12, 0x0f, 0x0c, 0x09, 0x06, 0x03, 0x01 }},
+	{{ 0x11, 0x11, 0x0f, 0x0c, 0x09, 0x06, 0x03, 0x01 }},
+	{{ 0x10, 0x10, 0x0e, 0x0b, 0x08, 0x05, 0x03, 0x01 }},
+	{{ 0x0f, 0x0f, 0x0d, 0x0b, 0x08, 0x05, 0x03, 0x01 }},
+};
+
+
 static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	priv->txbbgain_table = rtl8192_txbbgain_table;
 
-	//ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
-	//This Table is for CH1~CH13
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[0] = 0x36;
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[1] = 0x35;
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[2] = 0x2e;
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[3] = 0x25;
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[4] = 0x1c;
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[5] = 0x12;
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[6] = 0x09;
-	priv->cck_txbbgain_table[0].ccktxbb_valuearray[7] = 0x04;
-
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[0] = 0x33;
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[1] = 0x32;
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[2] = 0x2b;
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[3] = 0x23;
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[4] = 0x1a;
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[5] = 0x11;
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[6] = 0x08;
-	priv->cck_txbbgain_table[1].ccktxbb_valuearray[7] = 0x04;
-
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[0] = 0x30;
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[1] = 0x2f;
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[2] = 0x29;
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[3] = 0x21;
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[4] = 0x19;
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[5] = 0x10;
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[6] = 0x08;
-	priv->cck_txbbgain_table[2].ccktxbb_valuearray[7] = 0x03;
-
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[0] = 0x2d;
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[1] = 0x2d;
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[2] = 0x27;
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[3] = 0x1f;
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[4] = 0x18;
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[5] = 0x0f;
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[6] = 0x08;
-	priv->cck_txbbgain_table[3].ccktxbb_valuearray[7] = 0x03;
-
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[0] = 0x2b;
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[1] = 0x2a;
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[2] = 0x25;
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[3] = 0x1e;
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[4] = 0x16;
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[5] = 0x0e;
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[6] = 0x07;
-	priv->cck_txbbgain_table[4].ccktxbb_valuearray[7] = 0x03;
-
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[0] = 0x28;
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[1] = 0x28;
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[2] = 0x22;
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[3] = 0x1c;
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[4] = 0x15;
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[5] = 0x0d;
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[6] = 0x07;
-	priv->cck_txbbgain_table[5].ccktxbb_valuearray[7] = 0x03;
-
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[0] = 0x26;
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[1] = 0x25;
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[2] = 0x21;
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[3] = 0x1b;
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[4] = 0x14;
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[5] = 0x0d;
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[6] = 0x06;
-	priv->cck_txbbgain_table[6].ccktxbb_valuearray[7] = 0x03;
-
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[0] = 0x24;
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[1] = 0x23;
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[2] = 0x1f;
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[3] = 0x19;
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[4] = 0x13;
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[5] = 0x0c;
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[6] = 0x06;
-	priv->cck_txbbgain_table[7].ccktxbb_valuearray[7] = 0x03;
-
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[0] = 0x22;
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[1] = 0x21;
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[2] = 0x1d;
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[3] = 0x18;
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[4] = 0x11;
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[5] = 0x0b;
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[6] = 0x06;
-	priv->cck_txbbgain_table[8].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[0] = 0x20;
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[1] = 0x20;
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[2] = 0x1b;
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[3] = 0x16;
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[4] = 0x11;
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[5] = 0x08;
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[6] = 0x05;
-	priv->cck_txbbgain_table[9].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[0] = 0x1f;
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[1] = 0x1e;
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[2] = 0x1a;
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[3] = 0x15;
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[4] = 0x10;
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[5] = 0x0a;
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[6] = 0x05;
-	priv->cck_txbbgain_table[10].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[0] = 0x1d;
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[1] = 0x1c;
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[2] = 0x18;
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[3] = 0x14;
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[4] = 0x0f;
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[5] = 0x0a;
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[6] = 0x05;
-	priv->cck_txbbgain_table[11].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[0] = 0x1b;
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[1] = 0x1a;
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[2] = 0x17;
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[3] = 0x13;
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[4] = 0x0e;
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[5] = 0x09;
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[6] = 0x04;
-	priv->cck_txbbgain_table[12].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[0] = 0x1a;
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[1] = 0x19;
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[2] = 0x16;
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[3] = 0x12;
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[4] = 0x0d;
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[5] = 0x09;
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[6] = 0x04;
-	priv->cck_txbbgain_table[13].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[0] = 0x18;
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[1] = 0x17;
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[2] = 0x15;
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[3] = 0x11;
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[4] = 0x0c;
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[5] = 0x08;
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[6] = 0x04;
-	priv->cck_txbbgain_table[14].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[0] = 0x17;
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[1] = 0x16;
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[2] = 0x13;
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[3] = 0x10;
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[4] = 0x0c;
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[5] = 0x08;
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[6] = 0x04;
-	priv->cck_txbbgain_table[15].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[0] = 0x16;
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[1] = 0x15;
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[2] = 0x12;
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[3] = 0x0f;
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[4] = 0x0b;
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[5] = 0x07;
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[6] = 0x04;
-	priv->cck_txbbgain_table[16].ccktxbb_valuearray[7] = 0x01;
-
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[0] = 0x14;
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[1] = 0x14;
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[2] = 0x11;
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[3] = 0x0e;
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[4] = 0x0b;
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[5] = 0x07;
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[6] = 0x03;
-	priv->cck_txbbgain_table[17].ccktxbb_valuearray[7] = 0x02;
-
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[0] = 0x13;
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[1] = 0x13;
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[2] = 0x10;
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[3] = 0x0d;
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[4] = 0x0a;
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[5] = 0x06;
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[6] = 0x03;
-	priv->cck_txbbgain_table[18].ccktxbb_valuearray[7] = 0x01;
-
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[0] = 0x12;
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[1] = 0x12;
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[2] = 0x0f;
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[3] = 0x0c;
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[4] = 0x09;
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[5] = 0x06;
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[6] = 0x03;
-	priv->cck_txbbgain_table[19].ccktxbb_valuearray[7] = 0x01;
-
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[0] = 0x11;
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[1] = 0x11;
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[2] = 0x0f;
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[3] = 0x0c;
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[4] = 0x09;
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[5] = 0x06;
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[6] = 0x03;
-	priv->cck_txbbgain_table[20].ccktxbb_valuearray[7] = 0x01;
-
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[0] = 0x10;
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[1] = 0x10;
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[2] = 0x0e;
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[3] = 0x0b;
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[4] = 0x08;
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[5] = 0x05;
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[6] = 0x03;
-	priv->cck_txbbgain_table[21].ccktxbb_valuearray[7] = 0x01;
-
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[0] = 0x0f;
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[1] = 0x0f;
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[2] = 0x0d;
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[3] = 0x0b;
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[4] = 0x08;
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[5] = 0x05;
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[6] = 0x03;
-	priv->cck_txbbgain_table[22].ccktxbb_valuearray[7] = 0x01;
+	priv->cck_txbbgain_table = rtl8192_cck_txbbgain_table;
 
 	//ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
 	//This Table is for CH14
