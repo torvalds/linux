@@ -1121,7 +1121,6 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_mmap *args = data;
 	struct drm_gem_object *obj;
-	loff_t offset;
 	unsigned long addr;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
@@ -1135,8 +1134,6 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		drm_gem_object_unreference_unlocked(obj);
 		return -E2BIG;
 	}
-
-	offset = args->offset;
 
 	down_write(&current->mm->mmap_sem);
 	addr = do_mmap(obj->filp, 0, args->size,

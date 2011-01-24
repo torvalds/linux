@@ -893,6 +893,10 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 	/* Disable the ring buffer. The ring must be idle at this point */
 	dev_priv = ring->dev->dev_private;
 	ret = intel_wait_ring_buffer(ring, ring->size - 8);
+	if (ret)
+		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
+			  ring->name, ret);
+
 	I915_WRITE_CTL(ring, 0);
 
 	drm_core_ioremapfree(&ring->map, ring->dev);

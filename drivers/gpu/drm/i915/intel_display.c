@@ -4346,7 +4346,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	int sr_hdisplay = 0;
-	unsigned long planea_clock = 0, planeb_clock = 0, sr_clock = 0;
+	unsigned long planea_clock = 0, planeb_clock = 0;
 	int enabled = 0, pixel_size = 0;
 	int sr_htotal = 0;
 
@@ -4368,7 +4368,6 @@ static void intel_update_watermarks(struct drm_device *dev)
 				planeb_clock = crtc->mode.clock;
 			}
 			sr_hdisplay = crtc->mode.hdisplay;
-			sr_clock = crtc->mode.clock;
 			sr_htotal = crtc->mode.htotal;
 			if (crtc->fb)
 				pixel_size = crtc->fb->bits_per_pixel / 8;
