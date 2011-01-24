@@ -5793,7 +5793,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 			break;
 		default:
 /*		case 0xdd:	 * delay */
-			msleep(action->val / 64 + 10);
+			msleep(action->idx);
 			break;
 		}
 		action++;
