@@ -369,9 +369,10 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 	if (drbd_submit_ee(mdev, e, READ, DRBD_FAULT_RS_RD) == 0)
 		return 0;
 
-	/* drbd_submit_ee currently fails for one reason only:
-	 * not being able to allocate enough bios.
-	 * Is dropping the connection going to help? */
+	/* If it failed because of ENOMEM, retry should help.  If it failed
+	 * because bio_add_page failed (probably broken lower level driver),
+	 * retry may or may not help.
+	 * If it does not, you may need to force disconnect. */
 	spin_lock_irq(&mdev->req_lock);
 	list_del(&e->w.list);
 	spin_unlock_irq(&mdev->req_lock);
