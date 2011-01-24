@@ -495,8 +495,8 @@ static int test__basic_mmap(void)
 	}
 
 	cpus = cpu_map__new(NULL);
-	if (threads == NULL) {
-		pr_debug("thread_map__new\n");
+	if (cpus == NULL) {
+		pr_debug("cpu_map__new\n");
 		goto out_free_threads;
 	}
 
@@ -510,7 +510,7 @@ static int test__basic_mmap(void)
 	}
 
 	evlist = perf_evlist__new();
-	if (threads == NULL) {
+	if (evlist == NULL) {
 		pr_debug("perf_evlist__new\n");
 		goto out_free_cpus;
 	}
