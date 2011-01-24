@@ -1819,7 +1819,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	spin_lock_bh(&txq->axq_lock);
 	if (txq == sc->tx.txq_map[q] &&
 	    ++txq->pending_frames > ATH_MAX_QDEPTH && !txq->stopped) {
-		ath_mac80211_stop_queue(sc, q);
+		ieee80211_stop_queue(sc->hw, q);
 		txq->stopped = 1;
 	}
 	spin_unlock_bh(&txq->axq_lock);
@@ -1877,24 +1877,20 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 					PS_WAIT_FOR_TX_ACK));
 	}
 
-	if (unlikely(ftype))
-		ath9k_tx_status(hw, skb, ftype);
-	else {
-		q = skb_get_queue_mapping(skb);
-		if (txq == sc->tx.txq_map[q]) {
-			spin_lock_bh(&txq->axq_lock);
-			if (WARN_ON(--txq->pending_frames < 0))
-				txq->pending_frames = 0;
+	q = skb_get_queue_mapping(skb);
+	if (txq == sc->tx.txq_map[q]) {
+		spin_lock_bh(&txq->axq_lock);
+		if (WARN_ON(--txq->pending_frames < 0))
+			txq->pending_frames = 0;
 
-			if (txq->stopped && txq->pending_frames < ATH_MAX_QDEPTH) {
-				if (ath_mac80211_start_queue(sc, q))
-					txq->stopped = 0;
-			}
-			spin_unlock_bh(&txq->axq_lock);
+		if (txq->stopped && txq->pending_frames < ATH_MAX_QDEPTH) {
+			ieee80211_wake_queue(sc->hw, q);
+			txq->stopped = 0;
 		}
-
-		ieee80211_tx_status(hw, skb);
+		spin_unlock_bh(&txq->axq_lock);
 	}
+
+	ieee80211_tx_status(hw, skb);
 }
 
 static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,

@@ -213,7 +213,6 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc = (struct ath_softc *) (aphy + 1);
 	aphy->sc = sc;
 	aphy->hw = hw;
-	sc->pri_wiphy = aphy;
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
@@ -320,7 +319,6 @@ static int ath_pci_resume(struct device *device)
 	ath9k_ps_restore(sc);
 
 	sc->ps_idle = true;
-	ath9k_set_wiphy_idle(aphy, true);
 	ath_radio_disable(sc, hw);
 
 	return 0;

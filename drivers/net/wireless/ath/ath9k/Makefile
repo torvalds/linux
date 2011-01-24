@@ -4,7 +4,6 @@ ath9k-y +=	beacon.o \
 		main.o \
 		recv.o \
 		xmit.o \
-		virtual.o \
 
 ath9k-$(CONFIG_ATH9K_RATE_CONTROL) += rc.o
 ath9k-$(CONFIG_PCI) += pci.o

@@ -388,7 +388,6 @@ struct ath_beacon {
 	u32 ast_be_xmit;
 	u64 bc_tstamp;
 	struct ieee80211_vif *bslot[ATH_BCBUF];
-	struct ath_wiphy *bslot_aphy[ATH_BCBUF];
 	int slottime;
 	int slotupdate;
 	struct ath9k_tx_queue_info beacon_qi;
@@ -585,20 +584,8 @@ struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 
-	spinlock_t wiphy_lock; /* spinlock to protect ath_wiphy data */
-	struct ath_wiphy *pri_wiphy;
-	struct ath_wiphy **sec_wiphy; /* secondary wiphys (virtual radios); may
-				       * have NULL entries */
-	int num_sec_wiphy; /* number of sec_wiphy pointers in the array */
 	int chan_idx;
 	int chan_is_ht;
-	struct ath_wiphy *next_wiphy;
-	struct work_struct chan_work;
-	int wiphy_select_failures;
-	unsigned long wiphy_select_first_fail;
-	struct delayed_work wiphy_work;
-	unsigned long wiphy_scheduler_int;
-	int wiphy_scheduler_index;
 	struct survey_info *cur_survey;
 	struct survey_info survey[ATH9K_NUM_CHANNELS];
 
@@ -665,16 +652,6 @@ struct ath_wiphy {
 	struct ath_softc *sc; /* shared for all virtual wiphys */
 	struct ieee80211_hw *hw;
 	struct ath9k_hw_cal_data caldata;
-	enum ath_wiphy_state {
-		ATH_WIPHY_INACTIVE,
-		ATH_WIPHY_ACTIVE,
-		ATH_WIPHY_PAUSING,
-		ATH_WIPHY_PAUSED,
-		ATH_WIPHY_SCAN,
-	} state;
-	bool idle;
-	int chan_idx;
-	int chan_is_ht;
 	int last_rssi;
 };
 
@@ -731,24 +708,6 @@ void ath9k_ps_restore(struct ath_softc *sc);
 u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate);
 
 void ath9k_set_bssid_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-int ath9k_wiphy_add(struct ath_softc *sc);
-int ath9k_wiphy_del(struct ath_wiphy *aphy);
-void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb, int ftype);
-int ath9k_wiphy_pause(struct ath_wiphy *aphy);
-int ath9k_wiphy_unpause(struct ath_wiphy *aphy);
-int ath9k_wiphy_select(struct ath_wiphy *aphy);
-void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int);
-void ath9k_wiphy_chan_work(struct work_struct *work);
-bool ath9k_wiphy_started(struct ath_softc *sc);
-void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
-				  struct ath_wiphy *selected);
-bool ath9k_wiphy_scanning(struct ath_softc *sc);
-void ath9k_wiphy_work(struct work_struct *work);
-bool ath9k_all_wiphys_idle(struct ath_softc *sc);
-void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle);
-
-void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue);
-bool ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
 
 void ath_start_rfkill_poll(struct ath_softc *sc);
 extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);

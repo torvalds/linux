@@ -34,27 +34,6 @@ static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
 	       (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP);
 }
 
-static struct ieee80211_hw * ath_get_virt_hw(struct ath_softc *sc,
-					     struct ieee80211_hdr *hdr)
-{
-	struct ieee80211_hw *hw = sc->pri_wiphy->hw;
-	int i;
-
-	spin_lock_bh(&sc->wiphy_lock);
-	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		struct ath_wiphy *aphy = sc->sec_wiphy[i];
-		if (aphy == NULL)
-			continue;
-		if (compare_ether_addr(hdr->addr1, aphy->hw->wiphy->perm_addr)
-		    == 0) {
-			hw = aphy->hw;
-			break;
-		}
-	}
-	spin_unlock_bh(&sc->wiphy_lock);
-	return hw;
-}
-
 /*
  * Setup and link descriptors.
  *
@@ -463,8 +442,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (conf_is_ht(&sc->hw->conf))
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
 
-	if (sc->sec_wiphy || (sc->nvifs > 1) ||
-	    (sc->rx.rxfilter & FIF_OTHER_BSS)) {
+	if (sc->nvifs > 1 || (sc->rx.rxfilter & FIF_OTHER_BSS)) {
 		/* The following may also be needed for other older chips */
 		if (sc->sc_ah->hw_version.macVersion == AR_SREV_VERSION_9160)
 			rfilt |= ATH9K_RX_FILTER_PROM;
@@ -666,37 +644,6 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 					PS_WAIT_FOR_PSPOLL_DATA |
 					PS_WAIT_FOR_TX_ACK));
 	}
-}
-
-static void ath_rx_send_to_mac80211(struct ieee80211_hw *hw,
-				    struct ath_softc *sc, struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-
-	/* Send the frame to mac80211 */
-	if (is_multicast_ether_addr(hdr->addr1)) {
-		int i;
-		/*
-		 * Deliver broadcast/multicast frames to all suitable
-		 * virtual wiphys.
-		 */
-		/* TODO: filter based on channel configuration */
-		for (i = 0; i < sc->num_sec_wiphy; i++) {
-			struct ath_wiphy *aphy = sc->sec_wiphy[i];
-			struct sk_buff *nskb;
-			if (aphy == NULL)
-				continue;
-			nskb = skb_copy(skb, GFP_ATOMIC);
-			if (!nskb)
-				continue;
-			ieee80211_rx(aphy->hw, nskb);
-		}
-		ieee80211_rx(sc->hw, skb);
-	} else
-		/* Deliver unicast frames based on receiver address */
-		ieee80211_rx(hw, skb);
 }
 
 static bool ath_edma_get_buffers(struct ath_softc *sc,
@@ -1644,7 +1591,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	 * virtual wiphy so to account for that we iterate over the active
 	 * wiphys and find the appropriate wiphy and therefore hw.
 	 */
-	struct ieee80211_hw *hw = NULL;
+	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_hdr *hdr;
 	int retval;
 	bool decrypt_error = false;
@@ -1688,8 +1635,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		hdr = (struct ieee80211_hdr *) (skb->data + rx_status_len);
 		rxs =  IEEE80211_SKB_RXCB(skb);
-
-		hw = ath_get_virt_hw(sc, hdr);
 
 		ath_debug_stat_rx(sc, &rs);
 
@@ -1748,7 +1693,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			bf->bf_mpdu = NULL;
 			bf->bf_buf_addr = 0;
 			ath_err(common, "dma_mapping_error() on RX\n");
-			ath_rx_send_to_mac80211(hw, sc, skb);
+			ieee80211_rx(hw, skb);
 			break;
 		}
 
@@ -1775,7 +1720,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 			ath_ant_comb_scan(sc, &rs);
 
-		ath_rx_send_to_mac80211(hw, sc, skb);
+		ieee80211_rx(hw, skb);
 
 requeue:
 		if (edma) {

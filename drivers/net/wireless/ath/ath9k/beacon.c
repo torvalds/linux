@@ -142,9 +142,6 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	int cabq_depth;
 
-	if (aphy->state != ATH_WIPHY_ACTIVE)
-		return NULL;
-
 	avp = (void *)vif->drv_priv;
 	cabq = sc->beacon.cabq;
 
@@ -261,7 +258,6 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 				}
 			BUG_ON(sc->beacon.bslot[avp->av_bslot] != NULL);
 			sc->beacon.bslot[avp->av_bslot] = vif;
-			sc->beacon.bslot_aphy[avp->av_bslot] = aphy;
 			sc->nbcnvifs++;
 		}
 	}
@@ -332,7 +328,6 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 
 		if (avp->av_bslot != -1) {
 			sc->beacon.bslot[avp->av_bslot] = NULL;
-			sc->beacon.bslot_aphy[avp->av_bslot] = NULL;
 			sc->nbcnvifs--;
 		}
 
@@ -358,7 +353,6 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_buf *bf = NULL;
 	struct ieee80211_vif *vif;
-	struct ath_wiphy *aphy;
 	int slot;
 	u32 bfaddr, bc = 0, tsftu;
 	u64 tsf;
@@ -416,7 +410,6 @@ void ath_beacon_tasklet(unsigned long data)
 	 */
 	slot = ATH_BCBUF - slot - 1;
 	vif = sc->beacon.bslot[slot];
-	aphy = sc->beacon.bslot_aphy[slot];
 
 	ath_dbg(common, ATH_DBG_BEACON,
 		"slot %d [tsf %llu tsftu %u intval %u] vif %p\n",
@@ -424,7 +417,7 @@ void ath_beacon_tasklet(unsigned long data)
 
 	bfaddr = 0;
 	if (vif) {
-		bf = ath_beacon_generate(aphy->hw, vif);
+		bf = ath_beacon_generate(sc->hw, vif);
 		if (bf != NULL) {
 			bfaddr = bf->bf_daddr;
 			bc = 1;

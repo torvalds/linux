@@ -107,7 +107,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc = (struct ath_softc *) (aphy + 1);
 	aphy->sc = sc;
 	aphy->hw = hw;
-	sc->pri_wiphy = aphy;
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
