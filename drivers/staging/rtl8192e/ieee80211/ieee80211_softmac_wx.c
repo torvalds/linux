@@ -98,8 +98,6 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 	//NM 0.7.0 will not accept channel any more.
 	fwrq->m = ieee80211_wlan_frequencies[ieee->current_network.channel-1] * 100000;
 	fwrq->e = 1;
-//	fwrq->m = ieee->current_network.channel;
-//	fwrq->e = 0;
 
 	return 0;
 }
@@ -233,23 +231,8 @@ int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate;
-#if 0
-	printk("===>mode:%d, halfNmode:%d\n", ieee->mode, ieee->bHalfWirelessN24GMode);
-	if (ieee->mode & (IEEE_A | IEEE_B | IEEE_G))
-		tmp_rate = ieee->rate;
-	else if (ieee->mode & IEEE_N_5G)
-		tmp_rate = 580;
-	else if (ieee->mode & IEEE_N_24G)
-	{
-		if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-			tmp_rate = HTHalfMcsToDataRate(ieee, 15);
-		else
-			tmp_rate = HTMcsToDataRate(ieee, 15);
-	}
-#else
 	tmp_rate = TxCountToDataRate(ieee, ieee->softmac_stats.CurrentShowTxate);
 
-#endif
 	wrqu->bitrate.value = tmp_rate * 500000;
 
 	return 0;
@@ -531,16 +514,15 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 				 union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
-#if 1
+
 	if(
 		(!ieee->sta_wake_up) ||
-	//	(!ieee->ps_request_tx_ack) ||
 		(!ieee->enter_sleep_state) ||
 		(!ieee->ps_is_queue_empty)){
 
 		return -1;
 	}
-#endif
+
 	down(&ieee->wx_sem);
 
 	if (wrqu->power.disabled){
@@ -548,16 +530,11 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		goto exit;
 	}
 	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
-		//ieee->ps_period = wrqu->power.value / 1000;
 		ieee->ps_timeout = wrqu->power.value / 1000;
 	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD) {
-
-		//ieee->ps_timeout = wrqu->power.value / 1000;
 		ieee->ps_period = wrqu->power.value / 1000;
-		//wrq->value / 1024;
-
 	}
 	switch (wrqu->power.flags & IW_POWER_MODE) {
 	case IW_POWER_UNICAST_R:
@@ -571,7 +548,6 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		break;
 
 	case IW_POWER_ON:
-	//	ieee->ps = IEEE80211_PS_DISABLED;
 		break;
 
 	default:
@@ -605,11 +581,8 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 		wrqu->power.flags = IW_POWER_TIMEOUT;
 		wrqu->power.value = ieee->ps_timeout * 1000;
 	} else {
-//		ret = -EOPNOTSUPP;
-//		goto exit;
 		wrqu->power.flags = IW_POWER_PERIOD;
 		wrqu->power.value = ieee->ps_period * 1000;
-//ieee->current_network.dtim_period * ieee->current_network.beacon_interval * 1024;
 	}
 
        if ((ieee->ps & (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST)) == (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST))

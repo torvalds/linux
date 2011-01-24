@@ -36,11 +36,7 @@
 #include <linux/module.h>
 
 #include "ieee80211.h"
-#if 0
-static const char *ieee80211_modes[] = {
-	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
-};
-#endif
+
 struct modes_unit {
 	char *mode_string;
 	int mode_size;
