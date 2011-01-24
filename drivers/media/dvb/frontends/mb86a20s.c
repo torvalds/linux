@@ -43,6 +43,8 @@ struct mb86a20s_state {
 	const struct mb86a20s_config *config;
 
 	struct dvb_frontend frontend;
+
+	bool need_init;
 };
 
 struct regdata {
@@ -318,7 +320,7 @@ static int mb86a20s_i2c_writereg(struct mb86a20s_state *state,
 
 	rc = i2c_transfer(state->i2c, &msg, 1);
 	if (rc != 1) {
-		printk("%s: writereg rcor(rc == %i, reg == 0x%02x,"
+		printk("%s: writereg error (rc == %i, reg == 0x%02x,"
 			 " data == 0x%02x)\n", __func__, rc, reg, data);
 		return rc;
 	}
@@ -353,7 +355,7 @@ static int mb86a20s_i2c_readreg(struct mb86a20s_state *state,
 	rc = i2c_transfer(state->i2c, msg, 2);
 
 	if (rc != 2) {
-		rc("%s: reg=0x%x (rcor=%d)\n", __func__, reg, rc);
+		rc("%s: reg=0x%x (error=%d)\n", __func__, reg, rc);
 		return rc;
 	}
 
@@ -382,23 +384,31 @@ static int mb86a20s_initfe(struct dvb_frontend *fe)
 	/* Initialize the frontend */
 	rc = mb86a20s_writeregdata(state, mb86a20s_init);
 	if (rc < 0)
-		return rc;
+		goto err;
 
 	if (!state->config->is_serial) {
 		regD5 &= ~1;
 
 		rc = mb86a20s_writereg(state, 0x50, 0xd5);
 		if (rc < 0)
-			return rc;
+			goto err;
 		rc = mb86a20s_writereg(state, 0x51, regD5);
 		if (rc < 0)
-			return rc;
+			goto err;
 	}
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	return 0;
+err:
+	if (rc < 0) {
+		state->need_init = true;
+		printk(KERN_INFO "mb86a20s: Init failed. Will try again later\n");
+	} else {
+		state->need_init = false;
+		dprintk("Initialization succeded.\n");
+	}
+	return rc;
 }
 
 static int mb86a20s_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
@@ -485,7 +495,21 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe,
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
+	dprintk("Calling tuner set parameters\n");
 	fe->ops.tuner_ops.set_params(fe, p);
+
+	/*
+	 * Make it more reliable: if, for some reason, the initial
+	 * device initialization doesn't happen, initialize it when
+	 * a SBTVD parameters are adjusted.
+	 *
+	 * Unfortunately, due to a hard to track bug at tda829x/tda18271,
+	 * the agc callback logic is not called during DVB attach time,
+	 * causing mb86a20s to not be initialized with Kworld SBTVD.
+	 * So, this hack is needed, in order to make Kworld SBTVD to work.
+	 */
+	if (state->need_init)
+		mb86a20s_initfe(fe);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);

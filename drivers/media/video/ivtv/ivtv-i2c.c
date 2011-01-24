@@ -300,10 +300,15 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 				adap, type, 0, I2C_ADDRS(hw_addrs[idx]));
 	} else if (hw == IVTV_HW_CX25840) {
 		struct cx25840_platform_data pdata;
+		struct i2c_board_info cx25840_info = {
+			.type = "cx25840",
+			.addr = hw_addrs[idx],
+			.platform_data = &pdata,
+		};
 
 		pdata.pvr150_workaround = itv->pvr150_workaround;
-		sd = v4l2_i2c_new_subdev_cfg(&itv->v4l2_dev,
-				adap, type, 0, &pdata, hw_addrs[idx], NULL);
+		sd = v4l2_i2c_new_subdev_board(&itv->v4l2_dev, adap,
+				&cx25840_info, NULL);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, type, hw_addrs[idx], NULL);

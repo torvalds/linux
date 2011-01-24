@@ -133,7 +133,6 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	sch->q.qlen++;
-	qdisc_bstats_update(sch, skb);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -186,6 +185,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 			q->ptokens = ptoks;
 			sch->q.qlen--;
 			qdisc_unthrottled(sch);
+			qdisc_bstats_update(sch, skb);
 			return skb;
 		}
 

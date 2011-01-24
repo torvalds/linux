@@ -581,7 +581,6 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	sch->q.qlen++;
-	qdisc_bstats_update(sch, skb);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -856,7 +855,7 @@ next:
 
 static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	struct htb_sched *q = qdisc_priv(sch);
 	int level;
 	psched_time_t next_event;
@@ -865,6 +864,8 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 	/* try to dequeue direct packets as high prio (!) to minimize cpu work */
 	skb = __skb_dequeue(&q->direct_queue);
 	if (skb != NULL) {
+ok:
+		qdisc_bstats_update(sch, skb);
 		qdisc_unthrottled(sch);
 		sch->q.qlen--;
 		return skb;
@@ -899,11 +900,8 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 
 			m |= 1 << prio;
 			skb = htb_dequeue_tree(q, prio, level);
-			if (likely(skb != NULL)) {
-				sch->q.qlen--;
-				qdisc_unthrottled(sch);
-				goto fin;
-			}
+			if (likely(skb != NULL))
+				goto ok;
 		}
 	}
 	sch->qstats.overlimits++;

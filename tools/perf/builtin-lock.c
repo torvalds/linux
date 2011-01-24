@@ -782,9 +782,9 @@ static void print_result(void)
 		pr_info("%10u ", st->nr_acquired);
 		pr_info("%10u ", st->nr_contended);
 
-		pr_info("%15llu ", st->wait_time_total);
-		pr_info("%15llu ", st->wait_time_max);
-		pr_info("%15llu ", st->wait_time_min == ULLONG_MAX ?
+		pr_info("%15" PRIu64 " ", st->wait_time_total);
+		pr_info("%15" PRIu64 " ", st->wait_time_max);
+		pr_info("%15" PRIu64 " ", st->wait_time_min == ULLONG_MAX ?
 		       0 : st->wait_time_min);
 		pr_info("\n");
 	}

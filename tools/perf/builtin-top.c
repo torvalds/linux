@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include <errno.h>
 #include <time.h>
@@ -214,7 +215,7 @@ static int parse_source(struct sym_entry *syme)
 	len = sym->end - sym->start;
 
 	sprintf(command,
-		"objdump --start-address=%#0*Lx --stop-address=%#0*Lx -dS %s",
+		"objdump --start-address=%#0*" PRIx64 " --stop-address=%#0*" PRIx64 " -dS %s",
 		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->start),
 		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->end), path);
 
@@ -308,7 +309,7 @@ static void lookup_sym_source(struct sym_entry *syme)
 	struct source_line *line;
 	char pattern[PATTERN_LEN + 1];
 
-	sprintf(pattern, "%0*Lx <", BITS_PER_LONG / 4,
+	sprintf(pattern, "%0*" PRIx64 " <", BITS_PER_LONG / 4,
 		map__rip_2objdump(syme->map, symbol->start));
 
 	pthread_mutex_lock(&syme->src->lock);
@@ -537,7 +538,7 @@ static void print_sym_table(void)
 	if (nr_counters == 1 || !display_weighted) {
 		struct perf_evsel *first;
 		first = list_entry(evsel_list.next, struct perf_evsel, node);
-		printf("%Ld", first->attr.sample_period);
+		printf("%" PRIu64, (uint64_t)first->attr.sample_period);
 		if (freq)
 			printf("Hz ");
 		else
@@ -640,7 +641,7 @@ static void print_sym_table(void)
 
 		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
 		if (verbose)
-			printf(" %016llx", sym->start);
+			printf(" %016" PRIx64, sym->start);
 		printf(" %-*.*s", sym_width, sym_width, sym->name);
 		printf(" %-*.*s\n", dso_width, dso_width,
 		       dso_width >= syme->map->dso->long_name_len ?
