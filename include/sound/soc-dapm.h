@@ -158,11 +158,11 @@
 	.event = wevent, .event_flags = wflags}
 
 /* additional sequencing control within an event type */
-#define SND_SOC_DAPM_PGA_S(wname, wsubseq, wreg, wshift, winvert, wcontrols, \
-	wncontrols, wevent, wflags) \
+#define SND_SOC_DAPM_PGA_S(wname, wsubseq, wreg, wshift, winvert, \
+	wevent, wflags) \
 {	.id = snd_soc_dapm_pga, .name = wname, .reg = wreg, .shift = wshift, \
-	.invert = winvert, .kcontrols = wcontrols, .num_kcontrols = wncontrols, \
-	.event = wevent, .event_flags = wflags, .subseq = wsubseq}
+	.invert = winvert, .event = wevent, .event_flags = wflags, \
+	.subseq = wsubseq}
 #define SND_SOC_DAPM_SUPPLY_S(wname, wsubseq, wreg, wshift, winvert, wevent, \
 	wflags)	\
 {	.id = snd_soc_dapm_supply, .name = wname, .reg = wreg,	\
