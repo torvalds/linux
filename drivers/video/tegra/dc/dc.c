@@ -1087,8 +1087,9 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	mutex_lock(&dc->lock);
 	_tegra_dc_disable(dc);
 
+	msleep(100);
 	tegra_periph_reset_assert(dc->clk);
-	msleep(10);
+	msleep(100);
 	tegra_periph_reset_deassert(dc->clk);
 
 	_tegra_dc_enable(dc);
