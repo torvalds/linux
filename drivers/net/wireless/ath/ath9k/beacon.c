@@ -112,8 +112,7 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 static void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_tx_control txctl;
 
@@ -132,8 +131,7 @@ static void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
 static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_buf *bf;
 	struct ath_vif *avp;
@@ -222,9 +220,8 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	return bf;
 }
 
-int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
+int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
-	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp;
 	struct ath_buf *bf;

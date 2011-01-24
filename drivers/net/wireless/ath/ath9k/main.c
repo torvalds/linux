@@ -215,7 +215,6 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		    struct ath9k_channel *hchan)
 {
-	struct ath_wiphy *aphy = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
@@ -262,7 +261,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		fastcc = false;
 
 	if (!(sc->sc_flags & SC_OP_OFFCHANNEL))
-		caldata = &aphy->caldata;
+		caldata = &sc->caldata;
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"(%u MHz) -> (%u MHz), conf_is_ht40: %d fastcc: %d\n",
@@ -854,7 +853,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *bss_conf)
 {
-	struct ath_wiphy *aphy = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -878,7 +876,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_beacon_config(sc, vif);
 
 		/* Reset rssi stats */
-		aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
+		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 		sc->sc_flags |= SC_OP_ANI_RUN;
@@ -1075,8 +1073,7 @@ void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 static int ath9k_start(struct ieee80211_hw *hw)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_channel *curchan = hw->conf.channel;
@@ -1193,8 +1190,7 @@ mutex_unlock:
 static int ath9k_tx(struct ieee80211_hw *hw,
 		    struct sk_buff *skb)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_tx_control txctl;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -1257,8 +1253,7 @@ exit:
 
 static void ath9k_stop(struct ieee80211_hw *hw)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -1393,8 +1388,7 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ath9k_vif_iter_data *iter_data)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -1418,8 +1412,7 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 					  struct ieee80211_vif *vif)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_vif_iter_data iter_data;
@@ -1475,8 +1468,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 
 	ath9k_calculate_summary_state(hw, vif);
 
@@ -1489,7 +1481,7 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 		 * in the info_changed method and set up beacons properly
 		 * there.
 		 */
-		error = ath_beacon_alloc(aphy, vif);
+		error = ath_beacon_alloc(sc, vif);
 		if (error)
 			ath9k_reclaim_beacon(sc, vif);
 		else
@@ -1501,8 +1493,7 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 static int ath9k_add_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
@@ -1562,8 +1553,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 				  enum nl80211_iftype new_type,
 				  bool p2p)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;
 
@@ -1605,8 +1595,7 @@ out:
 static void ath9k_remove_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	ath_dbg(common, ATH_DBG_CONFIG, "Detach Interface\n");
@@ -1660,8 +1649,7 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &hw->conf;
@@ -1805,8 +1793,7 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   unsigned int *total_flags,
 				   u64 multicast)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	u32 rfilt;
 
 	changed_flags &= SUPPORTED_FILTERS;
@@ -1826,8 +1813,7 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 
 	ath_node_attach(sc, sta);
 
@@ -1838,8 +1824,7 @@ static int ath9k_sta_remove(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 
 	ath_node_detach(sc, sta);
 
@@ -1849,8 +1834,7 @@ static int ath9k_sta_remove(struct ieee80211_hw *hw,
 static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			 const struct ieee80211_tx_queue_params *params)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_txq *txq;
 	struct ath9k_tx_queue_info qi;
@@ -1894,8 +1878,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			 struct ieee80211_sta *sta,
 			 struct ieee80211_key_conf *key)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;
 
@@ -1939,8 +1922,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_bss_conf *bss_conf,
 				   u32 changed)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
@@ -1970,7 +1952,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON) ||
 	    ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon)) {
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
-		error = ath_beacon_alloc(aphy, vif);
+		error = ath_beacon_alloc(sc, vif);
 		if (!error)
 			ath_beacon_config(sc, vif);
 	}
@@ -2007,7 +1989,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		if (vif->type == NL80211_IFTYPE_AP) {
 			sc->sc_flags |= SC_OP_TSF_RESET;
 			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
-			error = ath_beacon_alloc(aphy, vif);
+			error = ath_beacon_alloc(sc, vif);
 			if (!error)
 				ath_beacon_config(sc, vif);
 		} else {
@@ -2045,9 +2027,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
 {
+	struct ath_softc *sc = hw->priv;
 	u64 tsf;
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
@@ -2060,8 +2041,7 @@ static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
 
 static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
@@ -2072,8 +2052,7 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 
 static void ath9k_reset_tsf(struct ieee80211_hw *hw)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 
 	mutex_lock(&sc->mutex);
 
@@ -2090,8 +2069,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta,
 			      u16 tid, u16 *ssn, u8 buf_size)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	int ret = 0;
 
 	local_bh_disable();
@@ -2136,8 +2114,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 			     struct survey_info *survey)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
@@ -2173,8 +2150,7 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 
 static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 {
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 
 	mutex_lock(&sc->mutex);

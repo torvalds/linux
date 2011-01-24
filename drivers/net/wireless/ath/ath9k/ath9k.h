@@ -32,7 +32,6 @@
  */
 
 struct ath_node;
-struct ath_wiphy;
 
 /* Macro to expand scalars to 64-bit objects */
 
@@ -398,7 +397,7 @@ struct ath_beacon {
 
 void ath_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
-int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif);
+int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 int ath_beaconq_config(struct ath_softc *sc);
 
@@ -628,6 +627,9 @@ struct ath_softc {
 	int led_on_cnt;
 	int led_off_cnt;
 
+	struct ath9k_hw_cal_data caldata;
+	int last_rssi;
+
 	int beacon_interval;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
@@ -645,13 +647,6 @@ struct ath_softc {
 	struct ath_ant_comb ant_comb;
 
 	struct pm_qos_request_list pm_qos_req;
-};
-
-struct ath_wiphy {
-	struct ath_softc *sc; /* shared for all virtual wiphys */
-	struct ieee80211_hw *hw;
-	struct ath9k_hw_cal_data caldata;
-	int last_rssi;
 };
 
 void ath9k_tasklet(unsigned long data);

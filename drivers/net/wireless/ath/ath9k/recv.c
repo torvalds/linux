@@ -927,7 +927,7 @@ static void ath9k_process_rssi(struct ath_common *common,
 			       struct ieee80211_hdr *hdr,
 			       struct ath_rx_status *rx_stats)
 {
-	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = common->ah;
 	int last_rssi;
 	__le16 fc;
@@ -947,9 +947,9 @@ static void ath9k_process_rssi(struct ath_common *common,
 	}
 
 	if (rx_stats->rs_rssi != ATH9K_RSSI_BAD && !rx_stats->rs_moreaggr)
-		ATH_RSSI_LPF(aphy->last_rssi, rx_stats->rs_rssi);
+		ATH_RSSI_LPF(sc->last_rssi, rx_stats->rs_rssi);
 
-	last_rssi = aphy->last_rssi;
+	last_rssi = sc->last_rssi;
 	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
 		rx_stats->rs_rssi = ATH_EP_RND(last_rssi,
 					      ATH_RSSI_EP_MULTIPLIER);
