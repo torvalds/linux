@@ -152,7 +152,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+	int ret;
 
 	master_priv->sarea = drm_getsarea(dev);
 	if (master_priv->sarea) {
@@ -163,32 +163,21 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	}
 
 	if (init->ring_size != 0) {
-		if (ring->obj != NULL) {
+		if (LP_RING(dev_priv)->obj != NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("Client tried to initialize ringbuffer in "
 				  "GEM mode\n");
 			return -EINVAL;
 		}
 
-		ring->size = init->ring_size;
-
-		ring->map.offset = init->ring_start;
-		ring->map.size = init->ring_size;
-		ring->map.type = 0;
-		ring->map.flags = 0;
-		ring->map.mtrr = 0;
-
-		drm_core_ioremap_wc(&ring->map, dev);
-
-		if (ring->map.handle == NULL) {
+		ret = intel_render_ring_init_dri(dev,
+						 init->ring_start,
+						 init->ring_size);
+		if (ret) {
 			i915_dma_cleanup(dev);
-			DRM_ERROR("can not ioremap virtual address for"
-				  " ring buffer\n");
-			return -ENOMEM;
+			return ret;
 		}
 	}
-
-	ring->virtual_start = ring->map.handle;
 
 	dev_priv->cpp = init->cpp;
 	dev_priv->back_offset = init->back_offset;
@@ -1226,9 +1215,15 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
 
-	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
+	/* If we have > 1 VGA cards, then we need to arbitrate access
+	 * to the common VGA resources.
+	 *
+	 * If we are a secondary display controller (!PCI_DISPLAY_CLASS_VGA),
+	 * then we do not take part in VGA arbitration and the
+	 * vga_client_register() fails with -ENODEV.
+	 */
 	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
-	if (ret)
+	if (ret && ret != -ENODEV)
 		goto cleanup_ringbuffer;
 
 	intel_register_dsm_handler();
