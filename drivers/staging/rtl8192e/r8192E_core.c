@@ -1348,10 +1348,6 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 
 	if (uni_addr)
 		priv->stats.txbytesunicast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
-	else if (multi_addr)
-		priv->stats.txbytesmulticast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
-	else
-		priv->stats.txbytesbroadcast += (u8)(skb->len) - sizeof(TX_FWINFO_8190PCI);
 
 	/* fill tx firmware */
 	pTxFwInfo = (PTX_FWINFO_8190PCI)skb->data;
@@ -4648,41 +4644,6 @@ static long rtl819x_translate_todbm(u8 signal_strength_index)// 0-100 index.
 	return signal_power;
 }
 
-/*
- * Update Rx signal related information in the packet reeived
- * to RxStats. User application can query RxStats to realize
- * current Rx signal status.
- *
- * In normal operation, user only care about the information of the BSS
- * and we shall invoke this function if the packet received is from the BSS.
- */
-static void
-rtl819x_update_rxsignalstatistics8190pci(
-	struct r8192_priv * priv,
-	struct ieee80211_rx_stats * pprevious_stats
-	)
-{
-	int weighting = 0;
-
-	//2 <ToDo> Update Rx Statistics (such as signal strength and signal quality).
-
-	// Initila state
-	if(priv->stats.recv_signal_power == 0)
-		priv->stats.recv_signal_power = pprevious_stats->RecvSignalPower;
-
-	// To avoid the past result restricting the statistics sensitivity, weight the current power (5/6) to speed up the
-	// reaction of smoothed Signal Power.
-	if(pprevious_stats->RecvSignalPower > priv->stats.recv_signal_power)
-		weighting = 5;
-	else if(pprevious_stats->RecvSignalPower < priv->stats.recv_signal_power)
-		weighting = (-5);
-	//
-	// We need more correct power of received packets and the  "SignalStrength" of RxStats have been beautified or translated,
-	// so we record the correct power in Dbm here. By Bruce, 2008-03-07.
-	//
-	priv->stats.recv_signal_power = (priv->stats.recv_signal_power * 5 + pprevious_stats->RecvSignalPower + weighting) / 6;
-}
-
 static void
 rtl8190_process_cck_rxpathsel(
 	struct r8192_priv * priv,
@@ -4910,7 +4871,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 					( ((pHalData->UndecoratedSmoothedPWDB)* 5) + (pPreviousRfd->Status.RxPWDBAll)) / 6;
 		}
 #endif
-		rtl819x_update_rxsignalstatistics8190pci(priv,pprevious_stats);
 	}
 
 	//
@@ -4937,9 +4897,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 
 			// <1> Showed on UI for user, in percentage.
 			tmp_val = priv->stats.slide_evm_total/slide_evm_statistics;
-			priv->stats.signal_quality = tmp_val;
 			//cosa add 10/11/2007, Showed on UI for user in Windows Vista, for Link quality.
-			priv->stats.last_signal_strength_inpercent = tmp_val;
 		}
 
 		// <2> Showed on UI for engineering
@@ -5242,7 +5200,6 @@ static void rtl8192_query_rxphystatus(
 			tmp_rxsnr = pofdm_buf->rxsnr_X[i];
 			rx_snrX = (char)(tmp_rxsnr);
 			rx_snrX /= 2;
-			priv->stats.rxSNRdB[i] = (long)rx_snrX;
 
 			/* Translate DBM to percentage. */
 			RSSI = rtl819x_query_rxpwrpercentage(rx_pwr[i]);
@@ -5301,10 +5258,6 @@ static void rtl8192_query_rxphystatus(
 		/* record rx statistics for debug */
 		rxsc_sgien_exflg = pofdm_buf->rxsc_sgien_exflg;
 		prxsc = (phy_ofdm_rx_status_rxsc_sgien_exintfflag *)&rxsc_sgien_exflg;
-		if(pdrvinfo->BW)	//40M channel
-			priv->stats.received_bwtype[1+prxsc->rxsc]++;
-		else				//20M channel
-			priv->stats.received_bwtype[0]++;
 	}
 
 	//UI BSS List signal strength(in percentage), make it good looking, from 0~100.
@@ -5481,7 +5434,6 @@ static void UpdateReceivedRateHistogramStatistics8190(
 	    	case MGN_MCS15: rateIndex = 27; break;
 		default:        rateIndex = 28; break;
 	}
-	priv->stats.received_preamble_GI[preamble_guardinterval][rateIndex]++;
 	priv->stats.received_rate_histogram[0][rateIndex]++; //total
 	priv->stats.received_rate_histogram[rcvType][rateIndex]++;
 }
@@ -5957,7 +5909,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 	inta = read_nic_dword(dev, ISR); /* & priv->IntrMask; */
 	write_nic_dword(dev, ISR, inta); /* reset int situation */
 
-	priv->stats.shints++;
 	if (!inta) {
 		/*
 		 * most probably we can safely return IRQ_NONE,
@@ -5970,8 +5921,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 		/* HW disappared */
 		goto out_unlock;
 	}
-
-	priv->stats.ints++;
 
 	if (!netif_running(dev))
 		goto out_unlock;

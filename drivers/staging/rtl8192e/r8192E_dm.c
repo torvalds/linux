@@ -3196,15 +3196,9 @@ static void dm_check_txrateandretrycount(struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
-	//for 11n tx rate
-//	priv->stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
-	ieee->softmac_stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
-	//printk("=============>tx_rate_reg:%x\n", ieee->softmac_stats.CurrentShowTxate);
 	//for initial tx rate
-//	priv->stats.last_packet_rate = read_nic_byte(dev, Initial_Tx_Rate_Reg);
 	ieee->softmac_stats.last_packet_rate = read_nic_byte(dev ,Initial_Tx_Rate_Reg);
 	//for tx tx retry count
-//	priv->stats.txretrycount = read_nic_dword(dev, Tx_Retry_Count_Reg);
 	ieee->softmac_stats.txretrycount = read_nic_dword(dev, Tx_Retry_Count_Reg);
 }
 

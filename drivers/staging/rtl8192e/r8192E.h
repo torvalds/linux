@@ -481,79 +481,35 @@ typedef struct Stats
 	unsigned long rxcmdpkt[4];		//08/05/08 amy rx cmd element txfeedback/bcn report/cfg set/query
 	unsigned long rxurberr; /* remove */
 	unsigned long received_rate_histogram[4][32];	//0: Total, 1:OK, 2:CRC, 3:ICV, 2007 07 03 cosa
-	unsigned long received_preamble_GI[2][32];		//0: Long preamble/GI, 1:Short preamble/GI
-	unsigned long	rx_AMPDUsize_histogram[5]; // level: (<4K), (4K~8K), (8K~16K), (16K~32K), (32K~64K)
-	unsigned long rx_AMPDUnum_histogram[5]; // level: (<5), (5~10), (10~20), (20~40), (>40)
-	unsigned long received_bwtype[5];              //0: 20M, 1: funn40M, 2: upper20M, 3: lower20M, 4: duplicate
-	unsigned long txnperr;
-	unsigned long txnpdrop;
-	unsigned long txresumed;
 	unsigned long rxoverflow;
 	unsigned long rxint;
-	unsigned long txnpokint;
-	unsigned long ints;
-	unsigned long shints;
 	unsigned long txoverflow;
-	unsigned long txlpokint;
-	unsigned long txlpdrop;
-	unsigned long txlperr;
 	unsigned long txbeokint;
-	unsigned long txbedrop;
-	unsigned long txbeerr;
 	unsigned long txbkokint;
-	unsigned long txbkdrop;
-	unsigned long txbkerr;
 	unsigned long txviokint;
-	unsigned long txvidrop;
-	unsigned long txvierr;
 	unsigned long txvookint;
-	unsigned long txvodrop;
-	unsigned long txvoerr;
 	unsigned long txbeaconokint;
-	unsigned long txbeacondrop;
 	unsigned long txbeaconerr;
 	unsigned long txmanageokint;
-	unsigned long txmanagedrop;
-	unsigned long txmanageerr;
 	unsigned long txcmdpktokint;
-	unsigned long txdatapkt;
 	unsigned long txfeedback;
 	unsigned long txfeedbackok;
 	unsigned long txoktotal;
-	unsigned long txokbytestotal;
-	unsigned long txokinperiod;
-	unsigned long txmulticast;
-	unsigned long txbytesmulticast;
-	unsigned long txbroadcast;
-	unsigned long txbytesbroadcast;
 	unsigned long txunicast;
 	unsigned long txbytesunicast;
 	unsigned long rxbytesunicast;
-	unsigned long txfeedbackfail;
-	unsigned long txerrtotal;
 	unsigned long txerrbytestotal;
-	unsigned long txerrmulticast;
-	unsigned long txerrbroadcast;
-	unsigned long txerrunicast;
-	unsigned long txretrycount;
-	unsigned long txfeedbackretry;
-	u8			last_packet_rate;
+
 	unsigned long slide_signal_strength[100];
 	unsigned long slide_evm[100];
 	unsigned long	slide_rssi_total;	// For recording sliding window's RSSI value
 	unsigned long slide_evm_total;	// For recording sliding window's EVM value
 	long signal_strength; // Transformed, in dbm. Beautified signal strength for UI, not correct.
-	long signal_quality;
-	long last_signal_strength_inpercent;
-	long	recv_signal_power;	// Correct smoothed ss in Dbm, only used in driver to report real power now.
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
-	long rxSNRdB[4];
-	rt_tx_rahis_t txrate;
 	u32 Slide_Beacon_pwdb[100];	//cosa add for beacon rssi
 	u32 Slide_Beacon_Total;		//cosa add for beacon rssi
 	RT_SMOOTH_DATA_4RF		cck_adc_pwdb;
-	u32	CurrentShowTxate;
 } Stats;
 
 
