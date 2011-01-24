@@ -259,7 +259,7 @@ static int i2c_dev_get_value(struct i2c_get_info *get)
 	int ret = 0;
 	struct i2c_adapter *adap = NULL;
 	
-	if(get->num >= MAX_VALUE_NUM)
+	if(get->num > MAX_VALUE_NUM)
 		return -1;
 	adap = i2c_get_adapter(get->id);
 	if(adap == NULL)
@@ -287,7 +287,7 @@ static int i2c_dev_set_value(struct i2c_set_info *set)
 	struct i2c_adapter *adap = NULL;
 
 	printk("id=%d, addr=0x%x, mode = %c, num = %d, reg = 0x%x, value[0] = %d,",set->id, set->addr, set->mode, set->num, set->reg, set->value[0]);
-	if(set->num >= MAX_VALUE_NUM)
+	if(set->num > MAX_VALUE_NUM)
 		return -1;
 	adap = i2c_get_adapter(set->id);
 	if(adap == NULL)

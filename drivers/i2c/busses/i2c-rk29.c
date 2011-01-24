@@ -32,8 +32,16 @@
 #include "i2c-rk29.h"
 #define DRV_NAME	"rk29_i2c"
 #define RETRY_NUM	1
+									
+#define RK29_UDELAY_TIME(scl_rate)			((400*1000)/(scl_rate))
+/*max ACK delay time = RK29_I2C_ACK_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
+#define RK29_I2C_ACK_TIMEOUT_COUNT			(10 * 1000)
+/*max STOP delay time = RK29_I2C_STOP_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
+#define RK29_I2C_STOP_TIMEOUT_COUNT			1000
+/*max START delay time = RK29_I2C_START_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
+#define RK29_I2C_START_TIMEOUT_COUNT		1000
 
-#define RK29_I2C_TIMEOUT(x)		(msecs_to_jiffies(x))
+
 
 #if 0
 #define i2c_dbg(dev, format, arg...)		\
@@ -71,6 +79,9 @@ struct rk29_i2c_data {
 	struct i2c_adapter		adap;
 	void __iomem			*regs;
 	struct resource			*ioarea;
+
+	unsigned int			ack_timeout;    //unit: us
+	unsigned int			udelay_time;    //unit: us
 
 	unsigned int			suspended:1;
 	unsigned long			scl_rate;
@@ -242,13 +253,13 @@ static irqreturn_t rk29_i2c_irq(int irq, void *data)
 }
 static int wait_for_completion_poll_timeout(struct rk29_i2c_data *i2c)
 {
-	int tmo = 10000;
+	int tmo = RK29_I2C_ACK_TIMEOUT_COUNT;
 	
 	while(--tmo)
 	{
 		if(i2c->poll_status == 1)
 			return 1;
-		udelay(400*1000/i2c->scl_rate);
+		udelay(i2c->udelay_time);
 	}
 	return 0;
 }
@@ -267,9 +278,8 @@ static int rk29_wait_event(struct rk29_i2c_data *i2c,
 	rk29_i2c_enable_irqs(i2c);
 	if(i2c->mode == I2C_MODE_IRQ)
 	{
-		init_completion(&i2c->cmd_complete);
 		ret = wait_for_completion_interruptible_timeout(&i2c->cmd_complete,
-								RK29_I2C_TIMEOUT(4000 * 1000/i2c->scl_rate));
+								usecs_to_jiffies(i2c->ack_timeout));
 	}
 	else
 	{
@@ -292,12 +302,12 @@ static int rk29_wait_event(struct rk29_i2c_data *i2c,
 
 static void rk29_i2c_stop(struct rk29_i2c_data *i2c)
 {
-	int tmo = 10000 * 1000/i2c->scl_rate;
+	int tmo = RK29_I2C_STOP_TIMEOUT_COUNT;
 
 	writel(I2C_LCMR_STOP|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 	while(--tmo && !(readl(i2c->regs + I2C_LCMR) & I2C_LCMR_STOP))
 	{
-		udelay(400*1000/i2c->scl_rate);
+		udelay(i2c->udelay_time);
 	}
 	writel(0, i2c->regs + I2C_ISR);
 	rk29_i2c_disable_irqs(i2c);
@@ -307,11 +317,11 @@ static void rk29_i2c_stop(struct rk29_i2c_data *i2c)
 }
 static void rk29_wait_while_busy(struct rk29_i2c_data *i2c)
 {
-	int tmo = 10000 * 1000/i2c->scl_rate;
+	int tmo = RK29_I2C_START_TIMEOUT_COUNT;
 	
 	while(--tmo && (readl(i2c->regs + I2C_LSR) & I2C_LSR_BUSY))
 	{
-		udelay(400*1000/i2c->scl_rate);
+		udelay(i2c->udelay_time);
 	}
 	return;
 }
@@ -325,6 +335,8 @@ static int rk29_send_2nd_addr(struct rk29_i2c_data *i2c,
 
 	i2c_dbg(i2c->dev, "i2c send addr_2nd: %lx\n", addr_2nd);	
 	writel(addr_2nd, i2c->regs + I2C_MTXR);
+	if(i2c->mode == I2C_MODE_IRQ)
+		INIT_COMPLETION(i2c->cmd_complete);
 	writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 	rk29_set_ack(i2c);
 	
@@ -367,6 +379,8 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 	i2c_dbg(i2c->dev, "i2c send addr_1st: %lx\n", addr_1st);
 	writel(addr_1st, i2c->regs + I2C_MTXR);
 	rk29_set_ack(i2c);
+	if(i2c->mode == I2C_MODE_IRQ)
+		INIT_COMPLETION(i2c->cmd_complete);
 	writel(I2C_LCMR_START|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 
 	if((ret = rk29_wait_event(i2c, RK29_EVENT_MTX_RCVD_ACK)) != 0)
@@ -400,6 +414,8 @@ static int rk29_i2c_send_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 		i2c_dbg(i2c->dev, "i2c send buf[%d]: %x\n", i, msg->buf[i]);	
 		writel(msg->buf[i], i2c->regs + I2C_MTXR);
 		rk29_set_ack(i2c);
+		if(i2c->mode == I2C_MODE_IRQ)
+			INIT_COMPLETION(i2c->cmd_complete);
 		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 
 		if((ret = rk29_wait_event(i2c, RK29_EVENT_MTX_RCVD_ACK)) != 0)
@@ -423,6 +439,8 @@ static int rk29_i2c_recv_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 	
 	for(i = 0; i < msg->len; i++)
 	{
+		if(i2c->mode == I2C_MODE_IRQ)
+			INIT_COMPLETION(i2c->cmd_complete);
 		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 		if((ret = rk29_wait_event(i2c, RK29_EVENT_MRX_NEED_ACK)) != 0)
 			return ret;
@@ -499,6 +517,8 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 		i2c->scl_rate = 400000;	
 	rk29_i2c_clockrate(i2c);
 
+	i2c->udelay_time = RK29_UDELAY_TIME(i2c->scl_rate);
+	i2c->ack_timeout = RK29_I2C_ACK_TIMEOUT_COUNT * i2c->udelay_time;
 	for (i = 0; i < num; i++) 
 	{
 		ret = rk29_xfer_msg(adap, &msgs[i], (i == 0), (i == (num - 1)));
@@ -642,6 +662,7 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 		i2c_err(&pdev->dev, "<error>no memory for state\n");
 		return -ENOMEM;
 	}
+	init_completion(&i2c->cmd_complete);
 	i2c->retry = RETRY_NUM;
 	i2c->mode = pdata->mode;
 	i2c->scl_rate = (pdata->scl_rate) ? pdata->scl_rate : 100000;
