@@ -739,7 +739,7 @@ static int omap_venchw_probe(struct platform_device *pdev)
 	venc_enable_clocks(1);
 
 	rev_id = (u8)(venc_read_reg(VENC_REV_ID) & 0xff);
-	printk(KERN_INFO "OMAP VENC rev %d\n", rev_id);
+	dev_dbg(&pdev->dev, "OMAP VENC rev %d\n", rev_id);
 
 	venc_enable_clocks(0);
 

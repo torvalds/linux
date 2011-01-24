@@ -3350,7 +3350,7 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 	dispc_save_context();
 
 	rev = dispc_read_reg(DISPC_REVISION);
-	printk(KERN_INFO "OMAP DISPC rev %d.%d\n",
+	dev_dbg(&pdev->dev, "OMAP DISPC rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	enable_clocks(0);

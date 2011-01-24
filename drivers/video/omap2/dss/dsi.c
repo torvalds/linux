@@ -3300,7 +3300,7 @@ static int dsi_init(struct platform_device *pdev)
 	enable_clocks(1);
 
 	rev = dsi_read_reg(DSI_REVISION);
-	printk(KERN_INFO "OMAP DSI rev %d.%d\n",
+	dev_dbg(&pdev->dev, "OMAP DSI rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	enable_clocks(0);

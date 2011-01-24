@@ -1046,7 +1046,7 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 	rfbi_write_reg(RFBI_SYSCONFIG, l);
 
 	rev = rfbi_read_reg(RFBI_REVISION);
-	printk(KERN_INFO "OMAP RFBI rev %d.%d\n",
+	dev_dbg(&pdev->dev, "OMAP RFBI rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	rfbi_enable_clocks(0);
