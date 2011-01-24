@@ -596,10 +596,6 @@ static int proc_get_stats_tx(char *page, char **start,
 		netif_queue_stopped(dev),
 		priv->stats.txoverflow,
 //		priv->stats.txbeacon,
-//		atomic_read(&(priv->tx_pending[VI_QUEUE])),
-//		atomic_read(&(priv->tx_pending[VO_QUEUE])),
-//		atomic_read(&(priv->tx_pending[BE_QUEUE])),
-//		atomic_read(&(priv->tx_pending[BK_QUEUE])),
 //		read_nic_byte(dev, TXFIFOCOUNT),
 //		priv->stats.txvidrop,
 //		priv->stats.txvodrop,
@@ -2254,13 +2250,8 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->ieee80211->SetHwRegHandler = rtl8192e_SetHwReg;
 	priv->ieee80211->rtllib_ap_sec_type = rtl8192e_ap_sec_type;
 
-	{
-		priv->ShortRetryLimit = 0x30;
-		priv->LongRetryLimit = 0x30;
-	}
-	priv->EarlyRxThreshold = 7;
-
-	priv->TransmitConfig = 0;
+	priv->ShortRetryLimit = 0x30;
+	priv->LongRetryLimit = 0x30;
 
 	priv->ReceiveConfig = RCR_ADD3	|
 		RCR_AMF | RCR_ADF |		//accept management/data
@@ -2274,11 +2265,9 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 				IMR_BDOK | IMR_RXCMDOK | IMR_TIMEOUT0 | IMR_RDU | IMR_RXFOVW |
 				IMR_TXFOVW | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 
-	priv->AcmControl = 0;
 	priv->pFirmware = vzalloc(sizeof(rt_firmware));
 
 	/* rx related queue */
-        skb_queue_head_init(&priv->rx_queue);
 	skb_queue_head_init(&priv->skb_queue);
 
 	/* Tx related queue */

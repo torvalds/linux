@@ -1029,36 +1029,22 @@ typedef struct r8192_priv
 	struct proc_dir_entry *dir_dev;
 
 	/* RX stuff */
-	struct sk_buff_head rx_queue;
 	struct sk_buff_head skb_queue;
 	struct work_struct qos_activate;
-	short  tx_urb_index;
-	atomic_t tx_pending[0x10];//UART_PRIORITY+1
-
-	struct urb *rxurb_task;
 
 	//2 Tx Related variables
 	u16	ShortRetryLimit;
 	u16	LongRetryLimit;
-	u32	TransmitConfig;
-	u8	RegCWinMin;		// For turbo mode CW adaptive. Added by Annie, 2005-10-27.
 
 	u32     LastRxDescTSFHigh;
 	u32     LastRxDescTSFLow;
 
 
 	//2 Rx Related variables
-	u16	EarlyRxThreshold;
 	u32	ReceiveConfig;
-	u8	AcmControl;
-
-	u8	RFProgType;
 
 	u8 retry_data;
 	u8 retry_rts;
-	u16 rts;
-
-	struct 	ChnlAccessSetting  ChannelAccessSetting;
 
 	struct work_struct reset_wq;
 
@@ -1074,23 +1060,17 @@ typedef struct r8192_priv
 /*Firmware*/
 	prt_firmware		pFirmware;
 	rtl819x_loopback_e	LoopbackMode;
-	firmware_source_e	firmware_source;
 	bool AutoloadFailFlag;
-	u16 EEPROMTxPowerDiff;
 	u16 EEPROMAntPwDiff;		// Antenna gain offset from B/C/D to A
 	u8 EEPROMThermalMeter;
-	u8 EEPROMPwDiff;
 	u8 EEPROMCrystalCap;
-	u8 EEPROM_Def_Ver;
 	u8 EEPROMTxPowerLevelCCK[14];// CCK channel 1~14
 	// The following definition is for eeprom 93c56
 	u8 EEPROMRfACCKChnl1TxPwLevel[3];	//RF-A CCK Tx Power Level at channel 7
 	u8 EEPROMRfAOfdmChnlTxPwLevel[3];//RF-A CCK Tx Power Level at [0],[1],[2] = channel 1,7,13
 	u8 EEPROMRfCCCKChnl1TxPwLevel[3];	//RF-C CCK Tx Power Level at channel 7
 	u8 EEPROMRfCOfdmChnlTxPwLevel[3];//RF-C CCK Tx Power Level at [0],[1],[2] = channel 1,7,13
-	u8 EEPROMTxPowerLevelCCK_V1[3];
 	u8 EEPROMTxPowerLevelOFDM24G[14]; // OFDM 2.4G channel 1~14
-	u8 EEPROMTxPowerLevelOFDM5G[24];	// OFDM 5G
 	u8 EEPROMLegacyHTTxPowerDiff;	// Legacy to HT rate power diff
 	bool bTXPowerDataReadFromEEPORM;
 /*channel plan*/
