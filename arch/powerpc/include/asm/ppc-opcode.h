@@ -56,6 +56,9 @@
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_XXLOR			0xf0000510
 
+#define PPC_INST_NAP			0x4c000364
+#define PPC_INST_SLEEP			0x4c0003a4
+
 /* macros to insert fields into opcodes */
 #define __PPC_RA(a)	(((a) & 0x1f) << 16)
 #define __PPC_RB(b)	(((b) & 0x1f) << 11)
@@ -125,5 +128,8 @@
 					       VSX_XX1((s), (a), (b)))
 #define XXLOR(t, a, b)		stringify_in_c(.long PPC_INST_XXLOR | \
 					       VSX_XX3((t), (a), (b)))
+
+#define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
+#define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

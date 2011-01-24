@@ -267,6 +267,7 @@ struct machdep_calls {
 
 extern void e500_idle(void);
 extern void power4_idle(void);
+extern void power7_idle(void);
 extern void ppc6xx_idle(void);
 extern void book3e_idle(void);
 

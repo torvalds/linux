@@ -37,7 +37,35 @@
 	.globl __start_interrupts
 __start_interrupts:
 
-	STD_EXCEPTION_PSERIES(0x100, 0x100, system_reset)
+	.globl system_reset_pSeries;
+system_reset_pSeries:
+	HMT_MEDIUM;
+	DO_KVM	0x100;
+	SET_SCRATCH0(r13)
+#ifdef CONFIG_PPC_P7_NAP
+BEGIN_FTR_SECTION
+	/* Running native on arch 2.06 or later, check if we are
+	 * waking up from nap. We only handle no state loss and
+	 * supervisor state loss. We do -not- handle hypervisor
+	 * state loss at this time.
+	 */
+	mfspr	r13,SPRN_SRR1
+	rlwinm	r13,r13,47-31,30,31
+	cmpwi	cr0,r13,1
+	bne	1f
+	b	.power7_wakeup_noloss
+1:	cmpwi	cr0,r13,2
+	bne	1f
+	b	.power7_wakeup_loss
+	/* Total loss of HV state is fatal, we could try to use the
+	 * PIR to locate a PACA, then use an emergency stack etc...
+	 * but for now, let's just stay stuck here
+	 */
+1:	cmpwi	cr0,r13,3
+	beq	.
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE_206)
+#endif /* CONFIG_PPC_P7_NAP */
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD)
 
 	. = 0x200
 _machine_check_pSeries:

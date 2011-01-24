@@ -147,6 +147,10 @@ config PPC_970_NAP
 	bool
 	default n
 
+config PPC_P7_NAP
+	bool
+	default n
+
 config PPC_INDIRECT_IO
 	bool
 	select GENERIC_IOMAP
