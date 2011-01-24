@@ -3555,8 +3555,6 @@ static RESET_TYPE
 TxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8			QueueID;
-	ptx_ring		head=NULL,tail=NULL,txring = NULL;
 	u8			ResetThreshold = NIC_SEND_HANG_THRESHOLD_POWERSAVE;
 	bool			bCheckFwTxCnt = false;
 
@@ -3577,61 +3575,6 @@ TxCheckStuck(struct net_device *dev)
 			break;
 	}
 
-	//
-	// Check whether specific tcb has been queued for a specific time
-	//
-	for(QueueID = 0; QueueID < MAX_TX_QUEUE; QueueID++)
-	{
-
-
-		if(QueueID == TXCMD_QUEUE)
-			continue;
-
-		switch(QueueID) {
-		case MGNT_QUEUE:
-			tail=priv->txmapringtail;
-			head=priv->txmapringhead;
-			break;
-
-		case BK_QUEUE:
-			tail=priv->txbkpringtail;
-			head=priv->txbkpringhead;
-			break;
-
-		case BE_QUEUE:
-			tail=priv->txbepringtail;
-			head=priv->txbepringhead;
-			break;
-
-		case VI_QUEUE:
-			tail=priv->txvipringtail;
-			head=priv->txvipringhead;
-			break;
-
-		case VO_QUEUE:
-			tail=priv->txvopringtail;
-			head=priv->txvopringhead;
-			break;
-
-		default:
-			tail=head=NULL;
-			break;
-		}
-
-		if(tail == head)
-			continue;
-		else
-		{
-			txring = head;
-			if(txring == NULL)
-			{
-				RT_TRACE(COMP_ERR,"%s():txring is NULL , BUG!\n",__FUNCTION__);
-				continue;
-			}
-			txring->nStuckCount++;
-			bCheckFwTxCnt = TRUE;
-		}
-	}
 #if 1
 	if(bCheckFwTxCnt)
 	{

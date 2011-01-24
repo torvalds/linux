@@ -1031,30 +1031,6 @@ typedef struct r8192_priv
 	int txbeaconcount;
 	struct buffer *txbeaconbufs;
 	struct buffer *txbeaconbufstail;
-	ptx_ring txmapring;
-	ptx_ring txbkpring;
-	ptx_ring txbepring;
-	ptx_ring txvipring;
-	ptx_ring txvopring;
-	ptx_ring txcmdring;
-	ptx_ring txmapringtail;
-	ptx_ring txbkpringtail;
-	ptx_ring txbepringtail;
-	ptx_ring txvipringtail;
-	ptx_ring txvopringtail;
-	ptx_ring txcmdringtail;
-	ptx_ring txmapringhead;
-	ptx_ring txbkpringhead;
-	ptx_ring txbepringhead;
-	ptx_ring txvipringhead;
-	ptx_ring txvopringhead;
-	ptx_ring txcmdringhead;
-	dma_addr_t txmapringdma;
-	dma_addr_t txbkpringdma;
-	dma_addr_t txbepringdma;
-	dma_addr_t txvipringdma;
-	dma_addr_t txvopringdma;
-	dma_addr_t txcmdringdma;
 	//	u8 chtxpwr[15]; //channels from 1 to 14, 0 not used
 //	u8 chtxpwr_ofdm[15]; //channels from 1 to 14, 0 not used
 //	u8 cck_txpwr_base;
