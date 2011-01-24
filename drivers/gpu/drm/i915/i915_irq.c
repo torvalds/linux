@@ -846,6 +846,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 		i++;
 	error->pinned_bo_count = i - error->active_bo_count;
 
+	error->active_bo = NULL;
+	error->pinned_bo = NULL;
 	if (i) {
 		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
 					   GFP_ATOMIC);
