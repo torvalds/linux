@@ -1267,7 +1267,8 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	/* even though we trust out peer,
 	 * we sometimes have to double check. */
 	if (sector + (data_size>>9) > capacity) {
-		dev_err(DEV, "capacity: %llus < sector: %llus + size: %u\n",
+		dev_err(DEV, "request from peer beyond end of local disk: "
+			"capacity: %llus < sector: %llus + size: %u\n",
 			(unsigned long long)capacity,
 			(unsigned long long)sector, data_size);
 		return NULL;
