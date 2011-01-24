@@ -401,7 +401,7 @@ static struct snd_soc_dai_link neo1973_gta02_dai[] = {
 	.codec_dai_name = "wm8753-hifi",
 	.init = neo1973_gta02_wm8753_init,
 	.platform_name = "samsung-audio",
-	.codec_name = "wm8753-codec.0-0x1a",
+	.codec_name = "wm8753-codec.0-001a",
 	.ops = &neo1973_gta02_hifi_ops,
 },
 { /* Voice via BT */
@@ -410,7 +410,7 @@ static struct snd_soc_dai_link neo1973_gta02_dai[] = {
 	.cpu_dai_name = "bluetooth-dai",
 	.codec_dai_name = "wm8753-voice",
 	.ops = &neo1973_gta02_voice_ops,
-	.codec_name = "wm8753-codec.0-0x1a",
+	.codec_name = "wm8753-codec.0-001a",
 	.platform_name = "samsung-audio",
 },
 };
