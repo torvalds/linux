@@ -457,6 +457,8 @@ struct nfsd4_op {
 	struct nfs4_replay *			replay;
 };
 
+bool nfsd4_cache_this_op(struct nfsd4_op *);
+
 struct nfsd4_compoundargs {
 	/* scratch variables for XDR decode */
 	__be32 *			p;
@@ -479,6 +481,7 @@ struct nfsd4_compoundargs {
 	u32				opcnt;
 	struct nfsd4_op			*ops;
 	struct nfsd4_op			iops[8];
+	int				cachetype;
 };
 
 struct nfsd4_compoundres {
