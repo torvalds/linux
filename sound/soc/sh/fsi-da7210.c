@@ -25,7 +25,8 @@ static int fsi_da7210_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_fmt(cpu, SND_SOC_DAIFMT_CBS_CFS);
+	ret = snd_soc_dai_set_fmt(cpu, SND_SOC_DAIFMT_I2S |
+				       SND_SOC_DAIFMT_CBS_CFS);
 
 	return ret;
 }

@@ -757,9 +757,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	struct fsi_master *master = fsi_get_master(fsi);
 	u32 flags = fsi_get_info_flags(fsi);
-	u32 fmt;
 	u32 data;
 	int is_play = fsi_is_play(substream);
 
@@ -778,54 +776,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 		data |= 1 << 0;
 
 	fsi_reg_write(fsi, CKG2, data);
-
-	/* do fmt, di fmt */
-	data = 0;
-	fmt = is_play ? SH_FSI_GET_OFMT(flags) : SH_FSI_GET_IFMT(flags);
-	switch (fmt) {
-	case SH_FSI_FMT_MONO:
-		data = CR_MONO;
-		fsi->chan_num = 1;
-		break;
-	case SH_FSI_FMT_MONO_DELAY:
-		data = CR_MONO_D;
-		fsi->chan_num = 1;
-		break;
-	case SH_FSI_FMT_PCM:
-		data = CR_PCM;
-		fsi->chan_num = 2;
-		break;
-	case SH_FSI_FMT_I2S:
-		data = CR_I2S;
-		fsi->chan_num = 2;
-		break;
-	case SH_FSI_FMT_TDM:
-		fsi->chan_num = is_play ?
-			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
-		data = CR_TDM | (fsi->chan_num - 1);
-		break;
-	case SH_FSI_FMT_TDM_DELAY:
-		fsi->chan_num = is_play ?
-			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
-		data = CR_TDM_D | (fsi->chan_num - 1);
-		break;
-	case SH_FSI_FMT_SPDIF:
-		if (master->core->ver < 2) {
-			dev_err(dai->dev, "This FSI can not use SPDIF\n");
-			return -EINVAL;
-		}
-		data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
-		fsi->chan_num = 2;
-		fsi_spdif_clk_ctrl(fsi, 1);
-		fsi_reg_mask_set(fsi, OUT_SEL, DMMD, DMMD);
-		break;
-	default:
-		dev_err(dai->dev, "unknown format.\n");
-		return -EINVAL;
-	}
-	is_play ?
-		fsi_reg_write(fsi, DO_FMT, data) :
-		fsi_reg_write(fsi, DI_FMT, data);
 
 	/* irq clear */
 	fsi_irq_disable(fsi, is_play);
@@ -881,9 +831,52 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	return ret;
 }
 
+static int fsi_set_fmt_dai(struct fsi_priv *fsi, unsigned int fmt)
+{
+	u32 data = 0;
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+		data = CR_I2S;
+		fsi->chan_num = 2;
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		data = CR_PCM;
+		fsi->chan_num = 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	fsi_reg_write(fsi, DO_FMT, data);
+	fsi_reg_write(fsi, DI_FMT, data);
+
+	return 0;
+}
+
+static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
+{
+	struct fsi_master *master = fsi_get_master(fsi);
+	u32 data = 0;
+
+	if (master->core->ver < 2)
+		return -EINVAL;
+
+	data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
+	fsi->chan_num = 2;
+	fsi_spdif_clk_ctrl(fsi, 1);
+	fsi_reg_mask_set(fsi, OUT_SEL, DMMD, DMMD);
+
+	fsi_reg_write(fsi, DO_FMT, data);
+	fsi_reg_write(fsi, DI_FMT, data);
+
+	return 0;
+}
+
 static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct fsi_priv *fsi = fsi_get_priv_frm_dai(dai);
+	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
 	int ret;
 
@@ -901,7 +894,18 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		goto set_fmt_exit;
 	}
 	fsi_reg_mask_set(fsi, CKG1, (DIMD | DOMD), data);
-	ret = 0;
+
+	/* set format */
+	switch (flags & SH_FSI_FMT_MASK) {
+	case SH_FSI_FMT_DAI:
+		ret = fsi_set_fmt_dai(fsi, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
+		break;
+	case SH_FSI_FMT_SPDIF:
+		ret = fsi_set_fmt_spdif(fsi);
+		break;
+	default:
+		ret = -EINVAL;
+	}
 
 set_fmt_exit:
 	pm_runtime_put_sync(dai->dev);
