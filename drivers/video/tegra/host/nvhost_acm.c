@@ -28,6 +28,8 @@
 #include <mach/powergate.h>
 #include <mach/clk.h>
 
+#include "dev.h"
+
 #define ACM_TIMEOUT 1*HZ
 
 #define DISABLE_3D_POWERGATING
@@ -194,7 +196,12 @@ static int is_module_idle(struct nvhost_module *mod)
 
 void nvhost_module_suspend(struct nvhost_module *mod)
 {
-	wait_event(mod->idle, is_module_idle(mod));
+	int ret;
+
+	ret = wait_event_timeout(mod->idle, is_module_idle(mod),
+			   ACM_TIMEOUT + msecs_to_jiffies(500));
+	if (ret == 0)
+		nvhost_debug_dump();
 	flush_delayed_work(&mod->powerdown);
 	BUG_ON(mod->powered);
 }
