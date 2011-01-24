@@ -611,7 +611,6 @@ extern int __build_bug_on_failed;
 		if (condition) __build_bug_on_failed = 1;	\
 	} while(0)
 #endif
-#define MAYBE_BUILD_BUG_ON(condition) BUILD_BUG_ON(condition)
 
 /* Trap pasters of __FUNCTION__ at compile-time */
 #define __FUNCTION__ (__func__)
