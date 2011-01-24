@@ -610,8 +610,8 @@ int              regget(struct usb_device *, __u16, void *);
 int		isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
 struct signed_div_result {
-long long int quotient;
-unsigned long long int remainder;
+	long long int quotient;
+	unsigned long long int remainder;
 } signed_div(long long int, long long int);
 
 
