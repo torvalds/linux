@@ -462,13 +462,13 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 
 struct iwl_cfg iwl2030_2bgn_cfg = {
 	.name = "2000 Series 2x2 BGN/BT",
-	IWL_DEVICE_2000,
+	IWL_DEVICE_2030,
 	.ht_params = &iwl2000_ht_params,
 };
 
 struct iwl_cfg iwl2030_2bg_cfg = {
 	.name = "2000 Series 2x2 BG/BT",
-	IWL_DEVICE_2000,
+	IWL_DEVICE_2030,
 };
 
 #define IWL_DEVICE_6035						\
