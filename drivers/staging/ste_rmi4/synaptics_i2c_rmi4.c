@@ -987,7 +987,7 @@ static int __devinit synaptics_rmi4_probe
 	retval = input_register_device(rmi4_data->input_dev);
 	if (retval) {
 		dev_err(&client->dev, "%s:input register failed\n", __func__);
-		goto err_input_register;
+		goto err_query_dev;
 	}
 
 	/* Clear interrupts */
@@ -1009,8 +1009,6 @@ static int __devinit synaptics_rmi4_probe
 err_request_irq:
 	free_irq(platformdata->irq_number, rmi4_data);
 	input_unregister_device(rmi4_data->input_dev);
-err_input_register:
-	i2c_set_clientdata(client, NULL);
 err_query_dev:
 	if (platformdata->regulator_en) {
 		regulator_disable(rmi4_data->regulator);
