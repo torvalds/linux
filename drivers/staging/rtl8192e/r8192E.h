@@ -1077,7 +1077,6 @@ typedef struct r8192_priv
 	u16 RegChannelPlan; // Channel Plan specifed by user, 15: following setting of EEPROM, 0-14: default channel plan index specified by user.
 	u16 ChannelPlan;
 /*PS related*/
-	bool RegRfOff;
 	// Rf off action for power save
 	u8	bHwRfOffAction;	//0:No action, 1:By GPIO, 2:By Disable
 /*PHY related*/

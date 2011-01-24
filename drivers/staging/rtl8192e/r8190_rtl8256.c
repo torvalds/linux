@@ -503,7 +503,6 @@ SetRFPowerState8190(
 					do
 					{
 						InitializeCount--;
-						priv->RegRfOff = false;
 						rtstatus = NicIFEnableNIC(dev);
 					}while( (rtstatus != true) &&(InitializeCount >0) );
 

@@ -2180,7 +2180,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->bDisableNormalResetCheck = false;
 	priv->force_reset = false;
 	//added by amy for power save
-	priv->RegRfOff = 0;
 	priv->ieee80211->RfOffReason = 0;
 	priv->RFChangeInProgress = false;
 	priv->bHwRfOffAction = 0;
@@ -3024,10 +3023,6 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	// For any kind of InitializeAdapter process, we shall use system now!!
 	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
 
-	// Set to eRfoff in order not to count receive count.
-	if(priv->RegRfOff == TRUE)
-		priv->ieee80211->eRFPowerState = eRfOff;
-
 	//
 	//3 //Config CPUReset Register
 	//3//
@@ -3289,17 +3284,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 #ifdef ENABLE_IPS
 
 {
-	if(priv->RegRfOff == TRUE)
-	{ // User disable RF via registry.
-		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RegRfOff ----------\n",__FUNCTION__);
-		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_SW);
-#if 0//cosa, ask SD3 willis and he doesn't know what is this for
-		// Those action will be discard in MgntActSet_RF_State because off the same state
-	for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
-		PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x0);
-#endif
-	}
-	else if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_PS)
+	if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_PS)
 	{ // H/W or S/W RF OFF before sleep.
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d) ----------\n", __FUNCTION__,priv->ieee80211->RfOffReason);
 		MgntActSet_RF_State(dev, eRfOff, priv->ieee80211->RfOffReason);
