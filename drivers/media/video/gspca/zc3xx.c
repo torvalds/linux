@@ -6821,9 +6821,17 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (data[0] == 0xff && data[1] == 0xd8) {	/* start of frame */
+	/* check the JPEG end of frame */
+	if (len >= 3
+	 && data[len - 3] == 0xff && data[len - 2] == 0xd9) {
+/*fixme: what does the last byte mean?*/
 		gspca_frame_add(gspca_dev, LAST_PACKET,
-					NULL, 0);
+					data, len - 1);
+		return;
+	}
+
+	/* check the JPEG start of a frame */
+	if (data[0] == 0xff && data[1] == 0xd8) {
 		/* put the JPEG header in the new frame */
 		gspca_frame_add(gspca_dev, FIRST_PACKET,
 			sd->jpeg_hdr, JPEG_HDR_SZ);
