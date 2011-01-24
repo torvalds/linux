@@ -58,6 +58,48 @@ static struct mutex mutex_dongle;
 static void easycap_complete(struct urb *purb);
 static int reset(struct easycap *peasycap);
 
+const char *strerror(int err)
+{
+#define ERRNOSTR(_e) case _e: return # _e
+	switch (err) {
+	case 0: return "OK";
+	ERRNOSTR(ENOMEM);
+	ERRNOSTR(ENODEV);
+	ERRNOSTR(ENXIO);
+	ERRNOSTR(EINVAL);
+	ERRNOSTR(EAGAIN);
+	ERRNOSTR(EFBIG);
+	ERRNOSTR(EPIPE);
+	ERRNOSTR(EMSGSIZE);
+	ERRNOSTR(ENOSPC);
+	ERRNOSTR(EINPROGRESS);
+	ERRNOSTR(ENOSR);
+	ERRNOSTR(EOVERFLOW);
+	ERRNOSTR(EPROTO);
+	ERRNOSTR(EILSEQ);
+	ERRNOSTR(ETIMEDOUT);
+	ERRNOSTR(EOPNOTSUPP);
+	ERRNOSTR(EPFNOSUPPORT);
+	ERRNOSTR(EAFNOSUPPORT);
+	ERRNOSTR(EADDRINUSE);
+	ERRNOSTR(EADDRNOTAVAIL);
+	ERRNOSTR(ENOBUFS);
+	ERRNOSTR(EISCONN);
+	ERRNOSTR(ENOTCONN);
+	ERRNOSTR(ESHUTDOWN);
+	ERRNOSTR(ENOENT);
+	ERRNOSTR(ECONNRESET);
+	ERRNOSTR(ETIME);
+	ERRNOSTR(ECOMM);
+	ERRNOSTR(EREMOTEIO);
+	ERRNOSTR(EXDEV);
+	ERRNOSTR(EPERM);
+	default: return "unknown";
+	}
+
+#undef ERRNOSTR
+}
+
 /*---------------------------------------------------------------------------*/
 /*
  *  PARAMETERS USED WHEN REGISTERING THE VIDEO INTERFACE
@@ -599,72 +641,23 @@ if (!peasycap->video_isoc_streaming) {
 					}
 
 				rc = usb_submit_urb(purb, GFP_KERNEL);
-				if (0 != rc) {
+				if (rc) {
 					isbad++;
 					SAM("ERROR: usb_submit_urb() failed "
-							"for urb with rc:\n");
-					switch (rc) {
-					case -ENOMEM: {
-						SAM("ERROR: -ENOMEM="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -ENODEV: {
-						SAM("ERROR: -ENODEV="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -ENXIO: {
-						SAM("ERROR: -ENXIO="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -EINVAL: {
-						SAM("ERROR: -EINVAL="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -EAGAIN: {
-						SAM("ERROR: -EAGAIN="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -EFBIG: {
-						SAM("ERROR: -EFBIG="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -EPIPE: {
-						SAM("ERROR: -EPIPE="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -EMSGSIZE: {
-						SAM("ERROR: -EMSGSIZE="
-							"usb_submit_urb()\n");
-						break;
-					}
-					case -ENOSPC: {
+							"for urb with rc:-%s\n",
+							strerror(rc));
+					if (rc == -ENOSPC)
 						nospc++;
-						break;
-					}
-					default: {
-						SAM("ERROR: %i="
-							"usb_submit_urb()\n",
-							rc);
-						break;
-					}
-					}
 				} else {
 					m++;
 				}
-				} else {
-					 isbad++;
-				}
 			} else {
-				 isbad++;
+				isbad++;
 			}
+		} else {
+			 isbad++;
 		}
+	}
 	if (nospc) {
 		SAM("-ENOSPC=usb_submit_urb() for %i urbs\n", nospc);
 		SAM(".....  possibly inadequate USB bandwidth\n");
@@ -2801,49 +2794,8 @@ if (peasycap->video_idle) {
 			peasycap->video_idle, peasycap->video_isoc_streaming);
 	if (peasycap->video_isoc_streaming) {
 		rc = usb_submit_urb(purb, GFP_ATOMIC);
-		if (0 != rc) {
-			switch (rc) {
-			case -ENOMEM: {
-				SAM("ENOMEM\n");
-				break;
-			}
-			case -ENODEV: {
-				SAM("ENODEV\n");
-				break;
-			}
-			case -ENXIO: {
-				SAM("ENXIO\n");
-				break;
-			}
-			case -EINVAL: {
-				SAM("EINVAL\n");
-				break;
-			}
-			case -EAGAIN: {
-				SAM("EAGAIN\n");
-				break;
-			}
-			case -EFBIG: {
-				SAM("EFBIG\n");
-				break;
-			}
-			case -EPIPE: {
-				SAM("EPIPE\n");
-				break;
-			}
-			case -EMSGSIZE: {
-				SAM("EMSGSIZE\n");
-				break;
-			}
-			case -ENOSPC: {
-				SAM("ENOSPC\n");
-				break;
-			}
-			default: {
-				SAM("0x%08X\n", rc);
-				break;
-			}
-			}
+		if (rc) {
+			SAM("%s:%d ENOMEM\n", strerror(rc), rc);
 			if (-ENODEV != rc)
 				SAM("ERROR: while %i=video_idle, "
 							"usb_submit_urb() "
@@ -2866,137 +2818,17 @@ if (purb->status) {
 	}
 
 	(peasycap->field_buffer[peasycap->field_fill][0].kount) |= 0x8000 ;
-	SAM("ERROR: bad urb status:\n");
-	switch (purb->status) {
-	case -EINPROGRESS: {
-		SAM("-EINPROGRESS\n"); break;
-	}
-	case -ENOSR: {
-		SAM("-ENOSR\n"); break;
-	}
-	case -EPIPE: {
-		SAM("-EPIPE\n"); break;
-	}
-	case -EOVERFLOW: {
-		SAM("-EOVERFLOW\n"); break;
-	}
-	case -EPROTO: {
-		SAM("-EPROTO\n"); break;
-	}
-	case -EILSEQ: {
-		SAM("-EILSEQ\n"); break;
-	}
-	case -ETIMEDOUT: {
-		SAM("-ETIMEDOUT\n"); break;
-	}
-	case -EMSGSIZE: {
-		SAM("-EMSGSIZE\n"); break;
-	}
-	case -EOPNOTSUPP: {
-		SAM("-EOPNOTSUPP\n"); break;
-	}
-	case -EPFNOSUPPORT: {
-		SAM("-EPFNOSUPPORT\n"); break;
-	}
-	case -EAFNOSUPPORT: {
-		SAM("-EAFNOSUPPORT\n"); break;
-	}
-	case -EADDRINUSE: {
-		SAM("-EADDRINUSE\n"); break;
-	}
-	case -EADDRNOTAVAIL: {
-		SAM("-EADDRNOTAVAIL\n"); break;
-	}
-	case -ENOBUFS: {
-		SAM("-ENOBUFS\n"); break;
-	}
-	case -EISCONN: {
-		SAM("-EISCONN\n"); break;
-	}
-	case -ENOTCONN: {
-		SAM("-ENOTCONN\n"); break;
-	}
-	case -ESHUTDOWN: {
-		SAM("-ESHUTDOWN\n"); break;
-	}
-	case -ENOENT: {
-		SAM("-ENOENT\n"); break;
-	}
-	case -ECONNRESET: {
-		SAM("-ECONNRESET\n"); break;
-	}
-	case -ENOSPC: {
-		SAM("ENOSPC\n"); break;
-	}
-	default: {
-		SAM("unknown error code 0x%08X\n", purb->status); break;
-	}
-	}
+	SAM("ERROR: bad urb status -%s: %d\n",
+			strerror(purb->status), purb->status);
 /*---------------------------------------------------------------------------*/
 } else {
 	for (i = 0;  i < purb->number_of_packets; i++) {
 		if (0 != purb->iso_frame_desc[i].status) {
 			(peasycap->field_buffer
 				[peasycap->field_fill][0].kount) |= 0x8000 ;
-			switch (purb->iso_frame_desc[i].status) {
-			case  0: {
-				strcpy(&errbuf[0], "OK"); break;
-			}
-			case -ENOENT: {
-				strcpy(&errbuf[0], "-ENOENT"); break;
-			}
-			case -EINPROGRESS: {
-				strcpy(&errbuf[0], "-EINPROGRESS"); break;
-			}
-			case -EPROTO: {
-				strcpy(&errbuf[0], "-EPROTO"); break;
-			}
-			case -EILSEQ: {
-				strcpy(&errbuf[0], "-EILSEQ"); break;
-			}
-			case -ETIME: {
-				strcpy(&errbuf[0], "-ETIME"); break;
-			}
-			case -ETIMEDOUT: {
-				strcpy(&errbuf[0], "-ETIMEDOUT"); break;
-			}
-			case -EPIPE: {
-				strcpy(&errbuf[0], "-EPIPE"); break;
-			}
-			case -ECOMM: {
-				strcpy(&errbuf[0], "-ECOMM"); break;
-			}
-			case -ENOSR: {
-				strcpy(&errbuf[0], "-ENOSR"); break;
-			}
-			case -EOVERFLOW: {
-				strcpy(&errbuf[0], "-EOVERFLOW"); break;
-			}
-			case -EREMOTEIO: {
-				strcpy(&errbuf[0], "-EREMOTEIO"); break;
-			}
-			case -ENODEV: {
-				strcpy(&errbuf[0], "-ENODEV"); break;
-			}
-			case -EXDEV: {
-				strcpy(&errbuf[0], "-EXDEV"); break;
-			}
-			case -EINVAL: {
-				strcpy(&errbuf[0], "-EINVAL"); break;
-			}
-			case -ECONNRESET: {
-				strcpy(&errbuf[0], "-ECONNRESET"); break;
-			}
-			case -ENOSPC: {
-				SAM("ENOSPC\n"); break;
-			}
-			case -ESHUTDOWN: {
-				strcpy(&errbuf[0], "-ESHUTDOWN"); break;
-			}
-			default: {
-				strcpy(&errbuf[0], "unknown error"); break;
-			}
-			}
+			/* FIXME: 1. missing '-' check boundaries */
+			strcpy(&errbuf[0],
+				strerror(purb->iso_frame_desc[i].status));
 		}
 		framestatus = purb->iso_frame_desc[i].status;
 		framelength = purb->iso_frame_desc[i].length;
@@ -3270,44 +3102,13 @@ if (VIDEO_ISOC_BUFFER_MANY <= peasycap->video_junk) {
 }
 if (peasycap->video_isoc_streaming) {
 	rc = usb_submit_urb(purb, GFP_ATOMIC);
-	if (0 != rc) {
-		switch (rc) {
-		case -ENOMEM: {
-			SAM("ENOMEM\n"); break;
-		}
-		case -ENODEV: {
-			SAM("ENODEV\n"); break;
-		}
-		case -ENXIO: {
-			SAM("ENXIO\n"); break;
-		}
-		case -EINVAL: {
-			SAM("EINVAL\n"); break;
-		}
-		case -EAGAIN: {
-			SAM("EAGAIN\n"); break;
-		}
-		case -EFBIG: {
-			SAM("EFBIG\n"); break;
-		}
-		case -EPIPE: {
-			SAM("EPIPE\n"); break;
-		}
-		case -EMSGSIZE: {
-			SAM("EMSGSIZE\n");  break;
-		}
-		case -ENOSPC: {
-			SAM("ENOSPC\n"); break;
-		}
-		default: {
-			SAM("0x%08X\n", rc); break;
-		}
-		}
+	if (rc) {
+		SAM("%s: %d\n", strerror(rc), rc);
 		if (-ENODEV != rc)
 			SAM("ERROR: while %i=video_idle, "
-						"usb_submit_urb() "
-						"failed with rc:\n",
-						peasycap->video_idle);
+				"usb_submit_urb() "
+				"failed with rc:\n",
+				peasycap->video_idle);
 	}
 }
 return;

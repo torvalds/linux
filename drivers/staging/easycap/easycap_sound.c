@@ -213,93 +213,8 @@ if (purb->status) {
 		JOM(16, "urb status -ESHUTDOWN or -ENOENT\n");
 		return;
 	}
-	SAM("ERROR: non-zero urb status:\n");
-	switch (purb->status) {
-	case -EINPROGRESS: {
-		SAM("-EINPROGRESS\n");
-		break;
-	}
-	case -ENOSR: {
-		SAM("-ENOSR\n");
-		break;
-	}
-	case -EPIPE: {
-		SAM("-EPIPE\n");
-		break;
-	}
-	case -EOVERFLOW: {
-		SAM("-EOVERFLOW\n");
-		break;
-	}
-	case -EPROTO: {
-		SAM("-EPROTO\n");
-		break;
-	}
-	case -EILSEQ: {
-		SAM("-EILSEQ\n");
-		break;
-	}
-	case -ETIMEDOUT: {
-		SAM("-ETIMEDOUT\n");
-		break;
-	}
-	case -EMSGSIZE: {
-		SAM("-EMSGSIZE\n");
-		break;
-	}
-	case -EOPNOTSUPP: {
-		SAM("-EOPNOTSUPP\n");
-		break;
-	}
-	case -EPFNOSUPPORT: {
-		SAM("-EPFNOSUPPORT\n");
-		break;
-	}
-	case -EAFNOSUPPORT: {
-		SAM("-EAFNOSUPPORT\n");
-		break;
-	}
-	case -EADDRINUSE: {
-		SAM("-EADDRINUSE\n");
-		break;
-	}
-	case -EADDRNOTAVAIL: {
-		SAM("-EADDRNOTAVAIL\n");
-		break;
-	}
-	case -ENOBUFS: {
-		SAM("-ENOBUFS\n");
-		break;
-	}
-	case -EISCONN: {
-		SAM("-EISCONN\n");
-		break;
-	}
-	case -ENOTCONN: {
-		SAM("-ENOTCONN\n");
-		break;
-	}
-	case -ESHUTDOWN: {
-		SAM("-ESHUTDOWN\n");
-		break;
-	}
-	case -ENOENT: {
-		SAM("-ENOENT\n");
-		break;
-	}
-	case -ECONNRESET: {
-		SAM("-ECONNRESET\n");
-		break;
-	}
-	case -ENOSPC: {
-		SAM("ENOSPC\n");
-		break;
-	}
-	default: {
-		SAM("unknown error: %i\n", purb->status);
-		break;
-	}
-	}
+	SAM("ERROR: non-zero urb status: -%s: %d\n",
+		strerror(purb->status), purb->status);
 	goto resubmit;
 }
 /*---------------------------------------------------------------------------*/
@@ -313,86 +228,10 @@ oldaudio = peasycap->oldaudio;
 #endif /*UPSAMPLE*/
 
 for (i = 0;  i < purb->number_of_packets; i++) {
-	switch (purb->iso_frame_desc[i].status) {
-	case  0: {
-		break;
-	}
-	case -ENOENT: {
-		SAM("-ENOENT\n");
-		break;
-	}
-	case -EINPROGRESS: {
-		SAM("-EINPROGRESS\n");
-		break;
-	}
-	case -EPROTO: {
-		SAM("-EPROTO\n");
-		break;
-	}
-	case -EILSEQ: {
-		SAM("-EILSEQ\n");
-		break;
-	}
-	case -ETIME: {
-		SAM("-ETIME\n");
-		break;
-	}
-	case -ETIMEDOUT: {
-		SAM("-ETIMEDOUT\n");
-		break;
-	}
-	case -EPIPE: {
-		SAM("-EPIPE\n");
-		break;
-	}
-	case -ECOMM: {
-		SAM("-ECOMM\n");
-		break;
-	}
-	case -ENOSR: {
-		SAM("-ENOSR\n");
-		break;
-	}
-	case -EOVERFLOW: {
-		SAM("-EOVERFLOW\n");
-		break;
-	}
-	case -EREMOTEIO: {
-		SAM("-EREMOTEIO\n");
-		break;
-	}
-	case -ENODEV: {
-		SAM("-ENODEV\n");
-		break;
-	}
-	case -EXDEV: {
-		SAM("-EXDEV\n");
-		break;
-	}
-	case -EINVAL: {
-		SAM("-EINVAL\n");
-		break;
-	}
-	case -ECONNRESET: {
-		SAM("-ECONNRESET\n");
-		break;
-	}
-	case -ENOSPC: {
-		SAM("-ENOSPC\n");
-		break;
-	}
-	case -ESHUTDOWN: {
-		SAM("-ESHUTDOWN\n");
-		break;
-	}
-	case -EPERM: {
-		SAM("-EPERM\n");
-		break;
-	}
-	default: {
-		SAM("unknown error: %i\n", purb->iso_frame_desc[i].status);
-		break;
-	}
+	if (purb->iso_frame_desc[i].status < 0) {
+		SAM("-%s: %d\n",
+			strerror(purb->iso_frame_desc[i].status),
+			purb->iso_frame_desc[i].status);
 	}
 	if (!purb->iso_frame_desc[i].status) {
 		more = purb->iso_frame_desc[i].actual_length;
@@ -537,56 +376,12 @@ peasycap->oldaudio = oldaudio;
 resubmit:
 if (peasycap->audio_isoc_streaming) {
 	rc = usb_submit_urb(purb, GFP_ATOMIC);
-	if (0 != rc) {
+	if (rc) {
 		if ((-ENODEV != rc) && (-ENOENT != rc)) {
 			SAM("ERROR: while %i=audio_idle, "
 				"usb_submit_urb() failed "
-				"with rc:\n", peasycap->audio_idle);
-		}
-		switch (rc) {
-		case -ENODEV:
-		case -ENOENT:
-			break;
-		case -ENOMEM: {
-			SAM("-ENOMEM\n");
-			break;
-		}
-		case -ENXIO: {
-			SAM("-ENXIO\n");
-			break;
-		}
-		case -EINVAL: {
-			SAM("-EINVAL\n");
-			break;
-		}
-		case -EAGAIN: {
-			SAM("-EAGAIN\n");
-			break;
-		}
-		case -EFBIG: {
-			SAM("-EFBIG\n");
-			break;
-		}
-		case -EPIPE: {
-			SAM("-EPIPE\n");
-			break;
-		}
-		case -EMSGSIZE: {
-			SAM("-EMSGSIZE\n");
-			break;
-		}
-		case -ENOSPC: {
-			SAM("-ENOSPC\n");
-			break;
-		}
-		case -EPERM: {
-			SAM("-EPERM\n");
-			break;
-		}
-		default: {
-			SAM("unknown error: %i\n", rc);
-			break;
-		}
+				"with rc: -%s :%d\n", peasycap->audio_idle,
+				strerror(rc), rc);
 		}
 		if (0 < peasycap->audio_isoc_streaming)
 			(peasycap->audio_isoc_streaming)--;
@@ -945,56 +740,12 @@ if (peasycap->audio_idle) {
 			peasycap->audio_idle, peasycap->audio_isoc_streaming);
 	if (peasycap->audio_isoc_streaming) {
 		rc = usb_submit_urb(purb, GFP_ATOMIC);
-		if (0 != rc) {
+		if (rc) {
 			if (-ENODEV != rc && -ENOENT != rc) {
 				SAM("ERROR: while %i=audio_idle, "
-					"usb_submit_urb() failed with rc:\n",
-							peasycap->audio_idle);
-			}
-			switch (rc) {
-			case -ENODEV:
-			case -ENOENT:
-				break;
-			case -ENOMEM: {
-				SAM("-ENOMEM\n");
-				break;
-			}
-			case -ENXIO: {
-				SAM("-ENXIO\n");
-				break;
-			}
-			case -EINVAL: {
-				SAM("-EINVAL\n");
-				break;
-			}
-			case -EAGAIN: {
-				SAM("-EAGAIN\n");
-				break;
-			}
-			case -EFBIG: {
-				SAM("-EFBIG\n");
-				break;
-			}
-			case -EPIPE: {
-				SAM("-EPIPE\n");
-				break;
-			}
-			case -EMSGSIZE: {
-				SAM("-EMSGSIZE\n");
-				break;
-			}
-			case -ENOSPC: {
-				SAM("-ENOSPC\n");
-				break;
-			}
-			case -EPERM: {
-				SAM("-EPERM\n");
-				break;
-			}
-			default: {
-				SAM("unknown error: %i\n", rc);
-				break;
-			}
+				    "usb_submit_urb() failed with rc: -%s: %d\n",
+					peasycap->audio_idle,
+					strerror(rc), rc);
 			}
 		}
 	}
@@ -1006,97 +757,8 @@ if (purb->status) {
 		JOM(16, "urb status -ESHUTDOWN or -ENOENT\n");
 		return;
 	}
-	SAM("ERROR: non-zero urb status:\n");
-	switch (purb->status) {
-	case -EINPROGRESS: {
-		SAM("-EINPROGRESS\n");
-		break;
-	}
-	case -ENOSR: {
-		SAM("-ENOSR\n");
-		break;
-	}
-	case -EPIPE: {
-		SAM("-EPIPE\n");
-		break;
-	}
-	case -EOVERFLOW: {
-		SAM("-EOVERFLOW\n");
-		break;
-	}
-	case -EPROTO: {
-		SAM("-EPROTO\n");
-		break;
-	}
-	case -EILSEQ: {
-		SAM("-EILSEQ\n");
-		break;
-	}
-	case -ETIMEDOUT: {
-		SAM("-ETIMEDOUT\n");
-		break;
-	}
-	case -EMSGSIZE: {
-		SAM("-EMSGSIZE\n");
-		break;
-	}
-	case -EOPNOTSUPP: {
-		SAM("-EOPNOTSUPP\n");
-		break;
-	}
-	case -EPFNOSUPPORT: {
-		SAM("-EPFNOSUPPORT\n");
-		break;
-	}
-	case -EAFNOSUPPORT: {
-		SAM("-EAFNOSUPPORT\n");
-		break;
-	}
-	case -EADDRINUSE: {
-		SAM("-EADDRINUSE\n");
-		break;
-	}
-	case -EADDRNOTAVAIL: {
-		SAM("-EADDRNOTAVAIL\n");
-		break;
-	}
-	case -ENOBUFS: {
-		SAM("-ENOBUFS\n");
-		break;
-	}
-	case -EISCONN: {
-		SAM("-EISCONN\n");
-		break;
-	}
-	case -ENOTCONN: {
-		SAM("-ENOTCONN\n");
-		break;
-	}
-	case -ESHUTDOWN: {
-		SAM("-ESHUTDOWN\n");
-		break;
-	}
-	case -ENOENT: {
-		SAM("-ENOENT\n");
-		break;
-	}
-	case -ECONNRESET: {
-		SAM("-ECONNRESET\n");
-		break;
-	}
-	case -ENOSPC: {
-		SAM("ENOSPC\n");
-		break;
-	}
-	case -EPERM: {
-		SAM("-EPERM\n");
-		break;
-	}
-	default: {
-		SAM("unknown error: %i\n", purb->status);
-		break;
-	}
-	}
+	SAM("ERROR: non-zero urb status: -%s: %d\n",
+		strerror(purb->status), purb->status);
 	goto resubmit;
 }
 /*---------------------------------------------------------------------------*/
@@ -1109,88 +771,10 @@ oldaudio = peasycap->oldaudio;
 #endif /*UPSAMPLE*/
 
 for (i = 0;  i < purb->number_of_packets; i++) {
-	switch (purb->iso_frame_desc[i].status) {
-	case  0: {
-		break;
-	}
-	case -ENODEV: {
-		SAM("-ENODEV\n");
-		break;
-	}
-	case -ENOENT: {
-		SAM("-ENOENT\n");
-		break;
-	}
-	case -EINPROGRESS: {
-		SAM("-EINPROGRESS\n");
-		break;
-	}
-	case -EPROTO: {
-		SAM("-EPROTO\n");
-		break;
-	}
-	case -EILSEQ: {
-		SAM("-EILSEQ\n");
-		break;
-	}
-	case -ETIME: {
-		SAM("-ETIME\n");
-		break;
-	}
-	case -ETIMEDOUT: {
-		SAM("-ETIMEDOUT\n");
-		break;
-	}
-	case -EPIPE: {
-		SAM("-EPIPE\n");
-		break;
-	}
-	case -ECOMM: {
-		SAM("-ECOMM\n");
-		break;
-	}
-	case -ENOSR: {
-		SAM("-ENOSR\n");
-		break;
-	}
-	case -EOVERFLOW: {
-		SAM("-EOVERFLOW\n");
-		break;
-	}
-	case -EREMOTEIO: {
-		SAM("-EREMOTEIO\n");
-		break;
-	}
-	case -EXDEV: {
-		SAM("-EXDEV\n");
-		break;
-	}
-	case -EINVAL: {
-		SAM("-EINVAL\n");
-		break;
-	}
-	case -ECONNRESET: {
-		SAM("-ECONNRESET\n");
-		break;
-	}
-	case -ENOSPC: {
-		SAM("-ENOSPC\n");
-		break;
-	}
-	case -ESHUTDOWN: {
-		SAM("-ESHUTDOWN\n");
-		break;
-	}
-	case -EPERM: {
-		SAM("-EPERM\n");
-		break;
-	}
-	default: {
-		SAM("unknown error: %i\n", purb->iso_frame_desc[i].status);
-		break;
-	}
-	}
 	if (!purb->iso_frame_desc[i].status) {
+
+		SAM("-%s\n", strerror(purb->iso_frame_desc[i].status));
+
 		more = purb->iso_frame_desc[i].actual_length;
 
 #if defined(TESTTONE)
@@ -1370,52 +954,8 @@ if (peasycap->audio_isoc_streaming) {
 		if (-ENODEV != rc && -ENOENT != rc) {
 			SAM("ERROR: while %i=audio_idle, "
 				"usb_submit_urb() failed "
-				"with rc:\n", peasycap->audio_idle);
-		}
-		switch (rc) {
-		case -ENODEV:
-		case -ENOENT:
-			break;
-		case -ENOMEM: {
-			SAM("-ENOMEM\n");
-			break;
-		}
-		case -ENXIO: {
-			SAM("-ENXIO\n");
-			break;
-		}
-		case -EINVAL: {
-			SAM("-EINVAL\n");
-			break;
-		}
-		case -EAGAIN: {
-			SAM("-EAGAIN\n");
-			break;
-		}
-		case -EFBIG: {
-			SAM("-EFBIG\n");
-			break;
-		}
-		case -EPIPE: {
-			SAM("-EPIPE\n");
-			break;
-		}
-		case -EMSGSIZE: {
-			SAM("-EMSGSIZE\n");
-			break;
-		}
-		case -ENOSPC: {
-			SAM("-ENOSPC\n");
-			break;
-		}
-		case -EPERM: {
-			SAM("-EPERM\n");
-			break;
-		}
-		default: {
-			SAM("unknown error: %i\n", rc);
-			break;
-		}
+				"with rc: -%s: %d\n", peasycap->audio_idle,
+				strerror(rc), rc);
 		}
 	}
 }
@@ -1965,60 +1505,11 @@ if (!peasycap->audio_isoc_streaming) {
 				}
 
 				rc = usb_submit_urb(purb, GFP_KERNEL);
-				if (0 != rc) {
+				if (rc) {
 					isbad++;
 					SAM("ERROR: usb_submit_urb() failed"
-							" for urb with rc:\n");
-					switch (rc) {
-					case -ENODEV: {
-						SAM("-ENODEV\n");
-						break;
-					}
-					case -ENOENT: {
-						SAM("-ENOENT\n");
-						break;
-					}
-					case -ENOMEM: {
-						SAM("-ENOMEM\n");
-						break;
-					}
-					case -ENXIO: {
-						SAM("-ENXIO\n");
-						break;
-					}
-					case -EINVAL: {
-						SAM("-EINVAL\n");
-						break;
-					}
-					case -EAGAIN: {
-						SAM("-EAGAIN\n");
-						break;
-					}
-					case -EFBIG: {
-						SAM("-EFBIG\n");
-						break;
-					}
-					case -EPIPE: {
-						SAM("-EPIPE\n");
-						break;
-					}
-					case -EMSGSIZE: {
-						SAM("-EMSGSIZE\n");
-						break;
-					}
-					case -ENOSPC: {
-						nospc++;
-						break;
-					}
-					case -EPERM: {
-						SAM("-EPERM\n");
-						break;
-					}
-					default: {
-						SAM("unknown error: %i\n", rc);
-						break;
-					}
-					}
+						" for urb with rc: -%s: %d\n",
+						strerror(rc), rc);
 				} else {
 					 m++;
 				}

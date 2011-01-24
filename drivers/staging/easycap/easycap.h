@@ -644,6 +644,8 @@ struct signed_div_result {
  *  IMMEDIATELY OBVIOUS FROM A CASUAL READING OF THE SOURCE CODE.  BEWARE.
 */
 /*---------------------------------------------------------------------------*/
+const char *strerror(int err);
+
 #define SAY(format, args...) do { \
 	printk(KERN_DEBUG "easycap:: %s: " \
 			format, __func__, ##args); \
