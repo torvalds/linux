@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/wakelock.h>
 #include <mach/board.h>
 #include <asm/io.h>
 
@@ -107,6 +108,8 @@ struct rk29_i2c_data {
 		struct notifier_block	freq_transition;
 #endif	
 };
+
+static struct wake_lock idlelock; /* only for i2c0 */
 
 static void rk29_set_ack(struct rk29_i2c_data *i2c)
 {
@@ -506,6 +509,7 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 	int ret = -1;
 	int i;
 	struct rk29_i2c_data *i2c = (struct rk29_i2c_data *)adap->algo_data;
+
 	//int retry = i2c->retry;
 	/*
 	if(i2c->suspended ==1)
@@ -519,6 +523,10 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 
 	i2c->udelay_time = RK29_UDELAY_TIME(i2c->scl_rate);
 	i2c->ack_timeout = RK29_I2C_ACK_TIMEOUT_COUNT * i2c->udelay_time;
+
+	if (adap->nr == 0)
+		wake_lock(&idlelock);
+
 	for (i = 0; i < num; i++) 
 	{
 		ret = rk29_xfer_msg(adap, &msgs[i], (i == 0), (i == (num - 1)));
@@ -529,6 +537,10 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 			break;
 		}
 	}
+
+	if (adap->nr == 0)
+		wake_unlock(&idlelock);
+
 	/*
 	if( --retry && num < 0)
 	{
@@ -834,6 +846,7 @@ static struct platform_driver rk29_i2c_driver = {
 
 static int __init rk29_i2c_adap_init(void)
 {
+	wake_lock_init(&idlelock, WAKE_LOCK_IDLE, "i2c0");
 	return platform_driver_register(&rk29_i2c_driver);
 }
 
