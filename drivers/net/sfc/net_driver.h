@@ -906,7 +906,7 @@ struct efx_nic_type {
 	unsigned int phys_addr_channels;
 	unsigned int tx_dc_base;
 	unsigned int rx_dc_base;
-	unsigned long offload_features;
+	u32 offload_features;
 	u32 reset_world_flags;
 };
 

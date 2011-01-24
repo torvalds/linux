@@ -914,7 +914,11 @@ struct net_device {
 	struct list_head	unreg_list;
 
 	/* Net device features */
-	unsigned long		features;
+	u32			features;
+
+	/* VLAN feature mask */
+	u32			vlan_features;
+
 #define NETIF_F_SG		1	/* Scatter/gather IO. */
 #define NETIF_F_IP_CSUM		2	/* Can checksum TCP/UDP over IPv4. */
 #define NETIF_F_NO_CSUM		4	/* Does not require checksum. F.e. loopack. */
@@ -1176,9 +1180,6 @@ struct net_device {
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;
 
-	/* VLAN feature mask */
-	unsigned long vlan_features;
-
 	/* for setting kernel sock attribute on TCP connection setup */
 #define GSO_MAX_SIZE		65536
 	unsigned int		gso_max_size;
@@ -1401,7 +1402,7 @@ struct packet_type {
 					 struct packet_type *,
 					 struct net_device *);
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
-						int features);
+						u32 features);
 	int			(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
 					       struct sk_buff *skb);
@@ -2370,7 +2371,7 @@ extern int		netdev_tstamp_prequeue;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
 extern int skb_checksum_help(struct sk_buff *skb);
-extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features);
+extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, u32 features);
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
 #else
@@ -2397,22 +2398,21 @@ extern char *netdev_drivername(const struct net_device *dev, char *buffer, int l
 
 extern void linkwatch_run_queue(void);
 
-unsigned long netdev_increment_features(unsigned long all, unsigned long one,
-					unsigned long mask);
-unsigned long netdev_fix_features(unsigned long features, const char *name);
+u32 netdev_increment_features(u32 all, u32 one, u32 mask);
+u32 netdev_fix_features(u32 features, const char *name);
 
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);
 
-int netif_skb_features(struct sk_buff *skb);
+u32 netif_skb_features(struct sk_buff *skb);
 
-static inline int net_gso_ok(int features, int gso_type)
+static inline int net_gso_ok(u32 features, int gso_type)
 {
 	int feature = gso_type << NETIF_F_GSO_SHIFT;
 	return (features & feature) == feature;
 }
 
-static inline int skb_gso_ok(struct sk_buff *skb, int features)
+static inline int skb_gso_ok(struct sk_buff *skb, u32 features)
 {
 	return net_gso_ok(features, skb_shinfo(skb)->gso_type) &&
 	       (!skb_has_frag_list(skb) || (features & NETIF_F_FRAGLIST));

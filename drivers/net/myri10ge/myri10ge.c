@@ -253,7 +253,7 @@ struct myri10ge_priv {
 	unsigned long serial_number;
 	int vendor_specific_offset;
 	int fw_multicast_support;
-	unsigned long features;
+	u32 features;
 	u32 max_tso6;
 	u32 read_dma;
 	u32 write_dma;
@@ -1776,7 +1776,7 @@ static int myri10ge_set_rx_csum(struct net_device *netdev, u32 csum_enabled)
 static int myri10ge_set_tso(struct net_device *netdev, u32 tso_enabled)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
-	unsigned long flags = mgp->features & (NETIF_F_TSO6 | NETIF_F_TSO);
+	u32 flags = mgp->features & (NETIF_F_TSO6 | NETIF_F_TSO);
 
 	if (tso_enabled)
 		netdev->features |= flags;

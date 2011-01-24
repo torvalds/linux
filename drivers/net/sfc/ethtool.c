@@ -502,7 +502,7 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx __attribute__ ((unused)) = netdev_priv(net_dev);
-	unsigned long features;
+	u32 features;
 
 	features = NETIF_F_TSO;
 	if (efx->type->offload_features & NETIF_F_V6_CSUM)
@@ -519,7 +519,7 @@ static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
 static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	unsigned long features = efx->type->offload_features & NETIF_F_ALL_CSUM;
+	u32 features = efx->type->offload_features & NETIF_F_ALL_CSUM;
 
 	if (enable)
 		net_dev->features |= features;

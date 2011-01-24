@@ -1858,7 +1858,7 @@ EXPORT_SYMBOL(skb_checksum_help);
  *	It may return NULL if the skb requires no segmentation.  This is
  *	only possible when GSO is used for verifying header integrity.
  */
-struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
+struct sk_buff *skb_gso_segment(struct sk_buff *skb, u32 features)
 {
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_type *ptype;
@@ -2046,7 +2046,7 @@ static bool can_checksum_protocol(unsigned long features, __be16 protocol)
 		 protocol == htons(ETH_P_FCOE)));
 }
 
-static int harmonize_features(struct sk_buff *skb, __be16 protocol, int features)
+static u32 harmonize_features(struct sk_buff *skb, __be16 protocol, u32 features)
 {
 	if (!can_checksum_protocol(features, protocol)) {
 		features &= ~NETIF_F_ALL_CSUM;
@@ -2058,10 +2058,10 @@ static int harmonize_features(struct sk_buff *skb, __be16 protocol, int features
 	return features;
 }
 
-int netif_skb_features(struct sk_buff *skb)
+u32 netif_skb_features(struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
-	int features = skb->dev->features;
+	u32 features = skb->dev->features;
 
 	if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
@@ -2106,7 +2106,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 	int rc = NETDEV_TX_OK;
 
 	if (likely(!skb->next)) {
-		int features;
+		u32 features;
 
 		/*
 		 * If device doesnt need skb->dst, release it right now while
@@ -5213,7 +5213,7 @@ static void rollback_registered(struct net_device *dev)
 	rollback_registered_many(&single);
 }
 
-unsigned long netdev_fix_features(unsigned long features, const char *name)
+u32 netdev_fix_features(u32 features, const char *name)
 {
 	/* Fix illegal checksum combinations */
 	if ((features & NETIF_F_HW_CSUM) &&
@@ -6143,8 +6143,7 @@ static int dev_cpu_callback(struct notifier_block *nfb,
  *	@one to the master device with current feature set @all.  Will not
  *	enable anything that is off in @mask. Returns the new feature set.
  */
-unsigned long netdev_increment_features(unsigned long all, unsigned long one,
-					unsigned long mask)
+u32 netdev_increment_features(u32 all, u32 one, u32 mask)
 {
 	/* If device needs checksumming, downgrade to it. */
 	if (all & NETIF_F_NO_CSUM && !(one & NETIF_F_NO_CSUM))

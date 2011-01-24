@@ -1142,7 +1142,7 @@ static int tun_get_iff(struct net *net, struct tun_struct *tun,
  * privs required. */
 static int set_offload(struct net_device *dev, unsigned long arg)
 {
-	unsigned int old_features, features;
+	u32 old_features, features;
 
 	old_features = dev->features;
 	/* Unset features, set them as we chew on the arg. */

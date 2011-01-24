@@ -8312,7 +8312,7 @@ static const struct net_device_ops bnx2_netdev_ops = {
 #endif
 };
 
-static void inline vlan_features_add(struct net_device *dev, unsigned long flags)
+static void inline vlan_features_add(struct net_device *dev, u32 flags)
 {
 	dev->vlan_features |= flags;
 }
