@@ -169,11 +169,6 @@ struct seq_file;
 struct platform_device;
 
 /* core */
-void dss_clk_enable(enum dss_clock clks);
-void dss_clk_disable(enum dss_clock clks);
-unsigned long dss_clk_get_rate(enum dss_clock clk);
-int dss_need_ctx_restore(void);
-void dss_dump_clocks(struct seq_file *s);
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
@@ -219,8 +214,16 @@ void dss_uninit_platform_driver(void);
 
 void dss_save_context(void);
 void dss_restore_context(void);
+void dss_clk_enable(enum dss_clock clks);
+void dss_clk_disable(enum dss_clock clks);
+unsigned long dss_clk_get_rate(enum dss_clock clk);
+int dss_need_ctx_restore(void);
+void dss_dump_clocks(struct seq_file *s);
 
 void dss_dump_regs(struct seq_file *s);
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
+void dss_debug_dump_clocks(struct seq_file *s);
+#endif
 
 void dss_sdi_init(u8 datapairs);
 int dss_sdi_enable(void);
