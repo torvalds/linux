@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# Copywrite 2010 - Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
+# Copyright 2010 - Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
 # Licensed under the terms of the GNU GPL License version 2
 #
 
