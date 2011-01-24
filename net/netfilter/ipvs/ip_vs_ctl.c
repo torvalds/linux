@@ -3556,7 +3556,7 @@ int __net_init __ip_vs_control_init(struct net *net)
 
 
 	ipvs->sysctl_hdr = register_net_sysctl_table(net, net_vs_ctl_path,
-						  vs_vars);
+						     tbl);
 	if (ipvs->sysctl_hdr == NULL)
 		goto err_reg;
 	ip_vs_new_estimator(net, ipvs->tot_stats);
