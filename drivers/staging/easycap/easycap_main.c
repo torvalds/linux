@@ -962,7 +962,7 @@ for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
 JOM(4, "easyoss_delete(): isoc audio buffers freed: %i pages\n",
 					m * (0x01 << AUDIO_ISOC_ORDER));
 /*---------------------------------------------------------------------------*/
-#if !defined(EASYCAP_NEEDS_ALSA)
+#ifdef CONFIG_EASYCAP_OSS
 JOM(4, "freeing audio buffers.\n");
 gone = 0;
 for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
@@ -974,7 +974,7 @@ for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
 	}
 }
 JOM(4, "easyoss_delete(): audio buffers freed: %i pages\n", gone);
-#endif /*!EASYCAP_NEEDS_ALSA*/
+#endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 JOM(4, "freeing easycap structure.\n");
 allocation_video_urb    = peasycap->allocation_video_urb;
@@ -4350,7 +4350,7 @@ case 2: {
 	INIT_LIST_HEAD(&(peasycap->urb_audio_head));
 	peasycap->purb_audio_head = &(peasycap->urb_audio_head);
 
-#if !defined(EASYCAP_NEEDS_ALSA)
+#ifdef CONFIG_EASYCAP_OSS
 	JOM(4, "allocating an audio buffer\n");
 	JOM(4, ".... scattered over %i pages\n",
 					peasycap->audio_buffer_page_many);
@@ -4375,7 +4375,7 @@ case 2: {
 	peasycap->audio_fill = 0;
 	peasycap->audio_read = 0;
 	JOM(4, "allocation of audio buffer done:  %i pages\n", k);
-#endif /*!EASYCAP_NEEDS_ALSA*/
+#endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 	JOM(4, "allocating %i isoc audio buffers of size %i\n",
 		AUDIO_ISOC_BUFFER_MANY, peasycap->audio_isoc_buffer_size);
@@ -4450,11 +4450,11 @@ case 2: {
 				"peasycap->audio_isoc_buffer[.].pgo;\n");
 			JOM(4, "  purb->transfer_buffer_length = %i;\n",
 					peasycap->audio_isoc_buffer_size);
-#if defined(EASYCAP_NEEDS_ALSA)
-			JOM(4, "  purb->complete = easycap_alsa_complete;\n");
-#else
+#ifdef CONFIG_EASYCAP_OSS
 			JOM(4, "  purb->complete = easyoss_complete;\n");
-#endif /*EASYCAP_NEEDS_ALSA*/
+#else /* CONFIG_EASYCAP_OSS */
+			JOM(4, "  purb->complete = easycap_alsa_complete;\n");
+#endif /* CONFIG_EASYCAP_OSS */
 			JOM(4, "  purb->context = peasycap;\n");
 			JOM(4, "  purb->start_frame = 0;\n");
 			JOM(4, "  purb->number_of_packets = %i;\n",
@@ -4477,11 +4477,11 @@ case 2: {
 		purb->transfer_buffer = peasycap->audio_isoc_buffer[k].pgo;
 		purb->transfer_buffer_length =
 					peasycap->audio_isoc_buffer_size;
-#if defined(EASYCAP_NEEDS_ALSA)
-		purb->complete = easycap_alsa_complete;
-#else
+#ifdef CONFIG_EASYCAP_OSS
 		purb->complete = easyoss_complete;
-#endif /*EASYCAP_NEEDS_ALSA*/
+#else /* CONFIG_EASYCAP_OSS */
+		purb->complete = easycap_alsa_complete;
+#endif /* CONFIG_EASYCAP_OSS */
 		purb->context = peasycap;
 		purb->start_frame = 0;
 		purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
@@ -4504,7 +4504,7 @@ case 2: {
  *  THE AUDIO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
  */
 /*---------------------------------------------------------------------------*/
-#if defined(EASYCAP_NEEDS_ALSA)
+#ifndef CONFIG_EASYCAP_OSS
 	JOM(4, "initializing ALSA card\n");
 
 	rc = easycap_alsa_probe(peasycap);
@@ -4518,7 +4518,7 @@ case 2: {
 		(peasycap->registered_audio)++;
 	}
 
-#else /*EASYCAP_NEEDS_ALSA*/
+#else /* CONFIG_EASYCAP_OSS */
 	rc = usb_register_dev(pusb_interface, &easyoss_class);
 	if (0 != rc) {
 		SAY("ERROR: usb_register_dev() failed\n");
@@ -4536,7 +4536,7 @@ case 2: {
  */
 /*---------------------------------------------------------------------------*/
 	SAM("easyoss attached to minor #%d\n", pusb_interface->minor);
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* CONFIG_EASYCAP_OSS */
 
 	break;
 }
@@ -4774,7 +4774,7 @@ case 2: {
 		JOM(4, "locked easycapdc60_dongle[%i].mutex_audio\n", kd);
 	} else
 		SAY("ERROR: %i=kd is bad: cannot lock dongle\n", kd);
-#if defined(EASYCAP_NEEDS_ALSA)
+#ifndef CONFIG_EASYCAP_OSS
 
 
 
@@ -4786,12 +4786,12 @@ case 2: {
 	}
 
 
-#else /*EASYCAP_NEEDS_ALSA*/
+#else /* CONFIG_EASYCAP_OSS */
 	usb_deregister_dev(pusb_interface, &easyoss_class);
 	(peasycap->registered_audio)--;
 	JOM(4, "intf[%i]: usb_deregister_dev()\n", bInterfaceNumber);
 	SAM("easyoss detached from minor #%d\n", minor);
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* CONFIG_EASYCAP_OSS */
 
 	if (0 <= kd && DONGLE_MANY > kd) {
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);

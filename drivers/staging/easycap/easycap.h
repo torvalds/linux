@@ -59,9 +59,9 @@
  */
 /*---------------------------------------------------------------------------*/
 #undef  EASYCAP_TESTCARD
-#if (!defined(EASYCAP_NEEDS_ALSA))
+#ifdef CONFIG_EASYCAP_OSS
 #undef  EASYCAP_TESTTONE
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -81,7 +81,7 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 
-#if defined(EASYCAP_NEEDS_ALSA)
+#ifndef CONFIG_EASYCAP_OSS
 #include <linux/vmalloc.h>
 #include <linux/sound.h>
 #include <sound/core.h>
@@ -90,7 +90,7 @@
 #include <sound/info.h>
 #include <sound/initval.h>
 #include <sound/control.h>
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* !CONFIG_EASYCAP_OSS */
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 #include <media/v4l2-dev.h>
@@ -445,7 +445,7 @@ __s16 oldaudio;
  *  ALSA
  */
 /*---------------------------------------------------------------------------*/
-#if defined(EASYCAP_NEEDS_ALSA)
+#ifndef CONFIG_EASYCAP_OSS
 	struct snd_pcm_hardware alsa_hardware;
 	struct snd_card *psnd_card;
 	struct snd_pcm *psnd_pcm;
@@ -453,7 +453,7 @@ __s16 oldaudio;
 	int dma_fill;
 	int dma_next;
 	int dma_read;
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* !CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 /*
  *  SOUND PROPERTIES
@@ -537,7 +537,7 @@ int              adjust_volume(struct easycap *, int);
  *  AUDIO FUNCTION PROTOTYPES
  */
 /*---------------------------------------------------------------------------*/
-#if defined(EASYCAP_NEEDS_ALSA)
+#ifndef CONFIG_EASYCAP_OSS
 int		easycap_alsa_probe(struct easycap *);
 
 void            easycap_alsa_complete(struct urb *);
@@ -553,7 +553,7 @@ int		easycap_alsa_trigger(struct snd_pcm_substream *, int);
 snd_pcm_uframes_t easycap_alsa_pointer(struct snd_pcm_substream *);
 struct page	*easycap_alsa_page(struct snd_pcm_substream *, unsigned long);
 
-#else
+#else /* CONFIG_EASYCAP_OSS */
 void             easyoss_complete(struct urb *);
 ssize_t          easyoss_read(struct file *, char __user *, size_t, loff_t *);
 int              easyoss_open(struct inode *, struct file *);
@@ -564,7 +564,8 @@ int              easyoss_ioctl(struct inode *, struct file *, unsigned int,
 								unsigned long);
 unsigned int     easyoss_poll(struct file *, poll_table *);
 void             easyoss_delete(struct kref *);
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* !CONFIG_EASYCAP_OSS */
+
 int              easycap_sound_setup(struct easycap *);
 int              submit_audio_urbs(struct easycap *);
 int              kill_audio_urbs(struct easycap *);
@@ -715,13 +716,13 @@ extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];
 extern struct usb_driver easycap_usb_driver;
 extern struct easycap_dongle easycapdc60_dongle[];
-#if defined(EASYCAP_NEEDS_ALSA)
+#ifndef CONFIG_EASYCAP_OSS
 extern struct snd_pcm_ops easycap_alsa_ops;
 extern struct snd_pcm_hardware easycap_pcm_hardware;
 extern struct snd_card *psnd_card;
-#else
+#else /* CONFIG_EASYCAP_OSS */
 extern struct usb_class_driver easyoss_class;
 extern const struct file_operations easyoss_fops;
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* !CONFIG_EASYCAP_OSS */
 
 #endif /* !__EASYCAP_H__  */

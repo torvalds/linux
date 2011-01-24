@@ -2517,7 +2517,7 @@ JOM(4, "unlocked easycapdc60_dongle[%i].mutex_video\n", kd);
 return 0;
 }
 /*****************************************************************************/
-#if !defined(EASYCAP_NEEDS_ALSA)
+#ifdef CONFIG_EASYCAP_OSS
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) || \
 	(defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)))
@@ -2821,6 +2821,6 @@ default: {
 mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 return 0;
 }
-#endif /*EASYCAP_NEEDS_ALSA*/
+#endif /* CONFIG_EASYCAP_OSS */
 /*****************************************************************************/
 
