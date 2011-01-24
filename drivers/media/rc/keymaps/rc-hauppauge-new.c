@@ -48,7 +48,7 @@ static struct rc_map_table hauppauge_new[] = {
 	   "Multimedia Home Platform" -
 	   no "PICTURES" key in input.h
 	 */
-	{ 0x1a, KEY_MHP },
+	{ 0x1a, KEY_CAMERA },
 
 	{ 0x1b, KEY_EPG },		/* Guide */
 	{ 0x1c, KEY_TV },
