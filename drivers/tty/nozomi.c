@@ -1514,8 +1514,6 @@ static void __devexit tty_exit(struct nozomi *dc)
 
 	DBG1(" ");
 
-	flush_scheduled_work();
-
 	for (i = 0; i < MAX_PORT; ++i) {
 		struct tty_struct *tty = tty_port_tty_get(&dc->port[i].port);
 		if (tty && list_empty(&tty->hangup_work.entry))
