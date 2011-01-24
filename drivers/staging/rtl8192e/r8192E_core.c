@@ -1237,16 +1237,6 @@ void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
     entry->TxBuffAddr = cpu_to_le32(mapping);
     entry->OWN = 1;
 
-#ifdef JOHN_DUMP_TXDESC
-    {       int i;
-        tx_desc_819x_pci *entry1 =  &ring->desc[0];
-        unsigned int *ptr= (unsigned int *)entry1;
-        printk("<Tx descriptor>:\n");
-        for (i = 0; i < 8; i++)
-            printk("%8x ", ptr[i]);
-        printk("\n");
-    }
-#endif
     __skb_queue_tail(&ring->queue, skb);
     spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 
@@ -1931,8 +1921,6 @@ static void rtl8192_refresh_supportrate(struct r8192_priv* priv)
 	if (ieee->mode == WIRELESS_MODE_N_24G || ieee->mode == WIRELESS_MODE_N_5G)
 	{
 		memcpy(ieee->Regdot11HTOperationalRateSet, ieee->RegHTSuppRateSet, 16);
-		//RT_DEBUG_DATA(COMP_INIT, ieee->RegHTSuppRateSet, 16);
-		//RT_DEBUG_DATA(COMP_INIT, ieee->Regdot11HTOperationalRateSet, 16);
 	}
 	else
 		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
@@ -1964,7 +1952,6 @@ static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 bSupportMode = rtl8192_getSupportedWireleeMode(dev);
 
-#if 1
 	if ((wireless_mode == WIRELESS_MODE_AUTO) || ((wireless_mode&bSupportMode)==0))
 	{
 		if(bSupportMode & WIRELESS_MODE_N_24G)
@@ -1992,9 +1979,6 @@ static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we should wait for FPGA
-	ActUpdateChannelAccessSetting( pAdapter, pHalData->CurrentWirelessMode, &pAdapter->MgntInfo.Info8185.ChannelAccessSetting );
-#endif
 	priv->ieee80211->mode = wireless_mode;
 
 	if ((wireless_mode == WIRELESS_MODE_N_24G) ||  (wireless_mode == WIRELESS_MODE_N_5G))
@@ -2003,8 +1987,6 @@ static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 		priv->ieee80211->pHTInfo->bEnableHT = 0;
 	RT_TRACE(COMP_INIT, "Current Wireless Mode is %x\n", wireless_mode);
 	rtl8192_refresh_supportrate(priv);
-#endif
-
 }
 
 static bool GetHalfNmodeSupportByAPs819xPci(struct net_device* dev)
@@ -4836,17 +4818,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 	{
 		// if previous packet is not aggregated packet
 		bcheck = true;
-	}else
-	{
-//remve for that we don't use AMPDU to calculate PWDB,because the reported PWDB of some AP is fault.
-#if 0
-		// if previous packet is aggregated packet, and current packet
-		//	(1) is not AMPDU
-		//	(2) is the first packet of one AMPDU
-		// that means the previous packet is the last one aggregated packet
-		if( !pcurrent_stats->bIsAMPDU || pcurrent_stats->bFirstMPDU)
-			bcheck = true;
-#endif
 	}
 
 	if(slide_rssi_statistics++ >= PHY_RSSI_SLID_WIN_MAX)
@@ -4883,25 +4854,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 	// Check RSSI
 	//
 	priv->stats.num_process_phyinfo++;
-#if 0
-	/* record the general signal strength to the sliding window. */
-	if(slide_rssi_statistics++ >= PHY_RSSI_SLID_WIN_MAX)
-	{
-		slide_rssi_statistics = PHY_RSSI_SLID_WIN_MAX;
-		last_rssi = priv->stats.slide_signal_strength[slide_rssi_index];
-		priv->stats.slide_rssi_total -= last_rssi;
-	}
-	priv->stats.slide_rssi_total += pprevious_stats->SignalStrength;
 
-	priv->stats.slide_signal_strength[slide_rssi_index++] = pprevious_stats->SignalStrength;
-	if(slide_rssi_index >= PHY_RSSI_SLID_WIN_MAX)
-		slide_rssi_index = 0;
-
-	// <1> Showed on UI for user, in dbm
-	tmp_val = priv->stats.slide_rssi_total/slide_rssi_statistics;
-	priv->stats.signal_strength = rtl819x_translate_todbm((u8)tmp_val);
-
-#endif
 	// <2> Showed on UI for engineering
 	// hardware does not provide rssi information for each rf path in CCK
 	if(!pprevious_stats->bIsCCK && pprevious_stats->bPacketToSelf)
@@ -5383,9 +5336,6 @@ static void rtl8192_query_rxphystatus(
 			rx_evmX /= 2;	//dbm
 
 			evm = rtl819x_evm_dbtopercentage(rx_evmX);
-#if 0
-			EVM = SignalScaleMapping(EVM);//make it good looking, from 0~100
-#endif
 			if(bpacket_match_bssid)
 			{
 				if(i==0) // Fill value in RFD, Get the first spatial stream only
@@ -5513,12 +5463,6 @@ static void rtl8192_tx_resume(struct net_device *dev)
 			skb = skb_dequeue(&ieee->skb_waitQ[queue_index]);
 			/* 2. tx the packet directly */
 			ieee->softmac_data_hard_start_xmit(skb,dev,0/* rate useless now*/);
-			#if 0
-			if(queue_index!=MGNT_QUEUE) {
-				ieee->stats.tx_packets++;
-				ieee->stats.tx_bytes += skb->len;
-			}
-			#endif
 		}
 	}
 }
@@ -5860,16 +5804,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	priv->irq = 0;
 
 	dev->netdev_ops = &rtl8192_netdev_ops;
-#if 0
-	dev->open = rtl8192_open;
-	dev->stop = rtl8192_close;
-	//dev->hard_start_xmit = rtl8192_8023_hard_start_xmit;
-	dev->tx_timeout = tx_timeout;
-	//dev->wireless_handlers = &r8192_wx_handlers_def;
-	dev->do_ioctl = rtl8192_ioctl;
-	dev->set_multicast_list = r8192_set_multicast;
-	dev->set_mac_address = r8192_set_mac_adr;
-#endif
 
          //DMESG("Oops: i'm coming\n");
 #if WIRELESS_EXT >= 12
@@ -6100,9 +6034,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 	}
 
 	priv->stats.ints++;
-#ifdef DEBUG_IRQ
-	DMESG("NIC irq %x",inta);
-#endif
 
 	if (!netif_running(dev))
 		goto out_unlock;
@@ -6132,9 +6063,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 	}
 
 	if (inta & IMR_ROK) {
-#ifdef DEBUG_RX
-		DMESG("Frame arrived !");
-#endif
 		priv->stats.rxint++;
 		tasklet_schedule(&priv->irq_rx_tasklet);
 	}
