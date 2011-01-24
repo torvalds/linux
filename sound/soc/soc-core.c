@@ -2029,7 +2029,8 @@ static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
  *
  * Boolean function indiciating if a CODEC register is volatile.
  */
-int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg)
+int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
+				    unsigned int reg)
 {
 	if (codec->volatile_register)
 		return codec->volatile_register(codec, reg);
