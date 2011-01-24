@@ -893,7 +893,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		dev->init_data.name = "HVR 1110";
 		dev->init_data.get_key = get_key_hvr1110;
-		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE_NEW;
+		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 		info.addr = 0x71;
 		break;
 	case SAA7134_BOARD_BEHOLD_607FM_MK3:

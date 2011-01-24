@@ -313,7 +313,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_haup;
 		rc_type     = RC_TYPE_RC5;
 		if (hauppauge == 1) {
-			ir_codes    = RC_MAP_HAUPPAUGE_NEW;
+			ir_codes    = RC_MAP_HAUPPAUGE;
 		} else {
 			ir_codes    = RC_MAP_RC5_TV;
 		}
@@ -340,7 +340,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "Hauppauge/Zilog Z8";
 		ir->get_key = get_key_haup_xvr;
 		rc_type     = RC_TYPE_RC5;
-		ir_codes    = hauppauge ? RC_MAP_HAUPPAUGE_NEW : RC_MAP_RC5_TV;
+		ir_codes    = hauppauge ? RC_MAP_HAUPPAUGE : RC_MAP_RC5_TV;
 		break;
 	}
 
