@@ -222,6 +222,7 @@ struct dsi_irq_stats {
 
 static struct
 {
+	struct platform_device *pdev;
 	void __iomem	*base;
 
 	struct dsi_clock_info current_cinfo;
@@ -290,6 +291,20 @@ static inline void dsi_write_reg(const struct dsi_reg idx, u32 val)
 static inline u32 dsi_read_reg(const struct dsi_reg idx)
 {
 	return __raw_readl(dsi.base + idx.idx);
+}
+
+static struct regulator *dsi_get_vdds_dsi(void)
+{
+	struct regulator *reg;
+
+	if (dsi.vdds_dsi_reg != NULL)
+		return dsi.vdds_dsi_reg;
+
+	reg = regulator_get(&dsi.pdev->dev, "vdds_dsi");
+	if (!IS_ERR(reg))
+		dsi.vdds_dsi_reg = reg;
+
+	return reg;
 }
 
 
@@ -3238,7 +3253,7 @@ void dsi_wait_dsi2_pll_active(void)
 		DSSERR("DSI2 PLL clock not active\n");
 }
 
-int dsi_init(struct platform_device *pdev)
+static int dsi_init(struct platform_device *pdev)
 {
 	u32 rev;
 	int r;
@@ -3275,7 +3290,7 @@ int dsi_init(struct platform_device *pdev)
 		goto err1;
 	}
 
-	dsi.vdds_dsi_reg = dss_get_vdds_dsi();
+	dsi.vdds_dsi_reg = dsi_get_vdds_dsi();
 	if (IS_ERR(dsi.vdds_dsi_reg)) {
 		DSSERR("can't get VDDS_DSI regulator\n");
 		r = PTR_ERR(dsi.vdds_dsi_reg);
@@ -3298,8 +3313,13 @@ err1:
 	return r;
 }
 
-void dsi_exit(void)
+static void dsi_exit(void)
 {
+	if (dsi.vdds_dsi_reg != NULL) {
+		regulator_put(dsi.vdds_dsi_reg);
+		dsi.vdds_dsi_reg = NULL;
+	}
+
 	iounmap(dsi.base);
 
 	destroy_workqueue(dsi.workqueue);
@@ -3307,3 +3327,41 @@ void dsi_exit(void)
 	DSSDBG("omap_dsi_exit\n");
 }
 
+/* DSI1 HW IP initialisation */
+static int omap_dsi1hw_probe(struct platform_device *pdev)
+{
+	int r;
+	dsi.pdev = pdev;
+	r = dsi_init(pdev);
+	if (r) {
+		DSSERR("Failed to initialize DSI\n");
+		goto err_dsi;
+	}
+err_dsi:
+	return r;
+}
+
+static int omap_dsi1hw_remove(struct platform_device *pdev)
+{
+	dsi_exit();
+	return 0;
+}
+
+static struct platform_driver omap_dsi1hw_driver = {
+	.probe          = omap_dsi1hw_probe,
+	.remove         = omap_dsi1hw_remove,
+	.driver         = {
+		.name   = "omapdss_dsi1",
+		.owner  = THIS_MODULE,
+	},
+};
+
+int dsi_init_platform_driver(void)
+{
+	return platform_driver_register(&omap_dsi1hw_driver);
+}
+
+void dsi_uninit_platform_driver(void)
+{
+	return platform_driver_unregister(&omap_dsi1hw_driver);
+}

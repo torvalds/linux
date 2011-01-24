@@ -261,8 +261,8 @@ static inline void sdi_exit(void)
 
 /* DSI */
 #ifdef CONFIG_OMAP2_DSS_DSI
-int dsi_init(struct platform_device *pdev);
-void dsi_exit(void);
+int dsi_init_platform_driver(void);
+void dsi_uninit_platform_driver(void);
 
 void dsi_dump_clocks(struct seq_file *s);
 void dsi_dump_irqs(struct seq_file *s);
@@ -287,11 +287,11 @@ void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 void dsi_wait_dsi1_pll_active(void);
 void dsi_wait_dsi2_pll_active(void);
 #else
-static inline int dsi_init(struct platform_device *pdev)
+static inline int dsi_init_platform_driver(void)
 {
 	return 0;
 }
-static inline void dsi_exit(void)
+static inline void dsi_uninit_platform_driver(void)
 {
 }
 static inline void dsi_wait_dsi1_pll_active(void)

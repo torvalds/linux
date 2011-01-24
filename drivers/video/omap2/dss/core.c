@@ -222,9 +222,9 @@ static int omap_dss_probe(struct platform_device *pdev)
 			goto err_sdi;
 		}
 
-		r = dsi_init(pdev);
+		r = dsi_init_platform_driver();
 		if (r) {
-			DSSERR("Failed to initialize DSI\n");
+			DSSERR("Failed to initialize DSI platform driver\n");
 			goto err_dsi;
 		}
 	}
@@ -259,7 +259,7 @@ err_register:
 	dss_uninitialize_debugfs();
 err_debugfs:
 	if (cpu_is_omap34xx())
-		dsi_exit();
+		dsi_uninit_platform_driver();
 err_dsi:
 	if (cpu_is_omap34xx())
 		sdi_exit();
@@ -290,7 +290,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 	dpi_exit();
 	rfbi_uninit_platform_driver();
 	if (cpu_is_omap34xx()) {
-		dsi_exit();
+		dsi_uninit_platform_driver();
 		sdi_exit();
 	}
 
