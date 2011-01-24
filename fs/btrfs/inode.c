@@ -2718,9 +2718,10 @@ static int check_path_shared(struct btrfs_root *root,
 	struct extent_buffer *eb;
 	int level;
 	u64 refs = 1;
-	int uninitialized_var(ret);
 
 	for (level = 0; level < BTRFS_MAX_LEVEL; level++) {
+		int ret;
+
 		if (!path->nodes[level])
 			break;
 		eb = path->nodes[level];
@@ -2731,7 +2732,7 @@ static int check_path_shared(struct btrfs_root *root,
 		if (refs > 1)
 			return 1;
 	}
-	return ret; /* XXX callers? */
+	return 0;
 }
 
 /*
