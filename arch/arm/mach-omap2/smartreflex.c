@@ -966,7 +966,7 @@ static int __devexit omap_sr_remove(struct platform_device *pdev)
 	}
 
 	sr_info = _sr_lookup(pdata->voltdm);
-	if (!sr_info) {
+	if (IS_ERR(sr_info)) {
 		dev_warn(&pdev->dev, "%s: omap_sr struct not found\n",
 			__func__);
 		return -EINVAL;
