@@ -38,7 +38,6 @@ static int wl1273_core_remove(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	mfd_remove_devices(&client->dev);
-	i2c_set_clientdata(client, NULL);
 	kfree(core);
 
 	return 0;
@@ -104,7 +103,6 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 	return 0;
 
 err:
-	i2c_set_clientdata(client, NULL);
 	pdata->free_resources();
 	kfree(core);
 
