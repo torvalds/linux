@@ -30,7 +30,7 @@
 #include <crypto/sha.h>
 #include <crypto/aes.h>
 
-#include "encrypted_defined.h"
+#include "encrypted.h"
 
 static const char KEY_TRUSTED_PREFIX[] = "trusted:";
 static const char KEY_USER_PREFIX[] = "user:";
@@ -888,6 +888,7 @@ static int __init init_encrypted(void)
 out:
 	encrypted_shash_release();
 	return ret;
+
 }
 
 static void __exit cleanup_encrypted(void)

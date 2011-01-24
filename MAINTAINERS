@@ -3674,6 +3674,28 @@ F:	include/linux/key-type.h
 F:	include/keys/
 F:	security/keys/
 
+KEYS-TRUSTED
+M:	David Safford <safford@watson.ibm.com>
+M:	Mimi Zohar <zohar@us.ibm.com>
+L:	linux-security-module@vger.kernel.org
+L:	keyrings@linux-nfs.org
+S:	Supported
+F:	Documentation/keys-trusted-encrypted.txt
+F:	include/keys/trusted-type.h
+F:	security/keys/trusted.c
+F:	security/keys/trusted.h
+
+KEYS-ENCRYPTED
+M:	Mimi Zohar <zohar@us.ibm.com>
+M:	David Safford <safford@watson.ibm.com>
+L:	linux-security-module@vger.kernel.org
+L:	keyrings@linux-nfs.org
+S:	Supported
+F:	Documentation/keys-trusted-encrypted.txt
+F:	include/keys/encrypted-type.h
+F:	security/keys/encrypted.c
+F:	security/keys/encrypted.h
+
 KGDB / KDB /debug_core
 M:	Jason Wessel <jason.wessel@windriver.com>
 W:	http://kgdb.wiki.kernel.org/
