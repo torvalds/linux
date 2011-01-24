@@ -2399,7 +2399,7 @@ extern char *netdev_drivername(const struct net_device *dev, char *buffer, int l
 extern void linkwatch_run_queue(void);
 
 u32 netdev_increment_features(u32 all, u32 one, u32 mask);
-u32 netdev_fix_features(u32 features, const char *name);
+u32 netdev_fix_features(struct net_device *dev, u32 features);
 
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);

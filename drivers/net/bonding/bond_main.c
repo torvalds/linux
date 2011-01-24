@@ -1400,8 +1400,8 @@ static int bond_compute_features(struct bonding *bond)
 
 done:
 	features |= (bond_dev->features & BOND_VLAN_FEATURES);
-	bond_dev->features = netdev_fix_features(features, NULL);
-	bond_dev->vlan_features = netdev_fix_features(vlan_features, NULL);
+	bond_dev->features = netdev_fix_features(bond_dev, features);
+	bond_dev->vlan_features = netdev_fix_features(bond_dev, vlan_features);
 	bond_dev->hard_header_len = max_hard_header_len;
 
 	return 0;
