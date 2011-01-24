@@ -82,7 +82,7 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 
 	/*
 	 * Old Remote Controller Hauppauge Gray with a golden screen
-	 * Keycodes start with address = 0x1d
+	 * Keycodes start with address = 0x1f
 	 */
 	{ 0x1f3d, KEY_POWER2 },		/* system power (green button) */
 	{ 0x1f3b, KEY_SELECT },		/* GO */
@@ -130,6 +130,7 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 
 	/*
 	 * Keycodes for DSR-0112 remote bundled with Haupauge MiniStick
+	 * Keycodes start with address = 0x1d
 	 */
 	{ 0x1d00, KEY_0 },
 	{ 0x1d01, KEY_1 },
@@ -167,6 +168,39 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 	{ 0x1d3b, KEY_GOTO },
 	{ 0x1d3d, KEY_POWER },
 	{ 0x1d3f, KEY_HOME },
+
+	/*
+	 * Keycodes for the old Black Remote Controller
+	 * This one also uses RC-5 protocol
+	 * Keycodes start with address = 0x00
+	 */
+	{ 0x001f, KEY_TV },
+	{ 0x0020, KEY_CHANNELUP },
+	{ 0x000c, KEY_RADIO },
+
+	{ 0x0011, KEY_VOLUMEDOWN },
+	{ 0x002e, KEY_ZOOM },		/* full screen */
+	{ 0x0010, KEY_VOLUMEUP },
+
+	{ 0x000d, KEY_MUTE },
+	{ 0x0021, KEY_CHANNELDOWN },
+	{ 0x0022, KEY_VIDEO },		/* source */
+
+	{ 0x0001, KEY_1 },
+	{ 0x0002, KEY_2 },
+	{ 0x0003, KEY_3 },
+
+	{ 0x0004, KEY_4 },
+	{ 0x0005, KEY_5 },
+	{ 0x0006, KEY_6 },
+
+	{ 0x0007, KEY_7 },
+	{ 0x0008, KEY_8 },
+	{ 0x0009, KEY_9 },
+
+	{ 0x001e, KEY_RED },	/* Reserved */
+	{ 0x0000, KEY_0 },
+	{ 0x0026, KEY_SLEEP },	/* Minimize */
 };
 
 static struct rc_map_list rc5_hauppauge_new_map = {
