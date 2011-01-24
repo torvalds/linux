@@ -214,8 +214,8 @@ void dss_overlay_setup_l4_manager(struct omap_overlay_manager *mgr);
 void dss_recheck_connections(struct omap_dss_device *dssdev, bool force);
 
 /* DSS */
-int dss_init(bool skip_init);
-void dss_exit(void);
+int dss_init_platform_driver(void);
+void dss_uninit_platform_driver(void);
 
 void dss_save_context(void);
 void dss_restore_context(void);

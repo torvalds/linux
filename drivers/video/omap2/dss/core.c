@@ -517,15 +517,9 @@ static int omap_dss_probe(struct platform_device *pdev)
 	core.ctx_id = dss_get_ctx_id();
 	DSSDBG("initial ctx id %u\n", core.ctx_id);
 
-#ifdef CONFIG_FB_OMAP_BOOTLOADER_INIT
-	/* DISPC_CONTROL */
-	if (omap_readl(0x48050440) & 1)	/* LCD enabled? */
-		skip_init = 1;
-#endif
-
-	r = dss_init(skip_init);
+	r = dss_init_platform_driver();
 	if (r) {
-		DSSERR("Failed to initialize DSS\n");
+		DSSERR("Failed to initialize DSS platform driver\n");
 		goto err_dss;
 	}
 
@@ -553,6 +547,11 @@ static int omap_dss_probe(struct platform_device *pdev)
 		goto err_venc;
 	}
 
+#ifdef CONFIG_FB_OMAP_BOOTLOADER_INIT
+	/* DISPC_CONTROL */
+	if (omap_readl(0x48050440) & 1)	/* LCD enabled? */
+		skip_init = 1;
+#endif
 	if (cpu_is_omap34xx()) {
 		r = sdi_init(skip_init);
 		if (r) {
@@ -610,7 +609,7 @@ err_dispc:
 err_dpi:
 	rfbi_exit();
 err_rfbi:
-	dss_exit();
+	dss_uninit_platform_driver();
 err_dss:
 	dss_clk_disable_all_no_ctx();
 	dss_put_clocks();
@@ -635,7 +634,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 		sdi_exit();
 	}
 
-	dss_exit();
+	dss_uninit_platform_driver();
 
 	/*
 	 * As part of hwmod changes, DSS is not the only controller of dss

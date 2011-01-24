@@ -59,6 +59,7 @@ struct dss_reg {
 	dss_write_reg(idx, FLD_MOD(dss_read_reg(idx), val, start, end))
 
 static struct {
+	struct platform_device *pdev;
 	void __iomem    *base;
 
 	struct clk	*dpll4_m4_ck;
@@ -549,7 +550,7 @@ void dss_set_dac_pwrdn_bgz(bool enable)
 	REG_FLD_MOD(DSS_CONTROL, enable, 5, 5);	/* DAC Power-Down Control */
 }
 
-int dss_init(bool skip_init)
+static int dss_init(bool skip_init)
 {
 	int r;
 	u32 rev;
@@ -629,7 +630,7 @@ fail0:
 	return r;
 }
 
-void dss_exit(void)
+static void dss_exit(void)
 {
 	if (cpu_is_omap34xx())
 		clk_put(dss.dpll4_m4_ck);
@@ -639,3 +640,53 @@ void dss_exit(void)
 	iounmap(dss.base);
 }
 
+/* DSS HW IP initialisation */
+static int omap_dsshw_probe(struct platform_device *pdev)
+{
+	int r;
+	int skip_init = 0;
+
+	dss.pdev = pdev;
+
+#ifdef CONFIG_FB_OMAP_BOOTLOADER_INIT
+	/* DISPC_CONTROL */
+	if (omap_readl(0x48050440) & 1)	/* LCD enabled? */
+		skip_init = 1;
+#endif
+
+	r = dss_init(skip_init);
+	if (r) {
+		DSSERR("Failed to initialize DSS\n");
+		goto err_dss;
+	}
+
+err_dss:
+
+	return r;
+}
+
+static int omap_dsshw_remove(struct platform_device *pdev)
+{
+	dss_exit();
+
+	return 0;
+}
+
+static struct platform_driver omap_dsshw_driver = {
+	.probe          = omap_dsshw_probe,
+	.remove         = omap_dsshw_remove,
+	.driver         = {
+		.name   = "omapdss_dss",
+		.owner  = THIS_MODULE,
+	},
+};
+
+int dss_init_platform_driver(void)
+{
+	return platform_driver_register(&omap_dsshw_driver);
+}
+
+void dss_uninit_platform_driver(void)
+{
+	return platform_driver_unregister(&omap_dsshw_driver);
+}
