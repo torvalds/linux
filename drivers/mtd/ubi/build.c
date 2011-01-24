@@ -672,7 +672,33 @@ static int io_init(struct ubi_device *ubi)
 		ubi->nor_flash = 1;
 	}
 
-	ubi->min_io_size = ubi->mtd->writesize;
+	/*
+	 * Set UBI min. I/O size (@ubi->min_io_size). We use @mtd->writebufsize
+	 * for these purposes, not @mtd->writesize. At the moment this does not
+	 * matter for NAND, because currently @mtd->writebufsize is equivalent to
+	 * @mtd->writesize for all NANDs. However, some CFI NOR flashes may
+	 * have @mtd->writebufsize which is multiple of @mtd->writesize.
+	 *
+	 * The reason we use @mtd->writebufsize for @ubi->min_io_size is that
+	 * UBI and UBIFS recovery algorithms rely on the fact that if there was
+	 * an unclean power cut, then we can find offset of the last corrupted
+	 * node, align the offset to @ubi->min_io_size, read the rest of the
+	 * eraseblock starting from this offset, and check whether there are
+	 * only 0xFF bytes. If yes, then we are probably dealing with a
+	 * corruption caused by a power cut, if not, then this is probably some
+	 * severe corruption.
+	 *
+	 * Thus, we have to use the maximum write unit size of the flash, which
+	 * is @mtd->writebufsize, because @mtd->writesize is the minimum write
+	 * size, not the maximum.
+	 */
+	if (ubi->mtd->type == MTD_NANDFLASH)
+		ubi_assert(ubi->mtd->writebufsize == ubi->mtd->writesize);
+	else if (ubi->mtd->type == MTD_NORFLASH)
+		ubi_assert(ubi->mtd->writebufsize % ubi->mtd->writesize == 0);
+
+	ubi->min_io_size = ubi->mtd->writebufsize;
+
 	ubi->hdrs_min_io_size = ubi->mtd->writesize >> ubi->mtd->subpage_sft;
 
 	/*

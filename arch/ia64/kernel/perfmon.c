@@ -617,11 +617,14 @@ pfm_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len, 
 	return get_unmapped_area(file, addr, len, pgoff, flags);
 }
 
+/* forward declaration */
+static const struct dentry_operations pfmfs_dentry_operations;
 
 static struct dentry *
 pfmfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC);
+	return mount_pseudo(fs_type, "pfm:", NULL, &pfmfs_dentry_operations,
+			PFMFS_MAGIC);
 }
 
 static struct file_system_type pfm_fs_type = {
@@ -829,10 +832,9 @@ pfm_rvmalloc(unsigned long size)
 	unsigned long addr;
 
 	size = PAGE_ALIGN(size);
-	mem  = vmalloc(size);
+	mem  = vzalloc(size);
 	if (mem) {
 		//printk("perfmon: CPU%d pfm_rvmalloc(%ld)=%p\n", smp_processor_id(), size, mem);
-		memset(mem, 0, size);
 		addr = (unsigned long)mem;
 		while (size > 0) {
 			pfm_reserve_page(addr);
@@ -2233,7 +2235,6 @@ pfm_alloc_file(pfm_context_t *ctx)
 	}
 	path.mnt = mntget(pfmfs_mnt);
 
-	d_set_d_op(path.dentry, &pfmfs_dentry_operations);
 	d_add(path.dentry, inode);
 
 	file = alloc_file(&path, FMODE_READ, &pfm_file_ops);

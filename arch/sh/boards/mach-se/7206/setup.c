@@ -77,7 +77,7 @@ static int __init se7206_devices_setup(void)
 {
 	return platform_add_devices(se7206_devices, ARRAY_SIZE(se7206_devices));
 }
-__initcall(se7206_devices_setup);
+device_initcall(se7206_devices_setup);
 
 static int se7206_mode_pins(void)
 {

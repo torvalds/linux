@@ -100,8 +100,8 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_SOCKOPT_PEELOFF	102	/* peel off association. */
 /* Options 104-106 are deprecated and removed. Do not use this space */
 #define SCTP_SOCKOPT_CONNECTX_OLD	107	/* CONNECTX old requests. */
-#define SCTP_GET_PEER_ADDRS	108		/* Get all peer addresss. */
-#define SCTP_GET_LOCAL_ADDRS	109		/* Get all local addresss. */
+#define SCTP_GET_PEER_ADDRS	108		/* Get all peer address. */
+#define SCTP_GET_LOCAL_ADDRS	109		/* Get all local address. */
 #define SCTP_SOCKOPT_CONNECTX	110		/* CONNECTX requests. */
 #define SCTP_SOCKOPT_CONNECTX3	111	/* CONNECTX requests (updated) */
 

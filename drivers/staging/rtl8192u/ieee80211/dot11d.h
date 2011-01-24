@@ -1,10 +1,8 @@
 #ifndef __INC_DOT11D_H
 #define __INC_DOT11D_H
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211.h"
 
-//#define ENABLE_DOT11D
 
 //#define DOT11D_MAX_CHNL_NUM 83
 
@@ -98,5 +96,4 @@ int ToLegalChannel(
 	struct ieee80211_device * dev,
 	u8 channel
 );
-#endif //ENABLE_DOT11D
 #endif // #ifndef __INC_DOT11D_H

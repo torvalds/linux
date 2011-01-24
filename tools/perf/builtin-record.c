@@ -49,6 +49,7 @@ static int			pipe_output			=      0;
 static const char		*output_name			= "perf.data";
 static int			group				=      0;
 static int			realtime_prio			=      0;
+static bool			nodelay				=  false;
 static bool			raw_samples			=  false;
 static bool			sample_id_all_avail		=   true;
 static bool			system_wide			=  false;
@@ -307,6 +308,11 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 	}
 
+	if (nodelay) {
+		attr->watermark = 0;
+		attr->wakeup_events = 1;
+	}
+
 	attr->mmap		= track;
 	attr->comm		= track;
 	attr->inherit		= !no_inherit;
@@ -477,6 +483,7 @@ static void atexit_header(void)
 			process_buildids();
 		perf_header__write(&session->header, output, true);
 		perf_session__delete(session);
+		perf_evsel_list__delete();
 		symbol__exit();
 	}
 }
@@ -810,7 +817,7 @@ static int __cmd_record(int argc, const char **argv)
 	 * Approximate RIP event size: 24 bytes.
 	 */
 	fprintf(stderr,
-		"[ perf record: Captured and wrote %.3f MB %s (~%lld samples) ]\n",
+		"[ perf record: Captured and wrote %.3f MB %s (~%" PRIu64 " samples) ]\n",
 		(double)bytes_written / 1024.0 / 1024.0,
 		output_name,
 		bytes_written / 24);
@@ -842,6 +849,8 @@ const struct option record_options[] = {
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
+	OPT_BOOLEAN('D', "no-delay", &nodelay,
+		    "collect data without buffering"),
 	OPT_BOOLEAN('R', "raw-samples", &raw_samples,
 		    "collect raw sample records from all opened counters"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
@@ -926,6 +935,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	list_for_each_entry(pos, &evsel_list, node) {
 		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
+			goto out_free_fd;
+		if (perf_header__push_event(pos->attr.config, event_name(pos)))
 			goto out_free_fd;
 	}
 	event_array = malloc((sizeof(struct pollfd) * MAX_NR_CPUS *

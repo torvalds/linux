@@ -84,31 +84,30 @@ static inline void jz4740_adc_irq_set_masked(struct jz4740_adc *adc, int irq,
 	spin_unlock_irqrestore(&adc->lock, flags);
 }
 
-static void jz4740_adc_irq_mask(unsigned int irq)
+static void jz4740_adc_irq_mask(struct irq_data *data)
 {
-	struct jz4740_adc *adc = get_irq_chip_data(irq);
-	jz4740_adc_irq_set_masked(adc, irq, true);
+	struct jz4740_adc *adc = irq_data_get_irq_chip_data(data);
+	jz4740_adc_irq_set_masked(adc, data->irq, true);
 }
 
-static void jz4740_adc_irq_unmask(unsigned int irq)
+static void jz4740_adc_irq_unmask(struct irq_data *data)
 {
-	struct jz4740_adc *adc = get_irq_chip_data(irq);
-	jz4740_adc_irq_set_masked(adc, irq, false);
+	struct jz4740_adc *adc = irq_data_get_irq_chip_data(data);
+	jz4740_adc_irq_set_masked(adc, data->irq, false);
 }
 
-static void jz4740_adc_irq_ack(unsigned int irq)
+static void jz4740_adc_irq_ack(struct irq_data *data)
 {
-	struct jz4740_adc *adc = get_irq_chip_data(irq);
-
-	irq -= adc->irq_base;
+	struct jz4740_adc *adc = irq_data_get_irq_chip_data(data);
+	unsigned int irq = data->irq - adc->irq_base;
 	writeb(BIT(irq), adc->base + JZ_REG_ADC_STATUS);
 }
 
 static struct irq_chip jz4740_adc_irq_chip = {
 	.name = "jz4740-adc",
-	.mask = jz4740_adc_irq_mask,
-	.unmask = jz4740_adc_irq_unmask,
-	.ack = jz4740_adc_irq_ack,
+	.irq_mask = jz4740_adc_irq_mask,
+	.irq_unmask = jz4740_adc_irq_unmask,
+	.irq_ack = jz4740_adc_irq_ack,
 };
 
 static void jz4740_adc_irq_demux(unsigned int irq, struct irq_desc *desc)

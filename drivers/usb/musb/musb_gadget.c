@@ -1684,7 +1684,7 @@ static inline void __init musb_g_init_endpoints(struct musb *musb)
 	struct musb_hw_ep	*hw_ep;
 	unsigned		count = 0;
 
-	/* intialize endpoint list just once */
+	/* initialize endpoint list just once */
 	INIT_LIST_HEAD(&(musb->g.ep_list));
 
 	for (epnum = 0, hw_ep = musb->endpoints;
@@ -1765,7 +1765,7 @@ void musb_gadget_cleanup(struct musb *musb)
  *
  * -EINVAL something went wrong (not driver)
  * -EBUSY another gadget is already using the controller
- * -ENOMEM no memeory to perform the operation
+ * -ENOMEM no memory to perform the operation
  *
  * @param driver the gadget driver
  * @param bind the driver's bind function

@@ -1320,7 +1320,7 @@ static struct imx_udc_struct controller = {
 };
 
 /*******************************************************************************
- * USB gadged driver functions
+ * USB gadget driver functions
  *******************************************************************************
  */
 int usb_gadget_probe_driver(struct usb_gadget_driver *driver,

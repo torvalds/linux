@@ -544,7 +544,7 @@ static struct omap_mux __initdata omap4_core_muxmodes[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)		\
 		&& defined(CONFIG_OMAP_PACKAGE_CBL)
-struct omap_ball __initdata omap4_core_cbl_ball[] = {
+static struct omap_ball __initdata omap4_core_cbl_ball[] = {
 	_OMAP4_BALLENTRY(GPMC_AD0, "c12", NULL),
 	_OMAP4_BALLENTRY(GPMC_AD1, "d12", NULL),
 	_OMAP4_BALLENTRY(GPMC_AD2, "c13", NULL),
@@ -1262,7 +1262,7 @@ static struct omap_mux __initdata omap4_es2_core_muxmodes[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)		\
 		&& defined(CONFIG_OMAP_PACKAGE_CBS)
-struct omap_ball __initdata omap4_core_cbs_ball[] = {
+static struct omap_ball __initdata omap4_core_cbs_ball[] = {
 	_OMAP4_BALLENTRY(GPMC_AD0, "c12", NULL),
 	_OMAP4_BALLENTRY(GPMC_AD1, "d12", NULL),
 	_OMAP4_BALLENTRY(GPMC_AD2, "c13", NULL),
@@ -1546,7 +1546,7 @@ static struct omap_mux __initdata omap4_wkup_muxmodes[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)		\
 		&& defined(CONFIG_OMAP_PACKAGE_CBL)
-struct omap_ball __initdata omap4_wkup_cbl_cbs_ball[] = {
+static struct omap_ball __initdata omap4_wkup_cbl_cbs_ball[] = {
 	_OMAP4_BALLENTRY(SIM_IO, "h4", NULL),
 	_OMAP4_BALLENTRY(SIM_CLK, "j2", NULL),
 	_OMAP4_BALLENTRY(SIM_RESET, "g2", NULL),

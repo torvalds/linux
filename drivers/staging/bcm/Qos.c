@@ -4,15 +4,14 @@ This file contains the routines related to Quality of Service.
 */
 #include "headers.h"
 
-BOOLEAN MatchSrcIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulSrcIP);
-BOOLEAN MatchTos(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucTypeOfService);
-BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
-BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushDestPort);
-BOOLEAN MatchProtocol(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucProtocol);
-BOOLEAN MatchDestIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulDestIP);
-USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb);
-void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo);
-BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport);
+static void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo);
+static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport);
+
+static USHORT	IpVersion4(PMINI_ADAPTER Adapter, struct iphdr *iphd,
+			   S_CLASSIFIER_RULE *pstClassifierRule );
+
+static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex);
+
 
 /*******************************************************************
 * Function    - MatchSrcIpAddress()
@@ -205,11 +204,10 @@ BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushDestPort)
 Compares IPV4 Ip address and port number
 @return Queue Index.
 */
-USHORT	IpVersion4(PMINI_ADAPTER Adapter, /**< Pointer to the driver control structure */
-					struct iphdr *iphd, /**<Pointer to the IP Hdr of the packet*/
-					S_CLASSIFIER_RULE *pstClassifierRule )
+static USHORT	IpVersion4(PMINI_ADAPTER Adapter,
+			   struct iphdr *iphd,
+			   S_CLASSIFIER_RULE *pstClassifierRule )
 {
-	//IPHeaderFormat 		*pIpHeader=NULL;
 	xporthdr     		*xprt_hdr=NULL;
 	BOOLEAN	bClassificationSucceed=FALSE;
 
@@ -261,15 +259,6 @@ USHORT	IpVersion4(PMINI_ADAPTER Adapter, /**< Pointer to the driver control stru
 		//if protocol is not TCP or UDP then no need of comparing source port and destination port
 		if(iphd->protocol!=TCP && iphd->protocol!=UDP)
 			break;
-#if 0
-		//check if memory is available of src and Dest port
-		if(ETH_AND_IP_HEADER_LEN + L4_SRC_PORT_LEN + L4_DEST_PORT_LEN > Packet->len)
-		{
-			//This is not an erroneous condition and pkt will be checked for next classification.
-			bClassificationSucceed = FALSE;
-			break;
-		}
-#endif
 		//******************Checking Transport Layer Header field if present *****************//
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Source Port %04x",
 			(iphd->protocol==UDP)?xprt_hdr->uhdr.source:xprt_hdr->thdr.source);
@@ -312,29 +301,6 @@ USHORT	IpVersion4(PMINI_ADAPTER Adapter, /**< Pointer to the driver control stru
 
 	return bClassificationSucceed;
 }
-/**
-@ingroup tx_functions
-@return  Queue Index based on priority.
-*/
-USHORT GetPacketQueueIndex(PMINI_ADAPTER Adapter, /**<Pointer to the driver control structure */
-								struct sk_buff* Packet /**< Pointer to the Packet to be sent*/
-								)
-{
-	USHORT			usIndex=-1;
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "=====>");
-
-	if(NULL==Adapter || NULL==Packet)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "Got NULL Values<======");
-		return -1;
-	}
-
-	usIndex = ClassifyPacket(Adapter,Packet);
-
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "Got Queue Index %x",usIndex);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "GetPacketQueueIndex <==============");
-	return usIndex;
-}
 
 VOID PruneQueueAllSF(PMINI_ADAPTER Adapter)
 {
@@ -357,23 +323,21 @@ is less than number of bytes in the queue. If so -
 drops packets from the Head till the number of bytes is
 less than or equal to max queue size for the queue.
 */
-VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structure*/
-					INT iIndex/**<Queue Index*/
-					)
+static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex)
 {
 	struct sk_buff* PacketToDrop=NULL;
-	struct net_device_stats*  netstats=NULL;
+	struct net_device_stats *netstats;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "=====> Index %d",iIndex);
 
    	if(iIndex == HiPriority)
-       	return;
+		return;
 
 	if(!Adapter || (iIndex < 0) || (iIndex > HiPriority))
 		return;
 
 	/* To Store the netdevice statistic */
-	netstats = &((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats;
+	netstats = &Adapter->dev->stats;
 
 	spin_lock_bh(&Adapter->PackInfo[iIndex].SFQueueLock);
 
@@ -395,9 +359,12 @@ VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structur
 
 		if(PacketToDrop)
 		{
-			if(netstats)
-				netstats->tx_dropped++;
-			atomic_inc(&Adapter->TxDroppedPacketCount);
+			if (netif_msg_tx_err(Adapter))
+				pr_info(PFX "%s: tx queue %d overlimit\n", 
+					Adapter->dev->name, iIndex);
+
+			netstats->tx_dropped++;
+
 			DEQUEUEPACKET(Adapter->PackInfo[iIndex].FirstTxQueue,
 						Adapter->PackInfo[iIndex].LastTxQueue);
 			/// update current bytes and packets count
@@ -407,7 +374,7 @@ VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structur
 			/// update dropped bytes and packets counts
 			Adapter->PackInfo[iIndex].uiDroppedCountBytes += PacketToDrop->len;
 			Adapter->PackInfo[iIndex].uiDroppedCountPackets++;
-			bcm_kfree_skb(PacketToDrop);
+			dev_kfree_skb(PacketToDrop);
 
 		}
 
@@ -416,7 +383,6 @@ VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structur
 			Adapter->PackInfo[iIndex].uiDroppedCountPackets);
 
 		atomic_dec(&Adapter->TotalPacketCount);
-		Adapter->bcm_jiffies = jiffies;
 	}
 
 	spin_unlock_bh(&Adapter->PackInfo[iIndex].SFQueueLock);
@@ -430,16 +396,15 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 {
 	INT		iQIndex;
 	UINT	uiTotalPacketLength;
-	struct sk_buff*				PacketToDrop=NULL;
-	struct net_device_stats*  	netstats=NULL;
+	struct sk_buff*			PacketToDrop=NULL;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "=====>");
-	/* To Store the netdevice statistic */
-	netstats = &((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats;
 
 //	down(&Adapter->data_packet_queue_lock);
 	for(iQIndex=LowPriority; iQIndex<HiPriority; iQIndex++)
 	{
+		struct net_device_stats *netstats = &Adapter->dev->stats;
+
 		spin_lock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
 		while(Adapter->PackInfo[iQIndex].FirstTxQueue)
 		{
@@ -448,7 +413,6 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 			{
 				uiTotalPacketLength = PacketToDrop->len;
 				netstats->tx_dropped++;
-				atomic_inc(&Adapter->TxDroppedPacketCount);
 			}
 			else
 				uiTotalPacketLength = 0;
@@ -457,7 +421,7 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 						Adapter->PackInfo[iQIndex].LastTxQueue);
 
 			/* Free the skb */
-			bcm_kfree_skb(PacketToDrop);
+			dev_kfree_skb(PacketToDrop);
 
 			/// update current bytes and packets count
 			Adapter->PackInfo[iQIndex].uiCurrentBytesOnHost -= uiTotalPacketLength;
@@ -559,12 +523,6 @@ USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb)
 
 	for(uiLoopIndex = MAX_CLASSIFIERS - 1; uiLoopIndex >= 0; uiLoopIndex--)
 	{
-		if (Adapter->device_removed)
-		{
-			bClassificationSucceed = FALSE;
-			break;
-		}
-
 		if(bClassificationSucceed)
 			break;
 		//Iterate through all classifiers which are already in order of priority
@@ -810,7 +768,10 @@ static BOOLEAN EthCSMatchVLANRules(S_CLASSIFIER_RULE *pstClassifierRule,struct s
 }
 
 
-BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport)
+static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,
+				PS_ETHCS_PKT_INFO pstEthCsPktInfo,
+				S_CLASSIFIER_RULE *pstClassifierRule,
+				B_UINT8 EthCSCupport)
 {
 	BOOLEAN bClassificationSucceed = FALSE;
 	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule,((ETH_HEADER_STRUC *)(skb->data))->au8SourceAddress);
@@ -840,9 +801,11 @@ BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_
 	return bClassificationSucceed;
 }
 
-void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
+static void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,
+			    PS_ETHCS_PKT_INFO pstEthCsPktInfo)
 {
 	USHORT u16Etype = ntohs(((ETH_HEADER_STRUC*)pvEthPayload)->u16Etype);
+
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCSGetPktInfo : Eth Hdr Type : %X\n",u16Etype);
 	if(u16Etype > 0x5dc)
 	{

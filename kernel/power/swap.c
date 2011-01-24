@@ -224,7 +224,7 @@ static int swsusp_swap_check(void)
 		return res;
 
 	root_swap = res;
-	res = blkdev_get(hib_resume_bdev, FMODE_WRITE);
+	res = blkdev_get(hib_resume_bdev, FMODE_WRITE, NULL);
 	if (res)
 		return res;
 
@@ -888,7 +888,7 @@ out_finish:
 /**
  *	swsusp_read - read the hibernation image.
  *	@flags_p: flags passed by the "frozen" kernel in the image header should
- *		  be written into this memeory location
+ *		  be written into this memory location
  */
 
 int swsusp_read(unsigned int *flags_p)
@@ -930,7 +930,8 @@ int swsusp_check(void)
 {
 	int error;
 
-	hib_resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
+	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device,
+					    FMODE_READ, NULL);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
 		clear_page(swsusp_header);

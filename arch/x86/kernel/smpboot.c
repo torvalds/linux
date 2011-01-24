@@ -97,12 +97,12 @@ static DEFINE_PER_CPU(struct task_struct *, idle_thread_array);
  */
 static DEFINE_MUTEX(x86_cpu_hotplug_driver_mutex);
 
-void cpu_hotplug_driver_lock()
+void cpu_hotplug_driver_lock(void)
 {
         mutex_lock(&x86_cpu_hotplug_driver_mutex);
 }
 
-void cpu_hotplug_driver_unlock()
+void cpu_hotplug_driver_unlock(void)
 {
         mutex_unlock(&x86_cpu_hotplug_driver_mutex);
 }
@@ -1402,8 +1402,9 @@ static inline void mwait_play_dead(void)
 	unsigned int highest_subcstate = 0;
 	int i;
 	void *mwait_ptr;
+	struct cpuinfo_x86 *c = __this_cpu_ptr(&cpu_info);
 
-	if (!cpu_has(__this_cpu_ptr(&cpu_info), X86_FEATURE_MWAIT))
+	if (!(cpu_has(c, X86_FEATURE_MWAIT) && mwait_usable(c)))
 		return;
 	if (!cpu_has(__this_cpu_ptr(&cpu_info), X86_FEATURE_CLFLSH))
 		return;

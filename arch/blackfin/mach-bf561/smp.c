@@ -86,12 +86,12 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 
 	spin_lock(&boot_lock);
 
-	if ((bfin_read_SIC_SYSCR() & COREB_SRAM_INIT) == 0) {
+	if ((bfin_read_SYSCR() & COREB_SRAM_INIT) == 0) {
 		/* CoreB already running, sending ipi to wakeup it */
 		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_0);
 	} else {
 		/* Kick CoreB, which should start execution from CORE_SRAM_BASE. */
-		bfin_write_SIC_SYSCR(bfin_read_SIC_SYSCR() & ~COREB_SRAM_INIT);
+		bfin_write_SYSCR(bfin_read_SYSCR() & ~COREB_SRAM_INIT);
 		SSYNC();
 	}
 
@@ -111,41 +111,46 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 		panic("CPU%u: processor failed to boot\n", cpu);
 }
 
-void __init platform_request_ipi(irq_handler_t handler)
+static const char supple0[] = "IRQ_SUPPLE_0";
+static const char supple1[] = "IRQ_SUPPLE_1";
+void __init platform_request_ipi(int irq, void *handler)
 {
 	int ret;
+	const char *name = (irq == IRQ_SUPPLE_0) ? supple0 : supple1;
 
-	ret = request_irq(IRQ_SUPPLE_0, handler, IRQF_DISABLED,
-			  "Supplemental Interrupt0", handler);
+	ret = request_irq(irq, handler, IRQF_DISABLED | IRQF_PERCPU, name, handler);
 	if (ret)
-		panic("Cannot request supplemental interrupt 0 for IPI service");
+		panic("Cannot request %s for IPI service", name);
 }
 
-void platform_send_ipi(cpumask_t callmap)
+void platform_send_ipi(cpumask_t callmap, int irq)
 {
 	unsigned int cpu;
+	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 
 	for_each_cpu_mask(cpu, callmap) {
 		BUG_ON(cpu >= 2);
 		SSYNC();
-		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (6 + cpu)));
+		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 		SSYNC();
 	}
 }
 
-void platform_send_ipi_cpu(unsigned int cpu)
+void platform_send_ipi_cpu(unsigned int cpu, int irq)
 {
+	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 	BUG_ON(cpu >= 2);
 	SSYNC();
-	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (6 + cpu)));
+	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 	SSYNC();
 }
 
-void platform_clear_ipi(unsigned int cpu)
+void platform_clear_ipi(unsigned int cpu, int irq)
 {
+	int offset = (irq == IRQ_SUPPLE_0) ? 10 : 12;
 	BUG_ON(cpu >= 2);
 	SSYNC();
-	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (10 + cpu)));
+	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 	SSYNC();
 }
 

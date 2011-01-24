@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
@@ -95,7 +96,16 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 static void __init omap4_ehci_init(void)
 {
 	int ret;
+	struct clk *phy_ref_clk;
 
+	/* FREF_CLK3 provides the 19.2 MHz reference clock to the PHY */
+	phy_ref_clk = clk_get(NULL, "auxclk3_ck");
+	if (IS_ERR(phy_ref_clk)) {
+		pr_err("Cannot request auxclk3\n");
+		goto error1;
+	}
+	clk_set_rate(phy_ref_clk, 19200000);
+	clk_enable(phy_ref_clk);
 
 	/* disable the power to the usb hub prior to init */
 	ret = gpio_request(GPIO_HUB_POWER, "hub_power");

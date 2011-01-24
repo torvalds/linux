@@ -235,6 +235,7 @@ static int sony_laptop_input_index[] = {
 	57,	/* 70 SONYPI_EVENT_VOLUME_DEC_PRESSED */
 	-1,	/* 71 SONYPI_EVENT_BRIGHTNESS_PRESSED */
 	58,	/* 72 SONYPI_EVENT_MEDIA_PRESSED */
+	59,	/* 72 SONYPI_EVENT_VENDOR_PRESSED */
 };
 
 static int sony_laptop_input_keycode_map[] = {
@@ -297,6 +298,7 @@ static int sony_laptop_input_keycode_map[] = {
 	KEY_VOLUMEUP,	/* 56 SONYPI_EVENT_VOLUME_INC_PRESSED */
 	KEY_VOLUMEDOWN,	/* 57 SONYPI_EVENT_VOLUME_DEC_PRESSED */
 	KEY_MEDIA,	/* 58 SONYPI_EVENT_MEDIA_PRESSED */
+	KEY_VENDOR,	/* 59 SONYPI_EVENT_VENDOR_PRESSED */
 };
 
 /* release buttons after a short delay if pressed */
@@ -856,7 +858,7 @@ static int sony_backlight_get_brightness(struct backlight_device *bd)
 }
 
 static struct backlight_device *sony_backlight_device;
-static struct backlight_ops sony_backlight_ops = {
+static const struct backlight_ops sony_backlight_ops = {
 	.update_status = sony_backlight_update_status,
 	.get_brightness = sony_backlight_get_brightness,
 };
@@ -894,10 +896,18 @@ static struct sony_nc_event sony_100_events[] = {
 	{ 0x0A, SONYPI_EVENT_FNKEY_RELEASED },
 	{ 0x8C, SONYPI_EVENT_FNKEY_F12 },
 	{ 0x0C, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x9d, SONYPI_EVENT_ZOOM_PRESSED },
+	{ 0x1d, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0x9f, SONYPI_EVENT_CD_EJECT_PRESSED },
 	{ 0x1f, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0xa1, SONYPI_EVENT_MEDIA_PRESSED },
 	{ 0x21, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0xa4, SONYPI_EVENT_CD_EJECT_PRESSED },
+	{ 0x24, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0xa5, SONYPI_EVENT_VENDOR_PRESSED },
+	{ 0x25, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0xa6, SONYPI_EVENT_HELP_PRESSED },
+	{ 0x26, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0, 0 },
 };
 
@@ -1131,7 +1141,7 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	return err;
 }
 
-static void sony_nc_rfkill_update()
+static void sony_nc_rfkill_update(void)
 {
 	enum sony_nc_rfkill i;
 	int result;

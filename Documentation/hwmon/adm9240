@@ -155,7 +155,7 @@ connected to a normally open switch.
 The ADM9240 provides an internal open drain on this line, and may output
 a 20 ms active low pulse to reset an external Chassis Intrusion latch.
 
-Clear the CI latch by writing value 1 to the sysfs chassis_clear file.
+Clear the CI latch by writing value 0 to the sysfs intrusion0_alarm file.
 
 Alarm flags reported as 16-bit word
 

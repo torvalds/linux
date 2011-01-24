@@ -117,4 +117,32 @@ int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
 }
 EXPORT_SYMBOL(rtc_tm_to_time);
 
+/*
+ * Convert rtc_time to ktime
+ */
+ktime_t rtc_tm_to_ktime(struct rtc_time tm)
+{
+	time_t time;
+	rtc_tm_to_time(&tm, &time);
+	return ktime_set(time, 0);
+}
+EXPORT_SYMBOL_GPL(rtc_tm_to_ktime);
+
+/*
+ * Convert ktime to rtc_time
+ */
+struct rtc_time rtc_ktime_to_tm(ktime_t kt)
+{
+	struct timespec ts;
+	struct rtc_time ret;
+
+	ts = ktime_to_timespec(kt);
+	/* Round up any ns */
+	if (ts.tv_nsec)
+		ts.tv_sec++;
+	rtc_time_to_tm(ts.tv_sec, &ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rtc_ktime_to_tm);
+
 MODULE_LICENSE("GPL");

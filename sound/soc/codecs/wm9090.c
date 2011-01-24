@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <sound/wm9090.h>
 
@@ -442,31 +441,32 @@ static const struct snd_soc_dapm_route audio_map_in2_diff[] = {
 static int wm9090_add_controls(struct snd_soc_codec *codec)
 {
 	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int i;
 
-	snd_soc_dapm_new_controls(codec, wm9090_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm9090_dapm_widgets,
 				  ARRAY_SIZE(wm9090_dapm_widgets));
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_add_controls(codec, wm9090_controls,
 			     ARRAY_SIZE(wm9090_controls));
 
 	if (wm9090->pdata.lin1_diff) {
-		snd_soc_dapm_add_routes(codec, audio_map_in1_diff,
+		snd_soc_dapm_add_routes(dapm, audio_map_in1_diff,
 					ARRAY_SIZE(audio_map_in1_diff));
 	} else {
-		snd_soc_dapm_add_routes(codec, audio_map_in1_se,
+		snd_soc_dapm_add_routes(dapm, audio_map_in1_se,
 					ARRAY_SIZE(audio_map_in1_se));
 		snd_soc_add_controls(codec, wm9090_in1_se_controls,
 				     ARRAY_SIZE(wm9090_in1_se_controls));
 	}
 
 	if (wm9090->pdata.lin2_diff) {
-		snd_soc_dapm_add_routes(codec, audio_map_in2_diff,
+		snd_soc_dapm_add_routes(dapm, audio_map_in2_diff,
 					ARRAY_SIZE(audio_map_in2_diff));
 	} else {
-		snd_soc_dapm_add_routes(codec, audio_map_in2_se,
+		snd_soc_dapm_add_routes(dapm, audio_map_in2_se,
 					ARRAY_SIZE(audio_map_in2_se));
 		snd_soc_add_controls(codec, wm9090_in2_se_controls,
 				     ARRAY_SIZE(wm9090_in2_se_controls));
@@ -513,7 +513,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Restore the register cache */
 			for (i = 1; i < codec->driver->reg_cache_size; i++) {
 				if (reg_cache[i] == wm9090_reg_defaults[i])
@@ -543,7 +543,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }

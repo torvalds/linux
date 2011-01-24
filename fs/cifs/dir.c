@@ -130,17 +130,6 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-static void setup_cifs_dentry(struct cifsTconInfo *tcon,
-			      struct dentry *direntry,
-			      struct inode *newinode)
-{
-	if (tcon->nocase)
-		d_set_d_op(direntry, &cifs_ci_dentry_ops);
-	else
-		d_set_d_op(direntry, &cifs_dentry_ops);
-	d_instantiate(direntry, newinode);
-}
-
 /* Inode operations in similar order to how they appear in Linux file fs.h */
 
 int
@@ -293,10 +282,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			args.uid = NO_CHANGE_64;
 			args.gid = NO_CHANGE_64;
 		}
-		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		CIFSSMBUnixSetFileInfo(xid, tcon, &args, fileHandle,
+					current->tgid);
 	} else {
 		/* BB implement mode setting via Windows security
 		   descriptors e.g. */
@@ -329,7 +316,7 @@ cifs_create_get_file_info:
 
 cifs_create_set_dentry:
 	if (rc == 0)
-		setup_cifs_dentry(tcon, direntry, newinode);
+		d_instantiate(direntry, newinode);
 	else
 		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
 
@@ -420,10 +407,6 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 
 		rc = cifs_get_inode_info_unix(&newinode, full_path,
 						inode->i_sb, xid);
-		if (pTcon->nocase)
-			d_set_d_op(direntry, &cifs_ci_dentry_ops);
-		else
-			d_set_d_op(direntry, &cifs_dentry_ops);
 
 		if (rc == 0)
 			d_instantiate(direntry, newinode);
@@ -603,10 +586,6 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 				parent_dir_inode->i_sb, xid, NULL);
 
 	if ((rc == 0) && (newInode != NULL)) {
-		if (pTcon->nocase)
-			d_set_d_op(direntry, &cifs_ci_dentry_ops);
-		else
-			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_add(direntry, newInode);
 		if (posix_open) {
 			filp = lookup_instantiate_filp(nd, direntry,
@@ -633,10 +612,6 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	} else if (rc == -ENOENT) {
 		rc = 0;
 		direntry->d_time = jiffies;
-		if (pTcon->nocase)
-			d_set_d_op(direntry, &cifs_ci_dentry_ops);
-		else
-			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_add(direntry, NULL);
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
@@ -700,6 +675,7 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 
 const struct dentry_operations cifs_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
+	.d_automount = cifs_dfs_d_automount,
 /* d_delete:       cifs_d_delete,      */ /* not needed except for debugging */
 };
 
@@ -736,4 +712,5 @@ const struct dentry_operations cifs_ci_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 	.d_hash = cifs_ci_hash,
 	.d_compare = cifs_ci_compare,
+	.d_automount = cifs_dfs_d_automount,
 };

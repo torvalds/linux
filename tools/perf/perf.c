@@ -286,8 +286,6 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	status = p->fn(argc, argv, prefix);
 	exit_browser(status);
 
-	perf_evsel_list__delete();
-
 	if (status)
 		return status & 0xff;
 

@@ -193,7 +193,7 @@ static void calibrate_run_measurement_overhead(void)
 	}
 	run_measurement_overhead = min_delta;
 
-	printf("run measurement overhead: %Ld nsecs\n", min_delta);
+	printf("run measurement overhead: %" PRIu64 " nsecs\n", min_delta);
 }
 
 static void calibrate_sleep_measurement_overhead(void)
@@ -211,7 +211,7 @@ static void calibrate_sleep_measurement_overhead(void)
 	min_delta -= 10000;
 	sleep_measurement_overhead = min_delta;
 
-	printf("sleep measurement overhead: %Ld nsecs\n", min_delta);
+	printf("sleep measurement overhead: %" PRIu64 " nsecs\n", min_delta);
 }
 
 static struct sched_atom *
@@ -489,7 +489,8 @@ static void create_tasks(void)
 
 	err = pthread_attr_init(&attr);
 	BUG_ON(err);
-	err = pthread_attr_setstacksize(&attr, (size_t)(16*1024));
+	err = pthread_attr_setstacksize(&attr,
+			(size_t) max(16 * 1024, PTHREAD_STACK_MIN));
 	BUG_ON(err);
 	err = pthread_mutex_lock(&start_work_mutex);
 	BUG_ON(err);
@@ -616,13 +617,13 @@ static void test_calibrations(void)
 	burn_nsecs(1e6);
 	T1 = get_nsecs();
 
-	printf("the run test took %Ld nsecs\n", T1-T0);
+	printf("the run test took %" PRIu64 " nsecs\n", T1 - T0);
 
 	T0 = get_nsecs();
 	sleep_nsecs(1e6);
 	T1 = get_nsecs();
 
-	printf("the sleep test took %Ld nsecs\n", T1-T0);
+	printf("the sleep test took %" PRIu64 " nsecs\n", T1 - T0);
 }
 
 #define FILL_FIELD(ptr, field, event, data)	\
@@ -815,10 +816,10 @@ replay_switch_event(struct trace_switch_event *switch_event,
 		delta = 0;
 
 	if (delta < 0)
-		die("hm, delta: %Ld < 0 ?\n", delta);
+		die("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 
 	if (verbose) {
-		printf(" ... switch from %s/%d to %s/%d [ran %Ld nsecs]\n",
+		printf(" ... switch from %s/%d to %s/%d [ran %" PRIu64 " nsecs]\n",
 			switch_event->prev_comm, switch_event->prev_pid,
 			switch_event->next_comm, switch_event->next_pid,
 			delta);
@@ -1047,7 +1048,7 @@ latency_switch_event(struct trace_switch_event *switch_event,
 		delta = 0;
 
 	if (delta < 0)
-		die("hm, delta: %Ld < 0 ?\n", delta);
+		die("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 
 
 	sched_out = perf_session__findnew(session, switch_event->prev_pid);
@@ -1220,7 +1221,7 @@ static void output_lat_thread(struct work_atoms *work_list)
 
 	avg = work_list->total_lat / work_list->nb_atoms;
 
-	printf("|%11.3f ms |%9llu | avg:%9.3f ms | max:%9.3f ms | max at: %9.6f s\n",
+	printf("|%11.3f ms |%9" PRIu64 " | avg:%9.3f ms | max:%9.3f ms | max at: %9.6f s\n",
 	      (double)work_list->total_runtime / 1e6,
 		 work_list->nb_atoms, (double)avg / 1e6,
 		 (double)work_list->max_lat / 1e6,
@@ -1422,7 +1423,7 @@ map_switch_event(struct trace_switch_event *switch_event,
 		delta = 0;
 
 	if (delta < 0)
-		die("hm, delta: %Ld < 0 ?\n", delta);
+		die("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 
 
 	sched_out = perf_session__findnew(session, switch_event->prev_pid);
@@ -1712,7 +1713,7 @@ static void __cmd_lat(void)
 	}
 
 	printf(" -----------------------------------------------------------------------------------------\n");
-	printf("  TOTAL:                |%11.3f ms |%9Ld |\n",
+	printf("  TOTAL:                |%11.3f ms |%9" PRIu64 " |\n",
 		(double)all_runtime/1e6, all_count);
 
 	printf(" ---------------------------------------------------\n");
@@ -1842,15 +1843,15 @@ static const char *record_args[] = {
 	"-f",
 	"-m", "1024",
 	"-c", "1",
-	"-e", "sched:sched_switch:r",
-	"-e", "sched:sched_stat_wait:r",
-	"-e", "sched:sched_stat_sleep:r",
-	"-e", "sched:sched_stat_iowait:r",
-	"-e", "sched:sched_stat_runtime:r",
-	"-e", "sched:sched_process_exit:r",
-	"-e", "sched:sched_process_fork:r",
-	"-e", "sched:sched_wakeup:r",
-	"-e", "sched:sched_migrate_task:r",
+	"-e", "sched:sched_switch",
+	"-e", "sched:sched_stat_wait",
+	"-e", "sched:sched_stat_sleep",
+	"-e", "sched:sched_stat_iowait",
+	"-e", "sched:sched_stat_runtime",
+	"-e", "sched:sched_process_exit",
+	"-e", "sched:sched_process_fork",
+	"-e", "sched:sched_wakeup",
+	"-e", "sched:sched_migrate_task",
 };
 
 static int __cmd_record(int argc, const char **argv)
@@ -1861,7 +1862,7 @@ static int __cmd_record(int argc, const char **argv)
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
-	if (rec_argv)
+	if (rec_argv == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)

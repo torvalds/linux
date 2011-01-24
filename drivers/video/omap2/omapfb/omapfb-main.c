@@ -2132,8 +2132,9 @@ static int omapfb_parse_def_modes(struct omapfb2_device *fbdev)
 	char *str, *options, *this_opt;
 	int r = 0;
 
-	str = kmalloc(strlen(def_mode) + 1, GFP_KERNEL);
-	strcpy(str, def_mode);
+	str = kstrdup(def_mode, GFP_KERNEL);
+	if (!str)
+		return -ENOMEM;
 	options = str;
 
 	while (!r && (this_opt = strsep(&options, ",")) != NULL) {

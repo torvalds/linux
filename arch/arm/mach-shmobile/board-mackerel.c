@@ -657,17 +657,14 @@ static struct platform_device fsi_ak4643_device = {
  */
 static int slot_cn7_get_cd(struct platform_device *pdev)
 {
-	if (gpio_is_valid(GPIO_PORT41))
-		return !gpio_get_value(GPIO_PORT41);
-	else
-		return -ENXIO;
+	return !gpio_get_value(GPIO_PORT41);
 }
 
 /* SDHI0 */
 static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -700,7 +697,7 @@ static struct sh_mobile_sdhi_info sdhi1_info = {
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
 	.tmio_ocr_mask	= MMC_VDD_165_195,
 	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED |
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_NEEDS_POLL,
 	.get_cd		= slot_cn7_get_cd,
 };
@@ -729,13 +726,23 @@ static struct platform_device sdhi1_device = {
 };
 #endif
 
+/*
+ * The card detect pin of the top SD/MMC slot (CN23) is active low and is
+ * connected to GPIO SCIFB_SCK of SH7372 (GPIO_PORT162).
+ */
+static int slot_cn23_get_cd(struct platform_device *pdev)
+{
+	return !gpio_get_value(GPIO_PORT162);
+}
+
 /* SDHI2 */
 static struct sh_mobile_sdhi_info sdhi2_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
 	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED |
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_NEEDS_POLL,
+	.get_cd		= slot_cn23_get_cd,
 };
 
 static struct resource sdhi2_resources[] = {
@@ -953,6 +960,7 @@ static struct tca6416_keys_platform_data mackerel_tca6416_keys_info = {
 };
 
 /* I2C */
+#define IRQ7 evt2irq(0x02e0)
 #define IRQ9 evt2irq(0x0320)
 
 static struct i2c_board_info i2c0_devices[] = {
@@ -964,6 +972,11 @@ static struct i2c_board_info i2c0_devices[] = {
 		I2C_BOARD_INFO("tca6408-keys", 0x20),
 		.platform_data = &mackerel_tca6416_keys_info,
 		.irq = IRQ9,
+	},
+	/* Touchscreen */
+	{
+		I2C_BOARD_INFO("st1232-ts", 0x55),
+		.irq = IRQ7,
 	},
 };
 
@@ -1092,6 +1105,10 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_IRQ9_42,	NULL);
 	set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
+	/* enable Touchscreen */
+	gpio_request(GPIO_FN_IRQ7_40,	NULL);
+	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
+
 	/* enable Accelerometer */
 	gpio_request(GPIO_FN_IRQ21,	NULL);
 	set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
@@ -1126,6 +1143,10 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_SDHID2_2, NULL);
 	gpio_request(GPIO_FN_SDHID2_1, NULL);
 	gpio_request(GPIO_FN_SDHID2_0, NULL);
+
+	/* card detect pin for microSD slot (CN23) */
+	gpio_request(GPIO_PORT162, NULL);
+	gpio_direction_input(GPIO_PORT162);
 
 	/* MMCIF */
 	gpio_request(GPIO_FN_MMCD0_0, NULL);

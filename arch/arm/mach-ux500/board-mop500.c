@@ -35,6 +35,7 @@
 #include "devices-db8500.h"
 #include "pins-db8500.h"
 #include "board-mop500.h"
+#include "board-mop500-regulators.h"
 
 static pin_cfg_t mop500_pins[] = {
 	/* SSP0 */
@@ -80,6 +81,8 @@ static pin_cfg_t mop500_pins[] = {
 
 static struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
+	.regulator	= ab8500_regulators,
+	.num_regulator	= ARRAY_SIZE(ab8500_regulators),
 };
 
 static struct resource ab8500_resources[] = {

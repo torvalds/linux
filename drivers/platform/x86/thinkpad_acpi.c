@@ -589,6 +589,7 @@ static int acpi_evalf(acpi_handle handle,
 		default:
 			printk(TPACPI_ERR "acpi_evalf() called "
 			       "with invalid format character '%c'\n", c);
+			va_end(ap);
 			return 0;
 		}
 	}
@@ -6109,7 +6110,7 @@ static void tpacpi_brightness_notify_change(void)
 			       BACKLIGHT_UPDATE_HOTKEY);
 }
 
-static struct backlight_ops ibm_backlight_data = {
+static const struct backlight_ops ibm_backlight_data = {
 	.get_brightness = brightness_get,
 	.update_status  = brightness_update_status,
 };
@@ -6345,7 +6346,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"as change notification\n");
 	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
 				| TP_ACPI_HKEY_BRGHTUP_MASK
-				| TP_ACPI_HKEY_BRGHTDWN_MASK);;
+				| TP_ACPI_HKEY_BRGHTDWN_MASK);
 	return 0;
 }
 
@@ -7193,7 +7194,7 @@ static struct ibm_struct volume_driver_data = {
  * 		TPACPI_FAN_WR_ACPI_FANS (X31/X40/X41)
  *
  *	FIRMWARE BUG: on some models, EC 0x2f might not be initialized at
- *	boot. Apparently the EC does not intialize it, so unless ACPI DSDT
+ *	boot. Apparently the EC does not initialize it, so unless ACPI DSDT
  *	does so, its initial value is meaningless (0x07).
  *
  *	For firmware bugs, refer to:

@@ -31,6 +31,17 @@ config S3C2416_PM
 	help
 	  Internal config node to apply S3C2416 power management
 
+config S3C2416_SETUP_SDHCI
+	bool
+	select S3C2416_SETUP_SDHCI_GPIO
+	help
+	  Internal helper functions for S3C2416 based SDHCI systems
+
+config S3C2416_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
+
 menu "S3C2416 Machines"
 
 config MACH_SMDK2416
@@ -42,6 +53,7 @@ config MACH_SMDK2416
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
+	select S3C2416_SETUP_SDHCI
 	select S3C2416_PM if PM
 	help
 	  Say Y here if you are using an SMDK2416

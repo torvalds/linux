@@ -61,7 +61,7 @@ xlog_cil_init(
 	INIT_LIST_HEAD(&cil->xc_committing);
 	spin_lock_init(&cil->xc_cil_lock);
 	init_rwsem(&cil->xc_ctx_lock);
-	sv_init(&cil->xc_commit_wait, SV_DEFAULT, "cilwait");
+	init_waitqueue_head(&cil->xc_commit_wait);
 
 	INIT_LIST_HEAD(&ctx->committing);
 	INIT_LIST_HEAD(&ctx->busy_extents);
@@ -361,15 +361,10 @@ xlog_cil_committed(
 	int	abort)
 {
 	struct xfs_cil_ctx	*ctx = args;
-	struct xfs_log_vec	*lv;
-	int			abortflag = abort ? XFS_LI_ABORTED : 0;
 	struct xfs_busy_extent	*busyp, *n;
 
-	/* unpin all the log items */
-	for (lv = ctx->lv_chain; lv; lv = lv->lv_next ) {
-		xfs_trans_item_committed(lv->lv_item, ctx->start_lsn,
-							abortflag);
-	}
+	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
+					ctx->start_lsn, abort);
 
 	list_for_each_entry_safe(busyp, n, &ctx->busy_extents, list)
 		xfs_alloc_busy_clear(ctx->cil->xc_log->l_mp, busyp);
@@ -568,7 +563,7 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
-			sv_wait(&cil->xc_commit_wait, 0, &cil->xc_cil_lock, 0);
+			xlog_wait(&cil->xc_commit_wait, &cil->xc_cil_lock);
 			goto restart;
 		}
 	}
@@ -592,7 +587,7 @@ restart:
 	 */
 	spin_lock(&cil->xc_cil_lock);
 	ctx->commit_lsn = commit_lsn;
-	sv_broadcast(&cil->xc_commit_wait);
+	wake_up_all(&cil->xc_commit_wait);
 	spin_unlock(&cil->xc_cil_lock);
 
 	/* release the hounds! */
@@ -757,7 +752,7 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
-			sv_wait(&cil->xc_commit_wait, 0, &cil->xc_cil_lock, 0);
+			xlog_wait(&cil->xc_commit_wait, &cil->xc_cil_lock);
 			goto restart;
 		}
 		if (ctx->sequence != sequence)

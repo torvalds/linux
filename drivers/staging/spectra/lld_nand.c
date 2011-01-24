@@ -2395,112 +2395,9 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	unsigned long csr_base;
 	unsigned long csr_len;
 	struct mrst_nand_info *pndev = &info;
-
-	nand_dbg_print(NAND_DBG_WARN, "%s, Line %d, Function: %s\n",
-		       __FILE__, __LINE__, __func__);
-
-	ret = pci_enable_device(dev);
-	if (ret) {
-		printk(KERN_ERR "Spectra: pci_enable_device failed.\n");
-		return ret;
-	}
-
-	pci_set_master(dev);
-	pndev->dev = dev;
-
-	csr_base = pci_resource_start(dev, 0);
-	if (!csr_base) {
-		printk(KERN_ERR "Spectra: pci_resource_start failed!\n");
-		ret = -ENODEV;
-		goto failed_req_csr;
-	}
-
-	csr_len = pci_resource_len(dev, 0);
-	if (!csr_len) {
-		printk(KERN_ERR "Spectra: pci_resource_len failed!\n");
-		ret = -ENODEV;
-		goto failed_req_csr;
-	}
-
-	ret = pci_request_regions(dev, SPECTRA_NAND_NAME);
-	if (ret) {
-		printk(KERN_ERR "Spectra: Unable to request "
-		       "memory region\n");
-		goto failed_req_csr;
-	}
-
-	pndev->ioaddr = ioremap_nocache(csr_base, csr_len);
-	if (!pndev->ioaddr) {
-		printk(KERN_ERR "Spectra: Unable to remap memory region\n");
-		ret = -ENOMEM;
-		goto failed_remap_csr;
-	}
-	nand_dbg_print(NAND_DBG_DEBUG, "Spectra: CSR 0x%08lx -> 0x%p (0x%lx)\n",
-		       csr_base, pndev->ioaddr, csr_len);
-
-	init_completion(&pndev->complete);
-	nand_dbg_print(NAND_DBG_DEBUG, "Spectra: IRQ %d\n", dev->irq);
-
-#if CMD_DMA
-	if (request_irq(dev->irq, cdma_isr, IRQF_SHARED,
-			SPECTRA_NAND_NAME, &info)) {
-		printk(KERN_ERR "Spectra: Unable to allocate IRQ\n");
-		ret = -ENODEV;
-		iounmap(pndev->ioaddr);
-		goto failed_remap_csr;
-	}
-#else
-	if (request_irq(dev->irq, ddma_isr, IRQF_SHARED,
-			SPECTRA_NAND_NAME, &info)) {
-		printk(KERN_ERR "Spectra: Unable to allocate IRQ\n");
-		ret = -ENODEV;
-		iounmap(pndev->ioaddr);
-		goto failed_remap_csr;
-	}
-#endif
-
-	pci_set_drvdata(dev, pndev);
-
-	return 0;
-
-failed_remap_csr:
-	pci_release_regions(dev);
-failed_req_csr:
-	pci_disable_device(dev);
-
-	return ret;
-}
-
-static void nand_pci_remove(struct pci_dev *dev)
-{
-	struct mrst_nand_info *pndev = pci_get_drvdata(dev);
-
-	nand_dbg_print(NAND_DBG_WARN, "%s, Line %d, Function: %s\n",
-		       __FILE__, __LINE__, __func__);
-
-#if CMD_DMA
-	free_irq(dev->irq, pndev);
-#endif
-	iounmap(pndev->ioaddr);
-	pci_release_regions(dev);
-	pci_disable_device(dev);
-}
-
-MODULE_DEVICE_TABLE(pci, nand_pci_ids);
-
-static struct pci_driver nand_pci_driver = {
-	.name = SPECTRA_NAND_NAME,
-	.id_table = nand_pci_ids,
-	.probe = nand_pci_probe,
-	.remove = nand_pci_remove,
-};
-
-int NAND_Flash_Init(void)
-{
-	int retval;
 	u32 int_mask;
 
-	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
+	nand_dbg_print(NAND_DBG_WARN, "%s, Line %d, Function: %s\n",
 		       __FILE__, __LINE__, __func__);
 
 	FlashReg = ioremap_nocache(GLOB_HWCTL_REG_BASE,
@@ -2582,6 +2479,122 @@ int NAND_Flash_Init(void)
 	iowrite32(0, FlashReg + TWO_ROW_ADDR_CYCLES);
 	iowrite32(1, FlashReg + ECC_ENABLE);
 	enable_ecc = 1;
+	ret = pci_enable_device(dev);
+	if (ret) {
+		printk(KERN_ERR "Spectra: pci_enable_device failed.\n");
+		goto failed_req_csr;
+	}
+
+	pci_set_master(dev);
+	pndev->dev = dev;
+
+	csr_base = pci_resource_start(dev, 0);
+	if (!csr_base) {
+		printk(KERN_ERR "Spectra: pci_resource_start failed!\n");
+		ret = -ENODEV;
+		goto failed_req_csr;
+	}
+
+	csr_len = pci_resource_len(dev, 0);
+	if (!csr_len) {
+		printk(KERN_ERR "Spectra: pci_resource_len failed!\n");
+		ret = -ENODEV;
+		goto failed_req_csr;
+	}
+
+	ret = pci_request_regions(dev, SPECTRA_NAND_NAME);
+	if (ret) {
+		printk(KERN_ERR "Spectra: Unable to request "
+		       "memory region\n");
+		goto failed_req_csr;
+	}
+
+	pndev->ioaddr = ioremap_nocache(csr_base, csr_len);
+	if (!pndev->ioaddr) {
+		printk(KERN_ERR "Spectra: Unable to remap memory region\n");
+		ret = -ENOMEM;
+		goto failed_remap_csr;
+	}
+	nand_dbg_print(NAND_DBG_DEBUG, "Spectra: CSR 0x%08lx -> 0x%p (0x%lx)\n",
+		       csr_base, pndev->ioaddr, csr_len);
+
+	init_completion(&pndev->complete);
+	nand_dbg_print(NAND_DBG_DEBUG, "Spectra: IRQ %d\n", dev->irq);
+
+#if CMD_DMA
+	if (request_irq(dev->irq, cdma_isr, IRQF_SHARED,
+			SPECTRA_NAND_NAME, &info)) {
+		printk(KERN_ERR "Spectra: Unable to allocate IRQ\n");
+		ret = -ENODEV;
+		iounmap(pndev->ioaddr);
+		goto failed_remap_csr;
+	}
+#else
+	if (request_irq(dev->irq, ddma_isr, IRQF_SHARED,
+			SPECTRA_NAND_NAME, &info)) {
+		printk(KERN_ERR "Spectra: Unable to allocate IRQ\n");
+		ret = -ENODEV;
+		iounmap(pndev->ioaddr);
+		goto failed_remap_csr;
+	}
+#endif
+
+	pci_set_drvdata(dev, pndev);
+
+	ret = GLOB_LLD_Read_Device_ID();
+	if (ret) {
+		iounmap(pndev->ioaddr);
+		goto failed_remap_csr;
+	}
+
+	ret = register_spectra_ftl();
+	if (ret) {
+		iounmap(pndev->ioaddr);
+		goto failed_remap_csr;
+	}
+
+	return 0;
+
+failed_remap_csr:
+	pci_release_regions(dev);
+failed_req_csr:
+	pci_disable_device(dev);
+	iounmap(FlashMem);
+	iounmap(FlashReg);
+
+	return ret;
+}
+
+static void nand_pci_remove(struct pci_dev *dev)
+{
+	struct mrst_nand_info *pndev = pci_get_drvdata(dev);
+
+	nand_dbg_print(NAND_DBG_WARN, "%s, Line %d, Function: %s\n",
+		       __FILE__, __LINE__, __func__);
+
+#if CMD_DMA
+	free_irq(dev->irq, pndev);
+#endif
+	iounmap(pndev->ioaddr);
+	pci_release_regions(dev);
+	pci_disable_device(dev);
+}
+
+MODULE_DEVICE_TABLE(pci, nand_pci_ids);
+
+static struct pci_driver nand_pci_driver = {
+	.name = SPECTRA_NAND_NAME,
+	.id_table = nand_pci_ids,
+	.probe = nand_pci_probe,
+	.remove = nand_pci_remove,
+};
+
+int NAND_Flash_Init(void)
+{
+	int retval;
+
+	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
+		       __FILE__, __LINE__, __func__);
 
 	retval = pci_register_driver(&nand_pci_driver);
 	if (retval)

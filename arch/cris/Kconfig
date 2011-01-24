@@ -54,6 +54,8 @@ config CRIS
 	bool
 	default y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_HARDIRQS_NO_DEPRECATED
 
 config HZ
 	int
@@ -66,10 +68,6 @@ source "kernel/Kconfig.freezer"
 menu "General setup"
 
 source "fs/Kconfig.binfmt"
-
-config GENERIC_HARDIRQS
-	bool
-	default y
 
 config ETRAX_CMDLINE
 	string "Kernel command line"

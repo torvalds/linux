@@ -1350,7 +1350,7 @@ static inline unsigned int tcp_cwnd_test(struct tcp_sock *tp,
 	return 0;
 }
 
-/* Intialize TSO state of a skb.
+/* Initialize TSO state of a skb.
  * This must be invoked the first time we consider transmitting
  * SKB onto the wire.
  */

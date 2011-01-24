@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -146,6 +146,9 @@ u8 acpi_gbl_system_awake_and_running;
 
 extern u32 acpi_gbl_nesting_level;
 
+ACPI_EXTERN u32 acpi_gpe_count;
+ACPI_EXTERN u32 acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS];
+
 /* Support for dynamic control method tracing mechanism */
 
 ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
@@ -225,8 +228,10 @@ ACPI_EXTERN u8 acpi_gbl_global_lock_present;
  */
 ACPI_EXTERN spinlock_t _acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
 ACPI_EXTERN spinlock_t _acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
+ACPI_EXTERN spinlock_t _acpi_ev_global_lock_pending_lock; /* For global lock */
 #define acpi_gbl_gpe_lock	&_acpi_gbl_gpe_lock
 #define acpi_gbl_hardware_lock	&_acpi_gbl_hardware_lock
+#define acpi_ev_global_lock_pending_lock &_acpi_ev_global_lock_pending_lock
 
 /*****************************************************************************
  *
@@ -370,7 +375,9 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
 *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
-ACPI_EXTERN u8 acpi_all_gpes_initialized;
+ACPI_EXTERN u8 acpi_gbl_all_gpes_initialized;
+ACPI_EXTERN ACPI_GBL_EVENT_HANDLER acpi_gbl_global_event_handler;
+ACPI_EXTERN void *acpi_gbl_global_event_handler_context;
 
 /*****************************************************************************
  *

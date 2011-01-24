@@ -291,54 +291,33 @@ void crisv32_unmask_irq(int irq)
 }
 
 
-static unsigned int startup_crisv32_irq(unsigned int irq)
+static void enable_crisv32_irq(struct irq_data *data)
 {
-	crisv32_unmask_irq(irq);
-	return 0;
+	crisv32_unmask_irq(data->irq);
 }
 
-static void shutdown_crisv32_irq(unsigned int irq)
+static void disable_crisv32_irq(struct irq_data *data)
 {
-	crisv32_mask_irq(irq);
+	crisv32_mask_irq(data->irq);
 }
 
-static void enable_crisv32_irq(unsigned int irq)
-{
-	crisv32_unmask_irq(irq);
-}
-
-static void disable_crisv32_irq(unsigned int irq)
-{
-	crisv32_mask_irq(irq);
-}
-
-static void ack_crisv32_irq(unsigned int irq)
-{
-}
-
-static void end_crisv32_irq(unsigned int irq)
-{
-}
-
-int set_affinity_crisv32_irq(unsigned int irq, const struct cpumask *dest)
+static int set_affinity_crisv32_irq(struct irq_data *data,
+				    const struct cpumask *dest, bool force)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&irq_lock, flags);
-	irq_allocations[irq - FIRST_IRQ].mask = *dest;
-	spin_unlock_irqrestore(&irq_lock, flags);
 
+	spin_lock_irqsave(&irq_lock, flags);
+	irq_allocations[data->irq - FIRST_IRQ].mask = *dest;
+	spin_unlock_irqrestore(&irq_lock, flags);
 	return 0;
 }
 
 static struct irq_chip crisv32_irq_type = {
-	.name =        "CRISv32",
-	.startup =     startup_crisv32_irq,
-	.shutdown =    shutdown_crisv32_irq,
-	.enable =      enable_crisv32_irq,
-	.disable =     disable_crisv32_irq,
-	.ack =         ack_crisv32_irq,
-	.end =         end_crisv32_irq,
-	.set_affinity = set_affinity_crisv32_irq
+	.name			= "CRISv32",
+	.irq_shutdown		= disable_crisv32_irq,
+	.irq_enable		= enable_crisv32_irq,
+	.irq_disable		= disable_crisv32_irq,
+	.irq_set_affinity	= set_affinity_crisv32_irq,
 };
 
 void
@@ -472,7 +451,8 @@ init_IRQ(void)
 
 	/* Point all IRQ's to bad handlers. */
 	for (i = FIRST_IRQ, j = 0; j < NR_IRQS; i++, j++) {
-		irq_desc[j].chip = &crisv32_irq_type;
+		set_irq_chip_and_handler(j, &crisv32_irq_type,
+					 handle_simple_irq);
 		set_exception_vector(i, interrupt[j]);
 	}
 

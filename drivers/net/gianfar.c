@@ -95,6 +95,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 
 #include "gianfar.h"
 #include "fsl_pq_mdio.h"

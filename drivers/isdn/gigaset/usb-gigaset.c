@@ -695,7 +695,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	dev_info(&udev->dev, "%s: Device matched ... !\n", __func__);
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 	cs = gigaset_initcs(driver, 1, 1, 0, cidmode, GIGASET_MODULENAME);
 	if (!cs)
 		return -ENODEV;
@@ -894,7 +894,7 @@ static int __init usb_gigaset_init(void)
 {
 	int result;
 
-	/* allocate memory for our driver state and intialize it */
+	/* allocate memory for our driver state and initialize it */
 	driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
 				    GIGASET_MODULENAME, GIGASET_DEVNAME,
 				    &ops, THIS_MODULE);

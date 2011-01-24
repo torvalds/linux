@@ -18,7 +18,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <asm/dma.h>
 #include <asm/mach-types.h>
@@ -27,7 +26,6 @@
 #include <mach/edma.h>
 #include <mach/mux.h>
 
-#include "../codecs/tlv320aic3x.h"
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
 #include "davinci-mcasp.h"
@@ -132,26 +130,27 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	/* Add davinci-evm specific widgets */
-	snd_soc_dapm_new_controls(codec, aic3x_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, aic3x_dapm_widgets,
 				  ARRAY_SIZE(aic3x_dapm_widgets));
 
 	/* Set up davinci-evm specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* not connected */
-	snd_soc_dapm_disable_pin(codec, "MONO_LOUT");
-	snd_soc_dapm_disable_pin(codec, "HPLCOM");
-	snd_soc_dapm_disable_pin(codec, "HPRCOM");
+	snd_soc_dapm_disable_pin(dapm, "MONO_LOUT");
+	snd_soc_dapm_disable_pin(dapm, "HPLCOM");
+	snd_soc_dapm_disable_pin(dapm, "HPRCOM");
 
 	/* always connected */
-	snd_soc_dapm_enable_pin(codec, "Headphone Jack");
-	snd_soc_dapm_enable_pin(codec, "Line Out");
-	snd_soc_dapm_enable_pin(codec, "Mic Jack");
-	snd_soc_dapm_enable_pin(codec, "Line In");
+	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+	snd_soc_dapm_enable_pin(dapm, "Line Out");
+	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
+	snd_soc_dapm_enable_pin(dapm, "Line In");
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

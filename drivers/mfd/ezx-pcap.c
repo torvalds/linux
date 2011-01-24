@@ -144,26 +144,26 @@ int pcap_to_irq(struct pcap_chip *pcap, int irq)
 }
 EXPORT_SYMBOL_GPL(pcap_to_irq);
 
-static void pcap_mask_irq(unsigned int irq)
+static void pcap_mask_irq(struct irq_data *d)
 {
-	struct pcap_chip *pcap = get_irq_chip_data(irq);
+	struct pcap_chip *pcap = irq_data_get_irq_chip_data(d);
 
-	pcap->msr |= 1 << irq_to_pcap(pcap, irq);
+	pcap->msr |= 1 << irq_to_pcap(pcap, d->irq);
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
-static void pcap_unmask_irq(unsigned int irq)
+static void pcap_unmask_irq(struct irq_data *d)
 {
-	struct pcap_chip *pcap = get_irq_chip_data(irq);
+	struct pcap_chip *pcap = irq_data_get_irq_chip_data(d);
 
-	pcap->msr &= ~(1 << irq_to_pcap(pcap, irq));
+	pcap->msr &= ~(1 << irq_to_pcap(pcap, d->irq));
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
 static struct irq_chip pcap_irq_chip = {
-	.name	= "pcap",
-	.mask	= pcap_mask_irq,
-	.unmask	= pcap_unmask_irq,
+	.name		= "pcap",
+	.irq_mask	= pcap_mask_irq,
+	.irq_unmask	= pcap_unmask_irq,
 };
 
 static void pcap_msr_work(struct work_struct *work)
@@ -199,8 +199,7 @@ static void pcap_isr_work(struct work_struct *work)
 			if (service & 1) {
 				struct irq_desc *desc = irq_to_desc(irq);
 
-				if (WARN(!desc, KERN_WARNING
-						"Invalid PCAP IRQ %d\n", irq))
+				if (WARN(!desc, "Invalid PCAP IRQ %d\n", irq))
 					break;
 
 				if (desc->status & IRQ_DISABLED)
@@ -218,7 +217,7 @@ static void pcap_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct pcap_chip *pcap = get_irq_data(irq);
 
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	queue_work(pcap->workqueue, &pcap->isr_work);
 	return;
 }
@@ -282,7 +281,7 @@ static irqreturn_t pcap_adc_irq(int irq, void *_pcap)
 	mutex_lock(&pcap->adc_mutex);
 	req = pcap->adc_queue[pcap->adc_head];
 
-	if (WARN(!req, KERN_WARNING "adc irq without pending request\n")) {
+	if (WARN(!req, "adc irq without pending request\n")) {
 		mutex_unlock(&pcap->adc_mutex);
 		return IRQ_HANDLED;
 	}

@@ -1415,12 +1415,12 @@ struct bnx2x_func_init_params {
 		else
 
 /* skip rx queue
- * if FCOE l2 support is diabled and this is the fcoe L2 queue
+ * if FCOE l2 support is disabled and this is the fcoe L2 queue
  */
 #define skip_rx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
 
 /* skip tx queue
- * if FCOE l2 support is diabled and this is the fcoe L2 queue
+ * if FCOE l2 support is disabled and this is the fcoe L2 queue
  */
 #define skip_tx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
 

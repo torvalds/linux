@@ -311,6 +311,11 @@ struct nfsd4_secinfo {
 	struct svc_export *si_exp;			/* response */
 };
 
+struct nfsd4_secinfo_no_name {
+	u32 sin_style;					/* request */
+	struct svc_export *sin_exp;			/* response */
+};
+
 struct nfsd4_setattr {
 	stateid_t	sa_stateid;         /* request */
 	u32		sa_bmval[3];        /* request */
@@ -373,8 +378,8 @@ struct nfsd4_sequence {
 	u32			cachethis;		/* request */
 #if 0
 	u32			target_maxslots;	/* response */
-	u32			status_flags;		/* response */
 #endif /* not yet */
+	u32			status_flags;		/* response */
 };
 
 struct nfsd4_destroy_session {
@@ -422,6 +427,7 @@ struct nfsd4_op {
 
 		/* NFSv4.1 */
 		struct nfsd4_exchange_id	exchange_id;
+		struct nfsd4_bind_conn_to_session bind_conn_to_session;
 		struct nfsd4_create_session	create_session;
 		struct nfsd4_destroy_session	destroy_session;
 		struct nfsd4_sequence		sequence;
@@ -518,6 +524,7 @@ extern __be32 nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 		struct nfsd4_sequence *seq);
 extern __be32 nfsd4_exchange_id(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_exchange_id *);
+extern __be32 nfsd4_bind_conn_to_session(struct svc_rqst *, struct nfsd4_compound_state *, struct nfsd4_bind_conn_to_session *);
 extern __be32 nfsd4_create_session(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_create_session *);

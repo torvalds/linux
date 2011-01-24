@@ -279,7 +279,7 @@ const char *__event_name(int type, u64 config)
 	static char buf[32];
 
 	if (type == PERF_TYPE_RAW) {
-		sprintf(buf, "raw 0x%llx", config);
+		sprintf(buf, "raw 0x%" PRIx64, config);
 		return buf;
 	}
 
@@ -490,7 +490,6 @@ parse_multiple_tracepoint_event(char *sys_name, const char *evt_exp,
 	return EVT_HANDLED_ALL;
 }
 
-
 static enum event_result parse_tracepoint_event(const char **strp,
 				    struct perf_event_attr *attr)
 {
@@ -530,12 +529,13 @@ static enum event_result parse_tracepoint_event(const char **strp,
 	if (evt_length >= MAX_EVENT_LENGTH)
 		return EVT_FAILED;
 	if (strpbrk(evt_name, "*?")) {
-		*strp += strlen(sys_name) + evt_length;
+		*strp += strlen(sys_name) + evt_length + 1; /* 1 == the ':' */
 		return parse_multiple_tracepoint_event(sys_name, evt_name,
 						       flags);
-	} else
+	} else {
 		return parse_single_tracepoint_event(sys_name, evt_name,
 						     evt_length, attr, strp);
+	}
 }
 
 static enum event_result
@@ -778,40 +778,10 @@ modifier:
 	return ret;
 }
 
-static int store_event_type(const char *orgname)
-{
-	char filename[PATH_MAX], *c;
-	FILE *file;
-	int id, n;
-
-	sprintf(filename, "%s/", debugfs_path);
-	strncat(filename, orgname, strlen(orgname));
-	strcat(filename, "/id");
-
-	c = strchr(filename, ':');
-	if (c)
-		*c = '/';
-
-	file = fopen(filename, "r");
-	if (!file)
-		return 0;
-	n = fscanf(file, "%i", &id);
-	fclose(file);
-	if (n < 1) {
-		pr_err("cannot store event ID\n");
-		return -EINVAL;
-	}
-	return perf_header__push_event(id, orgname);
-}
-
 int parse_events(const struct option *opt __used, const char *str, int unset __used)
 {
 	struct perf_event_attr attr;
 	enum event_result ret;
-
-	if (strchr(str, ':'))
-		if (store_event_type(str) < 0)
-			return -1;
 
 	for (;;) {
 		memset(&attr, 0, sizeof(attr));
@@ -824,7 +794,7 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 
 		if (ret != EVT_HANDLED_ALL) {
 			struct perf_evsel *evsel;
-			evsel = perf_evsel__new(attr.type, attr.config,
+			evsel = perf_evsel__new(&attr,
 						nr_counters);
 			if (evsel == NULL)
 				return -1;
@@ -1014,8 +984,15 @@ void print_events(void)
 
 int perf_evsel_list__create_default(void)
 {
-	struct perf_evsel *evsel = perf_evsel__new(PERF_TYPE_HARDWARE,
-						   PERF_COUNT_HW_CPU_CYCLES, 0);
+	struct perf_evsel *evsel;
+	struct perf_event_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.type = PERF_TYPE_HARDWARE;
+	attr.config = PERF_COUNT_HW_CPU_CYCLES;
+
+	evsel = perf_evsel__new(&attr, 0);
+
 	if (evsel == NULL)
 		return -ENOMEM;
 

@@ -234,7 +234,6 @@ struct tvcard {
 
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;
-	unsigned int no_tda9875:1;
 	unsigned int no_tda7432:1;
 	unsigned int needs_tvaudio:1;
 	unsigned int msp34xx_alt:1;

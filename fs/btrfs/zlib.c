@@ -32,15 +32,6 @@
 #include <linux/bio.h>
 #include "compression.h"
 
-/* Plan: call deflate() with avail_in == *sourcelen,
-	avail_out = *dstlen - 12 and flush == Z_FINISH.
-	If it doesn't manage to finish,	call it again with
-	avail_in == 0 and avail_out set to the remaining 12
-	bytes for it to clean up.
-   Q: Is 12 bytes sufficient?
-*/
-#define STREAM_END_SPACE 12
-
 struct workspace {
 	z_stream inf_strm;
 	z_stream def_strm;
@@ -48,152 +39,51 @@ struct workspace {
 	struct list_head list;
 };
 
-static LIST_HEAD(idle_workspace);
-static DEFINE_SPINLOCK(workspace_lock);
-static unsigned long num_workspace;
-static atomic_t alloc_workspace = ATOMIC_INIT(0);
-static DECLARE_WAIT_QUEUE_HEAD(workspace_wait);
-
-/*
- * this finds an available zlib workspace or allocates a new one
- * NULL or an ERR_PTR is returned if things go bad.
- */
-static struct workspace *find_zlib_workspace(void)
+static void zlib_free_workspace(struct list_head *ws)
 {
-	struct workspace *workspace;
-	int ret;
-	int cpus = num_online_cpus();
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
-again:
-	spin_lock(&workspace_lock);
-	if (!list_empty(&idle_workspace)) {
-		workspace = list_entry(idle_workspace.next, struct workspace,
-				       list);
-		list_del(&workspace->list);
-		num_workspace--;
-		spin_unlock(&workspace_lock);
-		return workspace;
-
-	}
-	spin_unlock(&workspace_lock);
-	if (atomic_read(&alloc_workspace) > cpus) {
-		DEFINE_WAIT(wait);
-		prepare_to_wait(&workspace_wait, &wait, TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&alloc_workspace) > cpus)
-			schedule();
-		finish_wait(&workspace_wait, &wait);
-		goto again;
-	}
-	atomic_inc(&alloc_workspace);
-	workspace = kzalloc(sizeof(*workspace), GFP_NOFS);
-	if (!workspace) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	workspace->def_strm.workspace = vmalloc(zlib_deflate_workspacesize());
-	if (!workspace->def_strm.workspace) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-	workspace->inf_strm.workspace = vmalloc(zlib_inflate_workspacesize());
-	if (!workspace->inf_strm.workspace) {
-		ret = -ENOMEM;
-		goto fail_inflate;
-	}
-	workspace->buf = kmalloc(PAGE_CACHE_SIZE, GFP_NOFS);
-	if (!workspace->buf) {
-		ret = -ENOMEM;
-		goto fail_kmalloc;
-	}
-	return workspace;
-
-fail_kmalloc:
-	vfree(workspace->inf_strm.workspace);
-fail_inflate:
-	vfree(workspace->def_strm.workspace);
-fail:
-	kfree(workspace);
-	atomic_dec(&alloc_workspace);
-	wake_up(&workspace_wait);
-	return ERR_PTR(ret);
-}
-
-/*
- * put a workspace struct back on the list or free it if we have enough
- * idle ones sitting around
- */
-static int free_workspace(struct workspace *workspace)
-{
-	spin_lock(&workspace_lock);
-	if (num_workspace < num_online_cpus()) {
-		list_add_tail(&workspace->list, &idle_workspace);
-		num_workspace++;
-		spin_unlock(&workspace_lock);
-		if (waitqueue_active(&workspace_wait))
-			wake_up(&workspace_wait);
-		return 0;
-	}
-	spin_unlock(&workspace_lock);
 	vfree(workspace->def_strm.workspace);
 	vfree(workspace->inf_strm.workspace);
 	kfree(workspace->buf);
 	kfree(workspace);
-
-	atomic_dec(&alloc_workspace);
-	if (waitqueue_active(&workspace_wait))
-		wake_up(&workspace_wait);
-	return 0;
 }
 
-/*
- * cleanup function for module exit
- */
-static void free_workspaces(void)
+static struct list_head *zlib_alloc_workspace(void)
 {
 	struct workspace *workspace;
-	while (!list_empty(&idle_workspace)) {
-		workspace = list_entry(idle_workspace.next, struct workspace,
-				       list);
-		list_del(&workspace->list);
-		vfree(workspace->def_strm.workspace);
-		vfree(workspace->inf_strm.workspace);
-		kfree(workspace->buf);
-		kfree(workspace);
-		atomic_dec(&alloc_workspace);
-	}
+
+	workspace = kzalloc(sizeof(*workspace), GFP_NOFS);
+	if (!workspace)
+		return ERR_PTR(-ENOMEM);
+
+	workspace->def_strm.workspace = vmalloc(zlib_deflate_workspacesize());
+	workspace->inf_strm.workspace = vmalloc(zlib_inflate_workspacesize());
+	workspace->buf = kmalloc(PAGE_CACHE_SIZE, GFP_NOFS);
+	if (!workspace->def_strm.workspace ||
+	    !workspace->inf_strm.workspace || !workspace->buf)
+		goto fail;
+
+	INIT_LIST_HEAD(&workspace->list);
+
+	return &workspace->list;
+fail:
+	zlib_free_workspace(&workspace->list);
+	return ERR_PTR(-ENOMEM);
 }
 
-/*
- * given an address space and start/len, compress the bytes.
- *
- * pages are allocated to hold the compressed result and stored
- * in 'pages'
- *
- * out_pages is used to return the number of pages allocated.  There
- * may be pages allocated even if we return an error
- *
- * total_in is used to return the number of bytes actually read.  It
- * may be smaller then len if we had to exit early because we
- * ran out of room in the pages array or because we cross the
- * max_out threshold.
- *
- * total_out is used to return the total number of compressed bytes
- *
- * max_out tells us the max number of bytes that we're allowed to
- * stuff into pages
- */
-int btrfs_zlib_compress_pages(struct address_space *mapping,
-			      u64 start, unsigned long len,
-			      struct page **pages,
-			      unsigned long nr_dest_pages,
-			      unsigned long *out_pages,
-			      unsigned long *total_in,
-			      unsigned long *total_out,
-			      unsigned long max_out)
+static int zlib_compress_pages(struct list_head *ws,
+			       struct address_space *mapping,
+			       u64 start, unsigned long len,
+			       struct page **pages,
+			       unsigned long nr_dest_pages,
+			       unsigned long *out_pages,
+			       unsigned long *total_in,
+			       unsigned long *total_out,
+			       unsigned long max_out)
 {
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret;
-	struct workspace *workspace;
 	char *data_in;
 	char *cpage_out;
 	int nr_pages = 0;
@@ -204,10 +94,6 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 	*out_pages = 0;
 	*total_out = 0;
 	*total_in = 0;
-
-	workspace = find_zlib_workspace();
-	if (IS_ERR(workspace))
-		return -1;
 
 	if (Z_OK != zlib_deflateInit(&workspace->def_strm, 3)) {
 		printk(KERN_WARNING "deflateInit failed\n");
@@ -222,6 +108,10 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 	data_in = kmap(in_page);
 
 	out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
+	if (out_page == NULL) {
+		ret = -1;
+		goto out;
+	}
 	cpage_out = kmap(out_page);
 	pages[0] = out_page;
 	nr_pages = 1;
@@ -260,6 +150,10 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 				goto out;
 			}
 			out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
+			if (out_page == NULL) {
+				ret = -1;
+				goto out;
+			}
 			cpage_out = kmap(out_page);
 			pages[nr_pages] = out_page;
 			nr_pages++;
@@ -314,55 +208,26 @@ out:
 		kunmap(in_page);
 		page_cache_release(in_page);
 	}
-	free_workspace(workspace);
 	return ret;
 }
 
-/*
- * pages_in is an array of pages with compressed data.
- *
- * disk_start is the starting logical offset of this array in the file
- *
- * bvec is a bio_vec of pages from the file that we want to decompress into
- *
- * vcnt is the count of pages in the biovec
- *
- * srclen is the number of bytes in pages_in
- *
- * The basic idea is that we have a bio that was created by readpages.
- * The pages in the bio are for the uncompressed data, and they may not
- * be contiguous.  They all correspond to the range of bytes covered by
- * the compressed extent.
- */
-int btrfs_zlib_decompress_biovec(struct page **pages_in,
-			      u64 disk_start,
-			      struct bio_vec *bvec,
-			      int vcnt,
-			      size_t srclen)
+static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
+				  u64 disk_start,
+				  struct bio_vec *bvec,
+				  int vcnt,
+				  size_t srclen)
 {
-	int ret = 0;
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	int ret = 0, ret2;
 	int wbits = MAX_WBITS;
-	struct workspace *workspace;
 	char *data_in;
 	size_t total_out = 0;
-	unsigned long page_bytes_left;
 	unsigned long page_in_index = 0;
 	unsigned long page_out_index = 0;
-	struct page *page_out;
 	unsigned long total_pages_in = (srclen + PAGE_CACHE_SIZE - 1) /
 					PAGE_CACHE_SIZE;
 	unsigned long buf_start;
-	unsigned long buf_offset;
-	unsigned long bytes;
-	unsigned long working_bytes;
 	unsigned long pg_offset;
-	unsigned long start_byte;
-	unsigned long current_buf_start;
-	char *kaddr;
-
-	workspace = find_zlib_workspace();
-	if (IS_ERR(workspace))
-		return -ENOMEM;
 
 	data_in = kmap(pages_in[page_in_index]);
 	workspace->inf_strm.next_in = data_in;
@@ -372,8 +237,6 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 	workspace->inf_strm.total_out = 0;
 	workspace->inf_strm.next_out = workspace->buf;
 	workspace->inf_strm.avail_out = PAGE_CACHE_SIZE;
-	page_out = bvec[page_out_index].bv_page;
-	page_bytes_left = PAGE_CACHE_SIZE;
 	pg_offset = 0;
 
 	/* If it's deflate, and it's got no preset dictionary, then
@@ -389,107 +252,29 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 
 	if (Z_OK != zlib_inflateInit2(&workspace->inf_strm, wbits)) {
 		printk(KERN_WARNING "inflateInit failed\n");
-		ret = -1;
-		goto out;
+		return -1;
 	}
 	while (workspace->inf_strm.total_in < srclen) {
 		ret = zlib_inflate(&workspace->inf_strm, Z_NO_FLUSH);
 		if (ret != Z_OK && ret != Z_STREAM_END)
 			break;
-		/*
-		 * buf start is the byte offset we're of the start of
-		 * our workspace buffer
-		 */
-		buf_start = total_out;
 
-		/* total_out is the last byte of the workspace buffer */
+		buf_start = total_out;
 		total_out = workspace->inf_strm.total_out;
 
-		working_bytes = total_out - buf_start;
-
-		/*
-		 * start byte is the first byte of the page we're currently
-		 * copying into relative to the start of the compressed data.
-		 */
-		start_byte = page_offset(page_out) - disk_start;
-
-		if (working_bytes == 0) {
-			/* we didn't make progress in this inflate
-			 * call, we're done
-			 */
-			if (ret != Z_STREAM_END)
-				ret = -1;
+		/* we didn't make progress in this inflate call, we're done */
+		if (buf_start == total_out)
 			break;
+
+		ret2 = btrfs_decompress_buf2page(workspace->buf, buf_start,
+						 total_out, disk_start,
+						 bvec, vcnt,
+						 &page_out_index, &pg_offset);
+		if (ret2 == 0) {
+			ret = 0;
+			goto done;
 		}
 
-		/* we haven't yet hit data corresponding to this page */
-		if (total_out <= start_byte)
-			goto next;
-
-		/*
-		 * the start of the data we care about is offset into
-		 * the middle of our working buffer
-		 */
-		if (total_out > start_byte && buf_start < start_byte) {
-			buf_offset = start_byte - buf_start;
-			working_bytes -= buf_offset;
-		} else {
-			buf_offset = 0;
-		}
-		current_buf_start = buf_start;
-
-		/* copy bytes from the working buffer into the pages */
-		while (working_bytes > 0) {
-			bytes = min(PAGE_CACHE_SIZE - pg_offset,
-				    PAGE_CACHE_SIZE - buf_offset);
-			bytes = min(bytes, working_bytes);
-			kaddr = kmap_atomic(page_out, KM_USER0);
-			memcpy(kaddr + pg_offset, workspace->buf + buf_offset,
-			       bytes);
-			kunmap_atomic(kaddr, KM_USER0);
-			flush_dcache_page(page_out);
-
-			pg_offset += bytes;
-			page_bytes_left -= bytes;
-			buf_offset += bytes;
-			working_bytes -= bytes;
-			current_buf_start += bytes;
-
-			/* check if we need to pick another page */
-			if (page_bytes_left == 0) {
-				page_out_index++;
-				if (page_out_index >= vcnt) {
-					ret = 0;
-					goto done;
-				}
-
-				page_out = bvec[page_out_index].bv_page;
-				pg_offset = 0;
-				page_bytes_left = PAGE_CACHE_SIZE;
-				start_byte = page_offset(page_out) - disk_start;
-
-				/*
-				 * make sure our new page is covered by this
-				 * working buffer
-				 */
-				if (total_out <= start_byte)
-					goto next;
-
-				/* the next page in the biovec might not
-				 * be adjacent to the last page, but it
-				 * might still be found inside this working
-				 * buffer.  bump our offset pointer
-				 */
-				if (total_out > start_byte &&
-				    current_buf_start < start_byte) {
-					buf_offset = start_byte - buf_start;
-					working_bytes = total_out - start_byte;
-					current_buf_start = buf_start +
-						buf_offset;
-				}
-			}
-		}
-next:
 		workspace->inf_strm.next_out = workspace->buf;
 		workspace->inf_strm.avail_out = PAGE_CACHE_SIZE;
 
@@ -516,34 +301,20 @@ done:
 	zlib_inflateEnd(&workspace->inf_strm);
 	if (data_in)
 		kunmap(pages_in[page_in_index]);
-out:
-	free_workspace(workspace);
 	return ret;
 }
 
-/*
- * a less complex decompression routine.  Our compressed data fits in a
- * single page, and we want to read a single page out of it.
- * start_byte tells us the offset into the compressed data we're interested in
- */
-int btrfs_zlib_decompress(unsigned char *data_in,
-			  struct page *dest_page,
-			  unsigned long start_byte,
-			  size_t srclen, size_t destlen)
+static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
+			   struct page *dest_page,
+			   unsigned long start_byte,
+			   size_t srclen, size_t destlen)
 {
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0;
 	int wbits = MAX_WBITS;
-	struct workspace *workspace;
 	unsigned long bytes_left = destlen;
 	unsigned long total_out = 0;
 	char *kaddr;
-
-	if (destlen > PAGE_CACHE_SIZE)
-		return -ENOMEM;
-
-	workspace = find_zlib_workspace();
-	if (IS_ERR(workspace))
-		return -ENOMEM;
 
 	workspace->inf_strm.next_in = data_in;
 	workspace->inf_strm.avail_in = srclen;
@@ -565,8 +336,7 @@ int btrfs_zlib_decompress(unsigned char *data_in,
 
 	if (Z_OK != zlib_inflateInit2(&workspace->inf_strm, wbits)) {
 		printk(KERN_WARNING "inflateInit failed\n");
-		ret = -1;
-		goto out;
+		return -1;
 	}
 
 	while (bytes_left > 0) {
@@ -616,12 +386,13 @@ next:
 		ret = 0;
 
 	zlib_inflateEnd(&workspace->inf_strm);
-out:
-	free_workspace(workspace);
 	return ret;
 }
 
-void btrfs_zlib_exit(void)
-{
-    free_workspaces();
-}
+struct btrfs_compress_op btrfs_zlib_compress = {
+	.alloc_workspace	= zlib_alloc_workspace,
+	.free_workspace		= zlib_free_workspace,
+	.compress_pages		= zlib_compress_pages,
+	.decompress_biovec	= zlib_decompress_biovec,
+	.decompress		= zlib_decompress,
+};

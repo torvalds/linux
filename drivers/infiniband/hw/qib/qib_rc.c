@@ -1407,12 +1407,36 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 			    struct qib_ctxtdata *rcd)
 {
 	struct qib_swqe *wqe;
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	enum ib_wc_status status;
 	unsigned long flags;
 	int diff;
 	u32 pad;
 	u32 aeth;
 	u64 val;
+
+	if (opcode != OP(RDMA_READ_RESPONSE_MIDDLE)) {
+		/*
+		 * If ACK'd PSN on SDMA busy list try to make progress to
+		 * reclaim SDMA credits.
+		 */
+		if ((qib_cmp24(psn, qp->s_sending_psn) >= 0) &&
+		    (qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)) {
+
+			/*
+			 * If send tasklet not running attempt to progress
+			 * SDMA queue.
+			 */
+			if (!(qp->s_flags & QIB_S_BUSY)) {
+				/* Acquire SDMA Lock */
+				spin_lock_irqsave(&ppd->sdma_lock, flags);
+				/* Invoke sdma make progress */
+				qib_sdma_make_progress(ppd);
+				/* Release SDMA Lock */
+				spin_unlock_irqrestore(&ppd->sdma_lock, flags);
+			}
+		}
+	}
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 

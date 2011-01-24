@@ -197,13 +197,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
  */
 void dump_stack(void)
 {
-	unsigned long bp = 0;
 	unsigned long stack;
-
-#ifdef CONFIG_FRAME_POINTER
-	if (!bp)
-		get_bp(bp);
-#endif
 
 	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
 		current->pid, current->comm, print_tainted(),
@@ -240,6 +234,7 @@ unsigned __kprobes long oops_begin(void)
 	bust_spinlocks(1);
 	return flags;
 }
+EXPORT_SYMBOL_GPL(oops_begin);
 
 void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {

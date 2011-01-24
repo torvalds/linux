@@ -6190,7 +6190,7 @@ static void __net_exit default_device_exit(struct net *net)
 static void __net_exit default_device_exit_batch(struct list_head *net_list)
 {
 	/* At exit all network devices most be removed from a network
-	 * namespace.  Do this in the reverse order of registeration.
+	 * namespace.  Do this in the reverse order of registration.
 	 * Do this across as many network namespaces as possible to
 	 * improve batching efficiency.
 	 */

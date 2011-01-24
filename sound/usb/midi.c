@@ -850,8 +850,8 @@ static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep,
 		return;
 	}
 
-	memset(urb->transfer_buffer + count, 0xFD, 9 - count);
-	urb->transfer_buffer_length = count;
+	memset(urb->transfer_buffer + count, 0xFD, ep->max_transfer - count);
+	urb->transfer_buffer_length = ep->max_transfer;
 }
 
 static struct usb_protocol_ops snd_usbmidi_122l_ops = {
@@ -1295,6 +1295,13 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 	case USB_ID(0x1a86, 0x752d): /* QinHeng CH345 "USB2.0-MIDI" */
 		ep->max_transfer = 4;
 		break;
+		/*
+		 * Some devices only work with 9 bytes packet size:
+		 */
+	case USB_ID(0x0644, 0x800E): /* Tascam US-122L */
+	case USB_ID(0x0644, 0x800F): /* Tascam US-144 */
+		ep->max_transfer = 9;
+		break;
 	}
 	for (i = 0; i < OUTPUT_URBS; ++i) {
 		buffer = usb_alloc_coherent(umidi->dev,
@@ -1729,13 +1736,7 @@ static int roland_load_info(struct snd_kcontrol *kcontrol,
 {
 	static const char *const names[] = { "High Load", "Light Load" };
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item > 1)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int roland_load_get(struct snd_kcontrol *kcontrol,

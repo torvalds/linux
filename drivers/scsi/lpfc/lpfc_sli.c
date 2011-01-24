@@ -10172,7 +10172,7 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
  * lpfc_sli4_queue_free - free a queue structure and associated memory
  * @queue: The queue structure to free.
  *
- * This function frees a queue structure and the DMAable memeory used for
+ * This function frees a queue structure and the DMAable memory used for
  * the host resident queue. This function must be called after destroying the
  * queue on the HBA.
  **/

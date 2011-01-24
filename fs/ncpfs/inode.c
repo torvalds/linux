@@ -31,11 +31,9 @@
 #include <linux/seq_file.h>
 #include <linux/namei.h>
 
-#include <linux/ncp_fs.h>
-
 #include <net/sock.h>
 
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 #include "getopt.h"
 
 #define NCP_DEFAULT_FILE_MODE 0600
@@ -544,6 +542,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	sb->s_blocksize_bits = 10;
 	sb->s_magic = NCP_SUPER_MAGIC;
 	sb->s_op = &ncp_sops;
+	sb->s_d_op = &ncp_dentry_operations;
 	sb->s_bdi = &server->bdi;
 
 	server = NCP_SBP(sb);
@@ -723,7 +722,6 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	sb->s_root = d_alloc_root(root_inode);
         if (!sb->s_root)
 		goto out_no_root;
-	d_set_d_op(sb->s_root, &ncp_root_dentry_operations);
 	return 0;
 
 out_no_root:

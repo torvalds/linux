@@ -2,7 +2,7 @@
 # Input core configuration
 #
 menuconfig INPUT_KEYBOARD
-	bool "Keyboards" if EMBEDDED || !X86
+	bool "Keyboards" if EXPERT || !X86
 	default y
 	help
 	  Say Y here, and a list of supported keyboards will be displayed.
@@ -11,18 +11,6 @@ menuconfig INPUT_KEYBOARD
 	  If unsure, say Y.
 
 if INPUT_KEYBOARD
-
-config KEYBOARD_AAED2000
-	tristate "AAED-2000 keyboard"
-	depends on MACH_AAED2000
-	select INPUT_POLLDEV
-	default y
-	help
-	  Say Y here to enable the keyboard on the Agilent AAED-2000
-	  development board.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called aaed2000_kbd.
 
 config KEYBOARD_ADP5520
 	tristate "Keypad Support for ADP5520 PMIC"
@@ -69,7 +57,7 @@ config KEYBOARD_ATARI
 	  module will be called atakbd.
 
 config KEYBOARD_ATKBD
-	tristate "AT keyboard" if EMBEDDED || !X86
+	tristate "AT keyboard" if EXPERT || !X86
 	default y
 	select SERIO
 	select SERIO_LIBPS2

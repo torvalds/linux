@@ -36,9 +36,9 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void pmu_irq_mask(unsigned int irq)
+static void pmu_irq_mask(struct irq_data *d)
 {
-	int pin = irq_to_pmu(irq);
+	int pin = irq_to_pmu(d->irq);
 	u32 u;
 
 	u = readl(PMU_INTERRUPT_MASK);
@@ -46,9 +46,9 @@ static void pmu_irq_mask(unsigned int irq)
 	writel(u, PMU_INTERRUPT_MASK);
 }
 
-static void pmu_irq_unmask(unsigned int irq)
+static void pmu_irq_unmask(struct irq_data *d)
 {
-	int pin = irq_to_pmu(irq);
+	int pin = irq_to_pmu(d->irq);
 	u32 u;
 
 	u = readl(PMU_INTERRUPT_MASK);
@@ -56,9 +56,9 @@ static void pmu_irq_unmask(unsigned int irq)
 	writel(u, PMU_INTERRUPT_MASK);
 }
 
-static void pmu_irq_ack(unsigned int irq)
+static void pmu_irq_ack(struct irq_data *d)
 {
-	int pin = irq_to_pmu(irq);
+	int pin = irq_to_pmu(d->irq);
 	u32 u;
 
 	u = ~(1 << (pin & 31));
@@ -67,9 +67,9 @@ static void pmu_irq_ack(unsigned int irq)
 
 static struct irq_chip pmu_irq_chip = {
 	.name		= "pmu_irq",
-	.mask		= pmu_irq_mask,
-	.unmask		= pmu_irq_unmask,
-	.ack		= pmu_irq_ack,
+	.irq_mask	= pmu_irq_mask,
+	.irq_unmask	= pmu_irq_unmask,
+	.irq_ack	= pmu_irq_ack,
 };
 
 static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)

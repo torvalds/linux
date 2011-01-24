@@ -5748,7 +5748,7 @@ static int ipr_queuecommand_lck(struct scsi_cmnd *scsi_cmd,
 	}
 
 	if (ipr_is_gata(res) && res->sata_port)
-		return ata_sas_queuecmd(scsi_cmd, done, res->sata_port->ap);
+		return ata_sas_queuecmd(scsi_cmd, res->sata_port->ap);
 
 	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ioarcb = &ipr_cmd->ioarcb;
@@ -7515,16 +7515,10 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	volatile u32 int_reg;
-	int rc;
 
 	ENTER;
 	ioa_cfg->pdev->state_saved = true;
-	rc = pci_restore_state(ioa_cfg->pdev);
-
-	if (rc != PCIBIOS_SUCCESSFUL) {
-		ipr_cmd->s.ioasa.hdr.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);
-		return IPR_RC_JOB_CONTINUE;
-	}
+	pci_restore_state(ioa_cfg->pdev);
 
 	if (ipr_set_pcix_cmd_reg(ioa_cfg)) {
 		ipr_cmd->s.ioasa.hdr.ioasc = cpu_to_be32(IPR_IOASC_PCI_ACCESS_ERROR);

@@ -180,10 +180,8 @@ u16 emu_Flash_Init(void)
 	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
 		       __FILE__, __LINE__, __func__);
 
-	flash_memory[0] = (u8 *)vmalloc(GLOB_LLD_PAGE_SIZE *
-						   GLOB_LLD_BLOCKS *
-						   GLOB_LLD_PAGES *
-						   sizeof(u8));
+	flash_memory[0] = vmalloc(GLOB_LLD_PAGE_SIZE * GLOB_LLD_BLOCKS *
+				  GLOB_LLD_PAGES * sizeof(u8));
 	if (!flash_memory[0]) {
 		printk(KERN_ERR "Fail to allocate memory "
 		       "for nand emulator!\n");

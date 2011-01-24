@@ -130,6 +130,15 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 	if (!clksrc)
 		return UINT_MAX;
 
+	/*
+	 * Clock divider's step is different as 1 from that of host controller
+	 * when 'clk_type' is S3C_SDHCI_CLK_DIV_EXTERNAL.
+	 */
+	if (ourhost->pdata->clk_type) {
+		rate = clk_round_rate(clksrc, wanted);
+		return wanted - rate;
+	}
+
 	rate = clk_get_rate(clksrc);
 
 	for (div = 1; div < 256; div *= 2) {
@@ -230,6 +239,42 @@ static unsigned int sdhci_s3c_get_min_clock(struct sdhci_host *host)
 			min = -delta;
 	}
 	return min;
+}
+
+/* sdhci_cmu_get_max_clk - callback to get maximum clock frequency.*/
+static unsigned int sdhci_cmu_get_max_clock(struct sdhci_host *host)
+{
+	struct sdhci_s3c *ourhost = to_s3c(host);
+
+	return clk_round_rate(ourhost->clk_bus[ourhost->cur_clk], UINT_MAX);
+}
+
+/* sdhci_cmu_get_min_clock - callback to get minimal supported clock value. */
+static unsigned int sdhci_cmu_get_min_clock(struct sdhci_host *host)
+{
+	struct sdhci_s3c *ourhost = to_s3c(host);
+
+	/*
+	 * initial clock can be in the frequency range of
+	 * 100KHz-400KHz, so we set it as max value.
+	 */
+	return clk_round_rate(ourhost->clk_bus[ourhost->cur_clk], 400000);
+}
+
+/* sdhci_cmu_set_clock - callback on clock change.*/
+static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	struct sdhci_s3c *ourhost = to_s3c(host);
+
+	/* don't bother if the clock is going off */
+	if (clock == 0)
+		return;
+
+	sdhci_s3c_set_clock(host, clock);
+
+	clk_set_rate(ourhost->clk_bus[ourhost->cur_clk], clock);
+
+	host->clock = clock;
 }
 
 static struct sdhci_ops sdhci_s3c_ops = {
@@ -361,6 +406,13 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 
 		clks++;
 		sc->clk_bus[ptr] = clk;
+
+		/*
+		 * save current clock index to know which clock bus
+		 * is used later in overriding functions.
+		 */
+		sc->cur_clk = ptr;
+
 		clk_enable(clk);
 
 		dev_info(dev, "clock source %d: %s (%ld Hz)\n",
@@ -426,6 +478,20 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 
 	/* HSMMC on Samsung SoCs uses SDCLK as timeout clock */
 	host->quirks |= SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
+
+	/*
+	 * If controller does not have internal clock divider,
+	 * we can use overriding functions instead of default.
+	 */
+	if (pdata->clk_type) {
+		sdhci_s3c_ops.set_clock = sdhci_cmu_set_clock;
+		sdhci_s3c_ops.get_min_clock = sdhci_cmu_get_min_clock;
+		sdhci_s3c_ops.get_max_clock = sdhci_cmu_get_max_clock;
+	}
+
+	/* It supports additional host capabilities if needed */
+	if (pdata->host_caps)
+		host->mmc->caps |= pdata->host_caps;
 
 	ret = sdhci_add_host(host);
 	if (ret) {

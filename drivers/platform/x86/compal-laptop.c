@@ -872,6 +872,14 @@ static struct dmi_system_id __initdata compal_dmi_table[] = {
 		},
 		.callback = dmi_check_cb_extra
 	},
+	{
+		.ident = "KHLB2",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "KHLB2"),
+			DMI_MATCH(DMI_BOARD_VERSION, "REFERENCE"),
+		},
+		.callback = dmi_check_cb_extra
+	},
 	{ }
 };
 

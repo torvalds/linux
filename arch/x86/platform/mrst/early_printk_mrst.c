@@ -103,7 +103,7 @@ struct dw_spi_reg {
 static unsigned long mrst_spi_paddr = MRST_REGBASE_SPI0;
 
 static u32 *pclk_spi0;
-/* Always contains an accessable address, start with 0 */
+/* Always contains an accessible address, start with 0 */
 static struct dw_spi_reg *pspi;
 
 static struct kmsg_dumper dw_dumper;

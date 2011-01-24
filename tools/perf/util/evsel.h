@@ -37,7 +37,7 @@ struct perf_evsel {
 struct cpu_map;
 struct thread_map;
 
-struct perf_evsel *perf_evsel__new(u32 type, u64 config, int idx);
+struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);

@@ -20,19 +20,32 @@
 /*
  * CMI8788:
  *
- * SPI 0 -> 1st AK4396 (front)
- * SPI 1 -> 2nd AK4396 (surround)
- * SPI 2 -> 3rd AK4396 (center/LFE)
- * SPI 3 -> WM8785
- * SPI 4 -> 4th AK4396 (back)
+ *   SPI 0 -> 1st AK4396 (front)
+ *   SPI 1 -> 2nd AK4396 (surround)
+ *   SPI 2 -> 3rd AK4396 (center/LFE)
+ *   SPI 3 -> WM8785
+ *   SPI 4 -> 4th AK4396 (back)
  *
- * GPIO 0 -> DFS0 of AK5385
- * GPIO 1 -> DFS1 of AK5385
- * GPIO 8 -> enable headphone amplifier on HT-Omega models
+ *   GPIO 0 -> DFS0 of AK5385
+ *   GPIO 1 -> DFS1 of AK5385
+ *
+ * X-Meridian models:
+ *   GPIO 4 -> enable extension S/PDIF input
+ *   GPIO 6 -> enable on-board S/PDIF input
+ *
+ * Claro models:
+ *   GPIO 6 -> S/PDIF from optical (0) or coaxial (1) input
+ *   GPIO 8 -> enable headphone amplifier
  *
  * CM9780:
  *
- * GPO 0 -> route line-in (0) or AC97 output (1) to ADC input
+ *   LINE_OUT -> input of ADC
+ *
+ *   AUX_IN <- aux
+ *   CD_IN  <- CD
+ *   MIC_IN <- mic
+ *
+ *   GPO 0 -> route line-in (0) or AC97 output (1) to ADC input
  */
 
 #include <linux/delay.h>
@@ -41,18 +54,22 @@
 #include <sound/ac97_codec.h>
 #include <sound/control.h>
 #include <sound/core.h>
+#include <sound/info.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 #include "oxygen.h"
+#include "xonar_dg.h"
 #include "ak4396.h"
 #include "wm8785.h"
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 driver");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8788}}");
+MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8786}"
+			",{C-Media,CMI8787}"
+			",{C-Media,CMI8788}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -66,24 +83,46 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "enable card");
 
 enum {
-	MODEL_CMEDIA_REF,	/* C-Media's reference design */
-	MODEL_MERIDIAN,		/* AuzenTech X-Meridian */
-	MODEL_CLARO,		/* HT-Omega Claro */
-	MODEL_CLARO_HALO,	/* HT-Omega Claro halo */
+	MODEL_CMEDIA_REF,
+	MODEL_MERIDIAN,
+	MODEL_MERIDIAN_2G,
+	MODEL_CLARO,
+	MODEL_CLARO_HALO,
+	MODEL_FANTASIA,
+	MODEL_SERENADE,
+	MODEL_2CH_OUTPUT,
+	MODEL_HG2PCI,
+	MODEL_XONAR_DG,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
+	/* C-Media's reference design */
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0216), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x10b0, 0x0217), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0218), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0219), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0001), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0010), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8788), .driver_data = MODEL_CMEDIA_REF },
-	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
+	/* Asus Xonar DG */
+	{ OXYGEN_PCI_SUBID(0x1043, 0x8467), .driver_data = MODEL_XONAR_DG },
+	/* PCI 2.0 HD Audio */
+	{ OXYGEN_PCI_SUBID(0x13f6, 0x8782), .driver_data = MODEL_2CH_OUTPUT },
+	/* Kuroutoshikou CMI8787-HG2PCI */
+	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_HG2PCI },
+	/* TempoTec HiFier Fantasia */
+	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710), .driver_data = MODEL_FANTASIA },
+	/* TempoTec HiFier Serenade */
+	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_SERENADE },
+	/* AuzenTech X-Meridian */
 	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
+	/* AuzenTech X-Meridian 2G */
+	{ OXYGEN_PCI_SUBID(0x5431, 0x017a), .driver_data = MODEL_MERIDIAN_2G },
+	/* HT-Omega Claro */
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CLARO },
+	/* HT-Omega Claro halo */
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9781), .driver_data = MODEL_CLARO_HALO },
 	{ }
 };
@@ -95,9 +134,15 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 #define GPIO_AK5385_DFS_DOUBLE	0x0001
 #define GPIO_AK5385_DFS_QUAD	0x0002
 
+#define GPIO_MERIDIAN_DIG_MASK	0x0050
+#define GPIO_MERIDIAN_DIG_EXT	0x0010
+#define GPIO_MERIDIAN_DIG_BOARD	0x0040
+
+#define GPIO_CLARO_DIG_COAX	0x0040
 #define GPIO_CLARO_HP		0x0100
 
 struct generic_data {
+	unsigned int dacs;
 	u8 ak4396_regs[4][5];
 	u16 wm8785_regs[3];
 };
@@ -148,7 +193,7 @@ static void ak4396_registers_init(struct oxygen *chip)
 	struct generic_data *data = chip->model_data;
 	unsigned int i;
 
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < data->dacs; ++i) {
 		ak4396_write(chip, i, AK4396_CONTROL_1,
 			     AK4396_DIF_24_MSB | AK4396_RSTN);
 		ak4396_write(chip, i, AK4396_CONTROL_2,
@@ -166,6 +211,7 @@ static void ak4396_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
 
+	data->dacs = chip->model.dac_channels_pcm / 2;
 	data->ak4396_regs[0][AK4396_CONTROL_2] =
 		AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	ak4396_registers_init(chip);
@@ -207,6 +253,10 @@ static void generic_init(struct oxygen *chip)
 
 static void meridian_init(struct oxygen *chip)
 {
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_MERIDIAN_DIG_MASK);
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      GPIO_MERIDIAN_DIG_BOARD, GPIO_MERIDIAN_DIG_MASK);
 	ak4396_init(chip);
 	ak5385_init(chip);
 }
@@ -220,6 +270,8 @@ static void claro_enable_hp(struct oxygen *chip)
 
 static void claro_init(struct oxygen *chip)
 {
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CLARO_DIG_COAX);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_CLARO_DIG_COAX);
 	ak4396_init(chip);
 	wm8785_init(chip);
 	claro_enable_hp(chip);
@@ -227,9 +279,22 @@ static void claro_init(struct oxygen *chip)
 
 static void claro_halo_init(struct oxygen *chip)
 {
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CLARO_DIG_COAX);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_CLARO_DIG_COAX);
 	ak4396_init(chip);
 	ak5385_init(chip);
 	claro_enable_hp(chip);
+}
+
+static void fantasia_init(struct oxygen *chip)
+{
+	ak4396_init(chip);
+	snd_component_add(chip->card, "CS5340");
+}
+
+static void stereo_output_init(struct oxygen *chip)
+{
+	ak4396_init(chip);
 }
 
 static void generic_cleanup(struct oxygen *chip)
@@ -268,6 +333,11 @@ static void claro_resume(struct oxygen *chip)
 	claro_enable_hp(chip);
 }
 
+static void stereo_resume(struct oxygen *chip)
+{
+	ak4396_registers_init(chip);
+}
+
 static void set_ak4396_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
@@ -286,7 +356,7 @@ static void set_ak4396_params(struct oxygen *chip,
 	msleep(1); /* wait for the new MCLK to become stable */
 
 	if (value != data->ak4396_regs[0][AK4396_CONTROL_2]) {
-		for (i = 0; i < 4; ++i) {
+		for (i = 0; i < data->dacs; ++i) {
 			ak4396_write(chip, i, AK4396_CONTROL_1,
 				     AK4396_DIF_24_MSB);
 			ak4396_write(chip, i, AK4396_CONTROL_2, value);
@@ -298,9 +368,10 @@ static void set_ak4396_params(struct oxygen *chip,
 
 static void update_ak4396_volume(struct oxygen *chip)
 {
+	struct generic_data *data = chip->model_data;
 	unsigned int i;
 
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < data->dacs; ++i) {
 		ak4396_write_cached(chip, i, AK4396_LCH_ATT,
 				    chip->dac_volume[i * 2]);
 		ak4396_write_cached(chip, i, AK4396_RCH_ATT,
@@ -317,7 +388,7 @@ static void update_ak4396_mute(struct oxygen *chip)
 	value = data->ak4396_regs[0][AK4396_CONTROL_2] & ~AK4396_SMUTE;
 	if (chip->dac_mute)
 		value |= AK4396_SMUTE;
-	for (i = 0; i < 4; ++i)
+	for (i = 0; i < data->dacs; ++i)
 		ak4396_write_cached(chip, i, AK4396_CONTROL_2, value);
 }
 
@@ -356,6 +427,10 @@ static void set_ak5385_params(struct oxygen *chip,
 			      value, GPIO_AK5385_DFS_MASK);
 }
 
+static void set_no_params(struct oxygen *chip, struct snd_pcm_hw_params *params)
+{
+}
+
 static int rolloff_info(struct snd_kcontrol *ctl,
 			struct snd_ctl_elem_info *info)
 {
@@ -363,13 +438,7 @@ static int rolloff_info(struct snd_kcontrol *ctl,
 		"Sharp Roll-off", "Slow Roll-off"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int rolloff_get(struct snd_kcontrol *ctl,
@@ -400,7 +469,7 @@ static int rolloff_put(struct snd_kcontrol *ctl,
 		reg &= ~AK4396_SLOW;
 	changed = reg != data->ak4396_regs[0][AK4396_CONTROL_2];
 	if (changed) {
-		for (i = 0; i < 4; ++i)
+		for (i = 0; i < data->dacs; ++i)
 			ak4396_write(chip, i, AK4396_CONTROL_2, reg);
 	}
 	mutex_unlock(&chip->mutex);
@@ -421,13 +490,7 @@ static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 		"None", "High-pass Filter"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int hpf_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
@@ -466,6 +529,100 @@ static const struct snd_kcontrol_new hpf_control = {
 	.put = hpf_put,
 };
 
+static int meridian_dig_source_info(struct snd_kcontrol *ctl,
+				    struct snd_ctl_elem_info *info)
+{
+	static const char *const names[2] = { "On-board", "Extension" };
+
+	return snd_ctl_enum_info(info, 1, 2, names);
+}
+
+static int claro_dig_source_info(struct snd_kcontrol *ctl,
+				 struct snd_ctl_elem_info *info)
+{
+	static const char *const names[2] = { "Optical", "Coaxial" };
+
+	return snd_ctl_enum_info(info, 1, 2, names);
+}
+
+static int meridian_dig_source_get(struct snd_kcontrol *ctl,
+				   struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	value->value.enumerated.item[0] =
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) &
+		   GPIO_MERIDIAN_DIG_EXT);
+	return 0;
+}
+
+static int claro_dig_source_get(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	value->value.enumerated.item[0] =
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) &
+		   GPIO_CLARO_DIG_COAX);
+	return 0;
+}
+
+static int meridian_dig_source_put(struct snd_kcontrol *ctl,
+				   struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 old_reg, new_reg;
+	int changed;
+
+	mutex_lock(&chip->mutex);
+	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
+	new_reg = old_reg & ~GPIO_MERIDIAN_DIG_MASK;
+	if (value->value.enumerated.item[0] == 0)
+		new_reg |= GPIO_MERIDIAN_DIG_BOARD;
+	else
+		new_reg |= GPIO_MERIDIAN_DIG_EXT;
+	changed = new_reg != old_reg;
+	if (changed)
+		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static int claro_dig_source_put(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 old_reg, new_reg;
+	int changed;
+
+	mutex_lock(&chip->mutex);
+	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
+	new_reg = old_reg & ~GPIO_CLARO_DIG_COAX;
+	if (value->value.enumerated.item[0])
+		new_reg |= GPIO_CLARO_DIG_COAX;
+	changed = new_reg != old_reg;
+	if (changed)
+		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static const struct snd_kcontrol_new meridian_dig_source_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Source Capture Enum",
+	.info = meridian_dig_source_info,
+	.get = meridian_dig_source_get,
+	.put = meridian_dig_source_put,
+};
+
+static const struct snd_kcontrol_new claro_dig_source_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Source Capture Enum",
+	.info = claro_dig_source_info,
+	.get = claro_dig_source_get,
+	.put = claro_dig_source_put,
+};
+
 static int generic_mixer_init(struct oxygen *chip)
 {
 	return snd_ctl_add(chip->card, snd_ctl_new1(&rolloff_control, chip));
@@ -484,6 +641,81 @@ static int generic_wm8785_mixer_init(struct oxygen *chip)
 	return 0;
 }
 
+static int meridian_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = generic_mixer_init(chip);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add(chip->card,
+			  snd_ctl_new1(&meridian_dig_source_control, chip));
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+static int claro_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = generic_wm8785_mixer_init(chip);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add(chip->card,
+			  snd_ctl_new1(&claro_dig_source_control, chip));
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+static int claro_halo_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = generic_mixer_init(chip);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add(chip->card,
+			  snd_ctl_new1(&claro_dig_source_control, chip));
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+static void dump_ak4396_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	struct generic_data *data = chip->model_data;
+	unsigned int dac, i;
+
+	for (dac = 0; dac < data->dacs; ++dac) {
+		snd_iprintf(buffer, "\nAK4396 %u:", dac + 1);
+		for (i = 0; i < 5; ++i)
+			snd_iprintf(buffer, " %02x", data->ak4396_regs[dac][i]);
+	}
+	snd_iprintf(buffer, "\n");
+}
+
+static void dump_wm8785_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	struct generic_data *data = chip->model_data;
+	unsigned int i;
+
+	snd_iprintf(buffer, "\nWM8785:");
+	for (i = 0; i < 3; ++i)
+		snd_iprintf(buffer, " %03x", data->wm8785_regs[i]);
+	snd_iprintf(buffer, "\n");
+}
+
+static void dump_oxygen_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	dump_ak4396_registers(chip, buffer);
+	dump_wm8785_registers(chip, buffer);
+}
+
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
 static const struct oxygen_model model_generic = {
@@ -494,11 +726,11 @@ static const struct oxygen_model model_generic = {
 	.mixer_init = generic_wm8785_mixer_init,
 	.cleanup = generic_cleanup,
 	.resume = generic_resume,
-	.get_i2s_mclk = oxygen_default_i2s_mclk,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.dump_registers = dump_oxygen_registers,
 	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct generic_data),
 	.device_config = PLAYBACK_0_TO_I2S |
@@ -508,11 +740,14 @@ static const struct oxygen_model model_generic = {
 			 CAPTURE_1_FROM_SPDIF |
 			 CAPTURE_2_FROM_AC97_1 |
 			 AC97_CD_INPUT,
-	.dac_channels = 8,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 8,
 	.dac_volume_min = 0,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.dac_mclks = OXYGEN_MCLKS(256, 128, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -520,42 +755,87 @@ static const struct oxygen_model model_generic = {
 static int __devinit get_oxygen_model(struct oxygen *chip,
 				      const struct pci_device_id *id)
 {
+	static const char *const names[] = {
+		[MODEL_MERIDIAN]	= "AuzenTech X-Meridian",
+		[MODEL_MERIDIAN_2G]	= "AuzenTech X-Meridian 2G",
+		[MODEL_CLARO]		= "HT-Omega Claro",
+		[MODEL_CLARO_HALO]	= "HT-Omega Claro halo",
+		[MODEL_FANTASIA]	= "TempoTec HiFier Fantasia",
+		[MODEL_SERENADE]	= "TempoTec HiFier Serenade",
+		[MODEL_HG2PCI]		= "CMI8787-HG2PCI",
+	};
+
 	chip->model = model_generic;
 	switch (id->driver_data) {
 	case MODEL_MERIDIAN:
+	case MODEL_MERIDIAN_2G:
 		chip->model.init = meridian_init;
-		chip->model.mixer_init = generic_mixer_init;
+		chip->model.mixer_init = meridian_mixer_init;
 		chip->model.resume = meridian_resume;
 		chip->model.set_adc_params = set_ak5385_params;
+		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF |
 					    CAPTURE_0_FROM_I2S_2 |
 					    CAPTURE_1_FROM_SPDIF;
+		if (id->driver_data == MODEL_MERIDIAN)
+			chip->model.device_config |= AC97_CD_INPUT;
 		break;
 	case MODEL_CLARO:
 		chip->model.init = claro_init;
+		chip->model.mixer_init = claro_mixer_init;
 		chip->model.cleanup = claro_cleanup;
 		chip->model.suspend = claro_suspend;
 		chip->model.resume = claro_resume;
 		break;
 	case MODEL_CLARO_HALO:
 		chip->model.init = claro_halo_init;
-		chip->model.mixer_init = generic_mixer_init;
+		chip->model.mixer_init = claro_halo_mixer_init;
 		chip->model.cleanup = claro_cleanup;
 		chip->model.suspend = claro_suspend;
 		chip->model.resume = claro_resume;
 		chip->model.set_adc_params = set_ak5385_params;
+		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF |
 					    CAPTURE_0_FROM_I2S_2 |
 					    CAPTURE_1_FROM_SPDIF;
 		break;
+	case MODEL_FANTASIA:
+	case MODEL_SERENADE:
+	case MODEL_2CH_OUTPUT:
+	case MODEL_HG2PCI:
+		chip->model.shortname = "C-Media CMI8787";
+		chip->model.chip = "CMI8787";
+		if (id->driver_data == MODEL_FANTASIA)
+			chip->model.init = fantasia_init;
+		else
+			chip->model.init = stereo_output_init;
+		chip->model.resume = stereo_resume;
+		chip->model.mixer_init = generic_mixer_init;
+		chip->model.set_adc_params = set_no_params;
+		chip->model.dump_registers = dump_ak4396_registers;
+		chip->model.device_config = PLAYBACK_0_TO_I2S |
+					    PLAYBACK_1_TO_SPDIF;
+		if (id->driver_data == MODEL_FANTASIA) {
+			chip->model.device_config |= CAPTURE_0_FROM_I2S_1;
+			chip->model.adc_mclks = OXYGEN_MCLKS(256, 128, 128);
+		}
+		chip->model.dac_channels_pcm = 2;
+		chip->model.dac_channels_mixer = 2;
+		break;
+	case MODEL_XONAR_DG:
+		chip->model = model_xonar_dg;
+		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||
+	    id->driver_data == MODEL_MERIDIAN_2G ||
 	    id->driver_data == MODEL_CLARO_HALO) {
 		chip->model.misc_flags = OXYGEN_MISC_MIDI;
 		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
 	}
+	if (id->driver_data < ARRAY_SIZE(names) && names[id->driver_data])
+		chip->model.shortname = names[id->driver_data];
 	return 0;
 }
 

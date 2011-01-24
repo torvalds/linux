@@ -45,7 +45,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <asm/div64.h>
@@ -623,10 +622,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8753_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8753_dapm_widgets,
-				  ARRAY_SIZE(wm8753_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_new_controls(dapm, wm8753_dapm_widgets,
+				  ARRAY_SIZE(wm8753_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -1245,7 +1245,7 @@ static int wm8753_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8753_PWR1, 0x0001);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1435,9 +1435,11 @@ static void wm8753_set_dai_mode(struct snd_soc_codec *codec,
 
 static void wm8753_work(struct work_struct *work)
 {
-	struct snd_soc_codec *codec =
-		container_of(work, struct snd_soc_codec, delayed_work.work);
-	wm8753_set_bias_level(codec, codec->bias_level);
+	struct snd_soc_dapm_context *dapm =
+		container_of(work, struct snd_soc_dapm_context,
+			     delayed_work.work);
+	struct snd_soc_codec *codec = dapm->codec;
+	wm8753_set_bias_level(codec, dapm->bias_level);
 }
 
 static int wm8753_suspend(struct snd_soc_codec *codec, pm_message_t state)
@@ -1466,33 +1468,14 @@ static int wm8753_resume(struct snd_soc_codec *codec)
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* charge wm8753 caps */
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON) {
+	if (codec->dapm.suspend_bias_level == SND_SOC_BIAS_ON) {
 		wm8753_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
-		codec->bias_level = SND_SOC_BIAS_ON;
-		schedule_delayed_work(&codec->delayed_work,
+		codec->dapm.bias_level = SND_SOC_BIAS_ON;
+		schedule_delayed_work(&codec->dapm.delayed_work,
 			msecs_to_jiffies(caps_charge));
 	}
 
 	return 0;
-}
-
-/*
- * This function forces any delayed work to be queued and run.
- */
-static int run_delayed_work(struct delayed_work *dwork)
-{
-	int ret;
-
-	/* cancel any work waiting to be queued. */
-	ret = cancel_delayed_work(dwork);
-
-	/* if there was any work waiting then we run it now and
-	 * wait for it's completion */
-	if (ret) {
-		schedule_delayed_work(dwork, 0);
-		flush_scheduled_work();
-	}
-	return ret;
 }
 
 static int wm8753_probe(struct snd_soc_codec *codec)
@@ -1500,7 +1483,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);
+	INIT_DELAYED_WORK(&codec->dapm.delayed_work, wm8753_work);
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8753->control_type);
 	if (ret < 0) {
@@ -1519,7 +1502,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 
 	/* charge output caps */
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
-	schedule_delayed_work(&codec->delayed_work,
+	schedule_delayed_work(&codec->dapm.delayed_work,
 			      msecs_to_jiffies(caps_charge));
 
 	/* set the update bits */
@@ -1544,7 +1527,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 /* power down chip */
 static int wm8753_remove(struct snd_soc_codec *codec)
 {
-	run_delayed_work(&codec->delayed_work);
+	flush_delayed_work_sync(&codec->dapm.delayed_work);
 	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;

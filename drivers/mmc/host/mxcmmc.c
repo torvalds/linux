@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -141,9 +142,48 @@ struct mxcmci_host {
 
 	struct work_struct	datawork;
 	spinlock_t		lock;
+
+	struct regulator	*vcc;
 };
 
 static void mxcmci_set_clk_rate(struct mxcmci_host *host, unsigned int clk_ios);
+
+static inline void mxcmci_init_ocr(struct mxcmci_host *host)
+{
+	host->vcc = regulator_get(mmc_dev(host->mmc), "vmmc");
+
+	if (IS_ERR(host->vcc)) {
+		host->vcc = NULL;
+	} else {
+		host->mmc->ocr_avail = mmc_regulator_get_ocrmask(host->vcc);
+		if (host->pdata && host->pdata->ocr_avail)
+			dev_warn(mmc_dev(host->mmc),
+				"pdata->ocr_avail will not be used\n");
+	}
+
+	if (host->vcc == NULL) {
+		/* fall-back to platform data */
+		if (host->pdata && host->pdata->ocr_avail)
+			host->mmc->ocr_avail = host->pdata->ocr_avail;
+		else
+			host->mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+	}
+}
+
+static inline void mxcmci_set_power(struct mxcmci_host *host,
+				    unsigned char power_mode,
+				    unsigned int vdd)
+{
+	if (host->vcc) {
+		if (power_mode == MMC_POWER_UP)
+			mmc_regulator_set_ocr(host->mmc, host->vcc, vdd);
+		else if (power_mode == MMC_POWER_OFF)
+			mmc_regulator_set_ocr(host->mmc, host->vcc, 0);
+	}
+
+	if (host->pdata && host->pdata->setpower)
+		host->pdata->setpower(mmc_dev(host->mmc), vdd);
+}
 
 static inline int mxcmci_use_dma(struct mxcmci_host *host)
 {
@@ -680,9 +720,9 @@ static void mxcmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->cmdat &= ~CMD_DAT_CONT_BUS_WIDTH_4;
 
 	if (host->power_mode != ios->power_mode) {
-		if (host->pdata && host->pdata->setpower)
-			host->pdata->setpower(mmc_dev(mmc), ios->vdd);
+		mxcmci_set_power(host, ios->power_mode, ios->vdd);
 		host->power_mode = ios->power_mode;
+
 		if (ios->power_mode == MMC_POWER_ON)
 			host->cmdat |= CMD_DAT_CONT_INIT;
 	}
@@ -807,10 +847,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	host->pdata = pdev->dev.platform_data;
 	spin_lock_init(&host->lock);
 
-	if (host->pdata && host->pdata->ocr_avail)
-		mmc->ocr_avail = host->pdata->ocr_avail;
-	else
-		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+	mxcmci_init_ocr(host);
 
 	if (host->pdata && host->pdata->dat3_card_detect)
 		host->default_irq_mask =
@@ -915,6 +952,9 @@ static int mxcmci_remove(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 
+	if (host->vcc)
+		regulator_put(host->vcc);
+
 	if (host->pdata && host->pdata->exit)
 		host->pdata->exit(&pdev->dev, mmc);
 
@@ -927,7 +967,6 @@ static int mxcmci_remove(struct platform_device *pdev)
 	clk_put(host->clk);
 
 	release_mem_region(host->res->start, resource_size(host->res));
-	release_resource(host->res);
 
 	mmc_free_host(mmc);
 

@@ -898,7 +898,7 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 	set_mii_flow_control(vptr);
 
 	/*
-	   Check if new status is consisent with current status
+	   Check if new status is consistent with current status
 	   if (((mii_status & curr_status) & VELOCITY_AUTONEG_ENABLE) ||
 	       (mii_status==curr_status)) {
 	   vptr->mii_status=mii_check_media_mode(vptr->mac_regs);

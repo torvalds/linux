@@ -19,6 +19,7 @@
 #define	__XFS_ALLOC_H__
 
 struct xfs_buf;
+struct xfs_btree_cur;
 struct xfs_mount;
 struct xfs_perag;
 struct xfs_trans;
@@ -118,16 +119,16 @@ xfs_alloc_longest_free_extent(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 
 #ifdef __KERNEL__
-
 void
-xfs_alloc_busy_insert(xfs_trans_t *tp,
-		xfs_agnumber_t agno,
-		xfs_agblock_t bno,
-		xfs_extlen_t len);
+xfs_alloc_busy_insert(struct xfs_trans *tp, xfs_agnumber_t agno,
+	xfs_agblock_t bno, xfs_extlen_t len);
 
 void
 xfs_alloc_busy_clear(struct xfs_mount *mp, struct xfs_busy_extent *busyp);
 
+int
+xfs_alloc_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
+	xfs_agblock_t bno, xfs_extlen_t len);
 #endif	/* __KERNEL__ */
 
 /*
@@ -204,5 +205,19 @@ xfs_free_extent(
 	struct xfs_trans *tp,	/* transaction pointer */
 	xfs_fsblock_t	bno,	/* starting block number of extent */
 	xfs_extlen_t	len);	/* length of extent */
+
+int					/* error */
+xfs_alloc_lookup_le(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		bno,	/* starting block of extent */
+	xfs_extlen_t		len,	/* length of extent */
+	int			*stat);	/* success/failure */
+
+int					/* error */
+xfs_alloc_get_rec(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		*bno,	/* output: starting block of extent */
+	xfs_extlen_t		*len,	/* output: length of extent */
+	int			*stat);	/* output: success/failure */
 
 #endif	/* __XFS_ALLOC_H__ */
