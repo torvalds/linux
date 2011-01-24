@@ -865,7 +865,7 @@ static int __cmd_top(void)
 {
 	pthread_t thread;
 	struct perf_evsel *first;
-	int ret;
+	int ret __used;
 	/*
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.

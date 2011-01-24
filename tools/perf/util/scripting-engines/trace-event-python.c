@@ -248,8 +248,7 @@ static void python_process_event(int cpu, void *data,
 	context = PyCObject_FromVoidPtr(scripting_context, NULL);
 
 	PyTuple_SetItem(t, n++, PyString_FromString(handler_name));
-	PyTuple_SetItem(t, n++,
-			PyCObject_FromVoidPtr(scripting_context, NULL));
+	PyTuple_SetItem(t, n++, context);
 
 	if (handler) {
 		PyTuple_SetItem(t, n++, PyInt_FromLong(cpu));
