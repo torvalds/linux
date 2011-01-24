@@ -405,7 +405,7 @@ static void rk29_sdmmc_dma_cleanup(struct rk29_sdmmc *host)
 	if (data) 
 		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
 		     ((data->flags & MMC_DATA_WRITE)
-		      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+		      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));		      	
 }
 
 static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
@@ -415,7 +415,7 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 	if (host->dma_chn > 0) {
 		//dma_stop_channel(host->dma_chn);
 		rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_STOP);
-		rk29_sdmmc_dma_cleanup(host);
+		rk29_sdmmc_dma_cleanup(host);		
 	} else {
 		/* Data transfer was stopped by the interrupt handler */
 		rk29_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
@@ -486,7 +486,11 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	if (data->flags & MMC_DATA_READ)
 		direction = RK29_DMASRC_HW;  
 	else
-		direction = RK29_DMASRC_MEM;  						
+		direction = RK29_DMASRC_MEM;  
+	if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_FULL ) {
+		rk29_sdmmc_reset_fifo(host);
+		printk("%s %d fifo full reset\n",__FUNCTION__,__LINE__);
+	}							
     rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->dma_addr));
 	dma_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
 			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);						                	   
@@ -1235,7 +1239,7 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 	smp_rmb();
 	if (test_bit(RK29_SDMMC_SHUTDOWN, &host->flags))
 		return;		
-	spin_lock(&host->lock);	
+	spin_lock(&host->lock);		
 	/* Clean up queue if present */
 	mrq = host->mrq;
 	if (mrq) {
@@ -1284,8 +1288,8 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 				spin_unlock(&host->lock);
 				mmc_request_done(host->mmc, mrq);
 				spin_lock(&host->lock);
-		}
-		}	
+			}
+	}	
 	spin_unlock(&host->lock);	
 	mmc_detect_change(host->mmc, 0);	
 }
