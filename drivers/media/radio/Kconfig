@@ -454,4 +454,7 @@ config RADIO_WL1273
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-wl1273.
 
+# TI's ST based wl128x FM radio
+source "drivers/media/radio/wl128x/Kconfig"
+
 endif # RADIO_ADAPTERS
