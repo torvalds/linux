@@ -67,7 +67,6 @@ struct wl1273_device {
 
 	/* RDS */
 	unsigned int rds_on;
-	struct delayed_work work;
 
 	wait_queue_head_t read_queue;
 	struct mutex lock; /* for serializing fm radio operations */
@@ -966,9 +965,6 @@ static int wl1273_fm_rds_off(struct wl1273_device *radio)
 	r = core->write(core, WL1273_INT_MASK_SET, radio->irq_flags);
 	if (r)
 		goto out;
-
-	/* stop rds reception */
-	cancel_delayed_work(&radio->work);
 
 	/* Service pending read */
 	wake_up_interruptible(&radio->read_queue);
@@ -2171,7 +2167,6 @@ module_init(wl1273_fm_module_init);
 
 static void __exit wl1273_fm_module_exit(void)
 {
-	flush_scheduled_work();
 	platform_driver_unregister(&wl1273_fm_radio_driver);
 	pr_info(DRIVER_DESC ", Exiting.\n");
 }
