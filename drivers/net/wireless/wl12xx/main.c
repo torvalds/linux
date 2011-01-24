@@ -2445,8 +2445,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			}
 
 			ret = wl1271_acx_arp_ip_filter(wl,
-				(ACX_ARP_FILTER_ARP_FILTERING |
-				 ACX_ARP_FILTER_AUTO_ARP),
+				ACX_ARP_FILTER_ARP_FILTERING,
 				addr);
 		} else
 			ret = wl1271_acx_arp_ip_filter(wl, 0, addr);
