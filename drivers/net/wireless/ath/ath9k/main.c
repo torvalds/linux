@@ -295,6 +295,8 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	}
 
  ps_restore:
+	ieee80211_wake_queues(hw);
+
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	ath9k_ps_restore(sc);
