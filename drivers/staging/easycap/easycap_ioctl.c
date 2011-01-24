@@ -2519,7 +2519,7 @@ return 0;
 /*****************************************************************************/
 #if !defined(EASYCAP_NEEDS_ALSA)
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) ||
+#if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) || \
 	(defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)))
 long
 easyoss_ioctl_noinode(struct file *file, unsigned int cmd, unsigned long arg) {
