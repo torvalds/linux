@@ -505,26 +505,14 @@ typedef enum _tag_TxCmd_Config_Index{
 
 typedef struct Stats
 {
-	unsigned long txrdu;
 	unsigned long rxrdu;
 	unsigned long rxok;
-	unsigned long rxframgment;
 	unsigned long rxcmdpkt[4];		//08/05/08 amy rx cmd element txfeedback/bcn report/cfg set/query
-	unsigned long rxurberr;
-	unsigned long rxstaterr;
-	unsigned long rxcrcerrmin;//crc error (0-500)
-	unsigned long rxcrcerrmid;//crc error (500-1000)
-	unsigned long rxcrcerrmax;//crc error (>1000)
+	unsigned long rxurberr; /* remove */
 	unsigned long received_rate_histogram[4][32];	//0: Total, 1:OK, 2:CRC, 3:ICV, 2007 07 03 cosa
 	unsigned long received_preamble_GI[2][32];		//0: Long preamble/GI, 1:Short preamble/GI
 	unsigned long	rx_AMPDUsize_histogram[5]; // level: (<4K), (4K~8K), (8K~16K), (16K~32K), (32K~64K)
 	unsigned long rx_AMPDUnum_histogram[5]; // level: (<5), (5~10), (10~20), (20~40), (>40)
-	unsigned long numpacket_matchbssid;	// debug use only.
-	unsigned long numpacket_toself;		// debug use only.
-	unsigned long num_process_phyinfo;		// debug use only.
-	unsigned long numqry_phystatus;
-	unsigned long numqry_phystatusCCK;
-	unsigned long numqry_phystatusHT;
 	unsigned long received_bwtype[5];              //0: 20M, 1: funn40M, 2: upper20M, 3: lower20M, 4: duplicate
 	unsigned long txnperr;
 	unsigned long txnpdrop;

@@ -547,67 +547,29 @@ static int proc_get_stats_tx(char *page, char **start,
 
 	len += snprintf(page + len, count - len,
 		"TX VI priority ok int: %lu\n"
-//		"TX VI priority error int: %lu\n"
 		"TX VO priority ok int: %lu\n"
-//		"TX VO priority error int: %lu\n"
 		"TX BE priority ok int: %lu\n"
-//		"TX BE priority error int: %lu\n"
 		"TX BK priority ok int: %lu\n"
-//		"TX BK priority error int: %lu\n"
 		"TX MANAGE priority ok int: %lu\n"
-//		"TX MANAGE priority error int: %lu\n"
 		"TX BEACON priority ok int: %lu\n"
 		"TX BEACON priority error int: %lu\n"
 		"TX CMDPKT priority ok int: %lu\n"
-//		"TX high priority ok int: %lu\n"
-//		"TX high priority failed error int: %lu\n"
-//		"TX queue resume: %lu\n"
 		"TX queue stopped?: %d\n"
 		"TX fifo overflow: %lu\n"
-//		"TX beacon: %lu\n"
-//		"TX VI queue: %d\n"
-//		"TX VO queue: %d\n"
-//		"TX BE queue: %d\n"
-//		"TX BK queue: %d\n"
-//		"TX HW queue: %d\n"
-//		"TX VI dropped: %lu\n"
-//		"TX VO dropped: %lu\n"
-//		"TX BE dropped: %lu\n"
-//		"TX BK dropped: %lu\n"
 		"TX total data packets %lu\n"
 		"TX total data bytes :%lu\n",
-//		"TX beacon aborted: %lu\n",
 		priv->stats.txviokint,
-//		priv->stats.txvierr,
 		priv->stats.txvookint,
-//		priv->stats.txvoerr,
 		priv->stats.txbeokint,
-//		priv->stats.txbeerr,
 		priv->stats.txbkokint,
-//		priv->stats.txbkerr,
 		priv->stats.txmanageokint,
-//		priv->stats.txmanageerr,
 		priv->stats.txbeaconokint,
 		priv->stats.txbeaconerr,
 		priv->stats.txcmdpktokint,
-//		priv->stats.txhpokint,
-//		priv->stats.txhperr,
-//		priv->stats.txresumed,
 		netif_queue_stopped(dev),
 		priv->stats.txoverflow,
-//		priv->stats.txbeacon,
-//		read_nic_byte(dev, TXFIFOCOUNT),
-//		priv->stats.txvidrop,
-//		priv->stats.txvodrop,
 		priv->ieee80211->stats.tx_packets,
-		priv->ieee80211->stats.tx_bytes
-
-
-//		priv->stats.txbedrop,
-//		priv->stats.txbkdrop
-			//	priv->stats.txdatapkt
-//		priv->stats.txbeaconerr
-		);
+		priv->ieee80211->stats.tx_bytes);
 
 	*eof = 1;
 	return len;
@@ -4850,11 +4812,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 
 	rtl8190_process_cck_rxpathsel(priv,pprevious_stats);
 
-	//
-	// Check RSSI
-	//
-	priv->stats.num_process_phyinfo++;
-
 	// <2> Showed on UI for engineering
 	// hardware does not provide rssi information for each rf path in CCK
 	if(!pprevious_stats->bIsCCK && pprevious_stats->bPacketToSelf)
@@ -5126,8 +5083,6 @@ static void rtl8192_query_rxphystatus(
 	static	u8		check_reg824 = 0;
 	static	u32		reg824_bit9 = 0;
 
-	priv->stats.numqry_phystatus++;
-
 	is_cck_rate = rx_hal_is_cck_rate(pdrvinfo);
 
 	// Record it for next packet processing
@@ -5173,7 +5128,6 @@ static void rtl8192_query_rxphystatus(
 		u8 tmp_pwdb;
 		char cck_adc_pwdb[4];
 #endif
-		priv->stats.numqry_phystatusCCK++;
 
 #ifdef RTL8190P	//Only 90P 2T4R need to check
 		if(priv->rf_type == RF_2T4R && DM_RxPathSelTable.Enable && bpacket_match_bssid)
@@ -5265,7 +5219,6 @@ static void rtl8192_query_rxphystatus(
 	}
 	else
 	{
-		priv->stats.numqry_phystatusHT++;
 		//
 		// (1)Get RSSI for HT rate
 		//
@@ -5429,13 +5382,7 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
     }
 
 #endif
-    if(bpacket_match_bssid)
-    {
-        priv->stats.numpacket_matchbssid++;
-    }
-    if(bpacket_toself){
-        priv->stats.numpacket_toself++;
-    }
+
     //
     // Process PHY information for previous packet (RSSI/PWDB/EVM)
     //
@@ -5572,15 +5519,6 @@ static void rtl8192_rx(struct net_device *dev)
 
             if(stats.bHwError) {
                 stats.bShift = false;
-
-                if(pdesc->CRC32) {
-                    if (pdesc->Length <500)
-                        priv->stats.rxcrcerrmin++;
-                    else if (pdesc->Length >1000)
-                        priv->stats.rxcrcerrmax++;
-                    else
-                        priv->stats.rxcrcerrmid++;
-                }
                 goto done;
             } else {
                 prx_fwinfo_819x_pci pDrvInfo = NULL;
