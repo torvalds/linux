@@ -25,6 +25,8 @@
 #define PHYS_OFFSET		UL(0x00200000)
 #elif defined(CONFIG_ARCH_MSM8X60)
 #define PHYS_OFFSET		UL(0x40200000)
+#elif defined(CONFIG_ARCH_MSM8960)
+#define PHYS_OFFSET		UL(0x40200000)
 #else
 #define PHYS_OFFSET		UL(0x10000000)
 #endif
