@@ -733,8 +733,7 @@ static void free_pdev(struct pcifront_device *pdev)
 
 	pcifront_free_roots(pdev);
 
-	/*For PCIE_AER error handling job*/
-	flush_scheduled_work();
+	cancel_work_sync(&pdev->op_work);
 
 	if (pdev->irq >= 0)
 		unbind_from_irqhandler(pdev->irq, pdev);
