@@ -958,7 +958,7 @@ struct rtl8192_tx_ring {
 typedef struct r8192_priv
 {
 	struct pci_dev *pdev;
-	//added for maintain info from eeprom
+	/* maintain info from eeprom */
 	short epromtype;
 	u16 eeprom_vid;
 	u16 eeprom_did;
@@ -986,18 +986,15 @@ typedef struct r8192_priv
 	spinlock_t ps_lock;
 
 	u32 irq_mask;
-//	short irq_enabled;
-//	struct net_device *dev; //comment this out.
 	short chan;
 	short sens;
-/*RX stuff*/
+	/* RX stuff */
         rx_desc_819x_pci *rx_ring;
         dma_addr_t rx_ring_dma;
         unsigned int rx_idx;
         struct sk_buff *rx_buf[MAX_RX_COUNT];
 	int rxringcount;
 	u16 rxbuffersize;
-
 
 	struct sk_buff *rx_skb;
 	u32 *rxring;
@@ -1006,74 +1003,35 @@ typedef struct r8192_priv
 	struct buffer *rxbuffer;
 	struct buffer *rxbufferhead;
 	short rx_skb_complete;
-/*TX stuff*/
+	/* TX stuff */
         struct rtl8192_tx_ring tx_ring[MAX_TX_QUEUE_COUNT];
 	int txringcount;
-//{
-	//struct tx_pendingbuf txnp_pending;
-	//struct tasklet_struct irq_tx_tasklet;
+
 	struct tasklet_struct irq_rx_tasklet;
 	struct tasklet_struct irq_tx_tasklet;
         struct tasklet_struct irq_prepare_beacon_tasklet;
-	//	u8 chtxpwr[15]; //channels from 1 to 14, 0 not used
-//	u8 chtxpwr_ofdm[15]; //channels from 1 to 14, 0 not used
-//	u8 cck_txpwr_base;
-//	u8 ofdm_txpwr_base;
-//	u8 challow[15]; //channels from 1 to 14, 0 not used
+
 	short up;
 	short crcmon; //if 1 allow bad crc frame reception in monitor mode
-//	short prism_hdr;
-
-//	struct timer_list scan_timer;
-	/*short scanpending;
-	short stopscan;*/
-//	spinlock_t scan_lock;
-//	u8 active_probe;
-	//u8 active_scan_num;
 	struct semaphore wx_sem;
 	struct semaphore rf_sem; //used to lock rf write operation added by wb, modified by david
-//	short hw_wep;
-
-//	short digphy;
-//	short antb;
-//	short diversity;
-//	u8 cs_treshold;
-//	short rcr_csense;
-	u8 rf_type; //0 means 1T2R, 1 means 2T4R
+	u8 rf_type; /* 0 means 1T2R, 1 means 2T4R */
 	RT_RF_TYPE_819xU rf_chip;
 
-//	u32 key0[4];
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);
 	void (*rf_close)(struct net_device *dev);
 	void (*rf_init)(struct net_device *dev);
-	//short rate;
 	short promisc;
-	/*stats*/
+	/* stats */
 	struct Stats stats;
 	struct iw_statistics wstats;
 	struct proc_dir_entry *dir_dev;
 
-	/*RX stuff*/
-//	u32 *rxring;
-//	u32 *rxringtail;
-//	dma_addr_t rxringdma;
-
-#ifdef THOMAS_BEACON
-	u32 *oldaddr;
-#endif
-#ifdef THOMAS_TASKLET
-	atomic_t irt_counter;//count for irq_rx_tasklet
-#endif
-#ifdef JACKSON_NEW_RX
-        struct sk_buff **pp_rxskb;
-        int     rx_inx;
-#endif
-
-/* modified by davad for Rx process */
-       struct sk_buff_head rx_queue;
-       struct sk_buff_head skb_queue;
-       struct work_struct qos_activate;
+	/* RX stuff */
+	struct sk_buff_head rx_queue;
+	struct sk_buff_head skb_queue;
+	struct work_struct qos_activate;
 	short  tx_urb_index;
 	atomic_t tx_pending[0x10];//UART_PRIORITY+1
 
