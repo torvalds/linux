@@ -936,8 +936,7 @@ static void NCR5380_exit(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
-	cancel_delayed_work(&hostdata->coroutine);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&hostdata->coroutine);
 }
 
 /**
