@@ -1270,7 +1270,7 @@ typedef struct r8192_priv
 	u8			   Record_CCK_40Mindex;
 	//2007/09/10 Mars Add CCK TX Power Tracking
 	const ccktxbbgain_struct *cck_txbbgain_table;
-	ccktxbbgain_struct	cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
+	const ccktxbbgain_struct *cck_txbbgain_ch14_table;
 	u8 rfa_txpowertrackingindex;
 	u8 rfa_txpowertrackingindex_real;
 	u8 rfa_txpowertracking_default;
