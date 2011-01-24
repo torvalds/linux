@@ -135,7 +135,7 @@ static void mdm6600_wake_work(struct work_struct *work)
 	/* let usbcore auto-resume the modem */
 	if (usb_autopm_get_interface(intf) == 0)
 		/* set usage count back to 0 */
-		usb_autopm_put_interface_no_suspend(intf);
+		usb_autopm_put_interface_async(intf);
 
 	device_unlock(&intf->dev);
 }
