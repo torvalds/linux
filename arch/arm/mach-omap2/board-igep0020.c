@@ -493,10 +493,8 @@ static struct platform_device igep2_dss_device = {
 	},
 };
 
-static struct regulator_consumer_supply igep2_vpll2_supply = {
-	.supply	= "vdds_dsi",
-	.dev	= &igep2_dss_device.dev,
-};
+static struct regulator_consumer_supply igep2_vpll2_supply =
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
 
 static struct regulator_init_data igep2_vpll2 = {
 	.constraints = {

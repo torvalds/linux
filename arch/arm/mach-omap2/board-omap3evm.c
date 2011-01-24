@@ -500,10 +500,8 @@ static struct twl4030_codec_data omap3evm_codec_data = {
 	.audio = &omap3evm_audio_data,
 };
 
-static struct regulator_consumer_supply omap3_evm_vdda_dac_supply = {
-	.supply		= "vdda_dac",
-	.dev		= &omap3_evm_dss_device.dev,
-};
+static struct regulator_consumer_supply omap3_evm_vdda_dac_supply =
+	REGULATOR_SUPPLY("vdda_dac", "omapdss");
 
 /* VDAC for DSS driving S-Video */
 static struct regulator_init_data omap3_evm_vdac = {

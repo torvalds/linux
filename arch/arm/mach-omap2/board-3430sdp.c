@@ -315,10 +315,8 @@ static struct platform_device sdp3430_dss_device = {
 	},
 };
 
-static struct regulator_consumer_supply sdp3430_vdda_dac_supply = {
-	.supply		= "vdda_dac",
-	.dev		= &sdp3430_dss_device.dev,
-};
+static struct regulator_consumer_supply sdp3430_vdda_dac_supply =
+	REGULATOR_SUPPLY("vdda_dac", "omapdss");
 
 static struct platform_device *sdp3430_devices[] __initdata = {
 	&sdp3430_dss_device,
@@ -545,10 +543,7 @@ static struct regulator_init_data sdp3430_vdac = {
 
 /* VPLL2 for digital video outputs */
 static struct regulator_consumer_supply sdp3430_vpll2_supplies[] = {
-	{
-		.supply		= "vdds_dsi",
-		.dev		= &sdp3430_dss_device.dev,
-	}
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
 };
 
 static struct regulator_init_data sdp3430_vpll2 = {

@@ -495,15 +495,11 @@ static struct regulator_consumer_supply cm_t35_vsim_supply = {
 	.supply			= "vmmc_aux",
 };
 
-static struct regulator_consumer_supply cm_t35_vdac_supply = {
-	.supply		= "vdda_dac",
-	.dev		= &cm_t35_dss_device.dev,
-};
+static struct regulator_consumer_supply cm_t35_vdac_supply =
+	REGULATOR_SUPPLY("vdda_dac", "omapdss");
 
-static struct regulator_consumer_supply cm_t35_vdvi_supply = {
-	.supply		= "vdvi",
-	.dev		= &cm_t35_dss_device.dev,
-};
+static struct regulator_consumer_supply cm_t35_vdvi_supply =
+	REGULATOR_SUPPLY("vdvi", "omapdss");
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
 static struct regulator_init_data cm_t35_vmmc1 = {

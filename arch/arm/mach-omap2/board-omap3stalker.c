@@ -448,10 +448,8 @@ static struct twl4030_codec_data omap3stalker_codec_data = {
 	.audio		= &omap3stalker_audio_data,
 };
 
-static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply = {
-	.supply		= "vdda_dac",
-	.dev		= &omap3_stalker_dss_device.dev,
-};
+static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply =
+	REGULATOR_SUPPLY("vdda_dac", "omapdss");
 
 /* VDAC for DSS driving S-Video */
 static struct regulator_init_data omap3_stalker_vdac = {
@@ -469,10 +467,8 @@ static struct regulator_init_data omap3_stalker_vdac = {
 };
 
 /* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply omap3_stalker_vpll2_supply = {
-	.supply		= "vdds_dsi",
-	.dev		= &omap3_stalker_lcd_device.dev,
-};
+static struct regulator_consumer_supply omap3_stalker_vpll2_supply =
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
 
 static struct regulator_init_data omap3_stalker_vpll2 = {
 	.constraints		= {
