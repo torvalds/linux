@@ -450,14 +450,15 @@ static const struct file_operations fops_wiphy = {
 	.llseek = default_llseek,
 };
 
+#define PR_QNUM(_n) sc->tx.txq_map[_n]->axq_qnum
 #define PR(str, elem)							\
 	do {								\
 		len += snprintf(buf + len, size - len,			\
 				"%s%13u%11u%10u%10u\n", str,		\
-		sc->debug.stats.txstats[WME_AC_BE].elem, \
-		sc->debug.stats.txstats[WME_AC_BK].elem, \
-		sc->debug.stats.txstats[WME_AC_VI].elem, \
-		sc->debug.stats.txstats[WME_AC_VO].elem); \
+		sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].elem, \
+		sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].elem, \
+		sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].elem, \
+		sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].elem); \
 		if (len >= size)			  \
 			goto done;			  \
 } while(0)
@@ -466,10 +467,10 @@ static const struct file_operations fops_wiphy = {
 do {									\
 	len += snprintf(buf + len, size - len,				\
 			"%s%13u%11u%10u%10u\n", str,			\
-			(unsigned int)(sc->tx.txq[ATH_TXQ_AC_BE].elem),	\
-			(unsigned int)(sc->tx.txq[ATH_TXQ_AC_BK].elem),	\
-			(unsigned int)(sc->tx.txq[ATH_TXQ_AC_VI].elem),	\
-			(unsigned int)(sc->tx.txq[ATH_TXQ_AC_VO].elem));	\
+			(unsigned int)(sc->tx.txq_map[WME_AC_BE]->elem),	\
+			(unsigned int)(sc->tx.txq_map[WME_AC_BK]->elem),	\
+			(unsigned int)(sc->tx.txq_map[WME_AC_VI]->elem),	\
+			(unsigned int)(sc->tx.txq_map[WME_AC_VO]->elem));	\
 	if (len >= size)						\
 		goto done;						\
 } while(0)
@@ -478,10 +479,10 @@ do {									\
 do {									\
 	len += snprintf(buf + len, size - len,				\
 			"%s%13i%11i%10i%10i\n", str,			\
-			list_empty(&sc->tx.txq[ATH_TXQ_AC_BE].elem),	\
-			list_empty(&sc->tx.txq[ATH_TXQ_AC_BK].elem),	\
-			list_empty(&sc->tx.txq[ATH_TXQ_AC_VI].elem),	\
-			list_empty(&sc->tx.txq[ATH_TXQ_AC_VO].elem));	\
+			list_empty(&sc->tx.txq_map[WME_AC_BE]->elem),	\
+			list_empty(&sc->tx.txq_map[WME_AC_BK]->elem),	\
+			list_empty(&sc->tx.txq_map[WME_AC_VI]->elem),	\
+			list_empty(&sc->tx.txq_map[WME_AC_VO]->elem));	\
 	if (len >= size)						\
 		goto done;						\
 } while (0)
@@ -528,10 +529,10 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("hw-tx-proc-desc: ", txprocdesc);
 	len += snprintf(buf + len, size - len,
 			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
-			&(sc->tx.txq[ATH_TXQ_AC_BE]),
-			&(sc->tx.txq[ATH_TXQ_AC_BK]),
-			&(sc->tx.txq[ATH_TXQ_AC_VI]),
-			&(sc->tx.txq[ATH_TXQ_AC_VO]));
+			&(sc->tx.txq_map[WME_AC_BE]),
+			&(sc->tx.txq_map[WME_AC_BK]),
+			&(sc->tx.txq_map[WME_AC_VI]),
+			&(sc->tx.txq_map[WME_AC_VO]));
 	if (len >= size)
 		goto done;
 
@@ -751,9 +752,9 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 }
 
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
-		       struct ath_tx_status *ts)
+		       struct ath_tx_status *ts, struct ath_txq *txq)
 {
-	int qnum = skb_get_queue_mapping(bf->bf_mpdu);
+	int qnum = txq->axq_qnum;
 
 	TX_STAT_INC(qnum, tx_pkts_all);
 	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
