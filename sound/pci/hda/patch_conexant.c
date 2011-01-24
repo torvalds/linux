@@ -85,6 +85,7 @@ struct conexant_spec {
 	unsigned int auto_mic;
 	int auto_mic_ext;		/* autocfg.inputs[] index for ext mic */
 	unsigned int need_dac_fix;
+	hda_nid_t slave_dig_outs[2];
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -353,6 +354,8 @@ static int conexant_build_pcms(struct hda_codec *codec)
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
 				spec->dig_in_nid;
 		}
+		if (spec->slave_dig_outs[0])
+			codec->slave_dig_outs = spec->slave_dig_outs;
 	}
 
 	return 0;
@@ -2101,7 +2104,7 @@ static int patch_cxt5051(struct hda_codec *codec)
 static hda_nid_t cxt5066_dac_nids[1] = { 0x10 };
 static hda_nid_t cxt5066_adc_nids[3] = { 0x14, 0x15, 0x16 };
 static hda_nid_t cxt5066_capsrc_nids[1] = { 0x17 };
-#define CXT5066_SPDIF_OUT	0x21
+static hda_nid_t cxt5066_digout_pin_nids[2] = { 0x20, 0x22 };
 
 /* OLPC's microphone port is DC coupled for use with external sensors,
  * therefore we use a 50% mic bias in order to center the input signal with
@@ -2623,6 +2626,27 @@ static void cxt5066_olpc_capture_cleanup(struct hda_codec *codec)
 	spec->recording = 0;
 }
 
+static void conexant_check_dig_outs(struct hda_codec *codec,
+				    hda_nid_t *dig_pins,
+				    int num_pins)
+{
+	struct conexant_spec *spec = codec->spec;
+	hda_nid_t *nid_loc = &spec->multiout.dig_out_nid;
+	int i;
+
+	for (i = 0; i < num_pins; i++, dig_pins++) {
+		unsigned int cfg = snd_hda_codec_get_pincfg(codec, *dig_pins);
+		if (get_defcfg_connect(cfg) == AC_JACK_PORT_NONE)
+			continue;
+		if (snd_hda_get_connections(codec, *dig_pins, nid_loc, 1) != 1)
+			continue;
+		if (spec->slave_dig_outs[0])
+			nid_loc++;
+		else
+			nid_loc = spec->slave_dig_outs;
+	}
+}
+
 static struct hda_input_mux cxt5066_capture_source = {
 	.num_items = 4,
 	.items = {
@@ -3085,8 +3109,9 @@ static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0402, "Dell Vostro", CXT5066_DELL_VOSTRO),
 	SND_PCI_QUIRK(0x1028, 0x0408, "Dell Inspiron One 19T", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x103c, 0x360b, "HP G60", CXT5066_HP_LAPTOP),
-	SND_PCI_QUIRK(0x1043, 0x13f3, "Asus A52J", CXT5066_HP_LAPTOP),
+	SND_PCI_QUIRK(0x1043, 0x13f3, "Asus A52J", CXT5066_ASUS),
 	SND_PCI_QUIRK(0x1043, 0x1643, "Asus K52JU", CXT5066_ASUS),
+	SND_PCI_QUIRK(0x1043, 0x1993, "Asus U50F", CXT5066_ASUS),
 	SND_PCI_QUIRK(0x1179, 0xff1e, "Toshiba Satellite C650D", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x1179, 0xff50, "Toshiba Satellite P500-PSPGSC-01800T", CXT5066_OLPC_XO_1_5),
 	SND_PCI_QUIRK(0x1179, 0xffe0, "Toshiba Satellite Pro T130-15F", CXT5066_OLPC_XO_1_5),
@@ -3118,7 +3143,8 @@ static int patch_cxt5066(struct hda_codec *codec)
 	spec->multiout.max_channels = 2;
 	spec->multiout.num_dacs = ARRAY_SIZE(cxt5066_dac_nids);
 	spec->multiout.dac_nids = cxt5066_dac_nids;
-	spec->multiout.dig_out_nid = CXT5066_SPDIF_OUT;
+	conexant_check_dig_outs(codec, cxt5066_digout_pin_nids,
+	    ARRAY_SIZE(cxt5066_digout_pin_nids));
 	spec->num_adc_nids = 1;
 	spec->adc_nids = cxt5066_adc_nids;
 	spec->capsrc_nids = cxt5066_capsrc_nids;
@@ -3164,7 +3190,8 @@ static int patch_cxt5066(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
 		/* no S/PDIF out */
-		spec->multiout.dig_out_nid = 0;
+		if (board_config == CXT5066_HP_LAPTOP)
+			spec->multiout.dig_out_nid = 0;
 		/* input source automatically selected */
 		spec->input_mux = NULL;
 		spec->port_d_mode = 0;
