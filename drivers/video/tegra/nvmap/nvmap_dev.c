@@ -48,6 +48,13 @@
 #define NVMAP_NUM_PTES		64
 #define NVMAP_CARVEOUT_KILLER_RETRY_TIME 100 /* msecs */
 
+#ifdef CONFIG_NVMAP_CARVEOUT_KILLER
+static bool carveout_killer = true;
+#else
+static bool carveout_killer;
+#endif
+module_param(carveout_killer, bool, 0640);
+
 struct nvmap_carveout_node {
 	unsigned int		heap_bit;
 	struct nvmap_heap	*carveout;
@@ -324,8 +331,8 @@ static struct nvmap_client* get_client_from_carveout_commit(
 					       carveout_commit);
 }
 
-#ifdef CONFIG_NVMAP_CARVEOUT_KILLER
 static DECLARE_WAIT_QUEUE_HEAD(wait_reclaim);
+static int wait_count;
 bool nvmap_shrink_carveout(struct nvmap_carveout_node *node)
 {
 	struct nvmap_carveout_commit *commit;
@@ -359,6 +366,9 @@ bool nvmap_shrink_carveout(struct nvmap_carveout_node *node)
 		sig = task->signal;
 		if (!task->mm || !sig)
 			goto end;
+		/* don't try to kill current */
+		if (task == current->group_leader)
+			goto end;
 		/* don't try to kill higher priority tasks */
 		if (sig->oom_adj < current_oom_adj)
 			goto end;
@@ -374,22 +384,22 @@ end:
 		task_unlock(task);
 	}
 	if (selected_task) {
-		wait = selected_task != current;
+		wait = true;
 		if (fatal_signal_pending(selected_task)) {
 			pr_warning("carveout_killer: process %d dying "
 				   "slowly\n", selected_task->pid);
 			goto out;
 		}
 		pr_info("carveout_killer: killing process %d with oom_adj %d "
-			"to reclaim %d\n", selected_task->pid, selected_oom_adj,
-			selected_size);
+			"to reclaim %d (for process with oom_adj %d)\n",
+			selected_task->pid, selected_oom_adj,
+			selected_size, current_oom_adj);
 		force_sig(SIGKILL, selected_task);
 	}
 out:
 	spin_unlock_irqrestore(&node->clients_lock, flags);
 	return wait;
 }
-#endif
 
 struct nvmap_heap_block *do_nvmap_carveout_alloc(struct nvmap_client *client,
 						 size_t len, size_t align,
@@ -422,63 +432,75 @@ struct nvmap_heap_block *do_nvmap_carveout_alloc(struct nvmap_client *client,
 	return NULL;
 }
 
+static bool nvmap_carveout_freed(int count)
+{
+	smp_rmb();
+	return count != wait_count;
+}
+
 struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 					      size_t len, size_t align,
 					      unsigned long usage,
 					      unsigned int prot)
 {
 	struct nvmap_heap_block *block;
-#ifdef CONFIG_NVMAP_CARVEOUT_KILLER
 	struct nvmap_carveout_node *co_heap;
 	struct nvmap_device *dev = client->dev;
 	int i;
 	unsigned long end = jiffies +
 		msecs_to_jiffies(NVMAP_CARVEOUT_KILLER_RETRY_TIME);
 	int count = 0;
-	DEFINE_WAIT(wait);
 
 	do {
-		block = do_nvmap_carveout_alloc(client, len, align, usage,
-						prot);
+		block = do_nvmap_carveout_alloc(client, len, align,
+						usage, prot);
+		if (!carveout_killer)
+			return block;
+
 		if (block)
 			return block;
 
-		if (!count++)
-			printk("%s: failed to allocate %u bytes, "
-			       "firing carveout killer!\n", __func__, len);
-		else
-			printk("%s: still can't allocate %u bytes, "
-			       "attempt %d!\n", __func__, len, count);
+		if (!count++) {
+			char task_comm[TASK_COMM_LEN];
+			if (client->task)
+				get_task_comm(task_comm, client->task);
+			else
+				task_comm[0] = 0;
+			pr_info("%s: failed to allocate %u bytes for "
+				"process %s, firing carveout "
+				"killer!\n", __func__, len, task_comm);
+
+		} else {
+			pr_info("%s: still can't allocate %u bytes, "
+				"attempt %d!\n", __func__, len, count);
+		}
 
 		/* shrink carveouts that matter and try again */
 		for (i = 0; i < dev->nr_carveouts; i++) {
+			int count;
 			co_heap = &dev->heaps[i];
 
 			if (!(co_heap->heap_bit & usage))
 				continue;
 
-			/* indicates we just delivered a sigkill to current,
-			   or didn't find anything to kill might as well stop
-			   trying */
+			count = wait_count;
+			/* indicates we didn't find anything to kill,
+			   might as well stop trying */
 			if (!nvmap_shrink_carveout(co_heap))
 				return NULL;
 
-			prepare_to_wait(&wait_reclaim, &wait,
-					TASK_INTERRUPTIBLE);
-			schedule_timeout(end - jiffies);
-			finish_wait(&wait_reclaim, &wait);
+			if (time_is_after_jiffies(end))
+				wait_event_interruptible_timeout(wait_reclaim,
+					 nvmap_carveout_freed(count),
+					 end - jiffies);
 		}
 	} while (time_is_after_jiffies(end));
 
 	if (time_is_before_jiffies(end))
-	    printk("carveout_killer: timeout expired without allocation "
-		   "succeeding.\n");
+		pr_info("carveout_killer: timeout expired without "
+			"allocation succeeding.\n");
 
 	return NULL;
-#else
-	block = do_nvmap_carveout_alloc(client, len, align, usage, prot);
-	return block;
-#endif
 }
 
 /* remove a handle from the device's tree of all handles; called
@@ -588,17 +610,17 @@ struct nvmap_client *nvmap_create_client(struct nvmap_device *dev,
 		client->carveout_commit[i].commit = 0;
 	}
 
-	get_task_struct(current);
-	task_lock(current);
+	get_task_struct(current->group_leader);
+	task_lock(current->group_leader);
 	/* don't bother to store task struct for kernel threads,
 	   they can't be killed anyway */
 	if (current->flags & PF_KTHREAD) {
-		put_task_struct(current);
+		put_task_struct(current->group_leader);
 		task = NULL;
 	} else {
-		task = current;
+		task = current->group_leader;
 	}
-	task_unlock(current);
+	task_unlock(current->group_leader);
 	client->task = task;
 
 	spin_lock_init(&client->ref_lock);
@@ -641,9 +663,11 @@ static void destroy_client(struct nvmap_client *client)
 		kfree(ref);
 	}
 
-#ifdef CONFIG_NVMAP_CARVEOUT_KILLER
-	wake_up_all(&wait_reclaim);
-#endif
+	if (carveout_killer) {
+		wait_count++;
+		smp_wmb();
+		wake_up_all(&wait_reclaim);
+	}
 
 	for (i = 0; i < client->dev->nr_carveouts; i++)
 		list_del(&client->carveout_commit[i].list);
