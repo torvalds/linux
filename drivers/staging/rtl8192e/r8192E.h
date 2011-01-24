@@ -94,12 +94,8 @@
 
 #if 0 //we need to use RT_TRACE instead DMESG as RT_TRACE will clearly show debug level wb.
 #define DMESG(x,a...) printk(KERN_INFO RTL819xE_MODULE_NAME ": " x "\n", ## a)
-#define DMESGW(x,a...) printk(KERN_WARNING RTL819xE_MODULE_NAME ": WW:" x "\n", ## a)
-#define DMESGE(x,a...) printk(KERN_WARNING RTL819xE_MODULE_NAME ": EE:" x "\n", ## a)
 #else
 #define DMESG(x,a...)
-#define DMESGW(x,a...)
-#define DMESGE(x,a...)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 do { if(rt_global_debug_component & component) \
