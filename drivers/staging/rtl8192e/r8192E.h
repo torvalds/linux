@@ -20,7 +20,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-//#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
@@ -28,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-//#include <linux/usb.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 #include <linux/rtnetlink.h>	//for rtnl_lock()
@@ -130,9 +128,9 @@ do { if(rt_global_debug_component & component) \
 #define COMP_EVENTS			        BIT19	// Event handling
 
 #define COMP_RF					BIT20	// For RF.
-//1!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//1//1Attention Please!!!<11n or 8190 specific code should be put below this line>
-//1!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+/* 11n or 8190 specific code should be put below this line */
+
 
 #define COMP_FIRMWARE			        BIT21	//for firmware downloading
 #define COMP_HT					BIT22	// For 802.11n HT related information. by Emily 2006-8-11
@@ -354,8 +352,6 @@ typedef struct _rx_fwinfo_819x_pci{
 #define MAX_FIRMWARE_INFORMATION_SIZE   32 /*2006/04/30 by Emily forRTL8190*/
 #define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
 #define ENCRYPTION_MAX_OVERHEAD		128
-//#define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
-//#define TX_PACKET_SHIFT_BYTES 	  	(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
 #define MAX_TRANSMIT_BUFFER_SIZE  	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
 
@@ -401,7 +397,7 @@ typedef struct _rt_firmware{
 	u8		  firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
 }rt_firmware, *prt_firmware;
-//+by amy 080507
+
 #define MAX_RECEIVE_BUFFER_SIZE	9100	// Add this to 9100 bytes to receive A-MSDU from RT-AP
 
 /* Firmware Queue Layout */
@@ -427,55 +423,12 @@ typedef struct _rt_firmware{
 #define RSVD_FW_QUEUE_PAGE_BCN_SHIFT	0x00
 #define RSVD_FW_QUEUE_PAGE_PUB_SHIFT	0x08
 
-//8187B Security
-//#define RWCAM                   0xA0                    // Software read/write CAM config
-//#define WCAMI                   0xA4                    // Software write CAM input content
-//#define RCAMO                   0xA8                    // Output value from CAM according to 0xa0 setting
 #define DCAM                    0xAC                    // Debug CAM Interface
 #define AESMSK_FC               0xB2    // AES Mask register for frame control (0xB2~0xB3). Added by Annie, 2006-03-06.
 
 
 #define CAM_CONTENT_COUNT       8
-//#define CFG_DEFAULT_KEY         BIT5
 #define CFG_VALID               BIT15
-#if 0
-//----------------------------------------------------------------------------
-//       8187B WPA Config Register (offset 0xb0, 1 byte)
-//----------------------------------------------------------------------------
-#define SCR_UseDK                       0x01
-#define SCR_TxSecEnable                 0x02
-#define SCR_RxSecEnable                 0x04
-
-//----------------------------------------------------------------------------
-//       8187B CAM Config Setting (offset 0xb0, 1 byte)
-//----------------------------------------------------------------------------
-#define CAM_VALID                               0x8000
-#define CAM_NOTVALID                    0x0000
-#define CAM_USEDK                               0x0020
-
-
-#define CAM_NONE                                0x0
-#define CAM_WEP40                               0x01
-#define CAM_TKIP                                0x02
-#define CAM_AES                                 0x04
-#define CAM_WEP104                              0x05
-
-//#define CAM_SIZE                              16
-#define TOTAL_CAM_ENTRY         16
-#define CAM_ENTRY_LEN_IN_DW     6       // 6, unit: in u4byte. Added by Annie, 2006-05-25.
-#define CAM_ENTRY_LEN_IN_BYTE   (CAM_ENTRY_LEN_IN_DW*sizeof(u32))    // 24, unit: in u1byte. Added by Annie, 2006-05-25.
-
-#define CAM_CONFIG_USEDK                1
-#define CAM_CONFIG_NO_USEDK             0
-
-#define CAM_WRITE                               0x00010000
-#define CAM_READ                                0x00000000
-#define CAM_POLLINIG                    0x80000000
-
-//=================================================================
-//=================================================================
-
-#endif
 #define EPROM_93c46 0
 #define EPROM_93c56 1
 
@@ -523,17 +476,6 @@ typedef struct rtl_reg_debug{
         unsigned char buf[0xff];
 }rtl_reg_debug;
 
-#if 0
-
-typedef struct tx_pendingbuf
-{
-	struct ieee80211_txb *txb;
-	short ispending;
-	short descfrag;
-} tx_pendigbuf;
-
-#endif
-
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
 	u32             ofdm[8];
@@ -565,10 +507,6 @@ typedef struct Stats
 {
 	unsigned long txrdu;
 	unsigned long rxrdu;
-	//unsigned long rxnolast;
-	//unsigned long rxnodata;
-//	unsigned long rxreset;
-//	unsigned long rxnopointer;
 	unsigned long rxok;
 	unsigned long rxframgment;
 	unsigned long rxcmdpkt[4];		//08/05/08 amy rx cmd element txfeedback/bcn report/cfg set/query
@@ -591,18 +529,12 @@ typedef struct Stats
 	unsigned long txnperr;
 	unsigned long txnpdrop;
 	unsigned long txresumed;
-//	unsigned long rxerr;
 	unsigned long rxoverflow;
 	unsigned long rxint;
 	unsigned long txnpokint;
-//	unsigned long txhpokint;
-//	unsigned long txhperr;
 	unsigned long ints;
 	unsigned long shints;
 	unsigned long txoverflow;
-//	unsigned long rxdmafail;
-//	unsigned long txbeacon;
-//	unsigned long txbeaconerr;
 	unsigned long txlpokint;
 	unsigned long txlpdrop;
 	unsigned long txlperr;
@@ -663,8 +595,6 @@ typedef struct Stats
 	u32 Slide_Beacon_Total;		//cosa add for beacon rssi
 	RT_SMOOTH_DATA_4RF		cck_adc_pwdb;
 	u32	CurrentShowTxate;
-
-
 } Stats;
 
 
@@ -672,8 +602,6 @@ typedef struct Stats
 #define HAL_PRIME_CHNL_OFFSET_DONT_CARE		0
 #define HAL_PRIME_CHNL_OFFSET_LOWER			1
 #define HAL_PRIME_CHNL_OFFSET_UPPER			2
-
-//+by amy 080507
 
 typedef struct 	ChnlAccessSetting {
 	u16 SIFS_Timer;
@@ -795,9 +723,7 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_COREGA = 14,
 }RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
-//================================================================================
-// LED customization.
-//================================================================================
+/* LED customization. */
 
 typedef	enum _LED_STRATEGY_8190{
 	SW_LED_MODE0, // SW control 1 LED via GPIO0. It is default option.
@@ -1048,7 +974,6 @@ typedef struct r8192_priv
 
 	struct work_struct reset_wq;
 
-/**********************************************************/
 //for rtl819xPci
 	// Data Rate Config. Added by Annie, 2006-04-13.
 	u16	basic_rate;
@@ -1227,95 +1152,10 @@ typedef struct r8192_priv
 	struct workqueue_struct *priv_wq;
 }r8192_priv;
 
-// for rtl8187
-// now mirging to rtl8187B
-/*
-typedef enum{
-	LOW_PRIORITY = 0x02,
-	NORM_PRIORITY
-	} priority_t;
-*/
-//for rtl8187B
-#if 0
-typedef enum{
-	BULK_PRIORITY = 0x01,
-	//RSVD0,
-	//RSVD1,
-	LOW_PRIORITY,
-	NORM_PRIORITY,
-	VO_PRIORITY,
-	VI_PRIORITY, //0x05
-	BE_PRIORITY,
-	BK_PRIORITY,
-	CMD_PRIORITY,//0x8
-	RSVD3,
-	BEACON_PRIORITY, //0x0A
-	HIGH_PRIORITY,
-	MANAGE_PRIORITY,
-	RSVD4,
-	RSVD5,
-	UART_PRIORITY //0x0F
-} priority_t;
-#endif
 typedef enum{
 	NIC_8192E = 1,
-	} nic_t;
+} nic_t;
 
-
-#if 0 //defined in Qos.h
-//typedef u32 AC_CODING;
-#define AC0_BE	0		// ACI: 0x00	// Best Effort
-#define AC1_BK	1		// ACI: 0x01	// Background
-#define AC2_VI	2		// ACI: 0x10	// Video
-#define AC3_VO	3		// ACI: 0x11	// Voice
-#define AC_MAX	4		// Max: define total number; Should not to be used as a real enum.
-
-//
-// ECWmin/ECWmax field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
-typedef	union _ECW{
-	u8	charData;
-	struct
-	{
-		u8	ECWmin:4;
-		u8	ECWmax:4;
-	}f;	// Field
-}ECW, *PECW;
-
-//
-// ACI/AIFSN Field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _ACI_AIFSN{
-	u8	charData;
-
-	struct
-	{
-		u8	AIFSN:4;
-		u8	ACM:1;
-		u8	ACI:2;
-		u8	Reserved:1;
-	}f;	// Field
-}ACI_AIFSN, *PACI_AIFSN;
-
-//
-// AC Parameters Record Format.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _AC_PARAM{
-	u32	longData;
-	u8	charData[4];
-
-	struct
-	{
-		ACI_AIFSN	AciAifsn;
-		ECW		Ecw;
-		u16		TXOPLimit;
-	}f;	// Field
-}AC_PARAM, *PAC_PARAM;
-
-#endif
 bool init_firmware(struct net_device *dev);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
 u32 read_cam(struct net_device *dev, u8 addr);
@@ -1334,7 +1174,6 @@ void rtl8192_rx_enable(struct net_device *);
 void rtl8192_tx_enable(struct net_device *);
 
 void rtl8192_disassociate(struct net_device *dev);
-//void fix_rx_fifo(struct net_device *dev);
 void rtl8185_set_rf_pins_enable(struct net_device *dev,u32 a);
 
 void rtl8192_set_anaparam(struct net_device *dev,u32 a);
@@ -1349,7 +1188,6 @@ void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8187_set_rxconf(struct net_device *dev);
-//short check_nic_enough_desc(struct net_device *dev, priority_t priority);
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
