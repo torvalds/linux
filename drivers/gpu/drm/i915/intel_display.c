@@ -1895,7 +1895,7 @@ static void intel_update_fbc(struct drm_device *dev)
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
 	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
-		if (tmp_crtc->enabled) {
+		if (tmp_crtc->enabled && tmp_crtc->fb) {
 			if (crtc) {
 				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
 				dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
@@ -3207,77 +3207,77 @@ struct intel_watermark_params {
 };
 
 /* Pineview has different values for various configs */
-static struct intel_watermark_params pineview_display_wm = {
+static const struct intel_watermark_params pineview_display_wm = {
 	PINEVIEW_DISPLAY_FIFO,
 	PINEVIEW_MAX_WM,
 	PINEVIEW_DFT_WM,
 	PINEVIEW_GUARD_WM,
 	PINEVIEW_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params pineview_display_hplloff_wm = {
+static const struct intel_watermark_params pineview_display_hplloff_wm = {
 	PINEVIEW_DISPLAY_FIFO,
 	PINEVIEW_MAX_WM,
 	PINEVIEW_DFT_HPLLOFF_WM,
 	PINEVIEW_GUARD_WM,
 	PINEVIEW_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params pineview_cursor_wm = {
+static const struct intel_watermark_params pineview_cursor_wm = {
 	PINEVIEW_CURSOR_FIFO,
 	PINEVIEW_CURSOR_MAX_WM,
 	PINEVIEW_CURSOR_DFT_WM,
 	PINEVIEW_CURSOR_GUARD_WM,
 	PINEVIEW_FIFO_LINE_SIZE,
 };
-static struct intel_watermark_params pineview_cursor_hplloff_wm = {
+static const struct intel_watermark_params pineview_cursor_hplloff_wm = {
 	PINEVIEW_CURSOR_FIFO,
 	PINEVIEW_CURSOR_MAX_WM,
 	PINEVIEW_CURSOR_DFT_WM,
 	PINEVIEW_CURSOR_GUARD_WM,
 	PINEVIEW_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params g4x_wm_info = {
+static const struct intel_watermark_params g4x_wm_info = {
 	G4X_FIFO_SIZE,
 	G4X_MAX_WM,
 	G4X_MAX_WM,
 	2,
 	G4X_FIFO_LINE_SIZE,
 };
-static struct intel_watermark_params g4x_cursor_wm_info = {
+static const struct intel_watermark_params g4x_cursor_wm_info = {
 	I965_CURSOR_FIFO,
 	I965_CURSOR_MAX_WM,
 	I965_CURSOR_DFT_WM,
 	2,
 	G4X_FIFO_LINE_SIZE,
 };
-static struct intel_watermark_params i965_cursor_wm_info = {
+static const struct intel_watermark_params i965_cursor_wm_info = {
 	I965_CURSOR_FIFO,
 	I965_CURSOR_MAX_WM,
 	I965_CURSOR_DFT_WM,
 	2,
 	I915_FIFO_LINE_SIZE,
 };
-static struct intel_watermark_params i945_wm_info = {
+static const struct intel_watermark_params i945_wm_info = {
 	I945_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
 	2,
 	I915_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params i915_wm_info = {
+static const struct intel_watermark_params i915_wm_info = {
 	I915_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
 	2,
 	I915_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params i855_wm_info = {
+static const struct intel_watermark_params i855_wm_info = {
 	I855GM_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
 	2,
 	I830_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params i830_wm_info = {
+static const struct intel_watermark_params i830_wm_info = {
 	I830_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
@@ -3285,31 +3285,28 @@ static struct intel_watermark_params i830_wm_info = {
 	I830_FIFO_LINE_SIZE
 };
 
-static struct intel_watermark_params ironlake_display_wm_info = {
+static const struct intel_watermark_params ironlake_display_wm_info = {
 	ILK_DISPLAY_FIFO,
 	ILK_DISPLAY_MAXWM,
 	ILK_DISPLAY_DFTWM,
 	2,
 	ILK_FIFO_LINE_SIZE
 };
-
-static struct intel_watermark_params ironlake_cursor_wm_info = {
+static const struct intel_watermark_params ironlake_cursor_wm_info = {
 	ILK_CURSOR_FIFO,
 	ILK_CURSOR_MAXWM,
 	ILK_CURSOR_DFTWM,
 	2,
 	ILK_FIFO_LINE_SIZE
 };
-
-static struct intel_watermark_params ironlake_display_srwm_info = {
+static const struct intel_watermark_params ironlake_display_srwm_info = {
 	ILK_DISPLAY_SR_FIFO,
 	ILK_DISPLAY_MAX_SRWM,
 	ILK_DISPLAY_DFT_SRWM,
 	2,
 	ILK_FIFO_LINE_SIZE
 };
-
-static struct intel_watermark_params ironlake_cursor_srwm_info = {
+static const struct intel_watermark_params ironlake_cursor_srwm_info = {
 	ILK_CURSOR_SR_FIFO,
 	ILK_CURSOR_MAX_SRWM,
 	ILK_CURSOR_DFT_SRWM,
@@ -3317,31 +3314,28 @@ static struct intel_watermark_params ironlake_cursor_srwm_info = {
 	ILK_FIFO_LINE_SIZE
 };
 
-static struct intel_watermark_params sandybridge_display_wm_info = {
+static const struct intel_watermark_params sandybridge_display_wm_info = {
 	SNB_DISPLAY_FIFO,
 	SNB_DISPLAY_MAXWM,
 	SNB_DISPLAY_DFTWM,
 	2,
 	SNB_FIFO_LINE_SIZE
 };
-
-static struct intel_watermark_params sandybridge_cursor_wm_info = {
+static const struct intel_watermark_params sandybridge_cursor_wm_info = {
 	SNB_CURSOR_FIFO,
 	SNB_CURSOR_MAXWM,
 	SNB_CURSOR_DFTWM,
 	2,
 	SNB_FIFO_LINE_SIZE
 };
-
-static struct intel_watermark_params sandybridge_display_srwm_info = {
+static const struct intel_watermark_params sandybridge_display_srwm_info = {
 	SNB_DISPLAY_SR_FIFO,
 	SNB_DISPLAY_MAX_SRWM,
 	SNB_DISPLAY_DFT_SRWM,
 	2,
 	SNB_FIFO_LINE_SIZE
 };
-
-static struct intel_watermark_params sandybridge_cursor_srwm_info = {
+static const struct intel_watermark_params sandybridge_cursor_srwm_info = {
 	SNB_CURSOR_SR_FIFO,
 	SNB_CURSOR_MAX_SRWM,
 	SNB_CURSOR_DFT_SRWM,
@@ -3369,7 +3363,8 @@ static struct intel_watermark_params sandybridge_cursor_srwm_info = {
  * will occur, and a display engine hang could result.
  */
 static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
-					struct intel_watermark_params *wm,
+					const struct intel_watermark_params *wm,
+					int fifo_size,
 					int pixel_size,
 					unsigned long latency_ns)
 {
@@ -3387,7 +3382,7 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 
 	DRM_DEBUG_KMS("FIFO entries required for mode: %d\n", entries_required);
 
-	wm_size = wm->fifo_size - (entries_required + wm->guard_size);
+	wm_size = fifo_size - (entries_required + wm->guard_size);
 
 	DRM_DEBUG_KMS("FIFO watermark level: %d\n", wm_size);
 
@@ -3560,15 +3555,28 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 	return size;
 }
 
-static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
-			       int planeb_clock, int sr_hdisplay, int unused,
-			       int pixel_size)
+static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
+{
+	struct drm_crtc *crtc, *enabled = NULL;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (crtc->enabled && crtc->fb) {
+			if (enabled)
+				return NULL;
+			enabled = crtc;
+		}
+	}
+
+	return enabled;
+}
+
+static void pineview_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
 	const struct cxsr_latency *latency;
 	u32 reg;
 	unsigned long wm;
-	int sr_clock;
 
 	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->is_ddr3,
 					 dev_priv->fsb_freq, dev_priv->mem_freq);
@@ -3578,11 +3586,14 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 		return;
 	}
 
-	if (!planea_clock || !planeb_clock) {
-		sr_clock = planea_clock ? planea_clock : planeb_clock;
+	crtc = single_enabled_crtc(dev);
+	if (crtc) {
+		int clock = crtc->mode.clock;
+		int pixel_size = crtc->fb->bits_per_pixel / 8;
 
 		/* Display SR */
-		wm = intel_calculate_wm(sr_clock, &pineview_display_wm,
+		wm = intel_calculate_wm(clock, &pineview_display_wm,
+					pineview_display_wm.fifo_size,
 					pixel_size, latency->display_sr);
 		reg = I915_READ(DSPFW1);
 		reg &= ~DSPFW_SR_MASK;
@@ -3591,7 +3602,8 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 		DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
 
 		/* cursor SR */
-		wm = intel_calculate_wm(sr_clock, &pineview_cursor_wm,
+		wm = intel_calculate_wm(clock, &pineview_cursor_wm,
+					pineview_display_wm.fifo_size,
 					pixel_size, latency->cursor_sr);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_CURSOR_SR_MASK;
@@ -3599,7 +3611,8 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 		I915_WRITE(DSPFW3, reg);
 
 		/* Display HPLL off SR */
-		wm = intel_calculate_wm(sr_clock, &pineview_display_hplloff_wm,
+		wm = intel_calculate_wm(clock, &pineview_display_hplloff_wm,
+					pineview_display_hplloff_wm.fifo_size,
 					pixel_size, latency->display_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_SR_MASK;
@@ -3607,7 +3620,8 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 		I915_WRITE(DSPFW3, reg);
 
 		/* cursor HPLL off SR */
-		wm = intel_calculate_wm(sr_clock, &pineview_cursor_hplloff_wm,
+		wm = intel_calculate_wm(clock, &pineview_cursor_hplloff_wm,
+					pineview_display_hplloff_wm.fifo_size,
 					pixel_size, latency->cursor_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_CURSOR_MASK;
@@ -3709,12 +3723,14 @@ static bool g4x_check_srwm(struct drm_device *dev,
 }
 
 static bool g4x_compute_srwm(struct drm_device *dev,
-			     int hdisplay, int htotal,
-			     int pixel_size, int clock, int latency_ns,
+			     int plane,
+			     int latency_ns,
 			     const struct intel_watermark_params *display,
 			     const struct intel_watermark_params *cursor,
 			     int *display_wm, int *cursor_wm)
 {
+	struct drm_crtc *crtc;
+	int hdisplay, htotal, pixel_size, clock;
 	unsigned long line_time_us;
 	int line_count, line_size;
 	int small, large;
@@ -3724,6 +3740,12 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 		*display_wm = *cursor_wm = 0;
 		return false;
 	}
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	hdisplay = crtc->mode.hdisplay;
+	htotal = crtc->mode.htotal;
+	clock = crtc->mode.clock;
+	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -3746,32 +3768,35 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static void g4x_update_wm(struct drm_device *dev,
-			  int planea_clock, int planeb_clock,
-			  int hdisplay, int htotal, int pixel_size)
+static inline bool single_plane_enabled(unsigned int mask)
+{
+	return mask && (mask & -mask) == 0;
+}
+
+static void g4x_update_wm(struct drm_device *dev)
 {
 	static const int sr_latency_ns = 12000;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
-	int enabled = 0, plane_sr, cursor_sr, clock;
+	int plane_sr, cursor_sr;
+	unsigned int enabled = 0;
 
 	if (g4x_compute_wm0(dev, 0,
 			    &g4x_wm_info, latency_ns,
 			    &g4x_cursor_wm_info, latency_ns,
 			    &planea_wm, &cursora_wm))
-		enabled++;
+		enabled |= 1;
 
 	if (g4x_compute_wm0(dev, 1,
 			    &g4x_wm_info, latency_ns,
 			    &g4x_cursor_wm_info, latency_ns,
 			    &planeb_wm, &cursorb_wm))
-		enabled++;
+		enabled |= 2;
 
 	plane_sr = cursor_sr = 0;
-	clock = planea_clock ? planea_clock : planeb_clock;
-	if (enabled == 1 &&
-	    g4x_compute_srwm(dev, hdisplay, htotal, pixel_size,
-			     clock, sr_latency_ns,
+	if (single_plane_enabled(enabled) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     sr_latency_ns,
 			     &g4x_wm_info,
 			     &g4x_cursor_wm_info,
 			     &plane_sr, &cursor_sr))
@@ -3799,39 +3824,43 @@ static void g4x_update_wm(struct drm_device *dev,
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void i965_update_wm(struct drm_device *dev, int planea_clock,
-			   int planeb_clock, int sr_hdisplay, int sr_htotal,
-			   int pixel_size)
+static void i965_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long line_time_us;
-	int sr_clock, sr_entries, srwm = 1;
+	struct drm_crtc *crtc;
+	int srwm = 1;
 	int cursor_sr = 16;
 
 	/* Calc sr entries for one plane configs */
-	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
+	crtc = single_enabled_crtc(dev);
+	if (crtc) {
 		/* self-refresh has much higher latency */
 		static const int sr_latency_ns = 12000;
+		int clock = crtc->mode.clock;
+		int htotal = crtc->mode.htotal;
+		int hdisplay = crtc->mode.hdisplay;
+		int pixel_size = crtc->fb->bits_per_pixel / 8;
+		unsigned long line_time_us;
+		int entries;
 
-		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_htotal * 1000) / sr_clock);
+		line_time_us = ((htotal * 1000) / clock);
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * sr_hdisplay;
-		sr_entries = DIV_ROUND_UP(sr_entries, I915_FIFO_LINE_SIZE);
-		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
-		srwm = I965_FIFO_SIZE - sr_entries;
+		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			pixel_size * hdisplay;
+		entries = DIV_ROUND_UP(entries, I915_FIFO_LINE_SIZE);
+		DRM_DEBUG("self-refresh entries: %d\n", entries);
+		srwm = I965_FIFO_SIZE - entries;
 		if (srwm < 0)
 			srwm = 1;
 		srwm &= 0x1ff;
 
-		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			pixel_size * 64;
-		sr_entries = DIV_ROUND_UP(sr_entries,
+		entries = DIV_ROUND_UP(entries,
 					  i965_cursor_wm_info.cacheline_size);
 		cursor_sr = i965_cursor_wm_info.fifo_size -
-			(sr_entries + i965_cursor_wm_info.guard_size);
+			(entries + i965_cursor_wm_info.guard_size);
 
 		if (cursor_sr > i965_cursor_wm_info.max_wm)
 			cursor_sr = i965_cursor_wm_info.max_wm;
@@ -3859,39 +3888,50 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
-			   int planeb_clock, int sr_hdisplay, int sr_htotal,
-			   int pixel_size)
+static void i9xx_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct intel_watermark_params *wm_info;
 	uint32_t fwater_lo;
 	uint32_t fwater_hi;
-	int total_size, cacheline_size, cwm, srwm = 1;
+	int cwm, srwm = 1;
+	int fifo_size;
 	int planea_wm, planeb_wm;
-	struct intel_watermark_params planea_params, planeb_params;
-	unsigned long line_time_us;
-	int sr_clock, sr_entries = 0, sr_enabled = 0;
+	struct drm_crtc *crtc, *enabled = NULL;
 
 	/* Create copies of the base settings for each pipe */
 	if (IS_CRESTLINE(dev) || IS_I945GM(dev))
-		planea_params = planeb_params = i945_wm_info;
+		wm_info = &i945_wm_info;
 	else if (!IS_GEN2(dev))
-		planea_params = planeb_params = i915_wm_info;
+		wm_info = &i915_wm_info;
 	else
-		planea_params = planeb_params = i855_wm_info;
+		wm_info = &i855_wm_info;
 
-	/* Grab a couple of global values before we overwrite them */
-	total_size = planea_params.fifo_size;
-	cacheline_size = planea_params.cacheline_size;
+	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
+	crtc = intel_get_crtc_for_plane(dev, 0);
+	if (crtc->enabled && crtc->fb) {
+		planea_wm = intel_calculate_wm(crtc->mode.clock,
+					       wm_info, fifo_size,
+					       crtc->fb->bits_per_pixel / 8,
+					       latency_ns);
+		enabled = crtc;
+	} else
+		planea_wm = fifo_size - wm_info->guard_size;
 
-	/* Update per-plane FIFO sizes */
-	planea_params.fifo_size = dev_priv->display.get_fifo_size(dev, 0);
-	planeb_params.fifo_size = dev_priv->display.get_fifo_size(dev, 1);
+	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
+	crtc = intel_get_crtc_for_plane(dev, 1);
+	if (crtc->enabled && crtc->fb) {
+		planeb_wm = intel_calculate_wm(crtc->mode.clock,
+					       wm_info, fifo_size,
+					       crtc->fb->bits_per_pixel / 8,
+					       latency_ns);
+		if (enabled == NULL)
+			enabled = crtc;
+		else
+			enabled = NULL;
+	} else
+		planeb_wm = fifo_size - wm_info->guard_size;
 
-	planea_wm = intel_calculate_wm(planea_clock, &planea_params,
-				       pixel_size, latency_ns);
-	planeb_wm = intel_calculate_wm(planeb_clock, &planeb_params,
-				       pixel_size, latency_ns);
 	DRM_DEBUG_KMS("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
 
 	/*
@@ -3906,20 +3946,24 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		I915_WRITE(INSTPM, I915_READ(INSTPM) & ~INSTPM_SELF_EN);
 
 	/* Calc sr entries for one plane configs */
-	if (HAS_FW_BLC(dev) && sr_hdisplay &&
-	    (!planea_clock || !planeb_clock)) {
+	if (HAS_FW_BLC(dev) && enabled) {
 		/* self-refresh has much higher latency */
 		static const int sr_latency_ns = 6000;
+		int clock = enabled->mode.clock;
+		int htotal = enabled->mode.htotal;
+		int hdisplay = enabled->mode.hdisplay;
+		int pixel_size = enabled->fb->bits_per_pixel / 8;
+		unsigned long line_time_us;
+		int entries;
 
-		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_htotal * 1000) / sr_clock);
+		line_time_us = (htotal * 1000) / clock;
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * sr_hdisplay;
-		sr_entries = DIV_ROUND_UP(sr_entries, cacheline_size);
-		DRM_DEBUG_KMS("self-refresh entries: %d\n", sr_entries);
-		srwm = total_size - sr_entries;
+		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			pixel_size * hdisplay;
+		entries = DIV_ROUND_UP(entries, wm_info->cacheline_size);
+		DRM_DEBUG_KMS("self-refresh entries: %d\n", entries);
+		srwm = wm_info->fifo_size - entries;
 		if (srwm < 0)
 			srwm = 1;
 
@@ -3928,8 +3972,6 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 				   FW_BLC_SELF_FIFO_MASK | (srwm & 0xff));
 		else if (IS_I915GM(dev))
 			I915_WRITE(FW_BLC_SELF, srwm & 0x3f);
-
-		sr_enabled = 1;
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
@@ -3945,28 +3987,35 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 	I915_WRITE(FW_BLC, fwater_lo);
 	I915_WRITE(FW_BLC2, fwater_hi);
 
-	if (sr_enabled) {
-		if (IS_I945G(dev) || IS_I945GM(dev))
-			I915_WRITE(FW_BLC_SELF,
-				   FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
-		else if (IS_I915GM(dev))
-			I915_WRITE(INSTPM, I915_READ(INSTPM) | INSTPM_SELF_EN);
-		DRM_DEBUG_KMS("memory self refresh enabled\n");
-	} else
-		DRM_DEBUG_KMS("memory self refresh disabled\n");
+	if (HAS_FW_BLC(dev)) {
+		if (enabled) {
+			if (IS_I945G(dev) || IS_I945GM(dev))
+				I915_WRITE(FW_BLC_SELF,
+					   FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
+			else if (IS_I915GM(dev))
+				I915_WRITE(INSTPM, I915_READ(INSTPM) | INSTPM_SELF_EN);
+			DRM_DEBUG_KMS("memory self refresh enabled\n");
+		} else
+			DRM_DEBUG_KMS("memory self refresh disabled\n");
+	}
 }
 
-static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
-			   int unused2, int unused3, int pixel_size)
+static void i830_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t fwater_lo = I915_READ(FW_BLC) & ~0xfff;
+	struct drm_crtc *crtc;
+	uint32_t fwater_lo;
 	int planea_wm;
 
-	i830_wm_info.fifo_size = dev_priv->display.get_fifo_size(dev, 0);
+	crtc = single_enabled_crtc(dev);
+	if (crtc == NULL)
+		return;
 
-	planea_wm = intel_calculate_wm(planea_clock, &i830_wm_info,
-				       pixel_size, latency_ns);
+	planea_wm = intel_calculate_wm(crtc->mode.clock, &i830_wm_info,
+				       dev_priv->display.get_fifo_size(dev, 0),
+				       crtc->fb->bits_per_pixel / 8,
+				       latency_ns);
+	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	fwater_lo |= (3<<8) | planea_wm;
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: %d\n", planea_wm);
@@ -4075,15 +4124,15 @@ static bool ironlake_check_srwm(struct drm_device *dev, int level,
 /*
  * Compute watermark values of WM[1-3],
  */
-static bool ironlake_compute_srwm(struct drm_device *dev, int level,
-				  int hdisplay, int htotal,
-				  int pixel_size, int clock, int latency_ns,
+static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
+				  int latency_ns,
 				  const struct intel_watermark_params *display,
 				  const struct intel_watermark_params *cursor,
 				  int *fbc_wm, int *display_wm, int *cursor_wm)
 {
-
+	struct drm_crtc *crtc;
 	unsigned long line_time_us;
+	int hdisplay, htotal, pixel_size, clock;
 	int line_count, line_size;
 	int small, large;
 	int entries;
@@ -4092,6 +4141,12 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level,
 		*fbc_wm = *display_wm = *cursor_wm = 0;
 		return false;
 	}
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	hdisplay = crtc->mode.hdisplay;
+	htotal = crtc->mode.htotal;
+	clock = crtc->mode.clock;
+	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -4120,14 +4175,11 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level,
 				   display, cursor);
 }
 
-static void ironlake_update_wm(struct drm_device *dev,
-			       int planea_clock, int planeb_clock,
-			       int hdisplay, int htotal,
-			       int pixel_size)
+static void ironlake_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int fbc_wm, plane_wm, cursor_wm, enabled;
-	int clock;
+	int fbc_wm, plane_wm, cursor_wm;
+	unsigned int enabled;
 
 	enabled = 0;
 	if (ironlake_compute_wm0(dev, 0,
@@ -4141,7 +4193,7 @@ static void ironlake_update_wm(struct drm_device *dev,
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
 			      " plane %d, " "cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled++;
+		enabled |= 1;
 	}
 
 	if (ironlake_compute_wm0(dev, 1,
@@ -4155,7 +4207,7 @@ static void ironlake_update_wm(struct drm_device *dev,
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled++;
+		enabled |= 2;
 	}
 
 	/*
@@ -4166,14 +4218,13 @@ static void ironlake_update_wm(struct drm_device *dev,
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	if (enabled != 1)
+	if (!single_plane_enabled(enabled))
 		return;
-
-	clock = planea_clock ? planea_clock : planeb_clock;
+	enabled = ffs(enabled) - 1;
 
 	/* WM1 */
-	if (!ironlake_compute_srwm(dev, 1, hdisplay, htotal, pixel_size,
-				   clock, ILK_READ_WM1_LATENCY() * 500,
+	if (!ironlake_compute_srwm(dev, 1, enabled,
+				   ILK_READ_WM1_LATENCY() * 500,
 				   &ironlake_display_srwm_info,
 				   &ironlake_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -4187,8 +4238,8 @@ static void ironlake_update_wm(struct drm_device *dev,
 		   cursor_wm);
 
 	/* WM2 */
-	if (!ironlake_compute_srwm(dev, 2, hdisplay, htotal, pixel_size,
-				   clock, ILK_READ_WM2_LATENCY() * 500,
+	if (!ironlake_compute_srwm(dev, 2, enabled,
+				   ILK_READ_WM2_LATENCY() * 500,
 				   &ironlake_display_srwm_info,
 				   &ironlake_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -4207,15 +4258,12 @@ static void ironlake_update_wm(struct drm_device *dev,
 	 */
 }
 
-static void sandybridge_update_wm(struct drm_device *dev,
-			       int planea_clock, int planeb_clock,
-			       int hdisplay, int htotal,
-			       int pixel_size)
+static void sandybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
-	int fbc_wm, plane_wm, cursor_wm, enabled;
-	int clock;
+	int fbc_wm, plane_wm, cursor_wm;
+	unsigned int enabled;
 
 	enabled = 0;
 	if (ironlake_compute_wm0(dev, 0,
@@ -4227,7 +4275,7 @@ static void sandybridge_update_wm(struct drm_device *dev,
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
 			      " plane %d, " "cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled++;
+		enabled |= 1;
 	}
 
 	if (ironlake_compute_wm0(dev, 1,
@@ -4239,7 +4287,7 @@ static void sandybridge_update_wm(struct drm_device *dev,
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled++;
+		enabled |= 2;
 	}
 
 	/*
@@ -4256,14 +4304,13 @@ static void sandybridge_update_wm(struct drm_device *dev,
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	if (enabled != 1)
+	if (!single_plane_enabled(enabled))
 		return;
-
-	clock = planea_clock ? planea_clock : planeb_clock;
+	enabled = ffs(enabled) - 1;
 
 	/* WM1 */
-	if (!ironlake_compute_srwm(dev, 1, hdisplay, htotal, pixel_size,
-				   clock, SNB_READ_WM1_LATENCY() * 500,
+	if (!ironlake_compute_srwm(dev, 1, enabled,
+				   SNB_READ_WM1_LATENCY() * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -4277,9 +4324,8 @@ static void sandybridge_update_wm(struct drm_device *dev,
 		   cursor_wm);
 
 	/* WM2 */
-	if (!ironlake_compute_srwm(dev, 2,
-				   hdisplay, htotal, pixel_size,
-				   clock, SNB_READ_WM2_LATENCY() * 500,
+	if (!ironlake_compute_srwm(dev, 2, enabled,
+				   SNB_READ_WM2_LATENCY() * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -4293,9 +4339,8 @@ static void sandybridge_update_wm(struct drm_device *dev,
 		   cursor_wm);
 
 	/* WM3 */
-	if (!ironlake_compute_srwm(dev, 3,
-				   hdisplay, htotal, pixel_size,
-				   clock, SNB_READ_WM3_LATENCY() * 500,
+	if (!ironlake_compute_srwm(dev, 3, enabled,
+				   SNB_READ_WM3_LATENCY() * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -4344,43 +4389,9 @@ static void sandybridge_update_wm(struct drm_device *dev,
 static void intel_update_watermarks(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	int sr_hdisplay = 0;
-	unsigned long planea_clock = 0, planeb_clock = 0;
-	int enabled = 0, pixel_size = 0;
-	int sr_htotal = 0;
 
-	if (!dev_priv->display.update_wm)
-		return;
-
-	/* Get the clock config from both planes */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		if (intel_crtc->active) {
-			enabled++;
-			if (intel_crtc->plane == 0) {
-				DRM_DEBUG_KMS("plane A (pipe %d) clock: %d\n",
-					      intel_crtc->pipe, crtc->mode.clock);
-				planea_clock = crtc->mode.clock;
-			} else {
-				DRM_DEBUG_KMS("plane B (pipe %d) clock: %d\n",
-					      intel_crtc->pipe, crtc->mode.clock);
-				planeb_clock = crtc->mode.clock;
-			}
-			sr_hdisplay = crtc->mode.hdisplay;
-			sr_htotal = crtc->mode.htotal;
-			if (crtc->fb)
-				pixel_size = crtc->fb->bits_per_pixel / 8;
-			else
-				pixel_size = 4; /* by default */
-		}
-	}
-
-	if (enabled <= 0)
-		return;
-
-	dev_priv->display.update_wm(dev, planea_clock, planeb_clock,
-				    sr_hdisplay, sr_htotal, pixel_size);
+	if (dev_priv->display.update_wm)
+		dev_priv->display.update_wm(dev);
 }
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
