@@ -42,8 +42,6 @@
 /*#define VERBOSE_IRQ*/
 #define DSI_CATCH_MISSING_TE
 
-#define DSI_BASE		0x4804FC00
-
 struct dsi_reg { u16 idx; };
 
 #define DSI_REG(idx)		((const struct dsi_reg) { idx })
@@ -3257,6 +3255,7 @@ static int dsi_init(struct platform_device *pdev)
 {
 	u32 rev;
 	int r;
+	struct resource *dsi_mem;
 
 	spin_lock_init(&dsi.errors_lock);
 	dsi.errors = 0;
@@ -3283,7 +3282,13 @@ static int dsi_init(struct platform_device *pdev)
 	dsi.te_timer.function = dsi_te_timeout;
 	dsi.te_timer.data = 0;
 #endif
-	dsi.base = ioremap(DSI_BASE, DSI_SZ_REGS);
+	dsi_mem = platform_get_resource(dsi.pdev, IORESOURCE_MEM, 0);
+	if (!dsi_mem) {
+		DSSERR("can't get IORESOURCE_MEM DSI\n");
+		r = -EINVAL;
+		goto err1;
+	}
+	dsi.base = ioremap(dsi_mem->start, resource_size(dsi_mem));
 	if (!dsi.base) {
 		DSSERR("can't ioremap DSI\n");
 		r = -ENOMEM;

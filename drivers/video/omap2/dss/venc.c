@@ -39,8 +39,6 @@
 
 #include "dss.h"
 
-#define VENC_BASE	0x48050C00
-
 /* Venc registers */
 #define VENC_REV_ID				0x00
 #define VENC_STATUS				0x04
@@ -717,13 +715,20 @@ void venc_dump_regs(struct seq_file *s)
 static int omap_venchw_probe(struct platform_device *pdev)
 {
 	u8 rev_id;
+	struct resource *venc_mem;
+
 	venc.pdev = pdev;
 
 	mutex_init(&venc.venc_lock);
 
 	venc.wss_data = 0;
 
-	venc.base = ioremap(VENC_BASE, SZ_1K);
+	venc_mem = platform_get_resource(venc.pdev, IORESOURCE_MEM, 0);
+	if (!venc_mem) {
+		DSSERR("can't get IORESOURCE_MEM VENC\n");
+		return -EINVAL;
+	}
+	venc.base = ioremap(venc_mem->start, resource_size(venc_mem));
 	if (!venc.base) {
 		DSSERR("can't ioremap VENC\n");
 		return -ENOMEM;

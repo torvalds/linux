@@ -34,8 +34,6 @@
 #include <plat/clock.h>
 #include "dss.h"
 
-#define DSS_BASE			0x48050000
-
 #define DSS_SZ_REGS			SZ_512
 
 struct dss_reg {
@@ -567,8 +565,15 @@ static int dss_init(bool skip_init)
 {
 	int r;
 	u32 rev;
+	struct resource *dss_mem;
 
-	dss.base = ioremap(DSS_BASE, DSS_SZ_REGS);
+	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
+	if (!dss_mem) {
+		DSSERR("can't get IORESOURCE_MEM DSS\n");
+		r = -EINVAL;
+		goto fail0;
+	}
+	dss.base = ioremap(dss_mem->start, resource_size(dss_mem));
 	if (!dss.base) {
 		DSSERR("can't ioremap DSS\n");
 		r = -ENOMEM;

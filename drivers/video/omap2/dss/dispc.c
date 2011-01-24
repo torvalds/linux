@@ -42,8 +42,6 @@
 #include "dss_features.h"
 
 /* DISPC */
-#define DISPC_BASE			0x48050400
-
 #define DISPC_SZ_REGS			SZ_4K
 
 struct dispc_reg { u16 idx; };
@@ -3324,6 +3322,8 @@ int dispc_setup_plane(enum omap_plane plane,
 static int omap_dispchw_probe(struct platform_device *pdev)
 {
 	u32 rev;
+	struct resource *dispc_mem;
+
 	dispc.pdev = pdev;
 
 	spin_lock_init(&dispc.irq_lock);
@@ -3335,7 +3335,12 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 
 	INIT_WORK(&dispc.error_work, dispc_error_worker);
 
-	dispc.base = ioremap(DISPC_BASE, DISPC_SZ_REGS);
+	dispc_mem = platform_get_resource(dispc.pdev, IORESOURCE_MEM, 0);
+	if (!dispc_mem) {
+		DSSERR("can't get IORESOURCE_MEM DISPC\n");
+		return -EINVAL;
+	}
+	dispc.base = ioremap(dispc_mem->start, resource_size(dispc_mem));
 	if (!dispc.base) {
 		DSSERR("can't ioremap DISPC\n");
 		return -ENOMEM;

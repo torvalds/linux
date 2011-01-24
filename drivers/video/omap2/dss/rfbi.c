@@ -36,8 +36,6 @@
 #include <plat/display.h>
 #include "dss.h"
 
-#define RFBI_BASE               0x48050800
-
 struct rfbi_reg { u16 idx; };
 
 #define RFBI_REG(idx)		((const struct rfbi_reg) { idx })
@@ -1019,6 +1017,7 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 {
 	u32 rev;
 	u32 l;
+	struct resource *rfbi_mem;
 
 	rfbi.pdev = pdev;
 
@@ -1028,7 +1027,12 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 	atomic_set(&rfbi.cmd_fifo_full, 0);
 	atomic_set(&rfbi.cmd_pending, 0);
 
-	rfbi.base = ioremap(RFBI_BASE, SZ_256);
+	rfbi_mem = platform_get_resource(rfbi.pdev, IORESOURCE_MEM, 0);
+	if (!rfbi_mem) {
+		DSSERR("can't get IORESOURCE_MEM RFBI\n");
+		return -EINVAL;
+	}
+	rfbi.base = ioremap(rfbi_mem->start, resource_size(rfbi_mem));
 	if (!rfbi.base) {
 		DSSERR("can't ioremap RFBI\n");
 		return -ENOMEM;
