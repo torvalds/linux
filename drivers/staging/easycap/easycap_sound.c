@@ -55,99 +55,7 @@ static const struct snd_pcm_hardware alsa_hardware = {
 	.periods_max = AUDIO_FRAGMENT_MANY * 2,
 };
 
-static struct snd_pcm_ops easycap_alsa_pcm_ops = {
-	.open      = easycap_alsa_open,
-	.close     = easycap_alsa_close,
-	.ioctl     = snd_pcm_lib_ioctl,
-	.hw_params = easycap_alsa_hw_params,
-	.hw_free   = easycap_alsa_hw_free,
-	.prepare   = easycap_alsa_prepare,
-	.ack       = easycap_alsa_ack,
-	.trigger   = easycap_alsa_trigger,
-	.pointer   = easycap_alsa_pointer,
-	.page      = easycap_alsa_page,
-};
 
-/*****************************************************************************/
-/*---------------------------------------------------------------------------*/
-/*
- *  THE FUNCTION snd_card_create() HAS  THIS_MODULE  AS AN ARGUMENT.  THIS
- *  MEANS MODULE easycap.  BEWARE.
-*/
-/*---------------------------------------------------------------------------*/
-int
-easycap_alsa_probe(struct easycap *peasycap)
-{
-int rc;
-struct snd_card *psnd_card;
-struct snd_pcm *psnd_pcm;
-
-if (NULL == peasycap) {
-	SAY("ERROR: peasycap is NULL\n");
-	return -ENODEV;
-}
-if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-	SAY("ERROR: bad peasycap\n");
-	return -EFAULT;
-}
-if (0 > peasycap->minor) {
-	SAY("ERROR: no minor\n");
-	return -ENODEV;
-}
-
-peasycap->alsa_hardware = alsa_hardware;
-if (true == peasycap->microphone) {
-	peasycap->alsa_hardware.rates = SNDRV_PCM_RATE_32000;
-	peasycap->alsa_hardware.rate_min = 32000;
-	peasycap->alsa_hardware.rate_max = 32000;
-} else {
-	peasycap->alsa_hardware.rates = SNDRV_PCM_RATE_48000;
-	peasycap->alsa_hardware.rate_min = 48000;
-	peasycap->alsa_hardware.rate_max = 48000;
-}
-
-	if (0 != snd_card_create(SNDRV_DEFAULT_IDX1, "easycap_alsa",
-					THIS_MODULE, 0,
-					&psnd_card)) {
-		SAY("ERROR: Cannot do ALSA snd_card_create()\n");
-		return -EFAULT;
-	}
-
-	sprintf(&psnd_card->id[0], "EasyALSA%i", peasycap->minor);
-	strcpy(&psnd_card->driver[0], EASYCAP_DRIVER_DESCRIPTION);
-	strcpy(&psnd_card->shortname[0], "easycap_alsa");
-	sprintf(&psnd_card->longname[0], "%s", &psnd_card->shortname[0]);
-
-	psnd_card->dev = &peasycap->pusb_device->dev;
-	psnd_card->private_data = peasycap;
-	peasycap->psnd_card = psnd_card;
-
-	rc = snd_pcm_new(psnd_card, "easycap_pcm", 0, 0, 1, &psnd_pcm);
-	if (0 != rc) {
-		SAM("ERROR: Cannot do ALSA snd_pcm_new()\n");
-		snd_card_free(psnd_card);
-		return -EFAULT;
-	}
-
-	snd_pcm_set_ops(psnd_pcm, SNDRV_PCM_STREAM_CAPTURE,
-							&easycap_alsa_pcm_ops);
-	psnd_pcm->info_flags = 0;
-	strcpy(&psnd_pcm->name[0], &psnd_card->id[0]);
-	psnd_pcm->private_data = peasycap;
-	peasycap->psnd_pcm = psnd_pcm;
-	peasycap->psubstream = (struct snd_pcm_substream *)NULL;
-
-	rc = snd_card_register(psnd_card);
-	if (0 != rc) {
-		SAM("ERROR: Cannot do ALSA snd_card_register()\n");
-		snd_card_free(psnd_card);
-		return -EFAULT;
-	} else {
-	;
-	SAM("registered %s\n", &psnd_card->id[0]);
-	}
-return 0;
-}
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
@@ -390,8 +298,7 @@ if (peasycap->audio_isoc_streaming) {
 return;
 }
 /*****************************************************************************/
-int
-easycap_alsa_open(struct snd_pcm_substream *pss)
+static int easycap_alsa_open(struct snd_pcm_substream *pss)
 {
 struct snd_pcm *psnd_pcm;
 struct snd_card *psnd_card;
@@ -444,8 +351,7 @@ JOM(4, "ending successfully\n");
 return 0;
 }
 /*****************************************************************************/
-int
-easycap_alsa_close(struct snd_pcm_substream *pss)
+static int easycap_alsa_close(struct snd_pcm_substream *pss)
 {
 struct easycap *peasycap;
 
@@ -469,25 +375,7 @@ JOT(4, "ending successfully\n");
 return 0;
 }
 /*****************************************************************************/
-int
-easycap_alsa_hw_params(struct snd_pcm_substream *pss,
-						struct snd_pcm_hw_params *phw)
-{
-int rc;
-
-JOT(4, "%i\n", (params_buffer_bytes(phw)));
-if (NULL == pss) {
-	SAY("ERROR:  pss is NULL\n");
-	return -EFAULT;
-}
-rc = easycap_alsa_vmalloc(pss, params_buffer_bytes(phw));
-if (0 != rc)
-	return rc;
-return 0;
-}
-/*****************************************************************************/
-int
-easycap_alsa_vmalloc(struct snd_pcm_substream *pss, size_t sz)
+static int easycap_alsa_vmalloc(struct snd_pcm_substream *pss, size_t sz)
 {
 struct snd_pcm_runtime *prt;
 JOT(4, "\n");
@@ -513,8 +401,23 @@ prt->dma_bytes = sz;
 return 0;
 }
 /*****************************************************************************/
-int
-easycap_alsa_hw_free(struct snd_pcm_substream *pss)
+static int easycap_alsa_hw_params(struct snd_pcm_substream *pss,
+						struct snd_pcm_hw_params *phw)
+{
+int rc;
+
+JOT(4, "%i\n", (params_buffer_bytes(phw)));
+if (NULL == pss) {
+	SAY("ERROR:  pss is NULL\n");
+	return -EFAULT;
+}
+rc = easycap_alsa_vmalloc(pss, params_buffer_bytes(phw));
+if (0 != rc)
+	return rc;
+return 0;
+}
+/*****************************************************************************/
+static int easycap_alsa_hw_free(struct snd_pcm_substream *pss)
 {
 struct snd_pcm_runtime *prt;
 JOT(4, "\n");
@@ -537,8 +440,7 @@ if (NULL != prt->dma_area) {
 return 0;
 }
 /*****************************************************************************/
-int
-easycap_alsa_prepare(struct snd_pcm_substream *pss)
+static int easycap_alsa_prepare(struct snd_pcm_substream *pss)
 {
 struct easycap *peasycap;
 struct snd_pcm_runtime *prt;
@@ -579,14 +481,12 @@ if (prt->dma_bytes != 4 * ((int)prt->period_size) * ((int)prt->periods)) {
 return 0;
 }
 /*****************************************************************************/
-int
-easycap_alsa_ack(struct snd_pcm_substream *pss)
+static int easycap_alsa_ack(struct snd_pcm_substream *pss)
 {
-return 0;
+	return 0;
 }
 /*****************************************************************************/
-int
-easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
+static int easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 {
 struct easycap *peasycap;
 int retval;
@@ -622,8 +522,7 @@ default:
 return 0;
 }
 /*****************************************************************************/
-snd_pcm_uframes_t
-easycap_alsa_pointer(struct snd_pcm_substream *pss)
+static snd_pcm_uframes_t easycap_alsa_pointer(struct snd_pcm_substream *pss)
 {
 struct easycap *peasycap;
 snd_pcm_uframes_t offset;
@@ -662,13 +561,105 @@ JOM(8, "%7i=offset %7i=dma_read %7i=dma_next\n",
 return offset;
 }
 /*****************************************************************************/
-struct page *
-easycap_alsa_page(struct snd_pcm_substream *pss, unsigned long offset)
+static struct page *easycap_alsa_page(struct snd_pcm_substream *pss,
+				unsigned long offset)
 {
-return vmalloc_to_page(pss->runtime->dma_area + offset);
+	return vmalloc_to_page(pss->runtime->dma_area + offset);
 }
 /*****************************************************************************/
 
+static struct snd_pcm_ops easycap_alsa_pcm_ops = {
+	.open      = easycap_alsa_open,
+	.close     = easycap_alsa_close,
+	.ioctl     = snd_pcm_lib_ioctl,
+	.hw_params = easycap_alsa_hw_params,
+	.hw_free   = easycap_alsa_hw_free,
+	.prepare   = easycap_alsa_prepare,
+	.ack       = easycap_alsa_ack,
+	.trigger   = easycap_alsa_trigger,
+	.pointer   = easycap_alsa_pointer,
+	.page      = easycap_alsa_page,
+};
+
+/*****************************************************************************/
+/*---------------------------------------------------------------------------*/
+/*
+ *  THE FUNCTION snd_card_create() HAS  THIS_MODULE  AS AN ARGUMENT.  THIS
+ *  MEANS MODULE easycap.  BEWARE.
+*/
+/*---------------------------------------------------------------------------*/
+int easycap_alsa_probe(struct easycap *peasycap)
+{
+int rc;
+struct snd_card *psnd_card;
+struct snd_pcm *psnd_pcm;
+
+if (NULL == peasycap) {
+	SAY("ERROR: peasycap is NULL\n");
+	return -ENODEV;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap\n");
+	return -EFAULT;
+}
+if (0 > peasycap->minor) {
+	SAY("ERROR: no minor\n");
+	return -ENODEV;
+}
+
+peasycap->alsa_hardware = alsa_hardware;
+if (true == peasycap->microphone) {
+	peasycap->alsa_hardware.rates = SNDRV_PCM_RATE_32000;
+	peasycap->alsa_hardware.rate_min = 32000;
+	peasycap->alsa_hardware.rate_max = 32000;
+} else {
+	peasycap->alsa_hardware.rates = SNDRV_PCM_RATE_48000;
+	peasycap->alsa_hardware.rate_min = 48000;
+	peasycap->alsa_hardware.rate_max = 48000;
+}
+
+	if (0 != snd_card_create(SNDRV_DEFAULT_IDX1, "easycap_alsa",
+					THIS_MODULE, 0,
+					&psnd_card)) {
+		SAY("ERROR: Cannot do ALSA snd_card_create()\n");
+		return -EFAULT;
+	}
+
+	sprintf(&psnd_card->id[0], "EasyALSA%i", peasycap->minor);
+	strcpy(&psnd_card->driver[0], EASYCAP_DRIVER_DESCRIPTION);
+	strcpy(&psnd_card->shortname[0], "easycap_alsa");
+	sprintf(&psnd_card->longname[0], "%s", &psnd_card->shortname[0]);
+
+	psnd_card->dev = &peasycap->pusb_device->dev;
+	psnd_card->private_data = peasycap;
+	peasycap->psnd_card = psnd_card;
+
+	rc = snd_pcm_new(psnd_card, "easycap_pcm", 0, 0, 1, &psnd_pcm);
+	if (0 != rc) {
+		SAM("ERROR: Cannot do ALSA snd_pcm_new()\n");
+		snd_card_free(psnd_card);
+		return -EFAULT;
+	}
+
+	snd_pcm_set_ops(psnd_pcm, SNDRV_PCM_STREAM_CAPTURE,
+							&easycap_alsa_pcm_ops);
+	psnd_pcm->info_flags = 0;
+	strcpy(&psnd_pcm->name[0], &psnd_card->id[0]);
+	psnd_pcm->private_data = peasycap;
+	peasycap->psnd_pcm = psnd_pcm;
+	peasycap->psubstream = (struct snd_pcm_substream *)NULL;
+
+	rc = snd_card_register(psnd_card);
+	if (0 != rc) {
+		SAM("ERROR: Cannot do ALSA snd_card_register()\n");
+		snd_card_free(psnd_card);
+		return -EFAULT;
+	} else {
+	;
+	SAM("registered %s\n", &psnd_card->id[0]);
+	}
+return 0;
+}
 #endif /*! CONFIG_EASYCAP_OSS */
 
 /*****************************************************************************/

@@ -539,23 +539,9 @@ int              adjust_volume(struct easycap *, int);
 /*---------------------------------------------------------------------------*/
 #ifndef CONFIG_EASYCAP_OSS
 int		easycap_alsa_probe(struct easycap *);
-
 void            easycap_alsa_complete(struct urb *);
-int		easycap_alsa_open(struct snd_pcm_substream *);
-int		easycap_alsa_close(struct snd_pcm_substream *);
-int		easycap_alsa_hw_params(struct snd_pcm_substream *,
-						struct snd_pcm_hw_params *);
-int             easycap_alsa_vmalloc(struct snd_pcm_substream *, size_t);
-int		easycap_alsa_hw_free(struct snd_pcm_substream *);
-int		easycap_alsa_prepare(struct snd_pcm_substream *);
-int		easycap_alsa_ack(struct snd_pcm_substream *);
-int		easycap_alsa_trigger(struct snd_pcm_substream *, int);
-snd_pcm_uframes_t easycap_alsa_pointer(struct snd_pcm_substream *);
-struct page	*easycap_alsa_page(struct snd_pcm_substream *, unsigned long);
-
 #else /* CONFIG_EASYCAP_OSS */
 void             easyoss_complete(struct urb *);
-
 #endif /* !CONFIG_EASYCAP_OSS */
 
 int              easycap_sound_setup(struct easycap *);
