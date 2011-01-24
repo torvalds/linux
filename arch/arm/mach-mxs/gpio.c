@@ -287,21 +287,23 @@ int __init mxs_gpio_init(struct mxs_gpio_port *port, int cnt)
 	return 0;
 }
 
-#define DEFINE_MXS_GPIO_PORT(soc, _id)					\
+#define MX23_GPIO_BASE	MX23_IO_ADDRESS(MX23_PINCTRL_BASE_ADDR)
+#define MX28_GPIO_BASE	MX28_IO_ADDRESS(MX28_PINCTRL_BASE_ADDR)
+
+#define DEFINE_MXS_GPIO_PORT(_base, _irq, _id)				\
 	{								\
 		.chip.label = "gpio-" #_id,				\
 		.id = _id,						\
-		.irq = soc ## _INT_GPIO ## _id,				\
-		.base = soc ## _IO_ADDRESS(				\
-				soc ## _PINCTRL ## _BASE_ADDR),		\
+		.irq = _irq,						\
+		.base = _base,						\
 		.virtual_irq_start = MXS_GPIO_IRQ_START + (_id) * 32,	\
 	}
 
 #ifdef CONFIG_SOC_IMX23
 static struct mxs_gpio_port mx23_gpio_ports[] = {
-	DEFINE_MXS_GPIO_PORT(MX23, 0),
-	DEFINE_MXS_GPIO_PORT(MX23, 1),
-	DEFINE_MXS_GPIO_PORT(MX23, 2),
+	DEFINE_MXS_GPIO_PORT(MX23_GPIO_BASE, MX23_INT_GPIO0, 0),
+	DEFINE_MXS_GPIO_PORT(MX23_GPIO_BASE, MX23_INT_GPIO1, 1),
+	DEFINE_MXS_GPIO_PORT(MX23_GPIO_BASE, MX23_INT_GPIO2, 2),
 };
 
 int __init mx23_register_gpios(void)
@@ -312,11 +314,11 @@ int __init mx23_register_gpios(void)
 
 #ifdef CONFIG_SOC_IMX28
 static struct mxs_gpio_port mx28_gpio_ports[] = {
-	DEFINE_MXS_GPIO_PORT(MX28, 0),
-	DEFINE_MXS_GPIO_PORT(MX28, 1),
-	DEFINE_MXS_GPIO_PORT(MX28, 2),
-	DEFINE_MXS_GPIO_PORT(MX28, 3),
-	DEFINE_MXS_GPIO_PORT(MX28, 4),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO0, 0),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO1, 1),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO2, 2),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO3, 3),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO4, 4),
 };
 
 int __init mx28_register_gpios(void)
