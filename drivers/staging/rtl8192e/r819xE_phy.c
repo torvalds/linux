@@ -1727,7 +1727,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 	if(priv->ieee80211->eRFPowerState != eRfOn && !priv->being_init_adapter)
 		return;
 #endif
-	//spin_lock_irqsave(&priv->rf_lock, flags);
 	//down(&priv->rf_sem);
 
 	RT_TRACE(COMP_PHY, "FW RF CTRL is not ready now\n");
@@ -1757,7 +1756,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 	        }else
 			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, Data);
 	}
-	//spin_unlock_irqrestore(&priv->rf_lock, flags);
 	//up(&priv->rf_sem);
 }
 

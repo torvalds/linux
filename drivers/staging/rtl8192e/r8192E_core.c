@@ -2150,8 +2150,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->bHwRadioOff = false;
 
 	priv->being_init_adapter = false;
-	priv->txbuffsize = 1600;//1024;
-	priv->txfwbuffersize = 4096;
 	priv->txringcount = 64;//32;
 	//priv->txbeaconcount = priv->txringcount;
 	priv->txbeaconcount = 2;
@@ -2301,11 +2299,9 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 {
 	spin_lock_init(&priv->tx_lock);
-	spin_lock_init(&priv->irq_lock);//added by thomas
 	spin_lock_init(&priv->irq_th_lock);
 	spin_lock_init(&priv->rf_ps_lock);
 	spin_lock_init(&priv->ps_lock);
-	//spin_lock_init(&priv->rf_lock);
 	sema_init(&priv->wx_sem,1);
 	sema_init(&priv->rf_sem,1);
 	mutex_init(&priv->mutex);

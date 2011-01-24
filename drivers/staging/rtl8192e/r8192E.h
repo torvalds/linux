@@ -986,12 +986,10 @@ typedef struct r8192_priv
 	short hw_plcp_len;
 	short plcp_preamble_mode;
 	u8 ScanDelay;
-	spinlock_t irq_lock;
 	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	spinlock_t rf_ps_lock;
         struct mutex mutex;
-	spinlock_t rf_lock; //used to lock rf write operation added by wb
 	spinlock_t ps_lock;
 
 	u32 irq_mask;
@@ -1021,25 +1019,11 @@ typedef struct r8192_priv
         struct rtl8192_tx_ring tx_ring[MAX_TX_QUEUE_COUNT];
 	int txringcount;
 //{
-	int txbuffsize;
-	int txfwbuffersize;
 	//struct tx_pendingbuf txnp_pending;
 	//struct tasklet_struct irq_tx_tasklet;
 	struct tasklet_struct irq_rx_tasklet;
 	struct tasklet_struct irq_tx_tasklet;
         struct tasklet_struct irq_prepare_beacon_tasklet;
-	struct buffer *txmapbufs;
-	struct buffer *txbkpbufs;
-	struct buffer *txbepbufs;
-	struct buffer *txvipbufs;
-	struct buffer *txvopbufs;
-	struct buffer *txcmdbufs;
-	struct buffer *txmapbufstail;
-	struct buffer *txbkpbufstail;
-	struct buffer *txbepbufstail;
-	struct buffer *txvipbufstail;
-	struct buffer *txvopbufstail;
-	struct buffer *txcmdbufstail;
 	/* adhoc/master mode stuff */
 	ptx_ring txbeaconringtail;
 	dma_addr_t txbeaconringdma;
