@@ -428,8 +428,8 @@ static inline void venc_exit(void)
 
 /* RFBI */
 #ifdef CONFIG_OMAP2_DSS_RFBI
-int rfbi_init(void);
-void rfbi_exit(void);
+int rfbi_init_platform_driver(void);
+void rfbi_uninit_platform_driver(void);
 void rfbi_dump_regs(struct seq_file *s);
 
 int rfbi_configure(int rfbi_module, int bpp, int lines);
@@ -440,11 +440,11 @@ void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t);
 unsigned long rfbi_get_max_tx_rate(void);
 int rfbi_init_display(struct omap_dss_device *display);
 #else
-static inline int rfbi_init(void)
+static inline int rfbi_init_platform_driver(void)
 {
 	return 0;
 }
-static inline void rfbi_exit(void)
+static inline void rfbi_uninit_platform_driver(void)
 {
 }
 #endif

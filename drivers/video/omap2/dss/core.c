@@ -201,9 +201,9 @@ static int omap_dss_probe(struct platform_device *pdev)
 	/* keep clocks enabled to prevent context saves/restores during init */
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
-	r = rfbi_init();
+	r = rfbi_init_platform_driver();
 	if (r) {
-		DSSERR("Failed to initialize rfbi\n");
+		DSSERR("Failed to initialize rfbi platform driver\n");
 		goto err_rfbi;
 	}
 
@@ -285,7 +285,7 @@ err_venc:
 err_dispc:
 	dpi_exit();
 err_dpi:
-	rfbi_exit();
+	rfbi_uninit_platform_driver();
 err_rfbi:
 	dss_uninit_platform_driver();
 err_dss:
@@ -303,7 +303,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 	venc_exit();
 	dispc_exit();
 	dpi_exit();
-	rfbi_exit();
+	rfbi_uninit_platform_driver();
 	if (cpu_is_omap34xx()) {
 		dsi_exit();
 		sdi_exit();
