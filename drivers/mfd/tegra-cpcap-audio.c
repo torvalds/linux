@@ -467,6 +467,29 @@ void tegra_cpcap_audio_dock_state(bool connected)
 }
 EXPORT_SYMBOL(tegra_cpcap_audio_dock_state);
 
+static void cpcap_audio_callback(int status)
+{
+	mutex_lock(&cpcap_lock);
+	if (status == 1 || status == 2)	{
+		if (pdata->state->stdac_primary_speaker ==
+					CPCAP_AUDIO_OUT_STEREO_HEADSET)
+			tegra_setup_audio_out_headset_on();
+		if (pdata->state->microphone ==
+					CPCAP_AUDIO_IN_HEADSET)
+			tegra_setup_audio_in_headset_on();
+	}
+	if (status == 0) {
+		if (pdata->state->stdac_primary_speaker ==
+					CPCAP_AUDIO_OUT_STEREO_HEADSET)
+			tegra_setup_audio_output_off();
+		if (pdata->state->microphone ==
+					CPCAP_AUDIO_IN_HEADSET)
+			tegra_setup_audio_in_mute();
+	}
+
+	mutex_unlock(&cpcap_lock);
+}
+
 static int cpcap_audio_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -502,6 +525,8 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 	pdata->state->cpcap = cpcap;
 	if (cpcap_audio_init(pdata->state, pdata->regulator))
 		goto fail3;
+
+	cpcap->h2w_new_state = &cpcap_audio_callback;
 
 	rc = misc_register(&cpcap_audio_ctl);
 	if (rc < 0) {
