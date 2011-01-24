@@ -130,7 +130,6 @@ struct fsi_stream {
 	struct snd_pcm_substream *substream;
 
 	int fifo_max_num;
-	int chan_num;
 
 	int buff_offset;
 	int buff_len;
@@ -145,6 +144,7 @@ struct fsi_priv {
 	void __iomem *base;
 	struct fsi_master *master;
 
+	int chan_num;
 	struct fsi_stream playback;
 	struct fsi_stream capture;
 
@@ -348,7 +348,6 @@ static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
 static int fsi_get_fifo_data_num(struct fsi_priv *fsi, int is_play)
 {
 	u32 status;
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
 	int data_num;
 
 	status = is_play ?
@@ -356,7 +355,7 @@ static int fsi_get_fifo_data_num(struct fsi_priv *fsi, int is_play)
 		fsi_reg_read(fsi, DIFF_ST);
 
 	data_num = 0x1ff & (status >> 8);
-	data_num *= io->chan_num;
+	data_num *= fsi->chan_num;
 
 	return data_num;
 }
@@ -378,7 +377,7 @@ static int fsi_get_frame_width(struct fsi_priv *fsi, int is_play)
 	struct snd_pcm_substream *substream = io->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	return frames_to_bytes(runtime, 1) / io->chan_num;
+	return frames_to_bytes(runtime, 1) / fsi->chan_num;
 }
 
 static void fsi_count_fifo_err(struct fsi_priv *fsi)
@@ -571,10 +570,10 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 	 * 7 channels:  32 ( 32 x 7 = 224)
 	 * 8 channels:  32 ( 32 x 8 = 256)
 	 */
-	for (i = 1; i < io->chan_num; i <<= 1)
+	for (i = 1; i < fsi->chan_num; i <<= 1)
 		io->fifo_max_num >>= 1;
 	dev_dbg(dai->dev, "%d channel %d store\n",
-		io->chan_num, io->fifo_max_num);
+		fsi->chan_num, io->fifo_max_num);
 
 	/*
 	 * set interrupt generation factor
@@ -650,7 +649,7 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 		 * data_num_max	: number of FSI fifo free space
 		 * data_num	: number of ALSA residue data
 		 */
-		data_num_max  = io->fifo_max_num * io->chan_num;
+		data_num_max  = io->fifo_max_num * fsi->chan_num;
 		data_num_max -= fsi_get_fifo_data_num(fsi, is_play);
 
 		data_num = data_residue_num;
@@ -746,13 +745,10 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct fsi_master *master = fsi_get_master(fsi);
-	struct fsi_stream *io;
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 fmt;
 	u32 data;
 	int is_play = fsi_is_play(substream);
-
-	io = fsi_get_stream(fsi, is_play);
 
 	pm_runtime_get_sync(dai->dev);
 
@@ -776,29 +772,29 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	switch (fmt) {
 	case SH_FSI_FMT_MONO:
 		data = CR_MONO;
-		io->chan_num = 1;
+		fsi->chan_num = 1;
 		break;
 	case SH_FSI_FMT_MONO_DELAY:
 		data = CR_MONO_D;
-		io->chan_num = 1;
+		fsi->chan_num = 1;
 		break;
 	case SH_FSI_FMT_PCM:
 		data = CR_PCM;
-		io->chan_num = 2;
+		fsi->chan_num = 2;
 		break;
 	case SH_FSI_FMT_I2S:
 		data = CR_I2S;
-		io->chan_num = 2;
+		fsi->chan_num = 2;
 		break;
 	case SH_FSI_FMT_TDM:
-		io->chan_num = is_play ?
+		fsi->chan_num = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
-		data = CR_TDM | (io->chan_num - 1);
+		data = CR_TDM | (fsi->chan_num - 1);
 		break;
 	case SH_FSI_FMT_TDM_DELAY:
-		io->chan_num = is_play ?
+		fsi->chan_num = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
-		data = CR_TDM_D | (io->chan_num - 1);
+		data = CR_TDM_D | (fsi->chan_num - 1);
 		break;
 	case SH_FSI_FMT_SPDIF:
 		if (master->core->ver < 2) {
@@ -806,7 +802,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 		data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
-		io->chan_num = 2;
+		fsi->chan_num = 2;
 		fsi_spdif_clk_ctrl(fsi, 1);
 		fsi_reg_mask_set(fsi, OUT_SEL, DMMD, DMMD);
 		break;
