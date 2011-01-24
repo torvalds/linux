@@ -189,18 +189,25 @@ enum {
 #define LMP_PSCHEME	0x02
 #define LMP_PCONTROL	0x04
 
+#define LMP_RSSI_INQ	0x40
 #define LMP_ESCO	0x80
 
 #define LMP_EV4		0x01
 #define LMP_EV5		0x02
+#define LMP_LE		0x40
 
 #define LMP_SNIFF_SUBR	0x02
+#define LMP_PAUSE_ENC	0x04
 #define LMP_EDR_ESCO_2M	0x20
 #define LMP_EDR_ESCO_3M	0x40
 #define LMP_EDR_3S_ESCO	0x80
 
+#define LMP_EXT_INQ	0x01
 #define LMP_SIMPLE_PAIR	0x08
 #define LMP_NO_FLUSH	0x40
+
+#define LMP_LSTO	0x01
+#define LMP_INQ_TX_PWR	0x02
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -556,6 +563,8 @@ struct hci_cp_host_buffer_size {
 	__le16   sco_max_pkt;
 } __packed;
 
+#define HCI_OP_WRITE_INQUIRY_MODE	0x0c45
+
 #define HCI_OP_READ_SSP_MODE		0x0c55
 struct hci_rp_read_ssp_mode {
 	__u8     status;
@@ -566,6 +575,8 @@ struct hci_rp_read_ssp_mode {
 struct hci_cp_write_ssp_mode {
 	__u8     mode;
 } __packed;
+
+#define HCI_OP_READ_INQ_RSP_TX_POWER	0x0c58
 
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
 struct hci_rp_read_local_version {

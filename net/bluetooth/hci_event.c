@@ -424,6 +424,115 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 	hdev->ssp_mode = *((__u8 *) sent);
 }
 
+static u8 hci_get_inquiry_mode(struct hci_dev *hdev)
+{
+	if (hdev->features[6] & LMP_EXT_INQ)
+		return 2;
+
+	if (hdev->features[3] & LMP_RSSI_INQ)
+		return 1;
+
+	if (hdev->manufacturer == 11 && hdev->hci_rev == 0x00 &&
+						hdev->lmp_subver == 0x0757)
+		return 1;
+
+	if (hdev->manufacturer == 15) {
+		if (hdev->hci_rev == 0x03 && hdev->lmp_subver == 0x6963)
+			return 1;
+		if (hdev->hci_rev == 0x09 && hdev->lmp_subver == 0x6963)
+			return 1;
+		if (hdev->hci_rev == 0x00 && hdev->lmp_subver == 0x6965)
+			return 1;
+	}
+
+	if (hdev->manufacturer == 31 && hdev->hci_rev == 0x2005 &&
+						hdev->lmp_subver == 0x1805)
+		return 1;
+
+	return 0;
+}
+
+static void hci_setup_inquiry_mode(struct hci_dev *hdev)
+{
+	u8 mode;
+
+	mode = hci_get_inquiry_mode(hdev);
+
+	hci_send_cmd(hdev, HCI_OP_WRITE_INQUIRY_MODE, 1, &mode);
+}
+
+static void hci_setup_event_mask(struct hci_dev *hdev)
+{
+	/* The second byte is 0xff instead of 0x9f (two reserved bits
+	 * disabled) since a Broadcom 1.2 dongle doesn't respond to the
+	 * command otherwise */
+	u8 events[8] = { 0xff, 0xff, 0xfb, 0xff, 0x00, 0x00, 0x00, 0x00 };
+
+	/* Events for 1.2 and newer controllers */
+	if (hdev->lmp_ver > 1) {
+		events[4] |= 0x01; /* Flow Specification Complete */
+		events[4] |= 0x02; /* Inquiry Result with RSSI */
+		events[4] |= 0x04; /* Read Remote Extended Features Complete */
+		events[5] |= 0x08; /* Synchronous Connection Complete */
+		events[5] |= 0x10; /* Synchronous Connection Changed */
+	}
+
+	if (hdev->features[3] & LMP_RSSI_INQ)
+		events[4] |= 0x04; /* Inquiry Result with RSSI */
+
+	if (hdev->features[5] & LMP_SNIFF_SUBR)
+		events[5] |= 0x20; /* Sniff Subrating */
+
+	if (hdev->features[5] & LMP_PAUSE_ENC)
+		events[5] |= 0x80; /* Encryption Key Refresh Complete */
+
+	if (hdev->features[6] & LMP_EXT_INQ)
+		events[5] |= 0x40; /* Extended Inquiry Result */
+
+	if (hdev->features[6] & LMP_NO_FLUSH)
+		events[7] |= 0x01; /* Enhanced Flush Complete */
+
+	if (hdev->features[7] & LMP_LSTO)
+		events[6] |= 0x80; /* Link Supervision Timeout Changed */
+
+	if (hdev->features[6] & LMP_SIMPLE_PAIR) {
+		events[6] |= 0x01;	/* IO Capability Request */
+		events[6] |= 0x02;	/* IO Capability Response */
+		events[6] |= 0x04;	/* User Confirmation Request */
+		events[6] |= 0x08;	/* User Passkey Request */
+		events[6] |= 0x10;	/* Remote OOB Data Request */
+		events[6] |= 0x20;	/* Simple Pairing Complete */
+		events[7] |= 0x04;	/* User Passkey Notification */
+		events[7] |= 0x08;	/* Keypress Notification */
+		events[7] |= 0x10;	/* Remote Host Supported
+					 * Features Notification */
+	}
+
+	if (hdev->features[4] & LMP_LE)
+		events[7] |= 0x20;	/* LE Meta-Event */
+
+	hci_send_cmd(hdev, HCI_OP_SET_EVENT_MASK, sizeof(events), events);
+}
+
+static void hci_setup(struct hci_dev *hdev)
+{
+	hci_setup_event_mask(hdev);
+
+	if (hdev->lmp_ver > 1)
+		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
+
+	if (hdev->features[6] & LMP_SIMPLE_PAIR) {
+		u8 mode = 0x01;
+		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, sizeof(mode), &mode);
+	}
+
+	if (hdev->features[3] & LMP_RSSI_INQ)
+		hci_setup_inquiry_mode(hdev);
+
+	if (hdev->features[7] & LMP_INQ_TX_PWR)
+		hci_send_cmd(hdev, HCI_OP_READ_INQ_RSP_TX_POWER, 0, NULL);
+}
+
 static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_rp_read_local_version *rp = (void *) skb->data;
@@ -435,11 +544,34 @@ static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hdev->hci_ver = rp->hci_ver;
 	hdev->hci_rev = __le16_to_cpu(rp->hci_rev);
+	hdev->lmp_ver = rp->lmp_ver;
 	hdev->manufacturer = __le16_to_cpu(rp->manufacturer);
+	hdev->lmp_subver = __le16_to_cpu(rp->lmp_subver);
 
 	BT_DBG("%s manufacturer %d hci ver %d:%d", hdev->name,
 					hdev->manufacturer,
 					hdev->hci_ver, hdev->hci_rev);
+
+	if (test_bit(HCI_INIT, &hdev->flags))
+		hci_setup(hdev);
+}
+
+static void hci_setup_link_policy(struct hci_dev *hdev)
+{
+	u16 link_policy = 0;
+
+	if (hdev->features[0] & LMP_RSWITCH)
+		link_policy |= HCI_LP_RSWITCH;
+	if (hdev->features[0] & LMP_HOLD)
+		link_policy |= HCI_LP_HOLD;
+	if (hdev->features[0] & LMP_SNIFF)
+		link_policy |= HCI_LP_SNIFF;
+	if (hdev->features[1] & LMP_PARK)
+		link_policy |= HCI_LP_PARK;
+
+	link_policy = cpu_to_le16(link_policy);
+	hci_send_cmd(hdev, HCI_OP_WRITE_DEF_LINK_POLICY,
+					sizeof(link_policy), &link_policy);
 }
 
 static void hci_cc_read_local_commands(struct hci_dev *hdev, struct sk_buff *skb)
@@ -449,9 +581,15 @@ static void hci_cc_read_local_commands(struct hci_dev *hdev, struct sk_buff *skb
 	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
 	if (rp->status)
-		return;
+		goto done;
 
 	memcpy(hdev->commands, rp->commands, sizeof(hdev->commands));
+
+	if (test_bit(HCI_INIT, &hdev->flags) && (hdev->commands[5] & 0x10))
+		hci_setup_link_policy(hdev);
+
+done:
+	hci_req_complete(hdev, HCI_OP_READ_LOCAL_COMMANDS, rp->status);
 }
 
 static void hci_cc_read_local_features(struct hci_dev *hdev, struct sk_buff *skb)
@@ -565,6 +703,44 @@ static void hci_cc_delete_stored_link_key(struct hci_dev *hdev,
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
 	hci_req_complete(hdev, HCI_OP_DELETE_STORED_LINK_KEY, status);
+}
+
+static void hci_cc_set_event_mask(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	hci_req_complete(hdev, HCI_OP_SET_EVENT_MASK, status);
+}
+
+static void hci_cc_write_inquiry_mode(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	hci_req_complete(hdev, HCI_OP_WRITE_INQUIRY_MODE, status);
+}
+
+static void hci_cc_read_inq_rsp_tx_power(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	hci_req_complete(hdev, HCI_OP_READ_INQ_RSP_TX_POWER, status);
+}
+
+static void hci_cc_set_event_flt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	hci_req_complete(hdev, HCI_OP_SET_EVENT_FLT, status);
 }
 
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
@@ -1414,6 +1590,22 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_DELETE_STORED_LINK_KEY:
 		hci_cc_delete_stored_link_key(hdev, skb);
+		break;
+
+	case HCI_OP_SET_EVENT_MASK:
+		hci_cc_set_event_mask(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_INQUIRY_MODE:
+		hci_cc_write_inquiry_mode(hdev, skb);
+		break;
+
+	case HCI_OP_READ_INQ_RSP_TX_POWER:
+		hci_cc_read_inq_rsp_tx_power(hdev, skb);
+		break;
+
+	case HCI_OP_SET_EVENT_FLT:
+		hci_cc_set_event_flt(hdev, skb);
 		break;
 
 	default:
