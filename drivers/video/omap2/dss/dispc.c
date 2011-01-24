@@ -178,6 +178,7 @@ struct dispc_irq_stats {
 };
 
 static struct {
+	struct platform_device *pdev;
 	void __iomem    *base;
 
 	u32	fifo_size[3];
@@ -3269,47 +3270,6 @@ static void _omap_dispc_initial_config(void)
 	dispc_read_plane_fifo_sizes();
 }
 
-int dispc_init(void)
-{
-	u32 rev;
-
-	spin_lock_init(&dispc.irq_lock);
-
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	spin_lock_init(&dispc.irq_stats_lock);
-	dispc.irq_stats.last_reset = jiffies;
-#endif
-
-	INIT_WORK(&dispc.error_work, dispc_error_worker);
-
-	dispc.base = ioremap(DISPC_BASE, DISPC_SZ_REGS);
-	if (!dispc.base) {
-		DSSERR("can't ioremap DISPC\n");
-		return -ENOMEM;
-	}
-
-	enable_clocks(1);
-
-	_omap_dispc_initial_config();
-
-	_omap_dispc_initialize_irq();
-
-	dispc_save_context();
-
-	rev = dispc_read_reg(DISPC_REVISION);
-	printk(KERN_INFO "OMAP DISPC rev %d.%d\n",
-	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
-
-	enable_clocks(0);
-
-	return 0;
-}
-
-void dispc_exit(void)
-{
-	iounmap(dispc.base);
-}
-
 int dispc_enable_plane(enum omap_plane plane, bool enable)
 {
 	DSSDBG("dispc_enable_plane %d, %d\n", plane, enable);
@@ -3358,4 +3318,67 @@ int dispc_setup_plane(enum omap_plane plane,
 	enable_clocks(0);
 
 	return r;
+}
+
+/* DISPC HW IP initialisation */
+static int omap_dispchw_probe(struct platform_device *pdev)
+{
+	u32 rev;
+	dispc.pdev = pdev;
+
+	spin_lock_init(&dispc.irq_lock);
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_lock_init(&dispc.irq_stats_lock);
+	dispc.irq_stats.last_reset = jiffies;
+#endif
+
+	INIT_WORK(&dispc.error_work, dispc_error_worker);
+
+	dispc.base = ioremap(DISPC_BASE, DISPC_SZ_REGS);
+	if (!dispc.base) {
+		DSSERR("can't ioremap DISPC\n");
+		return -ENOMEM;
+	}
+
+	enable_clocks(1);
+
+	_omap_dispc_initial_config();
+
+	_omap_dispc_initialize_irq();
+
+	dispc_save_context();
+
+	rev = dispc_read_reg(DISPC_REVISION);
+	printk(KERN_INFO "OMAP DISPC rev %d.%d\n",
+	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
+	enable_clocks(0);
+
+	return 0;
+}
+
+static int omap_dispchw_remove(struct platform_device *pdev)
+{
+	iounmap(dispc.base);
+	return 0;
+}
+
+static struct platform_driver omap_dispchw_driver = {
+	.probe          = omap_dispchw_probe,
+	.remove         = omap_dispchw_remove,
+	.driver         = {
+		.name   = "omapdss_dispc",
+		.owner  = THIS_MODULE,
+	},
+};
+
+int dispc_init_platform_driver(void)
+{
+	return platform_driver_register(&omap_dispchw_driver);
+}
+
+void dispc_uninit_platform_driver(void)
+{
+	return platform_driver_unregister(&omap_dispchw_driver);
 }

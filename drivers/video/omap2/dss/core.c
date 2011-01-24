@@ -213,9 +213,9 @@ static int omap_dss_probe(struct platform_device *pdev)
 		goto err_dpi;
 	}
 
-	r = dispc_init();
+	r = dispc_init_platform_driver();
 	if (r) {
-		DSSERR("Failed to initialize dispc\n");
+		DSSERR("Failed to initialize dispc platform driver\n");
 		goto err_dispc;
 	}
 
@@ -281,7 +281,7 @@ err_dsi:
 err_sdi:
 	venc_exit();
 err_venc:
-	dispc_exit();
+	dispc_uninit_platform_driver();
 err_dispc:
 	dpi_exit();
 err_dpi:
@@ -301,7 +301,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 	dss_uninitialize_debugfs();
 
 	venc_exit();
-	dispc_exit();
+	dispc_uninit_platform_driver();
 	dpi_exit();
 	rfbi_uninit_platform_driver();
 	if (cpu_is_omap34xx()) {

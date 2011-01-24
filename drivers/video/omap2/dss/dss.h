@@ -319,8 +319,8 @@ static inline void dpi_exit(void)
 #endif
 
 /* DISPC */
-int dispc_init(void);
-void dispc_exit(void);
+int dispc_init_platform_driver(void);
+void dispc_uninit_platform_driver(void);
 void dispc_dump_clocks(struct seq_file *s);
 void dispc_dump_irqs(struct seq_file *s);
 void dispc_dump_regs(struct seq_file *s);
