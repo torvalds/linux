@@ -966,7 +966,6 @@ typedef struct r8192_priv
 	u16  eeprom_ChannelPlan;
 	RT_CUSTOMER_ID CustomerID;
 	LED_STRATEGY_8190	LedStrategy;
-	//bool bDcut;
 	u8	IC_Cut;
 	int irq;
 	short irq_enabled;
@@ -980,12 +979,6 @@ typedef struct r8192_priv
 	u8 Rf_Mode;
 	short card_8192; /* O: rtl8192, 1:rtl8185 V B/C, 2:rtl8185 V D */
 	u8 card_8192_version; /* if TCR reports card V B/C this discriminates */
-//	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
-	short enable_gpio0;
-	enum card_type {PCI,MINIPCI,CARDBUS,USB/*rtl8187*/}card_type;
-	short hw_plcp_len;
-	short plcp_preamble_mode;
-	u8 ScanDelay;
 	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	spinlock_t rf_ps_lock;
@@ -997,8 +990,6 @@ typedef struct r8192_priv
 //	struct net_device *dev; //comment this out.
 	short chan;
 	short sens;
-	short max_sens;
-	u32 rx_prevlen;
 /*RX stuff*/
         rx_desc_819x_pci *rx_ring;
         dma_addr_t rx_ring_dma;
@@ -1024,13 +1015,6 @@ typedef struct r8192_priv
 	struct tasklet_struct irq_rx_tasklet;
 	struct tasklet_struct irq_tx_tasklet;
         struct tasklet_struct irq_prepare_beacon_tasklet;
-	/* adhoc/master mode stuff */
-	ptx_ring txbeaconringtail;
-	dma_addr_t txbeaconringdma;
-	ptx_ring txbeaconring;
-	int txbeaconcount;
-	struct buffer *txbeaconbufs;
-	struct buffer *txbeaconbufstail;
 	//	u8 chtxpwr[15]; //channels from 1 to 14, 0 not used
 //	u8 chtxpwr_ofdm[15]; //channels from 1 to 14, 0 not used
 //	u8 cck_txpwr_base;

@@ -2151,8 +2151,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 
 	priv->being_init_adapter = false;
 	priv->txringcount = 64;//32;
-	//priv->txbeaconcount = priv->txringcount;
-	priv->txbeaconcount = 2;
 	priv->rxbuffersize = 9100;//2048;//1024;
 	priv->rxringcount = MAX_RX_COUNT;//64;
 	priv->irq_enabled=0;
@@ -2180,7 +2178,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->rfa_txpowertrackingindex = 0;
 	priv->rfc_txpowertrackingindex = 0;
 	priv->CckPwEnl = 6;
-	priv->ScanDelay = 50;//for Scan TODO
 	//added by amy for silent reset
 	priv->ResetProgress = RESET_TYPE_NORESET;
 	priv->bForcedSilentReset = 0;
@@ -2257,13 +2254,11 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->ieee80211->SetHwRegHandler = rtl8192e_SetHwReg;
 	priv->ieee80211->rtllib_ap_sec_type = rtl8192e_ap_sec_type;
 
-	priv->card_type = USB;
 	{
 		priv->ShortRetryLimit = 0x30;
 		priv->LongRetryLimit = 0x30;
 	}
 	priv->EarlyRxThreshold = 7;
-	priv->enable_gpio0 = 0;
 
 	priv->TransmitConfig = 0;
 
@@ -2773,7 +2768,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 				priv->ChannelPlan);
 			break;
 		case EEPROM_CID_Nettronix:
-			priv->ScanDelay = 100;	//cosa add for scan
 			priv->CustomerID = RT_CID_Nettronix;
 			break;
 		case EEPROM_CID_Pronet:
@@ -6040,10 +6034,6 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 			priv->irq=0;
 
 		}
-
-
-
-	//	free_beacon_desc_ring(dev,priv->txbeaconcount);
 
 #ifdef CONFIG_RTL8180_IO_MAP
 

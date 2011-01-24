@@ -301,8 +301,6 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 //	range->old_num_channels;
 //	range->old_num_frequency;
 //	range->old_freq[6]; /* Filler to keep "version" at the same offset */
-	if(priv->rf_set_sens != NULL)
-		range->sensitivity = priv->max_sens;	/* signal level threshold range */
 
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
