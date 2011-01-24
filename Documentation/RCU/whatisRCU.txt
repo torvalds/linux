@@ -849,6 +849,37 @@ All:  lockdep-checked RCU-protected pointer access
 See the comment headers in the source code (or the docbook generated
 from them) for more information.
 
+However, given that there are no fewer than four families of RCU APIs
+in the Linux kernel, how do you choose which one to use?  The following
+list can be helpful:
+
+a.	Will readers need to block?  If so, you need SRCU.
+
+b.	What about the -rt patchset?  If readers would need to block
+	in an non-rt kernel, you need SRCU.  If readers would block
+	in a -rt kernel, but not in a non-rt kernel, SRCU is not
+	necessary.
+
+c.	Do you need to treat NMI handlers, hardirq handlers,
+	and code segments with preemption disabled (whether
+	via preempt_disable(), local_irq_save(), local_bh_disable(),
+	or some other mechanism) as if they were explicit RCU readers?
+	If so, you need RCU-sched.
+
+d.	Do you need RCU grace periods to complete even in the face
+	of softirq monopolization of one or more of the CPUs?  For
+	example, is your code subject to network-based denial-of-service
+	attacks?  If so, you need RCU-bh.
+
+e.	Is your workload too update-intensive for normal use of
+	RCU, but inappropriate for other synchronization mechanisms?
+	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
+
+f.	Otherwise, use RCU.
+
+Of course, this all assumes that you have determined that RCU is in fact
+the right tool for your job.
+
 
 8.  ANSWERS TO QUICK QUIZZES
 
