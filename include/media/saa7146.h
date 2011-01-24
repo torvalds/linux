@@ -115,7 +115,7 @@ struct saa7146_dev
 
 	/* different device locks */
 	spinlock_t			slock;
-	struct mutex			lock;
+	struct mutex			v4l2_lock;
 
 	unsigned char			__iomem *mem;		/* pointer to mapped IO memory */
 	u32				revision;	/* chip revision; needed for bug-workarounds*/

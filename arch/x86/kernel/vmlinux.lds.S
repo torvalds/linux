@@ -34,9 +34,11 @@ OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT)
 #ifdef CONFIG_X86_32
 OUTPUT_ARCH(i386)
 ENTRY(phys_startup_32)
+jiffies = jiffies_64;
 #else
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(phys_startup_64)
+jiffies_64 = jiffies;
 #endif
 
 #if defined(CONFIG_X86_64) && defined(CONFIG_DEBUG_RODATA)
@@ -140,15 +142,6 @@ SECTIONS
 		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
 
 		DATA_DATA
-		/*
-		 * Workaround a binutils (2.20.51.0.12 to 2.21.51.0.3) bug.
-		 * This makes jiffies relocatable in such binutils
-		 */
-#ifdef CONFIG_X86_32
-		jiffies = jiffies_64;
-#else
-		jiffies_64 = jiffies;
-#endif
 		CONSTRUCTORS
 
 		/* rarely changed data like cpu maps */

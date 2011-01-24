@@ -31,7 +31,7 @@ config X86_VERBOSE_BOOTUP
 	  see errors. Disable this if you want silent bootup.
 
 config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED
+	bool "Early printk" if EXPERT
 	default y
 	---help---
 	  Write kernel log output directly into the VGA buffer or to a serial
@@ -138,7 +138,7 @@ config DEBUG_NX_TEST
 
 config DOUBLEFAULT
 	default y
-	bool "Enable doublefault exception handler" if EMBEDDED
+	bool "Enable doublefault exception handler" if EXPERT
 	depends on X86_32
 	---help---
 	  This option allows trapping of rare doublefault exceptions that

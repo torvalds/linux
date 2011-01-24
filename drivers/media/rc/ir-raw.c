@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
 /* used internally by the sysfs interface */
 u64
-ir_raw_get_allowed_protocols()
+ir_raw_get_allowed_protocols(void)
 {
 	u64 protocols;
 	mutex_lock(&ir_raw_handler_lock);

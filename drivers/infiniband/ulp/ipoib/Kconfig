@@ -24,7 +24,7 @@ config INFINIBAND_IPOIB_CM
 	  unless you limit mtu for these destinations to 2044.
 
 config INFINIBAND_IPOIB_DEBUG
-	bool "IP-over-InfiniBand debugging" if EMBEDDED
+	bool "IP-over-InfiniBand debugging" if EXPERT
 	depends on INFINIBAND_IPOIB
 	default y
 	---help---
