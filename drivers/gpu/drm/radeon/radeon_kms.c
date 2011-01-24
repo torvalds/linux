@@ -201,6 +201,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 		radeon_set_filp_rights(dev, &rdev->cmask_filp, filp, &value);
 		break;
+	case RADEON_INFO_CLOCK_CRYSTAL_FREQ:
+		/* return clock value in KHz */
+		value = rdev->clock.spll.reference_freq * 10;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
