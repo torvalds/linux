@@ -22,12 +22,25 @@
 #include <mach/rk29_camera.h>
 #include "ov5642.h"
 
+static int debug;
+module_param(debug, int, S_IRUGO|S_IWUSR);
+
+#define dprintk(level, fmt, arg...) do {			\
+	if (debug >= level) 					\
+	printk(KERN_DEBUG fmt , ## arg); } while (0)
+
+#define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
+
 #define _CONS(a,b) a##b
 #define CONS(a,b) _CONS(a,b)
 
 #define __STR(x) #x
 #define _STR(x) __STR(x)
 #define STR(x) _STR(x)
+
+#define MIN(x,y)   ((x<y) ? x: y)
+#define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
 #define SENSOR_NAME ov5642
@@ -65,25 +78,6 @@
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   1
 
-#define CONFIG_SENSOR_TR      1
-#define CONFIG_SENSOR_DEBUG	  1
-
-#define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
-#define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
-
-#define MIN(x,y)   ((x<y) ? x: y)
-#define MAX(x,y)    ((x>y) ? x: y)
-
-#if (CONFIG_SENSOR_TR)
-	#define SENSOR_TR(format, ...)      printk(format, ## __VA_ARGS__)
-	#if (CONFIG_SENSOR_DEBUG)
-	#define SENSOR_DG(format, ...)      printk(format, ## __VA_ARGS__)
-	#else
-	#define SENSOR_DG(format, ...)
-	#endif
-#else
-	#define SENSOR_TR(format, ...)
-#endif
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
@@ -97,6 +91,9 @@
 #define COLOR_TEMPERATURE_OFFICE_UP     5000
 #define COLOR_TEMPERATURE_HOME_DN       2500
 #define COLOR_TEMPERATURE_HOME_UP       3500
+
+#define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
+#define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
 
 #define SENSOR_AF_IS_ERR    (0x00<<0)
 #define SENSOR_AF_IS_OK		(0x01<<0)
@@ -3110,7 +3107,7 @@ enum sensor_work_state
 struct sensor_work
 {
 	struct i2c_client *client;
-	struct work_struct work;
+	struct delayed_work dwork;
 	enum sensor_work_state state;
 };
 
@@ -3368,7 +3365,7 @@ static int sensor_af_cmdset(struct i2c_client *client, int cmd_main, struct af_c
 					SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
 					goto sensor_af_cmdset_err;
 				}
-				SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
+				SENSOR_DG("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
 			}
 		}
 	} else {
@@ -3571,11 +3568,8 @@ sensor_af_init_end:
 	return ret;
 }
 
-static void sensor_af_workqueue(struct work_struct *work)
+static int sensor_af_wq_function(struct i2c_client *client)
 {
-#if CONFIG_SENSOR_Focus
-	struct sensor_work *sensor_work = container_of(work, struct sensor_work, work);
-	struct i2c_client *client = sensor_work->client;
 	struct sensor *sensor = to_sensor(client);
 	struct af_cmdinfo cmdinfo;
 	int ret=0, focus_pos = 0xfe;
@@ -3585,6 +3579,7 @@ static void sensor_af_workqueue(struct work_struct *work)
 	mutex_lock(&sensor->wq_lock);
 	if (sensor_af_init(client)) {
 		sensor->info_priv.funmodule_state &= (~SENSOR_AF_IS_OK);
+		ret = -1;
 	} else {
 		sensor->info_priv.funmodule_state |= SENSOR_AF_IS_OK;
 
@@ -3625,12 +3620,23 @@ static void sensor_af_workqueue(struct work_struct *work)
 				SENSOR_DG("%s focus mode(0x%x) is unkonwn\n",SENSOR_NAME_STRING(),sensor->info_priv.auto_focus);
 		}
 
-		SENSOR_DG("%s sensor_af_workqueue set focus mode(0x%x) ret:0x%x\n",SENSOR_NAME_STRING(), sensor->info_priv.auto_focus,ret);
+		SENSOR_DG("%s sensor_af_wq_function set focus mode(0x%x) ret:0x%x\n",SENSOR_NAME_STRING(), sensor->info_priv.auto_focus,ret);
 	}
 
+sensor_af_wq_function_end:
 	sensor->sensor_wk.state = sensor_work_ready;
 	mutex_unlock(&sensor->wq_lock);
-#endif
+	return ret;
+}
+static void sensor_af_workqueue(struct work_struct *work)
+{
+	struct sensor_work *sensor_work = container_of(work, struct sensor_work, dwork.work);
+	struct i2c_client *client = sensor_work->client;
+	struct sensor *sensor = to_sensor(client);
+
+	if (sensor_af_wq_function(client) < 0) {
+		SENSOR_TR("%s af workqueue return false\n",SENSOR_NAME_STRING());
+	}
 }
 #endif
 int sensor_parameter_record(struct i2c_client *client)
@@ -4031,7 +4037,7 @@ static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
 		ret = true;
 	} else if ((f->fmt.pix.width == 2048) && (f->fmt.pix.height == 1536)) {
 		ret = true;
-	} else if ((f->fmt.pix.width == 2536) && (f->fmt.pix.height == 1944)) {
+	} else if ((f->fmt.pix.width == 2592) && (f->fmt.pix.height == 1944)) {
 		ret = true;
 	}
 
@@ -4185,7 +4191,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     }
     else
     {
-        SENSOR_TR("\n %s .. Current Format is validate. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),set_w,set_h);
+        SENSOR_DG("\n %s .. Current Format is validate. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),set_w,set_h);
     }
 
 	pix->width = set_w;
@@ -5040,31 +5046,38 @@ int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
+	struct v4l2_format fmt;
 
 	if (enable == 1) {
 		sensor->info_priv.enable = 1;
 		#if CONFIG_SENSOR_Focus
-		if (sensor->info_priv.affm_reinit == 1) {
-			if (sensor->sensor_wq != NULL) {
-				mutex_lock(&sensor->wq_lock);
-				if (sensor->sensor_wk.state == sensor_working) {
-					SENSOR_DG("%s sensor af firmware thread is runing, Ingore current work",SENSOR_NAME_STRING());
+		fmt.fmt.pix.width = icd->user_width;
+		fmt.fmt.pix.height = icd->user_height;
+		/* If auto focus firmware haven't download success, must download firmware again when in video or preview stream on */
+		if (sensor_fmt_capturechk(sd, &fmt) == false) {
+			if ((sensor->info_priv.affm_reinit == 1) || ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)==0)) {
+				if (sensor->sensor_wq != NULL) {
+					mutex_lock(&sensor->wq_lock);
+					if (sensor->sensor_wk.state == sensor_working) {
+						SENSOR_DG("%s sensor af firmware thread is runing, Ingore current work",SENSOR_NAME_STRING());
+						mutex_unlock(&sensor->wq_lock);
+						goto sensor_s_stream_end;
+					}
+					sensor->sensor_wk.state = sensor_working;
 					mutex_unlock(&sensor->wq_lock);
-					goto sensor_s_stream_end;
+					sensor->sensor_wk.client = client;
+					INIT_WORK(&(sensor->sensor_wk.dwork.work), sensor_af_workqueue);
+					queue_delayed_work(sensor->sensor_wq,&(sensor->sensor_wk.dwork.work), 0);
 				}
-				sensor->sensor_wk.state = sensor_working;
-				mutex_unlock(&sensor->wq_lock);
-				sensor->sensor_wk.client = client;
-				INIT_WORK(&(sensor->sensor_wk.work), sensor_af_workqueue);
-				queue_work(sensor->sensor_wq,&(sensor->sensor_wk.work));
+				sensor->info_priv.affm_reinit = 0;
 			}
-			sensor->info_priv.affm_reinit = 0;
 		}
 		#endif
 	} else if (enable == 0) {
 		sensor->info_priv.enable = 0;
 		#if CONFIG_SENSOR_Focus
-		flush_work(&(sensor->sensor_wk.work));
+		flush_work(&(sensor->sensor_wk.dwork.work));
 		mutex_lock(&sensor->wq_lock);
 		sensor->sensor_wk.state = sensor_work_ready;
 		mutex_unlock(&sensor->wq_lock);

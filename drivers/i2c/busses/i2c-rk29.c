@@ -269,7 +269,7 @@ static int rk29_wait_event(struct rk29_i2c_data *i2c,
 	{
 		init_completion(&i2c->cmd_complete);
 		ret = wait_for_completion_interruptible_timeout(&i2c->cmd_complete,
-								RK29_I2C_TIMEOUT(40000 * 1000/i2c->scl_rate));
+								RK29_I2C_TIMEOUT(4000 * 1000/i2c->scl_rate));
 	}
 	else
 	{
@@ -283,7 +283,9 @@ static int rk29_wait_event(struct rk29_i2c_data *i2c,
 	}
 	if(ret == 0)
 	{
-		return -ETIMEDOUT;
+		i2c_err(i2c->dev, "i2c wait for envent timeout, but not return -ETIMEDOUT\n");
+		return 0;
+		//return -ETIMEDOUT;
 	}
 	return 0;
 }
@@ -332,7 +334,7 @@ static int rk29_send_2nd_addr(struct rk29_i2c_data *i2c,
 		return ret;
 	}
 	lsr = readl(i2c->regs + I2C_LSR);
-	if(lsr & I2C_LSR_RCV_NAK)
+	if((lsr & I2C_LSR_RCV_NAK) && !(msg->flags & I2C_M_IGNORE_NAK))
 		return -EINVAL;
 	return ret;
 }
@@ -373,8 +375,11 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 		return ret;
 	}
 	lsr = readl(i2c->regs + I2C_LSR);
-	if(lsr & I2C_LSR_RCV_NAK)
+	if((lsr & I2C_LSR_RCV_NAK) && !(msg->flags & I2C_M_IGNORE_NAK))
+	{
+		dev_info(i2c->dev, "addr: 0x%x receive no ack\n", msg->addr);
 		return -EINVAL;
+	}
 	if(start && (msg->flags & I2C_M_TEN))
 		ret = rk29_send_2nd_addr(i2c, msg, start);
 	return ret;
@@ -400,7 +405,7 @@ static int rk29_i2c_send_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 		if((ret = rk29_wait_event(i2c, RK29_EVENT_MTX_RCVD_ACK)) != 0)
 			return ret;
 		lsr = readl(i2c->regs + I2C_LSR);
-		if((lsr & I2C_LSR_RCV_NAK) && (i != msg->len -1))
+		if((lsr & I2C_LSR_RCV_NAK) && (i != msg->len -1) && !(msg->flags & I2C_M_IGNORE_NAK))
 			return -EINVAL;
 
 	}
