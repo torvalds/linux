@@ -32,6 +32,7 @@
  */
 
 struct ath_node;
+struct ath_wiphy;
 
 /* Macro to expand scalars to 64-bit objects */
 
@@ -233,7 +234,6 @@ struct ath_buf {
 	bool bf_stale;
 	u16 bf_flags;
 	struct ath_buf_state bf_state;
-	struct ath_wiphy *aphy;
 };
 
 struct ath_atx_tid {
@@ -563,7 +563,6 @@ struct ath_ant_comb {
 #define PS_WAIT_FOR_TX_ACK        BIT(3)
 #define PS_BEACON_SYNC            BIT(4)
 
-struct ath_wiphy;
 struct ath_rate_table;
 
 struct ath9k_vif_iter_data {

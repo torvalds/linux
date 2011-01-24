@@ -55,8 +55,9 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 			     struct list_head *head);
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len);
-static void ath_tx_rc_status(struct ath_buf *bf, struct ath_tx_status *ts,
-			     int nframes, int nbad, int txok, bool update_rc);
+static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
+			     struct ath_tx_status *ts, int nframes, int nbad,
+			     int txok, bool update_rc);
 static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 			      int seqno);
 
@@ -295,7 +296,6 @@ static struct ath_buf* ath_clone_txbuf(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TXBUF_RESET(tbf);
 
-	tbf->aphy = bf->aphy;
 	tbf->bf_mpdu = bf->bf_mpdu;
 	tbf->bf_buf_addr = bf->bf_buf_addr;
 	memcpy(tbf->bf_desc, bf->bf_desc, sc->sc_ah->caps.tx_desc_len);
@@ -343,7 +343,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	struct ath_node *an = NULL;
 	struct sk_buff *skb;
 	struct ieee80211_sta *sta;
-	struct ieee80211_hw *hw;
+	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info;
 	struct ath_atx_tid *tid = NULL;
@@ -362,7 +362,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	hdr = (struct ieee80211_hdr *)skb->data;
 
 	tx_info = IEEE80211_SKB_CB(skb);
-	hw = bf->aphy->hw;
 
 	memcpy(rates, tx_info->control.rates, sizeof(rates));
 
@@ -381,7 +380,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			    !bf->bf_stale || bf_next != NULL)
 				list_move_tail(&bf->list, &bf_head);
 
-			ath_tx_rc_status(bf, ts, 1, 1, 0, false);
+			ath_tx_rc_status(sc, bf, ts, 1, 1, 0, false);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts,
 				0, 0);
 
@@ -487,10 +486,10 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 			if (rc_update && (acked_cnt == 1 || txfail_cnt == 1)) {
 				memcpy(tx_info->control.rates, rates, sizeof(rates));
-				ath_tx_rc_status(bf, ts, nframes, nbad, txok, true);
+				ath_tx_rc_status(sc, bf, ts, nframes, nbad, txok, true);
 				rc_update = false;
 			} else {
-				ath_tx_rc_status(bf, ts, nframes, nbad, txok, false);
+				ath_tx_rc_status(sc, bf, ts, nframes, nbad, txok, false);
 			}
 
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts,
@@ -514,7 +513,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 						bf->bf_state.bf_type |=
 							BUF_XRETRY;
-						ath_tx_rc_status(bf, ts, nframes,
+						ath_tx_rc_status(sc, bf, ts, nframes,
 								nbad, 0, false);
 						ath_tx_complete_buf(sc, bf, txq,
 								    &bf_head,
@@ -1680,7 +1679,6 @@ static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
 
 	ATH_TXBUF_RESET(bf);
 
-	bf->aphy = aphy;
 	bf->bf_flags = setup_tx_flags(skb);
 	bf->bf_mpdu = skb;
 
@@ -1834,8 +1832,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 /*****************/
 
 static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-			    struct ath_wiphy *aphy, int tx_flags, int ftype,
-			    struct ath_txq *txq)
+			    int tx_flags, int ftype, struct ath_txq *txq)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -1844,9 +1841,6 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	int q, padpos, padsize;
 
 	ath_dbg(common, ATH_DBG_XMIT, "TX complete: skb: %p\n", skb);
-
-	if (aphy)
-		hw = aphy->hw;
 
 	if (tx_flags & ATH_TX_BAR)
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
@@ -1921,7 +1915,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 			complete(&sc->paprd_complete);
 	} else {
 		ath_debug_stat_tx(sc, bf, ts);
-		ath_tx_complete(sc, skb, bf->aphy, tx_flags,
+		ath_tx_complete(sc, skb, tx_flags,
 				bf->bf_state.bfs_ftype, txq);
 	}
 	/* At this point, skb (bf->bf_mpdu) is consumed...make sure we don't
@@ -1937,14 +1931,14 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	spin_unlock_irqrestore(&sc->tx.txbuflock, flags);
 }
 
-static void ath_tx_rc_status(struct ath_buf *bf, struct ath_tx_status *ts,
-			     int nframes, int nbad, int txok, bool update_rc)
+static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
+			     struct ath_tx_status *ts, int nframes, int nbad,
+			     int txok, bool update_rc)
 {
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hw *hw = bf->aphy->hw;
-	struct ath_softc *sc = bf->aphy->sc;
+	struct ieee80211_hw *hw = sc->hw;
 	struct ath_hw *ah = sc->sc_ah;
 	u8 i, tx_rateindex;
 
@@ -2083,7 +2077,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 */
 			if (ts.ts_status & ATH9K_TXERR_XRETRY)
 				bf->bf_state.bf_type |= BUF_XRETRY;
-			ath_tx_rc_status(bf, &ts, 1, txok ? 0 : 1, txok, true);
+			ath_tx_rc_status(sc, bf, &ts, 1, txok ? 0 : 1, txok, true);
 		}
 
 		if (bf_isampdu(bf))
@@ -2233,7 +2227,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		if (!bf_isampdu(bf)) {
 			if (txs.ts_status & ATH9K_TXERR_XRETRY)
 				bf->bf_state.bf_type |= BUF_XRETRY;
-			ath_tx_rc_status(bf, &txs, 1, txok ? 0 : 1, txok, true);
+			ath_tx_rc_status(sc, bf, &txs, 1, txok ? 0 : 1, txok, true);
 		}
 
 		if (bf_isampdu(bf))
