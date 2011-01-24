@@ -300,4 +300,13 @@ config MACH_MXT_TD60
 	  Include support for i-MXT (aka td60) platform. This
 	  includes specific configurations for the module and its peripherals.
 
+config MACH_IMX27IPCAM
+	bool "IMX27 IPCAM platform"
+	select SOC_IMX27
+	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMX_UART
+	help
+	  Include support for IMX27 IPCAM platform. This includes specific
+	  configurations for the board and its peripherals.
+
 endif
