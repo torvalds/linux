@@ -85,6 +85,8 @@ extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
 extern bool is_valid_oplock_break(struct smb_hdr *smb,
 				  struct TCP_Server_Info *);
 extern bool is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
+extern void cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
+			    unsigned int bytes_written);
 extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
 extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
 extern unsigned int smbCalcSize(struct smb_hdr *ptr);
