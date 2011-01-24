@@ -171,6 +171,16 @@ static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 	return bus->sysdata;
 }
 
+static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
+{
+	struct pci_controller *host;
+
+	if (bus->self)
+		return pci_device_to_OF_node(bus->self);
+	host = pci_bus_to_host(bus);
+	return host ? host->dn : NULL;
+}
+
 static inline int isa_vaddr_is_ioport(void __iomem *address)
 {
 	/* No specific ISA handling on ppc32 at this stage, it
