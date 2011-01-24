@@ -172,7 +172,6 @@ struct platform_device;
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
-struct regulator *dss_get_vdda_dac(void);
 
 /* display */
 int dss_suspend_all_devices(void);
@@ -412,16 +411,16 @@ int dispc_get_clock_div(enum omap_channel channel,
 
 /* VENC */
 #ifdef CONFIG_OMAP2_DSS_VENC
-int venc_init(struct platform_device *pdev);
-void venc_exit(void);
+int venc_init_platform_driver(void);
+void venc_uninit_platform_driver(void);
 void venc_dump_regs(struct seq_file *s);
 int venc_init_display(struct omap_dss_device *display);
 #else
-static inline int venc_init(struct platform_device *pdev)
+static inline int venc_init_platform_driver(void)
 {
 	return 0;
 }
-static inline void venc_exit(void)
+static inline void venc_uninit_platform_driver(void)
 {
 }
 #endif

@@ -43,7 +43,6 @@ static struct {
 
 	struct regulator *vdds_dsi_reg;
 	struct regulator *vdds_sdi_reg;
-	struct regulator *vdda_dac_reg;
 } core;
 
 static char *def_disp_name;
@@ -81,20 +80,6 @@ struct regulator *dss_get_vdds_sdi(void)
 	reg = regulator_get(&core.pdev->dev, "vdds_sdi");
 	if (!IS_ERR(reg))
 		core.vdds_sdi_reg = reg;
-
-	return reg;
-}
-
-struct regulator *dss_get_vdda_dac(void)
-{
-	struct regulator *reg;
-
-	if (core.vdda_dac_reg != NULL)
-		return core.vdda_dac_reg;
-
-	reg = regulator_get(&core.pdev->dev, "vdda_dac");
-	if (!IS_ERR(reg))
-		core.vdda_dac_reg = reg;
 
 	return reg;
 }
@@ -219,9 +204,9 @@ static int omap_dss_probe(struct platform_device *pdev)
 		goto err_dispc;
 	}
 
-	r = venc_init(pdev);
+	r = venc_init_platform_driver();
 	if (r) {
-		DSSERR("Failed to initialize venc\n");
+		DSSERR("Failed to initialize venc platform driver\n");
 		goto err_venc;
 	}
 
@@ -279,7 +264,7 @@ err_dsi:
 	if (cpu_is_omap34xx())
 		sdi_exit();
 err_sdi:
-	venc_exit();
+	venc_uninit_platform_driver();
 err_venc:
 	dispc_uninit_platform_driver();
 err_dispc:
@@ -300,7 +285,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 
 	dss_uninitialize_debugfs();
 
-	venc_exit();
+	venc_uninit_platform_driver();
 	dispc_uninit_platform_driver();
 	dpi_exit();
 	rfbi_uninit_platform_driver();
@@ -595,11 +580,6 @@ static void __exit omap_dss_exit(void)
 	if (core.vdds_sdi_reg != NULL) {
 		regulator_put(core.vdds_sdi_reg);
 		core.vdds_sdi_reg = NULL;
-	}
-
-	if (core.vdda_dac_reg != NULL) {
-		regulator_put(core.vdda_dac_reg);
-		core.vdda_dac_reg = NULL;
 	}
 
 	platform_driver_unregister(&omap_dss_driver);
