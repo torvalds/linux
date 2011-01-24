@@ -388,7 +388,9 @@ void tipc_link_delete(struct link *l_ptr)
 
 static void link_start(struct link *l_ptr)
 {
+	tipc_node_lock(l_ptr->owner);
 	link_state_event(l_ptr, STARTING_EVT);
+	tipc_node_unlock(l_ptr->owner);
 }
 
 /**
