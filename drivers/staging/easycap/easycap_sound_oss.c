@@ -40,23 +40,6 @@
  *  PARAMETERS USED WHEN REGISTERING THE AUDIO INTERFACE
  */
 /*--------------------------------------------------------------------------*/
-const struct file_operations easyoss_fops = {
-	.owner		= THIS_MODULE,
-	.open		= easyoss_open,
-	.release	= easyoss_release,
-#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
-	.unlocked_ioctl	= easyoss_ioctl_noinode,
-#else
-	.ioctl		= easyoss_ioctl,
-#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
-	.read		= easyoss_read,
-	.llseek		= no_llseek,
-};
-struct usb_class_driver easyoss_class = {
-.name = "usb/easyoss%d",
-.fops = &easyoss_fops,
-.minor_base = USB_SKEL_MINOR_BASE,
-};
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
@@ -328,8 +311,7 @@ return;
  *  HAVE AN IOCTL INTERFACE.
  */
 /*---------------------------------------------------------------------------*/
-int
-easyoss_open(struct inode *inode, struct file *file)
+static int easyoss_open(struct inode *inode, struct file *file)
 {
 struct usb_interface *pusb_interface;
 struct easycap *peasycap;
@@ -401,8 +383,7 @@ if (0 != easycap_sound_setup(peasycap)) {
 return 0;
 }
 /*****************************************************************************/
-int
-easyoss_release(struct inode *inode, struct file *file)
+static int easyoss_release(struct inode *inode, struct file *file)
 {
 struct easycap *peasycap;
 
@@ -425,9 +406,8 @@ JOM(4, "ending successfully\n");
 return 0;
 }
 /*****************************************************************************/
-ssize_t
-easyoss_read(struct file *file, char __user *puserspacebuffer,
-						size_t kount, loff_t *poff)
+static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
+			size_t kount, loff_t *poff)
 {
 struct timeval timeval;
 long long int above, below, mean;
@@ -725,6 +705,328 @@ mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 JOM(4, "unlocked easycapdc60_dongle[%i].mutex_audio\n", kd);
 JOM(8, "returning %li\n", (long int)szret);
 return szret;
+
 }
+/*---------------------------------------------------------------------------*/
+static int easyoss_ioctl(struct inode *inode, struct file *file,
+			unsigned int cmd, unsigned long arg)
+{
+struct easycap *peasycap;
+struct usb_device *p;
+int kd;
+
+if (NULL == file) {
+	SAY("ERROR:  file is NULL\n");
+	return -ERESTARTSYS;
+}
+peasycap = file->private_data;
+if (NULL == peasycap) {
+	SAY("ERROR:  peasycap is NULL.\n");
+	return -EFAULT;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap\n");
+	return -EFAULT;
+}
+p = peasycap->pusb_device;
+if (NULL == p) {
+	SAM("ERROR: peasycap->pusb_device is NULL\n");
+	return -EFAULT;
+}
+kd = isdongle(peasycap);
+if (0 <= kd && DONGLE_MANY > kd) {
+	if (mutex_lock_interruptible(&easycapdc60_dongle[kd].mutex_audio)) {
+		SAY("ERROR: cannot lock "
+				"easycapdc60_dongle[%i].mutex_audio\n", kd);
+		return -ERESTARTSYS;
+	}
+	JOM(4, "locked easycapdc60_dongle[%i].mutex_audio\n", kd);
+/*---------------------------------------------------------------------------*/
+/*
+ *  MEANWHILE, easycap_usb_disconnect() MAY HAVE FREED POINTER peasycap,
+ *  IN WHICH CASE A REPEAT CALL TO isdongle() WILL FAIL.
+ *  IF NECESSARY, BAIL OUT.
+*/
+/*---------------------------------------------------------------------------*/
+	if (kd != isdongle(peasycap))
+		return -ERESTARTSYS;
+	if (NULL == file) {
+		SAY("ERROR:  file is NULL\n");
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	peasycap = file->private_data;
+	if (NULL == peasycap) {
+		SAY("ERROR:  peasycap is NULL\n");
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+		SAY("ERROR: bad peasycap\n");
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	p = peasycap->pusb_device;
+	if (NULL == peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device is NULL\n");
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+} else {
+/*---------------------------------------------------------------------------*/
+/*
+ *  IF easycap_usb_disconnect() HAS ALREADY FREED POINTER peasycap BEFORE THE
+ *  ATTEMPT TO ACQUIRE THE SEMAPHORE, isdongle() WILL HAVE FAILED.  BAIL OUT.
+*/
+/*---------------------------------------------------------------------------*/
+	return -ERESTARTSYS;
+}
+/*---------------------------------------------------------------------------*/
+switch (cmd) {
+case SNDCTL_DSP_GETCAPS: {
+	int caps;
+	JOM(8, "SNDCTL_DSP_GETCAPS\n");
+
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		caps = 0x04400000;
+	else
+		caps = 0x04400000;
+#else
+	if (true == peasycap->microphone)
+		caps = 0x02400000;
+	else
+		caps = 0x04400000;
+#endif /*UPSAMPLE*/
+
+	if (0 != copy_to_user((void __user *)arg, &caps, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	break;
+}
+case SNDCTL_DSP_GETFMTS: {
+	int incoming;
+	JOM(8, "SNDCTL_DSP_GETFMTS\n");
+
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		incoming = AFMT_S16_LE;
+	else
+		incoming = AFMT_S16_LE;
+#else
+	if (true == peasycap->microphone)
+		incoming = AFMT_S16_LE;
+	else
+		incoming = AFMT_S16_LE;
+#endif /*UPSAMPLE*/
+
+	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	break;
+}
+case SNDCTL_DSP_SETFMT: {
+	int incoming, outgoing;
+	JOM(8, "SNDCTL_DSP_SETFMT\n");
+	if (0 != copy_from_user(&incoming, (void __user *)arg, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	JOM(8, "........... %i=incoming\n", incoming);
+
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		outgoing = AFMT_S16_LE;
+	else
+		outgoing = AFMT_S16_LE;
+#else
+	if (true == peasycap->microphone)
+		outgoing = AFMT_S16_LE;
+	else
+		outgoing = AFMT_S16_LE;
+#endif /*UPSAMPLE*/
+
+	if (incoming != outgoing) {
+		JOM(8, "........... %i=outgoing\n", outgoing);
+		JOM(8, "        cf. %i=AFMT_S16_LE\n", AFMT_S16_LE);
+		JOM(8, "        cf. %i=AFMT_U8\n", AFMT_U8);
+		if (0 != copy_to_user((void __user *)arg, &outgoing,
+								sizeof(int))) {
+			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+			return -EFAULT;
+		}
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EINVAL ;
+	}
+	break;
+}
+case SNDCTL_DSP_STEREO: {
+	int incoming;
+	JOM(8, "SNDCTL_DSP_STEREO\n");
+	if (0 != copy_from_user(&incoming, (void __user *)arg, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	JOM(8, "........... %i=incoming\n", incoming);
+
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		incoming = 1;
+	else
+		incoming = 1;
+#else
+	if (true == peasycap->microphone)
+		incoming = 0;
+	else
+		incoming = 1;
+#endif /*UPSAMPLE*/
+
+	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	break;
+}
+case SNDCTL_DSP_SPEED: {
+	int incoming;
+	JOM(8, "SNDCTL_DSP_SPEED\n");
+	if (0 != copy_from_user(&incoming, (void __user *)arg, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	JOM(8, "........... %i=incoming\n", incoming);
+
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		incoming = 32000;
+	else
+		incoming = 48000;
+#else
+	if (true == peasycap->microphone)
+		incoming = 8000;
+	else
+		incoming = 48000;
+#endif /*UPSAMPLE*/
+
+	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	break;
+}
+case SNDCTL_DSP_GETTRIGGER: {
+	int incoming;
+	JOM(8, "SNDCTL_DSP_GETTRIGGER\n");
+	if (0 != copy_from_user(&incoming, (void __user *)arg, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	JOM(8, "........... %i=incoming\n", incoming);
+
+	incoming = PCM_ENABLE_INPUT;
+	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	break;
+}
+case SNDCTL_DSP_SETTRIGGER: {
+	int incoming;
+	JOM(8, "SNDCTL_DSP_SETTRIGGER\n");
+	if (0 != copy_from_user(&incoming, (void __user *)arg, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	JOM(8, "........... %i=incoming\n", incoming);
+	JOM(8, "........... cf 0x%x=PCM_ENABLE_INPUT "
+				"0x%x=PCM_ENABLE_OUTPUT\n",
+					PCM_ENABLE_INPUT, PCM_ENABLE_OUTPUT);
+	;
+	;
+	;
+	;
+	break;
+}
+case SNDCTL_DSP_GETBLKSIZE: {
+	int incoming;
+	JOM(8, "SNDCTL_DSP_GETBLKSIZE\n");
+	if (0 != copy_from_user(&incoming, (void __user *)arg, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	JOM(8, "........... %i=incoming\n", incoming);
+	incoming = peasycap->audio_bytes_per_fragment;
+	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	break;
+}
+case SNDCTL_DSP_GETISPACE: {
+	struct audio_buf_info audio_buf_info;
+
+	JOM(8, "SNDCTL_DSP_GETISPACE\n");
+
+	audio_buf_info.bytes      = peasycap->audio_bytes_per_fragment;
+	audio_buf_info.fragments  = 1;
+	audio_buf_info.fragsize   = 0;
+	audio_buf_info.fragstotal = 0;
+
+	if (0 != copy_to_user((void __user *)arg, &audio_buf_info,
+								sizeof(int))) {
+		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+		return -EFAULT;
+	}
+	break;
+}
+case 0x00005401:
+case 0x00005402:
+case 0x00005403:
+case 0x00005404:
+case 0x00005405:
+case 0x00005406: {
+	JOM(8, "SNDCTL_TMR_...: 0x%08X unsupported\n", cmd);
+	mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+	return -ENOIOCTLCMD;
+}
+default: {
+	JOM(8, "ERROR: unrecognized DSP IOCTL command: 0x%08X\n", cmd);
+	mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+	return -ENOIOCTLCMD;
+}
+}
+mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
+return 0;
+}
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#if ((defined(EASYCAP_IS_VIDEODEV_CLIENT)) || \
+	(defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)))
+static long easyoss_ioctl_noinode(struct file *file,
+		unsigned int cmd, unsigned long arg)
+{
+	return (long)easyoss_ioctl((struct inode *)NULL, file, cmd, arg);
+}
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT||EASYCAP_NEEDS_UNLOCKED_IOCTL*/
+/*****************************************************************************/
+
+const struct file_operations easyoss_fops = {
+	.owner		= THIS_MODULE,
+	.open		= easyoss_open,
+	.release	= easyoss_release,
+#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
+	.unlocked_ioctl	= easyoss_ioctl_noinode,
+#else
+	.ioctl		= easyoss_ioctl,
+#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
+	.read		= easyoss_read,
+	.llseek		= no_llseek,
+};
+struct usb_class_driver easyoss_class = {
+	.name = "usb/easyoss%d",
+	.fops = &easyoss_fops,
+	.minor_base = USB_SKEL_MINOR_BASE,
+};
 /*****************************************************************************/
 

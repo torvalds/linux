@@ -555,15 +555,7 @@ struct page	*easycap_alsa_page(struct snd_pcm_substream *, unsigned long);
 
 #else /* CONFIG_EASYCAP_OSS */
 void             easyoss_complete(struct urb *);
-ssize_t          easyoss_read(struct file *, char __user *, size_t, loff_t *);
-int              easyoss_open(struct inode *, struct file *);
-int              easyoss_release(struct inode *, struct file *);
-long             easyoss_ioctl_noinode(struct file *, unsigned int,
-								unsigned long);
-int              easyoss_ioctl(struct inode *, struct file *, unsigned int,
-								unsigned long);
-unsigned int     easyoss_poll(struct file *, poll_table *);
-void             easyoss_delete(struct kref *);
+
 #endif /* !CONFIG_EASYCAP_OSS */
 
 int              easycap_sound_setup(struct easycap *);
