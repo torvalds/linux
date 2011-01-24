@@ -430,8 +430,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 
 	if(host->use_dma == 0)
 		return;
-	dev_vdbg(&host->pdev->dev, "DMA complete\n");
-			
+	dev_vdbg(&host->pdev->dev, "DMA complete\n");	
 	spin_lock(&host->lock);
 	rk29_sdmmc_dma_cleanup(host);
 	/*
@@ -490,7 +489,9 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_FULL ) {
 		rk29_sdmmc_reset_fifo(host);
 		printk("%s %d fifo full reset\n",__FUNCTION__,__LINE__);
-	}							
+	}	
+	rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_STOP);
+	rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_FLUSH);						
     rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->dma_addr));
 	dma_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
 			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);						                	   
