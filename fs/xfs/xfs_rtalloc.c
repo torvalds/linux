@@ -1972,8 +1972,10 @@ xfs_growfs_rt(
 		/*
 		 * Lock out other callers by grabbing the bitmap inode lock.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
-						XFS_ILOCK_EXCL, &ip)))
+		error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+				       XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP,
+				       &ip);
+		if (error)
 			goto error_cancel;
 		ASSERT(ip == mp->m_rbmip);
 		/*
@@ -1986,8 +1988,9 @@ xfs_growfs_rt(
 		/*
 		 * Get the summary inode into the transaction.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rsumino, 0,
-						XFS_ILOCK_EXCL, &ip)))
+		error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rsumino, 0,
+				       XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM, &ip);
+		if (error)
 			goto error_cancel;
 		ASSERT(ip == mp->m_rsumip);
 		/*
@@ -2160,8 +2163,9 @@ xfs_rtfree_extent(
 	/*
 	 * Synchronize by locking the bitmap inode.
 	 */
-	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
-					XFS_ILOCK_EXCL, &ip)))
+	error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+			       XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP, &ip);
+	if (error)
 		return error;
 #if defined(__KERNEL__) && defined(DEBUG)
 	/*

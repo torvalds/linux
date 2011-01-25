@@ -2371,7 +2371,7 @@ xfs_bmap_rtalloc(
 	 * Lock out other modifications to the RT bitmap inode.
 	 */
 	error = xfs_trans_iget(mp, ap->tp, mp->m_sb.sb_rbmino, 0,
-			       XFS_ILOCK_EXCL, &ip);
+			       XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP, &ip);
 	if (error)
 		return error;
 	ASSERT(ip == mp->m_rbmip);
