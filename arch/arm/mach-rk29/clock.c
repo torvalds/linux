@@ -33,48 +33,6 @@
 #include <mach/pmu.h>
 
 
-/* CRU PLL CON */
-#define PLL_HIGH_BAND	(0x01 << 16)
-#define PLL_LOW_BAND	(0x00 << 16)
-#define PLL_PD		(0x01 << 15)
-
-#define PLL_CLKR(i)	((((i) - 1) & 0x1f) << 10)
-#define PLL_NR(v)	((((v) >> 10) & 0x1f) + 1)
-
-#define PLL_CLKF(i)	((((i) - 1) & 0x7f) << 3)
-#define PLL_NF(v)	((((v) >> 3) & 0x7f) + 1)
-#define PLL_NF2(v)	(((((v) >> 3) & 0x7f) + 1) << 1)
-
-#define PLL_CLKOD(i)	(((i) & 0x03) << 1)
-#define PLL_NO_1	PLL_CLKOD(0)
-#define PLL_NO_2	PLL_CLKOD(1)
-#define PLL_NO_4	PLL_CLKOD(2)
-#define PLL_NO_8	PLL_CLKOD(3)
-#define PLL_NO_SHIFT(v)	(((v) >> 1) & 0x03)
-
-#define PLL_BYPASS	(0x01)
-
-/* CRU MODE CON */
-#define CRU_CPU_MODE_MASK	(0x03u << 0)
-#define CRU_CPU_MODE_SLOW	(0x00u << 0)
-#define CRU_CPU_MODE_NORMAL	(0x01u << 0)
-#define CRU_CPU_MODE_SLOW27	(0x02u << 0)
-
-#define CRU_GENERAL_MODE_MASK	(0x03u << 2)
-#define CRU_GENERAL_MODE_SLOW	(0x00u << 2)
-#define CRU_GENERAL_MODE_NORMAL	(0x01u << 2)
-#define CRU_GENERAL_MODE_SLOW27	(0x02u << 2)
-
-#define CRU_CODEC_MODE_MASK	(0x03u << 4)
-#define CRU_CODEC_MODE_SLOW	(0x00u << 4)
-#define CRU_CODEC_MODE_NORMAL	(0x01u << 4)
-#define CRU_CODEC_MODE_SLOW27	(0x02u << 4)
-
-#define CRU_DDR_MODE_MASK	(0x03u << 6)
-#define CRU_DDR_MODE_SLOW	(0x00u << 6)
-#define CRU_DDR_MODE_NORMAL	(0x01u << 6)
-#define CRU_DDR_MODE_SLOW27	(0x02u << 6)
-
 /* Clock flags */
 /* bit 0 is free */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
@@ -480,14 +438,16 @@ static struct clk ddr_pll_clk = {
 
 static int codec_pll_clk_mode(struct clk *clk, int on)
 {
+	u32 cpll = cru_readl(CRU_CPLL_CON);
 	if (on) {
-		cru_writel(cru_readl(CRU_CPLL_CON) & ~PLL_PD, CRU_CPLL_CON);
+		cru_writel(cpll & ~(PLL_PD | PLL_BYPASS), CRU_CPLL_CON);
 		delay_300us();
 		pll_wait_lock(CODEC_PLL_IDX);
 		cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_NORMAL, CRU_MODE_CON);
 	} else {
 		cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_SLOW, CRU_MODE_CON);
-		cru_writel(cru_readl(CRU_CPLL_CON) | PLL_PD, CRU_CPLL_CON);
+		cru_writel(cpll | PLL_BYPASS, CRU_CPLL_CON);
+		cru_writel(cpll | PLL_PD | PLL_BYPASS, CRU_CPLL_CON);
 		delay_500ns();
 	}
 	return 0;
@@ -2241,10 +2201,10 @@ static void __init rk29_clock_common_init(void)
 	/* codec pll */
 	clk_set_rate_nolock(&codec_pll_clk, 552 * MHZ);
 	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
-	clk_set_parent_nolock(&clk_mac_ref_div, &codec_pll_clk);
 
 	/* arm pll */
 	clk_set_rate_nolock(&arm_pll_clk, armclk);
+	clk_set_parent_nolock(&clk_mac_ref_div, &arm_pll_clk);
 }
 
 static void __init clk_enable_init_clocks(void)
