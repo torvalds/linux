@@ -408,9 +408,9 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	nfs4_cb_take_slot(clp);
-	cps->clp = clp; /* put in nfs4_callback_compound */
 
 out:
+	cps->clp = clp; /* put in nfs4_callback_compound */
 	for (i = 0; i < args->csa_nrclists; i++)
 		kfree(args->csa_rclists[i].rcl_refcalls);
 	kfree(args->csa_rclists);
