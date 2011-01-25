@@ -521,7 +521,8 @@ static void altera_pid_control(struct netup_hw_pid_filter *pid_filt,
 	struct fpga_internal *inter = pid_filt->internal;
 	u8 store = 0;
 
-	if (pid == 0x2000)
+	/* pid 0-0x1f always enabled, don't touch them */
+	if ((pid == 0x2000) || (pid < 0x20))
 		return;
 
 	mutex_lock(&inter->fpga_mutex);
@@ -567,8 +568,9 @@ static void altera_toggle_fullts_streaming(struct netup_hw_pid_filter *pid_filt,
 
 		netup_fpga_op_rw(inter, NETUP_CI_PID_ADDR1,
 				((i >> 8) & 0x03) | (pid_filt->nr << 2), 0);
-
-		netup_fpga_op_rw(inter, NETUP_CI_PID_DATA, store, 0);
+		/* pid 0-0x1f always enabled */
+		netup_fpga_op_rw(inter, NETUP_CI_PID_DATA,
+				(i > 3 ? store : 0), 0);
 	}
 
 	mutex_unlock(&inter->fpga_mutex);
