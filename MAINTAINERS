@@ -3559,12 +3559,6 @@ W:	http://lse.sourceforge.net/kdump/
 S:	Maintained
 F:	Documentation/kdump/
 
-KERNEL AUTOMOUNTER (AUTOFS)
-M:	"H. Peter Anvin" <hpa@zytor.com>
-L:	autofs@linux.kernel.org
-S:	Obsolete
-F:	drivers/staging/autofs/
-
 KERNEL AUTOMOUNTER v4 (AUTOFS4)
 M:	Ian Kent <raven@themaw.net>
 L:	autofs@linux.kernel.org
