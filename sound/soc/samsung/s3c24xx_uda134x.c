@@ -221,7 +221,7 @@ static struct snd_soc_dai_link s3c24xx_uda134x_dai_link = {
 	.stream_name = "UDA134X",
 	.codec_name = "uda134x-hifi",
 	.codec_dai_name = "uda134x-hifi",
-	.cpu_dai_name = "s3c24xx-i2s",
+	.cpu_dai_name = "s3c24xx-iis",
 	.ops = &s3c24xx_uda134x_ops,
 	.platform_name	= "samsung-audio",
 };
