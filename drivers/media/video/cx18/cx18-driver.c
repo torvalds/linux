@@ -734,6 +734,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	cx->cxhdl.capabilities = CX2341X_CAP_HAS_TS | CX2341X_CAP_HAS_SLICED_VBI;
 	cx->cxhdl.ops = &cx18_cxhdl_ops;
 	cx->cxhdl.func = cx18_api_func;
+	cx->cxhdl.priv = &cx->streams[CX18_ENC_STREAM_TYPE_MPG];
 	ret = cx2341x_handler_init(&cx->cxhdl, 50);
 	if (ret)
 		return ret;
