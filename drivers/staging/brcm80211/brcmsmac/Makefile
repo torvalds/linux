@@ -15,13 +15,14 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-ccflags-y :=				\
+ccflags-y :=					\
 	-DWLC_HIGH				\
 	-DWLC_LOW				\
 	-DSTA					\
 	-DWME					\
 	-DWL11N					\
 	-DDBAND					\
+	-DBCMDMA32				\
 	-DBCMNVRAMR				\
 	-Idrivers/staging/brcm80211/brcmsmac \
 	-Idrivers/staging/brcm80211/brcmsmac/phy \

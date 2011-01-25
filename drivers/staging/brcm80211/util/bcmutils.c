@@ -214,7 +214,6 @@ void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir)
 	ASSERT(pq->len == 0);
 }
 #else /* !BRCM_FULLMAC */
-/* TODO: can we remove callback for softmac? */
 void
 pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 	    ifpkt_cb_t fn, int arg)

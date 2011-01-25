@@ -2329,7 +2329,6 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 		data = p->data;
 		len = p->len;
 #ifdef BCM_DMAPAD
-		/* TODO: when is this used? */
 		len += PKTDMAPAD(di->osh, p);
 #endif				/* BCM_DMAPAD */
 		next = p->next;

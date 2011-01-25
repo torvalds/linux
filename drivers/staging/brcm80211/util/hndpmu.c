@@ -32,10 +32,6 @@
 
 #ifdef BCMDBG
 #define	PMU_MSG(args)	printf args
-
-/* debug-only definitions */
-/* #define BCMDBG_FORCEHT */
-/* #define CHIPC_UART_ALWAYS_ON */
 #else
 #define	PMU_MSG(args)
 #endif				/* BCMDBG */
@@ -1470,7 +1466,6 @@ si_pmu1_cpuclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
 	m1div = (tmp & PMU1_PLL0_PC1_M1DIV_MASK) >> PMU1_PLL0_PC1_M1DIV_SHIFT;
 
 #ifdef BCMDBG
-	/* TODO: seems more like a workaround */
 	/* Read p2div/p1div from pllcontrol[0] */
 	W_REG(osh, &cc->pllcontrol_addr, PMU1_PLL0_PLLCTL0);
 	tmp = R_REG(osh, &cc->pllcontrol_data);
@@ -1555,7 +1550,6 @@ void si_pmu_pll_init(si_t *sih, struct osl_info *osh, uint xtalfreq)
 	}
 
 #ifdef BCMDBG_FORCEHT
-	/* TODO: when is this flag used? what does it do? */
 	OR_REG(osh, &cc->clk_ctl_st, CCS_FORCEHT);
 #endif
 
@@ -2510,7 +2504,12 @@ bool si_pmu_is_otp_powered(si_t *sih, struct osl_info *osh)
 	return st;
 }
 
-void si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
+void
+#if defined(BCMDBG)
+si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
+#else
+si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
+#endif
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2532,7 +2531,6 @@ void si_pmu_chip_init(si_t *sih, struct osl_info *osh)
 	ASSERT(sih->cccaps & CC_CAP_PMU);
 
 #ifdef CHIPC_UART_ALWAYS_ON
-	/* TODO: are these special for debugging purposes? */
 	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, clk_ctl_st),
 		   CCS_FORCEALP, CCS_FORCEALP);
 #endif				/* CHIPC_UART_ALWAYS_ON */

@@ -22,6 +22,7 @@ ccflags-y :=			\
 	-DBCMSDIO		\
 	-DBDC			\
 	-DBRCM_FULLMAC		\
+	-DDHD_DEBUG		\
 	-DDHD_FIRSTREAD=64	\
 	-DDHD_SCHED		\
 	-DDHD_SDALIGN=64	\
@@ -30,12 +31,8 @@ ccflags-y :=			\
 	-DMMC_SDIO_ABORT	\
 	-DPKT_FILTER_SUPPORT	\
 	-DSHOW_EVENTS		\
-	-DTOE
-
-ccflags-$(CONFIG_BRCMDBG)	+= -DDHD_DEBUG
-
-ccflags-y += \
-	-Idrivers/staging/brcm80211/brcmfmac	\
+	-DTOE			\
+	-Idrivers/staging/brcm80211/brcmfmac		\
 	-Idrivers/staging/brcm80211/include		\
 	-Idrivers/staging/brcm80211/util
 
