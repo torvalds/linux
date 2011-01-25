@@ -108,8 +108,6 @@ static noinline void btrfs_drop_pages(struct page **pages, size_t num_pages)
 {
 	size_t i;
 	for (i = 0; i < num_pages; i++) {
-		if (!pages[i])
-			break;
 		/* page checked is some magic around finding pages that
 		 * have been modified without going through btrfs_set_page_dirty
 		 * clear it here
@@ -824,7 +822,6 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 			return err;
 	}
 
-	memset(pages, 0, num_pages * sizeof(struct page *));
 again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = grab_cache_page(inode->i_mapping, index + i);
@@ -930,7 +927,6 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		size_t copied;
 
 		WARN_ON(num_pages > nrptrs);
-		memset(pages, 0, sizeof(struct page *) * nrptrs);
 
 		/*
 		 * Fault pages before locking them in prepare_pages
@@ -946,6 +942,11 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		if (ret)
 			break;
 
+		/*
+		 * This is going to setup the pages array with the number of
+		 * pages we want, so we don't really need to worry about the
+		 * contents of pages from loop to loop
+		 */
 		ret = prepare_pages(root, file, pages, num_pages,
 				    pos, first_index, last_index,
 				    write_bytes);
