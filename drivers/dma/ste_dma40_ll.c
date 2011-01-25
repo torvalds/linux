@@ -295,32 +295,6 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 }
 
 
-void d40_phy_lli_write(void __iomem *virtbase,
-		       u32 phy_chan_num,
-		       struct d40_phy_lli *lli_dst,
-		       struct d40_phy_lli *lli_src)
-{
-
-	writel(lli_src->reg_cfg, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSCFG);
-	writel(lli_src->reg_elt, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSELT);
-	writel(lli_src->reg_ptr, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSPTR);
-	writel(lli_src->reg_lnk, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SSLNK);
-
-	writel(lli_dst->reg_cfg, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDCFG);
-	writel(lli_dst->reg_elt, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDELT);
-	writel(lli_dst->reg_ptr, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDPTR);
-	writel(lli_dst->reg_lnk, virtbase + D40_DREG_PCBASE +
-	       phy_chan_num * D40_DREG_PCDELTA + D40_CHAN_REG_SDLNK);
-
-}
-
 /* DMA logical lli operations */
 
 static void d40_log_lli_link(struct d40_log_lli *lli_dst,

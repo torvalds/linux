@@ -312,11 +312,6 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      u32 data_width2,
 		      int psize);
 
-void d40_phy_lli_write(void __iomem *virtbase,
-		       u32 phy_chan_num,
-		       struct d40_phy_lli *lli_dst,
-		       struct d40_phy_lli *lli_src);
-
 /* Logical channels */
 
 struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
