@@ -1267,33 +1267,9 @@ void intel_sdvo_set_hotplug(struct drm_connector *connector, int on)
 static bool
 intel_sdvo_multifunc_encoder(struct intel_sdvo *intel_sdvo)
 {
-	int caps = 0;
-
-	if (intel_sdvo->caps.output_flags &
-		(SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
-		caps++;
-	if (intel_sdvo->caps.output_flags &
-		(SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_RGB1))
-		caps++;
-	if (intel_sdvo->caps.output_flags &
-		(SDVO_OUTPUT_SVID0 | SDVO_OUTPUT_SVID1))
-		caps++;
-	if (intel_sdvo->caps.output_flags &
-		(SDVO_OUTPUT_CVBS0 | SDVO_OUTPUT_CVBS1))
-		caps++;
-	if (intel_sdvo->caps.output_flags &
-		(SDVO_OUTPUT_YPRPB0 | SDVO_OUTPUT_YPRPB1))
-		caps++;
-
-	if (intel_sdvo->caps.output_flags &
-		(SDVO_OUTPUT_SCART0 | SDVO_OUTPUT_SCART1))
-		caps++;
-
-	if (intel_sdvo->caps.output_flags &
-		(SDVO_OUTPUT_LVDS0 | SDVO_OUTPUT_LVDS1))
-		caps++;
-
-	return (caps > 1);
+	/* Is there more than one type of output? */
+	int caps = intel_sdvo->caps.output_flags & 0xf;
+	return caps & -caps;
 }
 
 static struct edid *
