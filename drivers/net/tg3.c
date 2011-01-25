@@ -11165,7 +11165,9 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (tp->phy_flags & TG3_PHYFLG_PHY_SERDES)
 			break;			/* We have no PHY */
 
-		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
+		if ((tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) ||
+		    ((tp->tg3_flags & TG3_FLAG_ENABLE_ASF) &&
+		     !netif_running(dev)))
 			return -EAGAIN;
 
 		spin_lock_bh(&tp->lock);
@@ -11181,7 +11183,9 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (tp->phy_flags & TG3_PHYFLG_PHY_SERDES)
 			break;			/* We have no PHY */
 
-		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
+		if ((tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) ||
+		    ((tp->tg3_flags & TG3_FLAG_ENABLE_ASF) &&
+		     !netif_running(dev)))
 			return -EAGAIN;
 
 		spin_lock_bh(&tp->lock);
