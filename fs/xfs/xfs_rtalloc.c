@@ -2075,15 +2075,15 @@ xfs_rtallocate_extent(
 	xfs_extlen_t	prod,		/* extent product factor */
 	xfs_rtblock_t	*rtblock)	/* out: start block allocated */
 {
+	xfs_mount_t	*mp = tp->t_mountp;
 	int		error;		/* error value */
-	xfs_inode_t	*ip;		/* inode for bitmap file */
-	xfs_mount_t	*mp;		/* file system mount structure */
 	xfs_rtblock_t	r;		/* result allocated block */
 	xfs_fsblock_t	sb;		/* summary file block number */
 	xfs_buf_t	*sumbp;		/* summary file block buffer */
 
+	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 	ASSERT(minlen > 0 && minlen <= maxlen);
-	mp = tp->t_mountp;
+
 	/*
 	 * If prod is set then figure out what to do to minlen and maxlen.
 	 */
@@ -2099,12 +2099,7 @@ xfs_rtallocate_extent(
 			return 0;
 		}
 	}
-	/*
-	 * Lock out other callers by grabbing the bitmap inode lock.
-	 */
-	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
-					XFS_ILOCK_EXCL, &ip)))
-		return error;
+
 	sumbp = NULL;
 	/*
 	 * Allocate by size, or near another block, or exactly at some block.
@@ -2123,11 +2118,12 @@ xfs_rtallocate_extent(
 				len, &sumbp, &sb, prod, &r);
 		break;
 	default:
+		error = EIO;
 		ASSERT(0);
 	}
-	if (error) {
+	if (error)
 		return error;
-	}
+
 	/*
 	 * If it worked, update the superblock.
 	 */
@@ -2306,20 +2302,16 @@ xfs_rtpick_extent(
 	xfs_rtblock_t	*pick)		/* result rt extent */
 {
 	xfs_rtblock_t	b;		/* result block */
-	int		error;		/* error return value */
-	xfs_inode_t	*ip;		/* bitmap incore inode */
 	int		log2;		/* log of sequence number */
 	__uint64_t	resid;		/* residual after log removed */
 	__uint64_t	seq;		/* sequence number of file creation */
 	__uint64_t	*seqp;		/* pointer to seqno in inode */
 
-	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
-					XFS_ILOCK_EXCL, &ip)))
-		return error;
-	ASSERT(ip == mp->m_rbmip);
-	seqp = (__uint64_t *)&ip->i_d.di_atime;
-	if (!(ip->i_d.di_flags & XFS_DIFLAG_NEWRTBM)) {
-		ip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
+	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
+
+	seqp = (__uint64_t *)&mp->m_rbmip->i_d.di_atime;
+	if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM)) {
+		mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
 		*seqp = 0;
 	}
 	seq = *seqp;
@@ -2335,7 +2327,7 @@ xfs_rtpick_extent(
 			b = mp->m_sb.sb_rextents - len;
 	}
 	*seqp = seq + 1;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
 	*pick = b;
 	return 0;
 }
