@@ -534,7 +534,6 @@ struct ath_ant_comb {
 #define ATH_CABQ_READY_TIME     80      /* % of beacon interval */
 #define ATH_MAX_SW_RETRIES      10
 #define ATH_CHAN_MAX            255
-#define IEEE80211_WEP_NKID      4       /* number of key ids */
 
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
 #define ATH_RATE_DUMMY_MARKER   0
