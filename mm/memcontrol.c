@@ -2145,6 +2145,8 @@ void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
 	struct page_cgroup *tail_pc = lookup_page_cgroup(tail);
 	unsigned long flags;
 
+	if (mem_cgroup_disabled())
+		return;
 	/*
 	 * We have no races with charge/uncharge but will have races with
 	 * page state accounting.
