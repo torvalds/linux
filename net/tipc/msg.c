@@ -390,7 +390,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 	if (msg_user(msg) ==  LINK_CONFIG) {
 		u32 *raw = (u32 *)msg;
 		struct tipc_media_addr *orig = (struct tipc_media_addr *)&raw[5];
-		tipc_printf(buf, ":REQL(%u):", msg_req_links(msg));
 		tipc_printf(buf, ":DDOM(%x):", msg_dest_domain(msg));
 		tipc_printf(buf, ":NETID(%u):", msg_bc_netid(msg));
 		tipc_media_addr_printf(buf, orig);

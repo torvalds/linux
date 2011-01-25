@@ -566,7 +566,7 @@ restart:
 	INIT_LIST_HEAD(&b_ptr->links);
 	if (m_ptr->bcast) {
 		b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
-							  bcast_scope, 2);
+							  bcast_scope);
 	}
 	spin_lock_init(&b_ptr->lock);
 	write_unlock_bh(&tipc_net_lock);

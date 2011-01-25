@@ -67,13 +67,11 @@ struct link_req {
 /**
  * tipc_disc_init_msg - initialize a link setup message
  * @type: message type (request or response)
- * @req_links: number of links associated with message
  * @dest_domain: network domain of node(s) which should respond to message
  * @b_ptr: ptr to bearer issuing message
  */
 
 static struct sk_buff *tipc_disc_init_msg(u32 type,
-					  u32 req_links,
 					  u32 dest_domain,
 					  struct tipc_bearer *b_ptr)
 {
@@ -84,7 +82,6 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 		msg = buf_msg(buf);
 		tipc_msg_init(msg, LINK_CONFIG, type, DSC_H_SIZE, dest_domain);
 		msg_set_non_seq(msg, 1);
-		msg_set_req_links(msg, req_links);
 		msg_set_dest_domain(msg, dest_domain);
 		msg_set_bc_netid(msg, tipc_net_id);
 		msg_set_media_addr(msg, &b_ptr->addr);
@@ -191,7 +188,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 		spin_unlock_bh(&n_ptr->lock);
 		if ((type == DSC_RESP_MSG) || link_fully_up)
 			return;
-		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
+		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
 		if (rbuf != NULL) {
 			b_ptr->media->send_msg(rbuf, b_ptr, &media_addr);
 			buf_discard(rbuf);
@@ -274,15 +271,13 @@ static void disc_timeout(struct link_req *req)
  * @b_ptr: ptr to bearer issuing requests
  * @dest: destination address for request messages
  * @dest_domain: network domain of node(s) which should respond to message
- * @req_links: max number of desired links
  *
  * Returns pointer to link request structure, or NULL if unable to create.
  */
 
 struct link_req *tipc_disc_init_link_req(struct tipc_bearer *b_ptr,
 					 const struct tipc_media_addr *dest,
-					 u32 dest_domain,
-					 u32 req_links)
+					 u32 dest_domain)
 {
 	struct link_req *req;
 
@@ -290,7 +285,7 @@ struct link_req *tipc_disc_init_link_req(struct tipc_bearer *b_ptr,
 	if (!req)
 		return NULL;
 
-	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, req_links, dest_domain, b_ptr);
+	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, dest_domain, b_ptr);
 	if (!req->buf) {
 		kfree(req);
 		return NULL;
