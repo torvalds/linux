@@ -10,3 +10,5 @@ obj-$(CONFIG_IRQ_MSP_CIC) += msp_irq_cic.o msp_irq_per.o
 obj-$(CONFIG_PCI) += msp_pci.o
 obj-$(CONFIG_MSPETH) += msp_eth.o
 obj-$(CONFIG_USB_MSP71XX) += msp_usb.o
+obj-$(CONFIG_MIPS_MT_SMP) += msp_smp.o
+obj-$(CONFIG_MIPS_MT_SMTC) += msp_smtc.o
