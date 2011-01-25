@@ -128,6 +128,7 @@ struct d40_desc {
  */
 struct d40_lcla_pool {
 	void		*base;
+	dma_addr_t	dma_addr;
 	void		*base_unaligned;
 	int		 pages;
 	spinlock_t	 lock;
@@ -504,25 +505,25 @@ static void d40_desc_load(struct d40_chan *d40c, struct d40_desc *d40d)
 
 		d40d->lli_current++;
 		for (; d40d->lli_current < d40d->lli_len; d40d->lli_current++) {
-			struct d40_log_lli *lcla;
+			unsigned int lcla_offset = d40c->phy_chan->num * 1024 +
+						   8 * curr_lcla * 2;
+			struct d40_lcla_pool *pool = &d40c->base->lcla_pool;
+			struct d40_log_lli *lcla = pool->base + lcla_offset;
 
 			if (d40d->lli_current + 1 < d40d->lli_len)
 				next_lcla = d40_lcla_alloc_one(d40c, d40d);
 			else
 				next_lcla = -EINVAL;
 
-			lcla = d40c->base->lcla_pool.base +
-				d40c->phy_chan->num * 1024 +
-				8 * curr_lcla * 2;
-
 			d40_log_lli_lcla_write(lcla,
 					       &d40d->lli_log.dst[d40d->lli_current],
 					       &d40d->lli_log.src[d40d->lli_current],
 					       next_lcla);
 
-			(void) dma_map_single(d40c->base->dev, lcla,
-					      2 * sizeof(struct d40_log_lli),
-					      DMA_TO_DEVICE);
+			dma_sync_single_range_for_device(d40c->base->dev,
+						pool->dma_addr, lcla_offset,
+						2 * sizeof(struct d40_log_lli),
+						DMA_TO_DEVICE);
 
 			curr_lcla = next_lcla;
 
@@ -2771,6 +2772,7 @@ static void __init d40_hw_init(struct d40_base *base)
 
 static int __init d40_lcla_allocate(struct d40_base *base)
 {
+	struct d40_lcla_pool *pool = &base->lcla_pool;
 	unsigned long *page_list;
 	int i, j;
 	int ret = 0;
@@ -2833,6 +2835,15 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 
 		base->lcla_pool.base = PTR_ALIGN(base->lcla_pool.base_unaligned,
 						 LCLA_ALIGNMENT);
+	}
+
+	pool->dma_addr = dma_map_single(base->dev, pool->base,
+					SZ_1K * base->num_phy_chans,
+					DMA_TO_DEVICE);
+	if (dma_mapping_error(base->dev, pool->dma_addr)) {
+		pool->dma_addr = 0;
+		ret = -ENOMEM;
+		goto failure;
 	}
 
 	writel(virt_to_phys(base->lcla_pool.base),
@@ -2929,6 +2940,12 @@ failure:
 			kmem_cache_destroy(base->desc_slab);
 		if (base->virtbase)
 			iounmap(base->virtbase);
+
+		if (base->lcla_pool.dma_addr)
+			dma_unmap_single(base->dev, base->lcla_pool.dma_addr,
+					 SZ_1K * base->num_phy_chans,
+					 DMA_TO_DEVICE);
+
 		if (!base->lcla_pool.base_unaligned && base->lcla_pool.base)
 			free_pages((unsigned long)base->lcla_pool.base,
 				   base->lcla_pool.pages);
