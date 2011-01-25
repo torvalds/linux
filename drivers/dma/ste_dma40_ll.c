@@ -272,7 +272,7 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		if (target)
 			dst = target;
 		else
-			dst = sg_phys(current_sg);
+			dst = sg_dma_address(current_sg);
 
 		l_phys = ALIGN(lli_phys + (lli - lli_sg) *
 			       sizeof(struct d40_phy_lli), D40_LLI_ALIGN);
@@ -416,7 +416,7 @@ int d40_log_sg_to_dev(struct scatterlist *sg,
 		if (direction == DMA_TO_DEVICE) {
 			lli_src =
 				d40_log_buf_to_lli(lli_src,
-						   sg_phys(current_sg),
+						   sg_dma_address(current_sg),
 						   sg_dma_len(current_sg),
 						   lcsp->lcsp1, src_data_width,
 						   dst_data_width,
@@ -431,7 +431,7 @@ int d40_log_sg_to_dev(struct scatterlist *sg,
 		} else {
 			lli_dst =
 				d40_log_buf_to_lli(lli_dst,
-						   sg_phys(current_sg),
+						   sg_dma_address(current_sg),
 						   sg_dma_len(current_sg),
 						   lcsp->lcsp3, dst_data_width,
 						   src_data_width,
@@ -491,7 +491,7 @@ int d40_log_sg_to_lli(struct scatterlist *sg,
 	for_each_sg(sg, current_sg, sg_len, i) {
 		total_size += sg_dma_len(current_sg);
 		lli = d40_log_buf_to_lli(lli,
-					 sg_phys(current_sg),
+					 sg_dma_address(current_sg),
 					 sg_dma_len(current_sg),
 					 lcsp13,
 					 data_width1, data_width2, true);
