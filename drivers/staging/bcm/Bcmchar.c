@@ -2024,6 +2024,12 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				if(Status)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"copy of Ioctl buffer is failed from user space");
+					Status = -EFAULT;
+					break;
+				}
+
+				if (IoBuffer.InputLength != sizeof(unsigned long)) {
+					Status = -EINVAL;
 					break;
 				}
 
@@ -2031,6 +2037,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				if(Status)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"copy of control bit mask failed from user space");
+					Status = -EFAULT;
 					break;
 				}
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\n Got user defined cntrl msg bit mask :%lx", RxCntrlMsgBitMask);
