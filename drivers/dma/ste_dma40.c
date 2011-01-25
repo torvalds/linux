@@ -3060,7 +3060,7 @@ static struct platform_driver d40_driver = {
 	},
 };
 
-int __init stedma40_init(void)
+static int __init stedma40_init(void)
 {
 	return platform_driver_probe(&d40_driver, d40_probe);
 }
