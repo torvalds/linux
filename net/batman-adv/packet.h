@@ -50,6 +50,7 @@
 
 /* fragmentation defines */
 #define UNI_FRAG_HEAD 0x01
+#define UNI_FRAG_LARGETAIL 0x02
 
 struct batman_packet {
 	uint8_t  packet_type;

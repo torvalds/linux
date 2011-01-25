@@ -1193,7 +1193,7 @@ int route_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if,
 				     dstaddr);
 
 	if (unicast_packet->packet_type == BAT_UNICAST_FRAG &&
-	    2 * skb->len - hdr_size <= batman_if->net_dev->mtu) {
+	    frag_can_reassemble(skb, batman_if->net_dev->mtu)) {
 
 		ret = frag_reassemble_skb(skb, bat_priv, &new_skb);
 
