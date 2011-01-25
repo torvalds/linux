@@ -587,6 +587,7 @@ static bool intel_sdvo_get_trained_inputs(struct intel_sdvo *intel_sdvo, bool *i
 {
 	struct intel_sdvo_get_trained_inputs_response response;
 
+	BUILD_BUG_ON(sizeof(response) != 1);
 	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_TRAINED_INPUTS,
 				  &response, sizeof(response)))
 		return false;
@@ -634,6 +635,7 @@ static bool intel_sdvo_get_input_pixel_clock_range(struct intel_sdvo *intel_sdvo
 {
 	struct intel_sdvo_pixel_clock_range clocks;
 
+	BUILD_BUG_ON(sizeof(clocks) != 4);
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_INPUT_PIXEL_CLOCK_RANGE,
 				  &clocks, sizeof(clocks)))
@@ -701,6 +703,8 @@ intel_sdvo_create_preferred_input_timing(struct intel_sdvo *intel_sdvo,
 static bool intel_sdvo_get_preferred_input_timing(struct intel_sdvo *intel_sdvo,
 						  struct intel_sdvo_dtd *dtd)
 {
+	BUILD_BUG_ON(sizeof(dtd->part1) != 8);
+	BUILD_BUG_ON(sizeof(dtd->part2) != 8);
 	return intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART1,
 				    &dtd->part1, sizeof(dtd->part1)) &&
 		intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART2,
@@ -798,6 +802,7 @@ static bool intel_sdvo_check_supp_encode(struct intel_sdvo *intel_sdvo)
 {
 	struct intel_sdvo_encode encode;
 
+	BUILD_BUG_ON(sizeof(encode) != 2);
 	return intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_SUPP_ENCODE,
 				  &encode, sizeof(encode));
@@ -1161,6 +1166,7 @@ static int intel_sdvo_mode_valid(struct drm_connector *connector,
 
 static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct intel_sdvo_caps *caps)
 {
+	BUILD_BUG_ON(sizeof(*caps) != 8);
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_DEVICE_CAPS,
 				  caps, sizeof(*caps)))
@@ -2200,6 +2206,7 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 	if (!intel_sdvo_set_target_output(intel_sdvo, type))
 		return false;
 
+	BUILD_BUG_ON(sizeof(format) != 6);
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_SUPPORTED_TV_FORMATS,
 				  &format, sizeof(format)))
@@ -2405,6 +2412,8 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 		struct intel_sdvo_enhancements_reply reply;
 		uint16_t response;
 	} enhancements;
+
+	BUILD_BUG_ON(sizeof(enhancements) != 2);
 
 	enhancements.response = 0;
 	intel_sdvo_get_value(intel_sdvo,
