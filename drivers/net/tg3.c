@@ -10840,9 +10840,11 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	if (loopback_mode == TG3_MAC_LOOPBACK) {
 		/* HW errata - mac loopback fails in some cases on 5780.
 		 * Normal traffic and PHY loopback are not affected by
-		 * errata.
+		 * errata.  Also, the MAC loopback test is deprecated for
+		 * all newer ASIC revisions.
 		 */
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780)
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 ||
+		    (tp->tg3_flags & TG3_FLAG_CPMU_PRESENT))
 			return 0;
 
 		mac_mode = tp->mac_mode &
