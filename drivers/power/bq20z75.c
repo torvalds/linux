@@ -38,9 +38,20 @@ enum {
 	REG_CYCLE_COUNT,
 	REG_SERIAL_NUMBER,
 	REG_REMAINING_CAPACITY,
+	REG_REMAINING_CAPACITY_CHARGE,
 	REG_FULL_CHARGE_CAPACITY,
+	REG_FULL_CHARGE_CAPACITY_CHARGE,
 	REG_DESIGN_CAPACITY,
+	REG_DESIGN_CAPACITY_CHARGE,
 	REG_DESIGN_VOLTAGE,
+};
+
+/* Battery Mode defines */
+#define BATTERY_MODE_OFFSET		0x03
+#define BATTERY_MODE_MASK		0x8000
+enum bq20z75_battery_mode {
+	BATTERY_MODE_AMPS,
+	BATTERY_MODE_WATTS
 };
 
 /* manufacturer access defines */
@@ -78,8 +89,12 @@ static const struct bq20z75_device_data {
 		BQ20Z75_DATA(POWER_SUPPLY_PROP_CAPACITY, 0x0E, 0, 100),
 	[REG_REMAINING_CAPACITY] =
 		BQ20Z75_DATA(POWER_SUPPLY_PROP_ENERGY_NOW, 0x0F, 0, 65535),
+	[REG_REMAINING_CAPACITY_CHARGE] =
+		BQ20Z75_DATA(POWER_SUPPLY_PROP_CHARGE_NOW, 0x0F, 0, 65535),
 	[REG_FULL_CHARGE_CAPACITY] =
 		BQ20Z75_DATA(POWER_SUPPLY_PROP_ENERGY_FULL, 0x10, 0, 65535),
+	[REG_FULL_CHARGE_CAPACITY_CHARGE] =
+		BQ20Z75_DATA(POWER_SUPPLY_PROP_CHARGE_FULL, 0x10, 0, 65535),
 	[REG_TIME_TO_EMPTY] =
 		BQ20Z75_DATA(POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG, 0x12, 0,
 			65535),
@@ -92,6 +107,9 @@ static const struct bq20z75_device_data {
 		BQ20Z75_DATA(POWER_SUPPLY_PROP_CYCLE_COUNT, 0x17, 0, 65535),
 	[REG_DESIGN_CAPACITY] =
 		BQ20Z75_DATA(POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN, 0x18, 0,
+			65535),
+	[REG_DESIGN_CAPACITY_CHARGE] =
+		BQ20Z75_DATA(POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN, 0x18, 0,
 			65535),
 	[REG_DESIGN_VOLTAGE] =
 		BQ20Z75_DATA(POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN, 0x19, 0,
@@ -117,6 +135,9 @@ static enum power_supply_property bq20z75_properties[] = {
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_ENERGY_FULL,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 };
 
 struct bq20z75_info {
@@ -260,6 +281,9 @@ static void  bq20z75_unit_adjustment(struct i2c_client *client,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval *= BASE_UNIT_CONVERSION;
 		break;
 
@@ -281,11 +305,44 @@ static void  bq20z75_unit_adjustment(struct i2c_client *client,
 	}
 }
 
+static enum bq20z75_battery_mode
+bq20z75_set_battery_mode(struct i2c_client *client,
+	enum bq20z75_battery_mode mode)
+{
+	int ret, original_val;
+
+	original_val = bq20z75_read_word_data(client, BATTERY_MODE_OFFSET);
+	if (original_val < 0)
+		return original_val;
+
+	if ((original_val & BATTERY_MODE_MASK) == mode)
+		return mode;
+
+	if (mode == BATTERY_MODE_AMPS)
+		ret = original_val & ~BATTERY_MODE_MASK;
+	else
+		ret = original_val | BATTERY_MODE_MASK;
+
+	ret = bq20z75_write_word_data(client, BATTERY_MODE_OFFSET, ret);
+	if (ret < 0)
+		return ret;
+
+	return original_val & BATTERY_MODE_MASK;
+}
+
 static int bq20z75_get_battery_capacity(struct i2c_client *client,
 	int reg_offset, enum power_supply_property psp,
 	union power_supply_propval *val)
 {
 	s32 ret;
+	enum bq20z75_battery_mode mode = BATTERY_MODE_WATTS;
+
+	if (power_supply_is_amp_property(psp))
+		mode = BATTERY_MODE_AMPS;
+
+	mode = bq20z75_set_battery_mode(client, mode);
+	if (mode < 0)
+		return mode;
 
 	ret = bq20z75_read_word_data(client, bq20z75_data[reg_offset].addr);
 	if (ret < 0)
@@ -297,6 +354,10 @@ static int bq20z75_get_battery_capacity(struct i2c_client *client,
 		val->intval = min(ret, 100);
 	} else
 		val->intval = ret;
+
+	ret = bq20z75_set_battery_mode(client, mode);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -318,11 +379,25 @@ static int bq20z75_get_battery_serial_number(struct i2c_client *client,
 	return 0;
 }
 
+static int bq20z75_get_property_index(struct i2c_client *client,
+	enum power_supply_property psp)
+{
+	int count;
+	for (count = 0; count < ARRAY_SIZE(bq20z75_data); count++)
+		if (psp == bq20z75_data[count].psp)
+			return count;
+
+	dev_warn(&client->dev,
+		"%s: Invalid Property - %d\n", __func__, psp);
+
+	return -EINVAL;
+}
+
 static int bq20z75_get_property(struct power_supply *psy,
 	enum power_supply_property psp,
 	union power_supply_propval *val)
 {
-	int count;
+	int ps_index;
 	int ret;
 	struct bq20z75_info *bq20z75_device = container_of(psy,
 				struct bq20z75_info, power_supply);
@@ -343,13 +418,15 @@ static int bq20z75_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 	case POWER_SUPPLY_PROP_CAPACITY:
-		for (count = 0; count < ARRAY_SIZE(bq20z75_data); count++) {
-			if (psp == bq20z75_data[count].psp)
-				break;
-		}
+		ps_index = bq20z75_get_property_index(client, psp);
+		if (ps_index < 0)
+			return ps_index;
 
-		ret = bq20z75_get_battery_capacity(client, count, psp, val);
+		ret = bq20z75_get_battery_capacity(client, ps_index, psp, val);
 		if (ret)
 			return ret;
 
@@ -369,12 +446,11 @@ static int bq20z75_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
-		for (count = 0; count < ARRAY_SIZE(bq20z75_data); count++) {
-			if (psp == bq20z75_data[count].psp)
-				break;
-		}
+		ps_index = bq20z75_get_property_index(client, psp);
+		if (ps_index < 0)
+			return ps_index;
 
-		ret = bq20z75_get_battery_property(client, count, psp, val);
+		ret = bq20z75_get_battery_property(client, ps_index, psp, val);
 		if (ret)
 			return ret;
 
