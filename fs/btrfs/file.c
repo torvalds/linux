@@ -88,9 +88,8 @@ static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
 		total_copied += copied;
 
 		/* Return to btrfs_file_aio_write to fault page */
-		if (unlikely(copied == 0)) {
+		if (unlikely(copied == 0))
 			break;
-		}
 
 		if (unlikely(copied < PAGE_CACHE_SIZE - offset)) {
 			offset += copied;
@@ -162,13 +161,14 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		ClearPageChecked(p);
 		set_page_dirty(p);
 	}
-	if (end_pos > isize) {
+
+	/*
+	 * we've only changed i_size in ram, and we haven't updated
+	 * the disk i_size.  There is no need to log the inode
+	 * at this time.
+	 */
+	if (end_pos > isize)
 		i_size_write(inode, end_pos);
-		/* we've only changed i_size in ram, and we haven't updated
-		 * the disk i_size.  There is no need to log the inode
-		 * at this time.
-		 */
-	}
 	return 0;
 }
 
