@@ -198,7 +198,7 @@ static int d40_seg_size(int size, int data_width1, int data_width2)
 	return seg_max;
 }
 
-struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
+static struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
 				       dma_addr_t addr,
 				       u32 size,
 				       int psize,

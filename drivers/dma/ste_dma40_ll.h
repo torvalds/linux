@@ -312,17 +312,6 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      u32 data_width2,
 		      int psize);
 
-struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
-				       dma_addr_t data,
-				       u32 data_size,
-				       int psize,
-				       dma_addr_t next_lli,
-				       u32 reg_cfg,
-				       bool term_int,
-				       u32 data_width1,
-				       u32 data_width2,
-				       bool is_device);
-
 void d40_phy_lli_write(void __iomem *virtbase,
 		       u32 phy_chan_num,
 		       struct d40_phy_lli *lli_dst,
