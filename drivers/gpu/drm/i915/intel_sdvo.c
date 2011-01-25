@@ -473,20 +473,6 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 		return false;
 	}
 
-	i = 3;
-	while (status == SDVO_CMD_STATUS_PENDING && i--) {
-		if (!intel_sdvo_read_byte(intel_sdvo,
-					  SDVO_I2C_CMD_STATUS,
-					  &status))
-			return false;
-	}
-	if (status != SDVO_CMD_STATUS_SUCCESS) {
-		DRM_DEBUG_KMS("command returns response %s [%d]\n",
-			      status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP ? cmd_status_names[status] : "???",
-			      status);
-		return false;
-	}
-
 	return true;
 }
 
@@ -497,6 +483,8 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	u8 status;
 	int i;
 
+	DRM_DEBUG_KMS("%s: R: ", SDVO_NAME(intel_sdvo));
+
 	/*
 	 * The documentation states that all commands will be
 	 * processed within 15µs, and that we need only poll
@@ -505,14 +493,19 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	 *
 	 * Check 5 times in case the hardware failed to read the docs.
 	 */
-	do {
+	if (!intel_sdvo_read_byte(intel_sdvo,
+				  SDVO_I2C_CMD_STATUS,
+				  &status))
+		goto log_fail;
+
+	while (status == SDVO_CMD_STATUS_PENDING && retry--) {
+		udelay(15);
 		if (!intel_sdvo_read_byte(intel_sdvo,
 					  SDVO_I2C_CMD_STATUS,
 					  &status))
-			return false;
-	} while (status == SDVO_CMD_STATUS_PENDING && --retry);
+			goto log_fail;
+	}
 
-	DRM_DEBUG_KMS("%s: R: ", SDVO_NAME(intel_sdvo));
 	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
 		DRM_LOG_KMS("(%s)", cmd_status_names[status]);
 	else
@@ -533,7 +526,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	return true;
 
 log_fail:
-	DRM_LOG_KMS("\n");
+	DRM_LOG_KMS("... failed\n");
 	return false;
 }
 
@@ -550,6 +543,7 @@ static int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
 static bool intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
 					      u8 ddc_bus)
 {
+	/* This must be the immediately preceding write before the i2c xfer */
 	return intel_sdvo_write_cmd(intel_sdvo,
 				    SDVO_CMD_SET_CONTROL_BUS_SWITCH,
 				    &ddc_bus, 1);
@@ -557,7 +551,10 @@ static bool intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
 
 static bool intel_sdvo_set_value(struct intel_sdvo *intel_sdvo, u8 cmd, const void *data, int len)
 {
-	return intel_sdvo_write_cmd(intel_sdvo, cmd, data, len);
+	if (!intel_sdvo_write_cmd(intel_sdvo, cmd, data, len))
+		return false;
+
+	return intel_sdvo_read_response(intel_sdvo, NULL, 0);
 }
 
 static bool
@@ -859,18 +856,21 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
 
 	intel_dip_infoframe_csum(&avi_if);
 
-	if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_INDEX,
+	if (!intel_sdvo_set_value(intel_sdvo,
+				  SDVO_CMD_SET_HBUF_INDEX,
 				  set_buf_index, 2))
 		return false;
 
 	for (i = 0; i < sizeof(avi_if); i += 8) {
-		if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_DATA,
+		if (!intel_sdvo_set_value(intel_sdvo,
+					  SDVO_CMD_SET_HBUF_DATA,
 					  data, 8))
 			return false;
 		data++;
 	}
 
-	return intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_HBUF_TXRATE,
+	return intel_sdvo_set_value(intel_sdvo,
+				    SDVO_CMD_SET_HBUF_TXRATE,
 				    &tx_rate, 1);
 }
 
