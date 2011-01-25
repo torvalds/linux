@@ -4,8 +4,8 @@
  * Driver for ST STV0367 DVB-T & DVB-C demodulator IC.
  *
  * Copyright (C) ST Microelectronics.
- * Copyright (C) 2010 NetUP Inc.
- * Copyright (C) 2010 Igor M. Liplianin <liplianin@netup.ru>
+ * Copyright (C) 2010,2011 NetUP Inc.
+ * Copyright (C) 2010,2011 Igor M. Liplianin <liplianin@netup.ru>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

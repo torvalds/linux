@@ -29,9 +29,11 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <asm/div64.h>
+#include <linux/firmware.h>
 
 #include "cx23885.h"
 #include "cimax2.h"
+#include "altera-ci.h"
 #include "cx23888-ir.h"
 #include "cx23885-ir.h"
 #include "cx23885-av.h"
@@ -902,8 +904,6 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	dev->pci_bus  = dev->pci->bus->number;
 	dev->pci_slot = PCI_SLOT(dev->pci->devfn);
 	cx23885_irq_add(dev, 0x001f00);
-	if (cx23885_boards[dev->board].cimax > 0)
-		cx23885_irq_add(dev, 0x01800000); /* for CiMaxes */
 
 	/* External Master 1 Bus */
 	dev->i2c_bus[0].nr = 0;
@@ -1822,14 +1822,13 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 				PCI_MSK_IR);
 	}
 
-	if (cx23885_boards[dev->board].cimax > 0 &&
-		((pci_status & PCI_MSK_GPIO0) ||
-			(pci_status & PCI_MSK_GPIO1))) {
+	if (cx23885_boards[dev->board].ci_type == 1 &&
+			(pci_status & (PCI_MSK_GPIO1 | PCI_MSK_GPIO0)))
+		handled += netup_ci_slot_status(dev, pci_status);
 
-		if (cx23885_boards[dev->board].cimax > 0)
-			handled += netup_ci_slot_status(dev, pci_status);
-
-	}
+	if (cx23885_boards[dev->board].ci_type == 2 &&
+			(pci_status & PCI_MSK_GPIO0))
+		handled += altera_ci_irq(dev);
 
 	if (ts1_status) {
 		if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
@@ -2064,7 +2063,10 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 
 	switch (dev->board) {
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
-		cx23885_irq_add_enable(dev, 0x01800000); /* for NetUP */
+		cx23885_irq_add_enable(dev, PCI_MSK_GPIO1 | PCI_MSK_GPIO0);
+		break;
+	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF:
+		cx23885_irq_add_enable(dev, PCI_MSK_GPIO0);
 		break;
 	}
 

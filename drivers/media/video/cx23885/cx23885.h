@@ -85,6 +85,7 @@
 #define CX23885_BOARD_MYGICA_X8558PRO          27
 #define CX23885_BOARD_LEADTEK_WINFAST_PXTV1200 28
 #define CX23885_BOARD_GOTVIEW_X5_3D_HYBRID     29
+#define CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF 30
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -220,7 +221,7 @@ struct cx23885_board {
 	 */
 	u32			clk_freq;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
-	int			cimax; /* for NetUP */
+	int			ci_type; /* for NetUP */
 };
 
 struct cx23885_subid {
@@ -303,6 +304,7 @@ struct cx23885_tsport {
 
 	/* Allow a single tsport to have multiple frontends */
 	u32                        num_frontends;
+	void                (*gate_ctrl)(struct cx23885_tsport *port, int open);
 	void                       *port_priv;
 };
 
