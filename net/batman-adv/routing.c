@@ -155,7 +155,8 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	struct hlist_node *node;
 	unsigned char total_count;
-	int ret = 0;
+	uint8_t orig_eq_count, neigh_rq_count, tq_own;
+	int tq_asym_penalty, ret = 0;
 
 	if (orig_node == orig_neigh_node) {
 		rcu_read_lock();
@@ -216,23 +217,25 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 
 	orig_node->last_valid = jiffies;
 
+	spin_lock_bh(&orig_node->ogm_cnt_lock);
+	orig_eq_count = orig_neigh_node->bcast_own_sum[if_incoming->if_num];
+	neigh_rq_count = neigh_node->real_packet_count;
+	spin_unlock_bh(&orig_node->ogm_cnt_lock);
+
 	/* pay attention to not get a value bigger than 100 % */
-	total_count = (orig_neigh_node->bcast_own_sum[if_incoming->if_num] >
-		       neigh_node->real_packet_count ?
-		       neigh_node->real_packet_count :
-		       orig_neigh_node->bcast_own_sum[if_incoming->if_num]);
+	total_count = (orig_eq_count > neigh_rq_count ?
+		       neigh_rq_count : orig_eq_count);
 
 	/* if we have too few packets (too less data) we set tq_own to zero */
 	/* if we receive too few packets it is not considered bidirectional */
 	if ((total_count < TQ_LOCAL_BIDRECT_SEND_MINIMUM) ||
-	    (neigh_node->real_packet_count < TQ_LOCAL_BIDRECT_RECV_MINIMUM))
-		orig_neigh_node->tq_own = 0;
+	    (neigh_rq_count < TQ_LOCAL_BIDRECT_RECV_MINIMUM))
+		tq_own = 0;
 	else
 		/* neigh_node->real_packet_count is never zero as we
 		 * only purge old information when getting new
 		 * information */
-		orig_neigh_node->tq_own = (TQ_MAX_VALUE * total_count) /
-			neigh_node->real_packet_count;
+		tq_own = (TQ_MAX_VALUE * total_count) /	neigh_rq_count;
 
 	/*
 	 * 1 - ((1-x) ** 3), normalized to TQ_MAX_VALUE this does
@@ -240,20 +243,16 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	 * punishes asymmetric links more.  This will give a value
 	 * between 0 and TQ_MAX_VALUE
 	 */
-	orig_neigh_node->tq_asym_penalty =
-		TQ_MAX_VALUE -
-		(TQ_MAX_VALUE *
-		 (TQ_LOCAL_WINDOW_SIZE - neigh_node->real_packet_count) *
-		 (TQ_LOCAL_WINDOW_SIZE - neigh_node->real_packet_count) *
-		 (TQ_LOCAL_WINDOW_SIZE - neigh_node->real_packet_count)) /
-		(TQ_LOCAL_WINDOW_SIZE *
-		 TQ_LOCAL_WINDOW_SIZE *
-		 TQ_LOCAL_WINDOW_SIZE);
+	tq_asym_penalty = TQ_MAX_VALUE - (TQ_MAX_VALUE *
+				(TQ_LOCAL_WINDOW_SIZE - neigh_rq_count) *
+				(TQ_LOCAL_WINDOW_SIZE - neigh_rq_count) *
+				(TQ_LOCAL_WINDOW_SIZE - neigh_rq_count)) /
+					(TQ_LOCAL_WINDOW_SIZE *
+					 TQ_LOCAL_WINDOW_SIZE *
+					 TQ_LOCAL_WINDOW_SIZE);
 
-	batman_packet->tq = ((batman_packet->tq *
-			      orig_neigh_node->tq_own *
-			      orig_neigh_node->tq_asym_penalty) /
-			     (TQ_MAX_VALUE * TQ_MAX_VALUE));
+	batman_packet->tq = ((batman_packet->tq * tq_own * tq_asym_penalty) /
+						(TQ_MAX_VALUE * TQ_MAX_VALUE));
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"bidirectional: "
@@ -261,8 +260,7 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 		"real recv = %2i, local tq: %3i, asym_penalty: %3i, "
 		"total tq: %3i\n",
 		orig_node->orig, orig_neigh_node->orig, total_count,
-		neigh_node->real_packet_count, orig_neigh_node->tq_own,
-		orig_neigh_node->tq_asym_penalty, batman_packet->tq);
+		neigh_rq_count, tq_own,	tq_asym_penalty, batman_packet->tq);
 
 	/* if link has the minimum required transmission quality
 	 * consider it bidirectional */
@@ -559,18 +557,19 @@ static char count_real_packets(struct ethhdr *ethhdr,
 	char is_duplicate = 0;
 	int32_t seq_diff;
 	int need_update = 0;
-	int set_mark;
+	int set_mark, ret = -1;
 
 	orig_node = get_orig_node(bat_priv, batman_packet->orig);
 	if (!orig_node)
 		return 0;
 
+	spin_lock_bh(&orig_node->ogm_cnt_lock);
 	seq_diff = batman_packet->seqno - orig_node->last_real_seqno;
 
 	/* signalize caller that the packet is to be dropped. */
 	if (window_protected(bat_priv, seq_diff,
 			     &orig_node->batman_seqno_reset))
-		goto err;
+		goto out;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
@@ -603,12 +602,12 @@ static char count_real_packets(struct ethhdr *ethhdr,
 		orig_node->last_real_seqno = batman_packet->seqno;
 	}
 
-	kref_put(&orig_node->refcount, orig_node_free_ref);
-	return is_duplicate;
+	ret = is_duplicate;
 
-err:
+out:
+	spin_unlock_bh(&orig_node->ogm_cnt_lock);
 	kref_put(&orig_node->refcount, orig_node_free_ref);
-	return -1;
+	return ret;
 }
 
 void receive_bat_packet(struct ethhdr *ethhdr,

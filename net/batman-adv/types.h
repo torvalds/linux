@@ -70,8 +70,6 @@ struct orig_node {
 	struct neigh_node *router;
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
-	uint8_t tq_own;
-	int tq_asym_penalty;
 	unsigned long last_valid;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
@@ -89,7 +87,9 @@ struct orig_node {
 	struct kref refcount;
 	struct bat_priv *bat_priv;
 	unsigned long last_frag_packet;
-	spinlock_t ogm_cnt_lock; /* protects ogm counter */
+	spinlock_t ogm_cnt_lock; /* protects: bcast_own, bcast_own_sum,
+				  * neigh_node->real_bits,
+				  * neigh_node->real_packet_count */
 	atomic_t bond_candidates;
 	struct list_head bond_list;
 };
