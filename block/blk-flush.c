@@ -130,6 +130,7 @@ static struct request *queue_next_fseq(struct request_queue *q)
 		BUG();
 	}
 
+	rq->cmd_flags |= REQ_FLUSH_SEQ;
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 	return rq;
 }
