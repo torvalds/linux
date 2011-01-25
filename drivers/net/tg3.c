@@ -8227,8 +8227,12 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	    (tp->tg3_flags3 & TG3_FLG3_5717_PLUS)) {
 		val = tr32(TG3_RDMA_RSRVCTRL_REG);
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719) {
-			val &= ~TG3_RDMA_RSRVCTRL_TXMRGN_MASK;
-			val |= TG3_RDMA_RSRVCTRL_TXMRGN_320B;
+			val &= ~(TG3_RDMA_RSRVCTRL_TXMRGN_MASK |
+				 TG3_RDMA_RSRVCTRL_FIFO_LWM_MASK |
+				 TG3_RDMA_RSRVCTRL_FIFO_HWM_MASK);
+			val |= TG3_RDMA_RSRVCTRL_TXMRGN_320B |
+			       TG3_RDMA_RSRVCTRL_FIFO_LWM_1_5K |
+			       TG3_RDMA_RSRVCTRL_FIFO_HWM_1_5K;
 		}
 		tw32(TG3_RDMA_RSRVCTRL_REG,
 		     val | TG3_RDMA_RSRVCTRL_FIFO_OFLW_FIX);
@@ -13394,42 +13398,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
 
 		tp->pcie_readrq = 4096;
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719) {
-			u16 word;
-
-			pci_read_config_word(tp->pdev,
-					     tp->pcie_cap + PCI_EXP_LNKSTA,
-					     &word);
-			switch (word & PCI_EXP_LNKSTA_CLS) {
-			case PCI_EXP_LNKSTA_CLS_2_5GB:
-				word &= PCI_EXP_LNKSTA_NLW;
-				word >>= PCI_EXP_LNKSTA_NLW_SHIFT;
-				switch (word) {
-				case 2:
-					tp->pcie_readrq = 2048;
-					break;
-				case 4:
-					tp->pcie_readrq = 1024;
-					break;
-				}
-				break;
-
-			case PCI_EXP_LNKSTA_CLS_5_0GB:
-				word &= PCI_EXP_LNKSTA_NLW;
-				word >>= PCI_EXP_LNKSTA_NLW_SHIFT;
-				switch (word) {
-				case 1:
-					tp->pcie_readrq = 2048;
-					break;
-				case 2:
-					tp->pcie_readrq = 1024;
-					break;
-				case 4:
-					tp->pcie_readrq = 512;
-					break;
-				}
-			}
-		}
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+			tp->pcie_readrq = 2048;
 
 		pcie_set_readrq(tp->pdev, tp->pcie_readrq);
 
