@@ -205,6 +205,7 @@ typedef enum {
 struct cx23885_board {
 	char                    *name;
 	port_t			porta, portb, portc;
+	int		num_fds_portb, num_fds_portc;
 	unsigned int		tuner_type;
 	unsigned int		radio_type;
 	unsigned char		tuner_addr;

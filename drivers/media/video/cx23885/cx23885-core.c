@@ -1005,6 +1005,9 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	}
 
 	if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) {
+		if (cx23885_boards[dev->board].num_fds_portb)
+			dev->ts1.num_frontends =
+				cx23885_boards[dev->board].num_fds_portb;
 		if (cx23885_dvb_register(&dev->ts1) < 0) {
 			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_B\n",
 			       __func__);
@@ -1019,6 +1022,9 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	}
 
 	if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
+		if (cx23885_boards[dev->board].num_fds_portc)
+			dev->ts2.num_frontends =
+				cx23885_boards[dev->board].num_fds_portc;
 		if (cx23885_dvb_register(&dev->ts2) < 0) {
 			printk(KERN_ERR
 				"%s() Failed to register dvb on VID_C\n",
