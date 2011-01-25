@@ -209,6 +209,7 @@ struct cx23885_board {
 	unsigned int		radio_type;
 	unsigned char		tuner_addr;
 	unsigned char		radio_addr;
+	unsigned int		tuner_bus;
 
 	/* Vendors can and do run the PCIe bridge at different
 	 * clock rates, driven physically by crystals on the PCBs.
@@ -364,6 +365,7 @@ struct cx23885_dev {
 	v4l2_std_id                tvnorm;
 	unsigned int               tuner_type;
 	unsigned char              tuner_addr;
+	unsigned int               tuner_bus;
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
 	unsigned int               has_radio;

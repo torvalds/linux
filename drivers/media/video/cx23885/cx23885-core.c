@@ -970,11 +970,12 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	/* Assume some sensible defaults */
 	dev->tuner_type = cx23885_boards[dev->board].tuner_type;
 	dev->tuner_addr = cx23885_boards[dev->board].tuner_addr;
+	dev->tuner_bus = cx23885_boards[dev->board].tuner_bus;
 	dev->radio_type = cx23885_boards[dev->board].radio_type;
 	dev->radio_addr = cx23885_boards[dev->board].radio_addr;
 
-	dprintk(1, "%s() tuner_type = 0x%x tuner_addr = 0x%x\n",
-		__func__, dev->tuner_type, dev->tuner_addr);
+	dprintk(1, "%s() tuner_type = 0x%x tuner_addr = 0x%x tuner_bus = %d\n",
+		__func__, dev->tuner_type, dev->tuner_addr, dev->tuner_bus);
 	dprintk(1, "%s() radio_type = 0x%x radio_addr = 0x%x\n",
 		__func__, dev->radio_type, dev->radio_addr);
 
