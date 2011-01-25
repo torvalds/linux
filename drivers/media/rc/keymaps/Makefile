@@ -68,7 +68,6 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-purpletv.o \
 			rc-pv951.o \
 			rc-hauppauge.o \
-			rc-rc5-tv.o \
 			rc-rc6-mce.o \
 			rc-real-audio-220-32-keys.o \
 			rc-streamzap.o \

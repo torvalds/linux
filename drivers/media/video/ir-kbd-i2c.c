@@ -55,10 +55,6 @@
 static int debug;
 module_param(debug, int, 0644);    /* debug level (0,1,2) */
 
-static int hauppauge;
-module_param(hauppauge, int, 0644);    /* Choose Hauppauge remote */
-MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults to 0)");
-
 
 #define MODULE_NAME "ir-kbd-i2c"
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
@@ -103,10 +99,6 @@ static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 	ircode= (start << 12) | (toggle << 11) | (dev << 6) | code;
 	if ((ircode & 0x1fff)==0x1fff)
 		/* invalid key press */
-		return 0;
-
-	if (dev!=0x1e && dev!=0x1f)
-		/* not a hauppauge remote */
 		return 0;
 
 	if (!range)
@@ -312,11 +304,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "Hauppauge";
 		ir->get_key = get_key_haup;
 		rc_type     = RC_TYPE_RC5;
-		if (hauppauge == 1) {
-			ir_codes    = RC_MAP_HAUPPAUGE;
-		} else {
-			ir_codes    = RC_MAP_RC5_TV;
-		}
+		ir_codes    = RC_MAP_HAUPPAUGE;
 		break;
 	case 0x30:
 		name        = "KNC One";
@@ -340,7 +328,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "Hauppauge/Zilog Z8";
 		ir->get_key = get_key_haup_xvr;
 		rc_type     = RC_TYPE_RC5;
-		ir_codes    = hauppauge ? RC_MAP_HAUPPAUGE : RC_MAP_RC5_TV;
+		ir_codes    = RC_MAP_HAUPPAUGE;
 		break;
 	}
 
