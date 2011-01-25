@@ -57,9 +57,8 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		 * XXX current ieee80211 implementation because the IEEE
 		 * XXX channel mapping does not support negative channel
 		 * XXX numbers (2312MHz is channel -19). Of course, this
-		 * XXX doesn't matter because these channels are out of range
-		 * XXX but some regulation domains like MKK (Japan) will
-		 * XXX support frequencies somewhere around 4.8GHz.
+		 * XXX doesn't matter because these channels are out of the
+		 * XXX legal range.
 		 */
 
 		/*
@@ -67,8 +66,10 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		 */
 
 		if (AR5K_EEPROM_HDR_11A(ee_header)) {
-			/* 4920 */
-			caps->cap_range.range_5ghz_min = 5005;
+			if (ath_is_49ghz_allowed(caps->cap_eeprom.ee_regdomain))
+				caps->cap_range.range_5ghz_min = 4920;
+			else
+				caps->cap_range.range_5ghz_min = 5005;
 			caps->cap_range.range_5ghz_max = 6100;
 
 			/* Set supported modes */
