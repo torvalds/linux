@@ -8108,8 +8108,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	/* Program the jumbo buffer descriptor ring control
 	 * blocks on those devices that have them.
 	 */
-	if ((tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) &&
-	    !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0 ||
+	    ((tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS))) {
 		/* Setup replenish threshold. */
 		tw32(RCVBDI_JUMBO_THRESH, tp->rx_jumbo_pending / 8);
 
@@ -13329,7 +13330,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	/* Determine TSO capabilities */
-	if (tp->tg3_flags3 & TG3_FLG3_5717_PLUS)
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0)
+		; /* Do nothing. HW bug. */
+	else if (tp->tg3_flags3 & TG3_FLG3_5717_PLUS)
 		tp->tg3_flags2 |= TG3_FLG2_HW_TSO_3;
 	else if ((tp->tg3_flags3 & TG3_FLG3_5755_PLUS) ||
 		 GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
@@ -13380,7 +13383,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags3 |= TG3_FLG3_40BIT_DMA_LIMIT_BUG;
 	}
 
-	if (tp->tg3_flags3 & TG3_FLG3_5717_PLUS)
+	if ((tp->tg3_flags3 & TG3_FLG3_5717_PLUS) &&
+	    tp->pci_chip_rev_id != CHIPREV_ID_5719_A0)
 		tp->tg3_flags3 |= TG3_FLG3_USE_JUMBO_BDFLAG;
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
