@@ -22,7 +22,6 @@ ccflags-y :=			\
 	-DBCMSDIO		\
 	-DBDC			\
 	-DBRCM_FULLMAC		\
-	-DDHD_DEBUG		\
 	-DDHD_FIRSTREAD=64	\
 	-DDHD_SCHED		\
 	-DDHD_SDALIGN=64	\
@@ -31,8 +30,12 @@ ccflags-y :=			\
 	-DMMC_SDIO_ABORT	\
 	-DPKT_FILTER_SUPPORT	\
 	-DSHOW_EVENTS		\
-	-DTOE			\
-	-Idrivers/staging/brcm80211/brcmfmac		\
+	-DTOE
+
+ccflags-$(CONFIG_BRCMDBG)	+= -DDHD_DEBUG
+
+ccflags-y += \
+	-Idrivers/staging/brcm80211/brcmfmac	\
 	-Idrivers/staging/brcm80211/include		\
 	-Idrivers/staging/brcm80211/util
 
@@ -49,13 +52,13 @@ DHDOFILES = \
 	bcmsdh_linux.o	\
 	bcmsdh_sdmmc.o \
 	bcmsdh_sdmmc_linux.o \
-	../util/linux_osl.o \
-	../util/aiutils.o \
-	../util/siutils.o \
-	../util/sbutils.o \
-	../util/bcmutils.o \
-	../util/bcmwifi.o \
-	../util/hndpmu.o
+	linux_osl.o \
+	aiutils.o \
+	siutils.o \
+	sbutils.o \
+	bcmutils.o \
+	bcmwifi.o \
+	hndpmu.o
 
 obj-m += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
