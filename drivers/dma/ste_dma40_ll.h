@@ -293,6 +293,11 @@ struct d40_def_lcsp {
 
 /* Physical channels */
 
+enum d40_lli_flags {
+	LLI_ADDR_INC	= 1 << 0,
+	LLI_TERM_INT	= 1 << 1,
+};
+
 void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 		 u32 *src_cfg,
 		 u32 *dst_cfg,
