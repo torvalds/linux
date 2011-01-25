@@ -99,12 +99,17 @@ struct request {
 	/*
 	 * The rb_node is only used inside the io scheduler, requests
 	 * are pruned when moved to the dispatch queue. So let the
-	 * completion_data share space with the rb_node.
+	 * flush fields share space with the rb_node.
 	 */
 	union {
 		struct rb_node rb_node;	/* sort/lookup */
-		void *completion_data;
+		struct {
+			unsigned int			seq;
+			struct list_head		list;
+		} flush;
 	};
+
+	void *completion_data;
 
 	/*
 	 * Three pointers are available for the IO schedulers, if they need
@@ -362,11 +367,12 @@ struct request_queue
 	 * for flush operations
 	 */
 	unsigned int		flush_flags;
-	unsigned int		flush_seq;
-	int			flush_err;
+	unsigned int		flush_pending_idx:1;
+	unsigned int		flush_running_idx:1;
+	unsigned long		flush_pending_since;
+	struct list_head	flush_queue[2];
+	struct list_head	flush_data_in_flight;
 	struct request		flush_rq;
-	struct request		*orig_flush_rq;
-	struct list_head	pending_flushes;
 
 	struct mutex		sysfs_lock;
 

@@ -673,6 +673,11 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		q->elevator->ops->elevator_add_req_fn(q, rq);
 		break;
 
+	case ELEVATOR_INSERT_FLUSH:
+		rq->cmd_flags |= REQ_SOFTBARRIER;
+		blk_insert_flush(rq);
+		break;
+
 	default:
 		printk(KERN_ERR "%s: bad insertion point %d\n",
 		       __func__, where);
@@ -784,6 +789,8 @@ int elv_may_queue(struct request_queue *q, int rw)
 void elv_abort_queue(struct request_queue *q)
 {
 	struct request *rq;
+
+	blk_abort_flushes(q);
 
 	while (!list_empty(&q->queue_head)) {
 		rq = list_entry_rq(q->queue_head.next);

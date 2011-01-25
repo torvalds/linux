@@ -51,21 +51,17 @@ static inline void blk_clear_rq_complete(struct request *rq)
  */
 #define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
 
-struct request *blk_do_flush(struct request_queue *q, struct request *rq);
+void blk_insert_flush(struct request *rq);
+void blk_abort_flushes(struct request_queue *q);
 
 static inline struct request *__elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
 
 	while (1) {
-		while (!list_empty(&q->queue_head)) {
+		if (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
-			if (!(rq->cmd_flags & (REQ_FLUSH | REQ_FUA)) ||
-			    (rq->cmd_flags & REQ_FLUSH_SEQ))
-				return rq;
-			rq = blk_do_flush(q, rq);
-			if (rq)
-				return rq;
+			return rq;
 		}
 
 		if (!q->elevator->ops->elevator_dispatch_fn(q, 0))
