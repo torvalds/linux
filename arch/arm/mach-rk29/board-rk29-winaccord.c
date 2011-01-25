@@ -42,6 +42,7 @@
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
+#include <mach/sram.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -1719,6 +1720,7 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 static void __init machine_rk29_mapio(void)
 {
 	rk29_map_common_io();
+	rk29_sram_init();
 	rk29_clock_init();
 	rk29_iomux_init();
 }
