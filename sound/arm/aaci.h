@@ -226,6 +226,8 @@ struct aaci {
 	struct snd_card		*card;
 	void			__iomem *base;
 	unsigned int		fifosize;
+	unsigned int		users;
+	struct mutex		irq_lock;
 
 	/* AC'97 */
 	struct mutex		ac97_sem;
