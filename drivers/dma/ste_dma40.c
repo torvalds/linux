@@ -918,10 +918,8 @@ static bool d40_tx_is_linked(struct d40_chan *d40c)
 	return is_link;
 }
 
-static int d40_pause(struct dma_chan *chan)
+static int d40_pause(struct d40_chan *d40c)
 {
-	struct d40_chan *d40c =
-		container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
 
@@ -945,10 +943,8 @@ static int d40_pause(struct dma_chan *chan)
 	return res;
 }
 
-static int d40_resume(struct dma_chan *chan)
+static int d40_resume(struct d40_chan *d40c)
 {
-	struct d40_chan *d40c =
-		container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
 
@@ -976,6 +972,22 @@ static int d40_resume(struct dma_chan *chan)
 no_suspend:
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return res;
+}
+
+static int d40_terminate_all(struct d40_chan *chan)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	ret = d40_pause(chan);
+	if (!ret && chan_is_physical(chan))
+		ret = d40_channel_execute_command(chan, D40_DMA_STOP);
+
+	spin_lock_irqsave(&chan->lock, flags);
+	d40_term_all(chan);
+	spin_unlock_irqrestore(&chan->lock, flags);
+
+	return ret;
 }
 
 static dma_cookie_t d40_tx_submit(struct dma_async_tx_descriptor *tx)
@@ -2176,7 +2188,6 @@ static void d40_set_runtime_config(struct dma_chan *chan,
 static int d40_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		       unsigned long arg)
 {
-	unsigned long flags;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 
 	if (d40c->phy_chan == NULL) {
@@ -2186,14 +2197,11 @@ static int d40_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 
 	switch (cmd) {
 	case DMA_TERMINATE_ALL:
-		spin_lock_irqsave(&d40c->lock, flags);
-		d40_term_all(d40c);
-		spin_unlock_irqrestore(&d40c->lock, flags);
-		return 0;
+		return d40_terminate_all(d40c);
 	case DMA_PAUSE:
-		return d40_pause(chan);
+		return d40_pause(d40c);
 	case DMA_RESUME:
-		return d40_resume(chan);
+		return d40_resume(d40c);
 	case DMA_SLAVE_CONFIG:
 		d40_set_runtime_config(chan,
 			(struct dma_slave_config *) arg);
