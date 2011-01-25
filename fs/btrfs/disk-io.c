@@ -1550,6 +1550,7 @@ static int transaction_kthread(void *arg)
 		spin_unlock(&root->fs_info->new_trans_lock);
 
 		trans = btrfs_join_transaction(root, 1);
+		BUG_ON(IS_ERR(trans));
 		if (transid == trans->transid) {
 			ret = btrfs_commit_transaction(trans, root);
 			BUG_ON(ret);
@@ -2464,10 +2465,14 @@ int btrfs_commit_super(struct btrfs_root *root)
 	up_write(&root->fs_info->cleanup_work_sem);
 
 	trans = btrfs_join_transaction(root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	ret = btrfs_commit_transaction(trans, root);
 	BUG_ON(ret);
 	/* run commit again to drop the original snapshot */
 	trans = btrfs_join_transaction(root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	btrfs_commit_transaction(trans, root);
 	ret = btrfs_write_and_wait_transaction(NULL, root);
 	BUG_ON(ret);

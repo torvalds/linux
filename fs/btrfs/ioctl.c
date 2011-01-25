@@ -203,7 +203,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 
 	trans = btrfs_join_transaction(root, 1);
-	BUG_ON(!trans);
+	BUG_ON(IS_ERR(trans));
 
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
