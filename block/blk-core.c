@@ -136,37 +136,31 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 {
 	struct request_queue *q = rq->q;
 
-	if (!(rq->cmd_flags & REQ_FLUSH_SEQ)) {
-		if (error)
-			clear_bit(BIO_UPTODATE, &bio->bi_flags);
-		else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-			error = -EIO;
+	if (error)
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+		error = -EIO;
 
-		if (unlikely(nbytes > bio->bi_size)) {
-			printk(KERN_ERR "%s: want %u bytes done, %u left\n",
-			       __func__, nbytes, bio->bi_size);
-			nbytes = bio->bi_size;
-		}
-
-		if (unlikely(rq->cmd_flags & REQ_QUIET))
-			set_bit(BIO_QUIET, &bio->bi_flags);
-
-		bio->bi_size -= nbytes;
-		bio->bi_sector += (nbytes >> 9);
-
-		if (bio_integrity(bio))
-			bio_integrity_advance(bio, nbytes);
-
-		if (bio->bi_size == 0)
-			bio_endio(bio, error);
-	} else {
-		/*
-		 * Okay, this is the sequenced flush request in
-		 * progress, just record the error;
-		 */
-		if (error && !q->flush_err)
-			q->flush_err = error;
+	if (unlikely(nbytes > bio->bi_size)) {
+		printk(KERN_ERR "%s: want %u bytes done, %u left\n",
+		       __func__, nbytes, bio->bi_size);
+		nbytes = bio->bi_size;
 	}
+
+	if (unlikely(rq->cmd_flags & REQ_QUIET))
+		set_bit(BIO_QUIET, &bio->bi_flags);
+
+	bio->bi_size -= nbytes;
+	bio->bi_sector += (nbytes >> 9);
+
+	if (bio_integrity(bio))
+		bio_integrity_advance(bio, nbytes);
+
+	/* don't actually finish bio if it's part of flush sequence */
+	if (bio->bi_size == 0 && !(rq->cmd_flags & REQ_FLUSH_SEQ))
+		bio_endio(bio, error);
+	else if (error && !q->flush_err)
+		q->flush_err = error;
 }
 
 void blk_dump_rq_flags(struct request *rq, char *msg)
