@@ -270,9 +270,9 @@ static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
 	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 0);
 
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
-		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
+		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
 	else
-		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
+		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
 
 	lcd_enabled = 1;
 	return 0;
@@ -283,9 +283,9 @@ static void omap3_evm_disable_lcd(struct omap_dss_device *dssdev)
 	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 1);
 
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
-		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
+		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
 	else
-		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
+		gpio_set_value_cansleep(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
 
 	lcd_enabled = 0;
 }
@@ -324,7 +324,7 @@ static int omap3_evm_enable_dvi(struct omap_dss_device *dssdev)
 		return -EINVAL;
 	}
 
-	gpio_set_value(OMAP3EVM_DVI_PANEL_EN_GPIO, 1);
+	gpio_set_value_cansleep(OMAP3EVM_DVI_PANEL_EN_GPIO, 1);
 
 	dvi_enabled = 1;
 	return 0;
@@ -332,7 +332,7 @@ static int omap3_evm_enable_dvi(struct omap_dss_device *dssdev)
 
 static void omap3_evm_disable_dvi(struct omap_dss_device *dssdev)
 {
-	gpio_set_value(OMAP3EVM_DVI_PANEL_EN_GPIO, 0);
+	gpio_set_value_cansleep(OMAP3EVM_DVI_PANEL_EN_GPIO, 0);
 
 	dvi_enabled = 0;
 }
