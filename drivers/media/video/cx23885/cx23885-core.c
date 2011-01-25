@@ -1041,6 +1041,10 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	cx23885_dev_checkrevision(dev);
 
+	/* disable MSI for NetUP cards, otherwise CI is not working */
+	if (cx23885_boards[dev->board].ci_type > 0)
+		cx_clear(RDR_RDRCTL1, 1 << 8);
+
 	return 0;
 }
 
