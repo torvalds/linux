@@ -303,6 +303,11 @@ struct d40_reg_val {
 	unsigned int val;
 };
 
+static struct device *chan2dev(struct d40_chan *d40c)
+{
+	return &d40c->chan.dev->device;
+}
+
 static int d40_pool_lli_alloc(struct d40_desc *d40d,
 			      int lli_len, bool is_log)
 {
@@ -701,16 +706,45 @@ static void d40_term_all(struct d40_chan *d40c)
 	d40c->busy = false;
 }
 
+static void __d40_config_set_event(struct d40_chan *d40c, bool enable,
+				   u32 event, int reg)
+{
+	void __iomem *addr = d40c->base->virtbase + D40_DREG_PCBASE
+			     + d40c->phy_chan->num * D40_DREG_PCDELTA + reg;
+	int tries;
+
+	if (!enable) {
+		writel((D40_DEACTIVATE_EVENTLINE << D40_EVENTLINE_POS(event))
+		       | ~D40_EVENTLINE_MASK(event), addr);
+		return;
+	}
+
+	/*
+	 * The hardware sometimes doesn't register the enable when src and dst
+	 * event lines are active on the same logical channel.  Retry to ensure
+	 * it does.  Usually only one retry is sufficient.
+	 */
+	tries = 100;
+	while (--tries) {
+		writel((D40_ACTIVATE_EVENTLINE << D40_EVENTLINE_POS(event))
+		       | ~D40_EVENTLINE_MASK(event), addr);
+
+		if (readl(addr) & D40_EVENTLINE_MASK(event))
+			break;
+	}
+
+	if (tries != 99)
+		dev_dbg(chan2dev(d40c),
+			"[%s] workaround enable S%cLNK (%d tries)\n",
+			__func__, reg == D40_CHAN_REG_SSLNK ? 'S' : 'D',
+			100 - tries);
+
+	WARN_ON(!tries);
+}
+
 static void d40_config_set_event(struct d40_chan *d40c, bool do_enable)
 {
-	u32 val;
 	unsigned long flags;
-
-	/* Notice, that disable requires the physical channel to be stopped */
-	if (do_enable)
-		val = D40_ACTIVATE_EVENTLINE;
-	else
-		val = D40_DEACTIVATE_EVENTLINE;
 
 	spin_lock_irqsave(&d40c->phy_chan->lock, flags);
 
@@ -719,20 +753,15 @@ static void d40_config_set_event(struct d40_chan *d40c, bool do_enable)
 	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH)) {
 		u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.src_dev_type);
 
-		writel((val << D40_EVENTLINE_POS(event)) |
-		       ~D40_EVENTLINE_MASK(event),
-		       d40c->base->virtbase + D40_DREG_PCBASE +
-		       d40c->phy_chan->num * D40_DREG_PCDELTA +
-		       D40_CHAN_REG_SSLNK);
+		__d40_config_set_event(d40c, do_enable, event,
+				       D40_CHAN_REG_SSLNK);
 	}
+
 	if (d40c->dma_cfg.dir !=  STEDMA40_PERIPH_TO_MEM) {
 		u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
 
-		writel((val << D40_EVENTLINE_POS(event)) |
-		       ~D40_EVENTLINE_MASK(event),
-		       d40c->base->virtbase + D40_DREG_PCBASE +
-		       d40c->phy_chan->num * D40_DREG_PCDELTA +
-		       D40_CHAN_REG_SDLNK);
+		__d40_config_set_event(d40c, do_enable, event,
+				       D40_CHAN_REG_SDLNK);
 	}
 
 	spin_unlock_irqrestore(&d40c->phy_chan->lock, flags);
