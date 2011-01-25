@@ -655,6 +655,7 @@ typedef struct drm_i915_private {
 	unsigned int lvds_border_bits;
 	/* Panel fitter placement and size for Ironlake+ */
 	u32 pch_pf_pos, pch_pf_size;
+	int panel_t3, panel_t12;
 
 	struct drm_crtc *plane_to_crtc_mapping[2];
 	struct drm_crtc *pipe_to_crtc_mapping[2];

@@ -813,6 +813,40 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 }
 
+static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	/*
+	 * If the panel wasn't on, make sure there's not a currently
+	 * active PP sequence before enabling AUX VDD.
+	 */
+	if (!(I915_READ(PCH_PP_STATUS) & PP_ON))
+		msleep(dev_priv->panel_t3);
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp |= EDP_FORCE_VDD;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+}
+
+static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~EDP_FORCE_VDD;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+
+	/* Make sure sequencer is idle before allowing subsequent activity */
+	msleep(dev_priv->panel_t12);
+}
+
 /* Returns true if the panel was already on when called */
 static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 {
@@ -935,7 +969,7 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 
 	if (is_edp(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
-		ironlake_edp_panel_on(intel_dp);
+		ironlake_edp_panel_off(dev);
 		if (!is_pch_edp(intel_dp))
 			ironlake_edp_pll_on(encoder);
 		else
@@ -949,10 +983,15 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_device *dev = encoder->dev;
 
+	if (is_edp(intel_dp))
+		ironlake_edp_panel_vdd_on(intel_dp);
+
 	intel_dp_start_link_train(intel_dp);
 
-	if (is_edp(intel_dp))
+	if (is_edp(intel_dp)) {
 		ironlake_edp_panel_on(intel_dp);
+		ironlake_edp_panel_vdd_off(intel_dp);
+	}
 
 	intel_dp_complete_link_train(intel_dp);
 
@@ -978,9 +1017,13 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 			ironlake_edp_pll_off(encoder);
 	} else {
 		if (is_edp(intel_dp))
-			ironlake_edp_panel_on(intel_dp);
+			ironlake_edp_panel_vdd_on(intel_dp);
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_start_link_train(intel_dp);
+			if (is_edp(intel_dp)) {
+				ironlake_edp_panel_on(intel_dp);
+				ironlake_edp_panel_vdd_off(intel_dp);
+			}
 			intel_dp_complete_link_train(intel_dp);
 		}
 		if (is_edp(intel_dp))
@@ -1872,9 +1915,18 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	/* Cache some DPCD data in the eDP case */
 	if (is_edp(intel_dp)) {
 		int ret;
-		bool was_on;
+		u32 pp_on, pp_div;
 
-		was_on = ironlake_edp_panel_on(intel_dp);
+		pp_on = I915_READ(PCH_PP_ON_DELAYS);
+		pp_div = I915_READ(PCH_PP_DIVISOR);
+
+		/* Get T3 & T12 values (note: VESA not bspec terminology) */
+		dev_priv->panel_t3 = (pp_on & 0x1fff0000) >> 16;
+		dev_priv->panel_t3 /= 10; /* t3 in 100us units */
+		dev_priv->panel_t12 = pp_div & 0xf;
+		dev_priv->panel_t12 *= 100; /* t12 in 100ms units */
+
+		ironlake_edp_panel_vdd_on(intel_dp);
 		ret = intel_dp_aux_native_read(intel_dp, DP_DPCD_REV,
 					       intel_dp->dpcd,
 					       sizeof(intel_dp->dpcd));
@@ -1885,8 +1937,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		} else {
 			DRM_ERROR("failed to retrieve link info\n");
 		}
-		if (!was_on)
-			ironlake_edp_panel_off(dev);
+		ironlake_edp_panel_vdd_off(intel_dp);
 	}
 
 	intel_encoder->hot_plug = intel_dp_hot_plug;
