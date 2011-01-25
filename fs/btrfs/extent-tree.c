@@ -3996,6 +3996,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	struct btrfs_block_rsv *block_rsv = &root->fs_info->delalloc_block_rsv;
 	u64 to_reserve;
 	int nr_extents;
+	int reserved_extents;
 	int ret;
 
 	if (btrfs_transaction_in_commit(root->fs_info))
@@ -4003,25 +4004,24 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 
-	spin_lock(&BTRFS_I(inode)->accounting_lock);
 	nr_extents = atomic_read(&BTRFS_I(inode)->outstanding_extents) + 1;
-	if (nr_extents > BTRFS_I(inode)->reserved_extents) {
-		nr_extents -= BTRFS_I(inode)->reserved_extents;
+	reserved_extents = atomic_read(&BTRFS_I(inode)->reserved_extents);
+
+	if (nr_extents > reserved_extents) {
+		nr_extents -= reserved_extents;
 		to_reserve = calc_trans_metadata_size(root, nr_extents);
 	} else {
 		nr_extents = 0;
 		to_reserve = 0;
 	}
-	spin_unlock(&BTRFS_I(inode)->accounting_lock);
+
 	to_reserve += calc_csum_metadata_size(inode, num_bytes);
 	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, 1);
 	if (ret)
 		return ret;
 
-	spin_lock(&BTRFS_I(inode)->accounting_lock);
-	BTRFS_I(inode)->reserved_extents += nr_extents;
+	atomic_add(nr_extents, &BTRFS_I(inode)->reserved_extents);
 	atomic_inc(&BTRFS_I(inode)->outstanding_extents);
-	spin_unlock(&BTRFS_I(inode)->accounting_lock);
 
 	block_rsv_add_bytes(block_rsv, to_reserve, 1);
 
@@ -4036,20 +4036,30 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 to_free;
 	int nr_extents;
+	int reserved_extents;
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 	atomic_dec(&BTRFS_I(inode)->outstanding_extents);
 	WARN_ON(atomic_read(&BTRFS_I(inode)->outstanding_extents) < 0);
 
-	spin_lock(&BTRFS_I(inode)->accounting_lock);
-	nr_extents = atomic_read(&BTRFS_I(inode)->outstanding_extents);
-	if (nr_extents < BTRFS_I(inode)->reserved_extents) {
-		nr_extents = BTRFS_I(inode)->reserved_extents - nr_extents;
-		BTRFS_I(inode)->reserved_extents -= nr_extents;
-	} else {
-		nr_extents = 0;
-	}
-	spin_unlock(&BTRFS_I(inode)->accounting_lock);
+	reserved_extents = atomic_read(&BTRFS_I(inode)->reserved_extents);
+	do {
+		int old, new;
+
+		nr_extents = atomic_read(&BTRFS_I(inode)->outstanding_extents);
+		if (nr_extents >= reserved_extents) {
+			nr_extents = 0;
+			break;
+		}
+		old = reserved_extents;
+		nr_extents = reserved_extents - nr_extents;
+		new = reserved_extents - nr_extents;
+		old = atomic_cmpxchg(&BTRFS_I(inode)->reserved_extents,
+				     reserved_extents, new);
+		if (likely(old == reserved_extents))
+			break;
+		reserved_extents = old;
+	} while (1);
 
 	to_free = calc_csum_metadata_size(inode, num_bytes);
 	if (nr_extents > 0)

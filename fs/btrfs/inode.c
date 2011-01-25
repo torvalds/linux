@@ -6632,9 +6632,8 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->index_cnt = (u64)-1;
 	ei->last_unlink_trans = 0;
 
-	spin_lock_init(&ei->accounting_lock);
 	atomic_set(&ei->outstanding_extents, 0);
-	ei->reserved_extents = 0;
+	atomic_set(&ei->reserved_extents, 0);
 
 	ei->ordered_data_close = 0;
 	ei->orphan_meta_reserved = 0;
@@ -6670,7 +6669,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
 	WARN_ON(atomic_read(&BTRFS_I(inode)->outstanding_extents));
-	WARN_ON(BTRFS_I(inode)->reserved_extents);
+	WARN_ON(atomic_read(&BTRFS_I(inode)->reserved_extents));
 
 	/*
 	 * This can happen where we create an inode, but somebody else also
