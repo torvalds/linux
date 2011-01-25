@@ -339,7 +339,8 @@ fec_restart(struct net_device *ndev, int duplex)
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
 	int i;
-	u32 val, temp_mac[2];
+	u32 temp_mac[2];
+	u32 rcntl = OPT_FRAME_SIZE | 0x04;
 
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
@@ -388,14 +389,14 @@ fec_restart(struct net_device *ndev, int duplex)
 
 	/* Enable MII mode */
 	if (duplex) {
-		/* MII enable / FD enable */
-		writel(OPT_FRAME_SIZE | 0x04, fep->hwp + FEC_R_CNTRL);
+		/* FD enable */
 		writel(0x04, fep->hwp + FEC_X_CNTRL);
 	} else {
-		/* MII enable / No Rcv on Xmit */
-		writel(OPT_FRAME_SIZE | 0x06, fep->hwp + FEC_R_CNTRL);
+		/* No Rcv on Xmit */
+		rcntl |= 0x02;
 		writel(0x0, fep->hwp + FEC_X_CNTRL);
 	}
+
 	fep->full_duplex = duplex;
 
 	/* Set MII speed */
@@ -406,21 +407,21 @@ fec_restart(struct net_device *ndev, int duplex)
 	 * differently on enet-mac.
 	 */
 	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC) {
-		val = readl(fep->hwp + FEC_R_CNTRL);
+		/* Enable flow control and length check */
+		rcntl |= 0x40000000 | 0x00000020;
 
 		/* MII or RMII */
 		if (fep->phy_interface == PHY_INTERFACE_MODE_RMII)
-			val |= (1 << 8);
+			rcntl |= (1 << 8);
 		else
-			val &= ~(1 << 8);
+			rcntl &= ~(1 << 8);
 
 		/* 10M or 100M */
 		if (fep->phy_dev && fep->phy_dev->speed == SPEED_100)
-			val &= ~(1 << 9);
+			rcntl &= ~(1 << 9);
 		else
-			val |= (1 << 9);
+			rcntl |= (1 << 9);
 
-		writel(val, fep->hwp + FEC_R_CNTRL);
 	} else {
 #ifdef FEC_MIIGSK_ENR
 		if (fep->phy_interface == PHY_INTERFACE_MODE_RMII) {
@@ -440,6 +441,7 @@ fec_restart(struct net_device *ndev, int duplex)
 		}
 #endif
 	}
+	writel(rcntl, fep->hwp + FEC_R_CNTRL);
 
 	/* And last, enable the transmit and receive processing */
 	writel(2, fep->hwp + FEC_ECNTRL);
