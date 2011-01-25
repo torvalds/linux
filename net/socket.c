@@ -103,7 +103,6 @@
 #include <linux/ipv6_route.h>
 #include <linux/route.h>
 #include <linux/sockios.h>
-#include <linux/atalk.h>
 
 static int sock_no_open(struct inode *irrelevant, struct file *dontcare);
 static ssize_t sock_aio_read(struct kiocb *iocb, const struct iovec *iov,

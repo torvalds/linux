@@ -29,12 +29,12 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
-#include <linux/atalk.h>
 #include <linux/if_arp.h>
 #include <linux/slab.h>
 #include <net/route.h>
 #include <asm/uaccess.h>
 
+#include "atalk.h"
 #include "ipddp.h"		/* Our stuff */
 
 static const char version[] = KERN_INFO "ipddp.c:v0.01 8/28/97 Bradford W. Johnson <johns393@maroon.tc.umn.edu>\n";

@@ -8,7 +8,7 @@
 
 #include <linux/sysctl.h>
 #include <net/sock.h>
-#include <linux/atalk.h>
+#include "atalk.h"
 
 static struct ctl_table atalk_table[] = {
 	{

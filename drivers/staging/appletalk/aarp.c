@@ -34,7 +34,7 @@
 #include <net/sock.h>
 #include <net/datalink.h>
 #include <net/psnap.h>
-#include <linux/atalk.h>
+#include "atalk.h"
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>

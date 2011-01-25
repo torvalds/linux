@@ -554,8 +554,7 @@ F:	drivers/hwmon/applesmc.c
 APPLETALK NETWORK LAYER
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 S:	Maintained
-F:	drivers/net/appletalk/
-F:	net/appletalk/
+F:	drivers/staging/appletalk/
 
 ARC FRAMEBUFFER DRIVER
 M:	Jaya Kumar <jayalk@intworks.biz>

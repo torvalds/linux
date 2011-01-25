@@ -65,6 +65,7 @@ obj-$(CONFIG_ATH6K_LEGACY)	+= ath6kl/
 obj-$(CONFIG_USB_ENESTORAGE)	+= keucr/
 obj-$(CONFIG_BCM_WIMAX)	+= bcm/
 obj-$(CONFIG_FT1000)		+= ft1000/
+obj-$(CONFIG_DEV_APPLETALK) += appletalk/
 obj-$(CONFIG_SND_INTEL_SST)		+= intel_sst/
 obj-$(CONFIG_SPEAKUP)	+= speakup/
 obj-$(CONFIG_TOUCHSCREEN_CLEARPAD_TM1217)	+= cptm1217/
