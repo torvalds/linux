@@ -2497,9 +2497,10 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		{ .reg = D40_DREG_PERIPHID1, .val = 0x0000},
 		/*
 		 * D40_DREG_PERIPHID2 Depends on HW revision:
-		 *  MOP500/HREF ED has 0x0008,
+		 *  DB8500ed has 0x0008,
 		 *  ? has 0x0018,
-		 *  HREF V1 has 0x0028
+		 *  DB8500v1 has 0x0028
+		 *  DB8500v2 has 0x0038
 		 */
 		{ .reg = D40_DREG_PERIPHID3, .val = 0x0000},
 
