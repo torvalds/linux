@@ -139,6 +139,8 @@ static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 	struct mxs_gpio_port *port = (struct mxs_gpio_port *)get_irq_data(irq);
 	u32 gpio_irq_no_base = port->virtual_irq_start;
 
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
+
 	irq_stat = __raw_readl(port->base + PINCTRL_IRQSTAT(port->id)) &
 			__raw_readl(port->base + PINCTRL_IRQEN(port->id));
 
