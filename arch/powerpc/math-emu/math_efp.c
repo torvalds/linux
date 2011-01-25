@@ -1,7 +1,7 @@
 /*
  * arch/powerpc/math-emu/math_efp.c
  *
- * Copyright (C) 2006-2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2006-2008, 2010 Freescale Semiconductor, Inc.
  *
  * Author: Ebony Zhu,	<ebony.zhu@freescale.com>
  *         Yu Liu,	<yu.liu@freescale.com>
@@ -103,6 +103,8 @@
 #define SIGN_BIT_D	(1ULL << 63)
 #define FP_EX_MASK	(FP_EX_INEXACT | FP_EX_INVALID | FP_EX_DIVZERO | \
 			FP_EX_UNDERFLOW | FP_EX_OVERFLOW)
+
+static int have_e500_cpu_a005_erratum;
 
 union dw_union {
 	u64 dp[1];
@@ -652,6 +654,15 @@ update_regs:
 	return 0;
 
 illegal:
+	if (have_e500_cpu_a005_erratum) {
+		/* according to e500 cpu a005 erratum, reissue efp inst */
+		regs->nip -= 4;
+#ifdef DEBUG
+		printk(KERN_DEBUG "re-issue efp inst: %08lx\n", speinsn);
+#endif
+		return 0;
+	}
+
 	printk(KERN_ERR "\nOoops! IEEE-754 compliance handler encountered un-supported instruction.\ninst code: %08lx\n", speinsn);
 	return -ENOSYS;
 }
@@ -718,3 +729,43 @@ int speround_handler(struct pt_regs *regs)
 
 	return 0;
 }
+
+int __init spe_mathemu_init(void)
+{
+	u32 pvr, maj, min;
+
+	pvr = mfspr(SPRN_PVR);
+
+	if ((PVR_VER(pvr) == PVR_VER_E500V1) ||
+	    (PVR_VER(pvr) == PVR_VER_E500V2)) {
+		maj = PVR_MAJ(pvr);
+		min = PVR_MIN(pvr);
+
+		/*
+		 * E500 revision below 1.1, 2.3, 3.1, 4.1, 5.1
+		 * need cpu a005 errata workaround
+		 */
+		switch (maj) {
+		case 1:
+			if (min < 1)
+				have_e500_cpu_a005_erratum = 1;
+			break;
+		case 2:
+			if (min < 3)
+				have_e500_cpu_a005_erratum = 1;
+			break;
+		case 3:
+		case 4:
+		case 5:
+			if (min < 1)
+				have_e500_cpu_a005_erratum = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+module_init(spe_mathemu_init);
