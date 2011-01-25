@@ -32,7 +32,6 @@
 #include "cifs_unicode.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
-#include "md5.h"
 #include "cifs_debug.h"
 #include "cifsencrypt.h"
 
