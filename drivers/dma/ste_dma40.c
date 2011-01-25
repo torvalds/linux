@@ -344,7 +344,7 @@ static int d40_pool_lli_alloc(struct d40_desc *d40d,
 		d40d->lli_pool.size = sizeof(d40d->lli_pool.pre_alloc_lli);
 		d40d->lli_pool.base = NULL;
 	} else {
-		d40d->lli_pool.size = ALIGN(lli_len * 2 * align, align);
+		d40d->lli_pool.size = lli_len * 2 * align;
 
 		base = kmalloc(d40d->lli_pool.size + align, GFP_NOWAIT);
 		d40d->lli_pool.base = base;
@@ -356,13 +356,11 @@ static int d40_pool_lli_alloc(struct d40_desc *d40d,
 	if (is_log) {
 		d40d->lli_log.src = PTR_ALIGN((struct d40_log_lli *) base,
 					      align);
-		d40d->lli_log.dst = PTR_ALIGN(d40d->lli_log.src + lli_len,
-					      align);
+		d40d->lli_log.dst = d40d->lli_log.src + lli_len;
 	} else {
 		d40d->lli_phy.src = PTR_ALIGN((struct d40_phy_lli *)base,
 					      align);
-		d40d->lli_phy.dst = PTR_ALIGN(d40d->lli_phy.src + lli_len,
-					      align);
+		d40d->lli_phy.dst = d40d->lli_phy.src + lli_len;
 	}
 
 	return 0;
