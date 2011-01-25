@@ -69,20 +69,6 @@ static u32 port_peerport(struct tipc_port *p_ptr)
 	return msg_destport(&p_ptr->phdr);
 }
 
-static u32 port_out_seqno(struct tipc_port *p_ptr)
-{
-	return msg_transp_seqno(&p_ptr->phdr);
-}
-
-static void port_incr_out_seqno(struct tipc_port *p_ptr)
-{
-	struct tipc_msg *m = &p_ptr->phdr;
-
-	if (likely(!msg_routed(m)))
-		return;
-	msg_set_transp_seqno(m, (msg_transp_seqno(m) + 1));
-}
-
 /**
  * tipc_multicast - send a multicast message to local and remote destinations
  */
@@ -233,7 +219,6 @@ struct tipc_port *tipc_createport_raw(void *usr_handle,
 	msg = &p_ptr->phdr;
 	tipc_msg_init(msg, importance, TIPC_NAMED_MSG, LONG_H_SIZE, 0);
 	msg_set_origport(msg, ref);
-	p_ptr->last_in_seqno = 41;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
 	p_ptr->dispatcher = dispatcher;
@@ -344,7 +329,7 @@ int tipc_set_portunreturnable(u32 ref, unsigned int isunrejectable)
 static struct sk_buff *port_build_proto_msg(u32 destport, u32 destnode,
 					    u32 origport, u32 orignode,
 					    u32 usr, u32 type, u32 err,
-					    u32 seqno, u32 ack)
+					    u32 ack)
 {
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
@@ -357,7 +342,6 @@ static struct sk_buff *port_build_proto_msg(u32 destport, u32 destnode,
 		msg_set_destport(msg, destport);
 		msg_set_origport(msg, origport);
 		msg_set_orignode(msg, orignode);
-		msg_set_transp_seqno(msg, seqno);
 		msg_set_msgcnt(msg, ack);
 	}
 	return buf;
@@ -467,9 +451,7 @@ static void port_timeout(unsigned long ref)
 					   CONN_MANAGER,
 					   CONN_PROBE,
 					   TIPC_OK,
-					   port_out_seqno(p_ptr),
 					   0);
-		port_incr_out_seqno(p_ptr);
 		p_ptr->probing_state = PROBING;
 		k_start_timer(&p_ptr->timer, p_ptr->probing_interval);
 	}
@@ -506,7 +488,6 @@ static struct sk_buff *port_build_self_abort_msg(struct tipc_port *p_ptr, u32 er
 				    imp,
 				    TIPC_CONN_MSG,
 				    err,
-				    p_ptr->last_in_seqno + 1,
 				    0);
 }
 
@@ -526,7 +507,6 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 er
 				    imp,
 				    TIPC_CONN_MSG,
 				    err,
-				    port_out_seqno(p_ptr),
 				    0);
 }
 
@@ -568,7 +548,6 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 					     TIPC_HIGH_IMPORTANCE,
 					     TIPC_CONN_MSG,
 					     err,
-					     0,
 					     0);
 		goto exit;
 	}
@@ -582,11 +561,9 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 					     CONN_MANAGER,
 					     CONN_PROBE_REPLY,
 					     TIPC_OK,
-					     port_out_seqno(p_ptr),
 					     0);
 	}
 	p_ptr->probing_state = CONFIRMED;
-	port_incr_out_seqno(p_ptr);
 exit:
 	if (p_ptr)
 		tipc_port_unlock(p_ptr);
@@ -914,7 +891,6 @@ void tipc_acknowledge(u32 ref, u32 ack)
 					   CONN_MANAGER,
 					   CONN_ACK,
 					   TIPC_OK,
-					   port_out_seqno(p_ptr),
 					   ack);
 	}
 	tipc_port_unlock(p_ptr);
@@ -1088,7 +1064,6 @@ int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
 	msg_set_destport(msg, peer->ref);
 	msg_set_orignode(msg, tipc_own_addr);
 	msg_set_origport(msg, p_ptr->ref);
-	msg_set_transp_seqno(msg, 42);
 	msg_set_type(msg, TIPC_CONN_MSG);
 	msg_set_hdr_sz(msg, SHORT_H_SIZE);
 
@@ -1170,7 +1145,6 @@ int tipc_shutdown(u32 ref)
 					   imp,
 					   TIPC_CONN_MSG,
 					   TIPC_CONN_SHUTDOWN,
-					   port_out_seqno(p_ptr),
 					   0);
 	}
 	tipc_port_unlock(p_ptr);
@@ -1220,7 +1194,6 @@ int tipc_send(u32 ref, unsigned int num_sect, struct iovec const *msg_sect)
 			res = tipc_port_recv_sections(p_ptr, num_sect, msg_sect);
 
 		if (likely(res != -ELINKCONG)) {
-			port_incr_out_seqno(p_ptr);
 			p_ptr->congested = 0;
 			if (res > 0)
 				p_ptr->sent++;

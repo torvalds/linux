@@ -119,7 +119,6 @@ struct user_port {
  * @pub_count: total # of publications port has made during its lifetime
  * @probing_state:
  * @probing_interval:
- * @last_in_seqno:
  * @timer_ref:
  * @subscription: "node down" subscription used to terminate failed connections
  */
@@ -147,7 +146,6 @@ struct tipc_port {
 	u32 pub_count;
 	u32 probing_state;
 	u32 probing_interval;
-	u32 last_in_seqno;
 	struct timer_list timer;
 	struct tipc_node_subscr subscription;
 };

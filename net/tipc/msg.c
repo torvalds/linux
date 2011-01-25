@@ -2,7 +2,7 @@
  * net/tipc/msg.c: TIPC message header routines
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -381,14 +381,10 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 			tipc_printf(buf, ":OPRT(%u):", msg_origport(msg));
 			tipc_printf(buf, ":DPRT(%u):", msg_destport(msg));
 		}
-		if (msg_routed(msg) && !msg_non_seq(msg))
-			tipc_printf(buf, ":TSEQN(%u)", msg_transp_seqno(msg));
 	}
 	if (msg_user(msg) == NAME_DISTRIBUTOR) {
 		tipc_printf(buf, ":ONOD(%x):", msg_orignode(msg));
 		tipc_printf(buf, ":DNOD(%x):", msg_destnode(msg));
-		if (msg_routed(msg))
-			tipc_printf(buf, ":CSEQN(%u)", msg_transp_seqno(msg));
 	}
 
 	if (msg_user(msg) ==  LINK_CONFIG) {
