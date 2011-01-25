@@ -521,54 +521,62 @@ static void d40_phy_lli_load(struct d40_chan *chan, struct d40_desc *desc)
 	writel(lli_dst->reg_lnk, base + D40_CHAN_REG_SDLNK);
 }
 
+static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
+{
+	struct d40_lcla_pool *pool = &chan->base->lcla_pool;
+	struct d40_log_lli_bidir *lli = &desc->lli_log;
+	int lli_current = desc->lli_current;
+	int lli_len = desc->lli_len;
+	int curr_lcla = -EINVAL;
+
+	if (lli_len - lli_current > 1)
+		curr_lcla = d40_lcla_alloc_one(chan, desc);
+
+	d40_log_lli_lcpa_write(chan->lcpa,
+			       &lli->dst[lli_current],
+			       &lli->src[lli_current],
+			       curr_lcla);
+
+	lli_current++;
+	for (; lli_current < lli_len; lli_current++) {
+		unsigned int lcla_offset = chan->phy_chan->num * 1024 +
+					   8 * curr_lcla * 2;
+		struct d40_log_lli *lcla = pool->base + lcla_offset;
+		int next_lcla;
+
+		if (lli_current + 1 < lli_len)
+			next_lcla = d40_lcla_alloc_one(chan, desc);
+		else
+			next_lcla = -EINVAL;
+
+		d40_log_lli_lcla_write(lcla,
+				       &lli->dst[lli_current],
+				       &lli->src[lli_current],
+				       next_lcla);
+
+		dma_sync_single_range_for_device(chan->base->dev,
+					pool->dma_addr, lcla_offset,
+					2 * sizeof(struct d40_log_lli),
+					DMA_TO_DEVICE);
+
+		curr_lcla = next_lcla;
+
+		if (curr_lcla == -EINVAL) {
+			lli_current++;
+			break;
+		}
+	}
+
+	desc->lli_current = lli_current;
+}
+
 static void d40_desc_load(struct d40_chan *d40c, struct d40_desc *d40d)
 {
-	int curr_lcla = -EINVAL, next_lcla;
-
 	if (chan_is_physical(d40c)) {
 		d40_phy_lli_load(d40c, d40d);
 		d40d->lli_current = d40d->lli_len;
-	} else {
-
-		if ((d40d->lli_len - d40d->lli_current) > 1)
-			curr_lcla = d40_lcla_alloc_one(d40c, d40d);
-
-		d40_log_lli_lcpa_write(d40c->lcpa,
-				       &d40d->lli_log.dst[d40d->lli_current],
-				       &d40d->lli_log.src[d40d->lli_current],
-				       curr_lcla);
-
-		d40d->lli_current++;
-		for (; d40d->lli_current < d40d->lli_len; d40d->lli_current++) {
-			unsigned int lcla_offset = d40c->phy_chan->num * 1024 +
-						   8 * curr_lcla * 2;
-			struct d40_lcla_pool *pool = &d40c->base->lcla_pool;
-			struct d40_log_lli *lcla = pool->base + lcla_offset;
-
-			if (d40d->lli_current + 1 < d40d->lli_len)
-				next_lcla = d40_lcla_alloc_one(d40c, d40d);
-			else
-				next_lcla = -EINVAL;
-
-			d40_log_lli_lcla_write(lcla,
-					       &d40d->lli_log.dst[d40d->lli_current],
-					       &d40d->lli_log.src[d40d->lli_current],
-					       next_lcla);
-
-			dma_sync_single_range_for_device(d40c->base->dev,
-						pool->dma_addr, lcla_offset,
-						2 * sizeof(struct d40_log_lli),
-						DMA_TO_DEVICE);
-
-			curr_lcla = next_lcla;
-
-			if (curr_lcla == -EINVAL) {
-				d40d->lli_current++;
-				break;
-			}
-
-		}
-	}
+	} else
+		d40_log_lli_to_lcxa(d40c, d40d);
 }
 
 static struct d40_desc *d40_first_active_get(struct d40_chan *d40c)
