@@ -175,5 +175,7 @@ source "drivers/staging/cptm1217/Kconfig"
 
 source "drivers/staging/ste_rmi4/Kconfig"
 
+source "drivers/staging/altera-stapl/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
