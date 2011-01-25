@@ -683,6 +683,24 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 			return -EINVAL;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
+	} else if (fe->ops.info.type == FE_QAM) {
+		dprintk(1, "%s() QAM\n", __func__);
+		switch (params->u.qam.modulation) {
+		case QAM_16:
+		case QAM_32:
+		case QAM_64:
+		case QAM_128:
+		case QAM_256:
+		case QAM_AUTO:
+			dprintk(1, "%s() QAM modulation\n", __func__);
+			priv->bandwidth = BANDWIDTH_8_MHZ;
+			priv->video_standard = DTV7_8;
+			priv->freq_hz = params->frequency - 2750000;
+			priv->rf_mode = XC_RF_MODE_CABLE;
+			break;
+		default:
+			return -EINVAL;
+		}
 	} else {
 		printk(KERN_ERR "xc5000 modulation type not supported!\n");
 		return -EINVAL;
