@@ -1724,6 +1724,38 @@ bool stedma40_filter(struct dma_chan *chan, void *data)
 }
 EXPORT_SYMBOL(stedma40_filter);
 
+static void __d40_set_prio_rt(struct d40_chan *d40c, int dev_type, bool src)
+{
+	bool realtime = d40c->dma_cfg.realtime;
+	bool highprio = d40c->dma_cfg.high_priority;
+	u32 prioreg = highprio ? D40_DREG_PSEG1 : D40_DREG_PCEG1;
+	u32 rtreg = realtime ? D40_DREG_RSEG1 : D40_DREG_RCEG1;
+	u32 event = D40_TYPE_TO_EVENT(dev_type);
+	u32 group = D40_TYPE_TO_GROUP(dev_type);
+	u32 bit = 1 << event;
+
+	/* Destination event lines are stored in the upper halfword */
+	if (!src)
+		bit <<= 16;
+
+	writel(bit, d40c->base->virtbase + prioreg + group * 4);
+	writel(bit, d40c->base->virtbase + rtreg + group * 4);
+}
+
+static void d40_set_prio_realtime(struct d40_chan *d40c)
+{
+	if (d40c->base->rev < 3)
+		return;
+
+	if ((d40c->dma_cfg.dir ==  STEDMA40_PERIPH_TO_MEM) ||
+	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
+		__d40_set_prio_rt(d40c, d40c->dma_cfg.src_dev_type, true);
+
+	if ((d40c->dma_cfg.dir ==  STEDMA40_MEM_TO_PERIPH) ||
+	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
+		__d40_set_prio_rt(d40c, d40c->dma_cfg.dst_dev_type, false);
+}
+
 /* DMA ENGINE functions */
 static int d40_alloc_chan_resources(struct dma_chan *chan)
 {
@@ -1755,6 +1787,8 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	/* Fill in basic CFG register values */
 	d40_phy_cfg(&d40c->dma_cfg, &d40c->src_def_cfg,
 		    &d40c->dst_def_cfg, chan_is_logical(d40c));
+
+	d40_set_prio_realtime(d40c);
 
 	if (chan_is_logical(d40c)) {
 		d40_log_cfg(&d40c->dma_cfg,

@@ -104,6 +104,8 @@ struct stedma40_half_channel_info {
  *
  * @dir: MEM 2 MEM, PERIPH 2 MEM , MEM 2 PERIPH, PERIPH 2 PERIPH
  * @high_priority: true if high-priority
+ * @realtime: true if realtime mode is to be enabled.  Only available on DMA40
+ * version 3+, i.e DB8500v2+
  * @mode: channel mode: physical, logical, or operation
  * @mode_opt: options for the chosen channel mode
  * @src_dev_type: Src device type
@@ -119,6 +121,7 @@ struct stedma40_half_channel_info {
 struct stedma40_chan_cfg {
 	enum stedma40_xfer_dir			 dir;
 	bool					 high_priority;
+	bool					 realtime;
 	enum stedma40_mode			 mode;
 	enum stedma40_mode_opt			 mode_opt;
 	int					 src_dev_type;
