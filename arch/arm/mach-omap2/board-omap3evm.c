@@ -456,6 +456,8 @@ static struct platform_device leds_gpio = {
 static int omap3evm_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
+	int r;
+
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	mmc[0].gpio_cd = gpio + 0;
@@ -471,8 +473,12 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	 */
 
 	/* TWL4030_GPIO_MAX + 0 == ledA, LCD Backlight control */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "EN_LCD_BKL");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	r = gpio_request(gpio + TWL4030_GPIO_MAX, "EN_LCD_BKL");
+	if (!r)
+		r = gpio_direction_output(gpio + TWL4030_GPIO_MAX,
+			(get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) ? 1 : 0);
+	if (r)
+		printk(KERN_ERR "failed to get/set lcd_bkl gpio\n");
 
 	/* gpio + 7 == DVI Enable */
 	gpio_request(gpio + 7, "EN_DVI");
