@@ -792,8 +792,12 @@ again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = grab_cache_page(inode->i_mapping, index + i);
 		if (!pages[i]) {
-			err = -ENOMEM;
-			BUG_ON(1);
+			int c;
+			for (c = i - 1; c >= 0; c--) {
+				unlock_page(pages[c]);
+				page_cache_release(pages[c]);
+			}
+			return -ENOMEM;
 		}
 		wait_on_page_writeback(pages[i]);
 	}
