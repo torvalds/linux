@@ -268,13 +268,17 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 		     size_t kvlen, size_t len, int more)
 {
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
 	if (more)
 		msg.msg_flags |= MSG_MORE;
 	else
 		msg.msg_flags |= MSG_EOR;  /* superfluous, but what the hell */
 
-	return kernel_sendmsg(sock, &msg, iov, kvlen, len);
+	r = kernel_sendmsg(sock, &msg, iov, kvlen, len);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 
@@ -851,6 +855,8 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		    (msg->pages || msg->pagelist || msg->bio || in_trail))
 			kunmap(page);
 
+		if (ret == -EAGAIN)
+			ret = 0;
 		if (ret <= 0)
 			goto out;
 
@@ -1741,16 +1747,12 @@ more_kvec:
 	if (con->out_skip) {
 		ret = write_partial_skip(con);
 		if (ret <= 0)
-			goto done;
-		if (ret < 0) {
-			dout("try_write write_partial_skip err %d\n", ret);
-			goto done;
-		}
+			goto out;
 	}
 	if (con->out_kvec_left) {
 		ret = write_partial_kvec(con);
 		if (ret <= 0)
-			goto done;
+			goto out;
 	}
 
 	/* msg pages? */
@@ -1765,11 +1767,11 @@ more_kvec:
 		if (ret == 1)
 			goto more_kvec;  /* we need to send the footer, too! */
 		if (ret == 0)
-			goto done;
+			goto out;
 		if (ret < 0) {
 			dout("try_write write_partial_msg_pages err %d\n",
 			     ret);
-			goto done;
+			goto out;
 		}
 	}
 
@@ -1793,10 +1795,9 @@ do_next:
 	/* Nothing to do! */
 	clear_bit(WRITE_PENDING, &con->state);
 	dout("try_write nothing else to write.\n");
-done:
 	ret = 0;
 out:
-	dout("try_write done on %p\n", con);
+	dout("try_write done on %p ret %d\n", con, ret);
 	return ret;
 }
 
