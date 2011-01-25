@@ -2292,9 +2292,10 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	ret = mem_cgroup_move_account(pc, child, parent, true, charge);
 	if (ret)
 		mem_cgroup_cancel_charge(parent, charge);
-put_back:
+
 	if (charge > PAGE_SIZE)
 		compound_unlock_irqrestore(page, flags);
+put_back:
 	putback_lru_page(page);
 put:
 	put_page(page);
