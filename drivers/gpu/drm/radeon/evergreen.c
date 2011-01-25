@@ -2201,6 +2201,9 @@ static int evergreen_gpu_soft_reset(struct radeon_device *rdev)
 	struct evergreen_mc_save save;
 	u32 grbm_reset = 0;
 
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		return 0;
+
 	dev_info(rdev->dev, "GPU softreset \n");
 	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
 		RREG32(GRBM_STATUS));
