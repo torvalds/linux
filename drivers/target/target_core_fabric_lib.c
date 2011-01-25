@@ -28,7 +28,6 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 

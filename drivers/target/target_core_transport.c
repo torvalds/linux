@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/kthread.h>
 #include <linux/in.h>
 #include <linux/cdrom.h>

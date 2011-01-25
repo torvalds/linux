@@ -34,7 +34,6 @@
 #include <linux/kbd_kern.h>
 #include <linux/console.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
