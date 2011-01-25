@@ -90,6 +90,8 @@ struct orig_node {
 	spinlock_t ogm_cnt_lock; /* protects: bcast_own, bcast_own_sum,
 				  * neigh_node->real_bits,
 				  * neigh_node->real_packet_count */
+	spinlock_t bcast_seqno_lock; /* protects bcast_bits,
+				      *	 last_bcast_seqno */
 	atomic_t bond_candidates;
 	struct list_head bond_list;
 };
