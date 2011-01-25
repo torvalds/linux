@@ -125,13 +125,14 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 			    dma_addr_t data,
 			    u32 data_size,
-			    int psize,
 			    dma_addr_t next_lli,
 			    u32 reg_cfg,
 			    bool term_int,
-			    u32 data_width,
-			    bool is_device)
+			    bool is_device,
+			    struct stedma40_half_channel_info *info)
 {
+	unsigned int data_width = info->data_width;
+	int psize = info->psize;
 	int num_elems;
 
 	if (psize == STEDMA40_PSIZE_PHY_1)
@@ -198,16 +199,11 @@ static int d40_seg_size(int size, int data_width1, int data_width2)
 	return seg_max;
 }
 
-static struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
-				       dma_addr_t addr,
-				       u32 size,
-				       int psize,
-				       dma_addr_t lli_phys,
-				       u32 reg_cfg,
-				       bool term_int,
-				       u32 data_width1,
-				       u32 data_width2,
-				       bool is_device)
+static struct d40_phy_lli *
+d40_phy_buf_to_lli(struct d40_phy_lli *lli, dma_addr_t addr, u32 size,
+		   dma_addr_t lli_phys, u32 reg_cfg, bool term_int,
+		   bool is_device, struct stedma40_half_channel_info *info,
+		   struct stedma40_half_channel_info *otherinfo)
 {
 	int err;
 	dma_addr_t next = lli_phys;
@@ -215,7 +211,8 @@ static struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
 	int size_seg = 0;
 
 	do {
-		size_seg = d40_seg_size(size_rest, data_width1, data_width2);
+		size_seg = d40_seg_size(size_rest, info->data_width,
+					otherinfo->data_width);
 		size_rest -= size_seg;
 
 		if (term_int && size_rest == 0)
@@ -227,12 +224,11 @@ static struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
 		err = d40_phy_fill_lli(lli,
 				       addr,
 				       size_seg,
-				       psize,
 				       next,
 				       reg_cfg,
 				       !next,
-				       data_width1,
-				       is_device);
+				       is_device,
+				       info);
 
 		if (err)
 			goto err;
@@ -254,9 +250,8 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      struct d40_phy_lli *lli_sg,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
-		      u32 data_width1,
-		      u32 data_width2,
-		      int psize)
+		      struct stedma40_half_channel_info *info,
+		      struct stedma40_half_channel_info *otherinfo)
 {
 	int total_size = 0;
 	int i;
@@ -280,13 +275,12 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		lli = d40_phy_buf_to_lli(lli,
 					 dst,
 					 sg_dma_len(current_sg),
-					 psize,
 					 l_phys,
 					 reg_cfg,
 					 sg_len - 1 == i,
-					 data_width1,
-					 data_width2,
-					 target == dst);
+					 target == dst,
+					 info,
+					 otherinfo);
 		if (lli == NULL)
 			return -EINVAL;
 	}

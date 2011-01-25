@@ -308,9 +308,8 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      struct d40_phy_lli *lli,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
-		      u32 data_width1,
-		      u32 data_width2,
-		      int psize);
+		      struct stedma40_half_channel_info *info,
+		      struct stedma40_half_channel_info *otherinfo);
 
 /* Logical channels */
 
