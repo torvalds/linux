@@ -296,6 +296,8 @@ struct d40_def_lcsp {
 enum d40_lli_flags {
 	LLI_ADDR_INC	= 1 << 0,
 	LLI_TERM_INT	= 1 << 1,
+	LLI_CYCLIC	= 1 << 2,
+	LLI_LAST_LINK	= 1 << 3,
 };
 
 void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
@@ -314,7 +316,8 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
 		      struct stedma40_half_channel_info *info,
-		      struct stedma40_half_channel_info *otherinfo);
+		      struct stedma40_half_channel_info *otherinfo,
+		      unsigned long flags);
 
 /* Logical channels */
 
@@ -328,11 +331,11 @@ int d40_log_sg_to_lli(struct scatterlist *sg,
 void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
 			    struct d40_log_lli *lli_dst,
 			    struct d40_log_lli *lli_src,
-			    int next);
+			    int next, unsigned int flags);
 
 void d40_log_lli_lcla_write(struct d40_log_lli *lcla,
 			    struct d40_log_lli *lli_dst,
 			    struct d40_log_lli *lli_src,
-			    int next);
+			    int next, unsigned int flags);
 
 #endif /* STE_DMA40_LLI_H */
