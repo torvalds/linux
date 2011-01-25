@@ -10,9 +10,6 @@
 #include <linux/semaphore.h>
 #include <linux/smp_lock.h>
 
-#define CREATE_TRACE_POINTS
-#include <trace/events/bkl.h>
-
 /*
  * The 'big kernel lock'
  *
@@ -120,8 +117,6 @@ void __lockfunc _lock_kernel(const char *func, const char *file, int line)
 {
 	int depth = current->lock_depth + 1;
 
-	trace_lock_kernel(func, file, line);
-
 	if (likely(!depth)) {
 		might_sleep();
 		__lock_kernel();
@@ -134,8 +129,6 @@ void __lockfunc _unlock_kernel(const char *func, const char *file, int line)
 	BUG_ON(current->lock_depth < 0);
 	if (likely(--current->lock_depth < 0))
 		__unlock_kernel();
-
-	trace_unlock_kernel(func, file, line);
 }
 
 EXPORT_SYMBOL(_lock_kernel);
