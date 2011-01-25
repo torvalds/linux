@@ -1198,7 +1198,7 @@ static ssize_t bonding_store_carrier(struct device *d,
 			bond->dev->name, new_value);
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(use_carrier, S_IRUGO | S_IWUSR,
 		   bonding_show_carrier, bonding_store_carrier);
@@ -1595,7 +1595,7 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 		}
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
 		   bonding_show_slaves_active, bonding_store_slaves_active);
