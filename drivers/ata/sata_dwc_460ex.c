@@ -1582,7 +1582,7 @@ static const struct ata_port_info sata_dwc_port_info[] = {
 	{
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_NCQ,
-		.pio_mask	= 0x1f,	/* pio 0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &sata_dwc_ops,
 	},
