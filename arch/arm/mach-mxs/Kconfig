@@ -8,10 +8,12 @@ config MXS_OCOTP
 config SOC_IMX23
 	bool
 	select CPU_ARM926T
+	select HAVE_PWM
 
 config SOC_IMX28
 	bool
 	select CPU_ARM926T
+	select HAVE_PWM
 
 comment "MXS platforms:"
 

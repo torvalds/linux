@@ -63,3 +63,7 @@ struct mxs_flexcan_data {
 struct platform_device *__init mxs_add_flexcan(
 		const struct mxs_flexcan_data *data,
 		const struct flexcan_platform_data *pdata);
+
+/* pwm */
+struct platform_device *__init mxs_add_mxs_pwm(
+		resource_size_t iobase, int id);
