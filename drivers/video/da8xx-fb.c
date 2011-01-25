@@ -1092,9 +1092,10 @@ static int __init fb_probe(struct platform_device *device)
 
 irq_freq:
 #ifdef CONFIG_CPU_FREQ
+	lcd_da8xx_cpufreq_deregister(par);
+#endif
 err_cpu_freq:
 	unregister_framebuffer(da8xx_fb_info);
-#endif
 
 err_dealloc_cmap:
 	fb_dealloc_cmap(&da8xx_fb_info->cmap);
