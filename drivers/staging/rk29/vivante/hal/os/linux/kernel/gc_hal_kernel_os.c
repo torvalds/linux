@@ -34,6 +34,8 @@
 #include <linux/dma-mapping.h>
 #endif /* NO_DMA_COHERENT */
 
+
+#include <linux/delay.h>
 #include <mach/pmu.h>
 
 #if !USE_NEW_LINUX_SIGNAL
@@ -5896,25 +5898,40 @@ gckOS_SetGPUPower(
     struct clk * clk_aclk_ddr_gpu = clk_get(NULL, "aclk_ddr_gpu");
     struct clk * clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
 
+    printk("---------- Enter gckOS_SetGPUPowerOs=0x%p Clock=%d Power=%d \n", (void*)Os, Clock, Power);
+
     if(Clock) {
+        printk("---------- start gpu clk_enable...\n");
         clk_enable(clk_hclk_gpu);
         clk_enable(clk_aclk_gpu);
         clk_enable(clk_aclk_ddr_gpu);
         clk_enable(clk_gpu);
+        printk("---------- end gpu clk_enable!\n");
     } else {
+        printk("---------- start gpu clk_disable...\n");
         clk_disable(clk_gpu);
         clk_disable(clk_aclk_gpu);
         clk_disable(clk_aclk_ddr_gpu);
         clk_disable(clk_hclk_gpu);
+        printk("---------- end gpu clk_disable!\n");
     }
 
     if(Power) {
+        unsigned long flags;
+        printk("---------- start gpu power_domain on...\n");
+        mdelay(10);
+        local_irq_save(flags);
+        mdelay(5);
         pmu_set_power_domain(PD_GPU, true);
+        mdelay(10);
+        local_irq_restore(flags);
+        printk("---------- end gpu power_domain on!\n");
     } else {
-        pmu_set_power_domain(PD_GPU, false);
+        //printk("---------- start gpu power_domain off...\n");
+        //pmu_set_power_domain(PD_GPU, false);
+        //printk("---------- end gpu power_domain off!\n");
     }
-    
-    printk("gckOS_SetGPUPowerOs=0x%p Clock=%d Power=%d \n", (void*)Os, Clock, Power)
+
 #endif
 
     gcmkFOOTER_NO();
