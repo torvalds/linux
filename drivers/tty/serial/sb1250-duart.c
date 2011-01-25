@@ -829,7 +829,7 @@ static void __init sbd_probe_duarts(void)
 #ifdef CONFIG_SERIAL_SB1250_DUART_CONSOLE
 /*
  * Serial console stuff.  Very basic, polling driver for doing serial
- * console output.  The console_sem is held by the caller, so we
+ * console output.  The console_lock is held by the caller, so we
  * shouldn't be interrupted for more console activity.
  */
 static void sbd_console_putchar(struct uart_port *uport, int ch)

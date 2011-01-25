@@ -1003,9 +1003,9 @@ static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 	struct vc_data *vc = tty->driver_data;
 	int ret;
 
-	acquire_console_sem();
+	console_lock();
 	ret = vc_do_resize(tty, vc, ws->ws_col, ws->ws_row);
-	release_console_sem();
+	console_unlock();
 	return ret;
 }
 
@@ -1271,7 +1271,7 @@ static void default_attr(struct vc_data *vc)
 	vc->vc_color = vc->vc_def_color;
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void csi_m(struct vc_data *vc)
 {
 	int i;
@@ -1415,7 +1415,7 @@ int mouse_reporting(void)
 	return vc_cons[fg_console].d->vc_report_mouse;
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void set_mode(struct vc_data *vc, int on_off)
 {
 	int i;
@@ -1485,7 +1485,7 @@ static void set_mode(struct vc_data *vc, int on_off)
 		}
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void setterm_command(struct vc_data *vc)
 {
 	switch(vc->vc_par[0]) {
@@ -1545,7 +1545,7 @@ static void setterm_command(struct vc_data *vc)
 	}
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void csi_at(struct vc_data *vc, unsigned int nr)
 {
 	if (nr > vc->vc_cols - vc->vc_x)
@@ -1555,7 +1555,7 @@ static void csi_at(struct vc_data *vc, unsigned int nr)
 	insert_char(vc, nr);
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void csi_L(struct vc_data *vc, unsigned int nr)
 {
 	if (nr > vc->vc_rows - vc->vc_y)
@@ -1566,7 +1566,7 @@ static void csi_L(struct vc_data *vc, unsigned int nr)
 	vc->vc_need_wrap = 0;
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void csi_P(struct vc_data *vc, unsigned int nr)
 {
 	if (nr > vc->vc_cols - vc->vc_x)
@@ -1576,7 +1576,7 @@ static void csi_P(struct vc_data *vc, unsigned int nr)
 	delete_char(vc, nr);
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void csi_M(struct vc_data *vc, unsigned int nr)
 {
 	if (nr > vc->vc_rows - vc->vc_y)
@@ -1587,7 +1587,7 @@ static void csi_M(struct vc_data *vc, unsigned int nr)
 	vc->vc_need_wrap = 0;
 }
 
-/* console_sem is held (except via vc_init->reset_terminal */
+/* console_lock is held (except via vc_init->reset_terminal */
 static void save_cur(struct vc_data *vc)
 {
 	vc->vc_saved_x		= vc->vc_x;
@@ -1603,7 +1603,7 @@ static void save_cur(struct vc_data *vc)
 	vc->vc_saved_G1		= vc->vc_G1_charset;
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void restore_cur(struct vc_data *vc)
 {
 	gotoxy(vc, vc->vc_saved_x, vc->vc_saved_y);
@@ -1625,7 +1625,7 @@ enum { ESnormal, ESesc, ESsquare, ESgetpars, ESgotpars, ESfunckey,
 	EShash, ESsetG0, ESsetG1, ESpercent, ESignore, ESnonstd,
 	ESpalette };
 
-/* console_sem is held (except via vc_init()) */
+/* console_lock is held (except via vc_init()) */
 static void reset_terminal(struct vc_data *vc, int do_clear)
 {
 	vc->vc_top		= 0;
@@ -1685,7 +1685,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	    csi_J(vc, 2);
 }
 
-/* console_sem is held */
+/* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 {
 	/*
@@ -2119,7 +2119,7 @@ static int is_double_width(uint32_t ucs)
 	return bisearch(ucs, double_width, ARRAY_SIZE(double_width) - 1);
 }
 
-/* acquires console_sem */
+/* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 #ifdef VT_BUF_VRAM_ONLY
@@ -2147,11 +2147,11 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	might_sleep();
 
-	acquire_console_sem();
+	console_lock();
 	vc = tty->driver_data;
 	if (vc == NULL) {
 		printk(KERN_ERR "vt: argh, driver_data is NULL !\n");
-		release_console_sem();
+		console_unlock();
 		return 0;
 	}
 
@@ -2159,7 +2159,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	if (!vc_cons_allocated(currcons)) {
 	    /* could this happen? */
 		printk_once("con_write: tty %d not allocated\n", currcons+1);
-	    release_console_sem();
+	    console_unlock();
 	    return 0;
 	}
 
@@ -2375,7 +2375,7 @@ rescan_last_byte:
 	}
 	FLUSH
 	console_conditional_schedule();
-	release_console_sem();
+	console_unlock();
 	notify_update(vc);
 	return n;
 #undef FLUSH
@@ -2388,11 +2388,11 @@ rescan_last_byte:
  * us to do the switches asynchronously (needed when we want
  * to switch due to a keyboard interrupt).  Synchronization
  * with other console code and prevention of re-entrancy is
- * ensured with console_sem.
+ * ensured with console_lock.
  */
 static void console_callback(struct work_struct *ignored)
 {
-	acquire_console_sem();
+	console_lock();
 
 	if (want_console >= 0) {
 		if (want_console != fg_console &&
@@ -2422,7 +2422,7 @@ static void console_callback(struct work_struct *ignored)
 	}
 	notify_update(vc_cons[fg_console].d);
 
-	release_console_sem();
+	console_unlock();
 }
 
 int set_console(int nr)
@@ -2603,7 +2603,7 @@ static struct console vt_console_driver = {
  */
 
 /*
- * Generally a bit racy with respect to console_sem().
+ * Generally a bit racy with respect to console_lock();.
  *
  * There are some functions which don't need it.
  *
@@ -2629,17 +2629,17 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	switch (type)
 	{
 		case TIOCL_SETSEL:
-			acquire_console_sem();
+			console_lock();
 			ret = set_selection((struct tiocl_selection __user *)(p+1), tty);
-			release_console_sem();
+			console_unlock();
 			break;
 		case TIOCL_PASTESEL:
 			ret = paste_selection(tty);
 			break;
 		case TIOCL_UNBLANKSCREEN:
-			acquire_console_sem();
+			console_lock();
 			unblank_screen();
-			release_console_sem();
+			console_unlock();
 			break;
 		case TIOCL_SELLOADLUT:
 			ret = sel_loadlut(p);
@@ -2688,10 +2688,10 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			}
 			break;
 		case TIOCL_BLANKSCREEN:	/* until explicitly unblanked, not only poked */
-			acquire_console_sem();
+			console_lock();
 			ignore_poke = 1;
 			do_blank_screen(0);
-			release_console_sem();
+			console_unlock();
 			break;
 		case TIOCL_BLANKEDSCREEN:
 			ret = console_blanked;
@@ -2790,11 +2790,11 @@ static void con_flush_chars(struct tty_struct *tty)
 		return;
 
 	/* if we race with con_close(), vt may be null */
-	acquire_console_sem();
+	console_lock();
 	vc = tty->driver_data;
 	if (vc)
 		set_cursor(vc);
-	release_console_sem();
+	console_unlock();
 }
 
 /*
@@ -2805,7 +2805,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 	unsigned int currcons = tty->index;
 	int ret = 0;
 
-	acquire_console_sem();
+	console_lock();
 	if (tty->driver_data == NULL) {
 		ret = vc_allocate(currcons);
 		if (ret == 0) {
@@ -2813,7 +2813,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 
 			/* Still being freed */
 			if (vc->port.tty) {
-				release_console_sem();
+				console_unlock();
 				return -ERESTARTSYS;
 			}
 			tty->driver_data = vc;
@@ -2827,11 +2827,11 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 				tty->termios->c_iflag |= IUTF8;
 			else
 				tty->termios->c_iflag &= ~IUTF8;
-			release_console_sem();
+			console_unlock();
 			return ret;
 		}
 	}
-	release_console_sem();
+	console_unlock();
 	return ret;
 }
 
@@ -2844,9 +2844,9 @@ static void con_shutdown(struct tty_struct *tty)
 {
 	struct vc_data *vc = tty->driver_data;
 	BUG_ON(vc == NULL);
-	acquire_console_sem();
+	console_lock();
 	vc->port.tty = NULL;
-	release_console_sem();
+	console_unlock();
 	tty_shutdown(tty);
 }
 
@@ -2893,13 +2893,13 @@ static int __init con_init(void)
 	struct vc_data *vc;
 	unsigned int currcons = 0, i;
 
-	acquire_console_sem();
+	console_lock();
 
 	if (conswitchp)
 		display_desc = conswitchp->con_startup();
 	if (!display_desc) {
 		fg_console = 0;
-		release_console_sem();
+		console_unlock();
 		return 0;
 	}
 
@@ -2946,7 +2946,7 @@ static int __init con_init(void)
 	printable = 1;
 	printk("\n");
 
-	release_console_sem();
+	console_unlock();
 
 #ifdef CONFIG_VT_CONSOLE
 	register_console(&vt_console_driver);
@@ -3037,7 +3037,7 @@ static int bind_con_driver(const struct consw *csw, int first, int last,
 	if (!try_module_get(owner))
 		return -ENODEV;
 
-	acquire_console_sem();
+	console_lock();
 
 	/* check if driver is registered */
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
@@ -3122,7 +3122,7 @@ static int bind_con_driver(const struct consw *csw, int first, int last,
 
 	retval = 0;
 err:
-	release_console_sem();
+	console_unlock();
 	module_put(owner);
 	return retval;
 };
@@ -3171,7 +3171,7 @@ int unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 	if (!try_module_get(owner))
 		return -ENODEV;
 
-	acquire_console_sem();
+	console_lock();
 
 	/* check if driver is registered and if it is unbindable */
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
@@ -3185,7 +3185,7 @@ int unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 	}
 
 	if (retval) {
-		release_console_sem();
+		console_unlock();
 		goto err;
 	}
 
@@ -3204,12 +3204,12 @@ int unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 	}
 
 	if (retval) {
-		release_console_sem();
+		console_unlock();
 		goto err;
 	}
 
 	if (!con_is_bound(csw)) {
-		release_console_sem();
+		console_unlock();
 		goto err;
 	}
 
@@ -3238,7 +3238,7 @@ int unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 	if (!con_is_bound(csw))
 		con_driver->flag &= ~CON_DRIVER_FLAG_INIT;
 
-	release_console_sem();
+	console_unlock();
 	/* ignore return value, binding should not fail */
 	bind_con_driver(defcsw, first, last, deflt);
 err:
@@ -3538,7 +3538,7 @@ int register_con_driver(const struct consw *csw, int first, int last)
 	if (!try_module_get(owner))
 		return -ENODEV;
 
-	acquire_console_sem();
+	console_lock();
 
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		con_driver = &registered_con_driver[i];
@@ -3592,7 +3592,7 @@ int register_con_driver(const struct consw *csw, int first, int last)
 	}
 
 err:
-	release_console_sem();
+	console_unlock();
 	module_put(owner);
 	return retval;
 }
@@ -3613,7 +3613,7 @@ int unregister_con_driver(const struct consw *csw)
 {
 	int i, retval = -ENODEV;
 
-	acquire_console_sem();
+	console_lock();
 
 	/* cannot unregister a bound driver */
 	if (con_is_bound(csw))
@@ -3639,7 +3639,7 @@ int unregister_con_driver(const struct consw *csw)
 		}
 	}
 err:
-	release_console_sem();
+	console_unlock();
 	return retval;
 }
 EXPORT_SYMBOL(unregister_con_driver);
@@ -3934,9 +3934,9 @@ int con_set_cmap(unsigned char __user *arg)
 {
 	int rc;
 
-	acquire_console_sem();
+	console_lock();
 	rc = set_get_cmap (arg,1);
-	release_console_sem();
+	console_unlock();
 
 	return rc;
 }
@@ -3945,9 +3945,9 @@ int con_get_cmap(unsigned char __user *arg)
 {
 	int rc;
 
-	acquire_console_sem();
+	console_lock();
 	rc = set_get_cmap (arg,0);
-	release_console_sem();
+	console_unlock();
 
 	return rc;
 }
@@ -3994,12 +3994,12 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 	} else
 		font.data = NULL;
 
-	acquire_console_sem();
+	console_lock();
 	if (vc->vc_sw->con_font_get)
 		rc = vc->vc_sw->con_font_get(vc, &font);
 	else
 		rc = -ENOSYS;
-	release_console_sem();
+	console_unlock();
 
 	if (rc)
 		goto out;
@@ -4076,12 +4076,12 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 	font.data = memdup_user(op->data, size);
 	if (IS_ERR(font.data))
 		return PTR_ERR(font.data);
-	acquire_console_sem();
+	console_lock();
 	if (vc->vc_sw->con_font_set)
 		rc = vc->vc_sw->con_font_set(vc, &font, op->flags);
 	else
 		rc = -ENOSYS;
-	release_console_sem();
+	console_unlock();
 	kfree(font.data);
 	return rc;
 }
@@ -4103,12 +4103,12 @@ static int con_font_default(struct vc_data *vc, struct console_font_op *op)
 	else
 		name[MAX_FONT_NAME - 1] = 0;
 
-	acquire_console_sem();
+	console_lock();
 	if (vc->vc_sw->con_font_default)
 		rc = vc->vc_sw->con_font_default(vc, &font, s);
 	else
 		rc = -ENOSYS;
-	release_console_sem();
+	console_unlock();
 	if (!rc) {
 		op->width = font.width;
 		op->height = font.height;
@@ -4124,7 +4124,7 @@ static int con_font_copy(struct vc_data *vc, struct console_font_op *op)
 	if (vc->vc_mode != KD_TEXT)
 		return -EINVAL;
 
-	acquire_console_sem();
+	console_lock();
 	if (!vc->vc_sw->con_font_copy)
 		rc = -ENOSYS;
 	else if (con < 0 || !vc_cons_allocated(con))
@@ -4133,7 +4133,7 @@ static int con_font_copy(struct vc_data *vc, struct console_font_op *op)
 		rc = 0;
 	else
 		rc = vc->vc_sw->con_font_copy(vc, con);
-	release_console_sem();
+	console_unlock();
 	return rc;
 }
 
