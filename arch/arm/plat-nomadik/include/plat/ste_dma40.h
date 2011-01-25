@@ -172,25 +172,6 @@ struct stedma40_platform_data {
 bool stedma40_filter(struct dma_chan *chan, void *data);
 
 /**
- * stedma40_memcpy_sg() - extension of the dma framework, memcpy to/from
- * scattergatter lists.
- *
- * @chan: dmaengine handle
- * @sgl_dst: Destination scatter list
- * @sgl_src: Source scatter list
- * @sgl_len: The length of each scatterlist. Both lists must be of equal length
- * and each element must match the corresponding element in the other scatter
- * list.
- * @flags: is actually enum dma_ctrl_flags. See dmaengine.h
- */
-
-struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
-						   struct scatterlist *sgl_dst,
-						   struct scatterlist *sgl_src,
-						   unsigned int sgl_len,
-						   unsigned long flags);
-
-/**
  * stedma40_slave_mem() - Transfers a raw data buffer to or from a slave
  * (=device)
  *

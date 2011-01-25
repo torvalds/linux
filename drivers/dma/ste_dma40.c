@@ -1733,6 +1733,7 @@ err:
 }
 
 struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
+static struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 						   struct scatterlist *sgl_dst,
 						   struct scatterlist *sgl_src,
 						   unsigned int sgl_len,
@@ -1771,7 +1772,6 @@ err:
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return NULL;
 }
-EXPORT_SYMBOL(stedma40_memcpy_sg);
 
 bool stedma40_filter(struct dma_chan *chan, void *data)
 {
