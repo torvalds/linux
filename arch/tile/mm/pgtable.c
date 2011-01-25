@@ -252,19 +252,8 @@ void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte,
 	int i;
 
 	pgtable_page_dtor(pte);
-	tlb->need_flush = 1;
-	if (tlb_fast_mode(tlb)) {
-		struct page *pte_pages[L2_USER_PGTABLE_PAGES];
-		for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
-			pte_pages[i] = pte + i;
-		free_pages_and_swap_cache(pte_pages, L2_USER_PGTABLE_PAGES);
-		return;
-	}
-	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i) {
-		tlb->pages[tlb->nr++] = pte + i;
-		if (tlb->nr >= FREE_PTE_NR)
-			tlb_flush_mmu(tlb, 0, 0);
-	}
+	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
+		tlb_remove_page(tlb, pte + i);
 }
 
 #ifndef __tilegx__
