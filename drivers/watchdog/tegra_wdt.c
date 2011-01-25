@@ -40,17 +40,17 @@
 #define MAX_WDT_PERIOD	1000
 
 #define TIMER_PTV	0x0
- #define TIMER_EN	(1 << 31)
- #define TIMER_PERIODIC	(1 << 30)
+#define TIMER_EN	(1 << 31)
+#define TIMER_PERIODIC	(1 << 30)
 
 #define TIMER_PCR	0x4
- #define TIMER_PCR_INTR	(1 << 30)
+#define TIMER_PCR_INTR	(1 << 30)
 
 #define WDT_EN		(1 << 5)
 #define WDT_SEL_TMR1	(0 << 4)
 #define WDT_SYS_RST	(1 << 2)
 
-static int heartbeat = 30;
+static int heartbeat = 30; /* must be greater than MIN_WDT_PERIOD and lower than MAX_WDT_PERIOD */
 
 struct tegra_wdt {
 	struct miscdevice	miscdev;
@@ -67,31 +67,13 @@ struct tegra_wdt {
 
 static struct tegra_wdt *tegra_wdt_dev;
 
-static void tegra_wdt_set_timeout(struct tegra_wdt *wdt, int sec)
-{
-	u32 ptv, src;
-
-	ptv = readl(wdt->wdt_timer + TIMER_PTV);
-	src = readl(wdt->wdt_source);
-
-	writel(0, wdt->wdt_source);
-	wdt->timeout = clamp(sec, MIN_WDT_PERIOD, MAX_WDT_PERIOD);
-	if (ptv & TIMER_EN) {
-		/* since the watchdog reset occurs when a second interrupt
-		 * is asserted before the first is processed, program the
-		 * timer period to one-half of the watchdog period */
-		ptv = wdt->timeout * 1000000ul / 2;
-		ptv |= (TIMER_EN | TIMER_PERIODIC);
-		writel(ptv, wdt->wdt_timer + TIMER_PTV);
-	}
-	writel(src, wdt->wdt_source);
-}
-
-
 static void tegra_wdt_enable(struct tegra_wdt *wdt)
 {
 	u32 val;
 
+	/* since the watchdog reset occurs when a second interrupt
+	 * is asserted before the first is processed, program the
+	 * timer period to one-half of the watchdog period */
 	val = wdt->timeout * 1000000ul / 2;
 	val |= (TIMER_EN | TIMER_PERIODIC);
 	writel(val, wdt->wdt_timer + TIMER_PTV);
@@ -133,7 +115,7 @@ static int tegra_wdt_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	wdt->enabled = true;
-	tegra_wdt_set_timeout(wdt, heartbeat);
+	wdt->timeout = heartbeat;
 	tegra_wdt_enable(wdt);
 	file->private_data = wdt;
 	return nonseekable_open(inode, file);
@@ -179,7 +161,7 @@ static long tegra_wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		spin_lock(&lock);
 		tegra_wdt_disable(wdt);
-		tegra_wdt_set_timeout(wdt, new_timeout);
+		wdt->timeout = clamp(new_timeout, MIN_WDT_PERIOD, MAX_WDT_PERIOD);
 		tegra_wdt_enable(wdt);
 		spin_unlock(&lock);
 	case WDIOC_GETTIMEOUT:
@@ -268,6 +250,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "last reset due to watchdog timeout\n");
 
 	tegra_wdt_disable(wdt);
+	writel(TIMER_PCR_INTR, wdt->wdt_timer + TIMER_PCR);
 
 	ret = request_irq(res_irq->start, tegra_wdt_interrupt, IRQF_DISABLED,
 			  dev_name(&pdev->dev), wdt);
@@ -279,8 +262,6 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 	wdt->irq = res_irq->start;
 	wdt->res_src = res_src;
 	wdt->res_wdt = res_wdt;
-
-	wdt->timeout = heartbeat;
 
 	ret = register_reboot_notifier(&wdt->notifier);
 	if (ret) {
@@ -298,6 +279,8 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdt);
 	tegra_wdt_dev = wdt;
 #ifdef CONFIG_TEGRA_WATCHDOG_ENABLE_ON_PROBE
+	wdt->enabled = true;
+	wdt->timeout = heartbeat;
 	tegra_wdt_enable(wdt);
 #endif
 	return 0;
@@ -334,6 +317,7 @@ static int tegra_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int tegra_wdt_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct tegra_wdt *wdt = platform_get_drvdata(pdev);
@@ -351,12 +335,15 @@ static int tegra_wdt_resume(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 static struct platform_driver tegra_wdt_driver = {
 	.probe		= tegra_wdt_probe,
 	.remove		= __devexit_p(tegra_wdt_remove),
+#ifdef CONFIG_PM
 	.suspend	= tegra_wdt_suspend,
 	.resume		= tegra_wdt_resume,
+#endif
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "tegra_wdt",
