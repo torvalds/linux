@@ -507,11 +507,13 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 * PEB.
 	 */
 	err1 = ubi_io_read_vid_hdr(ubi, pnum, &vid_hdr, 0);
-	if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR) {
+	if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR ||
+	    err1 == UBI_IO_FF) {
 		struct ubi_ec_hdr ec_hdr;
 
 		err1 = ubi_io_read_ec_hdr(ubi, pnum, &ec_hdr, 0);
-		if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR)
+		if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR ||
+		    err1 == UBI_IO_FF)
 			/*
 			 * Both VID and EC headers are corrupted, so we can
 			 * safely erase this PEB and not afraid that it will be
