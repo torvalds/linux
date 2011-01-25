@@ -224,7 +224,7 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	struct unicast_frag_packet *frag1, *frag2;
 	int uc_hdr_len = sizeof(struct unicast_packet);
 	int ucf_hdr_len = sizeof(struct unicast_frag_packet);
-	int data_len = skb->len;
+	int data_len = skb->len - uc_hdr_len;
 
 	if (!bat_priv->primary_if)
 		goto dropped;
@@ -232,10 +232,11 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag_skb = dev_alloc_skb(data_len - (data_len / 2) + ucf_hdr_len);
 	if (!frag_skb)
 		goto dropped;
+	skb_reserve(frag_skb, ucf_hdr_len);
 
 	unicast_packet = (struct unicast_packet *) skb->data;
 	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
-	skb_split(skb, frag_skb, data_len / 2);
+	skb_split(skb, frag_skb, data_len / 2 + uc_hdr_len);
 
 	if (my_skb_head_push(skb, ucf_hdr_len - uc_hdr_len) < 0 ||
 	    my_skb_head_push(frag_skb, ucf_hdr_len) < 0)
