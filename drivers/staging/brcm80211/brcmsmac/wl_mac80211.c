@@ -762,13 +762,6 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		WL_ERROR("%s: regulatory_hint failed, status %d\n",
 			 __func__, err);
 	}
-	WL_ERROR("wl%d: Broadcom BCM43xx 802.11 MAC80211 Driver (" PHY_VERSION_STR ")",
-		 unit);
-
-#ifdef BCMDBG
-	printf(" (Compiled at " __TIME__ " on " __DATE__ ")");
-#endif				/* BCMDBG */
-	printf("\n");
 
 	wl_found++;
 	return wl;

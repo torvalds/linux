@@ -387,12 +387,6 @@ module_param(dhd_pktgen_len, uint, 0);
 #define DHD_COMPILED
 #endif
 
-static char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR
-#ifdef DHD_DEBUG
-"\nCompiled in " " on " __DATE__ " at " __TIME__
-#endif
-;
-
 #if defined(CONFIG_WIRELESS_EXT)
 struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
 #endif				/* defined(CONFIG_WIRELESS_EXT) */
@@ -2466,9 +2460,7 @@ static int __init dhd_module_init(void)
 
 	error = dhd_bus_register();
 
-	if (!error)
-		printf("\n%s\n", dhd_version);
-	else {
+	if (error) {
 		DHD_ERROR(("%s: sdio_register_driver failed\n", __func__));
 		goto faild;
 	}
