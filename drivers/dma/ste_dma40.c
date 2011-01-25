@@ -1638,37 +1638,28 @@ d40_prep_sg_log(struct d40_chan *chan, struct d40_desc *desc,
 		unsigned int sg_len, enum dma_data_direction direction,
 		dma_addr_t dev_addr)
 {
+	dma_addr_t src_dev_addr = direction == DMA_FROM_DEVICE ? dev_addr : 0;
+	dma_addr_t dst_dev_addr = direction == DMA_TO_DEVICE ? dev_addr : 0;
 	struct stedma40_chan_cfg *cfg = &chan->dma_cfg;
 	struct stedma40_half_channel_info *src_info = &cfg->src_info;
 	struct stedma40_half_channel_info *dst_info = &cfg->dst_info;
+	int ret;
 
-	if (direction == DMA_NONE) {
-		/* memcpy */
-		(void) d40_log_sg_to_lli(sg_src, sg_len,
-					 desc->lli_log.src,
-					 chan->log_def.lcsp1,
-					 src_info->data_width,
-					 dst_info->data_width);
+	ret = d40_log_sg_to_lli(sg_src, sg_len,
+				src_dev_addr,
+				desc->lli_log.src,
+				chan->log_def.lcsp1,
+				src_info->data_width,
+				dst_info->data_width);
 
-		(void) d40_log_sg_to_lli(sg_dst, sg_len,
-					 desc->lli_log.dst,
-					 chan->log_def.lcsp3,
-					 dst_info->data_width,
-					 src_info->data_width);
-	} else {
-		unsigned int total_size;
+	ret = d40_log_sg_to_lli(sg_dst, sg_len,
+				dst_dev_addr,
+				desc->lli_log.dst,
+				chan->log_def.lcsp3,
+				dst_info->data_width,
+				src_info->data_width);
 
-		total_size = d40_log_sg_to_dev(sg_src, sg_len,
-					       &desc->lli_log,
-					       &chan->log_def,
-					       src_info->data_width,
-					       dst_info->data_width,
-					       direction, dev_addr);
-		if (total_size < 0)
-			return -EINVAL;
-	}
-
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 static int

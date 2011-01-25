@@ -321,17 +321,9 @@ struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
 				       u32 data_width1, u32 data_width2,
 				       bool addr_inc);
 
-int d40_log_sg_to_dev(struct scatterlist *sg,
-		      int sg_len,
-		      struct d40_log_lli_bidir *lli,
-		      struct d40_def_lcsp *lcsp,
-		      u32 src_data_width,
-		      u32 dst_data_width,
-		      enum dma_data_direction direction,
-		      dma_addr_t dev_addr);
-
 int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
+		      dma_addr_t dev_addr,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
 		      u32 data_width1, u32 data_width2);

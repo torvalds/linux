@@ -369,53 +369,6 @@ static void d40_log_fill_lli(struct d40_log_lli *lli,
 
 }
 
-int d40_log_sg_to_dev(struct scatterlist *sg,
-		      int sg_len,
-		      struct d40_log_lli_bidir *lli,
-		      struct d40_def_lcsp *lcsp,
-		      u32 src_data_width,
-		      u32 dst_data_width,
-		      enum dma_data_direction direction,
-		      dma_addr_t dev_addr)
-{
-	int total_size = 0;
-	struct scatterlist *current_sg = sg;
-	int i;
-	struct d40_log_lli *lli_src = lli->src;
-	struct d40_log_lli *lli_dst = lli->dst;
-
-	for_each_sg(sg, current_sg, sg_len, i) {
-		dma_addr_t sg_addr = sg_dma_address(current_sg);
-		unsigned int len = sg_dma_len(current_sg);
-		dma_addr_t src;
-		dma_addr_t dst;
-
-		total_size += len;
-
-		if (direction == DMA_TO_DEVICE) {
-			src = sg_addr;
-			dst = dev_addr;
-		} else {
-			src = dev_addr;
-			dst = sg_addr;
-		}
-
-		lli_src = d40_log_buf_to_lli(lli_src, src, len,
-					     lcsp->lcsp1,
-					     src_data_width,
-					     dst_data_width,
-					     src == sg_addr);
-
-		lli_dst = d40_log_buf_to_lli(lli_dst, dst, len,
-					     lcsp->lcsp3,
-					     dst_data_width,
-					     src_data_width,
-					     dst == sg_addr);
-	}
-
-	return total_size;
-}
-
 struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
 				       dma_addr_t addr,
 				       int size,
@@ -447,6 +400,7 @@ struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
 
 int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
+		      dma_addr_t dev_addr,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
 		      u32 data_width1, u32 data_width2)
@@ -455,14 +409,21 @@ int d40_log_sg_to_lli(struct scatterlist *sg,
 	struct scatterlist *current_sg = sg;
 	int i;
 	struct d40_log_lli *lli = lli_sg;
+	bool autoinc = !dev_addr;
 
 	for_each_sg(sg, current_sg, sg_len, i) {
+		dma_addr_t sg_addr = sg_dma_address(current_sg);
+		unsigned int len = sg_dma_len(current_sg);
+		dma_addr_t addr = dev_addr ?: sg_addr;
+
 		total_size += sg_dma_len(current_sg);
-		lli = d40_log_buf_to_lli(lli,
-					 sg_dma_address(current_sg),
-					 sg_dma_len(current_sg),
+
+		lli = d40_log_buf_to_lli(lli, addr, len,
 					 lcsp13,
-					 data_width1, data_width2, true);
+					 data_width1,
+					 data_width2,
+					 autoinc);
 	}
+
 	return total_size;
 }
