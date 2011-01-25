@@ -357,14 +357,12 @@ static int d40_pool_lli_alloc(struct d40_chan *d40c, struct d40_desc *d40d,
 	}
 
 	if (is_log) {
-		d40d->lli_log.src = PTR_ALIGN((struct d40_log_lli *) base,
-					      align);
+		d40d->lli_log.src = PTR_ALIGN(base, align);
 		d40d->lli_log.dst = d40d->lli_log.src + lli_len;
 
 		d40d->lli_pool.dma_addr = 0;
 	} else {
-		d40d->lli_phy.src = PTR_ALIGN((struct d40_phy_lli *)base,
-					      align);
+		d40d->lli_phy.src = PTR_ALIGN(base, align);
 		d40d->lli_phy.dst = d40d->lli_phy.src + lli_len;
 
 		d40d->lli_pool.dma_addr = dma_map_single(d40c->base->dev,
