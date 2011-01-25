@@ -87,8 +87,8 @@ static s32 wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 				      s32 dbm);
 static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm);
 static s32 wl_cfg80211_config_default_key(struct wiphy *wiphy,
-					    struct net_device *dev,
-					    u8 key_idx);
+					  struct net_device *dev, u8 key_idx,
+					  bool unicast, bool multicast);
 static s32 wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 				 u8 key_idx, bool pairwise, const u8 *mac_addr,
 				 struct key_params *params);
@@ -1492,7 +1492,7 @@ static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
 
 static s32
 wl_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
-			       u8 key_idx)
+			       u8 key_idx, bool unicast, bool multicast)
 {
 	u32 index;
 	s32 wsec;
