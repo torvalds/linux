@@ -107,7 +107,7 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 	return -1;
 	}
 
-	msleep(5);
+	msleep(10);
 	
 	
     return (0);
