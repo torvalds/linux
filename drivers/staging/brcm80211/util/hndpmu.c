@@ -32,6 +32,10 @@
 
 #ifdef BCMDBG
 #define	PMU_MSG(args)	printf args
+
+/* debug-only definitions */
+/* #define BCMDBG_FORCEHT */
+/* #define CHIPC_UART_ALWAYS_ON */
 #else
 #define	PMU_MSG(args)
 #endif				/* BCMDBG */
@@ -2504,12 +2508,7 @@ bool si_pmu_is_otp_powered(si_t *sih, struct osl_info *osh)
 	return st;
 }
 
-void
-#if defined(BCMDBG)
-si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
-#else
-si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
-#endif
+void si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
 {
 	chipcregs_t *cc;
 	uint origidx;

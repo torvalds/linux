@@ -131,10 +131,8 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 		eromptr = regs;
 		break;
 
-#ifdef BCMSDIO
 	case SPI_BUS:
 	case SDIO_BUS:
-#endif				/* BCMSDIO */
 		eromptr = (u32 *)(unsigned long)erombase;
 		break;
 
@@ -355,10 +353,8 @@ void *ai_setcoreidx(si_t *sih, uint coreidx)
 		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN2, wrap);
 		break;
 
-#ifdef BCMSDIO
 	case SPI_BUS:
 	case SDIO_BUS:
-#endif				/* BCMSDIO */
 		sii->curmap = regs = (void *)(unsigned long)addr;
 		sii->curwrap = (void *)(unsigned long)wrap;
 		break;
