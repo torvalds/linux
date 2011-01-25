@@ -160,8 +160,8 @@ NOTE: Only ONE of the three must be enabled
 					 * 3:2  Rank 1 architecture
 					 * 1:0  Rank 0 architecture
 					 *
-					 * 00 => x16 devices; i.e 4 banks
-					 * 01 => x8  devices; i.e 8 banks
+					 * 00 => 4 banks
+					 * 01 => 8 banks
 					 */
 #define I82975X_C0BNKARC	0x10e
 #define I82975X_C1BNKARC	0x18e
@@ -344,11 +344,7 @@ static int dual_channel_active(void __iomem *mch_window)
 static enum dev_type i82975x_dram_type(void __iomem *mch_window, int rank)
 {
 	/*
-	 * ASUS P5W DH either does not program this register or programs
-	 * it wrong!
-	 * ECC is possible on i92975x ONLY with DEV_X8 which should mean 'val'
-	 * for each rank should be 01b - the LSB of the word should be 0x55;
-	 * but it reads 0!
+	 * ECC is possible on i92975x ONLY with DEV_X8
 	 */
 	return DEV_X8;
 }
