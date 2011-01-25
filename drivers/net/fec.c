@@ -1465,8 +1465,6 @@ fec_drv_remove(struct platform_device *pdev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct resource *r;
 
-	platform_set_drvdata(pdev, NULL);
-
 	fec_stop(ndev);
 	fec_enet_mii_remove(fep);
 	clk_disable(fep->clk);
@@ -1478,6 +1476,8 @@ fec_drv_remove(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	BUG_ON(!r);
 	release_mem_region(r->start, resource_size(r));
+
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
