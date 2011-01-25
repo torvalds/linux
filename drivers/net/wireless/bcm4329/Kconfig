@@ -1,0 +1,16 @@
+
+choice BCM4329_MODULE_NAME
+	depends on BCM4329
+	prompt "BCM4329 WiFi module"
+	---help---
+	  Different module need own firmware file even if they
+	  are based on the same BCM4329 WiFi chip.
+
+	config BCM4329_SAMSUNG_B23
+	  bool "Samsung SWL-B23"
+
+	config BCM4329_USI
+	  bool "USI SWL-B23"
+
+endchoice
+

@@ -1,0 +1,64 @@
+#
+# Wireless LAN device configuration
+#
+
+menuconfig WLAN
+	bool "Wireless LAN"
+	depends on !S390
+	default y
+	---help---
+	  This section contains all the pre 802.11 and 802.11 wireless
+	  device drivers. For a complete list of drivers and documentation
+	  on them refer to the wireless wiki:
+
+	  http://wireless.kernel.org/en/users/Drivers
+
+if WLAN
+
+config WLAN_80211
+	bool "Wireless LAN (IEEE 802.11)"
+	depends on NETDEVICES
+	---help---
+	  Say Y if you have any 802.11 wireless LAN hardware.
+
+	  This option does not affect the kernel build, it only
+	  lets you choose drivers.
+
+choice
+	prompt "WiFi device driver support"
+	default WIFI_NONE
+
+	config WIFI_NONE
+	  bool "No WiFi"
+
+	config BCM4329
+	  depends on WLAN_80211 && MMC
+	  select WIRELESS_EXT
+	  select IEEE80211
+	  select FW_LOADER
+	  bool "Broadcom BCM4329 WiFi/BT Combo SDIO"
+	  ---help---
+	    A library for Broadcom BCM4329 SDIO WLAN/BT combo devices.
+	    So far, the following modules have been verified:
+	      (1) Samsung    SWL-B23
+
+	config MV8686
+	  depends on WLAN_80211 && MMC
+	  select WIRELESS_EXT
+	  select IEEE80211
+	  select FW_LOADER
+	  bool "Marvell MV8686 SDIO"
+	  ---help---
+	    A library for Marvell 8686 SDIO WLAN devices.
+	    So far, the following modules have been verified:
+	      (1) Samsung    SWL-2480
+	      (2) Azurewave  AW-GH321
+	      (3) USI        WM-G-MR-09
+	      (4) Murata     SP-8HEP-P
+
+endchoice
+
+#source "drivers/net/wireless/bcm4329/Kconfig"
+
+endif
+
