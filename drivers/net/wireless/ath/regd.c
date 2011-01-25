@@ -158,6 +158,13 @@ ieee80211_regdomain *ath_world_regdomain(struct ath_regulatory *reg)
 	}
 }
 
+bool ath_is_49ghz_allowed(u16 regdomain)
+{
+	/* possibly more */
+	return regdomain == MKK9_MKKC;
+}
+EXPORT_SYMBOL(ath_is_49ghz_allowed);
+
 /* Frequency is one where radar detection is required */
 static bool ath_is_radar_freq(u16 center_freq)
 {
