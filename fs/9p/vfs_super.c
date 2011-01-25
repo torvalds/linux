@@ -91,7 +91,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	    MS_NOATIME;
 
 #ifdef CONFIG_9P_FS_POSIX_ACL
-	if ((v9ses->flags & V9FS_ACCESS_MASK) == V9FS_ACCESS_CLIENT)
+	if ((v9ses->flags & V9FS_ACL_MASK) == V9FS_POSIX_ACL)
 		sb->s_flags |= MS_POSIXACL;
 #endif
 

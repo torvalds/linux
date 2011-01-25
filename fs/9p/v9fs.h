@@ -28,8 +28,10 @@
  * @V9FS_PROTO_2000L: whether or not to use 9P2000.l extensions
  * @V9FS_ACCESS_SINGLE: only the mounting user can access the hierarchy
  * @V9FS_ACCESS_USER: a new attach will be issued for every user (default)
+ * @V9FS_ACCESS_CLIENT: Just like user, but access check is performed on client.
  * @V9FS_ACCESS_ANY: use a single attach for all users
  * @V9FS_ACCESS_MASK: bit mask of different ACCESS options
+ * @V9FS_POSIX_ACL: POSIX ACLs are enforced
  *
  * Session flags reflect options selected by users at mount time
  */
@@ -37,13 +39,15 @@
 			 V9FS_ACCESS_USER |   \
 			 V9FS_ACCESS_CLIENT)
 #define V9FS_ACCESS_MASK V9FS_ACCESS_ANY
+#define V9FS_ACL_MASK V9FS_POSIX_ACL
 
 enum p9_session_flags {
 	V9FS_PROTO_2000U	= 0x01,
 	V9FS_PROTO_2000L	= 0x02,
 	V9FS_ACCESS_SINGLE	= 0x04,
 	V9FS_ACCESS_USER	= 0x08,
-	V9FS_ACCESS_CLIENT	= 0x10
+	V9FS_ACCESS_CLIENT	= 0x10,
+	V9FS_POSIX_ACL		= 0x20
 };
 
 /* possible values of ->cache */

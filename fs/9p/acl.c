@@ -59,7 +59,8 @@ int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
 	struct v9fs_session_info *v9ses;
 
 	v9ses = v9fs_inode2v9ses(inode);
-	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) {
+	if (((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) ||
+			((v9ses->flags & V9FS_ACL_MASK) != V9FS_POSIX_ACL)) {
 		set_cached_acl(inode, ACL_TYPE_DEFAULT, NULL);
 		set_cached_acl(inode, ACL_TYPE_ACCESS, NULL);
 		return 0;
@@ -104,9 +105,10 @@ int v9fs_check_acl(struct inode *inode, int mask, unsigned int flags)
 		return -ECHILD;
 
 	v9ses = v9fs_inode2v9ses(inode);
-	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) {
+	if (((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) ||
+			((v9ses->flags & V9FS_ACL_MASK) != V9FS_POSIX_ACL)) {
 		/*
-		 * On access = client mode get the acl
+		 * On access = client  and acl = on mode get the acl
 		 * values from the server
 		 */
 		return 0;
