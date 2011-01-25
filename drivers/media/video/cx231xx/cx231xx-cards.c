@@ -360,19 +360,19 @@ struct cx231xx_board cx231xx_boards[] = {
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
 			.amux = CX231XX_AMUX_VIDEO,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_SVIDEO,
 			.vmux = CX231XX_VIN_1_1 |
 				(CX231XX_VIN_1_2 << 8) |
 				CX25840_SVIDEO_ON,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		} },
 	},
 	[CX231XX_BOARD_HAUPPAUGE_USBLIVE2] = {
@@ -391,14 +391,14 @@ struct cx231xx_board cx231xx_boards[] = {
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_SVIDEO,
 			.vmux = CX231XX_VIN_1_1 |
 				(CX231XX_VIN_1_2 << 8) |
 				CX25840_SVIDEO_ON,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		} },
 	},
 	[CX231XX_BOARD_PV_PLAYTV_USB_HYBRID] = {
@@ -425,19 +425,19 @@ struct cx231xx_board cx231xx_boards[] = {
 			.type = CX231XX_VMUX_TELEVISION,
 			.vmux = CX231XX_VIN_3_1,
 			.amux = CX231XX_AMUX_VIDEO,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		}, {
 			.type = CX231XX_VMUX_SVIDEO,
 			.vmux = CX231XX_VIN_1_1 |
 				(CX231XX_VIN_1_2 << 8) |
 				CX25840_SVIDEO_ON,
 			.amux = CX231XX_AMUX_LINE_IN,
-			.gpio = 0,
+			.gpio = NULL,
 		} },
 	},
 	[CX231XX_BOARD_PV_XCAPTURE_USB] = {
