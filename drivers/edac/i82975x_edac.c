@@ -511,18 +511,20 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	debugf3("%s(): init mci\n", __func__);
 	mci->dev = &pdev->dev;
-	mci->mtype_cap = MEM_FLAG_DDR;
+	mci->mtype_cap = MEM_FLAG_DDR2;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = I82975X_REVISION;
 	mci->ctl_name = i82975x_devs[dev_idx].ctl_name;
+	mci->dev_name = pci_name(pdev);
 	mci->edac_check = i82975x_check;
 	mci->ctl_page_to_phys = NULL;
 	debugf3("%s(): init pvt\n", __func__);
 	pvt = (struct i82975x_pvt *) mci->pvt_info;
 	pvt->mch_window = mch_window;
 	i82975x_init_csrows(mci, pdev, mch_window);
+	mci->scrub_mode = SCRUB_HW_SRC;
 	i82975x_get_error_info(mci, &discard);  /* clear counters */
 
 	/* finalize this instance of memory controller with edac core */
