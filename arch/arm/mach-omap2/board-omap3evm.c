@@ -760,7 +760,7 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 };
 
 #ifdef CONFIG_OMAP_MUX
-static struct omap_board_mux board_mux[] __initdata = {
+static struct omap_board_mux omap35x_board_mux[] __initdata = {
 	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP |
 				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
 				OMAP_PIN_OFF_WAKEUPENABLE),
@@ -787,6 +787,32 @@ static struct omap_board_mux board_mux[] __initdata = {
 #endif
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+
+static struct omap_board_mux omap36x_board_mux[] __initdata = {
+	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP |
+				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
+				OMAP_PIN_OFF_WAKEUPENABLE),
+	OMAP3_MUX(MCSPI1_CS1, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
+				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW),
+	/* AM/DM37x EVM: DSS data bus muxed with sys_boot */
+	OMAP3_MUX(DSS_DATA18, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA19, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA22, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA21, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA22, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA23, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT0, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT1, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT3, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT4, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT5, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT6, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define omap35x_board_mux	NULL
+#define omap36x_board_mux	NULL
 #endif
 
 static struct omap_musb_board_data musb_board_data = {
@@ -798,7 +824,11 @@ static struct omap_musb_board_data musb_board_data = {
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
-	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+
+	if (cpu_is_omap3630())
+		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
+	else
+		omap3_mux_init(omap35x_board_mux, OMAP_PACKAGE_CBB);
 
 	omap3_evm_i2c_init();
 
