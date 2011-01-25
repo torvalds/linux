@@ -290,7 +290,7 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 	/* Clean up list of requests processed during current epoch */
 	list_for_each_safe(le, tle, &b->requests) {
 		r = list_entry(le, struct drbd_request, tl_requests);
-		_req_mod(r, barrier_acked);
+		_req_mod(r, BARRIER_ACKED);
 	}
 	/* There could be requests on the list waiting for completion
 	   of the write to the local disk. To avoid corruptions of
@@ -300,10 +300,10 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 	   the write acks - which would be a bug and violating write ordering.
 	   To not deadlock in case we lose connection while such requests are
 	   still pending, we need some way to find them for the
-	   _req_mode(connection_lost_while_pending).
+	   _req_mode(CONNECTION_LOST_WHILE_PENDING).
 
 	   These have been list_move'd to the out_of_sequence_requests list in
-	   _req_mod(, barrier_acked) above.
+	   _req_mod(, BARRIER_ACKED) above.
 	   */
 	list_del_init(&b->requests);
 
@@ -336,8 +336,8 @@ bail:
  * @mdev:	DRBD device.
  * @what:       The action/event to perform with all request objects
  *
- * @what might be one of connection_lost_while_pending, resend, fail_frozen_disk_io,
- * restart_frozen_disk_io.
+ * @what might be one of CONNECTION_LOST_WHILE_PENDING, RESEND, FAIL_FROZEN_DISK_IO,
+ * RESTART_FROZEN_DISK_IO.
  */
 static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 {
@@ -362,7 +362,7 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 		tmp = b->next;
 
 		if (n_writes) {
-			if (what == resend) {
+			if (what == RESEND) {
 				b->n_writes = n_writes;
 				if (b->w.cb == NULL) {
 					b->w.cb = w_send_barrier;
@@ -423,7 +423,7 @@ void tl_clear(struct drbd_conf *mdev)
 
 	spin_lock_irq(&mdev->req_lock);
 
-	_tl_restart(mdev, connection_lost_while_pending);
+	_tl_restart(mdev, CONNECTION_LOST_WHILE_PENDING);
 
 	/* we expect this list to be empty. */
 	D_ASSERT(list_empty(&mdev->out_of_sequence_requests));
@@ -433,7 +433,7 @@ void tl_clear(struct drbd_conf *mdev)
 		r = list_entry(le, struct drbd_request, tl_requests);
 		/* It would be nice to complete outside of spinlock.
 		 * But this is easier for now. */
-		_req_mod(r, connection_lost_while_pending);
+		_req_mod(r, CONNECTION_LOST_WHILE_PENDING);
 	}
 
 	/* ensure bit indicating barrier is required is clear */
@@ -1321,7 +1321,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags)
 {
 	enum drbd_fencing_p fp;
-	enum drbd_req_event what = nothing;
+	enum drbd_req_event what = NOTHING;
 	union drbd_state nsm = (union drbd_state){ .i = -1 };
 
 	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
@@ -1349,12 +1349,12 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	nsm.i = -1;
 	if (ns.susp_nod) {
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
-			what = resend;
+			what = RESEND;
 
 		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING)
-			what = restart_frozen_disk_io;
+			what = RESTART_FROZEN_DISK_IO;
 
-		if (what != nothing)
+		if (what != NOTHING)
 			nsm.susp_nod = 0;
 	}
 
@@ -1373,12 +1373,12 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		/* case2: The connection was established again: */
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
 			clear_bit(NEW_CUR_UUID, &mdev->flags);
-			what = resend;
+			what = RESEND;
 			nsm.susp_fen = 0;
 		}
 	}
 
-	if (what != nothing) {
+	if (what != NOTHING) {
 		spin_lock_irq(&mdev->req_lock);
 		_tl_restart(mdev, what);
 		nsm.i &= mdev->state.i;

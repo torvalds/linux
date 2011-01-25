@@ -2022,7 +2022,7 @@ static int drbd_nl_resume_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		if (mdev->state.conn < C_CONNECTED)
 			tl_clear(mdev);
 		if (mdev->state.disk == D_DISKLESS || mdev->state.disk == D_FAILED)
-			tl_restart(mdev, fail_frozen_disk_io);
+			tl_restart(mdev, FAIL_FROZEN_DISK_IO);
 	}
 	drbd_resume_io(mdev);
 

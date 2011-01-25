@@ -77,39 +77,39 @@
  */
 
 enum drbd_req_event {
-	created,
-	to_be_send,
-	to_be_submitted,
+	CREATED,
+	TO_BE_SENT,
+	TO_BE_SUBMITTED,
 
 	/* XXX yes, now I am inconsistent...
 	 * these are not "events" but "actions"
 	 * oh, well... */
-	queue_for_net_write,
-	queue_for_net_read,
-	queue_for_send_oos,
+	QUEUE_FOR_NET_WRITE,
+	QUEUE_FOR_NET_READ,
+	QUEUE_FOR_SEND_OOS,
 
-	send_canceled,
-	send_failed,
-	handed_over_to_network,
-	oos_handed_to_network,
-	connection_lost_while_pending,
-	read_retry_remote_canceled,
-	recv_acked_by_peer,
-	write_acked_by_peer,
-	write_acked_by_peer_and_sis, /* and set_in_sync */
-	conflict_discarded_by_peer,
-	neg_acked,
-	barrier_acked, /* in protocol A and B */
-	data_received, /* (remote read) */
+	SEND_CANCELED,
+	SEND_FAILED,
+	HANDED_OVER_TO_NETWORK,
+	OOS_HANDED_TO_NETWORK,
+	CONNECTION_LOST_WHILE_PENDING,
+	READ_RETRY_REMOTE_CANCELED,
+	RECV_ACKED_BY_PEER,
+	WRITE_ACKED_BY_PEER,
+	WRITE_ACKED_BY_PEER_AND_SIS, /* and set_in_sync */
+	CONFLICT_DISCARDED_BY_PEER,
+	NEG_ACKED,
+	BARRIER_ACKED, /* in protocol A and B */
+	DATA_RECEIVED, /* (remote read) */
 
-	read_completed_with_error,
-	read_ahead_completed_with_error,
-	write_completed_with_error,
-	completed_ok,
-	resend,
-	fail_frozen_disk_io,
-	restart_frozen_disk_io,
-	nothing, /* for tracing only */
+	READ_COMPLETED_WITH_ERROR,
+	READ_AHEAD_COMPLETED_WITH_ERROR,
+	WRITE_COMPLETED_WITH_ERROR,
+	COMPLETED_OK,
+	RESEND,
+	FAIL_FROZEN_DISK_IO,
+	RESTART_FROZEN_DISK_IO,
+	NOTHING,
 };
 
 /* encoding of request states for now.  we don't actually need that many bits.
@@ -138,8 +138,8 @@ enum drbd_req_state_bits {
 	 *        recv_ack (B) or implicit "ack" (A),
 	 *        still waiting for the barrier ack.
 	 *        master_bio may already be completed and invalidated.
-	 * 11100: write_acked (C),
-	 *        data_received (for remote read, any protocol)
+	 * 11100: write acked (C),
+	 *        data received (for remote read, any protocol)
 	 *        or finally the barrier ack has arrived (B,A)...
 	 *        request can be freed
 	 * 01100: neg-acked (write, protocol C)

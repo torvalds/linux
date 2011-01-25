@@ -385,7 +385,7 @@ int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list)
 
 /*
  * This function is called from _asender only_
- * but see also comments in _req_mod(,barrier_acked)
+ * but see also comments in _req_mod(,BARRIER_ACKED)
  * and receive_Barrier.
  *
  * Move entries from net_ee to done_ee, if ready.
@@ -1507,7 +1507,7 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 	ok = recv_dless_read(mdev, req, sector, data_size);
 
 	if (ok)
-		req_mod(req, data_received);
+		req_mod(req, DATA_RECEIVED);
 	/* else: nothing. handled from drbd_disconnect...
 	 * I don't think we may complete this just yet
 	 * in case we are "on-disconnect: freeze" */
@@ -3279,7 +3279,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	cs_flags = CS_VERBOSE + (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED ? 0 : CS_HARD);
 	if (ns.pdsk == D_CONSISTENT && is_susp(ns) && ns.conn == C_CONNECTED && os.conn < C_CONNECTED &&
 	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
-		/* Do not allow tl_restart(resend) for a rebooted peer. We can only allow this
+		/* Do not allow tl_restart(RESEND) for a rebooted peer. We can only allow this
 		   for temporal network outages! */
 		spin_unlock_irq(&mdev->req_lock);
 		dev_err(DEV, "Aborting Connect, can not thaw IO with an only Consistent peer\n");
@@ -4272,19 +4272,19 @@ static int got_BlockAck(struct drbd_conf *mdev, struct p_header80 *h)
 	switch (be16_to_cpu(h->command)) {
 	case P_RS_WRITE_ACK:
 		D_ASSERT(mdev->net_conf->wire_protocol == DRBD_PROT_C);
-		what = write_acked_by_peer_and_sis;
+		what = WRITE_ACKED_BY_PEER_AND_SIS;
 		break;
 	case P_WRITE_ACK:
 		D_ASSERT(mdev->net_conf->wire_protocol == DRBD_PROT_C);
-		what = write_acked_by_peer;
+		what = WRITE_ACKED_BY_PEER;
 		break;
 	case P_RECV_ACK:
 		D_ASSERT(mdev->net_conf->wire_protocol == DRBD_PROT_B);
-		what = recv_acked_by_peer;
+		what = RECV_ACKED_BY_PEER;
 		break;
 	case P_DISCARD_ACK:
 		D_ASSERT(mdev->net_conf->wire_protocol == DRBD_PROT_C);
-		what = conflict_discarded_by_peer;
+		what = CONFLICT_DISCARDED_BY_PEER;
 		break;
 	default:
 		D_ASSERT(0);
@@ -4315,7 +4315,7 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
 
 	found = validate_req_change_req_state(mdev, p->block_id, sector,
 					      &mdev->write_requests, __func__,
-					      neg_acked, missing_ok);
+					      NEG_ACKED, missing_ok);
 	if (!found) {
 		/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
 		   The master bio might already be completed, therefore the
@@ -4340,7 +4340,7 @@ static int got_NegDReply(struct drbd_conf *mdev, struct p_header80 *h)
 
 	return validate_req_change_req_state(mdev, p->block_id, sector,
 					     &mdev->read_requests, __func__,
-					     neg_acked, false);
+					     NEG_ACKED, false);
 }
 
 static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header80 *h)

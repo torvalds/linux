@@ -2031,21 +2031,21 @@ static inline void drbd_thread_restart_nowait(struct drbd_thread *thi)
  * or implicit barrier packets as necessary.
  * increased:
  *  w_send_barrier
- *  _req_mod(req, queue_for_net_write or queue_for_net_read);
+ *  _req_mod(req, QUEUE_FOR_NET_WRITE or QUEUE_FOR_NET_READ);
  *    it is much easier and equally valid to count what we queue for the
  *    worker, even before it actually was queued or send.
  *    (drbd_make_request_common; recovery path on read io-error)
  * decreased:
  *  got_BarrierAck (respective tl_clear, tl_clear_barrier)
- *  _req_mod(req, data_received)
+ *  _req_mod(req, DATA_RECEIVED)
  *     [from receive_DataReply]
- *  _req_mod(req, write_acked_by_peer or recv_acked_by_peer or neg_acked)
+ *  _req_mod(req, WRITE_ACKED_BY_PEER or RECV_ACKED_BY_PEER or NEG_ACKED)
  *     [from got_BlockAck (P_WRITE_ACK, P_RECV_ACK)]
  *     for some reason it is NOT decreased in got_NegAck,
  *     but in the resulting cleanup code from report_params.
  *     we should try to remember the reason for that...
- *  _req_mod(req, send_failed or send_canceled)
- *  _req_mod(req, connection_lost_while_pending)
+ *  _req_mod(req, SEND_FAILED or SEND_CANCELED)
+ *  _req_mod(req, CONNECTION_LOST_WHILE_PENDING)
  *     [from tl_clear_barrier]
  */
 static inline void inc_ap_pending(struct drbd_conf *mdev)

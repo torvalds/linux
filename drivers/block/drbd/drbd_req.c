@@ -225,10 +225,10 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		return;
 
 	if (req->master_bio) {
-		/* this is data_received (remote read)
+		/* this is DATA_RECEIVED (remote read)
 		 * or protocol C P_WRITE_ACK
 		 * or protocol B P_RECV_ACK
-		 * or protocol A "handed_over_to_network" (SendAck)
+		 * or protocol A "HANDED_OVER_TO_NETWORK" (SendAck)
 		 * or canceled or failed,
 		 * or killed from the transfer log due to connection loss.
 		 */
@@ -393,11 +393,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	/* does not happen...
 	 * initialization done in drbd_req_new
-	case created:
+	case CREATED:
 		break;
 		*/
 
-	case to_be_send: /* via network */
+	case TO_BE_SENT: /* via network */
 		/* reached via drbd_make_request_common
 		 * and from w_read_retry_remote */
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
@@ -405,13 +405,13 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		inc_ap_pending(mdev);
 		break;
 
-	case to_be_submitted: /* locally */
+	case TO_BE_SUBMITTED: /* locally */
 		/* reached via drbd_make_request_common */
 		D_ASSERT(!(req->rq_state & RQ_LOCAL_MASK));
 		req->rq_state |= RQ_LOCAL_PENDING;
 		break;
 
-	case completed_ok:
+	case COMPLETED_OK:
 		if (bio_data_dir(req->master_bio) == WRITE)
 			mdev->writ_cnt += req->i.size >> 9;
 		else
@@ -424,7 +424,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		put_ldev(mdev);
 		break;
 
-	case write_completed_with_error:
+	case WRITE_COMPLETED_WITH_ERROR:
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
@@ -433,7 +433,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		put_ldev(mdev);
 		break;
 
-	case read_ahead_completed_with_error:
+	case READ_AHEAD_COMPLETED_WITH_ERROR:
 		/* it is legal to fail READA */
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
@@ -441,7 +441,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		put_ldev(mdev);
 		break;
 
-	case read_completed_with_error:
+	case READ_COMPLETED_WITH_ERROR:
 		drbd_set_out_of_sync(mdev, req->i.sector, req->i.size);
 
 		req->rq_state |= RQ_LOCAL_COMPLETED;
@@ -459,12 +459,12 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			break;
 		}
 
-		/* _req_mod(req,to_be_send); oops, recursion... */
+		/* _req_mod(req,TO_BE_SENT); oops, recursion... */
 		req->rq_state |= RQ_NET_PENDING;
 		inc_ap_pending(mdev);
-		/* fall through: _req_mod(req,queue_for_net_read); */
+		/* fall through: _req_mod(req,QUEUE_FOR_NET_READ); */
 
-	case queue_for_net_read:
+	case QUEUE_FOR_NET_READ:
 		/* READ or READA, and
 		 * no local disk,
 		 * or target area marked as invalid,
@@ -486,7 +486,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_queue_work(&mdev->data.work, &req->w);
 		break;
 
-	case queue_for_net_write:
+	case QUEUE_FOR_NET_WRITE:
 		/* assert something? */
 		/* from drbd_make_request_common only */
 
@@ -533,17 +533,17 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		break;
 
-	case queue_for_send_oos:
+	case QUEUE_FOR_SEND_OOS:
 		req->rq_state |= RQ_NET_QUEUED;
 		req->w.cb =  w_send_oos;
 		drbd_queue_work(&mdev->data.work, &req->w);
 		break;
 
-	case oos_handed_to_network:
+	case OOS_HANDED_TO_NETWORK:
 		/* actually the same */
-	case send_canceled:
+	case SEND_CANCELED:
 		/* treat it the same */
-	case send_failed:
+	case SEND_FAILED:
 		/* real cleanup will be done from tl_clear.  just update flags
 		 * so it is no longer marked as on the worker queue */
 		req->rq_state &= ~RQ_NET_QUEUED;
@@ -552,7 +552,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done_not_susp(req, m);
 		break;
 
-	case handed_over_to_network:
+	case HANDED_OVER_TO_NETWORK:
 		/* assert something? */
 		if (bio_data_dir(req->master_bio) == WRITE)
 			atomic_add(req->i.size >> 9, &mdev->ap_in_flight);
@@ -573,17 +573,17 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state &= ~RQ_NET_QUEUED;
 		req->rq_state |= RQ_NET_SENT;
 		/* because _drbd_send_zc_bio could sleep, and may want to
-		 * dereference the bio even after the "write_acked_by_peer" and
-		 * "completed_ok" events came in, once we return from
+		 * dereference the bio even after the "WRITE_ACKED_BY_PEER" and
+		 * "COMPLETED_OK" events came in, once we return from
 		 * _drbd_send_zc_bio (drbd_send_dblock), we have to check
 		 * whether it is done already, and end it.  */
 		_req_may_be_done_not_susp(req, m);
 		break;
 
-	case read_retry_remote_canceled:
+	case READ_RETRY_REMOTE_CANCELED:
 		req->rq_state &= ~RQ_NET_QUEUED;
 		/* fall through, in case we raced with drbd_disconnect */
-	case connection_lost_while_pending:
+	case CONNECTION_LOST_WHILE_PENDING:
 		/* transfer log cleanup after connection loss */
 		/* assert something? */
 		if (req->rq_state & RQ_NET_PENDING)
@@ -599,19 +599,19 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
-	case write_acked_by_peer_and_sis:
+	case WRITE_ACKED_BY_PEER_AND_SIS:
 		req->rq_state |= RQ_NET_SIS;
-	case conflict_discarded_by_peer:
+	case CONFLICT_DISCARDED_BY_PEER:
 		/* for discarded conflicting writes of multiple primaries,
 		 * there is no need to keep anything in the tl, potential
 		 * node crashes are covered by the activity log. */
-		if (what == conflict_discarded_by_peer)
+		if (what == CONFLICT_DISCARDED_BY_PEER)
 			dev_alert(DEV, "Got DiscardAck packet %llus +%u!"
 			      " DRBD is not a random data generator!\n",
 			      (unsigned long long)req->i.sector, req->i.size);
 		req->rq_state |= RQ_NET_DONE;
 		/* fall through */
-	case write_acked_by_peer:
+	case WRITE_ACKED_BY_PEER:
 		/* protocol C; successfully written on peer.
 		 * Nothing to do here.
 		 * We want to keep the tl in place for all protocols, to cater
@@ -623,9 +623,9 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * P_BARRIER_ACK, but that is an unnecessary optimization. */
 
 		/* this makes it effectively the same as for: */
-	case recv_acked_by_peer:
+	case RECV_ACKED_BY_PEER:
 		/* protocol B; pretends to be successfully written on peer.
-		 * see also notes above in handed_over_to_network about
+		 * see also notes above in HANDED_OVER_TO_NETWORK about
 		 * protocol != C */
 		req->rq_state |= RQ_NET_OK;
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
@@ -635,7 +635,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done_not_susp(req, m);
 		break;
 
-	case neg_acked:
+	case NEG_ACKED:
 		/* assert something? */
 		if (req->rq_state & RQ_NET_PENDING) {
 			dec_ap_pending(mdev);
@@ -645,17 +645,17 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		req->rq_state |= RQ_NET_DONE;
 		_req_may_be_done_not_susp(req, m);
-		/* else: done by handed_over_to_network */
+		/* else: done by HANDED_OVER_TO_NETWORK */
 		break;
 
-	case fail_frozen_disk_io:
+	case FAIL_FROZEN_DISK_IO:
 		if (!(req->rq_state & RQ_LOCAL_COMPLETED))
 			break;
 
 		_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
-	case restart_frozen_disk_io:
+	case RESTART_FROZEN_DISK_IO:
 		if (!(req->rq_state & RQ_LOCAL_COMPLETED))
 			break;
 
@@ -670,7 +670,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_queue_work(&mdev->data.work, &req->w);
 		break;
 
-	case resend:
+	case RESEND:
 		/* If RQ_NET_OK is already set, we got a P_WRITE_ACK or P_RECV_ACK
 		   before the connection loss (B&C only); only P_BARRIER_ACK was missing.
 		   Trowing them out of the TL here by pretending we got a BARRIER_ACK
@@ -682,9 +682,9 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			}
 			break;
 		}
-		/* else, fall through to barrier_acked */
+		/* else, fall through to BARRIER_ACKED */
 
-	case barrier_acked:
+	case BARRIER_ACKED:
 		if (!(req->rq_state & RQ_WRITE))
 			break;
 
@@ -692,7 +692,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			/* barrier came in before all requests have been acked.
 			 * this is bad, because if the connection is lost now,
 			 * we won't be able to clean them up... */
-			dev_err(DEV, "FIXME (barrier_acked but pending)\n");
+			dev_err(DEV, "FIXME (BARRIER_ACKED but pending)\n");
 			list_move(&req->tl_requests, &mdev->out_of_sequence_requests);
 		}
 		if ((req->rq_state & RQ_NET_MASK) != 0) {
@@ -703,7 +703,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
-	case data_received:
+	case DATA_RECEIVED:
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		dec_ap_pending(mdev);
 		req->rq_state &= ~RQ_NET_PENDING;
@@ -924,9 +924,9 @@ allocate_barrier:
 	/* mark them early for readability.
 	 * this just sets some state flags. */
 	if (remote)
-		_req_mod(req, to_be_send);
+		_req_mod(req, TO_BE_SENT);
 	if (local)
-		_req_mod(req, to_be_submitted);
+		_req_mod(req, TO_BE_SUBMITTED);
 
 	/* check this request on the collision detection hash tables.
 	 * if we have a conflict, just complete it here.
@@ -944,11 +944,11 @@ allocate_barrier:
 		 * or READ, but not in sync.
 		 */
 		_req_mod(req, (rw == WRITE)
-				? queue_for_net_write
-				: queue_for_net_read);
+				? QUEUE_FOR_NET_WRITE
+				: QUEUE_FOR_NET_READ);
 	}
 	if (send_oos && drbd_set_out_of_sync(mdev, sector, size))
-		_req_mod(req, queue_for_send_oos);
+		_req_mod(req, QUEUE_FOR_SEND_OOS);
 
 	if (remote &&
 	    mdev->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96) {

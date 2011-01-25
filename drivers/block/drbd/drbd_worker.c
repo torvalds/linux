@@ -209,12 +209,12 @@ void drbd_endio_pri(struct bio *bio, int error)
 	/* to avoid recursion in __req_mod */
 	if (unlikely(error)) {
 		what = (bio_data_dir(bio) == WRITE)
-			? write_completed_with_error
+			? WRITE_COMPLETED_WITH_ERROR
 			: (bio_rw(bio) == READ)
-			  ? read_completed_with_error
-			  : read_ahead_completed_with_error;
+			  ? READ_COMPLETED_WITH_ERROR
+			  : READ_AHEAD_COMPLETED_WITH_ERROR;
 	} else
-		what = completed_ok;
+		what = COMPLETED_OK;
 
 	bio_put(req->private_bio);
 	req->private_bio = ERR_PTR(error);
@@ -238,7 +238,7 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 
 	spin_lock_irq(&mdev->req_lock);
 	if (cancel || mdev->state.pdsk != D_UP_TO_DATE) {
-		_req_mod(req, read_retry_remote_canceled);
+		_req_mod(req, READ_RETRY_REMOTE_CANCELED);
 		spin_unlock_irq(&mdev->req_lock);
 		return 1;
 	}
@@ -1243,12 +1243,12 @@ int w_send_oos(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	int ok;
 
 	if (unlikely(cancel)) {
-		req_mod(req, send_canceled);
+		req_mod(req, SEND_CANCELED);
 		return 1;
 	}
 
 	ok = drbd_send_oos(mdev, req);
-	req_mod(req, oos_handed_to_network);
+	req_mod(req, OOS_HANDED_TO_NETWORK);
 
 	return ok;
 }
@@ -1265,12 +1265,12 @@ int w_send_dblock(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	int ok;
 
 	if (unlikely(cancel)) {
-		req_mod(req, send_canceled);
+		req_mod(req, SEND_CANCELED);
 		return 1;
 	}
 
 	ok = drbd_send_dblock(mdev, req);
-	req_mod(req, ok ? handed_over_to_network : send_failed);
+	req_mod(req, ok ? HANDED_OVER_TO_NETWORK : SEND_FAILED);
 
 	return ok;
 }
@@ -1287,7 +1287,7 @@ int w_send_read_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	int ok;
 
 	if (unlikely(cancel)) {
-		req_mod(req, send_canceled);
+		req_mod(req, SEND_CANCELED);
 		return 1;
 	}
 
@@ -1300,7 +1300,7 @@ int w_send_read_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 		if (mdev->state.conn >= C_CONNECTED)
 			drbd_force_state(mdev, NS(conn, C_NETWORK_FAILURE));
 	}
-	req_mod(req, ok ? handed_over_to_network : send_failed);
+	req_mod(req, ok ? HANDED_OVER_TO_NETWORK : SEND_FAILED);
 
 	return ok;
 }
