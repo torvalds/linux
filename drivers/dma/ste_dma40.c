@@ -538,6 +538,10 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 			       curr_lcla);
 
 	lli_current++;
+
+	if (curr_lcla < 0)
+		goto out;
+
 	for (; lli_current < lli_len; lli_current++) {
 		unsigned int lcla_offset = chan->phy_chan->num * 1024 +
 					   8 * curr_lcla * 2;
@@ -567,6 +571,7 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 		}
 	}
 
+out:
 	desc->lli_current = lli_current;
 }
 
