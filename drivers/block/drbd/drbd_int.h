@@ -649,10 +649,10 @@ union p_polymorph {
 
 /**********************************************************************/
 enum drbd_thread_state {
-	None,
-	Running,
-	Exiting,
-	Restarting
+	NONE,
+	RUNNING,
+	EXITING,
+	RESTARTING
 };
 
 struct drbd_thread {

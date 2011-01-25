@@ -1627,25 +1627,25 @@ restart:
 
 	spin_lock_irqsave(&thi->t_lock, flags);
 
-	/* if the receiver has been "Exiting", the last thing it did
+	/* if the receiver has been "EXITING", the last thing it did
 	 * was set the conn state to "StandAlone",
 	 * if now a re-connect request comes in, conn state goes C_UNCONNECTED,
 	 * and receiver thread will be "started".
-	 * drbd_thread_start needs to set "Restarting" in that case.
+	 * drbd_thread_start needs to set "RESTARTING" in that case.
 	 * t_state check and assignment needs to be within the same spinlock,
-	 * so either thread_start sees Exiting, and can remap to Restarting,
-	 * or thread_start see None, and can proceed as normal.
+	 * so either thread_start sees EXITING, and can remap to RESTARTING,
+	 * or thread_start see NONE, and can proceed as normal.
 	 */
 
-	if (thi->t_state == Restarting) {
+	if (thi->t_state == RESTARTING) {
 		dev_info(DEV, "Restarting %s\n", current->comm);
-		thi->t_state = Running;
+		thi->t_state = RUNNING;
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		goto restart;
 	}
 
 	thi->task = NULL;
-	thi->t_state = None;
+	thi->t_state = NONE;
 	smp_mb();
 	complete(&thi->stop);
 	spin_unlock_irqrestore(&thi->t_lock, flags);
@@ -1662,7 +1662,7 @@ static void drbd_thread_init(struct drbd_conf *mdev, struct drbd_thread *thi,
 {
 	spin_lock_init(&thi->t_lock);
 	thi->task    = NULL;
-	thi->t_state = None;
+	thi->t_state = NONE;
 	thi->function = func;
 	thi->mdev = mdev;
 }
@@ -1683,7 +1683,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 	spin_lock_irqsave(&thi->t_lock, flags);
 
 	switch (thi->t_state) {
-	case None:
+	case NONE:
 		dev_info(DEV, "Starting %s thread (from %s [%d])\n",
 				me, current->comm, current->pid);
 
@@ -1697,7 +1697,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		init_completion(&thi->stop);
 		D_ASSERT(thi->task == NULL);
 		thi->reset_cpu_mask = 1;
-		thi->t_state = Running;
+		thi->t_state = RUNNING;
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		flush_signals(current); /* otherw. may get -ERESTARTNOINTR */
 
@@ -1712,17 +1712,17 @@ int drbd_thread_start(struct drbd_thread *thi)
 		}
 		spin_lock_irqsave(&thi->t_lock, flags);
 		thi->task = nt;
-		thi->t_state = Running;
+		thi->t_state = RUNNING;
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		wake_up_process(nt);
 		break;
-	case Exiting:
-		thi->t_state = Restarting;
+	case EXITING:
+		thi->t_state = RESTARTING;
 		dev_info(DEV, "Restarting %s thread (from %s [%d])\n",
 				me, current->comm, current->pid);
 		/* fall through */
-	case Running:
-	case Restarting:
+	case RUNNING:
+	case RESTARTING:
 	default:
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		break;
@@ -1736,12 +1736,12 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
 {
 	unsigned long flags;
 
-	enum drbd_thread_state ns = restart ? Restarting : Exiting;
+	enum drbd_thread_state ns = restart ? RESTARTING : EXITING;
 
 	/* may be called from state engine, holding the req lock irqsave */
 	spin_lock_irqsave(&thi->t_lock, flags);
 
-	if (thi->t_state == None) {
+	if (thi->t_state == NONE) {
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		if (restart)
 			drbd_thread_start(thi);
@@ -2504,7 +2504,7 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 
 	drop_it =   mdev->meta.socket == sock
 		|| !mdev->asender.task
-		|| get_t_state(&mdev->asender) != Running
+		|| get_t_state(&mdev->asender) != RUNNING
 		|| mdev->state.conn < C_CONNECTED;
 
 	if (drop_it)
@@ -3046,7 +3046,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 void drbd_mdev_cleanup(struct drbd_conf *mdev)
 {
 	int i;
-	if (mdev->receiver.t_state != None)
+	if (mdev->receiver.t_state != NONE)
 		dev_err(DEV, "ASSERT FAILED: receiver t_state == %d expected 0.\n",
 				mdev->receiver.t_state);
 

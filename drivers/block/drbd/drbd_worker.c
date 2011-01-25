@@ -1617,7 +1617,7 @@ int drbd_worker(struct drbd_thread *thi)
 
 	sprintf(current->comm, "drbd%d_worker", mdev_to_minor(mdev));
 
-	while (get_t_state(thi) == Running) {
+	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(mdev);
 
 		if (down_trylock(&mdev->data.work.s)) {
@@ -1637,12 +1637,12 @@ int drbd_worker(struct drbd_thread *thi)
 		if (intr) {
 			D_ASSERT(intr == -EINTR);
 			flush_signals(current);
-			ERR_IF (get_t_state(thi) == Running)
+			ERR_IF (get_t_state(thi) == RUNNING)
 				continue;
 			break;
 		}
 
-		if (get_t_state(thi) != Running)
+		if (get_t_state(thi) != RUNNING)
 			break;
 		/* With this break, we have done a down() but not consumed
 		   the entry from the list. The cleanup code takes care of
@@ -1704,7 +1704,7 @@ int drbd_worker(struct drbd_thread *thi)
 
 	D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
 	/* _drbd_set_state only uses stop_nowait.
-	 * wait here for the Exiting receiver. */
+	 * wait here for the EXITING receiver. */
 	drbd_thread_stop(&mdev->receiver);
 	drbd_mdev_cleanup(mdev);
 
