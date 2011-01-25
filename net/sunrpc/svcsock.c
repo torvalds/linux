@@ -1609,9 +1609,7 @@ static struct svc_xprt *svc_bc_create_socket(struct svc_serv *serv,
  */
 static void svc_bc_sock_free(struct svc_xprt *xprt)
 {
-	if (xprt) {
-		kfree(xprt->xpt_bc_sid);
+	if (xprt)
 		kfree(container_of(xprt, struct svc_sock, sk_xprt));
-	}
 }
 #endif /* CONFIG_NFS_V4_1 */

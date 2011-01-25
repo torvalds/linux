@@ -373,17 +373,11 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 {
 	struct nfs_client *clp;
 	int i;
-	__be32 status;
+	__be32 status = htonl(NFS4ERR_BADSESSION);
 
 	cps->clp = NULL;
 
-	status = htonl(NFS4ERR_BADSESSION);
-	/* Incoming session must match the callback session */
-	if (memcmp(&args->csa_sessionid, cps->svc_sid, NFS4_MAX_SESSIONID_LEN))
-		goto out;
-
-	clp = nfs4_find_client_sessionid(args->csa_addr,
-					 &args->csa_sessionid, 1);
+	clp = nfs4_find_client_sessionid(args->csa_addr, &args->csa_sessionid);
 	if (clp == NULL)
 		goto out;
 
