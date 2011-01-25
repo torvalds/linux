@@ -7966,11 +7966,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 		/* AER (Advanced Error Reporting) hooks */
 		err = pci_enable_pcie_error_reporting(pdev);
-		if (err) {
-			dev_err(&pdev->dev, "pci_enable_pcie_error_reporting "
-					    "failed 0x%x\n", err);
-			/* non-fatal, continue */
-		}
+		if (!err)
+			bp->flags |= BNX2_FLAG_AER_ENABLED;
 
 	} else {
 		bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
@@ -8233,8 +8230,10 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	return 0;
 
 err_out_unmap:
-	if (bp->flags & BNX2_FLAG_PCIE)
+	if (bp->flags & BNX2_FLAG_AER_ENABLED) {
 		pci_disable_pcie_error_reporting(pdev);
+		bp->flags &= ~BNX2_FLAG_AER_ENABLED;
+	}
 
 	if (bp->regview) {
 		iounmap(bp->regview);
@@ -8422,8 +8421,10 @@ bnx2_remove_one(struct pci_dev *pdev)
 
 	kfree(bp->temp_stats_blk);
 
-	if (bp->flags & BNX2_FLAG_PCIE)
+	if (bp->flags & BNX2_FLAG_AER_ENABLED) {
 		pci_disable_pcie_error_reporting(pdev);
+		bp->flags &= ~BNX2_FLAG_AER_ENABLED;
+	}
 
 	free_netdev(dev);
 
@@ -8539,7 +8540,7 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 	}
 	rtnl_unlock();
 
-	if (!(bp->flags & BNX2_FLAG_PCIE))
+	if (!(bp->flags & BNX2_FLAG_AER_ENABLED))
 		return result;
 
 	err = pci_cleanup_aer_uncorrect_error_status(pdev);
