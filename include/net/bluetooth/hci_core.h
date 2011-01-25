@@ -106,6 +106,7 @@ struct hci_dev {
 	__u16		manufacturer;
 	__le16		lmp_subver;
 	__u16		voice_setting;
+	__u8		io_capability;
 
 	__u16		pkt_type;
 	__u16		esco_type;
@@ -214,6 +215,7 @@ struct hci_conn {
 	__u8             sec_level;
 	__u8		 pending_sec_level;
 	__u8		 pin_length;
+	__u8		 io_capability;
 	__u8             power_save;
 	__u16            disc_timeout;
 	unsigned long	 pend;

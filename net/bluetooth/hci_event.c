@@ -2198,6 +2198,25 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 	hci_dev_unlock(hdev);
 }
 
+static inline u8 hci_get_auth_req(struct hci_conn *conn)
+{
+	/* If remote requests dedicated bonding follow that lead */
+	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03) {
+		/* If both remote and local IO capabilities allow MITM
+		 * protection then require it, otherwise don't */
+		if (conn->remote_cap == 0x03 || conn->io_capability == 0x03)
+			return 0x02;
+		else
+			return 0x03;
+	}
+
+	/* If remote requests no-bonding follow that lead */
+	if (conn->remote_auth == 0x00 || conn->remote_auth == 0x01)
+		return 0x00;
+
+	return conn->auth_type;
+}
+
 static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_io_capa_request *ev = (void *) skb->data;
@@ -2218,8 +2237,15 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 
 	if (test_bit(HCI_PAIRABLE, &hdev->flags) ||
 			(conn->remote_auth & ~0x01) == HCI_AT_NO_BONDING) {
-		/* FIXME: Do IO capa response based on information
-		 * provided through the management interface */
+		struct hci_cp_io_capability_reply cp;
+
+		bacpy(&cp.bdaddr, &ev->bdaddr);
+		cp.capability = conn->io_capability;
+		cp.oob_data = 0;
+		cp.authentication = hci_get_auth_req(conn);
+
+		hci_send_cmd(hdev, HCI_OP_IO_CAPABILITY_REPLY,
+							sizeof(cp), &cp);
 	} else {
 		struct hci_cp_io_capability_neg_reply cp;
 

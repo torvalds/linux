@@ -154,6 +154,12 @@ struct mgmt_cp_pin_code_neg_reply {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define MGMT_OP_SET_IO_CAPABILITY	0x0013
+struct mgmt_cp_set_io_capability {
+	__le16 index;
+	__u8 io_capability;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;

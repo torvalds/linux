@@ -1016,6 +1016,35 @@ failed:
 	return err;
 }
 
+static int set_io_capability(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_set_io_capability *cp;
+	u16 dev_id;
+
+	BT_DBG("");
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_SET_IO_CAPABILITY, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	hdev->io_capability = cp->io_capability;
+
+	BT_DBG("%s IO capability set to 0x%02x", hdev->name,
+						hdev->io_capability);
+
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return cmd_complete(sk, MGMT_OP_SET_IO_CAPABILITY,
+						&dev_id, sizeof(dev_id));
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1097,6 +1126,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_PIN_CODE_NEG_REPLY:
 		err = pin_code_neg_reply(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_SET_IO_CAPABILITY:
+		err = set_io_capability(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);

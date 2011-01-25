@@ -1084,6 +1084,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
+	hdev->io_capability = 0x03; /* No Input No Output */
 
 	hdev->idle_timeout = 0;
 	hdev->sniff_max_interval = 800;
