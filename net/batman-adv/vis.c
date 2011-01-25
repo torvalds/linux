@@ -268,10 +268,10 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 				buff_pos += sprintf(buff + buff_pos, "%pM,",
 						entry->addr);
 
-				for (i = 0; i < packet->entries; i++)
+				for (j = 0; j < packet->entries; j++)
 					buff_pos += vis_data_read_entry(
 							buff + buff_pos,
-							&entries[i],
+							&entries[j],
 							entry->addr,
 							entry->primary);
 
