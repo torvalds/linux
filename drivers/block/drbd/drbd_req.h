@@ -260,11 +260,6 @@ static inline void drbd_req_free(struct drbd_request *req)
 	mempool_free(req, drbd_request_mempool);
 }
 
-static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
-{
-	return !((s1 + (l1>>9) <= s2) || (s1 >= s2 + (l2>>9)));
-}
-
 /* Short lived temporary struct on the stack.
  * We could squirrel the error to be returned into
  * bio->bi_size, or similar. But that would be too ugly. */
