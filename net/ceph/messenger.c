@@ -252,8 +252,12 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 {
 	struct kvec iov = {buf, len};
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
-	return kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	r = kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 /*
@@ -1821,19 +1825,17 @@ more:
 			dout("try_read connecting\n");
 			ret = read_partial_banner(con);
 			if (ret <= 0)
-				goto done;
-			if (process_banner(con) < 0) {
-				ret = -1;
 				goto out;
-			}
+			ret = process_banner(con);
+			if (ret < 0)
+				goto out;
 		}
 		ret = read_partial_connect(con);
 		if (ret <= 0)
-			goto done;
-		if (process_connect(con) < 0) {
-			ret = -1;
 			goto out;
-		}
+		ret = process_connect(con);
+		if (ret < 0)
+			goto out;
 		goto more;
 	}
 
@@ -1848,7 +1850,7 @@ more:
 		dout("skipping %d / %d bytes\n", skip, -con->in_base_pos);
 		ret = ceph_tcp_recvmsg(con->sock, buf, skip);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		con->in_base_pos += ret;
 		if (con->in_base_pos)
 			goto more;
@@ -1859,7 +1861,7 @@ more:
 		 */
 		ret = ceph_tcp_recvmsg(con->sock, &con->in_tag, 1);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		dout("try_read got tag %d\n", (int)con->in_tag);
 		switch (con->in_tag) {
 		case CEPH_MSGR_TAG_MSG:
@@ -1870,7 +1872,7 @@ more:
 			break;
 		case CEPH_MSGR_TAG_CLOSE:
 			set_bit(CLOSED, &con->state);   /* fixme */
-			goto done;
+			goto out;
 		default:
 			goto bad_tag;
 		}
@@ -1882,13 +1884,12 @@ more:
 			case -EBADMSG:
 				con->error_msg = "bad crc";
 				ret = -EIO;
-				goto out;
+				break;
 			case -EIO:
 				con->error_msg = "io error";
-				goto out;
-			default:
-				goto done;
+				break;
 			}
+			goto out;
 		}
 		if (con->in_tag == CEPH_MSGR_TAG_READY)
 			goto more;
@@ -1898,15 +1899,13 @@ more:
 	if (con->in_tag == CEPH_MSGR_TAG_ACK) {
 		ret = read_partial_ack(con);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		process_ack(con);
 		goto more;
 	}
 
-done:
-	ret = 0;
 out:
-	dout("try_read done on %p\n", con);
+	dout("try_read done on %p ret %d\n", con, ret);
 	return ret;
 
 bad_tag:
