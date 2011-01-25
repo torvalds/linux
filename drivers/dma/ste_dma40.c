@@ -94,7 +94,6 @@ struct d40_lli_pool {
  * during a transfer.
  * @node: List entry.
  * @is_in_client_list: true if the client owns this descriptor.
- * @is_hw_linked: true if this job will automatically be continued for
  * the previous one.
  *
  * This descriptor is used for both logical and physical transfers.
@@ -114,7 +113,6 @@ struct d40_desc {
 	struct list_head		 node;
 
 	bool				 is_in_client_list;
-	bool				 is_hw_linked;
 };
 
 /**
@@ -548,18 +546,6 @@ static struct d40_desc *d40_first_queued(struct d40_chan *d40c)
 	return d;
 }
 
-static struct d40_desc *d40_last_queued(struct d40_chan *d40c)
-{
-	struct d40_desc *d;
-
-	if (list_empty(&d40c->queue))
-		return NULL;
-	list_for_each_entry(d, &d40c->queue, node)
-		if (list_is_last(&d->node, &d40c->queue))
-			break;
-	return d;
-}
-
 static int d40_psize_2_burst_size(bool is_log, int psize)
 {
 	if (is_log) {
@@ -940,77 +926,6 @@ no_suspend:
 	return res;
 }
 
-static void d40_tx_submit_log(struct d40_chan *d40c, struct d40_desc *d40d)
-{
-	/* TODO: Write */
-}
-
-static void d40_tx_submit_phy(struct d40_chan *d40c, struct d40_desc *d40d)
-{
-	struct d40_desc *d40d_prev = NULL;
-	int i;
-	u32 val;
-
-	if (!list_empty(&d40c->queue))
-		d40d_prev = d40_last_queued(d40c);
-	else if (!list_empty(&d40c->active))
-		d40d_prev = d40_first_active_get(d40c);
-
-	if (!d40d_prev)
-		return;
-
-	/* Here we try to join this job with previous jobs */
-	val = readl(d40c->base->virtbase + D40_DREG_PCBASE +
-		    d40c->phy_chan->num * D40_DREG_PCDELTA +
-		    D40_CHAN_REG_SSLNK);
-
-	/* Figure out which link we're currently transmitting */
-	for (i = 0; i < d40d_prev->lli_len; i++)
-		if (val == d40d_prev->lli_phy.src[i].reg_lnk)
-			break;
-
-	val = readl(d40c->base->virtbase + D40_DREG_PCBASE +
-		    d40c->phy_chan->num * D40_DREG_PCDELTA +
-		    D40_CHAN_REG_SSELT) >> D40_SREG_ELEM_LOG_ECNT_POS;
-
-	if (i == (d40d_prev->lli_len - 1) && val > 0) {
-		/* Change the current one */
-		writel(virt_to_phys(d40d->lli_phy.src),
-		       d40c->base->virtbase + D40_DREG_PCBASE +
-		       d40c->phy_chan->num * D40_DREG_PCDELTA +
-		       D40_CHAN_REG_SSLNK);
-		writel(virt_to_phys(d40d->lli_phy.dst),
-		       d40c->base->virtbase + D40_DREG_PCBASE +
-		       d40c->phy_chan->num * D40_DREG_PCDELTA +
-		       D40_CHAN_REG_SDLNK);
-
-		d40d->is_hw_linked = true;
-
-	} else if (i < d40d_prev->lli_len) {
-		(void) dma_unmap_single(d40c->base->dev,
-					virt_to_phys(d40d_prev->lli_phy.src),
-					d40d_prev->lli_pool.size,
-					DMA_TO_DEVICE);
-
-		/* Keep the settings */
-		val = d40d_prev->lli_phy.src[d40d_prev->lli_len - 1].reg_lnk &
-			~D40_SREG_LNK_PHYS_LNK_MASK;
-		d40d_prev->lli_phy.src[d40d_prev->lli_len - 1].reg_lnk =
-			val | virt_to_phys(d40d->lli_phy.src);
-
-		val = d40d_prev->lli_phy.dst[d40d_prev->lli_len - 1].reg_lnk &
-			~D40_SREG_LNK_PHYS_LNK_MASK;
-		d40d_prev->lli_phy.dst[d40d_prev->lli_len - 1].reg_lnk =
-			val | virt_to_phys(d40d->lli_phy.dst);
-
-		(void) dma_map_single(d40c->base->dev,
-				      d40d_prev->lli_phy.src,
-				      d40d_prev->lli_pool.size,
-				      DMA_TO_DEVICE);
-		d40d->is_hw_linked = true;
-	}
-}
-
 static dma_cookie_t d40_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct d40_chan *d40c = container_of(tx->chan,
@@ -1018,8 +933,6 @@ static dma_cookie_t d40_tx_submit(struct dma_async_tx_descriptor *tx)
 					     chan);
 	struct d40_desc *d40d = container_of(tx, struct d40_desc, txd);
 	unsigned long flags;
-
-	(void) d40_pause(&d40c->chan);
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
@@ -1030,16 +943,9 @@ static dma_cookie_t d40_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	d40d->txd.cookie = d40c->chan.cookie;
 
-	if (d40c->log_num == D40_PHY_CHAN)
-		d40_tx_submit_phy(d40c, d40d);
-	else
-		d40_tx_submit_log(d40c, d40d);
-
 	d40_desc_queue(d40c, d40d);
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
-
-	(void) d40_resume(&d40c->chan);
 
 	return tx->cookie;
 }
@@ -1080,21 +986,14 @@ static struct d40_desc *d40_queue_start(struct d40_chan *d40c)
 		/* Add to active queue */
 		d40_desc_submit(d40c, d40d);
 
-		/*
-		 * If this job is already linked in hw,
-		 * do not submit it.
-		 */
+		/* Initiate DMA job */
+		d40_desc_load(d40c, d40d);
 
-		if (!d40d->is_hw_linked) {
-			/* Initiate DMA job */
-			d40_desc_load(d40c, d40d);
+		/* Start dma job */
+		err = d40_start(d40c);
 
-			/* Start dma job */
-			err = d40_start(d40c);
-
-			if (err)
-				return NULL;
-		}
+		if (err)
+			return NULL;
 	}
 
 	return d40d;
