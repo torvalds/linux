@@ -313,13 +313,6 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 
 /* Logical channels */
 
-struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
-				       dma_addr_t addr,
-				       int size,
-				       u32 lcsp13, /* src or dst*/
-				       u32 data_width1, u32 data_width2,
-				       bool addr_inc);
-
 int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
 		      dma_addr_t dev_addr,

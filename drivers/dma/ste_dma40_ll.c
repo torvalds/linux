@@ -363,7 +363,7 @@ static void d40_log_fill_lli(struct d40_log_lli *lli,
 
 }
 
-struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
+static struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
 				       dma_addr_t addr,
 				       int size,
 				       u32 lcsp13, /* src or dst*/
