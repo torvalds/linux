@@ -35,9 +35,9 @@ struct VMBUS_CONNECTION vmbus_connection = {
 };
 
 /*
- * VmbusConnect - Sends a connect request on the partition service connection
+ * vmbus_connect - Sends a connect request on the partition service connection
  */
-int VmbusConnect(void)
+int vmbus_connect(void)
 {
 	int ret = 0;
 	struct vmbus_channel_msginfo *msginfo = NULL;
@@ -126,7 +126,7 @@ int VmbusConnect(void)
 		   msg->interrupt_page, msg->monitor_page1, msg->monitor_page2);
 
 	DPRINT_DBG(VMBUS, "Sending channel initiate msg...");
-	ret = VmbusPostMessage(msg,
+	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_initiate_contact));
 	if (ret != 0) {
 		list_del(&msginfo->msglistentry);
@@ -180,9 +180,10 @@ Cleanup:
 }
 
 /*
- * VmbusDisconnect - Sends a disconnect request on the partition service connection
+ * vmbus_disconnect -
+ * Sends a disconnect request on the partition service connection
  */
-int VmbusDisconnect(void)
+int vmbus_disconnect(void)
 {
 	int ret = 0;
 	struct vmbus_channel_message_header *msg;
@@ -197,7 +198,7 @@ int VmbusDisconnect(void)
 
 	msg->msgtype = CHANNELMSG_UNLOAD;
 
-	ret = VmbusPostMessage(msg,
+	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_message_header));
 	if (ret != 0)
 		goto Cleanup;
@@ -217,9 +218,10 @@ Cleanup:
 }
 
 /*
- * GetChannelFromRelId - Get the channel object given its child relative id (ie channel id)
+ * relid2channel - Get the channel object given its
+ * child relative id (ie channel id)
  */
-struct vmbus_channel *GetChannelFromRelId(u32 relid)
+struct vmbus_channel *relid2channel(u32 relid)
 {
 	struct vmbus_channel *channel;
 	struct vmbus_channel *found_channel  = NULL;
@@ -238,9 +240,9 @@ struct vmbus_channel *GetChannelFromRelId(u32 relid)
 }
 
 /*
- * VmbusProcessChannelEvent - Process a channel event notification
+ * process_chn_event - Process a channel event notification
  */
-static void VmbusProcessChannelEvent(void *context)
+static void process_chn_event(void *context)
 {
 	struct vmbus_channel *channel;
 	u32 relid = (u32)(unsigned long)context;
@@ -251,7 +253,7 @@ static void VmbusProcessChannelEvent(void *context)
 	 * Find the channel based on this relid and invokes the
 	 * channel callback to process the event
 	 */
-	channel = GetChannelFromRelId(relid);
+	channel = relid2channel(relid);
 
 	if (channel) {
 		vmbus_onchannel_event(channel);
@@ -266,9 +268,9 @@ static void VmbusProcessChannelEvent(void *context)
 }
 
 /*
- * VmbusOnEvents - Handler for events
+ * vmbus_on_event - Handler for events
  */
-void VmbusOnEvents(void)
+void vmbus_on_event(void)
 {
 	int dword;
 	int maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
@@ -294,7 +296,8 @@ void VmbusOnEvents(void)
 						} else {
 							/* QueueWorkItem(VmbusProcessEvent, (void*)relid); */
 							/* ret = WorkQueueQueueWorkItem(gVmbusConnection.workQueue, VmbusProcessChannelEvent, (void*)relid); */
-							VmbusProcessChannelEvent((void *)(unsigned long)relid);
+						process_chn_event((void *)
+						(unsigned long)relid);
 						}
 					}
 				}
@@ -305,9 +308,9 @@ void VmbusOnEvents(void)
 }
 
 /*
- * VmbusPostMessage - Send a msg on the vmbus's message connection
+ * vmbus_post_msg - Send a msg on the vmbus's message connection
  */
-int VmbusPostMessage(void *buffer, size_t buflen)
+int vmbus_post_msg(void *buffer, size_t buflen)
 {
 	union hv_connection_id conn_id;
 
@@ -317,9 +320,9 @@ int VmbusPostMessage(void *buffer, size_t buflen)
 }
 
 /*
- * VmbusSetEvent - Send an event notification to the parent
+ * vmbus_set_event - Send an event notification to the parent
  */
-int VmbusSetEvent(u32 child_relid)
+int vmbus_set_event(u32 child_relid)
 {
 	/* Each u32 represents 32 channels */
 	set_bit(child_relid & 31,

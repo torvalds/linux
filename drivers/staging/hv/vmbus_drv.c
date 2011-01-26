@@ -174,7 +174,7 @@ static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
 	on_each_cpu(hv_synic_init, (void *)irqvector, 1);
 
 	/* Connect to VMBus in the root partition */
-	ret = VmbusConnect();
+	ret = vmbus_connect();
 
 	/* VmbusSendEvent(device->localPortId+1); */
 	return ret;
@@ -188,7 +188,7 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 	int ret = 0;
 
 	vmbus_release_unattached_channels();
-	VmbusDisconnect();
+	vmbus_disconnect();
 	on_each_cpu(hv_synic_cleanup, NULL, 1);
 	return ret;
 }
@@ -1045,7 +1045,7 @@ static void vmbus_msg_dpc(unsigned long data)
 static void vmbus_event_dpc(unsigned long data)
 {
 	/* Call to bus driver to handle interrupt */
-	VmbusOnEvents();
+	vmbus_on_event();
 }
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)

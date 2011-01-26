@@ -115,20 +115,20 @@ void vmbus_child_device_unregister(struct hv_device *device_obj);
 /* VmbusChildDeviceDestroy( */
 /* struct hv_device *); */
 
-struct vmbus_channel *GetChannelFromRelId(u32 relId);
+struct vmbus_channel *relid2channel(u32 relid);
 
 
 /* Connection interface */
 
-int VmbusConnect(void);
+int vmbus_connect(void);
 
-int VmbusDisconnect(void);
+int vmbus_disconnect(void);
 
-int VmbusPostMessage(void *buffer, size_t bufSize);
+int vmbus_post_msg(void *buffer, size_t buflen);
 
-int VmbusSetEvent(u32 childRelId);
+int vmbus_set_event(u32 child_relid);
 
-void VmbusOnEvents(void);
+void vmbus_on_event(void);
 
 
 #endif /* _VMBUS_PRIVATE_H_ */

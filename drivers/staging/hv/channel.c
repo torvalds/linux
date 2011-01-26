@@ -88,7 +88,7 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 					[channel->monitor_grp].pending);
 
 	} else {
-		VmbusSetEvent(channel->offermsg.child_relid);
+		vmbus_set_event(channel->offermsg.child_relid);
 	}
 }
 
@@ -272,7 +272,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	DPRINT_DBG(VMBUS, "Sending channel open msg...");
 
-	ret = VmbusPostMessage(openMsg,
+	ret = vmbus_post_msg(openMsg,
 			       sizeof(struct vmbus_channel_open_channel));
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS, "unable to open channel - %d", ret);
@@ -532,7 +532,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	DPRINT_DBG(VMBUS, "Sending GPADL Header - len %zd",
 		   msginfo->msgsize - sizeof(*msginfo));
 
-	ret = VmbusPostMessage(gpadlmsg, msginfo->msgsize -
+	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
 			       sizeof(*msginfo));
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS, "Unable to open channel - %d", ret);
@@ -557,7 +557,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 			dump_gpadl_body(gpadl_body, submsginfo->msgsize -
 				      sizeof(*submsginfo));
-			ret = VmbusPostMessage(gpadl_body,
+			ret = vmbus_post_msg(gpadl_body,
 					       submsginfo->msgsize -
 					       sizeof(*submsginfo));
 			if (ret != 0)
@@ -621,7 +621,7 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 		      &vmbus_connection.ChannelMsgList);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-	ret = VmbusPostMessage(msg,
+	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_gpadl_teardown));
 	if (ret != 0) {
 		/* TODO: */
@@ -669,7 +669,7 @@ void vmbus_close(struct vmbus_channel *channel)
 	msg->header.msgtype = CHANNELMSG_CLOSECHANNEL;
 	msg->child_relid = channel->offermsg.child_relid;
 
-	ret = VmbusPostMessage(msg, sizeof(struct vmbus_channel_close_channel));
+	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_close_channel));
 	if (ret != 0) {
 		/* TODO: */
 		/* something... */

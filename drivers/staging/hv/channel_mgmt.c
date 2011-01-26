@@ -532,7 +532,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	struct vmbus_channel *channel;
 
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
-	channel = GetChannelFromRelId(rescind->child_relid);
+	channel = relid2channel(rescind->child_relid);
 	if (channel == NULL) {
 		DPRINT_DBG(VMBUS, "channel not found for relId %d",
 			   rescind->child_relid);
@@ -820,7 +820,7 @@ int vmbus_request_offers(void)
 			 &msgInfo->msgListEntry);
 	SpinlockRelease(gVmbusConnection.channelMsgLock);*/
 
-	ret = VmbusPostMessage(msg,
+	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_message_header));
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS, "Unable to request offers - %d", ret);
