@@ -345,12 +345,15 @@ int nv50_display_create(struct drm_device *dev)
 void
 nv50_display_destroy(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
 	NV_DEBUG_KMS(dev, "\n");
 
 	drm_mode_config_cleanup(dev);
 
 	nv50_display_disable(dev);
 	nouveau_irq_unregister(dev, 26);
+	flush_work_sync(&dev_priv->irq_work);
 }
 
 static u16
@@ -836,7 +839,7 @@ nv50_display_isr(struct drm_device *dev)
 		if (clock) {
 			nv_wr32(dev, NV03_PMC_INTR_EN_0, 0);
 			if (!work_pending(&dev_priv->irq_work))
-				queue_work(dev_priv->wq, &dev_priv->irq_work);
+				schedule_work(&dev_priv->irq_work);
 			delayed |= clock;
 			intr1 &= ~clock;
 		}

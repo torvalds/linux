@@ -929,12 +929,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
 
-	dev_priv->wq = create_workqueue("nouveau");
-	if (!dev_priv->wq) {
-		ret = -EINVAL;
-		goto err_priv;
-	}
-
 	/* resource 0 is mmio regs */
 	/* resource 1 is linear FB */
 	/* resource 2 is RAMIN (mmio regs + 0x1000000) */
@@ -947,7 +941,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		NV_ERROR(dev, "Unable to initialize the mmio mapping. "
 			 "Please report your setup to " DRIVER_EMAIL "\n");
 		ret = -EINVAL;
-		goto err_wq;
+		goto err_priv;
 	}
 	NV_DEBUG(dev, "regs mapped ok at 0x%llx\n",
 					(unsigned long long)mmio_start_offs);
@@ -1054,8 +1048,6 @@ err_ramin:
 	iounmap(dev_priv->ramin);
 err_mmio:
 	iounmap(dev_priv->mmio);
-err_wq:
-	destroy_workqueue(dev_priv->wq);
 err_priv:
 	kfree(dev_priv);
 	dev->dev_private = NULL;
