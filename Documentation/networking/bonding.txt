@@ -49,7 +49,8 @@ Table of Contents
 3.3	Configuring Bonding Manually with Ifenslave
 3.3.1		Configuring Multiple Bonds Manually
 3.4	Configuring Bonding Manually via Sysfs
-3.5	Overriding Configuration for Special Cases
+3.5	Configuration with Interfaces Support
+3.6	Overriding Configuration for Special Cases
 
 4. Querying Bonding Configuration
 4.1	Bonding Configuration
@@ -161,8 +162,8 @@ onwards) do not have /usr/include/linux symbolically linked to the
 default kernel source include directory.
 
 SECOND IMPORTANT NOTE:
-	If you plan to configure bonding using sysfs, you do not need
-to use ifenslave.
+	If you plan to configure bonding using sysfs or using the
+/etc/network/interfaces file, you do not need to use ifenslave.
 
 2. Bonding Driver Options
 =========================
@@ -779,22 +780,26 @@ resend_igmp
 
 	You can configure bonding using either your distro's network
 initialization scripts, or manually using either ifenslave or the
-sysfs interface.  Distros generally use one of two packages for the
-network initialization scripts: initscripts or sysconfig.  Recent
-versions of these packages have support for bonding, while older
+sysfs interface.  Distros generally use one of three packages for the
+network initialization scripts: initscripts, sysconfig or interfaces.
+Recent versions of these packages have support for bonding, while older
 versions do not.
 
 	We will first describe the options for configuring bonding for
-distros using versions of initscripts and sysconfig with full or
-partial support for bonding, then provide information on enabling
+distros using versions of initscripts, sysconfig and interfaces with full
+or partial support for bonding, then provide information on enabling
 bonding without support from the network initialization scripts (i.e.,
 older versions of initscripts or sysconfig).
 
-	If you're unsure whether your distro uses sysconfig or
-initscripts, or don't know if it's new enough, have no fear.
+	If you're unsure whether your distro uses sysconfig,
+initscripts or interfaces, or don't know if it's new enough, have no fear.
 Determining this is fairly straightforward.
 
-	First, issue the command:
+	First, look for a file called interfaces in /etc/network directory.
+If this file is present in your system, then your system use interfaces. See
+Configuration with Interfaces Support.
+
+	Else, issue the command:
 
 $ rpm -qf /sbin/ifup
 
@@ -1327,8 +1332,62 @@ echo 2000 > /sys/class/net/bond1/bonding/arp_interval
 echo +eth2 > /sys/class/net/bond1/bonding/slaves
 echo +eth3 > /sys/class/net/bond1/bonding/slaves
 
-3.5 Overriding Configuration for Special Cases
+3.5 Configuration with Interfaces Support
+-----------------------------------------
+
+        This section applies to distros which use /etc/network/interfaces file
+to describe network interface configuration, most notably Debian and it's
+derivatives.
+
+	The ifup and ifdown commands on Debian don't support bonding out of
+the box. The ifenslave-2.6 package should be installed to provide bonding
+support.  Once installed, this package will provide bond-* options to be used
+into /etc/network/interfaces.
+
+	Note that ifenslave-2.6 package will load the bonding module and use
+the ifenslave command when appropriate.
+
+Example Configurations
+----------------------
+
+In /etc/network/interfaces, the following stanza will configure bond0, in
+active-backup mode, with eth0 and eth1 as slaves.
+
+auto bond0
+iface bond0 inet dhcp
+	bond-slaves eth0 eth1
+	bond-mode active-backup
+	bond-miimon 100
+	bond-primary eth0 eth1
+
+If the above configuration doesn't work, you might have a system using
+upstart for system startup. This is most notably true for recent
+Ubuntu versions. The following stanza in /etc/network/interfaces will
+produce the same result on those systems.
+
+auto bond0
+iface bond0 inet dhcp
+	bond-slaves none
+	bond-mode active-backup
+	bond-miimon 100
+
+auto eth0
+iface eth0 inet manual
+	bond-master bond0
+	bond-primary eth0 eth1
+
+auto eth1
+iface eth1 inet manual
+	bond-master bond0
+	bond-primary eth0 eth1
+
+For a full list of bond-* supported options in /etc/network/interfaces and some
+more advanced examples tailored to you particular distros, see the files in
+/usr/share/doc/ifenslave-2.6.
+
+3.6 Overriding Configuration for Special Cases
 ----------------------------------------------
+
 When using the bonding driver, the physical port which transmits a frame is
 typically selected by the bonding driver, and is not relevant to the user or
 system administrator.  The output port is simply selected using the policies of
