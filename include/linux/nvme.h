@@ -142,6 +142,18 @@ enum nvme_opcode {
 	nvme_cmd_dsm		= 0x09,
 };
 
+struct nvme_common_command {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2;
+	__le64			metadata;
+	__le64			prp1;
+	__le64			prp2;
+	__u32			rsvd10[6];
+};
+
 struct nvme_rw_command {
 	__u8			opcode;
 	__u8			flags;
@@ -282,14 +294,6 @@ struct nvme_delete_queue {
 	__le16			qid;
 	__le16			rsvd10;
 	__le32			rsvd11[5];
-};
-
-struct nvme_common_command {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__u32			rsvd2[14];
 };
 
 struct nvme_command {
