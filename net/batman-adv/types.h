@@ -246,13 +246,13 @@ struct vis_info {
 	/* this packet might be part of the vis send queue. */
 	struct sk_buff *skb_packet;
 	/* vis_info may follow here*/
-} __attribute__((packed));
+} __packed;
 
 struct vis_info_entry {
 	uint8_t  src[ETH_ALEN];
 	uint8_t  dest[ETH_ALEN];
 	uint8_t  quality;	/* quality = 0 means HNA */
-} __attribute__((packed));
+} __packed;
 
 struct recvlist_node {
 	struct list_head list;

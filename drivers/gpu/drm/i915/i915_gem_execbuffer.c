@@ -1175,7 +1175,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err;
 
 	seqno = i915_gem_next_request_seqno(dev, ring);
-	for (i = 0; i < I915_NUM_RINGS-1; i++) {
+	for (i = 0; i < ARRAY_SIZE(ring->sync_seqno); i++) {
 		if (seqno < ring->sync_seqno[i]) {
 			/* The GPU can not handle its semaphore value wrapping,
 			 * so every billion or so execbuffers, we need to stall

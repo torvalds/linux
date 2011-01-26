@@ -128,6 +128,6 @@ static void __exit ipc_module_exit(void)
 module_init(ipc_module_init);
 module_exit(ipc_module_exit);
 
-MODULE_LICENSE("GPL V2");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Utility driver for intel scu ipc");
 MODULE_AUTHOR("Sreedhara <sreedhara.ds@intel.com>");

@@ -39,8 +39,14 @@ static int key_wait_bit_intr(void *flags)
 	return signal_pending(current) ? -ERESTARTSYS : 0;
 }
 
-/*
- * call to complete the construction of a key
+/**
+ * complete_request_key - Complete the construction of a key.
+ * @cons: The key construction record.
+ * @error: The success or failute of the construction.
+ *
+ * Complete the attempt to construct a key.  The key will be negated
+ * if an error is indicated.  The authorisation key will be revoked
+ * unconditionally.
  */
 void complete_request_key(struct key_construction *cons, int error)
 {
@@ -58,23 +64,33 @@ void complete_request_key(struct key_construction *cons, int error)
 }
 EXPORT_SYMBOL(complete_request_key);
 
+/*
+ * Initialise a usermode helper that is going to have a specific session
+ * keyring.
+ *
+ * This is called in context of freshly forked kthread before kernel_execve(),
+ * so we can simply install the desired session_keyring at this point.
+ */
 static int umh_keys_init(struct subprocess_info *info)
 {
 	struct cred *cred = (struct cred*)current_cred();
 	struct key *keyring = info->data;
-	/*
-	 * This is called in context of freshly forked kthread before
-	 * kernel_execve(), we can just change our ->session_keyring.
-	 */
+
 	return install_session_keyring_to_cred(cred, keyring);
 }
 
+/*
+ * Clean up a usermode helper with session keyring.
+ */
 static void umh_keys_cleanup(struct subprocess_info *info)
 {
 	struct key *keyring = info->data;
 	key_put(keyring);
 }
 
+/*
+ * Call a usermode helper with a specific session keyring.
+ */
 static int call_usermodehelper_keys(char *path, char **argv, char **envp,
 			 struct key *session_keyring, enum umh_wait wait)
 {
@@ -91,7 +107,7 @@ static int call_usermodehelper_keys(char *path, char **argv, char **envp,
 }
 
 /*
- * request userspace finish the construction of a key
+ * Request userspace finish the construction of a key
  * - execute "/sbin/request-key <op> <key> <uid> <gid> <keyring> <keyring> <keyring>"
  */
 static int call_sbin_request_key(struct key_construction *cons,
@@ -198,8 +214,9 @@ error_alloc:
 }
 
 /*
- * call out to userspace for key construction
- * - we ignore program failure and go on key status instead
+ * Call out to userspace for key construction.
+ *
+ * Program failure is ignored in favour of key status.
  */
 static int construct_key(struct key *key, const void *callout_info,
 			 size_t callout_len, void *aux,
@@ -246,9 +263,10 @@ static int construct_key(struct key *key, const void *callout_info,
 }
 
 /*
- * get the appropriate destination keyring for the request
- * - we return whatever keyring we select with an extra reference upon it which
- *   the caller must release
+ * Get the appropriate destination keyring for the request.
+ *
+ * The keyring selected is returned with an extra reference upon it which the
+ * caller must release.
  */
 static void construct_get_dest_keyring(struct key **_dest_keyring)
 {
@@ -321,9 +339,11 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 }
 
 /*
- * allocate a new key in under-construction state and attempt to link it in to
- * the requested place
- * - may return a key that's already under construction instead
+ * Allocate a new key in under-construction state and attempt to link it in to
+ * the requested keyring.
+ *
+ * May return a key that's already under construction instead if there was a
+ * race between two thread calling request_key().
  */
 static int construct_alloc_key(struct key_type *type,
 			       const char *description,
@@ -332,8 +352,8 @@ static int construct_alloc_key(struct key_type *type,
 			       struct key_user *user,
 			       struct key **_key)
 {
-	struct keyring_list *prealloc;
 	const struct cred *cred = current_cred();
+	unsigned long prealloc;
 	struct key *key;
 	key_ref_t key_ref;
 	int ret;
@@ -414,7 +434,7 @@ alloc_failed:
 }
 
 /*
- * commence key construction
+ * Commence key construction.
  */
 static struct key *construct_key_and_link(struct key_type *type,
 					  const char *description,
@@ -465,12 +485,32 @@ construction_failed:
 	return ERR_PTR(ret);
 }
 
-/*
- * request a key
- * - search the process's keyrings
- * - check the list of keys being created or updated
- * - call out to userspace for a key if supplementary info was provided
- * - cache the key in an appropriate keyring
+/**
+ * request_key_and_link - Request a key and cache it in a keyring.
+ * @type: The type of key we want.
+ * @description: The searchable description of the key.
+ * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ * @callout_len: The length of callout_info.
+ * @aux: Auxiliary data for the upcall.
+ * @dest_keyring: Where to cache the key.
+ * @flags: Flags to key_alloc().
+ *
+ * A key matching the specified criteria is searched for in the process's
+ * keyrings and returned with its usage count incremented if found.  Otherwise,
+ * if callout_info is not NULL, a key will be allocated and some service
+ * (probably in userspace) will be asked to instantiate it.
+ *
+ * If successfully found or created, the key will be linked to the destination
+ * keyring if one is provided.
+ *
+ * Returns a pointer to the key if successful; -EACCES, -ENOKEY, -EKEYREVOKED
+ * or -EKEYEXPIRED if an inaccessible, negative, revoked or expired key was
+ * found; -ENOKEY if no key was found and no @callout_info was given; -EDQUOT
+ * if insufficient key quota was available to create a new key; or -ENOMEM if
+ * insufficient memory was available.
+ *
+ * If the returned key was created, then it may still be under construction,
+ * and wait_for_key_construction() should be used to wait for that to complete.
  */
 struct key *request_key_and_link(struct key_type *type,
 				 const char *description,
@@ -524,8 +564,16 @@ error:
 	return key;
 }
 
-/*
- * wait for construction of a key to complete
+/**
+ * wait_for_key_construction - Wait for construction of a key to complete
+ * @key: The key being waited for.
+ * @intr: Whether to wait interruptibly.
+ *
+ * Wait for a key to finish being constructed.
+ *
+ * Returns 0 if successful; -ERESTARTSYS if the wait was interrupted; -ENOKEY
+ * if the key was negated; or -EKEYREVOKED or -EKEYEXPIRED if the key was
+ * revoked or expired.
  */
 int wait_for_key_construction(struct key *key, bool intr)
 {
@@ -542,12 +590,19 @@ int wait_for_key_construction(struct key *key, bool intr)
 }
 EXPORT_SYMBOL(wait_for_key_construction);
 
-/*
- * request a key
- * - search the process's keyrings
- * - check the list of keys being created or updated
- * - call out to userspace for a key if supplementary info was provided
- * - waits uninterruptible for creation to complete
+/**
+ * request_key - Request a key and wait for construction
+ * @type: Type of key.
+ * @description: The searchable description of the key.
+ * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ *
+ * As for request_key_and_link() except that it does not add the returned key
+ * to a keyring if found, new keys are always allocated in the user's quota,
+ * the callout_info must be a NUL-terminated string and no auxiliary data can
+ * be passed.
+ *
+ * Furthermore, it then works as wait_for_key_construction() to wait for the
+ * completion of keys undergoing construction with a non-interruptible wait.
  */
 struct key *request_key(struct key_type *type,
 			const char *description,
@@ -572,12 +627,19 @@ struct key *request_key(struct key_type *type,
 }
 EXPORT_SYMBOL(request_key);
 
-/*
- * request a key with auxiliary data for the upcaller
- * - search the process's keyrings
- * - check the list of keys being created or updated
- * - call out to userspace for a key if supplementary info was provided
- * - waits uninterruptible for creation to complete
+/**
+ * request_key_with_auxdata - Request a key with auxiliary data for the upcaller
+ * @type: The type of key we want.
+ * @description: The searchable description of the key.
+ * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ * @callout_len: The length of callout_info.
+ * @aux: Auxiliary data for the upcall.
+ *
+ * As for request_key_and_link() except that it does not add the returned key
+ * to a keyring if found and new keys are always allocated in the user's quota.
+ *
+ * Furthermore, it then works as wait_for_key_construction() to wait for the
+ * completion of keys undergoing construction with a non-interruptible wait.
  */
 struct key *request_key_with_auxdata(struct key_type *type,
 				     const char *description,
@@ -602,10 +664,18 @@ struct key *request_key_with_auxdata(struct key_type *type,
 EXPORT_SYMBOL(request_key_with_auxdata);
 
 /*
- * request a key (allow async construction)
- * - search the process's keyrings
- * - check the list of keys being created or updated
- * - call out to userspace for a key if supplementary info was provided
+ * request_key_async - Request a key (allow async construction)
+ * @type: Type of key.
+ * @description: The searchable description of the key.
+ * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ * @callout_len: The length of callout_info.
+ *
+ * As for request_key_and_link() except that it does not add the returned key
+ * to a keyring if found, new keys are always allocated in the user's quota and
+ * no auxiliary data can be passed.
+ *
+ * The caller should call wait_for_key_construction() to wait for the
+ * completion of the returned key if it is still undergoing construction.
  */
 struct key *request_key_async(struct key_type *type,
 			      const char *description,
@@ -620,9 +690,17 @@ EXPORT_SYMBOL(request_key_async);
 
 /*
  * request a key with auxiliary data for the upcaller (allow async construction)
- * - search the process's keyrings
- * - check the list of keys being created or updated
- * - call out to userspace for a key if supplementary info was provided
+ * @type: Type of key.
+ * @description: The searchable description of the key.
+ * @callout_info: The data to pass to the instantiation upcall (or NULL).
+ * @callout_len: The length of callout_info.
+ * @aux: Auxiliary data for the upcall.
+ *
+ * As for request_key_and_link() except that it does not add the returned key
+ * to a keyring if found and new keys are always allocated in the user's quota.
+ *
+ * The caller should call wait_for_key_construction() to wait for the
+ * completion of the returned key if it is still undergoing construction.
  */
 struct key *request_key_async_with_auxdata(struct key_type *type,
 					   const char *description,

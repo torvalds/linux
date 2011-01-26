@@ -212,7 +212,7 @@ get_source_line(struct hist_entry *he, int len, const char *filename)
 			continue;
 
 		offset = start + i;
-		sprintf(cmd, "addr2line -e %s %016llx", filename, offset);
+		sprintf(cmd, "addr2line -e %s %016" PRIx64, filename, offset);
 		fp = popen(cmd, "r");
 		if (!fp)
 			continue;
@@ -270,9 +270,9 @@ static void hist_entry__print_hits(struct hist_entry *self)
 
 	for (offset = 0; offset < len; ++offset)
 		if (h->ip[offset] != 0)
-			printf("%*Lx: %Lu\n", BITS_PER_LONG / 2,
+			printf("%*" PRIx64 ": %" PRIu64 "\n", BITS_PER_LONG / 2,
 			       sym->start + offset, h->ip[offset]);
-	printf("%*s: %Lu\n", BITS_PER_LONG / 2, "h->sum", h->sum);
+	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
 static int hist_entry__tty_annotate(struct hist_entry *he)

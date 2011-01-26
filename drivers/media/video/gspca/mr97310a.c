@@ -1229,7 +1229,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x08ca, 0x0110)},	/* Trust Spyc@m 100 */
 	{USB_DEVICE(0x08ca, 0x0111)},	/* Aiptek Pencam VGA+ */
 	{USB_DEVICE(0x093a, 0x010f)},	/* All other known MR97310A VGA cams */
