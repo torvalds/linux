@@ -1717,7 +1717,6 @@ static int snd_soc_init_codec_cache(struct snd_soc_codec *codec,
 
 static void snd_soc_instantiate_card(struct snd_soc_card *card)
 {
-	struct platform_device *pdev = to_platform_device(card->dev);
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_conf *codec_conf;
 	enum snd_soc_compress_type compress_type;
@@ -1781,7 +1780,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	/* initialise the sound card only once */
 	if (card->probe) {
-		ret = card->probe(pdev);
+		ret = card->probe(card);
 		if (ret < 0)
 			goto card_probe_error;
 	}
@@ -1842,7 +1841,7 @@ probe_dai_err:
 
 card_probe_error:
 	if (card->remove)
-		card->remove(pdev);
+		card->remove(card);
 
 	snd_card_free(card->snd_card);
 
@@ -1888,7 +1887,6 @@ static int soc_probe(struct platform_device *pdev)
 
 static int soc_cleanup_card_resources(struct snd_soc_card *card)
 {
-	struct platform_device *pdev = to_platform_device(card->dev);
 	int i;
 
 	/* make sure any delayed work runs */
@@ -1909,7 +1907,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 
 	/* remove the card */
 	if (card->remove)
-		card->remove(pdev);
+		card->remove(card);
 
 	kfree(card->rtd);
 	snd_card_free(card->snd_card);

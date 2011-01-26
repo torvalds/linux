@@ -649,8 +649,8 @@ struct snd_soc_card {
 
 	bool instantiated;
 
-	int (*probe)(struct platform_device *pdev);
-	int (*remove)(struct platform_device *pdev);
+	int (*probe)(struct snd_soc_card *card);
+	int (*remove)(struct snd_soc_card *card);
 
 	/* the pre and post PM functions are used to do any PM work before and
 	 * after the codec and DAI's do any PM work. */
