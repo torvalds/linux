@@ -848,9 +848,6 @@ extern void nv10_mem_put_tile_region(struct drm_device *dev,
 				     struct nouveau_fence *fence);
 extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
 
-/* nvc0_vram.c */
-extern const struct ttm_mem_type_manager_func nvc0_vram_manager;
-
 /* nouveau_notifier.c */
 extern int  nouveau_notifier_init_channel(struct nouveau_channel *);
 extern void nouveau_notifier_takedown_channel(struct nouveau_channel *);
