@@ -377,7 +377,7 @@ struct module
 	   keeping pointers to this stuff */
 	char *args;
 #ifdef CONFIG_TRACEPOINTS
-	struct tracepoint *tracepoints;
+	struct tracepoint * const *tracepoints_ptrs;
 	unsigned int num_tracepoints;
 #endif
 #ifdef HAVE_JUMP_LABEL
