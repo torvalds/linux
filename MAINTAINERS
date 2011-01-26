@@ -2093,6 +2093,12 @@ F:	Documentation/serial/digiepca.txt
 F:	drivers/char/epca*
 F:	drivers/char/digi*
 
+DIOLAN U2C-12 I2C DRIVER
+M:	Guenter Roeck <guenter.roeck@ericsson.com>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-diolan-u2c.c
+
 DIRECTORY NOTIFICATION (DNOTIFY)
 M:	Eric Paris <eparis@parisplace.org>
 S:	Maintained

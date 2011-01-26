@@ -648,6 +648,16 @@ config I2C_EG20T
 
 comment "External I2C/SMBus adapter drivers"
 
+config I2C_DIOLAN_U2C
+	tristate "Diolan U2C-12 USB adapter"
+	depends on USB
+	help
+	  If you say yes to this option, support will be included for Diolan
+	  U2C-12, a USB to I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-diolan-u2c.
+
 config I2C_PARPORT
 	tristate "Parallel port adapter"
 	depends on PARPORT
