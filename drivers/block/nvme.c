@@ -322,6 +322,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	spin_lock_irqsave(&nvmeq->q_lock, flags);
 	cmnd = &nvmeq->sq_cmds[nvmeq->sq_tail];
 
+	memset(cmnd, 0, sizeof(*cmnd));
 	if (bio_data_dir(bio)) {
 		cmnd->rw.opcode = nvme_cmd_write;
 		dma_dir = DMA_TO_DEVICE;
