@@ -140,6 +140,29 @@ struct eeti_egalax_platform_data{
     int     (*eeti_egalax_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
 };
+
+/*sintex touch*/
+struct sintek_platform_data {
+	u16 	model;
+
+	int 	(*get_pendown_state)(void);
+	int 	(*init_platform_hw)(void);
+	int 	(*sintek_platform_sleep)(void);
+	int 	(*sintek_platform_wakeup)(void);
+	void	(*exit_platform_hw)(void);
+};
+
+/*synaptics  touch*/
+struct synaptics_platform_data {
+	u16 	model;
+	
+	int 	(*get_pendown_state)(void);
+	int 	(*init_platform_hw)(void);
+	int 	(*sintek_platform_sleep)(void);
+	int 	(*sintek_platform_wakeup)(void);
+	void	(*exit_platform_hw)(void);
+};
+
 struct mma8452_platform_data {
     u16     model;
 	u16     swap_xy;

@@ -18,5 +18,6 @@ obj-$(CONFIG_HDMI_ANX7150) += hdmi_anx7150.o
 
 obj-$(CONFIG_LCD_HX8357) += lcd_hx8357.o
 obj-$(CONFIG_LCD_HSD100PXN) += lcd_hsd100pxn.o
+obj-$(CONFIG_LCD_B101AW06) += lcd_B101AW06.o
 obj-$(CONFIG_LCD_ANX7150_720P) += lcd_anx7150_720p.o
 

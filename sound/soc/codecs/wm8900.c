@@ -31,6 +31,9 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <mach/gpio.h>
+#include <mach/irqs.h>
+#include <mach/rk29_iomap.h>
 
 #include "wm8900.h"
 
@@ -142,7 +145,9 @@
 #define WM8900_REG_HPCTL1_HP_SHORT2      0x04
 
 #define WM8900_LRC_MASK 0xfc00
-
+#ifdef CONFIG_MACH_RK29_MALATA
+#define SPK_CON 		RK29_PIN6_PB6
+#endif
 struct snd_soc_codec_device soc_codec_dev_wm8900;
 
 struct wm8900_priv {
@@ -1070,7 +1075,18 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 
 	return 0;
 }
-
+#ifdef CONFIG_MACH_RK29_MALATA
+static int wm8900_trigger(struct snd_pcm_substream *substream, int trigger)
+{	
+	WM8900_DBG("Enter::%s----%d trigger = %d\n",__FUNCTION__,__LINE__, trigger);	
+	if(trigger == 1){		
+		gpio_set_value(SPK_CON, GPIO_HIGH);
+	}	else{		
+		gpio_set_value(SPK_CON, GPIO_LOW);
+	}	
+	return 0;
+}
+#endif
 #define WM8900_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 		      SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		      SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
@@ -1085,6 +1101,9 @@ static struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_pll	= wm8900_set_dai_pll,
 	.set_fmt	= wm8900_set_dai_fmt,
 	.digital_mute	= wm8900_digital_mute,
+#ifdef CONFIG_MACH_RK29_MALATA	
+	.trigger = wm8900_trigger,
+#endif
 };
 
 struct snd_soc_dai wm8900_dai = {
@@ -1450,7 +1469,11 @@ static int wm8900_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "I2C client not yet instantiated\n");
 		return -ENODEV;
 	}
-
+#ifdef CONFIG_MACH_RK29_MALATA
+	gpio_request(SPK_CON,"spk_con");
+	gpio_set_value(SPK_CON, GPIO_LOW);
+	gpio_direction_output(SPK_CON, GPIO_LOW);
+#endif
 	codec = wm8900_codec;
 	socdev->card->codec = codec;
 

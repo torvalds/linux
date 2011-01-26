@@ -15,6 +15,8 @@ config LCD_HSD070IDW1
     bool "RGB Hannstar800x480"
 config LCD_HSD100PXN
 	  bool "RGB Hannstar HSD100PXN(1024X768)"
+config LCD_B101AW06
+	  bool "RGB Hannstar B101AW06(1024X600)"
 config LCD_A060SE02
     bool "MCU A060SE02"
 config LCD_S1D13521
