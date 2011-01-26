@@ -2753,7 +2753,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	prepare_header(mdev, &p.head, cmd, sizeof(p) - sizeof(struct p_header80) + dgs + e->i.size);
 	p.sector   = cpu_to_be64(e->i.sector);
 	p.block_id = e->block_id;
-	/* p.seq_num  = 0;    No sequence numbers here.. */
+	p.seq_num = 0;  /* unused */
 
 	/* Only called by our kernel thread.
 	 * This one may be interrupted by DRBD_SIG and/or DRBD_SIGKILL
