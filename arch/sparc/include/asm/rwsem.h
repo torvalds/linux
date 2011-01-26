@@ -124,11 +124,6 @@ static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
 	return atomic64_add_return(delta, (atomic64_t *)(&sem->count));
 }
 
-static inline int rwsem_is_locked(struct rw_semaphore *sem)
-{
-	return (sem->count != 0);
-}
-
 #endif /* __KERNEL__ */
 
 #endif /* _SPARC64_RWSEM_H */

@@ -222,10 +222,5 @@ static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
 	return tmp + delta;
 }
 
-static inline int rwsem_is_locked(struct rw_semaphore *sem)
-{
-	return (sem->count != 0);
-}
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_RWSEM_H */

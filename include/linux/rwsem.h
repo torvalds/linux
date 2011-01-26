@@ -34,6 +34,13 @@ struct rw_semaphore {
 
 /* Include the arch specific part */
 #include <asm/rwsem.h>
+
+/* In all implementations count != 0 means locked */
+static inline int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	return sem->count != 0;
+}
+
 #endif
 
 /* Common initializer macros and functions */
