@@ -65,7 +65,14 @@ static LIST_HEAD(cnic_udev_list);
 static DEFINE_RWLOCK(cnic_dev_lock);
 static DEFINE_MUTEX(cnic_lock);
 
-static struct cnic_ulp_ops *cnic_ulp_tbl[MAX_CNIC_ULP_TYPE];
+static struct cnic_ulp_ops __rcu *cnic_ulp_tbl[MAX_CNIC_ULP_TYPE];
+
+/* helper function, assuming cnic_lock is held */
+static inline struct cnic_ulp_ops *cnic_ulp_tbl_prot(int type)
+{
+	return rcu_dereference_protected(cnic_ulp_tbl[type],
+					 lockdep_is_held(&cnic_lock));
+}
 
 static int cnic_service_bnx2(void *, void *);
 static int cnic_service_bnx2x(void *, void *);
@@ -435,7 +442,7 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
-	if (cnic_ulp_tbl[ulp_type]) {
+	if (cnic_ulp_tbl_prot(ulp_type)) {
 		pr_err("%s: Type %d has already been registered\n",
 		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
@@ -478,7 +485,7 @@ int cnic_unregister_driver(int ulp_type)
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
-	ulp_ops = cnic_ulp_tbl[ulp_type];
+	ulp_ops = cnic_ulp_tbl_prot(ulp_type);
 	if (!ulp_ops) {
 		pr_err("%s: Type %d has not been registered\n",
 		       __func__, ulp_type);
@@ -529,7 +536,7 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
-	if (cnic_ulp_tbl[ulp_type] == NULL) {
+	if (cnic_ulp_tbl_prot(ulp_type) == NULL) {
 		pr_err("%s: Driver with type %d has not been registered\n",
 		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
@@ -544,7 +551,7 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 
 	clear_bit(ULP_F_START, &cp->ulp_flags[ulp_type]);
 	cp->ulp_handle[ulp_type] = ulp_ctx;
-	ulp_ops = cnic_ulp_tbl[ulp_type];
+	ulp_ops = cnic_ulp_tbl_prot(ulp_type);
 	rcu_assign_pointer(cp->ulp_ops[ulp_type], ulp_ops);
 	cnic_hold(dev);
 
@@ -2953,7 +2960,8 @@ static void cnic_ulp_stop(struct cnic_dev *dev)
 		struct cnic_ulp_ops *ulp_ops;
 
 		mutex_lock(&cnic_lock);
-		ulp_ops = cp->ulp_ops[if_type];
+		ulp_ops = rcu_dereference_protected(cp->ulp_ops[if_type],
+						    lockdep_is_held(&cnic_lock));
 		if (!ulp_ops) {
 			mutex_unlock(&cnic_lock);
 			continue;
@@ -2977,7 +2985,8 @@ static void cnic_ulp_start(struct cnic_dev *dev)
 		struct cnic_ulp_ops *ulp_ops;
 
 		mutex_lock(&cnic_lock);
-		ulp_ops = cp->ulp_ops[if_type];
+		ulp_ops = rcu_dereference_protected(cp->ulp_ops[if_type],
+						    lockdep_is_held(&cnic_lock));
 		if (!ulp_ops || !ulp_ops->cnic_start) {
 			mutex_unlock(&cnic_lock);
 			continue;
@@ -3041,7 +3050,7 @@ static void cnic_ulp_init(struct cnic_dev *dev)
 		struct cnic_ulp_ops *ulp_ops;
 
 		mutex_lock(&cnic_lock);
-		ulp_ops = cnic_ulp_tbl[i];
+		ulp_ops = cnic_ulp_tbl_prot(i);
 		if (!ulp_ops || !ulp_ops->cnic_init) {
 			mutex_unlock(&cnic_lock);
 			continue;
@@ -3065,7 +3074,7 @@ static void cnic_ulp_exit(struct cnic_dev *dev)
 		struct cnic_ulp_ops *ulp_ops;
 
 		mutex_lock(&cnic_lock);
-		ulp_ops = cnic_ulp_tbl[i];
+		ulp_ops = cnic_ulp_tbl_prot(i);
 		if (!ulp_ops || !ulp_ops->cnic_exit) {
 			mutex_unlock(&cnic_lock);
 			continue;

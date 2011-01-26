@@ -435,7 +435,8 @@ bnx2_cnic_stop(struct bnx2 *bp)
 	struct cnic_ctl_info info;
 
 	mutex_lock(&bp->cnic_lock);
-	c_ops = bp->cnic_ops;
+	c_ops = rcu_dereference_protected(bp->cnic_ops,
+					  lockdep_is_held(&bp->cnic_lock));
 	if (c_ops) {
 		info.cmd = CNIC_CTL_STOP_CMD;
 		c_ops->cnic_ctl(bp->cnic_data, &info);
@@ -450,7 +451,8 @@ bnx2_cnic_start(struct bnx2 *bp)
 	struct cnic_ctl_info info;
 
 	mutex_lock(&bp->cnic_lock);
-	c_ops = bp->cnic_ops;
+	c_ops = rcu_dereference_protected(bp->cnic_ops,
+					  lockdep_is_held(&bp->cnic_lock));
 	if (c_ops) {
 		if (!(bp->flags & BNX2_FLAG_USING_MSIX)) {
 			struct bnx2_napi *bnapi = &bp->bnx2_napi[0];

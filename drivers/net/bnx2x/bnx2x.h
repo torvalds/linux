@@ -1110,7 +1110,7 @@ struct bnx2x {
 #define BNX2X_CNIC_FLAG_MAC_SET		1
 	void			*t2;
 	dma_addr_t		t2_mapping;
-	struct cnic_ops		*cnic_ops;
+	struct cnic_ops	__rcu	*cnic_ops;
 	void			*cnic_data;
 	u32			cnic_tag;
 	struct cnic_eth_dev	cnic_eth_dev;

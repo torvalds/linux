@@ -6759,7 +6759,7 @@ struct bnx2 {
 	u32		tx_wake_thresh;
 
 #ifdef BCM_CNIC
-	struct cnic_ops		*cnic_ops;
+	struct cnic_ops	__rcu	*cnic_ops;
 	void			*cnic_data;
 #endif
 
