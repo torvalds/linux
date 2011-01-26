@@ -864,7 +864,7 @@ void vmbus_release_unattached_channels(void)
 		if (channel == start)
 			break;
 
-		if (!channel->device_obj->Driver) {
+		if (!channel->device_obj->drv) {
 			list_del(&channel->listentry);
 			DPRINT_INFO(VMBUS,
 				    "Releasing unattached device object %p",

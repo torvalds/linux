@@ -255,10 +255,10 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	packet->total_data_buflen = req->request_msg.msg_len;
 	packet->page_buf_cnt = 1;
 
-	packet->page_buf[0].Pfn = virt_to_phys(&req->request_msg) >>
+	packet->page_buf[0].pfn = virt_to_phys(&req->request_msg) >>
 					PAGE_SHIFT;
-	packet->page_buf[0].Length = req->request_msg.msg_len;
-	packet->page_buf[0].Offset =
+	packet->page_buf[0].len = req->request_msg.msg_len;
+	packet->page_buf[0].offset =
 		(unsigned long)&req->request_msg & (PAGE_SIZE - 1);
 
 	packet->completion.send.send_completion_ctx = req;/* packet; */
@@ -371,8 +371,8 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
 	pkt->total_data_buflen -= data_offset;
-	pkt->page_buf[0].Offset += data_offset;
-	pkt->page_buf[0].Length -= data_offset;
+	pkt->page_buf[0].offset += data_offset;
+	pkt->page_buf[0].len -= data_offset;
 
 	pkt->is_data_pkt = true;
 
@@ -383,7 +383,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 static int rndis_filter_receive(struct hv_device *dev,
 				struct hv_netvsc_packet	*pkt)
 {
-	struct netvsc_device *net_dev = dev->Extension;
+	struct netvsc_device *net_dev = dev->ext;
 	struct rndis_device *rndis_dev;
 	struct rndis_message rndis_msg;
 	struct rndis_message *rndis_hdr;
@@ -406,10 +406,10 @@ static int rndis_filter_receive(struct hv_device *dev,
 	}
 
 	rndis_hdr = (struct rndis_message *)kmap_atomic(
-			pfn_to_page(pkt->page_buf[0].Pfn), KM_IRQ0);
+			pfn_to_page(pkt->page_buf[0].pfn), KM_IRQ0);
 
 	rndis_hdr = (void *)((unsigned long)rndis_hdr +
-			pkt->page_buf[0].Offset);
+			pkt->page_buf[0].offset);
 
 	/* Make sure we got a valid rndis message */
 	/*
@@ -419,7 +419,7 @@ static int rndis_filter_receive(struct hv_device *dev,
 	 * */
 #if 0
 	if (pkt->total_data_buflen != rndis_hdr->msg_len) {
-		kunmap_atomic(rndis_hdr - pkt->page_buf[0].Offset,
+		kunmap_atomic(rndis_hdr - pkt->page_buf[0].offset,
 			      KM_IRQ0);
 
 		DPRINT_ERR(NETVSC, "invalid rndis message? (expected %u "
@@ -443,7 +443,7 @@ static int rndis_filter_receive(struct hv_device *dev,
 			sizeof(struct rndis_message) :
 			rndis_hdr->msg_len);
 
-	kunmap_atomic(rndis_hdr - pkt->page_buf[0].Offset, KM_IRQ0);
+	kunmap_atomic(rndis_hdr - pkt->page_buf[0].offset, KM_IRQ0);
 
 	dump_rndis_message(&rndis_msg);
 
@@ -622,10 +622,10 @@ int rndis_filter_init(struct netvsc_driver *drv)
 	rndisDriver->OnLinkStatusChanged = Driver->OnLinkStatusChanged;*/
 
 	/* Save the original dispatch handlers before we override it */
-	rndis_filter.inner_drv.base.OnDeviceAdd = drv->base.OnDeviceAdd;
-	rndis_filter.inner_drv.base.OnDeviceRemove =
-					drv->base.OnDeviceRemove;
-	rndis_filter.inner_drv.base.OnCleanup = drv->base.OnCleanup;
+	rndis_filter.inner_drv.base.dev_add = drv->base.dev_add;
+	rndis_filter.inner_drv.base.dev_rm =
+					drv->base.dev_rm;
+	rndis_filter.inner_drv.base.cleanup = drv->base.cleanup;
 
 	/* ASSERT(Driver->OnSend); */
 	/* ASSERT(Driver->OnReceiveCallback); */
@@ -635,9 +635,9 @@ int rndis_filter_init(struct netvsc_driver *drv)
 					drv->link_status_change;
 
 	/* Override */
-	drv->base.OnDeviceAdd = rndis_filte_device_add;
-	drv->base.OnDeviceRemove = rndis_filter_device_remove;
-	drv->base.OnCleanup = rndis_filter_cleanup;
+	drv->base.dev_add = rndis_filte_device_add;
+	drv->base.dev_rm = rndis_filter_device_remove;
+	drv->base.cleanup = rndis_filter_cleanup;
 	drv->send = rndis_filter_send;
 	/* Driver->QueryLinkStatus = RndisFilterQueryDeviceLinkStatus; */
 	drv->recv_cb = rndis_filter_receive;
@@ -770,7 +770,7 @@ static int rndis_filte_device_add(struct hv_device *dev,
 	 * NOTE! Once the channel is created, we may get a receive callback
 	 * (RndisFilterOnReceive()) before this call is completed
 	 */
-	ret = rndis_filter.inner_drv.base.OnDeviceAdd(dev, additional_info);
+	ret = rndis_filter.inner_drv.base.dev_add(dev, additional_info);
 	if (ret != 0) {
 		kfree(rndisDevice);
 		return ret;
@@ -778,7 +778,7 @@ static int rndis_filte_device_add(struct hv_device *dev,
 
 
 	/* Initialize the rndis device */
-	netDevice = dev->Extension;
+	netDevice = dev->ext;
 	/* ASSERT(netDevice); */
 	/* ASSERT(netDevice->Device); */
 
@@ -818,7 +818,7 @@ static int rndis_filte_device_add(struct hv_device *dev,
 
 static int rndis_filter_device_remove(struct hv_device *dev)
 {
-	struct netvsc_device *net_dev = dev->Extension;
+	struct netvsc_device *net_dev = dev->ext;
 	struct rndis_device *rndis_dev = net_dev->extension;
 
 	/* Halt and release the rndis device */
@@ -828,7 +828,7 @@ static int rndis_filter_device_remove(struct hv_device *dev)
 	net_dev->extension = NULL;
 
 	/* Pass control to inner driver to remove the device */
-	rndis_filter.inner_drv.base.OnDeviceRemove(dev);
+	rndis_filter.inner_drv.base.dev_rm(dev);
 
 	return 0;
 }
@@ -839,7 +839,7 @@ static void rndis_filter_cleanup(struct hv_driver *drv)
 
 int rndis_filter_open(struct hv_device *dev)
 {
-	struct netvsc_device *netDevice = dev->Extension;
+	struct netvsc_device *netDevice = dev->ext;
 
 	if (!netDevice)
 		return -EINVAL;
@@ -849,7 +849,7 @@ int rndis_filter_open(struct hv_device *dev)
 
 int rndis_filter_close(struct hv_device *dev)
 {
-	struct netvsc_device *netDevice = dev->Extension;
+	struct netvsc_device *netDevice = dev->ext;
 
 	if (!netDevice)
 		return -EINVAL;
@@ -884,10 +884,10 @@ static int rndis_filter_send(struct hv_device *dev,
 	rndisPacket->data_len = pkt->total_data_buflen;
 
 	pkt->is_data_pkt = true;
-	pkt->page_buf[0].Pfn = virt_to_phys(rndisMessage) >> PAGE_SHIFT;
-	pkt->page_buf[0].Offset =
+	pkt->page_buf[0].pfn = virt_to_phys(rndisMessage) >> PAGE_SHIFT;
+	pkt->page_buf[0].offset =
 			(unsigned long)rndisMessage & (PAGE_SIZE-1);
-	pkt->page_buf[0].Length = rndisMessageSize;
+	pkt->page_buf[0].len = rndisMessageSize;
 
 	/* Save the packet send completion and context */
 	filterPacket->completion = pkt->completion.send.send_completion;

@@ -806,9 +806,9 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	desc.rangecount = pagecount;
 
 	for (i = 0; i < pagecount; i++) {
-		desc.range[i].Length = pagebuffers[i].Length;
-		desc.range[i].Offset = pagebuffers[i].Offset;
-		desc.range[i].Pfn	 = pagebuffers[i].Pfn;
+		desc.range[i].len = pagebuffers[i].len;
+		desc.range[i].offset = pagebuffers[i].offset;
+		desc.range[i].pfn	 = pagebuffers[i].pfn;
 	}
 
 	sg_init_table(bufferlist, 3);
@@ -842,14 +842,14 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	u32 packetlen_aligned;
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
-	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->Offset,
-					 multi_pagebuffer->Length);
+	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
+					 multi_pagebuffer->len);
 
 	dump_vmbus_channel(channel);
 
 	DPRINT_DBG(VMBUS, "data buffer - offset %u len %u pfn count %u",
-		multi_pagebuffer->Offset,
-		multi_pagebuffer->Length, pfncount);
+		multi_pagebuffer->offset,
+		multi_pagebuffer->len, pfncount);
 
 	if ((pfncount < 0) || (pfncount > MAX_MULTIPAGE_BUFFER_COUNT))
 		return -EINVAL;
@@ -874,10 +874,10 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	desc.transactionid = requestid;
 	desc.rangecount = 1;
 
-	desc.range.Length = multi_pagebuffer->Length;
-	desc.range.Offset = multi_pagebuffer->Offset;
+	desc.range.len = multi_pagebuffer->len;
+	desc.range.offset = multi_pagebuffer->offset;
 
-	memcpy(desc.range.PfnArray, multi_pagebuffer->PfnArray,
+	memcpy(desc.range.pfn_array, multi_pagebuffer->pfn_array,
 	       pfncount * sizeof(u64));
 
 	sg_init_table(bufferlist, 3);

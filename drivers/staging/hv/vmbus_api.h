@@ -32,17 +32,17 @@
 
 /* Single-page buffer */
 struct hv_page_buffer {
-	u32 Length;
-	u32 Offset;
-	u64 Pfn;
+	u32 len;
+	u32 offset;
+	u64 pfn;
 };
 
 /* Multiple-page buffer */
 struct hv_multipage_buffer {
 	/* Length and Offset determines the # of pfns in the array */
-	u32 Length;
-	u32 Offset;
-	u64 PfnArray[MAX_MULTIPAGE_BUFFER_COUNT];
+	u32 len;
+	u32 offset;
+	u64 pfn_array[MAX_MULTIPAGE_BUFFER_COUNT];
 };
 
 /* 0x18 includes the proprietary packet header */
@@ -59,29 +59,29 @@ struct hv_driver;
 struct hv_device;
 
 struct hv_dev_port_info {
-	u32 InterruptMask;
-	u32 ReadIndex;
-	u32 WriteIndex;
-	u32 BytesAvailToRead;
-	u32 BytesAvailToWrite;
+	u32 int_mask;
+	u32 read_idx;
+	u32 write_idx;
+	u32 bytes_avail_toread;
+	u32 bytes_avail_towrite;
 };
 
 struct hv_device_info {
-	u32 ChannelId;
-	u32 ChannelState;
-	struct hv_guid ChannelType;
-	struct hv_guid ChannelInstance;
+	u32 chn_id;
+	u32 chn_state;
+	struct hv_guid chn_type;
+	struct hv_guid chn_instance;
 
-	u32 MonitorId;
-	u32 ServerMonitorPending;
-	u32 ServerMonitorLatency;
-	u32 ServerMonitorConnectionId;
-	u32 ClientMonitorPending;
-	u32 ClientMonitorLatency;
-	u32 ClientMonitorConnectionId;
+	u32 monitor_id;
+	u32 server_monitor_pending;
+	u32 server_monitor_latency;
+	u32 server_monitor_conn_id;
+	u32 client_monitor_pending;
+	u32 client_monitor_latency;
+	u32 client_monitor_conn_id;
 
-	struct hv_dev_port_info Inbound;
-	struct hv_dev_port_info Outbound;
+	struct hv_dev_port_info inbound;
+	struct hv_dev_port_info outbound;
 };
 
 /* Base driver object */
@@ -89,30 +89,30 @@ struct hv_driver {
 	const char *name;
 
 	/* the device type supported by this driver */
-	struct hv_guid deviceType;
+	struct hv_guid dev_type;
 
-	int (*OnDeviceAdd)(struct hv_device *device, void *data);
-	int (*OnDeviceRemove)(struct hv_device *device);
-	void (*OnCleanup)(struct hv_driver *driver);
+	int (*dev_add)(struct hv_device *device, void *data);
+	int (*dev_rm)(struct hv_device *device);
+	void (*cleanup)(struct hv_driver *driver);
 };
 
 /* Base device object */
 struct hv_device {
 	/* the driver for this device */
-	struct hv_driver *Driver;
+	struct hv_driver *drv;
 
 	char name[64];
 
 	/* the device type id of this device */
-	struct hv_guid deviceType;
+	struct hv_guid dev_type;
 
 	/* the device instance id of this device */
-	struct hv_guid deviceInstance;
+	struct hv_guid dev_instance;
 
 	struct vmbus_channel *channel;
 
 	/* Device extension; */
-	void *Extension;
+	void *ext;
 };
 
 #endif /* _VMBUS_API_H_ */

@@ -161,7 +161,7 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	}
 
 	drv_ctx->driver.name = storvsc_drv_obj->base.name;
-	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->base.deviceType,
+	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->base.dev_type,
 	       sizeof(struct hv_guid));
 
 	drv_ctx->probe = storvsc_probe;
@@ -206,8 +206,8 @@ static void storvsc_drv_exit(void)
 		device_unregister(current_dev);
 	}
 
-	if (storvsc_drv_obj->base.OnCleanup)
-		storvsc_drv_obj->base.OnCleanup(&storvsc_drv_obj->base);
+	if (storvsc_drv_obj->base.cleanup)
+		storvsc_drv_obj->base.cleanup(&storvsc_drv_obj->base);
 
 	vmbus_child_driver_unregister(drv_ctx);
 	return;
@@ -231,7 +231,7 @@ static int storvsc_probe(struct device *device)
 	struct host_device_context *host_device_ctx;
 	struct storvsc_device_info device_info;
 
-	if (!storvsc_drv_obj->base.OnDeviceAdd)
+	if (!storvsc_drv_obj->base.dev_add)
 		return -1;
 
 	host = scsi_host_alloc(&scsi_driver,
@@ -262,7 +262,7 @@ static int storvsc_probe(struct device *device)
 
 	device_info.port_number = host->host_no;
 	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv_obj->base.OnDeviceAdd(device_obj,
+	ret = storvsc_drv_obj->base.dev_add(device_obj,
 						(void *)&device_info);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC_DRV, "unable to add scsi vsc device");
@@ -287,7 +287,7 @@ static int storvsc_probe(struct device *device)
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC_DRV, "unable to add scsi host device");
 
-		storvsc_drv_obj->base.OnDeviceRemove(device_obj);
+		storvsc_drv_obj->base.dev_rm(device_obj);
 
 		kmem_cache_destroy(host_device_ctx->request_pool);
 		scsi_host_put(host);
@@ -317,14 +317,14 @@ static int storvsc_remove(struct device *device)
 			(struct host_device_context *)host->hostdata;
 
 
-	if (!storvsc_drv_obj->base.OnDeviceRemove)
+	if (!storvsc_drv_obj->base.dev_rm)
 		return -1;
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = storvsc_drv_obj->base.OnDeviceRemove(device_obj);
+	ret = storvsc_drv_obj->base.dev_rm(device_obj);
 	if (ret != 0) {
 		/* TODO: */
 		DPRINT_ERR(STORVSC, "unable to remove vsc device (ret %d)",
@@ -385,7 +385,7 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 
 	/* ASSERT(request->BytesXfer <= request->data_buffer.Length); */
 	scsi_set_resid(scmnd,
-		request->data_buffer.Length - request->bytes_xfer);
+		request->data_buffer.len - request->bytes_xfer);
 
 	scsi_done_fn = scmnd->scsi_done;
 
@@ -693,7 +693,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	request->sense_buffer_size = SCSI_SENSE_BUFFERSIZE;
 
 
-	request->data_buffer.Length = scsi_bufflen(scmnd);
+	request->data_buffer.len = scsi_bufflen(scmnd);
 	if (scsi_sg_count(scmnd)) {
 		sgl = (struct scatterlist *)scsi_sglist(scmnd);
 		sg_count = scsi_sg_count(scmnd);
@@ -734,19 +734,19 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 			sg_count = cmd_request->bounce_sgl_count;
 		}
 
-		request->data_buffer.Offset = sgl[0].offset;
+		request->data_buffer.offset = sgl[0].offset;
 
 		for (i = 0; i < sg_count; i++) {
 			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d\n",
 				   i, sgl[i].length, sgl[i].offset);
-			request->data_buffer.PfnArray[i] =
+			request->data_buffer.pfn_array[i] =
 				page_to_pfn(sg_page((&sgl[i])));
 		}
 	} else if (scsi_sglist(scmnd)) {
 		/* ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE); */
-		request->data_buffer.Offset =
+		request->data_buffer.offset =
 			virt_to_phys(scsi_sglist(scmnd)) & (PAGE_SIZE-1);
-		request->data_buffer.PfnArray[0] =
+		request->data_buffer.pfn_array[0] =
 			virt_to_phys(scsi_sglist(scmnd)) >> PAGE_SHIFT;
 	}
 

@@ -86,7 +86,7 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	atomic_cmpxchg(&net_device->refcnt, 0, 2);
 
 	net_device->dev = device;
-	device->Extension = net_device;
+	device->ext = net_device;
 
 	return net_device;
 }
@@ -94,7 +94,7 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 static void free_net_device(struct netvsc_device *device)
 {
 	WARN_ON(atomic_read(&device->refcnt) == 0);
-	device->dev->Extension = NULL;
+	device->dev->ext = NULL;
 	kfree(device);
 }
 
@@ -104,7 +104,7 @@ static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
 
-	net_device = device->Extension;
+	net_device = device->ext;
 	if (net_device && atomic_read(&net_device->refcnt) > 1)
 		atomic_inc(&net_device->refcnt);
 	else
@@ -118,7 +118,7 @@ static struct netvsc_device *get_inbound_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
 
-	net_device = device->Extension;
+	net_device = device->ext;
 	if (net_device && atomic_read(&net_device->refcnt))
 		atomic_inc(&net_device->refcnt);
 	else
@@ -131,7 +131,7 @@ static void put_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
 
-	net_device = device->Extension;
+	net_device = device->ext;
 	/* ASSERT(netDevice); */
 
 	atomic_dec(&net_device->refcnt);
@@ -142,7 +142,7 @@ static struct netvsc_device *release_outbound_net_device(
 {
 	struct netvsc_device *net_device;
 
-	net_device = device->Extension;
+	net_device = device->ext;
 	if (net_device == NULL)
 		return NULL;
 
@@ -158,7 +158,7 @@ static struct netvsc_device *release_inbound_net_device(
 {
 	struct netvsc_device *net_device;
 
-	net_device = device->Extension;
+	net_device = device->ext;
 	if (net_device == NULL)
 		return NULL;
 
@@ -166,7 +166,7 @@ static struct netvsc_device *release_inbound_net_device(
 	while (atomic_cmpxchg(&net_device->refcnt, 1, 0) != 1)
 		udelay(100);
 
-	device->Extension = NULL;
+	device->ext = NULL;
 	return net_device;
 }
 
@@ -188,7 +188,7 @@ int netvsc_initialize(struct hv_driver *drv)
 	/* ASSERT(driver->RingBufferSize >= (PAGE_SIZE << 1)); */
 
 	drv->name = driver_name;
-	memcpy(&drv->deviceType, &netvsc_device_type, sizeof(struct hv_guid));
+	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(struct hv_guid));
 
 	/* Make sure it is set by the caller */
 	/* FIXME: These probably should still be tested in some way */
@@ -196,9 +196,9 @@ int netvsc_initialize(struct hv_driver *drv)
 	/* ASSERT(driver->OnLinkStatusChanged); */
 
 	/* Setup the dispatch table */
-	driver->base.OnDeviceAdd	= netvsc_device_add;
-	driver->base.OnDeviceRemove	= netvsc_device_remove;
-	driver->base.OnCleanup		= netvsc_cleanup;
+	driver->base.dev_add	= netvsc_device_add;
+	driver->base.dev_rm	= netvsc_device_remove;
+	driver->base.cleanup		= netvsc_cleanup;
 
 	driver->send			= netvsc_send;
 
@@ -708,7 +708,7 @@ static int netvsc_device_add(struct hv_device *device, void *additional_info)
 	struct netvsc_device *net_device;
 	struct hv_netvsc_packet *packet, *pos;
 	struct netvsc_driver *net_driver =
-				(struct netvsc_driver *)device->Driver;
+				(struct netvsc_driver *)device->drv;
 
 	net_device = alloc_net_device(device);
 	if (!net_device) {
@@ -806,7 +806,7 @@ static int netvsc_device_remove(struct hv_device *device)
 	struct hv_netvsc_packet *netvsc_packet, *pos;
 
 	DPRINT_INFO(NETVSC, "Disabling outbound traffic on net device (%p)...",
-		    device->Extension);
+		    device->ext);
 
 	/* Stop outbound traffic ie sends and receives completions */
 	net_device = release_outbound_net_device(device);
@@ -827,7 +827,7 @@ static int netvsc_device_remove(struct hv_device *device)
 	NetVscDisconnectFromVsp(net_device);
 
 	DPRINT_INFO(NETVSC, "Disabling inbound traffic on net device (%p)...",
-		    device->Extension);
+		    device->ext);
 
 	/* Stop inbound traffic ie receives and sends completions */
 	net_device = release_inbound_net_device(device);
@@ -1101,42 +1101,42 @@ static void netvsc_receive(struct hv_device *device,
 		/* 	vmxferpagePacket->Ranges[i].ByteCount < */
 		/* 	netDevice->ReceiveBufferSize); */
 
-		netvsc_packet->page_buf[0].Length =
+		netvsc_packet->page_buf[0].len =
 					vmxferpage_packet->Ranges[i].ByteCount;
 
 		start = virt_to_phys((void *)((unsigned long)net_device->
 		recv_buf + vmxferpage_packet->Ranges[i].ByteOffset));
 
-		netvsc_packet->page_buf[0].Pfn = start >> PAGE_SHIFT;
+		netvsc_packet->page_buf[0].pfn = start >> PAGE_SHIFT;
 		end_virtual = (unsigned long)net_device->recv_buf
 		    + vmxferpage_packet->Ranges[i].ByteOffset
 		    + vmxferpage_packet->Ranges[i].ByteCount - 1;
 		end = virt_to_phys((void *)end_virtual);
 
 		/* Calculate the page relative offset */
-		netvsc_packet->page_buf[0].Offset =
+		netvsc_packet->page_buf[0].offset =
 			vmxferpage_packet->Ranges[i].ByteOffset &
 			(PAGE_SIZE - 1);
 		if ((end >> PAGE_SHIFT) != (start >> PAGE_SHIFT)) {
 			/* Handle frame across multiple pages: */
-			netvsc_packet->page_buf[0].Length =
-				(netvsc_packet->page_buf[0].Pfn <<
+			netvsc_packet->page_buf[0].len =
+				(netvsc_packet->page_buf[0].pfn <<
 				 PAGE_SHIFT)
 				+ PAGE_SIZE - start;
 			bytes_remain = netvsc_packet->total_data_buflen -
-					netvsc_packet->page_buf[0].Length;
+					netvsc_packet->page_buf[0].len;
 			for (j = 1; j < NETVSC_PACKET_MAXPAGE; j++) {
-				netvsc_packet->page_buf[j].Offset = 0;
+				netvsc_packet->page_buf[j].offset = 0;
 				if (bytes_remain <= PAGE_SIZE) {
-					netvsc_packet->page_buf[j].Length =
+					netvsc_packet->page_buf[j].len =
 						bytes_remain;
 					bytes_remain = 0;
 				} else {
-					netvsc_packet->page_buf[j].Length =
+					netvsc_packet->page_buf[j].len =
 						PAGE_SIZE;
 					bytes_remain -= PAGE_SIZE;
 				}
-				netvsc_packet->page_buf[j].Pfn =
+				netvsc_packet->page_buf[j].pfn =
 				    virt_to_phys((void *)(end_virtual -
 						bytes_remain)) >> PAGE_SHIFT;
 				netvsc_packet->page_buf_cnt++;
@@ -1149,12 +1149,12 @@ static void netvsc_receive(struct hv_device *device,
 			   "(pfn %llx, offset %u, len %u)", i,
 			   vmxferpage_packet->Ranges[i].ByteOffset,
 			   vmxferpage_packet->Ranges[i].ByteCount,
-			   netvsc_packet->page_buf[0].Pfn,
-			   netvsc_packet->page_buf[0].Offset,
-			   netvsc_packet->page_buf[0].Length);
+			   netvsc_packet->page_buf[0].pfn,
+			   netvsc_packet->page_buf[0].offset,
+			   netvsc_packet->page_buf[0].len);
 
 		/* Pass it to the upper layer */
-		((struct netvsc_driver *)device->Driver)->
+		((struct netvsc_driver *)device->drv)->
 			recv_cb(device, netvsc_packet);
 
 		netvsc_receive_completion(netvsc_packet->

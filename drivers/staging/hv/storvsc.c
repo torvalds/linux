@@ -94,7 +94,7 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 	atomic_cmpxchg(&stor_device->ref_count, 0, 2);
 
 	stor_device->device = device;
-	device->Extension = stor_device;
+	device->ext = stor_device;
 
 	return stor_device;
 }
@@ -110,7 +110,7 @@ static inline struct storvsc_device *get_stor_device(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 
-	stor_device = (struct storvsc_device *)device->Extension;
+	stor_device = (struct storvsc_device *)device->ext;
 	if (stor_device && atomic_read(&stor_device->ref_count) > 1)
 		atomic_inc(&stor_device->ref_count);
 	else
@@ -125,7 +125,7 @@ static inline struct storvsc_device *must_get_stor_device(
 {
 	struct storvsc_device *stor_device;
 
-	stor_device = (struct storvsc_device *)device->Extension;
+	stor_device = (struct storvsc_device *)device->ext;
 	if (stor_device && atomic_read(&stor_device->ref_count))
 		atomic_inc(&stor_device->ref_count);
 	else
@@ -138,7 +138,7 @@ static inline void put_stor_device(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 
-	stor_device = (struct storvsc_device *)device->Extension;
+	stor_device = (struct storvsc_device *)device->ext;
 	/* ASSERT(stor_device); */
 
 	atomic_dec(&stor_device->ref_count);
@@ -151,7 +151,7 @@ static inline struct storvsc_device *release_stor_device(
 {
 	struct storvsc_device *stor_device;
 
-	stor_device = (struct storvsc_device *)device->Extension;
+	stor_device = (struct storvsc_device *)device->ext;
 	/* ASSERT(stor_device); */
 
 	/* Busy wait until the ref drop to 2, then set it to 1 */
@@ -167,14 +167,14 @@ static inline struct storvsc_device *final_release_stor_device(
 {
 	struct storvsc_device *stor_device;
 
-	stor_device = (struct storvsc_device *)device->Extension;
+	stor_device = (struct storvsc_device *)device->ext;
 	/* ASSERT(stor_device); */
 
 	/* Busy wait until the ref drop to 1, then set it to 0 */
 	while (atomic_cmpxchg(&stor_device->ref_count, 1, 0) != 1)
 		udelay(100);
 
-	device->Extension = NULL;
+	device->ext = NULL;
 	return stor_device;
 }
 
@@ -499,7 +499,7 @@ static int stor_vsc_connect_to_vsp(struct hv_device *device)
 	struct storvsc_driver_object *stor_driver;
 	int ret;
 
-	stor_driver = (struct storvsc_driver_object *)device->Driver;
+	stor_driver = (struct storvsc_driver_object *)device->drv;
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/* Open the channel */
@@ -581,7 +581,7 @@ static int stor_vsc_on_device_remove(struct hv_device *device)
 	struct storvsc_device *stor_device;
 
 	DPRINT_INFO(STORVSC, "disabling storage device (%p)...",
-		    device->Extension);
+		    device->ext);
 
 	stor_device = release_stor_device(device);
 
@@ -597,7 +597,7 @@ static int stor_vsc_on_device_remove(struct hv_device *device)
 	}
 
 	DPRINT_INFO(STORVSC, "removing storage device (%p)...",
-		    device->Extension);
+		    device->ext);
 
 	stor_device = final_release_stor_device(device);
 
@@ -687,7 +687,7 @@ static int stor_vsc_on_io_request(struct hv_device *device,
 		   request_extension);
 
 	DPRINT_DBG(STORVSC, "req %p len %d bus %d, target %d, lun %d cdblen %d",
-		   request, request->data_buffer.Length, request->bus,
+		   request, request->data_buffer.len, request->bus,
 		   request->target_id, request->lun_id, request->cdb_len);
 
 	if (!stor_device) {
@@ -720,7 +720,7 @@ static int stor_vsc_on_io_request(struct hv_device *device,
 	memcpy(&vstor_packet->vm_srb.cdb, request->cdb, request->cdb_len);
 
 	vstor_packet->vm_srb.data_in = request->type;
-	vstor_packet->vm_srb.data_transfer_length = request->data_buffer.Length;
+	vstor_packet->vm_srb.data_transfer_length = request->data_buffer.len;
 
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTE_SRB;
 
@@ -734,7 +734,7 @@ static int stor_vsc_on_io_request(struct hv_device *device,
 		   vstor_packet->vm_srb.sense_info_length,
 		   vstor_packet->vm_srb.cdb_length);
 
-	if (request_extension->request->data_buffer.Length) {
+	if (request_extension->request->data_buffer.len) {
 		ret = vmbus_sendpacket_multipagebuffer(device->channel,
 				&request_extension->request->data_buffer,
 				vstor_packet,
@@ -788,7 +788,7 @@ int stor_vsc_initialize(struct hv_driver *driver)
 	/* ASSERT(stor_driver->RingBufferSize >= (PAGE_SIZE << 1)); */
 
 	driver->name = g_driver_name;
-	memcpy(&driver->deviceType, &gStorVscDeviceType,
+	memcpy(&driver->dev_type, &gStorVscDeviceType,
 	       sizeof(struct hv_guid));
 
 	stor_driver->request_ext_size =
@@ -811,9 +811,9 @@ int stor_vsc_initialize(struct hv_driver *driver)
 		    STORVSC_MAX_IO_REQUESTS);
 
 	/* Setup the dispatch table */
-	stor_driver->base.OnDeviceAdd	= stor_vsc_on_device_add;
-	stor_driver->base.OnDeviceRemove	= stor_vsc_on_device_remove;
-	stor_driver->base.OnCleanup	= stor_vsc_on_cleanup;
+	stor_driver->base.dev_add	= stor_vsc_on_device_add;
+	stor_driver->base.dev_rm	= stor_vsc_on_device_remove;
+	stor_driver->base.cleanup	= stor_vsc_on_cleanup;
 
 	stor_driver->on_io_request	= stor_vsc_on_io_request;
 
