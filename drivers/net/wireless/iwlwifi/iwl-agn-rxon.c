@@ -156,6 +156,23 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	/* always get timestamp with Rx frame */
 	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
 
+	if (ctx->ctxid == IWL_RXON_CTX_PAN && priv->_agn.hw_roc_channel) {
+		struct ieee80211_channel *chan = priv->_agn.hw_roc_channel;
+
+		iwl_set_rxon_channel(priv, chan, ctx);
+		iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
+		ctx->staging.filter_flags |=
+			RXON_FILTER_ASSOC_MSK |
+			RXON_FILTER_PROMISC_MSK |
+			RXON_FILTER_CTL2HOST_MSK;
+		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
+		new_assoc = true;
+
+		if (memcmp(&ctx->staging, &ctx->active,
+			   sizeof(ctx->staging)) == 0)
+			return 0;
+	}
+
 	if ((ctx->vif && ctx->vif->bss_conf.use_short_slot) ||
 	    !(ctx->staging.flags & RXON_FLG_BAND_24G_MSK))
 		ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
@@ -557,12 +574,10 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			iwl_led_associate(priv);
 			priv->timestamp = bss_conf->timestamp;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-			iwl_led_disassociate(priv);
 		}
 	}
 

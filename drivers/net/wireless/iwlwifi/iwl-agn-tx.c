@@ -539,7 +539,14 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	unsigned long flags;
 	bool is_agg = false;
 
-	if (info->control.vif)
+	/*
+	 * If the frame needs to go out off-channel, then
+	 * we'll have put the PAN context to that channel,
+	 * so make the frame go out there.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		ctx = &priv->contexts[IWL_RXON_CTX_PAN];
+	else if (info->control.vif)
 		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
 
 	spin_lock_irqsave(&priv->lock, flags);
